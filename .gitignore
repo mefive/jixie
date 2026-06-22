@@ -8,3 +8,6 @@ dist
 *.tsbuildinfo
 data
 *.log
+
+# 品牌设计母版(原图 + 去背中间件)。最终用的资源已在 apps/web/public 与 src/assets，母版不入库
+apps/web/design/
