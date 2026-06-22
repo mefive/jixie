@@ -1,0 +1,10 @@
+node_modules
+dist
+build
+
+pnpm-lock.yaml
+
+*.db
+*.db-journal
+.env
+data
