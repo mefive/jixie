@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { faArrowLeft, faSpinner } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { authStore } from '@src/store';
+import banner from '@src/assets/banner.png';
 import { complex } from './complex';
 import './login.css';
 
@@ -20,7 +21,7 @@ export const Login = complex.component(() => {
   return (
     <div className="jx-login">
       <div className="jx-login-card">
-        <div className="jx-login-brand">机械系</div>
+        <img className="jx-login-banner" src={banner} alt="机械系" />
         <div className="jx-login-subtitle">A 股量化研究平台</div>
 
         {store.step === 'email' && <EmailStep />}

@@ -8,7 +8,12 @@
   height: 56px;
 }
 .jx-dashboard-brand {
-  @apply flex items-center text-lg font-bold text-ink;
+  @apply flex items-center gap-2 text-lg font-bold text-ink;
+}
+.jx-dashboard-logo {
+  @apply object-contain;
+  height: 28px;
+  width: 28px;
 }
 .jx-dashboard-user {
   @apply flex items-center gap-4;
