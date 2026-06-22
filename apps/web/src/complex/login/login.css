@@ -7,11 +7,13 @@
   @apply flex flex-col gap-4 rounded-2xl bg-card p-8 shadow-sm;
   width: 360px;
 }
-.jx-login-brand {
-  @apply text-2xl font-bold text-ink;
+.jx-login-banner {
+  @apply self-center;
+  width: 220px;
+  height: auto;
 }
 .jx-login-subtitle {
-  @apply text-sm text-muted;
+  @apply self-center text-sm text-muted;
 }
 .jx-login-form {
   @apply flex flex-col gap-2;
