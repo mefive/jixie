@@ -1,0 +1,63 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// 行情基础数据。字段名用 camelCase（Prisma 习惯），从 Tushare 的 snake_case 入库时转换。
+// 主键用「代码 + 交易日」，配合「先删当日再 createMany」实现可重复同步的幂等。
+// ============================================================================
+
+/// 股票列表（全量覆盖刷新）
+model StockBasic {
+  tsCode     String  @id
+  symbol     String
+  name       String
+  area       String?
+  industry   String?
+  market     String
+  listDate   String
+  listStatus String
+}
+
+/// 交易日历
+model TradeCal {
+  exchange     String
+  calDate      String
+  isOpen       Int
+  pretradeDate String?
+
+  @@id([exchange, calDate])
+}
+
+/// 日线行情（未复权）。回测取价用 close × adjFactor 得后复权价。
+model Daily {
+  tsCode    String
+  tradeDate String
+  open      Float?
+  high      Float?
+  low       Float?
+  close     Float?
+  preClose  Float?
+  pctChg    Float?
+  vol       Float?
+  amount    Float?
+
+  @@id([tsCode, tradeDate])
+  @@index([tradeDate])
+}
+
+/// 复权因子
+model AdjFactor {
+  tsCode    String
+  tradeDate String
+  adjFactor Float
+
+  @@id([tsCode, tradeDate])
+  @@index([tradeDate])
+}

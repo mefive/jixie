@@ -1,0 +1,10 @@
+node_modules
+dist
+.env
+.env.production
+*.db
+*.db-journal
+.DS_Store
+*.tsbuildinfo
+data
+*.log
