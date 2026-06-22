@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
+    "gen:invite": "tsx --env-file=.env scripts/gen-invite.ts",
     "smoke": "tsx --env-file=.env scripts/smoke.ts",
     "sync": "tsx --env-file=.env scripts/sync.ts",
     "peek": "tsx --env-file=.env scripts/peek.ts"
@@ -16,8 +17,11 @@
   "dependencies": {
     "@jixie/shared": "workspace:*",
     "@hono/node-server": "^1.19.0",
+    "@hono/zod-validator": "^0.8.0",
     "@prisma/client": "^6.16.0",
-    "hono": "^4.9.0"
+    "hono": "^4.9.0",
+    "ulid": "^2.3.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^20.19.0",
