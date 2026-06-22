@@ -1,0 +1,28 @@
+{
+  "name": "api",
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file=.env src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "db:migrate": "prisma migrate dev",
+    "db:studio": "prisma studio",
+    "smoke": "tsx --env-file=.env scripts/smoke.ts",
+    "sync": "tsx --env-file=.env scripts/sync.ts",
+    "peek": "tsx --env-file=.env scripts/peek.ts"
+  },
+  "dependencies": {
+    "@jixie/shared": "workspace:*",
+    "@hono/node-server": "^1.19.0",
+    "@prisma/client": "^6.16.0",
+    "hono": "^4.9.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.0",
+    "prisma": "^6.16.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0"
+  }
+}
