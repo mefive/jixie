@@ -1,3 +1,5 @@
 {
-  "prisma.pinToPrisma6": true
+  "prisma.pinToPrisma6": true,
+  "css.lint.unknownAtRules": "ignore",
+  "editor.quickSuggestions": { "strings": "on" }
 }

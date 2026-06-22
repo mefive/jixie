@@ -7,7 +7,7 @@
 - pnpm workspaces monorepo(Node 20+,纯 ESM),结构参照 `~/Projects/marginalia`、`~/Tools/fangtu`
 - 后端 `apps/api`:**Hono + Prisma 6(不升 7)+ SQLite**;dev `tsx watch`,prod `tsc` + `node`
 - 数据源:Tushare HTTP API(`http://api.tushare.pro`,POST + token),client 见 `apps/api/src/tushare`
-- 前端 `apps/web`:React(二期引入)
+- 前端 `apps/web`:React + Vite + Tailwind v4 + MobX「complex」架构(一页一 store)。**前端硬约定见 `apps/web/CLAUDE.md`**(具名 BEM class + `.css` 里 `@apply`、classnames、FontAwesome、echarts)
 - 共享类型 `packages/shared`
 
 ## 数据 / 存储宗旨(本项目核心原则)
