@@ -8,8 +8,11 @@
   },
   "scripts": {
     "dev:api": "pnpm --filter api dev",
+    "dev:web": "pnpm --filter web dev",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "smoke": "pnpm --filter api smoke",
@@ -17,10 +20,15 @@
     "peek": "pnpm --filter api peek"
   },
   "devDependencies": {
+    "@eslint/js": "^9.13.0",
     "@types/node": "^20.19.0",
+    "eslint": "^9.13.0",
+    "eslint-plugin-react-hooks": "^5.0.0",
+    "globals": "^15.11.0",
     "prettier": "^3.3.0",
     "tsx": "^4.21.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.10.0"
   },
   "pnpm": {
     "onlyBuiltDependencies": ["@prisma/client", "@prisma/engines", "esbuild", "prisma"]
