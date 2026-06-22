@@ -61,3 +61,58 @@ model AdjFactor {
   @@id([tsCode, tradeDate])
   @@index([tradeDate])
 }
+
+// ============================================================================
+// 用户系统（邀请制内测）。无密码：邮箱 + 6 位邮件验证码登录；注册新邮箱需一次性邀请码。
+// 会话用不透明 DB session id 存 sid cookie（非 JWT）；登出删行实现即时失效。
+// 设计抄自 marginalia / fangtu apps/api。ID 用应用层生成的 ULID。
+// ============================================================================
+
+/// 用户
+model User {
+  id        String   @id // ULID
+  email     String   @unique // 唯一身份；写库/查库前统一 trim+lowercase 归一
+  name      String?
+  status    String   @default("active") // 'active' | 'disabled'（禁用不删账号）
+  createdAt DateTime @default(now())
+
+  sessions Session[]
+}
+
+/// 登录会话。id = session token（存 sid cookie）。30 天 TTL，查询时按 expiresAt 过滤强制过期。
+model Session {
+  id        String   @id // ULID，即 cookie 里的 token
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt]) // 留给将来的清理任务
+}
+
+/// 邀请码（一次性）。12 位 Crockford Base32，由 gen-invite 脚本批量生成。
+model InviteCode {
+  code        String    @id // 邀请码本身就是主键
+  status      String    @default("unused") // 'unused' | 'used' | 'revoked'
+  usedByEmail String? // 消费它的邮箱
+  usedAt      DateTime?
+  note        String? // 管理备注
+  createdAt   DateTime  @default(now())
+
+  @@index([status])
+}
+
+/// 邮件验证 challenge。验证码只存 SHA256，10 分钟 TTL，attempts≥5 拒绝（防爆破）。
+model EmailLoginChallenge {
+  id         String    @id // ULID = challengeId
+  email      String
+  inviteCode String? // 仅注册路径有值
+  codeHash   String // SHA256(6 位验证码)
+  expiresAt  DateTime
+  consumedAt DateTime? // 验证通过后标记，防重放
+  attempts   Int       @default(0)
+  createdAt  DateTime  @default(now())
+
+  @@index([email, expiresAt])
+}
