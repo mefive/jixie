@@ -14,7 +14,7 @@ import type { ComposeOption } from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
 import { useEffect, useRef } from 'react';
 
-// 按需注册：line/bar + grid/tooltip/legend/markPoint + canvas（全量 echarts 330KB gzip，这样只 ~60KB）
+// On-demand registration: line/bar + grid/tooltip/legend/markPoint + canvas (full echarts is 330KB gzip, this is only ~60KB)
 echarts.use([
   LineChart,
   BarChart,
@@ -25,7 +25,7 @@ echarts.use([
   CanvasRenderer,
 ]);
 
-// 只组合用到的模块类型，避免从全量 'echarts' 引类型（那会把整包打进来）
+// Compose only the module types we use, avoiding type imports from the full 'echarts' (that would bundle the whole package)
 export type ECOption = ComposeOption<
   | LineSeriesOption
   | BarSeriesOption
@@ -37,10 +37,10 @@ export type ECOption = ComposeOption<
 
 interface Props {
   option: ECOption;
-  className?: string; // 容器必须有高度（ECharts 不自撑高），如 .jx-xxxChart { height: 260px }
+  className?: string; // Container must have a height (ECharts won't size itself), e.g. .jx-xxxChart { height: 260px }
 }
 
-/** 极薄 ECharts 壳：init / setOption / resize / dispose 封装一次，后续图表直接复用。 */
+/** Ultra-thin ECharts shell: wraps init / setOption / resize / dispose once, reused directly by later charts. */
 export function EChart({ option, className }: Props) {
   const elRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<echarts.ECharts | null>(null);
@@ -59,7 +59,7 @@ export function EChart({ option, className }: Props) {
   }, []);
 
   useEffect(() => {
-    chartRef.current?.setOption(option, true); // notMerge：完整替换，避免残留旧系列
+    chartRef.current?.setOption(option, true); // notMerge: full replace, avoids leftover old series
   }, [option]);
 
   return <div ref={elRef} className={className} />;

@@ -28,6 +28,7 @@
 - **ESM 相对导入必须带 `.js` 后缀**(即使源是 `.ts`)
 - 跨包用包名 `@jixie/shared`;`@prisma/client` 是 CJS,用 `import pkg from '@prisma/client'; const { PrismaClient } = pkg;`(见 `src/lib/prisma.ts`)
 - ID 用 ULID,应用层生成;zod 做入参校验
+- **代码注释一律用英文**(inline `//`、块注释、JSDoc、Prisma `///`、CSS `/* */`);但**面向用户的字符串**(console / 报错 / UI 文案 / 邮件模板 / 因子 label)、**CLAUDE.md / README 文档**、**commit message** 仍用中文
 - 格式化:prettier(`semi`、`singleQuote`、`printWidth 100`、`trailingComma all`)
 - 不为「未来可能复用」提前抽象:三处相似 < 一处错误抽象
 

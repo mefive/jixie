@@ -11,8 +11,8 @@ export const Login = complex.component(() => {
   const store = complex.useStore();
   const navigate = useNavigate();
 
-  // 已登录（含登录成功后 setUser）→ 进首页。
-  // authed 在 render 期读取 → observer 追踪，authStore 变化触发重渲染，effect 依此重跑。
+  // Already authed (including after setUser on successful login) → go to home page.
+  // authed is read during render → tracked by observer, authStore changes trigger re-render, effect re-runs accordingly.
   const authed = authStore.authenticated;
   useEffect(() => {
     if (authed) navigate('/', { replace: true });
@@ -34,7 +34,7 @@ export const Login = complex.component(() => {
   );
 }, 'Login');
 
-// —— 子组件 / 帮助函数 ——
+// —— Subcomponents / helpers ——
 
 const EmailStep = complex.component(() => {
   const store = complex.useStore();
@@ -119,7 +119,11 @@ const VerifyStep = complex.component(() => {
         value={store.code}
         onChange={(e) => store.setCode(e.target.value.replace(/\D/g, ''))}
       />
-      <button className="jx-login-button" type="submit" disabled={loading || store.code.length !== 6}>
+      <button
+        className="jx-login-button"
+        type="submit"
+        disabled={loading || store.code.length !== 6}
+      >
         {loading && <FontAwesomeIcon icon={faSpinner} spin />} 登录
       </button>
       <button className="jx-login-back" type="button" onClick={() => store.back()}>

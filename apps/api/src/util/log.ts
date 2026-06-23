@@ -1,4 +1,5 @@
-/** 极简日志：统一前缀，方便和依赖库输出区分。需要更强能力（分级 / 落文件）再换。 */
+/** Minimal logging: a uniform prefix to distinguish our output from dependencies'.
+ * Swap in something stronger (levels / file output) when needed. */
 export function log(...args: unknown[]): void {
   console.log('[jixie]', ...args);
 }

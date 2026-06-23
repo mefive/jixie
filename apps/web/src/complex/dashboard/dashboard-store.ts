@@ -2,7 +2,7 @@ import { BaseStore } from '@src/lib';
 
 type DashboardSetupParams = {};
 
-// 登录后首页的空壳 store。后续因子 / 回测数据用 LoaderModel 加进来。
+// Empty shell store for the post-login home page. Factor / backtest data will be added later via LoaderModel.
 export class DashboardStore extends BaseStore<DashboardSetupParams> {
   public constructor(parentStore?: any) {
     super(parentStore);

@@ -1,2 +1,2 @@
-// 精简:只拷 data-utils(BaseModel 依赖 uuid)。date/number/dom utils 按需再补。
+// Slimmed down: only copied data-utils (BaseModel depends on uuid). Add date/number/dom utils on demand.
 export * as dataUtils from './data-utils';

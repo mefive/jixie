@@ -1,8 +1,8 @@
 import { prisma } from '../src/lib/prisma.js';
 
 /**
- * 查看本地库内容、验证「日线 + 复权」读取路径（ORM）。
- * 用法：pnpm peek [ts_code] [start] [end]
+ * Inspect local store contents and verify the "daily bars + adjustment" read path (ORM).
+ * Usage: pnpm peek [ts_code] [start] [end]
  */
 async function main(): Promise<void> {
   const [tsCode = '000001.SZ', start = '20240101', end = '20240131'] = process.argv.slice(2);

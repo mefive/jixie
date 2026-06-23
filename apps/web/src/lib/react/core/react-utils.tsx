@@ -1,21 +1,21 @@
 import React, { useRef, useState, useCallback } from 'react';
 import { observer as originalObserver } from 'mobx-react';
 
-// 注:marginalia 原文件还含 useLoaderErrorNotify/useLoaderSuccessNotify 两个 hook,
-// 它们依赖 antd 的 Modal/message/notification。fangtu 不引 antd,故未拷;需要时自行用 Tailwind 实现提示。
+// Note: the original marginalia file also has two hooks, useLoaderErrorNotify/useLoaderSuccessNotify,
+// which depend on antd's Modal/message/notification. fangtu doesn't use antd, so they weren't copied; implement notifications with Tailwind when needed.
 
 /**
- * ### 替代`mobx-react`默认的`observer`
+ * ### Replacement for `mobx-react`'s default `observer`
  *
- * 将使用`observer`包装组件和设置`displayName`合并在一起处理，减少模板代码，并方便使用单行语句导出。
- * 类型定义暂只支持函数组件，如果有需要再扩展。
+ * Combines wrapping a component with `observer` and setting `displayName` into one step, reducing boilerplate
+ * and making single-line exports convenient. The type definitions currently only support function components; extend if needed.
  *
- * @param component 要使用`observer`包装的函数组件
- * @param displayName 组件的显示名称
- * @returns 包装后的组件
+ * @param component the function component to wrap with `observer`
+ * @param displayName the component's display name
+ * @returns the wrapped component
  */
 export function observer(
-  // 与 mobx-react 包装泛型函数组件时，用严格 props 类型会与 antd 等 `data-${string}` 等索引冲突
+  // When mobx-react wraps a generic function component, a strict props type conflicts with index signatures like antd's `data-${string}`
   component: React.FunctionComponent<any>,
   displayName: string,
 ) {

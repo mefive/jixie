@@ -2,8 +2,8 @@ import { computed, makeObservable } from 'mobx';
 import { LoaderModel } from '@src/lib';
 import { fetchMe, logout as apiLogout, type AuthUser } from '@src/api/client';
 
-// 全局登录态单例（非 complex）。唯一真值 = loader.result.user，user/authenticated 都是派生。
-// 不存 token、不碰 localStorage —— 全靠 httpOnly session cookie。
+// Global auth-state singleton (not a complex). Single source of truth = loader.result.user; user/authenticated are both derived.
+// Stores no token, never touches localStorage —— relies entirely on the httpOnly session cookie.
 class AuthStore {
   public loader = new LoaderModel<{ user: AuthUser | null }>();
 
@@ -12,7 +12,7 @@ class AuthStore {
     this.loader.setup({ request: () => fetchMe() });
   }
 
-  // 启动时调一次，把 /me 结果灌进 loader
+  // Called once at startup to push the /me result into the loader
   public async load(): Promise<void> {
     await this.loader.run().catch(() => {});
   }
@@ -25,7 +25,7 @@ class AuthStore {
     return !!this.user;
   }
 
-  // 登录成功后由 login-store 调用，把已拿到的 user 直接灌进 loader，省一次 /me
+  // Called by login-store after a successful login to push the already-obtained user into the loader, saving a /me call
   public async setUser(user: AuthUser): Promise<void> {
     await this.loader.run(Promise.resolve({ user }));
   }

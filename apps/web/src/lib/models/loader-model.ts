@@ -56,14 +56,15 @@ export class LoaderModel<Result = any> extends BaseModel<LoaderModelSetupParams<
 
   public cleanup() {
     super.cleanup();
-    // cleanup 代表 model 寿终正寝，挂起请求一定不再需要——主动 abort，让 request 闭包里
-    // 接住 signal 的 fetch 真正取消（dev StrictMode 双 mount、用户切路由打断旧请求都靠它）。
-    // reset() 不调 abort，保留"业务层面状态复位但请求继续"的可能性。
+    // cleanup means the model is dead for good and any pending request is definitely no longer needed —
+    // actively abort so the fetch that caught the signal in the request closure is truly cancelled
+    // (dev StrictMode double-mount and users switching routes interrupting old requests both rely on this).
+    // reset() does not call abort, preserving the option of "reset state at the business level but keep the request running".
     this.abort();
     this.reset();
   }
 
-  // 外注AbortController导致不少问题，暂时禁用，等实在有必要再重新设计
+  // Injecting an external AbortController caused quite a few issues; disabled for now, redesign when truly needed
   public async run(promise?: Promise<Result>): Promise<Result>;
   public async run(data?: any): Promise<Result>;
   public async run(promiseOrData?: Promise<Result> | any): Promise<Result> {
@@ -101,7 +102,7 @@ export class LoaderModel<Result = any> extends BaseModel<LoaderModelSetupParams<
             });
             resolve(result);
           }
-          // TODO 待研究：如果已过期的request返回，则不resolve也不reject，这种做法是否会引起内存泄漏？
+          // TODO investigate: if a stale request returns we neither resolve nor reject — could this cause a memory leak?
         })
         .catch((er) => {
           if (reqSymbol === this.reqSymbol) {

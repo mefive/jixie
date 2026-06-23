@@ -3,16 +3,16 @@ import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import { zValidator } from '@hono/zod-validator';
 import type { ZodSchema } from 'zod';
 
-// auth 相关路由统一错误形态：{ error: { code, message, details? } }
-// - code:    机器可读，前端按它分发（toast / 高亮字段 / 跳转）
-// - message: 人类可读，可直接展示
-// - details: 可选附加信息（zod issues、字段名等）
+// Unified error shape for auth-related routes: { error: { code, message, details? } }
+// - code:    machine-readable, the frontend dispatches on it (toast / highlight field / redirect)
+// - message: human-readable, can be shown directly
+// - details: optional extra info (zod issues, field names, etc.)
 export type ErrorCode =
-  | 'VALIDATION_FAILED' // 入参形态错（zod 校验失败）/ 业务规则校验失败
-  | 'NOT_FOUND' // URL 寻址的资源不存在
-  | 'UNAUTHORIZED' // 未登录 / session 过期 / cookie 缺失
-  | 'FORBIDDEN' // 已登录但无权（账号被禁用）
-  | 'SERVICE_UNAVAILABLE'; // 上游依赖临时不可用（邮件服务等）
+  | 'VALIDATION_FAILED' // malformed input (zod validation failed) / business-rule validation failed
+  | 'NOT_FOUND' // resource addressed by the URL does not exist
+  | 'UNAUTHORIZED' // not logged in / session expired / cookie missing
+  | 'FORBIDDEN' // logged in but not permitted (account disabled)
+  | 'SERVICE_UNAVAILABLE'; // upstream dependency temporarily unavailable (email service, etc.)
 
 export interface ApiErrorBody {
   error: {
@@ -37,8 +37,9 @@ export function apiError(c: Context, code: ErrorCode, message: string, details?:
   return c.json(body, STATUS_FOR[code]);
 }
 
-// 包装 zValidator，把它默认的 { success:false, error:ZodError } 也压成 ApiErrorBody，
-// 让路由里每种错误（zod / 业务）形态统一，前端只需认识一次。
+// Wrap zValidator so its default { success:false, error:ZodError } is also collapsed into
+// ApiErrorBody, giving every error in the routes (zod / business) a uniform shape the frontend
+// only has to learn once.
 export function validateJson<T extends ZodSchema>(schema: T) {
   return zValidator('json', schema, (result, c) => {
     if (!result.success) {
