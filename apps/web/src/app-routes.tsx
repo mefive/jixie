@@ -24,10 +24,10 @@ export function AppRoutes() {
   );
 }
 
-// —— 子组件 / 帮助函数 ——
+// —— Subcomponents / helpers ——
 
-// 把 complex 的 store 生命周期接进 react-router：mount 时 createInstance，
-// setupParams 到位/变化时 store.setup，unmount 时 cleanup。store 未 ready 时 render() 返 null。
+// Wire a complex's store lifecycle into react-router: createInstance on mount,
+// store.setup when setupParams arrive/change, cleanup on unmount. render() returns null until store is ready.
 type ComplexInstance = {
   store?: { setup: (params?: any) => void };
   render: () => ReactNode;
@@ -55,7 +55,7 @@ function ComplexRoute({
   return instanceRef.current.render();
 }
 
-// 未登录守卫：authStore.authenticated 为假 → 跳 /login，带上来源路径
+// Auth guard: if authStore.authenticated is false → redirect to /login, carrying the source path
 const RequireAuth = observer(({ children }: { children: ReactNode }) => {
   const location = useLocation();
   if (!authStore.authenticated) {

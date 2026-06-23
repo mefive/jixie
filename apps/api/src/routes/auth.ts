@@ -16,7 +16,8 @@ import { isValidInviteCodeFormat, normalizeInviteCode } from '../lib/inviteCode.
 
 export const authRoute = new Hono();
 
-// 邮箱归一：trim + lowercase。所有写库/查库都走这个形态，避免大小写引出俩账号。
+// Email normalization: trim + lowercase. All writes/reads use this form, avoiding two accounts
+// arising from case differences.
 const emailField = z
   .string()
   .trim()
@@ -25,8 +26,10 @@ const emailField = z
 
 // === GET /api/auth/me ===
 //
-// 返回当前登录用户。**故意不强制 401**：未登录返 { user: null }，已登录返 { user }。
-// 前端启动调一次 /me 就能决定跳登录页还是进首页，不需要先撞 401 再恢复。
+// Returns the current logged-in user. **Deliberately does not force 401**: returns { user: null }
+// when not logged in, { user } when logged in.
+// The frontend calls /me once at startup to decide whether to go to the login page or the home
+// page, without having to hit a 401 first and then recover.
 authRoute.get('/me', async (c) => {
   const sid = getSessionId(c);
   if (!sid) return c.json({ user: null });
@@ -45,7 +48,8 @@ authRoute.get('/me', async (c) => {
 
 // === POST /api/auth/logout ===
 //
-// 删 Session 行 + 清 cookie。幂等：未登录调用也返 ok。
+// Delete the Session row + clear the cookie. Idempotent: calling it while logged out also returns
+// ok.
 authRoute.post('/logout', async (c) => {
   const sid = getSessionId(c);
   if (sid) await destroySession(sid);
@@ -55,10 +59,13 @@ authRoute.post('/logout', async (c) => {
 
 // === POST /api/auth/email/request ===
 //
-// 双因子第一步：邮箱（+ 邀请码，仅注册场景）→ 服务端生成 6 位验证码 → 发邮件
-// → 返回 challengeId 给前端，第二步带 challengeId + code 调 /verify。
+// Two-factor step one: email (+ invite code, registration only) → server generates a 6-digit code
+// → sends an email → returns challengeId to the frontend, which calls /verify with challengeId +
+// code in step two.
 //
-// 注册 vs 登录由"邮箱是否已在 User 表"区分：已注册不能传邀请码，未注册必须传有效未消费邀请码。
+// Register vs login is distinguished by "whether the email already exists in the User table": a
+// registered email may not pass an invite code; an unregistered one must pass a valid, unconsumed
+// invite code.
 const emailRequestBody = z.object({
   email: emailField,
   inviteCode: z
@@ -69,8 +76,8 @@ const emailRequestBody = z.object({
     .transform((v) => (v ? normalizeInviteCode(v) : undefined)),
 });
 
-const VERIFICATION_CODE_TTL_MS = 10 * 60_000; // 10 分钟
-const RESEND_THROTTLE_MS = 60_000; // 60 秒内同邮箱不能重发
+const VERIFICATION_CODE_TTL_MS = 10 * 60_000; // 10 minutes
+const RESEND_THROTTLE_MS = 60_000; // same email cannot resend within 60 seconds
 
 authRoute.post('/email/request', validateJson(emailRequestBody), async (c) => {
   const { email, inviteCode } = c.req.valid('json');
@@ -78,7 +85,7 @@ authRoute.post('/email/request', validateJson(emailRequestBody), async (c) => {
   const existingUser = await prisma.user.findUnique({ where: { email } });
 
   if (existingUser) {
-    // 登录场景
+    // login case
     if (inviteCode) {
       return apiError(c, 'VALIDATION_FAILED', '该邮箱已注册，登录无需邀请码', {
         field: 'inviteCode',
@@ -88,7 +95,7 @@ authRoute.post('/email/request', validateJson(emailRequestBody), async (c) => {
       return apiError(c, 'FORBIDDEN', '账号已被禁用');
     }
   } else {
-    // 注册场景
+    // registration case
     if (!inviteCode) {
       return apiError(c, 'VALIDATION_FAILED', '新邮箱注册需要邀请码', { field: 'inviteCode' });
     }
@@ -101,7 +108,7 @@ authRoute.post('/email/request', validateJson(emailRequestBody), async (c) => {
     }
   }
 
-  // 限流：60s 内一条未消费、未过期的 challenge 存在则拒绝重发
+  // Rate limit: refuse to resend if an unconsumed, unexpired challenge exists within 60s
   const recent = await prisma.emailLoginChallenge.findFirst({
     where: {
       email,
@@ -115,7 +122,8 @@ authRoute.post('/email/request', validateJson(emailRequestBody), async (c) => {
     return apiError(c, 'VALIDATION_FAILED', '验证码已发送，请稍后再试');
   }
 
-  // 生成 6 位数字验证码。randomInt 是密码学安全随机；100000~999999 共 90 万种。
+  // Generate a 6-digit numeric code. randomInt is cryptographically secure; 100000~999999 = 900k
+  // possibilities.
   const verificationCode = String(randomInt(100_000, 1_000_000));
   const challengeId = ulid();
   const codeHash = createHash('sha256').update(verificationCode).digest('hex');
@@ -125,18 +133,21 @@ authRoute.post('/email/request', validateJson(emailRequestBody), async (c) => {
     data: {
       id: challengeId,
       email,
-      // 注册场景才记邀请码（verify 时再次校验且消费它）；登录场景为 null
+      // Only record the invite code for registration (re-validated and consumed at verify); null
+      // for login
       inviteCode: existingUser ? null : inviteCode,
       codeHash,
       expiresAt: new Date(now.getTime() + VERIFICATION_CODE_TTL_MS),
     },
   });
 
-  // dev fallback：Resend 未配置且非生产 → 把验证码打印到控制台，不真发邮件，方便本地自测。
+  // dev fallback: Resend not configured and non-production → print the code to the console instead
+  // of really sending email, for easy local self-testing.
   if (!isEmailConfigured() && process.env.NODE_ENV !== 'production') {
     console.log(`[auth] dev 验证码 ${email}: ${verificationCode}`);
   } else {
-    // 发邮件。失败立刻删 challenge——避免被 60s 限流卡住，让用户能立刻重试。
+    // Send the email. On failure, delete the challenge immediately — so the user isn't stuck
+    // behind the 60s rate limit and can retry right away.
     try {
       const tmpl = buildVerificationEmail(verificationCode);
       await sendEmail({ to: email, ...tmpl });
@@ -152,8 +163,9 @@ authRoute.post('/email/request', validateJson(emailRequestBody), async (c) => {
 
 // === POST /api/auth/email/verify ===
 //
-// 双因子第二步：用 challengeId + code 验证。成功 → 创建/复用 User → 消费邀请码 → 发 session。
-// 失败：attempts++；attempts ≥ 5 拒绝（防爆破）。
+// Two-factor step two: verify with challengeId + code. On success → create/reuse User → consume
+// the invite code → issue a session.
+// On failure: attempts++; reject when attempts ≥ 5 (brute-force protection).
 const emailVerifyBody = z.object({
   challengeId: z.string().min(1),
   code: z
@@ -190,7 +202,8 @@ authRoute.post('/email/verify', validateJson(emailVerifyBody), async (c) => {
     return apiError(c, 'VALIDATION_FAILED', '验证码错误');
   }
 
-  // 通过校验：标 consumed。即使后面建 user 失败，也不允许这条 challenge 再被尝试（防重放）。
+  // Passed verification: mark consumed. Even if creating the user later fails, this challenge must
+  // not be retried (replay protection).
   await prisma.emailLoginChallenge.update({
     where: { id: challengeId },
     data: { consumedAt: new Date() },
@@ -199,7 +212,8 @@ authRoute.post('/email/verify', validateJson(emailVerifyBody), async (c) => {
   let user = await prisma.user.findUnique({ where: { email: challenge.email } });
 
   if (!user) {
-    // 注册路径：再次校验邀请码（可能在 request 与 verify 之间被别人吃了）
+    // Registration path: re-validate the invite code (it may have been consumed by someone else
+    // between request and verify)
     if (!challenge.inviteCode) {
       return apiError(c, 'VALIDATION_FAILED', '注册需要邀请码，请重新申请');
     }
@@ -209,7 +223,7 @@ authRoute.post('/email/verify', validateJson(emailVerifyBody), async (c) => {
       return apiError(c, 'VALIDATION_FAILED', '邀请码已失效，请重新申请');
     }
 
-    // 事务：建 user + 标 invite used。任一失败回滚。
+    // Transaction: create user + mark invite used. Roll back if either fails.
     user = await prisma.$transaction(async (tx) => {
       const u = await tx.user.create({
         data: { id: ulid(), email: challenge.email, status: 'active' },
@@ -232,8 +246,9 @@ authRoute.post('/email/verify', validateJson(emailVerifyBody), async (c) => {
 
 // === POST /api/auth/dev/login ===
 //
-// 仅 NODE_ENV !== 'production' 启用。{ email } → 找/建 user → 发 session cookie。
-// 开发/测试入口；线上 production 进程根本不注册这条路由。
+// Enabled only when NODE_ENV !== 'production'. { email } → find/create user → issue a session
+// cookie.
+// A dev/test entry point; the production process does not register this route at all.
 const devLoginBody = z.object({ email: emailField });
 
 if (process.env.NODE_ENV !== 'production') {

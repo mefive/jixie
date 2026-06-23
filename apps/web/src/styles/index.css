@@ -1,18 +1,18 @@
 @import 'tailwindcss';
 
-/* 设计 token。Tailwind v4 把每个 --color-* 暴露成工具类（bg-card / text-muted / ...）。 */
+/* Design tokens. Tailwind v4 exposes each --color-* as a utility class (bg-card / text-muted / ...). */
 @theme {
-  --color-bg: #f7f7f7; /* 页面底色 */
-  --color-card: #ffffff; /* 卡片 / 弹层白 */
-  --color-ink: #1f2329; /* 主文字 */
-  --color-muted: #8a9099; /* 次要文字 */
-  --color-line: #e8eaed; /* 边框 */
-  --color-primary: #111827; /* 品牌 / 强调 */
-  --color-chip: #eef0f2; /* chip / 浅填充 */
+  --color-bg: #f7f7f7; /* page background */
+  --color-card: #ffffff; /* card / popover white */
+  --color-ink: #1f2329; /* primary text */
+  --color-muted: #8a9099; /* secondary text */
+  --color-line: #e8eaed; /* border */
+  --color-primary: #111827; /* brand / accent */
+  --color-chip: #eef0f2; /* chip / light fill */
 
-  /* A 股涨跌色：国内习惯红涨绿跌 */
-  --color-up: #e8463b; /* 涨 */
-  --color-down: #2f9e5b; /* 跌 */
+  /* A-share up/down colors: domestic convention is red-up, green-down */
+  --color-up: #e8463b; /* up */
+  --color-down: #2f9e5b; /* down */
 }
 
 html,
@@ -24,5 +24,6 @@ body {
   margin: 0;
   background: var(--color-bg);
   color: var(--color-ink);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
 }

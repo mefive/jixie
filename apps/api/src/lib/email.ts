@@ -1,14 +1,17 @@
-// Resend 邮件发送的薄封装。直接 fetch 不依赖 SDK——
-// 只用一个端点（POST /emails），错误形态简单，引入 SDK 只为类型不划算。
+// Thin wrapper around Resend email sending. Plain fetch, no SDK dependency —
+// we only use one endpoint (POST /emails), errors are simple, and pulling in an SDK just for
+// types isn't worth it.
 //
-// 配置：
-//   RESEND_API_KEY  必填——https://resend.com/api-keys 申请
-//   EMAIL_FROM      必填——发件邮箱。三种形态：
-//     1. 'onboarding@resend.dev'  Resend 沙箱发件域，**只能发到你 Resend 账号绑的邮箱**（本地自测）
-//     2. 'login@<你的已验证域名>'  生产用，能发到任意邮箱
-//     3. 'jixie <login@xxx>'      带显示名也行
+// Config:
+//   RESEND_API_KEY  required — get one at https://resend.com/api-keys
+//   EMAIL_FROM      required — sender address. Three forms:
+//     1. 'onboarding@resend.dev'  Resend sandbox sender domain — **can only send to the address
+//        bound to your Resend account** (local self-testing)
+//     2. 'login@<your-verified-domain>'  for production, can send to any address
+//     3. 'jixie <login@xxx>'      a display name also works
 //
-// 本地未配置时（见 isEmailConfigured），auth 路由在 dev 下改为把验证码打印到控制台，不真发邮件。
+// When not configured locally (see isEmailConfigured), in dev the auth route prints the code to
+// the console instead of actually sending email.
 
 const RESEND_API_URL = 'https://api.resend.com/emails';
 
@@ -18,7 +21,8 @@ export interface SendEmailArgs {
   html: string;
 }
 
-// 是否配置了真实邮件服务。未配置 + 非生产时，auth 路由回退到 dev 控制台。
+// Whether a real email service is configured. When not configured + non-production, the auth
+// route falls back to the dev console.
 export function isEmailConfigured(): boolean {
   return !!process.env.RESEND_API_KEY && !!process.env.EMAIL_FROM;
 }
@@ -50,7 +54,8 @@ export async function sendEmail(args: SendEmailArgs): Promise<void> {
   }
 }
 
-// 6 位验证码邮件模板。HTML 用 inline style（邮箱客户端对 <style> 块兼容差）；不发 plain-text 版本。
+// 6-digit verification code email template. HTML uses inline styles (email clients handle <style>
+// blocks poorly); no plain-text version is sent.
 export function buildVerificationEmail(code: string): { subject: string; html: string } {
   const subject = `机械系 登录验证码：${code}`;
   const html = `<!doctype html>

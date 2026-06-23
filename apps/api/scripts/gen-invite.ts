@@ -1,11 +1,11 @@
-// 生成邀请码 admin 脚本。
+// Admin script to generate invite codes.
 //
-// 用法：
-//   pnpm --filter api gen:invite                   # 生成 1 个
-//   pnpm --filter api gen:invite 5                 # 生成 5 个
-//   pnpm --filter api gen:invite 3 "给老张/团队A"   # 3 个 + note
+// Usage:
+//   pnpm --filter api gen:invite                   # generate 1
+//   pnpm --filter api gen:invite 5                 # generate 5
+//   pnpm --filter api gen:invite 3 "for Zhang / Team A"   # 3 with a note
 //
-// 输出：每行一个邀请码，方便复制转发。不连 Resend、不发邮件——只在 DB 里 INSERT。
+// Output: one invite code per line, easy to copy and forward. No Resend, no email sent — just INSERTs into the DB.
 
 import { prisma } from '../src/lib/prisma.js';
 import { generateInviteCode } from '../src/lib/inviteCode.js';

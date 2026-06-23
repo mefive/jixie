@@ -1,11 +1,13 @@
 import { randomBytes } from 'node:crypto';
 
-// Crockford Base32：32 个字符的字母表，去掉 I/L/O/U 避免与 1/0/V 视觉混淆。
-// 12 位 = 60 bit 熵 ≈ 1.15e18 种组合，碰撞概率可忽略；用户拼读也不容易抄错。
+// Crockford Base32: a 32-character alphabet that drops I/L/O/U to avoid visual confusion with
+// 1/0/V. 12 chars = 60 bits of entropy ≈ 1.15e18 combinations — collision odds are negligible, and
+// it's hard for users to mis-transcribe when reading aloud.
 const ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 
-// 生成 12 位 Crockford Base32 邀请码。
-// randomBytes 拿 12 字节，每字节取低 5 bit 做 alphabet 索引——保持 60 bit 真实熵。
+// Generate a 12-character Crockford Base32 invite code.
+// randomBytes gives 12 bytes; take the low 5 bits of each byte as an alphabet index — preserving
+// 60 bits of real entropy.
 export function generateInviteCode(): string {
   const bytes = randomBytes(12);
   let out = '';
@@ -15,8 +17,10 @@ export function generateInviteCode(): string {
   return out;
 }
 
-// 把用户输入归一到规范形态：大写 + 去空白/分隔符 + 按 Crockford 规范替换易混字符（I/L→1，O→0，U→V）。
-// 返回值不一定合法（长度/字符可能仍不对），由 isValidInviteCodeFormat 单独校验。
+// Normalize user input to canonical form: uppercase + strip whitespace/separators + replace
+// confusable chars per the Crockford spec (I/L→1, O→0, U→V).
+// The result isn't guaranteed valid (length/chars may still be wrong) — validate it separately
+// with isValidInviteCodeFormat.
 export function normalizeInviteCode(input: string): string {
   return input
     .toUpperCase()
@@ -26,7 +30,8 @@ export function normalizeInviteCode(input: string): string {
     .replace(/U/g, 'V');
 }
 
-// 仅校验格式：长度 + 字符集。是否真存在、是否未消费由 DB 查询判断。
+// Validates format only: length + character set. Whether it actually exists and is unconsumed is
+// determined by a DB query.
 export function isValidInviteCodeFormat(code: string): boolean {
   return /^[0-9A-HJ-NP-TV-Z]{12}$/.test(code);
 }

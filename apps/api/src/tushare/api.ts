@@ -12,7 +12,7 @@ export interface StockBasicRow {
   list_status: string;
 }
 
-/** 股票列表。默认只取「上市状态 L」的标的。 */
+/** Stock list. By default only fetches instruments with list status 'L' (listed). */
 export async function stockBasic(
   client: TushareClient,
   params: { exchange?: string; list_status?: string; market?: string } = {},
@@ -32,10 +32,15 @@ export interface TradeCalRow {
   pretrade_date: TradeDate | null;
 }
 
-/** 交易日历。默认上交所（SSE）。 */
+/** Trading calendar. Defaults to the Shanghai exchange (SSE). */
 export async function tradeCal(
   client: TushareClient,
-  params: { exchange?: string; start_date?: TradeDate; end_date?: TradeDate; is_open?: string } = {},
+  params: {
+    exchange?: string;
+    start_date?: TradeDate;
+    end_date?: TradeDate;
+    is_open?: string;
+  } = {},
 ): Promise<TradeCalRow[]> {
   const rows = await client.call(
     'trade_cal',
@@ -59,7 +64,7 @@ export interface DailyRow {
   amount: number;
 }
 
-/** 日线行情（**未复权**）。回测要配合 adj_factor 复权。 */
+/** Daily quotes (**unadjusted**). Backtests must apply adjustment via adj_factor. */
 export async function daily(
   client: TushareClient,
   params: {
@@ -79,7 +84,8 @@ export interface AdjFactorRow {
   adj_factor: number;
 }
 
-/** 复权因子。回测把 close × adj_factor 得到后复权价（hfq），消除除权除息造成的假跳空。 */
+/** Adjustment factor. Backtests compute close × adj_factor to get the backward-adjusted (hfq)
+ * price, eliminating false gaps caused by ex-rights/ex-dividend. */
 export async function adjFactor(
   client: TushareClient,
   params: {
