@@ -11,7 +11,7 @@ export const Dashboard = complex.component(() => {
       <header className="jx-dashboard-header">
         <div className="jx-dashboard-brand">
           <img className="jx-dashboard-logo" src={logo} alt="" />
-          机械系
+          机械交易系
         </div>
         <div className="jx-dashboard-user">
           <span className="jx-dashboard-email">{authStore.user?.email}</span>

@@ -21,7 +21,7 @@ export const Login = complex.component(() => {
   return (
     <div className="jx-login">
       <div className="jx-login-card">
-        <img className="jx-login-banner" src={banner} alt="机械系" />
+        <img className="jx-login-banner" src={banner} alt="机械交易系" />
         <div className="jx-login-subtitle">A 股量化研究平台</div>
 
         {store.step === 'email' && <EmailStep />}
