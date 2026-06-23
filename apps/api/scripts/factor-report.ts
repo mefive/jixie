@@ -1,11 +1,11 @@
 import { prisma } from '../src/lib/prisma.js';
-import { runBacktest } from '../src/backtest/run.js';
+import { analyzeFactors } from '../src/factor/analysis.js';
 
 const pct = (x: number) => (x * 100).toFixed(2) + '%';
 
 async function main(): Promise<void> {
   const t0 = Date.now();
-  const reports = await runBacktest();
+  const reports = await analyzeFactors();
 
   for (const r of reports) {
     console.log(`\n${'='.repeat(64)}`);
@@ -37,13 +37,13 @@ async function main(): Promise<void> {
   }
 
   console.log(`\n${'='.repeat(64)}`);
-  console.log(`✅ 回测完成，耗时 ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+  console.log(`✅ 因子分析完成，耗时 ${((Date.now() - t0) / 1000).toFixed(1)}s`);
   console.log('提示：IC 为负 = 因子反向有效（如反转/低波），可交易方向应取 D1−D10。');
   await prisma.$disconnect();
 }
 
 main().catch(async (e: unknown) => {
-  console.error('❌ backtest 失败：', e instanceof Error ? e.message : e);
+  console.error('❌ 因子分析失败：', e instanceof Error ? e.message : e);
   await prisma.$disconnect();
   process.exitCode = 1;
 });

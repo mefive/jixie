@@ -1,6 +1,7 @@
 import { prisma } from '../lib/prisma.js';
-import { FACTORS } from '../factor/factors.js';
-import * as st from './stats.js';
+import { FACTORS } from './factors.js';
+import { sameMonth, minusDays } from '../lib/date.js';
+import * as st from '../lib/stats.js';
 
 const PERIODS_PER_YEAR = 12; // monthly frequency
 const N_BUCKETS = 10; // deciles
@@ -42,16 +43,10 @@ async function getRebalanceDates(): Promise<string[]> {
   for (let i = 0; i < cal.length; i++) {
     const cur = cal[i].calDate;
     const next = cal[i + 1]?.calDate;
-    if (!next || cur.slice(0, 6) !== next.slice(0, 6)) out.push(cur);
+    // Last trading day of a month = the next trading day falls in a different month
+    if (!next || !sameMonth(cur, next)) out.push(cur);
   }
   return out;
-}
-
-function ymdMinusDays(ymd: string, days: number): string {
-  const t = Date.UTC(+ymd.slice(0, 4), +ymd.slice(4, 6) - 1, +ymd.slice(6, 8)) - days * 86_400_000;
-  const d = new Date(t);
-  const p = (n: number) => String(n).padStart(2, '0');
-  return `${d.getUTCFullYear()}${p(d.getUTCMonth() + 1)}${p(d.getUTCDate())}`;
 }
 
 type Snap = Map<string, { adjClose: number; amount: number }>; // tsCode -> quote
@@ -78,7 +73,7 @@ async function loadSnapshots(dates: string[]): Promise<Map<string, Snap>> {
   return snaps;
 }
 
-export async function runBacktest(): Promise<FactorReport[]> {
+export async function analyzeFactors(): Promise<FactorReport[]> {
   const rebalanceDates = await getRebalanceDates();
   const snaps = await loadSnapshots(rebalanceDates);
 
@@ -115,7 +110,7 @@ export async function runBacktest(): Promise<FactorReport[]> {
       const fv = byDate.get(D);
       if (!snapD || !snapNext || !fv) continue;
 
-      const minFirst = ymdMinusDays(D, MIN_HISTORY_DAYS);
+      const minFirst = minusDays(D, MIN_HISTORY_DAYS);
 
       // Candidates: has a factor value + has a quote that day + has a quote next period (so the
       // forward return is computable) + at least 1 year old

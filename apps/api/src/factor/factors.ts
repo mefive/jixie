@@ -7,20 +7,18 @@
  * the sign of the backtest IC.
  */
 
+import { daysBetween } from '../lib/date.js';
+
 // If the calendar gap between adjacent trading days within the window exceeds this many days
 // (≈ 1+ month suspension), the series is treated as discontinuous and the factor untrustworthy.
 // The Spring Festival break is about 9 days, far below this, so it won't be falsely flagged.
 const MAX_GAP_DAYS = 30;
 
-function parseYmd(d: string): number {
-  return Date.UTC(+d.slice(0, 4), +d.slice(4, 6) - 1, +d.slice(6, 8));
-}
-
 /** Max calendar gap (days) between adjacent trading days within the range [from, to]. */
 function maxGapDays(dates: string[], from: number, to: number): number {
   let m = 0;
   for (let i = from + 1; i <= to; i++) {
-    const g = (parseYmd(dates[i]) - parseYmd(dates[i - 1])) / 86_400_000;
+    const g = daysBetween(dates[i - 1], dates[i]);
     if (g > m) m = g;
   }
   return m;
