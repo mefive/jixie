@@ -10,6 +10,8 @@
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
     "gen:invite": "tsx --env-file=.env scripts/gen-invite.ts",
+    "factor:compute": "tsx --env-file=.env scripts/compute-factors.ts",
+    "backtest": "tsx --env-file=.env scripts/backtest.ts",
     "smoke": "tsx --env-file=.env scripts/smoke.ts",
     "sync": "tsx --env-file=.env scripts/sync.ts",
     "peek": "tsx --env-file=.env scripts/peek.ts"
