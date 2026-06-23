@@ -4,7 +4,7 @@ import { stockBasic, tradeCal, daily, adjFactor, type DailyRow } from '../tushar
 import { prisma } from '../lib/prisma.js';
 import { log } from '../util/log.js';
 
-/** 同步股票列表（全量覆盖，量小）。 */
+/** Sync the stock list (full overwrite — small volume). */
 export async function syncStockBasic(client: TushareClient): Promise<number> {
   const rows = await stockBasic(client);
   await prisma.$transaction([
@@ -26,7 +26,7 @@ export async function syncStockBasic(client: TushareClient): Promise<number> {
   return rows.length;
 }
 
-/** 同步交易日历（区间覆盖）。 */
+/** Sync the trading calendar (range overwrite). */
 export async function syncTradeCal(
   client: TushareClient,
   start: TradeDate,
@@ -48,7 +48,7 @@ export async function syncTradeCal(
   return rows.length;
 }
 
-/** 区间内开市日（升序）。 */
+/** Open trading days within the range (ascending). */
 async function getOpenDates(
   start: TradeDate,
   end: TradeDate,
@@ -63,11 +63,12 @@ async function getOpenDates(
 }
 
 /**
- * 按交易日逐日同步「全市场日线 + 复权因子」。
+ * Sync "whole-market daily quotes + adjustment factors" day by day, per trading day.
  *
- * 一次 daily(trade_date=X) / adj_factor(trade_date=X) 返回当天全部 ~5000 只,
- * 所以按日拉比按股票拉省几个数量级调用次数。每日「先 deleteMany 当日 + createMany」入库,
- * 重复同步幂等(SQLite 的 createMany 不支持 skipDuplicates,故用删+建)。
+ * One daily(trade_date=X) / adj_factor(trade_date=X) returns all ~5000 instruments for that day,
+ * so fetching by day uses orders of magnitude fewer calls than fetching by stock. Each day is
+ * written as "deleteMany for the day + createMany", making repeated syncs idempotent (SQLite's
+ * createMany doesn't support skipDuplicates, hence delete + create).
  */
 export async function syncDaily(
   client: TushareClient,
@@ -79,10 +80,22 @@ export async function syncDaily(
     await syncTradeCal(client, start, end);
     dates = await getOpenDates(start, end);
   }
-  log(`syncDaily: ${dates.length} 个开市日待同步`);
+
+  // Resumable: skip trading days already synced within the range (each day is written in a single
+  // transaction, so any data for a day means it's considered complete).
+  // Rerunning the same range after an interruption only fills the gaps; it can resume even if
+  // interrupted again.
+  const existing = await prisma.daily.findMany({
+    where: { tradeDate: { gte: start, lte: end } },
+    distinct: ['tradeDate'],
+    select: { tradeDate: true },
+  });
+  const have = new Set(existing.map((e) => e.tradeDate));
+  const todo = dates.filter((d) => !have.has(d));
+  log(`syncDaily: 区间 ${dates.length} 开市日，已同步 ${have.size}，待补 ${todo.length}`);
 
   let done = 0;
-  for (const d of dates) {
+  for (const d of todo) {
     const px = await daily(client, { trade_date: d });
     const adj = await adjFactor(client, { trade_date: d });
     await prisma.$transaction([
@@ -98,8 +111,8 @@ export async function syncDaily(
       }),
     ]);
     done++;
-    if (done % 10 === 0 || done === dates.length) {
-      log(`  ${done}/${dates.length} (${d}) 日线 ${px.length} / 复权 ${adj.length}`);
+    if (done % 10 === 0 || done === todo.length) {
+      log(`  ${done}/${todo.length} (${d}) 日线 ${px.length} / 复权 ${adj.length}`);
     }
   }
   log('syncDaily 完成');
