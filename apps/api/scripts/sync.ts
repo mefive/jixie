@@ -4,16 +4,20 @@ import { prisma } from '../src/lib/prisma.js';
 import { syncStockBasic, syncTradeCal, syncDaily } from '../src/store/sync.js';
 
 /**
- * 同步行情到本地 SQLite（Prisma）。
- * 用法：pnpm sync [start] [end]   例：pnpm sync 20240101 20240131
+ * Sync market data into the local SQLite store (Prisma).
+ * Usage: pnpm sync [start] [end]   e.g. pnpm sync 20240101 20240131
  */
 async function main(): Promise<void> {
   const cfg = loadTushareConfig();
   const [start = '20240101', end = '20240131'] = process.argv.slice(2);
 
-  const client = new TushareClient({ token: cfg.token, baseUrl: cfg.baseUrl });
+  const client = new TushareClient({
+    token: cfg.token,
+    baseUrl: cfg.baseUrl,
+    minIntervalMs: cfg.minIntervalMs,
+  });
 
-  console.log(`同步 ${start} ~ ${end}\n`);
+  console.log(`同步 ${start} ~ ${end}（限频 ${cfg.minIntervalMs}ms/次）\n`);
   await syncStockBasic(client);
   await syncTradeCal(client, start, end);
   await syncDaily(client, start, end);
