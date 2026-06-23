@@ -7,8 +7,8 @@ export type LoginStep = 'email' | 'invite' | 'verify';
 
 type LoginSetupParams = {};
 
-// 登录三步状态机：email →(新邮箱)invite → verify。
-// step 由 (challengeId, needsInvite) 派生，不单独存。
+// Three-step login state machine: email →(new email)invite → verify.
+// step is derived from (challengeId, needsInvite), not stored separately.
 export class LoginStore extends BaseStore<LoginSetupParams> {
   public email = '';
   public inviteCode = '';
@@ -40,7 +40,7 @@ export class LoginStore extends BaseStore<LoginSetupParams> {
 
   public setup(params: LoginSetupParams) {
     super.setup(params);
-    // 两个 loader 的 request 闭包读当前 state：needsInvite 决定是否带邀请码
+    // Both loaders' request closures read current state: needsInvite decides whether to send the invite code
     this.requestLoader.setup({
       request: () =>
         requestEmailLogin({
@@ -82,7 +82,7 @@ export class LoginStore extends BaseStore<LoginSetupParams> {
     });
   }
 
-  // 第一步：只发邮箱探测。新用户后端会以 field=inviteCode 报错 → 切到 invite 步
+  // Step 1: probe with email only. For a new user the backend errors with field=inviteCode → switch to the invite step
   public async submitEmail() {
     try {
       const res = await this.requestLoader.run();
@@ -100,7 +100,7 @@ export class LoginStore extends BaseStore<LoginSetupParams> {
     }
   }
 
-  // 第二步（仅新用户）：带邀请码再发一次 → 拿 challengeId
+  // Step 2 (new users only): resend with the invite code → get challengeId
   public async submitInvite() {
     try {
       const res = await this.requestLoader.run();
@@ -112,7 +112,7 @@ export class LoginStore extends BaseStore<LoginSetupParams> {
     }
   }
 
-  // 第三步：验码。成功把 user 灌进全局 authStore，路由守卫随即放行
+  // Step 3: verify the code. On success push user into the global authStore, and the route guard lets it through
   public async submitCode() {
     try {
       const res = await this.verifyLoader.run();

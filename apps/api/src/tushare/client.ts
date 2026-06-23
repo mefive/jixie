@@ -11,17 +11,20 @@ interface TushareResponse {
 
 export interface TushareClientOptions {
   token: string;
-  /** API 地址，默认 http://api.tushare.pro */
+  /** API address, defaults to http://api.tushare.pro */
   baseUrl?: string;
-  /** 两次请求之间的最小间隔（ms），用于规避 Tushare 按分钟的频率限制。默认 350。 */
+  /** Minimum interval between two requests (ms), to avoid Tushare's per-minute rate limit.
+   * Default 350. */
   minIntervalMs?: number;
-  /** 网络 / 5xx 失败的重试次数（接口业务错误 code!=0 不重试）。默认 3。 */
+  /** Retry count for network / 5xx failures (API business errors with code!=0 are not retried).
+   * Default 3. */
   maxRetries?: number;
-  /** 单次请求超时（ms）。默认 30000。 */
+  /** Per-request timeout (ms). Default 30000. */
   timeoutMs?: number;
 }
 
-/** Tushare 接口返回 code!=0 时抛出（参数错 / 权限不足 / 积分不够等），通常重试无用。 */
+/** Thrown when a Tushare API returns code!=0 (bad params / insufficient permission / insufficient
+ * credits, etc.); retrying is usually pointless. */
 export class TushareError extends Error {
   constructor(
     readonly apiName: string,
@@ -36,11 +39,12 @@ export class TushareError extends Error {
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
 /**
- * Tushare HTTP API 轻量客户端。
+ * Lightweight Tushare HTTP API client.
  *
- * 关键设计：所有请求**串行**排进一条 promise 链，并保证两次真正发出之间至少间隔
- * minIntervalMs。Tushare 按「每分钟调用次数」限频，串行 + 间隔是最省心、最不容易被限的做法
- * （因子研究是离线批量拉数，不追求并发吞吐）。
+ * Key design: all requests are queued **serially** onto one promise chain, with at least
+ * minIntervalMs between two actually-sent calls. Tushare rate-limits by "calls per minute", so
+ * serial + interval is the simplest and least limit-prone approach (factor research is offline
+ * batch fetching and doesn't chase concurrent throughput).
  */
 export class TushareClient {
   private readonly token: string;
@@ -61,11 +65,12 @@ export class TushareClient {
   }
 
   /**
-   * 调用任意 Tushare 接口，返回「行对象数组」（已把列式 {fields, items} 转成 Record）。
+   * Call any Tushare API and return an array of row objects (the columnar {fields, items} is
+   * already converted to Records).
    *
-   * @param apiName 接口名，如 'stock_basic' / 'daily'
-   * @param params  接口参数，如 { ts_code: '000001.SZ', start_date: '20240101' }
-   * @param fields  需要的字段（逗号分隔）；省略则用接口默认字段
+   * @param apiName API name, e.g. 'stock_basic' / 'daily'
+   * @param params  API params, e.g. { ts_code: '000001.SZ', start_date: '20240101' }
+   * @param fields  desired fields (comma-separated); omit to use the API's default fields
    */
   call(
     apiName: string,
@@ -73,7 +78,8 @@ export class TushareClient {
     fields?: string,
   ): Promise<TushareRow[]> {
     const task = this.queue.then(() => this.execute(apiName, params, fields));
-    // .catch 吞掉错误只是为了不让前一次失败打断整条串行链；真正的错误仍由 task 抛给调用方。
+    // The .catch swallows errors only to keep a previous failure from breaking the serial chain;
+    // the real error is still thrown to the caller via task.
     this.queue = task.catch(() => undefined);
     return task;
   }
@@ -93,11 +99,14 @@ export class TushareClient {
         return rows;
       } catch (e) {
         this.lastCallAt = Date.now();
-        // 业务错误不重试（参数 / 权限 / 积分问题，重试也是一样的结果）
+        // Don't retry business errors (param / permission / credit issues yield the same result)
         if (e instanceof TushareError) throw e;
         if (attempt >= this.maxRetries) throw e;
         const backoff = this.minIntervalMs * 2 ** (attempt + 1);
-        warn(`${apiName} 第 ${attempt + 1} 次请求失败，${backoff}ms 后重试：`, (e as Error).message);
+        warn(
+          `${apiName} 第 ${attempt + 1} 次请求失败，${backoff}ms 后重试：`,
+          (e as Error).message,
+        );
         await sleep(backoff);
       }
     }
@@ -114,7 +123,12 @@ export class TushareClient {
       const res = await fetch(this.baseUrl, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ api_name: apiName, token: this.token, params, fields: fields ?? '' }),
+        body: JSON.stringify({
+          api_name: apiName,
+          token: this.token,
+          params,
+          fields: fields ?? '',
+        }),
         signal: controller.signal,
       });
       if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
@@ -127,7 +141,7 @@ export class TushareClient {
   }
 }
 
-/** 把 Tushare 的列式响应 {fields, items} 转成更好用的行对象数组。 */
+/** Convert Tushare's columnar response {fields, items} into a more usable array of row objects. */
 function toRows(data: TushareResponse['data']): TushareRow[] {
   if (!data || !data.items?.length) return [];
   const { fields, items } = data;

@@ -1,6 +1,6 @@
-// 前端 API 薄封装。后端统一错误形态 { error: { code, message, details? } }，
-// 这里解析成 ApiError 抛出；成功返回 JSON。
-// 会话靠 httpOnly cookie（同源经 vite proxy），fetch 默认带 cookie，前端不存 token。
+// Thin frontend API wrapper. The backend uses a uniform error shape { error: { code, message, details? } },
+// which we parse into an ApiError and throw; on success we return JSON.
+// Sessions rely on an httpOnly cookie (same-origin via vite proxy), fetch sends the cookie by default, the frontend stores no token.
 
 export interface AuthUser {
   id: string;
@@ -18,7 +18,7 @@ export class ApiError extends Error {
     this.name = 'ApiError';
     this.code = code;
     this.details = details;
-    // 后端字段级错误把 { field } 放 details，登录页据此把焦点切到对应输入
+    // The backend puts { field } in details for field-level errors; the login page uses it to focus the matching input
     if (details && typeof details === 'object' && 'field' in details) {
       this.field = (details as { field?: string }).field;
     }
@@ -43,12 +43,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return body as T;
 }
 
-// 当前登录态。后端故意永远 200：未登录返 { user: null }
+// Current auth state. The backend deliberately always returns 200: when not logged in it returns { user: null }
 export function fetchMe(): Promise<{ user: AuthUser | null }> {
   return request('/api/auth/me');
 }
 
-// 发码。新邮箱需带 inviteCode；老邮箱不带。新邮箱不带码会返 VALIDATION_FAILED + field=inviteCode
+// Send code. A new email must include inviteCode; an existing email doesn't. A new email without a code returns VALIDATION_FAILED + field=inviteCode
 export function requestEmailLogin(input: {
   email: string;
   inviteCode?: string;
@@ -56,7 +56,7 @@ export function requestEmailLogin(input: {
   return request('/api/auth/email/request', { method: 'POST', body: JSON.stringify(input) });
 }
 
-// 验码登录 / 注册。成功写 session cookie
+// Verify code to log in / register. On success it writes the session cookie
 export function verifyEmailLogin(input: {
   challengeId: string;
   code: string;

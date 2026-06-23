@@ -7,7 +7,7 @@ import './styles/index.css';
 const el = document.getElementById('root');
 if (!el) throw new Error('#root not found');
 
-// 启动先 await /me 拿登录态，再渲染路由 —— RequireAuth 第一帧就有正确判断，不闪登录页
+// On startup await /me to get auth state before rendering routes — RequireAuth has the right verdict on the first frame, no login-page flash
 await authStore.load();
 
 createRoot(el).render(

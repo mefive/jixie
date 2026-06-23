@@ -21,7 +21,7 @@ export class BaseStore<
   }
 
   protected async prepare() {
-    // 默认什么也不做
+    // Does nothing by default
   }
 
   public cleanup() {
