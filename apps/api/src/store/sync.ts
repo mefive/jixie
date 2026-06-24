@@ -1,6 +1,6 @@
 import type { TradeDate } from '@jixie/shared';
 import type { TushareClient } from '../tushare/client.js';
-import { stockBasic, tradeCal, daily, adjFactor, type DailyRow } from '../tushare/api.js';
+import { stockBasic, tradeCal, daily, adjFactor, dailyBasic, type DailyRow } from '../tushare/api.js';
 import { prisma } from '../lib/prisma.js';
 import { log } from '../util/log.js';
 
@@ -116,6 +116,59 @@ export async function syncDaily(
     }
   }
   log('syncDaily 完成');
+}
+
+/**
+ * Sync daily valuation metrics (daily_basic) by trading day. Resumable: skips days already present.
+ * One call per day returns the whole market (~5000 rows).
+ */
+export async function syncDailyBasic(
+  client: TushareClient,
+  start: TradeDate,
+  end: TradeDate,
+): Promise<void> {
+  let dates = await getOpenDates(start, end);
+  if (dates.length === 0) {
+    await syncTradeCal(client, start, end);
+    dates = await getOpenDates(start, end);
+  }
+  const existing = await prisma.dailyBasic.findMany({
+    where: { tradeDate: { gte: start, lte: end } },
+    distinct: ['tradeDate'],
+    select: { tradeDate: true },
+  });
+  const have = new Set(existing.map((e) => e.tradeDate));
+  const todo = dates.filter((d) => !have.has(d));
+  log(`syncDailyBasic: 区间 ${dates.length} 开市日，已同步 ${have.size}，待补 ${todo.length}`);
+
+  let done = 0;
+  for (const d of todo) {
+    const rows = await dailyBasic(client, { trade_date: d });
+    await prisma.$transaction([
+      prisma.dailyBasic.deleteMany({ where: { tradeDate: d } }),
+      prisma.dailyBasic.createMany({
+        data: rows.map((r) => ({
+          tsCode: r.ts_code,
+          tradeDate: r.trade_date,
+          pe: r.pe,
+          peTtm: r.pe_ttm,
+          pb: r.pb,
+          ps: r.ps,
+          psTtm: r.ps_ttm,
+          dvRatio: r.dv_ratio,
+          dvTtm: r.dv_ttm,
+          totalMv: r.total_mv,
+          circMv: r.circ_mv,
+          turnoverRate: r.turnover_rate,
+        })),
+      }),
+    ]);
+    done++;
+    if (done % 10 === 0 || done === todo.length) {
+      log(`  ${done}/${todo.length} (${d}) 估值 ${rows.length}`);
+    }
+  }
+  log('syncDailyBasic 完成');
 }
 
 function toDaily(r: DailyRow) {

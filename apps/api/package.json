@@ -15,6 +15,7 @@
     "backtest": "tsx --env-file=.env scripts/backtest.ts",
     "smoke": "tsx --env-file=.env scripts/smoke.ts",
     "sync": "tsx --env-file=.env scripts/sync.ts",
+    "sync:basic": "tsx --env-file=.env scripts/sync-basic.ts",
     "peek": "tsx --env-file=.env scripts/peek.ts"
   },
   "dependencies": {
