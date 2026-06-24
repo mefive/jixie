@@ -1,4 +1,4 @@
-// Slimmed down: only export core (Complex/BaseStore/observer).
-// The original marginalia file also imports './style/index.less' and exports './components' (antd CRUD/form/picker etc.),
-// fangtu doesn't use antd, so those weren't copied.
+// Trimmed down: only export core (Complex/BaseStore/observer).
+// The original marginalia file also imports './style/index.less' and exports './components' (antd CRUD/form/selector etc.),
+// fangtu does not use antd, so those were not copied.
 export * from './core';
