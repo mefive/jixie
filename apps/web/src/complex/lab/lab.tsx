@@ -3,7 +3,7 @@ import classNames from 'classnames';
 import { Button, DatePicker, Input, InputNumber, Select } from 'antd';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
-import { faRightFromBracket, faPlay } from '@fortawesome/free-solid-svg-icons';
+import { faRightFromBracket, faPlay, faWandMagicSparkles } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { authStore } from '@src/store';
 import banner from '@src/assets/banner.png';
@@ -43,6 +43,26 @@ export const Lab = complex.component(() => {
       <main className="jx-lab-body">
         <section className="jx-lab-form">
           <h2 className="jx-lab-formTitle">策略配置</h2>
+
+          <div className="jx-lab-nl">
+            <Input.TextArea
+              value={store.nlText}
+              onChange={(e) => store.setField('nlText', e.target.value)}
+              placeholder="用一句话描述策略，AI 帮你填表，如「买最便宜的 10% 股票，月度调仓」"
+              autoSize={{ minRows: 2, maxRows: 4 }}
+            />
+            <Button
+              icon={<FontAwesomeIcon icon={faWandMagicSparkles} />}
+              loading={store.parseLoader.loading}
+              disabled={!store.nlText.trim()}
+              onClick={() => void store.parse()}
+            >
+              AI 解析填表
+            </Button>
+            {store.parseLoader.error && (
+              <span className="jx-lab-nlError">{store.parseLoader.errorObject?.message}</span>
+            )}
+          </div>
 
           <label className="jx-lab-field">
             <span className="jx-lab-label">策略名称</span>
@@ -88,9 +108,14 @@ export const Lab = complex.component(() => {
           <label className="jx-lab-field">
             <span className="jx-lab-label">打分因子</span>
             <Select
-              value={store.presetKey}
+              value={store.selectedPresetKey}
               onChange={(v) => store.setPreset(v)}
-              options={FACTOR_PRESETS.map((p) => ({ label: p.label, value: p.key }))}
+              options={[
+                ...FACTOR_PRESETS.map((p) => ({ label: p.label, value: p.key })),
+                ...(store.selectedPresetKey === 'custom'
+                  ? [{ label: '自定义（来自 AI）', value: 'custom', disabled: true }]
+                  : []),
+              ]}
             />
           </label>
 
@@ -143,7 +168,6 @@ export const Lab = complex.component(() => {
 
           <Button
             type="primary"
-            size="large"
             block
             loading={loader.loading}
             icon={loader.loading ? undefined : <FontAwesomeIcon icon={faPlay} />}

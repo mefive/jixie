@@ -52,6 +52,18 @@
   @apply font-semibold text-ink;
 }
 
+/* NL→IR prompt bar */
+.jx-lab-nl {
+  @apply flex flex-col gap-2;
+  @apply rounded-lg border border-line bg-bg;
+  padding: 12px;
+}
+
+.jx-lab-nlError {
+  @apply text-down;
+  font-size: 12px;
+}
+
 .jx-lab-row {
   @apply flex gap-3;
 }

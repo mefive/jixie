@@ -87,3 +87,10 @@ export function submitBacktest(config: BacktestConfig): Promise<{ jobId: string 
 export function pollBacktest(jobId: string): Promise<BacktestJob> {
   return request(`/api/app/backtest/${jobId}`);
 }
+
+import type { StrategyIR } from '@jixie/shared';
+
+// NL→IR: turn a natural-language strategy description into a validated strategy IR.
+export function parseStrategy(text: string): Promise<{ ir: StrategyIR; attempts: number }> {
+  return request('/api/app/strategy/parse', { method: 'POST', body: JSON.stringify({ text }) });
+}
