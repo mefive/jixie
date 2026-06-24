@@ -63,6 +63,25 @@ model AdjFactor {
   @@index([tradeDate])
 }
 
+/// Daily valuation metrics (point-in-time by construction). Unlocks value/dividend/size factors.
+model DailyBasic {
+  tsCode       String
+  tradeDate    String
+  pe           Float?
+  peTtm        Float?
+  pb           Float?
+  ps           Float?
+  psTtm        Float?
+  dvRatio      Float? // dividend yield %
+  dvTtm        Float?
+  totalMv      Float? // total market cap (10k yuan)
+  circMv       Float? // circulating market cap (10k yuan)
+  turnoverRate Float?
+
+  @@id([tsCode, tradeDate])
+  @@index([tradeDate])
+}
+
 // ============================================================================
 // User system (invite-only beta). Passwordless: log in with email + 6-digit verification code;
 // registering a new email requires a one-time invite code.

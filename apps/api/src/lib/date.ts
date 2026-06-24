@@ -22,7 +22,17 @@ export function minusDays(ymd: string, n: number): string {
   return day(ymd).subtract(n, 'day').format(FMT);
 }
 
-/** Whole calendar days from `a` to `b` (b - a), both 'YYYYMMDD'. */
+// Days since the Unix epoch for a 'YYYYMMDD' string, via plain integer math (no dayjs).
+function epochDay(ymd: string): number {
+  return Date.UTC(+ymd.slice(0, 4), +ymd.slice(4, 6) - 1, +ymd.slice(6, 8)) / 86_400_000;
+}
+
+/**
+ * Whole calendar days from `a` to `b` (b - a), both 'YYYYMMDD'.
+ * Hot path — called per factor evaluation (millions of times under on-the-fly computation), so it
+ * uses integer date math instead of dayjs parsing (which is far too slow at that volume). dayjs is
+ * kept for the readable, low-frequency helpers above.
+ */
 export function daysBetween(a: string, b: string): number {
-  return day(b).diff(day(a), 'day');
+  return epochDay(b) - epochDay(a);
 }
