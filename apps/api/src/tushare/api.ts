@@ -98,3 +98,39 @@ export async function adjFactor(
   const rows = await client.call('adj_factor', params);
   return rows as unknown as AdjFactorRow[];
 }
+
+export interface DailyBasicRow {
+  ts_code: TsCode;
+  trade_date: TradeDate;
+  pe: number | null; // P/E (current)
+  pe_ttm: number | null; // P/E (trailing twelve months)
+  pb: number | null; // P/B
+  ps: number | null; // P/S
+  ps_ttm: number | null; // P/S (TTM)
+  dv_ratio: number | null; // dividend yield %
+  dv_ttm: number | null; // dividend yield % (TTM)
+  total_mv: number | null; // total market cap (10k yuan)
+  circ_mv: number | null; // circulating market cap (10k yuan)
+  turnover_rate: number | null; // turnover %
+}
+
+/**
+ * Daily valuation metrics. These are point-in-time by construction (Tushare computes each day's
+ * pe_ttm etc. from financials known as of that day), so they're safe to use directly per trade date.
+ */
+export async function dailyBasic(
+  client: TushareClient,
+  params: {
+    ts_code?: TsCode;
+    trade_date?: TradeDate;
+    start_date?: TradeDate;
+    end_date?: TradeDate;
+  } = {},
+): Promise<DailyBasicRow[]> {
+  const rows = await client.call(
+    'daily_basic',
+    params,
+    'ts_code,trade_date,pe,pe_ttm,pb,ps,ps_ttm,dv_ratio,dv_ttm,total_mv,circ_mv,turnover_rate',
+  );
+  return rows as unknown as DailyBasicRow[];
+}

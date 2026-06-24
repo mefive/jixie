@@ -74,10 +74,44 @@ export interface FactorDef {
   fn: (px: number[], dates: string[], end: number) => number | null;
 }
 
-/** Factor registry: both compute and the backtest iterate over it — adding a new factor only
- * touches this. */
+/** Price-factor registry (window functions over the price series). */
 export const FACTORS: FactorDef[] = [
   { key: 'mom', label: '动量(60日,跳5)', fn: (px, dates, end) => momentum(px, dates, end) },
   { key: 'rev', label: '反转(5日)', fn: (px, dates, end) => reversal(px, dates, end) },
   { key: 'vol', label: '波动率(20日)', fn: (px, dates, end) => volatility(px, dates, end) },
 ];
+
+/** The daily_basic fields that fundamental factors read from. */
+export interface FundamentalRow {
+  peTtm: number | null;
+  pb: number | null;
+  dvRatio: number | null;
+  totalMv: number | null;
+}
+
+export interface FundamentalFactorDef {
+  key: string;
+  label: string;
+  from: (r: FundamentalRow) => number | null;
+}
+
+/**
+ * Fundamental-factor registry (derived from daily_basic, point-in-time per trade date).
+ * Stored as raw values; the IC sign reveals direction (e.g. ep/bp/dv expected positive,
+ * size expected negative = small-cap premium).
+ */
+export const FUNDAMENTAL_FACTORS: FundamentalFactorDef[] = [
+  { key: 'ep', label: '盈利收益率(1/PE_TTM)', from: (r) => (r.peTtm && r.peTtm > 0 ? 1 / r.peTtm : null) },
+  { key: 'bp', label: '账面市值比(1/PB)', from: (r) => (r.pb && r.pb > 0 ? 1 / r.pb : null) },
+  { key: 'dv', label: '股息率(%)', from: (r) => r.dvRatio },
+  {
+    key: 'size',
+    label: '规模(ln总市值)',
+    from: (r) => (r.totalMv && r.totalMv > 0 ? Math.log(r.totalMv) : null),
+  },
+];
+
+/** key → label for every factor (price + fundamental), used by the analysis report. */
+export const FACTOR_LABELS: Record<string, string> = Object.fromEntries(
+  [...FACTORS, ...FUNDAMENTAL_FACTORS].map((f) => [f.key, f.label]),
+);

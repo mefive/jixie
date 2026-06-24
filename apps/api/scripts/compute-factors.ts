@@ -1,5 +1,5 @@
 import { prisma } from '../src/lib/prisma.js';
-import { FACTORS } from '../src/factor/factors.js';
+import { FACTORS, FUNDAMENTAL_FACTORS } from '../src/factor/factors.js';
 
 /**
  * Pre-compute factor values → FactorValue table.
@@ -109,6 +109,24 @@ async function main(): Promise<void> {
 
     done++;
     if (done % 500 === 0) console.log(`  ${done}/${stocks.length} 只，已写 ${totalRows} 行`);
+  }
+  await flush();
+
+  // Fundamental factors from daily_basic (one query per rebalance date; skipped where no data yet).
+  console.log('计算基本面因子(daily_basic)…');
+  for (const d of rebalanceDates) {
+    const rows = await prisma.dailyBasic.findMany({
+      where: { tradeDate: d },
+      select: { tsCode: true, peTtm: true, pb: true, dvRatio: true, totalMv: true },
+    });
+    for (const r of rows) {
+      for (const f of FUNDAMENTAL_FACTORS) {
+        const v = f.from(r);
+        if (v === null || !Number.isFinite(v)) continue;
+        buffer.push({ factor: f.key, tsCode: r.tsCode, tradeDate: d, value: v });
+      }
+    }
+    if (buffer.length >= BATCH) await flush();
   }
   await flush();
 

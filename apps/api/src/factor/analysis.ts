@@ -1,5 +1,5 @@
 import { prisma } from '../lib/prisma.js';
-import { FACTORS } from './factors.js';
+import { FACTOR_LABELS } from './factors.js';
 import { sameMonth, minusDays } from '../lib/date.js';
 import * as st from '../lib/stats.js';
 
@@ -84,10 +84,17 @@ export async function analyzeFactors(): Promise<FactorReport[]> {
 
   const reports: FactorReport[] = [];
 
-  for (const fdef of FACTORS) {
+  // Report every factor actually present in the table (price + fundamental).
+  const factorKeys = (
+    await prisma.factorValue.findMany({ distinct: ['factor'], select: { factor: true } })
+  )
+    .map((r) => r.factor)
+    .sort();
+
+  for (const factorKey of factorKeys) {
     // Group factor values by rebalance day
     const fvRows = await prisma.factorValue.findMany({
-      where: { factor: fdef.key },
+      where: { factor: factorKey },
       select: { tsCode: true, tradeDate: true, value: true },
     });
     const byDate = new Map<string, { tsCode: string; value: number }[]>();
@@ -172,8 +179,8 @@ export async function analyzeFactors(): Promise<FactorReport[]> {
     }));
 
     reports.push({
-      factor: fdef.key,
-      label: fdef.label,
+      factor: factorKey,
+      label: FACTOR_LABELS[factorKey] ?? factorKey,
       months: icSeries.length,
       icMean,
       icStd,
