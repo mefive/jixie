@@ -1,6 +1,17 @@
+import { ulid } from 'ulid';
 import type { TradeDate } from '@jixie/shared';
 import type { TushareClient } from '../tushare/client.js';
-import { stockBasic, tradeCal, daily, adjFactor, dailyBasic, type DailyRow } from '../tushare/api.js';
+import {
+  stockBasic,
+  tradeCal,
+  daily,
+  adjFactor,
+  dailyBasic,
+  finaIndicator,
+  dividend,
+  indexWeight,
+  type DailyRow,
+} from '../tushare/api.js';
 import { prisma } from '../lib/prisma.js';
 import { log } from '../util/log.js';
 
@@ -169,6 +180,142 @@ export async function syncDailyBasic(
     }
   }
   log('syncDailyBasic 完成');
+}
+
+/** All stock codes that have price data (incl. delisted), the universe for per-stock financial sync. */
+async function getAllStockCodes(): Promise<string[]> {
+  const rows = await prisma.daily.findMany({
+    distinct: ['tsCode'],
+    select: { tsCode: true },
+    orderBy: { tsCode: 'asc' },
+  });
+  return rows.map((r) => r.tsCode);
+}
+
+/**
+ * Sync financial indicators (ROE) per stock. One call returns a stock's full period history (with
+ * duplicate periods from restatements); we keep the latest annDate per (tsCode, endDate). Resumable:
+ * skips stocks already synced. Financial APIs are rate-limited (~80/min), so run with a ≥800ms interval.
+ */
+export async function syncFinaIndicator(client: TushareClient, codes?: string[]): Promise<void> {
+  const all = codes ?? (await getAllStockCodes());
+  const existing = await prisma.finaIndicator.findMany({
+    distinct: ['tsCode'],
+    select: { tsCode: true },
+  });
+  const have = new Set(existing.map((e) => e.tsCode));
+  const todo = all.filter((c) => !have.has(c));
+  log(`syncFinaIndicator: 共 ${all.length} 只，已同步 ${have.size}，待补 ${todo.length}`);
+
+  let done = 0;
+  for (const code of todo) {
+    const rows = await finaIndicator(client, { ts_code: code });
+    // Dedup by period, keeping the latest announcement (restatements supersede earlier figures).
+    const byPeriod = new Map<string, (typeof rows)[number]>();
+    for (const r of rows) {
+      const prev = byPeriod.get(r.end_date);
+      if (!prev || (r.ann_date ?? '') > (prev.ann_date ?? '')) byPeriod.set(r.end_date, r);
+    }
+    const data = [...byPeriod.values()].map((r) => ({
+      tsCode: r.ts_code,
+      endDate: r.end_date,
+      annDate: r.ann_date,
+      roe: r.roe,
+      roeWaa: r.roe_waa,
+    }));
+    await prisma.$transaction([
+      prisma.finaIndicator.deleteMany({ where: { tsCode: code } }),
+      prisma.finaIndicator.createMany({ data }),
+    ]);
+    done++;
+    if (done % 100 === 0 || done === todo.length) {
+      log(`  fina ${done}/${todo.length} (${code}) ${data.length} 期`);
+    }
+  }
+  log('syncFinaIndicator 完成');
+}
+
+/**
+ * Sync dividend distributions per stock (raw rows across proposal→execution stages). Resumable:
+ * skips stocks already synced. Same financial rate limit applies.
+ */
+export async function syncDividend(client: TushareClient, codes?: string[]): Promise<void> {
+  const all = codes ?? (await getAllStockCodes());
+  const existing = await prisma.dividend.findMany({
+    distinct: ['tsCode'],
+    select: { tsCode: true },
+  });
+  const have = new Set(existing.map((e) => e.tsCode));
+  const todo = all.filter((c) => !have.has(c));
+  log(`syncDividend: 共 ${all.length} 只，已同步 ${have.size}，待补 ${todo.length}`);
+
+  let done = 0;
+  for (const code of todo) {
+    const rows = await dividend(client, { ts_code: code });
+    const data = rows.map((r) => ({
+      id: ulid(),
+      tsCode: r.ts_code,
+      endDate: r.end_date,
+      annDate: r.ann_date,
+      exDate: r.ex_date,
+      divProc: r.div_proc,
+      cashDiv: r.cash_div,
+      cashDivTax: r.cash_div_tax,
+    }));
+    await prisma.$transaction([
+      prisma.dividend.deleteMany({ where: { tsCode: code } }),
+      prisma.dividend.createMany({ data }),
+    ]);
+    done++;
+    if (done % 100 === 0 || done === todo.length) {
+      log(`  divi ${done}/${todo.length} (${code}) ${data.length} 行`);
+    }
+  }
+  log('syncDividend 完成');
+}
+
+/**
+ * Sync an index's monthly constituents (index_weight) over a date range. Fetched quarter by quarter
+ * to stay under the per-call row cap; each quarter is written as deleteMany + createMany (idempotent,
+ * resumable on rerun). E.g. CSI 1000 = 000852.SH.
+ */
+export async function syncIndexWeight(
+  client: TushareClient,
+  indexCode: string,
+  start: TradeDate,
+  end: TradeDate,
+): Promise<void> {
+  const startYear = +start.slice(0, 4);
+  const endYear = +end.slice(0, 4);
+  const quarters: [string, string][] = [];
+  for (let y = startYear; y <= endYear; y++) {
+    quarters.push([`${y}0101`, `${y}0331`], [`${y}0401`, `${y}0630`]);
+    quarters.push([`${y}0701`, `${y}0930`], [`${y}1001`, `${y}1231`]);
+  }
+  log(`syncIndexWeight ${indexCode}: ${quarters.length} 个季度区间`);
+
+  let total = 0;
+  for (const [qs, qe] of quarters) {
+    const s = qs < start ? start : qs;
+    const e = qe > end ? end : qe;
+    if (s > e) continue;
+    const rows = await indexWeight(client, { index_code: indexCode, start_date: s, end_date: e });
+    await prisma.$transaction([
+      prisma.indexWeight.deleteMany({
+        where: { indexCode, tradeDate: { gte: s, lte: e } },
+      }),
+      prisma.indexWeight.createMany({
+        data: rows.map((r) => ({
+          indexCode: r.index_code,
+          conCode: r.con_code,
+          tradeDate: r.trade_date,
+          weight: r.weight,
+        })),
+      }),
+    ]);
+    total += rows.length;
+  }
+  log(`syncIndexWeight 完成，共 ${total} 行`);
 }
 
 function toDaily(r: DailyRow) {

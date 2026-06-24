@@ -134,3 +134,61 @@ export async function dailyBasic(
   );
   return rows as unknown as DailyBasicRow[];
 }
+
+export interface FinaIndicatorRow {
+  ts_code: TsCode;
+  ann_date: TradeDate | null; // announcement date (PIT gate)
+  end_date: TradeDate; // report period end
+  roe: number | null; // 净资产收益率 %
+  roe_waa: number | null; // 加权平均净资产收益率 %
+}
+
+/** Financial indicators per report period. Pulled per ts_code (one call returns its full history,
+ * with possible duplicate periods from restatements). Rate-limited at 80/min on lower tiers. */
+export async function finaIndicator(
+  client: TushareClient,
+  params: { ts_code: TsCode; start_date?: TradeDate; end_date?: TradeDate },
+): Promise<FinaIndicatorRow[]> {
+  const rows = await client.call('fina_indicator', params, 'ts_code,ann_date,end_date,roe,roe_waa');
+  return rows as unknown as FinaIndicatorRow[];
+}
+
+export interface DividendRow {
+  ts_code: TsCode;
+  end_date: TradeDate; // distribution's report period
+  ann_date: TradeDate | null;
+  ex_date: TradeDate | null; // ex-dividend date (PIT gate)
+  div_proc: string | null; // 实施进度 ('实施' = actually paid)
+  cash_div: number | null; // 税前每股现金分红
+  cash_div_tax: number | null;
+}
+
+/** Dividend distributions. Pulled per ts_code; a period yields several rows across stages. */
+export async function dividend(
+  client: TushareClient,
+  params: { ts_code: TsCode },
+): Promise<DividendRow[]> {
+  const rows = await client.call(
+    'dividend',
+    params,
+    'ts_code,end_date,ann_date,ex_date,div_proc,cash_div,cash_div_tax',
+  );
+  return rows as unknown as DividendRow[];
+}
+
+export interface IndexWeightRow {
+  index_code: string;
+  con_code: TsCode;
+  trade_date: TradeDate; // monthly snapshot date
+  weight: number | null;
+}
+
+/** Index constituents + weights (monthly snapshots). A wide date range can exceed the per-call row
+ * cap, so callers should fetch in chunks (e.g. by quarter). */
+export async function indexWeight(
+  client: TushareClient,
+  params: { index_code: string; start_date: TradeDate; end_date: TradeDate },
+): Promise<IndexWeightRow[]> {
+  const rows = await client.call('index_weight', params, 'index_code,con_code,trade_date,weight');
+  return rows as unknown as IndexWeightRow[];
+}
