@@ -13,6 +13,13 @@ export class Portfolio {
     this.cash = initialCash;
   }
 
+  /** Max whole shares buyable at `price` given current cash and buy-side fees (never goes negative). */
+  affordableShares(price: number): number {
+    if (price <= 0) return 0;
+    const n = Math.floor(this.cash / (price * (1 + this.cost.commission + this.cost.transferFee)));
+    return Math.max(0, n);
+  }
+
   /** Total equity given a price lookup (suspended → its position is held at the carried price). */
   equity(priceOf: (code: string) => number | null): number {
     let v = this.cash;
