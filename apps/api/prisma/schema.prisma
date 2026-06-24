@@ -82,6 +82,47 @@ model DailyBasic {
   @@index([tradeDate])
 }
 
+/// Financial indicators per report period (point-in-time via annDate). Unlocks ROE/quality factors.
+/// ROE is cumulative within a year; annual reports end in 1231. The same period can appear multiple
+/// times (restatements) — sync keeps the latest annDate per (tsCode, endDate).
+model FinaIndicator {
+  tsCode  String
+  endDate String // report period end, e.g. 20231231
+  annDate String? // announcement date — the PIT gate (value is only public on/after this)
+  roe     Float? // 净资产收益率 %
+  roeWaa  Float? // 加权平均净资产收益率 %
+
+  @@id([tsCode, endDate])
+  @@index([annDate])
+}
+
+/// Dividend distributions (raw; a period yields several rows across proposal→execution stages).
+/// Only divProc '实施' is an actually-paid dividend; exDate is the PIT gate for when it took effect.
+model Dividend {
+  id         String  @id // ULID — no natural unique key (multiple rows per period)
+  tsCode     String
+  endDate    String // distribution's report period
+  annDate    String? // announcement date
+  exDate     String? // ex-dividend date (PIT gate)
+  divProc    String? // 实施进度: '预案' | '股东大会通过' | '实施' | ...
+  cashDiv    Float? // 税前每股现金分红
+  cashDivTax Float? // per-share figure incl. proposal stage
+
+  @@index([tsCode])
+}
+
+/// Index constituents over time (monthly snapshots from index_weight). Used for point-in-time
+/// universe membership (e.g. breadth over CSI 1000 = 000852.SH as-of each date).
+model IndexWeight {
+  indexCode String
+  conCode   String
+  tradeDate String // snapshot date (month-end)
+  weight    Float?
+
+  @@id([indexCode, conCode, tradeDate])
+  @@index([indexCode, tradeDate])
+}
+
 // ============================================================================
 // User system (invite-only beta). Passwordless: log in with email + 6-digit verification code;
 // registering a new email requires a one-time invite code.
