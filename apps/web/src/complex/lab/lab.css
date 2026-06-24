@@ -1,0 +1,136 @@
+@reference '../../styles/index.css';
+
+.jx-lab {
+  @apply flex flex-col;
+  height: 100%;
+}
+
+.jx-lab-header {
+  @apply flex items-center justify-between;
+  @apply border-b border-line bg-card;
+  height: 56px;
+  padding: 0 20px;
+}
+
+.jx-lab-brand {
+  @apply flex items-center gap-3;
+}
+
+.jx-lab-banner {
+  height: 28px;
+}
+
+.jx-lab-page {
+  @apply border-l border-line text-sm text-muted;
+  padding-left: 12px;
+}
+
+.jx-lab-user {
+  @apply flex items-center gap-3;
+}
+
+.jx-lab-email {
+  @apply text-sm text-muted;
+}
+
+.jx-lab-body {
+  @apply flex flex-1 gap-4;
+  @apply overflow-hidden;
+  padding: 16px;
+}
+
+/* —— left: config form —— */
+.jx-lab-form {
+  @apply flex flex-col gap-3;
+  @apply rounded-lg border border-line bg-card;
+  @apply overflow-y-auto;
+  width: 360px;
+  padding: 16px;
+}
+
+.jx-lab-formTitle {
+  @apply font-semibold text-ink;
+}
+
+.jx-lab-row {
+  @apply flex gap-3;
+}
+
+/* Field flows top-down at its natural height. flex-1 (equal-width split) only inside a row —
+   on the column form it would stretch fields vertically and open big gaps. */
+.jx-lab-field {
+  @apply flex flex-col gap-1;
+}
+
+.jx-lab-row > .jx-lab-field {
+  flex: 1;
+  min-width: 0;
+}
+
+.jx-lab-label {
+  @apply text-sm text-muted;
+}
+
+/* antd InputNumber root doesn't stretch by default — make controls fill the field. */
+.jx-lab-control {
+  width: 100%;
+}
+
+.jx-lab-ir {
+  @apply rounded border border-line;
+  margin-top: 4px;
+  padding: 8px 10px;
+}
+
+.jx-lab-irSummary {
+  @apply text-sm text-muted;
+  cursor: pointer;
+}
+
+.jx-lab-irCode {
+  @apply text-xs text-ink;
+  margin-top: 8px;
+  white-space: pre-wrap;
+}
+
+/* —— right: results —— */
+.jx-lab-result {
+  @apply flex flex-1 flex-col gap-4;
+  @apply rounded-lg border border-line bg-card;
+  @apply overflow-hidden;
+  padding: 16px;
+}
+
+.jx-lab-placeholder {
+  @apply flex flex-1 items-center justify-center gap-2;
+  @apply text-sm text-muted;
+}
+
+.jx-lab-placeholder--error {
+  @apply text-down;
+}
+
+.jx-lab-metrics {
+  @apply grid gap-3;
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.jx-lab-metric {
+  @apply flex flex-col gap-1;
+  @apply rounded-lg border border-line bg-bg;
+  padding: 12px 14px;
+}
+
+.jx-lab-metricLabel {
+  @apply text-xs text-muted;
+}
+
+.jx-lab-metricValue {
+  @apply font-semibold text-ink;
+  font-size: 20px;
+}
+
+.jx-lab-chart {
+  @apply flex-1;
+  min-height: 320px;
+}

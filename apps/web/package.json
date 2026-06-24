@@ -12,6 +12,8 @@
   },
   "dependencies": {
     "@jixie/shared": "workspace:*",
+    "antd": "^6.0.0",
+    "dayjs": "^1.11.13",
     "@fortawesome/fontawesome-svg-core": "^7.2.0",
     "@fortawesome/free-solid-svg-icons": "^7.2.0",
     "@fortawesome/react-fontawesome": "^3.3.0",

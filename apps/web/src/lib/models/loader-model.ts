@@ -56,15 +56,16 @@ export class LoaderModel<Result = any> extends BaseModel<LoaderModelSetupParams<
 
   public cleanup() {
     super.cleanup();
-    // cleanup means the model is dead for good and any pending request is definitely no longer needed —
-    // actively abort so the fetch that caught the signal in the request closure is truly cancelled
-    // (dev StrictMode double-mount and users switching routes interrupting old requests both rely on this).
-    // reset() does not call abort, preserving the option of "reset state at the business level but keep the request running".
+    // cleanup means the model has reached end of life, so any pending request is definitely no longer
+    // needed—actively abort it so the fetch that caught the signal in the request closure is truly
+    // cancelled (relied on by dev StrictMode double-mount and by the user switching routes to interrupt
+    // an old request). reset() does not call abort, preserving the option of "reset business-level state
+    // but let the request continue".
     this.abort();
     this.reset();
   }
 
-  // Injecting an external AbortController caused quite a few issues; disabled for now, redesign when truly needed
+  // Injecting an external AbortController caused quite a few problems; disabled for now, redesign when truly necessary
   public async run(promise?: Promise<Result>): Promise<Result>;
   public async run(data?: any): Promise<Result>;
   public async run(promiseOrData?: Promise<Result> | any): Promise<Result> {
@@ -102,7 +103,7 @@ export class LoaderModel<Result = any> extends BaseModel<LoaderModelSetupParams<
             });
             resolve(result);
           }
-          // TODO investigate: if a stale request returns we neither resolve nor reject — could this cause a memory leak?
+          // TODO investigate: if a stale request returns and we neither resolve nor reject, could this cause a memory leak?
         })
         .catch((er) => {
           if (reqSymbol === this.reqSymbol) {

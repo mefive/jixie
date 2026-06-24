@@ -67,3 +67,23 @@ export function verifyEmailLogin(input: {
 export function logout(): Promise<{ ok: true }> {
   return request('/api/auth/logout', { method: 'POST' });
 }
+
+// —— Backtest ——
+
+import type { BacktestConfig, BacktestSummary } from '@jixie/shared';
+
+// A backtest job (in-memory on the server). running → done(result) | error(message).
+export type BacktestJob =
+  | { status: 'running' }
+  | { status: 'done'; result: BacktestSummary }
+  | { status: 'error'; message: string };
+
+// Submit a backtest config; returns a jobId to poll.
+export function submitBacktest(config: BacktestConfig): Promise<{ jobId: string }> {
+  return request('/api/app/backtest', { method: 'POST', body: JSON.stringify(config) });
+}
+
+// Poll a backtest job's status / result.
+export function pollBacktest(jobId: string): Promise<BacktestJob> {
+  return request(`/api/app/backtest/${jobId}`);
+}

@@ -1,12 +1,15 @@
 # apps/web — 前端协作约定
 
-> 前端硬约定（来自 `complex-frontend` skill，本项目前缀 `jx-`）。全仓库通用约定见根 `CLAUDE.md`。
+> 前端硬约定（对齐 fangtu `apps/web`，本项目前缀 `jx-`）。全仓库通用约定见根 `CLAUDE.md`。
+> 架构与组件库对齐 fangtu / marginalia：**antd 6 作组件库 + Tailwind 布局/样式**（二者共存），
+> **不引 less**（自写组件样式走具名 class + `@apply`，见 §3；组件库/弹层选型见 §8）。
 > `@src` 别名指向 `apps/web/src`（见 `vite.config.ts` 与 `tsconfig.json` paths）。
 
 ## 1. 架构：页面 = complex(MobX)
 
-- `@src/lib` 是 antd-free 框架核心：`Complex` / `BaseStore` / `BaseModel` / `LoaderModel` /
-  `ModalModel` / `reactUtils.observer` / `dataUtils`。**不要绕过它们另造**。
+- `@src/lib` 是从 marginalia 拷来的 **antd-free 框架核心**（complex/store 生命周期本身不依赖 antd）：
+  `Complex` / `BaseStore` / `BaseModel` / `LoaderModel` / `ModalModel` / `reactUtils.observer` /
+  `dataUtils`。**不要绕过它们另造**。（交互原语 Select/Input/Button 等用 antd 6，见 §8。）
 - 每个有独立 store 生命周期的页面 = 一个 **complex**，放 `src/complex/<page-name>/`，五件套：
   - `complex.ts` —— `new Complex({ name, storeClass })`
   - `<page>-store.ts` —— `extends BaseStore` + `makeObservable`；所有 `LoaderModel` 在 `setup()` 里
@@ -70,3 +73,13 @@ className={
 
 - api 在 **localhost:3001**，vite proxy `/api` → 3001（同源，httpOnly session cookie 自动带）。
 - 后端错误形态 `{ error: { code, message, details? } }`，前端 `@src/api/client` 的 `ApiError` 统一解析。
+
+## 8. 组件库：antd 6（对齐 fangtu）
+
+- **组件库 = antd 6**。`Select` / `Input` / `InputNumber` / `Button` / `Modal` / `Table` / `Tooltip`
+  等**用 antd，不手写**。antd 是 cssinjs，**无需 import CSS**。
+- `ConfigProvider` 在 `main.tsx` 顶层，主题 token 调**墨黑**（`colorPrimary/colorLink: #111827`、
+  `colorLinkHover: #374151`、`borderRadius: 8`，借自 marginalia），**别露默认 antd 蓝**。
+- 自写视觉（布局、卡片、图表）走 §3 的具名 class + `@apply`；**antd 组件的样式由 antd 自己管**，
+  不去深改其内部 class。需让 antd 控件撑满容器时给个 `width:100%` 的 class（如 `jx-lab-control`）。
+- antd 没有的（数据图表用 ECharts；锚在移动元素上的弹层用 `@floating-ui/react`，非 antd Popover）才手写。

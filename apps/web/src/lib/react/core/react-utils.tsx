@@ -1,21 +1,21 @@
 import React, { useRef, useState, useCallback } from 'react';
 import { observer as originalObserver } from 'mobx-react';
 
-// Note: the original marginalia file also has two hooks, useLoaderErrorNotify/useLoaderSuccessNotify,
-// which depend on antd's Modal/message/notification. fangtu doesn't use antd, so they weren't copied; implement notifications with Tailwind when needed.
+// Note: the original marginalia file also contains two hooks, useLoaderErrorNotify/useLoaderSuccessNotify,
+// which depend on antd's Modal/message/notification. fangtu does not use antd, so they were not copied; implement notifications with Tailwind yourself when needed.
 
 /**
- * ### Replacement for `mobx-react`'s default `observer`
+ * ### A replacement for `mobx-react`'s default `observer`
  *
- * Combines wrapping a component with `observer` and setting `displayName` into one step, reducing boilerplate
- * and making single-line exports convenient. The type definitions currently only support function components; extend if needed.
+ * Combines wrapping a component with `observer` and setting `displayName` into one step, reducing boilerplate and making single-line export convenient.
+ * The type definitions only support function components for now; extend as needed.
  *
  * @param component the function component to wrap with `observer`
  * @param displayName the component's display name
  * @returns the wrapped component
  */
 export function observer(
-  // When mobx-react wraps a generic function component, a strict props type conflicts with index signatures like antd's `data-${string}`
+  // when wrapping a generic function component with mobx-react, a strict props type conflicts with index signatures like antd's `data-${string}`
   component: React.FunctionComponent<any>,
   displayName: string,
 ) {
