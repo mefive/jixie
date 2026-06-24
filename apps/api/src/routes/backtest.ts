@@ -1,9 +1,9 @@
 import { Hono } from 'hono';
-import { z } from 'zod';
 import { ulid } from 'ulid';
 import type { BacktestConfig, BacktestSummary } from '@jixie/shared';
 import { apiError, validateJson } from '../lib/httpError.js';
 import { runBacktestConfig } from '../strategy/ir/interpret.js';
+import { configSchema } from '../strategy/ir/schema.js';
 
 /**
  * Backtest API. A backtest is CPU-heavy (tens of seconds to minutes), too long for a synchronous
@@ -21,60 +21,6 @@ type Job =
 
 const jobs = new Map<string, Job>();
 const JOB_TTL_MS = 30 * 60_000; // forget finished jobs after 30 min to bound memory
-
-// —— IR validation (zod mirror of @jixie/shared IR types) ——
-
-const exprSchema: z.ZodType = z.lazy(() =>
-  z.discriminatedUnion('kind', [
-    z.object({ kind: z.literal('const'), value: z.number() }),
-    z.object({ kind: z.literal('field'), name: z.string().min(1) }),
-    z.object({ kind: z.literal('factor'), name: z.string().min(1) }),
-    z.object({ kind: z.literal('unary'), op: z.enum(['neg', 'abs', 'ln']), arg: exprSchema }),
-    z.object({
-      kind: z.literal('binary'),
-      op: z.enum(['+', '-', '*', '/']),
-      left: exprSchema,
-      right: exprSchema,
-    }),
-  ]),
-);
-
-const universeFilterSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('minListDays'), days: z.number().int().nonnegative() }),
-  z.object({ kind: z.literal('dropIlliquidPct'), pct: z.number().min(0).max(100) }),
-  z.object({
-    kind: z.literal('field'),
-    field: z.string().min(1),
-    op: z.enum(['>', '>=', '<', '<=']),
-    value: z.number(),
-  }),
-]);
-
-const crossSectionSchema = z.object({
-  type: z.literal('cross_section'),
-  schedule: z.enum(['daily', 'weekly', 'monthly']),
-  universe: z.object({ filters: z.array(universeFilterSchema) }),
-  score: exprSchema,
-  factors: z.array(z.string()).optional(),
-  pick: z.object({ side: z.enum(['high', 'low']), quantile: z.number().gt(0).max(1) }),
-  weight: z.literal('equal'),
-});
-
-const configSchema = z.object({
-  name: z.string().min(1).max(100),
-  start: z.string().regex(/^\d{8}$/),
-  end: z.string().regex(/^\d{8}$/),
-  initialCash: z.number().positive(),
-  cost: z
-    .object({
-      commission: z.number().min(0).optional(),
-      minCommission: z.number().min(0).optional(),
-      stampDuty: z.number().min(0).optional(),
-      transferFee: z.number().min(0).optional(),
-    })
-    .optional(),
-  strategy: crossSectionSchema,
-});
 
 export const backtestRoute = new Hono();
 

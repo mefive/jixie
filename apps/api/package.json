@@ -26,12 +26,13 @@
     "peek": "tsx --env-file=.env scripts/peek.ts"
   },
   "dependencies": {
-    "@jixie/shared": "workspace:*",
     "@hono/node-server": "^1.19.0",
     "@hono/zod-validator": "^0.8.0",
+    "@jixie/shared": "workspace:*",
     "@prisma/client": "^6.16.0",
     "dayjs": "^1.11.13",
     "hono": "^4.9.0",
+    "openai": "^6.44.0",
     "ulid": "^2.3.0",
     "zod": "^4.4.3"
   },
