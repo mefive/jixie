@@ -2,6 +2,7 @@ import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
 import { logger } from 'hono/logger';
 import { authRoute } from './routes/auth.js';
+import { backtestRoute } from './routes/backtest.js';
 import { requireAuth } from './lib/session.js';
 
 /**
@@ -30,7 +31,7 @@ export function buildApp() {
   // In phase two, mount backtest and other routes here; handlers use c.var.userId / c.var.user
   // directly.
   app.use('/api/app/*', requireAuth);
-  // app.route('/api/app/backtest', backtestRoute);
+  app.route('/api/app/backtest', backtestRoute);
 
   return app;
 }

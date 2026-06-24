@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { observer } from 'mobx-react';
 import loginEntry from '@src/complex/login';
-import dashboardEntry from '@src/complex/dashboard';
+import labEntry from '@src/complex/lab';
 import { authStore } from '@src/store';
 
 export function AppRoutes() {
@@ -14,7 +14,7 @@ export function AppRoutes() {
           path="/"
           element={
             <RequireAuth>
-              <ComplexRoute entry={dashboardEntry} />
+              <ComplexRoute entry={labEntry} />
             </RequireAuth>
           }
         />
