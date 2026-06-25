@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, type ReactNode } from 'react';
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import { observer } from 'mobx-react';
 import loginEntry from '@src/complex/login';
 import labEntry from '@src/complex/lab';
 import screenEntry from '@src/complex/screen';
+import stockEntry from '@src/complex/stock';
 import { authStore } from '@src/store';
 
 export function AppRoutes() {
@@ -30,6 +31,14 @@ export function AppRoutes() {
             </RequireAuth>
           }
         />
+        <Route
+          path="/stock/:code"
+          element={
+            <RequireAuth>
+              <StockRoute />
+            </RequireAuth>
+          }
+        />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
@@ -37,6 +46,14 @@ export function AppRoutes() {
 }
 
 // —— Subcomponents / helpers ——
+
+// Stock detail route: read :code, pass it as setupParams (memoized), key by code so a different
+// stock remounts the complex.
+function StockRoute() {
+  const { code = '' } = useParams();
+  const setupParams = useMemo(() => ({ code }), [code]);
+  return <ComplexRoute key={code} entry={stockEntry} setupParams={setupParams} />;
+}
 
 // Wire a complex's store lifecycle into react-router: createInstance on mount,
 // store.setup when setupParams arrive/change, cleanup on unmount. render() returns null until store is ready.

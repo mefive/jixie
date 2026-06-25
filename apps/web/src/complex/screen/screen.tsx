@@ -1,6 +1,5 @@
-import { lazy, Suspense } from 'react';
 import classNames from 'classnames';
-import { Button, Input, Modal, Table } from 'antd';
+import { Button, Input, Table } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { ScreenRow } from '@jixie/shared';
 import { faWandMagicSparkles } from '@fortawesome/free-solid-svg-icons';
@@ -10,8 +9,6 @@ import { complex } from './complex';
 import { ConditionChips } from './condition-chips';
 import { EXAMPLE_SCREENS } from './screen-store';
 import './screen.css';
-
-const StockChart = lazy(() => import('./stock-chart'));
 
 export const Screen = complex.component(() => {
   const store = complex.useStore();
@@ -73,39 +70,13 @@ export const Screen = complex.component(() => {
           columns={COLUMNS}
           pagination={false}
           scroll={{ y: 'calc(100vh - 300px)' }}
-          onRow={(r) => ({ onClick: () => store.selectStock(r.tsCode) })}
+          // Open the stock's K线/PE/量 in a new tab — keeps the screen list intact.
+          onRow={(r) => ({ onClick: () => window.open(`/stock/${r.tsCode}`, '_blank') })}
         />
       </main>
-
-      <StockDetail />
     </div>
   );
 }, 'Screen');
-
-// —— 子组件 ——
-
-const StockDetail = complex.component(() => {
-  const store = complex.useStore();
-  const series = store.seriesLoader.result;
-  return (
-    <Modal
-      open={store.selectedCode != null}
-      onCancel={() => store.closeDetail()}
-      footer={null}
-      width={920}
-      destroyOnHidden
-      title={series ? `${series.name} ${series.tsCode}` : store.selectedCode}
-    >
-      {store.seriesLoader.loading || !series ? (
-        <div className="jx-screen-chartLoading">加载行情…</div>
-      ) : (
-        <Suspense fallback={<div className="jx-screen-chartLoading">加载图表…</div>}>
-          <StockChart series={series} />
-        </Suspense>
-      )}
-    </Modal>
-  );
-}, 'StockDetail');
 
 // —— 帮助函数 / 配置 ——
 

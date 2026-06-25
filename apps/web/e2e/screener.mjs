@@ -69,17 +69,33 @@ try {
   await page.screenshot({ path: `${SHOTS}2b-chips-edit.png` });
   log('shot 2b: condition chips re-query');
 
-  // 4. Click first row → detail modal with K线/PE/量 charts.
-  await page.locator('.jx-screen-table tbody tr.ant-table-row').first().click();
-  await page.locator('.ant-modal canvas').first().waitFor({ timeout: 15000 });
-  await page.waitForTimeout(800); // let echarts paint
-  log('detail title', ((await page.locator('.ant-modal-title').textContent()) ?? '').trim());
-  await page.screenshot({ path: `${SHOTS}3-stock-detail.png` });
-  log('shot 3: stock detail charts');
+  // 4. Click first row → opens the stock detail in a NEW TAB (K线/PE/量), list stays intact.
+  const [stockPage] = await Promise.all([
+    page.context().waitForEvent('page'),
+    page.locator('.jx-screen-table tbody tr.ant-table-row').first().click(),
+  ]);
+  await stockPage.waitForLoadState('networkidle');
+  await stockPage.locator('canvas').first().waitFor({ timeout: 15000 });
+  await stockPage.waitForTimeout(800); // let echarts paint
+  log('stock page:', ((await stockPage.locator('.jx-stock-title').textContent()) ?? '').trim(), stockPage.url());
+  await stockPage.screenshot({ path: `${SHOTS}3-stock-detail.png` });
+  log('shot 3: stock detail (前复权 default, linear, PE on right axis)');
 
-  // 5. Close modal → nav back to the backtest workbench (routing sanity).
-  await page.locator('.ant-modal-close').click();
-  await page.locator('.ant-modal-wrap').waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
+  // 4b. 不复权 (raw) — shows ex-div jumps vs the adjusted default.
+  await stockPage.getByText('不复权', { exact: true }).click();
+  await stockPage.waitForTimeout(500);
+  await stockPage.screenshot({ path: `${SHOTS}3c-stock-raw.png` });
+  log('shot 3c: stock detail (不复权 raw)');
+
+  // 4c. Back to 前复权 + log price axis.
+  await stockPage.getByText('前复权', { exact: true }).click();
+  await stockPage.getByText('对数', { exact: true }).click();
+  await stockPage.waitForTimeout(600);
+  await stockPage.screenshot({ path: `${SHOTS}3b-stock-log.png` });
+  await stockPage.close();
+  log('shot 3b: stock detail (log price axis)');
+
+  // 5. Original tab still on the screener → nav to the backtest workbench (routing sanity).
   await page.getByRole('link', { name: '回测工作台' }).click();
   await page.getByText('策略配置').first().waitFor({ timeout: 10000 });
   await page.screenshot({ path: `${SHOTS}4-lab.png` });

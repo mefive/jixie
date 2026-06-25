@@ -83,7 +83,8 @@ export interface ScreenResult {
   rows: ScreenRow[];
 }
 
-/** One day of a stock's chart series (raw/unadjusted, as a broker displays). */
+/** One day of a stock's chart series. OHLC are raw/unadjusted; the cumulative adjFactor lets the
+ * client render 不复权 (raw) / 后复权 (× factor) / 前复权 (× factor / latest factor). */
 export interface StockSeriesPoint {
   date: TradeDate;
   open: number | null;
@@ -92,6 +93,7 @@ export interface StockSeriesPoint {
   close: number | null;
   vol: number | null; // 手
   pe: number | null; // from daily_basic
+  adjFactor: number | null; // cumulative adjustment factor
 }
 
 export interface StockSeries {
