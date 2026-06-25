@@ -1,4 +1,4 @@
-import { action, makeObservable, observable, runInAction } from 'mobx';
+import { action, computed, makeObservable, observable, runInAction } from 'mobx';
 import type { ScreenResult, ScreenSpec, StockSeries } from '@jixie/shared';
 import { BaseStore, LoaderModel } from '@src/lib';
 import { fetchStockSeries, parseScreen, runScreen } from '@src/api/client';
@@ -24,23 +24,29 @@ export const EXAMPLE_SCREENS: { label: string; spec: ScreenSpec }[] = [
   { label: '破净 (PB<1)', spec: { filters: [{ field: 'pb', op: '<', value: 1 }], sort: { field: 'pb', dir: 'asc' }, limit: 50 } },
 ];
 
+/**
+ * Screener store. The query `spec` is the editable source of truth: NL parse and example chips both
+ * set it; editing a condition chip re-runs the *deterministic* query (runScreen, no LLM) — mirrors
+ * fangtu's ConditionChips. `result` is the latest table data (set by either path).
+ */
 export class ScreenStore extends BaseStore<ScreenSetupParams> {
   public nlText = '';
+  public spec: ScreenSpec | null = null;
+  public result: ScreenResult | null = null;
   public selectedCode: string | null = null;
 
-  // Both the NL path and the example path resolve to {spec, result}; the table reads it.
-  public searchLoader = new LoaderModel<{ spec: ScreenSpec; result: ScreenResult }>();
+  public runLoader = new LoaderModel<ScreenResult>(); // direct deterministic query (examples, chip edits)
+  public parseLoader = new LoaderModel<{ spec: ScreenSpec; result: ScreenResult }>(); // NL→spec→run
   public seriesLoader = new LoaderModel<StockSeries>();
-
-  private pending: () => Promise<{ spec: ScreenSpec; result: ScreenResult }> = async () => {
-    throw new Error('no query');
-  };
 
   public constructor(parentStore?: any) {
     super(parentStore);
     makeObservable(this, {
       nlText: observable.ref,
+      spec: observable.ref,
+      result: observable.ref,
       selectedCode: observable.ref,
+      busy: computed,
       setNlText: action,
       selectStock: action,
       closeDetail: action,
@@ -49,10 +55,16 @@ export class ScreenStore extends BaseStore<ScreenSetupParams> {
 
   public setup(params: ScreenSetupParams) {
     super.setup(params);
-    this.searchLoader.setup({ request: () => this.pending() });
+    this.runLoader.setup({ request: () => runScreen(this.spec!) });
+    this.parseLoader.setup({ request: () => parseScreen(this.nlText.trim()) });
     this.seriesLoader.setup({ request: () => fetchStockSeries(this.selectedCode!) });
-    this.registCleaner(() => this.searchLoader.cleanup());
+    this.registCleaner(() => this.runLoader.cleanup());
+    this.registCleaner(() => this.parseLoader.cleanup());
     this.registCleaner(() => this.seriesLoader.cleanup());
+  }
+
+  public get busy(): boolean {
+    return this.runLoader.loading || this.parseLoader.loading;
   }
 
   public setNlText(v: string) {
@@ -61,17 +73,30 @@ export class ScreenStore extends BaseStore<ScreenSetupParams> {
     });
   }
 
-  /** AI path: NL → query spec → results (server does both). */
-  public searchNl() {
+  /** AI path: NL → spec → results (server does both); reflect the spec into the editable chips. */
+  public async searchNl() {
     if (!this.nlText.trim()) return;
-    this.pending = () => parseScreen(this.nlText.trim());
-    void this.searchLoader.run();
+    const r = await this.parseLoader.run();
+    runInAction(() => {
+      this.spec = r.spec;
+      this.result = r.result;
+    });
   }
 
-  /** Example path: run a preset spec directly (no LLM). */
+  /** Example path: load a preset spec, then run it. */
   public runExample(spec: ScreenSpec) {
-    this.pending = async () => ({ spec, result: await runScreen(spec) });
-    void this.searchLoader.run();
+    this.applySpec(spec);
+  }
+
+  /** Set the editable spec and re-run the deterministic query (used by chip edits + examples). */
+  public async applySpec(spec: ScreenSpec) {
+    runInAction(() => {
+      this.spec = spec;
+    });
+    const r = await this.runLoader.run();
+    runInAction(() => {
+      this.result = r;
+    });
   }
 
   public selectStock(code: string) {

@@ -24,8 +24,34 @@ export type ScreenField =
 export interface ScreenFilter {
   field: ScreenField;
   op: ScreenOp;
-  value: number;
+  value: number; // stored in the field's native unit (e.g. totalMv in 万元)
 }
+
+/** Field metadata for the UI (condition chips, sort picker). `scale` converts stored↔display:
+ * displayValue = stored / scale (market cap stored in 万元, shown in 亿 → scale 1e4). */
+export interface ScreenFieldDef {
+  key: ScreenField;
+  label: string;
+  unit?: string;
+  scale?: number;
+}
+
+export const SCREEN_FIELDS: ScreenFieldDef[] = [
+  { key: 'close', label: '现价', unit: '元' },
+  { key: 'pctChg', label: '涨跌幅', unit: '%' },
+  { key: 'pe', label: '市盈率' },
+  { key: 'peTtm', label: '市盈率TTM' },
+  { key: 'pb', label: '市净率' },
+  { key: 'ps', label: '市销率' },
+  { key: 'dvRatio', label: '股息率', unit: '%' },
+  { key: 'totalMv', label: '总市值', unit: '亿', scale: 1e4 },
+  { key: 'circMv', label: '流通市值', unit: '亿', scale: 1e4 },
+  { key: 'turnoverRate', label: '换手率', unit: '%' },
+];
+
+export const SCREEN_FIELD_BY_KEY: Record<string, ScreenFieldDef> = Object.fromEntries(
+  SCREEN_FIELDS.map((f) => [f.key, f]),
+);
 
 export interface ScreenSpec {
   filters: ScreenFilter[];

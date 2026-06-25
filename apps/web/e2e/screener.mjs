@@ -54,6 +54,21 @@ try {
   await page.screenshot({ path: `${SHOTS}2-screen-results.png` });
   log('shot 2: results table');
 
+  // 3b. Edit a condition chip (remove the 股息率 filter) → deterministic re-query (no LLM).
+  const sumBefore = ((await page.locator('.jx-screen-summary').textContent()) ?? '').trim();
+  await page.locator('.jx-chips-chip').nth(1).getByTitle('移除条件').click();
+  await page.waitForFunction(
+    (prev) => {
+      const el = document.querySelector('.jx-screen-summary');
+      return el && el.textContent && el.textContent.trim() !== prev;
+    },
+    sumBefore,
+    { timeout: 10000 },
+  );
+  log('after chip edit:', ((await page.locator('.jx-screen-summary').textContent()) ?? '').trim());
+  await page.screenshot({ path: `${SHOTS}2b-chips-edit.png` });
+  log('shot 2b: condition chips re-query');
+
   // 4. Click first row → detail modal with K线/PE/量 charts.
   await page.locator('.jx-screen-table tbody tr.ant-table-row').first().click();
   await page.locator('.ant-modal canvas').first().waitFor({ timeout: 15000 });
