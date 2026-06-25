@@ -59,7 +59,7 @@ export async function stockSeries(
   start: string,
   end: string,
 ): Promise<StockSeries> {
-  const [px, db, basic] = await Promise.all([
+  const [px, db, adj, basic] = await Promise.all([
     prisma.daily.findMany({
       where: { tsCode, tradeDate: { gte: start, lte: end } },
       select: { tradeDate: true, open: true, high: true, low: true, close: true, vol: true },
@@ -69,9 +69,14 @@ export async function stockSeries(
       where: { tsCode, tradeDate: { gte: start, lte: end } },
       select: { tradeDate: true, pe: true },
     }),
+    prisma.adjFactor.findMany({
+      where: { tsCode, tradeDate: { gte: start, lte: end } },
+      select: { tradeDate: true, adjFactor: true },
+    }),
     prisma.stockBasic.findUnique({ where: { tsCode }, select: { name: true } }),
   ]);
   const peMap = new Map(db.map((r) => [r.tradeDate, r.pe]));
+  const adjMap = new Map(adj.map((r) => [r.tradeDate, r.adjFactor]));
 
   return {
     tsCode,
@@ -84,6 +89,7 @@ export async function stockSeries(
       close: r.close,
       vol: r.vol,
       pe: peMap.get(r.tradeDate) ?? null,
+      adjFactor: adjMap.get(r.tradeDate) ?? null,
     })),
   };
 }
