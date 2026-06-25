@@ -1,6 +1,6 @@
-import { lazy, Suspense, useEffect, useRef } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import classNames from 'classnames';
-import { Button, DatePicker, Input, InputNumber, Select } from 'antd';
+import { Button, DatePicker, Input, InputNumber, Segmented, Select } from 'antd';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 import { faPlay, faSpinner, faWandMagicSparkles } from '@fortawesome/free-solid-svg-icons';
@@ -16,10 +16,17 @@ dayjs.extend(customParseFormat);
 const ymd = (s: string) => (s ? dayjs(s, 'YYYYMMDD') : null);
 
 const NavChart = lazy(() => import('./nav-chart'));
+const StrategyFlow = lazy(() => import('./strategy-flow'));
 
 export const Lab = complex.component(() => {
   const store = complex.useStore();
   const loader = store.backtestLoader;
+  const loading = loader.loading;
+  const [rightView, setRightView] = useState<'flow' | 'result'>('flow');
+  // Jump to the results view as soon as a run starts (the flowchart is the default resting view).
+  useEffect(() => {
+    if (loading) setRightView('result');
+  }, [loading]);
 
   return (
     <div className="jx-lab">
@@ -179,7 +186,25 @@ export const Lab = complex.component(() => {
         </section>
 
         <section className="jx-lab-result">
-          <ResultPanel />
+          <div className="jx-lab-rightHead">
+            <Segmented
+              value={rightView}
+              onChange={(v) => setRightView(v as 'flow' | 'result')}
+              options={[
+                { label: '流程图', value: 'flow' },
+                { label: '回测结果', value: 'result' },
+              ]}
+            />
+          </div>
+          <div className="jx-lab-rightBody">
+            {rightView === 'flow' ? (
+              <Suspense fallback={<div className="jx-lab-placeholder">加载流程图…</div>}>
+                <StrategyFlow />
+              </Suspense>
+            ) : (
+              <ResultPanel />
+            )}
+          </div>
         </section>
       </main>
     </div>

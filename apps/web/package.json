@@ -12,13 +12,14 @@
     "test:e2e": "node e2e/screener.mjs"
   },
   "dependencies": {
-    "@jixie/shared": "workspace:*",
-    "antd": "^6.0.0",
-    "dayjs": "^1.11.13",
     "@fortawesome/fontawesome-svg-core": "^7.2.0",
     "@fortawesome/free-solid-svg-icons": "^7.2.0",
     "@fortawesome/react-fontawesome": "^3.3.0",
+    "@jixie/shared": "workspace:*",
+    "@xyflow/react": "^12.11.1",
+    "antd": "^6.0.0",
     "classnames": "^2.5.1",
+    "dayjs": "^1.11.13",
     "echarts": "^6.0.0",
     "mobx": "^6.16.0",
     "mobx-react": "^9.2.0",

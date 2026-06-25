@@ -1,0 +1,91 @@
+@reference '../../styles/index.css';
+
+.jx-flow {
+  @apply flex;
+  height: 100%;
+}
+
+.jx-flow-canvas {
+  @apply flex-1;
+  @apply rounded-lg border border-line bg-bg;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* —— side editor panel (outside the canvas, so antd controls dodge pan/zoom) —— */
+.jx-flow-editor {
+  @apply flex flex-col;
+  @apply overflow-y-auto;
+  width: 240px;
+  padding-left: 14px;
+}
+
+.jx-flow-editorHint {
+  @apply flex flex-1 items-center justify-center;
+  @apply text-sm text-muted;
+  text-align: center;
+}
+
+.jx-flow-editorBox {
+  @apply flex flex-col gap-3;
+}
+
+.jx-flow-editorTitle {
+  @apply font-semibold text-ink;
+}
+
+.jx-flow-field {
+  @apply flex flex-col gap-1;
+}
+
+.jx-flow-fieldLabel {
+  @apply text-sm text-muted;
+}
+
+.jx-flow-control {
+  width: 100%;
+}
+
+.jx-flow-formula {
+  @apply rounded-md border border-line bg-bg text-ink;
+  padding: 8px 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+}
+
+.jx-flow-note {
+  @apply text-xs text-muted;
+  line-height: 1.6;
+}
+
+/* —— pipeline node card —— */
+.jx-flow-node {
+  @apply rounded-lg border border-line bg-card;
+  @apply text-center;
+  width: 188px;
+  padding: 10px 12px;
+  box-shadow: 0 1px 2px rgb(17 24 39 / 0.04);
+}
+
+.jx-flow-node--active {
+  border-color: var(--color-ink);
+  box-shadow: 0 0 0 2px rgb(17 24 39 / 0.12);
+}
+
+.jx-flow-nodeTitle {
+  @apply font-semibold text-ink;
+  font-size: 13px;
+}
+
+.jx-flow-nodeLine {
+  @apply truncate text-muted;
+  margin-top: 3px;
+  font-size: 12px;
+}
+
+.jx-flow-handle {
+  width: 6px;
+  height: 6px;
+  background: var(--color-line);
+  border: none;
+}
