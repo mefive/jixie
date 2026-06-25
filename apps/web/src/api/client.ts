@@ -88,11 +88,55 @@ export function pollBacktest(jobId: string): Promise<BacktestJob> {
   return request(`/api/app/backtest/${jobId}`);
 }
 
-import type { ScreenResult, ScreenSpec, StockSeries, StrategyIR } from '@jixie/shared';
+import type {
+  ScreenResult,
+  ScreenSpec,
+  StockSeries,
+  StrategyIR,
+  SavedMeta,
+  SavedStrategy,
+  SavedScreenQuery,
+} from '@jixie/shared';
 
 // NL→IR: turn a natural-language strategy description into a validated strategy IR.
 export function parseStrategy(text: string): Promise<{ ir: StrategyIR; attempts: number }> {
   return request('/api/app/strategy/parse', { method: 'POST', body: JSON.stringify({ text }) });
+}
+
+// —— Saved strategies (产品线 1 持久化) —— auto-saved on backtest run; name = config.name (upsert).
+
+export function listStrategies(): Promise<SavedMeta[]> {
+  return request('/api/app/strategies');
+}
+
+export function getStrategy(id: string): Promise<SavedStrategy> {
+  return request(`/api/app/strategies/${id}`);
+}
+
+export function saveStrategy(config: BacktestConfig): Promise<SavedMeta> {
+  return request('/api/app/strategies', { method: 'POST', body: JSON.stringify(config) });
+}
+
+export function deleteStrategy(id: string): Promise<{ ok: true }> {
+  return request(`/api/app/strategies/${id}`, { method: 'DELETE' });
+}
+
+// —— Saved screens (产品线 2 持久化) —— saved on demand; { name, spec } upsert by name.
+
+export function listScreens(): Promise<SavedMeta[]> {
+  return request('/api/app/screens');
+}
+
+export function getScreen(id: string): Promise<SavedScreenQuery> {
+  return request(`/api/app/screens/${id}`);
+}
+
+export function saveScreen(name: string, spec: ScreenSpec): Promise<SavedMeta> {
+  return request('/api/app/screens', { method: 'POST', body: JSON.stringify({ name, spec }) });
+}
+
+export function deleteScreen(id: string): Promise<{ ok: true }> {
+  return request(`/api/app/screens/${id}`, { method: 'DELETE' });
 }
 
 // —— Screener (产品线 2) ——
