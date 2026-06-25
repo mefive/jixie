@@ -20,22 +20,30 @@ const PERIODS_PER_YEAR = 252; // trading days
  */
 export async function runStrategy(cfg: EngineConfig): Promise<BacktestResult> {
   const cost = { ...DEFAULT_COST, ...cfg.cost };
+  const log = cfg.onLog ?? (() => {}); // progress sink (worker forwards to the job; scripts no-op)
   const data = new EngineData(cfg.start, cfg.end, cfg.strategy.factors ?? []);
   await data.load();
   if (cfg.strategy.watch?.length) await data.loadBars(cfg.strategy.watch); // per-instrument preload
   const pf = new Portfolio(cfg.initialCash, cost);
 
+  const yuan = (v: number) => `¥${Math.round(v).toLocaleString()}`;
+  log(`开始回测 · ${fmtDate(cfg.start)} ~ ${fmtDate(cfg.end)} · 初始资金 ${yuan(cfg.initialCash)}`);
+
   const nav: { date: string; value: number }[] = [];
   let pendingTargets: Map<string, number> | null = null;
   let pendingOrders: Map<string, number> | null = null;
+  let lastYear = '';
+  const total = data.timeline.length;
 
-  for (const date of data.timeline) {
+  for (let i = 0; i < total; i++) {
+    const date = data.timeline[i];
     // 1. Execute what was queued yesterday, at today's open (declarative rebalance OR share orders).
     if (pendingTargets) {
       const codes = new Set<string>([...pendingTargets.keys(), ...pf.positions.keys()]);
       await data.loadBars([...codes]); // ensure bars before fills/marking
       rebalance(pf, data, date, pendingTargets);
       pendingTargets = null;
+      log(`${fmtDate(date)} 调仓 → 持仓 ${pf.positions.size} 只`);
     }
     if (pendingOrders) {
       await data.loadBars([...pendingOrders.keys()]);
@@ -44,7 +52,15 @@ export async function runStrategy(cfg: EngineConfig): Promise<BacktestResult> {
     }
 
     // 2. Mark equity at today's close.
-    nav.push({ date, value: pf.equity((c) => data.closeAt(c, date)) });
+    const value = pf.equity((c) => data.closeAt(c, date));
+    nav.push({ date, value });
+
+    // Yearly heartbeat — keeps the run visibly advancing even between rebalances (any archetype).
+    const year = date.slice(0, 4);
+    if (year !== lastYear) {
+      lastYear = year;
+      log(`${year} · 权益 ${yuan(value)} · 进度 ${Math.round(((i + 1) / total) * 100)}%`);
+    }
 
     // 3. Strategy decides (may await market data). It may queue targets or orders for next open.
     const collected: {
@@ -56,10 +72,19 @@ export async function runStrategy(cfg: EngineConfig): Promise<BacktestResult> {
     if (collected.orders) pendingOrders = collected.orders;
   }
 
-  return summarize(cfg, nav, pf.trades);
+  const result = summarize(cfg, nav, pf.trades);
+  log(
+    `完成 · ${result.days} 天 · ${result.trades} 笔 · 期末 ${yuan(result.finalValue)} · 收益 ${(result.totalReturn * 100).toFixed(2)}%`,
+  );
+  return result;
 }
 
 // —— helpers ——
+
+/** YYYYMMDD → YYYY-MM-DD for log lines. */
+function fmtDate(d: string): string {
+  return `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`;
+}
 
 function buildContext(
   date: string,

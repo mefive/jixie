@@ -72,20 +72,21 @@ export function logout(): Promise<{ ok: true }> {
 
 import type { BacktestConfig, BacktestSummary } from '@jixie/shared';
 
-// A backtest job (in-memory on the server). running → done(result) | error(message).
+// A backtest job (runs in a worker on the server). Each poll carries the log lines after the cursor
+// the client passed (`since`) and `nextSince` to pass next time. running → done(result) | error(message).
 export type BacktestJob =
-  | { status: 'running' }
-  | { status: 'done'; result: BacktestSummary }
-  | { status: 'error'; message: string };
+  | { status: 'running'; logs: string[]; nextSince: number }
+  | { status: 'done'; logs: string[]; nextSince: number; result: BacktestSummary }
+  | { status: 'error'; logs: string[]; nextSince: number; message: string };
 
 // Submit a backtest config; returns a jobId to poll.
 export function submitBacktest(config: BacktestConfig): Promise<{ jobId: string }> {
   return request('/api/app/backtest', { method: 'POST', body: JSON.stringify(config) });
 }
 
-// Poll a backtest job's status / result.
-export function pollBacktest(jobId: string): Promise<BacktestJob> {
-  return request(`/api/app/backtest/${jobId}`);
+// Poll a backtest job — `since` = how many log lines the client already has (incremental tail).
+export function pollBacktest(jobId: string, since = 0): Promise<BacktestJob> {
+  return request(`/api/app/backtest/${jobId}?since=${since}`);
 }
 
 import type {

@@ -49,6 +49,9 @@ export class LabStore extends BaseStore<LabSetupParams> {
   // —— NL→IR ——
   public nlText = '';
 
+  // —— live backtest progress logs (streamed from the worker via polling) ——
+  public logLines: string[] = [];
+
   public backtestLoader = new LoaderModel<BacktestSummary>();
   public parseLoader = new LoaderModel<{ ir: StrategyIR; attempts: number }>();
   public savedLoader = new LoaderModel<SavedMeta[]>(); // 我的策略 list (auto-saved on run)
@@ -69,19 +72,22 @@ export class LabStore extends BaseStore<LabSetupParams> {
       dropIlliquidPct: observable.ref,
       extraFilters: observable.ref,
       nlText: observable.ref,
+      logLines: observable.ref,
       selectedPresetKey: computed,
       irPreview: computed,
       setField: action,
       setPreset: action,
       applyIr: action,
       applyConfig: action,
+      appendLogs: action,
     });
   }
 
   public setup(params: LabSetupParams) {
     super.setup(params);
     this.backtestLoader.setup({
-      request: (_d, signal) => runAndPoll(this.buildConfig(), signal),
+      request: (_d, signal) =>
+        runAndPoll(this.buildConfig(), signal, (lines) => this.appendLogs(lines)),
     });
     this.parseLoader.setup({ request: () => parseStrategy(this.nlText.trim()) });
     this.savedLoader.setup({ request: () => listStrategies() });
@@ -160,11 +166,21 @@ export class LabStore extends BaseStore<LabSetupParams> {
   }
 
   public run() {
+    runInAction(() => {
+      this.logLines = []; // fresh progress log per run
+    });
     // Auto-save the strategy on every run (upsert by name) — best-effort, never blocks the backtest.
     void saveStrategy(this.buildConfig())
       .then(() => this.savedLoader.run())
       .catch(() => {});
     void this.backtestLoader.run();
+  }
+
+  /** Append log lines streamed from the backtest worker (called by the polling loop). */
+  public appendLogs(lines: string[]) {
+    runInAction(() => {
+      this.logLines = [...this.logLines, ...lines];
+    });
   }
 
   /** Reflect a full saved BacktestConfig back into the form (range/capital + the strategy IR). */
@@ -213,12 +229,22 @@ function delay(ms: number, signal: AbortSignal): Promise<void> {
   });
 }
 
-/** Submit the backtest, then poll until done — the unit of work behind the LoaderModel. */
-async function runAndPoll(config: BacktestConfig, signal: AbortSignal): Promise<BacktestSummary> {
+/** Submit the backtest, then poll until done — the unit of work behind the LoaderModel. Each poll
+ * carries the new log lines since `since`; `onLog` forwards them to the store for live display. */
+async function runAndPoll(
+  config: BacktestConfig,
+  signal: AbortSignal,
+  onLog: (lines: string[]) => void,
+): Promise<BacktestSummary> {
   const { jobId } = await submitBacktest(config);
+  let since = 0;
   for (;;) {
     await delay(POLL_INTERVAL_MS, signal);
-    const job = await pollBacktest(jobId);
+    const job = await pollBacktest(jobId, since);
+    if (job.logs.length) {
+      onLog(job.logs);
+      since = job.nextSince;
+    }
     if (job.status === 'done') return job.result;
     if (job.status === 'error') throw new Error(job.message);
   }

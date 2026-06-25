@@ -117,6 +117,10 @@ export interface EngineConfig {
   initialCash: number;
   strategy: Strategy;
   cost?: Partial<CostModel>;
+  /** Optional progress sink — the engine emits human-readable lines (start / rebalance / yearly
+   * heartbeat / done) as the run advances. The worker forwards these to the job for log polling;
+   * scripts and tests omit it (no-op). */
+  onLog?: (line: string) => void;
 }
 
 export interface BacktestResult {

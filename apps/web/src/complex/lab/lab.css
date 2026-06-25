@@ -98,6 +98,28 @@
   @apply text-down;
 }
 
+/* —— live backtest progress (streamed worker logs) —— */
+.jx-lab-running {
+  @apply flex flex-1 flex-col gap-3;
+  @apply overflow-hidden;
+  padding: 8px;
+}
+
+.jx-lab-runningHead {
+  @apply flex items-center gap-2;
+  @apply text-sm text-muted;
+}
+
+.jx-lab-log {
+  @apply flex-1 overflow-auto;
+  @apply rounded-lg border border-line bg-bg text-muted;
+  padding: 12px 14px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
 .jx-lab-metrics {
   @apply grid gap-3;
   grid-template-columns: repeat(3, 1fr);
