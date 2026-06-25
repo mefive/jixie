@@ -139,7 +139,9 @@ model User {
   status    String   @default("active") // 'active' | 'disabled' (disabling does not delete the account)
   createdAt DateTime @default(now())
 
-  sessions Session[]
+  sessions     Session[]
+  strategies   Strategy[]
+  savedScreens SavedScreen[]
 }
 
 /// Login session. id = session token (stored in sid cookie). 30-day TTL; expiry enforced by filtering on expiresAt at query time.
@@ -193,4 +195,42 @@ model EmailLoginChallenge {
   createdAt  DateTime  @default(now())
 
   @@index([email, expiresAt])
+}
+
+// ============================================================================
+// Saved user work (per-product-line persistence). Two sibling tables, one per product line — kept
+// separate (not a unified table) so each column is typed to its payload. Both are owner-scoped and
+// unique by (userId, name): saving upserts the row of that name, so re-running / re-saving under the
+// same name updates in place instead of spawning duplicates; renaming is a new saved item. IDs are
+// application-generated ULIDs.
+// ============================================================================
+
+/// A saved backtest strategy (holds a BacktestConfig as JSON). Auto-saved when a backtest runs:
+/// the workbench upserts by name, so "我的策略" lists each named strategy you've run.
+model Strategy {
+  id        String   @id // ULID
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  config    Json // BacktestConfig
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, name]) // name = identity within a user → enables upsert-by-name
+  @@index([userId, updatedAt]) // list a user's strategies, newest first
+}
+
+/// A saved screen query (holds a ScreenSpec as JSON). Saved on demand — the user clicks 保存 to keep
+/// an exploratory query; also upsert by name.
+model SavedScreen {
+  id        String   @id // ULID
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  spec      Json // ScreenSpec
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, name])
+  @@index([userId, updatedAt])
 }

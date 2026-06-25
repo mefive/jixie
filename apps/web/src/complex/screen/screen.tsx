@@ -5,6 +5,7 @@ import type { ScreenRow } from '@jixie/shared';
 import { faWandMagicSparkles } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { TopNav } from '@src/components/top-nav';
+import { SavedBar } from '@src/components/saved-bar';
 import { complex } from './complex';
 import { ConditionChips } from './condition-chips';
 import { EXAMPLE_SCREENS } from './screen-store';
@@ -44,6 +45,22 @@ export const Screen = complex.component(() => {
               {ex.label}
             </Button>
           ))}
+          {/* 我的选股:手动存(点保存命名 → 按名 upsert);只有已有查询时才给保存入口 */}
+          <span className="jx-screen-savedSlot">
+            <SavedBar
+              title="我的选股"
+              items={store.savedLoader.result ?? []}
+              loading={store.savedLoader.loading}
+              onOpenList={() => store.loadSavedList()}
+              onLoad={(id) => void store.openSaved(id)}
+              onDelete={(id) => store.removeSaved(id)}
+              save={
+                store.spec
+                  ? { label: '保存选股', defaultName: '', onSave: (name) => store.saveCurrent(name) }
+                  : undefined
+              }
+            />
+          </span>
         </div>
 
         {/* NL/示例解析出的查询条件,回显成可编辑 chips;改任一条直接重查(不过模型) */}
