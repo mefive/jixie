@@ -1,0 +1,29 @@
+@reference '../../styles/index.css';
+
+.jx-chips {
+  @apply flex flex-wrap items-center gap-2;
+}
+
+.jx-chips-chip {
+  @apply flex items-center gap-1;
+  @apply rounded border border-line bg-card;
+  padding: 2px 4px 2px 10px;
+}
+
+.jx-chips-label {
+  @apply text-sm text-ink;
+}
+
+.jx-chips-unit {
+  @apply text-sm text-muted;
+}
+
+.jx-chips-sort {
+  @apply flex items-center gap-1;
+  @apply rounded bg-chip;
+  padding: 2px 6px;
+}
+
+.jx-chips-sortLabel {
+  @apply text-sm text-muted;
+}
