@@ -7,6 +7,7 @@ import { faWandMagicSparkles } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { TopNav } from '@src/components/top-nav';
 import { complex } from './complex';
+import { ConditionChips } from './condition-chips';
 import { EXAMPLE_SCREENS } from './screen-store';
 import './screen.css';
 
@@ -14,8 +15,7 @@ const StockChart = lazy(() => import('./stock-chart'));
 
 export const Screen = complex.component(() => {
   const store = complex.useStore();
-  const loader = store.searchLoader;
-  const result = loader.result?.result;
+  const result = store.result;
 
   return (
     <div className="jx-screen">
@@ -32,7 +32,7 @@ export const Screen = complex.component(() => {
           <Button
             type="primary"
             icon={<FontAwesomeIcon icon={faWandMagicSparkles} />}
-            loading={loader.loading}
+            loading={store.parseLoader.loading}
             disabled={!store.nlText.trim()}
             onClick={() => store.searchNl()}
           >
@@ -49,8 +49,13 @@ export const Screen = complex.component(() => {
           ))}
         </div>
 
-        {loader.error && (
-          <div className="jx-screen-error">查询失败：{loader.errorObject?.message}</div>
+        {/* NL/示例解析出的查询条件,回显成可编辑 chips;改任一条直接重查(不过模型) */}
+        {store.spec && (
+          <ConditionChips spec={store.spec} onChange={(s) => void store.applySpec(s)} />
+        )}
+
+        {store.parseLoader.error && (
+          <div className="jx-screen-error">解析失败：{store.parseLoader.errorObject?.message}</div>
         )}
 
         {result && (
@@ -63,11 +68,11 @@ export const Screen = complex.component(() => {
           className="jx-screen-table"
           rowKey="tsCode"
           size="middle"
-          loading={loader.loading}
+          loading={store.busy}
           dataSource={result?.rows ?? []}
           columns={COLUMNS}
           pagination={false}
-          scroll={{ y: 'calc(100vh - 260px)' }}
+          scroll={{ y: 'calc(100vh - 300px)' }}
           onRow={(r) => ({ onClick: () => store.selectStock(r.tsCode) })}
         />
       </main>
