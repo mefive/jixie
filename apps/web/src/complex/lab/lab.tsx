@@ -3,10 +3,9 @@ import classNames from 'classnames';
 import { Button, DatePicker, Input, InputNumber, Select } from 'antd';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
-import { faRightFromBracket, faPlay, faWandMagicSparkles } from '@fortawesome/free-solid-svg-icons';
+import { faPlay, faWandMagicSparkles } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { authStore } from '@src/store';
-import banner from '@src/assets/banner.png';
+import { TopNav } from '@src/components/top-nav';
 import { complex } from './complex';
 import { FACTOR_PRESETS } from './presets';
 import './lab.css';
@@ -23,22 +22,7 @@ export const Lab = complex.component(() => {
 
   return (
     <div className="jx-lab">
-      <header className="jx-lab-header">
-        <div className="jx-lab-brand">
-          <img className="jx-lab-banner" src={banner} alt="机械交易系" />
-          <span className="jx-lab-page">回测工作台</span>
-        </div>
-        <div className="jx-lab-user">
-          <span className="jx-lab-email">{authStore.user?.email}</span>
-          <Button
-            type="text"
-            icon={<FontAwesomeIcon icon={faRightFromBracket} />}
-            onClick={() => void authStore.logout()}
-          >
-            退出
-          </Button>
-        </div>
-      </header>
+      <TopNav />
 
       <main className="jx-lab-body">
         <section className="jx-lab-form">
