@@ -6,6 +6,7 @@ import customParseFormat from 'dayjs/plugin/customParseFormat';
 import { faPlay, faWandMagicSparkles } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { TopNav } from '@src/components/top-nav';
+import { SavedBar } from '@src/components/saved-bar';
 import { complex } from './complex';
 import { FACTOR_PRESETS } from './presets';
 import './lab.css';
@@ -26,7 +27,18 @@ export const Lab = complex.component(() => {
 
       <main className="jx-lab-body">
         <section className="jx-lab-form">
-          <h2 className="jx-lab-formTitle">策略配置</h2>
+          <div className="jx-lab-formHead">
+            <h2 className="jx-lab-formTitle">策略配置</h2>
+            {/* 我的策略:跑回测时自动存(按名 upsert),这里只读回/删除,故不带保存按钮 */}
+            <SavedBar
+              title="我的策略"
+              items={store.savedLoader.result ?? []}
+              loading={store.savedLoader.loading}
+              onOpenList={() => store.loadSavedList()}
+              onLoad={(id) => void store.openSaved(id)}
+              onDelete={(id) => store.removeSaved(id)}
+            />
+          </div>
 
           <div className="jx-lab-nl">
             <Input.TextArea

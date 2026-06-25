@@ -69,6 +69,47 @@ try {
   await page.screenshot({ path: `${SHOTS}2b-chips-edit.png` });
   log('shot 2b: condition chips re-query');
 
+  // 3c. Save the current screen (manual) → it shows up under 我的选股 → reopen it → delete it.
+  // (antd inserts a space between two CJK chars, so the OK button reads "保 存" — target it by class.)
+  await page.getByRole('button', { name: '保存选股' }).click();
+  await page.locator('.ant-modal input').fill('e2e测试选股');
+  await page.locator('.ant-modal-footer .ant-btn-primary').click();
+  await page.locator('.ant-modal').waitFor({ state: 'hidden' });
+  // open the 我的选股 dropdown → the saved item is listed
+  await page.getByRole('button', { name: /我的选股/ }).click();
+  await page.locator('.ant-dropdown .jx-savedBar-itemName', { hasText: 'e2e测试选股' }).waitFor();
+  log('saved screen listed under 我的选股');
+  await page.screenshot({ path: `${SHOTS}2d-saved-screen.png` });
+  log('shot 2d: 我的选股 dropdown');
+  // reopen it (click the item) → spec reloads and re-runs
+  await page.locator('.ant-dropdown .jx-savedBar-itemName', { hasText: 'e2e测试选股' }).click();
+  await page.waitForFunction(
+    () => document.querySelectorAll('.jx-screen-table tbody tr.ant-table-row').length > 0,
+    { timeout: 10000 },
+  );
+  log('reopened saved screen → table repopulated');
+  // delete it: open dropdown, click the trash icon → assert the server list is now empty
+  await page.getByRole('button', { name: /我的选股/ }).click();
+  await page.locator('.ant-dropdown .jx-savedBar-del').first().click();
+  await page.waitForFunction(
+    async () => {
+      const l = await (await fetch('/api/app/screens')).json();
+      return Array.isArray(l) && l.length === 0;
+    },
+    { timeout: 10000 },
+  );
+  log('deleted saved screen → server list empty');
+  await page.keyboard.press('Escape'); // close the dropdown before the next step
+
+  // 3d. Owner-scoping / not-found: a bogus saved id 404s on GET and DELETE.
+  const notFound = await page.evaluate(async () => {
+    const g = await fetch('/api/app/screens/nope', { method: 'GET' });
+    const d = await fetch('/api/app/strategies/nope', { method: 'DELETE' });
+    return { get: g.status, del: d.status };
+  });
+  log('bogus id statuses', JSON.stringify(notFound));
+  if (notFound.get !== 404 || notFound.del !== 404) throw new Error(`expected 404s, got ${JSON.stringify(notFound)}`);
+
   // 4. Click first row → opens the stock detail in a NEW TAB (K线/PE/量), list stays intact.
   const [stockPage] = await Promise.all([
     page.context().waitForEvent('page'),
@@ -95,11 +136,53 @@ try {
   await stockPage.close();
   log('shot 3b: stock detail (log price axis)');
 
-  // 5. Original tab still on the screener → nav to the backtest workbench (routing sanity).
+  // 5. Seed a strategy via the API (auto-save would otherwise need a full ~30s backtest run), then
+  //    nav to the workbench → 我的策略 dropdown lists it → click to load it into the form.
+  const seeded = await page.evaluate(async () => {
+    const r = await fetch('/api/app/strategies', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        name: 'e2e策略',
+        start: '20200101',
+        end: '20201231',
+        initialCash: 1234567,
+        strategy: {
+          type: 'cross_section',
+          schedule: 'monthly',
+          universe: { filters: [] },
+          score: { kind: 'field', name: 'peTtm' },
+          pick: { side: 'low', quantile: 0.1 },
+          weight: 'equal',
+        },
+      }),
+    });
+    return r.status;
+  });
+  log('seed strategy status', seeded);
+
   await page.getByRole('link', { name: '回测工作台' }).click();
   await page.getByText('策略配置').first().waitFor({ timeout: 10000 });
+  await page.getByRole('button', { name: /我的策略/ }).click();
+  await page.locator('.ant-dropdown .jx-savedBar-itemName', { hasText: 'e2e策略' }).waitFor();
   await page.screenshot({ path: `${SHOTS}4-lab.png` });
-  log('shot 4: backtest workbench');
+  log('shot 4: backtest workbench + 我的策略 dropdown');
+  // load it → the strategy-name input reflects the saved name
+  await page.locator('.ant-dropdown .jx-savedBar-itemName', { hasText: 'e2e策略' }).click();
+  await page.waitForFunction(
+    () => {
+      const inputs = [...document.querySelectorAll('.jx-lab-field input')];
+      return inputs.some((i) => i.value === 'e2e策略');
+    },
+    { timeout: 10000 },
+  );
+  log('loaded saved strategy into the form');
+  // cleanup the seeded row
+  await page.evaluate(async () => {
+    const list = await (await fetch('/api/app/strategies')).json();
+    for (const it of list) await fetch(`/api/app/strategies/${it.id}`, { method: 'DELETE' });
+  });
+  log('cleaned up seeded strategies');
 
   // 6. (opt-in, costs an LLM call) NL→screen through the UI: needs DEEPSEEK_API_KEY. Run with E2E_NL=1.
   if (process.env.E2E_NL) {

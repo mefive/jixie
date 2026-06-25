@@ -23,6 +23,10 @@
   @apply text-sm text-muted;
 }
 
+.jx-screen-savedSlot {
+  margin-left: auto;
+}
+
 .jx-screen-error {
   @apply text-down;
   font-size: 13px;

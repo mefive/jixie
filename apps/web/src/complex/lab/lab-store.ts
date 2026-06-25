@@ -3,12 +3,21 @@ import type {
   BacktestConfig,
   BacktestSummary,
   Expr,
+  SavedMeta,
   Schedule,
   StrategyIR,
   UniverseFilter,
 } from '@jixie/shared';
 import { BaseStore, LoaderModel } from '@src/lib';
-import { parseStrategy, pollBacktest, submitBacktest } from '@src/api/client';
+import {
+  deleteStrategy,
+  getStrategy,
+  listStrategies,
+  parseStrategy,
+  pollBacktest,
+  saveStrategy,
+  submitBacktest,
+} from '@src/api/client';
 import { PRESET_BY_KEY, FACTOR_PRESETS } from './presets';
 
 type LabSetupParams = {};
@@ -42,6 +51,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
 
   public backtestLoader = new LoaderModel<BacktestSummary>();
   public parseLoader = new LoaderModel<{ ir: StrategyIR; attempts: number }>();
+  public savedLoader = new LoaderModel<SavedMeta[]>(); // 我的策略 list (auto-saved on run)
 
   public constructor(parentStore?: any) {
     super(parentStore);
@@ -64,6 +74,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
       setField: action,
       setPreset: action,
       applyIr: action,
+      applyConfig: action,
     });
   }
 
@@ -73,8 +84,11 @@ export class LabStore extends BaseStore<LabSetupParams> {
       request: (_d, signal) => runAndPoll(this.buildConfig(), signal),
     });
     this.parseLoader.setup({ request: () => parseStrategy(this.nlText.trim()) });
+    this.savedLoader.setup({ request: () => listStrategies() });
     this.registCleaner(() => this.backtestLoader.cleanup());
     this.registCleaner(() => this.parseLoader.cleanup());
+    this.registCleaner(() => this.savedLoader.cleanup());
+    void this.savedLoader.run(); // prime the 我的策略 dropdown
   }
 
   public setField<K extends keyof LabStore>(key: K, value: LabStore[K]) {
@@ -146,7 +160,37 @@ export class LabStore extends BaseStore<LabSetupParams> {
   }
 
   public run() {
+    // Auto-save the strategy on every run (upsert by name) — best-effort, never blocks the backtest.
+    void saveStrategy(this.buildConfig())
+      .then(() => this.savedLoader.run())
+      .catch(() => {});
     void this.backtestLoader.run();
+  }
+
+  /** Reflect a full saved BacktestConfig back into the form (range/capital + the strategy IR). */
+  public applyConfig(config: BacktestConfig) {
+    runInAction(() => {
+      this.name = config.name;
+      this.start = config.start;
+      this.end = config.end;
+      this.initialCash = config.initialCash;
+    });
+    this.applyIr(config.strategy);
+  }
+
+  /** Reopen a saved strategy: fetch its full config, then load it into the form. */
+  public async openSaved(id: string) {
+    const s = await getStrategy(id);
+    this.applyConfig(s.config);
+  }
+
+  /** Delete a saved strategy, then refresh the list. */
+  public removeSaved(id: string) {
+    void deleteStrategy(id).then(() => this.savedLoader.run());
+  }
+
+  public loadSavedList() {
+    void this.savedLoader.run();
   }
 
   /** NL→IR: parse the prompt, then reflect the returned IR into the form. */

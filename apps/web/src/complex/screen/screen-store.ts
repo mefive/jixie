@@ -1,7 +1,14 @@
 import { action, computed, makeObservable, observable, runInAction } from 'mobx';
-import type { ScreenResult, ScreenSpec } from '@jixie/shared';
+import type { ScreenResult, ScreenSpec, SavedMeta } from '@jixie/shared';
 import { BaseStore, LoaderModel } from '@src/lib';
-import { parseScreen, runScreen } from '@src/api/client';
+import {
+  deleteScreen,
+  getScreen,
+  listScreens,
+  parseScreen,
+  runScreen,
+  saveScreen,
+} from '@src/api/client';
 
 type ScreenSetupParams = {};
 
@@ -36,6 +43,7 @@ export class ScreenStore extends BaseStore<ScreenSetupParams> {
 
   public runLoader = new LoaderModel<ScreenResult>(); // direct deterministic query (examples, chip edits)
   public parseLoader = new LoaderModel<{ spec: ScreenSpec; result: ScreenResult }>(); // NL→spec→run
+  public savedLoader = new LoaderModel<SavedMeta[]>(); // 我的选股 list (saved on demand)
 
   public constructor(parentStore?: any) {
     super(parentStore);
@@ -52,8 +60,11 @@ export class ScreenStore extends BaseStore<ScreenSetupParams> {
     super.setup(params);
     this.runLoader.setup({ request: () => runScreen(this.spec!) });
     this.parseLoader.setup({ request: () => parseScreen(this.nlText.trim()) });
+    this.savedLoader.setup({ request: () => listScreens() });
     this.registCleaner(() => this.runLoader.cleanup());
     this.registCleaner(() => this.parseLoader.cleanup());
+    this.registCleaner(() => this.savedLoader.cleanup());
+    void this.savedLoader.run(); // prime the 我的选股 dropdown
   }
 
   public get busy(): boolean {
@@ -90,5 +101,28 @@ export class ScreenStore extends BaseStore<ScreenSetupParams> {
     runInAction(() => {
       this.result = r;
     });
+  }
+
+  // —— Saved screens (手动存) ——
+
+  /** Save the current query under a name (upsert by name), then refresh the list. */
+  public saveCurrent(name: string) {
+    if (!this.spec) return;
+    void saveScreen(name, this.spec).then(() => this.savedLoader.run());
+  }
+
+  /** Reopen a saved screen: fetch its spec, then apply it (sets the chips + runs the query). */
+  public async openSaved(id: string) {
+    const s = await getScreen(id);
+    await this.applySpec(s.spec);
+  }
+
+  /** Delete a saved screen, then refresh the list. */
+  public removeSaved(id: string) {
+    void deleteScreen(id).then(() => this.savedLoader.run());
+  }
+
+  public loadSavedList() {
+    void this.savedLoader.run();
   }
 }
