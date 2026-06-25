@@ -178,6 +178,19 @@ try {
   );
   log('loaded saved strategy into the form');
 
+  // 5a. The right area defaults to the 流程图 view — the IR rendered as an editable pipeline. Editing a
+  //     node writes through the same store as the form, so the two views stay in sync (one source of truth).
+  await page.locator('.jx-flow-node').first().waitFor({ timeout: 10000 });
+  log('flowchart nodes:', await page.locator('.jx-flow-node').count());
+  await page.screenshot({ path: `${SHOTS}4b-strategy-flow.png` });
+  log('shot 4b: strategy flowchart');
+  await page.locator('.jx-flow-node', { hasText: '选择' }).click();
+  await page.locator('.jx-flow-editorTitle', { hasText: '选择' }).waitFor();
+  await page.locator('.jx-flow-editor .ant-select').first().click();
+  await page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)').getByText('买高分位').click();
+  await page.locator('.jx-lab-form').getByText('买高分位').waitFor({ timeout: 5000 }); // form reflects the flow edit
+  log('flow→form sync ok (方向 → 买高分位)');
+
   // 5b. (opt-in, runs a real ~1y backtest in the worker) Run it → the worker streams progress logs
   //     into the lab panel while it computes. Gated by E2E_BT so routine runs stay fast.
   if (process.env.E2E_BT) {

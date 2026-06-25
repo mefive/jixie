@@ -81,12 +81,21 @@
   white-space: pre-wrap;
 }
 
-/* —— right: results —— */
+/* —— right: 流程图 / 回测结果 —— */
 .jx-lab-result {
-  @apply flex flex-1 flex-col gap-4;
+  @apply flex flex-1 flex-col gap-3;
   @apply rounded-lg border border-line bg-card;
   @apply overflow-hidden;
   padding: 16px;
+}
+
+.jx-lab-rightHead {
+  @apply flex;
+}
+
+.jx-lab-rightBody {
+  @apply flex flex-1 flex-col gap-4;
+  min-height: 0;
 }
 
 .jx-lab-placeholder {
