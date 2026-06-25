@@ -1,0 +1,38 @@
+@reference '../styles/index.css';
+
+.jx-topnav {
+  @apply flex items-center justify-between;
+  @apply border-b border-line bg-card;
+  height: 56px;
+  padding: 0 20px;
+}
+
+.jx-topnav-left {
+  @apply flex items-center gap-6;
+}
+
+.jx-topnav-banner {
+  height: 28px;
+}
+
+.jx-topnav-nav {
+  @apply flex items-center gap-1;
+}
+
+.jx-topnav-link {
+  @apply rounded text-sm text-muted;
+  @apply hover:bg-chip;
+  padding: 6px 12px;
+}
+
+.jx-topnav-link--active {
+  @apply bg-chip font-medium text-ink;
+}
+
+.jx-topnav-user {
+  @apply flex items-center gap-3;
+}
+
+.jx-topnav-email {
+  @apply text-sm text-muted;
+}

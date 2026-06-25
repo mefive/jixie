@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-route
 import { observer } from 'mobx-react';
 import loginEntry from '@src/complex/login';
 import labEntry from '@src/complex/lab';
+import screenEntry from '@src/complex/screen';
 import { authStore } from '@src/store';
 
 export function AppRoutes() {
@@ -10,11 +11,22 @@ export function AppRoutes() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<ComplexRoute entry={loginEntry} />} />
+        {/* Distinct keys so navigating between pages remounts ComplexRoute (both routes render the
+            same component type at the same position; without a key React reuses the instance and only
+            swaps the `entry` prop, leaving the previous page's store/render in place). */}
         <Route
           path="/"
           element={
             <RequireAuth>
-              <ComplexRoute entry={labEntry} />
+              <ComplexRoute key="lab" entry={labEntry} />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/screen"
+          element={
+            <RequireAuth>
+              <ComplexRoute key="screen" entry={screenEntry} />
             </RequireAuth>
           }
         />

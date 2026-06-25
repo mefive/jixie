@@ -88,9 +88,26 @@ export function pollBacktest(jobId: string): Promise<BacktestJob> {
   return request(`/api/app/backtest/${jobId}`);
 }
 
-import type { StrategyIR } from '@jixie/shared';
+import type { ScreenResult, ScreenSpec, StockSeries, StrategyIR } from '@jixie/shared';
 
 // NL→IR: turn a natural-language strategy description into a validated strategy IR.
 export function parseStrategy(text: string): Promise<{ ir: StrategyIR; attempts: number }> {
   return request('/api/app/strategy/parse', { method: 'POST', body: JSON.stringify({ text }) });
+}
+
+// —— Screener (产品线 2) ——
+
+// Run a structured screen against the latest snapshot.
+export function runScreen(spec: ScreenSpec): Promise<ScreenResult> {
+  return request('/api/app/screen', { method: 'POST', body: JSON.stringify(spec) });
+}
+
+// NL→ScreenSpec → run it; returns the editable spec + the results.
+export function parseScreen(text: string): Promise<{ spec: ScreenSpec; result: ScreenResult }> {
+  return request('/api/app/screen/parse', { method: 'POST', body: JSON.stringify({ text }) });
+}
+
+// A stock's OHLC/vol/pe series for the K线/PE/量 charts.
+export function fetchStockSeries(code: string, start = '20150101', end = '20241231'): Promise<StockSeries> {
+  return request(`/api/app/stock/${code}/series?start=${start}&end=${end}`);
 }

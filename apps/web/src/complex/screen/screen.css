@@ -1,0 +1,61 @@
+@reference '../../styles/index.css';
+
+.jx-screen {
+  @apply flex flex-col;
+  height: 100%;
+}
+
+.jx-screen-body {
+  @apply flex flex-1 flex-col gap-3;
+  @apply overflow-hidden;
+  padding: 16px 20px;
+}
+
+.jx-screen-bar {
+  @apply flex items-start gap-2;
+}
+
+.jx-screen-examples {
+  @apply flex flex-wrap items-center gap-2;
+}
+
+.jx-screen-examplesLabel {
+  @apply text-sm text-muted;
+}
+
+.jx-screen-error {
+  @apply text-down;
+  font-size: 13px;
+}
+
+.jx-screen-summary {
+  @apply text-sm text-muted;
+}
+
+.jx-screen-table {
+  @apply flex-1;
+  @apply overflow-hidden;
+  cursor: pointer;
+}
+
+.jx-screen-name {
+  @apply flex flex-col;
+}
+
+.jx-screen-nameMain {
+  @apply text-ink;
+}
+
+.jx-screen-nameCode {
+  @apply text-muted;
+  font-size: 12px;
+}
+
+.jx-screen-chart {
+  height: 480px;
+}
+
+.jx-screen-chartLoading {
+  @apply flex items-center justify-center text-muted;
+  height: 480px;
+}

@@ -1,27 +1,40 @@
-import { BarChart, LineChart, type BarSeriesOption, type LineSeriesOption } from 'echarts/charts';
+import {
+  BarChart,
+  CandlestickChart,
+  LineChart,
+  type BarSeriesOption,
+  type CandlestickSeriesOption,
+  type LineSeriesOption,
+} from 'echarts/charts';
 import {
   GridComponent,
   MarkPointComponent,
   TooltipComponent,
   LegendComponent,
+  DataZoomComponent,
+  AxisPointerComponent,
   type GridComponentOption,
   type MarkPointComponentOption,
   type TooltipComponentOption,
   type LegendComponentOption,
+  type DataZoomComponentOption,
 } from 'echarts/components';
 import * as echarts from 'echarts/core';
 import type { ComposeOption } from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
 import { useEffect, useRef } from 'react';
 
-// On-demand registration: line/bar + grid/tooltip/legend/markPoint + canvas (full echarts is 330KB gzip, this is only ~60KB)
+// On-demand registration: line/bar/candlestick + grid/tooltip/legend/markPoint/dataZoom/axisPointer + canvas
 echarts.use([
   LineChart,
   BarChart,
+  CandlestickChart,
   GridComponent,
   TooltipComponent,
   LegendComponent,
   MarkPointComponent,
+  DataZoomComponent,
+  AxisPointerComponent,
   CanvasRenderer,
 ]);
 
@@ -29,10 +42,12 @@ echarts.use([
 export type ECOption = ComposeOption<
   | LineSeriesOption
   | BarSeriesOption
+  | CandlestickSeriesOption
   | GridComponentOption
   | TooltipComponentOption
   | LegendComponentOption
   | MarkPointComponentOption
+  | DataZoomComponentOption
 >;
 
 interface Props {

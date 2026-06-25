@@ -4,6 +4,7 @@ import { logger } from 'hono/logger';
 import { authRoute } from './routes/auth.js';
 import { backtestRoute } from './routes/backtest.js';
 import { strategyRoute } from './routes/strategy.js';
+import { screenRoute } from './routes/screen.js';
 import { requireAuth } from './lib/session.js';
 
 /**
@@ -34,6 +35,7 @@ export function buildApp() {
   app.use('/api/app/*', requireAuth);
   app.route('/api/app/backtest', backtestRoute);
   app.route('/api/app/strategy', strategyRoute);
+  app.route('/api/app', screenRoute);
 
   return app;
 }
