@@ -1,9 +1,9 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect, useRef } from 'react';
 import classNames from 'classnames';
 import { Button, DatePicker, Input, InputNumber, Select } from 'antd';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
-import { faPlay, faWandMagicSparkles } from '@fortawesome/free-solid-svg-icons';
+import { faPlay, faSpinner, faWandMagicSparkles } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { TopNav } from '@src/components/top-nav';
 import { SavedBar } from '@src/components/saved-bar';
@@ -193,7 +193,7 @@ const ResultPanel = complex.component(() => {
   const loader = store.backtestLoader;
 
   if (loader.loading) {
-    return <div className="jx-lab-placeholder">回测计算中，请稍候…</div>;
+    return <RunningLog lines={store.logLines} />;
   }
   if (loader.error) {
     return (
@@ -240,6 +240,27 @@ const ResultPanel = complex.component(() => {
     </>
   );
 }, 'ResultPanel');
+
+// Live backtest progress — the worker's streamed log lines, auto-scrolled to the latest.
+function RunningLog({ lines }: { lines: string[] }) {
+  const ref = useRef<HTMLPreElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [lines.length]);
+
+  return (
+    <div className="jx-lab-running">
+      <div className="jx-lab-runningHead">
+        <FontAwesomeIcon icon={faSpinner} spin />
+        <span>回测计算中…</span>
+      </div>
+      <pre ref={ref} className="jx-lab-log">
+        {lines.length ? lines.join('\n') : '正在启动回测进程…'}
+      </pre>
+    </div>
+  );
+}
 
 // —— 帮助函数 ——
 

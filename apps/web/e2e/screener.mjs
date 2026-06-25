@@ -177,12 +177,29 @@ try {
     { timeout: 10000 },
   );
   log('loaded saved strategy into the form');
-  // cleanup the seeded row
+
+  // 5b. (opt-in, runs a real ~1y backtest in the worker) Run it → the worker streams progress logs
+  //     into the lab panel while it computes. Gated by E2E_BT so routine runs stay fast.
+  if (process.env.E2E_BT) {
+    await page.getByRole('button', { name: '运行回测' }).click();
+    await page.waitForFunction(
+      () => {
+        const el = document.querySelector('.jx-lab-log');
+        return el && /调仓|开始回测/.test(el.textContent || '');
+      },
+      { timeout: 60000 },
+    );
+    log('backtest worker streaming logs into the panel');
+    await page.screenshot({ path: `${SHOTS}5-lab-running.png` });
+    log('shot 5: live backtest progress log');
+  }
+
+  // cleanup seeded + auto-saved strategies for this user
   await page.evaluate(async () => {
     const list = await (await fetch('/api/app/strategies')).json();
     for (const it of list) await fetch(`/api/app/strategies/${it.id}`, { method: 'DELETE' });
   });
-  log('cleaned up seeded strategies');
+  log('cleaned up strategies');
 
   // 6. (opt-in, costs an LLM call) NL→screen through the UI: needs DEEPSEEK_API_KEY. Run with E2E_NL=1.
   if (process.env.E2E_NL) {
