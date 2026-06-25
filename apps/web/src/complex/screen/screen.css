@@ -50,12 +50,3 @@
   @apply text-muted;
   font-size: 12px;
 }
-
-.jx-screen-chart {
-  height: 480px;
-}
-
-.jx-screen-chartLoading {
-  @apply flex items-center justify-center text-muted;
-  height: 480px;
-}

@@ -1,0 +1,43 @@
+@reference '../../styles/index.css';
+
+.jx-stock {
+  @apply flex flex-col;
+  height: 100%;
+}
+
+.jx-stock-body {
+  @apply flex flex-1 flex-col gap-3;
+  @apply overflow-hidden;
+  padding: 16px 20px;
+}
+
+.jx-stock-head {
+  @apply flex items-baseline gap-3;
+}
+
+.jx-stock-title {
+  @apply font-semibold text-ink;
+  font-size: 18px;
+}
+
+.jx-stock-code {
+  @apply text-sm text-muted;
+}
+
+.jx-stock-toggle {
+  margin-left: 8px;
+}
+
+.jx-stock-chart {
+  @apply flex-1;
+  min-height: 520px;
+}
+
+.jx-stock-placeholder {
+  @apply flex flex-1 items-center justify-center;
+  @apply text-sm text-muted;
+}
+
+.jx-stock-placeholder--error {
+  @apply text-down;
+}

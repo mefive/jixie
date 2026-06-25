@@ -1,7 +1,7 @@
 import { action, computed, makeObservable, observable, runInAction } from 'mobx';
-import type { ScreenResult, ScreenSpec, StockSeries } from '@jixie/shared';
+import type { ScreenResult, ScreenSpec } from '@jixie/shared';
 import { BaseStore, LoaderModel } from '@src/lib';
-import { fetchStockSeries, parseScreen, runScreen } from '@src/api/client';
+import { parseScreen, runScreen } from '@src/api/client';
 
 type ScreenSetupParams = {};
 
@@ -33,11 +33,9 @@ export class ScreenStore extends BaseStore<ScreenSetupParams> {
   public nlText = '';
   public spec: ScreenSpec | null = null;
   public result: ScreenResult | null = null;
-  public selectedCode: string | null = null;
 
   public runLoader = new LoaderModel<ScreenResult>(); // direct deterministic query (examples, chip edits)
   public parseLoader = new LoaderModel<{ spec: ScreenSpec; result: ScreenResult }>(); // NL→spec→run
-  public seriesLoader = new LoaderModel<StockSeries>();
 
   public constructor(parentStore?: any) {
     super(parentStore);
@@ -45,11 +43,8 @@ export class ScreenStore extends BaseStore<ScreenSetupParams> {
       nlText: observable.ref,
       spec: observable.ref,
       result: observable.ref,
-      selectedCode: observable.ref,
       busy: computed,
       setNlText: action,
-      selectStock: action,
-      closeDetail: action,
     });
   }
 
@@ -57,10 +52,8 @@ export class ScreenStore extends BaseStore<ScreenSetupParams> {
     super.setup(params);
     this.runLoader.setup({ request: () => runScreen(this.spec!) });
     this.parseLoader.setup({ request: () => parseScreen(this.nlText.trim()) });
-    this.seriesLoader.setup({ request: () => fetchStockSeries(this.selectedCode!) });
     this.registCleaner(() => this.runLoader.cleanup());
     this.registCleaner(() => this.parseLoader.cleanup());
-    this.registCleaner(() => this.seriesLoader.cleanup());
   }
 
   public get busy(): boolean {
@@ -96,19 +89,6 @@ export class ScreenStore extends BaseStore<ScreenSetupParams> {
     const r = await this.runLoader.run();
     runInAction(() => {
       this.result = r;
-    });
-  }
-
-  public selectStock(code: string) {
-    runInAction(() => {
-      this.selectedCode = code;
-    });
-    void this.seriesLoader.run();
-  }
-
-  public closeDetail() {
-    runInAction(() => {
-      this.selectedCode = null;
     });
   }
 }
