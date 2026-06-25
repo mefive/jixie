@@ -84,8 +84,12 @@ export function interpretStrategy(ir: StrategyIR): Strategy {
   }
 }
 
-/** Run a full backtest from an IR config. This is what the API route and demo scripts call. */
-export async function runBacktestConfig(config: BacktestConfig): Promise<BacktestResult> {
+/** Run a full backtest from an IR config. This is what the API route and demo scripts call.
+ * `onLog` (optional) receives progress lines from the engine — the worker forwards them to the job. */
+export async function runBacktestConfig(
+  config: BacktestConfig,
+  onLog?: (line: string) => void,
+): Promise<BacktestResult> {
   const strategy = interpretStrategy(config.strategy);
   return runStrategy({
     start: config.start,
@@ -93,5 +97,6 @@ export async function runBacktestConfig(config: BacktestConfig): Promise<Backtes
     initialCash: config.initialCash,
     cost: config.cost,
     strategy,
+    onLog,
   });
 }
