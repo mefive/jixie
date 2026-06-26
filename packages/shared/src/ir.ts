@@ -30,32 +30,58 @@ export type UniverseFilter =
   | { kind: 'dropIlliquidPct'; pct: number } // drop the bottom pct% by turnover
   | { kind: 'field'; field: string; op: CmpOp; value: number }; // keep stocks where field op value
 
-// —— Time-series indicators (used by the `timing` stage) ——
+// —— Timing: a per-instrument rule-based state machine ——
 //
-// A `timing` stage trades each candidate INDEPENDENTLY off its own bar window: indicators
-// (highest/lowest/sma/ema/atr) computed on the fly drive a flat↔holding decision. The position state
-// itself is the edge-trigger (entry only fires on a flat name, exit on a held one).
+// A `timing` stage trades each candidate INDEPENDENTLY off its own bar window. It declares scalar
+// per-instrument state variables and an ordered list of rules `{ when, do }`; each bar the first rule
+// whose `when` holds fires its actions (if / elif / else). Actions buy/sell or mutate state, so the
+// full Turtle (volatility-sized entry, pyramiding adds, trailing stop) is expressible — no hardcoded
+// algorithm. Indicators (highest/lowest/sma/ema/atr) are computed on the fly from the instrument's bars.
 
 export type IndicatorName = 'highest' | 'lowest' | 'sma' | 'ema' | 'atr';
 export type PriceField = 'open' | 'high' | 'low' | 'close';
 
-/** A numeric expression over ONE instrument's time series (its own bar window). Distinct from the
- * cross-section Expr: leaves read the instrument's price/indicators, not a cross-sectional row.
- * `highest`/`lowest` are over the n bars *before* today (Donchian convention, so `price > highest(high,20)`
- * is a clean breakout); `sma`/`ema`/`atr` are over the last n bars. */
+/** A numeric expression over ONE instrument's time series + its position/state. Leaves read the
+ * instrument's price/indicators, a declared state variable, current shares, or equity — not a
+ * cross-sectional row. `highest`/`lowest` scan the n bars *before* today (Donchian convention, so
+ * `price > highest(high,20)` is a clean breakout); `sma`/`ema`/`atr` use the last n bars. */
 export type IndExpr =
   | { kind: 'const'; value: number }
   | { kind: 'price' } // today's adjusted close
   | { kind: 'indicator'; name: IndicatorName; field?: PriceField; window: number }
-  | { kind: 'unary'; op: 'neg' | 'abs'; arg: IndExpr }
-  | { kind: 'binary'; op: '+' | '-' | '*' | '/'; left: IndExpr; right: IndExpr };
+  | { kind: 'state'; name: string } // a declared per-instrument state variable
+  | { kind: 'shares' } // shares currently held of this instrument (0 = flat)
+  | { kind: 'equity' } // current total portfolio equity
+  | { kind: 'unary'; op: 'neg' | 'abs' | 'floor'; arg: IndExpr }
+  | { kind: 'binary'; op: '+' | '-' | '*' | '/' | 'min' | 'max'; left: IndExpr; right: IndExpr };
 
-/** Boolean condition over IndExprs — the `when` of an entry/exit rule. */
+export type CondOp = '>' | '>=' | '<' | '<=' | '==' | '!=';
+
+/** Boolean condition over IndExprs — the `when` of a timing rule. */
 export type Condition =
-  | { kind: 'compare'; op: CmpOp; left: IndExpr; right: IndExpr }
+  | { kind: 'compare'; op: CondOp; left: IndExpr; right: IndExpr }
   | { kind: 'and'; args: Condition[] }
   | { kind: 'or'; args: Condition[] }
   | { kind: 'not'; arg: Condition };
+
+/** Per-instrument scalar state variable, maintained by the engine (e.g. units held, trailing stop). */
+export interface StateVar {
+  name: string;
+  init: number;
+}
+
+/** A timing action — fires at the next open (orders) or updates state immediately (set). */
+export type TimingAction =
+  | { kind: 'buy' } // open/add a position sized by the sizing stage
+  | { kind: 'order'; shares: IndExpr } // buy (+) / sell (−) an explicit share count (e.g. equal-risk unit)
+  | { kind: 'exit' } // sell the whole position
+  | { kind: 'set'; var: string; value: IndExpr }; // mutate a state variable
+
+/** One rule of the state machine: when `when` holds, run `do` in order. */
+export interface TimingRule {
+  when: Condition;
+  do: TimingAction[];
+}
 
 // —— Pipeline IR: a strategy as an ordered list of stage nodes (data, not fixed fields) ——
 //
@@ -84,7 +110,7 @@ export type Stage =
   | { kind: 'universe'; source: UniverseSource } // → CodeSet
   | { kind: 'filter'; filters: UniverseFilter[] } // CodeSet → CodeSet (hard predicates)
   | { kind: 'select'; score: Expr; factors?: string[]; side: 'high' | 'low'; pick: PickRule } // CodeSet → CodeSet (rank+cut)
-  | { kind: 'timing'; entry: Condition; exit: Condition; membership: 'gate' | 'hard' } // CodeSet → held CodeSet
+  | { kind: 'timing'; state?: StateVar[]; rules: TimingRule[]; membership: 'gate' | 'hard' } // CodeSet → held CodeSet
   | { kind: 'sizing'; method: SizingMethod }; // CodeSet → TargetBook
 // reserved: { kind: 'risk'; ... } — TargetBook → TargetBook
 

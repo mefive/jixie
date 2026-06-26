@@ -44,10 +44,13 @@ const indExprSchema: z.ZodType = z.lazy(() =>
       field: z.enum(['open', 'high', 'low', 'close']).optional(),
       window: z.number().int().positive(),
     }),
-    z.object({ kind: z.literal('unary'), op: z.enum(['neg', 'abs']), arg: indExprSchema }),
+    z.object({ kind: z.literal('state'), name: z.string().min(1) }),
+    z.object({ kind: z.literal('shares') }),
+    z.object({ kind: z.literal('equity') }),
+    z.object({ kind: z.literal('unary'), op: z.enum(['neg', 'abs', 'floor']), arg: indExprSchema }),
     z.object({
       kind: z.literal('binary'),
-      op: z.enum(['+', '-', '*', '/']),
+      op: z.enum(['+', '-', '*', '/', 'min', 'max']),
       left: indExprSchema,
       right: indExprSchema,
     }),
@@ -58,7 +61,7 @@ const conditionSchema: z.ZodType = z.lazy(() =>
   z.discriminatedUnion('kind', [
     z.object({
       kind: z.literal('compare'),
-      op: z.enum(['>', '>=', '<', '<=']),
+      op: z.enum(['>', '>=', '<', '<=', '==', '!=']),
       left: indExprSchema,
       right: indExprSchema,
     }),
@@ -67,6 +70,18 @@ const conditionSchema: z.ZodType = z.lazy(() =>
     z.object({ kind: z.literal('not'), arg: conditionSchema }),
   ]),
 );
+
+const timingActionSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('buy') }),
+  z.object({ kind: z.literal('order'), shares: indExprSchema }),
+  z.object({ kind: z.literal('exit') }),
+  z.object({ kind: z.literal('set'), var: z.string().min(1), value: indExprSchema }),
+]);
+
+const timingRuleSchema = z.object({
+  when: conditionSchema,
+  do: z.array(timingActionSchema).min(1),
+});
 
 // —— pipeline IR: an ordered list of stage nodes ——
 
@@ -94,8 +109,8 @@ const stageSchema = z.discriminatedUnion('kind', [
   }),
   z.object({
     kind: z.literal('timing'),
-    entry: conditionSchema,
-    exit: conditionSchema,
+    state: z.array(z.object({ name: z.string().min(1), init: z.number() })).optional(),
+    rules: z.array(timingRuleSchema).min(1),
     membership: z.enum(['gate', 'hard']),
   }),
   z.object({ kind: z.literal('sizing'), method: sizingMethodSchema }),
