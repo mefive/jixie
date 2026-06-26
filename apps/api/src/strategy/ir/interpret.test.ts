@@ -28,6 +28,7 @@ function mockCtx(
     universe: async () => [...bars.keys()],
     bar: (c) => bars.get(c) ?? null,
     bars: () => [],
+    ensureBars: async () => {},
     listDays: () => 1000,
     price: () => null,
     history: () => [],
@@ -80,5 +81,45 @@ describe('interpretCrossSection', () => {
     const cap: { targets?: Record<string, number> } = {};
     await interpretStrategy(ep).onBar(mockCtx('20240101', universe(10), cap));
     expect(cap.targets).toBeUndefined();
+  });
+});
+
+describe('interpretPipeline', () => {
+  // Same ep strategy expressed as a stage pipeline (universe → select → sizing, no timing).
+  const epPipeline: StrategyIR = {
+    schedule: 'monthly',
+    stages: [
+      { kind: 'universe', source: { type: 'all' } },
+      {
+        kind: 'select',
+        score: { kind: 'binary', op: '/', left: { kind: 'const', value: 1 }, right: { kind: 'field', name: 'peTtm' } },
+        side: 'high',
+        pick: { by: 'quantile', value: 0.1 },
+      },
+      { kind: 'sizing', method: { kind: 'equal' } },
+    ],
+  };
+
+  it('reproduces the cross-section result via stages (top decile, equal-weight)', async () => {
+    const cap: { targets?: Record<string, number> } = {};
+    await interpretStrategy(epPipeline).onBar(mockCtx('20240101', universe(30), cap));
+    expect(Object.keys(cap.targets!).sort()).toEqual(['S0', 'S1', 'S2']);
+    for (const w of Object.values(cap.targets!)) expect(w).toBeCloseTo(1 / 3);
+  });
+
+  it('topN pick + kSlots sizing', async () => {
+    const ir: StrategyIR = {
+      schedule: 'monthly',
+      stages: [
+        { kind: 'universe', source: { type: 'all' } },
+        { kind: 'select', score: { kind: 'field', name: 'peTtm' }, side: 'low', pick: { by: 'topN', value: 5 } },
+        { kind: 'sizing', method: { kind: 'kSlots', k: 4 } },
+      ],
+    };
+    const cap: { targets?: Record<string, number> } = {};
+    await interpretStrategy(ir).onBar(mockCtx('20240101', universe(30), cap));
+    // lowest peTtm = S0..S4 (5 picked), kSlots(4) caps to 4 names at 1/4 each
+    expect(Object.keys(cap.targets!).length).toBe(4);
+    for (const w of Object.values(cap.targets!)) expect(w).toBeCloseTo(1 / 4);
   });
 });

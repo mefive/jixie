@@ -77,6 +77,9 @@ export interface BarContext {
   /** Last n adjusted OHLC bars up to today for watched/held codes (per-instrument window math:
    * Donchian channels, ATR, etc.). Empty if the code's series isn't loaded. */
   bars(code: string, n: number): OhlcBar[];
+  /** Lazily load the bar series for `codes` so bars()/history() work on them this bar. Needed when the
+   * set is dynamic (a pipeline's selected names aren't known up front like a static `watch`). */
+  ensureBars(codes: string[]): Promise<void>;
   /** Calendar days since listing as of today (point-in-time stock age); null if unknown. */
   listDays(code: string): number | null;
   /** Today's adjusted close (carried forward if suspended) for held/already-loaded codes. */
