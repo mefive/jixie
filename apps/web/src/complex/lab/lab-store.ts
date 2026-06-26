@@ -157,7 +157,18 @@ export class LabStore extends BaseStore<LabSetupParams> {
     });
 
     if (this.timingOn) {
-      stages.push({ kind: 'timing', entry: this.entry, exit: this.exit, membership: this.membership });
+      // The simple form (one entry + one exit condition) is two rules of the state machine:
+      // flat & entry → buy; holding & exit → sell. The rich rule editor is a follow-up.
+      const flat: Condition = { kind: 'compare', op: '==', left: { kind: 'shares' }, right: { kind: 'const', value: 0 } };
+      const held: Condition = { kind: 'compare', op: '>', left: { kind: 'shares' }, right: { kind: 'const', value: 0 } };
+      stages.push({
+        kind: 'timing',
+        rules: [
+          { when: { kind: 'and', args: [flat, this.entry] }, do: [{ kind: 'buy' }] },
+          { when: { kind: 'and', args: [held, this.exit] }, do: [{ kind: 'exit' }] },
+        ],
+        membership: this.membership,
+      });
     }
 
     stages.push({ kind: 'sizing', method: this.sizingMethod });
@@ -207,9 +218,12 @@ export class LabStore extends BaseStore<LabSetupParams> {
       const timing = stageOf('timing');
       this.timingOn = !!timing;
       if (timing) {
-        this.entry = timing.entry;
-        this.exit = timing.exit;
         this.membership = timing.membership;
+        // Recover the simple entry/exit from the 2-rule shape this form produces (strip the flat/held guard).
+        const buyRule = timing.rules.find((r) => r.do.some((a) => a.kind === 'buy' || a.kind === 'order'));
+        const exitRule = timing.rules.find((r) => r.do.some((a) => a.kind === 'exit'));
+        if (buyRule) this.entry = unguard(buyRule.when);
+        if (exitRule) this.exit = unguard(exitRule.when);
       }
 
       const sizing = stageOf('sizing');
@@ -290,6 +304,17 @@ function defaultExit(): Condition {
     left: { kind: 'price' },
     right: { kind: 'indicator', name: 'lowest', field: 'low', window: 10 },
   };
+}
+
+/** Strip the flat/held `shares ⋛ 0` guard from a 2-arg AND, recovering the user's bare condition. */
+function unguard(c: Condition): Condition {
+  if (c.kind === 'and') {
+    const real = c.args.filter(
+      (a) => !(a.kind === 'compare' && (a.left.kind === 'shares' || a.right.kind === 'shares')),
+    );
+    if (real.length === 1) return real[0];
+  }
+  return c;
 }
 
 // —— helpers ——

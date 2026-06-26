@@ -84,6 +84,28 @@ describe('evalCondition', () => {
   });
 });
 
+describe('state machine operands (state / shares / equity, floor/min/max, ==/!=)', () => {
+  const sm = { bars, state: (n: string) => (({ units: 2, n: 3 }) as Record<string, number>)[n] ?? 0, shares: 100, equity: 50000 };
+
+  it('state / shares / equity leaves', () => {
+    expect(evalIndExpr({ kind: 'state', name: 'units' }, sm)).toBe(2);
+    expect(evalIndExpr({ kind: 'shares' }, sm)).toBe(100);
+    expect(evalIndExpr({ kind: 'equity' }, sm)).toBe(50000);
+  });
+
+  it('floor / min / max', () => {
+    expect(evalIndExpr({ kind: 'unary', op: 'floor', arg: { kind: 'const', value: 3.7 } }, sm)).toBe(3);
+    expect(evalIndExpr({ kind: 'binary', op: 'min', left: { kind: 'const', value: 5 }, right: { kind: 'const', value: 2 } }, sm)).toBe(2);
+    expect(evalIndExpr({ kind: 'binary', op: 'max', left: { kind: 'const', value: 5 }, right: { kind: 'const', value: 2 } }, sm)).toBe(5);
+  });
+
+  it('== / != compare', () => {
+    expect(evalCondition({ kind: 'compare', op: '==', left: { kind: 'shares' }, right: { kind: 'const', value: 100 } }, sm)).toBe(true);
+    expect(evalCondition({ kind: 'compare', op: '!=', left: { kind: 'state', name: 'units' }, right: { kind: 'const', value: 0 } }, sm)).toBe(true);
+    expect(evalCondition({ kind: 'compare', op: '==', left: { kind: 'state', name: 'units' }, right: { kind: 'const', value: 0 } }, sm)).toBe(false);
+  });
+});
+
 describe('maxWindow', () => {
   it('finds the largest indicator window across the given conditions', () => {
     const entry: Condition = { kind: 'compare', op: '>', left: { kind: 'price' }, right: { kind: 'indicator', name: 'highest', field: 'high', window: 20 } };
