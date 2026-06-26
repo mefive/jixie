@@ -42,8 +42,87 @@ export const crossSectionSchema = z.object({
   weight: z.literal('equal'),
 });
 
-/** A strategy IR (the union grows as new archetypes are added). */
-export const strategySchema = crossSectionSchema;
+// —— per_instrument: indicator expr + boolean condition + the archetype ——
+
+const indExprSchema: z.ZodType = z.lazy(() =>
+  z.discriminatedUnion('kind', [
+    z.object({ kind: z.literal('const'), value: z.number() }),
+    z.object({ kind: z.literal('price') }),
+    z.object({
+      kind: z.literal('indicator'),
+      name: z.enum(['highest', 'lowest', 'sma', 'ema', 'atr']),
+      field: z.enum(['open', 'high', 'low', 'close']).optional(),
+      window: z.number().int().positive(),
+    }),
+    z.object({ kind: z.literal('unary'), op: z.enum(['neg', 'abs']), arg: indExprSchema }),
+    z.object({
+      kind: z.literal('binary'),
+      op: z.enum(['+', '-', '*', '/']),
+      left: indExprSchema,
+      right: indExprSchema,
+    }),
+  ]),
+);
+
+const conditionSchema: z.ZodType = z.lazy(() =>
+  z.discriminatedUnion('kind', [
+    z.object({
+      kind: z.literal('compare'),
+      op: z.enum(['>', '>=', '<', '<=']),
+      left: indExprSchema,
+      right: indExprSchema,
+    }),
+    z.object({ kind: z.literal('and'), args: z.array(conditionSchema) }),
+    z.object({ kind: z.literal('or'), args: z.array(conditionSchema) }),
+    z.object({ kind: z.literal('not'), arg: conditionSchema }),
+  ]),
+);
+
+// —— pipeline IR: an ordered list of stage nodes ——
+
+const sizingMethodSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('equal') }),
+  z.object({ kind: z.literal('equityPct'), pct: z.number().gt(0).max(1) }),
+  z.object({ kind: z.literal('kSlots'), k: z.number().int().positive() }),
+]);
+
+const stageSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('universe'),
+    source: z.discriminatedUnion('type', [
+      z.object({ type: z.literal('all') }),
+      z.object({ type: z.literal('list'), codes: z.array(z.string().min(1)).min(1).max(500) }),
+    ]),
+  }),
+  z.object({ kind: z.literal('filter'), filters: z.array(universeFilterSchema) }),
+  z.object({
+    kind: z.literal('select'),
+    score: exprSchema,
+    factors: z.array(z.string()).optional(),
+    side: z.enum(['high', 'low']),
+    pick: z.object({ by: z.enum(['quantile', 'topN']), value: z.number().positive() }),
+  }),
+  z.object({
+    kind: z.literal('timing'),
+    entry: conditionSchema,
+    exit: conditionSchema,
+    membership: z.enum(['gate', 'hard']),
+  }),
+  z.object({ kind: z.literal('sizing'), method: sizingMethodSchema }),
+]);
+
+export const pipelineSchema = z
+  .object({
+    schedule: z.enum(['daily', 'weekly', 'monthly']),
+    stages: z.array(stageSchema).min(2),
+  })
+  .refine(
+    (p) => p.stages.some((s) => s.kind === 'universe') && p.stages.some((s) => s.kind === 'sizing'),
+    { message: 'pipeline 必须包含 universe 和 sizing 阶段' },
+  );
+
+/** A strategy IR — the new pipeline (carries `stages`) or the legacy archetype (carries `type`). */
+export const strategySchema = z.union([crossSectionSchema, pipelineSchema]);
 
 /** A full, runnable backtest config (range + capital + cost + strategy). */
 export const configSchema = z.object({
