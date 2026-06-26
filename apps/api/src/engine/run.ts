@@ -119,6 +119,9 @@ function buildContext(
     bars(code, n) {
       return data.bars(code, date, n);
     },
+    ensureBars(codes) {
+      return data.loadBars(codes);
+    },
     listDays(code) {
       return data.listDays(code, date);
     },
