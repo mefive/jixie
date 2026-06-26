@@ -23,11 +23,9 @@ const theme = {
       "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif",
   },
   components: {
-    // Ink-black primary makes antd's derived selected-option bg a muddy dark gray with dark text
-    // (low contrast). Pin it: selected = ink bg + white text; hover = light gray.
+    // Hover highlight = light gray. The selected option is pinned to a light fill in index.css
+    // (antd 6 derives a dark muddy gray from the ink primary otherwise).
     Select: {
-      optionSelectedBg: '#111827',
-      optionSelectedColor: '#ffffff',
       optionActiveBg: '#f0f1f3',
     },
   },

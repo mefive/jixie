@@ -2,9 +2,13 @@ import { action, computed, makeObservable, observable, runInAction } from 'mobx'
 import type {
   BacktestConfig,
   BacktestSummary,
+  Condition,
   Expr,
+  PipelineIR,
   SavedMeta,
   Schedule,
+  SizingMethod,
+  Stage,
   StrategyIR,
   UniverseFilter,
 } from '@jixie/shared';
@@ -46,6 +50,15 @@ export class LabStore extends BaseStore<LabSetupParams> {
   public dropIlliquidPct = 25;
   public extraFilters: UniverseFilter[] = []; // any non-(minListDays/dropIlliquidPct) filters from AI
 
+  // —— timing stage (optional): a per-instrument entry/exit overlay built from general conditions ——
+  public timingOn = false;
+  public entry: Condition = defaultEntry(); // when flat: buy if this holds (defaults to a breakout)
+  public exit: Condition = defaultExit(); // when holding: sell if this holds (defaults to a breakdown)
+  public membership: 'gate' | 'hard' = 'gate'; // held name that drops out of select: keep (gate) / sell (hard)
+
+  // —— sizing stage ——
+  public sizingMethod: SizingMethod = { kind: 'equal' };
+
   // —— NL→IR ——
   public nlText = '';
 
@@ -71,13 +84,18 @@ export class LabStore extends BaseStore<LabSetupParams> {
       minListDays: observable.ref,
       dropIlliquidPct: observable.ref,
       extraFilters: observable.ref,
+      timingOn: observable.ref,
+      entry: observable.ref,
+      exit: observable.ref,
+      membership: observable.ref,
+      sizingMethod: observable.ref,
       nlText: observable.ref,
       logLines: observable.ref,
       selectedPresetKey: computed,
       irPreview: computed,
       setField: action,
       setPreset: action,
-      applyIr: action,
+      loadStrategy: action,
       applyConfig: action,
       appendLogs: action,
     });
@@ -120,45 +138,83 @@ export class LabStore extends BaseStore<LabSetupParams> {
     return hit ? hit.key : 'custom';
   }
 
-  /** Reflect a parsed/edited strategy IR into the form fields. */
-  public applyIr(ir: StrategyIR) {
-    runInAction(() => {
-      this.schedule = ir.schedule;
-      this.score = ir.score;
-      this.factors = ir.factors;
-      this.side = ir.pick.side;
-      this.quantile = ir.pick.quantile;
-      const min = ir.universe.filters.find((f) => f.kind === 'minListDays');
-      const drop = ir.universe.filters.find((f) => f.kind === 'dropIlliquidPct');
-      this.minListDays = min?.kind === 'minListDays' ? min.days : 0;
-      this.dropIlliquidPct = drop?.kind === 'dropIlliquidPct' ? drop.pct : 0;
-      this.extraFilters = ir.universe.filters.filter(
-        (f) => f.kind !== 'minListDays' && f.kind !== 'dropIlliquidPct',
-      );
-    });
-  }
+  /** Assemble the form state into the stage pipeline (universe → filter? → select → timing? → sizing). */
+  public buildStages(): Stage[] {
+    const stages: Stage[] = [{ kind: 'universe', source: { type: 'all' } }];
 
-  /** Assemble the form state into a BacktestConfig IR. */
-  public buildConfig(): BacktestConfig {
     const filters: UniverseFilter[] = [];
     if (this.minListDays > 0) filters.push({ kind: 'minListDays', days: this.minListDays });
     if (this.dropIlliquidPct > 0) filters.push({ kind: 'dropIlliquidPct', pct: this.dropIlliquidPct });
     filters.push(...this.extraFilters);
+    if (filters.length) stages.push({ kind: 'filter', filters });
+
+    stages.push({
+      kind: 'select',
+      score: this.score,
+      factors: this.factors,
+      side: this.side,
+      pick: { by: 'quantile', value: this.quantile },
+    });
+
+    if (this.timingOn) {
+      stages.push({ kind: 'timing', entry: this.entry, exit: this.exit, membership: this.membership });
+    }
+
+    stages.push({ kind: 'sizing', method: this.sizingMethod });
+    return stages;
+  }
+
+  /** Assemble the form state into a runnable BacktestConfig (pipeline IR). */
+  public buildConfig(): BacktestConfig {
     return {
       name: this.name.trim() || '未命名策略',
       start: this.start,
       end: this.end,
       initialCash: this.initialCash,
-      strategy: {
-        type: 'cross_section',
-        schedule: this.schedule,
-        universe: { filters },
-        score: this.score,
-        factors: this.factors,
-        pick: { side: this.side, quantile: this.quantile },
-        weight: 'equal',
-      },
+      strategy: { schedule: this.schedule, stages: this.buildStages() },
     };
+  }
+
+  /** Load a strategy IR (a stage pipeline) into the form fields. */
+  public loadStrategy(ir: StrategyIR) {
+    this.loadPipeline(ir);
+  }
+
+  /** Reflect a pipeline IR's stages back into the form fields. */
+  private loadPipeline(ir: PipelineIR) {
+    const stageOf = <K extends Stage['kind']>(k: K): Extract<Stage, { kind: K }> | undefined =>
+      ir.stages.find((s): s is Extract<Stage, { kind: K }> => s.kind === k);
+    runInAction(() => {
+      this.schedule = ir.schedule;
+
+      const filters = stageOf('filter')?.filters ?? [];
+      const min = filters.find((f) => f.kind === 'minListDays');
+      const drop = filters.find((f) => f.kind === 'dropIlliquidPct');
+      this.minListDays = min?.kind === 'minListDays' ? min.days : 0;
+      this.dropIlliquidPct = drop?.kind === 'dropIlliquidPct' ? drop.pct : 0;
+      this.extraFilters = filters.filter(
+        (f) => f.kind !== 'minListDays' && f.kind !== 'dropIlliquidPct',
+      );
+
+      const select = stageOf('select');
+      if (select) {
+        this.score = select.score;
+        this.factors = select.factors;
+        this.side = select.side;
+        if (select.pick.by === 'quantile') this.quantile = select.pick.value;
+      }
+
+      const timing = stageOf('timing');
+      this.timingOn = !!timing;
+      if (timing) {
+        this.entry = timing.entry;
+        this.exit = timing.exit;
+        this.membership = timing.membership;
+      }
+
+      const sizing = stageOf('sizing');
+      if (sizing) this.sizingMethod = sizing.method;
+    });
   }
 
   public get irPreview(): string {
@@ -191,7 +247,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
       this.end = config.end;
       this.initialCash = config.initialCash;
     });
-    this.applyIr(config.strategy);
+    this.loadStrategy(config.strategy);
   }
 
   /** Reopen a saved strategy: fetch its full config, then load it into the form. */
@@ -213,8 +269,27 @@ export class LabStore extends BaseStore<LabSetupParams> {
   public async parse() {
     if (!this.nlText.trim()) return;
     const res = await this.parseLoader.run();
-    this.applyIr(res.ir);
+    this.loadStrategy(res.ir);
   }
+}
+
+/** Default entry/exit when timing is first enabled — a Donchian breakout/breakdown, but every operand
+ * is fully editable in the condition editor (not a locked preset). */
+function defaultEntry(): Condition {
+  return {
+    kind: 'compare',
+    op: '>',
+    left: { kind: 'price' },
+    right: { kind: 'indicator', name: 'highest', field: 'high', window: 20 },
+  };
+}
+function defaultExit(): Condition {
+  return {
+    kind: 'compare',
+    op: '<',
+    left: { kind: 'price' },
+    right: { kind: 'indicator', name: 'lowest', field: 'low', window: 10 },
+  };
 }
 
 // —— helpers ——

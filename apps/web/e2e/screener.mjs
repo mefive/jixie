@@ -148,12 +148,12 @@ try {
         end: '20201231',
         initialCash: 1234567,
         strategy: {
-          type: 'cross_section',
           schedule: 'monthly',
-          universe: { filters: [] },
-          score: { kind: 'field', name: 'peTtm' },
-          pick: { side: 'low', quantile: 0.1 },
-          weight: 'equal',
+          stages: [
+            { kind: 'universe', source: { type: 'all' } },
+            { kind: 'select', score: { kind: 'field', name: 'peTtm' }, side: 'low', pick: { by: 'quantile', value: 0.1 } },
+            { kind: 'sizing', method: { kind: 'equal' } },
+          ],
         },
       }),
     });
@@ -186,10 +186,22 @@ try {
   log('shot 4b: strategy flowchart');
   await page.locator('.jx-flow-node', { hasText: '选择' }).click();
   await page.locator('.jx-flow-editorTitle', { hasText: '选择' }).waitFor();
-  await page.locator('.jx-flow-editor .ant-select').first().click();
+  // the merged 打分·选择 editor has [打分因子, 方向] selects — 方向 is the 2nd
+  await page.locator('.jx-flow-editor .ant-select').nth(1).click();
   await page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)').getByText('买高分位').click();
   await page.locator('.jx-lab-form').getByText('买高分位').waitFor({ timeout: 5000 }); // form reflects the flow edit
   log('flow→form sync ok (方向 → 买高分位)');
+
+  // 4c. Enable timing via the 择时 node → a general condition editor (no preset); node shows the condition.
+  await page.locator('.jx-flow-node', { hasText: '择时' }).click();
+  await page.locator('.jx-flow-editorTitle', { hasText: '择时' }).waitFor();
+  await page.locator('.jx-flow-editor .ant-select').first().click(); // 启用择时 on/off
+  await page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)').getByText('启用条件').click();
+  await page.locator('.jx-flow-cond').first().waitFor({ timeout: 5000 }); // condition editor (operand·op·operand)
+  await page.locator('.jx-flow-node', { hasText: '新高' }).waitFor({ timeout: 5000 }); // node shows the entry condition
+  log('timing enabled → general condition editor (no preset)');
+  await page.screenshot({ path: `${SHOTS}4c-timing.png` });
+  log('shot 4c: pipeline with timing condition editor');
 
   // 5b. (opt-in, runs a real ~1y backtest in the worker) Run it → the worker streams progress logs
   //     into the lab panel while it computes. Gated by E2E_BT so routine runs stay fast.

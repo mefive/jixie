@@ -27,3 +27,14 @@ body {
   font-family:
     -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
 }
+
+/* antd 6 derives the Select selected-option bg from our ink primary → a dark muddy gray. Pin it to a
+   light highlight (light fill + dark text + semibold) so the dropdown stays clean and readable. */
+.ant-select-dropdown .ant-select-item-option-selected:not(.ant-select-item-option-disabled),
+.ant-select-dropdown
+  .ant-select-item-option-selected:not(.ant-select-item-option-disabled)
+  .ant-select-item-option-content {
+  background-color: var(--color-chip) !important;
+  color: var(--color-ink) !important;
+  font-weight: 600;
+}

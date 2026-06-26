@@ -58,6 +58,26 @@
   line-height: 1.6;
 }
 
+/* —— timing condition editor —— */
+.jx-flow-condLabel {
+  @apply text-sm text-muted;
+  margin-top: 4px;
+}
+
+.jx-flow-cond {
+  @apply flex flex-col gap-1;
+  @apply rounded-md border border-line bg-bg;
+  padding: 6px;
+}
+
+.jx-flow-operand {
+  @apply flex flex-wrap items-center gap-1;
+}
+
+.jx-flow-condOp {
+  width: 64px;
+}
+
 /* —— pipeline node card —— */
 .jx-flow-node {
   @apply rounded-lg border border-line bg-card;
@@ -70,6 +90,16 @@
 .jx-flow-node--active {
   border-color: var(--color-ink);
   box-shadow: 0 0 0 2px rgb(17 24 39 / 0.12);
+}
+
+/* disabled/optional stage (e.g. 择时 未启用) — dashed + dimmed */
+.jx-flow-node--muted {
+  border-style: dashed;
+  background: var(--color-bg);
+}
+
+.jx-flow-node--muted .jx-flow-nodeTitle {
+  @apply text-muted;
 }
 
 .jx-flow-nodeTitle {
