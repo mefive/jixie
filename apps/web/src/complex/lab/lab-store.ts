@@ -2,14 +2,15 @@ import { action, computed, makeObservable, observable, runInAction } from 'mobx'
 import type {
   BacktestConfig,
   BacktestSummary,
-  Condition,
   Expr,
   PipelineIR,
   SavedMeta,
   Schedule,
   SizingMethod,
   Stage,
+  StateVar,
   StrategyIR,
+  TimingRule,
   UniverseFilter,
 } from '@jixie/shared';
 import { BaseStore, LoaderModel } from '@src/lib';
@@ -50,10 +51,10 @@ export class LabStore extends BaseStore<LabSetupParams> {
   public dropIlliquidPct = 25;
   public extraFilters: UniverseFilter[] = []; // any non-(minListDays/dropIlliquidPct) filters from AI
 
-  // —— timing stage (optional): a per-instrument entry/exit overlay built from general conditions ——
+  // —— timing stage (optional): a per-instrument rule state machine ——
   public timingOn = false;
-  public entry: Condition = defaultEntry(); // when flat: buy if this holds (defaults to a breakout)
-  public exit: Condition = defaultExit(); // when holding: sell if this holds (defaults to a breakdown)
+  public timingRules: TimingRule[] = defaultRules(); // ordered if/elif/else rules
+  public timingState: StateVar[] = []; // declared per-instrument state variables
   public membership: 'gate' | 'hard' = 'gate'; // held name that drops out of select: keep (gate) / sell (hard)
 
   // —— sizing stage ——
@@ -85,8 +86,8 @@ export class LabStore extends BaseStore<LabSetupParams> {
       dropIlliquidPct: observable.ref,
       extraFilters: observable.ref,
       timingOn: observable.ref,
-      entry: observable.ref,
-      exit: observable.ref,
+      timingRules: observable.ref,
+      timingState: observable.ref,
       membership: observable.ref,
       sizingMethod: observable.ref,
       nlText: observable.ref,
@@ -157,16 +158,10 @@ export class LabStore extends BaseStore<LabSetupParams> {
     });
 
     if (this.timingOn) {
-      // The simple form (one entry + one exit condition) is two rules of the state machine:
-      // flat & entry → buy; holding & exit → sell. The rich rule editor is a follow-up.
-      const flat: Condition = { kind: 'compare', op: '==', left: { kind: 'shares' }, right: { kind: 'const', value: 0 } };
-      const held: Condition = { kind: 'compare', op: '>', left: { kind: 'shares' }, right: { kind: 'const', value: 0 } };
       stages.push({
         kind: 'timing',
-        rules: [
-          { when: { kind: 'and', args: [flat, this.entry] }, do: [{ kind: 'buy' }] },
-          { when: { kind: 'and', args: [held, this.exit] }, do: [{ kind: 'exit' }] },
-        ],
+        ...(this.timingState.length ? { state: this.timingState } : {}),
+        rules: this.timingRules,
         membership: this.membership,
       });
     }
@@ -218,12 +213,9 @@ export class LabStore extends BaseStore<LabSetupParams> {
       const timing = stageOf('timing');
       this.timingOn = !!timing;
       if (timing) {
+        this.timingRules = timing.rules;
+        this.timingState = timing.state ?? [];
         this.membership = timing.membership;
-        // Recover the simple entry/exit from the 2-rule shape this form produces (strip the flat/held guard).
-        const buyRule = timing.rules.find((r) => r.do.some((a) => a.kind === 'buy' || a.kind === 'order'));
-        const exitRule = timing.rules.find((r) => r.do.some((a) => a.kind === 'exit'));
-        if (buyRule) this.entry = unguard(buyRule.when);
-        if (exitRule) this.exit = unguard(exitRule.when);
       }
 
       const sizing = stageOf('sizing');
@@ -287,34 +279,27 @@ export class LabStore extends BaseStore<LabSetupParams> {
   }
 }
 
-/** Default entry/exit when timing is first enabled — a Donchian breakout/breakdown, but every operand
- * is fully editable in the condition editor (not a locked preset). */
-function defaultEntry(): Condition {
-  return {
-    kind: 'compare',
-    op: '>',
-    left: { kind: 'price' },
-    right: { kind: 'indicator', name: 'highest', field: 'high', window: 20 },
-  };
-}
-function defaultExit(): Condition {
-  return {
-    kind: 'compare',
-    op: '<',
-    left: { kind: 'price' },
-    right: { kind: 'indicator', name: 'lowest', field: 'low', window: 10 },
-  };
-}
-
-/** Strip the flat/held `shares ⋛ 0` guard from a 2-arg AND, recovering the user's bare condition. */
-function unguard(c: Condition): Condition {
-  if (c.kind === 'and') {
-    const real = c.args.filter(
-      (a) => !(a.kind === 'compare' && (a.left.kind === 'shares' || a.right.kind === 'shares')),
-    );
-    if (real.length === 1) return real[0];
-  }
-  return c;
+/** Default rules when timing is first enabled — a Donchian breakout/breakdown two-state machine, but
+ * fully editable (add rules, state vars, actions). flat = shares==0, held = shares>0. */
+function defaultRules(): TimingRule[] {
+  const flat = { kind: 'compare', op: '==', left: { kind: 'shares' }, right: { kind: 'const', value: 0 } } as const;
+  const held = { kind: 'compare', op: '>', left: { kind: 'shares' }, right: { kind: 'const', value: 0 } } as const;
+  return [
+    {
+      when: {
+        kind: 'and',
+        args: [flat, { kind: 'compare', op: '>', left: { kind: 'price' }, right: { kind: 'indicator', name: 'highest', field: 'high', window: 20 } }],
+      },
+      do: [{ kind: 'buy' }],
+    },
+    {
+      when: {
+        kind: 'and',
+        args: [held, { kind: 'compare', op: '<', left: { kind: 'price' }, right: { kind: 'indicator', name: 'lowest', field: 'low', window: 10 } }],
+      },
+      do: [{ kind: 'exit' }],
+    },
+  ];
 }
 
 // —— helpers ——
