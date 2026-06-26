@@ -11,30 +11,32 @@ import {
   type NodeProps,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import type { Expr } from '@jixie/shared';
+import type { Condition, Expr, IndExpr, IndicatorName, PriceField, SizingMethod } from '@jixie/shared';
 import { complex } from './complex';
 import { FACTOR_PRESETS } from './presets';
 import './strategy-flow.css';
 
 /**
- * Visual projection of the cross-section strategy IR — a fixed-topology pipeline
- * (调仓·股票池 → 过滤 → 打分 → 选择 → 权重). Nodes render the live lab-store IR; clicking a node opens
+ * Visual projection of the strategy pipeline IR — a vertical stage flow
+ * (调仓·股票池 → 过滤 → 打分·选择 → 择时 → 仓位). Nodes render the live lab-store; clicking a node opens
  * its editor in the side panel, which writes back through the same store setters the form uses. So the
  * flowchart and the form are two editors over one source of truth (no second state), kept in sync by MobX.
+ * The 择时 node is optional — disabled until you add a timing rule.
  */
-type StageKey = 'pool' | 'filter' | 'score' | 'pick' | 'weight';
-const ORDER: StageKey[] = ['pool', 'filter', 'score', 'pick', 'weight'];
+type StageKey = 'pool' | 'filter' | 'select' | 'timing' | 'sizing';
+const ORDER: StageKey[] = ['pool', 'filter', 'select', 'timing', 'sizing'];
 const TITLES: Record<StageKey, string> = {
   pool: '调仓 · 股票池',
   filter: '过滤',
-  score: '打分',
-  pick: '选择',
-  weight: '权重',
+  select: '打分 · 选择',
+  timing: '择时',
+  sizing: '仓位',
 };
 
 const StrategyFlow = complex.component(() => {
   const store = complex.useStore();
-  const [selected, setSelected] = useState<StageKey | null>('score');
+  const [selected, setSelected] = useState<StageKey | null>('select');
+  const timingOn = store.timingOn;
 
   // Read the IR pieces (observed) → per-stage summary lines shown on each node.
   const lines: Record<StageKey, string[]> = {
@@ -44,9 +46,12 @@ const StrategyFlow = complex.component(() => {
       store.dropIlliquidPct > 0 ? `剔流动性后 ${store.dropIlliquidPct}%` : '不剔流动性',
       ...(store.extraFilters.length ? [`${store.extraFilters.length} 条字段条件`] : []),
     ],
-    score: [scoreFormula(store.score), presetLabel(store.selectedPresetKey)],
-    pick: [store.side === 'high' ? '买高分位' : '买低分位', `分位 ${(store.quantile * 100).toFixed(0)}%`],
-    weight: ['等权重'],
+    select: [
+      scoreFormula(store.score),
+      `${store.side === 'high' ? '买高' : '买低'}分位 · 前 ${(store.quantile * 100).toFixed(0)}%`,
+    ],
+    timing: timingOn ? [`进 ${condText(store.entry)}`, `出 ${condText(store.exit)}`] : ['未启用'],
+    sizing: [sizingLabel(store.sizingMethod)],
   };
 
   const nodes: Node[] = ORDER.map((k, i) => ({
@@ -54,7 +59,7 @@ const StrategyFlow = complex.component(() => {
     type: 'stage',
     position: { x: 0, y: i * 118 },
     draggable: false,
-    data: { title: TITLES[k], lines: lines[k], active: selected === k },
+    data: { title: TITLES[k], lines: lines[k], active: selected === k, muted: k === 'timing' && !timingOn },
   }));
   const edges: Edge[] = ORDER.slice(1).map((k, i) => ({
     id: `${ORDER[i]}-${k}`,
@@ -97,9 +102,14 @@ export default StrategyFlow;
 
 // One pipeline stage, rendered as a card with top/bottom handles for the vertical edges.
 function StageNode({ data }: NodeProps) {
-  const d = data as unknown as { title: string; lines: string[]; active: boolean };
+  const d = data as unknown as { title: string; lines: string[]; active: boolean; muted: boolean };
   return (
-    <div className={classNames('jx-flow-node', { 'jx-flow-node--active': d.active })}>
+    <div
+      className={classNames('jx-flow-node', {
+        'jx-flow-node--active': d.active,
+        'jx-flow-node--muted': d.muted,
+      })}
+    >
       <Handle type="target" position={Position.Top} className="jx-flow-handle" />
       <div className="jx-flow-nodeTitle">{d.title}</div>
       {d.lines.map((l, i) => (
@@ -163,9 +173,9 @@ const StageEditor = complex.component(({ stage }: { stage: StageKey }) => {
       </EditorBox>
     );
   }
-  if (stage === 'score') {
+  if (stage === 'select') {
     return (
-      <EditorBox title="打分">
+      <EditorBox title="打分 · 选择">
         <Field label="打分因子">
           <Select
             value={store.selectedPresetKey}
@@ -179,12 +189,6 @@ const StageEditor = complex.component(({ stage }: { stage: StageKey }) => {
           />
         </Field>
         <div className="jx-flow-formula">{scoreFormula(store.score)}</div>
-      </EditorBox>
-    );
-  }
-  if (stage === 'pick') {
-    return (
-      <EditorBox title="选择">
         <Field label="方向">
           <Select
             value={store.side}
@@ -208,9 +212,78 @@ const StageEditor = complex.component(({ stage }: { stage: StageKey }) => {
       </EditorBox>
     );
   }
+  if (stage === 'timing') {
+    const on = store.timingOn;
+    return (
+      <EditorBox title="择时">
+        <Field label="启用择时">
+          <Select
+            value={on ? 'on' : 'off'}
+            onChange={(v) => store.setField('timingOn', v === 'on')}
+            options={[
+              { label: '不择时（选出即持有）', value: 'off' },
+              { label: '启用条件', value: 'on' },
+            ]}
+          />
+        </Field>
+        {on && (
+          <>
+            <div className="jx-flow-condLabel">进场条件(满足则买入)</div>
+            <ConditionEditor value={store.entry} onChange={(c) => store.setField('entry', c)} />
+            <div className="jx-flow-condLabel">离场条件(满足则卖出)</div>
+            <ConditionEditor value={store.exit} onChange={(c) => store.setField('exit', c)} />
+            <Field label="掉出名单时">
+              <Select
+                value={store.membership}
+                onChange={(v) => store.setField('membership', v as 'gate' | 'hard')}
+                options={[
+                  { label: '留着(归离场管)', value: 'gate' },
+                  { label: '立即清仓', value: 'hard' },
+                ]}
+              />
+            </Field>
+          </>
+        )}
+        <div className="jx-flow-note">逐只判:满足进场条件买入、满足离场条件卖出。</div>
+      </EditorBox>
+    );
+  }
+  // sizing
+  const m = store.sizingMethod;
   return (
-    <EditorBox title="权重">
-      <div className="jx-flow-note">v1 对选中的标的等权重持有。</div>
+    <EditorBox title="仓位">
+      <Field label="仓位方式">
+        <Select
+          value={m.kind}
+          onChange={(v) => store.setField('sizingMethod', defaultSizing(v as SizingMethod['kind']))}
+          options={[
+            { label: '等权重', value: 'equal' },
+            { label: '按权益百分比', value: 'equityPct' },
+            { label: 'K 槽位等权', value: 'kSlots' },
+          ]}
+        />
+      </Field>
+      {m.kind === 'equityPct' && (
+        <Field label="每只占权益(%)">
+          <InputNumber
+            className="jx-flow-control"
+            min={1}
+            max={100}
+            value={Math.round(m.pct * 100)}
+            onChange={(v) => store.setField('sizingMethod', { kind: 'equityPct', pct: (v ?? 20) / 100 })}
+          />
+        </Field>
+      )}
+      {m.kind === 'kSlots' && (
+        <Field label="最多持仓数">
+          <InputNumber
+            className="jx-flow-control"
+            min={1}
+            value={m.k}
+            onChange={(v) => store.setField('sizingMethod', { kind: 'kSlots', k: v ?? 10 })}
+          />
+        </Field>
+      )}
     </EditorBox>
   );
 }, 'StageEditor');
@@ -233,15 +306,139 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
+// A single comparison: [operand] [op] [operand]. Both operands are pickable (价格/指标/数值), so any
+// indicator-vs-price or indicator-vs-indicator condition is composable — no hardcoded preset.
+function ConditionEditor({ value, onChange }: { value: Condition; onChange: (c: Condition) => void }) {
+  if (value.kind !== 'compare') return <div className="jx-flow-note">复合条件(暂不支持可视编辑)</div>;
+  return (
+    <div className="jx-flow-cond">
+      <OperandEditor value={value.left} onChange={(left) => onChange({ ...value, left })} />
+      <Select
+        size="small"
+        className="jx-flow-condOp"
+        value={value.op}
+        onChange={(op) => onChange({ ...value, op })}
+        options={OP_OPTS}
+      />
+      <OperandEditor value={value.right} onChange={(right) => onChange({ ...value, right })} />
+    </div>
+  );
+}
+
+// One operand: 价格 / 指标(名 + 取价 + 窗口) / 数值.
+function OperandEditor({ value, onChange }: { value: IndExpr; onChange: (e: IndExpr) => void }) {
+  const kind = value.kind === 'indicator' ? 'indicator' : value.kind === 'const' ? 'const' : 'price';
+  return (
+    <div className="jx-flow-operand">
+      <Select
+        size="small"
+        value={kind}
+        onChange={(k) => onChange(defaultOperand(k as 'price' | 'indicator' | 'const'))}
+        options={[
+          { label: '价格', value: 'price' },
+          { label: '指标', value: 'indicator' },
+          { label: '数值', value: 'const' },
+        ]}
+      />
+      {value.kind === 'indicator' && (
+        <>
+          <Select
+            size="small"
+            value={value.name}
+            onChange={(name) => onChange({ ...value, name: name as IndicatorName })}
+            options={INDICATOR_OPTS}
+          />
+          <Select
+            size="small"
+            value={value.field ?? 'close'}
+            onChange={(field) => onChange({ ...value, field: field as PriceField })}
+            options={FIELD_OPTS}
+          />
+          <InputNumber
+            size="small"
+            className="jx-flow-control"
+            min={2}
+            value={value.window}
+            onChange={(w) => onChange({ ...value, window: w ?? 20 })}
+          />
+        </>
+      )}
+      {value.kind === 'const' && (
+        <InputNumber
+          size="small"
+          className="jx-flow-control"
+          value={value.value}
+          onChange={(v) => onChange({ kind: 'const', value: v ?? 0 })}
+        />
+      )}
+    </div>
+  );
+}
+
 // —— 帮助函数 ——
 
 function scheduleLabel(s: string): string {
   return s === 'monthly' ? '月度调仓' : s === 'weekly' ? '周度调仓' : '日度调仓';
 }
 
-function presetLabel(key: string): string {
-  if (key === 'custom') return '自定义';
-  return FACTOR_PRESETS.find((p) => p.key === key)?.label ?? key;
+function sizingLabel(m: SizingMethod): string {
+  if (m.kind === 'equal') return '等权重';
+  if (m.kind === 'equityPct') return `每只 ${Math.round(m.pct * 100)}% 权益`;
+  return `最多 ${m.k} 仓等权`;
+}
+
+function defaultSizing(kind: SizingMethod['kind']): SizingMethod {
+  if (kind === 'equityPct') return { kind: 'equityPct', pct: 0.2 };
+  if (kind === 'kSlots') return { kind: 'kSlots', k: 10 };
+  return { kind: 'equal' };
+}
+
+// —— timing condition editor options + summary ——
+const OP_OPTS = [
+  { label: '>', value: '>' },
+  { label: '≥', value: '>=' },
+  { label: '<', value: '<' },
+  { label: '≤', value: '<=' },
+];
+const INDICATOR_OPTS = [
+  { label: 'N日新高', value: 'highest' },
+  { label: 'N日新低', value: 'lowest' },
+  { label: 'N日均线', value: 'sma' },
+  { label: 'N日EMA', value: 'ema' },
+  { label: 'N日ATR', value: 'atr' },
+];
+const FIELD_OPTS = [
+  { label: '开', value: 'open' },
+  { label: '高', value: 'high' },
+  { label: '低', value: 'low' },
+  { label: '收', value: 'close' },
+];
+const INDICATOR_LABEL: Record<string, string> = {
+  highest: '新高',
+  lowest: '新低',
+  sma: '均线',
+  ema: 'EMA',
+  atr: 'ATR',
+};
+
+function defaultOperand(kind: 'price' | 'indicator' | 'const'): IndExpr {
+  if (kind === 'indicator') return { kind: 'indicator', name: 'highest', field: 'high', window: 20 };
+  if (kind === 'const') return { kind: 'const', value: 0 };
+  return { kind: 'price' };
+}
+
+function operandText(e: IndExpr): string {
+  if (e.kind === 'price') return '价';
+  if (e.kind === 'const') return String(e.value);
+  if (e.kind === 'indicator') return `${e.window}日${INDICATOR_LABEL[e.name] ?? e.name}`;
+  return '…'; // unary/binary not shown in the compact node summary
+}
+
+/** Compact one-line summary of a comparison, for the timing node card (e.g. 价 > 20日新高). */
+function condText(c: Condition): string {
+  if (c.kind !== 'compare') return '复合条件';
+  const op = c.op === '>=' ? '≥' : c.op === '<=' ? '≤' : c.op;
+  return `${operandText(c.left)} ${op} ${operandText(c.right)}`;
 }
 
 const FIELD_LABEL: Record<string, string> = {

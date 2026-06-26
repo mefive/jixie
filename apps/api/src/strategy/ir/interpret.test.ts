@@ -49,41 +49,6 @@ const universe = (n: number) => {
   return m;
 };
 
-describe('interpretCrossSection', () => {
-  const ep: StrategyIR = {
-    type: 'cross_section',
-    schedule: 'monthly',
-    universe: { filters: [] },
-    score: { kind: 'binary', op: '/', left: { kind: 'const', value: 1 }, right: { kind: 'field', name: 'peTtm' } },
-    pick: { side: 'high', quantile: 0.1 },
-    weight: 'equal',
-  };
-
-  it('picks the top-quantile by score and equal-weights', async () => {
-    const cap: { targets?: Record<string, number> } = {};
-    await interpretStrategy(ep).onBar(mockCtx('20240101', universe(30), cap));
-    // ep = 1/pe → highest ep = lowest pe; decile of 30 = top 3 = S0,S1,S2
-    expect(Object.keys(cap.targets!).sort()).toEqual(['S0', 'S1', 'S2']);
-    for (const w of Object.values(cap.targets!)) expect(w).toBeCloseTo(1 / 3);
-  });
-
-  it('rebalances once per month (no-op on same-month bars)', async () => {
-    const strat = interpretStrategy(ep);
-    const c1: { targets?: Record<string, number> } = {};
-    const c2: { targets?: Record<string, number> } = {};
-    await strat.onBar(mockCtx('20240101', universe(30), c1));
-    await strat.onBar(mockCtx('20240115', universe(30), c2)); // same month → skip
-    expect(c1.targets).toBeDefined();
-    expect(c2.targets).toBeUndefined();
-  });
-
-  it('skips when fewer than 20 candidates', async () => {
-    const cap: { targets?: Record<string, number> } = {};
-    await interpretStrategy(ep).onBar(mockCtx('20240101', universe(10), cap));
-    expect(cap.targets).toBeUndefined();
-  });
-});
-
 describe('interpretPipeline', () => {
   // Same ep strategy expressed as a stage pipeline (universe → select → sizing, no timing).
   const epPipeline: StrategyIR = {

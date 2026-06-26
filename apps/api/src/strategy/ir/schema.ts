@@ -32,17 +32,7 @@ const universeFilterSchema = z.discriminatedUnion('kind', [
   }),
 ]);
 
-export const crossSectionSchema = z.object({
-  type: z.literal('cross_section'),
-  schedule: z.enum(['daily', 'weekly', 'monthly']),
-  universe: z.object({ filters: z.array(universeFilterSchema) }),
-  score: exprSchema,
-  factors: z.array(z.string()).optional(),
-  pick: z.object({ side: z.enum(['high', 'low']), quantile: z.number().gt(0).max(1) }),
-  weight: z.literal('equal'),
-});
-
-// —— per_instrument: indicator expr + boolean condition + the archetype ——
+// —— indicator expr + boolean condition (used by the timing stage) ——
 
 const indExprSchema: z.ZodType = z.lazy(() =>
   z.discriminatedUnion('kind', [
@@ -121,8 +111,8 @@ export const pipelineSchema = z
     { message: 'pipeline 必须包含 universe 和 sizing 阶段' },
   );
 
-/** A strategy IR — the new pipeline (carries `stages`) or the legacy archetype (carries `type`). */
-export const strategySchema = z.union([crossSectionSchema, pipelineSchema]);
+/** A strategy IR — a stage pipeline. */
+export const strategySchema = pipelineSchema;
 
 /** A full, runnable backtest config (range + capital + cost + strategy). */
 export const configSchema = z.object({

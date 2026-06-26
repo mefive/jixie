@@ -30,18 +30,6 @@ export type UniverseFilter =
   | { kind: 'dropIlliquidPct'; pct: number } // drop the bottom pct% by turnover
   | { kind: 'field'; field: string; op: CmpOp; value: number }; // keep stocks where field op value
 
-/** Legacy archetype IR (still produced by the current frontend / saved strategies; interpreted by
- * the original cross-section interpreter). The pipeline IR below supersedes it. */
-export interface CrossSectionIR {
-  type: 'cross_section';
-  schedule: Schedule;
-  universe: { filters: UniverseFilter[] };
-  score: Expr; // computed per stock, ranked across the universe
-  factors?: string[]; // precomputed columns to preload (when score references { kind: 'factor' })
-  pick: { side: 'high' | 'low'; quantile: number }; // e.g. 0.1 = top/bottom decile
-  weight: 'equal'; // v1: equal-weight the picks
-}
-
 // —— Time-series indicators (used by the `timing` stage) ——
 //
 // A `timing` stage trades each candidate INDEPENDENTLY off its own bar window: indicators
@@ -105,9 +93,8 @@ export interface PipelineIR {
   stages: Stage[];
 }
 
-/** A strategy IR — the legacy archetype or the pipeline (distinguished structurally: pipelines have
- * `stages`, the legacy shape has `type`). */
-export type StrategyIR = CrossSectionIR | PipelineIR;
+/** A strategy IR — a stage pipeline. */
+export type StrategyIR = PipelineIR;
 
 export interface CostConfig {
   commission?: number; // per-side rate (万2.5 = 0.00025)
