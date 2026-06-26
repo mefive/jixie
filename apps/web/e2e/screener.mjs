@@ -204,6 +204,15 @@ try {
   await page.screenshot({ path: `${SHOTS}4c-timing.png` });
   log('shot 4c: pipeline with timing rule state machine');
 
+  // 4d. Drill into the 择时 node → the rules drawn as a decision flowchart (if/else branches + 是/否 edges).
+  await page.getByRole('button', { name: '择时规则图 →' }).click();
+  await page.locator('.jx-tf-decision').first().waitFor({ timeout: 5000 });
+  log('drilled into rule diagram,', await page.locator('.jx-tf-decision').count(), 'decision nodes');
+  await page.screenshot({ path: `${SHOTS}4d-timing-branches.png` });
+  log('shot 4d: timing branch diagram');
+  await page.getByRole('button', { name: '← 返回管线' }).click();
+  await page.locator('.jx-flow-node', { hasText: '择时' }).waitFor(); // back to the pipeline view
+
   // 5b. (opt-in, runs a real ~1y backtest in the worker) Run it → the worker streams progress logs
   //     into the lab panel while it computes. Gated by E2E_BT so routine runs stay fast.
   if (process.env.E2E_BT) {
