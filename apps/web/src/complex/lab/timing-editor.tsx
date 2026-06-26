@@ -317,7 +317,7 @@ function whenCompares(c: Condition): Condition[] {
   return [c];
 }
 
-function indExprText(e: IndExpr): string {
+export function indExprText(e: IndExpr): string {
   switch (e.kind) {
     case 'const':
       return String(e.value);

@@ -1,0 +1,59 @@
+@reference '../../styles/index.css';
+
+.jx-tf-decision {
+  @apply rounded-lg border border-line bg-card;
+  width: 200px;
+  padding: 8px 10px;
+  box-shadow: 0 1px 2px rgb(17 24 39 / 0.04);
+}
+
+.jx-tf-tag {
+  @apply font-semibold text-ink;
+  font-size: 12px;
+}
+
+.jx-tf-decisionBody {
+  @apply text-muted;
+  margin-top: 3px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.jx-tf-action {
+  @apply flex items-center gap-2;
+  @apply rounded-lg border border-line bg-bg;
+  max-width: 220px;
+  padding: 8px 10px;
+}
+
+.jx-tf-actionTag {
+  @apply rounded font-semibold text-ink;
+  background: var(--color-chip);
+  padding: 0 6px;
+  font-size: 12px;
+}
+
+.jx-tf-actionBody {
+  @apply text-ink;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.jx-tf-terminal {
+  @apply rounded-full border border-line bg-chip text-muted;
+  padding: 4px 12px;
+  font-size: 12px;
+  text-align: center;
+}
+
+.jx-tf-terminal--none {
+  @apply text-muted;
+  border-style: dashed;
+}
+
+.jx-tf-h {
+  width: 6px;
+  height: 6px;
+  background: var(--color-line);
+  border: none;
+}
