@@ -11,9 +11,10 @@ import {
   type NodeProps,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import type { Condition, Expr, IndExpr, IndicatorName, PriceField, SizingMethod } from '@jixie/shared';
+import type { Expr, SizingMethod } from '@jixie/shared';
 import { complex } from './complex';
 import { FACTOR_PRESETS } from './presets';
+import { TimingEditor } from './timing-editor';
 import './strategy-flow.css';
 
 /**
@@ -50,7 +51,9 @@ const StrategyFlow = complex.component(() => {
       scoreFormula(store.score),
       `${store.side === 'high' ? '买高' : '买低'}分位 · 前 ${(store.quantile * 100).toFixed(0)}%`,
     ],
-    timing: timingOn ? [`进 ${condText(store.entry)}`, `出 ${condText(store.exit)}`] : ['未启用'],
+    timing: timingOn
+      ? [`${store.timingRules.length} 条规则`, store.membership === 'gate' ? '掉出名单留持' : '掉出名单清仓']
+      : ['未启用'],
     sizing: [sizingLabel(store.sizingMethod)],
   };
 
@@ -213,38 +216,9 @@ const StageEditor = complex.component(({ stage }: { stage: StageKey }) => {
     );
   }
   if (stage === 'timing') {
-    const on = store.timingOn;
     return (
       <EditorBox title="择时">
-        <Field label="启用择时">
-          <Select
-            value={on ? 'on' : 'off'}
-            onChange={(v) => store.setField('timingOn', v === 'on')}
-            options={[
-              { label: '不择时（选出即持有）', value: 'off' },
-              { label: '启用条件', value: 'on' },
-            ]}
-          />
-        </Field>
-        {on && (
-          <>
-            <div className="jx-flow-condLabel">进场条件(满足则买入)</div>
-            <ConditionEditor value={store.entry} onChange={(c) => store.setField('entry', c)} />
-            <div className="jx-flow-condLabel">离场条件(满足则卖出)</div>
-            <ConditionEditor value={store.exit} onChange={(c) => store.setField('exit', c)} />
-            <Field label="掉出名单时">
-              <Select
-                value={store.membership}
-                onChange={(v) => store.setField('membership', v as 'gate' | 'hard')}
-                options={[
-                  { label: '留着(归离场管)', value: 'gate' },
-                  { label: '立即清仓', value: 'hard' },
-                ]}
-              />
-            </Field>
-          </>
-        )}
-        <div className="jx-flow-note">逐只判:满足进场条件买入、满足离场条件卖出。</div>
+        <TimingEditor />
       </EditorBox>
     );
   }
@@ -306,75 +280,6 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-// A single comparison: [operand] [op] [operand]. Both operands are pickable (价格/指标/数值), so any
-// indicator-vs-price or indicator-vs-indicator condition is composable — no hardcoded preset.
-function ConditionEditor({ value, onChange }: { value: Condition; onChange: (c: Condition) => void }) {
-  if (value.kind !== 'compare') return <div className="jx-flow-note">复合条件(暂不支持可视编辑)</div>;
-  return (
-    <div className="jx-flow-cond">
-      <OperandEditor value={value.left} onChange={(left) => onChange({ ...value, left })} />
-      <Select
-        size="small"
-        className="jx-flow-condOp"
-        value={value.op}
-        onChange={(op) => onChange({ ...value, op })}
-        options={OP_OPTS}
-      />
-      <OperandEditor value={value.right} onChange={(right) => onChange({ ...value, right })} />
-    </div>
-  );
-}
-
-// One operand: 价格 / 指标(名 + 取价 + 窗口) / 数值.
-function OperandEditor({ value, onChange }: { value: IndExpr; onChange: (e: IndExpr) => void }) {
-  const kind = value.kind === 'indicator' ? 'indicator' : value.kind === 'const' ? 'const' : 'price';
-  return (
-    <div className="jx-flow-operand">
-      <Select
-        size="small"
-        value={kind}
-        onChange={(k) => onChange(defaultOperand(k as 'price' | 'indicator' | 'const'))}
-        options={[
-          { label: '价格', value: 'price' },
-          { label: '指标', value: 'indicator' },
-          { label: '数值', value: 'const' },
-        ]}
-      />
-      {value.kind === 'indicator' && (
-        <>
-          <Select
-            size="small"
-            value={value.name}
-            onChange={(name) => onChange({ ...value, name: name as IndicatorName })}
-            options={INDICATOR_OPTS}
-          />
-          <Select
-            size="small"
-            value={value.field ?? 'close'}
-            onChange={(field) => onChange({ ...value, field: field as PriceField })}
-            options={FIELD_OPTS}
-          />
-          <InputNumber
-            size="small"
-            className="jx-flow-control"
-            min={2}
-            value={value.window}
-            onChange={(w) => onChange({ ...value, window: w ?? 20 })}
-          />
-        </>
-      )}
-      {value.kind === 'const' && (
-        <InputNumber
-          size="small"
-          className="jx-flow-control"
-          value={value.value}
-          onChange={(v) => onChange({ kind: 'const', value: v ?? 0 })}
-        />
-      )}
-    </div>
-  );
-}
-
 // —— 帮助函数 ——
 
 function scheduleLabel(s: string): string {
@@ -391,54 +296,6 @@ function defaultSizing(kind: SizingMethod['kind']): SizingMethod {
   if (kind === 'equityPct') return { kind: 'equityPct', pct: 0.2 };
   if (kind === 'kSlots') return { kind: 'kSlots', k: 10 };
   return { kind: 'equal' };
-}
-
-// —— timing condition editor options + summary ——
-const OP_OPTS = [
-  { label: '>', value: '>' },
-  { label: '≥', value: '>=' },
-  { label: '<', value: '<' },
-  { label: '≤', value: '<=' },
-];
-const INDICATOR_OPTS = [
-  { label: 'N日新高', value: 'highest' },
-  { label: 'N日新低', value: 'lowest' },
-  { label: 'N日均线', value: 'sma' },
-  { label: 'N日EMA', value: 'ema' },
-  { label: 'N日ATR', value: 'atr' },
-];
-const FIELD_OPTS = [
-  { label: '开', value: 'open' },
-  { label: '高', value: 'high' },
-  { label: '低', value: 'low' },
-  { label: '收', value: 'close' },
-];
-const INDICATOR_LABEL: Record<string, string> = {
-  highest: '新高',
-  lowest: '新低',
-  sma: '均线',
-  ema: 'EMA',
-  atr: 'ATR',
-};
-
-function defaultOperand(kind: 'price' | 'indicator' | 'const'): IndExpr {
-  if (kind === 'indicator') return { kind: 'indicator', name: 'highest', field: 'high', window: 20 };
-  if (kind === 'const') return { kind: 'const', value: 0 };
-  return { kind: 'price' };
-}
-
-function operandText(e: IndExpr): string {
-  if (e.kind === 'price') return '价';
-  if (e.kind === 'const') return String(e.value);
-  if (e.kind === 'indicator') return `${e.window}日${INDICATOR_LABEL[e.name] ?? e.name}`;
-  return '…'; // unary/binary not shown in the compact node summary
-}
-
-/** Compact one-line summary of a comparison, for the timing node card (e.g. 价 > 20日新高). */
-function condText(c: Condition): string {
-  if (c.kind !== 'compare') return '复合条件';
-  const op = c.op === '>=' ? '≥' : c.op === '<=' ? '≤' : c.op;
-  return `${operandText(c.left)} ${op} ${operandText(c.right)}`;
 }
 
 const FIELD_LABEL: Record<string, string> = {
