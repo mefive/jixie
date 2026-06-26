@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import classNames from 'classnames';
-import { InputNumber, Select } from 'antd';
+import { Button, InputNumber, Select } from 'antd';
 import {
   Background,
   Handle,
+  Panel,
   Position,
   ReactFlow,
   type Edge,
@@ -15,6 +16,7 @@ import type { Expr, SizingMethod } from '@jixie/shared';
 import { complex } from './complex';
 import { FACTOR_PRESETS } from './presets';
 import { TimingEditor } from './timing-editor';
+import { TimingFlow } from './timing-flow';
 import './strategy-flow.css';
 
 /**
@@ -37,7 +39,12 @@ const TITLES: Record<StageKey, string> = {
 const StrategyFlow = complex.component(() => {
   const store = complex.useStore();
   const [selected, setSelected] = useState<StageKey | null>('select');
+  const [drill, setDrill] = useState(false); // drilled into the 择时 node's rule diagram
   const timingOn = store.timingOn;
+  const enterTiming = () => {
+    setSelected('timing');
+    setDrill(true);
+  };
 
   // Read the IR pieces (observed) → per-stage summary lines shown on each node.
   const lines: Record<StageKey, string[]> = {
@@ -74,19 +81,33 @@ const StrategyFlow = complex.component(() => {
   return (
     <div className="jx-flow">
       <div className="jx-flow-canvas">
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          nodeTypes={NODE_TYPES}
-          fitView
-          fitViewOptions={{ padding: 0.2 }}
-          nodesDraggable={false}
-          nodesConnectable={false}
-          panOnScroll
-          onNodeClick={(_e, n) => setSelected(n.id as StageKey)}
-        >
-          <Background gap={16} color="#eef0f2" />
-        </ReactFlow>
+        {drill && timingOn ? (
+          <TimingFlow onBack={() => setDrill(false)} />
+        ) : (
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            nodeTypes={NODE_TYPES}
+            fitView
+            fitViewOptions={{ padding: 0.2 }}
+            nodesDraggable={false}
+            nodesConnectable={false}
+            panOnScroll
+            onNodeClick={(_e, n) => setSelected(n.id as StageKey)}
+            onNodeDoubleClick={(_e, n) => {
+              if (n.id === 'timing' && timingOn) enterTiming();
+            }}
+          >
+            <Background gap={16} color="#eef0f2" />
+            {timingOn && (
+              <Panel position="top-right">
+                <Button size="small" onClick={enterTiming}>
+                  择时规则图 →
+                </Button>
+              </Panel>
+            )}
+          </ReactFlow>
+        )}
       </div>
       <aside className="jx-flow-editor">
         {selected ? (
