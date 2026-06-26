@@ -192,16 +192,17 @@ try {
   await page.locator('.jx-lab-form').getByText('买高分位').waitFor({ timeout: 5000 }); // form reflects the flow edit
   log('flow→form sync ok (方向 → 买高分位)');
 
-  // 4c. Enable timing via the 择时 node → a general condition editor (no preset); node shows the condition.
+  // 4c. Enable timing via the 择时 node → a rule state-machine editor (if/elif/else rules + state vars).
   await page.locator('.jx-flow-node', { hasText: '择时' }).click();
   await page.locator('.jx-flow-editorTitle', { hasText: '择时' }).waitFor();
-  await page.locator('.jx-flow-editor .ant-select').first().click(); // 启用择时 on/off
-  await page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)').getByText('启用条件').click();
-  await page.locator('.jx-flow-cond').first().waitFor({ timeout: 5000 }); // condition editor (operand·op·operand)
-  await page.locator('.jx-flow-node', { hasText: '新高' }).waitFor({ timeout: 5000 }); // node shows the entry condition
-  log('timing enabled → general condition editor (no preset)');
+  await page.locator('.jx-te-toggle .ant-select').click(); // 启用择时 on/off
+  await page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)').getByText('启用规则').click();
+  await page.locator('.jx-te-rule').first().waitFor({ timeout: 5000 }); // rule cards (if/else branches)
+  const ruleCount = await page.locator('.jx-te-rule').count();
+  log('timing enabled → rule editor,', ruleCount, 'rules');
+  await page.locator('.jx-flow-node', { hasText: '条规则' }).waitFor({ timeout: 5000 }); // node shows rule count
   await page.screenshot({ path: `${SHOTS}4c-timing.png` });
-  log('shot 4c: pipeline with timing condition editor');
+  log('shot 4c: pipeline with timing rule state machine');
 
   // 5b. (opt-in, runs a real ~1y backtest in the worker) Run it → the worker streams progress logs
   //     into the lab panel while it computes. Gated by E2E_BT so routine runs stay fast.
