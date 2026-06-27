@@ -203,6 +203,25 @@ try {
   await page.screenshot({ path: `${SHOTS}4b-code-editor.png` });
   log('shot 4b: strategy code editor (Monaco)');
 
+  // 4c. (opt-in, costs an LLM call) NL→code: describe a strategy → server writes + compiles TS → it
+  //     replaces the editor content. Gated by E2E_NL (needs DEEPSEEK_API_KEY).
+  if (process.env.E2E_NL) {
+    const before = (await page.locator('.jx-lab-code .monaco-editor').textContent()) ?? '';
+    await page.locator('.jx-lab-nl textarea').fill('每月买入股息率最高的20只，等权持有');
+    await page.getByRole('button', { name: 'AI 生成' }).click();
+    await page.waitForFunction(
+      (prev) => {
+        const ed = document.querySelector('.jx-lab-code .monaco-editor');
+        const t = ed ? ed.textContent || '' : '';
+        return t !== prev && t.includes('defineStrategy');
+      },
+      before,
+      { timeout: 60000 }, // DeepSeek round-trip + compile-repair
+    );
+    log('NL→code: editor replaced with generated strategy');
+    await page.screenshot({ path: `${SHOTS}4c-nl-code.png` });
+  }
+
   // 5b. (opt-in, runs a real ~1y backtest in the worker) Run it → the worker streams progress logs
   //     into the lab panel while it computes. Gated by E2E_BT so routine runs stay fast.
   if (process.env.E2E_BT) {

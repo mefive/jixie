@@ -3,7 +3,7 @@ import classNames from 'classnames';
 import { Button, DatePicker, Input, InputNumber } from 'antd';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
-import { faPlay, faSpinner } from '@fortawesome/free-solid-svg-icons';
+import { faPlay, faSpinner, faWandMagicSparkles } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { TopNav } from '@src/components/top-nav';
 import { SavedBar } from '@src/components/saved-bar';
@@ -90,6 +90,7 @@ export const Lab = complex.component(() => {
 
       <main className="jx-lab-body">
         <section className="jx-lab-editor">
+          <NlBar />
           <StrategyCode />
         </section>
         <section className="jx-lab-result">
@@ -101,6 +102,40 @@ export const Lab = complex.component(() => {
 }, 'Lab');
 
 // —— 子组件 ——
+
+// NL→code: describe a strategy → the server writes (and compiles) TS → it drops into the editor.
+const NlBar = complex.component(() => {
+  const store = complex.useStore();
+  const loading = store.codegenLoader.loading;
+  return (
+    <div className="jx-lab-nl">
+      <Input.TextArea
+        className="jx-lab-nlInput"
+        value={store.nlText}
+        onChange={(e) => store.setField('nlText', e.target.value)}
+        onPressEnter={(e) => {
+          if (!e.shiftKey && !e.nativeEvent.isComposing) {
+            e.preventDefault();
+            void store.generate();
+          }
+        }}
+        placeholder="用一句话描述策略，AI 写成代码，如「每月买入股息率最高的 20 只，等权」"
+        autoSize={{ minRows: 1, maxRows: 3 }}
+      />
+      <Button
+        icon={<FontAwesomeIcon icon={faWandMagicSparkles} />}
+        loading={loading}
+        disabled={!store.nlText.trim()}
+        onClick={() => void store.generate()}
+      >
+        AI 生成
+      </Button>
+      {store.codegenLoader.error && (
+        <span className="jx-lab-nlError">{store.codegenLoader.errorObject?.message}</span>
+      )}
+    </div>
+  );
+}, 'NlBar');
 
 // The strategy code editor — Monaco with SDK autocomplete/types, lazy-loaded into its own chunk.
 const StrategyCode = complex.component(() => {

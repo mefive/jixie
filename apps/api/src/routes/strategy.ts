@@ -1,33 +1,33 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { apiError, validateJson } from '../lib/httpError.js';
-import { chatJson } from '../llm/deepseek.js';
-import { nlToIr } from '../strategy/ir/nl-to-ir.js';
+import { chatText } from '../llm/deepseek.js';
+import { nlToCode } from '../strategy/code/nl-to-code.js';
 
 /**
- * Strategy authoring API. POST /api/app/strategy/parse turns a natural-language description into a
- * validated strategy IR (the model fills the blanks; output is re-validated against the IR schema,
- * with up to 2 self-correction rounds). The frontend reflects the returned IR into the config form.
+ * Strategy authoring API. POST /api/app/strategy/codegen turns a natural-language description into a
+ * compilable TS strategy module (the model writes code; we compile it to validate, with up to 2
+ * self-correction rounds). The frontend drops the returned code into the editor for the user to review/run.
  */
 export const strategyRoute = new Hono();
 
-const parseBody = z.object({ text: z.string().trim().min(1).max(500) });
+const codegenBody = z.object({ text: z.string().trim().min(1).max(800) });
 
-strategyRoute.post('/parse', validateJson(parseBody), async (c) => {
+strategyRoute.post('/codegen', validateJson(codegenBody), async (c) => {
   const { text } = c.req.valid('json');
 
   let result;
   try {
-    result = await nlToIr(text, chatJson);
+    result = await nlToCode(text, chatText);
   } catch (e) {
-    // Missing key / upstream model failure — distinct from "model produced invalid IR".
-    return apiError(c, 'SERVICE_UNAVAILABLE', e instanceof Error ? e.message : 'NL→IR 调用失败');
+    // Missing key / upstream model failure — distinct from "model produced uncompilable code".
+    return apiError(c, 'SERVICE_UNAVAILABLE', e instanceof Error ? e.message : 'NL→code 调用失败');
   }
 
-  if (!result.ok) {
-    return apiError(c, 'VALIDATION_FAILED', '没能把描述转成合法策略，请换个说法再试', {
-      errors: result.errors,
+  if (!result.ok || !result.code) {
+    return apiError(c, 'VALIDATION_FAILED', '没能把描述转成可编译的策略代码，请换个说法再试', {
+      error: result.error,
     });
   }
-  return c.json({ ir: result.ir, attempts: result.attempts });
+  return c.json({ code: result.code, attempts: result.attempts });
 });
