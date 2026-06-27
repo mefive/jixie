@@ -1,23 +1,37 @@
-/** The starter strategy shown in a fresh editor — a cross-section EP decile, demonstrating the SDK
- * (period / select chain / equalWeight). Editing this is the whole authoring experience now. */
-export const DEFAULT_CODE = `// 每月选最便宜的 10% 股票,等权持有(EP = 1/PE_TTM 最高)
-let last = '';
-
+/** The starter strategy in a fresh editor. A single-name MA20 breakout — sub-second to backtest, so the
+ * first 运行回测 returns instantly. The commented block shows the cross-section SDK (select chain) for
+ * whole-market strategies (those load the full panel each rebalance, so they run slower). */
+export const DEFAULT_CODE = `// MA20 突破:收盘价上穿 20 日均线满仓买入、下穿清仓(单只,秒级回测)
 export default defineStrategy({
-  name: 'EP 月度十分位',
-  async onBar(ctx) {
-    // 只在每月首个交易日重排
-    if (ctx.period('monthly') === last) return;
-    last = ctx.period('monthly');
+  name: 'MA20 突破 · 贵州茅台',
+  watch: ['600519.SH'],
+  onBar(ctx) {
+    const code = '600519.SH';
+    const px = ctx.price(code);
+    const win = ctx.history(code, 'close', 20);
+    if (px == null || win.length < 20) return;
 
-    const picks = (await ctx.select())
-      .minListDays(365)                          // 剔上市不足一年的次新
-      .where(b => b.peTtm != null && b.peTtm > 0) // 只看正 PE
-      .dropBottom(0.25, b => b.turnoverRate ?? 0) // 剔最不流动的 1/4
-      .rankBy(b => 1 / b.peTtm)                    // 因子:盈利收益率,越高越便宜
-      .top(0.1);                                   // 取前 10%
-
-    ctx.equalWeight(picks);
+    const ma20 = win.reduce((a, b) => a + b, 0) / win.length;
+    if (px > ma20 && ctx.shares(code) === 0) ctx.order(code, Math.floor(ctx.cash / px));
+    else if (px < ma20 && ctx.shares(code) > 0) ctx.exit(code);
   },
 });
+
+// 想做全市场横截面选股?用 ctx.select() 链 —— 例如每月取最便宜的 10%(EP=1/PE_TTM)等权:
+//
+// let last = '';
+// export default defineStrategy({
+//   name: 'EP 月度十分位',
+//   async onBar(ctx) {
+//     if (ctx.period('monthly') === last) return;
+//     last = ctx.period('monthly');
+//     const picks = (await ctx.select())
+//       .minListDays(365)
+//       .where(b => b.peTtm != null && b.peTtm > 0)
+//       .dropBottom(0.25, b => b.turnoverRate ?? 0)
+//       .rankBy(b => 1 / b.peTtm)
+//       .top(0.1);
+//     ctx.equalWeight(picks);
+//   },
+// });
 `;

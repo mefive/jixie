@@ -8,6 +8,12 @@ import path from 'node:path';
 export default defineConfig({
   build: { target: 'esnext' },
   plugins: [react(), tailwindcss()],
+  // Pre-bundle echarts' sub-path imports together so the tree-shaken core/charts/components share ONE
+  // instance. Otherwise an incremental re-optimize (e.g. after adding a dep) can split core into an app
+  // chunk while charts stays an optimized dep → two echarts → "Invalid data provider." on chart init.
+  optimizeDeps: {
+    include: ['echarts/core', 'echarts/charts', 'echarts/components', 'echarts/renderers'],
+  },
   resolve: {
     alias: { '@src': path.resolve(__dirname, './src') },
   },
