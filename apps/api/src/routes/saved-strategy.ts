@@ -4,7 +4,7 @@ import type { Prisma } from '@prisma/client';
 import type { BacktestConfig } from '@jixie/shared';
 import { apiError, validateJson } from '../lib/httpError.js';
 import { prisma } from '../lib/prisma.js';
-import { configSchema } from '../strategy/ir/schema.js';
+import { codeConfigSchema } from '../strategy/code/schema.js';
 
 /**
  * Saved strategies (产品线 1 持久化). Owner-scoped CRUD over the Strategy table. The workbench
@@ -40,7 +40,7 @@ savedStrategyRoute.get('/:id', async (c) => {
 });
 
 // POST /api/app/strategies — auto-save: upsert by (userId, config.name).
-savedStrategyRoute.post('/', validateJson(configSchema), async (c) => {
+savedStrategyRoute.post('/', validateJson(codeConfigSchema), async (c) => {
   const config = c.req.valid('json') as BacktestConfig;
   const userId = c.var.userId;
   const name = config.name;

@@ -1,14 +1,13 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef } from 'react';
 import classNames from 'classnames';
-import { Button, DatePicker, Input, InputNumber, Segmented, Select } from 'antd';
+import { Button, DatePicker, Input, InputNumber } from 'antd';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
-import { faPlay, faSpinner, faWandMagicSparkles } from '@fortawesome/free-solid-svg-icons';
+import { faPlay, faSpinner } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { TopNav } from '@src/components/top-nav';
 import { SavedBar } from '@src/components/saved-bar';
 import { complex } from './complex';
-import { FACTOR_PRESETS } from './presets';
 import './lab.css';
 
 // Our dates are 'YYYYMMDD' strings; enable dayjs to parse that format for the DatePicker.
@@ -16,195 +15,84 @@ dayjs.extend(customParseFormat);
 const ymd = (s: string) => (s ? dayjs(s, 'YYYYMMDD') : null);
 
 const NavChart = lazy(() => import('./nav-chart'));
-const StrategyFlow = lazy(() => import('./strategy-flow'));
 
+/**
+ * Backtest workbench — code-first. The strategy is TypeScript the user writes against the SDK
+ * (`defineStrategy` + `ctx`); the server compiles and runs it. Top strip = name/range/capital/run +
+ * saved list; left = the code editor; right = results (metrics + equity curve) / live log.
+ */
 export const Lab = complex.component(() => {
   const store = complex.useStore();
   const loader = store.backtestLoader;
-  const loading = loader.loading;
-  const [rightView, setRightView] = useState<'flow' | 'result'>('flow');
-  // Jump to the results view as soon as a run starts (the flowchart is the default resting view).
-  useEffect(() => {
-    if (loading) setRightView('result');
-  }, [loading]);
 
   return (
     <div className="jx-lab">
       <TopNav />
 
-      <main className="jx-lab-body">
-        <section className="jx-lab-form">
-          <div className="jx-lab-formHead">
-            <h2 className="jx-lab-formTitle">策略配置</h2>
-            {/* 我的策略:跑回测时自动存(按名 upsert),这里只读回/删除,故不带保存按钮 */}
-            <SavedBar
-              title="我的策略"
-              items={store.savedLoader.result ?? []}
-              loading={store.savedLoader.loading}
-              onOpenList={() => store.loadSavedList()}
-              onLoad={(id) => void store.openSaved(id)}
-              onDelete={(id) => store.removeSaved(id)}
-            />
-          </div>
+      <div className="jx-lab-bar">
+        <label className="jx-lab-field jx-lab-field--name">
+          <span className="jx-lab-label">策略名称</span>
+          <Input value={store.name} onChange={(e) => store.setField('name', e.target.value)} />
+        </label>
+        <label className="jx-lab-field">
+          <span className="jx-lab-label">起始日</span>
+          <DatePicker
+            className="jx-lab-control"
+            value={ymd(store.start)}
+            format="YYYY-MM-DD"
+            allowClear={false}
+            onChange={(d) => store.setField('start', d ? d.format('YYYYMMDD') : '')}
+          />
+        </label>
+        <label className="jx-lab-field">
+          <span className="jx-lab-label">结束日</span>
+          <DatePicker
+            className="jx-lab-control"
+            value={ymd(store.end)}
+            format="YYYY-MM-DD"
+            allowClear={false}
+            onChange={(d) => store.setField('end', d ? d.format('YYYYMMDD') : '')}
+          />
+        </label>
+        <label className="jx-lab-field">
+          <span className="jx-lab-label">初始资金</span>
+          <InputNumber
+            className="jx-lab-control"
+            value={store.initialCash}
+            min={10000}
+            step={100000}
+            formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+            parser={(v) => Number((v ?? '').replace(/,/g, ''))}
+            onChange={(v) => store.setField('initialCash', v ?? 0)}
+          />
+        </label>
 
-          <div className="jx-lab-nl">
-            <Input.TextArea
-              value={store.nlText}
-              onChange={(e) => store.setField('nlText', e.target.value)}
-              placeholder="用一句话描述策略，AI 帮你填表，如「买最便宜的 10% 股票，月度调仓」"
-              autoSize={{ minRows: 2, maxRows: 4 }}
-            />
-            <Button
-              icon={<FontAwesomeIcon icon={faWandMagicSparkles} />}
-              loading={store.parseLoader.loading}
-              disabled={!store.nlText.trim()}
-              onClick={() => void store.parse()}
-            >
-              AI 解析填表
-            </Button>
-            {store.parseLoader.error && (
-              <span className="jx-lab-nlError">{store.parseLoader.errorObject?.message}</span>
-            )}
-          </div>
-
-          <label className="jx-lab-field">
-            <span className="jx-lab-label">策略名称</span>
-            <Input value={store.name} onChange={(e) => store.setField('name', e.target.value)} />
-          </label>
-
-          <div className="jx-lab-row">
-            <label className="jx-lab-field">
-              <span className="jx-lab-label">起始日</span>
-              <DatePicker
-                className="jx-lab-control"
-                value={ymd(store.start)}
-                format="YYYY-MM-DD"
-                allowClear={false}
-                onChange={(d) => store.setField('start', d ? d.format('YYYYMMDD') : '')}
-              />
-            </label>
-            <label className="jx-lab-field">
-              <span className="jx-lab-label">结束日</span>
-              <DatePicker
-                className="jx-lab-control"
-                value={ymd(store.end)}
-                format="YYYY-MM-DD"
-                allowClear={false}
-                onChange={(d) => store.setField('end', d ? d.format('YYYYMMDD') : '')}
-              />
-            </label>
-          </div>
-
-          <label className="jx-lab-field">
-            <span className="jx-lab-label">初始资金</span>
-            <InputNumber
-              className="jx-lab-control"
-              value={store.initialCash}
-              min={10000}
-              step={100000}
-              formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-              parser={(v) => Number((v ?? '').replace(/,/g, ''))}
-              onChange={(v) => store.setField('initialCash', v ?? 0)}
-            />
-          </label>
-
-          <label className="jx-lab-field">
-            <span className="jx-lab-label">打分因子</span>
-            <Select
-              value={store.selectedPresetKey}
-              onChange={(v) => store.setPreset(v)}
-              options={[
-                ...FACTOR_PRESETS.map((p) => ({ label: p.label, value: p.key })),
-                ...(store.selectedPresetKey === 'custom'
-                  ? [{ label: '自定义（来自 AI）', value: 'custom', disabled: true }]
-                  : []),
-              ]}
-            />
-          </label>
-
-          <div className="jx-lab-row">
-            <label className="jx-lab-field">
-              <span className="jx-lab-label">方向</span>
-              <Select
-                value={store.side}
-                onChange={(v) => store.setField('side', v)}
-                options={[
-                  { label: '买高分位', value: 'high' },
-                  { label: '买低分位', value: 'low' },
-                ]}
-              />
-            </label>
-            <label className="jx-lab-field">
-              <span className="jx-lab-label">分位 ({(store.quantile * 100).toFixed(0)}%)</span>
-              <InputNumber
-                className="jx-lab-control"
-                value={store.quantile}
-                min={0.05}
-                max={1}
-                step={0.05}
-                onChange={(v) => store.setField('quantile', v ?? 0.1)}
-              />
-            </label>
-          </div>
-
-          <div className="jx-lab-row">
-            <label className="jx-lab-field">
-              <span className="jx-lab-label">剔次新(天)</span>
-              <InputNumber
-                className="jx-lab-control"
-                value={store.minListDays}
-                min={0}
-                onChange={(v) => store.setField('minListDays', v ?? 0)}
-              />
-            </label>
-            <label className="jx-lab-field">
-              <span className="jx-lab-label">剔流动性(%)</span>
-              <InputNumber
-                className="jx-lab-control"
-                value={store.dropIlliquidPct}
-                min={0}
-                max={100}
-                onChange={(v) => store.setField('dropIlliquidPct', v ?? 0)}
-              />
-            </label>
-          </div>
-
+        <div className="jx-lab-barActions">
+          <SavedBar
+            title="我的策略"
+            items={store.savedLoader.result ?? []}
+            loading={store.savedLoader.loading}
+            onOpenList={() => store.loadSavedList()}
+            onLoad={(id) => void store.openSaved(id)}
+            onDelete={(id) => store.removeSaved(id)}
+          />
           <Button
             type="primary"
-            block
             loading={loader.loading}
             icon={loader.loading ? undefined : <FontAwesomeIcon icon={faPlay} />}
             onClick={() => store.run()}
           >
             {loader.loading ? '回测中…' : '运行回测'}
           </Button>
+        </div>
+      </div>
 
-          <details className="jx-lab-ir">
-            <summary className="jx-lab-irSummary">查看策略 IR</summary>
-            <pre className="jx-lab-irCode">{store.irPreview}</pre>
-          </details>
+      <main className="jx-lab-body">
+        <section className="jx-lab-editor">
+          <CodeEditor />
         </section>
-
         <section className="jx-lab-result">
-          <div className="jx-lab-rightHead">
-            <Segmented
-              value={rightView}
-              onChange={(v) => setRightView(v as 'flow' | 'result')}
-              options={[
-                { label: '流程图', value: 'flow' },
-                { label: '回测结果', value: 'result' },
-              ]}
-            />
-          </div>
-          <div className="jx-lab-rightBody">
-            {rightView === 'flow' ? (
-              <Suspense fallback={<div className="jx-lab-placeholder">加载流程图…</div>}>
-                <StrategyFlow />
-              </Suspense>
-            ) : (
-              <ResultPanel />
-            )}
-          </div>
+          <ResultPanel />
         </section>
       </main>
     </div>
@@ -212,6 +100,20 @@ export const Lab = complex.component(() => {
 }, 'Lab');
 
 // —— 子组件 ——
+
+// The strategy code editor. A monospace textarea for now (Monaco — with SDK autocomplete — is the next slice).
+const CodeEditor = complex.component(() => {
+  const store = complex.useStore();
+  return (
+    <textarea
+      className="jx-lab-code"
+      spellCheck={false}
+      value={store.code}
+      onChange={(e) => store.setField('code', e.target.value)}
+      placeholder="export default defineStrategy({ onBar(ctx) { … } })"
+    />
+  );
+}, 'CodeEditor');
 
 const ResultPanel = complex.component(() => {
   const store = complex.useStore();
@@ -229,7 +131,7 @@ const ResultPanel = complex.component(() => {
   }
   const r = loader.result;
   if (!r) {
-    return <div className="jx-lab-placeholder">配置左侧参数后点「运行回测」查看净值与指标。</div>;
+    return <div className="jx-lab-placeholder">写好左侧策略后点「运行回测」查看净值与指标。</div>;
   }
 
   const up = r.totalReturn >= 0;

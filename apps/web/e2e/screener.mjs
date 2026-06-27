@@ -170,97 +170,57 @@ try {
   await stockPage.close();
   log('shot 3b: stock detail (log price axis)');
 
-  // 5. Seed a strategy via the API (auto-save would otherwise need a full ~30s backtest run), then
-  //    nav to the workbench → 我的策略 dropdown lists it → click to load it into the form.
+  // 5. Seed a CODE strategy via the API, then open it in the workbench → the editor shows the code.
   const seeded = await page.evaluate(async () => {
+    const code =
+      "let last=''; export default defineStrategy({ name:'e2e策略', watch:['600519.SH'], onBar(ctx){ const c='600519.SH'; const px=ctx.price(c); const w=ctx.history(c,'close',20); if(px==null||w.length<20) return; const ma=w.reduce((a,b)=>a+b,0)/w.length; if(px>ma&&ctx.shares(c)===0) ctx.order(c,100); else if(px<ma&&ctx.shares(c)>0) ctx.exit(c); } });";
     const r = await fetch('/api/app/strategies', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        name: 'e2e策略',
-        start: '20200101',
-        end: '20201231',
-        initialCash: 1234567,
-        strategy: {
-          schedule: 'monthly',
-          stages: [
-            { kind: 'universe', source: { type: 'all' } },
-            { kind: 'select', score: { kind: 'field', name: 'peTtm' }, side: 'low', pick: { by: 'quantile', value: 0.1 } },
-            { kind: 'sizing', method: { kind: 'equal' } },
-          ],
-        },
-      }),
+      body: JSON.stringify({ name: 'e2e策略', start: '20200101', end: '20201231', initialCash: 1234567, code }),
     });
     return r.status;
   });
-  log('seed strategy status', seeded);
+  log('seed code strategy status', seeded);
 
   await page.getByRole('link', { name: '回测工作台' }).click();
-  await page.getByText('策略配置').first().waitFor({ timeout: 10000 });
+  await page.locator('.jx-lab-code').waitFor({ timeout: 10000 }); // code editor is the authoring surface now
   await page.getByRole('button', { name: /我的策略/ }).click();
   await page.locator('.ant-dropdown .jx-savedBar-itemName', { hasText: 'e2e策略' }).waitFor();
   await page.screenshot({ path: `${SHOTS}4-lab.png` });
-  log('shot 4: backtest workbench + 我的策略 dropdown');
-  // load it → the strategy-name input reflects the saved name
+  log('shot 4: code workbench + 我的策略 dropdown');
+  // load it → name input + code editor reflect the saved strategy
   await page.locator('.ant-dropdown .jx-savedBar-itemName', { hasText: 'e2e策略' }).click();
   await page.waitForFunction(
     () => {
-      const inputs = [...document.querySelectorAll('.jx-lab-field input')];
-      return inputs.some((i) => i.value === 'e2e策略');
+      const name = document.querySelector('.jx-lab-field--name input');
+      const code = document.querySelector('.jx-lab-code');
+      return name && name.value === 'e2e策略' && code && code.value.includes('600519.SH');
     },
     { timeout: 10000 },
   );
-  log('loaded saved strategy into the form');
-
-  // 5a. The right area defaults to the 流程图 view — the IR rendered as an editable pipeline. Editing a
-  //     node writes through the same store as the form, so the two views stay in sync (one source of truth).
-  await page.locator('.jx-flow-node').first().waitFor({ timeout: 10000 });
-  log('flowchart nodes:', await page.locator('.jx-flow-node').count());
-  await page.screenshot({ path: `${SHOTS}4b-strategy-flow.png` });
-  log('shot 4b: strategy flowchart');
-  await page.locator('.jx-flow-node', { hasText: '选择' }).click();
-  await page.locator('.jx-flow-editorTitle', { hasText: '选择' }).waitFor();
-  // the merged 打分·选择 editor has [打分因子, 方向] selects — 方向 is the 2nd
-  await page.locator('.jx-flow-editor .ant-select').nth(1).click();
-  await page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)').getByText('买高分位').click();
-  await page.locator('.jx-lab-form').getByText('买高分位').waitFor({ timeout: 5000 }); // form reflects the flow edit
-  log('flow→form sync ok (方向 → 买高分位)');
-
-  // 4c. Enable timing via the 择时 node → a rule state-machine editor (if/elif/else rules + state vars).
-  await page.locator('.jx-flow-node', { hasText: '择时' }).click();
-  await page.locator('.jx-flow-editorTitle', { hasText: '择时' }).waitFor();
-  await page.locator('.jx-te-toggle .ant-select').click(); // 启用择时 on/off
-  await page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)').getByText('启用规则').click();
-  await page.locator('.jx-te-rule').first().waitFor({ timeout: 5000 }); // rule cards (if/else branches)
-  const ruleCount = await page.locator('.jx-te-rule').count();
-  log('timing enabled → rule editor,', ruleCount, 'rules');
-  await page.locator('.jx-flow-node', { hasText: '条规则' }).waitFor({ timeout: 5000 }); // node shows rule count
-  await page.screenshot({ path: `${SHOTS}4c-timing.png` });
-  log('shot 4c: pipeline with timing rule state machine');
-
-  // 4d. Drill into the 择时 node → the rules drawn as a decision flowchart (if/else branches + 是/否 edges).
-  await page.getByRole('button', { name: '择时规则图 →' }).click();
-  await page.locator('.jx-tf-decision').first().waitFor({ timeout: 5000 });
-  log('drilled into rule diagram,', await page.locator('.jx-tf-decision').count(), 'decision nodes');
-  await page.screenshot({ path: `${SHOTS}4d-timing-branches.png` });
-  log('shot 4d: timing branch diagram');
-  await page.getByRole('button', { name: '← 返回管线' }).click();
-  await page.locator('.jx-flow-node', { hasText: '择时' }).waitFor(); // back to the pipeline view
+  log('loaded saved code strategy into the editor');
+  await page.screenshot({ path: `${SHOTS}4b-code-editor.png` });
+  log('shot 4b: strategy code editor');
 
   // 5b. (opt-in, runs a real ~1y backtest in the worker) Run it → the worker streams progress logs
   //     into the lab panel while it computes. Gated by E2E_BT so routine runs stay fast.
   if (process.env.E2E_BT) {
     await page.getByRole('button', { name: '运行回测' }).click();
-    await page.waitForFunction(
-      () => {
-        const el = document.querySelector('.jx-lab-log');
-        return el && /调仓|开始回测/.test(el.textContent || '');
-      },
-      { timeout: 60000 },
-    );
-    log('backtest worker streaming logs into the panel');
-    await page.screenshot({ path: `${SHOTS}5-lab-running.png` });
-    log('shot 5: live backtest progress log');
+    // The code strategy compiles + runs in the worker. A fast single-name run finishes within one poll
+    // (the live log just flashes), so assert on the final result — proves it ran end-to-end and rendered.
+    await page.locator('.jx-lab-metricValue').first().waitFor({ timeout: 60000 });
+    const cum = (
+      (await page
+        .locator('.jx-lab-metric', { hasText: '累计收益' })
+        .locator('.jx-lab-metricValue')
+        .textContent()) ?? ''
+    ).trim();
+    log('code backtest done, 累计收益', cum);
+    await page.locator('.jx-lab-result canvas').first().waitFor({ timeout: 8000 }).catch(() => {});
+    await page.waitForTimeout(400); // let echarts paint the equity curve
+    await page.screenshot({ path: `${SHOTS}5-lab-result.png` });
+    log('shot 5: code backtest result');
   }
 
   // cleanup seeded + auto-saved strategies for this user
