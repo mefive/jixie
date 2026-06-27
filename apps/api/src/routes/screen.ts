@@ -1,10 +1,11 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import type { ScreenSpec } from '@jixie/shared';
+import type { ScreenQueryResponse, ScreenSpec } from '@jixie/shared';
 import { apiError, validateJson, validateQuery } from '../lib/httpError.js';
 import { chatJson } from '../llm/deepseek.js';
-import { runScreen, stockSeries } from '../screen/query.js';
+import { runScreen, screenForCodes, stockSeries } from '../screen/query.js';
 import { nlToScreen } from '../screen/nl-to-screen.js';
+import { resolveByNames, resolveInstruments } from '../screen/resolve.js';
 import { screenSpecSchema } from '../screen/spec.js';
 
 /**
@@ -19,25 +20,47 @@ screenRoute.post('/screen', validateJson(screenSpecSchema), async (c) => {
   return c.json(result);
 });
 
-// NL→ScreenSpec → run it in one shot (so the frontend gets results + the editable spec together).
-const parseBody = z.object({ text: z.string().trim().min(1).max(500) });
+// One box, two intents. Resolve in one shot so the frontend gets results in a single call:
+//   1. local LIKE first — a pure code / exact-or-fragment name resolves deterministically (no LLM, no
+//      hallucinated codes), so direct lookups work even without a DEEPSEEK key;
+//   2. only on a miss go to the LLM, which either returns a screen spec or normalizes a fuzzy name/拼音 to
+//      a lookup we re-resolve in the DB.
+const queryBody = z.object({ text: z.string().trim().min(1).max(500) });
 
-screenRoute.post('/screen/parse', validateJson(parseBody), async (c) => {
+screenRoute.post('/screen/query', validateJson(queryBody), async (c) => {
   const { text } = c.req.valid('json');
 
+  // 1. Direct instrument reference? (deterministic, DB-backed)
+  const direct = await resolveInstruments(text);
+  if (direct.length) {
+    const result = await screenForCodes(direct);
+    return c.json({ kind: 'lookup', result } satisfies ScreenQueryResponse);
+  }
+
+  // 2. Fall back to the LLM: screen spec, or a normalized lookup.
   let parsed;
   try {
     parsed = await nlToScreen(text, chatJson);
   } catch (e) {
     return apiError(c, 'SERVICE_UNAVAILABLE', e instanceof Error ? e.message : 'NL→查询 调用失败');
   }
-  if (!parsed.ok || !parsed.spec) {
-    return apiError(c, 'VALIDATION_FAILED', '没能把需求转成合法查询，请换个说法再试', {
+  if (!parsed.ok || !parsed.parse) {
+    return apiError(c, 'VALIDATION_FAILED', '没能把需求转成查询，换个说法、或直接输入股票名称/代码再试', {
       errors: parsed.errors,
     });
   }
-  const result = await runScreen(parsed.spec);
-  return c.json({ spec: parsed.spec, result });
+
+  if (parsed.parse.kind === 'lookup') {
+    const codes = await resolveByNames(parsed.parse.names);
+    if (!codes.length) {
+      return apiError(c, 'NOT_FOUND', `没找到「${text}」对应的标的，请确认名称或代码`);
+    }
+    const result = await screenForCodes(codes);
+    return c.json({ kind: 'lookup', result } satisfies ScreenQueryResponse);
+  }
+
+  const result = await runScreen(parsed.parse.spec);
+  return c.json({ kind: 'screen', spec: parsed.parse.spec, result } satisfies ScreenQueryResponse);
 });
 
 const seriesQuery = z.object({

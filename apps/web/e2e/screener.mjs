@@ -40,9 +40,43 @@ try {
   await page.goto(`${BASE}/screen`, { waitUntil: 'networkidle' });
   await page.getByText('选股看图').first().waitFor();
   await page.screenshot({ path: `${SHOTS}1-screen-empty.png` });
-  log('shot 1: empty screener');
+  log('shot 1: empty screener (hero)');
 
-  // 3. Example query → result table fills.
+  // 2. Direct lookup (deterministic, no LLM): type a code/name in the hero box → that stock's snapshot row.
+  const heroInput = page.locator('.jx-screen-hero textarea');
+  await heroInput.waitFor();
+  // Shift+Space inserts a newline (Enter would send); quick check, then replace with a clean code.
+  await heroInput.click();
+  await page.keyboard.type('a');
+  await page.keyboard.press('Shift+Space');
+  await page.keyboard.type('b');
+  const draft = await heroInput.inputValue();
+  if (draft !== 'a\nb') throw new Error(`Shift+Space 换行失败: ${JSON.stringify(draft)}`);
+  await heroInput.fill('601398');
+  await heroInput.press('Enter'); // 回车即发
+  await page.waitForFunction(
+    () => document.querySelectorAll('.jx-screen-table tbody tr.ant-table-row').length > 0,
+    { timeout: 15000 },
+  );
+  const lookedUp = ((await page.locator('.jx-screen-nameCode').first().textContent()) ?? '').trim();
+  log('lookup 601398 →', lookedUp);
+  if (!lookedUp.startsWith('601398')) throw new Error(`expected 601398.SH, got ${lookedUp}`);
+  await page.screenshot({ path: `${SHOTS}1b-lookup.png` });
+  log('shot 1b: direct code lookup (no LLM)');
+
+  // 2b. The submitted prompt collapses to a read-only bubble; the edit pencil opens the frosted modal.
+  await page.locator('.jx-screen-prompt').waitFor();
+  await page.locator('.jx-screen-promptEdit').click();
+  await page.locator('.ant-modal-title', { hasText: '选股 / 找标的' }).waitFor();
+  const modalDraft = await page.locator('.ant-modal .jx-screen-modalField textarea').inputValue();
+  if (modalDraft !== '601398') throw new Error(`edit modal not prefilled: ${JSON.stringify(modalDraft)}`);
+  await page.waitForTimeout(450); // let the modal + frosted mask finish animating in
+  await page.screenshot({ path: `${SHOTS}1c-edit-modal.png` });
+  log('shot 1c: frosted edit modal');
+  await page.keyboard.press('Escape');
+  await page.locator('.ant-modal').waitFor({ state: 'hidden' });
+
+  // 3. Example query → result table fills (examples live in both the hero and the working top bar).
   await page.getByRole('button', { name: '低PE高股息大盘' }).click();
   await page.waitForFunction(
     () => document.querySelectorAll('.jx-screen-table tbody tr.ant-table-row').length > 5,
@@ -239,15 +273,14 @@ try {
   // 6. (opt-in, costs an LLM call) NL→screen through the UI: needs DEEPSEEK_API_KEY. Run with E2E_NL=1.
   if (process.env.E2E_NL) {
     await page.getByRole('link', { name: '选股看图' }).click();
-    const before = ((await page.locator('.jx-screen-summary').textContent().catch(() => '')) ?? '').trim();
-    await page.locator('.jx-screen-bar textarea').fill('市盈率低于10、股息率大于4%的股票，按股息率从高到低');
-    await page.getByRole('button', { name: 'AI 选股' }).click();
+    await page.locator('.jx-screen-hero textarea').fill('市盈率低于10、股息率大于4%的股票，按股息率从高到低');
+    await page.locator('.jx-screen-hero textarea').press('Enter'); // 回车即发
     await page.waitForFunction(
-      (prev) => {
+      () => {
         const el = document.querySelector('.jx-screen-summary');
-        return el && el.textContent && el.textContent.trim() !== prev && document.querySelectorAll('.jx-screen-table tbody tr.ant-table-row').length > 0;
+        return el && el.textContent && document.querySelectorAll('.jx-screen-table tbody tr.ant-table-row').length > 0;
       },
-      before,
+      undefined,
       { timeout: 45000 }, // DeepSeek round-trip
     );
     log('NL search summary:', ((await page.locator('.jx-screen-summary').textContent()) ?? '').trim());

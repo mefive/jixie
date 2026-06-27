@@ -16,15 +16,37 @@ describe('buildScreenPrompt', () => {
     expect(p).toContain('dvRatio');
     expect(p).toContain('万元'); // unit note
   });
+
+  it('含标的查找(lookup)说明', () => {
+    const p = buildScreenPrompt();
+    expect(p).toContain('lookup');
+    expect(p).toContain('绝不编造代码');
+  });
 });
 
 describe('nlToScreen(校验 + 回灌重试)', () => {
-  it('一次成功', async () => {
+  it('选股一次成功', async () => {
     const llm: LlmCall = vi.fn(async () => GOOD);
     const r = await nlToScreen('低估值大盘股', llm);
     expect(r.ok).toBe(true);
     expect(r.attempts).toBe(1);
-    expect(r.spec).toMatchObject({ sort: { field: 'totalMv', dir: 'desc' } });
+    expect(r.parse).toMatchObject({ kind: 'screen', spec: { sort: { field: 'totalMv', dir: 'desc' } } });
+  });
+
+  it('点名股票 → lookup(规范化名称)', async () => {
+    const llm: LlmCall = vi.fn(async () => JSON.stringify({ lookup: ['工商银行', '贵州茅台'] }));
+    const r = await nlToScreen('工行和茅台', llm);
+    expect(r.ok).toBe(true);
+    expect(r.parse).toEqual({ kind: 'lookup', names: ['工商银行', '贵州茅台'] });
+  });
+
+  it('lookup 为空 → 回灌 → 修正为选股', async () => {
+    const bad = JSON.stringify({ lookup: [] });
+    const llm = vi.fn<LlmCall>().mockResolvedValueOnce(bad).mockResolvedValueOnce(GOOD);
+    const r = await nlToScreen('?', llm);
+    expect(r.ok).toBe(true);
+    expect(r.attempts).toBe(2);
+    expect(r.parse?.kind).toBe('screen');
   });
 
   it('未知字段 → 回灌 → 修正', async () => {
