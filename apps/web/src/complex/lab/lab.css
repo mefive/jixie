@@ -5,102 +5,76 @@
   height: 100%;
 }
 
-.jx-lab-body {
-  @apply flex flex-1 gap-4;
-  @apply overflow-hidden;
-  padding: 16px;
+/* —— top strip: name / range / capital / saved / run —— */
+.jx-lab-bar {
+  @apply flex flex-wrap items-end gap-3;
+  @apply border-b border-line bg-card;
+  padding: 12px 16px;
 }
 
-/* —— left: config form —— */
-.jx-lab-form {
-  @apply flex flex-col gap-3;
-  @apply rounded-lg border border-line bg-card;
-  @apply overflow-y-auto;
-  width: 360px;
-  padding: 16px;
-}
-
-.jx-lab-formHead {
-  @apply flex items-center justify-between gap-2;
-}
-
-.jx-lab-formTitle {
-  @apply font-semibold text-ink;
-}
-
-/* NL→IR prompt bar */
-.jx-lab-nl {
-  @apply flex flex-col gap-2;
-  @apply rounded-lg border border-line bg-bg;
-  padding: 12px;
-}
-
-.jx-lab-nlError {
-  @apply text-down;
-  font-size: 12px;
-}
-
-.jx-lab-row {
-  @apply flex gap-3;
-}
-
-/* Field flows top-down at its natural height. flex-1 (equal-width split) only inside a row —
-   on the column form it would stretch fields vertically and open big gaps. */
 .jx-lab-field {
   @apply flex flex-col gap-1;
 }
 
-.jx-lab-row > .jx-lab-field {
-  flex: 1;
-  min-width: 0;
+.jx-lab-field--name {
+  min-width: 200px;
 }
 
 .jx-lab-label {
   @apply text-sm text-muted;
 }
 
-/* antd InputNumber root doesn't stretch by default — make controls fill the field. */
+/* antd InputNumber/DatePicker roots don't stretch by default — make controls fill the field. */
 .jx-lab-control {
   width: 100%;
 }
 
-.jx-lab-ir {
-  @apply rounded border border-line;
-  margin-top: 4px;
-  padding: 8px 10px;
+.jx-lab-barActions {
+  @apply flex items-center gap-2;
+  margin-left: auto;
 }
 
-.jx-lab-irSummary {
-  @apply text-sm text-muted;
-  cursor: pointer;
-}
-
-.jx-lab-irCode {
-  @apply text-xs text-ink;
-  margin-top: 8px;
-  white-space: pre-wrap;
-}
-
-/* —— right: 流程图 / 回测结果 —— */
-.jx-lab-result {
-  @apply flex flex-1 flex-col gap-3;
-  @apply rounded-lg border border-line bg-card;
+/* —— body: editor | result —— */
+.jx-lab-body {
+  @apply flex flex-1 gap-4;
   @apply overflow-hidden;
   padding: 16px;
 }
 
-.jx-lab-rightHead {
-  @apply flex;
+.jx-lab-editor {
+  @apply flex flex-col;
+  @apply overflow-hidden rounded-lg border border-line;
+  flex: 1.1;
+  min-width: 0;
 }
 
-.jx-lab-rightBody {
-  @apply flex flex-1 flex-col gap-4;
-  min-height: 0;
+/* the code textarea (Monaco replaces this next slice) */
+.jx-lab-code {
+  @apply flex-1 resize-none bg-card text-ink;
+  @apply overflow-auto;
+  padding: 14px 16px;
+  border: none;
+  outline: none;
+  tab-size: 2;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  line-height: 1.7;
+  white-space: pre;
+}
+
+/* —— right: 回测结果 —— */
+.jx-lab-result {
+  @apply flex flex-col gap-3;
+  @apply rounded-lg border border-line bg-card;
+  @apply overflow-hidden;
+  flex: 1;
+  min-width: 0;
+  padding: 16px;
 }
 
 .jx-lab-placeholder {
   @apply flex flex-1 items-center justify-center gap-2;
-  @apply text-sm text-muted;
+  @apply text-center text-sm text-muted;
 }
 
 .jx-lab-placeholder--error {
@@ -111,7 +85,6 @@
 .jx-lab-running {
   @apply flex flex-1 flex-col gap-3;
   @apply overflow-hidden;
-  padding: 8px;
 }
 
 .jx-lab-runningHead {

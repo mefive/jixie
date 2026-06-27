@@ -129,14 +129,14 @@ export interface CostConfig {
   transferFee?: number; // both sides
 }
 
-/** A full, runnable backtest spec: range + capital + cost + the strategy IR. */
+/** A full, runnable backtest spec: range + capital + cost + the user-authored TS strategy code. */
 export interface BacktestConfig {
   name: string;
   start: TradeDate;
   end: TradeDate;
   initialCash: number;
   cost?: CostConfig;
-  strategy: StrategyIR;
+  code: string; // TypeScript strategy module: export default defineStrategy({ … })
 }
 
 /** Backtest result shape returned over the wire (mirrors the engine's BacktestResult). */

@@ -1,5 +1,4 @@
 import type {
-  BacktestConfig,
   PipelineIR,
   Schedule,
   SizingMethod,
@@ -7,8 +6,7 @@ import type {
   StrategyIR,
   UniverseFilter,
 } from '@jixie/shared';
-import { runStrategy } from '../../engine/run.js';
-import type { BacktestResult, BarContext, BarRow, Strategy } from '../../engine/types.js';
+import type { BarContext, BarRow, Strategy } from '../../engine/types.js';
 import { evalExpr, type ExprScope } from './expr.js';
 import { evalCondition, evalIndExpr, indExprWindow, maxWindow, type IndScope } from './ind-expr.js';
 
@@ -245,24 +243,8 @@ function interpretPipeline(ir: PipelineIR): Strategy {
   };
 }
 
-/** Compile a strategy IR (a stage pipeline) into an engine Strategy. */
+/** Compile a strategy IR (a stage pipeline) into an engine Strategy. (Legacy IR path — superseded by
+ * code-first authoring; retained only for the interpret unit tests until the IR layer is removed.) */
 export function interpretStrategy(ir: StrategyIR): Strategy {
   return interpretPipeline(ir);
-}
-
-/** Run a full backtest from an IR config. This is what the API route and demo scripts call.
- * `onLog` (optional) receives progress lines from the engine — the worker forwards them to the job. */
-export async function runBacktestConfig(
-  config: BacktestConfig,
-  onLog?: (line: string) => void,
-): Promise<BacktestResult> {
-  const strategy = interpretStrategy(config.strategy);
-  return runStrategy({
-    start: config.start,
-    end: config.end,
-    initialCash: config.initialCash,
-    cost: config.cost,
-    strategy,
-    onLog,
-  });
 }

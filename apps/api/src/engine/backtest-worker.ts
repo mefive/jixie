@@ -1,6 +1,6 @@
 import { parentPort, workerData } from 'node:worker_threads';
 import type { BacktestConfig } from '@jixie/shared';
-import { runBacktestConfig } from '../strategy/ir/interpret.js';
+import { runCodeBacktest } from '../strategy/code/run.js';
 import { prisma } from '../lib/prisma.js';
 
 /**
@@ -19,7 +19,7 @@ if (!port) throw new Error('backtest-worker must be spawned as a worker thread')
 const { config } = workerData as { config: BacktestConfig };
 
 try {
-  const result = await runBacktestConfig(config, (line) => port.postMessage({ type: 'log', line }));
+  const result = await runCodeBacktest(config, (line) => port.postMessage({ type: 'log', line }));
   port.postMessage({ type: 'done', result });
 } catch (e) {
   port.postMessage({ type: 'error', message: e instanceof Error ? e.message : String(e) });
