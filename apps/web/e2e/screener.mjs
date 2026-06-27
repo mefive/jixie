@@ -184,24 +184,24 @@ try {
   log('seed code strategy status', seeded);
 
   await page.getByRole('link', { name: '回测工作台' }).click();
-  await page.locator('.jx-lab-code').waitFor({ timeout: 10000 }); // code editor is the authoring surface now
+  await page.locator('.jx-lab-code .monaco-editor').waitFor({ timeout: 20000 }); // Monaco chunk + TS worker load
   await page.getByRole('button', { name: /我的策略/ }).click();
   await page.locator('.ant-dropdown .jx-savedBar-itemName', { hasText: 'e2e策略' }).waitFor();
   await page.screenshot({ path: `${SHOTS}4-lab.png` });
-  log('shot 4: code workbench + 我的策略 dropdown');
-  // load it → name input + code editor reflect the saved strategy
+  log('shot 4: code workbench (Monaco) + 我的策略 dropdown');
+  // load it → name input + Monaco editor reflect the saved strategy
   await page.locator('.ant-dropdown .jx-savedBar-itemName', { hasText: 'e2e策略' }).click();
   await page.waitForFunction(
     () => {
       const name = document.querySelector('.jx-lab-field--name input');
-      const code = document.querySelector('.jx-lab-code');
-      return name && name.value === 'e2e策略' && code && code.value.includes('600519.SH');
+      const ed = document.querySelector('.jx-lab-code .monaco-editor');
+      return name && name.value === 'e2e策略' && ed && (ed.textContent || '').includes('600519');
     },
-    { timeout: 10000 },
+    { timeout: 15000 },
   );
   log('loaded saved code strategy into the editor');
   await page.screenshot({ path: `${SHOTS}4b-code-editor.png` });
-  log('shot 4b: strategy code editor');
+  log('shot 4b: strategy code editor (Monaco)');
 
   // 5b. (opt-in, runs a real ~1y backtest in the worker) Run it → the worker streams progress logs
   //     into the lab panel while it computes. Gated by E2E_BT so routine runs stay fast.
