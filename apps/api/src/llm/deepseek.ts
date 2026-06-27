@@ -1,5 +1,5 @@
 // DeepSeek client — the official openai SDK pointed at DeepSeek's OpenAI-compatible endpoint.
-// Used with JSON structured output for NL→IR (output always re-validated by validateStrategyIR).
+// chatJson (forced JSON) backs NL→screen; chatText (free text) backs NL→code.
 // Config from .env: DEEPSEEK_API_KEY (required), DEEPSEEK_MODEL, DEEPSEEK_BASE_URL.
 import OpenAI from 'openai';
 import type { ChatMessage, LlmCall } from './nl-to-structured.js';
