@@ -20,7 +20,7 @@ const POLL_INTERVAL_MS = 1500;
  * compiles and runs it. No IR, no form-to-IR assembly: range/capital + the code IS the config.
  */
 export class LabStore extends BaseStore<LabSetupParams> {
-  public name = 'EP 月度十分位';
+  public name = 'MA20 突破 · 贵州茅台';
   public start = '20200101';
   public end = '20241231';
   public initialCash = 1_000_000;
