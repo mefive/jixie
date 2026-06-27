@@ -17,31 +17,34 @@ import { condText, indExprText } from './timing-editor';
 import './timing-flow.css';
 
 /**
- * The timing rules drawn as a decision flowchart — the if/elif/else branches as actual connected nodes.
- * Each rule is a decision (its `when`); a 是 edge leads to its action box, a 否 edge falls through to the
- * next rule; the final 否 lands on 不动. This is the "drill into the 择时 node" sub-view of the pipeline.
+ * The timing rules drawn as a flowchart ladder. Timing is 命中即停 (first-match-wins): 是 ends the bar
+ * (do the action, stop), 否 falls through to the next rule. So 否 — the only path that *continues* — is the
+ * vertical spine (decisions stacked in one column, 否 threading straight down); 是 peels off to the right
+ * into the action. Putting the repeating path (否) on the vertical axis keeps the chart growing *down*, never
+ * drifting right however many rules there are. Every edge is a straight line — 否 vertical, 是 horizontal,
+ * no bends. The drill-in sub-view of 择时.
  */
 export const TimingFlow = complex.component(({ onBack }: { onBack: () => void }) => {
   const store = complex.useStore();
   const rules = store.timingRules;
+  const n = rules.length;
 
-  const nodes: Node[] = [{ id: 'start', type: 'terminal', position: { x: 70, y: 0 }, data: { label: '每个 bar', kind: 'start' } }];
-  const edges: Edge[] = [];
+  const nodes: Node[] = [{ id: 'start', type: 'terminal', position: { x: START_X, y: 0 }, data: { label: '每个 bar', kind: 'start' } }];
+  const edges: Edge[] = [{ id: 'start-r0', source: 'start', target: 'r0', type: 'straight', style: EDGE }];
 
   rules.forEach((r, i) => {
-    const y = 100 + i * 150;
-    nodes.push({ id: `r${i}`, type: 'decision', position: { x: 0, y }, data: { tag: i === 0 ? '当' : '否则当', label: condText(r.when) } });
-    nodes.push({ id: `a${i}`, type: 'action', position: { x: 320, y: y + 8 }, data: { label: actionsText(r.do) } });
-    edges.push({ id: `yes${i}`, source: `r${i}`, sourceHandle: 'yes', target: `a${i}`, label: '是', type: 'smoothstep', style: EDGE });
-    if (i > 0) edges.push({ id: `no${i - 1}`, source: `r${i - 1}`, sourceHandle: 'no', target: `r${i}`, label: '否', type: 'smoothstep', style: EDGE });
+    const y = TOP + i * STEP_Y;
+    nodes.push({ id: `r${i}`, type: 'decision', position: { x: SPINE_X, y }, data: { tag: i === 0 ? '当' : '否则当', label: condText(r.when) } });
+    // Drop the action ~half a decision-box lower so its Left handle is level with the decision's Right
+    // handle → the 是 edge is a true horizontal line (the decision card is ~2 lines tall, the action ~1).
+    nodes.push({ id: `a${i}`, type: 'action', position: { x: ACTION_X, y: y + ACTION_DROP }, data: { label: actionsText(r.do) } });
+    edges.push({ id: `yes${i}`, source: `r${i}`, sourceHandle: 'yes', target: `a${i}`, label: '是', type: 'straight', style: EDGE, labelStyle: LABEL });
+    if (i > 0) edges.push({ id: `no${i - 1}`, source: `r${i - 1}`, sourceHandle: 'no', target: `r${i}`, label: '否', type: 'straight', style: EDGE, labelStyle: LABEL });
   });
-  edges.push({ id: 'start-r0', source: 'start', target: 'r0', type: 'smoothstep', style: EDGE });
 
-  const endY = 100 + rules.length * 150;
-  nodes.push({ id: 'none', type: 'terminal', position: { x: 70, y: endY }, data: { label: '不动(等下一根)', kind: 'none' } });
-  if (rules.length) {
-    edges.push({ id: 'no-last', source: `r${rules.length - 1}`, sourceHandle: 'no', target: 'none', label: '否', type: 'smoothstep', style: EDGE });
-  }
+  // Final 否 (no rule matched) → 不动, at the foot of the spine.
+  nodes.push({ id: 'none', type: 'terminal', position: { x: NONE_X, y: TOP + n * STEP_Y }, data: { label: '不动(等下一根)', kind: 'none' } });
+  if (n) edges.push({ id: 'no-last', source: `r${n - 1}`, sourceHandle: 'no', target: 'none', label: '否', type: 'straight', style: EDGE, labelStyle: LABEL });
 
   return (
     <ReactFlow
@@ -64,10 +67,20 @@ export const TimingFlow = complex.component(({ onBack }: { onBack: () => void })
   );
 }, 'TimingFlow');
 
+// Ladder spacing: decisions share column SPINE_X, actions sit to the right at ACTION_X, one row STEP_Y apart.
+const SPINE_X = 30;
+const ACTION_X = 320;
+const START_X = 92;
+const NONE_X = 78;
+const TOP = 80;
+const STEP_Y = 132;
+const ACTION_DROP = 10; // vertical nudge so the 是 edge lands level (decision ~2 lines, action ~1)
 const EDGE = { stroke: '#c4c8cd' };
+const LABEL = { fill: '#6b7280', fontSize: 12, fontWeight: 600 };
 
 // —— 子组件 ——
 
+// A decision: 否 drops out the bottom (spine, to the next rule); 是 exits the right (to its action).
 function DecisionNode({ data }: NodeProps) {
   const d = data as unknown as { tag: string; label: string };
   return (
