@@ -15,6 +15,7 @@ dayjs.extend(customParseFormat);
 const ymd = (s: string) => (s ? dayjs(s, 'YYYYMMDD') : null);
 
 const NavChart = lazy(() => import('./nav-chart'));
+const CodeEditor = lazy(() => import('./code-editor'));
 
 /**
  * Backtest workbench — code-first. The strategy is TypeScript the user writes against the SDK
@@ -89,7 +90,7 @@ export const Lab = complex.component(() => {
 
       <main className="jx-lab-body">
         <section className="jx-lab-editor">
-          <CodeEditor />
+          <StrategyCode />
         </section>
         <section className="jx-lab-result">
           <ResultPanel />
@@ -101,19 +102,17 @@ export const Lab = complex.component(() => {
 
 // —— 子组件 ——
 
-// The strategy code editor. A monospace textarea for now (Monaco — with SDK autocomplete — is the next slice).
-const CodeEditor = complex.component(() => {
+// The strategy code editor — Monaco with SDK autocomplete/types, lazy-loaded into its own chunk.
+const StrategyCode = complex.component(() => {
   const store = complex.useStore();
   return (
-    <textarea
-      className="jx-lab-code"
-      spellCheck={false}
-      value={store.code}
-      onChange={(e) => store.setField('code', e.target.value)}
-      placeholder="export default defineStrategy({ onBar(ctx) { … } })"
-    />
+    <div className="jx-lab-code">
+      <Suspense fallback={<div className="jx-lab-placeholder">加载编辑器…</div>}>
+        <CodeEditor value={store.code} onChange={(v) => store.setField('code', v)} />
+      </Suspense>
+    </div>
   );
-}, 'CodeEditor');
+}, 'StrategyCode');
 
 const ResultPanel = complex.component(() => {
   const store = complex.useStore();

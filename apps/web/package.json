@@ -16,6 +16,7 @@
     "@fortawesome/free-solid-svg-icons": "^7.2.0",
     "@fortawesome/react-fontawesome": "^3.3.0",
     "@jixie/shared": "workspace:*",
+    "@monaco-editor/react": "^4.7.0",
     "@xyflow/react": "^12.11.1",
     "antd": "^6.0.0",
     "classnames": "^2.5.1",
@@ -23,6 +24,7 @@
     "echarts": "^6.0.0",
     "mobx": "^6.16.0",
     "mobx-react": "^9.2.0",
+    "monaco-editor": "^0.55.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.17.0"
