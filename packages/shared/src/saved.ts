@@ -1,4 +1,4 @@
-import type { BacktestConfig } from './ir.js';
+import type { BacktestConfig } from './backtest.js';
 import type { ScreenSpec } from './screen.js';
 
 /**
