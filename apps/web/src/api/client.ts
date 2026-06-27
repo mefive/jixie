@@ -90,6 +90,7 @@ export function pollBacktest(jobId: string, since = 0): Promise<BacktestJob> {
 }
 
 import type {
+  ScreenQueryResponse,
   ScreenResult,
   ScreenSpec,
   StockSeries,
@@ -147,9 +148,10 @@ export function runScreen(spec: ScreenSpec): Promise<ScreenResult> {
   return request('/api/app/screen', { method: 'POST', body: JSON.stringify(spec) });
 }
 
-// NL→ScreenSpec → run it; returns the editable spec + the results.
-export function parseScreen(text: string): Promise<{ spec: ScreenSpec; result: ScreenResult }> {
-  return request('/api/app/screen/parse', { method: 'POST', body: JSON.stringify({ text }) });
+// One box → either a structured screen (with editable spec) or a direct instrument lookup. Tries a
+// deterministic name/code match first, then the LLM.
+export function queryScreen(text: string): Promise<ScreenQueryResponse> {
+  return request('/api/app/screen/query', { method: 'POST', body: JSON.stringify({ text }) });
 }
 
 // A stock's OHLC/vol/pe series for the K线/PE/量 charts.

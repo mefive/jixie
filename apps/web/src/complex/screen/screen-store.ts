@@ -1,11 +1,11 @@
 import { action, computed, makeObservable, observable, runInAction } from 'mobx';
-import type { ScreenResult, ScreenSpec, SavedMeta } from '@jixie/shared';
+import type { ScreenQueryResponse, ScreenResult, ScreenSpec, SavedMeta } from '@jixie/shared';
 import { BaseStore, LoaderModel } from '@src/lib';
 import {
   deleteScreen,
   getScreen,
   listScreens,
-  parseScreen,
+  queryScreen,
   runScreen,
   saveScreen,
 } from '@src/api/client';
@@ -37,18 +37,20 @@ export const EXAMPLE_SCREENS: { label: string; spec: ScreenSpec }[] = [
  * fangtu's ConditionChips. `result` is the latest table data (set by either path).
  */
 export class ScreenStore extends BaseStore<ScreenSetupParams> {
-  public nlText = '';
-  public spec: ScreenSpec | null = null;
+  public nlText = ''; // current draft (hero input / edit modal)
+  public submittedPrompt = ''; // the NL text behind the current result — shown as a read-only bubble; '' if from example/saved
+  public spec: ScreenSpec | null = null; // present → screen (chips shown); null → direct lookup / nothing yet
   public result: ScreenResult | null = null;
 
   public runLoader = new LoaderModel<ScreenResult>(); // direct deterministic query (examples, chip edits)
-  public parseLoader = new LoaderModel<{ spec: ScreenSpec; result: ScreenResult }>(); // NL→spec→run
+  public queryLoader = new LoaderModel<ScreenQueryResponse>(); // one box → screen | lookup (local resolve, then LLM)
   public savedLoader = new LoaderModel<SavedMeta[]>(); // 我的选股 list (saved on demand)
 
   public constructor(parentStore?: any) {
     super(parentStore);
     makeObservable(this, {
       nlText: observable.ref,
+      submittedPrompt: observable.ref,
       spec: observable.ref,
       result: observable.ref,
       busy: computed,
@@ -59,16 +61,16 @@ export class ScreenStore extends BaseStore<ScreenSetupParams> {
   public setup(params: ScreenSetupParams) {
     super.setup(params);
     this.runLoader.setup({ request: () => runScreen(this.spec!) });
-    this.parseLoader.setup({ request: () => parseScreen(this.nlText.trim()) });
+    this.queryLoader.setup({ request: () => queryScreen(this.nlText.trim()) });
     this.savedLoader.setup({ request: () => listScreens() });
     this.registCleaner(() => this.runLoader.cleanup());
-    this.registCleaner(() => this.parseLoader.cleanup());
+    this.registCleaner(() => this.queryLoader.cleanup());
     this.registCleaner(() => this.savedLoader.cleanup());
     void this.savedLoader.run(); // prime the 我的选股 dropdown
   }
 
   public get busy(): boolean {
-    return this.runLoader.loading || this.parseLoader.loading;
+    return this.runLoader.loading || this.queryLoader.loading;
   }
 
   public setNlText(v: string) {
@@ -77,19 +79,25 @@ export class ScreenStore extends BaseStore<ScreenSetupParams> {
     });
   }
 
-  /** AI path: NL → spec → results (server does both); reflect the spec into the editable chips. */
+  /** The box: server resolves NL→screen or name/code→lookup. Screen sets the editable chips; lookup has
+   * no spec (just the matched stocks). Either way the submitted text becomes the read-only prompt bubble. */
   public async searchNl() {
-    if (!this.nlText.trim()) return;
-    const r = await this.parseLoader.run();
+    const text = this.nlText.trim();
+    if (!text) return;
+    const r = await this.queryLoader.run();
     runInAction(() => {
-      this.spec = r.spec;
+      this.submittedPrompt = text;
+      this.spec = r.kind === 'screen' ? r.spec : null;
       this.result = r.result;
     });
   }
 
-  /** Example path: load a preset spec, then run it. */
+  /** Example path: load a preset spec, then run it (clears the NL bubble — this didn't come from a prompt). */
   public runExample(spec: ScreenSpec) {
-    this.applySpec(spec);
+    runInAction(() => {
+      this.submittedPrompt = '';
+    });
+    void this.applySpec(spec);
   }
 
   /** Set the editable spec and re-run the deterministic query (used by chip edits + examples). */
@@ -114,6 +122,9 @@ export class ScreenStore extends BaseStore<ScreenSetupParams> {
   /** Reopen a saved screen: fetch its spec, then apply it (sets the chips + runs the query). */
   public async openSaved(id: string) {
     const s = await getScreen(id);
+    runInAction(() => {
+      this.submittedPrompt = '';
+    });
     await this.applySpec(s.spec);
   }
 

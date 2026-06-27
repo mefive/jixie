@@ -11,22 +11,110 @@
   padding: 16px 20px;
 }
 
-.jx-screen-bar {
-  @apply flex items-start gap-2;
+/* —— hero (empty state): centered single input —— */
+.jx-screen-hero {
+  @apply flex flex-1 items-center justify-center overflow-auto;
+  padding: 24px;
 }
 
+.jx-screen-heroInner {
+  @apply flex flex-col items-center gap-4;
+  width: min(720px, 100%);
+}
+
+.jx-screen-heroTitle {
+  @apply font-semibold text-ink;
+  font-size: 30px;
+  letter-spacing: 4px;
+}
+
+.jx-screen-heroHint {
+  @apply text-muted;
+  font-size: 14px;
+}
+
+.jx-screen-heroBox {
+  @apply flex items-end gap-2;
+  @apply rounded-2xl border border-line bg-card;
+  width: 100%;
+  padding: 10px 10px 10px 16px;
+  box-shadow: 0 4px 18px rgb(17 24 39 / 0.05);
+}
+
+.jx-screen-input {
+  @apply flex-1;
+  font-size: 15px;
+}
+
+.jx-screen-send {
+  flex: none;
+}
+
+/* —— working state top bar —— */
+.jx-screen-workbar {
+  @apply flex flex-wrap items-center gap-3;
+}
+
+.jx-screen-prompt {
+  @apply flex items-center gap-2;
+  @apply rounded-xl border border-line bg-chip;
+  @apply cursor-pointer;
+  max-width: 560px;
+  padding: 5px 5px 5px 12px;
+}
+
+.jx-screen-promptIcon {
+  @apply text-muted;
+  font-size: 12px;
+}
+
+.jx-screen-promptText {
+  @apply text-ink;
+  font-size: 13px;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.jx-screen-promptEdit {
+  flex: none;
+}
+
+/* —— examples + saved (shared by hero & workbar) —— */
 .jx-screen-examples {
-  @apply flex flex-wrap items-center gap-2;
+  @apply flex flex-wrap items-center justify-center gap-2;
 }
 
 .jx-screen-examplesLabel {
   @apply text-sm text-muted;
 }
 
-.jx-screen-savedSlot {
+/* push 我的选股 to the far right of the working top bar; in the hero it stays centered with the rest */
+.jx-screen-workbar .jx-screen-savedSlot {
   margin-left: auto;
 }
 
+.jx-screen-kbd {
+  @apply text-muted;
+  font-size: 12px;
+}
+
+/* —— edit modal —— */
+.jx-screen-modalBox {
+  @apply flex flex-col gap-3;
+}
+
+.jx-screen-modalField {
+  @apply rounded-xl border border-line bg-card;
+  padding: 8px 12px;
+}
+
+.jx-screen-modalFoot {
+  @apply flex items-center justify-between;
+}
+
+/* —— results —— */
 .jx-screen-error {
   @apply text-down;
   font-size: 13px;
@@ -37,8 +125,7 @@
 }
 
 .jx-screen-table {
-  @apply flex-1;
-  @apply overflow-hidden;
+  @apply flex-1 overflow-hidden;
   cursor: pointer;
 }
 
