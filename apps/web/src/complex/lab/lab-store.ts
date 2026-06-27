@@ -3,6 +3,7 @@ import type { BacktestConfig, BacktestSummary, SavedMeta } from '@jixie/shared';
 import { BaseStore, LoaderModel } from '@src/lib';
 import {
   deleteStrategy,
+  generateCode,
   getStrategy,
   listStrategies,
   pollBacktest,
@@ -26,10 +27,14 @@ export class LabStore extends BaseStore<LabSetupParams> {
   public initialCash = 1_000_000;
   public code = DEFAULT_CODE;
 
+  // NL→code
+  public nlText = '';
+
   // live backtest progress logs (streamed from the worker via polling)
   public logLines: string[] = [];
 
   public backtestLoader = new LoaderModel<BacktestSummary>();
+  public codegenLoader = new LoaderModel<{ code: string; attempts: number }>(); // NL→code
   public savedLoader = new LoaderModel<SavedMeta[]>(); // 我的策略 list (auto-saved on run)
 
   public constructor(parentStore?: any) {
@@ -40,6 +45,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
       end: observable.ref,
       initialCash: observable.ref,
       code: observable.ref,
+      nlText: observable.ref,
       logLines: observable.ref,
       config: computed,
     });
@@ -50,8 +56,10 @@ export class LabStore extends BaseStore<LabSetupParams> {
     this.backtestLoader.setup({
       request: (_d, signal) => runAndPoll(this.config, signal, (lines) => this.appendLogs(lines)),
     });
+    this.codegenLoader.setup({ request: () => generateCode(this.nlText.trim()) });
     this.savedLoader.setup({ request: () => listStrategies() });
     this.registCleaner(() => this.backtestLoader.cleanup());
+    this.registCleaner(() => this.codegenLoader.cleanup());
     this.registCleaner(() => this.savedLoader.cleanup());
     void this.savedLoader.run(); // prime the 我的策略 dropdown
   }
@@ -59,6 +67,15 @@ export class LabStore extends BaseStore<LabSetupParams> {
   public setField<K extends keyof LabStore>(key: K, value: LabStore[K]) {
     runInAction(() => {
       (this as LabStore)[key] = value;
+    });
+  }
+
+  /** NL→code: generate a strategy from the prompt (server compiles it) → drop it into the editor. */
+  public async generate() {
+    if (!this.nlText.trim()) return;
+    const r = await this.codegenLoader.run();
+    runInAction(() => {
+      this.code = r.code;
     });
   }
 

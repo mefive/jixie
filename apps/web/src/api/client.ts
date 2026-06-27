@@ -94,15 +94,14 @@ import type {
   ScreenResult,
   ScreenSpec,
   StockSeries,
-  StrategyIR,
   SavedMeta,
   SavedStrategy,
   SavedScreenQuery,
 } from '@jixie/shared';
 
-// NL→IR: turn a natural-language strategy description into a validated strategy IR.
-export function parseStrategy(text: string): Promise<{ ir: StrategyIR; attempts: number }> {
-  return request('/api/app/strategy/parse', { method: 'POST', body: JSON.stringify({ text }) });
+// NL→code: turn a natural-language strategy description into a compilable TS strategy module.
+export function generateCode(text: string): Promise<{ code: string; attempts: number }> {
+  return request('/api/app/strategy/codegen', { method: 'POST', body: JSON.stringify({ text }) });
 }
 
 // —— Saved strategies (产品线 1 持久化) —— auto-saved on backtest run; name = config.name (upsert).
