@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { ulid } from 'ulid';
 import type { BacktestConfig, BacktestSummary } from '@jixie/shared';
 import { apiError, validateJson, validateQuery } from '../lib/httpError.js';
-import { configSchema } from '../strategy/ir/schema.js';
+import { codeConfigSchema } from '../strategy/code/schema.js';
 
 /**
  * Backtest API. A backtest is CPU-heavy (tens of seconds to minutes) and would block the HTTP event
@@ -42,7 +42,7 @@ const workerUrl = import.meta.url.endsWith('.ts')
 export const backtestRoute = new Hono();
 
 // === POST /api/app/backtest === queue a run in a worker, return { jobId }
-backtestRoute.post('/', validateJson(configSchema), (c) => {
+backtestRoute.post('/', validateJson(codeConfigSchema), (c) => {
   const config = c.req.valid('json') as BacktestConfig;
   if (config.start >= config.end) {
     return apiError(c, 'VALIDATION_FAILED', '起始日期必须早于结束日期', { field: 'start' });

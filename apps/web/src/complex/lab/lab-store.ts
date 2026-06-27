@@ -1,73 +1,35 @@
-import { action, computed, makeObservable, observable, runInAction } from 'mobx';
-import type {
-  BacktestConfig,
-  BacktestSummary,
-  Expr,
-  PipelineIR,
-  SavedMeta,
-  Schedule,
-  SizingMethod,
-  Stage,
-  StateVar,
-  StrategyIR,
-  TimingRule,
-  UniverseFilter,
-} from '@jixie/shared';
+import { computed, makeObservable, observable, runInAction } from 'mobx';
+import type { BacktestConfig, BacktestSummary, SavedMeta } from '@jixie/shared';
 import { BaseStore, LoaderModel } from '@src/lib';
 import {
   deleteStrategy,
   getStrategy,
   listStrategies,
-  parseStrategy,
   pollBacktest,
   saveStrategy,
   submitBacktest,
 } from '@src/api/client';
-import { PRESET_BY_KEY, FACTOR_PRESETS } from './presets';
+import { DEFAULT_CODE } from './default-strategy';
 
 type LabSetupParams = {};
 
 const POLL_INTERVAL_MS = 1500;
 
 /**
- * Backtest workbench store. The strategy's `score`/`factors` are the source of truth (the IR), not a
- * preset key: the preset dropdown just sets them, and the NL→IR parser sets them too — so an
- * AI-authored strategy reflects honestly into the form (matched to a preset, or shown as 自定义).
+ * Backtest workbench store — code-first. The strategy is a single TS source string (`code`); the server
+ * compiles and runs it. No IR, no form-to-IR assembly: range/capital + the code IS the config.
  */
 export class LabStore extends BaseStore<LabSetupParams> {
-  // —— range / capital ——
-  public name = '我的策略';
-  public start = '20150101';
+  public name = 'EP 月度十分位';
+  public start = '20200101';
   public end = '20241231';
   public initialCash = 1_000_000;
+  public code = DEFAULT_CODE;
 
-  // —— strategy IR pieces (source of truth) ——
-  public schedule: Schedule = 'monthly';
-  public score: Expr = PRESET_BY_KEY.ep.score;
-  public factors?: string[] = PRESET_BY_KEY.ep.factors;
-  public side: 'high' | 'low' = 'high';
-  public quantile = 0.1;
-  public minListDays = 365;
-  public dropIlliquidPct = 25;
-  public extraFilters: UniverseFilter[] = []; // any non-(minListDays/dropIlliquidPct) filters from AI
-
-  // —— timing stage (optional): a per-instrument rule state machine ——
-  public timingOn = false;
-  public timingRules: TimingRule[] = defaultRules(); // ordered if/elif/else rules
-  public timingState: StateVar[] = []; // declared per-instrument state variables
-  public membership: 'gate' | 'hard' = 'gate'; // held name that drops out of select: keep (gate) / sell (hard)
-
-  // —— sizing stage ——
-  public sizingMethod: SizingMethod = { kind: 'equal' };
-
-  // —— NL→IR ——
-  public nlText = '';
-
-  // —— live backtest progress logs (streamed from the worker via polling) ——
+  // live backtest progress logs (streamed from the worker via polling)
   public logLines: string[] = [];
 
   public backtestLoader = new LoaderModel<BacktestSummary>();
-  public parseLoader = new LoaderModel<{ ir: StrategyIR; attempts: number }>();
   public savedLoader = new LoaderModel<SavedMeta[]>(); // 我的策略 list (auto-saved on run)
 
   public constructor(parentStore?: any) {
@@ -77,41 +39,19 @@ export class LabStore extends BaseStore<LabSetupParams> {
       start: observable.ref,
       end: observable.ref,
       initialCash: observable.ref,
-      schedule: observable.ref,
-      score: observable.ref,
-      factors: observable.ref,
-      side: observable.ref,
-      quantile: observable.ref,
-      minListDays: observable.ref,
-      dropIlliquidPct: observable.ref,
-      extraFilters: observable.ref,
-      timingOn: observable.ref,
-      timingRules: observable.ref,
-      timingState: observable.ref,
-      membership: observable.ref,
-      sizingMethod: observable.ref,
-      nlText: observable.ref,
+      code: observable.ref,
       logLines: observable.ref,
-      selectedPresetKey: computed,
-      irPreview: computed,
-      setField: action,
-      setPreset: action,
-      loadStrategy: action,
-      applyConfig: action,
-      appendLogs: action,
+      config: computed,
     });
   }
 
   public setup(params: LabSetupParams) {
     super.setup(params);
     this.backtestLoader.setup({
-      request: (_d, signal) =>
-        runAndPoll(this.buildConfig(), signal, (lines) => this.appendLogs(lines)),
+      request: (_d, signal) => runAndPoll(this.config, signal, (lines) => this.appendLogs(lines)),
     });
-    this.parseLoader.setup({ request: () => parseStrategy(this.nlText.trim()) });
     this.savedLoader.setup({ request: () => listStrategies() });
     this.registCleaner(() => this.backtestLoader.cleanup());
-    this.registCleaner(() => this.parseLoader.cleanup());
     this.registCleaner(() => this.savedLoader.cleanup());
     void this.savedLoader.run(); // prime the 我的策略 dropdown
   }
@@ -122,117 +62,23 @@ export class LabStore extends BaseStore<LabSetupParams> {
     });
   }
 
-  /** Pick a scoring preset → set the score/factors/side it implies. */
-  public setPreset(key: string) {
-    const p = PRESET_BY_KEY[key];
-    if (!p) return;
-    runInAction(() => {
-      this.score = p.score;
-      this.factors = p.factors;
-      this.side = p.defaultSide;
-    });
-  }
-
-  /** Which preset the current score matches (for the dropdown), or 'custom' if none. */
-  public get selectedPresetKey(): string {
-    const hit = FACTOR_PRESETS.find((p) => exprEqual(p.score, this.score));
-    return hit ? hit.key : 'custom';
-  }
-
-  /** Assemble the form state into the stage pipeline (universe → filter? → select → timing? → sizing). */
-  public buildStages(): Stage[] {
-    const stages: Stage[] = [{ kind: 'universe', source: { type: 'all' } }];
-
-    const filters: UniverseFilter[] = [];
-    if (this.minListDays > 0) filters.push({ kind: 'minListDays', days: this.minListDays });
-    if (this.dropIlliquidPct > 0) filters.push({ kind: 'dropIlliquidPct', pct: this.dropIlliquidPct });
-    filters.push(...this.extraFilters);
-    if (filters.length) stages.push({ kind: 'filter', filters });
-
-    stages.push({
-      kind: 'select',
-      score: this.score,
-      factors: this.factors,
-      side: this.side,
-      pick: { by: 'quantile', value: this.quantile },
-    });
-
-    if (this.timingOn) {
-      stages.push({
-        kind: 'timing',
-        ...(this.timingState.length ? { state: this.timingState } : {}),
-        rules: this.timingRules,
-        membership: this.membership,
-      });
-    }
-
-    stages.push({ kind: 'sizing', method: this.sizingMethod });
-    return stages;
-  }
-
-  /** Assemble the form state into a runnable BacktestConfig (pipeline IR). */
-  public buildConfig(): BacktestConfig {
+  /** Range/capital + the strategy code → a runnable BacktestConfig. */
+  public get config(): BacktestConfig {
     return {
       name: this.name.trim() || '未命名策略',
       start: this.start,
       end: this.end,
       initialCash: this.initialCash,
-      strategy: { schedule: this.schedule, stages: this.buildStages() },
+      code: this.code,
     };
-  }
-
-  /** Load a strategy IR (a stage pipeline) into the form fields. */
-  public loadStrategy(ir: StrategyIR) {
-    this.loadPipeline(ir);
-  }
-
-  /** Reflect a pipeline IR's stages back into the form fields. */
-  private loadPipeline(ir: PipelineIR) {
-    const stageOf = <K extends Stage['kind']>(k: K): Extract<Stage, { kind: K }> | undefined =>
-      ir.stages.find((s): s is Extract<Stage, { kind: K }> => s.kind === k);
-    runInAction(() => {
-      this.schedule = ir.schedule;
-
-      const filters = stageOf('filter')?.filters ?? [];
-      const min = filters.find((f) => f.kind === 'minListDays');
-      const drop = filters.find((f) => f.kind === 'dropIlliquidPct');
-      this.minListDays = min?.kind === 'minListDays' ? min.days : 0;
-      this.dropIlliquidPct = drop?.kind === 'dropIlliquidPct' ? drop.pct : 0;
-      this.extraFilters = filters.filter(
-        (f) => f.kind !== 'minListDays' && f.kind !== 'dropIlliquidPct',
-      );
-
-      const select = stageOf('select');
-      if (select) {
-        this.score = select.score;
-        this.factors = select.factors;
-        this.side = select.side;
-        if (select.pick.by === 'quantile') this.quantile = select.pick.value;
-      }
-
-      const timing = stageOf('timing');
-      this.timingOn = !!timing;
-      if (timing) {
-        this.timingRules = timing.rules;
-        this.timingState = timing.state ?? [];
-        this.membership = timing.membership;
-      }
-
-      const sizing = stageOf('sizing');
-      if (sizing) this.sizingMethod = sizing.method;
-    });
-  }
-
-  public get irPreview(): string {
-    return JSON.stringify(this.buildConfig().strategy, null, 2);
   }
 
   public run() {
     runInAction(() => {
       this.logLines = []; // fresh progress log per run
     });
-    // Auto-save the strategy on every run (upsert by name) — best-effort, never blocks the backtest.
-    void saveStrategy(this.buildConfig())
+    // Auto-save on every run (upsert by name) — best-effort, never blocks the backtest.
+    void saveStrategy(this.config)
       .then(() => this.savedLoader.run())
       .catch(() => {});
     void this.backtestLoader.run();
@@ -245,18 +91,18 @@ export class LabStore extends BaseStore<LabSetupParams> {
     });
   }
 
-  /** Reflect a full saved BacktestConfig back into the form (range/capital + the strategy IR). */
+  /** Reflect a full saved BacktestConfig back into the editor (range/capital + code). */
   public applyConfig(config: BacktestConfig) {
     runInAction(() => {
       this.name = config.name;
       this.start = config.start;
       this.end = config.end;
       this.initialCash = config.initialCash;
+      this.code = config.code;
     });
-    this.loadStrategy(config.strategy);
   }
 
-  /** Reopen a saved strategy: fetch its full config, then load it into the form. */
+  /** Reopen a saved strategy: fetch its full config, then load it into the editor. */
   public async openSaved(id: string) {
     const s = await getStrategy(id);
     this.applyConfig(s.config);
@@ -270,36 +116,6 @@ export class LabStore extends BaseStore<LabSetupParams> {
   public loadSavedList() {
     void this.savedLoader.run();
   }
-
-  /** NL→IR: parse the prompt, then reflect the returned IR into the form. */
-  public async parse() {
-    if (!this.nlText.trim()) return;
-    const res = await this.parseLoader.run();
-    this.loadStrategy(res.ir);
-  }
-}
-
-/** Default rules when timing is first enabled — a Donchian breakout/breakdown two-state machine, but
- * fully editable (add rules, state vars, actions). flat = shares==0, held = shares>0. */
-function defaultRules(): TimingRule[] {
-  const flat = { kind: 'compare', op: '==', left: { kind: 'shares' }, right: { kind: 'const', value: 0 } } as const;
-  const held = { kind: 'compare', op: '>', left: { kind: 'shares' }, right: { kind: 'const', value: 0 } } as const;
-  return [
-    {
-      when: {
-        kind: 'and',
-        args: [flat, { kind: 'compare', op: '>', left: { kind: 'price' }, right: { kind: 'indicator', name: 'highest', field: 'high', window: 20 } }],
-      },
-      do: [{ kind: 'buy' }],
-    },
-    {
-      when: {
-        kind: 'and',
-        args: [held, { kind: 'compare', op: '<', left: { kind: 'price' }, right: { kind: 'indicator', name: 'lowest', field: 'low', window: 10 } }],
-      },
-      do: [{ kind: 'exit' }],
-    },
-  ];
 }
 
 // —— helpers ——
@@ -333,16 +149,4 @@ async function runAndPoll(
     if (job.status === 'done') return job.result;
     if (job.status === 'error') throw new Error(job.message);
   }
-}
-
-/** Structural equality for Expr ASTs (key-order-independent), used to match score → preset. */
-function exprEqual(a: unknown, b: unknown): boolean {
-  if (a === b) return true;
-  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
-  const ka = Object.keys(a as object);
-  const kb = Object.keys(b as object);
-  if (ka.length !== kb.length) return false;
-  return ka.every((k) =>
-    exprEqual((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k]),
-  );
 }
