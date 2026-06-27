@@ -1,6 +1,6 @@
 import { transform } from 'esbuild';
-import { defineStrategy } from '../../engine/strategies.js';
 import type { Strategy } from '../../engine/types.js';
+import { defineStrategy } from './sdk.js';
 
 /**
  * Compile user-authored TypeScript into an engine Strategy. This single function IS the execution
