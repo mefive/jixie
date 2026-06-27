@@ -48,6 +48,23 @@
   min-width: 0;
 }
 
+/* NL→code bar above the editor */
+.jx-lab-nl {
+  @apply flex flex-wrap items-start gap-2;
+  @apply border-b border-line bg-bg;
+  padding: 10px 12px;
+}
+
+.jx-lab-nlInput {
+  flex: 1;
+  min-width: 200px;
+}
+
+.jx-lab-nlError {
+  @apply w-full text-down;
+  font-size: 12px;
+}
+
 /* Monaco editor container (the editor lays itself out to fill this) */
 .jx-lab-code {
   @apply flex flex-1 overflow-hidden bg-card;
