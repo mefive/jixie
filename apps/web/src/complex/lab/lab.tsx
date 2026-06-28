@@ -1,10 +1,18 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import type { KeyboardEvent } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import classNames from 'classnames';
 import { Button, DatePicker, Input, InputNumber, Modal } from 'antd';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
-import { faFolderOpen, faPlay, faPlus, faSpinner, faWandMagicSparkles } from '@fortawesome/free-solid-svg-icons';
+import {
+  faFolderOpen,
+  faPaperPlane,
+  faPlay,
+  faPlus,
+  faSpinner,
+  faWandMagicSparkles,
+} from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { TopNav } from '@src/components/top-nav';
 import { complex } from './complex';
@@ -27,22 +35,38 @@ const StrategyPicker = lazy(() => import('./strategy-picker'));
 export const Lab = complex.component(() => {
   const store = complex.useStore();
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [heroDismissed, setHeroDismissed] = useState(false); // "直接写代码" escape from the new-strategy hero
+  const [newConfirm, setNewConfirm] = useState(false); // 新建 while dirty → confirm save first
   const navigate = useNavigate();
-  const { id } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const id = searchParams.get('id');
 
-  // Refresh / land on "/" → return to the last open strategy so work (and a running backtest) isn't lost.
+  // Refresh / land on /lab → return to the last open strategy so work (and a running backtest) isn't lost.
   useEffect(() => {
     if (!id) {
       try {
         const cur = JSON.parse(localStorage.getItem('jx:lab:current') || '{}');
-        if (cur.strategyId) navigate(`/lab/${cur.strategyId}`, { replace: true });
+        if (cur.strategyId) setSearchParams({ id: cur.strategyId }, { replace: true });
       } catch {
         /* ignore */
       }
     }
-    // mount-only: a deliberate nav to "/" (新建) clears localStorage first, so it won't bounce back.
+    // mount-only: 新建 clears localStorage (writeCurrent({})) before navigating, so it won't bounce back.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // 新建: blank strategy at /lab (clears the ?id=), reopening the hero. Guard unsaved edits first.
+  const doNew = () => {
+    store.newStrategy();
+    setHeroDismissed(false);
+    navigate('/lab');
+  };
+  const onNewClick = () => (store.dirty ? setNewConfirm(true) : doNew());
+  const saveAndNew = async () => {
+    await store.save();
+    setNewConfirm(false);
+    doNew();
+  };
 
   return (
     <div className="jx-lab">
@@ -51,7 +75,11 @@ export const Lab = complex.component(() => {
       <div className="jx-lab-bar">
         <label className="jx-lab-field jx-lab-field--name">
           <span className="jx-lab-label">策略名称</span>
-          <Input value={store.name} onChange={(e) => store.setField('name', e.target.value)} />
+          <Input
+            value={store.name}
+            onChange={(e) => store.setField('name', e.target.value)}
+            placeholder="未命名（运行时自动命名）"
+          />
         </label>
         <label className="jx-lab-field">
           <span className="jx-lab-label">起始日</span>
@@ -87,13 +115,7 @@ export const Lab = complex.component(() => {
         </label>
 
         <div className="jx-lab-barActions">
-          <Button
-            icon={<FontAwesomeIcon icon={faPlus} />}
-            onClick={() => {
-              store.newStrategy();
-              navigate('/');
-            }}
-          >
+          <Button icon={<FontAwesomeIcon icon={faPlus} />} onClick={onNewClick}>
             新建
           </Button>
           <Button
@@ -116,15 +138,19 @@ export const Lab = complex.component(() => {
         </div>
       </div>
 
-      <main className="jx-lab-body">
-        <section className="jx-lab-editor">
-          <NlBar />
-          <StrategyCode />
-        </section>
-        <section className="jx-lab-result">
-          <ResultPanel />
-        </section>
-      </main>
+      {store.isFresh && !heroDismissed ? (
+        <StrategyHero onSkip={() => setHeroDismissed(true)} />
+      ) : (
+        <main className="jx-lab-body">
+          <section className="jx-lab-editor">
+            <NlBar />
+            <StrategyCode />
+          </section>
+          <section className="jx-lab-result">
+            <ResultPanel />
+          </section>
+        </main>
+      )}
 
       <Suspense fallback={null}>
         <StrategyPicker
@@ -132,15 +158,101 @@ export const Lab = complex.component(() => {
           cards={store.savedLoader.result ?? []}
           loading={store.savedLoader.loading}
           onClose={() => setPickerOpen(false)}
-          onLoad={(sid) => navigate(`/lab/${sid}`)}
+          onLoad={(sid) => navigate(`/lab?id=${sid}`)}
           onDelete={(sid) => store.removeSaved(sid)}
         />
       </Suspense>
+
+      <Modal
+        open={newConfirm}
+        title="当前策略尚未保存"
+        onCancel={() => setNewConfirm(false)}
+        footer={[
+          <Button key="cancel" onClick={() => setNewConfirm(false)}>
+            取消
+          </Button>,
+          <Button
+            key="discard"
+            danger
+            onClick={() => {
+              setNewConfirm(false);
+              doNew();
+            }}
+          >
+            不保存
+          </Button>,
+          <Button key="save" type="primary" onClick={() => void saveAndNew()}>
+            保存并新建
+          </Button>,
+        ]}
+      >
+        <p>当前策略有未保存的修改。保存后将作为新版本，原先的回测结果会被清除。</p>
+      </Modal>
     </div>
   );
 }, 'Lab');
 
 // —— 子组件 ——
+
+// New-strategy hero: prompt-first entry (mirrors 选股看图). Describe the strategy → AI writes the code →
+// the editor takes over (store.isFresh flips false). "直接写代码" skips straight to the editor.
+const StrategyHero = complex.component(({ onSkip }: { onSkip: () => void }) => {
+  const store = complex.useStore();
+  const loading = store.codegenLoader.loading;
+  return (
+    <main className="jx-lab-hero">
+      <div className="jx-lab-heroInner">
+        <h1 className="jx-lab-heroTitle">新建策略</h1>
+        <p className="jx-lab-heroHint">用一句话描述你的策略，AI 写成代码，再自己调参</p>
+
+        <div className="jx-lab-heroBox">
+          <PromptBox
+            className="jx-lab-heroInput"
+            value={store.nlText}
+            onChange={(v) => store.setField('nlText', v)}
+            onSubmit={() => void store.generate()}
+            placeholder="如「每月买入股息率最高的 20 只，等权」「沪深300 里 ROE 大于 15% 的 30 只，每月调仓」"
+            variant="borderless"
+            autoFocus
+          />
+          <Button
+            type="primary"
+            shape="circle"
+            className="jx-lab-heroSend"
+            icon={<FontAwesomeIcon icon={faPaperPlane} />}
+            loading={loading}
+            disabled={!store.nlText.trim()}
+            onClick={() => void store.generate()}
+          />
+        </div>
+
+        {store.codegenLoader.error && (
+          <span className="jx-lab-nlError">{store.codegenLoader.errorObject?.message}</span>
+        )}
+
+        <div className="jx-lab-examples">
+          <span className="jx-lab-examplesLabel">试试：</span>
+          {EXAMPLE_PROMPTS.map((ex) => (
+            <Button
+              key={ex.label}
+              size="small"
+              onClick={() => {
+                store.setField('nlText', ex.prompt);
+                void store.generate();
+              }}
+            >
+              {ex.label}
+            </Button>
+          ))}
+        </div>
+
+        <button type="button" className="jx-lab-heroSkip" onClick={onSkip}>
+          或直接写代码 →
+        </button>
+      </div>
+    </main>
+  );
+}, 'StrategyHero');
 
 // NL→code: describe a strategy → the server writes (and compiles) TS → it drops into the editor.
 const NlBar = complex.component(() => {
@@ -148,16 +260,11 @@ const NlBar = complex.component(() => {
   const loading = store.codegenLoader.loading;
   return (
     <div className="jx-lab-nl">
-      <Input.TextArea
+      <PromptBox
         className="jx-lab-nlInput"
         value={store.nlText}
-        onChange={(e) => store.setField('nlText', e.target.value)}
-        onPressEnter={(e) => {
-          if (!e.shiftKey && !e.nativeEvent.isComposing) {
-            e.preventDefault();
-            void store.generate();
-          }
-        }}
+        onChange={(v) => store.setField('nlText', v)}
+        onSubmit={() => void store.generate()}
         placeholder="用一句话描述策略，AI 写成代码，如「每月买入股息率最高的 20 只，等权」"
         autoSize={{ minRows: 1, maxRows: 3 }}
       />
@@ -175,6 +282,59 @@ const NlBar = complex.component(() => {
     </div>
   );
 }, 'NlBar');
+
+// NL prompt textarea — Enter sends, Shift+Space / Shift+Enter newline, IME-safe (mirrors 选股看图).
+function PromptBox({
+  value,
+  onChange,
+  onSubmit,
+  placeholder,
+  autoFocus,
+  className,
+  variant,
+  autoSize,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onSubmit: () => void;
+  placeholder: string;
+  autoFocus?: boolean;
+  className?: string;
+  variant?: 'borderless' | 'outlined';
+  autoSize?: { minRows: number; maxRows: number };
+}) {
+  const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.nativeEvent.isComposing) return; // mid-IME (拼音候选) — let Enter confirm, never send
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      onSubmit();
+      return;
+    }
+    if (e.shiftKey && e.code === 'Space') {
+      // Shift+Space → newline at the caret (Shift+Enter falls through to the textarea's own newline).
+      e.preventDefault();
+      const el = e.currentTarget;
+      const start = el.selectionStart ?? value.length;
+      const end = el.selectionEnd ?? value.length;
+      onChange(value.slice(0, start) + '\n' + value.slice(end));
+      requestAnimationFrame(() => {
+        el.selectionStart = el.selectionEnd = start + 1;
+      });
+    }
+  };
+  return (
+    <Input.TextArea
+      className={className}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      onKeyDown={onKeyDown}
+      placeholder={placeholder}
+      autoFocus={autoFocus}
+      autoSize={autoSize ?? { minRows: 1, maxRows: 6 }}
+      variant={variant}
+    />
+  );
+}
 
 // The strategy code editor — Monaco with SDK autocomplete/types, lazy-loaded into its own chunk.
 const StrategyCode = complex.component(() => {
@@ -279,7 +439,14 @@ function RunningLog({ lines }: { lines: string[] }) {
   );
 }
 
-// —— 帮助函数 ——
+// —— 帮助函数 / 配置 ——
+
+// Starter prompts for the new-strategy hero — short chip label + the full sentence sent to NL→code.
+const EXAMPLE_PROMPTS = [
+  { label: '高股息 20 只', prompt: '每月买入股息率最高的 20 只，等权' },
+  { label: '沪深300 低估值', prompt: '沪深300 里 ROE 大于 15%、市盈率最低的 30 只，每月调仓，等权' },
+  { label: '中证500 动量', prompt: '中证500 里 20 日动量最强的 20 只，每周轮动，等权' },
+];
 
 interface Metric {
   label: string;

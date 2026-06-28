@@ -34,6 +34,60 @@
   margin-left: auto;
 }
 
+/* —— new-strategy hero (prompt-first entry, mirrors 选股看图) —— */
+.jx-lab-hero {
+  @apply flex flex-1 items-center justify-center overflow-auto;
+  padding: 24px;
+}
+
+.jx-lab-heroInner {
+  @apply flex flex-col items-center gap-4;
+  width: min(720px, 100%);
+}
+
+.jx-lab-heroTitle {
+  @apply font-semibold text-ink;
+  font-size: 30px;
+  letter-spacing: 4px;
+}
+
+.jx-lab-heroHint {
+  @apply text-muted;
+  font-size: 14px;
+}
+
+.jx-lab-heroBox {
+  @apply flex items-end gap-2;
+  @apply rounded-2xl border border-line bg-card;
+  width: 100%;
+  padding: 10px 10px 10px 16px;
+  box-shadow: 0 4px 18px rgb(17 24 39 / 0.05);
+}
+
+.jx-lab-heroInput {
+  @apply flex-1;
+  font-size: 15px;
+}
+
+.jx-lab-heroSend {
+  flex: none;
+}
+
+.jx-lab-examples {
+  @apply flex flex-wrap items-center justify-center gap-2;
+}
+
+.jx-lab-examplesLabel {
+  @apply text-sm text-muted;
+}
+
+.jx-lab-heroSkip {
+  @apply text-muted;
+  @apply hover:text-ink;
+  font-size: 13px;
+  cursor: pointer;
+}
+
 /* —— body: editor | result —— */
 .jx-lab-body {
   @apply flex flex-1 gap-4;
