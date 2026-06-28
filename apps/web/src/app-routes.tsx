@@ -19,7 +19,15 @@ export function AppRoutes() {
           path="/"
           element={
             <RequireAuth>
-              <ComplexRoute key="lab" entry={labEntry} />
+              <LabRoute />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/lab/:id"
+          element={
+            <RequireAuth>
+              <LabRoute />
             </RequireAuth>
           }
         />
@@ -53,6 +61,14 @@ function StockRoute() {
   const { code = '' } = useParams();
   const setupParams = useMemo(() => ({ code }), [code]);
   return <ComplexRoute key={code} entry={stockEntry} setupParams={setupParams} />;
+}
+
+// Backtest workbench: `/` = fresh strategy; `/lab/:id` = a saved strategy (loaded on mount → refresh-safe).
+// Key by id so switching strategies remounts the store.
+function LabRoute() {
+  const { id } = useParams();
+  const setupParams = useMemo(() => ({ id: id ?? '' }), [id]);
+  return <ComplexRoute key={id ?? 'new'} entry={labEntry} setupParams={setupParams} />;
 }
 
 // Wire a complex's store lifecycle into react-router: createInstance on mount,
