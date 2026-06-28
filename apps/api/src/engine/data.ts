@@ -47,10 +47,13 @@ export class EngineData {
   // Index constituents per index, loaded lazily. indexCode -> { dates ascending, members per date }.
   private indexCache = new Map<string, { dates: string[]; membersByDate: Map<string, Set<string>> }>();
 
+  private warnedIndices = new Set<string>(); // log an index's coverage gap at most once
+
   constructor(
     private start: string,
     private end: string,
     private factorKeys: string[] = [],
+    private onLog: (line: string) => void = () => {},
   ) {}
 
   async load(): Promise<void> {
@@ -227,7 +230,15 @@ export class EngineData {
       throw new Error(`指数 ${indexCode} 未收录成分数据(无法限定到该指数)`);
     }
     const j = leFloor(idx.dates, date);
-    if (j < 0) return [];
+    if (j < 0) {
+      // The index exists but has no snapshot on/before today — its data starts later than this date.
+      // Warn once so an empty universe (→ no trades) isn't a silent mystery.
+      if (!this.warnedIndices.has(indexCode)) {
+        this.warnedIndices.add(indexCode);
+        this.onLog(`⚠️ 指数 ${indexCode} 成分数据从 ${idx.dates[0]} 起,此前的交易日按空池处理(选不出标的)`);
+      }
+      return [];
+    }
     return [...(idx.membersByDate.get(idx.dates[j]) ?? [])];
   }
 
