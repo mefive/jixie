@@ -240,6 +240,15 @@ try {
     await page.waitForTimeout(400); // let echarts paint the equity curve
     await page.screenshot({ path: `${SHOTS}5-lab-result.png` });
     log('shot 5: code backtest result');
+
+    // 5c. 交易详情 Modal — trade points on the equity curve (size = fills/day) + the trade list.
+    await page.getByRole('button', { name: /交易详情/ }).click();
+    await page.locator('.jx-td-list .jx-td-row').first().waitFor({ timeout: 8000 });
+    await page.locator('.jx-td-canvas canvas').first().waitFor({ timeout: 8000 });
+    await page.waitForTimeout(500); // let the scatter paint
+    log('trade detail: rows', await page.locator('.jx-td-list .jx-td-row').count());
+    await page.screenshot({ path: `${SHOTS}5c-trade-detail.png` });
+    await page.keyboard.press('Escape');
   }
 
   // cleanup seeded + auto-saved strategies for this user

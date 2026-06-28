@@ -2,9 +2,11 @@ import {
   BarChart,
   CandlestickChart,
   LineChart,
+  ScatterChart,
   type BarSeriesOption,
   type CandlestickSeriesOption,
   type LineSeriesOption,
+  type ScatterSeriesOption,
 } from 'echarts/charts';
 import {
   GridComponent,
@@ -29,6 +31,7 @@ echarts.use([
   LineChart,
   BarChart,
   CandlestickChart,
+  ScatterChart,
   GridComponent,
   TooltipComponent,
   LegendComponent,
@@ -43,6 +46,7 @@ export type ECOption = ComposeOption<
   | LineSeriesOption
   | BarSeriesOption
   | CandlestickSeriesOption
+  | ScatterSeriesOption
   | GridComponentOption
   | TooltipComponentOption
   | LegendComponentOption
@@ -53,17 +57,21 @@ export type ECOption = ComposeOption<
 interface Props {
   option: ECOption;
   className?: string; // Container must have a height (ECharts won't size itself), e.g. .jx-xxxChart { height: 260px }
+  onClick?: (params: echarts.ECElementEvent) => void; // chart 'click' (e.g. select a trade point)
 }
 
 /** Ultra-thin ECharts shell: wraps init / setOption / resize / dispose once, reused directly by later charts. */
-export function EChart({ option, className }: Props) {
+export function EChart({ option, className, onClick }: Props) {
   const elRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<echarts.ECharts | null>(null);
+  const onClickRef = useRef(onClick);
+  onClickRef.current = onClick; // keep latest handler without re-init
 
   useEffect(() => {
     if (!elRef.current) return;
     const chart = echarts.init(elRef.current);
     chartRef.current = chart;
+    chart.on('click', (p) => onClickRef.current?.(p as echarts.ECElementEvent));
     const ro = new ResizeObserver(() => chart.resize());
     ro.observe(elRef.current);
     return () => {

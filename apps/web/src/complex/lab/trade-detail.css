@@ -1,0 +1,59 @@
+@reference '../../styles/index.css';
+
+.jx-td {
+  @apply flex gap-3;
+  height: 460px;
+}
+
+.jx-td-chart {
+  @apply flex flex-1 flex-col;
+  min-width: 0;
+}
+
+.jx-td-canvas {
+  @apply flex-1;
+  min-height: 0;
+}
+
+.jx-td-hint {
+  @apply text-muted;
+  padding-top: 6px;
+  font-size: 12px;
+}
+
+.jx-td-list {
+  @apply overflow-auto rounded-lg border border-line;
+  width: 372px;
+  flex: none;
+}
+
+.jx-td-head,
+.jx-td-row {
+  display: grid;
+  grid-template-columns: 84px 74px 32px 1fr 56px 64px;
+  gap: 4px;
+  align-items: center;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.jx-td-head {
+  @apply sticky top-0 z-10 border-b border-line bg-card text-muted;
+}
+
+.jx-td-row {
+  @apply border-b border-line text-ink;
+}
+
+.jx-td-row--active {
+  @apply bg-chip;
+}
+
+.jx-td-code {
+  @apply truncate text-muted;
+}
+
+.jx-td-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
