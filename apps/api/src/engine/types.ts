@@ -15,6 +15,17 @@ export interface Position {
   frozenUntil: string;
 }
 
+/** One executed fill — the trade log unit (returned with the result; plotted + listed in the UI). */
+export interface TradeRecord {
+  date: string; // fill date (next open after the order)
+  code: string;
+  side: 'buy' | 'sell';
+  shares: number;
+  price: number; // adjusted fill price
+  amount: number; // shares × price (成交额)
+  fee: number; // commission + stamp + transfer
+}
+
 /** Trading cost model (rates are fractions of trade value). */
 export interface CostModel {
   commission: number; // per-side rate, e.g. 0.00025 (万2.5)
@@ -23,13 +34,16 @@ export interface CostModel {
   transferFee: number; // both sides, e.g. 0.00001
 }
 
-/** One stock's adjusted (hfq) OHLC on one day — the unit a per-instrument strategy reads via bars(). */
+/** One stock's adjusted (hfq) OHLC on one day — the unit a per-instrument strategy reads via bars().
+ * vol/amount are raw (not adjusted): the day's volume (手) and turnover (成交额, 千元). */
 export interface OhlcBar {
   date: string;
   adjOpen: number;
   adjHigh: number;
   adjLow: number;
   adjClose: number;
+  vol: number | null;
+  amount: number | null;
 }
 
 /**
@@ -47,6 +61,8 @@ export interface BarRow {
   adjHigh: number | null;
   adjLow: number | null;
   adjClose: number | null;
+  vol: number | null; // 成交量 (手)
+  amount: number | null; // 成交额 (千元) — the liquidity / slippage gate
   pe: number | null;
   peTtm: number | null;
   pb: number | null;
@@ -142,7 +158,8 @@ export interface BacktestResult {
   annReturn: number;
   sharpe: number;
   maxDrawdown: number;
-  trades: number;
+  trades: number; // count (= tradeLog.length)
+  tradeLog: TradeRecord[]; // every fill, in order
   nav: { date: string; value: number }[]; // daily equity curve
 }
 

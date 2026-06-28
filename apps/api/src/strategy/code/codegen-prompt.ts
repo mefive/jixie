@@ -13,6 +13,7 @@ export const KNOWN_INDICES: Record<string, string> = {
   '000905.SH': '中证500',
   '000906.SH': '中证800',
   '000852.SH': '中证1000',
+  '932000.CSI': '中证2000',
   '399006.SZ': '创业板指',
   '000688.SH': '科创50',
 };
@@ -37,13 +38,14 @@ export function buildCodegenPrompt(availableIndices: string = DEFAULT_INDICES): 
 - ctx.history(code, 'open'|'high'|'low'|'close', n) / ctx.bars(code, n):最近 n 个后复权价 / OHLC
 - **内置指标**(优先用,别手搓;都需该票 K 线已加载,数据不足返 null):
   ctx.sma(code,n) / ctx.ema(code,n) / ctx.atr(code,n) / ctx.highest(code,field,n) / ctx.lowest(code,field,n)
+  **量能/流动性**:ctx.avgAmount(code,n)=n日均成交额(千元) / ctx.avgVol(code,n)=n日均量(手)
 - 下单(次开成交):ctx.order(code, shares)(+买/-卖)、ctx.exit(code)(清仓)、
   ctx.orderTargetPercent(code, w)、ctx.setHoldings({code:w})、ctx.equalWeight(codes)
 
 # 横截面选股:ctx.select(indexCode?)(异步,载入全市场可交易截面)
 \`(await ctx.select())\` 返回链式 Selection;**传指数代码限定到其成分(时点)**。
 **已收录的指数(只有这些可用)**:${availableIndices}。
-bar 行字段(**只有这些**):peTtm/pb/ps/dvRatio(股息率%)/totalMv/circMv(市值,万元)/turnoverRate(换手率%)/roe/roeWaa(净资产收益率%,时点)/close/adjClose。
+bar 行字段(**只有这些**):peTtm/pb/ps/dvRatio(股息率%)/totalMv/circMv(市值,万元)/turnoverRate(换手率%)/roe/roeWaa(净资产收益率%,时点)/**amount(成交额,千元——流动性/滑点门)/vol(成交量,手)**/close/adjClose。
 - .where((b, code) => 布尔)、.minListDays(天)、.dropBottom(比例, b => 数值)
 - .rankBy(b => 分数, 'desc'|'asc')(null 分数会被剔除)、.top(n)(n<1 取比例,否则取个数)→ string[]、.codes()→ string[]
 - 也可 \`await ctx.indexMembers('000300.SH')\` 直接取成分 string[]。

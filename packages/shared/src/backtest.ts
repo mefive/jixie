@@ -22,6 +22,17 @@ export interface BacktestConfig {
   code: string; // TypeScript strategy module: export default defineStrategy({ … })
 }
 
+/** One executed fill (the trade-log unit shown on the chart + list). */
+export interface TradeRecord {
+  date: TradeDate;
+  code: string;
+  side: 'buy' | 'sell';
+  shares: number;
+  price: number;
+  amount: number; // shares × price (成交额)
+  fee: number;
+}
+
 /** Backtest result shape returned over the wire (mirrors the engine's BacktestResult). */
 export interface BacktestSummary {
   name: string;
@@ -34,6 +45,7 @@ export interface BacktestSummary {
   annReturn: number;
   sharpe: number;
   maxDrawdown: number;
-  trades: number;
+  trades: number; // count
+  tradeLog: TradeRecord[]; // every fill, in order (time/code/side/amount/quantity)
   nav: { date: string; value: number }[]; // daily equity curve
 }
