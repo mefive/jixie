@@ -48,3 +48,29 @@ strategyRoute.post('/codegen', validateJson(codegenBody), async (c) => {
   }
   return c.json({ code: result.code, attempts: result.attempts });
 });
+
+// POST /api/app/strategy/name — let the model read the code and propose a short Chinese name (used when
+// 策略名称 is left blank; the user can still edit it).
+const nameBody = z.object({ code: z.string().min(1).max(50_000) });
+
+strategyRoute.post('/name', validateJson(nameBody), async (c) => {
+  const { code } = c.req.valid('json');
+  let name: string;
+  try {
+    const raw = await chatText([
+      {
+        role: 'system',
+        content:
+          '你是 A 股策略命名助手。读用户的策略代码,起一个简短中文名称(≤14字,概括其选股/择时/交易逻辑),只输出名称本身——不要引号、不要解释、不要结尾标点。',
+      },
+      { role: 'user', content: code },
+    ]);
+    name = raw
+      .trim()
+      .replace(/^["'「『]+|["'」』。.]+$/g, '')
+      .slice(0, 20);
+  } catch (e) {
+    return apiError(c, 'SERVICE_UNAVAILABLE', e instanceof Error ? e.message : '命名失败');
+  }
+  return c.json({ name: name || '未命名策略' });
+});
