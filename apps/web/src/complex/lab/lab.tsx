@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import classNames from 'classnames';
 import { Button, DatePicker, Input, InputNumber, Modal } from 'antd';
 import dayjs from 'dayjs';
@@ -27,6 +28,22 @@ export const Lab = complex.component(() => {
   const store = complex.useStore();
   const loader = store.backtestLoader;
   const [pickerOpen, setPickerOpen] = useState(false);
+  const navigate = useNavigate();
+  const { id } = useParams();
+
+  // Refresh / land on "/" → return to the last open strategy so work (and a running backtest) isn't lost.
+  useEffect(() => {
+    if (!id) {
+      try {
+        const cur = JSON.parse(localStorage.getItem('jx:lab:current') || '{}');
+        if (cur.strategyId) navigate(`/lab/${cur.strategyId}`, { replace: true });
+      } catch {
+        /* ignore */
+      }
+    }
+    // mount-only: a deliberate nav to "/" (新建) clears localStorage first, so it won't bounce back.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="jx-lab">
@@ -71,7 +88,13 @@ export const Lab = complex.component(() => {
         </label>
 
         <div className="jx-lab-barActions">
-          <Button icon={<FontAwesomeIcon icon={faPlus} />} onClick={() => store.newStrategy()}>
+          <Button
+            icon={<FontAwesomeIcon icon={faPlus} />}
+            onClick={() => {
+              store.newStrategy();
+              navigate('/');
+            }}
+          >
             新建
           </Button>
           <Button
@@ -110,8 +133,8 @@ export const Lab = complex.component(() => {
           cards={store.savedLoader.result ?? []}
           loading={store.savedLoader.loading}
           onClose={() => setPickerOpen(false)}
-          onLoad={(id) => void store.openSaved(id)}
-          onDelete={(id) => store.removeSaved(id)}
+          onLoad={(sid) => navigate(`/lab/${sid}`)}
+          onDelete={(sid) => store.removeSaved(sid)}
         />
       </Suspense>
     </div>

@@ -14,13 +14,27 @@ import {
 } from '@src/api/client';
 import { DEFAULT_CODE } from './default-strategy';
 
-type LabSetupParams = {};
+type LabSetupParams = { id?: string };
 
 const POLL_INTERVAL_MS = 1500;
+// localStorage: which strategy is open + (if running) its backtest jobId. Survives a page refresh so we
+// can reopen the strategy and re-attach to a still-running backtest's logs (same server process).
+const CURRENT_KEY = 'jx:lab:current';
+
+type Current = { strategyId?: string; jobId?: string };
+const readCurrent = (): Current => {
+  try {
+    return JSON.parse(localStorage.getItem(CURRENT_KEY) || '{}');
+  } catch {
+    return {};
+  }
+};
+const writeCurrent = (c: Current) => localStorage.setItem(CURRENT_KEY, JSON.stringify(c));
 
 /**
  * Backtest workbench store — code-first. The strategy is a single TS source string (`code`); the server
- * compiles and runs it. No IR, no form-to-IR assembly: range/capital + the code IS the config.
+ * compiles and runs it. `/lab/:id` loads a saved strategy + its last result on mount (refresh-safe), and
+ * re-attaches to a running backtest via the localStorage job pointer.
  */
 export class LabStore extends BaseStore<LabSetupParams> {
   public name = 'MA20 突破 · 贵州茅台';
@@ -29,17 +43,17 @@ export class LabStore extends BaseStore<LabSetupParams> {
   public initialCash = 1_000_000;
   public code = DEFAULT_CODE;
 
-  // NL→code
-  public nlText = '';
+  public nlText = ''; // NL→code
 
-  // live backtest progress logs (streamed from the worker via polling)
-  public logLines: string[] = [];
-  // the displayed result: a finished run OR the saved last-result loaded on reopen
-  public result: BacktestSummary | null = null;
+  public logLines: string[] = []; // live backtest progress (streamed via polling)
+  public result: BacktestSummary | null = null; // a finished run OR the saved last-result on reopen
+  public savedId: string | null = null; // this strategy's DB id (for the URL)
+
+  private resumeJobId: string | null = null; // when set, the next backtest run re-attaches instead of submitting
 
   public backtestLoader = new LoaderModel<BacktestSummary>();
   public codegenLoader = new LoaderModel<{ code: string; attempts: number }>(); // NL→code
-  public savedLoader = new LoaderModel<StrategyCard[]>(); // 我的策略 cards (auto-saved on run)
+  public savedLoader = new LoaderModel<StrategyCard[]>(); // 我的策略 cards
 
   public constructor(parentStore?: any) {
     super(parentStore);
@@ -52,6 +66,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
       nlText: observable.ref,
       logLines: observable.ref,
       result: observable.ref,
+      savedId: observable.ref,
       config: computed,
     });
   }
@@ -59,14 +74,18 @@ export class LabStore extends BaseStore<LabSetupParams> {
   public setup(params: LabSetupParams) {
     super.setup(params);
     this.backtestLoader.setup({
-      request: (_d, signal) => runAndPoll(this.config, signal, (lines) => this.appendLogs(lines)),
+      request: (_d, signal) =>
+        runAndPoll(this.config, signal, (lines) => this.appendLogs(lines), this.resumeJobId, (jobId) =>
+          writeCurrent({ strategyId: this.savedId ?? undefined, jobId }),
+        ),
     });
     this.codegenLoader.setup({ request: () => generateCode(this.nlText.trim()) });
     this.savedLoader.setup({ request: () => listStrategies() });
     this.registCleaner(() => this.backtestLoader.cleanup());
     this.registCleaner(() => this.codegenLoader.cleanup());
     this.registCleaner(() => this.savedLoader.cleanup());
-    void this.savedLoader.run(); // prime the 我的策略 dropdown
+    void this.savedLoader.run(); // prime 我的策略
+    if (params.id) void this.openSaved(params.id);
   }
 
   public setField<K extends keyof LabStore>(key: K, value: LabStore[K]) {
@@ -103,7 +122,9 @@ export class LabStore extends BaseStore<LabSetupParams> {
       this.nlText = '';
       this.result = null;
       this.logLines = [];
+      this.savedId = null;
     });
+    writeCurrent({});
   }
 
   public async run() {
@@ -121,25 +142,51 @@ export class LabStore extends BaseStore<LabSetupParams> {
       }
     }
     runInAction(() => {
-      this.logLines = []; // fresh progress log per run
-      this.result = null; // drop the previous/loaded result while the new run computes
+      this.logLines = [];
+      this.result = null;
+      this.resumeJobId = null;
     });
-    // Auto-save the strategy on every run (upsert by name) — best-effort, never blocks the backtest.
-    void saveStrategy(this.config)
-      .then(() => this.savedLoader.run())
-      .catch(() => {});
+    // Save first so the strategy has an id (for the URL + the running-job pointer).
+    try {
+      const meta = await saveStrategy(this.config);
+      runInAction(() => {
+        this.savedId = meta.id;
+      });
+      writeCurrent({ strategyId: meta.id });
+      void this.savedLoader.run();
+    } catch {
+      /* best-effort */
+    }
+    this.startBacktest();
+  }
+
+  /** Re-attach to a still-running backtest (jobId from localStorage) without resubmitting. */
+  public resume(jobId: string) {
+    runInAction(() => {
+      this.resumeJobId = jobId;
+      this.logLines = [];
+      this.result = null;
+    });
+    this.startBacktest();
+  }
+
+  private startBacktest() {
     void this.backtestLoader
       .run()
       .then((r) => {
         runInAction(() => {
           this.result = r;
+          this.resumeJobId = null;
         });
-        void saveBacktestResult(this.config.name, r).catch(() => {}); // persist last result (one JSON)
+        void saveBacktestResult(this.config.name, r).catch(() => {});
+        writeCurrent({ strategyId: this.savedId ?? undefined }); // run finished → drop the job pointer
       })
-      .catch(() => {}); // error surfaces via backtestLoader.error
+      .catch(() => {
+        writeCurrent({ strategyId: this.savedId ?? undefined });
+      });
   }
 
-  /** Append log lines streamed from the backtest worker (called by the polling loop). */
+  /** Append log lines streamed from the backtest worker. */
   public appendLogs(lines: string[]) {
     runInAction(() => {
       this.logLines = [...this.logLines, ...lines];
@@ -157,13 +204,37 @@ export class LabStore extends BaseStore<LabSetupParams> {
     });
   }
 
-  /** Reopen a saved strategy: fetch its full config + last result, load both. */
+  /** Reopen a saved strategy: load its config + last result, and re-attach to a running backtest if one
+   * is still in flight for it (so a refresh continues streaming logs instead of losing the run). */
   public async openSaved(id: string) {
-    const s = await getStrategy(id);
+    let s;
+    try {
+      s = await getStrategy(id);
+    } catch {
+      writeCurrent({}); // strategy gone (deleted) — don't loop redirecting to it
+      return;
+    }
     this.applyConfig(s.config);
     runInAction(() => {
-      this.result = s.lastResult ?? null; // show the last run's metrics/chart/trades without re-running
+      this.result = s.lastResult ?? null;
+      this.savedId = id;
     });
+    const cur = readCurrent();
+    if (cur.strategyId === id && cur.jobId) {
+      try {
+        const job = await pollBacktest(cur.jobId, 0);
+        if (job.status === 'running') {
+          this.resume(cur.jobId); // re-attach to live logs
+          return;
+        }
+        if (job.status === 'done') runInAction(() => (this.result = job.result));
+      } catch {
+        /* job expired / server restarted — fall back to the saved last result */
+      }
+      writeCurrent({ strategyId: id });
+    } else {
+      writeCurrent({ strategyId: id });
+    }
   }
 
   /** Delete a saved strategy, then refresh the list. */
@@ -188,14 +259,20 @@ function delay(ms: number, signal: AbortSignal): Promise<void> {
   });
 }
 
-/** Submit the backtest, then poll until done — the unit of work behind the LoaderModel. Each poll
- * carries the new log lines since `since`; `onLog` forwards them to the store for live display. */
+/** Submit (or re-attach to `resumeJobId`) a backtest, then poll until done. `onLog` streams new lines;
+ * `onStart` reports the jobId once known (so it can be persisted for refresh-resume). */
 async function runAndPoll(
   config: BacktestConfig,
   signal: AbortSignal,
   onLog: (lines: string[]) => void,
+  resumeJobId: string | null,
+  onStart: (jobId: string) => void,
 ): Promise<BacktestSummary> {
-  const { jobId } = await submitBacktest(config);
+  let jobId = resumeJobId;
+  if (!jobId) {
+    jobId = (await submitBacktest(config)).jobId;
+    onStart(jobId);
+  }
   let since = 0;
   for (;;) {
     await delay(POLL_INTERVAL_MS, signal);
