@@ -22,6 +22,17 @@ export interface SavedStrategy extends SavedMeta {
   lastResult?: BacktestSummary | null;
 }
 
+/** List-view card for a saved strategy: metadata + a compact snapshot of the last run (for a sparkline
+ * thumbnail + headline metrics, without shipping the whole result). */
+export interface StrategyCard extends SavedMeta {
+  snapshot?: {
+    totalReturn: number;
+    sharpe: number;
+    trades: number;
+    spark: number[]; // downsampled equity curve for a lightweight thumbnail
+  };
+}
+
 /** A saved screen query with its full ScreenSpec payload. */
 export interface SavedScreenQuery extends SavedMeta {
   spec: ScreenSpec;

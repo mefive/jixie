@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { ulid } from 'ulid';
 import type { Prisma } from '@prisma/client';
-import type { BacktestConfig } from '@jixie/shared';
+import type { BacktestConfig, BacktestSummary, StrategyCard } from '@jixie/shared';
 import { apiError, validateJson } from '../lib/httpError.js';
 import { prisma } from '../lib/prisma.js';
 import { codeConfigSchema } from '../strategy/code/schema.js';
@@ -15,15 +15,34 @@ import { codeConfigSchema } from '../strategy/code/schema.js';
  */
 export const savedStrategyRoute = new Hono();
 
-// GET /api/app/strategies — list the current user's saved strategies (metadata only), newest first.
+// GET /api/app/strategies — list the user's saved strategies + a compact last-run snapshot (sparkline +
+// metrics) per card, newest first.
 savedStrategyRoute.get('/', async (c) => {
   const rows = await prisma.strategy.findMany({
     where: { userId: c.var.userId },
-    select: { id: true, name: true, createdAt: true, updatedAt: true },
+    select: { id: true, name: true, createdAt: true, updatedAt: true, lastResult: true },
     orderBy: { updatedAt: 'desc' },
   });
-  return c.json(rows);
+  const cards: StrategyCard[] = rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    createdAt: r.createdAt.toISOString(),
+    updatedAt: r.updatedAt.toISOString(),
+    snapshot: snapshotOf(r.lastResult),
+  }));
+  return c.json(cards);
 });
+
+/** Compact a stored BacktestSummary into a card snapshot: headline metrics + a downsampled equity curve. */
+function snapshotOf(lastResult: unknown): StrategyCard['snapshot'] {
+  const r = lastResult as BacktestSummary | null;
+  if (!r || !Array.isArray(r.nav) || r.nav.length === 0) return undefined;
+  const vals = r.nav.map((n) => n.value);
+  const N = 48;
+  const step = Math.max(1, Math.floor(vals.length / N));
+  const spark = vals.filter((_, i) => i % step === 0);
+  return { totalReturn: r.totalReturn, sharpe: r.sharpe, trades: r.trades, spark };
+}
 
 // GET /api/app/strategies/:id — full payload (to reopen in the workbench).
 savedStrategyRoute.get('/:id', async (c) => {

@@ -1,0 +1,59 @@
+@reference '../../styles/index.css';
+
+.jx-sp-loading {
+  @apply flex items-center justify-center;
+  height: 200px;
+}
+
+.jx-sp-grid {
+  @apply grid gap-3;
+  grid-template-columns: repeat(3, 1fr);
+  max-height: 62vh;
+  overflow-y: auto;
+  padding: 2px;
+}
+
+.jx-sp-card {
+  @apply flex cursor-pointer flex-col gap-2 rounded-lg border border-line bg-card;
+  @apply hover:border-ink;
+  padding: 10px 12px;
+}
+
+.jx-sp-head {
+  @apply flex items-center justify-between gap-1;
+}
+
+.jx-sp-name {
+  @apply truncate font-semibold text-ink;
+  font-size: 13px;
+}
+
+.jx-sp-del {
+  flex: none;
+}
+
+.jx-sp-spark {
+  @apply block w-full;
+  height: 48px;
+}
+
+.jx-sp-metrics {
+  @apply flex items-baseline gap-3;
+  font-size: 13px;
+}
+
+.jx-sp-muted {
+  @apply text-muted;
+  font-size: 12px;
+}
+
+.jx-sp-noRun {
+  @apply flex items-center justify-center text-muted;
+  height: 48px;
+  font-size: 12px;
+}
+
+.jx-sp-date {
+  @apply text-muted;
+  font-size: 11px;
+}

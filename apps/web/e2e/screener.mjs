@@ -170,7 +170,7 @@ try {
   await stockPage.close();
   log('shot 3b: stock detail (log price axis)');
 
-  // 5. Seed a CODE strategy via the API, then open it in the workbench → the editor shows the code.
+  // 5. Seed a CODE strategy + a fake last-result via the API, then open it from the 我的策略 card grid.
   const seeded = await page.evaluate(async () => {
     const code =
       "let last=''; export default defineStrategy({ name:'e2e策略', watch:['600519.SH'], onBar(ctx){ const c='600519.SH'; const px=ctx.price(c); const w=ctx.history(c,'close',20); if(px==null||w.length<20) return; const ma=w.reduce((a,b)=>a+b,0)/w.length; if(px>ma&&ctx.shares(c)===0) ctx.order(c,100); else if(px<ma&&ctx.shares(c)>0) ctx.exit(c); } });";
@@ -179,6 +179,13 @@ try {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ name: 'e2e策略', start: '20200101', end: '20201231', initialCash: 1234567, code }),
     });
+    // a small result so the card shows a sparkline
+    const nav = Array.from({ length: 30 }, (_, i) => ({ date: '2020' + String(i), value: 1e6 * (1 + i * 0.01) }));
+    await fetch('/api/app/strategies/result', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: 'e2e策略', result: { totalReturn: 0.29, sharpe: 1.4, trades: 25, tradeLog: [], nav } }),
+    });
     return r.status;
   });
   log('seed code strategy status', seeded);
@@ -186,11 +193,11 @@ try {
   await page.getByRole('link', { name: '回测工作台' }).click();
   await page.locator('.jx-lab-code .monaco-editor').waitFor({ timeout: 20000 }); // Monaco chunk + TS worker load
   await page.getByRole('button', { name: /我的策略/ }).click();
-  await page.locator('.ant-dropdown .jx-savedBar-itemName', { hasText: 'e2e策略' }).waitFor();
+  await page.locator('.jx-sp-card', { hasText: 'e2e策略' }).waitFor({ timeout: 10000 }); // card grid (sparkline thumbnail)
   await page.screenshot({ path: `${SHOTS}4-lab.png` });
-  log('shot 4: code workbench (Monaco) + 我的策略 dropdown');
-  // load it → name input + Monaco editor reflect the saved strategy
-  await page.locator('.ant-dropdown .jx-savedBar-itemName', { hasText: 'e2e策略' }).click();
+  log('shot 4: code workbench + 我的策略 卡片');
+  // load it from the card → name input + Monaco editor reflect the saved strategy
+  await page.locator('.jx-sp-card', { hasText: 'e2e策略' }).click();
   await page.waitForFunction(
     () => {
       const name = document.querySelector('.jx-lab-field--name input');
