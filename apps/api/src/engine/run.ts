@@ -231,7 +231,7 @@ function executeOrders(
 function summarize(
   cfg: EngineConfig,
   nav: { date: string; value: number }[],
-  trades: number,
+  tradeLog: BacktestResult['tradeLog'],
 ): BacktestResult {
   const values = nav.map((n) => n.value);
   const rets: number[] = [];
@@ -248,7 +248,8 @@ function summarize(
     annReturn: st.annualizedReturn(rets, PERIODS_PER_YEAR),
     sharpe: st.sharpe(rets, PERIODS_PER_YEAR),
     maxDrawdown: st.maxDrawdown(values),
-    trades,
+    trades: tradeLog.length,
+    tradeLog,
     nav,
   };
 }

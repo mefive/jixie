@@ -1,10 +1,10 @@
-import type { CostModel, Position } from './types.js';
+import type { CostModel, Position, TradeRecord } from './types.js';
 
 /** Cash + positions, with cost-aware fills and mark-to-market. Prices are adjusted (hfq). */
 export class Portfolio {
   cash: number;
   positions = new Map<string, Position>();
-  trades = 0;
+  trades: TradeRecord[] = []; // every executed fill, in order
 
   constructor(
     initialCash: number,
@@ -46,9 +46,10 @@ export class Portfolio {
   fill(code: string, delta: number, price: number, date: string, sellableFrom: string): void {
     if (Math.abs(delta) < 1e-9 || price <= 0) return;
     const value = Math.abs(delta) * price;
+    let fee: number;
 
     if (delta > 0) {
-      const fee = this.buyFee(value);
+      fee = this.buyFee(value);
       this.cash -= value + fee;
       const pos = this.positions.get(code) ?? { shares: 0, avgCost: 0, frozenUntil: sellableFrom };
       pos.avgCost = (pos.avgCost * pos.shares + value + fee) / (pos.shares + delta);
@@ -58,11 +59,19 @@ export class Portfolio {
     } else {
       const pos = this.positions.get(code);
       if (!pos) return;
-      const fee = this.sellFee(value);
+      fee = this.sellFee(value);
       this.cash += value - fee;
       pos.shares += delta; // delta < 0
       if (pos.shares < 1e-6) this.positions.delete(code);
     }
-    this.trades++;
+    this.trades.push({
+      date,
+      code,
+      side: delta > 0 ? 'buy' : 'sell',
+      shares: Math.abs(delta),
+      price,
+      amount: value,
+      fee,
+    });
   }
 }
