@@ -212,11 +212,13 @@ const ResultPanel = complex.component(() => {
         onCancel={() => setTradesOpen(false)}
         footer={null}
         title="交易详情"
-        width={920}
+        width="94vw"
+        style={{ top: 20 }}
+        styles={{ body: { padding: 12 } }}
         destroyOnHidden
       >
         <Suspense fallback={<div className="jx-lab-placeholder">加载交易…</div>}>
-          <TradeDetail nav={r.nav} tradeLog={r.tradeLog} />
+          <TradeDetail tradeLog={r.tradeLog} start={r.start} end={r.end} />
         </Suspense>
       </Modal>
     </>
