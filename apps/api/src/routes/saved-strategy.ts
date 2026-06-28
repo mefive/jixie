@@ -1,8 +1,11 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { ulid } from 'ulid';
+import pkg from '@prisma/client';
 import type { Prisma } from '@prisma/client';
 import type { BacktestConfig, BacktestSummary, StrategyCard } from '@jixie/shared';
+
+const { Prisma: PrismaNs } = pkg; // runtime namespace (DbNull) — the type import above is erased
 import { apiError, validateJson } from '../lib/httpError.js';
 import { prisma } from '../lib/prisma.js';
 import { codeConfigSchema } from '../strategy/code/schema.js';
@@ -78,10 +81,21 @@ savedStrategyRoute.post('/', validateJson(codeConfigSchema), async (c) => {
   const config = c.req.valid('json') as BacktestConfig;
   const userId = c.var.userId;
   const name = config.name;
+  // A changed config (new code/range/capital) invalidates any stored last-run result — drop it so a stale
+  // equity curve is never shown against new code. On a normal run this clears it, then the finished run
+  // re-attaches its result (POST /result); a save-without-run just leaves it cleared until the next run.
+  const existing = await prisma.strategy.findUnique({
+    where: { userId_name: { userId, name } },
+    select: { config: true },
+  });
+  const configChanged = existing != null && JSON.stringify(existing.config) !== JSON.stringify(config);
   const row = await prisma.strategy.upsert({
     where: { userId_name: { userId, name } },
     create: { id: ulid(), userId, name, config: config as unknown as Prisma.InputJsonValue },
-    update: { config: config as unknown as Prisma.InputJsonValue },
+    update: {
+      config: config as unknown as Prisma.InputJsonValue,
+      ...(configChanged ? { lastResult: PrismaNs.DbNull } : {}),
+    },
     select: { id: true, name: true, createdAt: true, updatedAt: true },
   });
   return c.json(row);

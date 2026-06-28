@@ -18,11 +18,11 @@ type LabSetupParams = { id?: string };
 
 /**
  * Backtest workbench store — code-first. The strategy is a single TS source string (`code`); the server
- * compiles and runs it. `/lab/:id` loads a saved strategy + its last result on mount (refresh-safe), and
+ * compiles and runs it. `/?id=<sid>` loads a saved strategy + its last result on mount (refresh-safe), and
  * re-attaches to a running backtest via the localStorage job pointer + PollingModel.
  */
 export class LabStore extends BaseStore<LabSetupParams> {
-  public name = 'MA20 突破 · 贵州茅台';
+  public name = ''; // blank → auto-named from the code on first run (the 策略名称 field, not the code's own name)
   public start = '20200101';
   public end = '20241231';
   public initialCash = 1_000_000;
@@ -34,6 +34,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
   public result: BacktestSummary | null = null; // a finished run OR the saved last-result on reopen
   public error: string | null = null; // backtest failure message
   public savedId: string | null = null; // this strategy's DB id (for the URL)
+  public savedConfig = ''; // serialized config as last saved/loaded — the baseline `dirty` compares against
 
   private jobId: string | null = null; // polling cursor for the current backtest
   private since = 0;
@@ -55,7 +56,10 @@ export class LabStore extends BaseStore<LabSetupParams> {
       result: observable.ref,
       error: observable.ref,
       savedId: observable.ref,
+      savedConfig: observable.ref,
       config: computed,
+      dirty: computed,
+      isFresh: computed,
     });
   }
 
@@ -69,11 +73,22 @@ export class LabStore extends BaseStore<LabSetupParams> {
     this.registCleaner(() => this.savedLoader.cleanup());
     void this.savedLoader.run(); // prime 我的策略
     if (params.id) void this.openSaved(params.id);
+    else this.markSaved(); // a fresh default strategy is the baseline, not "dirty"
   }
 
   /** True while a backtest is running (drives the loading state + progress log). */
   public get running(): boolean {
     return this.backtestPoller.running;
+  }
+
+  /** Untouched starter strategy (no saved id, default code, nothing run) → show the prompt-first hero. */
+  public get isFresh(): boolean {
+    return !this.savedId && !this.result && this.code === DEFAULT_CODE;
+  }
+
+  /** The editor has unsaved edits vs. the last saved/loaded snapshot (gates the 新建 save prompt). */
+  public get dirty(): boolean {
+    return this.configKey() !== this.savedConfig;
   }
 
   /** Range/capital + the strategy code → a runnable BacktestConfig. */
@@ -113,7 +128,32 @@ export class LabStore extends BaseStore<LabSetupParams> {
       this.logLines = [];
       this.savedId = null;
     });
+    this.markSaved(); // the blank default is the new baseline (not dirty)
     writeCurrent({});
+  }
+
+  /** Persist the current config without running (used by the 新建 "保存并新建" prompt). The server drops the
+   * old last-result because the code changed, so the saved strategy reopens clean until its next run. */
+  public async save() {
+    if (!this.name.trim()) {
+      try {
+        const { name } = await generateName(this.code);
+        runInAction(() => (this.name = name));
+      } catch {
+        runInAction(() => (this.name = '未命名策略'));
+      }
+    }
+    try {
+      const meta = await saveStrategy(this.config);
+      runInAction(() => {
+        this.savedId = meta.id;
+        this.result = null; // this saved version has no run yet — don't carry a stale curve
+      });
+      this.markSaved();
+      void this.savedLoader.run();
+    } catch {
+      /* best-effort */
+    }
   }
 
   public async run() {
@@ -141,6 +181,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
       runInAction(() => {
         this.savedId = meta.id;
       });
+      this.markSaved(); // running persists the current config — it's now the saved baseline
       writeCurrent({ strategyId: meta.id });
       void this.savedLoader.run();
     } catch {
@@ -176,7 +217,8 @@ export class LabStore extends BaseStore<LabSetupParams> {
     });
   }
 
-  /** Reflect a full saved BacktestConfig back into the editor (range/capital + code). */
+  /** Reflect a full saved BacktestConfig back into the editor (range/capital + code) — the loaded
+   * snapshot becomes the `dirty` baseline. */
   public applyConfig(config: BacktestConfig) {
     runInAction(() => {
       this.name = config.name;
@@ -184,6 +226,25 @@ export class LabStore extends BaseStore<LabSetupParams> {
       this.end = config.end;
       this.initialCash = config.initialCash;
       this.code = config.code;
+    });
+    this.markSaved();
+  }
+
+  /** Serialize the editable config (raw fields) for the `dirty` comparison + saved baseline. */
+  private configKey(): string {
+    return JSON.stringify({
+      name: this.name,
+      start: this.start,
+      end: this.end,
+      initialCash: this.initialCash,
+      code: this.code,
+    });
+  }
+
+  /** Snapshot the current config as the saved baseline → `dirty` is false until the next edit. */
+  private markSaved() {
+    runInAction(() => {
+      this.savedConfig = this.configKey();
     });
   }
 
