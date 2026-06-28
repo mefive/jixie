@@ -208,13 +208,14 @@ model EmailLoginChallenge {
 /// A saved backtest strategy (holds a BacktestConfig as JSON). Auto-saved when a backtest runs:
 /// the workbench upserts by name, so "我的策略" lists each named strategy you've run.
 model Strategy {
-  id        String   @id // ULID
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name      String
-  config    Json // BacktestConfig
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id // ULID
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  config     Json // BacktestConfig
+  lastResult Json? // last BacktestSummary (metrics + nav + tradeLog) — shown on reopen, refreshed each run
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@unique([userId, name]) // name = identity within a user → enables upsert-by-name
   @@index([userId, updatedAt]) // list a user's strategies, newest first
