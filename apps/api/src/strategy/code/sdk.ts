@@ -18,10 +18,23 @@ export interface StrategyCtx extends BarContext {
   /** Period key for today on a schedule — compare to your own `let last` to fire once per period:
    * `if (ctx.period('monthly') === last) return; last = ctx.period('monthly');` */
   period(schedule: Schedule): string;
-  /** Today's tradable universe as a chainable selection (loads the cross-section; bar() valid after). */
-  select(): Promise<Selection>;
+  /** Today's tradable universe as a chainable selection (loads the cross-section; bar() valid after).
+   * Pass an index code (e.g. '000300.SH' 沪深300) to restrict to its point-in-time constituents. */
+  select(indexCode?: string): Promise<Selection>;
   /** Equal-weight the given codes (a target-book rebalance at next open). */
   equalWeight(codes: string[]): void;
+
+  // —— 内置技术指标(都需要该票的 K 线已加载:watch 预载 或 ensureBars;数据不足返 null)——
+  /** n 日简单均线(最近 n 根收盘均值)。 */
+  sma(code: string, n: number): number | null;
+  /** n 日指数均线。 */
+  ema(code: string, n: number): number | null;
+  /** n 日 ATR(平均真实波幅,需 n+1 根)。 */
+  atr(code: string, n: number): number | null;
+  /** 最近 n 根在某字段上的最高(唐奇安上轨)。 */
+  highest(code: string, field: 'open' | 'high' | 'low' | 'close', n: number): number | null;
+  /** 最近 n 根在某字段上的最低(唐奇安下轨)。 */
+  lowest(code: string, field: 'open' | 'high' | 'low' | 'close', n: number): number | null;
 }
 
 export interface CodeStrategy {
@@ -119,12 +132,47 @@ export function defineStrategy(s: CodeStrategy): Strategy {
 export function enrich(ctx: BarContext): StrategyCtx {
   const rich = ctx as StrategyCtx;
   rich.period = (schedule) => periodKey(ctx.date, schedule);
-  rich.select = async () => new Selection(ctx, await ctx.universe());
+  rich.select = async (indexCode?: string) => {
+    const all = await ctx.universe();
+    if (!indexCode) return new Selection(ctx, all);
+    const members = new Set(await ctx.indexMembers(indexCode));
+    return new Selection(ctx, all.filter((c) => members.has(c)));
+  };
   rich.equalWeight = (codes) => {
     const w = codes.length ? 1 / codes.length : 0;
     const targets: Record<string, number> = {};
     for (const c of codes) targets[c] = w;
     ctx.setHoldings(targets);
+  };
+  rich.sma = (code, n) => {
+    const w = ctx.history(code, 'close', n);
+    return w.length < n ? null : w.reduce((a, b) => a + b, 0) / n;
+  };
+  rich.ema = (code, n) => {
+    const w = ctx.history(code, 'close', n * 4); // extra lookback to warm up the EMA
+    if (w.length < n) return null;
+    const k = 2 / (n + 1);
+    let e = w[0];
+    for (let i = 1; i < w.length; i++) e = w[i] * k + e * (1 - k);
+    return e;
+  };
+  rich.highest = (code, field, n) => {
+    const w = ctx.history(code, field, n);
+    return w.length < n ? null : Math.max(...w);
+  };
+  rich.lowest = (code, field, n) => {
+    const w = ctx.history(code, field, n);
+    return w.length < n ? null : Math.min(...w);
+  };
+  rich.atr = (code, n) => {
+    const bars = ctx.bars(code, n + 1);
+    if (bars.length < n + 1) return null;
+    let sum = 0;
+    for (let i = bars.length - n; i < bars.length; i++) {
+      const pc = bars[i - 1].adjClose;
+      sum += Math.max(bars[i].adjHigh - bars[i].adjLow, Math.abs(bars[i].adjHigh - pc), Math.abs(bars[i].adjLow - pc));
+    }
+    return sum / n;
   };
   return rich;
 }
