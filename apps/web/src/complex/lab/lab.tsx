@@ -26,7 +26,6 @@ const StrategyPicker = lazy(() => import('./strategy-picker'));
  */
 export const Lab = complex.component(() => {
   const store = complex.useStore();
-  const loader = store.backtestLoader;
   const [pickerOpen, setPickerOpen] = useState(false);
   const navigate = useNavigate();
   const { id } = useParams();
@@ -108,11 +107,11 @@ export const Lab = complex.component(() => {
           </Button>
           <Button
             type="primary"
-            loading={loader.loading}
-            icon={loader.loading ? undefined : <FontAwesomeIcon icon={faPlay} />}
+            loading={store.running}
+            icon={store.running ? undefined : <FontAwesomeIcon icon={faPlay} />}
             onClick={() => void store.run()}
           >
-            {loader.loading ? '回测中…' : '运行回测'}
+            {store.running ? '回测中…' : '运行回测'}
           </Button>
         </div>
       </div>
@@ -191,18 +190,13 @@ const StrategyCode = complex.component(() => {
 
 const ResultPanel = complex.component(() => {
   const store = complex.useStore();
-  const loader = store.backtestLoader;
   const [tradesOpen, setTradesOpen] = useState(false);
 
-  if (loader.loading) {
+  if (store.running) {
     return <RunningLog lines={store.logLines} />;
   }
-  if (loader.error) {
-    return (
-      <div className="jx-lab-placeholder jx-lab-placeholder--error">
-        回测失败：{loader.errorObject?.message}
-      </div>
-    );
+  if (store.error) {
+    return <div className="jx-lab-placeholder jx-lab-placeholder--error">回测失败：{store.error}</div>;
   }
   const r = store.result; // a finished run, or the saved last-result loaded on reopen
   if (!r) {
