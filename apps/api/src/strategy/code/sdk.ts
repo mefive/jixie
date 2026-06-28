@@ -35,6 +35,10 @@ export interface StrategyCtx extends BarContext {
   highest(code: string, field: 'open' | 'high' | 'low' | 'close', n: number): number | null;
   /** 最近 n 根在某字段上的最低(唐奇安下轨)。 */
   lowest(code: string, field: 'open' | 'high' | 'low' | 'close', n: number): number | null;
+  /** n 日平均成交额(千元)—— 流动性 / 滑点门。 */
+  avgAmount(code: string, n: number): number | null;
+  /** n 日平均成交量(手)。 */
+  avgVol(code: string, n: number): number | null;
 }
 
 export interface CodeStrategy {
@@ -174,7 +178,15 @@ export function enrich(ctx: BarContext): StrategyCtx {
     }
     return sum / n;
   };
+  rich.avgAmount = (code, n) => avgField(ctx.bars(code, n), n, (b) => b.amount);
+  rich.avgVol = (code, n) => avgField(ctx.bars(code, n), n, (b) => b.vol);
   return rich;
+}
+
+/** Mean of a per-bar field over the window, or null if fewer than n valid values. */
+function avgField(bars: { amount: number | null; vol: number | null }[], n: number, pick: (b: { amount: number | null; vol: number | null }) => number | null): number | null {
+  const vals = bars.map(pick).filter((x): x is number => x != null);
+  return vals.length < n ? null : vals.reduce((a, b) => a + b, 0) / vals.length;
 }
 
 /** Period bucket for a schedule — a new key means a new period (rebalance boundary). */

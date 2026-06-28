@@ -14,6 +14,8 @@ interface StockBars {
   adjHigh: number[];
   adjLow: number[];
   adjClose: number[];
+  vol: (number | null)[]; // raw (not adjusted)
+  amount: (number | null)[];
   idx: Map<string, number>; // date -> index (exact)
 }
 
@@ -106,7 +108,7 @@ export class EngineData {
     const [px, adj, db] = await Promise.all([
       prisma.daily.findMany({
         where: { tradeDate: date },
-        select: { tsCode: true, open: true, high: true, low: true, close: true },
+        select: { tsCode: true, open: true, high: true, low: true, close: true, vol: true, amount: true },
       }),
       prisma.adjFactor.findMany({
         where: { tradeDate: date },
@@ -137,6 +139,8 @@ export class EngineData {
         adjHigh: p.high == null ? null : p.high * f,
         adjLow: p.low == null ? null : p.low * f,
         adjClose: p.close * f,
+        vol: p.vol,
+        amount: p.amount,
         pe: r.pe,
         peTtm: r.peTtm,
         pb: r.pb,
@@ -234,7 +238,7 @@ export class EngineData {
     const [px, adj] = await Promise.all([
       prisma.daily.findMany({
         where: { tsCode: { in: missing }, tradeDate: { gte: this.start, lte: this.end } },
-        select: { tsCode: true, tradeDate: true, open: true, high: true, low: true, close: true },
+        select: { tsCode: true, tradeDate: true, open: true, high: true, low: true, close: true, vol: true, amount: true },
         orderBy: [{ tsCode: 'asc' }, { tradeDate: 'asc' }],
       }),
       prisma.adjFactor.findMany({
@@ -245,7 +249,7 @@ export class EngineData {
     const adjMap = new Map(adj.map((a) => [`${a.tsCode}|${a.tradeDate}`, a.adjFactor]));
     const tmp = new Map<string, StockBars>();
     for (const c of missing) {
-      tmp.set(c, { dates: [], adjOpen: [], adjHigh: [], adjLow: [], adjClose: [], idx: new Map() });
+      tmp.set(c, { dates: [], adjOpen: [], adjHigh: [], adjLow: [], adjClose: [], vol: [], amount: [], idx: new Map() });
     }
     for (const r of px) {
       if (r.open == null || r.high == null || r.low == null || r.close == null) continue;
@@ -258,6 +262,8 @@ export class EngineData {
       b.adjHigh.push(r.high * f);
       b.adjLow.push(r.low * f);
       b.adjClose.push(r.close * f);
+      b.vol.push(r.vol);
+      b.amount.push(r.amount);
     }
     for (const [c, b] of tmp) this.barsCache.set(c, b);
   }
@@ -305,6 +311,8 @@ export class EngineData {
         adjHigh: b.adjHigh[i],
         adjLow: b.adjLow[i],
         adjClose: b.adjClose[i],
+        vol: b.vol[i],
+        amount: b.amount[i],
       });
     }
     return out;

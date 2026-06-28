@@ -9,6 +9,7 @@ export const SDK_DTS = `
 interface OhlcBar {
   date: string;
   adjOpen: number; adjHigh: number; adjLow: number; adjClose: number;
+  vol: number | null; amount: number | null; // 成交量(手) / 成交额(千元),未复权
 }
 
 /** One stock's full market row today: raw + adjusted OHLC and the point-in-time valuation snapshot. */
@@ -16,6 +17,7 @@ interface BarRow {
   code: string;
   open: number | null; high: number | null; low: number | null; close: number | null;
   adjOpen: number | null; adjHigh: number | null; adjLow: number | null; adjClose: number | null;
+  vol: number | null; amount: number | null; // 成交量(手) / 成交额(千元) —— 流动性门
   pe: number | null; peTtm: number | null; pb: number | null; ps: number | null; psTtm: number | null;
   dvRatio: number | null; dvTtm: number | null;
   totalMv: number | null; circMv: number | null; turnoverRate: number | null;
@@ -69,6 +71,10 @@ interface StrategyCtx {
   highest(code: string, field: 'open' | 'high' | 'low' | 'close', n: number): number | null;
   /** 最近 n 根某字段的最低(唐奇安下轨)。 */
   lowest(code: string, field: 'open' | 'high' | 'low' | 'close', n: number): number | null;
+  /** n 日平均成交额(千元)—— 流动性 / 滑点门。 */
+  avgAmount(code: string, n: number): number | null;
+  /** n 日平均成交量(手)。 */
+  avgVol(code: string, n: number): number | null;
 
   /** Today's tradable codes (loads the panel; makes bar() valid). */
   universe(): Promise<string[]>;
