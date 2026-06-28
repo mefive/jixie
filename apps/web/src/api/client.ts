@@ -97,6 +97,7 @@ import type {
   SavedMeta,
   SavedStrategy,
   SavedScreenQuery,
+  StrategyCard,
 } from '@jixie/shared';
 
 // NL→code: turn a natural-language strategy description into a compilable TS strategy module.
@@ -104,9 +105,14 @@ export function generateCode(text: string): Promise<{ code: string; attempts: nu
   return request('/api/app/strategy/codegen', { method: 'POST', body: JSON.stringify({ text }) });
 }
 
+// NL→name: let the model name a strategy from its code (when 策略名称 is left blank).
+export function generateName(code: string): Promise<{ name: string }> {
+  return request('/api/app/strategy/name', { method: 'POST', body: JSON.stringify({ code }) });
+}
+
 // —— Saved strategies (产品线 1 持久化) —— auto-saved on backtest run; name = config.name (upsert).
 
-export function listStrategies(): Promise<SavedMeta[]> {
+export function listStrategies(): Promise<StrategyCard[]> {
   return request('/api/app/strategies');
 }
 

@@ -3,10 +3,9 @@ import classNames from 'classnames';
 import { Button, DatePicker, Input, InputNumber, Modal } from 'antd';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
-import { faPlay, faSpinner, faWandMagicSparkles } from '@fortawesome/free-solid-svg-icons';
+import { faFolderOpen, faPlay, faPlus, faSpinner, faWandMagicSparkles } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { TopNav } from '@src/components/top-nav';
-import { SavedBar } from '@src/components/saved-bar';
 import { complex } from './complex';
 import './lab.css';
 
@@ -17,6 +16,7 @@ const ymd = (s: string) => (s ? dayjs(s, 'YYYYMMDD') : null);
 const NavChart = lazy(() => import('./nav-chart'));
 const CodeEditor = lazy(() => import('./code-editor'));
 const TradeDetail = lazy(() => import('./trade-detail'));
+const StrategyPicker = lazy(() => import('./strategy-picker'));
 
 /**
  * Backtest workbench — code-first. The strategy is TypeScript the user writes against the SDK
@@ -26,6 +26,7 @@ const TradeDetail = lazy(() => import('./trade-detail'));
 export const Lab = complex.component(() => {
   const store = complex.useStore();
   const loader = store.backtestLoader;
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   return (
     <div className="jx-lab">
@@ -70,19 +71,23 @@ export const Lab = complex.component(() => {
         </label>
 
         <div className="jx-lab-barActions">
-          <SavedBar
-            title="我的策略"
-            items={store.savedLoader.result ?? []}
-            loading={store.savedLoader.loading}
-            onOpenList={() => store.loadSavedList()}
-            onLoad={(id) => void store.openSaved(id)}
-            onDelete={(id) => store.removeSaved(id)}
-          />
+          <Button icon={<FontAwesomeIcon icon={faPlus} />} onClick={() => store.newStrategy()}>
+            新建
+          </Button>
+          <Button
+            icon={<FontAwesomeIcon icon={faFolderOpen} />}
+            onClick={() => {
+              store.loadSavedList();
+              setPickerOpen(true);
+            }}
+          >
+            我的策略
+          </Button>
           <Button
             type="primary"
             loading={loader.loading}
             icon={loader.loading ? undefined : <FontAwesomeIcon icon={faPlay} />}
-            onClick={() => store.run()}
+            onClick={() => void store.run()}
           >
             {loader.loading ? '回测中…' : '运行回测'}
           </Button>
@@ -98,6 +103,17 @@ export const Lab = complex.component(() => {
           <ResultPanel />
         </section>
       </main>
+
+      <Suspense fallback={null}>
+        <StrategyPicker
+          open={pickerOpen}
+          cards={store.savedLoader.result ?? []}
+          loading={store.savedLoader.loading}
+          onClose={() => setPickerOpen(false)}
+          onLoad={(id) => void store.openSaved(id)}
+          onDelete={(id) => store.removeSaved(id)}
+        />
+      </Suspense>
     </div>
   );
 }, 'Lab');
@@ -197,7 +213,7 @@ const ResultPanel = complex.component(() => {
           </div>
         ))}
       </div>
-      {r.tradeLog.length > 0 && (
+      {(r.tradeLog?.length ?? 0) > 0 && (
         <div className="jx-lab-resultBar">
           <Button size="small" onClick={() => setTradesOpen(true)}>
             交易详情（{r.trades.toLocaleString()} 笔）
@@ -218,7 +234,7 @@ const ResultPanel = complex.component(() => {
         destroyOnHidden
       >
         <Suspense fallback={<div className="jx-lab-placeholder">加载交易…</div>}>
-          <TradeDetail tradeLog={r.tradeLog} start={r.start} end={r.end} />
+          <TradeDetail tradeLog={r.tradeLog ?? []} start={r.start} end={r.end} />
         </Suspense>
       </Modal>
     </>

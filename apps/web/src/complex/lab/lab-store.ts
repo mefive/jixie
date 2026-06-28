@@ -1,9 +1,10 @@
 import { computed, makeObservable, observable, runInAction } from 'mobx';
-import type { BacktestConfig, BacktestSummary, SavedMeta } from '@jixie/shared';
+import type { BacktestConfig, BacktestSummary, StrategyCard } from '@jixie/shared';
 import { BaseStore, LoaderModel } from '@src/lib';
 import {
   deleteStrategy,
   generateCode,
+  generateName,
   getStrategy,
   listStrategies,
   pollBacktest,
@@ -38,7 +39,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
 
   public backtestLoader = new LoaderModel<BacktestSummary>();
   public codegenLoader = new LoaderModel<{ code: string; attempts: number }>(); // NL→code
-  public savedLoader = new LoaderModel<SavedMeta[]>(); // 我的策略 list (auto-saved on run)
+  public savedLoader = new LoaderModel<StrategyCard[]>(); // 我的策略 cards (auto-saved on run)
 
   public constructor(parentStore?: any) {
     super(parentStore);
@@ -94,7 +95,31 @@ export class LabStore extends BaseStore<LabSetupParams> {
     };
   }
 
-  public run() {
+  /** Start fresh: a blank-named strategy on the default template (blank name → auto-named on first run). */
+  public newStrategy() {
+    runInAction(() => {
+      this.name = '';
+      this.code = DEFAULT_CODE;
+      this.nlText = '';
+      this.result = null;
+      this.logLines = [];
+    });
+  }
+
+  public async run() {
+    // Auto-name from the code when 策略名称 is blank (the user can edit it after).
+    if (!this.name.trim()) {
+      try {
+        const { name } = await generateName(this.code);
+        runInAction(() => {
+          this.name = name;
+        });
+      } catch {
+        runInAction(() => {
+          this.name = '未命名策略';
+        });
+      }
+    }
     runInAction(() => {
       this.logLines = []; // fresh progress log per run
       this.result = null; // drop the previous/loaded result while the new run computes
