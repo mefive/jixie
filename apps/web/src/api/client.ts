@@ -118,6 +118,11 @@ export function saveStrategy(config: BacktestConfig): Promise<SavedMeta> {
   return request('/api/app/strategies', { method: 'POST', body: JSON.stringify(config) });
 }
 
+// Persist a finished run's result onto the strategy (by name) — shown on reopen.
+export function saveBacktestResult(name: string, result: BacktestSummary): Promise<{ ok: true }> {
+  return request('/api/app/strategies/result', { method: 'POST', body: JSON.stringify({ name, result }) });
+}
+
 export function deleteStrategy(id: string): Promise<{ ok: true }> {
   return request(`/api/app/strategies/${id}`, { method: 'DELETE' });
 }

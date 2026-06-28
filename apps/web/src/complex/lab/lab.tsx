@@ -165,7 +165,7 @@ const ResultPanel = complex.component(() => {
       </div>
     );
   }
-  const r = loader.result;
+  const r = store.result; // a finished run, or the saved last-result loaded on reopen
   if (!r) {
     return <div className="jx-lab-placeholder">写好左侧策略后点「运行回测」查看净值与指标。</div>;
   }

@@ -7,6 +7,7 @@ import {
   getStrategy,
   listStrategies,
   pollBacktest,
+  saveBacktestResult,
   saveStrategy,
   submitBacktest,
 } from '@src/api/client';
@@ -32,6 +33,8 @@ export class LabStore extends BaseStore<LabSetupParams> {
 
   // live backtest progress logs (streamed from the worker via polling)
   public logLines: string[] = [];
+  // the displayed result: a finished run OR the saved last-result loaded on reopen
+  public result: BacktestSummary | null = null;
 
   public backtestLoader = new LoaderModel<BacktestSummary>();
   public codegenLoader = new LoaderModel<{ code: string; attempts: number }>(); // NL→code
@@ -47,6 +50,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
       code: observable.ref,
       nlText: observable.ref,
       logLines: observable.ref,
+      result: observable.ref,
       config: computed,
     });
   }
@@ -93,12 +97,21 @@ export class LabStore extends BaseStore<LabSetupParams> {
   public run() {
     runInAction(() => {
       this.logLines = []; // fresh progress log per run
+      this.result = null; // drop the previous/loaded result while the new run computes
     });
-    // Auto-save on every run (upsert by name) — best-effort, never blocks the backtest.
+    // Auto-save the strategy on every run (upsert by name) — best-effort, never blocks the backtest.
     void saveStrategy(this.config)
       .then(() => this.savedLoader.run())
       .catch(() => {});
-    void this.backtestLoader.run();
+    void this.backtestLoader
+      .run()
+      .then((r) => {
+        runInAction(() => {
+          this.result = r;
+        });
+        void saveBacktestResult(this.config.name, r).catch(() => {}); // persist last result (one JSON)
+      })
+      .catch(() => {}); // error surfaces via backtestLoader.error
   }
 
   /** Append log lines streamed from the backtest worker (called by the polling loop). */
@@ -119,10 +132,13 @@ export class LabStore extends BaseStore<LabSetupParams> {
     });
   }
 
-  /** Reopen a saved strategy: fetch its full config, then load it into the editor. */
+  /** Reopen a saved strategy: fetch its full config + last result, load both. */
   public async openSaved(id: string) {
     const s = await getStrategy(id);
     this.applyConfig(s.config);
+    runInAction(() => {
+      this.result = s.lastResult ?? null; // show the last run's metrics/chart/trades without re-running
+    });
   }
 
   /** Delete a saved strategy, then refresh the list. */
