@@ -190,14 +190,19 @@ try {
   });
   log('seed code strategy status', seeded);
 
+  // A brand-new strategy opens prompt-first (the hero, mirroring 选股看图) — not straight into the editor.
   await page.getByRole('link', { name: '回测工作台' }).click();
-  await page.locator('.jx-lab-code .monaco-editor').waitFor({ timeout: 20000 }); // Monaco chunk + TS worker load
+  await page.locator('.jx-lab-hero').waitFor({ timeout: 10000 });
+  await page.screenshot({ path: `${SHOTS}4-lab-hero.png` });
+  log('shot 4: new-strategy hero (prompt-first)');
+
+  // Open 我的策略 (top bar, available from the hero) → the seeded card → it loads into the editor.
   await page.getByRole('button', { name: /我的策略/ }).click();
   await page.locator('.jx-sp-card', { hasText: 'e2e策略' }).waitFor({ timeout: 10000 }); // card grid (sparkline thumbnail)
-  await page.screenshot({ path: `${SHOTS}4-lab.png` });
-  log('shot 4: code workbench + 我的策略 卡片');
-  // load it from the card → name input + Monaco editor reflect the saved strategy
+  await page.screenshot({ path: `${SHOTS}4b-lab-cards.png` });
+  log('shot 4b: 我的策略 卡片');
   await page.locator('.jx-sp-card', { hasText: 'e2e策略' }).click();
+  await page.locator('.jx-lab-code .monaco-editor').waitFor({ timeout: 20000 }); // Monaco chunk + TS worker load
   await page.waitForFunction(
     () => {
       const name = document.querySelector('.jx-lab-field--name input');
@@ -206,9 +211,21 @@ try {
     },
     { timeout: 15000 },
   );
-  log('loaded saved code strategy into the editor');
-  await page.screenshot({ path: `${SHOTS}4b-code-editor.png` });
-  log('shot 4b: strategy code editor (Monaco)');
+  log('loaded saved code strategy into the editor (hero gave way to Monaco)');
+  await page.screenshot({ path: `${SHOTS}4c-code-editor.png` });
+  log('shot 4c: strategy code editor (Monaco)');
+
+  // 新建 with unsaved edits → confirm-save prompt guards data loss; 取消 keeps the current strategy.
+  await page.locator('.jx-lab-field--name input').fill('e2e策略改');
+  await page.getByRole('button', { name: '新建' }).click();
+  await page.getByText('当前策略尚未保存').waitFor({ timeout: 5000 });
+  await page.waitForTimeout(300); // settle the modal open animation
+  await page.screenshot({ path: `${SHOTS}4d-new-dirty-confirm.png` });
+  log('shot 4d: 新建 dirty-guard confirm');
+  // antd inserts a space between the two CJK glyphs ("取 消") → match with a tolerant regex.
+  await page.locator('.ant-modal-footer').getByRole('button', { name: /取\s*消/ }).click();
+  await page.getByText('当前策略尚未保存').waitFor({ state: 'detached', timeout: 5000 }).catch(() => {});
+  await page.locator('.jx-lab-field--name input').fill('e2e策略'); // restore so the optional run/cleanup match by name
 
   // 4c. (opt-in, costs an LLM call) NL→code: describe a strategy → server writes + compiles TS → it
   //     replaces the editor content. Gated by E2E_NL (needs DEEPSEEK_API_KEY).

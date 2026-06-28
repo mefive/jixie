@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useRef, type ReactNode } from 'react';
-import { BrowserRouter, Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
+import {
+  BrowserRouter,
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+  useParams,
+  useSearchParams,
+} from 'react-router-dom';
 import { observer } from 'mobx-react';
 import loginEntry from '@src/complex/login';
 import labEntry from '@src/complex/lab';
@@ -12,19 +20,12 @@ export function AppRoutes() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<ComplexRoute entry={loginEntry} />} />
-        {/* Distinct keys so navigating between pages remounts ComplexRoute (both routes render the
-            same component type at the same position; without a key React reuses the instance and only
-            swaps the `entry` prop, leaving the previous page's store/render in place). */}
+        {/* The backtest workbench lives at a stable /lab route; bare "/" just redirects there. */}
+        <Route path="/" element={<Navigate to="/lab" replace />} />
+        {/* Distinct keys so navigating between pages remounts ComplexRoute (without a key React reuses
+            the instance and only swaps the `entry` prop, leaving the previous page's store/render in place). */}
         <Route
-          path="/"
-          element={
-            <RequireAuth>
-              <LabRoute />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/lab/:id"
+          path="/lab"
           element={
             <RequireAuth>
               <LabRoute />
@@ -47,7 +48,7 @@ export function AppRoutes() {
             </RequireAuth>
           }
         />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<Navigate to="/lab" replace />} />
       </Routes>
     </BrowserRouter>
   );
@@ -63,12 +64,14 @@ function StockRoute() {
   return <ComplexRoute key={code} entry={stockEntry} setupParams={setupParams} />;
 }
 
-// Backtest workbench: `/` = fresh strategy; `/lab/:id` = a saved strategy (loaded on mount → refresh-safe).
-// Key by id so switching strategies remounts the store.
+// Backtest workbench: `/lab` = fresh strategy; `/lab?id=<sid>` = a saved strategy (loaded on mount →
+// refresh-safe). The strategy id rides as a query param (a plain parameter, not a REST resource path).
+// Key by it so switching strategies remounts the store.
 function LabRoute() {
-  const { id } = useParams();
-  const setupParams = useMemo(() => ({ id: id ?? '' }), [id]);
-  return <ComplexRoute key={id ?? 'new'} entry={labEntry} setupParams={setupParams} />;
+  const [searchParams] = useSearchParams();
+  const id = searchParams.get('id') ?? '';
+  const setupParams = useMemo(() => ({ id }), [id]);
+  return <ComplexRoute key={id || 'new'} entry={labEntry} setupParams={setupParams} />;
 }
 
 // Wire a complex's store lifecycle into react-router: createInstance on mount,

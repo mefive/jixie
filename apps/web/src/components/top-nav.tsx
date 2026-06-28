@@ -15,7 +15,7 @@ export const TopNav = observer(() => {
       <div className="jx-topnav-left">
         <img className="jx-topnav-banner" src={banner} alt="机械交易系" />
         <nav className="jx-topnav-nav">
-          <NavLink to="/" end className={linkClass}>
+          <NavLink to="/lab" end className={linkClass}>
             回测工作台
           </NavLink>
           <NavLink to="/screen" className={linkClass}>
