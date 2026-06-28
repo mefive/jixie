@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { extractCode, nlToCode } from './nl-to-code.js';
+import { extractCode, nlToCode, referencedIndices, refusalReason } from './nl-to-code.js';
 import { buildCodegenPrompt } from './codegen-prompt.js';
 import type { LlmCall } from '../../llm/nl-to-structured.js';
 
@@ -14,12 +14,27 @@ describe('extractCode', () => {
   });
 });
 
+describe('refusalReason', () => {
+  it('detects the CANNOT sentinel (ascii or CJK colon), else null', () => {
+    expect(refusalReason('CANNOT: 没有行业数据')).toBe('没有行业数据');
+    expect(refusalReason('CANNOT：中文冒号也行')).toBe('中文冒号也行');
+    expect(refusalReason('export default defineStrategy({})')).toBeNull();
+  });
+});
+
 describe('buildCodegenPrompt', () => {
-  it('documents the SDK + the no-import rule', () => {
+  it('documents the SDK, the no-import rule, indicators, and the refuse rule', () => {
     const p = buildCodegenPrompt();
-    expect(p).toContain('ctx.select()');
+    expect(p).toContain('ctx.select(');
     expect(p).toContain('defineStrategy');
     expect(p).toContain('不要写任何 import');
+    expect(p).toContain('ctx.sma'); // built-in indicators
+    expect(p).toContain('CANNOT:'); // refuse-don't-fabricate
+    expect(p).toContain('ensureBars');
+  });
+
+  it('interpolates the available index list', () => {
+    expect(buildCodegenPrompt('沪深300=000300.SH')).toContain('沪深300=000300.SH');
   });
 });
 
@@ -59,9 +74,40 @@ describe('nlToCode (compile-validate + repair)', () => {
 
   it('always broken → ok=false with the last error', async () => {
     const llm: LlmCall = vi.fn(async () => `const x = ;`);
-    const r = await nlToCode('随便', llm, 1);
+    const r = await nlToCode('随便', llm, { maxRepairs: 1 });
     expect(r.ok).toBe(false);
     expect(r.attempts).toBe(2);
     expect(r.error).toBeTruthy();
+  });
+
+  it('refuses (no compile, no repair) when the model returns CANNOT', async () => {
+    const llm = vi.fn<LlmCall>(async () => 'CANNOT: 暂无营收增速数据,可改用 ROE 或 EP');
+    const r = await nlToCode('营收增速最高的50只', llm);
+    expect(r.ok).toBe(false);
+    expect(r.refused).toBe(true);
+    expect(r.error).toContain('营收');
+    expect(r.attempts).toBe(1);
+    expect(llm).toHaveBeenCalledTimes(1); // short-circuits the repair loop
+  });
+
+  it('refuses compilable code that names an unsynced index (deterministic guard)', async () => {
+    const code = `export default defineStrategy({ async onBar(ctx) { const p = (await ctx.select('000903.SH')).top(10); ctx.equalWeight(p); } });`;
+    const llm = vi.fn<LlmCall>(async () => code);
+    const r = await nlToCode('中证100高股息', llm, {
+      syncedIndices: ['000300.SH'],
+      availableIndices: '沪深300=000300.SH',
+    });
+    expect(r.ok).toBe(false);
+    expect(r.refused).toBe(true);
+    expect(r.error).toContain('000903.SH');
+  });
+});
+
+describe('referencedIndices', () => {
+  it('extracts index codes from select()/indexMembers() calls', () => {
+    expect(
+      referencedIndices(`(await ctx.select('000300.SH')); await ctx.indexMembers("000905.SH")`),
+    ).toEqual(['000300.SH', '000905.SH']);
+    expect(referencedIndices(`(await ctx.select()).top(10)`)).toEqual([]);
   });
 });

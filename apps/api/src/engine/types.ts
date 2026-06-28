@@ -57,6 +57,8 @@ export interface BarRow {
   totalMv: number | null; // total market cap (10k yuan)
   circMv: number | null; // circulating market cap (10k yuan)
   turnoverRate: number | null; // turnover %
+  roe: number | null; // 净资产收益率 %, point-in-time (latest report public as-of today)
+  roeWaa: number | null; // 加权平均净资产收益率 %
 }
 
 /** What the strategy sees and acts through, each bar. */
@@ -89,6 +91,9 @@ export interface BarContext {
   /** Optional precomputed column lookup (only the factors the strategy declared in `factors`). The
    * engine treats these as opaque preloaded data; it does not know what they mean. As-of `date`. */
   factor(name: string, code: string): number | null;
+  /** Point-in-time constituents of an index (e.g. '000300.SH' 沪深300) as of today — the codes from the
+   * latest monthly snapshot ≤ today. Async (lazily loads the index's snapshots on first use). */
+  indexMembers(indexCode: string): Promise<string[]>;
 
   // —— Orders ——
   // Declarative (target-book): fits cross-sectional rebalancing, maps cleanly to a web form later.

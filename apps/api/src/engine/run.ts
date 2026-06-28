@@ -134,6 +134,9 @@ function buildContext(
     factor(name, code) {
       return data.factor(name, date, code);
     },
+    indexMembers(indexCode) {
+      return data.indexMembers(indexCode, date);
+    },
     shares(code) {
       return pf.positions.get(code)?.shares ?? 0;
     },

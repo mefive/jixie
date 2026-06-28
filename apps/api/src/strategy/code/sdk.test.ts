@@ -3,13 +3,18 @@ import { Selection, enrich, periodKey } from './sdk.js';
 import type { BarContext, BarRow } from '../../engine/types.js';
 
 // A bag of fake today-rows keyed by code, plus listDays, behind a minimal BarContext for Selection.
-function ctxOf(rows: Record<string, Partial<BarRow>>, listDays: Record<string, number> = {}) {
+function ctxOf(
+  rows: Record<string, Partial<BarRow>>,
+  listDays: Record<string, number> = {},
+  members: Record<string, string[]> = {},
+) {
   const setHoldingsArg: { value: Record<string, number> | null } = { value: null };
   const ctx = {
     date: '20240131',
     bar: (c: string) => (rows[c] ? ({ code: c, ...rows[c] } as BarRow) : null),
     listDays: (c: string) => listDays[c] ?? null,
     universe: async () => Object.keys(rows),
+    indexMembers: async (idx: string) => members[idx] ?? [],
     setHoldings: (w: Record<string, number>) => (setHoldingsArg.value = w),
   } as unknown as BarContext;
   return { ctx, setHoldingsArg };
@@ -71,6 +76,16 @@ describe('enrich', () => {
     const { ctx } = ctxOf({ A: { peTtm: 10 }, B: { peTtm: 20 } });
     const sel = await enrich(ctx).select();
     expect(sel.codes().sort()).toEqual(['A', 'B']);
+  });
+
+  it('select(indexCode) restricts to that index’s point-in-time members ∩ universe', async () => {
+    const { ctx } = ctxOf(
+      { A: {}, B: {}, C: {} },
+      {},
+      { '000300.SH': ['A', 'C', 'Z'] }, // Z not in universe → dropped
+    );
+    const sel = await enrich(ctx).select('000300.SH');
+    expect(sel.codes().sort()).toEqual(['A', 'C']);
   });
 
   it('period() reflects the schedule bucket', () => {

@@ -19,6 +19,7 @@ interface BarRow {
   pe: number | null; peTtm: number | null; pb: number | null; ps: number | null; psTtm: number | null;
   dvRatio: number | null; dvTtm: number | null;
   totalMv: number | null; circMv: number | null; turnoverRate: number | null;
+  roe: number | null; roeWaa: number | null; // 净资产收益率 % (point-in-time)
 }
 
 type Schedule = 'daily' | 'weekly' | 'monthly';
@@ -47,12 +48,27 @@ interface StrategyCtx {
   readonly value: number;
   positions(): { code: string; shares: number; avgCost: number; marketValue: number }[];
 
-  /** Today's tradable cross-section as a chainable selection (loads the panel; bar() valid after). */
-  select(): Promise<Selection>;
+  /** Today's tradable cross-section as a chainable selection (loads the panel; bar() valid after).
+   * Pass an index code (e.g. '000300.SH' 沪深300) to restrict to its point-in-time constituents. */
+  select(indexCode?: string): Promise<Selection>;
   /** Period key for today on a schedule — compare to a \`let last\` to fire once per period. */
   period(schedule: Schedule): string;
   /** Equal-weight the codes (a target-book rebalance at next open). */
   equalWeight(codes: string[]): void;
+  /** Point-in-time constituents of an index (e.g. '000300.SH' 沪深300) as of today. */
+  indexMembers(indexCode: string): Promise<string[]>;
+
+  // 内置技术指标(需该票 K 线已加载:watch 或 ensureBars;数据不足返 null)
+  /** n 日简单均线。 */
+  sma(code: string, n: number): number | null;
+  /** n 日指数均线。 */
+  ema(code: string, n: number): number | null;
+  /** n 日 ATR(平均真实波幅)。 */
+  atr(code: string, n: number): number | null;
+  /** 最近 n 根某字段的最高(唐奇安上轨)。 */
+  highest(code: string, field: 'open' | 'high' | 'low' | 'close', n: number): number | null;
+  /** 最近 n 根某字段的最低(唐奇安下轨)。 */
+  lowest(code: string, field: 'open' | 'high' | 'low' | 'close', n: number): number | null;
 
   /** Today's tradable codes (loads the panel; makes bar() valid). */
   universe(): Promise<string[]>;
