@@ -1,4 +1,4 @@
-import type { BacktestConfig } from './backtest.js';
+import type { BacktestConfig, BacktestSummary } from './backtest.js';
 import type { ScreenSpec } from './screen.js';
 
 /**
@@ -16,9 +16,10 @@ export interface SavedMeta {
   updatedAt: string;
 }
 
-/** A saved strategy with its full BacktestConfig payload. */
+/** A saved strategy with its full BacktestConfig payload + the last run's result (shown on reopen). */
 export interface SavedStrategy extends SavedMeta {
   config: BacktestConfig;
+  lastResult?: BacktestSummary | null;
 }
 
 /** A saved screen query with its full ScreenSpec payload. */
