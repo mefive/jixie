@@ -38,6 +38,12 @@ export class EngineData {
   private barsCache = new Map<string, StockBars>();
   private factorByKey = new Map<string, Map<string, number>>(); // `${factor}|${date}` -> code -> value
   private factorDates = new Map<string, string[]>(); // factor -> ascending dates it has values on
+  // Point-in-time fundamentals (ROE), loaded lazily on first cross-section build (cross-section work is
+  // the only place they're read). code -> reports ascending by annDate.
+  private finaByCode = new Map<string, { annDate: string; roe: number | null; roeWaa: number | null }[]>();
+  private finaLoaded = false;
+  // Index constituents per index, loaded lazily. indexCode -> { dates ascending, members per date }.
+  private indexCache = new Map<string, { dates: string[]; membersByDate: Map<string, Set<string>> }>();
 
   constructor(
     private start: string,
@@ -96,6 +102,7 @@ export class EngineData {
     const hit = this.crossCache.get(date);
     if (hit) return hit;
 
+    await this.ensureFina();
     const [px, adj, db] = await Promise.all([
       prisma.daily.findMany({
         where: { tradeDate: date },
@@ -119,6 +126,7 @@ export class EngineData {
       const p = pxMap.get(r.tsCode);
       const f = adjMap.get(r.tsCode);
       if (!p || f == null || p.close == null) continue; // not tradable that day
+      const fina = this.roeAsOf(r.tsCode, date);
       byCode.set(r.tsCode, {
         code: r.tsCode,
         open: p.open,
@@ -139,6 +147,8 @@ export class EngineData {
         totalMv: r.totalMv,
         circMv: r.circMv,
         turnoverRate: r.turnoverRate,
+        roe: fina?.roe ?? null,
+        roeWaa: fina?.roeWaa ?? null,
       });
       codes.push(r.tsCode);
     }
@@ -154,6 +164,67 @@ export class EngineData {
     const j = leFloor(dates, date);
     if (j < 0) return null;
     return this.factorByKey.get(`${name}|${dates[j]}`)?.get(code) ?? null;
+  }
+
+  /** Load all financial indicators once (PIT-gated by annDate), grouped by code ascending. */
+  private async ensureFina(): Promise<void> {
+    if (this.finaLoaded) return;
+    this.finaLoaded = true;
+    const rows = await prisma.finaIndicator.findMany({
+      where: { annDate: { not: null } }, // only reports with a public date can be used point-in-time
+      select: { tsCode: true, annDate: true, roe: true, roeWaa: true },
+      orderBy: [{ tsCode: 'asc' }, { annDate: 'asc' }],
+    });
+    for (const r of rows) {
+      let list = this.finaByCode.get(r.tsCode);
+      if (!list) this.finaByCode.set(r.tsCode, (list = []));
+      list.push({ annDate: r.annDate!, roe: r.roe, roeWaa: r.roeWaa });
+    }
+  }
+
+  /** Latest financial report public as-of `date` for `code` (point-in-time), or null. */
+  private roeAsOf(code: string, date: string): { roe: number | null; roeWaa: number | null } | null {
+    const list = this.finaByCode.get(code);
+    if (!list || !list.length) return null;
+    let lo = 0;
+    let hi = list.length - 1;
+    let ans = -1;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      if (list[mid].annDate <= date) {
+        ans = mid;
+        lo = mid + 1;
+      } else hi = mid - 1;
+    }
+    return ans < 0 ? null : list[ans];
+  }
+
+  /** Point-in-time constituents of `indexCode` as of `date` (codes from the latest snapshot ≤ date). */
+  async indexMembers(indexCode: string, date: string): Promise<string[]> {
+    let idx = this.indexCache.get(indexCode);
+    if (!idx) {
+      const rows = await prisma.indexWeight.findMany({
+        where: { indexCode },
+        select: { conCode: true, tradeDate: true },
+        orderBy: { tradeDate: 'asc' },
+      });
+      const membersByDate = new Map<string, Set<string>>();
+      for (const r of rows) {
+        let s = membersByDate.get(r.tradeDate);
+        if (!s) membersByDate.set(r.tradeDate, (s = new Set()));
+        s.add(r.conCode);
+      }
+      idx = { dates: [...membersByDate.keys()].sort(), membersByDate };
+      this.indexCache.set(indexCode, idx);
+    }
+    // No snapshots at all = this index's constituents were never synced — fail loudly rather than
+    // silently trade nothing (a date before the first snapshot legitimately returns []).
+    if (idx.dates.length === 0) {
+      throw new Error(`指数 ${indexCode} 未收录成分数据(无法限定到该指数)`);
+    }
+    const j = leFloor(idx.dates, date);
+    if (j < 0) return [];
+    return [...(idx.membersByDate.get(idx.dates[j]) ?? [])];
   }
 
   /** Batch-load (and cache) daily adjusted bar series for any codes not yet cached. */
