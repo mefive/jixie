@@ -111,6 +111,10 @@
   white-space: pre-wrap;
 }
 
+.jx-lab-resultBar {
+  @apply flex justify-end;
+}
+
 .jx-lab-metrics {
   @apply grid gap-3;
   grid-template-columns: repeat(3, 1fr);

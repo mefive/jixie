@@ -1,6 +1,6 @@
-import { lazy, Suspense, useEffect, useRef } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import classNames from 'classnames';
-import { Button, DatePicker, Input, InputNumber } from 'antd';
+import { Button, DatePicker, Input, InputNumber, Modal } from 'antd';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 import { faPlay, faSpinner, faWandMagicSparkles } from '@fortawesome/free-solid-svg-icons';
@@ -16,6 +16,7 @@ const ymd = (s: string) => (s ? dayjs(s, 'YYYYMMDD') : null);
 
 const NavChart = lazy(() => import('./nav-chart'));
 const CodeEditor = lazy(() => import('./code-editor'));
+const TradeDetail = lazy(() => import('./trade-detail'));
 
 /**
  * Backtest workbench — code-first. The strategy is TypeScript the user writes against the SDK
@@ -152,6 +153,7 @@ const StrategyCode = complex.component(() => {
 const ResultPanel = complex.component(() => {
   const store = complex.useStore();
   const loader = store.backtestLoader;
+  const [tradesOpen, setTradesOpen] = useState(false);
 
   if (loader.loading) {
     return <RunningLog lines={store.logLines} />;
@@ -195,9 +197,28 @@ const ResultPanel = complex.component(() => {
           </div>
         ))}
       </div>
+      {r.tradeLog.length > 0 && (
+        <div className="jx-lab-resultBar">
+          <Button size="small" onClick={() => setTradesOpen(true)}>
+            交易详情（{r.trades.toLocaleString()} 笔）
+          </Button>
+        </div>
+      )}
       <Suspense fallback={<div className="jx-lab-placeholder">加载图表…</div>}>
         <NavChart nav={r.nav} up={up} />
       </Suspense>
+      <Modal
+        open={tradesOpen}
+        onCancel={() => setTradesOpen(false)}
+        footer={null}
+        title="交易详情"
+        width={920}
+        destroyOnHidden
+      >
+        <Suspense fallback={<div className="jx-lab-placeholder">加载交易…</div>}>
+          <TradeDetail nav={r.nav} tradeLog={r.tradeLog} />
+        </Suspense>
+      </Modal>
     </>
   );
 }, 'ResultPanel');
