@@ -21,7 +21,7 @@ const PERIODS_PER_YEAR = 252; // trading days
 export async function runStrategy(cfg: EngineConfig): Promise<BacktestResult> {
   const cost = { ...DEFAULT_COST, ...cfg.cost };
   const log = cfg.onLog ?? (() => {}); // progress sink (worker forwards to the job; scripts no-op)
-  const data = new EngineData(cfg.start, cfg.end, cfg.strategy.factors ?? []);
+  const data = new EngineData(cfg.start, cfg.end, cfg.strategy.factors ?? [], log);
   await data.load();
   if (cfg.strategy.watch?.length) await data.loadBars(cfg.strategy.watch); // per-instrument preload
   const pf = new Portfolio(cfg.initialCash, cost);
