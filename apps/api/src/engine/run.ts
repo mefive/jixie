@@ -130,6 +130,9 @@ function buildContext(
     industry(code) {
       return data.industry(code);
     },
+    lhbNet(code) {
+      return data.lhbNet(code, date);
+    },
     price(code) {
       return data.closeAt(code, date);
     },

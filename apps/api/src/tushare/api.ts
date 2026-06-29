@@ -121,6 +121,22 @@ export async function stkLimit(
   return rows as unknown as StkLimitRow[];
 }
 
+export interface TopListRow {
+  ts_code: TsCode;
+  trade_date: TradeDate;
+  net_amount: number | null; // 龙虎榜净买入额 (元)
+}
+
+/** 龙虎榜 (Dragon-Tiger List): stocks with abnormal activity that day. A stock can appear on multiple
+ * 榜单 (reasons) → multiple rows/day; the sync sums net_amount per (code, date). 关注度/游资 极端信号。 */
+export async function topList(
+  client: TushareClient,
+  params: { trade_date?: TradeDate; ts_code?: TsCode } = {},
+): Promise<TopListRow[]> {
+  const rows = await client.call('top_list', params, 'ts_code,trade_date,net_amount');
+  return rows as unknown as TopListRow[];
+}
+
 export interface MoneyflowRow {
   ts_code: TsCode;
   trade_date: TradeDate;
