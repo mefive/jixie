@@ -63,6 +63,18 @@ model AdjFactor {
   @@index([tradeDate])
 }
 
+/// Daily price limits (unadjusted 涨/跌停价). The engine blocks buys at the up-limit open and sells at
+/// the down-limit open (covers board-specific limits: 主板±10/ST±5/双创±20/北交所±30).
+model StkLimit {
+  tsCode    String
+  tradeDate String
+  upLimit   Float // 涨停价 (raw)
+  downLimit Float // 跌停价 (raw)
+
+  @@id([tsCode, tradeDate])
+  @@index([tradeDate])
+}
+
 /// Daily valuation metrics (point-in-time by construction). Unlocks value/dividend/size factors.
 model DailyBasic {
   tsCode       String

@@ -99,6 +99,28 @@ export async function adjFactor(
   return rows as unknown as AdjFactorRow[];
 }
 
+export interface StkLimitRow {
+  ts_code: TsCode;
+  trade_date: TradeDate;
+  up_limit: number; // 涨停价 (unadjusted)
+  down_limit: number; // 跌停价 (unadjusted)
+}
+
+/** Daily up/down price limits (unadjusted). Used to block fills at the limit (涨停不可买、跌停不可卖).
+ * Limits are board-specific (主板±10/ST±5/双创±20/北交所±30) — Tushare returns the actual price. */
+export async function stkLimit(
+  client: TushareClient,
+  params: {
+    ts_code?: TsCode;
+    trade_date?: TradeDate;
+    start_date?: TradeDate;
+    end_date?: TradeDate;
+  } = {},
+): Promise<StkLimitRow[]> {
+  const rows = await client.call('stk_limit', params, 'ts_code,trade_date,up_limit,down_limit');
+  return rows as unknown as StkLimitRow[];
+}
+
 export interface DailyBasicRow {
   ts_code: TsCode;
   trade_date: TradeDate;
