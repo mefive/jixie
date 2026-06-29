@@ -100,25 +100,47 @@ export class EngineData {
   }
 
   /**
-   * Whole-market cross-section for `date` (lazy + cached). A code is included only if it has a daily
-   * bar, an adjustment factor, and a valuation row that day (i.e. it actually traded with valuation).
+   * Tradable cross-section for `date` (lazy + cached). A code is included only if it has a daily bar, an
+   * adjustment factor, and a valuation row that day (i.e. it actually traded with valuation).
+   *
+   * Pass `indexCode` to restrict to that index's point-in-time constituents — the restriction is **pushed
+   * into the DB query** (only those rows are read), not filtered in memory afterwards. This is the engine's
+   * "universe selection" data gate (cf. LEAN coarse/fine): 沪深300 reads ~300 rows not 5370 (~15×), 中证2000
+   * ~2000 (~2×). Index-scoped panels cache under `indexCode|date`; a full panel under `date`.
    */
-  async crossSection(date: string): Promise<CrossSection> {
-    const hit = this.crossCache.get(date);
+  async crossSection(date: string, indexCode?: string): Promise<CrossSection> {
+    const cacheKey = indexCode ? `${indexCode}|${date}` : date;
+    const hit = this.crossCache.get(cacheKey);
     if (hit) return hit;
 
     await this.ensureFina();
+
+    let where: { tradeDate: string; tsCode?: { in: string[] } } = { tradeDate: date };
+    if (indexCode) {
+      const members = await this.indexMembers(indexCode, date); // throws if the index was never synced
+      const full = this.crossCache.get(date);
+      if (full) {
+        // The full-market panel for today is already loaded — derive the index subset from it, no requery.
+        const set = new Set(members);
+        const byCode = new Map([...full.byCode].filter(([c]) => set.has(c)));
+        const cs: CrossSection = { codes: [...byCode.keys()].sort(), byCode };
+        this.crossCache.set(cacheKey, cs);
+        return cs;
+      }
+      where = { tradeDate: date, tsCode: { in: members } };
+    }
+
     const [px, adj, db] = await Promise.all([
       prisma.daily.findMany({
-        where: { tradeDate: date },
+        where,
         select: { tsCode: true, open: true, high: true, low: true, close: true, vol: true, amount: true },
       }),
       prisma.adjFactor.findMany({
-        where: { tradeDate: date },
+        where,
         select: { tsCode: true, adjFactor: true },
       }),
       prisma.dailyBasic.findMany({
-        where: { tradeDate: date },
+        where,
         // Only the valuation columns BarRow exposes. Fetching the full row roughly doubled the per-day
         // cost — Prisma row deserialization dominates the cross-section (measured 171ms→87ms full-market).
         select: {
@@ -175,7 +197,7 @@ export class EngineData {
     }
     codes.sort(); // ascending universe — replaces the dropped DB orderBy, keeps tie-breaks deterministic
     const cs: CrossSection = { codes, byCode };
-    this.crossCache.set(date, cs);
+    this.crossCache.set(cacheKey, cs);
     return cs;
   }
 

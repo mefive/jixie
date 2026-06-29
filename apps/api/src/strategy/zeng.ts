@@ -416,7 +416,7 @@ export async function makeZengStrategy(opts: ZengOpts): Promise<Strategy> {
 
       // Cheap prefilter (in-memory): quality + dividend yield. Narrows ~5000 → a few dozen before
       // the (relatively) expensive MA window load, which we then run only for the candidates.
-      const universe = await ctx.universe();
+      const universe = await ctx.loadCrossSection();
       const cand: { code: string; adjClose: number | null }[] = [];
       for (const code of universe) {
         if (held.has(code)) continue;
