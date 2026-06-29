@@ -16,8 +16,9 @@ const PERIODS_PER_YEAR = 252; // trading days
  * MVP simplifications (documented): hfq prices for marking + internal accounting (total return, dividends
  * reinvested via adj — no explicit cash-dividend events); buys size in whole 手 (100-share lots) of REAL
  * shares (floored), so trades are realistically tradable while marking stays hfq; fills at next-day open;
- * T+1 enforced; costs applied. Limit-up/down, ST and suspension *blocking*
- * are Phase 2 (need the second data batch) — a suspended stock simply gets no fill that day.
+ * T+1 enforced; costs applied; 涨停板不可买、跌停板不可卖 (blocked at the limit open); a suspended stock
+ * gets no fill that day. A blocked order is NOT carried over — the strategy re-expresses intent each bar
+ * (condition-based exits re-fire daily until fillable). ST filtering is left to the strategy.
  */
 export async function runStrategy(cfg: EngineConfig): Promise<BacktestResult> {
   const cost = { ...DEFAULT_COST, ...cfg.cost };
@@ -187,14 +188,16 @@ function rebalance(
     if (px == null) continue;
     if (pos.frozenUntil > date) continue;
     const tgt = targetShares.get(code) ?? 0;
-    if (tgt < pos.shares) pf.fill(code, tgt - pos.shares, px, date, sellableFrom, data.adjAt(code, date)!);
+    if (tgt < pos.shares && !limitBlocked(data, code, date, 'sell', px))
+      pf.fill(code, tgt - pos.shares, px, date, sellableFrom, data.adjAt(code, date)!);
   }
 
   // Buys.
   for (const [code, tgt] of targetShares) {
     const px = openOf(code)!;
     const cur = pf.positions.get(code)?.shares ?? 0;
-    if (tgt > cur) pf.fill(code, tgt - cur, px, date, sellableFrom, data.adjAt(code, date)!);
+    if (tgt > cur && !limitBlocked(data, code, date, 'buy', px))
+      pf.fill(code, tgt - cur, px, date, sellableFrom, data.adjAt(code, date)!);
   }
 }
 
@@ -217,16 +220,39 @@ function executeOrders(
     const pos = pf.positions.get(code);
     if (px == null || !pos || pos.frozenUntil > date) continue; // suspended or T+1-frozen
     const sell = Math.min(-delta, pos.shares);
-    if (sell > 0) pf.fill(code, -sell, px, date, sellableFrom, data.adjAt(code, date)!);
+    if (sell > 0 && !limitBlocked(data, code, date, 'sell', px))
+      pf.fill(code, -sell, px, date, sellableFrom, data.adjAt(code, date)!);
   }
 
   for (const [code, delta] of orders) {
     if (delta <= 0) continue;
     const px = data.openAt(code, date);
     if (px == null || px <= 0) continue; // suspended
+    if (limitBlocked(data, code, date, 'buy', px)) continue; // 涨停封板 — can't buy
     const buy = Math.min(delta, pf.affordableShares(px));
     if (buy > 0) pf.fill(code, buy, px, date, sellableFrom, data.adjAt(code, date)!);
   }
+}
+
+/** True if a fill is blocked by the day's price limit: you can't buy at/above the up-limit open nor sell
+ * at/below the down-limit open (一字板/封板). Limits are unadjusted, so compare against raw open
+ * (hfqOpen / adj). No limit data for the day → not blocked (can't tell). */
+function limitBlocked(
+  data: EngineData,
+  code: string,
+  date: string,
+  side: 'buy' | 'sell',
+  hfqOpen: number,
+): boolean {
+  const lim = data.limitAt(code, date);
+  if (!lim) return false;
+  const adj = data.adjAt(code, date);
+  if (adj == null || adj <= 0) return false;
+  const rawOpen = hfqOpen / adj;
+  const EPS = 1e-3;
+  return side === 'buy'
+    ? lim.up != null && rawOpen >= lim.up - EPS
+    : lim.down != null && rawOpen <= lim.down + EPS;
 }
 
 function summarize(

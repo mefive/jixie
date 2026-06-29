@@ -24,6 +24,7 @@
     "sync:basic": "tsx --env-file=.env scripts/sync-basic.ts",
     "sync:fina": "tsx --env-file=.env scripts/sync-fina.ts",
     "sync:index": "tsx --env-file=.env scripts/sync-index.ts",
+    "sync:limit": "tsx --env-file=.env scripts/sync-limit.ts",
     "peek": "tsx --env-file=.env scripts/peek.ts"
   },
   "dependencies": {
