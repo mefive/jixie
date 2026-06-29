@@ -35,6 +35,7 @@ export function buildCodegenPrompt(availableIndices: string = DEFAULT_INDICES): 
 - ctx.date / ctx.cash / ctx.value:今天的日期、现金、总权益
 - ctx.period('daily'|'weekly'|'monthly'):今天的周期键(配合 \`let last\` 实现"每月/每周只做一次")
 - ctx.shares(code):持仓股数;ctx.price(code):今日后复权收盘价
+- ctx.industry(code):行业标签(如 '银行'/'白酒',当前分类非时点,未知返 null)—— 行业中性 / 轮动 / 限定某行业
 - ctx.history(code, 'open'|'high'|'low'|'close', n) / ctx.bars(code, n):最近 n 个后复权价 / OHLC
 - **内置指标**(优先用,别手搓;都需该票 K 线已加载,数据不足返 null):
   ctx.sma(code,n) / ctx.ema(code,n) / ctx.atr(code,n) / ctx.highest(code,field,n) / ctx.lowest(code,field,n)
@@ -130,6 +131,28 @@ export default defineStrategy({
       .dropBottom(0.5, b => b.amount ?? 0) // 先保流动性
       .rankBy((b, code) => ctx.factor('mf_net_main', code)) // 主力净流入降序
       .top(20);
+    ctx.equalWeight(picks);
+  },
+});
+
+# 示例五:行业中性 —— 每月每个行业取 EP 最高的 3 只,等权(用 ctx.industry 分组限额)
+let last = '';
+export default defineStrategy({
+  name: '行业中性·每行业EP前3',
+  async onBar(ctx) {
+    if (ctx.period('monthly') === last) return;
+    last = ctx.period('monthly');
+    const ranked = (await ctx.universe())
+      .minListDays(365)
+      .where(b => b.peTtm != null && b.peTtm > 0)
+      .rankBy(b => 1 / b.peTtm)             // EP 降序
+      .codes();
+    const perInd = {}, picks = [];          // 每个行业最多 3 只(按已排好的 EP 顺序)
+    for (const code of ranked) {
+      const ind = ctx.industry(code) ?? '其他';
+      perInd[ind] = (perInd[ind] ?? 0) + 1;
+      if (perInd[ind] <= 3) picks.push(code);
+    }
     ctx.equalWeight(picks);
   },
 });
