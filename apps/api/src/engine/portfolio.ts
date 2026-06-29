@@ -42,10 +42,25 @@ export class Portfolio {
     );
   }
 
-  /** Execute a fill of `delta` shares (+buy / -sell) at `price` on `date`. */
-  fill(code: string, delta: number, price: number, date: string, sellableFrom: string): void {
-    if (Math.abs(delta) < 1e-9 || price <= 0) return;
-    const value = Math.abs(delta) * price;
+  /** Execute a fill of `delta` hfq shares (+buy / -sell) at hfq `price` on `date`. `adj` is the day's
+   * adj_factor, used to enforce A股's whole-手 (100-share) lots in REAL shares and to record the real
+   * (unadjusted) price/shares the user sees. Buys floor to whole 手 (deploy ≤ budget); sells clear the
+   * requested hfq amount as-is (so positions fully exit — no hfq dust from dividend drift over the hold). */
+  fill(code: string, delta: number, price: number, date: string, sellableFrom: string, adj: number): void {
+    if (Math.abs(delta) < 1e-9 || price <= 0 || adj <= 0) return;
+
+    let realShares: number;
+    if (delta > 0) {
+      const realLots = Math.floor((delta * adj) / 100) * 100; // real shares, floored to whole 手
+      if (realLots < 100) return; // can't afford even one 手
+      delta = realLots / adj; // back to hfq for the ledger (marking stays hfq)
+      realShares = realLots; // exact whole 手
+    } else {
+      realShares = Math.abs(delta) * adj; // sell: real count (drifts off 手 by reinvested dividends)
+    }
+
+    const value = Math.abs(delta) * price; // real money (= realShares × realPrice)
+    const realPrice = price / adj;
     let fee: number;
 
     if (delta > 0) {
@@ -72,6 +87,8 @@ export class Portfolio {
       price,
       amount: value,
       fee,
+      realShares,
+      realPrice,
     });
   }
 }
