@@ -85,6 +85,8 @@ interface StrategyCtx {
   ensureBars(codes: string[]): Promise<void>;
   /** Calendar days since listing as of today; null if unknown. */
   listDays(code: string): number | null;
+  /** 行业标签(当前分类,非时点),如 '银行'/'白酒';null 未知。用于行业中性 / 轮动 / 限定某行业。 */
+  industry(code: string): string | null;
   /** Today's adjusted close (carried forward if suspended). */
   price(code: string): number | null;
   /** Last n adjusted prices up to today for held/loaded codes. */

@@ -39,6 +39,7 @@ export class EngineData {
   timeline: string[] = [];
   private nextDayOf = new Map<string, string>();
   private listDateOf = new Map<string, string>();
+  private industryOf = new Map<string, string>(); // code -> industry label (current, not point-in-time)
   private crossCache = new Map<string, CrossSection>();
   private barsCache = new Map<string, StockBars>();
   private factorByKey = new Map<string, Map<string, number>>(); // `${factor}|${date}` -> code -> value
@@ -71,8 +72,12 @@ export class EngineData {
     }
 
     // List dates: used for the point-in-time "stock age" primitive (exclude recently-listed).
-    const sb = await prisma.stockBasic.findMany({ select: { tsCode: true, listDate: true } });
-    for (const s of sb) this.listDateOf.set(s.tsCode, s.listDate);
+    // Industry: a current label per stock (Tushare's classification) — for sector-neutral / rotation logic.
+    const sb = await prisma.stockBasic.findMany({ select: { tsCode: true, listDate: true, industry: true } });
+    for (const s of sb) {
+      this.listDateOf.set(s.tsCode, s.listDate);
+      if (s.industry) this.industryOf.set(s.tsCode, s.industry);
+    }
 
     // Optional precomputed factor columns (only the ones a strategy asked for).
     if (this.factorKeys.length) {
@@ -100,6 +105,11 @@ export class EngineData {
   listDays(code: string, date: string): number | null {
     const ld = this.listDateOf.get(code);
     return ld ? daysBetween(ld, date) : null;
+  }
+
+  /** Industry label for `code` (current classification, not point-in-time), or null if unknown. */
+  industry(code: string): string | null {
+    return this.industryOf.get(code) ?? null;
   }
 
   /**

@@ -127,6 +127,9 @@ function buildContext(
     listDays(code) {
       return data.listDays(code, date);
     },
+    industry(code) {
+      return data.industry(code);
+    },
     price(code) {
       return data.closeAt(code, date);
     },
