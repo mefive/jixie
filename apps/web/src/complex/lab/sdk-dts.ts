@@ -26,16 +26,16 @@ interface BarRow {
 
 type Schedule = 'daily' | 'weekly' | 'monthly';
 
-/** A chainable view over today's codes — filter, rank, take a slice. */
-interface Selection {
+/** Today's universe as a chainable view over codes — filter, rank, take a slice. */
+interface Universe {
   /** Keep codes whose today-row passes the predicate. */
-  where(pred: (bar: BarRow, code: string) => boolean): Selection;
+  where(pred: (bar: BarRow, code: string) => boolean): Universe;
   /** Keep codes listed at least \`days\` calendar days. */
-  minListDays(days: number): Selection;
+  minListDays(days: number): Universe;
   /** Drop the bottom \`frac\` by \`key\` (e.g. liquidity: dropBottom(0.25, b => b.turnoverRate ?? 0)). */
-  dropBottom(frac: number, key: (bar: BarRow, code: string) => number): Selection;
+  dropBottom(frac: number, key: (bar: BarRow, code: string) => number): Universe;
   /** Rank by a score (null-scoring codes dropped). dir 'desc' = highest first (default). */
-  rankBy(score: (bar: BarRow, code: string) => number | null, dir?: 'desc' | 'asc'): Selection;
+  rankBy(score: (bar: BarRow, code: string) => number | null, dir?: 'desc' | 'asc'): Universe;
   /** Leading slice: a fraction when n < 1 (0.1 = top decile, min 1), else a count. */
   top(n: number): string[];
   /** The current codes. */
@@ -50,9 +50,10 @@ interface StrategyCtx {
   readonly value: number;
   positions(): { code: string; shares: number; avgCost: number; marketValue: number }[];
 
-  /** Today's tradable cross-section as a chainable selection (loads the panel; bar() valid after).
-   * Pass an index code (e.g. '000300.SH' 沪深300) to restrict to its point-in-time constituents. */
-  select(indexCode?: string): Promise<Selection>;
+  /** Today's tradable universe as a chainable selection (loads the panel; bar() valid after). Pass an
+   * index code (e.g. '000300.SH' 沪深300) to restrict to its point-in-time constituents — only those rows
+   * are read (the restriction is pushed into the data load, not filtered in memory). */
+  universe(indexCode?: string): Promise<Universe>;
   /** Period key for today on a schedule — compare to a \`let last\` to fire once per period. */
   period(schedule: Schedule): string;
   /** Equal-weight the codes (a target-book rebalance at next open). */
@@ -76,9 +77,7 @@ interface StrategyCtx {
   /** n 日平均成交量(手)。 */
   avgVol(code: string, n: number): number | null;
 
-  /** Today's tradable codes (loads the panel; makes bar() valid). */
-  universe(): Promise<string[]>;
-  /** Today's full row for a code (valid after select()/universe()), else null. */
+  /** Today's full row for a code (valid after universe() loaded the panel), else null. */
   bar(code: string): BarRow | null;
   /** Last n adjusted OHLC bars up to today for watched/held codes. */
   bars(code: string, n: number): OhlcBar[];

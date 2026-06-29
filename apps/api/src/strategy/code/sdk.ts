@@ -19,8 +19,9 @@ export interface StrategyCtx extends BarContext {
    * `if (ctx.period('monthly') === last) return; last = ctx.period('monthly');` */
   period(schedule: Schedule): string;
   /** Today's tradable universe as a chainable selection (loads the cross-section; bar() valid after).
-   * Pass an index code (e.g. '000300.SH' 沪深300) to restrict to its point-in-time constituents. */
-  select(indexCode?: string): Promise<Selection>;
+   * Pass an index code (e.g. '000300.SH' 沪深300) to restrict to its point-in-time constituents — the
+   * restriction is pushed into the data load (only those rows are read), not filtered in memory after. */
+  universe(indexCode?: string): Promise<Universe>;
   /** Equal-weight the given codes (a target-book rebalance at next open). */
   equalWeight(codes: string[]): void;
 
@@ -50,18 +51,20 @@ export interface CodeStrategy {
   onBar(ctx: StrategyCtx): void | Promise<void>;
 }
 
-/** A chainable view over a set of codes for today — filter, rank, take a slice. Each step returns a new
- * Selection (immutable); the terminal `top`/`codes` returns plain string[]. Cross-section selection
- * without the IR: `(await ctx.select()).minListDays(365).rankBy(b => 1/b.peTtm!).top(0.1)`. */
-export class Selection {
+/** Today's universe as a chainable view over codes — filter, rank, take a slice. Each step returns a new
+ * Universe (immutable); the terminal `top`/`codes` returns plain string[]. The candidate pool the engine
+ * recomputes each bar (cf. industry "universe selection"): `(await ctx.universe('000300.SH'))
+ * .minListDays(365).rankBy(b => 1/b.peTtm!).top(0.1)`. The index restriction (if any) was pushed into the
+ * data load; `where`/`rankBy`/etc. refine the loaded panel in memory. */
+export class Universe {
   constructor(
     private readonly ctx: BarContext,
     private readonly list: string[],
   ) {}
 
   /** Keep codes whose today-row passes the predicate. */
-  where(pred: (bar: BarRow, code: string) => boolean): Selection {
-    return new Selection(
+  where(pred: (bar: BarRow, code: string) => boolean): Universe {
+    return new Universe(
       this.ctx,
       this.list.filter((c) => {
         const b = this.ctx.bar(c);
@@ -71,8 +74,8 @@ export class Selection {
   }
 
   /** Keep codes listed at least `days` calendar days (point-in-time stock age). */
-  minListDays(days: number): Selection {
-    return new Selection(
+  minListDays(days: number): Universe {
+    return new Universe(
       this.ctx,
       this.list.filter((c) => {
         const age = this.ctx.listDays(c);
@@ -82,14 +85,14 @@ export class Selection {
   }
 
   /** Drop the bottom `frac` by `key` (e.g. liquidity: `dropBottom(0.25, b => b.turnoverRate ?? 0)`). */
-  dropBottom(frac: number, key: (bar: BarRow, code: string) => number): Selection {
+  dropBottom(frac: number, key: (bar: BarRow, code: string) => number): Universe {
     const scored = this.list.map((c) => ({ c, k: this.keyOf(c, key) }));
     scored.sort((a, b) => a.k - b.k);
-    return new Selection(this.ctx, scored.slice(Math.floor(scored.length * frac)).map((x) => x.c));
+    return new Universe(this.ctx, scored.slice(Math.floor(scored.length * frac)).map((x) => x.c));
   }
 
   /** Rank by a score (codes scoring null are dropped). `dir` 'desc' = highest first (default). */
-  rankBy(score: (bar: BarRow, code: string) => number | null, dir: 'desc' | 'asc' = 'desc'): Selection {
+  rankBy(score: (bar: BarRow, code: string) => number | null, dir: 'desc' | 'asc' = 'desc'): Universe {
     const scored = this.list
       .map((c) => {
         const b = this.ctx.bar(c);
@@ -97,7 +100,7 @@ export class Selection {
       })
       .filter((x): x is { c: string; s: number } => x.s != null && Number.isFinite(x.s));
     scored.sort((a, b) => (dir === 'desc' ? b.s - a.s : a.s - b.s));
-    return new Selection(this.ctx, scored.map((x) => x.c));
+    return new Universe(this.ctx, scored.map((x) => x.c));
   }
 
   /** Take the leading slice: a fraction when `n < 1` (0.1 = top decile, min 1), else a count. */
@@ -136,12 +139,9 @@ export function defineStrategy(s: CodeStrategy): Strategy {
 export function enrich(ctx: BarContext): StrategyCtx {
   const rich = ctx as StrategyCtx;
   rich.period = (schedule) => periodKey(ctx.date, schedule);
-  rich.select = async (indexCode?: string) => {
-    const all = await ctx.universe();
-    if (!indexCode) return new Selection(ctx, all);
-    const members = new Set(await ctx.indexMembers(indexCode));
-    return new Selection(ctx, all.filter((c) => members.has(c)));
-  };
+  // The index restriction is pushed into the data load (loadCrossSection only reads those rows), not
+  // filtered in memory here — so 沪深300 reads ~300 rows, not the full ~5370. See engine/data crossSection.
+  rich.universe = async (indexCode?: string) => new Universe(ctx, await ctx.loadCrossSection(indexCode));
   rich.equalWeight = (codes) => {
     const w = codes.length ? 1 / codes.length : 0;
     const targets: Record<string, number> = {};

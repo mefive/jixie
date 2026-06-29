@@ -25,7 +25,7 @@ describe('refusalReason', () => {
 describe('buildCodegenPrompt', () => {
   it('documents the SDK, the no-import rule, indicators, and the refuse rule', () => {
     const p = buildCodegenPrompt();
-    expect(p).toContain('ctx.select(');
+    expect(p).toContain('ctx.universe(');
     expect(p).toContain('defineStrategy');
     expect(p).toContain('不要写任何 import');
     expect(p).toContain('ctx.sma'); // built-in indicators
@@ -91,7 +91,7 @@ describe('nlToCode (compile-validate + repair)', () => {
   });
 
   it('refuses compilable code that names an unsynced index (deterministic guard)', async () => {
-    const code = `export default defineStrategy({ async onBar(ctx) { const p = (await ctx.select('000903.SH')).top(10); ctx.equalWeight(p); } });`;
+    const code = `export default defineStrategy({ async onBar(ctx) { const p = (await ctx.universe('000903.SH')).top(10); ctx.equalWeight(p); } });`;
     const llm = vi.fn<LlmCall>(async () => code);
     const r = await nlToCode('中证100高股息', llm, {
       syncedIndices: ['000300.SH'],
@@ -104,10 +104,11 @@ describe('nlToCode (compile-validate + repair)', () => {
 });
 
 describe('referencedIndices', () => {
-  it('extracts index codes from select()/indexMembers() calls', () => {
+  it('extracts index codes from universe()/indexMembers() calls', () => {
     expect(
-      referencedIndices(`(await ctx.select('000300.SH')); await ctx.indexMembers("000905.SH")`),
+      referencedIndices(`(await ctx.universe('000300.SH')); await ctx.indexMembers("000905.SH")`),
     ).toEqual(['000300.SH', '000905.SH']);
-    expect(referencedIndices(`(await ctx.select()).top(10)`)).toEqual([]);
+    expect(referencedIndices(`(await ctx.universe()).top(10)`)).toEqual([]);
+    expect(referencedIndices(`(await ctx.universe('932000.CSI')).top(5)`)).toEqual(['932000.CSI']); // 3-letter suffix
   });
 });
