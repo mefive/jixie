@@ -275,6 +275,17 @@ try {
     await page.keyboard.press('Escape');
   }
 
+  // 6. SDK 文档 standalone page (/docs) — bilingual reference generated from sdk-reference; anchored per method.
+  await page.goto(`${BASE}/docs#universe`, { waitUntil: 'networkidle' });
+  await page.locator('#universe .jx-docs-sig').waitFor({ timeout: 10000 });
+  await page.screenshot({ path: `${SHOTS}6-sdk-docs.png` });
+  log('shot 6: SDK docs page (zh)');
+  await page.getByRole('button', { name: 'EN' }).click();
+  await page.waitForFunction(() => location.search.includes('lang=en'));
+  await page.locator('.jx-docs-langBtn--on', { hasText: 'EN' }).waitFor({ timeout: 4000 });
+  await page.screenshot({ path: `${SHOTS}6b-sdk-docs-en.png` });
+  log('shot 6b: SDK docs page (EN toggle)');
+
   // cleanup seeded + auto-saved strategies for this user
   await page.evaluate(async () => {
     const list = await (await fetch('/api/app/strategies')).json();
