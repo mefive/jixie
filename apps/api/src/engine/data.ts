@@ -15,6 +15,8 @@ interface StockBars {
   adjLow: number[];
   adjClose: number[];
   adj: number[]; // per-date adj_factor — to convert a hfq fill back to real shares/price (整手 sizing)
+  up: (number | null)[]; // raw 涨停价 (null if not synced) — block buys at the up-limit open
+  down: (number | null)[]; // raw 跌停价
   vol: (number | null)[]; // raw (not adjusted)
   amount: (number | null)[];
   idx: Map<string, number>; // date -> index (exact)
@@ -284,7 +286,7 @@ export class EngineData {
   async loadBars(codes: string[]): Promise<void> {
     const missing = codes.filter((c) => !this.barsCache.has(c));
     if (missing.length === 0) return;
-    const [px, adj] = await Promise.all([
+    const [px, adj, lim] = await Promise.all([
       prisma.daily.findMany({
         where: { tsCode: { in: missing }, tradeDate: { gte: this.start, lte: this.end } },
         select: { tsCode: true, tradeDate: true, open: true, high: true, low: true, close: true, vol: true, amount: true },
@@ -294,17 +296,23 @@ export class EngineData {
         where: { tsCode: { in: missing }, tradeDate: { gte: this.start, lte: this.end } },
         select: { tsCode: true, tradeDate: true, adjFactor: true },
       }),
+      prisma.stkLimit.findMany({
+        where: { tsCode: { in: missing }, tradeDate: { gte: this.start, lte: this.end } },
+        select: { tsCode: true, tradeDate: true, upLimit: true, downLimit: true },
+      }),
     ]);
     const adjMap = new Map(adj.map((a) => [`${a.tsCode}|${a.tradeDate}`, a.adjFactor]));
+    const limMap = new Map(lim.map((l) => [`${l.tsCode}|${l.tradeDate}`, l]));
     const tmp = new Map<string, StockBars>();
     for (const c of missing) {
-      tmp.set(c, { dates: [], adjOpen: [], adjHigh: [], adjLow: [], adjClose: [], adj: [], vol: [], amount: [], idx: new Map() });
+      tmp.set(c, { dates: [], adjOpen: [], adjHigh: [], adjLow: [], adjClose: [], adj: [], up: [], down: [], vol: [], amount: [], idx: new Map() });
     }
     for (const r of px) {
       if (r.open == null || r.high == null || r.low == null || r.close == null) continue;
       const f = adjMap.get(`${r.tsCode}|${r.tradeDate}`);
       if (f == null) continue;
       const b = tmp.get(r.tsCode)!;
+      const l = limMap.get(`${r.tsCode}|${r.tradeDate}`);
       b.idx.set(r.tradeDate, b.dates.length);
       b.dates.push(r.tradeDate);
       b.adjOpen.push(r.open * f);
@@ -312,6 +320,8 @@ export class EngineData {
       b.adjLow.push(r.low * f);
       b.adjClose.push(r.close * f);
       b.adj.push(f);
+      b.up.push(l?.upLimit ?? null);
+      b.down.push(l?.downLimit ?? null);
       b.vol.push(r.vol);
       b.amount.push(r.amount);
     }
@@ -333,6 +343,15 @@ export class EngineData {
     if (!b) return null;
     const i = b.idx.get(date);
     return i == null ? null : b.adj[i];
+  }
+
+  /** Raw 涨/跌停价 on exactly `date` (null if the day's limit wasn't synced) — to block fills at the limit. */
+  limitAt(code: string, date: string): { up: number | null; down: number | null } | null {
+    const b = this.barsCache.get(code);
+    if (!b) return null;
+    const i = b.idx.get(date);
+    if (i == null) return null;
+    return { up: b.up[i], down: b.down[i] };
   }
 
   /** Adjusted close as of `date`, carried forward from the last trading day ≤ date (for marking). */

@@ -7,6 +7,7 @@ import {
   daily,
   adjFactor,
   dailyBasic,
+  stkLimit,
   finaIndicator,
   dividend,
   indexWeight,
@@ -180,6 +181,51 @@ export async function syncDailyBasic(
     }
   }
   log('syncDailyBasic 完成');
+}
+
+/**
+ * Sync daily price limits (涨/跌停价) for the range, per trading day (resumable: skips days already
+ * loaded). Mirrors syncDailyBasic — per-day deleteMany + createMany keeps repeated syncs idempotent.
+ */
+export async function syncStkLimit(
+  client: TushareClient,
+  start: TradeDate,
+  end: TradeDate,
+): Promise<void> {
+  let dates = await getOpenDates(start, end);
+  if (dates.length === 0) {
+    await syncTradeCal(client, start, end);
+    dates = await getOpenDates(start, end);
+  }
+  const existing = await prisma.stkLimit.findMany({
+    where: { tradeDate: { gte: start, lte: end } },
+    distinct: ['tradeDate'],
+    select: { tradeDate: true },
+  });
+  const have = new Set(existing.map((e) => e.tradeDate));
+  const todo = dates.filter((d) => !have.has(d));
+  log(`syncStkLimit: 区间 ${dates.length} 开市日，已同步 ${have.size}，待补 ${todo.length}`);
+
+  let done = 0;
+  for (const d of todo) {
+    const rows = await stkLimit(client, { trade_date: d });
+    await prisma.$transaction([
+      prisma.stkLimit.deleteMany({ where: { tradeDate: d } }),
+      prisma.stkLimit.createMany({
+        data: rows.map((r) => ({
+          tsCode: r.ts_code,
+          tradeDate: r.trade_date,
+          upLimit: r.up_limit,
+          downLimit: r.down_limit,
+        })),
+      }),
+    ]);
+    done++;
+    if (done % 10 === 0 || done === todo.length) {
+      log(`  ${done}/${todo.length} (${d}) 涨跌停 ${rows.length}`);
+    }
+  }
+  log('syncStkLimit 完成');
 }
 
 /** All stock codes that have price data (incl. delisted), the universe for per-stock financial sync. */
