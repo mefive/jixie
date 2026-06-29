@@ -92,7 +92,7 @@ function buildContext(
   pf: Portfolio,
   collected: { targets: Map<string, number> | null; orders: Map<string, number> | null },
 ): BarContext {
-  let cross: CrossSection | null = null; // today's cross-section, loaded on first universe() call
+  let cross: CrossSection | null = null; // today's cross-section, loaded on first loadCrossSection() call
   return {
     date,
     get cash() {
@@ -109,8 +109,8 @@ function buildContext(
         marketValue: p.shares * (data.closeAt(code, date) ?? 0),
       }));
     },
-    async universe() {
-      cross = await data.crossSection(date);
+    async loadCrossSection(indexCode) {
+      cross = await data.crossSection(date, indexCode);
       return cross.codes;
     },
     bar(code) {

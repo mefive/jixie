@@ -86,11 +86,13 @@ export interface BarContext {
   positions(): { code: string; shares: number; avgCost: number; marketValue: number }[];
 
   // —— Market primitives (general; the engine has no concept of "factor") ——
-  /** Today's tradable cross-section (codes with a daily bar + adj factor + valuation). Async because
-   * it lazily loads the whole-market panel for `date` on first use (only days the strategy inspects
-   * are ever loaded). Calling this also makes bar() valid for today. */
-  universe(): Promise<string[]>;
-  /** Today's full row for `code` — valid after universe() loaded this day's cross-section; else null. */
+  /** Load today's tradable cross-section (codes with a daily bar + adj factor + valuation) and return its
+   * codes. Optionally restrict to an index's point-in-time constituents — the restriction is pushed into
+   * the DB read (only those rows are loaded), the data gate behind the SDK's `universe(indexCode?)`. Async;
+   * lazily loads the panel for `date` on first use (only days the strategy inspects are loaded). Calling
+   * it also makes bar() valid for the loaded codes. */
+  loadCrossSection(indexCode?: string): Promise<string[]>;
+  /** Today's full row for `code` — valid after loadCrossSection() loaded this day's panel; else null. */
   bar(code: string): BarRow | null;
   /** Last n adjusted OHLC bars up to today for watched/held codes (per-instrument window math:
    * Donchian channels, ATR, etc.). Empty if the code's series isn't loaded. */

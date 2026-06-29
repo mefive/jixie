@@ -42,18 +42,18 @@ export function buildCodegenPrompt(availableIndices: string = DEFAULT_INDICES): 
 - 下单(次开成交):ctx.order(code, shares)(+买/-卖)、ctx.exit(code)(清仓)、
   ctx.orderTargetPercent(code, w)、ctx.setHoldings({code:w})、ctx.equalWeight(codes)
 
-# 横截面选股:ctx.select(indexCode?)(异步,载入全市场可交易截面)
-\`(await ctx.select())\` 返回链式 Selection;**传指数代码限定到其成分(时点)**。
+# 横截面选股:ctx.universe(indexCode?)(异步,载入当日可交易截面 = 候选池)
+\`(await ctx.universe())\` 返回链式 Universe;**传指数代码限定到其成分(时点)——只读该指数那批行(更快)**。
 **已收录的指数(只有这些可用)**:${availableIndices}。
 bar 行字段(**只有这些**):peTtm/pb/ps/dvRatio(股息率%)/totalMv/circMv(市值,万元)/turnoverRate(换手率%)/roe/roeWaa(净资产收益率%,时点)/**amount(成交额,千元——流动性/滑点门)/vol(成交量,手)**/close/adjClose。
 - .where((b, code) => 布尔)、.minListDays(天)、.dropBottom(比例, b => 数值)
 - .rankBy(b => 分数, 'desc'|'asc')(null 分数会被剔除)、.top(n)(n<1 取比例,否则取个数)→ string[]、.codes()→ string[]
 - 也可 \`await ctx.indexMembers('000300.SH')\` 直接取成分 string[]。
-注意:用了 select()/indexMembers() 的 onBar 必须是 async。
+注意:用了 universe()/indexMembers() 的 onBar 必须是 async。
 
 # ⚠️ 关键:对截面筛出的票算个股指标,必须先 ensureBars
 ctx.price / history / bars / sma / atr… 只对**已加载 K 线序列**的票有效(\`watch\` 里的票自动预载;其他票要手动)。
-若你 select 筛出一批票、再对它们算均线/突破/ATR,**必须先 \`await ctx.ensureBars(codes)\`**,否则全返 null/空、**一笔都不会下**。
+若你 universe 筛出一批票、再对它们算均线/突破/ATR,**必须先 \`await ctx.ensureBars(codes)\`**,否则全返 null/空、**一笔都不会下**。
 
 # ⛔ 能力边界:做不到就拒绝,别瞎编
 你只能用上面列出的字段、内置指标、已收录指数。若用户需求**依赖这些之外的数据/能力**——例如:营收/利润增速、毛利率、ROA、机构/北向持仓、分析师评级、行业/概念分类、期货/期权/可转债、分钟/tick、港股美股——
@@ -85,7 +85,7 @@ export default defineStrategy({
   async onBar(ctx) {
     if (ctx.period('monthly') === last) return;
     last = ctx.period('monthly');
-    const picks = (await ctx.select())
+    const picks = (await ctx.universe())
       .minListDays(365)
       .where(b => b.peTtm != null && b.peTtm > 0)
       .dropBottom(0.25, b => b.turnoverRate ?? 0)
@@ -99,8 +99,8 @@ export default defineStrategy({
 export default defineStrategy({
   name: '沪深300 优质 MA20 突破',
   async onBar(ctx) {
-    const picks = (await ctx.select('000300.SH')) // 限定沪深300成分(时点)
-      .where(b => (b.roe ?? 0) > 15)              // 优质:ROE>15
+    const picks = (await ctx.universe('000300.SH')) // 限定沪深300成分(时点,只读这批行)
+      .where(b => (b.roe ?? 0) > 15)                // 优质:ROE>15
       .codes();
     await ctx.ensureBars(picks);                  // 关键:要算个股均线,先加载它们的K线
     for (const code of picks) {

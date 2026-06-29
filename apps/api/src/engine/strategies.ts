@@ -72,7 +72,7 @@ export function crossSectionStrategy(opts: {
       if (month === lastMonth) return; // already rebalanced this month
       lastMonth = month;
 
-      const codes = await ctx.universe();
+      const codes = await ctx.loadCrossSection();
       let cands: { code: string; v: number; liq: number }[] = [];
       for (const code of codes) {
         const bar = ctx.bar(code);
