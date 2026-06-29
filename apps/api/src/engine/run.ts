@@ -13,9 +13,10 @@ const PERIODS_PER_YEAR = 252; // trading days
  *   2. mark equity at D's close → daily NAV
  *   3. call strategy.onBar(ctx); the strategy may queue a new target book for next open
  *
- * MVP simplifications (documented): adjusted (hfq) prices for both marking and fills (total return,
- * no explicit dividend/split share handling); fractional shares (no 100-share lot rounding);
- * fills at next-day open; T+1 enforced; costs applied. Limit-up/down, ST and suspension *blocking*
+ * MVP simplifications (documented): hfq prices for marking + internal accounting (total return, dividends
+ * reinvested via adj — no explicit cash-dividend events); buys size in whole 手 (100-share lots) of REAL
+ * shares (floored), so trades are realistically tradable while marking stays hfq; fills at next-day open;
+ * T+1 enforced; costs applied. Limit-up/down, ST and suspension *blocking*
  * are Phase 2 (need the second data batch) — a suspended stock simply gets no fill that day.
  */
 export async function runStrategy(cfg: EngineConfig): Promise<BacktestResult> {
@@ -186,14 +187,14 @@ function rebalance(
     if (px == null) continue;
     if (pos.frozenUntil > date) continue;
     const tgt = targetShares.get(code) ?? 0;
-    if (tgt < pos.shares) pf.fill(code, tgt - pos.shares, px, date, sellableFrom);
+    if (tgt < pos.shares) pf.fill(code, tgt - pos.shares, px, date, sellableFrom, data.adjAt(code, date)!);
   }
 
   // Buys.
   for (const [code, tgt] of targetShares) {
     const px = openOf(code)!;
     const cur = pf.positions.get(code)?.shares ?? 0;
-    if (tgt > cur) pf.fill(code, tgt - cur, px, date, sellableFrom);
+    if (tgt > cur) pf.fill(code, tgt - cur, px, date, sellableFrom, data.adjAt(code, date)!);
   }
 }
 
@@ -216,7 +217,7 @@ function executeOrders(
     const pos = pf.positions.get(code);
     if (px == null || !pos || pos.frozenUntil > date) continue; // suspended or T+1-frozen
     const sell = Math.min(-delta, pos.shares);
-    if (sell > 0) pf.fill(code, -sell, px, date, sellableFrom);
+    if (sell > 0) pf.fill(code, -sell, px, date, sellableFrom, data.adjAt(code, date)!);
   }
 
   for (const [code, delta] of orders) {
@@ -224,7 +225,7 @@ function executeOrders(
     const px = data.openAt(code, date);
     if (px == null || px <= 0) continue; // suspended
     const buy = Math.min(delta, pf.affordableShares(px));
-    if (buy > 0) pf.fill(code, buy, px, date, sellableFrom);
+    if (buy > 0) pf.fill(code, buy, px, date, sellableFrom, data.adjAt(code, date)!);
   }
 }
 

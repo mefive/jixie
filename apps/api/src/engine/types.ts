@@ -20,10 +20,12 @@ export interface TradeRecord {
   date: string; // fill date (next open after the order)
   code: string;
   side: 'buy' | 'sell';
-  shares: number;
-  price: number; // adjusted fill price
-  amount: number; // shares × price (成交额)
+  shares: number; // hfq shares (engine-internal accounting)
+  price: number; // hfq (adjusted) fill price (engine-internal)
+  amount: number; // realShares × realPrice = shares × price (成交额, real money)
   fee: number; // commission + stamp + transfer
+  realShares: number; // real shares filled — buys are whole 手 (100-share lots)
+  realPrice: number; // unadjusted (raw) fill price — what you'd actually have paid
 }
 
 /** Trading cost model (rates are fractions of trade value). */
