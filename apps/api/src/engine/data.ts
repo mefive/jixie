@@ -40,6 +40,7 @@ export class EngineData {
   private nextDayOf = new Map<string, string>();
   private listDateOf = new Map<string, string>();
   private industryOf = new Map<string, string>(); // code -> industry label (current, not point-in-time)
+  private lhbByDate = new Map<string, Map<string, number>>(); // 龙虎榜: date -> code -> 净买额(元), exact day only
   private crossCache = new Map<string, CrossSection>();
   private barsCache = new Map<string, StockBars>();
   private factorByKey = new Map<string, Map<string, number>>(); // `${factor}|${date}` -> code -> value
@@ -79,6 +80,18 @@ export class EngineData {
       if (s.industry) this.industryOf.set(s.tsCode, s.industry);
     }
 
+    // 龙虎榜: sparse event data (~tens/day) — preload the range into date->code->净买额 for exact-day lookup
+    // (never carried forward). Tiny (~50k rows), so loaded for every run regardless of use.
+    const lhb = await prisma.topList.findMany({
+      where: { tradeDate: { gte: this.start, lte: this.end } },
+      select: { tsCode: true, tradeDate: true, netAmount: true },
+    });
+    for (const r of lhb) {
+      let m = this.lhbByDate.get(r.tradeDate);
+      if (!m) this.lhbByDate.set(r.tradeDate, (m = new Map()));
+      m.set(r.tsCode, r.netAmount);
+    }
+
     // Optional precomputed factor columns (only the ones a strategy asked for).
     if (this.factorKeys.length) {
       const fv = await prisma.factorValue.findMany({
@@ -110,6 +123,11 @@ export class EngineData {
   /** Industry label for `code` (current classification, not point-in-time), or null if unknown. */
   industry(code: string): string | null {
     return this.industryOf.get(code) ?? null;
+  }
+
+  /** 今日龙虎榜净买入额(元)for `code`, or null if it wasn't on the 龙虎榜 that exact day (not carried forward). */
+  lhbNet(code: string, date: string): number | null {
+    return this.lhbByDate.get(date)?.get(code) ?? null;
   }
 
   /**

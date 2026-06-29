@@ -75,6 +75,17 @@ model StkLimit {
   @@index([tradeDate])
 }
 
+/// 龙虎榜 (Dragon-Tiger List): stocks with abnormal activity that day + their net buy. Sparse event data
+/// (only listed stocks have a row that day) — read exact-date via ctx.lhbNet, never carried forward.
+model TopList {
+  tsCode    String
+  tradeDate String
+  netAmount Float // 龙虎榜净买入额 (元), summed across that day's 榜单
+
+  @@id([tsCode, tradeDate])
+  @@index([tradeDate])
+}
+
 /// Daily valuation metrics (point-in-time by construction). Unlocks value/dividend/size factors.
 model DailyBasic {
   tsCode       String

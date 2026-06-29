@@ -87,6 +87,8 @@ interface StrategyCtx {
   listDays(code: string): number | null;
   /** 行业标签(当前分类,非时点),如 '银行'/'白酒';null 未知。用于行业中性 / 轮动 / 限定某行业。 */
   industry(code: string): string | null;
+  /** 今日龙虎榜净买入额(元);未上榜当天返 null(不前向填充)。关注度/游资极端信号,常配合 universe + where/rankBy。 */
+  lhbNet(code: string): number | null;
   /** Today's adjusted close (carried forward if suspended). */
   price(code: string): number | null;
   /** Last n adjusted prices up to today for held/loaded codes. */
