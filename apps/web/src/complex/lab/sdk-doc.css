@@ -1,0 +1,111 @@
+@reference '../../styles/index.css';
+
+.jx-docs {
+  @apply flex flex-col;
+  height: 100%;
+}
+
+.jx-docs-body {
+  @apply flex-1 overflow-auto;
+  padding: 24px;
+}
+
+.jx-docs-head {
+  @apply flex items-center justify-between;
+  width: min(880px, 100%);
+  margin: 0 auto 8px;
+}
+
+.jx-docs-title {
+  @apply font-semibold text-ink;
+  font-size: 24px;
+  letter-spacing: 2px;
+}
+
+.jx-docs-lang {
+  @apply flex overflow-hidden rounded-lg border border-line;
+}
+
+.jx-docs-langBtn {
+  @apply text-muted;
+  @apply hover:text-ink;
+  padding: 4px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.jx-docs-langBtn--on {
+  @apply bg-ink text-white;
+}
+
+.jx-docs-sec {
+  width: min(880px, 100%);
+  margin: 0 auto;
+  padding: 16px 0;
+}
+
+.jx-docs-h2 {
+  @apply font-semibold text-ink;
+  margin-bottom: 10px;
+  font-size: 18px;
+}
+
+.jx-docs-h3 {
+  @apply font-medium text-muted;
+  margin: 18px 0 8px;
+  font-size: 13px;
+  letter-spacing: 1px;
+}
+
+.jx-docs-p {
+  @apply text-ink;
+  margin-bottom: 12px;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.jx-docs-list {
+  @apply flex flex-col gap-2;
+  @apply text-ink;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.jx-docs-list li {
+  @apply rounded-lg border border-line bg-bg;
+  padding: 8px 12px;
+}
+
+.jx-docs-code {
+  @apply overflow-auto rounded-lg border border-line bg-bg text-ink;
+  padding: 14px 16px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px;
+  line-height: 1.65;
+  white-space: pre;
+}
+
+.jx-docs-entry {
+  @apply rounded-lg border border-line bg-card;
+  margin-bottom: 8px;
+  padding: 10px 14px;
+  scroll-margin-top: 16px;
+}
+
+.jx-docs-entry:target {
+  @apply border-ink;
+  box-shadow: 0 0 0 2px rgb(17 24 39 / 0.08);
+}
+
+.jx-docs-sig {
+  @apply block text-ink;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+}
+
+.jx-docs-desc {
+  @apply text-muted;
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 1.6;
+}
