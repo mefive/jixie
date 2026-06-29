@@ -104,6 +104,9 @@ export interface BarContext {
   ensureBars(codes: string[]): Promise<void>;
   /** Calendar days since listing as of today (point-in-time stock age); null if unknown. */
   listDays(code: string): number | null;
+  /** Industry label for `code` (current classification, not point-in-time); null if unknown. For
+   * sector-neutral / rotation / single-industry logic. */
+  industry(code: string): string | null;
   /** Today's adjusted close (carried forward if suspended) for held/already-loaded codes. */
   price(code: string): number | null;
   /** Last n adjusted prices up to today for held/already-loaded codes (price-window math on holdings). */
