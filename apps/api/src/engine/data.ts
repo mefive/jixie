@@ -14,6 +14,7 @@ interface StockBars {
   adjHigh: number[];
   adjLow: number[];
   adjClose: number[];
+  adj: number[]; // per-date adj_factor — to convert a hfq fill back to real shares/price (整手 sizing)
   vol: (number | null)[]; // raw (not adjusted)
   amount: (number | null)[];
   idx: Map<string, number>; // date -> index (exact)
@@ -297,7 +298,7 @@ export class EngineData {
     const adjMap = new Map(adj.map((a) => [`${a.tsCode}|${a.tradeDate}`, a.adjFactor]));
     const tmp = new Map<string, StockBars>();
     for (const c of missing) {
-      tmp.set(c, { dates: [], adjOpen: [], adjHigh: [], adjLow: [], adjClose: [], vol: [], amount: [], idx: new Map() });
+      tmp.set(c, { dates: [], adjOpen: [], adjHigh: [], adjLow: [], adjClose: [], adj: [], vol: [], amount: [], idx: new Map() });
     }
     for (const r of px) {
       if (r.open == null || r.high == null || r.low == null || r.close == null) continue;
@@ -310,6 +311,7 @@ export class EngineData {
       b.adjHigh.push(r.high * f);
       b.adjLow.push(r.low * f);
       b.adjClose.push(r.close * f);
+      b.adj.push(f);
       b.vol.push(r.vol);
       b.amount.push(r.amount);
     }
@@ -322,6 +324,15 @@ export class EngineData {
     if (!b) return null;
     const i = b.idx.get(date);
     return i == null ? null : b.adjOpen[i];
+  }
+
+  /** adj_factor on exactly `date` (null if the stock didn't trade that day) — to convert a hfq fill price
+   * (adjOpen) back to the real unadjusted price (adjOpen / adj) and hfq shares back to real (hfq × adj). */
+  adjAt(code: string, date: string): number | null {
+    const b = this.barsCache.get(code);
+    if (!b) return null;
+    const i = b.idx.get(date);
+    return i == null ? null : b.adj[i];
   }
 
   /** Adjusted close as of `date`, carried forward from the last trading day ≤ date (for marking). */

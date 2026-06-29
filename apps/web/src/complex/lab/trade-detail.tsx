@@ -13,7 +13,8 @@ const DOT = '#f0a020'; // 富途式分红黄点 — trade markers on the axis
 /**
  * 交易详情 — the traded stock's full K线 + 成交量, with each trade as a yellow dot pinned to the bottom
  * axis (Futu-style, not on the price line). Click a dot to scroll the right list to that fill. Multi-stock
- * strategies get a code picker (default the most-traded). Prices are 后复权 to match the engine's fills.
+ * strategies get a code picker (default the most-traded). Prices are 不复权 (raw) — the real trade prices
+ * shown in the list (除权除息 gaps are real); the engine accounts internally in 后复权.
  */
 export default function TradeDetail({
   tradeLog,
@@ -54,11 +55,12 @@ export default function TradeDetail({
     if (!series) return null;
     const p = series.points;
     const dates = p.map((d) => d.date);
-    const f = (d: (typeof p)[number]) => d.adjFactor ?? 1; // 后复权 to match fills
+    // Unadjusted (raw) prices — so the chart's price level matches the real fill prices shown in the list
+    // (除权除息 gaps are real). The trade dots are pinned to the axis, so they don't depend on this choice.
     const candle = p.map((d) =>
       d.open == null || d.close == null || d.low == null || d.high == null
         ? [NaN, NaN, NaN, NaN]
-        : [d.open * f(d), d.close * f(d), d.low * f(d), d.high * f(d)],
+        : [d.open, d.close, d.low, d.high],
     );
     const vols = p.map((d) => ({
       value: d.vol ?? NaN,
@@ -119,7 +121,7 @@ export default function TradeDetail({
           ) : (
             <span className="jx-td-one">{code}</span>
           )}
-          <span className="jx-td-hint">交易点(黄)在 K 线下方横轴;点它 → 右侧定位。价格为后复权口径</span>
+          <span className="jx-td-hint">交易点(黄)在 K 线下方横轴;点它 → 右侧定位。价格为不复权真实成交价</span>
         </div>
         {loading || !option ? (
           <div className="jx-td-loading">{loading ? <Spin /> : '无行情'}</div>
@@ -146,8 +148,8 @@ export default function TradeDetail({
           <div key={i} data-i={i} className={classNames('jx-td-row', { 'jx-td-row--active': i === active })}>
             <span>{fmtDate(t.date)}</span>
             <span className={t.side === 'buy' ? 'text-up' : 'text-down'}>{t.side === 'buy' ? '买' : '卖'}</span>
-            <span className="jx-td-num">{t.shares.toLocaleString()}</span>
-            <span className="jx-td-num">{t.price.toFixed(2)}</span>
+            <span className="jx-td-num">{Math.round(t.realShares ?? t.shares).toLocaleString()}</span>
+            <span className="jx-td-num">{(t.realPrice ?? t.price).toFixed(2)}</span>
             <span className="jx-td-num">{(t.amount / 10000).toFixed(1)}万</span>
           </div>
         ))}
