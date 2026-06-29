@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import {
   BrowserRouter,
   Navigate,
@@ -14,6 +14,9 @@ import labEntry from '@src/complex/lab';
 import screenEntry from '@src/complex/screen';
 import stockEntry from '@src/complex/stock';
 import { authStore } from '@src/store';
+
+// Standalone SDK reference page (also opened from the lab 文档 button + the 📖 links in editor hovers).
+const SdkDocPage = lazy(() => import('@src/complex/lab/sdk-doc'));
 
 export function AppRoutes() {
   return (
@@ -45,6 +48,16 @@ export function AppRoutes() {
           element={
             <RequireAuth>
               <StockRoute />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/docs"
+          element={
+            <RequireAuth>
+              <Suspense fallback={null}>
+                <SdkDocPage />
+              </Suspense>
             </RequireAuth>
           }
         />

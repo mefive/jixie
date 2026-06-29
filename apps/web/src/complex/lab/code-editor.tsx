@@ -46,6 +46,22 @@ export default function CodeEditor({ value, onChange }: { value: string; onChang
       value={value}
       onChange={(v) => onChange(v ?? '')}
       beforeMount={installSdk}
+      onMount={(editor) => {
+        // Jump to the SDK doc for the symbol under the cursor (right-click menu + ⌘/Ctrl+I). The hover
+        // JSDoc also carries a 📖 /docs# link; this action is the reliable in-editor path to it.
+        editor.addAction({
+          id: 'jixie.openSdkDoc',
+          label: '📖 查看 SDK 文档',
+          contextMenuGroupId: 'navigation',
+          contextMenuOrder: 1.5,
+          keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyI],
+          run(ed) {
+            const pos = ed.getPosition();
+            const word = pos ? ed.getModel()?.getWordAtPosition(pos)?.word : undefined;
+            window.open(word ? `/docs#${word}` : '/docs', '_blank');
+          },
+        });
+      }}
       options={{
         fontSize: 13,
         fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
