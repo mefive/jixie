@@ -9,6 +9,7 @@ import {
   dailyBasic,
   stkLimit,
   moneyflow,
+  topList,
   finaIndicator,
   dividend,
   indexWeight,
@@ -227,6 +228,53 @@ export async function syncStkLimit(
     }
   }
   log('syncStkLimit 完成');
+}
+
+/**
+ * Sync 龙虎榜 (Dragon-Tiger List) per trading day into TopList (resumable). A stock can be on multiple
+ * 榜单 in a day → multiple rows; we sum net_amount per (code, date) into one row. Per-day deleteMany +
+ * createMany keeps it idempotent.
+ */
+export async function syncTopList(
+  client: TushareClient,
+  start: TradeDate,
+  end: TradeDate,
+): Promise<void> {
+  let dates = await getOpenDates(start, end);
+  if (dates.length === 0) {
+    await syncTradeCal(client, start, end);
+    dates = await getOpenDates(start, end);
+  }
+  // No per-day marker table (TopList only has rows for listed stocks), so resume off distinct dates seen.
+  const existing = await prisma.topList.findMany({
+    where: { tradeDate: { gte: start, lte: end } },
+    distinct: ['tradeDate'],
+    select: { tradeDate: true },
+  });
+  const have = new Set(existing.map((e) => e.tradeDate));
+  const todo = dates.filter((d) => !have.has(d));
+  log(`syncTopList: 区间 ${dates.length} 开市日，已同步 ${have.size}，待补 ${todo.length}`);
+
+  let done = 0;
+  for (const d of todo) {
+    const rows = await topList(client, { trade_date: d });
+    const netByCode = new Map<string, number>();
+    for (const r of rows) {
+      if (r.net_amount == null) continue;
+      netByCode.set(r.ts_code, (netByCode.get(r.ts_code) ?? 0) + r.net_amount);
+    }
+    await prisma.$transaction([
+      prisma.topList.deleteMany({ where: { tradeDate: d } }),
+      prisma.topList.createMany({
+        data: [...netByCode].map(([tsCode, netAmount]) => ({ tsCode, tradeDate: d, netAmount })),
+      }),
+    ]);
+    done++;
+    if (done % 20 === 0 || done === todo.length) {
+      log(`  ${done}/${todo.length} (${d}) 龙虎榜 ${netByCode.size}`);
+    }
+  }
+  log('syncTopList 完成');
 }
 
 /** Moneyflow factor keys written to FactorValue — opt in via a strategy's `factors: [...]`. */

@@ -107,6 +107,8 @@ export interface BarContext {
   /** Industry label for `code` (current classification, not point-in-time); null if unknown. For
    * sector-neutral / rotation / single-industry logic. */
   industry(code: string): string | null;
+  /** 今日龙虎榜净买入额(元);未上榜当天返 null(不前向填充)—— 关注度/游资 极端信号。 */
+  lhbNet(code: string): number | null;
   /** Today's adjusted close (carried forward if suspended) for held/already-loaded codes. */
   price(code: string): number | null;
   /** Last n adjusted prices up to today for held/already-loaded codes (price-window math on holdings). */
