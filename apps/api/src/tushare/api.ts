@@ -121,6 +121,35 @@ export async function stkLimit(
   return rows as unknown as StkLimitRow[];
 }
 
+export interface MoneyflowRow {
+  ts_code: TsCode;
+  trade_date: TradeDate;
+  buy_lg_amount: number | null; // 大单买入额 (万元)
+  buy_elg_amount: number | null; // 特大单买入额 (万元)
+  sell_lg_amount: number | null;
+  sell_elg_amount: number | null;
+  net_mf_amount: number | null; // 净流入额 (万元, all order sizes)
+}
+
+/** Daily moneyflow (per-stock 资金流, 万元). 主力净额 = (大单+特大单)买 − (大单+特大单)卖 — the
+ * "smart-money / 关注度" signal; net_mf_amount = total net inflow across all order sizes. */
+export async function moneyflow(
+  client: TushareClient,
+  params: {
+    ts_code?: TsCode;
+    trade_date?: TradeDate;
+    start_date?: TradeDate;
+    end_date?: TradeDate;
+  } = {},
+): Promise<MoneyflowRow[]> {
+  const rows = await client.call(
+    'moneyflow',
+    params,
+    'ts_code,trade_date,buy_lg_amount,buy_elg_amount,sell_lg_amount,sell_elg_amount,net_mf_amount',
+  );
+  return rows as unknown as MoneyflowRow[];
+}
+
 export interface DailyBasicRow {
   ts_code: TsCode;
   trade_date: TradeDate;

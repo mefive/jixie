@@ -89,7 +89,8 @@ interface StrategyCtx {
   price(code: string): number | null;
   /** Last n adjusted prices up to today for held/loaded codes. */
   history(code: string, field: 'open' | 'high' | 'low' | 'close', n: number): number[];
-  /** Precomputed factor column (only declared factors), as-of today. */
+  /** Opt-in factor column as-of today (declare it in \`factors\`). 资金流(万元,+净流入/−净流出):
+   * 'mf_net_main' 主力(大单+特大单)净额、'mf_net_total' 全单种净额。null if missing. */
   factor(name: string, code: string): number | null;
 
   /** Current shares held of a code (0 if none). */
@@ -106,7 +107,7 @@ interface StrategyCtx {
 
 interface CodeStrategy {
   name?: string;
-  /** Precomputed factor columns to preload (price-window signals like mom/rev/vol). */
+  /** Opt-in factor columns to preload, read via ctx.factor(). 资金流:'mf_net_main' / 'mf_net_total'. */
   factors?: string[];
   /** Instruments to preload bar series for up front (per-instrument systems). */
   watch?: string[];
