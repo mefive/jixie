@@ -1,111 +1,282 @@
 @reference '../../styles/index.css';
 
+/* Apple-Developer-docs reference layout, kept monochrome to match the app (ink, not Apple-blue). */
 .jx-docs {
+  --doc-text: #1d1d1f;
+  --doc-sec: #6e6e73;
+  --doc-ter: #86868b;
+  --doc-line: #d2d2d7;
+  --doc-code: #f5f5f7;
   @apply flex flex-col;
-  height: 100%;
+  min-height: 100%;
+  background: #fff;
+  color: var(--doc-text);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, 'PingFang SC', sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
-.jx-docs-body {
-  @apply flex-1 overflow-auto;
-  padding: 24px;
+/* —— sticky frosted top bar —— */
+.jx-docs-bar {
+  @apply sticky top-0 z-10 flex items-center justify-between;
+  height: 52px;
+  padding: 0 28px;
+  border-bottom: 1px solid var(--doc-line);
+  background: rgb(255 255 255 / 0.82);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
 }
 
-.jx-docs-head {
-  @apply flex items-center justify-between;
-  width: min(880px, 100%);
-  margin: 0 auto 8px;
+.jx-docs-brand {
+  @apply flex items-center gap-2;
+  color: var(--doc-text);
+  font-size: 15px;
 }
 
-.jx-docs-title {
-  @apply font-semibold text-ink;
-  font-size: 24px;
-  letter-spacing: 2px;
+.jx-docs-banner {
+  height: 24px;
+}
+
+.jx-docs-brandSub {
+  color: var(--doc-ter);
+  font-size: 14px;
 }
 
 .jx-docs-lang {
-  @apply flex overflow-hidden rounded-lg border border-line;
+  @apply flex overflow-hidden;
+  border: 1px solid var(--doc-line);
+  border-radius: 980px;
 }
 
 .jx-docs-langBtn {
-  @apply text-muted;
-  @apply hover:text-ink;
-  padding: 4px 12px;
-  font-size: 13px;
+  color: var(--doc-sec);
+  padding: 3px 13px;
+  font-size: 12.5px;
   cursor: pointer;
 }
 
 .jx-docs-langBtn--on {
-  @apply bg-ink text-white;
+  background: var(--doc-text);
+  color: #fff;
 }
 
-.jx-docs-sec {
-  width: min(880px, 100%);
+/* —— two columns: sticky nav + content —— */
+.jx-docs-layout {
+  @apply grid flex-1;
+  grid-template-columns: 248px minmax(0, 1fr);
+  width: min(1160px, 100%);
   margin: 0 auto;
-  padding: 16px 0;
+  padding: 0 28px;
 }
 
-.jx-docs-h2 {
-  @apply font-semibold text-ink;
-  margin-bottom: 10px;
-  font-size: 18px;
+.jx-docs-nav {
+  @apply sticky self-start overflow-auto;
+  top: 52px;
+  height: calc(100vh - 52px);
+  padding: 28px 20px 40px 0;
+  border-right: 1px solid var(--doc-line);
 }
 
-.jx-docs-h3 {
-  @apply font-medium text-muted;
-  margin: 18px 0 8px;
-  font-size: 13px;
-  letter-spacing: 1px;
+.jx-docs-navGroup {
+  margin-top: 22px;
 }
 
-.jx-docs-p {
-  @apply text-ink;
-  margin-bottom: 12px;
-  font-size: 14px;
+.jx-docs-navGroupTitle {
+  @apply font-semibold uppercase;
+  margin-bottom: 6px;
+  color: var(--doc-ter);
+  font-size: 11px;
+  letter-spacing: 0.6px;
+}
+
+.jx-docs-navLink {
+  @apply block;
+  padding: 3px 0 3px 12px;
+  border-left: 2px solid transparent;
+  color: var(--doc-sec);
+  font-size: 13.5px;
   line-height: 1.7;
 }
 
-.jx-docs-list {
-  @apply flex flex-col gap-2;
-  @apply text-ink;
-  font-size: 14px;
+.jx-docs-navLink:hover {
+  color: var(--doc-text);
+}
+
+.jx-docs-navLink--on {
+  @apply font-medium;
+  border-left-color: var(--doc-text);
+  color: var(--doc-text);
+}
+
+/* —— content —— */
+.jx-docs-main {
+  padding: 40px 0 120px 44px;
+  max-width: 740px;
+}
+
+.jx-docs-eyebrow {
+  @apply font-semibold uppercase;
+  color: var(--doc-ter);
+  font-size: 12px;
+  letter-spacing: 0.6px;
+}
+
+.jx-docs-title {
+  @apply font-semibold;
+  margin: 6px 0 14px;
+  font-size: 40px;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.jx-docs-abstract {
+  color: var(--doc-text);
+  font-size: 19px;
   line-height: 1.6;
 }
 
-.jx-docs-list li {
-  @apply rounded-lg border border-line bg-bg;
-  padding: 8px 12px;
+.jx-docs-section {
+  margin-top: 44px;
+  padding-top: 28px;
+  border-top: 1px solid var(--doc-line);
+}
+
+.jx-docs-h2 {
+  @apply font-semibold;
+  margin-bottom: 14px;
+  font-size: 26px;
+  letter-spacing: -0.01em;
+}
+
+.jx-docs-h3 {
+  @apply font-semibold;
+  margin: 28px 0 10px;
+  font-size: 18px;
+}
+
+.jx-docs-p {
+  margin-bottom: 14px;
+  font-size: 16px;
+  line-height: 1.65;
 }
 
 .jx-docs-code {
-  @apply overflow-auto rounded-lg border border-line bg-bg text-ink;
-  padding: 14px 16px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 12.5px;
-  line-height: 1.65;
+  @apply overflow-auto;
+  margin: 6px 0;
+  padding: 18px 20px;
+  border-radius: 14px;
+  background: var(--doc-code);
+  color: #2c2c2e;
+  font-family: 'SF Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  line-height: 1.7;
   white-space: pre;
 }
 
-.jx-docs-entry {
-  @apply rounded-lg border border-line bg-card;
-  margin-bottom: 8px;
-  padding: 10px 14px;
-  scroll-margin-top: 16px;
+/* engine rules — a clean definition list */
+.jx-docs-rules {
+  @apply grid;
+  gap: 1px;
+  margin-top: 8px;
+  border: 1px solid var(--doc-line);
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--doc-line);
 }
 
-.jx-docs-entry:target {
-  @apply border-ink;
-  box-shadow: 0 0 0 2px rgb(17 24 39 / 0.08);
+.jx-docs-rule {
+  @apply grid items-baseline;
+  grid-template-columns: 132px 1fr;
+  gap: 16px;
+  padding: 13px 18px;
+  background: #fff;
 }
 
-.jx-docs-sig {
-  @apply block text-ink;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 13px;
+.jx-docs-ruleK {
+  @apply font-semibold;
+  font-size: 14px;
 }
 
-.jx-docs-desc {
-  @apply text-muted;
-  margin-top: 4px;
-  font-size: 13px;
+.jx-docs-ruleV {
+  color: var(--doc-sec);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+/* —— a symbol entry —— */
+.jx-docs-symbol {
+  padding: 26px 0;
+  border-bottom: 1px solid var(--doc-line);
+  scroll-margin-top: 68px;
+}
+
+.jx-docs-symbol:last-child {
+  border-bottom: none;
+}
+
+.jx-docs-symKind {
+  @apply font-semibold uppercase;
+  color: var(--doc-ter);
+  font-size: 11px;
+  letter-spacing: 0.6px;
+}
+
+.jx-docs-symName {
+  @apply font-semibold;
+  margin: 4px 0 8px;
+  font-size: 24px;
+  letter-spacing: -0.01em;
+}
+
+.jx-docs-symAbstract {
+  margin-bottom: 16px;
+  color: var(--doc-text);
+  font-size: 16px;
   line-height: 1.6;
+}
+
+.jx-docs-declLabel {
+  @apply font-semibold uppercase;
+  margin-bottom: 8px;
+  color: var(--doc-ter);
+  font-size: 11px;
+  letter-spacing: 0.6px;
+}
+
+.jx-docs-decl {
+  @apply overflow-auto;
+  padding: 14px 18px;
+  border-radius: 12px;
+  background: var(--doc-code);
+  font-family: 'SF Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13.5px;
+  line-height: 1.55;
+  white-space: pre;
+}
+
+.jx-docs-declName {
+  @apply font-semibold;
+  color: var(--doc-text);
+}
+
+.jx-docs-declMuted {
+  color: var(--doc-sec);
+}
+
+/* a type name inside a declaration → jumps to that type's section */
+.jx-docs-typeLink {
+  @apply font-medium;
+  color: var(--doc-text);
+  text-decoration: underline;
+  text-decoration-color: var(--doc-line);
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.jx-docs-typeLink:hover {
+  text-decoration-color: var(--doc-text);
+}
+
+.jx-docs-mono {
+  font-family: 'SF Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
 }
