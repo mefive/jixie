@@ -6,7 +6,6 @@ import { Button, DatePicker, Input, InputNumber, Modal } from 'antd';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 import {
-  faBook,
   faFolderOpen,
   faPaperPlane,
   faPlay,
@@ -116,13 +115,6 @@ export const Lab = complex.component(() => {
         </label>
 
         <div className="jx-lab-barActions">
-          <Button
-            icon={<FontAwesomeIcon icon={faBook} />}
-            onClick={() => window.open('/docs', '_blank')}
-            title="策略 SDK 文档"
-          >
-            文档
-          </Button>
           <Button icon={<FontAwesomeIcon icon={faPlus} />} onClick={onNewClick}>
             新建
           </Button>

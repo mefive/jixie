@@ -277,7 +277,7 @@ try {
 
   // 6. SDK 文档 standalone page (/docs) — bilingual reference generated from sdk-reference; anchored per method.
   await page.goto(`${BASE}/docs#universe`, { waitUntil: 'networkidle' });
-  await page.locator('#universe .jx-docs-sig').waitFor({ timeout: 10000 });
+  await page.locator('#universe .jx-docs-symName').waitFor({ timeout: 10000 });
   await page.screenshot({ path: `${SHOTS}6-sdk-docs.png` });
   log('shot 6: SDK docs page (zh)');
   await page.getByRole('button', { name: 'EN' }).click();

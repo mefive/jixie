@@ -1,14 +1,14 @@
 /**
  * Single source of truth for the strategy SDK surface — one structured entry per user-facing member,
  * each with a TS signature + bilingual (中/EN) description. From this we GENERATE:
- *   - the Monaco ambient .d.ts (sdk-dts.ts → SDK_DTS), comments carrying both languages + a 📖 doc link;
- *   - the in-app SDK doc page (sdk-doc.tsx), grouped + 中/EN togglable, one anchor per `name`.
- * Add a method here once and both stay in sync. (The runtime impl lives in apps/api sdk.ts; keep its
+ *   - the Monaco ambient .d.ts (sdk-dts.ts → SDK_DTS): zh comments + a 📖 doc link per member/type;
+ *   - the in-app SDK doc page (sdk-doc.tsx): grouped, 中/EN togglable, one anchor per `name` (+ per type).
+ * Add a method/field here once and both stay in sync. (Runtime impl lives in apps/api sdk.ts; keep its
  * StrategyCtx interface aligned with the signatures here.)
  */
 
 export interface SdkEntry {
-  iface: 'Universe' | 'StrategyCtx';
+  iface: 'Universe' | 'StrategyCtx' | 'BarRow';
   name: string; // member name — also the doc anchor id and the openSdkDoc command arg
   sig: string; // exact TS signature line emitted into the .d.ts
   group: string; // doc section
@@ -16,24 +16,24 @@ export interface SdkEntry {
   en: string;
 }
 
-// —— Static type fragments (not per-member doc targets) — emitted verbatim into the .d.ts ——
-const PRELUDE = `/** One stock's adjusted (hfq) OHLC on one day — the unit per-instrument math reads via ctx.bars(). */
-interface OhlcBar {
-  date: string;
-  adjOpen: number; adjHigh: number; adjLow: number; adjClose: number;
-  vol: number | null; amount: number | null; // 成交量(手) / 成交额(千元),未复权
-}
+// Business types whose names are linkified (in declarations + the editor) + given a doc-section anchor.
+export const LINKABLE_TYPES = ['StrategyCtx', 'BarRow', 'OhlcBar', 'Universe'] as const;
 
-/** One stock's full market row today: raw + adjusted OHLC and the point-in-time valuation snapshot. */
-interface BarRow {
-  code: string;
-  open: number | null; high: number | null; low: number | null; close: number | null;
-  adjOpen: number | null; adjHigh: number | null; adjLow: number | null; adjClose: number | null;
-  vol: number | null; amount: number | null; // 成交量(手) / 成交额(千元) —— 流动性门
-  pe: number | null; peTtm: number | null; pb: number | null; ps: number | null; psTtm: number | null;
-  dvRatio: number | null; dvTtm: number | null;
-  totalMv: number | null; circMv: number | null; turnoverRate: number | null;
-  roe: number | null; roeWaa: number | null; // 净资产收益率 % (point-in-time)
+// OhlcBar is small + rarely hand-written, so it stays static (with its own 📖 link); its fields are
+// documented in the doc page directly. (BarRow is generated from the entries below.)
+export const OHLC_FIELDS: { name: string; type: string; zh: string; en: string }[] = [
+  { name: 'date', type: 'string', zh: '交易日 YYYYMMDD', en: 'Trade date YYYYMMDD' },
+  { name: 'adjOpen', type: 'number', zh: '后复权开盘价', en: 'hfq open' },
+  { name: 'adjHigh', type: 'number', zh: '后复权最高价', en: 'hfq high' },
+  { name: 'adjLow', type: 'number', zh: '后复权最低价', en: 'hfq low' },
+  { name: 'adjClose', type: 'number', zh: '后复权收盘价', en: 'hfq close' },
+  { name: 'vol', type: 'number | null', zh: '成交量(手)', en: 'Volume (手)' },
+  { name: 'amount', type: 'number | null', zh: '成交额(千元)', en: 'Turnover (千元)' },
+];
+
+const PRELUDE = `/** 某票某日的后复权 OHLC —— ctx.bars() 返回的单元。 [📖 文档](/docs#OhlcBar) */
+interface OhlcBar {
+${OHLC_FIELDS.map((f) => `  ${f.name}: ${f.type};`).join('\n')}
 }
 
 type Schedule = 'daily' | 'weekly' | 'monthly';`;
@@ -67,7 +67,7 @@ export const SDK_ENTRIES: SdkEntry[] = [
 
   // —— ctx: data ——
   { iface: 'StrategyCtx', name: 'universe', group: '数据 / 选股', sig: 'universe(indexCode?: string): Promise<Universe>',
-    zh: '今天可交易的票,链式选股入口;传指数代码(如 000300.SH 沪深300)限定到其时点成分(只读该批行,更快)。', en: "Today's tradable universe (chainable). Pass an index code to restrict to its point-in-time constituents (pushed into the data load)." },
+    zh: '今天可交易的票,链式选股入口;传指数代码(如 000300.SH 沪深300)限定到其时点成分(只读该批行,更快)。', en: "Today's tradable universe (chainable). Pass an index code to restrict to its point-in-time constituents." },
   { iface: 'StrategyCtx', name: 'bar', group: '数据 / 选股', sig: 'bar(code: string): BarRow | null',
     zh: '某票今天的整行(估值+行情);universe() 载入后才有值,否则 null。', en: "Today's full row for a code (valid after universe() loaded the panel), else null." },
   { iface: 'StrategyCtx', name: 'indexMembers', group: '数据 / 选股', sig: 'indexMembers(indexCode: string): Promise<string[]>',
@@ -92,38 +92,48 @@ export const SDK_ENTRIES: SdkEntry[] = [
     zh: '今天距上市的日历天数(时点股龄);null 未知。', en: 'Calendar days since listing as of today; null if unknown.' },
 
   // —— ctx: indicators ——
-  { iface: 'StrategyCtx', name: 'sma', group: '指标(需 K 线已加载)', sig: 'sma(code: string, n: number): number | null',
-    zh: 'n 日简单均线。', en: 'n-day simple moving average.' },
-  { iface: 'StrategyCtx', name: 'ema', group: '指标(需 K 线已加载)', sig: 'ema(code: string, n: number): number | null',
-    zh: 'n 日指数均线。', en: 'n-day exponential moving average.' },
-  { iface: 'StrategyCtx', name: 'atr', group: '指标(需 K 线已加载)', sig: 'atr(code: string, n: number): number | null',
-    zh: 'n 日 ATR(平均真实波幅)。', en: 'n-day ATR (average true range).' },
-  { iface: 'StrategyCtx', name: 'highest', group: '指标(需 K 线已加载)', sig: "highest(code: string, field: 'open' | 'high' | 'low' | 'close', n: number): number | null",
-    zh: '最近 n 根某字段的最高(唐奇安上轨)。', en: 'Highest of a field over the last n bars (Donchian upper).' },
-  { iface: 'StrategyCtx', name: 'lowest', group: '指标(需 K 线已加载)', sig: "lowest(code: string, field: 'open' | 'high' | 'low' | 'close', n: number): number | null",
-    zh: '最近 n 根某字段的最低(唐奇安下轨)。', en: 'Lowest of a field over the last n bars (Donchian lower).' },
-  { iface: 'StrategyCtx', name: 'avgAmount', group: '指标(需 K 线已加载)', sig: 'avgAmount(code: string, n: number): number | null',
-    zh: 'n 日平均成交额(千元)—— 流动性 / 滑点门。', en: 'n-day average turnover (千元) — liquidity gate.' },
-  { iface: 'StrategyCtx', name: 'avgVol', group: '指标(需 K 线已加载)', sig: 'avgVol(code: string, n: number): number | null',
-    zh: 'n 日平均成交量(手)。', en: 'n-day average volume (手).' },
+  { iface: 'StrategyCtx', name: 'sma', group: '指标(需 K 线已加载)', sig: 'sma(code: string, n: number): number | null', zh: 'n 日简单均线。', en: 'n-day simple moving average.' },
+  { iface: 'StrategyCtx', name: 'ema', group: '指标(需 K 线已加载)', sig: 'ema(code: string, n: number): number | null', zh: 'n 日指数均线。', en: 'n-day exponential moving average.' },
+  { iface: 'StrategyCtx', name: 'atr', group: '指标(需 K 线已加载)', sig: 'atr(code: string, n: number): number | null', zh: 'n 日 ATR(平均真实波幅)。', en: 'n-day ATR (average true range).' },
+  { iface: 'StrategyCtx', name: 'highest', group: '指标(需 K 线已加载)', sig: "highest(code: string, field: 'open' | 'high' | 'low' | 'close', n: number): number | null", zh: '最近 n 根某字段的最高(唐奇安上轨)。', en: 'Highest of a field over n bars (Donchian upper).' },
+  { iface: 'StrategyCtx', name: 'lowest', group: '指标(需 K 线已加载)', sig: "lowest(code: string, field: 'open' | 'high' | 'low' | 'close', n: number): number | null", zh: '最近 n 根某字段的最低(唐奇安下轨)。', en: 'Lowest of a field over n bars (Donchian lower).' },
+  { iface: 'StrategyCtx', name: 'avgAmount', group: '指标(需 K 线已加载)', sig: 'avgAmount(code: string, n: number): number | null', zh: 'n 日平均成交额(千元)—— 流动性 / 滑点门。', en: 'n-day average turnover (千元) — liquidity gate.' },
+  { iface: 'StrategyCtx', name: 'avgVol', group: '指标(需 K 线已加载)', sig: 'avgVol(code: string, n: number): number | null', zh: 'n 日平均成交量(手)。', en: 'n-day average volume (手).' },
 
   // —— ctx: schedule / sizing / state ——
-  { iface: 'StrategyCtx', name: 'period', group: '调度 / 持仓 / 下单', sig: 'period(schedule: Schedule): string',
-    zh: '今天在某周期上的键 —— 配合 let last 实现每月/每周只做一次。', en: 'Period key for today on a schedule — compare to a `let last` to fire once per period.' },
-  { iface: 'StrategyCtx', name: 'shares', group: '调度 / 持仓 / 下单', sig: 'shares(code: string): number',
-    zh: '某票当前持仓股数(无则 0)。', en: 'Current shares held of a code (0 if none).' },
-  { iface: 'StrategyCtx', name: 'positions', group: '调度 / 持仓 / 下单', sig: 'positions(): { code: string; shares: number; avgCost: number; marketValue: number }[]',
-    zh: '当前所有持仓(代码/股数/成本/市值)。', en: 'All current positions (code / shares / avgCost / marketValue).' },
-  { iface: 'StrategyCtx', name: 'equalWeight', group: '调度 / 持仓 / 下单', sig: 'equalWeight(codes: string[]): void',
-    zh: '把这些票等权(次开成交的目标仓位调仓)。', en: 'Equal-weight the codes (a target-book rebalance at next open).' },
-  { iface: 'StrategyCtx', name: 'orderTargetPercent', group: '调度 / 持仓 / 下单', sig: 'orderTargetPercent(code: string, weight: number): void',
-    zh: '声明某票的目标权重(次开调仓)。', en: 'Declarative target weight for a code (rebalance at next open).' },
-  { iface: 'StrategyCtx', name: 'setHoldings', group: '调度 / 持仓 / 下单', sig: 'setHoldings(weights: Record<string, number>): void',
-    zh: '声明整张目标仓位表(代码→权重)。', en: 'Declarative target book (code → weight).' },
-  { iface: 'StrategyCtx', name: 'order', group: '调度 / 持仓 / 下单', sig: 'order(code: string, shares: number): void',
-    zh: '命令式下单:+买 / −卖,次开成交。', en: 'Imperative share order: +buy / -sell, filled at next open.' },
-  { iface: 'StrategyCtx', name: 'exit', group: '调度 / 持仓 / 下单', sig: 'exit(code: string): void',
-    zh: '清掉某票的全部持仓。', en: 'Sell the entire current position.' },
+  { iface: 'StrategyCtx', name: 'period', group: '调度 / 持仓 / 下单', sig: 'period(schedule: Schedule): string', zh: '今天在某周期上的键 —— 配合 let last 实现每月/每周只做一次。', en: 'Period key for today — compare to a `let last` to fire once per period.' },
+  { iface: 'StrategyCtx', name: 'shares', group: '调度 / 持仓 / 下单', sig: 'shares(code: string): number', zh: '某票当前持仓股数(无则 0)。', en: 'Current shares held of a code (0 if none).' },
+  { iface: 'StrategyCtx', name: 'positions', group: '调度 / 持仓 / 下单', sig: 'positions(): { code: string; shares: number; avgCost: number; marketValue: number }[]', zh: '当前所有持仓(代码/股数/成本/市值)。', en: 'All current positions (code / shares / avgCost / marketValue).' },
+  { iface: 'StrategyCtx', name: 'equalWeight', group: '调度 / 持仓 / 下单', sig: 'equalWeight(codes: string[]): void', zh: '把这些票等权(次开成交的目标仓位调仓)。', en: 'Equal-weight the codes (a target-book rebalance at next open).' },
+  { iface: 'StrategyCtx', name: 'orderTargetPercent', group: '调度 / 持仓 / 下单', sig: 'orderTargetPercent(code: string, weight: number): void', zh: '声明某票的目标权重(次开调仓)。', en: 'Declarative target weight for a code (rebalance at next open).' },
+  { iface: 'StrategyCtx', name: 'setHoldings', group: '调度 / 持仓 / 下单', sig: 'setHoldings(weights: Record<string, number>): void', zh: '声明整张目标仓位表(代码→权重)。', en: 'Declarative target book (code → weight).' },
+  { iface: 'StrategyCtx', name: 'order', group: '调度 / 持仓 / 下单', sig: 'order(code: string, shares: number): void', zh: '命令式下单:+买 / −卖,次开成交。', en: 'Imperative share order: +buy / -sell, filled at next open.' },
+  { iface: 'StrategyCtx', name: 'exit', group: '调度 / 持仓 / 下单', sig: 'exit(code: string): void', zh: '清掉某票的全部持仓。', en: 'Sell the entire current position.' },
+
+  // —— BarRow: the selection row (what universe()/bar() expose) ——
+  { iface: 'BarRow', name: 'code', group: '业务类型 BarRow(整行字段)', sig: 'code: string', zh: '股票代码。', en: 'Stock code.' },
+  { iface: 'BarRow', name: 'open', group: '业务类型 BarRow(整行字段)', sig: 'open: number | null', zh: '不复权开盘价。', en: 'Raw (unadjusted) open.' },
+  { iface: 'BarRow', name: 'high', group: '业务类型 BarRow(整行字段)', sig: 'high: number | null', zh: '不复权最高价。', en: 'Raw high.' },
+  { iface: 'BarRow', name: 'low', group: '业务类型 BarRow(整行字段)', sig: 'low: number | null', zh: '不复权最低价。', en: 'Raw low.' },
+  { iface: 'BarRow', name: 'close', group: '业务类型 BarRow(整行字段)', sig: 'close: number | null', zh: '不复权收盘价。', en: 'Raw close.' },
+  { iface: 'BarRow', name: 'adjOpen', group: '业务类型 BarRow(整行字段)', sig: 'adjOpen: number | null', zh: '后复权开盘价。', en: 'hfq open.' },
+  { iface: 'BarRow', name: 'adjHigh', group: '业务类型 BarRow(整行字段)', sig: 'adjHigh: number | null', zh: '后复权最高价。', en: 'hfq high.' },
+  { iface: 'BarRow', name: 'adjLow', group: '业务类型 BarRow(整行字段)', sig: 'adjLow: number | null', zh: '后复权最低价。', en: 'hfq low.' },
+  { iface: 'BarRow', name: 'adjClose', group: '业务类型 BarRow(整行字段)', sig: 'adjClose: number | null', zh: '后复权收盘价。', en: 'hfq close.' },
+  { iface: 'BarRow', name: 'vol', group: '业务类型 BarRow(整行字段)', sig: 'vol: number | null', zh: '成交量(手)。', en: 'Volume (手).' },
+  { iface: 'BarRow', name: 'amount', group: '业务类型 BarRow(整行字段)', sig: 'amount: number | null', zh: '成交额(千元)—— 流动性 / 滑点门。', en: 'Turnover (千元) — liquidity / slippage gate.' },
+  { iface: 'BarRow', name: 'pe', group: '业务类型 BarRow(整行字段)', sig: 'pe: number | null', zh: '市盈率。', en: 'P/E.' },
+  { iface: 'BarRow', name: 'peTtm', group: '业务类型 BarRow(整行字段)', sig: 'peTtm: number | null', zh: '市盈率(TTM)。', en: 'P/E (TTM).' },
+  { iface: 'BarRow', name: 'pb', group: '业务类型 BarRow(整行字段)', sig: 'pb: number | null', zh: '市净率。', en: 'P/B.' },
+  { iface: 'BarRow', name: 'ps', group: '业务类型 BarRow(整行字段)', sig: 'ps: number | null', zh: '市销率。', en: 'P/S.' },
+  { iface: 'BarRow', name: 'psTtm', group: '业务类型 BarRow(整行字段)', sig: 'psTtm: number | null', zh: '市销率(TTM)。', en: 'P/S (TTM).' },
+  { iface: 'BarRow', name: 'dvRatio', group: '业务类型 BarRow(整行字段)', sig: 'dvRatio: number | null', zh: '股息率 %。', en: 'Dividend yield %.' },
+  { iface: 'BarRow', name: 'dvTtm', group: '业务类型 BarRow(整行字段)', sig: 'dvTtm: number | null', zh: '股息率(TTM)%。', en: 'Dividend yield (TTM) %.' },
+  { iface: 'BarRow', name: 'totalMv', group: '业务类型 BarRow(整行字段)', sig: 'totalMv: number | null', zh: '总市值(万元)。', en: 'Total market cap (10k yuan).' },
+  { iface: 'BarRow', name: 'circMv', group: '业务类型 BarRow(整行字段)', sig: 'circMv: number | null', zh: '流通市值(万元)。', en: 'Float market cap (10k yuan).' },
+  { iface: 'BarRow', name: 'turnoverRate', group: '业务类型 BarRow(整行字段)', sig: 'turnoverRate: number | null', zh: '换手率 %。', en: 'Turnover rate %.' },
+  { iface: 'BarRow', name: 'roe', group: '业务类型 BarRow(整行字段)', sig: 'roe: number | null', zh: '净资产收益率 %(时点)。', en: 'ROE % (point-in-time).' },
+  { iface: 'BarRow', name: 'roeWaa', group: '业务类型 BarRow(整行字段)', sig: 'roeWaa: number | null', zh: '加权平均净资产收益率 %。', en: 'Weighted average ROE %.' },
 ];
 
 // Read-only ctx properties (not callable members; emitted at the top of StrategyCtx, no doc anchor).
@@ -131,25 +141,30 @@ const CTX_PROPS = `  readonly date: string;
   readonly cash: number;
   readonly value: number;`;
 
-/** Build the Monaco ambient .d.ts from the entries. `docLink(name)` optionally appends a 📖 link line to
- * each member's JSDoc (the editor hover → /docs#name). */
+/** Build the Monaco ambient .d.ts from the entries. Editor hovers are Chinese-only (the EN copy is for the
+ * doc page); `docLink(name)` optionally appends a 📖 link line to each member's/type's JSDoc (→ /docs#name). */
 export function buildSdkDts(docLink?: (name: string) => string): string {
   const member = (e: SdkEntry) => {
     const link = docLink ? `\n   * ${docLink(e.name)}` : '';
-    return `  /** ${e.zh}\n   * ${e.en}${link} */\n  ${e.sig};`;
+    return `  /** ${e.zh}${link} */\n  ${e.sig};`;
   };
-  const ofIface = (iface: SdkEntry['iface']) =>
-    SDK_ENTRIES.filter((e) => e.iface === iface).map(member).join('\n');
+  const ofIface = (iface: SdkEntry['iface']) => SDK_ENTRIES.filter((e) => e.iface === iface).map(member).join('\n');
+  const tl = (anchor: string) => (docLink ? ` ${docLink(anchor)}` : ''); // a type-level 📖 link
 
   return `${PRELUDE}
 
-/** Today's universe as a chainable view over codes — filter, rank, take a slice. */
+/** 某票今天的整行:不复权 + 后复权 OHLC + 时点估值快照(universe 里 rankBy/where 的 b)。${tl('BarRow')} */
+interface BarRow {
+${ofIface('BarRow')}
+}
+
+/** 今天的可交易候选池,链式 filter / rank / slice。${tl('Universe')} */
 interface Universe {
 ${ofIface('Universe')}
   readonly length: number;
 }
 
-/** What a strategy sees and acts through, each bar. */
+/** 策略每个 bar 看到、操作的入口 —— 下面所有 ctx.xxx 都是它的方法(读数据、算指标、下单);ctx 恒为「今天」。${tl('StrategyCtx')} */
 interface StrategyCtx {
 ${CTX_PROPS}
 ${ofIface('StrategyCtx')}
