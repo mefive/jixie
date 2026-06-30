@@ -193,3 +193,23 @@
   @apply flex-1;
   min-height: 320px;
 }
+
+/* Monaco hover: long SDK signatures otherwise run off the viewport. Cap the hover widget width and let the
+   tokenized code block (.monaco-tokenized-source) + everything inside wrap. */
+.monaco-hover {
+  max-width: 600px !important;
+}
+
+.monaco-hover .hover-contents,
+.monaco-hover .hover-row {
+  max-width: 100% !important;
+}
+
+.monaco-hover .hover-contents *,
+.monaco-hover .monaco-tokenized-source,
+.monaco-hover code,
+.monaco-hover pre {
+  white-space: pre-wrap !important;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
