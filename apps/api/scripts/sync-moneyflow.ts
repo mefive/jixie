@@ -1,10 +1,10 @@
 import { loadTushareConfig } from '../src/config.js';
 import { TushareClient } from '../src/tushare/client.js';
 import { prisma } from '../src/lib/prisma.js';
-import { syncMoneyflow, MF_FACTORS } from '../src/store/sync.js';
+import { syncMoneyflow } from '../src/store/sync.js';
 
 /**
- * Sync per-stock daily moneyflow into FactorValue (mf_net_main 主力净额 / mf_net_total 总净额, 万元) — the
+ * Sync per-stock daily moneyflow into the Moneyflow table (netMain 主力净额 / netTotal 总净额, 万元) — the
  * 关注度/资金 signal, read via a strategy's `factors: ['mf_net_main']` + `ctx.factor(...)`. Resumable.
  * Usage: pnpm sync:moneyflow [start] [end]   e.g. pnpm sync:moneyflow 20200101 20241231
  */
@@ -23,9 +23,8 @@ async function main(): Promise<void> {
 
   console.log('\n落库统计:');
   console.table({
-    mf_net_total: await prisma.factorValue.count({ where: { factor: 'mf_net_total' } }),
-    mf_net_main: await prisma.factorValue.count({ where: { factor: 'mf_net_main' } }),
-    factors: [...MF_FACTORS].join(' / '),
+    Moneyflow行数: await prisma.moneyflow.count(),
+    有总净额: await prisma.moneyflow.count({ where: { netTotal: { not: null } } }),
   });
 
   await prisma.$disconnect();

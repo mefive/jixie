@@ -1,0 +1,163 @@
+@reference '../../styles/index.css';
+
+.jx-factor {
+  @apply flex flex-col;
+  height: 100%;
+}
+
+.jx-factor-body {
+  @apply flex flex-1 flex-col gap-4;
+  @apply overflow-hidden;
+  padding: 16px 20px;
+}
+
+.jx-factor-head {
+  @apply flex flex-col gap-1;
+}
+
+.jx-factor-title {
+  @apply font-semibold text-ink;
+  font-size: 22px;
+  letter-spacing: 2px;
+}
+
+.jx-factor-hint {
+  @apply text-muted;
+  font-size: 13px;
+}
+
+/* —— master(因子表) | detail(选中因子) —— */
+.jx-factor-split {
+  @apply flex flex-1 gap-4;
+  @apply overflow-hidden;
+}
+
+.jx-factor-table {
+  flex: 1;
+  min-width: 340px;
+  @apply overflow-auto;
+  @apply rounded-lg border border-line bg-card;
+}
+
+.jx-factor-table tbody tr {
+  cursor: pointer;
+}
+
+.jx-factor-table tr.jx-factor-row--active > td {
+  background: rgb(17 24 39 / 0.05);
+}
+
+.jx-factor-name {
+  @apply flex flex-col;
+}
+
+.jx-factor-nameMain {
+  @apply text-ink;
+  font-size: 13px;
+}
+
+.jx-factor-nameKey {
+  @apply text-muted;
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* —— detail —— */
+.jx-factor-detail {
+  flex: 1.4;
+  min-width: 0;
+  @apply flex flex-col gap-3;
+  @apply overflow-auto;
+  @apply rounded-lg border border-line bg-card;
+  padding: 16px;
+}
+
+.jx-factor-detailHead {
+  @apply flex items-start justify-between gap-3;
+}
+
+.jx-factor-detailTitleWrap {
+  @apply flex flex-col gap-1;
+}
+
+.jx-factor-detailTitle {
+  @apply font-semibold text-ink;
+  font-size: 18px;
+}
+
+.jx-factor-detailKey {
+  @apply text-muted;
+  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.jx-factor-dir {
+  @apply rounded-full;
+  flex: none;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.jx-factor-dir--up {
+  @apply text-up;
+  background: rgb(232 70 59 / 0.1);
+}
+
+.jx-factor-dir--down {
+  @apply text-down;
+  background: rgb(47 158 91 / 0.1);
+}
+
+.jx-factor-dir--flat {
+  @apply text-muted;
+  background: rgb(138 144 153 / 0.12);
+}
+
+/* EChart container needs an explicit height */
+.jx-factor-chart {
+  flex: none;
+  width: 100%;
+  height: 280px;
+}
+
+.jx-factor-chartCap {
+  @apply text-muted;
+  font-size: 12px;
+}
+
+.jx-factor-metrics {
+  @apply grid gap-3;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+}
+
+.jx-factor-metric {
+  @apply flex flex-col gap-1;
+  @apply rounded-lg border border-line bg-bg;
+  padding: 10px 12px;
+}
+
+.jx-factor-metricLabel {
+  @apply text-xs text-muted;
+}
+
+.jx-factor-metricValue {
+  @apply font-semibold text-ink;
+  font-size: 18px;
+}
+
+.jx-factor-metricHint {
+  @apply text-muted;
+  font-size: 11px;
+}
+
+/* —— loading / error / empty —— */
+.jx-factor-placeholder {
+  @apply flex flex-1 items-center justify-center gap-2;
+  @apply text-muted;
+  font-size: 14px;
+}
+
+.jx-factor-placeholder--error {
+  @apply text-down;
+}

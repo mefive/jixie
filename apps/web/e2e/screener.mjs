@@ -286,6 +286,40 @@ try {
   await page.screenshot({ path: `${SHOTS}6b-sdk-docs-en.png` });
   log('shot 6b: SDK docs page (EN toggle)');
 
+  // 7. 因子研究 (/factors): analyzeFactors() surfaced as a page — sortable factor table + the selected
+  //    factor's decile bar chart + IC / long-short metrics. (First hit runs the whole-history
+  //    cross-sectional study → generous timeout; the API memoizes it after.)
+  await page.goto(`${BASE}/factors`, { waitUntil: 'domcontentloaded' });
+  await page.getByText('因子分析').first().waitFor();
+  await page.waitForFunction(
+    () => document.querySelectorAll('.jx-factor-table tbody tr.ant-table-row').length > 0,
+    { timeout: 45000 },
+  );
+  const factorRows = await page.locator('.jx-factor-table tbody tr.ant-table-row').count();
+  await page.locator('.jx-factor-chart canvas').first().waitFor({ timeout: 8000 });
+  await page.waitForTimeout(500); // let echarts paint the deciles
+  const selFactor = ((await page.locator('.jx-factor-detailTitle').textContent()) ?? '').trim();
+  log('factor page: rows', factorRows, '| selected', selFactor);
+  if (!factorRows) throw new Error('因子表为空');
+  await page.screenshot({ path: `${SHOTS}7-factors.png` });
+  log('shot 7: 因子研究 (decile chart + IC/long-short)');
+
+  // click a different factor row → the detail panel (chart + metrics) swaps to it
+  if (factorRows > 1) {
+    await page.locator('.jx-factor-table tbody tr.ant-table-row').nth(1).click();
+    await page.waitForFunction(
+      (prev) => {
+        const el = document.querySelector('.jx-factor-detailTitle');
+        return el && el.textContent && el.textContent.trim() !== prev;
+      },
+      selFactor,
+      { timeout: 5000 },
+    );
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: `${SHOTS}7b-factors-select.png` });
+    log('shot 7b: select another factor →', ((await page.locator('.jx-factor-detailTitle').textContent()) ?? '').trim());
+  }
+
   // cleanup seeded + auto-saved strategies for this user
   await page.evaluate(async () => {
     const list = await (await fetch('/api/app/strategies')).json();

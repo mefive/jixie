@@ -111,7 +111,15 @@ export const FUNDAMENTAL_FACTORS: FundamentalFactorDef[] = [
   },
 ];
 
-/** key → label for every factor (price + fundamental), used by the analysis report. */
-export const FACTOR_LABELS: Record<string, string> = Object.fromEntries(
-  [...FACTORS, ...FUNDAMENTAL_FACTORS].map((f) => [f.key, f.label]),
-);
+/** Labels for factors sourced outside the two registries above (read from their own raw tables, e.g.
+ * moneyflow from the Moneyflow table) — so the analysis report shows a 中文 name, not the raw key. */
+const EXTRA_FACTOR_LABELS: Record<string, string> = {
+  mf_net_main: '主力净额(万元)',
+  mf_net_total: '总净额(万元)',
+};
+
+/** key → label for every factor (price + fundamental + opt-in), used by the analysis report. */
+export const FACTOR_LABELS: Record<string, string> = {
+  ...Object.fromEntries([...FACTORS, ...FUNDAMENTAL_FACTORS].map((f) => [f.key, f.label])),
+  ...EXTRA_FACTOR_LABELS,
+};

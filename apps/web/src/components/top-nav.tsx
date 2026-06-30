@@ -8,7 +8,7 @@ import { authStore } from '@src/store';
 import banner from '@src/assets/banner.png';
 import './top-nav.css';
 
-/** Shared app header: banner + page nav (回测工作台 / 选股看图) + user/logout. */
+/** Shared app header: banner + page nav (回测工作台 / 选股看图 / 因子研究) + user/logout. */
 export const TopNav = observer(() => {
   return (
     <header className="jx-topnav">
@@ -20,6 +20,9 @@ export const TopNav = observer(() => {
           </NavLink>
           <NavLink to="/screen" className={linkClass}>
             选股看图
+          </NavLink>
+          <NavLink to="/factors" className={linkClass}>
+            因子研究
           </NavLink>
         </nav>
       </div>
