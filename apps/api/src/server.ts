@@ -7,6 +7,7 @@ import { strategyRoute } from './routes/strategy.js';
 import { savedStrategyRoute } from './routes/saved-strategy.js';
 import { screenRoute } from './routes/screen.js';
 import { savedScreenRoute } from './routes/saved-screen.js';
+import { factorRoute } from './routes/factor.js';
 import { requireAuth } from './lib/session.js';
 
 /**
@@ -39,6 +40,7 @@ export function buildApp() {
   app.route('/api/app/strategy', strategyRoute);
   app.route('/api/app/strategies', savedStrategyRoute);
   app.route('/api/app/screens', savedScreenRoute);
+  app.route('/api/app/factors', factorRoute);
   app.route('/api/app', screenRoute);
 
   return app;

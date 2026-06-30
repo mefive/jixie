@@ -9,7 +9,7 @@ const pct = (x: number) => (x * 100).toFixed(2) + '%';
  * Usage: pnpm --filter api backtest [signal] [low|high] [quantile]
  *   value example: pnpm --filter api backtest ep high 0.1   (cheapest decile by earnings yield)
  *   price example: pnpm --filter api backtest vol low 0.1    (low-volatility decile)
- * Signals: ep / bp / dv / size (from daily_basic) · mom / rev / vol (precomputed FactorValue)
+ * Signals: ep / bp / dv / size (from daily_basic) · mom / rev / vol (computed on the fly from bars)
  */
 async function main(): Promise<void> {
   const [signal = 'ep', side = 'high', q = '0.1'] = process.argv.slice(2);

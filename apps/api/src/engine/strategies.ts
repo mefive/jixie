@@ -14,16 +14,18 @@ export type Signal = (bar: BarRow, ctx: BarContext, code: string) => number | nu
 
 interface SignalDef {
   label: string;
-  needsFactor?: string; // precomputed column the engine must preload (price-window signals)
   fn: Signal;
 }
+
+// Bars to pull for a price-window signal — must cover the longest lookback (momentum 60 + skip) + 1.
+const PRICE_FACTOR_BARS = 70;
 
 /**
  * Signal registry — the menu a config-driven UI would expose.
  *  - Valuation signals (ep/bp/dv/size) read bar() straight from daily_basic (point-in-time, no
  *    precompute). They reuse the exact formulas in factors.ts so there's a single source of truth.
- *  - Price-window signals (mom/rev/vol) read a precomputed column via ctx.factor(); the engine
- *    preloads it because the strategy declares `factors: [name]`.
+ *  - Price-window signals (mom/rev/vol) compute on the fly from the bar series via the same factors.ts
+ *    formulas — no precompute, no factor store (the engine holds no factor values).
  */
 export const SIGNALS: Record<string, SignalDef> = {
   ...Object.fromEntries(
@@ -34,8 +36,15 @@ export const SIGNALS: Record<string, SignalDef> = {
       f.key,
       {
         label: f.label,
-        needsFactor: f.key,
-        fn: (_b: BarRow, ctx: BarContext, code: string) => ctx.factor(f.key, code),
+        fn: (_b: BarRow, ctx: BarContext, code: string) => {
+          const bars = ctx.bars(code, PRICE_FACTOR_BARS);
+          if (bars.length < 2) return null;
+          return f.fn(
+            bars.map((x) => x.adjClose),
+            bars.map((x) => x.date),
+            bars.length - 1,
+          );
+        },
       },
     ]),
   ),
@@ -66,13 +75,13 @@ export function crossSectionStrategy(opts: {
 
   return {
     name: opts.name ?? `${opts.signal}-${opts.side}-q${opts.quantile}`,
-    factors: sig.needsFactor ? [sig.needsFactor] : undefined,
     async onBar(ctx) {
       const month = ctx.date.slice(0, 6);
       if (month === lastMonth) return; // already rebalanced this month
       lastMonth = month;
 
       const codes = await ctx.loadCrossSection();
+      await ctx.ensureBars(codes); // price-window signals compute from the bar series → need it cached
       let cands: { code: string; v: number; liq: number }[] = [];
       for (const code of codes) {
         const bar = ctx.bar(code);

@@ -13,6 +13,7 @@ import loginEntry from '@src/complex/login';
 import labEntry from '@src/complex/lab';
 import screenEntry from '@src/complex/screen';
 import stockEntry from '@src/complex/stock';
+import factorEntry from '@src/complex/factor';
 import { authStore } from '@src/store';
 
 // Standalone SDK reference page (also opened from the lab 文档 button + the 📖 links in editor hovers).
@@ -40,6 +41,14 @@ export function AppRoutes() {
           element={
             <RequireAuth>
               <ComplexRoute key="screen" entry={screenEntry} />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/factors"
+          element={
+            <RequireAuth>
+              <ComplexRoute key="factors" entry={factorEntry} />
             </RequireAuth>
           }
         />

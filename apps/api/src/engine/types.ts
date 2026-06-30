@@ -5,8 +5,8 @@
 //
 // Design principle (three layers): the engine knows only raw market data. It exposes general
 // market primitives (bar / history / universe / orders) and has NO built-in notion of "factor".
-// Factors are a strategy-side concern: value/valuation signals read bar() (daily_basic) directly;
-// price-window signals (mom/rev/vol) opt into precomputed columns the engine preloads on request.
+// Factors are a strategy-side concern: valuation signals read bar() (daily_basic) directly; price-window
+// signals (mom/rev/vol) compute on the fly from the bar series; moneyflow opts into a preloaded column.
 
 /** A held position. frozenUntil = first date the shares may be sold (T+1). */
 export interface Position {
@@ -113,8 +113,8 @@ export interface BarContext {
   price(code: string): number | null;
   /** Last n adjusted prices up to today for held/already-loaded codes (price-window math on holdings). */
   history(code: string, field: 'open' | 'high' | 'low' | 'close', n: number): number[];
-  /** Optional precomputed column lookup (only the factors the strategy declared in `factors`). The
-   * engine treats these as opaque preloaded data; it does not know what they mean. As-of `date`. */
+  /** Preloaded moneyflow column lookup (only the keys the strategy declared in `factors`, e.g.
+   * 'mf_net_main'). The engine treats it as opaque preloaded data; as-of `date`, null if absent. */
   factor(name: string, code: string): number | null;
   /** Point-in-time constituents of an index (e.g. '000300.SH' 沪深300) as of today — the codes from the
    * latest monthly snapshot ≤ today. Async (lazily loads the index's snapshots on first use). */
@@ -135,8 +135,8 @@ export interface BarContext {
 
 export interface Strategy {
   name: string;
-  /** Precomputed factor columns to preload from FactorValue (price-window signals). Omit for
-   * pure-valuation strategies, which read bar() directly and touch no precomputed data. */
+  /** Moneyflow columns to preload (e.g. ['mf_net_main']) for ctx.factor(). Omit unless the strategy
+   * reads moneyflow; price/valuation signals need no preload (computed on the fly / read from bar()). */
   factors?: string[];
   /** Instruments a per-instrument strategy trades — the engine preloads their bar series up front so
    * bars()/price() work every day without touching the cross-section. */
