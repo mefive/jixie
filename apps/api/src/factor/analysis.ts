@@ -1,7 +1,12 @@
+import type { BucketStat, FactorReport } from '@jixie/shared';
 import { prisma } from '../lib/prisma.js';
-import { FACTOR_LABELS } from './factors.js';
+import { FACTORS, FUNDAMENTAL_FACTORS, FACTOR_LABELS } from './factors.js';
 import { sameMonth, minusDays } from '../lib/date.js';
 import * as st from '../lib/stats.js';
+
+// Wire shapes live in @jixie/shared (the /factors page renders them); re-export so existing
+// imports of these types from this module keep working.
+export type { BucketStat, FactorReport } from '@jixie/shared';
 
 const PERIODS_PER_YEAR = 12; // monthly frequency
 const N_BUCKETS = 10; // deciles
@@ -9,28 +14,6 @@ const MIN_HISTORY_DAYS = 365; // exclude recently-listed: listed / first bar at 
 const LIQUIDITY_DROP = 0.25; // drop the bottom 25% by turnover
 const MIN_CANDIDATES = 100; // skip the month if too few usable stocks
 const WINSOR_P = 0.01; // winsorize quantile for forward returns
-
-export interface BucketStat {
-  bucket: number; // 0=lowest factor value … 9=highest
-  annReturn: number;
-  sharpe: number;
-  maxDrawdown: number;
-  navEnd: number;
-}
-
-export interface FactorReport {
-  factor: string;
-  label: string;
-  months: number;
-  icMean: number;
-  icStd: number;
-  icir: number; // icMean / icStd (single period)
-  icirAnnual: number; // icir × √12
-  icPosRate: number; // fraction with IC>0
-  buckets: BucketStat[];
-  longShort: { annReturn: number; sharpe: number; maxDrawdown: number; navEnd: number };
-  topTurnover: number; // average one-way turnover of the top bucket
-}
 
 // Month-end trading day (the last open day of each month) = rebalance day
 async function getRebalanceDates(): Promise<string[]> {
@@ -73,35 +56,114 @@ async function loadSnapshots(dates: string[]): Promise<Map<string, Snap>> {
   return snaps;
 }
 
+// factor -> rebalance date -> [{ tsCode, value }]. The whole panel, held in memory for the run only.
+type FactorPanel = Map<string, Map<string, { tsCode: string; value: number }[]>>;
+
+/**
+ * Compute every factor's value on each rebalance date, on the fly from raw tables (no FactorValue):
+ *  - price-window factors (mom/rev/vol) from the per-stock hfq close series (same formulas as factors.ts),
+ *  - fundamentals (ep/bp/dv/size) from daily_basic,
+ *  - moneyflow (mf_net_main/total) from the Moneyflow table.
+ * Values exist only in memory for this call; the caller persists the *report*, not the values.
+ */
+async function computeFactorPanel(rebalanceDates: string[]): Promise<FactorPanel> {
+  const panel: FactorPanel = new Map();
+  const rebalanceSet = new Set(rebalanceDates);
+  const push = (factor: string, date: string, tsCode: string, value: number | null) => {
+    if (value == null || !Number.isFinite(value)) return;
+    let byDate = panel.get(factor);
+    if (!byDate) panel.set(factor, (byDate = new Map()));
+    let rows = byDate.get(date);
+    if (!rows) byDate.set(date, (rows = []));
+    rows.push({ tsCode, value });
+  };
+
+  // —— Price-window factors: per stock, build the hfq close series, compute at each rebalance index.
+  const listDateMap = new Map(
+    (await prisma.stockBasic.findMany({ select: { tsCode: true, listDate: true } })).map((s) => [
+      s.tsCode,
+      s.listDate,
+    ]),
+  );
+  const stocks = await prisma.daily.findMany({ distinct: ['tsCode'], select: { tsCode: true } });
+  for (const { tsCode } of stocks) {
+    const [px, adj] = await Promise.all([
+      prisma.daily.findMany({
+        where: { tsCode },
+        select: { tradeDate: true, close: true },
+        orderBy: { tradeDate: 'asc' },
+      }),
+      prisma.adjFactor.findMany({
+        where: { tsCode },
+        select: { tradeDate: true, adjFactor: true },
+        orderBy: { tradeDate: 'asc' },
+      }),
+    ]);
+    const adjMap = new Map(adj.map((a) => [a.tradeDate, a.adjFactor]));
+    const listDate = listDateMap.get(tsCode);
+    const dates: string[] = [];
+    const adjClose: number[] = [];
+    let lastAdj: number | null = null; // carry forward last adj when missing, to avoid fake jumps
+    for (const r of px) {
+      if (r.close == null) continue;
+      if (listDate && r.tradeDate < listDate) continue; // drop pre-IPO phantom bars
+      const a = adjMap.get(r.tradeDate);
+      if (a != null) lastAdj = a;
+      if (lastAdj == null) continue;
+      dates.push(r.tradeDate);
+      adjClose.push(r.close * lastAdj);
+    }
+    for (let end = 0; end < dates.length; end++) {
+      if (!rebalanceSet.has(dates[end])) continue;
+      for (const f of FACTORS) push(f.key, dates[end], tsCode, f.fn(adjClose, dates, end));
+    }
+  }
+
+  // —— Fundamentals: one query per rebalance date from daily_basic.
+  for (const d of rebalanceDates) {
+    const rows = await prisma.dailyBasic.findMany({
+      where: { tradeDate: d },
+      select: { tsCode: true, peTtm: true, pb: true, dvRatio: true, totalMv: true },
+    });
+    for (const r of rows) for (const f of FUNDAMENTAL_FACTORS) push(f.key, d, r.tsCode, f.from(r));
+  }
+
+  // —— Moneyflow: read the month-end rows from the Moneyflow table.
+  const mf = await prisma.moneyflow.findMany({
+    where: { tradeDate: { in: rebalanceDates } },
+    select: { tsCode: true, tradeDate: true, netMain: true, netTotal: true },
+  });
+  for (const r of mf) {
+    push('mf_net_main', r.tradeDate, r.tsCode, r.netMain);
+    push('mf_net_total', r.tradeDate, r.tsCode, r.netTotal);
+  }
+
+  return panel;
+}
+
 export async function analyzeFactors(): Promise<FactorReport[]> {
   const rebalanceDates = await getRebalanceDates();
   const snaps = await loadSnapshots(rebalanceDates);
+  const panel = await computeFactorPanel(rebalanceDates);
 
-  // First-data date (proxy for excluding recently-listed stocks: earliest bar in the DB; old
-  // stocks listed before 2015 count as 2015-01, which is old enough)
-  const firstBarRows = await prisma.daily.groupBy({ by: ['tsCode'], _min: { tradeDate: true } });
-  const firstBar = new Map(firstBarRows.map((r) => [r.tsCode, r._min.tradeDate ?? '99999999']));
+  // List date per stock, to exclude recently-listed (< MIN_HISTORY_DAYS old). Read from StockBasic
+  // (a ~5k-row table) instead of a groupBy-min over the whole daily table (millions of rows).
+  // Delisted stocks aren't in StockBasic → absent from the map → the lookup defaults them to very old
+  // (kept), avoiding survivorship bias, same as the prior "earliest bar" proxy.
+  const firstBar = new Map(
+    (await prisma.stockBasic.findMany({ select: { tsCode: true, listDate: true } })).map((s) => [
+      s.tsCode,
+      s.listDate ?? '00000000',
+    ]),
+  );
 
   const reports: FactorReport[] = [];
 
-  // Report every factor actually present in the table (price + fundamental).
-  const factorKeys = (
-    await prisma.factorValue.findMany({ distinct: ['factor'], select: { factor: true } })
-  )
-    .map((r) => r.factor)
-    .sort();
+  // Every factor we computed, in a stable order (price → fundamental → moneyflow).
+  const factorKeys = [...panel.keys()].sort();
 
   for (const factorKey of factorKeys) {
-    // Group factor values by rebalance day
-    const fvRows = await prisma.factorValue.findMany({
-      where: { factor: factorKey },
-      select: { tsCode: true, tradeDate: true, value: true },
-    });
-    const byDate = new Map<string, { tsCode: string; value: number }[]>();
-    for (const r of fvRows) {
-      if (!byDate.has(r.tradeDate)) byDate.set(r.tradeDate, []);
-      byDate.get(r.tradeDate)!.push({ tsCode: r.tsCode, value: r.value });
-    }
+    const byDate = panel.get(factorKey)!; // rebalance date -> [{ tsCode, value }]
 
     const icSeries: number[] = [];
     const bucketReturns: number[][] = Array.from({ length: N_BUCKETS }, () => []);
@@ -126,7 +188,7 @@ export async function analyzeFactors(): Promise<FactorReport[]> {
         const a = snapD.get(tsCode);
         const b = snapNext.get(tsCode);
         if (!a || !b) continue;
-        if ((firstBar.get(tsCode) ?? '99999999') > minFirst) continue; // exclude recently-listed
+        if ((firstBar.get(tsCode) ?? '00000000') > minFirst) continue; // exclude recently-listed (absent=delisted→kept)
         cands.push({ tsCode, value, amount: a.amount, fwd: b.adjClose / a.adjClose - 1 });
       }
       if (cands.length < MIN_CANDIDATES) continue;

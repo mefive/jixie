@@ -277,14 +277,13 @@ export async function syncTopList(
   log('syncTopList 完成');
 }
 
-/** Moneyflow factor keys written to FactorValue — opt in via a strategy's `factors: [...]`. */
+/** Moneyflow-derived factor keys (values come from the Moneyflow table) — surfaced in factor analysis. */
 export const MF_FACTORS = ['mf_net_main', 'mf_net_total'] as const;
 
 /**
- * Sync per-stock daily moneyflow into FactorValue as two opt-in factor columns (mf_net_main 主力净额、
- * mf_net_total 总净额, 万元), per trading day (resumable). Reuses the existing factor mechanism, so
- * strategies read it via `factors: ['mf_net_main']` + `ctx.factor('mf_net_main', code)`. Idempotent:
- * per-day deleteMany (only these factors) + createMany — never touches computed factors (mom/rev/vol).
+ * Sync per-stock daily moneyflow into the Moneyflow table (netMain 主力净额、netTotal 总净额, 万元),
+ * per trading day (resumable). Raw fetched point-in-time data: strategies read it via ctx.moneyflow,
+ * factor analysis reads the column directly. Idempotent: per-day deleteMany + createMany.
  */
 export async function syncMoneyflow(
   client: TushareClient,
@@ -296,8 +295,8 @@ export async function syncMoneyflow(
     await syncTradeCal(client, start, end);
     dates = await getOpenDates(start, end);
   }
-  const existing = await prisma.factorValue.findMany({
-    where: { factor: 'mf_net_total', tradeDate: { gte: start, lte: end } },
+  const existing = await prisma.moneyflow.findMany({
+    where: { tradeDate: { gte: start, lte: end } },
     distinct: ['tradeDate'],
     select: { tradeDate: true },
   });
@@ -308,17 +307,20 @@ export async function syncMoneyflow(
   let done = 0;
   for (const d of todo) {
     const rows = await moneyflow(client, { trade_date: d });
-    const data: { factor: string; tsCode: string; tradeDate: string; value: number }[] = [];
-    for (const r of rows) {
-      const total = r.net_mf_amount;
-      const main =
-        (r.buy_lg_amount ?? 0) + (r.buy_elg_amount ?? 0) - (r.sell_lg_amount ?? 0) - (r.sell_elg_amount ?? 0);
-      if (total != null) data.push({ factor: 'mf_net_total', tsCode: r.ts_code, tradeDate: d, value: total });
-      data.push({ factor: 'mf_net_main', tsCode: r.ts_code, tradeDate: d, value: main });
-    }
+    const data = rows.map((r) => ({
+      tsCode: r.ts_code,
+      tradeDate: d,
+      // 主力 = (大单+特大单) 买−卖; 总净额 = net_mf_amount(source 可能缺 → null)
+      netMain:
+        (r.buy_lg_amount ?? 0) +
+        (r.buy_elg_amount ?? 0) -
+        (r.sell_lg_amount ?? 0) -
+        (r.sell_elg_amount ?? 0),
+      netTotal: r.net_mf_amount ?? null,
+    }));
     await prisma.$transaction([
-      prisma.factorValue.deleteMany({ where: { factor: { in: [...MF_FACTORS] }, tradeDate: d } }),
-      prisma.factorValue.createMany({ data }),
+      prisma.moneyflow.deleteMany({ where: { tradeDate: d } }),
+      prisma.moneyflow.createMany({ data }),
     ]);
     done++;
     if (done % 10 === 0 || done === todo.length) {

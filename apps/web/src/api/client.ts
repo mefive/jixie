@@ -168,3 +168,10 @@ export function queryScreen(text: string): Promise<ScreenQueryResponse> {
 export function fetchStockSeries(code: string, start = '20150101', end = '20241231'): Promise<StockSeries> {
   return request(`/api/app/stock/${code}/series?start=${start}&end=${end}`);
 }
+
+import type { FactorReport } from '@jixie/shared';
+
+// 因子研究: one analysis report per pre-computed factor (deciles + Rank IC + long-short).
+export function getFactorAnalysis(): Promise<FactorReport[]> {
+  return request('/api/app/factors/analysis');
+}
