@@ -169,9 +169,27 @@ export function fetchStockSeries(code: string, start = '20150101', end = '202412
   return request(`/api/app/stock/${code}/series?start=${start}&end=${end}`);
 }
 
-import type { FactorReport } from '@jixie/shared';
+import type { FactorReport, FactorMeta, FactorRun, FactorFreq } from '@jixie/shared';
 
-// 因子研究: one analysis report per pre-computed factor (deciles + Rank IC + long-short).
-export function getFactorAnalysis(): Promise<FactorReport[]> {
-  return request('/api/app/factors/analysis');
+// 因子研究: the factor list (identity + kind).
+export function getFactorCatalog(): Promise<FactorMeta[]> {
+  return request('/api/app/factors/catalog');
+}
+
+// A factor's cached runs (the "已跑" chips).
+export function getFactorRuns(factor: string): Promise<FactorRun[]> {
+  return request(`/api/app/factors/runs?factor=${encodeURIComponent(factor)}`);
+}
+
+// A single-factor analysis over (freq, start, end): deciles + Rank IC + long-short. Cached server-side;
+// refresh=true recomputes. Price factors are ~100s cold; fundamentals/moneyflow a few seconds.
+export function getFactorAnalysis(
+  factor: string,
+  freq: FactorFreq,
+  start: string,
+  end: string,
+  refresh = false,
+): Promise<FactorReport> {
+  const q = new URLSearchParams({ factor, freq, start, end, ...(refresh ? { refresh: '1' } : {}) });
+  return request(`/api/app/factors/analysis?${q}`);
 }

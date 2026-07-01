@@ -1,9 +1,11 @@
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
+import isoWeek from 'dayjs/plugin/isoWeek';
 
 // Our dates are 'YYYYMMDD' strings (Tushare format), which dayjs can't parse by default —
-// customParseFormat enables dayjs(str, 'YYYYMMDD').
+// customParseFormat enables dayjs(str, 'YYYYMMDD'). isoWeek adds Mon–Sun week bucketing.
 dayjs.extend(customParseFormat);
+dayjs.extend(isoWeek);
 
 const FMT = 'YYYYMMDD';
 
@@ -15,6 +17,11 @@ export function day(ymd: string) {
 /** Whether two 'YYYYMMDD' dates fall in the same calendar month. */
 export function sameMonth(a: string, b: string): boolean {
   return day(a).isSame(day(b), 'month');
+}
+
+/** Whether two 'YYYYMMDD' dates fall in the same ISO week (Mon–Sun). */
+export function sameWeek(a: string, b: string): boolean {
+  return day(a).startOf('isoWeek').isSame(day(b).startOf('isoWeek'), 'day');
 }
 
 /** The 'YYYYMMDD' that is `n` calendar days before `ymd`. */

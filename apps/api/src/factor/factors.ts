@@ -7,6 +7,7 @@
  * the sign of the backtest IC.
  */
 
+import type { FactorMeta } from '@jixie/shared';
 import { daysBetween } from '../lib/date.js';
 
 // If the calendar gap between adjacent trading days within the window exceeds this many days
@@ -123,3 +124,12 @@ export const FACTOR_LABELS: Record<string, string> = {
   ...Object.fromEntries([...FACTORS, ...FUNDAMENTAL_FACTORS].map((f) => [f.key, f.label])),
   ...EXTRA_FACTOR_LABELS,
 };
+
+/** The full factor catalog (identity + kind) — drives the /factors list and the single-factor analyze
+ * dispatch (kind decides the compute path: price=per-stock series, fundamental=daily_basic, moneyflow=table). */
+export const FACTOR_CATALOG: FactorMeta[] = [
+  ...FACTORS.map((f) => ({ key: f.key, label: f.label, kind: 'price' as const })),
+  ...FUNDAMENTAL_FACTORS.map((f) => ({ key: f.key, label: f.label, kind: 'fundamental' as const })),
+  { key: 'mf_net_main', label: EXTRA_FACTOR_LABELS.mf_net_main, kind: 'moneyflow' },
+  { key: 'mf_net_total', label: EXTRA_FACTOR_LABELS.mf_net_total, kind: 'moneyflow' },
+];
