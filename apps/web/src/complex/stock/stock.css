@@ -33,6 +33,27 @@
   min-height: 520px;
 }
 
+.jx-stock-skeleton {
+  @apply flex items-end justify-between gap-1;
+  padding: 32px 24px;
+}
+
+.jx-stock-skeletonBar {
+  @apply flex-1 rounded-sm;
+  background: linear-gradient(90deg, #f2f3f5 25%, #e8eaed 37%, #f2f3f5 63%);
+  background-size: 400% 100%;
+  animation: jx-stock-shimmer 1.4s ease infinite;
+}
+
+@keyframes jx-stock-shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
 .jx-stock-placeholder {
   @apply flex flex-1 items-center justify-center;
   @apply text-sm text-muted;

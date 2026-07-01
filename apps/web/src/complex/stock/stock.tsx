@@ -49,9 +49,9 @@ export const Stock = complex.component(() => {
             行情加载失败：{store.seriesLoader.errorObject?.message}
           </div>
         ) : loading || !series ? (
-          <div className="jx-stock-placeholder">加载行情…</div>
+          <ChartSkeleton />
         ) : (
-          <Suspense fallback={<div className="jx-stock-placeholder">加载图表…</div>}>
+          <Suspense fallback={<ChartSkeleton />}>
             <StockChart series={series} logY={scale === 'log'} adjust={adjust} className="jx-stock-chart" />
           </Suspense>
         )}
@@ -59,3 +59,20 @@ export const Stock = complex.component(() => {
     </div>
   );
 }, 'Stock');
+
+// —— 子组件 ——
+
+// Candlestick-shaped loading skeleton for the chart area — shimmering bars of a fixed height pattern.
+// (A chart skeleton is the §5 chart exception to "no hand-drawn shapes"; antd Skeleton has no chart form.)
+function ChartSkeleton() {
+  return (
+    <div className="jx-stock-chart jx-stock-skeleton" aria-label="加载行情…">
+      {SKELETON_BARS.map((h, i) => (
+        <span key={i} className="jx-stock-skeletonBar" style={{ height: `${h}%` }} />
+      ))}
+    </div>
+  );
+}
+
+// Static height pattern (%) so the skeleton is deterministic — no per-render randomness.
+const SKELETON_BARS = [40, 55, 48, 62, 70, 58, 66, 74, 68, 80, 72, 85, 78, 64, 56, 60, 52, 46, 50, 44];

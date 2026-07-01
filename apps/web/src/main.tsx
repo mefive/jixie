@@ -1,4 +1,4 @@
-import { ConfigProvider } from 'antd';
+import { App, ConfigProvider } from 'antd';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AppRoutes } from './app-routes';
@@ -34,7 +34,13 @@ const theme = {
 createRoot(el).render(
   <StrictMode>
     <ConfigProvider theme={theme}>
-      <AppRoutes />
+      {/* antd 6 App: gives message/modal/notification a context instance (App.useApp) so LoaderButton's
+          toasts + confirm dialog inherit the ink theme instead of the default antd blue. Keep the default
+          div wrapper (antd 6 cssVar needs a real component), but jx-appRoot is display:contents so it
+          generates no box and doesn't break the html/body/#root height:100% chain. */}
+      <App className="jx-appRoot">
+        <AppRoutes />
+      </App>
     </ConfigProvider>
   </StrictMode>,
 );

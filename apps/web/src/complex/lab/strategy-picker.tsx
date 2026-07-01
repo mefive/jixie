@@ -1,4 +1,4 @@
-import { Button, Empty, Modal, Spin } from 'antd';
+import { App, Button, Empty, Modal, Spin } from 'antd';
 import dayjs from 'dayjs';
 import { faTrashCan } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -25,6 +25,16 @@ export default function StrategyPicker({
   onLoad: (id: string) => void;
   onDelete: (id: string) => void;
 }) {
+  const { modal } = App.useApp();
+  const askDelete = (id: string, name: string) =>
+    modal.confirm({
+      title: '删除确认',
+      content: `确定删除「${name}」吗?删除后不可恢复。`,
+      okText: '删除',
+      okButtonProps: { danger: true },
+      cancelText: '取消',
+      onOk: () => onDelete(id),
+    });
   return (
     <Modal open={open} onCancel={onClose} footer={null} title="我的策略" width={860} destroyOnHidden>
       {loading && cards.length === 0 ? (
@@ -53,7 +63,7 @@ export default function StrategyPicker({
                   icon={<FontAwesomeIcon icon={faTrashCan} />}
                   onClick={(e) => {
                     e.stopPropagation();
-                    onDelete(c.id);
+                    askDelete(c.id, c.name);
                   }}
                 />
               </div>
