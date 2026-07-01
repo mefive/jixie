@@ -64,12 +64,19 @@ type Series = Map<string, { tsCode: string; value: number }[]>; // rebalance dat
  *  - moneyflow (mf_net_main/total): read the Moneyflow table.
  * A non-price factor skips the (expensive) per-stock price loop entirely — the big single-factor win.
  */
-async function computeFactorSeries(factorKey: string, dates: string[]): Promise<Series> {
+async function computeFactorSeries(
+  factorKey: string,
+  dates: string[],
+  snaps: Map<string, Snap>,
+): Promise<Series> {
   const series: Series = new Map();
   const push = (date: string, tsCode: string, value: number | null) => {
     if (value == null || !Number.isFinite(value)) return;
     let rows = series.get(date);
-    if (!rows) series.set(date, (rows = []));
+    if (!rows) {
+      rows = [];
+      series.set(date, rows);
+    }
     rows.push({ tsCode, value });
   };
 
@@ -84,9 +91,13 @@ async function computeFactorSeries(factorKey: string, dates: string[]): Promise<
         s.listDate,
       ]),
     );
-    const stocks = await prisma.daily.findMany({ distinct: ['tsCode'], select: { tsCode: true } });
-    for (const { tsCode } of stocks) {
-      const [px, adj] = await Promise.all([
+    // Stock universe = tsCodes already found quoted on some rebalance date by loadSnapshots.
+    // A stock absent from every snapshot can never survive the snapDate/snapNextDate lookup below
+    // in analyzeFactor anyway, so there's no need to scan all of `daily` for every tsCode ever synced.
+    const tsCodes = new Set<string>();
+    for (const snap of snaps.values()) for (const tsCode of snap.keys()) tsCodes.add(tsCode);
+    for (const tsCode of tsCodes) {
+      const [priceRows, adjRows] = await Promise.all([
         prisma.daily.findMany({
           where: { tsCode },
           select: { tradeDate: true, close: true },
@@ -98,31 +109,36 @@ async function computeFactorSeries(factorKey: string, dates: string[]): Promise<
           orderBy: { tradeDate: 'asc' },
         }),
       ]);
-      const adjMap = new Map(adj.map((a) => [a.tradeDate, a.adjFactor]));
+      const adjMap = new Map(adjRows.map((a) => [a.tradeDate, a.adjFactor]));
       const listDate = listDateMap.get(tsCode);
-      const ds: string[] = [];
+      // Trade dates kept below, 1:1 aligned with adjClose by index (same filtering applied to both).
+      const tradeDates: string[] = [];
       const adjClose: number[] = [];
       let lastAdj: number | null = null; // carry forward last adj when missing, to avoid fake jumps
-      for (const r of px) {
+      for (const r of priceRows) {
         if (r.close == null) continue;
         if (listDate && r.tradeDate < listDate) continue; // drop pre-IPO phantom bars
         const a = adjMap.get(r.tradeDate);
         if (a != null) lastAdj = a;
         if (lastAdj == null) continue;
-        ds.push(r.tradeDate);
+        tradeDates.push(r.tradeDate);
         adjClose.push(r.close * lastAdj);
       }
-      for (let end = 0; end < ds.length; end++) {
-        if (rebalanceSet.has(ds[end])) push(ds[end], tsCode, priceFn(adjClose, ds, end));
+      for (let end = 0; end < tradeDates.length; end++) {
+        if (rebalanceSet.has(tradeDates[end])) {
+          push(tradeDates[end], tsCode, priceFn(adjClose, tradeDates, end));
+        }
       }
     }
   } else if (fundFn) {
-    for (const d of dates) {
+    // Queried per-date (not batched with `in: dates`) — measured slower when batched here, likely
+    // Prisma row-deserialization + SQLite IN-list planning overhead on top of the same total row count.
+    for (const date of dates) {
       const rows = await prisma.dailyBasic.findMany({
-        where: { tradeDate: d },
+        where: { tradeDate: date },
         select: { tsCode: true, peTtm: true, pb: true, dvRatio: true, totalMv: true },
       });
-      for (const r of rows) push(d, r.tsCode, fundFn(r));
+      for (const r of rows) push(date, r.tsCode, fundFn(r));
     }
   } else if (factorKey === 'mf_net_main' || factorKey === 'mf_net_total') {
     const mf = await prisma.moneyflow.findMany({
@@ -151,7 +167,7 @@ export async function analyzeFactor(
   const periodsPerYear = freq === 'week' ? 52 : 12;
   const rebalanceDates = await getRebalanceDates(freq, start, end);
   const snaps = await loadSnapshots(rebalanceDates);
-  const byDate = await computeFactorSeries(factorKey, rebalanceDates);
+  const byDate = await computeFactorSeries(factorKey, rebalanceDates, snaps);
 
   // List date per stock, to exclude recently-listed (< MIN_HISTORY_DAYS). Absent (delisted) → kept.
   const firstBar = new Map(
@@ -168,48 +184,52 @@ export async function analyzeFactor(
   let prevTop: Set<string> | null = null;
 
   for (let m = 0; m < rebalanceDates.length - 1; m++) {
-    const D = rebalanceDates[m];
-    const Dnext = rebalanceDates[m + 1];
-    const snapD = snaps.get(D);
-    const snapNext = snaps.get(Dnext);
-    const fv = byDate.get(D);
-    if (!snapD || !snapNext || !fv) continue;
-    const minFirst = minusDays(D, MIN_HISTORY_DAYS);
+    const date = rebalanceDates[m];
+    const nextDate = rebalanceDates[m + 1];
+    const snapDate = snaps.get(date);
+    const snapNextDate = snaps.get(nextDate);
+    const factorValues = byDate.get(date);
+    if (!snapDate || !snapNextDate || !factorValues) continue;
+    const minListDate = minusDays(date, MIN_HISTORY_DAYS);
 
     // Candidates: factor value + quote this period + quote next period (forward return) + ≥1yr old.
-    let cands: { tsCode: string; value: number; amount: number; fwd: number }[] = [];
-    for (const { tsCode, value } of fv) {
-      const a = snapD.get(tsCode);
-      const b = snapNext.get(tsCode);
+    let candidates: { tsCode: string; value: number; amount: number; fwd: number }[] = [];
+    for (const { tsCode, value } of factorValues) {
+      const a = snapDate.get(tsCode);
+      const b = snapNextDate.get(tsCode);
       if (!a || !b) continue;
-      if ((firstBar.get(tsCode) ?? '00000000') > minFirst) continue; // exclude recently-listed
-      cands.push({ tsCode, value, amount: a.amount, fwd: b.adjClose / a.adjClose - 1 });
+      if ((firstBar.get(tsCode) ?? '00000000') > minListDate) continue; // exclude recently-listed
+      candidates.push({ tsCode, value, amount: a.amount, fwd: b.adjClose / a.adjClose - 1 });
     }
-    if (cands.length < MIN_CANDIDATES) continue;
+    if (candidates.length < MIN_CANDIDATES) continue;
 
     // Liquidity: drop the bottom fraction by turnover.
-    cands.sort((x, y) => x.amount - y.amount);
-    cands = cands.slice(Math.floor(cands.length * LIQUIDITY_DROP));
+    candidates.sort((x, y) => x.amount - y.amount);
+    candidates = candidates.slice(Math.floor(candidates.length * LIQUIDITY_DROP));
 
-    const values = cands.map((c) => c.value);
+    const values = candidates.map((c) => c.value);
     const fwdW = st.winsorize(
-      cands.map((c) => c.fwd),
+      candidates.map((c) => c.fwd),
       WINSOR_P,
     );
 
     icSeries.push(st.spearman(values, fwdW)); // Rank IC (factor value vs forward return)
 
     const buckets = st.quantileBuckets(values, N_BUCKETS);
-    const sum = new Array(N_BUCKETS).fill(0);
-    const cnt = new Array(N_BUCKETS).fill(0);
+    const bucketSums = new Array(N_BUCKETS).fill(0);
+    const bucketCounts = new Array(N_BUCKETS).fill(0);
     const top = new Set<string>();
-    for (let i = 0; i < cands.length; i++) {
-      sum[buckets[i]] += fwdW[i];
-      cnt[buckets[i]]++;
-      if (buckets[i] === N_BUCKETS - 1) top.add(cands[i].tsCode);
+    for (let i = 0; i < candidates.length; i++) {
+      bucketSums[buckets[i]] += fwdW[i];
+      bucketCounts[buckets[i]]++;
+      if (buckets[i] === N_BUCKETS - 1) top.add(candidates[i].tsCode);
     }
-    for (let b = 0; b < N_BUCKETS; b++) bucketReturns[b].push(cnt[b] ? sum[b] / cnt[b] : 0);
-    lsReturns.push(sum[N_BUCKETS - 1] / cnt[N_BUCKETS - 1] - sum[0] / cnt[0]);
+    for (let b = 0; b < N_BUCKETS; b++) {
+      bucketReturns[b].push(bucketCounts[b] ? bucketSums[b] / bucketCounts[b] : 0);
+    }
+    lsReturns.push(
+      bucketSums[N_BUCKETS - 1] / bucketCounts[N_BUCKETS - 1] - bucketSums[0] / bucketCounts[0],
+    );
 
     if (prevTop) {
       let changed = 0;
