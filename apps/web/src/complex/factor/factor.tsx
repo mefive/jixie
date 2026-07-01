@@ -1,24 +1,26 @@
 import { lazy, Suspense } from 'react';
 import classNames from 'classnames';
-import { Table } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
-import type { FactorReport } from '@jixie/shared';
-import { faSpinner, faTriangleExclamation } from '@fortawesome/free-solid-svg-icons';
+import dayjs from 'dayjs';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
+import { Button, DatePicker, Select } from 'antd';
+import type { FactorKind } from '@jixie/shared';
+import { faSpinner, faTriangleExclamation, faPlay } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { TopNav } from '@src/components/top-nav';
 import { complex } from './complex';
 import './factor.css';
 
+dayjs.extend(customParseFormat);
 const DecileChart = lazy(() => import('./decile-chart'));
 
 /**
- * 因子分析(产品线 1.5). Loads every pre-computed factor's report, lists them in a sortable table, and
- * shows the selected factor's decile bar chart + IC / long-short metrics. Reuses the existing
- * analyzeFactors() engine — this page is its visualization.
+ * 因子分析(产品线 1.5). Left: the factor catalog. Right: for the selected factor, choose 频率(月/周)+
+ * 区间 → 运行 → decile bar chart + Rank IC + long-short. Analysis is cached per (factor,freq,start,end);
+ * selecting a factor auto-shows its latest cached run, and 已跑 chips jump between computed windows.
  */
 export const Factor = complex.component(() => {
   const store = complex.useStore();
-  const loader = store.reportLoader;
+  const cat = store.catalogLoader;
 
   return (
     <div className="jx-factor">
@@ -27,26 +29,20 @@ export const Factor = complex.component(() => {
         <div className="jx-factor-head">
           <h1 className="jx-factor-title">因子分析</h1>
           <p className="jx-factor-hint">
-            每个因子按月调仓、全市场分十档持有 —— 看分位收益是否单调(动量 / 反转)、Rank IC 有没有预测力。
+            选一个因子 → 设频率 / 区间 → 运行:看十分位分层收益、Rank IC、多空。快因子(反转/资金流)建议看「周」。
           </p>
         </div>
 
-        {loader.loading && <Placeholder icon={faSpinner} spin text="计算因子分位 / IC 中……(首次较慢)" />}
-        {loader.error && (
-          <Placeholder icon={faTriangleExclamation} error text={`加载失败:${loader.errorObject?.message ?? ''}`} />
+        {cat.loading && <Placeholder icon={faSpinner} spin text="加载因子列表……" />}
+        {cat.error && (
+          <Placeholder icon={faTriangleExclamation} error text={`加载失败:${cat.errorObject?.message ?? ''}`} />
         )}
-        {loader.loaded &&
-          (store.reports.length ? (
-            <div className="jx-factor-split">
-              <FactorTable />
-              <FactorDetail />
-            </div>
-          ) : (
-            <Placeholder
-              icon={faTriangleExclamation}
-              text="还没有因子数据 —— 先在后端跑 pnpm factor:compute 物化因子值。"
-            />
-          ))}
+        {cat.loaded && (
+          <div className="jx-factor-split">
+            <FactorList />
+            <FactorPanel />
+          </div>
+        )}
       </main>
     </div>
   );
@@ -54,62 +50,164 @@ export const Factor = complex.component(() => {
 
 // —— 子组件 ——
 
-// Sortable factor list; click a row to drive the detail panel.
-const FactorTable = complex.component(() => {
+// Left: the catalog as a clickable list (identity + kind). No metrics — those come from running analysis.
+const FactorList = complex.component(() => {
   const store = complex.useStore();
+  const list = store.catalogLoader.result ?? [];
   return (
-    <Table<FactorReport>
-      className="jx-factor-table"
-      rowKey="factor"
-      size="small"
-      dataSource={store.reports}
-      columns={COLUMNS}
-      pagination={false}
-      rowClassName={(r) => (r.factor === store.selected?.factor ? 'jx-factor-row--active' : '')}
-      onRow={(r) => ({ onClick: () => store.select(r.factor) })}
-    />
+    <div className="jx-factor-list">
+      {list.map((f) => (
+        <button
+          key={f.key}
+          className={classNames('jx-factor-listItem', {
+            'jx-factor-listItem--active': f.key === store.selectedKey,
+          })}
+          onClick={() => void store.selectFactor(f.key)}
+        >
+          <span className="jx-factor-listName">{f.label}</span>
+          <span className="jx-factor-listMeta">
+            <span className="jx-factor-listKey">{f.key}</span>
+            <span className={`jx-factor-kind jx-factor-kind--${f.kind}`}>{KIND_LABEL[f.kind]}</span>
+          </span>
+        </button>
+      ))}
+    </div>
   );
-}, 'FactorTable');
+}, 'FactorList');
 
-// Selected factor: decile chart + a grid of IC / long-short / turnover metrics + a direction badge.
-const FactorDetail = complex.component(() => {
+// Right: params bar + run chips + result for the selected factor.
+const FactorPanel = complex.component(() => {
   const store = complex.useStore();
-  const r = store.selected;
-  if (!r) return null;
-  const n = r.buckets.length;
-  const dir = direction(r.icMean);
-
+  const f = store.selected;
+  if (!f) return <div className="jx-factor-detail jx-factor-empty">← 左边选一个因子开始分析</div>;
   return (
     <section className="jx-factor-detail">
       <header className="jx-factor-detailHead">
         <div className="jx-factor-detailTitleWrap">
-          <h2 className="jx-factor-detailTitle">{r.label}</h2>
+          <h2 className="jx-factor-detailTitle">{f.label}</h2>
           <span className="jx-factor-detailKey">
-            {r.factor} · 样本 {r.months} 个月
+            {f.key} · {KIND_LABEL[f.kind]}
           </span>
         </div>
-        <span className={classNames('jx-factor-dir', `jx-factor-dir--${dir.kind}`)}>{dir.text}</span>
       </header>
+      <ParamsBar />
+      <RunChips />
+      <Result />
+    </section>
+  );
+}, 'FactorPanel');
+
+// Frequency + date range + 运行/查看 (label depends on whether the current 4-tuple is cached) + 重算.
+const ParamsBar = complex.component(() => {
+  const store = complex.useStore();
+  const busy = store.analysisLoader.loading;
+  return (
+    <div className="jx-factor-params">
+      <span className="jx-factor-paramLabel">频率</span>
+      <Select
+        size="small"
+        value={store.freq}
+        onChange={(v) => store.setFreq(v)}
+        options={[
+          { value: 'month', label: '月' },
+          { value: 'week', label: '周' },
+        ]}
+        style={{ width: 72 }}
+      />
+      <span className="jx-factor-paramLabel">区间</span>
+      <DatePicker
+        size="small"
+        value={dayjs(store.start, 'YYYYMMDD')}
+        onChange={(d) => d && store.setStart(d.format('YYYYMMDD'))}
+        allowClear={false}
+      />
+      <span className="jx-factor-paramDash">~</span>
+      <DatePicker
+        size="small"
+        value={dayjs(store.end, 'YYYYMMDD')}
+        onChange={(d) => d && store.setEnd(d.format('YYYYMMDD'))}
+        allowClear={false}
+      />
+      <Button type="primary" size="small" loading={busy} onClick={() => void store.runAnalysis()}>
+        {store.isCached ? '查看' : '运行分析'}
+      </Button>
+      {store.report && (
+        <Button size="small" disabled={busy} onClick={() => void store.runAnalysis(true)}>
+          重算
+        </Button>
+      )}
+    </div>
+  );
+}, 'ParamsBar');
+
+// The factor's already-computed windows — one click jumps to that cached report (instant).
+const RunChips = complex.component(() => {
+  const store = complex.useStore();
+  const runs = store.runsLoader.result ?? [];
+  if (!runs.length) return null;
+  return (
+    <div className="jx-factor-runs">
+      <span className="jx-factor-runsLabel">已跑</span>
+      {runs.map((r) => {
+        const active = r.freq === store.freq && r.start === store.start && r.end === store.end;
+        return (
+          <button
+            key={`${r.freq}|${r.start}|${r.end}`}
+            className={classNames('jx-factor-chip', { 'jx-factor-chip--active': active })}
+            onClick={() => void store.applyRun(r)}
+          >
+            {r.freq === 'week' ? '周' : '月'}·{r.start.slice(2, 6)}–{r.end.slice(2, 6)}
+          </button>
+        );
+      })}
+    </div>
+  );
+}, 'RunChips');
+
+// Result: loading / error / prompt-to-run / the report (decile chart + metrics).
+const Result = complex.component(() => {
+  const store = complex.useStore();
+  const loader = store.analysisLoader;
+  if (loader.loading)
+    return <Placeholder icon={faSpinner} spin text="计算中……(价格因子首次约 100 秒,基本面 / 资金流几秒)" />;
+  if (loader.error)
+    return (
+      <Placeholder icon={faTriangleExclamation} error text={`分析失败:${loader.errorObject?.message ?? ''}`} />
+    );
+  const r = store.report;
+  if (!r) return <Placeholder icon={faPlay} text="设好频率 / 区间,点「运行分析」" />;
+
+  const n = r.buckets.length;
+  const dir = direction(r.icMean);
+  const per = r.freq === 'week' ? '周' : '月';
+  return (
+    <>
+      <div className="jx-factor-resultHead">
+        <span className="jx-factor-sample">
+          样本 {r.periods} {per} · {r.start.slice(0, 4)}–{r.end.slice(0, 4)}
+        </span>
+        <span className={classNames('jx-factor-dir', `jx-factor-dir--${dir.kind}`)}>{dir.text}</span>
+      </div>
 
       <Suspense fallback={<div className="jx-factor-chart" />}>
         <DecileChart buckets={r.buckets} />
       </Suspense>
       <div className="jx-factor-chartCap">
-        横轴 D1(因子值最低)→ D{n}(最高),纵轴为各档「下一月」年化收益 —— 一路上行=动量,一路下行=反转。
+        横轴 D1(因子值最低)→ D{n}(最高),纵轴各档「下一{per}」年化收益 —— 一路上行=动量,一路下行=反转。
       </div>
 
       <div className="jx-factor-metrics">
         <Metric label="Rank IC 均值" value={r.icMean.toFixed(4)} hint="符号=方向 · 绝对值=强度" />
         <Metric label="ICIR(年化)" value={r.icirAnnual.toFixed(2)} hint="IC 稳定性" />
-        <Metric label="IC>0 占比" value={pct(r.icPosRate)} hint="多少月份方向一致" />
+        <Metric label="IC>0 占比" value={pct(r.icPosRate)} hint={`多少${per}份方向一致`} />
         <Metric label={`多空 D${n}−D1 年化`} value={pct(r.longShort.annReturn)} hint="纯因子收益" />
         <Metric label="多空 Sharpe" value={r.longShort.sharpe.toFixed(2)} />
         <Metric label="多空最大回撤" value={pct(r.longShort.maxDrawdown)} />
-        <Metric label="最高档月换手" value={pctInt(r.topTurnover)} hint="越高摩擦越重" />
+        <Metric label={`最高档${per}换手`} value={pctInt(r.topTurnover)} hint="越高摩擦越重" />
       </div>
-    </section>
+    </>
   );
-}, 'FactorDetail');
+}, 'Result');
 
 function Metric({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
@@ -142,51 +240,19 @@ function Placeholder({
 
 // —— 帮助函数 / 配置 ——
 
+const KIND_LABEL: Record<FactorKind, string> = {
+  price: '价格',
+  fundamental: '基本面',
+  moneyflow: '资金流',
+};
+
 const pct = (v: number) => `${(v * 100).toFixed(2)}%`;
 const pctInt = (v: number) => `${(v * 100).toFixed(0)}%`;
 
-// Direction read off the IC sign: positive = bigger factor value predicts higher return (momentum,
-// long the top decile); negative = reversal (long the bottom decile). Near-zero = no edge.
+// Direction from the IC sign: positive → long the top decile (momentum-like); negative → long the
+// bottom decile (reversal-like); near-zero → no edge.
 function direction(icMean: number): { kind: 'up' | 'down' | 'flat'; text: string } {
   if (icMean > 0.01) return { kind: 'up', text: '正向 · 做多高分位' };
   if (icMean < -0.01) return { kind: 'down', text: '反向 · 做多低分位' };
   return { kind: 'flat', text: '方向不显著' };
 }
-
-const COLUMNS: ColumnsType<FactorReport> = [
-  {
-    title: '因子',
-    dataIndex: 'label',
-    render: (_v, r) => (
-      <div className="jx-factor-name">
-        <span className="jx-factor-nameMain">{r.label}</span>
-        <span className="jx-factor-nameKey">{r.factor}</span>
-      </div>
-    ),
-  },
-  {
-    title: 'IC 均值',
-    dataIndex: 'icMean',
-    align: 'right',
-    sorter: (a, b) => a.icMean - b.icMean,
-    render: (v: number) => (
-      <span className={classNames({ 'text-up': v > 0.01, 'text-down': v < -0.01 })}>
-        {v.toFixed(4)}
-      </span>
-    ),
-  },
-  {
-    title: 'ICIR年化',
-    dataIndex: 'icirAnnual',
-    align: 'right',
-    sorter: (a, b) => a.icirAnnual - b.icirAnnual,
-    render: (v: number) => v.toFixed(2),
-  },
-  {
-    title: '多空年化',
-    dataIndex: ['longShort', 'annReturn'],
-    align: 'right',
-    sorter: (a, b) => a.longShort.annReturn - b.longShort.annReturn,
-    render: (v: number) => pct(v),
-  },
-];

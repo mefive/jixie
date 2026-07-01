@@ -286,39 +286,35 @@ try {
   await page.screenshot({ path: `${SHOTS}6b-sdk-docs-en.png` });
   log('shot 6b: SDK docs page (EN toggle)');
 
-  // 7. 因子研究 (/factors): analyzeFactors() surfaced as a page — sortable factor table + the selected
-  //    factor's decile bar chart + IC / long-short metrics. (First hit runs the whole-history
-  //    cross-sectional study → generous timeout; the API memoizes it after.)
+  // 7. 因子分析 (/factors): pick a factor from the catalog → set 频率/区间 → 运行 → decile chart + IC +
+  //    long-short. Single-factor + on-the-fly; use a fundamental factor (ep, ~seconds) to keep e2e fast.
   await page.goto(`${BASE}/factors`, { waitUntil: 'domcontentloaded' });
   await page.getByText('因子分析').first().waitFor();
-  await page.waitForFunction(
-    () => document.querySelectorAll('.jx-factor-table tbody tr.ant-table-row').length > 0,
-    { timeout: 45000 },
-  );
-  const factorRows = await page.locator('.jx-factor-table tbody tr.ant-table-row').count();
-  await page.locator('.jx-factor-chart canvas').first().waitFor({ timeout: 8000 });
-  await page.waitForTimeout(500); // let echarts paint the deciles
-  const selFactor = ((await page.locator('.jx-factor-detailTitle').textContent()) ?? '').trim();
-  log('factor page: rows', factorRows, '| selected', selFactor);
-  if (!factorRows) throw new Error('因子表为空');
-  await page.screenshot({ path: `${SHOTS}7-factors.png` });
-  log('shot 7: 因子研究 (decile chart + IC/long-short)');
+  await page.locator('.jx-factor-listItem').first().waitFor({ timeout: 15000 });
+  const factorCount = await page.locator('.jx-factor-listItem').count();
+  log('factor catalog items:', factorCount);
+  if (factorCount < 9) throw new Error(`因子目录数不足: ${factorCount}`);
 
-  // click a different factor row → the detail panel (chart + metrics) swaps to it
-  if (factorRows > 1) {
-    await page.locator('.jx-factor-table tbody tr.ant-table-row').nth(1).click();
-    await page.waitForFunction(
-      (prev) => {
-        const el = document.querySelector('.jx-factor-detailTitle');
-        return el && el.textContent && el.textContent.trim() !== prev;
-      },
-      selFactor,
-      { timeout: 5000 },
-    );
-    await page.waitForTimeout(400);
-    await page.screenshot({ path: `${SHOTS}7b-factors-select.png` });
-    log('shot 7b: select another factor →', ((await page.locator('.jx-factor-detailTitle').textContent()) ?? '').trim());
-  }
+  // select 盈利收益率 (ep, fundamental) → 运行/查看 → wait for the decile chart
+  await page.locator('.jx-factor-listItem', { hasText: '盈利收益率' }).click();
+  await page.locator('.jx-factor-params .ant-btn-primary').click();
+  await page.locator('.jx-factor-chart canvas').first().waitFor({ timeout: 60000 }); // fundamental ~seconds cold
+  await page.waitForTimeout(500); // let echarts paint
+  log('shot 7: ep 月度分析 →', ((await page.locator('.jx-factor-dir').textContent()) ?? '').trim());
+  await page.screenshot({ path: `${SHOTS}7-factors.png` });
+
+  // switch frequency to 周 and re-run → the same factor at weekly horizon
+  await page.locator('.jx-factor-params .ant-select').click();
+  await page.locator('.ant-select-item-option', { hasText: /^周$/ }).click();
+  await page.locator('.jx-factor-params .ant-btn-primary').click();
+  await page.locator('.jx-factor-chart canvas').first().waitFor({ timeout: 60000 });
+  await page.waitForFunction(
+    () => (document.querySelector('.jx-factor-sample')?.textContent ?? '').includes('周'),
+    { timeout: 60000 },
+  );
+  await page.waitForTimeout(500);
+  log('shot 7b: ep 周度分析 →', ((await page.locator('.jx-factor-sample').textContent()) ?? '').trim());
+  await page.screenshot({ path: `${SHOTS}7b-factors-week.png` });
 
   // cleanup seeded + auto-saved strategies for this user
   await page.evaluate(async () => {

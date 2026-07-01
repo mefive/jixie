@@ -208,13 +208,19 @@ model InviteCode {
 // stock × rebalance date. Factor values are computed and stored across the whole market (no
 // pre-filter); universe filtering is done point-in-time during the backtest.
 // ============================================================================
-/// Persisted factor-analysis result — the small JSON artifact (= FactorReport[]). Regenerated on demand
-/// (?refresh=1) or after a data sync; the page serves it instantly. Factor *values* are never stored,
+/// Persisted single-factor analysis report — the small JSON artifact per (factor, freq, start, end).
+/// Regenerated on demand (?refresh=1); served instantly otherwise. Factor *values* are never stored,
 /// only this report: they're computed on the fly from raw tables when the report is (re)generated.
 model FactorReport {
-  id         String   @id // 'default' (or a params hash once the report gains universe/range options)
-  payload    String // JSON.stringify(FactorReport[] wire shape)
+  id         String   @id // `${factor}|${freq}|${start}|${end}`
+  factor     String
+  freq       String // 'month' | 'week'
+  start      String // YYYYMMDD
+  end        String // YYYYMMDD
+  payload    String // JSON.stringify(FactorReport wire shape)
   computedAt DateTime
+
+  @@index([factor]) // list a factor's cached runs (the "已跑" chips)
 }
 
 /// Email verification challenge. Only the SHA256 of the code is stored, 10-min TTL, rejected at attempts≥5 (anti-brute-force).

@@ -1,15 +1,21 @@
 import { prisma } from '../src/lib/prisma.js';
-import { analyzeFactors } from '../src/factor/analysis.js';
+import { analyzeFactor } from '../src/factor/analysis.js';
+import { FACTOR_CATALOG } from '../src/factor/factors.js';
 
 const pct = (x: number) => (x * 100).toFixed(2) + '%';
 
+// CLI: monthly analysis of every catalog factor over the full history.
 async function main(): Promise<void> {
   const t0 = Date.now();
-  const reports = await analyzeFactors();
+  const [start = '20150101', end = '20261231', freq = 'month'] = process.argv.slice(2);
+  const reports = [];
+  for (const f of FACTOR_CATALOG) {
+    reports.push(await analyzeFactor(f.key, freq === 'week' ? 'week' : 'month', start, end));
+  }
 
   for (const r of reports) {
     console.log(`\n${'='.repeat(64)}`);
-    console.log(`因子 ${r.factor}（${r.label}）  样本 ${r.months} 个月`);
+    console.log(`因子 ${r.factor}（${r.label}）  样本 ${r.periods} 个${r.freq === 'week' ? '周' : '月'}`);
     console.log('-'.repeat(64));
     console.log(
       `Rank IC 均值 ${r.icMean.toFixed(4)} | IC标准差 ${r.icStd.toFixed(4)} | ` +
