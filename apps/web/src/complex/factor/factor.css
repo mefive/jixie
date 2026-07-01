@@ -26,50 +26,72 @@
   font-size: 13px;
 }
 
-/* —— master(因子表) | detail(选中因子) —— */
+/* —— master(因子列表) | detail(选中因子) —— */
 .jx-factor-split {
   @apply flex flex-1 gap-4;
   @apply overflow-hidden;
 }
 
-.jx-factor-table {
-  flex: 1;
-  min-width: 340px;
+/* left: catalog list */
+.jx-factor-list {
+  flex: none;
+  width: 280px;
+  @apply flex flex-col;
   @apply overflow-auto;
   @apply rounded-lg border border-line bg-card;
 }
 
-.jx-factor-table tbody tr {
+.jx-factor-listItem {
+  @apply flex items-center justify-between gap-2;
+  @apply border-b border-line text-left;
+  padding: 10px 14px;
   cursor: pointer;
 }
 
-.jx-factor-table tr.jx-factor-row--active > td {
-  background: rgb(17 24 39 / 0.05);
+.jx-factor-listItem:hover {
+  background: rgb(17 24 39 / 0.03);
 }
 
-.jx-factor-name {
-  @apply flex flex-col;
+.jx-factor-listItem--active {
+  background: rgb(17 24 39 / 0.06);
 }
 
-.jx-factor-nameMain {
+.jx-factor-listName {
   @apply text-ink;
   font-size: 13px;
 }
 
-.jx-factor-nameKey {
+.jx-factor-listMeta {
+  @apply flex items-center gap-2;
+  flex: none;
+}
+
+.jx-factor-listKey {
   @apply text-muted;
   font-size: 11px;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
+.jx-factor-kind {
+  @apply rounded-full text-muted;
+  padding: 1px 7px;
+  font-size: 10px;
+  background: rgb(17 24 39 / 0.06);
+}
+
 /* —— detail —— */
 .jx-factor-detail {
-  flex: 1.4;
+  flex: 1;
   min-width: 0;
   @apply flex flex-col gap-3;
   @apply overflow-auto;
   @apply rounded-lg border border-line bg-card;
   padding: 16px;
+}
+
+.jx-factor-empty {
+  @apply items-center justify-center text-muted;
+  font-size: 14px;
 }
 
 .jx-factor-detailHead {
@@ -89,6 +111,57 @@
   @apply text-muted;
   font-size: 12px;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* params bar */
+.jx-factor-params {
+  @apply flex flex-wrap items-center gap-2;
+  @apply rounded-lg border border-line bg-bg;
+  padding: 10px 12px;
+}
+
+.jx-factor-paramLabel {
+  @apply text-sm text-muted;
+}
+
+.jx-factor-paramDash {
+  @apply text-muted;
+}
+
+/* 已跑 chips */
+.jx-factor-runs {
+  @apply flex flex-wrap items-center gap-2;
+}
+
+.jx-factor-runsLabel {
+  @apply text-xs text-muted;
+}
+
+.jx-factor-chip {
+  @apply rounded-full border border-line text-muted;
+  padding: 2px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.jx-factor-chip:hover {
+  @apply text-ink;
+  border-color: var(--color-ink);
+}
+
+.jx-factor-chip--active {
+  @apply border-ink bg-ink;
+  color: #fff;
+}
+
+/* result */
+.jx-factor-resultHead {
+  @apply flex items-center justify-between gap-3;
+}
+
+.jx-factor-sample {
+  @apply text-muted;
+  font-size: 12px;
 }
 
 .jx-factor-dir {
@@ -151,7 +224,7 @@
   font-size: 11px;
 }
 
-/* —— loading / error / empty —— */
+/* —— loading / error / prompt —— */
 .jx-factor-placeholder {
   @apply flex flex-1 items-center justify-center gap-2;
   @apply text-muted;
