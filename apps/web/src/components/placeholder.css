@@ -1,0 +1,11 @@
+@reference '../styles/index.css';
+
+.jx-placeholder {
+  @apply flex flex-1 items-center justify-center gap-2;
+  @apply text-muted;
+  font-size: 14px;
+}
+
+.jx-placeholder--error {
+  @apply text-down;
+}

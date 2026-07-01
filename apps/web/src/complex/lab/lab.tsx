@@ -15,6 +15,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { TopNav } from '@src/components/top-nav';
+import { LoaderButton } from '@src/components/loader-button';
 import { complex } from './complex';
 import './lab.css';
 
@@ -127,14 +128,14 @@ export const Lab = complex.component(() => {
           >
             我的策略
           </Button>
-          <Button
+          <LoaderButton
             type="primary"
+            icon={<FontAwesomeIcon icon={faPlay} />}
             loading={store.running}
-            icon={store.running ? undefined : <FontAwesomeIcon icon={faPlay} />}
-            onClick={() => void store.run()}
+            action={() => store.run()}
           >
-            {store.running ? '回测中…' : '运行回测'}
-          </Button>
+            运行回测
+          </LoaderButton>
         </div>
       </div>
 
@@ -181,9 +182,9 @@ export const Lab = complex.component(() => {
           >
             不保存
           </Button>,
-          <Button key="save" type="primary" onClick={() => void saveAndNew()}>
+          <LoaderButton key="save" type="primary" action={saveAndNew} successMessage="已保存">
             保存并新建
-          </Button>,
+          </LoaderButton>,
         ]}
       >
         <p>当前策略有未保存的修改。保存后将作为新版本，原先的回测结果会被清除。</p>
@@ -198,7 +199,6 @@ export const Lab = complex.component(() => {
 // the editor takes over (store.isFresh flips false). "直接写代码" skips straight to the editor.
 const StrategyHero = complex.component(({ onSkip }: { onSkip: () => void }) => {
   const store = complex.useStore();
-  const loading = store.codegenLoader.loading;
   return (
     <main className="jx-lab-hero">
       <div className="jx-lab-heroInner">
@@ -215,14 +215,14 @@ const StrategyHero = complex.component(({ onSkip }: { onSkip: () => void }) => {
             variant="borderless"
             autoFocus
           />
-          <Button
+          <LoaderButton
             type="primary"
             shape="circle"
             className="jx-lab-heroSend"
             icon={<FontAwesomeIcon icon={faPaperPlane} />}
-            loading={loading}
+            loader={store.codegenLoader}
             disabled={!store.nlText.trim()}
-            onClick={() => void store.generate()}
+            action={() => store.generate()}
           />
         </div>
 
@@ -233,16 +233,16 @@ const StrategyHero = complex.component(({ onSkip }: { onSkip: () => void }) => {
         <div className="jx-lab-examples">
           <span className="jx-lab-examplesLabel">试试：</span>
           {EXAMPLE_PROMPTS.map((ex) => (
-            <Button
+            <LoaderButton
               key={ex.label}
               size="small"
-              onClick={() => {
+              action={() => {
                 store.setField('nlText', ex.prompt);
-                void store.generate();
+                return store.generate();
               }}
             >
               {ex.label}
-            </Button>
+            </LoaderButton>
           ))}
         </div>
 
@@ -257,7 +257,6 @@ const StrategyHero = complex.component(({ onSkip }: { onSkip: () => void }) => {
 // NL→code: describe a strategy → the server writes (and compiles) TS → it drops into the editor.
 const NlBar = complex.component(() => {
   const store = complex.useStore();
-  const loading = store.codegenLoader.loading;
   return (
     <div className="jx-lab-nl">
       <PromptBox
@@ -268,14 +267,14 @@ const NlBar = complex.component(() => {
         placeholder="用一句话描述策略，AI 写成代码，如「每月买入股息率最高的 20 只，等权」"
         autoSize={{ minRows: 1, maxRows: 3 }}
       />
-      <Button
+      <LoaderButton
         icon={<FontAwesomeIcon icon={faWandMagicSparkles} />}
-        loading={loading}
+        loader={store.codegenLoader}
         disabled={!store.nlText.trim()}
-        onClick={() => void store.generate()}
+        action={() => store.generate()}
       >
         AI 生成
-      </Button>
+      </LoaderButton>
       {store.codegenLoader.error && (
         <span className="jx-lab-nlError">{store.codegenLoader.errorObject?.message}</span>
       )}

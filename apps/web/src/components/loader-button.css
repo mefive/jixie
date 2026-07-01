@@ -1,0 +1,7 @@
+@reference '../styles/index.css';
+
+/* While loading, block re-clicks (the busyRef guard in the component also covers keyboard). Icon buttons
+   are already made non-interactive by antd's loading state; this covers icon-less buttons too. */
+.jx-loaderBtn--busy {
+  pointer-events: none;
+}

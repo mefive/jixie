@@ -20,6 +20,11 @@ body,
 #root {
   height: 100%;
 }
+/* antd <App> wrapper: display:contents so its div generates no box and the height:100% chain from
+   #root passes straight through to the page (avoids an extra 0-height div breaking full-height layouts). */
+.jx-appRoot {
+  display: contents;
+}
 body {
   margin: 0;
   background: var(--color-bg);

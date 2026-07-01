@@ -7,6 +7,7 @@ import { faPaperPlane, faPen, faWandMagicSparkles } from '@fortawesome/free-soli
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { TopNav } from '@src/components/top-nav';
 import { SavedBar } from '@src/components/saved-bar';
+import { LoaderButton } from '@src/components/loader-button';
 import { complex } from './complex';
 import { ConditionChips } from './condition-chips';
 import { EXAMPLE_SCREENS } from './screen-store';
@@ -98,23 +99,23 @@ const HeroSearch = complex.component(({ onSubmit }: { onSubmit: () => void }) =>
             placeholder="如「市盈率低于15、股息率大于3%的大盘股」，或「贵州茅台」「601398」"
             autoFocus
           />
-          <Button
+          <LoaderButton
             type="primary"
             shape="circle"
             className="jx-screen-send"
             icon={<FontAwesomeIcon icon={faPaperPlane} />}
-            loading={store.busy}
+            loader={store.queryLoader}
             disabled={!store.nlText.trim()}
-            onClick={onSubmit}
+            action={onSubmit}
           />
         </div>
 
         <div className="jx-screen-examples">
           <span className="jx-screen-examplesLabel">试试：</span>
           {EXAMPLE_SCREENS.map((ex) => (
-            <Button key={ex.label} size="small" onClick={() => store.runExample(ex.spec)}>
+            <LoaderButton key={ex.label} size="small" action={() => store.runExample(ex.spec)}>
               {ex.label}
-            </Button>
+            </LoaderButton>
           ))}
         </div>
 
@@ -155,9 +156,9 @@ const WorkBar = complex.component(({ onEdit }: { onEdit: () => void }) => {
 
       <div className="jx-screen-examples">
         {EXAMPLE_SCREENS.map((ex) => (
-          <Button key={ex.label} size="small" onClick={() => store.runExample(ex.spec)}>
+          <LoaderButton key={ex.label} size="small" action={() => store.runExample(ex.spec)}>
             {ex.label}
-          </Button>
+          </LoaderButton>
         ))}
       </div>
       <SavedScreens />
@@ -219,9 +220,14 @@ const EditPromptModal = complex.component(
           </div>
           <div className="jx-screen-modalFoot">
             <span className="jx-screen-kbd">回车发送 · Shift+Space 换行</span>
-            <Button type="primary" loading={store.busy} disabled={!store.nlText.trim()} onClick={onSubmit}>
+            <LoaderButton
+              type="primary"
+              loader={store.queryLoader}
+              disabled={!store.nlText.trim()}
+              action={onSubmit}
+            >
               选股
-            </Button>
+            </LoaderButton>
           </div>
         </div>
       </Modal>

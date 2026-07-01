@@ -226,14 +226,3 @@
   @apply text-muted;
   font-size: 11px;
 }
-
-/* —— loading / error / prompt —— */
-.jx-factor-placeholder {
-  @apply flex flex-1 items-center justify-center gap-2;
-  @apply text-muted;
-  font-size: 14px;
-}
-
-.jx-factor-placeholder--error {
-  @apply text-down;
-}

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Dropdown, Input, Modal } from 'antd';
+import { App, Button, Dropdown, Input, Modal } from 'antd';
 import type { MenuProps } from 'antd';
 import dayjs from 'dayjs';
 import {
@@ -30,8 +30,19 @@ interface Props {
  * the owning page's store provides the data and the load/save/delete callbacks.
  */
 export function SavedBar({ title, items, loading, onOpenList, onLoad, onDelete, save }: Props) {
+  const { modal, message } = App.useApp();
   const [modalOpen, setModalOpen] = useState(false);
   const [draftName, setDraftName] = useState('');
+
+  const askDelete = (id: string, name: string) =>
+    modal.confirm({
+      title: '删除确认',
+      content: `确定删除「${name}」吗?删除后不可恢复。`,
+      okText: '删除',
+      okButtonProps: { danger: true },
+      cancelText: '取消',
+      onOk: () => onDelete(id),
+    });
 
   const menuItems: MenuProps['items'] =
     items.length === 0
@@ -48,7 +59,7 @@ export function SavedBar({ title, items, loading, onOpenList, onLoad, onDelete, 
                 title="删除"
                 onClick={(e) => {
                   e.stopPropagation(); // don't trigger onLoad
-                  onDelete(it.id);
+                  askDelete(it.id, it.name);
                 }}
               >
                 <FontAwesomeIcon icon={faTrashCan} />
@@ -66,6 +77,7 @@ export function SavedBar({ title, items, loading, onOpenList, onLoad, onDelete, 
     const name = draftName.trim();
     if (!name || !save) return;
     save.onSave(name);
+    message.success('已保存');
     setModalOpen(false);
   };
 
