@@ -150,8 +150,11 @@
 }
 
 .jx-factor-chip--active {
-  @apply border-ink bg-ink;
-  color: #fff;
+  @apply border-ink bg-ink text-white;
+
+  &:hover {
+    @apply text-white;
+  }
 }
 
 /* result */
