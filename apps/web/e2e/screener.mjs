@@ -122,9 +122,10 @@ try {
     { timeout: 10000 },
   );
   log('reopened saved screen → table repopulated');
-  // delete it: open dropdown, click the trash icon → assert the server list is now empty
+  // delete it: open dropdown, click the trash icon → confirm in the popup → assert the server list is empty
   await page.getByRole('button', { name: /我的选股/ }).click();
   await page.locator('.ant-dropdown .jx-savedBar-del').first().click();
+  await page.locator('.ant-modal-confirm .ant-btn-dangerous').click(); // 删除 confirm
   await page.waitForFunction(
     async () => {
       const l = await (await fetch('/api/app/screens')).json();

@@ -92,12 +92,13 @@ export class ScreenStore extends BaseStore<ScreenSetupParams> {
     });
   }
 
-  /** Example path: load a preset spec, then run it (clears the NL bubble — this didn't come from a prompt). */
+  /** Example path: load a preset spec, then run it (clears the NL bubble — this didn't come from a prompt).
+   * Returns applySpec's promise so a LoaderButton can track just this click's in-flight state. */
   public runExample(spec: ScreenSpec) {
     runInAction(() => {
       this.submittedPrompt = '';
     });
-    void this.applySpec(spec);
+    return this.applySpec(spec);
   }
 
   /** Set the editable spec and re-run the deterministic query (used by chip edits + examples). */

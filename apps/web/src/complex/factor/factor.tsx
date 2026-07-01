@@ -2,11 +2,12 @@ import { lazy, Suspense } from 'react';
 import classNames from 'classnames';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
-import { Button, DatePicker, Select } from 'antd';
+import { DatePicker, Select } from 'antd';
 import type { FactorKind } from '@jixie/shared';
 import { faSpinner, faTriangleExclamation, faPlay } from '@fortawesome/free-solid-svg-icons';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { TopNav } from '@src/components/top-nav';
+import { LoaderButton } from '@src/components/loader-button';
+import { Placeholder } from '@src/components/placeholder';
 import { complex } from './complex';
 import './factor.css';
 
@@ -100,7 +101,6 @@ const FactorPanel = complex.component(() => {
 // Frequency + date range + 运行/查看 (label depends on whether the current 4-tuple is cached) + 重算.
 const ParamsBar = complex.component(() => {
   const store = complex.useStore();
-  const busy = store.analysisLoader.loading;
   return (
     <div className="jx-factor-params">
       <span className="jx-factor-paramLabel">频率</span>
@@ -128,13 +128,18 @@ const ParamsBar = complex.component(() => {
         onChange={(d) => d && store.setEnd(d.format('YYYYMMDD'))}
         allowClear={false}
       />
-      <Button type="primary" size="small" loading={busy} onClick={() => void store.runAnalysis()}>
+      <LoaderButton
+        type="primary"
+        size="small"
+        loader={store.analysisLoader}
+        action={() => store.runAnalysis()}
+      >
         {store.isCached ? '查看' : '运行分析'}
-      </Button>
+      </LoaderButton>
       {store.report && (
-        <Button size="small" disabled={busy} onClick={() => void store.runAnalysis(true)}>
+        <LoaderButton size="small" loader={store.analysisLoader} action={() => store.runAnalysis(true)}>
           重算
-        </Button>
+        </LoaderButton>
       )}
     </div>
   );
@@ -215,25 +220,6 @@ function Metric({ label, value, hint }: { label: string; value: string; hint?: s
       <span className="jx-factor-metricLabel">{label}</span>
       <span className="jx-factor-metricValue">{value}</span>
       {hint && <span className="jx-factor-metricHint">{hint}</span>}
-    </div>
-  );
-}
-
-function Placeholder({
-  text,
-  icon,
-  spin,
-  error,
-}: {
-  text: string;
-  icon: typeof faSpinner;
-  spin?: boolean;
-  error?: boolean;
-}) {
-  return (
-    <div className={classNames('jx-factor-placeholder', { 'jx-factor-placeholder--error': error })}>
-      <FontAwesomeIcon icon={icon} spin={spin} />
-      <span>{text}</span>
     </div>
   );
 }
