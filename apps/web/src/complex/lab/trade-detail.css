@@ -102,3 +102,32 @@
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
+
+/* 全部 view — a wider list with an extra 标的 (name+code) column */
+.jx-td-list--all {
+  width: 430px;
+}
+
+.jx-td-list--all .jx-td-head,
+.jx-td-list--all .jx-td-row {
+  grid-template-columns: 96px 84px 30px 1fr 52px 56px;
+}
+
+.jx-td-inst {
+  @apply flex flex-col;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.jx-td-instName {
+  @apply text-ink;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jx-td-instCode {
+  @apply text-muted;
+  font-size: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}

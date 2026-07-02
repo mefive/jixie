@@ -9,6 +9,7 @@ import './trade-detail.css';
 const UP = '#e8463b'; // A-share red up
 const DOWN = '#2f9e5b'; // green down
 const DOT = '#f0a020'; // 富途式分红黄点 — trade markers on the axis
+const ALL = ''; // the 全部 chip's value (portfolio overview; no real tsCode is empty)
 
 /**
  * 交易详情 — the traded stock's full K线 + 成交量, with each trade as a yellow dot pinned to the bottom
@@ -56,7 +57,14 @@ export default function TradeDetail({
       .catch(() => setBench([]));
   }, [start, end]);
 
-  const trades = useMemo(() => tradeLog.filter((t) => t.code === code), [tradeLog, code]);
+  // 全部 (code === ALL) → every instrument's fills, sorted by date; else this instrument's fills.
+  const trades = useMemo(
+    () =>
+      code === ALL
+        ? [...tradeLog].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+        : tradeLog.filter((t) => t.code === code),
+    [tradeLog, code],
+  );
 
   useEffect(() => {
     if (!code) return;
@@ -71,6 +79,34 @@ export default function TradeDetail({
   }, [code, start, end]);
 
   const option = useMemo<ECOption | null>(() => {
+    // 全部 — no single-instrument K线; show the portfolio return curves (策略 vs 沪深300) full-width.
+    if (code === ALL) {
+      const navDates = (nav ?? []).map((n) => n.date);
+      if (!navDates.length) return null;
+      const nav0 = nav![0].value;
+      const benchMap = new Map(bench.map((x) => [x.date, x.close]));
+      const bench0 = bench[0]?.close;
+      const stratRet = nav!.map((n) => +(((n.value / nav0 - 1) * 100).toFixed(2)));
+      const benchRet = navDates.map((d) =>
+        benchMap.has(d) && bench0 ? +(((benchMap.get(d)! / bench0 - 1) * 100).toFixed(2)) : null,
+      );
+      return {
+        animation: false,
+        legend: { top: 0, left: 60, itemGap: 14, textStyle: { color: '#8a9099', fontSize: 11 }, data: ['策略收益', '沪深300'] },
+        tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
+        grid: [{ left: 60, right: 20, top: 30, bottom: 44 }],
+        xAxis: [{ type: 'category', data: navDates, axisLabel: { formatter: (d: string) => d.slice(0, 6), color: '#8a9099' }, axisLine: { lineStyle: { color: '#e8eaed' } } }],
+        yAxis: [{ type: 'value', axisLabel: { formatter: (v: number) => `${v}%`, color: '#8a9099' }, splitLine: { lineStyle: { color: '#f0f1f3' } } }],
+        dataZoom: [
+          { type: 'inside', start: 0, end: 100 },
+          { type: 'slider', bottom: 10, height: 20, start: 0, end: 100 },
+        ],
+        series: [
+          { name: '策略收益', type: 'line', data: stratRet, showSymbol: false, connectNulls: true, itemStyle: { color: '#111827' }, lineStyle: { width: 2, color: '#111827' }, z: 4 },
+          { name: '沪深300', type: 'line', data: benchRet, showSymbol: false, connectNulls: true, itemStyle: { color: '#8a9099' }, lineStyle: { width: 2, color: '#8a9099', type: 'dashed' }, z: 3 },
+        ],
+      };
+    }
     if (!series) return null;
     const p = series.points;
     const dates = p.map((d) => d.date);
@@ -149,7 +185,7 @@ export default function TradeDetail({
         { name: '交易', type: 'scatter', xAxisIndex: 0, yAxisIndex: 0, data: dots, symbol: 'circle', symbolSize: 9, itemStyle: { color: DOT, borderColor: '#fff', borderWidth: 1 }, z: 10 },
       ],
     };
-  }, [series, trades, nav, bench]);
+  }, [code, series, trades, nav, bench]);
 
   const pick = (date: string) => {
     const idx = trades.findIndex((t) => t.date === date);
@@ -162,6 +198,13 @@ export default function TradeDetail({
     <div className="jx-td">
       <div className="jx-td-chart">
         <div className="jx-td-queue">
+          <button
+            className={classNames('jx-td-chip', { 'jx-td-chip--active': code === ALL })}
+            onClick={() => setCode(ALL)}
+          >
+            <span className="jx-td-chipName">全部</span>
+            <span className="jx-td-chipCount">{tradeLog.length}</span>
+          </button>
           {codes.map(([c, n]) => (
             <button
               key={c}
@@ -176,7 +219,9 @@ export default function TradeDetail({
           ))}
         </div>
         <div className="jx-td-hint">
-          交易点(黄)在 K 线下方横轴;点它 → 右侧定位。价格为不复权真实成交价
+          {code === ALL
+            ? '全部标的成交明细;下方为策略与沪深300收益率曲线。价格为不复权真实成交价'
+            : '交易点(黄)在 K 线下方横轴;点它 → 右侧定位。价格为不复权真实成交价'}
         </div>
         {loading || !option ? (
           <div className="jx-td-loading">{loading ? <Spin /> : '无行情'}</div>
@@ -191,8 +236,12 @@ export default function TradeDetail({
         )}
       </div>
 
-      <div className="jx-td-list" ref={listRef}>
+      <div
+        className={classNames('jx-td-list', { 'jx-td-list--all': code === ALL })}
+        ref={listRef}
+      >
         <div className="jx-td-head">
+          {code === ALL && <span>标的</span>}
           <span>日期</span>
           <span>方向</span>
           <span className="jx-td-num">数量</span>
@@ -201,6 +250,12 @@ export default function TradeDetail({
         </div>
         {trades.map((t, i) => (
           <div key={i} data-i={i} className={classNames('jx-td-row', { 'jx-td-row--active': i === active })}>
+            {code === ALL && (
+              <span className="jx-td-inst">
+                <span className="jx-td-instName">{names[t.code] ?? t.code}</span>
+                <span className="jx-td-instCode">{t.code}</span>
+              </span>
+            )}
             <span>{fmtDate(t.date)}</span>
             <span className={t.side === 'buy' ? 'text-up' : 'text-down'}>{t.side === 'buy' ? '买' : '卖'}</span>
             <span className="jx-td-num">{Math.round(t.realShares ?? t.shares).toLocaleString()}</span>
