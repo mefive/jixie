@@ -2,7 +2,7 @@
 
 .jx-td {
   @apply flex gap-3;
-  height: 82vh;
+  height: calc(100vh - 130px); /* fit inside the modal (top:20 + title + padding) so the slider isn't clipped */
 }
 
 .jx-td-chart {
@@ -10,19 +10,54 @@
   min-width: 0;
 }
 
-.jx-td-bar {
-  @apply flex flex-wrap items-center gap-3;
-  padding-bottom: 8px;
+/* traded-instruments queue — click to switch, no search/filter */
+.jx-td-queue {
+  @apply flex gap-2 overflow-x-auto;
+  padding-bottom: 6px;
 }
 
-.jx-td-one {
-  @apply font-semibold text-ink;
+.jx-td-chip {
+  @apply flex items-baseline gap-1;
+  @apply rounded-lg border border-line;
+  flex: none;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.jx-td-chip:hover {
+  border-color: var(--color-ink);
+}
+
+.jx-td-chip--active {
+  @apply border-ink bg-ink;
+}
+
+.jx-td-chipName {
+  @apply text-ink;
   font-size: 13px;
+}
+
+.jx-td-chipCode {
+  @apply text-muted;
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.jx-td-chipCount {
+  @apply text-muted;
+  font-size: 11px;
+}
+
+.jx-td-chip--active .jx-td-chipName,
+.jx-td-chip--active .jx-td-chipCode,
+.jx-td-chip--active .jx-td-chipCount {
+  color: #fff;
 }
 
 .jx-td-hint {
   @apply text-muted;
   font-size: 12px;
+  padding-bottom: 6px;
 }
 
 .jx-td-canvas {

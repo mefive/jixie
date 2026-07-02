@@ -11,6 +11,7 @@ import {
   faPlay,
   faPlus,
   faSpinner,
+  faUpRightFromSquare,
   faWandMagicSparkles,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -387,7 +388,20 @@ const ResultPanel = complex.component(() => {
         open={tradesOpen}
         onCancel={() => setTradesOpen(false)}
         footer={null}
-        title="交易详情"
+        title={
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 12 }}>
+            交易详情
+            {store.savedId && (
+              <Button
+                size="small"
+                icon={<FontAwesomeIcon icon={faUpRightFromSquare} />}
+                onClick={() => window.open(`/trades?id=${store.savedId}`, '_blank')}
+              >
+                页面打开
+              </Button>
+            )}
+          </span>
+        }
         width="94vw"
         style={{ top: 20 }}
         styles={{ body: { padding: 12 } }}

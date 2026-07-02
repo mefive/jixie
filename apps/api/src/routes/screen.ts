@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import type { ScreenQueryResponse, ScreenSpec } from '@jixie/shared';
 import { apiError, validateJson, validateQuery } from '../lib/httpError.js';
+import { prisma } from '../lib/prisma.js';
 import { chatJson } from '../llm/deepseek.js';
 import { runScreen, screenForCodes, stockSeries } from '../screen/query.js';
 import { nlToScreen } from '../screen/nl-to-screen.js';
@@ -13,6 +14,16 @@ import { screenSpecSchema } from '../screen/spec.js';
  * snapshot; GET /stock/:code/series returns a stock's OHLC/vol/pe series for the K线/PE/量 charts.
  */
 export const screenRoute = new Hono();
+
+// tsCode → name (bulk) — e.g. the traded-instruments queue in 交易详情.
+screenRoute.get('/names', validateQuery(z.object({ codes: z.string().min(1) })), async (c) => {
+  const codes = c.req.valid('query').codes.split(',').filter(Boolean).slice(0, 500);
+  const rows = await prisma.stockBasic.findMany({
+    where: { tsCode: { in: codes } },
+    select: { tsCode: true, name: true },
+  });
+  return c.json(Object.fromEntries(rows.map((r) => [r.tsCode, r.name])) as Record<string, string>);
+});
 
 screenRoute.post('/screen', validateJson(screenSpecSchema), async (c) => {
   const spec = c.req.valid('json') as ScreenSpec;
