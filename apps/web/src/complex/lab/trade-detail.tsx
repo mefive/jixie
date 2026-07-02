@@ -9,7 +9,6 @@ import './trade-detail.css';
 const UP = '#e8463b'; // A-share red up
 const DOWN = '#2f9e5b'; // green down
 const DOT = '#f0a020'; // 富途式分红黄点 — trade markers on the axis
-const ALL = ''; // the 全部 chip's value (portfolio overview; no real tsCode is empty)
 
 /**
  * 交易详情 — the traded stock's full K线 + 成交量, with each trade as a yellow dot pinned to the bottom
@@ -34,7 +33,8 @@ export default function TradeDetail({
     return [...c.entries()].sort((a, b) => b[1] - a[1]); // [code, count] by count desc
   }, [tradeLog]);
 
-  const [code, setCode] = useState(codes[0]?.[0] ?? '');
+  const [code, setCode] = useState(codes[0]?.[0] ?? ''); // instrument whose K线 shows (always a real code)
+  const [showAll, setShowAll] = useState(false); // 全部: list + trade dots span every instrument (K线 unchanged)
   const [names, setNames] = useState<Record<string, string>>({});
   const [series, setSeries] = useState<StockSeries | null>(null);
   const [loading, setLoading] = useState(false);
@@ -57,13 +57,14 @@ export default function TradeDetail({
       .catch(() => setBench([]));
   }, [start, end]);
 
-  // 全部 (code === ALL) → every instrument's fills, sorted by date; else this instrument's fills.
+  // 全部 → every instrument's fills, sorted by date (drives both the list and the trade dots); else
+  // just the shown instrument's. The K线/MA come from `code` regardless.
   const trades = useMemo(
     () =>
-      code === ALL
+      showAll
         ? [...tradeLog].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
         : tradeLog.filter((t) => t.code === code),
-    [tradeLog, code],
+    [tradeLog, code, showAll],
   );
 
   useEffect(() => {
@@ -79,34 +80,6 @@ export default function TradeDetail({
   }, [code, start, end]);
 
   const option = useMemo<ECOption | null>(() => {
-    // 全部 — no single-instrument K线; show the portfolio return curves (策略 vs 沪深300) full-width.
-    if (code === ALL) {
-      const navDates = (nav ?? []).map((n) => n.date);
-      if (!navDates.length) return null;
-      const nav0 = nav![0].value;
-      const benchMap = new Map(bench.map((x) => [x.date, x.close]));
-      const bench0 = bench[0]?.close;
-      const stratRet = nav!.map((n) => +(((n.value / nav0 - 1) * 100).toFixed(2)));
-      const benchRet = navDates.map((d) =>
-        benchMap.has(d) && bench0 ? +(((benchMap.get(d)! / bench0 - 1) * 100).toFixed(2)) : null,
-      );
-      return {
-        animation: false,
-        legend: { top: 0, left: 60, itemGap: 14, textStyle: { color: '#8a9099', fontSize: 11 }, data: ['策略收益', '沪深300'] },
-        tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
-        grid: [{ left: 60, right: 20, top: 30, bottom: 44 }],
-        xAxis: [{ type: 'category', data: navDates, axisLabel: { formatter: (d: string) => d.slice(0, 6), color: '#8a9099' }, axisLine: { lineStyle: { color: '#e8eaed' } } }],
-        yAxis: [{ type: 'value', axisLabel: { formatter: (v: number) => `${v}%`, color: '#8a9099' }, splitLine: { lineStyle: { color: '#f0f1f3' } } }],
-        dataZoom: [
-          { type: 'inside', start: 0, end: 100 },
-          { type: 'slider', bottom: 10, height: 20, start: 0, end: 100 },
-        ],
-        series: [
-          { name: '策略收益', type: 'line', data: stratRet, showSymbol: false, connectNulls: true, itemStyle: { color: '#111827' }, lineStyle: { width: 2, color: '#111827' }, z: 4 },
-          { name: '沪深300', type: 'line', data: benchRet, showSymbol: false, connectNulls: true, itemStyle: { color: '#8a9099' }, lineStyle: { width: 2, color: '#8a9099', type: 'dashed' }, z: 3 },
-        ],
-      };
-    }
     if (!series) return null;
     const p = series.points;
     const dates = p.map((d) => d.date);
@@ -185,7 +158,7 @@ export default function TradeDetail({
         { name: '交易', type: 'scatter', xAxisIndex: 0, yAxisIndex: 0, data: dots, symbol: 'circle', symbolSize: 9, itemStyle: { color: DOT, borderColor: '#fff', borderWidth: 1 }, z: 10 },
       ],
     };
-  }, [code, series, trades, nav, bench]);
+  }, [series, trades, nav, bench]);
 
   const pick = (date: string) => {
     const idx = trades.findIndex((t) => t.date === date);
@@ -199,8 +172,8 @@ export default function TradeDetail({
       <div className="jx-td-chart">
         <div className="jx-td-queue">
           <button
-            className={classNames('jx-td-chip', { 'jx-td-chip--active': code === ALL })}
-            onClick={() => setCode(ALL)}
+            className={classNames('jx-td-chip', { 'jx-td-chip--active': showAll })}
+            onClick={() => setShowAll(true)}
           >
             <span className="jx-td-chipName">全部</span>
             <span className="jx-td-chipCount">{tradeLog.length}</span>
@@ -208,8 +181,11 @@ export default function TradeDetail({
           {codes.map(([c, n]) => (
             <button
               key={c}
-              className={classNames('jx-td-chip', { 'jx-td-chip--active': c === code })}
-              onClick={() => setCode(c)}
+              className={classNames('jx-td-chip', { 'jx-td-chip--active': !showAll && c === code })}
+              onClick={() => {
+                setCode(c);
+                setShowAll(false);
+              }}
               title={`${names[c] ?? ''} ${c}`}
             >
               <span className="jx-td-chipName">{names[c] ?? c}</span>
@@ -219,8 +195,8 @@ export default function TradeDetail({
           ))}
         </div>
         <div className="jx-td-hint">
-          {code === ALL
-            ? '全部标的成交明细;下方为策略与沪深300收益率曲线。价格为不复权真实成交价'
+          {showAll
+            ? 'K 线为选中标的;交易点(黄)与右侧列表为全部标的的成交。价格为不复权真实成交价'
             : '交易点(黄)在 K 线下方横轴;点它 → 右侧定位。价格为不复权真实成交价'}
         </div>
         {loading || !option ? (
@@ -236,12 +212,9 @@ export default function TradeDetail({
         )}
       </div>
 
-      <div
-        className={classNames('jx-td-list', { 'jx-td-list--all': code === ALL })}
-        ref={listRef}
-      >
+      <div className={classNames('jx-td-list', { 'jx-td-list--all': showAll })} ref={listRef}>
         <div className="jx-td-head">
-          {code === ALL && <span>标的</span>}
+          {showAll && <span>标的</span>}
           <span>日期</span>
           <span>方向</span>
           <span className="jx-td-num">数量</span>
@@ -250,7 +223,7 @@ export default function TradeDetail({
         </div>
         {trades.map((t, i) => (
           <div key={i} data-i={i} className={classNames('jx-td-row', { 'jx-td-row--active': i === active })}>
-            {code === ALL && (
+            {showAll && (
               <span className="jx-td-inst">
                 <span className="jx-td-instName">{names[t.code] ?? t.code}</span>
                 <span className="jx-td-instCode">{t.code}</span>
