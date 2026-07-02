@@ -33,6 +33,13 @@ export interface LongShortStat {
   navEnd: number;
 }
 
+/** Rank IC measured against the N-trading-day-forward return — one point on the IC-decay curve. */
+export interface IcDecayPoint {
+  horizonDays: number; // forward horizon in trading days (1 / 5 / 10 / 20 / 60)
+  icMean: number;
+  icir: number; // icMean / icStd across periods
+}
+
 /** A single-factor analysis report over one (freq, start, end) window. */
 export interface FactorReport {
   factor: string; // unique key
@@ -49,6 +56,7 @@ export interface FactorReport {
   buckets: BucketStat[]; // length 10 (deciles), ascending by factor value
   longShort: LongShortStat;
   topTurnover: number; // average one-way turnover of the top decile (rebalance churn)
+  icDecay: IcDecayPoint[]; // Rank IC at several forward horizons — the decay curve (holding period)
 }
 
 /** A cached run's identity (for the "已跑" chips) — the report exists, fetch by these params. */

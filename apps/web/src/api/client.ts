@@ -193,3 +193,25 @@ export function getFactorAnalysis(
   const q = new URLSearchParams({ factor, freq, start, end, ...(refresh ? { refresh: '1' } : {}) });
   return request(`/api/app/factors/analysis?${q}`);
 }
+
+// Streamed run: returns the cached report immediately, or a jobId to poll for progress logs.
+export function runFactorAnalysis(
+  factor: string,
+  freq: FactorFreq,
+  start: string,
+  end: string,
+  refresh = false,
+): Promise<{ done: true; report: FactorReport } | { jobId: string }> {
+  const q = new URLSearchParams({ factor, freq, start, end, ...(refresh ? { refresh: '1' } : {}) });
+  return request(`/api/app/factors/analysis/run?${q}`, { method: 'POST' });
+}
+
+export interface FactorJob {
+  status: 'running' | 'done' | 'error';
+  logs: string[];
+  report?: FactorReport;
+  error?: string;
+}
+export function pollFactorJob(jobId: string, since = 0): Promise<FactorJob> {
+  return request(`/api/app/factors/analysis/job/${jobId}?since=${since}`);
+}

@@ -202,6 +202,12 @@
   font-size: 12px;
 }
 
+.jx-factor-sectionTitle {
+  @apply font-semibold text-ink;
+  margin-top: 4px;
+  font-size: 13px;
+}
+
 .jx-factor-metrics {
   @apply grid gap-3;
   grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
@@ -225,4 +231,25 @@
 .jx-factor-metricHint {
   @apply text-muted;
   font-size: 11px;
+}
+
+/* —— streamed run (progress logs, like the backtest) —— */
+.jx-factor-running {
+  @apply flex flex-1 flex-col gap-3;
+}
+
+.jx-factor-runningHead {
+  @apply flex items-center gap-2;
+  @apply text-sm text-muted;
+}
+
+.jx-factor-log {
+  @apply overflow-auto;
+  @apply rounded-lg border border-line bg-bg text-muted;
+  padding: 12px 14px;
+  max-height: 340px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.7;
+  white-space: pre-wrap;
 }
