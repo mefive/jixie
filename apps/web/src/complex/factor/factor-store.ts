@@ -7,6 +7,7 @@ import {
   getFactorAnalysis,
   runFactorAnalysis,
   pollFactorJob,
+  findFactorRunningJob,
 } from '@src/api/client';
 
 // Initial state from the URL (?factor=&freq=&start=&end=) — makes a report refresh-safe + shareable.
@@ -15,22 +16,6 @@ type FactorSetupParams = { factor?: string; freq?: FactorFreq; start?: string; e
 const DEFAULT_START = '20150101';
 const DEFAULT_END = '20261231';
 const POLL_INTERVAL_MS = 800;
-
-// localStorage: the analysis + jobId of a run in flight. Survives a refresh so we re-attach to its
-// streaming logs (via the in-memory server job) instead of orphaning it / recomputing.
-const FACTOR_JOB_KEY = 'jx:factor:job';
-type JobPointer = { analysisId?: string; jobId?: string };
-function readCurrentJob(): JobPointer {
-  try {
-    return JSON.parse(localStorage.getItem(FACTOR_JOB_KEY) || '{}');
-  } catch {
-    return {};
-  }
-}
-function writeCurrentJob(pointer: JobPointer | null) {
-  if (pointer?.jobId) localStorage.setItem(FACTOR_JOB_KEY, JSON.stringify(pointer));
-  else localStorage.removeItem(FACTOR_JOB_KEY);
-}
 
 /**
  * 因子研究 store. Left: the factor catalog. Right: for the selected factor, an analysis over the current
@@ -100,10 +85,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     }
   }
 
-  private get analysisId(): string {
-    return `${this.selectedKey}|${this.freq}|${this.start}|${this.end}`;
-  }
-
   public get selected(): FactorMeta | null {
     return this.catalogLoader.result?.find((f) => f.key === this.selectedKey) ?? null;
   }
@@ -161,7 +142,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         void this.runsLoader.run();
         this.finishJob();
       } else {
-        writeCurrentJob({ analysisId: this.analysisId, jobId: res.jobId });
         this.startPolling(res.jobId);
       }
     } catch (e) {
@@ -170,62 +150,61 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     }
   }
 
-  /** Re-attach to a still-running job for the current analysis (page refreshed mid-run) — else run. */
+  /** On URL-restore: re-attach to a still-running job (refreshed mid-run, found server-side — no
+   * localStorage, works cross-client), else show the cached report, else leave the 运行 prompt. */
   private async restoreOrRun() {
-    const cur = readCurrentJob();
-    if (cur.analysisId === this.analysisId && cur.jobId) {
-      try {
-        const job = await pollFactorJob(cur.jobId, 0);
-        if (job.status === 'running') {
-          runInAction(() => {
-            this.logs = job.logs;
-            this.jobRunning = true;
-          });
-          this.jobId = cur.jobId;
-          this.since = job.logs.length;
-          this.analysisPoller.start();
-          return;
-        }
-      } catch {
-        /* job expired / server restarted — fall through to a normal run (cache hit or recompute) */
+    try {
+      const { jobId } = await findFactorRunningJob(this.selectedKey, this.freq, this.start, this.end);
+      if (jobId) {
+        this.startPolling(jobId);
+        return;
       }
+    } catch {
+      /* ignore — fall through to the cached read */
     }
-    await this.runAnalysis();
+    try {
+      const report = await getFactorAnalysis(this.selectedKey, this.freq, this.start, this.end);
+      await this.analysisLoader.run(Promise.resolve(report));
+    } catch {
+      this.analysisLoader.reset(); // not computed for this user yet → show the 运行 prompt
+    }
   }
 
   private startPolling(jobId: string) {
     this.jobId = jobId;
     this.since = 0;
+    runInAction(() => (this.jobRunning = true));
     this.analysisPoller.start();
   }
 
-  /** One poll tick — append new logs; return false to stop the poller (done / error / expired). */
+  /** One poll tick — append new logs; on finish fetch the persisted report. Returns false to stop. */
   private async pollOnce(): Promise<false | void> {
     try {
       const job = await pollFactorJob(this.jobId!, this.since);
       if (job.logs.length) {
         runInAction(() => (this.logs = [...this.logs, ...job.logs]));
-        this.since += job.logs.length;
+        this.since = job.nextSince;
       }
       if (job.status === 'done') {
-        await this.analysisLoader.run(Promise.resolve(job.report!));
+        const report = await getFactorAnalysis(this.selectedKey, this.freq, this.start, this.end);
+        await this.analysisLoader.run(Promise.resolve(report));
         void this.runsLoader.run();
         this.finishJob();
         return false;
       }
-      if (job.status === 'error') {
-        await this.analysisLoader.run(Promise.reject(new Error(job.error))).catch(() => {});
+      if (job.status === 'error' || job.status === 'stale') {
+        const msg = job.status === 'stale' ? '分析中断(服务重启),请重试' : job.error || '分析失败';
+        await this.analysisLoader.run(Promise.reject(new Error(msg))).catch(() => {});
         this.finishJob();
         return false;
       }
     } catch {
-      this.finishJob(); // job expired (server restart / TTL) — stop polling
+      this.finishJob(); // job gone / expired — stop polling
       return false;
     }
   }
 
   private finishJob() {
-    writeCurrentJob(null);
     runInAction(() => (this.jobRunning = false));
   }
 
