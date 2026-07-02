@@ -266,13 +266,27 @@ try {
     await page.screenshot({ path: `${SHOTS}5-lab-result.png` });
     log('shot 5: code backtest result');
 
-    // 5c. 交易详情 Modal — trade points on the equity curve (size = fills/day) + the trade list.
+    // 5c. 交易详情 Modal — K线 + trade dots + list; the traded-instruments queue (chips, no filter).
     await page.getByRole('button', { name: /交易详情/ }).click();
     await page.locator('.jx-td-list .jx-td-row').first().waitFor({ timeout: 8000 });
     await page.locator('.jx-td-canvas canvas').first().waitFor({ timeout: 8000 });
-    await page.waitForTimeout(500); // let the scatter paint
-    log('trade detail: rows', await page.locator('.jx-td-list .jx-td-row').count());
+    await page.locator('.jx-td-queue .jx-td-chip').first().waitFor({ timeout: 8000 }); // instrument queue
+    await page.waitForTimeout(600); // let the scatter + slider paint
+    const chipName = ((await page.locator('.jx-td-chip').first().textContent()) ?? '').trim();
+    log('trade detail: rows', await page.locator('.jx-td-list .jx-td-row').count(), '| chip', chipName);
     await page.screenshot({ path: `${SHOTS}5c-trade-detail.png` });
+
+    // 5d. 页面打开 → the standalone /trades page (new tab) renders the same K线 + list.
+    const [tradePage] = await Promise.all([
+      page.context().waitForEvent('page'),
+      page.getByRole('button', { name: /页面打开/ }).click(),
+    ]);
+    await tradePage.waitForLoadState('domcontentloaded');
+    await tradePage.locator('.jx-td-canvas canvas').first().waitFor({ timeout: 12000 });
+    await tradePage.waitForTimeout(600);
+    log('trade page:', tradePage.url());
+    await tradePage.screenshot({ path: `${SHOTS}5d-trade-page.png` });
+    await tradePage.close();
     await page.keyboard.press('Escape');
   }
 
