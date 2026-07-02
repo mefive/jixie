@@ -14,14 +14,16 @@ import { observer as originalObserver } from 'mobx-react';
  * @param displayName the component's display name
  * @returns the wrapped component
  */
-export function observer(
-  // when wrapping a generic function component with mobx-react, a strict props type conflicts with index signatures like antd's `data-${string}`
-  component: React.FunctionComponent<any>,
+export function observer<C extends React.FunctionComponent<any>>(
+  // Param stays `FunctionComponent<any>` so a strict props type doesn't conflict with index signatures
+  // like antd's `data-${string}`. But we return the *same* component type `C` (not `any`), so the wrapped
+  // component keeps its props type — JSX callers get prop-checking and hover types instead of `any`.
+  component: C,
   displayName: string,
-) {
+): C {
   const newComponent = component;
   newComponent.displayName = displayName;
-  return originalObserver(newComponent) as any;
+  return originalObserver(newComponent) as unknown as C;
 }
 
 export function observerWithForwardedRef<
