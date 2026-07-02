@@ -207,11 +207,22 @@ export function runFactorAnalysis(
 }
 
 export interface FactorJob {
-  status: 'running' | 'done' | 'error';
+  status: 'running' | 'done' | 'error' | 'stale';
   logs: string[];
-  report?: FactorReport;
-  error?: string;
+  nextSince: number;
+  error?: string | null;
 }
 export function pollFactorJob(jobId: string, since = 0): Promise<FactorJob> {
   return request(`/api/app/factors/analysis/job/${jobId}?since=${since}`);
+}
+
+// A still-running job for this (factor, window) — to re-attach after a refresh (DB-backed, cross-client).
+export function findFactorRunningJob(
+  factor: string,
+  freq: FactorFreq,
+  start: string,
+  end: string,
+): Promise<{ jobId: string | null }> {
+  const q = new URLSearchParams({ factor, freq, start, end });
+  return request(`/api/app/factors/analysis/running?${q}`);
 }

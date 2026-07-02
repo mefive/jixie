@@ -9,6 +9,7 @@ import { screenRoute } from './routes/screen.js';
 import { savedScreenRoute } from './routes/saved-screen.js';
 import { factorRoute } from './routes/factor.js';
 import { requireAuth } from './lib/session.js';
+import { markRunningJobsStale } from './lib/jobs.js';
 
 /**
  * Start the backend.
@@ -18,6 +19,8 @@ import { requireAuth } from './lib/session.js';
  */
 export function startServer(port: number) {
   const app = buildApp();
+  // Any job left 'running' from a previous process is a zombie (its worker died) → mark stale.
+  void markRunningJobsStale().then((n) => n && console.log(`[jixie] ${n} 个残留 job 标记为 stale`));
   serve({ fetch: app.fetch, port });
   return app;
 }

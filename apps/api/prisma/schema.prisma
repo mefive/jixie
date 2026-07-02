@@ -212,7 +212,8 @@ model InviteCode {
 /// Regenerated on demand (?refresh=1); served instantly otherwise. Factor *values* are never stored,
 /// only this report: they're computed on the fly from raw tables when the report is (re)generated.
 model FactorReport {
-  id         String   @id // `${factor}|${freq}|${start}|${end}`
+  id         String   @id // `${userId}|${factor}|${freq}|${start}|${end}`
+  userId     String
   factor     String
   freq       String // 'month' | 'week'
   start      String // YYYYMMDD
@@ -220,7 +221,25 @@ model FactorReport {
   payload    String // JSON.stringify(FactorReport wire shape)
   computedAt DateTime
 
-  @@index([factor]) // list a factor's cached runs (the "已跑" chips)
+  @@index([userId, factor]) // list a user's cached runs of a factor (the "已跑" chips)
+}
+
+/// A background computation (backtest / factor analysis). Status lives here (durable, cross-client
+/// resume via a query); progress logs stay in-memory in the process (ephemeral). A key ties the job
+/// to what it computes (factor: `${factor}|${freq}|${start}|${end}`, backtest: the strategyId) so the
+/// frontend can find "my running job for X" after a refresh. On boot, running jobs → stale (the worker
+/// died with the process). Result is NOT stored here — it lands on the entity (FactorReport / Strategy).
+model Job {
+  id        String   @id // ULID
+  userId    String
+  kind      String // 'backtest' | 'factor'
+  key       String // dedupe/lookup key (see model doc)
+  status    String // 'running' | 'done' | 'error' | 'stale'
+  error     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, kind, key, status]) // find a user's running job for a key
 }
 
 /// Email verification challenge. Only the SHA256 of the code is stored, 10-min TTL, rejected at attempts≥5 (anti-brute-force).
