@@ -48,7 +48,7 @@ export function AppRoutes() {
           path="/factors"
           element={
             <RequireAuth>
-              <ComplexRoute key="factors" entry={factorEntry} />
+              <FactorRoute />
             </RequireAuth>
           }
         />
@@ -84,6 +84,20 @@ function StockRoute() {
   const { code = '' } = useParams();
   const setupParams = useMemo(() => ({ code }), [code]);
   return <ComplexRoute key={code} entry={stockEntry} setupParams={setupParams} />;
+}
+
+// 因子研究: `/factors?factor=&freq=&start=&end=` restores a specific analysis on mount (refresh-safe /
+// shareable). Capture the params once — later URL syncs from the store must not re-setup the page, so
+// no `key` here (factor/param changes go through store methods, not a remount).
+function FactorRoute() {
+  const [searchParams] = useSearchParams();
+  const setupParams = useRef({
+    factor: searchParams.get('factor') || undefined,
+    freq: (searchParams.get('freq') as 'month' | 'week') || undefined,
+    start: searchParams.get('start') || undefined,
+    end: searchParams.get('end') || undefined,
+  }).current;
+  return <ComplexRoute entry={factorEntry} setupParams={setupParams} />;
 }
 
 // Backtest workbench: `/lab` = fresh strategy; `/lab?id=<sid>` = a saved strategy (loaded on mount →

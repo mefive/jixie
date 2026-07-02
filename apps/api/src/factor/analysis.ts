@@ -12,6 +12,7 @@ const MIN_HISTORY_DAYS = 365; // exclude recently-listed: listed at least 1 year
 const LIQUIDITY_DROP = 0.25; // drop the bottom 25% by turnover
 const MIN_CANDIDATES = 100; // skip the period if too few usable stocks
 const WINSOR_P = 0.01; // winsorize quantile for forward returns
+const IC_DECAY_HORIZONS = [1, 5, 10, 20, 60]; // forward horizons (trading days) for the IC-decay curve
 
 // Rebalance days within [start,end]: the last open day of each month (or ISO week).
 async function getRebalanceDates(freq: FactorFreq, start: string, end: string): Promise<string[]> {
@@ -68,6 +69,7 @@ async function computeFactorSeries(
   factorKey: string,
   dates: string[],
   snaps: Map<string, Snap>,
+  onLog: (msg: string) => void = () => {},
 ): Promise<Series> {
   const series: Series = new Map();
   const push = (date: string, tsCode: string, value: number | null) => {
@@ -96,7 +98,10 @@ async function computeFactorSeries(
     // in analyzeFactor anyway, so there's no need to scan all of `daily` for every tsCode ever synced.
     const tsCodes = new Set<string>();
     for (const snap of snaps.values()) for (const tsCode of snap.keys()) tsCodes.add(tsCode);
+    onLog(`逐股计算价格因子(${tsCodes.size} 只)…`);
+    let done = 0;
     for (const tsCode of tsCodes) {
+      if (++done % 800 === 0) onLog(`  已算 ${done}/${tsCodes.size} 只`);
       const [priceRows, adjRows] = await Promise.all([
         prisma.daily.findMany({
           where: { tsCode },
@@ -163,11 +168,38 @@ export async function analyzeFactor(
   freq: FactorFreq,
   start: string,
   end: string,
+  onLog: (msg: string) => void = () => {},
 ): Promise<FactorReport> {
   const periodsPerYear = freq === 'week' ? 52 : 12;
   const rebalanceDates = await getRebalanceDates(freq, start, end);
+  onLog(`调仓日 ${rebalanceDates.length} 个(${freq === 'week' ? '周' : '月'}度)· 加载行情快照…`);
   const snaps = await loadSnapshots(rebalanceDates);
-  const byDate = await computeFactorSeries(factorKey, rebalanceDates, snaps);
+  onLog(`计算因子 ${factorKey} 的值…`);
+  const byDate = await computeFactorSeries(factorKey, rebalanceDates, snaps, onLog);
+
+  // IC-decay: for each rebalance date D, the trading day D+h (h ∈ horizons) via the open-day calendar,
+  // and a snapshot at those forward days — so we can measure Rank IC at multiple forward horizons.
+  const calendar = (
+    await prisma.tradeCal.findMany({
+      where: { exchange: 'SSE', isOpen: 1, calDate: { gte: start, lte: minusDays(end, -130) } },
+      select: { calDate: true },
+      orderBy: { calDate: 'asc' },
+    })
+  ).map((r) => r.calDate);
+  const calIndex = new Map(calendar.map((d, i) => [d, i]));
+  // Subsample icDecay observations to ≤130 evenly-spaced rebalance dates — enough for a stable mean IC,
+  // and it bounds the forward-snapshot load regardless of freq (weekly would otherwise load huge panels).
+  const decayStep = Math.max(1, Math.ceil(rebalanceDates.length / 130));
+  const decayDates = new Set(rebalanceDates.filter((_, i) => i % decayStep === 0));
+  const forwardDates = new Set<string>();
+  for (const d of decayDates) {
+    const i = calIndex.get(d);
+    if (i == null) continue;
+    for (const h of IC_DECAY_HORIZONS) if (calendar[i + h]) forwardDates.add(calendar[i + h]);
+  }
+  onLog(`加载 IC 衰减前瞻快照(${forwardDates.size} 日)…`);
+  const forwardSnaps = await loadSnapshots([...forwardDates]);
+  const decaySeries: number[][] = IC_DECAY_HORIZONS.map(() => []);
 
   // List date per stock, to exclude recently-listed (< MIN_HISTORY_DAYS). Absent (delisted) → kept.
   const firstBar = new Map(
@@ -215,6 +247,29 @@ export async function analyzeFactor(
 
     icSeries.push(st.spearman(values, fwdW)); // Rank IC (factor value vs forward return)
 
+    // IC at each forward horizon (the decay curve) — same candidates, N-trading-day-forward return.
+    // Only on the subsampled decay dates (bounds the forward-snapshot load; see decayDates above).
+    if (decayDates.has(date)) {
+      const iCal = calIndex.get(date)!;
+      for (let hi = 0; hi < IC_DECAY_HORIZONS.length; hi++) {
+        const forwardDate = calendar[iCal + IC_DECAY_HORIZONS[hi]];
+        const snapForward = forwardDate ? forwardSnaps.get(forwardDate) : undefined;
+        if (!snapForward) continue;
+        const hVals: number[] = [];
+        const hRets: number[] = [];
+        for (const c of candidates) {
+          const a = snapDate.get(c.tsCode);
+          const b = snapForward.get(c.tsCode);
+          if (!a || !b) continue;
+          hVals.push(c.value);
+          hRets.push(b.adjClose / a.adjClose - 1);
+        }
+        if (hVals.length >= MIN_CANDIDATES) {
+          decaySeries[hi].push(st.spearman(hVals, st.winsorize(hRets, WINSOR_P)));
+        }
+      }
+    }
+
     const buckets = st.quantileBuckets(values, N_BUCKETS);
     const bucketSums = new Array(N_BUCKETS).fill(0);
     const bucketCounts = new Array(N_BUCKETS).fill(0);
@@ -239,9 +294,17 @@ export async function analyzeFactor(
     prevTop = top;
   }
 
+  onLog('汇总 IC / 分层 / IC 衰减…');
   const icMean = st.mean(icSeries);
   const icStd = st.std(icSeries);
   const icir = icStd > 0 ? icMean / icStd : 0;
+
+  const icDecay = IC_DECAY_HORIZONS.map((horizonDays, hi) => {
+    const series = decaySeries[hi];
+    const mean = st.mean(series);
+    const sd = st.std(series);
+    return { horizonDays, icMean: mean, icir: sd > 0 ? mean / sd : 0 };
+  });
 
   const buckets: BucketStat[] = bucketReturns.map((rets, b) => ({
     bucket: b,
@@ -271,5 +334,6 @@ export async function analyzeFactor(
       navEnd: st.navFromReturns(lsReturns).at(-1)!,
     },
     topTurnover: st.mean(turnovers),
+    icDecay,
   };
 }
