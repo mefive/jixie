@@ -13,6 +13,7 @@ import {
   finaIndicator,
   dividend,
   indexWeight,
+  indexDaily,
   type DailyRow,
 } from '../tushare/api.js';
 import { prisma } from '../lib/prisma.js';
@@ -464,6 +465,24 @@ export async function syncIndexWeight(
     total += rows.length;
   }
   log(`syncIndexWeight 完成，共 ${total} 行`);
+}
+
+/** Sync an index's daily close (e.g. 000300.SH) — for benchmark return curves. One call covers the
+ * whole range; idempotent (deleteMany the range + createMany). */
+export async function syncIndexDaily(
+  client: TushareClient,
+  indexCode: string,
+  start: TradeDate,
+  end: TradeDate,
+): Promise<void> {
+  const rows = await indexDaily(client, { ts_code: indexCode, start_date: start, end_date: end });
+  await prisma.$transaction([
+    prisma.indexDaily.deleteMany({ where: { tsCode: indexCode, tradeDate: { gte: start, lte: end } } }),
+    prisma.indexDaily.createMany({
+      data: rows.map((r) => ({ tsCode: r.ts_code, tradeDate: r.trade_date, close: r.close })),
+    }),
+  ]);
+  log(`syncIndexDaily ${indexCode}: ${rows.length} 行`);
 }
 
 function toDaily(r: DailyRow) {

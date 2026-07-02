@@ -99,6 +99,22 @@ export async function adjFactor(
   return rows as unknown as AdjFactorRow[];
 }
 
+export interface IndexDailyRow {
+  ts_code: TsCode;
+  trade_date: TradeDate;
+  close: number;
+}
+
+/** Index daily close (e.g. 000300.SH 沪深300) — benchmark return curves + future regime filters.
+ * One call returns the whole range (a few thousand rows). */
+export async function indexDaily(
+  client: TushareClient,
+  params: { ts_code: TsCode; start_date?: TradeDate; end_date?: TradeDate },
+): Promise<IndexDailyRow[]> {
+  const rows = await client.call('index_daily', params, 'ts_code,trade_date,close');
+  return rows as unknown as IndexDailyRow[];
+}
+
 export interface StkLimitRow {
   ts_code: TsCode;
   trade_date: TradeDate;

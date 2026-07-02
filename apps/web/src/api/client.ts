@@ -185,6 +185,15 @@ export function fetchNames(codes: string[]): Promise<Record<string, string>> {
   return request(`/api/app/names?codes=${encodeURIComponent(codes.join(','))}`);
 }
 
+// Index daily close (e.g. 000300.SH) over a range — the benchmark return curve in 交易详情.
+export function fetchIndexSeries(
+  code: string,
+  start: string,
+  end: string,
+): Promise<{ points: { date: string; close: number }[] }> {
+  return request(`/api/app/index/${code}/series?start=${start}&end=${end}`);
+}
+
 import type { FactorReport, FactorMeta, FactorRun, FactorFreq } from '@jixie/shared';
 
 // 因子研究: the factor list (identity + kind).

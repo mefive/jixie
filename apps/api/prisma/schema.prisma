@@ -158,6 +158,15 @@ model IndexWeight {
   @@index([indexCode, tradeDate])
 }
 
+/// Index daily close (沪深300 = 000300.SH 等) — 基准收益曲线 + 未来 regime 滤网。
+model IndexDaily {
+  tsCode    String
+  tradeDate String
+  close     Float
+
+  @@id([tsCode, tradeDate])
+}
+
 // ============================================================================
 // User system (invite-only beta). Passwordless: log in with email + 6-digit verification code;
 // registering a new email requires a one-time invite code.
