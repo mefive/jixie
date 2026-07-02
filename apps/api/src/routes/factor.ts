@@ -1,56 +1,36 @@
+import { Worker } from 'node:worker_threads';
 import { Hono } from 'hono';
-import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type { FactorReport } from '@jixie/shared';
 import { apiError, validateQuery } from '../lib/httpError.js';
 import { prisma } from '../lib/prisma.js';
-import { analyzeFactor } from '../factor/analysis.js';
 import { FACTOR_CATALOG } from '../factor/factors.js';
+import { createJob, appendLog, finishJob, getJob, findRunningJob } from '../lib/jobs.js';
 
 /**
- * Factor-analysis API (产品线 1.5 · 因子研究).
- *   GET /catalog                 the factor list (identity + kind) — drives the /factors page list
- *   GET /runs?factor=X           a factor's cached runs (the "已跑" chips)
- *   GET /analysis?factor&freq&start&end   a single-factor report, cached per 4-tuple (sync; ?refresh=1 recomputes)
- *   POST /analysis/run           start (or return cached); streams progress via a job — the 运行 button uses this
- *   GET /analysis/job/:id?since= poll a running analysis: {status, logs, report?, error?}
- * Factor *values* are never stored — analyzeFactor() computes them on the fly; only the report is persisted.
+ * Factor-analysis API (产品线 1.5 · 因子研究). Reports are per-user (a public factor's analysis is still
+ * cached per user, not shared). Analysis is CPU/IO-heavy → runs in a worker (factor-worker.ts) as a Job:
+ *   GET  /catalog                            the factor list (identity + kind)
+ *   GET  /runs?factor                        this user's cached runs of a factor (the "已跑" chips)
+ *   GET  /analysis?factor&freq&start&end      this user's cached report (404 if not computed yet)
+ *   POST /analysis/run?...&refresh            cache hit → {done,report}; else start a Job → {jobId}
+ *   GET  /analysis/job/:id?since=             poll a Job: {status, logs, nextSince, error}
+ *   GET  /analysis/running?factor&freq&start&end   a still-running Job's id (re-attach after a refresh)
  */
 export const factorRoute = new Hono();
 
 const CATALOG_KEYS = new Set(FACTOR_CATALOG.map((f) => f.key));
+const reportId = (userId: string, factor: string, freq: string, start: string, end: string) =>
+  `${userId}|${factor}|${freq}|${start}|${end}`;
+const jobKey = (factor: string, freq: string, start: string, end: string) =>
+  `${factor}|${freq}|${start}|${end}`;
 
-// Compute one factor's report + persist it (streaming progress via onLog). Shared by the sync + job paths.
-async function computeAndCache(
-  factor: string,
-  freq: 'month' | 'week',
-  start: string,
-  end: string,
-  onLog: (msg: string) => void = () => {},
-): Promise<FactorReport> {
-  const report = await analyzeFactor(factor, freq, start, end, onLog);
-  const payload = JSON.stringify(report);
-  const id = `${factor}|${freq}|${start}|${end}`;
-  await prisma.factorReport.upsert({
-    where: { id },
-    create: { id, factor, freq, start, end, payload, computedAt: new Date() },
-    update: { payload, computedAt: new Date() },
-  });
-  return report;
-}
+// Worker entry: dev (tsx) spawns the .mjs bootstrap; prod spawns the compiled .js.
+const workerUrl = import.meta.url.endsWith('.ts')
+  ? new URL('../factor/factor-worker.boot.mjs', import.meta.url)
+  : new URL('../factor/factor-worker.js', import.meta.url);
 
 factorRoute.get('/catalog', (c) => c.json(FACTOR_CATALOG));
-
-const runsQuery = z.object({ factor: z.string().min(1) });
-factorRoute.get('/runs', validateQuery(runsQuery), async (c) => {
-  const { factor } = c.req.valid('query');
-  const rows = await prisma.factorReport.findMany({
-    where: { factor },
-    select: { freq: true, start: true, end: true, computedAt: true },
-    orderBy: { computedAt: 'desc' },
-  });
-  return c.json(rows);
-});
 
 const analysisQuery = z.object({
   factor: z.string().min(1),
@@ -65,70 +45,70 @@ const analysisQuery = z.object({
     .default('20261231'),
   refresh: z.string().optional(),
 });
-factorRoute.get('/analysis', validateQuery(analysisQuery), async (c) => {
-  const { factor, freq, start, end, refresh } = c.req.valid('query');
-  if (!CATALOG_KEYS.has(factor)) return apiError(c, 'NOT_FOUND', `未知因子 ${factor}`);
-  if (start >= end) return apiError(c, 'VALIDATION_FAILED', '起始日期必须早于结束日期');
+const sinceQuery = z.object({ since: z.string().regex(/^\d+$/).optional() });
 
-  const id = `${factor}|${freq}|${start}|${end}`;
-  if (refresh !== '1') {
-    const cached = await prisma.factorReport.findUnique({ where: { id } });
-    if (cached) return c.json(JSON.parse(cached.payload) as FactorReport);
-  }
-  try {
-    return c.json(await computeAndCache(factor, freq, start, end));
-  } catch (e) {
-    return apiError(c, 'SERVICE_UNAVAILABLE', e instanceof Error ? e.message : '因子分析失败');
-  }
+factorRoute.get('/runs', validateQuery(z.object({ factor: z.string().min(1) })), async (c) => {
+  const rows = await prisma.factorReport.findMany({
+    where: { userId: c.var.userId, factor: c.req.valid('query').factor },
+    select: { freq: true, start: true, end: true, computedAt: true },
+    orderBy: { computedAt: 'desc' },
+  });
+  return c.json(rows);
 });
 
-// —— Streamed analysis (progress logs, like the backtest) via an in-process job + poll ——
+factorRoute.get('/analysis', validateQuery(analysisQuery), async (c) => {
+  const { factor, freq, start, end } = c.req.valid('query');
+  const cached = await prisma.factorReport.findUnique({
+    where: { id: reportId(c.var.userId, factor, freq, start, end) },
+  });
+  if (!cached) return apiError(c, 'NOT_FOUND', '该窗口尚未计算,请先运行');
+  return c.json(JSON.parse(cached.payload) as FactorReport);
+});
 
-interface AnalysisJob {
-  logs: string[];
-  status: 'running' | 'done' | 'error';
-  report?: FactorReport;
-  error?: string;
-}
-const jobs = new Map<string, AnalysisJob>();
-
-factorRoute.post('/analysis/run', validateQuery(analysisQuery), async (c) => {
-  const { factor, freq, start, end, refresh } = c.req.valid('query');
-  if (!CATALOG_KEYS.has(factor)) return apiError(c, 'NOT_FOUND', `未知因子 ${factor}`);
-  if (start >= end) return apiError(c, 'VALIDATION_FAILED', '起始日期必须早于结束日期');
-
-  // Cache hit (and not forcing recompute) → return the report directly, no job.
-  if (refresh !== '1') {
-    const cached = await prisma.factorReport.findUnique({
-      where: { id: `${factor}|${freq}|${start}|${end}` },
-    });
-    if (cached) return c.json({ done: true, report: JSON.parse(cached.payload) as FactorReport });
-  }
-
-  const jobId = randomUUID();
-  const job: AnalysisJob = { logs: [], status: 'running' };
-  jobs.set(jobId, job);
-  void (async () => {
-    try {
-      job.report = await computeAndCache(factor, freq, start, end, (msg) => job.logs.push(msg));
-      job.status = 'done';
-    } catch (e) {
-      job.error = e instanceof Error ? e.message : '因子分析失败';
-      job.status = 'error';
-    }
-    setTimeout(() => jobs.delete(jobId), 5 * 60 * 1000); // evict finished jobs after 5 min
-  })();
+factorRoute.get('/analysis/running', validateQuery(analysisQuery), async (c) => {
+  const { factor, freq, start, end } = c.req.valid('query');
+  const jobId = await findRunningJob(c.var.userId, 'factor', jobKey(factor, freq, start, end));
   return c.json({ jobId });
 });
 
-factorRoute.get('/analysis/job/:jobId', async (c) => {
-  const job = jobs.get(c.req.param('jobId'));
+factorRoute.get('/analysis/job/:jobId', validateQuery(sinceQuery), async (c) => {
+  const job = await getJob(c.req.param('jobId'), Number(c.req.valid('query').since ?? '0'));
   if (!job) return apiError(c, 'NOT_FOUND', '任务不存在或已过期');
-  const since = Number(c.req.query('since') ?? 0) || 0;
-  return c.json({
-    status: job.status,
-    logs: job.logs.slice(since),
-    report: job.report,
-    error: job.error,
+  return c.json(job);
+});
+
+factorRoute.post('/analysis/run', validateQuery(analysisQuery), async (c) => {
+  const userId = c.var.userId;
+  const { factor, freq, start, end, refresh } = c.req.valid('query');
+  if (!CATALOG_KEYS.has(factor)) return apiError(c, 'NOT_FOUND', `未知因子 ${factor}`);
+  if (start >= end) return apiError(c, 'VALIDATION_FAILED', '起始日期必须早于结束日期');
+
+  if (refresh !== '1') {
+    const cached = await prisma.factorReport.findUnique({
+      where: { id: reportId(userId, factor, freq, start, end) },
+    });
+    if (cached) return c.json({ done: true, report: JSON.parse(cached.payload) as FactorReport });
+  }
+  // Dedupe: re-attach to an in-flight job for the same analysis instead of spawning a duplicate worker.
+  const existing = await findRunningJob(userId, 'factor', jobKey(factor, freq, start, end));
+  if (existing) return c.json({ jobId: existing });
+
+  const jobId = await createJob(userId, 'factor', jobKey(factor, freq, start, end));
+  const worker = new Worker(workerUrl, { workerData: { userId, factor, freq, start, end } });
+  let finished = false;
+  const done = (status: 'done' | 'error', error?: string) => {
+    if (finished) return;
+    finished = true;
+    void finishJob(jobId, status, error);
+  };
+  worker.on('message', (msg: { type: string; line?: string; message?: string }) => {
+    if (msg.type === 'log') appendLog(jobId, msg.line!);
+    else if (msg.type === 'done') done('done');
+    else if (msg.type === 'error') done('error', msg.message);
   });
+  worker.on('error', (err) => done('error', err.message));
+  worker.on('exit', (code) => {
+    if (code !== 0) done('error', `因子分析进程异常退出 (code ${code})`);
+  });
+  return c.json({ jobId });
 });
