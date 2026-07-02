@@ -25,6 +25,27 @@ screenRoute.get('/names', validateQuery(z.object({ codes: z.string().min(1) })),
   return c.json(Object.fromEntries(rows.map((r) => [r.tsCode, r.name])) as Record<string, string>);
 });
 
+// Index daily close (e.g. 000300.SH 沪深300) over a range — the benchmark return curve in 交易详情.
+const idxSeriesQuery = z.object({
+  start: z
+    .string()
+    .regex(/^\d{8}$/)
+    .optional(),
+  end: z
+    .string()
+    .regex(/^\d{8}$/)
+    .optional(),
+});
+screenRoute.get('/index/:code/series', validateQuery(idxSeriesQuery), async (c) => {
+  const { start = '20150101', end = '20261231' } = c.req.valid('query');
+  const rows = await prisma.indexDaily.findMany({
+    where: { tsCode: c.req.param('code'), tradeDate: { gte: start, lte: end } },
+    select: { tradeDate: true, close: true },
+    orderBy: { tradeDate: 'asc' },
+  });
+  return c.json({ points: rows.map((r) => ({ date: r.tradeDate, close: r.close })) });
+});
+
 screenRoute.post('/screen', validateJson(screenSpecSchema), async (c) => {
   const spec = c.req.valid('json') as ScreenSpec;
   const result = await runScreen(spec);

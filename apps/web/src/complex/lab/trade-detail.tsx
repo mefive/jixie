@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import classNames from 'classnames';
 import { Spin } from 'antd';
 import type { StockSeries, TradeRecord } from '@jixie/shared';
-import { fetchStockSeries, fetchNames } from '@src/api/client';
+import { fetchStockSeries, fetchNames, fetchIndexSeries } from '@src/api/client';
 import { EChart, type ECOption } from '@src/components/echart';
 import './trade-detail.css';
 
@@ -20,10 +20,12 @@ export default function TradeDetail({
   tradeLog,
   start,
   end,
+  nav,
 }: {
   tradeLog: TradeRecord[];
   start: string;
   end: string;
+  nav?: { date: string; value: number }[]; // strategy equity curve → 收益率曲线(右轴)
 }) {
   const codes = useMemo(() => {
     const c = new Map<string, number>();
@@ -45,6 +47,14 @@ export default function TradeDetail({
       .then(setNames)
       .catch(() => {});
   }, [codes]);
+
+  // 沪深300 daily close over the window → benchmark return curve (right axis).
+  const [bench, setBench] = useState<{ date: string; close: number }[]>([]);
+  useEffect(() => {
+    fetchIndexSeries('000300.SH', start, end)
+      .then((r) => setBench(r.points))
+      .catch(() => setBench([]));
+  }, [start, end]);
 
   const trades = useMemo(() => tradeLog.filter((t) => t.code === code), [tradeLog, code]);
 
@@ -71,21 +81,49 @@ export default function TradeDetail({
         ? [NaN, NaN, NaN, NaN]
         : [d.open, d.close, d.low, d.high],
     );
+    const close = p.map((d) => d.close ?? NaN);
     const vols = p.map((d) => ({
       value: d.vol ?? NaN,
       itemStyle: { color: (d.close ?? 0) >= (d.open ?? 0) ? UP : DOWN },
     }));
+
+    // MA5/20/60 over close (left price axis).
+    const ma = (n: number): (number | null)[] =>
+      close.map((_, i) => {
+        if (i < n - 1) return null;
+        let s = 0;
+        for (let k = i - n + 1; k <= i; k++) s += close[k];
+        return Number.isFinite(s) ? +(s / n).toFixed(2) : null;
+      });
+
+    // Return curves (right %, base = first value in the window): 策略(nav) + 沪深300(bench), by date.
+    const navMap = new Map((nav ?? []).map((x) => [x.date, x.value]));
+    const nav0 = nav?.[0]?.value;
+    const benchMap = new Map(bench.map((x) => [x.date, x.close]));
+    const bench0 = bench[0]?.close;
+    const ret = (map: Map<string, number>, base?: number): (number | null)[] =>
+      dates.map((d) => (map.has(d) && base ? +(((map.get(d)! / base - 1) * 100).toFixed(2)) : null));
+    const stratRet = ret(navMap, nav0);
+    const benchRet = ret(benchMap, bench0);
+
     let lo = Infinity;
     for (const c of candle) if (Number.isFinite(c[2])) lo = Math.min(lo, c[2]);
     const dots = trades.map((t) => ({ value: [t.date, lo], side: t.side }));
 
     return {
       animation: false,
+      legend: {
+        top: 0,
+        left: 60,
+        itemGap: 14,
+        textStyle: { color: '#8a9099', fontSize: 11 },
+        data: ['MA5', 'MA20', 'MA60', '策略收益', '沪深300'],
+      },
       tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
       axisPointer: { link: [{ xAxisIndex: 'all' }] },
       grid: [
-        { left: 60, right: 16, top: 12, height: '58%' },
-        { left: 60, right: 16, top: '68%', height: '17%' },
+        { left: 60, right: 56, top: 30, height: '54%' },
+        { left: 60, right: 56, top: '68%', height: '17%' },
       ],
       xAxis: [
         { type: 'category', data: dates, boundaryGap: true, axisLabel: { show: false }, axisLine: { lineStyle: { color: '#e8eaed' } } },
@@ -94,6 +132,7 @@ export default function TradeDetail({
       yAxis: [
         { type: 'value', scale: true, position: 'left', axisLabel: { color: '#8a9099' }, splitLine: { lineStyle: { color: '#f0f1f3' } } },
         { gridIndex: 1, axisLabel: { show: false }, splitLine: { show: false } },
+        { type: 'value', position: 'right', axisLabel: { formatter: (v: number) => `${v}%`, color: '#8a9099' }, splitLine: { show: false } },
       ],
       dataZoom: [
         { type: 'inside', xAxisIndex: [0, 1], start: 0, end: 100 },
@@ -101,11 +140,16 @@ export default function TradeDetail({
       ],
       series: [
         { name: 'K线', type: 'candlestick', xAxisIndex: 0, yAxisIndex: 0, data: candle, itemStyle: { color: UP, color0: DOWN, borderColor: UP, borderColor0: DOWN } },
+        { name: 'MA5', type: 'line', xAxisIndex: 0, yAxisIndex: 0, data: ma(5), showSymbol: false, itemStyle: { color: '#f0a020' }, lineStyle: { width: 1, color: '#f0a020' }, z: 3 },
+        { name: 'MA20', type: 'line', xAxisIndex: 0, yAxisIndex: 0, data: ma(20), showSymbol: false, itemStyle: { color: '#3b82f6' }, lineStyle: { width: 1, color: '#3b82f6' }, z: 3 },
+        { name: 'MA60', type: 'line', xAxisIndex: 0, yAxisIndex: 0, data: ma(60), showSymbol: false, itemStyle: { color: '#a855f7' }, lineStyle: { width: 1, color: '#a855f7' }, z: 3 },
+        { name: '策略收益', type: 'line', xAxisIndex: 0, yAxisIndex: 2, data: stratRet, showSymbol: false, connectNulls: true, itemStyle: { color: '#111827' }, lineStyle: { width: 1.5, color: '#111827' }, z: 4 },
+        { name: '沪深300', type: 'line', xAxisIndex: 0, yAxisIndex: 2, data: benchRet, showSymbol: false, connectNulls: true, itemStyle: { color: '#8a9099' }, lineStyle: { width: 1.5, color: '#8a9099', type: 'dashed' }, z: 4 },
         { name: '量', type: 'bar', xAxisIndex: 1, yAxisIndex: 1, data: vols },
         { name: '交易', type: 'scatter', xAxisIndex: 0, yAxisIndex: 0, data: dots, symbol: 'circle', symbolSize: 9, itemStyle: { color: DOT, borderColor: '#fff', borderWidth: 1 }, z: 10 },
       ],
     };
-  }, [series, trades]);
+  }, [series, trades, nav, bench]);
 
   const pick = (date: string) => {
     const idx = trades.findIndex((t) => t.date === date);

@@ -408,7 +408,7 @@ const ResultPanel = complex.component(() => {
         destroyOnHidden
       >
         <Suspense fallback={<div className="jx-lab-placeholder">加载交易…</div>}>
-          <TradeDetail tradeLog={r.tradeLog ?? []} start={r.start} end={r.end} />
+          <TradeDetail tradeLog={r.tradeLog ?? []} start={r.start} end={r.end} nav={r.nav} />
         </Suspense>
       </Modal>
     </>
