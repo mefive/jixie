@@ -72,21 +72,32 @@ export function logout(): Promise<{ ok: true }> {
 
 import type { BacktestConfig, BacktestSummary } from '@jixie/shared';
 
-// A backtest job (runs in a worker on the server). Each poll carries the log lines after the cursor
-// the client passed (`since`) and `nextSince` to pass next time. running → done(result) | error(message).
-export type BacktestJob =
-  | { status: 'running'; logs: string[]; nextSince: number }
-  | { status: 'done'; logs: string[]; nextSince: number; result: BacktestSummary }
-  | { status: 'error'; logs: string[]; nextSince: number; message: string };
+// A backtest Job (runs in a worker). Poll carries the log lines after `since` + `nextSince`. Status
+// only — the result lands on Strategy.lastResult (fetch it on done). 'stale' = the run's process died.
+export interface BacktestJob {
+  status: 'running' | 'done' | 'error' | 'stale';
+  logs: string[];
+  nextSince: number;
+  error?: string | null;
+}
 
-// Submit a backtest config; returns a jobId to poll.
-export function submitBacktest(config: BacktestConfig): Promise<{ jobId: string }> {
-  return request('/api/app/backtest', { method: 'POST', body: JSON.stringify(config) });
+// Submit a backtest for a saved strategy; returns a jobId to poll. The result is written to the
+// strategy's lastResult by the worker on completion.
+export function submitBacktest(config: BacktestConfig, strategyId: string): Promise<{ jobId: string }> {
+  return request(`/api/app/backtest?strategyId=${encodeURIComponent(strategyId)}`, {
+    method: 'POST',
+    body: JSON.stringify(config),
+  });
 }
 
 // Poll a backtest job — `since` = how many log lines the client already has (incremental tail).
 export function pollBacktest(jobId: string, since = 0): Promise<BacktestJob> {
   return request(`/api/app/backtest/${jobId}?since=${since}`);
+}
+
+// A still-running backtest job for a strategy — to re-attach after a refresh (DB-backed, no localStorage).
+export function findBacktestRunningJob(strategyId: string): Promise<{ jobId: string | null }> {
+  return request(`/api/app/backtest/running?strategyId=${encodeURIComponent(strategyId)}`);
 }
 
 import type {

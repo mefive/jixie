@@ -3,12 +3,12 @@ import type { BacktestConfig, BacktestSummary, StrategyCard } from '@jixie/share
 import { BaseStore, LoaderModel, PollingModel } from '@src/lib';
 import {
   deleteStrategy,
+  findBacktestRunningJob,
   generateCode,
   generateName,
   getStrategy,
   listStrategies,
   pollBacktest,
-  saveBacktestResult,
   saveStrategy,
   submitBacktest,
 } from '@src/api/client';
@@ -129,7 +129,6 @@ export class LabStore extends BaseStore<LabSetupParams> {
       this.savedId = null;
     });
     this.markSaved(); // the blank default is the new baseline (not dirty)
-    writeCurrent({});
   }
 
   /** Persist the current config without running (used by the 新建 "保存并新建" prompt). The server drops the
@@ -175,28 +174,33 @@ export class LabStore extends BaseStore<LabSetupParams> {
       this.result = null;
       this.error = null;
     });
-    // Save first so the strategy has an id (for the URL + the running-job pointer).
+    // Save first so the strategy has an id — the backtest Job is keyed by it (URL + DB-backed resume),
+    // and the worker writes the result to that strategy's lastResult on completion.
     try {
       const meta = await saveStrategy(this.config);
       runInAction(() => {
         this.savedId = meta.id;
       });
       this.markSaved(); // running persists the current config — it's now the saved baseline
-      writeCurrent({ strategyId: meta.id });
       void this.savedLoader.run();
     } catch {
       /* best-effort */
     }
+    if (!this.savedId) {
+      runInAction(() => {
+        this.error = '策略保存失败,无法回测';
+      });
+      return;
+    }
     let jobId: string;
     try {
-      ({ jobId } = await submitBacktest(this.config));
+      ({ jobId } = await submitBacktest(this.config, this.savedId));
     } catch (e) {
       runInAction(() => {
         this.error = e instanceof Error ? e.message : '回测提交失败';
       });
       return;
     }
-    writeCurrent({ strategyId: this.savedId ?? undefined, jobId });
     this.startPolling(jobId);
   }
 
@@ -255,8 +259,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
     try {
       s = await getStrategy(id);
     } catch {
-      writeCurrent({}); // strategy gone (deleted) — don't loop redirecting to it
-      return;
+      return; // strategy gone (deleted)
     }
     this.applyConfig(s.config);
     runInAction(() => {
@@ -264,20 +267,14 @@ export class LabStore extends BaseStore<LabSetupParams> {
       this.error = null;
       this.savedId = id;
     });
-    const cur = readCurrent();
-    if (cur.strategyId === id && cur.jobId) {
-      try {
-        const job = await pollBacktest(cur.jobId, 0);
-        if (job.status === 'running') {
-          this.resume(cur.jobId); // re-attach to live logs
-          return;
-        }
-        if (job.status === 'done') runInAction(() => (this.result = job.result));
-      } catch {
-        /* job expired / server restarted — fall back to the saved last result */
-      }
+    // Re-attach to a still-running backtest (found server-side by strategyId — no localStorage, works
+    // cross-client) so a refresh keeps streaming logs instead of losing the run.
+    try {
+      const { jobId } = await findBacktestRunningJob(id);
+      if (jobId) this.resume(jobId);
+    } catch {
+      /* none running / expired — the saved lastResult stays shown */
     }
-    writeCurrent({ strategyId: id });
   }
 
   /** Delete a saved strategy, then refresh the list. */
@@ -304,23 +301,30 @@ export class LabStore extends BaseStore<LabSetupParams> {
         this.since = job.nextSince;
       }
       if (job.status === 'done') {
+        // Result lives on the strategy now (worker wrote lastResult) — fetch it.
+        let result: BacktestSummary | null = null;
+        if (this.savedId) {
+          try {
+            const s = await getStrategy(this.savedId);
+            result = (s.lastResult as BacktestSummary) ?? null;
+          } catch {
+            /* strategy fetch failed — leave the last shown result */
+          }
+        }
         runInAction(() => {
-          this.result = job.result;
+          this.result = result;
         });
-        void saveBacktestResult(this.config.name, job.result).catch(() => {});
-        writeCurrent({ strategyId: this.savedId ?? undefined }); // run finished → drop the job pointer
         return false;
       }
-      if (job.status === 'error') {
+      if (job.status === 'error' || job.status === 'stale') {
         runInAction(() => {
-          this.error = job.message ?? '回测失败';
+          this.error =
+            job.status === 'stale' ? '回测中断(服务重启),请重试' : job.error || '回测失败';
         });
-        writeCurrent({ strategyId: this.savedId ?? undefined });
         return false;
       }
     } catch {
-      // job expired (server restart) / network — stop; the saved last result (if any) stays shown.
-      writeCurrent({ strategyId: this.savedId ?? undefined });
+      // job gone (server restart / expired) / network — stop; the saved last result (if any) stays shown.
       return false;
     }
   }
@@ -329,20 +333,3 @@ export class LabStore extends BaseStore<LabSetupParams> {
 // —— helpers ——
 
 const POLL_INTERVAL_MS = 1500;
-// localStorage: which strategy is open + (if running) its backtest jobId. Survives a refresh so we can
-// reopen the strategy and re-attach to a still-running backtest's logs (same server process).
-const CURRENT_KEY = 'jx:lab:current';
-
-type Current = { strategyId?: string; jobId?: string };
-
-function readCurrent(): Current {
-  try {
-    return JSON.parse(localStorage.getItem(CURRENT_KEY) || '{}');
-  } catch {
-    return {};
-  }
-}
-
-function writeCurrent(c: Current) {
-  localStorage.setItem(CURRENT_KEY, JSON.stringify(c));
-}

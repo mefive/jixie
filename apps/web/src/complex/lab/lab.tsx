@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import classNames from 'classnames';
 import { Button, DatePicker, Input, InputNumber, Modal } from 'antd';
 import dayjs from 'dayjs';
@@ -39,22 +39,6 @@ export const Lab = complex.component(() => {
   const [heroDismissed, setHeroDismissed] = useState(false); // "直接写代码" escape from the new-strategy hero
   const [newConfirm, setNewConfirm] = useState(false); // 新建 while dirty → confirm save first
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const id = searchParams.get('id');
-
-  // Refresh / land on /lab → return to the last open strategy so work (and a running backtest) isn't lost.
-  useEffect(() => {
-    if (!id) {
-      try {
-        const cur = JSON.parse(localStorage.getItem('jx:lab:current') || '{}');
-        if (cur.strategyId) setSearchParams({ id: cur.strategyId }, { replace: true });
-      } catch {
-        /* ignore */
-      }
-    }
-    // mount-only: 新建 clears localStorage (writeCurrent({})) before navigating, so it won't bounce back.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   // 新建: blank strategy at /lab (clears the ?id=), reopening the hero. Guard unsaved edits first.
   const doNew = () => {

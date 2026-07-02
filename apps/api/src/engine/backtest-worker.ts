@@ -16,11 +16,22 @@ import { prisma } from '../lib/prisma.js';
 const port = parentPort;
 if (!port) throw new Error('backtest-worker must be spawned as a worker thread');
 
-const { config } = workerData as { config: BacktestConfig };
+const { config, userId, strategyId } = workerData as {
+  config: BacktestConfig;
+  userId: string;
+  strategyId: string;
+};
 
 try {
   const result = await runCodeBacktest(config, (line) => port.postMessage({ type: 'log', line }));
-  port.postMessage({ type: 'done', result });
+  // Result lands on the entity (Strategy.lastResult) — the Job only tracks status. Scoped by userId.
+  await prisma.strategy
+    .updateMany({
+      where: { id: strategyId, userId },
+      data: { lastResult: JSON.parse(JSON.stringify(result)) }, // plain JSON for the Prisma Json column
+    })
+    .catch(() => {});
+  port.postMessage({ type: 'done' });
 } catch (e) {
   port.postMessage({ type: 'error', message: e instanceof Error ? e.message : String(e) });
 } finally {
