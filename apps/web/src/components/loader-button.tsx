@@ -1,26 +1,19 @@
 import { App, Button, type ButtonProps } from 'antd';
-import { useRef, useState, type ReactNode } from 'react';
-import classNames from 'classnames';
+import { useRef, useState } from 'react';
 import { reactUtils, type LoaderModel } from '@src/lib';
-import './loader-button.css';
 
-// Async-action button: in-flight double-click guard + loading state + success/error toast in one place.
+// Async-action button: a thin antd Button wrapper that only adds behavior, never styling.
 //   - with `action`: clicking runs it (e.g. a store method that wraps loader.run)
 //   - with only `loader`: clicking runs loader.run(payload?.())
-// `loader` (when given) also drives the spinner reactively; otherwise an internal busy flag does.
-//
-// Loading spinner: only passed through to antd when the button HAS an icon — antd swaps that icon slot
-// to a spinner in place (stable, no width change). An icon-less button would make antd INSERT a spinner
-// before the label, shoving it sideways — so we don't show a spinner there at all (give the button an
-// icon if you want in-button loading feedback). Either way `--busy` + the busyRef guard block re-clicks.
-//
-// message/modal come from App.useApp() (antd 6 context) so the confirm dialog picks up the ink theme
-// rather than the default antd blue — main.tsx wraps the tree in <App> for this.
+// It faithfully injects antd's `loading` (from the loader / an explicit override / the in-flight action)
+// and debounces re-entry; everything visual (icon, type, size — including whether antd's loading spinner
+// swaps an icon in place or inserts before the label) is antd's own behavior, decided by the caller's props.
+// message/modal come from App.useApp() (antd 6 context) so the confirm dialog picks up the ink theme.
 type LoaderRef = Pick<LoaderModel, 'loading' | 'run'>;
 
 type LoaderButtonProps = Omit<ButtonProps, 'loading' | 'onClick'> & {
   loader?: LoaderRef;
-  // Force the loading visual from external state (e.g. a poller-driven backtest, not a LoaderModel).
+  // Force the loading state from external state (e.g. a poller-driven backtest, not a LoaderModel).
   // OR-ed with the loader/internal-busy signal.
   loading?: boolean;
   action?: () => unknown | Promise<unknown>;
@@ -30,7 +23,6 @@ type LoaderButtonProps = Omit<ButtonProps, 'loading' | 'onClick'> & {
   successMessage?: string;
   onSuccess?: () => void; // after success (and after the success toast)
   errorMessage?: string | false; // false = silent; string = that text; default = err.message
-  children?: ReactNode;
 };
 
 export const LoaderButton = reactUtils.observer((props: LoaderButtonProps) => {
@@ -45,8 +37,6 @@ export const LoaderButton = reactUtils.observer((props: LoaderButtonProps) => {
     onSuccess,
     errorMessage,
     disabled,
-    className,
-    children,
     ...rest
   } = props;
 
@@ -75,20 +65,7 @@ export const LoaderButton = reactUtils.observer((props: LoaderButtonProps) => {
     }
   };
 
-  // Spinner only when there's an icon to swap in place — see the note above.
-  const hasIcon = rest.icon != null;
-
-  return (
-    <Button
-      {...rest}
-      loading={hasIcon ? loading : undefined}
-      disabled={disabled}
-      onClick={handleClick}
-      className={classNames('jx-loaderBtn', className, { 'jx-loaderBtn--busy': loading })}
-    >
-      {children}
-    </Button>
-  );
+  return <Button {...rest} loading={loading} disabled={disabled} onClick={handleClick} />;
 }, 'LoaderButton');
 
 // —— helper functions ——
