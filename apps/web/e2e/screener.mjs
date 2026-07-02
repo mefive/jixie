@@ -272,9 +272,17 @@ try {
     await page.locator('.jx-td-canvas canvas').first().waitFor({ timeout: 8000 });
     await page.locator('.jx-td-queue .jx-td-chip').first().waitFor({ timeout: 8000 }); // instrument queue
     await page.waitForTimeout(600); // let the scatter + slider paint
-    const chipName = ((await page.locator('.jx-td-chip').first().textContent()) ?? '').trim();
+    const chipName = ((await page.locator('.jx-td-chip').nth(1).textContent()) ?? '').trim(); // [0] is 全部
     log('trade detail: rows', await page.locator('.jx-td-list .jx-td-row').count(), '| chip', chipName);
     await page.screenshot({ path: `${SHOTS}5c-trade-detail.png` });
+
+    // 5c2. 全部 chip → every instrument's fills in one list (标的 name+code column) + portfolio return chart.
+    await page.getByRole('button', { name: /^全部/ }).click();
+    await page.locator('.jx-td-list--all .jx-td-row').first().waitFor({ timeout: 6000 });
+    await page.waitForTimeout(400);
+    log('全部 view: rows', await page.locator('.jx-td-list--all .jx-td-row').count());
+    await page.screenshot({ path: `${SHOTS}5c2-trade-all.png` });
+    await page.locator('.jx-td-chip').nth(1).click(); // back to a single instrument for the 页面打开 test
 
     // 5d. 页面打开 → the standalone /trades page (new tab) renders the same K线 + list.
     const [tradePage] = await Promise.all([
