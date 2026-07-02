@@ -1,10 +1,10 @@
 import { loadTushareConfig } from '../src/config.js';
 import { TushareClient } from '../src/tushare/client.js';
 import { prisma } from '../src/lib/prisma.js';
-import { syncIndexWeight } from '../src/store/sync.js';
+import { syncIndexWeight, syncIndexDaily } from '../src/store/sync.js';
 
 /**
- * Sync index constituents (index_weight) into the local store.
+ * Sync index constituents (index_weight) + daily close (index_daily) into the local store.
  * Usage: pnpm --filter api sync:index [indexCode] [start] [end]
  *   default: 000852.SH (中证1000) 2015-2024
  */
@@ -17,10 +17,14 @@ async function main(): Promise<void> {
     minIntervalMs: cfg.minIntervalMs,
   });
 
-  console.log(`同步指数成分 ${indexCode} ${start} ~ ${end}\n`);
+  console.log(`同步指数成分 + 日线 ${indexCode} ${start} ~ ${end}\n`);
   await syncIndexWeight(client, indexCode, start, end);
+  await syncIndexDaily(client, indexCode, start, end);
 
-  console.table({ index_weight: await prisma.indexWeight.count() });
+  console.table({
+    index_weight: await prisma.indexWeight.count(),
+    index_daily: await prisma.indexDaily.count(),
+  });
   await prisma.$disconnect();
   console.log('✅ 指数成分同步完成');
 }

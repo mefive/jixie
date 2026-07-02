@@ -48,7 +48,7 @@ export default function TradePage() {
           <div className="jx-tp-empty">该策略暂无交易记录</div>
         ) : (
           <Suspense fallback={<div className="jx-tp-empty">加载图表……</div>}>
-            <TradeDetail tradeLog={r.tradeLog} start={r.start} end={r.end} />
+            <TradeDetail tradeLog={r.tradeLog} start={r.start} end={r.end} nav={r.nav} />
           </Suspense>
         )}
       </main>
