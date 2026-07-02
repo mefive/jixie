@@ -1,0 +1,59 @@
+@reference '../../styles/index.css';
+
+.jx-mret {
+  @apply flex flex-col gap-2;
+  margin-top: 12px;
+}
+
+.jx-mret-title {
+  @apply font-semibold text-ink;
+  font-size: 13px;
+}
+
+.jx-mret-scroll {
+  @apply overflow-x-auto;
+}
+
+.jx-mret-table {
+  @apply w-full;
+  border-collapse: separate;
+  border-spacing: 3px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.jx-mret-table th {
+  @apply text-muted;
+  font-weight: 400;
+  font-size: 11px;
+  padding: 2px 0;
+  text-align: right;
+}
+
+.jx-mret-table td {
+  @apply rounded text-ink;
+  padding: 4px 6px;
+  text-align: right;
+  min-width: 44px;
+}
+
+.jx-mret-year {
+  @apply font-semibold text-ink;
+  text-align: left !important;
+}
+
+.jx-mret-corner,
+.jx-mret-year {
+  position: sticky;
+  left: 0;
+  background: var(--color-card);
+}
+
+.jx-mret-totalHead {
+  @apply text-ink;
+  font-weight: 600;
+}
+
+.jx-mret-total {
+  font-weight: 600;
+}

@@ -4,6 +4,7 @@ import { Portfolio } from './portfolio.js';
 import { DEFAULT_COST, type BacktestResult, type BarContext, type EngineConfig } from './types.js';
 
 const PERIODS_PER_YEAR = 252; // trading days
+const BENCHMARK = '000300.SH'; // 沪深300 — the excess/IR benchmark
 
 /**
  * Run an event-driven strategy backtest.
@@ -74,7 +75,8 @@ export async function runStrategy(cfg: EngineConfig): Promise<BacktestResult> {
     if (collected.orders) pendingOrders = collected.orders;
   }
 
-  const result = summarize(cfg, nav, pf.trades);
+  const bench = await data.indexCloses(BENCHMARK); // 沪深300 for 超额/IR
+  const result = summarize(cfg, nav, pf.trades, bench);
   log(
     `完成 · ${result.days} 天 · ${result.trades} 笔 · 期末 ${yuan(result.finalValue)} · 收益 ${(result.totalReturn * 100).toFixed(2)}%`,
   );
@@ -265,11 +267,81 @@ function summarize(
   cfg: EngineConfig,
   nav: { date: string; value: number }[],
   tradeLog: BacktestResult['tradeLog'],
+  bench: { date: string; close: number }[],
 ): BacktestResult {
   const values = nav.map((n) => n.value);
   const rets: number[] = [];
   for (let i = 1; i < values.length; i++) rets.push(values[i] / values[i - 1] - 1);
   const finalValue = values.at(-1) ?? cfg.initialCash;
+  const totalReturn = finalValue / cfg.initialCash - 1;
+  const annReturn = st.annualizedReturn(rets, PERIODS_PER_YEAR);
+  const maxDrawdown = st.maxDrawdown(values); // ≤ 0
+
+  // —— 基准对比(沪深300): 超额 + 年化信息比率 ——
+  const benchByDate = new Map(bench.map((b) => [b.date, b.close]));
+  const benchInRange = nav.map((n) => benchByDate.get(n.date)).filter((v): v is number => v != null);
+  const benchReturn = benchInRange.length >= 2 ? benchInRange.at(-1)! / benchInRange[0] - 1 : 0;
+  const excessDaily: number[] = [];
+  for (let i = 1; i < nav.length; i++) {
+    const b1 = benchByDate.get(nav[i].date);
+    const b0 = benchByDate.get(nav[i - 1].date);
+    if (b0 != null && b1 != null && b0 > 0) excessDaily.push(rets[i - 1] - (b1 / b0 - 1));
+  }
+  const teStd = st.std(excessDaily);
+  const informationRatio =
+    teStd > 0 ? (st.mean(excessDaily) / teStd) * Math.sqrt(PERIODS_PER_YEAR) : 0;
+
+  // —— 交易层面: 胜率 + 盈亏比(重放成交按均价配对平仓的已实现盈亏) ——
+  const book = new Map<string, { shares: number; cost: number }>(); // real shares + total real cost (含费)
+  let wins = 0;
+  let closes = 0;
+  let winSum = 0;
+  let lossSum = 0;
+  for (const t of tradeLog) {
+    const p = book.get(t.code) ?? { shares: 0, cost: 0 };
+    if (t.side === 'buy') {
+      p.shares += t.realShares;
+      p.cost += t.amount + t.fee;
+    } else {
+      const avgCost = p.shares > 0 ? p.cost / p.shares : 0;
+      const costOut = avgCost * t.realShares;
+      const pnl = t.amount - t.fee - costOut; // 卖出净额 − 卖出份的成本
+      closes += 1;
+      if (pnl >= 0) {
+        wins += 1;
+        winSum += pnl;
+      } else {
+        lossSum += -pnl;
+      }
+      p.shares -= t.realShares;
+      p.cost -= costOut;
+      if (p.shares <= 1e-6) {
+        p.shares = 0;
+        p.cost = 0;
+      }
+    }
+    book.set(t.code, p);
+  }
+  const winRate = closes > 0 ? wins / closes : 0;
+  const profitFactor = lossSum > 0 ? winSum / lossSum : winSum > 0 ? 99 : 0;
+
+  // —— 年化换手 = 单边成交额 / 平均权益 / 年 ——
+  const avgEquity = st.mean(values);
+  const traded = tradeLog.reduce((s, t) => s + t.amount, 0);
+  const years = nav.length / PERIODS_PER_YEAR;
+  const turnover = avgEquity > 0 && years > 0 ? traded / 2 / avgEquity / years : 0;
+
+  // —— 月度收益表(月末权益环比;首月基准为初始资金) ——
+  const monthEnd = new Map<string, number>(); // 'YYYYMM' → 当月最后一个权益
+  for (const n of nav) monthEnd.set(n.date.slice(0, 6), n.value);
+  const monthly: { month: string; ret: number }[] = [];
+  let prevValue = cfg.initialCash;
+  for (const month of [...monthEnd.keys()].sort()) {
+    const v = monthEnd.get(month)!;
+    monthly.push({ month, ret: v / prevValue - 1 });
+    prevValue = v;
+  }
+
   return {
     name: cfg.strategy.name,
     start: cfg.start,
@@ -277,12 +349,20 @@ function summarize(
     days: nav.length,
     initialCash: cfg.initialCash,
     finalValue,
-    totalReturn: finalValue / cfg.initialCash - 1,
-    annReturn: st.annualizedReturn(rets, PERIODS_PER_YEAR),
+    totalReturn,
+    annReturn,
     sharpe: st.sharpe(rets, PERIODS_PER_YEAR),
-    maxDrawdown: st.maxDrawdown(values),
+    maxDrawdown,
     trades: tradeLog.length,
     tradeLog,
     nav,
+    benchReturn,
+    excessReturn: totalReturn - benchReturn,
+    informationRatio,
+    calmar: maxDrawdown < 0 ? annReturn / -maxDrawdown : 0,
+    winRate,
+    profitFactor,
+    turnover,
+    monthly,
   };
 }

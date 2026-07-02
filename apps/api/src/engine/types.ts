@@ -170,6 +170,14 @@ export interface BacktestResult {
   trades: number; // count (= tradeLog.length)
   tradeLog: TradeRecord[]; // every fill, in order
   nav: { date: string; value: number }[]; // daily equity curve
+  benchReturn: number; // 沪深300 同期总收益
+  excessReturn: number; // totalReturn − benchReturn
+  informationRatio: number; // 年化信息比率
+  calmar: number; // annReturn / |maxDrawdown|
+  winRate: number; // 盈利平仓占比
+  profitFactor: number; // Σ盈利 / Σ亏损
+  turnover: number; // 年化换手
+  monthly: { month: string; ret: number }[]; // 'YYYYMM' → 月度收益
 }
 
 export const DEFAULT_COST: CostModel = {
