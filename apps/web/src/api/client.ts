@@ -180,6 +180,11 @@ export function fetchStockSeries(code: string, start = '20150101', end = '202412
   return request(`/api/app/stock/${code}/series?start=${start}&end=${end}`);
 }
 
+// tsCode → name (bulk) — e.g. the traded-instruments queue in 交易详情.
+export function fetchNames(codes: string[]): Promise<Record<string, string>> {
+  return request(`/api/app/names?codes=${encodeURIComponent(codes.join(','))}`);
+}
+
 import type { FactorReport, FactorMeta, FactorRun, FactorFreq } from '@jixie/shared';
 
 // 因子研究: the factor list (identity + kind).

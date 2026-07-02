@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import classNames from 'classnames';
-import { Select, Spin } from 'antd';
+import { Spin } from 'antd';
 import type { StockSeries, TradeRecord } from '@jixie/shared';
-import { fetchStockSeries } from '@src/api/client';
+import { fetchStockSeries, fetchNames } from '@src/api/client';
 import { EChart, type ECOption } from '@src/components/echart';
 import './trade-detail.css';
 
@@ -32,10 +32,19 @@ export default function TradeDetail({
   }, [tradeLog]);
 
   const [code, setCode] = useState(codes[0]?.[0] ?? '');
+  const [names, setNames] = useState<Record<string, string>>({});
   const [series, setSeries] = useState<StockSeries | null>(null);
   const [loading, setLoading] = useState(false);
   const [active, setActive] = useState<number | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
+
+  // Names for the traded-instruments queue (bulk, once).
+  useEffect(() => {
+    if (!codes.length) return;
+    fetchNames(codes.map((c) => c[0]))
+      .then(setNames)
+      .catch(() => {});
+  }, [codes]);
 
   const trades = useMemo(() => tradeLog.filter((t) => t.code === code), [tradeLog, code]);
 
@@ -75,8 +84,8 @@ export default function TradeDetail({
       tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
       axisPointer: { link: [{ xAxisIndex: 'all' }] },
       grid: [
-        { left: 60, right: 16, top: 12, height: '64%' },
-        { left: 60, right: 16, top: '76%', height: '16%' },
+        { left: 60, right: 16, top: 12, height: '58%' },
+        { left: 60, right: 16, top: '68%', height: '17%' },
       ],
       xAxis: [
         { type: 'category', data: dates, boundaryGap: true, axisLabel: { show: false }, axisLine: { lineStyle: { color: '#e8eaed' } } },
@@ -88,7 +97,7 @@ export default function TradeDetail({
       ],
       dataZoom: [
         { type: 'inside', xAxisIndex: [0, 1], start: 0, end: 100 },
-        { type: 'slider', xAxisIndex: [0, 1], bottom: 0, height: 16, start: 0, end: 100 },
+        { type: 'slider', xAxisIndex: [0, 1], bottom: 10, height: 20, start: 0, end: 100 },
       ],
       series: [
         { name: 'K线', type: 'candlestick', xAxisIndex: 0, yAxisIndex: 0, data: candle, itemStyle: { color: UP, color0: DOWN, borderColor: UP, borderColor0: DOWN } },
@@ -108,20 +117,22 @@ export default function TradeDetail({
   return (
     <div className="jx-td">
       <div className="jx-td-chart">
-        <div className="jx-td-bar">
-          {codes.length > 1 ? (
-            <Select
-              size="small"
-              value={code}
-              onChange={setCode}
-              showSearch
-              style={{ width: 240 }}
-              options={codes.map(([c, n]) => ({ label: `${c}（${n} 笔）`, value: c }))}
-            />
-          ) : (
-            <span className="jx-td-one">{code}</span>
-          )}
-          <span className="jx-td-hint">交易点(黄)在 K 线下方横轴;点它 → 右侧定位。价格为不复权真实成交价</span>
+        <div className="jx-td-queue">
+          {codes.map(([c, n]) => (
+            <button
+              key={c}
+              className={classNames('jx-td-chip', { 'jx-td-chip--active': c === code })}
+              onClick={() => setCode(c)}
+              title={`${names[c] ?? ''} ${c}`}
+            >
+              <span className="jx-td-chipName">{names[c] ?? c}</span>
+              <span className="jx-td-chipCode">{c}</span>
+              <span className="jx-td-chipCount">{n}</span>
+            </button>
+          ))}
+        </div>
+        <div className="jx-td-hint">
+          交易点(黄)在 K 线下方横轴;点它 → 右侧定位。价格为不复权真实成交价
         </div>
         {loading || !option ? (
           <div className="jx-td-loading">{loading ? <Spin /> : '无行情'}</div>

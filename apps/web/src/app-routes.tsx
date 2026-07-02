@@ -18,6 +18,8 @@ import { authStore } from '@src/store';
 
 // Standalone SDK reference page (also opened from the lab 文档 button + the 📖 links in editor hovers).
 const SdkDocPage = lazy(() => import('@src/complex/lab/sdk-doc'));
+// Standalone 交易详情 page (opened from the backtest result modal's 页面打开 button).
+const TradePage = lazy(() => import('@src/complex/lab/trade-page'));
 
 export function AppRoutes() {
   return (
@@ -66,6 +68,16 @@ export function AppRoutes() {
             <RequireAuth>
               <Suspense fallback={null}>
                 <SdkDocPage />
+              </Suspense>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/trades"
+          element={
+            <RequireAuth>
+              <Suspense fallback={null}>
+                <TradePage />
               </Suspense>
             </RequireAuth>
           }

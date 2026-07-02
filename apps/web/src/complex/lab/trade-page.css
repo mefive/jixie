@@ -1,0 +1,42 @@
+@reference '../../styles/index.css';
+
+.jx-tp {
+  @apply flex flex-col;
+  height: 100%;
+}
+
+.jx-tp-body {
+  @apply flex flex-1 flex-col gap-3;
+  @apply overflow-hidden;
+  padding: 16px 20px;
+}
+
+.jx-tp-head {
+  @apply flex items-baseline gap-3;
+}
+
+.jx-tp-title {
+  @apply font-semibold text-ink;
+  font-size: 20px;
+  letter-spacing: 1px;
+}
+
+.jx-tp-sub {
+  @apply text-muted;
+  font-size: 13px;
+}
+
+.jx-tp-empty {
+  @apply flex flex-1 items-center justify-center;
+  @apply text-muted;
+  font-size: 14px;
+}
+
+.jx-tp-empty--error {
+  @apply text-down;
+}
+
+/* On the full page, let 交易详情 fill the flex body (the modal keeps its own calc height). */
+.jx-tp .jx-td {
+  height: 100%;
+}
