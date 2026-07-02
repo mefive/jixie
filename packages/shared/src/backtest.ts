@@ -52,4 +52,13 @@ export interface BacktestSummary {
   trades: number; // count
   tradeLog: TradeRecord[]; // every fill, in order (time/code/side/amount/quantity)
   nav: { date: string; value: number }[]; // daily equity curve
+  // 基准对比 + 更多绩效 — optional: results cached before this was added won't carry them.
+  benchReturn?: number; // 沪深300 同期总收益
+  excessReturn?: number; // totalReturn − benchReturn
+  informationRatio?: number; // 年化信息比率 = mean(超额日收益) / std × √252
+  calmar?: number; // annReturn / |maxDrawdown|
+  winRate?: number; // 盈利平仓占比(round-trip 配对)
+  profitFactor?: number; // Σ盈利 / Σ亏损
+  turnover?: number; // 年化换手 = 单边成交额 / 平均权益 / 年
+  monthly?: { month: string; ret: number }[]; // 'YYYYMM' → 月度收益(月度收益表)
 }
