@@ -1,10 +1,12 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import classNames from 'classnames';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 import { DatePicker, Select } from 'antd';
-import type { FactorKind } from '@jixie/shared';
+import type { FactorKind, IcDecayPoint } from '@jixie/shared';
 import { faSpinner, faTriangleExclamation, faPlay } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { TopNav } from '@src/components/top-nav';
 import { LoaderButton } from '@src/components/loader-button';
 import { Placeholder } from '@src/components/placeholder';
@@ -13,6 +15,7 @@ import './factor.css';
 
 dayjs.extend(customParseFormat);
 const DecileChart = lazy(() => import('./decile-chart'));
+const IcDecayChart = lazy(() => import('./ic-decay-chart'));
 
 /**
  * 因子分析(产品线 1.5). Left: the factor catalog. Right: for the selected factor, choose 频率(月/周)+
@@ -22,6 +25,18 @@ const DecileChart = lazy(() => import('./decile-chart'));
 export const Factor = complex.component(() => {
   const store = complex.useStore();
   const cat = store.catalogLoader;
+
+  // Reflect the currently-shown report in the URL (?factor&freq&start&end) — refresh-safe + shareable.
+  const [, setSearchParams] = useSearchParams();
+  const shown = store.report;
+  useEffect(() => {
+    if (shown) {
+      setSearchParams(
+        { factor: shown.factor, freq: shown.freq, start: shown.start, end: shown.end },
+        { replace: true },
+      );
+    }
+  }, [shown, setSearchParams]);
 
   return (
     <div className="jx-factor">
@@ -133,6 +148,7 @@ const ParamsBar = complex.component(() => {
         size="small"
         loader={store.analysisLoader}
         action={() => store.runAnalysis()}
+        style={{ width: 120 }}
       >
         {store.isCached ? '查看' : '运行分析'}
       </LoaderButton>
@@ -173,8 +189,16 @@ const RunChips = complex.component(() => {
 const Result = complex.component(() => {
   const store = complex.useStore();
   const loader = store.analysisLoader;
-  if (loader.loading)
-    return <Placeholder icon={faSpinner} spin text="计算中……(价格因子首次约 100 秒,基本面 / 资金流几秒)" />;
+  if (store.jobRunning)
+    return (
+      <div className="jx-factor-running">
+        <div className="jx-factor-runningHead">
+          <FontAwesomeIcon icon={faSpinner} spin /> 计算中……(价格因子较慢,基本面 / 资金流几秒;结果会入库,下次秒开)
+        </div>
+        {store.logs.length > 0 && <pre className="jx-factor-log">{store.logs.join('\n')}</pre>}
+      </div>
+    );
+  if (loader.loading) return <Placeholder icon={faSpinner} spin text="加载中……" />;
   if (loader.error)
     return (
       <Placeholder icon={faTriangleExclamation} error text={`分析失败:${loader.errorObject?.message ?? ''}`} />
@@ -210,6 +234,18 @@ const Result = complex.component(() => {
         <Metric label="多空最大回撤" value={pct(r.longShort.maxDrawdown)} />
         <Metric label={`最高档${per}换手`} value={pctInt(r.topTurnover)} hint="越高摩擦越重" />
       </div>
+
+      {r.icDecay?.length > 0 && (
+        <>
+          <div className="jx-factor-sectionTitle">IC 衰减 · 因子的持有周期</div>
+          <Suspense fallback={<div className="jx-factor-chart" />}>
+            <IcDecayChart points={r.icDecay} />
+          </Suspense>
+          <div className="jx-factor-chartCap">
+            横轴前瞻交易日,纵轴 Rank IC —— {decayHint(r.icDecay)}
+          </div>
+        </>
+      )}
     </>
   );
 }, 'Result');
@@ -241,4 +277,14 @@ function direction(icMean: number): { kind: 'up' | 'down' | 'flat'; text: string
   if (icMean > 0.01) return { kind: 'up', text: '正向 · 做多高分位' };
   if (icMean < -0.01) return { kind: 'down', text: '反向 · 做多低分位' };
   return { kind: 'flat', text: '方向不显著' };
+}
+
+// Interpret the IC-decay shape: where |IC| peaks (natural holding period) + whether it rises (slow
+// factor, hold long) or fades from the short end (fast factor, hold short).
+function decayHint(points: IcDecayPoint[]): string {
+  if (!points.length) return '';
+  const peak = points.reduce((a, b) => (Math.abs(b.icMean) > Math.abs(a.icMean) ? b : a));
+  const rising = Math.abs(points.at(-1)!.icMean) > Math.abs(points[0].icMean);
+  const trend = rising ? '越往后越强(慢因子,宜长持)' : '短端更强、随后衰减(快因子,宜短持)';
+  return `|IC| 峰值在 ${peak.horizonDays} 日 · ${trend}`;
 }

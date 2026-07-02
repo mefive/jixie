@@ -308,11 +308,11 @@ try {
   await page.locator('.jx-factor-params .ant-select').click();
   await page.locator('.ant-select-item-option', { hasText: /^周$/ }).click();
   await page.locator('.jx-factor-params .ant-btn-primary').click();
-  await page.locator('.jx-factor-chart canvas').first().waitFor({ timeout: 60000 });
   await page.waitForFunction(
     () => (document.querySelector('.jx-factor-sample')?.textContent ?? '').includes('周'),
-    { timeout: 60000 },
+    { timeout: 95000 },
   );
+  await page.locator('.jx-factor-chart canvas').first().waitFor({ timeout: 5000 });
   await page.waitForTimeout(500);
   log('shot 7b: ep 周度分析 →', ((await page.locator('.jx-factor-sample').textContent()) ?? '').trim());
   await page.screenshot({ path: `${SHOTS}7b-factors-week.png` });
