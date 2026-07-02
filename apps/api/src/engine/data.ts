@@ -51,6 +51,9 @@ export class EngineData {
   private finaLoaded = false;
   // Index constituents per index, loaded lazily. indexCode -> { dates ascending, members per date }.
   private indexCache = new Map<string, { dates: string[]; membersByDate: Map<string, Set<string>> }>();
+  // Index daily close (all synced indices, preloaded in load()) — ascending parallel dates/closes arrays.
+  // Powers the 超额/IR benchmark + ctx.index() 大盘择时. Tiny (a few thousand rows), so always loaded.
+  private indexByCode = new Map<string, { dates: string[]; closes: number[] }>();
 
   private warnedIndices = new Set<string>(); // log an index's coverage gap at most once
 
@@ -61,14 +64,30 @@ export class EngineData {
     private onLog: (line: string) => void = () => {},
   ) {}
 
-  /** Index daily close over the run's range (e.g. 000300.SH 沪深300) — the benchmark for 超额/IR. */
-  async indexCloses(code: string): Promise<{ date: string; close: number }[]> {
-    const rows = await prisma.indexDaily.findMany({
-      where: { tsCode: code, tradeDate: { gte: this.start, lte: this.end } },
-      select: { tradeDate: true, close: true },
-      orderBy: { tradeDate: 'asc' },
-    });
-    return rows.map((r) => ({ date: r.tradeDate, close: r.close }));
+  /** Index daily close series (sync, from the preload) — the 超额/IR benchmark (caller aligns to nav). */
+  indexCloses(code: string): { date: string; close: number }[] {
+    const s = this.indexByCode.get(code);
+    return s ? s.dates.map((date, i) => ({ date, close: s.closes[i] })) : [];
+  }
+
+  /** Index close as-of `date` (latest index date ≤ date); null if the index isn't synced / no data yet.
+   * Powers ctx.index(code).close — point-in-time, no forward data. */
+  indexCloseAsOf(code: string, date: string): number | null {
+    const s = this.indexByCode.get(code);
+    if (!s) return null;
+    const i = leFloor(s.dates, date);
+    return i >= 0 ? s.closes[i] : null;
+  }
+
+  /** n-day SMA of an index's close as-of `date` (point-in-time); null if fewer than n closes exist yet. */
+  indexSma(code: string, date: string, n: number): number | null {
+    const s = this.indexByCode.get(code);
+    if (!s) return null;
+    const i = leFloor(s.dates, date);
+    if (i < n - 1) return null;
+    let sum = 0;
+    for (let k = i - n + 1; k <= i; k++) sum += s.closes[k];
+    return sum / n;
   }
 
   async load(): Promise<void> {
@@ -100,6 +119,18 @@ export class EngineData {
       let m = this.lhbByDate.get(r.tradeDate);
       if (!m) this.lhbByDate.set(r.tradeDate, (m = new Map()));
       m.set(r.tsCode, r.netAmount);
+    }
+
+    // Index daily close (沪深300 等) — preload all (tiny) for 超额/IR benchmark + ctx.index() 大盘择时.
+    const idx = await prisma.indexDaily.findMany({
+      select: { tsCode: true, tradeDate: true, close: true },
+      orderBy: [{ tsCode: 'asc' }, { tradeDate: 'asc' }],
+    });
+    for (const r of idx) {
+      let s = this.indexByCode.get(r.tsCode);
+      if (!s) this.indexByCode.set(r.tsCode, (s = { dates: [], closes: [] }));
+      s.dates.push(r.tradeDate);
+      s.closes.push(r.close);
     }
 
     // Optional moneyflow columns (opt-in via the strategy's `factors:[...]`). This is the only stored

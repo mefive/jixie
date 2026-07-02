@@ -75,7 +75,7 @@ export async function runStrategy(cfg: EngineConfig): Promise<BacktestResult> {
     if (collected.orders) pendingOrders = collected.orders;
   }
 
-  const bench = await data.indexCloses(BENCHMARK); // 沪深300 for 超额/IR
+  const bench = data.indexCloses(BENCHMARK); // 沪深300 for 超额/IR (preloaded)
   const result = summarize(cfg, nav, pf.trades, bench);
   log(
     `完成 · ${result.days} 天 · ${result.trades} 笔 · 期末 ${yuan(result.finalValue)} · 收益 ${(result.totalReturn * 100).toFixed(2)}%`,
@@ -146,6 +146,17 @@ function buildContext(
     },
     indexMembers(indexCode) {
       return data.indexMembers(indexCode, date);
+    },
+    index(indexCode) {
+      // Read-only 大盘 handle, point-in-time as-of today. Not tradable (no order/hold).
+      return {
+        get close() {
+          return data.indexCloseAsOf(indexCode, date);
+        },
+        sma(n: number) {
+          return data.indexSma(indexCode, date, n);
+        },
+      };
     },
     shares(code) {
       return pf.positions.get(code)?.shares ?? 0;

@@ -80,6 +80,12 @@ export interface BarRow {
 }
 
 /** What the strategy sees and acts through, each bar. */
+/** Read-only 大盘指数句柄 (ctx.index) — point-in-time as-of today; an index isn't tradable. */
+export interface IndexHandle {
+  readonly close: number | null; // 今日指数点位(as-of ≤ today);未同步返 null
+  sma(n: number): number | null; // n 日均线(指数收盘序列);数据不足返 null
+}
+
 export interface BarContext {
   readonly date: string;
   readonly cash: number;
@@ -119,6 +125,10 @@ export interface BarContext {
   /** Point-in-time constituents of an index (e.g. '000300.SH' 沪深300) as of today — the codes from the
    * latest monthly snapshot ≤ today. Async (lazily loads the index's snapshots on first use). */
   indexMembers(indexCode: string): Promise<string[]>;
+  /** 大盘指数句柄(如 '000300.SH' 沪深300)—— 时点只读:`close` 今日点位、`sma(n)` n 日均线(指数自身
+   * 收盘序列)。给大盘择时滤网(如「沪深300 站上 200 日线才做多」)。指数不可交易;数据来自 IndexDaily
+   * (需已同步),未同步则 close/sma 返 null。 */
+  index(indexCode: string): IndexHandle;
 
   // —— Orders ——
   // Declarative (target-book): fits cross-sectional rebalancing, maps cleanly to a web form later.
