@@ -18,6 +18,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { TopNav } from '@src/components/top-nav';
 import { LoaderButton } from '@src/components/loader-button';
 import { complex } from './complex';
+import { MonthlyReturns } from './monthly-returns';
 import './lab.css';
 
 // Our dates are 'YYYYMMDD' strings; enable dayjs to parse that format for the DatePicker.
@@ -348,11 +349,26 @@ const ResultPanel = complex.component(() => {
   }
 
   const up = r.totalReturn >= 0;
+  const optPct = (v?: number) => (v == null ? '—' : pct(v));
+  const optNum = (v?: number) => (v == null ? '—' : v.toFixed(2));
   const metrics: Metric[] = [
     { label: '年化收益', value: pct(r.annReturn), tone: r.annReturn >= 0 ? 'up' : 'down' },
     { label: '累计收益', value: pct(r.totalReturn), tone: up ? 'up' : 'down' },
+    {
+      label: '超额收益',
+      value: optPct(r.excessReturn),
+      tone: r.excessReturn == null ? undefined : r.excessReturn >= 0 ? 'up' : 'down',
+    },
     { label: 'Sharpe', value: r.sharpe.toFixed(2) },
+    { label: '信息比率', value: optNum(r.informationRatio) },
     { label: '最大回撤', value: pct(r.maxDrawdown), tone: 'down' },
+    { label: 'Calmar', value: optNum(r.calmar) },
+    { label: '胜率', value: optPct(r.winRate) },
+    {
+      label: '盈亏比',
+      value: r.profitFactor == null ? '—' : r.profitFactor >= 99 ? '99+' : r.profitFactor.toFixed(2),
+    },
+    { label: '年换手', value: r.turnover == null ? '—' : `${r.turnover.toFixed(1)}×` },
     { label: '期末权益', value: Math.round(r.finalValue).toLocaleString() },
     { label: '成交笔数', value: r.trades.toLocaleString() },
   ];
@@ -384,6 +400,7 @@ const ResultPanel = complex.component(() => {
       <Suspense fallback={<div className="jx-lab-placeholder">加载图表…</div>}>
         <NavChart nav={r.nav} up={up} />
       </Suspense>
+      {r.monthly?.length ? <MonthlyReturns monthly={r.monthly} /> : null}
       <Modal
         open={tradesOpen}
         onCancel={() => setTradesOpen(false)}

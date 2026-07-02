@@ -61,6 +61,16 @@ export class EngineData {
     private onLog: (line: string) => void = () => {},
   ) {}
 
+  /** Index daily close over the run's range (e.g. 000300.SH 沪深300) — the benchmark for 超额/IR. */
+  async indexCloses(code: string): Promise<{ date: string; close: number }[]> {
+    const rows = await prisma.indexDaily.findMany({
+      where: { tsCode: code, tradeDate: { gte: this.start, lte: this.end } },
+      select: { tradeDate: true, close: true },
+      orderBy: { tradeDate: 'asc' },
+    });
+    return rows.map((r) => ({ date: r.tradeDate, close: r.close }));
+  }
+
   async load(): Promise<void> {
     const cal = await prisma.tradeCal.findMany({
       where: { exchange: 'SSE', isOpen: 1, calDate: { gte: this.start, lte: this.end } },
