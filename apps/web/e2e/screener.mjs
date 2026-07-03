@@ -326,6 +326,12 @@ try {
   log('shot 7: ep 月度分析 →', ((await page.locator('.jx-factor-dir').textContent()) ?? '').trim());
   await page.screenshot({ path: `${SHOTS}7-factors.png` });
 
+  // Bound the window (2022→) so the weekly recompute stays fast + deterministic (full-range weekly over
+  // ~570 weeks is slow/flaky; 4yr ≈ 200 weeks finishes well under the timeout).
+  const startBox = page.locator('.jx-factor-params .ant-picker input').first();
+  await startBox.click();
+  await startBox.fill('2022-01-01');
+  await startBox.press('Enter');
   // switch frequency to 周 and re-run → the same factor at weekly horizon
   await page.locator('.jx-factor-params .ant-select').click();
   await page.locator('.ant-select-item-option', { hasText: /^周$/ }).click();

@@ -32,10 +32,11 @@ async function getRebalanceDates(freq: FactorFreq, start: string, end: string): 
   return out;
 }
 
-type Snap = Map<string, { adjClose: number; amount: number }>; // tsCode -> quote
+type Snap = Map<string, { adjClose: number; amount: number; mktcap: number }>; // tsCode -> quote
 
-/** Load a "backward-adjusted (hfq) close + turnover" snapshot for each rebalance day. */
-async function loadSnapshots(dates: string[]): Promise<Map<string, Snap>> {
+/** Load a "hfq close + turnover (+ 总市值 for cap-weighting)" snapshot for each day. `withMktcap` only
+ * for rebalance (formation) dates — forward snapshots weight by the formation-date cap, so they skip it. */
+async function loadSnapshots(dates: string[], withMktcap = false): Promise<Map<string, Snap>> {
   const px = await prisma.daily.findMany({
     where: { tradeDate: { in: dates } },
     select: { tsCode: true, tradeDate: true, close: true, amount: true },
@@ -45,13 +46,25 @@ async function loadSnapshots(dates: string[]): Promise<Map<string, Snap>> {
     select: { tsCode: true, tradeDate: true, adjFactor: true },
   });
   const adjMap = new Map(adj.map((a) => [`${a.tsCode}|${a.tradeDate}`, a.adjFactor]));
+  let mvMap = new Map<string, number>();
+  if (withMktcap) {
+    const basic = await prisma.dailyBasic.findMany({
+      where: { tradeDate: { in: dates } },
+      select: { tsCode: true, tradeDate: true, totalMv: true },
+    });
+    mvMap = new Map(basic.map((b) => [`${b.tsCode}|${b.tradeDate}`, b.totalMv ?? 0]));
+  }
   const snaps = new Map<string, Snap>();
   for (const d of dates) snaps.set(d, new Map());
   for (const r of px) {
     if (r.close == null) continue;
     const f = adjMap.get(`${r.tsCode}|${r.tradeDate}`);
     if (f == null) continue; // skip the rare cases missing an adjustment factor
-    snaps.get(r.tradeDate)!.set(r.tsCode, { adjClose: r.close * f, amount: r.amount ?? 0 });
+    snaps.get(r.tradeDate)!.set(r.tsCode, {
+      adjClose: r.close * f,
+      amount: r.amount ?? 0,
+      mktcap: mvMap.get(`${r.tsCode}|${r.tradeDate}`) ?? 0,
+    });
   }
   return snaps;
 }
@@ -173,7 +186,7 @@ export async function analyzeFactor(
   const periodsPerYear = freq === 'week' ? 52 : 12;
   const rebalanceDates = await getRebalanceDates(freq, start, end);
   onLog(`调仓日 ${rebalanceDates.length} 个(${freq === 'week' ? '周' : '月'}度)· 加载行情快照…`);
-  const snaps = await loadSnapshots(rebalanceDates);
+  const snaps = await loadSnapshots(rebalanceDates, true); // rebalance snaps carry 总市值 for cap-weighting
   onLog(`计算因子 ${factorKey} 的值…`);
   const byDate = await computeFactorSeries(factorKey, rebalanceDates, snaps, onLog);
 
@@ -210,9 +223,14 @@ export async function analyzeFactor(
   );
 
   const icSeries: number[] = [];
-  const bucketReturns: number[][] = Array.from({ length: N_BUCKETS }, () => []);
+  const bucketReturns: number[][] = Array.from({ length: N_BUCKETS }, () => []); // 等权
+  const bucketReturnsMktcap: number[][] = Array.from({ length: N_BUCKETS }, () => []); // 市值加权
   const lsReturns: number[] = [];
+  const lsReturnsMktcap: number[] = [];
   const turnovers: number[] = [];
+  // 分位 × 前瞻期(日度归一化):qh[hi][bucket] = 各调仓日该分位的日均前瞻收益列表 → 末尾取均值
+  const qhEqual = IC_DECAY_HORIZONS.map(() => Array.from({ length: N_BUCKETS }, () => [] as number[]));
+  const qhMktcap = IC_DECAY_HORIZONS.map(() => Array.from({ length: N_BUCKETS }, () => [] as number[]));
   let prevTop: Set<string> | null = null;
 
   for (let m = 0; m < rebalanceDates.length - 1; m++) {
@@ -225,13 +243,14 @@ export async function analyzeFactor(
     const minListDate = minusDays(date, MIN_HISTORY_DAYS);
 
     // Candidates: factor value + quote this period + quote next period (forward return) + ≥1yr old.
-    let candidates: { tsCode: string; value: number; amount: number; fwd: number }[] = [];
+    let candidates: { tsCode: string; value: number; amount: number; mktcap: number; fwd: number }[] =
+      [];
     for (const { tsCode, value } of factorValues) {
       const a = snapDate.get(tsCode);
       const b = snapNextDate.get(tsCode);
       if (!a || !b) continue;
       if ((firstBar.get(tsCode) ?? '00000000') > minListDate) continue; // exclude recently-listed
-      candidates.push({ tsCode, value, amount: a.amount, fwd: b.adjClose / a.adjClose - 1 });
+      candidates.push({ tsCode, value, amount: a.amount, mktcap: a.mktcap, fwd: b.adjClose / a.adjClose - 1 });
     }
     if (candidates.length < MIN_CANDIDATES) continue;
 
@@ -247,44 +266,54 @@ export async function analyzeFactor(
 
     icSeries.push(st.spearman(values, fwdW)); // Rank IC (factor value vs forward return)
 
-    // IC at each forward horizon (the decay curve) — same candidates, N-trading-day-forward return.
+    const buckets = st.quantileBuckets(values, N_BUCKETS); // decile index per candidate
+
+    // Main decile forward returns (next period): equal-weight + cap-weight, plus the top-decile set.
+    const perBucket: { v: number; w: number }[][] = Array.from({ length: N_BUCKETS }, () => []);
+    const top = new Set<string>();
+    for (let i = 0; i < candidates.length; i++) {
+      perBucket[buckets[i]].push({ v: fwdW[i], w: candidates[i].mktcap });
+      if (buckets[i] === N_BUCKETS - 1) top.add(candidates[i].tsCode);
+    }
+    for (let b = 0; b < N_BUCKETS; b++) {
+      bucketReturns[b].push(equalMean(perBucket[b]));
+      bucketReturnsMktcap[b].push(capMean(perBucket[b]));
+    }
+    lsReturns.push(equalMean(perBucket[N_BUCKETS - 1]) - equalMean(perBucket[0]));
+    lsReturnsMktcap.push(capMean(perBucket[N_BUCKETS - 1]) - capMean(perBucket[0]));
+
+    // IC-decay + per-decile return at each forward horizon (daily-normalized so horizons compare).
     // Only on the subsampled decay dates (bounds the forward-snapshot load; see decayDates above).
     if (decayDates.has(date)) {
       const iCal = calIndex.get(date)!;
       for (let hi = 0; hi < IC_DECAY_HORIZONS.length; hi++) {
-        const forwardDate = calendar[iCal + IC_DECAY_HORIZONS[hi]];
+        const h = IC_DECAY_HORIZONS[hi];
+        const forwardDate = calendar[iCal + h];
         const snapForward = forwardDate ? forwardSnaps.get(forwardDate) : undefined;
         if (!snapForward) continue;
         const hVals: number[] = [];
         const hRets: number[] = [];
-        for (const c of candidates) {
-          const a = snapDate.get(c.tsCode);
-          const b = snapForward.get(c.tsCode);
+        const hb: { v: number; w: number }[][] = Array.from({ length: N_BUCKETS }, () => []);
+        for (let i = 0; i < candidates.length; i++) {
+          const a = snapDate.get(candidates[i].tsCode);
+          const b = snapForward.get(candidates[i].tsCode);
           if (!a || !b) continue;
-          hVals.push(c.value);
-          hRets.push(b.adjClose / a.adjClose - 1);
+          const ret = b.adjClose / a.adjClose - 1;
+          hVals.push(candidates[i].value);
+          hRets.push(ret);
+          hb[buckets[i]].push({ v: Math.pow(1 + ret, 1 / h) - 1, w: candidates[i].mktcap }); // 日度归一化
         }
         if (hVals.length >= MIN_CANDIDATES) {
           decaySeries[hi].push(st.spearman(hVals, st.winsorize(hRets, WINSOR_P)));
+          for (let b = 0; b < N_BUCKETS; b++) {
+            if (hb[b].length) {
+              qhEqual[hi][b].push(equalMean(hb[b]));
+              qhMktcap[hi][b].push(capMean(hb[b]));
+            }
+          }
         }
       }
     }
-
-    const buckets = st.quantileBuckets(values, N_BUCKETS);
-    const bucketSums = new Array(N_BUCKETS).fill(0);
-    const bucketCounts = new Array(N_BUCKETS).fill(0);
-    const top = new Set<string>();
-    for (let i = 0; i < candidates.length; i++) {
-      bucketSums[buckets[i]] += fwdW[i];
-      bucketCounts[buckets[i]]++;
-      if (buckets[i] === N_BUCKETS - 1) top.add(candidates[i].tsCode);
-    }
-    for (let b = 0; b < N_BUCKETS; b++) {
-      bucketReturns[b].push(bucketCounts[b] ? bucketSums[b] / bucketCounts[b] : 0);
-    }
-    lsReturns.push(
-      bucketSums[N_BUCKETS - 1] / bucketCounts[N_BUCKETS - 1] - bucketSums[0] / bucketCounts[0],
-    );
 
     if (prevTop) {
       let changed = 0;
@@ -306,12 +335,25 @@ export async function analyzeFactor(
     return { horizonDays, icMean: mean, icir: sd > 0 ? mean / sd : 0 };
   });
 
-  const buckets: BucketStat[] = bucketReturns.map((rets, b) => ({
-    bucket: b,
+  const toBuckets = (rows: number[][]): BucketStat[] =>
+    rows.map((rets, b) => ({
+      bucket: b,
+      annReturn: st.annualizedReturn(rets, periodsPerYear),
+      sharpe: st.sharpe(rets, periodsPerYear),
+      maxDrawdown: st.maxDrawdown(st.navFromReturns(rets)),
+      navEnd: st.navFromReturns(rets).at(-1)!,
+    }));
+  const toLongShort = (rets: number[]): FactorReport['longShort'] => ({
     annReturn: st.annualizedReturn(rets, periodsPerYear),
     sharpe: st.sharpe(rets, periodsPerYear),
     maxDrawdown: st.maxDrawdown(st.navFromReturns(rets)),
     navEnd: st.navFromReturns(rets).at(-1)!,
+  });
+  const buckets = toBuckets(bucketReturns);
+  const quantileHorizons = IC_DECAY_HORIZONS.map((horizonDays, hi) => ({
+    horizonDays,
+    equal: qhEqual[hi].map((list) => st.mean(list)),
+    mktcap: qhMktcap[hi].map((list) => st.mean(list)),
   }));
 
   return {
@@ -327,13 +369,29 @@ export async function analyzeFactor(
     icirAnnual: icir * Math.sqrt(periodsPerYear),
     icPosRate: icSeries.filter((x) => x > 0).length / (icSeries.length || 1),
     buckets,
-    longShort: {
-      annReturn: st.annualizedReturn(lsReturns, periodsPerYear),
-      sharpe: st.sharpe(lsReturns, periodsPerYear),
-      maxDrawdown: st.maxDrawdown(st.navFromReturns(lsReturns)),
-      navEnd: st.navFromReturns(lsReturns).at(-1)!,
-    },
+    longShort: toLongShort(lsReturns),
     topTurnover: st.mean(turnovers),
     icDecay,
+    bucketsMktcap: toBuckets(bucketReturnsMktcap),
+    longShortMktcap: toLongShort(lsReturnsMktcap),
+    quantileHorizons,
   };
+}
+
+// —— weighting helpers ——
+
+/** Equal-weight mean of a bucket's values. */
+function equalMean(items: { v: number }[]): number {
+  return items.length ? items.reduce((s, x) => s + x.v, 0) / items.length : 0;
+}
+
+/** Cap-weight mean: Σ(v·w) / Σw (w = 总市值); 0 if the bucket has no positive-cap names. */
+function capMean(items: { v: number; w: number }[]): number {
+  let sumW = 0;
+  let sumVW = 0;
+  for (const x of items) {
+    sumW += x.w;
+    sumVW += x.v * x.w;
+  }
+  return sumW > 0 ? sumVW / sumW : 0;
 }
