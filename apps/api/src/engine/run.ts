@@ -24,10 +24,10 @@ const BENCHMARK = '000300.SH'; // 沪深300 — the excess/IR benchmark
 export async function runStrategy(cfg: EngineConfig): Promise<BacktestResult> {
   const cost = { ...DEFAULT_COST, ...cfg.cost };
   const log = cfg.onLog ?? (() => {}); // progress sink (worker forwards to the job; scripts no-op)
-  const data = new EngineData(cfg.start, cfg.end, cfg.strategy.factors ?? [], log);
-  await data.load();
-  if (cfg.strategy.watch?.length) await data.loadBars(cfg.strategy.watch); // per-instrument preload
-  const pf = new Portfolio(cfg.initialCash, cost);
+  const engineData = new EngineData(cfg.start, cfg.end, cfg.strategy.factors ?? [], log);
+  await engineData.load();
+  if (cfg.strategy.watch?.length) await engineData.loadBars(cfg.strategy.watch); // per-instrument preload
+  const portfolio = new Portfolio(cfg.initialCash, cost);
 
   const yuan = (v: number) => `¥${Math.round(v).toLocaleString()}`;
   log(`开始回测 · ${fmtDate(cfg.start)} ~ ${fmtDate(cfg.end)} · 初始资金 ${yuan(cfg.initialCash)}`);
@@ -36,26 +36,26 @@ export async function runStrategy(cfg: EngineConfig): Promise<BacktestResult> {
   let pendingTargets: Map<string, number> | null = null;
   let pendingOrders: Map<string, number> | null = null;
   let lastYear = '';
-  const total = data.timeline.length;
+  const total = engineData.timeline.length;
 
   for (let i = 0; i < total; i++) {
-    const date = data.timeline[i];
+    const date = engineData.timeline[i];
     // 1. Execute what was queued yesterday, at today's open (declarative rebalance OR share orders).
     if (pendingTargets) {
-      const codes = new Set<string>([...pendingTargets.keys(), ...pf.positions.keys()]);
-      await data.loadBars([...codes]); // ensure bars before fills/marking
-      rebalance(pf, data, date, pendingTargets);
+      const codes = new Set<string>([...pendingTargets.keys(), ...portfolio.positions.keys()]);
+      await engineData.loadBars([...codes]); // ensure bars before fills/marking
+      rebalance(portfolio, engineData, date, pendingTargets);
       pendingTargets = null;
-      log(`${fmtDate(date)} 调仓 → 持仓 ${pf.positions.size} 只`);
+      log(`${fmtDate(date)} 调仓 → 持仓 ${portfolio.positions.size} 只`);
     }
     if (pendingOrders) {
-      await data.loadBars([...pendingOrders.keys()]);
-      executeOrders(pf, data, date, pendingOrders);
+      await engineData.loadBars([...pendingOrders.keys()]);
+      executeOrders(portfolio, engineData, date, pendingOrders);
       pendingOrders = null;
     }
 
     // 2. Mark equity at today's close.
-    const value = pf.equity((c) => data.closeAt(c, date));
+    const value = portfolio.equity((c) => engineData.closeAt(c, date));
     nav.push({ date, value });
 
     // Yearly heartbeat — keeps the run visibly advancing even between rebalances (any archetype).
@@ -70,13 +70,13 @@ export async function runStrategy(cfg: EngineConfig): Promise<BacktestResult> {
       targets: Map<string, number> | null;
       orders: Map<string, number> | null;
     } = { targets: null, orders: null };
-    await cfg.strategy.onBar(buildContext(date, data, pf, collected));
+    await cfg.strategy.onBar(buildContext(date, engineData, portfolio, collected));
     if (collected.targets) pendingTargets = collected.targets;
     if (collected.orders) pendingOrders = collected.orders;
   }
 
-  const bench = data.indexCloses(BENCHMARK); // 沪深300 for 超额/IR (preloaded)
-  const result = summarize(cfg, nav, pf.trades, bench);
+  const bench = engineData.indexCloses(BENCHMARK); // 沪深300 for 超额/IR (preloaded)
+  const result = summarize(cfg, nav, portfolio.trades, bench);
   log(
     `完成 · ${result.days} 天 · ${result.trades} 笔 · 期末 ${yuan(result.finalValue)} · 收益 ${(result.totalReturn * 100).toFixed(2)}%`,
   );
@@ -92,108 +92,119 @@ function fmtDate(d: string): string {
 
 function buildContext(
   date: string,
-  data: EngineData,
-  pf: Portfolio,
+  engineData: EngineData,
+  portfolio: Portfolio,
   collected: { targets: Map<string, number> | null; orders: Map<string, number> | null },
 ): BarContext {
   let cross: CrossSection | null = null; // today's cross-section, loaded on first loadCrossSection() call
   return {
     date,
     get cash() {
-      return pf.cash;
+      return portfolio.cash;
     },
     get value() {
-      return pf.equity((c) => data.closeAt(c, date));
+      return portfolio.equity((c) => engineData.closeAt(c, date));
     },
     positions() {
-      return [...pf.positions].map(([code, p]) => ({
+      return [...portfolio.positions].map(([code, p]) => ({
         code,
         shares: p.shares,
         avgCost: p.avgCost,
-        marketValue: p.shares * (data.closeAt(code, date) ?? 0),
+        marketValue: p.shares * (engineData.closeAt(code, date) ?? 0),
       }));
     },
     async loadCrossSection(indexCode) {
-      cross = await data.crossSection(date, indexCode);
+      cross = await engineData.crossSection(date, indexCode);
       return cross.codes;
     },
     bar(code) {
       return cross?.byCode.get(code) ?? null;
     },
     bars(code, n) {
-      return data.bars(code, date, n);
+      return engineData.bars(code, date, n);
     },
     ensureBars(codes) {
-      return data.loadBars(codes);
+      return engineData.loadBars(codes);
     },
     listDays(code) {
-      return data.listDays(code, date);
+      return engineData.listDays(code, date);
     },
     industry(code) {
-      return data.industry(code);
+      return engineData.industry(code);
     },
     lhbNet(code) {
-      return data.lhbNet(code, date);
+      return engineData.lhbNet(code, date);
     },
     price(code) {
-      return data.closeAt(code, date);
+      return engineData.closeAt(code, date);
     },
     history(code, field, n) {
-      return data.history(code, date, field, n);
+      return engineData.history(code, date, field, n);
     },
     factor(name, code) {
-      return data.factor(name, date, code);
+      return engineData.factor(name, date, code);
     },
     indexMembers(indexCode) {
-      return data.indexMembers(indexCode, date);
+      return engineData.indexMembers(indexCode, date);
     },
     index(indexCode) {
       // Read-only 大盘 handle, point-in-time as-of today. Not tradable (no order/hold).
       return {
         get close() {
-          return data.indexCloseAsOf(indexCode, date);
+          return engineData.indexCloseAsOf(indexCode, date);
         },
         sma(n: number) {
-          return data.indexSma(indexCode, date, n);
+          return engineData.indexSma(indexCode, date, n);
         },
       };
     },
     shares(code) {
-      return pf.positions.get(code)?.shares ?? 0;
+      return portfolio.positions.get(code)?.shares ?? 0;
     },
     orderTargetPercent(code, weight) {
-      (collected.targets ??= new Map()).set(code, weight);
+      if (collected.targets == null) {
+        collected.targets = new Map();
+      }
+      collected.targets.set(code, weight);
     },
     setHoldings(weights) {
-      const m = new Map<string, number>();
-      const entries = weights instanceof Map ? weights : Object.entries(weights);
-      for (const [c, w] of entries) m.set(c, w);
-      collected.targets = m;
+      // Normalize object or Map input into the engine's target-weight map.
+      const targetWeights = new Map<string, number>();
+      const weightEntries = weights instanceof Map ? weights : Object.entries(weights);
+      for (const [code, weight] of weightEntries) targetWeights.set(code, weight);
+      collected.targets = targetWeights;
     },
     order(code, shares) {
       if (!shares) return;
-      const m = (collected.orders ??= new Map());
-      m.set(code, (m.get(code) ?? 0) + shares);
+      if (collected.orders == null) {
+        collected.orders = new Map();
+      }
+      collected.orders.set(code, (collected.orders.get(code) ?? 0) + shares);
     },
     exit(code) {
-      const held = pf.positions.get(code)?.shares ?? 0;
-      if (held > 0) (collected.orders ??= new Map()).set(code, -held);
+      const held = portfolio.positions.get(code)?.shares ?? 0;
+      if (held > 0) {
+        if (collected.orders == null) {
+          collected.orders = new Map();
+        }
+        collected.orders.set(code, (collected.orders.get(code) ?? 0) - held);
+      }
     },
   };
 }
 
 /** Reconcile the book to target weights at `date`'s open: sell non-targets first, then buy. */
 function rebalance(
-  pf: Portfolio,
-  data: EngineData,
+  portfolio: Portfolio,
+  engineData: EngineData,
   date: string,
   targets: Map<string, number>,
 ): void {
-  const sellableFrom = data.nextDay(date);
-  const openOf = (c: string) => data.openAt(c, date);
+  const sellableFrom = engineData.nextDay(date);
+  const openOf = (c: string) => engineData.openAt(c, date);
 
   // Equity valued at today's open, consistent with fill prices.
-  const equity = pf.equity((c) => openOf(c) ?? data.closeAt(c, date));
+  const equity = portfolio.equity((c) => openOf(c) ?? engineData.closeAt(c, date));
 
   const targetShares = new Map<string, number>();
   for (const [code, w] of targets) {
@@ -202,21 +213,21 @@ function rebalance(
   }
 
   // Sells first (free up cash). Skip suspended (no open) and T+1-frozen shares.
-  for (const [code, pos] of [...pf.positions]) {
+  for (const [code, pos] of [...portfolio.positions]) {
     const px = openOf(code);
     if (px == null) continue;
     if (pos.frozenUntil > date) continue;
     const tgt = targetShares.get(code) ?? 0;
-    if (tgt < pos.shares && !limitBlocked(data, code, date, 'sell', px))
-      pf.fill(code, tgt - pos.shares, px, date, sellableFrom, data.adjAt(code, date)!);
+    if (tgt < pos.shares && !limitBlocked(engineData, code, date, 'sell', px))
+      portfolio.fill(code, tgt - pos.shares, px, date, sellableFrom, engineData.adjAt(code, date)!);
   }
 
   // Buys.
   for (const [code, tgt] of targetShares) {
     const px = openOf(code)!;
-    const cur = pf.positions.get(code)?.shares ?? 0;
-    if (tgt > cur && !limitBlocked(data, code, date, 'buy', px))
-      pf.fill(code, tgt - cur, px, date, sellableFrom, data.adjAt(code, date)!);
+    const cur = portfolio.positions.get(code)?.shares ?? 0;
+    if (tgt > cur && !limitBlocked(engineData, code, date, 'buy', px))
+      portfolio.fill(code, tgt - cur, px, date, sellableFrom, engineData.adjAt(code, date)!);
   }
 }
 
@@ -226,30 +237,30 @@ function rebalance(
  * (no open) are skipped — the strategy can re-queue next bar.
  */
 function executeOrders(
-  pf: Portfolio,
-  data: EngineData,
+  portfolio: Portfolio,
+  engineData: EngineData,
   date: string,
   orders: Map<string, number>,
 ): void {
-  const sellableFrom = data.nextDay(date);
+  const sellableFrom = engineData.nextDay(date);
 
   for (const [code, delta] of orders) {
     if (delta >= 0) continue;
-    const px = data.openAt(code, date);
-    const pos = pf.positions.get(code);
+    const px = engineData.openAt(code, date);
+    const pos = portfolio.positions.get(code);
     if (px == null || !pos || pos.frozenUntil > date) continue; // suspended or T+1-frozen
     const sell = Math.min(-delta, pos.shares);
-    if (sell > 0 && !limitBlocked(data, code, date, 'sell', px))
-      pf.fill(code, -sell, px, date, sellableFrom, data.adjAt(code, date)!);
+    if (sell > 0 && !limitBlocked(engineData, code, date, 'sell', px))
+      portfolio.fill(code, -sell, px, date, sellableFrom, engineData.adjAt(code, date)!);
   }
 
   for (const [code, delta] of orders) {
     if (delta <= 0) continue;
-    const px = data.openAt(code, date);
+    const px = engineData.openAt(code, date);
     if (px == null || px <= 0) continue; // suspended
-    if (limitBlocked(data, code, date, 'buy', px)) continue; // 涨停封板 — can't buy
-    const buy = Math.min(delta, pf.affordableShares(px));
-    if (buy > 0) pf.fill(code, buy, px, date, sellableFrom, data.adjAt(code, date)!);
+    if (limitBlocked(engineData, code, date, 'buy', px)) continue; // 涨停封板 — can't buy
+    const buy = Math.min(delta, portfolio.affordableShares(px));
+    if (buy > 0) portfolio.fill(code, buy, px, date, sellableFrom, engineData.adjAt(code, date)!);
   }
 }
 
@@ -257,15 +268,15 @@ function executeOrders(
  * at/below the down-limit open (一字板/封板). Limits are unadjusted, so compare against raw open
  * (hfqOpen / adj). No limit data for the day → not blocked (can't tell). */
 function limitBlocked(
-  data: EngineData,
+  engineData: EngineData,
   code: string,
   date: string,
   side: 'buy' | 'sell',
   hfqOpen: number,
 ): boolean {
-  const lim = data.limitAt(code, date);
+  const lim = engineData.limitAt(code, date);
   if (!lim) return false;
-  const adj = data.adjAt(code, date);
+  const adj = engineData.adjAt(code, date);
   if (adj == null || adj <= 0) return false;
   const rawOpen = hfqOpen / adj;
   const EPS = 1e-3;
@@ -281,11 +292,11 @@ function summarize(
   bench: { date: string; close: number }[],
 ): BacktestResult {
   const values = nav.map((n) => n.value);
-  const rets: number[] = [];
-  for (let i = 1; i < values.length; i++) rets.push(values[i] / values[i - 1] - 1);
+  const dailyReturns: number[] = [];
+  for (let i = 1; i < values.length; i++) dailyReturns.push(values[i] / values[i - 1] - 1);
   const finalValue = values.at(-1) ?? cfg.initialCash;
   const totalReturn = finalValue / cfg.initialCash - 1;
-  const annReturn = st.annualizedReturn(rets, PERIODS_PER_YEAR);
+  const annReturn = st.annualizedReturn(dailyReturns, PERIODS_PER_YEAR);
   const maxDrawdown = st.maxDrawdown(values); // ≤ 0
 
   // —— 基准对比(沪深300): 超额 + 年化信息比率 ——
@@ -294,13 +305,16 @@ function summarize(
   const benchReturn = benchInRange.length >= 2 ? benchInRange.at(-1)! / benchInRange[0] - 1 : 0;
   const excessDaily: number[] = [];
   for (let i = 1; i < nav.length; i++) {
-    const b1 = benchByDate.get(nav[i].date);
-    const b0 = benchByDate.get(nav[i - 1].date);
-    if (b0 != null && b1 != null && b0 > 0) excessDaily.push(rets[i - 1] - (b1 / b0 - 1));
+    const benchToday = benchByDate.get(nav[i].date);
+    const benchPrev = benchByDate.get(nav[i - 1].date);
+    if (benchPrev != null && benchToday != null && benchPrev > 0)
+      excessDaily.push(dailyReturns[i - 1] - (benchToday / benchPrev - 1));
   }
-  const teStd = st.std(excessDaily);
+  const trackingErrorStd = st.std(excessDaily);
   const informationRatio =
-    teStd > 0 ? (st.mean(excessDaily) / teStd) * Math.sqrt(PERIODS_PER_YEAR) : 0;
+    trackingErrorStd > 0
+      ? (st.mean(excessDaily) / trackingErrorStd) * Math.sqrt(PERIODS_PER_YEAR)
+      : 0;
 
   // —— 交易层面: 胜率 + 盈亏比(重放成交按均价配对平仓的已实现盈亏) ——
   const book = new Map<string, { shares: number; cost: number }>(); // real shares + total real cost (含费)
@@ -362,7 +376,7 @@ function summarize(
     finalValue,
     totalReturn,
     annReturn,
-    sharpe: st.sharpe(rets, PERIODS_PER_YEAR),
+    sharpe: st.sharpe(dailyReturns, PERIODS_PER_YEAR),
     maxDrawdown,
     trades: tradeLog.length,
     tradeLog,
