@@ -14,7 +14,9 @@ import { prisma } from '../lib/prisma.js';
  * the route resolves the matching extension. DATABASE_URL/token env is inherited from the parent.
  */
 const port = parentPort;
-if (!port) throw new Error('backtest-worker must be spawned as a worker thread');
+if (!port) {
+  throw new Error('backtest-worker must be spawned as a worker thread');
+}
 
 const { config, userId, strategyId } = workerData as {
   config: BacktestConfig;

@@ -8,7 +8,12 @@ import {
   type ScreenOp,
   type ScreenSpec,
 } from '@jixie/shared';
-import { faPlus, faXmark, faArrowDownWideShort, faArrowUpShortWide } from '@fortawesome/free-solid-svg-icons';
+import {
+  faPlus,
+  faXmark,
+  faArrowDownWideShort,
+  faArrowUpShortWide,
+} from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import './condition-chips.css';
 
@@ -40,7 +45,10 @@ export function ConditionChips({ spec, onChange }: Props) {
               options={OP_OPTIONS}
               popupMatchSelectWidth={false}
             />
-            <NumberInput value={f.value / scale} onApply={(n) => setFilter(i, { value: n * scale })} />
+            <NumberInput
+              value={f.value / scale}
+              onApply={(n) => setFilter(i, { value: n * scale })}
+            />
             {def?.unit && <span className="jx-chips-unit">{def.unit}</span>}
             <Button
               type="text"
@@ -85,18 +93,26 @@ const ADD_DEFAULT: Partial<Record<ScreenField, { op: ScreenOp; value: number }>>
 function AddCondition({ spec, onChange }: Props) {
   const used = new Set(spec.filters.map((f) => f.field));
   const avail = SCREEN_FIELDS.filter((f) => !used.has(f.key));
-  if (!avail.length) return null;
+  if (!avail.length) {
+    return null;
+  }
   return (
     <Dropdown
       trigger={['click']}
       menu={{
-        items: avail.map((f) => ({ key: f.key, label: f.unit ? `${f.label}(${f.unit})` : f.label })),
+        items: avail.map((f) => ({
+          key: f.key,
+          label: f.unit ? `${f.label}(${f.unit})` : f.label,
+        })),
         onClick: ({ key }) => {
           const def = SCREEN_FIELD_BY_KEY[key];
           const d = ADD_DEFAULT[key as ScreenField] ?? { op: '<' as ScreenOp, value: 0 };
           onChange({
             ...spec,
-            filters: [...spec.filters, { field: key as ScreenField, op: d.op, value: d.value * (def?.scale ?? 1) }],
+            filters: [
+              ...spec.filters,
+              { field: key as ScreenField, op: d.op, value: d.value * (def?.scale ?? 1) },
+            ],
           });
         },
       }}
@@ -133,8 +149,12 @@ function SortControl({ spec, onChange }: Props) {
           type="text"
           size="small"
           title={dir === 'desc' ? '从高到低' : '从低到高'}
-          icon={<FontAwesomeIcon icon={dir === 'desc' ? faArrowDownWideShort : faArrowUpShortWide} />}
-          onClick={() => onChange({ ...spec, sort: { field: sort.field, dir: dir === 'desc' ? 'asc' : 'desc' } })}
+          icon={
+            <FontAwesomeIcon icon={dir === 'desc' ? faArrowDownWideShort : faArrowUpShortWide} />
+          }
+          onClick={() =>
+            onChange({ ...spec, sort: { field: sort.field, dir: dir === 'desc' ? 'asc' : 'desc' } })
+          }
         />
       )}
     </span>
@@ -146,8 +166,11 @@ function NumberInput({ value, onApply }: { value: number; onApply: (n: number) =
   const [v, setV] = useState<number | null>(value);
   useEffect(() => setV(value), [value]);
   const apply = () => {
-    if (v != null && Number.isFinite(v) && v !== value) onApply(v);
-    else setV(value);
+    if (v != null && Number.isFinite(v) && v !== value) {
+      onApply(v);
+    } else {
+      setV(value);
+    }
   };
   return (
     <InputNumber

@@ -13,7 +13,12 @@ async function main(): Promise<void> {
   const indexCodes = arg === 'all' ? undefined : arg.split(',').map((s) => s.trim());
   console.log(`广度口径：${indexCodes ? indexCodes.join(' ∪ ') : '全市场'}   门槛：${gate * 100}%`);
 
-  const series = await computeBreadthSeries({ start: '20150101', end: '20241231', n: 20, indexCodes });
+  const series = await computeBreadthSeries({
+    start: '20150101',
+    end: '20241231',
+    n: 20,
+    indexCodes,
+  });
   const sorted = [...series.rows].sort((a, b) => b.breadth - a.breadth);
 
   const atLeast = (p: number) => series.rows.filter((x) => x.breadth >= p).length;

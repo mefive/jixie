@@ -36,7 +36,9 @@ export async function compileStrategy(source: string): Promise<Strategy> {
   if (!strategy || typeof strategy.onBar !== 'function') {
     throw new Error('策略需 `export default defineStrategy({ onBar(ctx) { … } })`');
   }
-  if (!strategy.name) strategy.name = '未命名策略';
+  if (!strategy.name) {
+    strategy.name = '未命名策略';
+  }
   return strategy as Strategy;
 }
 

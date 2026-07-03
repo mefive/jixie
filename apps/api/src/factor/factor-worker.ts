@@ -11,7 +11,9 @@ import { prisma } from '../lib/prisma.js';
  * .boot.mjs bootstrap; prod spawns the compiled .js.
  */
 const port = parentPort;
-if (!port) throw new Error('factor-worker must be spawned as a worker thread');
+if (!port) {
+  throw new Error('factor-worker must be spawned as a worker thread');
+}
 
 const { userId, factor, freq, start, end } = workerData as {
   userId: string;

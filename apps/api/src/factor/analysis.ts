@@ -27,7 +27,9 @@ async function getRebalanceDates(freq: FactorFreq, start: string, end: string): 
     const cur = cal[i].calDate;
     const next = cal[i + 1]?.calDate;
     // Last open day of the period = the next open day falls in a different month/week.
-    if (!next || !same(cur, next)) out.push(cur);
+    if (!next || !same(cur, next)) {
+      out.push(cur);
+    }
   }
   return out;
 }
@@ -55,11 +57,17 @@ async function loadSnapshots(dates: string[], withMktcap = false): Promise<Map<s
     mvMap = new Map(basic.map((b) => [`${b.tsCode}|${b.tradeDate}`, b.totalMv ?? 0]));
   }
   const snaps = new Map<string, Snap>();
-  for (const d of dates) snaps.set(d, new Map());
+  for (const d of dates) {
+    snaps.set(d, new Map());
+  }
   for (const r of px) {
-    if (r.close == null) continue;
+    if (r.close == null) {
+      continue;
+    }
     const f = adjMap.get(`${r.tsCode}|${r.tradeDate}`);
-    if (f == null) continue; // skip the rare cases missing an adjustment factor
+    if (f == null) {
+      continue;
+    } // skip the rare cases missing an adjustment factor
     snaps.get(r.tradeDate)!.set(r.tsCode, {
       adjClose: r.close * f,
       amount: r.amount ?? 0,
@@ -86,7 +94,9 @@ async function computeFactorSeries(
 ): Promise<Series> {
   const series: Series = new Map();
   const push = (date: string, tsCode: string, value: number | null) => {
-    if (value == null || !Number.isFinite(value)) return;
+    if (value == null || !Number.isFinite(value)) {
+      return;
+    }
     let rows = series.get(date);
     if (!rows) {
       rows = [];
@@ -110,11 +120,17 @@ async function computeFactorSeries(
     // A stock absent from every snapshot can never survive the snapDate/snapNextDate lookup below
     // in analyzeFactor anyway, so there's no need to scan all of `daily` for every tsCode ever synced.
     const tsCodes = new Set<string>();
-    for (const snap of snaps.values()) for (const tsCode of snap.keys()) tsCodes.add(tsCode);
+    for (const snap of snaps.values()) {
+      for (const tsCode of snap.keys()) {
+        tsCodes.add(tsCode);
+      }
+    }
     onLog(`逐股计算价格因子(${tsCodes.size} 只)…`);
     let done = 0;
     for (const tsCode of tsCodes) {
-      if (++done % 800 === 0) onLog(`  已算 ${done}/${tsCodes.size} 只`);
+      if (++done % 800 === 0) {
+        onLog(`  已算 ${done}/${tsCodes.size} 只`);
+      }
       const [priceRows, adjRows] = await Promise.all([
         prisma.daily.findMany({
           where: { tsCode },
@@ -134,11 +150,19 @@ async function computeFactorSeries(
       const adjClose: number[] = [];
       let lastAdj: number | null = null; // carry forward last adj when missing, to avoid fake jumps
       for (const r of priceRows) {
-        if (r.close == null) continue;
-        if (listDate && r.tradeDate < listDate) continue; // drop pre-IPO phantom bars
+        if (r.close == null) {
+          continue;
+        }
+        if (listDate && r.tradeDate < listDate) {
+          continue;
+        } // drop pre-IPO phantom bars
         const a = adjMap.get(r.tradeDate);
-        if (a != null) lastAdj = a;
-        if (lastAdj == null) continue;
+        if (a != null) {
+          lastAdj = a;
+        }
+        if (lastAdj == null) {
+          continue;
+        }
         tradeDates.push(r.tradeDate);
         adjClose.push(r.close * lastAdj);
       }
@@ -156,7 +180,9 @@ async function computeFactorSeries(
         where: { tradeDate: date },
         select: { tsCode: true, peTtm: true, pb: true, dvRatio: true, totalMv: true },
       });
-      for (const r of rows) push(date, r.tsCode, fundFn(r));
+      for (const r of rows) {
+        push(date, r.tsCode, fundFn(r));
+      }
     }
   } else if (factorKey === 'mf_net_main' || factorKey === 'mf_net_total') {
     const mf = await prisma.moneyflow.findMany({
@@ -207,8 +233,14 @@ export async function analyzeFactor(
   const forwardDates = new Set<string>();
   for (const d of decayDates) {
     const i = calIndex.get(d);
-    if (i == null) continue;
-    for (const h of IC_DECAY_HORIZONS) if (calendar[i + h]) forwardDates.add(calendar[i + h]);
+    if (i == null) {
+      continue;
+    }
+    for (const h of IC_DECAY_HORIZONS) {
+      if (calendar[i + h]) {
+        forwardDates.add(calendar[i + h]);
+      }
+    }
   }
   onLog(`加载 IC 衰减前瞻快照(${forwardDates.size} 日)…`);
   const forwardSnaps = await loadSnapshots([...forwardDates]);
@@ -229,8 +261,12 @@ export async function analyzeFactor(
   const lsReturnsMktcap: number[] = [];
   const turnovers: number[] = [];
   // 分位 × 前瞻期(日度归一化):qh[hi][bucket] = 各调仓日该分位的日均前瞻收益列表 → 末尾取均值
-  const qhEqual = IC_DECAY_HORIZONS.map(() => Array.from({ length: N_BUCKETS }, () => [] as number[]));
-  const qhMktcap = IC_DECAY_HORIZONS.map(() => Array.from({ length: N_BUCKETS }, () => [] as number[]));
+  const qhEqual = IC_DECAY_HORIZONS.map(() =>
+    Array.from({ length: N_BUCKETS }, () => [] as number[]),
+  );
+  const qhMktcap = IC_DECAY_HORIZONS.map(() =>
+    Array.from({ length: N_BUCKETS }, () => [] as number[]),
+  );
   let prevTop: Set<string> | null = null;
 
   for (let m = 0; m < rebalanceDates.length - 1; m++) {
@@ -239,20 +275,39 @@ export async function analyzeFactor(
     const snapDate = snaps.get(date);
     const snapNextDate = snaps.get(nextDate);
     const factorValues = byDate.get(date);
-    if (!snapDate || !snapNextDate || !factorValues) continue;
+    if (!snapDate || !snapNextDate || !factorValues) {
+      continue;
+    }
     const minListDate = minusDays(date, MIN_HISTORY_DAYS);
 
     // Candidates: factor value + quote this period + quote next period (forward return) + ≥1yr old.
-    let candidates: { tsCode: string; value: number; amount: number; mktcap: number; fwd: number }[] =
-      [];
+    let candidates: {
+      tsCode: string;
+      value: number;
+      amount: number;
+      mktcap: number;
+      fwd: number;
+    }[] = [];
     for (const { tsCode, value } of factorValues) {
       const a = snapDate.get(tsCode);
       const b = snapNextDate.get(tsCode);
-      if (!a || !b) continue;
-      if ((firstBar.get(tsCode) ?? '00000000') > minListDate) continue; // exclude recently-listed
-      candidates.push({ tsCode, value, amount: a.amount, mktcap: a.mktcap, fwd: b.adjClose / a.adjClose - 1 });
+      if (!a || !b) {
+        continue;
+      }
+      if ((firstBar.get(tsCode) ?? '00000000') > minListDate) {
+        continue;
+      } // exclude recently-listed
+      candidates.push({
+        tsCode,
+        value,
+        amount: a.amount,
+        mktcap: a.mktcap,
+        fwd: b.adjClose / a.adjClose - 1,
+      });
     }
-    if (candidates.length < MIN_CANDIDATES) continue;
+    if (candidates.length < MIN_CANDIDATES) {
+      continue;
+    }
 
     // Liquidity: drop the bottom fraction by turnover.
     candidates.sort((x, y) => x.amount - y.amount);
@@ -273,7 +328,9 @@ export async function analyzeFactor(
     const top = new Set<string>();
     for (let i = 0; i < candidates.length; i++) {
       perBucket[buckets[i]].push({ v: fwdW[i], w: candidates[i].mktcap });
-      if (buckets[i] === N_BUCKETS - 1) top.add(candidates[i].tsCode);
+      if (buckets[i] === N_BUCKETS - 1) {
+        top.add(candidates[i].tsCode);
+      }
     }
     for (let b = 0; b < N_BUCKETS; b++) {
       bucketReturns[b].push(equalMean(perBucket[b]));
@@ -290,14 +347,18 @@ export async function analyzeFactor(
         const h = IC_DECAY_HORIZONS[hi];
         const forwardDate = calendar[iCal + h];
         const snapForward = forwardDate ? forwardSnaps.get(forwardDate) : undefined;
-        if (!snapForward) continue;
+        if (!snapForward) {
+          continue;
+        }
         const hVals: number[] = [];
         const hRets: number[] = [];
         const hb: { v: number; w: number }[][] = Array.from({ length: N_BUCKETS }, () => []);
         for (let i = 0; i < candidates.length; i++) {
           const a = snapDate.get(candidates[i].tsCode);
           const b = snapForward.get(candidates[i].tsCode);
-          if (!a || !b) continue;
+          if (!a || !b) {
+            continue;
+          }
           const ret = b.adjClose / a.adjClose - 1;
           hVals.push(candidates[i].value);
           hRets.push(ret);
@@ -317,7 +378,11 @@ export async function analyzeFactor(
 
     if (prevTop) {
       let changed = 0;
-      for (const c of top) if (!prevTop.has(c)) changed++;
+      for (const c of top) {
+        if (!prevTop.has(c)) {
+          changed++;
+        }
+      }
       turnovers.push(top.size ? changed / top.size : 0);
     }
     prevTop = top;

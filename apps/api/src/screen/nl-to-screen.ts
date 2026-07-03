@@ -4,9 +4,7 @@ import { buildScreenPrompt } from './nl-prompt.js';
 import { validateScreenSpec } from './spec.js';
 
 /** Either a metric screen (editable spec) or a direct instrument lookup (names/codes to resolve in DB). */
-export type NlParse =
-  | { kind: 'screen'; spec: ScreenSpec }
-  | { kind: 'lookup'; names: string[] };
+export type NlParse = { kind: 'screen'; spec: ScreenSpec } | { kind: 'lookup'; names: string[] };
 
 export interface NlToScreenResult {
   ok: boolean;
@@ -30,7 +28,7 @@ export async function nlToScreen(
     validate: (o) => {
       // (B) lookup: { lookup: string[] }
       if (o && typeof o === 'object' && Array.isArray((o as { lookup?: unknown }).lookup)) {
-        const names = ((o as { lookup: unknown[] }).lookup)
+        const names = (o as { lookup: unknown[] }).lookup
           .filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
           .map((x) => x.trim());
         return names.length
@@ -39,7 +37,9 @@ export async function nlToScreen(
       }
       // (A) screen spec
       const v = validateScreenSpec(o);
-      return v.ok ? { ok: true, value: { kind: 'screen', spec: v.spec } } : { ok: false, errors: v.errors };
+      return v.ok
+        ? { ok: true, value: { kind: 'screen', spec: v.spec } }
+        : { ok: false, errors: v.errors };
     },
     llm,
     noun: '查询',

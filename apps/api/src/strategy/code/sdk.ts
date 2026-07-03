@@ -162,7 +162,9 @@ export function enrich(ctx: BarContext): StrategyCtx {
   enriched.equalWeight = (codes) => {
     const weight = codes.length ? 1 / codes.length : 0;
     const targets: Record<string, number> = {};
-    for (const code of codes) targets[code] = weight;
+    for (const code of codes) {
+      targets[code] = weight;
+    }
     ctx.setHoldings(targets);
   };
   enriched.sma = (code, n) => {
@@ -171,10 +173,14 @@ export function enrich(ctx: BarContext): StrategyCtx {
   };
   enriched.ema = (code, n) => {
     const closes = ctx.history(code, 'close', n * 4); // 多取几倍窗口给 EMA 预热
-    if (closes.length < n) return null;
+    if (closes.length < n) {
+      return null;
+    }
     const alpha = 2 / (n + 1); // 平滑系数:越大越看重近端(近端权重 = alpha)
     let ema = closes[0];
-    for (const close of closes.slice(1)) ema = close * alpha + ema * (1 - alpha);
+    for (const close of closes.slice(1)) {
+      ema = close * alpha + ema * (1 - alpha);
+    }
     return ema;
   };
   enriched.highest = (code, field, n) => {
@@ -187,7 +193,9 @@ export function enrich(ctx: BarContext): StrategyCtx {
   };
   enriched.atr = (code, n) => {
     const bars = ctx.bars(code, n + 1);
-    if (bars.length < n + 1) return null;
+    if (bars.length < n + 1) {
+      return null;
+    }
     // True Range = max(高−低, |高−昨收|, |低−昨收|);ATR = 最近 n 根 TR 的均值
     let trueRangeSum = 0;
     for (let barIndex = bars.length - n; barIndex < bars.length; barIndex++) {
@@ -218,7 +226,9 @@ function avgField(
 
 /** Period bucket for a schedule — a new key means a new period (rebalance boundary). */
 export function periodKey(date: string, schedule: Schedule): string {
-  if (schedule === 'monthly') return date.slice(0, 6); // YYYYMM
+  if (schedule === 'monthly') {
+    return date.slice(0, 6);
+  } // YYYYMM
   if (schedule === 'weekly') {
     // 把日期换算成「自 epoch 起的第几天」(epochDay),整除 7 得周序号 —— 跨月/跨年也连续不断
     const epochDay =

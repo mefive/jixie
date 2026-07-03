@@ -68,7 +68,9 @@ export function EChart({ option, className, onClick }: Props) {
   onClickRef.current = onClick; // keep latest handler without re-init
 
   useEffect(() => {
-    if (!elRef.current) return;
+    if (!elRef.current) {
+      return;
+    }
     const chart = echarts.init(elRef.current);
     chartRef.current = chart;
     chart.on('click', (p) => onClickRef.current?.(p as echarts.ECElementEvent));

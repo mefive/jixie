@@ -47,10 +47,16 @@ export class EngineData {
   private factorDates = new Map<string, string[]>(); // factor -> ascending dates it has values on
   // Point-in-time fundamentals (ROE), loaded lazily on first cross-section build (cross-section work is
   // the only place they're read). code -> reports ascending by annDate.
-  private finaByCode = new Map<string, { annDate: string; roe: number | null; roeWaa: number | null }[]>();
+  private finaByCode = new Map<
+    string,
+    { annDate: string; roe: number | null; roeWaa: number | null }[]
+  >();
   private finaLoaded = false;
   // Index constituents per index, loaded lazily. indexCode -> { dates ascending, members per date }.
-  private indexCache = new Map<string, { dates: string[]; membersByDate: Map<string, Set<string>> }>();
+  private indexCache = new Map<
+    string,
+    { dates: string[]; membersByDate: Map<string, Set<string>> }
+  >();
   // Index daily close (all synced indices, preloaded in load()) — ascending parallel dates/closes arrays.
   // Powers the 超额/IR benchmark + ctx.index() 大盘择时. Tiny (a few thousand rows), so always loaded.
   private indexByCode = new Map<string, { dates: string[]; closes: number[] }>();
@@ -74,7 +80,9 @@ export class EngineData {
    * Powers ctx.index(code).close — point-in-time, no forward data. */
   indexCloseAsOf(code: string, date: string): number | null {
     const s = this.indexByCode.get(code);
-    if (!s) return null;
+    if (!s) {
+      return null;
+    }
     const i = lastIndexAtOrBefore(s.dates, date);
     return i >= 0 ? s.closes[i] : null;
   }
@@ -82,11 +90,17 @@ export class EngineData {
   /** n-day SMA of an index's close as-of `date` (point-in-time); null if fewer than n closes exist yet. */
   indexSma(code: string, date: string, n: number): number | null {
     const s = this.indexByCode.get(code);
-    if (!s) return null;
+    if (!s) {
+      return null;
+    }
     const i = lastIndexAtOrBefore(s.dates, date);
-    if (i < n - 1) return null;
+    if (i < n - 1) {
+      return null;
+    }
     let sum = 0;
-    for (let k = i - n + 1; k <= i; k++) sum += s.closes[k];
+    for (let k = i - n + 1; k <= i; k++) {
+      sum += s.closes[k];
+    }
     return sum / n;
   }
 
@@ -103,10 +117,14 @@ export class EngineData {
 
     // List dates: used for the point-in-time "stock age" primitive (exclude recently-listed).
     // Industry: a current label per stock (Tushare's classification) — for sector-neutral / rotation logic.
-    const sb = await prisma.stockBasic.findMany({ select: { tsCode: true, listDate: true, industry: true } });
+    const sb = await prisma.stockBasic.findMany({
+      select: { tsCode: true, listDate: true, industry: true },
+    });
     for (const s of sb) {
       this.listDateOf.set(s.tsCode, s.listDate);
-      if (s.industry) this.industryOf.set(s.tsCode, s.industry);
+      if (s.industry) {
+        this.industryOf.set(s.tsCode, s.industry);
+      }
     }
 
     // 龙虎榜: sparse event data (~tens/day) — preload the range into date->code->净买额 for exact-day lookup
@@ -117,7 +135,9 @@ export class EngineData {
     });
     for (const r of lhb) {
       let m = this.lhbByDate.get(r.tradeDate);
-      if (!m) this.lhbByDate.set(r.tradeDate, (m = new Map()));
+      if (!m) {
+        this.lhbByDate.set(r.tradeDate, (m = new Map()));
+      }
       m.set(r.tsCode, r.netAmount);
     }
 
@@ -128,7 +148,9 @@ export class EngineData {
     });
     for (const r of idx) {
       let s = this.indexByCode.get(r.tsCode);
-      if (!s) this.indexByCode.set(r.tsCode, (s = { dates: [], closes: [] }));
+      if (!s) {
+        this.indexByCode.set(r.tsCode, (s = { dates: [], closes: [] }));
+      }
       s.dates.push(r.tradeDate);
       s.closes.push(r.close);
     }
@@ -142,7 +164,9 @@ export class EngineData {
       const put = (factor: string, tradeDate: string, code: string, value: number) => {
         const key = `${factor}|${tradeDate}`;
         let m = this.factorByKey.get(key);
-        if (!m) this.factorByKey.set(key, (m = new Map()));
+        if (!m) {
+          this.factorByKey.set(key, (m = new Map()));
+        }
         m.set(code, value);
         (dates.get(factor) ?? dates.set(factor, new Set()).get(factor)!).add(tradeDate);
       };
@@ -151,11 +175,16 @@ export class EngineData {
         select: { tsCode: true, tradeDate: true, netMain: true, netTotal: true },
       });
       for (const r of mf) {
-        if (mfKeys.includes('mf_net_main')) put('mf_net_main', r.tradeDate, r.tsCode, r.netMain);
-        if (mfKeys.includes('mf_net_total') && r.netTotal != null)
+        if (mfKeys.includes('mf_net_main')) {
+          put('mf_net_main', r.tradeDate, r.tsCode, r.netMain);
+        }
+        if (mfKeys.includes('mf_net_total') && r.netTotal != null) {
           put('mf_net_total', r.tradeDate, r.tsCode, r.netTotal);
+        }
       }
-      for (const [name, set] of dates) this.factorDates.set(name, [...set].sort());
+      for (const [name, set] of dates) {
+        this.factorDates.set(name, [...set].sort());
+      }
     }
   }
 
@@ -191,7 +220,9 @@ export class EngineData {
   async crossSection(date: string, indexCode?: string): Promise<CrossSection> {
     const cacheKey = indexCode ? `${indexCode}|${date}` : date;
     const hit = this.crossCache.get(cacheKey);
-    if (hit) return hit;
+    if (hit) {
+      return hit;
+    }
 
     await this.ensureFina();
 
@@ -213,7 +244,15 @@ export class EngineData {
     const [priceRows, adjRows, basicRows] = await Promise.all([
       prisma.daily.findMany({
         where,
-        select: { tsCode: true, open: true, high: true, low: true, close: true, vol: true, amount: true },
+        select: {
+          tsCode: true,
+          open: true,
+          high: true,
+          low: true,
+          close: true,
+          vol: true,
+          amount: true,
+        },
       }),
       prisma.adjFactor.findMany({
         where,
@@ -246,7 +285,9 @@ export class EngineData {
     for (const basic of basicRows) {
       const price = priceByCode.get(basic.tsCode);
       const adj = adjByCode.get(basic.tsCode);
-      if (!price || adj == null || price.close == null) continue; // not tradable that day
+      if (!price || adj == null || price.close == null) {
+        continue;
+      } // not tradable that day
       const fina = this.roeAsOf(basic.tsCode, date);
       byCode.set(basic.tsCode, {
         code: basic.tsCode,
@@ -284,15 +325,21 @@ export class EngineData {
   /** Precomputed factor value as-of `date` (latest factor date ≤ date), or null. */
   factor(name: string, date: string, code: string): number | null {
     const dates = this.factorDates.get(name);
-    if (!dates) return null;
+    if (!dates) {
+      return null;
+    }
     const j = lastIndexAtOrBefore(dates, date);
-    if (j < 0) return null;
+    if (j < 0) {
+      return null;
+    }
     return this.factorByKey.get(`${name}|${dates[j]}`)?.get(code) ?? null;
   }
 
   /** Load all financial indicators once (PIT-gated by annDate), grouped by code ascending. */
   private async ensureFina(): Promise<void> {
-    if (this.finaLoaded) return;
+    if (this.finaLoaded) {
+      return;
+    }
     this.finaLoaded = true;
     const rows = await prisma.finaIndicator.findMany({
       where: { annDate: { not: null } }, // only reports with a public date can be used point-in-time
@@ -301,15 +348,22 @@ export class EngineData {
     });
     for (const r of rows) {
       let list = this.finaByCode.get(r.tsCode);
-      if (!list) this.finaByCode.set(r.tsCode, (list = []));
+      if (!list) {
+        this.finaByCode.set(r.tsCode, (list = []));
+      }
       list.push({ annDate: r.annDate!, roe: r.roe, roeWaa: r.roeWaa });
     }
   }
 
   /** Latest financial report public as-of `date` for `code` (point-in-time), or null. */
-  private roeAsOf(code: string, date: string): { roe: number | null; roeWaa: number | null } | null {
+  private roeAsOf(
+    code: string,
+    date: string,
+  ): { roe: number | null; roeWaa: number | null } | null {
     const list = this.finaByCode.get(code);
-    if (!list || !list.length) return null;
+    if (!list || !list.length) {
+      return null;
+    }
     let lo = 0;
     let hi = list.length - 1;
     let ans = -1;
@@ -318,7 +372,9 @@ export class EngineData {
       if (list[mid].annDate <= date) {
         ans = mid;
         lo = mid + 1;
-      } else hi = mid - 1;
+      } else {
+        hi = mid - 1;
+      }
     }
     return ans < 0 ? null : list[ans];
   }
@@ -335,7 +391,9 @@ export class EngineData {
       const membersByDate = new Map<string, Set<string>>();
       for (const r of rows) {
         let s = membersByDate.get(r.tradeDate);
-        if (!s) membersByDate.set(r.tradeDate, (s = new Set()));
+        if (!s) {
+          membersByDate.set(r.tradeDate, (s = new Set()));
+        }
         s.add(r.conCode);
       }
       idx = { dates: [...membersByDate.keys()].sort(), membersByDate };
@@ -352,7 +410,9 @@ export class EngineData {
       // Warn once so an empty universe (→ no trades) isn't a silent mystery.
       if (!this.warnedIndices.has(indexCode)) {
         this.warnedIndices.add(indexCode);
-        this.onLog(`⚠️ 指数 ${indexCode} 成分数据从 ${idx.dates[0]} 起,此前的交易日按空池处理(选不出标的)`);
+        this.onLog(
+          `⚠️ 指数 ${indexCode} 成分数据从 ${idx.dates[0]} 起,此前的交易日按空池处理(选不出标的)`,
+        );
       }
       return [];
     }
@@ -364,10 +424,24 @@ export class EngineData {
    * findMany would overflow the query engine's result marshaling — so cap each query's result. */
   async loadBars(codes: string[]): Promise<void> {
     const missing = codes.filter((c) => !this.barsCache.has(c));
-    if (missing.length === 0) return;
+    if (missing.length === 0) {
+      return;
+    }
     const tmp = new Map<string, StockBars>();
     for (const c of missing) {
-      tmp.set(c, { dates: [], adjOpen: [], adjHigh: [], adjLow: [], adjClose: [], adj: [], up: [], down: [], vol: [], amount: [], idx: new Map() });
+      tmp.set(c, {
+        dates: [],
+        adjOpen: [],
+        adjHigh: [],
+        adjLow: [],
+        adjClose: [],
+        adj: [],
+        up: [],
+        down: [],
+        vol: [],
+        amount: [],
+        idx: new Map(),
+      });
     }
 
     const CHUNK = 300; // codes per batch — bounds each query's result (full-history × N codes)
@@ -376,7 +450,16 @@ export class EngineData {
       const [px, adj, lim] = await Promise.all([
         prisma.daily.findMany({
           where: { tsCode: { in: batch }, tradeDate: { gte: this.start, lte: this.end } },
-          select: { tsCode: true, tradeDate: true, open: true, high: true, low: true, close: true, vol: true, amount: true },
+          select: {
+            tsCode: true,
+            tradeDate: true,
+            open: true,
+            high: true,
+            low: true,
+            close: true,
+            vol: true,
+            amount: true,
+          },
           orderBy: [{ tsCode: 'asc' }, { tradeDate: 'asc' }],
         }),
         prisma.adjFactor.findMany({
@@ -391,9 +474,13 @@ export class EngineData {
       const adjMap = new Map(adj.map((row) => [`${row.tsCode}|${row.tradeDate}`, row.adjFactor]));
       const limMap = new Map(lim.map((row) => [`${row.tsCode}|${row.tradeDate}`, row]));
       for (const price of px) {
-        if (price.open == null || price.high == null || price.low == null || price.close == null) continue;
+        if (price.open == null || price.high == null || price.low == null || price.close == null) {
+          continue;
+        }
         const adjFactor = adjMap.get(`${price.tsCode}|${price.tradeDate}`);
-        if (adjFactor == null) continue;
+        if (adjFactor == null) {
+          continue;
+        }
         const series = tmp.get(price.tsCode)!;
         const limit = limMap.get(`${price.tsCode}|${price.tradeDate}`);
         series.idx.set(price.tradeDate, series.dates.length);
@@ -409,13 +496,17 @@ export class EngineData {
         series.amount.push(price.amount);
       }
     }
-    for (const [c, b] of tmp) this.barsCache.set(c, b);
+    for (const [c, b] of tmp) {
+      this.barsCache.set(c, b);
+    }
   }
 
   /** Adjusted open on exactly `date` (null if the stock didn't trade that day). */
   openAt(code: string, date: string): number | null {
     const b = this.barsCache.get(code);
-    if (!b) return null;
+    if (!b) {
+      return null;
+    }
     const i = b.idx.get(date);
     return i == null ? null : b.adjOpen[i];
   }
@@ -424,7 +515,9 @@ export class EngineData {
    * (adjOpen) back to the real unadjusted price (adjOpen / adj) and hfq shares back to real (hfq × adj). */
   adjAt(code: string, date: string): number | null {
     const b = this.barsCache.get(code);
-    if (!b) return null;
+    if (!b) {
+      return null;
+    }
     const i = b.idx.get(date);
     return i == null ? null : b.adj[i];
   }
@@ -432,39 +525,66 @@ export class EngineData {
   /** Raw 涨/跌停价 on exactly `date` (null if the day's limit wasn't synced) — to block fills at the limit. */
   limitAt(code: string, date: string): { up: number | null; down: number | null } | null {
     const b = this.barsCache.get(code);
-    if (!b) return null;
+    if (!b) {
+      return null;
+    }
     const i = b.idx.get(date);
-    if (i == null) return null;
+    if (i == null) {
+      return null;
+    }
     return { up: b.up[i], down: b.down[i] };
   }
 
   /** Adjusted close as of `date`, carried forward from the last trading day ≤ date (for marking). */
   closeAt(code: string, date: string): number | null {
     const b = this.barsCache.get(code);
-    if (!b) return null;
+    if (!b) {
+      return null;
+    }
     const i = b.idx.get(date);
-    if (i != null) return b.adjClose[i];
+    if (i != null) {
+      return b.adjClose[i];
+    }
     const j = lastIndexAtOrBefore(b.dates, date);
     return j < 0 ? null : b.adjClose[j];
   }
 
   /** Last n adjusted prices (open|high|low|close) up to and including `date` (empty if not cached). */
-  history(code: string, date: string, field: 'open' | 'high' | 'low' | 'close', n: number): number[] {
+  history(
+    code: string,
+    date: string,
+    field: 'open' | 'high' | 'low' | 'close',
+    n: number,
+  ): number[] {
     const b = this.barsCache.get(code);
-    if (!b) return [];
+    if (!b) {
+      return [];
+    }
     const end = this.endIndex(b, date);
-    if (end < 0) return [];
+    if (end < 0) {
+      return [];
+    }
     const series =
-      field === 'open' ? b.adjOpen : field === 'high' ? b.adjHigh : field === 'low' ? b.adjLow : b.adjClose;
+      field === 'open'
+        ? b.adjOpen
+        : field === 'high'
+          ? b.adjHigh
+          : field === 'low'
+            ? b.adjLow
+            : b.adjClose;
     return series.slice(Math.max(0, end - n + 1), end + 1);
   }
 
   /** Last n adjusted OHLC bars up to and including `date` (empty if not cached). */
   bars(code: string, date: string, n: number): OhlcBar[] {
     const b = this.barsCache.get(code);
-    if (!b) return [];
+    if (!b) {
+      return [];
+    }
     const end = this.endIndex(b, date);
-    if (end < 0) return [];
+    if (end < 0) {
+      return [];
+    }
     const out: OhlcBar[] = [];
     for (let i = Math.max(0, end - n + 1); i <= end; i++) {
       out.push({

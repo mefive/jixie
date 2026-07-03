@@ -261,7 +261,9 @@ export async function syncTopList(
     const rows = await topList(client, { trade_date: d });
     const netByCode = new Map<string, number>();
     for (const r of rows) {
-      if (r.net_amount == null) continue;
+      if (r.net_amount == null) {
+        continue;
+      }
       netByCode.set(r.ts_code, (netByCode.get(r.ts_code) ?? 0) + r.net_amount);
     }
     await prisma.$transaction([
@@ -363,7 +365,9 @@ export async function syncFinaIndicator(client: TushareClient, codes?: string[])
     const byPeriod = new Map<string, (typeof rows)[number]>();
     for (const r of rows) {
       const prev = byPeriod.get(r.end_date);
-      if (!prev || (r.ann_date ?? '') > (prev.ann_date ?? '')) byPeriod.set(r.end_date, r);
+      if (!prev || (r.ann_date ?? '') > (prev.ann_date ?? '')) {
+        byPeriod.set(r.end_date, r);
+      }
     }
     const data = [...byPeriod.values()].map((r) => ({
       tsCode: r.ts_code,
@@ -447,7 +451,9 @@ export async function syncIndexWeight(
   for (const [qs, qe] of quarters) {
     const s = qs < start ? start : qs;
     const e = qe > end ? end : qe;
-    if (s > e) continue;
+    if (s > e) {
+      continue;
+    }
     const rows = await indexWeight(client, { index_code: indexCode, start_date: s, end_date: e });
     await prisma.$transaction([
       prisma.indexWeight.deleteMany({
@@ -477,7 +483,9 @@ export async function syncIndexDaily(
 ): Promise<void> {
   const rows = await indexDaily(client, { ts_code: indexCode, start_date: start, end_date: end });
   await prisma.$transaction([
-    prisma.indexDaily.deleteMany({ where: { tsCode: indexCode, tradeDate: { gte: start, lte: end } } }),
+    prisma.indexDaily.deleteMany({
+      where: { tsCode: indexCode, tradeDate: { gte: start, lte: end } },
+    }),
     prisma.indexDaily.createMany({
       data: rows.map((r) => ({ tsCode: r.ts_code, tradeDate: r.trade_date, close: r.close })),
     }),

@@ -72,8 +72,11 @@ export class LabStore extends BaseStore<LabSetupParams> {
     this.registCleaner(() => this.codegenLoader.cleanup());
     this.registCleaner(() => this.savedLoader.cleanup());
     void this.savedLoader.run(); // prime 我的策略
-    if (params.id) void this.openSaved(params.id);
-    else this.markSaved(); // a fresh default strategy is the baseline, not "dirty"
+    if (params.id) {
+      void this.openSaved(params.id);
+    } else {
+      this.markSaved();
+    } // a fresh default strategy is the baseline, not "dirty"
   }
 
   /** True while a backtest is running (drives the loading state + progress log). */
@@ -110,7 +113,9 @@ export class LabStore extends BaseStore<LabSetupParams> {
 
   /** NL→code: generate a strategy from the prompt (server compiles it) → drop it into the editor. */
   public async generate() {
-    if (!this.nlText.trim()) return;
+    if (!this.nlText.trim()) {
+      return;
+    }
     const r = await this.codegenLoader.run();
     runInAction(() => {
       this.code = r.code;
@@ -271,7 +276,9 @@ export class LabStore extends BaseStore<LabSetupParams> {
     // cross-client) so a refresh keeps streaming logs instead of losing the run.
     try {
       const { jobId } = await findBacktestRunningJob(id);
-      if (jobId) this.resume(jobId);
+      if (jobId) {
+        this.resume(jobId);
+      }
     } catch {
       /* none running / expired — the saved lastResult stays shown */
     }

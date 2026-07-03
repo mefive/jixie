@@ -51,7 +51,9 @@ try {
   await page.keyboard.press('Shift+Space');
   await page.keyboard.type('b');
   const draft = await heroInput.inputValue();
-  if (draft !== 'a\nb') throw new Error(`Shift+Space 换行失败: ${JSON.stringify(draft)}`);
+  if (draft !== 'a\nb') {
+    throw new Error(`Shift+Space 换行失败: ${JSON.stringify(draft)}`);
+  }
   await heroInput.fill('601398');
   await heroInput.press('Enter'); // 回车即发
   await page.waitForFunction(
@@ -60,7 +62,9 @@ try {
   );
   const lookedUp = ((await page.locator('.jx-screen-nameCode').first().textContent()) ?? '').trim();
   log('lookup 601398 →', lookedUp);
-  if (!lookedUp.startsWith('601398')) throw new Error(`expected 601398.SH, got ${lookedUp}`);
+  if (!lookedUp.startsWith('601398')) {
+    throw new Error(`expected 601398.SH, got ${lookedUp}`);
+  }
   await page.screenshot({ path: `${SHOTS}1b-lookup.png` });
   log('shot 1b: direct code lookup (no LLM)');
 
@@ -69,7 +73,9 @@ try {
   await page.locator('.jx-screen-promptEdit').click();
   await page.locator('.ant-modal-title', { hasText: '选股 / 找标的' }).waitFor();
   const modalDraft = await page.locator('.ant-modal .jx-screen-modalField textarea').inputValue();
-  if (modalDraft !== '601398') throw new Error(`edit modal not prefilled: ${JSON.stringify(modalDraft)}`);
+  if (modalDraft !== '601398') {
+    throw new Error(`edit modal not prefilled: ${JSON.stringify(modalDraft)}`);
+  }
   await page.waitForTimeout(450); // let the modal + frosted mask finish animating in
   await page.screenshot({ path: `${SHOTS}1c-edit-modal.png` });
   log('shot 1c: frosted edit modal');
@@ -143,7 +149,9 @@ try {
     return { get: g.status, del: d.status };
   });
   log('bogus id statuses', JSON.stringify(notFound));
-  if (notFound.get !== 404 || notFound.del !== 404) throw new Error(`expected 404s, got ${JSON.stringify(notFound)}`);
+  if (notFound.get !== 404 || notFound.del !== 404) {
+    throw new Error(`expected 404s, got ${JSON.stringify(notFound)}`);
+  }
 
   // 4. Click first row → opens the stock detail in a NEW TAB (K线/PE/量), list stays intact.
   const [stockPage] = await Promise.all([
@@ -153,7 +161,11 @@ try {
   await stockPage.waitForLoadState('networkidle');
   await stockPage.locator('canvas').first().waitFor({ timeout: 15000 });
   await stockPage.waitForTimeout(800); // let echarts paint
-  log('stock page:', ((await stockPage.locator('.jx-stock-title').textContent()) ?? '').trim(), stockPage.url());
+  log(
+    'stock page:',
+    ((await stockPage.locator('.jx-stock-title').textContent()) ?? '').trim(),
+    stockPage.url(),
+  );
   await stockPage.screenshot({ path: `${SHOTS}3-stock-detail.png` });
   log('shot 3: stock detail (前复权 default, linear, PE on right axis)');
 
@@ -178,14 +190,26 @@ try {
     const r = await fetch('/api/app/strategies', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ name: 'e2e策略', start: '20200101', end: '20201231', initialCash: 1234567, code }),
+      body: JSON.stringify({
+        name: 'e2e策略',
+        start: '20200101',
+        end: '20201231',
+        initialCash: 1234567,
+        code,
+      }),
     });
     // a small result so the card shows a sparkline
-    const nav = Array.from({ length: 30 }, (_, i) => ({ date: '2020' + String(i), value: 1e6 * (1 + i * 0.01) }));
+    const nav = Array.from({ length: 30 }, (_, i) => ({
+      date: '2020' + String(i),
+      value: 1e6 * (1 + i * 0.01),
+    }));
     await fetch('/api/app/strategies/result', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ name: 'e2e策略', result: { totalReturn: 0.29, sharpe: 1.4, trades: 25, tradeLog: [], nav } }),
+      body: JSON.stringify({
+        name: 'e2e策略',
+        result: { totalReturn: 0.29, sharpe: 1.4, trades: 25, tradeLog: [], nav },
+      }),
     });
     return r.status;
   });
@@ -224,8 +248,14 @@ try {
   await page.screenshot({ path: `${SHOTS}4d-new-dirty-confirm.png` });
   log('shot 4d: 新建 dirty-guard confirm');
   // antd inserts a space between the two CJK glyphs ("取 消") → match with a tolerant regex.
-  await page.locator('.ant-modal-footer').getByRole('button', { name: /取\s*消/ }).click();
-  await page.getByText('当前策略尚未保存').waitFor({ state: 'detached', timeout: 5000 }).catch(() => {});
+  await page
+    .locator('.ant-modal-footer')
+    .getByRole('button', { name: /取\s*消/ })
+    .click();
+  await page
+    .getByText('当前策略尚未保存')
+    .waitFor({ state: 'detached', timeout: 5000 })
+    .catch(() => {});
   await page.locator('.jx-lab-field--name input').fill('e2e策略'); // restore so the optional run/cleanup match by name
 
   // 4c. (opt-in, costs an LLM call) NL→code: describe a strategy → server writes + compiles TS → it
@@ -261,7 +291,11 @@ try {
         .textContent()) ?? ''
     ).trim();
     log('code backtest done, 累计收益', cum);
-    await page.locator('.jx-lab-result canvas').first().waitFor({ timeout: 8000 }).catch(() => {});
+    await page
+      .locator('.jx-lab-result canvas')
+      .first()
+      .waitFor({ timeout: 8000 })
+      .catch(() => {});
     await page.waitForTimeout(400); // let echarts paint the equity curve
     await page.screenshot({ path: `${SHOTS}5-lab-result.png` });
     log('shot 5: code backtest result');
@@ -273,7 +307,12 @@ try {
     await page.locator('.jx-td-queue .jx-td-chip').first().waitFor({ timeout: 8000 }); // instrument queue
     await page.waitForTimeout(600); // let the scatter + slider paint
     const chipName = ((await page.locator('.jx-td-chip').nth(1).textContent()) ?? '').trim(); // [0] is 全部
-    log('trade detail: rows', await page.locator('.jx-td-list .jx-td-row').count(), '| chip', chipName);
+    log(
+      'trade detail: rows',
+      await page.locator('.jx-td-list .jx-td-row').count(),
+      '| chip',
+      chipName,
+    );
     await page.screenshot({ path: `${SHOTS}5c-trade-detail.png` });
 
     // 5c2. 全部 chip → every instrument's fills in one list (标的 name+code column) + portfolio return chart.
@@ -316,7 +355,9 @@ try {
   await page.locator('.jx-factor-listItem').first().waitFor({ timeout: 15000 });
   const factorCount = await page.locator('.jx-factor-listItem').count();
   log('factor catalog items:', factorCount);
-  if (factorCount < 9) throw new Error(`因子目录数不足: ${factorCount}`);
+  if (factorCount < 9) {
+    throw new Error(`因子目录数不足: ${factorCount}`);
+  }
 
   // select 盈利收益率 (ep, fundamental) → 运行/查看 → wait for the decile chart
   await page.locator('.jx-factor-listItem', { hasText: '盈利收益率' }).click();
@@ -342,30 +383,44 @@ try {
   );
   await page.locator('.jx-factor-chart canvas').first().waitFor({ timeout: 5000 });
   await page.waitForTimeout(500);
-  log('shot 7b: ep 周度分析 →', ((await page.locator('.jx-factor-sample').textContent()) ?? '').trim());
+  log(
+    'shot 7b: ep 周度分析 →',
+    ((await page.locator('.jx-factor-sample').textContent()) ?? '').trim(),
+  );
   await page.screenshot({ path: `${SHOTS}7b-factors-week.png` });
 
   // cleanup seeded + auto-saved strategies for this user
   await page.evaluate(async () => {
     const list = await (await fetch('/api/app/strategies')).json();
-    for (const it of list) await fetch(`/api/app/strategies/${it.id}`, { method: 'DELETE' });
+    for (const it of list) {
+      await fetch(`/api/app/strategies/${it.id}`, { method: 'DELETE' });
+    }
   });
   log('cleaned up strategies');
 
   // 6. (opt-in, costs an LLM call) NL→screen through the UI: needs DEEPSEEK_API_KEY. Run with E2E_NL=1.
   if (process.env.E2E_NL) {
     await page.getByRole('link', { name: '选股看图' }).click();
-    await page.locator('.jx-screen-hero textarea').fill('市盈率低于10、股息率大于4%的股票，按股息率从高到低');
+    await page
+      .locator('.jx-screen-hero textarea')
+      .fill('市盈率低于10、股息率大于4%的股票，按股息率从高到低');
     await page.locator('.jx-screen-hero textarea').press('Enter'); // 回车即发
     await page.waitForFunction(
       () => {
         const el = document.querySelector('.jx-screen-summary');
-        return el && el.textContent && document.querySelectorAll('.jx-screen-table tbody tr.ant-table-row').length > 0;
+        return (
+          el &&
+          el.textContent &&
+          document.querySelectorAll('.jx-screen-table tbody tr.ant-table-row').length > 0
+        );
       },
       undefined,
       { timeout: 45000 }, // DeepSeek round-trip
     );
-    log('NL search summary:', ((await page.locator('.jx-screen-summary').textContent()) ?? '').trim());
+    log(
+      'NL search summary:',
+      ((await page.locator('.jx-screen-summary').textContent()) ?? '').trim(),
+    );
     await page.screenshot({ path: `${SHOTS}5-nl-screen.png` });
     log('shot 5: NL→screen result (real DeepSeek)');
   }

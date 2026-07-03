@@ -48,10 +48,14 @@ export const Screen = complex.component(() => {
           <WorkBar onEdit={openEdit} />
 
           {/* NL/示例解析出的查询条件,回显成可编辑 chips;改任一条直接重查(不过模型)。lookup 无 spec → 不显示 */}
-          {store.spec && <ConditionChips spec={store.spec} onChange={(s) => void store.applySpec(s)} />}
+          {store.spec && (
+            <ConditionChips spec={store.spec} onChange={(s) => void store.applySpec(s)} />
+          )}
 
           {store.queryLoader.error && (
-            <div className="jx-screen-error">解析失败：{store.queryLoader.errorObject?.message}</div>
+            <div className="jx-screen-error">
+              解析失败：{store.queryLoader.errorObject?.message}
+            </div>
           )}
 
           {result && (
@@ -251,7 +255,9 @@ function PromptInput({
   autoFocus?: boolean;
 }) {
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.nativeEvent.isComposing) return; // mid-IME (拼音候选) — let Enter confirm, never send
+    if (e.nativeEvent.isComposing) {
+      return;
+    } // mid-IME (拼音候选) — let Enter confirm, never send
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       onSubmit();
@@ -307,7 +313,9 @@ const COLUMNS: ColumnsType<ScreenRow> = [
     dataIndex: 'pctChg',
     align: 'right',
     render: (v: number | null) => (
-      <span className={classNames({ 'text-up': (v ?? 0) > 0, 'text-down': (v ?? 0) < 0 })}>{pct(v)}</span>
+      <span className={classNames({ 'text-up': (v ?? 0) > 0, 'text-down': (v ?? 0) < 0 })}>
+        {pct(v)}
+      </span>
     ),
   },
   { title: 'PE(TTM)', dataIndex: 'peTtm', align: 'right', render: (v) => num(v) },
