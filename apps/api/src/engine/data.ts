@@ -75,7 +75,7 @@ export class EngineData {
   indexCloseAsOf(code: string, date: string): number | null {
     const s = this.indexByCode.get(code);
     if (!s) return null;
-    const i = leFloor(s.dates, date);
+    const i = lastIndexAtOrBefore(s.dates, date);
     return i >= 0 ? s.closes[i] : null;
   }
 
@@ -83,7 +83,7 @@ export class EngineData {
   indexSma(code: string, date: string, n: number): number | null {
     const s = this.indexByCode.get(code);
     if (!s) return null;
-    const i = leFloor(s.dates, date);
+    const i = lastIndexAtOrBefore(s.dates, date);
     if (i < n - 1) return null;
     let sum = 0;
     for (let k = i - n + 1; k <= i; k++) sum += s.closes[k];
@@ -210,7 +210,7 @@ export class EngineData {
       where = { tradeDate: date, tsCode: { in: members } };
     }
 
-    const [px, adj, db] = await Promise.all([
+    const [priceRows, adjRows, basicRows] = await Promise.all([
       prisma.daily.findMany({
         where,
         select: { tsCode: true, open: true, high: true, low: true, close: true, vol: true, amount: true },
@@ -238,42 +238,42 @@ export class EngineData {
         },
       }),
     ]);
-    const pxMap = new Map(px.map((r) => [r.tsCode, r]));
-    const adjMap = new Map(adj.map((a) => [a.tsCode, a.adjFactor]));
+    const priceByCode = new Map(priceRows.map((r) => [r.tsCode, r]));
+    const adjByCode = new Map(adjRows.map((r) => [r.tsCode, r.adjFactor]));
 
     const codes: string[] = [];
     const byCode = new Map<string, BarRow>();
-    for (const r of db) {
-      const p = pxMap.get(r.tsCode);
-      const f = adjMap.get(r.tsCode);
-      if (!p || f == null || p.close == null) continue; // not tradable that day
-      const fina = this.roeAsOf(r.tsCode, date);
-      byCode.set(r.tsCode, {
-        code: r.tsCode,
-        open: p.open,
-        high: p.high,
-        low: p.low,
-        close: p.close,
-        adjOpen: p.open == null ? null : p.open * f,
-        adjHigh: p.high == null ? null : p.high * f,
-        adjLow: p.low == null ? null : p.low * f,
-        adjClose: p.close * f,
-        vol: p.vol,
-        amount: p.amount,
-        pe: r.pe,
-        peTtm: r.peTtm,
-        pb: r.pb,
-        ps: r.ps,
-        psTtm: r.psTtm,
-        dvRatio: r.dvRatio,
-        dvTtm: r.dvTtm,
-        totalMv: r.totalMv,
-        circMv: r.circMv,
-        turnoverRate: r.turnoverRate,
+    for (const basic of basicRows) {
+      const price = priceByCode.get(basic.tsCode);
+      const adj = adjByCode.get(basic.tsCode);
+      if (!price || adj == null || price.close == null) continue; // not tradable that day
+      const fina = this.roeAsOf(basic.tsCode, date);
+      byCode.set(basic.tsCode, {
+        code: basic.tsCode,
+        open: price.open,
+        high: price.high,
+        low: price.low,
+        close: price.close,
+        adjOpen: price.open == null ? null : price.open * adj,
+        adjHigh: price.high == null ? null : price.high * adj,
+        adjLow: price.low == null ? null : price.low * adj,
+        adjClose: price.close * adj,
+        vol: price.vol,
+        amount: price.amount,
+        pe: basic.pe,
+        peTtm: basic.peTtm,
+        pb: basic.pb,
+        ps: basic.ps,
+        psTtm: basic.psTtm,
+        dvRatio: basic.dvRatio,
+        dvTtm: basic.dvTtm,
+        totalMv: basic.totalMv,
+        circMv: basic.circMv,
+        turnoverRate: basic.turnoverRate,
         roe: fina?.roe ?? null,
         roeWaa: fina?.roeWaa ?? null,
       });
-      codes.push(r.tsCode);
+      codes.push(basic.tsCode);
     }
     codes.sort(); // ascending universe — replaces the dropped DB orderBy, keeps tie-breaks deterministic
     const cs: CrossSection = { codes, byCode };
@@ -285,7 +285,7 @@ export class EngineData {
   factor(name: string, date: string, code: string): number | null {
     const dates = this.factorDates.get(name);
     if (!dates) return null;
-    const j = leFloor(dates, date);
+    const j = lastIndexAtOrBefore(dates, date);
     if (j < 0) return null;
     return this.factorByKey.get(`${name}|${dates[j]}`)?.get(code) ?? null;
   }
@@ -346,7 +346,7 @@ export class EngineData {
     if (idx.dates.length === 0) {
       throw new Error(`指数 ${indexCode} 未收录成分数据(无法限定到该指数)`);
     }
-    const j = leFloor(idx.dates, date);
+    const j = lastIndexAtOrBefore(idx.dates, date);
     if (j < 0) {
       // The index exists but has no snapshot on/before today — its data starts later than this date.
       // Warn once so an empty universe (→ no trades) isn't a silent mystery.
@@ -388,25 +388,25 @@ export class EngineData {
           select: { tsCode: true, tradeDate: true, upLimit: true, downLimit: true },
         }),
       ]);
-      const adjMap = new Map(adj.map((a) => [`${a.tsCode}|${a.tradeDate}`, a.adjFactor]));
-      const limMap = new Map(lim.map((l) => [`${l.tsCode}|${l.tradeDate}`, l]));
-      for (const r of px) {
-        if (r.open == null || r.high == null || r.low == null || r.close == null) continue;
-        const f = adjMap.get(`${r.tsCode}|${r.tradeDate}`);
-        if (f == null) continue;
-        const b = tmp.get(r.tsCode)!;
-        const l = limMap.get(`${r.tsCode}|${r.tradeDate}`);
-        b.idx.set(r.tradeDate, b.dates.length);
-        b.dates.push(r.tradeDate);
-        b.adjOpen.push(r.open * f);
-        b.adjHigh.push(r.high * f);
-        b.adjLow.push(r.low * f);
-        b.adjClose.push(r.close * f);
-        b.adj.push(f);
-        b.up.push(l?.upLimit ?? null);
-        b.down.push(l?.downLimit ?? null);
-        b.vol.push(r.vol);
-        b.amount.push(r.amount);
+      const adjMap = new Map(adj.map((row) => [`${row.tsCode}|${row.tradeDate}`, row.adjFactor]));
+      const limMap = new Map(lim.map((row) => [`${row.tsCode}|${row.tradeDate}`, row]));
+      for (const price of px) {
+        if (price.open == null || price.high == null || price.low == null || price.close == null) continue;
+        const adjFactor = adjMap.get(`${price.tsCode}|${price.tradeDate}`);
+        if (adjFactor == null) continue;
+        const series = tmp.get(price.tsCode)!;
+        const limit = limMap.get(`${price.tsCode}|${price.tradeDate}`);
+        series.idx.set(price.tradeDate, series.dates.length);
+        series.dates.push(price.tradeDate);
+        series.adjOpen.push(price.open * adjFactor);
+        series.adjHigh.push(price.high * adjFactor);
+        series.adjLow.push(price.low * adjFactor);
+        series.adjClose.push(price.close * adjFactor);
+        series.adj.push(adjFactor);
+        series.up.push(limit?.upLimit ?? null);
+        series.down.push(limit?.downLimit ?? null);
+        series.vol.push(price.vol);
+        series.amount.push(price.amount);
       }
     }
     for (const [c, b] of tmp) this.barsCache.set(c, b);
@@ -444,7 +444,7 @@ export class EngineData {
     if (!b) return null;
     const i = b.idx.get(date);
     if (i != null) return b.adjClose[i];
-    const j = leFloor(b.dates, date);
+    const j = lastIndexAtOrBefore(b.dates, date);
     return j < 0 ? null : b.adjClose[j];
   }
 
@@ -483,12 +483,12 @@ export class EngineData {
   /** Index of the bar on `date`, or the last bar before it (-1 if none); used by history/bars. */
   private endIndex(b: StockBars, date: string): number {
     const exact = b.idx.get(date);
-    return exact != null ? exact : leFloor(b.dates, date);
+    return exact != null ? exact : lastIndexAtOrBefore(b.dates, date);
   }
 }
 
 /** Index of the largest element ≤ target in a sorted string array (-1 if none). */
-function leFloor(sorted: string[], target: string): number {
+function lastIndexAtOrBefore(sorted: string[], target: string): number {
   let lo = 0;
   let hi = sorted.length - 1;
   let ans = -1;
