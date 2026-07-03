@@ -29,7 +29,9 @@
 - 跨包用包名 `@jixie/shared`;`@prisma/client` 是 CJS,用 `import pkg from '@prisma/client'; const { PrismaClient } = pkg;`(见 `src/lib/prisma.ts`)
 - ID 用 ULID,应用层生成;zod 做入参校验
 - **代码注释一律用英文**(inline `//`、块注释、JSDoc、Prisma `///`、CSS `/* */`);但**面向用户的字符串**(console / 报错 / UI 文案 / 邮件模板 / 因子 label)、**CLAUDE.md / README 文档**、**commit message** 仍用中文
-- 格式化:prettier(`semi`、`singleQuote`、`printWidth 100`、`trailingComma all`)
+- 格式化:prettier(`semi`、`singleQuote`、`printWidth 100`、`trailingComma all`)+ eslint `curly: all`(控制语句强制大括号,`if (x) return;` 会被拆成带 `{}` 的多行)。**pre-commit hook**(simple-git-hooks + lint-staged)提交时自动对暂存文件跑 `eslint --fix` + `prettier --write`,机械格式无需手动维护;`.prettierignore` 里 `*.md` 等文档不受 prettier 摆布
+- **空行分段(工具做不到,唯一靠人/agent 的格式)**:函数体内按逻辑段落用**单空行**分组 —— 入参校验 → 数据准备 → 主循环 → 收尾/return;注释引导的新段落,注释前空一行。函数首行前 / 末行后不空;紧密相关的连续单行不硬插;不留连续空行(prettier 会压成一行)。写的时候主动分段,别挤成一坨
+- **命名一律语义全称**(代码是给人看的,没必要省):变量/参数、回调 / reduce / map-item / 临时变量都要有语义(`(sum, close)` 不是 `(a, b)`、`.map((code) => …)` 不是 `(c)`);金融/领域术语在定义处加中文注释(`ATR`/`EMA`/`唐奇安上下轨` 等)。领域惯例短名优先展开成全称(`predicate`/`fraction`/`direction`);纯数组下标 `for (let i …)` 可留
 - 不为「未来可能复用」提前抽象:三处相似 < 一处错误抽象
 
 ## Prisma 已知坑
