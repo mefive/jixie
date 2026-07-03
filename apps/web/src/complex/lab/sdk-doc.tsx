@@ -40,17 +40,22 @@ export default function SdkDocPage() {
           <img className="jx-docs-banner" src={banner} alt="机械交易系" />
           <span className="jx-docs-brandSub">· 策略 SDK</span>
         </a>
-        <div className="jx-docs-lang">
-          {(['zh', 'en'] as const).map((l) => (
-            <button
-              key={l}
-              type="button"
-              className={classNames('jx-docs-langBtn', { 'jx-docs-langBtn--on': lang === l })}
-              onClick={() => setLang(l)}
-            >
-              {l === 'zh' ? '中文' : 'EN'}
-            </button>
-          ))}
+        <div className="jx-docs-barRight">
+          <a className="jx-docs-tutLink" href="/learn">
+            {t('入门教程 ↗', 'Tutorial ↗')}
+          </a>
+          <div className="jx-docs-lang">
+            {(['zh', 'en'] as const).map((l) => (
+              <button
+                key={l}
+                type="button"
+                className={classNames('jx-docs-langBtn', { 'jx-docs-langBtn--on': lang === l })}
+                onClick={() => setLang(l)}
+              >
+                {l === 'zh' ? '中文' : 'EN'}
+              </button>
+            ))}
+          </div>
         </div>
       </header>
 
