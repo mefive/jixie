@@ -26,19 +26,19 @@ export interface StrategyCtx extends BarContext {
   equalWeight(codes: string[]): void;
 
   // —— 内置技术指标(都需要该票的 K 线已加载:watch 预载 或 ensureBars;数据不足返 null)——
-  /** n 日简单均线(最近 n 根收盘均值)。 */
+  /** n 日简单均线(SMA)= 最近 n 根收盘价的算术平均。趋势/均线策略的基础。 */
   sma(code: string, n: number): number | null;
-  /** n 日指数均线。 */
+  /** n 日指数均线(EMA):也是均线,但越近的价格权重越大,比 SMA 更快跟随价格。 */
   ema(code: string, n: number): number | null;
-  /** n 日 ATR(平均真实波幅,需 n+1 根)。 */
+  /** n 日 ATR(平均真实波幅):衡量这只票近期「一天能波动多大」,常用来定止损距离 / 仓位。需 n+1 根。 */
   atr(code: string, n: number): number | null;
-  /** 最近 n 根在某字段上的最高(唐奇安上轨)。 */
+  /** 最近 n 根在某字段上的最高值(唐奇安上轨)—— 价格突破它常作为「入场」信号。 */
   highest(code: string, field: 'open' | 'high' | 'low' | 'close', n: number): number | null;
-  /** 最近 n 根在某字段上的最低(唐奇安下轨)。 */
+  /** 最近 n 根在某字段上的最低值(唐奇安下轨)—— 价格跌破它常作为「出场」信号。 */
   lowest(code: string, field: 'open' | 'high' | 'low' | 'close', n: number): number | null;
-  /** n 日平均成交额(千元)—— 流动性 / 滑点门。 */
+  /** n 日平均成交额(千元)—— 衡量流动性(能不能买得进卖得出),常用作选股的滑点/流动性门槛。 */
   avgAmount(code: string, n: number): number | null;
-  /** n 日平均成交量(手)。 */
+  /** n 日平均成交量(手)—— 同样衡量活跃度 / 流动性。 */
   avgVol(code: string, n: number): number | null;
 }
 
@@ -63,12 +63,12 @@ export class Universe {
   ) {}
 
   /** Keep codes whose today-row passes the predicate. */
-  where(pred: (bar: BarRow, code: string) => boolean): Universe {
+  where(predicate: (bar: BarRow, code: string) => boolean): Universe {
     return new Universe(
       this.ctx,
-      this.list.filter((c) => {
-        const b = this.ctx.bar(c);
-        return b != null && pred(b, c);
+      this.list.filter((code) => {
+        const bar = this.ctx.bar(code);
+        return bar != null && predicate(bar, code);
       }),
     );
   }
@@ -77,36 +77,51 @@ export class Universe {
   minListDays(days: number): Universe {
     return new Universe(
       this.ctx,
-      this.list.filter((c) => {
-        const age = this.ctx.listDays(c);
+      this.list.filter((code) => {
+        const age = this.ctx.listDays(code);
         return age == null || age >= days;
       }),
     );
   }
 
-  /** Drop the bottom `frac` by `key` (e.g. liquidity: `dropBottom(0.25, b => b.turnoverRate ?? 0)`). */
-  dropBottom(frac: number, key: (bar: BarRow, code: string) => number): Universe {
-    const scored = this.list.map((c) => ({ c, k: this.keyOf(c, key) }));
-    scored.sort((a, b) => a.k - b.k);
-    return new Universe(this.ctx, scored.slice(Math.floor(scored.length * frac)).map((x) => x.c));
+  /** Drop the bottom `fraction` by `score` (e.g. liquidity: `dropBottom(0.25, b => b.turnoverRate ?? 0)`). */
+  dropBottom(fraction: number, score: (bar: BarRow, code: string) => number): Universe {
+    const scored = this.list.map((code) => ({ code, value: this.scoreOrBottom(code, score) }));
+    scored.sort((lower, higher) => lower.value - higher.value);
+    return new Universe(
+      this.ctx,
+      scored.slice(Math.floor(scored.length * fraction)).map((entry) => entry.code),
+    );
   }
 
-  /** Rank by a score (codes scoring null are dropped). `dir` 'desc' = highest first (default). */
-  rankBy(score: (bar: BarRow, code: string) => number | null, dir: 'desc' | 'asc' = 'desc'): Universe {
+  /** Rank by a score (codes scoring null are dropped). `direction` 'desc' = highest first (default). */
+  rankBy(
+    score: (bar: BarRow, code: string) => number | null,
+    direction: 'desc' | 'asc' = 'desc',
+  ): Universe {
     const scored = this.list
-      .map((c) => {
-        const b = this.ctx.bar(c);
-        return { c, s: b != null ? score(b, c) : null };
+      .map((code) => {
+        const bar = this.ctx.bar(code);
+        return { code, value: bar != null ? score(bar, code) : null };
       })
-      .filter((x): x is { c: string; s: number } => x.s != null && Number.isFinite(x.s));
-    scored.sort((a, b) => (dir === 'desc' ? b.s - a.s : a.s - b.s));
-    return new Universe(this.ctx, scored.map((x) => x.c));
+      .filter(
+        (entry): entry is { code: string; value: number } =>
+          entry.value != null && Number.isFinite(entry.value),
+      );
+    scored.sort((lower, higher) =>
+      direction === 'desc' ? higher.value - lower.value : lower.value - higher.value,
+    );
+    return new Universe(
+      this.ctx,
+      scored.map((entry) => entry.code),
+    );
   }
 
   /** Take the leading slice: a fraction when `n < 1` (0.1 = top decile, min 1), else a count. */
   top(n: number): string[] {
-    const k = n < 1 ? Math.max(1, Math.floor(this.list.length * n)) : Math.floor(n);
-    return this.list.slice(0, k);
+    // n < 1 → 取比例(0.1 = 前 10%,至少 1 只);n ≥ 1 → 取个数
+    const count = n < 1 ? Math.max(1, Math.floor(this.list.length * n)) : Math.floor(n);
+    return this.list.slice(0, count);
   }
 
   /** The current codes (after any chained steps). */
@@ -118,9 +133,10 @@ export class Universe {
     return this.list.length;
   }
 
-  private keyOf(code: string, key: (bar: BarRow, code: string) => number): number {
-    const b = this.ctx.bar(code);
-    return b != null ? key(b, code) : -Infinity; // missing → sorts to the bottom (gets dropped)
+  // Score a code via its today-row; a code with no row scores -Infinity so it sorts to the bottom.
+  private scoreOrBottom(code: string, score: (bar: BarRow, code: string) => number): number {
+    const bar = this.ctx.bar(code);
+    return bar != null ? score(bar, code) : -Infinity;
   }
 }
 
@@ -137,65 +153,77 @@ export function defineStrategy(s: CodeStrategy): Strategy {
 
 /** Layer the SDK helpers onto the engine's per-bar core ctx. */
 export function enrich(ctx: BarContext): StrategyCtx {
-  const rich = ctx as StrategyCtx;
-  rich.period = (schedule) => periodKey(ctx.date, schedule);
+  const enriched = ctx as StrategyCtx;
+  enriched.period = (schedule) => periodKey(ctx.date, schedule);
   // The index restriction is pushed into the data load (loadCrossSection only reads those rows), not
   // filtered in memory here — so 沪深300 reads ~300 rows, not the full ~5370. See engine/data crossSection.
-  rich.universe = async (indexCode?: string) => new Universe(ctx, await ctx.loadCrossSection(indexCode));
-  rich.equalWeight = (codes) => {
-    const w = codes.length ? 1 / codes.length : 0;
+  enriched.universe = async (indexCode?: string) =>
+    new Universe(ctx, await ctx.loadCrossSection(indexCode));
+  enriched.equalWeight = (codes) => {
+    const weight = codes.length ? 1 / codes.length : 0;
     const targets: Record<string, number> = {};
-    for (const c of codes) targets[c] = w;
+    for (const code of codes) targets[code] = weight;
     ctx.setHoldings(targets);
   };
-  rich.sma = (code, n) => {
-    const w = ctx.history(code, 'close', n);
-    return w.length < n ? null : w.reduce((a, b) => a + b, 0) / n;
+  enriched.sma = (code, n) => {
+    const closes = ctx.history(code, 'close', n);
+    return closes.length < n ? null : closes.reduce((sum, close) => sum + close, 0) / n;
   };
-  rich.ema = (code, n) => {
-    const w = ctx.history(code, 'close', n * 4); // extra lookback to warm up the EMA
-    if (w.length < n) return null;
-    const k = 2 / (n + 1);
-    let e = w[0];
-    for (let i = 1; i < w.length; i++) e = w[i] * k + e * (1 - k);
-    return e;
+  enriched.ema = (code, n) => {
+    const closes = ctx.history(code, 'close', n * 4); // 多取几倍窗口给 EMA 预热
+    if (closes.length < n) return null;
+    const alpha = 2 / (n + 1); // 平滑系数:越大越看重近端(近端权重 = alpha)
+    let ema = closes[0];
+    for (const close of closes.slice(1)) ema = close * alpha + ema * (1 - alpha);
+    return ema;
   };
-  rich.highest = (code, field, n) => {
-    const w = ctx.history(code, field, n);
-    return w.length < n ? null : Math.max(...w);
+  enriched.highest = (code, field, n) => {
+    const series = ctx.history(code, field, n);
+    return series.length < n ? null : Math.max(...series);
   };
-  rich.lowest = (code, field, n) => {
-    const w = ctx.history(code, field, n);
-    return w.length < n ? null : Math.min(...w);
+  enriched.lowest = (code, field, n) => {
+    const series = ctx.history(code, field, n);
+    return series.length < n ? null : Math.min(...series);
   };
-  rich.atr = (code, n) => {
+  enriched.atr = (code, n) => {
     const bars = ctx.bars(code, n + 1);
     if (bars.length < n + 1) return null;
-    let sum = 0;
-    for (let i = bars.length - n; i < bars.length; i++) {
-      const pc = bars[i - 1].adjClose;
-      sum += Math.max(bars[i].adjHigh - bars[i].adjLow, Math.abs(bars[i].adjHigh - pc), Math.abs(bars[i].adjLow - pc));
+    // True Range = max(高−低, |高−昨收|, |低−昨收|);ATR = 最近 n 根 TR 的均值
+    let trueRangeSum = 0;
+    for (let barIndex = bars.length - n; barIndex < bars.length; barIndex++) {
+      const bar = bars[barIndex];
+      const prevClose = bars[barIndex - 1].adjClose;
+      trueRangeSum += Math.max(
+        bar.adjHigh - bar.adjLow,
+        Math.abs(bar.adjHigh - prevClose),
+        Math.abs(bar.adjLow - prevClose),
+      );
     }
-    return sum / n;
+    return trueRangeSum / n;
   };
-  rich.avgAmount = (code, n) => avgField(ctx.bars(code, n), n, (b) => b.amount);
-  rich.avgVol = (code, n) => avgField(ctx.bars(code, n), n, (b) => b.vol);
-  return rich;
+  enriched.avgAmount = (code, n) => avgField(ctx.bars(code, n), n, (bar) => bar.amount);
+  enriched.avgVol = (code, n) => avgField(ctx.bars(code, n), n, (bar) => bar.vol);
+  return enriched;
 }
 
 /** Mean of a per-bar field over the window, or null if fewer than n valid values. */
-function avgField(bars: { amount: number | null; vol: number | null }[], n: number, pick: (b: { amount: number | null; vol: number | null }) => number | null): number | null {
-  const vals = bars.map(pick).filter((x): x is number => x != null);
-  return vals.length < n ? null : vals.reduce((a, b) => a + b, 0) / vals.length;
+function avgField(
+  bars: { amount: number | null; vol: number | null }[],
+  n: number,
+  pick: (bar: { amount: number | null; vol: number | null }) => number | null,
+): number | null {
+  const values = bars.map(pick).filter((value): value is number => value != null);
+  return values.length < n ? null : values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
 /** Period bucket for a schedule — a new key means a new period (rebalance boundary). */
 export function periodKey(date: string, schedule: Schedule): string {
-  if (schedule === 'monthly') return date.slice(0, 6);
+  if (schedule === 'monthly') return date.slice(0, 6); // YYYYMM
   if (schedule === 'weekly') {
+    // 把日期换算成「自 epoch 起的第几天」(epochDay),整除 7 得周序号 —— 跨月/跨年也连续不断
     const epochDay =
       Date.UTC(+date.slice(0, 4), +date.slice(4, 6) - 1, +date.slice(6, 8)) / 86_400_000;
     return String(Math.floor(epochDay / 7));
   }
-  return date;
+  return date; // daily: 每个交易日自成一个 key
 }
