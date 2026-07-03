@@ -17,7 +17,8 @@
     "format:check": "prettier --check .",
     "smoke": "pnpm --filter api smoke",
     "sync": "pnpm --filter api sync",
-    "peek": "pnpm --filter api peek"
+    "peek": "pnpm --filter api peek",
+    "prepare": "simple-git-hooks"
   },
   "devDependencies": {
     "@eslint/js": "^9.13.0",
@@ -25,12 +26,26 @@
     "eslint": "^9.13.0",
     "eslint-plugin-react-hooks": "^5.0.0",
     "globals": "^15.11.0",
+    "lint-staged": "^17.0.8",
     "prettier": "^3.3.0",
+    "simple-git-hooks": "^2.13.1",
     "tsx": "^4.21.0",
     "typescript": "^5.7.0",
     "typescript-eslint": "^8.10.0"
   },
+  "simple-git-hooks": {
+    "pre-commit": "pnpm lint-staged"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,mjs}": ["eslint --fix", "prettier --write"],
+    "*.{css,json,yaml,yml}": "prettier --write"
+  },
   "pnpm": {
-    "onlyBuiltDependencies": ["@prisma/client", "@prisma/engines", "esbuild", "prisma"]
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "esbuild",
+      "prisma"
+    ]
   }
 }
