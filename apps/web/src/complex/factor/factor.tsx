@@ -1,15 +1,16 @@
-import { lazy, Suspense, useEffect } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import classNames from 'classnames';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
-import { DatePicker, Select } from 'antd';
-import type { FactorKind, IcDecayPoint } from '@jixie/shared';
+import { DatePicker, Segmented, Select } from 'antd';
+import type { FactorKind, IcDecayPoint, FactorWeight } from '@jixie/shared';
 import { faSpinner, faTriangleExclamation, faPlay } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { TopNav } from '@src/components/top-nav';
 import { LoaderButton } from '@src/components/loader-button';
 import { Placeholder } from '@src/components/placeholder';
+import { QuantileHeatmap } from './quantile-heatmap';
 import { complex } from './complex';
 import './factor.css';
 
@@ -189,6 +190,7 @@ const RunChips = complex.component(() => {
 const Result = complex.component(() => {
   const store = complex.useStore();
   const loader = store.analysisLoader;
+  const [weight, setWeight] = useState<FactorWeight>('equal'); // 分位收益加权:等权 / 市值加权(view 切换)
   if (store.jobRunning)
     return (
       <div className="jx-factor-running">
@@ -209,29 +211,46 @@ const Result = complex.component(() => {
   const n = r.buckets.length;
   const dir = direction(r.icMean);
   const per = r.freq === 'week' ? '周' : '月';
+  // Weight is a view toggle over precomputed data (等权 always present; 市值加权 on newer reports).
+  const hasMktcap = !!r.bucketsMktcap;
+  const useMktcap = weight === 'mktcap' && hasMktcap;
+  const buckets = useMktcap ? r.bucketsMktcap! : r.buckets;
+  const longShort = useMktcap ? r.longShortMktcap! : r.longShort;
   return (
     <>
       <div className="jx-factor-resultHead">
         <span className="jx-factor-sample">
           样本 {r.periods} {per} · {r.start.slice(0, 4)}–{r.end.slice(0, 4)}
         </span>
+        {hasMktcap && (
+          <Segmented
+            size="small"
+            value={weight}
+            onChange={(v) => setWeight(v as FactorWeight)}
+            options={[
+              { label: '等权', value: 'equal' },
+              { label: '市值加权', value: 'mktcap' },
+            ]}
+          />
+        )}
         <span className={classNames('jx-factor-dir', `jx-factor-dir--${dir.kind}`)}>{dir.text}</span>
       </div>
 
       <Suspense fallback={<div className="jx-factor-chart" />}>
-        <DecileChart buckets={r.buckets} />
+        <DecileChart buckets={buckets} />
       </Suspense>
       <div className="jx-factor-chartCap">
         横轴 D1(因子值最低)→ D{n}(最高),纵轴各档「下一{per}」年化收益 —— 一路上行=动量,一路下行=反转。
+        {hasMktcap && '「市值加权」看大票能否真赚到(等权易被小盘放大)。'}
       </div>
 
       <div className="jx-factor-metrics">
         <Metric label="Rank IC 均值" value={r.icMean.toFixed(4)} hint="符号=方向 · 绝对值=强度" />
         <Metric label="ICIR(年化)" value={r.icirAnnual.toFixed(2)} hint="IC 稳定性" />
         <Metric label="IC>0 占比" value={pct(r.icPosRate)} hint={`多少${per}份方向一致`} />
-        <Metric label={`多空 D${n}−D1 年化`} value={pct(r.longShort.annReturn)} hint="纯因子收益" />
-        <Metric label="多空 Sharpe" value={r.longShort.sharpe.toFixed(2)} />
-        <Metric label="多空最大回撤" value={pct(r.longShort.maxDrawdown)} />
+        <Metric label={`多空 D${n}−D1 年化`} value={pct(longShort.annReturn)} hint="纯因子收益" />
+        <Metric label="多空 Sharpe" value={longShort.sharpe.toFixed(2)} />
+        <Metric label="多空最大回撤" value={pct(longShort.maxDrawdown)} />
         <Metric label={`最高档${per}换手`} value={pctInt(r.topTurnover)} hint="越高摩擦越重" />
       </div>
 
@@ -246,6 +265,17 @@ const Result = complex.component(() => {
           </div>
         </>
       )}
+
+      {r.quantileHorizons?.length ? (
+        <>
+          <div className="jx-factor-sectionTitle">分位 × 前瞻期 · 各档在不同持有期的收益</div>
+          <QuantileHeatmap rows={r.quantileHorizons} weight={useMktcap ? 'mktcap' : 'equal'} />
+          <div className="jx-factor-chartCap">
+            格子=日均前瞻收益(‱ 万分,已按持有天数归一化,横向可比),红涨绿跌。看哪个前瞻期下 D1→D{n}
+            单调最强、信号衰不衰。
+          </div>
+        </>
+      ) : null}
     </>
   );
 }, 'Result');

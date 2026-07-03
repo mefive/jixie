@@ -6,6 +6,16 @@
 
 export type FactorFreq = 'month' | 'week';
 
+/** 分位收益加权方式(学聚宽 weight_method):等权 = 信号强度(小盘 bias);市值加权 = 可交易性/容量。 */
+export type FactorWeight = 'equal' | 'mktcap';
+
+/** 分位 × 前瞻期(日度归一化)的一行 —— 某前瞻期下各分位的日均前瞻收益,两种加权都算好。 */
+export interface QuantileHorizon {
+  horizonDays: number; // 前瞻期(交易日):1 / 5 / 10 / 20 / 60
+  equal: number[]; // length 10(deciles),日度归一化平均收益(等权)
+  mktcap: number[]; // 市值加权
+}
+
 /** How a factor's values are sourced — drives the compute path (and shown as a tag in the UI). */
 export type FactorKind = 'price' | 'fundamental' | 'moneyflow';
 
@@ -53,10 +63,14 @@ export interface FactorReport {
   icir: number; // icMean / icStd (single-period)
   icirAnnual: number; // icir × √(periodsPerYear)
   icPosRate: number; // fraction of periods with IC > 0
-  buckets: BucketStat[]; // length 10 (deciles), ascending by factor value
-  longShort: LongShortStat;
+  buckets: BucketStat[]; // length 10 (deciles), ascending by factor value — 等权
+  longShort: LongShortStat; // 等权多空
   topTurnover: number; // average one-way turnover of the top decile (rebalance churn)
   icDecay: IcDecayPoint[]; // Rank IC at several forward horizons — the decay curve (holding period)
+  // —— 加权方式 + 分位×前瞻期(optional:旧缓存报告没有)——
+  bucketsMktcap?: BucketStat[]; // 市值加权版分位统计(前端切「加权」时用;buckets 为等权)
+  longShortMktcap?: LongShortStat; // 市值加权多空
+  quantileHorizons?: QuantileHorizon[]; // 分位 × 前瞻期热力图(日度归一化,含两种加权)
 }
 
 /** A cached run's identity (for the "已跑" chips) — the report exists, fetch by these params. */

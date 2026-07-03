@@ -1,0 +1,39 @@
+@reference '../../styles/index.css';
+
+.jx-qh-scroll {
+  @apply overflow-x-auto;
+}
+
+.jx-qh-table {
+  border-collapse: separate;
+  border-spacing: 3px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.jx-qh-table th {
+  @apply text-muted;
+  font-weight: 400;
+  font-size: 11px;
+  padding: 2px 4px;
+  text-align: center;
+}
+
+.jx-qh-corner {
+  @apply text-muted;
+  text-align: left !important;
+  white-space: nowrap;
+}
+
+.jx-qh-table td {
+  @apply rounded text-ink;
+  padding: 4px 8px;
+  text-align: right;
+  min-width: 40px;
+}
+
+.jx-qh-h {
+  @apply font-semibold text-ink;
+  text-align: left !important;
+  white-space: nowrap;
+}
