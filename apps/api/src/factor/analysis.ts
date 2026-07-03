@@ -1,6 +1,7 @@
 import type { BucketStat, FactorReport, FactorFreq } from '@jixie/shared';
 import { prisma } from '../lib/prisma.js';
 import { FACTORS, FUNDAMENTAL_FACTORS, FACTOR_LABELS } from './factors.js';
+import { compileFactor } from './compile-factor.js';
 import { sameMonth, sameWeek, minusDays } from '../lib/date.js';
 import * as st from '../lib/stats.js';
 
@@ -191,6 +192,56 @@ async function computeFactorSeries(
     });
     for (const r of mf) {
       push(r.tradeDate, r.tsCode, factorKey === 'mf_net_main' ? r.netMain : r.netTotal);
+    }
+  } else {
+    // Custom factor: the key is a Factor id — compile the user's code + run compute cross-sectionally
+    // over each rebalance day's daily_basic (估值/规模/流动性). A throwing expression drops that stock.
+    const row = await prisma.factor.findUnique({
+      where: { id: factorKey },
+      select: { code: true },
+    });
+    if (row) {
+      const { compute } = await compileFactor(row.code);
+      onLog('运行自定义因子…');
+      for (const date of dates) {
+        const rows = await prisma.dailyBasic.findMany({
+          where: { tradeDate: date },
+          select: {
+            tsCode: true,
+            pe: true,
+            peTtm: true,
+            pb: true,
+            ps: true,
+            psTtm: true,
+            dvRatio: true,
+            dvTtm: true,
+            totalMv: true,
+            circMv: true,
+            turnoverRate: true,
+          },
+        });
+        for (const r of rows) {
+          let value: number | null = null;
+          try {
+            value = compute({
+              code: r.tsCode,
+              pe: r.pe,
+              peTtm: r.peTtm,
+              pb: r.pb,
+              ps: r.ps,
+              psTtm: r.psTtm,
+              dvRatio: r.dvRatio,
+              dvTtm: r.dvTtm,
+              totalMv: r.totalMv,
+              circMv: r.circMv,
+              turnoverRate: r.turnoverRate,
+            });
+          } catch {
+            value = null;
+          }
+          push(date, r.tsCode, value);
+        }
+      }
     }
   }
 
@@ -389,6 +440,11 @@ export async function analyzeFactor(
   }
 
   onLog('汇总 IC / 分层 / IC 衰减…');
+  // Preset factors label from the registry; a custom factor (id key) labels from its stored name.
+  const label =
+    FACTOR_LABELS[factorKey] ??
+    (await prisma.factor.findUnique({ where: { id: factorKey }, select: { name: true } }))?.name ??
+    factorKey;
   const icMean = st.mean(icSeries);
   const icStd = st.std(icSeries);
   const icir = icStd > 0 ? icMean / icStd : 0;
@@ -423,7 +479,7 @@ export async function analyzeFactor(
 
   return {
     factor: factorKey,
-    label: FACTOR_LABELS[factorKey] ?? factorKey,
+    label,
     freq,
     start,
     end,

@@ -79,6 +79,70 @@
   background: rgb(17 24 39 / 0.06);
 }
 
+/* custom factors get a distinct (ink) tag so they stand out from the presets */
+.jx-factor-kind--custom {
+  @apply text-ink;
+  background: rgb(240 160 32 / 0.18);
+}
+
+/* 新建因子 entry at the top of the list */
+.jx-factor-new {
+  @apply flex items-center justify-center gap-2;
+  @apply border-b border-line text-muted;
+  padding: 10px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.jx-factor-new:hover {
+  @apply text-ink;
+  background: rgb(17 24 39 / 0.03);
+}
+
+/* edit / delete affordances on a custom factor row */
+.jx-factor-listActions {
+  @apply flex items-center gap-2 text-muted;
+  font-size: 11px;
+}
+
+.jx-factor-listActions [role='button']:hover {
+  @apply text-ink;
+}
+
+/* —— code-first factor editor (modal) —— */
+.jx-factor-editor {
+  @apply flex flex-col gap-3;
+}
+
+.jx-factor-editorCode {
+  @apply overflow-hidden rounded-lg border border-line;
+  height: 52vh;
+}
+
+.jx-factor-editorLoading {
+  @apply flex h-full items-center justify-center text-muted;
+  font-size: 13px;
+}
+
+.jx-factor-editorHint {
+  @apply text-muted;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.jx-factor-editorHint code {
+  @apply rounded text-ink;
+  padding: 1px 4px;
+  font-size: 11px;
+  background: rgb(17 24 39 / 0.06);
+}
+
+.jx-factor-editorError {
+  @apply text-down;
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+
 /* —— detail —— */
 .jx-factor-detail {
   flex: 1;

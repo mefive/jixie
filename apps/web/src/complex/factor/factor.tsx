@@ -3,10 +3,18 @@ import { useSearchParams } from 'react-router-dom';
 import classNames from 'classnames';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
-import { DatePicker, Segmented, Select } from 'antd';
+import { Button, DatePicker, Input, Modal, Segmented, Select } from 'antd';
 import type { FactorKind, IcDecayPoint, FactorWeight } from '@jixie/shared';
-import { faSpinner, faTriangleExclamation, faPlay } from '@fortawesome/free-solid-svg-icons';
+import {
+  faSpinner,
+  faTriangleExclamation,
+  faPlay,
+  faPlus,
+  faPen,
+  faTrash,
+} from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { getCustomFactor } from '@src/api/client';
 import { TopNav } from '@src/components/top-nav';
 import { LoaderButton } from '@src/components/loader-button';
 import { Placeholder } from '@src/components/placeholder';
@@ -17,6 +25,7 @@ import './factor.css';
 dayjs.extend(customParseFormat);
 const DecileChart = lazy(() => import('./decile-chart'));
 const IcDecayChart = lazy(() => import('./ic-decay-chart'));
+const FactorEditor = lazy(() => import('./factor-editor'));
 
 /**
  * 因子分析(产品线 1.5). Left: the factor catalog. Right: for the selected factor, choose 频率(月/周)+
@@ -72,12 +81,25 @@ export const Factor = complex.component(() => {
 
 // —— 子组件 ——
 
-// Left: the catalog as a clickable list (identity + kind). No metrics — those come from running analysis.
+// Left: the catalog as a clickable list (identity + kind) + a 新建因子 entry for custom (code-first)
+// factors. No metrics — those come from running analysis.
 const FactorList = complex.component(() => {
   const store = complex.useStore();
   const list = store.catalogLoader.result ?? [];
+  // The factor-editor modal: closed (null) / new (no id) / editing an existing custom factor (has id).
+  const [editing, setEditing] = useState<{ id?: string; name: string; code: string } | null>(null);
+
+  const openNew = () => setEditing({ name: '', code: DEFAULT_FACTOR_CODE });
+  const openEdit = async (id: string) => {
+    const factor = await getCustomFactor(id);
+    setEditing({ id, name: factor.name, code: factor.code });
+  };
+
   return (
     <div className="jx-factor-list">
+      <button className="jx-factor-new" onClick={openNew}>
+        <FontAwesomeIcon icon={faPlus} /> 新建因子
+      </button>
       {list.map((f) => (
         <button
           key={f.key}
@@ -88,14 +110,121 @@ const FactorList = complex.component(() => {
         >
           <span className="jx-factor-listName">{f.label}</span>
           <span className="jx-factor-listMeta">
-            <span className="jx-factor-listKey">{f.key}</span>
+            {f.kind === 'custom' ? (
+              <span className="jx-factor-listActions">
+                <span
+                  role="button"
+                  title="编辑"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void openEdit(f.key);
+                  }}
+                >
+                  <FontAwesomeIcon icon={faPen} />
+                </span>
+                <span
+                  role="button"
+                  title="删除"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void store.removeFactor(f.key);
+                  }}
+                >
+                  <FontAwesomeIcon icon={faTrash} />
+                </span>
+              </span>
+            ) : (
+              <span className="jx-factor-listKey">{f.key}</span>
+            )}
             <span className={`jx-factor-kind jx-factor-kind--${f.kind}`}>{KIND_LABEL[f.kind]}</span>
           </span>
         </button>
       ))}
+
+      {editing && <FactorEditorModal initial={editing} onClose={() => setEditing(null)} />}
     </div>
   );
 }, 'FactorList');
+
+// The code-first factor editor (新建 / 编辑) — a Monaco `defineFactor` editor + name + save.
+const FactorEditorModal = complex.component(
+  ({
+    initial,
+    onClose,
+  }: {
+    initial: { id?: string; name: string; code: string };
+    onClose: () => void;
+  }) => {
+    const store = complex.useStore();
+    const [name, setName] = useState(initial.name);
+    const [code, setCode] = useState(initial.code);
+    const [error, setError] = useState('');
+    const [saving, setSaving] = useState(false);
+
+    const save = async () => {
+      if (!name.trim()) {
+        setError('请填因子名');
+        return;
+      }
+      setSaving(true);
+      setError('');
+      try {
+        await store.saveFactor(name.trim(), code);
+        onClose();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : '保存失败');
+      } finally {
+        setSaving(false);
+      }
+    };
+
+    return (
+      <Modal
+        open
+        title={initial.id ? '编辑因子' : '新建因子'}
+        width="72vw"
+        style={{ top: 24 }}
+        onCancel={onClose}
+        footer={[
+          <Button key="cancel" onClick={onClose}>
+            取消
+          </Button>,
+          <Button key="save" type="primary" loading={saving} onClick={save}>
+            保存
+          </Button>,
+        ]}
+      >
+        <div className="jx-factor-editor">
+          <Input
+            placeholder="因子名(如 销售收益率)"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <div className="jx-factor-editorCode">
+            <Suspense fallback={<div className="jx-factor-editorLoading">加载编辑器……</div>}>
+              <FactorEditor value={code} onChange={setCode} />
+            </Suspense>
+          </div>
+          <div className="jx-factor-editorHint">
+            写{' '}
+            <code>export default defineFactor(&#123; name, compute(bar) &#123;…&#125; &#125;)</code>
+            。bar 是当天横截面数据(peTtm / pb / dvRatio / totalMv / turnoverRate …,输{' '}
+            <code>bar.</code> 有补全),返回因子值或 null。方向别预判——看分析的 IC 符号。
+          </div>
+          {error && <div className="jx-factor-editorError">{error}</div>}
+        </div>
+      </Modal>
+    );
+  },
+  'FactorEditorModal',
+);
+
+const DEFAULT_FACTOR_CODE = `export default defineFactor({
+  name: '我的因子',
+  // bar 是当天某只股票的横截面数据(估值 / 规模 / 流动性),返回因子值或 null
+  compute: (bar) => (bar.peTtm && bar.peTtm > 0 ? 1 / bar.peTtm : null),
+});
+`;
 
 // Right: params bar + run chips + result for the selected factor.
 const FactorPanel = complex.component(() => {
@@ -323,6 +452,7 @@ const KIND_LABEL: Record<FactorKind, string> = {
   price: '价格',
   fundamental: '基本面',
   moneyflow: '资金流',
+  custom: '自定义',
 };
 
 const pct = (v: number) => `${(v * 100).toFixed(2)}%`;

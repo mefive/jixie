@@ -16,8 +16,25 @@ export interface QuantileHorizon {
   mktcap: number[]; // 市值加权
 }
 
-/** How a factor's values are sourced — drives the compute path (and shown as a tag in the UI). */
-export type FactorKind = 'price' | 'fundamental' | 'moneyflow';
+/** How a factor's values are sourced — drives the compute path (and shown as a tag in the UI).
+ * 'custom' = user-authored (defineFactor); its compute runs cross-sectionally over a FactorBar. */
+export type FactorKind = 'price' | 'fundamental' | 'moneyflow' | 'custom';
+
+/** 自定义因子(用户写 `defineFactor`)compute 拿到的横截面单股数据 —— 当天(时点)估值 / 规模 / 流动性,
+ * 来自 daily_basic。不含价格历史,需要窗口的(自定义动量 / 波动率)是后续 B 方案。 */
+export interface FactorBar {
+  code: string;
+  pe: number | null; // 市盈率
+  peTtm: number | null; // 市盈率 TTM
+  pb: number | null; // 市净率
+  ps: number | null; // 市销率
+  psTtm: number | null; // 市销率 TTM
+  dvRatio: number | null; // 股息率 %
+  dvTtm: number | null; // 股息率 TTM %
+  totalMv: number | null; // 总市值(万元)
+  circMv: number | null; // 流通市值(万元)
+  turnoverRate: number | null; // 换手率 %
+}
 
 /** Catalog entry — one row in the factor list (no analysis, just identity). */
 export interface FactorMeta {
