@@ -206,9 +206,31 @@ export function fetchIndexSeries(
 
 import type { FactorReport, FactorMeta, FactorRun, FactorFreq } from '@jixie/shared';
 
-// 因子研究: the factor list (identity + kind).
+// 因子研究: the factor list (identity + kind) — preset + this user's custom factors.
 export function getFactorCatalog(): Promise<FactorMeta[]> {
   return request('/api/app/factors/catalog');
+}
+
+// —— Custom factors (code-first) ——
+export interface CustomFactorMeta {
+  id: string;
+  name: string;
+  updatedAt: string;
+}
+export function getCustomFactor(id: string): Promise<{ id: string; name: string; code: string }> {
+  return request(`/api/app/factors/custom/${id}`);
+}
+export function saveCustomFactor(
+  name: string,
+  code: string,
+): Promise<{ id: string; name: string }> {
+  return request('/api/app/factors/custom', {
+    method: 'POST',
+    body: JSON.stringify({ name, code }),
+  });
+}
+export function deleteCustomFactor(id: string): Promise<{ ok: true }> {
+  return request(`/api/app/factors/custom/${id}`, { method: 'DELETE' });
 }
 
 // A factor's cached runs (the "已跑" chips).

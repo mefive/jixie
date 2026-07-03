@@ -1,10 +1,12 @@
 import { Worker } from 'node:worker_threads';
 import { Hono } from 'hono';
+import { ulid } from 'ulid';
 import { z } from 'zod';
 import type { FactorReport } from '@jixie/shared';
-import { apiError, validateQuery } from '../lib/httpError.js';
+import { apiError, validateJson, validateQuery } from '../lib/httpError.js';
 import { prisma } from '../lib/prisma.js';
 import { FACTOR_CATALOG } from '../factor/factors.js';
+import { compileFactor } from '../factor/compile-factor.js';
 import { createJob, appendLog, finishJob, getJob, findRunningJob } from '../lib/jobs.js';
 
 /**
@@ -30,7 +32,73 @@ const workerUrl = import.meta.url.endsWith('.ts')
   ? new URL('../factor/factor-worker.boot.mjs', import.meta.url)
   : new URL('../factor/factor-worker.js', import.meta.url);
 
-factorRoute.get('/catalog', (c) => c.json(FACTOR_CATALOG));
+factorRoute.get('/catalog', async (c) => {
+  // Preset factors + this user's custom factors (key = Factor id, kind = 'custom').
+  const custom = await prisma.factor.findMany({
+    where: { userId: c.var.userId },
+    select: { id: true, name: true },
+    orderBy: { updatedAt: 'desc' },
+  });
+  const customMeta = custom.map((f) => ({ key: f.id, label: f.name, kind: 'custom' as const }));
+  return c.json([...FACTOR_CATALOG, ...customMeta]);
+});
+
+// —— Custom factors (code-first, mirrors saved strategies) ——
+const factorBody = z.object({ name: z.string().min(1).max(40), code: z.string().min(1) });
+
+factorRoute.get('/custom', async (c) => {
+  const rows = await prisma.factor.findMany({
+    where: { userId: c.var.userId },
+    select: { id: true, name: true, updatedAt: true },
+    orderBy: { updatedAt: 'desc' },
+  });
+  return c.json(rows);
+});
+
+factorRoute.get('/custom/:id', async (c) => {
+  const row = await prisma.factor.findFirst({
+    where: { id: c.req.param('id'), userId: c.var.userId },
+    select: { id: true, name: true, code: true },
+  });
+  if (!row) {
+    return apiError(c, 'NOT_FOUND', '因子不存在');
+  }
+  return c.json(row);
+});
+
+factorRoute.post('/custom', validateJson(factorBody), async (c) => {
+  const userId = c.var.userId;
+  const { name, code } = c.req.valid('json');
+  // Compile-check before persisting — reject syntax / shape errors up front.
+  try {
+    await compileFactor(code);
+  } catch (e) {
+    return apiError(c, 'VALIDATION_FAILED', e instanceof Error ? e.message : '因子代码无效');
+  }
+
+  const existing = await prisma.factor.findUnique({
+    where: { userId_name: { userId, name } },
+    select: { id: true },
+  });
+  if (existing) {
+    await prisma.factor.update({ where: { id: existing.id }, data: { code } });
+    // Editing changes the factor values → its cached reports are stale.
+    await prisma.factorReport.deleteMany({ where: { userId, factor: existing.id } });
+    return c.json({ id: existing.id, name });
+  }
+
+  const id = ulid();
+  await prisma.factor.create({ data: { id, userId, name, code } });
+  return c.json({ id, name });
+});
+
+factorRoute.delete('/custom/:id', async (c) => {
+  const userId = c.var.userId;
+  const id = c.req.param('id');
+  await prisma.factor.deleteMany({ where: { id, userId } });
+  await prisma.factorReport.deleteMany({ where: { userId, factor: id } });
+  return c.json({ ok: true });
+});
 
 const analysisQuery = z.object({
   factor: z.string().min(1),
@@ -85,7 +153,14 @@ factorRoute.post('/analysis/run', validateQuery(analysisQuery), async (c) => {
   const userId = c.var.userId;
   const { factor, freq, start, end, refresh } = c.req.valid('query');
   if (!CATALOG_KEYS.has(factor)) {
-    return apiError(c, 'NOT_FOUND', `未知因子 ${factor}`);
+    // Not a preset key → must be one of this user's custom factors (id).
+    const custom = await prisma.factor.findFirst({
+      where: { id: factor, userId },
+      select: { id: true },
+    });
+    if (!custom) {
+      return apiError(c, 'NOT_FOUND', `未知因子 ${factor}`);
+    }
   }
   if (start >= end) {
     return apiError(c, 'VALIDATION_FAILED', '起始日期必须早于结束日期');

@@ -8,6 +8,8 @@ import {
   runFactorAnalysis,
   pollFactorJob,
   findFactorRunningJob,
+  saveCustomFactor,
+  deleteCustomFactor,
 } from '@src/api/client';
 
 // Initial state from the URL (?factor=&freq=&start=&end=) — makes a report refresh-safe + shareable.
@@ -126,6 +128,26 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     } else {
       this.analysisLoader.reset(); // fresh factor — wait for an explicit 运行
     }
+  }
+
+  /** Save (create or update-by-name) a custom factor, refresh the catalog, and select it. */
+  public async saveFactor(name: string, code: string): Promise<string> {
+    const { id } = await saveCustomFactor(name, code);
+    await this.catalogLoader.run();
+    await this.selectFactor(id);
+    return id;
+  }
+
+  /** Delete a custom factor; deselect it if it was open, then refresh the catalog. */
+  public async removeFactor(id: string) {
+    await deleteCustomFactor(id);
+    if (this.selectedKey === id) {
+      runInAction(() => {
+        this.selectedKey = '';
+      });
+      this.analysisLoader.reset();
+    }
+    await this.catalogLoader.run();
   }
 
   /** Run (or view, if cached) the analysis. A cache hit returns instantly; otherwise a job starts and
