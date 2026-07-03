@@ -46,18 +46,31 @@ export const LoaderButton = reactUtils.observer((props: LoaderButtonProps) => {
   const loading = (loadingProp ?? false) || (loader?.loading ?? false) || busy;
 
   const handleClick = async () => {
-    if (busyRef.current || loading || disabled) return;
+    if (busyRef.current || loading || disabled) {
+      return;
+    }
     busyRef.current = true;
     setBusy(true);
     try {
-      if (beforeRun && !(await beforeRun())) return; // gate failed: abort silently
-      if (confirm && !(await confirmModal(modal, confirm))) return; // user cancelled
-      if (action) await action();
-      else if (loader) await loader.run(payload?.());
-      if (successMessage) message.success(successMessage);
+      if (beforeRun && !(await beforeRun())) {
+        return;
+      } // gate failed: abort silently
+      if (confirm && !(await confirmModal(modal, confirm))) {
+        return;
+      } // user cancelled
+      if (action) {
+        await action();
+      } else if (loader) {
+        await loader.run(payload?.());
+      }
+      if (successMessage) {
+        message.success(successMessage);
+      }
       onSuccess?.();
     } catch (err) {
-      if (errorMessage === false) return;
+      if (errorMessage === false) {
+        return;
+      }
       message.error(errorMessage || errMsg(err));
     } finally {
       busyRef.current = false;

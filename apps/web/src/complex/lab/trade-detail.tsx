@@ -29,7 +29,9 @@ export default function TradeDetail({
 }) {
   const codes = useMemo(() => {
     const c = new Map<string, number>();
-    for (const t of tradeLog) c.set(t.code, (c.get(t.code) ?? 0) + 1);
+    for (const t of tradeLog) {
+      c.set(t.code, (c.get(t.code) ?? 0) + 1);
+    }
     return [...c.entries()].sort((a, b) => b[1] - a[1]); // [code, count] by count desc
   }, [tradeLog]);
 
@@ -43,7 +45,9 @@ export default function TradeDetail({
 
   // Names for the traded-instruments queue (bulk, once).
   useEffect(() => {
-    if (!codes.length) return;
+    if (!codes.length) {
+      return;
+    }
     fetchNames(codes.map((c) => c[0]))
       .then(setNames)
       .catch(() => {});
@@ -68,7 +72,9 @@ export default function TradeDetail({
   );
 
   useEffect(() => {
-    if (!code) return;
+    if (!code) {
+      return;
+    }
     let alive = true;
     setLoading(true);
     fetchStockSeries(code, start, end)
@@ -80,7 +86,9 @@ export default function TradeDetail({
   }, [code, start, end]);
 
   const option = useMemo<ECOption | null>(() => {
-    if (!series) return null;
+    if (!series) {
+      return null;
+    }
     const p = series.points;
     const dates = p.map((d) => d.date);
     // Unadjusted (raw) prices — so the chart's price level matches the real fill prices shown in the list
@@ -99,9 +107,13 @@ export default function TradeDetail({
     // MA5/20/60 over close (left price axis).
     const ma = (n: number): (number | null)[] =>
       close.map((_, i) => {
-        if (i < n - 1) return null;
+        if (i < n - 1) {
+          return null;
+        }
         let s = 0;
-        for (let k = i - n + 1; k <= i; k++) s += close[k];
+        for (let k = i - n + 1; k <= i; k++) {
+          s += close[k];
+        }
         return Number.isFinite(s) ? +(s / n).toFixed(2) : null;
       });
 
@@ -111,12 +123,16 @@ export default function TradeDetail({
     const benchMap = new Map(bench.map((x) => [x.date, x.close]));
     const bench0 = bench[0]?.close;
     const ret = (map: Map<string, number>, base?: number): (number | null)[] =>
-      dates.map((d) => (map.has(d) && base ? +(((map.get(d)! / base - 1) * 100).toFixed(2)) : null));
+      dates.map((d) => (map.has(d) && base ? +((map.get(d)! / base - 1) * 100).toFixed(2) : null));
     const stratRet = ret(navMap, nav0);
     const benchRet = ret(benchMap, bench0);
 
     let lo = Infinity;
-    for (const c of candle) if (Number.isFinite(c[2])) lo = Math.min(lo, c[2]);
+    for (const c of candle) {
+      if (Number.isFinite(c[2])) {
+        lo = Math.min(lo, c[2]);
+      }
+    }
     const dots = trades.map((t) => ({ value: [t.date, lo], side: t.side }));
 
     return {
@@ -135,36 +151,132 @@ export default function TradeDetail({
         { left: 60, right: 56, top: '68%', height: '17%' },
       ],
       xAxis: [
-        { type: 'category', data: dates, boundaryGap: true, axisLabel: { show: false }, axisLine: { lineStyle: { color: '#e8eaed' } } },
-        { type: 'category', gridIndex: 1, data: dates, axisLabel: { formatter: (d: string) => d.slice(0, 6), color: '#8a9099' }, axisLine: { lineStyle: { color: '#e8eaed' } } },
+        {
+          type: 'category',
+          data: dates,
+          boundaryGap: true,
+          axisLabel: { show: false },
+          axisLine: { lineStyle: { color: '#e8eaed' } },
+        },
+        {
+          type: 'category',
+          gridIndex: 1,
+          data: dates,
+          axisLabel: { formatter: (d: string) => d.slice(0, 6), color: '#8a9099' },
+          axisLine: { lineStyle: { color: '#e8eaed' } },
+        },
       ],
       yAxis: [
-        { type: 'value', scale: true, position: 'left', axisLabel: { color: '#8a9099' }, splitLine: { lineStyle: { color: '#f0f1f3' } } },
+        {
+          type: 'value',
+          scale: true,
+          position: 'left',
+          axisLabel: { color: '#8a9099' },
+          splitLine: { lineStyle: { color: '#f0f1f3' } },
+        },
         { gridIndex: 1, axisLabel: { show: false }, splitLine: { show: false } },
-        { type: 'value', position: 'right', axisLabel: { formatter: (v: number) => `${v}%`, color: '#8a9099' }, splitLine: { show: false } },
+        {
+          type: 'value',
+          position: 'right',
+          axisLabel: { formatter: (v: number) => `${v}%`, color: '#8a9099' },
+          splitLine: { show: false },
+        },
       ],
       dataZoom: [
         { type: 'inside', xAxisIndex: [0, 1], start: 0, end: 100 },
         { type: 'slider', xAxisIndex: [0, 1], bottom: 10, height: 20, start: 0, end: 100 },
       ],
       series: [
-        { name: 'K线', type: 'candlestick', xAxisIndex: 0, yAxisIndex: 0, data: candle, itemStyle: { color: UP, color0: DOWN, borderColor: UP, borderColor0: DOWN } },
-        { name: 'MA5', type: 'line', xAxisIndex: 0, yAxisIndex: 0, data: ma(5), showSymbol: false, itemStyle: { color: '#f0a020' }, lineStyle: { width: 1, color: '#f0a020' }, z: 3 },
-        { name: 'MA20', type: 'line', xAxisIndex: 0, yAxisIndex: 0, data: ma(20), showSymbol: false, itemStyle: { color: '#3b82f6' }, lineStyle: { width: 1, color: '#3b82f6' }, z: 3 },
-        { name: 'MA60', type: 'line', xAxisIndex: 0, yAxisIndex: 0, data: ma(60), showSymbol: false, itemStyle: { color: '#a855f7' }, lineStyle: { width: 1, color: '#a855f7' }, z: 3 },
-        { name: '策略收益', type: 'line', xAxisIndex: 0, yAxisIndex: 2, data: stratRet, showSymbol: false, connectNulls: true, itemStyle: { color: '#111827' }, lineStyle: { width: 1.5, color: '#111827' }, z: 4 },
-        { name: '沪深300', type: 'line', xAxisIndex: 0, yAxisIndex: 2, data: benchRet, showSymbol: false, connectNulls: true, itemStyle: { color: '#8a9099' }, lineStyle: { width: 1.5, color: '#8a9099', type: 'dashed' }, z: 4 },
+        {
+          name: 'K线',
+          type: 'candlestick',
+          xAxisIndex: 0,
+          yAxisIndex: 0,
+          data: candle,
+          itemStyle: { color: UP, color0: DOWN, borderColor: UP, borderColor0: DOWN },
+        },
+        {
+          name: 'MA5',
+          type: 'line',
+          xAxisIndex: 0,
+          yAxisIndex: 0,
+          data: ma(5),
+          showSymbol: false,
+          itemStyle: { color: '#f0a020' },
+          lineStyle: { width: 1, color: '#f0a020' },
+          z: 3,
+        },
+        {
+          name: 'MA20',
+          type: 'line',
+          xAxisIndex: 0,
+          yAxisIndex: 0,
+          data: ma(20),
+          showSymbol: false,
+          itemStyle: { color: '#3b82f6' },
+          lineStyle: { width: 1, color: '#3b82f6' },
+          z: 3,
+        },
+        {
+          name: 'MA60',
+          type: 'line',
+          xAxisIndex: 0,
+          yAxisIndex: 0,
+          data: ma(60),
+          showSymbol: false,
+          itemStyle: { color: '#a855f7' },
+          lineStyle: { width: 1, color: '#a855f7' },
+          z: 3,
+        },
+        {
+          name: '策略收益',
+          type: 'line',
+          xAxisIndex: 0,
+          yAxisIndex: 2,
+          data: stratRet,
+          showSymbol: false,
+          connectNulls: true,
+          itemStyle: { color: '#111827' },
+          lineStyle: { width: 1.5, color: '#111827' },
+          z: 4,
+        },
+        {
+          name: '沪深300',
+          type: 'line',
+          xAxisIndex: 0,
+          yAxisIndex: 2,
+          data: benchRet,
+          showSymbol: false,
+          connectNulls: true,
+          itemStyle: { color: '#8a9099' },
+          lineStyle: { width: 1.5, color: '#8a9099', type: 'dashed' },
+          z: 4,
+        },
         { name: '量', type: 'bar', xAxisIndex: 1, yAxisIndex: 1, data: vols },
-        { name: '交易', type: 'scatter', xAxisIndex: 0, yAxisIndex: 0, data: dots, symbol: 'circle', symbolSize: 9, itemStyle: { color: DOT, borderColor: '#fff', borderWidth: 1 }, z: 10 },
+        {
+          name: '交易',
+          type: 'scatter',
+          xAxisIndex: 0,
+          yAxisIndex: 0,
+          data: dots,
+          symbol: 'circle',
+          symbolSize: 9,
+          itemStyle: { color: DOT, borderColor: '#fff', borderWidth: 1 },
+          z: 10,
+        },
       ],
     };
   }, [series, trades, nav, bench]);
 
   const pick = (date: string) => {
     const idx = trades.findIndex((t) => t.date === date);
-    if (idx < 0) return;
+    if (idx < 0) {
+      return;
+    }
     setActive(idx);
-    listRef.current?.querySelector(`[data-i="${idx}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    listRef.current
+      ?.querySelector(`[data-i="${idx}"]`)
+      ?.scrollIntoView({ block: 'center', behavior: 'smooth' });
   };
 
   return (
@@ -206,7 +318,9 @@ export default function TradeDetail({
             option={option}
             className="jx-td-canvas"
             onClick={(p: any) => {
-              if (p.seriesName === '交易') pick(p.value[0]);
+              if (p.seriesName === '交易') {
+                pick(p.value[0]);
+              }
             }}
           />
         )}
@@ -222,7 +336,11 @@ export default function TradeDetail({
           <span className="jx-td-num">金额</span>
         </div>
         {trades.map((t, i) => (
-          <div key={i} data-i={i} className={classNames('jx-td-row', { 'jx-td-row--active': i === active })}>
+          <div
+            key={i}
+            data-i={i}
+            className={classNames('jx-td-row', { 'jx-td-row--active': i === active })}
+          >
             {showAll && (
               <span className="jx-td-inst">
                 <span className="jx-td-instName">{names[t.code] ?? t.code}</span>
@@ -230,8 +348,12 @@ export default function TradeDetail({
               </span>
             )}
             <span>{fmtDate(t.date)}</span>
-            <span className={t.side === 'buy' ? 'text-up' : 'text-down'}>{t.side === 'buy' ? '买' : '卖'}</span>
-            <span className="jx-td-num">{Math.round(t.realShares ?? t.shares).toLocaleString()}</span>
+            <span className={t.side === 'buy' ? 'text-up' : 'text-down'}>
+              {t.side === 'buy' ? '买' : '卖'}
+            </span>
+            <span className="jx-td-num">
+              {Math.round(t.realShares ?? t.shares).toLocaleString()}
+            </span>
             <span className="jx-td-num">{(t.realPrice ?? t.price).toFixed(2)}</span>
             <span className="jx-td-num">{(t.amount / 10000).toFixed(1)}万</span>
           </div>

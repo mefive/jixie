@@ -4,8 +4,16 @@ import './quantile-heatmap.css';
 
 /** 分位 × 前瞻期热力图 —— 行=前瞻期,列=分位 D1..D10,格子=日均前瞻收益(‱ 万分),红涨绿跌。
  * 看哪个前瞻期下分位单调最强(左低→右高),以及信号衰不衰。日度归一化后各前瞻期可直接比。 */
-export function QuantileHeatmap({ rows, weight }: { rows: QuantileHorizon[]; weight: FactorWeight }) {
-  if (!rows?.length) return null;
+export function QuantileHeatmap({
+  rows,
+  weight,
+}: {
+  rows: QuantileHorizon[];
+  weight: FactorWeight;
+}) {
+  if (!rows?.length) {
+    return null;
+  }
   const n = rows[0][weight].length;
   return (
     <div className="jx-qh-scroll">

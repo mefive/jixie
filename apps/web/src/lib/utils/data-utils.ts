@@ -66,8 +66,12 @@ export function transformFields(
 }
 
 export function sort<T>(a: T, b: T) {
-  if (a > b) return 1;
-  if (a < b) return -1;
+  if (a > b) {
+    return 1;
+  }
+  if (a < b) {
+    return -1;
+  }
   return 0;
 }
 
@@ -112,7 +116,9 @@ export function normalizeString(value: any): string {
 }
 
 export function parseJsonString<T>(jsonString: string, fallbackValue?: T): T {
-  if (!jsonString) return fallbackValue;
+  if (!jsonString) {
+    return fallbackValue;
+  }
   try {
     return JSON.parse(jsonString);
   } catch (er) {

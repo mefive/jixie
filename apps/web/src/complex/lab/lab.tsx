@@ -294,7 +294,9 @@ function PromptBox({
   autoSize?: { minRows: number; maxRows: number };
 }) {
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.nativeEvent.isComposing) return; // mid-IME (拼音候选) — let Enter confirm, never send
+    if (e.nativeEvent.isComposing) {
+      return;
+    } // mid-IME (拼音候选) — let Enter confirm, never send
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       onSubmit();
@@ -346,7 +348,9 @@ const ResultPanel = complex.component(() => {
     return <RunningLog lines={store.logLines} />;
   }
   if (store.error) {
-    return <div className="jx-lab-placeholder jx-lab-placeholder--error">回测失败：{store.error}</div>;
+    return (
+      <div className="jx-lab-placeholder jx-lab-placeholder--error">回测失败：{store.error}</div>
+    );
   }
   const r = store.result; // a finished run, or the saved last-result loaded on reopen
   if (!r) {
@@ -371,7 +375,8 @@ const ResultPanel = complex.component(() => {
     { label: '胜率', value: optPct(r.winRate) },
     {
       label: '盈亏比',
-      value: r.profitFactor == null ? '—' : r.profitFactor >= 99 ? '99+' : r.profitFactor.toFixed(2),
+      value:
+        r.profitFactor == null ? '—' : r.profitFactor >= 99 ? '99+' : r.profitFactor.toFixed(2),
     },
     { label: '年换手', value: r.turnover == null ? '—' : `${r.turnover.toFixed(1)}×` },
     { label: '期末权益', value: Math.round(r.finalValue).toLocaleString() },
@@ -442,7 +447,9 @@ function RunningLog({ lines }: { lines: string[] }) {
   const ref = useRef<HTMLPreElement>(null);
   useEffect(() => {
     const el = ref.current;
-    if (el) el.scrollTop = el.scrollHeight;
+    if (el) {
+      el.scrollTop = el.scrollHeight;
+    }
   }, [lines.length]);
 
   return (
@@ -463,7 +470,10 @@ function RunningLog({ lines }: { lines: string[] }) {
 // Starter prompts for the new-strategy hero — short chip label + the full sentence sent to NL→code.
 const EXAMPLE_PROMPTS = [
   { label: '高股息 20 只', prompt: '每月买入股息率最高的 20 只，等权' },
-  { label: '沪深300 低估值', prompt: '沪深300 里 ROE 大于 15%、市盈率最低的 30 只，每月调仓，等权' },
+  {
+    label: '沪深300 低估值',
+    prompt: '沪深300 里 ROE 大于 15%、市盈率最低的 30 只，每月调仓，等权',
+  },
   { label: '中证500 动量', prompt: '中证500 里 20 日动量最强的 20 只，每周轮动，等权' },
 ];
 

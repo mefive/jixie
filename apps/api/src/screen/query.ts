@@ -15,7 +15,9 @@ async function latestSnapshotDate(): Promise<string | null> {
  * stock list once, builds one ScreenRow per stock, then applies the (pure) filter/sort/limit. */
 export async function runScreen(spec: ScreenSpec): Promise<ScreenResult> {
   const date = await latestSnapshotDate();
-  if (!date) return { tradeDate: '', total: 0, rows: [] };
+  if (!date) {
+    return { tradeDate: '', total: 0, rows: [] };
+  }
 
   const [db, px, basics] = await Promise.all([
     prisma.dailyBasic.findMany({ where: { tradeDate: date } }),
@@ -57,7 +59,9 @@ export async function runScreen(spec: ScreenSpec): Promise<ScreenResult> {
  * latest daily_basic / daily so a stock with no snapshot that day still shows (name + null metrics). */
 export async function screenForCodes(codes: string[]): Promise<ScreenResult> {
   const date = await latestSnapshotDate();
-  if (!date || codes.length === 0) return { tradeDate: date ?? '', total: codes.length, rows: [] };
+  if (!date || codes.length === 0) {
+    return { tradeDate: date ?? '', total: codes.length, rows: [] };
+  }
 
   const [db, px, basics] = await Promise.all([
     prisma.dailyBasic.findMany({ where: { tradeDate: date, tsCode: { in: codes } } }),

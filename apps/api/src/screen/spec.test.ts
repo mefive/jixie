@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 import type { ScreenRow } from '@jixie/shared';
 import { applyScreen, validateScreenSpec } from './spec.js';
 
-const row = (tsCode: string, pe: number | null, dvRatio: number | null, totalMv: number): ScreenRow => ({
+const row = (
+  tsCode: string,
+  pe: number | null,
+  dvRatio: number | null,
+  totalMv: number,
+): ScreenRow => ({
   tsCode,
   name: tsCode,
   industry: null,
@@ -28,18 +33,27 @@ const rows: ScreenRow[] = [
 
 describe('applyScreen', () => {
   it('filters by predicate (missing value never passes)', () => {
-    const { total, rows: out } = applyScreen(rows, { filters: [{ field: 'pe', op: '<', value: 13 }] });
+    const { total, rows: out } = applyScreen(rows, {
+      filters: [{ field: 'pe', op: '<', value: 13 }],
+    });
     expect(total).toBe(2); // A(8), D(12) — C(null) excluded, B(15) excluded
     expect(out.map((r) => r.tsCode).sort()).toEqual(['A', 'D']);
   });
 
   it('sorts (nulls last) and limits', () => {
-    const { rows: out } = applyScreen(rows, { filters: [], sort: { field: 'pe', dir: 'asc' }, limit: 3 });
+    const { rows: out } = applyScreen(rows, {
+      filters: [],
+      sort: { field: 'pe', dir: 'asc' },
+      limit: 3,
+    });
     expect(out.map((r) => r.tsCode)).toEqual(['A', 'D', 'B']); // 8,12,15 then C(null) dropped by limit
   });
 
   it('descending sort', () => {
-    const { rows: out } = applyScreen(rows, { filters: [], sort: { field: 'totalMv', dir: 'desc' } });
+    const { rows: out } = applyScreen(rows, {
+      filters: [],
+      sort: { field: 'totalMv', dir: 'desc' },
+    });
     expect(out.map((r) => r.tsCode)).toEqual(['B', 'D', 'C', 'A']); // 500,300,200,100
   });
 

@@ -17,7 +17,9 @@ function ctxOf(
     // members ∩ universe when given an index code — mirroring the real pushdown.
     loadCrossSection: async (idx?: string) => {
       const all = Object.keys(rows);
-      if (!idx) return all;
+      if (!idx) {
+        return all;
+      }
       const set = new Set(members[idx] ?? []);
       return all.filter((c) => set.has(c));
     },

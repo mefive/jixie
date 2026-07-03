@@ -26,7 +26,9 @@ export async function runStrategy(cfg: EngineConfig): Promise<BacktestResult> {
   const log = cfg.onLog ?? (() => {}); // progress sink (worker forwards to the job; scripts no-op)
   const engineData = new EngineData(cfg.start, cfg.end, cfg.strategy.factors ?? [], log);
   await engineData.load();
-  if (cfg.strategy.watch?.length) await engineData.loadBars(cfg.strategy.watch); // per-instrument preload
+  if (cfg.strategy.watch?.length) {
+    await engineData.loadBars(cfg.strategy.watch);
+  } // per-instrument preload
   const portfolio = new Portfolio(cfg.initialCash, cost);
 
   const yuan = (v: number) => `¥${Math.round(v).toLocaleString()}`;
@@ -71,8 +73,12 @@ export async function runStrategy(cfg: EngineConfig): Promise<BacktestResult> {
       orders: Map<string, number> | null;
     } = { targets: null, orders: null };
     await cfg.strategy.onBar(buildContext(date, engineData, portfolio, collected));
-    if (collected.targets) pendingTargets = collected.targets;
-    if (collected.orders) pendingOrders = collected.orders;
+    if (collected.targets) {
+      pendingTargets = collected.targets;
+    }
+    if (collected.orders) {
+      pendingOrders = collected.orders;
+    }
   }
 
   const bench = engineData.indexCloses(BENCHMARK); // 沪深300 for 超额/IR (preloaded)
@@ -171,11 +177,15 @@ function buildContext(
       // Normalize object or Map input into the engine's target-weight map.
       const targetWeights = new Map<string, number>();
       const weightEntries = weights instanceof Map ? weights : Object.entries(weights);
-      for (const [code, weight] of weightEntries) targetWeights.set(code, weight);
+      for (const [code, weight] of weightEntries) {
+        targetWeights.set(code, weight);
+      }
       collected.targets = targetWeights;
     },
     order(code, shares) {
-      if (!shares) return;
+      if (!shares) {
+        return;
+      }
       if (collected.orders == null) {
         collected.orders = new Map();
       }
@@ -209,25 +219,33 @@ function rebalance(
   const targetShares = new Map<string, number>();
   for (const [code, w] of targets) {
     const px = openOf(code);
-    if (px && px > 0) targetShares.set(code, (w * equity) / px);
+    if (px && px > 0) {
+      targetShares.set(code, (w * equity) / px);
+    }
   }
 
   // Sells first (free up cash). Skip suspended (no open) and T+1-frozen shares.
   for (const [code, pos] of [...portfolio.positions]) {
     const px = openOf(code);
-    if (px == null) continue;
-    if (pos.frozenUntil > date) continue;
+    if (px == null) {
+      continue;
+    }
+    if (pos.frozenUntil > date) {
+      continue;
+    }
     const tgt = targetShares.get(code) ?? 0;
-    if (tgt < pos.shares && !limitBlocked(engineData, code, date, 'sell', px))
+    if (tgt < pos.shares && !limitBlocked(engineData, code, date, 'sell', px)) {
       portfolio.fill(code, tgt - pos.shares, px, date, sellableFrom, engineData.adjAt(code, date)!);
+    }
   }
 
   // Buys.
   for (const [code, tgt] of targetShares) {
     const px = openOf(code)!;
     const cur = portfolio.positions.get(code)?.shares ?? 0;
-    if (tgt > cur && !limitBlocked(engineData, code, date, 'buy', px))
+    if (tgt > cur && !limitBlocked(engineData, code, date, 'buy', px)) {
       portfolio.fill(code, tgt - cur, px, date, sellableFrom, engineData.adjAt(code, date)!);
+    }
   }
 }
 
@@ -245,22 +263,35 @@ function executeOrders(
   const sellableFrom = engineData.nextDay(date);
 
   for (const [code, delta] of orders) {
-    if (delta >= 0) continue;
+    if (delta >= 0) {
+      continue;
+    }
     const px = engineData.openAt(code, date);
     const pos = portfolio.positions.get(code);
-    if (px == null || !pos || pos.frozenUntil > date) continue; // suspended or T+1-frozen
+    if (px == null || !pos || pos.frozenUntil > date) {
+      continue;
+    } // suspended or T+1-frozen
     const sell = Math.min(-delta, pos.shares);
-    if (sell > 0 && !limitBlocked(engineData, code, date, 'sell', px))
+    if (sell > 0 && !limitBlocked(engineData, code, date, 'sell', px)) {
       portfolio.fill(code, -sell, px, date, sellableFrom, engineData.adjAt(code, date)!);
+    }
   }
 
   for (const [code, delta] of orders) {
-    if (delta <= 0) continue;
+    if (delta <= 0) {
+      continue;
+    }
     const px = engineData.openAt(code, date);
-    if (px == null || px <= 0) continue; // suspended
-    if (limitBlocked(engineData, code, date, 'buy', px)) continue; // 涨停封板 — can't buy
+    if (px == null || px <= 0) {
+      continue;
+    } // suspended
+    if (limitBlocked(engineData, code, date, 'buy', px)) {
+      continue;
+    } // 涨停封板 — can't buy
     const buy = Math.min(delta, portfolio.affordableShares(px));
-    if (buy > 0) portfolio.fill(code, buy, px, date, sellableFrom, engineData.adjAt(code, date)!);
+    if (buy > 0) {
+      portfolio.fill(code, buy, px, date, sellableFrom, engineData.adjAt(code, date)!);
+    }
   }
 }
 
@@ -275,9 +306,13 @@ function limitBlocked(
   hfqOpen: number,
 ): boolean {
   const lim = engineData.limitAt(code, date);
-  if (!lim) return false;
+  if (!lim) {
+    return false;
+  }
   const adj = engineData.adjAt(code, date);
-  if (adj == null || adj <= 0) return false;
+  if (adj == null || adj <= 0) {
+    return false;
+  }
   const rawOpen = hfqOpen / adj;
   const EPS = 1e-3;
   return side === 'buy'
@@ -293,7 +328,9 @@ function summarize(
 ): BacktestResult {
   const values = nav.map((n) => n.value);
   const dailyReturns: number[] = [];
-  for (let i = 1; i < values.length; i++) dailyReturns.push(values[i] / values[i - 1] - 1);
+  for (let i = 1; i < values.length; i++) {
+    dailyReturns.push(values[i] / values[i - 1] - 1);
+  }
   const finalValue = values.at(-1) ?? cfg.initialCash;
   const totalReturn = finalValue / cfg.initialCash - 1;
   const annReturn = st.annualizedReturn(dailyReturns, PERIODS_PER_YEAR);
@@ -301,14 +338,17 @@ function summarize(
 
   // —— 基准对比(沪深300): 超额 + 年化信息比率 ——
   const benchByDate = new Map(bench.map((b) => [b.date, b.close]));
-  const benchInRange = nav.map((n) => benchByDate.get(n.date)).filter((v): v is number => v != null);
+  const benchInRange = nav
+    .map((n) => benchByDate.get(n.date))
+    .filter((v): v is number => v != null);
   const benchReturn = benchInRange.length >= 2 ? benchInRange.at(-1)! / benchInRange[0] - 1 : 0;
   const excessDaily: number[] = [];
   for (let i = 1; i < nav.length; i++) {
     const benchToday = benchByDate.get(nav[i].date);
     const benchPrev = benchByDate.get(nav[i - 1].date);
-    if (benchPrev != null && benchToday != null && benchPrev > 0)
+    if (benchPrev != null && benchToday != null && benchPrev > 0) {
       excessDaily.push(dailyReturns[i - 1] - (benchToday / benchPrev - 1));
+    }
   }
   const trackingErrorStd = st.std(excessDaily);
   const informationRatio =
@@ -358,7 +398,9 @@ function summarize(
 
   // —— 月度收益表(月末权益环比;首月基准为初始资金) ——
   const monthEnd = new Map<string, number>(); // 'YYYYMM' → 当月最后一个权益
-  for (const n of nav) monthEnd.set(n.date.slice(0, 6), n.value);
+  for (const n of nav) {
+    monthEnd.set(n.date.slice(0, 6), n.value);
+  }
   const monthly: { month: string; ret: number }[] = [];
   let prevValue = cfg.initialCash;
   for (const month of [...monthEnd.keys()].sort()) {

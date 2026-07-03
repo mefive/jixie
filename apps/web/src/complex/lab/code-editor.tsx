@@ -22,7 +22,9 @@ let sdkInstalled = false;
 // Teach Monaco the SDK once: ambient defineStrategy + ctx types, and TS options that accept the
 // import-free `export default defineStrategy({…})` module shape.
 function installSdk(m: Monaco) {
-  if (sdkInstalled) return;
+  if (sdkInstalled) {
+    return;
+  }
   sdkInstalled = true;
   const ts = m.languages.typescript;
   ts.typescriptDefaults.setCompilerOptions({
@@ -48,16 +50,25 @@ function installSdk(m: Monaco) {
         const s = model.getPositionAt(offset);
         const e = model.getPositionAt(offset + name.length);
         links.push({
-          range: { startLineNumber: s.lineNumber, startColumn: s.column, endLineNumber: e.lineNumber, endColumn: e.column },
+          range: {
+            startLineNumber: s.lineNumber,
+            startColumn: s.column,
+            endLineNumber: e.lineNumber,
+            endColumn: e.column,
+          },
           url: `${location.origin}/docs#${name}`,
           tooltip: `SDK 文档:${name}`,
         });
       };
       let mm: RegExpExecArray | null;
       memberRe.lastIndex = 0;
-      while ((mm = memberRe.exec(text)) !== null) add(mm.index + 1, mm[1]); // +1: skip the dot
+      while ((mm = memberRe.exec(text)) !== null) {
+        add(mm.index + 1, mm[1]);
+      } // +1: skip the dot
       typeRe.lastIndex = 0;
-      while ((mm = typeRe.exec(text)) !== null) add(mm.index, mm[1]);
+      while ((mm = typeRe.exec(text)) !== null) {
+        add(mm.index, mm[1]);
+      }
       return { links };
     },
   });
@@ -67,7 +78,13 @@ function installSdk(m: Monaco) {
  * The strategy code editor — Monaco with the SDK types loaded, so the user gets autocomplete on `ctx`
  * and type errors against the real API. Lazy-loaded (Monaco is heavy → its own chunk).
  */
-export default function CodeEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+export default function CodeEditor({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
   return (
     <Editor
       height="100%"

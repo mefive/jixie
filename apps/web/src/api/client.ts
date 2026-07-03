@@ -83,7 +83,10 @@ export interface BacktestJob {
 
 // Submit a backtest for a saved strategy; returns a jobId to poll. The result is written to the
 // strategy's lastResult by the worker on completion.
-export function submitBacktest(config: BacktestConfig, strategyId: string): Promise<{ jobId: string }> {
+export function submitBacktest(
+  config: BacktestConfig,
+  strategyId: string,
+): Promise<{ jobId: string }> {
   return request(`/api/app/backtest?strategyId=${encodeURIComponent(strategyId)}`, {
     method: 'POST',
     body: JSON.stringify(config),
@@ -137,7 +140,10 @@ export function saveStrategy(config: BacktestConfig): Promise<SavedMeta> {
 
 // Persist a finished run's result onto the strategy (by name) — shown on reopen.
 export function saveBacktestResult(name: string, result: BacktestSummary): Promise<{ ok: true }> {
-  return request('/api/app/strategies/result', { method: 'POST', body: JSON.stringify({ name, result }) });
+  return request('/api/app/strategies/result', {
+    method: 'POST',
+    body: JSON.stringify({ name, result }),
+  });
 }
 
 export function deleteStrategy(id: string): Promise<{ ok: true }> {
@@ -176,7 +182,11 @@ export function queryScreen(text: string): Promise<ScreenQueryResponse> {
 }
 
 // A stock's OHLC/vol/pe series for the K线/PE/量 charts.
-export function fetchStockSeries(code: string, start = '20150101', end = '20241231'): Promise<StockSeries> {
+export function fetchStockSeries(
+  code: string,
+  start = '20150101',
+  end = '20241231',
+): Promise<StockSeries> {
   return request(`/api/app/stock/${code}/series?start=${start}&end=${end}`);
 }
 

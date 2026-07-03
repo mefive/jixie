@@ -6,7 +6,9 @@ export function mean(xs: number[]): number {
 
 /** Standard deviation. sample=true uses the sample (n-1), false uses the population (n). */
 export function std(xs: number[], sample = true): number {
-  if (xs.length < 2) return 0;
+  if (xs.length < 2) {
+    return 0;
+  }
   const m = mean(xs);
   const denom = xs.length - (sample ? 1 : 0);
   return Math.sqrt(xs.reduce((a, b) => a + (b - m) ** 2, 0) / denom);
@@ -19,9 +21,13 @@ function averageRanks(xs: number[]): number[] {
   let i = 0;
   while (i < order.length) {
     let j = i;
-    while (j + 1 < order.length && order[j + 1][0] === order[i][0]) j++;
+    while (j + 1 < order.length && order[j + 1][0] === order[i][0]) {
+      j++;
+    }
     const avgRank = (i + j) / 2 + 1; // average of ranks i+1..j+1
-    for (let k = i; k <= j; k++) ranks[order[k][1]] = avgRank;
+    for (let k = i; k <= j; k++) {
+      ranks[order[k][1]] = avgRank;
+    }
     i = j + 1;
   }
   return ranks;
@@ -50,7 +56,9 @@ export function spearman(xs: number[], ys: number[]): number {
 
 /** Cross-sectional winsorization: clip values to the [p, 1-p] quantile range. */
 export function winsorize(xs: number[], p = 0.01): number[] {
-  if (xs.length < 3) return xs.slice();
+  if (xs.length < 3) {
+    return xs.slice();
+  }
   const sorted = [...xs].sort((a, b) => a - b);
   const lo = sorted[Math.floor(p * (sorted.length - 1))];
   const hi = sorted[Math.ceil((1 - p) * (sorted.length - 1))];
@@ -71,20 +79,26 @@ export function quantileBuckets(values: number[], n: number): number[] {
 /** Build a NAV series from per-period returns (starting at 1). */
 export function navFromReturns(periodReturns: number[]): number[] {
   const nav = [1];
-  for (const r of periodReturns) nav.push(nav[nav.length - 1] * (1 + r));
+  for (const r of periodReturns) {
+    nav.push(nav[nav.length - 1] * (1 + r));
+  }
   return nav;
 }
 
 /** Annualized return (geometric). */
 export function annualizedReturn(periodReturns: number[], periodsPerYear: number): number {
-  if (!periodReturns.length) return 0;
+  if (!periodReturns.length) {
+    return 0;
+  }
   const cum = periodReturns.reduce((acc, r) => acc * (1 + r), 1);
   return cum ** (periodsPerYear / periodReturns.length) - 1;
 }
 
 /** Annualized Sharpe (rf is the annualized risk-free rate). */
 export function sharpe(periodReturns: number[], periodsPerYear: number, rf = 0): number {
-  if (periodReturns.length < 2) return 0;
+  if (periodReturns.length < 2) {
+    return 0;
+  }
   const ex = periodReturns.map((r) => r - rf / periodsPerYear);
   const s = std(ex);
   return s > 0 ? (mean(ex) * periodsPerYear) / (s * Math.sqrt(periodsPerYear)) : 0;
@@ -95,9 +109,13 @@ export function maxDrawdown(nav: number[]): number {
   let peak = nav[0] ?? 1;
   let mdd = 0;
   for (const v of nav) {
-    if (v > peak) peak = v;
+    if (v > peak) {
+      peak = v;
+    }
     const dd = v / peak - 1;
-    if (dd < mdd) mdd = dd;
+    if (dd < mdd) {
+      mdd = dd;
+    }
   }
   return mdd;
 }

@@ -62,7 +62,9 @@ export function getSessionId(c: Context): string | undefined {
 // Any missing step returns 401 so the frontend redirects to login; disabled accounts also get 401.
 export const requireAuth: MiddlewareHandler = async (c, next) => {
   const sid = getSessionId(c);
-  if (!sid) return apiError(c, 'UNAUTHORIZED', 'login required');
+  if (!sid) {
+    return apiError(c, 'UNAUTHORIZED', 'login required');
+  }
 
   const session = await prisma.session.findUnique({
     where: { id: sid },

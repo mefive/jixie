@@ -13,7 +13,11 @@ import { syncFinaIndicator, syncDividend } from '../src/store/sync.js';
 async function main(): Promise<void> {
   const cfg = loadTushareConfig();
   const interval = Math.max(cfg.minIntervalMs, 800); // respect the financial 80/min limit
-  const client = new TushareClient({ token: cfg.token, baseUrl: cfg.baseUrl, minIntervalMs: interval });
+  const client = new TushareClient({
+    token: cfg.token,
+    baseUrl: cfg.baseUrl,
+    minIntervalMs: interval,
+  });
 
   console.log(`同步财务数据（fina_indicator + dividend，限频 ${interval}ms/次）\n`);
   await syncFinaIndicator(client);

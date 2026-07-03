@@ -15,7 +15,9 @@ export class Portfolio {
 
   /** Max whole shares buyable at `price` given current cash and buy-side fees (never goes negative). */
   affordableShares(price: number): number {
-    if (price <= 0) return 0;
+    if (price <= 0) {
+      return 0;
+    }
     const n = Math.floor(this.cash / (price * (1 + this.cost.commission + this.cost.transferFee)));
     return Math.max(0, n);
   }
@@ -25,13 +27,18 @@ export class Portfolio {
     let v = this.cash;
     for (const [code, p] of this.positions) {
       const px = priceOf(code);
-      if (px != null) v += p.shares * px;
+      if (px != null) {
+        v += p.shares * px;
+      }
     }
     return v;
   }
 
   private buyFee(value: number): number {
-    return Math.max(value * this.cost.commission, this.cost.minCommission) + value * this.cost.transferFee;
+    return (
+      Math.max(value * this.cost.commission, this.cost.minCommission) +
+      value * this.cost.transferFee
+    );
   }
 
   private sellFee(value: number): number {
@@ -46,13 +53,24 @@ export class Portfolio {
    * adj_factor, used to enforce A股's whole-手 (100-share) lots in REAL shares and to record the real
    * (unadjusted) price/shares the user sees. Buys floor to whole 手 (deploy ≤ budget); sells clear the
    * requested hfq amount as-is (so positions fully exit — no hfq dust from dividend drift over the hold). */
-  fill(code: string, delta: number, price: number, date: string, sellableFrom: string, adj: number): void {
-    if (Math.abs(delta) < 1e-9 || price <= 0 || adj <= 0) return;
+  fill(
+    code: string,
+    delta: number,
+    price: number,
+    date: string,
+    sellableFrom: string,
+    adj: number,
+  ): void {
+    if (Math.abs(delta) < 1e-9 || price <= 0 || adj <= 0) {
+      return;
+    }
 
     let realShares: number;
     if (delta > 0) {
       const realLots = Math.floor((delta * adj) / 100) * 100; // real shares, floored to whole 手
-      if (realLots < 100) return; // can't afford even one 手
+      if (realLots < 100) {
+        return;
+      } // can't afford even one 手
       delta = realLots / adj; // back to hfq for the ledger (marking stays hfq)
       realShares = realLots; // exact whole 手
     } else {
@@ -73,11 +91,15 @@ export class Portfolio {
       this.positions.set(code, pos);
     } else {
       const pos = this.positions.get(code);
-      if (!pos) return;
+      if (!pos) {
+        return;
+      }
       fee = this.sellFee(value);
       this.cash += value - fee;
       pos.shares += delta; // delta < 0
-      if (pos.shares < 1e-6) this.positions.delete(code);
+      if (pos.shares < 1e-6) {
+        this.positions.delete(code);
+      }
     }
     this.trades.push({
       date,

@@ -36,7 +36,14 @@ export default function StrategyPicker({
       onOk: () => onDelete(id),
     });
   return (
-    <Modal open={open} onCancel={onClose} footer={null} title="我的策略" width={860} destroyOnHidden>
+    <Modal
+      open={open}
+      onCancel={onClose}
+      footer={null}
+      title="我的策略"
+      width={860}
+      destroyOnHidden
+    >
       {loading && cards.length === 0 ? (
         <div className="jx-sp-loading">
           <Spin />
@@ -92,14 +99,19 @@ export default function StrategyPicker({
 
 /** A lightweight equity-curve thumbnail (plain SVG polyline, scaled to the card). */
 function Sparkline({ data, up }: { data: number[]; up: boolean }) {
-  if (data.length < 2) return <div className="jx-sp-spark" />;
+  if (data.length < 2) {
+    return <div className="jx-sp-spark" />;
+  }
   const min = Math.min(...data);
   const max = Math.max(...data);
   const W = 240;
   const H = 48;
   const range = max - min || 1;
   const pts = data
-    .map((v, i) => `${((i / (data.length - 1)) * W).toFixed(1)},${(H - ((v - min) / range) * H).toFixed(1)}`)
+    .map(
+      (v, i) =>
+        `${((i / (data.length - 1)) * W).toFixed(1)},${(H - ((v - min) / range) * H).toFixed(1)}`,
+    )
     .join(' ');
   return (
     <svg className="jx-sp-spark" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">

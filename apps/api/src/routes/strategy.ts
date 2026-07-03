@@ -19,9 +19,14 @@ const codegenBody = z.object({ text: z.string().trim().min(1).max(800) });
 /** The indices whose constituents are actually synced: the raw codes (for the deterministic check) +
  * a formatted string (for the prompt), so we never offer or accept an index we can't resolve. */
 async function syncedIndices(): Promise<{ codes: string[]; text: string }> {
-  const present = await prisma.indexWeight.findMany({ select: { indexCode: true }, distinct: ['indexCode'] });
+  const present = await prisma.indexWeight.findMany({
+    select: { indexCode: true },
+    distinct: ['indexCode'],
+  });
   const codes = present.map((r) => r.indexCode).filter((cc) => KNOWN_INDICES[cc]);
-  const text = codes.length ? codes.map((cc) => `${KNOWN_INDICES[cc]}=${cc}`).join('、') : '(暂未收录任何指数成分)';
+  const text = codes.length
+    ? codes.map((cc) => `${KNOWN_INDICES[cc]}=${cc}`).join('、')
+    : '(暂未收录任何指数成分)';
   return { codes, text };
 }
 
@@ -31,7 +36,10 @@ strategyRoute.post('/codegen', validateJson(codegenBody), async (c) => {
   let result;
   try {
     const idx = await syncedIndices();
-    result = await nlToCode(text, chatText, { availableIndices: idx.text, syncedIndices: idx.codes });
+    result = await nlToCode(text, chatText, {
+      availableIndices: idx.text,
+      syncedIndices: idx.codes,
+    });
   } catch (e) {
     // Missing key / upstream model failure — distinct from "model produced uncompilable code".
     return apiError(c, 'SERVICE_UNAVAILABLE', e instanceof Error ? e.message : 'NL→code 调用失败');
@@ -39,7 +47,9 @@ strategyRoute.post('/codegen', validateJson(codegenBody), async (c) => {
 
   // The model declined — the request is out of capability. Surface the reason (not a "failed" framing).
   if (result.refused) {
-    return apiError(c, 'VALIDATION_FAILED', `这个需求暂时做不到：${result.error ?? ''}`, { refused: true });
+    return apiError(c, 'VALIDATION_FAILED', `这个需求暂时做不到：${result.error ?? ''}`, {
+      refused: true,
+    });
   }
   if (!result.ok || !result.code) {
     return apiError(c, 'VALIDATION_FAILED', '没能把描述转成可编译的策略代码，请换个说法再试', {

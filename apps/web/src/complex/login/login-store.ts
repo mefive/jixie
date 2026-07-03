@@ -56,8 +56,12 @@ export class LoginStore extends BaseStore<LoginSetupParams> {
   }
 
   public get step(): LoginStep {
-    if (this.challengeId) return 'verify';
-    if (this.needsInvite) return 'invite';
+    if (this.challengeId) {
+      return 'verify';
+    }
+    if (this.needsInvite) {
+      return 'invite';
+    }
     return 'email';
   }
 

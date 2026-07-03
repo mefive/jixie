@@ -33,14 +33,18 @@ export async function finishJob(
   status: 'done' | 'error',
   error?: string,
 ): Promise<void> {
-  await prisma.job.update({ where: { id: jobId }, data: { status, error: error ?? null } }).catch(() => {});
+  await prisma.job
+    .update({ where: { id: jobId }, data: { status, error: error ?? null } })
+    .catch(() => {});
   setTimeout(() => logsByJob.delete(jobId), LOG_TTL_MS).unref?.();
 }
 
 /** Poll a job: DB status + the in-memory logs after `since` (empty if the process restarted). */
 export async function getJob(jobId: string, since = 0) {
   const job = await prisma.job.findUnique({ where: { id: jobId } });
-  if (!job) return null;
+  if (!job) {
+    return null;
+  }
   const logs = logsByJob.get(jobId) ?? [];
   return {
     status: job.status as JobStatus,
@@ -51,7 +55,11 @@ export async function getJob(jobId: string, since = 0) {
 }
 
 /** A user's currently-running job for a (kind, key) — to re-attach after a refresh (newest wins). */
-export async function findRunningJob(userId: string, kind: JobKind, key: string): Promise<string | null> {
+export async function findRunningJob(
+  userId: string,
+  kind: JobKind,
+  key: string,
+): Promise<string | null> {
   const job = await prisma.job.findFirst({
     where: { userId, kind, key, status: 'running' },
     orderBy: { createdAt: 'desc' },

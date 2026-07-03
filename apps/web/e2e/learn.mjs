@@ -57,7 +57,9 @@ try {
   await page.goto(`${BASE}/docs`, { waitUntil: 'networkidle' });
   await page.getByText('策略 SDK').first().waitFor();
   const tut = page.locator('.jx-docs-tutLink');
-  if ((await tut.count()) === 0) throw new Error('/docs 顶栏缺少 入门教程 链接');
+  if ((await tut.count()) === 0) {
+    throw new Error('/docs 顶栏缺少 入门教程 链接');
+  }
   await page.screenshot({ path: `${SHOTS}learn-5-docs-crosslink.png` });
   log('shot: /docs top bar with tutorial link');
 
@@ -69,7 +71,9 @@ try {
   // —— lab hero: 看入门教程 entry ——
   await page.goto(`${BASE}/lab`, { waitUntil: 'networkidle' });
   const heroLearn = page.getByText('第一次用?看入门教程');
-  if ((await heroLearn.count()) === 0) throw new Error('lab hero 缺少 看入门教程 入口');
+  if ((await heroLearn.count()) === 0) {
+    throw new Error('lab hero 缺少 看入门教程 入口');
+  }
   await page.screenshot({ path: `${SHOTS}learn-6-lab-hero.png` });
   log('shot: lab hero with tutorial entry');
 

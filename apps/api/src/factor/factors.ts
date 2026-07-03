@@ -20,7 +20,9 @@ function maxGapDays(dates: string[], from: number, to: number): number {
   let m = 0;
   for (let i = from + 1; i <= to; i++) {
     const g = daysBetween(dates[i - 1], dates[i]);
-    if (g > m) m = g;
+    if (g > m) {
+      m = g;
+    }
   }
   return m;
 }
@@ -34,34 +36,52 @@ export function momentum(
   lookback = 60,
   skip = 5,
 ): number | null {
-  if (end - lookback < 0) return null;
-  if (maxGapDays(dates, end - lookback, end) > MAX_GAP_DAYS) return null;
+  if (end - lookback < 0) {
+    return null;
+  }
+  if (maxGapDays(dates, end - lookback, end) > MAX_GAP_DAYS) {
+    return null;
+  }
   const a = px[end - skip];
   const b = px[end - lookback];
-  if (!a || !b) return null;
+  if (!a || !b) {
+    return null;
+  }
   return a / b - 1;
 }
 
 /** Short-term reversal: return over the last `window` days (A-shares are retail-heavy, so this
  * factor's IC is usually negative = buy the biggest losers). */
 export function reversal(px: number[], dates: string[], end: number, window = 5): number | null {
-  if (end - window < 0) return null;
-  if (maxGapDays(dates, end - window, end) > MAX_GAP_DAYS) return null;
+  if (end - window < 0) {
+    return null;
+  }
+  if (maxGapDays(dates, end - window, end) > MAX_GAP_DAYS) {
+    return null;
+  }
   const a = px[end];
   const b = px[end - window];
-  if (!b) return null;
+  if (!b) {
+    return null;
+  }
   return a / b - 1;
 }
 
 /** Realized volatility: standard deviation of daily returns over the last `window` days
  * (low-volatility anomaly, IC is usually negative = lower vol does better). */
 export function volatility(px: number[], dates: string[], end: number, window = 20): number | null {
-  if (end - window < 0) return null;
-  if (maxGapDays(dates, end - window, end) > MAX_GAP_DAYS) return null;
+  if (end - window < 0) {
+    return null;
+  }
+  if (maxGapDays(dates, end - window, end) > MAX_GAP_DAYS) {
+    return null;
+  }
   const rets: number[] = [];
   for (let i = end - window + 1; i <= end; i++) {
     const prev = px[i - 1];
-    if (!prev) return null;
+    if (!prev) {
+      return null;
+    }
     rets.push(px[i] / prev - 1);
   }
   const mean = rets.reduce((s, r) => s + r, 0) / rets.length;
@@ -102,7 +122,11 @@ export interface FundamentalFactorDef {
  * size expected negative = small-cap premium).
  */
 export const FUNDAMENTAL_FACTORS: FundamentalFactorDef[] = [
-  { key: 'ep', label: '盈利收益率(1/PE_TTM)', from: (r) => (r.peTtm && r.peTtm > 0 ? 1 / r.peTtm : null) },
+  {
+    key: 'ep',
+    label: '盈利收益率(1/PE_TTM)',
+    from: (r) => (r.peTtm && r.peTtm > 0 ? 1 / r.peTtm : null),
+  },
   { key: 'bp', label: '账面市值比(1/PB)', from: (r) => (r.pb && r.pb > 0 ? 1 / r.pb : null) },
   { key: 'dv', label: '股息率(%)', from: (r) => r.dvRatio },
   {

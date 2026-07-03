@@ -38,18 +38,26 @@ backtestRoute.post('/', validateQuery(strategyQuery), validateJson(codeConfigSch
   const worker = new Worker(workerUrl, { workerData: { config, userId, strategyId } });
   let finished = false;
   const done = (status: 'done' | 'error', error?: string) => {
-    if (finished) return;
+    if (finished) {
+      return;
+    }
     finished = true;
     void finishJob(jobId, status, error);
   };
   worker.on('message', (msg: { type: string; line?: string; message?: string }) => {
-    if (msg.type === 'log') appendLog(jobId, msg.line!);
-    else if (msg.type === 'done') done('done');
-    else if (msg.type === 'error') done('error', msg.message);
+    if (msg.type === 'log') {
+      appendLog(jobId, msg.line!);
+    } else if (msg.type === 'done') {
+      done('done');
+    } else if (msg.type === 'error') {
+      done('error', msg.message);
+    }
   });
   worker.on('error', (err) => done('error', err.message));
   worker.on('exit', (code) => {
-    if (code !== 0) done('error', `回测进程异常退出 (code ${code})`);
+    if (code !== 0) {
+      done('error', `回测进程异常退出 (code ${code})`);
+    }
   });
   return c.json({ jobId });
 });
@@ -62,6 +70,8 @@ backtestRoute.get('/running', validateQuery(strategyQuery), async (c) => {
 
 backtestRoute.get('/:jobId', validateQuery(sinceQuery), async (c) => {
   const job = await getJob(c.req.param('jobId'), Number(c.req.valid('query').since ?? '0'));
-  if (!job) return apiError(c, 'NOT_FOUND', '回测任务不存在或已过期');
+  if (!job) {
+    return apiError(c, 'NOT_FOUND', '回测任务不存在或已过期');
+  }
   return c.json(job);
 });
