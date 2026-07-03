@@ -22,6 +22,8 @@ export class StockStore extends BaseStore<StockSetupParams> {
     });
     this.seriesLoader.setup({ request: () => fetchStockSeries(this.code) });
     this.registCleaner(() => this.seriesLoader.cleanup());
-    if (this.code) void this.seriesLoader.run();
+    if (this.code) {
+      void this.seriesLoader.run();
+    }
   }
 }

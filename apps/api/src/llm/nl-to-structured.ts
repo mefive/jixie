@@ -12,7 +12,9 @@ export interface ChatMessage {
 export type LlmCall = (messages: ChatMessage[]) => Promise<string>;
 
 /** A domain validator: turn an unknown parsed object into a typed value, or human-readable errors. */
-export type Validator<T> = (obj: unknown) => { ok: true; value: T } | { ok: false; errors: string[] };
+export type Validator<T> = (
+  obj: unknown,
+) => { ok: true; value: T } | { ok: false; errors: string[] };
 
 export interface ParseResult<T> {
   ok: boolean;
@@ -28,7 +30,9 @@ export function extractJson(text: string): unknown {
   const body = fenced ? fenced[1] : text;
   const start = body.indexOf('{');
   const end = body.lastIndexOf('}');
-  if (start < 0 || end < 0 || end < start) throw new Error('未找到 JSON 对象');
+  if (start < 0 || end < 0 || end < start) {
+    throw new Error('未找到 JSON 对象');
+  }
   return JSON.parse(body.slice(start, end + 1));
 }
 
@@ -68,7 +72,9 @@ export async function parseStructured<T>(opts: {
     }
 
     const v = validate(parsed);
-    if (v.ok) return { ok: true, value: v.value, attempts };
+    if (v.ok) {
+      return { ok: true, value: v.value, attempts };
+    }
 
     lastErrors = v.errors;
     messages.push({ role: 'assistant', content: text });

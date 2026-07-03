@@ -46,13 +46,18 @@ export const Factor = complex.component(() => {
         <div className="jx-factor-head">
           <h1 className="jx-factor-title">因子分析</h1>
           <p className="jx-factor-hint">
-            选一个因子 → 设频率 / 区间 → 运行:看十分位分层收益、Rank IC、多空。快因子(反转/资金流)建议看「周」。
+            选一个因子 → 设频率 / 区间 → 运行:看十分位分层收益、Rank
+            IC、多空。快因子(反转/资金流)建议看「周」。
           </p>
         </div>
 
         {cat.loading && <Placeholder icon={faSpinner} spin text="加载因子列表……" />}
         {cat.error && (
-          <Placeholder icon={faTriangleExclamation} error text={`加载失败:${cat.errorObject?.message ?? ''}`} />
+          <Placeholder
+            icon={faTriangleExclamation}
+            error
+            text={`加载失败:${cat.errorObject?.message ?? ''}`}
+          />
         )}
         {cat.loaded && (
           <div className="jx-factor-split">
@@ -96,7 +101,9 @@ const FactorList = complex.component(() => {
 const FactorPanel = complex.component(() => {
   const store = complex.useStore();
   const f = store.selected;
-  if (!f) return <div className="jx-factor-detail jx-factor-empty">← 左边选一个因子开始分析</div>;
+  if (!f) {
+    return <div className="jx-factor-detail jx-factor-empty">← 左边选一个因子开始分析</div>;
+  }
   return (
     <section className="jx-factor-detail">
       <header className="jx-factor-detailHead">
@@ -154,7 +161,11 @@ const ParamsBar = complex.component(() => {
         {store.isCached ? '查看' : '运行分析'}
       </LoaderButton>
       {store.report && (
-        <LoaderButton size="small" loader={store.analysisLoader} action={() => store.runAnalysis(true)}>
+        <LoaderButton
+          size="small"
+          loader={store.analysisLoader}
+          action={() => store.runAnalysis(true)}
+        >
           重算
         </LoaderButton>
       )}
@@ -166,7 +177,9 @@ const ParamsBar = complex.component(() => {
 const RunChips = complex.component(() => {
   const store = complex.useStore();
   const runs = store.runsLoader.result ?? [];
-  if (!runs.length) return null;
+  if (!runs.length) {
+    return null;
+  }
   return (
     <div className="jx-factor-runs">
       <span className="jx-factor-runsLabel">已跑</span>
@@ -191,22 +204,33 @@ const Result = complex.component(() => {
   const store = complex.useStore();
   const loader = store.analysisLoader;
   const [weight, setWeight] = useState<FactorWeight>('equal'); // 分位收益加权:等权 / 市值加权(view 切换)
-  if (store.jobRunning)
+  if (store.jobRunning) {
     return (
       <div className="jx-factor-running">
         <div className="jx-factor-runningHead">
-          <FontAwesomeIcon icon={faSpinner} spin /> 计算中……(价格因子较慢,基本面 / 资金流几秒;结果会入库,下次秒开)
+          <FontAwesomeIcon icon={faSpinner} spin /> 计算中……(价格因子较慢,基本面 /
+          资金流几秒;结果会入库,下次秒开)
         </div>
         {store.logs.length > 0 && <pre className="jx-factor-log">{store.logs.join('\n')}</pre>}
       </div>
     );
-  if (loader.loading) return <Placeholder icon={faSpinner} spin text="加载中……" />;
-  if (loader.error)
+  }
+  if (loader.loading) {
+    return <Placeholder icon={faSpinner} spin text="加载中……" />;
+  }
+  if (loader.error) {
     return (
-      <Placeholder icon={faTriangleExclamation} error text={`分析失败:${loader.errorObject?.message ?? ''}`} />
+      <Placeholder
+        icon={faTriangleExclamation}
+        error
+        text={`分析失败:${loader.errorObject?.message ?? ''}`}
+      />
     );
+  }
   const r = store.report;
-  if (!r) return <Placeholder icon={faPlay} text="设好频率 / 区间,点「运行分析」" />;
+  if (!r) {
+    return <Placeholder icon={faPlay} text="设好频率 / 区间,点「运行分析」" />;
+  }
 
   const n = r.buckets.length;
   const dir = direction(r.icMean);
@@ -233,14 +257,17 @@ const Result = complex.component(() => {
             ]}
           />
         )}
-        <span className={classNames('jx-factor-dir', `jx-factor-dir--${dir.kind}`)}>{dir.text}</span>
+        <span className={classNames('jx-factor-dir', `jx-factor-dir--${dir.kind}`)}>
+          {dir.text}
+        </span>
       </div>
 
       <Suspense fallback={<div className="jx-factor-chart" />}>
         <DecileChart buckets={buckets} />
       </Suspense>
       <div className="jx-factor-chartCap">
-        横轴 D1(因子值最低)→ D{n}(最高),纵轴各档「下一{per}」年化收益 —— 一路上行=动量,一路下行=反转。
+        横轴 D1(因子值最低)→ D{n}(最高),纵轴各档「下一{per}」年化收益 ——
+        一路上行=动量,一路下行=反转。
         {hasMktcap && '「市值加权」看大票能否真赚到(等权易被小盘放大)。'}
       </div>
 
@@ -304,15 +331,21 @@ const pctInt = (v: number) => `${(v * 100).toFixed(0)}%`;
 // Direction from the IC sign: positive → long the top decile (momentum-like); negative → long the
 // bottom decile (reversal-like); near-zero → no edge.
 function direction(icMean: number): { kind: 'up' | 'down' | 'flat'; text: string } {
-  if (icMean > 0.01) return { kind: 'up', text: '正向 · 做多高分位' };
-  if (icMean < -0.01) return { kind: 'down', text: '反向 · 做多低分位' };
+  if (icMean > 0.01) {
+    return { kind: 'up', text: '正向 · 做多高分位' };
+  }
+  if (icMean < -0.01) {
+    return { kind: 'down', text: '反向 · 做多低分位' };
+  }
   return { kind: 'flat', text: '方向不显著' };
 }
 
 // Interpret the IC-decay shape: where |IC| peaks (natural holding period) + whether it rises (slow
 // factor, hold long) or fades from the short end (fast factor, hold short).
 function decayHint(points: IcDecayPoint[]): string {
-  if (!points.length) return '';
+  if (!points.length) {
+    return '';
+  }
   const peak = points.reduce((a, b) => (Math.abs(b.icMean) > Math.abs(a.icMean) ? b : a));
   const rising = Math.abs(points.at(-1)!.icMean) > Math.abs(points[0].icMean);
   const trend = rising ? '越往后越强(慢因子,宜长持)' : '短端更强、随后衰减(快因子,宜短持)';

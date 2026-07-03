@@ -32,7 +32,9 @@ const emailField = z
 // page, without having to hit a 401 first and then recover.
 authRoute.get('/me', async (c) => {
   const sid = getSessionId(c);
-  if (!sid) return c.json({ user: null });
+  if (!sid) {
+    return c.json({ user: null });
+  }
 
   const session = await prisma.session.findUnique({
     where: { id: sid },
@@ -52,7 +54,9 @@ authRoute.get('/me', async (c) => {
 // ok.
 authRoute.post('/logout', async (c) => {
   const sid = getSessionId(c);
-  if (sid) await destroySession(sid);
+  if (sid) {
+    await destroySession(sid);
+  }
   clearSessionCookie(c);
   return c.json({ ok: true });
 });

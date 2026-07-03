@@ -52,7 +52,12 @@ export const Stock = complex.component(() => {
           <ChartSkeleton />
         ) : (
           <Suspense fallback={<ChartSkeleton />}>
-            <StockChart series={series} logY={scale === 'log'} adjust={adjust} className="jx-stock-chart" />
+            <StockChart
+              series={series}
+              logY={scale === 'log'}
+              adjust={adjust}
+              className="jx-stock-chart"
+            />
           </Suspense>
         )}
       </main>
@@ -75,4 +80,6 @@ function ChartSkeleton() {
 }
 
 // Static height pattern (%) so the skeleton is deterministic — no per-render randomness.
-const SKELETON_BARS = [40, 55, 48, 62, 70, 58, 66, 74, 68, 80, 72, 85, 78, 64, 56, 60, 52, 46, 50, 44];
+const SKELETON_BARS = [
+  40, 55, 48, 62, 70, 58, 66, 74, 68, 80, 72, 85, 78, 64, 56, 60, 52, 46, 50, 44,
+];

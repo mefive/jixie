@@ -19,18 +19,28 @@ export default function SdkDocPage() {
   const lang: Lang = params.get('lang') === 'en' ? 'en' : 'zh';
   const setLang = (l: Lang) => {
     const next = new URLSearchParams(params);
-    if (l === 'en') next.set('lang', 'en');
-    else next.delete('lang');
+    if (l === 'en') {
+      next.set('lang', 'en');
+    } else {
+      next.delete('lang');
+    }
     setParams(next, { replace: true });
   };
   const t = (zh: string, en: string) => (lang === 'zh' ? zh : en);
 
   const groups = useMemo(() => groupEntries(SDK_ENTRIES), []);
-  const active = useScrollSpy(['overview', 'StrategyCtx', ...SDK_ENTRIES.map((e) => e.name), 'OhlcBar']);
+  const active = useScrollSpy([
+    'overview',
+    'StrategyCtx',
+    ...SDK_ENTRIES.map((e) => e.name),
+    'OhlcBar',
+  ]);
 
   useEffect(() => {
     const id = window.location.hash.slice(1);
-    if (id) document.getElementById(id)?.scrollIntoView();
+    if (id) {
+      document.getElementById(id)?.scrollIntoView();
+    }
   }, []);
 
   return (
@@ -68,7 +78,11 @@ export default function SdkDocPage() {
             <div className="jx-docs-navGroup" key={group}>
               <div className="jx-docs-navGroupTitle">{group}</div>
               {entries.map((e) => (
-                <a key={`${e.iface}.${e.name}`} className={navCls(e.name, active)} href={`#${e.name}`}>
+                <a
+                  key={`${e.iface}.${e.name}`}
+                  className={navCls(e.name, active)}
+                  href={`#${e.name}`}
+                >
                   {e.name}
                 </a>
               ))}
@@ -76,7 +90,9 @@ export default function SdkDocPage() {
           ))}
           <div className="jx-docs-navGroup">
             <div className="jx-docs-navGroupTitle">{t('业务类型 OhlcBar', 'Type OhlcBar')}</div>
-            <a className={navCls('OhlcBar', active)} href="#OhlcBar">OhlcBar</a>
+            <a className={navCls('OhlcBar', active)} href="#OhlcBar">
+              OhlcBar
+            </a>
           </div>
         </nav>
 
@@ -141,12 +157,21 @@ export default function SdkDocPage() {
           ))}
 
           <section className="jx-docs-section" id="OhlcBar">
-            <h2 className="jx-docs-h2">{t('业务类型 OhlcBar(K 线字段)', 'Type OhlcBar (bar fields)')}</h2>
-            <p className="jx-docs-p">{t('ctx.bars() 返回的单元 —— 后复权 OHLC + 量额。', 'The unit ctx.bars() returns — adjusted OHLC + volume/turnover.')}</p>
+            <h2 className="jx-docs-h2">
+              {t('业务类型 OhlcBar(K 线字段)', 'Type OhlcBar (bar fields)')}
+            </h2>
+            <p className="jx-docs-p">
+              {t(
+                'ctx.bars() 返回的单元 —— 后复权 OHLC + 量额。',
+                'The unit ctx.bars() returns — adjusted OHLC + volume/turnover.',
+              )}
+            </p>
             <dl className="jx-docs-rules">
               {OHLC_FIELDS.map((f) => (
                 <div className="jx-docs-rule" key={f.name}>
-                  <dt className="jx-docs-ruleK jx-docs-mono">{f.name}: {f.type}</dt>
+                  <dt className="jx-docs-ruleK jx-docs-mono">
+                    {f.name}: {f.type}
+                  </dt>
                   <dd className="jx-docs-ruleV">{t(f.zh, f.en)}</dd>
                 </div>
               ))}
@@ -185,7 +210,9 @@ function linkifyTypes(text: string): ReactNode[] {
   let m: RegExpExecArray | null;
   TYPE_RE.lastIndex = 0;
   while ((m = TYPE_RE.exec(text))) {
-    if (m.index > last) out.push(text.slice(last, m.index));
+    if (m.index > last) {
+      out.push(text.slice(last, m.index));
+    }
     out.push(
       <a className="jx-docs-typeLink" href={`#${m[1]}`} key={m.index}>
         {m[1]}
@@ -193,7 +220,9 @@ function linkifyTypes(text: string): ReactNode[] {
     );
     last = m.index + m[1].length;
   }
-  if (last < text.length) out.push(text.slice(last));
+  if (last < text.length) {
+    out.push(text.slice(last));
+  }
   return out;
 }
 
@@ -202,8 +231,10 @@ function typeAnchor(iface: SdkEntry['iface']): string | undefined {
   return iface === 'Universe' || iface === 'BarRow' ? iface : undefined;
 }
 
-const kindZh = (i: SdkEntry['iface']) => (i === 'Universe' ? '链式方法' : i === 'BarRow' ? '字段' : '实例方法');
-const kindEn = (i: SdkEntry['iface']) => (i === 'Universe' ? 'Chain Method' : i === 'BarRow' ? 'Property' : 'Instance Method');
+const kindZh = (i: SdkEntry['iface']) =>
+  i === 'Universe' ? '链式方法' : i === 'BarRow' ? '字段' : '实例方法';
+const kindEn = (i: SdkEntry['iface']) =>
+  i === 'Universe' ? 'Chain Method' : i === 'BarRow' ? 'Property' : 'Instance Method';
 
 function navCls(id: string, active: string): string {
   return classNames('jx-docs-navLink', { 'jx-docs-navLink--on': id === active });
@@ -219,7 +250,9 @@ function useScrollSpy(ids: string[]): string {
         const onscreen = entries
           .filter((e) => e.isIntersecting)
           .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
-        if (onscreen[0]) setActive(onscreen[0].target.id);
+        if (onscreen[0]) {
+          setActive(onscreen[0].target.id);
+        }
       },
       { rootMargin: '-72px 0px -72% 0px' },
     );
@@ -235,17 +268,44 @@ function groupEntries(entries: SdkEntry[]): [string, SdkEntry[]][] {
   const order: string[] = [];
   const by = new Map<string, SdkEntry[]>();
   for (const e of entries) {
-    if (!by.has(e.group)) (by.set(e.group, []), order.push(e.group));
+    if (!by.has(e.group)) {
+      by.set(e.group, []);
+      order.push(e.group);
+    }
     by.get(e.group)!.push(e);
   }
   return order.map((g) => [g, by.get(g)!]);
 }
 
 const ENGINE_RULES: { zh: [string, string]; en: [string, string] }[] = [
-  { zh: ['整手', '买入按 100 股整手(真实股数);茅台 100 万只够买 5 手'], en: ['Whole 手', 'Buys size in real 100-share lots; ￥1M of Maotai buys only 5 手'] },
-  { zh: ['涨跌停', '开在涨停板买不进、跌停板卖不出(当日作废,下个 bar 重判即自动重试)'], en: ['Price limits', 'Can’t buy at the up-limit open nor sell at the down-limit open (voided that day; re-tried next bar)'] },
-  { zh: ['T+1 / 停牌', '当日买入次日才能卖;停牌当日不成交;下单次日开盘价成交'], en: ['T+1 / suspension', 'Bought today, sellable next day; suspended = no fill; orders fill at next open'] },
-  { zh: ['复权 / 成本', '内部后复权算收益(含分红再投资);佣金万 2.5(最低 5 元)+ 印花税千 0.5(仅卖)+ 过户费'], en: ['Adjustment / costs', 'hfq prices for returns (dividends reinvested); commission 0.025% (min ￥5) + stamp duty 0.05% (sell) + transfer fee'] },
+  {
+    zh: ['整手', '买入按 100 股整手(真实股数);茅台 100 万只够买 5 手'],
+    en: ['Whole 手', 'Buys size in real 100-share lots; ￥1M of Maotai buys only 5 手'],
+  },
+  {
+    zh: ['涨跌停', '开在涨停板买不进、跌停板卖不出(当日作废,下个 bar 重判即自动重试)'],
+    en: [
+      'Price limits',
+      'Can’t buy at the up-limit open nor sell at the down-limit open (voided that day; re-tried next bar)',
+    ],
+  },
+  {
+    zh: ['T+1 / 停牌', '当日买入次日才能卖;停牌当日不成交;下单次日开盘价成交'],
+    en: [
+      'T+1 / suspension',
+      'Bought today, sellable next day; suspended = no fill; orders fill at next open',
+    ],
+  },
+  {
+    zh: [
+      '复权 / 成本',
+      '内部后复权算收益(含分红再投资);佣金万 2.5(最低 5 元)+ 印花税千 0.5(仅卖)+ 过户费',
+    ],
+    en: [
+      'Adjustment / costs',
+      'hfq prices for returns (dividends reinvested); commission 0.025% (min ￥5) + stamp duty 0.05% (sell) + transfer fee',
+    ],
+  },
 ];
 
 const QUICKSTART = `// 单只:收盘价上穿 20 日均线满仓买入、下穿清仓

@@ -26,9 +26,26 @@ export const EXAMPLE_SCREENS: { label: string; spec: ScreenSpec }[] = [
       limit: 50,
     },
   },
-  { label: '小市值', spec: { filters: [{ field: 'totalMv', op: '>', value: 0 }], sort: { field: 'totalMv', dir: 'asc' }, limit: 50 } },
-  { label: '高换手', spec: { filters: [], sort: { field: 'turnoverRate', dir: 'desc' }, limit: 50 } },
-  { label: '破净 (PB<1)', spec: { filters: [{ field: 'pb', op: '<', value: 1 }], sort: { field: 'pb', dir: 'asc' }, limit: 50 } },
+  {
+    label: '小市值',
+    spec: {
+      filters: [{ field: 'totalMv', op: '>', value: 0 }],
+      sort: { field: 'totalMv', dir: 'asc' },
+      limit: 50,
+    },
+  },
+  {
+    label: '高换手',
+    spec: { filters: [], sort: { field: 'turnoverRate', dir: 'desc' }, limit: 50 },
+  },
+  {
+    label: '破净 (PB<1)',
+    spec: {
+      filters: [{ field: 'pb', op: '<', value: 1 }],
+      sort: { field: 'pb', dir: 'asc' },
+      limit: 50,
+    },
+  },
 ];
 
 /**
@@ -83,7 +100,9 @@ export class ScreenStore extends BaseStore<ScreenSetupParams> {
    * no spec (just the matched stocks). Either way the submitted text becomes the read-only prompt bubble. */
   public async searchNl() {
     const text = this.nlText.trim();
-    if (!text) return;
+    if (!text) {
+      return;
+    }
     const r = await this.queryLoader.run();
     runInAction(() => {
       this.submittedPrompt = text;
@@ -116,7 +135,9 @@ export class ScreenStore extends BaseStore<ScreenSetupParams> {
 
   /** Save the current query under a name (upsert by name), then refresh the list. */
   public saveCurrent(name: string) {
-    if (!this.spec) return;
+    if (!this.spec) {
+      return;
+    }
     void saveScreen(name, this.spec).then(() => this.savedLoader.run());
   }
 

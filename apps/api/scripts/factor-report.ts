@@ -15,7 +15,9 @@ async function main(): Promise<void> {
 
   for (const r of reports) {
     console.log(`\n${'='.repeat(64)}`);
-    console.log(`因子 ${r.factor}（${r.label}）  样本 ${r.periods} 个${r.freq === 'week' ? '周' : '月'}`);
+    console.log(
+      `因子 ${r.factor}（${r.label}）  样本 ${r.periods} 个${r.freq === 'week' ? '周' : '月'}`,
+    );
     console.log('-'.repeat(64));
     console.log(
       `Rank IC 均值 ${r.icMean.toFixed(4)} | IC标准差 ${r.icStd.toFixed(4)} | ` +

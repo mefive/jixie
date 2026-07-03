@@ -46,13 +46,23 @@ export function SavedBar({ title, items, loading, onOpenList, onLoad, onDelete, 
 
   const menuItems: MenuProps['items'] =
     items.length === 0
-      ? [{ key: 'empty', disabled: true, label: <span className="jx-savedBar-empty">{loading ? '加载中…' : '还没有保存的项目'}</span> }]
+      ? [
+          {
+            key: 'empty',
+            disabled: true,
+            label: (
+              <span className="jx-savedBar-empty">{loading ? '加载中…' : '还没有保存的项目'}</span>
+            ),
+          },
+        ]
       : items.map((it) => ({
           key: it.id,
           label: (
             <div className="jx-savedBar-item">
               <span className="jx-savedBar-itemName">{it.name}</span>
-              <span className="jx-savedBar-itemTime">{dayjs(it.updatedAt).format('MM-DD HH:mm')}</span>
+              <span className="jx-savedBar-itemTime">
+                {dayjs(it.updatedAt).format('MM-DD HH:mm')}
+              </span>
               <span
                 className="jx-savedBar-del"
                 role="button"
@@ -69,13 +79,17 @@ export function SavedBar({ title, items, loading, onOpenList, onLoad, onDelete, 
         }));
 
   const openSave = () => {
-    if (!save) return;
+    if (!save) {
+      return;
+    }
     setDraftName(save.defaultName);
     setModalOpen(true);
   };
   const confirmSave = () => {
     const name = draftName.trim();
-    if (!name || !save) return;
+    if (!name || !save) {
+      return;
+    }
     save.onSave(name);
     message.success('已保存');
     setModalOpen(false);
@@ -88,7 +102,9 @@ export function SavedBar({ title, items, loading, onOpenList, onLoad, onDelete, 
         menu={{
           items: menuItems,
           onClick: ({ key, domEvent }) => {
-            if (key === 'empty') return;
+            if (key === 'empty') {
+              return;
+            }
             // a click landing on the trash icon already stopped propagation; this is a row open
             domEvent.stopPropagation();
             onLoad(key);

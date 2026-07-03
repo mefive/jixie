@@ -12,7 +12,9 @@
   min-height: 100%;
   background: #fff;
   color: var(--doc-text);
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, 'PingFang SC', sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, 'PingFang SC',
+    sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 

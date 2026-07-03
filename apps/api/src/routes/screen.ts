@@ -77,9 +77,14 @@ screenRoute.post('/screen/query', validateJson(queryBody), async (c) => {
     return apiError(c, 'SERVICE_UNAVAILABLE', e instanceof Error ? e.message : 'NL→查询 调用失败');
   }
   if (!parsed.ok || !parsed.parse) {
-    return apiError(c, 'VALIDATION_FAILED', '没能把需求转成查询，换个说法、或直接输入股票名称/代码再试', {
-      errors: parsed.errors,
-    });
+    return apiError(
+      c,
+      'VALIDATION_FAILED',
+      '没能把需求转成查询，换个说法、或直接输入股票名称/代码再试',
+      {
+        errors: parsed.errors,
+      },
+    );
   }
 
   if (parsed.parse.kind === 'lookup') {
@@ -96,15 +101,25 @@ screenRoute.post('/screen/query', validateJson(queryBody), async (c) => {
 });
 
 const seriesQuery = z.object({
-  start: z.string().regex(/^\d{8}$/).optional(),
-  end: z.string().regex(/^\d{8}$/).optional(),
+  start: z
+    .string()
+    .regex(/^\d{8}$/)
+    .optional(),
+  end: z
+    .string()
+    .regex(/^\d{8}$/)
+    .optional(),
 });
 
 screenRoute.get('/stock/:code/series', validateQuery(seriesQuery), async (c) => {
   const code = c.req.param('code');
   const { start = '20150101', end = '20241231' } = c.req.valid('query');
-  if (start >= end) return apiError(c, 'VALIDATION_FAILED', '起始日期必须早于结束日期');
+  if (start >= end) {
+    return apiError(c, 'VALIDATION_FAILED', '起始日期必须早于结束日期');
+  }
   const series = await stockSeries(code, start, end);
-  if (series.points.length === 0) return apiError(c, 'NOT_FOUND', '该标的在区间内无数据');
+  if (series.points.length === 0) {
+    return apiError(c, 'NOT_FOUND', '该标的在区间内无数据');
+  }
   return c.json(series);
 });

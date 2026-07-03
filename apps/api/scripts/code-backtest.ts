@@ -54,10 +54,11 @@ async function main(): Promise<void> {
   console.log('\n=== EP 月度十分位 · IR 版 vs 代码版(SDK 标准库) ===');
   console.log(line('IR  ', ir));
   console.log(line('代码', code));
-  const same =
-    Math.abs(ir.totalReturn - code.totalReturn) < 1e-9 && ir.trades === code.trades;
+  const same = Math.abs(ir.totalReturn - code.totalReturn) < 1e-9 && ir.trades === code.trades;
   console.log(same ? '\n✅ 两版逐位一致 —— SDK 标准库忠实表达了结构化策略' : '\n❌ 不一致,需排查');
-  if (!same) process.exitCode = 1;
+  if (!same) {
+    process.exitCode = 1;
+  }
 }
 
 main()

@@ -27,6 +27,9 @@ export default tseslint.config(
         'warn',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
       ],
+      // Force braces on every control statement — no single-line `if (x) return;` / `for (…) stmt;`.
+      // eslint --fix adds the braces; prettier then puts the body on its own line.
+      curly: ['error', 'all'],
     },
   },
   // 前端：浏览器 + node 全局（vite.config 用 node）；框架惯用 any（parentStore 等）与 {} setup 参数
@@ -47,6 +50,13 @@ export default tseslint.config(
     files: ['apps/web/src/lib/**/*.{ts,tsx}'],
     rules: {
       '@typescript-eslint/no-unused-vars': 'off',
+    },
+  },
+  // e2e Playwright 脚本：node 里跑，但 page.evaluate 回调是浏览器代码（document/location 等）
+  {
+    files: ['apps/web/e2e/**/*.mjs'],
+    languageOptions: {
+      globals: { ...globals.node, ...globals.browser },
     },
   },
 );

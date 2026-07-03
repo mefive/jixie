@@ -38,13 +38,17 @@ export default function StockChart({
     }
   }
   const factorOf = (d: (typeof p)[number]): number => {
-    if (adjust === 'none' || d.adjFactor == null) return 1;
+    if (adjust === 'none' || d.adjFactor == null) {
+      return 1;
+    }
     return adjust === 'hfq' ? d.adjFactor : d.adjFactor / latest;
   };
 
   // Candlestick item = [open, close, low, high] (× adjustment); missing day → NaN tuple (gap).
   const candle: number[][] = p.map((d) => {
-    if (d.open == null || d.close == null || d.low == null || d.high == null) return [NaN, NaN, NaN, NaN];
+    if (d.open == null || d.close == null || d.low == null || d.high == null) {
+      return [NaN, NaN, NaN, NaN];
+    }
     const f = factorOf(d);
     return [d.open * f, d.close * f, d.low * f, d.high * f];
   });
@@ -62,8 +66,20 @@ export default function StockChart({
       { left: 56, right: 56, top: '80%', height: '14%' },
     ],
     xAxis: [
-      { type: 'category', data: dates, boundaryGap: true, axisLabel: { show: false }, axisLine: { lineStyle: { color: '#e8eaed' } } },
-      { type: 'category', gridIndex: 1, data: dates, axisLabel: { formatter: (d: string) => d.slice(0, 6), color: '#8a9099' }, axisLine: { lineStyle: { color: '#e8eaed' } } },
+      {
+        type: 'category',
+        data: dates,
+        boundaryGap: true,
+        axisLabel: { show: false },
+        axisLine: { lineStyle: { color: '#e8eaed' } },
+      },
+      {
+        type: 'category',
+        gridIndex: 1,
+        data: dates,
+        axisLabel: { formatter: (d: string) => d.slice(0, 6), color: '#8a9099' },
+        axisLine: { lineStyle: { color: '#e8eaed' } },
+      },
     ],
     yAxis: [
       // price (left): linear or log
@@ -88,7 +104,13 @@ export default function StockChart({
         splitLine: { show: false },
       },
       // volume (grid 1)
-      { gridIndex: 1, name: '量', nameTextStyle: { color: '#8a9099' }, axisLabel: { show: false }, splitLine: { show: false } },
+      {
+        gridIndex: 1,
+        name: '量',
+        nameTextStyle: { color: '#8a9099' },
+        axisLabel: { show: false },
+        splitLine: { show: false },
+      },
     ],
     dataZoom: [
       { type: 'inside', xAxisIndex: [0, 1], start: 50, end: 100 },

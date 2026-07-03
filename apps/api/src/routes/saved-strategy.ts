@@ -39,7 +39,9 @@ savedStrategyRoute.get('/', async (c) => {
 /** Compact a stored BacktestSummary into a card snapshot: headline metrics + a downsampled equity curve. */
 function snapshotOf(lastResult: unknown): StrategyCard['snapshot'] {
   const r = lastResult as BacktestSummary | null;
-  if (!r || !Array.isArray(r.nav) || r.nav.length === 0) return undefined;
+  if (!r || !Array.isArray(r.nav) || r.nav.length === 0) {
+    return undefined;
+  }
   const vals = r.nav.map((n) => n.value);
   const N = 48;
   const step = Math.max(1, Math.floor(vals.length / N));
@@ -52,7 +54,9 @@ savedStrategyRoute.get('/:id', async (c) => {
   const row = await prisma.strategy.findFirst({
     where: { id: c.req.param('id'), userId: c.var.userId },
   });
-  if (!row) return apiError(c, 'NOT_FOUND', '策略不存在');
+  if (!row) {
+    return apiError(c, 'NOT_FOUND', '策略不存在');
+  }
   return c.json({
     id: row.id,
     name: row.name,
@@ -88,7 +92,8 @@ savedStrategyRoute.post('/', validateJson(codeConfigSchema), async (c) => {
     where: { userId_name: { userId, name } },
     select: { config: true },
   });
-  const configChanged = existing != null && JSON.stringify(existing.config) !== JSON.stringify(config);
+  const configChanged =
+    existing != null && JSON.stringify(existing.config) !== JSON.stringify(config);
   const row = await prisma.strategy.upsert({
     where: { userId_name: { userId, name } },
     create: { id: ulid(), userId, name, config: config as unknown as Prisma.InputJsonValue },
@@ -106,6 +111,8 @@ savedStrategyRoute.delete('/:id', async (c) => {
   const r = await prisma.strategy.deleteMany({
     where: { id: c.req.param('id'), userId: c.var.userId },
   });
-  if (r.count === 0) return apiError(c, 'NOT_FOUND', '策略不存在');
+  if (r.count === 0) {
+    return apiError(c, 'NOT_FOUND', '策略不存在');
+  }
   return c.json({ ok: true });
 });

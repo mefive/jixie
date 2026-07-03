@@ -42,15 +42,21 @@ async function loadMembership(
   const bySnap = new Map<string, Set<string>>();
   const ever = new Set<string>();
   for (const r of rows) {
-    (bySnap.get(r.tradeDate) ?? bySnap.set(r.tradeDate, new Set()).get(r.tradeDate)!).add(r.conCode);
+    (bySnap.get(r.tradeDate) ?? bySnap.set(r.tradeDate, new Set()).get(r.tradeDate)!).add(
+      r.conCode,
+    );
     ever.add(r.conCode);
   }
   const snaps = [...bySnap.keys()].sort();
   const memberAt = new Map<string, Set<string>>();
   let si = -1;
   for (const day of calendar) {
-    while (si + 1 < snaps.length && snaps[si + 1] <= day) si++;
-    if (si >= 0) memberAt.set(day, bySnap.get(snaps[si])!); // else: no snapshot yet → no universe
+    while (si + 1 < snaps.length && snaps[si + 1] <= day) {
+      si++;
+    }
+    if (si >= 0) {
+      memberAt.set(day, bySnap.get(snaps[si])!);
+    } // else: no snapshot yet → no universe
   }
   return { memberAt, ever };
 }
@@ -85,7 +91,9 @@ export async function computeBreadthSeries(opts: BreadthOpts): Promise<BreadthSe
 
   // Optional point-in-time index universe (e.g. CSI 1800 = 000906 ∪ 000852): only count a stock
   // toward a day's breadth when it was a constituent as-of that day.
-  const membership = opts.indexCodes?.length ? await loadMembership(opts.indexCodes, calendar) : null;
+  const membership = opts.indexCodes?.length
+    ? await loadMembership(opts.indexCodes, calendar)
+    : null;
 
   const satisfied = new Map<string, number>();
   const evaluable = new Map<string, number>();
@@ -127,28 +135,48 @@ export async function computeBreadthSeries(opts: BreadthOpts): Promise<BreadthSe
     const C: number[] = [];
     let lastAdj: number | null = null;
     for (const r of px) {
-      if (r.close == null || r.high == null || r.low == null) continue;
-      if (listDate && r.tradeDate < listDate) continue;
+      if (r.close == null || r.high == null || r.low == null) {
+        continue;
+      }
+      if (listDate && r.tradeDate < listDate) {
+        continue;
+      }
       const a = adjMap.get(r.tradeDate);
-      if (a != null) lastAdj = a;
-      if (lastAdj == null) continue;
+      if (a != null) {
+        lastAdj = a;
+      }
+      if (lastAdj == null) {
+        continue;
+      }
       d.push(r.tradeDate);
       H.push(r.high * lastAdj);
       L.push(r.low * lastAdj);
       C.push(r.close * lastAdj);
     }
     const len = C.length;
-    if (len < n + ce + 1) continue;
+    if (len < n + ce + 1) {
+      continue;
+    }
     const { j } = kdj(H, L, C);
 
     for (let i = 0; i < len; i++) {
-      if (i - n < 0 || i + ce >= len) continue;
+      if (i - n < 0 || i + ce >= len) {
+        continue;
+      }
       const B = d[i];
-      if (!inRange.has(B)) continue;
-      if (membership && !membership.memberAt.get(B)?.has(tsCode)) continue; // PIT index member only
+      if (!inRange.has(B)) {
+        continue;
+      }
+      if (membership && !membership.memberAt.get(B)?.has(tsCode)) {
+        continue;
+      } // PIT index member only
       evaluable.set(B, (evaluable.get(B) ?? 0) + 1);
-      if (!(C[i - n] > C[i])) continue; // 1
-      if (!(C[i + 1] < H[i])) continue; // 2
+      if (!(C[i - n] > C[i])) {
+        continue;
+      } // 1
+      if (!(C[i + 1] < H[i])) {
+        continue;
+      } // 2
       let ok = true; // 3
       for (let k = cs; k <= ce; k++) {
         if (!(C[i + k] < H[i])) {
@@ -156,18 +184,26 @@ export async function computeBreadthSeries(opts: BreadthOpts): Promise<BreadthSe
           break;
         }
       }
-      if (!ok) continue;
-      if (!(j[i + ce] < jt)) continue; // 4
+      if (!ok) {
+        continue;
+      }
+      if (!(j[i + ce] < jt)) {
+        continue;
+      } // 4
       satisfied.set(B, (satisfied.get(B) ?? 0) + 1);
     }
 
-    if (++processed % 1000 === 0) console.log(`  …已处理 ${processed}/${stocks.length} 只`);
+    if (++processed % 1000 === 0) {
+      console.log(`  …已处理 ${processed}/${stocks.length} 只`);
+    }
   }
 
   const rows: BreadthRow[] = [];
   for (const date of calendar) {
     const ev = evaluable.get(date) ?? 0;
-    if (ev < minStocks) continue;
+    if (ev < minStocks) {
+      continue;
+    }
     const sat = satisfied.get(date) ?? 0;
     rows.push({ date, breadth: sat / ev, satisfied: sat, evaluable: ev });
   }
@@ -207,7 +243,9 @@ export function selectBuyDates(series: BreadthSeries, opts: PeakOpts = {}): BuyD
   let lastIdx = -Infinity;
   for (let i = 0; i < rows.length; i++) {
     const b = rows[i].breadth;
-    if (b < floor) continue;
+    if (b < floor) {
+      continue;
+    }
     let isMax = true;
     for (let k = Math.max(0, i - lookback); k < i; k++) {
       if (rows[k].breadth > b) {
@@ -215,8 +253,12 @@ export function selectBuyDates(series: BreadthSeries, opts: PeakOpts = {}): BuyD
         break;
       }
     }
-    if (!isMax) continue;
-    if (i - lastIdx < minGap) continue;
+    if (!isMax) {
+      continue;
+    }
+    if (i - lastIdx < minGap) {
+      continue;
+    }
     lastIdx = i;
     const ei = (calIdx.get(rows[i].date) ?? 0) + ce;
     out.push({
@@ -248,10 +290,14 @@ interface MaSet {
 /** Moving averages today and yesterday from an ascending close series; null if too short. */
 function maSet(closes: number[], short: number, long: number): MaSet | null {
   const len = closes.length;
-  if (len < long + 1) return null;
+  if (len < long + 1) {
+    return null;
+  }
   const mean = (from: number, to: number) => {
     let s = 0;
-    for (let i = from; i <= to; i++) s += closes[i];
+    for (let i = from; i <= to; i++) {
+      s += closes[i];
+    }
     return s / (to - from + 1);
   };
   return {
@@ -286,9 +332,13 @@ async function loadCloseWindows(
   const adjMap = new Map(adj.map((a) => [`${a.tsCode}|${a.tradeDate}`, a.adjFactor]));
   const out = new Map<string, number[]>();
   for (const r of px) {
-    if (r.close == null) continue;
+    if (r.close == null) {
+      continue;
+    }
     const f = adjMap.get(`${r.tsCode}|${r.tradeDate}`);
-    if (f == null) continue;
+    if (f == null) {
+      continue;
+    }
     (out.get(r.tsCode) ?? out.set(r.tsCode, []).get(r.tsCode)!).push(r.close * f);
   }
   return out;
@@ -353,41 +403,65 @@ export async function makeZengStrategy(opts: ZengOpts): Promise<Strategy> {
     select: { tsCode: true, endDate: true, annDate: true, roe: true, roeWaa: true },
   });
   const roeByStock = new Map<string, typeof roeRows>();
-  for (const r of roeRows) (roeByStock.get(r.tsCode) ?? roeByStock.set(r.tsCode, []).get(r.tsCode)!).push(r);
-  for (const arr of roeByStock.values()) arr.sort((a, b) => b.endDate.localeCompare(a.endDate));
+  for (const r of roeRows) {
+    (roeByStock.get(r.tsCode) ?? roeByStock.set(r.tsCode, []).get(r.tsCode)!).push(r);
+  }
+  for (const arr of roeByStock.values()) {
+    arr.sort((a, b) => b.endDate.localeCompare(a.endDate));
+  }
 
   const divRows = await prisma.dividend.findMany({
     where: { divProc: '实施' },
     select: { tsCode: true, endDate: true, annDate: true, exDate: true, cashDiv: true },
   });
   const divByStock = new Map<string, typeof divRows>();
-  for (const r of divRows) (divByStock.get(r.tsCode) ?? divByStock.set(r.tsCode, []).get(r.tsCode)!).push(r);
+  for (const r of divRows) {
+    (divByStock.get(r.tsCode) ?? divByStock.set(r.tsCode, []).get(r.tsCode)!).push(r);
+  }
 
   const roeOk = (code: string, date: string): boolean => {
     const arr = roeByStock.get(code);
-    if (!arr) return false;
+    if (!arr) {
+      return false;
+    }
     const known = arr.filter((r) => (r.annDate ?? '99999999') <= date); // PIT: announced by `date`
-    if (known.length < roeYears) return false;
+    if (known.length < roeYears) {
+      return false;
+    }
     for (let i = 0; i < roeYears; i++) {
       const v = roeField === 'roeWaa' ? known[i].roeWaa : known[i].roe;
-      if (v == null || v <= roeMin) return false;
+      if (v == null || v <= roeMin) {
+        return false;
+      }
     }
     return true;
   };
 
   const divOk = (code: string, date: string): boolean => {
     const arr = divByStock.get(code);
-    if (!arr) return false;
+    if (!arr) {
+      return false;
+    }
     const years = new Set<number>();
     for (const r of arr) {
       const gate = r.exDate ?? r.annDate ?? '99999999'; // PIT: effective by `date`
-      if (gate > date) continue;
-      if (!(r.cashDiv && r.cashDiv > 0)) continue;
+      if (gate > date) {
+        continue;
+      }
+      if (!(r.cashDiv && r.cashDiv > 0)) {
+        continue;
+      }
       years.add(+r.endDate.slice(0, 4));
     }
-    if (years.size < divYears) return false;
+    if (years.size < divYears) {
+      return false;
+    }
     const maxY = Math.max(...years);
-    for (let y = maxY; y > maxY - divYears; y--) if (!years.has(y)) return false; // consecutive
+    for (let y = maxY; y > maxY - divYears; y--) {
+      if (!years.has(y)) {
+        return false;
+      }
+    } // consecutive
     return true;
   };
 
@@ -401,40 +475,70 @@ export async function makeZengStrategy(opts: ZengOpts): Promise<Strategy> {
       // Exits (every day): a held name whose MA20 falls below MA90.
       for (const p of ctx.positions()) {
         const ma = maSet(ctx.history(p.code, 'close', maLong + 1), maShort, maLong);
-        if (ma && ma.short < ma.long) ctx.exit(p.code);
+        if (ma && ma.short < ma.long) {
+          ctx.exit(p.code);
+        }
       }
 
       // A buy_date (re)opens the accumulation window; buying happens across the whole window, not
       // just on the entry date — names turn MA-bullish gradually after a bottom.
-      if (entrySet.has(date)) windowRemaining = windowDays;
-      if (windowRemaining <= 0) return;
+      if (entrySet.has(date)) {
+        windowRemaining = windowDays;
+      }
+      if (windowRemaining <= 0) {
+        return;
+      }
       windowRemaining--;
 
       const held = new Set(ctx.positions().map((p) => p.code));
       let slots = maxUnits - held.size;
-      if (slots <= 0) return;
+      if (slots <= 0) {
+        return;
+      }
 
       // Cheap prefilter (in-memory): quality + dividend yield. Narrows ~5000 → a few dozen before
       // the (relatively) expensive MA window load, which we then run only for the candidates.
       const universe = await ctx.loadCrossSection();
       const cand: { code: string; adjClose: number | null }[] = [];
       for (const code of universe) {
-        if (held.has(code)) continue;
+        if (held.has(code)) {
+          continue;
+        }
         const bar = ctx.bar(code);
-        if (!bar || bar.dvRatio == null || bar.dvRatio <= dvRatioMin) continue; // 分红率 > 2%
-        if (!roeOk(code, date)) continue; // ROE 逐年 > 13
-        if (!divOk(code, date)) continue; // 连续 5 年分红
+        if (!bar || bar.dvRatio == null || bar.dvRatio <= dvRatioMin) {
+          continue;
+        } // 分红率 > 2%
+        if (!roeOk(code, date)) {
+          continue;
+        } // ROE 逐年 > 13
+        if (!divOk(code, date)) {
+          continue;
+        } // 连续 5 年分红
         cand.push({ code, adjClose: bar.adjClose });
       }
-      if (!cand.length) return;
+      if (!cand.length) {
+        return;
+      }
 
-      const closes = await loadCloseWindows(date, maLong, cand.map((c) => c.code));
+      const closes = await loadCloseWindows(
+        date,
+        maLong,
+        cand.map((c) => c.code),
+      );
       for (const { code, adjClose } of cand) {
-        if (slots <= 0) break;
+        if (slots <= 0) {
+          break;
+        }
         const ma = maSet(closes.get(code) ?? [], maShort, maLong);
-        if (!ma) continue;
-        if (!(ma.short > ma.shortPrev && ma.long > ma.longPrev && ma.short > ma.long)) continue; // 均线多头
-        if (adjClose == null || adjClose <= 0) continue;
+        if (!ma) {
+          continue;
+        }
+        if (!(ma.short > ma.shortPrev && ma.long > ma.longPrev && ma.short > ma.long)) {
+          continue;
+        } // 均线多头
+        if (adjClose == null || adjClose <= 0) {
+          continue;
+        }
         ctx.order(code, Math.floor(unitCash / adjClose));
         slots--;
         held.add(code);

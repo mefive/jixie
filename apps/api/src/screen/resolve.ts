@@ -21,7 +21,9 @@ const MAX_HITS = 50;
  * within each tier; returns [] when the token isn't a plausible instrument reference. */
 export async function resolveInstruments(text: string): Promise<string[]> {
   const t = text.trim();
-  if (!t) return [];
+  if (!t) {
+    return [];
+  }
 
   // 1. Pure code (600519 / 600519.SH). symbol is the 6-digit; maps to exactly one A-share ts_code.
   const m = t.match(CODE_RE);
@@ -33,7 +35,9 @@ export async function resolveInstruments(text: string): Promise<string[]> {
 
   // 2. Exact full name (工商银行 → 601398.SH).
   const exact = await prisma.stockBasic.findMany({ where: { name: t }, select: { tsCode: true } });
-  if (exact.length) return exact.map((r) => r.tsCode);
+  if (exact.length) {
+    return exact.map((r) => r.tsCode);
+  }
 
   // 3. Short name fragment (茅台 → 贵州茅台; 平安 → 中国平安 / 平安银行). A screen phrase ("便宜的高股息")
   //    simply matches no name → [] → caller goes to the LLM. Capped so a generic fragment can't flood.

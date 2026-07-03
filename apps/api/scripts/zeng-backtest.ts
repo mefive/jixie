@@ -17,9 +17,18 @@ async function main(): Promise<void> {
   const indexCodes = ['000906.SH', '000852.SH']; // CSI1800
 
   console.log('Phase 1: 计算 buy_date(中证1800,完整形态,门槛30%)…');
-  const buyDates = await computeBuyDates({ start, end, indexCodes, floor: 0.3, lookback: 0, minGap: 20 });
+  const buyDates = await computeBuyDates({
+    start,
+    end,
+    indexCodes,
+    floor: 0.3,
+    lookback: 0,
+    minGap: 20,
+  });
   console.log(`buy_date ${buyDates.length} 个:`);
-  for (const b of buyDates) console.log(`  ${b.buyDate} → 入场 ${b.entryDate}  广度 ${pct(b.breadth)}`);
+  for (const b of buyDates) {
+    console.log(`  ${b.buyDate} → 入场 ${b.entryDate}  广度 ${pct(b.breadth)}`);
+  }
 
   console.log('\nPhase 2: 预加载财务 + 跑回测…');
   const strategy = await makeZengStrategy({ start, end, buyDates });

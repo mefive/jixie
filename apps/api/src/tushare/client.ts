@@ -91,7 +91,9 @@ export class TushareClient {
   ): Promise<TushareRow[]> {
     for (let attempt = 0; ; attempt++) {
       const wait = this.minIntervalMs - (Date.now() - this.lastCallAt);
-      if (wait > 0) await sleep(wait);
+      if (wait > 0) {
+        await sleep(wait);
+      }
 
       try {
         const rows = await this.doFetch(apiName, params, fields);
@@ -100,8 +102,12 @@ export class TushareClient {
       } catch (e) {
         this.lastCallAt = Date.now();
         // Don't retry business errors (param / permission / credit issues yield the same result)
-        if (e instanceof TushareError) throw e;
-        if (attempt >= this.maxRetries) throw e;
+        if (e instanceof TushareError) {
+          throw e;
+        }
+        if (attempt >= this.maxRetries) {
+          throw e;
+        }
         const backoff = this.minIntervalMs * 2 ** (attempt + 1);
         warn(
           `${apiName} 第 ${attempt + 1} 次请求失败，${backoff}ms 后重试：`,
@@ -131,9 +137,13 @@ export class TushareClient {
         }),
         signal: controller.signal,
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status} ${res.statusText}`);
+      }
       const body = (await res.json()) as TushareResponse;
-      if (body.code !== 0) throw new TushareError(apiName, body.code, body.msg ?? 'unknown error');
+      if (body.code !== 0) {
+        throw new TushareError(apiName, body.code, body.msg ?? 'unknown error');
+      }
       return toRows(body.data);
     } finally {
       clearTimeout(timer);
@@ -143,11 +153,15 @@ export class TushareClient {
 
 /** Convert Tushare's columnar response {fields, items} into a more usable array of row objects. */
 function toRows(data: TushareResponse['data']): TushareRow[] {
-  if (!data || !data.items?.length) return [];
+  if (!data || !data.items?.length) {
+    return [];
+  }
   const { fields, items } = data;
   return items.map((item) => {
     const row: TushareRow = {};
-    for (let i = 0; i < fields.length; i++) row[fields[i]] = item[i] ?? null;
+    for (let i = 0; i < fields.length; i++) {
+      row[fields[i]] = item[i] ?? null;
+    }
     return row;
   });
 }

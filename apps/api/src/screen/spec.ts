@@ -31,12 +31,19 @@ export function validateScreenSpec(
   obj: unknown,
 ): { ok: true; spec: ScreenSpec } | { ok: false; errors: string[] } {
   const r = screenSpecSchema.safeParse(obj);
-  if (r.success) return { ok: true, spec: r.data as ScreenSpec };
-  return { ok: false, errors: r.error.issues.map((i) => `${i.path.join('.') || '(root)'}: ${i.message}`) };
+  if (r.success) {
+    return { ok: true, spec: r.data as ScreenSpec };
+  }
+  return {
+    ok: false,
+    errors: r.error.issues.map((i) => `${i.path.join('.') || '(root)'}: ${i.message}`),
+  };
 }
 
 function cmp(v: number | null, op: string, value: number): boolean {
-  if (v == null || !Number.isFinite(v)) return false; // missing data never passes a numeric filter
+  if (v == null || !Number.isFinite(v)) {
+    return false;
+  } // missing data never passes a numeric filter
   return op === '>' ? v > value : op === '>=' ? v >= value : op === '<' ? v < value : v <= value;
 }
 
@@ -56,9 +63,15 @@ export function applyScreen(
     out = [...out].sort((a, b) => {
       const av = a[field] as number | null;
       const bv = b[field] as number | null;
-      if (av == null && bv == null) return 0;
-      if (av == null) return 1; // nulls last regardless of direction
-      if (bv == null) return -1;
+      if (av == null && bv == null) {
+        return 0;
+      }
+      if (av == null) {
+        return 1;
+      } // nulls last regardless of direction
+      if (bv == null) {
+        return -1;
+      }
       return (av - bv) * sign;
     });
   }

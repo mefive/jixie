@@ -15,7 +15,9 @@ export const Login = complex.component(() => {
   // authed is read during render → tracked by observer, authStore changes trigger re-render, effect re-runs accordingly.
   const authed = authStore.authenticated;
   useEffect(() => {
-    if (authed) navigate('/', { replace: true });
+    if (authed) {
+      navigate('/', { replace: true });
+    }
   }, [navigate, authed]);
 
   return (

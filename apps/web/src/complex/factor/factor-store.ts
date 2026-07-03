@@ -136,7 +136,13 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       this.jobRunning = true;
     });
     try {
-      const res = await runFactorAnalysis(this.selectedKey, this.freq, this.start, this.end, refresh);
+      const res = await runFactorAnalysis(
+        this.selectedKey,
+        this.freq,
+        this.start,
+        this.end,
+        refresh,
+      );
       if ('report' in res) {
         await this.analysisLoader.run(Promise.resolve(res.report)); // cache hit — instant, no job
         void this.runsLoader.run();
@@ -154,7 +160,12 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
    * localStorage, works cross-client), else show the cached report, else leave the 运行 prompt. */
   private async restoreOrRun() {
     try {
-      const { jobId } = await findFactorRunningJob(this.selectedKey, this.freq, this.start, this.end);
+      const { jobId } = await findFactorRunningJob(
+        this.selectedKey,
+        this.freq,
+        this.start,
+        this.end,
+      );
       if (jobId) {
         this.startPolling(jobId);
         return;

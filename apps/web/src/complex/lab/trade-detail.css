@@ -2,7 +2,9 @@
 
 .jx-td {
   @apply flex gap-3;
-  height: calc(100vh - 130px); /* fit inside the modal (top:20 + title + padding) so the slider isn't clipped */
+  height: calc(
+    100vh - 130px
+  ); /* fit inside the modal (top:20 + title + padding) so the slider isn't clipped */
 }
 
 .jx-td-chart {

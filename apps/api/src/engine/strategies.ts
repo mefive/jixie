@@ -38,7 +38,9 @@ export const SIGNALS: Record<string, SignalDef> = {
         label: f.label,
         fn: (_b: BarRow, ctx: BarContext, code: string) => {
           const bars = ctx.bars(code, PRICE_FACTOR_BARS);
-          if (bars.length < 2) return null;
+          if (bars.length < 2) {
+            return null;
+          }
           return f.fn(
             bars.map((x) => x.adjClose),
             bars.map((x) => x.date),
@@ -68,7 +70,9 @@ export function crossSectionStrategy(opts: {
   name?: string;
 }): Strategy {
   const sig = SIGNALS[opts.signal];
-  if (!sig) throw new Error(`未知信号 "${opts.signal}"，可选：${Object.keys(SIGNALS).join(' / ')}`);
+  if (!sig) {
+    throw new Error(`未知信号 "${opts.signal}"，可选：${Object.keys(SIGNALS).join(' / ')}`);
+  }
   const minListDays = opts.minListDays ?? 365;
   const liquidityDrop = opts.liquidityDrop ?? 0.25;
   let lastMonth = '';
@@ -77,7 +81,9 @@ export function crossSectionStrategy(opts: {
     name: opts.name ?? `${opts.signal}-${opts.side}-q${opts.quantile}`,
     async onBar(ctx) {
       const month = ctx.date.slice(0, 6);
-      if (month === lastMonth) return; // already rebalanced this month
+      if (month === lastMonth) {
+        return;
+      } // already rebalanced this month
       lastMonth = month;
 
       const codes = await ctx.loadCrossSection();
@@ -85,14 +91,22 @@ export function crossSectionStrategy(opts: {
       let cands: { code: string; v: number; liq: number }[] = [];
       for (const code of codes) {
         const bar = ctx.bar(code);
-        if (!bar) continue;
+        if (!bar) {
+          continue;
+        }
         const age = ctx.listDays(code);
-        if (age != null && age < minListDays) continue; // exclude recently-listed (point-in-time)
+        if (age != null && age < minListDays) {
+          continue;
+        } // exclude recently-listed (point-in-time)
         const v = sig.fn(bar, ctx, code);
-        if (v == null || !Number.isFinite(v)) continue;
+        if (v == null || !Number.isFinite(v)) {
+          continue;
+        }
         cands.push({ code, v, liq: bar.turnoverRate ?? 0 });
       }
-      if (cands.length < 20) return;
+      if (cands.length < 20) {
+        return;
+      }
 
       // Liquidity filter: drop the least-traded fraction.
       cands.sort((a, b) => a.liq - b.liq);
@@ -105,7 +119,9 @@ export function crossSectionStrategy(opts: {
 
       const w = 1 / picks.length;
       const targets: Record<string, number> = {};
-      for (const p of picks) targets[p.code] = w;
+      for (const p of picks) {
+        targets[p.code] = w;
+      }
       ctx.setHoldings(targets);
     },
   };
@@ -115,7 +131,9 @@ export function crossSectionStrategy(opts: {
 
 /** Wilder N (volatility unit) = average True Range over the window. Needs window+1 bars. */
 function atr(bars: OhlcBar[], window: number): number | null {
-  if (bars.length < window + 1) return null;
+  if (bars.length < window + 1) {
+    return null;
+  }
   let sum = 0;
   for (let i = bars.length - window; i < bars.length; i++) {
     const prevClose = bars[i - 1].adjClose;
@@ -131,17 +149,25 @@ function atr(bars: OhlcBar[], window: number): number | null {
 
 /** Highest high over the `window` bars *before* today (the Donchian entry channel). */
 function priorHigh(bars: OhlcBar[], window: number): number | null {
-  if (bars.length < window + 1) return null;
+  if (bars.length < window + 1) {
+    return null;
+  }
   let h = -Infinity;
-  for (let i = bars.length - 1 - window; i < bars.length - 1; i++) h = Math.max(h, bars[i].adjHigh);
+  for (let i = bars.length - 1 - window; i < bars.length - 1; i++) {
+    h = Math.max(h, bars[i].adjHigh);
+  }
   return h;
 }
 
 /** Lowest low over the `window` bars *before* today (the Donchian exit channel). */
 function priorLow(bars: OhlcBar[], window: number): number | null {
-  if (bars.length < window + 1) return null;
+  if (bars.length < window + 1) {
+    return null;
+  }
   let l = Infinity;
-  for (let i = bars.length - 1 - window; i < bars.length - 1; i++) l = Math.min(l, bars[i].adjLow);
+  for (let i = bars.length - 1 - window; i < bars.length - 1; i++) {
+    l = Math.min(l, bars[i].adjLow);
+  }
   return l;
 }
 
@@ -198,7 +224,9 @@ export function turtleStrategy(opts: {
     onBar(ctx) {
       for (const code of opts.codes) {
         const bars = ctx.bars(code, need);
-        if (bars.length < need) continue; // warming up
+        if (bars.length < need) {
+          continue;
+        } // warming up
         const close = bars[bars.length - 1].adjClose;
         const st = state.get(code);
 
@@ -206,12 +234,16 @@ export function turtleStrategy(opts: {
           // Flat: enter on an upside Donchian breakout.
           const hi = priorHigh(bars, entryDonchian);
           const n = atr(bars, atrWindow);
-          if (hi == null || n == null || n <= 0 || close <= hi) continue;
+          if (hi == null || n == null || n <= 0 || close <= hi) {
+            continue;
+          }
           // Equal-risk size, capped so one unit can't exceed unitCapPct of equity (low-vol names).
           const riskShares = (riskUnitPct * ctx.value) / n;
           const capShares = (unitCapPct * ctx.value) / close;
           const unitShares = Math.floor(Math.min(riskShares, capShares));
-          if (unitShares <= 0) continue;
+          if (unitShares <= 0) {
+            continue;
+          }
           ctx.order(code, unitShares);
           state.set(code, {
             units: 1,

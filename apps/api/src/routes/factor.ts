@@ -61,7 +61,9 @@ factorRoute.get('/analysis', validateQuery(analysisQuery), async (c) => {
   const cached = await prisma.factorReport.findUnique({
     where: { id: reportId(c.var.userId, factor, freq, start, end) },
   });
-  if (!cached) return apiError(c, 'NOT_FOUND', '该窗口尚未计算,请先运行');
+  if (!cached) {
+    return apiError(c, 'NOT_FOUND', '该窗口尚未计算,请先运行');
+  }
   return c.json(JSON.parse(cached.payload) as FactorReport);
 });
 
@@ -73,42 +75,60 @@ factorRoute.get('/analysis/running', validateQuery(analysisQuery), async (c) => 
 
 factorRoute.get('/analysis/job/:jobId', validateQuery(sinceQuery), async (c) => {
   const job = await getJob(c.req.param('jobId'), Number(c.req.valid('query').since ?? '0'));
-  if (!job) return apiError(c, 'NOT_FOUND', '任务不存在或已过期');
+  if (!job) {
+    return apiError(c, 'NOT_FOUND', '任务不存在或已过期');
+  }
   return c.json(job);
 });
 
 factorRoute.post('/analysis/run', validateQuery(analysisQuery), async (c) => {
   const userId = c.var.userId;
   const { factor, freq, start, end, refresh } = c.req.valid('query');
-  if (!CATALOG_KEYS.has(factor)) return apiError(c, 'NOT_FOUND', `未知因子 ${factor}`);
-  if (start >= end) return apiError(c, 'VALIDATION_FAILED', '起始日期必须早于结束日期');
+  if (!CATALOG_KEYS.has(factor)) {
+    return apiError(c, 'NOT_FOUND', `未知因子 ${factor}`);
+  }
+  if (start >= end) {
+    return apiError(c, 'VALIDATION_FAILED', '起始日期必须早于结束日期');
+  }
 
   if (refresh !== '1') {
     const cached = await prisma.factorReport.findUnique({
       where: { id: reportId(userId, factor, freq, start, end) },
     });
-    if (cached) return c.json({ done: true, report: JSON.parse(cached.payload) as FactorReport });
+    if (cached) {
+      return c.json({ done: true, report: JSON.parse(cached.payload) as FactorReport });
+    }
   }
   // Dedupe: re-attach to an in-flight job for the same analysis instead of spawning a duplicate worker.
   const existing = await findRunningJob(userId, 'factor', jobKey(factor, freq, start, end));
-  if (existing) return c.json({ jobId: existing });
+  if (existing) {
+    return c.json({ jobId: existing });
+  }
 
   const jobId = await createJob(userId, 'factor', jobKey(factor, freq, start, end));
   const worker = new Worker(workerUrl, { workerData: { userId, factor, freq, start, end } });
   let finished = false;
   const done = (status: 'done' | 'error', error?: string) => {
-    if (finished) return;
+    if (finished) {
+      return;
+    }
     finished = true;
     void finishJob(jobId, status, error);
   };
   worker.on('message', (msg: { type: string; line?: string; message?: string }) => {
-    if (msg.type === 'log') appendLog(jobId, msg.line!);
-    else if (msg.type === 'done') done('done');
-    else if (msg.type === 'error') done('error', msg.message);
+    if (msg.type === 'log') {
+      appendLog(jobId, msg.line!);
+    } else if (msg.type === 'done') {
+      done('done');
+    } else if (msg.type === 'error') {
+      done('error', msg.message);
+    }
   });
   worker.on('error', (err) => done('error', err.message));
   worker.on('exit', (code) => {
-    if (code !== 0) done('error', `因子分析进程异常退出 (code ${code})`);
+    if (code !== 0) {
+      done('error', `因子分析进程异常退出 (code ${code})`);
+    }
   });
   return c.json({ jobId });
 });

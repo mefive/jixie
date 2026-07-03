@@ -8,3 +8,7 @@ pnpm-lock.yaml
 *.db-journal
 .env
 data
+apps/api/prisma/migrations
+
+# hand-authored docs — keep their deliberate layout out of prettier's hands
+*.md

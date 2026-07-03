@@ -30,7 +30,10 @@ describe('nlToScreen(校验 + 回灌重试)', () => {
     const r = await nlToScreen('低估值大盘股', llm);
     expect(r.ok).toBe(true);
     expect(r.attempts).toBe(1);
-    expect(r.parse).toMatchObject({ kind: 'screen', spec: { sort: { field: 'totalMv', dir: 'desc' } } });
+    expect(r.parse).toMatchObject({
+      kind: 'screen',
+      spec: { sort: { field: 'totalMv', dir: 'desc' } },
+    });
   });
 
   it('点名股票 → lookup(规范化名称)', async () => {
@@ -55,12 +58,16 @@ describe('nlToScreen(校验 + 回灌重试)', () => {
     const r = await nlToScreen('roe 低', llm);
     expect(r.ok).toBe(true);
     expect(r.attempts).toBe(2);
-    const secondMsgs = (llm.mock.calls[1][0] as { content: string }[]).map((m) => m.content).join('\n');
+    const secondMsgs = (llm.mock.calls[1][0] as { content: string }[])
+      .map((m) => m.content)
+      .join('\n');
     expect(secondMsgs).toContain('校验失败');
   });
 
   it('始终非法 → ok=false', async () => {
-    const llm: LlmCall = vi.fn(async () => JSON.stringify({ filters: [{ field: 'x', op: '<', value: 1 }] }));
+    const llm: LlmCall = vi.fn(async () =>
+      JSON.stringify({ filters: [{ field: 'x', op: '<', value: 1 }] }),
+    );
     const r = await nlToScreen('乱写', llm, 1);
     expect(r.ok).toBe(false);
     expect(r.attempts).toBe(2);

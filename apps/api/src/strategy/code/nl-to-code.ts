@@ -23,7 +23,9 @@ export function referencedIndices(code: string): string[] {
   const out = new Set<string>();
   const re = /(?:universe|indexMembers)\s*\(\s*['"]([0-9]{6}\.[A-Za-z]{2,3})['"]/g;
   let m: RegExpExecArray | null;
-  while ((m = re.exec(code))) out.add(m[1].toUpperCase());
+  while ((m = re.exec(code))) {
+    out.add(m[1].toUpperCase());
+  }
   return [...out];
 }
 
@@ -66,7 +68,9 @@ export async function nlToCode(
 
     // The model declined — the request needs data/capabilities we don't have. Don't try to compile.
     const refused = refusalReason(code);
-    if (refused) return { ok: false, refused: true, error: refused, attempts };
+    if (refused) {
+      return { ok: false, refused: true, error: refused, attempts };
+    }
 
     try {
       await compileStrategy(code); // parses + loads + has onBar

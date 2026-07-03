@@ -34,7 +34,9 @@ savedScreenRoute.get('/:id', async (c) => {
   const row = await prisma.savedScreen.findFirst({
     where: { id: c.req.param('id'), userId: c.var.userId },
   });
-  if (!row) return apiError(c, 'NOT_FOUND', '选股不存在');
+  if (!row) {
+    return apiError(c, 'NOT_FOUND', '选股不存在');
+  }
   return c.json({
     id: row.id,
     name: row.name,
@@ -62,6 +64,8 @@ savedScreenRoute.delete('/:id', async (c) => {
   const r = await prisma.savedScreen.deleteMany({
     where: { id: c.req.param('id'), userId: c.var.userId },
   });
-  if (r.count === 0) return apiError(c, 'NOT_FOUND', '选股不存在');
+  if (r.count === 0) {
+    return apiError(c, 'NOT_FOUND', '选股不存在');
+  }
   return c.json({ ok: true });
 });
