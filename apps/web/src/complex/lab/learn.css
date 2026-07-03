@@ -1,0 +1,358 @@
+@reference '../../styles/index.css';
+
+/* Linear tutorial — same Apple-docs ink shell as sdk-doc, with tutorial-specific blocks
+   (numbered chapters, "why" asides, compare tables, next-step cards). */
+.jx-learn {
+  --doc-text: #1d1d1f;
+  --doc-sec: #6e6e73;
+  --doc-ter: #86868b;
+  --doc-line: #d2d2d7;
+  --doc-code: #f5f5f7;
+  @apply flex flex-col;
+  min-height: 100%;
+  background: #fff;
+  color: var(--doc-text);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, 'PingFang SC', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.jx-learn code {
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: var(--doc-code);
+  font-family: 'SF Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.88em;
+}
+
+/* —— sticky frosted top bar —— */
+.jx-learn-bar {
+  @apply sticky top-0 z-10 flex items-center justify-between;
+  height: 52px;
+  padding: 0 28px;
+  border-bottom: 1px solid var(--doc-line);
+  background: rgb(255 255 255 / 0.82);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+}
+
+.jx-learn-brand {
+  @apply flex items-center gap-2;
+  color: var(--doc-text);
+  font-size: 15px;
+}
+
+.jx-learn-banner {
+  height: 24px;
+}
+
+.jx-learn-brandSub {
+  color: var(--doc-ter);
+  font-size: 14px;
+}
+
+.jx-learn-topnav {
+  @apply flex items-center gap-5;
+}
+
+.jx-learn-topLink {
+  color: var(--doc-sec);
+  font-size: 14px;
+}
+
+.jx-learn-topLink:hover {
+  color: var(--doc-text);
+}
+
+.jx-learn-topLink--on {
+  @apply font-medium;
+  color: var(--doc-text);
+}
+
+.jx-learn-topCta {
+  @apply font-medium;
+  padding: 5px 14px;
+  border-radius: 980px;
+  background: var(--doc-text);
+  color: #fff;
+  font-size: 13px;
+}
+
+.jx-learn-topCta:hover {
+  background: #000;
+}
+
+/* —— two columns: sticky nav + content —— */
+.jx-learn-layout {
+  @apply grid flex-1;
+  grid-template-columns: 248px minmax(0, 1fr);
+  width: min(1160px, 100%);
+  margin: 0 auto;
+  padding: 0 28px;
+}
+
+.jx-learn-nav {
+  @apply sticky self-start overflow-auto;
+  top: 52px;
+  height: calc(100vh - 52px);
+  padding: 36px 20px 40px 0;
+  border-right: 1px solid var(--doc-line);
+}
+
+.jx-learn-navLink {
+  @apply flex items-baseline gap-2;
+  padding: 5px 0 5px 12px;
+  border-left: 2px solid transparent;
+  color: var(--doc-sec);
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+
+.jx-learn-navLink:hover {
+  color: var(--doc-text);
+}
+
+.jx-learn-navLink--on {
+  @apply font-medium;
+  border-left-color: var(--doc-text);
+  color: var(--doc-text);
+}
+
+.jx-learn-navNum {
+  color: var(--doc-ter);
+  font-family: 'SF Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+}
+
+/* —— content —— */
+.jx-learn-main {
+  padding: 44px 0 120px 44px;
+  max-width: 740px;
+}
+
+.jx-learn-eyebrow {
+  @apply font-semibold uppercase;
+  color: var(--doc-ter);
+  font-size: 12px;
+  letter-spacing: 0.6px;
+}
+
+.jx-learn-title {
+  @apply font-semibold;
+  margin: 6px 0 16px;
+  font-size: 40px;
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+}
+
+.jx-learn-abstract {
+  color: var(--doc-text);
+  font-size: 19px;
+  line-height: 1.6;
+}
+
+.jx-learn-section {
+  margin-top: 52px;
+  padding-top: 30px;
+  border-top: 1px solid var(--doc-line);
+  scroll-margin-top: 68px;
+}
+
+.jx-learn-num {
+  @apply font-semibold;
+  color: var(--doc-ter);
+  font-family: 'SF Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  letter-spacing: 1px;
+}
+
+.jx-learn-h2 {
+  @apply font-semibold;
+  margin: 4px 0 16px;
+  font-size: 27px;
+  letter-spacing: -0.01em;
+}
+
+.jx-learn-p {
+  margin-bottom: 15px;
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+.jx-learn-inlineLink,
+.jx-learn-p a {
+  @apply font-medium;
+  color: var(--doc-text);
+  text-decoration: underline;
+  text-decoration-color: var(--doc-line);
+  text-underline-offset: 2px;
+}
+
+.jx-learn-inlineLink:hover,
+.jx-learn-p a:hover {
+  text-decoration-color: var(--doc-text);
+}
+
+.jx-learn-code {
+  @apply overflow-auto;
+  margin: 10px 0 18px;
+  padding: 18px 20px;
+  border-radius: 14px;
+  background: var(--doc-code);
+  color: #2c2c2e;
+  font-family: 'SF Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  line-height: 1.75;
+  white-space: pre;
+}
+
+/* ordered steps (onBar's three phases) */
+.jx-learn-steps {
+  @apply flex flex-col gap-3;
+  margin: 4px 0 18px;
+  counter-reset: step;
+  list-style: none;
+}
+
+.jx-learn-steps li {
+  @apply relative;
+  padding-left: 40px;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.jx-learn-steps li::before {
+  @apply absolute flex items-center justify-center font-semibold;
+  counter-increment: step;
+  content: counter(step);
+  left: 0;
+  top: 1px;
+  width: 26px;
+  height: 26px;
+  border-radius: 980px;
+  background: var(--doc-text);
+  color: #fff;
+  font-size: 13px;
+}
+
+/* "why it works this way" aside */
+.jx-learn-why {
+  @apply flex gap-3;
+  margin: 6px 0 20px;
+  padding: 16px 18px;
+  border-radius: 12px;
+  border-left: 3px solid var(--doc-text);
+  background: #fafafa;
+}
+
+.jx-learn-whyTag {
+  @apply shrink-0 font-semibold uppercase;
+  margin-top: 3px;
+  color: var(--doc-ter);
+  font-size: 11px;
+  letter-spacing: 0.6px;
+}
+
+.jx-learn-whyBody {
+  color: var(--doc-sec);
+  font-size: 14.5px;
+  line-height: 1.65;
+}
+
+/* compare tables (bar/bars, order/target) */
+.jx-learn-table {
+  @apply w-full;
+  margin: 8px 0 20px;
+  border: 1px solid var(--doc-line);
+  border-radius: 14px;
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+  font-size: 14px;
+}
+
+.jx-learn-table th,
+.jx-learn-table td {
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--doc-line);
+  border-right: 1px solid var(--doc-line);
+  text-align: left;
+  vertical-align: top;
+  line-height: 1.5;
+}
+
+.jx-learn-table tr td:last-child,
+.jx-learn-table tr th:last-child {
+  border-right: none;
+}
+
+.jx-learn-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.jx-learn-table thead th {
+  @apply font-semibold;
+  background: #fafafa;
+}
+
+.jx-learn-table tbody td:first-child {
+  @apply font-medium;
+  width: 88px;
+  color: var(--doc-sec);
+}
+
+/* pitfalls — Q / A definition list */
+.jx-learn-faq {
+  @apply grid;
+  gap: 1px;
+  border: 1px solid var(--doc-line);
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--doc-line);
+}
+
+.jx-learn-faqRow {
+  padding: 15px 18px;
+  background: #fff;
+}
+
+.jx-learn-faqQ {
+  @apply font-semibold;
+  margin-bottom: 5px;
+  font-size: 15px;
+}
+
+.jx-learn-faqA {
+  color: var(--doc-sec);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* next-step cards */
+.jx-learn-cards {
+  @apply grid gap-4;
+  grid-template-columns: 1fr 1fr;
+  margin-top: 6px;
+}
+
+.jx-learn-card {
+  @apply block;
+  padding: 20px;
+  border: 1px solid var(--doc-line);
+  border-radius: 14px;
+}
+
+.jx-learn-card:hover {
+  border-color: var(--doc-text);
+}
+
+.jx-learn-cardTitle {
+  @apply font-semibold;
+  margin-bottom: 6px;
+  font-size: 17px;
+}
+
+.jx-learn-cardDesc {
+  color: var(--doc-sec);
+  font-size: 14px;
+  line-height: 1.6;
+}

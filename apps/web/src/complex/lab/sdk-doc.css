@@ -41,6 +41,19 @@
   font-size: 14px;
 }
 
+.jx-docs-barRight {
+  @apply flex items-center gap-4;
+}
+
+.jx-docs-tutLink {
+  color: var(--doc-sec);
+  font-size: 14px;
+}
+
+.jx-docs-tutLink:hover {
+  color: var(--doc-text);
+}
+
 .jx-docs-lang {
   @apply flex overflow-hidden;
   border: 1px solid var(--doc-line);

@@ -81,6 +81,10 @@
   @apply text-sm text-muted;
 }
 
+.jx-lab-heroLinks {
+  @apply flex items-center gap-5;
+}
+
 .jx-lab-heroSkip {
   @apply text-muted;
   @apply hover:text-ink;

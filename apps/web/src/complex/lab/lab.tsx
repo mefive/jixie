@@ -232,9 +232,14 @@ const StrategyHero = complex.component(({ onSkip }: { onSkip: () => void }) => {
           ))}
         </div>
 
-        <button type="button" className="jx-lab-heroSkip" onClick={onSkip}>
-          或直接写代码 →
-        </button>
+        <div className="jx-lab-heroLinks">
+          <button type="button" className="jx-lab-heroSkip" onClick={onSkip}>
+            或直接写代码 →
+          </button>
+          <a className="jx-lab-heroSkip" href="/learn" target="_blank" rel="noreferrer">
+            第一次用?看入门教程 ↗
+          </a>
+        </div>
       </div>
     </main>
   );
