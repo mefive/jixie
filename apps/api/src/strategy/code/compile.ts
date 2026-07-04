@@ -1,5 +1,11 @@
 import { transform } from 'esbuild';
 import type { Strategy } from '../../engine/types.js';
+import {
+  makeSandboxConsole,
+  noopSandboxConsole,
+  type SandboxConsole,
+  type UserLogSink,
+} from '../../lib/sandbox-console.js';
 import { defineStrategy } from './sdk.js';
 
 /**
@@ -13,7 +19,7 @@ import { defineStrategy } from './sdk.js';
  * reachable here) is the phase-2 job — and it drops in at exactly this boundary: swap the `new Function`
  * evaluation below for a QuickJS-WASM / isolated-vm sandbox; nothing else in the engine changes.
  */
-export async function compileStrategy(source: string): Promise<Strategy> {
+export async function compileStrategy(source: string, onUserLog?: UserLogSink): Promise<Strategy> {
   let js: string;
   try {
     // TS → CJS JS: strip types, emit module.exports so we can capture `export default`.
@@ -22,12 +28,19 @@ export async function compileStrategy(source: string): Promise<Strategy> {
     throw new Error(`策略代码编译失败：${e instanceof Error ? e.message : String(e)}`);
   }
 
+  // The strategy's console.* is captured and tagged as user log (with a line cap); without a sink
+  // (tests / codegen self-check) it's a no-op rather than leaking to the process stdout.
+  const sandboxConsole: SandboxConsole = onUserLog
+    ? makeSandboxConsole(onUserLog)
+    : noopSandboxConsole;
+
   const mod: { exports: Record<string, unknown> } = { exports: {} };
   try {
-    // Free identifiers in the generated code resolve to these params: the CJS env + the injected SDK.
-    // `require` throws so any `import` in user code fails loudly instead of reaching Node builtins.
-    const run = new Function('module', 'exports', 'defineStrategy', 'require', js);
-    run(mod, mod.exports, defineStrategy, blockedRequire);
+    // Free identifiers in the generated code resolve to these params: the CJS env + the injected SDK +
+    // the console shim. `require` throws so any `import` in user code fails loudly instead of reaching
+    // Node builtins.
+    const run = new Function('module', 'exports', 'defineStrategy', 'console', 'require', js);
+    run(mod, mod.exports, defineStrategy, sandboxConsole, blockedRequire);
   } catch (e) {
     throw new Error(`策略代码执行出错：${e instanceof Error ? e.message : String(e)}`);
   }

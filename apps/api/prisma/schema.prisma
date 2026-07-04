@@ -234,7 +234,8 @@ model FactorReport {
 }
 
 /// A background computation (backtest / factor analysis). Status lives here (durable, cross-client
-/// resume via a query); progress logs stay in-memory in the process (ephemeral). A key ties the job
+/// resume via a query); progress logs stream in-memory while live and are flushed to `logs` once on
+/// finish (so a reopened finished job still shows them). A key ties the job
 /// to what it computes (factor: `${factor}|${freq}|${start}|${end}`, backtest: the strategyId) so the
 /// frontend can find "my running job for X" after a refresh. On boot, running jobs → stale (the worker
 /// died with the process). Result is NOT stored here — it lands on the entity (FactorReport / Strategy).
@@ -245,6 +246,7 @@ model Job {
   key       String // dedupe/lookup key (see model doc)
   status    String // 'running' | 'done' | 'error' | 'stale'
   error     String?
+  logs      String? // JSON(LogLine[]) — flushed once on finish; live logs stream from memory (see lib/jobs.ts)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

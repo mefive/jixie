@@ -2,7 +2,7 @@ import { Worker } from 'node:worker_threads';
 import { Hono } from 'hono';
 import { ulid } from 'ulid';
 import { z } from 'zod';
-import type { FactorReport } from '@jixie/shared';
+import type { FactorReport, LogLine } from '@jixie/shared';
 import { apiError, validateJson, validateQuery } from '../lib/httpError.js';
 import { prisma } from '../lib/prisma.js';
 import { FACTOR_CATALOG } from '../factor/factors.js';
@@ -190,9 +190,9 @@ factorRoute.post('/analysis/run', validateQuery(analysisQuery), async (c) => {
     finished = true;
     void finishJob(jobId, status, error);
   };
-  worker.on('message', (msg: { type: string; line?: string; message?: string }) => {
+  worker.on('message', (msg: { type: string; entry?: LogLine; message?: string }) => {
     if (msg.type === 'log') {
-      appendLog(jobId, msg.line!);
+      appendLog(jobId, msg.entry!);
     } else if (msg.type === 'done') {
       done('done');
     } else if (msg.type === 'error') {
