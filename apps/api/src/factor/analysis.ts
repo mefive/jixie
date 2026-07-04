@@ -2,6 +2,7 @@ import type { BucketStat, FactorReport, FactorFreq } from '@jixie/shared';
 import { prisma } from '../lib/prisma.js';
 import { FACTORS, FUNDAMENTAL_FACTORS, FACTOR_LABELS } from './factors.js';
 import { compileFactor } from './compile-factor.js';
+import type { UserLogSink } from '../lib/sandbox-console.js';
 import { sameMonth, sameWeek, minusDays } from '../lib/date.js';
 import * as st from '../lib/stats.js';
 
@@ -92,6 +93,7 @@ async function computeFactorSeries(
   dates: string[],
   snaps: Map<string, Snap>,
   onLog: (msg: string) => void = () => {},
+  onUserLog?: UserLogSink,
 ): Promise<Series> {
   const series: Series = new Map();
   const push = (date: string, tsCode: string, value: number | null) => {
@@ -201,7 +203,7 @@ async function computeFactorSeries(
       select: { code: true },
     });
     if (row) {
-      const { compute } = await compileFactor(row.code);
+      const { compute } = await compileFactor(row.code, onUserLog);
       onLog('运行自定义因子…');
       for (const date of dates) {
         const rows = await prisma.dailyBasic.findMany({
@@ -259,13 +261,14 @@ export async function analyzeFactor(
   start: string,
   end: string,
   onLog: (msg: string) => void = () => {},
+  onUserLog?: UserLogSink,
 ): Promise<FactorReport> {
   const periodsPerYear = freq === 'week' ? 52 : 12;
   const rebalanceDates = await getRebalanceDates(freq, start, end);
   onLog(`调仓日 ${rebalanceDates.length} 个(${freq === 'week' ? '周' : '月'}度)· 加载行情快照…`);
   const snaps = await loadSnapshots(rebalanceDates, true); // rebalance snaps carry 总市值 for cap-weighting
   onLog(`计算因子 ${factorKey} 的值…`);
-  const byDate = await computeFactorSeries(factorKey, rebalanceDates, snaps, onLog);
+  const byDate = await computeFactorSeries(factorKey, rebalanceDates, snaps, onLog, onUserLog);
 
   // IC-decay: for each rebalance date D, the trading day D+h (h ∈ horizons) via the open-day calendar,
   // and a snapshot at those forward days — so we can measure Rank IC at multiple forward horizons.
