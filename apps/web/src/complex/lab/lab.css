@@ -26,6 +26,18 @@
   padding: 24px;
 }
 
+/* 新建 prompt modal: reuse the hero's prompt block, but supply the flex-col gap the modal body lacks
+   (the hero gets it from .jx-lab-heroInner) so hint / box / examples / links aren't cramped together */
+.jx-lab-newModal {
+  @apply flex flex-col;
+  gap: 16px;
+  padding: 4px 0;
+}
+
+.jx-lab-newModal .jx-lab-examples {
+  @apply justify-start;
+}
+
 .jx-lab-heroInner {
   @apply flex flex-col items-center gap-4;
   width: min(720px, 100%);
