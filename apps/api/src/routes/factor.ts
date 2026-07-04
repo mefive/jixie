@@ -2,11 +2,14 @@ import { Worker } from 'node:worker_threads';
 import { Hono } from 'hono';
 import { ulid } from 'ulid';
 import { z } from 'zod';
+import type { Prisma } from '@prisma/client';
 import type { FactorReport, LogLine } from '@jixie/shared';
 import { apiError, validateJson, validateQuery } from '../lib/httpError.js';
 import { prisma } from '../lib/prisma.js';
+import { chatText } from '../llm/deepseek.js';
 import { FACTOR_CATALOG } from '../factor/factors.js';
 import { compileFactor } from '../factor/compile-factor.js';
+import { factorAgentTurn } from '../factor/factor-agent.js';
 import { createJob, appendLog, finishJob, getJob, findRunningJob } from '../lib/jobs.js';
 
 /**
@@ -43,8 +46,26 @@ factorRoute.get('/catalog', async (c) => {
   return c.json([...FACTOR_CATALOG, ...customMeta]);
 });
 
-// —— Custom factors (code-first, mirrors saved strategies) ——
-const factorBody = z.object({ name: z.string().min(1).max(40), code: z.string().min(1) });
+// —— Custom factors (code-first, Agent-authored — mirrors the strategy workbench) —— created on the
+// first Agent prompt, then updated by id: messages in real time, code/name on an analysis run.
+const chatMessagesSchema = z
+  .array(z.object({ role: z.enum(['user', 'assistant']), content: z.string().max(8000) }))
+  .max(60);
+
+/** Make an LLM-suggested factor name unique within the user (append " N"). */
+async function uniqueFactorName(userId: string, base: string): Promise<string> {
+  for (let suffix = 1; suffix <= 50; suffix++) {
+    const name = suffix === 1 ? base : `${base} ${suffix}`;
+    const taken = await prisma.factor.findUnique({
+      where: { userId_name: { userId, name } },
+      select: { id: true },
+    });
+    if (!taken) {
+      return name;
+    }
+  }
+  return `${base} ${ulid().slice(-4)}`;
+}
 
 factorRoute.get('/custom', async (c) => {
   const rows = await prisma.factor.findMany({
@@ -58,7 +79,7 @@ factorRoute.get('/custom', async (c) => {
 factorRoute.get('/custom/:id', async (c) => {
   const row = await prisma.factor.findFirst({
     where: { id: c.req.param('id'), userId: c.var.userId },
-    select: { id: true, name: true, code: true },
+    select: { id: true, name: true, code: true, messages: true },
   });
   if (!row) {
     return apiError(c, 'NOT_FOUND', '因子不存在');
@@ -66,30 +87,87 @@ factorRoute.get('/custom/:id', async (c) => {
   return c.json(row);
 });
 
-factorRoute.post('/custom', validateJson(factorBody), async (c) => {
+// POST /custom — create a NEW factor row (up front on the first Agent prompt). The conversation rides
+// along as optional `messages`; the code is compile-checked before persisting.
+const createBody = z.object({
+  name: z.string().min(1).max(40),
+  code: z.string().min(1),
+  messages: chatMessagesSchema.optional(),
+});
+
+factorRoute.post('/custom', validateJson(createBody), async (c) => {
   const userId = c.var.userId;
-  const { name, code } = c.req.valid('json');
-  // Compile-check before persisting — reject syntax / shape errors up front.
+  const { name, code, messages } = c.req.valid('json');
   try {
     await compileFactor(code);
   } catch (e) {
     return apiError(c, 'VALIDATION_FAILED', e instanceof Error ? e.message : '因子代码无效');
   }
-
-  const existing = await prisma.factor.findUnique({
-    where: { userId_name: { userId, name } },
-    select: { id: true },
+  const uniqueName = await uniqueFactorName(userId, name);
+  const id = ulid();
+  await prisma.factor.create({
+    data: {
+      id,
+      userId,
+      name: uniqueName,
+      code,
+      ...(messages !== undefined ? { messages: messages as Prisma.InputJsonValue } : {}),
+    },
   });
-  if (existing) {
-    await prisma.factor.update({ where: { id: existing.id }, data: { code } });
-    // Editing changes the factor values → its cached reports are stale.
-    await prisma.factorReport.deleteMany({ where: { userId, factor: existing.id } });
-    return c.json({ id: existing.id, name });
+  return c.json({ id, name: uniqueName });
+});
+
+// POST /custom/:id — update by id. `{ messages }` alone = real-time chat save (code/name untouched);
+// `{ code, name }` = an analysis run's commit (compile-check, drop the now-stale cached reports, rename
+// unless it collides). Either may be present.
+const updateBody = z.object({
+  code: z.string().min(1).optional(),
+  name: z.string().min(1).max(40).optional(),
+  messages: chatMessagesSchema.optional(),
+});
+
+factorRoute.post('/custom/:id', validateJson(updateBody), async (c) => {
+  const id = c.req.param('id');
+  const userId = c.var.userId;
+  const { code, name, messages } = c.req.valid('json');
+  const existing = await prisma.factor.findFirst({
+    where: { id, userId },
+    select: { name: true, code: true },
+  });
+  if (!existing) {
+    return apiError(c, 'NOT_FOUND', '因子不存在');
   }
 
-  const id = ulid();
-  await prisma.factor.create({ data: { id, userId, name, code } });
-  return c.json({ id, name });
+  const data: Prisma.FactorUpdateInput = {};
+  if (messages !== undefined) {
+    data.messages = messages as Prisma.InputJsonValue;
+  }
+  if (code !== undefined) {
+    try {
+      await compileFactor(code);
+    } catch (e) {
+      return apiError(c, 'VALIDATION_FAILED', e instanceof Error ? e.message : '因子代码无效');
+    }
+    data.code = code;
+    if (code !== existing.code) {
+      // The factor values changed → its cached analysis reports are stale.
+      await prisma.factorReport.deleteMany({ where: { userId, factor: id } });
+    }
+  }
+  if (name !== undefined && name !== existing.name) {
+    const taken = await prisma.factor.findUnique({
+      where: { userId_name: { userId, name } },
+      select: { id: true },
+    });
+    data.name = taken && taken.id !== id ? existing.name : name; // collision → keep current
+  }
+
+  const row = await prisma.factor.update({
+    where: { id },
+    data,
+    select: { id: true, name: true },
+  });
+  return c.json(row);
 });
 
 factorRoute.delete('/custom/:id', async (c) => {
@@ -98,6 +176,63 @@ factorRoute.delete('/custom/:id', async (c) => {
   await prisma.factor.deleteMany({ where: { id, userId } });
   await prisma.factorReport.deleteMany({ where: { userId, factor: id } });
   return c.json({ ok: true });
+});
+
+// POST /agent — one turn of the factor Agent (iterates on the defineFactor code). Returns the
+// explanation + the compile-validated updated code. The frontend owns the conversation.
+const agentBody = z.object({
+  history: chatMessagesSchema.default([]),
+  message: z.string().trim().min(1).max(2000),
+  code: z.string().min(1).max(20_000),
+});
+
+factorRoute.post('/agent', validateJson(agentBody), async (c) => {
+  const { history, message, code } = c.req.valid('json');
+  try {
+    const result = await factorAgentTurn(history, message, code, chatText);
+    return c.json({
+      reply: result.reply,
+      code: result.code,
+      changed: result.changed,
+      attempts: result.attempts,
+    });
+  } catch (e) {
+    return apiError(c, 'SERVICE_UNAVAILABLE', e instanceof Error ? e.message : 'Agent 调用失败');
+  }
+});
+
+// POST /name — propose a short factor name. `{prompt}` names a brand-new factor from its request;
+// `{code, currentName}` names from the code, keeping currentName when it still fits (on each run).
+const nameBody = z
+  .object({
+    code: z.string().max(20_000).optional(),
+    prompt: z.string().max(2000).optional(),
+    currentName: z.string().max(40).optional(),
+  })
+  .refine((body) => body.code || body.prompt, { message: '需要 code 或 prompt' });
+
+factorRoute.post('/name', validateJson(nameBody), async (c) => {
+  const { code, prompt, currentName } = c.req.valid('json');
+  let name: string;
+  try {
+    const system =
+      code != null
+        ? currentName
+          ? `你是 A 股因子命名助手。读因子代码,它当前叫「${currentName}」。若这名称仍准确概括代码逻辑,就**原样返回它**;只有逻辑明显不符时才起一个更贴切的简短中文名(≤12字)。只输出名称本身——不要引号、解释、结尾标点。`
+          : '你是 A 股因子命名助手。读因子代码,起一个简短中文名称(≤12字,概括其计算逻辑),只输出名称本身——不要引号、解释、结尾标点。'
+        : '你是 A 股因子命名助手。读用户的自然语言因子需求,起一个简短中文名称(≤12字),只输出名称本身——不要引号、解释、结尾标点。';
+    const raw = await chatText([
+      { role: 'system', content: system },
+      { role: 'user', content: code ?? prompt! },
+    ]);
+    name = raw
+      .trim()
+      .replace(/^["'「『]+|["'」』。.]+$/g, '')
+      .slice(0, 16);
+  } catch (e) {
+    return apiError(c, 'SERVICE_UNAVAILABLE', e instanceof Error ? e.message : '命名失败');
+  }
+  return c.json({ name: name || '未命名因子' });
 });
 
 const analysisQuery = z.object({

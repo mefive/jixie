@@ -299,6 +299,7 @@ model Factor {
   userId    String
   name      String
   code      String // defineFactor TS source
+  messages  Json? // ChatMessage[] — the Agent-panel conversation that authored this factor (per-factor)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
