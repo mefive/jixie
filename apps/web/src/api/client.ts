@@ -120,9 +120,15 @@ export function generateCode(text: string): Promise<{ code: string; attempts: nu
   return request('/api/app/strategy/codegen', { method: 'POST', body: JSON.stringify({ text }) });
 }
 
-// NL→name: let the model name a strategy from its code (when 策略名称 is left blank).
-export function generateName(code: string): Promise<{ name: string }> {
-  return request('/api/app/strategy/name', { method: 'POST', body: JSON.stringify({ code }) });
+// NL→name: the model proposes a short strategy name. Pass `prompt` to name a brand-new strategy from
+// its request (before any code); pass `code` (+ `currentName`) to name from the code on a run — the
+// model keeps currentName when it still fits, only renaming when the logic has drifted.
+export function generateStrategyName(input: {
+  code?: string;
+  prompt?: string;
+  currentName?: string;
+}): Promise<{ name: string }> {
+  return request('/api/app/strategy/name', { method: 'POST', body: JSON.stringify(input) });
 }
 
 // Agent: one conversation turn — the model iterates on the current code given the history so far.
@@ -138,7 +144,8 @@ export function sendAgent(
   });
 }
 
-// —— Saved strategies (产品线 1 持久化) —— auto-saved on backtest run; name = config.name (upsert).
+// —— Saved strategies (产品线 1 持久化) —— created on the first Agent prompt, then updated by id:
+// messages in real time, config/name on a run.
 
 export function listStrategies(): Promise<StrategyCard[]> {
   return request('/api/app/strategies');
@@ -148,9 +155,23 @@ export function getStrategy(id: string): Promise<SavedStrategy> {
   return request(`/api/app/strategies/${id}`);
 }
 
-export function saveStrategy(config: BacktestConfig, messages?: ChatMessage[]): Promise<SavedMeta> {
+// Create a NEW strategy row (up front on the first Agent prompt, or on the first run of a hand-written
+// one). config + name are the initial values; later updates go by id (updateStrategy).
+export function createStrategy(
+  config: BacktestConfig,
+  messages?: ChatMessage[],
+): Promise<SavedMeta> {
   const body = messages ? { ...config, messages } : config;
   return request('/api/app/strategies', { method: 'POST', body: JSON.stringify(body) });
+}
+
+// Update an existing strategy by id. `{ messages }` alone = real-time chat save (config untouched);
+// `{ config }` = a run's config/name update (drops the stale lastResult when code/range/capital moved).
+export function updateStrategy(
+  id: string,
+  patch: { config?: BacktestConfig; messages?: ChatMessage[] },
+): Promise<SavedMeta> {
+  return request(`/api/app/strategies/${id}`, { method: 'POST', body: JSON.stringify(patch) });
 }
 
 // Persist a finished run's result onto the strategy (by name) — shown on reopen.

@@ -8,15 +8,16 @@ import type {
 } from '@jixie/shared';
 import { BaseStore, LoaderModel, PollingModel } from '@src/lib';
 import {
+  createStrategy,
   deleteStrategy,
   findBacktestRunningJob,
-  generateName,
+  generateStrategyName,
   getStrategy,
   listStrategies,
   pollBacktest,
-  saveStrategy,
   sendAgent,
   submitBacktest,
+  updateStrategy,
 } from '@src/api/client';
 import { DEFAULT_CODE } from './default-strategy';
 import { pushRecent, readRecents, removeRecent } from './recents';
@@ -24,12 +25,18 @@ import { pushRecent, readRecents, removeRecent } from './recents';
 type LabSetupParams = { id?: string; isNew?: boolean };
 
 /**
- * Backtest workbench store — code-first. The strategy is a single TS source string (`code`); the server
- * compiles and runs it. `/?id=<sid>` loads a saved strategy + its last result on mount (refresh-safe), and
- * re-attaches to a running backtest via the localStorage job pointer + PollingModel.
+ * Backtest workbench store — code-first. Persistence model (per the agent workflow):
+ *  - a strategy row is CREATED up front on the first Agent prompt (LLM-named from the request), so the
+ *    conversation has something to attach to;
+ *  - `messages` save in real time (every Agent turn, by id);
+ *  - `config` (code / range / capital) + `name` persist ONLY on a run — the name is re-derived from the
+ *    code each run (the model keeps it when it still fits). So the editor's code/params are a working
+ *    state that only commits when you 运行回测; an unrun edit is lost on refresh (by design).
+ * `dirty` = the run-relevant config changed since the last run → gates the 运行回测 button + the "result
+ * is stale" behavior. The result is replaced only by a run, never cleared by editing code.
  */
 export class LabStore extends BaseStore<LabSetupParams> {
-  public name = ''; // blank → auto-named from the code on first run (the 策略名称 field, not the code's own name)
+  public name = ''; // LLM-derived name; regenerated from the code on each run (the 策略名称, not the code's own)
   public start = '20200101';
   public end = '20241231';
   public initialCash = 1_000_000;
@@ -45,6 +52,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
   public error: string | null = null; // backtest failure message
   public savedId: string | null = null; // this strategy's DB id (for the URL)
   public savedConfig = ''; // serialized config as last saved/loaded — the baseline `dirty` compares against
+  public initializing = false; // opening the initial strategy on mount — render a neutral loader, not the hero
 
   private jobId: string | null = null; // polling cursor for the current backtest
   private since = 0;
@@ -68,6 +76,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
       error: observable.ref,
       savedId: observable.ref,
       savedConfig: observable.ref,
+      initializing: observable.ref,
       config: computed,
       dirty: computed,
       isFresh: computed,
@@ -81,16 +90,16 @@ export class LabStore extends BaseStore<LabSetupParams> {
     this.registCleaner(() => this.backtestPoller.cleanup());
     this.registCleaner(() => this.savedLoader.cleanup());
     void this.savedLoader.run(); // prime 我的策略 (also feeds the hero's 最近访问 cards)
-    // A fresh default strategy is the baseline (not "dirty") until we load something over it.
-    this.markSaved();
+    // A fresh (never-run) strategy has an empty baseline → dirty → 运行回测 enabled.
+    this.savedConfig = '';
     // Resolve the initial view: `?new=1` forces the blank hero; else an explicit ?id; else the
     // most-recently-opened strategy (so re-entering /lab lands on your last work, not the blank hero);
-    // else the blank starter.
-    if (!params.isNew) {
-      const initialId = params.id || readRecents()[0];
-      if (initialId) {
-        void this.openSaved(initialId);
-      }
+    // else the blank starter. When we WILL open one, set `initializing` synchronously so the first paint
+    // is a neutral loader — not the hero / empty workbench flashing before openSaved resolves.
+    const initialId = params.isNew ? '' : params.id || readRecents()[0];
+    if (initialId) {
+      this.initializing = true;
+      void this.openSaved(initialId).finally(() => runInAction(() => (this.initializing = false)));
     }
   }
 
@@ -106,7 +115,8 @@ export class LabStore extends BaseStore<LabSetupParams> {
     );
   }
 
-  /** The editor has unsaved edits vs. the last saved/loaded snapshot (gates the 新建 save prompt). */
+  /** The run-relevant config (range/capital/code — NOT name) changed since the last run. Gates 运行回测:
+   * a never-run strategy has an empty baseline → dirty → runnable; a fresh run resets the baseline. */
   public get dirty(): boolean {
     return this.configKey() !== this.savedConfig;
   }
@@ -128,8 +138,10 @@ export class LabStore extends BaseStore<LabSetupParams> {
     });
   }
 
-  /** One Agent turn: append the user message, ask the server (history + current code), append the reply,
-   * and apply the returned code when it changed. Persists the conversation onto the strategy (if saved). */
+  /** One Agent turn: append the user message, ensure the strategy exists (the first prompt creates it,
+   * LLM-named from that prompt), ask the server (history + current code), append the reply, and apply the
+   * returned code when it changed. The conversation saves in real time; the code is NOT persisted here
+   * (only a run commits config) and the result is NOT cleared (only a run replaces it). */
   public async sendAgent(message: string) {
     const text = message.trim();
     if (!text || this.sending) {
@@ -140,15 +152,15 @@ export class LabStore extends BaseStore<LabSetupParams> {
       this.sending = true;
       this.nlText = '';
     });
+    // First prompt → create the strategy so the conversation has a home (named from this request).
+    await this.ensureStrategy(text);
     try {
       const history = this.chatMessages.slice(0, -1); // prior turns (exclude the message we just added)
       const res = await sendAgent(history, text, this.code);
       runInAction(() => {
         this.chatMessages = [...this.chatMessages, { role: 'assistant', content: res.reply }];
-        // A code change invalidates the shown result — the strategy is different now.
         if (res.changed) {
-          this.code = res.code;
-          this.result = null;
+          this.code = res.code; // dirty → runnable; the shown result stays until the next run
         }
       });
       void this.persistMessages();
@@ -166,20 +178,49 @@ export class LabStore extends BaseStore<LabSetupParams> {
     }
   }
 
-  /** Persist the conversation onto the saved strategy. A fresh (unsaved) strategy keeps its chat in
-   * memory — it's flushed on the first run/save, which carries the messages along. */
+  /** Create the strategy row if it doesn't exist yet (first Agent prompt, or a first run of a
+   * hand-written strategy). Names it via the LLM — from the prompt when given, else from the code. The
+   * baseline is left empty so a never-run strategy is dirty (→ runnable). Best-effort. */
+  private async ensureStrategy(namePrompt?: string) {
+    if (this.savedId) {
+      return;
+    }
+    let name = '未命名策略';
+    try {
+      const suggested = await generateStrategyName(
+        namePrompt ? { prompt: namePrompt } : { code: this.code },
+      );
+      name = suggested.name;
+    } catch {
+      /* naming is best-effort */
+    }
+    runInAction(() => (this.name = name));
+    try {
+      const meta = await createStrategy(this.config, this.chatMessages);
+      runInAction(() => {
+        this.savedId = meta.id;
+        this.name = meta.name; // server de-dupes the name
+      });
+      pushRecent(meta.id);
+      void this.savedLoader.run();
+    } catch {
+      /* best-effort — a later run retries via ensureStrategy */
+    }
+  }
+
+  /** Save the conversation onto the strategy in real time (by id). No-op until the strategy exists. */
   private async persistMessages() {
     if (!this.savedId) {
       return;
     }
     try {
-      await saveStrategy(this.config, this.chatMessages);
+      await updateStrategy(this.savedId, { messages: this.chatMessages });
     } catch {
       /* best-effort */
     }
   }
 
-  /** Start fresh: a blank-named strategy on the default template (blank name → auto-named on first run). */
+  /** Start fresh: a blank skeleton strategy. Empty baseline → dirty → 运行回测 enabled. */
   public newStrategy() {
     runInAction(() => {
       this.name = '';
@@ -190,83 +231,62 @@ export class LabStore extends BaseStore<LabSetupParams> {
       this.error = null;
       this.logLines = [];
       this.savedId = null;
+      this.savedConfig = ''; // never run → dirty
     });
-    this.markSaved(); // the blank default is the new baseline (not dirty)
   }
 
-  /** Persist the current config without running (used by the 新建 "保存并新建" prompt). The server drops the
-   * old last-result because the code changed, so the saved strategy reopens clean until its next run. */
-  public async save() {
-    if (!this.name.trim()) {
-      try {
-        const { name } = await generateName(this.code);
-        runInAction(() => (this.name = name));
-      } catch {
-        runInAction(() => (this.name = '未命名策略'));
-      }
-    }
-    try {
-      const meta = await saveStrategy(this.config, this.chatMessages);
-      runInAction(() => {
-        this.savedId = meta.id;
-        this.result = null; // this saved version has no run yet — don't carry a stale curve
-      });
-      pushRecent(meta.id);
-      this.markSaved();
-      void this.savedLoader.run();
-    } catch {
-      /* best-effort */
-    }
-  }
-
+  /** Run a backtest. This is the commit point: it persists the current config (code/range/capital) onto
+   * the strategy, replaces the shown result with the new run, and re-derives the name from the code. */
   public async run() {
-    // Auto-name from the code when 策略名称 is blank (the user can edit it after).
-    if (!this.name.trim()) {
-      try {
-        const { name } = await generateName(this.code);
-        runInAction(() => {
-          this.name = name;
-        });
-      } catch {
-        runInAction(() => {
-          this.name = '未命名策略';
-        });
-      }
-    }
-    runInAction(() => {
-      this.logLines = [];
-      this.result = null;
-      this.error = null;
-    });
-    // Save first so the strategy has an id — the backtest Job is keyed by it (URL + DB-backed resume),
-    // and the worker writes the result to that strategy's lastResult on completion.
-    try {
-      const meta = await saveStrategy(this.config, this.chatMessages);
-      runInAction(() => {
-        this.savedId = meta.id;
-      });
-      pushRecent(meta.id);
-      this.markSaved(); // running persists the current config — it's now the saved baseline
-      void this.savedLoader.run();
-    } catch {
-      /* best-effort */
-    }
+    await this.ensureStrategy(); // create the row if this is a hand-written strategy that never talked to the agent
     if (!this.savedId) {
-      runInAction(() => {
-        this.error = '策略保存失败,无法回测';
-      });
+      runInAction(() => (this.error = '策略保存失败,无法回测'));
       return;
     }
+    // Commit the config (code/range/capital) by id — the new "last run" baseline. Renames don't ride
+    // here; the name is refreshed in the background (below) so the backtest starts without waiting on it.
+    try {
+      await updateStrategy(this.savedId, { config: this.config });
+      this.markSaved();
+      void this.savedLoader.run();
+    } catch (e) {
+      runInAction(() => (this.error = e instanceof Error ? e.message : '策略保存失败'));
+      return;
+    }
+    // Backend confirmed the new config → clear the now-stale result + logs; the run fills them back in.
+    runInAction(() => {
+      this.result = null;
+      this.logLines = [];
+      this.error = null;
+    });
     let jobId: string;
     try {
       ({ jobId } = await submitBacktest(this.config, this.savedId));
     } catch (e) {
-      runInAction(() => {
-        this.error = e instanceof Error ? e.message : '回测提交失败';
-      });
+      runInAction(() => (this.error = e instanceof Error ? e.message : '回测提交失败'));
       return;
     }
     this.startPolling(jobId);
+    void this.refreshName(); // re-derive the name from the code (keeps it when it still fits), in the background
+  }
+
+  /** Re-derive the strategy name from its code (the model keeps the current name when it still fits),
+   * then persist just the name by id. Runs in the background after a run so it never blocks the backtest;
+   * a name-only change doesn't touch the (run-relevant) config, so it won't invalidate the fresh result. */
+  private async refreshName() {
+    if (!this.savedId) {
+      return;
+    }
+    try {
+      const { name } = await generateStrategyName({ code: this.code, currentName: this.name });
+      if (name && name !== this.name) {
+        runInAction(() => (this.name = name));
+        await updateStrategy(this.savedId, { config: this.config });
+        void this.savedLoader.run();
+      }
+    } catch {
+      /* best-effort */
+    }
   }
 
   /** Re-attach to a still-running backtest (jobId from localStorage) without resubmitting. */
@@ -286,8 +306,8 @@ export class LabStore extends BaseStore<LabSetupParams> {
     });
   }
 
-  /** Reflect a full saved BacktestConfig back into the editor (range/capital + code) — the loaded
-   * snapshot becomes the `dirty` baseline. */
+  /** Reflect a full saved BacktestConfig back into the editor (name + range/capital + code). The caller
+   * (openSaved) sets the `dirty` baseline, since it depends on whether a run result exists. */
   public applyConfig(config: BacktestConfig) {
     runInAction(() => {
       this.name = config.name;
@@ -296,13 +316,11 @@ export class LabStore extends BaseStore<LabSetupParams> {
       this.initialCash = config.initialCash;
       this.code = config.code;
     });
-    this.markSaved();
   }
 
-  /** Serialize the editable config (raw fields) for the `dirty` comparison + saved baseline. */
+  /** Serialize the RUN-relevant config for `dirty` (excludes name — a rename doesn't invalidate a run). */
   private configKey(): string {
     return JSON.stringify({
-      name: this.name,
       start: this.start,
       end: this.end,
       initialCash: this.initialCash,
@@ -332,6 +350,9 @@ export class LabStore extends BaseStore<LabSetupParams> {
       this.chatMessages = s.messages ?? []; // restore this strategy's Agent conversation
       this.error = null;
       this.savedId = id;
+      // A strategy with a result → its config IS the last-run config (not dirty); one never run stays
+      // dirty (empty baseline) so 运行回测 is enabled.
+      this.savedConfig = s.lastResult ? this.configKey() : '';
     });
     pushRecent(id); // record the visit → hero 最近访问 + auto-open on next entry
     // Re-attach to a still-running backtest (found server-side by strategyId — no localStorage, works
