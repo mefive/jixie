@@ -35,8 +35,3 @@
 .jx-tp-empty--error {
   @apply text-down;
 }
-
-/* On the full page, let 交易详情 fill the flex body (the modal keeps its own calc height). */
-.jx-tp .jx-td {
-  height: 100%;
-}
