@@ -81,47 +81,110 @@ savedStrategyRoute.post('/result', validateJson(resultBody), async (c) => {
   return c.json({ ok: true });
 });
 
-// POST /api/app/strategies — auto-save: upsert by (userId, config.name). The Agent conversation rides
-// along as an optional `messages` array (persisted per strategy); omitting it leaves any stored chat
-// intact (a plain backtest-run save doesn't carry messages).
-const saveBody = codeConfigSchema.extend({
-  messages: z
-    .array(z.object({ role: z.enum(['user', 'assistant']), content: z.string().max(8000) }))
-    .max(60)
-    .optional(),
-});
+const chatMessagesSchema = z
+  .array(z.object({ role: z.enum(['user', 'assistant']), content: z.string().max(8000) }))
+  .max(60);
 
-savedStrategyRoute.post('/', validateJson(saveBody), async (c) => {
-  const { messages, ...config } = c.req.valid('json') as BacktestConfig & {
-    messages?: unknown[];
-  };
-  const userId = c.var.userId;
-  const name = config.name;
-  const messagesData =
-    messages !== undefined ? { messages: messages as Prisma.InputJsonValue } : {};
-  // A changed config (new code/range/capital) invalidates any stored last-run result — drop it so a stale
-  // equity curve is never shown against new code. On a normal run this clears it, then the finished run
-  // re-attaches its result (POST /result); a save-without-run just leaves it cleared until the next run.
-  const existing = await prisma.strategy.findUnique({
-    where: { userId_name: { userId, name } },
-    select: { config: true },
+/** The run-relevant part of a config (excludes name) — changing any of these invalidates a stored run. */
+function runKey(config: unknown): string {
+  const c = config as Partial<BacktestConfig> | null;
+  return JSON.stringify({
+    start: c?.start,
+    end: c?.end,
+    initialCash: c?.initialCash,
+    code: c?.code,
   });
-  const configChanged =
-    existing != null && JSON.stringify(existing.config) !== JSON.stringify(config);
-  const row = await prisma.strategy.upsert({
-    where: { userId_name: { userId, name } },
-    create: {
+}
+
+// Make an LLM-suggested name unique within the user (append " N") so a fresh strategy never overwrites
+// an existing one — names aren't a natural key here (updates go by id), only unique for tidiness.
+async function uniqueName(userId: string, base: string): Promise<string> {
+  for (let suffix = 1; suffix <= 50; suffix++) {
+    const name = suffix === 1 ? base : `${base} ${suffix}`;
+    const taken = await prisma.strategy.findUnique({
+      where: { userId_name: { userId, name } },
+      select: { id: true },
+    });
+    if (!taken) {
+      return name;
+    }
+  }
+  return `${base} ${ulid().slice(-4)}`;
+}
+
+// POST /api/app/strategies — create a NEW strategy row (created up front on the first Agent prompt, so
+// the conversation has something to attach to). The Agent conversation rides along as an optional
+// `messages` array. Config (code/range/capital) + name are the initial values; later they change only
+// on a run (POST /:id), while messages save in real time.
+const createBody = codeConfigSchema.extend({ messages: chatMessagesSchema.optional() });
+
+savedStrategyRoute.post('/', validateJson(createBody), async (c) => {
+  const { messages, ...cfg } = c.req.valid('json') as BacktestConfig & { messages?: unknown[] };
+  const userId = c.var.userId;
+  const name = await uniqueName(userId, cfg.name);
+  const config = { ...cfg, name };
+  const row = await prisma.strategy.create({
+    data: {
       id: ulid(),
       userId,
       name,
       config: config as unknown as Prisma.InputJsonValue,
-      ...messagesData,
+      ...(messages !== undefined ? { messages: messages as Prisma.InputJsonValue } : {}),
     },
-    update: {
-      config: config as unknown as Prisma.InputJsonValue,
-      ...messagesData,
-      ...(configChanged ? { lastResult: PrismaNs.DbNull } : {}),
-    },
+    select: { id: true, name: true, createdAt: true, updatedAt: true },
+  });
+  return c.json(row);
+});
+
+// POST /api/app/strategies/:id — update an existing strategy by id. `{ messages }` alone saves just the
+// conversation (real-time chat, leaves config + lastResult untouched). `{ config }` updates code/range/
+// capital + name on a run — a changed config drops the now-stale lastResult (the run rewrites it). A
+// rename that would collide with another strategy keeps the current name.
+const updateBody = z.object({
+  config: codeConfigSchema.optional(),
+  messages: chatMessagesSchema.optional(),
+});
+
+savedStrategyRoute.post('/:id', validateJson(updateBody), async (c) => {
+  const id = c.req.param('id');
+  const userId = c.var.userId;
+  const { config, messages } = c.req.valid('json');
+  const existing = await prisma.strategy.findFirst({
+    where: { id, userId },
+    select: { config: true, name: true },
+  });
+  if (!existing) {
+    return apiError(c, 'NOT_FOUND', '策略不存在');
+  }
+
+  const data: Prisma.StrategyUpdateInput = {};
+  if (messages !== undefined) {
+    data.messages = messages as Prisma.InputJsonValue;
+  }
+  if (config) {
+    let name = config.name;
+    if (name !== existing.name) {
+      const taken = await prisma.strategy.findUnique({
+        where: { userId_name: { userId, name } },
+        select: { id: true },
+      });
+      if (taken && taken.id !== id) {
+        name = existing.name; // rename collides — keep the current name
+      }
+    }
+    const nextConfig = { ...config, name };
+    data.name = name;
+    data.config = nextConfig as unknown as Prisma.InputJsonValue;
+    // Only a change to the RUN-relevant fields (range/capital/code — not name) invalidates the result;
+    // a rename must not drop the fresh result (the post-run name refresh persists a name-only change).
+    if (runKey(existing.config) !== runKey(nextConfig)) {
+      data.lastResult = PrismaNs.DbNull; // stale for the new code; the run rewrites it
+    }
+  }
+
+  const row = await prisma.strategy.update({
+    where: { id },
+    data,
     select: { id: true, name: true, createdAt: true, updatedAt: true },
   });
   return c.json(row);

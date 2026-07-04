@@ -90,22 +90,42 @@ strategyRoute.post('/agent', validateJson(agentBody), async (c) => {
   }
 });
 
-// POST /api/app/strategy/name — let the model read the code and propose a short Chinese name (used when
-// 策略名称 is left blank; the user can still edit it).
-const nameBody = z.object({ code: z.string().min(1).max(50_000) });
+// POST /api/app/strategy/name — the model proposes a short Chinese strategy name. Two modes:
+//  - {prompt}: name a brand-new strategy from the user's natural-language request (before any code);
+//  - {code, currentName?}: name from the code — if currentName still fits, keep it (only rename when
+//    the strategy's logic has drifted). Used on each run so the name tracks the code without churning.
+const nameBody = z
+  .object({
+    code: z.string().max(50_000).optional(),
+    prompt: z.string().max(2000).optional(),
+    currentName: z.string().max(100).optional(),
+  })
+  .refine((body) => body.code || body.prompt, { message: '需要 code 或 prompt' });
 
 strategyRoute.post('/name', validateJson(nameBody), async (c) => {
-  const { code } = c.req.valid('json');
+  const { code, prompt, currentName } = c.req.valid('json');
   let name: string;
   try {
-    const raw = await chatText([
-      {
-        role: 'system',
-        content:
-          '你是 A 股策略命名助手。读用户的策略代码,起一个简短中文名称(≤14字,概括其选股/择时/交易逻辑),只输出名称本身——不要引号、不要解释、不要结尾标点。',
-      },
-      { role: 'user', content: code },
-    ]);
+    const messages =
+      code != null
+        ? [
+            {
+              role: 'system' as const,
+              content: currentName
+                ? `你是 A 股策略命名助手。读策略代码,它当前叫「${currentName}」。若这个名称仍准确概括代码的选股/择时/交易逻辑,就**原样返回它**;只有当逻辑已明显不符时,才起一个更贴切的简短中文名(≤14字)。只输出名称本身——不要引号、不要解释、不要结尾标点。`
+                : '你是 A 股策略命名助手。读策略代码,起一个简短中文名称(≤14字,概括其选股/择时/交易逻辑),只输出名称本身——不要引号、不要解释、不要结尾标点。',
+            },
+            { role: 'user' as const, content: code },
+          ]
+        : [
+            {
+              role: 'system' as const,
+              content:
+                '你是 A 股策略命名助手。读用户的自然语言策略需求,起一个简短中文名称(≤14字,概括其选股/择时/交易意图),只输出名称本身——不要引号、不要解释、不要结尾标点。',
+            },
+            { role: 'user' as const, content: prompt! },
+          ];
+    const raw = await chatText(messages);
     name = raw
       .trim()
       .replace(/^["'「『]+|["'」』。.]+$/g, '')
