@@ -234,26 +234,62 @@ export function getFactorCatalog(): Promise<FactorMeta[]> {
   return request('/api/app/factors/catalog');
 }
 
-// —— Custom factors (code-first) ——
+// —— Custom factors (code-first, Agent-authored) —— created on the first Agent prompt, then updated by
+// id: messages in real time, code/name on an analysis run. Mirrors the strategy workbench.
 export interface CustomFactorMeta {
   id: string;
   name: string;
   updatedAt: string;
 }
-export function getCustomFactor(id: string): Promise<{ id: string; name: string; code: string }> {
+export function getCustomFactor(
+  id: string,
+): Promise<{ id: string; name: string; code: string; messages?: ChatMessage[] | null }> {
   return request(`/api/app/factors/custom/${id}`);
 }
-export function saveCustomFactor(
+
+// Create a NEW factor row (up front on the first Agent prompt / first run of a hand-written one).
+export function createFactor(
   name: string,
   code: string,
+  messages?: ChatMessage[],
 ): Promise<{ id: string; name: string }> {
-  return request('/api/app/factors/custom', {
-    method: 'POST',
-    body: JSON.stringify({ name, code }),
-  });
+  const body = messages ? { name, code, messages } : { name, code };
+  return request('/api/app/factors/custom', { method: 'POST', body: JSON.stringify(body) });
 }
+
+// Update a factor by id. `{ messages }` = real-time chat save; `{ code, name }` = an analysis run's
+// commit (drops the stale cached reports when the code moved).
+export function updateFactor(
+  id: string,
+  patch: { code?: string; name?: string; messages?: ChatMessage[] },
+): Promise<{ id: string; name: string }> {
+  return request(`/api/app/factors/custom/${id}`, { method: 'POST', body: JSON.stringify(patch) });
+}
+
 export function deleteCustomFactor(id: string): Promise<{ ok: true }> {
   return request(`/api/app/factors/custom/${id}`, { method: 'DELETE' });
+}
+
+// Factor Agent: one turn — the model iterates on the current defineFactor code given the history.
+export function sendFactorAgent(
+  history: ChatMessage[],
+  message: string,
+  code: string,
+): Promise<{ reply: string; code: string; changed: boolean; attempts: number }> {
+  return request('/api/app/factors/agent', {
+    method: 'POST',
+    body: JSON.stringify({ history, message, code }),
+  });
+}
+
+// NL→name for a factor. `prompt` names a brand-new factor from its request; `code` (+ `currentName`)
+// names from the code, keeping currentName when it still fits (on each run).
+export function generateFactorName(input: {
+  code?: string;
+  prompt?: string;
+  currentName?: string;
+}): Promise<{ name: string }> {
+  return request('/api/app/factors/name', { method: 'POST', body: JSON.stringify(input) });
 }
 
 // A factor's cached runs (the "已跑" chips).
