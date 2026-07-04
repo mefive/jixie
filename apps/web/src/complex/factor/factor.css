@@ -38,45 +38,14 @@
   font-size: 13px;
 }
 
-/* left: catalog list — fills the resizable panel, flush (split bar is its right divider) */
-.jx-factor-list {
-  @apply flex flex-col overflow-auto bg-card;
-  height: 100%;
-}
-
-.jx-factor-listItem {
-  @apply flex items-center justify-between gap-2;
-  @apply border-b border-line text-left;
-  padding: 10px 14px;
-  cursor: pointer;
-}
-
-.jx-factor-listItem:hover {
-  background: rgb(17 24 39 / 0.03);
-}
-
-.jx-factor-listItem--active {
-  background: rgb(17 24 39 / 0.06);
-}
-
-.jx-factor-listName {
-  @apply text-ink;
-  font-size: 13px;
-}
-
-.jx-factor-listMeta {
-  @apply flex items-center gap-2;
-  flex: none;
-}
-
-.jx-factor-listKey {
-  @apply text-muted;
-  font-size: 11px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+/* the middle vertical split (editor over 日志 dock) drag bars = hairline dividers */
+.jx-factor-body .ant-splitter-bar-dragger {
+  z-index: 1;
 }
 
 .jx-factor-kind {
   @apply rounded-full text-muted;
+  flex: none;
   padding: 1px 7px;
   font-size: 10px;
   background: rgb(17 24 39 / 0.06);
@@ -88,101 +57,152 @@
   background: rgb(240 160 32 / 0.18);
 }
 
-/* 新建因子 entry at the top of the list */
-.jx-factor-new {
-  @apply flex items-center justify-center gap-2;
-  @apply border-b border-line text-muted;
-  padding: 10px;
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.jx-factor-new:hover {
-  @apply text-ink;
-  background: rgb(17 24 39 / 0.03);
-}
-
-/* edit / delete affordances on a custom factor row */
-.jx-factor-listActions {
-  @apply flex items-center gap-2 text-muted;
-  font-size: 11px;
-}
-
-.jx-factor-listActions [role='button']:hover {
-  @apply text-ink;
-}
-
-/* —— code-first factor editor (modal) —— */
-.jx-factor-editor {
-  @apply flex flex-col gap-3;
-}
-
-.jx-factor-editorCode {
-  @apply overflow-hidden rounded-lg border border-line;
-  height: 52vh;
-}
-
-.jx-factor-editorLoading {
-  @apply flex h-full items-center justify-center text-muted;
-  font-size: 13px;
-}
-
-.jx-factor-editorHint {
-  @apply text-muted;
-  font-size: 12px;
-  line-height: 1.7;
-}
-
-.jx-factor-editorHint code {
-  @apply rounded text-ink;
-  padding: 1px 4px;
-  font-size: 11px;
-  background: rgb(17 24 39 / 0.06);
-}
-
-.jx-factor-editorError {
-  @apply text-down;
-  font-size: 12px;
-  white-space: pre-wrap;
-}
-
-/* —— right column: toolbar (title + params + chips) over result / 日志 dock —— */
-.jx-factor-panel {
+/* —— left column: Agent panel (chat | 因子库 tabs) —— */
+.jx-factor-agent {
   @apply flex flex-col overflow-hidden bg-card;
   height: 100%;
 }
 
-.jx-factor-empty {
-  @apply flex flex-1 items-center justify-center text-muted;
-  font-size: 14px;
+.jx-factor-agentTabs {
+  @apply flex flex-1 flex-col overflow-hidden;
+  padding: 0 12px 12px;
 }
 
-/* per-factor toolbar strip above the split */
-.jx-factor-panelBar {
-  @apply flex flex-col gap-2;
-  @apply border-b border-line;
-  padding: 12px 16px;
-}
-
-/* vertical split: result (scrolls) over the collapsible 日志 dock */
-.jx-factor-panelSplit {
+.jx-factor-agentTabs .ant-tabs-content-holder {
   @apply flex-1 overflow-hidden;
 }
 
-.jx-factor-panelSplit .ant-splitter-bar-dragger::before,
-.jx-factor-panelSplit .ant-splitter-bar-dragger::after {
-  background: var(--color-line);
-}
-
-.jx-factor-result {
-  @apply flex flex-col gap-3 overflow-auto;
+.jx-factor-agentTabs .ant-tabs-content {
   height: 100%;
-  padding: 16px;
 }
 
-/* bottom dock: 日志 (streams during a run, persists after) */
+.jx-factor-agentTabs .ant-tabs-tabpane-active {
+  @apply flex flex-col;
+  height: 100%;
+}
+
+/* Agent tab: scrollable chat log + Cursor-style composer */
+.jx-factor-chat {
+  @apply flex flex-1 flex-col overflow-hidden;
+}
+
+.jx-factor-chatLog {
+  @apply flex flex-1 flex-col gap-2 overflow-auto;
+  padding: 4px 2px;
+}
+
+.jx-factor-chatEmpty {
+  @apply m-auto text-center text-sm text-muted;
+  max-width: 260px;
+  line-height: 1.7;
+}
+
+.jx-factor-bubble {
+  @apply rounded-lg;
+  max-width: 92%;
+  padding: 8px 11px;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.jx-factor-bubble--user {
+  @apply self-end bg-ink text-white;
+}
+
+.jx-factor-bubble--assistant {
+  @apply self-start text-ink;
+  background: rgb(17 24 39 / 0.05);
+}
+
+.jx-factor-bubble--thinking {
+  @apply text-muted;
+}
+
+.jx-factor-chatInput {
+  @apply rounded-lg border border-line bg-bg;
+  padding: 4px 8px;
+  margin-top: 8px;
+  transition: border-color 0.15s;
+}
+
+.jx-factor-chatInput:focus-within {
+  border-color: var(--color-ink);
+}
+
+.jx-factor-chatBox {
+  @apply w-full;
+}
+
+/* 因子库 tab: presets + custom as a vertical list */
+.jx-factor-library {
+  @apply flex flex-1 flex-col overflow-auto;
+  padding: 4px 2px 8px;
+}
+
+.jx-factor-libGroup {
+  @apply text-xs text-muted;
+  padding: 10px 4px 4px;
+}
+
+.jx-factor-libItem {
+  @apply flex items-center justify-between gap-2;
+  @apply rounded-md text-left;
+  padding: 7px 10px;
+  cursor: pointer;
+}
+
+.jx-factor-libItem:hover {
+  background: rgb(17 24 39 / 0.04);
+}
+
+.jx-factor-libItem--active {
+  background: rgb(17 24 39 / 0.07);
+}
+
+.jx-factor-libName {
+  @apply text-ink;
+  font-size: 13px;
+}
+
+.jx-factor-libDel {
+  @apply text-muted;
+  flex: none;
+  font-size: 11px;
+}
+
+.jx-factor-libDel:hover {
+  @apply text-down;
+}
+
+.jx-factor-libEmpty {
+  @apply text-muted;
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+/* —— middle: custom-factor editor (over the 日志 dock) —— */
+.jx-factor-editor {
+  @apply flex flex-col overflow-hidden bg-card;
+  height: 100%;
+}
+
+.jx-factor-code {
+  @apply flex flex-1 overflow-hidden;
+  min-height: 0;
+}
+
+.jx-factor-codeEmpty {
+  @apply flex flex-1 items-center justify-center text-center text-muted;
+  padding: 24px;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+/* middle-bottom dock: 日志 */
 .jx-factor-dock {
-  @apply flex flex-col overflow-hidden;
+  @apply flex flex-col overflow-hidden bg-card;
   height: 100%;
   padding: 0 12px 10px;
 }
@@ -192,26 +212,32 @@
   padding: 8px 2px 6px;
 }
 
-.jx-factor-detailTitleWrap {
-  @apply flex flex-col gap-1;
+/* —— right column: sticky 分析参数 over the scrollable result —— */
+.jx-factor-resultCol {
+  @apply flex flex-col overflow-hidden bg-card;
+  height: 100%;
 }
 
-.jx-factor-detailTitle {
-  @apply font-semibold text-ink;
-  font-size: 18px;
+.jx-factor-empty {
+  @apply items-center justify-center text-center text-muted;
+  padding: 24px;
+  font-size: 14px;
 }
 
-.jx-factor-detailKey {
-  @apply text-muted;
-  font-size: 12px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+.jx-factor-paramBar {
+  @apply flex flex-col gap-2;
+  @apply border-b border-line;
+  padding: 12px 16px;
 }
 
-/* params bar */
+.jx-factor-result {
+  @apply flex flex-1 flex-col gap-3 overflow-auto;
+  padding: 16px;
+}
+
+/* params bar (inside .jx-factor-paramBar, which supplies the container border) */
 .jx-factor-params {
   @apply flex flex-wrap items-center gap-2;
-  @apply rounded-lg border border-line bg-bg;
-  padding: 10px 12px;
 }
 
 .jx-factor-paramLabel {
