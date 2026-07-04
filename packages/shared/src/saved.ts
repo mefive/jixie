@@ -1,4 +1,5 @@
 import type { BacktestConfig, BacktestSummary } from './backtest.js';
+import type { ChatMessage } from './chat.js';
 import type { ScreenSpec } from './screen.js';
 
 /**
@@ -16,10 +17,12 @@ export interface SavedMeta {
   updatedAt: string;
 }
 
-/** A saved strategy with its full BacktestConfig payload + the last run's result (shown on reopen). */
+/** A saved strategy with its full BacktestConfig payload + the last run's result (shown on reopen) +
+ * the Agent-panel conversation that authored it (restored into the chat on reopen). */
 export interface SavedStrategy extends SavedMeta {
   config: BacktestConfig;
   lastResult?: BacktestSummary | null;
+  messages?: ChatMessage[] | null;
 }
 
 /** List-view card for a saved strategy: metadata + a compact snapshot of the last run (for a sparkline

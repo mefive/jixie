@@ -284,6 +284,7 @@ model Strategy {
   name       String
   config     Json // BacktestConfig
   lastResult Json? // last BacktestSummary (metrics + nav + tradeLog) — shown on reopen, refreshed each run
+  messages   Json? // ChatMessage[] — the Agent-panel conversation that authored this strategy (per-strategy)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
