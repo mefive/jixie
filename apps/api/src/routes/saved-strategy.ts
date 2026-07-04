@@ -68,19 +68,6 @@ savedStrategyRoute.get('/:id', async (c) => {
   });
 });
 
-// POST /api/app/strategies/result — attach a finished run's result to the strategy (by name), shown on
-// reopen. Persisted as a single JSON blob (metrics + nav + tradeLog), refreshed each run.
-const resultBody = z.object({ name: z.string().min(1).max(100), result: z.unknown() });
-
-savedStrategyRoute.post('/result', validateJson(resultBody), async (c) => {
-  const { name, result } = c.req.valid('json');
-  await prisma.strategy.updateMany({
-    where: { userId: c.var.userId, name },
-    data: { lastResult: result as Prisma.InputJsonValue },
-  });
-  return c.json({ ok: true });
-});
-
 const chatMessagesSchema = z
   .array(z.object({ role: z.enum(['user', 'assistant']), content: z.string().max(8000) }))
   .max(60);
