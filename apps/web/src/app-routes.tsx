@@ -124,14 +124,18 @@ function FactorRoute() {
   return <ComplexRoute entry={factorEntry} setupParams={setupParams} />;
 }
 
-// Backtest workbench: `/lab` = fresh strategy; `/lab?id=<sid>` = a saved strategy (loaded on mount →
-// refresh-safe). The strategy id rides as a query param (a plain parameter, not a REST resource path).
-// Key by it so switching strategies remounts the store.
+// Backtest workbench: `/lab` = last strategy (or blank if none); `/lab?id=<sid>` = that saved strategy;
+// `/lab?new=1` = force the blank 新建 hero. The id rides as a query param (a plain parameter, not a REST
+// path). NO `key` here — switching strategies must NOT remount (a remount tears down Monaco/Splitters =
+// a full-page flash). The initial id/new is captured once for setup; later URL changes are synced into
+// the store in-place by the Lab component (openSaved / newStrategy), so navigation is seamless.
 function LabRoute() {
   const [searchParams] = useSearchParams();
-  const id = searchParams.get('id') ?? '';
-  const setupParams = useMemo(() => ({ id }), [id]);
-  return <ComplexRoute key={id || 'new'} entry={labEntry} setupParams={setupParams} />;
+  const setupParams = useRef({
+    id: searchParams.get('id') || undefined,
+    isNew: searchParams.has('new'),
+  }).current;
+  return <ComplexRoute entry={labEntry} setupParams={setupParams} />;
 }
 
 // Wire a complex's store lifecycle into react-router: createInstance on mount,

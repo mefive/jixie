@@ -1,0 +1,59 @@
+@reference '../styles/index.css';
+
+.jx-md {
+  @apply flex flex-col;
+  gap: 8px;
+}
+
+.jx-md-p {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.jx-md-h {
+  @apply font-semibold text-ink;
+}
+
+.jx-md-h1 {
+  font-size: 15px;
+}
+
+.jx-md-h2,
+.jx-md-h3 {
+  font-size: 14px;
+}
+
+.jx-md-list {
+  @apply flex flex-col;
+  gap: 3px;
+  margin: 0;
+  padding-left: 18px;
+  list-style: disc;
+}
+
+ol.jx-md-list {
+  list-style: decimal;
+}
+
+.jx-md-code {
+  @apply rounded;
+  padding: 1px 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  background: rgb(17 24 39 / 0.08);
+}
+
+.jx-md-pre {
+  @apply overflow-auto rounded-lg;
+  margin: 0;
+  padding: 8px 10px;
+  background: rgb(17 24 39 / 0.06);
+}
+
+.jx-md-pre code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre;
+}

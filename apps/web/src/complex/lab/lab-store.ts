@@ -1,20 +1,27 @@
 import { computed, makeObservable, observable, runInAction } from 'mobx';
-import type { BacktestConfig, BacktestSummary, StrategyCard } from '@jixie/shared';
+import type {
+  BacktestConfig,
+  BacktestSummary,
+  ChatMessage,
+  LogLine,
+  StrategyCard,
+} from '@jixie/shared';
 import { BaseStore, LoaderModel, PollingModel } from '@src/lib';
 import {
   deleteStrategy,
   findBacktestRunningJob,
-  generateCode,
   generateName,
   getStrategy,
   listStrategies,
   pollBacktest,
   saveStrategy,
+  sendAgent,
   submitBacktest,
 } from '@src/api/client';
 import { DEFAULT_CODE } from './default-strategy';
+import { pushRecent, readRecents, removeRecent } from './recents';
 
-type LabSetupParams = { id?: string };
+type LabSetupParams = { id?: string; isNew?: boolean };
 
 /**
  * Backtest workbench store — code-first. The strategy is a single TS source string (`code`); the server
@@ -28,9 +35,12 @@ export class LabStore extends BaseStore<LabSetupParams> {
   public initialCash = 1_000_000;
   public code = DEFAULT_CODE;
 
-  public nlText = ''; // NL→code
+  public nlText = ''; // the Agent chat draft / hero prompt
 
-  public logLines: string[] = []; // live backtest progress (streamed via polling)
+  public chatMessages: ChatMessage[] = []; // the Agent conversation for this strategy (persisted per strategy)
+  public sending = false; // an Agent turn is in flight
+
+  public logLines: LogLine[] = []; // live backtest progress (streamed via polling), tagged system/user
   public result: BacktestSummary | null = null; // a finished run OR the saved last-result on reopen
   public error: string | null = null; // backtest failure message
   public savedId: string | null = null; // this strategy's DB id (for the URL)
@@ -40,8 +50,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
   private since = 0;
 
   public backtestPoller = new PollingModel();
-  public codegenLoader = new LoaderModel<{ code: string; attempts: number }>(); // NL→code
-  public savedLoader = new LoaderModel<StrategyCard[]>(); // 我的策略 cards
+  public savedLoader = new LoaderModel<StrategyCard[]>(); // 我的策略 / 历史 cards
 
   public constructor(parentStore?: any) {
     super(parentStore);
@@ -52,6 +61,8 @@ export class LabStore extends BaseStore<LabSetupParams> {
       initialCash: observable.ref,
       code: observable.ref,
       nlText: observable.ref,
+      chatMessages: observable.ref,
+      sending: observable.ref,
       logLines: observable.ref,
       result: observable.ref,
       error: observable.ref,
@@ -66,17 +77,21 @@ export class LabStore extends BaseStore<LabSetupParams> {
   public setup(params: LabSetupParams) {
     super.setup(params);
     this.backtestPoller.setup({ interval: POLL_INTERVAL_MS, request: () => this.pollOnce() });
-    this.codegenLoader.setup({ request: () => generateCode(this.nlText.trim()) });
     this.savedLoader.setup({ request: () => listStrategies() });
     this.registCleaner(() => this.backtestPoller.cleanup());
-    this.registCleaner(() => this.codegenLoader.cleanup());
     this.registCleaner(() => this.savedLoader.cleanup());
-    void this.savedLoader.run(); // prime 我的策略
-    if (params.id) {
-      void this.openSaved(params.id);
-    } else {
-      this.markSaved();
-    } // a fresh default strategy is the baseline, not "dirty"
+    void this.savedLoader.run(); // prime 我的策略 (also feeds the hero's 最近访问 cards)
+    // A fresh default strategy is the baseline (not "dirty") until we load something over it.
+    this.markSaved();
+    // Resolve the initial view: `?new=1` forces the blank hero; else an explicit ?id; else the
+    // most-recently-opened strategy (so re-entering /lab lands on your last work, not the blank hero);
+    // else the blank starter.
+    if (!params.isNew) {
+      const initialId = params.id || readRecents()[0];
+      if (initialId) {
+        void this.openSaved(initialId);
+      }
+    }
   }
 
   /** True while a backtest is running (drives the loading state + progress log). */
@@ -84,9 +99,11 @@ export class LabStore extends BaseStore<LabSetupParams> {
     return this.backtestPoller.running;
   }
 
-  /** Untouched starter strategy (no saved id, default code, nothing run) → show the prompt-first hero. */
+  /** Untouched starter strategy (no saved id, default code, no run, no chat) → show the prompt-first hero. */
   public get isFresh(): boolean {
-    return !this.savedId && !this.result && this.code === DEFAULT_CODE;
+    return (
+      !this.savedId && !this.result && this.code === DEFAULT_CODE && this.chatMessages.length === 0
+    );
   }
 
   /** The editor has unsaved edits vs. the last saved/loaded snapshot (gates the 新建 save prompt). */
@@ -111,15 +128,55 @@ export class LabStore extends BaseStore<LabSetupParams> {
     });
   }
 
-  /** NL→code: generate a strategy from the prompt (server compiles it) → drop it into the editor. */
-  public async generate() {
-    if (!this.nlText.trim()) {
+  /** One Agent turn: append the user message, ask the server (history + current code), append the reply,
+   * and apply the returned code when it changed. Persists the conversation onto the strategy (if saved). */
+  public async sendAgent(message: string) {
+    const text = message.trim();
+    if (!text || this.sending) {
       return;
     }
-    const r = await this.codegenLoader.run();
     runInAction(() => {
-      this.code = r.code;
+      this.chatMessages = [...this.chatMessages, { role: 'user', content: text }];
+      this.sending = true;
+      this.nlText = '';
     });
+    try {
+      const history = this.chatMessages.slice(0, -1); // prior turns (exclude the message we just added)
+      const res = await sendAgent(history, text, this.code);
+      runInAction(() => {
+        this.chatMessages = [...this.chatMessages, { role: 'assistant', content: res.reply }];
+        // A code change invalidates the shown result — the strategy is different now.
+        if (res.changed) {
+          this.code = res.code;
+          this.result = null;
+        }
+      });
+      void this.persistMessages();
+    } catch (e) {
+      runInAction(() => {
+        this.chatMessages = [
+          ...this.chatMessages,
+          { role: 'assistant', content: `出错了:${e instanceof Error ? e.message : '请求失败'}` },
+        ];
+      });
+    } finally {
+      runInAction(() => {
+        this.sending = false;
+      });
+    }
+  }
+
+  /** Persist the conversation onto the saved strategy. A fresh (unsaved) strategy keeps its chat in
+   * memory — it's flushed on the first run/save, which carries the messages along. */
+  private async persistMessages() {
+    if (!this.savedId) {
+      return;
+    }
+    try {
+      await saveStrategy(this.config, this.chatMessages);
+    } catch {
+      /* best-effort */
+    }
   }
 
   /** Start fresh: a blank-named strategy on the default template (blank name → auto-named on first run). */
@@ -128,6 +185,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
       this.name = '';
       this.code = DEFAULT_CODE;
       this.nlText = '';
+      this.chatMessages = [];
       this.result = null;
       this.error = null;
       this.logLines = [];
@@ -148,11 +206,12 @@ export class LabStore extends BaseStore<LabSetupParams> {
       }
     }
     try {
-      const meta = await saveStrategy(this.config);
+      const meta = await saveStrategy(this.config, this.chatMessages);
       runInAction(() => {
         this.savedId = meta.id;
         this.result = null; // this saved version has no run yet — don't carry a stale curve
       });
+      pushRecent(meta.id);
       this.markSaved();
       void this.savedLoader.run();
     } catch {
@@ -182,10 +241,11 @@ export class LabStore extends BaseStore<LabSetupParams> {
     // Save first so the strategy has an id — the backtest Job is keyed by it (URL + DB-backed resume),
     // and the worker writes the result to that strategy's lastResult on completion.
     try {
-      const meta = await saveStrategy(this.config);
+      const meta = await saveStrategy(this.config, this.chatMessages);
       runInAction(() => {
         this.savedId = meta.id;
       });
+      pushRecent(meta.id);
       this.markSaved(); // running persists the current config — it's now the saved baseline
       void this.savedLoader.run();
     } catch {
@@ -220,7 +280,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
   }
 
   /** Append log lines streamed from the backtest worker. */
-  public appendLogs(lines: string[]) {
+  public appendLogs(lines: LogLine[]) {
     runInAction(() => {
       this.logLines = [...this.logLines, ...lines];
     });
@@ -269,9 +329,11 @@ export class LabStore extends BaseStore<LabSetupParams> {
     this.applyConfig(s.config);
     runInAction(() => {
       this.result = s.lastResult ?? null;
+      this.chatMessages = s.messages ?? []; // restore this strategy's Agent conversation
       this.error = null;
       this.savedId = id;
     });
+    pushRecent(id); // record the visit → hero 最近访问 + auto-open on next entry
     // Re-attach to a still-running backtest (found server-side by strategyId — no localStorage, works
     // cross-client) so a refresh keeps streaming logs instead of losing the run.
     try {
@@ -286,6 +348,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
 
   /** Delete a saved strategy, then refresh the list. */
   public removeSaved(id: string) {
+    removeRecent(id);
     void deleteStrategy(id).then(() => this.savedLoader.run());
   }
 

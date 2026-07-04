@@ -1,5 +1,5 @@
 import { action, computed, makeObservable, observable, runInAction } from 'mobx';
-import type { FactorMeta, FactorReport, FactorRun, FactorFreq } from '@jixie/shared';
+import type { FactorMeta, FactorReport, FactorRun, FactorFreq, LogLine } from '@jixie/shared';
 import { BaseStore, LoaderModel, PollingModel } from '@src/lib';
 import {
   getFactorCatalog,
@@ -35,7 +35,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   public freq: FactorFreq = 'month';
   public start = DEFAULT_START;
   public end = DEFAULT_END;
-  public logs: string[] = []; // streamed progress of the current run (job)
+  public logs: LogLine[] = []; // streamed progress of the current run (job), tagged system/user
   public jobRunning = false; // a streamed analysis is in flight (submit → poll → done)
   private jobId: string | null = null; // current job's id (poll cursor lives in `since`)
   private since = 0;

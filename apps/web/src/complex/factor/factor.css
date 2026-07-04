@@ -5,20 +5,32 @@
   height: 100%;
 }
 
+/* IDE-flush: the body is an antd Splitter (catalog | right column) filling edge-to-edge; its drag bars
+   are the dividers, so the panes carry no border/rounding/gap. */
 .jx-factor-body {
-  @apply flex flex-1 flex-col gap-4;
-  @apply overflow-hidden;
-  padding: 16px 20px;
+  @apply flex-1 overflow-hidden;
+  @apply border-t border-line;
+}
+
+.jx-factor-body .ant-splitter-bar-dragger::before,
+.jx-factor-body .ant-splitter-bar-dragger::after {
+  background: var(--color-line);
+}
+
+/* centered message (catalog loading / error) fills the area below the header */
+.jx-factor-bodyMsg {
+  @apply flex flex-1 items-center justify-center overflow-hidden;
 }
 
 .jx-factor-head {
   @apply flex flex-col gap-1;
+  padding: 12px 20px;
 }
 
 .jx-factor-title {
   @apply font-semibold text-ink;
-  font-size: 22px;
-  letter-spacing: 2px;
+  font-size: 20px;
+  letter-spacing: 1px;
 }
 
 .jx-factor-hint {
@@ -26,19 +38,10 @@
   font-size: 13px;
 }
 
-/* —— master(因子列表) | detail(选中因子) —— */
-.jx-factor-split {
-  @apply flex flex-1 gap-4;
-  @apply overflow-hidden;
-}
-
-/* left: catalog list */
+/* left: catalog list — fills the resizable panel, flush (split bar is its right divider) */
 .jx-factor-list {
-  flex: none;
-  width: 280px;
-  @apply flex flex-col;
-  @apply overflow-auto;
-  @apply rounded-lg border border-line bg-card;
+  @apply flex flex-col overflow-auto bg-card;
+  height: 100%;
 }
 
 .jx-factor-listItem {
@@ -143,23 +146,50 @@
   white-space: pre-wrap;
 }
 
-/* —— detail —— */
-.jx-factor-detail {
-  flex: 1;
-  min-width: 0;
-  @apply flex flex-col gap-3;
-  @apply overflow-auto;
-  @apply rounded-lg border border-line bg-card;
-  padding: 16px;
+/* —— right column: toolbar (title + params + chips) over result / 日志 dock —— */
+.jx-factor-panel {
+  @apply flex flex-col overflow-hidden bg-card;
+  height: 100%;
 }
 
 .jx-factor-empty {
-  @apply items-center justify-center text-muted;
+  @apply flex flex-1 items-center justify-center text-muted;
   font-size: 14px;
 }
 
-.jx-factor-detailHead {
-  @apply flex items-start justify-between gap-3;
+/* per-factor toolbar strip above the split */
+.jx-factor-panelBar {
+  @apply flex flex-col gap-2;
+  @apply border-b border-line;
+  padding: 12px 16px;
+}
+
+/* vertical split: result (scrolls) over the collapsible 日志 dock */
+.jx-factor-panelSplit {
+  @apply flex-1 overflow-hidden;
+}
+
+.jx-factor-panelSplit .ant-splitter-bar-dragger::before,
+.jx-factor-panelSplit .ant-splitter-bar-dragger::after {
+  background: var(--color-line);
+}
+
+.jx-factor-result {
+  @apply flex flex-col gap-3 overflow-auto;
+  height: 100%;
+  padding: 16px;
+}
+
+/* bottom dock: 日志 (streams during a run, persists after) */
+.jx-factor-dock {
+  @apply flex flex-col overflow-hidden;
+  height: 100%;
+  padding: 0 12px 10px;
+}
+
+.jx-factor-dockHead {
+  @apply flex items-center gap-2 text-sm text-muted;
+  padding: 8px 2px 6px;
 }
 
 .jx-factor-detailTitleWrap {
@@ -295,25 +325,4 @@
 .jx-factor-metricHint {
   @apply text-muted;
   font-size: 11px;
-}
-
-/* —— streamed run (progress logs, like the backtest) —— */
-.jx-factor-running {
-  @apply flex flex-1 flex-col gap-3;
-}
-
-.jx-factor-runningHead {
-  @apply flex items-center gap-2;
-  @apply text-sm text-muted;
-}
-
-.jx-factor-log {
-  @apply overflow-auto;
-  @apply rounded-lg border border-line bg-bg text-muted;
-  padding: 12px 14px;
-  max-height: 340px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 12px;
-  line-height: 1.7;
-  white-space: pre-wrap;
 }
