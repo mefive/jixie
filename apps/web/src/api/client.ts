@@ -70,7 +70,7 @@ export function logout(): Promise<{ ok: true }> {
 
 // —— Backtest ——
 
-import type { BacktestConfig, BacktestSummary, ChatMessage, LogLine } from '@jixie/shared';
+import type { BacktestConfig, ChatMessage, LogLine } from '@jixie/shared';
 
 // A backtest Job (runs in a worker). Poll carries the log lines after `since` + `nextSince`. Status
 // only — the result lands on Strategy.lastResult (fetch it on done). 'stale' = the run's process died.
@@ -114,11 +114,6 @@ import type {
   SavedScreenQuery,
   StrategyCard,
 } from '@jixie/shared';
-
-// NL→code: turn a natural-language strategy description into a compilable TS strategy module.
-export function generateCode(text: string): Promise<{ code: string; attempts: number }> {
-  return request('/api/app/strategy/codegen', { method: 'POST', body: JSON.stringify({ text }) });
-}
 
 // NL→name: the model proposes a short strategy name. Pass `prompt` to name a brand-new strategy from
 // its request (before any code); pass `code` (+ `currentName`) to name from the code on a run — the
@@ -172,14 +167,6 @@ export function updateStrategy(
   patch: { config?: BacktestConfig; messages?: ChatMessage[] },
 ): Promise<SavedMeta> {
   return request(`/api/app/strategies/${id}`, { method: 'POST', body: JSON.stringify(patch) });
-}
-
-// Persist a finished run's result onto the strategy (by name) — shown on reopen.
-export function saveBacktestResult(name: string, result: BacktestSummary): Promise<{ ok: true }> {
-  return request('/api/app/strategies/result', {
-    method: 'POST',
-    body: JSON.stringify({ name, result }),
-  });
 }
 
 export function deleteStrategy(id: string): Promise<{ ok: true }> {
