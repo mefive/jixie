@@ -42,10 +42,32 @@ const TradeDetail = lazy(() => import('./trade-detail'));
 export const Lab = complex.component(() => {
   const store = complex.useStore();
   const [heroDismissed, setHeroDismissed] = useState(false); // "直接写代码" escape from the new-strategy hero
-  const [newConfirm, setNewConfirm] = useState(false); // 新建 while dirty → confirm save first
   const [newModalOpen, setNewModalOpen] = useState(false); // 新建 → prompt modal (not the full hero)
+  const [pendingLeave, setPendingLeave] = useState<(() => void) | null>(null); // dirty → confirm before discarding
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+
+  // Warn on refresh / tab-close when there are unrun edits (code/params only commit on 运行回测).
+  useEffect(() => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (store.dirty) {
+        e.preventDefault();
+        e.returnValue = ''; // required for the browser's native "leave?" prompt
+      }
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Guard an in-app action that would discard unrun edits (新建 / switching strategy): confirm when dirty.
+  const tryLeave = (action: () => void) => {
+    if (store.dirty) {
+      setPendingLeave(() => action);
+    } else {
+      action();
+    }
+  };
   const skipFirstUrlSync = useRef(true);
 
   // store → URL: reflect the loaded strategy as ?id (replace — an auto-save/open shouldn't spam history).
@@ -89,8 +111,11 @@ export const Lab = complex.component(() => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
-  // 新建 → a prompt Modal (not the full 新增视图). Guard unsaved edits first.
-  const openNewModal = () => (store.dirty ? setNewConfirm(true) : setNewModalOpen(true));
+  // 新建 → a prompt Modal (not the full 新增视图). Guard unrun edits (chat saves in real time, but
+  // code/params only commit on a run — 新建 or switching away would drop them).
+  const openNewModal = () => tryLeave(() => setNewModalOpen(true));
+  // Open a saved strategy (from 历史) — same unrun-edit guard.
+  const onOpenStrategy = (id: string) => tryLeave(() => navigate(`/lab?id=${id}`));
   // From the modal: start a new strategy with a first Agent message, or a blank one to hand-write. Both
   // reset to a fresh strategy and clear the URL (?new=1 keeps the URL sync from auto-opening a recent).
   const startNew = (text: string) => {
@@ -106,21 +131,22 @@ export const Lab = complex.component(() => {
     store.newStrategy();
     navigate('/lab?new=1', { replace: true });
   };
-  const saveAndNew = async () => {
-    await store.save();
-    setNewConfirm(false);
-    setNewModalOpen(true);
-  };
 
   // The full-page 新增视图 (hero) shows only on a genuine first visit with nothing recent to auto-open;
-  // otherwise 新建 pops the prompt modal over the workbench.
-  const showHero = store.isFresh && !heroDismissed && readRecents().length === 0;
+  // never while the initial strategy is still loading (that async gap is what used to flash the hero /
+  // empty workbench before openSaved resolved). Otherwise 新建 pops the prompt modal over the workbench.
+  const showHero =
+    !store.initializing && store.isFresh && !heroDismissed && readRecents().length === 0;
 
   return (
     <div className="jx-lab">
       <TopNav />
 
-      {showHero ? (
+      {store.initializing ? (
+        <div className="jx-lab-boot">
+          <FontAwesomeIcon icon={faSpinner} spin />
+        </div>
+      ) : showHero ? (
         <StrategyHero
           onSubmit={(text) => void store.sendAgent(text)}
           onSkip={() => setHeroDismissed(true)}
@@ -129,7 +155,7 @@ export const Lab = complex.component(() => {
         // IDE layout: Agent | (编辑器 over 日志 dock) | 右列 结果/交易明细 tabs — all drag-resizable.
         <Splitter className="jx-lab-body">
           <Splitter.Panel defaultSize={380} min={300} max={620} collapsible>
-            <AgentPanel onNew={openNewModal} />
+            <AgentPanel onNew={openNewModal} onOpenStrategy={onOpenStrategy} />
           </Splitter.Panel>
           <Splitter.Panel min="22%">
             <Splitter orientation="vertical">
@@ -157,29 +183,22 @@ export const Lab = complex.component(() => {
       />
 
       <Modal
-        open={newConfirm}
-        title="当前策略尚未保存"
-        onCancel={() => setNewConfirm(false)}
-        footer={[
-          <Button key="cancel" onClick={() => setNewConfirm(false)}>
-            取消
-          </Button>,
-          <Button
-            key="discard"
-            danger
-            onClick={() => {
-              setNewConfirm(false);
-              setNewModalOpen(true);
-            }}
-          >
-            不保存
-          </Button>,
-          <LoaderButton key="save" type="primary" action={saveAndNew} successMessage="已保存">
-            保存并新建
-          </LoaderButton>,
-        ]}
+        open={!!pendingLeave}
+        title="有改动尚未运行"
+        onCancel={() => setPendingLeave(null)}
+        okText="放弃改动"
+        okButtonProps={{ danger: true }}
+        cancelText="取消"
+        onOk={() => {
+          const action = pendingLeave;
+          setPendingLeave(null);
+          action?.();
+        }}
       >
-        <p>当前策略有未保存的修改。保存后将作为新版本，原先的回测结果会被清除。</p>
+        <p>
+          当前策略的代码 /
+          参数改动还没运行回测，离开将丢失。点「运行回测」保存后再操作，或放弃改动继续。
+        </p>
       </Modal>
     </div>
   );
@@ -328,28 +347,36 @@ function NewStrategyModal({
 
 // —— Agent panel (left column) —— a chat that iterates on the strategy, over a sticky 运行配置; plus a
 // 历史 tab to switch strategies. The agent edits the code in the middle editor; the user can still hand-edit.
-const AgentPanel = complex.component(({ onNew }: { onNew: () => void }) => {
-  const [tab, setTab] = useState('agent');
-  return (
-    <div className="jx-lab-agent">
-      <Tabs
-        className="jx-lab-agentTabs"
-        size="small"
-        activeKey={tab}
-        onChange={setTab}
-        tabBarExtraContent={
-          <Button size="small" type="text" icon={<FontAwesomeIcon icon={faPlus} />} onClick={onNew}>
-            新建
-          </Button>
-        }
-        items={[
-          { key: 'agent', label: 'Agent', children: <AgentChat /> },
-          { key: 'history', label: '历史', children: <HistoryList /> },
-        ]}
-      />
-    </div>
-  );
-}, 'AgentPanel');
+const AgentPanel = complex.component(
+  ({ onNew, onOpenStrategy }: { onNew: () => void; onOpenStrategy: (id: string) => void }) => {
+    const [tab, setTab] = useState('agent');
+    return (
+      <div className="jx-lab-agent">
+        <Tabs
+          className="jx-lab-agentTabs"
+          size="small"
+          activeKey={tab}
+          onChange={setTab}
+          tabBarExtraContent={
+            <Button
+              size="small"
+              type="text"
+              icon={<FontAwesomeIcon icon={faPlus} />}
+              onClick={onNew}
+            >
+              新建
+            </Button>
+          }
+          items={[
+            { key: 'agent', label: 'Agent', children: <AgentChat /> },
+            { key: 'history', label: '历史', children: <HistoryList onOpen={onOpenStrategy} /> },
+          ]}
+        />
+      </div>
+    );
+  },
+  'AgentPanel',
+);
 
 // Agent tab: sticky 运行配置 (日期/资金 + 运行回测) over a scrollable chat log + a Cursor-style composer
 // (a bordered box, no button — 回车发送; the box stays multi-row rather than collapsing to one line).
@@ -421,6 +448,8 @@ const RunConfig = complex.component(() => {
         className="jx-lab-runBtn"
         icon={<FontAwesomeIcon icon={faPlay} />}
         loading={store.running}
+        disabled={!store.dirty}
+        title={store.dirty ? '' : '改动策略后可重新运行'}
         action={() => store.run()}
       >
         运行回测
@@ -460,9 +489,8 @@ function ChatLog({ messages, sending }: { messages: ChatMessage[]; sending: bool
 }
 
 // 历史 tab: this user's strategies as vertical cards — open loads the strategy + its conversation.
-const HistoryList = complex.component(() => {
+const HistoryList = complex.component(({ onOpen }: { onOpen: (id: string) => void }) => {
   const store = complex.useStore();
-  const navigate = useNavigate();
   const cards = store.savedLoader.result ?? [];
   if (store.savedLoader.loading && cards.length === 0) {
     return (
@@ -480,7 +508,7 @@ const HistoryList = complex.component(() => {
         <StrategyCardView
           key={card.id}
           card={card}
-          onOpen={(id) => navigate(`/lab?id=${id}`)}
+          onOpen={onOpen}
           onDelete={(id) => store.removeSaved(id)}
         />
       ))}
