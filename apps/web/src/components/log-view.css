@@ -1,0 +1,52 @@
+@reference '../styles/index.css';
+
+.jx-logView {
+  @apply flex-1 overflow-auto;
+  @apply rounded-lg border border-line bg-bg;
+  padding: 10px 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.jx-logView-empty {
+  @apply text-muted;
+}
+
+.jx-logView-line {
+  @apply flex items-baseline gap-2;
+  padding: 1px 0;
+}
+
+.jx-logView-tag {
+  @apply rounded text-muted;
+  flex: none;
+  padding: 0 5px;
+  font-size: 10px;
+  background: rgb(17 24 39 / 0.06);
+}
+
+.jx-logView-text {
+  @apply text-muted;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* user lines stand out from system progress via the accent tag + ink text */
+.jx-logView-line--user .jx-logView-tag {
+  @apply text-ink;
+  background: rgb(240 160 32 / 0.18);
+}
+
+.jx-logView-line--user .jx-logView-text {
+  @apply text-ink;
+}
+
+/* level colors apply to user console.warn / console.error */
+.jx-logView-line--warn .jx-logView-text {
+  color: #d97706;
+}
+
+.jx-logView-line--error .jx-logView-text {
+  color: #e8463b;
+}

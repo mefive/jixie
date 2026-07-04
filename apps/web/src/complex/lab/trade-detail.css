@@ -1,15 +1,14 @@
 @reference '../../styles/index.css';
 
+/* vertical: K线 chart on top, trade table below (roughly 50/50), fills the container */
 .jx-td {
-  @apply flex gap-3;
-  height: calc(
-    100vh - 130px
-  ); /* fit inside the modal (top:20 + title + padding) so the slider isn't clipped */
+  @apply flex flex-col gap-3;
+  height: 100%; /* fills its container — the 交易明细 tab or the /trades page body */
 }
 
 .jx-td-chart {
   @apply flex flex-1 flex-col;
-  min-width: 0;
+  min-height: 0;
 }
 
 /* traded-instruments queue — click to switch, no search/filter */
@@ -73,9 +72,8 @@
 }
 
 .jx-td-list {
-  @apply overflow-auto rounded-lg border border-line;
-  width: 340px;
-  flex: none;
+  @apply flex-1 overflow-auto rounded-lg border border-line;
+  min-height: 0;
 }
 
 .jx-td-head,
@@ -105,11 +103,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* 全部 view — a wider list with an extra 标的 (name+code) column */
-.jx-td-list--all {
-  width: 430px;
-}
-
+/* 全部 view — an extra 标的 (name+code) column */
 .jx-td-list--all .jx-td-head,
 .jx-td-list--all .jx-td-row {
   grid-template-columns: 96px 84px 30px 1fr 52px 56px;

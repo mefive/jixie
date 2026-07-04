@@ -70,13 +70,14 @@ export function logout(): Promise<{ ok: true }> {
 
 // —— Backtest ——
 
-import type { BacktestConfig, BacktestSummary } from '@jixie/shared';
+import type { BacktestConfig, BacktestSummary, ChatMessage, LogLine } from '@jixie/shared';
 
 // A backtest Job (runs in a worker). Poll carries the log lines after `since` + `nextSince`. Status
 // only — the result lands on Strategy.lastResult (fetch it on done). 'stale' = the run's process died.
+// Logs are tagged LogLine (system progress vs the strategy's own console.*).
 export interface BacktestJob {
   status: 'running' | 'done' | 'error' | 'stale';
-  logs: string[];
+  logs: LogLine[];
   nextSince: number;
   error?: string | null;
 }
@@ -124,6 +125,19 @@ export function generateName(code: string): Promise<{ name: string }> {
   return request('/api/app/strategy/name', { method: 'POST', body: JSON.stringify({ code }) });
 }
 
+// Agent: one conversation turn — the model iterates on the current code given the history so far.
+// Returns its explanation + the (compile-validated) updated code (`changed` = whether code moved).
+export function sendAgent(
+  history: ChatMessage[],
+  message: string,
+  code: string,
+): Promise<{ reply: string; code: string; changed: boolean; attempts: number }> {
+  return request('/api/app/strategy/agent', {
+    method: 'POST',
+    body: JSON.stringify({ history, message, code }),
+  });
+}
+
 // —— Saved strategies (产品线 1 持久化) —— auto-saved on backtest run; name = config.name (upsert).
 
 export function listStrategies(): Promise<StrategyCard[]> {
@@ -134,8 +148,9 @@ export function getStrategy(id: string): Promise<SavedStrategy> {
   return request(`/api/app/strategies/${id}`);
 }
 
-export function saveStrategy(config: BacktestConfig): Promise<SavedMeta> {
-  return request('/api/app/strategies', { method: 'POST', body: JSON.stringify(config) });
+export function saveStrategy(config: BacktestConfig, messages?: ChatMessage[]): Promise<SavedMeta> {
+  const body = messages ? { ...config, messages } : config;
+  return request('/api/app/strategies', { method: 'POST', body: JSON.stringify(body) });
 }
 
 // Persist a finished run's result onto the strategy (by name) — shown on reopen.
@@ -265,7 +280,7 @@ export function runFactorAnalysis(
 
 export interface FactorJob {
   status: 'running' | 'done' | 'error' | 'stale';
-  logs: string[];
+  logs: LogLine[];
   nextSince: number;
   error?: string | null;
 }

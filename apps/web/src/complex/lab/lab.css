@@ -5,35 +5,6 @@
   height: 100%;
 }
 
-/* —— top strip: name / range / capital / saved / run —— */
-.jx-lab-bar {
-  @apply flex flex-wrap items-end gap-3;
-  @apply border-b border-line bg-card;
-  padding: 12px 16px;
-}
-
-.jx-lab-field {
-  @apply flex flex-col gap-1;
-}
-
-.jx-lab-field--name {
-  min-width: 200px;
-}
-
-.jx-lab-label {
-  @apply text-sm text-muted;
-}
-
-/* antd InputNumber/DatePicker roots don't stretch by default — make controls fill the field. */
-.jx-lab-control {
-  width: 100%;
-}
-
-.jx-lab-barActions {
-  @apply flex items-center gap-2;
-  margin-left: auto;
-}
-
 /* —— new-strategy hero (prompt-first entry, mirrors 选股看图) —— */
 .jx-lab-hero {
   @apply flex flex-1 items-center justify-center overflow-auto;
@@ -92,35 +63,157 @@
   cursor: pointer;
 }
 
-/* —— body: editor | result —— */
-.jx-lab-body {
-  @apply flex flex-1 gap-4;
-  @apply overflow-hidden;
-  padding: 16px;
+/* 最近访问 — recent strategies tiled below the prompt (same cards as 我的策略) */
+.jx-lab-recents {
+  @apply flex w-full flex-col gap-2;
+  margin-top: 8px;
 }
 
+.jx-lab-recentsLabel {
+  @apply text-sm text-muted;
+}
+
+.jx-lab-recentsGrid {
+  @apply grid gap-3;
+  grid-template-columns: repeat(3, 1fr);
+}
+
+/* —— body: editor | result —— */
+/* IDE-flush: the Splitter fills edge-to-edge (no outer padding); its drag bars are the only dividers,
+   so the panes themselves carry no border/rounding/gap. A top rule separates it from the toolbar. */
+.jx-lab-body {
+  @apply flex-1 overflow-hidden;
+  @apply border-t border-line;
+}
+
+/* drag bars as hairline dividers (VS Code look) — the resting line matches the border token */
+.jx-lab-body .ant-splitter-bar-dragger::before,
+.jx-lab-body .ant-splitter-bar-dragger::after {
+  background: var(--color-line);
+}
+
+/* each Splitter.Panel sizes its child; the section just fills the panel, flush (no border/rounding) */
 .jx-lab-editor {
   @apply flex flex-col;
-  @apply overflow-hidden rounded-lg border border-line;
-  flex: 1.1;
+  @apply overflow-hidden;
+  height: 100%;
+}
+
+/* —— left column: Agent panel (chat + 运行配置 | 历史) —— */
+.jx-lab-agent {
+  @apply flex flex-col overflow-hidden bg-card;
+  height: 100%;
+}
+
+/* the Tabs fill the panel; the active tabpane stretches so the chat log can scroll (see §8 exception) */
+.jx-lab-agentTabs {
+  @apply flex flex-1 flex-col overflow-hidden;
+  padding: 0 14px 14px;
+}
+
+.jx-lab-agentTabs .ant-tabs-content-holder {
+  @apply flex-1 overflow-hidden;
+}
+
+.jx-lab-agentTabs .ant-tabs-content {
+  height: 100%;
+}
+
+.jx-lab-agentTabs .ant-tabs-tabpane-active {
+  @apply flex flex-col;
+  height: 100%;
+}
+
+/* Agent tab: sticky 运行配置 header, scrollable log, bottom input */
+.jx-lab-chat {
+  @apply flex flex-1 flex-col overflow-hidden;
+}
+
+/* 2-col grid: 起始 | 结束 on top, 资金 | 运行回测 below — controls align across both rows */
+.jx-lab-runConfig {
+  @apply grid items-center;
+  @apply rounded-lg border border-line bg-bg;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 10px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+}
+
+.jx-lab-runField {
+  @apply flex items-center gap-1;
   min-width: 0;
 }
 
-/* NL→code bar above the editor */
-.jx-lab-nl {
-  @apply flex flex-wrap items-start gap-2;
-  @apply border-b border-line bg-bg;
-  padding: 10px 12px;
+.jx-lab-runLabel {
+  @apply text-xs text-muted;
+  flex: none;
 }
 
-.jx-lab-nlInput {
-  flex: 1;
-  min-width: 200px;
+/* antd DatePicker/InputNumber roots don't stretch — fill the grid cell (minus the label) */
+.jx-lab-runControl {
+  @apply flex-1;
+  min-width: 0;
 }
 
-.jx-lab-nlError {
-  @apply w-full text-down;
-  font-size: 12px;
+.jx-lab-runBtn {
+  width: 100%;
+}
+
+.jx-lab-chatLog {
+  @apply flex flex-1 flex-col gap-2 overflow-auto;
+  padding: 4px 2px;
+}
+
+.jx-lab-chatEmpty {
+  @apply m-auto text-center text-sm text-muted;
+  max-width: 260px;
+  line-height: 1.7;
+}
+
+.jx-lab-bubble {
+  @apply rounded-lg;
+  max-width: 92%;
+  padding: 8px 11px;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.jx-lab-bubble--user {
+  @apply self-end bg-ink text-white;
+}
+
+.jx-lab-bubble--assistant {
+  @apply self-start text-ink;
+  background: rgb(17 24 39 / 0.05);
+}
+
+.jx-lab-bubble--thinking {
+  @apply text-muted;
+}
+
+/* Cursor-style composer: the box border lives on the container; the textarea inside is borderless (so
+   no heavy antd focus ring / shadow). Stays multi-row. 回车发送 — no button. */
+.jx-lab-chatInput {
+  @apply rounded-lg border border-line bg-bg;
+  padding: 4px 8px;
+  margin-top: 8px;
+  transition: border-color 0.15s;
+}
+
+.jx-lab-chatInput:focus-within {
+  border-color: var(--color-ink);
+}
+
+.jx-lab-chatBox {
+  @apply w-full;
+}
+
+/* 历史 tab: strategies as a vertical list of cards */
+.jx-lab-history {
+  @apply flex flex-1 flex-col gap-2 overflow-auto;
+  padding: 4px 2px 8px;
 }
 
 /* Monaco editor container (the editor lays itself out to fill this) */
@@ -129,14 +222,12 @@
   min-height: 0;
 }
 
-/* —— right: 回测结果 —— */
+/* —— 结果概览 tab content (scrolls; horizontal padding comes from the tabs container) —— */
 .jx-lab-result {
   @apply flex flex-col gap-3;
-  @apply rounded-lg border border-line bg-card;
-  @apply overflow-hidden;
-  flex: 1;
-  min-width: 0;
-  padding: 16px;
+  @apply overflow-auto;
+  height: 100%;
+  padding: 8px 2px 16px;
 }
 
 .jx-lab-placeholder {
@@ -148,29 +239,49 @@
   @apply text-down;
 }
 
-/* —— live backtest progress (streamed worker logs) —— */
-.jx-lab-running {
-  @apply flex flex-1 flex-col gap-3;
-  @apply overflow-hidden;
+/* —— middle-bottom: 日志 dock (under the editor), flush — split bar above is its divider —— */
+.jx-lab-dock {
+  @apply flex flex-col overflow-hidden bg-card;
+  height: 100%;
+  padding: 0 12px 10px;
 }
 
-.jx-lab-runningHead {
-  @apply flex items-center gap-2;
-  @apply text-sm text-muted;
+.jx-lab-dockHead {
+  @apply flex items-center gap-2 text-sm text-muted;
+  padding: 8px 2px 6px;
 }
 
-.jx-lab-log {
-  @apply flex-1 overflow-auto;
-  @apply rounded-lg border border-line bg-bg text-muted;
-  padding: 12px 14px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 12px;
-  line-height: 1.7;
-  white-space: pre-wrap;
+/* —— right column: 结果概览 / 交易明细 tabs (no vertical split) —— */
+.jx-lab-resultTabs {
+  @apply flex flex-col overflow-hidden bg-card;
+  height: 100%;
 }
 
-.jx-lab-resultBar {
-  @apply flex justify-end;
+/* the Tabs root fills; the active tabpane stretches so ResultPanel scrolls / TradeDetail fills (§8
+   exception). Only the ACTIVE pane fills — styling every tabpane would override antd's display:none on
+   hidden panes and stack them. */
+.jx-lab-resultTabsInner {
+  @apply flex flex-1 flex-col overflow-hidden;
+  padding: 0 12px;
+}
+
+.jx-lab-resultTabsInner .ant-tabs-content-holder {
+  @apply flex-1 overflow-hidden;
+}
+
+.jx-lab-resultTabsInner .ant-tabs-content {
+  height: 100%;
+}
+
+.jx-lab-resultTabsInner .ant-tabs-tabpane-active {
+  @apply flex flex-col;
+  height: 100%;
+}
+
+/* 交易明细 tab — TradeDetail fills (K线 top / 明细表 bottom, 50/50, handled in trade-detail.css) */
+.jx-lab-tradesTab {
+  @apply flex flex-1 flex-col overflow-hidden;
+  padding: 6px 0 10px;
 }
 
 .jx-lab-metrics {

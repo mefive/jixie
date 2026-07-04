@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import classNames from 'classnames';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
-import { Button, DatePicker, Input, Modal, Segmented, Select } from 'antd';
+import { Button, DatePicker, Input, Modal, Segmented, Select, Splitter } from 'antd';
 import type { FactorKind, IcDecayPoint, FactorWeight } from '@jixie/shared';
 import {
   faSpinner,
@@ -18,6 +18,7 @@ import { getCustomFactor } from '@src/api/client';
 import { TopNav } from '@src/components/top-nav';
 import { LoaderButton } from '@src/components/loader-button';
 import { Placeholder } from '@src/components/placeholder';
+import { LogView } from '@src/components/log-view';
 import { QuantileHeatmap } from './quantile-heatmap';
 import { complex } from './complex';
 import './factor.css';
@@ -28,9 +29,11 @@ const IcDecayChart = lazy(() => import('./ic-decay-chart'));
 const FactorEditor = lazy(() => import('./factor-editor'));
 
 /**
- * 因子分析(产品线 1.5). Left: the factor catalog. Right: for the selected factor, choose 频率(月/周)+
- * 区间 → 运行 → decile bar chart + Rank IC + long-short. Analysis is cached per (factor,freq,start,end);
- * selecting a factor auto-shows its latest cached run, and 已跑 chips jump between computed windows.
+ * 因子分析(产品线 1.5) — IDE-flush master/detail. Left: the factor catalog (resizable). Right: a
+ * per-factor toolbar (频率/区间/运行 + 已跑 chips) over a drag-resizable split — analysis result
+ * (decile chart + Rank IC + long-short) on top, a collapsible 日志 dock below that streams the run's
+ * system + user-console lines (and stays after the run, instead of the report replacing it).
+ * Analysis is cached per (factor,freq,start,end); selecting a factor shows its latest cached run.
  */
 export const Factor = complex.component(() => {
   const store = complex.useStore();
@@ -51,30 +54,38 @@ export const Factor = complex.component(() => {
   return (
     <div className="jx-factor">
       <TopNav />
-      <main className="jx-factor-body">
-        <div className="jx-factor-head">
-          <h1 className="jx-factor-title">因子分析</h1>
-          <p className="jx-factor-hint">
-            选一个因子 → 设频率 / 区间 → 运行:看十分位分层收益、Rank
-            IC、多空。快因子(反转/资金流)建议看「周」。
-          </p>
-        </div>
+      <div className="jx-factor-head">
+        <h1 className="jx-factor-title">因子分析</h1>
+        <p className="jx-factor-hint">
+          选一个因子 → 设频率 / 区间 → 运行:看十分位分层收益、Rank
+          IC、多空。快因子(反转/资金流)建议看「周」。
+        </p>
+      </div>
 
-        {cat.loading && <Placeholder icon={faSpinner} spin text="加载因子列表……" />}
-        {cat.error && (
+      {cat.loading && (
+        <div className="jx-factor-bodyMsg">
+          <Placeholder icon={faSpinner} spin text="加载因子列表……" />
+        </div>
+      )}
+      {cat.error && (
+        <div className="jx-factor-bodyMsg">
           <Placeholder
             icon={faTriangleExclamation}
             error
             text={`加载失败:${cat.errorObject?.message ?? ''}`}
           />
-        )}
-        {cat.loaded && (
-          <div className="jx-factor-split">
+        </div>
+      )}
+      {cat.loaded && (
+        <Splitter className="jx-factor-body">
+          <Splitter.Panel defaultSize={280} min={200} max={440}>
             <FactorList />
+          </Splitter.Panel>
+          <Splitter.Panel min="45%">
             <FactorPanel />
-          </div>
-        )}
-      </main>
+          </Splitter.Panel>
+        </Splitter>
+      )}
     </div>
   );
 }, 'Factor');
@@ -226,29 +237,56 @@ const DEFAULT_FACTOR_CODE = `export default defineFactor({
 });
 `;
 
-// Right: params bar + run chips + result for the selected factor.
+// Right: a per-factor toolbar (title + params + 已跑 chips) over a vertical split of result / 日志 dock.
 const FactorPanel = complex.component(() => {
   const store = complex.useStore();
   const f = store.selected;
   if (!f) {
-    return <div className="jx-factor-detail jx-factor-empty">← 左边选一个因子开始分析</div>;
+    return <div className="jx-factor-panel jx-factor-empty">← 左边选一个因子开始分析</div>;
   }
   return (
-    <section className="jx-factor-detail">
-      <header className="jx-factor-detailHead">
+    <div className="jx-factor-panel">
+      <div className="jx-factor-panelBar">
         <div className="jx-factor-detailTitleWrap">
           <h2 className="jx-factor-detailTitle">{f.label}</h2>
           <span className="jx-factor-detailKey">
             {f.key} · {KIND_LABEL[f.kind]}
           </span>
         </div>
-      </header>
-      <ParamsBar />
-      <RunChips />
-      <Result />
-    </section>
+        <ParamsBar />
+        <RunChips />
+      </div>
+      <Splitter orientation="vertical" className="jx-factor-panelSplit">
+        <Splitter.Panel min="20%">
+          <div className="jx-factor-result">
+            <FactorResult />
+          </div>
+        </Splitter.Panel>
+        <Splitter.Panel defaultSize="32%" min="6%" collapsible>
+          <FactorDock />
+        </Splitter.Panel>
+      </Splitter>
+    </div>
   );
 }, 'FactorPanel');
+
+// The bottom dock — the run's streamed 日志 (system progress + custom-factor console.*). Persists after
+// the run so it no longer gets replaced by the report; collapsible to hand the result more room.
+const FactorDock = complex.component(() => {
+  const store = complex.useStore();
+  return (
+    <div className="jx-factor-dock">
+      <div className="jx-factor-dockHead">
+        {store.jobRunning && <FontAwesomeIcon icon={faSpinner} spin />}
+        日志
+      </div>
+      <LogView
+        lines={store.logs}
+        emptyText="运行分析后在此查看日志(系统进度 + 你的 console 输出)"
+      />
+    </div>
+  );
+}, 'FactorDock');
 
 // Frequency + date range + 运行/查看 (label depends on whether the current 4-tuple is cached) + 重算.
 const ParamsBar = complex.component(() => {
@@ -328,20 +366,19 @@ const RunChips = complex.component(() => {
   );
 }, 'RunChips');
 
-// Result: loading / error / prompt-to-run / the report (decile chart + metrics).
-const Result = complex.component(() => {
+// Result: running / loading / error / prompt-to-run / the report (decile chart + metrics). The live log
+// streams in the dock below, so running here is just a placeholder pointing at it.
+const FactorResult = complex.component(() => {
   const store = complex.useStore();
   const loader = store.analysisLoader;
   const [weight, setWeight] = useState<FactorWeight>('equal'); // 分位收益加权:等权 / 市值加权(view 切换)
   if (store.jobRunning) {
     return (
-      <div className="jx-factor-running">
-        <div className="jx-factor-runningHead">
-          <FontAwesomeIcon icon={faSpinner} spin /> 计算中……(价格因子较慢,基本面 /
-          资金流几秒;结果会入库,下次秒开)
-        </div>
-        {store.logs.length > 0 && <pre className="jx-factor-log">{store.logs.join('\n')}</pre>}
-      </div>
+      <Placeholder
+        icon={faSpinner}
+        spin
+        text="计算中……(价格因子较慢,基本面 / 资金流几秒;结果入库下次秒开)· 实时日志见下方「日志」"
+      />
     );
   }
   if (loader.loading) {
@@ -434,7 +471,7 @@ const Result = complex.component(() => {
       ) : null}
     </>
   );
-}, 'Result');
+}, 'FactorResult');
 
 function Metric({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
