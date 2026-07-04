@@ -1,7 +1,7 @@
 import { Worker } from 'node:worker_threads';
 import { Hono } from 'hono';
 import { z } from 'zod';
-import type { BacktestConfig } from '@jixie/shared';
+import type { BacktestConfig, LogLine } from '@jixie/shared';
 import { apiError, validateJson, validateQuery } from '../lib/httpError.js';
 import { codeConfigSchema } from '../strategy/code/schema.js';
 import { createJob, appendLog, finishJob, getJob, findRunningJob } from '../lib/jobs.js';
@@ -44,9 +44,9 @@ backtestRoute.post('/', validateQuery(strategyQuery), validateJson(codeConfigSch
     finished = true;
     void finishJob(jobId, status, error);
   };
-  worker.on('message', (msg: { type: string; line?: string; message?: string }) => {
+  worker.on('message', (msg: { type: string; entry?: LogLine; message?: string }) => {
     if (msg.type === 'log') {
-      appendLog(jobId, msg.line!);
+      appendLog(jobId, msg.entry!);
     } else if (msg.type === 'done') {
       done('done');
     } else if (msg.type === 'error') {

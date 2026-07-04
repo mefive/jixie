@@ -1,5 +1,5 @@
 import { parentPort, workerData } from 'node:worker_threads';
-import type { FactorFreq } from '@jixie/shared';
+import type { FactorFreq, LogLine, LogLevel } from '@jixie/shared';
 import { analyzeFactor } from './analysis.js';
 import { prisma } from '../lib/prisma.js';
 
@@ -23,10 +23,13 @@ const { userId, factor, freq, start, end } = workerData as {
   end: string;
 };
 
+// One log sink, tagged here: analysis progress → system, a custom factor's console.* → user.
+const emit = (entry: LogLine) => port.postMessage({ type: 'log', entry });
+const onSystemLog = (text: string) => emit({ source: 'system', level: 'info', text });
+const onUserLog = (level: LogLevel, text: string) => emit({ source: 'user', level, text });
+
 try {
-  const report = await analyzeFactor(factor, freq, start, end, (line) =>
-    port.postMessage({ type: 'log', line }),
-  );
+  const report = await analyzeFactor(factor, freq, start, end, onSystemLog, onUserLog);
   const id = `${userId}|${factor}|${freq}|${start}|${end}`;
   const payload = JSON.stringify(report);
   await prisma.factorReport.upsert({

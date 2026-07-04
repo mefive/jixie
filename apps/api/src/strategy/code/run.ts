@@ -1,5 +1,6 @@
 import { runStrategy } from '../../engine/run.js';
 import type { BacktestResult, CostModel } from '../../engine/types.js';
+import type { UserLogSink } from '../../lib/sandbox-console.js';
 import { compileStrategy } from './compile.js';
 
 export interface CodeBacktestConfig {
@@ -15,8 +16,9 @@ export interface CodeBacktestConfig {
 export async function runCodeBacktest(
   cfg: CodeBacktestConfig,
   onLog?: (line: string) => void,
+  onUserLog?: UserLogSink,
 ): Promise<BacktestResult> {
-  const strategy = await compileStrategy(cfg.code);
+  const strategy = await compileStrategy(cfg.code, onUserLog);
   return runStrategy({
     start: cfg.start,
     end: cfg.end,
