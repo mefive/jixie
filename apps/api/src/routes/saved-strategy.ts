@@ -64,6 +64,7 @@ savedStrategyRoute.get('/:id', async (c) => {
     updatedAt: row.updatedAt,
     config: row.config,
     lastResult: row.lastResult,
+    messages: row.messages,
   });
 });
 
@@ -80,11 +81,24 @@ savedStrategyRoute.post('/result', validateJson(resultBody), async (c) => {
   return c.json({ ok: true });
 });
 
-// POST /api/app/strategies — auto-save: upsert by (userId, config.name).
-savedStrategyRoute.post('/', validateJson(codeConfigSchema), async (c) => {
-  const config = c.req.valid('json') as BacktestConfig;
+// POST /api/app/strategies — auto-save: upsert by (userId, config.name). The Agent conversation rides
+// along as an optional `messages` array (persisted per strategy); omitting it leaves any stored chat
+// intact (a plain backtest-run save doesn't carry messages).
+const saveBody = codeConfigSchema.extend({
+  messages: z
+    .array(z.object({ role: z.enum(['user', 'assistant']), content: z.string().max(8000) }))
+    .max(60)
+    .optional(),
+});
+
+savedStrategyRoute.post('/', validateJson(saveBody), async (c) => {
+  const { messages, ...config } = c.req.valid('json') as BacktestConfig & {
+    messages?: unknown[];
+  };
   const userId = c.var.userId;
   const name = config.name;
+  const messagesData =
+    messages !== undefined ? { messages: messages as Prisma.InputJsonValue } : {};
   // A changed config (new code/range/capital) invalidates any stored last-run result — drop it so a stale
   // equity curve is never shown against new code. On a normal run this clears it, then the finished run
   // re-attaches its result (POST /result); a save-without-run just leaves it cleared until the next run.
@@ -96,9 +110,16 @@ savedStrategyRoute.post('/', validateJson(codeConfigSchema), async (c) => {
     existing != null && JSON.stringify(existing.config) !== JSON.stringify(config);
   const row = await prisma.strategy.upsert({
     where: { userId_name: { userId, name } },
-    create: { id: ulid(), userId, name, config: config as unknown as Prisma.InputJsonValue },
+    create: {
+      id: ulid(),
+      userId,
+      name,
+      config: config as unknown as Prisma.InputJsonValue,
+      ...messagesData,
+    },
     update: {
       config: config as unknown as Prisma.InputJsonValue,
+      ...messagesData,
       ...(configChanged ? { lastResult: PrismaNs.DbNull } : {}),
     },
     select: { id: true, name: true, createdAt: true, updatedAt: true },

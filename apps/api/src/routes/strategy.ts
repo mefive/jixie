@@ -4,6 +4,7 @@ import { apiError, validateJson } from '../lib/httpError.js';
 import { prisma } from '../lib/prisma.js';
 import { chatText } from '../llm/deepseek.js';
 import { nlToCode } from '../strategy/code/nl-to-code.js';
+import { agentTurn } from '../strategy/code/agent.js';
 import { KNOWN_INDICES } from '../strategy/code/codegen-prompt.js';
 
 /**
@@ -57,6 +58,36 @@ strategyRoute.post('/codegen', validateJson(codegenBody), async (c) => {
     });
   }
   return c.json({ code: result.code, attempts: result.attempts });
+});
+
+// POST /api/app/strategy/agent — one turn of the strategy Agent: iterate on the current code given the
+// conversation so far. Returns the assistant's explanation + the (compile-validated) updated code. The
+// frontend owns the conversation (appends the turn, persists messages onto the strategy).
+const agentBody = z.object({
+  history: z
+    .array(z.object({ role: z.enum(['user', 'assistant']), content: z.string().max(8000) }))
+    .max(60)
+    .default([]),
+  message: z.string().trim().min(1).max(2000),
+  code: z.string().min(1).max(50_000),
+});
+
+strategyRoute.post('/agent', validateJson(agentBody), async (c) => {
+  const { history, message, code } = c.req.valid('json');
+  try {
+    const idx = await syncedIndices();
+    const result = await agentTurn(history, message, code, chatText, {
+      availableIndices: idx.text,
+    });
+    return c.json({
+      reply: result.reply,
+      code: result.code,
+      changed: result.changed,
+      attempts: result.attempts,
+    });
+  } catch (e) {
+    return apiError(c, 'SERVICE_UNAVAILABLE', e instanceof Error ? e.message : 'Agent 调用失败');
+  }
 });
 
 // POST /api/app/strategy/name — let the model read the code and propose a short Chinese name (used when
