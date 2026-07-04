@@ -47,10 +47,11 @@ export const Lab = complex.component(() => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Warn on refresh / tab-close when there are unrun edits (code/params only commit on 运行回测).
+  // Warn on refresh / tab-close when there are unrun edits vs. the persisted config (`edited`, not
+  // `dirty` — a just-opened never-run strategy is dirty-but-not-edited and must not false-warn).
   useEffect(() => {
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (store.dirty) {
+      if (store.edited) {
         e.preventDefault();
         e.returnValue = ''; // required for the browser's native "leave?" prompt
       }
@@ -60,9 +61,9 @@ export const Lab = complex.component(() => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Guard an in-app action that would discard unrun edits (新建 / switching strategy): confirm when dirty.
+  // Guard an in-app action that would discard unrun edits (新建 / switching strategy): confirm when edited.
   const tryLeave = (action: () => void) => {
-    if (store.dirty) {
+    if (store.edited) {
       setPendingLeave(() => action);
     } else {
       action();
@@ -339,8 +340,10 @@ function NewStrategyModal({
       width={620}
       destroyOnHidden
     >
-      <p className="jx-lab-heroHint">用一句话描述你的新策略，AI 写成代码，再自己调参</p>
-      <NewStrategyPrompt onSubmit={onSubmit} onSkip={onBlank} autoFocus />
+      <div className="jx-lab-newModal">
+        <p className="jx-lab-heroHint">用一句话描述你的新策略，AI 写成代码，再自己调参</p>
+        <NewStrategyPrompt onSubmit={onSubmit} onSkip={onBlank} autoFocus />
+      </div>
     </Modal>
   );
 }

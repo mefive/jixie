@@ -51,7 +51,8 @@ export class LabStore extends BaseStore<LabSetupParams> {
   public result: BacktestSummary | null = null; // a finished run OR the saved last-result on reopen
   public error: string | null = null; // backtest failure message
   public savedId: string | null = null; // this strategy's DB id (for the URL)
-  public savedConfig = ''; // serialized config as last saved/loaded — the baseline `dirty` compares against
+  public savedConfig = ''; // run-relevant config at the LAST RUN (or '' if never run) — baseline for `dirty`
+  public persistedConfig = ''; // run-relevant config as PERSISTED in the DB (create/run/open) — baseline for `edited`
   public initializing = false; // opening the initial strategy on mount — render a neutral loader, not the hero
 
   private jobId: string | null = null; // polling cursor for the current backtest
@@ -76,9 +77,11 @@ export class LabStore extends BaseStore<LabSetupParams> {
       error: observable.ref,
       savedId: observable.ref,
       savedConfig: observable.ref,
+      persistedConfig: observable.ref,
       initializing: observable.ref,
       config: computed,
       dirty: computed,
+      edited: computed,
       isFresh: computed,
     });
   }
@@ -90,8 +93,10 @@ export class LabStore extends BaseStore<LabSetupParams> {
     this.registCleaner(() => this.backtestPoller.cleanup());
     this.registCleaner(() => this.savedLoader.cleanup());
     void this.savedLoader.run(); // prime 我的策略 (also feeds the hero's 最近访问 cards)
-    // A fresh (never-run) strategy has an empty baseline → dirty → 运行回测 enabled.
+    // A fresh (never-run) strategy: empty run-baseline → dirty → 运行回测 enabled; but the pristine
+    // skeleton IS the "persisted" state (nothing to lose) → not edited → no leave guard.
     this.savedConfig = '';
+    this.persistedConfig = this.configKey();
     // Resolve the initial view: `?new=1` forces the blank hero; else an explicit ?id; else the
     // most-recently-opened strategy (so re-entering /lab lands on your last work, not the blank hero);
     // else the blank starter. When we WILL open one, set `initializing` synchronously so the first paint
@@ -119,6 +124,13 @@ export class LabStore extends BaseStore<LabSetupParams> {
    * a never-run strategy has an empty baseline → dirty → runnable; a fresh run resets the baseline. */
   public get dirty(): boolean {
     return this.configKey() !== this.savedConfig;
+  }
+
+  /** The code/params differ from what's PERSISTED in the DB — i.e. there are unrun edits that leaving
+   * would lose. Gates the leave guard (新建 / 切策略 / 刷新). A just-opened strategy is NOT edited (even
+   * if never run → dirty), so opening one doesn't false-warn. */
+  public get edited(): boolean {
+    return this.configKey() !== this.persistedConfig;
   }
 
   /** Range/capital + the strategy code → a runnable BacktestConfig. */
@@ -200,6 +212,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
       runInAction(() => {
         this.savedId = meta.id;
         this.name = meta.name; // server de-dupes the name
+        this.persistedConfig = this.configKey(); // we just persisted this config (nothing to lose yet)
       });
       pushRecent(meta.id);
       void this.savedLoader.run();
@@ -231,7 +244,8 @@ export class LabStore extends BaseStore<LabSetupParams> {
       this.error = null;
       this.logLines = [];
       this.savedId = null;
-      this.savedConfig = ''; // never run → dirty
+      this.savedConfig = ''; // never run → dirty (runnable)
+      this.persistedConfig = this.configKey(); // pristine skeleton → not edited (no leave guard)
     });
   }
 
@@ -328,10 +342,10 @@ export class LabStore extends BaseStore<LabSetupParams> {
     });
   }
 
-  /** Snapshot the current config as the saved baseline → `dirty` is false until the next edit. */
+  /** A run committed the current config: it's both the new run baseline (dirty) and persisted (edited). */
   private markSaved() {
     runInAction(() => {
-      this.savedConfig = this.configKey();
+      this.savedConfig = this.persistedConfig = this.configKey();
     });
   }
 
@@ -351,8 +365,10 @@ export class LabStore extends BaseStore<LabSetupParams> {
       this.error = null;
       this.savedId = id;
       // A strategy with a result → its config IS the last-run config (not dirty); one never run stays
-      // dirty (empty baseline) so 运行回测 is enabled.
+      // dirty (empty run-baseline) so 运行回测 is enabled. Either way the loaded config IS what's in the
+      // DB → not edited (opening it doesn't false-warn the leave guard).
       this.savedConfig = s.lastResult ? this.configKey() : '';
+      this.persistedConfig = this.configKey();
     });
     pushRecent(id); // record the visit → hero 最近访问 + auto-open on next entry
     // Re-attach to a still-running backtest (found server-side by strategyId — no localStorage, works
