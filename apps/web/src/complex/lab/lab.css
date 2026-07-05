@@ -107,10 +107,10 @@
 
 /* —— body: editor | result —— */
 /* IDE-flush: the Splitter fills edge-to-edge (no outer padding); its drag bars are the only dividers,
-   so the panes themselves carry no border/rounding/gap. A top rule separates it from the toolbar. */
+   so the panes themselves carry no border/rounding/gap. No border-t — TopNav's border-b already
+   separates it (a border-t here would double that line). */
 .jx-lab-body {
   @apply flex-1 overflow-hidden;
-  @apply border-t border-line;
 }
 
 /* drag bars as hairline dividers (VS Code look) — the resting line matches the border token */
@@ -154,6 +154,15 @@
 /* Agent tab: sticky 运行配置 header, scrollable log, bottom input */
 .jx-lab-chat {
   @apply flex flex-1 flex-col overflow-hidden;
+}
+
+/* the current strategy's name, pinned at the top of the Agent chat so you always know what you're on */
+.jx-lab-agentName {
+  @apply truncate border-b border-line font-semibold text-ink;
+  flex: none;
+  padding: 4px 2px 10px;
+  margin-bottom: 8px;
+  font-size: 14px;
 }
 
 /* 2-col grid: 起始 | 结束 on top, 资金 | 运行回测 below — controls align across both rows */

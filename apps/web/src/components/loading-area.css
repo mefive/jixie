@@ -1,0 +1,30 @@
+@reference '../styles/index.css';
+
+/* centered filler for loading / empty / error states — fills its container */
+.jx-loadingArea {
+  @apply flex flex-1 flex-col items-center justify-center gap-2 text-muted;
+  min-height: 80px;
+  font-size: 13px;
+}
+
+.jx-loadingArea--muted {
+  @apply text-muted;
+  font-size: 14px;
+}
+
+.jx-loadingArea--error {
+  @apply text-down;
+}
+
+.jx-loadingArea-errorHead {
+  @apply flex items-center gap-2 font-semibold;
+  font-size: 14px;
+}
+
+.jx-loadingArea-errorDesc {
+  @apply text-muted;
+  max-width: 360px;
+  font-size: 12px;
+  text-align: center;
+  white-space: pre-wrap;
+}

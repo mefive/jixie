@@ -6,17 +6,12 @@ import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 import { App, Button, DatePicker, Input, Segmented, Select, Splitter, Tabs } from 'antd';
 import type { ChatMessage, FactorKind, IcDecayPoint, FactorWeight } from '@jixie/shared';
-import {
-  faSpinner,
-  faTriangleExclamation,
-  faPlay,
-  faPlus,
-  faTrash,
-} from '@fortawesome/free-solid-svg-icons';
+import { faSpinner, faPlay, faPlus, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { TopNav } from '@src/components/top-nav';
 import { LoaderButton } from '@src/components/loader-button';
 import { Placeholder } from '@src/components/placeholder';
+import { LoadingArea } from '@src/components/loading-area';
 import { LogView } from '@src/components/log-view';
 import { Markdown } from '@src/components/markdown';
 import { QuantileHeatmap } from './quantile-heatmap';
@@ -54,49 +49,23 @@ export const Factor = complex.component(() => {
   return (
     <div className="jx-factor">
       <TopNav />
-      <div className="jx-factor-head">
-        <h1 className="jx-factor-title">因子研究</h1>
-        <p className="jx-factor-hint">
-          从因子库选预设因子直接分析,或用 Agent 写自定义因子 —— 看十分位分层收益、Rank IC、多空。
-        </p>
-      </div>
-
-      {cat.loading && (
-        <div className="jx-factor-bodyMsg">
-          <Placeholder icon={faSpinner} spin text="加载因子列表……" />
-        </div>
-      )}
-      {cat.error && (
-        <div className="jx-factor-bodyMsg">
-          <Placeholder
-            icon={faTriangleExclamation}
-            error
-            text={`加载失败:${cat.errorObject?.message ?? ''}`}
-          />
-        </div>
-      )}
-      {cat.loaded && (
-        <Splitter className="jx-factor-body">
-          <Splitter.Panel defaultSize={340} min={280} max={520} collapsible>
-            <AgentPanel />
-          </Splitter.Panel>
-          <Splitter.Panel min="22%">
-            <Splitter orientation="vertical">
-              <Splitter.Panel min="20%">
-                <section className="jx-factor-editor">
-                  <FactorCode />
-                </section>
-              </Splitter.Panel>
-              <Splitter.Panel defaultSize="28%" min="6%" collapsible>
-                <FactorDock />
-              </Splitter.Panel>
-            </Splitter>
-          </Splitter.Panel>
-          <Splitter.Panel min="26%">
-            <ResultColumn />
-          </Splitter.Panel>
-        </Splitter>
-      )}
+      {/* LoadingArea's delayed spinner: the catalog loads in ~130ms (< the delay), so on reload it's
+          blank → workbench directly, no spinner flash. Errors get a 重试 button. */}
+      <LoadingArea loader={cat}>
+        {() => (
+          <Splitter className="jx-factor-body">
+            <Splitter.Panel defaultSize={340} min={280} max={520} collapsible>
+              <AgentPanel />
+            </Splitter.Panel>
+            <Splitter.Panel min="22%">
+              <MiddleColumn />
+            </Splitter.Panel>
+            <Splitter.Panel min="26%">
+              <ResultColumn />
+            </Splitter.Panel>
+          </Splitter>
+        )}
+      </LoadingArea>
     </div>
   );
 }, 'Factor');
@@ -119,7 +88,10 @@ const AgentPanel = complex.component(() => {
             size="small"
             type="text"
             icon={<FontAwesomeIcon icon={faPlus} />}
-            onClick={() => store.newFactor()}
+            onClick={() => {
+              store.newFactor();
+              setTab('agent');
+            }}
           >
             新建
           </Button>
@@ -127,9 +99,10 @@ const AgentPanel = complex.component(() => {
         items={[
           { key: 'agent', label: 'Agent', children: <AgentChat /> },
           {
+            // Picking a custom factor jumps to Agent (to edit/chat); a preset stays here (analysis-only).
             key: 'library',
             label: '因子库',
-            children: <FactorLibrary onPick={() => setTab('agent')} />,
+            children: <FactorLibrary onPickCustom={() => setTab('agent')} />,
           },
         ]}
       />
@@ -140,15 +113,28 @@ const AgentPanel = complex.component(() => {
 // Agent tab: a chat that writes / iterates the custom factor code, over a Cursor-style composer.
 const AgentChat = complex.component(() => {
   const store = complex.useStore();
+  const qa = store.qaMode;
+  const f = store.selected;
+  const name = f?.label ?? (store.mode === 'custom' ? '新因子（未保存）' : '未选择因子');
   return (
     <div className="jx-factor-chat">
-      <ChatLog messages={store.chatMessages} sending={store.sending} />
+      <div className="jx-factor-agentName">
+        <span className="jx-factor-agentNameText">{name}</span>
+        {f && (
+          <span className={`jx-factor-kind jx-factor-kind--${f.kind}`}>{KIND_LABEL[f.kind]}</span>
+        )}
+      </div>
+      <ChatLog messages={store.chatMessages} sending={store.sending} qa={qa} />
       <div className="jx-factor-chatInput">
         <PromptBox
           value={store.nlText}
           onChange={(v) => store.setNlText(v)}
           onSubmit={() => void store.sendAgent(store.nlText)}
-          placeholder="描述你想要的因子,如「盈利收益率 1/PE」「小市值」;或继续对话调整 —— 回车发送"
+          placeholder={
+            qa
+              ? '问问这个预设因子 —— 如「IC 0.03 算强吗」「适合什么周期」—— 回车发送'
+              : '描述你想要的因子,如「盈利收益率 1/PE」「小市值」;或继续对话调整 —— 回车发送'
+          }
         />
       </div>
     </div>
@@ -156,7 +142,15 @@ const AgentChat = complex.component(() => {
 }, 'AgentChat');
 
 // Chat bubbles, auto-scrolled to the latest; a thinking row while an Agent turn is in flight.
-function ChatLog({ messages, sending }: { messages: ChatMessage[]; sending: boolean }) {
+function ChatLog({
+  messages,
+  sending,
+  qa,
+}: {
+  messages: ChatMessage[];
+  sending: boolean;
+  qa: boolean;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = ref.current;
@@ -168,8 +162,9 @@ function ChatLog({ messages, sending }: { messages: ChatMessage[]; sending: bool
     <div ref={ref} className="jx-factor-chatLog">
       {messages.length === 0 && !sending && (
         <div className="jx-factor-chatEmpty">
-          跟 Agent 说你想要的因子(基于估值 / 规模 / 流动性),它写成代码进中间编辑器。价格 /
-          财报类因子请从「因子库」选预设。
+          {qa
+            ? '这是预设因子(内置公式)。有关它 / 因子分析的问题都可以问 —— Agent 只答疑,不改代码。想写自定义因子请点「新建」。'
+            : '跟 Agent 说你想要的因子(基于估值 / 规模 / 流动性),它写成代码进中间编辑器。价格 / 财报类因子请从「因子库」选预设。'}
         </div>
       )}
       {messages.map((message, index) => (
@@ -191,16 +186,19 @@ function ChatLog({ messages, sending }: { messages: ChatMessage[]; sending: bool
 
 // 因子库 tab: presets grouped by kind + this user's custom factors. Click to select (→ analyze); custom
 // rows have a delete affordance. Picking one jumps back to the Agent tab.
-const FactorLibrary = complex.component(({ onPick }: { onPick: () => void }) => {
+const FactorLibrary = complex.component(({ onPickCustom }: { onPickCustom: () => void }) => {
   const store = complex.useStore();
   const { modal } = App.useApp();
   const list = store.catalogLoader.result ?? [];
   const presets = list.filter((f) => f.kind !== 'custom');
   const custom = list.filter((f) => f.kind === 'custom');
 
-  const pick = (key: string) => {
+  // A custom factor → jump to Agent (edit/chat); a preset stays here (select → analyze, no code).
+  const pick = (key: string, isCustom: boolean) => {
     void store.selectFactor(key);
-    onPick();
+    if (isCustom) {
+      onPickCustom();
+    }
   };
   const askDelete = (id: string, name: string) =>
     modal.confirm({
@@ -221,7 +219,7 @@ const FactorLibrary = complex.component(({ onPick }: { onPick: () => void }) => 
           className={classNames('jx-factor-libItem', {
             'jx-factor-libItem--active': f.key === store.selectedKey,
           })}
-          onClick={() => pick(f.key)}
+          onClick={() => pick(f.key, false)}
         >
           <span className="jx-factor-libName">{f.label}</span>
           <span className={`jx-factor-kind jx-factor-kind--${f.kind}`}>{KIND_LABEL[f.kind]}</span>
@@ -236,7 +234,7 @@ const FactorLibrary = complex.component(({ onPick }: { onPick: () => void }) => 
           className={classNames('jx-factor-libItem', {
             'jx-factor-libItem--active': f.key === store.selectedKey,
           })}
-          onClick={() => pick(f.key)}
+          onClick={() => pick(f.key, true)}
         >
           <span className="jx-factor-libName">{f.label}</span>
           <span
@@ -256,26 +254,30 @@ const FactorLibrary = complex.component(({ onPick }: { onPick: () => void }) => 
   );
 }, 'FactorLibrary');
 
-// Middle: the custom factor's Monaco editor. A preset (built-in formula) has no code → a greyed note.
-const FactorCode = complex.component(() => {
+// Middle column: for a custom factor, the Monaco editor over a collapsible 日志 dock. A preset has no
+// code, so the editor is dropped — the whole middle is just the 日志 (analysis progress).
+const MiddleColumn = complex.component(() => {
   const store = complex.useStore();
   if (store.mode !== 'custom') {
-    return (
-      <div className="jx-factor-codeEmpty">
-        {store.selectedKey
-          ? '预设因子是内置公式,无需编写代码 —— 右侧直接运行分析。'
-          : '从左侧「因子库」选一个因子,或用 Agent 写一个自定义因子。'}
-      </div>
-    );
+    return <FactorDock />;
   }
   return (
-    <div className="jx-factor-code">
-      <Suspense fallback={<div className="jx-factor-codeEmpty">加载编辑器……</div>}>
-        <FactorEditor value={store.code} onChange={(v) => store.setCode(v)} />
-      </Suspense>
-    </div>
+    <Splitter orientation="vertical">
+      <Splitter.Panel min="20%">
+        <section className="jx-factor-editor">
+          <div className="jx-factor-code">
+            <Suspense fallback={<div className="jx-factor-codeEmpty">加载编辑器……</div>}>
+              <FactorEditor value={store.code} onChange={(v) => store.setCode(v)} />
+            </Suspense>
+          </div>
+        </section>
+      </Splitter.Panel>
+      <Splitter.Panel defaultSize="28%" min="6%" collapsible>
+        <FactorDock />
+      </Splitter.Panel>
+    </Splitter>
   );
-}, 'FactorCode');
+}, 'MiddleColumn');
 
 // Middle-bottom: the run's streamed 日志 (system progress + custom-factor console.*).
 const FactorDock = complex.component(() => {
@@ -398,10 +400,11 @@ const RunChips = complex.component(() => {
 }, 'RunChips');
 
 // Result: running / loading / error / prompt-to-run / the report. The live log streams in the dock.
+// Thin wrapper: jobRunning shows a running placeholder; a never-run factor shows a 运行 prompt; otherwise
+// LoadingArea drives the cached-report load with a DELAYED spinner (so a fast reload doesn't flash it).
 const FactorResult = complex.component(() => {
   const store = complex.useStore();
   const loader = store.analysisLoader;
-  const [weight, setWeight] = useState<FactorWeight>('equal'); // 分位收益加权:等权 / 市值加权(view 切换)
   if (store.jobRunning) {
     return (
       <Placeholder
@@ -411,18 +414,21 @@ const FactorResult = complex.component(() => {
       />
     );
   }
-  if (loader.loading) {
-    return <Placeholder icon={faSpinner} spin text="加载中……" />;
+  const runPrompt = () => <Placeholder icon={faPlay} text="设好频率 / 区间,点「运行分析」" />;
+  if (loader.initial) {
+    return runPrompt();
   }
-  if (loader.error) {
-    return (
-      <Placeholder
-        icon={faTriangleExclamation}
-        error
-        text={`分析失败:${loader.errorObject?.message ?? ''}`}
-      />
-    );
-  }
+  return (
+    <LoadingArea loader={loader} empty={runPrompt}>
+      {() => <ReportBody />}
+    </LoadingArea>
+  );
+}, 'FactorResult');
+
+// The report render (decile chart + metrics + IC decay + heatmap) for the loaded analysis.
+const ReportBody = complex.component(() => {
+  const store = complex.useStore();
+  const [weight, setWeight] = useState<FactorWeight>('equal'); // 分位收益加权:等权 / 市值加权(view 切换)
   const r = store.report;
   if (!r) {
     return <Placeholder icon={faPlay} text="设好频率 / 区间,点「运行分析」" />;
@@ -501,7 +507,7 @@ const FactorResult = complex.component(() => {
       ) : null}
     </>
   );
-}, 'FactorResult');
+}, 'ReportBody');
 
 function Metric({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (

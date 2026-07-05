@@ -387,6 +387,7 @@ const AgentChat = complex.component(() => {
   const store = complex.useStore();
   return (
     <div className="jx-lab-chat">
+      <div className="jx-lab-agentName">{store.name || '新策略（未保存）'}</div>
       <RunConfig />
       <ChatLog messages={store.chatMessages} sending={store.sending} />
       <div className="jx-lab-chatInput">
