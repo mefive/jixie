@@ -5,21 +5,6 @@
   height: 100%;
 }
 
-/* neutral loader while the initial strategy resolves on mount (avoids a hero/workbench flash). The
-   spinner stays invisible for the first 350ms and only fades in for genuinely slow loads — a typical
-   ~100ms open finishes before it appears, so there's no spinner blink (blank → workbench directly). */
-.jx-lab-boot {
-  @apply flex flex-1 items-center justify-center text-muted;
-  opacity: 0;
-  animation: jx-lab-bootFade 0.2s ease-out 0.35s forwards;
-}
-
-@keyframes jx-lab-bootFade {
-  to {
-    opacity: 1;
-  }
-}
-
 /* —— new-strategy hero (prompt-first entry, mirrors 选股看图) —— */
 .jx-lab-hero {
   @apply flex flex-1 items-center justify-center overflow-auto;

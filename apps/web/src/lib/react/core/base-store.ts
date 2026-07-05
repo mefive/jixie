@@ -17,7 +17,15 @@ export class BaseStore<
     this.parentStore?.addChildStore(this);
     this.childStores = [];
     this.prepareLoader.setup();
-    this.prepareLoader.run(this.prepare());
+
+    // Only route prepare() through the loader when a subclass actually overrides it. The default
+    // no-op would still take a microtask to flip `loaded`, and complex.render's null gate paints
+    // that as a blank first frame; with no real work, mark loaded synchronously instead.
+    if (this.prepare === BaseStore.prototype.prepare) {
+      this.prepareLoader.markLoaded();
+    } else {
+      this.prepareLoader.run(this.prepare());
+    }
   }
 
   protected async prepare() {

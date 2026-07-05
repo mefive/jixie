@@ -1,0 +1,13 @@
+@reference './styles/index.css';
+
+/* the persistent shell: TopNav (auto height) over the routed page body (fills the rest) */
+.jx-app {
+  @apply flex flex-col;
+  height: 100%;
+}
+
+/* the page body — the routed <Outlet/> content fills this (each page root is height:100%) */
+.jx-app-body {
+  @apply flex-1 overflow-hidden;
+  min-height: 0;
+}
