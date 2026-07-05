@@ -201,6 +201,31 @@ factorRoute.post('/agent', validateJson(agentBody), async (c) => {
   }
 });
 
+// POST /qa — Q&A about a PRESET factor (built-in, no code). Just answers questions (interpret IC /
+// deciles / when to use it …); never writes code or creates a factor. Distinct from /agent.
+const qaBody = z.object({
+  history: chatMessagesSchema.default([]),
+  message: z.string().trim().min(1).max(2000),
+  factorName: z.string().max(80).optional(),
+});
+
+factorRoute.post('/qa', validateJson(qaBody), async (c) => {
+  const { history, message, factorName } = c.req.valid('json');
+  try {
+    const system = `你是 A 股因子研究助手。用户在研究${
+      factorName ? `因子「${factorName}」` : '因子'
+    },就它或因子分析(十分位分层收益 / Rank IC / 多空 / IC 衰减 / 换手等)提问。用简洁中文回答,可用 markdown。**你只答疑,不写代码、不创建因子**——要写自定义因子请让用户新建。`;
+    const reply = await chatText([
+      { role: 'system', content: system },
+      ...history.map((m) => ({ role: m.role, content: m.content })),
+      { role: 'user', content: message },
+    ]);
+    return c.json({ reply: reply.trim() });
+  } catch (e) {
+    return apiError(c, 'SERVICE_UNAVAILABLE', e instanceof Error ? e.message : 'Agent 调用失败');
+  }
+});
+
 // POST /name — propose a short factor name. `{prompt}` names a brand-new factor from its request;
 // `{code, currentName}` names from the code, keeping currentName when it still fits (on each run).
 const nameBody = z
