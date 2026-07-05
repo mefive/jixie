@@ -183,8 +183,14 @@ try {
   await stockPage.close();
   log('shot 3b: stock detail (log price axis)');
 
-  // 5. Seed a CODE strategy + a fake last-result via the API, then open it from the 我的策略 card grid.
-  const seeded = await page.evaluate(async () => {
+  // 5. Seed a CODE strategy via the API. There's no fake-result seed anymore (the /result route is gone —
+  // a last-result only comes from a real worker run, exercised below under E2E_BT). We open it by id.
+  const seededId = await page.evaluate(async () => {
+    // Clear any strategies left by a prior crashed run so the seed's name (and the 历史 card) is unique.
+    const existing = await (await fetch('/api/app/strategies')).json();
+    for (const it of existing) {
+      await fetch(`/api/app/strategies/${it.id}`, { method: 'DELETE' });
+    }
     const code =
       "let last=''; export default defineStrategy({ name:'e2e策略', watch:['600519.SH'], onBar(ctx){ const c='600519.SH'; const px=ctx.price(c); const w=ctx.history(c,'close',20); if(px==null||w.length<20) return; const ma=w.reduce((a,b)=>a+b,0)/w.length; if(px>ma&&ctx.shares(c)===0) ctx.order(c,100); else if(px<ma&&ctx.shares(c)>0) ctx.exit(c); } });";
     const r = await fetch('/api/app/strategies', {
@@ -194,56 +200,57 @@ try {
         name: 'e2e策略',
         start: '20200101',
         end: '20201231',
-        initialCash: 1234567,
+        initialCash: 1000000,
         code,
       }),
     });
-    // a small result so the card shows a sparkline
-    const nav = Array.from({ length: 30 }, (_, i) => ({
-      date: '2020' + String(i),
-      value: 1e6 * (1 + i * 0.01),
-    }));
-    await fetch('/api/app/strategies/result', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        name: 'e2e策略',
-        result: { totalReturn: 0.29, sharpe: 1.4, trades: 25, tradeLog: [], nav },
-      }),
-    });
-    return r.status;
+    return (await r.json()).id;
   });
-  log('seed code strategy status', seeded);
+  log('seeded code strategy', seededId);
 
-  // A brand-new strategy opens prompt-first (the hero, mirroring 选股看图) — not straight into the editor.
+  // A first visit with no recents opens the prompt-first hero (mirrors 选股看图), not the workbench.
   await page.getByRole('link', { name: '回测工作台' }).click();
   await page.locator('.jx-lab-hero').waitFor({ timeout: 10000 });
   await page.screenshot({ path: `${SHOTS}4-lab-hero.png` });
   log('shot 4: new-strategy hero (prompt-first)');
 
-  // Open 我的策略 (top bar, available from the hero) → the seeded card → it loads into the editor.
-  await page.getByRole('button', { name: /我的策略/ }).click();
-  await page.locator('.jx-sp-card', { hasText: 'e2e策略' }).waitFor({ timeout: 10000 }); // card grid (sparkline thumbnail)
-  await page.screenshot({ path: `${SHOTS}4b-lab-cards.png` });
-  log('shot 4b: 我的策略 卡片');
-  await page.locator('.jx-sp-card', { hasText: 'e2e策略' }).click();
-  await page.locator('.jx-lab-code .monaco-editor').waitFor({ timeout: 20000 }); // Monaco chunk + TS worker load
+  // Open the seeded strategy by id → the agent-IDE workbench (3-column Splitter: Agent | 编辑器 | 结果).
+  // The code loads into Monaco; there's no name field now — the name is pinned atop the Agent chat.
+  await page.goto(`${BASE}/lab?id=${seededId}`, { waitUntil: 'domcontentloaded' });
+  await page.locator('.jx-lab-code .monaco-editor').waitFor({ timeout: 20000 }); // Monaco chunk + TS worker
   await page.waitForFunction(
     () => {
-      const name = document.querySelector('.jx-lab-field--name input');
+      const name = document.querySelector('.jx-lab-agentName');
       const ed = document.querySelector('.jx-lab-code .monaco-editor');
-      return name && name.value === 'e2e策略' && ed && (ed.textContent || '').includes('600519');
+      return (
+        name &&
+        (name.textContent || '').trim().startsWith('e2e策略') &&
+        ed &&
+        (ed.textContent || '').includes('600519')
+      );
     },
     { timeout: 15000 },
   );
-  log('loaded saved code strategy into the editor (hero gave way to Monaco)');
+  log('loaded saved strategy into the workbench (name pinned in Agent, code in Monaco)');
   await page.screenshot({ path: `${SHOTS}4c-code-editor.png` });
   log('shot 4c: strategy code editor (Monaco)');
 
-  // 新建 with unsaved edits → confirm-save prompt guards data loss; 取消 keeps the current strategy.
-  await page.locator('.jx-lab-field--name input').fill('e2e策略改');
+  // 历史 tab (inside the Agent panel) lists this user's strategies as cards — the seeded one shows up.
+  await page.locator('.jx-lab-agent').getByRole('tab', { name: '历史' }).click();
+  await page
+    .locator('.jx-lab-history .jx-sp-card', { hasText: 'e2e策略' })
+    .waitFor({ timeout: 10000 });
+  await page.screenshot({ path: `${SHOTS}4b-lab-cards.png` });
+  log('shot 4b: 历史 tab 策略卡片');
+  await page.locator('.jx-lab-agent').getByRole('tab', { name: 'Agent' }).click();
+
+  // Unrun edits guard: change 资金 (万) → 新建 warns before discarding; 取消 keeps the current strategy.
+  // (Code/params only commit on a run, so an edit + 新建/切策略 would drop them — hence the confirm.)
+  const cashInput = page.locator('.jx-lab-runConfig .ant-input-number-input');
+  await cashInput.fill('200'); // 200万 ≠ the seeded 100万 → edited
+  await cashInput.blur();
   await page.getByRole('button', { name: '新建' }).click();
-  await page.getByText('当前策略尚未保存').waitFor({ timeout: 5000 });
+  await page.getByText('有改动尚未运行').waitFor({ timeout: 5000 });
   await page.waitForTimeout(300); // settle the modal open animation
   await page.screenshot({ path: `${SHOTS}4d-new-dirty-confirm.png` });
   log('shot 4d: 新建 dirty-guard confirm');
@@ -253,32 +260,30 @@ try {
     .getByRole('button', { name: /取\s*消/ })
     .click();
   await page
-    .getByText('当前策略尚未保存')
+    .getByText('有改动尚未运行')
     .waitFor({ state: 'detached', timeout: 5000 })
     .catch(() => {});
-  await page.locator('.jx-lab-field--name input').fill('e2e策略'); // restore so the optional run/cleanup match by name
+  await cashInput.fill('100'); // restore 100万 → not edited, so leaving for /docs·/factors won't beforeunload
+  await cashInput.blur();
 
-  // 4c. (opt-in, costs an LLM call) NL→code: describe a strategy → server writes + compiles TS → it
-  //     replaces the editor content. Gated by E2E_NL (needs DEEPSEEK_API_KEY).
+  // 4e. (opt-in, costs an LLM call) Agent chat: send a turn → the assistant replies (and may rewrite the
+  //     code in the editor). 回车发送, no button. Gated by E2E_NL (needs DEEPSEEK_API_KEY).
   if (process.env.E2E_NL) {
-    const before = (await page.locator('.jx-lab-code .monaco-editor').textContent()) ?? '';
-    await page.locator('.jx-lab-nl textarea').fill('每月买入股息率最高的20只，等权持有');
-    await page.getByRole('button', { name: 'AI 生成' }).click();
+    const before = await page.locator('.jx-lab-bubble--assistant').count();
+    const chatBox = page.locator('.jx-lab-chatInput textarea');
+    await chatBox.fill('把持有条件改成收盘价站上 5 日均线');
+    await chatBox.press('Enter');
     await page.waitForFunction(
-      (prev) => {
-        const ed = document.querySelector('.jx-lab-code .monaco-editor');
-        const t = ed ? ed.textContent || '' : '';
-        return t !== prev && t.includes('defineStrategy');
-      },
+      (prev) => document.querySelectorAll('.jx-lab-bubble--assistant').length > prev,
       before,
       { timeout: 60000 }, // DeepSeek round-trip + compile-repair
     );
-    log('NL→code: editor replaced with generated strategy');
-    await page.screenshot({ path: `${SHOTS}4c-nl-code.png` });
+    log('agent turn: assistant replied');
+    await page.screenshot({ path: `${SHOTS}4e-agent-chat.png` });
   }
 
-  // 5b. (opt-in, runs a real ~1y backtest in the worker) Run it → the worker streams progress logs
-  //     into the lab panel while it computes. Gated by E2E_BT so routine runs stay fast.
+  // 5b. (opt-in, runs a real ~1y backtest in the worker) Run it → the worker streams progress logs into
+  //     the 日志 dock while it computes. A never-run strategy is dirty → 运行回测 enabled. Gated by E2E_BT.
   if (process.env.E2E_BT) {
     await page.getByRole('button', { name: '运行回测' }).click();
     // The code strategy compiles + runs in the worker. A fast single-name run finishes within one poll
@@ -300,28 +305,22 @@ try {
     await page.screenshot({ path: `${SHOTS}5-lab-result.png` });
     log('shot 5: code backtest result');
 
-    // 5c. 交易详情 Modal — K线 + trade dots + list; the traded-instruments queue (chips, no filter).
-    await page.getByRole('button', { name: /交易详情/ }).click();
-    await page.locator('.jx-td-list .jx-td-row').first().waitFor({ timeout: 8000 });
-    await page.locator('.jx-td-canvas canvas').first().waitFor({ timeout: 8000 });
-    await page.locator('.jx-td-queue .jx-td-chip').first().waitFor({ timeout: 8000 }); // instrument queue
+    // 5c. 交易明细 tab (appears once a run has trades) — K线 over the trade table, in place (no modal).
+    await page
+      .locator('.jx-lab-resultTabs')
+      .getByRole('tab', { name: /交易明细/ })
+      .click();
+    await page
+      .locator('.jx-lab-tradesTab .jx-td-list .jx-td-row')
+      .first()
+      .waitFor({ timeout: 8000 });
+    await page.locator('.jx-lab-tradesTab .jx-td-canvas canvas').first().waitFor({ timeout: 8000 });
     await page.waitForTimeout(600); // let the scatter + slider paint
-    const chipName = ((await page.locator('.jx-td-chip').nth(1).textContent()) ?? '').trim(); // [0] is 全部
     log(
       'trade detail: rows',
-      await page.locator('.jx-td-list .jx-td-row').count(),
-      '| chip',
-      chipName,
+      await page.locator('.jx-lab-tradesTab .jx-td-list .jx-td-row').count(),
     );
     await page.screenshot({ path: `${SHOTS}5c-trade-detail.png` });
-
-    // 5c2. 全部 chip → every instrument's fills in one list (标的 name+code column) + portfolio return chart.
-    await page.getByRole('button', { name: /^全部/ }).click();
-    await page.locator('.jx-td-list--all .jx-td-row').first().waitFor({ timeout: 6000 });
-    await page.waitForTimeout(400);
-    log('全部 view: rows', await page.locator('.jx-td-list--all .jx-td-row').count());
-    await page.screenshot({ path: `${SHOTS}5c2-trade-all.png` });
-    await page.locator('.jx-td-chip').nth(1).click(); // back to a single instrument for the 页面打开 test
 
     // 5d. 页面打开 → the standalone /trades page (new tab) renders the same K线 + list.
     const [tradePage] = await Promise.all([
@@ -334,7 +333,6 @@ try {
     log('trade page:', tradePage.url());
     await tradePage.screenshot({ path: `${SHOTS}5d-trade-page.png` });
     await tradePage.close();
-    await page.keyboard.press('Escape');
   }
 
   // 6. SDK 文档 standalone page (/docs) — bilingual reference generated from sdk-reference; anchored per method.
@@ -348,19 +346,20 @@ try {
   await page.screenshot({ path: `${SHOTS}6b-sdk-docs-en.png` });
   log('shot 6b: SDK docs page (EN toggle)');
 
-  // 7. 因子分析 (/factors): pick a factor from the catalog → set 频率/区间 → 运行 → decile chart + IC +
+  // 7. 因子研究 (/factors): agent-IDE layout — the catalog lives in the 因子库 tab of the left Agent panel.
+  //    Pick a preset (stays put — presets are analysis-only) → set 频率/区间 → 运行 → decile chart + IC +
   //    long-short. Single-factor + on-the-fly; use a fundamental factor (ep, ~seconds) to keep e2e fast.
   await page.goto(`${BASE}/factors`, { waitUntil: 'domcontentloaded' });
-  await page.getByText('因子分析').first().waitFor();
-  await page.locator('.jx-factor-listItem').first().waitFor({ timeout: 15000 });
-  const factorCount = await page.locator('.jx-factor-listItem').count();
+  await page.locator('.jx-factor-agent').getByRole('tab', { name: '因子库' }).click();
+  await page.locator('.jx-factor-libItem').first().waitFor({ timeout: 15000 });
+  const factorCount = await page.locator('.jx-factor-libItem').count();
   log('factor catalog items:', factorCount);
   if (factorCount < 9) {
     throw new Error(`因子目录数不足: ${factorCount}`);
   }
 
-  // select 盈利收益率 (ep, fundamental) → 运行/查看 → wait for the decile chart
-  await page.locator('.jx-factor-listItem', { hasText: '盈利收益率' }).click();
+  // select 盈利收益率 (ep, fundamental) → the right column's 运行/查看 → wait for the decile chart
+  await page.locator('.jx-factor-libItem', { hasText: '盈利收益率' }).click();
   await page.locator('.jx-factor-params .ant-btn-primary').click();
   await page.locator('.jx-factor-chart canvas').first().waitFor({ timeout: 60000 }); // fundamental ~seconds cold
   await page.waitForTimeout(500); // let echarts paint
