@@ -20,6 +20,7 @@ import {
   updateFactor,
   deleteCustomFactor,
   sendFactorAgent,
+  factorQa,
   generateFactorName,
 } from '@src/api/client';
 
@@ -89,6 +90,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       report: computed,
       isCached: computed,
       edited: computed,
+      qaMode: computed,
       setFreq: action,
       setStart: action,
       setEnd: action,
@@ -110,10 +112,12 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     this.registCleaner(() => this.analysisPoller.cleanup());
     void this.catalogLoader.run();
 
-    // Restore from the URL: preselect the factor, then re-attach to a running job (refreshed mid-run)
-    // or load/run the window (refresh-safe / shareable link).
+    // Restore from the URL: preselect the factor (set selectedKey SYNCHRONOUSLY so the first paint shows
+    // the analysis area, not the empty "选一个因子" — the report then loads under a delayed spinner), then
+    // re-attach to a running job (refreshed mid-run) or load/run the window (refresh-safe / shareable).
     if (params.factor) {
       runInAction(() => {
+        this.selectedKey = params.factor!;
         this.freq = params.freq ?? 'month';
         this.start = params.start ?? DEFAULT_START;
         this.end = params.end ?? DEFAULT_END;
@@ -142,6 +146,11 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   /** A custom factor has unsaved code edits vs. the persisted DB copy → gates the leave guard. */
   public get edited(): boolean {
     return this.mode === 'custom' && this.code !== this.persistedCode;
+  }
+
+  /** A preset factor is selected → the Agent is in Q&A mode (answers questions, never writes code). */
+  public get qaMode(): boolean {
+    return this.mode === 'preset' && !!this.selectedKey;
   }
 
   public setFreq(v: FactorFreq) {
@@ -223,9 +232,13 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     if (!text || this.sending) {
       return;
     }
-    // Continue editing only when the current selection is a SAVED custom factor; otherwise (a preset is
-    // selected, or nothing) a chat starts a fresh custom factor — clear the selection so ensureFactor
-    // creates a new row instead of attaching to the preset.
+    // A preset is selected → the Agent is Q&A-only (no code, no factor). Answer and stop.
+    if (this.qaMode) {
+      return this.runQa(text);
+    }
+    // Continue editing only when the current selection is a SAVED custom factor; otherwise (nothing
+    // selected) a chat starts a fresh custom factor — clear the selection so ensureFactor creates a new
+    // row instead of attaching to nothing.
     const editingSaved = !!this.selectedKey && this.selected?.kind === 'custom';
     if (!editingSaved) {
       this.analysisLoader.reset();
@@ -253,6 +266,30 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         }
       });
       void this.persistMessages();
+    } catch (e) {
+      runInAction(() => {
+        this.chatMessages = [
+          ...this.chatMessages,
+          { role: 'assistant', content: `出错了:${e instanceof Error ? e.message : '请求失败'}` },
+        ];
+      });
+    } finally {
+      runInAction(() => (this.sending = false));
+    }
+  }
+
+  /** Q&A about the selected preset — answer only, no code, no factor, no persistence (ephemeral chat). */
+  private async runQa(text: string) {
+    runInAction(() => {
+      this.chatMessages = [...this.chatMessages, { role: 'user', content: text }];
+      this.sending = true;
+      this.nlText = '';
+    });
+    try {
+      const { reply } = await factorQa(this.chatMessages.slice(0, -1), text, this.selected?.label);
+      runInAction(() => {
+        this.chatMessages = [...this.chatMessages, { role: 'assistant', content: reply }];
+      });
     } catch (e) {
       runInAction(() => {
         this.chatMessages = [

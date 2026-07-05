@@ -282,6 +282,18 @@ export function sendFactorAgent(
   });
 }
 
+// Factor Q&A: ask questions about a PRESET factor — answers only, never writes code (presets have none).
+export function factorQa(
+  history: ChatMessage[],
+  message: string,
+  factorName?: string,
+): Promise<{ reply: string }> {
+  return request('/api/app/factors/qa', {
+    method: 'POST',
+    body: JSON.stringify({ history, message, factorName }),
+  });
+}
+
 // NL→name for a factor. `prompt` names a brand-new factor from its request; `code` (+ `currentName`)
 // names from the code, keeping currentName when it still fits (on each run).
 export function generateFactorName(input: {
