@@ -8,7 +8,6 @@ import { App, Button, DatePicker, Input, Segmented, Select, Splitter, Tabs } fro
 import type { ChatMessage, FactorKind, IcDecayPoint, FactorWeight } from '@jixie/shared';
 import { faSpinner, faPlay, faPlus, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { TopNav } from '@src/components/top-nav';
 import { LoaderButton } from '@src/components/loader-button';
 import { Placeholder } from '@src/components/placeholder';
 import { LoadingArea } from '@src/components/loading-area';
@@ -32,7 +31,6 @@ const FactorEditor = lazy(() => import('./factor-editor'));
  */
 export const Factor = complex.component(() => {
   const store = complex.useStore();
-  const cat = store.catalogLoader;
 
   // Reflect the currently-shown report in the URL (?factor&freq&start&end) — refresh-safe + shareable.
   const [, setSearchParams] = useSearchParams();
@@ -46,26 +44,23 @@ export const Factor = complex.component(() => {
     }
   }, [shown, setSearchParams]);
 
+  // The Splitter renders on the FIRST paint (not gated on the catalog) so it mounts once, early, and its
+  // layout-measure reflow happens while the panels are still empty — invisible. Catalog loading is scoped
+  // to the 因子库 list (a small region), not the whole workbench, so nothing pops in from blank.
+  const [panelDefaults] = useState(() => splitterDefaults(340));
   return (
     <div className="jx-factor">
-      <TopNav />
-      {/* LoadingArea's delayed spinner: the catalog loads in ~130ms (< the delay), so on reload it's
-          blank → workbench directly, no spinner flash. Errors get a 重试 button. */}
-      <LoadingArea loader={cat}>
-        {() => (
-          <Splitter className="jx-factor-body">
-            <Splitter.Panel defaultSize={340} min={280} max={520} collapsible>
-              <AgentPanel />
-            </Splitter.Panel>
-            <Splitter.Panel min="22%">
-              <MiddleColumn />
-            </Splitter.Panel>
-            <Splitter.Panel min="26%">
-              <ResultColumn />
-            </Splitter.Panel>
-          </Splitter>
-        )}
-      </LoadingArea>
+      <Splitter className="jx-factor-body">
+        <Splitter.Panel defaultSize={panelDefaults.left} min={280} max={520} collapsible>
+          <AgentPanel />
+        </Splitter.Panel>
+        <Splitter.Panel defaultSize={panelDefaults.rest} min="22%">
+          <MiddleColumn />
+        </Splitter.Panel>
+        <Splitter.Panel defaultSize={panelDefaults.rest} min="26%">
+          <ResultColumn />
+        </Splitter.Panel>
+      </Splitter>
     </div>
   );
 }, 'Factor');
@@ -210,47 +205,54 @@ const FactorLibrary = complex.component(({ onPickCustom }: { onPickCustom: () =>
       onOk: () => store.removeFactor(id),
     });
 
+  // Catalog loading is scoped here (a small region) with a delayed spinner — not the whole workbench.
   return (
-    <div className="jx-factor-library">
-      <div className="jx-factor-libGroup">预设因子</div>
-      {presets.map((f) => (
-        <button
-          key={f.key}
-          className={classNames('jx-factor-libItem', {
-            'jx-factor-libItem--active': f.key === store.selectedKey,
-          })}
-          onClick={() => pick(f.key, false)}
-        >
-          <span className="jx-factor-libName">{f.label}</span>
-          <span className={`jx-factor-kind jx-factor-kind--${f.kind}`}>{KIND_LABEL[f.kind]}</span>
-        </button>
-      ))}
+    <LoadingArea loader={store.catalogLoader}>
+      {() => (
+        <div className="jx-factor-library">
+          <div className="jx-factor-libGroup">预设因子</div>
+          {presets.map((f) => (
+            <button
+              key={f.key}
+              className={classNames('jx-factor-libItem', {
+                'jx-factor-libItem--active': f.key === store.selectedKey,
+              })}
+              onClick={() => pick(f.key, false)}
+            >
+              <span className="jx-factor-libName">{f.label}</span>
+              <span className={`jx-factor-kind jx-factor-kind--${f.kind}`}>
+                {KIND_LABEL[f.kind]}
+              </span>
+            </button>
+          ))}
 
-      <div className="jx-factor-libGroup">自定义因子</div>
-      {custom.length === 0 && <div className="jx-factor-libEmpty">还没有,用 Agent 写一个</div>}
-      {custom.map((f) => (
-        <button
-          key={f.key}
-          className={classNames('jx-factor-libItem', {
-            'jx-factor-libItem--active': f.key === store.selectedKey,
-          })}
-          onClick={() => pick(f.key, true)}
-        >
-          <span className="jx-factor-libName">{f.label}</span>
-          <span
-            role="button"
-            title="删除"
-            className="jx-factor-libDel"
-            onClick={(e) => {
-              e.stopPropagation();
-              askDelete(f.key, f.label);
-            }}
-          >
-            <FontAwesomeIcon icon={faTrash} />
-          </span>
-        </button>
-      ))}
-    </div>
+          <div className="jx-factor-libGroup">自定义因子</div>
+          {custom.length === 0 && <div className="jx-factor-libEmpty">还没有,用 Agent 写一个</div>}
+          {custom.map((f) => (
+            <button
+              key={f.key}
+              className={classNames('jx-factor-libItem', {
+                'jx-factor-libItem--active': f.key === store.selectedKey,
+              })}
+              onClick={() => pick(f.key, true)}
+            >
+              <span className="jx-factor-libName">{f.label}</span>
+              <span
+                role="button"
+                title="删除"
+                className="jx-factor-libDel"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  askDelete(f.key, f.label);
+                }}
+              >
+                <FontAwesomeIcon icon={faTrash} />
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </LoadingArea>
   );
 }, 'FactorLibrary');
 
@@ -587,4 +589,19 @@ function decayHint(points: IcDecayPoint[]): string {
   const rising = Math.abs(points.at(-1)!.icMean) > Math.abs(points[0].icMean);
   const trend = rising ? '越往后越强(慢因子,宜长持)' : '短端更强、随后衰减(快因子,宜短持)';
   return `|IC| 峰值在 ${peak.horizonDays} 日 · ${trend}`;
+}
+
+// antd Splitter only learns its container width from a ResizeObserver, one frame AFTER the first
+// paint — so a px defaultSize (and the size-less panels around it) render frame one with
+// content-driven widths and visibly jump to the computed widths on frame two. Percentage
+// defaultSizes are applied as flex-basis on frame one, so pre-convert "left = leftPx, the other
+// two split the rest" into percentages of the viewport (the splitter spans the full app width).
+function splitterDefaults(leftPx: number): { left: string; rest: string } {
+  const viewportWidth = document.documentElement.clientWidth || 1440;
+  const leftFraction = leftPx / viewportWidth;
+  const restFraction = (1 - leftFraction) / 2;
+  return {
+    left: `${(leftFraction * 100).toFixed(4)}%`,
+    rest: `${(restFraction * 100).toFixed(4)}%`,
+  };
 }

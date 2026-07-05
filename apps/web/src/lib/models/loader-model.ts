@@ -126,6 +126,17 @@ export class LoaderModel<Result = any> extends BaseModel<LoaderModelSetupParams<
     });
   }
 
+  // Synchronously mark the loader as loaded without running a request. For callers that know
+  // there is no work to do (e.g. BaseStore with the default no-op prepare()): even an already
+  // resolved promise flips `loaded` one microtask later, which is observable as a painted blank
+  // frame behind complex.render's null gate.
+  public markLoaded() {
+    runInAction(() => {
+      this.status = STATUS.LOADED;
+      this.errorObject = null;
+    });
+  }
+
   public get initial() {
     return this.status === STATUS.INITIAL;
   }

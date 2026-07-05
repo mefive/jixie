@@ -1,7 +1,8 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { lazy, Suspense, useLayoutEffect, useMemo, useRef, type ReactNode } from 'react';
 import {
   BrowserRouter,
   Navigate,
+  Outlet,
   Route,
   Routes,
   useLocation,
@@ -14,7 +15,9 @@ import labEntry from '@src/complex/lab';
 import screenEntry from '@src/complex/screen';
 import stockEntry from '@src/complex/stock';
 import factorEntry from '@src/complex/factor';
+import { TopNav } from '@src/components/top-nav';
 import { authStore } from '@src/store';
+import './app-layout.css';
 
 // Standalone SDK reference page (also opened from the lab 文档 button + the 📖 links in editor hovers).
 const SdkDocPage = lazy(() => import('@src/complex/lab/sdk-doc'));
@@ -30,40 +33,17 @@ export function AppRoutes() {
         <Route path="/login" element={<ComplexRoute entry={loginEntry} />} />
         {/* The backtest workbench lives at a stable /lab route; bare "/" just redirects there. */}
         <Route path="/" element={<Navigate to="/lab" replace />} />
-        {/* Distinct keys so navigating between pages remounts ComplexRoute (without a key React reuses
-            the instance and only swaps the `entry` prop, leaving the previous page's store/render in place). */}
-        <Route
-          path="/lab"
-          element={
-            <RequireAuth>
-              <LabRoute />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/screen"
-          element={
-            <RequireAuth>
-              <ComplexRoute key="screen" entry={screenEntry} />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/factors"
-          element={
-            <RequireAuth>
-              <FactorRoute />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/stock/:code"
-          element={
-            <RequireAuth>
-              <StockRoute />
-            </RequireAuth>
-          }
-        />
+        {/* Shared layout for the TopNav pages: TopNav is rendered ONCE here and persists across
+            navigations (react-router only swaps <Outlet/> below it) — so switching pages no longer
+            unmounts/remounts the nav and flashes it. */}
+        <Route element={<AuthedLayout />}>
+          <Route path="/lab" element={<LabRoute />} />
+          <Route path="/screen" element={<ComplexRoute key="screen" entry={screenEntry} />} />
+          <Route path="/factors" element={<FactorRoute />} />
+          <Route path="/stock/:code" element={<StockRoute />} />
+          <Route path="/trades" element={<TradePage />} />
+        </Route>
+        {/* Standalone doc pages: authed but full-screen, no TopNav. */}
         <Route
           path="/docs"
           element={
@@ -80,16 +60,6 @@ export function AppRoutes() {
             <RequireAuth>
               <Suspense fallback={null}>
                 <LearnPage />
-              </Suspense>
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/trades"
-          element={
-            <RequireAuth>
-              <Suspense fallback={null}>
-                <TradePage />
               </Suspense>
             </RequireAuth>
           }
@@ -141,7 +111,7 @@ function LabRoute() {
 // Wire a complex's store lifecycle into react-router: createInstance on mount,
 // store.setup when setupParams arrive/change, cleanup on unmount. render() returns null until store is ready.
 type ComplexInstance = {
-  store?: { setup: (params?: any) => void };
+  store?: { setup: (params?: any) => void; ready?: boolean };
   render: () => ReactNode;
   cleanup: () => void;
 };
@@ -155,16 +125,52 @@ function ComplexRoute({
   setupParams?: Record<string, unknown>;
 }) {
   const instanceRef = useRef<ComplexInstance | null>(null);
+  const setupParamsRef = useRef<Record<string, unknown> | null>(null);
   if (!instanceRef.current) {
     instanceRef.current = entry.createInstance();
   }
   const stableSetupParams = useMemo(() => setupParams ?? {}, [setupParams]);
-  useEffect(() => {
+
+  // First setup runs HERE, during the initial render, not in an effect: complex.render returns
+  // null until setup() flips store.ready, and when the mount was scheduled at default priority
+  // (initial mount after a full reload) even a layout effect's re-render lands in a later task —
+  // the browser paints the null frame in between as a blank body under the persistent TopNav.
+  // Setting up synchronously (same render-phase moment the store itself is created) means the
+  // very first committed frame already has the page content, regardless of scheduling lane.
+  if (setupParamsRef.current === null) {
+    setupParamsRef.current = stableSetupParams;
+    instanceRef.current.store?.setup(stableSetupParams);
+  }
+
+  useLayoutEffect(() => {
     const instance = instanceRef.current;
-    instance?.store?.setup(stableSetupParams);
+    if (setupParamsRef.current !== stableSetupParams) {
+      setupParamsRef.current = stableSetupParams;
+      instance?.store?.setup(stableSetupParams);
+    } else if (instance?.store && !instance.store.ready) {
+      // StrictMode's simulated unmount ran cleanup() (ready=false) without a re-render; re-setup.
+      instance.store.setup(stableSetupParams);
+    }
     return () => instance?.cleanup();
   }, [stableSetupParams]);
   return instanceRef.current.render();
+}
+
+// Shared layout for the TopNav pages: auth guard + a persistent TopNav over the routed page (<Outlet/>).
+// TopNav lives here (not inside each page) so it stays mounted across navigations — no nav flash.
+function AuthedLayout() {
+  return (
+    <RequireAuth>
+      <div className="jx-app">
+        <TopNav />
+        <div className="jx-app-body">
+          <Suspense fallback={null}>
+            <Outlet />
+          </Suspense>
+        </div>
+      </div>
+    </RequireAuth>
+  );
 }
 
 // Auth guard: if authStore.authenticated is false → redirect to /login, carrying the source path
