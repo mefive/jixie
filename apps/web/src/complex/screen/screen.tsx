@@ -5,7 +5,6 @@ import type { ColumnsType } from 'antd/es/table';
 import type { ScreenRow } from '@jixie/shared';
 import { faPaperPlane, faPen, faWandMagicSparkles } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { TopNav } from '@src/components/top-nav';
 import { SavedBar } from '@src/components/saved-bar';
 import { LoaderButton } from '@src/components/loader-button';
 import { complex } from './complex';
@@ -39,8 +38,6 @@ export const Screen = complex.component(() => {
 
   return (
     <div className="jx-screen">
-      <TopNav />
-
       {hero ? (
         <HeroSearch onSubmit={submit} />
       ) : (

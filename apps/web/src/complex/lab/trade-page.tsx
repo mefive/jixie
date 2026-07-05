@@ -2,7 +2,6 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { BacktestSummary } from '@jixie/shared';
 import { getStrategy } from '@src/api/client';
-import { TopNav } from '@src/components/top-nav';
 import './trade-page.css';
 
 const TradeDetail = lazy(() => import('./trade-detail'));
@@ -29,7 +28,6 @@ export default function TradePage() {
   const r = strategy?.lastResult as BacktestSummary | null | undefined;
   return (
     <div className="jx-tp">
-      <TopNav />
       <main className="jx-tp-body">
         <div className="jx-tp-head">
           <h1 className="jx-tp-title">交易详情</h1>

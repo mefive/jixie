@@ -1,6 +1,5 @@
 import { lazy, Suspense, useState } from 'react';
 import { Segmented } from 'antd';
-import { TopNav } from '@src/components/top-nav';
 import { complex } from './complex';
 import type { Adjust } from './stock-chart';
 import './stock.css';
@@ -16,7 +15,6 @@ export const Stock = complex.component(() => {
 
   return (
     <div className="jx-stock">
-      <TopNav />
       <main className="jx-stock-body">
         <div className="jx-stock-head">
           <span className="jx-stock-title">{series ? series.name : store.code}</span>

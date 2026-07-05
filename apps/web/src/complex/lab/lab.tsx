@@ -14,7 +14,6 @@ import {
   faUpRightFromSquare,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { TopNav } from '@src/components/top-nav';
 import { LoaderButton } from '@src/components/loader-button';
 import { LogView } from '@src/components/log-view';
 import { Markdown } from '@src/components/markdown';
@@ -43,6 +42,7 @@ export const Lab = complex.component(() => {
   const store = complex.useStore();
   const [heroDismissed, setHeroDismissed] = useState(false); // "直接写代码" escape from the new-strategy hero
   const [newModalOpen, setNewModalOpen] = useState(false); // 新建 → prompt modal (not the full hero)
+  const [panelDefaults] = useState(() => splitterDefaults(380)); // percentage sizes = no first-frame jitter
   const [pendingLeave, setPendingLeave] = useState<(() => void) | null>(null); // dirty → confirm before discarding
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -134,20 +134,18 @@ export const Lab = complex.component(() => {
   };
 
   // The full-page 新增视图 (hero) shows only on a genuine first visit with nothing recent to auto-open;
-  // never while the initial strategy is still loading (that async gap is what used to flash the hero /
-  // empty workbench before openSaved resolved). Otherwise 新建 pops the prompt modal over the workbench.
+  // never while the initial strategy is still loading (that async gap would flash the hero before
+  // openSaved resolved). Otherwise 新建 pops the prompt modal over the workbench.
   const showHero =
     !store.initializing && store.isFresh && !heroDismissed && readRecents().length === 0;
 
+  // While the initial strategy loads (`initializing`) the workbench shell renders anyway — panel
+  // chrome paints on the first frame and Monaco's lazy chunk starts downloading in parallel with
+  // the strategy fetch. A full-page spinner here reads as a flash (spinner → shell → editor pops),
+  // and it also serialized the two waits.
   return (
     <div className="jx-lab">
-      <TopNav />
-
-      {store.initializing ? (
-        <div className="jx-lab-boot">
-          <FontAwesomeIcon icon={faSpinner} spin />
-        </div>
-      ) : showHero ? (
+      {showHero ? (
         <StrategyHero
           onSubmit={(text) => void store.sendAgent(text)}
           onSkip={() => setHeroDismissed(true)}
@@ -155,10 +153,10 @@ export const Lab = complex.component(() => {
       ) : (
         // IDE layout: Agent | (编辑器 over 日志 dock) | 右列 结果/交易明细 tabs — all drag-resizable.
         <Splitter className="jx-lab-body">
-          <Splitter.Panel defaultSize={380} min={300} max={620} collapsible>
+          <Splitter.Panel defaultSize={panelDefaults.left} min={300} max={620} collapsible>
             <AgentPanel onNew={openNewModal} onOpenStrategy={onOpenStrategy} />
           </Splitter.Panel>
-          <Splitter.Panel min="22%">
+          <Splitter.Panel defaultSize={panelDefaults.rest} min="22%">
             <Splitter orientation="vertical">
               <Splitter.Panel min="20%">
                 <section className="jx-lab-editor">
@@ -170,7 +168,7 @@ export const Lab = complex.component(() => {
               </Splitter.Panel>
             </Splitter>
           </Splitter.Panel>
-          <Splitter.Panel min="24%">
+          <Splitter.Panel defaultSize={panelDefaults.rest} min="24%">
             <ResultTabs />
           </Splitter.Panel>
         </Splitter>
@@ -389,7 +387,7 @@ const AgentChat = complex.component(() => {
     <div className="jx-lab-chat">
       <div className="jx-lab-agentName">{store.name || '新策略（未保存）'}</div>
       <RunConfig />
-      <ChatLog messages={store.chatMessages} sending={store.sending} />
+      <ChatLog messages={store.chatMessages} sending={store.sending} quiet={store.initializing} />
       <div className="jx-lab-chatInput">
         <PromptBox
           className="jx-lab-chatBox"
@@ -463,7 +461,17 @@ const RunConfig = complex.component(() => {
 }, 'RunConfig');
 
 // Chat bubbles, auto-scrolled to the latest; a thinking row while an Agent turn is in flight.
-function ChatLog({ messages, sending }: { messages: ChatMessage[]; sending: boolean }) {
+// `quiet` suppresses the empty-state hint while the initial strategy is still loading — the real
+// messages land ~100ms later and the hint would flash-swap into them.
+function ChatLog({
+  messages,
+  sending,
+  quiet,
+}: {
+  messages: ChatMessage[];
+  sending: boolean;
+  quiet?: boolean;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = ref.current;
@@ -473,7 +481,7 @@ function ChatLog({ messages, sending }: { messages: ChatMessage[]; sending: bool
   }, [messages.length, sending]);
   return (
     <div ref={ref} className="jx-lab-chatLog">
-      {messages.length === 0 && !sending && (
+      {messages.length === 0 && !sending && !quiet && (
         <div className="jx-lab-chatEmpty">
           跟 Agent 说你想要的策略，或让它改现有代码。改动会直接写进中间的编辑器。
         </div>
@@ -608,6 +616,11 @@ const ResultPanel = complex.component(() => {
   }
   const r = store.result; // a finished run, or the saved last-result loaded on reopen
   if (!r) {
+    // While the initial strategy (and its saved result) is still loading, stay blank — the
+    // "写好策略" hint would flash-swap into the loaded result a few frames later.
+    if (store.initializing) {
+      return <div className="jx-lab-placeholder" />;
+    }
     return <div className="jx-lab-placeholder">写好左侧策略后点「运行回测」查看净值与指标。</div>;
   }
 
@@ -767,4 +780,19 @@ interface Metric {
 
 function pct(x: number): string {
   return (x * 100).toFixed(2) + '%';
+}
+
+// antd Splitter only learns its container width from a ResizeObserver, one frame AFTER the first
+// paint — a px defaultSize (and the size-less panels around it) render frame one with
+// content-driven widths and visibly jump on frame two. Percentage defaultSizes land as flex-basis
+// on frame one, so pre-convert "left = leftPx, the other two split the rest" into percentages of
+// the viewport (the splitter spans the full app width). Same fix as factor.tsx.
+function splitterDefaults(leftPx: number): { left: string; rest: string } {
+  const viewportWidth = document.documentElement.clientWidth || 1440;
+  const leftFraction = leftPx / viewportWidth;
+  const restFraction = (1 - leftFraction) / 2;
+  return {
+    left: `${(leftFraction * 100).toFixed(4)}%`,
+    rest: `${(restFraction * 100).toFixed(4)}%`,
+  };
 }
