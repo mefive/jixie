@@ -28,12 +28,18 @@ export interface TradeRecord {
   realPrice: number; // unadjusted (raw) fill price — what you'd actually have paid
 }
 
-/** Trading cost model (rates are fractions of trade value). */
+/** Trading friction model: explicit fees (rates are fractions of trade value) + implicit slippage. Fees
+ * hit `fee` on the trade; slippage instead worsens the fill PRICE (buys above / sells below the open), so
+ * it shows up as a worse realized price, not a fee line. */
 export interface CostModel {
   commission: number; // per-side rate, e.g. 0.00025 (万2.5)
   minCommission: number; // floor per trade in yuan, e.g. 5
   stampDuty: number; // sell-side only, e.g. 0.0005 (千0.5)
   transferFee: number; // both sides, e.g. 0.00001
+  // —— Slippage (implicit cost, applied to the fill price) ——
+  slippageBps: number; // base half-spread, both sides, in bps (万分) — the cost even for a liquid large-cap
+  impactCoef: number; // linear price impact per (order notional / day 成交额): a bigger order in a thinner
+  //                     (small-cap) name pays more — this is what makes 中小盘/高换手 realistically costlier
 }
 
 /** One stock's adjusted (hfq) OHLC on one day — the unit a per-instrument strategy reads via bars().
@@ -195,4 +201,6 @@ export const DEFAULT_COST: CostModel = {
   minCommission: 5,
   stampDuty: 0.0005,
   transferFee: 0.00001,
+  slippageBps: 2, // ~0.02% base half-spread
+  impactCoef: 0.1, // order = 1% of the day's 成交额 → +0.1% slip; = 5% → +0.5%
 };

@@ -511,6 +511,17 @@ export class EngineData {
     return i == null ? null : b.adjOpen[i];
   }
 
+  /** Raw 成交额 (千元) on exactly `date` (null if the stock didn't trade that day) — the day's turnover,
+   * the liquidity gate for the slippage/impact model (a big order in a thin name pays more). */
+  amountAt(code: string, date: string): number | null {
+    const b = this.barsCache.get(code);
+    if (!b) {
+      return null;
+    }
+    const i = b.idx.get(date);
+    return i == null ? null : b.amount[i];
+  }
+
   /** adj_factor on exactly `date` (null if the stock didn't trade that day) — to convert a hfq fill price
    * (adjOpen) back to the real unadjusted price (adjOpen / adj) and hfq shares back to real (hfq × adj). */
   adjAt(code: string, date: string): number | null {

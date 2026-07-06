@@ -1,10 +1,17 @@
 import * as st from '../lib/stats.js';
 import { EngineData, type CrossSection } from './data.js';
 import { Portfolio } from './portfolio.js';
-import { DEFAULT_COST, type BacktestResult, type BarContext, type EngineConfig } from './types.js';
+import {
+  DEFAULT_COST,
+  type BacktestResult,
+  type BarContext,
+  type CostModel,
+  type EngineConfig,
+} from './types.js';
 
 const PERIODS_PER_YEAR = 252; // trading days
 const BENCHMARK = '000300.SH'; // 沪深300 — the excess/IR benchmark
+const MAX_SLIP = 0.1; // cap slippage at 10% so a huge order in an illiquid name can't produce absurd fills
 
 /**
  * Run an event-driven strategy backtest.
@@ -17,7 +24,9 @@ const BENCHMARK = '000300.SH'; // 沪深300 — the excess/IR benchmark
  * MVP simplifications (documented): hfq prices for marking + internal accounting (total return, dividends
  * reinvested via adj — no explicit cash-dividend events); buys size in whole 手 (100-share lots) of REAL
  * shares (floored), so trades are realistically tradable while marking stays hfq; fills at next-day open;
- * T+1 enforced; costs applied; 涨停板不可买、跌停板不可卖 (blocked at the limit open); a suspended stock
+ * T+1 enforced; costs + slippage applied (fees on `fee`, slippage worsens the fill price via a base
+ * half-spread + a size/liquidity impact term — see execPrice); 涨停板不可买、跌停板不可卖 (blocked at the
+ * limit open); a suspended stock
  * gets no fill that day. A blocked order is NOT carried over — the strategy re-expresses intent each bar
  * (condition-based exits re-fire daily until fillable). ST filtering is left to the strategy.
  */
@@ -46,13 +55,13 @@ export async function runStrategy(cfg: EngineConfig): Promise<BacktestResult> {
     if (pendingTargets) {
       const codes = new Set<string>([...pendingTargets.keys(), ...portfolio.positions.keys()]);
       await engineData.loadBars([...codes]); // ensure bars before fills/marking
-      rebalance(portfolio, engineData, date, pendingTargets);
+      rebalance(portfolio, engineData, date, pendingTargets, cost);
       pendingTargets = null;
       log(`${fmtDate(date)} 调仓 → 持仓 ${portfolio.positions.size} 只`);
     }
     if (pendingOrders) {
       await engineData.loadBars([...pendingOrders.keys()]);
-      executeOrders(portfolio, engineData, date, pendingOrders);
+      executeOrders(portfolio, engineData, date, pendingOrders, cost);
       pendingOrders = null;
     }
 
@@ -203,12 +212,15 @@ function buildContext(
   };
 }
 
-/** Reconcile the book to target weights at `date`'s open: sell non-targets first, then buy. */
+/** Reconcile the book to target weights at `date`'s open: sell non-targets first, then buy. Sizing +
+ * marking use the raw open (consistent with the day's equity mark); the actual FILL price is the open
+ * worsened by slippage (buys above, sells below). */
 function rebalance(
   portfolio: Portfolio,
   engineData: EngineData,
   date: string,
   targets: Map<string, number>,
+  cost: CostModel,
 ): void {
   const sellableFrom = engineData.nextDay(date);
   const openOf = (c: string) => engineData.openAt(c, date);
@@ -235,7 +247,9 @@ function rebalance(
     }
     const tgt = targetShares.get(code) ?? 0;
     if (tgt < pos.shares && !limitBlocked(engineData, code, date, 'sell', px)) {
-      portfolio.fill(code, tgt - pos.shares, px, date, sellableFrom, engineData.adjAt(code, date)!);
+      const delta = tgt - pos.shares;
+      const fillPx = execPrice(engineData, code, date, 'sell', px, -delta * px, cost);
+      portfolio.fill(code, delta, fillPx, date, sellableFrom, engineData.adjAt(code, date)!);
     }
   }
 
@@ -244,7 +258,9 @@ function rebalance(
     const px = openOf(code)!;
     const cur = portfolio.positions.get(code)?.shares ?? 0;
     if (tgt > cur && !limitBlocked(engineData, code, date, 'buy', px)) {
-      portfolio.fill(code, tgt - cur, px, date, sellableFrom, engineData.adjAt(code, date)!);
+      const delta = tgt - cur;
+      const fillPx = execPrice(engineData, code, date, 'buy', px, delta * px, cost);
+      portfolio.fill(code, delta, fillPx, date, sellableFrom, engineData.adjAt(code, date)!);
     }
   }
 }
@@ -259,6 +275,7 @@ function executeOrders(
   engineData: EngineData,
   date: string,
   orders: Map<string, number>,
+  cost: CostModel,
 ): void {
   const sellableFrom = engineData.nextDay(date);
 
@@ -273,7 +290,8 @@ function executeOrders(
     } // suspended or T+1-frozen
     const sell = Math.min(-delta, pos.shares);
     if (sell > 0 && !limitBlocked(engineData, code, date, 'sell', px)) {
-      portfolio.fill(code, -sell, px, date, sellableFrom, engineData.adjAt(code, date)!);
+      const fillPx = execPrice(engineData, code, date, 'sell', px, sell * px, cost);
+      portfolio.fill(code, -sell, fillPx, date, sellableFrom, engineData.adjAt(code, date)!);
     }
   }
 
@@ -288,11 +306,33 @@ function executeOrders(
     if (limitBlocked(engineData, code, date, 'buy', px)) {
       continue;
     } // 涨停封板 — can't buy
-    const buy = Math.min(delta, portfolio.affordableShares(px));
+    // Slippage lifts the buy price → size affordability on the slipped price so we don't overspend.
+    const fillPx = execPrice(engineData, code, date, 'buy', px, delta * px, cost);
+    const buy = Math.min(delta, portfolio.affordableShares(fillPx));
     if (buy > 0) {
-      portfolio.fill(code, buy, px, date, sellableFrom, engineData.adjAt(code, date)!);
+      portfolio.fill(code, buy, fillPx, date, sellableFrom, engineData.adjAt(code, date)!);
     }
   }
+}
+
+/** Execution price = the open worsened by slippage: a base half-spread (every fill pays it) plus a linear
+ * price impact that scales with the order's notional vs. the day's 成交额 (a big order in a thin small-cap
+ * pays more — the whole point). Buys fill above the open, sells below. hfq in → hfq out; `notionalYuan`
+ * is real money (= |hfq shares| × hfq open). No turnover for the day → impact term drops (base only). */
+export function execPrice(
+  engineData: EngineData,
+  code: string,
+  date: string,
+  side: 'buy' | 'sell',
+  hfqOpen: number,
+  notionalYuan: number,
+  cost: CostModel,
+): number {
+  const base = cost.slippageBps / 1e4;
+  const dayTurnoverYuan = (engineData.amountAt(code, date) ?? 0) * 1000; // amount 是 千元
+  const impact = dayTurnoverYuan > 0 ? cost.impactCoef * (notionalYuan / dayTurnoverYuan) : 0;
+  const slip = Math.min(base + impact, MAX_SLIP);
+  return side === 'buy' ? hfqOpen * (1 + slip) : hfqOpen * (1 - slip);
 }
 
 /** True if a fill is blocked by the day's price limit: you can't buy at/above the up-limit open nor sell
