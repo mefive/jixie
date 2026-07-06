@@ -44,6 +44,44 @@ export default defineFactor({
 
 ---
 
+## Step 1b · 统一预置与自定义因子(预置代码化,2026-07-06 用户提)
+
+**命题**:预置因子不应是内置黑箱,而应和自定义因子**同一机制**——也是库里的一行代码、走同一条 `compileFactor + compute` 路径运行,只是标记为**只读不可改**。这是 code-first(代码即唯一真相)在因子侧的贯彻。
+
+### 为什么现在不能直接做:能力前置
+
+`computeFactorSeries` 现有 4 条岔路,预置分三类,只有一类今天能表达成 `compute` 代码:
+
+| 类 | 预置 | 现算法 | 能否写成 `compute`? |
+|---|---|---|---|
+| fundamental | ep/bp/dv/size | 纯 daily_basic 函数 | ✅ 现在就能(`compute:(bar)=>1/bar.peTtm`,与自定义一字不差) |
+| price | mom/rev/vol | 逐股价格窗口函数 | ❌ 需 **Step 1 的 `ctx.history`** |
+| moneyflow | mf_net_main/total | 读 Moneyflow 表 | ❌ compute 拿不到 moneyflow,需 moneyflow-into-context(见 Step 2 注册表) |
+
+**所以:只迁基本面 4 个 = 1.5 套机制**(价格/资金流仍硬编码),比「两套干净」和「一套干净」都糟。**正确姿势 = 当作因子闭环的收口一次做完**:等 `compute(bar, ctx)` 的能力成为**所有预置所需的超集**(Step 1 的 history + moneyflow-into-context 落地后),一次性把 9 个预置全迁成只读代码行,删掉 `factors.ts` 的 `FACTORS`/`FUNDAMENTAL_FACTORS` 注册表 + `computeFactorSeries` 的 3 条硬编码分支 → **compute 只剩一条路径**。
+
+### 收益:fork 预置成变体(顺带兑现研究路径②)
+
+预置变成**可读代码**后,「一键复制为自定义 → 改参数」即可:把「动量 60/5」fork 成「动量 120/10」变体——这正是本文档方法论**路径②「A 股变体」**的操作形态。现在预置是黑箱 TS,用户看不到也 fork 不了。**这个 UX 收益单独就值得做**,是统一机制最直接的用户价值。
+
+### 三个必须钉死的设计点
+
+1. **key / 缓存稳定性**:预置现在的 key 是 `ep`/`mom`(URL `?factor=`、`FactorReport` 缓存键都用它)。迁成 `Factor` 行后 id **必须仍是这些稳定 slug**,否则老报告全 orphan、分享链接全断。→ 预置用**固定 slug**(`ep`/`mom`…),不用 ULID;自定义继续用 ULID。
+2. **只读强制**:`Factor` 行加 `builtin Boolean @default(false)`(或系统 `userId`);`/custom/:id` 的改/删路由对 `builtin` 行拒绝(明确报错,不静默)。目录里仍标 `kind`(preset 语义),只是 `source` 变代码。fork 时把 builtin 的 code 复制进一行新的可改自定义因子(新 ULID、当前 userId)。
+3. **seed 机制**:预置代码在**仓库里**编写(`.ts`,能 type-check),经幂等 `upsert`(按固定 slug)注入库,每次 deploy 保证存在。**真相仍在 git**,DB 只是物化——与现在对待自定义因子一致。价格/moneyflow 预置的 `compute` 用到 `ctx.history`/moneyflow-into-context,依赖 Step 1 + Step 2 的上下文能力。
+
+### 一处代价(非 blocker)
+
+基本面走硬编码原生函数(`fundFn(r)`)比走编译沙箱 `compute()` 略快:ep 全市场月度 ~5000 股 ×~130 期 ≈ 65 万次 sandbox 调用。自定义分支已这么跑、实测可接受,但迁完 ep 会比现在慢几秒(缓存后秒开,可忽略)。
+
+### 验收
+
+- 9 个预置全部从 `Factor` 表(builtin 行)读代码运行,`factors.ts` 的两个注册表 + 3 条硬编码分支删除,`computeFactorSeries` 只剩一条 compile+compute 路径。
+- 迁移前后同因子同参数 IC/分层逐位一致;老 `FactorReport` 缓存(按 `ep`/`mom` 键)不 orphan。
+- builtin 因子在 UI 只读(改/删被拒),但可「复制为自定义」得到可改副本。
+
+---
+
 ## Step 2 · 因子→策略接入(ROADMAP 3.2,闭环关键)
 
 ### 核心设计:因子注册表 + 时间语义声明
