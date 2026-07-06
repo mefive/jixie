@@ -1,0 +1,25 @@
+# systemd timer — runs jixie-backup.service daily at 03:00 (Linux VPS: CentOS / Ubuntu).
+# Persistent=true → if the VPS was down at 03:00, it runs on next boot (no silently-skipped days).
+#
+# Install (as root, after editing jixie-backup.service for your paths):
+#   sudo cp apps/api/scripts/jixie-backup.service apps/api/scripts/jixie-backup.timer /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now jixie-backup.timer
+# Run once now / inspect:
+#   sudo systemctl start jixie-backup.service          # trigger a backup immediately
+#   systemctl status jixie-backup.service              # last run result
+#   journalctl -u jixie-backup.service                 # its stdout (the [backup] lines)
+#   systemctl list-timers jixie-backup.timer           # next scheduled run
+#
+# Cron alternative (dead-simple, if you'd rather not use systemd) — one line in `crontab -e`:
+#   0 3 * * * JIXIE_BACKUP_DIR=/var/backups/jixie /usr/bin/env node /opt/jixie/apps/api/scripts/backup-db.mjs >> /var/log/jixie-backup.log 2>&1
+
+[Unit]
+Description=Run jixie SQLite backup daily
+
+[Timer]
+OnCalendar=*-*-* 03:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
