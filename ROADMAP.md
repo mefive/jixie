@@ -77,6 +77,10 @@
 
 自定义因子 `compute` 现在只有当天横截面(FactorBar),表达力缺一半。给 compute 加第二参 `ctx`,提供 `ctx.history(n)`(后复权收盘窗口)→ 自定义动量/波动率可写。因子声明所需窗口长度(声明式,便于批量预载)。
 
+### 3.1b 统一预置与自定义(预置代码化)⬜
+
+预置因子也从库读代码、走同一 `compileFactor+compute` 路径运行,只是标记 `builtin` 只读——贯彻 code-first,删掉 `factors.ts` 两注册表 + `computeFactorSeries` 3 条硬编码分支归一。**前置**:price 预置等 3.1 的 `ctx.history`、moneyflow 预置等 3.2 的 moneyflow-into-context,故当作因子闭环收口一次做完,不单拎基本面(否则 1.5 套机制)。**收益**:预置可读 → 一键 fork 成变体,兑现研究路径②。**钉死点**:稳定 slug(缓存不 orphan)/ builtin 只读强制 / 仓库编写幂等 seed。详设见 `docs/design/factor-to-strategy.md` Step 1b。
+
 ### 3.2 因子→策略接入 ⬜(闭环最关键一环)
 
 「因子页验证 edge → 策略里一键使用」。核心:因子注册表带**时间语义声明** `kind: flow | level`(flow=精确当天缺则 null,如 moneyflow/龙虎榜;level=as-of 前填,如估值/财务),`ctx.factor(key)` 无 date 参数(防未来函数)、按声明解析;用户自定义因子在引擎内现场编译现场算(零存储,贵的才惰性 LRU);factor key 自动生成 dts 字面量联合类型进 Monaco 补全。**顺手修**:moneyflow 的 `ctx.factor` 现在被一刀切 as-of 前填,与其文档和 `ctx.lhbNet` 不自洽,改精确当天。
