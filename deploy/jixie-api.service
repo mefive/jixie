@@ -1,0 +1,39 @@
+# /etc/systemd/system/jixie-api.service
+# Install: sudo cp + systemctl daemon-reload + enable --now. bootstrap.sh renders paths/user from this.
+[Unit]
+Description=jixie API (Hono + Prisma)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=jixie
+Group=jixie
+WorkingDirectory=/opt/jixie/apps/api
+
+# Load all KEY=VALUE from .env.production as environment variables (DATABASE_URL, TUSHARE_TOKEN, …).
+EnvironmentFile=/opt/jixie/apps/api/.env.production
+
+# Absolute path, don't depend on PATH.
+# Note: api tsconfig has rootDir "." + includes scripts/, so tsc emits dist/src/index.js (not dist/index.js).
+ExecStart=/usr/bin/node /opt/jixie/apps/api/dist/src/index.js
+
+# Restart on crash / OOM / uncaught exception; 5s backoff to avoid a tight loop.
+Restart=always
+RestartSec=5
+
+# Logs go to journald: journalctl -u jixie-api
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=jixie-api
+
+# Backtests run in worker THREADS (in-process, node:worker_threads) — no extra spawn permission needed.
+# Hardening: no privilege escalation, private /tmp, read-only system, writes only to the data dir.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/jixie
+
+[Install]
+WantedBy=multi-user.target
