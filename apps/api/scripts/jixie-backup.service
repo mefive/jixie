@@ -1,0 +1,16 @@
+# systemd service — jixie SQLite backup (Linux VPS: CentOS / Ubuntu).
+# Paired with jixie-backup.timer (which schedules it). Install instructions live in the .timer file.
+#
+# EDIT the three marked lines for your deploy, then see jixie-backup.timer for install steps.
+# Requires: node on PATH + the sqlite3 CLI (Ubuntu: apt install sqlite3 · CentOS: yum install sqlite).
+
+[Unit]
+Description=jixie SQLite backup (online .backup + rotation)
+After=network.target
+
+[Service]
+Type=oneshot
+User=jixie                                                      # EDIT: the deploy user
+Environment=JIXIE_BACKUP_DIR=/var/backups/jixie                 # EDIT: where backups land
+Environment=JIXIE_BACKUP_KEEP=7
+ExecStart=/usr/bin/env node /opt/jixie/apps/api/scripts/backup-db.mjs   # EDIT: repo path

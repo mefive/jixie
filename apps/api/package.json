@@ -11,6 +11,7 @@
     "test:watch": "vitest",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
+    "backup": "node scripts/backup-db.mjs",
     "gen:invite": "tsx --env-file=.env scripts/gen-invite.ts",
     "factor:report": "tsx --env-file=.env scripts/factor-report.ts",
     "backtest": "tsx --env-file=.env scripts/backtest.ts",
