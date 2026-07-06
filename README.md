@@ -17,6 +17,8 @@
 
 **第二期**:`apps/web` 前端 + 回测任务 API + worker 隔离。
 
+**长期功能规划见 [`ROADMAP.md`](./ROADMAP.md)**(可信度 / 表达力 / 因子闭环 / 数据工程 / 每日信号五条主线),详设在 `docs/design/`。
+
 ## 技术栈
 
 - pnpm monorepo,TypeScript + Node 20(纯 ESM)
