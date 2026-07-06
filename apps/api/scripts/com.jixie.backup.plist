@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Daily SQLite backup via launchd — macOS local dev only. On a Linux VPS (CentOS/Ubuntu) use
+  jixie-backup.service + jixie-backup.timer (systemd) instead; launchd/plist does not exist there.
+
+  Runs `pnpm backup` at 03:00; if the Mac is asleep then, launchd runs it at the next wake. Uses a
+  login shell (zsh -lc) so pnpm is on PATH.
+
+  Install:
+    cp apps/api/scripts/com.jixie.backup.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.jixie.backup.plist
+  Verify / run once now:
+    launchctl start com.jixie.backup
+    tail -f ~/jixie-backups/backup.log
+  Uninstall:
+    launchctl unload ~/Library/LaunchAgents/com.jixie.backup.plist
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.jixie.backup</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/zsh</string>
+    <string>-lc</string>
+    <string>mkdir -p ~/jixie-backups &amp;&amp; cd /Users/liucong/Projects/jixie/apps/api &amp;&amp; pnpm backup &gt;&gt; ~/jixie-backups/backup.log 2&gt;&amp;1</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>3</integer>
+    <key>Minute</key>
+    <integer>0</integer>
+  </dict>
+  <key>RunAtLoad</key>
+  <false/>
+</dict>
+</plist>
