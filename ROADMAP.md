@@ -137,7 +137,7 @@ SDK 现在三处镜像(`sdk.ts` 运行时 / `sdk-dts.ts` Monaco / `codegen-promp
 
 ### 4.5 多用户工程 💤(明确远期,没有第二个用户前都是负债)
 
-- 沙箱升级:**2026-07-07 用户拍板「现在就上 isolated-vm」并当日完成 Phase A**——因子 compute + analyzeData 迁入 isolated-vm 硬沙箱(`lib/isolate-run.ts`:墙内无 Node API、内存上限 + CPU 超时、跨墙批量化、stats 墙内求值);逃逸/超时有测试,ivm 在 factor-worker 线程内实测干净退出,真库等价性复验通过。**Phase B(策略 onBar)待专门会话**:ctx 桥设计(「预取进墙 + 订单随返回值出墙」形态)见 `docs/design/python-and-sandbox.md` 决策清单;在此之前 `compileStrategy` 维持 new Function + worker。Python 编写策略/因子已拍定**不做**(Python 只做 3.7 ML 的研究 sidecar)。
+- 沙箱升级:**2026-07-07 用户拍板「现在就上 isolated-vm」并当日完成 Phase A**——因子 compute + analyzeData 迁入 isolated-vm 硬沙箱(`lib/isolate-run.ts`:墙内无 Node API、内存上限 + CPU 超时、跨墙批量化、stats 墙内求值);逃逸/超时有测试,ivm 在 factor-worker 线程内实测干净退出,真库等价性复验通过。**Phase B(策略侧)设计已定稿待实施**:「**引擎整个进墙 + DataPort 出墙 + 双车道**」(2026-07-07 用户提出并讨论收敛,取代预取草图)——B1 DataPort 抽取(引擎可喂 fixture 单测,独立有价值)→ B2 引擎 bundle 进 isolate(applySyncPromise 数据桥);直跑车道留给单测/研究脚本/调试,进墙车道走产品路径,开关跟**代码来源**走(DB 来的进墙、git 来的可直跑),防漂移双跑测试常驻。定稿细节见 `docs/design/python-and-sandbox.md`,总估 ~4 人日;在此之前 `compileStrategy` 维持 new Function + worker。Python 编写策略/因子已拍定**不做**(Python 只做 3.7 ML 的研究 sidecar)。
 - worker 池 + job 队列(现在每次 spawn 一个 worker,单用户够用)。
 - 策略/因子 公开/私有。
 
