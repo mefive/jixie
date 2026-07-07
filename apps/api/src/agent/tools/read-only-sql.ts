@@ -97,11 +97,12 @@ export function prepareReadOnlySql(sql: string, rowCap: number = SQL_ROW_CAP): s
   // declare LIMITs may keep them as long as none exceeds the cap (rejecting beats rewriting —
   // wrapping in a subquery would not guarantee ORDER BY preservation).
   const declaredLimits = [...trimmed.matchAll(/\blimit\s+(\d+)/gi)].map((m) => Number(m[1]));
+  const declaredCap = Math.max(DECLARED_LIMIT_CAP, rowCap); // analysis callers pass larger caps
   if (!declaredLimits.length) {
     return `${trimmed} LIMIT ${rowCap}`;
   }
-  if (declaredLimits.some((limit) => limit > DECLARED_LIMIT_CAP)) {
-    throw new Error(`LIMIT 最大 ${DECLARED_LIMIT_CAP},请缩小或先聚合`);
+  if (declaredLimits.some((limit) => limit > declaredCap)) {
+    throw new Error(`LIMIT 最大 ${declaredCap},请缩小或先聚合`);
   }
   return trimmed;
 }

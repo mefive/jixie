@@ -237,6 +237,32 @@ try {
       { timeout: 10000 },
     );
     log('chart conversation cleaned up');
+
+    // 6d. analyzeData: a statistics question plain SQL can't answer — the agent packs SQL fetch +
+    //     sandboxed JS (correlation) into ONE tool call; only the computed result reaches the reply.
+    await page.getByRole('button', { name: '新对话' }).click();
+    await composer.waitFor();
+    await composer.fill('贵州茅台和五粮液最近一年的日收益相关性有多高?');
+    await page.keyboard.press('Enter');
+    await page
+      .locator('.jx-screen-bubble--assistant:not(.jx-screen-bubble--thinking)', {
+        hasText: /相关/,
+      })
+      .first()
+      .waitFor({ timeout: 180000 });
+    await page.screenshot({ path: `${SHOTS}2j-chat-analyze.png` });
+    log('shot 2j: analyzeData statistics answer (correlation via sandboxed code)');
+    await page.getByRole('button', { name: '卡片墙' }).click();
+    await page.locator('.jx-screen-card--chat').first().locator('.jx-screen-cardDelete').click();
+    await page.locator('.ant-popconfirm .ant-btn-primary').click();
+    await page.waitForFunction(
+      async () => {
+        const l = await (await fetch('/api/app/screen/conversations')).json();
+        return Array.isArray(l) && l.length === 0;
+      },
+      { timeout: 10000 },
+    );
+    log('analyze conversation cleaned up');
   } else {
     await page.getByRole('button', { name: '卡片墙' }).click();
   }

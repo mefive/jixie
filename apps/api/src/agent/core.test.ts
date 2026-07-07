@@ -78,6 +78,7 @@ describe('agentTurn(strategyProfile)', () => {
       'runScreen',
       'sqlQuery',
       'renderChart',
+      'analyzeData',
     ]);
   });
 });

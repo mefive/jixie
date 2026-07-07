@@ -1,5 +1,8 @@
-/** Pure statistical functions for backtesting. No side effects, independently verifiable. */
+/** Pure statistical functions for backtesting and factor analysis. No side effects, independently
+ * verifiable. Every EXPORTED function's JSDoc doubles as the agent analyzeData tool's manual —
+ * stats-doc.ts is generated from this file (`pnpm --filter api gen:stats-doc`, drift fails a test). */
 
+/** Arithmetic mean (0 for an empty array). */
 export function mean(xs: number[]): number {
   return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0;
 }
@@ -33,6 +36,7 @@ function averageRanks(xs: number[]): number[] {
   return ranks;
 }
 
+/** Pearson correlation of two equal-length arrays (align/filter them first). */
 export function pearson(xs: number[], ys: number[]): number {
   const mx = mean(xs);
   const my = mean(ys);
@@ -118,4 +122,51 @@ export function maxDrawdown(nav: number[]): number {
     }
   }
   return mdd;
+}
+
+/** Median (0 for an empty array). */
+export function median(xs: number[]): number {
+  return quantile(xs, 0.5);
+}
+
+/** The p-quantile (0 ≤ p ≤ 1) with linear interpolation; e.g. quantile(xs, 0.9) = 90th percentile. */
+export function quantile(xs: number[], p: number): number {
+  if (!xs.length) {
+    return 0;
+  }
+  const sorted = [...xs].sort((a, b) => a - b);
+  const position = Math.min(Math.max(p, 0), 1) * (sorted.length - 1);
+  const lower = Math.floor(position);
+  const upper = Math.ceil(position);
+  return sorted[lower] + (sorted[upper] - sorted[lower]) * (position - lower);
+}
+
+/** Sample covariance of two equal-length arrays. */
+export function covariance(xs: number[], ys: number[]): number {
+  if (xs.length < 2) {
+    return 0;
+  }
+  const mx = mean(xs);
+  const my = mean(ys);
+  let sum = 0;
+  for (let i = 0; i < xs.length; i++) {
+    sum += (xs[i] - mx) * (ys[i] - my);
+  }
+  return sum / (xs.length - 1);
+}
+
+/** OLS linear regression y = slope·x + intercept; r2 is the coefficient of determination.
+ * Classic use: regress stock returns on index returns → slope is beta, intercept is (per-period) alpha. */
+export function linearRegression(
+  xs: number[],
+  ys: number[],
+): { slope: number; intercept: number; r2: number } {
+  const varX = std(xs) ** 2;
+  if (xs.length < 2 || varX === 0) {
+    return { slope: 0, intercept: mean(ys), r2: 0 };
+  }
+  const slope = covariance(xs, ys) / varX;
+  const intercept = mean(ys) - slope * mean(xs);
+  const r = pearson(xs, ys);
+  return { slope, intercept, r2: r * r };
 }
