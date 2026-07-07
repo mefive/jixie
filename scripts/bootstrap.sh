@@ -107,19 +107,20 @@ if ((${#PKGS[@]})); then
   pkg_install "${PKGS[@]}"
 fi
 
-# Node 20+:缺失或主版本 <20 则走 NodeSource 装 20.x
+# Node 22+:缺失或主版本 <22 则走 NodeSource 装 22.x
+# (node:sqlite 的只读 SQL worker 需要 ≥22.13;Node 20 已于 2026-04 EOL)
 NODE_OK=0
 if have node; then
   NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)"
-  [[ "$NODE_MAJOR" -ge 20 ]] && NODE_OK=1
+  [[ "$NODE_MAJOR" -ge 22 ]] && NODE_OK=1
 fi
 if [[ "$NODE_OK" -ne 1 ]]; then
-  log "安装 Node.js 20.x (NodeSource)"
+  log "安装 Node.js 22.x (NodeSource)"
   if [[ "$PKG" == apt ]]; then
-    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+    curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
     pkg_install nodejs
   else
-    curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo -E bash -
+    curl -fsSL https://rpm.nodesource.com/setup_22.x | sudo -E bash -
     pkg_install nodejs
   fi
 fi
