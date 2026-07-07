@@ -1,5 +1,7 @@
+import { DEFAULT_LOCALE, type Locale } from '@jixie/shared';
 import { prisma } from '../lib/prisma.js';
 import { daysBetween } from '../lib/date.js';
+import { t } from '../i18n/index.js';
 import type { BarRow, OhlcBar } from './types.js';
 
 /** Whole-market cross-section for one trading day. */
@@ -68,6 +70,7 @@ export class EngineData {
     private end: string,
     private factorKeys: string[] = [],
     private onLog: (line: string) => void = () => {},
+    private locale: Locale = DEFAULT_LOCALE,
   ) {}
 
   /** Index daily close series (sync, from the preload) — the 超额/IR benchmark (caller aligns to nav). */
@@ -402,7 +405,7 @@ export class EngineData {
     // No snapshots at all = this index's constituents were never synced — fail loudly rather than
     // silently trade nothing (a date before the first snapshot legitimately returns []).
     if (idx.dates.length === 0) {
-      throw new Error(`指数 ${indexCode} 未收录成分数据(无法限定到该指数)`);
+      throw new Error(t(this.locale, 'indexNoConstituents', { indexCode }));
     }
     const j = lastIndexAtOrBefore(idx.dates, date);
     if (j < 0) {
@@ -410,9 +413,7 @@ export class EngineData {
       // Warn once so an empty universe (→ no trades) isn't a silent mystery.
       if (!this.warnedIndices.has(indexCode)) {
         this.warnedIndices.add(indexCode);
-        this.onLog(
-          `⚠️ 指数 ${indexCode} 成分数据从 ${idx.dates[0]} 起,此前的交易日按空池处理(选不出标的)`,
-        );
+        this.onLog(t(this.locale, 'indexCoverageGap', { indexCode, date: idx.dates[0] }));
       }
       return [];
     }

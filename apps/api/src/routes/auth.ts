@@ -13,7 +13,7 @@ import {
 } from '../lib/session.js';
 import { buildVerificationEmail, isEmailConfigured, sendEmail } from '../lib/email.js';
 import { isValidInviteCodeFormat, normalizeInviteCode } from '../lib/inviteCode.js';
-import { m } from '../i18n/index.js';
+import { localeFromRequest, m } from '../i18n/index.js';
 
 export const authRoute = new Hono();
 
@@ -153,12 +153,12 @@ authRoute.post('/email/request', validateJson(emailRequestBody), async (c) => {
   // dev fallback: Resend not configured and non-production → print the code to the console instead
   // of really sending email, for easy local self-testing.
   if (!isEmailConfigured() && process.env.NODE_ENV !== 'production') {
-    console.log(`[auth] dev 验证码 ${email}: ${verificationCode}`);
+    console.log(`[auth] dev verification code ${email}: ${verificationCode}`);
   } else {
     // Send the email. On failure, delete the challenge immediately — so the user isn't stuck
     // behind the 60s rate limit and can retry right away.
     try {
-      const tmpl = buildVerificationEmail(verificationCode);
+      const tmpl = buildVerificationEmail(verificationCode, localeFromRequest(c));
       await sendEmail({ to: email, ...tmpl });
     } catch (err) {
       await prisma.emailLoginChallenge.delete({ where: { id: challengeId } }).catch(() => {});
@@ -180,7 +180,7 @@ const emailVerifyBody = z.object({
   code: z
     .string()
     .trim()
-    .regex(/^\d{6}$/, '验证码必须是 6 位数字'),
+    .regex(/^\d{6}$/, 'code must be 6 digits'),
 });
 
 const MAX_VERIFY_ATTEMPTS = 5;

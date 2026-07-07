@@ -1,4 +1,6 @@
+import { DEFAULT_LOCALE } from '@jixie/shared';
 import * as st from '../lib/stats.js';
+import { t } from '../i18n/index.js';
 import { EngineData, type CrossSection } from './data.js';
 import { Portfolio } from './portfolio.js';
 import {
@@ -32,8 +34,9 @@ const MAX_SLIP = 0.1; // cap slippage at 10% so a huge order in an illiquid name
  */
 export async function runStrategy(cfg: EngineConfig): Promise<BacktestResult> {
   const cost = { ...DEFAULT_COST, ...cfg.cost };
+  const locale = cfg.locale ?? DEFAULT_LOCALE;
   const log = cfg.onLog ?? (() => {}); // progress sink (worker forwards to the job; scripts no-op)
-  const engineData = new EngineData(cfg.start, cfg.end, cfg.strategy.factors ?? [], log);
+  const engineData = new EngineData(cfg.start, cfg.end, cfg.strategy.factors ?? [], log, locale);
   await engineData.load();
   if (cfg.strategy.watch?.length) {
     await engineData.loadBars(cfg.strategy.watch);
@@ -41,7 +44,13 @@ export async function runStrategy(cfg: EngineConfig): Promise<BacktestResult> {
   const portfolio = new Portfolio(cfg.initialCash, cost);
 
   const yuan = (v: number) => `¥${Math.round(v).toLocaleString()}`;
-  log(`开始回测 · ${fmtDate(cfg.start)} ~ ${fmtDate(cfg.end)} · 初始资金 ${yuan(cfg.initialCash)}`);
+  log(
+    t(locale, 'backtestStart', {
+      start: fmtDate(cfg.start),
+      end: fmtDate(cfg.end),
+      cash: yuan(cfg.initialCash),
+    }),
+  );
 
   const nav: { date: string; value: number }[] = [];
   let pendingTargets: Map<string, number> | null = null;
@@ -57,7 +66,7 @@ export async function runStrategy(cfg: EngineConfig): Promise<BacktestResult> {
       await engineData.loadBars([...codes]); // ensure bars before fills/marking
       rebalance(portfolio, engineData, date, pendingTargets, cost);
       pendingTargets = null;
-      log(`${fmtDate(date)} 调仓 → 持仓 ${portfolio.positions.size} 只`);
+      log(t(locale, 'backtestRebalance', { date: fmtDate(date), count: portfolio.positions.size }));
     }
     if (pendingOrders) {
       await engineData.loadBars([...pendingOrders.keys()]);
@@ -73,7 +82,13 @@ export async function runStrategy(cfg: EngineConfig): Promise<BacktestResult> {
     const year = date.slice(0, 4);
     if (year !== lastYear) {
       lastYear = year;
-      log(`${year} · 权益 ${yuan(value)} · 进度 ${Math.round(((i + 1) / total) * 100)}%`);
+      log(
+        t(locale, 'backtestYearlyHeartbeat', {
+          year,
+          equity: yuan(value),
+          pct: Math.round(((i + 1) / total) * 100),
+        }),
+      );
     }
 
     // 3. Strategy decides (may await market data). It may queue targets or orders for next open.
@@ -93,7 +108,12 @@ export async function runStrategy(cfg: EngineConfig): Promise<BacktestResult> {
   const bench = engineData.indexCloses(BENCHMARK); // 沪深300 for 超额/IR (preloaded)
   const result = summarize(cfg, nav, portfolio.trades, bench);
   log(
-    `完成 · ${result.days} 天 · ${result.trades} 笔 · 期末 ${yuan(result.finalValue)} · 收益 ${(result.totalReturn * 100).toFixed(2)}%`,
+    t(locale, 'backtestDone', {
+      days: result.days,
+      trades: result.trades,
+      finalValue: yuan(result.finalValue),
+      ret: (result.totalReturn * 100).toFixed(2),
+    }),
   );
   return result;
 }
