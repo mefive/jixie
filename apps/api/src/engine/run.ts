@@ -1,6 +1,6 @@
 import { DEFAULT_LOCALE } from '@jixie/shared';
 import * as st from '../lib/stats.js';
-import { t } from '../i18n/index.js';
+import { t } from '../i18n/messages.js'; // direct import — keeps hono/locale out of the wall bundle
 import { EngineData, type CrossSection } from './data.js';
 import { prismaDataPort } from './prisma-port.js';
 import { Portfolio } from './portfolio.js';
