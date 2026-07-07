@@ -1,4 +1,5 @@
-import type { LogLevel } from '@jixie/shared';
+import { DEFAULT_LOCALE, type Locale, type LogLevel } from '@jixie/shared';
+import { t } from '../i18n/messages.js';
 
 /** Where a sandbox console line goes — the worker wires this to postMessage({source:'user', ...}). */
 export type UserLogSink = (level: LogLevel, text: string) => void;
@@ -35,7 +36,11 @@ function formatArg(arg: unknown): string {
  * hundreds of thousands of lines — that would blow up memory and the log panel. We stop forwarding at
  * `cap` and emit one truncation notice, so a runaway loop degrades to a warning instead of a crash.
  */
-export function makeSandboxConsole(onUserLog: UserLogSink, cap = 2000): SandboxConsole {
+export function makeSandboxConsole(
+  onUserLog: UserLogSink,
+  cap = 2000,
+  locale: Locale = DEFAULT_LOCALE,
+): SandboxConsole {
   let emitted = 0;
   let capped = false;
 
@@ -43,7 +48,7 @@ export function makeSandboxConsole(onUserLog: UserLogSink, cap = 2000): SandboxC
     if (emitted >= cap) {
       if (!capped) {
         capped = true;
-        onUserLog('warn', `用户日志超过 ${cap} 行,后续输出已省略`);
+        onUserLog('warn', t(locale, 'userLogCapped', { cap }));
       }
       return;
     }

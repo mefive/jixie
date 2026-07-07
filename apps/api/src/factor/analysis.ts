@@ -1,8 +1,10 @@
+import { DEFAULT_LOCALE, type Locale } from '@jixie/shared';
 import type { BucketStat, FactorBar, FactorReport, FactorFreq } from '@jixie/shared';
 import { prisma } from '../lib/prisma.js';
 import { compileFactor, type FactorBatchItem } from './compile-factor.js';
 import type { UserLogSink } from '../lib/sandbox-console.js';
 import { sameMonth, sameWeek, minusDays } from '../lib/date.js';
+import { t } from '../i18n/messages.js';
 import * as st from '../lib/stats.js';
 
 // Wire shapes live in @jixie/shared (the /factors page renders them); re-export for local imports.
@@ -98,6 +100,7 @@ async function computeFactorSeries(
   snaps: Map<string, Snap>,
   onLog: (msg: string) => void = () => {},
   onUserLog?: UserLogSink,
+  locale: Locale = DEFAULT_LOCALE,
 ): Promise<Series> {
   const series: Series = new Map();
   const push = (date: string, tsCode: string, value: number | null) => {
@@ -114,7 +117,7 @@ async function computeFactorSeries(
 
   const row = await prisma.factor.findUnique({ where: { id: factorKey }, select: { code: true } });
   if (!row) {
-    onLog(`⚠️ 因子 ${factorKey} 不存在(预置未 seed 或已被删除)`);
+    onLog(t(locale, 'factorMissing', { factor: factorKey }));
     return series;
   }
   // The first compute error is surfaced once at the end (per-stock errors just drop the stock — a
@@ -195,7 +198,7 @@ async function computeFactorSeries(
   try {
     if (!factor.window) {
       // Fast path: pure cross-section, no price history — one wall-crossing per date.
-      onLog('逐日横截面计算…');
+      onLog(t(locale, 'factorDailyCrossSection'));
       for (const date of dates) {
         const bars = [...(await loadBars(date)).values()];
         const values = await factor.computeBatch(bars.map((bar) => ({ bar })));
@@ -206,7 +209,7 @@ async function computeFactorSeries(
       return series;
     }
     const rebalanceSet = new Set(dates);
-    onLog(`加载估值/资金流截面(${dates.length} 日)…`);
+    onLog(t(locale, 'factorLoadingSections', { count: dates.length }));
     const barsByDate = new Map<string, Map<string, FactorBar>>();
     for (const date of dates) {
       barsByDate.set(date, await loadBars(date));
@@ -227,11 +230,11 @@ async function computeFactorSeries(
         tsCodes.add(tsCode);
       }
     }
-    onLog(`逐股计算窗口因子(window=${factor.window},${tsCodes.size} 只)…`);
+    onLog(t(locale, 'factorPerStockWindow', { window: factor.window, count: tsCodes.size }));
     let done = 0;
     for (const tsCode of tsCodes) {
       if (++done % 800 === 0) {
-        onLog(`  已算 ${done}/${tsCodes.size} 只`);
+        onLog(t(locale, 'factorComputeProgress', { done, total: tsCodes.size }));
       }
       const [priceRows, adjRows] = await Promise.all([
         prisma.daily.findMany({
@@ -295,7 +298,7 @@ async function computeFactorSeries(
     }
   } finally {
     if (firstComputeError) {
-      onLog(`⚠️ 因子 compute 有抛错(相应股票已剔除),首个错误:${firstComputeError}`);
+      onLog(t(locale, 'factorComputeErrors', { error: firstComputeError }));
     }
     factor.dispose();
   }
@@ -331,13 +334,22 @@ export async function analyzeFactor(
   end: string,
   onLog: (msg: string) => void = () => {},
   onUserLog?: UserLogSink,
+  locale: Locale = DEFAULT_LOCALE,
 ): Promise<FactorReport> {
   const periodsPerYear = freq === 'week' ? 52 : 12;
   const rebalanceDates = await getRebalanceDates(freq, start, end);
-  onLog(`调仓日 ${rebalanceDates.length} 个(${freq === 'week' ? '周' : '月'}度)· 加载行情快照…`);
+  const freqLabel = t(locale, freq === 'week' ? 'freqWeek' : 'freqMonth');
+  onLog(t(locale, 'factorRebalanceDates', { count: rebalanceDates.length, freq: freqLabel }));
   const snaps = await loadSnapshots(rebalanceDates, true); // rebalance snaps carry total market cap for cap-weighting
-  onLog(`计算因子 ${factorKey} 的值…`);
-  const byDate = await computeFactorSeries(factorKey, rebalanceDates, snaps, onLog, onUserLog);
+  onLog(t(locale, 'factorComputingValues', { factor: factorKey }));
+  const byDate = await computeFactorSeries(
+    factorKey,
+    rebalanceDates,
+    snaps,
+    onLog,
+    onUserLog,
+    locale,
+  );
 
   // IC-decay: for each rebalance date D, the trading day D+h (h ∈ horizons) via the open-day calendar,
   // and a snapshot at those forward days — so we can measure Rank IC at multiple forward horizons.
@@ -365,7 +377,7 @@ export async function analyzeFactor(
       }
     }
   }
-  onLog(`加载 IC 衰减前瞻快照(${forwardDates.size} 日)…`);
+  onLog(t(locale, 'factorLoadingDecaySnapshots', { count: forwardDates.size }));
   const forwardSnaps = await loadSnapshots([...forwardDates]);
   const decaySeries: number[][] = IC_DECAY_HORIZONS.map(() => []);
 
@@ -511,7 +523,7 @@ export async function analyzeFactor(
     prevTop = top;
   }
 
-  onLog('汇总 IC / 分层 / IC 衰减…');
+  onLog(t(locale, 'factorAggregating'));
   // Preset and custom factors both label from their Factor row (presets are seeded code rows).
   const label =
     (await prisma.factor.findUnique({ where: { id: factorKey }, select: { name: true } }))?.name ??

@@ -7,6 +7,8 @@
  * StrategyCtx interface aligned with the signatures here.)
  */
 
+import type { Locale } from '@jixie/shared';
+
 export interface SdkEntry {
   iface: 'Universe' | 'StrategyCtx' | 'BarRow';
   name: string; // member name — also the doc anchor id and the openSdkDoc command arg
@@ -31,7 +33,31 @@ export const OHLC_FIELDS: { name: string; type: string; zh: string; en: string }
   { name: 'amount', type: 'number | null', zh: '成交额(千元)', en: 'Turnover (千元)' },
 ];
 
-const PRELUDE = `/** 某票某日的后复权 OHLC —— ctx.bars() 返回的单元。 [📖 文档](/docs#OhlcBar) */
+// Bilingual doc comments for the ambient types + prelude (member-level copy lives on each SdkEntry /
+// OHLC_FIELDS). One entry per comment site so the editor hover switches with the active locale.
+const TYPE_DOCS: Record<
+  'ohlcBar' | 'barRow' | 'universe' | 'strategyCtx',
+  Record<Locale, string>
+> = {
+  ohlcBar: {
+    zh: '某票某日的后复权 OHLC —— ctx.bars() 返回的单元。 [📖 文档](/docs#OhlcBar)',
+    en: 'Adjusted (hfq) OHLC of a code on a day — the unit ctx.bars() returns. [📖 docs](/docs#OhlcBar)',
+  },
+  barRow: {
+    zh: '某票今天的整行:不复权 + 后复权 OHLC + 时点估值快照(universe 里 rankBy/where 的 b)。',
+    en: "Today's full row for a code: raw + adjusted OHLC + a point-in-time valuation snapshot (the `b` in universe rankBy/where).",
+  },
+  universe: {
+    zh: '今天的可交易候选池,链式 filter / rank / slice。',
+    en: "Today's tradable candidate pool — a chainable filter / rank / slice.",
+  },
+  strategyCtx: {
+    zh: '策略每个 bar 看到、操作的入口 —— 下面所有 ctx.xxx 都是它的方法(读数据、算指标、下单);ctx 恒为「今天」。',
+    en: 'What the strategy sees and acts through on each bar — every ctx.xxx below is its method (read data, compute indicators, place orders); ctx is always "today".',
+  },
+};
+
+const buildPrelude = (locale: Locale) => `/** ${TYPE_DOCS.ohlcBar[locale]} */
 interface OhlcBar {
 ${OHLC_FIELDS.map((f) => `  ${f.name}: ${f.type};`).join('\n')}
 }
@@ -517,12 +543,13 @@ const CTX_PROPS = `  readonly date: string;
   readonly cash: number;
   readonly value: number;`;
 
-/** Build the Monaco ambient .d.ts from the entries. Editor hovers are Chinese-only (the EN copy is for the
- * doc page); `docLink(name)` optionally appends a 📖 link line to each member's/type's JSDoc (→ /docs#name). */
-export function buildSdkDts(docLink?: (name: string) => string): string {
+/** Build the Monaco ambient .d.ts from the entries in the active locale. Editor hovers carry the
+ * locale-appropriate copy (`entry[locale]`); `docLink(name)` optionally appends a 📖 link line to each
+ * member's/type's JSDoc (→ /docs#name). */
+export function buildSdkDts(locale: Locale, docLink?: (name: string) => string): string {
   const member = (e: SdkEntry) => {
     const link = docLink ? `\n   * ${docLink(e.name)}` : '';
-    return `  /** ${e.zh}${link} */\n  ${e.sig};`;
+    return `  /** ${e[locale]}${link} */\n  ${e.sig};`;
   };
   const ofIface = (iface: SdkEntry['iface']) =>
     SDK_ENTRIES.filter((e) => e.iface === iface)
@@ -530,20 +557,20 @@ export function buildSdkDts(docLink?: (name: string) => string): string {
       .join('\n');
   const tl = (anchor: string) => (docLink ? ` ${docLink(anchor)}` : ''); // a type-level 📖 link
 
-  return `${PRELUDE}
+  return `${buildPrelude(locale)}
 
-/** 某票今天的整行:不复权 + 后复权 OHLC + 时点估值快照(universe 里 rankBy/where 的 b)。${tl('BarRow')} */
+/** ${TYPE_DOCS.barRow[locale]}${tl('BarRow')} */
 interface BarRow {
 ${ofIface('BarRow')}
 }
 
-/** 今天的可交易候选池,链式 filter / rank / slice。${tl('Universe')} */
+/** ${TYPE_DOCS.universe[locale]}${tl('Universe')} */
 interface Universe {
 ${ofIface('Universe')}
   readonly length: number;
 }
 
-/** 策略每个 bar 看到、操作的入口 —— 下面所有 ctx.xxx 都是它的方法(读数据、算指标、下单);ctx 恒为「今天」。${tl('StrategyCtx')} */
+/** ${TYPE_DOCS.strategyCtx[locale]}${tl('StrategyCtx')} */
 interface StrategyCtx {
 ${CTX_PROPS}
 ${ofIface('StrategyCtx')}
