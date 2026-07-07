@@ -83,3 +83,13 @@ className={
 - 自写视觉（布局、卡片、图表）走 §3 的具名 class + `@apply`；**antd 组件的样式由 antd 自己管**，
   不去深改其内部 class。需让 antd 控件撑满容器时给个 `width:100%` 的 class（如 `jx-lab-control`）。
 - antd 没有的（数据图表用 ECharts；锚在移动元素上的弹层用 `@floating-ui/react`，非 antd Popover）才手写。
+
+## 9. 多语言（i18n，中英双语）
+
+> 全量详设见根 `docs/design/i18n.md`；这里只列前端硬约定。
+
+- **UI 文案不硬编码中文**，一律走 **react-i18next**。组件里 `const { t } = useTranslation('<ns>')`；MobX store 等非组件里用 `import i18n from '@src/i18n'` 的 `i18n.t(...)`。
+- 资源在 `src/i18n/locales/<lng>/<namespace>.ts`，**一页一命名空间**（`common` 放共享 chrome）。**zh 文件是形状真相源**，en 用 `typeof zhX` 约束结构一致（漏 key 直接编译报错）。加命名空间要同时改两个 `locales/<lng>/index.ts`。
+- **切换语言只经 `localeStore`（`src/i18n/locale-store.ts`）**：它 `setLocale()` 持久化到 localStorage + `i18n.changeLanguage` + 更新 `document.lang`，并驱动 `main.tsx` 顶层 `ConfigProvider` 的 antd locale（zhCN/enUS）。默认中文，顶栏 `Segmented` 切换。
+- api client（`src/api/client.ts`）每请求带 `Accept-Language: localeStore.locale`——后端据此本地化报错、Agent 据此选回复语言。
+- key 命名语义分层小驼峰（`nav.backtest`、`error.saveFailed`），带变量用 `{{count}}` 插值。**别把 LLM prompt 文本抽进 i18n**（prompt 在后端且保持中文）。

@@ -1,6 +1,9 @@
 // Thin frontend API wrapper. The backend uses a uniform error shape { error: { code, message, details? } },
 // which we parse into an ApiError and throw; on success we return JSON.
 // Sessions rely on an httpOnly cookie (same-origin via vite proxy), fetch sends the cookie by default, the frontend stores no token.
+// Every request carries Accept-Language so the API localizes its user-facing messages and the agent replies in the user's language.
+
+import { localeStore } from '@src/i18n/locale-store';
 
 export interface AuthUser {
   id: string;
@@ -28,7 +31,11 @@ export class ApiError extends Error {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
     ...init,
-    headers: { 'content-type': 'application/json', ...(init?.headers ?? {}) },
+    headers: {
+      'content-type': 'application/json',
+      'accept-language': localeStore.locale,
+      ...(init?.headers ?? {}),
+    },
   });
   const text = await res.text();
   const body = text ? JSON.parse(text) : null;
@@ -90,7 +97,10 @@ export type AgentToolTraceItem = ToolTraceItem;
 // Subscribe to a turn's SSE stream. `signal` cancels the SUBSCRIPTION only (the turn keeps running
 // server-side); to stop the turn itself call cancelAgentTurn.
 export async function subscribeAgentTurn(turnId: string, signal?: AbortSignal): Promise<Response> {
-  const res = await fetch(`/api/app/agent/turns/${turnId}/stream`, { signal });
+  const res = await fetch(`/api/app/agent/turns/${turnId}/stream`, {
+    signal,
+    headers: { 'accept-language': localeStore.locale },
+  });
   if (!res.ok) {
     const body = (await res.json().catch((): null => null)) as {
       error?: { code?: string; message?: string; details?: unknown };
