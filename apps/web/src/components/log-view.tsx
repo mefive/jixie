@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import classNames from 'classnames';
+import { useTranslation } from 'react-i18next';
 import type { LogLine } from '@jixie/shared';
 import './log-view.css';
 
@@ -15,6 +16,7 @@ type LogViewProps = {
  * lines are colored. Auto-scrolls to the latest line as logs stream in.
  */
 export function LogView({ lines, emptyText, className }: LogViewProps) {
+  const { t } = useTranslation('components');
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = ref.current;
@@ -36,7 +38,9 @@ export function LogView({ lines, emptyText, className }: LogViewProps) {
               'jx-logView-line--error': line.level === 'error',
             })}
           >
-            <span className="jx-logView-tag">{line.source === 'user' ? '用户' : '系统'}</span>
+            <span className="jx-logView-tag">
+              {line.source === 'user' ? t('tagUser') : t('tagSystem')}
+            </span>
             <span className="jx-logView-text">{line.text}</span>
           </div>
         ))

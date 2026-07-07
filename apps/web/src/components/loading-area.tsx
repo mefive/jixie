@@ -1,5 +1,6 @@
 import { type ReactElement, type ReactNode, useEffect, useRef, useState } from 'react';
 import { Button } from 'antd';
+import { useTranslation } from 'react-i18next';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSpinner, faTriangleExclamation } from '@fortawesome/free-solid-svg-icons';
 import { reactUtils, type LoaderModel } from '@src/lib';
@@ -148,7 +149,8 @@ function DefaultLoadingView() {
 }
 
 function DefaultEmptyView() {
-  return <div className="jx-loadingArea jx-loadingArea--muted">暂无数据</div>;
+  const { t } = useTranslation('components');
+  return <div className="jx-loadingArea jx-loadingArea--muted">{t('noData')}</div>;
 }
 
 export function DefaultErrorView({
@@ -158,17 +160,18 @@ export function DefaultErrorView({
   errorObject: Error | null;
   onRetry: () => void;
 }) {
+  const { t } = useTranslation('components');
   return (
     <div className="jx-loadingArea jx-loadingArea--error">
       <div className="jx-loadingArea-errorHead">
         <FontAwesomeIcon icon={faTriangleExclamation} />
-        加载失败
+        {t('loadFailed')}
       </div>
       {errorObject?.message && (
         <div className="jx-loadingArea-errorDesc">{errorObject.message}</div>
       )}
       <Button size="small" onClick={onRetry}>
-        重试
+        {t('retry')}
       </Button>
     </div>
   );

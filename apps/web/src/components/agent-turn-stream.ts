@@ -6,6 +6,7 @@ import {
   readSSE,
   subscribeAgentTurn,
 } from '@src/api/client';
+import i18n from '@src/i18n';
 
 export interface AgentTurnDone {
   parts: MessagePart[];
@@ -69,7 +70,9 @@ export class AgentTurnStream {
     } catch (e) {
       // A deliberate detach (store cleanup / re-attach) aborts the fetch — not an error.
       if (!controller.signal.aborted) {
-        handlers.onError(e instanceof Error ? e.message : '流式连接失败');
+        handlers.onError(
+          e instanceof Error ? e.message : i18n.t('components:streamConnectionFailed'),
+        );
       }
     } finally {
       if (this.turnId === turnId) {
@@ -125,7 +128,7 @@ export class AgentTurnStream {
         return false;
       case 'tool_start':
         runInAction(() => {
-          this.statusNote = `正在查询 ${ev.name}…`;
+          this.statusNote = i18n.t('components:queryingTool', { name: ev.name });
         });
         return false;
       case 'tool_done':
@@ -136,7 +139,7 @@ export class AgentTurnStream {
         return false;
       case 'repair':
         runInAction(() => {
-          this.statusNote = `代码编译未通过,修复中(第 ${ev.round} 次)…`;
+          this.statusNote = i18n.t('components:repairingCode', { round: ev.round });
         });
         return false;
       case 'done':

@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type { BacktestSummary } from '@jixie/shared';
 import { getStrategy } from '@src/api/client';
 import './trade-page.css';
@@ -10,6 +11,7 @@ type Strategy = Awaited<ReturnType<typeof getStrategy>>;
 /** Standalone 交易详情 page (opened from the modal's 页面打开 button, `/trades?id=<strategyId>`). Loads
  * the strategy's last backtest result and renders the same K线 + trade list, full-window. */
 export default function TradePage() {
+  const { t } = useTranslation('lab');
   const [sp] = useSearchParams();
   const id = sp.get('id') ?? '';
   const [strategy, setStrategy] = useState<Strategy | null>(null);
@@ -17,12 +19,13 @@ export default function TradePage() {
 
   useEffect(() => {
     if (!id) {
-      setError('缺少策略 id');
+      setError(t('tpMissingId'));
       return;
     }
     getStrategy(id)
       .then(setStrategy)
-      .catch(() => setError('策略不存在或无权访问'));
+      .catch(() => setError(t('tpNotFound')));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const r = strategy?.lastResult as BacktestSummary | null | undefined;
@@ -30,22 +33,22 @@ export default function TradePage() {
     <div className="jx-tp">
       <main className="jx-tp-body">
         <div className="jx-tp-head">
-          <h1 className="jx-tp-title">交易详情</h1>
+          <h1 className="jx-tp-title">{t('tpTitle')}</h1>
           {strategy && (
             <span className="jx-tp-sub">
               {strategy.name}
-              {r ? ` · ${r.trades.toLocaleString()} 笔` : ''}
+              {r ? ` · ${t('tradesUnit', { count: r.trades.toLocaleString() })}` : ''}
             </span>
           )}
         </div>
         {error ? (
           <div className="jx-tp-empty jx-tp-empty--error">{error}</div>
         ) : !strategy ? (
-          <div className="jx-tp-empty">加载中……</div>
+          <div className="jx-tp-empty">{t('tpLoading')}</div>
         ) : !r?.tradeLog?.length ? (
-          <div className="jx-tp-empty">该策略暂无交易记录</div>
+          <div className="jx-tp-empty">{t('tpNoTrades')}</div>
         ) : (
-          <Suspense fallback={<div className="jx-tp-empty">加载图表……</div>}>
+          <Suspense fallback={<div className="jx-tp-empty">{t('tpLoadingChart')}</div>}>
             <TradeDetail tradeLog={r.tradeLog} start={r.start} end={r.end} nav={r.nav} />
           </Suspense>
         )}

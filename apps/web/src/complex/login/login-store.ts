@@ -2,6 +2,7 @@ import { action, computed, makeObservable, observable, runInAction } from 'mobx'
 import { BaseStore, LoaderModel } from '@src/lib';
 import { ApiError, requestEmailLogin, verifyEmailLogin, type AuthUser } from '@src/api/client';
 import { authStore } from '@src/store';
+import i18n from '@src/i18n';
 
 export type LoginStep = 'email' | 'invite' | 'verify';
 
@@ -137,7 +138,7 @@ export class LoginStore extends BaseStore<LoginSetupParams> {
 
   private setError(e: unknown) {
     runInAction(() => {
-      this.errorMessage = e instanceof Error ? e.message : '请求失败';
+      this.errorMessage = e instanceof Error ? e.message : i18n.t('login:requestFailed');
     });
   }
 }

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { faDatabase, faSpinner } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { reactUtils } from '@src/lib';
@@ -14,6 +15,7 @@ import './agent-pending.css';
  * chat log pinned to the bottom — but only when the user is already there (never fight a scroll-up).
  */
 export const AgentPending = reactUtils.observer(({ stream }: { stream: AgentTurnStream }) => {
+  const { t } = useTranslation('components');
   const boxRef = useRef<HTMLDivElement>(null);
   const fenceAt = stream.text.indexOf('```');
   const visibleText = fenceAt === -1 ? stream.text : stream.text.slice(0, fenceAt).trimEnd();
@@ -37,7 +39,7 @@ export const AgentPending = reactUtils.observer(({ stream }: { stream: AgentTurn
     <div ref={boxRef}>
       {stream.trace.length > 0 && (
         <div className="jx-agentPending-trace">
-          <FontAwesomeIcon icon={faDatabase} /> 已查库 {stream.trace.length} 次:
+          <FontAwesomeIcon icon={faDatabase} /> {t('queriedDbDone', { count: stream.trace.length })}
           {[...new Set(stream.trace.map((item) => item.name))].join('、')}
         </div>
       )}
@@ -48,9 +50,9 @@ export const AgentPending = reactUtils.observer(({ stream }: { stream: AgentTurn
       )}
       <div className="jx-agentPending-status">
         <FontAwesomeIcon icon={faSpinner} spin />{' '}
-        {stream.statusNote || (writingCode ? '正在写代码…' : visibleText ? '' : '思考中…')}
+        {stream.statusNote || (writingCode ? t('writingCode') : visibleText ? '' : t('thinking'))}
         <button className="jx-agentPending-stop" onClick={() => stream.cancel()}>
-          停止
+          {t('stop')}
         </button>
       </div>
     </div>

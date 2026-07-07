@@ -2,11 +2,14 @@ import { useEffect, useState } from 'react';
 import classNames from 'classnames';
 import { Table, Tooltip, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+import { useTranslation } from 'react-i18next';
 import type { ScreenField, ScreenRow, ScreenSpec } from '@jixie/shared';
 import { faFilter, faSpinner, faThumbtack } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { reactUtils } from '@src/lib';
 import { saveScreen } from '@src/api/client';
+import i18n from '@src/i18n';
+import { formatMarketCapWan } from '@src/i18n/format';
 import type { QueryCardResults } from './query-card-model';
 import './query-card.css';
 
@@ -23,6 +26,7 @@ interface QueryCardProps {
  * error instead of crashing the conversation.
  */
 export const QueryCard = reactUtils.observer(({ title, spec, results }: QueryCardProps) => {
+  const { t } = useTranslation('components');
   const [saving, setSaving] = useState(false);
   useEffect(() => {
     results.load(spec);
@@ -34,10 +38,10 @@ export const QueryCard = reactUtils.observer(({ title, spec, results }: QueryCar
   const pin = async () => {
     setSaving(true);
     try {
-      await saveScreen(title.slice(0, 40) || '未命名筛选', spec);
-      void message.success('已钉到卡片墙(选股页)');
+      await saveScreen(title.slice(0, 40) || t('unnamedScreen'), spec);
+      void message.success(t('pinnedToWall'));
     } catch (e) {
-      void message.error(e instanceof Error ? e.message : '保存失败');
+      void message.error(e instanceof Error ? e.message : t('saveFailed'));
     } finally {
       setSaving(false);
     }
@@ -50,9 +54,11 @@ export const QueryCard = reactUtils.observer(({ title, spec, results }: QueryCar
           <FontAwesomeIcon icon={faFilter} /> {title}
         </span>
         <span className="jx-queryCard-meta">
-          {state?.result ? `${state.result.tradeDate} · 共 ${state.result.total} 只` : ''}
+          {state?.result
+            ? `${state.result.tradeDate} · ${t('stockCount', { count: state.result.total })}`
+            : ''}
         </span>
-        <Tooltip title="钉到卡片墙(保存这条筛选,选股页可反复重跑)">
+        <Tooltip title={t('pinTooltip')}>
           <button className="jx-queryCard-pin" onClick={() => void pin()} disabled={saving}>
             <FontAwesomeIcon icon={saving ? faSpinner : faThumbtack} spin={saving} />
           </button>
@@ -69,7 +75,8 @@ export const QueryCard = reactUtils.observer(({ title, spec, results }: QueryCar
       )}
       {state?.error && (
         <div className="jx-queryCard-status jx-queryCard-status--error">
-          查询失败(条件可能已过期):{state.error}
+          {t('queryFailedMaybeExpired')}
+          {state.error}
         </div>
       )}
       {state?.result && (
@@ -84,7 +91,7 @@ export const QueryCard = reactUtils.observer(({ title, spec, results }: QueryCar
         />
       )}
       {state?.result && state.result.rows.length > CARD_ROW_CAP && (
-        <div className="jx-queryCard-more">前 {CARD_ROW_CAP} 条,钉住后到选股页看全部</div>
+        <div className="jx-queryCard-more">{t('moreRows', { count: CARD_ROW_CAP })}</div>
       )}
     </div>
   );
@@ -94,18 +101,22 @@ export const QueryCard = reactUtils.observer(({ title, spec, results }: QueryCar
 
 const CARD_ROW_CAP = 8;
 
-const FIELD_LABELS: Record<ScreenField, string> = {
-  close: '现价',
-  pctChg: '涨跌',
-  pe: 'PE',
-  peTtm: 'PE(TTM)',
-  pb: 'PB',
-  ps: 'PS',
-  dvRatio: '股息率',
-  totalMv: '总市值',
-  circMv: '流通市值',
-  turnoverRate: '换手率',
-};
+// Column labels, read at render time so a language switch re-labels the table. PE/PB/PS stay literal.
+function fieldLabel(field: ScreenField): string {
+  const labels: Record<ScreenField, string> = {
+    close: i18n.t('components:field.close'),
+    pctChg: i18n.t('components:field.pctChg'),
+    pe: 'PE',
+    peTtm: 'PE(TTM)',
+    pb: 'PB',
+    ps: 'PS',
+    dvRatio: i18n.t('components:field.dvRatio'),
+    totalMv: i18n.t('components:field.totalMv'),
+    circMv: i18n.t('components:field.circMv'),
+    turnoverRate: i18n.t('components:field.turnoverRate'),
+  };
+  return labels[field];
+}
 
 const PERCENT_FIELDS = new Set<ScreenField>(['pctChg', 'dvRatio', 'turnoverRate']);
 const MARKET_VALUE_FIELDS = new Set<ScreenField>(['totalMv', 'circMv']);
@@ -118,7 +129,7 @@ function formatField(field: ScreenField, value: number | null): string {
     return `${value.toFixed(2)}%`;
   }
   if (MARKET_VALUE_FIELDS.has(field)) {
-    return `${(value / 10000).toFixed(0)}亿`; // stored in 万元
+    return formatMarketCapWan(value); // value arrives in 10k CNY
   }
   return value.toFixed(2);
 }
@@ -134,7 +145,7 @@ function cardColumns(spec: ScreenSpec): ColumnsType<ScreenRow> {
   const shown = (fields.length ? fields : ['close', 'pctChg']).slice(0, 3) as ScreenField[];
   return [
     {
-      title: '名称',
+      title: i18n.t('components:nameColumn'),
       dataIndex: 'name',
       render: (_v, row) => (
         <div className="jx-queryCard-name">
@@ -144,7 +155,7 @@ function cardColumns(spec: ScreenSpec): ColumnsType<ScreenRow> {
       ),
     },
     ...shown.map((field) => ({
-      title: FIELD_LABELS[field],
+      title: fieldLabel(field),
       dataIndex: field,
       align: 'right' as const,
       render: (value: number | null) =>

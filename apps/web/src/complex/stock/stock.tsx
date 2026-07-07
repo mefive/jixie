@@ -1,5 +1,6 @@
 import { lazy, Suspense, useState } from 'react';
 import { Segmented } from 'antd';
+import { useTranslation } from 'react-i18next';
 import { complex } from './complex';
 import type { Adjust } from './stock-chart';
 import './stock.css';
@@ -8,6 +9,7 @@ const StockChart = lazy(() => import('./stock-chart'));
 
 export const Stock = complex.component(() => {
   const store = complex.useStore();
+  const { t } = useTranslation('stock');
   const series = store.seriesLoader.result;
   const loading = store.seriesLoader.loading;
   const [scale, setScale] = useState<'linear' | 'log'>('linear'); // 价格 Y 轴线性/对数 (纯 UI 态)
@@ -25,9 +27,9 @@ export const Stock = complex.component(() => {
             value={adjust}
             onChange={(v) => setAdjust(v as Adjust)}
             options={[
-              { label: '前复权', value: 'qfq' },
-              { label: '后复权', value: 'hfq' },
-              { label: '不复权', value: 'none' },
+              { label: t('adjust.qfq'), value: 'qfq' },
+              { label: t('adjust.hfq'), value: 'hfq' },
+              { label: t('adjust.none'), value: 'none' },
             ]}
           />
           <Segmented
@@ -36,15 +38,15 @@ export const Stock = complex.component(() => {
             value={scale}
             onChange={(v) => setScale(v as 'linear' | 'log')}
             options={[
-              { label: '线性', value: 'linear' },
-              { label: '对数', value: 'log' },
+              { label: t('scale.linear'), value: 'linear' },
+              { label: t('scale.log'), value: 'log' },
             ]}
           />
         </div>
 
         {store.seriesLoader.error ? (
           <div className="jx-stock-placeholder jx-stock-placeholder--error">
-            行情加载失败：{store.seriesLoader.errorObject?.message}
+            {t('loadFailed', { message: store.seriesLoader.errorObject?.message })}
           </div>
         ) : loading || !series ? (
           <ChartSkeleton />
@@ -68,8 +70,9 @@ export const Stock = complex.component(() => {
 // Candlestick-shaped loading skeleton for the chart area — shimmering bars of a fixed height pattern.
 // (A chart skeleton is the §5 chart exception to "no hand-drawn shapes"; antd Skeleton has no chart form.)
 function ChartSkeleton() {
+  const { t } = useTranslation('stock');
   return (
-    <div className="jx-stock-chart jx-stock-skeleton" aria-label="加载行情…">
+    <div className="jx-stock-chart jx-stock-skeleton" aria-label={t('loadingLabel')}>
       {SKELETON_BARS.map((h, i) => (
         <span key={i} className="jx-stock-skeletonBar" style={{ height: `${h}%` }} />
       ))}

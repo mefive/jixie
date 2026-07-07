@@ -9,6 +9,7 @@ import {
   type FactorFreq,
   type LogLine,
 } from '@jixie/shared';
+import i18n from '@src/i18n';
 import { BaseStore, LoaderModel, PollingModel } from '@src/lib';
 import { QueryCardResults } from '@src/components/query-card-model';
 import { AgentTurnStream, type AgentTurnHandlers } from '@src/components/agent-turn-stream';
@@ -281,7 +282,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       runInAction(() => {
         this.chatMessages = [
           ...this.chatMessages,
-          textMessage('assistant', '出错了:因子保存失败,无法开始对话'),
+          textMessage(
+            'assistant',
+            i18n.t('factor:errorPrefix', { message: i18n.t('factor:saveFailed') }),
+          ),
         ];
         this.sending = false;
       });
@@ -294,7 +298,12 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       runInAction(() => {
         this.chatMessages = [
           ...this.chatMessages,
-          textMessage('assistant', `出错了:${e instanceof Error ? e.message : '请求失败'}`),
+          textMessage(
+            'assistant',
+            i18n.t('factor:errorPrefix', {
+              message: e instanceof Error ? e.message : i18n.t('factor:requestFailed'),
+            }),
+          ),
         ];
       });
     } finally {
@@ -319,12 +328,18 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       },
       onError: (message) => {
         runInAction(() => {
-          this.chatMessages = [...this.chatMessages, textMessage('assistant', `出错了:${message}`)];
+          this.chatMessages = [
+            ...this.chatMessages,
+            textMessage('assistant', i18n.t('factor:errorPrefix', { message })),
+          ];
         });
       },
       onCancelled: () => {
         runInAction(() => {
-          this.chatMessages = [...this.chatMessages, textMessage('assistant', '(已停止本轮回复)')];
+          this.chatMessages = [
+            ...this.chatMessages,
+            textMessage('assistant', i18n.t('factor:turnStopped')),
+          ];
         });
       },
     };
@@ -355,7 +370,12 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       runInAction(() => {
         this.chatMessages = [
           ...this.chatMessages,
-          textMessage('assistant', `出错了:${e instanceof Error ? e.message : '请求失败'}`),
+          textMessage(
+            'assistant',
+            i18n.t('factor:errorPrefix', {
+              message: e instanceof Error ? e.message : i18n.t('factor:requestFailed'),
+            }),
+          ),
         ];
       });
     } finally {
@@ -369,7 +389,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     if (this.selectedKey) {
       return;
     }
-    let name = '未命名因子';
+    let name = i18n.t('factor:unnamedFactor');
     try {
       const suggested = await generateFactorName(
         namePrompt ? { prompt: namePrompt } : { code: this.code },
@@ -521,7 +541,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         return false;
       }
       if (job.status === 'error' || job.status === 'stale') {
-        const msg = job.status === 'stale' ? '分析中断(服务重启),请重试' : job.error || '分析失败';
+        const msg =
+          job.status === 'stale'
+            ? i18n.t('factor:analysisInterrupted')
+            : job.error || i18n.t('factor:analysisFailed');
         await this.analysisLoader.run(Promise.reject(new Error(msg))).catch(() => {});
         this.finishJob();
         return false;

@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
+import { formatMarketCapWan } from '@src/i18n/format';
 import classNames from 'classnames';
 import { Button, Input, Popconfirm, Segmented, Table } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
@@ -47,6 +50,7 @@ export const Screen = complex.component(() => {
 // The wall: filter + 新对话 + example chips, then both card kinds mixed, newest first.
 const Wall = complex.component(() => {
   const store = complex.useStore();
+  const { t } = useTranslation('screen');
   const [kind, setKind] = useState<'all' | 'query' | 'chat'>('all');
   const queries = store.savedLoader.result ?? [];
   const conversations = store.conversationsLoader.result ?? [];
@@ -56,25 +60,25 @@ const Wall = complex.component(() => {
   return (
     <main className="jx-screen">
       <div className="jx-screen-wallBar">
-        <h1 className="jx-screen-wallTitle">选股</h1>
+        <h1 className="jx-screen-wallTitle">{t('title')}</h1>
         <Segmented
           value={kind}
           onChange={(v) => setKind(v as typeof kind)}
           options={[
-            { label: '全部', value: 'all' },
-            { label: '查询', value: 'query' },
-            { label: '会话', value: 'chat' },
+            { label: t('filter.all'), value: 'all' },
+            { label: t('filter.query'), value: 'query' },
+            { label: t('filter.chat'), value: 'chat' },
           ]}
         />
         <span className="jx-screen-wallSpacer" />
-        <span className="jx-screen-examplesLabel">试试:</span>
+        <span className="jx-screen-examplesLabel">{t('examplesLabel')}</span>
         {EXAMPLE_SCREENS.map((example) => (
           <LoaderButton
-            key={example.label}
+            key={example.labelKey}
             size="small"
             action={() => store.openSpec(example.spec)}
           >
-            {example.label}
+            {t(`example.${example.labelKey}`)}
           </LoaderButton>
         ))}
         <Button
@@ -82,7 +86,7 @@ const Wall = complex.component(() => {
           icon={<FontAwesomeIcon icon={faPlus} />}
           onClick={() => store.newChat()}
         >
-          新对话
+          {t('newChat')}
         </Button>
       </div>
 
@@ -95,10 +99,7 @@ const Wall = complex.component(() => {
         </div>
       )}
       {!loading && cards.length === 0 && (
-        <div className="jx-screen-wallEmpty">
-          墙上还没有卡片。点「新对话」跟 Agent
-          描述你想要的股票,把筛出来的查询钉到这里;或先点上面的示例看看。
-        </div>
+        <div className="jx-screen-wallEmpty">{t('wallEmpty')}</div>
       )}
 
       <div className="jx-screen-wall">
@@ -117,6 +118,7 @@ const Wall = complex.component(() => {
 // A query card on the wall: a saved, re-runnable ScreenSpec.
 const WallQueryCard = complex.component(({ meta }: { meta: SavedMeta }) => {
   const store = complex.useStore();
+  const { t } = useTranslation('screen');
   return (
     <div
       className="jx-screen-card jx-screen-card--query"
@@ -124,10 +126,10 @@ const WallQueryCard = complex.component(({ meta }: { meta: SavedMeta }) => {
     >
       <div className="jx-screen-cardHead">
         <span className="jx-screen-cardKind">
-          <FontAwesomeIcon icon={faFilter} /> 查询
+          <FontAwesomeIcon icon={faFilter} /> {t('card.query')}
         </span>
         <Popconfirm
-          title="删除这条筛选?"
+          title={t('card.deleteQuery')}
           onConfirm={() => store.removeSaved(meta.id)}
           onPopupClick={(e) => e.stopPropagation()}
         >
@@ -137,7 +139,9 @@ const WallQueryCard = complex.component(({ meta }: { meta: SavedMeta }) => {
         </Popconfirm>
       </div>
       <div className="jx-screen-cardTitle">{meta.name}</div>
-      <div className="jx-screen-cardMeta">更新于 {formatDay(meta.updatedAt)} · 点开重跑</div>
+      <div className="jx-screen-cardMeta">
+        {t('card.updatedRerun', { day: formatDay(meta.updatedAt) })}
+      </div>
     </div>
   );
 }, 'WallQueryCard');
@@ -145,6 +149,7 @@ const WallQueryCard = complex.component(({ meta }: { meta: SavedMeta }) => {
 // A session card on the wall: an agent conversation to continue.
 const WallSessionCard = complex.component(({ meta }: { meta: ScreenConversationMeta }) => {
   const store = complex.useStore();
+  const { t } = useTranslation('screen');
   return (
     <div
       className="jx-screen-card jx-screen-card--chat"
@@ -152,10 +157,10 @@ const WallSessionCard = complex.component(({ meta }: { meta: ScreenConversationM
     >
       <div className="jx-screen-cardHead">
         <span className="jx-screen-cardKind jx-screen-cardKind--chat">
-          <FontAwesomeIcon icon={faComments} /> 会话
+          <FontAwesomeIcon icon={faComments} /> {t('card.chat')}
         </span>
         <Popconfirm
-          title="删除这个会话?已钉住的查询卡片不受影响。"
+          title={t('card.deleteChat')}
           onConfirm={() => store.removeConversation(meta.id)}
           onPopupClick={(e) => e.stopPropagation()}
         >
@@ -167,8 +172,8 @@ const WallSessionCard = complex.component(({ meta }: { meta: ScreenConversationM
       <div className="jx-screen-cardTitle">{meta.title}</div>
       {meta.preview && <div className="jx-screen-cardPreview">{meta.preview}</div>}
       <div className="jx-screen-cardMeta">
-        {meta.cardCount > 0 ? `${meta.cardCount} 张卡片 · ` : ''}
-        {formatDay(meta.updatedAt)} · 点开继续聊
+        {meta.cardCount > 0 ? t('card.cardCount', { num: meta.cardCount }) : ''}
+        {formatDay(meta.updatedAt)} · {t('card.continueChat')}
       </div>
     </div>
   );
@@ -177,26 +182,27 @@ const WallSessionCard = complex.component(({ meta }: { meta: ScreenConversationM
 // Query view: an opened (or example) spec — editable chips + fresh result table + save-to-wall.
 const QueryView = complex.component(() => {
   const store = complex.useStore();
+  const { t } = useTranslation('screen');
   const [name, setName] = useState(store.queryName);
   const result = store.result;
   return (
     <main className="jx-screen jx-screen-body">
       <div className="jx-screen-viewBar">
         <Button icon={<FontAwesomeIcon icon={faArrowLeft} />} onClick={() => store.showWall()}>
-          卡片墙
+          {t('wall')}
         </Button>
         <Input
           className="jx-screen-nameInput"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="给这条筛选起个名"
+          placeholder={t('namePlaceholder')}
         />
         <LoaderButton
           type="primary"
           disabled={!name.trim() || !store.spec}
           action={() => store.saveCurrent(name.trim())}
         >
-          钉到墙上
+          {t('pinToWall')}
         </LoaderButton>
       </div>
 
@@ -204,7 +210,11 @@ const QueryView = complex.component(() => {
 
       {result && (
         <div className="jx-screen-summary">
-          快照 {result.tradeDate} · 命中 {result.total} 只（展示前 {result.rows.length}）
+          {t('summary', {
+            tradeDate: result.tradeDate,
+            total: result.total,
+            shown: result.rows.length,
+          })}
         </div>
       )}
 
@@ -214,7 +224,7 @@ const QueryView = complex.component(() => {
         size="middle"
         loading={store.busy}
         dataSource={result?.rows ?? []}
-        columns={COLUMNS}
+        columns={columns(t)}
         pagination={false}
         scroll={{ y: 'calc(100vh - 320px)' }}
         // Open the stock's K线/PE/量 in a new tab — keeps the screen list intact.
@@ -227,6 +237,7 @@ const QueryView = complex.component(() => {
 // Chat view: continue (or start) a screening conversation with the agent.
 const ChatView = complex.component(() => {
   const store = complex.useStore();
+  const { t } = useTranslation('screen');
   const [editingTitle, setEditingTitle] = useState(false);
   const [draftTitle, setDraftTitle] = useState('');
   const commitTitle = () => {
@@ -237,7 +248,7 @@ const ChatView = complex.component(() => {
     <main className="jx-screen jx-screen-chat">
       <div className="jx-screen-viewBar">
         <Button icon={<FontAwesomeIcon icon={faArrowLeft} />} onClick={() => store.showWall()}>
-          卡片墙
+          {t('wall')}
         </Button>
         {editingTitle ? (
           <Input
@@ -250,7 +261,7 @@ const ChatView = complex.component(() => {
           />
         ) : (
           <span className="jx-screen-chatTitle">
-            {store.conversationTitle || '新对话'}
+            {store.conversationTitle || t('chatTitleFallback')}
             {store.conversationId && (
               <button
                 className="jx-screen-titleEdit"
@@ -270,20 +281,22 @@ const ChatView = complex.component(() => {
         // A brand-new conversation: centered hero input (ChatGPT-style) instead of an empty log
         // over a bottom bar. The first message flips to the log + bottom-composer layout.
         <div className="jx-screen-chatHero">
-          <h1 className="jx-screen-chatHeroTitle">想找什么股票?</h1>
-          <p className="jx-screen-chatHeroHint">
-            描述选股条件筛出结果,或直接点名找股;满意的筛选可以钉到卡片墙反复用
-          </p>
+          <h1 className="jx-screen-chatHeroTitle">{t('heroTitle')}</h1>
+          <p className="jx-screen-chatHeroHint">{t('heroHint')}</p>
           <Composer hero />
           <div className="jx-screen-chatHeroExamples">
-            <span className="jx-screen-examplesLabel">试试:</span>
-            {EXAMPLE_CHAT_PROMPTS.map((prompt) => (
-              <Button key={prompt} size="small" onClick={() => void store.sendAgent(prompt)}>
-                {prompt}
+            <span className="jx-screen-examplesLabel">{t('examplesLabel')}</span>
+            {EXAMPLE_CHAT_PROMPTS.map((promptKey) => (
+              <Button
+                key={promptKey}
+                size="small"
+                onClick={() => void store.sendAgent(t(`chatExample.${promptKey}`))}
+              >
+                {t(`chatExample.${promptKey}`)}
               </Button>
             ))}
           </div>
-          <div className="jx-screen-chatHeroKbd">回车发送 · Shift+Space 换行</div>
+          <div className="jx-screen-chatHeroKbd">{t('heroKbd')}</div>
         </div>
       ) : (
         <>
@@ -303,6 +316,7 @@ const ChatView = complex.component(() => {
 // The chat input row — bottom bar normally, widened + shadowed in the new-conversation hero.
 const Composer = complex.component(({ hero }: { hero?: boolean }) => {
   const store = complex.useStore();
+  const { t } = useTranslation('screen');
   return (
     <div
       className={classNames('jx-screen-chatComposer', {
@@ -313,7 +327,7 @@ const Composer = complex.component(({ hero }: { hero?: boolean }) => {
         value={store.nlText}
         onChange={(v) => store.setNlText(v)}
         onSubmit={() => void store.sendAgent(store.nlText)}
-        placeholder="描述你想要的股票,如「市盈率低于15、股息率大于3%的大盘股」;或直接问「茅台现在多少倍PE」"
+        placeholder={t('composerPlaceholder')}
         autoFocus
       />
       <Button
@@ -455,43 +469,47 @@ function traceOf(message: ChatMessage): AgentToolTraceItem[] | undefined {
   return trace?.length ? trace : undefined;
 }
 
-// Starter prompts for the new-conversation hero — clicking one sends it straight to the agent.
-const EXAMPLE_CHAT_PROMPTS = [
-  '市盈率低于15、股息率大于3%的大盘股',
-  '换手率最高的 20 只',
-  '茅台现在多少倍 PE?',
-];
+// Starter prompts for the new-conversation hero — clicking one sends the localized text to the agent.
+const EXAMPLE_CHAT_PROMPTS = ['lowPeHighDividend', 'topTurnover', 'maotaiPe'];
 
 const pct = (v: number | null) => (v == null ? '—' : `${v.toFixed(2)}%`);
 const num = (v: number | null, d = 2) => (v == null ? '—' : v.toFixed(d));
-const yi = (wan: number | null) => (wan == null ? '—' : `${(wan / 1e4).toFixed(1)}亿`); // 万元 → 亿
 
-const COLUMNS: ColumnsType<ScreenRow> = [
-  {
-    title: '名称',
-    dataIndex: 'name',
-    fixed: 'left',
-    render: (_v, r) => (
-      <div className="jx-screen-name">
-        <span className="jx-screen-nameMain">{r.name}</span>
-        <span className="jx-screen-nameCode">{r.tsCode}</span>
-      </div>
-    ),
-  },
-  { title: '现价', dataIndex: 'close', align: 'right', render: (v) => num(v) },
-  {
-    title: '涨跌',
-    dataIndex: 'pctChg',
-    align: 'right',
-    render: (v: number | null) => (
-      <span className={classNames({ 'text-up': (v ?? 0) > 0, 'text-down': (v ?? 0) < 0 })}>
-        {pct(v)}
-      </span>
-    ),
-  },
-  { title: 'PE(TTM)', dataIndex: 'peTtm', align: 'right', render: (v) => num(v) },
-  { title: 'PB', dataIndex: 'pb', align: 'right', render: (v) => num(v) },
-  { title: '股息率', dataIndex: 'dvRatio', align: 'right', render: (v) => pct(v) },
-  { title: '总市值', dataIndex: 'totalMv', align: 'right', render: (v) => yi(v) },
-  { title: '换手率', dataIndex: 'turnoverRate', align: 'right', render: (v) => pct(v) },
-];
+// Result table columns — a function of the translator so headers/units follow the active locale.
+function columns(t: TFunction<'screen'>): ColumnsType<ScreenRow> {
+  const yi = (wan: number | null) => formatMarketCapWan(wan); // 10k CNY → 亿 (zh) / B (en)
+  return [
+    {
+      title: t('column.name'),
+      dataIndex: 'name',
+      fixed: 'left',
+      render: (_v, r) => (
+        <div className="jx-screen-name">
+          <span className="jx-screen-nameMain">{r.name}</span>
+          <span className="jx-screen-nameCode">{r.tsCode}</span>
+        </div>
+      ),
+    },
+    { title: t('column.close'), dataIndex: 'close', align: 'right', render: (v) => num(v) },
+    {
+      title: t('column.pctChg'),
+      dataIndex: 'pctChg',
+      align: 'right',
+      render: (v: number | null) => (
+        <span className={classNames({ 'text-up': (v ?? 0) > 0, 'text-down': (v ?? 0) < 0 })}>
+          {pct(v)}
+        </span>
+      ),
+    },
+    { title: 'PE(TTM)', dataIndex: 'peTtm', align: 'right', render: (v) => num(v) },
+    { title: 'PB', dataIndex: 'pb', align: 'right', render: (v) => num(v) },
+    { title: t('column.dvRatio'), dataIndex: 'dvRatio', align: 'right', render: (v) => pct(v) },
+    { title: t('column.totalMv'), dataIndex: 'totalMv', align: 'right', render: (v) => yi(v) },
+    {
+      title: t('column.turnoverRate'),
+      dataIndex: 'turnoverRate',
+      align: 'right',
+      render: (v) => pct(v),
+    },
+  ];
+}

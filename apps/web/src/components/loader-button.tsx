@@ -1,6 +1,7 @@
 import { App, Button, type ButtonProps } from 'antd';
 import { useRef, useState } from 'react';
 import { reactUtils, type LoaderModel } from '@src/lib';
+import i18n from '@src/i18n';
 
 // Async-action button: a thin antd Button wrapper that only adds behavior, never styling.
 //   - with `action`: clicking runs it (e.g. a store method that wraps loader.run)
@@ -87,10 +88,10 @@ type ModalApi = ReturnType<typeof App.useApp>['modal'];
 function confirmModal(modal: ModalApi, content: string): Promise<boolean> {
   return new Promise((resolve) => {
     modal.confirm({
-      title: '确认',
+      title: i18n.t('components:confirmTitle'),
       content,
-      okText: '确认',
-      cancelText: '取消',
+      okText: i18n.t('components:confirmOk'),
+      cancelText: i18n.t('components:cancel'),
       onOk: () => resolve(true),
       onCancel: () => resolve(false),
     });

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { ChartSpec, SqlRows } from '@jixie/shared';
 import { faChartLine } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -18,6 +19,7 @@ interface ChatChartProps {
  * must not reflow when data lands. Lazy-loaded (echarts chunk); default export for React.lazy.
  */
 export default function ChatChart({ title, chart }: ChatChartProps) {
+  const { t } = useTranslation('components');
   const [state, setState] = useState<{
     loading: boolean;
     error: string | null;
@@ -33,7 +35,7 @@ export default function ChatChart({ title, chart }: ChatChartProps) {
           alive &&
           setState({
             loading: false,
-            error: e instanceof Error ? e.message : '查询失败',
+            error: e instanceof Error ? e.message : t('queryFailed'),
             rows: [],
           }),
       );
@@ -49,11 +51,16 @@ export default function ChatChart({ title, chart }: ChatChartProps) {
       <div className="jx-chatChart-head">
         <FontAwesomeIcon icon={faChartLine} />
         <span className="jx-chatChart-title">{title}</span>
-        {state.rows.length > 0 && <span className="jx-chatChart-meta">{state.rows.length} 点</span>}
+        {state.rows.length > 0 && (
+          <span className="jx-chatChart-meta">{t('points', { count: state.rows.length })}</span>
+        )}
       </div>
       {state.loading && <div className="jx-chatChart-skeleton" />}
       {state.error && (
-        <div className="jx-chatChart-status">图表查询失败(条件可能已过期):{state.error}</div>
+        <div className="jx-chatChart-status">
+          {t('chartQueryFailed')}
+          {state.error}
+        </div>
       )}
       {!state.loading && !state.error && (
         <EChart option={buildOption(chart, state.rows)} className="jx-chatChart-body" />

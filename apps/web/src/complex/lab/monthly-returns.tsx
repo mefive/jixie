@@ -1,8 +1,10 @@
 import classNames from 'classnames';
+import { useTranslation } from 'react-i18next';
 import './monthly-returns.css';
 
 /** 月度收益表 — year × month heatmap (A 股 红涨绿跌), with a compounded 全年 column. */
 export function MonthlyReturns({ monthly }: { monthly: { month: string; ret: number }[] }) {
+  const { t } = useTranslation('lab');
   if (!monthly?.length) {
     return null;
   }
@@ -27,16 +29,16 @@ export function MonthlyReturns({ monthly }: { monthly: { month: string; ret: num
 
   return (
     <div className="jx-mret">
-      <div className="jx-mret-title">月度收益</div>
+      <div className="jx-mret-title">{t('monthlyTitle')}</div>
       <div className="jx-mret-scroll">
         <table className="jx-mret-table">
           <thead>
             <tr>
               <th className="jx-mret-corner" />
               {MONTHS.map((m) => (
-                <th key={m}>{m}月</th>
+                <th key={m}>{t('monthLabel', { month: m })}</th>
               ))}
-              <th className="jx-mret-totalHead">全年</th>
+              <th className="jx-mret-totalHead">{t('yearTotal')}</th>
             </tr>
           </thead>
           <tbody>

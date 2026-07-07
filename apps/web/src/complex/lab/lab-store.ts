@@ -9,6 +9,7 @@ import {
   type StrategyCard,
 } from '@jixie/shared';
 import { BaseStore, LoaderModel, PollingModel } from '@src/lib';
+import i18n from '@src/i18n';
 import { QueryCardResults } from '@src/components/query-card-model';
 import { AgentTurnStream, type AgentTurnHandlers } from '@src/components/agent-turn-stream';
 import {
@@ -177,7 +178,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
       runInAction(() => {
         this.chatMessages = [
           ...this.chatMessages,
-          textMessage('assistant', '出错了:策略保存失败,无法开始对话'),
+          textMessage('assistant', i18n.t('lab:storeChatStartFailed')),
         ];
         this.sending = false;
       });
@@ -190,7 +191,12 @@ export class LabStore extends BaseStore<LabSetupParams> {
       runInAction(() => {
         this.chatMessages = [
           ...this.chatMessages,
-          textMessage('assistant', `出错了:${e instanceof Error ? e.message : '请求失败'}`),
+          textMessage(
+            'assistant',
+            i18n.t('lab:storeError', {
+              message: e instanceof Error ? e.message : i18n.t('lab:storeRequestFailed'),
+            }),
+          ),
         ];
       });
     } finally {
@@ -217,12 +223,18 @@ export class LabStore extends BaseStore<LabSetupParams> {
       },
       onError: (message) => {
         runInAction(() => {
-          this.chatMessages = [...this.chatMessages, textMessage('assistant', `出错了:${message}`)];
+          this.chatMessages = [
+            ...this.chatMessages,
+            textMessage('assistant', i18n.t('lab:storeError', { message })),
+          ];
         });
       },
       onCancelled: () => {
         runInAction(() => {
-          this.chatMessages = [...this.chatMessages, textMessage('assistant', '(已停止本轮回复)')];
+          this.chatMessages = [
+            ...this.chatMessages,
+            textMessage('assistant', i18n.t('lab:storeTurnStopped')),
+          ];
         });
       },
     };
@@ -291,7 +303,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
   public async run() {
     await this.ensureStrategy(); // create the row if this is a hand-written strategy that never talked to the agent
     if (!this.savedId) {
-      runInAction(() => (this.error = '策略保存失败,无法回测'));
+      runInAction(() => (this.error = i18n.t('lab:storeSaveFailedNoBacktest')));
       return;
     }
     // Commit the config (code/range/capital) by id — the new "last run" baseline. Renames don't ride
@@ -301,7 +313,9 @@ export class LabStore extends BaseStore<LabSetupParams> {
       this.markSaved();
       void this.savedLoader.run();
     } catch (e) {
-      runInAction(() => (this.error = e instanceof Error ? e.message : '策略保存失败'));
+      runInAction(
+        () => (this.error = e instanceof Error ? e.message : i18n.t('lab:storeSaveFailed')),
+      );
       return;
     }
     // Backend confirmed the new config → clear the now-stale result + logs; the run fills them back in.
@@ -314,7 +328,9 @@ export class LabStore extends BaseStore<LabSetupParams> {
     try {
       ({ jobId } = await submitBacktest(this.config, this.savedId));
     } catch (e) {
-      runInAction(() => (this.error = e instanceof Error ? e.message : '回测提交失败'));
+      runInAction(
+        () => (this.error = e instanceof Error ? e.message : i18n.t('lab:storeSubmitFailed')),
+      );
       return;
     }
     this.startPolling(jobId);
@@ -464,7 +480,9 @@ export class LabStore extends BaseStore<LabSetupParams> {
       if (job.status === 'error' || job.status === 'stale') {
         runInAction(() => {
           this.error =
-            job.status === 'stale' ? '回测中断(服务重启),请重试' : job.error || '回测失败';
+            job.status === 'stale'
+              ? i18n.t('lab:storeBacktestInterrupted')
+              : job.error || i18n.t('lab:storeBacktestFailed');
         });
         return false;
       }
