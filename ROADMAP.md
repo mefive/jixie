@@ -125,7 +125,7 @@ stk_limit / moneyflow / toplist 只覆盖 2020-2024;跑更早回测前:`pnpm syn
 
 ### 4.2 数据扩展 💤(需求拉动,别囤)
 
-候选:北向资金、融资融券、概念板块;`FactorBar` 补 roe(fina_indicator 已在库)。**规则:有策略/因子想用了再加**。**2026-07-07 盘点完成**:缺口清单 + 波次计划见 `docs/design/data-expansion.md`(波次一 = fina_indicator 扩列全量重同步,满足 agent 基本面查询大半)。
+候选:北向资金、融资融券、概念板块;`FactorBar` 补 roe(fina_indicator 已在库)。**规则:有策略/因子想用了再加**。**2026-07-07 盘点完成**:缺口清单 + 波次计划见 `docs/design/data-expansion.md`。**波次一当日完成**:fina_indicator 扩 7 列(毛利率/净利率/负债率/ROA/营收与净利同比/经营现金流比,迁移 20260707200000 按 migrate-lock 先例手动应用),sync 支持 `refresh` 断点续传回填(~77 分钟已启动),SQL 白名单文档同步;顺手 `sync:index` 补齐中证1000/500 全历史日线+成分(指数对比问答解锁)。
 
 ### 4.3 研究面板 B/C ⬜(DX 打磨,已有规划)
 

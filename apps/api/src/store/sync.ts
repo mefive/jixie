@@ -344,19 +344,29 @@ async function getAllStockCodes(): Promise<string[]> {
 }
 
 /**
- * Sync financial indicators (ROE) per stock. One call returns a stock's full period history (with
+ * Sync financial indicators per stock. One call returns a stock's full period history (with
  * duplicate periods from restatements); we keep the latest annDate per (tsCode, endDate). Resumable:
  * skips stocks already synced. Financial APIs are rate-limited (~80/min), so run with a ≥800ms interval.
+ * `refresh` re-pulls stocks synced before the 2026-07 column expansion (their new columns are all
+ * NULL) — "already backfilled" is detected via a non-null debtToAssets on any period, which is a
+ * near-universal field, so an interrupted refresh resumes instead of restarting.
  */
-export async function syncFinaIndicator(client: TushareClient, codes?: string[]): Promise<void> {
+export async function syncFinaIndicator(
+  client: TushareClient,
+  codes?: string[],
+  opts: { refresh?: boolean } = {},
+): Promise<void> {
   const all = codes ?? (await getAllStockCodes());
   const existing = await prisma.finaIndicator.findMany({
+    ...(opts.refresh ? { where: { debtToAssets: { not: null } } } : {}),
     distinct: ['tsCode'],
     select: { tsCode: true },
   });
   const have = new Set(existing.map((e) => e.tsCode));
   const todo = all.filter((c) => !have.has(c));
-  log(`syncFinaIndicator: 共 ${all.length} 只，已同步 ${have.size}，待补 ${todo.length}`);
+  log(
+    `syncFinaIndicator${opts.refresh ? '(扩列回填)' : ''}: 共 ${all.length} 只，已同步 ${have.size}，待补 ${todo.length}`,
+  );
 
   let done = 0;
   for (const code of todo) {
@@ -375,6 +385,13 @@ export async function syncFinaIndicator(client: TushareClient, codes?: string[])
       annDate: r.ann_date,
       roe: r.roe,
       roeWaa: r.roe_waa,
+      roa: r.roa,
+      grossprofitMargin: r.grossprofit_margin,
+      netprofitMargin: r.netprofit_margin,
+      debtToAssets: r.debt_to_assets,
+      orYoy: r.or_yoy,
+      netprofitYoy: r.netprofit_yoy,
+      ocfToProfit: r.ocf_to_profit,
     }));
     await prisma.$transaction([
       prisma.finaIndicator.deleteMany({ where: { tsCode: code } }),

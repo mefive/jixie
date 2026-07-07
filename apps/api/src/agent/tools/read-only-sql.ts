@@ -30,7 +30,7 @@ export const SQL_TABLE_DOCS: Record<string, string> = {
   DailyBasic:
     'tsCode, tradeDate, pe, peTtm, pb, ps, psTtm, dvRatio(股息率%), dvTtm, totalMv(万元), circMv(万元), turnoverRate(%) — 每日估值快照',
   FinaIndicator:
-    'tsCode, endDate(报告期), annDate(公告日), roe(%), roeWaa(%) — 财务指标;PIT 规则:值在 annDate 之后才可见,时序分析必须按 annDate 门控防未来函数',
+    'tsCode, endDate(报告期), annDate(公告日), roe(%), roeWaa(%), roa(%), grossprofitMargin(毛利率%), netprofitMargin(净利率%), debtToAssets(资产负债率%), orYoy(营收同比%), netprofitYoy(归母净利同比%), ocfToProfit(经营现金流/营业利润) — 财务指标;PIT 规则:值在 annDate 之后才可见,时序分析必须按 annDate 门控防未来函数;2026-07 扩列回填中,新列可能部分为 NULL',
   Dividend:
     'id, tsCode, endDate, annDate, exDate(除息日), divProc, cashDiv(税前每股), cashDivTax — 分红明细;只有 divProc=「实施」才是真派发,exDate 是 PIT 门',
   IndexWeight: 'indexCode, conCode, tradeDate, weight — 指数成分月度快照(如 000852.SH 中证1000)',

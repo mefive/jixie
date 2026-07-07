@@ -3,9 +3,9 @@ import './markdown.css';
 
 /**
  * A minimal markdown renderer for short assistant replies — paragraphs, **bold**, `inline code`,
- * ```code fences```, - / 1. lists, and #/##/### headings. Rendered as React nodes (never
- * dangerouslySetInnerHTML), so the text is always escaped. Not a full CommonMark parser: it covers what
- * the strategy Agent actually emits, and unknown syntax falls through as plain text.
+ * ```code fences```, - / 1. lists, #/##/### headings, and GFM |tables|. Rendered as React nodes
+ * (never dangerouslySetInnerHTML), so the text is always escaped. Not a full CommonMark parser: it
+ * covers what the Agent actually emits, and unknown syntax falls through as plain text.
  */
 export function Markdown({ text }: { text: string }) {
   return <div className="jx-md">{renderBlocks(text)}</div>;
@@ -55,6 +55,40 @@ function renderBlocks(text: string): ReactNode[] {
       continue;
     }
 
+    // GFM table — a |…| row followed by the |---|---| separator line
+    if (isTableStart(lines, index)) {
+      const header = parseTableRow(lines[index]);
+      index += 2; // skip the header and the separator
+      const rows: string[][] = [];
+      while (index < lines.length && isTableLine(lines[index])) {
+        rows.push(parseTableRow(lines[index]));
+        index++;
+      }
+      blocks.push(
+        <div key={key++} className="jx-md-tableWrap">
+          <table className="jx-md-table">
+            <thead>
+              <tr>
+                {header.map((cell, cellIndex) => (
+                  <th key={cellIndex}>{renderInline(cell)}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, rowIndex) => (
+                <tr key={rowIndex}>
+                  {row.map((cell, cellIndex) => (
+                    <td key={cellIndex}>{renderInline(cell)}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>,
+      );
+      continue;
+    }
+
     // list (consecutive - / * / 1. lines)
     if (isListLine(line)) {
       const ordered = /^\s*\d+\./.test(line);
@@ -85,6 +119,7 @@ function renderBlocks(text: string): ReactNode[] {
       lines[index].trim() !== '' &&
       !/^```/.test(lines[index].trim()) &&
       !isListLine(lines[index]) &&
+      !isTableStart(lines, index) &&
       !/^#{1,3}\s/.test(lines[index])
     ) {
       buffer.push(lines[index]);
@@ -102,6 +137,30 @@ function renderBlocks(text: string): ReactNode[] {
 
 function isListLine(line: string): boolean {
   return /^\s*([-*]|\d+\.)\s+/.test(line);
+}
+
+function isTableLine(line: string): boolean {
+  return /^\s*\|.*\|\s*$/.test(line);
+}
+
+/** A table starts only when a |…| row is immediately followed by the |---|:---| separator —
+ * a lone piped line stays a paragraph (so the paragraph gatherer can't loop on it). */
+function isTableStart(lines: string[], index: number): boolean {
+  return (
+    isTableLine(lines[index]) &&
+    index + 1 < lines.length &&
+    /^\s*\|?[\s|:-]+\|?\s*$/.test(lines[index + 1]) &&
+    lines[index + 1].includes('-')
+  );
+}
+
+function parseTableRow(line: string): string[] {
+  return line
+    .trim()
+    .replace(/^\|/, '')
+    .replace(/\|$/, '')
+    .split('|')
+    .map((cell) => cell.trim());
 }
 
 /** Inline spans: **bold** and `code`; everything else is plain text. */

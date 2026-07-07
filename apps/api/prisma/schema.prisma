@@ -121,11 +121,18 @@ model DailyBasic {
 /// ROE is cumulative within a year; annual reports end in 1231. The same period can appear multiple
 /// times (restatements) — sync keeps the latest annDate per (tsCode, endDate).
 model FinaIndicator {
-  tsCode  String
-  endDate String // report period end, e.g. 20231231
-  annDate String? // announcement date — the PIT gate (value is only public on/after this)
-  roe     Float? // 净资产收益率 %
-  roeWaa  Float? // 加权平均净资产收益率 %
+  tsCode            String
+  endDate           String // report period end, e.g. 20231231
+  annDate           String? // announcement date — the PIT gate (value is only public on/after this)
+  roe               Float? // 净资产收益率 %
+  roeWaa            Float? // 加权平均净资产收益率 %
+  roa               Float? // 总资产报酬率 %
+  grossprofitMargin Float? // 销售毛利率 %
+  netprofitMargin   Float? // 销售净利率 %
+  debtToAssets      Float? // 资产负债率 %
+  orYoy             Float? // 营业收入同比增长率 %
+  netprofitYoy      Float? // 归母净利润同比增长率 %
+  ocfToProfit       Float? // 经营活动现金流净额 / 营业利润(应计质量)
 
   @@id([tsCode, endDate])
   @@index([annDate])

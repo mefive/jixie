@@ -224,6 +224,13 @@ export interface FinaIndicatorRow {
   end_date: TradeDate; // report period end
   roe: number | null; // 净资产收益率 %
   roe_waa: number | null; // 加权平均净资产收益率 %
+  roa: number | null; // 总资产报酬率 %
+  grossprofit_margin: number | null; // 销售毛利率 %
+  netprofit_margin: number | null; // 销售净利率 %
+  debt_to_assets: number | null; // 资产负债率 %
+  or_yoy: number | null; // 营业收入同比增长率 %
+  netprofit_yoy: number | null; // 归母净利润同比增长率 %
+  ocf_to_profit: number | null; // 经营活动现金流净额 / 营业利润
 }
 
 /** Financial indicators per report period. Pulled per ts_code (one call returns its full history,
@@ -232,7 +239,11 @@ export async function finaIndicator(
   client: TushareClient,
   params: { ts_code: TsCode; start_date?: TradeDate; end_date?: TradeDate },
 ): Promise<FinaIndicatorRow[]> {
-  const rows = await client.call('fina_indicator', params, 'ts_code,ann_date,end_date,roe,roe_waa');
+  const rows = await client.call(
+    'fina_indicator',
+    params,
+    'ts_code,ann_date,end_date,roe,roe_waa,roa,grossprofit_margin,netprofit_margin,debt_to_assets,or_yoy,netprofit_yoy,ocf_to_profit',
+  );
   return rows as unknown as FinaIndicatorRow[];
 }
 
