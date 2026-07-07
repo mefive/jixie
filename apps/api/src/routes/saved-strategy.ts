@@ -7,6 +7,7 @@ import type { BacktestConfig, BacktestSummary, StrategyCard } from '@jixie/share
 
 const { Prisma: PrismaNs } = pkg; // runtime namespace (DbNull) — the type import above is erased
 import { apiError, validateJson } from '../lib/httpError.js';
+import { chatMessagesSchema } from '../lib/chat-schema.js';
 import { prisma } from '../lib/prisma.js';
 import { codeConfigSchema } from '../strategy/code/schema.js';
 
@@ -67,10 +68,6 @@ savedStrategyRoute.get('/:id', async (c) => {
     messages: row.messages,
   });
 });
-
-const chatMessagesSchema = z
-  .array(z.object({ role: z.enum(['user', 'assistant']), content: z.string().max(8000) }))
-  .max(60);
 
 /** The run-relevant part of a config (excludes name) — changing any of these invalidates a stored run. */
 function runKey(config: unknown): string {

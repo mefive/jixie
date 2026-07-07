@@ -6,13 +6,25 @@ import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 import { App, Button, DatePicker, Input, Segmented, Select, Splitter, Tabs } from 'antd';
 import type { ChatMessage, FactorKind, IcDecayPoint, FactorWeight } from '@jixie/shared';
-import { faSpinner, faPlay, faPlus, faTrash } from '@fortawesome/free-solid-svg-icons';
+import {
+  faSpinner,
+  faPlay,
+  faPlus,
+  faTrash,
+  faLock,
+  faCopy,
+} from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { LoaderButton } from '@src/components/loader-button';
 import { Placeholder } from '@src/components/placeholder';
+import { MessageParts } from '@src/components/message-parts';
+import type { QueryCardResults } from '@src/components/query-card-model';
+import { ToolTrace } from '@src/components/tool-trace';
+import { AgentPending } from '@src/components/agent-pending';
+import type { AgentTurnStream } from '@src/components/agent-turn-stream';
+import type { AgentToolTraceItem } from '@src/api/client';
 import { LoadingArea } from '@src/components/loading-area';
 import { LogView } from '@src/components/log-view';
-import { Markdown } from '@src/components/markdown';
 import { QuantileHeatmap } from './quantile-heatmap';
 import { complex } from './complex';
 import './factor.css';
@@ -119,7 +131,13 @@ const AgentChat = complex.component(() => {
           <span className={`jx-factor-kind jx-factor-kind--${f.kind}`}>{KIND_LABEL[f.kind]}</span>
         )}
       </div>
-      <ChatLog messages={store.chatMessages} sending={store.sending} qa={qa} />
+      <ChatLog
+        messages={store.chatMessages}
+        sending={store.sending}
+        qa={qa}
+        cards={store.cardResults}
+        stream={store.turnStream}
+      />
       <div className="jx-factor-chatInput">
         <PromptBox
           value={store.nlText}
@@ -141,10 +159,14 @@ function ChatLog({
   messages,
   sending,
   qa,
+  cards,
+  stream,
 }: {
   messages: ChatMessage[];
   sending: boolean;
   qa: boolean;
+  cards: QueryCardResults;
+  stream: AgentTurnStream;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -158,8 +180,8 @@ function ChatLog({
       {messages.length === 0 && !sending && (
         <div className="jx-factor-chatEmpty">
           {qa
-            ? '这是预设因子(内置公式)。有关它 / 因子分析的问题都可以问 —— Agent 只答疑,不改代码。想写自定义因子请点「新建」。'
-            : '跟 Agent 说你想要的因子(基于估值 / 规模 / 流动性),它写成代码进中间编辑器。价格 / 财报类因子请从「因子库」选预设。'}
+            ? '这是预置因子(只读代码,见中间编辑器)。有关它 / 因子分析的问题都可以问 —— Agent 只答疑,不改代码;想改参数出变体,点编辑器上方「复制为自定义」。'
+            : '跟 Agent 说你想要的因子(估值 / 规模 / 流动性 / 资金流 / 价格动量波动类),它写成代码进中间编辑器。财报明细类(ROE 增速等)暂缺数据。'}
         </div>
       )}
       {messages.map((message, index) => (
@@ -167,12 +189,13 @@ function ChatLog({
           key={index}
           className={classNames('jx-factor-bubble', `jx-factor-bubble--${message.role}`)}
         >
-          {message.role === 'assistant' ? <Markdown text={message.content} /> : message.content}
+          <MessageParts message={message} cards={cards} />
+          {traceOf(message) && <ToolTrace trace={traceOf(message)!} />}
         </div>
       ))}
       {sending && (
         <div className="jx-factor-bubble jx-factor-bubble--assistant jx-factor-bubble--thinking">
-          <FontAwesomeIcon icon={faSpinner} spin /> 思考中…
+          <AgentPending stream={stream} />
         </div>
       )}
     </div>
@@ -256,20 +279,39 @@ const FactorLibrary = complex.component(({ onPickCustom }: { onPickCustom: () =>
   );
 }, 'FactorLibrary');
 
-// Middle column: for a custom factor, the Monaco editor over a collapsible 日志 dock. A preset has no
-// code, so the editor is dropped — the whole middle is just the 日志 (analysis progress).
+// Middle column: the Monaco editor over a collapsible 日志 dock. A preset is a seeded READ-ONLY code
+// row — shown in the same editor with a lock bar + 复制为自定义 (fork), instead of being hidden.
 const MiddleColumn = complex.component(() => {
   const store = complex.useStore();
-  if (store.mode !== 'custom') {
-    return <FactorDock />;
+  const preset = store.mode === 'preset';
+  if (preset && !store.code) {
+    return <FactorDock />; // nothing selected yet (or the preset row failed to load)
   }
   return (
     <Splitter orientation="vertical">
       <Splitter.Panel min="20%">
         <section className="jx-factor-editor">
+          {preset && (
+            <div className="jx-factor-presetBar">
+              <span className="jx-factor-presetNote">
+                <FontAwesomeIcon icon={faLock} /> 预置因子,代码只读
+              </span>
+              <LoaderButton
+                size="small"
+                icon={<FontAwesomeIcon icon={faCopy} />}
+                action={() => store.forkSelected()}
+              >
+                复制为自定义
+              </LoaderButton>
+            </div>
+          )}
           <div className="jx-factor-code">
             <Suspense fallback={<div className="jx-factor-codeEmpty">加载编辑器……</div>}>
-              <FactorEditor value={store.code} onChange={(v) => store.setCode(v)} />
+              <FactorEditor
+                value={store.code}
+                onChange={(v) => store.setCode(v)}
+                readOnly={preset}
+              />
             </Suspense>
           </div>
         </section>
@@ -556,6 +598,12 @@ function PromptBox({
 }
 
 // —— 帮助函数 / 配置 ——
+
+/** The turn's ephemeral tool trace (display only — absent once a conversation is reloaded). */
+function traceOf(message: ChatMessage): AgentToolTraceItem[] | undefined {
+  const trace = (message as ChatMessage & { toolTrace?: AgentToolTraceItem[] }).toolTrace;
+  return trace?.length ? trace : undefined;
+}
 
 const KIND_LABEL: Record<FactorKind, string> = {
   price: '价格',

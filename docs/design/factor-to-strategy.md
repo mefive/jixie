@@ -12,6 +12,10 @@
 
 ---
 
+> **2026-07-06 Step 1 + Step 1b 已于 2026-07-07 一次实施完成**(moneyflow-into-context 以 FactorBar
+> 加 netMain/netTotal 形态提前落地,凑齐能力超集后 9 个预置一次代码化;builtin 用系统 userId 哨兵,
+> 零 schema 迁移)。实况与验收见 `ROADMAP.md` 3.1/3.1b;本文保留为设计依据。
+
 ## Step 1 · 因子编写 B:历史窗口(ROADMAP 3.1)
 
 ### API

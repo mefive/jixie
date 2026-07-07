@@ -15,6 +15,6 @@
    pnpm --filter web test:e2e
    ```
 
-截图落在 **`apps/web/acceptance/`**(gitignored,验收专用)。脚本走「dev 登录 → 选股看图 → 示例查询出表 → 点开个股 K线/PE/量 → 切回回测工作台」,每步截一张。
+截图落在 **`apps/web/acceptance/`**(gitignored,验收专用)。脚本走「dev 登录 → 选股卡片墙 → 示例查询出表/钉墙 → 点开个股 K线/PE/量 → Agent 对话(`E2E_NL=1` 时真 LLM 流式出查询卡片、中途刷新续接、会话卡片回看/删除)→ 回测工作台 → SDK 文档 → 因子研究」,每步截一张。
 
-`E2E_BASE` 可覆盖前端地址(默认 `http://localhost:5173`)。
+`E2E_BASE` 可覆盖前端地址(默认 `http://localhost:5173`);`E2E_NL=1` 打开需要 DEEPSEEK_API_KEY 的真 LLM 步骤,`E2E_BT=1` 打开真回测步骤。

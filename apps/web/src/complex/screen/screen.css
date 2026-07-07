@@ -11,115 +11,195 @@
   padding: 16px 20px;
 }
 
-/* —— hero (empty state): centered single input —— */
-.jx-screen-hero {
-  @apply flex flex-1 items-center justify-center overflow-auto;
-  padding: 24px;
+/* —— the card wall —— */
+.jx-screen-wallBar {
+  @apply flex flex-wrap items-center gap-2;
+  padding: 16px 20px 0;
 }
 
-.jx-screen-heroInner {
-  @apply flex flex-col items-center gap-4;
-  width: min(720px, 100%);
-}
-
-.jx-screen-heroTitle {
+.jx-screen-wallTitle {
   @apply font-semibold text-ink;
-  font-size: 30px;
-  letter-spacing: 4px;
+  font-size: 20px;
+  margin-right: 8px;
 }
 
-.jx-screen-heroHint {
+.jx-screen-wallSpacer {
+  @apply flex-1;
+}
+
+.jx-screen-wallEmpty {
   @apply text-muted;
+  padding: 48px 20px;
+  text-align: center;
   font-size: 14px;
 }
 
-.jx-screen-heroBox {
-  @apply flex items-end gap-2;
-  @apply rounded-2xl border border-line bg-card;
-  width: 100%;
-  padding: 10px 10px 10px 16px;
-  box-shadow: 0 4px 18px rgb(17 24 39 / 0.05);
+.jx-screen-wall {
+  @apply grid gap-3 overflow-auto;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  padding: 16px 20px;
 }
 
-.jx-screen-input {
-  @apply flex-1;
-  font-size: 15px;
+.jx-screen-card {
+  @apply flex flex-col gap-1.5;
+  @apply cursor-pointer rounded-xl border border-line bg-card hover:border-primary;
+  padding: 12px 14px;
 }
 
-.jx-screen-send {
-  flex: none;
+.jx-screen-card--chat {
+  @apply bg-chip;
 }
 
-/* —— working state top bar —— */
-.jx-screen-workbar {
-  @apply flex flex-wrap items-center gap-3;
+/* First-load placeholder card — same grid cell footprint as a real card, so load → data doesn't jump. */
+.jx-screen-card--skeleton {
+  @apply animate-pulse cursor-default border-transparent bg-line/40;
+  min-height: 104px;
 }
 
-.jx-screen-prompt {
-  @apply flex items-center gap-2;
-  @apply rounded-xl border border-line bg-chip;
-  @apply cursor-pointer;
-  max-width: 560px;
-  padding: 5px 5px 5px 12px;
+.jx-screen-cardHead {
+  @apply flex items-center justify-between;
 }
 
-.jx-screen-promptIcon {
-  @apply text-muted;
+.jx-screen-cardKind {
+  @apply inline-flex items-center gap-1;
+  @apply rounded-md bg-chip text-muted;
+  padding: 1px 8px;
+  font-size: 11px;
+}
+
+.jx-screen-cardKind--chat {
+  @apply bg-card;
+}
+
+.jx-screen-cardDelete {
+  @apply cursor-pointer border-0 bg-transparent text-muted hover:text-ink;
+  padding: 2px 4px;
   font-size: 12px;
 }
 
-.jx-screen-promptText {
-  @apply text-ink;
-  font-size: 13px;
+.jx-screen-cardTitle {
+  @apply truncate font-medium text-ink;
+  font-size: 14px;
+}
+
+.jx-screen-cardPreview {
+  @apply text-muted;
+  font-size: 12px;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   overflow: hidden;
 }
 
-.jx-screen-promptEdit {
-  flex: none;
+.jx-screen-cardMeta {
+  @apply text-muted;
+  font-size: 11px;
 }
 
-/* —— examples + saved (shared by hero & workbar) —— */
-.jx-screen-examples {
+/* —— query / chat view top bar —— */
+.jx-screen-viewBar {
+  @apply flex items-center gap-2;
+}
+
+.jx-screen-nameInput {
+  width: 280px;
+}
+
+.jx-screen-chatTitle {
+  @apply flex items-center gap-1 truncate font-medium text-ink;
+  font-size: 15px;
+}
+
+.jx-screen-titleEdit {
+  @apply cursor-pointer border-0 bg-transparent text-muted hover:text-ink;
+  padding: 2px 4px;
+  font-size: 12px;
+}
+
+/* —— chat view —— */
+.jx-screen-chat {
+  @apply gap-3;
+  padding: 16px 20px;
+}
+
+.jx-screen-chatLog {
+  @apply flex flex-1 flex-col gap-2 overflow-auto;
+  @apply rounded-xl border border-line bg-bg;
+  padding: 12px;
+}
+
+.jx-screen-bubble {
+  @apply rounded-xl;
+  max-width: min(720px, 92%);
+  padding: 8px 12px;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.jx-screen-bubble--user {
+  @apply self-end bg-primary text-white;
+  white-space: pre-wrap;
+}
+
+.jx-screen-bubble--assistant {
+  @apply self-start border border-line bg-card text-ink;
+}
+
+.jx-screen-bubble--thinking {
+  @apply text-muted;
+}
+
+.jx-screen-chatComposer {
+  @apply flex items-end gap-2;
+  @apply rounded-2xl border border-line bg-card;
+  padding: 8px 8px 8px 14px;
+}
+
+/* —— new-conversation hero (centered, ChatGPT-style) —— */
+.jx-screen-chatHero {
+  @apply flex flex-1 flex-col items-center justify-center gap-4;
+  padding: 24px;
+}
+
+.jx-screen-chatHeroTitle {
+  @apply font-semibold text-ink;
+  font-size: 28px;
+  letter-spacing: 4px;
+}
+
+.jx-screen-chatHeroHint {
+  @apply text-muted;
+  font-size: 14px;
+}
+
+.jx-screen-chatComposer--hero {
+  width: min(720px, 100%);
+  box-shadow: 0 4px 18px rgb(17 24 39 / 0.05);
+}
+
+.jx-screen-chatHeroExamples {
   @apply flex flex-wrap items-center justify-center gap-2;
+}
+
+.jx-screen-chatHeroKbd {
+  @apply text-muted;
+  font-size: 12px;
+}
+
+.jx-screen-input {
+  @apply flex-1;
+  font-size: 14px;
+}
+
+.jx-screen-send {
+  flex: none;
 }
 
 .jx-screen-examplesLabel {
   @apply text-sm text-muted;
 }
 
-/* push 我的选股 to the far right of the working top bar; in the hero it stays centered with the rest */
-.jx-screen-workbar .jx-screen-savedSlot {
-  margin-left: auto;
-}
-
-.jx-screen-kbd {
-  @apply text-muted;
-  font-size: 12px;
-}
-
-/* —— edit modal —— */
-.jx-screen-modalBox {
-  @apply flex flex-col gap-3;
-}
-
-.jx-screen-modalField {
-  @apply rounded-xl border border-line bg-card;
-  padding: 8px 12px;
-}
-
-.jx-screen-modalFoot {
-  @apply flex items-center justify-between;
-}
-
-/* —— results —— */
-.jx-screen-error {
-  @apply text-down;
-  font-size: 13px;
-}
-
+/* —— query view results —— */
 .jx-screen-summary {
   @apply text-sm text-muted;
 }

@@ -1,17 +1,28 @@
 import { Hono } from 'hono';
+import { ulid } from 'ulid';
 import { z } from 'zod';
-import type { ScreenQueryResponse, ScreenSpec } from '@jixie/shared';
+import type { Prisma } from '@prisma/client';
+import type {
+  ChatMessage,
+  MessagePart,
+  ScreenConversationDetail,
+  ScreenConversationMeta,
+  ScreenSpec,
+} from '@jixie/shared';
 import { apiError, validateJson, validateQuery } from '../lib/httpError.js';
+import { chatMessagesSchema } from '../lib/chat-schema.js';
 import { prisma } from '../lib/prisma.js';
-import { chatJson } from '../llm/deepseek.js';
-import { runScreen, screenForCodes, stockSeries } from '../screen/query.js';
-import { nlToScreen } from '../screen/nl-to-screen.js';
-import { resolveByNames, resolveInstruments } from '../screen/resolve.js';
+import { screenProfile } from '../agent/profiles/screen.js';
+import { enqueueAgentTurn, entityKey } from '../agent/turn-run.js';
+import * as turnBus from '../agent/turn-bus.js';
+import { runScreen, stockSeries } from '../screen/query.js';
 import { screenSpecSchema } from '../screen/spec.js';
 
 /**
- * Stock screener API (产品线 2). POST /screen runs a structured ScreenSpec against the latest
- * snapshot; GET /stock/:code/series returns a stock's OHLC/vol/pe series for the K线/PE/量 charts.
+ * Stock screener API (产品线 2 · 卡片墙). POST /screen runs a structured ScreenSpec against the latest
+ * snapshot (query cards re-run through here); /screen/agent is one turn of the screening agent;
+ * /screen/conversations is the session-card CRUD (messages persisted per conversation, frontend-owned).
+ * GET /stock/:code/series returns a stock's OHLC/vol/pe series for the K线/PE/量 charts.
  */
 export const screenRoute = new Hono();
 
@@ -52,52 +63,144 @@ screenRoute.post('/screen', validateJson(screenSpecSchema), async (c) => {
   return c.json(result);
 });
 
-// One box, two intents. Resolve in one shot so the frontend gets results in a single call:
-//   1. local LIKE first — a pure code / exact-or-fragment name resolves deterministically (no LLM, no
-//      hallucinated codes), so direct lookups work even without a DEEPSEEK key;
-//   2. only on a miss go to the LLM, which either returns a screen spec or normalizes a fuzzy name/拼音 to
-//      a lookup we re-resolve in the DB.
-const queryBody = z.object({ text: z.string().trim().min(1).max(500) });
+// POST /screen/agent — START one turn of the screening agent (no code artifact) and return a turnId;
+// subscribe via GET /api/app/agent/turns/:id/stream. History comes from the conversation row; the
+// runner persists the user message + reply onto it (so a refresh mid-turn keeps the conversation).
+const agentBody = z.object({
+  conversationId: z.string().min(1),
+  message: z.string().trim().min(1).max(2000),
+});
 
-screenRoute.post('/screen/query', validateJson(queryBody), async (c) => {
-  const { text } = c.req.valid('json');
-
-  // 1. Direct instrument reference? (deterministic, DB-backed)
-  const direct = await resolveInstruments(text);
-  if (direct.length) {
-    const result = await screenForCodes(direct);
-    return c.json({ kind: 'lookup', result } satisfies ScreenQueryResponse);
+screenRoute.post('/screen/agent', validateJson(agentBody), async (c) => {
+  const { conversationId, message } = c.req.valid('json');
+  const userId = c.var.userId;
+  const conversation = await prisma.screenConversation.findFirst({
+    where: { id: conversationId, userId },
+    select: { id: true },
+  });
+  if (!conversation) {
+    return apiError(c, 'NOT_FOUND', '会话不存在');
+  }
+  const entity = { kind: 'screen' as const, id: conversationId };
+  if (turnBus.findRunning(entityKey(entity), userId)) {
+    return apiError(c, 'VALIDATION_FAILED', '该会话已有正在进行的回复,请等它结束或取消');
   }
 
-  // 2. Fall back to the LLM: screen spec, or a normalized lookup.
-  let parsed;
-  try {
-    parsed = await nlToScreen(text, chatJson);
-  } catch (e) {
-    return apiError(c, 'SERVICE_UNAVAILABLE', e instanceof Error ? e.message : 'NL→查询 调用失败');
-  }
-  if (!parsed.ok || !parsed.parse) {
-    return apiError(
-      c,
-      'VALIDATION_FAILED',
-      '没能把需求转成查询，换个说法、或直接输入股票名称/代码再试',
-      {
-        errors: parsed.errors,
-      },
+  const turnId = ulid();
+  enqueueAgentTurn({
+    turnId,
+    userId,
+    profile: screenProfile(),
+    entity,
+    message,
+    currentCode: '',
+  });
+  return c.json({ turnId });
+});
+
+// —— Screen conversations (卡片墙的「会话卡片」) —— frontend owns the conversation: it creates the row
+// on the first turn and PATCH-saves messages after each turn. Deleting one never touches SavedScreen.
+
+/** The wall card's summary: last message's text (truncated) + how many query cards the chat holds. */
+function conversationSummary(messages: ChatMessage[]): { preview: string; cardCount: number } {
+  const last = messages[messages.length - 1];
+  const lastText =
+    last?.parts.find((part): part is Extract<MessagePart, { type: 'text' }> => part.type === 'text')
+      ?.text ?? '';
+  const cardCount = messages
+    .flatMap((message) => message.parts)
+    .filter((part) => part.type === 'card').length;
+  return { preview: lastText.slice(0, 60), cardCount };
+}
+
+screenRoute.get('/screen/conversations', async (c) => {
+  const rows = await prisma.screenConversation.findMany({
+    where: { userId: c.var.userId },
+    orderBy: { updatedAt: 'desc' },
+  });
+  const metas = rows.map((row): ScreenConversationMeta => {
+    const { preview, cardCount } = conversationSummary(
+      (row.messages ?? []) as unknown as ChatMessage[],
     );
+    return {
+      id: row.id,
+      title: row.title,
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+      preview,
+      cardCount,
+    };
+  });
+  return c.json(metas);
+});
+
+screenRoute.get('/screen/conversations/:id', async (c) => {
+  const row = await prisma.screenConversation.findFirst({
+    where: { id: c.req.param('id'), userId: c.var.userId },
+  });
+  if (!row) {
+    return apiError(c, 'NOT_FOUND', '会话不存在');
+  }
+  return c.json({
+    id: row.id,
+    title: row.title,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+    messages: (row.messages ?? []) as unknown as ChatMessage[],
+  } satisfies ScreenConversationDetail);
+});
+
+const conversationCreateBody = z.object({
+  title: z.string().trim().min(1).max(60),
+  messages: chatMessagesSchema,
+});
+
+screenRoute.post('/screen/conversations', validateJson(conversationCreateBody), async (c) => {
+  const { title, messages } = c.req.valid('json');
+  const id = ulid();
+  await prisma.screenConversation.create({
+    data: {
+      id,
+      userId: c.var.userId,
+      title,
+      messages: messages as Prisma.InputJsonValue,
+    },
+  });
+  return c.json({ id, title });
+});
+
+// POST /:id — update: `{ messages }` = real-time chat save; `{ title }` = rename. Either or both.
+const conversationUpdateBody = z.object({
+  title: z.string().trim().min(1).max(60).optional(),
+  messages: chatMessagesSchema.optional(),
+});
+
+screenRoute.post('/screen/conversations/:id', validateJson(conversationUpdateBody), async (c) => {
+  const id = c.req.param('id');
+  const { title, messages } = c.req.valid('json');
+  const existing = await prisma.screenConversation.findFirst({
+    where: { id, userId: c.var.userId },
+    select: { id: true },
+  });
+  if (!existing) {
+    return apiError(c, 'NOT_FOUND', '会话不存在');
   }
 
-  if (parsed.parse.kind === 'lookup') {
-    const codes = await resolveByNames(parsed.parse.names);
-    if (!codes.length) {
-      return apiError(c, 'NOT_FOUND', `没找到「${text}」对应的标的，请确认名称或代码`);
-    }
-    const result = await screenForCodes(codes);
-    return c.json({ kind: 'lookup', result } satisfies ScreenQueryResponse);
-  }
+  await prisma.screenConversation.update({
+    where: { id },
+    data: {
+      ...(title !== undefined ? { title } : {}),
+      ...(messages !== undefined ? { messages: messages as Prisma.InputJsonValue } : {}),
+    },
+  });
+  return c.json({ ok: true });
+});
 
-  const result = await runScreen(parsed.parse.spec);
-  return c.json({ kind: 'screen', spec: parsed.parse.spec, result } satisfies ScreenQueryResponse);
+screenRoute.delete('/screen/conversations/:id', async (c) => {
+  await prisma.screenConversation.deleteMany({
+    where: { id: c.req.param('id'), userId: c.var.userId },
+  });
+  return c.json({ ok: true });
 });
 
 const seriesQuery = z.object({

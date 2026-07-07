@@ -1,0 +1,43 @@
+@reference '../styles/index.css';
+
+.jx-chatChart {
+  @apply mt-2 overflow-hidden;
+  @apply rounded-lg border border-line bg-bg;
+}
+
+.jx-chatChart-head {
+  @apply flex items-center gap-2;
+  @apply border-b border-line;
+  @apply text-xs font-medium text-ink;
+  padding: 6px 10px;
+}
+
+.jx-chatChart-title {
+  @apply flex-1 truncate;
+}
+
+.jx-chatChart-meta {
+  @apply shrink-0 font-normal text-muted;
+}
+
+/* Body / skeleton / error share one fixed height so load → data never reflows the chat column. */
+.jx-chatChart-body {
+  height: 260px;
+}
+
+.jx-chatChart-skeleton {
+  @apply animate-pulse bg-line/40;
+  height: 260px;
+}
+
+.jx-chatChart-status {
+  @apply flex items-center justify-center;
+  @apply text-xs text-down;
+  height: 260px;
+  padding: 0 16px;
+}
+
+/* Suspense fallback for the lazy chunk — same footprint as the full card (head + body). */
+.jx-chatChart--pending {
+  height: 293px;
+}

@@ -70,7 +70,95 @@ export function logout(): Promise<{ ok: true }> {
 
 // —— Backtest ——
 
-import type { BacktestConfig, ChatMessage, LogLine } from '@jixie/shared';
+import type {
+  AgentStreamEvent,
+  BacktestConfig,
+  ChatMessage,
+  LogLine,
+  SqlRows,
+  ToolTraceItem,
+} from '@jixie/shared';
+
+// Back-compat alias — the trace item type now lives in shared (agent-stream protocol).
+export type AgentToolTraceItem = ToolTraceItem;
+
+// —— Agent turn streaming (SSE) ——
+// Two-step, marginalia-style: the surface POST starts a background turn and returns a turnId; then
+// GET /agent/turns/:id/stream subscribes. Any client can (re)attach at any time — the first frame is
+// always a snapshot — which is what makes a page refresh resume the stream.
+
+// Subscribe to a turn's SSE stream. `signal` cancels the SUBSCRIPTION only (the turn keeps running
+// server-side); to stop the turn itself call cancelAgentTurn.
+export async function subscribeAgentTurn(turnId: string, signal?: AbortSignal): Promise<Response> {
+  const res = await fetch(`/api/app/agent/turns/${turnId}/stream`, { signal });
+  if (!res.ok) {
+    const body = (await res.json().catch((): null => null)) as {
+      error?: { code?: string; message?: string; details?: unknown };
+    } | null;
+    throw new ApiError(
+      body?.error?.code ?? 'UNKNOWN',
+      body?.error?.message ?? `${res.status} ${res.statusText}`,
+      body?.error?.details,
+    );
+  }
+  return res;
+}
+
+// The live turn for an entity ('strategy:<id>' | 'factor:<id>' | 'screen:<id>') — refresh reattach.
+export function findRunningAgentTurn(entityKey: string): Promise<{ turnId: string | null }> {
+  return request(`/api/app/agent/turns/running?entity=${encodeURIComponent(entityKey)}`);
+}
+
+// Abort the upstream LLM (idempotent; already-finished turns are a no-op).
+export function cancelAgentTurn(turnId: string): Promise<{ ok: true; cancelled: boolean }> {
+  return request(`/api/app/agent/turns/${turnId}/cancel`, { method: 'POST' });
+}
+
+// Read-only SQL over the market-table whitelist — chart cards re-run their persisted query here.
+export function agentSql(sql: string): Promise<SqlRows> {
+  return request('/api/app/agent/sql', { method: 'POST', body: JSON.stringify({ sql }) });
+}
+
+// Parse an SSE body (hono streamSSE: `data: <json>\n\n` frames). fetch + ReadableStream instead of
+// EventSource — EventSource can't attach an AbortSignal or read a failed response body.
+export async function* readSSE(res: Response): AsyncGenerator<AgentStreamEvent> {
+  if (!res.body) {
+    throw new Error('SSE 响应没有 body');
+  }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) {
+        break;
+      }
+      buffer += decoder.decode(value, { stream: true });
+
+      // SSE events are separated by a blank line; one event may carry several `data:` lines.
+      let separator: number;
+      while ((separator = buffer.indexOf('\n\n')) !== -1) {
+        const rawEvent = buffer.slice(0, separator);
+        buffer = buffer.slice(separator + 2);
+        const dataLines = rawEvent
+          .split('\n')
+          .filter((line) => line.startsWith('data:'))
+          .map((line) => line.slice(5).replace(/^ /, ''));
+        if (dataLines.length === 0) {
+          continue;
+        }
+        try {
+          yield JSON.parse(dataLines.join('\n')) as AgentStreamEvent;
+        } catch (e) {
+          console.error('SSE parse failed', e, dataLines);
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
 
 // A backtest Job (runs in a worker). Poll carries the log lines after `since` + `nextSince`. Status
 // only — the result lands on Strategy.lastResult (fetch it on done). 'stale' = the run's process died.
@@ -105,7 +193,8 @@ export function findBacktestRunningJob(strategyId: string): Promise<{ jobId: str
 }
 
 import type {
-  ScreenQueryResponse,
+  ScreenConversationDetail,
+  ScreenConversationMeta,
   ScreenResult,
   ScreenSpec,
   StockSeries,
@@ -126,16 +215,16 @@ export function generateStrategyName(input: {
   return request('/api/app/strategy/name', { method: 'POST', body: JSON.stringify(input) });
 }
 
-// Agent: one conversation turn — the model iterates on the current code given the history so far.
-// Returns its explanation + the (compile-validated) updated code (`changed` = whether code moved).
+// Agent: START one turn (the model iterates on the current code; history lives on the strategy row).
+// Returns a turnId immediately — subscribe via subscribeAgentTurn to stream the reply.
 export function sendAgent(
-  history: ChatMessage[],
+  strategyId: string,
   message: string,
   code: string,
-): Promise<{ reply: string; code: string; changed: boolean; attempts: number }> {
+): Promise<{ turnId: string }> {
   return request('/api/app/strategy/agent', {
     method: 'POST',
-    body: JSON.stringify({ history, message, code }),
+    body: JSON.stringify({ id: strategyId, message, code }),
   });
 }
 
@@ -198,10 +287,50 @@ export function runScreen(spec: ScreenSpec): Promise<ScreenResult> {
   return request('/api/app/screen', { method: 'POST', body: JSON.stringify(spec) });
 }
 
-// One box → either a structured screen (with editable spec) or a direct instrument lookup. Tries a
-// deterministic name/code match first, then the LLM.
-export function queryScreen(text: string): Promise<ScreenQueryResponse> {
-  return request('/api/app/screen/query', { method: 'POST', body: JSON.stringify({ text }) });
+// Screen agent: START one turn (screening/lookup go through the agent's read-only tools; an executed
+// screen surfaces as a query card). History lives on the conversation row.
+export function sendScreenAgent(
+  conversationId: string,
+  message: string,
+): Promise<{ turnId: string }> {
+  return request('/api/app/screen/agent', {
+    method: 'POST',
+    body: JSON.stringify({ conversationId, message }),
+  });
+}
+
+// —— Screen conversations (卡片墙的「会话卡片」) —— created on the first turn, messages saved per turn.
+
+export function listScreenConversations(): Promise<ScreenConversationMeta[]> {
+  return request('/api/app/screen/conversations');
+}
+
+export function getScreenConversation(id: string): Promise<ScreenConversationDetail> {
+  return request(`/api/app/screen/conversations/${id}`);
+}
+
+export function createScreenConversation(
+  title: string,
+  messages: ChatMessage[],
+): Promise<{ id: string; title: string }> {
+  return request('/api/app/screen/conversations', {
+    method: 'POST',
+    body: JSON.stringify({ title, messages }),
+  });
+}
+
+export function updateScreenConversation(
+  id: string,
+  patch: { title?: string; messages?: ChatMessage[] },
+): Promise<{ ok: true }> {
+  return request(`/api/app/screen/conversations/${id}`, {
+    method: 'POST',
+    body: JSON.stringify(patch),
+  });
+}
+
+export function deleteScreenConversation(id: string): Promise<{ ok: true }> {
+  return request(`/api/app/screen/conversations/${id}`, { method: 'DELETE' });
 }
 
 // A stock's OHLC/vol/pe series for the K线/PE/量 charts.
@@ -241,10 +370,19 @@ export interface CustomFactorMeta {
   name: string;
   updatedAt: string;
 }
-export function getCustomFactor(
-  id: string,
-): Promise<{ id: string; name: string; code: string; messages?: ChatMessage[] | null }> {
+export function getCustomFactor(id: string): Promise<{
+  id: string;
+  name: string;
+  code: string;
+  messages?: ChatMessage[] | null;
+  builtin?: boolean; // preset rows are readable (readonly) through the same endpoint
+}> {
   return request(`/api/app/factors/custom/${id}`);
+}
+
+// Copy a factor's code (a builtin preset or your own) into a NEW editable custom factor.
+export function forkFactor(id: string): Promise<{ id: string; name: string }> {
+  return request(`/api/app/factors/custom/${id}/fork`, { method: 'POST' });
 }
 
 // Create a NEW factor row (up front on the first Agent prompt / first run of a hand-written one).
@@ -270,24 +408,25 @@ export function deleteCustomFactor(id: string): Promise<{ ok: true }> {
   return request(`/api/app/factors/custom/${id}`, { method: 'DELETE' });
 }
 
-// Factor Agent: one turn — the model iterates on the current defineFactor code given the history.
+// Factor Agent: START one turn (iterates on the defineFactor code; history lives on the factor row).
 export function sendFactorAgent(
-  history: ChatMessage[],
+  factorId: string,
   message: string,
   code: string,
-): Promise<{ reply: string; code: string; changed: boolean; attempts: number }> {
+): Promise<{ turnId: string }> {
   return request('/api/app/factors/agent', {
     method: 'POST',
-    body: JSON.stringify({ history, message, code }),
+    body: JSON.stringify({ id: factorId, message, code }),
   });
 }
 
-// Factor Q&A: ask questions about a PRESET factor — answers only, never writes code (presets have none).
+// Factor Q&A: ask questions about a PRESET factor — answers only, never writes code. Ephemeral (no
+// host row): history rides in the request; the reply still streams via the same turnId protocol.
 export function factorQa(
   history: ChatMessage[],
   message: string,
   factorName?: string,
-): Promise<{ reply: string }> {
+): Promise<{ turnId: string }> {
   return request('/api/app/factors/qa', {
     method: 'POST',
     body: JSON.stringify({ history, message, factorName }),

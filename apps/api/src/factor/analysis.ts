@@ -1,7 +1,7 @@
-import type { BucketStat, FactorReport, FactorFreq } from '@jixie/shared';
+import type { BucketStat, FactorBar, FactorReport, FactorFreq } from '@jixie/shared';
 import { prisma } from '../lib/prisma.js';
-import { FACTORS, FUNDAMENTAL_FACTORS, FACTOR_LABELS } from './factors.js';
 import { compileFactor } from './compile-factor.js';
+import type { FactorCtx } from './factor-sdk.js';
 import type { UserLogSink } from '../lib/sandbox-console.js';
 import { sameMonth, sameWeek, minusDays } from '../lib/date.js';
 import * as st from '../lib/stats.js';
@@ -81,12 +81,34 @@ async function loadSnapshots(dates: string[], withMktcap = false): Promise<Map<s
 
 type Series = Map<string, { tsCode: string; value: number }[]>; // rebalance date -> [{tsCode, value}]
 
+/** ctx for factors that declared no window — using ctx.history is an authoring error, said loudly. */
+const NO_HISTORY_CTX = {
+  history(): never {
+    throw new Error('要用 ctx.history 需在 defineFactor 里声明 window(所需交易日数,含当天)');
+  },
+} as unknown as FactorCtx;
+
+/** ctx over one stock's aligned hfq-close/date arrays, ending (inclusive) at index `end`. */
+function makeWindowCtx(adjClose: number[], tradeDates: string[], end: number): FactorCtx {
+  return {
+    history(n: number, field?: 'date') {
+      const from = end - n + 1;
+      if (n <= 0 || from < 0) {
+        return [];
+      }
+      return field === 'date' ? tradeDates.slice(from, end + 1) : adjClose.slice(from, end + 1);
+    },
+  } as FactorCtx;
+}
+
 /**
- * Compute ONE factor's value on each rebalance date, on the fly. Dispatch by kind:
- *  - price (mom/rev/vol): per-stock hfq close series → the factor formula at each rebalance index,
- *  - fundamental (ep/bp/dv/size): read daily_basic per rebalance date,
- *  - moneyflow (mf_net_main/total): read the Moneyflow table.
- * A non-price factor skips the (expensive) per-stock price loop entirely — the big single-factor win.
+ * Compute ONE factor's value on each rebalance date, on the fly. Presets and user factors share this
+ * single path (factor-to-strategy.md Step 1b): load the Factor row's code (preset rows are seeded
+ * from builtin-factors.ts), compile, run compute cross-sectionally. Two speeds by declaration:
+ *  - no `window`: per rebalance date over the FactorBar cross-section (daily_basic + moneyflow),
+ *  - `window: n`: additionally walks each stock's hfq close series so ctx.history works (the
+ *    expensive per-stock loop — declared, never implicitly detected).
+ * A throwing / null compute drops that stock for the period.
  */
 async function computeFactorSeries(
   factorKey: string,
@@ -108,11 +130,105 @@ async function computeFactorSeries(
     rows.push({ tsCode, value });
   };
 
-  const priceFn = FACTORS.find((f) => f.key === factorKey)?.fn;
-  const fundFn = FUNDAMENTAL_FACTORS.find((f) => f.key === factorKey)?.from;
+  const row = await prisma.factor.findUnique({ where: { id: factorKey }, select: { code: true } });
+  if (!row) {
+    onLog(`⚠️ 因子 ${factorKey} 不存在(预置未 seed 或已被删除)`);
+    return series;
+  }
+  const factor = await compileFactor(row.code, onUserLog);
 
-  if (priceFn) {
+  // The first compute error is surfaced once (per-stock errors just drop the stock — a factor that
+  // throws everywhere would otherwise produce a silently-empty report).
+  let firstComputeError: string | null = null;
+  const runCompute = (bar: FactorBar, ctx: FactorCtx): number | null => {
+    try {
+      return factor.compute(bar, ctx);
+    } catch (e) {
+      firstComputeError ??= e instanceof Error ? e.message : String(e);
+      return null;
+    }
+  };
+
+  // One date's FactorBar cross-section: daily_basic valuation + moneyflow (flow semantics — exact
+  // date, absent = null, never carried forward). Queried per-date (not batched with `in: dates`) —
+  // measured slower when batched, likely Prisma row-deserialization + IN-list planning overhead.
+  const loadBars = async (date: string): Promise<Map<string, FactorBar>> => {
+    const [basicRows, flowRows] = await Promise.all([
+      prisma.dailyBasic.findMany({
+        where: { tradeDate: date },
+        select: {
+          tsCode: true,
+          pe: true,
+          peTtm: true,
+          pb: true,
+          ps: true,
+          psTtm: true,
+          dvRatio: true,
+          dvTtm: true,
+          totalMv: true,
+          circMv: true,
+          turnoverRate: true,
+        },
+      }),
+      prisma.moneyflow.findMany({
+        where: { tradeDate: date },
+        select: { tsCode: true, netMain: true, netTotal: true },
+      }),
+    ]);
+
+    const bars = new Map<string, FactorBar>();
+    for (const r of basicRows) {
+      bars.set(r.tsCode, {
+        code: r.tsCode,
+        pe: r.pe,
+        peTtm: r.peTtm,
+        pb: r.pb,
+        ps: r.ps,
+        psTtm: r.psTtm,
+        dvRatio: r.dvRatio,
+        dvTtm: r.dvTtm,
+        totalMv: r.totalMv,
+        circMv: r.circMv,
+        turnoverRate: r.turnoverRate,
+        netMain: null,
+        netTotal: null,
+      });
+    }
+    for (const flow of flowRows) {
+      const bar = bars.get(flow.tsCode);
+      if (bar) {
+        bar.netMain = flow.netMain;
+        bar.netTotal = flow.netTotal;
+      } else {
+        // Flow data but no daily_basic row that day — still a valid cross-section member.
+        bars.set(flow.tsCode, {
+          ...EMPTY_BAR,
+          code: flow.tsCode,
+          netMain: flow.netMain,
+          netTotal: flow.netTotal,
+        });
+      }
+    }
+    return bars;
+  };
+
+  if (!factor.window) {
+    // Fast path: pure cross-section, no price history.
+    onLog('逐日横截面计算…');
+    for (const date of dates) {
+      const bars = await loadBars(date);
+      for (const bar of bars.values()) {
+        push(date, bar.code, runCompute(bar, NO_HISTORY_CTX));
+      }
+    }
+  } else {
     const rebalanceSet = new Set(dates);
+    onLog(`加载估值/资金流截面(${dates.length} 日)…`);
+    const barsByDate = new Map<string, Map<string, FactorBar>>();
+    for (const date of dates) {
+      barsByDate.set(date, await loadBars(date));
+    }
+
     const listDateMap = new Map(
       (await prisma.stockBasic.findMany({ select: { tsCode: true, listDate: true } })).map((s) => [
         s.tsCode,
@@ -128,7 +244,7 @@ async function computeFactorSeries(
         tsCodes.add(tsCode);
       }
     }
-    onLog(`逐股计算价格因子(${tsCodes.size} 只)…`);
+    onLog(`逐股计算窗口因子(window=${factor.window},${tsCodes.size} 只)…`);
     let done = 0;
     for (const tsCode of tsCodes) {
       if (++done % 800 === 0) {
@@ -170,85 +286,38 @@ async function computeFactorSeries(
         adjClose.push(r.close * lastAdj);
       }
       for (let end = 0; end < tradeDates.length; end++) {
-        if (rebalanceSet.has(tradeDates[end])) {
-          push(tradeDates[end], tsCode, priceFn(adjClose, tradeDates, end));
+        if (!rebalanceSet.has(tradeDates[end])) {
+          continue;
         }
-      }
-    }
-  } else if (fundFn) {
-    // Queried per-date (not batched with `in: dates`) — measured slower when batched here, likely
-    // Prisma row-deserialization + SQLite IN-list planning overhead on top of the same total row count.
-    for (const date of dates) {
-      const rows = await prisma.dailyBasic.findMany({
-        where: { tradeDate: date },
-        select: { tsCode: true, peTtm: true, pb: true, dvRatio: true, totalMv: true },
-      });
-      for (const r of rows) {
-        push(date, r.tsCode, fundFn(r));
-      }
-    }
-  } else if (factorKey === 'mf_net_main' || factorKey === 'mf_net_total') {
-    const mf = await prisma.moneyflow.findMany({
-      where: { tradeDate: { in: dates } },
-      select: { tsCode: true, tradeDate: true, netMain: true, netTotal: true },
-    });
-    for (const r of mf) {
-      push(r.tradeDate, r.tsCode, factorKey === 'mf_net_main' ? r.netMain : r.netTotal);
-    }
-  } else {
-    // Custom factor: the key is a Factor id — compile the user's code + run compute cross-sectionally
-    // over each rebalance day's daily_basic (估值/规模/流动性). A throwing expression drops that stock.
-    const row = await prisma.factor.findUnique({
-      where: { id: factorKey },
-      select: { code: true },
-    });
-    if (row) {
-      const { compute } = await compileFactor(row.code, onUserLog);
-      onLog('运行自定义因子…');
-      for (const date of dates) {
-        const rows = await prisma.dailyBasic.findMany({
-          where: { tradeDate: date },
-          select: {
-            tsCode: true,
-            pe: true,
-            peTtm: true,
-            pb: true,
-            ps: true,
-            psTtm: true,
-            dvRatio: true,
-            dvTtm: true,
-            totalMv: true,
-            circMv: true,
-            turnoverRate: true,
-          },
-        });
-        for (const r of rows) {
-          let value: number | null = null;
-          try {
-            value = compute({
-              code: r.tsCode,
-              pe: r.pe,
-              peTtm: r.peTtm,
-              pb: r.pb,
-              ps: r.ps,
-              psTtm: r.psTtm,
-              dvRatio: r.dvRatio,
-              dvTtm: r.dvTtm,
-              totalMv: r.totalMv,
-              circMv: r.circMv,
-              turnoverRate: r.turnoverRate,
-            });
-          } catch {
-            value = null;
-          }
-          push(date, r.tsCode, value);
-        }
+        const date = tradeDates[end];
+        const bar = barsByDate.get(date)?.get(tsCode) ?? { ...EMPTY_BAR, code: tsCode };
+        push(date, tsCode, runCompute(bar, makeWindowCtx(adjClose, tradeDates, end)));
       }
     }
   }
 
+  if (firstComputeError) {
+    onLog(`⚠️ 因子 compute 有抛错(相应股票已剔除),首个错误:${firstComputeError}`);
+  }
   return series;
 }
+
+/** All-null bar for stocks missing daily_basic that day (only code + moneyflow known). */
+const EMPTY_BAR: FactorBar = {
+  code: '',
+  pe: null,
+  peTtm: null,
+  pb: null,
+  ps: null,
+  psTtm: null,
+  dvRatio: null,
+  dvTtm: null,
+  totalMv: null,
+  circMv: null,
+  turnoverRate: null,
+  netMain: null,
+  netTotal: null,
+};
 
 /**
  * Analyze one factor over a (freq, start, end) window: monthly/weekly cross-sectional deciles + Rank IC
@@ -443,9 +512,8 @@ export async function analyzeFactor(
   }
 
   onLog('汇总 IC / 分层 / IC 衰减…');
-  // Preset factors label from the registry; a custom factor (id key) labels from its stored name.
+  // Preset and custom factors both label from their Factor row (presets are seeded code rows).
   const label =
-    FACTOR_LABELS[factorKey] ??
     (await prisma.factor.findUnique({ where: { id: factorKey }, select: { name: true } }))?.name ??
     factorKey;
   const icMean = st.mean(icSeries);

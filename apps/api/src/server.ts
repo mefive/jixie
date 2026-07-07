@@ -8,8 +8,10 @@ import { savedStrategyRoute } from './routes/saved-strategy.js';
 import { screenRoute } from './routes/screen.js';
 import { savedScreenRoute } from './routes/saved-screen.js';
 import { factorRoute } from './routes/factor.js';
+import { agentRoute } from './routes/agent.js';
 import { requireAuth } from './lib/session.js';
 import { markRunningJobsStale } from './lib/jobs.js';
+import { seedBuiltinFactors } from './factor/builtin-factors.js';
 
 /**
  * Start the backend.
@@ -21,6 +23,8 @@ export function startServer(port: number) {
   const app = buildApp();
   // Any job left 'running' from a previous process is a zombie (its worker died) → mark stale.
   void markRunningJobsStale().then((n) => n && console.log(`[jixie] ${n} 个残留 job 标记为 stale`));
+  // Materialize the built-in preset factors (idempotent; repo is the source of truth).
+  void seedBuiltinFactors().catch((e) => console.error('[jixie] 预置因子 seed 失败', e));
   serve({ fetch: app.fetch, port });
   return app;
 }
@@ -44,6 +48,7 @@ export function buildApp() {
   app.route('/api/app/strategies', savedStrategyRoute);
   app.route('/api/app/screens', savedScreenRoute);
   app.route('/api/app/factors', factorRoute);
+  app.route('/api/app/agent', agentRoute);
   app.route('/api/app', screenRoute);
 
   return app;

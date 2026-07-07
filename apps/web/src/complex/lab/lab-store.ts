@@ -1,12 +1,16 @@
 import { computed, makeObservable, observable, runInAction } from 'mobx';
-import type {
-  BacktestConfig,
-  BacktestSummary,
-  ChatMessage,
-  LogLine,
-  StrategyCard,
+import {
+  normalizeChatMessage,
+  textMessage,
+  type BacktestConfig,
+  type BacktestSummary,
+  type ChatMessage,
+  type LogLine,
+  type StrategyCard,
 } from '@jixie/shared';
 import { BaseStore, LoaderModel, PollingModel } from '@src/lib';
+import { QueryCardResults } from '@src/components/query-card-model';
+import { AgentTurnStream, type AgentTurnHandlers } from '@src/components/agent-turn-stream';
 import {
   createStrategy,
   deleteStrategy,
@@ -46,6 +50,8 @@ export class LabStore extends BaseStore<LabSetupParams> {
 
   public chatMessages: ChatMessage[] = []; // the Agent conversation for this strategy (persisted per strategy)
   public sending = false; // an Agent turn is in flight
+  public cardResults = new QueryCardResults(); // fresh results for the conversation's query cards
+  public turnStream = new AgentTurnStream(); // the in-flight turn's SSE mirror (pending bubble)
 
   public logLines: LogLine[] = []; // live backtest progress (streamed via polling), tagged system/user
   public result: BacktestSummary | null = null; // a finished run OR the saved last-result on reopen
@@ -92,6 +98,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
     this.savedLoader.setup({ request: () => listStrategies() });
     this.registCleaner(() => this.backtestPoller.cleanup());
     this.registCleaner(() => this.savedLoader.cleanup());
+    this.registCleaner(() => this.turnStream.detach()); // drop the SSE subscription; the turn keeps running
     void this.savedLoader.run(); // prime 我的策略 (also feeds the hero's 最近访问 cards)
     // A fresh (never-run) strategy: empty run-baseline → dirty → 运行回测 enabled; but the pristine
     // skeleton IS the "persisted" state (nothing to lose) → not edited → no leave guard.
@@ -150,37 +157,40 @@ export class LabStore extends BaseStore<LabSetupParams> {
     });
   }
 
-  /** One Agent turn: append the user message, ensure the strategy exists (the first prompt creates it,
-   * LLM-named from that prompt), ask the server (history + current code), append the reply, and apply the
-   * returned code when it changed. The conversation saves in real time; the code is NOT persisted here
-   * (only a run commits config) and the result is NOT cleared (only a run replaces it). */
+  /** One Agent turn — streamed. Append the user message locally, ensure the strategy exists (the
+   * first prompt creates it, LLM-named from that request), START the turn (server persists both the
+   * user message and the reply onto the strategy row), then subscribe to its SSE stream; the reply
+   * lands via turnHandlers. Code is NOT persisted here (only a run commits config). */
   public async sendAgent(message: string) {
     const text = message.trim();
     if (!text || this.sending) {
       return;
     }
     runInAction(() => {
-      this.chatMessages = [...this.chatMessages, { role: 'user', content: text }];
+      this.chatMessages = [...this.chatMessages, textMessage('user', text)];
       this.sending = true;
       this.nlText = '';
     });
     // First prompt → create the strategy so the conversation has a home (named from this request).
     await this.ensureStrategy(text);
-    try {
-      const history = this.chatMessages.slice(0, -1); // prior turns (exclude the message we just added)
-      const res = await sendAgent(history, text, this.code);
+    if (!this.savedId) {
       runInAction(() => {
-        this.chatMessages = [...this.chatMessages, { role: 'assistant', content: res.reply }];
-        if (res.changed) {
-          this.code = res.code; // dirty → runnable; the shown result stays until the next run
-        }
+        this.chatMessages = [
+          ...this.chatMessages,
+          textMessage('assistant', '出错了:策略保存失败,无法开始对话'),
+        ];
+        this.sending = false;
       });
-      void this.persistMessages();
+      return;
+    }
+    try {
+      const { turnId } = await sendAgent(this.savedId, text, this.code);
+      await this.turnStream.attach(turnId, this.turnHandlers()); // resolves after the terminal event
     } catch (e) {
       runInAction(() => {
         this.chatMessages = [
           ...this.chatMessages,
-          { role: 'assistant', content: `出错了:${e instanceof Error ? e.message : '请求失败'}` },
+          textMessage('assistant', `出错了:${e instanceof Error ? e.message : '请求失败'}`),
         ];
       });
     } finally {
@@ -188,6 +198,44 @@ export class LabStore extends BaseStore<LabSetupParams> {
         this.sending = false;
       });
     }
+  }
+
+  /** Terminal-event handlers shared by sendAgent and the refresh reattach. */
+  private turnHandlers(): AgentTurnHandlers {
+    return {
+      onDone: (done) => {
+        runInAction(() => {
+          // toolTrace rides along for display only (the server persisted the message without it).
+          this.chatMessages = [
+            ...this.chatMessages,
+            { role: 'assistant', parts: done.parts, toolTrace: done.toolTrace } as ChatMessage,
+          ];
+          if (done.changed) {
+            this.code = done.code; // dirty → runnable; the shown result stays until the next run
+          }
+        });
+      },
+      onError: (message) => {
+        runInAction(() => {
+          this.chatMessages = [...this.chatMessages, textMessage('assistant', `出错了:${message}`)];
+        });
+      },
+      onCancelled: () => {
+        runInAction(() => {
+          this.chatMessages = [...this.chatMessages, textMessage('assistant', '(已停止本轮回复)')];
+        });
+      },
+    };
+  }
+
+  /** Refresh reattach: if this strategy has a live turn, subscribe (snapshot replays what we missed). */
+  private async reattachTurn() {
+    if (!this.savedId) {
+      return;
+    }
+    runInAction(() => (this.sending = true));
+    await this.turnStream.attachRunning(`strategy:${this.savedId}`, this.turnHandlers());
+    runInAction(() => (this.sending = false)); // resolved at the terminal event (or no live turn)
   }
 
   /** Create the strategy row if it doesn't exist yet (first Agent prompt, or a first run of a
@@ -208,7 +256,8 @@ export class LabStore extends BaseStore<LabSetupParams> {
     }
     runInAction(() => (this.name = name));
     try {
-      const meta = await createStrategy(this.config, this.chatMessages);
+      // No messages in the create payload — the turn runner appends the user message server-side.
+      const meta = await createStrategy(this.config);
       runInAction(() => {
         this.savedId = meta.id;
         this.name = meta.name; // server de-dupes the name
@@ -218,18 +267,6 @@ export class LabStore extends BaseStore<LabSetupParams> {
       void this.savedLoader.run();
     } catch {
       /* best-effort — a later run retries via ensureStrategy */
-    }
-  }
-
-  /** Save the conversation onto the strategy in real time (by id). No-op until the strategy exists. */
-  private async persistMessages() {
-    if (!this.savedId) {
-      return;
-    }
-    try {
-      await updateStrategy(this.savedId, { messages: this.chatMessages });
-    } catch {
-      /* best-effort */
     }
   }
 
@@ -361,7 +398,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
     this.applyConfig(s.config);
     runInAction(() => {
       this.result = s.lastResult ?? null;
-      this.chatMessages = s.messages ?? []; // restore this strategy's Agent conversation
+      this.chatMessages = (s.messages ?? []).map(normalizeChatMessage); // restore (upgrades legacy rows)
       this.error = null;
       this.savedId = id;
       // A strategy with a result → its config IS the last-run config (not dirty); one never run stays
@@ -371,6 +408,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
       this.persistedConfig = this.configKey();
     });
     pushRecent(id); // record the visit → hero 最近访问 + auto-open on next entry
+    void this.reattachTurn(); // a live agent turn for this strategy? re-subscribe (snapshot replays)
     // Re-attach to a still-running backtest (found server-side by strategyId — no localStorage, works
     // cross-client) so a refresh keeps streaming logs instead of losing the run.
     try {

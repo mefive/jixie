@@ -1,0 +1,13 @@
+@reference '../styles/index.css';
+
+.jx-toolTrace {
+  @apply mt-1 inline-flex items-center gap-1 cursor-default;
+  @apply text-muted;
+  font-size: 11px;
+}
+
+.jx-toolTrace-detail {
+  @apply m-0 whitespace-pre-wrap;
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
