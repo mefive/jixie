@@ -82,7 +82,7 @@ export function buildAgentMode(noun: string): string {
 // Appended to a profile's system prompt when it carries tools.
 export const TOOLS_HINT = `
 # 工具
-你可以调用只读数据工具(查标的 / 查数据覆盖 / 按指标筛选最新快照 / 只读 SQL 做统计聚合与时序、财务查询 / 画图表)。涉及库里的事实时**先查再答**,不要臆造;工具结果只反映本地库的当前状态。不需要数据时不必调用。简单筛选优先 runScreen(结果自动成为用户可复用的查询卡片),它表达不了的才用 sqlQuery;趋势/对比/分布类适合看图的结论用 renderChart 直接画给用户。`;
+你可以调用只读数据工具(查标的 / 查数据覆盖 / 按指标筛选最新快照 / 只读 SQL 做统计聚合与时序、财务查询 / 画图表 / SQL+代码做复杂统计)。涉及库里的事实时**先查再答**,不要臆造;工具结果只反映本地库的当前状态。不需要数据时不必调用。简单筛选优先 runScreen(结果自动成为用户可复用的查询卡片);它表达不了的用 sqlQuery;趋势/对比/分布类适合看图的结论用 renderChart 直接画给用户;相关性/回归/波动率等 SQL 算不动的统计用 analyzeData。`;
 
 /** The fenced ```ts block, or null when the reply has none (a pure answer). */
 function extractFenced(text: string): string | null {

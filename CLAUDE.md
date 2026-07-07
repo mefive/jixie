@@ -15,6 +15,7 @@
 - **ORM 优先:能用 Prisma 就用 Prisma。** 行情、因子、回测结果……默认都建 Prisma model,享受迁移、类型安全、Prisma Studio 可视化。
 - **只有实测性能扛不住,才下沉到 `$queryRaw` / 原生 SQL**,且只针对那一条热路径,不整体抛弃 ORM。判断依据是"真的测出来慢",不是"我觉得会慢"——避免过早优化。
 - 批量写入用 Prisma `createMany`;按交易日「先 `deleteMany` 当日 + `createMany`」保证可重复同步幂等(SQLite 不支持 createMany 的 skipDuplicates)。
+- **改市场数据表 schema(加列/加表/改语义)必须同步 `apps/api/src/agent/tools/read-only-sql.ts` 的 `SQL_TABLE_DOCS`**——它既是 agent 只读 SQL 的表白名单,也是喂给模型的 schema 说明书(列名/单位/PIT 规则),是 schema.prisma 的手工镜像,漏更新 = 模型查不到新数据或拿错单位。新表若含用户数据则**绝不能**进白名单。
 
 ## 目录约定(对齐 fangtu)
 
