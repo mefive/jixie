@@ -36,6 +36,26 @@ ol.jx-md-list {
   list-style: decimal;
 }
 
+/* GFM table — compact, scrolls horizontally inside its own wrapper if too wide for the bubble. */
+.jx-md-tableWrap {
+  @apply overflow-x-auto;
+}
+
+.jx-md-table {
+  @apply border-collapse;
+  font-size: 12px;
+}
+
+.jx-md-table th,
+.jx-md-table td {
+  @apply border border-line text-left;
+  padding: 4px 10px;
+}
+
+.jx-md-table th {
+  @apply bg-chip font-medium text-ink;
+}
+
 .jx-md-code {
   @apply rounded;
   padding: 1px 4px;

@@ -4,14 +4,17 @@ import { prisma } from '../src/lib/prisma.js';
 import { syncFinaIndicator, syncDividend } from '../src/store/sync.js';
 
 /**
- * Sync per-stock financials (ROE via fina_indicator + dividend history) into the local store.
- * Usage: pnpm --filter api sync:fina
+ * Sync per-stock financials (fina_indicator + dividend history) into the local store.
+ * Usage: pnpm --filter api sync:fina [refresh]
+ *   refresh — re-pull stocks synced before the 2026-07 fina_indicator column expansion
+ *             (毛利率/净利率/负债率/同比增速/ROA/现金流比;resumable, see syncFinaIndicator).
  *
- * Financial APIs are rate-limited (~80/min on lower tiers), so this uses a ≥800ms interval. Both
+ * Financial APIs are rate-limited (~80/min on lower tiers), so this uses a ≥800ms interval. All
  * syncs are resumable (skip stocks already present), so an interrupted run can simply be re-run.
  */
 async function main(): Promise<void> {
   const cfg = loadTushareConfig();
+  const refresh = process.argv[2] === 'refresh';
   const interval = Math.max(cfg.minIntervalMs, 800); // respect the financial 80/min limit
   const client = new TushareClient({
     token: cfg.token,
@@ -19,8 +22,10 @@ async function main(): Promise<void> {
     minIntervalMs: interval,
   });
 
-  console.log(`同步财务数据（fina_indicator + dividend，限频 ${interval}ms/次）\n`);
-  await syncFinaIndicator(client);
+  console.log(
+    `同步财务数据（fina_indicator + dividend，限频 ${interval}ms/次${refresh ? '，扩列回填' : ''}）\n`,
+  );
+  await syncFinaIndicator(client, undefined, { refresh });
   await syncDividend(client);
 
   console.log('\n落库统计:');
