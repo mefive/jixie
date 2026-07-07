@@ -1,8 +1,8 @@
 /**
  * Single source of truth for the strategy SDK surface — one structured entry per user-facing member,
- * each with a TS signature + bilingual (中/EN) description. From this we GENERATE:
+ * each with a TS signature + bilingual (zh/EN) description. From this we GENERATE:
  *   - the Monaco ambient .d.ts (sdk-dts.ts → SDK_DTS): zh comments + a 📖 doc link per member/type;
- *   - the in-app SDK doc page (sdk-doc.tsx): grouped, 中/EN togglable, one anchor per `name` (+ per type).
+ *   - the in-app SDK doc page (sdk-doc.tsx): grouped, zh/EN toggle, one anchor per `name` (+ per type).
  * Add a method/field here once and both stay in sync. (Runtime impl lives in apps/api sdk.ts; keep its
  * StrategyCtx interface aligned with the signatures here.)
  */

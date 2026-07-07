@@ -1,31 +1,20 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { observer } from 'mobx-react';
 import classNames from 'classnames';
 import banner from '@src/assets/banner.png';
+import { localeStore } from '@src/i18n/locale-store';
 import { SDK_ENTRIES, OHLC_FIELDS, LINKABLE_TYPES, type SdkEntry } from './sdk-reference';
 import './sdk-doc.css';
 
-type Lang = 'zh' | 'en';
-
 /**
- * Standalone SDK reference (route `/docs`, opened from the lab 文档 button + the 📖 links / ⌘I action in
+ * Standalone SDK reference (route `/docs`, opened from the lab Docs button + the 📖 links / ⌘I action in
  * the editor → /docs#<member>). Apple-Developer-docs information architecture — sticky sidebar nav with
  * scroll-spy, eyebrow→title→abstract per symbol, a Declaration block whose type names link to the type's
- * doc — kept monochrome to match the app. 中/EN togglable. Renders from SDK_ENTRIES, the single source
- * that also generates the Monaco types.
+ * doc — kept monochrome to match the app. Language follows the global localeStore (zh/EN). Renders from
+ * SDK_ENTRIES, the single source that also generates the Monaco types.
  */
-export default function SdkDocPage() {
-  const [params, setParams] = useSearchParams();
-  const lang: Lang = params.get('lang') === 'en' ? 'en' : 'zh';
-  const setLang = (l: Lang) => {
-    const next = new URLSearchParams(params);
-    if (l === 'en') {
-      next.set('lang', 'en');
-    } else {
-      next.delete('lang');
-    }
-    setParams(next, { replace: true });
-  };
+function SdkDocPage() {
+  const lang = localeStore.locale;
   const t = (zh: string, en: string) => (lang === 'zh' ? zh : en);
 
   const groups = useMemo(() => groupEntries(SDK_ENTRIES), []);
@@ -47,8 +36,8 @@ export default function SdkDocPage() {
     <div className="jx-docs">
       <header className="jx-docs-bar">
         <a className="jx-docs-brand" href="/lab">
-          <img className="jx-docs-banner" src={banner} alt="机械交易系" />
-          <span className="jx-docs-brandSub">· 策略 SDK</span>
+          <img className="jx-docs-banner" src={banner} alt={t('机械交易系', 'jixie')} />
+          <span className="jx-docs-brandSub">{t('· 策略 SDK', '· Strategy SDK')}</span>
         </a>
         <div className="jx-docs-barRight">
           <a className="jx-docs-tutLink" href="/learn">
@@ -60,7 +49,7 @@ export default function SdkDocPage() {
                 key={l}
                 type="button"
                 className={classNames('jx-docs-langBtn', { 'jx-docs-langBtn--on': lang === l })}
-                onClick={() => setLang(l)}
+                onClick={() => localeStore.setLocale(l)}
               >
                 {l === 'zh' ? '中文' : 'EN'}
               </button>
@@ -114,7 +103,7 @@ export default function SdkDocPage() {
                 'A strategy is just export default defineStrategy({ onBar(ctx) {…} }). Do NOT write imports — defineStrategy and ctx are injected.',
               )}
             </p>
-            <pre className="jx-docs-code">{QUICKSTART}</pre>
+            <pre className="jx-docs-code">{t(QUICKSTART.zh, QUICKSTART.en)}</pre>
 
             <h3 className="jx-docs-h3">{t('引擎自动强制', 'Enforced by the engine')}</h3>
             <dl className="jx-docs-rules">
@@ -127,7 +116,7 @@ export default function SdkDocPage() {
             </dl>
 
             <h3 className="jx-docs-h3">{t('横截面选股例子', 'Cross-sectional example')}</h3>
-            <pre className="jx-docs-code">{XSECTION}</pre>
+            <pre className="jx-docs-code">{t(XSECTION.zh, XSECTION.en)}</pre>
           </section>
 
           <section id="StrategyCtx" className="jx-docs-section">
@@ -183,7 +172,9 @@ export default function SdkDocPage() {
   );
 }
 
-// —— 子组件 / 帮助函数 ——
+export default observer(SdkDocPage);
+
+// —— Subcomponents / helpers ——
 
 // A signature rendered as a Declaration block — member name emphasized, types (BarRow/OhlcBar/Universe)
 // rendered as links to their doc section.
@@ -308,7 +299,8 @@ const ENGINE_RULES: { zh: [string, string]; en: [string, string] }[] = [
   },
 ];
 
-const QUICKSTART = `// 单只:收盘价上穿 20 日均线满仓买入、下穿清仓
+const QUICKSTART = {
+  zh: `// 单只:收盘价上穿 20 日均线满仓买入、下穿清仓
 export default defineStrategy({
   name: 'MA20 突破',
   watch: ['600519.SH'],
@@ -319,9 +311,23 @@ export default defineStrategy({
     if (px > ma && ctx.shares(c) === 0) ctx.order(c, Math.floor(ctx.cash / px));
     else if (px < ma && ctx.shares(c) > 0) ctx.exit(c);
   },
-});`;
+});`,
+  en: `// Single name: buy full size when the close crosses above the 20-day MA, exit when it crosses below
+export default defineStrategy({
+  name: 'MA20 breakout',
+  watch: ['600519.SH'],
+  onBar(ctx) {
+    const c = '600519.SH';
+    const px = ctx.price(c), ma = ctx.sma(c, 20);
+    if (px == null || ma == null) return;
+    if (px > ma && ctx.shares(c) === 0) ctx.order(c, Math.floor(ctx.cash / px));
+    else if (px < ma && ctx.shares(c) > 0) ctx.exit(c);
+  },
+});`,
+};
 
-const XSECTION = `// 每月:沪深300 里 ROE>15 且最便宜的 30 只,等权
+const XSECTION = {
+  zh: `// 每月:沪深300 里 ROE>15 且最便宜的 30 只,等权
 let last = '';
 export default defineStrategy({
   name: 'EP · 沪深300优质',
@@ -334,4 +340,19 @@ export default defineStrategy({
       .top(30);
     ctx.equalWeight(picks);
   },
-});`;
+});`,
+  en: `// Monthly: from CSI 300, the 30 cheapest names with ROE>15, equal-weighted
+let last = '';
+export default defineStrategy({
+  name: 'EP · CSI 300 quality',
+  async onBar(ctx) {                       // async is required once you use universe()
+    if (ctx.period('monthly') === last) return;
+    last = ctx.period('monthly');
+    const picks = (await ctx.universe('000300.SH'))
+      .where(b => (b.roe ?? 0) > 15 && b.peTtm != null && b.peTtm > 0)
+      .rankBy(b => 1 / b.peTtm)
+      .top(30);
+    ctx.equalWeight(picks);
+  },
+});`,
+};
