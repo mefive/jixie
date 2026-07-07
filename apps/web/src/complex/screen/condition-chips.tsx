@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button, Dropdown, InputNumber, Select } from 'antd';
 import {
   SCREEN_FIELDS,
@@ -24,6 +25,7 @@ interface Props {
 
 /** Query-condition回显 + 行内编辑:改算子/值/增删条件、改排序,都直接重查(确定性,不过模型)。 */
 export function ConditionChips({ spec, onChange }: Props) {
+  const { t } = useTranslation('screen');
   const setFilter = (i: number, patch: Partial<ScreenFilter>) =>
     onChange({ ...spec, filters: spec.filters.map((f, j) => (j === i ? { ...f, ...patch } : f)) });
   const removeFilter = (i: number) =>
@@ -36,7 +38,7 @@ export function ConditionChips({ spec, onChange }: Props) {
         const scale = def?.scale ?? 1;
         return (
           <span key={`${f.field}-${i}`} className="jx-chips-chip">
-            <span className="jx-chips-label">{def?.label ?? f.field}</span>
+            <span className="jx-chips-label">{t(`field.${f.field}`)}</span>
             <Select
               size="small"
               variant="borderless"
@@ -49,11 +51,11 @@ export function ConditionChips({ spec, onChange }: Props) {
               value={f.value / scale}
               onApply={(n) => setFilter(i, { value: n * scale })}
             />
-            {def?.unit && <span className="jx-chips-unit">{def.unit}</span>}
+            {def?.unit && <span className="jx-chips-unit">{t(`unit.${f.field}`)}</span>}
             <Button
               type="text"
               size="small"
-              title="移除条件"
+              title={t('chips.removeCondition')}
               icon={<FontAwesomeIcon icon={faXmark} />}
               onClick={() => removeFilter(i)}
             />
@@ -91,6 +93,7 @@ const ADD_DEFAULT: Partial<Record<ScreenField, { op: ScreenOp; value: number }>>
 };
 
 function AddCondition({ spec, onChange }: Props) {
+  const { t } = useTranslation('screen');
   const used = new Set(spec.filters.map((f) => f.field));
   const avail = SCREEN_FIELDS.filter((f) => !used.has(f.key));
   if (!avail.length) {
@@ -102,7 +105,7 @@ function AddCondition({ spec, onChange }: Props) {
       menu={{
         items: avail.map((f) => ({
           key: f.key,
-          label: f.unit ? `${f.label}(${f.unit})` : f.label,
+          label: f.unit ? `${t(`field.${f.key}`)}(${t(`unit.${f.key}`)})` : t(`field.${f.key}`),
         })),
         onClick: ({ key }) => {
           const def = SCREEN_FIELD_BY_KEY[key];
@@ -118,29 +121,30 @@ function AddCondition({ spec, onChange }: Props) {
       }}
     >
       <Button type="dashed" size="small" icon={<FontAwesomeIcon icon={faPlus} />}>
-        加条件
+        {t('chips.addCondition')}
       </Button>
     </Dropdown>
   );
 }
 
 function SortControl({ spec, onChange }: Props) {
+  const { t } = useTranslation('screen');
   const sort = spec.sort;
   const dir = sort?.dir ?? 'desc';
   return (
     <span className="jx-chips-sort">
-      <span className="jx-chips-sortLabel">排序</span>
+      <span className="jx-chips-sortLabel">{t('chips.sort')}</span>
       <Select
         size="small"
         variant="borderless"
         value={sort?.field ?? ''}
-        placeholder="不排序"
+        placeholder={t('chips.noSort')}
         onChange={(field) =>
           onChange({ ...spec, sort: field ? { field: field as ScreenField, dir } : undefined })
         }
         options={[
-          { label: '不排序', value: '' },
-          ...SCREEN_FIELDS.map((f) => ({ label: f.label, value: f.key })),
+          { label: t('chips.noSort'), value: '' },
+          ...SCREEN_FIELDS.map((f) => ({ label: t(`field.${f.key}`), value: f.key })),
         ]}
         popupMatchSelectWidth={false}
       />
@@ -148,7 +152,7 @@ function SortControl({ spec, onChange }: Props) {
         <Button
           type="text"
           size="small"
-          title={dir === 'desc' ? '从高到低' : '从低到高'}
+          title={dir === 'desc' ? t('chips.sortDesc') : t('chips.sortAsc')}
           icon={
             <FontAwesomeIcon icon={dir === 'desc' ? faArrowDownWideShort : faArrowUpShortWide} />
           }

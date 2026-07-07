@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { IcDecayPoint } from '@jixie/shared';
 import { EChart, type ECOption } from '@src/components/echart';
 
@@ -8,6 +9,7 @@ interface Props {
 // Lazy-loaded (echarts in its own chunk). The IC-decay curve: how the factor's Rank IC changes with the
 // forward horizon → its natural holding period (peak = best hold; fast decay = short-term factor).
 export default function IcDecayChart({ points }: Props) {
+  const { t } = useTranslation('factor');
   const option: ECOption = {
     grid: { left: 52, right: 16, top: 16, bottom: 28 },
     tooltip: {
@@ -15,12 +17,12 @@ export default function IcDecayChart({ points }: Props) {
       formatter: (params: any) => {
         const p = Array.isArray(params) ? params[0] : params;
         const d = points[p.dataIndex];
-        return `${d.horizonDays} 日前瞻<br/>Rank IC ${d.icMean.toFixed(4)}<br/>ICIR ${d.icir.toFixed(2)}`;
+        return `${t('icDecayTipHorizon', { days: d.horizonDays })}<br/>Rank IC ${d.icMean.toFixed(4)}<br/>ICIR ${d.icir.toFixed(2)}`;
       },
     },
     xAxis: {
       type: 'category',
-      data: points.map((p) => `${p.horizonDays}日`),
+      data: points.map((p) => t('days', { days: p.horizonDays })),
       axisLabel: { color: '#8a9099', fontSize: 11 },
       axisLine: { lineStyle: { color: '#e8eaed' } },
       axisTick: { show: false },

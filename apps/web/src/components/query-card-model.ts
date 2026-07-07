@@ -1,6 +1,7 @@
 import { observable, runInAction } from 'mobx';
 import type { ScreenResult, ScreenSpec } from '@jixie/shared';
 import { runScreen } from '@src/api/client';
+import i18n from '@src/i18n';
 
 export interface QueryCardState {
   loading: boolean;
@@ -33,7 +34,7 @@ export class QueryCardResults {
       })
       .catch((e) => {
         // A rejected spec (e.g. persisted before a schema change) degrades to an inline error — never crashes.
-        const message = e instanceof Error ? e.message : '查询失败';
+        const message = e instanceof Error ? e.message : i18n.t('components:queryFailed');
         runInAction(() => this.states.set(key, { loading: false, error: message, result: null }));
       });
   }

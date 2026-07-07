@@ -1,5 +1,6 @@
 import { App, Button } from 'antd';
 import dayjs from 'dayjs';
+import { useTranslation } from 'react-i18next';
 import { faTrashCan } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import type { StrategyCard } from '@jixie/shared';
@@ -19,15 +20,16 @@ export function StrategyCardView({
   onOpen: (id: string) => void;
   onDelete?: (id: string, name: string) => void;
 }) {
+  const { t } = useTranslation('lab');
   const { modal } = App.useApp();
   const askDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
     modal.confirm({
-      title: '删除确认',
-      content: `确定删除「${card.name}」吗?删除后不可恢复。`,
-      okText: '删除',
+      title: t('deleteConfirmTitle'),
+      content: t('deleteConfirmContent', { name: card.name }),
+      okText: t('delete'),
       okButtonProps: { danger: true },
-      cancelText: '取消',
+      cancelText: t('cancel'),
       onOk: () => onDelete?.(card.id, card.name),
     });
   };
@@ -53,11 +55,13 @@ export function StrategyCardView({
               {(card.snapshot.totalReturn * 100).toFixed(1)}%
             </span>
             <span className="jx-sp-muted">SR {card.snapshot.sharpe.toFixed(2)}</span>
-            <span className="jx-sp-muted">{card.snapshot.trades.toLocaleString()} 笔</span>
+            <span className="jx-sp-muted">
+              {t('tradesUnit', { count: card.snapshot.trades.toLocaleString() })}
+            </span>
           </div>
         </>
       ) : (
-        <div className="jx-sp-noRun">未回测</div>
+        <div className="jx-sp-noRun">{t('notBacktested')}</div>
       )}
       <div className="jx-sp-date">{dayjs(card.updatedAt).format('MM-DD HH:mm')}</div>
     </div>

@@ -2,6 +2,7 @@ import Editor, { loader, type Monaco } from '@monaco-editor/react';
 import * as monaco from 'monaco-editor';
 import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
 import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker';
+import i18n from '@src/i18n';
 import { SDK_DTS } from './sdk-dts';
 import { SDK_ENTRIES, LINKABLE_TYPES } from './sdk-reference';
 
@@ -57,7 +58,7 @@ function installSdk(m: Monaco) {
             endColumn: e.column,
           },
           url: `${location.origin}/docs#${name}`,
-          tooltip: `SDK 文档:${name}`,
+          tooltip: i18n.t('lab:sdkDocTooltip', { name }),
         });
       };
       let mm: RegExpExecArray | null;
@@ -99,7 +100,7 @@ export default function CodeEditor({
         // alternative to Cmd+clicking the symbol (which the link provider makes a link to /docs#name).
         editor.addAction({
           id: 'jixie.openSdkDoc',
-          label: '📖 查看 SDK 文档',
+          label: i18n.t('lab:sdkDocMenuLabel'),
           contextMenuGroupId: 'navigation',
           contextMenuOrder: 1.5,
           keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyI],

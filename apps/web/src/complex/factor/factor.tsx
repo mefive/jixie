@@ -1,11 +1,18 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import classNames from 'classnames';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 import { App, Button, DatePicker, Input, Segmented, Select, Splitter, Tabs } from 'antd';
-import type { ChatMessage, FactorKind, IcDecayPoint, FactorWeight } from '@jixie/shared';
+import type {
+  ChatMessage,
+  FactorKind,
+  FactorMeta,
+  IcDecayPoint,
+  FactorWeight,
+} from '@jixie/shared';
 import {
   faSpinner,
   faPlay,
@@ -23,6 +30,7 @@ import { ToolTrace } from '@src/components/tool-trace';
 import { AgentPending } from '@src/components/agent-pending';
 import type { AgentTurnStream } from '@src/components/agent-turn-stream';
 import type { AgentToolTraceItem } from '@src/api/client';
+import i18n from '@src/i18n';
 import { LoadingArea } from '@src/components/loading-area';
 import { LogView } from '@src/components/log-view';
 import { QuantileHeatmap } from './quantile-heatmap';
@@ -82,6 +90,7 @@ export const Factor = complex.component(() => {
 // Left column: Agent (chat authors the factor) | 因子库 (presets + custom, to select).
 const AgentPanel = complex.component(() => {
   const store = complex.useStore();
+  const { t } = useTranslation('factor');
   const [tab, setTab] = useState('agent');
   return (
     <div className="jx-factor-agent">
@@ -100,15 +109,15 @@ const AgentPanel = complex.component(() => {
               setTab('agent');
             }}
           >
-            新建
+            {t('newFactor')}
           </Button>
         }
         items={[
-          { key: 'agent', label: 'Agent', children: <AgentChat /> },
+          { key: 'agent', label: t('agentLabel'), children: <AgentChat /> },
           {
             // Picking a custom factor jumps to Agent (to edit/chat); a preset stays here (analysis-only).
             key: 'library',
-            label: '因子库',
+            label: t('libraryTab'),
             children: <FactorLibrary onPickCustom={() => setTab('agent')} />,
           },
         ]}
@@ -120,15 +129,18 @@ const AgentPanel = complex.component(() => {
 // Agent tab: a chat that writes / iterates the custom factor code, over a Cursor-style composer.
 const AgentChat = complex.component(() => {
   const store = complex.useStore();
+  const { t } = useTranslation('factor');
   const qa = store.qaMode;
   const f = store.selected;
-  const name = f?.label ?? (store.mode === 'custom' ? '新因子（未保存）' : '未选择因子');
+  const name = f
+    ? factorDisplayName(f)
+    : t(store.mode === 'custom' ? 'unnamedNew' : 'noneSelected');
   return (
     <div className="jx-factor-chat">
       <div className="jx-factor-agentName">
         <span className="jx-factor-agentNameText">{name}</span>
         {f && (
-          <span className={`jx-factor-kind jx-factor-kind--${f.kind}`}>{KIND_LABEL[f.kind]}</span>
+          <span className={`jx-factor-kind jx-factor-kind--${f.kind}`}>{t(KIND_KEY[f.kind])}</span>
         )}
       </div>
       <ChatLog
@@ -143,11 +155,7 @@ const AgentChat = complex.component(() => {
           value={store.nlText}
           onChange={(v) => store.setNlText(v)}
           onSubmit={() => void store.sendAgent(store.nlText)}
-          placeholder={
-            qa
-              ? '问问这个预设因子 —— 如「IC 0.03 算强吗」「适合什么周期」—— 回车发送'
-              : '描述你想要的因子,如「盈利收益率 1/PE」「小市值」;或继续对话调整 —— 回车发送'
-          }
+          placeholder={t(qa ? 'placeholderQa' : 'placeholderAuthor')}
         />
       </div>
     </div>
@@ -168,6 +176,7 @@ function ChatLog({
   cards: QueryCardResults;
   stream: AgentTurnStream;
 }) {
+  const { t } = useTranslation('factor');
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = ref.current;
@@ -178,11 +187,7 @@ function ChatLog({
   return (
     <div ref={ref} className="jx-factor-chatLog">
       {messages.length === 0 && !sending && (
-        <div className="jx-factor-chatEmpty">
-          {qa
-            ? '这是预置因子(只读代码,见中间编辑器)。有关它 / 因子分析的问题都可以问 —— Agent 只答疑,不改代码;想改参数出变体,点编辑器上方「复制为自定义」。'
-            : '跟 Agent 说你想要的因子(估值 / 规模 / 流动性 / 资金流 / 价格动量波动类),它写成代码进中间编辑器。财报明细类(ROE 增速等)暂缺数据。'}
-        </div>
+        <div className="jx-factor-chatEmpty">{t(qa ? 'chatEmptyQa' : 'chatEmptyAuthor')}</div>
       )}
       {messages.map((message, index) => (
         <div
@@ -206,6 +211,7 @@ function ChatLog({
 // rows have a delete affordance. Picking one jumps back to the Agent tab.
 const FactorLibrary = complex.component(({ onPickCustom }: { onPickCustom: () => void }) => {
   const store = complex.useStore();
+  const { t } = useTranslation('factor');
   const { modal } = App.useApp();
   const list = store.catalogLoader.result ?? [];
   const presets = list.filter((f) => f.kind !== 'custom');
@@ -220,11 +226,11 @@ const FactorLibrary = complex.component(({ onPickCustom }: { onPickCustom: () =>
   };
   const askDelete = (id: string, name: string) =>
     modal.confirm({
-      title: '删除确认',
-      content: `确定删除自定义因子「${name}」吗?删除后不可恢复。`,
-      okText: '删除',
+      title: t('deleteConfirmTitle'),
+      content: t('deleteConfirmContent', { name }),
+      okText: t('deleteOk'),
       okButtonProps: { danger: true },
-      cancelText: '取消',
+      cancelText: t('cancel'),
       onOk: () => store.removeFactor(id),
     });
 
@@ -233,7 +239,7 @@ const FactorLibrary = complex.component(({ onPickCustom }: { onPickCustom: () =>
     <LoadingArea loader={store.catalogLoader}>
       {() => (
         <div className="jx-factor-library">
-          <div className="jx-factor-libGroup">预设因子</div>
+          <div className="jx-factor-libGroup">{t('presetGroup')}</div>
           {presets.map((f) => (
             <button
               key={f.key}
@@ -242,15 +248,15 @@ const FactorLibrary = complex.component(({ onPickCustom }: { onPickCustom: () =>
               })}
               onClick={() => pick(f.key, false)}
             >
-              <span className="jx-factor-libName">{f.label}</span>
+              <span className="jx-factor-libName">{factorDisplayName(f)}</span>
               <span className={`jx-factor-kind jx-factor-kind--${f.kind}`}>
-                {KIND_LABEL[f.kind]}
+                {t(KIND_KEY[f.kind])}
               </span>
             </button>
           ))}
 
-          <div className="jx-factor-libGroup">自定义因子</div>
-          {custom.length === 0 && <div className="jx-factor-libEmpty">还没有,用 Agent 写一个</div>}
+          <div className="jx-factor-libGroup">{t('customGroup')}</div>
+          {custom.length === 0 && <div className="jx-factor-libEmpty">{t('customEmpty')}</div>}
           {custom.map((f) => (
             <button
               key={f.key}
@@ -259,10 +265,10 @@ const FactorLibrary = complex.component(({ onPickCustom }: { onPickCustom: () =>
               })}
               onClick={() => pick(f.key, true)}
             >
-              <span className="jx-factor-libName">{f.label}</span>
+              <span className="jx-factor-libName">{factorDisplayName(f)}</span>
               <span
                 role="button"
-                title="删除"
+                title={t('deleteTitle')}
                 className="jx-factor-libDel"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -283,6 +289,7 @@ const FactorLibrary = complex.component(({ onPickCustom }: { onPickCustom: () =>
 // row — shown in the same editor with a lock bar + 复制为自定义 (fork), instead of being hidden.
 const MiddleColumn = complex.component(() => {
   const store = complex.useStore();
+  const { t } = useTranslation('factor');
   const preset = store.mode === 'preset';
   if (preset && !store.code) {
     return <FactorDock />; // nothing selected yet (or the preset row failed to load)
@@ -294,19 +301,19 @@ const MiddleColumn = complex.component(() => {
           {preset && (
             <div className="jx-factor-presetBar">
               <span className="jx-factor-presetNote">
-                <FontAwesomeIcon icon={faLock} /> 预置因子,代码只读
+                <FontAwesomeIcon icon={faLock} /> {t('presetReadonly')}
               </span>
               <LoaderButton
                 size="small"
                 icon={<FontAwesomeIcon icon={faCopy} />}
                 action={() => store.forkSelected()}
               >
-                复制为自定义
+                {t('forkToCustom')}
               </LoaderButton>
             </div>
           )}
           <div className="jx-factor-code">
-            <Suspense fallback={<div className="jx-factor-codeEmpty">加载编辑器……</div>}>
+            <Suspense fallback={<div className="jx-factor-codeEmpty">{t('editorLoading')}</div>}>
               <FactorEditor
                 value={store.code}
                 onChange={(v) => store.setCode(v)}
@@ -326,16 +333,14 @@ const MiddleColumn = complex.component(() => {
 // Middle-bottom: the run's streamed 日志 (system progress + custom-factor console.*).
 const FactorDock = complex.component(() => {
   const store = complex.useStore();
+  const { t } = useTranslation('factor');
   return (
     <div className="jx-factor-dock">
       <div className="jx-factor-dockHead">
         {store.jobRunning && <FontAwesomeIcon icon={faSpinner} spin />}
-        日志
+        {t('log')}
       </div>
-      <LogView
-        lines={store.logs}
-        emptyText="运行分析后在此查看日志(系统进度 + 你的 console 输出)"
-      />
+      <LogView lines={store.logs} emptyText={t('logEmpty')} />
     </div>
   );
 }, 'FactorDock');
@@ -343,13 +348,10 @@ const FactorDock = complex.component(() => {
 // Right column: sticky 分析参数 (频率/区间/运行 + 已跑 chips) over the scrollable analysis result.
 const ResultColumn = complex.component(() => {
   const store = complex.useStore();
+  const { t } = useTranslation('factor');
   const active = store.selectedKey || store.mode === 'custom';
   if (!active) {
-    return (
-      <div className="jx-factor-resultCol jx-factor-empty">
-        ← 选一个因子,或让 Agent 写一个,再运行分析
-      </div>
-    );
+    return <div className="jx-factor-resultCol jx-factor-empty">{t('pickPrompt')}</div>;
   }
   return (
     <div className="jx-factor-resultCol">
@@ -367,21 +369,22 @@ const ResultColumn = complex.component(() => {
 // Frequency + date range + 运行/查看 (label depends on cache + unsaved custom code) + 重算.
 const ParamsBar = complex.component(() => {
   const store = complex.useStore();
+  const { t } = useTranslation('factor');
   const canView = store.isCached && !store.edited; // custom code edits force a recompute
   return (
     <div className="jx-factor-params">
-      <span className="jx-factor-paramLabel">频率</span>
+      <span className="jx-factor-paramLabel">{t('freq')}</span>
       <Select
         size="small"
         value={store.freq}
         onChange={(v) => store.setFreq(v)}
         options={[
-          { value: 'month', label: '月' },
-          { value: 'week', label: '周' },
+          { value: 'month', label: t('unitMonth') },
+          { value: 'week', label: t('unitWeek') },
         ]}
         style={{ width: 68 }}
       />
-      <span className="jx-factor-paramLabel">区间</span>
+      <span className="jx-factor-paramLabel">{t('range')}</span>
       <DatePicker
         size="small"
         value={dayjs(store.start, 'YYYYMMDD')}
@@ -402,7 +405,7 @@ const ParamsBar = complex.component(() => {
         action={() => store.runAnalysis()}
         style={{ width: 96 }}
       >
-        {canView ? '查看' : '运行分析'}
+        {canView ? t('view') : t('run')}
       </LoaderButton>
       {store.report && (
         <LoaderButton
@@ -410,7 +413,7 @@ const ParamsBar = complex.component(() => {
           loader={store.analysisLoader}
           action={() => store.runAnalysis(true)}
         >
-          重算
+          {t('recompute')}
         </LoaderButton>
       )}
     </div>
@@ -420,13 +423,14 @@ const ParamsBar = complex.component(() => {
 // The factor's already-computed windows — one click jumps to that cached report (instant).
 const RunChips = complex.component(() => {
   const store = complex.useStore();
+  const { t } = useTranslation('factor');
   const runs = store.runsLoader.result ?? [];
   if (!runs.length) {
     return null;
   }
   return (
     <div className="jx-factor-runs">
-      <span className="jx-factor-runsLabel">已跑</span>
+      <span className="jx-factor-runsLabel">{t('runsLabel')}</span>
       {runs.map((r) => {
         const active = r.freq === store.freq && r.start === store.start && r.end === store.end;
         return (
@@ -435,7 +439,8 @@ const RunChips = complex.component(() => {
             className={classNames('jx-factor-chip', { 'jx-factor-chip--active': active })}
             onClick={() => void store.applyRun(r)}
           >
-            {r.freq === 'week' ? '周' : '月'}·{r.start.slice(2, 6)}–{r.end.slice(2, 6)}
+            {t(r.freq === 'week' ? 'unitWeek' : 'unitMonth')}·{r.start.slice(2, 6)}–
+            {r.end.slice(2, 6)}
           </button>
         );
       })}
@@ -448,17 +453,12 @@ const RunChips = complex.component(() => {
 // LoadingArea drives the cached-report load with a DELAYED spinner (so a fast reload doesn't flash it).
 const FactorResult = complex.component(() => {
   const store = complex.useStore();
+  const { t } = useTranslation('factor');
   const loader = store.analysisLoader;
   if (store.jobRunning) {
-    return (
-      <Placeholder
-        icon={faSpinner}
-        spin
-        text="计算中……(基本面 / 自定义因子几秒;结果入库下次秒开)· 实时日志见中间「日志」"
-      />
-    );
+    return <Placeholder icon={faSpinner} spin text={t('computing')} />;
   }
-  const runPrompt = () => <Placeholder icon={faPlay} text="设好频率 / 区间,点「运行分析」" />;
+  const runPrompt = () => <Placeholder icon={faPlay} text={t('runPrompt')} />;
   if (loader.initial) {
     return runPrompt();
   }
@@ -472,15 +472,16 @@ const FactorResult = complex.component(() => {
 // The report render (decile chart + metrics + IC decay + heatmap) for the loaded analysis.
 const ReportBody = complex.component(() => {
   const store = complex.useStore();
-  const [weight, setWeight] = useState<FactorWeight>('equal'); // 分位收益加权:等权 / 市值加权(view 切换)
+  const { t } = useTranslation('factor');
+  const [weight, setWeight] = useState<FactorWeight>('equal'); // quantile-return weighting: equal / market-cap (view toggle)
   const r = store.report;
   if (!r) {
-    return <Placeholder icon={faPlay} text="设好频率 / 区间,点「运行分析」" />;
+    return <Placeholder icon={faPlay} text={t('runPrompt')} />;
   }
 
   const n = r.buckets.length;
   const dir = direction(r.icMean);
-  const per = r.freq === 'week' ? '周' : '月';
+  const per = t(r.freq === 'week' ? 'unitWeek' : 'unitMonth');
   // Weight is a view toggle over precomputed data (等权 always present; 市值加权 on newer reports).
   const hasMktcap = !!r.bucketsMktcap;
   const useMktcap = weight === 'mktcap' && hasMktcap;
@@ -490,7 +491,12 @@ const ReportBody = complex.component(() => {
     <>
       <div className="jx-factor-resultHead">
         <span className="jx-factor-sample">
-          样本 {r.periods} {per} · {r.start.slice(0, 4)}–{r.end.slice(0, 4)}
+          {t('sample', {
+            periods: r.periods,
+            per,
+            startYear: r.start.slice(0, 4),
+            endYear: r.end.slice(0, 4),
+          })}
         </span>
         {hasMktcap && (
           <Segmented
@@ -498,13 +504,13 @@ const ReportBody = complex.component(() => {
             value={weight}
             onChange={(v) => setWeight(v as FactorWeight)}
             options={[
-              { label: '等权', value: 'equal' },
-              { label: '市值加权', value: 'mktcap' },
+              { label: t('weightEqual'), value: 'equal' },
+              { label: t('weightMktcap'), value: 'mktcap' },
             ]}
           />
         )}
         <span className={classNames('jx-factor-dir', `jx-factor-dir--${dir.kind}`)}>
-          {dir.text}
+          {t(dir.textKey)}
         </span>
       </div>
 
@@ -512,41 +518,57 @@ const ReportBody = complex.component(() => {
         <DecileChart buckets={buckets} />
       </Suspense>
       <div className="jx-factor-chartCap">
-        横轴 D1(因子值最低)→ D{n}(最高),纵轴各档「下一{per}」年化收益 ——
-        一路上行=动量,一路下行=反转。
-        {hasMktcap && '「市值加权」看大票能否真赚到(等权易被小盘放大)。'}
+        {t('decileCap', { n, per })}
+        {hasMktcap && t('decileCapMktcap')}
       </div>
 
       <div className="jx-factor-metrics">
-        <Metric label="Rank IC 均值" value={r.icMean.toFixed(4)} hint="符号=方向 · 绝对值=强度" />
-        <Metric label="ICIR(年化)" value={r.icirAnnual.toFixed(2)} hint="IC 稳定性" />
-        <Metric label="IC>0 占比" value={pct(r.icPosRate)} hint={`多少${per}份方向一致`} />
-        <Metric label={`多空 D${n}−D1 年化`} value={pct(longShort.annReturn)} hint="纯因子收益" />
-        <Metric label="多空 Sharpe" value={longShort.sharpe.toFixed(2)} />
-        <Metric label="多空最大回撤" value={pct(longShort.maxDrawdown)} />
-        <Metric label={`最高档${per}换手`} value={pctInt(r.topTurnover)} hint="越高摩擦越重" />
+        <Metric
+          label={t('metricIcMean')}
+          value={r.icMean.toFixed(4)}
+          hint={t('metricIcMeanHint')}
+        />
+        <Metric
+          label={t('metricIcir')}
+          value={r.icirAnnual.toFixed(2)}
+          hint={t('metricIcirHint')}
+        />
+        <Metric
+          label={t('metricIcPos')}
+          value={pct(r.icPosRate)}
+          hint={t('metricIcPosHint', { per })}
+        />
+        <Metric
+          label={t('metricLsAnn', { n })}
+          value={pct(longShort.annReturn)}
+          hint={t('metricLsAnnHint')}
+        />
+        <Metric label={t('metricLsSharpe')} value={longShort.sharpe.toFixed(2)} />
+        <Metric label={t('metricLsMdd')} value={pct(longShort.maxDrawdown)} />
+        <Metric
+          label={t('metricTopTurnover', { per })}
+          value={pctInt(r.topTurnover)}
+          hint={t('metricTopTurnoverHint')}
+        />
       </div>
 
       {r.icDecay?.length > 0 && (
         <>
-          <div className="jx-factor-sectionTitle">IC 衰减 · 因子的持有周期</div>
+          <div className="jx-factor-sectionTitle">{t('icDecayTitle')}</div>
           <Suspense fallback={<div className="jx-factor-chart" />}>
             <IcDecayChart points={r.icDecay} />
           </Suspense>
           <div className="jx-factor-chartCap">
-            横轴前瞻交易日,纵轴 Rank IC —— {decayHint(r.icDecay)}
+            {t('icDecayCap', { hint: decayHint(r.icDecay) })}
           </div>
         </>
       )}
 
       {r.quantileHorizons?.length ? (
         <>
-          <div className="jx-factor-sectionTitle">分位 × 前瞻期 · 各档在不同持有期的收益</div>
+          <div className="jx-factor-sectionTitle">{t('heatmapTitle')}</div>
           <QuantileHeatmap rows={r.quantileHorizons} weight={useMktcap ? 'mktcap' : 'equal'} />
-          <div className="jx-factor-chartCap">
-            格子=日均前瞻收益(‱ 万分,已按持有天数归一化,横向可比),红涨绿跌。看哪个前瞻期下 D1→D{n}
-            单调最强、信号衰不衰。
-          </div>
+          <div className="jx-factor-chartCap">{t('heatmapCap', { n })}</div>
         </>
       ) : null}
     </>
@@ -605,26 +627,35 @@ function traceOf(message: ChatMessage): AgentToolTraceItem[] | undefined {
   return trace?.length ? trace : undefined;
 }
 
-const KIND_LABEL: Record<FactorKind, string> = {
-  price: '价格',
-  fundamental: '基本面',
-  moneyflow: '资金流',
-  custom: '自定义',
+// FactorKind → its i18n label key (in the 'factor' namespace).
+const KIND_KEY: Record<FactorKind, string> = {
+  price: 'kindPrice',
+  fundamental: 'kindFundamental',
+  moneyflow: 'kindMoneyflow',
+  custom: 'kindCustom',
 };
+
+// Display name for a catalog item: a built-in preset shows its localized name (keyed by slug); a custom
+// factor keeps the user-given name unchanged.
+function factorDisplayName(factor: FactorMeta): string {
+  return factor.builtin && i18n.exists(`factor:builtin.${factor.key}`)
+    ? i18n.t(`factor:builtin.${factor.key}`)
+    : factor.label;
+}
 
 const pct = (v: number) => `${(v * 100).toFixed(2)}%`;
 const pctInt = (v: number) => `${(v * 100).toFixed(0)}%`;
 
 // Direction from the IC sign: positive → long the top decile (momentum-like); negative → long the
 // bottom decile (reversal-like); near-zero → no edge.
-function direction(icMean: number): { kind: 'up' | 'down' | 'flat'; text: string } {
+function direction(icMean: number): { kind: 'up' | 'down' | 'flat'; textKey: string } {
   if (icMean > 0.01) {
-    return { kind: 'up', text: '正向 · 做多高分位' };
+    return { kind: 'up', textKey: 'dirUp' };
   }
   if (icMean < -0.01) {
-    return { kind: 'down', text: '反向 · 做多低分位' };
+    return { kind: 'down', textKey: 'dirDown' };
   }
-  return { kind: 'flat', text: '方向不显著' };
+  return { kind: 'flat', textKey: 'dirFlat' };
 }
 
 // Interpret the IC-decay shape: where |IC| peaks (natural holding period) + whether it rises (slow
@@ -635,8 +666,8 @@ function decayHint(points: IcDecayPoint[]): string {
   }
   const peak = points.reduce((a, b) => (Math.abs(b.icMean) > Math.abs(a.icMean) ? b : a));
   const rising = Math.abs(points.at(-1)!.icMean) > Math.abs(points[0].icMean);
-  const trend = rising ? '越往后越强(慢因子,宜长持)' : '短端更强、随后衰减(快因子,宜短持)';
-  return `|IC| 峰值在 ${peak.horizonDays} 日 · ${trend}`;
+  const trend = i18n.t(rising ? 'factor:decayTrendSlow' : 'factor:decayTrendFast');
+  return i18n.t('factor:decayPeak', { days: peak.horizonDays, trend });
 }
 
 // antd Splitter only learns its container width from a ResizeObserver, one frame AFTER the first
