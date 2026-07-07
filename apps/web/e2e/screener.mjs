@@ -452,11 +452,15 @@ try {
   await page.locator('#universe .jx-docs-symName').waitFor({ timeout: 10000 });
   await page.screenshot({ path: `${SHOTS}6-sdk-docs.png` });
   log('shot 6: SDK docs page (zh)');
+  // The docs language toggle now drives the app-wide localeStore (persisted), not a ?lang URL param.
   await page.getByRole('button', { name: 'EN' }).click();
-  await page.waitForFunction(() => location.search.includes('lang=en'));
   await page.locator('.jx-docs-langBtn--on', { hasText: 'EN' }).waitFor({ timeout: 4000 });
+  await page.waitForFunction(() => localStorage.getItem('jx-locale') === 'en');
   await page.screenshot({ path: `${SHOTS}6b-sdk-docs-en.png` });
   log('shot 6b: SDK docs page (EN toggle)');
+  // Reset to zh — locale is global/persisted now, so leave it Chinese for the remaining zh-selector steps.
+  await page.getByRole('button', { name: '中' }).click();
+  await page.waitForFunction(() => localStorage.getItem('jx-locale') === 'zh');
 
   // 7. 因子研究 (/factors): agent-IDE layout — the catalog lives in the 因子库 tab of the left Agent panel.
   //    Pick a preset (stays put — presets are analysis-only) → set 频率/区间 → 运行 → decile chart + IC +

@@ -70,6 +70,24 @@
   color: var(--doc-text);
 }
 
+.jx-learn-lang {
+  @apply flex overflow-hidden;
+  border: 1px solid var(--doc-line);
+  border-radius: 980px;
+}
+
+.jx-learn-langBtn {
+  color: var(--doc-sec);
+  padding: 3px 12px;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.jx-learn-langBtn--on {
+  background: var(--doc-text);
+  color: #fff;
+}
+
 .jx-learn-topCta {
   @apply font-medium;
   padding: 5px 14px;
