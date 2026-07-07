@@ -1,9 +1,9 @@
 @reference '../../styles/index.css';
 
-/* vertical: K线 chart on top, trade table below (roughly 50/50), fills the container */
+/* vertical: candlestick chart on top, trade table below (roughly 50/50), fills the container */
 .jx-td {
   @apply flex flex-col gap-3;
-  height: 100%; /* fills its container — the 交易明细 tab or the /trades page body */
+  height: 100%; /* fills its container — the Trade-detail tab or the /trades page body */
 }
 
 .jx-td-chart {
@@ -103,7 +103,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* 全部 view — an extra 标的 (name+code) column */
+/* All view — an extra instrument (name+code) column */
 .jx-td-list--all .jx-td-head,
 .jx-td-list--all .jx-td-row {
   grid-template-columns: 96px 84px 30px 1fr 52px 56px;

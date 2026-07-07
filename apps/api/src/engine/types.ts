@@ -24,9 +24,9 @@ export interface TradeRecord {
   side: 'buy' | 'sell';
   shares: number; // hfq shares (engine-internal accounting)
   price: number; // hfq (adjusted) fill price (engine-internal)
-  amount: number; // realShares × realPrice = shares × price (成交额, real money)
+  amount: number; // realShares × realPrice = shares × price (trade value, real money)
   fee: number; // commission + stamp + transfer
-  realShares: number; // real shares filled — buys are whole 手 (100-share lots)
+  realShares: number; // real shares filled — buys are whole lots (100 shares each)
   realPrice: number; // unadjusted (raw) fill price — what you'd actually have paid
 }
 
@@ -34,18 +34,18 @@ export interface TradeRecord {
  * hit `fee` on the trade; slippage instead worsens the fill PRICE (buys above / sells below the open), so
  * it shows up as a worse realized price, not a fee line. */
 export interface CostModel {
-  commission: number; // per-side rate, e.g. 0.00025 (万2.5)
+  commission: number; // per-side rate, e.g. 0.00025 (0.025%)
   minCommission: number; // floor per trade in yuan, e.g. 5
-  stampDuty: number; // sell-side only, e.g. 0.0005 (千0.5)
+  stampDuty: number; // sell-side only, e.g. 0.0005 (0.05%)
   transferFee: number; // both sides, e.g. 0.00001
   // —— Slippage (implicit cost, applied to the fill price) ——
-  slippageBps: number; // base half-spread, both sides, in bps (万分) — the cost even for a liquid large-cap
-  impactCoef: number; // linear price impact per (order notional / day 成交额): a bigger order in a thinner
-  //                     (small-cap) name pays more — this is what makes 中小盘/高换手 realistically costlier
+  slippageBps: number; // base half-spread, both sides, in bps — the cost even for a liquid large-cap
+  impactCoef: number; // linear price impact per (order notional / day turnover): a bigger order in a thinner
+  //                     (small-cap) name pays more — this is what makes small/mid-cap / high-turnover realistically costlier
 }
 
 /** One stock's adjusted (hfq) OHLC on one day — the unit a per-instrument strategy reads via bars().
- * vol/amount are raw (not adjusted): the day's volume (手) and turnover (成交额, 千元). */
+ * vol/amount are raw (not adjusted): the day's volume (lots) and turnover (thousand yuan). */
 export interface OhlcBar {
   date: string;
   adjOpen: number;
@@ -71,8 +71,8 @@ export interface BarRow {
   adjHigh: number | null;
   adjLow: number | null;
   adjClose: number | null;
-  vol: number | null; // 成交量 (手)
-  amount: number | null; // 成交额 (千元) — the liquidity / slippage gate
+  vol: number | null; // volume (lots)
+  amount: number | null; // turnover (thousand yuan) — the liquidity / slippage gate
   pe: number | null;
   peTtm: number | null;
   pb: number | null;
@@ -83,15 +83,15 @@ export interface BarRow {
   totalMv: number | null; // total market cap (10k yuan)
   circMv: number | null; // circulating market cap (10k yuan)
   turnoverRate: number | null; // turnover %
-  roe: number | null; // 净资产收益率 %, point-in-time (latest report public as-of today)
-  roeWaa: number | null; // 加权平均净资产收益率 %
+  roe: number | null; // return on equity %, point-in-time (latest report public as-of today)
+  roeWaa: number | null; // weighted average return on equity %
 }
 
 /** What the strategy sees and acts through, each bar. */
-/** Read-only 大盘指数句柄 (ctx.index) — point-in-time as-of today; an index isn't tradable. */
+/** Read-only market-index handle (ctx.index) — point-in-time as-of today; an index isn't tradable. */
 export interface IndexHandle {
-  readonly close: number | null; // 今日指数点位(as-of ≤ today);未同步返 null
-  sma(n: number): number | null; // n 日均线(指数收盘序列);数据不足返 null
+  readonly close: number | null; // today's index level (as-of ≤ today); null if not synced
+  sma(n: number): number | null; // n-day moving average (index close series); null if insufficient data
 }
 
 export interface BarContext {
@@ -121,7 +121,7 @@ export interface BarContext {
   /** Industry label for `code` (current classification, not point-in-time); null if unknown. For
    * sector-neutral / rotation / single-industry logic. */
   industry(code: string): string | null;
-  /** 今日龙虎榜净买入额(元);未上榜当天返 null(不前向填充)—— 关注度/游资 极端信号。 */
+  /** Today's Dragon-Tiger List net buy amount (yuan); null on days not on the list (not carried forward) — attention / hot-money extreme signal. */
   lhbNet(code: string): number | null;
   /** Today's adjusted close (carried forward if suspended) for held/already-loaded codes. */
   price(code: string): number | null;
@@ -130,12 +130,13 @@ export interface BarContext {
   /** Preloaded moneyflow column lookup (only the keys the strategy declared in `factors`, e.g.
    * 'mf_net_main'). The engine treats it as opaque preloaded data; as-of `date`, null if absent. */
   factor(name: string, code: string): number | null;
-  /** Point-in-time constituents of an index (e.g. '000300.SH' 沪深300) as of today — the codes from the
+  /** Point-in-time constituents of an index (e.g. '000300.SH' CSI 300) as of today — the codes from the
    * latest monthly snapshot ≤ today. Async (lazily loads the index's snapshots on first use). */
   indexMembers(indexCode: string): Promise<string[]>;
-  /** 大盘指数句柄(如 '000300.SH' 沪深300)—— 时点只读:`close` 今日点位、`sma(n)` n 日均线(指数自身
-   * 收盘序列)。给大盘择时滤网(如「沪深300 站上 200 日线才做多」)。指数不可交易;数据来自 IndexDaily
-   * (需已同步),未同步则 close/sma 返 null。 */
+  /** Market-index handle (e.g. '000300.SH' CSI 300) — point-in-time read-only: `close` today's level,
+   * `sma(n)` the n-day moving average (index's own close series). For market-timing filters (e.g. "go long
+   * only when CSI 300 is above its 200-day moving average"). The index isn't tradable; data comes from
+   * IndexDaily (must be synced), close/sma return null if not synced. */
   index(indexCode: string): IndexHandle;
 
   // —— Orders ——
@@ -191,14 +192,14 @@ export interface BacktestResult {
   trades: number; // count (= tradeLog.length)
   tradeLog: TradeRecord[]; // every fill, in order
   nav: { date: string; value: number }[]; // daily equity curve
-  benchReturn: number; // 沪深300 同期总收益
+  benchReturn: number; // CSI 300 total return over the same period
   excessReturn: number; // totalReturn − benchReturn
-  informationRatio: number; // 年化信息比率
+  informationRatio: number; // annualized information ratio
   calmar: number; // annReturn / |maxDrawdown|
-  winRate: number; // 盈利平仓占比
-  profitFactor: number; // Σ盈利 / Σ亏损
-  turnover: number; // 年化换手
-  monthly: { month: string; ret: number }[]; // 'YYYYMM' → 月度收益
+  winRate: number; // share of profitable closed trades
+  profitFactor: number; // Σ profit / Σ loss
+  turnover: number; // annualized turnover
+  monthly: { month: string; ret: number }[]; // 'YYYYMM' → monthly return
 }
 
 export const DEFAULT_COST: CostModel = {
@@ -207,5 +208,5 @@ export const DEFAULT_COST: CostModel = {
   stampDuty: 0.0005,
   transferFee: 0.00001,
   slippageBps: 2, // ~0.02% base half-spread
-  impactCoef: 0.1, // order = 1% of the day's 成交额 → +0.1% slip; = 5% → +0.5%
+  impactCoef: 0.1, // order = 1% of the day's turnover → +0.1% slip; = 5% → +0.5%
 };

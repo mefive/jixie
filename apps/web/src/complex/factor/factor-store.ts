@@ -47,7 +47,7 @@ export default defineFactor({
 `;
 
 /**
- * 因子研究 store — Agent-authored, IDE-style (mirrors the strategy workbench). Two kinds of factor:
+ * Factor research store — Agent-authored, IDE-style (mirrors the strategy workbench). Two kinds of factor:
  *  - preset (mom/ep/dv/…): a built-in formula → just pick it and run analysis; no code, no chat;
  *  - custom: Agent authors a `defineFactor` module. Created on the first Agent prompt (LLM-named),
  *    messages saved in real time, code/name committed only on an analysis run (which re-derives the name
@@ -122,7 +122,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     void this.catalogLoader.run();
 
     // Restore from the URL: preselect the factor (set selectedKey SYNCHRONOUSLY so the first paint shows
-    // the analysis area, not the empty "选一个因子" — the report then loads under a delayed spinner), then
+    // the analysis area, not the empty "pick a factor" placeholder — the report then loads under a delayed spinner), then
     // re-attach to a running job (refreshed mid-run) or load/run the window (refresh-safe / shareable).
     if (params.factor) {
       runInAction(() => {
@@ -145,7 +145,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     return r && r.factor === this.selectedKey ? r : null;
   }
 
-  /** Whether the current (factor, freq, start, end) is already computed — drives the 运行/查看 label. */
+  /** Whether the current (factor, freq, start, end) is already computed — drives the run/view label. */
   public get isCached(): boolean {
     return (this.runsLoader.result ?? []).some(
       (r) => r.freq === this.freq && r.start === this.start && r.end === this.end,
@@ -179,7 +179,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     runInAction(() => (this.nlText = v));
   }
 
-  /** Pick a factor from the 因子库. A preset → readonly code + Q&A agent. A custom factor → load its
+  /** Pick a factor from the factor library. A preset → readonly code + Q&A agent. A custom factor → load its
    * code + conversation into the editor/chat. Either way, auto-show its most-recent cached run. */
   public async selectFactor(key: string) {
     this.analysisPoller.stop(); // drop any in-flight job for the previous factor
@@ -215,12 +215,12 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     if (runs.length) {
       await this.applyRun(runs[0]); // most recent (computedAt desc)
     } else {
-      this.analysisLoader.reset(); // fresh factor — wait for an explicit 运行
+      this.analysisLoader.reset(); // fresh factor — wait for an explicit run
     }
   }
 
   /** Copy the selected preset's (or own factor's) code into a NEW editable custom factor — the
-   * "fork 出变体、改参数" research path. Selection jumps to the fresh copy. */
+   * "fork a variant, tweak params" research path. Selection jumps to the fresh copy. */
   public async forkSelected() {
     if (!this.selectedKey) {
       return;
@@ -491,7 +491,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     }
   }
 
-  /** On URL-restore: re-attach to a still-running job, else show the cached report, else the 运行 prompt. */
+  /** On URL-restore: re-attach to a still-running job, else show the cached report, else the run prompt. */
   private async restoreOrRun() {
     if (!this.selectedKey) {
       return;

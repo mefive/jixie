@@ -29,9 +29,9 @@ import { EXAMPLE_SCREENS } from './screen-store';
 import './screen.css';
 
 /**
- * 选股卡片墙 (docs/design/unified-agent.md 设计 4). One wall, two card kinds: query cards (saved
+ * Stock-screener card wall (docs/design/unified-agent.md design 4). One wall, two card kinds: query cards (saved
  * ScreenSpec — click re-runs it into an editable result view) and session cards (agent conversations —
- * click continues the chat). 「新对话」 is the standing entry; screening itself happens in the agent
+ * click continues the chat). "New conversation" is the standing entry; screening itself happens in the agent
  * conversation, whose runScreen tool calls surface as pinnable query cards.
  */
 export const Screen = complex.component(() => {
@@ -45,9 +45,9 @@ export const Screen = complex.component(() => {
   return <Wall />;
 }, 'Screen');
 
-// —— 子组件 ——
+// —— Subcomponents ——
 
-// The wall: filter + 新对话 + example chips, then both card kinds mixed, newest first.
+// The wall: filter + New-conversation + example chips, then both card kinds mixed, newest first.
 const Wall = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('screen');
@@ -227,7 +227,7 @@ const QueryView = complex.component(() => {
         columns={columns(t)}
         pagination={false}
         scroll={{ y: 'calc(100vh - 320px)' }}
-        // Open the stock's K线/PE/量 in a new tab — keeps the screen list intact.
+        // Open the stock's candlestick/PE/volume in a new tab — keeps the screen list intact.
         onRow={(r) => ({ onClick: () => window.open(`/stock/${r.tsCode}`, '_blank') })}
       />
     </main>
@@ -398,7 +398,7 @@ function PromptInput({
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.nativeEvent.isComposing) {
       return;
-    } // mid-IME (拼音候选) — let Enter confirm, never send
+    } // mid-IME (pinyin candidates) — let Enter confirm, never send
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       onSubmit();
@@ -430,7 +430,7 @@ function PromptInput({
   );
 }
 
-// —— 帮助函数 / 配置 ——
+// —— Helpers / config ——
 
 type WallCard =
   | { kind: 'query'; updatedAt: string; query: SavedMeta }
@@ -477,7 +477,7 @@ const num = (v: number | null, d = 2) => (v == null ? '—' : v.toFixed(d));
 
 // Result table columns — a function of the translator so headers/units follow the active locale.
 function columns(t: TFunction<'screen'>): ColumnsType<ScreenRow> {
-  const yi = (wan: number | null) => formatMarketCapWan(wan); // 10k CNY → 亿 (zh) / B (en)
+  const yi = (wan: number | null) => formatMarketCapWan(wan); // 10k CNY → yi (zh) / B (en)
   return [
     {
       title: t('column.name'),

@@ -8,8 +8,8 @@ import './trade-page.css';
 const TradeDetail = lazy(() => import('./trade-detail'));
 type Strategy = Awaited<ReturnType<typeof getStrategy>>;
 
-/** Standalone 交易详情 page (opened from the modal's 页面打开 button, `/trades?id=<strategyId>`). Loads
- * the strategy's last backtest result and renders the same K线 + trade list, full-window. */
+/** Standalone trade-detail page (opened from the modal's "open in page" button, `/trades?id=<strategyId>`). Loads
+ * the strategy's last backtest result and renders the same candlestick + trade list, full-window. */
 export default function TradePage() {
   const { t } = useTranslation('lab');
   const [sp] = useSearchParams();

@@ -32,7 +32,7 @@ export class AgentTurnStream {
   public streaming = false;
   public text = ''; // accumulated produce-phase text (pending bubble body)
   public trace: ToolTraceItem[] = []; // completed tool calls so far
-  public statusNote = ''; // transient phase line: 正在查询 X… / 修复中…
+  public statusNote = ''; // transient phase line: querying X… / fixing…
   public turnId: string | null = null;
 
   private abortController: AbortController | null = null;

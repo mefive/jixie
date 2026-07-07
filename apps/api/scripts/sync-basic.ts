@@ -17,18 +17,18 @@ async function main(): Promise<void> {
     minIntervalMs: cfg.minIntervalMs,
   });
 
-  console.log(`同步 daily_basic ${start} ~ ${end}（限频 ${cfg.minIntervalMs}ms/次）\n`);
+  console.log(`Syncing daily_basic ${start} ~ ${end} (rate limit ${cfg.minIntervalMs}ms/call)\n`);
   await syncDailyBasic(client, start, end);
 
-  console.log('\n落库统计:');
+  console.log('\nStored row counts:');
   console.table({ daily_basic: await prisma.dailyBasic.count() });
 
   await prisma.$disconnect();
-  console.log('✅ 同步完成');
+  console.log('✅ Sync complete');
 }
 
 main().catch(async (e: unknown) => {
-  console.error('\n❌ sync:basic 失败：', e instanceof Error ? e.message : e);
+  console.error('\n❌ sync:basic failed: ', e instanceof Error ? e.message : e);
   await prisma.$disconnect();
   process.exitCode = 1;
 });

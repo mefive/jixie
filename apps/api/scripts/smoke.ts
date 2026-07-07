@@ -5,7 +5,7 @@ import { stockBasic, tradeCal } from '../src/tushare/api.js';
 /** Connectivity self-test: verify TUSHARE_TOKEN is valid and the HTTP channel works. Run: `pnpm smoke`. */
 async function main(): Promise<void> {
   const cfg = loadTushareConfig();
-  console.log('✓ 已读取 TUSHARE_TOKEN，API =', cfg.baseUrl);
+  console.log('✓ TUSHARE_TOKEN loaded, API =', cfg.baseUrl);
 
   const client = new TushareClient({
     token: cfg.token,
@@ -13,18 +13,18 @@ async function main(): Promise<void> {
     minIntervalMs: cfg.minIntervalMs,
   });
 
-  console.log('\n— 交易日历（上交所 2024-01-01 ~ 01-10）—');
+  console.log('\n— Trading calendar (SSE 2024-01-01 ~ 01-10) —');
   console.table(await tradeCal(client, { start_date: '20240101', end_date: '20240110' }));
 
-  console.log('\n— A 股列表（前 5 只）—');
+  console.log('\n— A-share list (first 5) —');
   const stocks = await stockBasic(client);
-  console.log('当前上市 A 股数量：', stocks.length);
+  console.log('Currently listed A-share count:', stocks.length);
   console.table(stocks.slice(0, 5));
 
-  console.log('\n✅ Tushare 连通正常，token 有效。');
+  console.log('\n✅ Tushare connectivity OK, token is valid.');
 }
 
 main().catch((e: unknown) => {
-  console.error('\n❌ smoke 失败：', e instanceof Error ? e.message : e);
+  console.error('\n❌ smoke failed:', e instanceof Error ? e.message : e);
   process.exitCode = 1;
 });

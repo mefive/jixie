@@ -5,13 +5,13 @@
   height: 100%;
 }
 
-/* —— new-strategy hero (prompt-first entry, mirrors 选股看图) —— */
+/* —— new-strategy hero (prompt-first entry, mirrors the screener page) —— */
 .jx-lab-hero {
   @apply flex flex-1 items-center justify-center overflow-auto;
   padding: 24px;
 }
 
-/* 新建 prompt modal: reuse the hero's prompt block, but supply the flex-col gap the modal body lacks
+/* New prompt modal: reuse the hero's prompt block, but supply the flex-col gap the modal body lacks
    (the hero gets it from .jx-lab-heroInner) so hint / box / examples / links aren't cramped together */
 .jx-lab-newModal {
   @apply flex flex-col;
@@ -75,7 +75,7 @@
   cursor: pointer;
 }
 
-/* 最近访问 — recent strategies tiled below the prompt (same cards as 我的策略) */
+/* Recent visits — recent strategies tiled below the prompt (same cards as My strategies) */
 .jx-lab-recents {
   @apply flex w-full flex-col gap-2;
   margin-top: 8px;
@@ -111,7 +111,7 @@
   height: 100%;
 }
 
-/* —— left column: Agent panel (chat + 运行配置 | 历史) —— */
+/* —— left column: Agent panel (chat + run-config | History) —— */
 .jx-lab-agent {
   @apply flex flex-col overflow-hidden bg-card;
   height: 100%;
@@ -136,7 +136,7 @@
   height: 100%;
 }
 
-/* Agent tab: sticky 运行配置 header, scrollable log, bottom input */
+/* Agent tab: sticky run-config header, scrollable log, bottom input */
 .jx-lab-chat {
   @apply flex flex-1 flex-col overflow-hidden;
 }
@@ -150,7 +150,7 @@
   font-size: 14px;
 }
 
-/* 2-col grid: 起始 | 结束 on top, 资金 | 运行回测 below — controls align across both rows */
+/* 2-col grid: start | end on top, capital | Run-backtest below — controls align across both rows */
 .jx-lab-runConfig {
   @apply grid items-center;
   @apply rounded-lg border border-line bg-bg;
@@ -215,7 +215,7 @@
 }
 
 /* Cursor-style composer: the box border lives on the container; the textarea inside is borderless (so
-   no heavy antd focus ring / shadow). Stays multi-row. 回车发送 — no button. */
+   no heavy antd focus ring / shadow). Stays multi-row. Enter sends — no button. */
 .jx-lab-chatInput {
   @apply rounded-lg border border-line bg-bg;
   padding: 4px 8px;
@@ -231,7 +231,7 @@
   @apply w-full;
 }
 
-/* 历史 tab: strategies as a vertical list of cards */
+/* History tab: strategies as a vertical list of cards */
 .jx-lab-history {
   @apply flex flex-1 flex-col gap-2 overflow-auto;
   padding: 4px 2px 8px;
@@ -243,7 +243,7 @@
   min-height: 0;
 }
 
-/* —— 结果概览 tab content (scrolls; horizontal padding comes from the tabs container) —— */
+/* —— Results-overview tab content (scrolls; horizontal padding comes from the tabs container) —— */
 .jx-lab-result {
   @apply flex flex-col gap-3;
   @apply overflow-auto;
@@ -260,7 +260,7 @@
   @apply text-down;
 }
 
-/* —— middle-bottom: 日志 dock (under the editor), flush — split bar above is its divider —— */
+/* —— middle-bottom: log dock (under the editor), flush — split bar above is its divider —— */
 .jx-lab-dock {
   @apply flex flex-col overflow-hidden bg-card;
   height: 100%;
@@ -272,7 +272,7 @@
   padding: 8px 2px 6px;
 }
 
-/* —— right column: 结果概览 / 交易明细 tabs (no vertical split) —— */
+/* —— right column: Results-overview / Trade-detail tabs (no vertical split) —— */
 .jx-lab-resultTabs {
   @apply flex flex-col overflow-hidden bg-card;
   height: 100%;
@@ -299,7 +299,7 @@
   height: 100%;
 }
 
-/* 交易明细 tab — TradeDetail fills (K线 top / 明细表 bottom, 50/50, handled in trade-detail.css) */
+/* Trade-detail tab — TradeDetail fills (candlestick top / detail table bottom, 50/50, handled in trade-detail.css) */
 .jx-lab-tradesTab {
   @apply flex flex-1 flex-col overflow-hidden;
   padding: 6px 0 10px;

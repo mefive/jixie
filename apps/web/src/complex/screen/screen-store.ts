@@ -65,7 +65,7 @@ export const EXAMPLE_SCREENS: { labelKey: string; spec: ScreenSpec }[] = [
 ];
 
 /**
- * 选股卡片墙 store (docs/design/unified-agent.md 设计 4). One wall, two card kinds:
+ * Stock-screener card wall store (docs/design/unified-agent.md design 4). One wall, two card kinds:
  *  - query cards (SavedScreen): click → the query view (editable chips + fresh result table);
  *  - session cards (ScreenConversation): click → the chat view (continue the conversation).
  * The conversation is created lazily on its first turn (title = the message, truncated) and its

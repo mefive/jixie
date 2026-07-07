@@ -4,10 +4,10 @@ import type { UserLogSink } from '../lib/sandbox-console.js';
 
 /**
  * Compile a factor (defineFactor TS source) into an isolated-vm-backed handle — the hard sandbox
- * boundary for factor code (2026-07-07 Phase A;策略 onBar 仍是 new Function,Phase B 另做).
+ * boundary for factor code (2026-07-07 Phase A; strategy onBar is still new Function, Phase B done separately).
  * Execution is BATCHED: one wall-crossing computes a whole array of items (per rebalance date on
- * the fast path, per stock on the windowed path) — 65 万次逐股跨墙会被序列化开销吃死,批量把
- * 跨墙次数压到日数/股数量级. Each item carries its bar and, for windowed factors, the hfq close/
+ * the fast path, per stock on the windowed path) — 650k per-stock wall crossings would be crushed by
+ * serialization overhead; batching cuts the crossing count down to the order of days/stocks. Each item carries its bar and, for windowed factors, the hfq close/
  * date window ENDING at the evaluation day; ctx.history slices tails of that window in-wall.
  */
 export interface FactorBatchItem {

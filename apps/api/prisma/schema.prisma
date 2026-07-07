@@ -63,36 +63,36 @@ model AdjFactor {
   @@index([tradeDate])
 }
 
-/// Daily price limits (unadjusted 涨/跌停价). The engine blocks buys at the up-limit open and sells at
-/// the down-limit open (covers board-specific limits: 主板±10/ST±5/双创±20/北交所±30).
+/// Daily price limits (unadjusted up/down limit prices). The engine blocks buys at the up-limit open and sells at
+/// the down-limit open (covers board-specific limits: Main Board ±10 / ST ±5 / ChiNext & STAR ±20 / BSE ±30).
 model StkLimit {
   tsCode    String
   tradeDate String
-  upLimit   Float // 涨停价 (raw)
-  downLimit Float // 跌停价 (raw)
+  upLimit   Float // up-limit price (raw)
+  downLimit Float // down-limit price (raw)
 
   @@id([tsCode, tradeDate])
   @@index([tradeDate])
 }
 
-/// 龙虎榜 (Dragon-Tiger List): stocks with abnormal activity that day + their net buy. Sparse event data
+/// Dragon-Tiger List: stocks with abnormal activity that day + their net buy. Sparse event data
 /// (only listed stocks have a row that day) — read exact-date via ctx.lhbNet, never carried forward.
 model TopList {
   tsCode    String
   tradeDate String
-  netAmount Float // 龙虎榜净买入额 (元), summed across that day's 榜单
+  netAmount Float // Dragon-Tiger List net buy amount (yuan), summed across that day's listings
 
   @@id([tsCode, tradeDate])
   @@index([tradeDate])
 }
 
 /// Daily per-stock moneyflow (Tushare moneyflow). Raw fetched point-in-time data — read exact-date via
-/// ctx.moneyflow, never carried forward. Net amounts in 万元 (+净流入 / −净流出).
+/// ctx.moneyflow, never carried forward. Net amounts in 10k yuan (+ net inflow / − net outflow).
 model Moneyflow {
   tsCode    String
   tradeDate String
-  netMain   Float // 主力净额 = (大单+特大单) 买−卖, 万元
-  netTotal  Float? // 全单种净额 (net_mf_amount), 万元 — source may omit it
+  netMain   Float // main-force net amount = (large + extra-large orders) buy − sell, 10k yuan
+  netTotal  Float? // net amount across all order sizes (net_mf_amount), 10k yuan — source may omit it
 
   @@id([tsCode, tradeDate])
   @@index([tradeDate])
@@ -124,30 +124,30 @@ model FinaIndicator {
   tsCode            String
   endDate           String // report period end, e.g. 20231231
   annDate           String? // announcement date — the PIT gate (value is only public on/after this)
-  roe               Float? // 净资产收益率 %
-  roeWaa            Float? // 加权平均净资产收益率 %
-  roa               Float? // 总资产报酬率 %
-  grossprofitMargin Float? // 销售毛利率 %
-  netprofitMargin   Float? // 销售净利率 %
-  debtToAssets      Float? // 资产负债率 %
-  orYoy             Float? // 营业收入同比增长率 %
-  netprofitYoy      Float? // 归母净利润同比增长率 %
-  ocfToProfit       Float? // 经营活动现金流净额 / 营业利润(应计质量)
+  roe               Float? // return on equity %
+  roeWaa            Float? // weighted-average return on equity %
+  roa               Float? // return on assets %
+  grossprofitMargin Float? // gross profit margin %
+  netprofitMargin   Float? // net profit margin %
+  debtToAssets      Float? // debt-to-assets ratio %
+  orYoy             Float? // operating revenue YoY growth %
+  netprofitYoy      Float? // net profit attributable to parent, YoY growth %
+  ocfToProfit       Float? // operating cash flow / operating profit (accrual quality)
 
   @@id([tsCode, endDate])
   @@index([annDate])
 }
 
 /// Dividend distributions (raw; a period yields several rows across proposal→execution stages).
-/// Only divProc '实施' is an actually-paid dividend; exDate is the PIT gate for when it took effect.
+/// Only divProc '实施' (the "implemented" stage) is an actually-paid dividend; exDate is the PIT gate for when it took effect.
 model Dividend {
   id         String  @id // ULID — no natural unique key (multiple rows per period)
   tsCode     String
   endDate    String // distribution's report period
   annDate    String? // announcement date
   exDate     String? // ex-dividend date (PIT gate)
-  divProc    String? // 实施进度: '预案' | '股东大会通过' | '实施' | ...
-  cashDiv    Float? // 税前每股现金分红
+  divProc    String? // distribution stage (raw Chinese values from source): '预案' | '股东大会通过' | '实施' | ...
+  cashDiv    Float? // pre-tax cash dividend per share
   cashDivTax Float? // per-share figure incl. proposal stage
 
   @@index([tsCode])
@@ -165,7 +165,7 @@ model IndexWeight {
   @@index([indexCode, tradeDate])
 }
 
-/// Index daily close (沪深300 = 000300.SH 等) — 基准收益曲线 + 未来 regime 滤网。
+/// Index daily close (e.g. CSI 300 = 000300.SH) — benchmark return curve + future regime filter.
 model IndexDaily {
   tsCode    String
   tradeDate String
@@ -238,7 +238,7 @@ model FactorReport {
   payload    String // JSON.stringify(FactorReport wire shape)
   computedAt DateTime
 
-  @@index([userId, factor]) // list a user's cached runs of a factor (the "已跑" chips)
+  @@index([userId, factor]) // list a user's cached runs of a factor (the "already run" chips)
 }
 
 /// A background computation (backtest / factor analysis). Status lives here (durable, cross-client
@@ -284,7 +284,7 @@ model EmailLoginChallenge {
 // ============================================================================
 
 /// A saved backtest strategy (holds a BacktestConfig as JSON). Auto-saved when a backtest runs:
-/// the workbench upserts by name, so "我的策略" lists each named strategy you've run.
+/// the workbench upserts by name, so "My Strategies" lists each named strategy you've run.
 model Strategy {
   id         String   @id // ULID
   userId     String
@@ -335,7 +335,7 @@ model ScreenConversation {
   @@index([userId, updatedAt])
 }
 
-/// A saved screen query (holds a ScreenSpec as JSON). Saved on demand — the user clicks 保存 to keep
+/// A saved screen query (holds a ScreenSpec as JSON). Saved on demand — the user clicks "Save" to keep
 /// an exploratory query; also upsert by name.
 model SavedScreen {
   id        String   @id // ULID

@@ -16,9 +16,9 @@ interface StockBars {
   adjHigh: number[];
   adjLow: number[];
   adjClose: number[];
-  adj: number[]; // per-date adj_factor — to convert a hfq fill back to real shares/price (整手 sizing)
-  up: (number | null)[]; // raw 涨停价 (null if not synced) — block buys at the up-limit open
-  down: (number | null)[]; // raw 跌停价
+  adj: number[]; // per-date adj_factor — to convert a hfq fill back to real shares/price (whole-lot sizing)
+  up: (number | null)[]; // raw up-limit price (null if not synced) — block buys at the up-limit open
+  down: (number | null)[]; // raw down-limit price
   vol: (number | null)[]; // raw (not adjusted)
   amount: (number | null)[];
   idx: Map<string, number>; // date -> index (exact)
@@ -42,7 +42,7 @@ export class EngineData {
   private nextDayOf = new Map<string, string>();
   private listDateOf = new Map<string, string>();
   private industryOf = new Map<string, string>(); // code -> industry label (current, not point-in-time)
-  private lhbByDate = new Map<string, Map<string, number>>(); // 龙虎榜: date -> code -> 净买额(元), exact day only
+  private lhbByDate = new Map<string, Map<string, number>>(); // Dragon-Tiger List: date -> code -> net buy amount (yuan), exact day only
   private crossCache = new Map<string, CrossSection>();
   private barsCache = new Map<string, StockBars>();
   private factorByKey = new Map<string, Map<string, number>>(); // `${factor}|${date}` -> code -> value
@@ -60,7 +60,7 @@ export class EngineData {
     { dates: string[]; membersByDate: Map<string, Set<string>> }
   >();
   // Index daily close (all synced indices, preloaded in load()) — ascending parallel dates/closes arrays.
-  // Powers the 超额/IR benchmark + ctx.index() 大盘择时. Tiny (a few thousand rows), so always loaded.
+  // Powers the excess-return/IR benchmark + ctx.index() market timing. Tiny (a few thousand rows), so always loaded.
   private indexByCode = new Map<string, { dates: string[]; closes: number[] }>();
 
   private warnedIndices = new Set<string>(); // log an index's coverage gap at most once
@@ -73,7 +73,7 @@ export class EngineData {
     private locale: Locale = DEFAULT_LOCALE,
   ) {}
 
-  /** Index daily close series (sync, from the preload) — the 超额/IR benchmark (caller aligns to nav). */
+  /** Index daily close series (sync, from the preload) — the excess-return/IR benchmark (caller aligns to nav). */
   indexCloses(code: string): { date: string; close: number }[] {
     const s = this.indexByCode.get(code);
     return s ? s.dates.map((date, i) => ({ date, close: s.closes[i] })) : [];
@@ -130,7 +130,7 @@ export class EngineData {
       }
     }
 
-    // 龙虎榜: sparse event data (~tens/day) — preload the range into date->code->净买额 for exact-day lookup
+    // Dragon-Tiger List: sparse event data (~tens/day) — preload the range into date->code->net buy amount for exact-day lookup
     // (never carried forward). Tiny (~50k rows), so loaded for every run regardless of use.
     const lhb = await prisma.topList.findMany({
       where: { tradeDate: { gte: this.start, lte: this.end } },
@@ -144,7 +144,7 @@ export class EngineData {
       m.set(r.tsCode, r.netAmount);
     }
 
-    // Index daily close (沪深300 等) — preload all (tiny) for 超额/IR benchmark + ctx.index() 大盘择时.
+    // Index daily close (CSI 300 etc.) — preload all (tiny) for excess-return/IR benchmark + ctx.index() market timing.
     const idx = await prisma.indexDaily.findMany({
       select: { tsCode: true, tradeDate: true, close: true },
       orderBy: [{ tsCode: 'asc' }, { tradeDate: 'asc' }],
@@ -206,7 +206,7 @@ export class EngineData {
     return this.industryOf.get(code) ?? null;
   }
 
-  /** 今日龙虎榜净买入额(元)for `code`, or null if it wasn't on the 龙虎榜 that exact day (not carried forward). */
+  /** Today's Dragon-Tiger List net buy amount (yuan) for `code`, or null if it wasn't on the Dragon-Tiger List that exact day (not carried forward). */
   lhbNet(code: string, date: string): number | null {
     return this.lhbByDate.get(date)?.get(code) ?? null;
   }
@@ -217,7 +217,7 @@ export class EngineData {
    *
    * Pass `indexCode` to restrict to that index's point-in-time constituents — the restriction is **pushed
    * into the DB query** (only those rows are read), not filtered in memory afterwards. This is the engine's
-   * "universe selection" data gate (cf. LEAN coarse/fine): 沪深300 reads ~300 rows not 5370 (~15×), 中证2000
+   * "universe selection" data gate (cf. LEAN coarse/fine): CSI 300 reads ~300 rows not 5370 (~15×), CSI 2000
    * ~2000 (~2×). Index-scoped panels cache under `indexCode|date`; a full panel under `date`.
    */
   async crossSection(date: string, indexCode?: string): Promise<CrossSection> {
@@ -512,7 +512,7 @@ export class EngineData {
     return i == null ? null : b.adjOpen[i];
   }
 
-  /** Raw 成交额 (千元) on exactly `date` (null if the stock didn't trade that day) — the day's turnover,
+  /** Raw turnover (thousand yuan) on exactly `date` (null if the stock didn't trade that day) — the day's turnover,
    * the liquidity gate for the slippage/impact model (a big order in a thin name pays more). */
   amountAt(code: string, date: string): number | null {
     const b = this.barsCache.get(code);
@@ -534,7 +534,7 @@ export class EngineData {
     return i == null ? null : b.adj[i];
   }
 
-  /** Raw 涨/跌停价 on exactly `date` (null if the day's limit wasn't synced) — to block fills at the limit. */
+  /** Raw up/down-limit price on exactly `date` (null if the day's limit wasn't synced) — to block fills at the limit. */
   limitAt(code: string, date: string): { up: number | null; down: number | null } | null {
     const b = this.barsCache.get(code);
     if (!b) {

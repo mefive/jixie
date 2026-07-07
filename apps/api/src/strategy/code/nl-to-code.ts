@@ -12,13 +12,13 @@ export interface NlToCodeResult {
 
 export interface NlToCodeOpts {
   maxRepairs?: number;
-  availableIndices?: string; // formatted "沪深300=000300.SH、…" — only the indices actually synced
+  availableIndices?: string; // formatted "CSI 300=000300.SH, …" — only the indices actually synced
   syncedIndices?: string[]; // the index codes whose constituents exist (for the deterministic check below)
 }
 
 /** Index codes the code passes to universe()/indexMembers() — used to reject unsynced indices deterministically
  * (the model sometimes writes a faithful-but-unavailable code instead of refusing). The suffix is 2–3 letters
- * (SH/SZ/BJ, and CSI for 中证 e.g. 932000.CSI). */
+ * (SH/SZ/BJ, and CSI for China Securities Index codes e.g. 932000.CSI). */
 export function referencedIndices(code: string): string[] {
   const out = new Set<string>();
   const re = /(?:universe|indexMembers)\s*\(\s*['"]([0-9]{6}\.[A-Za-z]{2,3})['"]/g;

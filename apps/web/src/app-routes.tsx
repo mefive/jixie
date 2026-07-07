@@ -19,11 +19,11 @@ import { TopNav } from '@src/components/top-nav';
 import { authStore } from '@src/store';
 import './app-layout.css';
 
-// Standalone SDK reference page (also opened from the lab 文档 button + the 📖 links in editor hovers).
+// Standalone SDK reference page (also opened from the lab Docs button + the 📖 links in editor hovers).
 const SdkDocPage = lazy(() => import('@src/complex/lab/sdk-doc'));
 // Standalone getting-started tutorial (linear learning path; linked from /docs + the lab hero).
 const LearnPage = lazy(() => import('@src/complex/lab/learn'));
-// Standalone 交易详情 page (opened from the backtest result modal's 页面打开 button).
+// Standalone trade-detail page (opened from the backtest result modal's "open in page" button).
 const TradePage = lazy(() => import('@src/complex/lab/trade-page'));
 
 export function AppRoutes() {
@@ -80,7 +80,7 @@ function StockRoute() {
   return <ComplexRoute key={code} entry={stockEntry} setupParams={setupParams} />;
 }
 
-// 因子研究: `/factors?factor=&freq=&start=&end=` restores a specific analysis on mount (refresh-safe /
+// Factor research: `/factors?factor=&freq=&start=&end=` restores a specific analysis on mount (refresh-safe /
 // shareable). Capture the params once — later URL syncs from the store must not re-setup the page, so
 // no `key` here (factor/param changes go through store methods, not a remount).
 function FactorRoute() {
@@ -95,7 +95,7 @@ function FactorRoute() {
 }
 
 // Backtest workbench: `/lab` = last strategy (or blank if none); `/lab?id=<sid>` = that saved strategy;
-// `/lab?new=1` = force the blank 新建 hero. The id rides as a query param (a plain parameter, not a REST
+// `/lab?new=1` = force the blank new-strategy hero. The id rides as a query param (a plain parameter, not a REST
 // path). NO `key` here — switching strategies must NOT remount (a remount tears down Monaco/Splitters =
 // a full-page flash). The initial id/new is captured once for setup; later URL changes are synced into
 // the store in-place by the Lab component (openSaved / newStrategy), so navigation is seamless.

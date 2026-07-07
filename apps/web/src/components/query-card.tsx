@@ -21,7 +21,7 @@ interface QueryCardProps {
 
 /**
  * A query card inside an agent conversation: renders the SPEC's fresh result (compact table, top
- * rows), so a reopened conversation never shows stale data. Row click opens the stock page; 钉住
+ * rows), so a reopened conversation never shows stale data. Row click opens the stock page; Pin
  * saves the spec to the card wall (SavedScreen). An invalid/outdated spec degrades to an inline
  * error instead of crashing the conversation.
  */
@@ -97,7 +97,7 @@ export const QueryCard = reactUtils.observer(({ title, spec, results }: QueryCar
   );
 }, 'QueryCard');
 
-// —— 帮助函数 ——
+// —— Helpers ——
 
 const CARD_ROW_CAP = 8;
 

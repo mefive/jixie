@@ -37,7 +37,7 @@ async function getRebalanceDates(freq: FactorFreq, start: string, end: string): 
 
 type Snap = Map<string, { adjClose: number; amount: number; mktcap: number }>; // tsCode -> quote
 
-/** Load a "hfq close + turnover (+ 总市值 for cap-weighting)" snapshot for each day. `withMktcap` only
+/** Load a "hfq close + turnover (+ total market cap for cap-weighting)" snapshot for each day. `withMktcap` only
  * for rebalance (formation) dates — forward snapshots weight by the formation-date cap, so they skip it. */
 async function loadSnapshots(dates: string[], withMktcap = false): Promise<Map<string, Snap>> {
   const px = await prisma.daily.findMany({
@@ -335,7 +335,7 @@ export async function analyzeFactor(
   const periodsPerYear = freq === 'week' ? 52 : 12;
   const rebalanceDates = await getRebalanceDates(freq, start, end);
   onLog(`调仓日 ${rebalanceDates.length} 个(${freq === 'week' ? '周' : '月'}度)· 加载行情快照…`);
-  const snaps = await loadSnapshots(rebalanceDates, true); // rebalance snaps carry 总市值 for cap-weighting
+  const snaps = await loadSnapshots(rebalanceDates, true); // rebalance snaps carry total market cap for cap-weighting
   onLog(`计算因子 ${factorKey} 的值…`);
   const byDate = await computeFactorSeries(factorKey, rebalanceDates, snaps, onLog, onUserLog);
 
@@ -378,12 +378,12 @@ export async function analyzeFactor(
   );
 
   const icSeries: number[] = [];
-  const bucketReturns: number[][] = Array.from({ length: N_BUCKETS }, () => []); // 等权
-  const bucketReturnsMktcap: number[][] = Array.from({ length: N_BUCKETS }, () => []); // 市值加权
+  const bucketReturns: number[][] = Array.from({ length: N_BUCKETS }, () => []); // equal-weight
+  const bucketReturnsMktcap: number[][] = Array.from({ length: N_BUCKETS }, () => []); // cap-weight
   const lsReturns: number[] = [];
   const lsReturnsMktcap: number[] = [];
   const turnovers: number[] = [];
-  // 分位 × 前瞻期(日度归一化):qh[hi][bucket] = 各调仓日该分位的日均前瞻收益列表 → 末尾取均值
+  // Quantile × forward horizon (daily-normalized): qh[hi][bucket] = per-rebalance-date list of that quantile's daily-average forward return → mean taken at the end
   const qhEqual = IC_DECAY_HORIZONS.map(() =>
     Array.from({ length: N_BUCKETS }, () => [] as number[]),
   );
@@ -485,7 +485,7 @@ export async function analyzeFactor(
           const ret = b.adjClose / a.adjClose - 1;
           hVals.push(candidates[i].value);
           hRets.push(ret);
-          hb[buckets[i]].push({ v: Math.pow(1 + ret, 1 / h) - 1, w: candidates[i].mktcap }); // 日度归一化
+          hb[buckets[i]].push({ v: Math.pow(1 + ret, 1 / h) - 1, w: candidates[i].mktcap }); // daily-normalized
         }
         if (hVals.length >= MIN_CANDIDATES) {
           decaySeries[hi].push(st.spearman(hVals, st.winsorize(hRets, WINSOR_P)));
@@ -577,7 +577,7 @@ function equalMean(items: { v: number }[]): number {
   return items.length ? items.reduce((s, x) => s + x.v, 0) / items.length : 0;
 }
 
-/** Cap-weight mean: Σ(v·w) / Σw (w = 总市值); 0 if the bucket has no positive-cap names. */
+/** Cap-weight mean: Σ(v·w) / Σw (w = total market cap); 0 if the bucket has no positive-cap names. */
 function capMean(items: { v: number; w: number }[]): number {
   let sumW = 0;
   let sumVW = 0;

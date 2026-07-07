@@ -4,7 +4,7 @@ import { kdj } from '../lib/indicators.js';
 import type { Strategy } from '../engine/types.js';
 
 /**
- * 曾庆辉 strategy — Phase 1: market-breadth timing (the buy_date queue).
+ * Zeng Qinghui strategy — Phase 1: market-breadth timing (the buy_date queue).
  *
  * For each stock, anchored at a candidate day B (the "buy_date"), check the washout pattern:
  *   1. close[B-n] > close[B]            n-day pullback into B
@@ -364,7 +364,7 @@ export interface ZengOpts {
 }
 
 /**
- * 曾庆辉 strategy — Phase 2: buy quality high-dividend names on the Phase-1 entry dates, exit on a
+ * Zeng Qinghui strategy — Phase 2: buy quality high-dividend names on the Phase-1 entry dates, exit on a
  * MA death cross. All fundamental reads are point-in-time (gated by announcement / ex-dividend date).
  *
  * On each entry date, screen the tradable cross-section for:
@@ -507,13 +507,13 @@ export async function makeZengStrategy(opts: ZengOpts): Promise<Strategy> {
         const bar = ctx.bar(code);
         if (!bar || bar.dvRatio == null || bar.dvRatio <= dvRatioMin) {
           continue;
-        } // 分红率 > 2%
+        } // dividend yield > 2%
         if (!roeOk(code, date)) {
           continue;
-        } // ROE 逐年 > 13
+        } // ROE each year > 13
         if (!divOk(code, date)) {
           continue;
-        } // 连续 5 年分红
+        } // 5 consecutive years of dividends
         cand.push({ code, adjClose: bar.adjClose });
       }
       if (!cand.length) {
@@ -535,7 +535,7 @@ export async function makeZengStrategy(opts: ZengOpts): Promise<Strategy> {
         }
         if (!(ma.short > ma.shortPrev && ma.long > ma.longPrev && ma.short > ma.long)) {
           continue;
-        } // 均线多头
+        } // MA bullish alignment
         if (adjClose == null || adjClose <= 0) {
           continue;
         }

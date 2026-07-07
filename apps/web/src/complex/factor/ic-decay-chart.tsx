@@ -42,7 +42,7 @@ export default function IcDecayChart({ points }: Props) {
         lineStyle: { color: '#1f2430', width: 2 },
         itemStyle: { color: '#1f2430' },
         areaStyle: { color: '#1f2430', opacity: 0.05 },
-        // Zero reference — above = 追(正向), below = 反着做(反向).
+        // Zero reference — above = chase (positive direction), below = fade (negative direction).
         markLine: {
           silent: true,
           symbol: 'none',

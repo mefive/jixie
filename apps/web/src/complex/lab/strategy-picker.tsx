@@ -5,9 +5,9 @@ import { StrategyCardView } from './strategy-card';
 import './strategy-picker.css';
 
 /**
- * 我的策略 — a card grid (not a dropdown). Each card (StrategyCardView, shared with the lab hero) shows
+ * My strategies — a card grid (not a dropdown). Each card (StrategyCardView, shared with the lab hero) shows
  * the strategy name + a lightweight SVG sparkline of its last run's equity curve + headline metrics;
- * click to load that strategy & its历史回测. Trash to delete.
+ * click to load that strategy & its backtest history. Trash to delete.
  */
 export default function StrategyPicker({
   open,

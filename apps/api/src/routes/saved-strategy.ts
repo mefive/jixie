@@ -13,7 +13,7 @@ import { codeConfigSchema } from '../strategy/code/schema.js';
 import { m } from '../i18n/index.js';
 
 /**
- * Saved strategies (产品线 1 持久化). Owner-scoped CRUD over the Strategy table. The workbench
+ * Saved strategies (product line 1 persistence). Owner-scoped CRUD over the Strategy table. The workbench
  * auto-saves on every backtest run by POSTing the BacktestConfig here; the saved row's name is the
  * config's own name, upserted by (userId, name) so re-running under the same name updates in place
  * instead of spawning duplicates. Every query is scoped by userId, so another user's id 404s.
