@@ -1,0 +1,67 @@
+@reference '../styles/index.css';
+
+.jx-queryCard {
+  @apply mt-2 overflow-hidden;
+  @apply rounded-lg border border-line bg-bg;
+}
+
+.jx-queryCard-head {
+  @apply flex items-center gap-2;
+  @apply border-b border-line;
+  padding: 6px 10px;
+}
+
+.jx-queryCard-title {
+  @apply flex-1 truncate;
+  @apply text-xs font-medium text-ink;
+}
+
+.jx-queryCard-meta {
+  @apply shrink-0 text-xs text-muted;
+}
+
+.jx-queryCard-pin {
+  @apply shrink-0 cursor-pointer border-0 bg-transparent text-muted hover:text-ink;
+  padding: 2px 4px;
+}
+
+.jx-queryCard-status {
+  @apply text-xs text-muted;
+  padding: 10px 12px;
+}
+
+.jx-queryCard-skeleton {
+  @apply flex animate-pulse flex-col gap-2;
+  padding: 10px 12px;
+}
+
+.jx-queryCard-skeletonRow {
+  @apply rounded bg-line/40;
+  height: 22px;
+}
+
+.jx-queryCard-status--error {
+  @apply text-down;
+}
+
+.jx-queryCard-table {
+  cursor: pointer;
+}
+
+.jx-queryCard-name {
+  @apply flex flex-col;
+}
+
+.jx-queryCard-nameMain {
+  @apply text-xs text-ink;
+}
+
+.jx-queryCard-nameCode {
+  @apply text-muted;
+  font-size: 10px;
+}
+
+.jx-queryCard-more {
+  @apply border-t border-line text-center text-xs text-muted;
+  padding: 4px 8px;
+}

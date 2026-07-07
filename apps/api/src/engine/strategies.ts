@@ -1,5 +1,5 @@
-import { FACTORS, FUNDAMENTAL_FACTORS } from '../factor/factors.js';
 import type { BarContext, BarRow, OhlcBar, Strategy } from './types.js';
+import { daysBetween } from '../lib/date.js';
 
 /** Identity helper — gives a strategy object its type + a place to hang a name. */
 export function defineStrategy(s: Strategy): Strategy {
@@ -20,19 +20,98 @@ interface SignalDef {
 // Bars to pull for a price-window signal — must cover the longest lookback (momentum 60 + skip) + 1.
 const PRICE_FACTOR_BARS = 70;
 
-/**
- * Signal registry — the menu a config-driven UI would expose.
- *  - Valuation signals (ep/bp/dv/size) read bar() straight from daily_basic (point-in-time, no
- *    precompute). They reuse the exact formulas in factors.ts so there's a single source of truth.
- *  - Price-window signals (mom/rev/vol) compute on the fly from the bar series via the same factors.ts
- *    formulas — no precompute, no factor store (the engine holds no factor values).
- */
+// ---------------------------------------------------------------------------------------------
+// Legacy research-script signal math (scripts/backtest.ts / turtle.ts). These formulas used to
+// live in factor/factors.ts; the FACTOR line's source of truth is now the seeded code rows
+// (factor/builtin-factors.ts) and this copy serves only the config-driven script strategies below.
+// ---------------------------------------------------------------------------------------------
+
+// A window with a calendar gap above this between adjacent trading days (≈ 1+ month suspension)
+// is treated as discontinuous and the signal untrustworthy.
+const MAX_GAP_DAYS = 30;
+
+function maxGapDays(dates: string[], from: number, to: number): number {
+  let widest = 0;
+  for (let i = from + 1; i <= to; i++) {
+    const gap = daysBetween(dates[i - 1], dates[i]);
+    if (gap > widest) {
+      widest = gap;
+    }
+  }
+  return widest;
+}
+
+/** Momentum: return from D-lookback to D-skip (skip the recent days to avoid reversal contamination). */
+function momentum(px: number[], dates: string[], end: number, lookback = 60, skip = 5) {
+  if (end - lookback < 0 || maxGapDays(dates, end - lookback, end) > MAX_GAP_DAYS) {
+    return null;
+  }
+  const recent = px[end - skip];
+  const past = px[end - lookback];
+  if (!recent || !past) {
+    return null;
+  }
+  return recent / past - 1;
+}
+
+/** Short-term reversal: return over the last `window` days. */
+function reversal(px: number[], dates: string[], end: number, window = 5) {
+  if (end - window < 0 || maxGapDays(dates, end - window, end) > MAX_GAP_DAYS) {
+    return null;
+  }
+  const past = px[end - window];
+  if (!past) {
+    return null;
+  }
+  return px[end] / past - 1;
+}
+
+/** Realized volatility: stdev of daily returns over the last `window` days. */
+function volatility(px: number[], dates: string[], end: number, window = 20) {
+  if (end - window < 0 || maxGapDays(dates, end - window, end) > MAX_GAP_DAYS) {
+    return null;
+  }
+  const returns: number[] = [];
+  for (let i = end - window + 1; i <= end; i++) {
+    const prev = px[i - 1];
+    if (!prev) {
+      return null;
+    }
+    returns.push(px[i] / prev - 1);
+  }
+  const mean = returns.reduce((sum, r) => sum + r, 0) / returns.length;
+  const variance = returns.reduce((sum, r) => sum + (r - mean) ** 2, 0) / returns.length;
+  return Math.sqrt(variance);
+}
+
+const PRICE_SIGNALS: { key: string; label: string; fn: typeof momentum }[] = [
+  { key: 'mom', label: '动量(60日,跳5)', fn: (px, dates, end) => momentum(px, dates, end) },
+  { key: 'rev', label: '反转(5日)', fn: (px, dates, end) => reversal(px, dates, end) },
+  { key: 'vol', label: '波动率(20日)', fn: (px, dates, end) => volatility(px, dates, end) },
+];
+
+const FUNDAMENTAL_SIGNALS: { key: string; label: string; from: (b: BarRow) => number | null }[] = [
+  {
+    key: 'ep',
+    label: '盈利收益率(1/PE_TTM)',
+    from: (b) => (b.peTtm && b.peTtm > 0 ? 1 / b.peTtm : null),
+  },
+  { key: 'bp', label: '账面市值比(1/PB)', from: (b) => (b.pb && b.pb > 0 ? 1 / b.pb : null) },
+  { key: 'dv', label: '股息率(%)', from: (b) => b.dvRatio },
+  {
+    key: 'size',
+    label: '规模(ln总市值)',
+    from: (b) => (b.totalMv && b.totalMv > 0 ? Math.log(b.totalMv) : null),
+  },
+];
+
+/** Signal registry — the menu the config-driven script strategies expose. */
 export const SIGNALS: Record<string, SignalDef> = {
   ...Object.fromEntries(
-    FUNDAMENTAL_FACTORS.map((f) => [f.key, { label: f.label, fn: (b: BarRow) => f.from(b) }]),
+    FUNDAMENTAL_SIGNALS.map((f) => [f.key, { label: f.label, fn: (b: BarRow) => f.from(b) }]),
   ),
   ...Object.fromEntries(
-    FACTORS.map((f) => [
+    PRICE_SIGNALS.map((f) => [
       f.key,
       {
         label: f.label,

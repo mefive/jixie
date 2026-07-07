@@ -53,18 +53,3 @@ export async function resolveInstruments(text: string): Promise<string[]> {
 
   return [];
 }
-
-/** Resolve LLM-normalized names/codes (e.g. ["工商银行","贵州茅台"]) to ts_codes — deduped, order-preserving. */
-export async function resolveByNames(names: string[]): Promise<string[]> {
-  const out: string[] = [];
-  const seen = new Set<string>();
-  for (const n of names) {
-    for (const code of await resolveInstruments(n)) {
-      if (!seen.has(code)) {
-        seen.add(code);
-        out.push(code);
-      }
-    }
-  }
-  return out.slice(0, MAX_HITS);
-}

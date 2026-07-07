@@ -7,9 +7,13 @@ import type { FactorReport, LogLine } from '@jixie/shared';
 import { apiError, validateJson, validateQuery } from '../lib/httpError.js';
 import { prisma } from '../lib/prisma.js';
 import { chatText } from '../llm/deepseek.js';
-import { FACTOR_CATALOG } from '../factor/factors.js';
+import { BUILTIN_KEYS, BUILTIN_USER_ID, builtinCatalog } from '../factor/builtin-factors.js';
 import { compileFactor } from '../factor/compile-factor.js';
-import { factorAgentTurn } from '../factor/factor-agent.js';
+import { factorProfile } from '../agent/profiles/factor.js';
+import { factorQaProfile } from '../agent/profiles/qa.js';
+import { enqueueAgentTurn, entityKey } from '../agent/turn-run.js';
+import * as turnBus from '../agent/turn-bus.js';
+import { chatMessagesSchema } from '../lib/chat-schema.js';
 import { createJob, appendLog, finishJob, getJob, findRunningJob } from '../lib/jobs.js';
 
 /**
@@ -24,7 +28,6 @@ import { createJob, appendLog, finishJob, getJob, findRunningJob } from '../lib/
  */
 export const factorRoute = new Hono();
 
-const CATALOG_KEYS = new Set(FACTOR_CATALOG.map((f) => f.key));
 const reportId = (userId: string, factor: string, freq: string, start: string, end: string) =>
   `${userId}|${factor}|${freq}|${start}|${end}`;
 const jobKey = (factor: string, freq: string, start: string, end: string) =>
@@ -36,21 +39,18 @@ const workerUrl = import.meta.url.endsWith('.ts')
   : new URL('../factor/factor-worker.js', import.meta.url);
 
 factorRoute.get('/catalog', async (c) => {
-  // Preset factors + this user's custom factors (key = Factor id, kind = 'custom').
+  // Preset factors (registry identity; code lives on their seeded rows) + this user's custom factors.
   const custom = await prisma.factor.findMany({
     where: { userId: c.var.userId },
     select: { id: true, name: true },
     orderBy: { updatedAt: 'desc' },
   });
   const customMeta = custom.map((f) => ({ key: f.id, label: f.name, kind: 'custom' as const }));
-  return c.json([...FACTOR_CATALOG, ...customMeta]);
+  return c.json([...builtinCatalog(), ...customMeta]);
 });
 
 // —— Custom factors (code-first, Agent-authored — mirrors the strategy workbench) —— created on the
 // first Agent prompt, then updated by id: messages in real time, code/name on an analysis run.
-const chatMessagesSchema = z
-  .array(z.object({ role: z.enum(['user', 'assistant']), content: z.string().max(8000) }))
-  .max(60);
 
 /** Make an LLM-suggested factor name unique within the user (append " N"). */
 async function uniqueFactorName(userId: string, base: string): Promise<string> {
@@ -77,14 +77,17 @@ factorRoute.get('/custom', async (c) => {
 });
 
 factorRoute.get('/custom/:id', async (c) => {
+  // Own factors are editable; builtin (preset) rows are readable by anyone — the UI shows their
+  // code read-only with a "复制为自定义" affordance.
   const row = await prisma.factor.findFirst({
-    where: { id: c.req.param('id'), userId: c.var.userId },
-    select: { id: true, name: true, code: true, messages: true },
+    where: { id: c.req.param('id'), userId: { in: [c.var.userId, BUILTIN_USER_ID] } },
+    select: { id: true, name: true, code: true, messages: true, userId: true },
   });
   if (!row) {
     return apiError(c, 'NOT_FOUND', '因子不存在');
   }
-  return c.json(row);
+  const { userId: ownerId, ...rest } = row;
+  return c.json({ ...rest, builtin: ownerId === BUILTIN_USER_ID });
 });
 
 // POST /custom — create a NEW factor row (up front on the first Agent prompt). The conversation rides
@@ -130,6 +133,9 @@ factorRoute.post('/custom/:id', validateJson(updateBody), async (c) => {
   const id = c.req.param('id');
   const userId = c.var.userId;
   const { code, name, messages } = c.req.valid('json');
+  if (BUILTIN_KEYS.has(id)) {
+    return apiError(c, 'VALIDATION_FAILED', '预置因子只读,不能修改;可「复制为自定义」后改副本');
+  }
   const existing = await prisma.factor.findFirst({
     where: { id, userId },
     select: { name: true, code: true },
@@ -173,57 +179,86 @@ factorRoute.post('/custom/:id', validateJson(updateBody), async (c) => {
 factorRoute.delete('/custom/:id', async (c) => {
   const userId = c.var.userId;
   const id = c.req.param('id');
+  if (BUILTIN_KEYS.has(id)) {
+    return apiError(c, 'VALIDATION_FAILED', '预置因子只读,不能删除');
+  }
   await prisma.factor.deleteMany({ where: { id, userId } });
   await prisma.factorReport.deleteMany({ where: { userId, factor: id } });
   return c.json({ ok: true });
 });
 
-// POST /agent — one turn of the factor Agent (iterates on the defineFactor code). Returns the
-// explanation + the compile-validated updated code. The frontend owns the conversation.
+// POST /custom/:id/fork — copy a factor's code (a builtin preset or one of your own) into a NEW
+// editable custom factor — the "改参数出变体" research path (factor-to-strategy.md 路径②).
+factorRoute.post('/custom/:id/fork', async (c) => {
+  const userId = c.var.userId;
+  const source = await prisma.factor.findFirst({
+    where: { id: c.req.param('id'), userId: { in: [userId, BUILTIN_USER_ID] } },
+    select: { name: true, code: true },
+  });
+  if (!source) {
+    return apiError(c, 'NOT_FOUND', '因子不存在');
+  }
+
+  const name = await uniqueFactorName(userId, `${source.name} 副本`.slice(0, 40));
+  const id = ulid();
+  await prisma.factor.create({ data: { id, userId, name, code: source.code } });
+  return c.json({ id, name });
+});
+
+// POST /agent — START one turn of the factor Agent (iterates on the defineFactor code) and return a
+// turnId; the turn runs in the background (subscribe via GET /api/app/agent/turns/:id/stream).
+// History comes from the factor row; the runner persists the user message + reply onto it.
 const agentBody = z.object({
-  history: chatMessagesSchema.default([]),
+  id: z.string().min(1),
   message: z.string().trim().min(1).max(2000),
   code: z.string().min(1).max(20_000),
 });
 
 factorRoute.post('/agent', validateJson(agentBody), async (c) => {
-  const { history, message, code } = c.req.valid('json');
-  try {
-    const result = await factorAgentTurn(history, message, code, chatText);
-    return c.json({
-      reply: result.reply,
-      code: result.code,
-      changed: result.changed,
-      attempts: result.attempts,
-    });
-  } catch (e) {
-    return apiError(c, 'SERVICE_UNAVAILABLE', e instanceof Error ? e.message : 'Agent 调用失败');
+  const { id, message, code } = c.req.valid('json');
+  const userId = c.var.userId;
+  const factor = await prisma.factor.findFirst({ where: { id, userId }, select: { id: true } });
+  if (!factor) {
+    return apiError(c, 'NOT_FOUND', '因子不存在');
   }
+  const entity = { kind: 'factor' as const, id };
+  if (turnBus.findRunning(entityKey(entity), userId)) {
+    return apiError(c, 'VALIDATION_FAILED', '该因子已有正在进行的回复,请等它结束或取消');
+  }
+
+  const turnId = ulid();
+  enqueueAgentTurn({
+    turnId,
+    userId,
+    profile: factorProfile(),
+    entity,
+    message,
+    currentCode: code,
+  });
+  return c.json({ turnId });
 });
 
-// POST /qa — Q&A about a PRESET factor (built-in, no code). Just answers questions (interpret IC /
-// deciles / when to use it …); never writes code or creates a factor. Distinct from /agent.
+// POST /qa — Q&A about a PRESET factor (built-in, no code). Ephemeral: no host entity, history rides
+// in the request and nothing persists — but the reply still streams (same turnId + SSE protocol).
 const qaBody = z.object({
   history: chatMessagesSchema.default([]),
   message: z.string().trim().min(1).max(2000),
   factorName: z.string().max(80).optional(),
 });
 
-factorRoute.post('/qa', validateJson(qaBody), async (c) => {
+factorRoute.post('/qa', validateJson(qaBody), (c) => {
   const { history, message, factorName } = c.req.valid('json');
-  try {
-    const system = `你是 A 股因子研究助手。用户在研究${
-      factorName ? `因子「${factorName}」` : '因子'
-    },就它或因子分析(十分位分层收益 / Rank IC / 多空 / IC 衰减 / 换手等)提问。用简洁中文回答,可用 markdown。**你只答疑,不写代码、不创建因子**——要写自定义因子请让用户新建。`;
-    const reply = await chatText([
-      { role: 'system', content: system },
-      ...history.map((m) => ({ role: m.role, content: m.content })),
-      { role: 'user', content: message },
-    ]);
-    return c.json({ reply: reply.trim() });
-  } catch (e) {
-    return apiError(c, 'SERVICE_UNAVAILABLE', e instanceof Error ? e.message : 'Agent 调用失败');
-  }
+  const turnId = ulid();
+  enqueueAgentTurn({
+    turnId,
+    userId: c.var.userId,
+    profile: factorQaProfile(factorName),
+    entity: null,
+    history,
+    message,
+    currentCode: '',
+  });
+  return c.json({ turnId });
 });
 
 // POST /name — propose a short factor name. `{prompt}` names a brand-new factor from its request;
@@ -312,8 +347,8 @@ factorRoute.get('/analysis/job/:jobId', validateQuery(sinceQuery), async (c) => 
 factorRoute.post('/analysis/run', validateQuery(analysisQuery), async (c) => {
   const userId = c.var.userId;
   const { factor, freq, start, end, refresh } = c.req.valid('query');
-  if (!CATALOG_KEYS.has(factor)) {
-    // Not a preset key → must be one of this user's custom factors (id).
+  if (!BUILTIN_KEYS.has(factor)) {
+    // Not a preset slug → must be one of this user's custom factors (id).
     const custom = await prisma.factor.findFirst({
       where: { id: factor, userId },
       select: { id: true },

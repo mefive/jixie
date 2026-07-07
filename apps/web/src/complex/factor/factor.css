@@ -180,6 +180,17 @@
   height: 100%;
 }
 
+.jx-factor-presetBar {
+  @apply flex items-center justify-between gap-2;
+  @apply border-b border-line bg-chip;
+  padding: 6px 10px;
+}
+
+.jx-factor-presetNote {
+  @apply inline-flex items-center gap-1.5 text-muted;
+  font-size: 12px;
+}
+
 .jx-factor-code {
   @apply flex flex-1 overflow-hidden;
   min-height: 0;

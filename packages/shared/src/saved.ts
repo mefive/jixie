@@ -40,3 +40,23 @@ export interface StrategyCard extends SavedMeta {
 export interface SavedScreenQuery extends SavedMeta {
   spec: ScreenSpec;
 }
+
+/** List-view card for a screen conversation (the card wall's "session card"): metadata + a preview
+ * of the last message and how many query cards the conversation holds. */
+export interface ScreenConversationMeta {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  preview: string; // last message's text, truncated
+  cardCount: number; // card parts across the conversation
+}
+
+/** A screen conversation with its full message list (parts shape). */
+export interface ScreenConversationDetail {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  messages: ChatMessage[];
+}
