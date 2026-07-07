@@ -6,10 +6,10 @@ import { defaultTools } from '../tools/index.js';
 /** The strategy-lab agent: iterates on defineStrategy code, compile-validated, with read-only data tools. */
 export function strategyProfile(availableIndices?: string): AgentProfile {
   return {
-    system: `${buildCodegenPrompt(availableIndices)}\n${buildAgentMode('策略')}\n${TOOLS_HINT}`,
+    system: `${buildCodegenPrompt(availableIndices)}\n${buildAgentMode('strategy')}\n${TOOLS_HINT}`,
     tools: defaultTools(),
     artifact: {
-      noun: '策略',
+      noun: 'strategy',
       validate: async (code) => {
         await compileStrategy(code);
       },

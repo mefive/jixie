@@ -92,4 +92,4 @@ className={
 - 资源在 `src/i18n/locales/<lng>/<namespace>.ts`，**一页一命名空间**（`common` 放共享 chrome）。**zh 文件是形状真相源**，en 用 `typeof zhX` 约束结构一致（漏 key 直接编译报错）。加命名空间要同时改两个 `locales/<lng>/index.ts`。
 - **切换语言只经 `localeStore`（`src/i18n/locale-store.ts`）**：它 `setLocale()` 持久化到 localStorage + `i18n.changeLanguage` + 更新 `document.lang`，并驱动 `main.tsx` 顶层 `ConfigProvider` 的 antd locale（zhCN/enUS）。默认中文，顶栏 `Segmented` 切换。
 - api client（`src/api/client.ts`）每请求带 `Accept-Language: localeStore.locale`——后端据此本地化报错、Agent 据此选回复语言。
-- key 命名语义分层小驼峰（`nav.backtest`、`error.saveFailed`），带变量用 `{{count}}` 插值。**别把 LLM prompt 文本抽进 i18n**（prompt 在后端且保持中文）。
+- key 命名语义分层小驼峰（`nav.backtest`、`error.saveFailed`），带变量用 `{{count}}` 插值。**别把 LLM prompt 文本抽进 i18n**（prompt 在后端，是静态英文串，不走 i18n）。

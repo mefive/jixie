@@ -27,7 +27,7 @@ describe('buildCodegenPrompt', () => {
     const p = buildCodegenPrompt();
     expect(p).toContain('ctx.universe(');
     expect(p).toContain('defineStrategy');
-    expect(p).toContain('不要写任何 import');
+    expect(p).toContain('Do not write any import');
     expect(p).toContain('ctx.sma'); // built-in indicators
     expect(p).toContain('CANNOT:'); // refuse-don't-fabricate
     expect(p).toContain('ensureBars');
@@ -61,7 +61,7 @@ describe('nlToCode (compile-validate + repair)', () => {
     expect(r.ok).toBe(true);
     expect(r.attempts).toBe(2);
     const repair = (llm.mock.calls[1][0] as { content: string }[]).map((m) => m.content).join('\n');
-    expect(repair).toContain('无法编译');
+    expect(repair).toContain('failed to compile');
   });
 
   it('a module with no onBar export is rejected and repaired', async () => {

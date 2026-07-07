@@ -3,8 +3,9 @@ import { z } from 'zod';
 import type { AgentTool } from './types.js';
 
 /**
- * Read-only SQL over the market-data tables (设计:docs/design/unified-agent.md 工具原则的显式放宽,
- * 2026-07-07 用户拍板「只读 SQL 全打开、限特定表、连接层硬只读」). Guard layers, in order:
+ * Read-only SQL over the market-data tables (design: docs/design/unified-agent.md, an explicit
+ * relaxation of the tool principle; 2026-07-07 user decision: fully open read-only SQL, restricted
+ * to specific tables, hard read-only at the connection layer). Guard layers, in order:
  *   1. single statement, must start with SELECT/WITH;
  *   2. no write/DDL/PRAGMA keywords anywhere (defense in depth);
  *   3. every FROM/JOIN target must be a whitelisted market table (app tables — User/Session/
@@ -19,22 +20,26 @@ import type { AgentTool } from './types.js';
 /** Whitelisted tables with the column docs shown to the model (and to validation). */
 export const SQL_TABLE_DOCS: Record<string, string> = {
   StockBasic:
-    'tsCode, symbol, name, area, industry, market, listDate, listStatus — 股票列表(仅在市)',
-  TradeCal: 'exchange, calDate, isOpen, pretradeDate — 交易日历(SSE)',
+    'tsCode, symbol, name, area, industry, market, listDate, listStatus — stock list (listed only)',
+  TradeCal: 'exchange, calDate, isOpen, pretradeDate — trading calendar (SSE)',
   Daily:
-    'tsCode, tradeDate, open, high, low, close, preClose, pctChg(%), vol(手), amount(千元) — 日线不复权,千万行级,务必带 tradeDate 或 tsCode 条件',
-  AdjFactor: 'tsCode, tradeDate, adjFactor — 复权因子(后复权价 = close×adjFactor)',
-  StkLimit: 'tsCode, tradeDate, upLimit, downLimit — 每日涨跌停价(不复权)',
-  TopList: 'tsCode, tradeDate, netAmount(元) — 龙虎榜净买入,稀疏事件表(当日无上榜=无行)',
-  Moneyflow: 'tsCode, tradeDate, netMain(万元), netTotal(万元) — 个股资金流,稀疏,当日精确不前填',
+    'tsCode, tradeDate, open, high, low, close, preClose, pctChg(%), vol(手), amount(千元) — daily bars, unadjusted; tens-of-millions of rows, always filter by tradeDate or tsCode',
+  AdjFactor:
+    'tsCode, tradeDate, adjFactor — adjustment factor (after-adjustment price = close×adjFactor)',
+  StkLimit: 'tsCode, tradeDate, upLimit, downLimit — daily up/down price limits (unadjusted)',
+  TopList:
+    'tsCode, tradeDate, netAmount(元) — Dragon-Tiger List net buy amount, sparse event table (no appearance that day = no row)',
+  Moneyflow:
+    'tsCode, tradeDate, netMain(万元), netTotal(万元) — per-stock moneyflow, sparse, exact per day, not forward-filled',
   DailyBasic:
-    'tsCode, tradeDate, pe, peTtm, pb, ps, psTtm, dvRatio(股息率%), dvTtm, totalMv(万元), circMv(万元), turnoverRate(%) — 每日估值快照',
+    'tsCode, tradeDate, pe, peTtm, pb, ps, psTtm, dvRatio(%), dvTtm, totalMv(万元), circMv(万元), turnoverRate(%) — daily valuation snapshot',
   FinaIndicator:
-    'tsCode, endDate(报告期), annDate(公告日), roe(%), roeWaa(%), roa(%), grossprofitMargin(毛利率%), netprofitMargin(净利率%), debtToAssets(资产负债率%), orYoy(营收同比%), netprofitYoy(归母净利同比%), ocfToProfit(经营现金流/营业利润) — 财务指标;PIT 规则:值在 annDate 之后才可见,时序分析必须按 annDate 门控防未来函数;2026-07 扩列回填中,新列可能部分为 NULL',
+    'tsCode, endDate(reporting period), annDate(announcement date), roe(%), roeWaa(%), roa(%), grossprofitMargin(%), netprofitMargin(%), debtToAssets(%), orYoy(revenue YoY, %), netprofitYoy(net profit attributable to parent, YoY, %), ocfToProfit(operating cash flow / operating profit) — financial indicators; PIT rule: values are only visible after annDate, so time-series analysis must gate on annDate to avoid look-ahead; column-expansion backfill in progress as of 2026-07, new columns may be partially NULL',
   Dividend:
-    'id, tsCode, endDate, annDate, exDate(除息日), divProc, cashDiv(税前每股), cashDivTax — 分红明细;只有 divProc=「实施」才是真派发,exDate 是 PIT 门',
-  IndexWeight: 'indexCode, conCode, tradeDate, weight — 指数成分月度快照(如 000852.SH 中证1000)',
-  IndexDaily: 'tsCode, tradeDate, close — 指数日线(000300.SH 沪深300 等)',
+    'id, tsCode, endDate, annDate, exDate(ex-dividend date), divProc, cashDiv(pre-tax per share), cashDivTax — dividend details; only divProc=「实施」(the "implemented" status) is an actual payout, exDate is the PIT gate',
+  IndexWeight:
+    'indexCode, conCode, tradeDate, weight — monthly index constituent snapshot (e.g. 000852.SH CSI 1000)',
+  IndexDaily: 'tsCode, tradeDate, close — index daily bars (e.g. 000300.SH CSI 300)',
 };
 
 const ALLOWED_TABLES = new Set(Object.keys(SQL_TABLE_DOCS).map((name) => name.toLowerCase()));
@@ -63,17 +68,19 @@ export function prepareReadOnlySql(sql: string, rowCap: number = SQL_ROW_CAP): s
   const trimmed = sql.trim().replace(/;\s*$/, '');
 
   if (trimmed.includes(';')) {
-    throw new Error('只允许单条语句(不能包含分号)');
+    throw new Error('Only a single statement is allowed (no semicolons)');
   }
   if (!/^\s*(select|with)\b/i.test(trimmed)) {
-    throw new Error('只允许 SELECT 查询(可用 WITH 开头的 CTE)');
+    throw new Error('Only SELECT queries are allowed (a WITH-prefixed CTE is fine)');
   }
   if (FORBIDDEN_KEYWORDS.test(trimmed)) {
-    throw new Error(`查询包含被禁止的关键字(只读):${trimmed.match(FORBIDDEN_KEYWORDS)?.[0]}`);
+    throw new Error(
+      `Query contains a forbidden keyword (read-only): ${trimmed.match(FORBIDDEN_KEYWORDS)?.[0]}`,
+    );
   }
   if (FORBIDDEN_NAMES.test(trimmed)) {
     throw new Error(
-      `不允许访问 ${trimmed.match(FORBIDDEN_NAMES)?.[0]}(仅开放行情/财务数据表:${Object.keys(SQL_TABLE_DOCS).join('、')})`,
+      `Access to ${trimmed.match(FORBIDDEN_NAMES)?.[0]} is not allowed (only market/financial data tables are exposed: ${Object.keys(SQL_TABLE_DOCS).join(', ')})`,
     );
   }
 
@@ -88,7 +95,7 @@ export function prepareReadOnlySql(sql: string, rowCap: number = SQL_ROW_CAP): s
   for (const match of trimmed.matchAll(/\b(?:from|join)\s+[`"[]?([a-z_][a-z0-9_]*)[`"\]]?/gi)) {
     if (!ALLOWED_TABLES.has(match[1].toLowerCase()) && !definedNames.has(match[1].toLowerCase())) {
       throw new Error(
-        `表 ${match[1]} 不在白名单内。可查:${Object.keys(SQL_TABLE_DOCS).join('、')}`,
+        `Table ${match[1]} is not in the whitelist. Queryable: ${Object.keys(SQL_TABLE_DOCS).join(', ')}`,
       );
     }
   }
@@ -102,7 +109,7 @@ export function prepareReadOnlySql(sql: string, rowCap: number = SQL_ROW_CAP): s
     return `${trimmed} LIMIT ${rowCap}`;
   }
   if (declaredLimits.some((limit) => limit > declaredCap)) {
-    throw new Error(`LIMIT 最大 ${declaredCap},请缩小或先聚合`);
+    throw new Error(`LIMIT max is ${declaredCap}; reduce it or aggregate first`);
   }
   return trimmed;
 }
@@ -112,7 +119,7 @@ export function jsonSafe(_key: string, value: unknown): unknown {
   return typeof value === 'bigint' ? Number(value) : value;
 }
 
-// —— worker host:持久只读 SQL 线程 ——
+// —— worker host: persistent read-only SQL thread ——
 
 // Worker entry: dev (tsx) spawns the .mjs bootstrap; prod spawns the compiled .js.
 const workerUrl = import.meta.url.endsWith('.ts')
@@ -164,7 +171,7 @@ function ensureWorker(): Worker {
       if (msg.ok) {
         entry.resolve(msg.rows ?? []);
       } else {
-        entry.reject(new Error(msg.error ?? 'SQL 执行失败'));
+        entry.reject(new Error(msg.error ?? 'SQL execution failed'));
       }
     },
   );
@@ -175,7 +182,7 @@ function ensureWorker(): Worker {
     failAllPending(error);
   };
   worker.on('error', (err) => drop(err));
-  worker.on('exit', () => drop(new Error('SQL worker 已退出')));
+  worker.on('exit', () => drop(new Error('SQL worker has exited')));
   worker.unref(); // idle worker must not hold the process open (scripts / graceful shutdown)
   sqlWorker = worker;
   return worker;
@@ -195,7 +202,7 @@ export async function runReadOnlySql(
       pending.delete(id);
       reject(
         new Error(
-          `查询超过 ${QUERY_TIMEOUT_MS / 1000}s 超时,请加条件缩小范围(大表按 tradeDate/tsCode 过滤)`,
+          `Query exceeded the ${QUERY_TIMEOUT_MS / 1000}s timeout; add conditions to narrow the range (filter large tables by tradeDate/tsCode)`,
         ),
       );
       // The sync sqlite API can't be interrupted — kill the thread; the next query respawns it.
@@ -217,24 +224,28 @@ const argsSchema = z.object({
     .string()
     .min(8)
     .max(4000)
-    .describe('单条 SELECT 语句(SQLite 方言),支持聚合/GROUP BY/窗口函数/CTE'),
+    .describe(
+      'a single SELECT statement (SQLite dialect); supports aggregation / GROUP BY / window functions / CTE',
+    ),
 });
 
 /** Free-form (but guarded) SQL over the market tables — the escape hatch when runScreen's whitelist
  * spec can't express the question (aggregation, time series, fundamentals, joins). */
 export const sqlQueryTool: AgentTool = {
   name: 'sqlQuery',
-  description: `对本地行情/财务数据库执行只读 SQL(SQLite 方言)。适合 runScreen 表达不了的需求:统计聚合(均值/分位/计数)、按行业分组、历史时序、财务与分红、多表 JOIN。
-可查表与列:
+  description: `Run read-only SQL (SQLite dialect) over the local market/financial database. Good for needs runScreen can't express: statistical aggregation (mean / quantile / count), grouping by industry, historical time series, financials and dividends, multi-table JOINs.
+Queryable tables and columns:
 ${Object.entries(SQL_TABLE_DOCS)
   .map(([table, doc]) => `- ${table}: ${doc}`)
   .join('\n')}
-约定:日期一律 'YYYYMMDD' 字符串;停牌日无行;结果最多 ${SQL_ROW_CAP} 行(无 LIMIT 自动补),请尽量在 SQL 里聚合而不是拉明细;Daily 千万行级,必须带 tradeDate 或 tsCode 条件,否则会超时。`,
+Conventions: dates are always 'YYYYMMDD' strings; suspended days have no rows; results are capped at ${SQL_ROW_CAP} rows (a LIMIT is auto-appended when absent), so prefer aggregating in SQL over pulling detail rows; Daily has tens-of-millions of rows and must be filtered by tradeDate or tsCode, otherwise it will time out.`,
   parameters: z.toJSONSchema(argsSchema),
   async run(args) {
     const parsed = argsSchema.safeParse(args);
     if (!parsed.success) {
-      throw new Error(`参数不合法:${parsed.error.issues.map((issue) => issue.message).join('; ')}`);
+      throw new Error(
+        `Invalid arguments: ${parsed.error.issues.map((issue) => issue.message).join('; ')}`,
+      );
     }
 
     const rows = await runReadOnlySql(parsed.data.sql);

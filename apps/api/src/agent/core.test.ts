@@ -64,7 +64,7 @@ describe('agentTurn(strategyProfile)', () => {
     // system + 1 history turn + the current-code user turn
     expect(messages).toHaveLength(3);
     expect(messages[1]).toEqual({ role: 'user', content: '第一条' });
-    expect(messages[2].content).toContain('当前策略代码');
+    expect(messages[2].content).toContain('Current strategy code');
     expect(messages[2].content).toContain('第二条');
   });
 
@@ -113,7 +113,7 @@ describe('agentTurn(factorProfile)', () => {
     );
     const messages = llm.mock.calls[0][0];
     expect(messages).toHaveLength(3);
-    expect(messages[2].content).toContain('当前因子代码');
+    expect(messages[2].content).toContain('Current factor code');
     expect(messages[2].content).toContain('第二条');
   });
 });
@@ -181,8 +181,8 @@ describe('agentTurn tool loop', () => {
     expect(result.toolTrace.map((item) => item.ok)).toEqual([false, false]);
     const secondCallMessages = llm.mock.calls[1][0];
     const observations = secondCallMessages.filter((message) => message.role === 'tool');
-    expect(observations[0].content).toContain('工具执行失败');
-    expect(observations[1].content).toContain('未知工具');
+    expect(observations[0].content).toContain('Tool execution failed');
+    expect(observations[1].content).toContain('Unknown tool');
   });
 
   it('caps tool rounds, then forces a text finish with tools disabled', async () => {
@@ -201,7 +201,7 @@ describe('agentTurn tool loop', () => {
     expect(lastCallArgs[1]).toEqual([]);
     expect(
       lastCallArgs[0].some(
-        (message) => message.role === 'user' && message.content.includes('轮数已达上限'),
+        (message) => message.role === 'user' && message.content.includes('round limit reached'),
       ),
     ).toBe(true);
   });

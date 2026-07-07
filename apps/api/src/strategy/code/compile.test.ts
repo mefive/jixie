@@ -76,12 +76,12 @@ describe('compileStrategy', () => {
       compileStrategy(
         `import { readFileSync } from 'fs';\nexport default defineStrategy({ onBar() { readFileSync('/etc/passwd'); } });`,
       ),
-    ).rejects.toThrow('不能 import');
+    ).rejects.toThrow('cannot import');
   });
 
   it('surfaces TS syntax errors as a compile error', async () => {
     await expect(compileStrategy('export default defineStrategy({ onBar( {} );')).rejects.toThrow(
-      '编译失败',
+      'compilation failed',
     );
   });
 });

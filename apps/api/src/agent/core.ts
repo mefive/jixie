@@ -8,7 +8,7 @@ import type { AgentLlm, ToolAwareMessage, ToolCall } from '../llm/agent-llm.js';
 import type { AgentCard, AgentChart, AgentTool } from './tools/types.js';
 
 /**
- * Unified agent core (设计:docs/design/unified-agent.md). One turn loop shared by every agent
+ * Unified agent core (design: docs/design/unified-agent.md). One turn loop shared by every agent
  * surface (strategy lab / factor / screen / Q&A); what varies per surface lives in an AgentProfile:
  * the system prompt, the read-only tool set, and — when the conversation produces code — the
  * artifact validator. A turn's lifecycle is fixed: tool rounds first (≤ MAX_TOOL_ROUNDS, observations
@@ -19,7 +19,7 @@ export interface AgentProfile {
   system: string; // full system prompt (codegen prompt + conversation-mode addendum, or a Q&A brief)
   tools?: AgentTool[]; // whitelisted read-only tools (empty/absent = plain chat)
   artifact?: {
-    noun: string; // '策略' | '因子' — used in the current-code wrapper and repair messages
+    noun: string; // 'strategy' | 'factor' — used in the current-code wrapper and repair messages
     validate(code: string): Promise<void>; // throws with a human-readable message when the code won't compile
   };
 }
@@ -66,23 +66,31 @@ export function turnParts(result: AgentTurnResult): MessagePart[] {
   ];
 }
 
+// Reply-language rule shared by every conversational profile: the agent answers in the SAME language
+// the user wrote in (Chinese question → Chinese, English question → English). The prompt scaffolding
+// itself stays Chinese by design — reply language is the ONLY axis that follows the user, and it does
+// so from the message content, so no locale is passed to the model. See docs/design/i18n.md.
+export const REPLY_LANGUAGE =
+  'Reply in the same language the user wrote in (Chinese question → Chinese, English question → English); technical terms may stay in English.';
+
 // Conversation-mode addendum layered over a one-shot codegen prompt — it flips the output contract
 // from "code only, no prose" to "short explanation + full code in a fence", which the chat UI needs.
 export function buildAgentMode(noun: string): string {
   return `
-# 对话模式(重要,覆盖上面的「输出要求」)
-你在和用户多轮对话,迭代改进「当前${noun}代码」。每轮:
-- 先用**一两句中文**说清你做了什么改动(或为什么不改),别长篇大论。
-- 若要改代码,在说明之后输出**完整**的${noun}模块(不是片段,是可直接替换编辑器的整份),包在 \`\`\`ts 围栏里。
-- 若用户只是提问、或无需改代码,就只回答,**不要**输出围栏。
-- 增量改「当前${noun}代码」,别推倒重来丢掉已有逻辑(除非用户明确要求重写)。
-- 守住能力边界:做不到就说清缺什么数据/能力,**不要**硬输出代码。`;
+# Conversation mode (important — overrides the "output requirements" above)
+You are in a multi-turn conversation with the user, iterating on the "current ${noun} code". Each turn:
+- First say, in one or two sentences, what you changed (or why you didn't) — keep it brief.
+- If you change the code, after the explanation output the **complete** ${noun} module (not a fragment — the full file that can replace the editor's contents), wrapped in a \`\`\`ts fence.
+- If the user is only asking a question, or no code change is needed, just answer — do **not** output a fence.
+- Edit the "current ${noun} code" incrementally; don't rewrite from scratch and lose existing logic (unless the user explicitly asks for a rewrite).
+- Stay within your capabilities: if you can't do something, say what data/capability is missing — do **not** force out code.
+- ${REPLY_LANGUAGE}`;
 }
 
 // Appended to a profile's system prompt when it carries tools.
 export const TOOLS_HINT = `
-# 工具
-你可以调用只读数据工具(查标的 / 查数据覆盖 / 按指标筛选最新快照 / 只读 SQL 做统计聚合与时序、财务查询 / 画图表 / SQL+代码做复杂统计)。涉及库里的事实时**先查再答**,不要臆造;工具结果只反映本地库的当前状态。不需要数据时不必调用。简单筛选优先 runScreen(结果自动成为用户可复用的查询卡片);它表达不了的用 sqlQuery;趋势/对比/分布类适合看图的结论用 renderChart 直接画给用户;相关性/回归/波动率等 SQL 算不动的统计用 analyzeData。`;
+# Tools
+You can call read-only data tools (look up instruments / check data coverage / screen the latest snapshot by metric / read-only SQL for statistical aggregation, time-series and financial queries / draw charts / SQL + code for complex stats). When a question turns on facts in the database, **query first, then answer** — don't make things up; tool results reflect only the current state of the local database. Don't call tools when you don't need data. For simple screening prefer runScreen (its result becomes a reusable query card for the user); use sqlQuery for what it can't express; for trend/comparison/distribution conclusions that are better seen, use renderChart to draw for the user directly; for stats SQL can't handle (correlation/regression/volatility) use analyzeData.`;
 
 /** The fenced ```ts block, or null when the reply has none (a pure answer). */
 function extractFenced(text: string): string | null {
@@ -116,14 +124,14 @@ async function executeToolCall(
 
   const tool = tools.find((candidate) => candidate.name === call.name);
   if (!tool) {
-    return fail(`未知工具 ${call.name},可用:${tools.map((t) => t.name).join('、')}`);
+    return fail(`Unknown tool ${call.name}. Available: ${tools.map((t) => t.name).join(', ')}`);
   }
 
   let args: unknown;
   try {
     args = JSON.parse(call.args || '{}');
   } catch {
-    return fail('参数不是合法 JSON,请修正后重试');
+    return fail('Arguments are not valid JSON; fix them and retry.');
   }
 
   try {
@@ -141,7 +149,7 @@ async function executeToolCall(
       },
     };
   } catch (e) {
-    return fail(`工具执行失败:${e instanceof Error ? e.message : String(e)}`);
+    return fail(`Tool execution failed: ${e instanceof Error ? e.message : String(e)}`);
   }
 }
 
@@ -172,7 +180,7 @@ export async function agentTurn(
   };
   const tools = profile.tools ?? [];
   const userContent = artifact
-    ? `当前${artifact.noun}代码:\n\`\`\`ts\n${currentCode}\n\`\`\`\n\n用户:${message}`
+    ? `Current ${artifact.noun} code:\n\`\`\`ts\n${currentCode}\n\`\`\`\n\nUser: ${message}`
     : message;
   const messages: ToolAwareMessage[] = [
     { role: 'system', content: profile.system },
@@ -213,7 +221,11 @@ export async function agentTurn(
         messages.push({ role: 'tool', toolCallId: call.id, content: executed.observation });
       }
       if (toolRounds >= MAX_TOOL_ROUNDS) {
-        messages.push({ role: 'user', content: '工具调用轮数已达上限,请基于已有信息直接回答。' });
+        messages.push({
+          role: 'user',
+          content:
+            'Tool-call round limit reached; answer directly based on the information you already have.',
+        });
       }
       continue;
     }
@@ -263,7 +275,7 @@ export async function agentTurn(
       messages.push({ role: 'assistant', content: code });
       messages.push({
         role: 'user',
-        content: `上面的代码无法编译/运行:${lastError}。请只输出完整、可编译的 TS ${artifact.noun}模块(可省略解释、不要 markdown 围栏)。`,
+        content: `The code above does not compile/run: ${lastError}. Output only the complete, compilable TS ${artifact.noun} module (you may omit the explanation; no markdown fence).`,
       });
     }
   }
