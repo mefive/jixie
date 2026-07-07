@@ -43,9 +43,9 @@ const IcDecayChart = lazy(() => import('./ic-decay-chart'));
 const FactorEditor = lazy(() => import('./factor-editor'));
 
 /**
- * 因子研究 — Agent-authored, IDE-style (aligned with the strategy workbench). 3-column Splitter: an Agent
- * panel (a chat that writes the custom factor's defineFactor code, + a 因子库 tab of presets & custom
- * factors) | the code editor over a collapsible 日志 dock (a preset shows a greyed note — no code) | the
+ * Factor research — Agent-authored, IDE-style (aligned with the strategy workbench). 3-column Splitter: an Agent
+ * panel (a chat that writes the custom factor's defineFactor code, + a factor-library tab of presets & custom
+ * factors) | the code editor over a collapsible log dock (a preset shows a greyed note — no code) | the
  * analysis params + result (deciles + Rank IC + long-short + heatmap). Preset factors skip the editor and
  * go straight to analysis; custom factors are authored by the Agent and persisted on a run.
  */
@@ -66,7 +66,7 @@ export const Factor = complex.component(() => {
 
   // The Splitter renders on the FIRST paint (not gated on the catalog) so it mounts once, early, and its
   // layout-measure reflow happens while the panels are still empty — invisible. Catalog loading is scoped
-  // to the 因子库 list (a small region), not the whole workbench, so nothing pops in from blank.
+  // to the factor-library list (a small region), not the whole workbench, so nothing pops in from blank.
   const [panelDefaults] = useState(() => splitterDefaults(340));
   return (
     <div className="jx-factor">
@@ -85,9 +85,9 @@ export const Factor = complex.component(() => {
   );
 }, 'Factor');
 
-// —— 子组件 ——
+// —— Subcomponents ——
 
-// Left column: Agent (chat authors the factor) | 因子库 (presets + custom, to select).
+// Left column: Agent (chat authors the factor) | factor library (presets + custom, to select).
 const AgentPanel = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('factor');
@@ -207,7 +207,7 @@ function ChatLog({
   );
 }
 
-// 因子库 tab: presets grouped by kind + this user's custom factors. Click to select (→ analyze); custom
+// factor-library tab: presets grouped by kind + this user's custom factors. Click to select (→ analyze); custom
 // rows have a delete affordance. Picking one jumps back to the Agent tab.
 const FactorLibrary = complex.component(({ onPickCustom }: { onPickCustom: () => void }) => {
   const store = complex.useStore();
@@ -285,8 +285,8 @@ const FactorLibrary = complex.component(({ onPickCustom }: { onPickCustom: () =>
   );
 }, 'FactorLibrary');
 
-// Middle column: the Monaco editor over a collapsible 日志 dock. A preset is a seeded READ-ONLY code
-// row — shown in the same editor with a lock bar + 复制为自定义 (fork), instead of being hidden.
+// Middle column: the Monaco editor over a collapsible log dock. A preset is a seeded READ-ONLY code
+// row — shown in the same editor with a lock bar + copy-as-custom (fork), instead of being hidden.
 const MiddleColumn = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('factor');
@@ -330,7 +330,7 @@ const MiddleColumn = complex.component(() => {
   );
 }, 'MiddleColumn');
 
-// Middle-bottom: the run's streamed 日志 (system progress + custom-factor console.*).
+// Middle-bottom: the run's streamed log (system progress + custom-factor console.*).
 const FactorDock = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('factor');
@@ -345,7 +345,7 @@ const FactorDock = complex.component(() => {
   );
 }, 'FactorDock');
 
-// Right column: sticky 分析参数 (频率/区间/运行 + 已跑 chips) over the scrollable analysis result.
+// Right column: sticky analysis params (frequency/range/run + already-run chips) over the scrollable analysis result.
 const ResultColumn = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('factor');
@@ -366,7 +366,7 @@ const ResultColumn = complex.component(() => {
   );
 }, 'ResultColumn');
 
-// Frequency + date range + 运行/查看 (label depends on cache + unsaved custom code) + 重算.
+// Frequency + date range + run/view (label depends on cache + unsaved custom code) + recompute.
 const ParamsBar = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('factor');
@@ -449,7 +449,7 @@ const RunChips = complex.component(() => {
 }, 'RunChips');
 
 // Result: running / loading / error / prompt-to-run / the report. The live log streams in the dock.
-// Thin wrapper: jobRunning shows a running placeholder; a never-run factor shows a 运行 prompt; otherwise
+// Thin wrapper: jobRunning shows a running placeholder; a never-run factor shows a run prompt; otherwise
 // LoadingArea drives the cached-report load with a DELAYED spinner (so a fast reload doesn't flash it).
 const FactorResult = complex.component(() => {
   const store = complex.useStore();
@@ -482,7 +482,7 @@ const ReportBody = complex.component(() => {
   const n = r.buckets.length;
   const dir = direction(r.icMean);
   const per = t(r.freq === 'week' ? 'unitWeek' : 'unitMonth');
-  // Weight is a view toggle over precomputed data (等权 always present; 市值加权 on newer reports).
+  // Weight is a view toggle over precomputed data (equal-weight always present; cap-weighted on newer reports).
   const hasMktcap = !!r.bucketsMktcap;
   const useMktcap = weight === 'mktcap' && hasMktcap;
   const buckets = useMktcap ? r.bucketsMktcap! : r.buckets;
@@ -619,7 +619,7 @@ function PromptBox({
   );
 }
 
-// —— 帮助函数 / 配置 ——
+// —— Helpers / config ——
 
 /** The turn's ephemeral tool trace (display only — absent once a conversation is reloaded). */
 function traceOf(message: ChatMessage): AgentToolTraceItem[] | undefined {

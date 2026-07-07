@@ -1,14 +1,14 @@
 import type { TradeDate } from './types.js';
 
 /**
- * Backtest config + result — the wire types for 产品线 1 (策略回测). The strategy itself is now
+ * Backtest config + result — the wire types for product line 1 (strategy backtest). The strategy itself is now
  * user-authored TypeScript (`code`), compiled and run on the engine; there is no IR.
  */
 
 export interface CostConfig {
-  commission?: number; // per-side rate (万2.5 = 0.00025)
+  commission?: number; // per-side rate (2.5 bps = 0.00025)
   minCommission?: number; // floor per trade in yuan
-  stampDuty?: number; // sell-side only (千0.5 = 0.0005)
+  stampDuty?: number; // sell-side only (5 bps = 0.0005)
   transferFee?: number; // both sides
 }
 
@@ -24,16 +24,16 @@ export interface BacktestConfig {
 
 /** One executed fill (the trade-log unit shown on the chart + list). `shares`/`price` are the engine's
  * internal backward-adjusted (hfq) units; `realShares`/`realPrice` are the real, tradable numbers shown to
- * the user — whole 手 (100-share lots) at the unadjusted price. `amount` (real money) is the same either way. */
+ * the user — whole lots (100-share lots) at the unadjusted price. `amount` (real money) is the same either way. */
 export interface TradeRecord {
   date: TradeDate;
   code: string;
   side: 'buy' | 'sell';
   shares: number; // hfq shares (engine-internal)
   price: number; // hfq fill price (engine-internal)
-  amount: number; // realShares × realPrice = shares × price (成交额, real money)
+  amount: number; // realShares × realPrice = shares × price (turnover, real money)
   fee: number;
-  realShares: number; // real shares filled (buys are whole 手)
+  realShares: number; // real shares filled (buys are whole lots)
   realPrice: number; // unadjusted (raw) fill price — what you'd actually have paid
 }
 
@@ -52,13 +52,13 @@ export interface BacktestSummary {
   trades: number; // count
   tradeLog: TradeRecord[]; // every fill, in order (time/code/side/amount/quantity)
   nav: { date: string; value: number }[]; // daily equity curve
-  // 基准对比 + 更多绩效 — optional: results cached before this was added won't carry them.
-  benchReturn?: number; // 沪深300 同期总收益
+  // benchmark comparison + more performance metrics — optional: results cached before this was added won't carry them.
+  benchReturn?: number; // CSI 300 total return over the same period
   excessReturn?: number; // totalReturn − benchReturn
-  informationRatio?: number; // 年化信息比率 = mean(超额日收益) / std × √252
+  informationRatio?: number; // annualized information ratio = mean(excess daily return) / std × √252
   calmar?: number; // annReturn / |maxDrawdown|
-  winRate?: number; // 盈利平仓占比(round-trip 配对)
-  profitFactor?: number; // Σ盈利 / Σ亏损
-  turnover?: number; // 年化换手 = 单边成交额 / 平均权益 / 年
-  monthly?: { month: string; ret: number }[]; // 'YYYYMM' → 月度收益(月度收益表)
+  winRate?: number; // fraction of profitable closes (round-trip pairing)
+  profitFactor?: number; // Σ profits / Σ losses
+  turnover?: number; // annualized turnover = one-way turnover / average equity / year
+  monthly?: { month: string; ret: number }[]; // 'YYYYMM' → monthly return (monthly-return table)
 }

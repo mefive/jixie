@@ -18,10 +18,10 @@ import { createJob, appendLog, finishJob, getJob, findRunningJob } from '../lib/
 import { localeFromRequest, m } from '../i18n/index.js';
 
 /**
- * Factor-analysis API (产品线 1.5 · 因子研究). Reports are per-user (a public factor's analysis is still
+ * Factor-analysis API (product line 1.5 · factor research). Reports are per-user (a public factor's analysis is still
  * cached per user, not shared). Analysis is CPU/IO-heavy → runs in a worker (factor-worker.ts) as a Job:
  *   GET  /catalog                            the factor list (identity + kind)
- *   GET  /runs?factor                        this user's cached runs of a factor (the "已跑" chips)
+ *   GET  /runs?factor                        this user's cached runs of a factor (the "already run" chips)
  *   GET  /analysis?factor&freq&start&end      this user's cached report (404 if not computed yet)
  *   POST /analysis/run?...&refresh            cache hit → {done,report}; else start a Job → {jobId}
  *   GET  /analysis/job/:id?since=             poll a Job: {status, logs, nextSince, error}
@@ -79,7 +79,7 @@ factorRoute.get('/custom', async (c) => {
 
 factorRoute.get('/custom/:id', async (c) => {
   // Own factors are editable; builtin (preset) rows are readable by anyone — the UI shows their
-  // code read-only with a "复制为自定义" affordance.
+  // code read-only with a "copy as custom" affordance.
   const row = await prisma.factor.findFirst({
     where: { id: c.req.param('id'), userId: { in: [c.var.userId, BUILTIN_USER_ID] } },
     select: { id: true, name: true, code: true, messages: true, userId: true },
@@ -197,7 +197,7 @@ factorRoute.delete('/custom/:id', async (c) => {
 });
 
 // POST /custom/:id/fork — copy a factor's code (a builtin preset or one of your own) into a NEW
-// editable custom factor — the "改参数出变体" research path (factor-to-strategy.md 路径②).
+// editable custom factor — the "tweak params to spawn a variant" research path (factor-to-strategy.md path 2).
 factorRoute.post('/custom/:id/fork', async (c) => {
   const userId = c.var.userId;
   const source = await prisma.factor.findFirst({

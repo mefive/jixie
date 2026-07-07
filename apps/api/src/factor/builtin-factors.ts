@@ -2,10 +2,10 @@ import type { FactorKind, FactorMeta } from '@jixie/shared';
 import { prisma } from '../lib/prisma.js';
 
 /**
- * Built-in preset factors as CODE (设计:factor-to-strategy.md Step 1b — code-first 在因子侧的贯彻).
+ * Built-in preset factors as CODE (design: factor-to-strategy.md Step 1b — code-first carried through on the factor side).
  * The source of truth is this file (git); seedBuiltinFactors materializes each preset into a
  * read-only Factor row so analysis runs presets and user factors through ONE compile+compute path.
- * 钉死点:
+ * Pinned invariants:
  *   - keys are stable slugs (ep/mom/…) — FactorReport cache keys and ?factor= URLs depend on them;
  *   - preset rows use the BUILTIN_USER_ID sentinel (no real user) and are rejected by edit/delete;
  *   - seeding is idempotent; a code change here invalidates every user's cached reports of that key.

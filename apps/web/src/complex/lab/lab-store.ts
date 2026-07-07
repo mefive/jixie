@@ -36,12 +36,12 @@ type LabSetupParams = { id?: string; isNew?: boolean };
  *  - `messages` save in real time (every Agent turn, by id);
  *  - `config` (code / range / capital) + `name` persist ONLY on a run — the name is re-derived from the
  *    code each run (the model keeps it when it still fits). So the editor's code/params are a working
- *    state that only commits when you 运行回测; an unrun edit is lost on refresh (by design).
- * `dirty` = the run-relevant config changed since the last run → gates the 运行回测 button + the "result
+ *    state that only commits when you Run backtest; an unrun edit is lost on refresh (by design).
+ * `dirty` = the run-relevant config changed since the last run → gates the Run-backtest button + the "result
  * is stale" behavior. The result is replaced only by a run, never cleared by editing code.
  */
 export class LabStore extends BaseStore<LabSetupParams> {
-  public name = ''; // LLM-derived name; regenerated from the code on each run (the 策略名称, not the code's own)
+  public name = ''; // LLM-derived name; regenerated from the code on each run (the strategy name, not the code's own)
   public start = '20200101';
   public end = '20241231';
   public initialCash = 1_000_000;
@@ -66,7 +66,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
   private since = 0;
 
   public backtestPoller = new PollingModel();
-  public savedLoader = new LoaderModel<StrategyCard[]>(); // 我的策略 / 历史 cards
+  public savedLoader = new LoaderModel<StrategyCard[]>(); // My strategies / History cards
 
   public constructor(parentStore?: any) {
     super(parentStore);
@@ -100,8 +100,8 @@ export class LabStore extends BaseStore<LabSetupParams> {
     this.registCleaner(() => this.backtestPoller.cleanup());
     this.registCleaner(() => this.savedLoader.cleanup());
     this.registCleaner(() => this.turnStream.detach()); // drop the SSE subscription; the turn keeps running
-    void this.savedLoader.run(); // prime 我的策略 (also feeds the hero's 最近访问 cards)
-    // A fresh (never-run) strategy: empty run-baseline → dirty → 运行回测 enabled; but the pristine
+    void this.savedLoader.run(); // prime My strategies (also feeds the hero's Recent-visits cards)
+    // A fresh (never-run) strategy: empty run-baseline → dirty → Run-backtest enabled; but the pristine
     // skeleton IS the "persisted" state (nothing to lose) → not edited → no leave guard.
     this.savedConfig = '';
     this.persistedConfig = this.configKey();
@@ -128,14 +128,14 @@ export class LabStore extends BaseStore<LabSetupParams> {
     );
   }
 
-  /** The run-relevant config (range/capital/code — NOT name) changed since the last run. Gates 运行回测:
+  /** The run-relevant config (range/capital/code — NOT name) changed since the last run. Gates Run-backtest:
    * a never-run strategy has an empty baseline → dirty → runnable; a fresh run resets the baseline. */
   public get dirty(): boolean {
     return this.configKey() !== this.savedConfig;
   }
 
   /** The code/params differ from what's PERSISTED in the DB — i.e. there are unrun edits that leaving
-   * would lose. Gates the leave guard (新建 / 切策略 / 刷新). A just-opened strategy is NOT edited (even
+   * would lose. Gates the leave guard (New / switch strategy / refresh). A just-opened strategy is NOT edited (even
    * if never run → dirty), so opening one doesn't false-warn. */
   public get edited(): boolean {
     return this.configKey() !== this.persistedConfig;
@@ -282,7 +282,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
     }
   }
 
-  /** Start fresh: a blank skeleton strategy. Empty baseline → dirty → 运行回测 enabled. */
+  /** Start fresh: a blank skeleton strategy. Empty baseline → dirty → Run-backtest enabled. */
   public newStrategy() {
     runInAction(() => {
       this.name = '';
@@ -418,12 +418,12 @@ export class LabStore extends BaseStore<LabSetupParams> {
       this.error = null;
       this.savedId = id;
       // A strategy with a result → its config IS the last-run config (not dirty); one never run stays
-      // dirty (empty run-baseline) so 运行回测 is enabled. Either way the loaded config IS what's in the
+      // dirty (empty run-baseline) so Run-backtest is enabled. Either way the loaded config IS what's in the
       // DB → not edited (opening it doesn't false-warn the leave guard).
       this.savedConfig = s.lastResult ? this.configKey() : '';
       this.persistedConfig = this.configKey();
     });
-    pushRecent(id); // record the visit → hero 最近访问 + auto-open on next entry
+    pushRecent(id); // record the visit → hero Recent-visits + auto-open on next entry
     void this.reattachTurn(); // a live agent turn for this strategy? re-subscribe (snapshot replays)
     // Re-attach to a still-running backtest (found server-side by strategyId — no localStorage, works
     // cross-client) so a refresh keeps streaming logs instead of losing the run.

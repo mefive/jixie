@@ -9,7 +9,7 @@ import { screenSpecSchema } from '../screen/spec.js';
 import { m } from '../i18n/index.js';
 
 /**
- * Saved screens (产品线 2 持久化). Owner-scoped CRUD over the SavedScreen table. Unlike strategies
+ * Saved screens (product line 2 persistence). Owner-scoped CRUD over the SavedScreen table. Unlike strategies
  * (auto-saved on run), a screen query is saved on demand — the user names a keeper and POSTs it here.
  * Upsert by (userId, name); every query is scoped by userId so a foreign id 404s.
  */

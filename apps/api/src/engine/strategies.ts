@@ -85,22 +85,26 @@ function volatility(px: number[], dates: string[], end: number, window = 20) {
 }
 
 const PRICE_SIGNALS: { key: string; label: string; fn: typeof momentum }[] = [
-  { key: 'mom', label: '动量(60日,跳5)', fn: (px, dates, end) => momentum(px, dates, end) },
-  { key: 'rev', label: '反转(5日)', fn: (px, dates, end) => reversal(px, dates, end) },
-  { key: 'vol', label: '波动率(20日)', fn: (px, dates, end) => volatility(px, dates, end) },
+  {
+    key: 'mom',
+    label: 'Momentum (60-day, skip 5)',
+    fn: (px, dates, end) => momentum(px, dates, end),
+  },
+  { key: 'rev', label: 'Reversal (5-day)', fn: (px, dates, end) => reversal(px, dates, end) },
+  { key: 'vol', label: 'Volatility (20-day)', fn: (px, dates, end) => volatility(px, dates, end) },
 ];
 
 const FUNDAMENTAL_SIGNALS: { key: string; label: string; from: (b: BarRow) => number | null }[] = [
   {
     key: 'ep',
-    label: '盈利收益率(1/PE_TTM)',
+    label: 'Earnings yield (1/PE_TTM)',
     from: (b) => (b.peTtm && b.peTtm > 0 ? 1 / b.peTtm : null),
   },
-  { key: 'bp', label: '账面市值比(1/PB)', from: (b) => (b.pb && b.pb > 0 ? 1 / b.pb : null) },
-  { key: 'dv', label: '股息率(%)', from: (b) => b.dvRatio },
+  { key: 'bp', label: 'Book-to-market (1/PB)', from: (b) => (b.pb && b.pb > 0 ? 1 / b.pb : null) },
+  { key: 'dv', label: 'Dividend yield (%)', from: (b) => b.dvRatio },
   {
     key: 'size',
-    label: '规模(ln总市值)',
+    label: 'Size (ln total market cap)',
     from: (b) => (b.totalMv && b.totalMv > 0 ? Math.log(b.totalMv) : null),
   },
 ];
@@ -150,7 +154,9 @@ export function crossSectionStrategy(opts: {
 }): Strategy {
   const sig = SIGNALS[opts.signal];
   if (!sig) {
-    throw new Error(`未知信号 "${opts.signal}"，可选：${Object.keys(SIGNALS).join(' / ')}`);
+    throw new Error(
+      `Unknown signal "${opts.signal}" — available: ${Object.keys(SIGNALS).join(' / ')}`,
+    );
   }
   const minListDays = opts.minListDays ?? 365;
   const liquidityDrop = opts.liquidityDrop ?? 0.25;
@@ -206,7 +212,7 @@ export function crossSectionStrategy(opts: {
   };
 }
 
-// —— Turtle Trading (海龟交易法则) —————————————————————————————————————————————
+// —— Turtle Trading (the Turtle rules) —————————————————————————————————————————————
 
 /** Wilder N (volatility unit) = average True Range over the window. Needs window+1 bars. */
 function atr(bars: OhlcBar[], window: number): number | null {

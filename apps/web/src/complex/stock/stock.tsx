@@ -12,8 +12,8 @@ export const Stock = complex.component(() => {
   const { t } = useTranslation('stock');
   const series = store.seriesLoader.result;
   const loading = store.seriesLoader.loading;
-  const [scale, setScale] = useState<'linear' | 'log'>('linear'); // 价格 Y 轴线性/对数 (纯 UI 态)
-  const [adjust, setAdjust] = useState<Adjust>('qfq'); // 复权方式,默认前复权
+  const [scale, setScale] = useState<'linear' | 'log'>('linear'); // price Y axis: linear/log (pure UI state)
+  const [adjust, setAdjust] = useState<Adjust>('qfq'); // adjustment mode, defaults to forward-adjustment (qfq)
 
   return (
     <div className="jx-stock">
@@ -65,7 +65,7 @@ export const Stock = complex.component(() => {
   );
 }, 'Stock');
 
-// —— 子组件 ——
+// —— Subcomponents ——
 
 // Candlestick-shaped loading skeleton for the chart area — shimmering bars of a fixed height pattern.
 // (A chart skeleton is the §5 chart exception to "no hand-drawn shapes"; antd Skeleton has no chart form.)

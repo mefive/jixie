@@ -2,19 +2,19 @@ import { describe, expect, it } from 'vitest';
 import { jsonSafe, prepareReadOnlySql, SQL_ROW_CAP } from './read-only-sql.js';
 
 describe('prepareReadOnlySql', () => {
-  it('给无 LIMIT 的查询自动补行数上限', () => {
+  it('auto-appends a row cap to a query with no LIMIT', () => {
     expect(prepareReadOnlySql('SELECT tsCode FROM DailyBasic WHERE pe < 10')).toBe(
       `SELECT tsCode FROM DailyBasic WHERE pe < 10 LIMIT ${SQL_ROW_CAP}`,
     );
   });
 
-  it('保留合规的自带 LIMIT(含末尾分号清理)', () => {
+  it('keeps a compliant declared LIMIT (and strips a trailing semicolon)', () => {
     expect(prepareReadOnlySql('SELECT * FROM StockBasic LIMIT 20;')).toBe(
       'SELECT * FROM StockBasic LIMIT 20',
     );
   });
 
-  it('接受 WITH 开头的 CTE 和白名单 JOIN', () => {
+  it('accepts a WITH-prefixed CTE and whitelisted JOINs', () => {
     const sql = `WITH latest AS (SELECT MAX(tradeDate) AS d FROM DailyBasic)
       SELECT b.industry, AVG(d.pe) FROM DailyBasic d
       JOIN StockBasic b ON b.tsCode = d.tsCode
@@ -23,19 +23,19 @@ describe('prepareReadOnlySql', () => {
     expect(prepareReadOnlySql(sql)).toContain('GROUP BY b.industry');
   });
 
-  it('拒绝超大 LIMIT', () => {
+  it('rejects an oversized LIMIT', () => {
     expect(() => prepareReadOnlySql('SELECT * FROM Daily LIMIT 100000')).toThrow(/LIMIT max/);
   });
 
-  it('拒绝非 SELECT 语句', () => {
+  it('rejects non-SELECT statements', () => {
     expect(() => prepareReadOnlySql('EXPLAIN QUERY PLAN SELECT 1')).toThrow(/Only SELECT/);
   });
 
-  it('拒绝多语句', () => {
+  it('rejects multiple statements', () => {
     expect(() => prepareReadOnlySql('SELECT 1; SELECT 2')).toThrow(/semicolon/);
   });
 
-  it('拒绝写操作与 DDL/PRAGMA 关键字', () => {
+  it('rejects write operations and DDL/PRAGMA keywords', () => {
     expect(() => prepareReadOnlySql("SELECT 1 WHERE 'x' = 'drop table'")).toThrow(
       /forbidden keyword/,
     );
@@ -44,13 +44,13 @@ describe('prepareReadOnlySql', () => {
     );
   });
 
-  it('拒绝应用表与 SQLite 内部表', () => {
+  it('rejects app tables and SQLite internal tables', () => {
     expect(() => prepareReadOnlySql('SELECT * FROM Session')).toThrow(/is not allowed/);
     expect(() => prepareReadOnlySql('SELECT id FROM "User"')).toThrow(/is not allowed/);
     expect(() => prepareReadOnlySql('SELECT * FROM sqlite_master')).toThrow(/is not allowed/);
   });
 
-  it('拒绝白名单之外的 FROM/JOIN 目标', () => {
+  it('rejects FROM/JOIN targets outside the whitelist', () => {
     expect(() => prepareReadOnlySql('SELECT * FROM DailyBasic JOIN Unknown u ON 1=1')).toThrow(
       /not in the whitelist/,
     );
@@ -58,7 +58,7 @@ describe('prepareReadOnlySql', () => {
 });
 
 describe('jsonSafe', () => {
-  it('把 SQLite 返回的 BigInt 转成 Number 以便 JSON 序列化', () => {
+  it('converts SQLite BigInt into Number for JSON serialization', () => {
     expect(JSON.stringify({ count: 42n }, jsonSafe)).toBe('{"count":42}');
   });
 });

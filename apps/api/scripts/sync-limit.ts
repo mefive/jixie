@@ -4,8 +4,9 @@ import { prisma } from '../src/lib/prisma.js';
 import { syncStkLimit } from '../src/store/sync.js';
 
 /**
- * Sync daily price limits (涨/跌停价) into the local store — what the engine reads to block fills at the
- * limit (涨停不可买、跌停不可卖). Resumable: skips trading days already loaded.
+ * Sync daily price limits (limit-up / limit-down prices) into the local store — what the engine reads
+ * to block fills at the limit (no buy at limit-up, no sell at limit-down). Resumable: skips trading
+ * days already loaded.
  * Usage: pnpm sync:limit [start] [end]   e.g. pnpm sync:limit 20150101 20241231
  */
 async function main(): Promise<void> {
@@ -18,18 +19,18 @@ async function main(): Promise<void> {
     minIntervalMs: cfg.minIntervalMs,
   });
 
-  console.log(`同步涨跌停 ${start} ~ ${end}（限频 ${cfg.minIntervalMs}ms/次）\n`);
+  console.log(`Syncing price limits ${start} ~ ${end} (rate limit ${cfg.minIntervalMs}ms/call)\n`);
   await syncStkLimit(client, start, end);
 
-  console.log('\n落库统计:');
+  console.log('\nStored row counts:');
   console.table({ stk_limit: await prisma.stkLimit.count() });
 
   await prisma.$disconnect();
-  console.log('✅ 涨跌停同步完成');
+  console.log('✅ Price limit sync complete');
 }
 
 main().catch(async (e: unknown) => {
-  console.error('\n❌ sync:limit 失败：', e instanceof Error ? e.message : e);
+  console.error('\n❌ sync:limit failed: ', e instanceof Error ? e.message : e);
   await prisma.$disconnect();
   process.exitCode = 1;
 });

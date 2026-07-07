@@ -105,7 +105,7 @@ export interface IndexDailyRow {
   close: number;
 }
 
-/** Index daily close (e.g. 000300.SH 沪深300) — benchmark return curves + future regime filters.
+/** Index daily close (e.g. 000300.SH CSI 300) — benchmark return curves + future regime filters.
  * One call returns the whole range (a few thousand rows). */
 export async function indexDaily(
   client: TushareClient,
@@ -118,12 +118,13 @@ export async function indexDaily(
 export interface StkLimitRow {
   ts_code: TsCode;
   trade_date: TradeDate;
-  up_limit: number; // 涨停价 (unadjusted)
-  down_limit: number; // 跌停价 (unadjusted)
+  up_limit: number; // limit-up price (unadjusted)
+  down_limit: number; // limit-down price (unadjusted)
 }
 
-/** Daily up/down price limits (unadjusted). Used to block fills at the limit (涨停不可买、跌停不可卖).
- * Limits are board-specific (主板±10/ST±5/双创±20/北交所±30) — Tushare returns the actual price. */
+/** Daily up/down price limits (unadjusted). Used to block fills at the limit (no buy at limit-up,
+ * no sell at limit-down). Limits are board-specific (main board ±10 / ST ±5 / STAR & ChiNext ±20 /
+ * BSE ±30) — Tushare returns the actual price. */
 export async function stkLimit(
   client: TushareClient,
   params: {
@@ -140,11 +141,12 @@ export async function stkLimit(
 export interface TopListRow {
   ts_code: TsCode;
   trade_date: TradeDate;
-  net_amount: number | null; // 龙虎榜净买入额 (元)
+  net_amount: number | null; // Dragon-Tiger List net buy amount (CNY)
 }
 
-/** 龙虎榜 (Dragon-Tiger List): stocks with abnormal activity that day. A stock can appear on multiple
- * 榜单 (reasons) → multiple rows/day; the sync sums net_amount per (code, date). 关注度/游资 极端信号。 */
+/** Dragon-Tiger List: stocks with abnormal activity that day. A stock can appear on multiple
+ * lists (reasons) → multiple rows/day; the sync sums net_amount per (code, date). An extreme
+ * attention / hot-money signal. */
 export async function topList(
   client: TushareClient,
   params: { trade_date?: TradeDate; ts_code?: TsCode } = {},
@@ -156,15 +158,16 @@ export async function topList(
 export interface MoneyflowRow {
   ts_code: TsCode;
   trade_date: TradeDate;
-  buy_lg_amount: number | null; // 大单买入额 (万元)
-  buy_elg_amount: number | null; // 特大单买入额 (万元)
+  buy_lg_amount: number | null; // large-order buy amount (10k CNY)
+  buy_elg_amount: number | null; // extra-large-order buy amount (10k CNY)
   sell_lg_amount: number | null;
   sell_elg_amount: number | null;
-  net_mf_amount: number | null; // 净流入额 (万元, all order sizes)
+  net_mf_amount: number | null; // net inflow (10k CNY, all order sizes)
 }
 
-/** Daily moneyflow (per-stock 资金流, 万元). 主力净额 = (大单+特大单)买 − (大单+特大单)卖 — the
- * "smart-money / 关注度" signal; net_mf_amount = total net inflow across all order sizes. */
+/** Daily moneyflow (per-stock, 10k CNY). Main-force net = (large + extra-large) buys − (large +
+ * extra-large) sells — the "smart-money / attention" signal; net_mf_amount = total net inflow
+ * across all order sizes. */
 export async function moneyflow(
   client: TushareClient,
   params: {
@@ -222,15 +225,15 @@ export interface FinaIndicatorRow {
   ts_code: TsCode;
   ann_date: TradeDate | null; // announcement date (PIT gate)
   end_date: TradeDate; // report period end
-  roe: number | null; // 净资产收益率 %
-  roe_waa: number | null; // 加权平均净资产收益率 %
-  roa: number | null; // 总资产报酬率 %
-  grossprofit_margin: number | null; // 销售毛利率 %
-  netprofit_margin: number | null; // 销售净利率 %
-  debt_to_assets: number | null; // 资产负债率 %
-  or_yoy: number | null; // 营业收入同比增长率 %
-  netprofit_yoy: number | null; // 归母净利润同比增长率 %
-  ocf_to_profit: number | null; // 经营活动现金流净额 / 营业利润
+  roe: number | null; // return on equity, %
+  roe_waa: number | null; // weighted-average return on equity, %
+  roa: number | null; // return on assets, %
+  grossprofit_margin: number | null; // gross profit margin, %
+  netprofit_margin: number | null; // net profit margin, %
+  debt_to_assets: number | null; // debt-to-assets ratio, %
+  or_yoy: number | null; // revenue YoY growth, %
+  netprofit_yoy: number | null; // net profit attributable to parent, YoY growth, %
+  ocf_to_profit: number | null; // operating cash flow / operating profit
 }
 
 /** Financial indicators per report period. Pulled per ts_code (one call returns its full history,
@@ -252,8 +255,8 @@ export interface DividendRow {
   end_date: TradeDate; // distribution's report period
   ann_date: TradeDate | null;
   ex_date: TradeDate | null; // ex-dividend date (PIT gate)
-  div_proc: string | null; // 实施进度 ('实施' = actually paid)
-  cash_div: number | null; // 税前每股现金分红
+  div_proc: string | null; // distribution stage ('实施' = actually paid)
+  cash_div: number | null; // pre-tax cash dividend per share
   cash_div_tax: number | null;
 }
 

@@ -69,9 +69,9 @@ export default function ChatChart({ title, chart }: ChatChartProps) {
   );
 }
 
-// —— 帮助函数 ——
+// —— Helpers ——
 
-// Canvas can't read CSS variables — chart colors live as hex (ink first, then 涨红/跌绿 accents).
+// Canvas can't read CSS variables — chart colors live as hex (ink first, then up-red / down-green accents).
 const SERIES_PALETTE = ['#1f2430', '#e8463b', '#2f9e5b', '#b38f2d', '#8a9099'];
 const AXIS_LABEL_COLOR = '#8a9099';
 const AXIS_LINE_COLOR = '#e8eaed';

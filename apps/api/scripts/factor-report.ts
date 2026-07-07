@@ -17,20 +17,20 @@ async function main(): Promise<void> {
   for (const r of reports) {
     console.log(`\n${'='.repeat(64)}`);
     console.log(
-      `因子 ${r.factor}（${r.label}）  样本 ${r.periods} 个${r.freq === 'week' ? '周' : '月'}`,
+      `Factor ${r.factor} (${r.label})  sample ${r.periods} ${r.freq === 'week' ? 'weeks' : 'months'}`,
     );
     console.log('-'.repeat(64));
     console.log(
-      `Rank IC 均值 ${r.icMean.toFixed(4)} | IC标准差 ${r.icStd.toFixed(4)} | ` +
-        `ICIR ${r.icir.toFixed(3)}（年化 ${r.icirAnnual.toFixed(2)}） | IC>0 占比 ${pct(r.icPosRate)}`,
+      `Rank IC mean ${r.icMean.toFixed(4)} | IC std ${r.icStd.toFixed(4)} | ` +
+        `ICIR ${r.icir.toFixed(3)} (annualized ${r.icirAnnual.toFixed(2)}) | IC>0 rate ${pct(r.icPosRate)}`,
     );
-    console.log('\n  分位   年化收益    Sharpe   最大回撤   期末净值');
+    console.log('\n  Bucket   AnnReturn    Sharpe   MaxDrawdown   FinalNAV');
     for (const b of r.buckets) {
       const tag =
         b.bucket === 0
-          ? 'D1(低)'
+          ? 'D1(low)'
           : b.bucket === r.buckets.length - 1
-            ? 'D10(高)'
+            ? 'D10(high)'
             : `D${b.bucket + 1}`;
       console.log(
         `  ${tag.padEnd(7)} ${pct(b.annReturn).padStart(8)} ${b.sharpe.toFixed(2).padStart(8)} ` +
@@ -39,20 +39,22 @@ async function main(): Promise<void> {
     }
     const ls = r.longShort;
     console.log(
-      `\n  多空(D10−D1): 年化 ${pct(ls.annReturn)} | Sharpe ${ls.sharpe.toFixed(2)} | ` +
-        `最大回撤 ${pct(ls.maxDrawdown)} | 期末净值 ${ls.navEnd.toFixed(3)}`,
+      `\n  Long-short(D10−D1): annualized ${pct(ls.annReturn)} | Sharpe ${ls.sharpe.toFixed(2)} | ` +
+        `max drawdown ${pct(ls.maxDrawdown)} | final NAV ${ls.navEnd.toFixed(3)}`,
     );
-    console.log(`  最高分位单边换手(月均): ${pct(r.topTurnover)}`);
+    console.log(`  Top bucket one-way turnover (monthly avg): ${pct(r.topTurnover)}`);
   }
 
   console.log(`\n${'='.repeat(64)}`);
-  console.log(`✅ 因子分析完成，耗时 ${((Date.now() - t0) / 1000).toFixed(1)}s`);
-  console.log('提示：IC 为负 = 因子反向有效（如反转/低波），可交易方向应取 D1−D10。');
+  console.log(`✅ Factor analysis done, elapsed ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+  console.log(
+    'Note: negative IC = factor effective in reverse (e.g. reversal / low-volatility); tradable direction should be D1−D10.',
+  );
   await prisma.$disconnect();
 }
 
 main().catch(async (e: unknown) => {
-  console.error('❌ 因子分析失败：', e instanceof Error ? e.message : e);
+  console.error('❌ Factor analysis failed:', e instanceof Error ? e.message : e);
   await prisma.$disconnect();
   process.exitCode = 1;
 });

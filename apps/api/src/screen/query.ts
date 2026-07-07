@@ -55,7 +55,7 @@ export async function runScreen(spec: ScreenSpec): Promise<ScreenResult> {
   return { tradeDate: date, total, rows: picked };
 }
 
-/** A stock's raw OHLC + volume + pe series over a date range, for the K线/PE/量 charts. */
+/** A stock's raw OHLC + volume + pe series over a date range, for the K-line/PE/volume charts. */
 export async function stockSeries(
   tsCode: string,
   start: string,

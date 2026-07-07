@@ -12,7 +12,7 @@ import {
 } from './types.js';
 
 const PERIODS_PER_YEAR = 252; // trading days
-const BENCHMARK = '000300.SH'; // 沪深300 — the excess/IR benchmark
+const BENCHMARK = '000300.SH'; // CSI 300 — the excess/IR benchmark
 const MAX_SLIP = 0.1; // cap slippage at 10% so a huge order in an illiquid name can't produce absurd fills
 
 /**
@@ -24,11 +24,11 @@ const MAX_SLIP = 0.1; // cap slippage at 10% so a huge order in an illiquid name
  *   3. call strategy.onBar(ctx); the strategy may queue a new target book for next open
  *
  * MVP simplifications (documented): hfq prices for marking + internal accounting (total return, dividends
- * reinvested via adj — no explicit cash-dividend events); buys size in whole 手 (100-share lots) of REAL
+ * reinvested via adj — no explicit cash-dividend events); buys size in whole lots (100-share lots) of REAL
  * shares (floored), so trades are realistically tradable while marking stays hfq; fills at next-day open;
  * T+1 enforced; costs + slippage applied (fees on `fee`, slippage worsens the fill price via a base
- * half-spread + a size/liquidity impact term — see execPrice); 涨停板不可买、跌停板不可卖 (blocked at the
- * limit open); a suspended stock
+ * half-spread + a size/liquidity impact term — see execPrice); up-limit stocks can't be bought and
+ * down-limit stocks can't be sold (blocked at the limit open); a suspended stock
  * gets no fill that day. A blocked order is NOT carried over — the strategy re-expresses intent each bar
  * (condition-based exits re-fire daily until fillable). ST filtering is left to the strategy.
  */
@@ -105,7 +105,7 @@ export async function runStrategy(cfg: EngineConfig): Promise<BacktestResult> {
     }
   }
 
-  const bench = engineData.indexCloses(BENCHMARK); // 沪深300 for 超额/IR (preloaded)
+  const bench = engineData.indexCloses(BENCHMARK); // CSI 300 for excess-return/IR (preloaded)
   const result = summarize(cfg, nav, portfolio.trades, bench);
   log(
     t(locale, 'backtestDone', {
@@ -183,7 +183,7 @@ function buildContext(
       return engineData.indexMembers(indexCode, date);
     },
     index(indexCode) {
-      // Read-only 大盘 handle, point-in-time as-of today. Not tradable (no order/hold).
+      // Read-only market-index handle, point-in-time as-of today. Not tradable (no order/hold).
       return {
         get close() {
           return engineData.indexCloseAsOf(indexCode, date);
@@ -325,7 +325,7 @@ function executeOrders(
     } // suspended
     if (limitBlocked(engineData, code, date, 'buy', px)) {
       continue;
-    } // 涨停封板 — can't buy
+    } // up-limit sealed — can't buy
     // Slippage lifts the buy price → size affordability on the slipped price so we don't overspend.
     const fillPx = execPrice(engineData, code, date, 'buy', px, delta * px, cost);
     const buy = Math.min(delta, portfolio.affordableShares(fillPx));
@@ -336,7 +336,7 @@ function executeOrders(
 }
 
 /** Execution price = the open worsened by slippage: a base half-spread (every fill pays it) plus a linear
- * price impact that scales with the order's notional vs. the day's 成交额 (a big order in a thin small-cap
+ * price impact that scales with the order's notional vs. the day's turnover (a big order in a thin small-cap
  * pays more — the whole point). Buys fill above the open, sells below. hfq in → hfq out; `notionalYuan`
  * is real money (= |hfq shares| × hfq open). No turnover for the day → impact term drops (base only). */
 export function execPrice(
@@ -349,14 +349,14 @@ export function execPrice(
   cost: CostModel,
 ): number {
   const base = cost.slippageBps / 1e4;
-  const dayTurnoverYuan = (engineData.amountAt(code, date) ?? 0) * 1000; // amount 是 千元
+  const dayTurnoverYuan = (engineData.amountAt(code, date) ?? 0) * 1000; // amount is in thousand yuan
   const impact = dayTurnoverYuan > 0 ? cost.impactCoef * (notionalYuan / dayTurnoverYuan) : 0;
   const slip = Math.min(base + impact, MAX_SLIP);
   return side === 'buy' ? hfqOpen * (1 + slip) : hfqOpen * (1 - slip);
 }
 
 /** True if a fill is blocked by the day's price limit: you can't buy at/above the up-limit open nor sell
- * at/below the down-limit open (一字板/封板). Limits are unadjusted, so compare against raw open
+ * at/below the down-limit open (one-line / sealed limit board). Limits are unadjusted, so compare against raw open
  * (hfqOpen / adj). No limit data for the day → not blocked (can't tell). */
 function limitBlocked(
   engineData: EngineData,
@@ -396,7 +396,7 @@ function summarize(
   const annReturn = st.annualizedReturn(dailyReturns, PERIODS_PER_YEAR);
   const maxDrawdown = st.maxDrawdown(values); // ≤ 0
 
-  // —— 基准对比(沪深300): 超额 + 年化信息比率 ——
+  // —— Benchmark comparison (CSI 300): excess return + annualized information ratio ——
   const benchByDate = new Map(bench.map((b) => [b.date, b.close]));
   const benchInRange = nav
     .map((n) => benchByDate.get(n.date))
@@ -416,8 +416,8 @@ function summarize(
       ? (st.mean(excessDaily) / trackingErrorStd) * Math.sqrt(PERIODS_PER_YEAR)
       : 0;
 
-  // —— 交易层面: 胜率 + 盈亏比(重放成交按均价配对平仓的已实现盈亏) ——
-  const book = new Map<string, { shares: number; cost: number }>(); // real shares + total real cost (含费)
+  // —— Trade level: win rate + profit factor (replay fills, pair closes at average cost for realized P&L) ——
+  const book = new Map<string, { shares: number; cost: number }>(); // real shares + total real cost (incl. fees)
   let wins = 0;
   let closes = 0;
   let winSum = 0;
@@ -430,7 +430,7 @@ function summarize(
     } else {
       const avgCost = p.shares > 0 ? p.cost / p.shares : 0;
       const costOut = avgCost * t.realShares;
-      const pnl = t.amount - t.fee - costOut; // 卖出净额 − 卖出份的成本
+      const pnl = t.amount - t.fee - costOut; // sell net proceeds − cost of the sold shares
       closes += 1;
       if (pnl >= 0) {
         wins += 1;
@@ -450,14 +450,14 @@ function summarize(
   const winRate = closes > 0 ? wins / closes : 0;
   const profitFactor = lossSum > 0 ? winSum / lossSum : winSum > 0 ? 99 : 0;
 
-  // —— 年化换手 = 单边成交额 / 平均权益 / 年 ——
+  // —— Annualized turnover = one-side traded value / average equity / year ——
   const avgEquity = st.mean(values);
   const traded = tradeLog.reduce((s, t) => s + t.amount, 0);
   const years = nav.length / PERIODS_PER_YEAR;
   const turnover = avgEquity > 0 && years > 0 ? traded / 2 / avgEquity / years : 0;
 
-  // —— 月度收益表(月末权益环比;首月基准为初始资金) ——
-  const monthEnd = new Map<string, number>(); // 'YYYYMM' → 当月最后一个权益
+  // —— Monthly return table (month-end equity chained; first month based on initial cash) ——
+  const monthEnd = new Map<string, number>(); // 'YYYYMM' → last equity of the month
   for (const n of nav) {
     monthEnd.set(n.date.slice(0, 6), n.value);
   }

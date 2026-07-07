@@ -17,7 +17,7 @@
   background: var(--color-line);
 }
 
-/* the middle vertical split (editor over 日志 dock) drag bars = hairline dividers */
+/* the middle vertical split (editor over log dock) drag bars = hairline dividers */
 .jx-factor-body .ant-splitter-bar-dragger {
   z-index: 1;
 }
@@ -36,7 +36,7 @@
   background: rgb(240 160 32 / 0.18);
 }
 
-/* —— left column: Agent panel (chat | 因子库 tabs) —— */
+/* —— left column: Agent panel (chat | factor-library tabs) —— */
 .jx-factor-agent {
   @apply flex flex-col overflow-hidden bg-card;
   height: 100%;
@@ -127,7 +127,7 @@
   @apply w-full;
 }
 
-/* 因子库 tab: presets + custom as a vertical list */
+/* factor-library tab: presets + custom as a vertical list */
 .jx-factor-library {
   @apply flex flex-1 flex-col overflow-auto;
   padding: 4px 2px 8px;
@@ -174,7 +174,7 @@
   font-size: 12px;
 }
 
-/* —— middle: custom-factor editor (over the 日志 dock) —— */
+/* —— middle: custom-factor editor (over the log dock) —— */
 .jx-factor-editor {
   @apply flex flex-col overflow-hidden bg-card;
   height: 100%;
@@ -203,7 +203,7 @@
   line-height: 1.7;
 }
 
-/* middle-bottom dock: 日志 */
+/* middle-bottom dock: log */
 .jx-factor-dock {
   @apply flex flex-col overflow-hidden bg-card;
   height: 100%;
@@ -215,7 +215,7 @@
   padding: 8px 2px 6px;
 }
 
-/* —— right column: sticky 分析参数 over the scrollable result —— */
+/* —— right column: sticky analysis params over the scrollable result —— */
 .jx-factor-resultCol {
   @apply flex flex-col overflow-hidden bg-card;
   height: 100%;
@@ -251,7 +251,7 @@
   @apply text-muted;
 }
 
-/* 已跑 chips */
+/* already-run chips */
 .jx-factor-runs {
   @apply flex flex-wrap items-center gap-2;
 }

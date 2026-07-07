@@ -2,7 +2,7 @@ import type { ChartSpec } from './chart.js';
 import type { ScreenSpec } from './screen.js';
 
 /**
- * Agent conversation messages (docs/design/unified-agent.md 设计 3). A message is a list of typed
+ * Agent conversation messages (docs/design/unified-agent.md design 3). A message is a list of typed
  * parts: text, plus query cards side-produced by the agent's runScreen tool. A card persists the SPEC
  * that produced a result — never the rows — so reopening a conversation re-runs it fresh, and the user
  * can edit the spec or pin it to the card wall (SavedScreen). Artifact code stays OUT of messages

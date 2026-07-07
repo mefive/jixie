@@ -41,13 +41,13 @@ interface LoadingAreaProps<T = unknown> {
   /** Multiple loaders: all must be loaded to render children; any loading → spinner, any error → error.
    * In this mode children gets `undefined` — read each result from your closure. */
   loaders?: LoaderLike[];
-  /** Custom error render; default shows 加载失败 + message + 重试. */
+  /** Custom error render; default shows "load failed" + message + "retry". */
   error?: (errorObject: Error | null) => ReactElement;
   /** Custom loading render (e.g. a skeleton); default is a centered spinner. */
   loading?: () => ReactElement;
   /** Rendered once loaded; function form receives `loader.result` (loaded + non-null → no null guard). */
   children?: ReactNode | ((result: T) => ReactNode);
-  /** Single-loader empty state (loaded but result==null); default is a centered 暂无数据. */
+  /** Single-loader empty state (loaded but result==null); default is a centered "no data". */
   empty?: () => ReactElement;
   /** Declare "the current result is empty" for list loaders (whose empty is `[]`, not null, so LoadingArea
    * can't detect it). Makes empty not count as content → reloading from empty also shows loading. */

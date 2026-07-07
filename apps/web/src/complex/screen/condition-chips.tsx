@@ -23,7 +23,7 @@ interface Props {
   onChange: (spec: ScreenSpec) => void; // any edit re-runs the deterministic query (no LLM)
 }
 
-/** Query-condition回显 + 行内编辑:改算子/值/增删条件、改排序,都直接重查(确定性,不过模型)。 */
+/** Query-condition echo + inline editing: changing the operator/value, adding/removing conditions, and changing the sort all re-query directly (deterministic, no model involved). */
 export function ConditionChips({ spec, onChange }: Props) {
   const { t } = useTranslation('screen');
   const setFilter = (i: number, patch: Partial<ScreenFilter>) =>
@@ -69,7 +69,7 @@ export function ConditionChips({ spec, onChange }: Props) {
   );
 }
 
-// —— 子组件 / 帮助函数 ——
+// —— Subcomponents / helpers ——
 
 const OP_OPTIONS = [
   { label: '>', value: '>' },
@@ -78,14 +78,14 @@ const OP_OPTIONS = [
   { label: '≤', value: '<=' },
 ] satisfies { label: string; value: ScreenOp }[];
 
-// Sensible default condition when a field is added via「+加条件」(value in display units).
+// Sensible default condition when a field is added via "+ add condition" (value in display units).
 const ADD_DEFAULT: Partial<Record<ScreenField, { op: ScreenOp; value: number }>> = {
   pe: { op: '<', value: 20 },
   peTtm: { op: '<', value: 20 },
   pb: { op: '<', value: 1 },
   ps: { op: '<', value: 5 },
   dvRatio: { op: '>', value: 3 },
-  totalMv: { op: '>', value: 500 }, // 亿
+  totalMv: { op: '>', value: 500 }, // 100M CNY (yi)
   circMv: { op: '>', value: 300 },
   turnoverRate: { op: '>', value: 3 },
   pctChg: { op: '>', value: 0 },

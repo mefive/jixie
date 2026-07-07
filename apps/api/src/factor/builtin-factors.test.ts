@@ -139,9 +139,9 @@ async function computeOne(key: string, bar: FactorBar): Promise<number | null> {
 
 // —— tests ——
 
-describe('预置因子代码可编译且形状正确', () => {
+describe('preset factor code compiles and has the right shape', () => {
   it.each(BUILTIN_FACTORS.map((factor) => [factor.key, factor] as const))(
-    '%s 编译通过',
+    '%s compiles',
     async (_key, def) => {
       const factor = await compileFactor(def.code);
       expect(factor.name).toBe(def.label);
@@ -150,7 +150,7 @@ describe('预置因子代码可编译且形状正确', () => {
     },
   );
 
-  it('价格类声明 window,横截面类不声明', async () => {
+  it('price factors declare window, cross-sectional ones do not', async () => {
     expect((await compiled('mom')).window).toBe(61);
     expect((await compiled('rev')).window).toBe(6);
     expect((await compiled('vol')).window).toBe(21);
@@ -159,7 +159,7 @@ describe('预置因子代码可编译且形状正确', () => {
   });
 });
 
-describe('价格预置与旧硬编码公式逐位一致', () => {
+describe('price presets match the legacy hardcoded formulas bit-for-bit', () => {
   const { px, dates } = syntheticSeries();
   const cases: [string, (px: number[], dates: string[], end: number) => number | null][] = [
     ['mom', (p, d, e) => legacyMomentum(p, d, e)],
@@ -167,23 +167,26 @@ describe('价格预置与旧硬编码公式逐位一致', () => {
     ['vol', (p, d, e) => legacyVolatility(p, d, e)],
   ];
 
-  it.each(cases)('%s 在全部 120 个截点上等值(一次批量跨墙)', async (key, legacy) => {
-    const factor = await compiled(key);
-    const items = px.map((_price, end) => windowItem(factor.window!, px, dates, end));
-    const actualValues = await factor.computeBatch(items);
-    factor.dispose();
-    for (let end = 0; end < px.length; end++) {
-      const expected = legacy(px, dates, end);
-      if (expected == null) {
-        expect(actualValues[end], `end=${end}`).toBeNull();
-      } else {
-        expect(actualValues[end], `end=${end}`).toBeCloseTo(expected, 12);
+  it.each(cases)(
+    '%s matches on all 120 cutoffs (one batched wall-crossing)',
+    async (key, legacy) => {
+      const factor = await compiled(key);
+      const items = px.map((_price, end) => windowItem(factor.window!, px, dates, end));
+      const actualValues = await factor.computeBatch(items);
+      factor.dispose();
+      for (let end = 0; end < px.length; end++) {
+        const expected = legacy(px, dates, end);
+        if (expected == null) {
+          expect(actualValues[end], `end=${end}`).toBeNull();
+        } else {
+          expect(actualValues[end], `end=${end}`).toBeCloseTo(expected, 12);
+        }
       }
-    }
-  });
+    },
+  );
 });
 
-describe('横截面预置与旧硬编码公式一致', () => {
+describe('cross-sectional presets match the legacy hardcoded formulas', () => {
   const bars: Partial<FactorBar>[] = [
     { peTtm: 12.5, pb: 1.6, dvRatio: 4.2, totalMv: 1_000_000, netMain: 1234.5, netTotal: -88 },
     { peTtm: -8, pb: 0, dvRatio: null, totalMv: 0, netMain: null, netTotal: null },
@@ -204,7 +207,7 @@ describe('横截面预置与旧硬编码公式一致', () => {
     }
   });
 
-  it('mf_net_main / mf_net_total 直读 bar 的资金流字段', async () => {
+  it('mf_net_main / mf_net_total read the bar moneyflow fields directly', async () => {
     const bar = make({ netMain: 666, netTotal: -42 });
     expect(await computeOne('mf_net_main', bar)).toBe(666);
     expect(await computeOne('mf_net_total', bar)).toBe(-42);

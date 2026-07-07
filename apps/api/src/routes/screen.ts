@@ -20,14 +20,14 @@ import { screenSpecSchema } from '../screen/spec.js';
 import { localeFromRequest, m } from '../i18n/index.js';
 
 /**
- * Stock screener API (产品线 2 · 卡片墙). POST /screen runs a structured ScreenSpec against the latest
+ * Stock screener API (product line 2 · card wall). POST /screen runs a structured ScreenSpec against the latest
  * snapshot (query cards re-run through here); /screen/agent is one turn of the screening agent;
  * /screen/conversations is the session-card CRUD (messages persisted per conversation, frontend-owned).
- * GET /stock/:code/series returns a stock's OHLC/vol/pe series for the K线/PE/量 charts.
+ * GET /stock/:code/series returns a stock's OHLC/vol/pe series for the K-line/PE/volume charts.
  */
 export const screenRoute = new Hono();
 
-// tsCode → name (bulk) — e.g. the traded-instruments queue in 交易详情.
+// tsCode → name (bulk) — e.g. the traded-instruments queue in trade details.
 screenRoute.get('/names', validateQuery(z.object({ codes: z.string().min(1) })), async (c) => {
   const codes = c.req.valid('query').codes.split(',').filter(Boolean).slice(0, 500);
   const rows = await prisma.stockBasic.findMany({
@@ -37,7 +37,7 @@ screenRoute.get('/names', validateQuery(z.object({ codes: z.string().min(1) })),
   return c.json(Object.fromEntries(rows.map((r) => [r.tsCode, r.name])) as Record<string, string>);
 });
 
-// Index daily close (e.g. 000300.SH 沪深300) over a range — the benchmark return curve in 交易详情.
+// Index daily close (e.g. 000300.SH CSI 300) over a range — the benchmark return curve in trade details.
 const idxSeriesQuery = z.object({
   start: z
     .string()
@@ -100,7 +100,7 @@ screenRoute.post('/screen/agent', validateJson(agentBody), async (c) => {
   return c.json({ turnId });
 });
 
-// —— Screen conversations (卡片墙的「会话卡片」) —— frontend owns the conversation: it creates the row
+// —— Screen conversations (the card wall's "conversation cards") —— frontend owns the conversation: it creates the row
 // on the first turn and PATCH-saves messages after each turn. Deleting one never touches SavedScreen.
 
 /** The wall card's summary: last message's text (truncated) + how many query cards the chat holds. */

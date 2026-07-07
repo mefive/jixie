@@ -13,7 +13,7 @@ async function main(): Promise<void> {
     prisma.daily.count(),
     prisma.adjFactor.count(),
   ]);
-  console.log('落库统计:');
+  console.log('Stored row counts:');
   console.table({ stock_basic: sb, trade_cal: tc, daily: d, adj_factor: af });
 
   const px = await prisma.daily.findMany({
@@ -25,7 +25,7 @@ async function main(): Promise<void> {
   });
   const adjMap = new Map(adj.map((a) => [a.tradeDate, a.adjFactor]));
 
-  console.log(`\n${tsCode} 后复权收盘（最后 5 个交易日，${start} ~ ${end}）:`);
+  console.log(`\n${tsCode} after-adjustment close (last 5 trading days, ${start} ~ ${end}):`);
   console.table(
     px.slice(-5).map((r) => {
       const factor = adjMap.get(r.tradeDate) ?? 1;
@@ -43,7 +43,7 @@ async function main(): Promise<void> {
 }
 
 main().catch(async (e: unknown) => {
-  console.error('\n❌ peek 失败：', e instanceof Error ? e.message : e);
+  console.error('\n❌ peek failed:', e instanceof Error ? e.message : e);
   await prisma.$disconnect();
   process.exitCode = 1;
 });

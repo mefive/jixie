@@ -57,7 +57,7 @@ describe('compileStrategy', () => {
     expect(exits).toEqual(['600519.SH']);
   });
 
-  it('does nothing flat-and-below or held-and-above (命中即停的两侧)', async () => {
+  it('does nothing flat-and-below or held-and-above (the two no-op branches)', async () => {
     const s = await compileStrategy(MA_CROSS);
     const flatBelow = mockCtx({ px: 90, window: win20, held: 0 });
     await s.onBar(flatBelow.ctx);

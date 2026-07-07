@@ -14,7 +14,7 @@ export function loadTushareConfig(env: NodeJS.ProcessEnv = process.env): Tushare
   const token = env.TUSHARE_TOKEN?.trim();
   if (!token) {
     throw new Error(
-      'TUSHARE_TOKEN 未设置。请在 apps/api/.env 里填入你的 token（参考 .env.example）。',
+      'TUSHARE_TOKEN is not set. Put your token in apps/api/.env (see .env.example).',
     );
   }
   const interval = Number(env.TUSHARE_MIN_INTERVAL_MS);

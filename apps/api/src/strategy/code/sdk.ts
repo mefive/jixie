@@ -19,26 +19,26 @@ export interface StrategyCtx extends BarContext {
    * `if (ctx.period('monthly') === last) return; last = ctx.period('monthly');` */
   period(schedule: Schedule): string;
   /** Today's tradable universe as a chainable selection (loads the cross-section; bar() valid after).
-   * Pass an index code (e.g. '000300.SH' 沪深300) to restrict to its point-in-time constituents — the
+   * Pass an index code (e.g. '000300.SH' CSI 300) to restrict to its point-in-time constituents — the
    * restriction is pushed into the data load (only those rows are read), not filtered in memory after. */
   universe(indexCode?: string): Promise<Universe>;
   /** Equal-weight the given codes (a target-book rebalance at next open). */
   equalWeight(codes: string[]): void;
 
-  // —— 内置技术指标(都需要该票的 K 线已加载:watch 预载 或 ensureBars;数据不足返 null)——
-  /** n 日简单均线(SMA)= 最近 n 根收盘价的算术平均。趋势/均线策略的基础。 */
+  // —— Built-in technical indicators (each requires the stock's K-line already loaded: watch preload or ensureBars; return null when data is insufficient) ——
+  /** n-day simple moving average (SMA) = arithmetic mean of the last n closes. The basis of trend/MA strategies. */
   sma(code: string, n: number): number | null;
-  /** n 日指数均线(EMA):也是均线,但越近的价格权重越大,比 SMA 更快跟随价格。 */
+  /** n-day exponential moving average (EMA): also a moving average, but weights recent prices more, tracking price faster than SMA. */
   ema(code: string, n: number): number | null;
-  /** n 日 ATR(平均真实波幅):衡量这只票近期「一天能波动多大」,常用来定止损距离 / 仓位。需 n+1 根。 */
+  /** n-day ATR (Average True Range): measures how much this stock has moved per day recently, often used to set stop distance / position size. Needs n+1 bars. */
   atr(code: string, n: number): number | null;
-  /** 最近 n 根在某字段上的最高值(唐奇安上轨)—— 价格突破它常作为「入场」信号。 */
+  /** Highest value of a field over the last n bars (Donchian upper channel) — a price breakout above it is often an entry signal. */
   highest(code: string, field: 'open' | 'high' | 'low' | 'close', n: number): number | null;
-  /** 最近 n 根在某字段上的最低值(唐奇安下轨)—— 价格跌破它常作为「出场」信号。 */
+  /** Lowest value of a field over the last n bars (Donchian lower channel) — a price breakdown below it is often an exit signal. */
   lowest(code: string, field: 'open' | 'high' | 'low' | 'close', n: number): number | null;
-  /** n 日平均成交额(千元)—— 衡量流动性(能不能买得进卖得出),常用作选股的滑点/流动性门槛。 */
+  /** n-day average turnover (thousand yuan) — measures liquidity (whether you can get in and out), often used as a slippage/liquidity gate in stock selection. */
   avgAmount(code: string, n: number): number | null;
-  /** n 日平均成交量(手)—— 同样衡量活跃度 / 流动性。 */
+  /** n-day average volume (lots) — likewise measures activity / liquidity. */
   avgVol(code: string, n: number): number | null;
 }
 
@@ -119,7 +119,7 @@ export class Universe {
 
   /** Take the leading slice: a fraction when `n < 1` (0.1 = top decile, min 1), else a count. */
   top(n: number): string[] {
-    // n < 1 → 取比例(0.1 = 前 10%,至少 1 只);n ≥ 1 → 取个数
+    // n < 1 → take a fraction (0.1 = top 10%, at least 1); n ≥ 1 → take a count
     const count = n < 1 ? Math.max(1, Math.floor(this.list.length * n)) : Math.floor(n);
     return this.list.slice(0, count);
   }
@@ -156,7 +156,7 @@ export function enrich(ctx: BarContext): StrategyCtx {
   const enriched = ctx as StrategyCtx;
   enriched.period = (schedule) => periodKey(ctx.date, schedule);
   // The index restriction is pushed into the data load (loadCrossSection only reads those rows), not
-  // filtered in memory here — so 沪深300 reads ~300 rows, not the full ~5370. See engine/data crossSection.
+  // filtered in memory here — so CSI 300 reads ~300 rows, not the full ~5370. See engine/data crossSection.
   enriched.universe = async (indexCode?: string) =>
     new Universe(ctx, await ctx.loadCrossSection(indexCode));
   enriched.equalWeight = (codes) => {
@@ -172,11 +172,11 @@ export function enrich(ctx: BarContext): StrategyCtx {
     return closes.length < n ? null : closes.reduce((sum, close) => sum + close, 0) / n;
   };
   enriched.ema = (code, n) => {
-    const closes = ctx.history(code, 'close', n * 4); // 多取几倍窗口给 EMA 预热
+    const closes = ctx.history(code, 'close', n * 4); // pull several times the window to warm up the EMA
     if (closes.length < n) {
       return null;
     }
-    const alpha = 2 / (n + 1); // 平滑系数:越大越看重近端(近端权重 = alpha)
+    const alpha = 2 / (n + 1); // smoothing factor: larger = more weight on the recent end (recent weight = alpha)
     let ema = closes[0];
     for (const close of closes.slice(1)) {
       ema = close * alpha + ema * (1 - alpha);
@@ -196,7 +196,7 @@ export function enrich(ctx: BarContext): StrategyCtx {
     if (bars.length < n + 1) {
       return null;
     }
-    // True Range = max(高−低, |高−昨收|, |低−昨收|);ATR = 最近 n 根 TR 的均值
+    // True Range = max(high−low, |high−prevClose|, |low−prevClose|); ATR = mean of the last n TRs
     let trueRangeSum = 0;
     for (let barIndex = bars.length - n; barIndex < bars.length; barIndex++) {
       const bar = bars[barIndex];
@@ -230,10 +230,10 @@ export function periodKey(date: string, schedule: Schedule): string {
     return date.slice(0, 6);
   } // YYYYMM
   if (schedule === 'weekly') {
-    // 把日期换算成「自 epoch 起的第几天」(epochDay),整除 7 得周序号 —— 跨月/跨年也连续不断
+    // convert the date to days-since-epoch (epochDay), integer-divide by 7 for a week index — continuous across month/year boundaries
     const epochDay =
       Date.UTC(+date.slice(0, 4), +date.slice(4, 6) - 1, +date.slice(6, 8)) / 86_400_000;
     return String(Math.floor(epochDay / 7));
   }
-  return date; // daily: 每个交易日自成一个 key
+  return date; // daily: each trading day is its own key
 }

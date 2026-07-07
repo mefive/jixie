@@ -7,7 +7,7 @@ interface Props {
 }
 
 // Monochrome ink ramp light→dark across deciles: with the bars ordered D1→D10, a rising ramp that also
-// rises in height = momentum, a ramp that falls in height = reversal. Reinforces "单调性一眼可见".
+// rises in height = momentum, a ramp that falls in height = reversal. Reinforces "monotonicity visible at a glance".
 function inkRamp(i: number, n: number): string {
   const t = n > 1 ? i / (n - 1) : 0;
   const lerp = (a: number, b: number) => Math.round(a + (b - a) * t);

@@ -7,7 +7,7 @@ export type Adjust = 'none' | 'qfq' | 'hfq';
 interface Props {
   series: StockSeries;
   logY?: boolean; // log price axis
-  adjust?: Adjust; // 不复权 / 前复权 / 后复权
+  adjust?: Adjust; // unadjusted / forward-adjusted (qfq) / after-adjusted (hfq)
   className?: string;
 }
 
