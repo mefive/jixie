@@ -54,7 +54,19 @@
 - **多用户前(4.5 触发时)**:选 **isolated-vm**,同时把因子执行改成「按调仓日批量进沙箱」(一天一次跨界,不是一股一次)摊薄拷贝成本。QuickJS 的性能税对 65 万次 compute 的工作负载不可接受。
 - 沙箱边界已收敛在 compile 两个函数上(当初设计如此),换实现不动别处——这个前提今天仍成立,含新增的统一因子路径(computeFactorSeries 只经 compileFactor)。
 
-## 决策清单
+## 决策清单(2026-07-07 已全部拍定)
 
-- [ ] 问题一:采纳「TS 唯一编写语言 + Python 研究 sidecar(3.7 时落地)」?还是坚持要 Python 写因子(→ 排期评估 Pyodide 因子专用路线)?
-- [ ] 问题二:本期只做 worker resourceLimits 加固?(isolated-vm 留给 4.5 多用户触发)
+- [x] 问题一:**采纳「TS 唯一编写语言 + Python 研究 sidecar(3.7 时落地)」**。
+- [x] 问题二:**用户拍板「现在就上 isolated-vm」**,分两阶段:
+  - **Phase A(当日完成)**:因子 compute + analyzeData 迁入 isolated-vm(`lib/isolate-run.ts`)。
+    要点:数据进出 = JSON 字符串;跨墙**批量化**(因子快路径一天一跨、窗口路径一股一跨,
+    analyzeData 一次调用一跨);stats 库在墙内求值(调用不跨墙);isolate 自带内存上限(256MB)
+    + CPU 超时;逃逸测试证明墙内 process/require 均为 undefined;ivm 在 worker_threads 内
+    (factor-worker)实测干净退出。等价性:预置公式单测逐位一致 + 真库 ep 缓存基线复验。
+  - **Phase B(待专门会话)**:策略 onBar 迁入 isolate。难点是 `ctx` 反向调用宿主(bars/universe/
+    order,一次回测百万次调用),需要设计 ctx 桥:候选形态 = ①「预取进墙」——把 onBar 当天所需
+    数据(全部 watch 标的的 bars 窗口/因子值)在墙外备好、每天一次性拷入,墙内 ctx 变成纯读本地
+    快照,只有订单类调用(order/exit/setHoldings)以「返回值带出订单列表」的方式出墙——把百万次
+    跨墙压到每天 1~2 次;②逐调用 Reference 桥(慢,弃)。异步 ctx 方法(loadCrossSection/
+    ensureBars)在①下变成墙外预取的一部分,墙内全同步。验收 = 金标准双跑:同批策略新旧沙箱
+    净值逐日一致。估 3~5 人日。在此之前 compileStrategy 维持 new Function + worker。

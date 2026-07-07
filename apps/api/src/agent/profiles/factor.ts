@@ -11,7 +11,7 @@ export function factorProfile(): AgentProfile {
     artifact: {
       noun: '因子',
       validate: async (code) => {
-        await compileFactor(code);
+        (await compileFactor(code)).dispose(); // validate-only: compile into an isolate, then free it
       },
     },
   };

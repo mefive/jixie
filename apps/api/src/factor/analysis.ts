@@ -1,7 +1,6 @@
 import type { BucketStat, FactorBar, FactorReport, FactorFreq } from '@jixie/shared';
 import { prisma } from '../lib/prisma.js';
-import { compileFactor } from './compile-factor.js';
-import type { FactorCtx } from './factor-sdk.js';
+import { compileFactor, type FactorBatchItem } from './compile-factor.js';
 import type { UserLogSink } from '../lib/sandbox-console.js';
 import { sameMonth, sameWeek, minusDays } from '../lib/date.js';
 import * as st from '../lib/stats.js';
@@ -81,34 +80,17 @@ async function loadSnapshots(dates: string[], withMktcap = false): Promise<Map<s
 
 type Series = Map<string, { tsCode: string; value: number }[]>; // rebalance date -> [{tsCode, value}]
 
-/** ctx for factors that declared no window — using ctx.history is an authoring error, said loudly. */
-const NO_HISTORY_CTX = {
-  history(): never {
-    throw new Error('要用 ctx.history 需在 defineFactor 里声明 window(所需交易日数,含当天)');
-  },
-} as unknown as FactorCtx;
-
-/** ctx over one stock's aligned hfq-close/date arrays, ending (inclusive) at index `end`. */
-function makeWindowCtx(adjClose: number[], tradeDates: string[], end: number): FactorCtx {
-  return {
-    history(n: number, field?: 'date') {
-      const from = end - n + 1;
-      if (n <= 0 || from < 0) {
-        return [];
-      }
-      return field === 'date' ? tradeDates.slice(from, end + 1) : adjClose.slice(from, end + 1);
-    },
-  } as FactorCtx;
-}
-
 /**
  * Compute ONE factor's value on each rebalance date, on the fly. Presets and user factors share this
  * single path (factor-to-strategy.md Step 1b): load the Factor row's code (preset rows are seeded
- * from builtin-factors.ts), compile, run compute cross-sectionally. Two speeds by declaration:
+ * from builtin-factors.ts), compile into an isolated-vm sandbox, run compute cross-sectionally.
+ * Two speeds by declaration:
  *  - no `window`: per rebalance date over the FactorBar cross-section (daily_basic + moneyflow),
+ *    ONE wall-crossing per date;
  *  - `window: n`: additionally walks each stock's hfq close series so ctx.history works (the
- *    expensive per-stock loop — declared, never implicitly detected).
- * A throwing / null compute drops that stock for the period.
+ *    expensive per-stock loop — declared, never implicitly detected), ONE crossing per stock.
+ * A throwing / null / non-finite compute drops that stock for the period (errors surface once via
+ * the log sink, prefixed [factor-error]).
  */
 async function computeFactorSeries(
   factorKey: string,
@@ -135,19 +117,17 @@ async function computeFactorSeries(
     onLog(`⚠️ 因子 ${factorKey} 不存在(预置未 seed 或已被删除)`);
     return series;
   }
-  const factor = await compileFactor(row.code, onUserLog);
-
-  // The first compute error is surfaced once (per-stock errors just drop the stock — a factor that
-  // throws everywhere would otherwise produce a silently-empty report).
+  // The first compute error is surfaced once at the end (per-stock errors just drop the stock — a
+  // factor that throws everywhere would otherwise produce a silently-empty report). Errors arrive
+  // through the sandbox log drain, prefixed [factor-error].
   let firstComputeError: string | null = null;
-  const runCompute = (bar: FactorBar, ctx: FactorCtx): number | null => {
-    try {
-      return factor.compute(bar, ctx);
-    } catch (e) {
-      firstComputeError ??= e instanceof Error ? e.message : String(e);
-      return null;
+  const logSink: UserLogSink = (level, line) => {
+    if (line.startsWith('[factor-error]')) {
+      firstComputeError ??= line;
     }
+    onUserLog?.(level, line);
   };
+  const factor = await compileFactor(row.code, logSink);
 
   // One date's FactorBar cross-section: daily_basic valuation + moneyflow (flow semantics — exact
   // date, absent = null, never carried forward). Queried per-date (not batched with `in: dates`) —
@@ -212,16 +192,19 @@ async function computeFactorSeries(
     return bars;
   };
 
-  if (!factor.window) {
-    // Fast path: pure cross-section, no price history.
-    onLog('逐日横截面计算…');
-    for (const date of dates) {
-      const bars = await loadBars(date);
-      for (const bar of bars.values()) {
-        push(date, bar.code, runCompute(bar, NO_HISTORY_CTX));
+  try {
+    if (!factor.window) {
+      // Fast path: pure cross-section, no price history — one wall-crossing per date.
+      onLog('逐日横截面计算…');
+      for (const date of dates) {
+        const bars = [...(await loadBars(date)).values()];
+        const values = await factor.computeBatch(bars.map((bar) => ({ bar })));
+        for (let i = 0; i < bars.length; i++) {
+          push(date, bars[i].code, values[i]);
+        }
       }
+      return series;
     }
-  } else {
     const rebalanceSet = new Set(dates);
     onLog(`加载估值/资金流截面(${dates.length} 日)…`);
     const barsByDate = new Map<string, Map<string, FactorBar>>();
@@ -285,19 +268,36 @@ async function computeFactorSeries(
         tradeDates.push(r.tradeDate);
         adjClose.push(r.close * lastAdj);
       }
+      // One wall-crossing per stock: every rebalance index becomes a batch item carrying the
+      // bar + the hfq close/date window ENDING at that day (ctx.history slices tails in-wall).
+      const items: FactorBatchItem[] = [];
+      const itemDates: string[] = [];
+      const window = factor.window;
       for (let end = 0; end < tradeDates.length; end++) {
         if (!rebalanceSet.has(tradeDates[end])) {
           continue;
         }
         const date = tradeDates[end];
-        const bar = barsByDate.get(date)?.get(tsCode) ?? { ...EMPTY_BAR, code: tsCode };
-        push(date, tsCode, runCompute(bar, makeWindowCtx(adjClose, tradeDates, end)));
+        const from = Math.max(0, end - window + 1);
+        items.push({
+          bar: barsByDate.get(date)?.get(tsCode) ?? { ...EMPTY_BAR, code: tsCode },
+          closes: adjClose.slice(from, end + 1),
+          dates: tradeDates.slice(from, end + 1),
+        });
+        itemDates.push(date);
+      }
+      if (items.length) {
+        const values = await factor.computeBatch(items);
+        for (let i = 0; i < items.length; i++) {
+          push(itemDates[i], tsCode, values[i]);
+        }
       }
     }
-  }
-
-  if (firstComputeError) {
-    onLog(`⚠️ 因子 compute 有抛错(相应股票已剔除),首个错误:${firstComputeError}`);
+  } finally {
+    if (firstComputeError) {
+      onLog(`⚠️ 因子 compute 有抛错(相应股票已剔除),首个错误:${firstComputeError}`);
+    }
+    factor.dispose();
   }
   return series;
 }
