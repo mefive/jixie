@@ -63,8 +63,13 @@
     analyzeData 一次调用一跨);stats 库在墙内求值(调用不跨墙);isolate 自带内存上限(256MB)
     + CPU 超时;逃逸测试证明墙内 process/require 均为 undefined;ivm 在 worker_threads 内
     (factor-worker)实测干净退出。等价性:预置公式单测逐位一致 + 真库 ep 缓存基线复验。
-  - **Phase B(设计已定稿,2026-07-07 与用户讨论收敛;待专门会话实施)**:**引擎整个进墙 +
-    DataPort 出墙**(用户提出,取代早先的「预取进墙」草图)。
+  - **Phase B(设计当日收敛、当日实施完成)**:**引擎整个进墙 + DataPort 出墙**(用户提出,
+    取代早先的「预取进墙」草图)。**实况**:B1+B2 一次做完——`engine/data-port.ts`(纯接口)/
+    `prisma-port.ts`(直跑实现)/`fixture-port.ts` + 9 例 A 股规则单测;`wall-entry.ts`(墙内入口,
+    esbuild bundle 进 isolate)+ `walled-run.ts`(宿主桥:__hostFetch applySyncPromise 数据、
+    __hostLog 日志穿墙);backtest-worker(产品路径)切墙内车道;防漂移双跑测试常驻(净值/成交
+    逐位断言 + 逃逸探针);真库金标准:EP 2020-2024 墙内与直跑**逐位一致**,性能税见 ROADMAP。
+    compileStrategy(new Function)仅存于:验证路径(编译校验即弃)与直跑车道(git 来源代码)。
 
     ### Phase B 定稿:引擎进墙 + DataPort + 双车道
 
