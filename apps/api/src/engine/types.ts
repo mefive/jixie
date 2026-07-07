@@ -8,6 +8,8 @@
 // Factors are a strategy-side concern: valuation signals read bar() (daily_basic) directly; price-window
 // signals (mom/rev/vol) compute on the fly from the bar series; moneyflow opts into a preloaded column.
 
+import type { Locale } from '@jixie/shared';
+
 /** A held position. frozenUntil = first date the shares may be sold (T+1). */
 export interface Position {
   shares: number;
@@ -170,6 +172,9 @@ export interface EngineConfig {
    * heartbeat / done) as the run advances. The worker forwards these to the job for log polling;
    * scripts and tests omit it (no-op). */
   onLog?: (line: string) => void;
+  /** Locale for the engine's user-facing progress logs / warnings; defaults to DEFAULT_LOCALE at the
+   * use site (scripts and tests omit it). */
+  locale?: Locale;
 }
 
 export interface BacktestResult {

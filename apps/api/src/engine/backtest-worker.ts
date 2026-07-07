@@ -1,5 +1,5 @@
 import { parentPort, workerData } from 'node:worker_threads';
-import type { BacktestConfig, LogLine, LogLevel } from '@jixie/shared';
+import type { BacktestConfig, Locale, LogLine, LogLevel } from '@jixie/shared';
 import { runCodeBacktest } from '../strategy/code/run.js';
 import { prisma } from '../lib/prisma.js';
 
@@ -18,10 +18,11 @@ if (!port) {
   throw new Error('backtest-worker must be spawned as a worker thread');
 }
 
-const { config, userId, strategyId } = workerData as {
+const { config, userId, strategyId, locale } = workerData as {
   config: BacktestConfig;
   userId: string;
   strategyId: string;
+  locale: Locale;
 };
 
 // One log sink, tagged at this boundary: engine progress → system, the strategy's console.* → user.
@@ -30,7 +31,7 @@ const onSystemLog = (text: string) => emit({ source: 'system', level: 'info', te
 const onUserLog = (level: LogLevel, text: string) => emit({ source: 'user', level, text });
 
 try {
-  const result = await runCodeBacktest(config, onSystemLog, onUserLog);
+  const result = await runCodeBacktest(config, onSystemLog, onUserLog, locale);
   // Result lands on the entity (Strategy.lastResult) — the Job only tracks status. Scoped by userId.
   await prisma.strategy
     .updateMany({

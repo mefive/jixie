@@ -5,7 +5,7 @@ import type { BacktestConfig, LogLine } from '@jixie/shared';
 import { apiError, validateJson, validateQuery } from '../lib/httpError.js';
 import { codeConfigSchema } from '../strategy/code/schema.js';
 import { createJob, appendLog, finishJob, getJob, findRunningJob } from '../lib/jobs.js';
-import { m } from '../i18n/index.js';
+import { localeFromRequest, m } from '../i18n/index.js';
 
 /**
  * Backtest API. A backtest is CPU-heavy and would block the HTTP event loop, so it runs in a worker
@@ -36,7 +36,9 @@ backtestRoute.post('/', validateQuery(strategyQuery), validateJson(codeConfigSch
   const userId = c.var.userId;
 
   const jobId = await createJob(userId, 'backtest', strategyId);
-  const worker = new Worker(workerUrl, { workerData: { config, userId, strategyId } });
+  const worker = new Worker(workerUrl, {
+    workerData: { config, userId, strategyId, locale: localeFromRequest(c) },
+  });
   let finished = false;
   const done = (status: 'done' | 'error', error?: string) => {
     if (finished) {
