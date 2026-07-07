@@ -6,6 +6,7 @@ import type { ScreenSpec } from '@jixie/shared';
 import { apiError, validateJson } from '../lib/httpError.js';
 import { prisma } from '../lib/prisma.js';
 import { screenSpecSchema } from '../screen/spec.js';
+import { m } from '../i18n/index.js';
 
 /**
  * Saved screens (产品线 2 持久化). Owner-scoped CRUD over the SavedScreen table. Unlike strategies
@@ -35,7 +36,7 @@ savedScreenRoute.get('/:id', async (c) => {
     where: { id: c.req.param('id'), userId: c.var.userId },
   });
   if (!row) {
-    return apiError(c, 'NOT_FOUND', '选股不存在');
+    return apiError(c, 'NOT_FOUND', m(c, 'screenNotFound'));
   }
   return c.json({
     id: row.id,
@@ -65,7 +66,7 @@ savedScreenRoute.delete('/:id', async (c) => {
     where: { id: c.req.param('id'), userId: c.var.userId },
   });
   if (r.count === 0) {
-    return apiError(c, 'NOT_FOUND', '选股不存在');
+    return apiError(c, 'NOT_FOUND', m(c, 'screenNotFound'));
   }
   return c.json({ ok: true });
 });

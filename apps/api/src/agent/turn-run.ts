@@ -5,8 +5,10 @@ import {
   type ChatMessage,
   type ChatMessage as UiMessage,
 } from '@jixie/shared';
+import { DEFAULT_LOCALE, type Locale } from '@jixie/shared';
 import { prisma } from '../lib/prisma.js';
 import { chatTools } from '../llm/deepseek.js';
+import { t } from '../i18n/index.js';
 import { agentTurn, turnParts, type AgentProfile, type AgentTurnHooks } from './core.js';
 import * as turnBus from './turn-bus.js';
 
@@ -38,6 +40,7 @@ export interface EnqueueTurnArgs {
   history?: UiMessage[]; // entity=null (QA) only; entity turns read history from the DB row
   message: string;
   currentCode: string;
+  locale?: Locale; // the requester's locale — localizes code-generated reply chrome (default zh)
 }
 
 /** Register on the bus synchronously (so subscribers can join right away), then run detached. */
@@ -52,12 +55,13 @@ export function enqueueAgentTurn(args: EnqueueTurnArgs): void {
 
 async function runTurn(args: EnqueueTurnArgs, signal: AbortSignal): Promise<void> {
   const { turnId, userId, entity, message, currentCode, profile } = args;
+  const locale = args.locale ?? DEFAULT_LOCALE;
   try {
     // History + user-message persistence (entity surfaces). The write happens before the LLM runs.
     let history: UiMessage[] = args.history ?? [];
     let persisted: ChatMessage[] | null = null;
     if (entity) {
-      const stored = await readMessages(entity, userId);
+      const stored = await readMessages(entity, userId, locale);
       history = stored.map(normalizeChatMessage);
       persisted = [...history, textMessage('user', message)];
       await writeMessages(entity, persisted);
@@ -71,7 +75,10 @@ async function runTurn(args: EnqueueTurnArgs, signal: AbortSignal): Promise<void
       onToolDone: (item) => turnBus.publish(turnId, { type: 'tool_done', item }),
       onRepair: (round, error) => turnBus.publish(turnId, { type: 'repair', round, error }),
     };
-    const result = await agentTurn(profile, history, message, currentCode, chatTools, { hooks });
+    const result = await agentTurn(profile, history, message, currentCode, chatTools, {
+      hooks,
+      locale,
+    });
 
     // Persist the assistant message BEFORE `done` fires — a subscriber reacting to done (or a
     // refresh racing it) must find the conversation complete in the DB.
@@ -105,7 +112,11 @@ async function runTurn(args: EnqueueTurnArgs, signal: AbortSignal): Promise<void
 
 // —— entity messages IO ——
 
-async function readMessages(entity: TurnEntity, userId: string): Promise<unknown[]> {
+async function readMessages(
+  entity: TurnEntity,
+  userId: string,
+  locale: Locale,
+): Promise<unknown[]> {
   const where = { id: entity.id, userId };
   const row =
     entity.kind === 'strategy'
@@ -114,7 +125,7 @@ async function readMessages(entity: TurnEntity, userId: string): Promise<unknown
         ? await prisma.factor.findFirst({ where, select: { messages: true } })
         : await prisma.screenConversation.findFirst({ where, select: { messages: true } });
   if (!row) {
-    throw new Error('会话宿主已不存在(可能已被删除)');
+    throw new Error(t(locale, 'turnHostGone'));
   }
   return Array.isArray(row.messages) ? (row.messages as unknown[]) : [];
 }

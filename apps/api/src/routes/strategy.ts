@@ -8,7 +8,7 @@ import { strategyProfile } from '../agent/profiles/strategy.js';
 import { enqueueAgentTurn, entityKey } from '../agent/turn-run.js';
 import * as turnBus from '../agent/turn-bus.js';
 import { KNOWN_INDICES } from '../strategy/code/codegen-prompt.js';
-import { localeFromRequest } from '../i18n/index.js';
+import { localeFromRequest, m } from '../i18n/index.js';
 
 /**
  * Strategy authoring API. POST /api/app/strategy/agent runs one turn of the code Agent (iterates on the
@@ -27,7 +27,7 @@ async function syncedIndices(): Promise<{ codes: string[]; text: string }> {
   const codes = present.map((r) => r.indexCode).filter((cc) => KNOWN_INDICES[cc]);
   const text = codes.length
     ? codes.map((cc) => `${KNOWN_INDICES[cc]}=${cc}`).join('、')
-    : '(暂未收录任何指数成分)';
+    : '(no index constituents on record yet)';
   return { codes, text };
 }
 
@@ -46,11 +46,11 @@ strategyRoute.post('/agent', validateJson(agentBody), async (c) => {
   const userId = c.var.userId;
   const strategy = await prisma.strategy.findFirst({ where: { id, userId }, select: { id: true } });
   if (!strategy) {
-    return apiError(c, 'NOT_FOUND', '策略不存在');
+    return apiError(c, 'NOT_FOUND', m(c, 'strategyNotFound'));
   }
   const entity = { kind: 'strategy' as const, id };
   if (turnBus.findRunning(entityKey(entity), userId)) {
-    return apiError(c, 'VALIDATION_FAILED', '该策略已有正在进行的回复,请等它结束或取消');
+    return apiError(c, 'VALIDATION_FAILED', m(c, 'strategyTurnInProgress'));
   }
 
   const idx = await syncedIndices();
@@ -62,6 +62,7 @@ strategyRoute.post('/agent', validateJson(agentBody), async (c) => {
     entity,
     message,
     currentCode: code,
+    locale: localeFromRequest(c),
   });
   return c.json({ turnId });
 });
@@ -76,7 +77,7 @@ const nameBody = z
     prompt: z.string().max(2000).optional(),
     currentName: z.string().max(100).optional(),
   })
-  .refine((body) => body.code || body.prompt, { message: '需要 code 或 prompt' });
+  .refine((body) => body.code || body.prompt, { message: 'code or prompt required' });
 
 strategyRoute.post('/name', validateJson(nameBody), async (c) => {
   const { code, prompt, currentName } = c.req.valid('json');
@@ -113,7 +114,7 @@ strategyRoute.post('/name', validateJson(nameBody), async (c) => {
       .replace(/^["'「『]+|["'」』。.]+$/g, '')
       .slice(0, 20);
   } catch (e) {
-    return apiError(c, 'SERVICE_UNAVAILABLE', e instanceof Error ? e.message : '命名失败');
+    return apiError(c, 'SERVICE_UNAVAILABLE', e instanceof Error ? e.message : m(c, 'nameFailed'));
   }
-  return c.json({ name: name || '未命名策略' });
+  return c.json({ name: name || m(c, 'unnamedStrategy') });
 });

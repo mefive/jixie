@@ -13,6 +13,7 @@ import {
 } from '../lib/session.js';
 import { buildVerificationEmail, isEmailConfigured, sendEmail } from '../lib/email.js';
 import { isValidInviteCodeFormat, normalizeInviteCode } from '../lib/inviteCode.js';
+import { m } from '../i18n/index.js';
 
 export const authRoute = new Hono();
 
@@ -91,24 +92,28 @@ authRoute.post('/email/request', validateJson(emailRequestBody), async (c) => {
   if (existingUser) {
     // login case
     if (inviteCode) {
-      return apiError(c, 'VALIDATION_FAILED', '该邮箱已注册，登录无需邀请码', {
+      return apiError(c, 'VALIDATION_FAILED', m(c, 'emailAlreadyRegistered'), {
         field: 'inviteCode',
       });
     }
     if (existingUser.status !== 'active') {
-      return apiError(c, 'FORBIDDEN', '账号已被禁用');
+      return apiError(c, 'FORBIDDEN', m(c, 'accountDisabled'));
     }
   } else {
     // registration case
     if (!inviteCode) {
-      return apiError(c, 'VALIDATION_FAILED', '新邮箱注册需要邀请码', { field: 'inviteCode' });
+      return apiError(c, 'VALIDATION_FAILED', m(c, 'inviteCodeRequired'), { field: 'inviteCode' });
     }
     if (!isValidInviteCodeFormat(inviteCode)) {
-      return apiError(c, 'VALIDATION_FAILED', '邀请码格式不正确', { field: 'inviteCode' });
+      return apiError(c, 'VALIDATION_FAILED', m(c, 'inviteCodeInvalidFormat'), {
+        field: 'inviteCode',
+      });
     }
     const code = await prisma.inviteCode.findUnique({ where: { code: inviteCode } });
     if (!code || code.status !== 'unused') {
-      return apiError(c, 'VALIDATION_FAILED', '邀请码无效或已使用', { field: 'inviteCode' });
+      return apiError(c, 'VALIDATION_FAILED', m(c, 'inviteCodeInvalidOrUsed'), {
+        field: 'inviteCode',
+      });
     }
   }
 
@@ -123,7 +128,7 @@ authRoute.post('/email/request', validateJson(emailRequestBody), async (c) => {
     select: { id: true },
   });
   if (recent) {
-    return apiError(c, 'VALIDATION_FAILED', '验证码已发送，请稍后再试');
+    return apiError(c, 'VALIDATION_FAILED', m(c, 'codeAlreadySent'));
   }
 
   // Generate a 6-digit numeric code. randomInt is cryptographically secure; 100000~999999 = 900k
@@ -158,7 +163,7 @@ authRoute.post('/email/request', validateJson(emailRequestBody), async (c) => {
     } catch (err) {
       await prisma.emailLoginChallenge.delete({ where: { id: challengeId } }).catch(() => {});
       console.error('[auth] sendEmail failed', err);
-      return apiError(c, 'SERVICE_UNAVAILABLE', '邮件发送失败，请稍后重试');
+      return apiError(c, 'SERVICE_UNAVAILABLE', m(c, 'emailSendFailed'));
     }
   }
 
@@ -185,16 +190,16 @@ authRoute.post('/email/verify', validateJson(emailVerifyBody), async (c) => {
 
   const challenge = await prisma.emailLoginChallenge.findUnique({ where: { id: challengeId } });
   if (!challenge) {
-    return apiError(c, 'VALIDATION_FAILED', '验证码已失效，请重新申请');
+    return apiError(c, 'VALIDATION_FAILED', m(c, 'codeInvalidated'));
   }
   if (challenge.consumedAt) {
-    return apiError(c, 'VALIDATION_FAILED', '验证码已被使用');
+    return apiError(c, 'VALIDATION_FAILED', m(c, 'codeAlreadyUsed'));
   }
   if (challenge.expiresAt < new Date()) {
-    return apiError(c, 'VALIDATION_FAILED', '验证码已过期，请重新申请');
+    return apiError(c, 'VALIDATION_FAILED', m(c, 'codeExpired'));
   }
   if (challenge.attempts >= MAX_VERIFY_ATTEMPTS) {
-    return apiError(c, 'VALIDATION_FAILED', '验证次数过多，请重新申请验证码');
+    return apiError(c, 'VALIDATION_FAILED', m(c, 'tooManyAttempts'));
   }
 
   const expected = createHash('sha256').update(code).digest('hex');
@@ -203,7 +208,7 @@ authRoute.post('/email/verify', validateJson(emailVerifyBody), async (c) => {
       where: { id: challengeId },
       data: { attempts: { increment: 1 } },
     });
-    return apiError(c, 'VALIDATION_FAILED', '验证码错误');
+    return apiError(c, 'VALIDATION_FAILED', m(c, 'codeWrong'));
   }
 
   // Passed verification: mark consumed. Even if creating the user later fails, this challenge must
@@ -219,12 +224,12 @@ authRoute.post('/email/verify', validateJson(emailVerifyBody), async (c) => {
     // Registration path: re-validate the invite code (it may have been consumed by someone else
     // between request and verify)
     if (!challenge.inviteCode) {
-      return apiError(c, 'VALIDATION_FAILED', '注册需要邀请码，请重新申请');
+      return apiError(c, 'VALIDATION_FAILED', m(c, 'registerNeedsInvite'));
     }
     const inviteCode = challenge.inviteCode;
     const codeRow = await prisma.inviteCode.findUnique({ where: { code: inviteCode } });
     if (!codeRow || codeRow.status !== 'unused') {
-      return apiError(c, 'VALIDATION_FAILED', '邀请码已失效，请重新申请');
+      return apiError(c, 'VALIDATION_FAILED', m(c, 'inviteCodeExpired'));
     }
 
     // Transaction: create user + mark invite used. Roll back if either fails.
@@ -239,7 +244,7 @@ authRoute.post('/email/verify', validateJson(emailVerifyBody), async (c) => {
       return u;
     });
   } else if (user.status !== 'active') {
-    return apiError(c, 'FORBIDDEN', '账号已被禁用');
+    return apiError(c, 'FORBIDDEN', m(c, 'accountDisabled'));
   }
 
   const session = await createSession(user.id);

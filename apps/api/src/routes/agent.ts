@@ -6,6 +6,7 @@ import { apiError, validateJson, validateQuery } from '../lib/httpError.js';
 import * as turnBus from '../agent/turn-bus.js';
 import { runReadOnlySql, jsonSafe } from '../agent/tools/read-only-sql.js';
 import { CHART_ROW_CAP } from '../agent/tools/render-chart.js';
+import { m } from '../i18n/index.js';
 
 /**
  * Shared agent-turn endpoints (all surfaces). A turn is started by the surface route (strategy /
@@ -32,12 +33,12 @@ agentRoute.get('/turns/:turnId/stream', (c) => {
     const result = turnBus.subscribe(turnId, userId, send);
     if (result.kind === 'not_found') {
       // Expired TTL / process restart: the persisted conversation is the source of truth by now.
-      send({ type: 'error', message: 'turn 不存在或已结束(会话以已保存内容为准)' });
+      send({ type: 'error', message: m(c, 'turnNotFound') });
       await chain;
       return;
     }
     if (result.kind === 'forbidden') {
-      send({ type: 'error', message: '无权订阅该 turn' });
+      send({ type: 'error', message: m(c, 'turnForbidden') });
       await chain;
       return;
     }
@@ -78,9 +79,11 @@ agentRoute.post('/sql', validateJson(sqlBody), async (c) => {
     // Raw SQLite integers arrive as BigInt — normalize through jsonSafe before Hono serializes.
     return c.json(JSON.parse(JSON.stringify({ rows }, jsonSafe)));
   } catch (e) {
-    return apiError(c, 'VALIDATION_FAILED', e instanceof Error ? e.message : '查询失败');
+    return apiError(c, 'VALIDATION_FAILED', e instanceof Error ? e.message : m(c, 'queryFailed'));
   }
 });
 
 // Guard against accidental non-GET on the stream path (avoids a confusing 404 from Hono).
-agentRoute.all('/turns/:turnId/stream', (c) => apiError(c, 'VALIDATION_FAILED', '仅支持 GET 订阅'));
+agentRoute.all('/turns/:turnId/stream', (c) =>
+  apiError(c, 'VALIDATION_FAILED', m(c, 'onlyGetSubscribe')),
+);

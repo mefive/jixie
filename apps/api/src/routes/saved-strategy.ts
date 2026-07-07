@@ -10,6 +10,7 @@ import { apiError, validateJson } from '../lib/httpError.js';
 import { chatMessagesSchema } from '../lib/chat-schema.js';
 import { prisma } from '../lib/prisma.js';
 import { codeConfigSchema } from '../strategy/code/schema.js';
+import { m } from '../i18n/index.js';
 
 /**
  * Saved strategies (产品线 1 持久化). Owner-scoped CRUD over the Strategy table. The workbench
@@ -56,7 +57,7 @@ savedStrategyRoute.get('/:id', async (c) => {
     where: { id: c.req.param('id'), userId: c.var.userId },
   });
   if (!row) {
-    return apiError(c, 'NOT_FOUND', '策略不存在');
+    return apiError(c, 'NOT_FOUND', m(c, 'strategyNotFound'));
   }
   return c.json({
     id: row.id,
@@ -138,7 +139,7 @@ savedStrategyRoute.post('/:id', validateJson(updateBody), async (c) => {
     select: { config: true, name: true },
   });
   if (!existing) {
-    return apiError(c, 'NOT_FOUND', '策略不存在');
+    return apiError(c, 'NOT_FOUND', m(c, 'strategyNotFound'));
   }
 
   const data: Prisma.StrategyUpdateInput = {};
@@ -180,7 +181,7 @@ savedStrategyRoute.delete('/:id', async (c) => {
     where: { id: c.req.param('id'), userId: c.var.userId },
   });
   if (r.count === 0) {
-    return apiError(c, 'NOT_FOUND', '策略不存在');
+    return apiError(c, 'NOT_FOUND', m(c, 'strategyNotFound'));
   }
   return c.json({ ok: true });
 });
