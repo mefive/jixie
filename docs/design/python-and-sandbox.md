@@ -63,10 +63,43 @@
     analyzeData 一次调用一跨);stats 库在墙内求值(调用不跨墙);isolate 自带内存上限(256MB)
     + CPU 超时;逃逸测试证明墙内 process/require 均为 undefined;ivm 在 worker_threads 内
     (factor-worker)实测干净退出。等价性:预置公式单测逐位一致 + 真库 ep 缓存基线复验。
-  - **Phase B(待专门会话)**:策略 onBar 迁入 isolate。难点是 `ctx` 反向调用宿主(bars/universe/
-    order,一次回测百万次调用),需要设计 ctx 桥:候选形态 = ①「预取进墙」——把 onBar 当天所需
-    数据(全部 watch 标的的 bars 窗口/因子值)在墙外备好、每天一次性拷入,墙内 ctx 变成纯读本地
-    快照,只有订单类调用(order/exit/setHoldings)以「返回值带出订单列表」的方式出墙——把百万次
-    跨墙压到每天 1~2 次;②逐调用 Reference 桥(慢,弃)。异步 ctx 方法(loadCrossSection/
-    ensureBars)在①下变成墙外预取的一部分,墙内全同步。验收 = 金标准双跑:同批策略新旧沙箱
-    净值逐日一致。估 3~5 人日。在此之前 compileStrategy 维持 new Function + worker。
+  - **Phase B(设计已定稿,2026-07-07 与用户讨论收敛;待专门会话实施)**:**引擎整个进墙 +
+    DataPort 出墙**(用户提出,取代早先的「预取进墙」草图)。
+
+    ### Phase B 定稿:引擎进墙 + DataPort + 双车道
+
+    ```
+    isolate 墙内:引擎(run/portfolio/data 缓存/指标)+ SDK + 策略代码
+          │  ↑ DataPort:窄数据接口(批量行数据,JSON,applySyncPromise 桥)
+    墙外(backtest-worker):DataPort 实现 = Prisma
+    ```
+
+    **为什么赢过预取草图**:策略数据访问是动态的(买入新票才需要它的 bars),预取要求墙外
+    「猜准」当天所需,总有边角;引擎进墙后**惰性加载语义原样保留**——跨墙次数 = 引擎的
+    DB 查询次数,而引擎缓存设计本来就为压查询次数(十年月度 ≈ 120 截面 + 几百条个股序列 =
+    几百次跨墙,每次一整块)。引擎代码几乎不改 → 等价性风险最小。墙内引擎 await 数据时用
+    `applySyncPromise` 同步阻塞 isolate 自己的线程,宿主事件循环不受影响。
+
+    **B1 · DataPort 抽取(独立有价值,先做)**:`engine/data.ts` 的直连 Prisma 抽成窄接口
+    (八九个查询函数)。收益即刻兑现:引擎第一次可以喂**内存 fixture 跑单测**——A 股规则
+    (T+1/涨跌停阻断/整手/费用)逐条确定性断言,不再依赖 6.5GB 真库;行为零变化,金标准
+    双跑护航。~1.5 人日。
+
+    **B2 · 进墙**:引擎 esbuild bundle 成单串注入 isolate(排除 Prisma,port 桥顶上);
+    内存限额给到 512MB~1GB(引擎缓存住墙内);日志(系统 + 用户 console)批量出墙。~2 人日。
+
+    **双车道(调试税的解法,用户提出)**:同一引擎源码、两种宿主——
+    - 直跑车道(不进墙):DataPort 直连 Prisma / fixture。单测、金标准、研究脚本、引擎
+      开发调试都走这条,debugger 齐活;
+    - 进墙车道:产品路径(web 上跑用户/AI 策略)。
+
+    两条护栏**定死**:
+    1. **开关跟代码来源走,不跟调用方走**:代码从 DB 来(用户/AI 生成)→ 进墙;代码从
+       git 来(checked-in、过 review)→ 可直跑。批量重放库里策略的脚本也算 DB 来源。
+    2. **防漂移双跑测试常驻**(~0.5 人日):固定小策略 + fixture 数据,双车道各跑一遍断言
+       净值逐日一致——bundle/序列化/桥坏了立刻红,不靠人肉发现。
+
+    调试工作流:墙内出 bug → 直跑车道同码同数据复现(debugger 可用)→ 复现不了则问题锁死
+    在桥/bundle 这几百行自有代码里,双跑测试可二分。验收 = 金标准双跑(同批策略新旧路径
+    净值逐日一致)+ 防漂移测试进 CI。总估 ~4 人日。在此之前 compileStrategy 维持
+    new Function + worker。

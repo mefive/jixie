@@ -2,6 +2,7 @@ import { DEFAULT_LOCALE } from '@jixie/shared';
 import * as st from '../lib/stats.js';
 import { t } from '../i18n/index.js';
 import { EngineData, type CrossSection } from './data.js';
+import { prismaDataPort } from './prisma-port.js';
 import { Portfolio } from './portfolio.js';
 import {
   DEFAULT_COST,
@@ -36,7 +37,14 @@ export async function runStrategy(cfg: EngineConfig): Promise<BacktestResult> {
   const cost = { ...DEFAULT_COST, ...cfg.cost };
   const locale = cfg.locale ?? DEFAULT_LOCALE;
   const log = cfg.onLog ?? (() => {}); // progress sink (worker forwards to the job; scripts no-op)
-  const engineData = new EngineData(cfg.start, cfg.end, cfg.strategy.factors ?? [], log, locale);
+  const engineData = new EngineData(
+    cfg.start,
+    cfg.end,
+    cfg.strategy.factors ?? [],
+    log,
+    locale,
+    cfg.dataPort ?? prismaDataPort,
+  );
   await engineData.load();
   if (cfg.strategy.watch?.length) {
     await engineData.loadBars(cfg.strategy.watch);
