@@ -1,6 +1,6 @@
 import { DEFAULT_LOCALE, type Locale } from '@jixie/shared';
 import { daysBetween } from '../lib/date.js';
-import { t } from '../i18n/index.js';
+import { t } from '../i18n/messages.js'; // direct import — keeps hono/locale out of the wall bundle
 import type { EngineDataPort } from './data-port.js';
 import type { BarRow, OhlcBar } from './types.js';
 

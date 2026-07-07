@@ -14,10 +14,11 @@ import { defineStrategy } from './sdk.js';
  * runs). Authoring is import-free — `defineStrategy` and the ctx types are an injected ambient (a .d.ts
  * gives Monaco the same surface), so a strategy is just `export default defineStrategy({ ... })`.
  *
- * Phase 1 (single-user, local) runs the compiled JS in-process inside the backtest worker, with `require`
- * blocked so strategy code can't pull in fs/net. Real isolation (process/fetch/globalThis are still
- * reachable here) is the phase-2 job — and it drops in at exactly this boundary: swap the `new Function`
- * evaluation below for a QuickJS-WASM / isolated-vm sandbox; nothing else in the engine changes.
+ * Since 2026-07 the PRODUCT path runs strategies on the walled lane instead (engine/walled-run.ts:
+ * the engine is bundled into an isolated-vm isolate and the module evaluates in-wall). This host
+ * `new Function` evaluation remains for two trusted uses only: compile VALIDATION (agent/routes
+ * compile-check, evaluated and discarded) and the DIRECT lane (repo-checked-in strategies in
+ * research scripts/tests — the lane rule follows the code's origin, see python-and-sandbox.md).
  */
 export async function compileStrategy(source: string, onUserLog?: UserLogSink): Promise<Strategy> {
   let js: string;
