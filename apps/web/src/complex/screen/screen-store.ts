@@ -24,14 +24,15 @@ import {
 } from '@src/api/client';
 import { QueryCardResults } from '@src/components/query-card-model';
 import { AgentTurnStream, type AgentTurnHandlers } from '@src/components/agent-turn-stream';
+import i18n from '@src/i18n';
 
 type ScreenSetupParams = {};
 
 /** Example specs — clickable chips on the wall. They run runScreen directly (no LLM), so the wall is
  * usable without a DEEPSEEK_API_KEY; the agent conversation is the AI path on top. */
-export const EXAMPLE_SCREENS: { label: string; spec: ScreenSpec }[] = [
+export const EXAMPLE_SCREENS: { labelKey: string; spec: ScreenSpec }[] = [
   {
-    label: '低PE高股息大盘',
+    labelKey: 'lowPeHighDividend',
     spec: {
       filters: [
         { field: 'peTtm', op: '<', value: 15 },
@@ -42,7 +43,7 @@ export const EXAMPLE_SCREENS: { label: string; spec: ScreenSpec }[] = [
     },
   },
   {
-    label: '小市值',
+    labelKey: 'smallCap',
     spec: {
       filters: [{ field: 'totalMv', op: '>', value: 0 }],
       sort: { field: 'totalMv', dir: 'asc' },
@@ -50,11 +51,11 @@ export const EXAMPLE_SCREENS: { label: string; spec: ScreenSpec }[] = [
     },
   },
   {
-    label: '高换手',
+    labelKey: 'highTurnover',
     spec: { filters: [], sort: { field: 'turnoverRate', dir: 'desc' }, limit: 50 },
   },
   {
-    label: '破净 (PB<1)',
+    labelKey: 'belowNav',
     spec: {
       filters: [{ field: 'pb', op: '<', value: 1 }],
       sort: { field: 'pb', dir: 'asc' },
@@ -229,7 +230,12 @@ export class ScreenStore extends BaseStore<ScreenSetupParams> {
       runInAction(() => {
         this.chatMessages = [
           ...this.chatMessages,
-          textMessage('assistant', '出错了:会话创建失败,无法开始对话'),
+          textMessage(
+            'assistant',
+            i18n.t('screen:error.withDetail', {
+              detail: i18n.t('screen:error.conversationCreateFailed'),
+            }),
+          ),
         ];
         this.sending = false;
       });
@@ -242,7 +248,12 @@ export class ScreenStore extends BaseStore<ScreenSetupParams> {
       runInAction(() => {
         this.chatMessages = [
           ...this.chatMessages,
-          textMessage('assistant', `出错了:${e instanceof Error ? e.message : '请求失败'}`),
+          textMessage(
+            'assistant',
+            i18n.t('screen:error.withDetail', {
+              detail: e instanceof Error ? e.message : i18n.t('screen:error.requestFailed'),
+            }),
+          ),
         ];
       });
     } finally {
@@ -267,12 +278,18 @@ export class ScreenStore extends BaseStore<ScreenSetupParams> {
       },
       onError: (message) => {
         runInAction(() => {
-          this.chatMessages = [...this.chatMessages, textMessage('assistant', `出错了:${message}`)];
+          this.chatMessages = [
+            ...this.chatMessages,
+            textMessage('assistant', i18n.t('screen:error.withDetail', { detail: message })),
+          ];
         });
       },
       onCancelled: () => {
         runInAction(() => {
-          this.chatMessages = [...this.chatMessages, textMessage('assistant', '(已停止本轮回复)')];
+          this.chatMessages = [
+            ...this.chatMessages,
+            textMessage('assistant', i18n.t('screen:error.cancelled')),
+          ];
         });
       },
     };

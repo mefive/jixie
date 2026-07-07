@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { StockSeries } from '@jixie/shared';
 import { EChart, type ECOption } from '@src/components/echart';
 
@@ -25,6 +26,7 @@ export default function StockChart({
   adjust = 'qfq',
   className = 'jx-stock-chart',
 }: Props) {
+  const { t } = useTranslation('stock');
   const p = series.points;
   const dates = p.map((d) => d.date);
 
@@ -60,7 +62,12 @@ export default function StockChart({
     animation: false,
     tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
     axisPointer: { link: [{ xAxisIndex: 'all' }] },
-    legend: { data: ['K线', 'PE'], right: 8, top: 0, textStyle: { color: '#8a9099' } },
+    legend: {
+      data: [t('chart.candlestick'), t('chart.pe')],
+      right: 8,
+      top: 0,
+      textStyle: { color: '#8a9099' },
+    },
     grid: [
       { left: 56, right: 56, top: 28, height: '64%' },
       { left: 56, right: 56, top: '80%', height: '14%' },
@@ -86,7 +93,7 @@ export default function StockChart({
       {
         type: logY ? 'log' : 'value',
         scale: !logY,
-        name: '价',
+        name: t('chart.priceAxis'),
         position: 'left',
         nameTextStyle: { color: '#8a9099' },
         axisLabel: { color: '#8a9099' },
@@ -96,7 +103,7 @@ export default function StockChart({
       {
         type: 'value',
         scale: true,
-        name: 'PE',
+        name: t('chart.pe'),
         position: 'right',
         nameTextStyle: { color: PE_COLOR },
         axisLabel: { color: PE_COLOR },
@@ -106,7 +113,7 @@ export default function StockChart({
       // volume (grid 1)
       {
         gridIndex: 1,
-        name: '量',
+        name: t('chart.volume'),
         nameTextStyle: { color: '#8a9099' },
         axisLabel: { show: false },
         splitLine: { show: false },
@@ -118,7 +125,7 @@ export default function StockChart({
     ],
     series: [
       {
-        name: 'K线',
+        name: t('chart.candlestick'),
         type: 'candlestick',
         xAxisIndex: 0,
         yAxisIndex: 0,
@@ -126,7 +133,7 @@ export default function StockChart({
         itemStyle: { color: UP, color0: DOWN, borderColor: UP, borderColor0: DOWN },
       },
       {
-        name: 'PE',
+        name: t('chart.pe'),
         type: 'line',
         xAxisIndex: 0,
         yAxisIndex: 1,
@@ -134,7 +141,7 @@ export default function StockChart({
         showSymbol: false,
         lineStyle: { color: PE_COLOR, width: 1.2 },
       },
-      { name: '量', type: 'bar', xAxisIndex: 1, yAxisIndex: 2, data: vols },
+      { name: t('chart.volume'), type: 'bar', xAxisIndex: 1, yAxisIndex: 2, data: vols },
     ],
   };
 

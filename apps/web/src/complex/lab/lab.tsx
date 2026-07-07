@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import type { ChatMessage } from '@jixie/shared';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import classNames from 'classnames';
 import { Button, DatePicker, Input, InputNumber, Modal, Splitter, Tabs } from 'antd';
 import dayjs from 'dayjs';
@@ -45,6 +46,7 @@ const TradeDetail = lazy(() => import('./trade-detail'));
  */
 export const Lab = complex.component(() => {
   const store = complex.useStore();
+  const { t } = useTranslation('lab');
   const [heroDismissed, setHeroDismissed] = useState(false); // "直接写代码" escape from the new-strategy hero
   const [newModalOpen, setNewModalOpen] = useState(false); // 新建 → prompt modal (not the full hero)
   const [panelDefaults] = useState(() => splitterDefaults(380)); // percentage sizes = no first-frame jitter
@@ -188,21 +190,18 @@ export const Lab = complex.component(() => {
 
       <Modal
         open={!!pendingLeave}
-        title="有改动尚未运行"
+        title={t('unrunTitle')}
         onCancel={() => setPendingLeave(null)}
-        okText="放弃改动"
+        okText={t('discardChanges')}
         okButtonProps={{ danger: true }}
-        cancelText="取消"
+        cancelText={t('cancel')}
         onOk={() => {
           const action = pendingLeave;
           setPendingLeave(null);
           action?.();
         }}
       >
-        <p>
-          当前策略的代码 /
-          参数改动还没运行回测，离开将丢失。点「运行回测」保存后再操作，或放弃改动继续。
-        </p>
+        <p>{t('unrunBody')}</p>
       </Modal>
     </div>
   );
@@ -216,6 +215,7 @@ export const Lab = complex.component(() => {
 const StrategyHero = complex.component(
   ({ onSubmit, onSkip }: { onSubmit: (text: string) => void; onSkip: () => void }) => {
     const store = complex.useStore();
+    const { t } = useTranslation('lab');
     const navigate = useNavigate();
     // Snapshot the recent-id order on mount; the card data (name/snapshot) comes from the saved list.
     const [recentIds, setRecentIds] = useState(() => readRecents());
@@ -228,14 +228,14 @@ const StrategyHero = complex.component(
     return (
       <main className="jx-lab-hero">
         <div className="jx-lab-heroInner">
-          <h1 className="jx-lab-heroTitle">新建策略</h1>
-          <p className="jx-lab-heroHint">用一句话描述你的策略，AI 写成代码，再自己调参</p>
+          <h1 className="jx-lab-heroTitle">{t('heroTitle')}</h1>
+          <p className="jx-lab-heroHint">{t('heroHint')}</p>
 
           <NewStrategyPrompt onSubmit={onSubmit} onSkip={onSkip} autoFocus />
 
           {recentCards.length > 0 && (
             <div className="jx-lab-recents">
-              <span className="jx-lab-recentsLabel">最近访问</span>
+              <span className="jx-lab-recentsLabel">{t('recentVisits')}</span>
               <div className="jx-lab-recentsGrid">
                 {recentCards.map((card) => (
                   <StrategyCardView
@@ -270,6 +270,7 @@ const NewStrategyPrompt = complex.component(
     onSkip: () => void;
     autoFocus?: boolean;
   }) => {
+    const { t } = useTranslation('lab');
     const [text, setText] = useState('');
     const submit = () => {
       const trimmed = text.trim();
@@ -285,7 +286,7 @@ const NewStrategyPrompt = complex.component(
             value={text}
             onChange={setText}
             onSubmit={submit}
-            placeholder="如「每月买入股息率最高的 20 只，等权」「沪深300 里 ROE 大于 15% 的 30 只，每月调仓」"
+            placeholder={t('promptPlaceholder')}
             variant="borderless"
             autoFocus={autoFocus}
           />
@@ -300,20 +301,20 @@ const NewStrategyPrompt = complex.component(
         </div>
 
         <div className="jx-lab-examples">
-          <span className="jx-lab-examplesLabel">试试：</span>
+          <span className="jx-lab-examplesLabel">{t('examplesLabel')}</span>
           {EXAMPLE_PROMPTS.map((ex) => (
-            <Button key={ex.label} size="small" onClick={() => onSubmit(ex.prompt)}>
-              {ex.label}
+            <Button key={ex.labelKey} size="small" onClick={() => onSubmit(t(ex.promptKey))}>
+              {t(ex.labelKey)}
             </Button>
           ))}
         </div>
 
         <div className="jx-lab-heroLinks">
           <button type="button" className="jx-lab-heroSkip" onClick={onSkip}>
-            或直接写代码 →
+            {t('writeCodeDirectly')}
           </button>
           <a className="jx-lab-heroSkip" href="/learn" target="_blank" rel="noreferrer">
-            第一次用?看入门教程 ↗
+            {t('firstTimeTutorial')}
           </a>
         </div>
       </>
@@ -334,17 +335,18 @@ function NewStrategyModal({
   onBlank: () => void;
   onCancel: () => void;
 }) {
+  const { t } = useTranslation('lab');
   return (
     <Modal
       open={open}
       onCancel={onCancel}
       footer={null}
-      title="新建策略"
+      title={t('heroTitle')}
       width={620}
       destroyOnHidden
     >
       <div className="jx-lab-newModal">
-        <p className="jx-lab-heroHint">用一句话描述你的新策略，AI 写成代码，再自己调参</p>
+        <p className="jx-lab-heroHint">{t('newModalHint')}</p>
         <NewStrategyPrompt onSubmit={onSubmit} onSkip={onBlank} autoFocus />
       </div>
     </Modal>
@@ -355,6 +357,7 @@ function NewStrategyModal({
 // 历史 tab to switch strategies. The agent edits the code in the middle editor; the user can still hand-edit.
 const AgentPanel = complex.component(
   ({ onNew, onOpenStrategy }: { onNew: () => void; onOpenStrategy: (id: string) => void }) => {
+    const { t } = useTranslation('lab');
     const [tab, setTab] = useState('agent');
     return (
       <div className="jx-lab-agent">
@@ -370,12 +373,16 @@ const AgentPanel = complex.component(
               icon={<FontAwesomeIcon icon={faPlus} />}
               onClick={onNew}
             >
-              新建
+              {t('newButton')}
             </Button>
           }
           items={[
             { key: 'agent', label: 'Agent', children: <AgentChat /> },
-            { key: 'history', label: '历史', children: <HistoryList onOpen={onOpenStrategy} /> },
+            {
+              key: 'history',
+              label: t('historyTab'),
+              children: <HistoryList onOpen={onOpenStrategy} />,
+            },
           ]}
         />
       </div>
@@ -388,9 +395,10 @@ const AgentPanel = complex.component(
 // (a bordered box, no button — 回车发送; the box stays multi-row rather than collapsing to one line).
 const AgentChat = complex.component(() => {
   const store = complex.useStore();
+  const { t } = useTranslation('lab');
   return (
     <div className="jx-lab-chat">
-      <div className="jx-lab-agentName">{store.name || '新策略（未保存）'}</div>
+      <div className="jx-lab-agentName">{store.name || t('agentUnsavedName')}</div>
       <RunConfig />
       <ChatLog
         messages={store.chatMessages}
@@ -405,7 +413,7 @@ const AgentChat = complex.component(() => {
           value={store.nlText}
           onChange={(v) => store.setField('nlText', v)}
           onSubmit={() => void store.sendAgent(store.nlText)}
-          placeholder="继续对话调整策略，如「加个 5% 止损」「改成周度调仓」— 回车发送"
+          placeholder={t('chatPlaceholder')}
           variant="borderless"
           autoSize={{ minRows: 3, maxRows: 10 }}
         />
@@ -417,10 +425,11 @@ const AgentChat = complex.component(() => {
 // Sticky run-config header: 起始/结束/资金 + 运行回测 (策略名 is auto-generated on run — no name field).
 const RunConfig = complex.component(() => {
   const store = complex.useStore();
+  const { t } = useTranslation('lab');
   return (
     <div className="jx-lab-runConfig">
       <label className="jx-lab-runField">
-        <span className="jx-lab-runLabel">起始</span>
+        <span className="jx-lab-runLabel">{t('runStart')}</span>
         <DatePicker
           size="small"
           className="jx-lab-runControl"
@@ -431,7 +440,7 @@ const RunConfig = complex.component(() => {
         />
       </label>
       <label className="jx-lab-runField">
-        <span className="jx-lab-runLabel">结束</span>
+        <span className="jx-lab-runLabel">{t('runEnd')}</span>
         <DatePicker
           size="small"
           className="jx-lab-runControl"
@@ -442,11 +451,11 @@ const RunConfig = complex.component(() => {
         />
       </label>
       <label className="jx-lab-runField">
-        <span className="jx-lab-runLabel">资金</span>
+        <span className="jx-lab-runLabel">{t('runCapital')}</span>
         <InputNumber
           size="small"
           className="jx-lab-runControl"
-          addonAfter="万"
+          addonAfter={t('unitWan')}
           value={store.initialCash / 10000}
           min={1}
           step={10}
@@ -462,10 +471,10 @@ const RunConfig = complex.component(() => {
         icon={<FontAwesomeIcon icon={faPlay} />}
         loading={store.running}
         disabled={!store.dirty}
-        title={store.dirty ? '' : '改动策略后可重新运行'}
+        title={store.dirty ? '' : t('runDisabledHint')}
         action={() => store.run()}
       >
-        运行回测
+        {t('runBacktest')}
       </LoaderButton>
     </div>
   );
@@ -487,6 +496,7 @@ function ChatLog({
   cards: QueryCardResults;
   stream: AgentTurnStream;
 }) {
+  const { t } = useTranslation('lab');
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = ref.current;
@@ -497,9 +507,7 @@ function ChatLog({
   return (
     <div ref={ref} className="jx-lab-chatLog">
       {messages.length === 0 && !sending && !quiet && (
-        <div className="jx-lab-chatEmpty">
-          跟 Agent 说你想要的策略，或让它改现有代码。改动会直接写进中间的编辑器。
-        </div>
+        <div className="jx-lab-chatEmpty">{t('chatEmpty')}</div>
       )}
       {messages.map((message, index) => (
         <div key={index} className={classNames('jx-lab-bubble', `jx-lab-bubble--${message.role}`)}>
@@ -519,6 +527,7 @@ function ChatLog({
 // 历史 tab: this user's strategies as vertical cards — open loads the strategy + its conversation.
 const HistoryList = complex.component(({ onOpen }: { onOpen: (id: string) => void }) => {
   const store = complex.useStore();
+  const { t } = useTranslation('lab');
   const cards = store.savedLoader.result ?? [];
   if (store.savedLoader.loading && cards.length === 0) {
     return (
@@ -528,7 +537,7 @@ const HistoryList = complex.component(({ onOpen }: { onOpen: (id: string) => voi
     );
   }
   if (cards.length === 0) {
-    return <div className="jx-lab-placeholder">还没有策略，跑一次回测会自动保存。</div>;
+    return <div className="jx-lab-placeholder">{t('historyEmpty')}</div>;
   }
   return (
     <div className="jx-lab-history">
@@ -602,9 +611,10 @@ function PromptBox({
 // The strategy code editor — Monaco with SDK autocomplete/types, lazy-loaded into its own chunk.
 const StrategyCode = complex.component(() => {
   const store = complex.useStore();
+  const { t } = useTranslation('lab');
   return (
     <div className="jx-lab-code">
-      <Suspense fallback={<div className="jx-lab-placeholder">加载编辑器…</div>}>
+      <Suspense fallback={<div className="jx-lab-placeholder">{t('loadingEditor')}</div>}>
         <CodeEditor value={store.code} onChange={(v) => store.setField('code', v)} />
       </Suspense>
     </div>
@@ -616,18 +626,21 @@ const StrategyCode = complex.component(() => {
 // stream in the dock.
 const ResultPanel = complex.component(() => {
   const store = complex.useStore();
+  const { t } = useTranslation('lab');
 
   if (store.running) {
     return (
       <div className="jx-lab-placeholder">
         <FontAwesomeIcon icon={faSpinner} spin />
-        回测计算中…… 实时日志见下方「日志」
+        {t('runningCalc')}
       </div>
     );
   }
   if (store.error) {
     return (
-      <div className="jx-lab-placeholder jx-lab-placeholder--error">回测失败：{store.error}</div>
+      <div className="jx-lab-placeholder jx-lab-placeholder--error">
+        {t('runFailed', { error: store.error })}
+      </div>
     );
   }
   const r = store.result; // a finished run, or the saved last-result loaded on reopen
@@ -637,33 +650,37 @@ const ResultPanel = complex.component(() => {
     if (store.initializing) {
       return <div className="jx-lab-placeholder" />;
     }
-    return <div className="jx-lab-placeholder">写好左侧策略后点「运行回测」查看净值与指标。</div>;
+    return <div className="jx-lab-placeholder">{t('resultEmpty')}</div>;
   }
 
   const up = r.totalReturn >= 0;
   const optPct = (v?: number) => (v == null ? '—' : pct(v));
   const optNum = (v?: number) => (v == null ? '—' : v.toFixed(2));
   const metrics: Metric[] = [
-    { label: '年化收益', value: pct(r.annReturn), tone: r.annReturn >= 0 ? 'up' : 'down' },
-    { label: '累计收益', value: pct(r.totalReturn), tone: up ? 'up' : 'down' },
     {
-      label: '超额收益',
+      label: t('metricAnnReturn'),
+      value: pct(r.annReturn),
+      tone: r.annReturn >= 0 ? 'up' : 'down',
+    },
+    { label: t('metricTotalReturn'), value: pct(r.totalReturn), tone: up ? 'up' : 'down' },
+    {
+      label: t('metricExcessReturn'),
       value: optPct(r.excessReturn),
       tone: r.excessReturn == null ? undefined : r.excessReturn >= 0 ? 'up' : 'down',
     },
     { label: 'Sharpe', value: r.sharpe.toFixed(2) },
-    { label: '信息比率', value: optNum(r.informationRatio) },
-    { label: '最大回撤', value: pct(r.maxDrawdown), tone: 'down' },
+    { label: t('metricInfoRatio'), value: optNum(r.informationRatio) },
+    { label: t('metricMaxDrawdown'), value: pct(r.maxDrawdown), tone: 'down' },
     { label: 'Calmar', value: optNum(r.calmar) },
-    { label: '胜率', value: optPct(r.winRate) },
+    { label: t('metricWinRate'), value: optPct(r.winRate) },
     {
-      label: '盈亏比',
+      label: t('metricProfitFactor'),
       value:
         r.profitFactor == null ? '—' : r.profitFactor >= 99 ? '99+' : r.profitFactor.toFixed(2),
     },
-    { label: '年换手', value: r.turnover == null ? '—' : `${r.turnover.toFixed(1)}×` },
-    { label: '期末权益', value: Math.round(r.finalValue).toLocaleString() },
-    { label: '成交笔数', value: r.trades.toLocaleString() },
+    { label: t('metricTurnover'), value: r.turnover == null ? '—' : `${r.turnover.toFixed(1)}×` },
+    { label: t('metricFinalValue'), value: Math.round(r.finalValue).toLocaleString() },
+    { label: t('metricTrades'), value: r.trades.toLocaleString() },
   ];
 
   return (
@@ -683,7 +700,7 @@ const ResultPanel = complex.component(() => {
           </div>
         ))}
       </div>
-      <Suspense fallback={<div className="jx-lab-placeholder">加载图表…</div>}>
+      <Suspense fallback={<div className="jx-lab-placeholder">{t('loadingChart')}</div>}>
         <NavChart nav={r.nav} up={up} />
       </Suspense>
       {r.monthly?.length ? <MonthlyReturns monthly={r.monthly} /> : null}
@@ -696,14 +713,13 @@ const ResultPanel = complex.component(() => {
 // label spins while the worker streams.
 const LogDock = complex.component(() => {
   const store = complex.useStore();
-  const emptyText = store.running
-    ? '正在启动回测进程…'
-    : '运行策略后在此查看日志（系统进度 + 你的 console 输出）';
+  const { t } = useTranslation('lab');
+  const emptyText = store.running ? t('logStarting') : t('logEmpty');
   return (
     <div className="jx-lab-dock">
       <div className="jx-lab-dockHead">
         {store.running && <FontAwesomeIcon icon={faSpinner} spin />}
-        日志
+        {t('logTab')}
       </div>
       <LogView lines={store.logLines} emptyText={emptyText} />
     </div>
@@ -714,6 +730,7 @@ const LogDock = complex.component(() => {
 // vertical split (that was too cramped). 交易明细 appears only once a run has trades.
 const ResultTabs = complex.component(() => {
   const store = complex.useStore();
+  const { t } = useTranslation('lab');
   const [active, setActive] = useState('overview');
   const result = store.result;
   const hasTrades = (result?.tradeLog?.length ?? 0) > 0;
@@ -721,7 +738,7 @@ const ResultTabs = complex.component(() => {
   const items = [
     {
       key: 'overview',
-      label: '结果概览',
+      label: t('tabOverview'),
       children: (
         <div className="jx-lab-result">
           <ResultPanel />
@@ -732,10 +749,10 @@ const ResultTabs = complex.component(() => {
   if (hasTrades && result) {
     items.push({
       key: 'trades',
-      label: `交易明细（${result.trades.toLocaleString()} 笔）`,
+      label: t('tabTradeDetail', { count: result.trades.toLocaleString() }),
       children: (
         <div className="jx-lab-tradesTab">
-          <Suspense fallback={<div className="jx-lab-placeholder">加载交易…</div>}>
+          <Suspense fallback={<div className="jx-lab-placeholder">{t('loadingTrades')}</div>}>
             <TradeDetail
               tradeLog={result.tradeLog ?? []}
               start={result.start}
@@ -767,7 +784,7 @@ const ResultTabs = complex.component(() => {
               icon={<FontAwesomeIcon icon={faUpRightFromSquare} />}
               onClick={() => window.open(`/trades?id=${store.savedId}`, '_blank')}
             >
-              页面打开
+              {t('openInPage')}
             </Button>
           ) : null
         }
@@ -785,14 +802,12 @@ function traceOf(message: ChatMessage): AgentToolTraceItem[] | undefined {
 }
 
 // Starter prompts for the new-strategy hero — short chip label + the full sentence sent to NL→code.
+// Both resolve through i18n at render time (see NewStrategyPrompt).
 const EXAMPLE_PROMPTS = [
-  { label: '高股息 20 只', prompt: '每月买入股息率最高的 20 只，等权' },
-  {
-    label: '沪深300 低估值',
-    prompt: '沪深300 里 ROE 大于 15%、市盈率最低的 30 只，每月调仓，等权',
-  },
-  { label: '中证500 动量', prompt: '中证500 里 20 日动量最强的 20 只，每周轮动，等权' },
-];
+  { labelKey: 'exampleHighDivLabel', promptKey: 'exampleHighDivPrompt' },
+  { labelKey: 'exampleLowValLabel', promptKey: 'exampleLowValPrompt' },
+  { labelKey: 'exampleMomentumLabel', promptKey: 'exampleMomentumPrompt' },
+] as const;
 
 interface Metric {
   label: string;

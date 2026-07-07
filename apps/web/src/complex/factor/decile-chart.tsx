@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { BucketStat } from '@jixie/shared';
 import { EChart, type ECOption } from '@src/components/echart';
 
@@ -16,9 +17,14 @@ function inkRamp(i: number, n: number): string {
 
 // Lazy-loaded so echarts stays in its own chunk (apps/web/CLAUDE.md §3).
 export default function DecileChart({ buckets }: Props) {
+  const { t } = useTranslation('factor');
   const n = buckets.length;
   const labels = buckets.map((b) =>
-    b.bucket === 0 ? 'D1低' : b.bucket === n - 1 ? `D${n}高` : `D${b.bucket + 1}`,
+    b.bucket === 0
+      ? t('decileD1Low')
+      : b.bucket === n - 1
+        ? t('decileDnHigh', { n })
+        : `D${b.bucket + 1}`,
   );
   const option: ECOption = {
     grid: { left: 52, right: 16, top: 20, bottom: 28 },
@@ -30,8 +36,8 @@ export default function DecileChart({ buckets }: Props) {
         const b = buckets[p.dataIndex];
         return (
           `${labels[p.dataIndex]}<br/>` +
-          `年化收益 ${(b.annReturn * 100).toFixed(2)}%<br/>` +
-          `Sharpe ${b.sharpe.toFixed(2)} · 期末净值 ${b.navEnd.toFixed(2)}`
+          `${t('decileTipAnn', { pct: (b.annReturn * 100).toFixed(2) })}<br/>` +
+          `${t('decileTipSharpe', { sharpe: b.sharpe.toFixed(2), nav: b.navEnd.toFixed(2) })}`
         );
       },
     },

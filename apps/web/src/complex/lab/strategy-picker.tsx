@@ -1,4 +1,5 @@
 import { Empty, Modal, Spin } from 'antd';
+import { useTranslation } from 'react-i18next';
 import type { StrategyCard } from '@jixie/shared';
 import { StrategyCardView } from './strategy-card';
 import './strategy-picker.css';
@@ -23,12 +24,13 @@ export default function StrategyPicker({
   onLoad: (id: string) => void;
   onDelete: (id: string) => void;
 }) {
+  const { t } = useTranslation('lab');
   return (
     <Modal
       open={open}
       onCancel={onClose}
       footer={null}
-      title="我的策略"
+      title={t('myStrategies')}
       width={860}
       destroyOnHidden
     >
@@ -37,7 +39,7 @@ export default function StrategyPicker({
           <Spin />
         </div>
       ) : cards.length === 0 ? (
-        <Empty description="还没有保存的策略(跑一次回测会自动保存)" />
+        <Empty description={t('pickerEmpty')} />
       ) : (
         <div className="jx-sp-grid">
           {cards.map((c) => (

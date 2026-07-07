@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import classNames from 'classnames';
 import { Spin } from 'antd';
 import type { StockSeries, TradeRecord } from '@jixie/shared';
@@ -27,6 +28,7 @@ export default function TradeDetail({
   end: string;
   nav?: { date: string; value: number }[]; // strategy equity curve → 收益率曲线(右轴)
 }) {
+  const { t } = useTranslation('lab');
   const codes = useMemo(() => {
     const c = new Map<string, number>();
     for (const t of tradeLog) {
@@ -142,7 +144,7 @@ export default function TradeDetail({
         left: 60,
         itemGap: 14,
         textStyle: { color: '#8a9099', fontSize: 11 },
-        data: ['MA5', 'MA20', 'MA60', '策略收益', '沪深300'],
+        data: ['MA5', 'MA20', 'MA60', t('seriesStrategyReturn'), t('seriesBenchmark')],
       },
       tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
       axisPointer: { link: [{ xAxisIndex: 'all' }] },
@@ -188,7 +190,7 @@ export default function TradeDetail({
       ],
       series: [
         {
-          name: 'K线',
+          name: t('seriesKline'),
           type: 'candlestick',
           xAxisIndex: 0,
           yAxisIndex: 0,
@@ -229,7 +231,7 @@ export default function TradeDetail({
           z: 3,
         },
         {
-          name: '策略收益',
+          name: t('seriesStrategyReturn'),
           type: 'line',
           xAxisIndex: 0,
           yAxisIndex: 2,
@@ -241,7 +243,7 @@ export default function TradeDetail({
           z: 4,
         },
         {
-          name: '沪深300',
+          name: t('seriesBenchmark'),
           type: 'line',
           xAxisIndex: 0,
           yAxisIndex: 2,
@@ -252,9 +254,9 @@ export default function TradeDetail({
           lineStyle: { width: 1.5, color: '#8a9099', type: 'dashed' },
           z: 4,
         },
-        { name: '量', type: 'bar', xAxisIndex: 1, yAxisIndex: 1, data: vols },
+        { name: t('seriesVolume'), type: 'bar', xAxisIndex: 1, yAxisIndex: 1, data: vols },
         {
-          name: '交易',
+          name: t('seriesTrade'),
           type: 'scatter',
           xAxisIndex: 0,
           yAxisIndex: 0,
@@ -266,7 +268,7 @@ export default function TradeDetail({
         },
       ],
     };
-  }, [series, trades, nav, bench]);
+  }, [series, trades, nav, bench, t]);
 
   const pick = (date: string) => {
     const idx = trades.findIndex((t) => t.date === date);
@@ -287,7 +289,7 @@ export default function TradeDetail({
             className={classNames('jx-td-chip', { 'jx-td-chip--active': showAll })}
             onClick={() => setShowAll(true)}
           >
-            <span className="jx-td-chipName">全部</span>
+            <span className="jx-td-chipName">{t('tdAll')}</span>
             <span className="jx-td-chipCount">{tradeLog.length}</span>
           </button>
           {codes.map(([c, n]) => (
@@ -306,19 +308,15 @@ export default function TradeDetail({
             </button>
           ))}
         </div>
-        <div className="jx-td-hint">
-          {showAll
-            ? 'K 线为选中标的;交易点(黄)与右侧列表为全部标的的成交。价格为不复权真实成交价'
-            : '交易点(黄)在 K 线下方横轴;点它 → 右侧定位。价格为不复权真实成交价'}
-        </div>
+        <div className="jx-td-hint">{showAll ? t('tdHintAll') : t('tdHintSingle')}</div>
         {loading || !option ? (
-          <div className="jx-td-loading">{loading ? <Spin /> : '无行情'}</div>
+          <div className="jx-td-loading">{loading ? <Spin /> : t('tdNoData')}</div>
         ) : (
           <EChart
             option={option}
             className="jx-td-canvas"
             onClick={(p: any) => {
-              if (p.seriesName === '交易') {
+              if (p.seriesName === t('seriesTrade')) {
                 pick(p.value[0]);
               }
             }}
@@ -328,14 +326,14 @@ export default function TradeDetail({
 
       <div className={classNames('jx-td-list', { 'jx-td-list--all': showAll })} ref={listRef}>
         <div className="jx-td-head">
-          {showAll && <span>标的</span>}
-          <span>日期</span>
-          <span>方向</span>
-          <span className="jx-td-num">数量</span>
-          <span className="jx-td-num">价格</span>
-          <span className="jx-td-num">金额</span>
+          {showAll && <span>{t('tdColInstrument')}</span>}
+          <span>{t('tdColDate')}</span>
+          <span>{t('tdColSide')}</span>
+          <span className="jx-td-num">{t('tdColShares')}</span>
+          <span className="jx-td-num">{t('tdColPrice')}</span>
+          <span className="jx-td-num">{t('tdColAmount')}</span>
         </div>
-        {trades.map((t, i) => (
+        {trades.map((trade, i) => (
           <div
             key={i}
             data-i={i}
@@ -343,19 +341,22 @@ export default function TradeDetail({
           >
             {showAll && (
               <span className="jx-td-inst">
-                <span className="jx-td-instName">{names[t.code] ?? t.code}</span>
-                <span className="jx-td-instCode">{t.code}</span>
+                <span className="jx-td-instName">{names[trade.code] ?? trade.code}</span>
+                <span className="jx-td-instCode">{trade.code}</span>
               </span>
             )}
-            <span>{fmtDate(t.date)}</span>
-            <span className={t.side === 'buy' ? 'text-up' : 'text-down'}>
-              {t.side === 'buy' ? '买' : '卖'}
+            <span>{fmtDate(trade.date)}</span>
+            <span className={trade.side === 'buy' ? 'text-up' : 'text-down'}>
+              {trade.side === 'buy' ? t('sideBuy') : t('sideSell')}
             </span>
             <span className="jx-td-num">
-              {Math.round(t.realShares ?? t.shares).toLocaleString()}
+              {Math.round(trade.realShares ?? trade.shares).toLocaleString()}
             </span>
-            <span className="jx-td-num">{(t.realPrice ?? t.price).toFixed(2)}</span>
-            <span className="jx-td-num">{(t.amount / 10000).toFixed(1)}万</span>
+            <span className="jx-td-num">{(trade.realPrice ?? trade.price).toFixed(2)}</span>
+            <span className="jx-td-num">
+              {(trade.amount / 10000).toFixed(1)}
+              {t('unitWan')}
+            </span>
           </div>
         ))}
       </div>

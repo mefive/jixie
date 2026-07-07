@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { QuantileHorizon, FactorWeight } from '@jixie/shared';
 import './quantile-heatmap.css';
 
@@ -11,6 +12,7 @@ export function QuantileHeatmap({
   rows: QuantileHorizon[];
   weight: FactorWeight;
 }) {
+  const { t } = useTranslation('factor');
   if (!rows?.length) {
     return null;
   }
@@ -20,7 +22,7 @@ export function QuantileHeatmap({
       <table className="jx-qh-table">
         <thead>
           <tr>
-            <th className="jx-qh-corner">前瞻\分位</th>
+            <th className="jx-qh-corner">{t('qhCorner')}</th>
             {Array.from({ length: n }, (_, i) => (
               <th key={i}>D{i + 1}</th>
             ))}
@@ -29,7 +31,7 @@ export function QuantileHeatmap({
         <tbody>
           {rows.map((row) => (
             <tr key={row.horizonDays}>
-              <td className="jx-qh-h">{row.horizonDays}日</td>
+              <td className="jx-qh-h">{t('days', { days: row.horizonDays })}</td>
               {row[weight].map((v, i) => (
                 <td key={i} style={bg(v)}>
                   {(v * 10000).toFixed(0)}

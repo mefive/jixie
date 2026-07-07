@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { faArrowLeft, faSpinner } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { authStore } from '@src/store';
@@ -10,6 +11,7 @@ import './login.css';
 export const Login = complex.component(() => {
   const store = complex.useStore();
   const navigate = useNavigate();
+  const { t } = useTranslation('login');
 
   // Already authed (including after setUser on successful login) → go to home page.
   // authed is read during render → tracked by observer, authStore changes trigger re-render, effect re-runs accordingly.
@@ -23,8 +25,8 @@ export const Login = complex.component(() => {
   return (
     <div className="jx-login">
       <div className="jx-login-card">
-        <img className="jx-login-banner" src={banner} alt="机械交易系" />
-        <div className="jx-login-subtitle">A 股量化研究平台</div>
+        <img className="jx-login-banner" src={banner} alt={t('common:appName')} />
+        <div className="jx-login-subtitle">{t('subtitle')}</div>
 
         {store.step === 'email' && <EmailStep />}
         {store.step === 'invite' && <InviteStep />}
@@ -40,6 +42,7 @@ export const Login = complex.component(() => {
 
 const EmailStep = complex.component(() => {
   const store = complex.useStore();
+  const { t } = useTranslation('login');
   const loading = store.requestLoader.loading;
   return (
     <form
@@ -49,7 +52,7 @@ const EmailStep = complex.component(() => {
         void store.submitEmail();
       }}
     >
-      <label className="jx-login-label">邮箱</label>
+      <label className="jx-login-label">{t('email')}</label>
       <input
         className="jx-login-input"
         type="email"
@@ -59,7 +62,7 @@ const EmailStep = complex.component(() => {
         onChange={(e) => store.setEmail(e.target.value)}
       />
       <button className="jx-login-button" type="submit" disabled={loading || !store.email.trim()}>
-        {loading && <FontAwesomeIcon icon={faSpinner} spin />} 继续
+        {loading && <FontAwesomeIcon icon={faSpinner} spin />} {t('continue')}
       </button>
     </form>
   );
@@ -67,6 +70,7 @@ const EmailStep = complex.component(() => {
 
 const InviteStep = complex.component(() => {
   const store = complex.useStore();
+  const { t } = useTranslation('login');
   const loading = store.requestLoader.loading;
   return (
     <form
@@ -76,12 +80,12 @@ const InviteStep = complex.component(() => {
         void store.submitInvite();
       }}
     >
-      <div className="jx-login-hint">新邮箱注册需要邀请码</div>
-      <label className="jx-login-label">邀请码</label>
+      <div className="jx-login-hint">{t('inviteHint')}</div>
+      <label className="jx-login-label">{t('inviteCode')}</label>
       <input
         className="jx-login-input"
         autoFocus
-        placeholder="12 位邀请码"
+        placeholder={t('invitePlaceholder')}
         value={store.inviteCode}
         onChange={(e) => store.setInviteCode(e.target.value)}
       />
@@ -90,10 +94,10 @@ const InviteStep = complex.component(() => {
         type="submit"
         disabled={loading || !store.inviteCode.trim()}
       >
-        {loading && <FontAwesomeIcon icon={faSpinner} spin />} 发送验证码
+        {loading && <FontAwesomeIcon icon={faSpinner} spin />} {t('sendCode')}
       </button>
       <button className="jx-login-back" type="button" onClick={() => store.back()}>
-        <FontAwesomeIcon icon={faArrowLeft} /> 换个邮箱
+        <FontAwesomeIcon icon={faArrowLeft} /> {t('changeEmail')}
       </button>
     </form>
   );
@@ -101,6 +105,7 @@ const InviteStep = complex.component(() => {
 
 const VerifyStep = complex.component(() => {
   const store = complex.useStore();
+  const { t } = useTranslation('login');
   const loading = store.verifyLoader.loading;
   return (
     <form
@@ -110,8 +115,8 @@ const VerifyStep = complex.component(() => {
         void store.submitCode();
       }}
     >
-      <div className="jx-login-hint">验证码已发送至 {store.email}</div>
-      <label className="jx-login-label">6 位验证码</label>
+      <div className="jx-login-hint">{t('codeSentTo', { email: store.email })}</div>
+      <label className="jx-login-label">{t('codeLabel')}</label>
       <input
         className="jx-login-input jx-login-input--code"
         autoFocus
@@ -126,10 +131,10 @@ const VerifyStep = complex.component(() => {
         type="submit"
         disabled={loading || store.code.length !== 6}
       >
-        {loading && <FontAwesomeIcon icon={faSpinner} spin />} 登录
+        {loading && <FontAwesomeIcon icon={faSpinner} spin />} {t('login')}
       </button>
       <button className="jx-login-back" type="button" onClick={() => store.back()}>
-        <FontAwesomeIcon icon={faArrowLeft} /> 重新开始
+        <FontAwesomeIcon icon={faArrowLeft} /> {t('restart')}
       </button>
     </form>
   );
