@@ -73,17 +73,19 @@
 
 详设见 **`docs/design/factor-to-strategy.md`**。三步概述:
 
-### 3.1 因子编写 B:历史窗口 ⬜
+### 3.1 因子编写 B:历史窗口 ✅(2026-07-07)
 
-自定义因子 `compute` 现在只有当天横截面(FactorBar),表达力缺一半。给 compute 加第二参 `ctx`,提供 `ctx.history(n)`(后复权收盘窗口)→ 自定义动量/波动率可写。因子声明所需窗口长度(声明式,便于批量预载)。
+自定义因子 `compute` 现在只有当天横截面(FactorBar),表达力缺一半。给 compute 加第二参 `ctx`,提供 `ctx.history(n)`(后复权收盘窗口)→ 自定义动量/波动率可写。因子声明所需窗口长度(声明式,便于批量预载)。**实况**:`defineFactor` 加 `window` 声明 + `ctx.history(n)` / `ctx.history(n,'date')`(日期对齐窗口,可查停牌间隙);未声明 window 调用即抛错(不做隐式检测);dts/prompt 同步更新。
 
-### 3.1b 统一预置与自定义(预置代码化)⬜
+### 3.1b 统一预置与自定义(预置代码化)✅(2026-07-07,与 3.1 一次收口)
 
 预置因子也从库读代码、走同一 `compileFactor+compute` 路径运行,只是标记 `builtin` 只读——贯彻 code-first,删掉 `factors.ts` 两注册表 + `computeFactorSeries` 3 条硬编码分支归一。**前置**:price 预置等 3.1 的 `ctx.history`、moneyflow 预置等 3.2 的 moneyflow-into-context,故当作因子闭环收口一次做完,不单拎基本面(否则 1.5 套机制)。**收益**:预置可读 → 一键 fork 成变体,兑现研究路径②。**钉死点**:稳定 slug(缓存不 orphan)/ builtin 只读强制 / 仓库编写幂等 seed。详设见 `docs/design/factor-to-strategy.md` Step 1b。
 
+**实况(2026-07-07)**:moneyflow-into-context 以「FactorBar 加 netMain/netTotal(流量语义,当日精确缺则 null)」形态提前落地 → 9 个预置全部代码化(`factor/builtin-factors.ts`,git 为真相,boot 幂等 seed 进 Factor 表);**零 schema 迁移**——builtin 行用系统 `userId='builtin'` 哨兵(设计点 2 的备选方案)+ 固定 slug id;`factors.ts` 删除(引擎脚本用的纯函数搬进 `engine/strategies.ts` 自包含);`computeFactorSeries` 只剩一条 compile+compute 路径(声明 window 走逐股慢路径)。验收:单测 15 例价格公式逐位一致(含停牌/零价边界);真库 ep 全部 4 个旧缓存报告(全历史月/周)IDENTICAL;UI 预置只读编辑器 + 「复制为自定义」fork。注:预置代码以模板字符串存 `builtin-factors.ts`(设计点 3 的「仓库 .ts 可 type-check」以编译单测替代——每个预置过 compileFactor + 等价性断言,强于裸 type-check)。
+
 ### 3.2 因子→策略接入 ⬜(闭环最关键一环)
 
-「因子页验证 edge → 策略里一键使用」。核心:因子注册表带**时间语义声明** `kind: flow | level`(flow=精确当天缺则 null,如 moneyflow/龙虎榜;level=as-of 前填,如估值/财务),`ctx.factor(key)` 无 date 参数(防未来函数)、按声明解析;用户自定义因子在引擎内现场编译现场算(零存储,贵的才惰性 LRU);factor key 自动生成 dts 字面量联合类型进 Monaco 补全。**顺手修**:moneyflow 的 `ctx.factor` 现在被一刀切 as-of 前填,与其文档和 `ctx.lhbNet` 不自洽,改精确当天。
+(2026-07-07 注:其中 moneyflow-into-context 的**因子侧**已随 3.1b 落地;本条剩策略侧 `ctx.factor` 接入 + flow 语义修正。)「因子页验证 edge → 策略里一键使用」。核心:因子注册表带**时间语义声明** `kind: flow | level`(flow=精确当天缺则 null,如 moneyflow/龙虎榜;level=as-of 前填,如估值/财务),`ctx.factor(key)` 无 date 参数(防未来函数)、按声明解析;用户自定义因子在引擎内现场编译现场算(零存储,贵的才惰性 LRU);factor key 自动生成 dts 字面量联合类型进 Monaco 补全。**顺手修**:moneyflow 的 `ctx.factor` 现在被一刀切 as-of 前填,与其文档和 `ctx.lhbNet` 不自洽,改精确当天。
 
 ### 3.3 多因子合成 💤(远期,学习清单阶段 4 收尾)
 
@@ -123,7 +125,7 @@ stk_limit / moneyflow / toplist 只覆盖 2020-2024;跑更早回测前:`pnpm syn
 
 ### 4.2 数据扩展 💤(需求拉动,别囤)
 
-候选:北向资金、融资融券、概念板块;`FactorBar` 补 roe(fina_indicator 已在库)。**规则:有策略/因子想用了再加**。
+候选:北向资金、融资融券、概念板块;`FactorBar` 补 roe(fina_indicator 已在库)。**规则:有策略/因子想用了再加**。**2026-07-07 盘点完成**:缺口清单 + 波次计划见 `docs/design/data-expansion.md`(波次一 = fina_indicator 扩列全量重同步,满足 agent 基本面查询大半)。
 
 ### 4.3 研究面板 B/C ⬜(DX 打磨,已有规划)
 
@@ -135,7 +137,7 @@ SDK 现在三处镜像(`sdk.ts` 运行时 / `sdk-dts.ts` Monaco / `codegen-promp
 
 ### 4.5 多用户工程 💤(明确远期,没有第二个用户前都是负债)
 
-- 沙箱升级:`new Function` → QuickJS-WASM / isolated-vm(边界已收敛在 `compileStrategy`/`compileFactor`,换实现不动别处)。
+- 沙箱升级:`new Function` → QuickJS-WASM / isolated-vm(边界已收敛在 `compileStrategy`/`compileFactor`,换实现不动别处)。**2026-07-07 分析完成**:结论=近期只做 worker resourceLimits 加固、多用户时选 isolated-vm(QuickJS 性能税对 65 万次/跑的因子负载不可接受)+ 按调仓日批量进沙箱;Python 编写策略/因子**建议不做**(Python 只做 3.7 ML 的研究 sidecar)——trade-off 与决策清单见 `docs/design/python-and-sandbox.md`,**待用户拍板**。
 - worker 池 + job 队列(现在每次 spawn 一个 worker,单用户够用)。
 - 策略/因子 公开/私有。
 
@@ -158,7 +160,7 @@ SDK 现在三处镜像(`sdk.ts` 运行时 / `sdk-dts.ts` Monaco / `codegen-promp
 
 ## 使用原则(给自己的,2026-07-06 定)
 
-1. **主径优先于路线图顺序**:让一个真策略尽快走完「回测 → 回撤画像 → 上线信号 → 手动执行 3 个月」的完整循环,功能按主径堵点拉动开发,不按编号顺推。ROADMAP 是菜单,主径是导航;一个跑通的丑闭环 > 十个精致的半成品。
+1. **主径优先于路线图顺序**:让一个真策略尽快走完「回测 → 上线信号 → 手动执行 3 个月」的完整循环,功能按主径堵点拉动开发,不按编号顺推。ROADMAP 是菜单,主径是导航;一个跑通的丑闭环 > 十个精致的半成品。
 2. **回测好得离谱 = 先找 bug**:年化高得不像话时,按序排查前视(用了未来数据)/ 幸存者(数据层混入,见 4.7)/ 成本漏算,再谈兴奋。
 3. **小仓上线**:首个策略用 1~2 unit 跑 3~6 个月,目的是测量「回测 vs 实盘」落差(5.2 回填数据),不是赚钱;落差小加仓有据,落差大原因即研究。
 4. **期望与基线**:多头日频个人系统,年化稳定超沪深300 几个点 + 回撤可控 = 优秀;真实对照基线永远是「ETF 定投 + 零精力」,系统长期跑不过它也是平台给出的诚实答案。评估任何策略看跨行情结构的月度表现(2015 股灾/2018 熊/2019-20 牛/2022-24 磨底,数据都在)。
@@ -207,13 +209,13 @@ SDK 现在三处镜像(`sdk.ts` 运行时 / `sdk-dts.ts` Monaco / `codegen-promp
 
 同一套进出场信号对比不同仓位方案(等权 / 固定 unit / ATR 风险仓位 / 波动率目标)。SDK 加中性 sizing 原语(`ctx.atrUnits` 等,不预设哪种好);对比视图**骑在 1.2 参数扫描的基础设施上**(仓位方案本质是一种参数)。
 
-### 6.2 回撤画像 + 预承诺卡 ⬜(便宜、高价值,建议提前)
+### 6.2 回撤画像 + 预承诺卡 💤(2026-07-06 判定伪需求,先不做)
 
-对回测结果 bootstrap 重采样 → 「最深回撤 X% / 水下最长 Y 个月 / 每年正常连亏 Z 笔 / 95% 置信最深回撤 W%」。策略上线前展示这张卡让用户**事前签收**。纯统计零引擎改动,也是学习清单阶段 5 的活教材。
+**搁置理由**:① 结果面板已有实际最大回撤 + 月度收益热力图,「跨行情段看表现」基本已覆盖;② bootstrap 重排会毁掉真实收益顺序(回撤对顺序敏感),打乱后已非历史,虚构统计价值可疑——用户判定伪需求。唯一真缺的是回撤的**水下时长/恢复期**(热力图看不出深度与恢复),但价值有限,等真要上线某个策略时再顺手加,不单列一项。详设 `sizing-and-discipline.md` 6.2 保留备查。
 
-### 6.3 系统健康监控 ⬜(依赖主线五)
+### 6.3 系统健康监控 💤(随 6.2 搁置)
 
-每日信号任务重放出的模型权益,持续对照历史 bootstrap 期望带 → 三档状态:正常 / 偏离观察 / 超出历史经验。回撤中「系统坏了吗」给统计答案而非情绪答案。
+原设计:每日信号重放出的模型权益,对照历史 bootstrap 期望带出三档状态。**但对照基准整个建在 6.2 的 bootstrap 分布上,随 6.2 一并搁置**。核心问题(回撤中「系统坏了还是正常」)仍成立,但短实盘期做统计判断本就意义薄(设计文档自承「灯几乎恒绿」);真要做需改「对照真实历史各段回撤」的口径,届时重想。
 
 ### 6.4 策略容量测算 ⬜
 
@@ -225,15 +227,52 @@ SDK 现在三处镜像(`sdk.ts` 运行时 / `sdk-dts.ts` Monaco / `codegen-promp
 
 ---
 
+## 主线七 · 统一 Agent(对话式研究入口)✅(2026-07-06 增,当日完成)
+
+**一句话**:lab / factor / screen 共用一个 agent 核心(profile 化:写策略 / 写因子 / 筛标的 / 金融问答),agent 获得**只读数据工具**(从「盲写代码」到「先查库再写」),能在对话里回**可重跑的查询卡片**(存 spec 不存结果);screen 页降级改造为「卡片墙」(骑现有 SavedScreen,陈列与复用归页面、生产归 agent)。**IR 分野**:策略是程序 → code-first 不变;查询是声明式 → ScreenSpec 就是正确形态,不是历史包袱。
+
+详设见 **`docs/design/unified-agent.md`**。四阶段:
+
+### 7.1 统一 agent 核心 ✅(纯重构)
+
+合并 `agentTurn` / `factorAgentTurn` / factor `/qa` 三处镜像为 `agent/core.ts` + profile;行为不变,现有测试迁移后原样通过。**实况**:`apps/api/src/agent/{core.ts, profiles/}` 四个 profile(strategy/factor/screen/qa),旧 `agent.ts`/`factor-agent.ts` 删除,vitest 全绿。
+
+### 7.2 只读工具调用 ✅(真正的跃迁)
+
+`AgentLlm`(DeepSeek function calling,退路=JSON 协议模拟)+ 首批 3 个白名单只读工具(`searchInstruments` / `dataCoverage` / `runScreen`),每 turn 工具轮数 ≤5;工具按需求加不囤。**实况**:`chatTools` + 工具循环(工具阶段前、修复阶段后互不嵌套,单 turn ≤8 次 LLM 调用,观察不持久化);工具参数 zod→`z.toJSONSchema` 单一来源;真实冒烟三条全对(「宁王」自行规范化后确定性查到 300750.SZ),**JSON 退路未启用**。dataCoverage 对 1100 万行 daily 的 COUNT 约 8s,暂可接受(实测慢再优化)。
+
+### 7.3 消息 parts + 查询卡片 ✅
+
+ChatMessage 升级 parts(text | card,旧消息兼容读,Prisma 零迁移);卡片由 `runScreen` 工具调用副产(零幻觉面),前端渲染表格、点行进个股页、可保存为 SavedScreen。**实况**:`normalizeChatMessage` 兼容旧 `{content}` 行;`QueryCard` 组件列随 spec 自适应(前端确定性推导,非 LLM 挑列),spec 失效降级为「已过期」态;toolTrace「查库 N 次」临时展示(持久化时被 zod 剥掉)。
+
+### 7.4 screen 页 → 卡片墙 ✅
+
+NL 入口收编进 agent(确定性 LIKE 解析保留为 `searchInstruments` 内核),`nl-to-screen` 删除;screen 页 = **一面墙、两种卡片**:查询卡片(SavedScreen,点开重跑/编辑)+ 会话卡片(新表 ScreenConversation,点开回看续聊)——筛选对话本身值得回看(筛选思路是研究过程的一部分),展示统一、存储分离。**实况**:ScreenConversation 迁移按 migrate-lock 先例手动 DDL + 补记录(库未 reset);`/screen/query`、`SavedBar`、`screenForCodes`/`resolveByNames` 一并清理;e2e 全流程走通(真 LLM 对话出卡片、会话重开卡片重跑、删会话不伤查询卡片)。
+
+### 7.5 对话 SSE 流式 + 刷新续接 ✅(2026-07-06 增,当日完成,用户拉动)
+
+仿 marginalia streamBus/streamRun:两步式(POST 返 `turnId`,turn 后台跑)+ `turnBus` 内存 pub/sub(订阅首帧永远是 snapshot → 刷新重订阅天然续接,done 后 60s TTL)+ 共享端点(`/agent/turns/:id/stream`、`running?entity=`、`cancel`)。**实况**:`chatTools` 升级为真流式(token delta + tool_calls 分片累积);**turn 期间持久化改归服务端**(runner 先落 user 消息再跑 LLM,done 前落 assistant——「前端持久化」定死项经用户拍板取代);jixie 比 marginalia 更简:无 DB status/heartbeat/sweeper,进程重启=注册表清空、以已存内容为准;修复轮不发 delta 改发 repair 事件;pending 气泡遇围栏只显示围栏前文本+「正在写代码」+停止按钮;qa 无宿主不持久化但同样流式。e2e 含「发消息→中途刷新→重开会话→续接→卡片落地」用例,全绿。
+
+### 7.6 只读 SQL + 动态图表卡片 ✅(2026-07-07 增,当日完成,用户拍板「SQL 全打开限特定表 + 连接层硬只读」)
+
+- **sqlQuery 工具**:对 12 张行情/财务数据表开放只读 SQL(SQLite 方言,聚合/分组/时序/JOIN 全可用)——runScreen 白名单 spec 表达不了的统计分析走这里。守卫五层:单语句 / SELECT|WITH 开头 / 写关键字黑名单 / FROM-JOIN 表白名单(应用表 User/Session/Strategy/Factor… 双层拦截)/ LIMIT 强制;**硬只读边界 = 持久 worker 线程里的 `node:sqlite` readOnly 连接**(同步 API 不阻塞主线程、超时 terminate+重生)。⚠️ 运行时要求升到 **Node ≥22.13**(engines + bootstrap.sh 已同步改,VPS 重跑 bootstrap 升级;Node 20 已 EOL 本就该升)。
+- **renderChart 工具 + chart 卡片**:MessagePart 新增 chart 类型,与查询卡片同一铁律「存查询不存结果」(spec = kind/sql/x/series,前端经 `POST /agent/sql` 重跑渲染 echarts);模型只做列映射不产数据,零幻觉面。前端 `ChatChart` 三态同高(骨架/错误/图 260px)不跳动;三页对话的 parts 渲染统一抽成 `MessageParts` 组件(再加 part 类型只改一处)。
+- 同日顺手:骨架屏稳定性(查询卡片表格形骨架 / 卡片墙同 grid 骨架卡 / pending 气泡流式 markdown + 近底部跟随滚动)。
+
+**远期(本期不做)**:`runFactorAnalysis` / `runQuickBacktest` 工具让 agent 写完自己跑、看结果自己改——依赖长任务进对话流的形态,届时另出设计。
+
+---
+
 ## 建议实施顺序
 
 | 阶段 | 内容 | 理由 |
 |---|---|---|
-| 近期 | **4.6 备份(最先,半小时的事)** → 1.1 滑点收尾 → 1.2 参数扫描 → 6.2 回撤画像 → 4.4 SDK 单一来源;4.7 数据审计穿插 | 备份是唯一不可逆风险;可信度回报最快;回撤画像纯统计、成本极低;SDK 统一是后面所有 SDK 扩展的前置 |
+| 近期 | **4.6 备份(最先,半小时的事)** → 1.1 滑点收尾 → 1.2 参数扫描 → 4.4 SDK 单一来源;4.7 数据审计穿插 | 备份是唯一不可逆风险;可信度回报最快;SDK 统一是后面所有 SDK 扩展的前置 |
 | 中期 A | 2.1 订单类型 + 2.4 helper → 2.2 多周期 | 表达力刚需,趋势策略写得出、回撤更真实 |
 | 中期 B | 3.1 因子历史窗口 → 3.4 分析深化(中性化/相关性/费后)→ 3.2 因子→策略接入;3.5/3.6 随手做 | 产品叙事最完整的闭环;中性化决定「验证」的成色,排在接入之前 |
-| 中期 C | 主线五 每日信号 → 6.3 系统健康监控 | 引擎能力已齐;健康监控是信号线的纪律配套 |
+| 中期 C | 主线五 每日信号 | 引擎能力已齐(6.3 健康监控随 6.2 搁置) |
 | 中期 D | 6.1 仓位实验室 + 6.4 容量测算 | 骑在 1.2 扫描/滑点基础设施上,顺势做 |
+| ~~中期 E~~ | ~~主线七 统一 Agent~~ ✅ 2026-07-06 四阶段一次做完 | 7.1 零风险纯重构,越早做越止住 agent 拷贝增殖;7.2 起显著提升 agent 写代码质量 |
 | 远期 | 3.3 多因子合成 → 3.7 ML 合成 · 1.3 分红 Model B + 6.5 股息税 · 4.2 数据扩展 · 4.5 多用户工程 | 有前置或等需求拉动;线性合成是 ML 的对照基线,顺序不可倒 |
 
-中期 A/B/C/D 互相独立,可按兴趣并行/换序;每日信号如果想早点用起来,可以提前到中期最前(它不依赖 A/B)。
+中期 A/B/C/D/E 互相独立,可按兴趣并行/换序;每日信号如果想早点用起来,可以提前到中期最前(它不依赖 A/B)。
