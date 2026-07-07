@@ -21,8 +21,8 @@ export interface BuiltinFactorDef {
   code: string; // defineFactor TS module, materialized into the Factor row
 }
 
-const MOMENTUM_CODE = `// 预置:动量 —— 近60日收益,跳过最近5日(避开短期反转污染)。
-// 窗口内相邻交易日的日历间隔 > 30 天(≈ 停牌1个月以上)视为序列不连续,该期剔除。
+const MOMENTUM_CODE = `// Preset: momentum — 60-day return, skipping the most recent 5 days (avoids short-term reversal contamination).
+// A calendar gap > 30 days between adjacent trading days in the window (~ suspended for over a month) marks the series discontinuous; drop that period.
 export default defineFactor({
   name: '动量(60日,跳5)',
   window: 61,
@@ -37,8 +37,8 @@ export default defineFactor({
         return null;
       }
     }
-    const recent = closes[55]; // 当天 - 5
-    const past = closes[0]; // 当天 - 60
+    const recent = closes[55]; // day - 5
+    const past = closes[0]; // day - 60
     if (!recent || !past) {
       return null;
     }
@@ -46,14 +46,14 @@ export default defineFactor({
   },
 });
 
-// 两个 YYYYMMDD 之间的日历天数
+// Calendar days between two YYYYMMDD dates.
 function gapDays(a: string, b: string): number {
   const day = (s: string) => Date.UTC(+s.slice(0, 4), +s.slice(4, 6) - 1, +s.slice(6)) / 86400000;
   return day(b) - day(a);
 }
 `;
 
-const REVERSAL_CODE = `// 预置:短期反转 —— 近5日收益(A股散户主导,该因子 IC 通常为负 = 买跌得最狠的)。
+const REVERSAL_CODE = `// Preset: short-term reversal — 5-day return (A-share market is retail-dominated; this factor's IC is usually negative = buy the biggest losers).
 export default defineFactor({
   name: '反转(5日)',
   window: 6,
@@ -76,14 +76,14 @@ export default defineFactor({
   },
 });
 
-// 两个 YYYYMMDD 之间的日历天数
+// Calendar days between two YYYYMMDD dates.
 function gapDays(a: string, b: string): number {
   const day = (s: string) => Date.UTC(+s.slice(0, 4), +s.slice(4, 6) - 1, +s.slice(6)) / 86400000;
   return day(b) - day(a);
 }
 `;
 
-const VOLATILITY_CODE = `// 预置:已实现波动率 —— 近20日日收益率标准差(低波动异象,IC 通常为负 = 低波更好)。
+const VOLATILITY_CODE = `// Preset: realized volatility — standard deviation of the last 20 daily returns (low-volatility anomaly; IC is usually negative = lower vol is better).
 export default defineFactor({
   name: '波动率(20日)',
   window: 21,
@@ -112,7 +112,7 @@ export default defineFactor({
   },
 });
 
-// 两个 YYYYMMDD 之间的日历天数
+// Calendar days between two YYYYMMDD dates.
 function gapDays(a: string, b: string): number {
   const day = (s: string) => Date.UTC(+s.slice(0, 4), +s.slice(4, 6) - 1, +s.slice(6)) / 86400000;
   return day(b) - day(a);
@@ -127,7 +127,7 @@ export const BUILTIN_FACTORS: BuiltinFactorDef[] = [
     key: 'ep',
     label: '盈利收益率(1/PE_TTM)',
     kind: 'fundamental',
-    code: `// 预置:盈利收益率 —— PE_TTM 的倒数(便宜=值大);亏损股(PE≤0)剔除。
+    code: `// Preset: earnings yield — reciprocal of PE_TTM (cheaper = larger value); loss-making stocks (PE <= 0) are dropped.
 export default defineFactor({
   name: '盈利收益率(1/PE_TTM)',
   compute: (bar) => (bar.peTtm && bar.peTtm > 0 ? 1 / bar.peTtm : null),
@@ -138,7 +138,7 @@ export default defineFactor({
     key: 'bp',
     label: '账面市值比(1/PB)',
     kind: 'fundamental',
-    code: `// 预置:账面市值比 —— PB 的倒数(经典价值因子)。
+    code: `// Preset: book-to-market — reciprocal of PB (classic value factor).
 export default defineFactor({
   name: '账面市值比(1/PB)',
   compute: (bar) => (bar.pb && bar.pb > 0 ? 1 / bar.pb : null),
@@ -149,7 +149,7 @@ export default defineFactor({
     key: 'dv',
     label: '股息率(%)',
     kind: 'fundamental',
-    code: `// 预置:股息率 —— daily_basic 的 dvRatio 原值(%)。
+    code: `// Preset: dividend yield — raw dvRatio value from daily_basic (%).
 export default defineFactor({
   name: '股息率(%)',
   compute: (bar) => bar.dvRatio,
@@ -160,7 +160,7 @@ export default defineFactor({
     key: 'size',
     label: '规模(ln总市值)',
     kind: 'fundamental',
-    code: `// 预置:规模 —— ln(总市值)。方向由 IC 揭示(A股长期小盘溢价 = IC 为负)。
+    code: `// Preset: size — ln(total market cap). Direction is revealed by IC (A-share long-run small-cap premium = negative IC).
 export default defineFactor({
   name: '规模(ln总市值)',
   compute: (bar) => (bar.totalMv && bar.totalMv > 0 ? Math.log(bar.totalMv) : null),
@@ -171,7 +171,7 @@ export default defineFactor({
     key: 'mf_net_main',
     label: '主力净额(万元)',
     kind: 'moneyflow',
-    code: `// 预置:主力净额 —— (大单+特大单)买入−卖出,万元。流量语义:当日无数据为 null,不前填。
+    code: `// Preset: main-force net amount — (large + extra-large orders) buy minus sell, in 10k yuan. Flow semantics: null when no data that day, never carried forward.
 export default defineFactor({
   name: '主力净额(万元)',
   compute: (bar) => bar.netMain,
@@ -182,7 +182,7 @@ export default defineFactor({
     key: 'mf_net_total',
     label: '总净额(万元)',
     kind: 'moneyflow',
-    code: `// 预置:总净额 —— 全单种净流入(net_mf_amount),万元。流量语义:当日无数据为 null,不前填。
+    code: `// Preset: total net amount — net inflow across all order sizes (net_mf_amount), in 10k yuan. Flow semantics: null when no data that day, never carried forward.
 export default defineFactor({
   name: '总净额(万元)',
   compute: (bar) => bar.netTotal,

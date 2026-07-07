@@ -42,11 +42,11 @@ function main() {
     sqlite3(['-version']);
   } catch {
     throw new Error(
-      '未找到 sqlite3 CLI —— 安装后重试(macOS 自带;Ubuntu: apt install sqlite3;CentOS: yum install sqlite)',
+      'sqlite3 CLI not found — install it and retry (macOS ships it; Ubuntu: apt install sqlite3; CentOS: yum install sqlite)',
     );
   }
   if (!existsSync(dbPath)) {
-    throw new Error(`数据库不存在: ${dbPath}`);
+    throw new Error(`database not found: ${dbPath}`);
   }
 
   mkdirSync(backupDir, { recursive: true });
@@ -64,14 +64,16 @@ function main() {
   try {
     tableCount = sqlite3([dest, 'SELECT count(*) FROM sqlite_master;']);
     if (!(Number(tableCount) > 0)) {
-      throw new Error('sqlite_master 为空');
+      throw new Error('sqlite_master is empty');
     }
   } catch (e) {
     unlinkSync(dest); // don't leave a corrupt copy that rotation might keep
-    throw new Error(`备份校验失败,已删除坏副本: ${e instanceof Error ? e.message : e}`);
+    throw new Error(
+      `backup verification failed, corrupt copy deleted: ${e instanceof Error ? e.message : e}`,
+    );
   }
   const secs = ((Date.now() - started) / 1000).toFixed(1);
-  console.log(`[backup] 完成 ${mib(statSync(dest).size)} · ${tableCount} 张表 · ${secs}s`);
+  console.log(`[backup] done ${mib(statSync(dest).size)} · ${tableCount} tables · ${secs}s`);
 
   rotate();
 }
@@ -87,8 +89,8 @@ function rotate() {
     unlinkSync(join(backupDir, name));
   }
   console.log(
-    `[backup] 保留 ${Math.min(backups.length, keep)}/${backups.length} 份` +
-      (stale.length ? ` · 删除 ${stale.length} 份旧备份` : ''),
+    `[backup] kept ${Math.min(backups.length, keep)}/${backups.length}` +
+      (stale.length ? ` · deleted ${stale.length} old backup(s)` : ''),
   );
 }
 

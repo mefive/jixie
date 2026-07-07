@@ -1,4 +1,5 @@
 import { transform } from 'esbuild';
+import { DEFAULT_LOCALE, type Locale } from '@jixie/shared';
 import type { Strategy } from '../../engine/types.js';
 import {
   makeSandboxConsole,
@@ -20,7 +21,11 @@ import { defineStrategy } from './sdk.js';
  * compile-check, evaluated and discarded) and the DIRECT lane (repo-checked-in strategies in
  * research scripts/tests — the lane rule follows the code's origin, see python-and-sandbox.md).
  */
-export async function compileStrategy(source: string, onUserLog?: UserLogSink): Promise<Strategy> {
+export async function compileStrategy(
+  source: string,
+  onUserLog?: UserLogSink,
+  locale: Locale = DEFAULT_LOCALE,
+): Promise<Strategy> {
   let js: string;
   try {
     // TS → CJS JS: strip types, emit module.exports so we can capture `export default`.
@@ -34,7 +39,7 @@ export async function compileStrategy(source: string, onUserLog?: UserLogSink): 
   // The strategy's console.* is captured and tagged as user log (with a line cap); without a sink
   // (tests / codegen self-check) it's a no-op rather than leaking to the process stdout.
   const sandboxConsole: SandboxConsole = onUserLog
-    ? makeSandboxConsole(onUserLog)
+    ? makeSandboxConsole(onUserLog, 2000, locale)
     : noopSandboxConsole;
 
   const mod: { exports: Record<string, unknown> } = { exports: {} };
