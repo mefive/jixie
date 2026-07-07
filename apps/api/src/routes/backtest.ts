@@ -5,6 +5,7 @@ import type { BacktestConfig, LogLine } from '@jixie/shared';
 import { apiError, validateJson, validateQuery } from '../lib/httpError.js';
 import { codeConfigSchema } from '../strategy/code/schema.js';
 import { createJob, appendLog, finishJob, getJob, findRunningJob } from '../lib/jobs.js';
+import { m } from '../i18n/index.js';
 
 /**
  * Backtest API. A backtest is CPU-heavy and would block the HTTP event loop, so it runs in a worker
@@ -30,7 +31,7 @@ backtestRoute.post('/', validateQuery(strategyQuery), validateJson(codeConfigSch
   const config = c.req.valid('json') as BacktestConfig;
   const { strategyId } = c.req.valid('query');
   if (config.start >= config.end) {
-    return apiError(c, 'VALIDATION_FAILED', '起始日期必须早于结束日期', { field: 'start' });
+    return apiError(c, 'VALIDATION_FAILED', m(c, 'startAfterEnd'), { field: 'start' });
   }
   const userId = c.var.userId;
 
@@ -56,7 +57,7 @@ backtestRoute.post('/', validateQuery(strategyQuery), validateJson(codeConfigSch
   worker.on('error', (err) => done('error', err.message));
   worker.on('exit', (code) => {
     if (code !== 0) {
-      done('error', `回测进程异常退出 (code ${code})`);
+      done('error', m(c, 'backtestProcExited', { code }));
     }
   });
   return c.json({ jobId });
@@ -71,7 +72,7 @@ backtestRoute.get('/running', validateQuery(strategyQuery), async (c) => {
 backtestRoute.get('/:jobId', validateQuery(sinceQuery), async (c) => {
   const job = await getJob(c.req.param('jobId'), Number(c.req.valid('query').since ?? '0'));
   if (!job) {
-    return apiError(c, 'NOT_FOUND', '回测任务不存在或已过期');
+    return apiError(c, 'NOT_FOUND', m(c, 'backtestJobNotFound'));
   }
   return c.json(job);
 });

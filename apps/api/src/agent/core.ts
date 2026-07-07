@@ -1,10 +1,13 @@
 import {
   messageText,
+  DEFAULT_LOCALE,
   type ChatMessage as UiMessage,
+  type Locale,
   type MessagePart,
   type ToolTraceItem,
 } from '@jixie/shared';
 import type { AgentLlm, ToolAwareMessage, ToolCall } from '../llm/agent-llm.js';
+import { t } from '../i18n/index.js';
 import type { AgentCard, AgentChart, AgentTool } from './tools/types.js';
 
 /**
@@ -167,9 +170,9 @@ export async function agentTurn(
   message: string,
   currentCode: string,
   llm: AgentLlm,
-  opts: { maxRepairs?: number; hooks?: AgentTurnHooks } = {},
+  opts: { maxRepairs?: number; hooks?: AgentTurnHooks; locale?: Locale } = {},
 ): Promise<AgentTurnResult> {
-  const { maxRepairs = 2, hooks } = opts;
+  const { maxRepairs = 2, hooks, locale = DEFAULT_LOCALE } = opts;
   const { artifact } = profile;
   const throwIfAborted = () => {
     if (hooks?.signal?.aborted) {
@@ -246,7 +249,7 @@ export async function agentTurn(
     };
   }
 
-  const reply = stripFence(raw) || '(已更新代码)';
+  const reply = stripFence(raw) || t(locale, 'codeUpdated');
   let code = extractFenced(raw);
   // No code block → a pure answer / question; leave the current code as-is.
   if (!code) {
@@ -282,7 +285,7 @@ export async function agentTurn(
 
   // Ran out of repair rounds — keep the working code, tell the user the change didn't land.
   return {
-    reply: `${reply}\n\n(⚠️ 生成的改动没能通过编译,已保留原代码;换个说法再试。错误:${lastError})`,
+    reply: `${reply}\n\n${t(locale, 'changeDidNotCompile', { error: lastError })}`,
     code: currentCode,
     changed: false,
     attempts,

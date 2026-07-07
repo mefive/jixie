@@ -5,23 +5,33 @@ import { z } from 'zod';
 export const chartSpecSchema = z.object({
   kind: z
     .enum(['line', 'bar', 'scatter'])
-    .describe('图类型:line 时序/趋势、bar 分组对比、scatter 两量关系'),
+    .describe(
+      'chart kind: line for time series/trend, bar for grouped comparison, scatter for the relationship between two quantities',
+    ),
   sql: z
     .string()
     .min(8)
     .max(4000)
     .describe(
-      '产出数据点的单条 SELECT(SQLite 方言,同 sqlQuery 的表白名单),行数≤500,注意 ORDER BY 决定点的顺序',
+      'a single SELECT producing the data points (SQLite dialect, same table whitelist as sqlQuery), ≤500 rows; note that ORDER BY determines the point order',
     ),
-  x: z.string().min(1).max(60).describe('作为 X 轴的结果列名(如 tradeDate / industry)'),
+  x: z
+    .string()
+    .min(1)
+    .max(60)
+    .describe('the result column used as the X axis (e.g. tradeDate / industry)'),
   series: z
     .array(
       z.object({
-        column: z.string().min(1).max(60).describe('作为一条序列 Y 值的结果列名'),
-        label: z.string().max(30).optional().describe('图例名(缺省用列名)'),
+        column: z
+          .string()
+          .min(1)
+          .max(60)
+          .describe("the result column holding one series' Y values"),
+        label: z.string().max(30).optional().describe('legend name (defaults to the column name)'),
       }),
     )
     .min(1)
     .max(5)
-    .describe('要画的序列(1~5 条)'),
+    .describe('the series to draw (1–5)'),
 });
