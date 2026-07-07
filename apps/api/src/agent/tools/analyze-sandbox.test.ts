@@ -46,11 +46,13 @@ describe('runAnalysisCode(analyzeData 沙盒)', () => {
         `import fs from 'fs'; export default () => fs.readFileSync('/etc/hosts');`,
         DATA,
       ),
-    ).rejects.toThrow(/不能 import 外部模块/);
+    ).rejects.toThrow(/cannot import external module/);
   });
 
   it('语法错误报编译失败', async () => {
-    await expect(runAnalysisCode(`export default ({) => 1`, DATA)).rejects.toThrow(/编译失败/);
+    await expect(runAnalysisCode(`export default ({) => 1`, DATA)).rejects.toThrow(
+      /compilation failed/,
+    );
   });
 
   it('原型链逃逸拿不到宿主(isolate 的全局里没有 process/require)', async () => {
@@ -67,6 +69,6 @@ describe('runAnalysisCode(analyzeData 沙盒)', () => {
   it('死循环被 CPU 超时硬杀', async () => {
     await expect(
       runAnalysisCode(`export default () => { for (;;) {} }`, DATA, { timeoutMs: 500 }),
-    ).rejects.toThrow(/执行出错/);
+    ).rejects.toThrow(/execution error/);
   }, 15000);
 });

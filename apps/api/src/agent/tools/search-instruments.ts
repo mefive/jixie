@@ -9,7 +9,7 @@ const argsSchema = z.object({
     .trim()
     .min(1)
     .max(80)
-    .describe('股票名称、简称片段或 6 位代码,如「茅台」「600519」'),
+    .describe('stock name, name-fragment, or 6-digit code, e.g. 「茅台」or 「600519」'),
 });
 
 const MAX_MATCHES = 20;
@@ -19,12 +19,14 @@ const MAX_MATCHES = 20;
 export const searchInstruments: AgentTool = {
   name: 'searchInstruments',
   description:
-    '按名称/简称片段/6位代码在本地股票列表中查 A 股标的(确定性匹配,绝不臆造代码)。一次查一个;找不到返回空列表。',
+    'Look up an A-share instrument in the local stock list by name / name-fragment / 6-digit code (deterministic matching, never fabricates codes). One lookup at a time; returns an empty list when nothing is found.',
   parameters: z.toJSONSchema(argsSchema),
   async run(args) {
     const parsed = argsSchema.safeParse(args);
     if (!parsed.success) {
-      throw new Error(`参数不合法:${parsed.error.issues.map((issue) => issue.message).join('; ')}`);
+      throw new Error(
+        `Invalid arguments: ${parsed.error.issues.map((issue) => issue.message).join('; ')}`,
+      );
     }
 
     const codes = (await resolveInstruments(parsed.data.query)).slice(0, MAX_MATCHES);

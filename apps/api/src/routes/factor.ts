@@ -15,6 +15,7 @@ import { enqueueAgentTurn, entityKey } from '../agent/turn-run.js';
 import * as turnBus from '../agent/turn-bus.js';
 import { chatMessagesSchema } from '../lib/chat-schema.js';
 import { createJob, appendLog, finishJob, getJob, findRunningJob } from '../lib/jobs.js';
+import { localeFromRequest } from '../i18n/index.js';
 
 /**
  * Factor-analysis API (产品线 1.5 · 因子研究). Reports are per-user (a public factor's analysis is still
@@ -273,14 +274,21 @@ const nameBody = z
 
 factorRoute.post('/name', validateJson(nameBody), async (c) => {
   const { code, prompt, currentName } = c.req.valid('json');
+
+  // The generated name is user-facing, so its language follows the request locale.
+  const nameLangHint =
+    localeFromRequest(c) === 'en'
+      ? 'a short English name (≤5 words)'
+      : 'a short Chinese name (≤12 chars)';
+
   let name: string;
   try {
     const system =
       code != null
         ? currentName
-          ? `你是 A 股因子命名助手。读因子代码,它当前叫「${currentName}」。若这名称仍准确概括代码逻辑,就**原样返回它**;只有逻辑明显不符时才起一个更贴切的简短中文名(≤12字)。只输出名称本身——不要引号、解释、结尾标点。`
-          : '你是 A 股因子命名助手。读因子代码,起一个简短中文名称(≤12字,概括其计算逻辑),只输出名称本身——不要引号、解释、结尾标点。'
-        : '你是 A 股因子命名助手。读用户的自然语言因子需求,起一个简短中文名称(≤12字),只输出名称本身——不要引号、解释、结尾标点。';
+          ? `You name A-share factors. Read the factor code; it is currently called "${currentName}". If that name still accurately summarizes the code's logic, **return it unchanged**; only when the logic has clearly drifted, propose a more fitting ${nameLangHint}. Output only the name itself — no quotes, no explanation, no trailing punctuation.`
+          : `You name A-share factors. Read the factor code and propose ${nameLangHint} summarizing its computation. Output only the name itself — no quotes, no explanation, no trailing punctuation.`
+        : `You name A-share factors. Read the user's natural-language factor request and propose ${nameLangHint}. Output only the name itself — no quotes, no explanation, no trailing punctuation.`;
     const raw = await chatText([
       { role: 'system', content: system },
       { role: 'user', content: code ?? prompt! },

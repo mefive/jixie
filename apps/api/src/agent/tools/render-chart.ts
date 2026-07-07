@@ -11,7 +11,11 @@ const OBSERVATION_SAMPLE_ROWS = 5;
 
 // Tool args = the persisted ChartSpec + a display title (the title lives on the part, not the spec).
 const argsSchema = chartSpecSchema.extend({
-  title: z.string().min(1).max(60).describe('图表标题(给用户看,中文)'),
+  title: z
+    .string()
+    .min(1)
+    .max(60)
+    .describe("chart title (shown to the user, in the same language as the user's question)"),
 });
 
 /** Render a chart from a read-only SQL result. The executed spec (query + column mapping) doubles
@@ -20,18 +24,22 @@ const argsSchema = chartSpecSchema.extend({
  * on the data itself. */
 export const renderChartTool: AgentTool = {
   name: 'renderChart',
-  description: `用只读 SQL 的结果画图表(折线/柱状/散点),图会以卡片形式直接展示给用户。先想清楚 SQL 要产出什么形状:每行一个 X 值,选中的列是各序列的 Y 值(多序列先在 SQL 里聚合/透视成列)。适合:指数走势、行业均值对比、估值分布(先在 SQL 里分桶 GROUP BY)、两个量的散点关系。表白名单与 sqlQuery 相同;时序请 ORDER BY 日期升序。画完不必再用文字复述数据点。`,
+  description: `Draw a chart (line / bar / scatter) from a read-only SQL result; the chart is shown directly to the user as a card. Think first about the shape the SQL must produce: one X value per row, and the selected columns are the Y values of each series (for multiple series, aggregate/pivot into columns in SQL first). Good for: index trends, cross-industry mean comparisons, valuation distributions (bucket with GROUP BY in SQL first), the scatter relationship between two quantities. The table whitelist is the same as sqlQuery; for time series, ORDER BY date ascending. Once drawn, you need not restate the data points in text.`,
   parameters: z.toJSONSchema(argsSchema),
   async run(args) {
     const parsed = argsSchema.safeParse(args);
     if (!parsed.success) {
-      throw new Error(`参数不合法:${parsed.error.issues.map((issue) => issue.message).join('; ')}`);
+      throw new Error(
+        `Invalid arguments: ${parsed.error.issues.map((issue) => issue.message).join('; ')}`,
+      );
     }
 
     const { title, ...spec } = parsed.data;
     const rows = await runReadOnlySql(spec.sql, CHART_ROW_CAP);
     if (!rows.length) {
-      throw new Error('查询没有返回任何行,画不了图;请检查条件或先用 sqlQuery 探查');
+      throw new Error(
+        'The query returned no rows, so no chart can be drawn; check the conditions or explore with sqlQuery first',
+      );
     }
 
     // Column mapping must hold on the actual result — a wrong column name fails the whole call
@@ -42,7 +50,7 @@ export const renderChartTool: AgentTool = {
     );
     if (missing.length) {
       throw new Error(
-        `结果集中没有列:${missing.join('、')}(实际列:${availableColumns.join('、')})`,
+        `The result set has no such columns: ${missing.join(', ')} (actual columns: ${availableColumns.join(', ')})`,
       );
     }
 

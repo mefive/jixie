@@ -3,8 +3,8 @@ import ivm from 'isolated-vm';
 import { transform } from 'esbuild';
 
 /**
- * Hard sandbox for user/model-authored code (2026-07-07 用户拍板「现在就上 isolated-vm」,Phase A:
- * 因子 compute + analyzeData;策略 onBar 的 ctx 桥是 Phase B,见 python-and-sandbox.md).
+ * Hard sandbox for user/model-authored code (Phase A: factor compute + analyzeData; the strategy
+ * onBar ctx bridge is Phase B — see python-and-sandbox.md).
  *
  * The layering, spelled out once:
  *   - DB access belongs to OUR code (prisma in workers, the readonly SQL worker) — never injected;
@@ -35,12 +35,12 @@ function statsJs(): Promise<string> {
 }
 
 /** esbuild-strip a user module to CJS (same validation error shape the old sandboxes threw). */
-export async function toCommonJs(source: string, noun = '代码'): Promise<string> {
+export async function toCommonJs(source: string, noun = 'code'): Promise<string> {
   try {
     const { code } = await transform(source, { loader: 'ts', format: 'cjs', target: 'es2022' });
     return code;
   } catch (e) {
-    throw new Error(`${noun}编译失败:${e instanceof Error ? e.message : String(e)}`);
+    throw new Error(`${noun} compilation failed: ${e instanceof Error ? e.message : String(e)}`);
   }
 }
 
@@ -78,9 +78,9 @@ export async function loadIsolatedModule(opts: {
   injectGlobals?: string; // in-wall JS evaluated BEFORE the user module
   withStats?: boolean;
   memoryMb?: number;
-  noun?: string; // for error messages: '因子代码' / '分析代码'
+  noun?: string; // for error messages: 'factor code' / 'analysis code'
 }): Promise<IsolatedModule> {
-  const noun = opts.noun ?? '代码';
+  const noun = opts.noun ?? 'code';
   const isolate = new ivm.Isolate({ memoryLimit: opts.memoryMb ?? DEFAULT_MEMORY_MB });
   const context = await isolate.createContext();
 
@@ -89,30 +89,30 @@ export async function loadIsolatedModule(opts: {
       await context.eval(js, { timeout: timeoutMs });
     } catch (e) {
       isolate.dispose();
-      throw new Error(`${noun}${phase}:${e instanceof Error ? e.message : String(e)}`);
+      throw new Error(`${noun} ${phase}: ${e instanceof Error ? e.message : String(e)}`);
     }
   };
 
-  await evalInWall(BOOTSTRAP, '沙箱初始化失败');
+  await evalInWall(BOOTSTRAP, 'sandbox init failed');
   if (opts.withStats) {
     const stats = await statsJs();
     await evalInWall(
       `{ const module = { exports: {} }; (function (module, exports) { ${stats}\n })(module, module.exports); globalThis.stats = module.exports; }`,
-      '统计库加载失败',
+      'stats library load failed',
     );
   }
   if (opts.injectGlobals) {
-    await evalInWall(opts.injectGlobals, '注入失败');
+    await evalInWall(opts.injectGlobals, 'injection failed');
   }
   await evalInWall(
     `globalThis.__module = { exports: {} };
      (function (module, exports, require) { ${opts.userJs}\n })(
        __module, __module.exports,
-       function (id) { throw new Error('不能 import 外部模块(' + id + ')'); },
+       function (id) { throw new Error('cannot import external module (' + id + ')'); },
      );`,
-    '执行出错',
+    'execution error',
   );
-  await evalInWall(opts.setup, '入口注册失败');
+  await evalInWall(opts.setup, 'entry registration failed');
 
   return {
     async callJson(entry, jsonArgs, callOpts) {
@@ -128,11 +128,11 @@ export async function loadIsolatedModule(opts: {
           copy: true,
         });
         if (typeof result !== 'string') {
-          throw new Error('入口必须返回 JSON 字符串');
+          throw new Error('entry must return a JSON string');
         }
         return result;
       } catch (e) {
-        throw new Error(`${noun}执行出错:${e instanceof Error ? e.message : String(e)}`);
+        throw new Error(`${noun} execution error: ${e instanceof Error ? e.message : String(e)}`);
       }
     },
     drainLogs() {

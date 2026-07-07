@@ -24,33 +24,35 @@ describe('prepareReadOnlySql', () => {
   });
 
   it('拒绝超大 LIMIT', () => {
-    expect(() => prepareReadOnlySql('SELECT * FROM Daily LIMIT 100000')).toThrow(/LIMIT 最大/);
+    expect(() => prepareReadOnlySql('SELECT * FROM Daily LIMIT 100000')).toThrow(/LIMIT max/);
   });
 
   it('拒绝非 SELECT 语句', () => {
-    expect(() => prepareReadOnlySql('EXPLAIN QUERY PLAN SELECT 1')).toThrow(/只允许 SELECT/);
+    expect(() => prepareReadOnlySql('EXPLAIN QUERY PLAN SELECT 1')).toThrow(/Only SELECT/);
   });
 
   it('拒绝多语句', () => {
-    expect(() => prepareReadOnlySql('SELECT 1; SELECT 2')).toThrow(/分号/);
+    expect(() => prepareReadOnlySql('SELECT 1; SELECT 2')).toThrow(/semicolon/);
   });
 
   it('拒绝写操作与 DDL/PRAGMA 关键字', () => {
-    expect(() => prepareReadOnlySql("SELECT 1 WHERE 'x' = 'drop table'")).toThrow(/被禁止的关键字/);
+    expect(() => prepareReadOnlySql("SELECT 1 WHERE 'x' = 'drop table'")).toThrow(
+      /forbidden keyword/,
+    );
     expect(() => prepareReadOnlySql('WITH x AS (SELECT 1) INSERT INTO Daily VALUES (1)')).toThrow(
-      /被禁止的关键字/,
+      /forbidden keyword/,
     );
   });
 
   it('拒绝应用表与 SQLite 内部表', () => {
-    expect(() => prepareReadOnlySql('SELECT * FROM Session')).toThrow(/不允许访问/);
-    expect(() => prepareReadOnlySql('SELECT id FROM "User"')).toThrow(/不允许访问/);
-    expect(() => prepareReadOnlySql('SELECT * FROM sqlite_master')).toThrow(/不允许访问/);
+    expect(() => prepareReadOnlySql('SELECT * FROM Session')).toThrow(/is not allowed/);
+    expect(() => prepareReadOnlySql('SELECT id FROM "User"')).toThrow(/is not allowed/);
+    expect(() => prepareReadOnlySql('SELECT * FROM sqlite_master')).toThrow(/is not allowed/);
   });
 
   it('拒绝白名单之外的 FROM/JOIN 目标', () => {
     expect(() => prepareReadOnlySql('SELECT * FROM DailyBasic JOIN Unknown u ON 1=1')).toThrow(
-      /不在白名单/,
+      /not in the whitelist/,
     );
   });
 });

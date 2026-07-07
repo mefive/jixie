@@ -31,7 +31,7 @@ export function extractJson(text: string): unknown {
   const start = body.indexOf('{');
   const end = body.lastIndexOf('}');
   if (start < 0 || end < 0 || end < start) {
-    throw new Error('未找到 JSON 对象');
+    throw new Error('No JSON object found');
   }
   return JSON.parse(body.slice(start, end + 1));
 }
@@ -41,7 +41,7 @@ export async function parseStructured<T>(opts: {
   userPrompt: string;
   validate: Validator<T>;
   llm: LlmCall;
-  noun: string; // what we're producing, e.g. '策略 IR' / '查询 spec' (used in repair messages)
+  noun: string; // what we're producing, e.g. 'strategy IR' / 'query spec' (used in repair messages)
   maxRepairs?: number;
 }): Promise<ParseResult<T>> {
   const { systemPrompt, userPrompt, validate, llm, noun, maxRepairs = 2 } = opts;
@@ -62,11 +62,11 @@ export async function parseStructured<T>(opts: {
     try {
       parsed = extractJson(text);
     } catch (e) {
-      lastErrors = [`JSON 解析失败: ${(e as Error).message}`];
+      lastErrors = [`JSON parsing failed: ${(e as Error).message}`];
       messages.push({ role: 'assistant', content: text });
       messages.push({
         role: 'user',
-        content: `${lastErrors[0]}。请只输出一个合法的${noun} JSON 对象,不要任何解释。`,
+        content: `${lastErrors[0]}. Please output only a single valid ${noun} JSON object, with no explanation.`,
       });
       continue;
     }
@@ -80,7 +80,7 @@ export async function parseStructured<T>(opts: {
     messages.push({ role: 'assistant', content: text });
     messages.push({
       role: 'user',
-      content: `上面的${noun}校验失败:${v.errors.join('; ')}。请仅用白名单内的字段/算子/取值修正,只输出修正后的${noun} JSON。`,
+      content: `The ${noun} above failed validation: ${v.errors.join('; ')}. Please fix it using only whitelisted fields/operators/values, and output only the corrected ${noun} JSON.`,
     });
   }
 

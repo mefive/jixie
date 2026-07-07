@@ -83,7 +83,7 @@ export async function nlToCode(
             ok: false,
             refused: true,
             attempts,
-            error: `用到了未收录成分的指数 ${bad.join('、')}。可用指数:${availableIndices ?? '无'}。`,
+            error: `Used index(es) whose constituents aren't synced: ${bad.join(', ')}. Available indices: ${availableIndices ?? 'none'}.`,
           };
         }
       }
@@ -93,7 +93,7 @@ export async function nlToCode(
       messages.push({ role: 'assistant', content: raw });
       messages.push({
         role: 'user',
-        content: `上面的策略代码无法编译/运行:${lastError}。请修正,只输出完整的 TS 策略模块(export default defineStrategy({ … })),不要解释、不要 markdown 围栏。`,
+        content: `The strategy code above failed to compile/run: ${lastError}. Please fix it and output only the complete TS strategy module (export default defineStrategy({ … })), with no explanation and no markdown fences.`,
       });
     }
   }
