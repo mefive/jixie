@@ -82,6 +82,32 @@ const MESSAGES = {
     en: 'Backtest process exited abnormally (code {code})',
   },
 
+  // —— Backtest engine progress logs (system-tagged, streamed to the job) ——
+  backtestStart: {
+    zh: '开始回测 · {start} ~ {end} · 初始资金 {cash}',
+    en: 'Backtest started · {start} ~ {end} · initial cash {cash}',
+  },
+  backtestRebalance: {
+    zh: '{date} 调仓 → 持仓 {count} 只',
+    en: '{date} rebalanced → {count} holdings',
+  },
+  backtestYearlyHeartbeat: {
+    zh: '{year} · 权益 {equity} · 进度 {pct}%',
+    en: '{year} · equity {equity} · progress {pct}%',
+  },
+  backtestDone: {
+    zh: '完成 · {days} 天 · {trades} 笔 · 期末 {finalValue} · 收益 {ret}%',
+    en: 'Done · {days} days · {trades} trades · final {finalValue} · return {ret}%',
+  },
+  indexNoConstituents: {
+    zh: '指数 {indexCode} 未收录成分数据(无法限定到该指数)',
+    en: 'Index {indexCode} has no constituent data on record (cannot restrict to this index)',
+  },
+  indexCoverageGap: {
+    zh: '⚠️ 指数 {indexCode} 成分数据从 {date} 起,此前的交易日按空池处理(选不出标的)',
+    en: '⚠️ Index {indexCode} constituent data starts from {date}; earlier trading days are treated as an empty universe (no selections)',
+  },
+
   // —— Agent turn subscription ——
   turnNotFound: {
     zh: 'turn 不存在或已结束(会话以已保存内容为准)',
@@ -141,6 +167,28 @@ const MESSAGES = {
   inviteCodeExpired: {
     zh: '邀请码已失效，请重新申请',
     en: 'Invite code is no longer valid; please request again',
+  },
+
+  // —— Login verification-code email (subject + HTML body) ——
+  emailLoginSubject: {
+    zh: '机械交易系 登录验证码：{code}',
+    en: 'Jixie login code: {code}',
+  },
+  emailLoginHeading: {
+    zh: '机械交易系 登录',
+    en: 'Jixie login',
+  },
+  emailLoginPrompt: {
+    zh: '你的登录验证码：',
+    en: 'Your login verification code:',
+  },
+  emailLoginValidity: {
+    zh: '10 分钟内有效。',
+    en: 'Valid for 10 minutes.',
+  },
+  emailLoginIgnore: {
+    zh: '如果不是你本人操作，请忽略此邮件。',
+    en: 'If you did not request this, please ignore this email.',
   },
 } satisfies Record<string, Record<Locale, string>>;
 

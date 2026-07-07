@@ -1,3 +1,4 @@
+import type { Locale } from '@jixie/shared';
 import { runStrategy } from '../../engine/run.js';
 import type { BacktestResult, CostModel } from '../../engine/types.js';
 import type { UserLogSink } from '../../lib/sandbox-console.js';
@@ -17,6 +18,7 @@ export async function runCodeBacktest(
   cfg: CodeBacktestConfig,
   onLog?: (line: string) => void,
   onUserLog?: UserLogSink,
+  locale?: Locale,
 ): Promise<BacktestResult> {
   const strategy = await compileStrategy(cfg.code, onUserLog);
   return runStrategy({
@@ -26,5 +28,6 @@ export async function runCodeBacktest(
     cost: cfg.cost,
     strategy,
     onLog,
+    locale,
   });
 }
