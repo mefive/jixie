@@ -108,6 +108,56 @@ const MESSAGES = {
     en: '⚠️ Index {indexCode} constituent data starts from {date}; earlier trading days are treated as an empty universe (no selections)',
   },
 
+  // —— Factor-analysis progress logs (system-tagged, streamed to the job during analysis) ——
+  freqWeek: { zh: '周度', en: 'weekly' },
+  freqMonth: { zh: '月度', en: 'monthly' },
+  factorMissing: {
+    zh: '⚠️ 因子 {factor} 不存在(预置未 seed 或已被删除)',
+    en: '⚠️ Factor {factor} does not exist (preset not seeded or already deleted)',
+  },
+  factorRebalanceDates: {
+    zh: '调仓日 {count} 个({freq})· 加载行情快照…',
+    en: '{count} rebalance dates ({freq}) · loading price snapshots…',
+  },
+  factorComputingValues: {
+    zh: '计算因子 {factor} 的值…',
+    en: 'Computing values for factor {factor}…',
+  },
+  factorDailyCrossSection: {
+    zh: '逐日横截面计算…',
+    en: 'Computing daily cross-section…',
+  },
+  factorLoadingSections: {
+    zh: '加载估值/资金流截面({count} 日)…',
+    en: 'Loading valuation/money-flow cross-sections ({count} days)…',
+  },
+  factorPerStockWindow: {
+    zh: '逐股计算窗口因子(window={window},{count} 只)…',
+    en: 'Computing windowed factor per stock (window={window}, {count} stocks)…',
+  },
+  factorComputeProgress: {
+    zh: '  已算 {done}/{total} 只',
+    en: '  computed {done}/{total} stocks',
+  },
+  factorComputeErrors: {
+    zh: '⚠️ 因子 compute 有抛错(相应股票已剔除),首个错误:{error}',
+    en: '⚠️ Factor compute threw (affected stocks were dropped); first error: {error}',
+  },
+  factorLoadingDecaySnapshots: {
+    zh: '加载 IC 衰减前瞻快照({count} 日)…',
+    en: 'Loading IC-decay forward snapshots ({count} days)…',
+  },
+  factorAggregating: {
+    zh: '汇总 IC / 分层 / IC 衰减…',
+    en: 'Aggregating IC / buckets / IC-decay…',
+  },
+
+  // —— Sandbox console (strategy / factor user code) ——
+  userLogCapped: {
+    zh: '用户日志超过 {cap} 行,后续输出已省略',
+    en: 'User log exceeded {cap} lines; further output omitted',
+  },
+
   // —— Agent turn subscription ——
   turnNotFound: {
     zh: 'turn 不存在或已结束(会话以已保存内容为准)',

@@ -20,7 +20,7 @@ export async function runCodeBacktest(
   onUserLog?: UserLogSink,
   locale?: Locale,
 ): Promise<BacktestResult> {
-  const strategy = await compileStrategy(cfg.code, onUserLog);
+  const strategy = await compileStrategy(cfg.code, onUserLog, locale);
   return runStrategy({
     start: cfg.start,
     end: cfg.end,

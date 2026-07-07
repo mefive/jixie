@@ -55,7 +55,11 @@ interface WalledConfig {
   // Evaluate the user strategy module — mirrors compileStrategy's evaluation half (the TS→CJS
   // transform already happened host-side; error message shapes must stay identical).
   const sandboxConsole = cfg.captureUserLogs
-    ? makeSandboxConsole((level, text) => __hostLog.applyIgnored(undefined, ['user', level, text]))
+    ? makeSandboxConsole(
+        (level, text) => __hostLog.applyIgnored(undefined, ['user', level, text]),
+        2000,
+        cfg.locale,
+      )
     : noopSandboxConsole;
   const mod: { exports: Record<string, unknown> } = { exports: {} };
   try {

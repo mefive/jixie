@@ -1,5 +1,5 @@
 import { parentPort, workerData } from 'node:worker_threads';
-import type { FactorFreq, LogLine, LogLevel } from '@jixie/shared';
+import type { FactorFreq, Locale, LogLine, LogLevel } from '@jixie/shared';
 import { analyzeFactor } from './analysis.js';
 import { prisma } from '../lib/prisma.js';
 
@@ -15,12 +15,13 @@ if (!port) {
   throw new Error('factor-worker must be spawned as a worker thread');
 }
 
-const { userId, factor, freq, start, end } = workerData as {
+const { userId, factor, freq, start, end, locale } = workerData as {
   userId: string;
   factor: string;
   freq: FactorFreq;
   start: string;
   end: string;
+  locale: Locale;
 };
 
 // One log sink, tagged here: analysis progress → system, a custom factor's console.* → user.
@@ -29,7 +30,7 @@ const onSystemLog = (text: string) => emit({ source: 'system', level: 'info', te
 const onUserLog = (level: LogLevel, text: string) => emit({ source: 'user', level, text });
 
 try {
-  const report = await analyzeFactor(factor, freq, start, end, onSystemLog, onUserLog);
+  const report = await analyzeFactor(factor, freq, start, end, onSystemLog, onUserLog, locale);
   const id = `${userId}|${factor}|${freq}|${start}|${end}`;
   const payload = JSON.stringify(report);
   await prisma.factorReport.upsert({

@@ -1,9 +1,13 @@
 import Editor, { loader, type Monaco } from '@monaco-editor/react';
+import { useEffect } from 'react';
+import { observer } from 'mobx-react';
 import * as monaco from 'monaco-editor';
 import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
 import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker';
+import type { Locale } from '@jixie/shared';
 import i18n from '@src/i18n';
-import { SDK_DTS } from './sdk-dts';
+import { localeStore } from '@src/i18n/locale-store';
+import { sdkDts } from './sdk-dts';
 import { SDK_ENTRIES, LINKABLE_TYPES } from './sdk-reference';
 
 // Every SDK member name (ctx.* methods + BarRow fields) and the business-type names — the tokens the
@@ -18,15 +22,30 @@ self.MonacoEnvironment = {
 };
 loader.config({ monaco });
 
-let sdkInstalled = false;
+// Retained so a locale switch can dispose the previous ambient lib before re-adding the new-locale one.
+let monacoRef: Monaco | null = null;
+let sdkLibDisposable: monaco.IDisposable | null = null;
+let staticSdkInstalled = false;
 
-// Teach Monaco the SDK once: ambient defineStrategy + ctx types, and TS options that accept the
-// import-free `export default defineStrategy({…})` module shape.
+// (Re)register the ambient SDK .d.ts in the given locale — only the doc-comment language changes, so the
+// signatures (and thus type-checking) stay identical. Disposing first avoids a duplicate-lib for the path.
+function applySdkDts(m: Monaco, locale: Locale) {
+  sdkLibDisposable?.dispose();
+  sdkLibDisposable = m.languages.typescript.typescriptDefaults.addExtraLib(
+    sdkDts(locale),
+    'file:///jixie-sdk.d.ts',
+  );
+}
+
+// Teach Monaco the SDK: the locale-independent bits (compiler options + doc link provider) once, then the
+// ambient defineStrategy + ctx types in the active locale (re-registered on language switch, see effect).
 function installSdk(m: Monaco) {
-  if (sdkInstalled) {
+  monacoRef = m;
+  applySdkDts(m, localeStore.locale);
+  if (staticSdkInstalled) {
     return;
   }
-  sdkInstalled = true;
+  staticSdkInstalled = true;
   const ts = m.languages.typescript;
   ts.typescriptDefaults.setCompilerOptions({
     target: ts.ScriptTarget.ES2020,
@@ -37,7 +56,6 @@ function installSdk(m: Monaco) {
     strict: false,
     lib: ['es2020'],
   });
-  ts.typescriptDefaults.addExtraLib(SDK_DTS, 'file:///jixie-sdk.d.ts');
 
   // Make SDK members (ctx.history, b.peTtm, …) and type names (StrategyCtx, BarRow, …) Cmd+click links to
   // the doc page (absolute URL → opens a new tab). Single source: the names come from sdk-reference.
@@ -77,15 +95,20 @@ function installSdk(m: Monaco) {
 
 /**
  * The strategy code editor — Monaco with the SDK types loaded, so the user gets autocomplete on `ctx`
- * and type errors against the real API. Lazy-loaded (Monaco is heavy → its own chunk).
+ * and type errors against the real API. Lazy-loaded (Monaco is heavy → its own chunk). `observer` so the
+ * hover docs re-register live when the global locale switches.
  */
-export default function CodeEditor({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-}) {
+function CodeEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const locale = localeStore.locale;
+
+  // Re-register the ambient SDK .d.ts whenever the UI locale changes so hover docs switch language live
+  // (Monaco is a module-global TS worker; installSdk sets monacoRef once the editor has mounted).
+  useEffect(() => {
+    if (monacoRef) {
+      applySdkDts(monacoRef, locale);
+    }
+  }, [locale]);
+
   return (
     <Editor
       height="100%"
@@ -128,3 +151,5 @@ export default function CodeEditor({
     />
   );
 }
+
+export default observer(CodeEditor);

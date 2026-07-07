@@ -394,7 +394,9 @@ factorRoute.post('/analysis/run', validateQuery(analysisQuery), async (c) => {
   }
 
   const jobId = await createJob(userId, 'factor', jobKey(factor, freq, start, end));
-  const worker = new Worker(workerUrl, { workerData: { userId, factor, freq, start, end } });
+  const worker = new Worker(workerUrl, {
+    workerData: { userId, factor, freq, start, end, locale: localeFromRequest(c) },
+  });
   let finished = false;
   const done = (status: 'done' | 'error', error?: string) => {
     if (finished) {
