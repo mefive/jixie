@@ -17,6 +17,7 @@ import { enqueueAgentTurn, entityKey } from '../agent/turn-run.js';
 import * as turnBus from '../agent/turn-bus.js';
 import { runScreen, stockSeries } from '../screen/query.js';
 import { screenSpecSchema } from '../screen/spec.js';
+import { localeFromRequest, m } from '../i18n/index.js';
 
 /**
  * Stock screener API (产品线 2 · 卡片墙). POST /screen runs a structured ScreenSpec against the latest
@@ -79,11 +80,11 @@ screenRoute.post('/screen/agent', validateJson(agentBody), async (c) => {
     select: { id: true },
   });
   if (!conversation) {
-    return apiError(c, 'NOT_FOUND', '会话不存在');
+    return apiError(c, 'NOT_FOUND', m(c, 'conversationNotFound'));
   }
   const entity = { kind: 'screen' as const, id: conversationId };
   if (turnBus.findRunning(entityKey(entity), userId)) {
-    return apiError(c, 'VALIDATION_FAILED', '该会话已有正在进行的回复,请等它结束或取消');
+    return apiError(c, 'VALIDATION_FAILED', m(c, 'conversationTurnInProgress'));
   }
 
   const turnId = ulid();
@@ -94,6 +95,7 @@ screenRoute.post('/screen/agent', validateJson(agentBody), async (c) => {
     entity,
     message,
     currentCode: '',
+    locale: localeFromRequest(c),
   });
   return c.json({ turnId });
 });
@@ -139,7 +141,7 @@ screenRoute.get('/screen/conversations/:id', async (c) => {
     where: { id: c.req.param('id'), userId: c.var.userId },
   });
   if (!row) {
-    return apiError(c, 'NOT_FOUND', '会话不存在');
+    return apiError(c, 'NOT_FOUND', m(c, 'conversationNotFound'));
   }
   return c.json({
     id: row.id,
@@ -183,7 +185,7 @@ screenRoute.post('/screen/conversations/:id', validateJson(conversationUpdateBod
     select: { id: true },
   });
   if (!existing) {
-    return apiError(c, 'NOT_FOUND', '会话不存在');
+    return apiError(c, 'NOT_FOUND', m(c, 'conversationNotFound'));
   }
 
   await prisma.screenConversation.update({
@@ -218,11 +220,11 @@ screenRoute.get('/stock/:code/series', validateQuery(seriesQuery), async (c) => 
   const code = c.req.param('code');
   const { start = '20150101', end = '20241231' } = c.req.valid('query');
   if (start >= end) {
-    return apiError(c, 'VALIDATION_FAILED', '起始日期必须早于结束日期');
+    return apiError(c, 'VALIDATION_FAILED', m(c, 'startAfterEnd'));
   }
   const series = await stockSeries(code, start, end);
   if (series.points.length === 0) {
-    return apiError(c, 'NOT_FOUND', '该标的在区间内无数据');
+    return apiError(c, 'NOT_FOUND', m(c, 'noDataInRange'));
   }
   return c.json(series);
 });

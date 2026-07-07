@@ -15,7 +15,7 @@ import { enqueueAgentTurn, entityKey } from '../agent/turn-run.js';
 import * as turnBus from '../agent/turn-bus.js';
 import { chatMessagesSchema } from '../lib/chat-schema.js';
 import { createJob, appendLog, finishJob, getJob, findRunningJob } from '../lib/jobs.js';
-import { localeFromRequest } from '../i18n/index.js';
+import { localeFromRequest, m } from '../i18n/index.js';
 
 /**
  * Factor-analysis API (产品线 1.5 · 因子研究). Reports are per-user (a public factor's analysis is still
@@ -85,7 +85,7 @@ factorRoute.get('/custom/:id', async (c) => {
     select: { id: true, name: true, code: true, messages: true, userId: true },
   });
   if (!row) {
-    return apiError(c, 'NOT_FOUND', '因子不存在');
+    return apiError(c, 'NOT_FOUND', m(c, 'factorNotFound'));
   }
   const { userId: ownerId, ...rest } = row;
   return c.json({ ...rest, builtin: ownerId === BUILTIN_USER_ID });
@@ -105,7 +105,11 @@ factorRoute.post('/custom', validateJson(createBody), async (c) => {
   try {
     (await compileFactor(code)).dispose(); // validate-only
   } catch (e) {
-    return apiError(c, 'VALIDATION_FAILED', e instanceof Error ? e.message : '因子代码无效');
+    return apiError(
+      c,
+      'VALIDATION_FAILED',
+      e instanceof Error ? e.message : m(c, 'factorCodeInvalid'),
+    );
   }
   const uniqueName = await uniqueFactorName(userId, name);
   const id = ulid();
@@ -135,14 +139,14 @@ factorRoute.post('/custom/:id', validateJson(updateBody), async (c) => {
   const userId = c.var.userId;
   const { code, name, messages } = c.req.valid('json');
   if (BUILTIN_KEYS.has(id)) {
-    return apiError(c, 'VALIDATION_FAILED', '预置因子只读,不能修改;可「复制为自定义」后改副本');
+    return apiError(c, 'VALIDATION_FAILED', m(c, 'presetFactorReadonlyEdit'));
   }
   const existing = await prisma.factor.findFirst({
     where: { id, userId },
     select: { name: true, code: true },
   });
   if (!existing) {
-    return apiError(c, 'NOT_FOUND', '因子不存在');
+    return apiError(c, 'NOT_FOUND', m(c, 'factorNotFound'));
   }
 
   const data: Prisma.FactorUpdateInput = {};
@@ -153,7 +157,11 @@ factorRoute.post('/custom/:id', validateJson(updateBody), async (c) => {
     try {
       (await compileFactor(code)).dispose(); // validate-only
     } catch (e) {
-      return apiError(c, 'VALIDATION_FAILED', e instanceof Error ? e.message : '因子代码无效');
+      return apiError(
+        c,
+        'VALIDATION_FAILED',
+        e instanceof Error ? e.message : m(c, 'factorCodeInvalid'),
+      );
     }
     data.code = code;
     if (code !== existing.code) {
@@ -181,7 +189,7 @@ factorRoute.delete('/custom/:id', async (c) => {
   const userId = c.var.userId;
   const id = c.req.param('id');
   if (BUILTIN_KEYS.has(id)) {
-    return apiError(c, 'VALIDATION_FAILED', '预置因子只读,不能删除');
+    return apiError(c, 'VALIDATION_FAILED', m(c, 'presetFactorReadonlyDelete'));
   }
   await prisma.factor.deleteMany({ where: { id, userId } });
   await prisma.factorReport.deleteMany({ where: { userId, factor: id } });
@@ -197,10 +205,10 @@ factorRoute.post('/custom/:id/fork', async (c) => {
     select: { name: true, code: true },
   });
   if (!source) {
-    return apiError(c, 'NOT_FOUND', '因子不存在');
+    return apiError(c, 'NOT_FOUND', m(c, 'factorNotFound'));
   }
 
-  const name = await uniqueFactorName(userId, `${source.name} 副本`.slice(0, 40));
+  const name = await uniqueFactorName(userId, `${source.name} ${m(c, 'copySuffix')}`.slice(0, 40));
   const id = ulid();
   await prisma.factor.create({ data: { id, userId, name, code: source.code } });
   return c.json({ id, name });
@@ -220,11 +228,11 @@ factorRoute.post('/agent', validateJson(agentBody), async (c) => {
   const userId = c.var.userId;
   const factor = await prisma.factor.findFirst({ where: { id, userId }, select: { id: true } });
   if (!factor) {
-    return apiError(c, 'NOT_FOUND', '因子不存在');
+    return apiError(c, 'NOT_FOUND', m(c, 'factorNotFound'));
   }
   const entity = { kind: 'factor' as const, id };
   if (turnBus.findRunning(entityKey(entity), userId)) {
-    return apiError(c, 'VALIDATION_FAILED', '该因子已有正在进行的回复,请等它结束或取消');
+    return apiError(c, 'VALIDATION_FAILED', m(c, 'factorTurnInProgress'));
   }
 
   const turnId = ulid();
@@ -235,6 +243,7 @@ factorRoute.post('/agent', validateJson(agentBody), async (c) => {
     entity,
     message,
     currentCode: code,
+    locale: localeFromRequest(c),
   });
   return c.json({ turnId });
 });
@@ -258,6 +267,7 @@ factorRoute.post('/qa', validateJson(qaBody), (c) => {
     history,
     message,
     currentCode: '',
+    locale: localeFromRequest(c),
   });
   return c.json({ turnId });
 });
@@ -270,7 +280,7 @@ const nameBody = z
     prompt: z.string().max(2000).optional(),
     currentName: z.string().max(40).optional(),
   })
-  .refine((body) => body.code || body.prompt, { message: '需要 code 或 prompt' });
+  .refine((body) => body.code || body.prompt, { message: 'code or prompt required' });
 
 factorRoute.post('/name', validateJson(nameBody), async (c) => {
   const { code, prompt, currentName } = c.req.valid('json');
@@ -298,9 +308,9 @@ factorRoute.post('/name', validateJson(nameBody), async (c) => {
       .replace(/^["'「『]+|["'」』。.]+$/g, '')
       .slice(0, 16);
   } catch (e) {
-    return apiError(c, 'SERVICE_UNAVAILABLE', e instanceof Error ? e.message : '命名失败');
+    return apiError(c, 'SERVICE_UNAVAILABLE', e instanceof Error ? e.message : m(c, 'nameFailed'));
   }
-  return c.json({ name: name || '未命名因子' });
+  return c.json({ name: name || m(c, 'unnamedFactor') });
 });
 
 const analysisQuery = z.object({
@@ -333,7 +343,7 @@ factorRoute.get('/analysis', validateQuery(analysisQuery), async (c) => {
     where: { id: reportId(c.var.userId, factor, freq, start, end) },
   });
   if (!cached) {
-    return apiError(c, 'NOT_FOUND', '该窗口尚未计算,请先运行');
+    return apiError(c, 'NOT_FOUND', m(c, 'windowNotComputed'));
   }
   return c.json(JSON.parse(cached.payload) as FactorReport);
 });
@@ -347,7 +357,7 @@ factorRoute.get('/analysis/running', validateQuery(analysisQuery), async (c) => 
 factorRoute.get('/analysis/job/:jobId', validateQuery(sinceQuery), async (c) => {
   const job = await getJob(c.req.param('jobId'), Number(c.req.valid('query').since ?? '0'));
   if (!job) {
-    return apiError(c, 'NOT_FOUND', '任务不存在或已过期');
+    return apiError(c, 'NOT_FOUND', m(c, 'factorJobNotFound'));
   }
   return c.json(job);
 });
@@ -362,11 +372,11 @@ factorRoute.post('/analysis/run', validateQuery(analysisQuery), async (c) => {
       select: { id: true },
     });
     if (!custom) {
-      return apiError(c, 'NOT_FOUND', `未知因子 ${factor}`);
+      return apiError(c, 'NOT_FOUND', m(c, 'unknownFactor', { factor }));
     }
   }
   if (start >= end) {
-    return apiError(c, 'VALIDATION_FAILED', '起始日期必须早于结束日期');
+    return apiError(c, 'VALIDATION_FAILED', m(c, 'startAfterEnd'));
   }
 
   if (refresh !== '1') {
@@ -405,7 +415,7 @@ factorRoute.post('/analysis/run', validateQuery(analysisQuery), async (c) => {
   worker.on('error', (err) => done('error', err.message));
   worker.on('exit', (code) => {
     if (code !== 0) {
-      done('error', `因子分析进程异常退出 (code ${code})`);
+      done('error', m(c, 'factorProcExited', { code }));
     }
   });
   return c.json({ jobId });

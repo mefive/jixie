@@ -16,7 +16,7 @@ export function deepseek(): OpenAI {
   }
   const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) {
-    throw new Error('缺少 DEEPSEEK_API_KEY(.env)');
+    throw new Error('Missing DEEPSEEK_API_KEY (.env)');
   }
   _client = new OpenAI({ apiKey, baseURL: process.env.DEEPSEEK_BASE_URL ?? DEFAULT_BASE });
   return _client;
@@ -34,7 +34,7 @@ export const chatJson: LlmCall = async (messages: ChatMessage[]): Promise<string
   });
   const content = res.choices[0]?.message?.content;
   if (!content) {
-    throw new Error('DeepSeek 返回空 content');
+    throw new Error('DeepSeek returned empty content');
   }
   return content;
 };
@@ -46,7 +46,7 @@ export const chatText: LlmCall = async (messages: ChatMessage[]): Promise<string
   const res = await deepseek().chat.completions.create({ model, messages, temperature: 0 });
   const content = res.choices[0]?.message?.content;
   if (!content) {
-    throw new Error('DeepSeek 返回空 content');
+    throw new Error('DeepSeek returned empty content');
   }
   return content;
 };
