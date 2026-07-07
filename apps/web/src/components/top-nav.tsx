@@ -1,39 +1,53 @@
 import { NavLink } from 'react-router-dom';
 import classNames from 'classnames';
 import { observer } from 'mobx-react';
-import { Button } from 'antd';
+import { useTranslation } from 'react-i18next';
+import { Button, Segmented } from 'antd';
 import { faRightFromBracket } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import type { Locale } from '@jixie/shared';
 import { authStore } from '@src/store';
+import { localeStore } from '@src/i18n/locale-store';
 import banner from '@src/assets/banner.png';
 import './top-nav.css';
 
-/** Shared app header: banner + page nav (回测工作台 / 选股看图 / 因子研究) + user/logout. */
+/** Shared app header: banner + page nav + language switch + user/logout. */
 export const TopNav = observer(() => {
+  const { t } = useTranslation();
+
   return (
     <header className="jx-topnav">
       <div className="jx-topnav-left">
-        <img className="jx-topnav-banner" src={banner} alt="机械交易系" />
+        <img className="jx-topnav-banner" src={banner} alt={t('appName')} />
         <nav className="jx-topnav-nav">
           <NavLink to="/lab" end className={linkClass}>
-            回测工作台
+            {t('nav.backtest')}
           </NavLink>
           <NavLink to="/screen" className={linkClass}>
-            选股看图
+            {t('nav.screen')}
           </NavLink>
           <NavLink to="/factors" className={linkClass}>
-            因子研究
+            {t('nav.factor')}
           </NavLink>
         </nav>
       </div>
       <div className="jx-topnav-user">
+        <Segmented
+          size="small"
+          value={localeStore.locale}
+          onChange={(value) => localeStore.setLocale(value as Locale)}
+          options={[
+            { label: t('language.zh'), value: 'zh' },
+            { label: t('language.en'), value: 'en' },
+          ]}
+        />
         <span className="jx-topnav-email">{authStore.user?.email}</span>
         <Button
           type="text"
           icon={<FontAwesomeIcon icon={faRightFromBracket} />}
           onClick={() => void authStore.logout()}
         >
-          退出
+          {t('logout')}
         </Button>
       </div>
     </header>

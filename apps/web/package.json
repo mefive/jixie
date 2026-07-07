@@ -22,11 +22,13 @@
     "classnames": "^2.5.1",
     "dayjs": "^1.11.13",
     "echarts": "^6.0.0",
+    "i18next": "^26.3.4",
     "mobx": "^6.16.0",
     "mobx-react": "^9.2.0",
     "monaco-editor": "^0.55.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-i18next": "^17.0.8",
     "react-router-dom": "^7.17.0"
   },
   "devDependencies": {
