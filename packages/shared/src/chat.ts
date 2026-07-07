@@ -63,7 +63,7 @@ export function messageText(message: ChatMessage): string {
       if (part.type === 'text') {
         return part.text;
       }
-      return part.type === 'card' ? `(查询卡片:${part.title})` : `(图表:${part.title})`;
+      return part.type === 'card' ? `(query card: ${part.title})` : `(chart: ${part.title})`;
     })
     .join('\n')
     .trim();

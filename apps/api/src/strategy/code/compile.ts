@@ -25,7 +25,9 @@ export async function compileStrategy(source: string, onUserLog?: UserLogSink): 
     // TS → CJS JS: strip types, emit module.exports so we can capture `export default`.
     ({ code: js } = await transform(source, { loader: 'ts', format: 'cjs', target: 'es2022' }));
   } catch (e) {
-    throw new Error(`策略代码编译失败：${e instanceof Error ? e.message : String(e)}`);
+    throw new Error(
+      `strategy code compilation failed: ${e instanceof Error ? e.message : String(e)}`,
+    );
   }
 
   // The strategy's console.* is captured and tagged as user log (with a line cap); without a sink
@@ -42,19 +44,21 @@ export async function compileStrategy(source: string, onUserLog?: UserLogSink): 
     const run = new Function('module', 'exports', 'defineStrategy', 'console', 'require', js);
     run(mod, mod.exports, defineStrategy, sandboxConsole, blockedRequire);
   } catch (e) {
-    throw new Error(`策略代码执行出错：${e instanceof Error ? e.message : String(e)}`);
+    throw new Error(`strategy code execution error: ${e instanceof Error ? e.message : String(e)}`);
   }
 
   const strategy = (mod.exports.default ?? mod.exports) as Partial<Strategy>;
   if (!strategy || typeof strategy.onBar !== 'function') {
-    throw new Error('策略需 `export default defineStrategy({ onBar(ctx) { … } })`');
+    throw new Error('strategy must `export default defineStrategy({ onBar(ctx) { … } })`');
   }
   if (!strategy.name) {
-    strategy.name = '未命名策略';
+    strategy.name = 'Untitled strategy';
   }
   return strategy as Strategy;
 }
 
 function blockedRequire(id: string): never {
-  throw new Error(`策略代码不能 import 外部模块（${id}）——所有能力都在 ctx 上`);
+  throw new Error(
+    `strategy code cannot import external modules (${id}) — all capabilities are on ctx`,
+  );
 }

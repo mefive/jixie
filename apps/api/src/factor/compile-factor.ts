@@ -70,10 +70,10 @@ export async function compileFactor(
   source: string,
   onUserLog?: UserLogSink,
 ): Promise<CompiledFactor> {
-  const userJs = await toCommonJs(source, '因子代码');
+  const userJs = await toCommonJs(source, 'factor code');
   const module: IsolatedModule = await loadIsolatedModule({
     userJs,
-    noun: '因子代码',
+    noun: 'factor code',
     injectGlobals: 'globalThis.defineFactor = (factor) => factor;',
     setup: FACTOR_SETUP,
   });

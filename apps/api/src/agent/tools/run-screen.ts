@@ -18,13 +18,13 @@ export function describeSpec(spec: ScreenSpec): string {
  * as a query card in the reply (spec, not rows — re-runnable and editable, per the design). */
 export const runScreenTool: AgentTool = {
   name: 'runScreen',
-  description: `按指标筛选 A 股最新快照(不是回测)。字段:close 收盘价、pctChg 当日涨跌幅%、pe/peTtm 市盈率、pb 市净率、ps 市销率、dvRatio 股息率%、totalMv 总市值、circMv 流通市值、turnoverRate 换手率%。**单位约定**:市值单位是万元(500亿 = 5000000);比率/百分数直接用数值(股息率 3% 写 3)。「便宜/低估」常指 pe 或 pb 较小,「大盘股」指 totalMv 较大。`,
+  description: `Screen the latest A-share snapshot by metric (not a backtest). Fields: close (closing price), pctChg (daily change %), pe/peTtm (P/E), pb (P/B), ps (P/S), dvRatio (dividend yield %), totalMv (total market cap), circMv (float market cap), turnoverRate (turnover %). **Unit conventions**: market cap is in 万元 / 10k CNY (50 billion = 5000000); ratios/percentages use the raw number (a 3% dividend yield is written as 3). "cheap/undervalued" usually means a smaller pe or pb; "large-cap" means a larger totalMv.`,
   parameters: z.toJSONSchema(screenSpecSchema),
   async run(args) {
     const parsed = screenSpecSchema.safeParse(args);
     if (!parsed.success) {
       throw new Error(
-        `spec 不合法:${parsed.error.issues
+        `Invalid spec: ${parsed.error.issues
           .map((issue) => `${issue.path.join('.') || '(root)'}: ${issue.message}`)
           .join('; ')}`,
       );

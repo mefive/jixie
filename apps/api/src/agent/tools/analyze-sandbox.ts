@@ -12,16 +12,16 @@ export async function runAnalysisCode(
   data: Record<string, Record<string, unknown>[]>,
   opts: { timeoutMs?: number } = {},
 ): Promise<unknown> {
-  const userJs = await toCommonJs(code, '分析代码');
+  const userJs = await toCommonJs(code, 'analysis code');
   const module = await loadIsolatedModule({
     userJs,
     withStats: true,
-    noun: '分析代码',
+    noun: 'analysis code',
     setup: `
       {
         const entry = __module.exports.default ?? __module.exports;
         if (typeof entry !== 'function') {
-          throw new Error('需 \`export default ({ data, stats }) => 结果\`');
+          throw new Error('need \`export default ({ data, stats }) => result\`');
         }
         __entries.run = (dataJson) =>
           Promise.resolve(entry({ data: JSON.parse(dataJson), stats: globalThis.stats })).then(

@@ -8,6 +8,7 @@ import { strategyProfile } from '../agent/profiles/strategy.js';
 import { enqueueAgentTurn, entityKey } from '../agent/turn-run.js';
 import * as turnBus from '../agent/turn-bus.js';
 import { KNOWN_INDICES } from '../strategy/code/codegen-prompt.js';
+import { localeFromRequest } from '../i18n/index.js';
 
 /**
  * Strategy authoring API. POST /api/app/strategy/agent runs one turn of the code Agent (iterates on the
@@ -65,7 +66,7 @@ strategyRoute.post('/agent', validateJson(agentBody), async (c) => {
   return c.json({ turnId });
 });
 
-// POST /api/app/strategy/name — the model proposes a short Chinese strategy name. Two modes:
+// POST /api/app/strategy/name — the model proposes a short strategy name in the user's language. Two modes:
 //  - {prompt}: name a brand-new strategy from the user's natural-language request (before any code);
 //  - {code, currentName?}: name from the code — if currentName still fits, keep it (only rename when
 //    the strategy's logic has drifted). Used on each run so the name tracks the code without churning.
@@ -79,6 +80,13 @@ const nameBody = z
 
 strategyRoute.post('/name', validateJson(nameBody), async (c) => {
   const { code, prompt, currentName } = c.req.valid('json');
+
+  // The generated name is user-facing, so its language follows the request locale.
+  const nameLangHint =
+    localeFromRequest(c) === 'en'
+      ? 'a short English name (≤5 words)'
+      : 'a short Chinese name (≤14 chars)';
+
   let name: string;
   try {
     const messages =
@@ -87,16 +95,15 @@ strategyRoute.post('/name', validateJson(nameBody), async (c) => {
             {
               role: 'system' as const,
               content: currentName
-                ? `你是 A 股策略命名助手。读策略代码,它当前叫「${currentName}」。若这个名称仍准确概括代码的选股/择时/交易逻辑,就**原样返回它**;只有当逻辑已明显不符时,才起一个更贴切的简短中文名(≤14字)。只输出名称本身——不要引号、不要解释、不要结尾标点。`
-                : '你是 A 股策略命名助手。读策略代码,起一个简短中文名称(≤14字,概括其选股/择时/交易逻辑),只输出名称本身——不要引号、不要解释、不要结尾标点。',
+                ? `You name A-share strategies. Read the strategy code; it is currently called "${currentName}". If that name still accurately summarizes the code's selection/timing/trading logic, **return it unchanged**; only when the logic has clearly drifted, propose a more fitting ${nameLangHint}. Output only the name itself — no quotes, no explanation, no trailing punctuation.`
+                : `You name A-share strategies. Read the strategy code and propose ${nameLangHint} summarizing its selection/timing/trading logic. Output only the name itself — no quotes, no explanation, no trailing punctuation.`,
             },
             { role: 'user' as const, content: code },
           ]
         : [
             {
               role: 'system' as const,
-              content:
-                '你是 A 股策略命名助手。读用户的自然语言策略需求,起一个简短中文名称(≤14字,概括其选股/择时/交易意图),只输出名称本身——不要引号、不要解释、不要结尾标点。',
+              content: `You name A-share strategies. Read the user's natural-language strategy request and propose ${nameLangHint} summarizing its selection/timing/trading intent. Output only the name itself — no quotes, no explanation, no trailing punctuation.`,
             },
             { role: 'user' as const, content: prompt! },
           ];
