@@ -16,7 +16,7 @@ async function main(): Promise<void> {
   const note = args[1] ?? null;
 
   if (!Number.isInteger(count) || count < 1 || count > 100) {
-    console.error('count 必须是 1~100 的整数');
+    console.error('count must be an integer between 1 and 100');
     process.exit(1);
   }
 

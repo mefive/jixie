@@ -7,7 +7,8 @@ import { syncFinaIndicator, syncDividend } from '../src/store/sync.js';
  * Sync per-stock financials (fina_indicator + dividend history) into the local store.
  * Usage: pnpm --filter api sync:fina [refresh]
  *   refresh — re-pull stocks synced before the 2026-07 fina_indicator column expansion
- *             (毛利率/净利率/负债率/同比增速/ROA/现金流比;resumable, see syncFinaIndicator).
+ *             (gross margin / net margin / debt ratio / YoY growth / ROA / cash-flow ratio;
+ *             resumable, see syncFinaIndicator).
  *
  * Financial APIs are rate-limited (~80/min on lower tiers), so this uses a ≥800ms interval. All
  * syncs are resumable (skip stocks already present), so an interrupted run can simply be re-run.
@@ -23,23 +24,23 @@ async function main(): Promise<void> {
   });
 
   console.log(
-    `同步财务数据（fina_indicator + dividend，限频 ${interval}ms/次${refresh ? '，扩列回填' : ''}）\n`,
+    `Syncing financials (fina_indicator + dividend, rate limit ${interval}ms/call${refresh ? ', column backfill' : ''})\n`,
   );
   await syncFinaIndicator(client, undefined, { refresh });
   await syncDividend(client);
 
-  console.log('\n落库统计:');
+  console.log('\nStored row counts:');
   console.table({
     fina_indicator: await prisma.finaIndicator.count(),
     dividend: await prisma.dividend.count(),
   });
 
   await prisma.$disconnect();
-  console.log('✅ 财务同步完成');
+  console.log('✅ Financial sync complete');
 }
 
 main().catch(async (e: unknown) => {
-  console.error('\n❌ sync:fina 失败：', e instanceof Error ? e.message : e);
+  console.error('\n❌ sync:fina failed: ', e instanceof Error ? e.message : e);
   await prisma.$disconnect();
   process.exitCode = 1;
 });

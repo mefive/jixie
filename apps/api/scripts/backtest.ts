@@ -14,7 +14,7 @@ const pct = (x: number) => (x * 100).toFixed(2) + '%';
 async function main(): Promise<void> {
   const [signal = 'ep', side = 'high', q = '0.1'] = process.argv.slice(2);
   if (!SIGNALS[signal]) {
-    console.error(`未知信号 "${signal}"，可选：${Object.keys(SIGNALS).join(' / ')}`);
+    console.error(`Unknown signal "${signal}", options: ${Object.keys(SIGNALS).join(' / ')}`);
     process.exitCode = 1;
     return;
   }
@@ -31,23 +31,25 @@ async function main(): Promise<void> {
     strategy,
   });
 
-  console.log(`\n策略 ${r.name}  [${SIGNALS[signal].label}]`);
-  console.log(`${r.start} ~ ${r.end}  (${r.days} 个交易日)`);
+  console.log(`\nStrategy ${r.name}  [${SIGNALS[signal].label}]`);
+  console.log(`${r.start} ~ ${r.end}  (${r.days} trading days)`);
   console.log('-'.repeat(60));
-  console.log(`期初资金   ${r.initialCash.toLocaleString()}`);
-  console.log(`期末权益   ${Math.round(r.finalValue).toLocaleString()}`);
-  console.log(`累计收益   ${pct(r.totalReturn)}`);
-  console.log(`年化收益   ${pct(r.annReturn)}  (已扣交易成本)`);
-  console.log(`Sharpe     ${r.sharpe.toFixed(2)}`);
-  console.log(`最大回撤   ${pct(r.maxDrawdown)}`);
-  console.log(`成交笔数   ${r.trades}`);
-  console.log(`\n提示：这是扣成本的真实策略净值；可与 factor:report 里该因子分层的税前结果对比。`);
+  console.log(`Initial cash    ${r.initialCash.toLocaleString()}`);
+  console.log(`Final equity    ${Math.round(r.finalValue).toLocaleString()}`);
+  console.log(`Total return    ${pct(r.totalReturn)}`);
+  console.log(`Annualized      ${pct(r.annReturn)}  (net of transaction costs)`);
+  console.log(`Sharpe          ${r.sharpe.toFixed(2)}`);
+  console.log(`Max drawdown    ${pct(r.maxDrawdown)}`);
+  console.log(`Trade count     ${r.trades}`);
+  console.log(
+    `\nNote: this is the real strategy NAV net of costs; compare against the pre-tax layered result for this factor in factor:report.`,
+  );
 
   await prisma.$disconnect();
 }
 
 main().catch(async (e: unknown) => {
-  console.error('❌ backtest 失败：', e instanceof Error ? e.message : e);
+  console.error('❌ backtest failed:', e instanceof Error ? e.message : e);
   await prisma.$disconnect();
   process.exitCode = 1;
 });

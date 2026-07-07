@@ -187,7 +187,7 @@ export async function syncDailyBasic(
 }
 
 /**
- * Sync daily price limits (涨/跌停价) for the range, per trading day (resumable: skips days already
+ * Sync daily price limits (limit-up / limit-down prices) for the range, per trading day (resumable: skips days already
  * loaded). Mirrors syncDailyBasic — per-day deleteMany + createMany keeps repeated syncs idempotent.
  */
 export async function syncStkLimit(
@@ -232,8 +232,8 @@ export async function syncStkLimit(
 }
 
 /**
- * Sync 龙虎榜 (Dragon-Tiger List) per trading day into TopList (resumable). A stock can be on multiple
- * 榜单 in a day → multiple rows; we sum net_amount per (code, date) into one row. Per-day deleteMany +
+ * Sync the Dragon-Tiger List per trading day into TopList (resumable). A stock can be on multiple
+ * lists in a day → multiple rows; we sum net_amount per (code, date) into one row. Per-day deleteMany +
  * createMany keeps it idempotent.
  */
 export async function syncTopList(
@@ -284,7 +284,7 @@ export async function syncTopList(
 export const MF_FACTORS = ['mf_net_main', 'mf_net_total'] as const;
 
 /**
- * Sync per-stock daily moneyflow into the Moneyflow table (netMain 主力净额、netTotal 总净额, 万元),
+ * Sync per-stock daily moneyflow into the Moneyflow table (netMain = net main-force amount, netTotal = net total amount, in 10k CNY),
  * per trading day (resumable). Raw fetched point-in-time data: strategies read it via ctx.moneyflow,
  * factor analysis reads the column directly. Idempotent: per-day deleteMany + createMany.
  */
@@ -313,7 +313,7 @@ export async function syncMoneyflow(
     const data = rows.map((r) => ({
       tsCode: r.ts_code,
       tradeDate: d,
-      // 主力 = (大单+特大单) 买−卖; 总净额 = net_mf_amount(source 可能缺 → null)
+      // main-force = (large + extra-large orders) buy − sell; net total = net_mf_amount (source may be missing → null)
       netMain:
         (r.buy_lg_amount ?? 0) +
         (r.buy_elg_amount ?? 0) -

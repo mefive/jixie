@@ -9,13 +9,13 @@ import './trade-detail.css';
 
 const UP = '#e8463b'; // A-share red up
 const DOWN = '#2f9e5b'; // green down
-const DOT = '#f0a020'; // 富途式分红黄点 — trade markers on the axis
+const DOT = '#f0a020'; // Futu-style dividend yellow dot — trade markers on the axis
 
 /**
- * 交易详情 — the traded stock's full K线 + 成交量, with each trade as a yellow dot pinned to the bottom
+ * Trade detail — the traded stock's full candlestick + volume, with each trade as a yellow dot pinned to the bottom
  * axis (Futu-style, not on the price line). Click a dot to scroll the right list to that fill. Multi-stock
- * strategies get a code picker (default the most-traded). Prices are 不复权 (raw) — the real trade prices
- * shown in the list (除权除息 gaps are real); the engine accounts internally in 后复权.
+ * strategies get a code picker (default the most-traded). Prices are unadjusted (raw) — the real trade prices
+ * shown in the list (ex-dividend/ex-rights gaps are real); the engine accounts internally in after-adjustment (hfq) prices.
  */
 export default function TradeDetail({
   tradeLog,
@@ -26,7 +26,7 @@ export default function TradeDetail({
   tradeLog: TradeRecord[];
   start: string;
   end: string;
-  nav?: { date: string; value: number }[]; // strategy equity curve → 收益率曲线(右轴)
+  nav?: { date: string; value: number }[]; // strategy equity curve → return curve (right axis)
 }) {
   const { t } = useTranslation('lab');
   const codes = useMemo(() => {
@@ -37,8 +37,8 @@ export default function TradeDetail({
     return [...c.entries()].sort((a, b) => b[1] - a[1]); // [code, count] by count desc
   }, [tradeLog]);
 
-  const [code, setCode] = useState(codes[0]?.[0] ?? ''); // instrument whose K线 shows (always a real code)
-  const [showAll, setShowAll] = useState(false); // 全部: list + trade dots span every instrument (K线 unchanged)
+  const [code, setCode] = useState(codes[0]?.[0] ?? ''); // instrument whose candlestick shows (always a real code)
+  const [showAll, setShowAll] = useState(false); // All: list + trade dots span every instrument (candlestick unchanged)
   const [names, setNames] = useState<Record<string, string>>({});
   const [series, setSeries] = useState<StockSeries | null>(null);
   const [loading, setLoading] = useState(false);
@@ -55,7 +55,7 @@ export default function TradeDetail({
       .catch(() => {});
   }, [codes]);
 
-  // 沪深300 daily close over the window → benchmark return curve (right axis).
+  // CSI 300 daily close over the window → benchmark return curve (right axis).
   const [bench, setBench] = useState<{ date: string; close: number }[]>([]);
   useEffect(() => {
     fetchIndexSeries('000300.SH', start, end)
@@ -63,8 +63,8 @@ export default function TradeDetail({
       .catch(() => setBench([]));
   }, [start, end]);
 
-  // 全部 → every instrument's fills, sorted by date (drives both the list and the trade dots); else
-  // just the shown instrument's. The K线/MA come from `code` regardless.
+  // All → every instrument's fills, sorted by date (drives both the list and the trade dots); else
+  // just the shown instrument's. The candlestick/MA come from `code` regardless.
   const trades = useMemo(
     () =>
       showAll
@@ -94,7 +94,7 @@ export default function TradeDetail({
     const p = series.points;
     const dates = p.map((d) => d.date);
     // Unadjusted (raw) prices — so the chart's price level matches the real fill prices shown in the list
-    // (除权除息 gaps are real). The trade dots are pinned to the axis, so they don't depend on this choice.
+    // (ex-dividend/ex-rights gaps are real). The trade dots are pinned to the axis, so they don't depend on this choice.
     const candle = p.map((d) =>
       d.open == null || d.close == null || d.low == null || d.high == null
         ? [NaN, NaN, NaN, NaN]
@@ -119,7 +119,7 @@ export default function TradeDetail({
         return Number.isFinite(s) ? +(s / n).toFixed(2) : null;
       });
 
-    // Return curves (right %, base = first value in the window): 策略(nav) + 沪深300(bench), by date.
+    // Return curves (right %, base = first value in the window): strategy (nav) + CSI 300 (bench), by date.
     const navMap = new Map((nav ?? []).map((x) => [x.date, x.value]));
     const nav0 = nav?.[0]?.value;
     const benchMap = new Map(bench.map((x) => [x.date, x.close]));

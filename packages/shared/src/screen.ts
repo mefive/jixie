@@ -1,8 +1,8 @@
 import type { TradeDate, TsCode } from './types.js';
 
 /**
- * Stock screener (产品线 2: 选股看图). A natural-language query → a structured ScreenSpec → filter the
- * latest whole-market snapshot → a table of matching stocks → click one to see its K线/PE/量 charts.
+ * Stock screener (product line 2: screening & charting). A natural-language query → a structured ScreenSpec → filter the
+ * latest whole-market snapshot → a table of matching stocks → click one to see its candlestick / PE / volume charts.
  * This is exploration, not backtesting: filters apply to each stock's most recent metrics.
  */
 
@@ -24,11 +24,11 @@ export type ScreenField =
 export interface ScreenFilter {
   field: ScreenField;
   op: ScreenOp;
-  value: number; // stored in the field's native unit (e.g. totalMv in 万元)
+  value: number; // stored in the field's native unit (e.g. totalMv in 10k yuan)
 }
 
 /** Field metadata for the UI (condition chips, sort picker). `scale` converts stored↔display:
- * displayValue = stored / scale (market cap stored in 万元, shown in 亿 → scale 1e4). */
+ * displayValue = stored / scale (market cap stored in 10k yuan, shown in 100M yuan → scale 1e4). */
 export interface ScreenFieldDef {
   key: ScreenField;
   label: string;
@@ -72,8 +72,8 @@ export interface ScreenRow {
   pb: number | null;
   ps: number | null;
   dvRatio: number | null;
-  totalMv: number | null; // 万元
-  circMv: number | null; // 万元
+  totalMv: number | null; // 10k yuan
+  circMv: number | null; // 10k yuan
   turnoverRate: number | null;
 }
 
@@ -84,14 +84,14 @@ export interface ScreenResult {
 }
 
 /** One day of a stock's chart series. OHLC are raw/unadjusted; the cumulative adjFactor lets the
- * client render 不复权 (raw) / 后复权 (× factor) / 前复权 (× factor / latest factor). */
+ * client render unadjusted (raw) / backward-adjusted (× factor) / forward-adjusted (× factor / latest factor). */
 export interface StockSeriesPoint {
   date: TradeDate;
   open: number | null;
   high: number | null;
   low: number | null;
   close: number | null;
-  vol: number | null; // 手
+  vol: number | null; // lots (100 shares)
   pe: number | null; // from daily_basic
   adjFactor: number | null; // cumulative adjustment factor
 }

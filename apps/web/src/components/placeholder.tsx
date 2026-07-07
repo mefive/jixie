@@ -4,7 +4,7 @@ import classNames from 'classnames';
 import './placeholder.css';
 
 // Centered icon + text filler for loading / empty / error states — the "loading ? spinner : content"
-// block reused across pages (因子分析, 选股看图, ...). `spin` animates the icon (loading); `error` tints red.
+// block reused across pages (factor analysis, stock screener, ...). `spin` animates the icon (loading); `error` tints red.
 // Richer than a bare antd <Spin>: it carries a FontAwesome icon + a line of explanatory text.
 export function Placeholder({
   text,

@@ -22,9 +22,11 @@ import { seedBuiltinFactors } from './factor/builtin-factors.js';
 export function startServer(port: number) {
   const app = buildApp();
   // Any job left 'running' from a previous process is a zombie (its worker died) → mark stale.
-  void markRunningJobsStale().then((n) => n && console.log(`[jixie] ${n} 个残留 job 标记为 stale`));
+  void markRunningJobsStale().then(
+    (n) => n && console.log(`[jixie] marked ${n} orphaned job(s) as stale`),
+  );
   // Materialize the built-in preset factors (idempotent; repo is the source of truth).
-  void seedBuiltinFactors().catch((e) => console.error('[jixie] 预置因子 seed 失败', e));
+  void seedBuiltinFactors().catch((e) => console.error('[jixie] preset factor seed failed', e));
   serve({ fetch: app.fetch, port });
   return app;
 }

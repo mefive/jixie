@@ -17,7 +17,7 @@ const START = '20200101';
 const END = '20241231';
 const CASH = 1_000_000;
 
-// EP 月度十分位, authored against the SDK — mirrors crossSectionStrategy({ signal:'ep', side:'high', q:0.1 }).
+// EP monthly decile, authored against the SDK — mirrors crossSectionStrategy({ signal:'ep', side:'high', q:0.1 }).
 const EP_CODE = `
 let last = '';
 export default defineStrategy({
@@ -37,9 +37,9 @@ export default defineStrategy({
 `;
 
 function line(label: string, r: BacktestResult): string {
-  return `${label}: 收益 ${pct(r.totalReturn)} | 年化 ${pct(r.annReturn)} | Sharpe ${r.sharpe.toFixed(
+  return `${label}: return ${pct(r.totalReturn)} | annualized ${pct(r.annReturn)} | Sharpe ${r.sharpe.toFixed(
     2,
-  )} | 回撤 ${pct(r.maxDrawdown)} | 交易 ${r.trades} 笔`;
+  )} | drawdown ${pct(r.maxDrawdown)} | trades ${r.trades}`;
 }
 
 async function main(): Promise<void> {
@@ -51,11 +51,15 @@ async function main(): Promise<void> {
   });
   const code = await runCodeBacktest({ start: START, end: END, initialCash: CASH, code: EP_CODE });
 
-  console.log('\n=== EP 月度十分位 · IR 版 vs 代码版(SDK 标准库) ===');
+  console.log('\n=== EP monthly decile · IR version vs code version (SDK stdlib) ===');
   console.log(line('IR  ', ir));
-  console.log(line('代码', code));
+  console.log(line('Code', code));
   const same = Math.abs(ir.totalReturn - code.totalReturn) < 1e-9 && ir.trades === code.trades;
-  console.log(same ? '\n✅ 两版逐位一致 —— SDK 标准库忠实表达了结构化策略' : '\n❌ 不一致,需排查');
+  console.log(
+    same
+      ? '\n✅ Both versions match bit-for-bit —— the SDK stdlib faithfully expresses the structured strategy'
+      : '\n❌ Mismatch, needs investigation',
+  );
   if (!same) {
     process.exitCode = 1;
   }

@@ -4,7 +4,7 @@ import { execPrice } from './run.js';
 import { DEFAULT_COST } from './types.js';
 
 // A stub EngineData that only answers amountAt (the sole method execPrice touches). `amountThousand` is
-// the day's 成交额 in 千元 (as stored), or null for a no-turnover day.
+// the day's turnover in thousand yuan (as stored), or null for a no-turnover day.
 function stubData(amountThousand: number | null): EngineData {
   return { amountAt: () => amountThousand } as unknown as EngineData;
 }
@@ -13,7 +13,7 @@ const cost = DEFAULT_COST; // slippageBps 2 → base 0.0002; impactCoef 0.1
 
 describe('execPrice — slippage on the fill price', () => {
   it('buys fill above the open, sells below (base half-spread, tiny order → impact ~0)', () => {
-    const data = stubData(1_000_000); // 1e6 千元 = 1e9 元 turnover — an order of ¥1000 barely dents it
+    const data = stubData(1_000_000); // 1e6 thousand yuan = 1e9 yuan turnover — an order of ¥1000 barely dents it
     const buy = execPrice(data, '600519.SH', '20200102', 'buy', 100, 1000, cost);
     const sell = execPrice(data, '600519.SH', '20200102', 'sell', 100, 1000, cost);
     expect(buy).toBeGreaterThan(100);
@@ -23,9 +23,9 @@ describe('execPrice — slippage on the fill price', () => {
     expect(sell).toBeCloseTo(100 * (1 - 0.0002 - 0.1 * (1000 / 1e9)), 6);
   });
 
-  it('a bigger order vs. the day turnover pays more slippage (the 中小盘 penalty)', () => {
+  it('a bigger order vs. the day turnover pays more slippage (the small/mid-cap penalty)', () => {
     // Order notional = ¥100k. Thin name: day turnover ¥1e6 → notional/turnover = 0.1 → impact 0.01.
-    const thin = execPrice(stubData(1000), 'X', '20200102', 'buy', 100, 100_000, cost); // 1000 千元 = 1e6 元
+    const thin = execPrice(stubData(1000), 'X', '20200102', 'buy', 100, 100_000, cost); // 1000 thousand yuan = 1e6 yuan
     // Liquid name: same order but ¥1e8 turnover → notional/turnover = 0.001 → impact 0.0001.
     const liquid = execPrice(stubData(100_000), 'X', '20200102', 'buy', 100, 100_000, cost);
     expect(thin).toBeGreaterThan(liquid);

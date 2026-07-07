@@ -39,16 +39,16 @@ const TradeDetail = lazy(() => import('./trade-detail'));
 
 /**
  * Backtest workbench — code-first, IDE-style. A first-time visit (no recents) opens a focused prompt
- * hero; otherwise 新建 pops a prompt modal over the workbench. The workbench is a 3-column Splitter: an
- * Agent panel (a chat that iterates on the strategy code, over a sticky 起始/结束/资金 + 运行回测 header;
- * plus a 历史 tab) | the code editor over a collapsible 日志 dock | a right column of 结果概览 / 交易明细
- * tabs (交易明细 = K线 over the trade table). All regions are drag-resizable.
+ * hero; otherwise New pops a prompt modal over the workbench. The workbench is a 3-column Splitter: an
+ * Agent panel (a chat that iterates on the strategy code, over a sticky start/end/capital + Run-backtest header;
+ * plus a History tab) | the code editor over a collapsible log dock | a right column of Results-overview / Trade-detail
+ * tabs (Trade-detail = candlestick over the trade table). All regions are drag-resizable.
  */
 export const Lab = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('lab');
-  const [heroDismissed, setHeroDismissed] = useState(false); // "直接写代码" escape from the new-strategy hero
-  const [newModalOpen, setNewModalOpen] = useState(false); // 新建 → prompt modal (not the full hero)
+  const [heroDismissed, setHeroDismissed] = useState(false); // "write code directly" escape from the new-strategy hero
+  const [newModalOpen, setNewModalOpen] = useState(false); // New → prompt modal (not the full hero)
   const [panelDefaults] = useState(() => splitterDefaults(380)); // percentage sizes = no first-frame jitter
   const [pendingLeave, setPendingLeave] = useState<(() => void) | null>(null); // dirty → confirm before discarding
   const navigate = useNavigate();
@@ -68,7 +68,7 @@ export const Lab = complex.component(() => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Guard an in-app action that would discard unrun edits (新建 / switching strategy): confirm when edited.
+  // Guard an in-app action that would discard unrun edits (New / switching strategy): confirm when edited.
   const tryLeave = (action: () => void) => {
     if (store.edited) {
       setPendingLeave(() => action);
@@ -88,7 +88,7 @@ export const Lab = complex.component(() => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store.savedId]);
 
-  // URL → store: external navigation (a 最近访问 card, 我的策略, browser back/forward) loads into the SAME
+  // URL → store: external navigation (a recent-visit card, My strategies, browser back/forward) loads into the SAME
   // store instance — no remount, no flash. Skip the mount run (setup already resolved the initial URL).
   useEffect(() => {
     if (skipFirstUrlSync.current) {
@@ -109,7 +109,7 @@ export const Lab = complex.component(() => {
       }
       return;
     }
-    // bare /lab (e.g. the 回测工作台 nav): re-open the most recent, else go blank.
+    // bare /lab (e.g. the backtest-workbench nav): re-open the most recent, else go blank.
     const recent = readRecents()[0] ?? '';
     if (recent && recent !== savedId) {
       void store.openSaved(recent);
@@ -119,10 +119,10 @@ export const Lab = complex.component(() => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
-  // 新建 → a prompt Modal (not the full 新增视图). Guard unrun edits (chat saves in real time, but
-  // code/params only commit on a run — 新建 or switching away would drop them).
+  // New → a prompt Modal (not the full new-strategy view). Guard unrun edits (chat saves in real time, but
+  // code/params only commit on a run — New or switching away would drop them).
   const openNewModal = () => tryLeave(() => setNewModalOpen(true));
-  // Open a saved strategy (from 历史) — same unrun-edit guard.
+  // Open a saved strategy (from History) — same unrun-edit guard.
   const onOpenStrategy = (id: string) => tryLeave(() => navigate(`/lab?id=${id}`));
   // From the modal: start a new strategy with a first Agent message, or a blank one to hand-write. Both
   // reset to a fresh strategy and clear the URL (?new=1 keeps the URL sync from auto-opening a recent).
@@ -140,9 +140,9 @@ export const Lab = complex.component(() => {
     navigate('/lab?new=1', { replace: true });
   };
 
-  // The full-page 新增视图 (hero) shows only on a genuine first visit with nothing recent to auto-open;
+  // The full-page new-strategy view (hero) shows only on a genuine first visit with nothing recent to auto-open;
   // never while the initial strategy is still loading (that async gap would flash the hero before
-  // openSaved resolved). Otherwise 新建 pops the prompt modal over the workbench.
+  // openSaved resolved). Otherwise New pops the prompt modal over the workbench.
   const showHero =
     !store.initializing && store.isFresh && !heroDismissed && readRecents().length === 0;
 
@@ -158,7 +158,7 @@ export const Lab = complex.component(() => {
           onSkip={() => setHeroDismissed(true)}
         />
       ) : (
-        // IDE layout: Agent | (编辑器 over 日志 dock) | 右列 结果/交易明细 tabs — all drag-resizable.
+        // IDE layout: Agent | (editor over log dock) | right column of Results / Trade-detail tabs — all drag-resizable.
         <Splitter className="jx-lab-body">
           <Splitter.Panel defaultSize={panelDefaults.left} min={300} max={620} collapsible>
             <AgentPanel onNew={openNewModal} onOpenStrategy={onOpenStrategy} />
@@ -207,10 +207,10 @@ export const Lab = complex.component(() => {
   );
 }, 'Lab');
 
-// —— 子组件 ——
+// —— Subcomponents ——
 
-// New-strategy hero: the full-page 新增视图, shown only on a first visit with no recents. Describe the
-// strategy → the Agent writes it → the workbench takes over. Below the prompt, 最近访问 tiles the
+// New-strategy hero: the full-page new-strategy view, shown only on a first visit with no recents. Describe the
+// strategy → the Agent writes it → the workbench takes over. Below the prompt, Recent visits tiles the
 // last-opened strategies for one-click reopen.
 const StrategyHero = complex.component(
   ({ onSubmit, onSkip }: { onSubmit: (text: string) => void; onSkip: () => void }) => {
@@ -258,7 +258,7 @@ const StrategyHero = complex.component(
   'StrategyHero',
 );
 
-// The shared prompt block (hero + 新建 modal): a prompt box + example chips + a 直接写代码 escape.
+// The shared prompt block (hero + New modal): a prompt box + example chips + a "write code directly" escape.
 // Local draft (not the store's chat draft) so the modal opens clean. onSubmit fires the first Agent turn.
 const NewStrategyPrompt = complex.component(
   ({
@@ -323,7 +323,7 @@ const NewStrategyPrompt = complex.component(
   'NewStrategyPrompt',
 );
 
-// 新建 → a prompt modal (ported from the hero) over the workbench, instead of the full 新增视图.
+// New → a prompt modal (ported from the hero) over the workbench, instead of the full new-strategy view.
 function NewStrategyModal({
   open,
   onSubmit,
@@ -353,8 +353,8 @@ function NewStrategyModal({
   );
 }
 
-// —— Agent panel (left column) —— a chat that iterates on the strategy, over a sticky 运行配置; plus a
-// 历史 tab to switch strategies. The agent edits the code in the middle editor; the user can still hand-edit.
+// —— Agent panel (left column) —— a chat that iterates on the strategy, over a sticky run-config; plus a
+// History tab to switch strategies. The agent edits the code in the middle editor; the user can still hand-edit.
 const AgentPanel = complex.component(
   ({ onNew, onOpenStrategy }: { onNew: () => void; onOpenStrategy: (id: string) => void }) => {
     const { t } = useTranslation('lab');
@@ -391,8 +391,8 @@ const AgentPanel = complex.component(
   'AgentPanel',
 );
 
-// Agent tab: sticky 运行配置 (日期/资金 + 运行回测) over a scrollable chat log + a Cursor-style composer
-// (a bordered box, no button — 回车发送; the box stays multi-row rather than collapsing to one line).
+// Agent tab: sticky run-config (date/capital + Run-backtest) over a scrollable chat log + a Cursor-style composer
+// (a bordered box, no button — Enter sends; the box stays multi-row rather than collapsing to one line).
 const AgentChat = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('lab');
@@ -422,7 +422,7 @@ const AgentChat = complex.component(() => {
   );
 }, 'AgentChat');
 
-// Sticky run-config header: 起始/结束/资金 + 运行回测 (策略名 is auto-generated on run — no name field).
+// Sticky run-config header: start/end/capital + Run-backtest (the strategy name is auto-generated on run — no name field).
 const RunConfig = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('lab');
@@ -524,7 +524,7 @@ function ChatLog({
   );
 }
 
-// 历史 tab: this user's strategies as vertical cards — open loads the strategy + its conversation.
+// History tab: this user's strategies as vertical cards — open loads the strategy + its conversation.
 const HistoryList = complex.component(({ onOpen }: { onOpen: (id: string) => void }) => {
   const store = complex.useStore();
   const { t } = useTranslation('lab');
@@ -553,7 +553,7 @@ const HistoryList = complex.component(({ onOpen }: { onOpen: (id: string) => voi
   );
 }, 'HistoryList');
 
-// NL prompt textarea — Enter sends, Shift+Space / Shift+Enter newline, IME-safe (mirrors 选股看图).
+// NL prompt textarea — Enter sends, Shift+Space / Shift+Enter newline, IME-safe (mirrors the screener page).
 function PromptBox({
   value,
   onChange,
@@ -576,7 +576,7 @@ function PromptBox({
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.nativeEvent.isComposing) {
       return;
-    } // mid-IME (拼音候选) — let Enter confirm, never send
+    } // mid-IME (pinyin candidates) — let Enter confirm, never send
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       onSubmit();
@@ -621,7 +621,7 @@ const StrategyCode = complex.component(() => {
   );
 }, 'StrategyCode');
 
-// 结果概览 — metrics + 净值 + 月度. Logs and 交易明细 live in the dock below (ResultDock), so this
+// Results overview — metrics + equity curve + monthly returns. Logs and Trade-detail live in the dock below (ResultDock), so this
 // panel no longer swaps to a log view while running; it shows a running placeholder and lets the log
 // stream in the dock.
 const ResultPanel = complex.component(() => {
@@ -646,7 +646,7 @@ const ResultPanel = complex.component(() => {
   const r = store.result; // a finished run, or the saved last-result loaded on reopen
   if (!r) {
     // While the initial strategy (and its saved result) is still loading, stay blank — the
-    // "写好策略" hint would flash-swap into the loaded result a few frames later.
+    // "write your strategy" hint would flash-swap into the loaded result a few frames later.
     if (store.initializing) {
       return <div className="jx-lab-placeholder" />;
     }
@@ -708,8 +708,8 @@ const ResultPanel = complex.component(() => {
   );
 }, 'ResultPanel');
 
-// The bottom dock — a collapsible IDE-style panel with 日志 (streamed system + user console) and, once
-// a run has trades, 交易明细 (K线 + trade list, in place — no modal). Running auto-selects 日志; the tab
+// The bottom dock — a collapsible IDE-style panel with a Log (streamed system + user console) and, once
+// a run has trades, Trade-detail (candlestick + trade list, in place — no modal). Running auto-selects the Log; the tab
 // label spins while the worker streams.
 const LogDock = complex.component(() => {
   const store = complex.useStore();
@@ -726,8 +726,8 @@ const LogDock = complex.component(() => {
   );
 }, 'LogDock');
 
-// Right column: 结果概览 (metrics + 净值 + 月度) / 交易明细 (K线 over the trade table) as tabs — no
-// vertical split (that was too cramped). 交易明细 appears only once a run has trades.
+// Right column: Results-overview (metrics + equity curve + monthly returns) / Trade-detail (candlestick over the trade table) as tabs — no
+// vertical split (that was too cramped). Trade-detail appears only once a run has trades.
 const ResultTabs = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('lab');
@@ -765,7 +765,7 @@ const ResultTabs = complex.component(() => {
     });
   }
 
-  // A tab may vanish (a rerun with no trades) — fall back to 结果概览 so the panel never blanks.
+  // A tab may vanish (a rerun with no trades) — fall back to Results-overview so the panel never blanks.
   const activeKey = active === 'trades' && !hasTrades ? 'overview' : active;
 
   return (
@@ -793,7 +793,7 @@ const ResultTabs = complex.component(() => {
   );
 }, 'ResultTabs');
 
-// —— 帮助函数 / 配置 ——
+// —— Helpers / config ——
 
 /** The turn's ephemeral tool trace (display only — absent once a conversation is reloaded). */
 function traceOf(message: ChatMessage): AgentToolTraceItem[] | undefined {

@@ -2,7 +2,7 @@ import classNames from 'classnames';
 import { useTranslation } from 'react-i18next';
 import './monthly-returns.css';
 
-/** 月度收益表 — year × month heatmap (A 股 红涨绿跌), with a compounded 全年 column. */
+/** Monthly return table — year × month heatmap (A-share red up / green down), with a compounded full-year column. */
 export function MonthlyReturns({ monthly }: { monthly: { month: string; ret: number }[] }) {
   const { t } = useTranslation('lab');
   if (!monthly?.length) {

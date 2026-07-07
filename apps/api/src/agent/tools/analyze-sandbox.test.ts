@@ -9,8 +9,8 @@ const DATA = {
   ],
 };
 
-describe('runAnalysisCode(analyzeData 沙盒)', () => {
-  it('执行模块并注入 data 与 stats', async () => {
+describe('runAnalysisCode(analyzeData sandbox)', () => {
+  it('runs the module and injects data and stats', async () => {
     const result = await runAnalysisCode(
       `export default ({ data, stats }) => {
          const closes = data.a.map((row) => row.close);
@@ -22,7 +22,7 @@ describe('runAnalysisCode(analyzeData 沙盒)', () => {
     expect(result).toEqual({ meanReturn: expect.closeTo(0.1, 10), n: 2 });
   });
 
-  it('容忍 TS 类型标注与 async 模块', async () => {
+  it('tolerates TS type annotations and async modules', async () => {
     const result = await runAnalysisCode(
       `export default async ({ data }: { data: any }): Promise<number> => data.a.length;`,
       DATA,
@@ -30,17 +30,17 @@ describe('runAnalysisCode(analyzeData 沙盒)', () => {
     expect(result).toBe(3);
   });
 
-  it('缺 default 导出报可读错误', async () => {
+  it('reports a readable error when the default export is missing', async () => {
     await expect(runAnalysisCode(`export const x = 1;`, DATA)).rejects.toThrow(/export default/);
   });
 
-  it('运行时抛错带回错误消息', async () => {
+  it('surfaces the error message when the code throws at runtime', async () => {
     await expect(
       runAnalysisCode(`export default () => { throw new Error('boom'); }`, DATA),
     ).rejects.toThrow(/boom/);
   });
 
-  it('import 外部模块被拒(未使用的 import 会被 esbuild 剔除,故用例必须真的用到它)', async () => {
+  it('rejects importing external modules (an unused import is dropped by esbuild, so the case must actually use it)', async () => {
     await expect(
       runAnalysisCode(
         `import fs from 'fs'; export default () => fs.readFileSync('/etc/hosts');`,
@@ -49,13 +49,13 @@ describe('runAnalysisCode(analyzeData 沙盒)', () => {
     ).rejects.toThrow(/cannot import external module/);
   });
 
-  it('语法错误报编译失败', async () => {
+  it('reports a compilation failure on a syntax error', async () => {
     await expect(runAnalysisCode(`export default ({) => 1`, DATA)).rejects.toThrow(
       /compilation failed/,
     );
   });
 
-  it('原型链逃逸拿不到宿主(isolate 的全局里没有 process/require)', async () => {
+  it('prototype-chain escape cannot reach the host (no process/require in the isolate global)', async () => {
     const result = await runAnalysisCode(
       `export default () => {
          const escaped = ({}).constructor.constructor('return globalThis.process')();
@@ -66,7 +66,7 @@ describe('runAnalysisCode(analyzeData 沙盒)', () => {
     expect(result).toEqual({ processType: 'undefined', requireType: 'undefined' });
   });
 
-  it('死循环被 CPU 超时硬杀', async () => {
+  it('kills an infinite loop via the CPU timeout', async () => {
     await expect(
       runAnalysisCode(`export default () => { for (;;) {} }`, DATA, { timeoutMs: 500 }),
     ).rejects.toThrow(/execution error/);

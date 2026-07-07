@@ -133,7 +133,7 @@ export function agentSql(sql: string): Promise<SqlRows> {
 // EventSource — EventSource can't attach an AbortSignal or read a failed response body.
 export async function* readSSE(res: Response): AsyncGenerator<AgentStreamEvent> {
   if (!res.body) {
-    throw new Error('SSE 响应没有 body');
+    throw new Error('SSE response has no body');
   }
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
@@ -238,7 +238,7 @@ export function sendAgent(
   });
 }
 
-// —— Saved strategies (产品线 1 持久化) —— created on the first Agent prompt, then updated by id:
+// —— Saved strategies (product line 1 persistence) —— created on the first Agent prompt, then updated by id:
 // messages in real time, config/name on a run.
 
 export function listStrategies(): Promise<StrategyCard[]> {
@@ -272,7 +272,7 @@ export function deleteStrategy(id: string): Promise<{ ok: true }> {
   return request(`/api/app/strategies/${id}`, { method: 'DELETE' });
 }
 
-// —— Saved screens (产品线 2 持久化) —— saved on demand; { name, spec } upsert by name.
+// —— Saved screens (product line 2 persistence) —— saved on demand; { name, spec } upsert by name.
 
 export function listScreens(): Promise<SavedMeta[]> {
   return request('/api/app/screens');
@@ -290,7 +290,7 @@ export function deleteScreen(id: string): Promise<{ ok: true }> {
   return request(`/api/app/screens/${id}`, { method: 'DELETE' });
 }
 
-// —— Screener (产品线 2) ——
+// —— Screener (product line 2) ——
 
 // Run a structured screen against the latest snapshot.
 export function runScreen(spec: ScreenSpec): Promise<ScreenResult> {
@@ -309,7 +309,7 @@ export function sendScreenAgent(
   });
 }
 
-// —— Screen conversations (卡片墙的「会话卡片」) —— created on the first turn, messages saved per turn.
+// —— Screen conversations (the card wall's "conversation cards") —— created on the first turn, messages saved per turn.
 
 export function listScreenConversations(): Promise<ScreenConversationMeta[]> {
   return request('/api/app/screen/conversations');
@@ -343,7 +343,7 @@ export function deleteScreenConversation(id: string): Promise<{ ok: true }> {
   return request(`/api/app/screen/conversations/${id}`, { method: 'DELETE' });
 }
 
-// A stock's OHLC/vol/pe series for the K线/PE/量 charts.
+// A stock's OHLC/vol/pe series for the candlestick/PE/volume charts.
 export function fetchStockSeries(
   code: string,
   start = '20150101',
@@ -352,12 +352,12 @@ export function fetchStockSeries(
   return request(`/api/app/stock/${code}/series?start=${start}&end=${end}`);
 }
 
-// tsCode → name (bulk) — e.g. the traded-instruments queue in 交易详情.
+// tsCode → name (bulk) — e.g. the traded-instruments queue in Trade detail.
 export function fetchNames(codes: string[]): Promise<Record<string, string>> {
   return request(`/api/app/names?codes=${encodeURIComponent(codes.join(','))}`);
 }
 
-// Index daily close (e.g. 000300.SH) over a range — the benchmark return curve in 交易详情.
+// Index daily close (e.g. 000300.SH) over a range — the benchmark return curve in Trade detail.
 export function fetchIndexSeries(
   code: string,
   start: string,
@@ -368,7 +368,7 @@ export function fetchIndexSeries(
 
 import type { FactorReport, FactorMeta, FactorRun, FactorFreq } from '@jixie/shared';
 
-// 因子研究: the factor list (identity + kind) — preset + this user's custom factors.
+// Factor research: the factor list (identity + kind) — preset + this user's custom factors.
 export function getFactorCatalog(): Promise<FactorMeta[]> {
   return request('/api/app/factors/catalog');
 }
@@ -453,7 +453,7 @@ export function generateFactorName(input: {
   return request('/api/app/factors/name', { method: 'POST', body: JSON.stringify(input) });
 }
 
-// A factor's cached runs (the "已跑" chips).
+// A factor's cached runs (the "already-run" chips).
 export function getFactorRuns(factor: string): Promise<FactorRun[]> {
   return request(`/api/app/factors/runs?factor=${encodeURIComponent(factor)}`);
 }

@@ -85,7 +85,7 @@ export class LoaderModel<Result = any> extends BaseModel<LoaderModelSetupParams<
       const data = promiseOrData;
       promise = this.setupParams.request(data, this.abortController.signal);
     } else {
-      promise = Promise.reject(new Error('未找到Promise'));
+      promise = Promise.reject(new Error('Promise not found'));
     }
     return new Promise((resolve, reject) => {
       promise

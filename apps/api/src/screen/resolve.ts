@@ -33,14 +33,16 @@ export async function resolveInstruments(text: string): Promise<string[]> {
     return rows.map((r) => r.tsCode);
   }
 
-  // 2. Exact full name (工商银行 → 601398.SH).
+  // 2. Exact full name (a full stock name resolves to its ts_code, e.g. ICBC → 601398.SH).
   const exact = await prisma.stockBasic.findMany({ where: { name: t }, select: { tsCode: true } });
   if (exact.length) {
     return exact.map((r) => r.tsCode);
   }
 
-  // 3. Short name fragment (茅台 → 贵州茅台; 平安 → 中国平安 / 平安银行). A screen phrase ("便宜的高股息")
-  //    simply matches no name → [] → caller goes to the LLM. Capped so a generic fragment can't flood.
+  // 3. Short name fragment (a brand fragment matches the full names containing it, e.g. "Maotai" →
+  //    "Kweichow Maotai"; "Ping An" → "Ping An Insurance" / "Ping An Bank"). A screen phrase (like
+  //    "cheap high-dividend") simply matches no name → [] → caller goes to the LLM. Capped so a
+  //    generic fragment can't flood.
   if (NAME_TOKEN_RE.test(t)) {
     const hits = await prisma.stockBasic.findMany({
       where: { name: { contains: t } },

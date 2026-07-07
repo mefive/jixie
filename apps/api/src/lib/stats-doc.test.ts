@@ -5,16 +5,16 @@ import { STATS_DOC } from './stats-doc.js';
 
 const source = readFileSync(new URL('./stats.ts', import.meta.url), 'utf8');
 
-describe('stats-doc(agent 说明书)与 stats.ts 源码同步', () => {
-  it('每个导出函数都有 JSDoc(否则 agent 看不到它)', () => {
+describe('stats-doc (agent reference) stays in sync with stats.ts source', () => {
+  it('every exported function has JSDoc (otherwise the agent cannot see it)', () => {
     expect(undocumentedExports(source)).toEqual([]);
   });
 
-  it('stats-doc.ts 与源码 JSDoc 一致(漂移请跑 pnpm --filter api gen:stats-doc)', () => {
+  it('stats-doc.ts matches the source JSDoc (on drift run pnpm --filter api gen:stats-doc)', () => {
     expect(STATS_DOC).toBe(buildStatsDoc(source));
   });
 
-  it('说明书覆盖关键函数', () => {
+  it('the reference covers the key functions', () => {
     for (const name of ['pearson', 'spearman', 'linearRegression', 'quantile', 'sharpe']) {
       expect(STATS_DOC).toContain(`stats.${name}(`);
     }

@@ -9,7 +9,7 @@ import './learn.css';
  * Standalone getting-started tutorial (route `/learn`, linked from /docs's top bar + the lab hero).
  * A *linear* learning path (vs /docs, which is the by-symbol reference): copy a running strategy, then
  * build up the mental model — onBar/T+1, bar vs bars, order vs target — hands-on, with a short "why"
- * aside only where it prevents a real pitfall. Same Apple-docs ink shell as sdk-doc; bilingual (中/EN),
+ * aside only where it prevents a real pitfall. Same Apple-docs ink shell as sdk-doc; bilingual (zh/EN),
  * driven by the app-wide localeStore (its own compact toggle in the bar, since it has no TopNav).
  */
 export default observer(function LearnPage() {
@@ -566,7 +566,7 @@ function Section({
 }
 
 // A short "why it works this way" aside — used sparingly, only where it prevents a real pitfall.
-// `label` is the localized tag text ("为什么" / "Why"), passed by the caller.
+// `label` is the localized tag text (the "Why" heading), passed by the caller.
 function Why({ label, children }: { label: string; children: ReactNode }) {
   return (
     <aside className="jx-learn-why">

@@ -40,7 +40,7 @@ export class Complex<StoreClass extends new (parentStore?: any) => any> {
 
   public render(store: InstanceType<StoreClass>, element: React.ReactElement) {
     if (this.config.storeClass && (!store || !((store as any) instanceof this.config.storeClass))) {
-      throw new Error('请传入符合类型的store!');
+      throw new Error('a store of the expected type must be provided');
     }
     return (
       <Observer>

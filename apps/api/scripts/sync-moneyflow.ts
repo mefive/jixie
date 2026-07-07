@@ -4,8 +4,9 @@ import { prisma } from '../src/lib/prisma.js';
 import { syncMoneyflow } from '../src/store/sync.js';
 
 /**
- * Sync per-stock daily moneyflow into the Moneyflow table (netMain 主力净额 / netTotal 总净额, 万元) — the
- * 关注度/资金 signal, read via a strategy's `factors: ['mf_net_main']` + `ctx.factor(...)`. Resumable.
+ * Sync per-stock daily moneyflow into the Moneyflow table (netMain = main-force net / netTotal = total
+ * net, in 10k CNY) — the attention/capital-flow signal, read via a strategy's `factors: ['mf_net_main']`
+ * + `ctx.factor(...)`. Resumable.
  * Usage: pnpm sync:moneyflow [start] [end]   e.g. pnpm sync:moneyflow 20200101 20241231
  */
 async function main(): Promise<void> {
@@ -18,21 +19,21 @@ async function main(): Promise<void> {
     minIntervalMs: cfg.minIntervalMs,
   });
 
-  console.log(`同步资金流 ${start} ~ ${end}（限频 ${cfg.minIntervalMs}ms/次）\n`);
+  console.log(`Syncing moneyflow ${start} ~ ${end} (rate limit ${cfg.minIntervalMs}ms/call)\n`);
   await syncMoneyflow(client, start, end);
 
-  console.log('\n落库统计:');
+  console.log('\nStored row counts:');
   console.table({
-    Moneyflow行数: await prisma.moneyflow.count(),
-    有总净额: await prisma.moneyflow.count({ where: { netTotal: { not: null } } }),
+    MoneyflowRows: await prisma.moneyflow.count(),
+    WithTotalNet: await prisma.moneyflow.count({ where: { netTotal: { not: null } } }),
   });
 
   await prisma.$disconnect();
-  console.log('✅ 资金流同步完成');
+  console.log('✅ Moneyflow sync complete');
 }
 
 main().catch(async (e: unknown) => {
-  console.error('\n❌ sync:moneyflow 失败：', e instanceof Error ? e.message : e);
+  console.error('\n❌ sync:moneyflow failed: ', e instanceof Error ? e.message : e);
   await prisma.$disconnect();
   process.exitCode = 1;
 });

@@ -110,7 +110,7 @@ export class TushareClient {
         }
         const backoff = this.minIntervalMs * 2 ** (attempt + 1);
         warn(
-          `${apiName} 第 ${attempt + 1} 次请求失败，${backoff}ms 后重试：`,
+          `${apiName} request attempt ${attempt + 1} failed, retrying in ${backoff}ms:`,
           (e as Error).message,
         );
         await sleep(backoff);

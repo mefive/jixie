@@ -3,8 +3,10 @@ import { useTranslation } from 'react-i18next';
 import type { QuantileHorizon, FactorWeight } from '@jixie/shared';
 import './quantile-heatmap.css';
 
-/** 分位 × 前瞻期热力图 —— 行=前瞻期,列=分位 D1..D10,格子=日均前瞻收益(‱ 万分),红涨绿跌。
- * 看哪个前瞻期下分位单调最强(左低→右高),以及信号衰不衰。日度归一化后各前瞻期可直接比。 */
+/** Quantile × forward-period heatmap —— rows = forward period, cols = quantile D1..D10, cell = daily
+ * average forward return (in ‱, basis-of-ten-thousand), red up / green down. Read off which forward
+ * period gives the strongest monotonic quantile spread (low on the left → high on the right) and whether
+ * the signal decays. After daily normalization the forward periods are directly comparable. */
 export function QuantileHeatmap({
   rows,
   weight,
@@ -45,7 +47,7 @@ export function QuantileHeatmap({
   );
 }
 
-// Red (+) / green (−) tint (A 股), intensity by |日均收益|; ≥15‱ ≈ full. White text once dark enough.
+// Red (+) / green (−) tint (A-share convention), intensity by |daily avg return|; ≥15‱ ≈ full. White text once dark enough.
 function bg(v: number): CSSProperties {
   const a = Math.min(Math.abs(v * 10000) / 15, 1) * 0.8;
   return {

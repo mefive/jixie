@@ -17,7 +17,7 @@ async function main(): Promise<void> {
     minIntervalMs: cfg.minIntervalMs,
   });
 
-  console.log(`同步 ${start} ~ ${end}（限频 ${cfg.minIntervalMs}ms/次）\n`);
+  console.log(`Syncing ${start} ~ ${end} (rate limit ${cfg.minIntervalMs}ms/call)\n`);
   await syncStockBasic(client);
   await syncTradeCal(client, start, end);
   await syncDaily(client, start, end);
@@ -28,15 +28,15 @@ async function main(): Promise<void> {
     prisma.daily.count(),
     prisma.adjFactor.count(),
   ]);
-  console.log('\n落库统计:');
+  console.log('\nStored row counts:');
   console.table({ stock_basic: sb, trade_cal: tc, daily: d, adj_factor: af });
 
   await prisma.$disconnect();
-  console.log('✅ 同步完成');
+  console.log('✅ Sync complete');
 }
 
 main().catch(async (e: unknown) => {
-  console.error('\n❌ sync 失败：', e instanceof Error ? e.message : e);
+  console.error('\n❌ sync failed: ', e instanceof Error ? e.message : e);
   await prisma.$disconnect();
   process.exitCode = 1;
 });
