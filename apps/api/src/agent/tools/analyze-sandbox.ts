@@ -1,39 +1,42 @@
-import { transform } from 'esbuild';
-import * as stats from '../../lib/stats.js';
+import { loadIsolatedModule, toCommonJs } from '../../lib/isolate-run.js';
 
 /**
- * Compile + run one analyzeData code module — the same sandbox boundary as compileFactor
- * (esbuild strips types, new Function with a whitelist of injected identifiers, require blocked).
- * The module must `export default ({ data, stats }) => result`; the result must be
- * JSON-serializable. Runs inside the analyze worker thread (hard timeout / memory limits are the
- * host's job); kept as a pure function so tests can exercise it without threads.
+ * Compile + run one analyzeData code module inside an isolated-vm isolate (hard sandbox: no Node
+ * APIs in-wall, own memory limit, per-run CPU timeout — a prototype escape lands in an empty
+ * global). The module must `export default ({ data, stats }) => result`; stats (lib/stats.ts) is
+ * evaluated in-wall so its calls never cross; data goes in / result comes out as one JSON string
+ * each way.
  */
 export async function runAnalysisCode(
   code: string,
   data: Record<string, Record<string, unknown>[]>,
+  opts: { timeoutMs?: number } = {},
 ): Promise<unknown> {
-  let js: string;
+  const userJs = await toCommonJs(code, '分析代码');
+  const module = await loadIsolatedModule({
+    userJs,
+    withStats: true,
+    noun: '分析代码',
+    setup: `
+      {
+        const entry = __module.exports.default ?? __module.exports;
+        if (typeof entry !== 'function') {
+          throw new Error('需 \`export default ({ data, stats }) => 结果\`');
+        }
+        __entries.run = (dataJson) =>
+          Promise.resolve(entry({ data: JSON.parse(dataJson), stats: globalThis.stats })).then(
+            (result) => JSON.stringify(result ?? null),
+          );
+      }
+    `,
+  });
+
   try {
-    ({ code: js } = await transform(code, { loader: 'ts', format: 'cjs', target: 'es2022' }));
-  } catch (e) {
-    throw new Error(`代码编译失败:${e instanceof Error ? e.message : String(e)}`);
+    const json = await module.callJson('run', [JSON.stringify(data)], {
+      timeoutMs: opts.timeoutMs,
+    });
+    return JSON.parse(json);
+  } finally {
+    module.dispose();
   }
-
-  const mod: { exports: Record<string, unknown> } = { exports: {} };
-  try {
-    const run = new Function('module', 'exports', 'require', js);
-    run(mod, mod.exports, blockedRequire);
-  } catch (e) {
-    throw new Error(`代码执行出错:${e instanceof Error ? e.message : String(e)}`);
-  }
-
-  const entry = (mod.exports.default ?? mod.exports) as unknown;
-  if (typeof entry !== 'function') {
-    throw new Error('代码需 `export default ({ data, stats }) => 结果`');
-  }
-  return (entry as (input: { data: typeof data; stats: typeof stats }) => unknown)({ data, stats });
-}
-
-function blockedRequire(id: string): never {
-  throw new Error(`分析代码不能 import 外部模块(${id})——数据在 data 上、统计函数在 stats 上`);
 }

@@ -137,7 +137,7 @@ SDK 现在三处镜像(`sdk.ts` 运行时 / `sdk-dts.ts` Monaco / `codegen-promp
 
 ### 4.5 多用户工程 💤(明确远期,没有第二个用户前都是负债)
 
-- 沙箱升级:`new Function` → QuickJS-WASM / isolated-vm(边界已收敛在 `compileStrategy`/`compileFactor`,换实现不动别处)。**2026-07-07 分析完成**:结论=近期只做 worker resourceLimits 加固、多用户时选 isolated-vm(QuickJS 性能税对 65 万次/跑的因子负载不可接受)+ 按调仓日批量进沙箱;Python 编写策略/因子**建议不做**(Python 只做 3.7 ML 的研究 sidecar)——trade-off 与决策清单见 `docs/design/python-and-sandbox.md`,**待用户拍板**。
+- 沙箱升级:**2026-07-07 用户拍板「现在就上 isolated-vm」并当日完成 Phase A**——因子 compute + analyzeData 迁入 isolated-vm 硬沙箱(`lib/isolate-run.ts`:墙内无 Node API、内存上限 + CPU 超时、跨墙批量化、stats 墙内求值);逃逸/超时有测试,ivm 在 factor-worker 线程内实测干净退出,真库等价性复验通过。**Phase B(策略 onBar)待专门会话**:ctx 桥设计(「预取进墙 + 订单随返回值出墙」形态)见 `docs/design/python-and-sandbox.md` 决策清单;在此之前 `compileStrategy` 维持 new Function + worker。Python 编写策略/因子已拍定**不做**(Python 只做 3.7 ML 的研究 sidecar)。
 - worker 池 + job 队列(现在每次 spawn 一个 worker,单用户够用)。
 - 策略/因子 公开/私有。
 

@@ -102,7 +102,7 @@ factorRoute.post('/custom', validateJson(createBody), async (c) => {
   const userId = c.var.userId;
   const { name, code, messages } = c.req.valid('json');
   try {
-    await compileFactor(code);
+    (await compileFactor(code)).dispose(); // validate-only
   } catch (e) {
     return apiError(c, 'VALIDATION_FAILED', e instanceof Error ? e.message : '因子代码无效');
   }
@@ -150,7 +150,7 @@ factorRoute.post('/custom/:id', validateJson(updateBody), async (c) => {
   }
   if (code !== undefined) {
     try {
-      await compileFactor(code);
+      (await compileFactor(code)).dispose(); // validate-only
     } catch (e) {
       return apiError(c, 'VALIDATION_FAILED', e instanceof Error ? e.message : '因子代码无效');
     }

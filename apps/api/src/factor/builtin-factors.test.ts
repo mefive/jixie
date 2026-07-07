@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { FactorBar } from '@jixie/shared';
 import { BUILTIN_FACTORS } from './builtin-factors.js';
-import { compileFactor } from './compile-factor.js';
-import type { CustomFactor, FactorCtx } from './factor-sdk.js';
+import { compileFactor, type CompiledFactor, type FactorBatchItem } from './compile-factor.js';
 import { daysBetween } from '../lib/date.js';
 
 /**
@@ -85,17 +84,19 @@ const NULL_BAR: FactorBar = {
   netTotal: null,
 };
 
-/** Mirrors analysis.ts makeWindowCtx: slices of the aligned close/date arrays ending at `end`. */
-function windowCtx(adjClose: number[], tradeDates: string[], end: number): FactorCtx {
+/** Mirrors analysis.ts: batch items carry the window (of `window` length) ENDING at index `end`. */
+function windowItem(
+  window: number,
+  adjClose: number[],
+  tradeDates: string[],
+  end: number,
+): FactorBatchItem {
+  const from = Math.max(0, end - window + 1);
   return {
-    history(n: number, field?: 'date') {
-      const from = end - n + 1;
-      if (n <= 0 || from < 0) {
-        return [];
-      }
-      return field === 'date' ? tradeDates.slice(from, end + 1) : adjClose.slice(from, end + 1);
-    },
-  } as FactorCtx;
+    bar: NULL_BAR,
+    closes: adjClose.slice(from, end + 1),
+    dates: tradeDates.slice(from, end + 1),
+  };
 }
 
 /** A deterministic 120-day series: pseudo-random walk, one long suspension gap, one zero price. */
@@ -121,9 +122,19 @@ function syntheticSeries(): { px: number[]; dates: string[] } {
   return { px, dates };
 }
 
-async function compiled(key: string): Promise<CustomFactor> {
+async function compiled(key: string): Promise<CompiledFactor> {
   const def = BUILTIN_FACTORS.find((factor) => factor.key === key)!;
   return compileFactor(def.code);
+}
+
+/** One-item batch helper for the cross-sectional (no-window) presets. */
+async function computeOne(key: string, bar: FactorBar): Promise<number | null> {
+  const factor = await compiled(key);
+  try {
+    return (await factor.computeBatch([{ bar }]))[0];
+  } finally {
+    factor.dispose();
+  }
 }
 
 // —— tests ——
@@ -134,7 +145,8 @@ describe('预置因子代码可编译且形状正确', () => {
     async (_key, def) => {
       const factor = await compileFactor(def.code);
       expect(factor.name).toBe(def.label);
-      expect(typeof factor.compute).toBe('function');
+      expect(typeof factor.computeBatch).toBe('function');
+      factor.dispose();
     },
   );
 
@@ -155,15 +167,17 @@ describe('价格预置与旧硬编码公式逐位一致', () => {
     ['vol', (p, d, e) => legacyVolatility(p, d, e)],
   ];
 
-  it.each(cases)('%s 在全部 120 个截点上等值', async (key, legacy) => {
+  it.each(cases)('%s 在全部 120 个截点上等值(一次批量跨墙)', async (key, legacy) => {
     const factor = await compiled(key);
+    const items = px.map((_price, end) => windowItem(factor.window!, px, dates, end));
+    const actualValues = await factor.computeBatch(items);
+    factor.dispose();
     for (let end = 0; end < px.length; end++) {
       const expected = legacy(px, dates, end);
-      const actual = factor.compute(NULL_BAR, windowCtx(px, dates, end));
       if (expected == null) {
-        expect(actual, `end=${end}`).toBeNull();
+        expect(actualValues[end], `end=${end}`).toBeNull();
       } else {
-        expect(actual, `end=${end}`).toBeCloseTo(expected, 12);
+        expect(actualValues[end], `end=${end}`).toBeCloseTo(expected, 12);
       }
     }
   });
@@ -183,16 +197,16 @@ describe('横截面预置与旧硬编码公式一致', () => {
       const legacyEp = bar.peTtm && bar.peTtm > 0 ? 1 / bar.peTtm : null;
       const legacyBp = bar.pb && bar.pb > 0 ? 1 / bar.pb : null;
       const legacySize = bar.totalMv && bar.totalMv > 0 ? Math.log(bar.totalMv) : null;
-      expect((await compiled('ep')).compute(bar, windowCtx([], [], 0))).toBe(legacyEp);
-      expect((await compiled('bp')).compute(bar, windowCtx([], [], 0))).toBe(legacyBp);
-      expect((await compiled('dv')).compute(bar, windowCtx([], [], 0))).toBe(bar.dvRatio);
-      expect((await compiled('size')).compute(bar, windowCtx([], [], 0))).toBe(legacySize);
+      expect(await computeOne('ep', bar)).toBe(legacyEp);
+      expect(await computeOne('bp', bar)).toBe(legacyBp);
+      expect(await computeOne('dv', bar)).toBe(bar.dvRatio);
+      expect(await computeOne('size', bar)).toBe(legacySize);
     }
   });
 
   it('mf_net_main / mf_net_total 直读 bar 的资金流字段', async () => {
     const bar = make({ netMain: 666, netTotal: -42 });
-    expect((await compiled('mf_net_main')).compute(bar, windowCtx([], [], 0))).toBe(666);
-    expect((await compiled('mf_net_total')).compute(bar, windowCtx([], [], 0))).toBe(-42);
+    expect(await computeOne('mf_net_main', bar)).toBe(666);
+    expect(await computeOne('mf_net_total', bar)).toBe(-42);
   });
 });
