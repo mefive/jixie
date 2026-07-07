@@ -1,6 +1,6 @@
 import { prisma } from '../src/lib/prisma.js';
 import { analyzeFactor } from '../src/factor/analysis.js';
-import { FACTOR_CATALOG } from '../src/factor/factors.js';
+import { BUILTIN_FACTORS, seedBuiltinFactors } from '../src/factor/builtin-factors.js';
 
 const pct = (x: number) => (x * 100).toFixed(2) + '%';
 
@@ -8,8 +8,9 @@ const pct = (x: number) => (x * 100).toFixed(2) + '%';
 async function main(): Promise<void> {
   const t0 = Date.now();
   const [start = '20150101', end = '20261231', freq = 'month'] = process.argv.slice(2);
+  await seedBuiltinFactors(); // presets run from their seeded code rows
   const reports = [];
-  for (const f of FACTOR_CATALOG) {
+  for (const f of BUILTIN_FACTORS) {
     reports.push(await analyzeFactor(f.key, freq === 'week' ? 'week' : 'month', start, end));
   }
 

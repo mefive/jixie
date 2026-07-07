@@ -1,13 +1,17 @@
 import { action, computed, makeObservable, observable, runInAction } from 'mobx';
-import type {
-  ChatMessage,
-  FactorMeta,
-  FactorReport,
-  FactorRun,
-  FactorFreq,
-  LogLine,
+import {
+  normalizeChatMessage,
+  textMessage,
+  type ChatMessage,
+  type FactorMeta,
+  type FactorReport,
+  type FactorRun,
+  type FactorFreq,
+  type LogLine,
 } from '@jixie/shared';
 import { BaseStore, LoaderModel, PollingModel } from '@src/lib';
+import { QueryCardResults } from '@src/components/query-card-model';
+import { AgentTurnStream, type AgentTurnHandlers } from '@src/components/agent-turn-stream';
 import {
   getFactorCatalog,
   getFactorRuns,
@@ -19,6 +23,7 @@ import {
   createFactor,
   updateFactor,
   deleteCustomFactor,
+  forkFactor,
   sendFactorAgent,
   factorQa,
   generateFactorName,
@@ -59,6 +64,8 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   public code = ''; // the custom factor's defineFactor source (empty for presets)
   public persistedCode = ''; // code as persisted in the DB — baseline for `edited`
   public chatMessages: ChatMessage[] = []; // the Agent conversation for the current custom factor
+  public cardResults = new QueryCardResults(); // fresh results for the conversation's query cards
+  public turnStream = new AgentTurnStream(); // the in-flight turn's SSE mirror (pending bubble)
   public sending = false; // an Agent turn is in flight
   public nlText = ''; // the Agent chat draft
 
@@ -110,6 +117,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     this.registCleaner(() => this.runsLoader.cleanup());
     this.registCleaner(() => this.analysisLoader.cleanup());
     this.registCleaner(() => this.analysisPoller.cleanup());
+    this.registCleaner(() => this.turnStream.detach()); // drop the SSE subscription; the turn keeps running
     void this.catalogLoader.run();
 
     // Restore from the URL: preselect the factor (set selectedKey SYNCHRONOUSLY so the first paint shows
@@ -170,7 +178,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     runInAction(() => (this.nlText = v));
   }
 
-  /** Pick a factor from the 因子库. A preset → analysis-only (no editor/chat). A custom factor → load its
+  /** Pick a factor from the 因子库. A preset → readonly code + Q&A agent. A custom factor → load its
    * code + conversation into the editor/chat. Either way, auto-show its most-recent cached run. */
   public async selectFactor(key: string) {
     this.analysisPoller.stop(); // drop any in-flight job for the previous factor
@@ -188,17 +196,19 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         this.chatMessages = [];
       }
     });
-    if (isCustom) {
-      try {
-        const factor = await getCustomFactor(key);
-        runInAction(() => {
-          this.code = factor.code;
-          this.persistedCode = factor.code;
-          this.chatMessages = factor.messages ?? [];
-        });
-      } catch {
-        /* factor gone (deleted elsewhere) — leave blank */
+    try {
+      // Presets are code rows too (seeded, readonly) — the same endpoint serves both kinds.
+      const factor = await getCustomFactor(key);
+      runInAction(() => {
+        this.code = factor.code;
+        this.persistedCode = factor.code;
+        this.chatMessages = isCustom ? (factor.messages ?? []).map(normalizeChatMessage) : [];
+      });
+      if (isCustom) {
+        void this.reattachTurn(); // a live agent turn for this factor? re-subscribe (snapshot replays)
       }
+    } catch {
+      /* factor gone (deleted elsewhere) — leave blank */
     }
     const runs = await this.runsLoader.run();
     if (runs.length) {
@@ -206,6 +216,17 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     } else {
       this.analysisLoader.reset(); // fresh factor — wait for an explicit 运行
     }
+  }
+
+  /** Copy the selected preset's (or own factor's) code into a NEW editable custom factor — the
+   * "fork 出变体、改参数" research path. Selection jumps to the fresh copy. */
+  public async forkSelected() {
+    if (!this.selectedKey) {
+      return;
+    }
+    const copy = await forkFactor(this.selectedKey);
+    await this.catalogLoader.run();
+    await this.selectFactor(copy.id);
   }
 
   /** Start authoring a brand-new custom factor (blank skeleton, ready for the Agent). */
@@ -251,26 +272,29 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     }
     runInAction(() => {
       this.mode = 'custom';
-      this.chatMessages = [...this.chatMessages, { role: 'user', content: text }];
+      this.chatMessages = [...this.chatMessages, textMessage('user', text)];
       this.sending = true;
       this.nlText = '';
     });
     await this.ensureFactor(text);
-    try {
-      const history = this.chatMessages.slice(0, -1);
-      const res = await sendFactorAgent(history, text, this.code);
+    if (!this.selectedKey) {
       runInAction(() => {
-        this.chatMessages = [...this.chatMessages, { role: 'assistant', content: res.reply }];
-        if (res.changed) {
-          this.code = res.code; // editor updates; analysis result stays until the next run
-        }
+        this.chatMessages = [
+          ...this.chatMessages,
+          textMessage('assistant', '出错了:因子保存失败,无法开始对话'),
+        ];
+        this.sending = false;
       });
-      void this.persistMessages();
+      return;
+    }
+    try {
+      const { turnId } = await sendFactorAgent(this.selectedKey, text, this.code);
+      await this.turnStream.attach(turnId, this.turnHandlers()); // resolves after the terminal event
     } catch (e) {
       runInAction(() => {
         this.chatMessages = [
           ...this.chatMessages,
-          { role: 'assistant', content: `出错了:${e instanceof Error ? e.message : '请求失败'}` },
+          textMessage('assistant', `出错了:${e instanceof Error ? e.message : '请求失败'}`),
         ];
       });
     } finally {
@@ -278,23 +302,60 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     }
   }
 
-  /** Q&A about the selected preset — answer only, no code, no factor, no persistence (ephemeral chat). */
+  /** Terminal-event handlers shared by sendAgent / runQa / the refresh reattach. */
+  private turnHandlers(): AgentTurnHandlers {
+    return {
+      onDone: (done) => {
+        runInAction(() => {
+          // toolTrace rides along for display only (the server persisted the message without it).
+          this.chatMessages = [
+            ...this.chatMessages,
+            { role: 'assistant', parts: done.parts, toolTrace: done.toolTrace } as ChatMessage,
+          ];
+          if (done.changed) {
+            this.code = done.code; // editor updates; analysis result stays until the next run
+          }
+        });
+      },
+      onError: (message) => {
+        runInAction(() => {
+          this.chatMessages = [...this.chatMessages, textMessage('assistant', `出错了:${message}`)];
+        });
+      },
+      onCancelled: () => {
+        runInAction(() => {
+          this.chatMessages = [...this.chatMessages, textMessage('assistant', '(已停止本轮回复)')];
+        });
+      },
+    };
+  }
+
+  /** Refresh reattach: a saved custom factor with a live turn re-subscribes (snapshot replays). */
+  private async reattachTurn() {
+    if (!this.selectedKey || this.mode !== 'custom') {
+      return;
+    }
+    runInAction(() => (this.sending = true));
+    await this.turnStream.attachRunning(`factor:${this.selectedKey}`, this.turnHandlers());
+    runInAction(() => (this.sending = false)); // resolved at the terminal event (or no live turn)
+  }
+
+  /** Q&A about the selected preset — answer only, no code, no factor, no persistence (ephemeral chat,
+   * still streamed; no reattach since there is no host row to rediscover). */
   private async runQa(text: string) {
     runInAction(() => {
-      this.chatMessages = [...this.chatMessages, { role: 'user', content: text }];
+      this.chatMessages = [...this.chatMessages, textMessage('user', text)];
       this.sending = true;
       this.nlText = '';
     });
     try {
-      const { reply } = await factorQa(this.chatMessages.slice(0, -1), text, this.selected?.label);
-      runInAction(() => {
-        this.chatMessages = [...this.chatMessages, { role: 'assistant', content: reply }];
-      });
+      const { turnId } = await factorQa(this.chatMessages.slice(0, -1), text, this.selected?.label);
+      await this.turnStream.attach(turnId, this.turnHandlers());
     } catch (e) {
       runInAction(() => {
         this.chatMessages = [
           ...this.chatMessages,
-          { role: 'assistant', content: `出错了:${e instanceof Error ? e.message : '请求失败'}` },
+          textMessage('assistant', `出错了:${e instanceof Error ? e.message : '请求失败'}`),
         ];
       });
     } finally {
@@ -318,24 +379,13 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       /* naming is best-effort */
     }
     try {
-      const meta = await createFactor(name, this.code, this.chatMessages);
+      // No messages in the create payload — the turn runner appends the user message server-side.
+      const meta = await createFactor(name, this.code);
       runInAction(() => {
         this.selectedKey = meta.id;
         this.persistedCode = this.code; // just persisted this code
       });
       void this.catalogLoader.run();
-    } catch {
-      /* best-effort */
-    }
-  }
-
-  /** Save the conversation onto the factor in real time (by id). No-op until the factor exists. */
-  private async persistMessages() {
-    if (!this.selectedKey || this.mode !== 'custom') {
-      return;
-    }
-    try {
-      await updateFactor(this.selectedKey, { messages: this.chatMessages });
     } catch {
       /* best-effort */
     }

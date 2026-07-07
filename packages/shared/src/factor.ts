@@ -20,8 +20,9 @@ export interface QuantileHorizon {
  * 'custom' = user-authored (defineFactor); its compute runs cross-sectionally over a FactorBar. */
 export type FactorKind = 'price' | 'fundamental' | 'moneyflow' | 'custom';
 
-/** 自定义因子(用户写 `defineFactor`)compute 拿到的横截面单股数据 —— 当天(时点)估值 / 规模 / 流动性,
- * 来自 daily_basic。不含价格历史,需要窗口的(自定义动量 / 波动率)是后续 B 方案。 */
+/** 因子 `compute` 拿到的横截面单股数据 —— 当天(时点)估值 / 规模 / 流动性(来自 daily_basic)+
+ * 当天资金流(来自 moneyflow,流量语义:当日无数据为 null,绝不前填)。价格历史窗口走 compute 第二参
+ * `ctx.history`(声明 `window` 才可用)。 */
 export interface FactorBar {
   code: string;
   pe: number | null; // 市盈率
@@ -34,13 +35,16 @@ export interface FactorBar {
   totalMv: number | null; // 总市值(万元)
   circMv: number | null; // 流通市值(万元)
   turnoverRate: number | null; // 换手率 %
+  netMain: number | null; // 主力净额(万元,当日精确,缺则 null)
+  netTotal: number | null; // 总净额(万元,当日精确,缺则 null)
 }
 
 /** Catalog entry — one row in the factor list (no analysis, just identity). */
 export interface FactorMeta {
-  key: string; // mom / rev / vol / ep / bp / dv / size / mf_net_main / mf_net_total
+  key: string; // 预置 = 稳定 slug(mom / ep / mf_net_main …);自定义 = Factor 行的 ULID
   label: string; // 中文
   kind: FactorKind;
+  builtin?: boolean; // true = 预置(库里的只读代码行,可复制为自定义)
 }
 
 /** One decile bucket's forward-return stats (bucket 0 = lowest factor value … 9 = highest). */

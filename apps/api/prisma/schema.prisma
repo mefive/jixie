@@ -183,9 +183,10 @@ model User {
   status    String   @default("active") // 'active' | 'disabled' (disabling does not delete the account)
   createdAt DateTime @default(now())
 
-  sessions     Session[]
-  strategies   Strategy[]
-  savedScreens SavedScreen[]
+  sessions            Session[]
+  strategies          Strategy[]
+  savedScreens        SavedScreen[]
+  screenConversations ScreenConversation[]
 }
 
 /// Login session. id = session token (stored in sid cookie). 30-day TTL; expiry enforced by filtering on expiresAt at query time.
@@ -292,10 +293,14 @@ model Strategy {
   @@index([userId, updatedAt]) // list a user's strategies, newest first
 }
 
-/// User-authored custom factor (code-first, mirrors Strategy). `code` is a defineFactor TS module,
-/// compiled + run cross-sectionally in the factor analysis. Plain userId (no relation), like FactorReport.
+/// A factor as code (code-first, mirrors Strategy). `code` is a defineFactor TS module, compiled +
+/// run cross-sectionally in the factor analysis. Two kinds of rows share this table:
+///   - user factors: id = ULID, userId = the owner;
+///   - built-in presets: id = stable slug (ep/mom/…), userId = 'builtin' sentinel — seeded from
+///     factor/builtin-factors.ts (git is the source of truth), read-only via the routes.
+/// Plain userId (no relation), like FactorReport.
 model Factor {
-  id        String   @id // ULID
+  id        String   @id // ULID, or a preset slug for builtin rows
   userId    String
   name      String
   code      String // defineFactor TS source
@@ -305,6 +310,22 @@ model Factor {
 
   @@unique([userId, name]) // name = identity within a user → upsert-by-name
   @@index([userId, updatedAt]) // list a user's factors, newest first
+}
+
+/// An agent conversation on the screen page (a "session card" on the card wall). Strategy/factor
+/// conversations ride their host entity (Strategy.messages / Factor.messages); a screening
+/// conversation has no host, so it gets its own row. Query cards (SavedScreen) are deliberately NOT
+/// linked to conversations — deleting a conversation never touches saved cards.
+model ScreenConversation {
+  id        String   @id // ULID
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String // defaults to the first user message, truncated; renamable
+  messages  Json // ChatMessage[] (parts shape)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, updatedAt])
 }
 
 /// A saved screen query (holds a ScreenSpec as JSON). Saved on demand — the user clicks 保存 to keep

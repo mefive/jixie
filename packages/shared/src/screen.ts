@@ -83,15 +83,6 @@ export interface ScreenResult {
   rows: ScreenRow[];
 }
 
-/**
- * Response of the unified screener query endpoint. One box accepts both a natural-language screen and a
- * direct instrument reference (a name / 简称 / 拼音 / code): `screen` carries the editable spec (→ chips);
- * `lookup` is the specific stocks matched by name/code (no spec — there is nothing to edit, just the hits).
- */
-export type ScreenQueryResponse =
-  | { kind: 'screen'; spec: ScreenSpec; result: ScreenResult }
-  | { kind: 'lookup'; result: ScreenResult };
-
 /** One day of a stock's chart series. OHLC are raw/unadjusted; the cumulative adjFactor lets the
  * client render 不复权 (raw) / 后复权 (× factor) / 前复权 (× factor / latest factor). */
 export interface StockSeriesPoint {

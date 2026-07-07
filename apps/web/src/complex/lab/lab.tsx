@@ -16,7 +16,12 @@ import {
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { LoaderButton } from '@src/components/loader-button';
 import { LogView } from '@src/components/log-view';
-import { Markdown } from '@src/components/markdown';
+import { MessageParts } from '@src/components/message-parts';
+import type { QueryCardResults } from '@src/components/query-card-model';
+import { ToolTrace } from '@src/components/tool-trace';
+import { AgentPending } from '@src/components/agent-pending';
+import type { AgentTurnStream } from '@src/components/agent-turn-stream';
+import type { AgentToolTraceItem } from '@src/api/client';
 import { complex } from './complex';
 import { MonthlyReturns } from './monthly-returns';
 import { StrategyCardView } from './strategy-card';
@@ -387,7 +392,13 @@ const AgentChat = complex.component(() => {
     <div className="jx-lab-chat">
       <div className="jx-lab-agentName">{store.name || '新策略（未保存）'}</div>
       <RunConfig />
-      <ChatLog messages={store.chatMessages} sending={store.sending} quiet={store.initializing} />
+      <ChatLog
+        messages={store.chatMessages}
+        sending={store.sending}
+        quiet={store.initializing}
+        cards={store.cardResults}
+        stream={store.turnStream}
+      />
       <div className="jx-lab-chatInput">
         <PromptBox
           className="jx-lab-chatBox"
@@ -467,10 +478,14 @@ function ChatLog({
   messages,
   sending,
   quiet,
+  cards,
+  stream,
 }: {
   messages: ChatMessage[];
   sending: boolean;
   quiet?: boolean;
+  cards: QueryCardResults;
+  stream: AgentTurnStream;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -488,12 +503,13 @@ function ChatLog({
       )}
       {messages.map((message, index) => (
         <div key={index} className={classNames('jx-lab-bubble', `jx-lab-bubble--${message.role}`)}>
-          {message.role === 'assistant' ? <Markdown text={message.content} /> : message.content}
+          <MessageParts message={message} cards={cards} />
+          {traceOf(message) && <ToolTrace trace={traceOf(message)!} />}
         </div>
       ))}
       {sending && (
         <div className="jx-lab-bubble jx-lab-bubble--assistant jx-lab-bubble--thinking">
-          <FontAwesomeIcon icon={faSpinner} spin /> 思考中…
+          <AgentPending stream={stream} />
         </div>
       )}
     </div>
@@ -761,6 +777,12 @@ const ResultTabs = complex.component(() => {
 }, 'ResultTabs');
 
 // —— 帮助函数 / 配置 ——
+
+/** The turn's ephemeral tool trace (display only — absent once a conversation is reloaded). */
+function traceOf(message: ChatMessage): AgentToolTraceItem[] | undefined {
+  const trace = (message as ChatMessage & { toolTrace?: AgentToolTraceItem[] }).toolTrace;
+  return trace?.length ? trace : undefined;
+}
 
 // Starter prompts for the new-strategy hero — short chip label + the full sentence sent to NL→code.
 const EXAMPLE_PROMPTS = [

@@ -11,7 +11,7 @@ self.MonacoEnvironment = {
 };
 loader.config({ monaco });
 
-// The custom-factor authoring surface as an ambient .d.ts — mirrors the strategy SDK's approach.
+// The factor authoring surface as an ambient .d.ts — mirrors the strategy SDK's approach.
 const FACTOR_DTS = `
 interface FactorBar {
   readonly code: string;
@@ -25,14 +25,24 @@ interface FactorBar {
   /** 总市值(万元) */ readonly totalMv: number | null;
   /** 流通市值(万元) */ readonly circMv: number | null;
   /** 换手率 % */ readonly turnoverRate: number | null;
+  /** 主力净额(万元,当日精确,缺则 null) */ readonly netMain: number | null;
+  /** 总净额(万元,当日精确,缺则 null) */ readonly netTotal: number | null;
+}
+interface FactorCtx {
+  /** 后复权收盘价窗口,[最旧 … 当天] 共 n 个;历史不足返回 []。需在 defineFactor 声明 window ≥ n。 */
+  history(n: number): number[];
+  /** 窗口对应的交易日(YYYYMMDD),与收盘价逐位对齐 — 可用于停牌间隙检查。 */
+  history(n: number, field: 'date'): string[];
 }
 interface CustomFactor {
   /** 因子名(展示用) */
   name: string;
+  /** 所需历史长度(交易日数,含当天)。声明后 compute 里才能用 ctx.history。 */
+  window?: number;
   /** 逐股算因子值:返回数字,或 null 剔除该股。方向由分析的 IC 符号揭示 —— 别预先取负。 */
-  compute: (bar: FactorBar) => number | null;
+  compute: (bar: FactorBar, ctx: FactorCtx) => number | null;
 }
-/** 定义一个自定义因子。写法:export default defineFactor({ name, compute(bar) { … } }) */
+/** 定义一个因子。写法:export default defineFactor({ name, window?, compute(bar, ctx) { … } }) */
 declare function defineFactor(factor: CustomFactor): CustomFactor;
 `;
 
@@ -58,9 +68,11 @@ function installFactorSdk(m: Monaco) {
 export default function FactorEditor({
   value,
   onChange,
+  readOnly = false,
 }: {
   value: string;
   onChange: (v: string) => void;
+  readOnly?: boolean; // preset (builtin) factors show their code but reject edits
 }) {
   return (
     <Editor
@@ -77,6 +89,7 @@ export default function FactorEditor({
         scrollBeyondLastLine: false,
         tabSize: 2,
         automaticLayout: true,
+        readOnly,
       }}
     />
   );
