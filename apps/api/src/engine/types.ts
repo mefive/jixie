@@ -9,6 +9,7 @@
 // signals (mom/rev/vol) compute on the fly from the bar series; moneyflow opts into a preloaded column.
 
 import type { Locale } from '@jixie/shared';
+import type { EngineDataPort } from './data-port.js';
 
 /** A held position. frozenUntil = first date the shares may be sold (T+1). */
 export interface Position {
@@ -176,6 +177,9 @@ export interface EngineConfig {
   /** Locale for the engine's user-facing progress logs / warnings; defaults to DEFAULT_LOCALE at the
    * use site (scripts and tests omit it). */
   locale?: Locale;
+  /** Storage doorway (Phase B1). Defaults to prismaDataPort (the direct lane); tests inject fixture
+   * ports; the Phase B2 walled lane injects the isolate bridge. */
+  dataPort?: EngineDataPort;
 }
 
 export interface BacktestResult {

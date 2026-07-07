@@ -25,7 +25,7 @@ export default defineStrategy({
   async onBar(ctx) {
     if (ctx.period('monthly') === last) return;
     last = ctx.period('monthly');
-    const picks = (await ctx.select())
+    const picks = (await ctx.universe())
       .minListDays(365)
       .where(b => b.peTtm != null && b.peTtm > 0)
       .dropBottom(0.25, b => b.turnoverRate ?? 0)
