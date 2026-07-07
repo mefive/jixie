@@ -156,6 +156,10 @@ SDK 现在三处镜像(`sdk.ts` 运行时 / `sdk-dts.ts` Monaco / `codegen-promp
 
 每次大同步后顺手跑;单数据源(Tushare)风险的对冲 = 继续坚守「抓来的数据必须落库、同步幂等可续传」。
 
+### 4.8 多语言 i18n(中英双语)🚧(2026-07-07 用户立项)
+
+产品支持中文 / 英文。三条硬需求:UI 文案走 i18n(zh/en 切换)、**LLM prompt 保持中文但回复跟随用户提问语言**、代码注释一律英文(标准财经术语)。详设与 7 段执行计划见 `docs/design/i18n.md`。**Phase 0 基建当日完成**:`@jixie/shared` 加 `Locale`;前端 react-i18next + `localeStore` + antd ConfigProvider + 顶栏切换 + api client 带 Accept-Language;后端 `src/i18n`(消息目录 + `localeFromRequest`)+ 验证器接入。
+
 ---
 
 ## 使用原则(给自己的,2026-07-06 定)
