@@ -1,6 +1,6 @@
-import { Worker } from 'node:worker_threads';
 import { z } from 'zod';
 import { STATS_DOC } from '../../lib/stats-doc.js';
+import { runAnalysisCode } from './analyze-sandbox.js';
 import { jsonSafe, runReadOnlySql } from './read-only-sql.js';
 import type { AgentTool } from './types.js';
 
@@ -9,17 +9,12 @@ import type { AgentTool } from './types.js';
  * SQLite 表达不了的统计(相关/回归/多步流水线)的逃生舱。Two invariants:
  *   - data NEVER passes through the model: queries run server-side, rows flow straight into the
  *     sandbox, only the (size-capped) RESULT goes back as the observation;
- *   - the code runs in a per-call worker thread (memory-capped via resourceLimits, wall-clock
- *     timeout enforced by terminate) with the compileFactor-style new Function sandbox inside.
+ *   - the code runs inside an isolated-vm isolate (no Node APIs in-wall, own memory limit,
+ *     CPU timeout) — see lib/isolate-run.ts for the layering.
  */
 const ANALYZE_ROW_CAP = 10_000; // per query — larger than sqlQuery's cap; rows don't hit the model
 const RESULT_CHAR_CAP = 8_000;
-const EXECUTION_TIMEOUT_MS = 10_000; // includes worker spawn (dev tsx boot ≈ 300ms)
-
-// Worker entry: dev (tsx) spawns the .mjs bootstrap; prod spawns the compiled .js.
-const workerUrl = import.meta.url.endsWith('.ts')
-  ? new URL('./analyze-worker.boot.mjs', import.meta.url)
-  : new URL('./analyze-worker.js', import.meta.url);
+const EXECUTION_TIMEOUT_MS = 10_000;
 
 const argsSchema = z.object({
   purpose: z.string().min(1).max(100).describe('一句话说明这次计算的目的(展示给用户)'),
@@ -45,44 +40,6 @@ const argsSchema = z.object({
       'JS/TS 模块:export default ({ data, stats }) => 结果(JSON 可序列化,请聚合到少量数字)',
     ),
 });
-
-function executeInWorker(
-  code: string,
-  data: Record<string, Record<string, unknown>[]>,
-): Promise<unknown> {
-  return new Promise((resolve, reject) => {
-    const worker = new Worker(workerUrl, {
-      workerData: { code, data },
-      resourceLimits: { maxOldGenerationSizeMb: 256 },
-    });
-    let settled = false;
-    const settle = (fn: () => void) => {
-      if (!settled) {
-        settled = true;
-        fn();
-        void worker.terminate();
-      }
-    };
-    const timer = setTimeout(
-      () =>
-        settle(() =>
-          reject(
-            new Error(`代码执行超过 ${EXECUTION_TIMEOUT_MS / 1000}s 超时,请减少数据量或简化计算`),
-          ),
-        ),
-      EXECUTION_TIMEOUT_MS,
-    );
-    timer.unref();
-    worker.on('message', (msg: { ok: boolean; result?: unknown; error?: string }) => {
-      clearTimeout(timer);
-      settle(() => (msg.ok ? resolve(msg.result) : reject(new Error(msg.error ?? '执行失败'))));
-    });
-    worker.on('error', (err) => {
-      clearTimeout(timer);
-      settle(() => reject(err));
-    });
-  });
-}
 
 /** SQL fetch + sandboxed JS transform in one call — for statistics SQL can't express. */
 export const analyzeDataTool: AgentTool = {
@@ -117,7 +74,7 @@ code: "export default ({ data, stats }) => { const closeByDate = new Map(data.b.
       totalRows += rows.length;
     }
 
-    const result = await executeInWorker(code, data);
+    const result = await runAnalysisCode(code, data, { timeoutMs: EXECUTION_TIMEOUT_MS });
     const observation = JSON.stringify(
       {
         result,

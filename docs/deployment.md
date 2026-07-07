@@ -7,7 +7,7 @@ jixie 在 Linux VPS(Ubuntu / CentOS)上的部署。配套产物:`scripts/bootstr
 > JIXIE_DOMAIN=jixie.你的域名 TUSHARE_TOKEN=xxx RESEND_API_KEY=re_xxx \
 > EMAIL_FROM=login@你的域名 DEEPSEEK_API_KEY=sk_xxx ./scripts/bootstrap.sh
 > ```
-> 脚本自动装齐依赖(node22 / pnpm / nginx / certbot / sqlite3;2026-07-07 起要求 **Node ≥22.13**——只读 SQL worker 用 node:sqlite,已部署的 VPS 重跑 bootstrap 即升级)、clone/pull、建库 schema、构建、装 systemd+nginx、尝试 certbot、冒烟测试。**它不碰行情数据**——建的是空库,数据要另外回填(见 §4)。
+> 脚本自动装齐依赖(node22 / pnpm / nginx / certbot / sqlite3;2026-07-07 起要求 **Node ≥22.13**——只读 SQL worker 用 node:sqlite;isolated-vm 硬沙箱是原生模块,需 C++ 工具链——重跑 bootstrap 一并装齐并升级)、clone/pull、建库 schema、构建、装 systemd+nginx、尝试 certbot、冒烟测试。**它不碰行情数据**——建的是空库,数据要另外回填(见 §4)。
 
 ## 1. 服务器规格建议(jixie 比一般 web 吃资源)
 

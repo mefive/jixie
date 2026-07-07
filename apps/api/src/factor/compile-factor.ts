@@ -1,53 +1,120 @@
-import { transform } from 'esbuild';
-import {
-  makeSandboxConsole,
-  noopSandboxConsole,
-  type SandboxConsole,
-  type UserLogSink,
-} from '../lib/sandbox-console.js';
-import type { CustomFactor } from './factor-sdk.js';
-import { defineFactor } from './factor-sdk.js';
+import type { FactorBar } from '@jixie/shared';
+import { loadIsolatedModule, toCommonJs, type IsolatedModule } from '../lib/isolate-run.js';
+import type { UserLogSink } from '../lib/sandbox-console.js';
 
 /**
- * Compile a user-authored factor (defineFactor TS source) into a { name, compute } — the sandbox
- * boundary for custom factors, mirroring compileStrategy. Types are stripped (no type-check), so a bad
- * expression fails at compute time; `require` is blocked so factor code can't reach Node builtins.
+ * Compile a factor (defineFactor TS source) into an isolated-vm-backed handle — the hard sandbox
+ * boundary for factor code (2026-07-07 Phase A;策略 onBar 仍是 new Function,Phase B 另做).
+ * Execution is BATCHED: one wall-crossing computes a whole array of items (per rebalance date on
+ * the fast path, per stock on the windowed path) — 65 万次逐股跨墙会被序列化开销吃死,批量把
+ * 跨墙次数压到日数/股数量级. Each item carries its bar and, for windowed factors, the hfq close/
+ * date window ENDING at the evaluation day; ctx.history slices tails of that window in-wall.
  */
-export async function compileFactor(
-  source: string,
-  onUserLog?: UserLogSink,
-): Promise<CustomFactor> {
-  let js: string;
-  try {
-    ({ code: js } = await transform(source, { loader: 'ts', format: 'cjs', target: 'es2022' }));
-  } catch (e) {
-    throw new Error(`因子代码编译失败:${e instanceof Error ? e.message : String(e)}`);
-  }
+export interface FactorBatchItem {
+  bar: FactorBar;
+  closes?: number[]; // tail window ending at the evaluation day (windowed factors only)
+  dates?: string[]; // aligned trade dates for the window
+}
 
-  // compute() runs once per stock per rebalance date — same cap as strategies guards a runaway console.
-  const sandboxConsole: SandboxConsole = onUserLog
-    ? makeSandboxConsole(onUserLog)
-    : noopSandboxConsole;
+export interface CompiledFactor {
+  name: string;
+  window?: number;
+  /** One wall-crossing: per-item factor value (null = dropped: returned null / NaN / threw). */
+  computeBatch(items: FactorBatchItem[]): Promise<(number | null)[]>;
+  dispose(): void;
+}
 
-  const mod: { exports: Record<string, unknown> } = { exports: {} };
-  try {
-    // Free identifiers resolve to these params: the CJS env + defineFactor + the console shim; require throws.
-    const run = new Function('module', 'exports', 'defineFactor', 'console', 'require', js);
-    run(mod, mod.exports, defineFactor, sandboxConsole, blockedRequire);
-  } catch (e) {
-    throw new Error(`因子代码执行出错:${e instanceof Error ? e.message : String(e)}`);
-  }
-
-  const factor = (mod.exports.default ?? mod.exports) as Partial<CustomFactor>;
+const FACTOR_SETUP = `
+{
+  const factor = __module.exports.default ?? __module.exports;
   if (!factor || typeof factor.compute !== 'function') {
-    throw new Error('因子需 `export default defineFactor({ name, compute(bar) { … } })`');
+    throw new Error('因子需 \`export default defineFactor({ name, compute(bar) { … } })\`');
   }
   if (!factor.name) {
     factor.name = '未命名因子';
   }
-  return factor as CustomFactor;
+  const NO_HISTORY_CTX = {
+    history() {
+      throw new Error('要用 ctx.history 需在 defineFactor 里声明 window(所需交易日数,含当天)');
+    },
+  };
+  __entries.meta = () => JSON.stringify({ name: factor.name, window: factor.window ?? null });
+  __entries.computeBatch = (itemsJson) => {
+    const items = JSON.parse(itemsJson);
+    const values = items.map((item) => {
+      try {
+        const ctx = item.closes
+          ? {
+              history(n, field) {
+                const src = field === 'date' ? item.dates : item.closes;
+                if (n <= 0 || src.length < n) {
+                  return [];
+                }
+                return src.slice(src.length - n);
+              },
+            }
+          : NO_HISTORY_CTX;
+        const value = factor.compute(item.bar, ctx);
+        return value == null || !Number.isFinite(value) ? null : value;
+      } catch (e) {
+        __logs.push('[factor-error] ' + (e && e.message ? e.message : String(e)));
+        return null;
+      }
+    });
+    return JSON.stringify(values);
+  };
 }
+`;
 
-function blockedRequire(id: string): never {
-  throw new Error(`因子代码不能 import 外部模块(${id})——数据都在 bar 上`);
+export async function compileFactor(
+  source: string,
+  onUserLog?: UserLogSink,
+): Promise<CompiledFactor> {
+  const userJs = await toCommonJs(source, '因子代码');
+  const module: IsolatedModule = await loadIsolatedModule({
+    userJs,
+    noun: '因子代码',
+    injectGlobals: 'globalThis.defineFactor = (factor) => factor;',
+    setup: FACTOR_SETUP,
+  });
+
+  // Console lines (and caught compute errors) drain to the run-log sink after every crossing.
+  const drainTo = (sink?: UserLogSink) => {
+    if (!sink) {
+      module.drainLogs();
+      return;
+    }
+    for (const line of module.drainLogs()) {
+      if (line.startsWith('[error] ')) {
+        sink('error', line.slice('[error] '.length));
+      } else if (line.startsWith('[warn] ')) {
+        sink('warn', line.slice('[warn] '.length));
+      } else if (line.startsWith('[factor-error] ')) {
+        sink('error', line); // keep the prefix — analysis.ts uses it to surface the first error
+      } else {
+        sink('info', line);
+      }
+    }
+  };
+
+  let meta: { name: string; window: number | null };
+  try {
+    meta = JSON.parse(await module.callJson('meta', [])) as typeof meta;
+  } catch (e) {
+    module.dispose();
+    throw e;
+  }
+
+  return {
+    name: meta.name,
+    window: meta.window ?? undefined,
+    async computeBatch(items) {
+      const json = await module.callJson('computeBatch', [JSON.stringify(items)], {
+        timeoutMs: 30_000, // a whole date's cross-section / a stock's full history per crossing
+      });
+      drainTo(onUserLog);
+      return JSON.parse(json) as (number | null)[];
+    },
+    dispose: () => module.dispose(),
+  };
 }

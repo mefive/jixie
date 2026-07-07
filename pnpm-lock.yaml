@@ -65,6 +65,9 @@ importers:
       hono:
         specifier: ^4.9.0
         version: 4.12.26
+      isolated-vm:
+        specifier: ^7.0.0
+        version: 7.0.0
       openai:
         specifier: ^6.44.0
         version: 6.44.0(zod@4.4.3)
@@ -1890,6 +1893,10 @@ packages:
   isexe@2.0.0:
     resolution: {integrity: sha512-RHxMLp9lnKHGHRng9QFhRCMbYAcVpn69smSGcq3f36xjgVVWThj4qqLbTLlq7Ssj8B+fIQ1EuCEGI2lKsyQeIw==}
 
+  isolated-vm@7.0.0:
+    resolution: {integrity: sha512-TXlJp9kiSf4AEpkCgB4VIf2M+6MRW3SEzlZUXFmQ6QcRypOnENRvK6RoZuQt/dlLOnqyFGUoZELUfH4ucsG4iw==}
+    engines: {node: '>=26.0.0'}
+
   jiti@2.7.0:
     resolution: {integrity: sha512-AC/7JofJvZGrrneWNaEnJeOLUx+JlGt7tNa0wZiRPT4MY1wmfKjt2+6O2p2uz2+skll8OZZmJMNqeke7kKbNgQ==}
     hasBin: true
@@ -2093,6 +2100,10 @@ packages:
 
   node-fetch-native@1.6.7:
     resolution: {integrity: sha512-g9yhqoedzIUm0nTnTqAQvueMPVOuIY16bqgAJJC8XOOubYFNwz6IER9qs0Gq2Xd0+CecCKFjtdDTMA4u4xG06Q==}
+
+  node-gyp-build@4.8.4:
+    resolution: {integrity: sha512-LA4ZjwlnUblHVgq0oBF3Jl/6h/Nvs5fzBLwdEF4nuxnFdsfajde4WfxtJr3CaiH+F6ewcIB/q4jQ4UzPyid+CQ==}
+    hasBin: true
 
   node-releases@2.0.48:
     resolution: {integrity: sha512-1uz8041X6LoI6ZSdZacM9lVY28vuzDlSKitnpbSNK0RfKoIJkX29NBPVEFXhnuSuEOA9Ww0xnPJ+ILWbGAv8DA==}
@@ -4277,6 +4288,10 @@ snapshots:
 
   isexe@2.0.0: {}
 
+  isolated-vm@7.0.0:
+    dependencies:
+      node-gyp-build: 4.8.4
+
   jiti@2.7.0: {}
 
   js-tokens@4.0.0: {}
@@ -4442,6 +4457,8 @@ snapshots:
   natural-compare@1.4.0: {}
 
   node-fetch-native@1.6.7: {}
+
+  node-gyp-build@4.8.4: {}
 
   node-releases@2.0.48: {}
 

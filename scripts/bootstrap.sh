@@ -100,6 +100,12 @@ have curl    || PKGS+=(curl)
 have rsync   || PKGS+=(rsync)
 have nginx   || PKGS+=(nginx)
 have sqlite3 || PKGS+=(sqlite3)     # backup 脚本(scripts/backup-db.mjs)依赖 sqlite3 CLI
+# isolated-vm(硬沙箱)是原生模块,pnpm install 时需要 C++ 工具链编译
+if [[ "$PKG" == apt ]]; then
+  have g++ || PKGS+=(build-essential python3)
+else
+  have g++ || PKGS+=(gcc-c++ make python3)
+fi
 # certbot + 其 nginx 插件(两发行版包名一致:python3-certbot-nginx)
 have certbot || PKGS+=(certbot python3-certbot-nginx)
 if ((${#PKGS[@]})); then
