@@ -81,6 +81,16 @@ export const enFactor: typeof zhFactor = {
   metricTopTurnover: 'Top-decile {{per}} turnover',
   metricTopTurnoverHint: 'higher = heavier friction',
 
+  lsNavTitle: 'Long-short NAV · gross vs net',
+  lsNavCap:
+    'Equal-weight long-short; the net line deducts, each rebalance, both legs’ turnover × round-trip cost per name (commission + stamp + slippage ≈ 30bps). Shorting is constrained in A-shares, so the long-short is hypothetical — use this to compare factors’ survivability',
+  lsNavGross: 'Gross',
+  lsNavNet: 'Net',
+  metricLsNetAnn: 'Net long-short (D10−D1) annualized',
+  metricLsNetAnnHint: 'Long-short return after trading cost',
+  metricLsNetSharpe: 'Net Sharpe',
+  metricLsNetMdd: 'Net max drawdown',
+
   icDecayTitle: "IC decay · the factor's holding period",
   icDecayCap: 'X-axis forward trading days, Y-axis Rank IC — {{hint}}',
   decayPeak: '|IC| peaks at {{days}} days · {{trend}}',

@@ -350,6 +350,20 @@ factorRoute.get('/runs', validateQuery(z.object({ factor: z.string().min(1) })),
   return c.json(rows);
 });
 
+// Clear this user's cached runs (all, or just one factor's) — lets a user discard stale reports, and
+// keeps e2e runs isolated. Only ever touches the caller's own FactorReport rows.
+factorRoute.delete(
+  '/runs',
+  validateQuery(z.object({ factor: z.string().min(1).optional() })),
+  async (c) => {
+    const { factor } = c.req.valid('query');
+    const { count } = await prisma.factorReport.deleteMany({
+      where: { userId: c.var.userId, ...(factor ? { factor } : {}) },
+    });
+    return c.json({ deleted: count });
+  },
+);
+
 factorRoute.get('/analysis', validateQuery(analysisQuery), async (c) => {
   const { factor, freq, start, end, neutral } = c.req.valid('query');
   const cached = await prisma.factorReport.findUnique({

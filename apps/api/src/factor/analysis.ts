@@ -17,6 +17,16 @@ const MIN_CANDIDATES = 100; // skip the period if too few usable stocks
 const WINSOR_P = 0.01; // winsorize quantile for forward returns
 const IC_DECAY_HORIZONS = [1, 5, 10, 20, 60]; // forward horizons (trading days) for the IC-decay curve
 
+// Net-of-cost view (3.4): per-side trading cost estimates for the hypothetical long-short. A round-trip
+// (churning one name) = buy side + sell side ≈ 30bps — the first tradability gate for high-turnover
+// factors (short-reversal / money-flow) whose paper IC looks good but decays after costs.
+const COMMISSION_BPS = 0.00025; // brokerage, per side (A-share ~万2.5)
+const STAMP_BPS = 0.0005; // stamp duty, SELL side only (千0.5)
+const SLIPPAGE_BPS = 0.001; // assumed slippage/impact, per side
+const BUY_COST = COMMISSION_BPS + SLIPPAGE_BPS; // establishing/adding a long name
+const SELL_COST = COMMISSION_BPS + STAMP_BPS + SLIPPAGE_BPS; // exiting a name
+const ROUND_TRIP_COST = BUY_COST + SELL_COST; // churning a name (sell the leaver + buy the joiner) ≈ 0.0030
+
 // Rebalance days within [start,end]: the last open day of each month (or ISO week).
 async function getRebalanceDates(freq: FactorFreq, start: string, end: string): Promise<string[]> {
   const cal = await prisma.tradeCal.findMany({
@@ -499,6 +509,10 @@ export async function analyzeFactor(
   const bucketReturnsMktcap: number[][] = Array.from({ length: N_BUCKETS }, () => []); // cap-weight
   const lsReturns: number[] = [];
   const lsReturnsMktcap: number[] = [];
+  const lsNetReturns: number[] = []; // long-short after per-rebalance trading cost (equal-weight)
+  const lsNetReturnsMktcap: number[] = []; // ditto, cap-weight
+  const lsPeriodDates: string[] = []; // period-end date per pushed long-short return (for the NAV x-axis)
+  let firstFormationDate: string | null = null; // first non-skipped formation date (NAV starts at 1 here)
   const turnovers: number[] = [];
   // Quantile × forward horizon (daily-normalized): qh[hi][bucket] = per-rebalance-date list of that quantile's daily-average forward return → mean taken at the end
   const qhEqual = IC_DECAY_HORIZONS.map(() =>
@@ -508,6 +522,7 @@ export async function analyzeFactor(
     Array.from({ length: N_BUCKETS }, () => [] as number[]),
   );
   let prevTop: Set<string> | null = null;
+  let prevBottom: Set<string> | null = null;
 
   for (let m = 0; m < rebalanceDates.length - 1; m++) {
     const date = rebalanceDates[m];
@@ -563,21 +578,39 @@ export async function analyzeFactor(
 
     const buckets = st.quantileBuckets(values, N_BUCKETS); // decile index per candidate
 
-    // Main decile forward returns (next period): equal-weight + cap-weight, plus the top-decile set.
+    // Main decile forward returns (next period): equal-weight + cap-weight, plus the top/bottom sets
+    // (both legs' membership feeds the net-of-cost turnover).
     const perBucket: { v: number; w: number }[][] = Array.from({ length: N_BUCKETS }, () => []);
     const top = new Set<string>();
+    const bottom = new Set<string>();
     for (let i = 0; i < candidates.length; i++) {
       perBucket[buckets[i]].push({ v: fwdW[i], w: candidates[i].mktcap });
       if (buckets[i] === N_BUCKETS - 1) {
         top.add(candidates[i].tsCode);
+      } else if (buckets[i] === 0) {
+        bottom.add(candidates[i].tsCode);
       }
     }
     for (let b = 0; b < N_BUCKETS; b++) {
       bucketReturns[b].push(equalMean(perBucket[b]));
       bucketReturnsMktcap[b].push(capMean(perBucket[b]));
     }
-    lsReturns.push(equalMean(perBucket[N_BUCKETS - 1]) - equalMean(perBucket[0]));
-    lsReturnsMktcap.push(capMean(perBucket[N_BUCKETS - 1]) - capMean(perBucket[0]));
+    const lsGrossEqual = equalMean(perBucket[N_BUCKETS - 1]) - equalMean(perBucket[0]);
+    const lsGrossMktcap = capMean(perBucket[N_BUCKETS - 1]) - capMean(perBucket[0]);
+    lsReturns.push(lsGrossEqual);
+    lsReturnsMktcap.push(lsGrossMktcap);
+
+    // Net-of-cost: charge this rebalance's trading cost. First formation = establish both legs (one side
+    // each ≈ one round-trip); later = churn both legs by their turnover × round-trip. Both legs trade, so
+    // top and bottom turnover each contribute. Same cost applies to the equal- and cap-weight streams.
+    const periodCost =
+      prevTop && prevBottom
+        ? (oneWayTurnover(top, prevTop) + oneWayTurnover(bottom, prevBottom)) * ROUND_TRIP_COST
+        : BUY_COST + SELL_COST; // establishment of the two legs
+    lsNetReturns.push(lsGrossEqual - periodCost);
+    lsNetReturnsMktcap.push(lsGrossMktcap - periodCost);
+    lsPeriodDates.push(nextDate);
+    firstFormationDate ??= date;
 
     // IC-decay + per-decile return at each forward horizon (daily-normalized so horizons compare).
     // Only on the subsampled decay dates (bounds the forward-snapshot load; see decayDates above).
@@ -617,15 +650,10 @@ export async function analyzeFactor(
     }
 
     if (prevTop) {
-      let changed = 0;
-      for (const c of top) {
-        if (!prevTop.has(c)) {
-          changed++;
-        }
-      }
-      turnovers.push(top.size ? changed / top.size : 0);
+      turnovers.push(oneWayTurnover(top, prevTop));
     }
     prevTop = top;
+    prevBottom = bottom;
   }
 
   onLog(t(locale, 'factorAggregating'));
@@ -665,6 +693,17 @@ export async function analyzeFactor(
     mktcap: qhMktcap[hi].map((list) => st.mean(list)),
   }));
 
+  // Equal-weight long-short NAV, gross vs net-of-cost — the tradability view. navFromReturns prepends a
+  // starting 1, so both series are one longer than the period count; dates lead with the first formation.
+  const lsNav =
+    firstFormationDate != null
+      ? {
+          dates: [firstFormationDate, ...lsPeriodDates],
+          gross: st.navFromReturns(lsReturns),
+          net: st.navFromReturns(lsNetReturns),
+        }
+      : undefined;
+
   return {
     factor: factorKey,
     label,
@@ -685,10 +724,27 @@ export async function analyzeFactor(
     bucketsMktcap: toBuckets(bucketReturnsMktcap),
     longShortMktcap: toLongShort(lsReturnsMktcap),
     quantileHorizons,
+    longShortNet: toLongShort(lsNetReturns),
+    longShortNetMktcap: toLongShort(lsNetReturnsMktcap),
+    lsNav,
   };
 }
 
 // —— weighting helpers ——
+
+/** One-way turnover of a decile leg: fraction of the current names that weren't in the previous set. */
+function oneWayTurnover(current: Set<string>, previous: Set<string>): number {
+  if (!current.size) {
+    return 0;
+  }
+  let changed = 0;
+  for (const code of current) {
+    if (!previous.has(code)) {
+      changed++;
+    }
+  }
+  return changed / current.size;
+}
 
 /** Equal-weight mean of a bucket's values. */
 function equalMean(items: { v: number }[]): number {

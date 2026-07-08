@@ -73,6 +73,15 @@ export interface LongShortStat {
   navEnd: number;
 }
 
+/** The long-short leg's NAV over time, gross vs net-of-cost (equal-weight). `dates[0]` is the first
+ * formation date (NAV starts at 1 there); each later date is a period-end. gross/net are 1 longer than
+ * the number of periods (the leading 1). Drives the gross-vs-net NAV line chart (net-of-cost view). */
+export interface LongShortNav {
+  dates: string[]; // YYYYMMDD, length = periods + 1
+  gross: number[]; // cumulative NAV before trading cost
+  net: number[]; // cumulative NAV after per-rebalance trading cost (turnover × round-trip)
+}
+
 /** Rank IC measured against the N-trading-day-forward return — one point on the IC-decay curve. */
 export interface IcDecayPoint {
   horizonDays: number; // forward horizon in trading days (1 / 5 / 10 / 20 / 60)
@@ -102,6 +111,10 @@ export interface FactorReport {
   bucketsMktcap?: BucketStat[]; // market-cap-weighted quantile stats (used when the UI toggles "weighting"; buckets is equal-weight)
   longShortMktcap?: LongShortStat; // market-cap-weighted long-short
   quantileHorizons?: QuantileHorizon[]; // quantile × forward-horizon heatmap (daily-normalized, both weightings)
+  // —— net-of-cost view (3.4): the long-short after per-rebalance trading cost (turnover × round-trip) ——
+  longShortNet?: LongShortStat; // equal-weight long-short, net of trading cost
+  longShortNetMktcap?: LongShortStat; // market-cap-weight long-short, net of trading cost
+  lsNav?: LongShortNav; // equal-weight long-short NAV, gross vs net (the net-of-cost line chart)
 }
 
 /** A cached run's identity (for the "already run" chips) — the report exists, fetch by these params. */
