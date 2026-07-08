@@ -7,6 +7,7 @@ import {
   type FactorReport,
   type FactorRun,
   type FactorFreq,
+  type FactorCorrelation,
   type Neutral,
   type LogLine,
 } from '@jixie/shared';
@@ -29,6 +30,9 @@ import {
   sendFactorAgent,
   factorQa,
   generateFactorName,
+  runFactorCorrelation,
+  getFactorCorrelation,
+  findCorrelationRunningJob,
 } from '@src/api/client';
 
 // Initial state from the URL (?factor=&freq=&start=&end=&neutral=) — makes a report refresh-safe + shareable.
@@ -87,6 +91,15 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   private jobId: string | null = null;
   private since = 0;
 
+  // —— Correlation matrix (its own params: a factor multi-select over the shared freq/range) ——
+  public correlationLoader = new LoaderModel<FactorCorrelation>();
+  public correlationPoller = new PollingModel();
+  public corrKeys: string[] = []; // 2–8 selected factor keys
+  public corrLogs: LogLine[] = [];
+  public corrRunning = false;
+  private corrJobId: string | null = null;
+  private corrSince = 0;
+
   public constructor(parentStore?: any) {
     super(parentStore);
     makeObservable(this, {
@@ -103,8 +116,12 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       end: observable.ref,
       logs: observable.ref,
       jobRunning: observable.ref,
+      corrKeys: observable.ref,
+      corrLogs: observable.ref,
+      corrRunning: observable.ref,
       selected: computed,
       report: computed,
+      correlation: computed,
       isCached: computed,
       edited: computed,
       qaMode: computed,
@@ -112,6 +129,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       setNeutral: action,
       setStart: action,
       setEnd: action,
+      setCorrKeys: action,
     });
   }
 
@@ -124,10 +142,19 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         getFactorAnalysis(this.selectedKey, this.freq, this.start, this.end, this.neutral, refresh),
     });
     this.analysisPoller.setup({ interval: POLL_INTERVAL_MS, request: () => this.pollOnce() });
+    this.correlationLoader.setup({
+      request: () => getFactorCorrelation(this.corrKeys, this.freq, this.start, this.end),
+    });
+    this.correlationPoller.setup({
+      interval: POLL_INTERVAL_MS,
+      request: () => this.pollCorrelationOnce(),
+    });
     this.registCleaner(() => this.catalogLoader.cleanup());
     this.registCleaner(() => this.runsLoader.cleanup());
     this.registCleaner(() => this.analysisLoader.cleanup());
     this.registCleaner(() => this.analysisPoller.cleanup());
+    this.registCleaner(() => this.correlationLoader.cleanup());
+    this.registCleaner(() => this.correlationPoller.cleanup());
     this.registCleaner(() => this.turnStream.detach()); // drop the SSE subscription; the turn keeps running
     void this.catalogLoader.run();
 
@@ -600,5 +627,110 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       this.end = run.end;
     });
     await this.analysisLoader.run();
+  }
+
+  // —— Correlation matrix ——
+
+  public setCorrKeys(keys: string[]) {
+    runInAction(() => (this.corrKeys = keys.slice(0, 8))); // API caps at 8
+  }
+
+  /** The current correlation report, guarded to the current selection (avoids a stale render). */
+  public get correlation(): FactorCorrelation | null {
+    const r = this.correlationLoader.result;
+    if (!r) {
+      return null;
+    }
+    const want = [...this.corrKeys].sort().join(',');
+    const got = [...r.keys.filter((k) => k !== 'size')].sort().join(',');
+    return want === got ? r : null;
+  }
+
+  /** Run (or view, if cached) the correlation matrix over the selected factors + the shared freq/range. */
+  public async runCorrelation(refresh = false) {
+    if (this.corrKeys.length < 2) {
+      return;
+    }
+    runInAction(() => {
+      this.corrLogs = [];
+      this.corrRunning = true;
+    });
+    try {
+      const res = await runFactorCorrelation(
+        this.corrKeys,
+        this.freq,
+        this.start,
+        this.end,
+        refresh,
+      );
+      if ('report' in res) {
+        await this.correlationLoader.run(Promise.resolve(res.report));
+        this.finishCorr();
+      } else {
+        this.startCorrPolling(res.jobId);
+      }
+    } catch (e) {
+      await this.correlationLoader.run(Promise.reject(e)).catch(() => {});
+      this.finishCorr();
+    }
+  }
+
+  private startCorrPolling(jobId: string) {
+    this.corrJobId = jobId;
+    this.corrSince = 0;
+    runInAction(() => (this.corrRunning = true));
+    this.correlationPoller.start();
+  }
+
+  private async pollCorrelationOnce(): Promise<false | void> {
+    try {
+      const job = await pollFactorJob(this.corrJobId!, this.corrSince);
+      if (job.logs.length) {
+        runInAction(() => (this.corrLogs = [...this.corrLogs, ...job.logs]));
+        this.corrSince = job.nextSince;
+      }
+      if (job.status === 'done') {
+        const report = await getFactorCorrelation(this.corrKeys, this.freq, this.start, this.end);
+        await this.correlationLoader.run(Promise.resolve(report));
+        this.finishCorr();
+        return false;
+      }
+      if (job.status === 'error' || job.status === 'stale') {
+        const msg =
+          job.status === 'stale'
+            ? i18n.t('factor:analysisInterrupted')
+            : job.error || i18n.t('factor:analysisFailed');
+        await this.correlationLoader.run(Promise.reject(new Error(msg))).catch(() => {});
+        this.finishCorr();
+        return false;
+      }
+    } catch {
+      this.finishCorr();
+      return false;
+    }
+  }
+
+  private finishCorr() {
+    runInAction(() => (this.corrRunning = false));
+  }
+
+  /** On opening the correlation modal, re-attach to a still-running job (survives a refresh). */
+  public async reattachCorrelation() {
+    if (this.corrKeys.length < 2) {
+      return;
+    }
+    try {
+      const { jobId } = await findCorrelationRunningJob(
+        this.corrKeys,
+        this.freq,
+        this.start,
+        this.end,
+      );
+      if (jobId) {
+        this.startCorrPolling(jobId);
+      }
+    } catch {
+      /* no live job */
+    }
   }
 }

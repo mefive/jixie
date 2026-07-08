@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import classNames from 'classnames';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
-import { App, Button, DatePicker, Input, Segmented, Select, Splitter, Tabs } from 'antd';
+import { App, Button, DatePicker, Input, Modal, Segmented, Select, Splitter, Tabs } from 'antd';
 import type {
   ChatMessage,
   FactorKind,
@@ -41,6 +41,7 @@ dayjs.extend(customParseFormat);
 const DecileChart = lazy(() => import('./decile-chart'));
 const IcDecayChart = lazy(() => import('./ic-decay-chart'));
 const LsNavChart = lazy(() => import('./ls-nav-chart'));
+const CorrelationHeatmap = lazy(() => import('./correlation-heatmap'));
 const FactorEditor = lazy(() => import('./factor-editor'));
 
 /**
@@ -214,6 +215,7 @@ const FactorLibrary = complex.component(({ onPickCustom }: { onPickCustom: () =>
   const store = complex.useStore();
   const { t } = useTranslation('factor');
   const { modal } = App.useApp();
+  const [corrOpen, setCorrOpen] = useState(false);
   const list = store.catalogLoader.result ?? [];
   const presets = list.filter((f) => f.kind !== 'custom');
   const custom = list.filter((f) => f.kind === 'custom');
@@ -240,6 +242,15 @@ const FactorLibrary = complex.component(({ onPickCustom }: { onPickCustom: () =>
     <LoadingArea loader={store.catalogLoader}>
       {() => (
         <div className="jx-factor-library">
+          <Button
+            className="jx-factor-corrTrigger"
+            size="small"
+            block
+            onClick={() => setCorrOpen(true)}
+          >
+            {t('corrTrigger')}
+          </Button>
+          <CorrelationModal open={corrOpen} onClose={() => setCorrOpen(false)} />
           <div className="jx-factor-libGroup">{t('presetGroup')}</div>
           {presets.map((f) => (
             <button
@@ -285,6 +296,85 @@ const FactorLibrary = complex.component(({ onPickCustom }: { onPickCustom: () =>
     </LoadingArea>
   );
 }, 'FactorLibrary');
+
+// Correlation matrix (3.4): pick 2–8 factors → mean cross-sectional Spearman heatmap (+ a fixed size
+// column). Uses the params bar's freq/range. Self-contained modal so it doesn't disturb the workbench.
+const CorrelationModal = complex.component(
+  ({ open, onClose }: { open: boolean; onClose: () => void }) => {
+    const store = complex.useStore();
+    const { t } = useTranslation('factor');
+    const list = store.catalogLoader.result ?? [];
+    const options = list.map((f) => ({ value: f.key, label: factorDisplayName(f) }));
+    const per = t(store.freq === 'week' ? 'unitWeek' : 'unitMonth');
+
+    // Re-attach to a running correlation job when the modal opens (survives a refresh).
+    useEffect(() => {
+      if (open) {
+        void store.reattachCorrelation();
+      }
+    }, [open]);
+
+    const corr = store.correlation;
+    const canRun = store.corrKeys.length >= 2 && !store.corrRunning;
+    return (
+      <Modal
+        open={open}
+        onCancel={onClose}
+        footer={null}
+        width={680}
+        title={t('corrTitle')}
+        className="jx-factor-corrModal"
+      >
+        <div className="jx-factor-corrControls">
+          <Select
+            mode="multiple"
+            size="small"
+            className="jx-factor-corrSelect"
+            placeholder={t('corrSelectPlaceholder')}
+            value={store.corrKeys}
+            onChange={(v) => store.setCorrKeys(v)}
+            options={options}
+            maxCount={8}
+          />
+          <LoaderButton
+            type="primary"
+            size="small"
+            loader={store.correlationLoader}
+            disabled={!canRun}
+            action={() => store.runCorrelation()}
+          >
+            {t('corrRun')}
+          </LoaderButton>
+        </div>
+        <div className="jx-factor-corrHint">
+          {t('corrHint', {
+            per,
+            startYear: store.start.slice(0, 4),
+            endYear: store.end.slice(0, 4),
+          })}
+        </div>
+
+        {store.corrRunning && (
+          <div className="jx-factor-corrProgress">
+            <FontAwesomeIcon icon={faSpinner} spin /> {t('corrRunning')}
+          </div>
+        )}
+        {!store.corrRunning && corr && (
+          <>
+            <Suspense fallback={<div className="jx-factor-corrChart" />}>
+              <CorrelationHeatmap data={corr} />
+            </Suspense>
+            <div className="jx-factor-chartCap">{t('corrCap', { periods: corr.periods, per })}</div>
+          </>
+        )}
+        {!store.corrRunning && !corr && store.corrKeys.length < 2 && (
+          <div className="jx-factor-corrEmpty">{t('corrEmpty')}</div>
+        )}
+      </Modal>
+    );
+  },
+  'CorrelationModal',
+);
 
 // Middle column: the Monaco editor over a collapsible log dock. A preset is a seeded READ-ONLY code
 // row — shown in the same editor with a lock bar + copy-as-custom (fork), instead of being hidden.

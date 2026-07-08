@@ -28,7 +28,11 @@ const SELL_COST = COMMISSION_BPS + STAMP_BPS + SLIPPAGE_BPS; // exiting a name
 const ROUND_TRIP_COST = BUY_COST + SELL_COST; // churning a name (sell the leaver + buy the joiner) ≈ 0.0030
 
 // Rebalance days within [start,end]: the last open day of each month (or ISO week).
-async function getRebalanceDates(freq: FactorFreq, start: string, end: string): Promise<string[]> {
+export async function getRebalanceDates(
+  freq: FactorFreq,
+  start: string,
+  end: string,
+): Promise<string[]> {
   const cal = await prisma.tradeCal.findMany({
     where: { exchange: 'SSE', isOpen: 1, calDate: { gte: start, lte: end } },
     select: { calDate: true },
@@ -47,11 +51,14 @@ async function getRebalanceDates(freq: FactorFreq, start: string, end: string): 
   return out;
 }
 
-type Snap = Map<string, { adjClose: number; amount: number; mktcap: number }>; // tsCode -> quote
+export type Snap = Map<string, { adjClose: number; amount: number; mktcap: number }>; // tsCode -> quote
 
 /** Load a "hfq close + turnover (+ total market cap for cap-weighting)" snapshot for each day. `withMktcap` only
  * for rebalance (formation) dates — forward snapshots weight by the formation-date cap, so they skip it. */
-async function loadSnapshots(dates: string[], withMktcap = false): Promise<Map<string, Snap>> {
+export async function loadSnapshots(
+  dates: string[],
+  withMktcap = false,
+): Promise<Map<string, Snap>> {
   const px = await prisma.daily.findMany({
     where: { tradeDate: { in: dates } },
     select: { tsCode: true, tradeDate: true, close: true, amount: true },
@@ -90,7 +97,7 @@ async function loadSnapshots(dates: string[], withMktcap = false): Promise<Map<s
   return snaps;
 }
 
-type Series = Map<string, { tsCode: string; value: number }[]>; // rebalance date -> [{tsCode, value}]
+export type Series = Map<string, { tsCode: string; value: number }[]>; // rebalance date -> [{tsCode, value}]
 
 /**
  * Compute ONE factor's value on each rebalance date, on the fly. Presets and user factors share this
@@ -104,7 +111,7 @@ type Series = Map<string, { tsCode: string; value: number }[]>; // rebalance dat
  * A throwing / null / non-finite compute drops that stock for the period (errors surface once via
  * the log sink, prefixed [factor-error]).
  */
-async function computeFactorSeries(
+export async function computeFactorSeries(
   factorKey: string,
   dates: string[],
   snaps: Map<string, Snap>,

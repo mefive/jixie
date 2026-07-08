@@ -151,6 +151,10 @@ const MESSAGES = {
     zh: '中性化因子值(模式:{mode})…',
     en: 'Neutralizing factor values (mode: {mode})…',
   },
+  factorCorrelating: {
+    zh: '计算 {count} 列两两相关…',
+    en: 'Computing pairwise correlation across {count} columns…',
+  },
   factorAggregating: {
     zh: '汇总 IC / 分层 / IC 衰减…',
     en: 'Aggregating IC / buckets / IC-decay…',
