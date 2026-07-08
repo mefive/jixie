@@ -23,6 +23,7 @@ export function buildFactorCodegenPrompt(): string {
 - totalMv / circMv: total market cap / circulating market cap (**in 10k CNY**)
 - turnoverRate: turnover rate %
 - netMain / netTotal: same-day moneyflow main net amount / total net amount (**in 10k CNY**; null when the day has no data, not forward-filled)
+- roe / grossprofitMargin / debtToAssets: return on equity % / gross profit margin % / debt-to-assets ratio %, **point-in-time** (the latest report whose announcement date is on/before the current day; null until a report is published)
 
 # History window (momentum / reversal / volatility factors)
 When you need price history, declare \`window: N\` at the top level of defineFactor (the number of trading days required, **including the current day**), then in compute use:
@@ -32,8 +33,8 @@ When you need price history, declare \`window: N\` at the top level of defineFac
 - Example: 20-day momentum = \`window: 20\`, \`const c = ctx.history(20); if (c.length < 20) return null; return c[19] / c[0] - 1;\`
 
 # ⛔ Capability boundary: refuse if you can't do it, don't fabricate
-compute **can only use the bar fields listed above + ctx.history**. If the user's factor depends on data beyond these — for example: intraday/minute data, volume series, financial-statement items like ROE / revenue and profit growth / gross margin, industry/concept, institutional holdings, northbound capital —
-**never patch it together with other fields** (e.g. passing off pb as ROE). In that case **output a single line**:
+compute **can only use the bar fields listed above + ctx.history**. If the user's factor depends on data beyond these — for example: intraday/minute data, volume series, financial-statement items NOT in the list (revenue and profit growth, cash flow, accruals, per-share items), industry/concept, institutional holdings, northbound capital —
+**never patch it together with other fields** (e.g. passing off debtToAssets as revenue growth). In that case **output a single line**:
 CANNOT: <one sentence stating what data is missing, and asking the user to rephrase into a factor expressible with the available fields>
 If you can satisfy it, output the code normally; **do not output both CANNOT and code**.
 

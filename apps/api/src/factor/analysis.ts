@@ -99,6 +99,62 @@ export async function loadSnapshots(
 
 export type Series = Map<string, { tsCode: string; value: number }[]>; // rebalance date -> [{tsCode, value}]
 
+// One financial report's as-of fundamentals + the announcement date that gates them (PIT).
+type FinaReport = {
+  annDate: string;
+  roe: number | null;
+  grossprofitMargin: number | null;
+  debtToAssets: number | null;
+};
+type FinaIndex = Map<string, FinaReport[]>; // code -> reports ascending by annDate
+
+/** Load all financial reports once, grouped by code ascending by annDate — the point-in-time source for
+ * the FactorBar fundamentals (roe / gross margin / debt ratio). Rows without an annDate are skipped (they
+ * can't be PIT-gated). Mirrors EngineData.ensureFina so the factor and backtest sides read fina the same way. */
+async function loadFinaIndex(): Promise<FinaIndex> {
+  const rows = await prisma.finaIndicator.findMany({
+    where: { annDate: { not: null } },
+    select: { tsCode: true, annDate: true, roe: true, grossprofitMargin: true, debtToAssets: true },
+    orderBy: { annDate: 'asc' },
+  });
+  const index: FinaIndex = new Map();
+  for (const r of rows) {
+    let list = index.get(r.tsCode);
+    if (!list) {
+      index.set(r.tsCode, (list = []));
+    }
+    list.push({
+      annDate: r.annDate!,
+      roe: r.roe,
+      grossprofitMargin: r.grossprofitMargin,
+      debtToAssets: r.debtToAssets,
+    });
+  }
+  return index;
+}
+
+/** The latest report public as-of `date` for `code` (largest annDate ≤ date), or null — binary search
+ * over the ascending list. Same PIT rule as EngineData.roeAsOf: no report visible before its annDate. */
+function finaAsOf(index: FinaIndex, code: string, date: string): FinaReport | null {
+  const list = index.get(code);
+  if (!list || !list.length) {
+    return null;
+  }
+  let lo = 0;
+  let hi = list.length - 1;
+  let ans = -1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (list[mid].annDate <= date) {
+      ans = mid;
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
+    }
+  }
+  return ans < 0 ? null : list[ans];
+}
+
 /**
  * Compute ONE factor's value on each rebalance date, on the fly. Presets and user factors share this
  * single path (factor-to-strategy.md Step 1b): load the Factor row's code (preset rows are seeded
@@ -149,9 +205,13 @@ export async function computeFactorSeries(
   };
   const factor = await compileFactor(row.code, logSink);
 
+  // Preload all financial reports once (PIT-gated by annDate); loadBars picks each stock's as-of report.
+  const finaIndex = await loadFinaIndex();
+
   // One date's FactorBar cross-section: daily_basic valuation + moneyflow (flow semantics — exact
-  // date, absent = null, never carried forward). Queried per-date (not batched with `in: dates`) —
-  // measured slower when batched, likely Prisma row-deserialization + IN-list planning overhead.
+  // date, absent = null, never carried forward) + as-of fundamentals (latest annDate ≤ date). Queried
+  // per-date (not batched with `in: dates`) — measured slower when batched, likely Prisma row-
+  // deserialization + IN-list planning overhead.
   const loadBars = async (date: string): Promise<Map<string, FactorBar>> => {
     const [basicRows, flowRows] = await Promise.all([
       prisma.dailyBasic.findMany({
@@ -192,6 +252,9 @@ export async function computeFactorSeries(
         turnoverRate: r.turnoverRate,
         netMain: null,
         netTotal: null,
+        roe: null,
+        grossprofitMargin: null,
+        debtToAssets: null,
       });
     }
     for (const flow of flowRows) {
@@ -207,6 +270,15 @@ export async function computeFactorSeries(
           netMain: flow.netMain,
           netTotal: flow.netTotal,
         });
+      }
+    }
+    // As-of fundamentals: the latest report public on/before this date (no look-ahead).
+    for (const [code, bar] of bars) {
+      const fina = finaAsOf(finaIndex, code, date);
+      if (fina) {
+        bar.roe = fina.roe;
+        bar.grossprofitMargin = fina.grossprofitMargin;
+        bar.debtToAssets = fina.debtToAssets;
       }
     }
     return bars;
@@ -337,6 +409,9 @@ const EMPTY_BAR: FactorBar = {
   turnoverRate: null,
   netMain: null,
   netTotal: null,
+  roe: null,
+  grossprofitMargin: null,
+  debtToAssets: null,
 };
 
 // —— cross-sectional neutralization (3.4) ——

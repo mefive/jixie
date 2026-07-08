@@ -165,10 +165,15 @@ type FactorKey = 'mf_net_main' | 'mf_net_total' | 'custom:01H…' | …
 > 已备)→ ② FactorBar 接财务字段(见下)→ ③ 3.5 预置逐个过三道门(依赖①②)→ ④ 3.2 策略侧
 > 接入 → ⑤ 3.6 台账(便宜,业界没有,与纪律哲学最搭)**。3.3/3.7 保持远期。
 
-### 新设计点:FactorBar 财务字段(as-of 语义,3.5 质量因子的前置)
+### 新设计点:FactorBar 财务字段(as-of 语义,3.5 质量因子的前置)✅(2026-07-08)
 
-fina_indicator 七列已落库(2026-07-07 波次一),但因子 `compute` 的 bar 还摸不到。这是 FactorBar
-**第一类 as-of 前填字段**,与既有两类语义并列,需在实现处写明:
+**已实现**:`FactorBar` 新增 `roe / grossprofitMargin / debtToAssets` 三列(PIT as-of),`analysis.ts`
+`loadFinaIndex` 一次性预载 fina_indicator(annDate 非空,按 annDate 升序分组)+ 逐股 `finaAsOf` 二分
+(镜像 `EngineData.roeAsOf`)。SDK dts 双语文档 + codegen prompt 字段表/能力边界同步(ROE/毛利率/负债率
+不再是「无数据」,营收利润增速等仍在边界外)。实测 roe 因子 6 个月产 30607 个非空值。
+
+fina_indicator 七列已落库(2026-07-07 波次一),因子 `compute` 的 bar 现可读到上述三列。这是 FactorBar
+**第一类 as-of 前填字段**,与既有两类语义并列:
 
 | 语义 | 字段 | 规则 |
 |---|---|---|

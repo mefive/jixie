@@ -46,6 +46,11 @@ export interface FactorBar {
   turnoverRate: number | null; // turnover rate %
   netMain: number | null; // main-force net amount (10k yuan, exact for the day, null if missing)
   netTotal: number | null; // total net amount (10k yuan, exact for the day, null if missing)
+  // —— Fundamentals, point-in-time (as-of): the latest report whose announcement date (annDate) is on or
+  // before the rebalance day, so there's no look-ahead. Null until a report has been published. ——
+  roe: number | null; // return on equity %, most-recent reported (annDate ≤ today)
+  grossprofitMargin: number | null; // gross profit margin %
+  debtToAssets: number | null; // debt-to-assets ratio %
 }
 
 /** Catalog entry — one row in the factor list (no analysis, just identity). */
