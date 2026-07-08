@@ -39,6 +39,12 @@ export const enFactor: typeof zhFactor = {
 
   freq: 'Frequency',
   range: 'Range',
+  neutralLabel: 'Neutralize',
+  neutralNone: 'None',
+  neutralSize: 'Size',
+  neutralSizeIndustry: 'Size + industry',
+  neutralSizeTag: '·size-neut',
+  neutralSizeIndustryTag: '·size+ind-neut',
   view: 'View',
   run: 'Run analysis',
   recompute: 'Recompute',

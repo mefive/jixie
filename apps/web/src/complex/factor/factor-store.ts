@@ -7,6 +7,7 @@ import {
   type FactorReport,
   type FactorRun,
   type FactorFreq,
+  type Neutral,
   type LogLine,
 } from '@jixie/shared';
 import i18n from '@src/i18n';
@@ -30,8 +31,14 @@ import {
   generateFactorName,
 } from '@src/api/client';
 
-// Initial state from the URL (?factor=&freq=&start=&end=) — makes a report refresh-safe + shareable.
-type FactorSetupParams = { factor?: string; freq?: FactorFreq; start?: string; end?: string };
+// Initial state from the URL (?factor=&freq=&start=&end=&neutral=) — makes a report refresh-safe + shareable.
+type FactorSetupParams = {
+  factor?: string;
+  freq?: FactorFreq;
+  start?: string;
+  end?: string;
+  neutral?: Neutral;
+};
 
 const DEFAULT_START = '20150101';
 const DEFAULT_END = '20261231';
@@ -71,6 +78,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   public nlText = ''; // the Agent chat draft
 
   public freq: FactorFreq = 'month';
+  public neutral: Neutral = 'none'; // cross-sectional neutralization applied to the analysis (part of the cache key)
   public start = DEFAULT_START;
   public end = DEFAULT_END;
   public logs: LogLine[] = []; // streamed progress of the current run (job), tagged system/user
@@ -90,6 +98,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       sending: observable.ref,
       nlText: observable.ref,
       freq: observable.ref,
+      neutral: observable.ref,
       start: observable.ref,
       end: observable.ref,
       logs: observable.ref,
@@ -100,6 +109,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       edited: computed,
       qaMode: computed,
       setFreq: action,
+      setNeutral: action,
       setStart: action,
       setEnd: action,
     });
@@ -111,7 +121,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     this.runsLoader.setup({ request: () => getFactorRuns(this.selectedKey) });
     this.analysisLoader.setup({
       request: (refresh = false) =>
-        getFactorAnalysis(this.selectedKey, this.freq, this.start, this.end, refresh),
+        getFactorAnalysis(this.selectedKey, this.freq, this.start, this.end, this.neutral, refresh),
     });
     this.analysisPoller.setup({ interval: POLL_INTERVAL_MS, request: () => this.pollOnce() });
     this.registCleaner(() => this.catalogLoader.cleanup());
@@ -128,6 +138,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       runInAction(() => {
         this.selectedKey = params.factor!;
         this.freq = params.freq ?? 'month';
+        this.neutral = params.neutral ?? 'none';
         this.start = params.start ?? DEFAULT_START;
         this.end = params.end ?? DEFAULT_END;
       });
@@ -148,7 +159,11 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   /** Whether the current (factor, freq, start, end) is already computed — drives the run/view label. */
   public get isCached(): boolean {
     return (this.runsLoader.result ?? []).some(
-      (r) => r.freq === this.freq && r.start === this.start && r.end === this.end,
+      (r) =>
+        r.freq === this.freq &&
+        (r.neutral ?? 'none') === this.neutral &&
+        r.start === this.start &&
+        r.end === this.end,
     );
   }
 
@@ -164,6 +179,9 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
 
   public setFreq(v: FactorFreq) {
     runInAction(() => (this.freq = v));
+  }
+  public setNeutral(v: Neutral) {
+    runInAction(() => (this.neutral = v));
   }
   public setStart(v: string) {
     runInAction(() => (this.start = v));
@@ -458,6 +476,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         this.freq,
         this.start,
         this.end,
+        this.neutral,
         refresh,
       );
       if ('report' in res) {
@@ -502,6 +521,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         this.freq,
         this.start,
         this.end,
+        this.neutral,
       );
       if (jobId) {
         this.startPolling(jobId);
@@ -511,7 +531,13 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       /* fall through */
     }
     try {
-      const report = await getFactorAnalysis(this.selectedKey, this.freq, this.start, this.end);
+      const report = await getFactorAnalysis(
+        this.selectedKey,
+        this.freq,
+        this.start,
+        this.end,
+        this.neutral,
+      );
       await this.analysisLoader.run(Promise.resolve(report));
     } catch {
       this.analysisLoader.reset();
@@ -534,7 +560,13 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         this.since = job.nextSince;
       }
       if (job.status === 'done') {
-        const report = await getFactorAnalysis(this.selectedKey, this.freq, this.start, this.end);
+        const report = await getFactorAnalysis(
+          this.selectedKey,
+          this.freq,
+          this.start,
+          this.end,
+          this.neutral,
+        );
         await this.analysisLoader.run(Promise.resolve(report));
         void this.runsLoader.run();
         this.finishJob();
@@ -563,6 +595,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   public async applyRun(run: FactorRun) {
     runInAction(() => {
       this.freq = run.freq;
+      this.neutral = run.neutral ?? 'none';
       this.start = run.start;
       this.end = run.end;
     });

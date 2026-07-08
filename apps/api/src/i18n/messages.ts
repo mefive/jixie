@@ -147,6 +147,10 @@ const MESSAGES = {
     zh: '加载 IC 衰减前瞻快照({count} 日)…',
     en: 'Loading IC-decay forward snapshots ({count} days)…',
   },
+  factorNeutralizing: {
+    zh: '中性化因子值(模式:{mode})…',
+    en: 'Neutralizing factor values (mode: {mode})…',
+  },
   factorAggregating: {
     zh: '汇总 IC / 分层 / IC 衰减…',
     en: 'Aggregating IC / buckets / IC-decay…',

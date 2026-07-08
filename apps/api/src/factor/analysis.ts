@@ -1,5 +1,5 @@
 import { DEFAULT_LOCALE, type Locale } from '@jixie/shared';
-import type { BucketStat, FactorBar, FactorReport, FactorFreq } from '@jixie/shared';
+import type { BucketStat, FactorBar, FactorReport, FactorFreq, Neutral } from '@jixie/shared';
 import { prisma } from '../lib/prisma.js';
 import { compileFactor, type FactorBatchItem } from './compile-factor.js';
 import type { UserLogSink } from '../lib/sandbox-console.js';
@@ -322,6 +322,102 @@ const EMPTY_BAR: FactorBar = {
   netTotal: null,
 };
 
+// —— cross-sectional neutralization (3.4) ——
+
+const NEUTRAL_MIN_GROUP = 5; // industries smaller than this are merged into the largest one before demeaning
+
+type IndustrySpell = { inDate: string; outDate: string | null; l1Name: string };
+
+/** Load Shenwan level-1 membership once and index it by stock, spells ascending by inDate — the
+ * point-in-time (stock → industry) lookup for industry-neutralization. */
+async function loadIndustryLookup(): Promise<Map<string, IndustrySpell[]>> {
+  const rows = await prisma.swIndustryMember.findMany({
+    select: { tsCode: true, l1Name: true, inDate: true, outDate: true },
+    orderBy: { inDate: 'asc' },
+  });
+  const byStock = new Map<string, IndustrySpell[]>();
+  for (const r of rows) {
+    const spells = byStock.get(r.tsCode) ?? [];
+    spells.push({ inDate: r.inDate, outDate: r.outDate, l1Name: r.l1Name });
+    byStock.set(r.tsCode, spells);
+  }
+  return byStock;
+}
+
+/** The stock's SW level-1 industry on `date`: the spell covering [inDate, outDate) — or null if none. */
+function industryOn(spells: IndustrySpell[] | undefined, date: string): string | null {
+  if (!spells) {
+    return null;
+  }
+  for (const s of spells) {
+    if (s.inDate <= date && (s.outDate == null || date < s.outDate)) {
+      return s.l1Name;
+    }
+  }
+  return null;
+}
+
+/** Relabel members of any group smaller than NEUTRAL_MIN_GROUP into the largest group, so a handful of
+ * lone-industry stocks don't each form their own (degenerate, residual-zero) demeaning bucket. */
+function mergeSmallGroups(groups: string[]): string[] {
+  const counts = new Map<string, number>();
+  for (const g of groups) {
+    counts.set(g, (counts.get(g) ?? 0) + 1);
+  }
+  let largest = groups[0];
+  for (const [key, count] of counts) {
+    if (count > (counts.get(largest) ?? 0)) {
+      largest = key;
+    }
+  }
+  return groups.map((g) => ((counts.get(g) ?? 0) < NEUTRAL_MIN_GROUP ? largest : g));
+}
+
+/**
+ * Replace each rebalance date's factor values with their neutralized residuals (in place on the map).
+ * 'size' regresses out log(total market cap); 'size_industry' additionally removes SW level-1 industry
+ * means (FWL — see stats.residualize). Stocks without a positive market cap that day are dropped (can't
+ * be size-neutralized); with industry mode, stocks with no known industry go to an 'unknown' bucket that
+ * mergeSmallGroups folds away if tiny.
+ */
+function neutralizeSeries(
+  series: Series,
+  snaps: Map<string, Snap>,
+  industryByStock: Map<string, IndustrySpell[]>,
+  mode: Exclude<Neutral, 'none'>,
+): void {
+  for (const [date, rows] of series) {
+    const snap = snaps.get(date);
+    const kept: { tsCode: string }[] = [];
+    const values: number[] = [];
+    const logCaps: number[] = [];
+    const groups: string[] = [];
+    for (const row of rows) {
+      const mktcap = snap?.get(row.tsCode)?.mktcap ?? 0;
+      if (mktcap <= 0) {
+        continue;
+      }
+      kept.push({ tsCode: row.tsCode });
+      values.push(row.value);
+      logCaps.push(Math.log(mktcap));
+      groups.push(
+        mode === 'size_industry'
+          ? (industryOn(industryByStock.get(row.tsCode), date) ?? 'unknown')
+          : '',
+      );
+    }
+    const residuals = st.residualize(
+      values,
+      logCaps,
+      mode === 'size_industry' ? mergeSmallGroups(groups) : undefined,
+    );
+    series.set(
+      date,
+      kept.map((k, i) => ({ tsCode: k.tsCode, value: residuals[i] })),
+    );
+  }
+}
+
 /**
  * Analyze one factor over a (freq, start, end) window: monthly/weekly cross-sectional deciles + Rank IC
  * + long-short. Values are computed on the fly and held only for this call — the caller persists the
@@ -332,6 +428,7 @@ export async function analyzeFactor(
   freq: FactorFreq,
   start: string,
   end: string,
+  neutral: Neutral = 'none',
   onLog: (msg: string) => void = () => {},
   onUserLog?: UserLogSink,
   locale: Locale = DEFAULT_LOCALE,
@@ -350,6 +447,14 @@ export async function analyzeFactor(
     onUserLog,
     locale,
   );
+
+  // Cross-sectional neutralization (3.4): replace raw values with residuals before IC / bucketing.
+  if (neutral !== 'none') {
+    onLog(t(locale, 'factorNeutralizing', { mode: neutral }));
+    const industryByStock =
+      neutral === 'size_industry' ? await loadIndustryLookup() : new Map<string, IndustrySpell[]>();
+    neutralizeSeries(byDate, snaps, industryByStock, neutral);
+  }
 
   // IC-decay: for each rebalance date D, the trading day D+h (h ∈ horizons) via the open-day calendar,
   // and a snapshot at those forward days — so we can measure Rank IC at multiple forward horizons.
@@ -564,6 +669,7 @@ export async function analyzeFactor(
     factor: factorKey,
     label,
     freq,
+    neutral,
     start,
     end,
     periods: icSeries.length,

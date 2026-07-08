@@ -6,6 +6,12 @@
 
 export type FactorFreq = 'month' | 'week';
 
+/** Cross-sectional neutralization applied to factor values before IC / bucketing (3.4). 'none' = raw
+ * values; 'size' = residual after regressing on log(total market cap); 'size_industry' = additionally
+ * orthogonal to Shenwan level-1 industry (removes the "new factor is just a small-cap / sector bet"
+ * illusion). A different neutralization is a different report (it's part of the cache key). */
+export type Neutral = 'none' | 'size' | 'size_industry';
+
 /** Quantile-return weighting scheme (modeled on JoinQuant's weight_method): equal-weight = signal
  * strength (small-cap bias); market-cap-weight = tradability / capacity. */
 export type FactorWeight = 'equal' | 'mktcap';
@@ -79,6 +85,7 @@ export interface FactorReport {
   factor: string; // unique key
   label: string; // human label (Chinese)
   freq: FactorFreq; // rebalance / forward-return frequency
+  neutral?: Neutral; // cross-sectional neutralization applied (absent on old cached reports = 'none')
   start: string; // YYYYMMDD (inclusive)
   end: string; // YYYYMMDD (inclusive)
   periods: number; // number of rebalance periods in the sample (months or weeks)
@@ -100,6 +107,7 @@ export interface FactorReport {
 /** A cached run's identity (for the "already run" chips) — the report exists, fetch by these params. */
 export interface FactorRun {
   freq: FactorFreq;
+  neutral: Neutral;
   start: string;
   end: string;
   computedAt: string; // ISO

@@ -26,6 +26,21 @@ model StockBasic {
   listStatus String
 }
 
+/// Shenwan (SW2021) level-1 industry membership, point-in-time. One row per (stock, industry, spell):
+/// the stock belonged to `l1Name` from `inDate` up to (but excluding) `outDate` (null = still a member).
+/// Used for industry-neutralization in factor analysis — pick the spell covering the rebalance date.
+/// A stock can have several spells (it moved industries) so the membership is keyed by inDate too.
+model SwIndustryMember {
+  tsCode  String
+  l1Code  String // SW level-1 industry index code, e.g. 801120.SI
+  l1Name  String // SW level-1 industry name, e.g. 食品饮料
+  inDate  String // date the stock entered this industry (YYYYMMDD)
+  outDate String? // date it left (YYYYMMDD); null = current member
+
+  @@id([tsCode, l1Code, inDate])
+  @@index([tsCode])
+}
+
 /// Trading calendar
 model TradeCal {
   exchange     String
@@ -229,10 +244,11 @@ model InviteCode {
 /// Regenerated on demand (?refresh=1); served instantly otherwise. Factor *values* are never stored,
 /// only this report: they're computed on the fly from raw tables when the report is (re)generated.
 model FactorReport {
-  id         String   @id // `${userId}|${factor}|${freq}|${start}|${end}`
+  id         String   @id // `${userId}|${factor}|${freq}|${start}|${end}` (+ `|${neutral}` when not 'none')
   userId     String
   factor     String
   freq       String // 'month' | 'week'
+  neutral    String   @default("none") // 'none' | 'size' | 'size_industry' — cross-sectional neutralization
   start      String // YYYYMMDD
   end        String // YYYYMMDD
   payload    String // JSON.stringify(FactorReport wire shape)

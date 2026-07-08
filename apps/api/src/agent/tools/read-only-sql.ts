@@ -40,6 +40,8 @@ export const SQL_TABLE_DOCS: Record<string, string> = {
   IndexWeight:
     'indexCode, conCode, tradeDate, weight — monthly index constituent snapshot (e.g. 000852.SH CSI 1000)',
   IndexDaily: 'tsCode, tradeDate, close — index daily bars (e.g. 000300.SH CSI 300)',
+  SwIndustryMember:
+    'tsCode, l1Code, l1Name(Shenwan SW2021 level-1 industry, e.g. 食品饮料), inDate, outDate(null = current) — point-in-time industry membership; a stock belongs to l1Name from inDate up to (excluding) outDate, and may have several spells (it moved industries). For a date D pick the spell where inDate<=D and (outDate is null or D<outDate)',
 };
 
 const ALLOWED_TABLES = new Set(Object.keys(SQL_TABLE_DOCS).map((name) => name.toLowerCase()));
