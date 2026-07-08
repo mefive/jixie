@@ -40,6 +40,7 @@ import './factor.css';
 dayjs.extend(customParseFormat);
 const DecileChart = lazy(() => import('./decile-chart'));
 const IcDecayChart = lazy(() => import('./ic-decay-chart'));
+const LsNavChart = lazy(() => import('./ls-nav-chart'));
 const FactorEditor = lazy(() => import('./factor-editor'));
 
 /**
@@ -575,6 +576,25 @@ const ReportBody = complex.component(() => {
           hint={t('metricTopTurnoverHint')}
         />
       </div>
+
+      {r.lsNav && r.longShortNet && (
+        <>
+          <div className="jx-factor-sectionTitle">{t('lsNavTitle')}</div>
+          <Suspense fallback={<div className="jx-factor-chart" />}>
+            <LsNavChart nav={r.lsNav} />
+          </Suspense>
+          <div className="jx-factor-chartCap">{t('lsNavCap')}</div>
+          <div className="jx-factor-metrics">
+            <Metric
+              label={t('metricLsNetAnn', { n })}
+              value={pct(r.longShortNet.annReturn)}
+              hint={t('metricLsNetAnnHint')}
+            />
+            <Metric label={t('metricLsNetSharpe')} value={r.longShortNet.sharpe.toFixed(2)} />
+            <Metric label={t('metricLsNetMdd')} value={pct(r.longShortNet.maxDrawdown)} />
+          </div>
+        </>
+      )}
 
       {r.icDecay?.length > 0 && (
         <>
