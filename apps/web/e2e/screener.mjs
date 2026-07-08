@@ -583,6 +583,27 @@ try {
   log('shot 7d: ep 市值+行业中性化 + 费后净值 →', neutralRun);
   await page.screenshot({ path: `${SHOTS}7d-factors-neutral.png` });
 
+  // 7e. Correlation matrix (3.4): open the modal from the 因子库 tab, pick 3 fast fundamentals (uses the
+  //     current monthly 2022 window → fast), compute → heatmap. Textbook: ep~bp positive, all vs size.
+  await page.locator('.jx-factor-agent').getByRole('tab', { name: '因子库' }).click();
+  await page.getByRole('button', { name: '相关性矩阵' }).click();
+  const corrSelect = page.locator('.jx-factor-corrSelect');
+  await corrSelect.click();
+  for (const name of ['盈利收益率', '账面市值比', '股息率']) {
+    await page
+      .locator('.ant-select-dropdown:visible .ant-select-item-option', { hasText: name })
+      .click();
+  }
+  // Close the option dropdown by clicking the modal's hint text — NOT Escape (antd Modal closes on Escape).
+  await page.locator('.jx-factor-corrHint').click();
+  // The 计算 button by class, not name: antd inserts a space between the two CJK chars ("计 算").
+  await page.locator('.jx-factor-corrControls .ant-btn-primary').click();
+  await page.locator('.jx-factor-corrChart canvas').first().waitFor({ timeout: 60000 });
+  await page.waitForTimeout(700);
+  log('shot 7e: 相关性矩阵 (ep/bp/dv + size)');
+  await page.screenshot({ path: `${SHOTS}7e-factors-correlation.png` });
+  await page.keyboard.press('Escape'); // close the modal
+
   // 7b. Back to raw (neutral 无) + weekly horizon — reset neutral first so weekly + industry-neutral
   //     (whole-market panels + the industry table = slow) never runs.
   await pickNeutral('无');

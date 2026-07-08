@@ -42,6 +42,16 @@ export const zhFactor = {
   neutralSizeIndustry: '市值+行业',
   neutralSizeTag: '·市值中性',
   neutralSizeIndustryTag: '·市值行业中性',
+
+  corrTrigger: '相关性矩阵',
+  corrTitle: '因子相关性矩阵',
+  corrSelectPlaceholder: '选 2~8 个因子',
+  corrRun: '计算',
+  corrHint:
+    '两两截面 Spearman 按{{per}}取均值,区间 {{startYear}}–{{endYear}}(跟随右侧参数条)。含固定「市值」列查换皮',
+  corrRunning: '计算中……(含窗口因子会慢,实时进度略)',
+  corrCap: '{{periods}} 个{{per}}均值 · 红=正相关(冗余)· 蓝=负相关 · 对角线=1',
+  corrEmpty: '选至少 2 个因子后点「计算」',
   view: '查看',
   run: '运行分析',
   recompute: '重算',

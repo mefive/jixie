@@ -218,7 +218,7 @@ fina_indicator 七列已落库(2026-07-07 波次一),但因子 `compute` 的 bar
 
 1. ✅ **中性化**(2026-07-08):stats.groupDemean/residualize + 申万一级 PIT 表 + 中性化贯通(API 参数→worker→UI 选择器→e2e)。commit `f8e325f`。
 2. ✅ **费后**(2026-07-08):底仓 decile 换手 + `lsNav` 逐期净值序列 + 前端多空净值双线图 + 费后指标行。成本常数在 `analysis.ts`(往返 ≈ 30bp)。实测高换手因子费后大幅缩水(mf_net_main 8.76%→2.97%)。e2e 7d。
-3. ⬜ **相关性**(新表 + 新路由 + 新 tab,独立面最大放最后)。
+3. ✅ **相关性**(2026-07-08):新表 `FactorCorrelation` + worker(复用 computeFactorSeries)+ /factors 因子库 tab 触发的模态框(因子多选 + echarts 热力图,含固定「市值」列)。自检 ep~bp/dv 正、bp~市值 弱负。e2e 7e。
 
 ## 3.5 预置因子库扩充(经典因子菜单)
 

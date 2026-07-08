@@ -257,6 +257,17 @@ model FactorReport {
   @@index([userId, factor]) // list a user's cached runs of a factor (the "already run" chips)
 }
 
+/// Cached factor-correlation report (3.4). Payload = JSON FactorCorrelation wire shape. id encodes the
+/// user + sorted factor keys + freq + window, so the same request hits the cache regardless of key order.
+model FactorCorrelation {
+  id         String   @id // `${userId}|${sortedKeys.join(',')}|${freq}|${start}|${end}`
+  userId     String
+  payload    String
+  computedAt DateTime
+
+  @@index([userId])
+}
+
 /// A background computation (backtest / factor analysis). Status lives here (durable, cross-client
 /// resume via a query); progress logs stream in-memory while live and are flushed to `logs` once on
 /// finish (so a reopened finished job still shows them). A key ties the job
