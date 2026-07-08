@@ -458,6 +458,12 @@ export function getFactorRuns(factor: string): Promise<FactorRun[]> {
   return request(`/api/app/factors/runs?factor=${encodeURIComponent(factor)}`);
 }
 
+// Discard this user's cached runs — one factor's, or all of them (omit `factor`).
+export function clearFactorRuns(factor?: string): Promise<{ deleted: number }> {
+  const q = factor ? `?factor=${encodeURIComponent(factor)}` : '';
+  return request(`/api/app/factors/runs${q}`, { method: 'DELETE' });
+}
+
 // A single-factor analysis over (freq, start, end): deciles + Rank IC + long-short. Cached server-side;
 // refresh=true recomputes. Price factors are ~100s cold; fundamentals/moneyflow a few seconds.
 export function getFactorAnalysis(

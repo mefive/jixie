@@ -76,6 +76,16 @@ export const zhFactor = {
   metricTopTurnover: '最高档{{per}}换手',
   metricTopTurnoverHint: '越高摩擦越重',
 
+  lsNavTitle: '多空净值 · 费前 vs 费后',
+  lsNavCap:
+    '等权多空,费后每次调仓按两腿换手 × 单股往返成本(佣金+印花+滑点≈千3)扣减。融券受限,多空为假想构造,此图用于因子间比生存力',
+  lsNavGross: '费前',
+  lsNavNet: '费后',
+  metricLsNetAnn: '费后多空(D10−D1)年化',
+  metricLsNetAnnHint: '扣交易成本后的多空收益',
+  metricLsNetSharpe: '费后 Sharpe',
+  metricLsNetMdd: '费后最大回撤',
+
   icDecayTitle: 'IC 衰减 · 因子的持有周期',
   icDecayCap: '横轴前瞻交易日,纵轴 Rank IC —— {{hint}}',
   decayPeak: '|IC| 峰值在 {{days}} 日 · {{trend}}',

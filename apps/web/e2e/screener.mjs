@@ -46,6 +46,9 @@ try {
     for (const conversation of conversations) {
       await fetch(`/api/app/screen/conversations/${conversation.id}`, { method: 'DELETE' });
     }
+    // Clear cached factor runs so the factor page starts from a known baseline (no stale run gets
+    // auto-restored on select, which would leave the params bar in an unexpected freq/neutral state).
+    await fetch('/api/app/factors/runs', { method: 'DELETE' });
   });
 
   // 2. The card wall (full reload → authStore.load sees the cookie).
@@ -517,19 +520,77 @@ try {
   log('shot 7: ep 月度分析 →', ((await page.locator('.jx-factor-dir').textContent()) ?? '').trim());
   await page.screenshot({ path: `${SHOTS}7-factors.png` });
 
-  // Bound the window (2022→) so the weekly recompute stays fast + deterministic (full-range weekly over
-  // ~570 weeks is slow/flaky; 4yr ≈ 200 weeks finishes well under the timeout).
+  // Helpers: freq is the first Select in the params bar, neutralization is the second (added after it);
+  // scope by index so the two never collide. Options render in a body portal; press Escape first to
+  // close any lingering dropdown, and scope the option to the visible dropdown to avoid cross-portal
+  // matches.
+  const pickFreq = async (label) => {
+    await page.keyboard.press('Escape');
+    await page.locator('.jx-factor-params .ant-select').first().click();
+    await page
+      .locator('.ant-select-dropdown:visible .ant-select-item-option', { hasText: label })
+      .click();
+  };
+  const pickNeutral = async (label) => {
+    await page.keyboard.press('Escape');
+    await page.locator('.jx-factor-params .ant-select').nth(1).click();
+    await page
+      .locator('.ant-select-dropdown:visible .ant-select-item-option', { hasText: label })
+      .click();
+  };
+
+  // Bound the window (2022→) up front so both the neutralized and weekly recomputes stay fast, then
+  // dismiss the DatePicker panel (Escape) before touching the Selects (its popup would overlay them).
   const startBox = page.locator('.jx-factor-params .ant-picker input').first();
   await startBox.click();
   await startBox.fill('2022-01-01');
   await startBox.press('Enter');
-  // switch frequency to 周 and re-run → the same factor at weekly horizon (freq is the first Select;
-  // the neutralization Select was added after it, so scope by .first()).
-  await page.locator('.jx-factor-params .ant-select').first().click();
-  await page.locator('.ant-select-item-option', { hasText: /^周$/ }).click();
+  await page.keyboard.press('Escape');
+
+  // 7d. Neutralization + net-of-cost (3.4), on monthly 2022→ (only the neutral Select changes — no freq
+  //     switch to race). Reports were cleared at start, so this primary run is a FRESH compute (no cache)
+  //     and carries lsNav — no 重算 needed. Exercises the SwIndustryMember PIT lookup + net-of-cost view.
+  //     Wait for the sample to show the bounded window (2022) so we know the compute finished, not the
+  //     stale full-range chart from shot 7.
+  await pickNeutral('市值+行业');
+  await page.locator('.jx-factor-params .ant-btn-primary').click();
+  await page.waitForFunction(
+    () => (document.querySelector('.jx-factor-sample')?.textContent ?? '').includes('2022'),
+    undefined, // arg — the timeout belongs in the THIRD parameter (options), not here
+    { timeout: 90000 },
+  );
+  await page.locator('.jx-factor-chart canvas').first().waitFor({ timeout: 5000 });
+  await page.waitForTimeout(500);
+  const neutralRun = ((await page.locator('.jx-factor-sample').textContent()) ?? '').trim();
+  // The 已跑 chips should now include a neutralized run tagged 市值行业中性.
+  const neutralChip = await page.locator('.jx-factor-chip', { hasText: '市值行业中性' }).count();
+  if (neutralChip < 1) {
+    throw new Error('中性化运行未出现在已跑 chips');
+  }
+  // Net-of-cost view (3.4): a fresh run carries lsNav, so the 费后净值 section (gross vs net line chart
+  // + net metrics) renders. Centre it in the viewport and let its lazy echarts canvas paint before the
+  // acceptance screenshot.
+  const netSection = page.locator('.jx-factor-sectionTitle', { hasText: '费后' });
+  await netSection.waitFor({ timeout: 10000 });
+  await netSection.evaluate((el) => el.scrollIntoView({ block: 'center' }));
+  // The report now has multiple charts (decile + net NAV + IC decay); ≥2 canvases = the net chart drew.
+  await page.waitForFunction(
+    () => document.querySelectorAll('.jx-factor-chart canvas').length >= 2,
+    undefined,
+    { timeout: 10000 },
+  );
+  await page.waitForTimeout(600);
+  log('shot 7d: ep 市值+行业中性化 + 费后净值 →', neutralRun);
+  await page.screenshot({ path: `${SHOTS}7d-factors-neutral.png` });
+
+  // 7b. Back to raw (neutral 无) + weekly horizon — reset neutral first so weekly + industry-neutral
+  //     (whole-market panels + the industry table = slow) never runs.
+  await pickNeutral('无');
+  await pickFreq(/^周$/);
   await page.locator('.jx-factor-params .ant-btn-primary').click();
   await page.waitForFunction(
     () => (document.querySelector('.jx-factor-sample')?.textContent ?? '').includes('周'),
+    undefined, // arg — the timeout belongs in the THIRD parameter (options), not here
     { timeout: 95000 },
   );
   await page.locator('.jx-factor-chart canvas').first().waitFor({ timeout: 5000 });
@@ -539,25 +600,6 @@ try {
     ((await page.locator('.jx-factor-sample').textContent()) ?? '').trim(),
   );
   await page.screenshot({ path: `${SHOTS}7b-factors-week.png` });
-
-  // 7d. Neutralization (3.4): back to monthly on the bounded window, apply 市值+行业 neutralization →
-  //     re-run → the report reflects industry-neutral residuals (icMean shifts vs the raw run). This
-  //     exercises the SwIndustryMember PIT lookup + the neutralize step end-to-end.
-  await page.locator('.jx-factor-params .ant-select').first().click();
-  await page.locator('.ant-select-item-option', { hasText: /^月$/ }).click();
-  await page.locator('.jx-factor-params .ant-select').nth(1).click(); // the neutralization Select
-  await page.locator('.ant-select-item-option', { hasText: '市值+行业' }).click();
-  await page.locator('.jx-factor-params .ant-btn-primary').click();
-  await page.locator('.jx-factor-chart canvas').first().waitFor({ timeout: 60000 });
-  await page.waitForTimeout(500);
-  const neutralRun = ((await page.locator('.jx-factor-sample').textContent()) ?? '').trim();
-  log('shot 7d: ep 市值+行业中性化 →', neutralRun);
-  // The 已跑 chips should now include a neutralized run tagged 市值行业中性.
-  const neutralChip = await page.locator('.jx-factor-chip', { hasText: '市值行业中性' }).count();
-  if (neutralChip < 1) {
-    throw new Error('中性化运行未出现在已跑 chips');
-  }
-  await page.screenshot({ path: `${SHOTS}7d-factors-neutral.png` });
 
   // cleanup seeded + auto-saved strategies for this user
   await page.evaluate(async () => {
