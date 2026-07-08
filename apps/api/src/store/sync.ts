@@ -14,6 +14,8 @@ import {
   dividend,
   indexWeight,
   indexDaily,
+  indexClassify,
+  indexMemberAll,
   type DailyRow,
 } from '../tushare/api.js';
 import { prisma } from '../lib/prisma.js';
@@ -488,6 +490,54 @@ export async function syncIndexWeight(
     total += rows.length;
   }
   log(`syncIndexWeight 完成，共 ${total} 行`);
+}
+
+/**
+ * Sync Shenwan (SW2021) level-1 industry membership — the point-in-time (stock → industry) map used
+ * for industry-neutralization in factor analysis. Fetches the 31 level-1 industries, then for each
+ * pulls current ('Y') + historical ('N') members and unions them so every membership spell (with its
+ * in/out dates) is captured. Full overwrite — small volume (~tens of thousands of rows total).
+ */
+export async function syncSwIndustry(client: TushareClient): Promise<number> {
+  const industries = await indexClassify(client, { level: 'L1', src: 'SW2021' });
+  log(`syncSwIndustry: ${industries.length} 个申万一级行业`);
+
+  // De-dup by (tsCode, l1Code, inDate) — the 'Y' and 'N' fetches can both return a current spell.
+  const seen = new Set<string>();
+  const rows: {
+    tsCode: string;
+    l1Code: string;
+    l1Name: string;
+    inDate: string;
+    outDate: string | null;
+  }[] = [];
+  for (const industry of industries) {
+    for (const isNew of ['Y', 'N']) {
+      const members = await indexMemberAll(client, { l1_code: industry.index_code, is_new: isNew });
+      for (const member of members) {
+        const key = `${member.ts_code}|${member.l1_code}|${member.in_date}`;
+        if (seen.has(key)) {
+          continue;
+        }
+        seen.add(key);
+        rows.push({
+          tsCode: member.ts_code,
+          l1Code: member.l1_code,
+          l1Name: member.l1_name,
+          inDate: member.in_date,
+          outDate: member.out_date,
+        });
+      }
+    }
+    log(`  ${industry.industry_name}: 累计 ${rows.length} 行`);
+  }
+
+  await prisma.$transaction([
+    prisma.swIndustryMember.deleteMany({}),
+    prisma.swIndustryMember.createMany({ data: rows }),
+  ]);
+  log(`syncSwIndustry 完成，共 ${rows.length} 行`);
+  return rows.length;
 }
 
 /** Sync an index's daily close (e.g. 000300.SH) — for benchmark return curves. One call covers the

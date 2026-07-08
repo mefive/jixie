@@ -1,5 +1,5 @@
 import { parentPort, workerData } from 'node:worker_threads';
-import type { FactorFreq, Locale, LogLine, LogLevel } from '@jixie/shared';
+import type { FactorFreq, Locale, LogLine, LogLevel, Neutral } from '@jixie/shared';
 import { analyzeFactor } from './analysis.js';
 import { prisma } from '../lib/prisma.js';
 
@@ -15,12 +15,13 @@ if (!port) {
   throw new Error('factor-worker must be spawned as a worker thread');
 }
 
-const { userId, factor, freq, start, end, locale } = workerData as {
+const { userId, factor, freq, start, end, neutral, locale } = workerData as {
   userId: string;
   factor: string;
   freq: FactorFreq;
   start: string;
   end: string;
+  neutral: Neutral;
   locale: Locale;
 };
 
@@ -30,13 +31,26 @@ const onSystemLog = (text: string) => emit({ source: 'system', level: 'info', te
 const onUserLog = (level: LogLevel, text: string) => emit({ source: 'user', level, text });
 
 try {
-  const report = await analyzeFactor(factor, freq, start, end, onSystemLog, onUserLog, locale);
-  const id = `${userId}|${factor}|${freq}|${start}|${end}`;
+  const report = await analyzeFactor(
+    factor,
+    freq,
+    start,
+    end,
+    neutral,
+    onSystemLog,
+    onUserLog,
+    locale,
+  );
+  // Mirror the route's reportId: 'none' keeps the pre-3.4 id shape so old caches still resolve.
+  const id =
+    neutral === 'none'
+      ? `${userId}|${factor}|${freq}|${start}|${end}`
+      : `${userId}|${factor}|${freq}|${start}|${end}|${neutral}`;
   const payload = JSON.stringify(report);
   await prisma.factorReport.upsert({
     where: { id },
-    create: { id, userId, factor, freq, start, end, payload, computedAt: new Date() },
-    update: { payload, computedAt: new Date() },
+    create: { id, userId, factor, freq, neutral, start, end, payload, computedAt: new Date() },
+    update: { payload, neutral, computedAt: new Date() },
   });
   port.postMessage({ type: 'done' });
 } catch (e) {

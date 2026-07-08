@@ -1,3 +1,4 @@
+import type { Neutral } from '@jixie/shared';
 import { prisma } from '../src/lib/prisma.js';
 import { analyzeFactor } from '../src/factor/analysis.js';
 import { BUILTIN_FACTORS, seedBuiltinFactors } from '../src/factor/builtin-factors.js';
@@ -7,11 +8,20 @@ const pct = (x: number) => (x * 100).toFixed(2) + '%';
 // CLI: monthly analysis of every catalog factor over the full history.
 async function main(): Promise<void> {
   const t0 = Date.now();
-  const [start = '20150101', end = '20261231', freq = 'month'] = process.argv.slice(2);
+  const [start = '20150101', end = '20261231', freq = 'month', neutral = 'none'] =
+    process.argv.slice(2);
   await seedBuiltinFactors(); // presets run from their seeded code rows
   const reports = [];
   for (const f of BUILTIN_FACTORS) {
-    reports.push(await analyzeFactor(f.key, freq === 'week' ? 'week' : 'month', start, end));
+    reports.push(
+      await analyzeFactor(
+        f.key,
+        freq === 'week' ? 'week' : 'month',
+        start,
+        end,
+        neutral as Neutral,
+      ),
+    );
   }
 
   for (const r of reports) {

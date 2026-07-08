@@ -29,10 +29,22 @@ import { localeFromRequest, m } from '../i18n/index.js';
  */
 export const factorRoute = new Hono();
 
-const reportId = (userId: string, factor: string, freq: string, start: string, end: string) =>
-  `${userId}|${factor}|${freq}|${start}|${end}`;
-const jobKey = (factor: string, freq: string, start: string, end: string) =>
-  `${factor}|${freq}|${start}|${end}`;
+// 'none' keeps the pre-3.4 id shape so existing cached reports still resolve; other modes append a segment.
+const reportId = (
+  userId: string,
+  factor: string,
+  freq: string,
+  start: string,
+  end: string,
+  neutral: string,
+) =>
+  neutral === 'none'
+    ? `${userId}|${factor}|${freq}|${start}|${end}`
+    : `${userId}|${factor}|${freq}|${start}|${end}|${neutral}`;
+const jobKey = (factor: string, freq: string, start: string, end: string, neutral: string) =>
+  neutral === 'none'
+    ? `${factor}|${freq}|${start}|${end}`
+    : `${factor}|${freq}|${start}|${end}|${neutral}`;
 
 // Worker entry: dev (tsx) spawns the .mjs bootstrap; prod spawns the compiled .js.
 const workerUrl = import.meta.url.endsWith('.ts')
@@ -324,6 +336,7 @@ const analysisQuery = z.object({
     .string()
     .regex(/^\d{8}$/)
     .default('20261231'),
+  neutral: z.enum(['none', 'size', 'size_industry']).default('none'),
   refresh: z.string().optional(),
 });
 const sinceQuery = z.object({ since: z.string().regex(/^\d+$/).optional() });
@@ -331,16 +344,16 @@ const sinceQuery = z.object({ since: z.string().regex(/^\d+$/).optional() });
 factorRoute.get('/runs', validateQuery(z.object({ factor: z.string().min(1) })), async (c) => {
   const rows = await prisma.factorReport.findMany({
     where: { userId: c.var.userId, factor: c.req.valid('query').factor },
-    select: { freq: true, start: true, end: true, computedAt: true },
+    select: { freq: true, neutral: true, start: true, end: true, computedAt: true },
     orderBy: { computedAt: 'desc' },
   });
   return c.json(rows);
 });
 
 factorRoute.get('/analysis', validateQuery(analysisQuery), async (c) => {
-  const { factor, freq, start, end } = c.req.valid('query');
+  const { factor, freq, start, end, neutral } = c.req.valid('query');
   const cached = await prisma.factorReport.findUnique({
-    where: { id: reportId(c.var.userId, factor, freq, start, end) },
+    where: { id: reportId(c.var.userId, factor, freq, start, end, neutral) },
   });
   if (!cached) {
     return apiError(c, 'NOT_FOUND', m(c, 'windowNotComputed'));
@@ -349,8 +362,12 @@ factorRoute.get('/analysis', validateQuery(analysisQuery), async (c) => {
 });
 
 factorRoute.get('/analysis/running', validateQuery(analysisQuery), async (c) => {
-  const { factor, freq, start, end } = c.req.valid('query');
-  const jobId = await findRunningJob(c.var.userId, 'factor', jobKey(factor, freq, start, end));
+  const { factor, freq, start, end, neutral } = c.req.valid('query');
+  const jobId = await findRunningJob(
+    c.var.userId,
+    'factor',
+    jobKey(factor, freq, start, end, neutral),
+  );
   return c.json({ jobId });
 });
 
@@ -364,7 +381,7 @@ factorRoute.get('/analysis/job/:jobId', validateQuery(sinceQuery), async (c) => 
 
 factorRoute.post('/analysis/run', validateQuery(analysisQuery), async (c) => {
   const userId = c.var.userId;
-  const { factor, freq, start, end, refresh } = c.req.valid('query');
+  const { factor, freq, start, end, neutral, refresh } = c.req.valid('query');
   if (!BUILTIN_KEYS.has(factor)) {
     // Not a preset slug → must be one of this user's custom factors (id).
     const custom = await prisma.factor.findFirst({
@@ -381,21 +398,25 @@ factorRoute.post('/analysis/run', validateQuery(analysisQuery), async (c) => {
 
   if (refresh !== '1') {
     const cached = await prisma.factorReport.findUnique({
-      where: { id: reportId(userId, factor, freq, start, end) },
+      where: { id: reportId(userId, factor, freq, start, end, neutral) },
     });
     if (cached) {
       return c.json({ done: true, report: JSON.parse(cached.payload) as FactorReport });
     }
   }
   // Dedupe: re-attach to an in-flight job for the same analysis instead of spawning a duplicate worker.
-  const existing = await findRunningJob(userId, 'factor', jobKey(factor, freq, start, end));
+  const existing = await findRunningJob(
+    userId,
+    'factor',
+    jobKey(factor, freq, start, end, neutral),
+  );
   if (existing) {
     return c.json({ jobId: existing });
   }
 
-  const jobId = await createJob(userId, 'factor', jobKey(factor, freq, start, end));
+  const jobId = await createJob(userId, 'factor', jobKey(factor, freq, start, end, neutral));
   const worker = new Worker(workerUrl, {
-    workerData: { userId, factor, freq, start, end, locale: localeFromRequest(c) },
+    workerData: { userId, factor, freq, start, end, neutral, locale: localeFromRequest(c) },
   });
   let finished = false;
   const done = (status: 'done' | 'error', error?: string) => {

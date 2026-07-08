@@ -523,8 +523,9 @@ try {
   await startBox.click();
   await startBox.fill('2022-01-01');
   await startBox.press('Enter');
-  // switch frequency to 周 and re-run → the same factor at weekly horizon
-  await page.locator('.jx-factor-params .ant-select').click();
+  // switch frequency to 周 and re-run → the same factor at weekly horizon (freq is the first Select;
+  // the neutralization Select was added after it, so scope by .first()).
+  await page.locator('.jx-factor-params .ant-select').first().click();
   await page.locator('.ant-select-item-option', { hasText: /^周$/ }).click();
   await page.locator('.jx-factor-params .ant-btn-primary').click();
   await page.waitForFunction(
@@ -538,6 +539,25 @@ try {
     ((await page.locator('.jx-factor-sample').textContent()) ?? '').trim(),
   );
   await page.screenshot({ path: `${SHOTS}7b-factors-week.png` });
+
+  // 7d. Neutralization (3.4): back to monthly on the bounded window, apply 市值+行业 neutralization →
+  //     re-run → the report reflects industry-neutral residuals (icMean shifts vs the raw run). This
+  //     exercises the SwIndustryMember PIT lookup + the neutralize step end-to-end.
+  await page.locator('.jx-factor-params .ant-select').first().click();
+  await page.locator('.ant-select-item-option', { hasText: /^月$/ }).click();
+  await page.locator('.jx-factor-params .ant-select').nth(1).click(); // the neutralization Select
+  await page.locator('.ant-select-item-option', { hasText: '市值+行业' }).click();
+  await page.locator('.jx-factor-params .ant-btn-primary').click();
+  await page.locator('.jx-factor-chart canvas').first().waitFor({ timeout: 60000 });
+  await page.waitForTimeout(500);
+  const neutralRun = ((await page.locator('.jx-factor-sample').textContent()) ?? '').trim();
+  log('shot 7d: ep 市值+行业中性化 →', neutralRun);
+  // The 已跑 chips should now include a neutralized run tagged 市值行业中性.
+  const neutralChip = await page.locator('.jx-factor-chip', { hasText: '市值行业中性' }).count();
+  if (neutralChip < 1) {
+    throw new Error('中性化运行未出现在已跑 chips');
+  }
+  await page.screenshot({ path: `${SHOTS}7d-factors-neutral.png` });
 
   // cleanup seeded + auto-saved strategies for this user
   await page.evaluate(async () => {

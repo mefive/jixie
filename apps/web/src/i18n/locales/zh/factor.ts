@@ -36,6 +36,12 @@ export const zhFactor = {
 
   freq: '频率',
   range: '区间',
+  neutralLabel: '中性化',
+  neutralNone: '无',
+  neutralSize: '市值',
+  neutralSizeIndustry: '市值+行业',
+  neutralSizeTag: '·市值中性',
+  neutralSizeIndustryTag: '·市值行业中性',
   view: '查看',
   run: '运行分析',
   recompute: '重算',

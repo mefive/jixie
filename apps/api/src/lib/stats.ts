@@ -170,3 +170,33 @@ export function linearRegression(
   const r = pearson(xs, ys);
   return { slope, intercept, r2: r * r };
 }
+
+/** Subtract each value's group mean (within-group demeaning). Groups are given by a parallel key array.
+ * This is exactly "regress out a set of group dummies": the demeaned series is the residual after
+ * removing per-group intercepts — the industry half of a market-cap + industry neutralization. */
+export function groupDemean(values: number[], groups: string[]): number[] {
+  const sums = new Map<string, { sum: number; count: number }>();
+  for (let i = 0; i < values.length; i++) {
+    const acc = sums.get(groups[i]) ?? { sum: 0, count: 0 };
+    acc.sum += values[i];
+    acc.count += 1;
+    sums.set(groups[i], acc);
+  }
+  const groupMean = new Map<string, number>();
+  for (const [key, acc] of sums) {
+    groupMean.set(key, acc.sum / acc.count);
+  }
+  return values.map((value, i) => value - groupMean.get(groups[i])!);
+}
+
+/** Residuals of an OLS fit y ~ x (with intercept): the part of y that x does not explain. This is the
+ * cross-sectional neutralization primitive — regress factor value on log(size) and keep the residual.
+ * When `groups` is given, both y and x are group-demeaned first, so the residual is additionally
+ * orthogonal to the group dummies (Frisch–Waugh–Lovell — same result as one multi-variate OLS on
+ * x + dummies, without building the design matrix). Returns a residual per input, order preserved. */
+export function residualize(ys: number[], xs: number[], groups?: string[]): number[] {
+  const y = groups ? groupDemean(ys, groups) : ys;
+  const x = groups ? groupDemean(xs, groups) : xs;
+  const { slope, intercept } = linearRegression(x, y);
+  return y.map((yi, i) => yi - (slope * x[i] + intercept));
+}

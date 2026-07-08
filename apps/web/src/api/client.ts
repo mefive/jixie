@@ -366,7 +366,7 @@ export function fetchIndexSeries(
   return request(`/api/app/index/${code}/series?start=${start}&end=${end}`);
 }
 
-import type { FactorReport, FactorMeta, FactorRun, FactorFreq } from '@jixie/shared';
+import type { FactorReport, FactorMeta, FactorRun, FactorFreq, Neutral } from '@jixie/shared';
 
 // Factor research: the factor list (identity + kind) — preset + this user's custom factors.
 export function getFactorCatalog(): Promise<FactorMeta[]> {
@@ -465,9 +465,17 @@ export function getFactorAnalysis(
   freq: FactorFreq,
   start: string,
   end: string,
+  neutral: Neutral = 'none',
   refresh = false,
 ): Promise<FactorReport> {
-  const q = new URLSearchParams({ factor, freq, start, end, ...(refresh ? { refresh: '1' } : {}) });
+  const q = new URLSearchParams({
+    factor,
+    freq,
+    start,
+    end,
+    neutral,
+    ...(refresh ? { refresh: '1' } : {}),
+  });
   return request(`/api/app/factors/analysis?${q}`);
 }
 
@@ -477,9 +485,17 @@ export function runFactorAnalysis(
   freq: FactorFreq,
   start: string,
   end: string,
+  neutral: Neutral = 'none',
   refresh = false,
 ): Promise<{ done: true; report: FactorReport } | { jobId: string }> {
-  const q = new URLSearchParams({ factor, freq, start, end, ...(refresh ? { refresh: '1' } : {}) });
+  const q = new URLSearchParams({
+    factor,
+    freq,
+    start,
+    end,
+    neutral,
+    ...(refresh ? { refresh: '1' } : {}),
+  });
   return request(`/api/app/factors/analysis/run?${q}`, { method: 'POST' });
 }
 
@@ -499,7 +515,8 @@ export function findFactorRunningJob(
   freq: FactorFreq,
   start: string,
   end: string,
+  neutral: Neutral = 'none',
 ): Promise<{ jobId: string | null }> {
-  const q = new URLSearchParams({ factor, freq, start, end });
+  const q = new URLSearchParams({ factor, freq, start, end, neutral });
   return request(`/api/app/factors/analysis/running?${q}`);
 }
