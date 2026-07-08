@@ -398,6 +398,18 @@ const ParamsBar = complex.component(() => {
         onChange={(d) => d && store.setEnd(d.format('YYYYMMDD'))}
         allowClear={false}
       />
+      <span className="jx-factor-paramLabel">{t('neutralLabel')}</span>
+      <Select
+        size="small"
+        value={store.neutral}
+        onChange={(v) => store.setNeutral(v)}
+        options={[
+          { value: 'none', label: t('neutralNone') },
+          { value: 'size', label: t('neutralSize') },
+          { value: 'size_industry', label: t('neutralSizeIndustry') },
+        ]}
+        style={{ width: 132 }}
+      />
       <LoaderButton
         type="primary"
         size="small"
@@ -432,15 +444,27 @@ const RunChips = complex.component(() => {
     <div className="jx-factor-runs">
       <span className="jx-factor-runsLabel">{t('runsLabel')}</span>
       {runs.map((r) => {
-        const active = r.freq === store.freq && r.start === store.start && r.end === store.end;
+        const neutral = r.neutral ?? 'none';
+        const active =
+          r.freq === store.freq &&
+          neutral === store.neutral &&
+          r.start === store.start &&
+          r.end === store.end;
+        const neutralTag =
+          neutral === 'size'
+            ? ` ${t('neutralSizeTag')}`
+            : neutral === 'size_industry'
+              ? ` ${t('neutralSizeIndustryTag')}`
+              : '';
         return (
           <button
-            key={`${r.freq}|${r.start}|${r.end}`}
+            key={`${r.freq}|${neutral}|${r.start}|${r.end}`}
             className={classNames('jx-factor-chip', { 'jx-factor-chip--active': active })}
             onClick={() => void store.applyRun(r)}
           >
             {t(r.freq === 'week' ? 'unitWeek' : 'unitMonth')}·{r.start.slice(2, 6)}–
             {r.end.slice(2, 6)}
+            {neutralTag}
           </button>
         );
       })}

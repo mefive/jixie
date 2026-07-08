@@ -182,23 +182,43 @@ fina_indicator 七列已落库(2026-07-07 波次一),但因子 `compute` 的 bar
 
 ## 3.4 分析深化:中性化 + 相关性 + 费后
 
+> 详设拍定 2026-07-08。三件事共享一个原则:**都是 `computeFactorSeries` 产出的截面序列之后的
+> 纯函数变换/统计**,不碰因子计算路径(isolate 墙内不变),数学都进 `lib/stats.ts` + vitest。
+
 ### 市值/行业中性化
 
 - **Why**:A 股小盘效应极强,因子值与市值普遍纠缠;不中性化,测出的「新因子」常是市值换皮(检验:该因子与 size 的截面相关高、中性化后 IC 消失)。市值加权视图只是缓解,残差化才是解决。
-- **How**:每个调仓日,因子值对 `log(totalMv)`(+申万一级行业哑变量,行业数据已在)做截面 OLS,**取残差作为中性化因子值**,后续 IC/分层管道不变。实现为 `computeFactorSeries` 后的一步纯函数变换(`lib/stats.ts`,vitest 单测)。
-- **UI**:分析参数条加「中性化:无 / 市值 / 市值+行业」,**进缓存键**(不同中性化=不同报告)。
-- **验收**:size 因子自身中性化后 IC≈0(自检);某与市值高相关的因子中性化前后 IC 对比可见。
+- **How**:每个调仓日,因子值对 `log(totalMv)`(+行业哑变量)做截面 OLS,**取残差作为中性化因子值**,后续 IC/分层/费后管道完全不变。实现为 `analyzeFactor` 里 `computeFactorSeries` 之后的一步逐日变换。
+- **数学实现(FWL,免矩阵求逆)**:「市值+行业」= 因子值与 log 市值**各自行业内去均值**,再做一元回归取残差(Frisch–Waugh–Lovell 定理保证与完整多元 OLS 残差相同)——只需 `groupDemean` + 现有 `linearRegression`,不引矩阵库。「仅市值」= 直接一元回归取残差。
+- **行业分类:申万一级(SW2021,31 个),以此为准**。前置需一次数据同步(2026-07-08 拍定):
+  - 新表 `SwIndustryMember`(市场数据表,进 SQL 白名单):`tsCode / l1Code / l1Name / inDate / outDate(可空)`,主键 `tsCode|l1Code|inDate`。**只存申万一级层**(二/三级此需求用不上,不同步)。
+  - 同步脚本 `scripts/sync-sw-industry.ts`:`index_member_all` 按 31 个 `l1_code` 逐个拉全成分(不加 `is_new` 过滤,要**全历史**含 `out_date`),幂等 `deleteMany`+`createMany`。数据量 ~1 万行,一次拉完。
+  - **PIT 归属**:每个调仓日 D,某股行业 = 满足 `inDate ≤ D < (outDate || 今天)` 的那条 `l1Name`(股票换行业罕见但 in/out_date 让历史归属精确,非快照套历史)。实现为一次全表预载 + 逐股按 D 二分/线性选段(参照 `EngineData.roeAsOf` 的 as-of 手法)。
+- **缺失处理**:缺 totalMv 或 totalMv≤0 的股票在中性化模式下**当期剔除**;查不到申万归属的股票(未上市成分/新股)归入 `unknown` 桶,该桶 <5 只时并入最大桶再去均值。
+- **接口/缓存**:参数 `neutral: 'none' | 'size' | 'size_industry'`(默认 none),进 `reportId` + `jobKey` + `FactorReport` payload;UI 分析参数条第三个选择器。旧缓存报告 = neutral:none,键不变,天然兼容。
+- **验收**:size 因子自身 `neutral=size` 后 IC≈0(自检);Amihud/换手类高市值相关因子中性化前后 IC 对比可见;vitest 覆盖 groupDemean/residualize 及「因子=log 市值时残差全零」。
 
 ### 因子相关性矩阵
 
-- **How**:各调仓日对全市场股票算因子值两两 Spearman rank 相关,按日取均值 → 因子×因子矩阵(把 `log(totalMv)` 作为一列固定加入,永远显示与市值的相关)。复用 analyzeFactor 已加载的截面,新增一个「相关性」分析入口(选 2~8 个因子一次算)。
-- **UI**:热力图(红正蓝负),因子页新 tab 或组合因子界面的第一步。
-- **验收**:ep 与 bp 高相关、mom 与 rev 负相关(教科书关系)作为自检。
+- **Why**:组合(3.3/3.7)的前提是「彼此低相关」;与市值列的相关就是「换皮检测器」。
+- **How**:选 2~8 个因子 + (freq, start, end) → 同一组调仓日各自 `computeFactorSeries`(复用,含 isolate 编译)→ 每个调仓日在**两两股票交集**上算 Spearman → 按日取均值(样本 <100 只的日剔除)→ 因子×因子对称矩阵。`log(totalMv)` 作为固定伪因子列「市值」永远加入(数据就在 rebalance snaps 里)。
+- **架构**:新路由 `POST /factor/correlation/run`(worker job,同 analysis 的 jobId/日志模式);缓存新 Prisma model `FactorCorrelation`(id = hash(userId + sorted keys + freq + range),payload JSON)——不塞 `FactorReport`(payload 形状不同,且会污染 runs 列表)。
+- **UI**:/factors 页新「相关性」tab:因子多选(预置+自定义混选)→ 热力图(echarts,红正蓝负,格内标数值)。
+- **验收**:ep 与 bp 高相关、mom 与 rev 负相关(教科书关系);Amihud 与市值列强负相关。
 
 ### 费后视角
 
-- **How**:多空组合已有换手统计;费后价差 = 名义价差 − 换手 × 单边成本估计(佣金+印花+滑点档,常数配置)。展示为多空净值图的第二条线「费后」。
-- **Why**:高换手因子(短反转/资金流)纸面 IC 好看,费后可能归零——这是「可交易性」的第一道闸。
+- **Why**:高换手因子(短反转/资金流)纸面 IC 好看,费后可能归零——这是「可交易性」的第一道闸。多空组合 A 股不可完整实现(融券受限),费后线的用途是**因子间比生存力**,不是照单交易。
+- **How**:分层循环里补记**底仓 decile 的换手**(现只记 top);每期成本 = (top 换手 + bottom 换手) × 单股替换成本,替换成本 = 卖(佣金+印花+滑点)+ 买(佣金+滑点),默认佣金 2.5bp/边 + 印花 5bp 卖出 + 滑点 10bp/边 ≈ 30bp/次替换(常数配置于 analysis.ts,UI 脚注展示);首期建仓计双边买入成本。费后收益 = 名义多空收益 − 每期成本,等权/市值权两套都算。
+- **报告扩展(可选字段,旧缓存兼容)**:`longShortNet` / `longShortNetMktcap`(费后 LongShortStat)+ `lsNav: { dates, gross[], net[] }`(逐期净值序列——现报告只有 navEnd,补上序列才画得出双线图)。
+- **UI**:报告页新增多空净值折线图(echarts,lazy,费前/费后两条线)+ 费后指标行。
+- **验收**:mf_net_main(高换手)费后显著缩水、ep(低换手)费后基本不动,两者排序可能反转——正是这个视角的意义。
+
+### 实施顺序(一个 PR 一件事)
+
+1. stats 助手(groupDemean/residualize)+ 中性化贯通(API 参数→worker→UI 选择器→e2e);
+2. 费后(底仓换手 + lsNav 序列 + 双线图,改动最小);
+3. 相关性(新表 + 新路由 + 新 tab,独立面最大放最后)。
 
 ## 3.5 预置因子库扩充(经典因子菜单)
 

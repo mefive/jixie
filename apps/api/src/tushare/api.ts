@@ -289,3 +289,45 @@ export async function indexWeight(
   const rows = await client.call('index_weight', params, 'index_code,con_code,trade_date,weight');
   return rows as unknown as IndexWeightRow[];
 }
+
+export interface IndexClassifyRow {
+  index_code: string; // SW industry index code, e.g. 801120.SI
+  industry_name: string;
+  level: string; // L1 / L2 / L3
+}
+
+/** Shenwan industry classification list. Defaults to SW2021 level-1 (the 31 top-level industries). */
+export async function indexClassify(
+  client: TushareClient,
+  params: { level?: string; src?: string } = {},
+): Promise<IndexClassifyRow[]> {
+  const rows = await client.call(
+    'index_classify',
+    { level: 'L1', src: 'SW2021', ...params },
+    'index_code,industry_name,level',
+  );
+  return rows as unknown as IndexClassifyRow[];
+}
+
+export interface IndexMemberRow {
+  l1_code: string;
+  l1_name: string;
+  ts_code: TsCode;
+  in_date: TradeDate; // date the stock entered this industry
+  out_date: TradeDate | null; // date it left; null = current member
+  is_new: string; // Y = current membership, N = historical
+}
+
+/** Shenwan industry members (by level-1 code). `is_new` selects current ('Y') vs historical ('N')
+ * membership — to build the full point-in-time history, callers fetch both and union. */
+export async function indexMemberAll(
+  client: TushareClient,
+  params: { l1_code: string; is_new?: string },
+): Promise<IndexMemberRow[]> {
+  const rows = await client.call(
+    'index_member_all',
+    params,
+    'l1_code,l1_name,ts_code,in_date,out_date,is_new',
+  );
+  return rows as unknown as IndexMemberRow[];
+}
