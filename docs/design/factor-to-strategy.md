@@ -157,6 +157,29 @@ type FactorKey = 'mf_net_main' | 'mf_net_total' | 'custom:01H…' | …
 
 组合(3.3/3.7)是研究的后半段,前提是筛出**彼此低相关、费后存活**的因子——所以 3.4 排在 3.3 前面。
 
+## 下一批认领:分析深化(2026-07-08 与用户对比业界后排序)
+
+> 对比结论:单因子检验管道已到 Alphalens 核心水准,AI 写因子/对话研究是独有项;**落后集中在
+> 「中性化三件套」(聚宽/Qlib 标配)**——不中性化,A 股"新因子"多半是市值换皮,验证成色打折。
+> 实施顺序拍定:**① 3.4 三件套(中性化/相关性矩阵/费后,~2-3 人日;`stats.linearRegression`
+> 已备)→ ② FactorBar 接财务字段(见下)→ ③ 3.5 预置逐个过三道门(依赖①②)→ ④ 3.2 策略侧
+> 接入 → ⑤ 3.6 台账(便宜,业界没有,与纪律哲学最搭)**。3.3/3.7 保持远期。
+
+### 新设计点:FactorBar 财务字段(as-of 语义,3.5 质量因子的前置)
+
+fina_indicator 七列已落库(2026-07-07 波次一),但因子 `compute` 的 bar 还摸不到。这是 FactorBar
+**第一类 as-of 前填字段**,与既有两类语义并列,需在实现处写明:
+
+| 语义 | 字段 | 规则 |
+|---|---|---|
+| 当日快照 | pe/pb/…/turnoverRate | daily_basic 当日行,缺则 null |
+| 流量(精确当日) | netMain/netTotal | moneyflow 当日行,**绝不前填** |
+| **存量(as-of)** | roe/grossprofitMargin/… (新增) | **最近一份 annDate ≤ 当日的报告**,PIT 门控,90 天?回看上限待定 |
+
+实现参照:引擎侧 `EngineData.roeAsOf`(annDate 二分)已是同款逻辑,factor 侧在 `loadBars` 的
+截面装配处加一次 fina 预载 + 逐股二分;dts/prompt/SQL_TABLE_DOCS 同步(镜像规则见 CLAUDE.md)。
+字段选择:v1 只上 roe + grossprofitMargin + debtToAssets(3.5 头三个因子所需),其余按需。
+
 ## 3.4 分析深化:中性化 + 相关性 + 费后
 
 ### 市值/行业中性化
