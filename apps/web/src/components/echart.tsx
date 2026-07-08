@@ -3,10 +3,12 @@ import {
   CandlestickChart,
   LineChart,
   ScatterChart,
+  HeatmapChart,
   type BarSeriesOption,
   type CandlestickSeriesOption,
   type LineSeriesOption,
   type ScatterSeriesOption,
+  type HeatmapSeriesOption,
 } from 'echarts/charts';
 import {
   GridComponent,
@@ -15,11 +17,13 @@ import {
   LegendComponent,
   DataZoomComponent,
   AxisPointerComponent,
+  VisualMapComponent,
   type GridComponentOption,
   type MarkPointComponentOption,
   type TooltipComponentOption,
   type LegendComponentOption,
   type DataZoomComponentOption,
+  type VisualMapComponentOption,
 } from 'echarts/components';
 import * as echarts from 'echarts/core';
 import type { ComposeOption } from 'echarts/core';
@@ -32,12 +36,14 @@ echarts.use([
   BarChart,
   CandlestickChart,
   ScatterChart,
+  HeatmapChart,
   GridComponent,
   TooltipComponent,
   LegendComponent,
   MarkPointComponent,
   DataZoomComponent,
   AxisPointerComponent,
+  VisualMapComponent,
   CanvasRenderer,
 ]);
 
@@ -47,11 +53,13 @@ export type ECOption = ComposeOption<
   | BarSeriesOption
   | CandlestickSeriesOption
   | ScatterSeriesOption
+  | HeatmapSeriesOption
   | GridComponentOption
   | TooltipComponentOption
   | LegendComponentOption
   | MarkPointComponentOption
   | DataZoomComponentOption
+  | VisualMapComponentOption
 >;
 
 interface Props {

@@ -45,6 +45,17 @@ export const enFactor: typeof zhFactor = {
   neutralSizeIndustry: 'Size + industry',
   neutralSizeTag: '·size-neut',
   neutralSizeIndustryTag: '·size+ind-neut',
+
+  corrTrigger: 'Correlation matrix',
+  corrTitle: 'Factor correlation matrix',
+  corrSelectPlaceholder: 'Pick 2–8 factors',
+  corrRun: 'Compute',
+  corrHint:
+    'Pairwise cross-sectional Spearman, averaged per {{per}}, over {{startYear}}–{{endYear}} (follows the params bar). Includes a fixed “size” column to catch cap bets',
+  corrRunning: 'Computing… (windowed factors are slow; live progress omitted)',
+  corrCap:
+    'Mean over {{periods}} {{per}}s · red = positive (redundant) · blue = negative · diagonal = 1',
+  corrEmpty: 'Pick at least 2 factors, then Compute',
   view: 'View',
   run: 'Run analysis',
   recompute: 'Recompute',

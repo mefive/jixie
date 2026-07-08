@@ -117,6 +117,20 @@ export interface FactorReport {
   lsNav?: LongShortNav; // equal-weight long-short NAV, gross vs net (the net-of-cost line chart)
 }
 
+/** A factor-correlation report: mean cross-sectional Spearman (Rank IC-style) between each pair of the
+ * selected factors, averaged over the rebalance dates. `keys`/`labels` include a fixed trailing pseudo-
+ * factor 'size' (log total market cap) so every factor's entanglement with size is always visible. The
+ * matrix is symmetric with 1 on the diagonal; cells are null when a pair never had enough overlap. */
+export interface FactorCorrelation {
+  keys: string[]; // factor keys in matrix order, last = 'size' (the log-market-cap pseudo-factor)
+  labels: string[]; // display labels, parallel to keys
+  freq: FactorFreq;
+  start: string;
+  end: string;
+  periods: number; // rebalance dates that contributed (min across pairs)
+  matrix: (number | null)[][]; // NxN symmetric, mean per-date Spearman; null = insufficient overlap
+}
+
 /** A cached run's identity (for the "already run" chips) — the report exists, fetch by these params. */
 export interface FactorRun {
   freq: FactorFreq;

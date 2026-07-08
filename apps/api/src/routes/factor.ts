@@ -3,7 +3,7 @@ import { Hono } from 'hono';
 import { ulid } from 'ulid';
 import { z } from 'zod';
 import type { Prisma } from '@prisma/client';
-import type { FactorReport, LogLine } from '@jixie/shared';
+import type { FactorReport, FactorCorrelation, LogLine } from '@jixie/shared';
 import { apiError, validateJson, validateQuery } from '../lib/httpError.js';
 import { prisma } from '../lib/prisma.js';
 import { chatText } from '../llm/deepseek.js';
@@ -50,6 +50,16 @@ const jobKey = (factor: string, freq: string, start: string, end: string, neutra
 const workerUrl = import.meta.url.endsWith('.ts')
   ? new URL('../factor/factor-worker.boot.mjs', import.meta.url)
   : new URL('../factor/factor-worker.js', import.meta.url);
+const correlationWorkerUrl = import.meta.url.endsWith('.ts')
+  ? new URL('../factor/correlation-worker.boot.mjs', import.meta.url)
+  : new URL('../factor/correlation-worker.js', import.meta.url);
+
+// Correlation cache/job keys — factor keys are sorted so key order doesn't fork the cache.
+const sortedKeys = (keys: string[]) => [...keys].sort();
+const correlationId = (userId: string, keys: string[], freq: string, start: string, end: string) =>
+  `${userId}|${sortedKeys(keys).join(',')}|${freq}|${start}|${end}`;
+const correlationJobKey = (keys: string[], freq: string, start: string, end: string) =>
+  `corr|${sortedKeys(keys).join(',')}|${freq}|${start}|${end}`;
 
 factorRoute.get('/catalog', async (c) => {
   // Preset factors (registry identity; code lives on their seeded rows) + this user's custom factors.
@@ -431,6 +441,144 @@ factorRoute.post('/analysis/run', validateQuery(analysisQuery), async (c) => {
   const jobId = await createJob(userId, 'factor', jobKey(factor, freq, start, end, neutral));
   const worker = new Worker(workerUrl, {
     workerData: { userId, factor, freq, start, end, neutral, locale: localeFromRequest(c) },
+  });
+  let finished = false;
+  const done = (status: 'done' | 'error', error?: string) => {
+    if (finished) {
+      return;
+    }
+    finished = true;
+    void finishJob(jobId, status, error);
+  };
+  worker.on('message', (msg: { type: string; entry?: LogLine; message?: string }) => {
+    if (msg.type === 'log') {
+      appendLog(jobId, msg.entry!);
+    } else if (msg.type === 'done') {
+      done('done');
+    } else if (msg.type === 'error') {
+      done('error', msg.message);
+    }
+  });
+  worker.on('error', (err) => done('error', err.message));
+  worker.on('exit', (code) => {
+    if (code !== 0) {
+      done('error', m(c, 'factorProcExited', { code }));
+    }
+  });
+  return c.json({ jobId });
+});
+
+// —— Correlation matrix (3.4): 2–8 factors × a fixed size column, cross-sectional Spearman ——
+
+const correlationQuery = z.object({
+  keys: z.string().min(1), // comma-separated factor keys
+  freq: z.enum(['month', 'week']).default('month'),
+  start: z
+    .string()
+    .regex(/^\d{8}$/)
+    .default('20150101'),
+  end: z
+    .string()
+    .regex(/^\d{8}$/)
+    .default('20261231'),
+  refresh: z.string().optional(),
+});
+
+// Parse + validate the keys list: 2–8 distinct factors, each a preset slug or one of this user's own.
+async function resolveCorrelationKeys(
+  userId: string,
+  raw: string,
+): Promise<{ keys: string[] } | { error: string }> {
+  const keys = [
+    ...new Set(
+      raw
+        .split(',')
+        .map((k) => k.trim())
+        .filter(Boolean),
+    ),
+  ];
+  if (keys.length < 2 || keys.length > 8) {
+    return { error: 'correlationKeyCount' };
+  }
+  for (const key of keys) {
+    if (BUILTIN_KEYS.has(key)) {
+      continue;
+    }
+    const custom = await prisma.factor.findFirst({
+      where: { id: key, userId },
+      select: { id: true },
+    });
+    if (!custom) {
+      return { error: key };
+    }
+  }
+  return { keys };
+}
+
+factorRoute.get('/correlation', validateQuery(correlationQuery), async (c) => {
+  const userId = c.var.userId;
+  const { keys, freq, start, end } = c.req.valid('query');
+  const resolved = await resolveCorrelationKeys(userId, keys);
+  if ('error' in resolved) {
+    return apiError(c, 'VALIDATION_FAILED', m(c, 'windowNotComputed'));
+  }
+  const cached = await prisma.factorCorrelation.findUnique({
+    where: { id: correlationId(userId, resolved.keys, freq, start, end) },
+  });
+  if (!cached) {
+    return apiError(c, 'NOT_FOUND', m(c, 'windowNotComputed'));
+  }
+  return c.json(JSON.parse(cached.payload) as FactorCorrelation);
+});
+
+factorRoute.get('/correlation/running', validateQuery(correlationQuery), async (c) => {
+  const { keys, freq, start, end } = c.req.valid('query');
+  const resolved = await resolveCorrelationKeys(c.var.userId, keys);
+  if ('error' in resolved) {
+    return c.json({ jobId: null });
+  }
+  const jobId = await findRunningJob(
+    c.var.userId,
+    'factor',
+    correlationJobKey(resolved.keys, freq, start, end),
+  );
+  return c.json({ jobId });
+});
+
+factorRoute.post('/correlation/run', validateQuery(correlationQuery), async (c) => {
+  const userId = c.var.userId;
+  const { keys, freq, start, end, refresh } = c.req.valid('query');
+  const resolved = await resolveCorrelationKeys(userId, keys);
+  if ('error' in resolved) {
+    return apiError(c, 'VALIDATION_FAILED', m(c, 'unknownFactor', { factor: resolved.error }));
+  }
+  if (start >= end) {
+    return apiError(c, 'VALIDATION_FAILED', m(c, 'startAfterEnd'));
+  }
+  const id = correlationId(userId, resolved.keys, freq, start, end);
+
+  if (refresh !== '1') {
+    const cached = await prisma.factorCorrelation.findUnique({ where: { id } });
+    if (cached) {
+      return c.json({ done: true, report: JSON.parse(cached.payload) as FactorCorrelation });
+    }
+  }
+  const existing = await findRunningJob(
+    userId,
+    'factor',
+    correlationJobKey(resolved.keys, freq, start, end),
+  );
+  if (existing) {
+    return c.json({ jobId: existing });
+  }
+
+  const jobId = await createJob(
+    userId,
+    'factor',
+    correlationJobKey(resolved.keys, freq, start, end),
+  );
+  const worker = new Worker(correlationWorkerUrl, {
+    workerData: { id, userId, keys: resolved.keys, freq, start, end, locale: localeFromRequest(c) },
   });
   let finished = false;
   const done = (status: 'done' | 'error', error?: string) => {

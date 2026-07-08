@@ -366,7 +366,14 @@ export function fetchIndexSeries(
   return request(`/api/app/index/${code}/series?start=${start}&end=${end}`);
 }
 
-import type { FactorReport, FactorMeta, FactorRun, FactorFreq, Neutral } from '@jixie/shared';
+import type {
+  FactorReport,
+  FactorMeta,
+  FactorRun,
+  FactorFreq,
+  FactorCorrelation,
+  Neutral,
+} from '@jixie/shared';
 
 // Factor research: the factor list (identity + kind) — preset + this user's custom factors.
 export function getFactorCatalog(): Promise<FactorMeta[]> {
@@ -513,6 +520,45 @@ export interface FactorJob {
 }
 export function pollFactorJob(jobId: string, since = 0): Promise<FactorJob> {
   return request(`/api/app/factors/analysis/job/${jobId}?since=${since}`);
+}
+
+// —— Correlation matrix (3.4): 2–8 factors × a fixed size column ——
+
+export function getFactorCorrelation(
+  keys: string[],
+  freq: FactorFreq,
+  start: string,
+  end: string,
+): Promise<FactorCorrelation> {
+  const q = new URLSearchParams({ keys: keys.join(','), freq, start, end });
+  return request(`/api/app/factors/correlation?${q}`);
+}
+
+export function runFactorCorrelation(
+  keys: string[],
+  freq: FactorFreq,
+  start: string,
+  end: string,
+  refresh = false,
+): Promise<{ done: true; report: FactorCorrelation } | { jobId: string }> {
+  const q = new URLSearchParams({
+    keys: keys.join(','),
+    freq,
+    start,
+    end,
+    ...(refresh ? { refresh: '1' } : {}),
+  });
+  return request(`/api/app/factors/correlation/run?${q}`, { method: 'POST' });
+}
+
+export function findCorrelationRunningJob(
+  keys: string[],
+  freq: FactorFreq,
+  start: string,
+  end: string,
+): Promise<{ jobId: string | null }> {
+  const q = new URLSearchParams({ keys: keys.join(','), freq, start, end });
+  return request(`/api/app/factors/correlation/running?${q}`);
 }
 
 // A still-running job for this (factor, window) — to re-attach after a refresh (DB-backed, cross-client).
