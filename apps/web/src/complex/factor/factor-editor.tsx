@@ -36,6 +36,18 @@ const FACTOR_DOCS: Record<string, Record<Locale, string>> = {
     zh: '总净额(万元,当日精确,缺则 null)',
     en: 'Total net inflow (10k yuan, exact for the day, null if missing)',
   },
+  roe: {
+    zh: '净资产收益率 %(最近一份 annDate ≤ 当日的报告,PIT;未披露则 null)',
+    en: 'Return on equity % (latest report with annDate ≤ today, point-in-time; null if none published)',
+  },
+  grossprofitMargin: {
+    zh: '毛利率 %(as-of,PIT;未披露则 null)',
+    en: 'Gross profit margin % (as-of, point-in-time; null if none published)',
+  },
+  debtToAssets: {
+    zh: '资产负债率 %(as-of,PIT;未披露则 null)',
+    en: 'Debt-to-assets ratio % (as-of, point-in-time; null if none published)',
+  },
   historyClose: {
     zh: '后复权收盘价窗口,[最旧 … 当天] 共 n 个;历史不足返回 []。需在 defineFactor 声明 window ≥ n。',
     en: 'Adjusted (hfq) close window, [oldest … today] of n values; returns [] if history is insufficient. Declare window ≥ n in defineFactor.',
@@ -77,6 +89,9 @@ interface FactorBar {
   /** ${doc('turnoverRate')} */ readonly turnoverRate: number | null;
   /** ${doc('netMain')} */ readonly netMain: number | null;
   /** ${doc('netTotal')} */ readonly netTotal: number | null;
+  /** ${doc('roe')} */ readonly roe: number | null;
+  /** ${doc('grossprofitMargin')} */ readonly grossprofitMargin: number | null;
+  /** ${doc('debtToAssets')} */ readonly debtToAssets: number | null;
 }
 interface FactorCtx {
   /** ${doc('historyClose')} */
