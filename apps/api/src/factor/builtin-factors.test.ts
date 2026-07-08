@@ -82,6 +82,9 @@ const NULL_BAR: FactorBar = {
   turnoverRate: null,
   netMain: null,
   netTotal: null,
+  roe: null,
+  grossprofitMargin: null,
+  debtToAssets: null,
 };
 
 /** Mirrors analysis.ts: batch items carry the window (of `window` length) ENDING at index `end`. */
