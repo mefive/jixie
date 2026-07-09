@@ -9,62 +9,32 @@ import type {
   ScreenConversationMeta,
   ScreenSpec,
 } from '@jixie/shared';
-import { apiError, validateJson, validateQuery } from '../lib/httpError.js';
+import { apiError, validateJson } from '../lib/httpError.js';
 import { chatMessagesSchema } from '../lib/chat-schema.js';
 import { prisma } from '../lib/prisma.js';
 import { screenProfile } from '../agent/profiles/screen.js';
 import { enqueueAgentTurn, entityKey } from '../agent/turn-run.js';
 import * as turnBus from '../agent/turn-bus.js';
-import { runScreen, stockSeries } from '../screen/query.js';
+import { runScreen } from '../screen/query.js';
 import { screenSpecSchema } from '../screen/spec.js';
 import { localeFromRequest, m } from '../i18n/index.js';
 
 /**
- * Stock screener API (product line 2 · card wall). POST /screen runs a structured ScreenSpec against the latest
- * snapshot (query cards re-run through here); /screen/agent is one turn of the screening agent;
- * /screen/conversations is the session-card CRUD (messages persisted per conversation, frontend-owned).
- * GET /stock/:code/series returns a stock's OHLC/vol/pe series for the K-line/PE/volume charts.
+ * Screener workbench actions (product line 2 · card wall, mounted at /api/app/screen):
+ *   POST /run runs a structured ScreenSpec against the latest snapshot (query cards re-run through
+ *   here); POST /agent is one turn of the screening agent; /conversations is the session-card CRUD
+ *   (messages persisted per conversation, frontend-owned). Market read-only helpers live in market.ts.
+ * Naming rules: see docs/design/api-route-naming.md.
  */
 export const screenRoute = new Hono();
 
-// tsCode → name (bulk) — e.g. the traded-instruments queue in trade details.
-screenRoute.get('/names', validateQuery(z.object({ codes: z.string().min(1) })), async (c) => {
-  const codes = c.req.valid('query').codes.split(',').filter(Boolean).slice(0, 500);
-  const rows = await prisma.stockBasic.findMany({
-    where: { tsCode: { in: codes } },
-    select: { tsCode: true, name: true },
-  });
-  return c.json(Object.fromEntries(rows.map((r) => [r.tsCode, r.name])) as Record<string, string>);
-});
-
-// Index daily close (e.g. 000300.SH CSI 300) over a range — the benchmark return curve in trade details.
-const idxSeriesQuery = z.object({
-  start: z
-    .string()
-    .regex(/^\d{8}$/)
-    .optional(),
-  end: z
-    .string()
-    .regex(/^\d{8}$/)
-    .optional(),
-});
-screenRoute.get('/index/:code/series', validateQuery(idxSeriesQuery), async (c) => {
-  const { start = '20150101', end = '20261231' } = c.req.valid('query');
-  const rows = await prisma.indexDaily.findMany({
-    where: { tsCode: c.req.param('code'), tradeDate: { gte: start, lte: end } },
-    select: { tradeDate: true, close: true },
-    orderBy: { tradeDate: 'asc' },
-  });
-  return c.json({ points: rows.map((r) => ({ date: r.tradeDate, close: r.close })) });
-});
-
-screenRoute.post('/screen', validateJson(screenSpecSchema), async (c) => {
+screenRoute.post('/run', validateJson(screenSpecSchema), async (c) => {
   const spec = c.req.valid('json') as ScreenSpec;
   const result = await runScreen(spec);
   return c.json(result);
 });
 
-// POST /screen/agent — START one turn of the screening agent (no code artifact) and return a turnId;
+// POST /agent — START one turn of the screening agent (no code artifact) and return a turnId;
 // subscribe via GET /api/app/agent/turns/:id/stream. History comes from the conversation row; the
 // runner persists the user message + reply onto it (so a refresh mid-turn keeps the conversation).
 const agentBody = z.object({
@@ -72,7 +42,7 @@ const agentBody = z.object({
   message: z.string().trim().min(1).max(2000),
 });
 
-screenRoute.post('/screen/agent', validateJson(agentBody), async (c) => {
+screenRoute.post('/agent', validateJson(agentBody), async (c) => {
   const { conversationId, message } = c.req.valid('json');
   const userId = c.var.userId;
   const conversation = await prisma.screenConversation.findFirst({
@@ -115,7 +85,7 @@ function conversationSummary(messages: ChatMessage[]): { preview: string; cardCo
   return { preview: lastText.slice(0, 60), cardCount };
 }
 
-screenRoute.get('/screen/conversations', async (c) => {
+screenRoute.get('/conversations', async (c) => {
   const rows = await prisma.screenConversation.findMany({
     where: { userId: c.var.userId },
     orderBy: { updatedAt: 'desc' },
@@ -136,7 +106,7 @@ screenRoute.get('/screen/conversations', async (c) => {
   return c.json(metas);
 });
 
-screenRoute.get('/screen/conversations/:id', async (c) => {
+screenRoute.get('/conversations/:id', async (c) => {
   const row = await prisma.screenConversation.findFirst({
     where: { id: c.req.param('id'), userId: c.var.userId },
   });
@@ -157,7 +127,7 @@ const conversationCreateBody = z.object({
   messages: chatMessagesSchema,
 });
 
-screenRoute.post('/screen/conversations', validateJson(conversationCreateBody), async (c) => {
+screenRoute.post('/conversations', validateJson(conversationCreateBody), async (c) => {
   const { title, messages } = c.req.valid('json');
   const id = ulid();
   await prisma.screenConversation.create({
@@ -177,7 +147,7 @@ const conversationUpdateBody = z.object({
   messages: chatMessagesSchema.optional(),
 });
 
-screenRoute.post('/screen/conversations/:id', validateJson(conversationUpdateBody), async (c) => {
+screenRoute.post('/conversations/:id', validateJson(conversationUpdateBody), async (c) => {
   const id = c.req.param('id');
   const { title, messages } = c.req.valid('json');
   const existing = await prisma.screenConversation.findFirst({
@@ -198,33 +168,9 @@ screenRoute.post('/screen/conversations/:id', validateJson(conversationUpdateBod
   return c.json({ ok: true });
 });
 
-screenRoute.delete('/screen/conversations/:id', async (c) => {
+screenRoute.delete('/conversations/:id', async (c) => {
   await prisma.screenConversation.deleteMany({
     where: { id: c.req.param('id'), userId: c.var.userId },
   });
   return c.json({ ok: true });
-});
-
-const seriesQuery = z.object({
-  start: z
-    .string()
-    .regex(/^\d{8}$/)
-    .optional(),
-  end: z
-    .string()
-    .regex(/^\d{8}$/)
-    .optional(),
-});
-
-screenRoute.get('/stock/:code/series', validateQuery(seriesQuery), async (c) => {
-  const code = c.req.param('code');
-  const { start = '20150101', end = '20241231' } = c.req.valid('query');
-  if (start >= end) {
-    return apiError(c, 'VALIDATION_FAILED', m(c, 'startAfterEnd'));
-  }
-  const series = await stockSeries(code, start, end);
-  if (series.points.length === 0) {
-    return apiError(c, 'NOT_FOUND', m(c, 'noDataInRange'));
-  }
-  return c.json(series);
 });

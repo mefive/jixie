@@ -48,7 +48,7 @@ try {
     }
     // Clear cached factor runs so the factor page starts from a known baseline (no stale run gets
     // auto-restored on select, which would leave the params bar in an unexpected freq/neutral state).
-    await fetch('/api/app/factors/runs', { method: 'DELETE' });
+    await fetch('/api/app/factor/runs', { method: 'DELETE' });
   });
 
   // 2. The card wall (full reload → authStore.load sees the cookie).
