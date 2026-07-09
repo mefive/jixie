@@ -40,9 +40,9 @@ const TradeDetail = lazy(() => import('./trade-detail'));
 /**
  * Backtest workbench — code-first, IDE-style. A first-time visit (no recents) opens a focused prompt
  * hero; otherwise New pops a prompt modal over the workbench. The workbench is a 3-column Splitter: an
- * Agent panel (a chat that iterates on the strategy code, over a sticky start/end/capital + Run-backtest header;
- * plus a History tab) | the code editor over a collapsible log dock | a right column of Results-overview / Trade-detail
- * tabs (Trade-detail = candlestick over the trade table). All regions are drag-resizable.
+ * Agent panel (a chat that iterates on the strategy code, plus a History tab) | the code editor over a
+ * collapsible log dock | a right column with the start/end/capital + Run-backtest bar over Results-overview /
+ * Trade-detail tabs (Trade-detail = candlestick over the trade table). All regions are drag-resizable.
  */
 export const Lab = complex.component(() => {
   const store = complex.useStore();
@@ -391,15 +391,15 @@ const AgentPanel = complex.component(
   'AgentPanel',
 );
 
-// Agent tab: sticky run-config (date/capital + Run-backtest) over a scrollable chat log + a Cursor-style composer
-// (a bordered box, no button — Enter sends; the box stays multi-row rather than collapsing to one line).
+// Agent tab: the strategy name over a scrollable chat log + a Cursor-style composer (a bordered box, no
+// button — Enter sends; the box stays multi-row rather than collapsing to one line). The run-config
+// (date/capital + Run-backtest) lives atop the results column, next to the output it produces.
 const AgentChat = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('lab');
   return (
     <div className="jx-lab-chat">
       <div className="jx-lab-agentName">{store.name || t('agentUnsavedName')}</div>
-      <RunConfig />
       <ChatLog
         messages={store.chatMessages}
         sending={store.sending}
@@ -422,7 +422,9 @@ const AgentChat = complex.component(() => {
   );
 }, 'AgentChat');
 
-// Sticky run-config header: start/end/capital + Run-backtest (the strategy name is auto-generated on run — no name field).
+// Run bar atop the results column: start/end/capital + Run-backtest, on its own row above the result
+// tabs — the trigger sits with the output it produces (mirrors the factor / screen "controls over results"
+// pattern). The strategy name is auto-generated on run — no name field.
 const RunConfig = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('lab');
@@ -770,6 +772,7 @@ const ResultTabs = complex.component(() => {
 
   return (
     <div className="jx-lab-resultTabs">
+      <RunConfig />
       <Tabs
         className="jx-lab-resultTabsInner"
         size="small"
