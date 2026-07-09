@@ -150,18 +150,17 @@
   font-size: 14px;
 }
 
-/* 2-col grid: start | end on top, capital | Run-backtest below — controls align across both rows */
+/* Run bar atop the results column: start / end / capital inline on one row, Run-backtest pushed to the
+   far right. Wraps gracefully when the column is dragged narrow. */
 .jx-lab-runConfig {
-  @apply grid items-center;
-  @apply rounded-lg border border-line bg-bg;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px 10px;
-  padding: 8px 10px;
-  margin-bottom: 8px;
+  @apply flex flex-wrap items-center border-b border-line;
+  flex: none;
+  gap: 8px 16px;
+  padding: 8px 12px;
 }
 
 .jx-lab-runField {
-  @apply flex items-center gap-1;
+  @apply flex items-center gap-1.5;
   min-width: 0;
 }
 
@@ -170,14 +169,14 @@
   flex: none;
 }
 
-/* antd DatePicker/InputNumber roots don't stretch — fill the grid cell (minus the label) */
+/* antd DatePicker/InputNumber roots don't stretch on their own — give them a comfortable fixed width. */
 .jx-lab-runControl {
-  @apply flex-1;
-  min-width: 0;
+  width: 132px;
 }
 
+/* push the Run button to the far right of the bar */
 .jx-lab-runBtn {
-  width: 100%;
+  margin-left: auto;
 }
 
 .jx-lab-chatLog {
