@@ -1,4 +1,4 @@
-import type { Locale } from '@jixie/shared';
+import type { DtsFactorOption, Locale } from '@jixie/shared';
 import { buildSdkDts } from '@jixie/shared';
 
 /**
@@ -10,4 +10,5 @@ import { buildSdkDts } from '@jixie/shared';
  * The signatures never vary by locale — only the doc-comment language does — so re-registering on a
  * language switch keeps typecheck identical.
  */
-export const sdkDts = (locale: Locale): string => buildSdkDts(locale);
+export const sdkDts = (locale: Locale, factorOptions?: DtsFactorOption[]): string =>
+  buildSdkDts(locale, undefined, factorOptions);

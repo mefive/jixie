@@ -40,9 +40,12 @@ async function assertKnownInstruments(code: string): Promise<void> {
 }
 
 /** The strategy-lab agent: iterates on defineStrategy code, compile-validated, with read-only data tools. */
-export function strategyProfile(availableIndices?: string): AgentProfile {
+export function strategyProfile(
+  availableIndices?: string,
+  referencableFactors?: string,
+): AgentProfile {
   return {
-    system: `${buildCodegenPrompt(availableIndices)}\n${buildAgentMode('strategy')}\n${TOOLS_HINT}`,
+    system: `${buildCodegenPrompt(availableIndices, referencableFactors)}\n${buildAgentMode('strategy')}\n${TOOLS_HINT}`,
     tools: defaultTools(),
     artifact: {
       noun: 'strategy',

@@ -8,6 +8,7 @@ import { strategyProfile } from '../agent/profiles/strategy.js';
 import { enqueueAgentTurn, entityKey } from '../agent/turn-run.js';
 import * as turnBus from '../agent/turn-bus.js';
 import { KNOWN_INDICES } from '../strategy/code/codegen-prompt.js';
+import { BUILTIN_USER_ID } from '../factor/builtin-factors.js';
 import { localeFromRequest, m } from '../i18n/index.js';
 import { backtestRoute } from './backtest.js';
 
@@ -37,6 +38,17 @@ async function syncedIndices(): Promise<{ codes: string[]; text: string }> {
   return { codes, text };
 }
 
+/** The factors this user may reference as custom:<id> — own factors + the builtin presets — formatted
+ * for the codegen prompt (same pattern as syncedIndices: only offer what actually resolves). */
+async function referencableFactors(userId: string): Promise<string> {
+  const rows = await prisma.factor.findMany({
+    where: { userId: { in: [userId, BUILTIN_USER_ID] } },
+    select: { id: true, name: true },
+    orderBy: { updatedAt: 'desc' },
+  });
+  return rows.length ? rows.map((row) => `${row.name}=custom:${row.id}`).join('、') : '(none yet)';
+}
+
 // POST /api/app/strategy/agent — START one turn of the strategy Agent and return a turnId
 // immediately; the turn runs in the background (subscribe via GET /api/app/agent/turns/:id/stream).
 // History comes from the strategy row (the runner persists both the user message and the reply),
@@ -59,12 +71,12 @@ strategyRoute.post('/agent', validateJson(agentBody), async (c) => {
     return apiError(c, 'VALIDATION_FAILED', m(c, 'strategyTurnInProgress'));
   }
 
-  const idx = await syncedIndices();
+  const [idx, factors] = await Promise.all([syncedIndices(), referencableFactors(userId)]);
   const turnId = ulid();
   enqueueAgentTurn({
     turnId,
     userId,
-    profile: strategyProfile(idx.text),
+    profile: strategyProfile(idx.text, factors),
     entity,
     message,
     currentCode: code,

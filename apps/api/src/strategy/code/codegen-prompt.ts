@@ -27,7 +27,10 @@ const DEFAULT_INDICES = Object.entries(KNOWN_INDICES)
   .map(([code, name]) => `${name}=${code}`)
   .join('、');
 
-export function buildCodegenPrompt(availableIndices: string = DEFAULT_INDICES): string {
+export function buildCodegenPrompt(
+  availableIndices: string = DEFAULT_INDICES,
+  referencableFactors = '(none yet)',
+): string {
   return `You are an A-share strategy code generator. Turn the user's natural-language strategy request into a **complete, compilable** TypeScript strategy module.
 
 # Output requirements
@@ -57,17 +60,18 @@ bar row fields (**only these**): ${SDK_SECTIONS.barRowFields}.
 - You can also use \`await ctx.indexMembers('000300.SH')\` to get constituents directly as string[].
 Note: an onBar that uses universe()/indexMembers() must be async.
 
-# Money-flow factors (optional, gauge "capital attention / main-force movement")
-Not loaded by default; after declaring \`factors: ['mf_net_main']\` (one or more) at the strategy top level, read the **current-day value** inside onBar via \`ctx.factor('mf_net_main', code)\` (ten-thousand yuan, + net inflow / − net outflow, returns null when no data).
-- **mf_net_main** = main-force (large + extra-large orders) net amount; **mf_net_total** = net amount across all order sizes. Positive = capital flowing in / high attention, negative = outflow.
-- **Only these two money-flow factors exist** — don't invent other factor names (they'd all return null). Often paired with universe + rankBy, e.g. "the N stocks with the highest main-force net inflow".
+# Factor columns (optional; declare in \`factors\`, read via ctx.factor(key, code))
+Not loaded by default; after declaring \`factors: ['mf_net_main']\` (one or more) at the strategy top level, read the **current-day value** inside onBar via \`ctx.factor('mf_net_main', code)\` (money-flow columns: ten-thousand yuan, + net inflow / − net outflow, exact-day semantics — returns null on days without data).
+- ${SDK_SECTIONS.factorColumns}. Positive = capital flowing in / high attention, negative = outflow.
+- **Custom research factors** (from the factor-research page, computed on the fly per stock per day) are referenced as \`custom:<id>\`. **This user's referencable factors**: ${referencableFactors}. A factor that declares a window needs the stock's K-line loaded first (ensureBars), like the built-in indicators.
+- **Only the factor keys listed above exist** — don't invent other factor names (they'd all return null). Often paired with universe + rankBy, e.g. "the N stocks with the highest main-force net inflow".
 
 # ⚠️ Key: to compute per-stock indicators on stocks filtered from the cross-section, you must ensureBars first
 ctx.price / history / bars / sma / atr… only work for stocks whose **K-line series is already loaded** (stocks in \`watch\` are preloaded automatically; others must be loaded manually).
 If you filter a batch of stocks via universe and then compute moving averages/breakouts/ATR on them, you **must first \`await ctx.ensureBars(codes)\`**, otherwise everything returns null/empty and **not a single order is placed**.
 
 # ⛔ Capability boundary: if you can't do it, refuse — don't fabricate
-You may only use the fields, built-in indicators, indices on record, money-flow factors (mf_net_main/mf_net_total), industry (ctx.industry), and Dragon-Tiger List net buy (ctx.lhbNet) listed above. If the user's request **depends on data/capabilities beyond these** — for example: revenue/profit growth, gross margin, ROA, institutional/northbound holdings, analyst ratings, concept/theme classification, futures/options/convertible bonds, minute/tick data, Hong Kong or US stocks —
+You may only use the fields, built-in indicators, indices on record, factor keys (money-flow columns + the user's referencable custom:<id> factors listed above), industry (ctx.industry), and Dragon-Tiger List net buy (ctx.lhbNet) listed above. If the user's request **depends on data/capabilities beyond these** — for example: revenue/profit growth, gross margin, ROA, institutional/northbound holdings, analyst ratings, concept/theme classification, futures/options/convertible bonds, minute/tick data, Hong Kong or US stocks —
 **never force-fit it with other fields** (e.g. passing off the close price as ROE). In that case **output only one line**:
 CANNOT: <one sentence stating what data/capability is missing, how it might be approximated, or asking the user to revise the request>
 **The index must exactly match the on-record list**: if the index the user wants is not in that string above (e.g. 中证100, 上证180, 深证100, various industry/theme indices), **never substitute a similar index** (e.g. swapping 中证100 for 沪深300) — go straight to CANNOT, explain the index is not on record, and list the available ones.
