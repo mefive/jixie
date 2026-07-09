@@ -32,6 +32,7 @@
 - **代码注释一律用英文**(inline `//`、块注释、JSDoc、Prisma `///`、CSS `/* */`)——维护者可能不识中文,注释不留中文括注,用标准英文财经术语。例外(仍/可中文):**i18n 资源里的 zh 值**、**CLAUDE.md / README 文档**、**commit message**。**LLM prompt / 工具 description / few-shot 也一律英文**(见下「多语言」条)。**面向用户的 UI/报错文案走 i18n**(英文 key,zh+en 值),不再硬编码——详见 `docs/design/i18n.md` 与下「多语言」条
 - 格式化:prettier(`semi`、`singleQuote`、`printWidth 100`、`trailingComma all`)+ eslint `curly: all`(控制语句强制大括号,`if (x) return;` 会被拆成带 `{}` 的多行)。**pre-commit hook**(simple-git-hooks + lint-staged)提交时自动对暂存文件跑 `eslint --fix` + `prettier --write`,机械格式无需手动维护;`.prettierignore` 里 `*.md` 等文档不受 prettier 摆布
 - **空行分段(工具做不到,唯一靠人/agent 的格式)**:函数体内按逻辑段落用**单空行**分组 —— 入参校验 → 数据准备 → 主循环 → 收尾/return;注释引导的新段落,注释前空一行。函数首行前 / 末行后不空;紧密相关的连续单行不硬插;不留连续空行(prettier 会压成一行)。写的时候主动分段,别挤成一坨
+- **对同一值的等值分支 ≥3 用 `switch`,不写 `if/else` 链**:TS 对可辨识联合(discriminated union)的 switch 能做穷尽检查,加新分支漏处理编译器会抓;纯「值→值」映射优先查表对象(`Record`),连 switch 都不用。条件异构(区间判断、复合谓词、不同变量)的 if/else 链不硬套 switch
 - **命名一律语义全称**(代码是给人看的,没必要省):变量/参数、回调 / reduce / map-item / 临时变量都要有语义(`(sum, close)` 不是 `(a, b)`、`.map((code) => …)` 不是 `(c)`);金融/领域术语在定义处加简短英文注释,用标准英文财经术语(`ATR`/`EMA`/Donchian channel / after-adjustment price),不括注中文。领域惯例短名优先展开成全称(`predicate`/`fraction`/`direction`);纯数组下标 `for (let i …)` 可留
 - 不为「未来可能复用」提前抽象:三处相似 < 一处错误抽象
 

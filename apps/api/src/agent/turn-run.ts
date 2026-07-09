@@ -1,11 +1,11 @@
 import type { Prisma } from '@prisma/client';
 import {
+  DEFAULT_LOCALE,
   normalizeChatMessage,
   textMessage,
   type ChatMessage,
-  type ChatMessage as UiMessage,
+  type Locale,
 } from '@jixie/shared';
-import { DEFAULT_LOCALE, type Locale } from '@jixie/shared';
 import { prisma } from '../lib/prisma.js';
 import { chatTools } from '../llm/deepseek.js';
 import { t } from '../i18n/index.js';
@@ -37,7 +37,7 @@ export interface EnqueueTurnArgs {
   userId: string;
   profile: AgentProfile;
   entity: TurnEntity | null;
-  history?: UiMessage[]; // entity=null (QA) only; entity turns read history from the DB row
+  history?: ChatMessage[]; // entity=null (QA) only; entity turns read history from the DB row
   message: string;
   currentCode: string;
   locale?: Locale; // the requester's locale — localizes code-generated reply chrome (default zh)
@@ -58,7 +58,7 @@ async function runTurn(args: EnqueueTurnArgs, signal: AbortSignal): Promise<void
   const locale = args.locale ?? DEFAULT_LOCALE;
   try {
     // History + user-message persistence (entity surfaces). The write happens before the LLM runs.
-    let history: UiMessage[] = args.history ?? [];
+    let history: ChatMessage[] = args.history ?? [];
     let persisted: ChatMessage[] | null = null;
     if (entity) {
       const stored = await readMessages(entity, userId, locale);
@@ -95,17 +95,17 @@ async function runTurn(args: EnqueueTurnArgs, signal: AbortSignal): Promise<void
       toolTrace: result.toolTrace,
       ...(result.error ? { error: result.error } : {}),
     });
-  } catch (e) {
+  } catch (error) {
     const cancelled = signal.aborted;
     if (!cancelled) {
-      // The frontend only gets e.message — without this line a provider timeout/401/limit is unguessable.
-      console.error(`[agent] turn failed (turnId=${turnId})`, e);
+      // The frontend only gets the message — without this line a provider timeout/401/limit is unguessable.
+      console.error(`[agent] turn failed (turnId=${turnId})`, error);
     }
     turnBus.finish(
       turnId,
       cancelled
         ? { type: 'cancelled' }
-        : { type: 'error', message: e instanceof Error ? e.message : String(e) },
+        : { type: 'error', message: error instanceof Error ? error.message : String(error) },
     );
   }
 }
@@ -118,12 +118,21 @@ async function readMessages(
   locale: Locale,
 ): Promise<unknown[]> {
   const where = { id: entity.id, userId };
-  const row =
-    entity.kind === 'strategy'
-      ? await prisma.strategy.findFirst({ where, select: { messages: true } })
-      : entity.kind === 'factor'
-        ? await prisma.factor.findFirst({ where, select: { messages: true } })
-        : await prisma.screenConversation.findFirst({ where, select: { messages: true } });
+
+  // Exhaustive switch: a new entity kind leaves `row` unassigned and fails the build.
+  let row: { messages: Prisma.JsonValue } | null;
+  switch (entity.kind) {
+    case 'strategy':
+      row = await prisma.strategy.findFirst({ where, select: { messages: true } });
+      break;
+    case 'factor':
+      row = await prisma.factor.findFirst({ where, select: { messages: true } });
+      break;
+    case 'screen':
+      row = await prisma.screenConversation.findFirst({ where, select: { messages: true } });
+      break;
+  }
+
   if (!row) {
     throw new Error(t(locale, 'turnHostGone'));
   }
@@ -132,11 +141,18 @@ async function readMessages(
 
 async function writeMessages(entity: TurnEntity, messages: ChatMessage[]): Promise<void> {
   const data = { messages: messages as unknown as Prisma.InputJsonValue };
-  if (entity.kind === 'strategy') {
-    await prisma.strategy.update({ where: { id: entity.id }, data });
-  } else if (entity.kind === 'factor') {
-    await prisma.factor.update({ where: { id: entity.id }, data });
-  } else {
-    await prisma.screenConversation.update({ where: { id: entity.id }, data });
+
+  switch (entity.kind) {
+    case 'strategy':
+      await prisma.strategy.update({ where: { id: entity.id }, data });
+      break;
+    case 'factor':
+      await prisma.factor.update({ where: { id: entity.id }, data });
+      break;
+    case 'screen':
+      await prisma.screenConversation.update({ where: { id: entity.id }, data });
+      break;
+    default:
+      entity.kind satisfies never; // compile error when a new kind is added but unhandled
   }
 }
