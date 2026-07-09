@@ -65,8 +65,8 @@ pandas 等价物**——这恰好不是问题,因为 SQL 已经承担了 join/gr
 
 - **只读、无副作用**:代码拿不到 prisma/网络/文件,只有注入的 data 和 stats;
 - **结果不落库、不产卡片**(v1):observation 回灌 → 模型文字作答。**图表仍归 renderChart**;
-  「用算出来的数据画图」(chart part 存 {queries, code, mapping} 并重跑)是自然的 v2,
-  等真实用例拉动再做,不预建;
+  「用算出来的数据画图」已立项为 ROADMAP **7.8**,详设见 `docs/design/computed-chart.md`
+  (Phase A:ChartSpec `source:'compute'` + 重跑端点);
 - 工具轮数仍在每 turn ≤5 的总预算内,不单独开小灶。
 
 ## 验收
