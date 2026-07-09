@@ -2,12 +2,13 @@ import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
 import { logger } from 'hono/logger';
 import { authRoute } from './routes/auth.js';
-import { backtestRoute } from './routes/backtest.js';
 import { strategyRoute } from './routes/strategy.js';
-import { savedStrategyRoute } from './routes/saved-strategy.js';
+import { strategiesRoute } from './routes/strategies.js';
 import { screenRoute } from './routes/screen.js';
-import { savedScreenRoute } from './routes/saved-screen.js';
+import { screensRoute } from './routes/screens.js';
+import { marketRoute } from './routes/market.js';
 import { factorRoute } from './routes/factor.js';
+import { factorsRoute } from './routes/factors.js';
 import { agentRoute } from './routes/agent.js';
 import { requireAuth } from './lib/session.js';
 import { markRunningJobsStale } from './lib/jobs.js';
@@ -45,13 +46,19 @@ export function buildApp() {
   // In phase two, mount backtest and other routes here; handlers use c.var.userId / c.var.user
   // directly.
   app.use('/api/app/*', requireAuth);
-  app.route('/api/app/backtest', backtestRoute);
-  app.route('/api/app/strategy', strategyRoute);
-  app.route('/api/app/strategies', savedStrategyRoute);
-  app.route('/api/app/screens', savedScreenRoute);
-  app.route('/api/app/factors', factorRoute);
+
+  // Mount-point naming rules (docs/design/api-route-naming.md):
+  //   plural   = persistable resource CRUD  (/strategies /screens /factors)
+  //   singular = workbench actions          (/strategy /screen /factor — incl. backtest/analysis jobs)
+  //   base     = truly cross-domain infra   (/agent turn bus, /market read-only helpers)
   app.route('/api/app/agent', agentRoute);
-  app.route('/api/app', screenRoute);
+  app.route('/api/app/market', marketRoute);
+  app.route('/api/app/strategies', strategiesRoute);
+  app.route('/api/app/screens', screensRoute);
+  app.route('/api/app/factors', factorsRoute);
+  app.route('/api/app/strategy', strategyRoute);
+  app.route('/api/app/screen', screenRoute);
+  app.route('/api/app/factor', factorRoute);
 
   return app;
 }
