@@ -122,36 +122,46 @@
   padding: 16px 20px;
 }
 
+/* Full-bleed scroll area; the thread inside is the centered, responsive column. */
 .jx-screen-chatLog {
-  @apply flex flex-1 flex-col gap-2 overflow-auto;
-  @apply rounded-xl border border-line bg-bg;
-  padding: 12px;
+  @apply flex flex-1 flex-col overflow-auto;
+}
+
+.jx-screen-chatThread {
+  @apply mx-auto flex w-full flex-col;
+  max-width: 46rem;
+  gap: 20px;
+  padding: 16px 16px 8px;
 }
 
 .jx-screen-bubble {
-  @apply rounded-xl;
-  max-width: min(720px, 92%);
-  padding: 8px 12px;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.7;
+  word-break: break-word;
 }
 
+/* User turn: right-aligned rounded bubble. */
 .jx-screen-bubble--user {
-  @apply self-end bg-primary text-white;
+  @apply self-end rounded-2xl bg-primary text-white;
+  max-width: 85%;
+  padding: 8px 14px;
   white-space: pre-wrap;
 }
 
+/* Assistant turn: no bubble — full-width markdown flush with the thread edges. */
 .jx-screen-bubble--assistant {
-  @apply self-start border border-line bg-card text-ink;
+  @apply w-full text-ink;
 }
 
 .jx-screen-bubble--thinking {
   @apply text-muted;
 }
 
+/* Composer is width-capped + centered to line up under the thread column. */
 .jx-screen-chatComposer {
-  @apply flex items-end gap-2;
+  @apply mx-auto flex w-full items-end gap-2;
   @apply rounded-2xl border border-line bg-card;
+  max-width: 46rem;
   padding: 8px 8px 8px 14px;
 }
 
