@@ -8,7 +8,7 @@ import type { Locale } from '@jixie/shared';
 import i18n from '@src/i18n';
 import { localeStore } from '@src/i18n/locale-store';
 import { sdkDts } from './sdk-dts';
-import { SDK_ENTRIES, LINKABLE_TYPES } from './sdk-reference';
+import { SDK_ENTRIES, LINKABLE_TYPES } from '@jixie/shared';
 
 // Every SDK member name (ctx.* methods + BarRow fields) and the business-type names — the tokens the
 // editor turns into clickable links → the doc page.

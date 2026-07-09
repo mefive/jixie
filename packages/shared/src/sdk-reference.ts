@@ -1,13 +1,15 @@
 /**
  * Single source of truth for the strategy SDK surface — one structured entry per user-facing member,
  * each with a TS signature + bilingual (zh/EN) description. From this we GENERATE:
- *   - the Monaco ambient .d.ts (sdk-dts.ts → SDK_DTS): zh comments + a 📖 doc link per member/type;
- *   - the in-app SDK doc page (sdk-doc.tsx): grouped, zh/EN toggle, one anchor per `name` (+ per type).
- * Add a method/field here once and both stay in sync. (Runtime impl lives in apps/api sdk.ts; keep its
- * StrategyCtx interface aligned with the signatures here.)
+ *   - the Monaco ambient .d.ts (apps/web sdk-dts.ts): zh comments + a 📖 doc link per member/type;
+ *   - the in-app SDK doc page (apps/web sdk-doc.tsx): grouped, zh/EN toggle, one anchor per `name`;
+ *   - the SDK-surface lists of the NL→code prompt (apps/api codegen-prompt.ts) via buildPromptSections().
+ * Add a method/field here once and all three stay in sync. The runtime impl (apps/api sdk.ts) stays
+ * hand-written; sdk-reference.test.ts type-checks entry names against the runtime members both ways,
+ * so a runtime member without an entry here (or a ghost entry) fails typecheck.
  */
 
-import type { Locale } from '@jixie/shared';
+import type { Locale } from './i18n.js';
 
 export interface SdkEntry {
   iface: 'Universe' | 'StrategyCtx' | 'BarRow';
@@ -16,6 +18,8 @@ export interface SdkEntry {
   group: string; // doc section
   zh: string;
   en: string;
+  /** Exact fragment for the codegen prompt's surface lists; omitted → derived from `name`/`sig`. */
+  prompt?: string;
 }
 
 // Business types whose names are linkified (in declarations + the editor) + given a doc-section anchor.
@@ -76,7 +80,11 @@ const POSTLUDE = `interface CodeStrategy {
 /** Define a strategy: export default defineStrategy({ onBar(ctx) { … } }). */
 declare function defineStrategy(s: CodeStrategy): void;`;
 
-export const SDK_ENTRIES: SdkEntry[] = [
+// Doc-section names referenced by generators below (other groups are only display labels).
+const INDICATOR_GROUP = '指标(需 K 线已加载)';
+
+// `as const` keeps every `name` a literal type — the api-side drift test needs the literal union.
+export const SDK_ENTRIES = [
   // —— Universe: today's candidate pool, a chainable filter/rank ——
   {
     iface: 'Universe',
@@ -85,6 +93,7 @@ export const SDK_ENTRIES: SdkEntry[] = [
     sig: 'where(pred: (bar: BarRow, code: string) => boolean): Universe',
     zh: '保留 today-row 通过谓词的票。',
     en: 'Keep codes whose today-row passes the predicate.',
+    prompt: '.where((b, code) => boolean)',
   },
   {
     iface: 'Universe',
@@ -93,6 +102,7 @@ export const SDK_ENTRIES: SdkEntry[] = [
     sig: 'minListDays(days: number): Universe',
     zh: '只保留上市满 days 天的票(时点股龄,剔除次新)。',
     en: 'Keep codes listed at least `days` calendar days (point-in-time age).',
+    prompt: '.minListDays(days)',
   },
   {
     iface: 'Universe',
@@ -101,6 +111,7 @@ export const SDK_ENTRIES: SdkEntry[] = [
     sig: 'dropBottom(frac: number, key: (bar: BarRow, code: string) => number): Universe',
     zh: '按 key 丢掉最低的 frac 比例(如流动性:dropBottom(0.25, b => b.turnoverRate ?? 0))。',
     en: 'Drop the bottom `frac` by `key` (e.g. liquidity floor).',
+    prompt: '.dropBottom(fraction, b => value)',
   },
   {
     iface: 'Universe',
@@ -109,6 +120,7 @@ export const SDK_ENTRIES: SdkEntry[] = [
     sig: "rankBy(score: (bar: BarRow, code: string) => number | null, dir?: 'desc' | 'asc'): Universe",
     zh: '按分数排序(null 分会被剔除);dir 默认 desc 高分在前。',
     en: 'Rank by a score (null-scoring dropped). dir default desc.',
+    prompt: ".rankBy(b => score, 'desc'|'asc') (null scores are dropped)",
   },
   {
     iface: 'Universe',
@@ -117,6 +129,7 @@ export const SDK_ENTRIES: SdkEntry[] = [
     sig: 'top(n: number): string[]',
     zh: '取前 n;n<1 取比例(0.1=前十分位,至少 1),否则取个数。返回 string[]。',
     en: 'Leading slice: a fraction when n<1 (0.1=top decile), else a count.',
+    prompt: '.top(n) (n<1 takes a fraction, otherwise a count) → string[]',
   },
   {
     iface: 'Universe',
@@ -125,6 +138,7 @@ export const SDK_ENTRIES: SdkEntry[] = [
     sig: 'codes(): string[]',
     zh: '当前链上的全部代码。',
     en: 'The current codes after the chain.',
+    prompt: '.codes() → string[]',
   },
 
   // —— ctx: data ——
@@ -231,58 +245,65 @@ export const SDK_ENTRIES: SdkEntry[] = [
   {
     iface: 'StrategyCtx',
     name: 'sma',
-    group: '指标(需 K 线已加载)',
+    group: INDICATOR_GROUP,
     sig: 'sma(code: string, n: number): number | null',
     zh: 'n 日简单均线。',
     en: 'n-day simple moving average.',
+    prompt: 'ctx.sma(code,n)',
   },
   {
     iface: 'StrategyCtx',
     name: 'ema',
-    group: '指标(需 K 线已加载)',
+    group: INDICATOR_GROUP,
     sig: 'ema(code: string, n: number): number | null',
     zh: 'n 日指数均线。',
     en: 'n-day exponential moving average.',
+    prompt: 'ctx.ema(code,n)',
   },
   {
     iface: 'StrategyCtx',
     name: 'atr',
-    group: '指标(需 K 线已加载)',
+    group: INDICATOR_GROUP,
     sig: 'atr(code: string, n: number): number | null',
     zh: 'n 日 ATR(平均真实波幅)。',
     en: 'n-day ATR (average true range).',
+    prompt: 'ctx.atr(code,n)',
   },
   {
     iface: 'StrategyCtx',
     name: 'highest',
-    group: '指标(需 K 线已加载)',
+    group: INDICATOR_GROUP,
     sig: "highest(code: string, field: 'open' | 'high' | 'low' | 'close', n: number): number | null",
     zh: '最近 n 根某字段的最高(唐奇安上轨)。',
     en: 'Highest of a field over n bars (Donchian upper).',
+    prompt: 'ctx.highest(code,field,n)',
   },
   {
     iface: 'StrategyCtx',
     name: 'lowest',
-    group: '指标(需 K 线已加载)',
+    group: INDICATOR_GROUP,
     sig: "lowest(code: string, field: 'open' | 'high' | 'low' | 'close', n: number): number | null",
     zh: '最近 n 根某字段的最低(唐奇安下轨)。',
     en: 'Lowest of a field over n bars (Donchian lower).',
+    prompt: 'ctx.lowest(code,field,n)',
   },
   {
     iface: 'StrategyCtx',
     name: 'avgAmount',
-    group: '指标(需 K 线已加载)',
+    group: INDICATOR_GROUP,
     sig: 'avgAmount(code: string, n: number): number | null',
     zh: 'n 日平均成交额(千元)—— 流动性 / 滑点门。',
     en: 'n-day average turnover (千元) — liquidity gate.',
+    prompt: 'ctx.avgAmount(code,n)=n-day average turnover (thousand yuan)',
   },
   {
     iface: 'StrategyCtx',
     name: 'avgVol',
-    group: '指标(需 K 线已加载)',
+    group: INDICATOR_GROUP,
     sig: 'avgVol(code: string, n: number): number | null',
     zh: 'n 日平均成交量(手)。',
     en: 'n-day average volume (手).',
+    prompt: 'ctx.avgVol(code,n)=n-day average volume (lots)',
   },
 
   // —— ctx: schedule / sizing / state ——
@@ -431,6 +452,7 @@ export const SDK_ENTRIES: SdkEntry[] = [
     sig: 'vol: number | null',
     zh: '成交量(手)。',
     en: 'Volume (手).',
+    prompt: '**vol (volume, lots)**',
   },
   {
     iface: 'BarRow',
@@ -439,6 +461,7 @@ export const SDK_ENTRIES: SdkEntry[] = [
     sig: 'amount: number | null',
     zh: '成交额(千元)—— 流动性 / 滑点门。',
     en: 'Turnover (千元) — liquidity / slippage gate.',
+    prompt: '**amount (turnover, thousand yuan — liquidity/slippage gate)**',
   },
   {
     iface: 'BarRow',
@@ -487,6 +510,7 @@ export const SDK_ENTRIES: SdkEntry[] = [
     sig: 'dvRatio: number | null',
     zh: '股息率 %。',
     en: 'Dividend yield %.',
+    prompt: 'dvRatio (dividend yield %)',
   },
   {
     iface: 'BarRow',
@@ -495,6 +519,7 @@ export const SDK_ENTRIES: SdkEntry[] = [
     sig: 'dvTtm: number | null',
     zh: '股息率(TTM)%。',
     en: 'Dividend yield (TTM) %.',
+    prompt: 'dvTtm (dividend yield TTM %)',
   },
   {
     iface: 'BarRow',
@@ -503,6 +528,7 @@ export const SDK_ENTRIES: SdkEntry[] = [
     sig: 'totalMv: number | null',
     zh: '总市值(万元)。',
     en: 'Total market cap (10k yuan).',
+    prompt: 'totalMv (total market cap, ten-thousand yuan)',
   },
   {
     iface: 'BarRow',
@@ -511,6 +537,7 @@ export const SDK_ENTRIES: SdkEntry[] = [
     sig: 'circMv: number | null',
     zh: '流通市值(万元)。',
     en: 'Float market cap (10k yuan).',
+    prompt: 'circMv (float market cap, ten-thousand yuan)',
   },
   {
     iface: 'BarRow',
@@ -519,6 +546,7 @@ export const SDK_ENTRIES: SdkEntry[] = [
     sig: 'turnoverRate: number | null',
     zh: '换手率 %。',
     en: 'Turnover rate %.',
+    prompt: 'turnoverRate (turnover rate %)',
   },
   {
     iface: 'BarRow',
@@ -527,6 +555,7 @@ export const SDK_ENTRIES: SdkEntry[] = [
     sig: 'roe: number | null',
     zh: '净资产收益率 %(时点)。',
     en: 'ROE % (point-in-time).',
+    prompt: 'roe (ROE %, point-in-time)',
   },
   {
     iface: 'BarRow',
@@ -535,13 +564,53 @@ export const SDK_ENTRIES: SdkEntry[] = [
     sig: 'roeWaa: number | null',
     zh: '加权平均净资产收益率 %。',
     en: 'Weighted average ROE %.',
+    prompt: 'roeWaa (weighted ROE %, point-in-time)',
   },
-];
+] as const satisfies readonly SdkEntry[];
+
+/** Literal union of the entry names of one interface — the anchor for the api-side drift type-test. */
+export type SdkEntryName<I extends SdkEntry['iface']> = Extract<
+  (typeof SDK_ENTRIES)[number],
+  { iface: I }
+>['name'];
 
 // Read-only ctx properties (not callable members; emitted at the top of StrategyCtx, no doc anchor).
-const CTX_PROPS = `  readonly date: string;
-  readonly cash: number;
-  readonly value: number;`;
+export const CTX_PROP_NAMES = ['date', 'cash', 'value'] as const;
+const CTX_PROP_TYPES: Record<(typeof CTX_PROP_NAMES)[number], string> = {
+  date: 'string',
+  cash: 'number',
+  value: 'number',
+};
+const CTX_PROPS = CTX_PROP_NAMES.map(
+  (propName) => `  readonly ${propName}: ${CTX_PROP_TYPES[propName]};`,
+).join('\n');
+
+/** The codegen prompt's SDK-surface lists, generated so a new entry lands in the prompt automatically.
+ * The prompt's narrative, examples, and capability boundary stay hand-written in codegen-prompt.ts;
+ * each entry's `prompt` fragment (fallback: its name) is tuned wording, not the doc copy. */
+export function buildPromptSections(): {
+  indicators: string;
+  universeChain: string;
+  barRowFields: string;
+} {
+  const fragment = (entry: SdkEntry) => entry.prompt ?? entry.name;
+  const entries = SDK_ENTRIES as readonly SdkEntry[];
+  return {
+    indicators: entries
+      .filter((entry) => entry.iface === 'StrategyCtx' && entry.group === INDICATOR_GROUP)
+      .map(fragment)
+      .join(' / '),
+    universeChain: entries
+      .filter((entry) => entry.iface === 'Universe')
+      .map(fragment)
+      .join(', '),
+    // `code` is the row key (exposed as the second lambda arg), not a screening field.
+    barRowFields: entries
+      .filter((entry) => entry.iface === 'BarRow' && entry.name !== 'code')
+      .map(fragment)
+      .join('/'),
+  };
+}
 
 /** Build the Monaco ambient .d.ts from the entries in the active locale. Editor hovers carry the
  * locale-appropriate copy (`entry[locale]`); `docLink(name)` optionally appends a 📖 link line to each

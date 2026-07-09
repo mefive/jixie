@@ -133,13 +133,13 @@ stk_limit / moneyflow / toplist 只覆盖 2020-2024;跑更早回测前:`pnpm syn
 
 B = IDE 内结构化日志面板;C = SDK hover tooltip(编辑器悬浮显示文档)。见既有规划记忆(research panel plan)。
 
-### 4.4 SDK 单一来源 ⬜(工程债,做 2.x/3.x 前顺手最划算)
+### 4.4 SDK 单一来源 ✅(2026-07-09,为 3.2 动 SDK 前置完成)
 
-SDK 现在三处镜像(`sdk.ts` 运行时 / `sdk-dts.ts` Monaco / `codegen-prompt.ts` LLM),每加一个方法要同步三处。参照 sdk-reference 单一来源模式统一:一处定义,dts 与 prompt 自动生成。**建议在主线二动 SDK 之前先做**,否则每个新指标×3 份维护。
+原状:`sdk-reference.ts`(在 web 包内,已生成 dts + 文档页)/ `sdk.ts` 运行时 / `codegen-prompt.ts` LLM 三处各自为政。改造:**注册表下沉 `packages/shared`**(api/web 皆可达);**api 侧 `sdk-reference.test.ts` 双向类型穷尽检查**(注册表幽灵成员、运行时漏登记成员都在 `tsc --noEmit` 期报错,探针实测会响;引擎内部成员 `loadCrossSection` 等走显式豁免清单);**prompt 的表面清单(指标/Universe 链/bar row 字段表)改由注册表 `buildPromptSections()` 生成**,叙事/few-shot/能力边界保持手写,条目新增 `prompt` 字段承载 prompt 专用措辞。顺带修正:prompt 的 bar row 字段表从手挑 13 个补全为全部 21 个真实字段("only these" 现在为真)。此后加 SDK 成员:改 `sdk.ts` + 注册表各一条,dts/文档页/prompt 三处自动跟进,漏一处编译不过。
 
-### 4.4b `/api/app` 路由命名对齐 ⬜(工程债,纯路径整形)
+### 4.4b `/api/app` 路由命名对齐 ✅(2026-07-09 当日设计当日收官)
 
-`server.ts` 挂载单复数混用(strategy 拆了、screen 半套、factor 全揉;回测顶层独立而因子分析挂在 factor 下)。规则:**复数 = 资源 CRUD;单数 = 工作台动作(含 `/strategy/backtest` ↔ `/factor/analysis`);底座只留 `/agent` + `/market`**。详设见 **`docs/design/api-route-naming.md`**(Phase 0 ✅;实施 Phase 1 screen → Phase 2 factor → Phase 2b backtest 收进 strategy → Phase 3 文件收尾;每 Phase 原子切换,无双挂窗口)。
+`server.ts` 挂载曾单复数混用(strategy 拆了、screen 半套、factor 全揉;回测顶层独立而因子分析挂在 factor 下)。规则落地:**复数 = 资源 CRUD;单数 = 工作台动作(`/strategy/backtest` ↔ `/factor/analysis` 对称);底座只留 `/agent` + `/market`**。详设与已决问题见 **`docs/design/api-route-naming.md`**。实施:四 Phase 一次收完(screen 整形拆 /market → factor 拆单复数两文件 → backtest 收进 strategy → saved-\*.ts 改名),每 Phase 原子切换无双挂;handler 零语义改动。验收:typecheck + 128 单测 + 全量 e2e 全绿,curl 确认字面量路由(`/running`)先于 `/:jobId` 匹配、旧顶层挂载 404,全库 grep 旧路径清零。
 
 ### 4.5 多用户工程 💤(明确远期,没有第二个用户前都是负债)
 

@@ -1,9 +1,14 @@
+import { buildPromptSections } from '@jixie/shared';
+
 /**
  * System prompt for NL→code: describes the strategy SDK (the surface user code is written against) plus
  * worked examples, so the model emits a complete, compilable TS strategy module — or refuses when the
- * request needs data/capabilities the SDK lacks. Mirrors sdk.ts (runtime) and the editor's sdk-dts.ts;
- * keep the three in sync when the SDK changes.
+ * request needs data/capabilities the SDK lacks. The SDK-surface lists (indicators / universe chain /
+ * bar-row fields) are GENERATED from the sdk-reference registry in @jixie/shared — add a member there
+ * and it appears here; the narrative, examples, and capability boundary below stay hand-written.
  */
+
+const SDK_SECTIONS = buildPromptSections();
 
 /** code → Chinese name for the indices whose constituents we *can* sync; the route passes the subset actually
  * present in the DB so the prompt only offers real ones. */
@@ -39,17 +44,15 @@ The backtest engine calls onBar(ctx) once per trading day; you read data and pla
 - ctx.lhbNet(code): today's Dragon-Tiger List net buy amount (yuan), **returns null on any day the stock is not listed** (no forward fill) — attention / hot-money extreme signal
 - ctx.history(code, 'open'|'high'|'low'|'close', n) / ctx.bars(code, n): the last n backward-adjusted prices / OHLC bars
 - **Built-in indicators** (prefer these, don't hand-roll; all require the stock's K-line already loaded, return null when data is insufficient):
-  ctx.sma(code,n) / ctx.ema(code,n) / ctx.atr(code,n) / ctx.highest(code,field,n) / ctx.lowest(code,field,n)
-  **Volume/liquidity**: ctx.avgAmount(code,n)=n-day average turnover (thousand yuan) / ctx.avgVol(code,n)=n-day average volume (lots)
+  ${SDK_SECTIONS.indicators}
 - Orders (filled at next open): ctx.order(code, shares) (+buy/-sell), ctx.exit(code) (liquidate),
   ctx.orderTargetPercent(code, w), ctx.setHoldings({code:w}), ctx.equalWeight(codes)
 
 # Cross-sectional stock selection: ctx.universe(indexCode?) (async, loads the day's tradable cross-section = candidate pool)
 \`(await ctx.universe())\` returns a chainable Universe; **pass an index code to restrict to its constituents (point-in-time) — reads only that index's rows (faster)**.
 **Indices on record (only these are available)**: ${availableIndices}.
-bar row fields (**only these**): peTtm/pb/ps/dvRatio (dividend yield %)/totalMv/circMv (market cap, in ten-thousand yuan)/turnoverRate (turnover rate %)/roe/roeWaa (return on equity %, point-in-time)/**amount (turnover, thousand yuan — liquidity/slippage gate)/vol (volume, lots)**/close/adjClose.
-- .where((b, code) => boolean), .minListDays(days), .dropBottom(fraction, b => value)
-- .rankBy(b => score, 'desc'|'asc') (null scores are dropped), .top(n) (n<1 takes a fraction, otherwise a count) → string[], .codes() → string[]
+bar row fields (**only these**): ${SDK_SECTIONS.barRowFields}.
+- ${SDK_SECTIONS.universeChain}
 - You can also use \`await ctx.indexMembers('000300.SH')\` to get constituents directly as string[].
 Note: an onBar that uses universe()/indexMembers() must be async.
 
