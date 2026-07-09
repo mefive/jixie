@@ -10,6 +10,7 @@
  */
 
 import type { Locale } from './i18n.js';
+import { ENGINE_FACTORS, type EngineFactorDef } from './engine-factors.js';
 
 export interface SdkEntry {
   iface: 'Universe' | 'StrategyCtx' | 'BarRow';
@@ -70,8 +71,8 @@ type Schedule = 'daily' | 'weekly' | 'monthly';`;
 
 const POSTLUDE = `interface CodeStrategy {
   name?: string;
-  /** Opt-in factor columns to preload, read via ctx.factor(). 资金流:'mf_net_main' / 'mf_net_total'. */
-  factors?: string[];
+  /** Opt-in factor columns, read via ctx.factor(): moneyflow columns + custom:<id> research factors. */
+  factors?: FactorKey[];
   /** Instruments to preload bar series for up front (per-instrument systems). */
   watch?: string[];
   onBar(ctx: StrategyCtx): void | Promise<void>;
@@ -79,6 +80,29 @@ const POSTLUDE = `interface CodeStrategy {
 
 /** Define a strategy: export default defineStrategy({ onBar(ctx) { … } }). */
 declare function defineStrategy(s: CodeStrategy): void;`;
+
+/** A factor offered in the editor's FactorKey union — research-catalog identity, referenced as
+ * custom:<key> (preset slug or the user's own factor id). */
+export interface DtsFactorOption {
+  key: string; // the full 'custom:<id>' key
+  label: string; // the factor's display name (shown as a trailing comment in the union)
+}
+
+const FACTOR_KEY_DOC: Record<Locale, string> = {
+  zh: '可通过 ctx.factor 读取的因子列 —— 需先在 factors 里声明;custom:<id> 为因子研究页的因子(预置 slug 或自定义 id)。',
+  en: "Factor columns readable via ctx.factor — declare in `factors` first; custom:<id> references a research factor (preset slug or your own factor's id).",
+};
+
+/** The FactorKey ambient type: engine column factors (registry) + the known research factors, plus a
+ * template-literal tail so a just-created factor doesn't red-squiggle before the catalog refreshes. */
+function buildFactorKeyType(locale: Locale, factorOptions: DtsFactorOption[]): string {
+  const columnMembers = ENGINE_FACTORS.map((def) => `  | '${def.key}' // ${def[locale]}`);
+  const customMembers = factorOptions.map((option) => `  | '${option.key}' // ${option.label}`);
+  return `/** ${FACTOR_KEY_DOC[locale]} */
+type FactorKey =
+${[...columnMembers, ...customMembers].join('\n')}
+  | \`custom:\${string}\`;`;
+}
 
 // Doc-section names referenced by generators below (other groups are only display labels).
 const INDICATOR_GROUP = '指标(需 K 线已加载)';
@@ -194,9 +218,9 @@ export const SDK_ENTRIES = [
     iface: 'StrategyCtx',
     name: 'factor',
     group: '数据 / 选股',
-    sig: 'factor(name: string, code: string): number | null',
-    zh: '可选因子列(需在 factors 声明)当日值。资金流(万元,+流入/−流出):mf_net_main 主力净额、mf_net_total 全单净额。',
-    en: "Opt-in factor column as-of today (declare in `factors`). 资金流: 'mf_net_main' / 'mf_net_total' (万元).",
+    sig: 'factor(name: FactorKey, code: string): number | null',
+    zh: '可选因子列(需在 factors 声明)当日值。资金流(万元,+流入/−流出,精确当天):mf_net_main / mf_net_total;custom:<id> 为因子研究页的因子,逐日现场算(带 window 的需先 ensureBars)。',
+    en: "Opt-in factor column for today (declare in `factors`). Moneyflow: 'mf_net_main' / 'mf_net_total' (万元, exact day). custom:<id> runs a research factor on the fly (windowed ones need ensureBars first).",
   },
 
   // —— ctx: per-instrument price/series ——
@@ -592,10 +616,14 @@ export function buildPromptSections(): {
   indicators: string;
   universeChain: string;
   barRowFields: string;
+  factorColumns: string;
 } {
   const fragment = (entry: SdkEntry) => entry.prompt ?? entry.name;
   const entries = SDK_ENTRIES as readonly SdkEntry[];
   return {
+    factorColumns: (ENGINE_FACTORS as readonly EngineFactorDef[])
+      .map((def) => def.prompt ?? def.key)
+      .join('; '),
     indicators: entries
       .filter((entry) => entry.iface === 'StrategyCtx' && entry.group === INDICATOR_GROUP)
       .map(fragment)
@@ -615,7 +643,11 @@ export function buildPromptSections(): {
 /** Build the Monaco ambient .d.ts from the entries in the active locale. Editor hovers carry the
  * locale-appropriate copy (`entry[locale]`); `docLink(name)` optionally appends a 📖 link line to each
  * member's/type's JSDoc (→ /docs#name). */
-export function buildSdkDts(locale: Locale, docLink?: (name: string) => string): string {
+export function buildSdkDts(
+  locale: Locale,
+  docLink?: (name: string) => string,
+  factorOptions: DtsFactorOption[] = [],
+): string {
   const member = (e: SdkEntry) => {
     const link = docLink ? `\n   * ${docLink(e.name)}` : '';
     return `  /** ${e[locale]}${link} */\n  ${e.sig};`;
@@ -627,6 +659,8 @@ export function buildSdkDts(locale: Locale, docLink?: (name: string) => string):
   const tl = (anchor: string) => (docLink ? ` ${docLink(anchor)}` : ''); // a type-level 📖 link
 
   return `${buildPrelude(locale)}
+
+${buildFactorKeyType(locale, factorOptions)}
 
 /** ${TYPE_DOCS.barRow[locale]}${tl('BarRow')} */
 interface BarRow {

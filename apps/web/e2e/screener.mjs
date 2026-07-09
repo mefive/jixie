@@ -624,6 +624,86 @@ try {
   );
   await page.screenshot({ path: `${SHOTS}7b-factors-week.png` });
 
+  // 8. Factor→strategy closed loop (3.2 acceptance): create a custom factor, reference it from a
+  //    strategy via ctx.factor('custom:<id>'), run a REAL short backtest through the walled worker,
+  //    and confirm the result lands. API-level (the UI flows above already covered both editors).
+  const loopResult = await page.evaluate(async () => {
+    const factorRes = await fetch('/api/app/factors/custom', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        name: 'e2e闭环EP',
+        code: 'export default defineFactor({ name: "e2e闭环EP", compute: (bar) => (bar.peTtm && bar.peTtm > 0 ? 1 / bar.peTtm : null) });',
+      }),
+    });
+    const factor = await factorRes.json();
+    if (!factorRes.ok) {
+      return { error: `factor create failed: ${JSON.stringify(factor)}` };
+    }
+
+    const code = [
+      "let last = '';",
+      'export default defineStrategy({',
+      "  name: 'e2e闭环策略',",
+      `  factors: ['custom:${factor.id}'],`,
+      '  async onBar(ctx) {',
+      "    if (ctx.period('monthly') === last) return;",
+      "    last = ctx.period('monthly');",
+      '    const picks = (await ctx.universe()).minListDays(365)',
+      `      .rankBy((b, code) => ctx.factor('custom:${factor.id}', code))`,
+      '      .top(10);',
+      '    if (picks.length) ctx.equalWeight(picks);',
+      '  },',
+      '});',
+    ].join('\n');
+    const strategyRes = await fetch('/api/app/strategies', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        name: 'e2e闭环策略',
+        start: '20240101',
+        end: '20240331',
+        initialCash: 1000000,
+        code,
+      }),
+    });
+    const strategy = await strategyRes.json();
+
+    const submitRes = await fetch(`/api/app/strategy/backtest?strategyId=${strategy.id}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        name: 'e2e闭环策略',
+        start: '20240101',
+        end: '20240331',
+        initialCash: 1000000,
+        code,
+      }),
+    });
+    const { jobId } = await submitRes.json();
+    if (!jobId) {
+      return { error: 'backtest submit returned no jobId' };
+    }
+
+    for (let attempt = 0; attempt < 120; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const job = await (await fetch(`/api/app/strategy/backtest/${jobId}?since=0`)).json();
+      if (job.status === 'done') {
+        const saved = await (await fetch(`/api/app/strategies/${strategy.id}`)).json();
+        await fetch(`/api/app/factors/custom/${factor.id}`, { method: 'DELETE' });
+        return { trades: saved.lastResult?.trades ?? 0 };
+      }
+      if (job.status === 'error' || job.status === 'stale') {
+        return { error: `backtest ${job.status}: ${job.error ?? ''}` };
+      }
+    }
+    return { error: 'backtest timed out' };
+  });
+  if (loopResult.error || !(loopResult.trades > 0)) {
+    throw new Error(`因子→策略闭环失败: ${loopResult.error ?? 'no trades'}`);
+  }
+  log('factor→strategy closed loop: custom factor backtest done,', loopResult.trades, 'trades');
+
   // cleanup seeded + auto-saved strategies for this user
   await page.evaluate(async () => {
     const list = await (await fetch('/api/app/strategies')).json();
