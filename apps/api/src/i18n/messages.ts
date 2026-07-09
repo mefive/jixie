@@ -103,6 +103,10 @@ const MESSAGES = {
     zh: '指数 {indexCode} 未收录成分数据(无法限定到该指数)',
     en: 'Index {indexCode} has no constituent data on record (cannot restrict to this index)',
   },
+  unknownEngineFactor: {
+    zh: '未知因子 {key}(可用:{available},或 custom:<因子id>)',
+    en: 'Unknown factor {key} (available: {available}, or custom:<factor id>)',
+  },
   indexCoverageGap: {
     zh: '⚠️ 指数 {indexCode} 成分数据从 {date} 起,此前的交易日按空池处理(选不出标的)',
     en: '⚠️ Index {indexCode} constituent data starts from {date}; earlier trading days are treated as an empty universe (no selections)',
