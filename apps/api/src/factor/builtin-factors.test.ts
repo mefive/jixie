@@ -215,4 +215,72 @@ describe('cross-sectional presets match the legacy hardcoded formulas', () => {
     expect(await computeOne('mf_net_main', bar)).toBe(666);
     expect(await computeOne('mf_net_total', bar)).toBe(-42);
   });
+
+  it('roe / gross_margin read the as-of fundamentals directly (null when unpublished)', async () => {
+    const bar = make({ roe: 13.6, grossprofitMargin: 45.2 });
+    expect(await computeOne('roe', bar)).toBe(13.6);
+    expect(await computeOne('gross_margin', bar)).toBe(45.2);
+    expect(await computeOne('roe', NULL_BAR)).toBeNull();
+    expect(await computeOne('gross_margin', NULL_BAR)).toBeNull();
+  });
+});
+
+describe('3.5 preset-menu additions (mom_12_1 / vol120)', () => {
+  // A clean 260-bar series: positive random walk, consecutive-ish dates, NO suspension gaps —
+  // long enough for the 245-day window.
+  function cleanLongSeries(): { px: number[]; dates: string[] } {
+    const px: number[] = [];
+    const dates: string[] = [];
+    let price = 20;
+    let day = Date.UTC(2022, 0, 4);
+    let seed = 7;
+    const random = () => {
+      seed = (seed * 1103515245 + 12345) % 2 ** 31;
+      return seed / 2 ** 31;
+    };
+    for (let i = 0; i < 260; i++) {
+      price = price * (1 + (random() - 0.5) * 0.04);
+      day += (1 + Math.floor(random() * 3)) * 86400000;
+      const d = new Date(day);
+      const pad = (x: number) => String(x).padStart(2, '0');
+      px.push(price);
+      dates.push(`${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}`);
+    }
+    return { px, dates };
+  }
+
+  it('declares the right windows; quality presets are cross-sectional', async () => {
+    expect((await compiled('mom_12_1')).window).toBe(245);
+    expect((await compiled('vol120')).window).toBe(121);
+    expect((await compiled('roe')).window).toBeUndefined();
+    expect((await compiled('gross_margin')).window).toBeUndefined();
+  });
+
+  it('mom_12_1 = close[end-21] / close[end-244] − 1, null on short history', async () => {
+    const { px, dates } = cleanLongSeries();
+    const factor = await compiled('mom_12_1');
+    const items = [
+      windowItem(245, px, dates, 259), // full window
+      windowItem(245, px, dates, 100), // insufficient history
+    ];
+    const [full, short] = await factor.computeBatch(items);
+    factor.dispose();
+    // Window [15..259]: index 0 = bar 15 (12 months back), index 223 = bar 238 (~1 month back).
+    expect(full).toBeCloseTo(px[238] / px[15] - 1, 12);
+    expect(short).toBeNull();
+  });
+
+  it('vol120 = population std of the last 120 daily returns', async () => {
+    const { px, dates } = cleanLongSeries();
+    const factor = await compiled('vol120');
+    const [actual] = await factor.computeBatch([windowItem(121, px, dates, 259)]);
+    factor.dispose();
+    const returns: number[] = [];
+    for (let i = 139; i < 259; i++) {
+      returns.push(px[i + 1] / px[i] - 1);
+    }
+    const mean = returns.reduce((sum, r) => sum + r, 0) / returns.length;
+    const variance = returns.reduce((sum, r) => sum + (r - mean) ** 2, 0) / returns.length;
+    expect(actual).toBeCloseTo(Math.sqrt(variance), 12);
+  });
 });

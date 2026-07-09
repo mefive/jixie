@@ -132,12 +132,16 @@ export const zhFactor = {
   // Built-in preset factor display names, keyed by catalog slug (apps/api/src/factor/builtin-factors.ts).
   builtin: {
     mom: '动量(60日,跳5)',
+    mom_12_1: '动量(12-1月)',
     rev: '反转(5日)',
     vol: '波动率(20日)',
+    vol120: '波动率(120日)',
     ep: '盈利收益率(1/PE_TTM)',
     bp: '账面市值比(1/PB)',
     dv: '股息率(%)',
     size: '规模(ln总市值)',
+    roe: 'ROE质量(%)',
+    gross_margin: '毛利率(%)',
     mf_net_main: '主力净额(万元)',
     mf_net_total: '总净额(万元)',
   },

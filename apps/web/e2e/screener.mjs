@@ -473,7 +473,8 @@ try {
   await page.locator('.jx-factor-libItem').first().waitFor({ timeout: 15000 });
   const factorCount = await page.locator('.jx-factor-libItem').count();
   log('factor catalog items:', factorCount);
-  if (factorCount < 9) {
+  if (factorCount < 13) {
+    // 9 original presets + the 3.5 menu additions (mom_12_1 / vol120 / roe / gross_margin)
     throw new Error(`因子目录数不足: ${factorCount}`);
   }
 
@@ -594,8 +595,9 @@ try {
       .locator('.ant-select-dropdown:visible .ant-select-item-option', { hasText: name })
       .click();
   }
-  // Close the option dropdown by clicking the modal's hint text — NOT Escape (antd Modal closes on Escape).
-  await page.locator('.jx-factor-corrHint').click();
+  // Close the option dropdown by clicking the modal's TITLE (above the select — the 13-item dropdown
+  // extends downward and covers the hint text below). NOT Escape: antd Modal closes on Escape.
+  await page.locator('.ant-modal-title', { hasText: '因子相关性矩阵' }).click();
   // The 计算 button by class, not name: antd inserts a space between the two CJK chars ("计 算").
   await page.locator('.jx-factor-corrControls .ant-btn-primary').click();
   await page.locator('.jx-factor-corrChart canvas').first().waitFor({ timeout: 60000 });
