@@ -363,20 +363,24 @@ function ScreenChatLog({
   }, [messages.length, sending]);
   return (
     <div ref={ref} className="jx-screen-chatLog">
-      {messages.map((message, index) => (
-        <div
-          key={index}
-          className={classNames('jx-screen-bubble', `jx-screen-bubble--${message.role}`)}
-        >
-          <MessageParts message={message} cards={cards} />
-          {traceOf(message) && <ToolTrace trace={traceOf(message)!} />}
-        </div>
-      ))}
-      {sending && (
-        <div className="jx-screen-bubble jx-screen-bubble--assistant jx-screen-bubble--thinking">
-          <AgentPending stream={stream} />
-        </div>
-      )}
+      {/* Centered, responsive column (ChatGPT-style): user turns as right bubbles, assistant turns as
+          full-width markdown. The scroll area is full-bleed; only this thread is width-capped. */}
+      <div className="jx-screen-chatThread">
+        {messages.map((message, index) => (
+          <div
+            key={index}
+            className={classNames('jx-screen-bubble', `jx-screen-bubble--${message.role}`)}
+          >
+            <MessageParts message={message} cards={cards} />
+            {traceOf(message) && <ToolTrace trace={traceOf(message)!} />}
+          </div>
+        ))}
+        {sending && (
+          <div className="jx-screen-bubble jx-screen-bubble--assistant jx-screen-bubble--thinking">
+            <AgentPending stream={stream} />
+          </div>
+        )}
+      </div>
     </div>
   );
 }

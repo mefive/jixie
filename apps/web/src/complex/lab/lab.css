@@ -181,7 +181,8 @@
 }
 
 .jx-lab-chatLog {
-  @apply flex flex-1 flex-col gap-2 overflow-auto;
+  @apply flex flex-1 flex-col overflow-auto;
+  gap: 16px;
   padding: 4px 2px;
 }
 
@@ -192,22 +193,22 @@
 }
 
 .jx-lab-bubble {
-  @apply rounded-lg;
-  max-width: 92%;
-  padding: 8px 11px;
   font-size: 13px;
   line-height: 1.6;
-  white-space: pre-wrap;
   word-break: break-word;
 }
 
+/* User turn: right-aligned rounded bubble. */
 .jx-lab-bubble--user {
-  @apply self-end bg-ink text-white;
+  @apply self-end rounded-2xl bg-ink text-white;
+  max-width: 88%;
+  padding: 7px 12px;
+  white-space: pre-wrap;
 }
 
+/* Assistant turn: no bubble — full-width markdown, ChatGPT-style (fills the dragged panel). */
 .jx-lab-bubble--assistant {
-  @apply self-start text-ink;
-  background: rgb(17 24 39 / 0.05);
+  @apply w-full text-ink;
 }
 
 .jx-lab-bubble--thinking {
