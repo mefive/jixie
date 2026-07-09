@@ -1,6 +1,7 @@
 import { parentPort, workerData } from 'node:worker_threads';
 import type { BacktestConfig, Locale, LogLine, LogLevel } from '@jixie/shared';
 import { runWalledBacktest } from './walled-run.js';
+import { prepareCustomFactors } from './prepare-custom-factors.js';
 import { prismaDataPort } from './prisma-port.js';
 import { prisma } from '../lib/prisma.js';
 
@@ -32,10 +33,14 @@ const onSystemLog = (text: string) => emit({ source: 'system', level: 'info', te
 const onUserLog = (level: LogLevel, text: string) => emit({ source: 'user', level, text });
 
 try {
+  // Custom factors the strategy references — loaded here (this boundary knows userId), evaluated
+  // in-wall by the engine. A deleted/foreign factor fails the run now with a clear message.
+  const customFactors = await prepareCustomFactors(config.code, userId, locale);
+
   // WALLED lane (lane rule: this code came from the DB — user/AI authored): the engine runs inside
   // an isolated-vm isolate; this worker only serves DataPort crossings with its own Prisma client.
   const result = await runWalledBacktest(
-    { ...config, locale },
+    { ...config, locale, customFactors },
     prismaDataPort,
     onSystemLog,
     onUserLog,

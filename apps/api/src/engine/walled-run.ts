@@ -3,6 +3,7 @@ import ivm from 'isolated-vm';
 import { build, transform } from 'esbuild';
 import type { Locale } from '@jixie/shared';
 import type { EngineDataPort } from './data-port.js';
+import type { CustomFactorModule } from './custom-factor.js';
 import type { BacktestResult, CostModel } from './types.js';
 import type { UserLogSink } from '../lib/sandbox-console.js';
 
@@ -65,6 +66,8 @@ export interface WalledBacktestConfig {
   initialCash: number;
   cost?: Partial<CostModel>;
   locale?: Locale;
+  /** Referenced custom factors, host-prepared (ownership-checked + TS→CJS) — evaluated in-wall. */
+  customFactors?: CustomFactorModule[];
 }
 
 /**
@@ -130,6 +133,7 @@ export async function runWalledBacktest(
         initialCash: cfg.initialCash,
         cost: cfg.cost,
         locale: cfg.locale,
+        customFactors: cfg.customFactors,
         captureUserLogs: onUserLog != null,
       }),
     );

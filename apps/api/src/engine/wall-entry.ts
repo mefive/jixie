@@ -2,6 +2,7 @@ import { runStrategy } from './run.js';
 import { defineStrategy } from '../strategy/code/sdk.js';
 import { makeSandboxConsole, noopSandboxConsole } from '../lib/sandbox-console.js';
 import type { EngineDataPort } from './data-port.js';
+import type { CustomFactorModule } from './custom-factor.js';
 import type { Strategy } from './types.js';
 import type { Locale } from '@jixie/shared';
 
@@ -46,6 +47,7 @@ interface WalledConfig {
   initialCash: number;
   cost?: Record<string, number>;
   locale?: Locale;
+  customFactors?: CustomFactorModule[]; // host-prepared factor modules, evaluated in-wall by run.ts
   captureUserLogs: boolean;
 }
 
@@ -95,6 +97,7 @@ interface WalledConfig {
     locale: cfg.locale,
     strategy: strategy as Strategy,
     dataPort: bridgePort,
+    customFactors: cfg.customFactors,
     onLog: (line) => __hostLog.applyIgnored(undefined, ['system', 'info', line]),
   });
   return JSON.stringify(result);

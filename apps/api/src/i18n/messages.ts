@@ -107,6 +107,10 @@ const MESSAGES = {
     zh: '未知因子 {key}(可用:{available},或 custom:<因子id>)',
     en: 'Unknown factor {key} (available: {available}, or custom:<factor id>)',
   },
+  customFactorMissing: {
+    zh: '自定义因子不存在或已删除:{keys}(只能引用自己的因子)',
+    en: 'Custom factor missing or deleted: {keys} (only your own factors can be referenced)',
+  },
   indexCoverageGap: {
     zh: '⚠️ 指数 {indexCode} 成分数据从 {date} 起,此前的交易日按空池处理(选不出标的)',
     en: '⚠️ Index {indexCode} constituent data starts from {date}; earlier trading days are treated as an empty universe (no selections)',
