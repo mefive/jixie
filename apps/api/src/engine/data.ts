@@ -1,4 +1,10 @@
-import { DEFAULT_LOCALE, type Locale } from '@jixie/shared';
+import {
+  DEFAULT_LOCALE,
+  ENGINE_FACTORS,
+  isCustomFactorKey,
+  type EngineFactorDef,
+  type Locale,
+} from '@jixie/shared';
 import { daysBetween } from '../lib/date.js';
 import { t } from '../i18n/messages.js'; // direct import — keeps hono/locale out of the wall bundle
 import type { EngineDataPort } from './data-port.js';
@@ -23,6 +29,16 @@ interface StockBars {
   amount: (number | null)[];
   idx: Map<string, number>; // date -> index (exact)
 }
+
+// Stored ("column") factors the engine can preload, keyed for the semantics lookup in factor().
+const COLUMN_FACTOR_DEFS = new Map<string, EngineFactorDef>(
+  ENGINE_FACTORS.filter((def) => def.source === 'column').map((def) => [def.key, def]),
+);
+
+// How stale a `level` as-of read may be, per data frequency: long enough to bridge holidays and
+// report gaps, short enough that a dead series stops answering. (Calendar days.)
+const DAILY_ASOF_CAP_DAYS = 14;
+const MONTHLY_ASOF_CAP_DAYS = 35;
 
 /**
  * Data access for the engine. Three layers, each loaded the cheapest way for how it's read:
@@ -148,10 +164,23 @@ export class EngineData {
       s.closes.push(r.close);
     }
 
+    // Declared factor keys must be real: a registry column factor or a custom:<id> reference —
+    // a typo'd key used to be a silent all-null column, which reads as "strategy places no trades".
+    for (const key of this.factorKeys) {
+      if (!COLUMN_FACTOR_DEFS.has(key) && !isCustomFactorKey(key)) {
+        throw new Error(
+          t(this.locale, 'unknownEngineFactor', {
+            key,
+            available: [...COLUMN_FACTOR_DEFS.keys()].join(' / '),
+          }),
+        );
+      }
+    }
+
     // Optional moneyflow columns (opt-in via the strategy's `factors:[...]`). This is the only stored
     // "factor" the engine reads: price-window factors are computed on the fly from the bar series
     // (see strategies.ts), fundamentals come straight from bar() (daily_basic). No FactorValue.
-    const mfKeys = this.factorKeys.filter((k) => k === 'mf_net_main' || k === 'mf_net_total');
+    const mfKeys = this.factorKeys.filter((k) => COLUMN_FACTOR_DEFS.has(k));
     if (mfKeys.length) {
       const dates = new Map<string, Set<string>>();
       const put = (factor: string, tradeDate: string, code: string, value: number) => {
@@ -281,14 +310,25 @@ export class EngineData {
     return cs;
   }
 
-  /** Precomputed factor value as-of `date` (latest factor date ≤ date), or null. */
+  /** Stored factor value for `date`, honoring the factor's DECLARED time semantics (engine-factors.ts):
+   * flow = exact day only (yesterday's inflow is not today's — same rule as lhbNet); level = as-of
+   * (latest value ≤ date) capped by the data's frequency, so a stale value can't ride forever. */
   factor(name: string, date: string, code: string): number | null {
+    const def = COLUMN_FACTOR_DEFS.get(name);
+    if (def?.kind === 'flow') {
+      return this.factorByKey.get(`${name}|${date}`)?.get(code) ?? null;
+    }
+
     const dates = this.factorDates.get(name);
     if (!dates) {
       return null;
     }
     const j = lastIndexAtOrBefore(dates, date);
     if (j < 0) {
+      return null;
+    }
+    const lookbackCap = def?.dataFreq === 'monthly' ? MONTHLY_ASOF_CAP_DAYS : DAILY_ASOF_CAP_DAYS;
+    if (daysBetween(dates[j], date) > lookbackCap) {
       return null;
     }
     return this.factorByKey.get(`${name}|${dates[j]}`)?.get(code) ?? null;
