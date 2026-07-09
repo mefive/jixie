@@ -1,7 +1,8 @@
-import { DEFAULT_LOCALE } from '@jixie/shared';
+import { DEFAULT_LOCALE, isCustomFactorKey, type Locale } from '@jixie/shared';
 import * as st from '../lib/stats.js';
 import { t } from '../i18n/messages.js'; // direct import — keeps hono/locale out of the wall bundle
 import { EngineData, type CrossSection } from './data.js';
+import { CustomFactorRuntime, evaluateCustomFactorModule } from './custom-factor.js';
 import { prismaDataPort } from './prisma-port.js';
 import { Portfolio } from './portfolio.js';
 import {
@@ -49,6 +50,7 @@ export async function runStrategy(cfg: EngineConfig): Promise<BacktestResult> {
   if (cfg.strategy.watch?.length) {
     await engineData.loadBars(cfg.strategy.watch);
   } // per-instrument preload
+  const customFactors = buildCustomFactorRuntime(cfg, engineData, locale, log);
   const portfolio = new Portfolio(cfg.initialCash, cost);
 
   const yuan = (v: number) => `¥${Math.round(v).toLocaleString()}`;
@@ -104,7 +106,7 @@ export async function runStrategy(cfg: EngineConfig): Promise<BacktestResult> {
       targets: Map<string, number> | null;
       orders: Map<string, number> | null;
     } = { targets: null, orders: null };
-    await cfg.strategy.onBar(buildContext(date, engineData, portfolio, collected));
+    await cfg.strategy.onBar(buildContext(date, engineData, portfolio, collected, customFactors));
     if (collected.targets) {
       pendingTargets = collected.targets;
     }
@@ -133,11 +135,45 @@ function fmtDate(d: string): string {
   return `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`;
 }
 
+/** Evaluate the host-prepared custom factor modules and bind them into a per-run runtime. Every
+ * custom key the strategy DECLARES must have a module (the host couldn't find a deleted/foreign
+ * factor row — fail loudly, not silent nulls). Inline ctx.factor('custom:…') reads of undeclared
+ * keys simply see null, consistent with undeclared moneyflow columns. */
+function buildCustomFactorRuntime(
+  cfg: EngineConfig,
+  engineData: EngineData,
+  locale: Locale,
+  log: (line: string) => void,
+): CustomFactorRuntime | null {
+  const declaredCustomKeys = (cfg.strategy.factors ?? []).filter(isCustomFactorKey);
+  const modules = cfg.customFactors ?? [];
+  if (declaredCustomKeys.length === 0 && modules.length === 0) {
+    return null;
+  }
+
+  const providedKeys = new Set(modules.map((mod) => mod.key));
+  const missing = declaredCustomKeys.filter((key) => !providedKeys.has(key));
+  if (missing.length > 0) {
+    throw new Error(t(locale, 'customFactorMissing', { keys: missing.join(', ') }));
+  }
+
+  const factors = new Map(modules.map((mod) => [mod.key, evaluateCustomFactorModule(mod)]));
+  const warnedKeys = new Set<string>();
+  return new CustomFactorRuntime(factors, engineData, (key, message) => {
+    // First compute error per factor reaches the run log; later ones are dropped (same failure repeats per stock×day).
+    if (!warnedKeys.has(key)) {
+      warnedKeys.add(key);
+      log(`[factor-error] ${key}: ${message}`);
+    }
+  });
+}
+
 function buildContext(
   date: string,
   engineData: EngineData,
   portfolio: Portfolio,
   collected: { targets: Map<string, number> | null; orders: Map<string, number> | null },
+  customFactors: CustomFactorRuntime | null,
 ): BarContext {
   let cross: CrossSection | null = null; // today's cross-section, loaded on first loadCrossSection() call
   return {
@@ -185,6 +221,9 @@ function buildContext(
       return engineData.history(code, date, field, n);
     },
     factor(name, code) {
+      if (customFactors?.has(name)) {
+        return customFactors.value(name, date, code, cross?.byCode.get(code) ?? null);
+      }
       return engineData.factor(name, date, code);
     },
     indexMembers(indexCode) {
