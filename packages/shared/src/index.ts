@@ -9,3 +9,4 @@ export * from './saved.js';
 export * from './factor.js';
 export * from './agent.js';
 export * from './sdk-reference.js';
+export * from './engine-factors.js';

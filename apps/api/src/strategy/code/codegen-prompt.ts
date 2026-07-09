@@ -34,6 +34,7 @@ export function buildCodegenPrompt(availableIndices: string = DEFAULT_INDICES): 
 - Output **only the code itself** — no explanation, no markdown fences.
 - Shaped like \`export default defineStrategy({ name, onBar(ctx) { … } })\`. **Do not write any import** (defineStrategy and the ctx type are both injected globally).
 - Keep cross-bar state in module-level variables (e.g. \`let last = ''\`); they persist across the entire backtest.
+- When the user names a specific stock, **resolve it with the searchInstruments tool first** and use the returned ts_code — never write a ts_code from memory (a wrong code fails silently: no data loads and the backtest places zero trades).
 
 # SDK (capabilities on ctx)
 The backtest engine calls onBar(ctx) once per trading day; you read data and place orders through ctx. T+1, limit up/down, suspension, price adjustment, and costs are enforced by the engine behind your orders — you only express intent.
