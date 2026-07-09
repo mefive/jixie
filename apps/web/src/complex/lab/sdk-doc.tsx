@@ -3,7 +3,7 @@ import { observer } from 'mobx-react';
 import classNames from 'classnames';
 import banner from '@src/assets/banner.png';
 import { localeStore } from '@src/i18n/locale-store';
-import { SDK_ENTRIES, OHLC_FIELDS, LINKABLE_TYPES, type SdkEntry } from './sdk-reference';
+import { SDK_ENTRIES, OHLC_FIELDS, LINKABLE_TYPES, type SdkEntry } from '@jixie/shared';
 import './sdk-doc.css';
 
 /**
@@ -255,7 +255,7 @@ function useScrollSpy(ids: string[]): string {
 }
 
 // Stable group order (first appearance in SDK_ENTRIES), each with its members.
-function groupEntries(entries: SdkEntry[]): [string, SdkEntry[]][] {
+function groupEntries(entries: readonly SdkEntry[]): [string, SdkEntry[]][] {
   const order: string[] = [];
   const by = new Map<string, SdkEntry[]>();
   for (const e of entries) {
