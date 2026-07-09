@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { runStrategy } from './run.js';
+import { runWalledBacktest } from './walled-run.js';
 import { fixturePort, type FixtureSpec } from './fixture-port.js';
+import { toCommonJs } from '../lib/isolate-run.js';
 import type { Strategy } from './types.js';
 
 /**
@@ -66,7 +68,7 @@ describe('flow factor semantics (mf_net_*)', () => {
     ).rejects.toThrow(/mf_net_mian/);
   });
 
-  it('accepts a custom:<id> key at load (compute wiring lands in 3.2 step 2)', async () => {
+  it('a declared custom key without a prepared module fails loudly (deleted/foreign factor)', async () => {
     const custom: Strategy = { name: 'custom ref', factors: ['custom:01ARZ3NDEKTSV'], onBar() {} };
     await expect(
       runStrategy({
@@ -76,6 +78,125 @@ describe('flow factor semantics (mf_net_*)', () => {
         strategy: custom,
         dataPort: fixturePort(spec()),
       }),
-    ).resolves.toBeDefined();
+    ).rejects.toThrow(/custom:01ARZ3NDEKTSV/);
+  });
+});
+
+describe('custom (defineFactor) factors inside the engine', () => {
+  function specWithValuation(): FixtureSpec {
+    const base = spec();
+    base.stocks[0].basic = Object.fromEntries(D.map((date) => [date, { peTtm: 10 }]));
+    return base;
+  }
+
+  it('cross-sectional factor computes from the day bar (peTtm doubled)', async () => {
+    const js = await toCommonJs(
+      `export default defineFactor({ name: 'double pe', compute: (bar) => (bar.peTtm == null ? null : bar.peTtm * 2) });`,
+      'factor code',
+    );
+    const seen: Record<string, number | null> = {};
+    const strategy: Strategy = {
+      name: 'read custom',
+      factors: ['custom:f1'],
+      async onBar(ctx) {
+        await ctx.loadCrossSection();
+        seen[ctx.date] = ctx.factor('custom:f1', 'A');
+      },
+    };
+    await runStrategy({
+      start: D[0],
+      end: D[4],
+      initialCash: 100_000,
+      strategy,
+      dataPort: fixturePort(specWithValuation()),
+      customFactors: [{ key: 'custom:f1', js }],
+    });
+    expect(seen[D[0]]).toBe(20);
+    expect(seen[D[4]]).toBe(20);
+  });
+
+  it('windowed factor reads ctx.history from the engine bars cache (after ensureBars)', async () => {
+    const js = await toCommonJs(
+      `export default defineFactor({
+        name: 'sum3',
+        window: 3,
+        compute(bar, ctx) {
+          const closes = ctx.history(3);
+          if (closes.length < 3) { return null; }
+          return closes[0] + closes[1] + closes[2];
+        },
+      });`,
+      'factor code',
+    );
+    const seen: Record<string, number | null> = {};
+    const strategy: Strategy = {
+      name: 'read windowed',
+      factors: ['custom:w1'],
+      async onBar(ctx) {
+        await ctx.ensureBars(['A']);
+        seen[ctx.date] = ctx.factor('custom:w1', 'A');
+      },
+    };
+    await runStrategy({
+      start: D[0],
+      end: D[4],
+      initialCash: 100_000,
+      strategy,
+      dataPort: fixturePort(spec()),
+      customFactors: [{ key: 'custom:w1', js }],
+    });
+    expect(seen[D[0]]).toBeNull(); // only 1 bar of history — window unfilled
+    expect(seen[D[1]]).toBeNull();
+    expect(seen[D[2]]).toBe(30); // three 10-yuan closes
+    expect(seen[D[4]]).toBe(30);
+  });
+
+  it('walled lane: the same custom factor computes in-wall (values logged through the wall match)', async () => {
+    const js = await toCommonJs(
+      `export default defineFactor({ name: 'double pe', compute: (bar) => (bar.peTtm == null ? null : bar.peTtm * 2) });`,
+      'factor code',
+    );
+    const strategyCode = `
+      export default defineStrategy({
+        name: 'walled custom read',
+        factors: ['custom:f1'],
+        async onBar(ctx) {
+          await ctx.universe();
+          console.log(ctx.date + '=' + String(ctx.factor('custom:f1', 'A')));
+        },
+      });`;
+    const logged: string[] = [];
+    await runWalledBacktest(
+      {
+        code: strategyCode,
+        start: D[0],
+        end: D[4],
+        initialCash: 100_000,
+        customFactors: [{ key: 'custom:f1', js }],
+      },
+      fixturePort(specWithValuation()),
+      undefined,
+      (_level, text) => logged.push(text),
+    );
+    expect(logged).toContain(`${D[0]}=20`);
+    expect(logged).toContain(`${D[4]}=20`);
+  });
+});
+
+describe('extractCustomFactorKeys (host-side source scan)', () => {
+  it('finds custom: references in factors arrays and inline reads, deduped', async () => {
+    const { extractCustomFactorKeys } = await import('./prepare-custom-factors.js');
+    const source = `
+      export default defineStrategy({
+        factors: ['custom:01ARZ3NDEKTSV4RRFFQ69G5FAV', 'mf_net_main'],
+        onBar(ctx) {
+          ctx.factor('custom:01ARZ3NDEKTSV4RRFFQ69G5FAV', 'A');
+          ctx.factor('custom:mom_12_1', 'A'); // a builtin preset referenced by slug
+        },
+      });`;
+    expect(extractCustomFactorKeys(source)).toEqual([
+      'custom:01ARZ3NDEKTSV4RRFFQ69G5FAV',
+      'custom:mom_12_1',
+    ]);
   });
 });

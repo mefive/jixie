@@ -10,6 +10,7 @@
 
 import type { Locale } from '@jixie/shared';
 import type { EngineDataPort } from './data-port.js';
+import type { CustomFactorModule } from './custom-factor.js';
 
 /** A held position. frozenUntil = first date the shares may be sold (T+1). */
 export interface Position {
@@ -180,6 +181,10 @@ export interface EngineConfig {
   /** Storage doorway (Phase B1). Defaults to prismaDataPort (the direct lane); tests inject fixture
    * ports; the Phase B2 walled lane injects the isolate bridge. */
   dataPort?: EngineDataPort;
+  /** Custom (defineFactor) factors the strategy references via `factors: ['custom:<id>']` —
+   * host-prepared (ownership-checked, TS→CJS); evaluated in the engine's own world (see
+   * custom-factor.ts). A declared custom key with no module here fails the run explicitly. */
+  customFactors?: CustomFactorModule[];
 }
 
 export interface BacktestResult {
