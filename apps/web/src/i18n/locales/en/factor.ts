@@ -138,12 +138,16 @@ export const enFactor: typeof zhFactor = {
   // Built-in preset factor display names, keyed by catalog slug (apps/api/src/factor/builtin-factors.ts).
   builtin: {
     mom: 'Momentum (60d, skip 5)',
+    mom_12_1: 'Momentum (12-1 month)',
     rev: 'Reversal (5d)',
     vol: 'Volatility (20d)',
+    vol120: 'Volatility (120d)',
     ep: 'Earnings yield (1/PE_TTM)',
     bp: 'Book-to-market (1/PB)',
     dv: 'Dividend yield (%)',
     size: 'Size (ln total market cap)',
+    roe: 'ROE quality (%)',
+    gross_margin: 'Gross margin (%)',
     mf_net_main: 'Main-force net inflow (10k CNY)',
     mf_net_total: 'Total net inflow (10k CNY)',
   },
