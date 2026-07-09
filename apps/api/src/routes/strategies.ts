@@ -18,11 +18,11 @@ import { m } from '../i18n/index.js';
  * config's own name, upserted by (userId, name) so re-running under the same name updates in place
  * instead of spawning duplicates. Every query is scoped by userId, so another user's id 404s.
  */
-export const savedStrategyRoute = new Hono();
+export const strategiesRoute = new Hono();
 
 // GET /api/app/strategies — list the user's saved strategies + a compact last-run snapshot (sparkline +
 // metrics) per card, newest first.
-savedStrategyRoute.get('/', async (c) => {
+strategiesRoute.get('/', async (c) => {
   const rows = await prisma.strategy.findMany({
     where: { userId: c.var.userId },
     select: { id: true, name: true, createdAt: true, updatedAt: true, lastResult: true },
@@ -52,7 +52,7 @@ function snapshotOf(lastResult: unknown): StrategyCard['snapshot'] {
 }
 
 // GET /api/app/strategies/:id — full payload (to reopen in the workbench).
-savedStrategyRoute.get('/:id', async (c) => {
+strategiesRoute.get('/:id', async (c) => {
   const row = await prisma.strategy.findFirst({
     where: { id: c.req.param('id'), userId: c.var.userId },
   });
@@ -103,7 +103,7 @@ async function uniqueName(userId: string, base: string): Promise<string> {
 // on a run (POST /:id), while messages save in real time.
 const createBody = codeConfigSchema.extend({ messages: chatMessagesSchema.optional() });
 
-savedStrategyRoute.post('/', validateJson(createBody), async (c) => {
+strategiesRoute.post('/', validateJson(createBody), async (c) => {
   const { messages, ...cfg } = c.req.valid('json') as BacktestConfig & { messages?: unknown[] };
   const userId = c.var.userId;
   const name = await uniqueName(userId, cfg.name);
@@ -130,7 +130,7 @@ const updateBody = z.object({
   messages: chatMessagesSchema.optional(),
 });
 
-savedStrategyRoute.post('/:id', validateJson(updateBody), async (c) => {
+strategiesRoute.post('/:id', validateJson(updateBody), async (c) => {
   const id = c.req.param('id');
   const userId = c.var.userId;
   const { config, messages } = c.req.valid('json');
@@ -176,7 +176,7 @@ savedStrategyRoute.post('/:id', validateJson(updateBody), async (c) => {
 });
 
 // DELETE /api/app/strategies/:id — owner-scoped (deleteMany so a foreign id is a no-op → 404).
-savedStrategyRoute.delete('/:id', async (c) => {
+strategiesRoute.delete('/:id', async (c) => {
   const r = await prisma.strategy.deleteMany({
     where: { id: c.req.param('id'), userId: c.var.userId },
   });

@@ -13,7 +13,7 @@ import { m } from '../i18n/index.js';
  * (auto-saved on run), a screen query is saved on demand — the user names a keeper and POSTs it here.
  * Upsert by (userId, name); every query is scoped by userId so a foreign id 404s.
  */
-export const savedScreenRoute = new Hono();
+export const screensRoute = new Hono();
 
 const saveBody = z.object({
   name: z.string().trim().min(1).max(100),
@@ -21,7 +21,7 @@ const saveBody = z.object({
 });
 
 // GET /api/app/screens — list the current user's saved screens (metadata only), newest first.
-savedScreenRoute.get('/', async (c) => {
+screensRoute.get('/', async (c) => {
   const rows = await prisma.savedScreen.findMany({
     where: { userId: c.var.userId },
     select: { id: true, name: true, createdAt: true, updatedAt: true },
@@ -31,7 +31,7 @@ savedScreenRoute.get('/', async (c) => {
 });
 
 // GET /api/app/screens/:id — full payload (to reopen in the screener).
-savedScreenRoute.get('/:id', async (c) => {
+screensRoute.get('/:id', async (c) => {
   const row = await prisma.savedScreen.findFirst({
     where: { id: c.req.param('id'), userId: c.var.userId },
   });
@@ -48,7 +48,7 @@ savedScreenRoute.get('/:id', async (c) => {
 });
 
 // POST /api/app/screens — manual save: upsert by (userId, name).
-savedScreenRoute.post('/', validateJson(saveBody), async (c) => {
+screensRoute.post('/', validateJson(saveBody), async (c) => {
   const { name, spec } = c.req.valid('json') as { name: string; spec: ScreenSpec };
   const userId = c.var.userId;
   const row = await prisma.savedScreen.upsert({
@@ -61,7 +61,7 @@ savedScreenRoute.post('/', validateJson(saveBody), async (c) => {
 });
 
 // DELETE /api/app/screens/:id — owner-scoped (deleteMany so a foreign id is a no-op → 404).
-savedScreenRoute.delete('/:id', async (c) => {
+screensRoute.delete('/:id', async (c) => {
   const r = await prisma.savedScreen.deleteMany({
     where: { id: c.req.param('id'), userId: c.var.userId },
   });

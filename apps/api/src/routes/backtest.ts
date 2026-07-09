@@ -8,8 +8,9 @@ import { createJob, appendLog, finishJob, getJob, findRunningJob } from '../lib/
 import { localeFromRequest, m } from '../i18n/index.js';
 
 /**
- * Backtest API. A backtest is CPU-heavy and would block the HTTP event loop, so it runs in a worker
- * (engine/backtest-worker.ts) as a Job (shared lib/jobs.ts):
+ * Backtest API (mounted under /api/app/strategy/backtest via strategy.ts — symmetric with
+ * /factor/analysis). A backtest is CPU-heavy and would block the HTTP event loop, so it runs in a
+ * worker (engine/backtest-worker.ts) as a Job (shared lib/jobs.ts):
  *   POST /?strategyId=X { config }     start a Job + spawn the worker → { jobId }; the worker streams
  *                                      progress logs and, on done, writes the result to Strategy.lastResult
  *   GET  /running?strategyId=X         a still-running Job's id (re-attach after a refresh — DB-backed)

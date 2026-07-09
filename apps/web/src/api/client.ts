@@ -186,7 +186,7 @@ export function submitBacktest(
   config: BacktestConfig,
   strategyId: string,
 ): Promise<{ jobId: string }> {
-  return request(`/api/app/backtest?strategyId=${encodeURIComponent(strategyId)}`, {
+  return request(`/api/app/strategy/backtest?strategyId=${encodeURIComponent(strategyId)}`, {
     method: 'POST',
     body: JSON.stringify(config),
   });
@@ -194,12 +194,12 @@ export function submitBacktest(
 
 // Poll a backtest job — `since` = how many log lines the client already has (incremental tail).
 export function pollBacktest(jobId: string, since = 0): Promise<BacktestJob> {
-  return request(`/api/app/backtest/${jobId}?since=${since}`);
+  return request(`/api/app/strategy/backtest/${jobId}?since=${since}`);
 }
 
 // A still-running backtest job for a strategy — to re-attach after a refresh (DB-backed, no localStorage).
 export function findBacktestRunningJob(strategyId: string): Promise<{ jobId: string | null }> {
-  return request(`/api/app/backtest/running?strategyId=${encodeURIComponent(strategyId)}`);
+  return request(`/api/app/strategy/backtest/running?strategyId=${encodeURIComponent(strategyId)}`);
 }
 
 import type {
@@ -294,7 +294,7 @@ export function deleteScreen(id: string): Promise<{ ok: true }> {
 
 // Run a structured screen against the latest snapshot.
 export function runScreen(spec: ScreenSpec): Promise<ScreenResult> {
-  return request('/api/app/screen', { method: 'POST', body: JSON.stringify(spec) });
+  return request('/api/app/screen/run', { method: 'POST', body: JSON.stringify(spec) });
 }
 
 // Screen agent: START one turn (screening/lookup go through the agent's read-only tools; an executed
@@ -349,12 +349,12 @@ export function fetchStockSeries(
   start = '20150101',
   end = '20241231',
 ): Promise<StockSeries> {
-  return request(`/api/app/stock/${code}/series?start=${start}&end=${end}`);
+  return request(`/api/app/market/stocks/${code}/series?start=${start}&end=${end}`);
 }
 
 // tsCode → name (bulk) — e.g. the traded-instruments queue in Trade detail.
 export function fetchNames(codes: string[]): Promise<Record<string, string>> {
-  return request(`/api/app/names?codes=${encodeURIComponent(codes.join(','))}`);
+  return request(`/api/app/market/names?codes=${encodeURIComponent(codes.join(','))}`);
 }
 
 // Index daily close (e.g. 000300.SH) over a range — the benchmark return curve in Trade detail.
@@ -363,7 +363,7 @@ export function fetchIndexSeries(
   start: string,
   end: string,
 ): Promise<{ points: { date: string; close: number }[] }> {
-  return request(`/api/app/index/${code}/series?start=${start}&end=${end}`);
+  return request(`/api/app/market/indices/${code}/series?start=${start}&end=${end}`);
 }
 
 import type {
@@ -431,7 +431,7 @@ export function sendFactorAgent(
   message: string,
   code: string,
 ): Promise<{ turnId: string }> {
-  return request('/api/app/factors/agent', {
+  return request('/api/app/factor/agent', {
     method: 'POST',
     body: JSON.stringify({ id: factorId, message, code }),
   });
@@ -444,7 +444,7 @@ export function factorQa(
   message: string,
   factorName?: string,
 ): Promise<{ turnId: string }> {
-  return request('/api/app/factors/qa', {
+  return request('/api/app/factor/qa', {
     method: 'POST',
     body: JSON.stringify({ history, message, factorName }),
   });
@@ -457,18 +457,18 @@ export function generateFactorName(input: {
   prompt?: string;
   currentName?: string;
 }): Promise<{ name: string }> {
-  return request('/api/app/factors/name', { method: 'POST', body: JSON.stringify(input) });
+  return request('/api/app/factor/name', { method: 'POST', body: JSON.stringify(input) });
 }
 
 // A factor's cached runs (the "already-run" chips).
 export function getFactorRuns(factor: string): Promise<FactorRun[]> {
-  return request(`/api/app/factors/runs?factor=${encodeURIComponent(factor)}`);
+  return request(`/api/app/factor/runs?factor=${encodeURIComponent(factor)}`);
 }
 
 // Discard this user's cached runs — one factor's, or all of them (omit `factor`).
 export function clearFactorRuns(factor?: string): Promise<{ deleted: number }> {
   const q = factor ? `?factor=${encodeURIComponent(factor)}` : '';
-  return request(`/api/app/factors/runs${q}`, { method: 'DELETE' });
+  return request(`/api/app/factor/runs${q}`, { method: 'DELETE' });
 }
 
 // A single-factor analysis over (freq, start, end): deciles + Rank IC + long-short. Cached server-side;
@@ -489,7 +489,7 @@ export function getFactorAnalysis(
     neutral,
     ...(refresh ? { refresh: '1' } : {}),
   });
-  return request(`/api/app/factors/analysis?${q}`);
+  return request(`/api/app/factor/analysis?${q}`);
 }
 
 // Streamed run: returns the cached report immediately, or a jobId to poll for progress logs.
@@ -509,7 +509,7 @@ export function runFactorAnalysis(
     neutral,
     ...(refresh ? { refresh: '1' } : {}),
   });
-  return request(`/api/app/factors/analysis/run?${q}`, { method: 'POST' });
+  return request(`/api/app/factor/analysis/run?${q}`, { method: 'POST' });
 }
 
 export interface FactorJob {
@@ -519,7 +519,7 @@ export interface FactorJob {
   error?: string | null;
 }
 export function pollFactorJob(jobId: string, since = 0): Promise<FactorJob> {
-  return request(`/api/app/factors/analysis/job/${jobId}?since=${since}`);
+  return request(`/api/app/factor/analysis/job/${jobId}?since=${since}`);
 }
 
 // —— Correlation matrix (3.4): 2–8 factors × a fixed size column ——
@@ -531,7 +531,7 @@ export function getFactorCorrelation(
   end: string,
 ): Promise<FactorCorrelation> {
   const q = new URLSearchParams({ keys: keys.join(','), freq, start, end });
-  return request(`/api/app/factors/correlation?${q}`);
+  return request(`/api/app/factor/correlation?${q}`);
 }
 
 export function runFactorCorrelation(
@@ -548,7 +548,7 @@ export function runFactorCorrelation(
     end,
     ...(refresh ? { refresh: '1' } : {}),
   });
-  return request(`/api/app/factors/correlation/run?${q}`, { method: 'POST' });
+  return request(`/api/app/factor/correlation/run?${q}`, { method: 'POST' });
 }
 
 export function findCorrelationRunningJob(
@@ -558,7 +558,7 @@ export function findCorrelationRunningJob(
   end: string,
 ): Promise<{ jobId: string | null }> {
   const q = new URLSearchParams({ keys: keys.join(','), freq, start, end });
-  return request(`/api/app/factors/correlation/running?${q}`);
+  return request(`/api/app/factor/correlation/running?${q}`);
 }
 
 // A still-running job for this (factor, window) — to re-attach after a refresh (DB-backed, cross-client).
@@ -570,5 +570,5 @@ export function findFactorRunningJob(
   neutral: Neutral = 'none',
 ): Promise<{ jobId: string | null }> {
   const q = new URLSearchParams({ factor, freq, start, end, neutral });
-  return request(`/api/app/factors/analysis/running?${q}`);
+  return request(`/api/app/factor/analysis/running?${q}`);
 }

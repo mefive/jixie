@@ -9,13 +9,19 @@ import { enqueueAgentTurn, entityKey } from '../agent/turn-run.js';
 import * as turnBus from '../agent/turn-bus.js';
 import { KNOWN_INDICES } from '../strategy/code/codegen-prompt.js';
 import { localeFromRequest, m } from '../i18n/index.js';
+import { backtestRoute } from './backtest.js';
 
 /**
- * Strategy authoring API. POST /api/app/strategy/agent runs one turn of the code Agent (iterates on the
- * strategy code given the conversation + current code); POST /api/app/strategy/name proposes a name from
- * a prompt or the code. The frontend applies the returned code to the editor.
+ * Strategy workbench actions (singular, mounted at /api/app/strategy). POST /agent runs one turn of
+ * the code Agent (iterates on the strategy code given the conversation + current code); POST /name
+ * proposes a name from a prompt or the code; /backtest/* is the backtest Job (backtest.ts, mounted
+ * here — symmetric with /factor/analysis). Resource CRUD lives in strategies.ts (plural).
+ * Naming rules: see docs/design/api-route-naming.md.
  */
 export const strategyRoute = new Hono();
+
+// Backtest runs on a strategy — its Job routes ride under the strategy workbench.
+strategyRoute.route('/backtest', backtestRoute);
 
 /** The indices whose constituents are actually synced: the raw codes (for the deterministic check) +
  * a formatted string (for the prompt), so we never offer or accept an index we can't resolve. */
