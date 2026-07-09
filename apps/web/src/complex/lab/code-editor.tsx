@@ -4,9 +4,10 @@ import { observer } from 'mobx-react';
 import * as monaco from 'monaco-editor';
 import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
 import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker';
-import type { Locale } from '@jixie/shared';
+import type { DtsFactorOption, Locale } from '@jixie/shared';
 import i18n from '@src/i18n';
 import { localeStore } from '@src/i18n/locale-store';
+import { getFactorCatalog } from '@src/api/client';
 import { sdkDts } from './sdk-dts';
 import { SDK_ENTRIES, LINKABLE_TYPES } from '@jixie/shared';
 
@@ -26,15 +27,34 @@ loader.config({ monaco });
 let monacoRef: Monaco | null = null;
 let sdkLibDisposable: monaco.IDisposable | null = null;
 let staticSdkInstalled = false;
+// The user's factor catalog (presets + own factors) → the FactorKey union members, fetched once per
+// page load; until it arrives (or if it fails) the dts falls back to the `custom:${string}` tail.
+let factorOptions: DtsFactorOption[] = [];
+let factorOptionsRequested = false;
 
 // (Re)register the ambient SDK .d.ts in the given locale — only the doc-comment language changes, so the
 // signatures (and thus type-checking) stay identical. Disposing first avoids a duplicate-lib for the path.
 function applySdkDts(m: Monaco, locale: Locale) {
   sdkLibDisposable?.dispose();
   sdkLibDisposable = m.languages.typescript.typescriptDefaults.addExtraLib(
-    sdkDts(locale),
+    sdkDts(locale, factorOptions),
     'file:///jixie-sdk.d.ts',
   );
+}
+
+// ctx.factor autocomplete for the user's actual factors: load the catalog once, then re-register the
+// dts with the concrete custom:<id> union members (each carrying the factor's name as a comment).
+function loadFactorOptions(m: Monaco) {
+  if (factorOptionsRequested) {
+    return;
+  }
+  factorOptionsRequested = true;
+  getFactorCatalog()
+    .then((catalog) => {
+      factorOptions = catalog.map((meta) => ({ key: `custom:${meta.key}`, label: meta.label }));
+      applySdkDts(m, localeStore.locale);
+    })
+    .catch(() => {}); // no catalog → the template-literal tail still accepts any custom:<id>
 }
 
 // Teach Monaco the SDK: the locale-independent bits (compiler options + doc link provider) once, then the
@@ -42,6 +62,7 @@ function applySdkDts(m: Monaco, locale: Locale) {
 function installSdk(m: Monaco) {
   monacoRef = m;
   applySdkDts(m, localeStore.locale);
+  loadFactorOptions(m);
   if (staticSdkInstalled) {
     return;
   }

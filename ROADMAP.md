@@ -83,9 +83,9 @@
 
 **实况(2026-07-07)**:moneyflow-into-context 以「FactorBar 加 netMain/netTotal(流量语义,当日精确缺则 null)」形态提前落地 → 9 个预置全部代码化(`factor/builtin-factors.ts`,git 为真相,boot 幂等 seed 进 Factor 表);**零 schema 迁移**——builtin 行用系统 `userId='builtin'` 哨兵(设计点 2 的备选方案)+ 固定 slug id;`factors.ts` 删除(引擎脚本用的纯函数搬进 `engine/strategies.ts` 自包含);`computeFactorSeries` 只剩一条 compile+compute 路径(声明 window 走逐股慢路径)。验收:单测 15 例价格公式逐位一致(含停牌/零价边界);真库 ep 全部 4 个旧缓存报告(全历史月/周)IDENTICAL;UI 预置只读编辑器 + 「复制为自定义」fork。注:预置代码以模板字符串存 `builtin-factors.ts`(设计点 3 的「仓库 .ts 可 type-check」以编译单测替代——每个预置过 compileFactor + 等价性断言,强于裸 type-check)。
 
-### 3.2 因子→策略接入 ⬜(闭环最关键一环)
+### 3.2 因子→策略接入 ✅(2026-07-09,闭环打通)
 
-(2026-07-07 注:其中 moneyflow-into-context 的**因子侧**已随 3.1b 落地;本条剩策略侧 `ctx.factor` 接入 + flow 语义修正。)「因子页验证 edge → 策略里一键使用」。核心:因子注册表带**时间语义声明** `kind: flow | level`(flow=精确当天缺则 null,如 moneyflow/龙虎榜;level=as-of 前填,如估值/财务),`ctx.factor(key)` 无 date 参数(防未来函数)、按声明解析;用户自定义因子在引擎内现场编译现场算(零存储,贵的才惰性 LRU);factor key 自动生成 dts 字面量联合类型进 Monaco 补全。**顺手修**:moneyflow 的 `ctx.factor` 现在被一刀切 as-of 前填,与其文档和 `ctx.lhbNet` 不自洽,改精确当天。
+「因子页验证 edge → 策略里 `ctx.factor('custom:<id>')` 一键使用」全线落地:**① 注册表 + 时间语义**——`engine-factors.ts`(shared,单一来源)声明 `kind: flow | level`,flow 精确当天缺则 null(顺手修掉 moneyflow 被一刀切 as-of 前填的 bug,与 `ctx.lhbNet` 归一),level as-of 带按频率回看上限;未知 key 启动即双语报错。**② 自定义因子进引擎**——host 扫策略源码 `custom:` 引用(不求值,墙规矩)、所有权校验(own+内置,预置菜单因子可 `custom:<slug>` 直用)、TS→CJS 后随策略进同一求值世界(墙内自动被 isolate 罩住,双车道同一份代码);现场算 + 10 万条有界 memo,window 因子复用 bars 缓存(同 `ctx.sma` 的 ensureBars 契约);被删因子明确报错。**③ DX**——FactorKey 字面量联合(注册表列 + 用户因子目录动态拼 + `custom:${string}` 兜底)进 Monaco dts;codegen prompt 因子清单生成 + 用户可引用因子列表逐 turn 注入。**验收**:flow/窗口/墙内 parity/金标准(EP 31.75%/12680 逐位不变)单测全绿;e2e 闭环——建自定义因子 → 策略引用 → 真实墙内回测 32 笔成交落库。遗留边界:引擎侧 FactorBar 的 `grossprofitMargin/debtToAssets` 暂为 null(引擎截面未载这两列,注释已标),待需要时补列。
 
 ### 3.3 多因子合成 💤(远期,学习清单阶段 4 收尾)
 
