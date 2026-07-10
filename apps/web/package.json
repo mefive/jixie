@@ -23,6 +23,7 @@
     "dayjs": "^1.11.13",
     "echarts": "^6.0.0",
     "i18next": "^26.3.4",
+    "katex": "^0.17.0",
     "mobx": "^6.16.0",
     "mobx-react": "^9.2.0",
     "monaco-editor": "^0.55.1",
@@ -33,6 +34,7 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.0.0",
+    "@types/katex": "^0.16.8",
     "@types/node": "^20.19.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
