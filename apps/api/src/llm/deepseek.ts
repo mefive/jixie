@@ -1,5 +1,5 @@
 // DeepSeek client — the official openai SDK pointed at DeepSeek's OpenAI-compatible endpoint.
-// chatJson (forced JSON) backs NL→screen; chatText (free text) backs NL→code.
+// chatJson (forced JSON) backs NL→screen; chatText (free text) backs naming and other plain replies.
 // Config from .env: DEEPSEEK_API_KEY (required), DEEPSEEK_MODEL, DEEPSEEK_BASE_URL.
 import OpenAI from 'openai';
 import type { ChatMessage, LlmCall } from './nl-to-structured.js';
@@ -39,8 +39,7 @@ export const chatJson: LlmCall = async (messages: ChatMessage[]): Promise<string
   return content;
 };
 
-/** One chat completion returning free text — for NL→code (the output is a TS module, not JSON). Same
- * LlmCall shape so it feeds nlToCode (tests inject a mock instead). */
+/** One chat completion returning free text (naming, etc.). Same LlmCall shape as chatJson. */
 export const chatText: LlmCall = async (messages: ChatMessage[]): Promise<string> => {
   const model = process.env.DEEPSEEK_MODEL ?? DEFAULT_MODEL;
   const res = await deepseek().chat.completions.create({ model, messages, temperature: 0 });
