@@ -38,15 +38,22 @@ async function syncedIndices(): Promise<{ codes: string[]; text: string }> {
   return { codes, text };
 }
 
-/** The factors this user may reference as custom:<id> — own factors + the builtin presets — formatted
+/** The finalized factors this user may reference as custom:<key> — own factors + builtin presets — formatted
  * for the codegen prompt (same pattern as syncedIndices: only offer what actually resolves). */
 async function referencableFactors(userId: string): Promise<string> {
   const rows = await prisma.factor.findMany({
-    where: { userId: { in: [userId, BUILTIN_USER_ID] } },
-    select: { id: true, name: true },
+    where: { userId: { in: [userId, BUILTIN_USER_ID] }, key: { not: null } },
+    select: { key: true, name: true, descriptionEn: true },
     orderBy: { updatedAt: 'desc' },
   });
-  return rows.length ? rows.map((row) => `${row.name}=custom:${row.id}`).join('、') : '(none yet)';
+  return rows.length
+    ? rows
+        .map(
+          (row) =>
+            `${row.name}=custom:${row.key}${row.descriptionEn ? ` (${row.descriptionEn})` : ''}`,
+        )
+        .join('、')
+    : '(none yet)';
 }
 
 // POST /api/app/strategy/agent — START one turn of the strategy Agent and return a turnId

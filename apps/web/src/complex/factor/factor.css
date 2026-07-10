@@ -42,17 +42,28 @@
   height: 100%;
 }
 
-/* the current factor's name, pinned at the top of the Agent chat so you always know what you're on */
-.jx-factor-agentName {
-  @apply flex items-center gap-2 border-b border-line;
+/* the current factor's generated identity, pinned above the conversation */
+.jx-factor-agentIdentity {
+  @apply border-b border-line;
   flex: none;
   padding: 4px 2px 10px;
   margin-bottom: 6px;
 }
 
+.jx-factor-agentName {
+  @apply flex items-center gap-2;
+}
+
 .jx-factor-agentNameText {
   @apply flex-1 truncate font-semibold text-ink;
   font-size: 14px;
+}
+
+.jx-factor-agentDescription {
+  @apply text-muted;
+  padding-top: 5px;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .jx-factor-agentTabs {
@@ -190,6 +201,42 @@
 .jx-factor-presetNote {
   @apply inline-flex items-center gap-1.5 text-muted;
   font-size: 12px;
+}
+
+.jx-factor-keyBar {
+  @apply flex items-center gap-2 border-b border-line bg-chip;
+  min-height: 38px;
+  padding: 5px 10px;
+}
+
+.jx-factor-keyBar--draft {
+  @apply flex-wrap;
+}
+
+.jx-factor-keyLabel {
+  @apply flex-none text-muted;
+  font-size: 12px;
+}
+
+.jx-factor-keyInput {
+  width: min(320px, 48%);
+}
+
+.jx-factor-keyValue {
+  @apply truncate text-ink;
+  font-size: 12px;
+}
+
+.jx-factor-keyLocked {
+  @apply ml-auto inline-flex flex-none items-center gap-1 text-muted;
+  font-size: 11px;
+}
+
+.jx-factor-keyHint {
+  @apply text-muted;
+  flex-basis: 100%;
+  padding-left: 60px;
+  font-size: 11px;
 }
 
 .jx-factor-code {

@@ -297,7 +297,13 @@ export const BUILTIN_KEYS = new Set(BUILTIN_FACTORS.map((factor) => factor.key))
 
 /** Catalog metadata for the presets — identity comes from this registry, code rows from the seed. */
 export function builtinCatalog(): FactorMeta[] {
-  return BUILTIN_FACTORS.map(({ key, label, kind }) => ({ key, label, kind, builtin: true }));
+  return BUILTIN_FACTORS.map(({ key, label, kind }) => ({
+    key,
+    label,
+    strategyKey: `custom:${key}`,
+    kind,
+    builtin: true,
+  }));
 }
 
 /**
@@ -309,19 +315,25 @@ export async function seedBuiltinFactors(): Promise<void> {
   for (const def of BUILTIN_FACTORS) {
     const existing = await prisma.factor.findUnique({
       where: { id: def.key },
-      select: { code: true, name: true },
+      select: { key: true, code: true, name: true },
     });
 
     if (!existing) {
       await prisma.factor.create({
-        data: { id: def.key, userId: BUILTIN_USER_ID, name: def.label, code: def.code },
+        data: {
+          id: def.key,
+          userId: BUILTIN_USER_ID,
+          key: def.key,
+          name: def.label,
+          code: def.code,
+        },
       });
       continue;
     }
-    if (existing.code !== def.code || existing.name !== def.label) {
+    if (existing.key !== def.key || existing.code !== def.code || existing.name !== def.label) {
       await prisma.factor.update({
         where: { id: def.key },
-        data: { name: def.label, code: def.code },
+        data: { key: def.key, name: def.label, code: def.code },
       });
       if (existing.code !== def.code) {
         await prisma.factorReport.deleteMany({ where: { factor: def.key } });

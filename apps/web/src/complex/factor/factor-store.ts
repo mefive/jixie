@@ -29,7 +29,8 @@ import {
   forkFactor,
   sendFactorAgent,
   factorQa,
-  generateFactorName,
+  finalizeFactorKey,
+  refreshFactorMetadata,
   runFactorCorrelation,
   getFactorCorrelation,
   findCorrelationRunningJob,
@@ -69,6 +70,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   public catalogLoader = new LoaderModel<FactorMeta[]>();
   public analysisLoader = new LoaderModel<FactorReport>();
   public runsLoader = new LoaderModel<FactorRun[]>();
+  public keyLoader = new LoaderModel<{ id: string; key: string; strategyKey: string }>();
   public analysisPoller = new PollingModel();
 
   public selectedKey = ''; // preset key OR custom factor id — the analysis target
@@ -80,6 +82,11 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   public turnStream = new AgentTurnStream(); // the in-flight turn's SSE mirror (pending bubble)
   public sending = false; // an Agent turn is in flight
   public nlText = ''; // the Agent chat draft
+  public strategyKey = ''; // finalized custom:<key>; empty while the factor is a draft
+  public keyDraft = ''; // LLM proposal or the user's edit before finalization
+  public description = ''; // localized catalog summary generated from the current context
+
+  private keyDraftEdited = false;
 
   public freq: FactorFreq = 'month';
   public neutral: Neutral = 'none'; // cross-sectional neutralization applied to the analysis (part of the cache key)
@@ -110,6 +117,9 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       chatMessages: observable.ref,
       sending: observable.ref,
       nlText: observable.ref,
+      strategyKey: observable.ref,
+      keyDraft: observable.ref,
+      description: observable.ref,
       freq: observable.ref,
       neutral: observable.ref,
       start: observable.ref,
@@ -130,6 +140,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       setStart: action,
       setEnd: action,
       setCorrKeys: action,
+      setKeyDraft: action,
     });
   }
 
@@ -137,6 +148,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     super.setup(params);
     this.catalogLoader.setup({ request: () => getFactorCatalog() });
     this.runsLoader.setup({ request: () => getFactorRuns(this.selectedKey) });
+    this.keyLoader.setup({ request: (key: string) => finalizeFactorKey(this.selectedKey, key) });
     this.analysisLoader.setup({
       request: (refresh = false) =>
         getFactorAnalysis(this.selectedKey, this.freq, this.start, this.end, this.neutral, refresh),
@@ -151,6 +163,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     });
     this.registCleaner(() => this.catalogLoader.cleanup());
     this.registCleaner(() => this.runsLoader.cleanup());
+    this.registCleaner(() => this.keyLoader.cleanup());
     this.registCleaner(() => this.analysisLoader.cleanup());
     this.registCleaner(() => this.analysisPoller.cleanup());
     this.registCleaner(() => this.correlationLoader.cleanup());
@@ -224,6 +237,11 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     runInAction(() => (this.nlText = v));
   }
 
+  public setKeyDraft(value: string) {
+    this.keyDraft = value;
+    this.keyDraftEdited = true;
+  }
+
   /** Pick a factor from the factor library. A preset → readonly code + Q&A agent. A custom factor → load its
    * code + conversation into the editor/chat. Either way, auto-show its most-recent cached run. */
   public async selectFactor(key: string) {
@@ -236,6 +254,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       this.jobRunning = false;
       this.logs = [];
       this.nlText = '';
+      this.strategyKey = meta?.strategyKey ?? '';
+      this.keyDraft = meta?.keyCandidate ?? meta?.strategyKey?.slice('custom:'.length) ?? '';
+      this.description = meta?.description ?? '';
+      this.keyDraftEdited = false;
       if (!isCustom) {
         this.code = '';
         this.persistedCode = '';
@@ -249,6 +271,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         this.code = factor.code;
         this.persistedCode = factor.code;
         this.chatMessages = isCustom ? (factor.messages ?? []).map(normalizeChatMessage) : [];
+        this.strategyKey = factor.strategyKey ?? '';
+        this.keyDraft = factor.keyCandidate ?? factor.key ?? '';
+        this.description = factor.description ?? '';
+        this.keyDraftEdited = false;
       });
       if (isCustom) {
         void this.reattachTurn(); // a live agent turn for this factor? re-subscribe (snapshot replays)
@@ -285,6 +311,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       this.persistedCode = DEFAULT_FACTOR_CODE; // pristine skeleton → not edited
       this.chatMessages = [];
       this.nlText = '';
+      this.strategyKey = '';
+      this.keyDraft = '';
+      this.description = '';
+      this.keyDraftEdited = false;
       this.logs = [];
       this.jobRunning = false;
     });
@@ -322,7 +352,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       this.sending = true;
       this.nlText = '';
     });
-    await this.ensureFactor(text);
+    await this.ensureFactor();
     if (!this.selectedKey) {
       runInAction(() => {
         this.chatMessages = [
@@ -370,6 +400,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
             this.code = done.code; // editor updates; analysis result stays until the next run
           }
         });
+        void this.refreshIdentity();
       },
       onError: (message) => {
         runInAction(() => {
@@ -428,24 +459,14 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     }
   }
 
-  /** Create the factor row if it doesn't exist yet (first Agent prompt). Names it via the LLM from the
-   * prompt. Best-effort; a later run retries. */
-  private async ensureFactor(namePrompt?: string) {
+  /** Create the draft row if it doesn't exist yet; metadata arrives after the first successful turn. */
+  private async ensureFactor() {
     if (this.selectedKey) {
       return;
     }
-    let name = i18n.t('factor:unnamedFactor');
-    try {
-      const suggested = await generateFactorName(
-        namePrompt ? { prompt: namePrompt } : { code: this.code },
-      );
-      name = suggested.name;
-    } catch {
-      /* naming is best-effort */
-    }
     try {
       // No messages in the create payload — the turn runner appends the user message server-side.
-      const meta = await createFactor(name, this.code);
+      const meta = await createFactor(i18n.t('factor:unnamedFactor'), this.code);
       runInAction(() => {
         this.selectedKey = meta.id;
         this.persistedCode = this.code; // just persisted this code
@@ -466,6 +487,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         this.code = '';
         this.persistedCode = '';
         this.chatMessages = [];
+        this.strategyKey = '';
+        this.keyDraft = '';
+        this.description = '';
+        this.keyDraftEdited = false;
       });
       this.analysisLoader.reset();
     }
@@ -473,7 +498,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   }
 
   /** Run (or view, if cached) the analysis. For a custom factor, first COMMIT the code by id (which drops
-   * stale cached reports + re-derives the name) so the worker analyzes the current code; then run. A
+   * stale cached reports + refreshes metadata) so the worker analyzes the current code; then run. A
    * cache hit returns instantly; otherwise a job streams progress. */
   public async runAnalysis(refresh = false) {
     if (this.mode === 'custom') {
@@ -486,7 +511,9 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
           await updateFactor(this.selectedKey, { code: this.code });
           runInAction(() => (this.persistedCode = this.code));
           void this.runsLoader.run(); // reports were dropped server-side
-          void this.refreshName();
+          void refreshFactorMetadata(this.selectedKey, this.code).then(() =>
+            this.refreshIdentity(),
+          );
         } catch (e) {
           await this.analysisLoader.run(Promise.reject(e)).catch(() => {});
           return;
@@ -519,22 +546,39 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     }
   }
 
-  /** Re-derive the custom factor's name from its code (keeps the current name when it still fits), then
-   * persist just the name by id. Background — doesn't block analysis. */
-  private async refreshName() {
+  /** Reload mutable metadata after the server-side Agent/metadata hook has completed. */
+  private async refreshIdentity() {
     if (!this.selectedKey || this.mode !== 'custom') {
       return;
     }
     try {
-      const meta = this.selected;
-      const { name } = await generateFactorName({ code: this.code, currentName: meta?.label });
-      if (name && name !== meta?.label) {
-        await updateFactor(this.selectedKey, { name });
-        void this.catalogLoader.run();
-      }
+      const selectedKey = this.selectedKey;
+      const factor = await getCustomFactor(selectedKey);
+      runInAction(() => {
+        if (this.selectedKey !== selectedKey) {
+          return;
+        }
+        this.strategyKey = factor.strategyKey ?? '';
+        this.description = factor.description ?? '';
+        if (!this.keyDraftEdited) {
+          this.keyDraft = factor.keyCandidate ?? factor.key ?? '';
+        }
+      });
+      await this.catalogLoader.run();
     } catch {
       /* best-effort */
     }
+  }
+
+  /** Finalize the code-facing key once. The server appends a suffix when the requested key is taken. */
+  public async finalizeKey() {
+    const finalized = await this.keyLoader.run(this.keyDraft);
+    runInAction(() => {
+      this.strategyKey = finalized.strategyKey;
+      this.keyDraft = finalized.key;
+      this.keyDraftEdited = false;
+    });
+    await this.catalogLoader.run();
   }
 
   /** On URL-restore: re-attach to a still-running job, else show the cached report, else the run prompt. */

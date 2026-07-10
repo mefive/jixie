@@ -164,7 +164,7 @@ export class EngineData {
       s.closes.push(r.close);
     }
 
-    // Declared factor keys must be real: a registry column factor or a custom:<id> reference —
+    // Declared factor keys must be real: a registry column factor or a custom:<key> reference —
     // a typo'd key used to be a silent all-null column, which reads as "strategy places no trades".
     for (const key of this.factorKeys) {
       if (!COLUMN_FACTOR_DEFS.has(key) && !isCustomFactorKey(key)) {

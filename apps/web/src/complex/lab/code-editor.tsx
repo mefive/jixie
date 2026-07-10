@@ -55,7 +55,7 @@ function factorReferences(text: string): FactorReference[] {
 }
 
 function factorUrl(option: DtsFactorOption): string {
-  return `${location.origin}/factors?factor=${encodeURIComponent(option.key.slice('custom:'.length))}`;
+  return `${location.origin}/factors?factor=${encodeURIComponent(option.factorId)}`;
 }
 
 function escapeMarkdown(value: string): string {
@@ -73,7 +73,7 @@ function applySdkDts(m: Monaco, locale: Locale) {
 }
 
 // ctx.factor autocomplete for the user's actual factors: load the catalog once, then re-register the
-// dts with the concrete custom:<id> union members (each carrying the factor's name as a comment).
+// dts with the concrete finalized custom:<key> union members (each carrying the factor's name).
 function loadFactorOptions(m: Monaco) {
   if (factorOptionsRequested) {
     return;
@@ -81,14 +81,21 @@ function loadFactorOptions(m: Monaco) {
   factorOptionsRequested = true;
   getFactorCatalog()
     .then((catalog) => {
-      factorOptions = catalog.map((meta) => ({
-        key: `custom:${meta.key}`,
-        label: meta.label,
-        description: meta.description,
-      }));
+      factorOptions = catalog.flatMap((meta) =>
+        meta.strategyKey
+          ? [
+              {
+                key: meta.strategyKey,
+                factorId: meta.key,
+                label: meta.label,
+                description: meta.description,
+              },
+            ]
+          : [],
+      );
       applySdkDts(m, localeStore.locale);
     })
-    .catch(() => {}); // no catalog → the template-literal tail still accepts any custom:<id>
+    .catch(() => {}); // no catalog → only the static engine factors remain available
 }
 
 // Teach Monaco the SDK: the locale-independent bits (compiler options + doc link provider) once, then the
