@@ -45,6 +45,8 @@ export const zhLab = {
   loadingEditor: '加载编辑器…',
   sdkDocTooltip: 'SDK 文档:{{name}}',
   sdkDocMenuLabel: '📖 查看 SDK 文档',
+  factorLinkTooltip: '查看因子实现:{{name}}',
+  factorImplementationLink: '查看因子实现',
 
   // Result overview
   runningCalc: '回测计算中…… 实时日志见下方「日志」',
