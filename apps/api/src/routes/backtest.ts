@@ -1,11 +1,18 @@
 import { Worker } from 'node:worker_threads';
 import { Hono } from 'hono';
 import { z } from 'zod';
+import { ulid } from 'ulid';
 import type { BacktestConfig, LogLine } from '@jixie/shared';
 import { apiError, validateJson, validateQuery } from '../lib/httpError.js';
 import { codeConfigSchema } from '../strategy/code/schema.js';
-import { createJob, appendLog, finishJob, getJob, findRunningJob } from '../lib/jobs.js';
+import { appendLog, finishJob, getJob, findRunningJob, initializeJobLogs } from '../lib/jobs.js';
 import { localeFromRequest, m } from '../i18n/index.js';
+import { prisma } from '../lib/prisma.js';
+import {
+  commitStrategyConfig,
+  refreshStrategyName,
+  strategyRunKey,
+} from '../services/strategy-service.js';
 
 /**
  * Backtest API (mounted under /api/app/strategy/backtest via strategy.ts — symmetric with
@@ -35,11 +42,62 @@ backtestRoute.post('/', validateQuery(strategyQuery), validateJson(codeConfigSch
     return apiError(c, 'VALIDATION_FAILED', m(c, 'startAfterEnd'), { field: 'start' });
   }
   const userId = c.var.userId;
+  const locale = localeFromRequest(c);
 
-  const jobId = await createJob(userId, 'backtest', strategyId);
-  const worker = new Worker(workerUrl, {
-    workerData: { config, userId, strategyId, locale: localeFromRequest(c) },
+  const start = await prisma.$transaction(async (transaction) => {
+    const strategy = await transaction.strategy.findFirst({
+      where: { id: strategyId, userId },
+      select: { id: true },
+    });
+    if (!strategy) {
+      return { kind: 'not_found' as const };
+    }
+    const running = await transaction.job.findFirst({
+      where: { userId, kind: 'backtest', key: strategyId, status: 'running' },
+      select: { id: true },
+    });
+    if (running) {
+      return { kind: 'running' as const };
+    }
+
+    const committed = await commitStrategyConfig(transaction, userId, strategyId, config);
+    const jobId = ulid();
+    await transaction.job.create({
+      data: { id: jobId, userId, kind: 'backtest', key: strategyId, status: 'running' },
+    });
+    return { kind: 'ready' as const, jobId, name: committed!.name };
   });
+  if (start.kind === 'not_found') {
+    return apiError(c, 'NOT_FOUND', m(c, 'strategyNotFound'));
+  }
+  if (start.kind === 'running') {
+    return apiError(c, 'VALIDATION_FAILED', m(c, 'strategyBacktestInProgress'));
+  }
+
+  const committedConfig = { ...config, name: start.name };
+  const renamePromise = refreshStrategyName({
+    id: strategyId,
+    userId,
+    code: committedConfig.code,
+    currentName: committedConfig.name,
+    expectedRunKey: strategyRunKey(committedConfig),
+    locale,
+  }).catch((error) => {
+    console.error('[jixie] strategy rename failed', error);
+    return false;
+  });
+
+  const jobId = start.jobId;
+  initializeJobLogs(jobId);
+  let worker: Worker;
+  try {
+    worker = new Worker(workerUrl, {
+      workerData: { config: committedConfig, userId, strategyId, locale },
+    });
+  } catch (error) {
+    await finishJob(jobId, 'error', error instanceof Error ? error.message : String(error));
+    return apiError(c, 'SERVICE_UNAVAILABLE', m(c, 'backtestStartFailed'));
+  }
   let finished = false;
   const done = (status: 'done' | 'error', error?: string) => {
     if (finished) {
@@ -52,7 +110,7 @@ backtestRoute.post('/', validateQuery(strategyQuery), validateJson(codeConfigSch
     if (msg.type === 'log') {
       appendLog(jobId, msg.entry!);
     } else if (msg.type === 'done') {
-      done('done');
+      void renamePromise.finally(() => done('done'));
     } else if (msg.type === 'error') {
       done('error', msg.message);
     }
@@ -73,7 +131,11 @@ backtestRoute.get('/running', validateQuery(strategyQuery), async (c) => {
 });
 
 backtestRoute.get('/:jobId', validateQuery(sinceQuery), async (c) => {
-  const job = await getJob(c.req.param('jobId'), Number(c.req.valid('query').since ?? '0'));
+  const job = await getJob(
+    c.var.userId,
+    c.req.param('jobId'),
+    Number(c.req.valid('query').since ?? '0'),
+  );
   if (!job) {
     return apiError(c, 'NOT_FOUND', m(c, 'backtestJobNotFound'));
   }

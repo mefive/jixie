@@ -384,14 +384,12 @@ model EmailLoginChallenge {
 
 // ============================================================================
 // Saved user work (per-product-line persistence). Two sibling tables, one per product line — kept
-// separate (not a unified table) so each column is typed to its payload. Both are owner-scoped and
-// unique by (userId, name): saving upserts the row of that name, so re-running / re-saving under the
-// same name updates in place instead of spawning duplicates; renaming is a new saved item. IDs are
-// application-generated ULIDs.
+// separate (not a unified table) so each column is typed to its payload. Both are owner-scoped; names
+// are unique per user for display tidiness, while updates use the stable application-generated id.
 // ============================================================================
 
-/// A saved backtest strategy (holds a BacktestConfig as JSON). Auto-saved when a backtest runs:
-/// the workbench upserts by name, so "My Strategies" lists each named strategy you've run.
+/// A saved backtest strategy (holds a BacktestConfig as JSON). Created before its first Agent turn or
+/// backtest, then its runnable config is committed by id whenever a backtest starts.
 model Strategy {
   id         String   @id // ULID
   userId     String

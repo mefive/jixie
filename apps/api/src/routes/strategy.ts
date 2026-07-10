@@ -3,7 +3,6 @@ import { z } from 'zod';
 import { apiError, validateJson } from '../lib/httpError.js';
 import { prisma } from '../lib/prisma.js';
 import { ulid } from 'ulid';
-import { chatText } from '../llm/deepseek.js';
 import { strategyProfile } from '../agent/profiles/strategy.js';
 import { enqueueAgentTurn, entityKey } from '../agent/turn-run.js';
 import * as turnBus from '../agent/turn-bus.js';
@@ -11,6 +10,7 @@ import { KNOWN_INDICES } from '../strategy/code/codegen-prompt.js';
 import { BUILTIN_USER_ID } from '../factor/builtin-factors.js';
 import { localeFromRequest, m } from '../i18n/index.js';
 import { backtestRoute } from './backtest.js';
+import { proposeStrategyName } from '../services/strategy-service.js';
 
 /**
  * Strategy workbench actions (singular, mounted at /api/app/strategy). POST /agent runs one turn of
@@ -104,40 +104,15 @@ const nameBody = z
 
 strategyRoute.post('/name', validateJson(nameBody), async (c) => {
   const { code, prompt, currentName } = c.req.valid('json');
-
-  // The generated name is user-facing, so its language follows the request locale.
-  const nameLangHint =
-    localeFromRequest(c) === 'en'
-      ? 'a short English name (≤5 words)'
-      : 'a short Chinese name (≤14 chars)';
-
-  let name: string;
   try {
-    const messages =
-      code != null
-        ? [
-            {
-              role: 'system' as const,
-              content: currentName
-                ? `You name A-share strategies. Read the strategy code; it is currently called "${currentName}". If that name still accurately summarizes the code's selection/timing/trading logic, **return it unchanged**; only when the logic has clearly drifted, propose a more fitting ${nameLangHint}. Output only the name itself — no quotes, no explanation, no trailing punctuation.`
-                : `You name A-share strategies. Read the strategy code and propose ${nameLangHint} summarizing its selection/timing/trading logic. Output only the name itself — no quotes, no explanation, no trailing punctuation.`,
-            },
-            { role: 'user' as const, content: code },
-          ]
-        : [
-            {
-              role: 'system' as const,
-              content: `You name A-share strategies. Read the user's natural-language strategy request and propose ${nameLangHint} summarizing its selection/timing/trading intent. Output only the name itself — no quotes, no explanation, no trailing punctuation.`,
-            },
-            { role: 'user' as const, content: prompt! },
-          ];
-    const raw = await chatText(messages);
-    name = raw
-      .trim()
-      .replace(/^["'「『]+|["'」』。.]+$/g, '')
-      .slice(0, 20);
+    const name = await proposeStrategyName({
+      code,
+      prompt,
+      currentName,
+      locale: localeFromRequest(c),
+    });
+    return c.json({ name: name || m(c, 'unnamedStrategy') });
   } catch (e) {
     return apiError(c, 'SERVICE_UNAVAILABLE', e instanceof Error ? e.message : m(c, 'nameFailed'));
   }
-  return c.json({ name: name || m(c, 'unnamedStrategy') });
 });

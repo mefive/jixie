@@ -24,8 +24,13 @@ const LOG_TTL_MS = 5 * 60_000; // evict a finished job's in-memory logs after 5 
 export async function createJob(userId: string, kind: JobKind, key: string): Promise<string> {
   const id = ulid();
   await prisma.job.create({ data: { id, userId, kind, key, status: 'running' } });
-  logsByJob.set(id, []);
+  initializeJobLogs(id);
   return id;
+}
+
+/** Attach the in-memory log buffer after a Job row was created by a wider database transaction. */
+export function initializeJobLogs(jobId: string): void {
+  logsByJob.set(jobId, []);
 }
 
 export function appendLog(jobId: string, entry: LogLine): void {
@@ -48,9 +53,9 @@ export async function finishJob(
   setTimeout(() => logsByJob.delete(jobId), LOG_TTL_MS).unref?.();
 }
 
-/** Poll a job: DB status + logs after `since` — in-memory while live, else the flushed DB copy. */
-export async function getJob(jobId: string, since = 0) {
-  const job = await prisma.job.findUnique({ where: { id: jobId } });
+/** Poll an owner-scoped job: DB status + logs after `since` — live in memory, else from the DB copy. */
+export async function getJob(userId: string, jobId: string, since = 0) {
+  const job = await prisma.job.findFirst({ where: { id: jobId, userId } });
   if (!job) {
     return null;
   }
