@@ -115,6 +115,113 @@ export async function indexDaily(
   return rows as unknown as IndexDailyRow[];
 }
 
+export interface FutureContractRow {
+  ts_code: TsCode;
+  symbol: string;
+  exchange: string;
+  name: string;
+  fut_code: string;
+  multiplier: number;
+  trade_unit: string | null;
+  per_unit: number | null;
+  quote_unit: string | null;
+  quote_unit_desc: string | null;
+  d_mode_desc: string | null;
+  list_date: TradeDate;
+  delist_date: TradeDate;
+  d_month: string | null;
+  last_ddate: TradeDate | null;
+  trade_time_desc: string | null;
+}
+
+/** CFFEX futures contract metadata. Callers filter the response to actual IF/IH/IC/IM contracts. */
+export async function futureContracts(
+  client: TushareClient,
+  params: { exchange: 'CFFEX'; fut_type?: string; fut_code?: string; list_date?: TradeDate },
+): Promise<FutureContractRow[]> {
+  const rows = await client.call(
+    'fut_basic',
+    params,
+    'ts_code,symbol,exchange,name,fut_code,multiplier,trade_unit,per_unit,quote_unit,quote_unit_desc,d_mode_desc,list_date,delist_date,d_month,last_ddate,trade_time_desc',
+  );
+  return rows as unknown as FutureContractRow[];
+}
+
+export interface FutureDailyRow {
+  ts_code: TsCode;
+  trade_date: TradeDate;
+  pre_close: number | null;
+  pre_settle: number | null;
+  open: number | null;
+  high: number | null;
+  low: number | null;
+  close: number | null;
+  settle: number | null;
+  change1: number | null;
+  change2: number | null;
+  vol: number | null;
+  amount: number | null;
+  oi: number | null;
+  oi_chg: number | null;
+  delv_settle: number | null;
+}
+
+/** Raw daily bars for one actual futures contract. */
+export async function futureDaily(
+  client: TushareClient,
+  params: { ts_code: TsCode; start_date: TradeDate; end_date: TradeDate },
+): Promise<FutureDailyRow[]> {
+  const rows = await client.call(
+    'fut_daily',
+    params,
+    'ts_code,trade_date,pre_close,pre_settle,open,high,low,close,settle,change1,change2,vol,amount,oi,oi_chg,delv_settle',
+  );
+  return rows as unknown as FutureDailyRow[];
+}
+
+export interface FutureMappingRow {
+  ts_code: TsCode;
+  trade_date: TradeDate;
+  mapping_ts_code: TsCode;
+}
+
+/** Daily mapping from a logical main/continuous futures symbol to the actual delivery contract. */
+export async function futureMapping(
+  client: TushareClient,
+  params: { ts_code: TsCode; start_date: TradeDate; end_date: TradeDate },
+): Promise<FutureMappingRow[]> {
+  const rows = await client.call('fut_mapping', params, 'ts_code,trade_date,mapping_ts_code');
+  return rows as unknown as FutureMappingRow[];
+}
+
+export interface FutureSettlementRow {
+  ts_code: TsCode;
+  trade_date: TradeDate;
+  settle: number | null;
+  trading_fee_rate: number | null;
+  trading_fee: number | null;
+  delivery_fee: number | null;
+  b_hedging_margin_rate: number | null;
+  s_hedging_margin_rate: number | null;
+  long_margin_rate: number | null;
+  short_margin_rate: number | null;
+  offset_today_fee: number | null;
+  exchange: string | null;
+}
+
+/** Historical exchange settlement parameters for one actual futures contract. */
+export async function futureSettlement(
+  client: TushareClient,
+  params: { ts_code: TsCode; start_date: TradeDate; end_date: TradeDate },
+): Promise<FutureSettlementRow[]> {
+  const rows = await client.call(
+    'fut_settle',
+    params,
+    'ts_code,trade_date,settle,trading_fee_rate,trading_fee,delivery_fee,b_hedging_margin_rate,s_hedging_margin_rate,long_margin_rate,short_margin_rate,offset_today_fee,exchange',
+  );
+  return rows as unknown as FutureSettlementRow[];
+}
+
 export interface StkLimitRow {
   ts_code: TsCode;
   trade_date: TradeDate;

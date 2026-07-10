@@ -40,6 +40,14 @@ export const SQL_TABLE_DOCS: Record<string, string> = {
   IndexWeight:
     'indexCode, conCode, tradeDate, weight — monthly index constituent snapshot (e.g. 000852.SH CSI 1000)',
   IndexDaily: 'tsCode, tradeDate, close — index daily bars (e.g. 000300.SH CSI 300)',
+  FutureContract:
+    'tsCode(actual contract, e.g. IF2509.CFX), symbol, productCode(IF/IH/IC/IM), name, exchange(CFFEX), multiplier(CNY/index point), tradeUnit, perUnit, quoteUnit, quoteUnitDesc, deliveryMode, listDate, delistDate, deliveryMonth, lastDeliveryDate, tradeTimeDesc — actual stock-index futures contract metadata; continuous symbols are not tradable contracts',
+  FutureDaily:
+    'tsCode, tradeDate, preClose, preSettle, open, high, low, close, settle, changeClose(close-preSettle), changeSettle(settle-preSettle), volume(contracts), amount(10k CNY), openInterest(contracts), openInterestChange, deliverySettle — raw daily bars for actual IF/IH/IC/IM contracts; use settle for daily variation-margin calculations',
+  FutureMapping:
+    'continuousCode(e.g. IF.CFX), tradeDate, mappedTsCode(actual delivery contract) — point-in-time vendor main/continuous mapping; fills must use mappedTsCode, and mapping changes represent rolls',
+  FutureSettlement:
+    'tsCode, tradeDate, settle, tradingFeeRate, tradingFee, deliveryFee, buyHedgeMarginRate, sellHedgeMarginRate, longMarginRate, shortMarginRate, closeTodayFee, exchange — historical exchange settlement parameters; broker margin add-ons are not included',
   SwIndustryMember:
     'tsCode, l1Code, l1Name(Shenwan SW2021 level-1 industry, e.g. 食品饮料), inDate, outDate(null = current) — point-in-time industry membership; a stock belongs to l1Name from inDate up to (excluding) outDate, and may have several spells (it moved industries). For a date D pick the spell where inDate<=D and (outDate is null or D<outDate)',
 };

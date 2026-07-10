@@ -69,4 +69,5 @@
 - **本项目授权自动执行**:pnpm、Prisma(migrate dev / generate / db push / studio)、typecheck / 测试 / 构建 / 跑脚本 —— 判断安全的直接执行并汇报
 - **Git**:`git commit` 准备好(含 message)后**先确认,用户点头才执行**;`git push` **一律用户手动,我不代跑**
 - 仍先确认:`rm -rf`、force push、`git reset --hard`、删库 / `prisma migrate reset`、对外发送
+- **测试服务清理**:agent 为测试临时启动的 API / Web / dev server,验证结束后必须主动关闭,并确认监听端口和数据库连接已释放;不得把测试进程遗留给用户
 - 先理解再动手:选型 / 加依赖 / 改架构先讲清 trade-off;不熟的概念讲 why,不只讲 what
