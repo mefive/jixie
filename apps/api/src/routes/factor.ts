@@ -217,7 +217,11 @@ factorRoute.get('/analysis/running', validateQuery(analysisQuery), async (c) => 
 });
 
 factorRoute.get('/analysis/job/:jobId', validateQuery(sinceQuery), async (c) => {
-  const job = await getJob(c.req.param('jobId'), Number(c.req.valid('query').since ?? '0'));
+  const job = await getJob(
+    c.var.userId,
+    c.req.param('jobId'),
+    Number(c.req.valid('query').since ?? '0'),
+  );
   if (!job) {
     return apiError(c, 'NOT_FOUND', m(c, 'factorJobNotFound'));
   }

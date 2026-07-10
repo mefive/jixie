@@ -180,8 +180,8 @@ export interface BacktestJob {
   error?: string | null;
 }
 
-// Submit a backtest for a saved strategy; returns a jobId to poll. The result is written to the
-// strategy's lastResult by the worker on completion.
+// Commit a saved strategy's runnable config and start its backtest atomically; returns a jobId to poll.
+// The result is written to the strategy's lastResult by the worker on completion.
 export function submitBacktest(
   config: BacktestConfig,
   strategyId: string,
@@ -214,17 +214,6 @@ import type {
   StrategyCard,
 } from '@jixie/shared';
 
-// NL→name: the model proposes a short strategy name. Pass `prompt` to name a brand-new strategy from
-// its request (before any code); pass `code` (+ `currentName`) to name from the code on a run — the
-// model keeps currentName when it still fits, only renaming when the logic has drifted.
-export function generateStrategyName(input: {
-  code?: string;
-  prompt?: string;
-  currentName?: string;
-}): Promise<{ name: string }> {
-  return request('/api/app/strategy/name', { method: 'POST', body: JSON.stringify(input) });
-}
-
 // Agent: START one turn (the model iterates on the current code; history lives on the strategy row).
 // Returns a turnId immediately — subscribe via subscribeAgentTurn to stream the reply.
 export function sendAgent(
@@ -249,13 +238,10 @@ export function getStrategy(id: string): Promise<SavedStrategy> {
   return request(`/api/app/strategies/${id}`);
 }
 
-// Create a NEW strategy row (up front on the first Agent prompt, or on the first run of a hand-written
-// one). config + name are the initial values; later updates go by id (updateStrategy).
-export function createStrategy(
-  config: BacktestConfig,
-  messages?: ChatMessage[],
-): Promise<SavedMeta> {
-  const body = messages ? { ...config, messages } : config;
+// Create a NEW strategy row. The server names it from `prompt`, or from code when prompt is absent.
+export function createStrategy(config: BacktestConfig, prompt?: string): Promise<SavedMeta> {
+  const { name: _clientName, ...runnableConfig } = config;
+  const body = { ...runnableConfig, ...(prompt ? { prompt } : {}) };
   return request('/api/app/strategies', { method: 'POST', body: JSON.stringify(body) });
 }
 
