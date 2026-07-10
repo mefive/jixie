@@ -352,6 +352,10 @@ export function fetchStockSeries(
   return request(`/api/app/market/stocks/${code}/series?start=${start}&end=${end}`);
 }
 
+export function fetchFutureSeries(code: string, start: string, end: string): Promise<StockSeries> {
+  return request(`/api/app/market/futures/${code}/series?start=${start}&end=${end}`);
+}
+
 // tsCode → name (bulk) — e.g. the traded-instruments queue in Trade detail.
 export function fetchNames(codes: string[]): Promise<Record<string, string>> {
   return request(`/api/app/market/names?codes=${encodeURIComponent(codes.join(','))}`);

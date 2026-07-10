@@ -135,4 +135,47 @@ export const prismaDataPort: EngineDataPort = {
     }
     return out;
   },
+
+  async futuresRange(start, end) {
+    const range = { gte: start, lte: end };
+    const [contracts, daily, mappings, settlements] = await Promise.all([
+      prisma.futureContract.findMany({
+        where: { listDate: { lte: end }, delistDate: { gte: start } },
+        select: {
+          tsCode: true,
+          productCode: true,
+          multiplier: true,
+          listDate: true,
+          delistDate: true,
+        },
+      }),
+      prisma.futureDaily.findMany({
+        where: { tradeDate: range },
+        select: {
+          tsCode: true,
+          tradeDate: true,
+          open: true,
+          high: true,
+          low: true,
+          close: true,
+          settle: true,
+          volume: true,
+          amount: true,
+          openInterest: true,
+        },
+        orderBy: [{ tsCode: 'asc' }, { tradeDate: 'asc' }],
+      }),
+      prisma.futureMapping.findMany({
+        where: { tradeDate: range },
+        select: { continuousCode: true, tradeDate: true, mappedTsCode: true },
+        orderBy: [{ continuousCode: 'asc' }, { tradeDate: 'asc' }],
+      }),
+      prisma.futureSettlement.findMany({
+        where: { tradeDate: range },
+        select: { tsCode: true, tradeDate: true, longMarginRate: true, shortMarginRate: true },
+        orderBy: [{ tsCode: 'asc' }, { tradeDate: 'asc' }],
+      }),
+    ]);
+    return { contracts, daily, mappings, settlements };
+  },
 };

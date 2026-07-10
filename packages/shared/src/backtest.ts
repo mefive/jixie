@@ -10,6 +10,10 @@ export interface CostConfig {
   minCommission?: number; // floor per trade in yuan
   stampDuty?: number; // sell-side only (5 bps = 0.0005)
   transferFee?: number; // both sides
+  futureCommissionRate?: number;
+  futureCloseTodayRate?: number;
+  futureSlippageTicks?: number;
+  futureMarginRate?: number;
 }
 
 /** A full, runnable backtest spec: range + capital + cost + the user-authored TS strategy code. */
@@ -35,6 +39,10 @@ export interface TradeRecord {
   fee: number;
   realShares: number; // real shares filled (buys are whole lots)
   realPrice: number; // unadjusted (raw) fill price — what you'd actually have paid
+  assetType?: 'stock' | 'future';
+  actualCode?: string;
+  contracts?: number;
+  multiplier?: number;
 }
 
 /** Backtest result shape returned over the wire (mirrors the engine's BacktestResult). */
@@ -52,6 +60,15 @@ export interface BacktestSummary {
   trades: number; // count
   tradeLog: TradeRecord[]; // every fill, in order (time/code/side/amount/quantity)
   nav: { date: string; value: number }[]; // daily equity curve
+  sleeveNav?: {
+    date: string;
+    stockValue: number;
+    futureValue: number;
+    futureMargin: number;
+    stockGrossExposure: number;
+    futureNotional: number;
+    netExposure: number;
+  }[];
   // benchmark comparison + more performance metrics — optional: results cached before this was added won't carry them.
   benchReturn?: number; // CSI 300 total return over the same period
   excessReturn?: number; // totalReturn − benchReturn

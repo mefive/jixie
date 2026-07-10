@@ -67,6 +67,32 @@ interface OhlcBar {
 ${OHLC_FIELDS.map((f) => `  ${f.name}: ${f.type};`).join('\n')}
 }
 
+interface FutureBar {
+  code: string;
+  actualCode: string;
+  open: number | null;
+  high: number | null;
+  low: number | null;
+  close: number | null;
+  settle: number | null;
+  volume: number | null;
+  amount: number | null;
+  openInterest: number | null;
+  multiplier: number;
+}
+
+interface FuturePosition {
+  code: string;
+  actualCode: string;
+  contracts: number;
+  margin: number;
+}
+
+interface StrategyAccounts {
+  stock: { cashWeight: number };
+  futures: { cashWeight: number };
+}
+
 type Schedule = 'daily' | 'weekly' | 'monthly';`;
 
 const POSTLUDE = `interface CodeStrategy {
@@ -75,6 +101,10 @@ const POSTLUDE = `interface CodeStrategy {
   factors?: FactorKey[];
   /** Instruments to preload bar series for up front (per-instrument systems). */
   watch?: string[];
+  /** Stock-index futures codes to preload. */
+  futures?: string[];
+  /** Initial capital split for a mixed stock/futures strategy; weights must sum to 1. */
+  accounts?: StrategyAccounts;
   onBar(ctx: StrategyCtx): void | Promise<void>;
 }
 
@@ -196,6 +226,30 @@ export const SDK_ENTRIES = [
     sig: 'index(indexCode: string): { readonly close: number | null; sma(n: number): number | null }',
     zh: '大盘指数句柄(如 000300.SH 沪深300)时点只读:close 今日点位、sma(n) n 日均线。用于大盘择时滤网(如「沪深300 站上 200 日线才做多」)。指数≠个股,不可交易。数据来自 IndexDaily(需已同步),未同步返 null。',
     en: 'Index handle (e.g. 000300.SH 沪深300) — read-only, as-of today: close = level, sma(n) = n-day MA (on the index close). For 大盘择时 regime filters; an index is not tradable.',
+  },
+  {
+    iface: 'StrategyCtx',
+    name: 'future',
+    group: '股指期货',
+    sig: 'future(code: string): FutureBar | null',
+    zh: '读取真实月合约或主力连续代码(如 IF.CFX)今天的期货行情;连续代码按当日时点映射到真实合约。',
+    en: "Today's futures bar for an actual or main-continuous code; continuous codes resolve point-in-time to an actual contract.",
+  },
+  {
+    iface: 'StrategyCtx',
+    name: 'futureHistory',
+    group: '股指期货',
+    sig: "futureHistory(code: string, field: 'open' | 'high' | 'low' | 'close' | 'settle', n: number): number[]",
+    zh: '最近 n 个期货字段值,按每日时点主力映射拼接;从旧到新。',
+    en: 'Last n futures values, point-in-time mapped each day, oldest to newest.',
+  },
+  {
+    iface: 'StrategyCtx',
+    name: 'futurePosition',
+    group: '股指期货',
+    sig: 'futurePosition(code: string): FuturePosition | null',
+    zh: '当前期货持仓;contracts 正数为多头、负数为空头。',
+    en: 'Current futures position; positive contracts are long and negative contracts are short.',
   },
   {
     iface: 'StrategyCtx',
@@ -393,6 +447,46 @@ export const SDK_ENTRIES = [
     sig: 'exit(code: string): void',
     zh: '清掉某票的全部持仓。',
     en: 'Sell the entire current position.',
+  },
+  {
+    iface: 'StrategyCtx',
+    name: 'orderFuture',
+    group: '股指期货',
+    sig: 'orderFuture(code: string, contracts: number): void',
+    zh: '期货整数手增量订单:+买/−卖,次开成交;需在策略 futures 中声明代码。',
+    en: 'Signed integer futures order: +buy / -sell, filled at next open; declare the code in futures.',
+  },
+  {
+    iface: 'StrategyCtx',
+    name: 'setFutureTargetContracts',
+    group: '股指期货',
+    sig: 'setFutureTargetContracts(code: string, contracts: number): void',
+    zh: '设置次日开盘的期货目标手数;正数多头、负数空头。',
+    en: 'Set the signed futures contract target for the next open.',
+  },
+  {
+    iface: 'StrategyCtx',
+    name: 'setFutureTargetNotional',
+    group: '股指期货',
+    sig: 'setFutureTargetNotional(code: string, notional: number): void',
+    zh: '设置次日开盘的期货目标名义敞口;负数为空头。',
+    en: 'Set the signed futures notional target for the next open.',
+  },
+  {
+    iface: 'StrategyCtx',
+    name: 'hedgeFuture',
+    group: '股指期货',
+    sig: 'hedgeFuture(code: string, beta?: number): void',
+    zh: '按次日股票账户实际成交后的市值对冲;beta=1 为全额空头对冲。',
+    en: 'Hedge actual filled stock exposure at the next open; beta=1 requests a full short hedge.',
+  },
+  {
+    iface: 'StrategyCtx',
+    name: 'exitFuture',
+    group: '股指期货',
+    sig: 'exitFuture(code: string): void',
+    zh: '次日开盘平掉该逻辑代码的全部期货持仓。',
+    en: 'Close the entire futures position at the next open.',
   },
 
   // —— BarRow: the selection row (what universe()/bar() expose) ——
@@ -598,11 +692,27 @@ export type SdkEntryName<I extends SdkEntry['iface']> = Extract<
 >['name'];
 
 // Read-only ctx properties (not callable members; emitted at the top of StrategyCtx, no doc anchor).
-export const CTX_PROP_NAMES = ['date', 'cash', 'value'] as const;
+export const CTX_PROP_NAMES = [
+  'date',
+  'cash',
+  'value',
+  'availableCash',
+  'stockValue',
+  'futureValue',
+  'stockAvailableCash',
+  'futureAvailableCash',
+  'futureMargin',
+] as const;
 const CTX_PROP_TYPES: Record<(typeof CTX_PROP_NAMES)[number], string> = {
   date: 'string',
   cash: 'number',
   value: 'number',
+  availableCash: 'number',
+  stockValue: 'number',
+  futureValue: 'number',
+  stockAvailableCash: 'number',
+  futureAvailableCash: 'number',
+  futureMargin: 'number',
 };
 const CTX_PROPS = CTX_PROP_NAMES.map(
   (propName) => `  readonly ${propName}: ${CTX_PROP_TYPES[propName]};`,

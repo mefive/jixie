@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import classNames from 'classnames';
 import { Spin } from 'antd';
 import type { StockSeries, TradeRecord } from '@jixie/shared';
-import { fetchStockSeries, fetchNames, fetchIndexSeries } from '@src/api/client';
+import { fetchStockSeries, fetchFutureSeries, fetchNames, fetchIndexSeries } from '@src/api/client';
 import { EChart, type ECOption } from '@src/components/echart';
 import './trade-detail.css';
 
@@ -44,6 +44,7 @@ export default function TradeDetail({
   const [loading, setLoading] = useState(false);
   const [active, setActive] = useState<number | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const futuresLog = tradeLog.some((trade) => trade.assetType === 'future');
 
   // Names for the traded-instruments queue (bulk, once).
   useEffect(() => {
@@ -79,13 +80,18 @@ export default function TradeDetail({
     }
     let alive = true;
     setLoading(true);
-    fetchStockSeries(code, start, end)
+    const fetchSeries = tradeLog.some(
+      (trade) => trade.code === code && trade.assetType === 'future',
+    )
+      ? fetchFutureSeries
+      : fetchStockSeries;
+    fetchSeries(code, start, end)
       .then((s) => alive && (setSeries(s), setLoading(false)))
       .catch(() => alive && setLoading(false));
     return () => {
       alive = false;
     };
-  }, [code, start, end]);
+  }, [code, start, end, tradeLog]);
 
   const option = useMemo<ECOption | null>(() => {
     if (!series) {
@@ -329,7 +335,7 @@ export default function TradeDetail({
           {showAll && <span>{t('tdColInstrument')}</span>}
           <span>{t('tdColDate')}</span>
           <span>{t('tdColSide')}</span>
-          <span className="jx-td-num">{t('tdColShares')}</span>
+          <span className="jx-td-num">{t(futuresLog ? 'tdColContracts' : 'tdColShares')}</span>
           <span className="jx-td-num">{t('tdColPrice')}</span>
           <span className="jx-td-num">{t('tdColAmount')}</span>
         </div>

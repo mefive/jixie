@@ -65,6 +65,10 @@ export const zhLab = {
   metricTurnover: '年换手',
   metricFinalValue: '期末权益',
   metricTrades: '成交笔数',
+  metricStockSleeve: '股票账户权益',
+  metricFutureSleeve: '期货账户权益',
+  metricFutureMargin: '期货保证金',
+  metricNetExposure: '净敞口',
 
   // Log dock
   logStarting: '正在启动回测进程…',
@@ -97,6 +101,7 @@ export const zhLab = {
   tdColDate: '日期',
   tdColSide: '方向',
   tdColShares: '数量',
+  tdColContracts: '手数',
   tdColPrice: '价格',
   tdColAmount: '金额',
   sideBuy: '买',
