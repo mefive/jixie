@@ -52,6 +52,8 @@ export const enLab: typeof zhLab = {
   loadingEditor: 'Loading editor…',
   sdkDocTooltip: 'SDK docs: {{name}}',
   sdkDocMenuLabel: '📖 View SDK docs',
+  factorLinkTooltip: 'View factor implementation: {{name}}',
+  factorImplementationLink: 'View factor implementation',
 
   // Result overview
   runningCalc: 'Running backtest… live logs in the "Logs" panel below',

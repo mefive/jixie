@@ -86,6 +86,7 @@ declare function defineStrategy(s: CodeStrategy): void;`;
 export interface DtsFactorOption {
   key: string; // the full 'custom:<id>' key
   label: string; // the factor's display name (shown as a trailing comment in the union)
+  description?: string; // optional summary shown by editor integrations
 }
 
 const FACTOR_KEY_DOC: Record<Locale, string> = {
