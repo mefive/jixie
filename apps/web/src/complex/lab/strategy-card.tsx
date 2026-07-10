@@ -1,4 +1,5 @@
 import { App, Button } from 'antd';
+import classNames from 'classnames';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import { faTrashCan } from '@fortawesome/free-solid-svg-icons';
@@ -13,10 +14,12 @@ import './strategy-picker.css';
  */
 export function StrategyCardView({
   card,
+  active,
   onOpen,
   onDelete,
 }: {
   card: StrategyCard;
+  active?: boolean;
   onOpen: (id: string) => void;
   onDelete?: (id: string, name: string) => void;
 }) {
@@ -34,7 +37,10 @@ export function StrategyCardView({
     });
   };
   return (
-    <div className="jx-sp-card" onClick={() => onOpen(card.id)}>
+    <div
+      className={classNames('jx-sp-card', { 'jx-sp-card--active': active })}
+      onClick={() => onOpen(card.id)}
+    >
       <div className="jx-sp-head">
         <span className="jx-sp-name">{card.name}</span>
         {onDelete && (
