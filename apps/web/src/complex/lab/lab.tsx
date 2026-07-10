@@ -547,6 +547,7 @@ const HistoryList = complex.component(({ onOpen }: { onOpen: (id: string) => voi
         <StrategyCardView
           key={card.id}
           card={card}
+          active={card.id === store.savedId}
           onOpen={onOpen}
           onDelete={(id) => store.removeSaved(id)}
         />
