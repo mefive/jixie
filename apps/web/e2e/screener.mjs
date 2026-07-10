@@ -49,6 +49,12 @@ try {
     // Clear cached factor runs so the factor page starts from a known baseline (no stale run gets
     // auto-restored on select, which would leave the params bar in an unexpected freq/neutral state).
     await fetch('/api/app/factor/runs', { method: 'DELETE' });
+    const factors = await (await fetch('/api/app/factors/catalog')).json();
+    for (const factor of factors) {
+      if (factor.kind === 'custom' && factor.label.startsWith('e2e')) {
+        await fetch(`/api/app/factors/custom/${factor.key}`, { method: 'DELETE' });
+      }
+    }
   });
 
   // 2. The card wall (full reload → authStore.load sees the cookie).
@@ -300,14 +306,44 @@ try {
 
   // 5. Seed a CODE strategy via the API. There's no fake-result seed anymore (the /result route is gone —
   // a last-result only comes from a real worker run, exercised below under E2E_BT). We open it by id.
-  const seededId = await page.evaluate(async () => {
+  const seeded = await page.evaluate(async () => {
     // Clear any strategies left by a prior crashed run so the seed's name (and the 历史 card) is unique.
     const existing = await (await fetch('/api/app/strategies')).json();
     for (const it of existing) {
       await fetch(`/api/app/strategies/${it.id}`, { method: 'DELETE' });
     }
-    const code =
-      "let last=''; export default defineStrategy({ name:'e2e策略', watch:['600519.SH'], onBar(ctx){ const c='600519.SH'; const px=ctx.price(c); const w=ctx.history(c,'close',20); if(px==null||w.length<20) return; const ma=w.reduce((a,b)=>a+b,0)/w.length; if(px>ma&&ctx.shares(c)===0) ctx.order(c,100); else if(px<ma&&ctx.shares(c)>0) ctx.exit(c); } });";
+
+    const factorResponse = await fetch('/api/app/factors/custom', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        name: 'e2e编辑器因子',
+        code: 'export default defineFactor({ name: "e2e editor factor", compute: (bar) => bar.peTtm });',
+      }),
+    });
+    const factor = await factorResponse.json();
+    if (!factorResponse.ok) {
+      throw new Error(`factor seed failed: ${JSON.stringify(factor)}`);
+    }
+
+    const factorKey = `custom:${factor.id}`;
+    const code = [
+      "let last = '';",
+      'export default defineStrategy({',
+      "  name: 'e2e策略',",
+      `  factors: ['${factorKey}'],`,
+      "  watch: ['600519.SH'],",
+      '  onBar(ctx) {',
+      "    const code = '600519.SH';",
+      `    const factorValue = ctx.factor('${factorKey}', code);`,
+      "    const period = ctx.period('monthly');",
+      '    if (factorValue != null && period !== last) {',
+      '      last = period;',
+      '      ctx.order(code, 100);',
+      '    }',
+      '  },',
+      '});',
+    ].join('\n');
     const r = await fetch('/api/app/strategies', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -319,9 +355,9 @@ try {
         code,
       }),
     });
-    return (await r.json()).id;
+    return { strategyId: (await r.json()).id, factorId: factor.id, factorKey };
   });
-  log('seeded code strategy', seededId);
+  log('seeded code strategy', seeded.strategyId);
 
   // A first visit with no recents opens the prompt-first hero (mirrors 选股看图), not the workbench.
   await page.getByRole('link', { name: '回测工作台' }).click();
@@ -331,7 +367,7 @@ try {
 
   // Open the seeded strategy by id → the agent-IDE workbench (3-column Splitter: Agent | 编辑器 | 结果).
   // The code loads into Monaco; there's no name field now — the name is pinned atop the Agent chat.
-  await page.goto(`${BASE}/lab?id=${seededId}`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`${BASE}/lab?id=${seeded.strategyId}`, { waitUntil: 'domcontentloaded' });
   await page.locator('.jx-lab-code .monaco-editor').waitFor({ timeout: 20000 }); // Monaco chunk + TS worker
   await page.waitForFunction(
     () => {
@@ -349,6 +385,42 @@ try {
   log('loaded saved strategy into the workbench (name pinned in Agent, code in Monaco)');
   await page.screenshot({ path: `${SHOTS}4c-code-editor.png` });
   log('shot 4c: strategy code editor (Monaco)');
+
+  // A custom factor literal carries catalog-backed navigation and hover metadata in Monaco.
+  const factorLiteral = page
+    .locator('.jx-lab-code .view-line span')
+    .filter({ hasText: seeded.factorKey })
+    .first();
+  await factorLiteral.hover();
+  const factorHover = page.locator('.monaco-hover', { hasText: 'e2e编辑器因子' });
+  await factorHover.waitFor({ timeout: 10000 });
+  const factorImplementationLink = factorHover.getByText('查看因子实现', { exact: true });
+  const factorHref = await factorImplementationLink.getAttribute('data-href');
+  if (!factorHref?.endsWith(`/factors?factor=${seeded.factorId}`)) {
+    throw new Error(`factor hover link has unexpected target: ${factorHref}`);
+  }
+  await page.screenshot({ path: `${SHOTS}4c1-factor-hover.png` });
+  log('shot 4c1: custom factor hover with implementation link');
+
+  const [factorPage] = await Promise.all([
+    page.context().waitForEvent('page'),
+    factorImplementationLink.click(),
+  ]);
+  await factorPage.waitForLoadState('domcontentloaded');
+  if (!factorPage.url().endsWith(`/factors?factor=${seeded.factorId}`)) {
+    throw new Error(`factor hover link opened unexpected URL: ${factorPage.url()}`);
+  }
+  await factorPage.close();
+
+  const [linkedFactorPage] = await Promise.all([
+    page.context().waitForEvent('page'),
+    factorLiteral.click({ modifiers: ['Meta'] }),
+  ]);
+  await linkedFactorPage.waitForLoadState('domcontentloaded');
+  if (!linkedFactorPage.url().endsWith(`/factors?factor=${seeded.factorId}`)) {
+    throw new Error(`factor Cmd+click opened unexpected URL: ${linkedFactorPage.url()}`);
+  }
+  await linkedFactorPage.close();
 
   // 历史 tab (inside the Agent panel) lists this user's strategies as cards — the seeded one shows up.
   await page.locator('.jx-lab-agent').getByRole('tab', { name: '历史' }).click();
@@ -711,6 +783,9 @@ try {
       await fetch(`/api/app/strategies/${it.id}`, { method: 'DELETE' });
     }
   });
+  await page.evaluate(async (factorId) => {
+    await fetch(`/api/app/factors/custom/${factorId}`, { method: 'DELETE' });
+  }, seeded.factorId);
   log('cleaned up strategies');
 
   log('PASS — all steps completed');

@@ -32,6 +32,36 @@ let staticSdkInstalled = false;
 let factorOptions: DtsFactorOption[] = [];
 let factorOptionsRequested = false;
 
+interface FactorReference {
+  option: DtsFactorOption;
+  start: number;
+  end: number;
+}
+
+// Find a catalog-backed custom factor string. Restricting this to known catalog entries prevents an
+// unrelated string that happens to start with "custom:" from becoming a navigation link.
+function factorReferences(text: string): FactorReference[] {
+  const optionsByKey = new Map(factorOptions.map((option) => [option.key, option]));
+  const references: FactorReference[] = [];
+  const literal = /(['"`])(custom:[^'"`\\\s]+)\1/g;
+  let match: RegExpExecArray | null;
+  while ((match = literal.exec(text)) !== null) {
+    const option = optionsByKey.get(match[2]);
+    if (option) {
+      references.push({ option, start: match.index + 1, end: match.index + 1 + match[2].length });
+    }
+  }
+  return references;
+}
+
+function factorUrl(option: DtsFactorOption): string {
+  return `${location.origin}/factors?factor=${encodeURIComponent(option.key.slice('custom:'.length))}`;
+}
+
+function escapeMarkdown(value: string): string {
+  return value.replace(/[\\`*_{}[\]()#+.!|>-]/g, '\\$&');
+}
+
 // (Re)register the ambient SDK .d.ts in the given locale — only the doc-comment language changes, so the
 // signatures (and thus type-checking) stay identical. Disposing first avoids a duplicate-lib for the path.
 function applySdkDts(m: Monaco, locale: Locale) {
@@ -51,7 +81,11 @@ function loadFactorOptions(m: Monaco) {
   factorOptionsRequested = true;
   getFactorCatalog()
     .then((catalog) => {
-      factorOptions = catalog.map((meta) => ({ key: `custom:${meta.key}`, label: meta.label }));
+      factorOptions = catalog.map((meta) => ({
+        key: `custom:${meta.key}`,
+        label: meta.label,
+        description: meta.description,
+      }));
       applySdkDts(m, localeStore.locale);
     })
     .catch(() => {}); // no catalog → the template-literal tail still accepts any custom:<id>
@@ -109,7 +143,50 @@ function installSdk(m: Monaco) {
       while ((mm = typeRe.exec(text)) !== null) {
         add(mm.index, mm[1]);
       }
+      for (const reference of factorReferences(text)) {
+        const s = model.getPositionAt(reference.start);
+        const e = model.getPositionAt(reference.end);
+        links.push({
+          range: {
+            startLineNumber: s.lineNumber,
+            startColumn: s.column,
+            endLineNumber: e.lineNumber,
+            endColumn: e.column,
+          },
+          url: factorUrl(reference.option),
+          tooltip: i18n.t('lab:factorLinkTooltip', { name: reference.option.label }),
+        });
+      }
       return { links };
+    },
+  });
+
+  m.languages.registerHoverProvider('typescript', {
+    provideHover(model: monaco.editor.ITextModel, position: monaco.Position) {
+      const offset = model.getOffsetAt(position);
+      const reference = factorReferences(model.getValue()).find(
+        (candidate) => offset >= candidate.start && offset <= candidate.end,
+      );
+      if (!reference) {
+        return null;
+      }
+
+      const s = model.getPositionAt(reference.start);
+      const e = model.getPositionAt(reference.end);
+      const contents: monaco.IMarkdownString[] = [
+        { value: `**${escapeMarkdown(reference.option.label)}**` },
+        { value: `\`${reference.option.key}\`` },
+      ];
+      if (reference.option.description) {
+        contents.push({ value: escapeMarkdown(reference.option.description) });
+      }
+      contents.push({
+        value: `[${i18n.t('lab:factorImplementationLink')}](${factorUrl(reference.option)})`,
+      });
+      return {
+        range: new m.Range(s.lineNumber, s.column, e.lineNumber, e.column),
+        contents,
+      };
     },
   });
 }
