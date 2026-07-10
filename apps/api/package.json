@@ -24,6 +24,7 @@
     "sync": "tsx --env-file=.env scripts/sync.ts",
     "sync:basic": "tsx --env-file=.env scripts/sync-basic.ts",
     "sync:fina": "tsx --env-file=.env scripts/sync-fina.ts",
+    "sync:futures": "tsx --env-file=.env scripts/sync-futures.ts",
     "sync:index": "tsx --env-file=.env scripts/sync-index.ts",
     "sync:limit": "tsx --env-file=.env scripts/sync-limit.ts",
     "sync:moneyflow": "tsx --env-file=.env scripts/sync-moneyflow.ts",

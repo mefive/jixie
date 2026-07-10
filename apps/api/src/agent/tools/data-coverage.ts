@@ -10,6 +10,9 @@ const TABLE_LABELS = {
   stkLimit: 'daily up/down price limits',
   topList: 'Dragon-Tiger List',
   indexDaily: 'index daily bars',
+  futureDaily: 'stock-index futures daily bars',
+  futureMapping: 'stock-index futures main-contract mapping',
+  futureSettlement: 'stock-index futures settlement parameters',
 } as const;
 
 type TableKey = keyof typeof TABLE_LABELS;
@@ -33,20 +36,43 @@ async function tableCoverage(table: TableKey): Promise<Coverage> {
     _min: { tradeDate: true },
     _max: { tradeDate: true },
   } as const;
-  const aggregate =
-    table === 'daily'
-      ? await prisma.daily.aggregate(aggregateArgs)
-      : table === 'adjFactor'
-        ? await prisma.adjFactor.aggregate(aggregateArgs)
-        : table === 'dailyBasic'
-          ? await prisma.dailyBasic.aggregate(aggregateArgs)
-          : table === 'moneyflow'
-            ? await prisma.moneyflow.aggregate(aggregateArgs)
-            : table === 'stkLimit'
-              ? await prisma.stkLimit.aggregate(aggregateArgs)
-              : table === 'topList'
-                ? await prisma.topList.aggregate(aggregateArgs)
-                : await prisma.indexDaily.aggregate(aggregateArgs);
+  let aggregate: {
+    _count: number;
+    _min: { tradeDate: string | null };
+    _max: { tradeDate: string | null };
+  };
+  switch (table) {
+    case 'daily':
+      aggregate = await prisma.daily.aggregate(aggregateArgs);
+      break;
+    case 'adjFactor':
+      aggregate = await prisma.adjFactor.aggregate(aggregateArgs);
+      break;
+    case 'dailyBasic':
+      aggregate = await prisma.dailyBasic.aggregate(aggregateArgs);
+      break;
+    case 'moneyflow':
+      aggregate = await prisma.moneyflow.aggregate(aggregateArgs);
+      break;
+    case 'stkLimit':
+      aggregate = await prisma.stkLimit.aggregate(aggregateArgs);
+      break;
+    case 'topList':
+      aggregate = await prisma.topList.aggregate(aggregateArgs);
+      break;
+    case 'indexDaily':
+      aggregate = await prisma.indexDaily.aggregate(aggregateArgs);
+      break;
+    case 'futureDaily':
+      aggregate = await prisma.futureDaily.aggregate(aggregateArgs);
+      break;
+    case 'futureMapping':
+      aggregate = await prisma.futureMapping.aggregate(aggregateArgs);
+      break;
+    case 'futureSettlement':
+      aggregate = await prisma.futureSettlement.aggregate(aggregateArgs);
+      break;
+  }
   return {
     rowCount: aggregate._count,
     firstTradeDate: aggregate._min.tradeDate,
