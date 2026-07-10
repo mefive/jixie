@@ -85,6 +85,14 @@ const MESSAGES = {
     zh: '回测任务不存在或已过期',
     en: 'Backtest job not found or expired',
   },
+  strategyBacktestInProgress: {
+    zh: '该策略已有正在进行的回测,请等它结束后再试',
+    en: 'This strategy already has a backtest in progress; wait for it to finish',
+  },
+  backtestStartFailed: {
+    zh: '回测进程启动失败',
+    en: 'Could not start the backtest process',
+  },
   backtestProcExited: {
     zh: '回测进程异常退出 (code {code})',
     en: 'Backtest process exited abnormally (code {code})',

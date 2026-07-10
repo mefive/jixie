@@ -16,13 +16,11 @@ import {
   createStrategy,
   deleteStrategy,
   findBacktestRunningJob,
-  generateStrategyName,
   getStrategy,
   listStrategies,
   pollBacktest,
   sendAgent,
   submitBacktest,
-  updateStrategy,
 } from '@src/api/client';
 import { DEFAULT_CODE } from './default-strategy';
 import { pushRecent, readRecents, removeRecent } from './recents';
@@ -251,28 +249,18 @@ export class LabStore extends BaseStore<LabSetupParams> {
   }
 
   /** Create the strategy row if it doesn't exist yet (first Agent prompt, or a first run of a
-   * hand-written strategy). Names it via the LLM — from the prompt when given, else from the code. The
+   * hand-written strategy). The server names it from the prompt when given, else from the code. The
    * baseline is left empty so a never-run strategy is dirty (→ runnable). Best-effort. */
   private async ensureStrategy(namePrompt?: string) {
     if (this.savedId) {
       return;
     }
-    let name = '未命名策略';
-    try {
-      const suggested = await generateStrategyName(
-        namePrompt ? { prompt: namePrompt } : { code: this.code },
-      );
-      name = suggested.name;
-    } catch {
-      /* naming is best-effort */
-    }
-    runInAction(() => (this.name = name));
     try {
       // No messages in the create payload — the turn runner appends the user message server-side.
-      const meta = await createStrategy(this.config);
+      const meta = await createStrategy(this.config, namePrompt);
       runInAction(() => {
         this.savedId = meta.id;
-        this.name = meta.name; // server de-dupes the name
+        this.name = meta.name; // the server generates and de-dupes the name
         this.persistedConfig = this.configKey(); // we just persisted this config (nothing to lose yet)
       });
       pushRecent(meta.id);
@@ -306,24 +294,6 @@ export class LabStore extends BaseStore<LabSetupParams> {
       runInAction(() => (this.error = i18n.t('lab:storeSaveFailedNoBacktest')));
       return;
     }
-    // Commit the config (code/range/capital) by id — the new "last run" baseline. Renames don't ride
-    // here; the name is refreshed in the background (below) so the backtest starts without waiting on it.
-    try {
-      await updateStrategy(this.savedId, { config: this.config });
-      this.markSaved();
-      void this.savedLoader.run();
-    } catch (e) {
-      runInAction(
-        () => (this.error = e instanceof Error ? e.message : i18n.t('lab:storeSaveFailed')),
-      );
-      return;
-    }
-    // Backend confirmed the new config → clear the now-stale result + logs; the run fills them back in.
-    runInAction(() => {
-      this.result = null;
-      this.logLines = [];
-      this.error = null;
-    });
     let jobId: string;
     try {
       ({ jobId } = await submitBacktest(this.config, this.savedId));
@@ -333,27 +303,15 @@ export class LabStore extends BaseStore<LabSetupParams> {
       );
       return;
     }
+    // The response confirms that the server committed this config and created its Job atomically.
+    this.markSaved();
+    runInAction(() => {
+      this.result = null;
+      this.logLines = [];
+      this.error = null;
+    });
+    void this.savedLoader.run();
     this.startPolling(jobId);
-    void this.refreshName(); // re-derive the name from the code (keeps it when it still fits), in the background
-  }
-
-  /** Re-derive the strategy name from its code (the model keeps the current name when it still fits),
-   * then persist just the name by id. Runs in the background after a run so it never blocks the backtest;
-   * a name-only change doesn't touch the (run-relevant) config, so it won't invalidate the fresh result. */
-  private async refreshName() {
-    if (!this.savedId) {
-      return;
-    }
-    try {
-      const { name } = await generateStrategyName({ code: this.code, currentName: this.name });
-      if (name && name !== this.name) {
-        runInAction(() => (this.name = name));
-        await updateStrategy(this.savedId, { config: this.config });
-        void this.savedLoader.run();
-      }
-    } catch {
-      /* best-effort */
-    }
   }
 
   /** Re-attach to a still-running backtest (jobId from localStorage) without resubmitting. */
@@ -464,17 +422,21 @@ export class LabStore extends BaseStore<LabSetupParams> {
       if (job.status === 'done') {
         // Result lives on the strategy now (worker wrote lastResult) — fetch it.
         let result: BacktestSummary | null = null;
+        let name = this.name;
         if (this.savedId) {
           try {
             const s = await getStrategy(this.savedId);
             result = (s.lastResult as BacktestSummary) ?? null;
+            name = s.name;
           } catch {
             /* strategy fetch failed — leave the last shown result */
           }
         }
         runInAction(() => {
           this.result = result;
+          this.name = name;
         });
+        void this.savedLoader.run();
         return false;
       }
       if (job.status === 'error' || job.status === 'stale') {

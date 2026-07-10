@@ -1,22 +1,25 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { ulid } from 'ulid';
-import pkg from '@prisma/client';
 import type { Prisma } from '@prisma/client';
-import type { BacktestConfig, BacktestSummary, StrategyCard } from '@jixie/shared';
+import type { BacktestSummary, StrategyCard } from '@jixie/shared';
 
-const { Prisma: PrismaNs } = pkg; // runtime namespace (DbNull) — the type import above is erased
 import { apiError, validateJson } from '../lib/httpError.js';
 import { chatMessagesSchema } from '../lib/chat-schema.js';
 import { prisma } from '../lib/prisma.js';
 import { codeConfigSchema } from '../strategy/code/schema.js';
-import { m } from '../i18n/index.js';
+import { localeFromRequest, m } from '../i18n/index.js';
+import {
+  commitStrategyConfig,
+  proposeStrategyName,
+  uniqueStrategyName,
+} from '../services/strategy-service.js';
 
 /**
  * Saved strategies (product line 1 persistence). Owner-scoped CRUD over the Strategy table. The workbench
- * auto-saves on every backtest run by POSTing the BacktestConfig here; the saved row's name is the
- * config's own name, upserted by (userId, name) so re-running under the same name updates in place
- * instead of spawning duplicates. Every query is scoped by userId, so another user's id 404s.
+ * is created before its first Agent turn or backtest, then the backtest use case commits runnable config
+ * by id. Names are unique per user for display tidiness. Every query is scoped by userId, so another
+ * user's id 404s.
  */
 export const strategiesRoute = new Hono();
 
@@ -70,44 +73,33 @@ strategiesRoute.get('/:id', async (c) => {
   });
 });
 
-/** The run-relevant part of a config (excludes name) — changing any of these invalidates a stored run. */
-function runKey(config: unknown): string {
-  const c = config as Partial<BacktestConfig> | null;
-  return JSON.stringify({
-    start: c?.start,
-    end: c?.end,
-    initialCash: c?.initialCash,
-    code: c?.code,
-  });
-}
-
-// Make an LLM-suggested name unique within the user (append " N") so a fresh strategy never overwrites
-// an existing one — names aren't a natural key here (updates go by id), only unique for tidiness.
-async function uniqueName(userId: string, base: string): Promise<string> {
-  for (let suffix = 1; suffix <= 50; suffix++) {
-    const name = suffix === 1 ? base : `${base} ${suffix}`;
-    const taken = await prisma.strategy.findUnique({
-      where: { userId_name: { userId, name } },
-      select: { id: true },
-    });
-    if (!taken) {
-      return name;
-    }
-  }
-  return `${base} ${ulid().slice(-4)}`;
-}
-
 // POST /api/app/strategies — create a NEW strategy row (created up front on the first Agent prompt, so
 // the conversation has something to attach to). The Agent conversation rides along as an optional
 // `messages` array. Config (code/range/capital) + name are the initial values; later they change only
 // on a run (POST /:id), while messages save in real time.
-const createBody = codeConfigSchema.extend({ messages: chatMessagesSchema.optional() });
+const createBody = codeConfigSchema.extend({
+  name: z.string().min(1).max(100).optional(),
+  prompt: z.string().trim().min(1).max(2000).optional(),
+  messages: chatMessagesSchema.optional(),
+});
 
 strategiesRoute.post('/', validateJson(createBody), async (c) => {
-  const { messages, ...cfg } = c.req.valid('json') as BacktestConfig & { messages?: unknown[] };
+  const { messages, prompt, ...candidate } = c.req.valid('json');
   const userId = c.var.userId;
-  const name = await uniqueName(userId, cfg.name);
-  const config = { ...cfg, name };
+  let proposedName = candidate.name;
+  if (prompt || !proposedName) {
+    try {
+      proposedName = await proposeStrategyName({
+        code: prompt ? undefined : candidate.code,
+        prompt,
+        locale: localeFromRequest(c),
+      });
+    } catch {
+      proposedName = m(c, 'unnamedStrategy');
+    }
+  }
+  const name = await uniqueStrategyName(prisma, userId, proposedName || m(c, 'unnamedStrategy'));
+  const config = { ...candidate, name };
   const row = await prisma.strategy.create({
     data: {
       id: ulid(),
@@ -134,45 +126,42 @@ strategiesRoute.post('/:id', validateJson(updateBody), async (c) => {
   const id = c.req.param('id');
   const userId = c.var.userId;
   const { config, messages } = c.req.valid('json');
-  const existing = await prisma.strategy.findFirst({
-    where: { id, userId },
-    select: { config: true, name: true },
-  });
-  if (!existing) {
-    return apiError(c, 'NOT_FOUND', m(c, 'strategyNotFound'));
-  }
-
-  const data: Prisma.StrategyUpdateInput = {};
-  if (messages !== undefined) {
-    data.messages = messages as Prisma.InputJsonValue;
-  }
   if (config) {
-    let name = config.name;
-    if (name !== existing.name) {
-      const taken = await prisma.strategy.findUnique({
-        where: { userId_name: { userId, name } },
+    const result = await prisma.$transaction(async (transaction) => {
+      const running = await transaction.job.findFirst({
+        where: { userId, kind: 'backtest', key: id, status: 'running' },
         select: { id: true },
       });
-      if (taken && taken.id !== id) {
-        name = existing.name; // rename collides — keep the current name
+      if (running) {
+        return { kind: 'running' as const };
       }
+      const row = await commitStrategyConfig(
+        transaction,
+        userId,
+        id,
+        config,
+        messages as Prisma.InputJsonValue | undefined,
+      );
+      return row ? { kind: 'updated' as const, row } : { kind: 'not_found' as const };
+    });
+    if (result.kind === 'running') {
+      return apiError(c, 'VALIDATION_FAILED', m(c, 'strategyBacktestInProgress'));
     }
-    const nextConfig = { ...config, name };
-    data.name = name;
-    data.config = nextConfig as unknown as Prisma.InputJsonValue;
-    // Only a change to the RUN-relevant fields (range/capital/code — not name) invalidates the result;
-    // a rename must not drop the fresh result (the post-run name refresh persists a name-only change).
-    if (runKey(existing.config) !== runKey(nextConfig)) {
-      data.lastResult = PrismaNs.DbNull; // stale for the new code; the run rewrites it
-    }
+    return result.kind === 'updated'
+      ? c.json(result.row)
+      : apiError(c, 'NOT_FOUND', m(c, 'strategyNotFound'));
   }
 
-  const row = await prisma.strategy.update({
+  const row = await prisma.strategy.findFirst({ where: { id, userId }, select: { id: true } });
+  if (!row) {
+    return apiError(c, 'NOT_FOUND', m(c, 'strategyNotFound'));
+  }
+  const updated = await prisma.strategy.update({
     where: { id },
-    data,
+    data: { ...(messages !== undefined ? { messages: messages as Prisma.InputJsonValue } : {}) },
     select: { id: true, name: true, createdAt: true, updatedAt: true },
   });
-  return c.json(row);
+  return c.json(updated);
 });
 
 // DELETE /api/app/strategies/:id — owner-scoped (deleteMany so a foreign id is a no-op → 404).
