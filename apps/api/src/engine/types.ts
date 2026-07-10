@@ -30,6 +30,10 @@ export interface TradeRecord {
   fee: number; // commission + stamp + transfer
   realShares: number; // real shares filled — buys are whole lots (100 shares each)
   realPrice: number; // unadjusted (raw) fill price — what you'd actually have paid
+  assetType?: 'stock' | 'future';
+  actualCode?: string; // mapped delivery contract for a logical continuous futures order
+  contracts?: number; // futures quantity in contracts
+  multiplier?: number; // CNY per index point
 }
 
 /** Trading friction model: explicit fees (rates are fractions of trade value) + implicit slippage. Fees
@@ -44,6 +48,31 @@ export interface CostModel {
   slippageBps: number; // base half-spread, both sides, in bps — the cost even for a liquid large-cap
   impactCoef: number; // linear price impact per (order notional / day turnover): a bigger order in a thinner
   //                     (small-cap) name pays more — this is what makes small/mid-cap / high-turnover realistically costlier
+  futureCommissionRate: number; // per-side fraction of futures notional
+  futureCloseTodayRate: number; // reserved for intraday close support
+  futureSlippageTicks: number; // adverse ticks per futures fill
+  futureMarginRate: number; // fallback when a historical settlement row has no margin rate
+}
+
+export interface FutureBar {
+  code: string; // logical code requested by the strategy
+  actualCode: string; // actual delivery contract as-of the bar date
+  open: number | null;
+  high: number | null;
+  low: number | null;
+  close: number | null;
+  settle: number | null;
+  volume: number | null;
+  amount: number | null;
+  openInterest: number | null;
+  multiplier: number;
+}
+
+export interface FuturePositionView {
+  code: string;
+  actualCode: string;
+  contracts: number; // signed: positive long, negative short
+  margin: number;
 }
 
 /** One stock's adjusted (hfq) OHLC on one day — the unit a per-instrument strategy reads via bars().
@@ -100,6 +129,12 @@ export interface BarContext {
   readonly date: string;
   readonly cash: number;
   readonly value: number; // total equity = cash + positions market value
+  readonly availableCash: number; // cash less futures margin; equals cash in stock-only mode
+  readonly stockValue: number; // stock sleeve equity (cash + marked stock positions)
+  readonly futureValue: number; // futures sleeve equity after the latest daily settlement
+  readonly stockAvailableCash: number;
+  readonly futureAvailableCash: number; // futures equity less reserved margin
+  readonly futureMargin: number;
 
   positions(): { code: string; shares: number; avgCost: number; marketValue: number }[];
 
@@ -140,6 +175,15 @@ export interface BarContext {
    * only when CSI 300 is above its 200-day moving average"). The index isn't tradable; data comes from
    * IndexDaily (must be synced), close/sma return null if not synced. */
   index(indexCode: string): IndexHandle;
+  /** Stock-index futures bar for an actual or logical continuous code as-of today. */
+  future(code: string): FutureBar | null;
+  /** Last n values from the point-in-time mapped futures series, oldest to newest. */
+  futureHistory(
+    code: string,
+    field: 'open' | 'high' | 'low' | 'close' | 'settle',
+    n: number,
+  ): number[];
+  futurePosition(code: string): FuturePositionView | null;
 
   // —— Orders ——
   // Declarative (target-book): fits cross-sectional rebalancing, maps cleanly to a web form later.
@@ -152,6 +196,20 @@ export interface BarContext {
 
   /** Convenience: current shares held of `code` (0 if none). */
   shares(code: string): number;
+  /** Queue a signed futures contract delta for the next open. Futures strategies are futures-only. */
+  orderFuture(code: string, contracts: number): void;
+  /** Set the signed contract target for the next open. */
+  setFutureTargetContracts(code: string, contracts: number): void;
+  /** Set a signed futures notional target for the next open (negative means short). */
+  setFutureTargetNotional(code: string, notional: number): void;
+  /** Hedge the actually filled stock sleeve at the next open. beta=1 requests a full short hedge. */
+  hedgeFuture(code: string, beta?: number): void;
+  exitFuture(code: string): void;
+}
+
+export interface StrategyAccounts {
+  stock: { cashWeight: number };
+  futures: { cashWeight: number };
 }
 
 export interface Strategy {
@@ -162,6 +220,11 @@ export interface Strategy {
   /** Instruments a per-instrument strategy trades — the engine preloads their bar series up front so
    * bars()/price() work every day without touching the cross-section. */
   watch?: string[];
+  /** Logical continuous or actual futures codes to preload. */
+  futures?: string[];
+  /** Explicitly split initial capital into isolated stock/futures sleeves. Omit to preserve legacy
+   * stock-only or futures-only behavior. Cash is not transferred automatically between sleeves. */
+  accounts?: StrategyAccounts;
   onBar(ctx: BarContext): void | Promise<void>;
 }
 
@@ -201,6 +264,7 @@ export interface BacktestResult {
   trades: number; // count (= tradeLog.length)
   tradeLog: TradeRecord[]; // every fill, in order
   nav: { date: string; value: number }[]; // daily equity curve
+  sleeveNav?: SleeveNavPoint[];
   benchReturn: number; // CSI 300 total return over the same period
   excessReturn: number; // totalReturn − benchReturn
   informationRatio: number; // annualized information ratio
@@ -211,6 +275,16 @@ export interface BacktestResult {
   monthly: { month: string; ret: number }[]; // 'YYYYMM' → monthly return
 }
 
+export interface SleeveNavPoint {
+  date: string;
+  stockValue: number;
+  futureValue: number;
+  futureMargin: number;
+  stockGrossExposure: number;
+  futureNotional: number;
+  netExposure: number;
+}
+
 export const DEFAULT_COST: CostModel = {
   commission: 0.00025,
   minCommission: 5,
@@ -218,4 +292,8 @@ export const DEFAULT_COST: CostModel = {
   transferFee: 0.00001,
   slippageBps: 2, // ~0.02% base half-spread
   impactCoef: 0.1, // order = 1% of the day's turnover → +0.1% slip; = 5% → +0.5%
+  futureCommissionRate: 0.000023,
+  futureCloseTodayRate: 0.00023,
+  futureSlippageTicks: 1,
+  futureMarginRate: 0.12,
 };

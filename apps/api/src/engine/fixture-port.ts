@@ -3,6 +3,10 @@ import type {
   CrossSectionRows,
   EngineDataPort,
   FinaIndicatorRow,
+  FutureContractRow,
+  FutureDailyDataRow,
+  FutureMappingDataRow,
+  FutureSettlementDataRow,
   IndexDailyRow,
   IndexWeightRow,
   MoneyflowRow,
@@ -47,6 +51,10 @@ export interface FixtureSpec {
   finaIndicators?: FinaIndicatorRow[];
   topList?: TopListRow[];
   moneyflow?: MoneyflowRow[];
+  futureContracts?: FutureContractRow[];
+  futureDaily?: FutureDailyDataRow[];
+  futureMappings?: FutureMappingDataRow[];
+  futureSettlements?: FutureSettlementDataRow[];
 }
 
 export function fixturePort(spec: FixtureSpec): EngineDataPort {
@@ -163,6 +171,19 @@ export function fixturePort(spec: FixtureSpec): EngineDataPort {
         }
       }
       return out;
+    },
+
+    async futuresRange(start, end) {
+      return {
+        contracts: (spec.futureContracts ?? []).filter(
+          (row) => row.listDate <= end && row.delistDate >= start,
+        ),
+        daily: (spec.futureDaily ?? []).filter((row) => inRange(row.tradeDate, start, end)),
+        mappings: (spec.futureMappings ?? []).filter((row) => inRange(row.tradeDate, start, end)),
+        settlements: (spec.futureSettlements ?? []).filter((row) =>
+          inRange(row.tradeDate, start, end),
+        ),
+      };
     },
   };
 }

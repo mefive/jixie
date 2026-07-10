@@ -45,6 +45,47 @@ export interface IndexWeightRow {
   tradeDate: string;
 }
 
+export interface FutureContractRow {
+  tsCode: string;
+  productCode: string;
+  multiplier: number;
+  listDate: string;
+  delistDate: string;
+}
+
+export interface FutureDailyDataRow {
+  tsCode: string;
+  tradeDate: string;
+  open: number | null;
+  high: number | null;
+  low: number | null;
+  close: number | null;
+  settle: number | null;
+  volume: number | null;
+  amount: number | null;
+  openInterest: number | null;
+}
+
+export interface FutureMappingDataRow {
+  continuousCode: string;
+  tradeDate: string;
+  mappedTsCode: string;
+}
+
+export interface FutureSettlementDataRow {
+  tsCode: string;
+  tradeDate: string;
+  longMarginRate: number | null;
+  shortMarginRate: number | null;
+}
+
+export interface FutureMarketRows {
+  contracts: FutureContractRow[];
+  daily: FutureDailyDataRow[];
+  mappings: FutureMappingDataRow[];
+  settlements: FutureSettlementDataRow[];
+}
+
 /** One trading day's raw panel rows (price + adjustment + valuation), optionally code-restricted. */
 export interface CrossSectionRows {
   price: {
@@ -107,4 +148,6 @@ export interface EngineDataPort {
   indexWeights(indexCode: string): Promise<IndexWeightRow[]>;
   /** Per-stock series rows for `codes` within [start, end] (implementation may chunk internally). */
   barsRows(codes: string[], start: string, end: string): Promise<BarsRows>;
+  /** Stock-index futures metadata, actual-contract bars, main mappings, and margin params. */
+  futuresRange(start: string, end: string): Promise<FutureMarketRows>;
 }

@@ -40,6 +40,32 @@ const SPEC: FixtureSpec = {
       })),
     },
   ],
+  futureContracts: [
+    {
+      tsCode: 'IF2401.CFX',
+      productCode: 'IF',
+      multiplier: 300,
+      listDate: '20230101',
+      delistDate: '20241231',
+    },
+  ],
+  futureDaily: D.map((tradeDate, index) => ({
+    tsCode: 'IF2401.CFX',
+    tradeDate,
+    open: 100 + index,
+    high: 102 + index,
+    low: 99 + index,
+    close: 101 + index,
+    settle: 101 + index,
+    volume: 1000,
+    amount: 10_000,
+    openInterest: 20_000,
+  })),
+  futureMappings: D.map((tradeDate) => ({
+    continuousCode: 'IF.CFX',
+    tradeDate,
+    mappedTsCode: 'IF2401.CFX',
+  })),
 };
 
 // Buys both names on D1 (fills D2), rotates out of BBB mid-run, exits everything at the end —
@@ -114,5 +140,64 @@ describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
       (_level, text) => logs.push(text),
     );
     expect(logs.some((line) => line.includes('process-type:undefined'))).toBe(true);
+  });
+
+  it('期货逐日盯市与成交在直跑和进墙车道一致', { timeout: 60_000 }, async () => {
+    const code = `
+      export default defineStrategy({
+        name: 'future-drift',
+        futures: ['IF.CFX'],
+        onBar(ctx) {
+          if (ctx.date === '${D[0]}') ctx.orderFuture('IF.CFX', 1);
+          if (ctx.date === '${D[3]}') ctx.exitFuture('IF.CFX');
+        },
+      });
+    `;
+    const direct = await runStrategy({
+      start: D[0],
+      end: D.at(-1)!,
+      initialCash: 100_000,
+      strategy: await compileStrategy(code),
+      dataPort: fixturePort(SPEC),
+    });
+    const walled = await runWalledBacktest(
+      { code, start: D[0], end: D.at(-1)!, initialCash: 100_000 },
+      fixturePort(SPEC),
+    );
+
+    expect(walled.nav).toEqual(direct.nav);
+    expect(walled.tradeLog).toEqual(direct.tradeLog);
+  });
+
+  it('股票成交后动态计算期货对冲在直跑和进墙车道一致', { timeout: 60_000 }, async () => {
+    const code = `
+      export default defineStrategy({
+        name: 'mixed-drift',
+        watch: ['AAA'],
+        futures: ['IF.CFX'],
+        accounts: { stock: { cashWeight: 0.7 }, futures: { cashWeight: 0.3 } },
+        onBar(ctx) {
+          if (ctx.date === '${D[0]}') {
+            ctx.setHoldings({ AAA: 1 });
+            ctx.hedgeFuture('IF.CFX');
+          }
+        },
+      });
+    `;
+    const direct = await runStrategy({
+      start: D[0],
+      end: D.at(-1)!,
+      initialCash: 100_000,
+      strategy: await compileStrategy(code),
+      dataPort: fixturePort(SPEC),
+    });
+    const walled = await runWalledBacktest(
+      { code, start: D[0], end: D.at(-1)!, initialCash: 100_000 },
+      fixturePort(SPEC),
+    );
+
+    expect(walled.nav).toEqual(direct.nav);
+    expect(walled.sleeveNav).toEqual(direct.sleeveNav);
+    expect(walled.tradeLog).toEqual(direct.tradeLog);
   });
 });

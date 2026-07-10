@@ -24,7 +24,12 @@ export class Portfolio {
 
   /** Total equity given a price lookup (suspended → its position is held at the carried price). */
   equity(priceOf: (code: string) => number | null): number {
-    let v = this.cash;
+    return this.cash + this.marketValue(priceOf);
+  }
+
+  /** Gross long stock market value. */
+  marketValue(priceOf: (code: string) => number | null): number {
+    let v = 0;
     for (const [code, p] of this.positions) {
       const px = priceOf(code);
       if (px != null) {

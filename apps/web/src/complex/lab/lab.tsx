@@ -685,6 +685,27 @@ const ResultPanel = complex.component(() => {
     { label: t('metricFinalValue'), value: Math.round(r.finalValue).toLocaleString() },
     { label: t('metricTrades'), value: r.trades.toLocaleString() },
   ];
+  const finalSleeves = r.sleeveNav?.at(-1);
+  if (finalSleeves && finalSleeves.stockValue > 0 && finalSleeves.futureValue > 0) {
+    metrics.push(
+      {
+        label: t('metricStockSleeve'),
+        value: Math.round(finalSleeves.stockValue).toLocaleString(),
+      },
+      {
+        label: t('metricFutureSleeve'),
+        value: Math.round(finalSleeves.futureValue).toLocaleString(),
+      },
+      {
+        label: t('metricFutureMargin'),
+        value: Math.round(finalSleeves.futureMargin).toLocaleString(),
+      },
+      {
+        label: t('metricNetExposure'),
+        value: Math.round(finalSleeves.netExposure).toLocaleString(),
+      },
+    );
+  }
 
   return (
     <>

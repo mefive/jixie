@@ -1,4 +1,4 @@
-import type { BarContext, BarRow, Strategy } from '../../engine/types.js';
+import type { BarContext, BarRow, Strategy, StrategyAccounts } from '../../engine/types.js';
 
 /**
  * The strategy SDK — what user code is written against. Full code-first: a strategy is just
@@ -48,6 +48,10 @@ export interface CodeStrategy {
   factors?: string[];
   /** Instruments to preload bar series for up front (per-instrument systems read bars()/price()). */
   watch?: string[];
+  /** Logical continuous or actual stock-index futures codes. */
+  futures?: string[];
+  /** Initial capital split for a mixed stock/futures strategy. */
+  accounts?: StrategyAccounts;
   onBar(ctx: StrategyCtx): void | Promise<void>;
 }
 
@@ -147,6 +151,8 @@ export function defineStrategy(s: CodeStrategy): Strategy {
     name: s.name ?? '未命名策略',
     factors: s.factors,
     watch: s.watch,
+    futures: s.futures,
+    accounts: s.accounts,
     onBar: (core: BarContext) => s.onBar(enrich(core)),
   };
 }
