@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { formatMarketCapWan } from '@src/i18n/format';
@@ -7,6 +7,7 @@ import { Button, Input, Popconfirm, Segmented, Table } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { ChatMessage, ScreenConversationMeta, ScreenRow, SavedMeta } from '@jixie/shared';
 import {
+  faArrowDown,
   faArrowLeft,
   faComments,
   faFilter,
@@ -342,7 +343,10 @@ const Composer = complex.component(({ hero }: { hero?: boolean }) => {
   );
 }, 'Composer');
 
-// Chat bubbles (parts: text + query cards), auto-scrolled; a thinking row while a turn is in flight.
+// Chat bubbles (parts: text + query cards), with ChatGPT's scroll model:
+//  - sending a message scrolls that new user turn to the TOP of the viewport (a dynamic tail spacer
+//    reserves room below so even a short reply can push it up); we never force-follow the stream.
+//  - a floating "scroll to bottom" chevron appears whenever the newest content sits below the viewport.
 function ScreenChatLog({
   messages,
   sending,
@@ -354,33 +358,134 @@ function ScreenChatLog({
   cards: QueryCardResults;
   stream: AgentTurnStream;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (el) {
-      el.scrollTop = el.scrollHeight;
+  const logRef = useRef<HTMLDivElement>(null);
+  const threadRef = useRef<HTMLDivElement>(null);
+  const lastUserRef = useRef<HTMLDivElement>(null);
+  const contentEndRef = useRef<HTMLDivElement>(null);
+  const prevLen = useRef<number | null>(null);
+  const pendingTop = useRef(false);
+  const [tailSpace, setTailSpace] = useState(0);
+  const [showDown, setShowDown] = useState(false);
+
+  // The last user message anchors both the scroll-to-top and the tail-spacer math.
+  let lastUserIndex = -1;
+  messages.forEach((message, index) => {
+    if (message.role === 'user') {
+      lastUserIndex = index;
     }
-  }, [messages.length, sending]);
+  });
+
+  // Recompute (scroll-independent): how much blank tail to reserve so the last user turn can reach the
+  // top, and whether the newest content is below the fold (→ show the scroll-down chevron). Both use the
+  // content-end marker, which sits before the spacer, so the spacer never feeds back into its own size.
+  const recompute = useCallback(() => {
+    const log = logRef.current;
+    const end = contentEndRef.current;
+    if (!log || !end) {
+      return;
+    }
+    const endBottom = end.getBoundingClientRect().bottom;
+    setShowDown(endBottom - log.getBoundingClientRect().bottom > 80);
+
+    const user = lastUserRef.current;
+    if (!user) {
+      setTailSpace(0);
+      return;
+    }
+    const contentBelow = endBottom - user.getBoundingClientRect().top;
+    const next = Math.max(0, log.clientHeight - contentBelow - 24);
+    setTailSpace((prev) => (Math.abs(prev - next) > 1 ? next : prev));
+  }, []);
+
+  // Content grows while a reply streams (the thinking row / assistant text) — a ResizeObserver keeps the
+  // spacer and chevron in sync without force-scrolling.
+  useEffect(() => {
+    const thread = threadRef.current;
+    if (!thread) {
+      return;
+    }
+    const observer = new ResizeObserver(() => recompute());
+    observer.observe(thread);
+    return () => observer.disconnect();
+  }, [recompute]);
+
+  // New turn / initial load: record intent + size the spacer here; the initial load jumps straight to the
+  // bottom (show the latest). Assistant appends never scroll.
+  useLayoutEffect(() => {
+    const log = logRef.current;
+    if (!log) {
+      return;
+    }
+    recompute();
+    const len = messages.length;
+    if (prevLen.current === null) {
+      log.scrollTop = log.scrollHeight;
+    } else if (len > prevLen.current && messages[len - 1]?.role === 'user') {
+      pendingTop.current = true;
+    }
+    prevLen.current = len;
+  }, [messages, recompute]);
+
+  // Runs every commit: once the spacer has landed and there's room, lift the new user turn to the top (8px
+  // gap) and clear the intent. Guarding on available room means the scroll fires on the commit *after* the
+  // spacer is applied, not before it — so the question actually reaches the top.
+  useLayoutEffect(() => {
+    if (!pendingTop.current) {
+      return;
+    }
+    const log = logRef.current;
+    const user = lastUserRef.current;
+    if (!log || !user) {
+      return;
+    }
+    const userTop =
+      user.getBoundingClientRect().top - log.getBoundingClientRect().top + log.scrollTop;
+    if (log.scrollHeight - userTop >= log.clientHeight - 8) {
+      // Instant, not smooth: the reply streams in right after, and its spacer recompute would cancel an
+      // in-flight smooth scroll partway (leaving the question mid-screen). Appending below never moves it.
+      log.scrollTop = Math.max(0, userTop - 8);
+      pendingTop.current = false;
+    }
+  });
+
+  const scrollToBottom = () => {
+    contentEndRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' });
+  };
+
   return (
-    <div ref={ref} className="jx-screen-chatLog">
-      {/* Centered, responsive column (ChatGPT-style): user turns as right bubbles, assistant turns as
-          full-width markdown. The scroll area is full-bleed; only this thread is width-capped. */}
-      <div className="jx-screen-chatThread">
-        {messages.map((message, index) => (
-          <div
-            key={index}
-            className={classNames('jx-screen-bubble', `jx-screen-bubble--${message.role}`)}
-          >
-            <MessageParts message={message} cards={cards} />
-            {traceOf(message) && <ToolTrace trace={traceOf(message)!} />}
-          </div>
-        ))}
-        {sending && (
-          <div className="jx-screen-bubble jx-screen-bubble--assistant jx-screen-bubble--thinking">
-            <AgentPending stream={stream} />
-          </div>
-        )}
+    <div className="jx-screen-chatLogWrap">
+      <div ref={logRef} className="jx-screen-chatLog" onScroll={recompute}>
+        {/* Centered, responsive column (ChatGPT-style): user turns as right bubbles, assistant turns as
+            full-width markdown. The scroll area is full-bleed; only this thread is width-capped. */}
+        <div ref={threadRef} className="jx-screen-chatThread">
+          {messages.map((message, index) => (
+            <div
+              key={index}
+              ref={index === lastUserIndex ? lastUserRef : undefined}
+              className={classNames('jx-screen-bubble', `jx-screen-bubble--${message.role}`)}
+            >
+              <MessageParts message={message} cards={cards} />
+              {traceOf(message) && <ToolTrace trace={traceOf(message)!} />}
+            </div>
+          ))}
+          {sending && (
+            <div className="jx-screen-bubble jx-screen-bubble--assistant jx-screen-bubble--thinking">
+              <AgentPending stream={stream} />
+            </div>
+          )}
+          <div ref={contentEndRef} className="jx-screen-chatEnd" />
+          <div className="jx-screen-chatTail" style={{ height: tailSpace }} aria-hidden />
+        </div>
       </div>
+      {showDown && (
+        <button
+          className="jx-screen-scrollDown"
+          onClick={scrollToBottom}
+          aria-label="scroll to bottom"
+        >
+          <FontAwesomeIcon icon={faArrowDown} />
+        </button>
+      )}
     </div>
   );
 }
@@ -421,16 +526,21 @@ function PromptInput({
     }
   };
   return (
-    <Input.TextArea
-      className="jx-screen-input"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      onKeyDown={onKeyDown}
-      placeholder={placeholder}
-      autoFocus={autoFocus}
-      autoSize={{ minRows: 1, maxRows: 6 }}
-      variant="borderless"
-    />
+    <div className="jx-screen-inputWrap">
+      <Input.TextArea
+        className="jx-screen-input"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={onKeyDown}
+        autoFocus={autoFocus}
+        autoSize={{ minRows: 1, maxRows: 6 }}
+        variant="borderless"
+      />
+      {/* Hint as an overlay, not the textarea's `placeholder` attribute: antd autoSize measures
+          `value || placeholder`, so a long (wrapping) placeholder forces the empty box to 2 rows.
+          Overlaying keeps the empty textarea a single row regardless of hint length / locale. */}
+      {!value && <div className="jx-screen-inputHint">{placeholder}</div>}
+    </div>
   );
 }
 
