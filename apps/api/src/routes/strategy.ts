@@ -24,18 +24,16 @@ export const strategyRoute = new Hono();
 // Backtest runs on a strategy — its Job routes ride under the strategy workbench.
 strategyRoute.route('/backtest', backtestRoute);
 
-/** The indices whose constituents are actually synced: the raw codes (for the deterministic check) +
- * a formatted string (for the prompt), so we never offer or accept an index we can't resolve. */
-async function syncedIndices(): Promise<{ codes: string[]; text: string }> {
+/** Formatted list of indices whose constituents are actually synced — only offer what we can resolve. */
+async function syncedIndices(): Promise<string> {
   const present = await prisma.indexWeight.findMany({
     select: { indexCode: true },
     distinct: ['indexCode'],
   });
   const codes = present.map((r) => r.indexCode).filter((cc) => KNOWN_INDICES[cc]);
-  const text = codes.length
+  return codes.length
     ? codes.map((cc) => `${KNOWN_INDICES[cc]}=${cc}`).join('、')
     : '(no index constituents on record yet)';
-  return { codes, text };
 }
 
 /** The finalized factors this user may reference as custom:<key> — own factors + builtin presets — formatted
@@ -83,7 +81,7 @@ strategyRoute.post('/agent', validateJson(agentBody), async (c) => {
   enqueueAgentTurn({
     turnId,
     userId,
-    profile: strategyProfile(idx.text, factors),
+    profile: strategyProfile(idx, factors),
     entity,
     message,
     currentCode: code,
