@@ -326,7 +326,17 @@ try {
       throw new Error(`factor seed failed: ${JSON.stringify(factor)}`);
     }
 
-    const factorKey = `custom:${factor.id}`;
+    const keyResponse = await fetch(`/api/app/factors/custom/${factor.id}/finalize-key`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ key: 'e2e_editor_factor' }),
+    });
+    const finalized = await keyResponse.json();
+    if (!keyResponse.ok) {
+      throw new Error(`factor key finalization failed: ${JSON.stringify(finalized)}`);
+    }
+
+    const factorKey = finalized.strategyKey;
     const code = [
       "let last = '';",
       'export default defineStrategy({',
@@ -568,6 +578,39 @@ try {
     throw new Error(`fork 后未切到副本因子: ${forkedName}`);
   }
   log('preset forked into editable copy:', forkedName);
+  const keyInput = page.locator('.jx-factor-keyInput input');
+  await keyInput.fill('e2e_ep_copy');
+  await page.getByRole('button', { name: '确认并锁定' }).click();
+  await page.locator('.ant-modal-confirm-btns .ant-btn-primary').click();
+  await page.locator('.jx-factor-keyValue', { hasText: 'custom:e2e_ep_copy' }).waitFor();
+  await page.locator('.ant-modal-confirm').waitFor({ state: 'hidden' });
+  await page.locator('.ant-message-notice').waitFor({ state: 'hidden', timeout: 5000 });
+  await page.screenshot({ path: `${SHOTS}7c1-factor-key.png` });
+  log('shot 7c1: custom factor strategy key finalized and locked');
+  const collisionKey = await page.evaluate(async () => {
+    const created = await (
+      await fetch('/api/app/factors/custom', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          name: 'e2e重名因子',
+          code: 'export default defineFactor({ name: "collision", compute: (bar) => bar.pb });',
+        }),
+      })
+    ).json();
+    const finalized = await (
+      await fetch(`/api/app/factors/custom/${created.id}/finalize-key`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ key: 'e2e_ep_copy' }),
+      })
+    ).json();
+    await fetch(`/api/app/factors/custom/${created.id}`, { method: 'DELETE' });
+    return finalized.key;
+  });
+  if (collisionKey !== 'e2e_ep_copy_2') {
+    throw new Error(`factor key collision did not append a suffix: ${collisionKey}`);
+  }
   await page.evaluate(async () => {
     // delete the forked copy (cleanup) — presets themselves must reject deletion server-side.
     const catalog = await (await fetch('/api/app/factors/catalog')).json();
@@ -697,7 +740,7 @@ try {
   await page.screenshot({ path: `${SHOTS}7b-factors-week.png` });
 
   // 8. Factor→strategy closed loop (3.2 acceptance): create a custom factor, reference it from a
-  //    strategy via ctx.factor('custom:<id>'), run a REAL short backtest through the walled worker,
+  //    strategy via ctx.factor('custom:<key>'), run a REAL short backtest through the walled worker,
   //    and confirm the result lands. API-level (the UI flows above already covered both editors).
   const loopResult = await page.evaluate(async () => {
     const factorRes = await fetch('/api/app/factors/custom', {
@@ -713,16 +756,27 @@ try {
       return { error: `factor create failed: ${JSON.stringify(factor)}` };
     }
 
+    const keyRes = await fetch(`/api/app/factors/custom/${factor.id}/finalize-key`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ key: 'e2e_closed_loop_ep' }),
+    });
+    const finalized = await keyRes.json();
+    if (!keyRes.ok) {
+      return { error: `factor key finalization failed: ${JSON.stringify(finalized)}` };
+    }
+    const factorKey = finalized.strategyKey;
+
     const code = [
       "let last = '';",
       'export default defineStrategy({',
       "  name: 'e2e闭环策略',",
-      `  factors: ['custom:${factor.id}'],`,
+      `  factors: ['${factorKey}'],`,
       '  async onBar(ctx) {',
       "    if (ctx.period('monthly') === last) return;",
       "    last = ctx.period('monthly');",
       '    const picks = (await ctx.universe()).minListDays(365)',
-      `      .rankBy((b, code) => ctx.factor('custom:${factor.id}', code))`,
+      `      .rankBy((b, code) => ctx.factor('${factorKey}', code))`,
       '      .top(10);',
       '    if (picks.length) ctx.equalWeight(picks);',
       '  },',

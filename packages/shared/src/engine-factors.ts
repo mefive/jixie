@@ -48,10 +48,10 @@ export const ENGINE_FACTORS = [
   },
 ] as const satisfies readonly EngineFactorDef[];
 
-/** Literal union of the engine-served factor keys (custom factors ride on `custom:<id>` instead). */
+/** Literal union of the engine-served factor keys (custom factors ride on `custom:<key>` instead). */
 export type EngineFactorKey = (typeof ENGINE_FACTORS)[number]['key'];
 
-/** A user-authored factor referenced from a strategy: `custom:` + the Factor row's id. */
+/** A finalized user-authored factor referenced from a strategy: `custom:` + its immutable key. */
 export const CUSTOM_FACTOR_PREFIX = 'custom:';
 
 export function isCustomFactorKey(key: string): boolean {

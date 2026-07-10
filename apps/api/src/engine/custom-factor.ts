@@ -5,7 +5,7 @@ import type { BarRow } from './types.js';
 
 /**
  * Custom (defineFactor) factors inside the BACKTEST ENGINE (factor-to-strategy.md Step 2): a strategy
- * declares `factors: ['custom:<id>']` and reads today's value via ctx.factor — computed on the fly,
+ * declares `factors: ['custom:<key>']` and reads today's value via ctx.factor — computed on the fly,
  * nothing stored. The host prepares each referenced factor's code (ownership-checked, TS→CJS
  * transformed) and passes it in EngineConfig.customFactors; THIS file evaluates and serves it in
  * whatever world the engine runs in — inside the isolate on the walled lane (DB-origin code stays

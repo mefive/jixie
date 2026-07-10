@@ -47,6 +47,14 @@ const MESSAGES = {
 
   // —— Factor ——
   factorCodeInvalid: { zh: '因子代码无效', en: 'Invalid factor code' },
+  factorKeyInvalid: {
+    zh: '策略标识只能使用小写英文、数字和下划线,且必须以字母开头',
+    en: 'The strategy key may contain only lowercase letters, digits, and underscores, and must start with a letter',
+  },
+  factorKeyUnavailable: {
+    zh: '无法分配唯一的策略标识,请换一个名称',
+    en: 'Could not allocate a unique strategy key; choose another name',
+  },
   presetFactorReadonlyEdit: {
     zh: '预置因子只读,不能修改;可「复制为自定义」后改副本',
     en: 'Preset factors are read-only and cannot be modified; copy to a custom factor and edit the copy',
@@ -104,8 +112,8 @@ const MESSAGES = {
     en: 'Index {indexCode} has no constituent data on record (cannot restrict to this index)',
   },
   unknownEngineFactor: {
-    zh: '未知因子 {key}(可用:{available},或 custom:<因子id>)',
-    en: 'Unknown factor {key} (available: {available}, or custom:<factor id>)',
+    zh: '未知因子 {key}(可用:{available},或 custom:<因子标识>)',
+    en: 'Unknown factor {key} (available: {available}, or custom:<factor key>)',
   },
   customFactorMissing: {
     zh: '自定义因子不存在或已删除:{keys}(只能引用自己的因子)',

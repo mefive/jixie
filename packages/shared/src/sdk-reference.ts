@@ -71,7 +71,7 @@ type Schedule = 'daily' | 'weekly' | 'monthly';`;
 
 const POSTLUDE = `interface CodeStrategy {
   name?: string;
-  /** Opt-in factor columns, read via ctx.factor(): moneyflow columns + custom:<id> research factors. */
+  /** Opt-in factor columns, read via ctx.factor(): moneyflow columns + custom:<key> research factors. */
   factors?: FactorKey[];
   /** Instruments to preload bar series for up front (per-instrument systems). */
   watch?: string[];
@@ -81,28 +81,26 @@ const POSTLUDE = `interface CodeStrategy {
 /** Define a strategy: export default defineStrategy({ onBar(ctx) { … } }). */
 declare function defineStrategy(s: CodeStrategy): void;`;
 
-/** A factor offered in the editor's FactorKey union — research-catalog identity, referenced as
- * custom:<key> (preset slug or the user's own factor id). */
+/** A finalized factor offered in the editor's FactorKey union, referenced by its immutable strategy key. */
 export interface DtsFactorOption {
-  key: string; // the full 'custom:<id>' key
+  key: string; // the full finalized 'custom:<key>' strategy reference
+  factorId: string; // Factor page identity used by editor navigation
   label: string; // the factor's display name (shown as a trailing comment in the union)
   description?: string; // optional summary shown by editor integrations
 }
 
 const FACTOR_KEY_DOC: Record<Locale, string> = {
-  zh: '可通过 ctx.factor 读取的因子列 —— 需先在 factors 里声明;custom:<id> 为因子研究页的因子(预置 slug 或自定义 id)。',
-  en: "Factor columns readable via ctx.factor — declare in `factors` first; custom:<id> references a research factor (preset slug or your own factor's id).",
+  zh: '可通过 ctx.factor 读取的因子列 —— 需先在 factors 里声明;custom:<key> 为已确认且锁定的因子策略标识。',
+  en: 'Factor columns readable via ctx.factor — declare in `factors` first; custom:<key> is a finalized, immutable research-factor key.',
 };
 
-/** The FactorKey ambient type: engine column factors (registry) + the known research factors, plus a
- * template-literal tail so a just-created factor doesn't red-squiggle before the catalog refreshes. */
+/** The FactorKey ambient type: engine column factors plus finalized research factors from the catalog. */
 function buildFactorKeyType(locale: Locale, factorOptions: DtsFactorOption[]): string {
   const columnMembers = ENGINE_FACTORS.map((def) => `  | '${def.key}' // ${def[locale]}`);
   const customMembers = factorOptions.map((option) => `  | '${option.key}' // ${option.label}`);
   return `/** ${FACTOR_KEY_DOC[locale]} */
 type FactorKey =
-${[...columnMembers, ...customMembers].join('\n')}
-  | \`custom:\${string}\`;`;
+${[...columnMembers, ...customMembers].join('\n')};`;
 }
 
 // Doc-section names referenced by generators below (other groups are only display labels).
@@ -220,8 +218,8 @@ export const SDK_ENTRIES = [
     name: 'factor',
     group: '数据 / 选股',
     sig: 'factor(name: FactorKey, code: string): number | null',
-    zh: '可选因子列(需在 factors 声明)当日值。资金流(万元,+流入/−流出,精确当天):mf_net_main / mf_net_total;custom:<id> 为因子研究页的因子,逐日现场算(带 window 的需先 ensureBars)。',
-    en: "Opt-in factor column for today (declare in `factors`). Moneyflow: 'mf_net_main' / 'mf_net_total' (万元, exact day). custom:<id> runs a research factor on the fly (windowed ones need ensureBars first).",
+    zh: '可选因子列(需在 factors 声明)当日值。资金流(万元,+流入/−流出,精确当天):mf_net_main / mf_net_total;custom:<key> 为已锁定的因子策略标识,逐日现场算(带 window 的需先 ensureBars)。',
+    en: "Opt-in factor column for today (declare in `factors`). Moneyflow: 'mf_net_main' / 'mf_net_total' (万元, exact day). custom:<key> runs a finalized research factor on the fly (windowed ones need ensureBars first).",
   },
 
   // —— ctx: per-instrument price/series ——

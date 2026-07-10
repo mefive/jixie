@@ -2,10 +2,9 @@ import { Worker } from 'node:worker_threads';
 import { Hono } from 'hono';
 import { ulid } from 'ulid';
 import { z } from 'zod';
-import type { FactorReport, FactorCorrelation, LogLine } from '@jixie/shared';
+import type { FactorReport, FactorCorrelation, LogLine, ChatMessage } from '@jixie/shared';
 import { apiError, validateJson, validateQuery } from '../lib/httpError.js';
 import { prisma } from '../lib/prisma.js';
-import { chatText } from '../llm/deepseek.js';
 import { BUILTIN_KEYS } from '../factor/builtin-factors.js';
 import { factorProfile } from '../agent/profiles/factor.js';
 import { factorQaProfile } from '../agent/profiles/qa.js';
@@ -14,13 +13,15 @@ import * as turnBus from '../agent/turn-bus.js';
 import { chatMessagesSchema } from '../lib/chat-schema.js';
 import { createJob, appendLog, finishJob, getJob, findRunningJob } from '../lib/jobs.js';
 import { localeFromRequest, m } from '../i18n/index.js';
+import { refreshFactorMetadata } from '../factor/metadata.js';
 
 /**
  * Factor workbench actions (singular, mounted at /api/app/factor — product line 1.5 · factor research).
  * Resource CRUD (catalog / custom factors) lives in factors.ts (plural). Reports are per-user (a public
  * factor's analysis is still cached per user, not shared). Analysis is CPU/IO-heavy → runs in a worker
  * (factor-worker.ts) as a Job:
- *   POST /agent                              one turn of the factor Agent; POST /qa preset Q&A; POST /name NL→name
+ *   POST /agent                              one turn of the factor Agent; POST /qa preset Q&A
+ *   POST /metadata                           refresh mutable display metadata from code + conversation
  *   GET  /runs?factor                        this user's cached runs of a factor (the "already run" chips)
  *   GET  /analysis?factor&freq&start&end      this user's cached report (404 if not computed yet)
  *   POST /analysis/run?...&refresh            cache hit → {done,report}; else start a Job → {jobId}
@@ -93,6 +94,9 @@ factorRoute.post('/agent', validateJson(agentBody), async (c) => {
     message,
     currentCode: code,
     locale: localeFromRequest(c),
+    afterTurn: async (result, messages) => {
+      await refreshFactorMetadata({ factorId: id, userId, code: result.code, messages });
+    },
   });
   return c.json({ turnId });
 });
@@ -121,45 +125,35 @@ factorRoute.post('/qa', validateJson(qaBody), (c) => {
   return c.json({ turnId });
 });
 
-// POST /name — propose a short factor name. `{prompt}` names a brand-new factor from its request;
-// `{code, currentName}` names from the code, keeping currentName when it still fits (on each run).
-const nameBody = z
-  .object({
-    code: z.string().max(20_000).optional(),
-    prompt: z.string().max(2000).optional(),
-    currentName: z.string().max(40).optional(),
-  })
-  .refine((body) => body.code || body.prompt, { message: 'code or prompt required' });
+const metadataBody = z.object({
+  id: z.string().min(1),
+  code: z.string().min(1).max(20_000),
+});
 
-factorRoute.post('/name', validateJson(nameBody), async (c) => {
-  const { code, prompt, currentName } = c.req.valid('json');
-
-  // The generated name is user-facing, so its language follows the request locale.
-  const nameLangHint =
-    localeFromRequest(c) === 'en'
-      ? 'a short English name (≤5 words)'
-      : 'a short Chinese name (≤12 chars)';
-
-  let name: string;
-  try {
-    const system =
-      code != null
-        ? currentName
-          ? `You name A-share factors. Read the factor code; it is currently called "${currentName}". If that name still accurately summarizes the code's logic, **return it unchanged**; only when the logic has clearly drifted, propose a more fitting ${nameLangHint}. Output only the name itself — no quotes, no explanation, no trailing punctuation.`
-          : `You name A-share factors. Read the factor code and propose ${nameLangHint} summarizing its computation. Output only the name itself — no quotes, no explanation, no trailing punctuation.`
-        : `You name A-share factors. Read the user's natural-language factor request and propose ${nameLangHint}. Output only the name itself — no quotes, no explanation, no trailing punctuation.`;
-    const raw = await chatText([
-      { role: 'system', content: system },
-      { role: 'user', content: code ?? prompt! },
-    ]);
-    name = raw
-      .trim()
-      .replace(/^["'「『]+|["'」』。.]+$/g, '')
-      .slice(0, 16);
-  } catch (e) {
-    return apiError(c, 'SERVICE_UNAVAILABLE', e instanceof Error ? e.message : m(c, 'nameFailed'));
+factorRoute.post('/metadata', validateJson(metadataBody), async (c) => {
+  const { id, code } = c.req.valid('json');
+  const factor = await prisma.factor.findFirst({
+    where: { id, userId: c.var.userId },
+    select: { messages: true },
+  });
+  if (!factor) {
+    return apiError(c, 'NOT_FOUND', m(c, 'factorNotFound'));
   }
-  return c.json({ name: name || m(c, 'unnamedFactor') });
+  try {
+    await refreshFactorMetadata({
+      factorId: id,
+      userId: c.var.userId,
+      code,
+      messages: Array.isArray(factor.messages) ? (factor.messages as unknown as ChatMessage[]) : [],
+    });
+  } catch (error) {
+    return apiError(
+      c,
+      'SERVICE_UNAVAILABLE',
+      error instanceof Error ? error.message : m(c, 'nameFailed'),
+    );
+  }
+  return c.json({ ok: true });
 });
 
 const analysisQuery = z.object({

@@ -8,6 +8,11 @@ import { BUILTIN_KEYS, BUILTIN_USER_ID, builtinCatalog } from '../factor/builtin
 import { compileFactor } from '../factor/compile-factor.js';
 import { chatMessagesSchema } from '../lib/chat-schema.js';
 import { m } from '../i18n/index.js';
+import { localeFromRequest } from '../i18n/index.js';
+
+const FACTOR_KEY_PATTERN = /^[a-z][a-z0-9_]{0,31}$/;
+
+const strategyKey = (key: string | null): string | undefined => (key ? `custom:${key}` : undefined);
 
 /**
  * Factor resources (plural, mounted at /api/app/factors):
@@ -22,22 +27,37 @@ factorsRoute.get('/catalog', async (c) => {
   // Preset factors (registry identity; code lives on their seeded rows) + this user's custom factors.
   const custom = await prisma.factor.findMany({
     where: { userId: c.var.userId },
-    select: { id: true, name: true },
+    select: {
+      id: true,
+      key: true,
+      keyCandidate: true,
+      name: true,
+      descriptionZh: true,
+      descriptionEn: true,
+    },
     orderBy: { updatedAt: 'desc' },
   });
-  const customMeta = custom.map((f) => ({ key: f.id, label: f.name, kind: 'custom' as const }));
+  const locale = localeFromRequest(c);
+  const customMeta = custom.map((factor) => ({
+    key: factor.id,
+    label: factor.name,
+    description: locale === 'en' ? factor.descriptionEn : factor.descriptionZh,
+    strategyKey: strategyKey(factor.key),
+    keyCandidate: factor.keyCandidate ?? undefined,
+    kind: 'custom' as const,
+  }));
   return c.json([...builtinCatalog(), ...customMeta]);
 });
 
 // —— Custom factors (code-first, Agent-authored — mirrors the strategy workbench) —— created on the
 // first Agent prompt, then updated by id: messages in real time, code/name on an analysis run.
 
-/** Make an LLM-suggested factor name unique within the user (append " N"). */
+/** Give copied factors a distinct display name; display names are not program identities. */
 async function uniqueFactorName(userId: string, base: string): Promise<string> {
   for (let suffix = 1; suffix <= 50; suffix++) {
     const name = suffix === 1 ? base : `${base} ${suffix}`;
-    const taken = await prisma.factor.findUnique({
-      where: { userId_name: { userId, name } },
+    const taken = await prisma.factor.findFirst({
+      where: { userId, name },
       select: { id: true },
     });
     if (!taken) {
@@ -50,7 +70,7 @@ async function uniqueFactorName(userId: string, base: string): Promise<string> {
 factorsRoute.get('/custom', async (c) => {
   const rows = await prisma.factor.findMany({
     where: { userId: c.var.userId },
-    select: { id: true, name: true, updatedAt: true },
+    select: { id: true, key: true, keyCandidate: true, name: true, updatedAt: true },
     orderBy: { updatedAt: 'desc' },
   });
   return c.json(rows);
@@ -61,13 +81,28 @@ factorsRoute.get('/custom/:id', async (c) => {
   // code read-only with a "copy as custom" affordance.
   const row = await prisma.factor.findFirst({
     where: { id: c.req.param('id'), userId: { in: [c.var.userId, BUILTIN_USER_ID] } },
-    select: { id: true, name: true, code: true, messages: true, userId: true },
+    select: {
+      id: true,
+      key: true,
+      keyCandidate: true,
+      name: true,
+      descriptionZh: true,
+      descriptionEn: true,
+      code: true,
+      messages: true,
+      userId: true,
+    },
   });
   if (!row) {
     return apiError(c, 'NOT_FOUND', m(c, 'factorNotFound'));
   }
   const { userId: ownerId, ...rest } = row;
-  return c.json({ ...rest, builtin: ownerId === BUILTIN_USER_ID });
+  return c.json({
+    ...rest,
+    description: localeFromRequest(c) === 'en' ? row.descriptionEn : row.descriptionZh,
+    strategyKey: strategyKey(row.key),
+    builtin: ownerId === BUILTIN_USER_ID,
+  });
 });
 
 // POST /custom — create a NEW factor row (up front on the first Agent prompt). The conversation rides
@@ -149,11 +184,7 @@ factorsRoute.post('/custom/:id', validateJson(updateBody), async (c) => {
     }
   }
   if (name !== undefined && name !== existing.name) {
-    const taken = await prisma.factor.findUnique({
-      where: { userId_name: { userId, name } },
-      select: { id: true },
-    });
-    data.name = taken && taken.id !== id ? existing.name : name; // collision → keep current
+    data.name = name;
   }
 
   const row = await prisma.factor.update({
@@ -162,6 +193,58 @@ factorsRoute.post('/custom/:id', validateJson(updateBody), async (c) => {
     select: { id: true, name: true },
   });
   return c.json(row);
+});
+
+const finalizeKeyBody = z.object({ key: z.string().trim().min(1).max(32) });
+
+/** Allocate an immutable strategy key. LLM/user proposals are advisory; this loop owns uniqueness. */
+factorsRoute.post('/custom/:id/finalize-key', validateJson(finalizeKeyBody), async (c) => {
+  const id = c.req.param('id');
+  const userId = c.var.userId;
+  const requested = c.req.valid('json').key;
+  if (!FACTOR_KEY_PATTERN.test(requested)) {
+    return apiError(c, 'VALIDATION_FAILED', m(c, 'factorKeyInvalid'));
+  }
+
+  const factor = await prisma.factor.findFirst({
+    where: { id, userId },
+    select: { key: true },
+  });
+  if (!factor) {
+    return apiError(c, 'NOT_FOUND', m(c, 'factorNotFound'));
+  }
+  if (factor.key) {
+    return c.json({ id, key: factor.key, strategyKey: strategyKey(factor.key) });
+  }
+
+  for (let suffix = 1; suffix <= 100; suffix++) {
+    const suffixText = suffix === 1 ? '' : `_${suffix}`;
+    const candidate = `${requested.slice(0, 32 - suffixText.length).replace(/_+$/g, '')}${suffixText}`;
+    if (BUILTIN_KEYS.has(candidate)) {
+      continue;
+    }
+    try {
+      const updated = await prisma.factor.updateMany({
+        where: { id, userId, key: null },
+        data: { key: candidate, keyCandidate: candidate },
+      });
+      if (updated.count === 1) {
+        return c.json({ id, key: candidate, strategyKey: strategyKey(candidate) });
+      }
+      const current = await prisma.factor.findFirst({
+        where: { id, userId },
+        select: { key: true },
+      });
+      if (current?.key) {
+        return c.json({ id, key: current.key, strategyKey: strategyKey(current.key) });
+      }
+    } catch (error) {
+      if ((error as { code?: string }).code !== 'P2002') {
+        throw error;
+      }
+    }
+  }
+  return apiError(c, 'VALIDATION_FAILED', m(c, 'factorKeyUnavailable'));
 });
 
 factorsRoute.delete('/custom/:id', async (c) => {

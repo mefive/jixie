@@ -334,15 +334,19 @@ model Strategy {
 ///     factor/builtin-factors.ts (git is the source of truth), read-only via the routes.
 /// Plain userId (no relation), like FactorReport.
 model Factor {
-  id        String   @id // ULID, or a preset slug for builtin rows
-  userId    String
-  name      String
-  code      String // defineFactor TS source
-  messages  Json? // ChatMessage[] — the Agent-panel conversation that authored this factor (per-factor)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String   @id // ULID, or a preset slug for builtin rows
+  userId        String
+  key           String? // immutable strategy handle after finalization; null while a user factor is a draft
+  keyCandidate  String? // LLM proposal, editable by the user until key is finalized
+  name          String // canonical Chinese display name, refreshed from the factor context
+  descriptionZh String   @default("")
+  descriptionEn String   @default("")
+  code          String // defineFactor TS source
+  messages      Json? // ChatMessage[] — the Agent-panel conversation that authored this factor (per-factor)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  @@unique([userId, name]) // name = identity within a user → upsert-by-name
+  @@unique([userId, key]) // user-factor keys are unique per owner; builtin keys are additionally reserved in the allocator
   @@index([userId, updatedAt]) // list a user's factors, newest first
 }
 

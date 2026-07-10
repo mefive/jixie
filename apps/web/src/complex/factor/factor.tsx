@@ -139,11 +139,16 @@ const AgentChat = complex.component(() => {
     : t(store.mode === 'custom' ? 'unnamedNew' : 'noneSelected');
   return (
     <div className="jx-factor-chat">
-      <div className="jx-factor-agentName">
-        <span className="jx-factor-agentNameText">{name}</span>
-        {f && (
-          <span className={`jx-factor-kind jx-factor-kind--${f.kind}`}>{t(KIND_KEY[f.kind])}</span>
-        )}
+      <div className="jx-factor-agentIdentity">
+        <div className="jx-factor-agentName">
+          <span className="jx-factor-agentNameText">{name}</span>
+          {f && (
+            <span className={`jx-factor-kind jx-factor-kind--${f.kind}`}>
+              {t(KIND_KEY[f.kind])}
+            </span>
+          )}
+        </div>
+        {store.description && <div className="jx-factor-agentDescription">{store.description}</div>}
       </div>
       <ChatLog
         messages={store.chatMessages}
@@ -403,6 +408,7 @@ const MiddleColumn = complex.component(() => {
               </LoaderButton>
             </div>
           )}
+          {!preset && store.selectedKey && <FactorIdentityBar />}
           <div className="jx-factor-code">
             <Suspense fallback={<div className="jx-factor-codeEmpty">{t('editorLoading')}</div>}>
               <FactorEditor
@@ -420,6 +426,52 @@ const MiddleColumn = complex.component(() => {
     </Splitter>
   );
 }, 'MiddleColumn');
+
+const FactorIdentityBar = complex.component(() => {
+  const store = complex.useStore();
+  const { t } = useTranslation('factor');
+  const valid = /^[a-z][a-z0-9_]{0,31}$/.test(store.keyDraft);
+  if (store.strategyKey) {
+    return (
+      <div className="jx-factor-keyBar">
+        <span className="jx-factor-keyLabel">{t('strategyKey')}</span>
+        <code className="jx-factor-keyValue">{store.strategyKey}</code>
+        <span className="jx-factor-keyLocked">
+          <FontAwesomeIcon icon={faLock} /> {t('strategyKeyLocked')}
+        </span>
+      </div>
+    );
+  }
+  return (
+    <div className="jx-factor-keyBar jx-factor-keyBar--draft">
+      <span className="jx-factor-keyLabel">{t('strategyKey')}</span>
+      <Input
+        className="jx-factor-keyInput"
+        size="small"
+        addonBefore="custom:"
+        value={store.keyDraft}
+        placeholder={t('strategyKeyPlaceholder')}
+        status={store.keyDraft && !valid ? 'error' : undefined}
+        onChange={(event) => store.setKeyDraft(event.target.value)}
+      />
+      <LoaderButton
+        size="small"
+        type="primary"
+        icon={<FontAwesomeIcon icon={faLock} />}
+        loader={store.keyLoader}
+        disabled={!valid}
+        confirm={t('strategyKeyConfirm', { key: `custom:${store.keyDraft}` })}
+        action={() => store.finalizeKey()}
+        successMessage={t('strategyKeyFinalized')}
+      >
+        {t('strategyKeyFinalize')}
+      </LoaderButton>
+      <span className="jx-factor-keyHint">
+        {store.keyDraft && !valid ? t('strategyKeyInvalid') : t('strategyKeyDraftHint')}
+      </span>
+    </div>
+  );
+}, 'FactorIdentityBar');
 
 // Middle-bottom: the run's streamed log (system progress + custom-factor console.*).
 const FactorDock = complex.component(() => {
