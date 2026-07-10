@@ -50,6 +50,7 @@
 
 - `DATABASE_URL` 里的相对路径是相对 `schema.prisma` 解析(不是 cwd):`file:./dev.db` 实际生成在 `apps/api/prisma/dev.db`
 - Prisma 7 破坏性变更(移除 `datasource.url`),留在 6.x
+- **Migration SQL 必须由 Prisma 生成,禁止手工修改已生成的 migration 文件**。修改 schema 后使用 `prisma migrate dev` 生成新的 migration;如果发现历史 migration checksum 漂移,先备份并审计数据库状态,通过修复迁移元数据解决,不要改写历史 SQL。
 
 ## A 股回测必须内置的规则(写回测时别漏)
 
