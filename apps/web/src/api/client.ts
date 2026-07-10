@@ -385,11 +385,17 @@ export function getFactorCatalog(): Promise<FactorMeta[]> {
 export interface CustomFactorMeta {
   id: string;
   name: string;
+  key?: string | null;
+  keyCandidate?: string | null;
   updatedAt: string;
 }
 export function getCustomFactor(id: string): Promise<{
   id: string;
   name: string;
+  key?: string | null;
+  keyCandidate?: string | null;
+  strategyKey?: string;
+  description?: string;
   code: string;
   messages?: ChatMessage[] | null;
   builtin?: boolean; // preset rows are readable (readonly) through the same endpoint
@@ -421,6 +427,16 @@ export function updateFactor(
   return request(`/api/app/factors/custom/${id}`, { method: 'POST', body: JSON.stringify(patch) });
 }
 
+export function finalizeFactorKey(
+  id: string,
+  key: string,
+): Promise<{ id: string; key: string; strategyKey: string }> {
+  return request(`/api/app/factors/custom/${id}/finalize-key`, {
+    method: 'POST',
+    body: JSON.stringify({ key }),
+  });
+}
+
 export function deleteCustomFactor(id: string): Promise<{ ok: true }> {
   return request(`/api/app/factors/custom/${id}`, { method: 'DELETE' });
 }
@@ -450,14 +466,11 @@ export function factorQa(
   });
 }
 
-// NL→name for a factor. `prompt` names a brand-new factor from its request; `code` (+ `currentName`)
-// names from the code, keeping currentName when it still fits (on each run).
-export function generateFactorName(input: {
-  code?: string;
-  prompt?: string;
-  currentName?: string;
-}): Promise<{ name: string }> {
-  return request('/api/app/factor/name', { method: 'POST', body: JSON.stringify(input) });
+export function refreshFactorMetadata(id: string, code: string): Promise<{ ok: true }> {
+  return request('/api/app/factor/metadata', {
+    method: 'POST',
+    body: JSON.stringify({ id, code }),
+  });
 }
 
 // A factor's cached runs (the "already-run" chips).

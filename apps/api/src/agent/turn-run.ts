@@ -9,7 +9,13 @@ import {
 import { prisma } from '../lib/prisma.js';
 import { chatTools } from '../llm/deepseek.js';
 import { t } from '../i18n/index.js';
-import { agentTurn, turnParts, type AgentProfile, type AgentTurnHooks } from './core.js';
+import {
+  agentTurn,
+  turnParts,
+  type AgentProfile,
+  type AgentTurnHooks,
+  type AgentTurnResult,
+} from './core.js';
 import * as turnBus from './turn-bus.js';
 
 /**
@@ -41,6 +47,7 @@ export interface EnqueueTurnArgs {
   message: string;
   currentCode: string;
   locale?: Locale; // the requester's locale — localizes code-generated reply chrome (default zh)
+  afterTurn?(result: AgentTurnResult, messages: ChatMessage[]): Promise<void>;
 }
 
 /** Register on the bus synchronously (so subscribers can join right away), then run detached. */
@@ -83,8 +90,11 @@ async function runTurn(args: EnqueueTurnArgs, signal: AbortSignal): Promise<void
     // Persist the assistant message BEFORE `done` fires — a subscriber reacting to done (or a
     // refresh racing it) must find the conversation complete in the DB.
     const parts = turnParts(result);
+    const completedMessages = persisted
+      ? [...persisted, { role: 'assistant' as const, parts }]
+      : [];
     if (entity && persisted) {
-      await writeMessages(entity, [...persisted, { role: 'assistant', parts }]);
+      await writeMessages(entity, completedMessages);
     }
     turnBus.finish(turnId, {
       type: 'done',
@@ -95,6 +105,14 @@ async function runTurn(args: EnqueueTurnArgs, signal: AbortSignal): Promise<void
       toolTrace: result.toolTrace,
       ...(result.error ? { error: result.error } : {}),
     });
+
+    // The after-turn hook (factor metadata refresh) is itself an LLM call — run it AFTER `done` fires,
+    // fire-and-forget, so it never delays the turn's completion signal. Errors are logged, not surfaced.
+    if (args.afterTurn) {
+      void args.afterTurn(result, completedMessages).catch((error) => {
+        console.error(`[agent] after-turn hook failed (turnId=${turnId})`, error);
+      });
+    }
   } catch (error) {
     const cancelled = signal.aborted;
     if (!cancelled) {

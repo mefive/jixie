@@ -69,7 +69,11 @@ describe('flow factor semantics (mf_net_*)', () => {
   });
 
   it('a declared custom key without a prepared module fails loudly (deleted/foreign factor)', async () => {
-    const custom: Strategy = { name: 'custom ref', factors: ['custom:01ARZ3NDEKTSV'], onBar() {} };
+    const custom: Strategy = {
+      name: 'custom ref',
+      factors: ['custom:missing_factor'],
+      onBar() {},
+    };
     await expect(
       runStrategy({
         start: D[0],
@@ -78,7 +82,7 @@ describe('flow factor semantics (mf_net_*)', () => {
         strategy: custom,
         dataPort: fixturePort(spec()),
       }),
-    ).rejects.toThrow(/custom:01ARZ3NDEKTSV/);
+    ).rejects.toThrow(/custom:missing_factor/);
   });
 });
 
@@ -188,15 +192,13 @@ describe('extractCustomFactorKeys (host-side source scan)', () => {
     const { extractCustomFactorKeys } = await import('./prepare-custom-factors.js');
     const source = `
       export default defineStrategy({
-        factors: ['custom:01ARZ3NDEKTSV4RRFFQ69G5FAV', 'mf_net_main'],
+        factors: ['custom:earnings_yield', 'mf_net_main'],
         onBar(ctx) {
-          ctx.factor('custom:01ARZ3NDEKTSV4RRFFQ69G5FAV', 'A');
+          ctx.factor('custom:earnings_yield', 'A');
           ctx.factor('custom:mom_12_1', 'A'); // a builtin preset referenced by slug
+          ctx.factor('custom:01ARZ3NDEKTSV4RRFFQ69G5FAV', 'A'); // legacy ULID: ignored
         },
       });`;
-    expect(extractCustomFactorKeys(source)).toEqual([
-      'custom:01ARZ3NDEKTSV4RRFFQ69G5FAV',
-      'custom:mom_12_1',
-    ]);
+    expect(extractCustomFactorKeys(source)).toEqual(['custom:earnings_yield', 'custom:mom_12_1']);
   });
 });

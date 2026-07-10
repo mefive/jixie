@@ -58,6 +58,8 @@ export interface FactorMeta {
   key: string; // preset = stable slug (mom / ep / mf_net_main …); custom = the Factor row's ULID
   label: string; // Chinese
   description?: string; // optional catalog summary; surfaced by strategy-editor factor hovers when present
+  strategyKey?: string; // finalized strategy reference, e.g. custom:earnings_yield; absent for drafts
+  keyCandidate?: string; // editable LLM proposal while strategyKey is absent
   kind: FactorKind;
   builtin?: boolean; // true = preset (a read-only code row in the library, can be copied into a custom factor)
 }

@@ -181,7 +181,7 @@ export interface EngineConfig {
   /** Storage doorway (Phase B1). Defaults to prismaDataPort (the direct lane); tests inject fixture
    * ports; the Phase B2 walled lane injects the isolate bridge. */
   dataPort?: EngineDataPort;
-  /** Custom (defineFactor) factors the strategy references via `factors: ['custom:<id>']` —
+  /** Custom (defineFactor) factors the strategy references via `factors: ['custom:<key>']` —
    * host-prepared (ownership-checked, TS→CJS); evaluated in the engine's own world (see
    * custom-factor.ts). A declared custom key with no module here fails the run explicitly. */
   customFactors?: CustomFactorModule[];
