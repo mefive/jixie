@@ -16,6 +16,10 @@ import {
   indexDaily,
   indexClassify,
   indexMemberAll,
+  futureContracts,
+  futureDaily,
+  futureMapping,
+  futureSettlement,
   type DailyRow,
 } from '../tushare/api.js';
 import { prisma } from '../lib/prisma.js';
@@ -48,10 +52,11 @@ export async function syncTradeCal(
   client: TushareClient,
   start: TradeDate,
   end: TradeDate,
+  exchange = 'SSE',
 ): Promise<number> {
-  const rows = await tradeCal(client, { start_date: start, end_date: end });
+  const rows = await tradeCal(client, { exchange, start_date: start, end_date: end });
   await prisma.$transaction([
-    prisma.tradeCal.deleteMany({ where: { calDate: { gte: start, lte: end } } }),
+    prisma.tradeCal.deleteMany({ where: { exchange, calDate: { gte: start, lte: end } } }),
     prisma.tradeCal.createMany({
       data: rows.map((r) => ({
         exchange: r.exchange,
@@ -61,7 +66,7 @@ export async function syncTradeCal(
       })),
     }),
   ]);
-  log(`trade_cal 落库 ${rows.length} 天（${start} ~ ${end}）`);
+  log(`trade_cal ${exchange} 落库 ${rows.length} 天（${start} ~ ${end}）`);
   return rows.length;
 }
 
@@ -558,6 +563,187 @@ export async function syncIndexDaily(
     }),
   ]);
   log(`syncIndexDaily ${indexCode}: ${rows.length} 行`);
+}
+
+const STOCK_INDEX_FUTURE_PRODUCTS = new Set(['IF', 'IH', 'IC', 'IM']);
+const STOCK_INDEX_FUTURE_CONTINUOUS_CODES = ['IF.CFX', 'IH.CFX', 'IC.CFX', 'IM.CFX'];
+
+function isStockIndexFuture(productCode: string): boolean {
+  return STOCK_INDEX_FUTURE_PRODUCTS.has(productCode.toUpperCase());
+}
+
+/** Refresh the complete metadata list of actual CFFEX stock-index futures contracts. */
+export async function syncFutureContracts(client: TushareClient): Promise<number> {
+  const rows = (await futureContracts(client, { exchange: 'CFFEX', fut_type: '1' })).filter((row) =>
+    isStockIndexFuture(row.fut_code),
+  );
+
+  await prisma.$transaction([
+    prisma.futureContract.deleteMany({}),
+    prisma.futureContract.createMany({
+      data: rows.map((row) => ({
+        tsCode: row.ts_code,
+        symbol: row.symbol,
+        productCode: row.fut_code.toUpperCase(),
+        name: row.name,
+        exchange: row.exchange,
+        multiplier: row.multiplier,
+        tradeUnit: row.trade_unit,
+        perUnit: row.per_unit,
+        quoteUnit: row.quote_unit,
+        quoteUnitDesc: row.quote_unit_desc,
+        deliveryMode: row.d_mode_desc,
+        listDate: row.list_date,
+        delistDate: row.delist_date,
+        deliveryMonth: row.d_month,
+        lastDeliveryDate: row.last_ddate,
+        tradeTimeDesc: row.trade_time_desc,
+      })),
+    }),
+  ]);
+  log(`syncFutureContracts: ${rows.length} 个 IF/IH/IC/IM 月合约`);
+  return rows.length;
+}
+
+/** Sync actual-contract daily bars. Fetching by contract keeps a full-history load to a few hundred
+ * calls instead of one call per trading day across the whole CFFEX market. */
+export async function syncFutureDaily(
+  client: TushareClient,
+  start: TradeDate,
+  end: TradeDate,
+): Promise<number> {
+  const contracts = await overlappingFutureContracts(start, end);
+  let totalRows = 0;
+
+  for (const [index, contract] of contracts.entries()) {
+    const rangeStart = contract.listDate > start ? contract.listDate : start;
+    const rangeEnd = contract.delistDate < end ? contract.delistDate : end;
+    const rows = await futureDaily(client, {
+      ts_code: contract.tsCode,
+      start_date: rangeStart,
+      end_date: rangeEnd,
+    });
+    await prisma.$transaction([
+      prisma.futureDaily.deleteMany({
+        where: { tsCode: contract.tsCode, tradeDate: { gte: rangeStart, lte: rangeEnd } },
+      }),
+      prisma.futureDaily.createMany({
+        data: rows.map((row) => ({
+          tsCode: row.ts_code,
+          tradeDate: row.trade_date,
+          preClose: row.pre_close,
+          preSettle: row.pre_settle,
+          open: row.open,
+          high: row.high,
+          low: row.low,
+          close: row.close,
+          settle: row.settle,
+          changeClose: row.change1,
+          changeSettle: row.change2,
+          volume: row.vol,
+          amount: row.amount,
+          openInterest: row.oi,
+          openInterestChange: row.oi_chg,
+          deliverySettle: row.delv_settle,
+        })),
+      }),
+    ]);
+    totalRows += rows.length;
+    if ((index + 1) % 20 === 0 || index + 1 === contracts.length) {
+      log(`syncFutureDaily: ${index + 1}/${contracts.length} 合约，累计 ${totalRows} 行`);
+    }
+  }
+  return totalRows;
+}
+
+/** Sync vendor main-contract mappings for all four stock-index futures products. */
+export async function syncFutureMappings(
+  client: TushareClient,
+  start: TradeDate,
+  end: TradeDate,
+): Promise<number> {
+  let totalRows = 0;
+
+  for (const continuousCode of STOCK_INDEX_FUTURE_CONTINUOUS_CODES) {
+    const rows = await futureMapping(client, {
+      ts_code: continuousCode,
+      start_date: start,
+      end_date: end,
+    });
+    await prisma.$transaction([
+      prisma.futureMapping.deleteMany({
+        where: { continuousCode, tradeDate: { gte: start, lte: end } },
+      }),
+      prisma.futureMapping.createMany({
+        data: rows.map((row) => ({
+          continuousCode: row.ts_code,
+          tradeDate: row.trade_date,
+          mappedTsCode: row.mapping_ts_code,
+        })),
+      }),
+    ]);
+    totalRows += rows.length;
+    log(`syncFutureMappings ${continuousCode}: ${rows.length} 行`);
+  }
+  return totalRows;
+}
+
+/** Sync historical exchange fee and margin parameters for actual contracts. */
+export async function syncFutureSettlements(
+  client: TushareClient,
+  start: TradeDate,
+  end: TradeDate,
+): Promise<number> {
+  const contracts = await overlappingFutureContracts(start, end);
+  let totalRows = 0;
+
+  for (const [index, contract] of contracts.entries()) {
+    const rangeStart = contract.listDate > start ? contract.listDate : start;
+    const rangeEnd = contract.delistDate < end ? contract.delistDate : end;
+    const rows = await futureSettlement(client, {
+      ts_code: contract.tsCode,
+      start_date: rangeStart,
+      end_date: rangeEnd,
+    });
+    await prisma.$transaction([
+      prisma.futureSettlement.deleteMany({
+        where: { tsCode: contract.tsCode, tradeDate: { gte: rangeStart, lte: rangeEnd } },
+      }),
+      prisma.futureSettlement.createMany({
+        data: rows.map((row) => ({
+          tsCode: row.ts_code,
+          tradeDate: row.trade_date,
+          settle: row.settle,
+          tradingFeeRate: row.trading_fee_rate,
+          tradingFee: row.trading_fee,
+          deliveryFee: row.delivery_fee,
+          buyHedgeMarginRate: row.b_hedging_margin_rate,
+          sellHedgeMarginRate: row.s_hedging_margin_rate,
+          longMarginRate: row.long_margin_rate,
+          shortMarginRate: row.short_margin_rate,
+          closeTodayFee: row.offset_today_fee,
+          exchange: row.exchange,
+        })),
+      }),
+    ]);
+    totalRows += rows.length;
+    if ((index + 1) % 20 === 0 || index + 1 === contracts.length) {
+      log(`syncFutureSettlements: ${index + 1}/${contracts.length} 合约，累计 ${totalRows} 行`);
+    }
+  }
+  return totalRows;
+}
+
+async function overlappingFutureContracts(start: TradeDate, end: TradeDate) {
+  const contracts = await prisma.futureContract.findMany({
+    where: { listDate: { lte: end }, delistDate: { gte: start } },
+    orderBy: [{ productCode: 'asc' }, { listDate: 'asc' }],
+    select: { tsCode: true, listDate: true, delistDate: true },
+  });
+  if (contracts.length === 0) {
+    throw new Error('No stock-index futures contracts found. Run syncFutureContracts first.');
+  }
+  return contracts;
 }
 
 function toDaily(r: DailyRow) {

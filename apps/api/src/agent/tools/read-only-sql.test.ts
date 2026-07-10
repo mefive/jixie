@@ -23,6 +23,16 @@ describe('prepareReadOnlySql', () => {
     expect(prepareReadOnlySql(sql)).toContain('GROUP BY b.industry');
   });
 
+  it('accepts stock-index futures market-data joins', () => {
+    const sql = `SELECT d.tradeDate, m.continuousCode, d.close, d.settle
+      FROM FutureMapping m
+      JOIN FutureDaily d ON d.tsCode = m.mappedTsCode AND d.tradeDate = m.tradeDate
+      JOIN FutureContract c ON c.tsCode = d.tsCode
+      WHERE c.productCode = 'IF'`;
+
+    expect(prepareReadOnlySql(sql)).toContain('FutureContract');
+  });
+
   it('rejects an oversized LIMIT', () => {
     expect(() => prepareReadOnlySql('SELECT * FROM Daily LIMIT 100000')).toThrow(/LIMIT max/);
   });

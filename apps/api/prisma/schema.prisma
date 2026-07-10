@@ -189,6 +189,86 @@ model IndexDaily {
   @@id([tsCode, tradeDate])
 }
 
+/// CFFEX stock-index futures contracts. Only IF/IH/IC/IM actual delivery-month contracts are stored;
+/// continuous symbols (e.g. IF.CFX) live in FutureMapping and must never be treated as tradable contracts.
+model FutureContract {
+  tsCode           String  @id // actual contract code, e.g. IF2509.CFX
+  symbol           String
+  productCode      String // IF / IH / IC / IM
+  name             String
+  exchange         String // CFFEX
+  multiplier       Float // CNY per index point
+  tradeUnit        String?
+  perUnit          Float?
+  quoteUnit        String?
+  quoteUnitDesc    String?
+  deliveryMode     String?
+  listDate         String
+  delistDate       String
+  deliveryMonth    String?
+  lastDeliveryDate String?
+  tradeTimeDesc    String?
+
+  @@index([productCode])
+  @@index([listDate, delistDate])
+}
+
+/// Raw daily bars for actual CFFEX stock-index futures contracts. Prices are index points; volume and
+/// open interest are contracts. Settlement price, rather than close, is the daily variation-margin basis.
+model FutureDaily {
+  tsCode             String
+  tradeDate          String
+  preClose           Float?
+  preSettle          Float?
+  open               Float?
+  high               Float?
+  low                Float?
+  close              Float?
+  settle             Float?
+  changeClose        Float? // close - previous settlement
+  changeSettle       Float? // settlement - previous settlement
+  volume             Float?
+  amount             Float? // 10k yuan
+  openInterest       Float?
+  openInterestChange Float?
+  deliverySettle     Float?
+
+  @@id([tsCode, tradeDate])
+  @@index([tradeDate])
+}
+
+/// Point-in-time mapping from a logical main/continuous symbol (e.g. IF.CFX) to an actual contract.
+/// Signals may use an adjusted continuous series, but fills must always use mappedTsCode.
+model FutureMapping {
+  continuousCode String
+  tradeDate      String
+  mappedTsCode   String
+
+  @@id([continuousCode, tradeDate])
+  @@index([tradeDate])
+  @@index([mappedTsCode])
+}
+
+/// Historical exchange settlement parameters. Broker margin add-ons are account-specific and must be
+/// layered on top later; these rows preserve the source values instead of hard-coding today's rates.
+model FutureSettlement {
+  tsCode              String
+  tradeDate           String
+  settle              Float?
+  tradingFeeRate      Float?
+  tradingFee          Float?
+  deliveryFee         Float?
+  buyHedgeMarginRate  Float?
+  sellHedgeMarginRate Float?
+  longMarginRate      Float?
+  shortMarginRate     Float?
+  closeTodayFee       Float?
+  exchange            String?
+
+  @@id([tsCode, tradeDate])
+  @@index([tradeDate])
+}
+
 // ============================================================================
 // User system (invite-only beta). Passwordless: log in with email + 6-digit verification code;
 // registering a new email requires a one-time invite code.
