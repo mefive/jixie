@@ -11,17 +11,19 @@
   word-break: break-word;
 }
 
+/* Heading sizes are relative to the container font (16px on the screen page, 13px in the lab/factor
+   side panels) so they scale with each surface instead of looking tiny under 16px body text. */
 .jx-md-h {
   @apply font-semibold text-ink;
 }
 
 .jx-md-h1 {
-  font-size: 15px;
+  font-size: 1.15em;
 }
 
 .jx-md-h2,
 .jx-md-h3 {
-  font-size: 14px;
+  font-size: 1em;
 }
 
 .jx-md-list {
@@ -43,7 +45,7 @@ ol.jx-md-list {
 
 .jx-md-table {
   @apply border-collapse;
-  font-size: 12px;
+  font-size: 0.9em;
 }
 
 .jx-md-table th,
@@ -54,6 +56,18 @@ ol.jx-md-list {
 
 .jx-md-table th {
   @apply bg-chip font-medium text-ink;
+}
+
+.jx-md-hr {
+  @apply border-0 border-t border-line;
+  margin: 4px 0;
+}
+
+/* KaTeX math: inline flows with the text; display math gets its own centered, scroll-if-wide row. */
+.jx-md-math--block {
+  @apply block overflow-x-auto overflow-y-hidden;
+  padding: 2px 0;
+  text-align: center;
 }
 
 .jx-md-code {

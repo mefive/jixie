@@ -1,11 +1,13 @@
 import { Fragment, type ReactNode } from 'react';
+import { Math } from './math';
 import './markdown.css';
 
 /**
  * A minimal markdown renderer for short assistant replies — paragraphs, **bold**, `inline code`,
- * ```code fences```, - / 1. lists, #/##/### headings, and GFM |tables|. Rendered as React nodes
- * (never dangerouslySetInnerHTML), so the text is always escaped. Not a full CommonMark parser: it
- * covers what the Agent actually emits, and unknown syntax falls through as plain text.
+ * ```code fences```, - / 1. lists, #/##/### headings, GFM |tables|, --- rules, and LaTeX math
+ * (\( inline \) / \[ display \], also $$…$$). Rendered as React nodes (never dangerouslySetInnerHTML),
+ * so the text is always escaped. Not a full CommonMark parser: it covers what the Agent actually emits,
+ * and unknown syntax falls through as plain text.
  */
 export function Markdown({ text }: { text: string }) {
   return <div className="jx-md">{renderBlocks(text)}</div>;
@@ -39,6 +41,43 @@ function renderBlocks(text: string): ReactNode[] {
 
     // blank line — paragraph separator
     if (line.trim() === '') {
+      index++;
+      continue;
+    }
+
+    // display math — \[ … \] or $$ … $$ (the Agent puts the delimiters on their own lines, but tolerate
+    // content sharing the opening / closing line). Gathered raw and handed to KaTeX in display mode.
+    const mathOpen = openDisplayMath(line);
+    if (mathOpen) {
+      const { closeRe } = mathOpen;
+      const buffer: string[] = [];
+      let rest = mathOpen.firstRest;
+      while (true) {
+        const closeAt = rest.search(closeRe);
+        if (closeAt >= 0) {
+          const before = rest.slice(0, closeAt);
+          if (before.trim() !== '') {
+            buffer.push(before);
+          }
+          index++;
+          break;
+        }
+        if (rest.trim() !== '') {
+          buffer.push(rest);
+        }
+        index++;
+        if (index >= lines.length) {
+          break;
+        }
+        rest = lines[index];
+      }
+      blocks.push(<Math key={key++} tex={buffer.join('\n').trim()} display />);
+      continue;
+    }
+
+    // horizontal rule — a line of only --- / *** / ___
+    if (/^\s*([-*_])\1{2,}\s*$/.test(line)) {
+      blocks.push(<hr key={key++} className="jx-md-hr" />);
       index++;
       continue;
     }
@@ -120,7 +159,9 @@ function renderBlocks(text: string): ReactNode[] {
       !/^```/.test(lines[index].trim()) &&
       !isListLine(lines[index]) &&
       !isTableStart(lines, index) &&
-      !/^#{1,3}\s/.test(lines[index])
+      !/^#{1,3}\s/.test(lines[index]) &&
+      !openDisplayMath(lines[index]) &&
+      !/^\s*([-*_])\1{2,}\s*$/.test(lines[index])
     ) {
       buffer.push(lines[index]);
       index++;
@@ -137,6 +178,19 @@ function renderBlocks(text: string): ReactNode[] {
 
 function isListLine(line: string): boolean {
   return /^\s*([-*]|\d+\.)\s+/.test(line);
+}
+
+/** A display-math opener at the start of a block: `\[` or `$$`. Returns the matching closing pattern
+ * and whatever text trails the opener on the same line (usually empty — the Agent delimits on own lines). */
+function openDisplayMath(line: string): { closeRe: RegExp; firstRest: string } | null {
+  const trimmed = line.trimStart();
+  if (trimmed.startsWith('\\[')) {
+    return { closeRe: /\\\]/, firstRest: trimmed.slice(2) };
+  }
+  if (trimmed.startsWith('$$')) {
+    return { closeRe: /\$\$/, firstRest: trimmed.slice(2) };
+  }
+  return null;
 }
 
 function isTableLine(line: string): boolean {
@@ -163,10 +217,10 @@ function parseTableRow(line: string): string[] {
     .map((cell) => cell.trim());
 }
 
-/** Inline spans: **bold** and `code`; everything else is plain text. */
+/** Inline spans: **bold**, `code`, and \( inline math \); everything else is plain text. */
 function renderInline(text: string): ReactNode[] {
   const nodes: ReactNode[] = [];
-  const pattern = /(\*\*([^*]+)\*\*|`([^`]+)`)/g;
+  const pattern = /(\*\*([^*]+)\*\*|`([^`]+)`|\\\(([\s\S]+?)\\\))/g;
   let last = 0;
   let key = 0;
   let match: RegExpExecArray | null;
@@ -182,6 +236,8 @@ function renderInline(text: string): ReactNode[] {
           {match[3]}
         </code>,
       );
+    } else if (match[4] != null) {
+      nodes.push(<Math key={key++} tex={match[4]} />);
     }
     last = match.index + match[0].length;
   }
