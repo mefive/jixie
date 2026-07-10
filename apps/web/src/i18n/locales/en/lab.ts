@@ -72,6 +72,10 @@ export const enLab: typeof zhLab = {
   metricTurnover: 'Turnover',
   metricFinalValue: 'Final equity',
   metricTrades: 'Trades',
+  metricStockSleeve: 'Stock sleeve',
+  metricFutureSleeve: 'Futures sleeve',
+  metricFutureMargin: 'Futures margin',
+  metricNetExposure: 'Net exposure',
 
   // Log dock
   logStarting: 'Starting the backtest process…',
@@ -106,6 +110,7 @@ export const enLab: typeof zhLab = {
   tdColDate: 'Date',
   tdColSide: 'Side',
   tdColShares: 'Shares',
+  tdColContracts: 'Contracts',
   tdColPrice: 'Price',
   tdColAmount: 'Amount',
   sideBuy: 'Buy',

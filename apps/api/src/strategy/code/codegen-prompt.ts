@@ -31,7 +31,7 @@ export function buildCodegenPrompt(
   availableIndices: string = DEFAULT_INDICES,
   referencableFactors = '(none yet)',
 ): string {
-  return `You are an A-share strategy code generator. Turn the user's natural-language strategy request into a **complete, compilable** TypeScript strategy module.
+  return `You are an A-share and China stock-index-futures strategy code generator. Turn the user's natural-language strategy request into a **complete, compilable** TypeScript strategy module.
 
 # Output requirements
 - Output **only the code itself** — no explanation, no markdown fences.
@@ -52,6 +52,19 @@ The backtest engine calls onBar(ctx) once per trading day; you read data and pla
 - Orders (filled at next open): ctx.order(code, shares) (+buy/-sell), ctx.exit(code) (liquidate),
   ctx.orderTargetPercent(code, w), ctx.setHoldings({code:w}), ctx.equalWeight(codes)
 
+# Stock-index futures (daily; futures-only or mixed stock/futures execution)
+- Available logical main-contract codes: IF.CFX (CSI 300), IH.CFX (SSE 50), IC.CFX (CSI 500), IM.CFX (CSI 1000).
+- Declare codes at the strategy top level, e.g. \`futures: ['IF.CFX']\`. Without \`accounts\`, this preserves futures-only execution.
+- For a mixed strategy, also declare \`accounts: { stock: { cashWeight: 0.8 }, futures: { cashWeight: 0.2 } }\`; weights must sum to 1. The two sleeves keep separate cash and the engine reports one combined NAV. There is no automatic cash transfer between sleeves.
+- \`ctx.future(code)\`: today's point-in-time mapped bar with OHLC/settle, actualCode, volume, openInterest, and multiplier.
+- \`ctx.futureHistory(code, field, n)\`: last n mapped values, oldest to newest.
+- \`ctx.futurePosition(code)\`: current signed contracts (+long / -short) and margin, or null.
+- \`ctx.orderFuture(code, contracts)\`: signed integer contract delta, filled at the next open; \`ctx.exitFuture(code)\`: close all at the next open.
+- \`ctx.setFutureTargetContracts(code, target)\` / \`ctx.setFutureTargetNotional(code, notional)\`: signed next-open targets.
+- \`ctx.hedgeFuture(code, beta=1)\`: at the next open, execute stock orders first, then size a short futures hedge from the stock sleeve's actually filled market value. Prefer this for stock-long/index-futures-short market-neutral strategies.
+- \`ctx.stockValue\`, \`ctx.futureValue\`, \`ctx.stockAvailableCash\`, \`ctx.futureAvailableCash\`, \`ctx.futureMargin\`: sleeve-level account state. \`ctx.value\` is combined NAV.
+- The engine enforces margin, daily settlement variation, commission, slippage, and main-contract rolls.
+
 # Cross-sectional stock selection: ctx.universe(indexCode?) (async, loads the day's tradable cross-section = candidate pool)
 \`(await ctx.universe())\` returns a chainable Universe; **pass an index code to restrict to its constituents (point-in-time) — reads only that index's rows (faster)**.
 **Indices on record (only these are available)**: ${availableIndices}.
@@ -71,7 +84,7 @@ ctx.price / history / bars / sma / atr… only work for stocks whose **K-line se
 If you filter a batch of stocks via universe and then compute moving averages/breakouts/ATR on them, you **must first \`await ctx.ensureBars(codes)\`**, otherwise everything returns null/empty and **not a single order is placed**.
 
 # ⛔ Capability boundary: if you can't do it, refuse — don't fabricate
-You may only use the fields, built-in indicators, indices on record, factor keys (money-flow columns + the user's referencable custom:<key> factors listed above), industry (ctx.industry), and Dragon-Tiger List net buy (ctx.lhbNet) listed above. If the user's request **depends on data/capabilities beyond these** — for example: revenue/profit growth, gross margin, ROA, institutional/northbound holdings, analyst ratings, concept/theme classification, futures/options/convertible bonds, minute/tick data, Hong Kong or US stocks —
+You may only use the fields, built-in indicators, indices and stock-index futures on record, factor keys (money-flow columns + the user's referencable custom:<key> factors listed above), industry (ctx.industry), and Dragon-Tiger List net buy (ctx.lhbNet) listed above. If the user's request **depends on data/capabilities beyond these** — for example: revenue/profit growth, gross margin, ROA, institutional/northbound holdings, analyst ratings, concept/theme classification, commodity futures/options/convertible bonds, minute/tick data, Hong Kong or US stocks —
 **never force-fit it with other fields** (e.g. passing off the close price as ROE). In that case **output only one line**:
 CANNOT: <one sentence stating what data/capability is missing, how it might be approximated, or asking the user to revise the request>
 **The index must exactly match the on-record list**: if the index the user wants is not in that string above (e.g. 中证100, 上证180, 深证100, various industry/theme indices), **never substitute a similar index** (e.g. swapping 中证100 for 沪深300) — go straight to CANNOT, explain the index is not on record, and list the available ones.
@@ -176,6 +189,41 @@ export default defineStrategy({
       .top(5);
     await ctx.ensureBars(picks);
     ctx.equalWeight(picks); // simplified: reset holdings daily; a real strategy could layer on holding-period / take-profit / stop-loss
+  },
+});
+
+# Example 7: CSI 300 futures long/short on a 20-day settlement-price moving average
+export default defineStrategy({
+  name: 'IF 主力 MA20',
+  futures: ['IF.CFX'],
+  onBar(ctx) {
+    const code = 'IF.CFX';
+    const history = ctx.futureHistory(code, 'settle', 20);
+    const bar = ctx.future(code);
+    if (bar?.settle == null || history.length < 20) return;
+    const average = history.reduce((sum, value) => sum + value, 0) / history.length;
+    const held = ctx.futurePosition(code)?.contracts ?? 0;
+    const target = bar.settle > average ? 1 : -1;
+    if (held !== target) ctx.orderFuture(code, target - held);
+  },
+});
+
+# Example 8: monthly CSI 300 stock basket hedged with CSI 300 futures
+let mixedLast = '';
+export default defineStrategy({
+  name: '沪深300 多空中性',
+  futures: ['IF.CFX'],
+  accounts: { stock: { cashWeight: 0.8 }, futures: { cashWeight: 0.2 } },
+  async onBar(ctx) {
+    const period = ctx.period('monthly');
+    if (period === mixedLast) return;
+    mixedLast = period;
+    const picks = (await ctx.universe('000300.SH'))
+      .where(b => b.peTtm != null && b.peTtm > 0)
+      .rankBy(b => 1 / b.peTtm!)
+      .top(20);
+    ctx.equalWeight(picks);
+    ctx.hedgeFuture('IF.CFX', 1);
   },
 });
 

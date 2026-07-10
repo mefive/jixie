@@ -7,8 +7,8 @@ import {
 } from '@jixie/shared';
 import { daysBetween } from '../lib/date.js';
 import { t } from '../i18n/messages.js'; // direct import — keeps hono/locale out of the wall bundle
-import type { EngineDataPort } from './data-port.js';
-import type { BarRow, OhlcBar } from './types.js';
+import type { EngineDataPort, FutureDailyDataRow } from './data-port.js';
+import type { BarRow, FutureBar, OhlcBar } from './types.js';
 
 /** Whole-market cross-section for one trading day. */
 export interface CrossSection {
@@ -78,6 +78,16 @@ export class EngineData {
   // Index daily close (all synced indices, preloaded in load()) — ascending parallel dates/closes arrays.
   // Powers the excess-return/IR benchmark + ctx.index() market timing. Tiny (a few thousand rows), so always loaded.
   private indexByCode = new Map<string, { dates: string[]; closes: number[] }>();
+  private futureContractByCode = new Map<
+    string,
+    { productCode: string; multiplier: number; listDate: string; delistDate: string }
+  >();
+  private futureDailyByCode = new Map<string, Map<string, FutureDailyDataRow>>();
+  private futureMappingByCode = new Map<string, { dates: string[]; actualCodes: string[] }>();
+  private futureMarginByKey = new Map<
+    string,
+    { longMarginRate: number | null; shortMarginRate: number | null }
+  >();
 
   private warnedIndices = new Set<string>(); // log an index's coverage gap at most once
 
@@ -90,6 +100,7 @@ export class EngineData {
     // All storage access goes through this port (Phase B1): prismaDataPort on the direct lane,
     // the isolate bridge on the walled lane (Phase B2). Domain logic stays in this class.
     private port: EngineDataPort,
+    private futureCodes: string[] = [],
   ) {}
 
   /** Index daily close series (sync, from the preload) — the excess-return/IR benchmark (caller aligns to nav). */
@@ -164,6 +175,49 @@ export class EngineData {
       s.closes.push(r.close);
     }
 
+    if (this.futureCodes.length > 0) {
+      const futureRows = await this.port.futuresRange(this.start, this.end);
+      for (const contract of futureRows.contracts) {
+        this.futureContractByCode.set(contract.tsCode, contract);
+      }
+      for (const row of futureRows.daily) {
+        let rowsByDate = this.futureDailyByCode.get(row.tsCode);
+        if (!rowsByDate) {
+          this.futureDailyByCode.set(row.tsCode, (rowsByDate = new Map()));
+        }
+        rowsByDate.set(row.tradeDate, row);
+      }
+      for (const row of futureRows.mappings) {
+        let mapping = this.futureMappingByCode.get(row.continuousCode);
+        if (!mapping) {
+          this.futureMappingByCode.set(
+            row.continuousCode,
+            (mapping = { dates: [], actualCodes: [] }),
+          );
+        }
+        mapping.dates.push(row.tradeDate);
+        mapping.actualCodes.push(row.mappedTsCode);
+      }
+      for (const mapping of this.futureMappingByCode.values()) {
+        const ordered = mapping.dates
+          .map((date, index) => ({ date, actualCode: mapping.actualCodes[index] }))
+          .sort((left, right) => left.date.localeCompare(right.date));
+        mapping.dates = ordered.map((entry) => entry.date);
+        mapping.actualCodes = ordered.map((entry) => entry.actualCode);
+      }
+      for (const row of futureRows.settlements) {
+        this.futureMarginByKey.set(`${row.tsCode}|${row.tradeDate}`, row);
+      }
+
+      for (const code of this.futureCodes) {
+        const isActual = this.futureContractByCode.has(code);
+        const hasMapping = this.futureMappingByCode.has(code);
+        if (!isActual && !hasMapping) {
+          throw new Error(`No futures contract or mapping data found for ${code}`);
+        }
+      }
+    }
+
     // Declared factor keys must be real: a registry column factor or a custom:<key> reference —
     // a typo'd key used to be a silent all-null column, which reads as "strategy places no trades".
     for (const key of this.factorKeys) {
@@ -209,6 +263,127 @@ export class EngineData {
 
   nextDay(date: string): string {
     return this.nextDayOf.get(date) ?? date;
+  }
+
+  futureActualCode(code: string, date: string): string | null {
+    if (this.futureContractByCode.has(code)) {
+      return code;
+    }
+    const mapping = this.futureMappingByCode.get(code);
+    if (!mapping) {
+      return null;
+    }
+    const index = lastIndexAtOrBefore(mapping.dates, date);
+    return index >= 0 ? mapping.actualCodes[index] : null;
+  }
+
+  /** Resolve the actual contract tradable at `executionDate` using information available on
+   * `knownDate`. If the vendor main mapping still points at a contract on its last trading day,
+   * proactively choose the active same-product contract with the highest known open interest. */
+  futureExecutionCode(code: string, knownDate: string, executionDate: string): string | null {
+    const mappedCode = this.futureActualCode(code, knownDate);
+    if (!mappedCode) {
+      return null;
+    }
+    const mappedContract = this.futureContractByCode.get(mappedCode);
+    if (!mappedContract || mappedContract.delistDate > executionDate) {
+      return mappedCode;
+    }
+    if (this.futureContractByCode.has(code)) {
+      return null;
+    }
+
+    let selectedCode: string | null = null;
+    let selectedOpenInterest = -Infinity;
+    for (const [candidateCode, contract] of this.futureContractByCode) {
+      if (
+        contract.productCode !== mappedContract.productCode ||
+        candidateCode === mappedCode ||
+        contract.listDate > executionDate ||
+        contract.delistDate <= executionDate
+      ) {
+        continue;
+      }
+      const openInterest = this.futureDailyByCode.get(candidateCode)?.get(knownDate)?.openInterest;
+      if (openInterest != null && openInterest > selectedOpenInterest) {
+        selectedCode = candidateCode;
+        selectedOpenInterest = openInterest;
+      }
+    }
+    return selectedCode;
+  }
+
+  futureBar(code: string, date: string): FutureBar | null {
+    const actualCode = this.futureActualCode(code, date);
+    if (!actualCode) {
+      return null;
+    }
+    const row = this.futureDailyByCode.get(actualCode)?.get(date);
+    const contract = this.futureContractByCode.get(actualCode);
+    if (!row || !contract) {
+      return null;
+    }
+    return {
+      code,
+      actualCode,
+      open: row.open,
+      high: row.high,
+      low: row.low,
+      close: row.close,
+      settle: row.settle,
+      volume: row.volume,
+      amount: row.amount,
+      openInterest: row.openInterest,
+      multiplier: contract.multiplier,
+    };
+  }
+
+  futureActualBar(actualCode: string, date: string): FutureBar | null {
+    return this.futureBar(actualCode, date);
+  }
+
+  futureHistory(
+    code: string,
+    date: string,
+    field: 'open' | 'high' | 'low' | 'close' | 'settle',
+    n: number,
+  ): number[] {
+    const endIndex = lastIndexAtOrBefore(this.timeline, date);
+    if (endIndex < 0 || n <= 0) {
+      return [];
+    }
+    const values: number[] = [];
+    let previousActualCode: string | null = null;
+    for (let index = 0; index <= endIndex; index++) {
+      const currentDate = this.timeline[index];
+      const bar = this.futureBar(code, currentDate);
+      if (!bar) {
+        continue;
+      }
+      if (previousActualCode && previousActualCode !== bar.actualCode) {
+        const previousContractValue = this.futureActualBar(previousActualCode, currentDate)?.[
+          field
+        ];
+        const currentContractValue = bar[field];
+        if (previousContractValue != null && currentContractValue != null) {
+          const rollGap = currentContractValue - previousContractValue;
+          for (let valueIndex = 0; valueIndex < values.length; valueIndex++) {
+            values[valueIndex] += rollGap;
+          }
+        }
+      }
+      const value = bar[field];
+      if (value != null) {
+        values.push(value);
+      }
+      previousActualCode = bar.actualCode;
+    }
+    return values.slice(-n);
+  }
+
+  futureMarginRate(actualCode: string, date: string, side: 'long' | 'short'): number | null {
+    const row = this.futureMarginByKey.get(`${actualCode}|${date}`);
+    return side === 'long' ? (row?.longMarginRate ?? null) : (row?.shortMarginRate ?? null);
   }
 
   /** Calendar days since listing as of `date` (point-in-time stock age), or null if unknown. */
