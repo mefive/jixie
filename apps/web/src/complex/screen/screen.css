@@ -122,30 +122,69 @@
   padding: 16px 20px;
 }
 
+/* Wraps the scroll area so the scroll-to-bottom chevron can float above the composer, out of the scroll flow. */
+.jx-screen-chatLogWrap {
+  @apply relative flex flex-1 flex-col;
+  min-height: 0;
+}
+
 /* Full-bleed scroll area; the thread inside is the centered, responsive column. */
 .jx-screen-chatLog {
   @apply flex flex-1 flex-col overflow-auto;
 }
 
+/* Zero-size marker at the end of real content (before the tail spacer) — anchors the spacer + chevron math. */
+.jx-screen-chatEnd {
+  height: 0;
+}
+
+/* Floating scroll-to-bottom chevron, centered just above the composer; shown only when content is below the fold. */
+.jx-screen-scrollDown {
+  @apply absolute flex items-center justify-center rounded-full border border-line bg-card text-ink;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 34px;
+  height: 34px;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgb(17 24 39 / 0.12);
+  transition: background-color 0.15s;
+}
+
+.jx-screen-scrollDown:hover {
+  @apply bg-chip;
+}
+
+/* Desktop: a 768px centered column, flush (no horizontal padding) — ChatGPT-like. Narrow viewports
+   get side padding so text never kisses the window edge. */
 .jx-screen-chatThread {
   @apply mx-auto flex w-full flex-col;
-  max-width: 46rem;
+  max-width: 768px;
   gap: 20px;
-  padding: 16px 16px 8px;
+  padding: 24px 0 8px;
+}
+
+@media (max-width: 800px) {
+  .jx-screen-chatThread {
+    padding-inline: 16px;
+  }
 }
 
 .jx-screen-bubble {
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.7;
   word-break: break-word;
 }
 
-/* User turn: right-aligned rounded bubble. */
+/* User turn: right-aligned rounded bubble. Normal weight + antialiased so the white-on-dark text
+   doesn't read as bold. */
 .jx-screen-bubble--user {
   @apply self-end rounded-2xl bg-primary text-white;
   max-width: 85%;
   padding: 8px 14px;
+  font-weight: 400;
   white-space: pre-wrap;
+  -webkit-font-smoothing: antialiased;
 }
 
 /* Assistant turn: no bubble — full-width markdown flush with the thread edges. */
@@ -161,7 +200,7 @@
 .jx-screen-chatComposer {
   @apply mx-auto flex w-full items-end gap-2;
   @apply rounded-2xl border border-line bg-card;
-  max-width: 46rem;
+  max-width: 768px;
   padding: 8px 8px 8px 14px;
 }
 
@@ -196,9 +235,24 @@
   font-size: 12px;
 }
 
+.jx-screen-inputWrap {
+  @apply relative flex-1;
+  min-width: 0;
+}
+
 .jx-screen-input {
-  @apply flex-1;
-  font-size: 14px;
+  @apply w-full;
+  font-size: 16px;
+}
+
+/* Overlay hint — matches the textarea's padding / font / line-box so it sits exactly where the native
+   placeholder would, but as a single truncated line that never affects the textarea's measured height. */
+.jx-screen-inputHint {
+  @apply pointer-events-none absolute truncate text-muted;
+  inset: 0;
+  padding: 5px 11px;
+  font-size: 16px;
+  line-height: 1.5714;
 }
 
 .jx-screen-send {
