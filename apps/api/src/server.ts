@@ -13,6 +13,7 @@ import { agentRoute } from './routes/agent.js';
 import { requireAuth } from './lib/session.js';
 import { markRunningJobsStale } from './lib/jobs.js';
 import { seedBuiltinFactors } from './factor/builtin-factors.js';
+import { markRunningAgentTurnsInterrupted } from './agent/persistence.js';
 
 /**
  * Start the backend.
@@ -25,6 +26,10 @@ export function startServer(port: number) {
   // Any job left 'running' from a previous process is a zombie (its worker died) → mark stale.
   void markRunningJobsStale().then(
     (n) => n && console.log(`[jixie] marked ${n} orphaned job(s) as stale`),
+  );
+  void markRunningAgentTurnsInterrupted().then(
+    (count) =>
+      count && console.log(`[jixie] marked ${count} orphaned Agent turn(s) as interrupted`),
   );
   // Materialize the built-in preset factors (idempotent; repo is the source of truth).
   void seedBuiltinFactors().catch((e) => console.error('[jixie] preset factor seed failed', e));

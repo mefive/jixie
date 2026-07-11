@@ -33,8 +33,12 @@ export interface ChartPart {
 export type MessagePart = TextPart | CardPart | ChartPart;
 
 export interface ChatMessage {
+  id?: string;
   role: 'user' | 'assistant';
   parts: MessagePart[];
+  turnId?: string;
+  sequence?: number;
+  createdAt?: string;
 }
 
 /** Build a plain one-text-part message (the common case for user turns and error bubbles). */
@@ -44,14 +48,29 @@ export function textMessage(role: ChatMessage['role'], text: string): ChatMessag
 
 /** Upgrade a persisted message to the parts shape — tolerates the legacy `{ role, content }` rows. */
 export function normalizeChatMessage(raw: unknown): ChatMessage {
-  const message = raw as { role?: unknown; content?: unknown; parts?: unknown };
+  const message = raw as {
+    id?: unknown;
+    role?: unknown;
+    content?: unknown;
+    parts?: unknown;
+    turnId?: unknown;
+    sequence?: unknown;
+    createdAt?: unknown;
+  };
   const role = message?.role === 'assistant' ? 'assistant' : 'user';
+  const metadata = {
+    ...(typeof message?.id === 'string' ? { id: message.id } : {}),
+    ...(typeof message?.turnId === 'string' ? { turnId: message.turnId } : {}),
+    ...(typeof message?.sequence === 'number' ? { sequence: message.sequence } : {}),
+    ...(typeof message?.createdAt === 'string' ? { createdAt: message.createdAt } : {}),
+  };
   if (Array.isArray(message?.parts)) {
-    return { role, parts: message.parts as MessagePart[] };
+    return { role, parts: message.parts as MessagePart[], ...metadata };
   }
   return {
     role,
     parts: [{ type: 'text', text: typeof message?.content === 'string' ? message.content : '' }],
+    ...metadata,
   };
 }
 

@@ -36,9 +36,16 @@ export type { ToolTraceItem };
 export interface AgentTurnHooks {
   signal?: AbortSignal;
   onDelta?(text: string): void;
+  onReasoningDelta?(modelCall: number, text: string): void;
+  onModelStart?(modelCall: number, toolsEnabled: string[]): void;
+  onModelDone?(modelCall: number, output: string): void;
   onToolStart?(name: string, argsSummary: string): void;
-  onToolDone?(item: ToolTraceItem): void;
+  onToolDone?(
+    item: ToolTraceItem,
+    detail: { modelCall: number; toolCallId: string; arguments: string; observation: string },
+  ): void;
   onRepair?(round: number, error: string): void;
+  onValidation?(round: number, ok: boolean, durationMs: number, error?: string): void;
 }
 
 export interface AgentTurnResult {
@@ -201,11 +208,15 @@ export async function agentTurn(
   for (;;) {
     throwIfAborted();
     const allowTools = tools.length > 0 && toolRounds < MAX_TOOL_ROUNDS;
+    const modelCall = attempts + 1;
+    hooks?.onModelStart?.(modelCall, allowTools ? tools.map((tool) => tool.name) : []);
     const res = await llm(messages, allowTools ? tools : [], {
       onDelta: hooks?.onDelta,
+      onReasoningDelta: (text) => hooks?.onReasoningDelta?.(modelCall, text),
       signal: hooks?.signal,
     });
     attempts++;
+    hooks?.onModelDone?.(modelCall, res.text ?? '');
     if (allowTools && res.toolCalls?.length) {
       toolRounds++;
       messages.push({ role: 'assistant', content: res.text ?? null, toolCalls: res.toolCalls });
@@ -214,7 +225,12 @@ export async function agentTurn(
         hooks?.onToolStart?.(call.name, (call.args || '{}').slice(0, 200));
         const executed = await executeToolCall(tools, call);
         toolTrace.push(executed.trace);
-        hooks?.onToolDone?.(executed.trace);
+        hooks?.onToolDone?.(executed.trace, {
+          modelCall,
+          toolCallId: call.id,
+          arguments: call.args || '{}',
+          observation: executed.observation,
+        });
         if (executed.card) {
           cards.push(executed.card);
         }
@@ -262,16 +278,25 @@ export async function agentTurn(
   for (let round = 0; round <= maxRepairs; round++) {
     if (round > 0) {
       throwIfAborted();
-      const repairRaw = await llm(messages, [], { signal: hooks?.signal });
+      const modelCall = attempts + 1;
+      hooks?.onModelStart?.(modelCall, []);
+      const repairRaw = await llm(messages, [], {
+        onReasoningDelta: (text) => hooks?.onReasoningDelta?.(modelCall, text),
+        signal: hooks?.signal,
+      });
       attempts++;
+      hooks?.onModelDone?.(modelCall, repairRaw.text ?? '');
       code = extractRepairCode(repairRaw.text ?? '');
     }
 
+    const validationStartedAt = Date.now();
     try {
       await artifact.validate(code);
+      hooks?.onValidation?.(round, true, Date.now() - validationStartedAt);
       return { reply, code, changed: true, attempts, toolTrace, cards, charts };
     } catch (e) {
       lastError = e instanceof Error ? e.message : String(e);
+      hooks?.onValidation?.(round, false, Date.now() - validationStartedAt, lastError);
       if (round < maxRepairs) {
         hooks?.onRepair?.(round + 1, lastError);
       }

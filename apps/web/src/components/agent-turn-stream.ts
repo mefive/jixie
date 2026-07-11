@@ -9,6 +9,7 @@ import {
 import i18n from '@src/i18n';
 
 export interface AgentTurnDone {
+  turnId: string;
   parts: MessagePart[];
   code: string;
   changed: boolean;
@@ -31,6 +32,7 @@ export interface AgentTurnHandlers {
 export class AgentTurnStream {
   public streaming = false;
   public text = ''; // accumulated produce-phase text (pending bubble body)
+  public reasoning = '';
   public trace: ToolTraceItem[] = []; // completed tool calls so far
   public statusNote = ''; // transient phase line: querying X… / fixing…
   public turnId: string | null = null;
@@ -41,6 +43,7 @@ export class AgentTurnStream {
     makeObservable(this, {
       streaming: observable.ref,
       text: observable.ref,
+      reasoning: observable.ref,
       trace: observable.ref,
       statusNote: observable.ref,
       turnId: observable.ref,
@@ -56,6 +59,7 @@ export class AgentTurnStream {
       this.streaming = true;
       this.turnId = turnId;
       this.text = '';
+      this.reasoning = '';
       this.trace = [];
       this.statusNote = '';
     });
@@ -119,11 +123,17 @@ export class AgentTurnStream {
         runInAction(() => {
           this.text = ev.text;
           this.trace = ev.trace;
+          this.reasoning = ev.reasoning ?? '';
         });
         return false;
       case 'delta':
         runInAction(() => {
           this.text = this.text + ev.text;
+        });
+        return false;
+      case 'reasoning_delta':
+        runInAction(() => {
+          this.reasoning = this.reasoning + ev.text;
         });
         return false;
       case 'tool_start':
@@ -144,6 +154,7 @@ export class AgentTurnStream {
         return false;
       case 'done':
         handlers.onDone({
+          turnId: this.turnId ?? '',
           parts: ev.parts,
           code: ev.code,
           changed: ev.changed,

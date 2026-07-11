@@ -263,7 +263,12 @@ export class ScreenStore extends BaseStore<ScreenSetupParams> {
           // toolTrace rides along for display only (the server persisted the message without it).
           this.chatMessages = [
             ...this.chatMessages,
-            { role: 'assistant', parts: done.parts, toolTrace: done.toolTrace } as ChatMessage,
+            {
+              role: 'assistant',
+              parts: done.parts,
+              turnId: done.turnId,
+              toolTrace: done.toolTrace,
+            } as ChatMessage,
           ];
           this.sending = false;
         });

@@ -17,6 +17,7 @@ import {
   type AgentTurnResult,
 } from './core.js';
 import * as turnBus from './turn-bus.js';
+import { AgentTraceRecorder, finishPersistentTurn, startPersistentTurn } from './persistence.js';
 
 /**
  * Background agent-turn runner (marginalia's streamRun pattern). The start route registers the turn
@@ -63,6 +64,8 @@ export function enqueueAgentTurn(args: EnqueueTurnArgs): void {
 async function runTurn(args: EnqueueTurnArgs, signal: AbortSignal): Promise<void> {
   const { turnId, userId, entity, message, currentCode, profile } = args;
   const locale = args.locale ?? DEFAULT_LOCALE;
+  const model = process.env.DEEPSEEK_AGENT_MODEL ?? process.env.DEEPSEEK_MODEL ?? 'deepseek-chat';
+  let traceRecorder: AgentTraceRecorder | null = null;
   try {
     // History + user-message persistence (entity surfaces). The write happens before the LLM runs.
     let history: ChatMessage[] = args.history ?? [];
@@ -70,17 +73,36 @@ async function runTurn(args: EnqueueTurnArgs, signal: AbortSignal): Promise<void
     if (entity) {
       const stored = await readMessages(entity, userId, locale);
       history = stored.map(normalizeChatMessage);
-      persisted = [...history, textMessage('user', message)];
+      await startPersistentTurn({ turnId, userId, entity, history, message, model });
+      traceRecorder = new AgentTraceRecorder(turnId, model);
+      persisted = [...history, { ...textMessage('user', message), turnId }];
       await writeMessages(entity, persisted);
     }
 
     const hooks: AgentTurnHooks = {
       signal,
       onDelta: (text) => turnBus.publish(turnId, { type: 'delta', text }),
+      onReasoningDelta: (modelCall, text) => {
+        traceRecorder?.reasoningDelta(modelCall, text);
+        turnBus.publish(turnId, { type: 'reasoning_delta', text });
+      },
+      onModelStart: (modelCall, toolsEnabled) => traceRecorder?.modelStart(modelCall, toolsEnabled),
+      onModelDone: (modelCall, output) => traceRecorder?.modelDone(modelCall, output),
       onToolStart: (name, argsSummary) =>
         turnBus.publish(turnId, { type: 'tool_start', name, argsSummary }),
-      onToolDone: (item) => turnBus.publish(turnId, { type: 'tool_done', item }),
+      onToolDone: (item, detail) => {
+        traceRecorder?.tool({
+          ...detail,
+          name: item.name,
+          ok: item.ok,
+          rows: item.rows,
+          durationMs: item.ms,
+        });
+        turnBus.publish(turnId, { type: 'tool_done', item });
+      },
       onRepair: (round, error) => turnBus.publish(turnId, { type: 'repair', round, error }),
+      onValidation: (round, ok, durationMs, error) =>
+        traceRecorder?.validation(round, ok, durationMs, error),
     };
     const result = await agentTurn(profile, history, message, currentCode, chatTools, {
       hooks,
@@ -91,10 +113,19 @@ async function runTurn(args: EnqueueTurnArgs, signal: AbortSignal): Promise<void
     // refresh racing it) must find the conversation complete in the DB.
     const parts = turnParts(result);
     const completedMessages = persisted
-      ? [...persisted, { role: 'assistant' as const, parts }]
+      ? [...persisted, { role: 'assistant' as const, parts, turnId }]
       : [];
     if (entity && persisted) {
       await writeMessages(entity, completedMessages);
+    }
+    if (traceRecorder) {
+      await traceRecorder.flush();
+      await finishPersistentTurn({
+        turnId,
+        status: 'done',
+        parts,
+        trace: traceRecorder.trace,
+      });
     }
     turnBus.finish(turnId, {
       type: 'done',
@@ -118,6 +149,22 @@ async function runTurn(args: EnqueueTurnArgs, signal: AbortSignal): Promise<void
     if (!cancelled) {
       // The frontend only gets the message — without this line a provider timeout/401/limit is unguessable.
       console.error(`[agent] turn failed (turnId=${turnId})`, error);
+    }
+    if (traceRecorder) {
+      const message = error instanceof Error ? error.message : String(error);
+      traceRecorder.terminal(cancelled ? 'cancelled' : 'error', cancelled ? undefined : message);
+      await traceRecorder.flush().catch(() => {});
+      await finishPersistentTurn({
+        turnId,
+        status: cancelled ? 'cancelled' : 'error',
+        error: cancelled ? undefined : message,
+        trace: traceRecorder.trace,
+      }).catch((persistenceError) => {
+        console.error(
+          `[agent] failed to persist terminal turn (turnId=${turnId})`,
+          persistenceError,
+        );
+      });
     }
     turnBus.finish(
       turnId,

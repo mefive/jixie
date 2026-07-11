@@ -289,6 +289,7 @@ model User {
   strategies          Strategy[]
   savedScreens        SavedScreen[]
   screenConversations ScreenConversation[]
+  agentConversations  AgentConversation[]
 }
 
 /// Login session. id = session token (stored in sid cookie). 30-day TTL; expiry enforced by filtering on expiresAt at query time.
@@ -391,15 +392,16 @@ model EmailLoginChallenge {
 /// A saved backtest strategy (holds a BacktestConfig as JSON). Created before its first Agent turn or
 /// backtest, then its runnable config is committed by id whenever a backtest starts.
 model Strategy {
-  id         String   @id // ULID
-  userId     String
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name       String
-  config     Json // BacktestConfig
-  lastResult Json? // last BacktestSummary (metrics + nav + tradeLog) — shown on reopen, refreshed each run
-  messages   Json? // ChatMessage[] — the Agent-panel conversation that authored this strategy (per-strategy)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id            String              @id // ULID
+  userId        String
+  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name          String
+  config        Json // BacktestConfig
+  lastResult    Json? // last BacktestSummary (metrics + nav + tradeLog) — shown on reopen, refreshed each run
+  messages      Json? // ChatMessage[] — the Agent-panel conversation that authored this strategy (per-strategy)
+  conversations AgentConversation[]
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
 
   @@unique([userId, name]) // name = identity within a user → enables upsert-by-name
   @@index([userId, updatedAt]) // list a user's strategies, newest first
@@ -412,17 +414,18 @@ model Strategy {
 ///     factor/builtin-factors.ts (git is the source of truth), read-only via the routes.
 /// Plain userId (no relation), like FactorReport.
 model Factor {
-  id            String   @id // ULID, or a preset slug for builtin rows
+  id            String              @id // ULID, or a preset slug for builtin rows
   userId        String
   key           String? // immutable strategy handle after finalization; null while a user factor is a draft
   keyCandidate  String? // LLM proposal, editable by the user until key is finalized
   name          String // canonical Chinese display name, refreshed from the factor context
-  descriptionZh String   @default("")
-  descriptionEn String   @default("")
+  descriptionZh String              @default("")
+  descriptionEn String              @default("")
   code          String // defineFactor TS source
   messages      Json? // ChatMessage[] — the Agent-panel conversation that authored this factor (per-factor)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  conversations AgentConversation[]
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
 
   @@unique([userId, key]) // user-factor keys are unique per owner; builtin keys are additionally reserved in the allocator
   @@index([userId, updatedAt]) // list a user's factors, newest first
@@ -441,7 +444,73 @@ model ScreenConversation {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  agentConversations AgentConversation[]
+
   @@index([userId, updatedAt])
+}
+
+/// A durable Agent conversation shared by the strategy, factor, and screen surfaces. During the
+/// compatibility migration, legacy messages remain on their host rows and new turns dual-write here.
+model AgentConversation {
+  id                   String              @id // ULID
+  userId               String
+  user                 User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  surface              String // 'strategy' | 'factor' | 'screen'
+  title                String?
+  strategyId           String?
+  strategy             Strategy?           @relation(fields: [strategyId], references: [id], onDelete: Cascade)
+  factorId             String?
+  factor               Factor?             @relation(fields: [factorId], references: [id], onDelete: Cascade)
+  screenConversationId String?
+  screenConversation   ScreenConversation? @relation(fields: [screenConversationId], references: [id], onDelete: Cascade)
+  archivedAt           DateTime?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  messages AgentMessage[]
+  turns    AgentTurn[]
+
+  @@index([userId, updatedAt])
+  @@index([userId, surface, updatedAt])
+  @@index([strategyId])
+  @@index([factorId])
+  @@index([screenConversationId])
+}
+
+/// One durable user-visible message. Parts remain JSON because they form one atomic render payload.
+model AgentMessage {
+  id             String            @id // ULID
+  conversationId String
+  conversation   AgentConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String // 'user' | 'assistant'
+  parts          Json // MessagePart[]
+  sequence       Int
+  turnId         String?
+  turn           AgentTurn?        @relation(fields: [turnId], references: [id], onDelete: SetNull)
+  createdAt      DateTime          @default(now())
+
+  @@unique([conversationId, sequence])
+  @@index([conversationId, createdAt])
+  @@index([turnId])
+}
+
+/// One durable Agent execution. `trace` is the ordered, versioned record of model, tool, and
+/// validation steps; the in-memory turn bus remains responsible only for live token delivery.
+model AgentTurn {
+  id             String            @id // ULID; identical to the public turnId
+  conversationId String
+  conversation   AgentConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  status         String // 'running' | 'done' | 'error' | 'cancelled' | 'interrupted'
+  model          String
+  trace          Json
+  error          String?
+  startedAt      DateTime          @default(now())
+  finishedAt     DateTime?
+
+  messages AgentMessage[]
+
+  @@index([conversationId, startedAt])
+  @@index([status, startedAt])
 }
 
 /// A saved screen query (holds a ScreenSpec as JSON). Saved on demand — the user clicks "Save" to keep

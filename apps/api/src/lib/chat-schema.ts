@@ -11,8 +11,12 @@ export const messagePartSchema = z.discriminatedUnion('type', [
 ]);
 
 export const chatMessageSchema = z.object({
+  id: z.string().optional(),
   role: z.enum(['user', 'assistant']),
   parts: z.array(messagePartSchema).min(1).max(20),
+  turnId: z.string().optional(),
+  sequence: z.number().int().nonnegative().optional(),
+  createdAt: z.string().optional(),
 });
 
 export const chatMessagesSchema = z.array(chatMessageSchema).max(60);
