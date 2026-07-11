@@ -54,6 +54,9 @@ export const enFactor: typeof zhFactor = {
   neutralSizeIndustry: 'Size + industry',
   neutralSizeTag: '·size-neut',
   neutralSizeIndustryTag: '·size+ind-neut',
+  paramsSummary: '{{frequency}} · {{start}} to {{end}} · {{neutral}}',
+  paramsSettings: 'Analysis settings',
+  paramsMore: 'More settings',
 
   corrTrigger: 'Correlation matrix',
   corrTitle: 'Factor correlation matrix',

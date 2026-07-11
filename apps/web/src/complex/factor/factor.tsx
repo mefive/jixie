@@ -5,9 +5,23 @@ import { useTranslation } from 'react-i18next';
 import classNames from 'classnames';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
-import { App, Button, DatePicker, Input, Modal, Segmented, Select, Splitter, Tabs } from 'antd';
+import {
+  App,
+  Button,
+  DatePicker,
+  Input,
+  Modal,
+  Popover,
+  Radio,
+  Segmented,
+  Select,
+  Splitter,
+  Tabs,
+  Tooltip,
+} from 'antd';
 import type {
   ChatMessage,
+  FactorFreq,
   FactorKind,
   FactorMeta,
   IcDecayPoint,
@@ -20,6 +34,7 @@ import {
   faTrash,
   faLock,
   faCopy,
+  faEllipsis,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { LoaderButton } from '@src/components/loader-button';
@@ -519,66 +534,124 @@ const ParamsBar = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('factor');
   const canView = store.isCached && !store.edited; // custom code edits force a recompute
+  const frequency = store.freq === 'month' ? t('unitMonth') : t('unitWeek');
+  const neutral = {
+    none: t('neutralNone'),
+    size: t('neutralSize'),
+    size_industry: t('neutralSizeIndustry'),
+  }[store.neutral];
+  const summary = t('paramsSummary', {
+    frequency,
+    start: dayjs(store.start, 'YYYYMMDD').format('YYYY-MM-DD'),
+    end: dayjs(store.end, 'YYYYMMDD').format('YYYY-MM-DD'),
+    neutral,
+  });
+
   return (
     <div className="jx-factor-params">
-      <span className="jx-factor-paramLabel">{t('freq')}</span>
-      <Select
-        size="small"
-        value={store.freq}
-        onChange={(v) => store.setFreq(v)}
-        options={[
-          { value: 'month', label: t('unitMonth') },
-          { value: 'week', label: t('unitWeek') },
-        ]}
-        style={{ width: 68 }}
-      />
-      <span className="jx-factor-paramLabel">{t('range')}</span>
-      <DatePicker
-        size="small"
-        value={dayjs(store.start, 'YYYYMMDD')}
-        onChange={(d) => d && store.setStart(d.format('YYYYMMDD'))}
-        allowClear={false}
-      />
-      <span className="jx-factor-paramDash">~</span>
-      <DatePicker
-        size="small"
-        value={dayjs(store.end, 'YYYYMMDD')}
-        onChange={(d) => d && store.setEnd(d.format('YYYYMMDD'))}
-        allowClear={false}
-      />
-      <span className="jx-factor-paramLabel">{t('neutralLabel')}</span>
-      <Select
-        size="small"
-        value={store.neutral}
-        onChange={(v) => store.setNeutral(v)}
-        options={[
-          { value: 'none', label: t('neutralNone') },
-          { value: 'size', label: t('neutralSize') },
-          { value: 'size_industry', label: t('neutralSizeIndustry') },
-        ]}
-        style={{ width: 132 }}
-      />
-      <LoaderButton
-        type="primary"
-        size="small"
-        loader={store.analysisLoader}
-        action={() => store.runAnalysis()}
-        style={{ width: 96 }}
-      >
-        {canView ? t('view') : t('run')}
-      </LoaderButton>
-      {store.report && (
+      <Tooltip title={summary}>
+        <span className="jx-factor-paramSummary">{summary}</span>
+      </Tooltip>
+      <div className="jx-factor-paramActions">
         <LoaderButton
+          className="jx-factor-runButton"
+          type="primary"
           size="small"
           loader={store.analysisLoader}
-          action={() => store.runAnalysis(true)}
+          action={() => store.runAnalysis()}
         >
-          {t('recompute')}
+          {canView ? t('view') : t('run')}
         </LoaderButton>
-      )}
+        <Popover
+          content={<ParamsPopover />}
+          trigger="click"
+          placement="bottomRight"
+          styles={{
+            container: {
+              borderRadius: 8,
+              boxShadow: '0 8px 24px rgb(17 24 39 / 0.12)',
+              padding: 0,
+            },
+            content: { padding: 0 },
+          }}
+        >
+          <Tooltip title={t('paramsMore')}>
+            <Button
+              size="small"
+              aria-label={t('paramsMore')}
+              icon={<FontAwesomeIcon icon={faEllipsis} />}
+            />
+          </Tooltip>
+        </Popover>
+      </div>
     </div>
   );
 }, 'ParamsBar');
+
+const ParamsPopover = complex.component(() => {
+  const store = complex.useStore();
+  const { t } = useTranslation('factor');
+  const canView = store.isCached && !store.edited;
+
+  return (
+    <div className="jx-factor-paramPopover">
+      <div className="jx-factor-paramPopoverTitle">{t('paramsSettings')}</div>
+      <div className="jx-factor-paramPopoverBody">
+        <div className="jx-factor-paramField">
+          <span className="jx-factor-paramLabel">{t('freq')}</span>
+          <Radio.Group
+            value={store.freq}
+            onChange={(event) => store.setFreq(event.target.value as FactorFreq)}
+          >
+            <Radio.Button value="month">{t('unitMonth')}</Radio.Button>
+            <Radio.Button value="week">{t('unitWeek')}</Radio.Button>
+          </Radio.Group>
+        </div>
+        <div className="jx-factor-paramField">
+          <span className="jx-factor-paramLabel">{t('range')}</span>
+          <DatePicker.RangePicker
+            className="jx-factor-dateRange"
+            value={[dayjs(store.start, 'YYYYMMDD'), dayjs(store.end, 'YYYYMMDD')]}
+            onChange={(dates) => {
+              if (dates?.[0] && dates[1]) {
+                store.setStart(dates[0].format('YYYYMMDD'));
+                store.setEnd(dates[1].format('YYYYMMDD'));
+              }
+            }}
+            allowClear={false}
+          />
+        </div>
+        <div className="jx-factor-paramField">
+          <span className="jx-factor-paramLabel">{t('neutralLabel')}</span>
+          <Select
+            className="jx-factor-neutralSelect"
+            value={store.neutral}
+            onChange={(value) => store.setNeutral(value)}
+            options={[
+              { value: 'none', label: t('neutralNone') },
+              { value: 'size', label: t('neutralSize') },
+              { value: 'size_industry', label: t('neutralSizeIndustry') },
+            ]}
+          />
+        </div>
+      </div>
+      <div className="jx-factor-paramPopoverActions">
+        <LoaderButton
+          type="primary"
+          loader={store.analysisLoader}
+          action={() => store.runAnalysis()}
+        >
+          {canView ? t('view') : t('run')}
+        </LoaderButton>
+        {store.report && (
+          <LoaderButton loader={store.analysisLoader} action={() => store.runAnalysis(true)}>
+            {t('recompute')}
+          </LoaderButton>
+        )}
+      </div>
+    </div>
+  );
+}, 'ParamsPopover');
 
 // The factor's already-computed windows — one click jumps to that cached report (instant).
 const RunChips = complex.component(() => {

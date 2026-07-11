@@ -278,7 +278,7 @@
 .jx-factor-paramBar {
   @apply flex flex-col gap-2;
   @apply border-b border-line;
-  padding: 12px 16px;
+  padding: 6px 10px;
 }
 
 .jx-factor-result {
@@ -288,15 +288,64 @@
 
 /* params bar (inside .jx-factor-paramBar, which supplies the container border) */
 .jx-factor-params {
-  @apply flex flex-wrap items-center gap-2;
+  @apply flex min-w-0 items-center gap-2;
 }
 
 .jx-factor-paramLabel {
   @apply text-sm text-muted;
 }
 
-.jx-factor-paramDash {
-  @apply text-muted;
+.jx-factor-paramField {
+  @apply flex min-w-0 flex-col items-stretch gap-1 whitespace-nowrap;
+}
+
+.jx-factor-dateRange {
+  width: 100%;
+}
+
+.jx-factor-neutralSelect {
+  width: 100%;
+}
+
+.jx-factor-paramActions {
+  @apply flex flex-none items-center gap-2;
+}
+
+.jx-factor-runButton {
+  width: 96px;
+}
+
+.jx-factor-paramSummary {
+  @apply min-w-0 flex-1 truncate text-sm text-ink;
+}
+
+.jx-factor-paramPopover {
+  @apply flex flex-col overflow-hidden;
+  width: 288px;
+}
+
+.jx-factor-paramPopoverTitle {
+  @apply font-semibold text-ink;
+  padding: 16px 16px 10px;
+}
+
+.jx-factor-paramPopoverBody {
+  padding: 0 16px;
+}
+
+.jx-factor-paramPopoverBody .jx-factor-paramField {
+  @apply border-b border-line;
+  padding: 10px 0 12px;
+}
+
+.jx-factor-paramPopoverBody .jx-factor-paramField:last-child {
+  border-bottom: 0;
+}
+
+.jx-factor-paramPopoverActions {
+  @apply flex items-center justify-end gap-2 border-t border-line bg-chip;
+  padding: 10px 16px;
+  border-radius: 0 0 8px 8px;
 }
 
 /* already-run chips */
