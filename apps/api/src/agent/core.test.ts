@@ -148,7 +148,10 @@ describe('agentTurn tool loop', () => {
       rows: 1,
     }));
     const llm = scriptedLlm([
-      { toolCalls: [{ id: 'c1', name: 'echo', args: '{"q":"茅台"}' }] },
+      {
+        reasoningContent: '需要先查询本地数据。',
+        toolCalls: [{ id: 'c1', name: 'echo', args: '{"q":"茅台"}' }],
+      },
       { text: `查到了。\n\`\`\`ts\n${STRATEGY2}\n\`\`\`` },
     ]);
     const result = await agentTurn(toolProfile([tool]), [], '查一下', STRATEGY, llm);
@@ -159,6 +162,13 @@ describe('agentTurn tool loop', () => {
     ]);
     // The second call must see the assistant tool request + the tool observation.
     const secondCallMessages = llm.mock.calls[1][0];
+    const assistantToolCall = secondCallMessages.find(
+      (message) => message.role === 'assistant' && message.toolCalls?.length,
+    );
+    expect(assistantToolCall?.role).toBe('assistant');
+    if (assistantToolCall?.role === 'assistant') {
+      expect(assistantToolCall.reasoningContent).toBe('需要先查询本地数据。');
+    }
     const toolMessage = secondCallMessages.find((message) => message.role === 'tool');
     expect(toolMessage?.content).toContain('茅台');
   });
