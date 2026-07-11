@@ -265,6 +265,7 @@ export class ScreenStore extends BaseStore<ScreenSetupParams> {
             ...this.chatMessages,
             { role: 'assistant', parts: done.parts, toolTrace: done.toolTrace } as ChatMessage,
           ];
+          this.sending = false;
         });
       },
       onError: (message) => {
@@ -273,6 +274,7 @@ export class ScreenStore extends BaseStore<ScreenSetupParams> {
             ...this.chatMessages,
             textMessage('assistant', i18n.t('screen:error.withDetail', { detail: message })),
           ];
+          this.sending = false;
         });
       },
       onCancelled: () => {
@@ -281,6 +283,7 @@ export class ScreenStore extends BaseStore<ScreenSetupParams> {
             ...this.chatMessages,
             textMessage('assistant', i18n.t('screen:error.cancelled')),
           ];
+          this.sending = false;
         });
       },
     };
