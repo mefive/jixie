@@ -1,93 +1,70 @@
 @reference '../styles/index.css';
 
 .jx-md {
-  @apply flex flex-col;
-  gap: 8px;
+  --margin-block: 0 0 8px;
+  --margin-ul-ol: 0 0 8px 18px;
+  --padding-ul-ol: 0;
+  --margin-li: 3px 0;
+  --margin-pre: 8px 0;
+  --padding-code-inline: 1px 4px;
+  --margin-code-inline: 0;
+  --code-inline-text: 0.85em;
+  --small-border-radius: 4px;
+  --table-margin: 8px 0;
+  --td-th-padding: 4px 10px;
 }
 
-.jx-md-p {
-  margin: 0;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-/* Heading sizes are relative to the container font (16px on the screen page, 13px in the lab/factor
-   side panels) so they scale with each surface instead of looking tiny under 16px body text. */
-.jx-md-h {
+.jx-md h1,
+.jx-md h2,
+.jx-md h3 {
   @apply font-semibold text-ink;
+  margin: 8px 0;
 }
 
-.jx-md-h1 {
+.jx-md h1 {
   font-size: 1.15em;
 }
 
-.jx-md-h2,
-.jx-md-h3 {
+.jx-md h2,
+.jx-md h3 {
   font-size: 1em;
 }
 
-.jx-md-list {
-  @apply flex flex-col;
-  gap: 3px;
-  margin: 0;
-  padding-left: 18px;
-  list-style: disc;
-}
-
-ol.jx-md-list {
-  list-style: decimal;
-}
-
-/* GFM table — compact, scrolls horizontally inside its own wrapper if too wide for the bubble. */
-.jx-md-tableWrap {
-  @apply overflow-x-auto;
-}
-
-.jx-md-table {
-  @apply border-collapse;
+.jx-md table {
   font-size: 0.9em;
 }
 
-.jx-md-table th,
-.jx-md-table td {
+.jx-md th,
+.jx-md td {
   @apply border border-line text-left;
-  padding: 4px 10px;
 }
 
-.jx-md-table th {
+.jx-md th {
   @apply bg-chip font-medium text-ink;
 }
 
-.jx-md-hr {
+.jx-md hr {
   @apply border-0 border-t border-line;
-  margin: 4px 0;
 }
 
-/* KaTeX math: inline flows with the text; display math gets its own centered, scroll-if-wide row. */
-.jx-md-math--block {
-  @apply block overflow-x-auto overflow-y-hidden;
-  padding: 2px 0;
-  text-align: center;
-}
-
-.jx-md-code {
-  @apply rounded;
-  padding: 1px 4px;
+.jx-md code {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 12px;
   background: rgb(17 24 39 / 0.08);
 }
 
-.jx-md-pre {
-  @apply overflow-auto rounded-lg;
-  margin: 0;
+.jx-md pre {
+  @apply rounded-lg;
   padding: 8px 10px;
   background: rgb(17 24 39 / 0.06);
 }
 
-.jx-md-pre code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+.jx-md pre code {
+  background: transparent;
   font-size: 12px;
   line-height: 1.6;
-  white-space: pre;
+}
+
+.jx-md .block-katex {
+  @apply overflow-x-auto overflow-y-hidden;
+  text-align: center;
 }

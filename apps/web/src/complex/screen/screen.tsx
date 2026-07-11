@@ -316,9 +316,9 @@ function ScreenChatLog({
   const threadRef = useRef<HTMLDivElement>(null);
   const lastUserRef = useRef<HTMLDivElement>(null);
   const contentEndRef = useRef<HTMLDivElement>(null);
+  const tailRef = useRef<HTMLDivElement>(null);
   const prevLen = useRef<number | null>(null);
   const pendingTop = useRef(false);
-  const [tailSpace, setTailSpace] = useState(0);
   const [showDown, setShowDown] = useState(false);
 
   // The last user message anchors both the scroll-to-top and the tail-spacer math.
@@ -343,12 +343,16 @@ function ScreenChatLog({
 
     const user = lastUserRef.current;
     if (!user) {
-      setTailSpace(0);
+      if (tailRef.current) {
+        tailRef.current.style.height = '0px';
+      }
       return;
     }
     const contentBelow = endBottom - user.getBoundingClientRect().top;
     const next = Math.max(0, log.clientHeight - contentBelow - 24);
-    setTailSpace((prev) => (Math.abs(prev - next) > 1 ? next : prev));
+    if (tailRef.current) {
+      tailRef.current.style.height = `${next}px`;
+    }
   }, []);
 
   // Content grows while a reply streams (the thinking row / assistant text) — a ResizeObserver keeps the
@@ -424,11 +428,11 @@ function ScreenChatLog({
           ))}
           {sending && (
             <div className="jx-screen-bubble jx-screen-bubble--assistant jx-screen-bubble--thinking">
-              <AgentPending stream={stream} />
+              <AgentPending stream={stream} autoScroll={false} />
             </div>
           )}
           <div ref={contentEndRef} className="jx-screen-chatEnd" />
-          <div className="jx-screen-chatTail" style={{ height: tailSpace }} aria-hidden />
+          <div ref={tailRef} className="jx-screen-chatTail" aria-hidden />
         </div>
       </div>
       {showDown && (
