@@ -79,6 +79,7 @@ export function logout(): Promise<{ ok: true }> {
 
 import type {
   AgentStreamEvent,
+  AgentTurnDetail,
   BacktestConfig,
   ChatMessage,
   LogLine,
@@ -122,6 +123,10 @@ export function findRunningAgentTurn(entityKey: string): Promise<{ turnId: strin
 // Abort the upstream LLM (idempotent; already-finished turns are a no-op).
 export function cancelAgentTurn(turnId: string): Promise<{ ok: true; cancelled: boolean }> {
   return request(`/api/app/agent/turns/${turnId}/cancel`, { method: 'POST' });
+}
+
+export function getAgentTurn(turnId: string): Promise<AgentTurnDetail> {
+  return request(`/api/app/agent/turns/${turnId}/detail`);
 }
 
 // Read-only SQL over the market-table whitelist — chart cards re-run their persisted query here.

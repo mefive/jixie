@@ -16,9 +16,66 @@ export interface ToolTraceItem {
   ms: number;
 }
 
+export interface AgentTurnTrace {
+  version: 1;
+  steps: AgentTraceStep[];
+  truncated: boolean;
+}
+
+interface AgentTraceBase {
+  id: string;
+  sequence: number;
+  modelCall?: number;
+  createdAt: string;
+}
+
+export type AgentTraceStep =
+  | (AgentTraceBase & {
+      type: 'model';
+      model: string;
+      toolsEnabled: string[];
+      reasoning?: string;
+      output?: string;
+      status: 'running' | 'success' | 'error' | 'abort';
+      durationMs?: number;
+    })
+  | (AgentTraceBase & {
+      type: 'tool';
+      toolCallId: string;
+      name: string;
+      arguments: string;
+      observation: string;
+      ok: boolean;
+      rows?: number;
+      durationMs: number;
+      truncated?: { arguments?: boolean; observation?: boolean };
+    })
+  | (AgentTraceBase & {
+      type: 'validation';
+      round: number;
+      ok: boolean;
+      error?: string;
+      durationMs: number;
+    })
+  | (AgentTraceBase & {
+      type: 'error' | 'cancelled';
+      message?: string;
+    });
+
+export interface AgentTurnDetail {
+  id: string;
+  status: 'running' | 'done' | 'error' | 'cancelled' | 'interrupted';
+  model: string;
+  trace: AgentTurnTrace;
+  error?: string;
+  startedAt: string;
+  finishedAt?: string;
+}
+
 export type AgentStreamEvent =
-  | { type: 'snapshot'; text: string; trace: ToolTraceItem[] } // first frame on every (re)subscribe
+  | { type: 'snapshot'; text: string; trace: ToolTraceItem[]; reasoning?: string }
   | { type: 'delta'; text: string } // produce-phase text tokens (repair rounds don't stream)
+  | { type: 'reasoning_delta'; text: string }
   | { type: 'tool_start'; name: string; argsSummary: string }
   | { type: 'tool_done'; item: ToolTraceItem }
   | { type: 'repair'; round: number; error: string } // proposed code failed to compile; retrying

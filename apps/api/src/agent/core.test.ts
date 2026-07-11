@@ -277,6 +277,12 @@ describe('agentTurn tool loop', () => {
     expect(hooks.onToolStart).toHaveBeenCalledWith('echo', '{}');
     expect(hooks.onToolDone).toHaveBeenCalledWith(
       expect.objectContaining({ name: 'echo', ok: true, rows: 2 }),
+      expect.objectContaining({
+        modelCall: 1,
+        toolCallId: 'c1',
+        arguments: '{}',
+        observation: '{}',
+      }),
     );
     expect(hooks.onRepair).toHaveBeenCalledWith(1, '编译失败');
     // Deltas only from the tool/produce phase — the repair call got no onDelta.

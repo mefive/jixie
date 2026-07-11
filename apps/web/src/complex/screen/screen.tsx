@@ -21,6 +21,7 @@ import { MessageParts } from '@src/components/message-parts';
 import type { QueryCardResults } from '@src/components/query-card-model';
 import { ToolTrace } from '@src/components/tool-trace';
 import { AgentPending } from '@src/components/agent-pending';
+import { AgentTrace } from '@src/components/agent-trace';
 import type { AgentTurnStream } from '@src/components/agent-turn-stream';
 import type { AgentToolTraceItem } from '@src/api/client';
 import { complex } from './complex';
@@ -423,7 +424,11 @@ function ScreenChatLog({
               className={classNames('jx-screen-bubble', `jx-screen-bubble--${message.role}`)}
             >
               <MessageParts message={message} cards={cards} />
-              {traceOf(message) && <ToolTrace trace={traceOf(message)!} />}
+              {message.turnId ? (
+                <AgentTrace turnId={message.turnId} />
+              ) : (
+                traceOf(message) && <ToolTrace trace={traceOf(message)!} />
+              )}
             </div>
           ))}
           {sending && (

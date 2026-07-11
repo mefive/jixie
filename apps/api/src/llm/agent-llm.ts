@@ -31,6 +31,7 @@ export interface AgentLlmReply {
 
 export interface AgentLlmOpts {
   onDelta?: (text: string) => void; // streamed text tokens as they arrive (used for SSE forwarding)
+  onReasoningDelta?: (text: string) => void;
   signal?: AbortSignal; // aborts the upstream completion (triggered by the cancel endpoint)
 }
 

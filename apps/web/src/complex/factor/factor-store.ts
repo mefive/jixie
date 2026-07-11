@@ -394,7 +394,12 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
           // toolTrace rides along for display only (the server persisted the message without it).
           this.chatMessages = [
             ...this.chatMessages,
-            { role: 'assistant', parts: done.parts, toolTrace: done.toolTrace } as ChatMessage,
+            {
+              role: 'assistant',
+              parts: done.parts,
+              turnId: done.turnId,
+              toolTrace: done.toolTrace,
+            } as ChatMessage,
           ];
           if (done.changed) {
             this.code = done.code; // editor updates; analysis result stays until the next run

@@ -5,6 +5,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { reactUtils } from '@src/lib';
 import type { AgentTurnStream } from './agent-turn-stream';
 import { Markdown } from './markdown';
+import { LiveReasoning } from './agent-trace';
 import './agent-pending.css';
 
 /**
@@ -42,6 +43,7 @@ export const AgentPending = reactUtils.observer(
 
     return (
       <div ref={boxRef}>
+        <LiveReasoning reasoning={stream.reasoning} />
         {stream.trace.length > 0 && (
           <div className="jx-agentPending-trace">
             <FontAwesomeIcon icon={faDatabase} />{' '}
