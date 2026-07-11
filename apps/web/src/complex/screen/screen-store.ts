@@ -72,7 +72,7 @@ export const EXAMPLE_SCREENS: { labelKey: string; spec: ScreenSpec }[] = [
  * messages save after every turn; saved query cards are deliberately independent of conversations.
  */
 export class ScreenStore extends BaseStore<ScreenSetupParams> {
-  public view: 'wall' | 'query' | 'chat' = 'wall';
+  public view: 'query' | 'chat' = 'chat';
 
   // — query view (an opened query card, or an example/unsaved spec) —
   public spec: ScreenSpec | null = null;
@@ -130,15 +130,6 @@ export class ScreenStore extends BaseStore<ScreenSetupParams> {
     runInAction(() => {
       this.nlText = v;
     });
-  }
-
-  /** Back to the wall (refresh both card lists — a chat may have pinned new query cards). */
-  public showWall() {
-    runInAction(() => {
-      this.view = 'wall';
-    });
-    void this.savedLoader.run();
-    void this.conversationsLoader.run();
   }
 
   // —— query view ——

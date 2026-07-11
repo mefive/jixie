@@ -8,6 +8,12 @@ export const zhScreen = {
   },
   examplesLabel: '试试:',
   newChat: '新对话',
+  sidebar: {
+    history: '历史对话',
+    savedQueries: '已保存筛选',
+    emptyHistory: '暂无历史对话',
+    emptySaved: '暂无已保存筛选',
+  },
   wallEmpty:
     '墙上还没有卡片。点「新对话」跟 Agent 描述你想要的股票,把筛出来的查询钉到这里;或先点上面的示例看看。',
   card: {
@@ -21,7 +27,7 @@ export const zhScreen = {
   },
   wall: '卡片墙',
   namePlaceholder: '给这条筛选起个名',
-  pinToWall: '钉到墙上',
+  pinToWall: '保存筛选',
   summary: '快照 {{tradeDate}} · 命中 {{total}} 只（展示前 {{shown}}）',
   chatTitleFallback: '新对话',
   heroTitle: '想找什么股票?',
