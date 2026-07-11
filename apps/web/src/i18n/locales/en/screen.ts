@@ -10,6 +10,12 @@ export const enScreen: typeof zhScreen = {
   },
   examplesLabel: 'Try:',
   newChat: 'New chat',
+  sidebar: {
+    history: 'Chats',
+    savedQueries: 'Saved screens',
+    emptyHistory: 'No conversations yet',
+    emptySaved: 'No saved screens yet',
+  },
   wallEmpty:
     'No cards yet. Click "New chat" to describe the stocks you want to the agent and pin the resulting queries here; or try an example above.',
   card: {
@@ -23,7 +29,7 @@ export const enScreen: typeof zhScreen = {
   },
   wall: 'Card wall',
   namePlaceholder: 'Name this filter',
-  pinToWall: 'Pin to wall',
+  pinToWall: 'Save screen',
   summary: 'Snapshot {{tradeDate}} · {{total}} matches (showing first {{shown}})',
   chatTitleFallback: 'New chat',
   heroTitle: 'What stocks are you looking for?',

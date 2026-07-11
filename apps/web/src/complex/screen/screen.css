@@ -1,104 +1,107 @@
 @reference '../../styles/index.css';
 
 .jx-screen {
-  @apply flex flex-col;
+  @apply flex overflow-hidden bg-card;
   height: 100%;
 }
 
-.jx-screen-body {
-  @apply flex flex-1 flex-col gap-3;
-  @apply overflow-hidden;
-  padding: 16px 20px;
+.jx-screen-sidebar {
+  @apply flex flex-col border-r border-line bg-bg;
+  width: 280px;
+  flex: none;
 }
 
-/* —— the card wall —— */
-.jx-screen-wallBar {
-  @apply flex flex-wrap items-center gap-2;
-  padding: 16px 20px 0;
+.jx-screen-sidebarHead {
+  @apply flex flex-col gap-3;
+  padding: 18px 14px 12px;
 }
 
-.jx-screen-wallTitle {
+.jx-screen-sidebarTitle {
   @apply font-semibold text-ink;
-  font-size: 20px;
-  margin-right: 8px;
+  margin: 0 4px;
+  font-size: 18px;
 }
 
-.jx-screen-wallSpacer {
-  @apply flex-1;
+.jx-screen-newChat {
+  @apply w-full;
 }
 
-.jx-screen-wallEmpty {
+.jx-screen-sidebarScroll {
+  @apply flex-1 overflow-auto;
+  padding: 4px 8px 16px;
+}
+
+.jx-screen-sidebarSection {
+  @apply flex flex-col gap-1;
+  margin-top: 14px;
+}
+
+.jx-screen-sidebarLabel {
+  @apply font-medium text-muted;
+  margin: 0;
+  padding: 0 8px 5px;
+  font-size: 12px;
+}
+
+.jx-screen-sidebarEmpty {
   @apply text-muted;
-  padding: 48px 20px;
-  text-align: center;
-  font-size: 14px;
+  margin: 0;
+  padding: 8px;
+  font-size: 12px;
 }
 
-.jx-screen-wall {
-  @apply grid gap-3 overflow-auto;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  padding: 16px 20px;
+.jx-screen-historyItem {
+  @apply flex cursor-pointer items-center gap-2 rounded-lg text-ink hover:bg-chip;
+  min-height: 44px;
+  padding: 7px 8px;
 }
 
-.jx-screen-card {
-  @apply flex flex-col gap-1.5;
-  @apply cursor-pointer rounded-xl border border-line bg-card hover:border-primary;
-  padding: 12px 14px;
-}
-
-.jx-screen-card--chat {
+.jx-screen-historyItem--active {
   @apply bg-chip;
 }
 
-/* First-load placeholder card — same grid cell footprint as a real card, so load → data doesn't jump. */
-.jx-screen-card--skeleton {
-  @apply animate-pulse cursor-default border-transparent bg-line/40;
-  min-height: 104px;
-}
-
-.jx-screen-cardHead {
-  @apply flex items-center justify-between;
-}
-
-.jx-screen-cardKind {
-  @apply inline-flex items-center gap-1;
-  @apply rounded-md bg-chip text-muted;
-  padding: 1px 8px;
-  font-size: 11px;
-}
-
-.jx-screen-cardKind--chat {
-  @apply bg-card;
-}
-
-.jx-screen-cardDelete {
-  @apply cursor-pointer border-0 bg-transparent text-muted hover:text-ink;
-  padding: 2px 4px;
+.jx-screen-historyIcon {
+  @apply text-muted;
+  width: 14px;
+  flex: none;
   font-size: 12px;
 }
 
-.jx-screen-cardTitle {
-  @apply truncate font-medium text-ink;
-  font-size: 14px;
+.jx-screen-historyText {
+  min-width: 0;
+  flex: 1;
 }
 
-.jx-screen-cardPreview {
-  @apply text-muted;
-  font-size: 12px;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow: hidden;
+.jx-screen-historyTitle {
+  @apply truncate;
+  font-size: 13px;
 }
 
-.jx-screen-cardMeta {
-  @apply text-muted;
+.jx-screen-historyPreview {
+  @apply truncate text-muted;
   font-size: 11px;
+}
+
+.jx-screen-historyDelete {
+  @apply cursor-pointer border-0 bg-transparent text-muted opacity-60 hover:text-ink hover:opacity-100;
+  padding: 4px;
+  font-size: 11px;
+}
+
+.jx-screen-workspace {
+  @apply flex flex-1 flex-col overflow-hidden bg-card;
+  min-width: 0;
+}
+
+.jx-screen-body {
+  @apply flex flex-1 flex-col gap-3 overflow-hidden;
+  padding: 16px 20px;
 }
 
 /* —— query / chat view top bar —— */
 .jx-screen-viewBar {
   @apply flex items-center gap-2;
+  min-height: 32px;
 }
 
 .jx-screen-nameInput {
@@ -118,8 +121,14 @@
 
 /* —— chat view —— */
 .jx-screen-chat {
-  @apply gap-3;
-  padding: 16px 20px;
+  @apply flex flex-1 flex-col gap-3 overflow-hidden;
+  padding: 16px 20px 12px;
+}
+
+@media (max-width: 720px) {
+  .jx-screen-sidebar {
+    width: 220px;
+  }
 }
 
 /* Wraps the scroll area so the scroll-to-bottom chevron can float above the composer, out of the scroll flow. */

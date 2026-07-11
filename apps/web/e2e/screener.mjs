@@ -57,14 +57,37 @@ try {
     }
   });
 
-  // 2. The card wall (full reload → authStore.load sees the cookie).
+  // 2. ChatGPT-style split workspace: history stays left, and initial load selects no conversation.
   await page.goto(`${BASE}/screen`, { waitUntil: 'networkidle' });
-  await page.locator('.jx-screen-wallBar').waitFor();
-  await page.screenshot({ path: `${SHOTS}1-wall.png` });
-  log('shot 1: card wall');
+  await page.locator('.jx-screen-sidebar').waitFor();
+  const selectedOnLoad = await page.locator('.jx-screen-historyItem--active').count();
+  if (selectedOnLoad !== 0) {
+    throw new Error(`首次进入不应选中历史对话: ${selectedOnLoad}`);
+  }
+  await page.locator('.jx-screen-chatHero').waitFor();
+  await page.screenshot({ path: `${SHOTS}1-screen-empty.png` });
+  log('shot 1: sidebar + unselected blank conversation');
 
-  // 3. Example chip → the query view: editable chips + fresh result table.
-  await page.getByRole('button', { name: '低PE高股息大盘' }).click();
+  // 3. Seed a saved screen, then open it from the persistent sidebar.
+  await page.evaluate(async () => {
+    await fetch('/api/app/screens', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        name: 'e2e测试选股',
+        spec: {
+          filters: [
+            { field: 'peTtm', op: '<', value: 15 },
+            { field: 'dvRatio', op: '>', value: 3 },
+          ],
+          sort: { field: 'totalMv', dir: 'desc' },
+          limit: 50,
+        },
+      }),
+    });
+  });
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.locator('.jx-screen-historyItem', { hasText: 'e2e测试选股' }).click();
   await page.waitForFunction(
     () => document.querySelectorAll('.jx-screen-table tbody tr.ant-table-row').length > 5,
     { timeout: 15000 },
@@ -120,9 +143,9 @@ try {
   await stockPage.close();
   log('shot 3b: stock detail (log price axis)');
 
-  // 5. Pin the query to the wall under a name → back on the wall a QUERY card shows; reopen re-runs it.
+  // 5. Saving keeps the query in the left sidebar; reopening it re-runs the deterministic screen.
   await page.locator('.jx-screen-nameInput').fill('e2e测试选股');
-  await page.getByRole('button', { name: '钉到墙上' }).click();
+  await page.getByRole('button', { name: '保存筛选' }).click();
   await page.waitForFunction(
     async () => {
       const l = await (await fetch('/api/app/screens')).json();
@@ -130,20 +153,17 @@ try {
     },
     { timeout: 10000 },
   );
-  await page.getByRole('button', { name: '卡片墙' }).click();
   await page
-    .locator('.jx-screen-card--query .jx-screen-cardTitle', { hasText: 'e2e测试选股' })
+    .locator('.jx-screen-historyItem', { hasText: 'e2e测试选股' })
     .waitFor({ timeout: 10000 });
-  await page.screenshot({ path: `${SHOTS}2c-wall-query-card.png` });
-  log('shot 2c: wall shows the pinned query card');
-  await page.locator('.jx-screen-card--query', { hasText: 'e2e测试选股' }).click();
+  await page.screenshot({ path: `${SHOTS}2c-saved-query-sidebar.png` });
+  log('shot 2c: sidebar shows the saved screen');
+  await page.locator('.jx-screen-historyItem', { hasText: 'e2e测试选股' }).click();
   await page.waitForFunction(
     () => document.querySelectorAll('.jx-screen-table tbody tr.ant-table-row').length > 0,
     { timeout: 10000 },
   );
-  log('query card re-runs on open');
-  await page.getByRole('button', { name: '卡片墙' }).click();
-  await page.locator('.jx-screen-wall').waitFor();
+  log('saved screen re-runs on open');
 
   // 6. 新对话 → the chat view. Shift+Space inserts a newline (Enter would send) — check on the composer.
   await page.getByRole('button', { name: '新对话' }).click();
@@ -174,11 +194,15 @@ try {
     await page.screenshot({ path: `${SHOTS}2f0-chat-streaming.png` });
     log('shot 2f0: streaming pending bubble (SSE)');
 
-    // REFRESH MID-TURN. The turn keeps running server-side; the wall's session card already holds
-    // the persisted user message; reopening it re-subscribes via the running-turn discovery.
+    // REFRESH MID-TURN. The turn keeps running server-side; reopening its sidebar history item
+    // re-subscribes via the running-turn discovery.
     await page.reload({ waitUntil: 'networkidle' });
-    await page.locator('.jx-screen-card--chat').first().waitFor({ timeout: 10000 });
-    await page.locator('.jx-screen-card--chat').first().click();
+    const conversationItem = page
+      .locator('.jx-screen-sidebarSection', { hasText: '历史对话' })
+      .locator('.jx-screen-historyItem')
+      .first();
+    await conversationItem.waitFor({ timeout: 10000 });
+    await conversationItem.click();
     await page.locator('.jx-queryCard').first().waitFor({ timeout: 120000 }); // resumed or already-done turn
     await page.locator('.jx-queryCard-table .ant-table-row').first().waitFor({ timeout: 30000 });
     const bubbleRoles = await page.evaluate(() =>
@@ -192,19 +216,16 @@ try {
     await page.screenshot({ path: `${SHOTS}2f-chat-card.png` });
     log('shot 2f: refresh mid-turn → resumed stream → reply + query card landed');
 
-    // back on the wall → a session card; reopen → conversation + card restored (the card re-runs).
-    await page.getByRole('button', { name: '卡片墙' }).click();
-    await page.locator('.jx-screen-card--chat').first().waitFor({ timeout: 10000 });
-    await page.screenshot({ path: `${SHOTS}2g-wall-both-cards.png` });
-    log('shot 2g: wall shows query + session cards');
-    await page.locator('.jx-screen-card--chat').first().click();
+    // The sidebar keeps the session visible; reopen → conversation + card restored (the card re-runs).
+    await page.screenshot({ path: `${SHOTS}2g-sidebar-both-items.png` });
+    log('shot 2g: sidebar shows saved screen + conversation');
+    await conversationItem.click();
     await page.locator('.jx-queryCard-table .ant-table-row').first().waitFor({ timeout: 30000 });
     log('session reopened — conversation restored, card re-ran');
     await page.screenshot({ path: `${SHOTS}2h-chat-reopened.png` });
-    await page.getByRole('button', { name: '卡片墙' }).click();
 
-    // delete the session card → the pinned QUERY card survives.
-    await page.locator('.jx-screen-card--chat').first().locator('.jx-screen-cardDelete').click();
+    // Delete the conversation history item → the saved screen survives.
+    await conversationItem.locator('.jx-screen-historyDelete').click();
     await page.locator('.ant-popconfirm .ant-btn-primary').click();
     await page.waitForFunction(
       async () => {
@@ -234,9 +255,12 @@ try {
     await page.screenshot({ path: `${SHOTS}2i-chat-chart.png` });
     log('shot 2i: chart card rendered (renderChart tool → SQL re-run → echarts)');
 
-    // clean this conversation up so the wall state below matches the non-NL path.
-    await page.getByRole('button', { name: '卡片墙' }).click();
-    await page.locator('.jx-screen-card--chat').first().locator('.jx-screen-cardDelete').click();
+    // Clean this conversation up so the sidebar state below matches the non-NL path.
+    await page
+      .locator('.jx-screen-sidebarSection', { hasText: '历史对话' })
+      .locator('.jx-screen-historyDelete')
+      .first()
+      .click();
     await page.locator('.ant-popconfirm .ant-btn-primary').click();
     await page.waitForFunction(
       async () => {
@@ -261,8 +285,11 @@ try {
       .waitFor({ timeout: 180000 });
     await page.screenshot({ path: `${SHOTS}2j-chat-analyze.png` });
     log('shot 2j: analyzeData statistics answer (correlation via sandboxed code)');
-    await page.getByRole('button', { name: '卡片墙' }).click();
-    await page.locator('.jx-screen-card--chat').first().locator('.jx-screen-cardDelete').click();
+    await page
+      .locator('.jx-screen-sidebarSection', { hasText: '历史对话' })
+      .locator('.jx-screen-historyDelete')
+      .first()
+      .click();
     await page.locator('.ant-popconfirm .ant-btn-primary').click();
     await page.waitForFunction(
       async () => {
@@ -272,15 +299,12 @@ try {
       { timeout: 10000 },
     );
     log('analyze conversation cleaned up');
-  } else {
-    await page.getByRole('button', { name: '卡片墙' }).click();
   }
 
-  // 7. Delete the pinned query card from the wall → server list empty.
-  await page.locator('.jx-screen-card--query', { hasText: 'e2e测试选股' }).hover();
+  // 7. Delete the saved screen from the sidebar → server list empty.
   await page
-    .locator('.jx-screen-card--query', { hasText: 'e2e测试选股' })
-    .locator('.jx-screen-cardDelete')
+    .locator('.jx-screen-historyItem', { hasText: 'e2e测试选股' })
+    .locator('.jx-screen-historyDelete')
     .click();
   await page.locator('.ant-popconfirm .ant-btn-primary').click();
   await page.waitForFunction(
