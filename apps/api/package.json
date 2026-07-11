@@ -14,6 +14,7 @@
     "backup": "node scripts/backup-db.mjs",
     "gen:stats-doc": "tsx scripts/gen-stats-doc.ts",
     "gen:invite": "tsx --env-file=.env scripts/gen-invite.ts",
+    "migrate:agent-conversations": "tsx --env-file=.env scripts/migrate-agent-conversations.ts",
     "factor:report": "tsx --env-file=.env scripts/factor-report.ts",
     "backtest": "tsx --env-file=.env scripts/backtest.ts",
     "code:backtest": "tsx --env-file=.env scripts/code-backtest.ts",

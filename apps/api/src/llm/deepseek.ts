@@ -79,7 +79,7 @@ function toOpenAiMessages(messages: ToolAwareMessage[]): OpenAI.ChatCompletionMe
  * Always streams upstream: text tokens forward through opts.onDelta (when given) for the SSE path;
  * incremental tool_call fragments are accumulated by index and returned whole at the end. */
 export const chatTools: AgentLlm = async (messages, tools, opts) => {
-  const model = process.env.DEEPSEEK_MODEL ?? DEFAULT_MODEL;
+  const model = process.env.DEEPSEEK_AGENT_MODEL ?? process.env.DEEPSEEK_MODEL ?? DEFAULT_MODEL;
   const stream = await deepseek().chat.completions.create(
     {
       model,
@@ -112,6 +112,11 @@ export const chatTools: AgentLlm = async (messages, tools, opts) => {
     if (delta.content) {
       text += delta.content;
       opts?.onDelta?.(delta.content);
+    }
+    const reasoningContent = (delta as typeof delta & { reasoning_content?: string })
+      .reasoning_content;
+    if (reasoningContent) {
+      opts?.onReasoningDelta?.(reasoningContent);
     }
     for (const fragment of delta.tool_calls ?? []) {
       const slot = (toolCalls[fragment.index] ??= { id: '', name: '', args: '' });

@@ -22,6 +22,7 @@ interface TurnEntry {
   userId: string; // subscription auth: only the owner may attach
   entityKey: string | null; // 'strategy:<id>' | 'factor:<id>' | 'screen:<id>'; null = ephemeral (QA)
   accText: string; // produce-phase text so far (snapshot replay)
+  accReasoning: string;
   trace: ToolTraceItem[]; // completed tool calls so far (snapshot replay)
   controller: AbortController;
   done: boolean;
@@ -50,6 +51,7 @@ export function start(
     userId,
     entityKey,
     accText: '',
+    accReasoning: '',
     trace: [],
     controller,
     done: false,
@@ -63,7 +65,10 @@ export function start(
 /** Forward an incremental event to subscribers, accumulating what a snapshot must replay. */
 export function publish(
   turnId: string,
-  ev: Extract<AgentStreamEvent, { type: 'delta' | 'tool_start' | 'tool_done' | 'repair' }>,
+  ev: Extract<
+    AgentStreamEvent,
+    { type: 'delta' | 'reasoning_delta' | 'tool_start' | 'tool_done' | 'repair' }
+  >,
 ): void {
   const turn = turns.get(turnId);
   if (!turn || turn.done) {
@@ -71,6 +76,8 @@ export function publish(
   }
   if (ev.type === 'delta') {
     turn.accText += ev.text;
+  } else if (ev.type === 'reasoning_delta') {
+    turn.accReasoning += ev.text;
   } else if (ev.type === 'tool_done') {
     turn.trace.push(ev.item);
   }
@@ -140,7 +147,12 @@ export function subscribe(
 
   // The first frame is ALWAYS the snapshot — the subscriber replaces its local state with the
   // server's accumulation (an empty one still signals "you are now in sync").
-  send({ type: 'snapshot', text: turn.accText, trace: [...turn.trace] });
+  send({
+    type: 'snapshot',
+    text: turn.accText,
+    trace: [...turn.trace],
+    ...(turn.accReasoning ? { reasoning: turn.accReasoning } : {}),
+  });
 
   if (turn.done) {
     if (turn.finalEvent) {
