@@ -8,27 +8,40 @@ import './loading-area.css';
 
 /** Default delay (ms) before the loading indicator appears — a load shorter than this shows nothing,
  * so fast data never flashes a spinner. This is the whole point of LoadingArea. */
-export const LOADING_DELAY_MS = 150;
+export const LOADING_SHOW_DELAY_MS = 150;
 
 /**
  * `active` returns true only after it has stayed active for `delay` ms; if it ends within the window,
  * `true` is never returned. Powers "don't flash a spinner when data comes back fast". `delay<=0` = immediate.
  */
-function useDelayed(active: boolean, delay: number): boolean {
-  const [ready, setReady] = useState(false);
+function useLoadingVisibility(active: boolean, delay: number, minimumVisibleMs: number): boolean {
+  const initiallyVisible = active && delay <= 0;
+  const [visible, setVisible] = useState(initiallyVisible);
+  const shownAtRef = useRef(initiallyVisible ? Date.now() : 0);
   useEffect(() => {
-    if (!active) {
-      setReady(false);
+    if (active) {
+      if (visible) {
+        return undefined;
+      }
+      const show = () => {
+        shownAtRef.current = Date.now();
+        setVisible(true);
+      };
+      if (delay <= 0) {
+        show();
+        return undefined;
+      }
+      const timer = setTimeout(show, delay);
+      return () => clearTimeout(timer);
+    }
+    if (!visible) {
       return undefined;
     }
-    if (delay <= 0) {
-      setReady(true);
-      return undefined;
-    }
-    const timer = setTimeout(() => setReady(true), delay);
+    const elapsed = Date.now() - shownAtRef.current;
+    const timer = setTimeout(() => setVisible(false), Math.max(0, minimumVisibleMs - elapsed));
     return () => clearTimeout(timer);
-  }, [active, delay]);
-  return active && ready;
+  }, [active, delay, minimumVisibleMs, visible]);
+  return visible;
 }
 
 export type LoaderLike<T = unknown> = Partial<
@@ -52,8 +65,10 @@ interface LoadingAreaProps<T = unknown> {
   /** Declare "the current result is empty" for list loaders (whose empty is `[]`, not null, so LoadingArea
    * can't detect it). Makes empty not count as content → reloading from empty also shows loading. */
   isEmpty?: boolean;
-  /** Loading-indicator delay (ms). A load shorter than this shows no spinner; 0 disables the delay. */
-  loadingDelay?: number;
+  /** Delay before showing the loading element. A faster request never shows it; 0 shows immediately. */
+  showDelay?: number;
+  /** Once shown, keep the loading view visible for at least this long to avoid a one-frame flash. */
+  minimumVisibleDuration?: number;
 }
 
 const LoadingAreaImpl = reactUtils.observer((props: LoadingAreaProps<any>) => {
@@ -65,7 +80,8 @@ const LoadingAreaImpl = reactUtils.observer((props: LoadingAreaProps<any>) => {
     children,
     empty,
     isEmpty: isEmptyProp,
-    loadingDelay = LOADING_DELAY_MS,
+    showDelay = LOADING_SHOW_DELAY_MS,
+    minimumVisibleDuration = 0,
   } = props;
 
   const loaders: LoaderLike[] = loadersProp ?? (loader ? [loader] : []);
@@ -92,9 +108,9 @@ const LoadingAreaImpl = reactUtils.observer((props: LoadingAreaProps<any>) => {
   const showContent = allEverLoaded && !isEmptyState;
 
   // Enter the loading view only when there's no content to show and something is loading — including
-  // "reload from empty". The spinner appears only after `loadingDelay`, so fast data never flashes it.
+  // "reload from empty". The loading view appears only after `showDelay`, so fast data never flashes it.
   const wantLoading = anyLoading && !erroredLoader && !showContent;
-  const showLoading = useDelayed(wantLoading, loadingDelay);
+  const showLoading = useLoadingVisibility(wantLoading, showDelay, minimumVisibleDuration);
 
   // Error has top priority — a real load failure (status ERROR) overrides stale content. (A reload
   // in flight has status LOADING with errorObject cleared, so it won't hit this; old data stays.)
@@ -109,16 +125,16 @@ const LoadingAreaImpl = reactUtils.observer((props: LoadingAreaProps<any>) => {
       />
     );
   }
+  // Once a loading view appears, keep it for the minimum duration even if data arrives meanwhile.
+  if (showLoading) {
+    return loading ? loading() : <DefaultLoadingView />;
+  }
   // Content: render it (kept during a reload → silent refresh).
   if (showContent) {
     if (typeof children === 'function') {
       return children(resolvedResult) as ReactElement;
     }
     return (children as ReactElement) ?? null;
-  }
-  // Loading view: first load / reload-from-empty. Only after the delay; within the window nothing shows.
-  if (wantLoading && showLoading) {
-    return loading ? loading() : <DefaultLoadingView />;
   }
   // Ever loaded but empty (not loading, or loading within the delay window) → keep the empty state.
   if (allEverLoaded && isEmptyState) {

@@ -1,6 +1,12 @@
 import { action, computed, makeObservable, observable, runInAction } from 'mobx';
 import { BaseStore, LoaderModel } from '@src/lib';
-import { ApiError, requestEmailLogin, verifyEmailLogin, type AuthUser } from '@src/api/client';
+import {
+  ApiError,
+  devLogin,
+  requestEmailLogin,
+  verifyEmailLogin,
+  type AuthUser,
+} from '@src/api/client';
 import { authStore } from '@src/store';
 import i18n from '@src/i18n';
 
@@ -102,6 +108,15 @@ export class LoginStore extends BaseStore<LoginSetupParams> {
       } else {
         this.setError(e);
       }
+    }
+  }
+
+  public async submitDevelopmentLogin() {
+    try {
+      const result = await devLogin(this.email.trim());
+      await authStore.setUser(result.user);
+    } catch (error) {
+      this.setError(error);
     }
   }
 

@@ -12,16 +12,25 @@ const ChatChart = lazy(() => import('./chat-chart'));
 interface MessagePartsProps {
   message: ChatMessage;
   cards: QueryCardResults;
+  onQueryPinned?: () => void;
 }
 
 /** One chat message's typed parts (text / query card / chart card) — the single renderer shared by
  * the lab, factor and screen conversation bubbles, so a new part type is added in one place. */
-export function MessageParts({ message, cards }: MessagePartsProps) {
+export function MessageParts({ message, cards, onQueryPinned }: MessagePartsProps) {
   return (
     <>
       {message.parts.map((part, partIndex) => {
         if (part.type === 'card') {
-          return <QueryCard key={partIndex} title={part.title} spec={part.spec} results={cards} />;
+          return (
+            <QueryCard
+              key={partIndex}
+              title={part.title}
+              spec={part.spec}
+              results={cards}
+              onPinned={onQueryPinned}
+            />
+          );
         }
         if (part.type === 'chart') {
           return (

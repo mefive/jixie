@@ -3,13 +3,11 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { formatMarketCapWan } from '@src/i18n/format';
 import classNames from 'classnames';
-import { Button, Input, Popconfirm, Table } from 'antd';
+import { Button, Input, Popconfirm, Skeleton, Table } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { ChatMessage, ScreenConversationMeta, ScreenRow, SavedMeta } from '@jixie/shared';
 import {
   faArrowDown,
-  faComments,
-  faFilter,
   faPaperPlane,
   faPen,
   faPlus,
@@ -17,6 +15,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { LoaderButton } from '@src/components/loader-button';
+import { LoadingArea } from '@src/components/loading-area';
 import { MessageParts } from '@src/components/message-parts';
 import type { QueryCardResults } from '@src/components/query-card-model';
 import { ToolTrace } from '@src/components/tool-trace';
@@ -66,27 +65,53 @@ const ScreenSidebar = complex.component(() => {
       <div className="jx-screen-sidebarScroll">
         <section className="jx-screen-sidebarSection">
           <h2 className="jx-screen-sidebarLabel">{t('sidebar.history')}</h2>
-          {!store.conversationsLoader.loading && conversations.length === 0 && (
-            <p className="jx-screen-sidebarEmpty">{t('sidebar.emptyHistory')}</p>
-          )}
-          {conversations.map((conversation) => (
-            <ConversationItem key={conversation.id} meta={conversation} />
-          ))}
+          <LoadingArea
+            loader={store.conversationsLoader}
+            isEmpty={conversations.length === 0}
+            loading={() => <SidebarSkeleton />}
+            showDelay={0}
+            minimumVisibleDuration={200}
+          >
+            {conversations.length === 0 ? (
+              <p className="jx-screen-sidebarEmpty">{t('sidebar.emptyHistory')}</p>
+            ) : (
+              conversations.map((conversation) => (
+                <ConversationItem key={conversation.id} meta={conversation} />
+              ))
+            )}
+          </LoadingArea>
         </section>
 
         <section className="jx-screen-sidebarSection">
           <h2 className="jx-screen-sidebarLabel">{t('sidebar.savedQueries')}</h2>
-          {!store.savedLoader.loading && queries.length === 0 && (
-            <p className="jx-screen-sidebarEmpty">{t('sidebar.emptySaved')}</p>
-          )}
-          {queries.map((query) => (
-            <SavedQueryItem key={query.id} meta={query} />
-          ))}
+          <LoadingArea
+            loader={store.savedLoader}
+            isEmpty={queries.length === 0}
+            loading={() => <SidebarSkeleton />}
+            showDelay={0}
+            minimumVisibleDuration={200}
+          >
+            {queries.length === 0 ? (
+              <p className="jx-screen-sidebarEmpty">{t('sidebar.emptySaved')}</p>
+            ) : (
+              queries.map((query) => <SavedQueryItem key={query.id} meta={query} />)
+            )}
+          </LoadingArea>
         </section>
       </div>
     </aside>
   );
 }, 'ScreenSidebar');
+
+function SidebarSkeleton() {
+  return (
+    <div className="jx-screen-sidebarSkeleton">
+      {Array.from({ length: 3 }, (_, index) => (
+        <Skeleton key={index} active avatar={{ size: 24 }} paragraph={{ rows: 1 }} title={false} />
+      ))}
+    </div>
+  );
+}
 
 const ConversationItem = complex.component(({ meta }: { meta: ScreenConversationMeta }) => {
   const store = complex.useStore();
@@ -99,7 +124,6 @@ const ConversationItem = complex.component(({ meta }: { meta: ScreenConversation
       })}
       onClick={() => void store.openConversation(meta.id)}
     >
-      <FontAwesomeIcon className="jx-screen-historyIcon" icon={faComments} />
       <div className="jx-screen-historyText">
         <div className="jx-screen-historyTitle">{meta.title}</div>
         {meta.preview && <div className="jx-screen-historyPreview">{meta.preview}</div>}
@@ -123,7 +147,6 @@ const SavedQueryItem = complex.component(({ meta }: { meta: SavedMeta }) => {
 
   return (
     <div className="jx-screen-historyItem" onClick={() => void store.openSaved(meta.id)}>
-      <FontAwesomeIcon className="jx-screen-historyIcon" icon={faFilter} />
       <div className="jx-screen-historyText">
         <div className="jx-screen-historyTitle">{meta.name}</div>
         <div className="jx-screen-historyPreview">{formatDay(meta.updatedAt)}</div>
@@ -261,6 +284,7 @@ const ChatView = complex.component(() => {
             sending={store.sending}
             cards={store.cardResults}
             stream={store.turnStream}
+            onQueryPinned={() => store.refreshSaved()}
           />
           <Composer />
         </>
@@ -307,11 +331,13 @@ function ScreenChatLog({
   sending,
   cards,
   stream,
+  onQueryPinned,
 }: {
   messages: ChatMessage[];
   sending: boolean;
   cards: QueryCardResults;
   stream: AgentTurnStream;
+  onQueryPinned: () => void;
 }) {
   const logRef = useRef<HTMLDivElement>(null);
   const threadRef = useRef<HTMLDivElement>(null);
@@ -423,7 +449,7 @@ function ScreenChatLog({
               ref={index === lastUserIndex ? lastUserRef : undefined}
               className={classNames('jx-screen-bubble', `jx-screen-bubble--${message.role}`)}
             >
-              <MessageParts message={message} cards={cards} />
+              <MessageParts message={message} cards={cards} onQueryPinned={onQueryPinned} />
               {message.role === 'assistant' && message.turnId ? (
                 <AgentTrace turnId={message.turnId} />
               ) : (

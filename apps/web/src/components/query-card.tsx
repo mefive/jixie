@@ -17,6 +17,7 @@ interface QueryCardProps {
   title: string;
   spec: ScreenSpec;
   results: QueryCardResults;
+  onPinned?: () => void;
 }
 
 /**
@@ -25,77 +26,81 @@ interface QueryCardProps {
  * saves the spec to the card wall (SavedScreen). An invalid/outdated spec degrades to an inline
  * error instead of crashing the conversation.
  */
-export const QueryCard = reactUtils.observer(({ title, spec, results }: QueryCardProps) => {
-  const { t } = useTranslation('components');
-  const [saving, setSaving] = useState(false);
-  useEffect(() => {
-    results.load(spec);
-    // The spec of a given card never changes (cards are immutable message parts).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  const state = results.get(spec);
+export const QueryCard = reactUtils.observer(
+  ({ title, spec, results, onPinned }: QueryCardProps) => {
+    const { t } = useTranslation('components');
+    const [saving, setSaving] = useState(false);
+    useEffect(() => {
+      results.load(spec);
+      // The spec of a given card never changes (cards are immutable message parts).
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+    const state = results.get(spec);
 
-  const pin = async () => {
-    setSaving(true);
-    try {
-      await saveScreen(title.slice(0, 40) || t('unnamedScreen'), spec);
-      void message.success(t('pinnedToWall'));
-    } catch (e) {
-      void message.error(e instanceof Error ? e.message : t('saveFailed'));
-    } finally {
-      setSaving(false);
-    }
-  };
+    const pin = async () => {
+      setSaving(true);
+      try {
+        await saveScreen(title.slice(0, 40) || t('unnamedScreen'), spec);
+        onPinned?.();
+        void message.success(t('pinnedToWall'));
+      } catch (e) {
+        void message.error(e instanceof Error ? e.message : t('saveFailed'));
+      } finally {
+        setSaving(false);
+      }
+    };
 
-  return (
-    <div className="jx-queryCard">
-      <div className="jx-queryCard-head">
-        <span className="jx-queryCard-title">
-          <FontAwesomeIcon icon={faFilter} /> {title}
-        </span>
-        <span className="jx-queryCard-meta">
-          {state?.result
-            ? `${state.result.tradeDate} · ${t('stockCount', { count: state.result.total })}`
-            : ''}
-        </span>
-        <Tooltip title={t('pinTooltip')}>
-          <button className="jx-queryCard-pin" onClick={() => void pin()} disabled={saving}>
-            <FontAwesomeIcon icon={saving ? faSpinner : faThumbtack} spin={saving} />
-          </button>
-        </Tooltip>
+    return (
+      <div className="jx-queryCard">
+        <div className="jx-queryCard-head">
+          <span className="jx-queryCard-title">
+            <FontAwesomeIcon icon={faFilter} /> {title}
+          </span>
+          <span className="jx-queryCard-meta">
+            {state?.result
+              ? `${state.result.tradeDate} · ${t('stockCount', { count: state.result.total })}`
+              : ''}
+          </span>
+          <Tooltip title={t('pinTooltip')}>
+            <button className="jx-queryCard-pin" onClick={() => void pin()} disabled={saving}>
+              <FontAwesomeIcon icon={saving ? faSpinner : faThumbtack} spin={saving} />
+            </button>
+          </Tooltip>
+        </div>
+        {(!state || state.loading) && (
+          // Table-shaped skeleton close to the final table's height — the chat column must not
+          // collapse-then-expand around a one-line spinner while the spec re-runs.
+          <div className="jx-queryCard-skeleton">
+            {Array.from({ length: 6 }, (_, index) => (
+              <div key={index} className="jx-queryCard-skeletonRow" />
+            ))}
+          </div>
+        )}
+        {state?.error && (
+          <div className="jx-queryCard-status jx-queryCard-status--error">
+            {t('queryFailedMaybeExpired')}
+            {state.error}
+          </div>
+        )}
+        {state?.result && (
+          <Table<ScreenRow>
+            className="jx-queryCard-table"
+            size="small"
+            rowKey="tsCode"
+            columns={cardColumns(spec)}
+            dataSource={state.result.rows.slice(0, CARD_ROW_CAP)}
+            pagination={false}
+            onRow={(row) => ({ onClick: () => window.open(`/stock/${row.tsCode}`, '_blank') })}
+          />
+        )}
+        {state?.result && state.result.rows.length > CARD_ROW_CAP && (
+          <div className="jx-queryCard-more">{t('moreRows', { count: CARD_ROW_CAP })}</div>
+        )}
       </div>
-      {(!state || state.loading) && (
-        // Table-shaped skeleton close to the final table's height — the chat column must not
-        // collapse-then-expand around a one-line spinner while the spec re-runs.
-        <div className="jx-queryCard-skeleton">
-          {Array.from({ length: 6 }, (_, index) => (
-            <div key={index} className="jx-queryCard-skeletonRow" />
-          ))}
-        </div>
-      )}
-      {state?.error && (
-        <div className="jx-queryCard-status jx-queryCard-status--error">
-          {t('queryFailedMaybeExpired')}
-          {state.error}
-        </div>
-      )}
-      {state?.result && (
-        <Table<ScreenRow>
-          className="jx-queryCard-table"
-          size="small"
-          rowKey="tsCode"
-          columns={cardColumns(spec)}
-          dataSource={state.result.rows.slice(0, CARD_ROW_CAP)}
-          pagination={false}
-          onRow={(row) => ({ onClick: () => window.open(`/stock/${row.tsCode}`, '_blank') })}
-        />
-      )}
-      {state?.result && state.result.rows.length > CARD_ROW_CAP && (
-        <div className="jx-queryCard-more">{t('moreRows', { count: CARD_ROW_CAP })}</div>
-      )}
-    </div>
-  );
-}, 'QueryCard');
+    );
+  },
+  'QueryCard',
+);
 
 // —— Helpers ——
 

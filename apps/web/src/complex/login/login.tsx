@@ -64,6 +64,16 @@ const EmailStep = complex.component(() => {
       <button className="jx-login-button" type="submit" disabled={loading || !store.email.trim()}>
         {loading && <FontAwesomeIcon icon={faSpinner} spin />} {t('continue')}
       </button>
+      {import.meta.env.DEV && (
+        <button
+          className="jx-login-back"
+          type="button"
+          disabled={!store.email.trim()}
+          onClick={() => void store.submitDevelopmentLogin()}
+        >
+          {t('developmentLogin')}
+        </button>
+      )}
     </form>
   );
 }, 'EmailStep');

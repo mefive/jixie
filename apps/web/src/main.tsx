@@ -1,5 +1,4 @@
 import { App, ConfigProvider } from 'antd';
-import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { observer } from 'mobx-react';
 import { AppRoutes } from './app-routes';
@@ -50,8 +49,4 @@ const Root = observer(() => (
   </ConfigProvider>
 ));
 
-createRoot(el).render(
-  <StrictMode>
-    <Root />
-  </StrictMode>,
-);
+createRoot(el).render(<Root />);

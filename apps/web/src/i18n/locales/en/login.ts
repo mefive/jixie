@@ -5,6 +5,7 @@ export const enLogin: typeof zhLogin = {
   subtitle: 'A-share quant research platform',
   email: 'Email',
   continue: 'Continue',
+  developmentLogin: 'Development login',
   inviteHint: 'Registering a new email requires an invite code',
   inviteCode: 'Invite code',
   invitePlaceholder: '12-character invite code',
