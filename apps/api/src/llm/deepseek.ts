@@ -56,9 +56,10 @@ function toOpenAiMessages(messages: ToolAwareMessage[]): OpenAI.ChatCompletionMe
       return { role: 'tool', tool_call_id: message.toolCallId, content: message.content };
     }
     if (message.role === 'assistant') {
-      return {
+      const assistantMessage = {
         role: 'assistant',
         content: message.content,
+        ...(message.reasoningContent ? { reasoning_content: message.reasoningContent } : {}),
         ...(message.toolCalls?.length
           ? {
               tool_calls: message.toolCalls.map((call) => ({
@@ -69,6 +70,7 @@ function toOpenAiMessages(messages: ToolAwareMessage[]): OpenAI.ChatCompletionMe
             }
           : {}),
       };
+      return assistantMessage as OpenAI.ChatCompletionAssistantMessageParam;
     }
     return { role: message.role, content: message.content };
   });
@@ -80,29 +82,38 @@ function toOpenAiMessages(messages: ToolAwareMessage[]): OpenAI.ChatCompletionMe
  * incremental tool_call fragments are accumulated by index and returned whole at the end. */
 export const chatTools: AgentLlm = async (messages, tools, opts) => {
   const model = process.env.DEEPSEEK_AGENT_MODEL ?? process.env.DEEPSEEK_MODEL ?? DEFAULT_MODEL;
+  const thinking = process.env.DEEPSEEK_AGENT_THINKING !== 'false';
+  const reasoningEffort = process.env.DEEPSEEK_REASONING_EFFORT ?? 'high';
+  const request = {
+    model,
+    stream: true as const,
+    messages: toOpenAiMessages(messages),
+    ...(thinking
+      ? {
+          reasoning_effort: reasoningEffort,
+          thinking: { type: 'enabled' },
+        }
+      : { temperature: 0 }),
+    ...(tools.length
+      ? {
+          tools: tools.map((tool) => ({
+            type: 'function' as const,
+            function: {
+              name: tool.name,
+              description: tool.description,
+              parameters: tool.parameters,
+            },
+          })),
+        }
+      : {}),
+  };
   const stream = await deepseek().chat.completions.create(
-    {
-      model,
-      temperature: 0,
-      stream: true,
-      messages: toOpenAiMessages(messages),
-      ...(tools.length
-        ? {
-            tools: tools.map((tool) => ({
-              type: 'function' as const,
-              function: {
-                name: tool.name,
-                description: tool.description,
-                parameters: tool.parameters,
-              },
-            })),
-          }
-        : {}),
-    },
+    request as OpenAI.ChatCompletionCreateParamsStreaming,
     { signal: opts?.signal },
   );
 
   let text = '';
+  let reasoningContent = '';
   const toolCalls: { id: string; name: string; args: string }[] = [];
   for await (const chunk of stream) {
     const delta = chunk.choices[0]?.delta;
@@ -113,10 +124,11 @@ export const chatTools: AgentLlm = async (messages, tools, opts) => {
       text += delta.content;
       opts?.onDelta?.(delta.content);
     }
-    const reasoningContent = (delta as typeof delta & { reasoning_content?: string })
+    const reasoningDelta = (delta as typeof delta & { reasoning_content?: string })
       .reasoning_content;
-    if (reasoningContent) {
-      opts?.onReasoningDelta?.(reasoningContent);
+    if (reasoningDelta) {
+      reasoningContent += reasoningDelta;
+      opts?.onReasoningDelta?.(reasoningDelta);
     }
     for (const fragment of delta.tool_calls ?? []) {
       const slot = (toolCalls[fragment.index] ??= { id: '', name: '', args: '' });
@@ -133,5 +145,9 @@ export const chatTools: AgentLlm = async (messages, tools, opts) => {
   }
 
   const calls = toolCalls.filter((call) => call.name);
-  return { text: text || undefined, toolCalls: calls.length ? calls : undefined };
+  return {
+    text: text || undefined,
+    reasoningContent: reasoningContent || undefined,
+    toolCalls: calls.length ? calls : undefined,
+  };
 };

@@ -219,7 +219,12 @@ export async function agentTurn(
     hooks?.onModelDone?.(modelCall, res.text ?? '');
     if (allowTools && res.toolCalls?.length) {
       toolRounds++;
-      messages.push({ role: 'assistant', content: res.text ?? null, toolCalls: res.toolCalls });
+      messages.push({
+        role: 'assistant',
+        content: res.text ?? null,
+        reasoningContent: res.reasoningContent,
+        toolCalls: res.toolCalls,
+      });
       for (const call of res.toolCalls) {
         throwIfAborted();
         hooks?.onToolStart?.(call.name, (call.args || '{}').slice(0, 200));
