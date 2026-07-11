@@ -21,11 +21,17 @@ export interface ToolSpec {
 
 export type ToolAwareMessage =
   | { role: 'system' | 'user'; content: string }
-  | { role: 'assistant'; content: string | null; toolCalls?: ToolCall[] }
+  | {
+      role: 'assistant';
+      content: string | null;
+      reasoningContent?: string;
+      toolCalls?: ToolCall[];
+    }
   | { role: 'tool'; toolCallId: string; content: string };
 
 export interface AgentLlmReply {
   text?: string;
+  reasoningContent?: string;
   toolCalls?: ToolCall[];
 }
 

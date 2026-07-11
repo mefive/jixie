@@ -424,7 +424,7 @@ function ScreenChatLog({
               className={classNames('jx-screen-bubble', `jx-screen-bubble--${message.role}`)}
             >
               <MessageParts message={message} cards={cards} />
-              {message.turnId ? (
+              {message.role === 'assistant' && message.turnId ? (
                 <AgentTrace turnId={message.turnId} />
               ) : (
                 traceOf(message) && <ToolTrace trace={traceOf(message)!} />
