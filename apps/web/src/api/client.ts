@@ -55,6 +55,13 @@ export function fetchMe(): Promise<{ user: AuthUser | null }> {
   return request('/api/auth/me');
 }
 
+export function devLogin(email: string): Promise<{ user: AuthUser }> {
+  return request('/api/auth/dev/login', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
+
 // Send code. A new email must include inviteCode; an existing email doesn't. A new email without a code returns VALIDATION_FAILED + field=inviteCode
 export function requestEmailLogin(input: {
   email: string;

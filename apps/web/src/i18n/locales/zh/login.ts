@@ -3,6 +3,7 @@ export const zhLogin = {
   subtitle: 'A 股量化研究平台',
   email: '邮箱',
   continue: '继续',
+  developmentLogin: '开发环境直接登录',
   inviteHint: '新邮箱注册需要邀请码',
   inviteCode: '邀请码',
   invitePlaceholder: '12 位邀请码',
