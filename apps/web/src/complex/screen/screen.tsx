@@ -3,12 +3,11 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { formatMarketCapWan } from '@src/i18n/format';
 import classNames from 'classnames';
-import { Button, Input, Popconfirm, Segmented, Table } from 'antd';
+import { Button, Input, Popconfirm, Table } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { ChatMessage, ScreenConversationMeta, ScreenRow, SavedMeta } from '@jixie/shared';
 import {
   faArrowDown,
-  faArrowLeft,
   faComments,
   faFilter,
   faPaperPlane,
@@ -26,64 +25,36 @@ import type { AgentTurnStream } from '@src/components/agent-turn-stream';
 import type { AgentToolTraceItem } from '@src/api/client';
 import { complex } from './complex';
 import { ConditionChips } from './condition-chips';
-import { EXAMPLE_SCREENS } from './screen-store';
 import './screen.css';
 
-/**
- * Stock-screener card wall (docs/design/unified-agent.md design 4). One wall, two card kinds: query cards (saved
- * ScreenSpec — click re-runs it into an editable result view) and session cards (agent conversations —
- * click continues the chat). "New conversation" is the standing entry; screening itself happens in the agent
- * conversation, whose runScreen tool calls surface as pinnable query cards.
- */
+/** ChatGPT-style screener with persistent history and a centered conversation workspace. */
 export const Screen = complex.component(() => {
   const store = complex.useStore();
-  if (store.view === 'query') {
-    return <QueryView />;
-  }
-  if (store.view === 'chat') {
-    return <ChatView />;
-  }
-  return <Wall />;
+
+  return (
+    <main className="jx-screen">
+      <ScreenSidebar />
+      <section className="jx-screen-workspace">
+        {store.view === 'query' ? <QueryView /> : <ChatView />}
+      </section>
+    </main>
+  );
 }, 'Screen');
 
 // —— Subcomponents ——
 
-// The wall: filter + New-conversation + example chips, then both card kinds mixed, newest first.
-const Wall = complex.component(() => {
+const ScreenSidebar = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('screen');
-  const [kind, setKind] = useState<'all' | 'query' | 'chat'>('all');
   const queries = store.savedLoader.result ?? [];
   const conversations = store.conversationsLoader.result ?? [];
-  const loading = store.savedLoader.loading || store.conversationsLoader.loading;
-  const cards = mergeCards(queries, conversations, kind);
 
   return (
-    <main className="jx-screen">
-      <div className="jx-screen-wallBar">
-        <h1 className="jx-screen-wallTitle">{t('title')}</h1>
-        <Segmented
-          value={kind}
-          onChange={(v) => setKind(v as typeof kind)}
-          options={[
-            { label: t('filter.all'), value: 'all' },
-            { label: t('filter.query'), value: 'query' },
-            { label: t('filter.chat'), value: 'chat' },
-          ]}
-        />
-        <span className="jx-screen-wallSpacer" />
-        <span className="jx-screen-examplesLabel">{t('examplesLabel')}</span>
-        {EXAMPLE_SCREENS.map((example) => (
-          <LoaderButton
-            key={example.labelKey}
-            size="small"
-            action={() => store.openSpec(example.spec)}
-          >
-            {t(`example.${example.labelKey}`)}
-          </LoaderButton>
-        ))}
+    <aside className="jx-screen-sidebar">
+      <div className="jx-screen-sidebarHead">
+        <h1 className="jx-screen-sidebarTitle">{t('title')}</h1>
         <Button
-          type="primary"
+          className="jx-screen-newChat"
           icon={<FontAwesomeIcon icon={faPlus} />}
           onClick={() => store.newChat()}
         >
@@ -91,94 +62,83 @@ const Wall = complex.component(() => {
         </Button>
       </div>
 
-      {loading && cards.length === 0 && (
-        // Skeleton cards in the same grid — first paint and loaded wall share one layout, no swap jump.
-        <div className="jx-screen-wall">
-          {Array.from({ length: 6 }, (_, index) => (
-            <div key={index} className="jx-screen-card jx-screen-card--skeleton" />
+      <div className="jx-screen-sidebarScroll">
+        <section className="jx-screen-sidebarSection">
+          <h2 className="jx-screen-sidebarLabel">{t('sidebar.history')}</h2>
+          {!store.conversationsLoader.loading && conversations.length === 0 && (
+            <p className="jx-screen-sidebarEmpty">{t('sidebar.emptyHistory')}</p>
+          )}
+          {conversations.map((conversation) => (
+            <ConversationItem key={conversation.id} meta={conversation} />
           ))}
-        </div>
-      )}
-      {!loading && cards.length === 0 && (
-        <div className="jx-screen-wallEmpty">{t('wallEmpty')}</div>
-      )}
+        </section>
 
-      <div className="jx-screen-wall">
-        {cards.map((card) =>
-          card.kind === 'query' ? (
-            <WallQueryCard key={`q-${card.query.id}`} meta={card.query} />
-          ) : (
-            <WallSessionCard key={`c-${card.conversation.id}`} meta={card.conversation} />
-          ),
-        )}
+        <section className="jx-screen-sidebarSection">
+          <h2 className="jx-screen-sidebarLabel">{t('sidebar.savedQueries')}</h2>
+          {!store.savedLoader.loading && queries.length === 0 && (
+            <p className="jx-screen-sidebarEmpty">{t('sidebar.emptySaved')}</p>
+          )}
+          {queries.map((query) => (
+            <SavedQueryItem key={query.id} meta={query} />
+          ))}
+        </section>
       </div>
-    </main>
+    </aside>
   );
-}, 'Wall');
+}, 'ScreenSidebar');
 
-// A query card on the wall: a saved, re-runnable ScreenSpec.
-const WallQueryCard = complex.component(({ meta }: { meta: SavedMeta }) => {
+const ConversationItem = complex.component(({ meta }: { meta: ScreenConversationMeta }) => {
   const store = complex.useStore();
   const { t } = useTranslation('screen');
-  return (
-    <div
-      className="jx-screen-card jx-screen-card--query"
-      onClick={() => void store.openSaved(meta.id)}
-    >
-      <div className="jx-screen-cardHead">
-        <span className="jx-screen-cardKind">
-          <FontAwesomeIcon icon={faFilter} /> {t('card.query')}
-        </span>
-        <Popconfirm
-          title={t('card.deleteQuery')}
-          onConfirm={() => store.removeSaved(meta.id)}
-          onPopupClick={(e) => e.stopPropagation()}
-        >
-          <button className="jx-screen-cardDelete" onClick={(e) => e.stopPropagation()}>
-            <FontAwesomeIcon icon={faTrash} />
-          </button>
-        </Popconfirm>
-      </div>
-      <div className="jx-screen-cardTitle">{meta.name}</div>
-      <div className="jx-screen-cardMeta">
-        {t('card.updatedRerun', { day: formatDay(meta.updatedAt) })}
-      </div>
-    </div>
-  );
-}, 'WallQueryCard');
 
-// A session card on the wall: an agent conversation to continue.
-const WallSessionCard = complex.component(({ meta }: { meta: ScreenConversationMeta }) => {
-  const store = complex.useStore();
-  const { t } = useTranslation('screen');
   return (
     <div
-      className="jx-screen-card jx-screen-card--chat"
+      className={classNames('jx-screen-historyItem', {
+        'jx-screen-historyItem--active': store.view === 'chat' && store.conversationId === meta.id,
+      })}
       onClick={() => void store.openConversation(meta.id)}
     >
-      <div className="jx-screen-cardHead">
-        <span className="jx-screen-cardKind jx-screen-cardKind--chat">
-          <FontAwesomeIcon icon={faComments} /> {t('card.chat')}
-        </span>
-        <Popconfirm
-          title={t('card.deleteChat')}
-          onConfirm={() => store.removeConversation(meta.id)}
-          onPopupClick={(e) => e.stopPropagation()}
-        >
-          <button className="jx-screen-cardDelete" onClick={(e) => e.stopPropagation()}>
-            <FontAwesomeIcon icon={faTrash} />
-          </button>
-        </Popconfirm>
+      <FontAwesomeIcon className="jx-screen-historyIcon" icon={faComments} />
+      <div className="jx-screen-historyText">
+        <div className="jx-screen-historyTitle">{meta.title}</div>
+        {meta.preview && <div className="jx-screen-historyPreview">{meta.preview}</div>}
       </div>
-      <div className="jx-screen-cardTitle">{meta.title}</div>
-      {meta.preview && <div className="jx-screen-cardPreview">{meta.preview}</div>}
-      <div className="jx-screen-cardMeta">
-        {meta.cardCount > 0 ? t('card.cardCount', { num: meta.cardCount }) : ''}
-        {formatDay(meta.updatedAt)} · {t('card.continueChat')}
-      </div>
+      <Popconfirm
+        title={t('card.deleteChat')}
+        onConfirm={() => store.removeConversation(meta.id)}
+        onPopupClick={(event) => event.stopPropagation()}
+      >
+        <button className="jx-screen-historyDelete" onClick={(event) => event.stopPropagation()}>
+          <FontAwesomeIcon icon={faTrash} />
+        </button>
+      </Popconfirm>
     </div>
   );
-}, 'WallSessionCard');
+}, 'ConversationItem');
+
+const SavedQueryItem = complex.component(({ meta }: { meta: SavedMeta }) => {
+  const store = complex.useStore();
+  const { t } = useTranslation('screen');
+
+  return (
+    <div className="jx-screen-historyItem" onClick={() => void store.openSaved(meta.id)}>
+      <FontAwesomeIcon className="jx-screen-historyIcon" icon={faFilter} />
+      <div className="jx-screen-historyText">
+        <div className="jx-screen-historyTitle">{meta.name}</div>
+        <div className="jx-screen-historyPreview">{formatDay(meta.updatedAt)}</div>
+      </div>
+      <Popconfirm
+        title={t('card.deleteQuery')}
+        onConfirm={() => store.removeSaved(meta.id)}
+        onPopupClick={(event) => event.stopPropagation()}
+      >
+        <button className="jx-screen-historyDelete" onClick={(event) => event.stopPropagation()}>
+          <FontAwesomeIcon icon={faTrash} />
+        </button>
+      </Popconfirm>
+    </div>
+  );
+}, 'SavedQueryItem');
 
 // Query view: an opened (or example) spec — editable chips + fresh result table + save-to-wall.
 const QueryView = complex.component(() => {
@@ -187,11 +147,8 @@ const QueryView = complex.component(() => {
   const [name, setName] = useState(store.queryName);
   const result = store.result;
   return (
-    <main className="jx-screen jx-screen-body">
+    <div className="jx-screen-body">
       <div className="jx-screen-viewBar">
-        <Button icon={<FontAwesomeIcon icon={faArrowLeft} />} onClick={() => store.showWall()}>
-          {t('wall')}
-        </Button>
         <Input
           className="jx-screen-nameInput"
           value={name}
@@ -231,7 +188,7 @@ const QueryView = complex.component(() => {
         // Open the stock's candlestick/PE/volume in a new tab — keeps the screen list intact.
         onRow={(r) => ({ onClick: () => window.open(`/stock/${r.tsCode}`, '_blank') })}
       />
-    </main>
+    </div>
   );
 }, 'QueryView');
 
@@ -246,11 +203,8 @@ const ChatView = complex.component(() => {
     void store.renameConversation(draftTitle);
   };
   return (
-    <main className="jx-screen jx-screen-chat">
+    <div className="jx-screen-chat">
       <div className="jx-screen-viewBar">
-        <Button icon={<FontAwesomeIcon icon={faArrowLeft} />} onClick={() => store.showWall()}>
-          {t('wall')}
-        </Button>
         {editingTitle ? (
           <Input
             className="jx-screen-nameInput"
@@ -310,7 +264,7 @@ const ChatView = complex.component(() => {
           <Composer />
         </>
       )}
-    </main>
+    </div>
   );
 }, 'ChatView');
 
@@ -545,33 +499,6 @@ function PromptInput({
 }
 
 // —— Helpers / config ——
-
-type WallCard =
-  | { kind: 'query'; updatedAt: string; query: SavedMeta }
-  | { kind: 'chat'; updatedAt: string; conversation: ScreenConversationMeta };
-
-/** Both card kinds on one wall, newest first, optionally filtered by kind. */
-function mergeCards(
-  queries: SavedMeta[],
-  conversations: ScreenConversationMeta[],
-  kind: 'all' | 'query' | 'chat',
-): WallCard[] {
-  const cards: WallCard[] = [
-    ...(kind !== 'chat'
-      ? queries.map((query): WallCard => ({ kind: 'query', updatedAt: query.updatedAt, query }))
-      : []),
-    ...(kind !== 'query'
-      ? conversations.map(
-          (conversation): WallCard => ({
-            kind: 'chat',
-            updatedAt: conversation.updatedAt,
-            conversation,
-          }),
-        )
-      : []),
-  ];
-  return cards.sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
-}
 
 function formatDay(iso: string): string {
   return iso.slice(0, 10);
