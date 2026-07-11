@@ -177,6 +177,10 @@ export class ScreenStore extends BaseStore<ScreenSetupParams> {
     void deleteScreen(id).then(() => this.savedLoader.run());
   }
 
+  public refreshSaved(): void {
+    void this.savedLoader.run();
+  }
+
   // —— chat view ——
 
   /** Start a brand-new conversation (created lazily on the first message). */

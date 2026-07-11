@@ -50,6 +50,15 @@
   font-size: 12px;
 }
 
+.jx-screen-sidebarSkeleton {
+  @apply flex flex-col gap-2;
+  padding: 7px 8px;
+}
+
+.jx-screen-sidebarSkeleton .ant-skeleton {
+  @apply w-full;
+}
+
 .jx-screen-historyItem {
   @apply flex cursor-pointer items-center gap-2 rounded-lg text-ink hover:bg-chip;
   min-height: 44px;
@@ -58,13 +67,6 @@
 
 .jx-screen-historyItem--active {
   @apply bg-chip;
-}
-
-.jx-screen-historyIcon {
-  @apply text-muted;
-  width: 14px;
-  flex: none;
-  font-size: 12px;
 }
 
 .jx-screen-historyText {
@@ -83,9 +85,14 @@
 }
 
 .jx-screen-historyDelete {
-  @apply cursor-pointer border-0 bg-transparent text-muted opacity-60 hover:text-ink hover:opacity-100;
+  @apply pointer-events-none cursor-pointer border-0 bg-transparent text-muted opacity-0 hover:text-ink;
   padding: 4px;
   font-size: 11px;
+}
+
+.jx-screen-historyItem:hover .jx-screen-historyDelete,
+.jx-screen-historyItem:focus-within .jx-screen-historyDelete {
+  @apply pointer-events-auto opacity-100;
 }
 
 .jx-screen-workspace {
