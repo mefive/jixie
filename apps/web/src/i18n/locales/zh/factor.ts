@@ -50,6 +50,9 @@ export const zhFactor = {
   neutralSizeIndustry: '市值+行业',
   neutralSizeTag: '·市值中性',
   neutralSizeIndustryTag: '·市值行业中性',
+  paramsSummary: '{{frequency}}频 · {{start}} 至 {{end}} · {{neutral}}',
+  paramsSettings: '分析设置',
+  paramsMore: '更多设置',
 
   corrTrigger: '相关性矩阵',
   corrTitle: '因子相关性矩阵',
