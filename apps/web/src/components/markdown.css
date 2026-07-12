@@ -1,24 +1,25 @@
 @reference '../styles/index.css';
 
 .jx-md {
-  --margin-block: 0 0 8px;
-  --margin-ul-ol: 0 0 8px 18px;
+  --margin-block: 0 0 16px;
+  --margin-ul-ol: 0 0 16px 24px;
   --padding-ul-ol: 0;
-  --margin-li: 3px 0;
-  --margin-pre: 8px 0;
+  --margin-li: 6px 0;
+  --margin-pre: 16px 0;
   --padding-code-inline: 1px 4px;
   --margin-code-inline: 0;
   --code-inline-text: 0.85em;
   --small-border-radius: 4px;
-  --table-margin: 8px 0;
-  --td-th-padding: 4px 10px;
+  --table-margin: 16px 0 24px;
+  --td-th-padding: 10px;
+  font-size: 16px;
 }
 
 .jx-md h1,
 .jx-md h2,
 .jx-md h3 {
   @apply font-semibold text-ink;
-  margin: 8px 0;
+  margin: 20px 0 10px;
 }
 
 .jx-md h1 {
@@ -31,16 +32,24 @@
 }
 
 .jx-md table {
-  font-size: 0.9em;
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
 }
 
 .jx-md th,
 .jx-md td {
-  @apply border border-line text-left;
+  @apply border-0 border-b border-line text-left;
+}
+
+.x-markdown.jx-md th:first-child,
+.x-markdown.jx-md td:first-child {
+  padding-left: 0;
 }
 
 .jx-md th {
-  @apply bg-chip font-medium text-ink;
+  @apply bg-transparent font-semibold text-ink;
+  white-space: nowrap;
 }
 
 .jx-md hr {

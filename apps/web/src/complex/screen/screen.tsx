@@ -449,12 +449,12 @@ function ScreenChatLog({
               ref={index === lastUserIndex ? lastUserRef : undefined}
               className={classNames('jx-screen-bubble', `jx-screen-bubble--${message.role}`)}
             >
-              <MessageParts message={message} cards={cards} onQueryPinned={onQueryPinned} />
               {message.role === 'assistant' && message.turnId ? (
                 <AgentTrace turnId={message.turnId} />
               ) : (
                 traceOf(message) && <ToolTrace trace={traceOf(message)!} />
               )}
+              <MessageParts message={message} cards={cards} onQueryPinned={onQueryPinned} />
             </div>
           ))}
           {sending && (

@@ -78,7 +78,6 @@ function StepDetail({ step }: { step: AgentTraceStep }) {
               <Markdown text={step.reasoning} />
             </Think>
           )}
-          {step.output && <Markdown text={step.output} />}
         </div>
       );
     case 'tool':
@@ -148,7 +147,7 @@ function stepStatus(
 
 function hasDetails(step: AgentTraceStep): boolean {
   return (
-    (step.type === 'model' && Boolean(step.reasoning || step.output)) ||
+    (step.type === 'model' && Boolean(step.reasoning)) ||
     step.type === 'tool' ||
     (step.type === 'validation' && Boolean(step.error)) ||
     ((step.type === 'error' || step.type === 'cancelled') && Boolean(step.message))
