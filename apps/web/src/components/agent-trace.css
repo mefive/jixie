@@ -1,17 +1,17 @@
 @reference '../styles/index.css';
 
 .jx-agentTrace {
-  @apply mt-2;
+  @apply my-2;
 }
 
 .jx-agentTrace-toggle {
   @apply cursor-pointer border-0 bg-transparent p-0 text-muted underline hover:text-ink;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .jx-agentTrace-loading {
   @apply mt-2 text-muted;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .jx-agentTrace-detail {

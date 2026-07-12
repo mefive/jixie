@@ -13,7 +13,7 @@
 
 .jx-queryCard-title {
   @apply flex-1 truncate;
-  @apply text-xs font-medium text-ink;
+  @apply text-sm font-medium text-ink;
 }
 
 .jx-queryCard-meta {
@@ -53,12 +53,13 @@
 }
 
 .jx-queryCard-nameMain {
-  @apply text-xs text-ink;
+  @apply text-ink;
+  font-size: 14px;
 }
 
 .jx-queryCard-nameCode {
   @apply text-muted;
-  font-size: 10px;
+  font-size: 14px;
 }
 
 .jx-queryCard-more {

@@ -181,13 +181,12 @@ export class AgentTraceRecorder {
     this.reasoning.set(modelCall, (this.reasoning.get(modelCall) ?? '') + text);
   }
 
-  public modelDone(modelCall: number, output: string): void {
+  public modelDone(modelCall: number): void {
     const step = [...this.trace.steps]
       .reverse()
       .find((candidate) => candidate.type === 'model' && candidate.modelCall === modelCall);
     if (step?.type === 'model') {
       step.reasoning = this.reasoning.get(modelCall);
-      step.output = output;
       step.status = 'success';
       step.durationMs = Date.now() - (this.modelStartedAt.get(modelCall) ?? Date.now());
       this.queueCheckpoint();

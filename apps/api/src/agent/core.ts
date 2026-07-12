@@ -38,7 +38,7 @@ export interface AgentTurnHooks {
   onDelta?(text: string): void;
   onReasoningDelta?(modelCall: number, text: string): void;
   onModelStart?(modelCall: number, toolsEnabled: string[]): void;
-  onModelDone?(modelCall: number, output: string): void;
+  onModelDone?(modelCall: number): void;
   onToolStart?(name: string, argsSummary: string): void;
   onToolDone?(
     item: ToolTraceItem,
@@ -216,7 +216,7 @@ export async function agentTurn(
       signal: hooks?.signal,
     });
     attempts++;
-    hooks?.onModelDone?.(modelCall, res.text ?? '');
+    hooks?.onModelDone?.(modelCall);
     if (allowTools && res.toolCalls?.length) {
       toolRounds++;
       messages.push({
@@ -290,7 +290,7 @@ export async function agentTurn(
         signal: hooks?.signal,
       });
       attempts++;
-      hooks?.onModelDone?.(modelCall, repairRaw.text ?? '');
+      hooks?.onModelDone?.(modelCall);
       code = extractRepairCode(repairRaw.text ?? '');
     }
 

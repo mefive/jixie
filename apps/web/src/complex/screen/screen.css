@@ -187,7 +187,7 @@
 }
 
 .jx-screen-bubble {
-  font-size: 16px;
+  font-size: 14px;
   line-height: 1.7;
   word-break: break-word;
 }
@@ -215,9 +215,12 @@
 /* Composer is width-capped + centered to line up under the thread column. */
 .jx-screen-chatComposer {
   @apply mx-auto flex w-full items-end gap-2;
-  @apply rounded-2xl border border-line bg-card;
+  @apply rounded-2xl border border-line;
   max-width: 768px;
+  margin-bottom: 8px;
   padding: 8px 8px 8px 14px;
+  background-color: var(--color-card);
+  box-shadow: 0 6px 24px rgb(17 24 39 / 0.1);
 }
 
 /* —— new-conversation hero (centered, ChatGPT-style) —— */
@@ -239,6 +242,7 @@
 
 .jx-screen-chatComposer--hero {
   width: min(720px, 100%);
+  margin-bottom: 0;
   box-shadow: 0 4px 18px rgb(17 24 39 / 0.05);
 }
 
@@ -259,6 +263,7 @@
 .jx-screen-input {
   @apply w-full;
   font-size: 16px;
+  background-color: var(--color-card);
 }
 
 /* Overlay hint — matches the textarea's padding / font / line-box so it sits exactly where the native
