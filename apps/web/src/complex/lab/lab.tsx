@@ -514,12 +514,12 @@ function ChatLog({
       )}
       {messages.map((message, index) => (
         <div key={index} className={classNames('jx-lab-bubble', `jx-lab-bubble--${message.role}`)}>
-          <MessageParts message={message} cards={cards} />
           {message.role === 'assistant' && message.turnId ? (
             <AgentTrace turnId={message.turnId} />
           ) : (
             traceOf(message) && <ToolTrace trace={traceOf(message)!} />
           )}
+          <MessageParts message={message} cards={cards} />
         </div>
       ))}
       {sending && (

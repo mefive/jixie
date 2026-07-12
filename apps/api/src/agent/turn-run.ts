@@ -87,7 +87,7 @@ async function runTurn(args: EnqueueTurnArgs, signal: AbortSignal): Promise<void
         turnBus.publish(turnId, { type: 'reasoning_delta', text });
       },
       onModelStart: (modelCall, toolsEnabled) => traceRecorder?.modelStart(modelCall, toolsEnabled),
-      onModelDone: (modelCall, output) => traceRecorder?.modelDone(modelCall, output),
+      onModelDone: (modelCall) => traceRecorder?.modelDone(modelCall),
       onToolStart: (name, argsSummary) =>
         turnBus.publish(turnId, { type: 'tool_start', name, argsSummary }),
       onToolDone: (item, detail) => {

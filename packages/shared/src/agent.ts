@@ -35,7 +35,6 @@ export type AgentTraceStep =
       model: string;
       toolsEnabled: string[];
       reasoning?: string;
-      output?: string;
       status: 'running' | 'success' | 'error' | 'abort';
       durationMs?: number;
     })

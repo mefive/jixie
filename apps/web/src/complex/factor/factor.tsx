@@ -217,12 +217,12 @@ function ChatLog({
           key={index}
           className={classNames('jx-factor-bubble', `jx-factor-bubble--${message.role}`)}
         >
-          <MessageParts message={message} cards={cards} />
           {message.role === 'assistant' && message.turnId ? (
             <AgentTrace turnId={message.turnId} />
           ) : (
             traceOf(message) && <ToolTrace trace={traceOf(message)!} />
           )}
+          <MessageParts message={message} cards={cards} />
         </div>
       ))}
       {sending && (
