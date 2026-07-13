@@ -191,12 +191,42 @@ function gapDays(a: string, b: string): number {
 }
 `;
 
+const ABNORMAL_TURNOVER_CODE = `// Preset: abnormal turnover from Liu et al. (2019) and Factor Investing: Methodology and Practice.
+// Definition: mean free-float turnover over the latest 21 trading days divided by its mean over the
+// latest 252 trading days. A-share evidence expects a negative relation with future returns.
+export default defineFactor({
+  name: '异常换手率(21日/252日)',
+  window: 252,
+  compute(bar, ctx) {
+    const turnoverRates = ctx.history(252, 'turnoverRateF');
+    if (turnoverRates.length < 252 || turnoverRates.some((value) => value == null)) {
+      return null;
+    }
+    const completeTurnoverRates = turnoverRates as number[];
+    const longMean = completeTurnoverRates.reduce((sum, value) => sum + value, 0) / 252;
+    if (longMean <= 0) {
+      return null;
+    }
+    const shortMean = completeTurnoverRates
+      .slice(-21)
+      .reduce((sum, value) => sum + value, 0) / 21;
+    return shortMean / longMean;
+  },
+});
+`;
+
 export const BUILTIN_FACTORS: BuiltinFactorDef[] = [
   { key: 'mom', label: '动量(60日,跳5)', kind: 'price', code: MOMENTUM_CODE },
   { key: 'mom_12_1', label: '动量(12-1月)', kind: 'price', code: MOMENTUM_12_1_CODE },
   { key: 'rev', label: '反转(5日)', kind: 'price', code: REVERSAL_CODE },
   { key: 'vol', label: '波动率(20日)', kind: 'price', code: VOLATILITY_CODE },
   { key: 'vol120', label: '波动率(120日)', kind: 'price', code: VOLATILITY_120_CODE },
+  {
+    key: 'abturn',
+    label: '异常换手率(21日/252日)',
+    kind: 'price',
+    code: ABNORMAL_TURNOVER_CODE,
+  },
   {
     key: 'ep',
     label: '盈利收益率(1/PE_TTM)',

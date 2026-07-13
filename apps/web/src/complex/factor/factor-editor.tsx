@@ -98,6 +98,8 @@ interface FactorCtx {
   history(n: number): number[];
   /** ${doc('historyDate')} */
   history(n: number, field: 'date'): string[];
+  /** Free-float turnover-rate (%) history; null means unavailable that day. */
+  history(n: number, field: 'turnoverRateF'): (number | null)[];
 }
 interface CustomFactor {
   /** ${doc('name')} */

@@ -155,7 +155,7 @@ export async function syncDailyBasic(
     dates = await getOpenDates(start, end);
   }
   const existing = await prisma.dailyBasic.findMany({
-    where: { tradeDate: { gte: start, lte: end } },
+    where: { tradeDate: { gte: start, lte: end }, turnoverRateF: { not: null } },
     distinct: ['tradeDate'],
     select: { tradeDate: true },
   });
@@ -182,6 +182,7 @@ export async function syncDailyBasic(
           totalMv: r.total_mv,
           circMv: r.circ_mv,
           turnoverRate: r.turnover_rate,
+          turnoverRateF: r.turnover_rate_f,
         })),
       }),
     ]);

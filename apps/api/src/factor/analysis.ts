@@ -204,6 +204,7 @@ export async function computeFactorSeries(
     onUserLog?.(level, line);
   };
   const factor = await compileFactor(row.code, logSink);
+  const needsTurnoverRateFHistory = row.code.includes("'turnoverRateF'");
 
   // Preload all financial reports once (PIT-gated by annDate); loadBars picks each stock's as-of report.
   const finaIndex = await loadFinaIndex();
@@ -325,7 +326,7 @@ export async function computeFactorSeries(
       if (++done % 800 === 0) {
         onLog(t(locale, 'factorComputeProgress', { done, total: tsCodes.size }));
       }
-      const [priceRows, adjRows] = await Promise.all([
+      const [priceRows, adjRows, basicRows] = await Promise.all([
         prisma.daily.findMany({
           where: { tsCode },
           select: { tradeDate: true, close: true },
@@ -336,8 +337,18 @@ export async function computeFactorSeries(
           select: { tradeDate: true, adjFactor: true },
           orderBy: { tradeDate: 'asc' },
         }),
+        needsTurnoverRateFHistory
+          ? prisma.dailyBasic.findMany({
+              where: { tsCode },
+              select: { tradeDate: true, turnoverRateF: true },
+              orderBy: { tradeDate: 'asc' },
+            })
+          : Promise.resolve([]),
       ]);
       const adjMap = new Map(adjRows.map((a) => [a.tradeDate, a.adjFactor]));
+      const turnoverRateFMap = new Map(
+        basicRows.map((basic) => [basic.tradeDate, basic.turnoverRateF]),
+      );
       const listDate = listDateMap.get(tsCode);
       // Trade dates kept below, 1:1 aligned with adjClose by index (same filtering applied to both).
       const tradeDates: string[] = [];
@@ -375,6 +386,9 @@ export async function computeFactorSeries(
           bar: barsByDate.get(date)?.get(tsCode) ?? { ...EMPTY_BAR, code: tsCode },
           closes: adjClose.slice(from, end + 1),
           dates: tradeDates.slice(from, end + 1),
+          turnoverRatesF: tradeDates
+            .slice(from, end + 1)
+            .map((tradeDate) => turnoverRateFMap.get(tradeDate) ?? null),
         });
         itemDates.push(date);
       }
