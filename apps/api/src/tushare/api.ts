@@ -305,6 +305,7 @@ export interface DailyBasicRow {
   total_mv: number | null; // total market cap (10k yuan)
   circ_mv: number | null; // circulating market cap (10k yuan)
   turnover_rate: number | null; // turnover %
+  turnover_rate_f: number | null; // turnover based on free-float shares %
 }
 
 /**
@@ -323,7 +324,7 @@ export async function dailyBasic(
   const rows = await client.call(
     'daily_basic',
     params,
-    'ts_code,trade_date,pe,pe_ttm,pb,ps,ps_ttm,dv_ratio,dv_ttm,total_mv,circ_mv,turnover_rate',
+    'ts_code,trade_date,pe,pe_ttm,pb,ps,ps_ttm,dv_ratio,dv_ttm,total_mv,circ_mv,turnover_rate,turnover_rate_f',
   );
   return rows as unknown as DailyBasicRow[];
 }

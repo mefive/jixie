@@ -16,6 +16,8 @@ export interface FactorCtx {
   history(n: number): number[];
   /** The window's trading days (YYYYMMDD), aligned position-by-position with history(n) — used for suspension-gap checks etc. */
   history(n: number, field: 'date'): string[];
+  /** Free-float turnover-rate (%) history, aligned with `history(n)`; null means unavailable that day. */
+  history(n: number, field: 'turnoverRateF'): (number | null)[];
 }
 
 export interface CustomFactor {
