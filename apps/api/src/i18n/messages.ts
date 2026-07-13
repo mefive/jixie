@@ -13,6 +13,10 @@ const MESSAGES = {
     zh: '(⚠️ 生成的改动没能通过编译,已保留原代码;换个说法再试。错误:{error})',
     en: '(⚠️ The generated change did not compile; the original code was kept. Try rephrasing. Error: {error})',
   },
+  invalidAgentReply: {
+    zh: '模型未能生成有效答案,请重试',
+    en: 'The model did not produce a valid answer; please try again',
+  },
   turnHostGone: {
     zh: '会话宿主已不存在(可能已被删除)',
     en: 'The conversation host no longer exists (it may have been deleted)',

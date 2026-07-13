@@ -29,6 +29,7 @@ export default function StockChart({
   const { t } = useTranslation('stock');
   const p = series.points;
   const dates = p.map((d) => d.date);
+  const isShortHistory = p.length <= 120;
 
   // Adjustment factor per mode: none→1, hfq→adjFactor, qfq→adjFactor / latest-factor (anchor = most
   // recent day, so the newest bar matches the raw quote and history is scaled).
@@ -70,7 +71,7 @@ export default function StockChart({
     },
     grid: [
       { left: 56, right: 56, top: 28, height: '64%' },
-      { left: 56, right: 56, top: '80%', height: '14%' },
+      { left: 56, right: 56, top: '76%', bottom: 72 },
     ],
     xAxis: [
       {
@@ -84,7 +85,13 @@ export default function StockChart({
         type: 'category',
         gridIndex: 1,
         data: dates,
-        axisLabel: { formatter: (d: string) => d.slice(0, 6), color: '#8a9099' },
+        axisLabel: {
+          formatter: (date: string) =>
+            isShortHistory
+              ? `${date.slice(4, 6)}-${date.slice(6, 8)}`
+              : `${date.slice(0, 4)}-${date.slice(4, 6)}`,
+          color: '#8a9099',
+        },
         axisLine: { lineStyle: { color: '#e8eaed' } },
       },
     ],
@@ -120,8 +127,17 @@ export default function StockChart({
       },
     ],
     dataZoom: [
-      { type: 'inside', xAxisIndex: [0, 1], start: 50, end: 100 },
-      { type: 'slider', xAxisIndex: [0, 1], bottom: 0, height: 18, start: 50, end: 100 },
+      { type: 'inside', xAxisIndex: [0, 1], start: 0, end: 100 },
+      {
+        type: 'slider',
+        xAxisIndex: [0, 1],
+        bottom: 16,
+        height: 30,
+        handleSize: '90%',
+        showDetail: false,
+        start: 0,
+        end: 100,
+      },
     ],
     series: [
       {
@@ -130,7 +146,9 @@ export default function StockChart({
         xAxisIndex: 0,
         yAxisIndex: 0,
         data: candle,
+        barMaxWidth: 18,
         itemStyle: { color: UP, color0: DOWN, borderColor: UP, borderColor0: DOWN },
+        tooltip: { valueFormatter: formatPrice },
       },
       {
         name: t('chart.pe'),
@@ -140,10 +158,35 @@ export default function StockChart({
         data: pes,
         showSymbol: false,
         lineStyle: { color: PE_COLOR, width: 1.2 },
+        tooltip: { valueFormatter: formatRatio },
       },
-      { name: t('chart.volume'), type: 'bar', xAxisIndex: 1, yAxisIndex: 2, data: vols },
+      {
+        name: t('chart.volume'),
+        type: 'bar',
+        xAxisIndex: 1,
+        yAxisIndex: 2,
+        data: vols,
+        barMaxWidth: 22,
+        tooltip: { valueFormatter: formatVolume },
+      },
     ],
   };
 
   return <EChart option={option} className={className} />;
+}
+
+// —— Helpers ——
+
+function formatPrice(value: unknown): string {
+  return typeof value === 'number' ? value.toFixed(2) : String(value);
+}
+
+function formatRatio(value: unknown): string {
+  return typeof value === 'number' ? value.toFixed(2) : String(value);
+}
+
+function formatVolume(value: unknown): string {
+  return typeof value === 'number'
+    ? value.toLocaleString(undefined, { maximumFractionDigits: 2 })
+    : String(value);
 }

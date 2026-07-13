@@ -342,12 +342,17 @@ export function deleteScreenConversation(id: string): Promise<{ ok: true }> {
 }
 
 // A stock's OHLC/vol/pe series for the candlestick/PE/volume charts.
-export function fetchStockSeries(
-  code: string,
-  start = '20150101',
-  end = '20241231',
-): Promise<StockSeries> {
-  return request(`/api/app/market/stocks/${code}/series?start=${start}&end=${end}`);
+export function fetchStockSeries(code: string, start?: string, end?: string): Promise<StockSeries> {
+  const query = new URLSearchParams();
+  if (start) {
+    query.set('start', start);
+  }
+  if (end) {
+    query.set('end', end);
+  }
+  const suffix = query.size > 0 ? `?${query.toString()}` : '';
+
+  return request(`/api/app/market/stocks/${code}/series${suffix}`);
 }
 
 export function fetchFutureSeries(code: string, start: string, end: string): Promise<StockSeries> {
