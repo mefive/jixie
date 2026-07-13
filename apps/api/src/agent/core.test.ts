@@ -195,6 +195,39 @@ describe('agentTurn tool loop', () => {
     expect(observations[1].content).toContain('Unknown tool');
   });
 
+  it('repairs plain-text tool protocol before publishing or returning a final reply', async () => {
+    const leaked = '< | DSML | tool_calls> < | DSML | invoke name="sqlQuery">SELECT * FROM Daily';
+    const replies = [leaked, '查询调用失败，暂时无法得出可靠结论。'];
+    let call = 0;
+    const llm = vi.fn<AgentLlm>(async (_messages, _tools, opts) => {
+      const text = replies[Math.min(call++, replies.length - 1)];
+      opts?.onDelta?.(text);
+      return { text };
+    });
+    const onDelta = vi.fn();
+
+    const result = await agentTurn(toolProfile([], false), [], '查一下', '', llm, {
+      hooks: { onDelta },
+    });
+
+    expect(result.reply).toBe('查询调用失败，暂时无法得出可靠结论。');
+    expect(result.attempts).toBe(2);
+    expect(llm.mock.calls[1][1]).toEqual([]);
+    expect(onDelta).toHaveBeenCalledOnce();
+    expect(onDelta).toHaveBeenCalledWith('查询调用失败，暂时无法得出可靠结论。');
+  });
+
+  it('fails the turn when tool protocol still leaks after repair', async () => {
+    const leaked = '<tool_calls><invoke name="sqlQuery"><parameter name="sql">SELECT 1';
+    const llm = scriptedLlm([{ text: leaked }]);
+    const onDelta = vi.fn();
+
+    await expect(
+      agentTurn(toolProfile([], false), [], '查一下', '', llm, { hooks: { onDelta } }),
+    ).rejects.toThrow('模型未能生成有效答案');
+    expect(onDelta).not.toHaveBeenCalled();
+  });
+
   it('caps tool rounds, then forces a text finish with tools disabled', async () => {
     const tool = fakeTool('loop', async () => ({ observation: '{}' }));
     const llm = vi.fn<AgentLlm>(async (_messages, tools) =>
@@ -261,7 +294,7 @@ describe('agentTurn tool loop', () => {
       tools: [tool],
       artifact: { noun: '策略', validate },
     };
-    // The mock streams its text through opts.onDelta (like the real chatTools).
+    // The mock offers raw deltas like chatTools; core buffers them until protocol validation passes.
     const replies = [
       { toolCalls: [{ id: 'c1', name: 'echo', args: '{}' }] },
       { text: '改。\n```ts\nbad\n```' },
@@ -295,7 +328,7 @@ describe('agentTurn tool loop', () => {
       }),
     );
     expect(hooks.onRepair).toHaveBeenCalledWith(1, '编译失败');
-    // Deltas only from the tool/produce phase — the repair call got no onDelta.
+    // Only the protocol-safe produce reply is published; compile-repair output stays silent.
     expect(hooks.onDelta.mock.calls.map((args) => args[0])).toEqual(['改。\n```ts\nbad\n```']);
     expect(llm.mock.calls[2][2]?.onDelta).toBeUndefined(); // repair round
   });

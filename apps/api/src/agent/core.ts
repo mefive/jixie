@@ -62,6 +62,21 @@ export interface AgentTurnResult {
 /** Hard cap on tool-executing rounds per turn; after that the model must answer with what it has. */
 const MAX_TOOL_ROUNDS = 5;
 
+/** Internal tool-protocol markers must never become a user-visible or persisted final reply. Some
+ * OpenAI-compatible providers occasionally emit a tool request as plain content (rather than the
+ * structured tool_calls field), especially after tools have been disabled at the round limit. */
+const TOOL_PROTOCOL_PATTERNS = [
+  /<\s*\|\s*DSML\s*\|/i,
+  /<\/?\s*tool_calls?\s*>/i,
+  /<\/?\s*invoke\b[^>]*\bname\s*=/i,
+  /<\/?\s*parameter\b[^>]*\bname\s*=/i,
+  /<\|(?:tool_call|tool_calls|function_call|function_calls)\|>/i,
+];
+
+function hasLeakedToolProtocol(text: string): boolean {
+  return TOOL_PROTOCOL_PATTERNS.some((pattern) => pattern.test(text));
+}
+
 /** A turn result as the assistant message's parts: the explanation text + any query/chart cards the
  * tools side-produced. This is what routes return and the frontend appends + persists. */
 export function turnParts(result: AgentTurnResult): MessagePart[] {
@@ -211,7 +226,9 @@ export async function agentTurn(
     const modelCall = attempts + 1;
     hooks?.onModelStart?.(modelCall, allowTools ? tools.map((tool) => tool.name) : []);
     const res = await llm(messages, allowTools ? tools : [], {
-      onDelta: hooks?.onDelta,
+      // Buffer model content until it is known to be a valid final reply. Tool requests sometimes
+      // arrive as plain-text protocol markup; forwarding upstream deltas would leak them before the
+      // core can reject or repair the response.
       onReasoningDelta: (text) => hooks?.onReasoningDelta?.(modelCall, text),
       signal: hooks?.signal,
     });
@@ -245,10 +262,12 @@ export async function agentTurn(
         messages.push({ role: 'tool', toolCallId: call.id, content: executed.observation });
       }
       if (toolRounds >= MAX_TOOL_ROUNDS) {
+        const hasSuccessfulObservation = toolTrace.some((item) => item.ok);
         messages.push({
           role: 'user',
-          content:
-            'Tool-call round limit reached; answer directly based on the information you already have.',
+          content: hasSuccessfulObservation
+            ? 'Tool-call round limit reached. Answer only if the successful observations are sufficient; otherwise state that the required data could not be retrieved. Output only a user-facing answer and never emit tool-call syntax.'
+            : 'Tool-call round limit reached and no tool call succeeded. State that the required data could not be retrieved. Output only a user-facing answer and never emit tool-call syntax.',
         });
       }
       continue;
@@ -256,6 +275,34 @@ export async function agentTurn(
     raw = res.text ?? '';
     break;
   }
+
+  // A provider may serialize an intended tool request into ordinary text. Give it one clean,
+  // tool-disabled chance to produce a user-facing answer; if protocol still leaks, fail the turn so
+  // the runner persists no assistant message.
+  if (!raw.trim() || hasLeakedToolProtocol(raw)) {
+    throwIfAborted();
+    messages.push({ role: 'assistant', content: raw || null });
+    messages.push({
+      role: 'user',
+      content:
+        'Your previous response was empty or contained internal tool-call protocol. Reply again with only a user-facing natural-language answer. Do not call tools or emit tool-call syntax. If the available successful observations are insufficient, say that the required data could not be retrieved.',
+    });
+    const modelCall = attempts + 1;
+    hooks?.onModelStart?.(modelCall, []);
+    const repaired = await llm(messages, [], {
+      onReasoningDelta: (text) => hooks?.onReasoningDelta?.(modelCall, text),
+      signal: hooks?.signal,
+    });
+    attempts++;
+    hooks?.onModelDone?.(modelCall);
+    raw = repaired.text ?? '';
+    if (!raw.trim() || repaired.toolCalls?.length || hasLeakedToolProtocol(raw)) {
+      throw new Error(t(locale, 'invalidAgentReply'));
+    }
+  }
+
+  // Only protocol-safe final text is allowed onto the user-visible stream.
+  hooks?.onDelta?.(raw);
 
   // No artifact → plain Q&A: the reply verbatim (it may legitimately contain markdown fences).
   if (!artifact) {

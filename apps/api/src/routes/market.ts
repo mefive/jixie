@@ -57,8 +57,8 @@ const seriesQuery = z.object({
 
 marketRoute.get('/stocks/:code/series', validateQuery(seriesQuery), async (c) => {
   const code = c.req.param('code');
-  const { start = '20150101', end = '20241231' } = c.req.valid('query');
-  if (start >= end) {
+  const { start, end } = c.req.valid('query');
+  if (start && end && start >= end) {
     return apiError(c, 'VALIDATION_FAILED', m(c, 'startAfterEnd'));
   }
   const series = await stockSeries(code, start, end);
