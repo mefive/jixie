@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { generateFactorMetadata, normalizeFactorKey } from './metadata.js';
-import type { LlmCall } from '../llm/nl-to-structured.js';
+import type { LlmCall } from '../llm/deepseek.js';
 
 describe('factor metadata', () => {
   it('normalizes LLM proposals to short lower_snake_case keys', () => {

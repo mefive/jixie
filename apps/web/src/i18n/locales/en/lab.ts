@@ -131,8 +131,6 @@ export const enLab: typeof zhLab = {
   delete: 'Delete',
   cancel: 'Cancel',
   notBacktested: 'Not run',
-  myStrategies: 'My strategies',
-  pickerEmpty: 'No saved strategies yet (running a backtest saves one automatically)',
 
   // Store-driven messages (agent bubbles + backtest errors)
   storeError: 'Something went wrong: {{message}}',
