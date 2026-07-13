@@ -122,8 +122,6 @@ export const zhLab = {
   delete: '删除',
   cancel: '取消',
   notBacktested: '未回测',
-  myStrategies: '我的策略',
-  pickerEmpty: '还没有保存的策略(跑一次回测会自动保存)',
 
   // Store-driven messages (agent bubbles + backtest errors)
   storeError: '出错了:{{message}}',

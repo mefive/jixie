@@ -2,5 +2,4 @@
 // Copy over pageable-list/form/crud/dict etc. as needed.
 export * from './base-model';
 export * from './loader-model';
-export * from './modal-model';
 export * from './polling-model';

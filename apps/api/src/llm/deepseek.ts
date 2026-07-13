@@ -2,8 +2,14 @@
 // chatJson (forced JSON) backs NL→screen; chatText (free text) backs naming and other plain replies.
 // Config from .env: DEEPSEEK_API_KEY (required), DEEPSEEK_MODEL, DEEPSEEK_BASE_URL.
 import OpenAI from 'openai';
-import type { ChatMessage, LlmCall } from './nl-to-structured.js';
 import type { AgentLlm, ToolAwareMessage } from './agent-llm.js';
+
+export interface ChatMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
+export type LlmCall = (messages: ChatMessage[]) => Promise<string>;
 
 const DEFAULT_BASE = 'https://api.deepseek.com';
 const DEFAULT_MODEL = 'deepseek-chat';
@@ -22,8 +28,7 @@ export function deepseek(): OpenAI {
   return _client;
 }
 
-/** One chat completion forcing JSON output; returns raw message.content. Shape matches LlmCall so it
- * can be passed straight into nlToIr (production default; tests inject a mock instead). */
+/** One chat completion forcing JSON output; returns raw message.content. */
 export const chatJson: LlmCall = async (messages: ChatMessage[]): Promise<string> => {
   const model = process.env.DEEPSEEK_MODEL ?? DEFAULT_MODEL;
   const res = await deepseek().chat.completions.create({

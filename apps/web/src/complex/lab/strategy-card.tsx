@@ -5,12 +5,11 @@ import { useTranslation } from 'react-i18next';
 import { faTrashCan } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import type { StrategyCard } from '@jixie/shared';
-import './strategy-picker.css';
+import './strategy-card.css';
 
 /**
  * One saved-strategy card: name + a lightweight SVG sparkline of its last run's equity curve + headline
- * metrics. Shared by My strategies (the picker grid) and the lab hero's Recent visits row, so both render identically.
- * Click opens the strategy; the trash button (when onDelete is given) confirms then deletes.
+ * metrics. Click opens the strategy; the trash button (when onDelete is given) confirms then deletes.
  */
 export function StrategyCardView({
   card,

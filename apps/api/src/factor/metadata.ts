@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { messageText, type ChatMessage } from '@jixie/shared';
-import type { LlmCall } from '../llm/nl-to-structured.js';
-import { chatJson } from '../llm/deepseek.js';
+import { chatJson, type LlmCall } from '../llm/deepseek.js';
 import { prisma } from '../lib/prisma.js';
 
 const MAX_KEY_LENGTH = 32;

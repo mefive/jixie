@@ -1,7 +1,7 @@
 /**
  * Tool-aware LLM call shape for the unified agent (docs/design/unified-agent.md design 2). LlmCall
- * (plain messages → string) stays for parseStructured / naming; the agent core uses AgentLlm so the
- * model can request whitelisted read-only tools. The implementation lives in deepseek.ts (chatTools);
+ * Plain completion calls remain available for metadata and naming; the agent core uses AgentLlm so
+ * the model can request whitelisted read-only tools. The implementation lives in deepseek.ts (chatTools);
  * tests inject a scripted mock.
  */
 

@@ -8,7 +8,7 @@
 ## 1. 架构：页面 = complex(MobX)
 
 - `@src/lib` 是从 marginalia 拷来的 **antd-free 框架核心**（complex/store 生命周期本身不依赖 antd）：
-  `Complex` / `BaseStore` / `BaseModel` / `LoaderModel` / `ModalModel` / `reactUtils.observer` /
+  `Complex` / `BaseStore` / `BaseModel` / `LoaderModel` / `PollingModel` / `reactUtils.observer` /
   `dataUtils`。**不要绕过它们另造**。（交互原语 Select/Input/Button 等用 antd 6，见 §8。）
 - 每个有独立 store 生命周期的页面 = 一个 **complex**，放 `src/complex/<page-name>/`，五件套：
   - `complex.ts` —— `new Complex({ name, storeClass })`

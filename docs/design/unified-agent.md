@@ -11,7 +11,7 @@
 - **两个镜像 agent,95% 重复**:`strategy/code/agent.ts`(`agentTurn`)与 `factor/factor-agent.ts`(`factorAgentTurn`)——同样的「一次 completion → 正则抽围栏 → 编译校验 → 错误回灌修复 ≤2 轮」结构,只差 prompt 和编译器。第三个场景进来就是第三份拷贝。
 - **第三个隐性入口**:`routes/factor.ts` 的 `POST /qa`(预置因子纯问答,不写代码)——其实就是「无产物 profile」的 agent。
 - **screen 已是雏形**:`screen/nl-to-screen.ts` NL→ScreenSpec(白名单 JSON)→ `runScreen` 执行;`/screen/query` 一框两意图(本地 LIKE 确定性解析优先,miss 才走 LLM)。这就是「agent 回查询卡片」缺了对话外壳的版本。
-- **LLM 层无工具调用**:`LlmCall = (messages) => Promise<string>`(`llm/nl-to-structured.ts`),纯文本进出;DeepSeek(openai SDK 兼容端点),支持 function calling 但本项目未用。
+- **LLM 层无工具调用**:`LlmCall = (messages) => Promise<string>`,纯文本进出;DeepSeek(openai SDK 兼容端点),支持 function calling 但本项目未用。
 - **消息持久化**:`ChatMessage { role, content }`(`packages/shared/src/chat.ts`),按策略/因子存 `Strategy.messages` / `Factor.messages`(Json 列);代码不进消息(存在 strategy config / factor code 上),对话保持轻。
 - **SavedScreen 已存 spec**:`model SavedScreen { spec Json }` + upsert-by-name——卡片墙的存储直接骑它,不建新表。
 
@@ -54,7 +54,7 @@ interface AgentProfile {
 ### LLM 层扩展
 
 ```ts
-// llm/ 新增 AgentLlm —— LlmCall 的工具版;LlmCall 保留不动(parseStructured 等继续用)
+// llm/ 新增 AgentLlm —— LlmCall 的工具版;LlmCall 保留给 metadata / naming
 interface AgentTool {
   name: string;
   description: string;
@@ -82,7 +82,7 @@ type AgentLlm = (
 - **agent 没有任何写工具**:保存卡片、保存策略/因子都是用户在 UI 上的点击(走既有 API),不暴露给模型。写权限的边界一刀切在这里,不做"低危写工具"的灰度。
 - **参数双重校验**:发给模型的 JSON schema 只是"说明书";每个工具在 `run()` 入口用 zod 再校验一遍 args(校验失败=错误观察回灌,模型自己修参数)。zod schema 与 JSON schema 同文件相邻定义,改一处看得见另一处。
 - **规则:工具按需求加,不囤**(同 ROADMAP 4.2 数据扩展原则);候选池 `getFactorList` / `getStockSnapshot` 等,撞到再加。
-- **退路(实测后定)**:若 DeepSeek FC 参数幻觉/选择质量不可用,退化为「JSON 协议模拟工具调用」——system prompt 约定输出 `{"tool":"…","args":{…}}`,`parseStructured` 解析执行,循环结构不变。这条退路便宜且基建现成,所以 FC 质量不构成方案风险。
+- **退路(实测后定)**:若 DeepSeek FC 参数幻觉/选择质量不可用,可退化为「JSON 协议模拟工具调用」——system prompt 约定输出 `{"tool":"…","args":{…}}`,解析执行后保持循环结构不变。
 
 ### 工具循环 × 修复环的关系(定死,别让执行时自由发挥)
 
