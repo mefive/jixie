@@ -32,7 +32,7 @@ export const SQL_TABLE_DOCS: Record<string, string> = {
   Moneyflow:
     'tsCode, tradeDate, netMain(万元), netTotal(万元) — per-stock moneyflow, sparse, exact per day, not forward-filled',
   DailyBasic:
-    'tsCode, tradeDate, pe, peTtm, pb, ps, psTtm, dvRatio(%), dvTtm, totalMv(万元), circMv(万元), turnoverRate(%) — daily valuation snapshot',
+    'tsCode, tradeDate, pe, peTtm, pb, ps, psTtm, dvRatio(%), dvTtm, totalMv(万元), circMv(万元), turnoverRate(%), turnoverRateF(% free-float) — daily valuation snapshot',
   FinaIndicator:
     'tsCode, endDate(reporting period), annDate(announcement date), roe(%), roeWaa(%), roa(%), grossprofitMargin(%), netprofitMargin(%), debtToAssets(%), orYoy(revenue YoY, %), netprofitYoy(net profit attributable to parent, YoY, %), ocfToProfit(operating cash flow / operating profit) — financial indicators; PIT rule: values are only visible after annDate, so time-series analysis must gate on annDate to avoid look-ahead; column-expansion backfill in progress as of 2026-07, new columns may be partially NULL',
   Dividend:

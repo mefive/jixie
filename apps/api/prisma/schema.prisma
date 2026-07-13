@@ -115,18 +115,19 @@ model Moneyflow {
 
 /// Daily valuation metrics (point-in-time by construction). Unlocks value/dividend/size factors.
 model DailyBasic {
-  tsCode       String
-  tradeDate    String
-  pe           Float?
-  peTtm        Float?
-  pb           Float?
-  ps           Float?
-  psTtm        Float?
-  dvRatio      Float? // dividend yield %
-  dvTtm        Float?
-  totalMv      Float? // total market cap (10k yuan)
-  circMv       Float? // circulating market cap (10k yuan)
-  turnoverRate Float?
+  tsCode        String
+  tradeDate     String
+  pe            Float?
+  peTtm         Float?
+  pb            Float?
+  ps            Float?
+  psTtm         Float?
+  dvRatio       Float? // dividend yield %
+  dvTtm         Float?
+  totalMv       Float? // total market cap (10k yuan)
+  circMv        Float? // circulating market cap (10k yuan)
+  turnoverRate  Float?
+  turnoverRateF Float? // turnover rate based on free-float shares (%)
 
   @@id([tsCode, tradeDate])
   @@index([tradeDate])

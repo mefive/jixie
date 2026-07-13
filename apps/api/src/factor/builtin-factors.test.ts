@@ -102,6 +102,19 @@ function windowItem(
   };
 }
 
+function windowItemWithTurnover(
+  window: number,
+  adjClose: number[],
+  tradeDates: string[],
+  turnoverRatesF: (number | null)[],
+  end: number,
+): FactorBatchItem {
+  return {
+    ...windowItem(window, adjClose, tradeDates, end),
+    turnoverRatesF: turnoverRatesF.slice(Math.max(0, end - window + 1), end + 1),
+  };
+}
+
 /** A deterministic 120-day series: pseudo-random walk, one long suspension gap, one zero price. */
 function syntheticSeries(): { px: number[]; dates: string[] } {
   const px: number[] = [];
@@ -225,7 +238,7 @@ describe('cross-sectional presets match the legacy hardcoded formulas', () => {
   });
 });
 
-describe('3.5 preset-menu additions (mom_12_1 / vol120)', () => {
+describe('3.5 preset-menu additions', () => {
   // A clean 260-bar series: positive random walk, consecutive-ish dates, NO suspension gaps —
   // long enough for the 245-day window.
   function cleanLongSeries(): { px: number[]; dates: string[] } {
@@ -252,6 +265,7 @@ describe('3.5 preset-menu additions (mom_12_1 / vol120)', () => {
   it('declares the right windows; quality presets are cross-sectional', async () => {
     expect((await compiled('mom_12_1')).window).toBe(245);
     expect((await compiled('vol120')).window).toBe(121);
+    expect((await compiled('abturn')).window).toBe(252);
     expect((await compiled('roe')).window).toBeUndefined();
     expect((await compiled('gross_margin')).window).toBeUndefined();
   });
@@ -282,5 +296,21 @@ describe('3.5 preset-menu additions (mom_12_1 / vol120)', () => {
     const mean = returns.reduce((sum, r) => sum + r, 0) / returns.length;
     const variance = returns.reduce((sum, r) => sum + (r - mean) ** 2, 0) / returns.length;
     expect(actual).toBeCloseTo(Math.sqrt(variance), 12);
+  });
+
+  it('abturn = latest 21-day mean / 252-day mean of free-float turnover', async () => {
+    const { px, dates } = cleanLongSeries();
+    const turnoverRates = dates.map((_date, index) => 1 + index / 100);
+    const factor = await compiled('abturn');
+    const [actual, short] = await factor.computeBatch([
+      windowItemWithTurnover(252, px, dates, turnoverRates, 259),
+      windowItemWithTurnover(252, px, dates, turnoverRates, 100),
+    ]);
+    factor.dispose();
+    const window = turnoverRates.slice(8, 260);
+    const longMean = window.reduce((sum, value) => sum + value, 0) / 252;
+    const shortMean = window.slice(-21).reduce((sum, value) => sum + value, 0) / 21;
+    expect(actual).toBeCloseTo(shortMean / longMean, 12);
+    expect(short).toBeNull();
   });
 });

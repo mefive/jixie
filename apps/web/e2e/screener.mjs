@@ -305,7 +305,7 @@ try {
   await page
     .locator('.jx-screen-historyItem', { hasText: 'e2e测试选股' })
     .locator('.jx-screen-historyDelete')
-    .click();
+    .click({ force: true });
   await page.locator('.ant-popconfirm .ant-btn-primary').click();
   await page.waitForFunction(
     async () => {
@@ -579,10 +579,21 @@ try {
   await page.locator('.jx-factor-libItem').first().waitFor({ timeout: 15000 });
   const factorCount = await page.locator('.jx-factor-libItem').count();
   log('factor catalog items:', factorCount);
-  if (factorCount < 13) {
-    // 9 original presets + the 3.5 menu additions (mom_12_1 / vol120 / roe / gross_margin)
+  if (factorCount < 14) {
+    // 9 original presets + the 3.5 menu additions + abnormal turnover.
     throw new Error(`因子目录数不足: ${factorCount}`);
   }
+
+  // The textbook abnormal-turnover factor must be present as a built-in, read-only preset.
+  const abnormalTurnoverItem = page.locator('.jx-factor-libItem', {
+    hasText: '异常换手率(21日/252日)',
+  });
+  await abnormalTurnoverItem.scrollIntoViewIfNeeded();
+  await abnormalTurnoverItem.click();
+  await page.locator('.jx-factor-presetBar').waitFor({ timeout: 10000 });
+  await page.locator('.jx-factor-code .monaco-editor').waitFor({ timeout: 20000 });
+  await page.screenshot({ path: `${SHOTS}7f-abturn-builtin.png` });
+  log('shot 7f: abnormal-turnover built-in preset exists and is read-only');
 
   // select 盈利收益率 (ep, fundamental) → the right column's 运行/查看 → wait for the decile chart
   await page.locator('.jx-factor-libItem', { hasText: '盈利收益率' }).click();
@@ -660,20 +671,21 @@ try {
   log('shot 7: ep 月度分析 →', ((await page.locator('.jx-factor-dir').textContent()) ?? '').trim());
   await page.screenshot({ path: `${SHOTS}7-factors.png` });
 
-  // Helpers: freq is the first Select in the params bar, neutralization is the second (added after it);
-  // scope by index so the two never collide. Options render in a body portal; press Escape first to
-  // close any lingering dropdown, and scope the option to the visible dropdown to avoid cross-portal
-  // matches.
+  // Parameters live in the ellipsis popover: frequency is a Radio group, range is a DatePicker, and
+  // neutralization is a Select. Re-open the popover only when it is not already visible.
+  const openParams = async () => {
+    if (!(await page.locator('.jx-factor-paramPopover:visible').count())) {
+      await page.locator('.jx-factor-paramActions button').last().click();
+      await page.locator('.jx-factor-paramPopover:visible').waitFor();
+    }
+  };
   const pickFreq = async (label) => {
-    await page.keyboard.press('Escape');
-    await page.locator('.jx-factor-params .ant-select').first().click();
-    await page
-      .locator('.ant-select-dropdown:visible .ant-select-item-option', { hasText: label })
-      .click();
+    await openParams();
+    await page.locator('.jx-factor-paramPopover:visible').getByText(label, { exact: true }).click();
   };
   const pickNeutral = async (label) => {
-    await page.keyboard.press('Escape');
-    await page.locator('.jx-factor-params .ant-select').nth(1).click();
+    await openParams();
+    await page.locator('.jx-factor-paramPopover:visible .jx-factor-neutralSelect').click();
     await page
       .locator('.ant-select-dropdown:visible .ant-select-item-option', { hasText: label })
       .click();
@@ -681,7 +693,8 @@ try {
 
   // Bound the window (2022→) up front so both the neutralized and weekly recomputes stay fast, then
   // dismiss the DatePicker panel (Escape) before touching the Selects (its popup would overlay them).
-  const startBox = page.locator('.jx-factor-params .ant-picker input').first();
+  await openParams();
+  const startBox = page.locator('.jx-factor-paramPopover:visible .ant-picker input').first();
   await startBox.click();
   await startBox.fill('2022-01-01');
   await startBox.press('Enter');
