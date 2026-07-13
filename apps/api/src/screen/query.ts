@@ -55,24 +55,31 @@ export async function runScreen(spec: ScreenSpec): Promise<ScreenResult> {
   return { tradeDate: date, total, rows: picked };
 }
 
-/** A stock's raw OHLC + volume + pe series over a date range, for the K-line/PE/volume charts. */
+/** A stock's raw OHLC + volume + PE series, optionally bounded by date, for the stock charts. */
 export async function stockSeries(
   tsCode: string,
-  start: string,
-  end: string,
+  start?: string,
+  end?: string,
 ): Promise<StockSeries> {
+  const tradeDate =
+    start || end
+      ? {
+          ...(start ? { gte: start } : {}),
+          ...(end ? { lte: end } : {}),
+        }
+      : undefined;
   const [px, db, adj, basic] = await Promise.all([
     prisma.daily.findMany({
-      where: { tsCode, tradeDate: { gte: start, lte: end } },
+      where: { tsCode, tradeDate },
       select: { tradeDate: true, open: true, high: true, low: true, close: true, vol: true },
       orderBy: { tradeDate: 'asc' },
     }),
     prisma.dailyBasic.findMany({
-      where: { tsCode, tradeDate: { gte: start, lte: end } },
+      where: { tsCode, tradeDate },
       select: { tradeDate: true, pe: true },
     }),
     prisma.adjFactor.findMany({
-      where: { tsCode, tradeDate: { gte: start, lte: end } },
+      where: { tsCode, tradeDate },
       select: { tradeDate: true, adjFactor: true },
     }),
     prisma.stockBasic.findUnique({ where: { tsCode }, select: { name: true } }),
