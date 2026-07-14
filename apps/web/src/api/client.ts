@@ -374,12 +374,13 @@ export function fetchIndexSeries(
 }
 
 import type {
-  FactorReport,
   FactorMeta,
-  FactorRun,
+  FactorAnalysisSpecV1,
+  FactorReportDetail,
+  FactorReportListResponse,
   FactorFreq,
   FactorCorrelation,
-  Neutral,
+  RunFactorAnalysisResponse,
 } from '@jixie/shared';
 
 // Factor research: the factor list (identity + kind) — preset + this user's custom factors.
@@ -426,7 +427,7 @@ export function createFactor(
 }
 
 // Update a factor by id. `{ messages }` = real-time chat save; `{ code, name }` = an analysis run's
-// commit (drops the stale cached reports when the code moved).
+// commit. Historical reports retain their frozen source snapshots when the code moves.
 export function updateFactor(
   id: string,
   patch: { code?: string; name?: string; messages?: ChatMessage[] },
@@ -480,60 +481,38 @@ export function refreshFactorMetadata(id: string, code: string): Promise<{ ok: t
   });
 }
 
-// A factor's cached runs (the "already-run" chips).
-export function getFactorRuns(factor: string): Promise<FactorRun[]> {
-  return request(`/api/app/factor/runs?factor=${encodeURIComponent(factor)}`);
-}
-
-// Discard this user's cached runs — one factor's, or all of them (omit `factor`).
-export function clearFactorRuns(factor?: string): Promise<{ deleted: number }> {
-  const q = factor ? `?factor=${encodeURIComponent(factor)}` : '';
-  return request(`/api/app/factor/runs${q}`, { method: 'DELETE' });
-}
-
-// A single-factor analysis over (freq, start, end): deciles + Rank IC + long-short. Cached server-side;
-// refresh=true recomputes. Price factors are ~100s cold; fundamentals/moneyflow a few seconds.
-export function getFactorAnalysis(
+// Immutable report history. Full payloads and frozen source only come from the detail endpoint.
+export function getFactorReports(
   factor: string,
-  freq: FactorFreq,
-  start: string,
-  end: string,
-  neutral: Neutral = 'none',
-  refresh = false,
-): Promise<FactorReport> {
-  const q = new URLSearchParams({
-    factor,
-    freq,
-    start,
-    end,
-    neutral,
-    ...(refresh ? { refresh: '1' } : {}),
-  });
-  return request(`/api/app/factor/analysis?${q}`);
+  limit = 50,
+  cursor?: string,
+): Promise<FactorReportListResponse> {
+  const query = new URLSearchParams({ factor, limit: String(limit) });
+  if (cursor) {
+    query.set('cursor', cursor);
+  }
+  return request(`/api/app/factor/reports?${query}`);
 }
 
-// Streamed run: returns the cached report immediately, or a jobId to poll for progress logs.
+export function getFactorReport(reportId: string): Promise<FactorReportDetail> {
+  return request(`/api/app/factor/reports/${encodeURIComponent(reportId)}`);
+}
+
+// Every terminal re-run creates a new immutable report. Only an identical running variant is reused.
 export function runFactorAnalysis(
   factor: string,
-  freq: FactorFreq,
-  start: string,
-  end: string,
-  neutral: Neutral = 'none',
-  refresh = false,
-): Promise<{ done: true; report: FactorReport } | { jobId: string }> {
-  const q = new URLSearchParams({
-    factor,
-    freq,
-    start,
-    end,
-    neutral,
-    ...(refresh ? { refresh: '1' } : {}),
+  spec: FactorAnalysisSpecV1,
+  parentReportId?: string | null,
+): Promise<RunFactorAnalysisResponse> {
+  return request('/api/app/factor/analysis/run', {
+    method: 'POST',
+    body: JSON.stringify({ factor, spec, parentReportId: parentReportId ?? null }),
   });
-  return request(`/api/app/factor/analysis/run?${q}`, { method: 'POST' });
 }
 
 export interface FactorJob {
   status: 'running' | 'done' | 'error' | 'stale';
+  factorReportId?: string | null;
   logs: LogLine[];
   nextSince: number;
   error?: string | null;
@@ -579,16 +558,4 @@ export function findCorrelationRunningJob(
 ): Promise<{ jobId: string | null }> {
   const q = new URLSearchParams({ keys: keys.join(','), freq, start, end });
   return request(`/api/app/factor/correlation/running?${q}`);
-}
-
-// A still-running job for this (factor, window) — to re-attach after a refresh (DB-backed, cross-client).
-export function findFactorRunningJob(
-  factor: string,
-  freq: FactorFreq,
-  start: string,
-  end: string,
-  neutral: Neutral = 'none',
-): Promise<{ jobId: string | null }> {
-  const q = new URLSearchParams({ factor, freq, start, end, neutral });
-  return request(`/api/app/factor/analysis/running?${q}`);
 }

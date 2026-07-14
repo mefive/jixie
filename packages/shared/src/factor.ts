@@ -139,11 +139,57 @@ export interface FactorCorrelation {
   matrix: (number | null)[][]; // NxN symmetric, mean per-date Spearman; null = insufficient overlap
 }
 
-/** A cached run's identity (for the "already run" chips) — the report exists, fetch by these params. */
-export interface FactorRun {
+/** Versioned, normalized inputs frozen when a factor-analysis report is created. */
+export interface FactorAnalysisSpecV1 {
+  version: 1;
   freq: FactorFreq;
-  neutral: Neutral;
   start: string;
   end: string;
-  computedAt: string; // ISO
+  neutral: Neutral;
+}
+
+export type FactorReportStatus = 'running' | 'done' | 'error' | 'stale';
+export type FactorReportPhase = 'legacy' | 'explore';
+
+export interface FactorReportSummary {
+  id: string;
+  factor: string;
+  status: FactorReportStatus;
+  phase: FactorReportPhase;
+  spec: FactorAnalysisSpecV1;
+  variantKey?: string;
+  jobId?: string;
+  createdAt: string;
+  computedAt?: string;
+  error?: string;
+  metrics?: {
+    ic?: number;
+    rankIc?: number;
+  };
+}
+
+export interface FactorReportDetail extends FactorReportSummary {
+  payload?: FactorReport;
+  factorCodeSnapshot?: string;
+  factorCodeHash?: string;
+  dataRevision?: string;
+  parentReportId?: string;
+}
+
+export interface FactorReportListResponse {
+  items: FactorReportSummary[];
+  nextCursor?: string;
+}
+
+export interface RunFactorAnalysisRequest {
+  factor: string;
+  spec: FactorAnalysisSpecV1;
+  parentReportId?: string | null;
+}
+
+export interface RunFactorAnalysisResponse {
+  reportId: string;
+  jobId: string;
+  status: 'running';
+  reusedRunning: boolean;
 }

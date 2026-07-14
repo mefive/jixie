@@ -5,7 +5,9 @@ import {
   type ChatMessage,
   type FactorMeta,
   type FactorReport,
-  type FactorRun,
+  type FactorReportDetail,
+  type FactorReportListResponse,
+  type FactorReportSummary,
   type FactorFreq,
   type FactorCorrelation,
   type Neutral,
@@ -17,11 +19,10 @@ import { QueryCardResults } from '@src/components/query-card-model';
 import { AgentTurnStream, type AgentTurnHandlers } from '@src/components/agent-turn-stream';
 import {
   getFactorCatalog,
-  getFactorRuns,
-  getFactorAnalysis,
+  getFactorReports,
+  getFactorReport,
   runFactorAnalysis,
   pollFactorJob,
-  findFactorRunningJob,
   getCustomFactor,
   createFactor,
   updateFactor,
@@ -36,13 +37,10 @@ import {
   findCorrelationRunningJob,
 } from '@src/api/client';
 
-// Initial state from the URL (?factor=&freq=&start=&end=&neutral=) — makes a report refresh-safe + shareable.
+// Initial state from the URL. A stable report id restores both the result and its frozen parameters.
 type FactorSetupParams = {
   factor?: string;
-  freq?: FactorFreq;
-  start?: string;
-  end?: string;
-  neutral?: Neutral;
+  report?: string;
 };
 
 const DEFAULT_START = '20150101';
@@ -64,19 +62,21 @@ export default defineFactor({
  *  - custom: Agent authors a `defineFactor` module. Created on the first Agent prompt (LLM-named),
  *    messages saved in real time, code/name committed only on an analysis run (which re-derives the name
  *    from the code). `edited` (code vs the persisted DB copy) gates the leave guard.
- * Analysis (deciles + Rank IC + long-short) is expensive, cached per (factor, freq, start, end).
+ * Each explicit analysis run creates an immutable report; only an identical in-flight variant is reused.
  */
 export class FactorStore extends BaseStore<FactorSetupParams> {
   public catalogLoader = new LoaderModel<FactorMeta[]>();
-  public analysisLoader = new LoaderModel<FactorReport>();
-  public runsLoader = new LoaderModel<FactorRun[]>();
+  public reportLoader = new LoaderModel<FactorReportDetail>();
+  public reportsLoader = new LoaderModel<FactorReportListResponse>();
   public keyLoader = new LoaderModel<{ id: string; key: string; strategyKey: string }>();
   public analysisPoller = new PollingModel();
 
   public selectedKey = ''; // preset key OR custom factor id — the analysis target
+  public selectedReportId = '';
   public mode: 'preset' | 'custom' = 'preset';
   public code = ''; // the custom factor's defineFactor source (empty for presets)
   public persistedCode = ''; // code as persisted in the DB — baseline for `edited`
+  public pendingAgentCode: string | null = null; // Agent result held back when the user edited mid-turn
   public chatMessages: ChatMessage[] = []; // the Agent conversation for the current custom factor
   public cardResults = new QueryCardResults(); // fresh results for the conversation's query cards
   public turnStream = new AgentTurnStream(); // the in-flight turn's SSE mirror (pending bubble)
@@ -89,13 +89,14 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   private keyDraftEdited = false;
 
   public freq: FactorFreq = 'month';
-  public neutral: Neutral = 'none'; // cross-sectional neutralization applied to the analysis (part of the cache key)
+  public neutral: Neutral = 'none'; // cross-sectional neutralization in the draft analysis spec
   public start = DEFAULT_START;
   public end = DEFAULT_END;
   public logs: LogLine[] = []; // streamed progress of the current run (job), tagged system/user
   public jobRunning = false; // a streamed analysis is in flight
 
   private jobId: string | null = null;
+  private pollingReportId: string | null = null;
   private since = 0;
 
   // —— Correlation matrix (its own params: a factor multi-select over the shared freq/range) ——
@@ -111,9 +112,11 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     super(parentStore);
     makeObservable(this, {
       selectedKey: observable.ref,
+      selectedReportId: observable.ref,
       mode: observable.ref,
       code: observable.ref,
       persistedCode: observable.ref,
+      pendingAgentCode: observable.ref,
       chatMessages: observable.ref,
       sending: observable.ref,
       nlText: observable.ref,
@@ -131,8 +134,12 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       corrRunning: observable.ref,
       selected: computed,
       report: computed,
+      reportDetail: computed,
       correlation: computed,
-      isCached: computed,
+      paramsModified: computed,
+      codeModifiedSinceReport: computed,
+      reportOutdated: computed,
+      hasDraftChanges: computed,
       edited: computed,
       qaMode: computed,
       setFreq: action,
@@ -147,12 +154,9 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   public setup(params: FactorSetupParams) {
     super.setup(params);
     this.catalogLoader.setup({ request: () => getFactorCatalog() });
-    this.runsLoader.setup({ request: () => getFactorRuns(this.selectedKey) });
+    this.reportsLoader.setup({ request: () => getFactorReports(this.selectedKey) });
     this.keyLoader.setup({ request: (key: string) => finalizeFactorKey(this.selectedKey, key) });
-    this.analysisLoader.setup({
-      request: (refresh = false) =>
-        getFactorAnalysis(this.selectedKey, this.freq, this.start, this.end, this.neutral, refresh),
-    });
+    this.reportLoader.setup({ request: (reportId: string) => getFactorReport(reportId) });
     this.analysisPoller.setup({ interval: POLL_INTERVAL_MS, request: () => this.pollOnce() });
     this.correlationLoader.setup({
       request: () => getFactorCorrelation(this.corrKeys, this.freq, this.start, this.end),
@@ -162,27 +166,22 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       request: () => this.pollCorrelationOnce(),
     });
     this.registCleaner(() => this.catalogLoader.cleanup());
-    this.registCleaner(() => this.runsLoader.cleanup());
+    this.registCleaner(() => this.reportsLoader.cleanup());
     this.registCleaner(() => this.keyLoader.cleanup());
-    this.registCleaner(() => this.analysisLoader.cleanup());
+    this.registCleaner(() => this.reportLoader.cleanup());
     this.registCleaner(() => this.analysisPoller.cleanup());
     this.registCleaner(() => this.correlationLoader.cleanup());
     this.registCleaner(() => this.correlationPoller.cleanup());
     this.registCleaner(() => this.turnStream.detach()); // drop the SSE subscription; the turn keeps running
     void this.catalogLoader.run();
 
-    // Restore from the URL: preselect the factor (set selectedKey SYNCHRONOUSLY so the first paint shows
-    // the analysis area, not the empty "pick a factor" placeholder — the report then loads under a delayed spinner), then
-    // re-attach to a running job (refreshed mid-run) or load/run the window (refresh-safe / shareable).
+    // Preselect synchronously so the first paint shows the workbench while detail/history load.
     if (params.factor) {
       runInAction(() => {
         this.selectedKey = params.factor!;
-        this.freq = params.freq ?? 'month';
-        this.neutral = params.neutral ?? 'none';
-        this.start = params.start ?? DEFAULT_START;
-        this.end = params.end ?? DEFAULT_END;
+        this.selectedReportId = params.report ?? '';
       });
-      void this.selectFactor(params.factor).then(() => this.restoreOrRun());
+      void this.selectFactor(params.factor, params.report);
     }
   }
 
@@ -192,24 +191,47 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
 
   /** The current report only if it matches the selected factor (guards a stale render mid-switch). */
   public get report(): FactorReport | null {
-    const r = this.analysisLoader.result;
-    return r && r.factor === this.selectedKey ? r : null;
+    return this.reportDetail?.payload ?? null;
   }
 
-  /** Whether the current (factor, freq, start, end) is already computed — drives the run/view label. */
-  public get isCached(): boolean {
-    return (this.runsLoader.result ?? []).some(
-      (r) =>
-        r.freq === this.freq &&
-        (r.neutral ?? 'none') === this.neutral &&
-        r.start === this.start &&
-        r.end === this.end,
+  public get reportDetail(): FactorReportDetail | null {
+    const detail = this.reportLoader.result;
+    return detail && detail.factor === this.selectedKey && detail.id === this.selectedReportId
+      ? detail
+      : null;
+  }
+
+  /** Draft parameters are independent from the selected immutable report. */
+  public get paramsModified(): boolean {
+    const spec = this.reportDetail?.spec;
+    return (
+      !!spec &&
+      (spec.freq !== this.freq ||
+        spec.neutral !== this.neutral ||
+        spec.start !== this.start ||
+        spec.end !== this.end)
     );
+  }
+
+  /** The editor source no longer matches the immutable source that produced the selected report. */
+  public get codeModifiedSinceReport(): boolean {
+    const snapshot = this.reportDetail?.factorCodeSnapshot;
+    return snapshot !== undefined && this.code !== snapshot;
+  }
+
+  /** A report is only current when both its frozen source and run parameters match the draft. */
+  public get reportOutdated(): boolean {
+    return !!this.reportDetail && (this.codeModifiedSinceReport || this.paramsModified);
   }
 
   /** A custom factor has unsaved code edits vs. the persisted DB copy → gates the leave guard. */
   public get edited(): boolean {
     return this.mode === 'custom' && this.code !== this.persistedCode;
+  }
+
+  /** Changes that would be discarded by switching factors or leaving the workbench. */
+  public get hasDraftChanges(): boolean {
+    return this.edited || this.paramsModified;
   }
 
   /** A preset factor is selected → the Agent is in Q&A mode (answers questions, never writes code). */
@@ -233,6 +255,22 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   public setCode(v: string) {
     runInAction(() => (this.code = v));
   }
+
+  public applyPendingAgentCode() {
+    if (this.pendingAgentCode === null) {
+      return;
+    }
+    runInAction(() => {
+      this.code = this.pendingAgentCode!;
+      this.pendingAgentCode = null;
+    });
+  }
+
+  public dismissPendingAgentCode() {
+    runInAction(() => {
+      this.pendingAgentCode = null;
+    });
+  }
   public setNlText(v: string) {
     runInAction(() => (this.nlText = v));
   }
@@ -243,21 +281,25 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   }
 
   /** Pick a factor from the factor library. A preset → readonly code + Q&A agent. A custom factor → load its
-   * code + conversation into the editor/chat. Either way, auto-show its most-recent cached run. */
-  public async selectFactor(key: string) {
+   * code + conversation into the editor/chat. Either way, open its newest report by default. */
+  public async selectFactor(key: string, preferredReportId?: string) {
     this.analysisPoller.stop(); // drop any in-flight job for the previous factor
-    const meta = this.catalogLoader.result?.find((f) => f.key === key);
+    const catalog = this.catalogLoader.result ?? (await this.catalogLoader.run());
+    const meta = catalog.find((factor) => factor.key === key);
     const isCustom = meta?.kind === 'custom';
     runInAction(() => {
       this.selectedKey = key;
+      this.selectedReportId = preferredReportId ?? '';
       this.mode = isCustom ? 'custom' : 'preset';
       this.jobRunning = false;
+      this.jobId = null;
       this.logs = [];
       this.nlText = '';
       this.strategyKey = meta?.strategyKey ?? '';
       this.keyDraft = meta?.keyCandidate ?? meta?.strategyKey?.slice('custom:'.length) ?? '';
       this.description = meta?.description ?? '';
       this.keyDraftEdited = false;
+      this.pendingAgentCode = null;
       if (!isCustom) {
         this.code = '';
         this.persistedCode = '';
@@ -268,6 +310,9 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       // Presets are code rows too (seeded, readonly) — the same endpoint serves both kinds.
       const factor = await getCustomFactor(key);
       runInAction(() => {
+        if (this.selectedKey !== key) {
+          return;
+        }
         this.code = factor.code;
         this.persistedCode = factor.code;
         this.chatMessages = isCustom ? (factor.messages ?? []).map(normalizeChatMessage) : [];
@@ -282,11 +327,25 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     } catch {
       /* factor gone (deleted elsewhere) — leave blank */
     }
-    const runs = await this.runsLoader.run();
-    if (runs.length) {
-      await this.applyRun(runs[0]); // most recent (computedAt desc)
+    const reports = await this.reportsLoader.run();
+    if (this.selectedKey !== key) {
+      return;
+    }
+    if (preferredReportId) {
+      try {
+        if (await this.openReport(preferredReportId)) {
+          return;
+        }
+      } catch {
+        this.reportLoader.reset();
+      }
+    }
+    const target = reports.items[0];
+    if (target) {
+      await this.openReport(target.id);
     } else {
-      this.analysisLoader.reset(); // fresh factor — wait for an explicit run
+      runInAction(() => (this.selectedReportId = ''));
+      this.reportLoader.reset();
     }
   }
 
@@ -306,6 +365,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     this.analysisPoller.stop();
     runInAction(() => {
       this.selectedKey = '';
+      this.selectedReportId = '';
       this.mode = 'custom';
       this.code = DEFAULT_FACTOR_CODE;
       this.persistedCode = DEFAULT_FACTOR_CODE; // pristine skeleton → not edited
@@ -315,10 +375,12 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       this.keyDraft = '';
       this.description = '';
       this.keyDraftEdited = false;
+      this.pendingAgentCode = null;
       this.logs = [];
       this.jobRunning = false;
     });
-    this.analysisLoader.reset();
+    this.reportLoader.reset();
+    this.reportsLoader.reset();
   }
 
   /** One Agent turn: ensure the factor exists (the first prompt creates it, LLM-named from the prompt),
@@ -337,13 +399,18 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     // selected) a chat starts a fresh custom factor — clear the selection so ensureFactor creates a new
     // row instead of attaching to nothing.
     const editingSaved = !!this.selectedKey && this.selected?.kind === 'custom';
-    if (!editingSaved) {
-      this.analysisLoader.reset();
+    const authoringNew = this.mode === 'custom' && !this.selectedKey;
+    if (!editingSaved && !authoringNew) {
+      this.reportLoader.reset();
+      this.reportsLoader.reset();
       runInAction(() => {
         this.selectedKey = '';
+        this.selectedReportId = '';
+        this.selectedReportId = '';
         this.code = DEFAULT_FACTOR_CODE;
         this.persistedCode = DEFAULT_FACTOR_CODE;
         this.chatMessages = [];
+        this.pendingAgentCode = null;
       });
     }
     runInAction(() => {
@@ -367,8 +434,9 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       return;
     }
     try {
-      const { turnId } = await sendFactorAgent(this.selectedKey, text, this.code);
-      await this.turnStream.attach(turnId, this.turnHandlers()); // resolves after the terminal event
+      const codeAtRequest = this.code;
+      const { turnId } = await sendFactorAgent(this.selectedKey, text, codeAtRequest);
+      await this.turnStream.attach(turnId, this.turnHandlers(codeAtRequest)); // resolves after terminal event
     } catch (e) {
       runInAction(() => {
         this.chatMessages = [
@@ -387,7 +455,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   }
 
   /** Terminal-event handlers shared by sendAgent / runQa / the refresh reattach. */
-  private turnHandlers(): AgentTurnHandlers {
+  private turnHandlers(codeAtRequest?: string): AgentTurnHandlers {
     return {
       onDone: (done) => {
         runInAction(() => {
@@ -402,7 +470,12 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
             } as ChatMessage,
           ];
           if (done.changed) {
-            this.code = done.code; // editor updates; analysis result stays until the next run
+            if (codeAtRequest !== undefined && this.code !== codeAtRequest) {
+              this.pendingAgentCode = done.code;
+            } else {
+              this.code = done.code; // editor updates; analysis result stays until the next run
+              this.pendingAgentCode = null;
+            }
           }
         });
         void this.refreshIdentity();
@@ -432,7 +505,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       return;
     }
     runInAction(() => (this.sending = true));
-    await this.turnStream.attachRunning(`factor:${this.selectedKey}`, this.turnHandlers());
+    await this.turnStream.attachRunning(`factor:${this.selectedKey}`, this.turnHandlers(this.code));
     runInAction(() => (this.sending = false)); // resolved at the terminal event (or no live turn)
   }
 
@@ -488,6 +561,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     if (this.selectedKey === id) {
       runInAction(() => {
         this.selectedKey = '';
+        this.selectedReportId = '';
         this.mode = 'preset';
         this.code = '';
         this.persistedCode = '';
@@ -496,16 +570,45 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         this.keyDraft = '';
         this.description = '';
         this.keyDraftEdited = false;
+        this.pendingAgentCode = null;
       });
-      this.analysisLoader.reset();
+      this.reportLoader.reset();
+      this.reportsLoader.reset();
     }
     await this.catalogLoader.run();
   }
 
-  /** Run (or view, if cached) the analysis. For a custom factor, first COMMIT the code by id (which drops
-   * stale cached reports + refreshes metadata) so the worker analyzes the current code; then run. A
-   * cache hit returns instantly; otherwise a job streams progress. */
-  public async runAnalysis(refresh = false) {
+  /** Open an immutable report, restore its parameters, and reattach its live Job when needed. */
+  public async openReport(reportId: string): Promise<boolean> {
+    this.analysisPoller.stop();
+    runInAction(() => {
+      this.selectedReportId = reportId;
+      this.logs = [];
+      this.jobRunning = false;
+      this.jobId = null;
+      this.pollingReportId = null;
+    });
+    const detail = await this.reportLoader.run(reportId);
+    if (detail.factor !== this.selectedKey || detail.id !== this.selectedReportId) {
+      runInAction(() => (this.selectedReportId = ''));
+      this.reportLoader.reset();
+      return false;
+    }
+
+    runInAction(() => {
+      this.freq = detail.spec.freq;
+      this.neutral = detail.spec.neutral;
+      this.start = detail.spec.start;
+      this.end = detail.spec.end;
+    });
+    if (detail.status === 'running' && detail.jobId) {
+      this.startPolling(detail.jobId, detail.id);
+    }
+    return true;
+  }
+
+  /** Commit custom code, create a new immutable report, then stream its one-to-one Job. */
+  public async runAnalysis() {
     if (this.mode === 'custom') {
       await this.ensureFactor(); // create if authoring a never-saved factor and running directly
       if (!this.selectedKey) {
@@ -515,12 +618,11 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         try {
           await updateFactor(this.selectedKey, { code: this.code });
           runInAction(() => (this.persistedCode = this.code));
-          void this.runsLoader.run(); // reports were dropped server-side
           void refreshFactorMetadata(this.selectedKey, this.code).then(() =>
             this.refreshIdentity(),
           );
         } catch (e) {
-          await this.analysisLoader.run(Promise.reject(e)).catch(() => {});
+          await this.reportLoader.run(Promise.reject(e)).catch(() => {});
           return;
         }
       }
@@ -530,23 +632,40 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       this.jobRunning = true;
     });
     try {
-      const res = await runFactorAnalysis(
+      const spec = {
+        version: 1 as const,
+        freq: this.freq,
+        start: this.start,
+        end: this.end,
+        neutral: this.neutral,
+      };
+      const response = await runFactorAnalysis(
         this.selectedKey,
-        this.freq,
-        this.start,
-        this.end,
-        this.neutral,
-        refresh,
+        spec,
+        this.selectedReportId || null,
       );
-      if ('report' in res) {
-        await this.analysisLoader.run(Promise.resolve(res.report));
-        void this.runsLoader.run();
-        this.finishJob();
-      } else {
-        this.startPolling(res.jobId);
-      }
+      const summary: FactorReportSummary = {
+        id: response.reportId,
+        factor: this.selectedKey,
+        status: 'running',
+        phase: 'explore',
+        spec,
+        jobId: response.jobId,
+        createdAt: new Date().toISOString(),
+      };
+      runInAction(() => {
+        const current = this.reportsLoader.result ?? { items: [] };
+        const historyItem = current.items.find((report) => report.id === summary.id) ?? summary;
+        this.reportsLoader.result = {
+          ...current,
+          items: [historyItem, ...current.items.filter((report) => report.id !== summary.id)],
+        };
+        this.selectedReportId = response.reportId;
+      });
+      await this.reportLoader.run(response.reportId);
+      this.startPolling(response.jobId, response.reportId);
     } catch (e) {
-      await this.analysisLoader.run(Promise.reject(e)).catch(() => {});
+      await this.reportLoader.run(Promise.reject(e)).catch(() => {});
       this.finishJob();
     }
   }
@@ -586,42 +705,9 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     await this.catalogLoader.run();
   }
 
-  /** On URL-restore: re-attach to a still-running job, else show the cached report, else the run prompt. */
-  private async restoreOrRun() {
-    if (!this.selectedKey) {
-      return;
-    }
-    try {
-      const { jobId } = await findFactorRunningJob(
-        this.selectedKey,
-        this.freq,
-        this.start,
-        this.end,
-        this.neutral,
-      );
-      if (jobId) {
-        this.startPolling(jobId);
-        return;
-      }
-    } catch {
-      /* fall through */
-    }
-    try {
-      const report = await getFactorAnalysis(
-        this.selectedKey,
-        this.freq,
-        this.start,
-        this.end,
-        this.neutral,
-      );
-      await this.analysisLoader.run(Promise.resolve(report));
-    } catch {
-      this.analysisLoader.reset();
-    }
-  }
-
-  private startPolling(jobId: string) {
+  private startPolling(jobId: string, reportId: string) {
     this.jobId = jobId;
+    this.pollingReportId = reportId;
     this.since = 0;
     runInAction(() => (this.jobRunning = true));
     this.analysisPoller.start();
@@ -629,31 +715,23 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
 
   /** One poll tick — append new logs; on finish fetch the persisted report. Returns false to stop. */
   private async pollOnce(): Promise<false | void> {
+    const jobId = this.jobId;
+    const reportId = this.pollingReportId;
+    if (!jobId || !reportId) {
+      return false;
+    }
     try {
-      const job = await pollFactorJob(this.jobId!, this.since);
+      const job = await pollFactorJob(jobId, this.since);
+      if (this.jobId !== jobId || this.pollingReportId !== reportId) {
+        return false;
+      }
       if (job.logs.length) {
         runInAction(() => (this.logs = [...this.logs, ...job.logs]));
         this.since = job.nextSince;
       }
-      if (job.status === 'done') {
-        const report = await getFactorAnalysis(
-          this.selectedKey,
-          this.freq,
-          this.start,
-          this.end,
-          this.neutral,
-        );
-        await this.analysisLoader.run(Promise.resolve(report));
-        void this.runsLoader.run();
-        this.finishJob();
-        return false;
-      }
-      if (job.status === 'error' || job.status === 'stale') {
-        const msg =
-          job.status === 'stale'
-            ? i18n.t('factor:analysisInterrupted')
-            : job.error || i18n.t('factor:analysisFailed');
-        await this.analysisLoader.run(Promise.reject(new Error(msg))).catch(() => {});
+      if (job.status === 'done' || job.status === 'error' || job.status === 'stale') {
+        await this.reportLoader.run(reportId);
+        void this.reportsLoader.run();
         this.finishJob();
         return false;
       }
@@ -664,18 +742,11 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   }
 
   private finishJob() {
-    runInAction(() => (this.jobRunning = false));
-  }
-
-  /** Jump to a cached run: set its params, then fetch (hits the cache → instant). */
-  public async applyRun(run: FactorRun) {
     runInAction(() => {
-      this.freq = run.freq;
-      this.neutral = run.neutral ?? 'none';
-      this.start = run.start;
-      this.end = run.end;
+      this.jobRunning = false;
+      this.jobId = null;
+      this.pollingReportId = null;
     });
-    await this.analysisLoader.run();
   }
 
   // —— Correlation matrix ——
