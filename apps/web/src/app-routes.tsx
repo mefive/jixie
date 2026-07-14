@@ -1,10 +1,11 @@
 import { lazy, Suspense, useLayoutEffect, useMemo, useRef, type ReactNode } from 'react';
 import {
-  BrowserRouter,
+  createBrowserRouter,
+  createRoutesFromElements,
   Navigate,
   Outlet,
   Route,
-  Routes,
+  RouterProvider,
   useLocation,
   useParams,
   useSearchParams,
@@ -27,47 +28,7 @@ const LearnPage = lazy(() => import('@src/complex/lab/learn'));
 const TradePage = lazy(() => import('@src/complex/lab/trade-page'));
 
 export function AppRoutes() {
-  return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<ComplexRoute entry={loginEntry} />} />
-        {/* The backtest workbench lives at a stable /lab route; bare "/" just redirects there. */}
-        <Route path="/" element={<Navigate to="/lab" replace />} />
-        {/* Shared layout for the TopNav pages: TopNav is rendered ONCE here and persists across
-            navigations (react-router only swaps <Outlet/> below it) — so switching pages no longer
-            unmounts/remounts the nav and flashes it. */}
-        <Route element={<AuthedLayout />}>
-          <Route path="/lab" element={<LabRoute />} />
-          <Route path="/screen" element={<ComplexRoute key="screen" entry={screenEntry} />} />
-          <Route path="/factors" element={<FactorRoute />} />
-          <Route path="/stock/:code" element={<StockRoute />} />
-          <Route path="/trades" element={<TradePage />} />
-        </Route>
-        {/* Standalone doc pages: authed but full-screen, no TopNav. */}
-        <Route
-          path="/docs"
-          element={
-            <RequireAuth>
-              <Suspense fallback={null}>
-                <SdkDocPage />
-              </Suspense>
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/learn"
-          element={
-            <RequireAuth>
-              <Suspense fallback={null}>
-                <LearnPage />
-              </Suspense>
-            </RequireAuth>
-          }
-        />
-        <Route path="*" element={<Navigate to="/lab" replace />} />
-      </Routes>
-    </BrowserRouter>
-  );
+  return <RouterProvider router={router} />;
 }
 
 // —— Subcomponents / helpers ——
@@ -80,16 +41,13 @@ function StockRoute() {
   return <ComplexRoute key={code} entry={stockEntry} setupParams={setupParams} />;
 }
 
-// Factor research: `/factors?factor=&freq=&start=&end=` restores a specific analysis on mount (refresh-safe /
-// shareable). Capture the params once — later URL syncs from the store must not re-setup the page, so
-// no `key` here (factor/param changes go through store methods, not a remount).
+// Factor research: `/factors?factor=&report=` restores one immutable report and its parameters. Capture
+// the params once; later URL syncs from the store must not re-setup the page.
 function FactorRoute() {
   const [searchParams] = useSearchParams();
   const setupParams = useRef({
     factor: searchParams.get('factor') || undefined,
-    freq: (searchParams.get('freq') as 'month' | 'week') || undefined,
-    start: searchParams.get('start') || undefined,
-    end: searchParams.get('end') || undefined,
+    report: searchParams.get('report') || undefined,
   }).current;
   return <ComplexRoute entry={factorEntry} setupParams={setupParams} />;
 }
@@ -181,3 +139,47 @@ const RequireAuth = observer(({ children }: { children: ReactNode }) => {
   }
   return <>{children}</>;
 });
+
+// A data router gives workbenches a supported navigation blocker for unsaved editor state while
+// preserving the same route tree and persistent authenticated layout.
+const router = createBrowserRouter(
+  createRoutesFromElements(
+    <>
+      <Route path="/login" element={<ComplexRoute entry={loginEntry} />} />
+      {/* The backtest workbench lives at a stable /lab route; bare "/" just redirects there. */}
+      <Route path="/" element={<Navigate to="/lab" replace />} />
+      {/* Shared layout for the TopNav pages: TopNav is rendered ONCE here and persists across
+          navigations (react-router only swaps <Outlet/> below it) — so switching pages no longer
+          unmounts/remounts the nav and flashes it. */}
+      <Route element={<AuthedLayout />}>
+        <Route path="/lab" element={<LabRoute />} />
+        <Route path="/screen" element={<ComplexRoute key="screen" entry={screenEntry} />} />
+        <Route path="/factors" element={<FactorRoute />} />
+        <Route path="/stock/:code" element={<StockRoute />} />
+        <Route path="/trades" element={<TradePage />} />
+      </Route>
+      {/* Standalone doc pages: authed but full-screen, no TopNav. */}
+      <Route
+        path="/docs"
+        element={
+          <RequireAuth>
+            <Suspense fallback={null}>
+              <SdkDocPage />
+            </Suspense>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/learn"
+        element={
+          <RequireAuth>
+            <Suspense fallback={null}>
+              <LearnPage />
+            </Suspense>
+          </RequireAuth>
+        }
+      />
+      <Route path="*" element={<Navigate to="/lab" replace />} />
+    </>,
+  ),
+);

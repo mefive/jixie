@@ -46,9 +46,8 @@ try {
     for (const conversation of conversations) {
       await fetch(`/api/app/screen/conversations/${conversation.id}`, { method: 'DELETE' });
     }
-    // Clear cached factor runs so the factor page starts from a known baseline (no stale run gets
-    // auto-restored on select, which would leave the params bar in an unexpected freq/neutral state).
-    await fetch('/api/app/factor/runs', { method: 'DELETE' });
+    // Factor reports are an immutable product history, so e2e must never use a product endpoint as a
+    // generic report-table cleanup hook. Custom factors created by this test remain safe to delete.
     const factors = await (await fetch('/api/app/factors/catalog')).json();
     for (const factor of factors) {
       if (factor.kind === 'custom' && factor.label.startsWith('e2e')) {
@@ -700,9 +699,8 @@ try {
   await startBox.press('Enter');
   await page.keyboard.press('Escape');
 
-  // 7d. Neutralization + net-of-cost (3.4), on monthly 2022→ (only the neutral Select changes — no freq
-  //     switch to race). Reports were cleared at start, so this primary run is a FRESH compute (no cache)
-  //     and carries lsNav — no 重算 needed. Exercises the SwIndustryMember PIT lookup + net-of-cost view.
+  // 7d. Neutralization + net-of-cost (3.4), on monthly 2022→. Every click creates an immutable report,
+  //     so the result carries lsNav without a cache-refresh branch. Exercises the PIT industry lookup.
   //     Wait for the sample to show the bounded window (2022) so we know the compute finished, not the
   //     stale full-range chart from shot 7.
   await pickNeutral('市值+行业');
@@ -715,10 +713,13 @@ try {
   await page.locator('.jx-factor-chart canvas').first().waitFor({ timeout: 5000 });
   await page.waitForTimeout(500);
   const neutralRun = ((await page.locator('.jx-factor-sample').textContent()) ?? '').trim();
-  // The 已跑 chips should now include a neutralized run tagged 市值行业中性.
-  const neutralChip = await page.locator('.jx-factor-chip', { hasText: '市值行业中性' }).count();
-  if (neutralChip < 1) {
-    throw new Error('中性化运行未出现在已跑 chips');
+  // Report history should retain this neutralized run as an independently addressable record.
+  const neutralHistory = await page.evaluate(async () => {
+    const response = await (await fetch('/api/app/factor/reports?factor=ep&limit=100')).json();
+    return response.items.filter((report) => report.spec.neutral === 'size_industry').length;
+  });
+  if (neutralHistory < 1) {
+    throw new Error('中性化运行未出现在报告历史');
   }
   // Net-of-cost view (3.4): a fresh run carries lsNav, so the 费后净值 section (gross vs net line chart
   // + net metrics) renders. Centre it in the viewport and let its lazy echarts canvas paint before the

@@ -239,6 +239,17 @@
   font-size: 11px;
 }
 
+.jx-factor-agentCodeConflict {
+  @apply flex flex-wrap items-center justify-between gap-2 border-b border-line text-up;
+  background: rgb(232 70 59 / 0.07);
+  padding: 7px 10px;
+  font-size: 12px;
+}
+
+.jx-factor-agentCodeConflictActions {
+  @apply ml-auto flex items-center gap-2;
+}
+
 .jx-factor-code {
   @apply flex flex-1 overflow-hidden;
   min-height: 0;
@@ -284,6 +295,15 @@
 .jx-factor-result {
   @apply flex flex-1 flex-col gap-3 overflow-auto;
   padding: 16px;
+}
+
+.jx-factor-reportWarning {
+  padding: 8px 10px 0;
+}
+
+.jx-factor-reportWarning .ant-alert {
+  padding: 6px 10px;
+  font-size: 12px;
 }
 
 /* params bar (inside .jx-factor-paramBar, which supplies the container border) */
@@ -348,33 +368,62 @@
   border-radius: 0 0 8px 8px;
 }
 
-/* already-run chips */
-.jx-factor-runs {
-  @apply flex flex-wrap items-center gap-2;
+/* immutable report history */
+.jx-factor-historyTrigger {
+  @apply text-muted;
 }
 
-.jx-factor-runsLabel {
+.jx-factor-historyList {
+  max-height: min(520px, 65vh);
+  overflow-y: auto;
+}
+
+.jx-factor-historyItem {
+  @apply flex w-full cursor-pointer flex-col gap-1 rounded-lg text-left;
+  padding: 10px 12px;
+  transition: background 0.15s;
+}
+
+.jx-factor-historyItem:hover,
+.jx-factor-historyItem--active {
+  @apply bg-chip;
+}
+
+.jx-factor-historyItemHead {
+  @apply flex items-center gap-2 text-ink;
+}
+
+.jx-factor-historyDate {
+  @apply font-medium;
+}
+
+.jx-factor-historyStatus {
+  @apply rounded-full text-xs text-muted;
+  padding: 1px 7px;
+  background: rgb(17 24 39 / 0.06);
+}
+
+.jx-factor-historyStatus--running {
+  @apply text-ink;
+}
+
+.jx-factor-historyStatus--error,
+.jx-factor-historyStatus--stale {
+  @apply text-down;
+}
+
+.jx-factor-historyParams,
+.jx-factor-historyMetric,
+.jx-factor-historyError {
   @apply text-xs text-muted;
 }
 
-.jx-factor-chip {
-  @apply rounded-full border border-line text-muted;
-  padding: 2px 10px;
-  font-size: 12px;
-  cursor: pointer;
+.jx-factor-historyError {
+  @apply text-down;
 }
 
-.jx-factor-chip:hover {
-  @apply text-ink;
-  border-color: var(--color-ink);
-}
-
-.jx-factor-chip--active {
-  @apply border-ink bg-ink text-white;
-
-  &:hover {
-    @apply text-white;
-  }
+.jx-factor-reportError {
+  @apply flex flex-col items-center gap-3;
 }
 
 /* result */

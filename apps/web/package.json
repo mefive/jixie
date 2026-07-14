@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test:e2e": "node e2e/screener.mjs",
+    "test:e2e:factor-history": "node e2e/factor-report-history.mjs",
     "test:e2e:strategy": "node e2e/strategy-orchestration.mjs"
   },
   "dependencies": {

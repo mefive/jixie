@@ -57,6 +57,24 @@ export const enFactor: typeof zhFactor = {
   paramsSummary: '{{frequency}} · {{start}} to {{end}} · {{neutral}}',
   paramsSettings: 'Analysis settings',
   paramsMore: 'More settings',
+  paramsChanged: 'Parameters or code changed; running will create a new report',
+  reportOutdatedCode: 'Code changed. This report still uses the previous code; run again.',
+  reportOutdatedParams:
+    'Parameters changed. This report still uses the previous parameters; run again.',
+  reportOutdatedBoth: 'Code and parameters changed. This report is out of date; run again.',
+
+  discardConfirmTitle: 'Discard changes that have not been run?',
+  discardConfirmContent:
+    'The current code or analysis parameters changed. Continuing will discard those changes.',
+  discardConfirmOk: 'Discard changes',
+  historyDiscardTitle: 'Restore the historical report parameters?',
+  historyDiscardContent:
+    'The current analysis parameters changed. Opening this report will restore its parameters.',
+  historyDiscardOk: 'Open report',
+  agentCodeConflict:
+    'The Agent generated new code, but you edited during the turn, so it has not been applied.',
+  keepMyCode: 'Keep my changes',
+  applyAgentCode: 'Apply Agent code',
 
   corrTrigger: 'Correlation matrix',
   corrTitle: 'Factor correlation matrix',
@@ -68,15 +86,25 @@ export const enFactor: typeof zhFactor = {
   corrCap:
     'Mean over {{periods}} {{per}}s · red = positive (redundant) · blue = negative · diagonal = 1',
   corrEmpty: 'Pick at least 2 factors, then Compute',
-  view: 'View',
   run: 'Run analysis',
-  recompute: 'Recompute',
-  runsLabel: 'Ran',
+  rerunShort: 'Run again',
+  running: 'Running',
+  rerun: 'Run again with these parameters',
+  historyButton: 'History',
+  historyTitle: 'Report history',
+  historyEmpty: 'No reports yet',
+  historyRankIc: 'Rank IC {{value}}',
+  status: {
+    running: 'Running',
+    done: 'Completed',
+    error: 'Failed',
+    stale: 'Interrupted',
+  },
   unitWeek: 'week',
   unitMonth: 'month',
 
   computing:
-    'Computing… (fundamentals / custom factors take seconds; the result is cached and instant next time) · live log in the middle "Log"',
+    'Computing… the report is already in history, so you can refresh or switch factors · live log in the middle "Log"',
   runPrompt: 'Set the frequency / range, then click "Run analysis"',
   sample: 'Sample {{periods}} {{per}} · {{startYear}}–{{endYear}}',
   weightEqual: 'Equal weight',

@@ -73,6 +73,10 @@ const MESSAGES = {
     en: 'This window has not been computed yet; run it first',
   },
   factorJobNotFound: { zh: '任务不存在或已过期', en: 'Job not found or expired' },
+  factorAnalysisFailed: {
+    zh: '因子分析失败，请查看任务日志后重试',
+    en: 'Factor analysis failed; review the job log and try again',
+  },
   factorProcExited: {
     zh: '因子分析进程异常退出 (code {code})',
     en: 'Factor analysis process exited abnormally (code {code})',

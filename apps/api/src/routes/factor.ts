@@ -2,18 +2,42 @@ import { Worker } from 'node:worker_threads';
 import { Hono } from 'hono';
 import { ulid } from 'ulid';
 import { z } from 'zod';
-import type { FactorReport, FactorCorrelation, LogLine, ChatMessage } from '@jixie/shared';
+import type { FactorReport as FactorReportRow } from '@prisma/client';
+import type {
+  FactorAnalysisSpecV1,
+  FactorCorrelation,
+  FactorReport as FactorAnalysisPayload,
+  FactorReportStatus,
+  FactorReportSummary,
+  LogLine,
+  ChatMessage,
+  RunFactorAnalysisResponse,
+} from '@jixie/shared';
 import { apiError, validateJson, validateQuery } from '../lib/httpError.js';
 import { prisma } from '../lib/prisma.js';
-import { BUILTIN_KEYS } from '../factor/builtin-factors.js';
+import { BUILTIN_FACTORS, BUILTIN_KEYS } from '../factor/builtin-factors.js';
 import { factorProfile } from '../agent/profiles/factor.js';
 import { factorQaProfile } from '../agent/profiles/qa.js';
 import { enqueueAgentTurn, entityKey } from '../agent/turn-run.js';
 import * as turnBus from '../agent/turn-bus.js';
 import { chatMessagesSchema } from '../lib/chat-schema.js';
-import { createJob, appendLog, finishJob, getJob, findRunningJob } from '../lib/jobs.js';
+import {
+  createJob,
+  appendLog,
+  finishJob,
+  finishFactorReportJob,
+  getJob,
+  findRunningJob,
+  initializeJobLogs,
+} from '../lib/jobs.js';
 import { localeFromRequest, m } from '../i18n/index.js';
 import { refreshFactorMetadata } from '../factor/metadata.js';
+import {
+  factorAnalysisSpecV1Schema,
+  factorVariantKey,
+  normalizeFactorAnalysisSpec,
+  sha256,
+} from '../factor/report-spec.js';
 
 /**
  * Factor workbench actions (singular, mounted at /api/app/factor — product line 1.5 · factor research).
@@ -22,32 +46,14 @@ import { refreshFactorMetadata } from '../factor/metadata.js';
  * (factor-worker.ts) as a Job:
  *   POST /agent                              one turn of the factor Agent; POST /qa preset Q&A
  *   POST /metadata                           refresh mutable display metadata from code + conversation
- *   GET  /runs?factor                        this user's cached runs of a factor (the "already run" chips)
- *   GET  /analysis?factor&freq&start&end      this user's cached report (404 if not computed yet)
- *   POST /analysis/run?...&refresh            cache hit → {done,report}; else start a Job → {jobId}
+ *   GET  /reports?factor                     this user's immutable report history for a factor
+ *   GET  /reports/:reportId                  one owner-scoped report and its frozen inputs/result
+ *   POST /analysis/run                       create a report + Job, then start the worker
  *   GET  /analysis/job/:id?since=             poll a Job: {status, logs, nextSince, error}
- *   GET  /analysis/running?factor&freq&start&end   a still-running Job's id (re-attach after a refresh)
  *   /correlation…                            factor×factor cross-sectional Spearman (same Job shape)
  * Naming rules: see docs/design/api-route-naming.md.
  */
 export const factorRoute = new Hono();
-
-// 'none' keeps the pre-3.4 id shape so existing cached reports still resolve; other modes append a segment.
-const reportId = (
-  userId: string,
-  factor: string,
-  freq: string,
-  start: string,
-  end: string,
-  neutral: string,
-) =>
-  neutral === 'none'
-    ? `${userId}|${factor}|${freq}|${start}|${end}`
-    : `${userId}|${factor}|${freq}|${start}|${end}|${neutral}`;
-const jobKey = (factor: string, freq: string, start: string, end: string, neutral: string) =>
-  neutral === 'none'
-    ? `${factor}|${freq}|${start}|${end}`
-    : `${factor}|${freq}|${start}|${end}|${neutral}`;
 
 // Worker entry: dev (tsx) spawns the .mjs bootstrap; prod spawns the compiled .js.
 const workerUrl = import.meta.url.endsWith('.ts')
@@ -156,64 +162,64 @@ factorRoute.post('/metadata', validateJson(metadataBody), async (c) => {
   return c.json({ ok: true });
 });
 
-const analysisQuery = z.object({
-  factor: z.string().min(1),
-  freq: z.enum(['month', 'week']).default('month'),
-  start: z
-    .string()
-    .regex(/^\d{8}$/)
-    .default('20150101'),
-  end: z
-    .string()
-    .regex(/^\d{8}$/)
-    .default('20261231'),
-  neutral: z.enum(['none', 'size', 'size_industry']).default('none'),
-  refresh: z.string().optional(),
-});
 const sinceQuery = z.object({ since: z.string().regex(/^\d+$/).optional() });
 
-factorRoute.get('/runs', validateQuery(z.object({ factor: z.string().min(1) })), async (c) => {
-  const rows = await prisma.factorReport.findMany({
-    where: { userId: c.var.userId, factor: c.req.valid('query').factor },
-    select: { freq: true, neutral: true, start: true, end: true, computedAt: true },
-    orderBy: { computedAt: 'desc' },
-  });
-  return c.json(rows);
+const reportListQuery = z.object({
+  factor: z.string().min(1),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  cursor: z.string().min(1).optional(),
 });
 
-// Clear this user's cached runs (all, or just one factor's) — lets a user discard stale reports, and
-// keeps e2e runs isolated. Only ever touches the caller's own FactorReport rows.
-factorRoute.delete(
-  '/runs',
-  validateQuery(z.object({ factor: z.string().min(1).optional() })),
-  async (c) => {
-    const { factor } = c.req.valid('query');
-    const { count } = await prisma.factorReport.deleteMany({
-      where: { userId: c.var.userId, ...(factor ? { factor } : {}) },
-    });
-    return c.json({ deleted: count });
-  },
-);
-
-factorRoute.get('/analysis', validateQuery(analysisQuery), async (c) => {
-  const { factor, freq, start, end, neutral } = c.req.valid('query');
-  const cached = await prisma.factorReport.findUnique({
-    where: { id: reportId(c.var.userId, factor, freq, start, end, neutral) },
+factorRoute.get('/reports', validateQuery(reportListQuery), async (c) => {
+  const userId = c.var.userId;
+  const { factor, limit, cursor } = c.req.valid('query');
+  const cursorReport = cursor
+    ? await prisma.factorReport.findFirst({
+        where: { id: cursor, userId, factor },
+        select: { id: true, createdAt: true },
+      })
+    : null;
+  const rows = await prisma.factorReport.findMany({
+    where: {
+      userId,
+      factor,
+      ...(cursorReport
+        ? {
+            OR: [
+              { createdAt: { lt: cursorReport.createdAt } },
+              { createdAt: cursorReport.createdAt, id: { lt: cursorReport.id } },
+            ],
+          }
+        : {}),
+    },
+    include: { job: { select: { id: true } } },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: limit + 1,
   });
-  if (!cached) {
+  const hasMore = rows.length > limit;
+  const items = rows.slice(0, limit).map(reportSummary);
+
+  return c.json({ items, nextCursor: hasMore ? items.at(-1)?.id : undefined });
+});
+
+factorRoute.get('/reports/:reportId', async (c) => {
+  const row = await prisma.factorReport.findFirst({
+    where: { id: c.req.param('reportId'), userId: c.var.userId },
+    include: { job: { select: { id: true } } },
+  });
+  if (!row) {
     return apiError(c, 'NOT_FOUND', m(c, 'windowNotComputed'));
   }
-  return c.json(JSON.parse(cached.payload) as FactorReport);
-});
+  const summary = reportSummary(row);
 
-factorRoute.get('/analysis/running', validateQuery(analysisQuery), async (c) => {
-  const { factor, freq, start, end, neutral } = c.req.valid('query');
-  const jobId = await findRunningJob(
-    c.var.userId,
-    'factor',
-    jobKey(factor, freq, start, end, neutral),
-  );
-  return c.json({ jobId });
+  return c.json({
+    ...summary,
+    payload: parseReportPayload(row.payload),
+    factorCodeSnapshot: row.factorCodeSnapshot ?? undefined,
+    factorCodeHash: row.factorCodeHash ?? undefined,
+    dataRevision: row.dataRevision ?? undefined,
+    parentReportId: row.parentReportId ?? undefined,
+  });
 });
 
 factorRoute.get('/analysis/job/:jobId', validateQuery(sinceQuery), async (c) => {
@@ -228,70 +234,231 @@ factorRoute.get('/analysis/job/:jobId', validateQuery(sinceQuery), async (c) => 
   return c.json(job);
 });
 
-factorRoute.post('/analysis/run', validateQuery(analysisQuery), async (c) => {
+const runAnalysisBody = z.object({
+  factor: z.string().min(1),
+  spec: factorAnalysisSpecV1Schema,
+  parentReportId: z.string().min(1).nullable().optional(),
+});
+
+factorRoute.post('/analysis/run', validateJson(runAnalysisBody), async (c) => {
   const userId = c.var.userId;
-  const { factor, freq, start, end, neutral, refresh } = c.req.valid('query');
-  if (!BUILTIN_KEYS.has(factor)) {
-    // Not a preset slug → must be one of this user's custom factors (id).
-    const custom = await prisma.factor.findFirst({
-      where: { id: factor, userId },
-      select: { id: true },
-    });
-    if (!custom) {
-      return apiError(c, 'NOT_FOUND', m(c, 'unknownFactor', { factor }));
-    }
+  const { factor, parentReportId } = c.req.valid('json');
+  const spec = normalizeFactorAnalysisSpec(c.req.valid('json').spec);
+  const source = await resolveFactorSource(userId, factor);
+  if (!source) {
+    return apiError(c, 'NOT_FOUND', m(c, 'unknownFactor', { factor }));
   }
-  if (start >= end) {
+  if (spec.start >= spec.end) {
     return apiError(c, 'VALIDATION_FAILED', m(c, 'startAfterEnd'));
   }
-
-  if (refresh !== '1') {
-    const cached = await prisma.factorReport.findUnique({
-      where: { id: reportId(userId, factor, freq, start, end, neutral) },
+  if (parentReportId) {
+    const parent = await prisma.factorReport.findFirst({
+      where: { id: parentReportId, userId, factor },
+      select: { id: true },
     });
-    if (cached) {
-      return c.json({ done: true, report: JSON.parse(cached.payload) as FactorReport });
+    if (!parent) {
+      return apiError(c, 'NOT_FOUND', m(c, 'windowNotComputed'));
     }
   }
-  // Dedupe: re-attach to an in-flight job for the same analysis instead of spawning a duplicate worker.
-  const existing = await findRunningJob(
-    userId,
-    'factor',
-    jobKey(factor, freq, start, end, neutral),
-  );
-  if (existing) {
-    return c.json({ jobId: existing });
+  const factorCodeHash = sha256(source.code);
+  const dataRevision = null;
+  const variantKey = factorVariantKey(spec, factorCodeHash, dataRevision);
+  const reportId = ulid();
+  const jobId = ulid();
+  const created = await prisma.$transaction(async (transaction) => {
+    const running = await transaction.factorReport.findFirst({
+      where: { userId, factor, variantKey, status: 'running' },
+      include: { job: { select: { id: true, status: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (running?.job?.status === 'running') {
+      return { reportId: running.id, jobId: running.job.id, reusedRunning: true };
+    }
+    if (running) {
+      await transaction.factorReport.update({
+        where: { id: running.id },
+        data: { status: 'stale' },
+      });
+    }
+
+    await transaction.factorReport.create({
+      data: {
+        id: reportId,
+        userId,
+        factor,
+        status: 'running',
+        phase: 'explore',
+        freq: spec.freq,
+        neutral: spec.neutral,
+        start: spec.start,
+        end: spec.end,
+        specJson: JSON.stringify(spec),
+        variantKey,
+        factorCodeSnapshot: source.code,
+        factorCodeHash,
+        dataRevision,
+        parentReportId: parentReportId ?? null,
+        job: {
+          create: {
+            id: jobId,
+            userId,
+            kind: 'factor',
+            key: variantKey,
+            status: 'running',
+          },
+        },
+      },
+    });
+
+    return { reportId, jobId, reusedRunning: false };
+  });
+  const response: RunFactorAnalysisResponse = { ...created, status: 'running' };
+  if (created.reusedRunning) {
+    return c.json(response);
   }
 
-  const jobId = await createJob(userId, 'factor', jobKey(factor, freq, start, end, neutral));
-  const worker = new Worker(workerUrl, {
-    workerData: { userId, factor, freq, start, end, neutral, locale: localeFromRequest(c) },
-  });
+  initializeJobLogs(jobId);
+  const locale = localeFromRequest(c);
+  let worker: Worker;
+  try {
+    worker = new Worker(workerUrl, {
+      workerData: {
+        reportId,
+        factor,
+        factorCodeSnapshot: source.code,
+        factorLabel: source.label,
+        freq: spec.freq,
+        start: spec.start,
+        end: spec.end,
+        neutral: spec.neutral,
+        locale,
+      },
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    await finishFactorReportJob(
+      jobId,
+      reportId,
+      'error',
+      undefined,
+      message,
+      m(c, 'factorAnalysisFailed'),
+    );
+    return c.json(response);
+  }
   let finished = false;
-  const done = (status: 'done' | 'error', error?: string) => {
+  const done = (status: 'done' | 'error', payload?: string, error?: string) => {
     if (finished) {
       return;
     }
     finished = true;
-    void finishJob(jobId, status, error);
+    void finishFactorReportJob(
+      jobId,
+      reportId,
+      status,
+      payload,
+      error,
+      status === 'error' ? m(c, 'factorAnalysisFailed') : undefined,
+    ).catch((finishError) => {
+      console.error('[jixie] failed to finalize factor report', finishError);
+    });
   };
-  worker.on('message', (msg: { type: string; entry?: LogLine; message?: string }) => {
-    if (msg.type === 'log') {
-      appendLog(jobId, msg.entry!);
-    } else if (msg.type === 'done') {
-      done('done');
-    } else if (msg.type === 'error') {
-      done('error', msg.message);
-    }
-  });
-  worker.on('error', (err) => done('error', err.message));
+  worker.on(
+    'message',
+    (message: { type: string; entry?: LogLine; message?: string; payload?: string }) => {
+      if (message.type === 'log') {
+        appendLog(jobId, message.entry!);
+      } else if (message.type === 'done') {
+        done('done', message.payload);
+      } else if (message.type === 'error') {
+        done('error', undefined, message.message);
+      }
+    },
+  );
+  worker.on('error', (error) => done('error', undefined, error.message));
   worker.on('exit', (code) => {
     if (code !== 0) {
-      done('error', m(c, 'factorProcExited', { code }));
+      done('error', undefined, m(c, 'factorProcExited', { code }));
     }
   });
-  return c.json({ jobId });
+  return c.json(response);
 });
+
+function reportSummary(
+  row: FactorReportRow & { job?: { id: string } | null },
+): FactorReportSummary {
+  const payload = parseReportPayload(row.payload);
+
+  return {
+    id: row.id,
+    factor: row.factor,
+    status: reportStatus(row.status),
+    phase: row.phase === 'explore' ? 'explore' : 'legacy',
+    spec: reportSpec(row),
+    variantKey: row.variantKey ?? undefined,
+    jobId: row.job?.id,
+    createdAt: row.createdAt.toISOString(),
+    computedAt: row.computedAt?.toISOString(),
+    error: row.error ?? undefined,
+    metrics: payload ? { rankIc: payload.icMean } : undefined,
+  };
+}
+
+function reportSpec(row: FactorReportRow): FactorAnalysisSpecV1 {
+  if (row.specJson) {
+    try {
+      return normalizeFactorAnalysisSpec(JSON.parse(row.specJson));
+    } catch {
+      // Legacy rows still have queryable parameter columns as a safe fallback.
+    }
+  }
+
+  return {
+    version: 1,
+    freq: row.freq === 'week' ? 'week' : 'month',
+    start: row.start,
+    end: row.end,
+    neutral: row.neutral === 'size' || row.neutral === 'size_industry' ? row.neutral : 'none',
+  };
+}
+
+function reportStatus(status: string): FactorReportStatus {
+  switch (status) {
+    case 'running':
+    case 'error':
+    case 'stale':
+      return status;
+    default:
+      return 'done';
+  }
+}
+
+function parseReportPayload(payload: string | null): FactorAnalysisPayload | undefined {
+  if (!payload) {
+    return undefined;
+  }
+  try {
+    return JSON.parse(payload) as FactorAnalysisPayload;
+  } catch {
+    return undefined;
+  }
+}
+
+async function resolveFactorSource(
+  userId: string,
+  factorId: string,
+): Promise<{ code: string; label: string } | null> {
+  const builtin = BUILTIN_FACTORS.find((factor) => factor.key === factorId);
+  if (builtin) {
+    return { code: builtin.code, label: builtin.label };
+  }
+  const custom = await prisma.factor.findFirst({
+    where: { id: factorId, userId },
+    select: { code: true, name: true },
+  });
+
+  return custom ? { code: custom.code, label: custom.name } : null;
+}
 
 // —— Correlation matrix (3.4): 2–8 factors × a fixed size column, cross-sectional Spearman ——
 

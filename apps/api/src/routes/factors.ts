@@ -140,8 +140,8 @@ factorsRoute.post('/custom', validateJson(createBody), async (c) => {
 });
 
 // POST /custom/:id — update by id. `{ messages }` alone = real-time chat save (code/name untouched);
-// `{ code, name }` = an analysis run's commit (compile-check, drop the now-stale cached reports, rename
-// unless it collides). Either may be present.
+// `{ code, name }` = an analysis run's commit (compile-check and rename unless it collides). Historical
+// reports keep their frozen code snapshots. Either may be present.
 const updateBody = z.object({
   code: z.string().min(1).optional(),
   name: z.string().min(1).max(40).optional(),
@@ -178,10 +178,6 @@ factorsRoute.post('/custom/:id', validateJson(updateBody), async (c) => {
       );
     }
     data.code = code;
-    if (code !== existing.code) {
-      // The factor values changed → its cached analysis reports are stale.
-      await prisma.factorReport.deleteMany({ where: { userId, factor: id } });
-    }
   }
   if (name !== undefined && name !== existing.name) {
     data.name = name;

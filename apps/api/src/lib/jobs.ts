@@ -11,8 +11,8 @@ import { prisma } from './prisma.js';
  *    streamed live, and boot marks the job stale.
  *  - Each line is a tagged LogLine (system vs user), tagged at the worker boundary.
  *  - The result is NOT stored on the job; it lands on the entity (FactorReport.payload / Strategy.lastResult).
- * A job's `key` ties it to what it computes (factor: `${factor}|${freq}|${start}|${end}`, backtest:
- * the strategyId), so a refreshed page can find "my running job for this key" and re-attach.
+ * A job's `key` ties it to what it computes (factor: variantKey, backtest: strategyId). Factor pages
+ * restore through the report relation; legacy findRunningJob remains for backtests and correlation.
  */
 export type JobKind = 'backtest' | 'factor';
 export type JobStatus = 'running' | 'done' | 'error' | 'stale';
@@ -53,6 +53,36 @@ export async function finishJob(
   setTimeout(() => logsByJob.delete(jobId), LOG_TTL_MS).unref?.();
 }
 
+/** Finish a factor-analysis job and its one-to-one report in the same transaction. */
+export async function finishFactorReportJob(
+  jobId: string,
+  factorReportId: string,
+  status: 'done' | 'error',
+  payload?: string,
+  error?: string,
+  reportError?: string,
+): Promise<void> {
+  const logs = logsByJob.get(jobId);
+  const computedAt = status === 'done' ? new Date() : null;
+
+  await prisma.$transaction([
+    prisma.factorReport.update({
+      where: { id: factorReportId },
+      data: {
+        status,
+        payload: status === 'done' ? payload : undefined,
+        computedAt,
+        error: status === 'error' ? (reportError ?? error ?? null) : null,
+      },
+    }),
+    prisma.job.update({
+      where: { id: jobId },
+      data: { status, error: error ?? null, logs: logs ? JSON.stringify(logs) : undefined },
+    }),
+  ]);
+  setTimeout(() => logsByJob.delete(jobId), LOG_TTL_MS).unref?.();
+}
+
 /** Poll an owner-scoped job: DB status + logs after `since` — live in memory, else from the DB copy. */
 export async function getJob(userId: string, jobId: string, since = 0) {
   const job = await prisma.job.findFirst({ where: { id: jobId, userId } });
@@ -62,6 +92,7 @@ export async function getJob(userId: string, jobId: string, since = 0) {
   const logs = logsByJob.get(jobId) ?? parsePersistedLogs(job.logs);
   return {
     status: job.status as JobStatus,
+    factorReportId: job.factorReportId,
     error: job.error,
     logs: logs.slice(since),
     nextSince: logs.length,
@@ -96,9 +127,26 @@ export async function findRunningJob(
 
 /** On boot: any job still 'running' is a zombie (its worker died with the previous process) → stale. */
 export async function markRunningJobsStale(): Promise<number> {
-  const { count } = await prisma.job.updateMany({
-    where: { status: 'running' },
-    data: { status: 'stale' },
+  return prisma.$transaction(async (transaction) => {
+    const running = await transaction.job.findMany({
+      where: { status: 'running' },
+      select: { factorReportId: true },
+    });
+    const reportIds = running
+      .map((job) => job.factorReportId)
+      .filter((reportId): reportId is string => !!reportId);
+
+    if (reportIds.length > 0) {
+      await transaction.factorReport.updateMany({
+        where: { id: { in: reportIds }, status: 'running' },
+        data: { status: 'stale', error: null },
+      });
+    }
+    const { count } = await transaction.job.updateMany({
+      where: { status: 'running' },
+      data: { status: 'stale' },
+    });
+
+    return count;
   });
-  return count;
 }
