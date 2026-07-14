@@ -174,6 +174,7 @@ export async function computeFactorSeries(
   onLog: (msg: string) => void = () => {},
   onUserLog?: UserLogSink,
   locale: Locale = DEFAULT_LOCALE,
+  factorCodeSnapshot?: string,
 ): Promise<Series> {
   const series: Series = new Map();
   const push = (date: string, tsCode: string, value: number | null) => {
@@ -188,8 +189,11 @@ export async function computeFactorSeries(
     rows.push({ tsCode, value });
   };
 
-  const row = await prisma.factor.findUnique({ where: { id: factorKey }, select: { code: true } });
-  if (!row) {
+  const currentFactor = factorCodeSnapshot
+    ? null
+    : await prisma.factor.findUnique({ where: { id: factorKey }, select: { code: true } });
+  const factorCode = factorCodeSnapshot ?? currentFactor?.code;
+  if (!factorCode) {
     onLog(t(locale, 'factorMissing', { factor: factorKey }));
     return series;
   }
@@ -203,8 +207,8 @@ export async function computeFactorSeries(
     }
     onUserLog?.(level, line);
   };
-  const factor = await compileFactor(row.code, logSink);
-  const needsTurnoverRateFHistory = row.code.includes("'turnoverRateF'");
+  const factor = await compileFactor(factorCode, logSink);
+  const needsTurnoverRateFHistory = factorCode.includes("'turnoverRateF'");
 
   // Preload all financial reports once (PIT-gated by annDate); loadBars picks each stock's as-of report.
   const finaIndex = await loadFinaIndex();
@@ -538,6 +542,7 @@ export async function analyzeFactor(
   onLog: (msg: string) => void = () => {},
   onUserLog?: UserLogSink,
   locale: Locale = DEFAULT_LOCALE,
+  source?: { code: string; label: string },
 ): Promise<FactorReport> {
   const periodsPerYear = freq === 'week' ? 52 : 12;
   const rebalanceDates = await getRebalanceDates(freq, start, end);
@@ -552,6 +557,7 @@ export async function analyzeFactor(
     onLog,
     onUserLog,
     locale,
+    source?.code,
   );
 
   // Cross-sectional neutralization (3.4): replace raw values with residuals before IC / bucketing.
@@ -755,6 +761,7 @@ export async function analyzeFactor(
   onLog(t(locale, 'factorAggregating'));
   // Preset and custom factors both label from their Factor row (presets are seeded code rows).
   const label =
+    source?.label ??
     (await prisma.factor.findUnique({ where: { id: factorKey }, select: { name: true } }))?.name ??
     factorKey;
   const icMean = st.mean(icSeries);

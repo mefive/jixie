@@ -6,24 +6,27 @@ import { prisma } from '../lib/prisma.js';
 /**
  * Factor-analysis worker thread. analyzeFactor loads whole-market panels + tight cross-sectional loops,
  * which would block the HTTP event loop, so it runs here (own PrismaClient per thread). Streams progress
- * as { type:'log', line }; on success upserts the per-user FactorReport cache (the entity holds the
- * result) and posts { type:'done' }; on failure posts { type:'error', message }. Dev (tsx) loads via the
- * .boot.mjs bootstrap; prod spawns the compiled .js.
+ * as { type:'log', line }; on success returns the payload to the parent process, which persists it and
+ * updates the report/job statuses together. Dev (tsx) loads via the .boot.mjs bootstrap; prod spawns
+ * the compiled .js.
  */
 const port = parentPort;
 if (!port) {
   throw new Error('factor-worker must be spawned as a worker thread');
 }
 
-const { userId, factor, freq, start, end, neutral, locale } = workerData as {
-  userId: string;
-  factor: string;
-  freq: FactorFreq;
-  start: string;
-  end: string;
-  neutral: Neutral;
-  locale: Locale;
-};
+const { reportId, factor, factorCodeSnapshot, factorLabel, freq, start, end, neutral, locale } =
+  workerData as {
+    reportId: string;
+    factor: string;
+    factorCodeSnapshot: string;
+    factorLabel: string;
+    freq: FactorFreq;
+    start: string;
+    end: string;
+    neutral: Neutral;
+    locale: Locale;
+  };
 
 // One log sink, tagged here: analysis progress → system, a custom factor's console.* → user.
 const emit = (entry: LogLine) => port.postMessage({ type: 'log', entry });
@@ -40,19 +43,9 @@ try {
     onSystemLog,
     onUserLog,
     locale,
+    { code: factorCodeSnapshot, label: factorLabel },
   );
-  // Mirror the route's reportId: 'none' keeps the pre-3.4 id shape so old caches still resolve.
-  const id =
-    neutral === 'none'
-      ? `${userId}|${factor}|${freq}|${start}|${end}`
-      : `${userId}|${factor}|${freq}|${start}|${end}|${neutral}`;
-  const payload = JSON.stringify(report);
-  await prisma.factorReport.upsert({
-    where: { id },
-    create: { id, userId, factor, freq, neutral, start, end, payload, computedAt: new Date() },
-    update: { payload, neutral, computedAt: new Date() },
-  });
-  port.postMessage({ type: 'done' });
+  port.postMessage({ type: 'done', reportId, payload: JSON.stringify(report) });
 } catch (e) {
   port.postMessage({ type: 'error', message: e instanceof Error ? e.message : String(e) });
 } finally {

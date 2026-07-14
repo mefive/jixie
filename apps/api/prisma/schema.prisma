@@ -322,21 +322,33 @@ model InviteCode {
 // stock × rebalance date. Factor values are computed and stored across the whole market (no
 // pre-filter); universe filtering is done point-in-time during the backtest.
 // ============================================================================
-/// Persisted single-factor analysis report — the small JSON artifact per (factor, freq, start, end).
-/// Regenerated on demand (?refresh=1); served instantly otherwise. Factor *values* are never stored,
-/// only this report: they're computed on the fly from raw tables when the report is (re)generated.
+/// One immutable factor-analysis run and its eventual result. Factor values are never stored; only
+/// the normalized input, frozen factor source, status, and compact report payload are persisted.
 model FactorReport {
-  id         String   @id // `${userId}|${factor}|${freq}|${start}|${end}` (+ `|${neutral}` when not 'none')
-  userId     String
-  factor     String
-  freq       String // 'month' | 'week'
-  neutral    String   @default("none") // 'none' | 'size' | 'size_industry' — cross-sectional neutralization
-  start      String // YYYYMMDD
-  end        String // YYYYMMDD
-  payload    String // JSON.stringify(FactorReport wire shape)
-  computedAt DateTime
+  id                 String    @id // ULID for new reports; legacy composite ids remain valid
+  userId             String
+  factor             String
+  status             String    @default("done") // 'running' | 'done' | 'error' | 'stale'
+  phase              String    @default("legacy") // 'legacy' | 'explore'
+  freq               String // 'month' | 'week'
+  neutral            String    @default("none") // 'none' | 'size' | 'size_industry'
+  start              String // YYYYMMDD
+  end                String // YYYYMMDD
+  specJson           String?
+  variantKey         String?
+  factorCodeSnapshot String?
+  factorCodeHash     String?
+  dataRevision       String?
+  payload            String? // JSON.stringify(FactorReport wire shape)
+  error              String?
+  parentReportId     String?
+  createdAt          DateTime  @default(now())
+  computedAt         DateTime?
 
-  @@index([userId, factor]) // list a user's cached runs of a factor (the "already run" chips)
+  job Job?
+
+  @@index([userId, factor, createdAt])
+  @@index([userId, variantKey])
 }
 
 /// Cached factor-correlation report (3.4). Payload = JSON FactorCorrelation wire shape. id encodes the
@@ -352,20 +364,21 @@ model FactorCorrelation {
 
 /// A background computation (backtest / factor analysis). Status lives here (durable, cross-client
 /// resume via a query); progress logs stream in-memory while live and are flushed to `logs` once on
-/// finish (so a reopened finished job still shows them). A key ties the job
-/// to what it computes (factor: `${factor}|${freq}|${start}|${end}`, backtest: the strategyId) so the
-/// frontend can find "my running job for X" after a refresh. On boot, running jobs → stale (the worker
-/// died with the process). Result is NOT stored here — it lands on the entity (FactorReport / Strategy).
+/// finish (so a reopened finished job still shows them). A key ties the job to what it computes
+/// (factor: variantKey, backtest: strategyId). Factor jobs are restored through factorReportId; on boot,
+/// running jobs and their reports become stale. Results live on FactorReport / Strategy, not Job.
 model Job {
-  id        String   @id // ULID
-  userId    String
-  kind      String // 'backtest' | 'factor'
-  key       String // dedupe/lookup key (see model doc)
-  status    String // 'running' | 'done' | 'error' | 'stale'
-  error     String?
-  logs      String? // JSON(LogLine[]) — flushed once on finish; live logs stream from memory (see lib/jobs.ts)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String        @id // ULID
+  userId         String
+  kind           String // 'backtest' | 'factor'
+  key            String // dedupe/lookup key (see model doc)
+  status         String // 'running' | 'done' | 'error' | 'stale'
+  error          String?
+  logs           String? // JSON(LogLine[]) — flushed once on finish; live logs stream from memory (see lib/jobs.ts)
+  factorReportId String?       @unique
+  factorReport   FactorReport? @relation(fields: [factorReportId], references: [id], onDelete: Cascade)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
   @@index([userId, kind, key, status]) // find a user's running job for a key
 }

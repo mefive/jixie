@@ -6,9 +6,9 @@ import { prisma } from '../lib/prisma.js';
  * The source of truth is this file (git); seedBuiltinFactors materializes each preset into a
  * read-only Factor row so analysis runs presets and user factors through ONE compile+compute path.
  * Pinned invariants:
- *   - keys are stable slugs (ep/mom/…) — FactorReport cache keys and ?factor= URLs depend on them;
+ *   - keys are stable slugs (ep/mom/…) — FactorReport history and ?factor= URLs depend on them;
  *   - preset rows use the BUILTIN_USER_ID sentinel (no real user) and are rejected by edit/delete;
- *   - seeding is idempotent; a code change here invalidates every user's cached reports of that key.
+ *   - seeding is idempotent; historical reports retain their frozen code when a preset changes.
  * Price presets duplicate a small date-gap helper in each module — factor code is import-free by
  * design (the sandbox has no require), so self-containment beats sharing.
  */
@@ -338,8 +338,8 @@ export function builtinCatalog(): FactorMeta[] {
 
 /**
  * Idempotent seed: materialize every preset into its read-only Factor row (called on server boot).
- * A code change in this file invalidates every user's cached reports of that key — the reports were
- * produced by a formula that no longer exists.
+ * A code change updates only the current preset row. Historical reports retain the exact source used
+ * for their run.
  */
 export async function seedBuiltinFactors(): Promise<void> {
   for (const def of BUILTIN_FACTORS) {
@@ -365,9 +365,6 @@ export async function seedBuiltinFactors(): Promise<void> {
         where: { id: def.key },
         data: { key: def.key, name: def.label, code: def.code },
       });
-      if (existing.code !== def.code) {
-        await prisma.factorReport.deleteMany({ where: { factor: def.key } });
-      }
     }
   }
 }

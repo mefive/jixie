@@ -1,15 +1,18 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import type { TFunction } from 'i18next';
+import { useBlocker, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import classNames from 'classnames';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 import {
   App,
+  Alert,
   Button,
   DatePicker,
   Input,
+  List,
   Modal,
   Popover,
   Radio,
@@ -24,6 +27,7 @@ import type {
   FactorFreq,
   FactorKind,
   FactorMeta,
+  FactorReportSummary,
   IcDecayPoint,
   FactorWeight,
 } from '@jixie/shared';
@@ -35,6 +39,9 @@ import {
   faLock,
   faCopy,
   faEllipsis,
+  faClockRotateLeft,
+  faCheck,
+  faTriangleExclamation,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { LoaderButton } from '@src/components/loader-button';
@@ -60,6 +67,8 @@ const LsNavChart = lazy(() => import('./ls-nav-chart'));
 const CorrelationHeatmap = lazy(() => import('./correlation-heatmap'));
 const FactorEditor = lazy(() => import('./factor-editor'));
 
+type GuardDiscard = (action: () => void) => void;
+
 /**
  * Factor research — Agent-authored, IDE-style (aligned with the strategy workbench). 3-column Splitter: an Agent
  * panel (a chat that writes the custom factor's defineFactor code, + a factor-library tab of presets & custom
@@ -69,18 +78,74 @@ const FactorEditor = lazy(() => import('./factor-editor'));
  */
 export const Factor = complex.component(() => {
   const store = complex.useStore();
+  const { modal } = App.useApp();
+  const { t } = useTranslation('factor');
 
-  // Reflect the currently-shown report in the URL (?factor&freq&start&end) — refresh-safe + shareable.
-  const [, setSearchParams] = useSearchParams();
-  const shown = store.report;
+  // Refresh/tab close uses the browser's native warning; in-app route changes use the same strong
+  // confirmation as factor switching. Search-param sync within this workbench is never blocked.
   useEffect(() => {
-    if (shown) {
-      setSearchParams(
-        { factor: shown.factor, freq: shown.freq, start: shown.start, end: shown.end },
-        { replace: true },
-      );
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (store.hasDraftChanges) {
+        event.preventDefault();
+        event.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [store]);
+
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      store.hasDraftChanges && currentLocation.pathname !== nextLocation.pathname,
+  );
+  useEffect(() => {
+    if (blocker.state !== 'blocked') {
+      return;
     }
-  }, [shown, setSearchParams]);
+    modal.confirm({
+      title: t('discardConfirmTitle'),
+      content: t('discardConfirmContent'),
+      okText: t('discardConfirmOk'),
+      okButtonProps: { danger: true },
+      cancelText: t('cancel'),
+      onOk: () => blocker.proceed(),
+      onCancel: () => blocker.reset(),
+    });
+  }, [blocker, modal, t]);
+
+  const guardDiscard = useCallback<GuardDiscard>(
+    (action) => {
+      if (!store.hasDraftChanges) {
+        action();
+        return;
+      }
+      modal.confirm({
+        title: t('discardConfirmTitle'),
+        content: t('discardConfirmContent'),
+        okText: t('discardConfirmOk'),
+        okButtonProps: { danger: true },
+        cancelText: t('cancel'),
+        onOk: action,
+      });
+    },
+    [modal, store, t],
+  );
+
+  // A stable report id, rather than its parameter tuple, is the page identity.
+  const [, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    if (!store.selectedKey) {
+      setSearchParams({}, { replace: true });
+      return;
+    }
+    setSearchParams(
+      {
+        factor: store.selectedKey,
+        ...(store.selectedReportId ? { report: store.selectedReportId } : {}),
+      },
+      { replace: true },
+    );
+  }, [store.selectedKey, store.selectedReportId, setSearchParams]);
 
   // The Splitter renders on the FIRST paint (not gated on the catalog) so it mounts once, early, and its
   // layout-measure reflow happens while the panels are still empty — invisible. Catalog loading is scoped
@@ -90,10 +155,10 @@ export const Factor = complex.component(() => {
     <div className="jx-factor">
       <Splitter className="jx-factor-body">
         <Splitter.Panel defaultSize={panelDefaults.left} min={280} max={520} collapsible>
-          <AgentPanel />
+          <AgentPanel guardDiscard={guardDiscard} />
         </Splitter.Panel>
         <Splitter.Panel defaultSize={panelDefaults.rest} min="22%">
-          <MiddleColumn />
+          <MiddleColumn guardDiscard={guardDiscard} />
         </Splitter.Panel>
         <Splitter.Panel defaultSize={panelDefaults.rest} min="26%">
           <ResultColumn />
@@ -106,7 +171,7 @@ export const Factor = complex.component(() => {
 // —— Subcomponents ——
 
 // Left column: Agent (chat authors the factor) | factor library (presets + custom, to select).
-const AgentPanel = complex.component(() => {
+const AgentPanel = complex.component(({ guardDiscard }: { guardDiscard: GuardDiscard }) => {
   const store = complex.useStore();
   const { t } = useTranslation('factor');
   const [tab, setTab] = useState('agent');
@@ -123,8 +188,10 @@ const AgentPanel = complex.component(() => {
             type="text"
             icon={<FontAwesomeIcon icon={faPlus} />}
             onClick={() => {
-              store.newFactor();
-              setTab('agent');
+              guardDiscard(() => {
+                store.newFactor();
+                setTab('agent');
+              });
             }}
           >
             {t('newFactor')}
@@ -136,7 +203,9 @@ const AgentPanel = complex.component(() => {
             // Picking a custom factor jumps to Agent (to edit/chat); a preset stays here (analysis-only).
             key: 'library',
             label: t('libraryTab'),
-            children: <FactorLibrary onPickCustom={() => setTab('agent')} />,
+            children: (
+              <FactorLibrary onPickCustom={() => setTab('agent')} guardDiscard={guardDiscard} />
+            ),
           },
         ]}
       />
@@ -236,91 +305,102 @@ function ChatLog({
 
 // factor-library tab: presets grouped by kind + this user's custom factors. Click to select (→ analyze); custom
 // rows have a delete affordance. Picking one jumps back to the Agent tab.
-const FactorLibrary = complex.component(({ onPickCustom }: { onPickCustom: () => void }) => {
-  const store = complex.useStore();
-  const { t } = useTranslation('factor');
-  const { modal } = App.useApp();
-  const [corrOpen, setCorrOpen] = useState(false);
-  const list = store.catalogLoader.result ?? [];
-  const presets = list.filter((f) => f.kind !== 'custom');
-  const custom = list.filter((f) => f.kind === 'custom');
+const FactorLibrary = complex.component(
+  ({ onPickCustom, guardDiscard }: { onPickCustom: () => void; guardDiscard: GuardDiscard }) => {
+    const store = complex.useStore();
+    const { t } = useTranslation('factor');
+    const { modal } = App.useApp();
+    const [corrOpen, setCorrOpen] = useState(false);
+    const list = store.catalogLoader.result ?? [];
+    const presets = list.filter((f) => f.kind !== 'custom');
+    const custom = list.filter((f) => f.kind === 'custom');
 
-  // A custom factor → jump to Agent (edit/chat); a preset stays here (select → analyze, no code).
-  const pick = (key: string, isCustom: boolean) => {
-    void store.selectFactor(key);
-    if (isCustom) {
-      onPickCustom();
-    }
-  };
-  const askDelete = (id: string, name: string) =>
-    modal.confirm({
-      title: t('deleteConfirmTitle'),
-      content: t('deleteConfirmContent', { name }),
-      okText: t('deleteOk'),
-      okButtonProps: { danger: true },
-      cancelText: t('cancel'),
-      onOk: () => store.removeFactor(id),
-    });
+    // A custom factor → jump to Agent (edit/chat); a preset stays here (select → analyze, no code).
+    const pick = (key: string, isCustom: boolean) => {
+      if (key === store.selectedKey) {
+        if (isCustom) {
+          onPickCustom();
+        }
+        return;
+      }
+      guardDiscard(() => {
+        void store.selectFactor(key);
+        if (isCustom) {
+          onPickCustom();
+        }
+      });
+    };
+    const askDelete = (id: string, name: string) =>
+      modal.confirm({
+        title: t('deleteConfirmTitle'),
+        content: t('deleteConfirmContent', { name }),
+        okText: t('deleteOk'),
+        okButtonProps: { danger: true },
+        cancelText: t('cancel'),
+        onOk: () => store.removeFactor(id),
+      });
 
-  // Catalog loading is scoped here (a small region) with a delayed spinner — not the whole workbench.
-  return (
-    <LoadingArea loader={store.catalogLoader}>
-      {() => (
-        <div className="jx-factor-library">
-          <Button
-            className="jx-factor-corrTrigger"
-            size="small"
-            block
-            onClick={() => setCorrOpen(true)}
-          >
-            {t('corrTrigger')}
-          </Button>
-          <CorrelationModal open={corrOpen} onClose={() => setCorrOpen(false)} />
-          <div className="jx-factor-libGroup">{t('presetGroup')}</div>
-          {presets.map((f) => (
-            <button
-              key={f.key}
-              className={classNames('jx-factor-libItem', {
-                'jx-factor-libItem--active': f.key === store.selectedKey,
-              })}
-              onClick={() => pick(f.key, false)}
+    // Catalog loading is scoped here (a small region) with a delayed spinner — not the whole workbench.
+    return (
+      <LoadingArea loader={store.catalogLoader}>
+        {() => (
+          <div className="jx-factor-library">
+            <Button
+              className="jx-factor-corrTrigger"
+              size="small"
+              block
+              onClick={() => setCorrOpen(true)}
             >
-              <span className="jx-factor-libName">{factorDisplayName(f)}</span>
-              <span className={`jx-factor-kind jx-factor-kind--${f.kind}`}>
-                {t(KIND_KEY[f.kind])}
-              </span>
-            </button>
-          ))}
-
-          <div className="jx-factor-libGroup">{t('customGroup')}</div>
-          {custom.length === 0 && <div className="jx-factor-libEmpty">{t('customEmpty')}</div>}
-          {custom.map((f) => (
-            <button
-              key={f.key}
-              className={classNames('jx-factor-libItem', {
-                'jx-factor-libItem--active': f.key === store.selectedKey,
-              })}
-              onClick={() => pick(f.key, true)}
-            >
-              <span className="jx-factor-libName">{factorDisplayName(f)}</span>
-              <span
-                role="button"
-                title={t('deleteTitle')}
-                className="jx-factor-libDel"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  askDelete(f.key, f.label);
-                }}
+              {t('corrTrigger')}
+            </Button>
+            <CorrelationModal open={corrOpen} onClose={() => setCorrOpen(false)} />
+            <div className="jx-factor-libGroup">{t('presetGroup')}</div>
+            {presets.map((f) => (
+              <button
+                key={f.key}
+                className={classNames('jx-factor-libItem', {
+                  'jx-factor-libItem--active': f.key === store.selectedKey,
+                })}
+                onClick={() => pick(f.key, false)}
               >
-                <FontAwesomeIcon icon={faTrash} />
-              </span>
-            </button>
-          ))}
-        </div>
-      )}
-    </LoadingArea>
-  );
-}, 'FactorLibrary');
+                <span className="jx-factor-libName">{factorDisplayName(f)}</span>
+                <span className={`jx-factor-kind jx-factor-kind--${f.kind}`}>
+                  {t(KIND_KEY[f.kind])}
+                </span>
+              </button>
+            ))}
+
+            <div className="jx-factor-libGroup">{t('customGroup')}</div>
+            {custom.length === 0 && <div className="jx-factor-libEmpty">{t('customEmpty')}</div>}
+            {custom.map((f) => (
+              <button
+                key={f.key}
+                className={classNames('jx-factor-libItem', {
+                  'jx-factor-libItem--active': f.key === store.selectedKey,
+                })}
+                onClick={() => pick(f.key, true)}
+              >
+                <span className="jx-factor-libName">{factorDisplayName(f)}</span>
+                <span
+                  role="button"
+                  title={t('deleteTitle')}
+                  className="jx-factor-libDel"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    askDelete(f.key, f.label);
+                  }}
+                >
+                  <FontAwesomeIcon icon={faTrash} />
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+      </LoadingArea>
+    );
+  },
+  'FactorLibrary',
+);
 
 // Correlation matrix (3.4): pick 2–8 factors → mean cross-sectional Spearman heatmap (+ a fixed size
 // column). Uses the params bar's freq/range. Self-contained modal so it doesn't disturb the workbench.
@@ -337,7 +417,7 @@ const CorrelationModal = complex.component(
       if (open) {
         void store.reattachCorrelation();
       }
-    }, [open]);
+    }, [open, store]);
 
     const corr = store.correlation;
     const canRun = store.corrKeys.length >= 2 && !store.corrRunning;
@@ -403,7 +483,7 @@ const CorrelationModal = complex.component(
 
 // Middle column: the Monaco editor over a collapsible log dock. A preset is a seeded READ-ONLY code
 // row — shown in the same editor with a lock bar + copy-as-custom (fork), instead of being hidden.
-const MiddleColumn = complex.component(() => {
+const MiddleColumn = complex.component(({ guardDiscard }: { guardDiscard: GuardDiscard }) => {
   const store = complex.useStore();
   const { t } = useTranslation('factor');
   const preset = store.mode === 'preset';
@@ -422,13 +502,32 @@ const MiddleColumn = complex.component(() => {
               <LoaderButton
                 size="small"
                 icon={<FontAwesomeIcon icon={faCopy} />}
-                action={() => store.forkSelected()}
+                action={() =>
+                  guardDiscard(() => {
+                    void store.forkSelected();
+                  })
+                }
               >
                 {t('forkToCustom')}
               </LoaderButton>
             </div>
           )}
           {!preset && store.selectedKey && <FactorIdentityBar />}
+          {store.pendingAgentCode !== null && (
+            <div className="jx-factor-agentCodeConflict">
+              <span>
+                <FontAwesomeIcon icon={faTriangleExclamation} /> {t('agentCodeConflict')}
+              </span>
+              <span className="jx-factor-agentCodeConflictActions">
+                <Button size="small" onClick={() => store.dismissPendingAgentCode()}>
+                  {t('keepMyCode')}
+                </Button>
+                <Button size="small" type="primary" onClick={() => store.applyPendingAgentCode()}>
+                  {t('applyAgentCode')}
+                </Button>
+              </span>
+            </div>
+          )}
           <div className="jx-factor-code">
             <Suspense fallback={<div className="jx-factor-codeEmpty">{t('editorLoading')}</div>}>
               <FactorEditor
@@ -508,7 +607,7 @@ const FactorDock = complex.component(() => {
   );
 }, 'FactorDock');
 
-// Right column: sticky analysis params (frequency/range/run + already-run chips) over the scrollable analysis result.
+// Right column: sticky analysis params and report history over the scrollable result.
 const ResultColumn = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('factor');
@@ -520,8 +619,8 @@ const ResultColumn = complex.component(() => {
     <div className="jx-factor-resultCol">
       <div className="jx-factor-paramBar">
         <ParamsBar />
-        <RunChips />
       </div>
+      <ReportOutdatedWarning />
       <div className="jx-factor-result">
         <FactorResult />
       </div>
@@ -529,11 +628,27 @@ const ResultColumn = complex.component(() => {
   );
 }, 'ResultColumn');
 
-// Frequency + date range + run/view (label depends on cache + unsaved custom code) + recompute.
+const ReportOutdatedWarning = complex.component(() => {
+  const store = complex.useStore();
+  const { t } = useTranslation('factor');
+  if (!store.reportOutdated) {
+    return null;
+  }
+  const message = store.codeModifiedSinceReport
+    ? t(store.paramsModified ? 'reportOutdatedBoth' : 'reportOutdatedCode')
+    : t('reportOutdatedParams');
+  return (
+    <div className="jx-factor-reportWarning">
+      <Alert type="warning" showIcon message={message} />
+    </div>
+  );
+}, 'ReportOutdatedWarning');
+
+// Frequency + date range + run. Every terminal run creates a new report.
 const ParamsBar = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('factor');
-  const canView = store.isCached && !store.edited; // custom code edits force a recompute
+  const runningSameDraft = store.reportDetail?.status === 'running' && !store.reportOutdated;
   const frequency = store.freq === 'month' ? t('unitMonth') : t('unitWeek');
   const neutral = {
     none: t('neutralNone'),
@@ -553,14 +668,16 @@ const ParamsBar = complex.component(() => {
         <span className="jx-factor-paramSummary">{summary}</span>
       </Tooltip>
       <div className="jx-factor-paramActions">
+        <ReportHistory />
         <LoaderButton
           className="jx-factor-runButton"
           type="primary"
           size="small"
-          loader={store.analysisLoader}
+          loader={store.reportLoader}
+          disabled={runningSameDraft}
           action={() => store.runAnalysis()}
         >
-          {canView ? t('view') : t('run')}
+          {runningSameDraft ? t('running') : t(store.reportOutdated ? 'rerunShort' : 'run')}
         </LoaderButton>
         <Popover
           content={<ParamsPopover />}
@@ -591,7 +708,7 @@ const ParamsBar = complex.component(() => {
 const ParamsPopover = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('factor');
-  const canView = store.isCached && !store.edited;
+  const runningSameDraft = store.reportDetail?.status === 'running' && !store.reportOutdated;
 
   return (
     <div className="jx-factor-paramPopover">
@@ -638,60 +755,103 @@ const ParamsPopover = complex.component(() => {
       <div className="jx-factor-paramPopoverActions">
         <LoaderButton
           type="primary"
-          loader={store.analysisLoader}
+          loader={store.reportLoader}
+          disabled={runningSameDraft}
           action={() => store.runAnalysis()}
         >
-          {canView ? t('view') : t('run')}
+          {runningSameDraft ? t('running') : t(store.reportOutdated ? 'rerunShort' : 'run')}
         </LoaderButton>
-        {store.report && (
-          <LoaderButton loader={store.analysisLoader} action={() => store.runAnalysis(true)}>
-            {t('recompute')}
-          </LoaderButton>
-        )}
       </div>
     </div>
   );
 }, 'ParamsPopover');
 
-// The factor's already-computed windows — one click jumps to that cached report (instant).
-const RunChips = complex.component(() => {
+// A quiet secondary action opens immutable reports in a modal list.
+const ReportHistory = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('factor');
-  const runs = store.runsLoader.result ?? [];
-  if (!runs.length) {
+  const { modal } = App.useApp();
+  const [open, setOpen] = useState(false);
+  const reports = store.reportsLoader.result?.items ?? [];
+  if (!reports.length) {
     return null;
   }
   return (
-    <div className="jx-factor-runs">
-      <span className="jx-factor-runsLabel">{t('runsLabel')}</span>
-      {runs.map((r) => {
-        const neutral = r.neutral ?? 'none';
-        const active =
-          r.freq === store.freq &&
-          neutral === store.neutral &&
-          r.start === store.start &&
-          r.end === store.end;
-        const neutralTag =
-          neutral === 'size'
-            ? ` ${t('neutralSizeTag')}`
-            : neutral === 'size_industry'
-              ? ` ${t('neutralSizeIndustryTag')}`
-              : '';
-        return (
-          <button
-            key={`${r.freq}|${neutral}|${r.start}|${r.end}`}
-            className={classNames('jx-factor-chip', { 'jx-factor-chip--active': active })}
-            onClick={() => void store.applyRun(r)}
-          >
-            {t(r.freq === 'week' ? 'unitWeek' : 'unitMonth')}·{r.start.slice(2, 6)}–
-            {r.end.slice(2, 6)}
-            {neutralTag}
-          </button>
-        );
-      })}
-    </div>
+    <>
+      <Button
+        className="jx-factor-historyTrigger"
+        size="small"
+        icon={<FontAwesomeIcon icon={faClockRotateLeft} />}
+        onClick={() => setOpen(true)}
+      >
+        {t('historyButton')}
+      </Button>
+      <Modal
+        className="jx-factor-historyModal"
+        open={open}
+        title={t('historyTitle')}
+        footer={null}
+        width={620}
+        onCancel={() => setOpen(false)}
+      >
+        <List
+          className="jx-factor-historyList"
+          dataSource={reports}
+          locale={{ emptyText: t('historyEmpty') }}
+          renderItem={(report) => {
+            const active = report.id === store.selectedReportId;
+            return (
+              <List.Item>
+                <button
+                  className={classNames('jx-factor-historyItem', {
+                    'jx-factor-historyItem--active': active,
+                  })}
+                  onClick={() => {
+                    const openReport = () => {
+                      setOpen(false);
+                      void store.openReport(report.id);
+                    };
+                    if (!store.paramsModified) {
+                      openReport();
+                      return;
+                    }
+                    modal.confirm({
+                      title: t('historyDiscardTitle'),
+                      content: t('historyDiscardContent'),
+                      okText: t('historyDiscardOk'),
+                      okButtonProps: { danger: true },
+                      cancelText: t('cancel'),
+                      onOk: openReport,
+                    });
+                  }}
+                >
+                  <span className="jx-factor-historyItemHead">
+                    <span className="jx-factor-historyDate">
+                      {dayjs(report.createdAt).format('YYYY-MM-DD HH:mm')}
+                    </span>
+                    <span
+                      className={`jx-factor-historyStatus jx-factor-historyStatus--${report.status}`}
+                    >
+                      {t(`status.${report.status}`)}
+                    </span>
+                    {active && <FontAwesomeIcon icon={faCheck} />}
+                  </span>
+                  <span className="jx-factor-historyParams">{reportParamsLabel(report, t)}</span>
+                  {report.metrics?.rankIc != null && (
+                    <span className="jx-factor-historyMetric">
+                      {t('historyRankIc', { value: report.metrics.rankIc.toFixed(4) })}
+                    </span>
+                  )}
+                  {report.error && <span className="jx-factor-historyError">{report.error}</span>}
+                </button>
+              </List.Item>
+            );
+          }}
+        />
+      </Modal>
+    </>
   );
-}, 'RunChips');
+}, 'ReportHistory');
 
 // Result: running / loading / error / prompt-to-run / the report. The live log streams in the dock.
 // Thin wrapper: jobRunning shows a running placeholder; a never-run factor shows a run prompt; otherwise
@@ -699,9 +859,27 @@ const RunChips = complex.component(() => {
 const FactorResult = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('factor');
-  const loader = store.analysisLoader;
-  if (store.jobRunning) {
+  const loader = store.reportLoader;
+  const detail = store.reportDetail;
+  if (store.jobRunning || detail?.status === 'running') {
     return <Placeholder icon={faSpinner} spin text={t('computing')} />;
+  }
+  if (detail?.status === 'error' || detail?.status === 'stale') {
+    return (
+      <div className="jx-factor-reportError">
+        <Placeholder
+          icon={faPlay}
+          text={
+            detail.status === 'stale'
+              ? t('analysisInterrupted')
+              : detail.error || t('analysisFailed')
+          }
+        />
+        <Button type="primary" onClick={() => void store.runAnalysis()}>
+          {t('rerun')}
+        </Button>
+      </div>
+    );
   }
   const runPrompt = () => <Placeholder icon={faPlay} text={t('runPrompt')} />;
   if (loader.initial) {
@@ -847,6 +1025,19 @@ function Metric({ label, value, hint }: { label: string; value: string; hint?: s
       {hint && <span className="jx-factor-metricHint">{hint}</span>}
     </div>
   );
+}
+
+function reportParamsLabel(report: FactorReportSummary, t: TFunction<'factor'>): string {
+  const spec = report.spec;
+  const frequency = t(spec.freq === 'week' ? 'unitWeek' : 'unitMonth');
+  const neutral = t(
+    spec.neutral === 'size'
+      ? 'neutralSize'
+      : spec.neutral === 'size_industry'
+        ? 'neutralSizeIndustry'
+        : 'neutralNone',
+  );
+  return `${frequency} · ${dayjs(spec.start, 'YYYYMMDD').format('YYYY-MM-DD')} – ${dayjs(spec.end, 'YYYYMMDD').format('YYYY-MM-DD')} · ${neutral}`;
 }
 
 // Cursor-style chat input — Enter sends, Shift+Enter newline, IME-safe.
