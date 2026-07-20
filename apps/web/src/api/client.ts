@@ -380,6 +380,9 @@ import type {
   FactorReportListResponse,
   FactorFreq,
   FactorCorrelation,
+  FactorHoldoutPolicyV1,
+  FactorResearchIntentV1,
+  FactorResearchSummary,
   RunFactorAnalysisResponse,
 } from '@jixie/shared';
 
@@ -502,11 +505,33 @@ export function getFactorReport(reportId: string): Promise<FactorReportDetail> {
 export function runFactorAnalysis(
   factor: string,
   spec: FactorAnalysisSpecV1,
+  researchIntent: FactorResearchIntentV1,
   parentReportId?: string | null,
 ): Promise<RunFactorAnalysisResponse> {
   return request('/api/app/factor/analysis/run', {
     method: 'POST',
-    body: JSON.stringify({ factor, spec, parentReportId: parentReportId ?? null }),
+    body: JSON.stringify({ factor, spec, parentReportId: parentReportId ?? null, researchIntent }),
+  });
+}
+
+export function getFactorResearchWindow(): Promise<FactorHoldoutPolicyV1> {
+  return request('/api/app/factor/research/window');
+}
+
+export function getFactorResearchSummary(factor?: string): Promise<FactorResearchSummary> {
+  const query = factor ? `?factor=${encodeURIComponent(factor)}` : '';
+  return request(`/api/app/factor/research/summary${query}`);
+}
+
+export function runFactorHoldout(reportId: string): Promise<RunFactorAnalysisResponse> {
+  return request(`/api/app/factor/reports/${encodeURIComponent(reportId)}/holdout`, {
+    method: 'POST',
+  });
+}
+
+export function revealFactorHoldout(reportId: string): Promise<FactorReportDetail> {
+  return request(`/api/app/factor/reports/${encodeURIComponent(reportId)}/reveal`, {
+    method: 'POST',
   });
 }
 

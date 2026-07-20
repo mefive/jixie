@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
-import type { KeyboardEvent } from 'react';
+import type { KeyboardEvent, ReactNode } from 'react';
 import type { TFunction } from 'i18next';
 import { useBlocker, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -12,6 +12,7 @@ import {
   Button,
   DatePicker,
   Input,
+  InputNumber,
   List,
   Modal,
   Popover,
@@ -27,7 +28,10 @@ import type {
   FactorFreq,
   FactorKind,
   FactorMeta,
+  FactorReport,
   FactorReportSummary,
+  FactorResearchIntentV1,
+  FactorResearchMetric,
   IcDecayPoint,
   FactorWeight,
 } from '@jixie/shared';
@@ -621,6 +625,7 @@ const ResultColumn = complex.component(() => {
         <ParamsBar />
       </div>
       <ReportOutdatedWarning />
+      <ResearchDisciplineBar />
       <div className="jx-factor-result">
         <FactorResult />
       </div>
@@ -669,16 +674,9 @@ const ParamsBar = complex.component(() => {
       </Tooltip>
       <div className="jx-factor-paramActions">
         <ReportHistory />
-        <LoaderButton
-          className="jx-factor-runButton"
-          type="primary"
-          size="small"
-          loader={store.reportLoader}
-          disabled={runningSameDraft}
-          action={() => store.runAnalysis()}
-        >
+        <ResearchRunButton className="jx-factor-runButton" size="small" disabled={runningSameDraft}>
           {runningSameDraft ? t('running') : t(store.reportOutdated ? 'rerunShort' : 'run')}
-        </LoaderButton>
+        </ResearchRunButton>
         <Popover
           content={<ParamsPopover />}
           trigger="click"
@@ -753,18 +751,185 @@ const ParamsPopover = complex.component(() => {
         </div>
       </div>
       <div className="jx-factor-paramPopoverActions">
-        <LoaderButton
-          type="primary"
-          loader={store.reportLoader}
-          disabled={runningSameDraft}
-          action={() => store.runAnalysis()}
-        >
+        <ResearchRunButton disabled={runningSameDraft}>
           {runningSameDraft ? t('running') : t(store.reportOutdated ? 'rerunShort' : 'run')}
-        </LoaderButton>
+        </ResearchRunButton>
       </div>
     </div>
   );
 }, 'ParamsPopover');
+
+const ResearchDisciplineBar = complex.component(() => {
+  const store = complex.useStore();
+  const { t } = useTranslation('factor');
+  const counts = store.researchSummaryLoader.result?.factor;
+  const holdout = store.reportDetail?.holdout;
+  if (!counts && !holdout?.eligible) {
+    return null;
+  }
+  return (
+    <div className="jx-factor-researchBar">
+      {counts && (
+        <span>
+          {t('researchSummary', {
+            tests: counts.exploreTestCount,
+            reports: counts.exploreRunCount,
+            falsePositives: counts.expectedFalsePositivesAtFivePercent.toFixed(2),
+          })}
+        </span>
+      )}
+      {holdout?.eligible && (
+        <Button
+          size="small"
+          onClick={() =>
+            Modal.confirm({
+              title: t('holdoutConfirmTitle'),
+              content: t('holdoutConfirmContent', {
+                start: formatTradeDate(holdout.window!.holdoutStart),
+                end: formatTradeDate(holdout.window!.holdoutEnd),
+              }),
+              okText: t('runHoldout'),
+              cancelText: t('cancel'),
+              onOk: () => store.runHoldout(),
+            })
+          }
+        >
+          {t('runHoldout')}
+        </Button>
+      )}
+    </div>
+  );
+}, 'ResearchDisciplineBar');
+
+const ResearchRunButton = complex.component(
+  ({
+    children,
+    className,
+    size,
+    disabled,
+  }: {
+    children: ReactNode;
+    className?: string;
+    size?: 'small' | 'middle' | 'large';
+    disabled?: boolean;
+  }) => {
+    const store = complex.useStore();
+    const { t } = useTranslation('factor');
+    const previous = store.reportDetail?.researchIntent;
+    const [open, setOpen] = useState(false);
+    const [mode, setMode] = useState<'hypothesis' | 'exploratory'>(previous?.mode ?? 'hypothesis');
+    const [hypothesis, setHypothesis] = useState(previous?.hypothesis ?? '');
+    const [rationale, setRationale] = useState(previous?.rationale ?? '');
+    const [direction, setDirection] = useState<'positive' | 'negative' | 'unknown'>(
+      previous?.expectedDirection ?? 'positive',
+    );
+    const [metric, setMetric] = useState<FactorResearchMetric>(
+      previous?.primaryCriterion?.metric ?? 'rank_ic_mean',
+    );
+    const [operator, setOperator] = useState<'gt' | 'lt'>(
+      previous?.primaryCriterion?.operator ?? 'gt',
+    );
+    const [value, setValue] = useState(previous?.primaryCriterion?.value ?? 0.02);
+    const valid =
+      mode === 'exploratory' ||
+      (!!hypothesis.trim() && direction !== 'unknown' && Number.isFinite(value));
+    const submit = async () => {
+      const intent: FactorResearchIntentV1 =
+        mode === 'exploratory'
+          ? { version: 1, mode, expectedDirection: 'unknown' }
+          : {
+              version: 1,
+              mode,
+              hypothesis: hypothesis.trim(),
+              rationale: rationale.trim() || undefined,
+              expectedDirection: direction,
+              primaryCriterion: { metric, operator, value },
+            };
+      setOpen(false);
+      await store.runAnalysis(intent);
+    };
+
+    return (
+      <>
+        <Button
+          className={className}
+          type="primary"
+          size={size}
+          disabled={disabled}
+          loading={store.reportLoader.loading}
+          onClick={() => setOpen(true)}
+        >
+          {children}
+        </Button>
+        <Modal
+          className="jx-factor-researchModal"
+          open={open}
+          title={t('researchCardTitle')}
+          okText={t('confirmRun')}
+          cancelText={t('cancel')}
+          okButtonProps={{ disabled: !valid }}
+          onOk={submit}
+          onCancel={() => setOpen(false)}
+        >
+          <div className="jx-factor-researchForm">
+            <Radio.Group value={mode} onChange={(event) => setMode(event.target.value)}>
+              <Radio.Button value="hypothesis">{t('researchModeHypothesis')}</Radio.Button>
+              <Radio.Button value="exploratory">{t('researchModeExploratory')}</Radio.Button>
+            </Radio.Group>
+            {mode === 'hypothesis' ? (
+              <>
+                <Input.TextArea
+                  value={hypothesis}
+                  maxLength={500}
+                  showCount
+                  placeholder={t('hypothesisPlaceholder')}
+                  onChange={(event) => setHypothesis(event.target.value)}
+                />
+                <Input.TextArea
+                  value={rationale}
+                  maxLength={1000}
+                  placeholder={t('rationalePlaceholder')}
+                  onChange={(event) => setRationale(event.target.value)}
+                />
+                <div className="jx-factor-researchRow">
+                  <Select
+                    value={direction}
+                    onChange={setDirection}
+                    options={[
+                      { value: 'positive', label: t('directionPositive') },
+                      { value: 'negative', label: t('directionNegative') },
+                    ]}
+                  />
+                  <Select
+                    value={metric}
+                    onChange={setMetric}
+                    options={[
+                      { value: 'rank_ic_mean', label: t('criterionRankIc') },
+                      { value: 'rank_icir_annual', label: t('criterionIcir') },
+                      { value: 'net_long_short_annualized', label: t('criterionNetLs') },
+                    ]}
+                  />
+                  <Select
+                    value={operator}
+                    onChange={setOperator}
+                    options={[
+                      { value: 'gt', label: '>' },
+                      { value: 'lt', label: '<' },
+                    ]}
+                  />
+                  <InputNumber value={value} step={0.01} onChange={(next) => setValue(next ?? 0)} />
+                </div>
+              </>
+            ) : (
+              <Alert type="info" showIcon message={t('exploratoryNotice')} />
+            )}
+          </div>
+        </Modal>
+      </>
+    );
+  },
+  'ResearchRunButton',
+);
 
 // A quiet secondary action opens immutable reports in a modal list.
 const ReportHistory = complex.component(() => {
@@ -834,6 +999,11 @@ const ReportHistory = complex.component(() => {
                     >
                       {t(`status.${report.status}`)}
                     </span>
+                    <span className="jx-factor-historyPhase">
+                      {t(
+                        `phase.${report.phase}${report.phase === 'holdout' ? (report.sealed ? 'Sealed' : 'Revealed') : ''}`,
+                      )}
+                    </span>
                     {active && <FontAwesomeIcon icon={faCheck} />}
                   </span>
                   <span className="jx-factor-historyParams">{reportParamsLabel(report, t)}</span>
@@ -875,15 +1045,32 @@ const FactorResult = complex.component(() => {
               : detail.error || t('analysisFailed')
           }
         />
-        <Button type="primary" onClick={() => void store.runAnalysis()}>
-          {t('rerun')}
-        </Button>
+        <ResearchRunButton>{t('rerun')}</ResearchRunButton>
       </div>
     );
   }
   const runPrompt = () => <Placeholder icon={faPlay} text={t('runPrompt')} />;
   if (loader.initial) {
     return runPrompt();
+  }
+  if (detail?.sealed) {
+    return (
+      <div className="jx-factor-sealed">
+        <Placeholder icon={faLock} text={t('holdoutSealed')} />
+        {detail.canReveal && (
+          <Button
+            type="primary"
+            onClick={() =>
+              modalConfirmReveal(t, () => {
+                void store.revealHoldout();
+              })
+            }
+          >
+            {t('revealHoldout')}
+          </Button>
+        )}
+      </div>
+    );
   }
   return (
     <LoadingArea loader={loader} empty={runPrompt}>
@@ -912,6 +1099,18 @@ const ReportBody = complex.component(() => {
   const longShort = useMktcap ? r.longShortMktcap! : r.longShort;
   return (
     <>
+      {store.reportDetail?.phase === 'holdout' && store.reportDetail.revealedAt && (
+        <Alert
+          type={criterionPassed(r, store.reportDetail.researchIntent) ? 'success' : 'warning'}
+          showIcon
+          message={t(
+            criterionPassed(r, store.reportDetail.researchIntent)
+              ? 'holdoutCriterionPassed'
+              : 'holdoutCriterionMissed',
+            { time: dayjs(store.reportDetail.revealedAt).format('YYYY-MM-DD HH:mm') },
+          )}
+        />
+      )}
       <div className="jx-factor-resultHead">
         <span className="jx-factor-sample">
           {t('sample', {
@@ -1096,6 +1295,33 @@ function factorDisplayName(factor: FactorMeta): string {
   return factor.builtin && i18n.exists(`factor:builtin.${factor.key}`)
     ? i18n.t(`factor:builtin.${factor.key}`)
     : factor.label;
+}
+
+function formatTradeDate(value: string): string {
+  return dayjs(value, 'YYYYMMDD').format('YYYY-MM-DD');
+}
+
+function modalConfirmReveal(t: TFunction<'factor'>, onOk: () => void): void {
+  Modal.confirm({
+    title: t('revealConfirmTitle'),
+    content: t('revealConfirmContent'),
+    okText: t('revealHoldout'),
+    cancelText: t('cancel'),
+    onOk,
+  });
+}
+
+function criterionPassed(report: FactorReport, intent?: FactorResearchIntentV1): boolean {
+  const criterion = intent?.primaryCriterion;
+  if (!criterion) {
+    return false;
+  }
+  const metric = {
+    rank_ic_mean: report.icMean,
+    rank_icir_annual: report.icirAnnual,
+    net_long_short_annualized: report.longShortNet?.annReturn ?? Number.NaN,
+  }[criterion.metric];
+  return criterion.operator === 'gt' ? metric > criterion.value : metric < criterion.value;
 }
 
 const pct = (v: number) => `${(v * 100).toFixed(2)}%`;

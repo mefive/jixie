@@ -149,7 +149,53 @@ export interface FactorAnalysisSpecV1 {
 }
 
 export type FactorReportStatus = 'running' | 'done' | 'error' | 'stale';
-export type FactorReportPhase = 'legacy' | 'explore';
+export type FactorReportPhase = 'legacy' | 'explore' | 'holdout';
+
+export type FactorResearchMode = 'hypothesis' | 'exploratory';
+export type FactorExpectedDirection = 'positive' | 'negative' | 'unknown';
+export type FactorResearchMetric =
+  | 'rank_ic_mean'
+  | 'rank_icir_annual'
+  | 'net_long_short_annualized';
+
+export interface FactorResearchIntentV1 {
+  version: 1;
+  mode: FactorResearchMode;
+  hypothesis?: string;
+  rationale?: string;
+  expectedDirection: FactorExpectedDirection;
+  primaryCriterion?: {
+    metric: FactorResearchMetric;
+    operator: 'gt' | 'lt';
+    value: number;
+  };
+}
+
+export interface FactorHoldoutPolicyV1 {
+  version: 1;
+  months: 18;
+  latestDate: string;
+  exploreEnd: string;
+  holdoutStart: string;
+  holdoutEnd: string;
+  checkedAt: string;
+}
+
+export type FactorHoldoutIneligibleReason =
+  | 'not_explore'
+  | 'not_done'
+  | 'missing_hypothesis'
+  | 'outside_explore_window'
+  | 'insufficient_periods'
+  | 'already_observed'
+  | 'already_exists';
+
+export interface FactorHoldoutEligibility {
+  eligible: boolean;
+  reason?: FactorHoldoutIneligibleReason;
+  existingReportId?: string;
+  window?: FactorHoldoutPolicyV1;
+}
 
 export interface FactorReportSummary {
   id: string;
@@ -162,6 +208,9 @@ export interface FactorReportSummary {
   createdAt: string;
   computedAt?: string;
   error?: string;
+  sealed?: boolean;
+  revealedAt?: string;
+  researchIntent?: FactorResearchIntentV1;
   metrics?: {
     ic?: number;
     rankIc?: number;
@@ -174,6 +223,8 @@ export interface FactorReportDetail extends FactorReportSummary {
   factorCodeHash?: string;
   dataRevision?: string;
   parentReportId?: string;
+  holdout?: FactorHoldoutEligibility;
+  canReveal?: boolean;
 }
 
 export interface FactorReportListResponse {
@@ -185,6 +236,21 @@ export interface RunFactorAnalysisRequest {
   factor: string;
   spec: FactorAnalysisSpecV1;
   parentReportId?: string | null;
+  researchIntent: FactorResearchIntentV1;
+}
+
+export interface FactorResearchCounts {
+  exploreRunCount: number;
+  exploreTestCount: number;
+  legacyRunCount: number;
+  holdoutCount: number;
+  revealedHoldoutCount: number;
+  expectedFalsePositivesAtFivePercent: number;
+}
+
+export interface FactorResearchSummary {
+  global: FactorResearchCounts;
+  factor?: FactorResearchCounts;
 }
 
 export interface RunFactorAnalysisResponse {

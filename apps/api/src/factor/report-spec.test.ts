@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   canonicalJson,
+  factorTestKey,
   factorVariantKey,
   normalizeFactorAnalysisSpec,
   sha256,
@@ -44,5 +45,36 @@ describe('factor report spec', () => {
     expect(factorVariantKey({ ...spec }, codeHash)).toBe(variant);
     expect(factorVariantKey({ ...spec, neutral: 'size' }, codeHash)).not.toBe(variant);
     expect(factorVariantKey(spec, sha256('code-b'))).not.toBe(variant);
+  });
+
+  it('keeps test identity independent from data revisions', () => {
+    const spec = normalizeFactorAnalysisSpec({
+      version: 1,
+      freq: 'month',
+      start: '20200101',
+      end: '20241231',
+      neutral: 'none',
+    });
+    const codeHash = sha256('code-a');
+    const intent = {
+      version: 1 as const,
+      mode: 'hypothesis' as const,
+      hypothesis: 'Value predicts returns',
+      expectedDirection: 'positive' as const,
+      primaryCriterion: { metric: 'rank_ic_mean' as const, operator: 'gt' as const, value: 0.02 },
+    };
+
+    expect(factorVariantKey(spec, codeHash, 'revision-a')).not.toBe(
+      factorVariantKey(spec, codeHash, 'revision-b'),
+    );
+    expect(factorTestKey(spec, codeHash, intent)).toBe(
+      factorTestKey(spec, codeHash, { ...intent, hypothesis: 'Reworded' }),
+    );
+    expect(factorTestKey(spec, codeHash, intent)).not.toBe(
+      factorTestKey(spec, codeHash, {
+        ...intent,
+        primaryCriterion: { ...intent.primaryCriterion, value: 0.03 },
+      }),
+    );
   });
 });
