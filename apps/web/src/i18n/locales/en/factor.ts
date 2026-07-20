@@ -94,6 +94,12 @@ export const enFactor: typeof zhFactor = {
   historyTitle: 'Report history',
   historyEmpty: 'No reports yet',
   historyRankIc: 'Rank IC {{value}}',
+  phase: {
+    explore: 'Explore',
+    legacy: 'Legacy',
+    holdoutSealed: 'Holdout · sealed',
+    holdoutRevealed: 'Holdout · revealed',
+  },
   status: {
     running: 'Running',
     done: 'Completed',
@@ -102,6 +108,34 @@ export const enFactor: typeof zhFactor = {
   },
   unitWeek: 'week',
   unitMonth: 'month',
+
+  researchSummary:
+    '{{tests}} explore variants · {{reports}} completed reports · about {{falsePositives}} random false positives at 5%',
+  researchCardTitle: 'Pre-run research card',
+  researchModeHypothesis: 'Test a hypothesis',
+  researchModeExploratory: 'Pure exploration',
+  hypothesisPlaceholder: 'State the hypothesis before seeing the result',
+  rationalePlaceholder: 'Economic or behavioral rationale (optional)',
+  directionPositive: 'Expected positive',
+  directionNegative: 'Expected negative',
+  criterionRankIc: 'Mean Rank IC',
+  criterionIcir: 'Annualized ICIR',
+  criterionNetLs: 'Net long-short annualized',
+  exploratoryNotice:
+    'This run is labeled pure exploration and cannot later be presented as a prior hypothesis.',
+  confirmRun: 'Freeze card and run',
+  holdoutConfirmTitle: 'Validate on the formal holdout?',
+  holdoutConfirmContent:
+    'The frozen code and parameters will be tested from {{start}} to {{end}}. The result stays sealed after computation.',
+  runHoldout: 'Validate holdout',
+  holdoutSealed:
+    'The holdout computation is complete and still sealed. Revealing it cannot restore an unobserved state.',
+  revealHoldout: 'Reveal result',
+  revealConfirmTitle: 'Reveal the holdout result?',
+  revealConfirmContent:
+    'Revealing records an irreversible first-view time. This data will no longer be unobserved.',
+  holdoutCriterionPassed: 'Primary criterion met · first revealed {{time}}',
+  holdoutCriterionMissed: 'Primary criterion not met · first revealed {{time}}',
 
   computing:
     'Computing… the report is already in history, so you can refresh or switch factors · live log in the middle "Log"',

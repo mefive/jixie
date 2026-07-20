@@ -16,6 +16,7 @@
     "gen:invite": "tsx --env-file=.env scripts/gen-invite.ts",
     "migrate:agent-conversations": "tsx --env-file=.env scripts/migrate-agent-conversations.ts",
     "migrate:factor-report-history": "tsx --env-file=.env scripts/migrate-factor-report-history.ts",
+    "migrate:factor-research": "tsx --env-file=.env scripts/migrate-factor-research-discipline.ts",
     "factor:report": "tsx --env-file=.env scripts/factor-report.ts",
     "backtest": "tsx --env-file=.env scripts/backtest.ts",
     "code:backtest": "tsx --env-file=.env scripts/code-backtest.ts",

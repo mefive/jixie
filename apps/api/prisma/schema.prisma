@@ -329,7 +329,7 @@ model FactorReport {
   userId             String
   factor             String
   status             String    @default("done") // 'running' | 'done' | 'error' | 'stale'
-  phase              String    @default("legacy") // 'legacy' | 'explore'
+  phase              String    @default("legacy") // 'legacy' | 'explore' | 'holdout'
   freq               String // 'month' | 'week'
   neutral            String    @default("none") // 'none' | 'size' | 'size_industry'
   start              String // YYYYMMDD
@@ -342,6 +342,10 @@ model FactorReport {
   payload            String? // JSON.stringify(FactorReport wire shape)
   error              String?
   parentReportId     String?
+  testKey            String?
+  researchIntentJson String?
+  holdoutPolicyJson  String?
+  revealedAt         DateTime?
   createdAt          DateTime  @default(now())
   computedAt         DateTime?
 
@@ -349,6 +353,8 @@ model FactorReport {
 
   @@index([userId, factor, createdAt])
   @@index([userId, variantKey])
+  @@index([userId, testKey])
+  @@index([userId, parentReportId, phase])
 }
 
 /// Cached factor-correlation report (3.4). Payload = JSON FactorCorrelation wire shape. id encodes the

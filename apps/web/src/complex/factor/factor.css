@@ -426,6 +426,37 @@
   @apply flex flex-col items-center gap-3;
 }
 
+.jx-factor-researchBar {
+  @apply flex items-center justify-between gap-2 border-b border-line bg-chip text-muted;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.jx-factor-researchForm {
+  @apply flex flex-col gap-3;
+}
+
+.jx-factor-researchRow {
+  @apply grid gap-2;
+  grid-template-columns: 1fr 1.5fr 72px 110px;
+}
+
+.jx-factor-historyPhase {
+  @apply rounded-full bg-chip text-muted;
+  padding: 2px 6px;
+  font-size: 11px;
+}
+
+.jx-factor-sealed {
+  @apply flex flex-col items-center gap-3;
+}
+
+@media (max-width: 900px) {
+  .jx-factor-researchRow {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 /* result */
 .jx-factor-resultHead {
   @apply flex items-center justify-between gap-3;

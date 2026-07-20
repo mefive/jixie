@@ -10,6 +10,9 @@ import {
   type FactorReportSummary,
   type FactorFreq,
   type FactorCorrelation,
+  type FactorResearchIntentV1,
+  type FactorResearchSummary,
+  type FactorHoldoutPolicyV1,
   type Neutral,
   type LogLine,
 } from '@jixie/shared';
@@ -35,6 +38,10 @@ import {
   runFactorCorrelation,
   getFactorCorrelation,
   findCorrelationRunningJob,
+  getFactorResearchSummary,
+  getFactorResearchWindow,
+  runFactorHoldout,
+  revealFactorHoldout,
 } from '@src/api/client';
 
 // Initial state from the URL. A stable report id restores both the result and its frozen parameters.
@@ -70,6 +77,8 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   public reportsLoader = new LoaderModel<FactorReportListResponse>();
   public keyLoader = new LoaderModel<{ id: string; key: string; strategyKey: string }>();
   public analysisPoller = new PollingModel();
+  public researchSummaryLoader = new LoaderModel<FactorResearchSummary>();
+  public researchWindowLoader = new LoaderModel<FactorHoldoutPolicyV1>();
 
   public selectedKey = ''; // preset key OR custom factor id — the analysis target
   public selectedReportId = '';
@@ -158,6 +167,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     this.keyLoader.setup({ request: (key: string) => finalizeFactorKey(this.selectedKey, key) });
     this.reportLoader.setup({ request: (reportId: string) => getFactorReport(reportId) });
     this.analysisPoller.setup({ interval: POLL_INTERVAL_MS, request: () => this.pollOnce() });
+    this.researchSummaryLoader.setup({
+      request: () => getFactorResearchSummary(this.selectedKey || undefined),
+    });
+    this.researchWindowLoader.setup({ request: () => getFactorResearchWindow() });
     this.correlationLoader.setup({
       request: () => getFactorCorrelation(this.corrKeys, this.freq, this.start, this.end),
     });
@@ -170,10 +183,18 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     this.registCleaner(() => this.keyLoader.cleanup());
     this.registCleaner(() => this.reportLoader.cleanup());
     this.registCleaner(() => this.analysisPoller.cleanup());
+    this.registCleaner(() => this.researchSummaryLoader.cleanup());
+    this.registCleaner(() => this.researchWindowLoader.cleanup());
     this.registCleaner(() => this.correlationLoader.cleanup());
     this.registCleaner(() => this.correlationPoller.cleanup());
     this.registCleaner(() => this.turnStream.detach()); // drop the SSE subscription; the turn keeps running
     void this.catalogLoader.run();
+    void this.researchWindowLoader.run().then((window) => {
+      if (!this.selectedReportId && this.end === DEFAULT_END) {
+        runInAction(() => (this.end = window.exploreEnd));
+      }
+    });
+    void this.researchSummaryLoader.run();
 
     // Preselect synchronously so the first paint shows the workbench while detail/history load.
     if (params.factor) {
@@ -328,6 +349,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       /* factor gone (deleted elsewhere) — leave blank */
     }
     const reports = await this.reportsLoader.run();
+    void this.researchSummaryLoader.run();
     if (this.selectedKey !== key) {
       return;
     }
@@ -608,7 +630,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   }
 
   /** Commit custom code, create a new immutable report, then stream its one-to-one Job. */
-  public async runAnalysis() {
+  public async runAnalysis(researchIntent: FactorResearchIntentV1) {
     if (this.mode === 'custom') {
       await this.ensureFactor(); // create if authoring a never-saved factor and running directly
       if (!this.selectedKey) {
@@ -642,6 +664,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       const response = await runFactorAnalysis(
         this.selectedKey,
         spec,
+        researchIntent,
         this.selectedReportId || null,
       );
       const summary: FactorReportSummary = {
@@ -668,6 +691,30 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       await this.reportLoader.run(Promise.reject(e)).catch(() => {});
       this.finishJob();
     }
+  }
+
+  public async runHoldout() {
+    if (!this.selectedReportId) {
+      return;
+    }
+    const response = await runFactorHoldout(this.selectedReportId);
+    runInAction(() => {
+      this.selectedReportId = response.reportId;
+      this.jobRunning = true;
+    });
+    await this.reportLoader.run(response.reportId);
+    void this.reportsLoader.run();
+    this.startPolling(response.jobId, response.reportId);
+  }
+
+  public async revealHoldout() {
+    if (!this.selectedReportId) {
+      return;
+    }
+    const detail = await revealFactorHoldout(this.selectedReportId);
+    runInAction(() => (this.reportLoader.result = detail));
+    void this.reportsLoader.run();
+    void this.researchSummaryLoader.run();
   }
 
   /** Reload mutable metadata after the server-side Agent/metadata hook has completed. */
@@ -732,6 +779,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       if (job.status === 'done' || job.status === 'error' || job.status === 'stale') {
         await this.reportLoader.run(reportId);
         void this.reportsLoader.run();
+        void this.researchSummaryLoader.run();
         this.finishJob();
         return false;
       }

@@ -29,6 +29,72 @@ try {
   await page.locator('.jx-factor-historyTrigger').waitFor({ timeout: 15000 });
   await page.waitForFunction(() => new URL(location.href).searchParams.has('report'));
 
+  // A real API run proves identical in-flight inputs reuse one report/job, and the UI can restore the
+  // running report after refresh and after switching factors. Keep the range short so the E2E remains cheap.
+  const runningFixture = await page.evaluate(async () => {
+    const windowResponse = await fetch('/api/app/factor/research/window');
+    const window = await windowResponse.json();
+    const body = {
+      factor: 'ep',
+      spec: {
+        version: 1,
+        freq: 'month',
+        start: '20200101',
+        end: window.exploreEnd,
+        neutral: 'none',
+      },
+      parentReportId: null,
+      researchIntent: {
+        version: 1,
+        mode: 'exploratory',
+        expectedDirection: 'unknown',
+      },
+    };
+    const run = () =>
+      fetch('/api/app/factor/analysis/run', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      }).then((response) => response.json());
+    const [first, second] = await Promise.all([run(), run()]);
+    return { first, second };
+  });
+  if (
+    runningFixture.first.reportId !== runningFixture.second.reportId ||
+    runningFixture.first.jobId !== runningFixture.second.jobId
+  ) {
+    throw new Error(
+      `identical running variants were not reused: ${JSON.stringify(runningFixture)}`,
+    );
+  }
+  await page.goto(
+    `${BASE}/factors?factor=ep&report=${encodeURIComponent(runningFixture.first.reportId)}`,
+    { waitUntil: 'domcontentloaded' },
+  );
+  await page.locator('.jx-factor-historyTrigger').waitFor({ timeout: 15000 });
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.waitForFunction(
+    (reportId) => new URL(location.href).searchParams.get('report') === reportId,
+    runningFixture.first.reportId,
+  );
+  await page.locator('.jx-factor-agent').getByRole('tab', { name: '因子库' }).click();
+  await page.locator('.jx-factor-libItem', { hasText: '账面市值比' }).click();
+  await page.locator('.jx-factor-libItem', { hasText: '盈利收益率' }).click();
+  await page.waitForFunction(
+    (reportId) => new URL(location.href).searchParams.get('report') === reportId,
+    runningFixture.first.reportId,
+  );
+  await page.screenshot({ path: `${SHOTS}7m-factor-running-resume.png` });
+  await page.waitForFunction(
+    async (jobId) => {
+      const job = await fetch(`/api/app/factor/analysis/job/${jobId}`).then((response) =>
+        response.json(),
+      );
+      return job.status !== 'running';
+    },
+    runningFixture.first.jobId,
+    { timeout: 180000 },
+  );
   const firstReportId = new URL(page.url()).searchParams.get('report');
   const selectedDetail = await page.evaluate(async (reportId) => {
     return (await fetch(`/api/app/factor/reports/${reportId}`)).json();
@@ -141,6 +207,10 @@ try {
   });
   const editor = guardPage.locator('.jx-factor-code .monaco-editor');
   await editor.waitFor({ timeout: 15000 });
+  await guardPage.locator('.jx-factor-runButton').click();
+  await guardPage.getByText('运行前研究卡').waitFor();
+  await guardPage.screenshot({ path: `${SHOTS}7n-factor-research-card.png` });
+  await guardPage.locator('.jx-factor-researchModal .ant-modal-close').click();
   await editor.click();
   await guardPage.keyboard.press('Meta+ArrowDown');
   await guardPage.keyboard.type('// local edit');
@@ -166,8 +236,98 @@ try {
     throw new Error('canceling the route guard still left the factor workbench');
   }
   await guardPage.close();
+
+  // Real API lifecycle for the new discipline layer: hypothesis explore → sealed holdout → reveal.
+  const holdoutLifecycle = await page.evaluate(async () => {
+    const json = async (path, init) => {
+      const response = await fetch(path, init);
+      const body = await response.json();
+      if (!response.ok) {
+        throw new Error(`${path}: ${JSON.stringify(body)}`);
+      }
+      return body;
+    };
+    const waitForJob = async (jobId) => {
+      const deadline = Date.now() + 180000;
+      while (Date.now() < deadline) {
+        const job = await json(`/api/app/factor/analysis/job/${jobId}`);
+        if (job.status !== 'running') {
+          if (job.status !== 'done') {
+            throw new Error(`job ${jobId} ended as ${job.status}`);
+          }
+          return job;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 400));
+      }
+      throw new Error(`job ${jobId} timed out`);
+    };
+    const window = await json('/api/app/factor/research/window');
+    const nonce = Date.now();
+    const code = `export default defineFactor({
+  name: 'E2E holdout ${nonce}',
+  compute: (bar) => (bar.close ? bar.close + ${nonce % 97} : null),
+});\n`;
+    const factor = await json('/api/app/factors/custom', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: `E2E holdout ${nonce}`, code }),
+    });
+    const explore = await json('/api/app/factor/analysis/run', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        factor: factor.id,
+        spec: {
+          version: 1,
+          freq: 'month',
+          start: '20220101',
+          end: window.exploreEnd,
+          neutral: 'none',
+        },
+        researchIntent: {
+          version: 1,
+          mode: 'hypothesis',
+          hypothesis: 'Higher close ranks predict higher next-month returns.',
+          expectedDirection: 'positive',
+          primaryCriterion: { metric: 'rank_ic_mean', operator: 'gt', value: 0 },
+        },
+      }),
+    });
+    await waitForJob(explore.jobId);
+    const exploreDetail = await json(`/api/app/factor/reports/${explore.reportId}`);
+    if (!exploreDetail.holdout?.eligible) {
+      throw new Error(`explore was not holdout eligible: ${JSON.stringify(exploreDetail.holdout)}`);
+    }
+    const holdout = await json(`/api/app/factor/reports/${explore.reportId}/holdout`, {
+      method: 'POST',
+    });
+    await waitForJob(holdout.jobId);
+    const sealed = await json(`/api/app/factor/reports/${holdout.reportId}`);
+    const sealedJob = await json(`/api/app/factor/analysis/job/${holdout.jobId}`);
+    if (!sealed.sealed || sealed.payload || sealed.metrics || sealedJob.logs.length) {
+      throw new Error('sealed holdout leaked result data');
+    }
+    const revealed = await json(`/api/app/factor/reports/${holdout.reportId}/reveal`, {
+      method: 'POST',
+    });
+    if (!revealed.payload || !revealed.revealedAt || revealed.sealed) {
+      throw new Error('revealed holdout did not return its result');
+    }
+    const revealedAgain = await json(`/api/app/factor/reports/${holdout.reportId}/reveal`, {
+      method: 'POST',
+    });
+    if (revealedAgain.revealedAt !== revealed.revealedAt) {
+      throw new Error('reveal was not idempotent');
+    }
+    await json(`/api/app/factors/custom/${factor.id}`, { method: 'DELETE' });
+    const retained = await json(`/api/app/factor/reports/${holdout.reportId}`);
+    if (!retained.payload) {
+      throw new Error('deleting a custom factor erased its research audit trail');
+    }
+    return { exploreReportId: explore.reportId, holdoutReportId: holdout.reportId };
+  });
   console.log(
-    `[factor-history-e2e] restored=${firstReportId} switched=${secondReportId} options=${optionCount} guards=ok`,
+    `[factor-history-e2e] restored=${firstReportId} switched=${secondReportId} options=${optionCount} holdout=${holdoutLifecycle.holdoutReportId} guards=ok`,
   );
 } finally {
   await context.close();
