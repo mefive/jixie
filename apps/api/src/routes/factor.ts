@@ -6,6 +6,7 @@ import type { FactorReport as FactorReportRow } from '@prisma/client';
 import type {
   FactorAnalysisSpecV1,
   FactorCorrelation,
+  FactorHoldoutEligibility,
   FactorReport as FactorAnalysisPayload,
   FactorReportStatus,
   FactorReportSummary,
@@ -34,10 +35,18 @@ import { localeFromRequest, m } from '../i18n/index.js';
 import { refreshFactorMetadata } from '../factor/metadata.js';
 import {
   factorAnalysisSpecV1Schema,
+  factorResearchIntentV1Schema,
+  factorTestKey,
   factorVariantKey,
   normalizeFactorAnalysisSpec,
   sha256,
 } from '../factor/report-spec.js';
+import {
+  enoughHoldoutPeriods,
+  getHoldoutPolicy,
+  parseResearchIntent,
+  researchCounts,
+} from '../factor/research.js';
 
 /**
  * Factor workbench actions (singular, mounted at /api/app/factor — product line 1.5 · factor research).
@@ -211,14 +220,18 @@ factorRoute.get('/reports/:reportId', async (c) => {
     return apiError(c, 'NOT_FOUND', m(c, 'windowNotComputed'));
   }
   const summary = reportSummary(row);
+  const sealed = row.phase === 'holdout' && row.revealedAt === null;
 
   return c.json({
     ...summary,
-    payload: parseReportPayload(row.payload),
+    payload: sealed ? undefined : parseReportPayload(row.payload),
     factorCodeSnapshot: row.factorCodeSnapshot ?? undefined,
     factorCodeHash: row.factorCodeHash ?? undefined,
     dataRevision: row.dataRevision ?? undefined,
     parentReportId: row.parentReportId ?? undefined,
+    researchIntent: parseResearchIntent(row.researchIntentJson),
+    holdout: await holdoutEligibility(row),
+    canReveal: row.phase === 'holdout' && row.status === 'done' && sealed,
   });
 });
 
@@ -231,18 +244,51 @@ factorRoute.get('/analysis/job/:jobId', validateQuery(sinceQuery), async (c) => 
   if (!job) {
     return apiError(c, 'NOT_FOUND', m(c, 'factorJobNotFound'));
   }
+  if (job.factorReportId) {
+    const report = await prisma.factorReport.findFirst({
+      where: { id: job.factorReportId, userId: c.var.userId },
+      select: { phase: true, revealedAt: true },
+    });
+    if (report?.phase === 'holdout' && !report.revealedAt) {
+      return c.json({ ...job, logs: [] });
+    }
+  }
   return c.json(job);
+});
+
+const researchSummaryQuery = z.object({ factor: z.string().min(1).optional() });
+
+factorRoute.get('/research/window', async (c) => {
+  const policy = await getHoldoutPolicy();
+  if (!policy) {
+    return apiError(c, 'NOT_FOUND', m(c, 'windowNotComputed'));
+  }
+  return c.json(policy);
+});
+
+factorRoute.get('/research/summary', validateQuery(researchSummaryQuery), async (c) => {
+  const { factor } = c.req.valid('query');
+  const rows = await prisma.factorReport.findMany({
+    where: { userId: c.var.userId },
+    select: { factor: true, phase: true, status: true, testKey: true, revealedAt: true },
+  });
+
+  return c.json({
+    global: researchCounts(rows),
+    factor: factor ? researchCounts(rows.filter((row) => row.factor === factor)) : undefined,
+  });
 });
 
 const runAnalysisBody = z.object({
   factor: z.string().min(1),
   spec: factorAnalysisSpecV1Schema,
   parentReportId: z.string().min(1).nullable().optional(),
+  researchIntent: factorResearchIntentV1Schema,
 });
 
 factorRoute.post('/analysis/run', validateJson(runAnalysisBody), async (c) => {
   const userId = c.var.userId;
-  const { factor, parentReportId } = c.req.valid('json');
+  const { factor, parentReportId, researchIntent } = c.req.valid('json');
   const spec = normalizeFactorAnalysisSpec(c.req.valid('json').spec);
   const source = await resolveFactorSource(userId, factor);
   if (!source) {
@@ -263,6 +309,7 @@ factorRoute.post('/analysis/run', validateJson(runAnalysisBody), async (c) => {
   const factorCodeHash = sha256(source.code);
   const dataRevision = null;
   const variantKey = factorVariantKey(spec, factorCodeHash, dataRevision);
+  const testKey = factorTestKey(spec, factorCodeHash, researchIntent);
   const reportId = ulid();
   const jobId = ulid();
   const created = await prisma.$transaction(async (transaction) => {
@@ -298,6 +345,8 @@ factorRoute.post('/analysis/run', validateJson(runAnalysisBody), async (c) => {
         factorCodeHash,
         dataRevision,
         parentReportId: parentReportId ?? null,
+        testKey,
+        researchIntentJson: JSON.stringify(researchIntent),
         job: {
           create: {
             id: jobId,
@@ -317,34 +366,182 @@ factorRoute.post('/analysis/run', validateJson(runAnalysisBody), async (c) => {
     return c.json(response);
   }
 
-  initializeJobLogs(jobId);
-  const locale = localeFromRequest(c);
+  await launchFactorWorker({
+    reportId,
+    jobId,
+    factor,
+    factorCodeSnapshot: source.code,
+    factorLabel: source.label,
+    spec,
+    locale: localeFromRequest(c),
+    failedMessage: m(c, 'factorAnalysisFailed'),
+    exitedMessage: (code) => m(c, 'factorProcExited', { code }),
+  });
+  return c.json(response);
+});
+
+factorRoute.post('/reports/:reportId/holdout', async (c) => {
+  const userId = c.var.userId;
+  const parent = await prisma.factorReport.findFirst({
+    where: { id: c.req.param('reportId'), userId },
+  });
+  if (!parent) {
+    return apiError(c, 'NOT_FOUND', m(c, 'windowNotComputed'));
+  }
+  const eligibility = await holdoutEligibility(parent);
+  if (!eligibility.eligible) {
+    if (eligibility.existingReportId) {
+      const existing = await prisma.factorReport.findUnique({
+        where: { id: eligibility.existingReportId },
+        include: { job: { select: { id: true } } },
+      });
+      if (existing?.job) {
+        return c.json({
+          reportId: existing.id,
+          jobId: existing.job.id,
+          status: 'running',
+          reusedRunning: true,
+        } satisfies RunFactorAnalysisResponse);
+      }
+    }
+    return apiError(c, 'VALIDATION_FAILED', m(c, 'windowNotComputed'), {
+      reason: eligibility.reason,
+    });
+  }
+  const policy = eligibility.window!;
+  const parentSpec = reportSpec(parent);
+  const spec = normalizeFactorAnalysisSpec({
+    ...parentSpec,
+    start: policy.holdoutStart,
+    end: policy.holdoutEnd,
+  });
+  const factorCodeSnapshot = parent.factorCodeSnapshot!;
+  const factorCodeHash = parent.factorCodeHash!;
+  const variantKey = factorVariantKey(spec, factorCodeHash, parent.dataRevision);
+  const reportId = ulid();
+  const jobId = ulid();
+  const created = await prisma.$transaction(async (transaction) => {
+    const existing = await transaction.factorReport.findFirst({
+      where: {
+        userId,
+        parentReportId: parent.id,
+        phase: 'holdout',
+        status: { in: ['running', 'done'] },
+      },
+      include: { job: { select: { id: true } } },
+    });
+    if (existing?.job) {
+      return { reportId: existing.id, jobId: existing.job.id, reusedRunning: true };
+    }
+    await transaction.factorReport.create({
+      data: {
+        id: reportId,
+        userId,
+        factor: parent.factor,
+        status: 'running',
+        phase: 'holdout',
+        freq: spec.freq,
+        neutral: spec.neutral,
+        start: spec.start,
+        end: spec.end,
+        specJson: JSON.stringify(spec),
+        variantKey,
+        factorCodeSnapshot,
+        factorCodeHash,
+        dataRevision: parent.dataRevision,
+        parentReportId: parent.id,
+        testKey: parent.testKey,
+        researchIntentJson: parent.researchIntentJson,
+        holdoutPolicyJson: JSON.stringify(policy),
+        job: { create: { id: jobId, userId, kind: 'factor', key: variantKey, status: 'running' } },
+      },
+    });
+    return { reportId, jobId, reusedRunning: false };
+  });
+  const response: RunFactorAnalysisResponse = { ...created, status: 'running' };
+  if (!created.reusedRunning) {
+    await launchFactorWorker({
+      reportId,
+      jobId,
+      factor: parent.factor,
+      factorCodeSnapshot,
+      factorLabel: parent.factor,
+      spec,
+      locale: localeFromRequest(c),
+      failedMessage: m(c, 'factorAnalysisFailed'),
+      exitedMessage: (code) => m(c, 'factorProcExited', { code }),
+    });
+  }
+  return c.json(response);
+});
+
+factorRoute.post('/reports/:reportId/reveal', async (c) => {
+  const reportId = c.req.param('reportId');
+  const report = await prisma.factorReport.findFirst({
+    where: { id: reportId, userId: c.var.userId, phase: 'holdout', status: 'done' },
+  });
+  if (!report) {
+    return apiError(c, 'VALIDATION_FAILED', m(c, 'windowNotComputed'));
+  }
+  if (!report.revealedAt) {
+    await prisma.factorReport.updateMany({
+      where: { id: reportId, userId: c.var.userId, revealedAt: null },
+      data: { revealedAt: new Date() },
+    });
+  }
+  const revealed = await prisma.factorReport.findUniqueOrThrow({
+    where: { id: reportId },
+    include: { job: { select: { id: true } } },
+  });
+  return c.json({
+    ...reportSummary(revealed),
+    payload: parseReportPayload(revealed.payload),
+    factorCodeSnapshot: revealed.factorCodeSnapshot ?? undefined,
+    factorCodeHash: revealed.factorCodeHash ?? undefined,
+    dataRevision: revealed.dataRevision ?? undefined,
+    parentReportId: revealed.parentReportId ?? undefined,
+    researchIntent: parseResearchIntent(revealed.researchIntentJson),
+    canReveal: false,
+  });
+});
+
+async function launchFactorWorker(options: {
+  reportId: string;
+  jobId: string;
+  factor: string;
+  factorCodeSnapshot: string;
+  factorLabel: string;
+  spec: FactorAnalysisSpecV1;
+  locale: string;
+  failedMessage: string;
+  exitedMessage: (code: number) => string;
+}): Promise<void> {
+  initializeJobLogs(options.jobId);
   let worker: Worker;
   try {
     worker = new Worker(workerUrl, {
       workerData: {
-        reportId,
-        factor,
-        factorCodeSnapshot: source.code,
-        factorLabel: source.label,
-        freq: spec.freq,
-        start: spec.start,
-        end: spec.end,
-        neutral: spec.neutral,
-        locale,
+        reportId: options.reportId,
+        factor: options.factor,
+        factorCodeSnapshot: options.factorCodeSnapshot,
+        factorLabel: options.factorLabel,
+        freq: options.spec.freq,
+        start: options.spec.start,
+        end: options.spec.end,
+        neutral: options.spec.neutral,
+        locale: options.locale,
       },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
     await finishFactorReportJob(
-      jobId,
-      reportId,
+      options.jobId,
+      options.reportId,
       'error',
       undefined,
-      message,
-      m(c, 'factorAnalysisFailed'),
+      error instanceof Error ? error.message : String(error),
+      options.failedMessage,
     );
-    return c.json(response);
+    return;
   }
   let finished = false;
   const done = (status: 'done' | 'error', payload?: string, error?: string) => {
@@ -353,12 +550,12 @@ factorRoute.post('/analysis/run', validateJson(runAnalysisBody), async (c) => {
     }
     finished = true;
     void finishFactorReportJob(
-      jobId,
-      reportId,
+      options.jobId,
+      options.reportId,
       status,
       payload,
       error,
-      status === 'error' ? m(c, 'factorAnalysisFailed') : undefined,
+      status === 'error' ? options.failedMessage : undefined,
     ).catch((finishError) => {
       console.error('[jixie] failed to finalize factor report', finishError);
     });
@@ -367,7 +564,7 @@ factorRoute.post('/analysis/run', validateJson(runAnalysisBody), async (c) => {
     'message',
     (message: { type: string; entry?: LogLine; message?: string; payload?: string }) => {
       if (message.type === 'log') {
-        appendLog(jobId, message.entry!);
+        appendLog(options.jobId, message.entry!);
       } else if (message.type === 'done') {
         done('done', message.payload);
       } else if (message.type === 'error') {
@@ -378,28 +575,91 @@ factorRoute.post('/analysis/run', validateJson(runAnalysisBody), async (c) => {
   worker.on('error', (error) => done('error', undefined, error.message));
   worker.on('exit', (code) => {
     if (code !== 0) {
-      done('error', undefined, m(c, 'factorProcExited', { code }));
+      done('error', undefined, options.exitedMessage(code));
     }
   });
-  return c.json(response);
-});
+}
+
+async function holdoutEligibility(row: FactorReportRow): Promise<FactorHoldoutEligibility> {
+  if (row.phase !== 'explore') {
+    return { eligible: false, reason: 'not_explore' };
+  }
+  if (row.status !== 'done') {
+    return { eligible: false, reason: 'not_done' };
+  }
+  const intent = parseResearchIntent(row.researchIntentJson);
+  if (
+    !intent ||
+    intent.mode !== 'hypothesis' ||
+    intent.expectedDirection === 'unknown' ||
+    !intent.primaryCriterion
+  ) {
+    return { eligible: false, reason: 'missing_hypothesis' };
+  }
+  const policy = await getHoldoutPolicy();
+  if (!policy || row.end > policy.exploreEnd) {
+    return { eligible: false, reason: 'outside_explore_window', window: policy ?? undefined };
+  }
+  if (!enoughHoldoutPeriods(reportSpec(row).freq, policy.holdoutStart, policy.holdoutEnd)) {
+    return { eligible: false, reason: 'insufficient_periods', window: policy };
+  }
+  const existing = await prisma.factorReport.findFirst({
+    where: {
+      userId: row.userId,
+      parentReportId: row.id,
+      phase: 'holdout',
+      status: { in: ['running', 'done'] },
+    },
+    orderBy: { createdAt: 'desc' },
+    select: { id: true },
+  });
+  if (existing) {
+    return {
+      eligible: false,
+      reason: 'already_exists',
+      existingReportId: existing.id,
+      window: policy,
+    };
+  }
+  const observed = row.factorCodeHash
+    ? await prisma.factorReport.findFirst({
+        where: {
+          userId: row.userId,
+          id: { not: row.id },
+          factorCodeHash: row.factorCodeHash,
+          status: 'done',
+          end: { gt: policy.exploreEnd },
+        },
+        select: { id: true },
+      })
+    : null;
+  if (observed) {
+    return { eligible: false, reason: 'already_observed', window: policy };
+  }
+
+  return { eligible: true, window: policy };
+}
 
 function reportSummary(
   row: FactorReportRow & { job?: { id: string } | null },
 ): FactorReportSummary {
-  const payload = parseReportPayload(row.payload);
+  const sealed = row.phase === 'holdout' && row.revealedAt === null;
+  const payload = sealed ? undefined : parseReportPayload(row.payload);
 
   return {
     id: row.id,
     factor: row.factor,
     status: reportStatus(row.status),
-    phase: row.phase === 'explore' ? 'explore' : 'legacy',
+    phase: row.phase === 'explore' || row.phase === 'holdout' ? row.phase : 'legacy',
     spec: reportSpec(row),
     variantKey: row.variantKey ?? undefined,
     jobId: row.job?.id,
     createdAt: row.createdAt.toISOString(),
     computedAt: row.computedAt?.toISOString(),
     error: row.error ?? undefined,
+    sealed,
+    revealedAt: row.revealedAt?.toISOString(),
+    researchIntent: parseResearchIntent(row.researchIntentJson),
     metrics: payload ? { rankIc: payload.icMean } : undefined,
   };
 }

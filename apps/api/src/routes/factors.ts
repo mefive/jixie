@@ -250,7 +250,6 @@ factorsRoute.delete('/custom/:id', async (c) => {
     return apiError(c, 'VALIDATION_FAILED', m(c, 'presetFactorReadonlyDelete'));
   }
   await prisma.factor.deleteMany({ where: { id, userId } });
-  await prisma.factorReport.deleteMany({ where: { userId, factor: id } });
   return c.json({ ok: true });
 });
 
