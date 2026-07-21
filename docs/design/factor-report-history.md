@@ -1,9 +1,45 @@
-# 因子报告历史化与任务续接改造计划
+# 因子报告历史化与任务续接设计（已实施）
 
 > 状态：已实施（2026-07-14）
 >
 > 范围：因子分析报告、后台任务、前端报告历史
-> 执行入口：新 session 应先完整阅读根目录 `CLAUDE.md`、`apps/web/CLAUDE.md` 与本文，再检查当前工作树和实际代码；本文是本次改造的执行依据，`ROADMAP.md` 只保留高层目标。
+> 实现提交：`b365be8 feat: add factor report history`
+> 维护入口：后续修改应先完整阅读根目录 `CLAUDE.md`、`apps/web/CLAUDE.md` 与本文，再检查当前代码；本文记录已经落地的契约，`ROADMAP.md` 只保留高层目标。
+
+## 0. 实施结论与确认差异
+
+本次改造已经完成从“参数复合键缓存”到“不可变报告历史”的切换：新报告使用稳定 ULID，`FactorReport` 与 `Job` 一一对应，URL、详情加载和运行中续接均围绕 `reportId/jobId`，旧复合 ID 报告由幂等脚本无损回填。
+
+最终实现与原设计主体一致，以下细节以实际代码为准：
+
+- 历史入口使用 antd Modal + List，而不是 Select；默认仍打开当前因子的最新报告。
+- 从已选报告再次运行时，前端会把该报告 ID 作为 `parentReportId`，但本阶段不展示血缘关系。
+- 参数或编辑器代码与选中报告不一致时，页面保留报告并显示“已过时”警告；打开其他历史报告、切换因子或离开页面前有丢弃草稿确认。
+- `dataRevision` 字段与 hash 输入已经预留，当前运行固定为空；在数据 revision 机制落地前，不能宣称报告能够逐位复现市场数据修订前的结果。
+- `FactorExperiment` 没有落库；报告是一次研究运行，`variantKey` 是研究变体分组身份。
+
+### 代码变更后的报告规则（已确认）
+
+实施前曾讨论过“代码变化后按当前 codeHash 清空报告视图”的简化方案，最终提交没有采用该方案，而是采用更保守的不可变快照：
+
+- 每份新报告保存 `factorCodeSnapshot` 与 `factorCodeHash`；
+- 自定义因子或内置因子代码变化时不删除、不隐藏旧报告；
+- 新代码重新运行会生成新报告和新 `variantKey`；
+- 打开旧报告时仍能看到当次结果，当前代码与历史快照不一致时由前端明确提示；
+- 不新增 `FactorRevision`，代码快照直接归属于报告。
+
+该差异已接受。后续不得在没有数据迁移和产品确认的情况下，重新改成编辑代码即物理删除报告。
+
+### 当前验证结果
+
+2026-07-14 复核提交后已通过：
+
+- `@jixie/shared` build；
+- API typecheck；
+- API Vitest：23 个测试文件、156 项测试全部通过；
+- Web typecheck + production build。
+
+仓库已提供 `apps/web/e2e/factor-report-history.mjs`，覆盖稳定 reportId 恢复、历史切换、参数/代码过时提示、草稿丢弃保护和窄屏布局。真实耗时任务的刷新续接、切换因子续接和同参数重跑仍应在运行 API/Web 服务的验收环境中保留为回归场景。
 
 ## 1. 改造目的
 
@@ -152,7 +188,7 @@ model Job {
 - 旧 `FactorReport.id` 保留，不做破坏性的主键重写；新报告才使用 ULID。
 - `payload` 和 `computedAt` 改为可空，以容纳 `running/error/stale` 报告。
 - 新报告创建时显式写 `phase = "explore"`；旧数据默认 `legacy`。
-- `parentReportId` 本阶段只预留“从某报告重跑”的血缘，不要求做自关联或 UI 展示。
+- `parentReportId` 记录从当前选中报告发起新运行的血缘，本阶段不做自关联查询或 UI 展示。
 - 用户数据表不得加入 agent 的只读 SQL 白名单。
 - Migration SQL 必须由 Prisma 6 生成，禁止手改已生成 migration。
 
@@ -377,7 +413,9 @@ Content-Type: application/json
 
 逐步淘汰把缓存参数身份当成报告本身的 `FactorRun`。后端和前端都引用共享类型，spec 规范化与 `variantKey` 计算只放在后端。改完共享类型先构建 `@jixie/shared`。
 
-## 10. 实施顺序
+## 10. 实施记录
+
+以下四个阶段已在提交 `b365be8` 中完成；保留步骤作为后续维护和排障索引。
 
 ### 阶段 A：数据模型与共享契约
 
@@ -411,7 +449,7 @@ Content-Type: application/json
 
 不要长期维持新旧两条写入链路；允许短暂只读兼容，但应在同一改造中完成前端切换和旧写入删除。
 
-## 11. 测试计划
+## 11. 测试与回归契约
 
 ### 11.1 后端
 
@@ -467,15 +505,15 @@ Content-Type: application/json
 ## 13. 本阶段不做
 
 - 不新建独立 `FactorExperiment` 模型。
-- 不实现正式的样本外 holdout 工作流；只预留 `phase` 和 `parentReportId`。
+- 不实现正式的样本外 holdout 工作流；只预留 `phase` 和 `parentReportId`。后续详设见 `docs/design/factor-research-discipline.md`。
 - 不在本次扩展股票池、去极值、标准化等完整研究参数；但新增参数必须进入版本化 spec。
 - 不实现运行中任务取消、断点续算或跨进程恢复。
 - 不实现单份报告删除、标签、备注、收藏和报告对比。
 - 不改相关性分析报告；后续可以复用同一“报告历史 + Job”模式。
 
-## 14. 预计涉及文件
+## 14. 主要实现文件
 
-执行时以实际搜索结果为准，至少检查：
+后续维护时以实际搜索结果为准，至少检查：
 
 - `apps/api/prisma/schema.prisma`
 - `apps/api/src/routes/factor.ts`
@@ -492,4 +530,4 @@ Content-Type: application/json
 - `apps/web/e2e/screener.mjs`
 - `ROADMAP.md`
 
-新 session 开始实施前，应先用 `rg` 重新定位所有 `FactorReport`、`FactorRun`、`reportId`、`jobKey`、`analysis/running`、`refresh` 和报告删除调用，避免只修改上述已知文件而遗漏隐含依赖。
+后续改动前，应先用 `rg` 重新定位所有 `FactorReport`、`FactorRun`、`reportId`、`jobKey`、`analysis/running`、`refresh` 和报告删除调用，避免只修改上述已知文件而遗漏隐含依赖。
