@@ -119,6 +119,34 @@ function gapDays(a: string, b: string): number {
 }
 `;
 
+const AMIHUD_CODE = `// Preset: Amihud illiquidity — mean absolute daily return divided by daily turnover amount over 20 returns.
+// Higher values mean a larger price impact per unit traded. The 1e6 scale is rank-invariant and only
+// keeps displayed values readable. Validation uses an 80% window-coverage floor; a gap over 10 calendar
+// days or a missing/non-positive turnover amount drops the observation.
+export default defineFactor({
+  name: 'Amihud非流动性(20日)',
+  window: 21,
+  minCoverage: 0.8,
+  compute(bar, ctx) {
+    const closes = ctx.history(21);
+    const amounts = ctx.history(21, 'amount');
+    const dates = ctx.history(21, 'date');
+    if (closes.length < 21 || amounts.length < 21 || amounts.some((value) => value == null || value <= 0)) {
+      return null;
+    }
+    const day = (value: string) => Date.UTC(+value.slice(0, 4), +value.slice(4, 6) - 1, +value.slice(6)) / 86400000;
+    let sum = 0;
+    for (let index = 1; index < closes.length; index++) {
+      if (!closes[index - 1] || day(dates[index]) - day(dates[index - 1]) > 10) {
+        return null;
+      }
+      sum += Math.abs(closes[index] / closes[index - 1] - 1) / amounts[index];
+    }
+    return (sum / 20) * 1000000;
+  },
+});
+`;
+
 const MOMENTUM_12_1_CODE = `// Preset: 12-1 momentum — return over the past ~12 months excluding the most recent month
 // (Jegadeesh & Titman 1993; the skipped month avoids short-term reversal contamination).
 // Literature expects it positive; in A-shares it is known to be weak or inverted — verifying that
@@ -220,6 +248,7 @@ export const BUILTIN_FACTORS: BuiltinFactorDef[] = [
   { key: 'mom_12_1', label: '动量(12-1月)', kind: 'price', code: MOMENTUM_12_1_CODE },
   { key: 'rev', label: '反转(5日)', kind: 'price', code: REVERSAL_CODE },
   { key: 'vol', label: '波动率(20日)', kind: 'price', code: VOLATILITY_CODE },
+  { key: 'amihud', label: 'Amihud非流动性(20日)', kind: 'price', code: AMIHUD_CODE },
   { key: 'vol120', label: '波动率(120日)', kind: 'price', code: VOLATILITY_120_CODE },
   {
     key: 'abturn',

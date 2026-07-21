@@ -100,9 +100,19 @@ export class CustomFactorRuntime {
       const bars = this.engineData.bars(code, date, factor.window);
       const closes = bars.map((bar) => bar.adjClose);
       const dates = bars.map((bar) => bar.date);
+      const amounts = bars.map((bar) => bar.amount);
       ctx = {
-        history(n: number, field?: 'date') {
-          const source = field === 'date' ? dates : closes;
+        history(n: number, field?: 'date' | 'amount' | 'turnoverRateF') {
+          // Backtest OHLC bars carry turnover amount but not daily_basic.turnoverRateF. Return an
+          // unavailable history instead of accidentally substituting closes for that field.
+          const source =
+            field === 'date'
+              ? dates
+              : field === 'amount'
+                ? amounts
+                : field === 'turnoverRateF'
+                  ? []
+                  : closes;
           if (n <= 0 || source.length < n) {
             return [];
           }
