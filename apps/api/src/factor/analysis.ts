@@ -1,5 +1,14 @@
 import { DEFAULT_LOCALE, type Locale } from '@jixie/shared';
-import type { BucketStat, FactorBar, FactorReport, FactorFreq, Neutral } from '@jixie/shared';
+import type {
+  BucketStat,
+  FactorAnalysisSpec,
+  FactorBar,
+  FactorMethodologyAudit,
+  FactorOutlierSpecV1,
+  FactorReport,
+  FactorFreq,
+  Neutral,
+} from '@jixie/shared';
 import { prisma } from '../lib/prisma.js';
 import { compileFactor, type FactorBatchItem } from './compile-factor.js';
 import type { UserLogSink } from '../lib/sandbox-console.js';
@@ -11,21 +20,35 @@ import * as st from '../lib/stats.js';
 export type { BucketStat, FactorReport } from '@jixie/shared';
 
 const N_BUCKETS = 10; // deciles
-const MIN_HISTORY_DAYS = 365; // exclude recently-listed: listed at least 1 year ago
-const LIQUIDITY_DROP = 0.25; // drop the bottom 25% by turnover
-const MIN_CANDIDATES = 100; // skip the period if too few usable stocks
-const WINSOR_P = 0.01; // winsorize quantile for forward returns
 const IC_DECAY_HORIZONS = [1, 5, 10, 20, 60]; // forward horizons (trading days) for the IC-decay curve
 
 // Net-of-cost view (3.4): per-side trading cost estimates for the hypothetical long-short. A round-trip
 // (churning one name) = buy side + sell side ≈ 30bps — the first tradability gate for high-turnover
 // factors (short-reversal / money-flow) whose paper IC looks good but decays after costs.
-const COMMISSION_BPS = 0.00025; // brokerage, per side (A-share ~万2.5)
-const STAMP_BPS = 0.0005; // stamp duty, SELL side only (千0.5)
-const SLIPPAGE_BPS = 0.001; // assumed slippage/impact, per side
-const BUY_COST = COMMISSION_BPS + SLIPPAGE_BPS; // establishing/adding a long name
-const SELL_COST = COMMISSION_BPS + STAMP_BPS + SLIPPAGE_BPS; // exiting a name
-const ROUND_TRIP_COST = BUY_COST + SELL_COST; // churning a name (sell the leaver + buy the joiner) ≈ 0.0030
+const LEGACY_POLICY = {
+  minimumListingDays: 365,
+  liquidityDropFraction: 0.25,
+  minimumCandidates: 100,
+  minimumWindowCoverage: 0,
+  factorExposure: { method: 'none', tailFraction: 0.01, madThreshold: 5 } as FactorOutlierSpecV1,
+  forwardReturn: { method: 'winsor', tailFraction: 0.01, madThreshold: 5 } as FactorOutlierSpecV1,
+  commissionPerSide: 0.00025,
+  stampDutySellSide: 0.0005,
+  slippagePerSide: 0.001,
+};
+
+export interface FactorSeriesAudit {
+  declaredWindowDays?: number;
+  minimumCoverage: number;
+  coverageSum: number;
+  observations: number;
+  droppedForCoverage: number;
+}
+
+export interface FactorSeriesResult {
+  series: Series;
+  audit: FactorSeriesAudit;
+}
 
 // Rebalance days within [start,end]: the last open day of each month (or ISO week).
 export async function getRebalanceDates(
@@ -175,8 +198,15 @@ export async function computeFactorSeries(
   onUserLog?: UserLogSink,
   locale: Locale = DEFAULT_LOCALE,
   factorCodeSnapshot?: string,
-): Promise<Series> {
+  minimumWindowCoverage = LEGACY_POLICY.minimumWindowCoverage,
+): Promise<FactorSeriesResult> {
   const series: Series = new Map();
+  const audit: FactorSeriesAudit = {
+    minimumCoverage: minimumWindowCoverage,
+    coverageSum: 0,
+    observations: 0,
+    droppedForCoverage: 0,
+  };
   const push = (date: string, tsCode: string, value: number | null) => {
     if (value == null || !Number.isFinite(value)) {
       return;
@@ -195,7 +225,7 @@ export async function computeFactorSeries(
   const factorCode = factorCodeSnapshot ?? currentFactor?.code;
   if (!factorCode) {
     onLog(t(locale, 'factorMissing', { factor: factorKey }));
-    return series;
+    return { series, audit };
   }
   // The first compute error is surfaced once at the end (per-stock errors just drop the stock — a
   // factor that throws everywhere would otherwise produce a silently-empty report). Errors arrive
@@ -208,6 +238,9 @@ export async function computeFactorSeries(
     onUserLog?.(level, line);
   };
   const factor = await compileFactor(factorCode, logSink);
+  const effectiveMinimumCoverage = factor.minCoverage ?? minimumWindowCoverage;
+  audit.declaredWindowDays = factor.window;
+  audit.minimumCoverage = effectiveMinimumCoverage;
   const needsTurnoverRateFHistory = factorCode.includes("'turnoverRateF'");
 
   // Preload all financial reports once (PIT-gated by annDate); loadBars picks each stock's as-of report.
@@ -300,9 +333,17 @@ export async function computeFactorSeries(
           push(date, bars[i].code, values[i]);
         }
       }
-      return series;
+      return { series, audit };
     }
     const rebalanceSet = new Set(dates);
+    const marketDates = (
+      await prisma.tradeCal.findMany({
+        where: { exchange: 'SSE', isOpen: 1, calDate: { lte: dates.at(-1) ?? '00000000' } },
+        select: { calDate: true },
+        orderBy: { calDate: 'asc' },
+      })
+    ).map((row) => row.calDate);
+    const marketDateIndex = new Map(marketDates.map((date, index) => [date, index]));
     onLog(t(locale, 'factorLoadingSections', { count: dates.length }));
     const barsByDate = new Map<string, Map<string, FactorBar>>();
     for (const date of dates) {
@@ -385,6 +426,17 @@ export async function computeFactorSeries(
           continue;
         }
         const date = tradeDates[end];
+        const marketEnd = marketDateIndex.get(date);
+        if (marketEnd == null) {
+          continue;
+        }
+        const coverage = calculateWindowCoverage(tradeDates, end, marketDates, marketEnd, window);
+        audit.coverageSum += coverage;
+        audit.observations += 1;
+        if (coverage < effectiveMinimumCoverage) {
+          audit.droppedForCoverage += 1;
+          continue;
+        }
         const from = Math.max(0, end - window + 1);
         items.push({
           bar: barsByDate.get(date)?.get(tsCode) ?? { ...EMPTY_BAR, code: tsCode },
@@ -409,7 +461,38 @@ export async function computeFactorSeries(
     }
     factor.dispose();
   }
-  return series;
+  return { series, audit };
+}
+
+function lowerBound(values: string[], target: string): number {
+  let low = 0;
+  let high = values.length;
+  while (low < high) {
+    const middle = (low + high) >> 1;
+    if (values[middle] < target) {
+      low = middle + 1;
+    } else {
+      high = middle;
+    }
+  }
+  return low;
+}
+
+export function calculateWindowCoverage(
+  stockTradeDates: string[],
+  stockEndIndex: number,
+  marketTradeDates: string[],
+  marketEndIndex: number,
+  window: number,
+): number {
+  const marketStartDate = marketTradeDates[Math.max(0, marketEndIndex - window + 1)];
+  if (!marketStartDate) {
+    return 0;
+  }
+  const observedStart = lowerBound(stockTradeDates, marketStartDate);
+  const observed = stockEndIndex - observedStart + 1;
+  const expected = Math.min(window, marketEndIndex + 1);
+  return expected > 0 ? Math.max(0, observed) / expected : 0;
 }
 
 /** All-null bar for stocks missing daily_basic that day (only code + moneyflow known). */
@@ -535,22 +618,21 @@ function neutralizeSeries(
  */
 export async function analyzeFactor(
   factorKey: string,
-  freq: FactorFreq,
-  start: string,
-  end: string,
-  neutral: Neutral = 'none',
+  spec: FactorAnalysisSpec,
   onLog: (msg: string) => void = () => {},
   onUserLog?: UserLogSink,
   locale: Locale = DEFAULT_LOCALE,
   source?: { code: string; label: string },
 ): Promise<FactorReport> {
+  const { freq, start, end, neutral } = spec;
+  const policy = analysisPolicy(spec);
   const periodsPerYear = freq === 'week' ? 52 : 12;
   const rebalanceDates = await getRebalanceDates(freq, start, end);
   const freqLabel = t(locale, freq === 'week' ? 'freqWeek' : 'freqMonth');
   onLog(t(locale, 'factorRebalanceDates', { count: rebalanceDates.length, freq: freqLabel }));
   const snaps = await loadSnapshots(rebalanceDates, true); // rebalance snaps carry total market cap for cap-weighting
   onLog(t(locale, 'factorComputingValues', { factor: factorKey }));
-  const byDate = await computeFactorSeries(
+  const computed = await computeFactorSeries(
     factorKey,
     rebalanceDates,
     snaps,
@@ -558,7 +640,11 @@ export async function analyzeFactor(
     onUserLog,
     locale,
     source?.code,
+    policy.minimumWindowCoverage,
   );
+  const byDate = computed.series;
+
+  transformSeriesOutliers(byDate, policy.factorExposure);
 
   // Cross-sectional neutralization (3.4): replace raw values with residuals before IC / bucketing.
   if (neutral !== 'none') {
@@ -598,13 +684,20 @@ export async function analyzeFactor(
   const forwardSnaps = await loadSnapshots([...forwardDates]);
   const decaySeries: number[][] = IC_DECAY_HORIZONS.map(() => []);
 
-  // List date per stock, to exclude recently-listed (< MIN_HISTORY_DAYS). Absent (delisted) → kept.
+  // List date per stock, to enforce the configured minimum listing age. Absent (delisted) → kept.
   const firstBar = new Map(
     (await prisma.stockBasic.findMany({ select: { tsCode: true, listDate: true } })).map((s) => [
       s.tsCode,
       s.listDate ?? '00000000',
     ]),
   );
+  const stageTotals = {
+    factorValue: { before: 0, after: 0 },
+    quotes: { before: 0, after: 0 },
+    listingAge: { before: 0, after: 0 },
+    liquidity: { before: 0, after: 0 },
+  };
+  let periodsConsidered = 0;
 
   const icSeries: number[] = [];
   const bucketReturns: number[][] = Array.from({ length: N_BUCKETS }, () => []); // equal-weight
@@ -635,9 +728,12 @@ export async function analyzeFactor(
     if (!snapDate || !snapNextDate || !factorValues) {
       continue;
     }
-    const minListDate = minusDays(date, MIN_HISTORY_DAYS);
+    periodsConsidered += 1;
+    const minListDate = minusDays(date, policy.minimumListingDays);
+    stageTotals.factorValue.before += snapDate.size;
+    stageTotals.factorValue.after += factorValues.length;
 
-    // Candidates: factor value + quote this period + quote next period (forward return) + ≥1yr old.
+    // Candidates: factor value + quote this period + quote next period (forward return).
     let candidates: {
       tsCode: string;
       value: number;
@@ -645,15 +741,13 @@ export async function analyzeFactor(
       mktcap: number;
       fwd: number;
     }[] = [];
+    stageTotals.quotes.before += factorValues.length;
     for (const { tsCode, value } of factorValues) {
       const a = snapDate.get(tsCode);
       const b = snapNextDate.get(tsCode);
       if (!a || !b) {
         continue;
       }
-      if ((firstBar.get(tsCode) ?? '00000000') > minListDate) {
-        continue;
-      } // exclude recently-listed
       candidates.push({
         tsCode,
         value,
@@ -662,18 +756,30 @@ export async function analyzeFactor(
         fwd: b.adjClose / a.adjClose - 1,
       });
     }
-    if (candidates.length < MIN_CANDIDATES) {
+    stageTotals.quotes.after += candidates.length;
+    stageTotals.listingAge.before += candidates.length;
+    const listingEligible = candidates.filter(
+      (candidate) => (firstBar.get(candidate.tsCode) ?? '00000000') <= minListDate,
+    );
+    stageTotals.listingAge.after += listingEligible.length;
+    candidates = listingEligible;
+    if (spec.version === 1 && candidates.length < policy.minimumCandidates) {
       continue;
     }
 
     // Liquidity: drop the bottom fraction by turnover.
+    stageTotals.liquidity.before += candidates.length;
     candidates.sort((x, y) => x.amount - y.amount);
-    candidates = candidates.slice(Math.floor(candidates.length * LIQUIDITY_DROP));
+    candidates = candidates.slice(Math.floor(candidates.length * policy.liquidityDropFraction));
+    stageTotals.liquidity.after += candidates.length;
+    if (spec.version === 2 && candidates.length < policy.minimumCandidates) {
+      continue;
+    }
 
-    const values = candidates.map((c) => c.value);
-    const fwdW = st.winsorize(
-      candidates.map((c) => c.fwd),
-      WINSOR_P,
+    const values = candidates.map((candidate) => candidate.value);
+    const fwdW = applyOutlierPolicy(
+      candidates.map((candidate) => candidate.fwd),
+      policy.forwardReturn,
     );
 
     icSeries.push(st.spearman(values, fwdW)); // Rank IC (factor value vs forward return)
@@ -705,10 +811,13 @@ export async function analyzeFactor(
     // Net-of-cost: charge this rebalance's trading cost. First formation = establish both legs (one side
     // each ≈ one round-trip); later = churn both legs by their turnover × round-trip. Both legs trade, so
     // top and bottom turnover each contribute. Same cost applies to the equal- and cap-weight streams.
+    const buyCost = policy.commissionPerSide + policy.slippagePerSide;
+    const sellCost = policy.commissionPerSide + policy.stampDutySellSide + policy.slippagePerSide;
+    const roundTripCost = buyCost + sellCost;
     const periodCost =
       prevTop && prevBottom
-        ? (oneWayTurnover(top, prevTop) + oneWayTurnover(bottom, prevBottom)) * ROUND_TRIP_COST
-        : BUY_COST + SELL_COST; // establishment of the two legs
+        ? (oneWayTurnover(top, prevTop) + oneWayTurnover(bottom, prevBottom)) * roundTripCost
+        : buyCost + sellCost; // establishment of the two legs
     lsNetReturns.push(lsGrossEqual - periodCost);
     lsNetReturnsMktcap.push(lsGrossMktcap - periodCost);
     lsPeriodDates.push(nextDate);
@@ -739,8 +848,8 @@ export async function analyzeFactor(
           hRets.push(ret);
           hb[buckets[i]].push({ v: Math.pow(1 + ret, 1 / h) - 1, w: candidates[i].mktcap }); // daily-normalized
         }
-        if (hVals.length >= MIN_CANDIDATES) {
-          decaySeries[hi].push(st.spearman(hVals, st.winsorize(hRets, WINSOR_P)));
+        if (hVals.length >= policy.minimumCandidates) {
+          decaySeries[hi].push(st.spearman(hVals, applyOutlierPolicy(hRets, policy.forwardReturn)));
           for (let b = 0; b < N_BUCKETS; b++) {
             if (hb[b].length) {
               qhEqual[hi][b].push(equalMean(hb[b]));
@@ -806,6 +915,44 @@ export async function analyzeFactor(
           net: st.navFromReturns(lsNetReturns),
         }
       : undefined;
+  const dataCutoff =
+    (
+      await prisma.daily.findFirst({
+        where: { tradeDate: { lte: end } },
+        orderBy: { tradeDate: 'desc' },
+        select: { tradeDate: true },
+      })
+    )?.tradeDate ?? end;
+  const methodology: FactorMethodologyAudit = {
+    specVersion: spec.version,
+    dataCutoff,
+    periodsConsidered,
+    periodsAnalyzed: icSeries.length,
+    stages: [
+      { key: 'factor_value', ...stageTotals.factorValue },
+      { key: 'formation_and_forward_quote', ...stageTotals.quotes },
+      { key: 'listing_age', ...stageTotals.listingAge },
+      { key: 'liquidity', ...stageTotals.liquidity },
+    ],
+    windowCoverage: computed.audit.declaredWindowDays
+      ? {
+          declaredWindowDays: computed.audit.declaredWindowDays,
+          minimumCoverage: computed.audit.minimumCoverage,
+          meanCoverage:
+            computed.audit.observations > 0
+              ? computed.audit.coverageSum / computed.audit.observations
+              : 0,
+          observations: computed.audit.observations,
+          droppedForCoverage: computed.audit.droppedForCoverage,
+        }
+      : undefined,
+    unavailableHistoricalFilters: [
+      'risk_warning',
+      'pending_delisting',
+      'negative_equity',
+      'long_suspension',
+    ],
+  };
 
   return {
     factor: factorKey,
@@ -830,7 +977,53 @@ export async function analyzeFactor(
     longShortNet: toLongShort(lsNetReturns),
     longShortNetMktcap: toLongShort(lsNetReturnsMktcap),
     lsNav,
+    methodology,
   };
+}
+
+function analysisPolicy(spec: FactorAnalysisSpec) {
+  if (spec.version === 1) {
+    return LEGACY_POLICY;
+  }
+  return {
+    ...spec.universe,
+    ...spec.missing,
+    ...spec.outliers,
+    ...spec.costs,
+  };
+}
+
+export function applyOutlierPolicy(values: number[], policy: FactorOutlierSpecV1): number[] {
+  switch (policy.method) {
+    case 'none':
+      return values.slice();
+    case 'winsor':
+      return st.winsorize(values, policy.tailFraction);
+    case 'mad': {
+      if (values.length < 3) {
+        return values.slice();
+      }
+      const median = st.median(values);
+      const mad = st.median(values.map((value) => Math.abs(value - median)));
+      if (mad === 0) {
+        return values.slice();
+      }
+      const radius = policy.madThreshold * 1.4826 * mad;
+      return values.map((value) => Math.max(median - radius, Math.min(median + radius, value)));
+    }
+  }
+}
+
+function transformSeriesOutliers(series: Series, policy: FactorOutlierSpecV1): void {
+  for (const rows of series.values()) {
+    const transformed = applyOutlierPolicy(
+      rows.map((row) => row.value),
+      policy,
+    );
+    for (let index = 0; index < rows.length; index++) {
+      rows[index].value = transformed[index];
+    }
+  }
 }
 
 // —— weighting helpers ——

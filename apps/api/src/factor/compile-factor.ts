@@ -20,6 +20,7 @@ export interface FactorBatchItem {
 export interface CompiledFactor {
   name: string;
   window?: number;
+  minCoverage?: number;
   /** One wall-crossing: per-item factor value (null = dropped: returned null / NaN / threw). */
   computeBatch(items: FactorBatchItem[]): Promise<(number | null)[]>;
   dispose(): void;
@@ -39,7 +40,11 @@ const FACTOR_SETUP = `
       throw new Error('要用 ctx.history 需在 defineFactor 里声明 window(所需交易日数,含当天)');
     },
   };
-  __entries.meta = () => JSON.stringify({ name: factor.name, window: factor.window ?? null });
+  __entries.meta = () => JSON.stringify({
+    name: factor.name,
+    window: factor.window ?? null,
+    minCoverage: factor.minCoverage ?? null,
+  });
   __entries.computeBatch = (itemsJson) => {
     const items = JSON.parse(itemsJson);
     const values = items.map((item) => {
@@ -102,7 +107,7 @@ export async function compileFactor(
     }
   };
 
-  let meta: { name: string; window: number | null };
+  let meta: { name: string; window: number | null; minCoverage: number | null };
   try {
     meta = JSON.parse(await module.callJson('meta', [])) as typeof meta;
   } catch (e) {
@@ -113,6 +118,10 @@ export async function compileFactor(
   return {
     name: meta.name,
     window: meta.window ?? undefined,
+    minCoverage:
+      meta.minCoverage != null && meta.minCoverage >= 0.1 && meta.minCoverage <= 1
+        ? meta.minCoverage
+        : undefined,
     async computeBatch(items) {
       const json = await module.callJson('computeBatch', [JSON.stringify(items)], {
         timeoutMs: 30_000, // a whole date's cross-section / a stock's full history per crossing

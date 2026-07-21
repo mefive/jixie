@@ -123,6 +123,7 @@ export interface FactorReport {
   longShortNet?: LongShortStat; // equal-weight long-short, net of trading cost
   longShortNetMktcap?: LongShortStat; // market-cap-weight long-short, net of trading cost
   lsNav?: LongShortNav; // equal-weight long-short NAV, gross vs net (the net-of-cost line chart)
+  methodology?: FactorMethodologyAudit;
 }
 
 /** A factor-correlation report: mean cross-sectional Spearman (Rank IC-style) between each pair of the
@@ -146,6 +147,73 @@ export interface FactorAnalysisSpecV1 {
   start: string;
   end: string;
   neutral: Neutral;
+}
+
+export type FactorOutlierMethod = 'none' | 'winsor' | 'mad';
+
+export interface FactorOutlierSpecV1 {
+  method: FactorOutlierMethod;
+  tailFraction: number;
+  madThreshold: number;
+}
+
+export interface FactorAnalysisSpecV2 {
+  version: 2;
+  freq: FactorFreq;
+  start: string;
+  end: string;
+  neutral: Neutral;
+  universe: {
+    minimumListingDays: number;
+    liquidityDropFraction: number;
+    minimumCandidates: number;
+  };
+  missing: {
+    minimumWindowCoverage: number;
+  };
+  outliers: {
+    factorExposure: FactorOutlierSpecV1;
+    forwardReturn: FactorOutlierSpecV1;
+  };
+  costs: {
+    commissionPerSide: number;
+    stampDutySellSide: number;
+    slippagePerSide: number;
+  };
+}
+
+export type FactorAnalysisSpec = FactorAnalysisSpecV1 | FactorAnalysisSpecV2;
+
+export type FactorSampleStageKey =
+  | 'factor_value'
+  | 'formation_and_forward_quote'
+  | 'listing_age'
+  | 'liquidity';
+
+export interface FactorSampleStageAudit {
+  key: FactorSampleStageKey;
+  before: number;
+  after: number;
+}
+
+export interface FactorWindowCoverageAudit {
+  declaredWindowDays: number;
+  minimumCoverage: number;
+  meanCoverage: number;
+  observations: number;
+  droppedForCoverage: number;
+}
+
+export interface FactorMethodologyAudit {
+  specVersion: 1 | 2;
+  dataCutoff: string;
+  periodsConsidered: number;
+  periodsAnalyzed: number;
+  stages: FactorSampleStageAudit[];
+  windowCoverage?: FactorWindowCoverageAudit;
+  unavailableHistoricalFilters: Array<
+    'risk_warning' | 'pending_delisting' | 'negative_equity' | 'long_suspension'
+  >;
 }
 
 export type FactorReportStatus = 'running' | 'done' | 'error' | 'stale';
@@ -202,7 +270,7 @@ export interface FactorReportSummary {
   factor: string;
   status: FactorReportStatus;
   phase: FactorReportPhase;
-  spec: FactorAnalysisSpecV1;
+  spec: FactorAnalysisSpec;
   variantKey?: string;
   jobId?: string;
   createdAt: string;
@@ -234,7 +302,7 @@ export interface FactorReportListResponse {
 
 export interface RunFactorAnalysisRequest {
   factor: string;
-  spec: FactorAnalysisSpecV1;
+  spec: FactorAnalysisSpec;
   parentReportId?: string | null;
   researchIntent: FactorResearchIntentV1;
 }

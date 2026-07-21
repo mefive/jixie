@@ -106,6 +106,8 @@ interface CustomFactor {
   name: string;
   /** ${doc('window')} */
   window?: number;
+  /** Minimum fraction of market trading days required inside the declared window (0.1–1). */
+  minCoverage?: number;
   /** ${doc('compute')} */
   compute: (bar: FactorBar, ctx: FactorCtx) => number | null;
 }

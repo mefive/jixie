@@ -14,13 +14,13 @@ async function main(): Promise<void> {
   const reports = [];
   for (const f of BUILTIN_FACTORS) {
     reports.push(
-      await analyzeFactor(
-        f.key,
-        freq === 'week' ? 'week' : 'month',
+      await analyzeFactor(f.key, {
+        version: 1,
+        freq: freq === 'week' ? 'week' : 'month',
         start,
         end,
-        neutral as Neutral,
-      ),
+        neutral: neutral as Neutral,
+      }),
     );
   }
 
