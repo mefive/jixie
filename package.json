@@ -35,7 +35,7 @@
     "typescript-eslint": "^8.10.0"
   },
   "simple-git-hooks": {
-    "pre-commit": "pnpm lint-staged"
+    "pre-commit": "./scripts/run-pnpm.sh lint-staged"
   },
   "lint-staged": {
     "*.{ts,tsx,mjs}": [
