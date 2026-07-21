@@ -26,7 +26,7 @@ export function buildFactorCodegenPrompt(): string {
 - roe / grossprofitMargin / debtToAssets: return on equity % / gross profit margin % / debt-to-assets ratio %, **point-in-time** (the latest report whose announcement date is on/before the current day; null until a report is published)
 
 # History window (momentum / reversal / volatility / turnover factors)
-When you need history, declare \`window: N\` at the top level of defineFactor (the number of trading days required, **including the current day**), then in compute use:
+When you need history, declare \`window: N\` at the top level of defineFactor (the number of trading days required, **including the current day**). You may also declare \`minCoverage\` between 0.1 and 1; it defaults to the analysis spec's 2/3 threshold. The engine drops windows whose observed stock trading days do not meet that coverage before compute runs. Then in compute use:
 - \`ctx.history(n)\`: an after-adjustment (hfq) close window, \`[oldest … current day]\`, n values total; when history is shorter than n it returns **[]** (check the length first).
 - \`ctx.history(n, 'date')\`: the trading days (YYYYMMDD) of the window, aligned position-by-position with the closes — use it to check for suspension gaps (an over-large calendar gap between adjacent days signals a long suspension; consider dropping it).
 - \`ctx.history(n, 'turnoverRateF')\`: aligned free-float turnover rates (%) as \`(number | null)[]\`; null means the source omitted that day.

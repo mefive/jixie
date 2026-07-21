@@ -4,7 +4,7 @@ import { ulid } from 'ulid';
 import { z } from 'zod';
 import type { FactorReport as FactorReportRow } from '@prisma/client';
 import type {
-  FactorAnalysisSpecV1,
+  FactorAnalysisSpec,
   FactorCorrelation,
   FactorHoldoutEligibility,
   FactorReport as FactorAnalysisPayload,
@@ -34,7 +34,7 @@ import {
 import { localeFromRequest, m } from '../i18n/index.js';
 import { refreshFactorMetadata } from '../factor/metadata.js';
 import {
-  factorAnalysisSpecV1Schema,
+  factorAnalysisSpecSchema,
   factorResearchIntentV1Schema,
   factorTestKey,
   factorVariantKey,
@@ -281,7 +281,7 @@ factorRoute.get('/research/summary', validateQuery(researchSummaryQuery), async 
 
 const runAnalysisBody = z.object({
   factor: z.string().min(1),
-  spec: factorAnalysisSpecV1Schema,
+  spec: factorAnalysisSpecSchema,
   parentReportId: z.string().min(1).nullable().optional(),
   researchIntent: factorResearchIntentV1Schema,
 });
@@ -511,7 +511,7 @@ async function launchFactorWorker(options: {
   factor: string;
   factorCodeSnapshot: string;
   factorLabel: string;
-  spec: FactorAnalysisSpecV1;
+  spec: FactorAnalysisSpec;
   locale: string;
   failedMessage: string;
   exitedMessage: (code: number) => string;
@@ -525,10 +525,7 @@ async function launchFactorWorker(options: {
         factor: options.factor,
         factorCodeSnapshot: options.factorCodeSnapshot,
         factorLabel: options.factorLabel,
-        freq: options.spec.freq,
-        start: options.spec.start,
-        end: options.spec.end,
-        neutral: options.spec.neutral,
+        spec: options.spec,
         locale: options.locale,
       },
     });
@@ -664,7 +661,7 @@ function reportSummary(
   };
 }
 
-function reportSpec(row: FactorReportRow): FactorAnalysisSpecV1 {
+function reportSpec(row: FactorReportRow): FactorAnalysisSpec {
   if (row.specJson) {
     try {
       return normalizeFactorAnalysisSpec(JSON.parse(row.specJson));

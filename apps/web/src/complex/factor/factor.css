@@ -341,7 +341,8 @@
 
 .jx-factor-paramPopover {
   @apply flex flex-col overflow-hidden;
-  width: 288px;
+  width: 380px;
+  max-height: min(720px, 82vh);
 }
 
 .jx-factor-paramPopoverTitle {
@@ -350,6 +351,7 @@
 }
 
 .jx-factor-paramPopoverBody {
+  overflow-y: auto;
   padding: 0 16px;
 }
 
@@ -360,6 +362,27 @@
 
 .jx-factor-paramPopoverBody .jx-factor-paramField:last-child {
   border-bottom: 0;
+}
+
+.jx-factor-paramSectionTitle {
+  @apply font-medium text-ink;
+  padding-top: 12px;
+  font-size: 12px;
+}
+
+.jx-factor-paramGrid {
+  @apply grid grid-cols-2 gap-2 border-b border-line;
+  padding: 8px 0 12px;
+}
+
+.jx-factor-paramGrid label {
+  @apply flex min-w-0 flex-col gap-1 text-muted;
+  font-size: 11px;
+}
+
+.jx-factor-paramGrid .ant-input-number,
+.jx-factor-paramGrid .ant-select {
+  width: 100%;
 }
 
 .jx-factor-paramPopoverActions {
@@ -543,6 +566,46 @@
 .jx-factor-metrics {
   @apply grid gap-3;
   grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+}
+
+.jx-factor-methodology {
+  @apply flex flex-col gap-3 rounded-lg border border-line bg-chip;
+  padding: 12px;
+}
+
+.jx-factor-methodologyHead {
+  @apply flex items-center justify-between font-semibold text-ink;
+  font-size: 13px;
+}
+
+.jx-factor-methodologyHead code {
+  @apply rounded bg-bg px-2 py-0.5 text-muted;
+  font-size: 11px;
+}
+
+.jx-factor-methodologyMeta,
+.jx-factor-methodologySpec {
+  @apply flex flex-wrap gap-x-4 gap-y-1 text-muted;
+  font-size: 11px;
+}
+
+.jx-factor-methodologyStages {
+  @apply grid gap-2;
+  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+}
+
+.jx-factor-methodologyStages span {
+  @apply rounded border border-line bg-bg px-2 py-1 text-muted;
+  font-size: 11px;
+}
+
+.jx-factor-methodologyStages b {
+  @apply text-ink;
+}
+
+.jx-factor-methodologyCoverage {
+  @apply text-muted;
+  font-size: 11px;
 }
 
 .jx-factor-metric {
