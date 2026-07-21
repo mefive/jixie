@@ -374,7 +374,7 @@ export async function computeFactorSeries(
       const [priceRows, adjRows, basicRows] = await Promise.all([
         prisma.daily.findMany({
           where: { tsCode },
-          select: { tradeDate: true, close: true },
+          select: { tradeDate: true, close: true, amount: true },
           orderBy: { tradeDate: 'asc' },
         }),
         prisma.adjFactor.findMany({
@@ -398,6 +398,7 @@ export async function computeFactorSeries(
       // Trade dates kept below, 1:1 aligned with adjClose by index (same filtering applied to both).
       const tradeDates: string[] = [];
       const adjClose: number[] = [];
+      const amounts: (number | null)[] = [];
       let lastAdj: number | null = null; // carry forward last adj when missing, to avoid fake jumps
       for (const r of priceRows) {
         if (r.close == null) {
@@ -415,6 +416,7 @@ export async function computeFactorSeries(
         }
         tradeDates.push(r.tradeDate);
         adjClose.push(r.close * lastAdj);
+        amounts.push(r.amount);
       }
       // One wall-crossing per stock: every rebalance index becomes a batch item carrying the
       // bar + the hfq close/date window ENDING at that day (ctx.history slices tails in-wall).
@@ -442,6 +444,7 @@ export async function computeFactorSeries(
           bar: barsByDate.get(date)?.get(tsCode) ?? { ...EMPTY_BAR, code: tsCode },
           closes: adjClose.slice(from, end + 1),
           dates: tradeDates.slice(from, end + 1),
+          amounts: amounts.slice(from, end + 1),
           turnoverRatesF: tradeDates
             .slice(from, end + 1)
             .map((tradeDate) => turnoverRateFMap.get(tradeDate) ?? null),

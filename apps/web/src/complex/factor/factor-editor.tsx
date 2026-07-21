@@ -56,6 +56,10 @@ const FACTOR_DOCS: Record<string, Record<Locale, string>> = {
     zh: '窗口对应的交易日(YYYYMMDD),与收盘价逐位对齐 — 可用于停牌间隙检查。',
     en: 'Trade dates (YYYYMMDD) for the window, aligned position-by-position with the closes — usable for suspension-gap checks.',
   },
+  historyAmount: {
+    zh: '成交额历史(千元),与收盘价逐位对齐;源数据缺失时为 null。',
+    en: 'Daily turnover amount history (thousand yuan), aligned with closes; null when unavailable.',
+  },
   name: { zh: '因子名(展示用)', en: 'Factor name (for display)' },
   window: {
     zh: '所需历史长度(交易日数,含当天)。声明后 compute 里才能用 ctx.history。',
@@ -98,6 +102,8 @@ interface FactorCtx {
   history(n: number): number[];
   /** ${doc('historyDate')} */
   history(n: number, field: 'date'): string[];
+  /** ${doc('historyAmount')} */
+  history(n: number, field: 'amount'): (number | null)[];
   /** Free-float turnover-rate (%) history; null means unavailable that day. */
   history(n: number, field: 'turnoverRateF'): (number | null)[];
 }

@@ -115,6 +115,19 @@ function windowItemWithTurnover(
   };
 }
 
+function windowItemWithAmounts(
+  window: number,
+  adjClose: number[],
+  tradeDates: string[],
+  amounts: (number | null)[],
+  end: number,
+): FactorBatchItem {
+  return {
+    ...windowItem(window, adjClose, tradeDates, end),
+    amounts: amounts.slice(Math.max(0, end - window + 1), end + 1),
+  };
+}
+
 /** A deterministic 120-day series: pseudo-random walk, one long suspension gap, one zero price. */
 function syntheticSeries(): { px: number[]; dates: string[] } {
   const px: number[] = [];
@@ -185,6 +198,35 @@ describe('preset factor code compiles and has the right shape', () => {
     `);
     try {
       expect(factor.minCoverage).toBe(0.8);
+    } finally {
+      factor.dispose();
+    }
+  });
+
+  it('exposes aligned daily turnover amount history to windowed factors', async () => {
+    const factor = await compileFactor(`
+      export default defineFactor({
+        name: 'Amount fixture',
+        window: 3,
+        compute: (_bar, ctx) => {
+          const amounts = ctx.history(3, 'amount');
+          return amounts.some((value) => value == null)
+            ? null
+            : amounts.reduce((sum, value) => sum + value, 0);
+        },
+      });
+    `);
+    try {
+      await expect(
+        factor.computeBatch([
+          {
+            bar: NULL_BAR,
+            closes: [10, 11, 12],
+            dates: ['20240102', '20240103', '20240104'],
+            amounts: [100, 200, 300],
+          },
+        ]),
+      ).resolves.toEqual([600]);
     } finally {
       factor.dispose();
     }
@@ -282,6 +324,8 @@ describe('3.5 preset-menu additions', () => {
     expect((await compiled('mom_12_1')).window).toBe(245);
     expect((await compiled('vol120')).window).toBe(121);
     expect((await compiled('abturn')).window).toBe(252);
+    expect((await compiled('amihud')).window).toBe(21);
+    expect((await compiled('amihud')).minCoverage).toBe(0.8);
     expect((await compiled('roe')).window).toBeUndefined();
     expect((await compiled('gross_margin')).window).toBeUndefined();
   });
@@ -327,6 +371,33 @@ describe('3.5 preset-menu additions', () => {
     const longMean = window.reduce((sum, value) => sum + value, 0) / 252;
     const shortMean = window.slice(-21).reduce((sum, value) => sum + value, 0) / 21;
     expect(actual).toBeCloseTo(shortMean / longMean, 12);
+    expect(short).toBeNull();
+  });
+
+  it('amihud = mean absolute return / turnover amount, with strict amount and gap checks', async () => {
+    const closes = Array.from({ length: 21 }, (_value, index) => 10 * 1.01 ** index);
+    const dates = Array.from(
+      { length: 21 },
+      (_value, index) => `202401${String(index + 2).padStart(2, '0')}`,
+    );
+    const amounts = Array.from({ length: 21 }, (_value, index) => 1_000 + index * 10);
+    const factor = await compiled('amihud');
+    const invalidAmounts: (number | null)[] = [...amounts];
+    invalidAmounts[10] = null;
+    const gapDates = [...dates];
+    gapDates[10] = '20240220';
+    const [actual, missingAmount, gap, short] = await factor.computeBatch([
+      windowItemWithAmounts(21, closes, dates, amounts, 20),
+      windowItemWithAmounts(21, closes, dates, invalidAmounts, 20),
+      windowItemWithAmounts(21, closes, gapDates, amounts, 20),
+      windowItemWithAmounts(21, closes, dates, amounts, 10),
+    ]);
+    factor.dispose();
+    const expected =
+      (amounts.slice(1).reduce((sum, amount) => sum + 0.01 / amount, 0) / 20) * 1_000_000;
+    expect(actual).toBeCloseTo(expected, 12);
+    expect(missingAmount).toBeNull();
+    expect(gap).toBeNull();
     expect(short).toBeNull();
   });
 });
