@@ -173,6 +173,22 @@ describe('preset factor code compiles and has the right shape', () => {
     expect((await compiled('ep')).window).toBeUndefined();
     expect((await compiled('mf_net_main')).window).toBeUndefined();
   });
+
+  it('accepts an explicit window coverage declaration', async () => {
+    const factor = await compileFactor(`
+      export default defineFactor({
+        name: 'Coverage fixture',
+        window: 20,
+        minCoverage: 0.8,
+        compute: (_bar, ctx) => ctx.history.close.at(-1) ?? null,
+      });
+    `);
+    try {
+      expect(factor.minCoverage).toBe(0.8);
+    } finally {
+      factor.dispose();
+    }
+  });
 });
 
 describe('price presets match the legacy hardcoded formulas bit-for-bit', () => {

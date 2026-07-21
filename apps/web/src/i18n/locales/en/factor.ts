@@ -62,6 +62,21 @@ export const enFactor: typeof zhFactor = {
   reportOutdatedParams:
     'Parameters changed. This report still uses the previous parameters; run again.',
   reportOutdatedBoth: 'Code and parameters changed. This report is out of date; run again.',
+  methodologyUniverse: 'Universe and missing data',
+  minimumListingDays: 'Minimum listing days',
+  liquidityDropPercent: 'Drop least liquid',
+  minimumCandidates: 'Minimum sample size',
+  minimumWindowCoverage: 'Minimum window coverage',
+  methodologyOutliers: 'Outlier handling',
+  factorExposureOutlier: 'Factor exposure',
+  forwardReturnOutlier: 'Forward return',
+  outlierNone: 'None',
+  outlierWinsor: 'Winsorize 1%',
+  outlierMad: 'MAD clipping',
+  methodologyCosts: 'Per-side trading costs',
+  commissionPerSide: 'Commission',
+  stampDutySellSide: 'Sell stamp duty',
+  slippagePerSide: 'Slippage',
 
   discardConfirmTitle: 'Discard changes that have not been run?',
   discardConfirmContent:
@@ -141,6 +156,35 @@ export const enFactor: typeof zhFactor = {
     'Computing… the report is already in history, so you can refresh or switch factors · live log in the middle "Log"',
   runPrompt: 'Set the frequency / range, then click "Run analysis"',
   sample: 'Sample {{periods}} {{per}} · {{startYear}}–{{endYear}}',
+  methodologyTitle: 'Methodology and reproducibility',
+  dataCutoff: 'Data cutoff {{date}}',
+  reproducibilityHash: 'Code SHA-256 {{hash}}',
+  periodCoverage: '{{analyzed}} / {{considered}} valid periods',
+  notAvailable: 'unavailable',
+  stageFactorValue: 'Factor values',
+  stageQuotes: 'Formation/forward quotes',
+  stageListingAge: 'Listing age',
+  stageLiquidity: 'Liquidity',
+  universeSpec:
+    'Listed ≥{{days}} days · drop least-liquid {{liquidity}}% · ≥{{candidates}} names per period',
+  outlierSpec: 'Factor exposure: {{exposure}} · forward return: {{returns}}',
+  costSpec:
+    'Commission {{commission}}bp/side · stamp {{stamp}}bp/sell · slippage {{slippage}}bp/side',
+  windowCoverageAudit:
+    '{{window}}-day window · minimum {{minimum}} · mean {{mean}} · {{dropped}} observations dropped for coverage',
+  historicalFiltersUnavailable:
+    'Reliable historical data is unavailable for: {{filters}}. The report marks this explicitly and does not backfill history with current status.',
+  unavailableFilter: {
+    risk_warning: 'ST/risk warning',
+    pending_delisting: 'pending delisting',
+    negative_equity: 'negative equity',
+    long_suspension: 'long suspension',
+  },
+  outlier: {
+    none: 'none',
+    winsor: 'winsorize 1%',
+    mad: 'MAD clipping',
+  },
   weightEqual: 'Equal weight',
   weightMktcap: 'Market-cap weight',
 

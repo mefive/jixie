@@ -8,6 +8,8 @@ import {
   type FactorReportDetail,
   type FactorReportListResponse,
   type FactorReportSummary,
+  type FactorAnalysisSpec,
+  type FactorAnalysisSpecV2,
   type FactorFreq,
   type FactorCorrelation,
   type FactorResearchIntentV1,
@@ -53,6 +55,33 @@ type FactorSetupParams = {
 const DEFAULT_START = '20150101';
 const DEFAULT_END = '20261231';
 const POLL_INTERVAL_MS = 800;
+
+type FactorMethodologyParams = Pick<
+  FactorAnalysisSpecV2,
+  'universe' | 'missing' | 'outliers' | 'costs'
+>;
+
+const DEFAULT_METHODOLOGY: FactorMethodologyParams = {
+  universe: {
+    minimumListingDays: 365,
+    liquidityDropFraction: 0.25,
+    minimumCandidates: 100,
+  },
+  missing: { minimumWindowCoverage: 2 / 3 },
+  outliers: {
+    factorExposure: { method: 'winsor', tailFraction: 0.01, madThreshold: 5 },
+    forwardReturn: { method: 'winsor', tailFraction: 0.01, madThreshold: 5 },
+  },
+  costs: {
+    commissionPerSide: 0.00025,
+    stampDutySellSide: 0.0005,
+    slippagePerSide: 0.001,
+  },
+};
+
+function defaultMethodology(): FactorMethodologyParams {
+  return structuredClone(DEFAULT_METHODOLOGY);
+}
 
 // Starter skeleton for a brand-new custom factor (what the middle editor shows before the Agent writes).
 export const DEFAULT_FACTOR_CODE = `// 用左侧 Agent 描述你想要的因子，AI 写成代码；也可以直接改。
@@ -101,6 +130,8 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   public neutral: Neutral = 'none'; // cross-sectional neutralization in the draft analysis spec
   public start = DEFAULT_START;
   public end = DEFAULT_END;
+  public specVersion: 1 | 2 = 2;
+  public methodology = defaultMethodology();
   public logs: LogLine[] = []; // streamed progress of the current run (job), tagged system/user
   public jobRunning = false; // a streamed analysis is in flight
 
@@ -136,6 +167,8 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       neutral: observable.ref,
       start: observable.ref,
       end: observable.ref,
+      specVersion: observable.ref,
+      methodology: observable.ref,
       logs: observable.ref,
       jobRunning: observable.ref,
       corrKeys: observable.ref,
@@ -146,6 +179,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       reportDetail: computed,
       correlation: computed,
       paramsModified: computed,
+      analysisSpec: computed,
       codeModifiedSinceReport: computed,
       reportOutdated: computed,
       hasDraftChanges: computed,
@@ -155,6 +189,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       setNeutral: action,
       setStart: action,
       setEnd: action,
+      setUniverseParameter: action,
+      setMinimumWindowCoverage: action,
+      setOutlierMethod: action,
+      setCostParameter: action,
       setCorrKeys: action,
       setKeyDraft: action,
     });
@@ -225,13 +263,19 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   /** Draft parameters are independent from the selected immutable report. */
   public get paramsModified(): boolean {
     const spec = this.reportDetail?.spec;
-    return (
-      !!spec &&
-      (spec.freq !== this.freq ||
-        spec.neutral !== this.neutral ||
-        spec.start !== this.start ||
-        spec.end !== this.end)
-    );
+    return !!spec && JSON.stringify(spec) !== JSON.stringify(this.analysisSpec);
+  }
+
+  public get analysisSpec(): FactorAnalysisSpec {
+    const common = {
+      freq: this.freq,
+      start: this.start,
+      end: this.end,
+      neutral: this.neutral,
+    };
+    return this.specVersion === 1
+      ? { version: 1, ...common }
+      : { version: 2, ...common, ...this.methodology };
   }
 
   /** The editor source no longer matches the immutable source that produced the selected report. */
@@ -261,16 +305,63 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   }
 
   public setFreq(v: FactorFreq) {
-    runInAction(() => (this.freq = v));
+    runInAction(() => {
+      this.freq = v;
+      this.specVersion = 2;
+    });
   }
   public setNeutral(v: Neutral) {
-    runInAction(() => (this.neutral = v));
+    runInAction(() => {
+      this.neutral = v;
+      this.specVersion = 2;
+    });
   }
   public setStart(v: string) {
-    runInAction(() => (this.start = v));
+    runInAction(() => {
+      this.start = v;
+      this.specVersion = 2;
+    });
   }
   public setEnd(v: string) {
-    runInAction(() => (this.end = v));
+    runInAction(() => {
+      this.end = v;
+      this.specVersion = 2;
+    });
+  }
+
+  public setUniverseParameter(key: keyof FactorMethodologyParams['universe'], value: number) {
+    this.specVersion = 2;
+    this.methodology = {
+      ...this.methodology,
+      universe: { ...this.methodology.universe, [key]: value },
+    };
+  }
+
+  public setMinimumWindowCoverage(value: number) {
+    this.specVersion = 2;
+    this.methodology = { ...this.methodology, missing: { minimumWindowCoverage: value } };
+  }
+
+  public setOutlierMethod(
+    key: keyof FactorMethodologyParams['outliers'],
+    method: FactorMethodologyParams['outliers']['factorExposure']['method'],
+  ) {
+    this.specVersion = 2;
+    this.methodology = {
+      ...this.methodology,
+      outliers: {
+        ...this.methodology.outliers,
+        [key]: { ...this.methodology.outliers[key], method },
+      },
+    };
+  }
+
+  public setCostParameter(key: keyof FactorMethodologyParams['costs'], value: number) {
+    this.specVersion = 2;
+    this.methodology = {
+      ...this.methodology,
+      costs: { ...this.methodology.costs, [key]: value },
+    };
   }
 
   public setCode(v: string) {
@@ -622,6 +713,16 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       this.neutral = detail.spec.neutral;
       this.start = detail.spec.start;
       this.end = detail.spec.end;
+      this.specVersion = detail.spec.version;
+      this.methodology =
+        detail.spec.version === 2
+          ? {
+              universe: structuredClone(detail.spec.universe),
+              missing: structuredClone(detail.spec.missing),
+              outliers: structuredClone(detail.spec.outliers),
+              costs: structuredClone(detail.spec.costs),
+            }
+          : defaultMethodology();
     });
     if (detail.status === 'running' && detail.jobId) {
       this.startPolling(detail.jobId, detail.id);
@@ -654,13 +755,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       this.jobRunning = true;
     });
     try {
-      const spec = {
-        version: 1 as const,
-        freq: this.freq,
-        start: this.start,
-        end: this.end,
-        neutral: this.neutral,
-      };
+      const spec = this.analysisSpec;
       const response = await runFactorAnalysis(
         this.selectedKey,
         spec,

@@ -37,11 +37,26 @@ try {
     const body = {
       factor: 'ep',
       spec: {
-        version: 1,
+        version: 2,
         freq: 'month',
         start: '20200101',
         end: window.exploreEnd,
         neutral: 'none',
+        universe: {
+          minimumListingDays: 365,
+          liquidityDropFraction: 0.25,
+          minimumCandidates: 100,
+        },
+        missing: { minimumWindowCoverage: 2 / 3 },
+        outliers: {
+          factorExposure: { method: 'winsor', tailFraction: 0.01, madThreshold: 5 },
+          forwardReturn: { method: 'winsor', tailFraction: 0.01, madThreshold: 5 },
+        },
+        costs: {
+          commissionPerSide: 0.00025,
+          stampDutySellSide: 0.0005,
+          slippagePerSide: 0.001,
+        },
       },
       parentReportId: null,
       researchIntent: {
@@ -97,11 +112,41 @@ try {
   );
   const firstReportId = new URL(page.url()).searchParams.get('report');
   const selectedDetail = await page.evaluate(async (reportId) => {
-    return (await fetch(`/api/app/factor/reports/${reportId}`)).json();
+    const deadline = Date.now() + 180000;
+    while (Date.now() < deadline) {
+      const detail = await fetch(`/api/app/factor/reports/${reportId}`, {
+        cache: 'no-store',
+      }).then((response) => response.json());
+      if (detail.status === 'done' && detail.payload?.methodology) {
+        return detail;
+      }
+      if (detail.status === 'error' || detail.status === 'stale') {
+        return detail;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 400));
+    }
+    throw new Error(`report ${reportId} timed out`);
   }, firstReportId);
   if (selectedDetail.factor !== 'ep' || selectedDetail.id !== firstReportId) {
     throw new Error('default report did not restore by stable id');
   }
+  if (
+    selectedDetail.spec.version !== 2 ||
+    !selectedDetail.payload?.methodology ||
+    selectedDetail.payload.methodology.stages.length !== 4
+  ) {
+    throw new Error(
+      `V2 report did not retain its methodology audit: ${JSON.stringify({
+        status: selectedDetail.status,
+        version: selectedDetail.spec?.version,
+        hasPayload: !!selectedDetail.payload,
+        hasMethodology: !!selectedDetail.payload?.methodology,
+        stages: selectedDetail.payload?.methodology?.stages?.length,
+      })}`,
+    );
+  }
+  await page.locator('.jx-factor-methodology').waitFor();
+  await page.screenshot({ path: `${SHOTS}7o-factor-methodology.png` });
   await page.screenshot({ path: `${SHOTS}7g-factor-history-button.png` });
   await page.locator('.jx-factor-historyTrigger').click();
   await page.locator('.jx-factor-historyModal').waitFor();
@@ -278,11 +323,26 @@ try {
       body: JSON.stringify({
         factor: factor.id,
         spec: {
-          version: 1,
+          version: 2,
           freq: 'month',
           start: '20220101',
           end: window.exploreEnd,
           neutral: 'none',
+          universe: {
+            minimumListingDays: 365,
+            liquidityDropFraction: 0.25,
+            minimumCandidates: 100,
+          },
+          missing: { minimumWindowCoverage: 2 / 3 },
+          outliers: {
+            factorExposure: { method: 'winsor', tailFraction: 0.01, madThreshold: 5 },
+            forwardReturn: { method: 'winsor', tailFraction: 0.01, madThreshold: 5 },
+          },
+          costs: {
+            commissionPerSide: 0.00025,
+            stampDutySellSide: 0.0005,
+            slippagePerSide: 0.001,
+          },
         },
         researchIntent: {
           version: 1,
@@ -295,6 +355,13 @@ try {
     });
     await waitForJob(explore.jobId);
     const exploreDetail = await json(`/api/app/factor/reports/${explore.reportId}`);
+    if (
+      exploreDetail.spec.version !== 2 ||
+      !exploreDetail.payload?.methodology ||
+      exploreDetail.payload.methodology.dataCutoff > window.exploreEnd
+    ) {
+      throw new Error('V2 explore report is missing its reproducibility snapshot');
+    }
     if (!exploreDetail.holdout?.eligible) {
       throw new Error(`explore was not holdout eligible: ${JSON.stringify(exploreDetail.holdout)}`);
     }

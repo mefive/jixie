@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   canonicalJson,
+  createDefaultFactorAnalysisSpecV2,
   factorTestKey,
   factorVariantKey,
   normalizeFactorAnalysisSpec,
@@ -29,6 +30,45 @@ describe('factor report spec', () => {
     expect(canonicalJson({ z: 1, nested: { b: 2, a: 1 }, a: 0 })).toBe(
       '{"a":0,"nested":{"a":1,"b":2},"z":1}',
     );
+  });
+
+  it('creates and validates a complete V2 methodology snapshot', () => {
+    const spec = createDefaultFactorAnalysisSpecV2({
+      freq: 'week',
+      start: '20200101',
+      end: '20251231',
+      neutral: 'size',
+    });
+
+    expect(normalizeFactorAnalysisSpec(spec)).toEqual(spec);
+    expect(spec.universe).toEqual({
+      minimumListingDays: 365,
+      liquidityDropFraction: 0.25,
+      minimumCandidates: 100,
+    });
+    expect(spec.missing.minimumWindowCoverage).toBeCloseTo(2 / 3);
+    expect(spec.outliers.factorExposure.method).toBe('winsor');
+    expect(spec.costs.slippagePerSide).toBe(0.001);
+  });
+
+  it('includes every V2 methodology choice in variant identity', () => {
+    const spec = createDefaultFactorAnalysisSpecV2({
+      freq: 'month',
+      start: '20200101',
+      end: '20251231',
+      neutral: 'none',
+    });
+    const codeHash = sha256('code-a');
+
+    expect(
+      factorVariantKey(
+        {
+          ...spec,
+          missing: { minimumWindowCoverage: 0.8 },
+        },
+        codeHash,
+      ),
+    ).not.toBe(factorVariantKey(spec, codeHash));
   });
 
   it('changes variants when the spec or source changes', () => {

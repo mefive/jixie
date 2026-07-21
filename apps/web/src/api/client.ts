@@ -375,7 +375,7 @@ export function fetchIndexSeries(
 
 import type {
   FactorMeta,
-  FactorAnalysisSpecV1,
+  FactorAnalysisSpec,
   FactorReportDetail,
   FactorReportListResponse,
   FactorFreq,
@@ -504,7 +504,7 @@ export function getFactorReport(reportId: string): Promise<FactorReportDetail> {
 // Every terminal re-run creates a new immutable report. Only an identical running variant is reused.
 export function runFactorAnalysis(
   factor: string,
-  spec: FactorAnalysisSpecV1,
+  spec: FactorAnalysisSpec,
   researchIntent: FactorResearchIntentV1,
   parentReportId?: string | null,
 ): Promise<RunFactorAnalysisResponse> {

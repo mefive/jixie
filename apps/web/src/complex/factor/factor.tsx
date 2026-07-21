@@ -34,6 +34,8 @@ import type {
   FactorResearchMetric,
   IcDecayPoint,
   FactorWeight,
+  FactorOutlierMethod,
+  FactorSampleStageKey,
 } from '@jixie/shared';
 import {
   faSpinner,
@@ -749,6 +751,93 @@ const ParamsPopover = complex.component(() => {
             ]}
           />
         </div>
+        <div className="jx-factor-paramSectionTitle">{t('methodologyUniverse')}</div>
+        <div className="jx-factor-paramGrid">
+          <label>
+            <span>{t('minimumListingDays')}</span>
+            <InputNumber
+              min={0}
+              max={3650}
+              value={store.methodology.universe.minimumListingDays}
+              onChange={(value) => store.setUniverseParameter('minimumListingDays', value ?? 0)}
+            />
+          </label>
+          <label>
+            <span>{t('liquidityDropPercent')}</span>
+            <InputNumber
+              min={0}
+              max={90}
+              suffix="%"
+              value={store.methodology.universe.liquidityDropFraction * 100}
+              onChange={(value) =>
+                store.setUniverseParameter('liquidityDropFraction', (value ?? 0) / 100)
+              }
+            />
+          </label>
+          <label>
+            <span>{t('minimumCandidates')}</span>
+            <InputNumber
+              min={20}
+              max={5000}
+              value={store.methodology.universe.minimumCandidates}
+              onChange={(value) => store.setUniverseParameter('minimumCandidates', value ?? 20)}
+            />
+          </label>
+          <label>
+            <span>{t('minimumWindowCoverage')}</span>
+            <InputNumber
+              min={10}
+              max={100}
+              suffix="%"
+              value={Math.round(store.methodology.missing.minimumWindowCoverage * 100)}
+              onChange={(value) => store.setMinimumWindowCoverage((value ?? 10) / 100)}
+            />
+          </label>
+        </div>
+        <div className="jx-factor-paramSectionTitle">{t('methodologyOutliers')}</div>
+        <div className="jx-factor-paramGrid">
+          <label>
+            <span>{t('factorExposureOutlier')}</span>
+            <Select
+              value={store.methodology.outliers.factorExposure.method}
+              onChange={(value: FactorOutlierMethod) =>
+                store.setOutlierMethod('factorExposure', value)
+              }
+              options={outlierOptions(t)}
+            />
+          </label>
+          <label>
+            <span>{t('forwardReturnOutlier')}</span>
+            <Select
+              value={store.methodology.outliers.forwardReturn.method}
+              onChange={(value: FactorOutlierMethod) =>
+                store.setOutlierMethod('forwardReturn', value)
+              }
+              options={outlierOptions(t)}
+            />
+          </label>
+        </div>
+        <div className="jx-factor-paramSectionTitle">{t('methodologyCosts')}</div>
+        <div className="jx-factor-paramGrid">
+          {(
+            [
+              ['commissionPerSide', 'commissionPerSide'],
+              ['stampDutySellSide', 'stampDutySellSide'],
+              ['slippagePerSide', 'slippagePerSide'],
+            ] as const
+          ).map(([key, label]) => (
+            <label key={key}>
+              <span>{t(label)}</span>
+              <InputNumber
+                min={0}
+                max={500}
+                suffix="bp"
+                value={store.methodology.costs[key] * 10000}
+                onChange={(value) => store.setCostParameter(key, (value ?? 0) / 10000)}
+              />
+            </label>
+          ))}
+        </div>
       </div>
       <div className="jx-factor-paramPopoverActions">
         <ResearchRunButton disabled={runningSameDraft}>
@@ -758,6 +847,14 @@ const ParamsPopover = complex.component(() => {
     </div>
   );
 }, 'ParamsPopover');
+
+function outlierOptions(t: TFunction<'factor'>) {
+  return [
+    { value: 'none', label: t('outlierNone') },
+    { value: 'winsor', label: t('outlierWinsor') },
+    { value: 'mad', label: t('outlierMad') },
+  ];
+}
 
 const ResearchDisciplineBar = complex.component(() => {
   const store = complex.useStore();
@@ -1136,6 +1233,8 @@ const ReportBody = complex.component(() => {
         </span>
       </div>
 
+      <MethodologyCard />
+
       <Suspense fallback={<div className="jx-factor-chart" />}>
         <DecileChart buckets={buckets} />
       </Suspense>
@@ -1215,6 +1314,98 @@ const ReportBody = complex.component(() => {
     </>
   );
 }, 'ReportBody');
+
+const MethodologyCard = complex.component(() => {
+  const store = complex.useStore();
+  const { t } = useTranslation('factor');
+  const detail = store.reportDetail;
+  const methodology = store.report?.methodology;
+  if (!detail || !methodology) {
+    return null;
+  }
+  const spec = detail.spec;
+  const stageLabels: Record<FactorSampleStageKey, string> = {
+    factor_value: t('stageFactorValue'),
+    formation_and_forward_quote: t('stageQuotes'),
+    listing_age: t('stageListingAge'),
+    liquidity: t('stageLiquidity'),
+  };
+  const unavailable = methodology.unavailableHistoricalFilters.map((key) =>
+    t(`unavailableFilter.${key}`),
+  );
+
+  return (
+    <div className="jx-factor-methodology">
+      <div className="jx-factor-methodologyHead">
+        <span>{t('methodologyTitle')}</span>
+        <code>v{methodology.specVersion}</code>
+      </div>
+      <div className="jx-factor-methodologyMeta">
+        <span>{t('dataCutoff', { date: formatTradeDate(methodology.dataCutoff) })}</span>
+        <span>
+          {t('reproducibilityHash', {
+            hash: detail.factorCodeHash?.slice(0, 12) ?? t('notAvailable'),
+          })}
+        </span>
+        <span>
+          {t('periodCoverage', {
+            analyzed: methodology.periodsAnalyzed,
+            considered: methodology.periodsConsidered,
+          })}
+        </span>
+      </div>
+      <div className="jx-factor-methodologyStages">
+        {methodology.stages.map((stage) => (
+          <span key={stage.key}>
+            {stageLabels[stage.key]} <b>{stage.before.toLocaleString()}</b> →{' '}
+            <b>{stage.after.toLocaleString()}</b>
+          </span>
+        ))}
+      </div>
+      {spec.version === 2 && (
+        <div className="jx-factor-methodologySpec">
+          <span>
+            {t('universeSpec', {
+              days: spec.universe.minimumListingDays,
+              liquidity: Math.round(spec.universe.liquidityDropFraction * 100),
+              candidates: spec.universe.minimumCandidates,
+            })}
+          </span>
+          <span>
+            {t('outlierSpec', {
+              exposure: t(`outlier.${spec.outliers.factorExposure.method}`),
+              returns: t(`outlier.${spec.outliers.forwardReturn.method}`),
+            })}
+          </span>
+          <span>
+            {t('costSpec', {
+              commission: (spec.costs.commissionPerSide * 10000).toFixed(1),
+              stamp: (spec.costs.stampDutySellSide * 10000).toFixed(1),
+              slippage: (spec.costs.slippagePerSide * 10000).toFixed(1),
+            })}
+          </span>
+        </div>
+      )}
+      {methodology.windowCoverage && (
+        <div className="jx-factor-methodologyCoverage">
+          {t('windowCoverageAudit', {
+            window: methodology.windowCoverage.declaredWindowDays,
+            minimum: pctInt(methodology.windowCoverage.minimumCoverage),
+            mean: pctInt(methodology.windowCoverage.meanCoverage),
+            dropped: methodology.windowCoverage.droppedForCoverage,
+          })}
+        </div>
+      )}
+      {unavailable.length > 0 && (
+        <Alert
+          type="warning"
+          showIcon
+          message={t('historicalFiltersUnavailable', { filters: unavailable.join('、') })}
+        />
+      )}
+    </div>
+  );
+}, 'MethodologyCard');
 
 function Metric({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (

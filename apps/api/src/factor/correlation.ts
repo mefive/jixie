@@ -102,7 +102,14 @@ export async function computeFactorCorrelation(
   const labels: string[] = [];
   for (const key of factorKeys) {
     onLog(t(locale, 'factorComputingValues', { factor: key }));
-    const series = await computeFactorSeries(key, rebalanceDates, snaps, onLog, onUserLog, locale);
+    const { series } = await computeFactorSeries(
+      key,
+      rebalanceDates,
+      snaps,
+      onLog,
+      onUserLog,
+      locale,
+    );
     lookups.push(toLookup(series));
     const row = await prisma.factor.findUnique({ where: { id: key }, select: { name: true } });
     labels.push(row?.name ?? key);
