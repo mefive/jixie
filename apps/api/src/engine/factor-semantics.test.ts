@@ -155,6 +155,52 @@ describe('custom (defineFactor) factors inside the engine', () => {
     expect(seen[D[4]]).toBe(30);
   });
 
+  it('windowed factor reads aligned turnover amounts inside the backtest engine', async () => {
+    const amountSpec = spec();
+    amountSpec.stocks[0].bars = D.map((date, index) => ({
+      date,
+      open: 10,
+      close: 10,
+      up: 11,
+      down: 9,
+      amount: (index + 1) * 100,
+    }));
+    const js = await toCommonJs(
+      `export default defineFactor({
+        name: 'amount3',
+        window: 3,
+        compute(bar, ctx) {
+          const amounts = ctx.history(3, 'amount');
+          if (amounts.length < 3 || amounts.some((value) => value == null)) { return null; }
+          return amounts.reduce((sum, value) => sum + value, 0);
+        },
+      });`,
+      'factor code',
+    );
+    const seen: Record<string, number | null> = {};
+    const strategy: Strategy = {
+      name: 'read amount history',
+      factors: ['custom:amount'],
+      async onBar(ctx) {
+        await ctx.ensureBars(['A']);
+        seen[ctx.date] = ctx.factor('custom:amount', 'A');
+      },
+    };
+
+    await runStrategy({
+      start: D[0],
+      end: D[4],
+      initialCash: 100_000,
+      strategy,
+      dataPort: fixturePort(amountSpec),
+      customFactors: [{ key: 'custom:amount', js }],
+    });
+
+    expect(seen[D[1]]).toBeNull();
+    expect(seen[D[2]]).toBe(600);
+    expect(seen[D[4]]).toBe(1200);
+  });
+
   it('walled lane: the same custom factor computes in-wall (values logged through the wall match)', async () => {
     const js = await toCommonJs(
       `export default defineFactor({ name: 'double pe', compute: (bar) => (bar.peTtm == null ? null : bar.peTtm * 2) });`,

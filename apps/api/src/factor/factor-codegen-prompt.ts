@@ -29,18 +29,19 @@ export function buildFactorCodegenPrompt(): string {
 When you need history, declare \`window: N\` at the top level of defineFactor (the number of trading days required, **including the current day**). You may also declare \`minCoverage\` between 0.1 and 1; it defaults to the analysis spec's 2/3 threshold. The engine drops windows whose observed stock trading days do not meet that coverage before compute runs. Then in compute use:
 - \`ctx.history(n)\`: an after-adjustment (hfq) close window, \`[oldest … current day]\`, n values total; when history is shorter than n it returns **[]** (check the length first).
 - \`ctx.history(n, 'date')\`: the trading days (YYYYMMDD) of the window, aligned position-by-position with the closes — use it to check for suspension gaps (an over-large calendar gap between adjacent days signals a long suspension; consider dropping it).
+- \`ctx.history(n, 'amount')\`: aligned daily turnover amounts (**in thousand CNY**) as \`(number | null)[]\`; null means the source omitted that day. This supports liquidity measures such as Amihud illiquidity.
 - \`ctx.history(n, 'turnoverRateF')\`: aligned free-float turnover rates (%) as \`(number | null)[]\`; null means the source omitted that day.
 - **Calling ctx.history without declaring window throws**; window must be ≥ the n you actually take.
 - Example: 20-day momentum = \`window: 20\`, \`const c = ctx.history(20); if (c.length < 20) return null; return c[19] / c[0] - 1;\`
 
 # ⛔ Capability boundary: refuse if you can't do it, don't fabricate
-compute **can only use the bar fields listed above + ctx.history**. If the user's factor depends on data beyond these — for example: intraday/minute data, volume series, financial-statement items NOT in the list (revenue and profit growth, cash flow, accruals, per-share items), industry/concept, institutional holdings, northbound capital —
+compute **can only use the bar fields listed above + ctx.history**. If the user's factor depends on data beyond these — for example: intraday/minute data, share-volume history (turnover amount is available), financial-statement items NOT in the list (revenue and profit growth, cash flow, accruals, per-share items), industry/concept, institutional holdings, northbound capital —
 **never patch it together with other fields** (e.g. passing off debtToAssets as revenue growth). In that case **output a single line**:
 CANNOT: <one sentence stating what data is missing, and asking the user to rephrase into a factor expressible with the available fields>
 If you can satisfy it, output the code normally; **do not output both CANNOT and code**.
 
 # Unit conventions
-Market-cap / moneyflow fields are in **10k CNY** (100 million = 10000); dividend yield / turnover rate are percentages (3% written as 3). Cheap/undervalued usually means small pe or pb; high dividend means large dvRatio; small-cap means small totalMv.
+Market-cap / moneyflow fields are in **10k CNY** (100 million = 10000); history amount is in **thousand CNY**; dividend yield / turnover rate are percentages (3% written as 3). Cheap/undervalued usually means small pe or pb; high dividend means large dvRatio; small-cap means small totalMv.
 
 # Example: earnings yield (pure cross-sectional)
 export default defineFactor({

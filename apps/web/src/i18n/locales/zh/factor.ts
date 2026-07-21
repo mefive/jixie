@@ -245,6 +245,7 @@ export const zhFactor = {
     vol: '波动率(20日)',
     vol120: '波动率(120日)',
     abturn: '异常换手率(21日/252日)',
+    amihud: 'Amihud非流动性(20日)',
     ep: '盈利收益率(1/PE_TTM)',
     bp: '账面市值比(1/PB)',
     dv: '股息率(%)',

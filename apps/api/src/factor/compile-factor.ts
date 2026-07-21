@@ -14,6 +14,7 @@ export interface FactorBatchItem {
   bar: FactorBar;
   closes?: number[]; // tail window ending at the evaluation day (windowed factors only)
   dates?: string[]; // aligned trade dates for the window
+  amounts?: (number | null)[]; // aligned daily turnover amounts (thousand yuan)
   turnoverRatesF?: (number | null)[]; // aligned free-float turnover rates for the window
 }
 
@@ -54,6 +55,8 @@ const FACTOR_SETUP = `
               history(n, field) {
                 const src = field === 'date'
                   ? item.dates
+                  : field === 'amount'
+                    ? item.amounts
                   : field === 'turnoverRateF'
                     ? item.turnoverRatesF
                     : item.closes;

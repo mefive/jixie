@@ -4,7 +4,8 @@ import type { FactorBar } from '@jixie/shared';
  * The factor authoring surface (mirrors the strategy SDK's defineStrategy) — shared by user factors
  * AND the built-in presets (which are seeded as read-only code rows, design: factor-to-strategy.md
  * Step 1b). A factor is a cross-sectional expression over one stock's point-in-time bar; declaring
- * `window` additionally unlocks `ctx.history` (hfq close window) at the cost of the slower
+ * `window` additionally unlocks aligned daily histories (hfq close, date, turnover amount, etc.)
+ * through `ctx.history` at the cost of the slower
  * per-stock-series path. Return the raw value, or null to exclude the stock this period — don't
  * pre-negate for direction; the analysis IC sign reveals it.
  * An import-free ambient: `export default defineFactor({ name, window?, compute(bar, ctx) { … } })`.
@@ -16,6 +17,8 @@ export interface FactorCtx {
   history(n: number): number[];
   /** The window's trading days (YYYYMMDD), aligned position-by-position with history(n) — used for suspension-gap checks etc. */
   history(n: number, field: 'date'): string[];
+  /** Daily turnover amount history (thousand yuan), aligned with `history(n)`; null means unavailable that day. */
+  history(n: number, field: 'amount'): (number | null)[];
   /** Free-float turnover-rate (%) history, aligned with `history(n)`; null means unavailable that day. */
   history(n: number, field: 'turnoverRateF'): (number | null)[];
 }
@@ -24,6 +27,8 @@ export interface CustomFactor {
   name: string;
   /** Required history length (number of trading days, including the current day). Once declared, compute may use ctx.history(n ≤ window). */
   window?: number;
+  /** Minimum observed-market-day coverage accepted for a window (0.1–1). */
+  minCoverage?: number;
   compute: (bar: FactorBar, ctx: FactorCtx) => number | null;
 }
 
