@@ -27,6 +27,7 @@ interface StockBars {
   down: (number | null)[]; // raw down-limit price
   vol: (number | null)[]; // raw (not adjusted)
   amount: (number | null)[];
+  turnoverRateF: (number | null)[];
   idx: Map<string, number>; // date -> index (exact)
 }
 
@@ -101,6 +102,7 @@ export class EngineData {
     // the isolate bridge on the walled lane (Phase B2). Domain logic stays in this class.
     private port: EngineDataPort,
     private futureCodes: string[] = [],
+    private includeTurnoverRateFHistory = false,
   ) {}
 
   /** Index daily close series (sync, from the preload) — the excess-return/IR benchmark (caller aligns to nav). */
@@ -604,13 +606,22 @@ export class EngineData {
         down: [],
         vol: [],
         amount: [],
+        turnoverRateF: [],
         idx: new Map(),
       });
     }
 
-    const { px, adj, limits } = await this.port.barsRows(missing, this.start, this.end);
+    const { px, adj, limits, turnoverRatesF } = await this.port.barsRows(
+      missing,
+      this.start,
+      this.end,
+      { includeTurnoverRateF: this.includeTurnoverRateFHistory },
+    );
     const adjMap = new Map(adj.map((row) => [`${row.tsCode}|${row.tradeDate}`, row.adjFactor]));
     const limMap = new Map(limits.map((row) => [`${row.tsCode}|${row.tradeDate}`, row]));
+    const turnoverRateFMap = new Map(
+      turnoverRatesF.map((row) => [`${row.tsCode}|${row.tradeDate}`, row.turnoverRateF]),
+    );
     for (const price of px) {
       if (price.open == null || price.high == null || price.low == null || price.close == null) {
         continue;
@@ -632,6 +643,7 @@ export class EngineData {
       series.down.push(limit?.downLimit ?? null);
       series.vol.push(price.vol);
       series.amount.push(price.amount);
+      series.turnoverRateF.push(turnoverRateFMap.get(`${price.tsCode}|${price.tradeDate}`) ?? null);
     }
     for (const [c, b] of tmp) {
       this.barsCache.set(c, b);
@@ -743,6 +755,7 @@ export class EngineData {
         adjClose: b.adjClose[i],
         vol: b.vol[i],
         amount: b.amount[i],
+        turnoverRateF: b.turnoverRateF[i],
       });
     }
     return out;

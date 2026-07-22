@@ -85,6 +85,7 @@ export interface OhlcBar {
   adjClose: number;
   vol: number | null;
   amount: number | null;
+  turnoverRateF: number | null; // free-float turnover rate %, from daily_basic when requested
 }
 
 /**

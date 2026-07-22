@@ -97,13 +97,13 @@ export const prismaDataPort: EngineDataPort = {
     });
   },
 
-  async barsRows(codes, start, end) {
-    const out: BarsRows = { px: [], adj: [], limits: [] };
+  async barsRows(codes, start, end, options) {
+    const out: BarsRows = { px: [], adj: [], limits: [], turnoverRatesF: [] };
     const CHUNK = 300; // codes per batch — bounds each query's result (full-history × N codes)
     for (let off = 0; off < codes.length; off += CHUNK) {
       const batch = codes.slice(off, off + CHUNK);
       const range = { gte: start, lte: end };
-      const [px, adj, limits] = await Promise.all([
+      const [px, adj, limits, turnoverRatesF] = await Promise.all([
         prisma.daily.findMany({
           where: { tsCode: { in: batch }, tradeDate: range },
           select: {
@@ -126,12 +126,19 @@ export const prismaDataPort: EngineDataPort = {
           where: { tsCode: { in: batch }, tradeDate: range },
           select: { tsCode: true, tradeDate: true, upLimit: true, downLimit: true },
         }),
+        options?.includeTurnoverRateF
+          ? prisma.dailyBasic.findMany({
+              where: { tsCode: { in: batch }, tradeDate: range },
+              select: { tsCode: true, tradeDate: true, turnoverRateF: true },
+            })
+          : Promise.resolve([]),
       ]);
       // concat, not push-spread — spreading a chunk of hundreds of thousands of rows as call
       // arguments overflows the call stack.
       out.px = out.px.concat(px);
       out.adj = out.adj.concat(adj);
       out.limits = out.limits.concat(limits);
+      out.turnoverRatesF = out.turnoverRatesF.concat(turnoverRatesF);
     }
     return out;
   },

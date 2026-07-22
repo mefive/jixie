@@ -201,6 +201,73 @@ describe('custom (defineFactor) factors inside the engine', () => {
     expect(seen[D[4]]).toBe(1200);
   });
 
+  it('loads aligned free-float turnover history only when the factor declares it', async () => {
+    const turnoverSpec = spec();
+    turnoverSpec.stocks[0].bars = D.map((date, index) => ({
+      date,
+      open: 10,
+      close: 10,
+      up: 11,
+      down: 9,
+      turnoverRateF: index + 1,
+    }));
+    const factorCode = `export default defineFactor({
+      name: 'turnover3',
+      window: 3,
+      compute(bar, ctx) {
+        const values = ctx.history(3, 'turnoverRateF');
+        if (values.length < 3 || values.some((value) => value == null)) { return null; }
+        return values.reduce((sum, value) => sum + value, 0);
+      },
+    });`;
+    const js = await toCommonJs(factorCode, 'factor code');
+    const seen: Record<string, number | null> = {};
+    const strategy: Strategy = {
+      name: 'read free-float turnover history',
+      factors: ['custom:turnover'],
+      async onBar(ctx) {
+        await ctx.ensureBars(['A']);
+        seen[ctx.date] = ctx.factor('custom:turnover', 'A');
+      },
+    };
+
+    await runStrategy({
+      start: D[0],
+      end: D[4],
+      initialCash: 100_000,
+      strategy,
+      dataPort: fixturePort(turnoverSpec),
+      customFactors: [{ key: 'custom:turnover', js, historyFields: ['turnoverRateF'] }],
+    });
+
+    expect(seen[D[1]]).toBeNull();
+    expect(seen[D[2]]).toBe(6);
+    expect(seen[D[4]]).toBe(12);
+
+    const logged: string[] = [];
+    await runWalledBacktest(
+      {
+        code: `export default defineStrategy({
+          name: 'walled turnover history',
+          factors: ['custom:turnover'],
+          async onBar(ctx) {
+            await ctx.ensureBars(['A']);
+            console.log(ctx.date + '=' + String(ctx.factor('custom:turnover', 'A')));
+          },
+        });`,
+        start: D[0],
+        end: D[4],
+        initialCash: 100_000,
+        customFactors: [{ key: 'custom:turnover', js, historyFields: ['turnoverRateF'] }],
+      },
+      fixturePort(turnoverSpec),
+      undefined,
+      (_level, text) => logged.push(text),
+    );
+    expect(logged).toContain(`${D[2]}=6`);
+    expect(logged).toContain(`${D[4]}=12`);
+  });
+
   it('walled lane: the same custom factor computes in-wall (values logged through the wall match)', async () => {
     const js = await toCommonJs(
       `export default defineFactor({ name: 'double pe', compute: (bar) => (bar.peTtm == null ? null : bar.peTtm * 2) });`,
@@ -246,5 +313,16 @@ describe('extractCustomFactorKeys (host-side source scan)', () => {
         },
       });`;
     expect(extractCustomFactorKeys(source)).toEqual(['custom:earnings_yield', 'custom:mom_12_1']);
+  });
+
+  it('extracts auxiliary history requirements from factor source', async () => {
+    const { extractCustomFactorHistoryFields } = await import('./custom-factor.js');
+    expect(extractCustomFactorHistoryFields("ctx.history(252, 'turnoverRateF')")).toEqual([
+      'turnoverRateF',
+    ]);
+    expect(extractCustomFactorHistoryFields('ctx.history(21, "turnoverRateF")')).toEqual([
+      'turnoverRateF',
+    ]);
+    expect(extractCustomFactorHistoryFields("ctx.history(21, 'amount')")).toEqual([]);
   });
 });

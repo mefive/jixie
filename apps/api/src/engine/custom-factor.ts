@@ -15,6 +15,14 @@ import type { BarRow } from './types.js';
 export interface CustomFactorModule {
   key: string; // 'custom:<factor row id>'
   js: string; // the factor module, host-transformed TS→CJS
+  historyFields?: CustomFactorHistoryField[];
+}
+
+export type CustomFactorHistoryField = 'turnoverRateF';
+
+/** Identify expensive auxiliary histories before factor code enters the engine wall. */
+export function extractCustomFactorHistoryFields(source: string): CustomFactorHistoryField[] {
+  return /['"]turnoverRateF['"]/.test(source) ? ['turnoverRateF'] : [];
 }
 
 /** Evaluate one factor module — mirrors wall-entry's strategy evaluation (same ambient style). */
@@ -101,17 +109,18 @@ export class CustomFactorRuntime {
       const closes = bars.map((bar) => bar.adjClose);
       const dates = bars.map((bar) => bar.date);
       const amounts = bars.map((bar) => bar.amount);
+      const turnoverRatesF = bars.map((bar) => bar.turnoverRateF);
       ctx = {
         history(n: number, field?: 'date' | 'amount' | 'turnoverRateF') {
-          // Backtest OHLC bars carry turnover amount but not daily_basic.turnoverRateF. Return an
-          // unavailable history instead of accidentally substituting closes for that field.
+          // Auxiliary histories are loaded only when requested by host metadata and stay aligned
+          // with the OHLC bars.
           const source =
             field === 'date'
               ? dates
               : field === 'amount'
                 ? amounts
                 : field === 'turnoverRateF'
-                  ? []
+                  ? turnoverRatesF
                   : closes;
           if (n <= 0 || source.length < n) {
             return [];

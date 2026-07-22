@@ -28,6 +28,7 @@ export interface FixtureBar {
   close: number;
   vol?: number;
   amount?: number; // thousand yuan (the slippage impact denominator)
+  turnoverRateF?: number; // free-float turnover rate, percent
   up?: number; // raw up-limit price
   down?: number; // raw down-limit price
   adj?: number; // adj_factor, default 1
@@ -138,9 +139,9 @@ export function fixturePort(spec: FixtureSpec): EngineDataPort {
       return spec.indexWeights?.[indexCode] ?? [];
     },
 
-    async barsRows(codes, start, end): Promise<BarsRows> {
+    async barsRows(codes, start, end, options): Promise<BarsRows> {
       const wanted = new Set(codes);
-      const out: BarsRows = { px: [], adj: [], limits: [] };
+      const out: BarsRows = { px: [], adj: [], limits: [], turnoverRatesF: [] };
       for (const stock of spec.stocks) {
         if (!wanted.has(stock.code)) {
           continue;
@@ -160,6 +161,13 @@ export function fixturePort(spec: FixtureSpec): EngineDataPort {
             amount: bar.amount ?? null,
           });
           out.adj.push({ tsCode: stock.code, tradeDate: bar.date, adjFactor: bar.adj ?? 1 });
+          if (options?.includeTurnoverRateF) {
+            out.turnoverRatesF.push({
+              tsCode: stock.code,
+              tradeDate: bar.date,
+              turnoverRateF: bar.turnoverRateF ?? null,
+            });
+          }
           if (bar.up != null && bar.down != null) {
             out.limits.push({
               tsCode: stock.code,
