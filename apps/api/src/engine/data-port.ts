@@ -113,7 +113,7 @@ export interface CrossSectionRows {
   }[];
 }
 
-/** Raw per-stock series rows over the run range (price + adjustment + limit prices). */
+/** Raw per-stock series rows over the run range, including requested auxiliary histories. */
 export interface BarsRows {
   px: {
     tsCode: string;
@@ -127,6 +127,12 @@ export interface BarsRows {
   }[];
   adj: { tsCode: string; tradeDate: string; adjFactor: number }[];
   limits: { tsCode: string; tradeDate: string; upLimit: number; downLimit: number }[];
+  turnoverRatesF: { tsCode: string; tradeDate: string; turnoverRateF: number | null }[];
+}
+
+export interface BarsRowsOptions {
+  /** Load daily_basic free-float turnover only for factors that explicitly require it. */
+  includeTurnoverRateF?: boolean;
 }
 
 export interface EngineDataPort {
@@ -147,7 +153,12 @@ export interface EngineDataPort {
   /** All constituent snapshots of one index, ascending by date. */
   indexWeights(indexCode: string): Promise<IndexWeightRow[]>;
   /** Per-stock series rows for `codes` within [start, end] (implementation may chunk internally). */
-  barsRows(codes: string[], start: string, end: string): Promise<BarsRows>;
+  barsRows(
+    codes: string[],
+    start: string,
+    end: string,
+    options?: BarsRowsOptions,
+  ): Promise<BarsRows>;
   /** Stock-index futures metadata, actual-contract bars, main mappings, and margin params. */
   futuresRange(start: string, end: string): Promise<FutureMarketRows>;
 }

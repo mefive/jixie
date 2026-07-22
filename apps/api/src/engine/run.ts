@@ -25,6 +25,12 @@ const PERIODS_PER_YEAR = 252; // trading days
 const BENCHMARK = '000300.SH'; // CSI 300 — the excess/IR benchmark
 const MAX_SLIP = 0.1; // cap slippage at 10% so a huge order in an illiquid name can't produce absurd fills
 
+function needsTurnoverRateFHistory(cfg: EngineConfig): boolean {
+  return (cfg.customFactors ?? []).some((factor) =>
+    factor.historyFields?.includes('turnoverRateF'),
+  );
+}
+
 /**
  * Run an event-driven strategy backtest.
  *
@@ -61,6 +67,7 @@ async function runStockStrategy(cfg: EngineConfig): Promise<BacktestResult> {
     locale,
     cfg.dataPort ?? prismaDataPort,
     [],
+    needsTurnoverRateFHistory(cfg),
   );
   await engineData.load();
   if (cfg.strategy.watch?.length) {
@@ -157,6 +164,7 @@ async function runMultiAssetStrategy(cfg: EngineConfig): Promise<BacktestResult>
     locale,
     cfg.dataPort ?? prismaDataPort,
     futureCodes,
+    needsTurnoverRateFHistory(cfg),
   );
   await engineData.load();
   if (cfg.strategy.watch?.length) {

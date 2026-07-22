@@ -3,7 +3,7 @@ import { prisma } from '../lib/prisma.js';
 import { toCommonJs } from '../lib/isolate-run.js';
 import { t } from '../i18n/messages.js';
 import { BUILTIN_USER_ID } from '../factor/builtin-factors.js';
-import type { CustomFactorModule } from './custom-factor.js';
+import { extractCustomFactorHistoryFields, type CustomFactorModule } from './custom-factor.js';
 
 /**
  * HOST-side preparation of the custom factors a strategy references (factor-to-strategy.md Step 2).
@@ -48,6 +48,7 @@ export async function prepareCustomFactors(
     rows.map(async (row) => ({
       key: CUSTOM_FACTOR_PREFIX + row.key,
       js: await toCommonJs(row.code, 'factor code'),
+      historyFields: extractCustomFactorHistoryFields(row.code),
     })),
   );
 }
