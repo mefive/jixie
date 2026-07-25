@@ -102,6 +102,10 @@ function loadFactorOptions(m: Monaco) {
 // ambient defineStrategy + ctx types in the active locale (re-registered on language switch, see effect).
 function installSdk(m: Monaco) {
   monacoRef = m;
+  if (import.meta.env.DEV) {
+    // Debug hook for e2e/devtools probing of the TS worker (never shipped in prod builds).
+    (window as unknown as Record<string, unknown>).__monaco = m;
+  }
   applySdkDts(m, localeStore.locale);
   loadFactorOptions(m);
   if (staticSdkInstalled) {
@@ -119,38 +123,14 @@ function installSdk(m: Monaco) {
     lib: ['es2020'],
   });
 
-  // Make SDK members (ctx.history, b.peTtm, …) and type names (StrategyCtx, BarRow, …) Cmd+click links to
-  // the doc page (absolute URL → opens a new tab). Single source: the names come from sdk-reference.
-  const memberRe = new RegExp(`\\.(${MEMBER_NAMES.join('|')})\\b`, 'g');
-  const typeRe = new RegExp(`\\b(${LINKABLE_TYPES.join('|')})\\b`, 'g');
+  // Cmd+click links ONLY for catalog-backed 'custom:<key>' strings (they carry no TS info anyway).
+  // SDK members/types deliberately do NOT become links: a link's tooltip REPLACES the TypeScript
+  // QuickInfo in the hover widget, which used to reduce every ctx.*/BarRow hover to a one-line
+  // "cmd+click" hint — the localized JSDoc never showed. Their doc links ride the hover instead.
   m.languages.registerLinkProvider('typescript', {
     provideLinks(model: monaco.editor.ITextModel) {
-      const text = model.getValue();
       const links: monaco.languages.ILink[] = [];
-      const add = (offset: number, name: string) => {
-        const s = model.getPositionAt(offset);
-        const e = model.getPositionAt(offset + name.length);
-        links.push({
-          range: {
-            startLineNumber: s.lineNumber,
-            startColumn: s.column,
-            endLineNumber: e.lineNumber,
-            endColumn: e.column,
-          },
-          url: `${location.origin}/docs#${name}`,
-          tooltip: i18n.t('lab:sdkDocTooltip', { name }),
-        });
-      };
-      let mm: RegExpExecArray | null;
-      memberRe.lastIndex = 0;
-      while ((mm = memberRe.exec(text)) !== null) {
-        add(mm.index + 1, mm[1]);
-      } // +1: skip the dot
-      typeRe.lastIndex = 0;
-      while ((mm = typeRe.exec(text)) !== null) {
-        add(mm.index, mm[1]);
-      }
-      for (const reference of factorReferences(text)) {
+      for (const reference of factorReferences(model.getValue())) {
         const s = model.getPositionAt(reference.start);
         const e = model.getPositionAt(reference.end);
         links.push({
@@ -168,31 +148,50 @@ function installSdk(m: Monaco) {
     },
   });
 
+  // Hover: factor-reference cards for 'custom:' strings, and a 📖 doc link appended under the TS
+  // QuickInfo for SDK members/types (hover-provider results merge with the TS hover, unlike links).
+  const sdkNames = new Set<string>([...MEMBER_NAMES, ...LINKABLE_TYPES]);
   m.languages.registerHoverProvider('typescript', {
     provideHover(model: monaco.editor.ITextModel, position: monaco.Position) {
       const offset = model.getOffsetAt(position);
       const reference = factorReferences(model.getValue()).find(
         (candidate) => offset >= candidate.start && offset <= candidate.end,
       );
-      if (!reference) {
-        return null;
+      if (reference) {
+        const s = model.getPositionAt(reference.start);
+        const e = model.getPositionAt(reference.end);
+        const contents: monaco.IMarkdownString[] = [
+          { value: `**${escapeMarkdown(reference.option.label)}**` },
+          { value: `\`${reference.option.key}\`` },
+        ];
+        if (reference.option.description) {
+          contents.push({ value: escapeMarkdown(reference.option.description) });
+        }
+        contents.push({
+          value: `[${i18n.t('lab:factorImplementationLink')}](${factorUrl(reference.option)})`,
+        });
+        return {
+          range: new m.Range(s.lineNumber, s.column, e.lineNumber, e.column),
+          contents,
+        };
       }
 
-      const s = model.getPositionAt(reference.start);
-      const e = model.getPositionAt(reference.end);
-      const contents: monaco.IMarkdownString[] = [
-        { value: `**${escapeMarkdown(reference.option.label)}**` },
-        { value: `\`${reference.option.key}\`` },
-      ];
-      if (reference.option.description) {
-        contents.push({ value: escapeMarkdown(reference.option.description) });
+      const word = model.getWordAtPosition(position);
+      if (!word || !sdkNames.has(word.word)) {
+        return null;
       }
-      contents.push({
-        value: `[${i18n.t('lab:factorImplementationLink')}](${factorUrl(reference.option)})`,
-      });
       return {
-        range: new m.Range(s.lineNumber, s.column, e.lineNumber, e.column),
-        contents,
+        range: new m.Range(
+          position.lineNumber,
+          word.startColumn,
+          position.lineNumber,
+          word.endColumn,
+        ),
+        contents: [
+          {
+            value: `[📖 ${i18n.t('lab:sdkDocTooltip', { name: word.word })}](${location.origin}/docs#${word.word})`,
+          },
+        ],
       };
     },
   });
