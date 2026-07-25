@@ -505,7 +505,8 @@ Content-Type: application/json
 ## 13. 本阶段不做
 
 - 不新建独立 `FactorExperiment` 模型。
-- 不实现正式的样本外 holdout 工作流；只预留 `phase` 和 `parentReportId`。后续详设见 `docs/design/factor-research-discipline.md`。
+- 不实现正式的样本外 holdout 工作流；只预留 `phase` 和 `parentReportId`。（已由
+  `docs/design/factor-research-discipline.md` 实施：研究卡、testKey 计数、正式 holdout 封存/揭示。）
 - 不在本次扩展股票池、去极值、标准化等完整研究参数；但新增参数必须进入版本化 spec。
 - 不实现运行中任务取消、断点续算或跨进程恢复。
 - 不实现单份报告删除、标签、备注、收藏和报告对比。

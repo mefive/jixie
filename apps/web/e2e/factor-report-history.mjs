@@ -146,6 +146,8 @@ try {
     );
   }
   await page.locator('.jx-factor-methodology').waitFor();
+  // An exploratory (non-hypothesis) done report must show why the formal holdout is unavailable.
+  await page.locator('.jx-factor-researchReason').waitFor();
   await page.screenshot({ path: `${SHOTS}7o-factor-methodology.png` });
   await page.screenshot({ path: `${SHOTS}7g-factor-history-button.png` });
   await page.locator('.jx-factor-historyTrigger').click();

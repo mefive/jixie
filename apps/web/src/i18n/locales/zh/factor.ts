@@ -117,6 +117,8 @@ export const zhFactor = {
 
   researchSummary:
     '探索变体 {{tests}} · 完成报告 {{reports}} · 5% 水平随机假阳性约 {{falsePositives}}',
+  researchSummaryHelp:
+    '同一代码、参数与判据的重复运行只计一个变体;失败/中断任务与 Holdout 不计入。假阳性数只是风险意识提醒,不是统计校正。',
   researchCardTitle: '运行前研究卡',
   researchModeHypothesis: '假设验证',
   researchModeExploratory: '纯探索',
@@ -133,6 +135,18 @@ export const zhFactor = {
   holdoutConfirmContent:
     '将使用报告冻结的代码和参数验证 {{start}} 至 {{end}}，完成后结果仍会封存。',
   runHoldout: '验证保留段',
+  holdoutFrozenCode: '冻结代码 {{hash}}',
+  holdoutPreset: '预设判据:{{direction}} · {{criterion}}',
+  holdoutCodeChanged: '编辑器代码已变化:本次验证的是该报告当时的代码快照,不是当前代码。',
+  holdoutReason: {
+    not_explore: '仅探索报告可发起保留段验证',
+    not_done: '报告完成后才能发起保留段验证',
+    missing_hypothesis: '不可验证保留段:研究卡不是假设验证模式',
+    outside_explore_window: '不可验证保留段:探索区间已越过保留段起点',
+    insufficient_periods: '不可验证保留段:保留段调仓期数不足',
+    already_observed: '不可验证保留段:同一代码已观察过保留段数据',
+    already_exists: '该报告已有正式 Holdout',
+  },
   holdoutSealed: 'Holdout 已计算完成，结果仍封存。揭示后不能恢复为未观察状态。',
   revealHoldout: '揭示结果',
   revealConfirmTitle: '揭示 Holdout 结果？',
