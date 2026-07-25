@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { ChartSpec, SqlRows } from '@jixie/shared';
 import { faChartLine } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { agentSql } from '@src/api/client';
+import { agentComputeChart, agentSql } from '@src/api/client';
 import { EChart, type ECOption } from './echart';
 import './chat-chart.css';
 
@@ -28,7 +28,10 @@ export default function ChatChart({ title, chart }: ChatChartProps) {
 
   useEffect(() => {
     let alive = true;
-    agentSql(chart.sql)
+    // Both sources persist the QUERY and re-run it here: sql cards through the read-only SQL
+    // endpoint, compute cards through the sandboxed transform endpoint.
+    const fetchRows = chart.source === 'compute' ? agentComputeChart(chart) : agentSql(chart.sql);
+    fetchRows
       .then(({ rows }) => alive && setState({ loading: false, error: null, rows }))
       .catch(
         (e) =>
@@ -94,10 +97,18 @@ function toNumber(value: string | number | null): number | null {
 function buildOption(chart: ChartSpec, rows: SqlRows['rows']): ECOption {
   const multiSeries = chart.series.length > 1;
 
-  // Scatter reads both axes as values (x-y relation); line/bar read x as ordered categories.
+  // Scatter reads both axes as values (x-y relation); every other kind reads x as ordered categories.
   const scatter = chart.kind === 'scatter';
+  const dualAxis =
+    chart.kind === 'combo' && chart.series.some((series) => series.yAxis === 'right');
+  const valueAxis = {
+    type: 'value' as const,
+    scale: true,
+    axisLabel: { color: AXIS_LABEL_COLOR },
+    splitLine: { lineStyle: { color: SPLIT_LINE_COLOR } },
+  };
   return {
-    grid: { left: 56, right: 16, top: multiSeries ? 36 : 16, bottom: 28 },
+    grid: { left: 56, right: dualAxis ? 56 : 16, top: multiSeries ? 36 : 16, bottom: 28 },
     tooltip: { trigger: scatter ? 'item' : 'axis' },
     legend: multiSeries
       ? { top: 4, textStyle: { color: AXIS_LABEL_COLOR, fontSize: 11 } }
@@ -108,21 +119,44 @@ function buildOption(chart: ChartSpec, rows: SqlRows['rows']): ECOption {
       axisLabel: { color: AXIS_LABEL_COLOR },
       axisLine: { lineStyle: { color: AXIS_LINE_COLOR } },
     },
-    yAxis: {
-      type: 'value',
-      scale: true,
-      axisLabel: { color: AXIS_LABEL_COLOR },
-      splitLine: { lineStyle: { color: SPLIT_LINE_COLOR } },
-    },
-    series: chart.series.map((series, index) => ({
-      name: series.label ?? series.column,
-      type: chart.kind,
-      data: scatter
-        ? rows.map((row) => [toNumber(row[chart.x]), toNumber(row[series.column])])
-        : rows.map((row) => toNumber(row[series.column])),
-      ...(chart.kind === 'line' ? { showSymbol: false, lineStyle: { width: 1.5 } } : {}),
-      ...(chart.kind === 'scatter' ? { symbolSize: 6 } : {}),
-      itemStyle: { color: SERIES_PALETTE[index % SERIES_PALETTE.length] },
-    })),
+    yAxis: dualAxis ? [valueAxis, { ...valueAxis, splitLine: { show: false } }] : valueAxis,
+    series: chart.series.map((series, index) => {
+      const markType = seriesMarkType(chart.kind, series.type);
+      return {
+        name: series.label ?? series.column,
+        type: markType,
+        data: scatter
+          ? rows.map((row) => [toNumber(row[chart.x]), toNumber(row[series.column])])
+          : rows.map((row) => toNumber(row[series.column])),
+        ...(markType === 'line' ? { showSymbol: false, lineStyle: { width: 1.5 } } : {}),
+        ...(chart.kind === 'area' ? { areaStyle: { opacity: 0.18 } } : {}),
+        ...(chart.kind === 'stackedBar' ? { stack: 'total' } : {}),
+        ...(chart.kind === 'histogram' ? { barCategoryGap: '2%' } : {}),
+        ...(chart.kind === 'scatter' ? { symbolSize: 6 } : {}),
+        ...(dualAxis && series.yAxis === 'right' ? { yAxisIndex: 1 } : {}),
+        itemStyle: { color: SERIES_PALETTE[index % SERIES_PALETTE.length] },
+      };
+    }),
   } as ECOption;
+}
+
+/** ECharts series type per chart kind: area draws as line, stackedBar/histogram as bar, combo per
+ * series (defaulting to line). */
+function seriesMarkType(
+  kind: ChartSpec['kind'],
+  seriesType: 'line' | 'bar' | undefined,
+): 'line' | 'bar' | 'scatter' {
+  switch (kind) {
+    case 'line':
+    case 'bar':
+    case 'scatter':
+      return kind;
+    case 'area':
+      return 'line';
+    case 'stackedBar':
+    case 'histogram':
+      return 'bar';
+    case 'combo':
+      return seriesType ?? 'line';
+  }
 }

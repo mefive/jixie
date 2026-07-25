@@ -6,6 +6,8 @@ import { apiError, validateJson, validateQuery } from '../lib/httpError.js';
 import * as turnBus from '../agent/turn-bus.js';
 import { runReadOnlySql, jsonSafe } from '../agent/tools/read-only-sql.js';
 import { CHART_ROW_CAP } from '../agent/tools/render-chart.js';
+import { runComputeChartRows } from '../agent/tools/render-computed-chart.js';
+import { computeChartSpecSchema } from '../lib/chart-spec.js';
 import { m } from '../i18n/index.js';
 import { prisma } from '../lib/prisma.js';
 
@@ -152,6 +154,18 @@ agentRoute.post('/sql', validateJson(sqlBody), async (c) => {
   try {
     const rows = await runReadOnlySql(sql, CHART_ROW_CAP);
     // Raw SQLite integers arrive as BigInt — normalize through jsonSafe before Hono serializes.
+    return c.json(JSON.parse(JSON.stringify({ rows }, jsonSafe)));
+  } catch (e) {
+    return apiError(c, 'VALIDATION_FAILED', e instanceof Error ? e.message : m(c, 'queryFailed'));
+  }
+});
+
+// Re-run a compute-source chart card (computed-chart.md Phase A): the persisted queries + code run
+// through the same whitelist guard and analysis isolate as the renderComputedChart tool, and the
+// validated row table comes back for the frontend to draw. Data never touches the LLM.
+agentRoute.post('/chart/compute', validateJson(computeChartSpecSchema), async (c) => {
+  try {
+    const rows = await runComputeChartRows(c.req.valid('json'));
     return c.json(JSON.parse(JSON.stringify({ rows }, jsonSafe)));
   } catch (e) {
     return apiError(c, 'VALIDATION_FAILED', e instanceof Error ? e.message : m(c, 'queryFailed'));
