@@ -664,7 +664,15 @@ try {
   await page.locator('.jx-factor-agent').getByRole('tab', { name: '因子库' }).click();
   await page.locator('.jx-factor-libItem').first().waitFor({ timeout: 15000 });
   await page.locator('.jx-factor-libItem', { hasText: '盈利收益率' }).click();
-  await page.locator('.jx-factor-params .ant-btn-primary').click();
+  const runExploratoryAnalysis = async () => {
+    await page.locator('.jx-factor-runButton').click();
+    const modal = page.locator('.jx-factor-researchModal');
+    await modal.waitFor();
+    await modal.getByText('纯探索', { exact: true }).click();
+    await modal.getByRole('button', { name: '冻结研究卡并运行' }).click();
+    await modal.waitFor({ state: 'hidden' });
+  };
+  await runExploratoryAnalysis();
   await page.locator('.jx-factor-chart canvas').first().waitFor({ timeout: 60000 }); // fundamental ~seconds cold
   await page.waitForTimeout(500); // let echarts paint
   log('shot 7: ep 月度分析 →', ((await page.locator('.jx-factor-dir').textContent()) ?? '').trim());
@@ -704,7 +712,7 @@ try {
   //     Wait for the sample to show the bounded window (2022) so we know the compute finished, not the
   //     stale full-range chart from shot 7.
   await pickNeutral('市值+行业');
-  await page.locator('.jx-factor-params .ant-btn-primary').click();
+  await runExploratoryAnalysis();
   await page.waitForFunction(
     () => (document.querySelector('.jx-factor-sample')?.textContent ?? '').includes('2022'),
     undefined, // arg — the timeout belongs in the THIRD parameter (options), not here
@@ -763,7 +771,7 @@ try {
   //     (whole-market panels + the industry table = slow) never runs.
   await pickNeutral('无');
   await pickFreq(/^周$/);
-  await page.locator('.jx-factor-params .ant-btn-primary').click();
+  await runExploratoryAnalysis();
   await page.waitForFunction(
     () => (document.querySelector('.jx-factor-sample')?.textContent ?? '').includes('周'),
     undefined, // arg — the timeout belongs in the THIRD parameter (options), not here
@@ -777,16 +785,27 @@ try {
   );
   await page.screenshot({ path: `${SHOTS}7b-factors-week.png` });
 
-  // 8. Factor→strategy closed loop (3.2 acceptance): create a custom factor, reference it from a
-  //    strategy via ctx.factor('custom:<key>'), run a REAL short backtest through the walled worker,
-  //    and confirm the result lands. API-level (the UI flows above already covered both editors).
+  // 8. Factor→strategy closed loop (3.2 acceptance): create a custom factor that needs auxiliary
+  //    turnover history, reference it from a strategy via ctx.factor('custom:<key>'), run a REAL
+  //    short backtest through the walled worker, and confirm the result lands. API-level (the UI
+  //    flows above already covered both editors).
   const loopResult = await page.evaluate(async () => {
     const factorRes = await fetch('/api/app/factors/custom', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        name: 'e2e闭环EP',
-        code: 'export default defineFactor({ name: "e2e闭环EP", compute: (bar) => (bar.peTtm && bar.peTtm > 0 ? 1 / bar.peTtm : null) });',
+        name: 'e2e闭环换手率',
+        code: [
+          'export default defineFactor({',
+          '  name: "e2e闭环换手率",',
+          '  window: 3,',
+          '  compute(_bar, ctx) {',
+          '    const values = ctx.history(3, "turnoverRateF");',
+          '    if (values.length !== 3 || values.some((value) => value == null)) return null;',
+          '    return values.reduce((sum, value) => sum + value, 0);',
+          '  },',
+          '});',
+        ].join('\n'),
       }),
     });
     const factor = await factorRes.json();
@@ -797,7 +816,7 @@ try {
     const keyRes = await fetch(`/api/app/factors/custom/${factor.id}/finalize-key`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ key: 'e2e_closed_loop_ep' }),
+      body: JSON.stringify({ key: 'e2e_closed_loop_turnover' }),
     });
     const finalized = await keyRes.json();
     if (!keyRes.ok) {
@@ -813,7 +832,9 @@ try {
       '  async onBar(ctx) {',
       "    if (ctx.period('monthly') === last) return;",
       "    last = ctx.period('monthly');",
-      '    const picks = (await ctx.universe()).minListDays(365)',
+      "    const universe = (await ctx.universe('000300.SH')).minListDays(365);",
+      '    await ctx.ensureBars(universe.codes());',
+      '    const picks = universe',
       `      .rankBy((b, code) => ctx.factor('${factorKey}', code))`,
       '      .top(10);',
       '    if (picks.length) ctx.equalWeight(picks);',
