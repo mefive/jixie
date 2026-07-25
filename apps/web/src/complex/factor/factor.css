@@ -455,6 +455,23 @@
   font-size: 12px;
 }
 
+.jx-factor-researchHint {
+  @apply cursor-help underline decoration-dotted underline-offset-2;
+}
+
+.jx-factor-researchReason {
+  @apply text-muted;
+}
+
+.jx-factor-holdoutConfirm {
+  @apply flex flex-col gap-2;
+}
+
+.jx-factor-holdoutMeta {
+  @apply flex flex-col gap-1 text-muted;
+  font-size: 12px;
+}
+
 .jx-factor-researchForm {
   @apply flex flex-col gap-3;
 }

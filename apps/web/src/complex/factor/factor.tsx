@@ -860,20 +860,33 @@ const ResearchDisciplineBar = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('factor');
   const counts = store.researchSummaryLoader.result?.factor;
-  const holdout = store.reportDetail?.holdout;
-  if (!counts && !holdout?.eligible) {
+  const detail = store.reportDetail;
+  const holdout = detail?.holdout;
+  // Only completed explore reports surface an ineligibility reason; other phases are natural states.
+  const ineligibleReason =
+    detail?.phase === 'explore' && detail.status === 'done' && holdout && !holdout.eligible
+      ? holdout.reason
+      : undefined;
+  if (!counts && !holdout?.eligible && !ineligibleReason) {
     return null;
   }
+  const intent = detail?.researchIntent;
+  const criterion = intent?.primaryCriterion;
+  const editorCodeChanged =
+    !!detail?.factorCodeSnapshot && !!store.code && store.code !== detail.factorCodeSnapshot;
+
   return (
     <div className="jx-factor-researchBar">
       {counts && (
-        <span>
-          {t('researchSummary', {
-            tests: counts.exploreTestCount,
-            reports: counts.exploreRunCount,
-            falsePositives: counts.expectedFalsePositivesAtFivePercent.toFixed(2),
-          })}
-        </span>
+        <Tooltip title={t('researchSummaryHelp')}>
+          <span className="jx-factor-researchHint">
+            {t('researchSummary', {
+              tests: counts.exploreTestCount,
+              reports: counts.exploreRunCount,
+              falsePositives: counts.expectedFalsePositivesAtFivePercent.toFixed(2),
+            })}
+          </span>
+        </Tooltip>
       )}
       {holdout?.eligible && (
         <Button
@@ -881,10 +894,40 @@ const ResearchDisciplineBar = complex.component(() => {
           onClick={() =>
             Modal.confirm({
               title: t('holdoutConfirmTitle'),
-              content: t('holdoutConfirmContent', {
-                start: formatTradeDate(holdout.window!.holdoutStart),
-                end: formatTradeDate(holdout.window!.holdoutEnd),
-              }),
+              content: (
+                <div className="jx-factor-holdoutConfirm">
+                  <div>
+                    {t('holdoutConfirmContent', {
+                      start: formatTradeDate(holdout.window!.holdoutStart),
+                      end: formatTradeDate(holdout.window!.holdoutEnd),
+                    })}
+                  </div>
+                  <div className="jx-factor-holdoutMeta">
+                    {detail?.factorCodeHash && (
+                      <span>
+                        {t('holdoutFrozenCode', { hash: detail.factorCodeHash.slice(0, 12) })}
+                      </span>
+                    )}
+                    {criterion && (
+                      <span>
+                        {t('holdoutPreset', {
+                          direction: t(
+                            intent!.expectedDirection === 'positive'
+                              ? 'directionPositive'
+                              : 'directionNegative',
+                          ),
+                          criterion: `${criterionMetricLabel(t, criterion.metric)} ${
+                            criterion.operator === 'gt' ? '>' : '<'
+                          } ${criterion.value}`,
+                        })}
+                      </span>
+                    )}
+                  </div>
+                  {editorCodeChanged && (
+                    <Alert type="warning" showIcon message={t('holdoutCodeChanged')} />
+                  )}
+                </div>
+              ),
               okText: t('runHoldout'),
               cancelText: t('cancel'),
               onOk: () => store.runHoldout(),
@@ -893,6 +936,9 @@ const ResearchDisciplineBar = complex.component(() => {
         >
           {t('runHoldout')}
         </Button>
+      )}
+      {ineligibleReason && (
+        <span className="jx-factor-researchReason">{t(`holdoutReason.${ineligibleReason}`)}</span>
       )}
     </div>
   );
@@ -1513,6 +1559,16 @@ function criterionPassed(report: FactorReport, intent?: FactorResearchIntentV1):
     net_long_short_annualized: report.longShortNet?.annReturn ?? Number.NaN,
   }[criterion.metric];
   return criterion.operator === 'gt' ? metric > criterion.value : metric < criterion.value;
+}
+
+function criterionMetricLabel(t: TFunction, metric: FactorResearchMetric): string {
+  const labelKey: Record<FactorResearchMetric, string> = {
+    rank_ic_mean: 'criterionRankIc',
+    rank_icir_annual: 'criterionIcir',
+    net_long_short_annualized: 'criterionNetLs',
+  };
+
+  return t(labelKey[metric]);
 }
 
 const pct = (v: number) => `${(v * 100).toFixed(2)}%`;

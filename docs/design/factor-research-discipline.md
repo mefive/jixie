@@ -1,6 +1,6 @@
 # 因子研究纪律：研究卡、Holdout 与多重检验提示
 
-> 状态：待实施  
+> 状态：已实施（主体 commit `c71dc16` 2026-07-20；收尾 2026-07-25，见文末实施记录）  
 > 前置：`docs/design/factor-report-history.md` 已实施  
 > 范围：`FactorReport` 的研究语义、正式保留段、结果揭示、研究变体计数  
 > 不在范围：新建 `FactorExperiment`、扩充完整 `AnalysisSpec`、Newey-West / Fama-MacBeth
@@ -502,6 +502,23 @@ revealedAt = now → 可反复查看，但不再是未观察数据
 - 不做 Newey-West、Fama-MacBeth、alpha / GRS。
 - 不把 holdout 的单一通过标准包装成自动准入结论。
 - 不修改相关性报告和策略回测。
+
+## 14. 实施记录
+
+主体在 commit `c71dc16`（2026-07-20）落地：schema 新字段 + Prisma migration + 幂等回填脚本
+（`scripts/migrate-factor-research-discipline.ts`）、`report-spec.ts` 的 testKey/研究卡校验、
+`research.ts`（window/计数/期数下限）、run/holdout/reveal 路由与封存脱敏、前端研究卡弹窗 +
+计数条 + 封存/揭示 UI、`factor-report-history.mjs` 真实服务 E2E 全生命周期断言。
+
+2026-07-25 对照本文档逐条审计后收尾：
+
+- 不合格 explore 报告在研究条展示不可验证原因（§10.3「展示原因」，七种 reason 全部 i18n）；
+- 计数条加 tooltip 说明计数规则（§7.1「点击可打开说明」，重复运行不重复计、失败不计、仅风险提醒）；
+- holdout 确认框补冻结代码 hash、预设方向/判据展示，编辑器代码已变化时给「验证旧快照」警告（§7.4/§3.4）；
+- E2E 补不合格原因断言；回填核对：dev 库 21 legacy + 19 explore done 均有 testKey，5 份 holdout。
+
+与设计的已知偏差：`enoughHoldoutPeriods` 用自然日跨度近似期数下限（周频 ≥77 天、月频 ≥152 天），
+不逐期数交易日历；`holdoutConfirmContent` 未展示父报告完整参数（spec 摘要在参数条已可见）。
 
 ## 13. 预计涉及文件
 

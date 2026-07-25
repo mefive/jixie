@@ -122,20 +122,23 @@
 - **后续纪律(未做)**:实验前研究卡、正式 holdout/revealedAt 和多重检验提示见 3.6a;样本不足分类与
   稳健统计见 3.6b。
 
-### 3.6a 研究卡 + 一次性 Holdout + 多重检验提示 ⬜(下一步)
+### 3.6a 研究卡 + 一次性 Holdout + 多重检验提示 ✅(主体 2026-07-20,收尾 2026-07-25)
 
-详设与验收见 `docs/design/factor-research-discipline.md`。**仍不新增 `FactorExperiment`**:当前没有命名、
-归档、分享或管理一组报告的独立实验生命周期,`FactorReport` 就是一次 experiment。
+详设与验收见 `docs/design/factor-research-discipline.md`(内含实施记录)。**未新增 `FactorExperiment`**:
+`FactorReport` 就是一次 experiment。
 
-- **研究卡**:新代码首次运行前选择“假设验证 / 纯探索”;假设模式预先冻结方向和主要通过标准,不允许看完
-  结果后改写成先验。
-- **默认保留段**:服务器按市场最新交易日留出最近 18 个月;完整区间仍可探索,但不能再声称有正式 holdout。
-- **一次揭示**:合格 explore report 用父报告冻结代码和参数创建 `phase=holdout`;结果先封存,用户明确揭示
-  后写入不可逆 `revealedAt`。同一父报告最多一份 running/done 正式 holdout,基础设施失败允许留痕重试。
-- **诚实计数**:新增包含 spec、代码 hash 和预设判据、但不含 data revision 的 `testKey`;分别展示报告次数
-  与唯一探索变体数,同输入同判据重跑不重复计,并显示 5% 水平下约 `N/20` 个随机假阳性提示。
-  FDR 等候选数扩大后再上。
-- **开工门槛**:先补跑现有报告历史的真实服务 E2E,覆盖运行中刷新、切换因子续接和同参数重跑。
+- **研究卡 ✅**:新运行前弹「假设验证 / 纯探索」卡,假设模式冻结方向 + 主要判据(`researchIntentJson`,
+  报告完成后不可改);重跑默认复制上一张卡。
+- **默认保留段 ✅**:`GET /factor/research/window` 按 Daily 最新交易日回推 18 个月算 `exploreEnd`,前端新
+  探索默认 end 用它;完整区间仍可跑但失去正式 holdout 资格。
+- **一次揭示 ✅**:合格 explore(假设模式 + 未越界 + 期数足够 + 代码未观察过保留段)可发起 `phase=holdout`,
+  用父报告冻结代码/参数,结果封存(list/detail/job 日志全部脱敏),`POST /reveal` 幂等写入不可逆
+  `revealedAt`;同一父报告最多一份 running/done,失败留痕可重试。UI 确认框展示冻结代码 hash、预设判据、
+  「编辑器代码已变」警告;揭示后对照预设判据显示达标/未达标 + 首次揭示时间;不合格报告展示原因。
+- **诚实计数 ✅**:`testKey = sha256(spec + codeHash + claim)`(不含 dataRevision);顶部条分开展示唯一探索
+  变体数 / 完成报告数 + 5% 假阳性提示(tooltip 说明计数规则),legacy 单独计。FDR 等候选数扩大后再上。
+- **验收实况**:API 单测 171 全绿;真实服务 E2E 覆盖运行中刷新/切换因子续接/同参数重跑复用 + 假设探索→
+  封存(泄露断言)→幂等揭示→删因子留痕全链路;旧报告幂等回填核对(21 legacy + 19 explore 均有 testKey)。
 
 ### 3.6b 研究口径与稳健推断 ⬜(A 近期低成本;B 候选增多后做)
 

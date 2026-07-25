@@ -126,6 +126,8 @@ export const enFactor: typeof zhFactor = {
 
   researchSummary:
     '{{tests}} explore variants · {{reports}} completed reports · about {{falsePositives}} random false positives at 5%',
+  researchSummaryHelp:
+    'Re-running the same code, parameters, and criterion counts as one variant; failed/interrupted jobs and holdouts are excluded. The false-positive figure is a risk reminder, not a statistical correction.',
   researchCardTitle: 'Pre-run research card',
   researchModeHypothesis: 'Test a hypothesis',
   researchModeExploratory: 'Pure exploration',
@@ -143,6 +145,20 @@ export const enFactor: typeof zhFactor = {
   holdoutConfirmContent:
     'The frozen code and parameters will be tested from {{start}} to {{end}}. The result stays sealed after computation.',
   runHoldout: 'Validate holdout',
+  holdoutFrozenCode: 'Frozen code {{hash}}',
+  holdoutPreset: 'Pre-registered: {{direction}} · {{criterion}}',
+  holdoutCodeChanged:
+    'The editor code has changed: this validates the code snapshot frozen in the report, not the current code.',
+  holdoutReason: {
+    not_explore: 'Only explore reports can start a holdout validation',
+    not_done: 'The report must finish before starting a holdout validation',
+    missing_hypothesis: 'Holdout unavailable: the research card is not in hypothesis mode',
+    outside_explore_window:
+      'Holdout unavailable: the explore range crosses into the holdout period',
+    insufficient_periods: 'Holdout unavailable: not enough rebalance periods in the holdout',
+    already_observed: 'Holdout unavailable: this code has already observed the holdout data',
+    already_exists: 'This report already has a formal holdout',
+  },
   holdoutSealed:
     'The holdout computation is complete and still sealed. Revealing it cannot restore an unobserved state.',
   revealHoldout: 'Reveal result',
