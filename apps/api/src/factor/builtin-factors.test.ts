@@ -326,6 +326,8 @@ describe('3.5 preset-menu additions', () => {
     expect((await compiled('abturn')).window).toBe(252);
     expect((await compiled('amihud')).window).toBe(21);
     expect((await compiled('amihud')).minCoverage).toBe(0.8);
+    expect((await compiled('turn20')).window).toBe(20);
+    expect((await compiled('roe_stability')).window).toBe(504);
     expect((await compiled('roe')).window).toBeUndefined();
     expect((await compiled('gross_margin')).window).toBeUndefined();
   });
@@ -372,6 +374,60 @@ describe('3.5 preset-menu additions', () => {
     const shortMean = window.slice(-21).reduce((sum, value) => sum + value, 0) / 21;
     expect(actual).toBeCloseTo(shortMean / longMean, 12);
     expect(short).toBeNull();
+  });
+
+  it('turn20 = mean free-float turnover over 20 days, null on any missing day', async () => {
+    const { px, dates } = cleanLongSeries();
+    const turnoverRates: (number | null)[] = dates.map((_date, index) => 2 + index / 50);
+    const withGap = [...turnoverRates];
+    withGap[250] = null;
+    const factor = await compiled('turn20');
+    const [actual, missing, short] = await factor.computeBatch([
+      windowItemWithTurnover(20, px, dates, turnoverRates, 259),
+      windowItemWithTurnover(20, px, dates, withGap, 259),
+      windowItemWithTurnover(20, px, dates, turnoverRates, 10),
+    ]);
+    factor.dispose();
+    const window = turnoverRates.slice(240, 260) as number[];
+    expect(actual).toBeCloseTo(window.reduce((sum, value) => sum + value, 0) / 20, 12);
+    expect(missing).toBeNull();
+    expect(short).toBeNull();
+  });
+
+  it('roe_stability = std of the as-of roe step series, needing 4 distinct report segments', async () => {
+    const closes = Array.from({ length: 504 }, () => 10);
+    const dates = Array.from({ length: 504 }, (_value, index) => {
+      const day = new Date(Date.UTC(2022, 0, 3) + index * 86400000);
+      const pad = (x: number) => String(x).padStart(2, '0');
+      return `${day.getUTCFullYear()}${pad(day.getUTCMonth() + 1)}${pad(day.getUTCDate())}`;
+    });
+    // 8 quarterly reports, 63 days each — a realistic publication-span-weighted step series.
+    const reportValues = [12, 11, 14, 13, 15, 12, 16, 14];
+    const roes = Array.from(
+      { length: 504 },
+      (_value, index) => reportValues[Math.floor(index / 63)],
+    );
+    const flat = Array.from({ length: 504 }, (_value, index) => (index < 250 ? 10 : 11)); // 2 segments
+    const withNull: (number | null)[] = [...roes];
+    withNull[0] = null;
+    const item = (values: (number | null)[]): FactorBatchItem => ({
+      bar: NULL_BAR,
+      closes,
+      dates,
+      roes: values,
+    });
+    const factor = await compiled('roe_stability');
+    const [actual, fewSegments, missing] = await factor.computeBatch([
+      item(roes),
+      item(flat),
+      item(withNull),
+    ]);
+    factor.dispose();
+    const mean = roes.reduce((sum, value) => sum + value, 0) / roes.length;
+    const variance = roes.reduce((sum, value) => sum + (value - mean) ** 2, 0) / roes.length;
+    expect(actual).toBeCloseTo(Math.sqrt(variance), 12);
+    expect(fewSegments).toBeNull();
+    expect(missing).toBeNull();
   });
 
   it('amihud = mean absolute return / turnover amount, with strict amount and gap checks', async () => {

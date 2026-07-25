@@ -31,6 +31,7 @@ When you need history, declare \`window: N\` at the top level of defineFactor (t
 - \`ctx.history(n, 'date')\`: the trading days (YYYYMMDD) of the window, aligned position-by-position with the closes — use it to check for suspension gaps (an over-large calendar gap between adjacent days signals a long suspension; consider dropping it).
 - \`ctx.history(n, 'amount')\`: aligned daily turnover amounts (**in thousand CNY**) as \`(number | null)[]\`; null means the source omitted that day. This supports liquidity measures such as Amihud illiquidity.
 - \`ctx.history(n, 'turnoverRateF')\`: aligned free-float turnover rates (%) as \`(number | null)[]\`; null means the source omitted that day.
+- \`ctx.history(n, 'roe')\`: aligned **point-in-time** ROE (%) — each day carries the latest report published on/before it (a step series that jumps on announcement days; null before the first report). This supports profitability-stability / quality factors.
 - **Calling ctx.history without declaring window throws**; window must be ≥ the n you actually take.
 - Example: 20-day momentum = \`window: 20\`, \`const c = ctx.history(20); if (c.length < 20) return null; return c[19] / c[0] - 1;\`
 

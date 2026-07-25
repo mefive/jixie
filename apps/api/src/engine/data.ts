@@ -511,6 +511,17 @@ export class EngineData {
     return this.factorByKey.get(`${name}|${dates[j]}`)?.get(code) ?? null;
   }
 
+  /** Point-in-time ROE (%) for `code` as-of `date` — sync read for custom-factor 'roe' histories.
+   * Callers must have awaited preloadFina() (run.ts does when a factor declares the field). */
+  roeHistoryAt(code: string, date: string): number | null {
+    return this.roeAsOf(code, date)?.roe ?? null;
+  }
+
+  /** Explicit fina preload for sync as-of reads before any cross-section has been requested. */
+  async preloadFina(): Promise<void> {
+    await this.ensureFina();
+  }
+
   /** Load all financial indicators once (PIT-gated by annDate), grouped by code ascending. */
   private async ensureFina(): Promise<void> {
     if (this.finaLoaded) {

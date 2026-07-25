@@ -21,6 +21,10 @@ export interface FactorCtx {
   history(n: number, field: 'amount'): (number | null)[];
   /** Free-float turnover-rate (%) history, aligned with `history(n)`; null means unavailable that day. */
   history(n: number, field: 'turnoverRateF'): (number | null)[];
+  /** Point-in-time ROE (%) history — each day carries the latest report published on/before that day
+   * (as-of by announcement date, no look-ahead; a step series that jumps on publication days).
+   * Aligned with `history(n)`; null before the first published report. */
+  history(n: number, field: 'roe'): (number | null)[];
 }
 
 export interface CustomFactor {
