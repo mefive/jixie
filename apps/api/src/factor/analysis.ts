@@ -242,6 +242,7 @@ export async function computeFactorSeries(
   audit.declaredWindowDays = factor.window;
   audit.minimumCoverage = effectiveMinimumCoverage;
   const needsTurnoverRateFHistory = factorCode.includes("'turnoverRateF'");
+  const needsRoeHistory = factorCode.includes("'roe'");
 
   // Preload all financial reports once (PIT-gated by annDate); loadBars picks each stock's as-of report.
   const finaIndex = await loadFinaIndex();
@@ -418,6 +419,11 @@ export async function computeFactorSeries(
         adjClose.push(r.close * lastAdj);
         amounts.push(r.amount);
       }
+      // Point-in-time ROE per trading day (as-of announcement date) — a step series aligned with
+      // tradeDates; only materialized when the factor actually reads the 'roe' history.
+      const roes: (number | null)[] = needsRoeHistory
+        ? tradeDates.map((tradeDate) => finaAsOf(finaIndex, tsCode, tradeDate)?.roe ?? null)
+        : [];
       // One wall-crossing per stock: every rebalance index becomes a batch item carrying the
       // bar + the hfq close/date window ENDING at that day (ctx.history slices tails in-wall).
       const items: FactorBatchItem[] = [];
@@ -448,6 +454,7 @@ export async function computeFactorSeries(
           turnoverRatesF: tradeDates
             .slice(from, end + 1)
             .map((tradeDate) => turnoverRateFMap.get(tradeDate) ?? null),
+          roes: needsRoeHistory ? roes.slice(from, end + 1) : undefined,
         });
         itemDates.push(date);
       }

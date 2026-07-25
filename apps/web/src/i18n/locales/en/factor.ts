@@ -278,6 +278,8 @@ export const enFactor: typeof zhFactor = {
     vol120: 'Volatility (120d)',
     abturn: 'Abnormal turnover (21d/252d)',
     amihud: 'Amihud illiquidity (20d)',
+    turn20: 'Turnover level (20d mean)',
+    roe_stability: 'ROE stability (504d)',
     ep: 'Earnings yield (1/PE_TTM)',
     bp: 'Book-to-market (1/PB)',
     dv: 'Dividend yield (%)',

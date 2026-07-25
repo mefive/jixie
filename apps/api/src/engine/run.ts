@@ -31,6 +31,10 @@ function needsTurnoverRateFHistory(cfg: EngineConfig): boolean {
   );
 }
 
+function needsRoeHistory(cfg: EngineConfig): boolean {
+  return (cfg.customFactors ?? []).some((factor) => factor.historyFields?.includes('roe'));
+}
+
 /**
  * Run an event-driven strategy backtest.
  *
@@ -73,6 +77,9 @@ async function runStockStrategy(cfg: EngineConfig): Promise<BacktestResult> {
   if (cfg.strategy.watch?.length) {
     await engineData.loadBars(cfg.strategy.watch);
   } // per-instrument preload
+  if (needsRoeHistory(cfg)) {
+    await engineData.preloadFina();
+  } // custom-factor 'roe' histories read fina synchronously
   const customFactors = buildCustomFactorRuntime(cfg, engineData, locale, log);
   const portfolio = new Portfolio(cfg.initialCash, cost);
 
@@ -169,6 +176,9 @@ async function runMultiAssetStrategy(cfg: EngineConfig): Promise<BacktestResult>
   await engineData.load();
   if (cfg.strategy.watch?.length) {
     await engineData.loadBars(cfg.strategy.watch);
+  }
+  if (needsRoeHistory(cfg)) {
+    await engineData.preloadFina();
   }
   const customFactors = buildCustomFactorRuntime(cfg, engineData, locale, log);
   const allocation = accountAllocation(cfg);

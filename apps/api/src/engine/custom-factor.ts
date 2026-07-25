@@ -18,11 +18,18 @@ export interface CustomFactorModule {
   historyFields?: CustomFactorHistoryField[];
 }
 
-export type CustomFactorHistoryField = 'turnoverRateF';
+export type CustomFactorHistoryField = 'turnoverRateF' | 'roe';
 
 /** Identify expensive auxiliary histories before factor code enters the engine wall. */
 export function extractCustomFactorHistoryFields(source: string): CustomFactorHistoryField[] {
-  return /['"]turnoverRateF['"]/.test(source) ? ['turnoverRateF'] : [];
+  const fields: CustomFactorHistoryField[] = [];
+  if (/['"]turnoverRateF['"]/.test(source)) {
+    fields.push('turnoverRateF');
+  }
+  if (/['"]roe['"]/.test(source)) {
+    fields.push('roe');
+  }
+  return fields;
 }
 
 /** Evaluate one factor module — mirrors wall-entry's strategy evaluation (same ambient style). */
@@ -110,8 +117,12 @@ export class CustomFactorRuntime {
       const dates = bars.map((bar) => bar.date);
       const amounts = bars.map((bar) => bar.amount);
       const turnoverRatesF = bars.map((bar) => bar.turnoverRateF);
+      const engineData = this.engineData;
+      // Point-in-time ROE per bar date (as-of announcement), materialized lazily on first read —
+      // fina is preloaded by run.ts when the factor declares the 'roe' history field.
+      let roes: (number | null)[] | null = null;
       ctx = {
-        history(n: number, field?: 'date' | 'amount' | 'turnoverRateF') {
+        history(n: number, field?: 'date' | 'amount' | 'turnoverRateF' | 'roe') {
           // Auxiliary histories are loaded only when requested by host metadata and stay aligned
           // with the OHLC bars.
           const source =
@@ -121,7 +132,9 @@ export class CustomFactorRuntime {
                 ? amounts
                 : field === 'turnoverRateF'
                   ? turnoverRatesF
-                  : closes;
+                  : field === 'roe'
+                    ? (roes ??= bars.map((bar) => engineData.roeHistoryAt(code, bar.date)))
+                    : closes;
           if (n <= 0 || source.length < n) {
             return [];
           }

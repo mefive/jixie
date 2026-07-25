@@ -243,6 +243,53 @@ export default defineFactor({
 });
 `;
 
+const TURNOVER_LEVEL_CODE = `// Preset: turnover level — mean free-float turnover rate (%) over the latest 20 trading days
+// (Datar–Naik–Radcliffe 1998 share-turnover liquidity; in A-shares also a retail-attention /
+// crowding proxy). Local evidence expects a negative relation with future returns: hot, heavily
+// traded names underperform. Any missing turnover day drops the observation.
+export default defineFactor({
+  name: '换手率(20日均)',
+  window: 20,
+  compute(bar, ctx) {
+    const turnoverRates = ctx.history(20, 'turnoverRateF');
+    if (turnoverRates.length < 20 || turnoverRates.some((value) => value == null)) {
+      return null;
+    }
+    return (turnoverRates as number[]).reduce((sum, value) => sum + value, 0) / 20;
+  },
+});
+`;
+
+const ROE_STABILITY_CODE = `// Preset: ROE stability — standard deviation of the point-in-time ROE (%) series over the latest
+// 504 trading days (~2 years ≈ 8 quarterly reports; each report weighs by its publication span,
+// as every day carries the latest report published on/before it). Quality family: stable
+// profitability is the reward signal, so the raw volatility expects a NEGATIVE IC. Requires a
+// fully published window and at least 4 distinct report segments, else null.
+export default defineFactor({
+  name: 'ROE稳定性(504日)',
+  window: 504,
+  compute(bar, ctx) {
+    const roes = ctx.history(504, 'roe');
+    if (roes.length < 504 || roes.some((value) => value == null)) {
+      return null;
+    }
+    const values = roes as number[];
+    let segments = 1;
+    for (let index = 1; index < values.length; index++) {
+      if (values[index] !== values[index - 1]) {
+        segments += 1;
+      }
+    }
+    if (segments < 4) {
+      return null;
+    }
+    const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
+    const variance = values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / values.length;
+    return Math.sqrt(variance);
+  },
+});
+`;
+
 export const BUILTIN_FACTORS: BuiltinFactorDef[] = [
   { key: 'mom', label: '动量(60日,跳5)', kind: 'price', code: MOMENTUM_CODE },
   { key: 'mom_12_1', label: '动量(12-1月)', kind: 'price', code: MOMENTUM_12_1_CODE },
@@ -256,6 +303,7 @@ export const BUILTIN_FACTORS: BuiltinFactorDef[] = [
     kind: 'price',
     code: ABNORMAL_TURNOVER_CODE,
   },
+  { key: 'turn20', label: '换手率(20日均)', kind: 'price', code: TURNOVER_LEVEL_CODE },
   {
     key: 'ep',
     label: '盈利收益率(1/PE_TTM)',
@@ -313,6 +361,12 @@ export default defineFactor({
   compute: (bar) => bar.roe,
 });
 `,
+  },
+  {
+    key: 'roe_stability',
+    label: 'ROE稳定性(504日)',
+    kind: 'fundamental',
+    code: ROE_STABILITY_CODE,
   },
   {
     key: 'gross_margin',
