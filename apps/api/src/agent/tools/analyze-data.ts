@@ -53,7 +53,7 @@ const argsSchema = z.object({
 /** SQL fetch + sandboxed JS transform in one call — for statistics SQL can't express. */
 export const analyzeDataTool: AgentTool = {
   name: 'analyzeData',
-  description: `SQL fetch + a piece of JS code for statistical computation, completed in one call (data never enters the conversation, only the computed result comes back). Good for what sqlQuery can't compute: correlation, regression (β/α), volatility, quantiles, multi-step derived calculations. **Simple aggregation still uses sqlQuery; IC / layered factor tests go to the factor page; backtests go to the lab — don't rebuild those with this tool.**
+  description: `SQL fetch + a piece of JS code for statistical computation, completed in one call (data never enters the conversation, only the computed result comes back). Good for what sqlQuery can't compute: correlation, regression (β/α), volatility, quantiles, multi-step derived calculations. **Simple aggregation still uses sqlQuery; a computed SERIES the user should SEE goes to renderComputedChart (this tool returns text only); IC / layered factor tests go to the factor page; backtests go to the lab — don't rebuild those with this tool.**
 Usage: write 1–4 SELECTs in queries (same table whitelist as sqlQuery); each result is injected as a row-array into data.<name>; code is a module:
 export default ({ data, stats }) => { …; return { aggregated result }; }
 Notes: dates are 'YYYYMMDD' strings; numeric columns may be null and must be filtered; the return value must be JSON-serializable and **aggregated down to a few numbers** (exceeding ${RESULT_CHAR_CAP} characters raises an error).

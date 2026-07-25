@@ -89,6 +89,7 @@ import type {
   AgentTurnDetail,
   BacktestConfig,
   ChatMessage,
+  ComputeChartSpec,
   LogLine,
   SqlRows,
   ToolTraceItem,
@@ -139,6 +140,11 @@ export function getAgentTurn(turnId: string): Promise<AgentTurnDetail> {
 // Read-only SQL over the market-table whitelist — chart cards re-run their persisted query here.
 export function agentSql(sql: string): Promise<SqlRows> {
   return request('/api/app/agent/sql', { method: 'POST', body: JSON.stringify({ sql }) });
+}
+
+// Re-run a compute-source chart card (persisted queries + sandboxed transform → row table).
+export function agentComputeChart(spec: ComputeChartSpec): Promise<SqlRows> {
+  return request('/api/app/agent/chart/compute', { method: 'POST', body: JSON.stringify(spec) });
 }
 
 // Parse an SSE body (hono streamSSE: `data: <json>\n\n` frames). fetch + ReadableStream instead of

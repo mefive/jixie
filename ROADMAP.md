@@ -178,9 +178,10 @@ stk_limit / moneyflow / toplist 只覆盖 2020-2024;跑更早回测前:`pnpm syn
 
 候选:北向资金、融资融券、概念板块;`FactorBar` 补 roe(fina_indicator 已在库)。**规则:有策略/因子想用了再加**。**2026-07-07 盘点完成**:缺口清单 + 波次计划见 `docs/design/data-expansion.md`。**波次一当日完成**:fina_indicator 扩 7 列(毛利率/净利率/负债率/ROA/营收与净利同比/经营现金流比,迁移 20260707200000 按 migrate-lock 先例手动应用),sync 支持 `refresh` 断点续传回填(~77 分钟已启动),SQL 白名单文档同步;顺手 `sync:index` 补齐中证1000/500 全历史日线+成分(指数对比问答解锁)。
 
-### 4.3 研究面板 B/C ⬜(DX 打磨,已有规划)
+### 4.3 研究面板 B/C ✅(B 2026-07-03 已随 IDE 化完成;C 2026-07-25 收官)
 
-B = IDE 内结构化日志面板;C = SDK hover tooltip(编辑器悬浮显示文档)。见既有规划记忆(research panel plan)。
+- **B · IDE 内结构化日志面板 ✅(2026-07-03,状态一度漏记)**:lab / 因子页 antd Splitter IDE 化 + 共享 `components/log-view.tsx`(system/user chip 分色),日志常驻可折叠 dock 不再顶掉结果。
+- **C · SDK hover tooltip ✅(2026-07-25)**:实测根因 = lab 的 `registerLinkProvider` 把每个 SDK 成员/类型出现处(含注释里)都做成链接,链接 tooltip 顶掉 TypeScript QuickInfo(本地化 JSDoc 从未展示),cmd+click 也被劫持不再跳定义。修复:成员/类型的 📖 文档链接改由 hover provider 提供(与 TS QuickInfo **合并**渲染:签名 + 本地化文档 + 文档链接三合一),link provider 只保留 `custom:<key>` 因子字符串(字符串本无 TS hover)。dev 构建暴露 `window.__monaco` 调试钩子(prod 不带);e2e `sdk-hover.mjs` 断言合并 hover 三要素,截图 7r。TS worker 本身(dts 提供方式)经直连验证完全健康,无需改 dts 管线。
 
 ### 4.4 SDK 单一来源 ✅(2026-07-09,为 3.2 动 SDK 前置完成)
 
@@ -324,15 +325,13 @@ NL 入口收编进 agent(确定性 LIKE 解析保留为 `searchInstruments` 内�
 
 SQL 的统计边界(无 stddev/相关/回归、多步流水线易错)的逃生舱:一个工具 = 命名 SQL 取数(≤4 条,同白名单守卫)+ 一段 JS 变换代码(esbuild+new Function 沙盒,worker 线程超时 terminate + 内存上限),数据服务端内部流转**不经过模型**,只回结果(≤8KB)。注入自家 `lib/stats.ts` 为 `stats.*`(v1 零新依赖;simple-statistics 等需求拉动再加)。图表仍归 renderChart;「算出来的数据画图」见 **7.8**。**实况**:stats.ts 补 median/quantile/covariance/linearRegression(β/α);**说明书从 JSDoc 生成**(`gen:stats-doc` 物化 stats-doc.ts,vitest 防漂移+防漏 JSDoc);沙盒 46 测全绿;真 LLM 冒烟——「茅台 vs 五粮液相关性+波动率」模型自主一次 analyzeData 调用算出 corr 0.689 与两只年化波动率;「库里没有中证1000」场景模型自查 DISTINCT 后诚实告知而非编造。前端零改动(输出即文字)。
 
-### 7.8 计算图卡片(analyzeData → echarts)+ 图形态扩展 ⬜(2026-07-09 规划,详设 `docs/design/computed-chart.md`)
+### 7.8 计算图卡片(analyzeData → echarts)+ 图形态扩展(A+B ✅ 2026-07-25;C 💤 需求拉动)
 
-**缺口**:7.6 的 `renderChart` 只有 SQL→line/bar/scatter;7.7 的 `analyzeData` 能算相关/回归/滚动统计,但只回文字——「算得出、画不出」。
+**缺口(已补)**:7.6 的 `renderChart` 只有 SQL→line/bar/scatter;7.7 的 `analyzeData` 能算相关/回归/滚动统计,但只回文字——「算得出、画不出」。详设 `docs/design/computed-chart.md`。
 
-分三期(详设里写清契约与定界):
-
-- **A · 接通代码→图(优先)**:扩展 `ChartSpec` 为 `source: 'sql' | 'compute'`;compute 存 `{queries, code, x, series}`,前端重跑(复用 isolate)再画。工具侧让「返回可画行表」副产 chart part(与 analyzeData 标量模式分流)。铁律不变:存查询/代码不存点、数据不进 LLM、模型不产 ECharts option。
-- **B · 纯 SQL 图形态**:在现有 `x + series[]` 上加 area / stackedBar / combo(+dualAxis) / histogram——量化对话高频、不碰 code。
-- **C · 新数据形状**(需求拉动):heatmap(相关矩阵)、boxplot(分位分布)、waterfall(归因)、scatter+回归线;多半挂 compute 源。
+- **A · 接通代码→图 ✅(2026-07-25)**:`ChartSpec` 判别联合 `source: 'sql'(缺省,旧卡兼容)| 'compute'`(compute 存 `{queries≤4, code, x, series}`);新工具 `renderComputedChart`(与 renderChart / analyzeData 三分流,description 写死边界);重跑端点 `POST /agent/chart/compute`(复用 runReadOnlySql 白名单 + analyzeData isolate,行表 ≤500 校验列映射后返回);前端 `ChatChart` 按 source 分流取数。铁律不变:存查询/代码不存点、数据不进 LLM、模型不产 ECharts option。单测 `render-computed-chart.test.ts`(行表规范化/越界/bigint/列缺失 + isolate 全链路);e2e `computed-chart.mjs`(真实端点重算 + 假列 400 + 卡片渲染,截图 7q)。
+- **B · 纯 SQL 图形态 ✅(2026-07-25)**:`ChartKind` 扩 area / stackedBar / histogram / combo(combo 支持 `series[].type: line|bar` + `series[].yAxis: right` 双轴);`buildOption` 一处映射,两个 chart 工具 description 同步。e2e 含 combo 双轴(收盘线+成交量柱)截图。
+- **C · 新数据形状 💤(需求拉动)**:heatmap(相关矩阵)、boxplot(分位分布)、waterfall(归因)、scatter+回归线;多半挂 compute 源,有真实对话用例再开。
 
 **不做**:饼图、对话内 K 线(个股页已有)、用 chart 重造 IC/分层/回测(仍去因子页 / lab)。
 

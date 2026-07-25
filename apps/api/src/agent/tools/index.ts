@@ -4,6 +4,7 @@ import { dataCoverage } from './data-coverage.js';
 import { runScreenTool } from './run-screen.js';
 import { sqlQueryTool } from './read-only-sql.js';
 import { renderChartTool } from './render-chart.js';
+import { renderComputedChartTool } from './render-computed-chart.js';
 import { analyzeDataTool } from './analyze-data.js';
 
 /** The read-only tool set shared by every agent profile (strategy / factor / screen / Q&A) —
@@ -15,6 +16,7 @@ export function defaultTools(): AgentTool[] {
     runScreenTool,
     sqlQueryTool,
     renderChartTool,
+    renderComputedChartTool,
     analyzeDataTool,
   ];
 }

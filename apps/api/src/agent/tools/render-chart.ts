@@ -1,16 +1,33 @@
 import type { ChartSpec } from '@jixie/shared';
 import { z } from 'zod';
-import { chartSpecSchema } from '../../lib/chart-spec.js';
+import { sqlChartSpecSchema } from '../../lib/chart-spec.js';
 import { jsonSafe, runReadOnlySql } from './read-only-sql.js';
 import type { AgentTool } from './types.js';
 
 /** Charts may carry more points than a tabular observation (a 2-year daily series ≈ 490 rows). */
 export const CHART_ROW_CAP = 500;
 
-const OBSERVATION_SAMPLE_ROWS = 5;
+export const OBSERVATION_SAMPLE_ROWS = 5;
+
+/** The columns a spec maps must exist on the actual rows — fail with observation feedback instead
+ * of rendering an empty chart at the user. Shared by the sql and compute chart tools. */
+export function assertChartColumns(
+  rows: Record<string, unknown>[],
+  spec: { x: string; series: { column: string }[] },
+): void {
+  const availableColumns = Object.keys(rows[0] ?? {});
+  const missing = [spec.x, ...spec.series.map((series) => series.column)].filter(
+    (column) => !availableColumns.includes(column),
+  );
+  if (missing.length) {
+    throw new Error(
+      `The result set has no such columns: ${missing.join(', ')} (actual columns: ${availableColumns.join(', ')})`,
+    );
+  }
+}
 
 // Tool args = the persisted ChartSpec + a display title (the title lives on the part, not the spec).
-const argsSchema = chartSpecSchema.extend({
+const argsSchema = sqlChartSpecSchema.extend({
   title: z
     .string()
     .min(1)
@@ -24,7 +41,7 @@ const argsSchema = chartSpecSchema.extend({
  * on the data itself. */
 export const renderChartTool: AgentTool = {
   name: 'renderChart',
-  description: `Draw a chart (line / bar / scatter) from a read-only SQL result; the chart is shown directly to the user as a card. Think first about the shape the SQL must produce: one X value per row, and the selected columns are the Y values of each series (for multiple series, aggregate/pivot into columns in SQL first). Good for: index trends, cross-industry mean comparisons, valuation distributions (bucket with GROUP BY in SQL first), the scatter relationship between two quantities. The table whitelist is the same as sqlQuery; for time series, ORDER BY date ascending. Once drawn, you need not restate the data points in text.`,
+  description: `Draw a chart from a read-only SQL result; the chart is shown directly to the user as a card. Think first about the shape the SQL must produce: one X value per row, and the selected columns are the Y values of each series (for multiple series, aggregate/pivot into columns in SQL first). Kinds: line (trend), bar (grouped comparison), scatter (two-quantity relation), area (NAV / cumulative curves), stackedBar (composition — each series is one layer), histogram (distribution — bucket with GROUP BY first, one row per bucket), combo (mixed line/bar series; per-series \`type: 'bar'\` and \`yAxis: 'right'\` for a second axis, e.g. close line + volume bars). The table whitelist is the same as sqlQuery; for time series, ORDER BY date ascending. When the rows need a JS computation first (rolling correlation, regression, drawdown), use renderComputedChart instead. Once drawn, you need not restate the data points in text.`,
   parameters: z.toJSONSchema(argsSchema),
   async run(args) {
     const parsed = argsSchema.safeParse(args);
@@ -42,17 +59,7 @@ export const renderChartTool: AgentTool = {
       );
     }
 
-    // Column mapping must hold on the actual result — a wrong column name fails the whole call
-    // here (observation feedback) instead of rendering an empty chart at the user.
-    const availableColumns = Object.keys(rows[0]);
-    const missing = [spec.x, ...spec.series.map((series) => series.column)].filter(
-      (column) => !availableColumns.includes(column),
-    );
-    if (missing.length) {
-      throw new Error(
-        `The result set has no such columns: ${missing.join(', ')} (actual columns: ${availableColumns.join(', ')})`,
-      );
-    }
+    assertChartColumns(rows, spec);
 
     return {
       observation: JSON.stringify(
