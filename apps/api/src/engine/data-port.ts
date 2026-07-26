@@ -14,6 +14,12 @@ export interface StockBasicRow {
   industry: string | null;
 }
 
+export interface EtfBasicDataRow {
+  tsCode: string;
+  listDate: string | null;
+  sameDayTurnover: boolean;
+}
+
 export interface TopListRow {
   tsCode: string;
   tradeDate: string;
@@ -140,6 +146,8 @@ export interface EngineDataPort {
   openDates(start: string, end: string): Promise<string[]>;
   /** The full stock list (list dates + current industry labels). */
   stockBasics(): Promise<StockBasicRow[]>;
+  /** ETF metadata needed by the daily execution lane. */
+  etfBasics(): Promise<EtfBasicDataRow[]>;
   /** Dragon-Tiger List rows within [start, end] (sparse event data). */
   topListRange(start: string, end: string): Promise<TopListRow[]>;
   /** All synced index daily closes (tiny), ascending by (code, date). */

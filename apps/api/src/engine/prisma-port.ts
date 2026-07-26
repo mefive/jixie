@@ -21,6 +21,12 @@ export const prismaDataPort: EngineDataPort = {
     });
   },
 
+  async etfBasics() {
+    return prisma.etfBasic.findMany({
+      select: { tsCode: true, listDate: true, sameDayTurnover: true },
+    });
+  },
+
   async topListRange(start, end) {
     return prisma.topList.findMany({
       where: { tradeDate: { gte: start, lte: end } },
@@ -103,8 +109,22 @@ export const prismaDataPort: EngineDataPort = {
     for (let off = 0; off < codes.length; off += CHUNK) {
       const batch = codes.slice(off, off + CHUNK);
       const range = { gte: start, lte: end };
-      const [px, adj, limits, turnoverRatesF] = await Promise.all([
+      const [px, etfPx, adj, etfAdj, limits, turnoverRatesF] = await Promise.all([
         prisma.daily.findMany({
+          where: { tsCode: { in: batch }, tradeDate: range },
+          select: {
+            tsCode: true,
+            tradeDate: true,
+            open: true,
+            high: true,
+            low: true,
+            close: true,
+            vol: true,
+            amount: true,
+          },
+          orderBy: [{ tsCode: 'asc' }, { tradeDate: 'asc' }],
+        }),
+        prisma.etfDaily.findMany({
           where: { tsCode: { in: batch }, tradeDate: range },
           select: {
             tsCode: true,
@@ -122,6 +142,10 @@ export const prismaDataPort: EngineDataPort = {
           where: { tsCode: { in: batch }, tradeDate: range },
           select: { tsCode: true, tradeDate: true, adjFactor: true },
         }),
+        prisma.etfAdjFactor.findMany({
+          where: { tsCode: { in: batch }, tradeDate: range },
+          select: { tsCode: true, tradeDate: true, adjFactor: true },
+        }),
         prisma.stkLimit.findMany({
           where: { tsCode: { in: batch }, tradeDate: range },
           select: { tsCode: true, tradeDate: true, upLimit: true, downLimit: true },
@@ -135,8 +159,8 @@ export const prismaDataPort: EngineDataPort = {
       ]);
       // concat, not push-spread — spreading a chunk of hundreds of thousands of rows as call
       // arguments overflows the call stack.
-      out.px = out.px.concat(px);
-      out.adj = out.adj.concat(adj);
+      out.px = out.px.concat(px, etfPx);
+      out.adj = out.adj.concat(adj, etfAdj);
       out.limits = out.limits.concat(limits);
       out.turnoverRatesF = out.turnoverRatesF.concat(turnoverRatesF);
     }

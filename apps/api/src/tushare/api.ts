@@ -99,6 +99,119 @@ export async function adjFactor(
   return rows as unknown as AdjFactorRow[];
 }
 
+export interface EtfBasicRow {
+  ts_code: TsCode;
+  csname: string;
+  extname: string;
+  cname: string | null;
+  index_code: string | null;
+  index_name: string | null;
+  setup_date: TradeDate | null;
+  list_date: TradeDate | null;
+  list_status: string;
+  exchange: string;
+  mgr_name: string | null;
+  custod_name: string | null;
+  mgt_fee: number | null;
+  etf_type: string | null;
+}
+
+/** Domestic ETF metadata, including QDII ETFs and delisted instruments when no status is passed. */
+export async function etfBasic(
+  client: TushareClient,
+  params: {
+    ts_code?: TsCode;
+    index_code?: string;
+    list_date?: TradeDate;
+    list_status?: string;
+    exchange?: string;
+    mgr?: string;
+  } = {},
+): Promise<EtfBasicRow[]> {
+  const rows = await client.call(
+    'etf_basic',
+    params,
+    'ts_code,csname,extname,cname,index_code,index_name,setup_date,list_date,list_status,exchange,mgr_name,custod_name,mgt_fee,etf_type',
+  );
+  return rows as unknown as EtfBasicRow[];
+}
+
+export interface FundBasicRow {
+  ts_code: TsCode;
+  name: string;
+  fund_type: string | null;
+  list_date: TradeDate | null;
+  delist_date: TradeDate | null;
+  status: string;
+}
+
+/** Exchange-traded public-fund metadata. Used to enrich ETF rows with fund category/delist date. */
+export async function fundBasic(
+  client: TushareClient,
+  params: { market?: 'E' | 'O'; status?: string } = {},
+): Promise<FundBasicRow[]> {
+  const rows = await client.call(
+    'fund_basic',
+    { market: 'E', ...params },
+    'ts_code,name,fund_type,list_date,delist_date,status',
+  );
+  return rows as unknown as FundBasicRow[];
+}
+
+export interface FundDailyRow {
+  ts_code: TsCode;
+  trade_date: TradeDate;
+  open: number | null;
+  high: number | null;
+  low: number | null;
+  close: number | null;
+  pre_close: number | null;
+  change: number | null;
+  pct_chg: number | null;
+  vol: number | null;
+  amount: number | null;
+}
+
+/** ETF daily quotes (unadjusted). */
+export async function fundDaily(
+  client: TushareClient,
+  params: {
+    ts_code?: TsCode;
+    trade_date?: TradeDate;
+    start_date?: TradeDate;
+    end_date?: TradeDate;
+  } = {},
+): Promise<FundDailyRow[]> {
+  const rows = await client.call(
+    'fund_daily',
+    params,
+    'ts_code,trade_date,open,high,low,close,pre_close,change,pct_chg,vol,amount',
+  );
+  return rows as unknown as FundDailyRow[];
+}
+
+export interface FundAdjRow {
+  ts_code: TsCode;
+  trade_date: TradeDate;
+  adj_factor: number;
+}
+
+/** ETF adjustment factors. */
+export async function fundAdj(
+  client: TushareClient,
+  params: {
+    ts_code?: TsCode;
+    trade_date?: TradeDate;
+    start_date?: TradeDate;
+    end_date?: TradeDate;
+    offset?: number;
+    limit?: number;
+  } = {},
+): Promise<FundAdjRow[]> {
+  const rows = await client.call('fund_adj', params, 'ts_code,trade_date,adj_factor');
+  return rows as unknown as FundAdjRow[];
+}
+
 export interface IndexDailyRow {
   ts_code: TsCode;
   trade_date: TradeDate;

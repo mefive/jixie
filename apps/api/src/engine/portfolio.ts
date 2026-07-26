@@ -1,5 +1,7 @@
 import type { CostModel, Position, TradeRecord } from './types.js';
 
+type CashAssetType = 'stock' | 'etf';
+
 /** Cash + positions, with cost-aware fills and mark-to-market. Prices are adjusted (hfq). */
 export class Portfolio {
   cash: number;
@@ -14,11 +16,12 @@ export class Portfolio {
   }
 
   /** Max whole shares buyable at `price` given current cash and buy-side fees (never goes negative). */
-  affordableShares(price: number): number {
+  affordableShares(price: number, assetType: CashAssetType): number {
     if (price <= 0) {
       return 0;
     }
-    const n = Math.floor(this.cash / (price * (1 + this.cost.commission + this.cost.transferFee)));
+    const transferFee = assetType === 'stock' ? this.cost.transferFee : 0;
+    const n = Math.floor(this.cash / (price * (1 + this.cost.commission + transferFee)));
     return Math.max(0, n);
   }
 
@@ -39,18 +42,17 @@ export class Portfolio {
     return v;
   }
 
-  private buyFee(value: number): number {
+  private buyFee(value: number, assetType: CashAssetType): number {
     return (
       Math.max(value * this.cost.commission, this.cost.minCommission) +
-      value * this.cost.transferFee
+      (assetType === 'stock' ? value * this.cost.transferFee : 0)
     );
   }
 
-  private sellFee(value: number): number {
+  private sellFee(value: number, assetType: CashAssetType): number {
     return (
       Math.max(value * this.cost.commission, this.cost.minCommission) +
-      value * this.cost.stampDuty +
-      value * this.cost.transferFee
+      (assetType === 'stock' ? value * (this.cost.stampDuty + this.cost.transferFee) : 0)
     );
   }
 
@@ -65,6 +67,7 @@ export class Portfolio {
     date: string,
     sellableFrom: string,
     adj: number,
+    assetType: CashAssetType = 'stock',
   ): void {
     if (Math.abs(delta) < 1e-9 || price <= 0 || adj <= 0) {
       return;
@@ -87,7 +90,7 @@ export class Portfolio {
     let fee: number;
 
     if (delta > 0) {
-      fee = this.buyFee(value);
+      fee = this.buyFee(value, assetType);
       this.cash -= value + fee;
       const pos = this.positions.get(code) ?? { shares: 0, avgCost: 0, frozenUntil: sellableFrom };
       pos.avgCost = (pos.avgCost * pos.shares + value + fee) / (pos.shares + delta);
@@ -99,7 +102,7 @@ export class Portfolio {
       if (!pos) {
         return;
       }
-      fee = this.sellFee(value);
+      fee = this.sellFee(value, assetType);
       this.cash += value - fee;
       pos.shares += delta; // delta < 0
       if (pos.shares < 1e-6) {
@@ -116,6 +119,7 @@ export class Portfolio {
       fee,
       realShares,
       realPrice,
+      assetType,
     });
   }
 }

@@ -30,7 +30,7 @@ export interface TradeRecord {
   fee: number; // commission + stamp + transfer
   realShares: number; // real shares filled — buys are whole lots (100 shares each)
   realPrice: number; // unadjusted (raw) fill price — what you'd actually have paid
-  assetType?: 'stock' | 'future';
+  assetType?: 'stock' | 'etf' | 'future';
   actualCode?: string; // mapped delivery contract for a logical continuous futures order
   contracts?: number; // futures quantity in contracts
   multiplier?: number; // CNY per index point

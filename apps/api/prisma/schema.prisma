@@ -78,6 +78,68 @@ model AdjFactor {
   @@index([tradeDate])
 }
 
+/// ETF metadata. Listed and delisted funds are both retained so historical ETF research does not
+/// acquire survivorship bias. `sameDayTurnover` records whether secondary-market units may be sold
+/// on the purchase day under the fund category's exchange rule.
+model EtfBasic {
+  tsCode          String  @id
+  name            String
+  fullName        String?
+  indexCode       String?
+  indexName       String?
+  setupDate       String?
+  listDate        String?
+  delistDate      String?
+  listStatus      String
+  exchange        String
+  managerName     String?
+  custodianName   String?
+  managementFee   Float?
+  fundType        String?
+  etfType         String?
+  sameDayTurnover Boolean
+  lotSize         Int     @default(100)
+}
+
+/// ETF daily bars (unadjusted). Kept separate from stock Daily because stock day-refreshes replace
+/// all stock rows for a date. Tushare volume is in lots and amount is in thousand yuan.
+model EtfDaily {
+  tsCode    String
+  tradeDate String
+  open      Float?
+  high      Float?
+  low       Float?
+  close     Float?
+  preClose  Float?
+  pctChg    Float?
+  vol       Float?
+  amount    Float?
+
+  @@id([tsCode, tradeDate])
+  @@index([tradeDate])
+}
+
+/// ETF adjustment factor. After-adjustment ETF price = raw price × adjFactor.
+model EtfAdjFactor {
+  tsCode    String
+  tradeDate String
+  adjFactor Float
+
+  @@id([tsCode, tradeDate])
+  @@index([tradeDate])
+}
+
+/// Completion marker for an atomically refreshed ETF code/year slice. This makes long backfills
+/// resumable without guessing completeness from sparse trading rows.
+model EtfSyncSlice {
+  tsCode      String
+  startDate   String
+  endDate     String
+  completedAt DateTime @default(now())
+
+  @@id([tsCode, startDate, endDate])
+}
+
 /// Daily price limits (unadjusted up/down limit prices). The engine blocks buys at the up-limit open and sells at
 /// the down-limit open (covers board-specific limits: Main Board ±10 / ST ±5 / ChiNext & STAR ±20 / BSE ±30).
 model StkLimit {

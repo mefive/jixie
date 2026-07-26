@@ -9,7 +9,7 @@ const argsSchema = z.object({
     .trim()
     .min(1)
     .max(80)
-    .describe('stock name, name-fragment, or 6-digit code, e.g. 「茅台」or 「600519」'),
+    .describe('stock/ETF name, name-fragment, or 6-digit code, e.g. 「茅台」or 「510300」'),
 });
 
 const MAX_MATCHES = 20;
@@ -19,7 +19,7 @@ const MAX_MATCHES = 20;
 export const searchInstruments: AgentTool = {
   name: 'searchInstruments',
   description:
-    'Look up an A-share instrument in the local stock list by name / name-fragment / 6-digit code (deterministic matching, never fabricates codes). One lookup at a time; returns an empty list when nothing is found.',
+    'Look up an A-share stock or ETF in local metadata by name / name-fragment / 6-digit code (deterministic matching, never fabricates codes). One lookup at a time; returns an empty list when nothing is found.',
   parameters: z.toJSONSchema(argsSchema),
   async run(args) {
     const parsed = argsSchema.safeParse(args);
@@ -30,12 +30,33 @@ export const searchInstruments: AgentTool = {
     }
 
     const codes = (await resolveInstruments(parsed.data.query)).slice(0, MAX_MATCHES);
-    const matches = codes.length
-      ? await prisma.stockBasic.findMany({
-          where: { tsCode: { in: codes } },
-          select: { tsCode: true, name: true, industry: true },
-        })
-      : [];
+    const [stocks, etfs, etfBars] = codes.length
+      ? await Promise.all([
+          prisma.stockBasic.findMany({
+            where: { tsCode: { in: codes } },
+            select: { tsCode: true, name: true, industry: true },
+          }),
+          prisma.etfBasic.findMany({
+            where: { tsCode: { in: codes } },
+            select: { tsCode: true, name: true, indexName: true, fundType: true, etfType: true },
+          }),
+          prisma.etfDaily.findMany({
+            where: { tsCode: { in: codes } },
+            select: { tsCode: true },
+            distinct: ['tsCode'],
+          }),
+        ])
+      : [[], [], []];
+    const syncedEtfCodes = new Set(etfBars.map((row) => row.tsCode));
+    const matches = [
+      ...stocks.map((row) => ({ ...row, assetType: 'stock' as const })),
+      ...etfs.map((row) => ({
+        ...row,
+        industry: null,
+        assetType: 'etf' as const,
+        hasDailyData: syncedEtfCodes.has(row.tsCode),
+      })),
+    ].sort((left, right) => codes.indexOf(left.tsCode) - codes.indexOf(right.tsCode));
     return { observation: JSON.stringify({ matches }), rows: matches.length };
   },
 };

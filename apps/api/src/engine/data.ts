@@ -59,6 +59,8 @@ export class EngineData {
   private nextDayOf = new Map<string, string>();
   private listDateOf = new Map<string, string>();
   private industryOf = new Map<string, string>(); // code -> industry label (current, not point-in-time)
+  private etfCodes = new Set<string>();
+  private sameDayTurnoverEtfCodes = new Set<string>();
   private lhbByDate = new Map<string, Map<string, number>>(); // Dragon-Tiger List: date -> code -> net buy amount (yuan), exact day only
   private crossCache = new Map<string, CrossSection>();
   private barsCache = new Map<string, StockBars>();
@@ -147,11 +149,20 @@ export class EngineData {
 
     // List dates: used for the point-in-time "stock age" primitive (exclude recently-listed).
     // Industry: a current label per stock (Tushare's classification) — for sector-neutral / rotation logic.
-    const sb = await this.port.stockBasics();
+    const [sb, etfs] = await Promise.all([this.port.stockBasics(), this.port.etfBasics()]);
     for (const s of sb) {
       this.listDateOf.set(s.tsCode, s.listDate);
       if (s.industry) {
         this.industryOf.set(s.tsCode, s.industry);
+      }
+    }
+    for (const etf of etfs) {
+      if (etf.listDate) {
+        this.listDateOf.set(etf.tsCode, etf.listDate);
+      }
+      this.etfCodes.add(etf.tsCode);
+      if (etf.sameDayTurnover) {
+        this.sameDayTurnoverEtfCodes.add(etf.tsCode);
       }
     }
 
@@ -659,6 +670,14 @@ export class EngineData {
     for (const [c, b] of tmp) {
       this.barsCache.set(c, b);
     }
+  }
+
+  assetType(code: string): 'stock' | 'etf' {
+    return this.etfCodes.has(code) ? 'etf' : 'stock';
+  }
+
+  supportsSameDayTurnover(code: string): boolean {
+    return this.sameDayTurnoverEtfCodes.has(code);
   }
 
   /** Adjusted open on exactly `date` (null if the stock didn't trade that day). */
