@@ -228,6 +228,35 @@ export async function indexDaily(
   return rows as unknown as IndexDailyRow[];
 }
 
+export interface IndexDailyBasicRow {
+  ts_code: TsCode;
+  trade_date: TradeDate;
+  total_mv: number | null;
+  float_mv: number | null;
+  total_share: number | null;
+  float_share: number | null;
+  free_share: number | null;
+  turnover_rate: number | null;
+  turnover_rate_f: number | null;
+  pe: number | null;
+  pe_ttm: number | null;
+  pb: number | null;
+}
+
+/** Broad-market index daily valuation metrics. The upstream endpoint supports a limited set of major
+ * indices and returns provider-computed PE/PB values rather than constituent-level approximations. */
+export async function indexDailyBasic(
+  client: TushareClient,
+  params: { ts_code: TsCode; start_date?: TradeDate; end_date?: TradeDate },
+): Promise<IndexDailyBasicRow[]> {
+  const rows = await client.call(
+    'index_dailybasic',
+    params,
+    'ts_code,trade_date,total_mv,float_mv,total_share,float_share,free_share,turnover_rate,turnover_rate_f,pe,pe_ttm,pb',
+  );
+  return rows as unknown as IndexDailyBasicRow[];
+}
+
 export interface FutureContractRow {
   ts_code: TsCode;
   symbol: string;

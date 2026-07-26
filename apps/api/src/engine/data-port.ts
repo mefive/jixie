@@ -32,6 +32,14 @@ export interface IndexDailyRow {
   close: number;
 }
 
+export interface IndexDailyBasicDataRow {
+  tsCode: string;
+  tradeDate: string;
+  pe: number | null;
+  peTtm: number | null;
+  pb: number | null;
+}
+
 export interface MoneyflowRow {
   tsCode: string;
   tradeDate: string;
@@ -152,6 +160,8 @@ export interface EngineDataPort {
   topListRange(start: string, end: string): Promise<TopListRow[]>;
   /** All synced index daily closes (tiny), ascending by (code, date). */
   indexDailyAll(): Promise<IndexDailyRow[]>;
+  /** All synced broad-index valuation rows (tiny), ascending by (code, date). */
+  indexDailyBasicAll(): Promise<IndexDailyBasicDataRow[]>;
   /** Moneyflow rows within [start, end] (only fetched when a strategy declares mf factors). */
   moneyflowRange(start: string, end: string): Promise<MoneyflowRow[]>;
   /** One day's cross-section panel rows; `codes` restricts the read (universe gate pushdown). */

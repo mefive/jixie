@@ -252,6 +252,26 @@ model IndexDaily {
   @@id([tsCode, tradeDate])
 }
 
+/// Daily valuation metrics for broad-market indices. Values come from Tushare index_dailybasic
+/// rather than being reconstructed from constituent stock PEs, so provider methodology is preserved.
+model IndexDailyBasic {
+  tsCode        String
+  tradeDate     String
+  totalMv       Float? // total market cap (yuan)
+  floatMv       Float? // float market cap (yuan)
+  totalShare    Float? // total shares
+  floatShare    Float? // float shares
+  freeShare     Float? // free-float shares
+  turnoverRate  Float? // turnover rate (%)
+  turnoverRateF Float? // free-float turnover rate (%)
+  pe            Float?
+  peTtm         Float?
+  pb            Float?
+
+  @@id([tsCode, tradeDate])
+  @@index([tradeDate])
+}
+
 /// CFFEX stock-index futures contracts. Only IF/IH/IC/IM actual delivery-month contracts are stored;
 /// continuous symbols (e.g. IF.CFX) live in FutureMapping and must never be treated as tradable contracts.
 model FutureContract {

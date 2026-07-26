@@ -8,7 +8,7 @@ import {
 import { daysBetween } from '../lib/date.js';
 import { t } from '../i18n/messages.js'; // direct import — keeps hono/locale out of the wall bundle
 import type { EngineDataPort, FutureDailyDataRow } from './data-port.js';
-import type { BarRow, FutureBar, OhlcBar } from './types.js';
+import type { BarRow, FutureBar, IndexValuationField, OhlcBar } from './types.js';
 
 /** Whole-market cross-section for one trading day. */
 export interface CrossSection {
@@ -81,6 +81,17 @@ export class EngineData {
   // Index daily close (all synced indices, preloaded in load()) — ascending parallel dates/closes arrays.
   // Powers the excess-return/IR benchmark + ctx.index() market timing. Tiny (a few thousand rows), so always loaded.
   private indexByCode = new Map<string, { dates: string[]; closes: number[] }>();
+  // Provider-computed broad-index valuations. All history is preloaded so a strategy can calculate
+  // an as-of percentile without fetching future rows or crossing the storage wall on every bar.
+  private indexBasicByCode = new Map<
+    string,
+    {
+      dates: string[];
+      pe: (number | null)[];
+      peTtm: (number | null)[];
+      pb: (number | null)[];
+    }
+  >();
   private futureContractByCode = new Map<
     string,
     { productCode: string; multiplier: number; listDate: string; delistDate: string }
@@ -141,6 +152,58 @@ export class EngineData {
     return sum / n;
   }
 
+  /** Provider-computed index valuation as-of `date`, never reading a later observation. */
+  indexValuationAsOf(code: string, date: string, field: IndexValuationField): number | null {
+    const series = this.indexBasicByCode.get(code);
+    if (!series) {
+      return null;
+    }
+    const values = series[field];
+    for (let i = lastIndexAtOrBefore(series.dates, date); i >= 0; i--) {
+      if (values[i] != null) {
+        return values[i];
+      }
+    }
+    return null;
+  }
+
+  /** Historical percentile in [0, 1], using only valuation observations at or before `date`. */
+  indexValuationPercentile(
+    code: string,
+    date: string,
+    field: IndexValuationField,
+    lookback?: number,
+  ): number | null {
+    const series = this.indexBasicByCode.get(code);
+    if (!series) {
+      return null;
+    }
+    const values = series[field];
+    let endIndex = lastIndexAtOrBefore(series.dates, date);
+    while (endIndex >= 0 && values[endIndex] == null) {
+      endIndex--;
+    }
+    if (endIndex < 0) {
+      return null;
+    }
+    const windowSize = lookback == null ? endIndex + 1 : Math.max(1, Math.floor(lookback));
+    const startIndex = Math.max(0, endIndex - windowSize + 1);
+    const current = values[endIndex]!;
+    let count = 0;
+    let atOrBelow = 0;
+    for (let i = startIndex; i <= endIndex; i++) {
+      const value = values[i];
+      if (value == null) {
+        continue;
+      }
+      count++;
+      if (value <= current) {
+        atOrBelow++;
+      }
+    }
+    return count > 0 ? atOrBelow / count : null;
+  }
+
   async load(): Promise<void> {
     this.timeline = await this.port.openDates(this.start, this.end);
     for (let i = 0; i < this.timeline.length - 1; i++) {
@@ -177,8 +240,12 @@ export class EngineData {
       m.set(r.tsCode, r.netAmount);
     }
 
-    // Index daily close (CSI 300 etc.) — preload all (tiny) for excess-return/IR benchmark + ctx.index() market timing.
-    const idx = await this.port.indexDailyAll();
+    // Index close + valuation (CSI 300 etc.) — preload all history (tiny) for benchmark statistics
+    // and point-in-time ctx.index() timing/valuation filters.
+    const [idx, indexBasics] = await Promise.all([
+      this.port.indexDailyAll(),
+      this.port.indexDailyBasicAll(),
+    ]);
     for (const r of idx) {
       let s = this.indexByCode.get(r.tsCode);
       if (!s) {
@@ -186,6 +253,16 @@ export class EngineData {
       }
       s.dates.push(r.tradeDate);
       s.closes.push(r.close);
+    }
+    for (const row of indexBasics) {
+      let series = this.indexBasicByCode.get(row.tsCode);
+      if (!series) {
+        this.indexBasicByCode.set(row.tsCode, (series = { dates: [], pe: [], peTtm: [], pb: [] }));
+      }
+      series.dates.push(row.tradeDate);
+      series.pe.push(row.pe);
+      series.peTtm.push(row.peTtm);
+      series.pb.push(row.pb);
     }
 
     if (this.futureCodes.length > 0) {

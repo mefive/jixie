@@ -46,6 +46,8 @@ export const SQL_TABLE_DOCS: Record<string, string> = {
   IndexWeight:
     'indexCode, conCode, tradeDate, weight — monthly index constituent snapshot (e.g. 000852.SH CSI 1000)',
   IndexDaily: 'tsCode, tradeDate, close — index daily bars (e.g. 000300.SH CSI 300)',
+  IndexDailyBasic:
+    'tsCode, tradeDate, totalMv(yuan), floatMv(yuan), totalShare(shares), floatShare(shares), freeShare(shares), turnoverRate(%), turnoverRateF(% free-float), pe, peTtm, pb — provider-computed broad-market index daily valuation metrics; use only history available on or before the evaluated date when calculating valuation percentiles',
   FutureContract:
     'tsCode(actual contract, e.g. IF2509.CFX), symbol, productCode(IF/IH/IC/IM), name, exchange(CFFEX), multiplier(CNY/index point), tradeUnit, perUnit, quoteUnit, quoteUnitDesc, deliveryMode, listDate, delistDate, deliveryMonth, lastDeliveryDate, tradeTimeDesc — actual stock-index futures contract metadata; continuous symbols are not tradable contracts',
   FutureDaily:

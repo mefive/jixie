@@ -41,6 +41,13 @@ export const prismaDataPort: EngineDataPort = {
     });
   },
 
+  async indexDailyBasicAll() {
+    return prisma.indexDailyBasic.findMany({
+      select: { tsCode: true, tradeDate: true, pe: true, peTtm: true, pb: true },
+      orderBy: [{ tsCode: 'asc' }, { tradeDate: 'asc' }],
+    });
+  },
+
   async moneyflowRange(start, end) {
     return prisma.moneyflow.findMany({
       where: { tradeDate: { gte: start, lte: end } },

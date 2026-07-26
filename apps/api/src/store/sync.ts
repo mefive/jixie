@@ -18,6 +18,7 @@ import {
   dividend,
   indexWeight,
   indexDaily,
+  indexDailyBasic,
   indexClassify,
   indexMemberAll,
   futureContracts,
@@ -743,6 +744,59 @@ export async function syncIndexDaily(
     }),
   ]);
   log(`syncIndexDaily ${indexCode}: ${rows.length} 行`);
+}
+
+/** Sync provider-computed daily valuation metrics for broad-market indices. The upstream endpoint has
+ * a 3,000-row response cap, so each code is fetched in ten-year windows. */
+export async function syncIndexDailyBasic(
+  client: TushareClient,
+  indexCodes: string[],
+  start: TradeDate,
+  end: TradeDate,
+): Promise<void> {
+  const startYear = Number(start.slice(0, 4));
+  const endYear = Number(end.slice(0, 4));
+
+  for (const indexCode of indexCodes) {
+    let total = 0;
+    for (let windowStartYear = startYear; windowStartYear <= endYear; windowStartYear += 10) {
+      const windowEndYear = Math.min(windowStartYear + 9, endYear);
+      const windowStart = `${windowStartYear}0101` < start ? start : `${windowStartYear}0101`;
+      const windowEnd = `${windowEndYear}1231` > end ? end : `${windowEndYear}1231`;
+      const rows = await indexDailyBasic(client, {
+        ts_code: indexCode,
+        start_date: windowStart,
+        end_date: windowEnd,
+      });
+      await prisma.$transaction([
+        prisma.indexDailyBasic.deleteMany({
+          where: {
+            tsCode: indexCode,
+            tradeDate: { gte: windowStart, lte: windowEnd },
+          },
+        }),
+        prisma.indexDailyBasic.createMany({
+          data: rows.map((row) => ({
+            tsCode: row.ts_code,
+            tradeDate: row.trade_date,
+            totalMv: row.total_mv,
+            floatMv: row.float_mv,
+            totalShare: row.total_share,
+            floatShare: row.float_share,
+            freeShare: row.free_share,
+            turnoverRate: row.turnover_rate,
+            turnoverRateF: row.turnover_rate_f,
+            pe: row.pe,
+            peTtm: row.pe_ttm,
+            pb: row.pb,
+          })),
+        }),
+      ]);
+      total += rows.length;
+      log(`  syncIndexDailyBasic ${indexCode} ${windowStart}~${windowEnd}: ${rows.length} 行`);
+    }
+    log(`syncIndexDailyBasic ${indexCode} 完成，共 ${total} 行`);
+  }
 }
 
 const STOCK_INDEX_FUTURE_PRODUCTS = new Set(['IF', 'IH', 'IC', 'IM']);
