@@ -837,6 +837,7 @@ const EXAMPLE_PROMPTS = [
   { labelKey: 'exampleHighDivLabel', promptKey: 'exampleHighDivPrompt' },
   { labelKey: 'exampleLowValLabel', promptKey: 'exampleLowValPrompt' },
   { labelKey: 'exampleMomentumLabel', promptKey: 'exampleMomentumPrompt' },
+  { labelKey: 'exampleEtfRotationLabel', promptKey: 'exampleEtfRotationPrompt' },
 ] as const;
 
 interface Metric {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { compileStrategy } from './compile.js';
+import { ETF_ROTATION_EXAMPLE } from './codegen-prompt.js';
 import type { BarContext } from '../../engine/types.js';
 
 // A canonical hand-written strategy: MA20 breakout on one name. Import-free — `defineStrategy` is injected.
@@ -83,5 +84,18 @@ describe('compileStrategy', () => {
     await expect(compileStrategy('export default defineStrategy({ onBar( {} );')).rejects.toThrow(
       'compilation failed',
     );
+  });
+
+  it('keeps the ETF rotation prompt example compilable', async () => {
+    const strategy = await compileStrategy(ETF_ROTATION_EXAMPLE);
+    expect(strategy.name).toBe('主要 ETF 月度动量轮动');
+    expect(strategy.watch).toEqual([
+      '510300.SH',
+      '510500.SH',
+      '159915.SZ',
+      '510880.SH',
+      '518880.SH',
+      '511010.SH',
+    ]);
   });
 });

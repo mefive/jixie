@@ -24,6 +24,9 @@ export const enLab: typeof zhLab = {
   exampleMomentumLabel: 'CSI 500 momentum',
   exampleMomentumPrompt:
     'The 20 CSI 500 names with the strongest 20-day momentum, rotated weekly, equal weight',
+  exampleEtfRotationLabel: 'Major ETF rotation',
+  exampleEtfRotationPrompt:
+    'Among the synced CSI 300, CSI 500, ChiNext, dividend, gold, and 5-year government-bond ETFs, select the two with the strongest trailing 60-trading-day momentum each month and hold them equal weight; stay in cash until enough history exists',
 
   // Unrun-edits leave guard
   unrunTitle: 'Unsaved changes',
@@ -113,6 +116,7 @@ export const enLab: typeof zhLab = {
   tdColContracts: 'Contracts',
   tdColPrice: 'Price',
   tdColAmount: 'Amount',
+  assetEtf: 'ETF',
   sideBuy: 'Buy',
   sideSell: 'Sell',
 

@@ -49,10 +49,23 @@
   font-size: 11px;
 }
 
+.jx-td-chipType,
+.jx-td-instType {
+  @apply rounded bg-chip text-muted;
+  padding: 0 4px;
+  font-size: 9px;
+  line-height: 16px;
+}
+
 .jx-td-chip--active .jx-td-chipName,
 .jx-td-chip--active .jx-td-chipCode,
+.jx-td-chip--active .jx-td-chipType,
 .jx-td-chip--active .jx-td-chipCount {
   color: #fff;
+}
+
+.jx-td-chip--active .jx-td-chipType {
+  background: rgb(255 255 255 / 0.16);
 }
 
 .jx-td-hint {
@@ -126,4 +139,12 @@
   @apply text-muted;
   font-size: 10px;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.jx-td-instMeta {
+  @apply flex items-center gap-1;
+}
+
+.jx-td-instType {
+  line-height: 13px;
 }

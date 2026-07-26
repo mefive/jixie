@@ -12,7 +12,7 @@ const DOWN = '#2f9e5b'; // green down
 const DOT = '#f0a020'; // Futu-style dividend yellow dot — trade markers on the axis
 
 /**
- * Trade detail — the traded stock's full candlestick + volume, with each trade as a yellow dot pinned to the bottom
+ * Trade detail — the traded instrument's full candlestick + volume, with each trade as a yellow dot pinned to the bottom
  * axis (Futu-style, not on the price line). Click a dot to scroll the right list to that fill. Multi-stock
  * strategies get a code picker (default the most-traded). Prices are unadjusted (raw) — the real trade prices
  * shown in the list (ex-dividend/ex-rights gaps are real); the engine accounts internally in after-adjustment (hfq) prices.
@@ -45,6 +45,10 @@ export default function TradeDetail({
   const [active, setActive] = useState<number | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const futuresLog = tradeLog.some((trade) => trade.assetType === 'future');
+  const assetTypeByCode = useMemo(
+    () => new Map(tradeLog.map((trade) => [trade.code, trade.assetType])),
+    [tradeLog],
+  );
 
   // Names for the traded-instruments queue (bulk, once).
   useEffect(() => {
@@ -310,6 +314,9 @@ export default function TradeDetail({
             >
               <span className="jx-td-chipName">{names[c] ?? c}</span>
               <span className="jx-td-chipCode">{c}</span>
+              {assetTypeByCode.get(c) === 'etf' && (
+                <span className="jx-td-chipType">{t('assetEtf')}</span>
+              )}
               <span className="jx-td-chipCount">{n}</span>
             </button>
           ))}
@@ -348,7 +355,12 @@ export default function TradeDetail({
             {showAll && (
               <span className="jx-td-inst">
                 <span className="jx-td-instName">{names[trade.code] ?? trade.code}</span>
-                <span className="jx-td-instCode">{trade.code}</span>
+                <span className="jx-td-instMeta">
+                  <span className="jx-td-instCode">{trade.code}</span>
+                  {trade.assetType === 'etf' && (
+                    <span className="jx-td-instType">{t('assetEtf')}</span>
+                  )}
+                </span>
               </span>
             )}
             <span>{fmtDate(trade.date)}</span>

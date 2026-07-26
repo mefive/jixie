@@ -15,7 +15,7 @@ export const zhScreen = {
     emptySaved: '暂无已保存筛选',
   },
   wallEmpty:
-    '墙上还没有卡片。点「新对话」跟 Agent 描述你想要的股票,把筛出来的查询钉到这里;或先点上面的示例看看。',
+    '墙上还没有卡片。点「新对话」跟 Agent 描述你想要的股票或ETF，把筛出来的查询钉到这里；或先点上面的示例看看。',
   card: {
     query: '查询',
     chat: '会话',
@@ -30,11 +30,11 @@ export const zhScreen = {
   pinToWall: '保存筛选',
   summary: '快照 {{tradeDate}} · 命中 {{total}} 只（展示前 {{shown}}）',
   chatTitleFallback: '新对话',
-  heroTitle: '想找什么股票?',
-  heroHint: '描述选股条件筛出结果,或直接点名找股;满意的筛选可以钉到卡片墙反复用',
+  heroTitle: '想找什么股票或ETF？',
+  heroHint: '股票可以按条件筛选，也可以直接点名查询股票或ETF；满意的筛选可以钉到卡片墙反复用',
   heroKbd: '回车发送 · Shift+Space 换行',
   composerPlaceholder:
-    '描述你想要的股票,如「市盈率低于15、股息率大于3%的大盘股」;或直接问「茅台现在多少倍PE」',
+    '描述你想要的股票，如「市盈率低于15、股息率大于3%的大盘股」；或问「比较沪深300ETF和黄金ETF近一年表现」',
   example: {
     lowPeHighDividend: '低PE高股息大盘',
     smallCap: '小市值',
@@ -45,6 +45,7 @@ export const zhScreen = {
     lowPeHighDividend: '市盈率低于15、股息率大于3%的大盘股',
     topTurnover: '换手率最高的 20 只',
     maotaiPe: '茅台现在多少倍 PE?',
+    etfComparison: '比较沪深300ETF和黄金ETF近一年表现',
   },
   column: {
     name: '名称',

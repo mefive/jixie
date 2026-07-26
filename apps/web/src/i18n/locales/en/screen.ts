@@ -17,7 +17,7 @@ export const enScreen: typeof zhScreen = {
     emptySaved: 'No saved screens yet',
   },
   wallEmpty:
-    'No cards yet. Click "New chat" to describe the stocks you want to the agent and pin the resulting queries here; or try an example above.',
+    'No cards yet. Click "New chat" to describe the stocks or ETFs you want to the agent and pin resulting screens here; or try an example above.',
   card: {
     query: 'Query',
     chat: 'Chat',
@@ -32,12 +32,12 @@ export const enScreen: typeof zhScreen = {
   pinToWall: 'Save screen',
   summary: 'Snapshot {{tradeDate}} · {{total}} matches (showing first {{shown}})',
   chatTitleFallback: 'New chat',
-  heroTitle: 'What stocks are you looking for?',
+  heroTitle: 'What stocks or ETFs are you looking for?',
   heroHint:
-    'Describe your criteria to screen results, or just name a stock; pin filters you like to the wall to reuse them.',
+    'Screen stocks by criteria, or name a stock or ETF directly; pin reusable stock screens to the wall.',
   heroKbd: 'Enter to send · Shift+Space for newline',
   composerPlaceholder:
-    'Describe the stocks you want, e.g. "large caps with PE below 15 and dividend yield above 3%"; or just ask "what is Moutai\'s PE now"',
+    'Describe the stocks you want, e.g. "large caps with PE below 15 and dividend yield above 3%"; or ask "compare the CSI 300 ETF and gold ETF over the past year"',
   example: {
     lowPeHighDividend: 'Low PE, high dividend, large cap',
     smallCap: 'Small cap',
@@ -48,6 +48,7 @@ export const enScreen: typeof zhScreen = {
     lowPeHighDividend: 'Large caps with PE below 15 and dividend yield above 3%',
     topTurnover: 'Top 20 by turnover',
     maotaiPe: "What is Moutai's PE now?",
+    etfComparison: 'Compare the CSI 300 ETF and gold ETF over the past year',
   },
   column: {
     name: 'Name',
