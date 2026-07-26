@@ -11,5 +11,6 @@ export default defineStrategy({
 });
 
 // Example — single-name MA20 breakout: watch: ['600519.SH']; go full on a cross above the 20-day MA, liquidate on a cross below.
+// Example — ETF rotation: watch the synced ETF codes, rank ctx.history(code, 'close', 61) once a month, then ctx.equalWeight(the top two).
 // Example — whole-market cross-section: (await ctx.universe()).rankBy(b => 1 / b.peTtm).top(0.1), then ctx.equalWeight(picks).
 `;

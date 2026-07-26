@@ -27,6 +27,29 @@ const DEFAULT_INDICES = Object.entries(KNOWN_INDICES)
   .map(([code, name]) => `${name}=${code}`)
   .join('、');
 
+export const ETF_ROTATION_EXAMPLE = `const etfs = ['510300.SH', '510500.SH', '159915.SZ', '510880.SH', '518880.SH', '511010.SH'];
+let etfLast = '';
+export default defineStrategy({
+  name: '主要 ETF 月度动量轮动',
+  watch: etfs,
+  onBar(ctx) {
+    const period = ctx.period('monthly');
+    if (period === etfLast) return;
+    etfLast = period;
+    const ranked = etfs
+      .map(code => {
+        const history = ctx.history(code, 'close', 61);
+        const score = history.length === 61 ? history[60] / history[0] - 1 : -Infinity;
+        return { code, score };
+      })
+      .filter(item => Number.isFinite(item.score))
+      .sort((a, b) => b.score - a.score || a.code.localeCompare(b.code));
+    const picks = ranked.slice(0, 2).map(item => item.code);
+    if (picks.length === 2) ctx.equalWeight(picks);
+    else ctx.setHoldings({});
+  },
+});`;
+
 export function buildCodegenPrompt(
   availableIndices: string = DEFAULT_INDICES,
   referencableFactors = '(none yet)',
@@ -232,6 +255,9 @@ export default defineStrategy({
     ctx.hedgeFuture('IF.CFX', 1);
   },
 });
+
+# Example 9: monthly ETF momentum rotation from an explicit synced watch list
+${ETF_ROTATION_EXAMPLE}
 
 # Refusal example 1 (missing data)
 User: "buy the 50 stocks with the highest year-over-year revenue growth" → output only:

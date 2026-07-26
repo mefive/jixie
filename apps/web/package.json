@@ -14,7 +14,8 @@
     "test:e2e:chart": "node e2e/computed-chart.mjs",
     "test:e2e:sdk-hover": "node e2e/sdk-hover.mjs",
     "test:e2e:factor-strategy-history": "node e2e/factor-strategy-history.mjs",
-    "test:e2e:strategy": "node e2e/strategy-orchestration.mjs"
+    "test:e2e:strategy": "node e2e/strategy-orchestration.mjs",
+    "test:e2e:etf": "node e2e/etf-trading.mjs"
   },
   "dependencies": {
     "@ant-design/x": "^2.8.0",

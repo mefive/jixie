@@ -19,6 +19,9 @@ export const zhLab = {
   exampleLowValPrompt: '沪深300 里 ROE 大于 15%、市盈率最低的 30 只，每月调仓，等权',
   exampleMomentumLabel: '中证500 动量',
   exampleMomentumPrompt: '中证500 里 20 日动量最强的 20 只，每周轮动，等权',
+  exampleEtfRotationLabel: '主要ETF轮动',
+  exampleEtfRotationPrompt:
+    '在已同步的沪深300、中证500、创业板、红利、黄金和5年国债ETF中，每月按过去60个交易日动量选择最强的2只，等权持有；历史不足时空仓',
 
   // Unrun-edits leave guard
   unrunTitle: '有改动尚未运行',
@@ -104,6 +107,7 @@ export const zhLab = {
   tdColContracts: '手数',
   tdColPrice: '价格',
   tdColAmount: '金额',
+  assetEtf: 'ETF',
   sideBuy: '买',
   sideSell: '卖',
 

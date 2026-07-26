@@ -546,7 +546,7 @@ function traceOf(message: ChatMessage): AgentToolTraceItem[] | undefined {
 }
 
 // Starter prompts for the new-conversation hero — clicking one sends the localized text to the agent.
-const EXAMPLE_CHAT_PROMPTS = ['lowPeHighDividend', 'topTurnover', 'maotaiPe'];
+const EXAMPLE_CHAT_PROMPTS = ['lowPeHighDividend', 'topTurnover', 'maotaiPe', 'etfComparison'];
 
 const pct = (v: number | null) => (v == null ? '—' : `${v.toFixed(2)}%`);
 const num = (v: number | null, d = 2) => (v == null ? '—' : v.toFixed(d));
