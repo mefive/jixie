@@ -10,7 +10,7 @@ export function extractInstrumentCodes(code: string): string[] {
   return [...new Set(code.match(/\b\d{6}\.[A-Z]{2,3}\b/g) ?? [])];
 }
 
-/** Reject codes that exist nowhere in the local data (not a stock, not an offered index, not a synced
+/** Reject codes that exist nowhere in the local data (not a stock/ETF, not an offered index, not a synced
  * index series). An LLM writing a ts_code from memory otherwise fails SILENTLY at runtime: ensureBars
  * loads nothing → indicators return null → the backtest completes with zero trades. Throwing here
  * turns that into a repair-round message telling the model to look the instrument up. */
@@ -20,20 +20,25 @@ async function assertKnownInstruments(code: string): Promise<void> {
     return;
   }
 
-  const [stocks, indices] = await Promise.all([
+  const [stocks, etfs, indices] = await Promise.all([
     prisma.stockBasic.findMany({ where: { tsCode: { in: candidates } }, select: { tsCode: true } }),
+    prisma.etfDaily.findMany({
+      where: { tsCode: { in: candidates } },
+      select: { tsCode: true },
+      distinct: ['tsCode'],
+    }),
     prisma.indexDaily.findMany({
       where: { tsCode: { in: candidates } },
       select: { tsCode: true },
       distinct: ['tsCode'],
     }),
   ]);
-  const known = new Set([...stocks, ...indices].map((row) => row.tsCode));
+  const known = new Set([...stocks, ...etfs, ...indices].map((row) => row.tsCode));
 
   const unknown = candidates.filter((tsCode) => !known.has(tsCode));
   if (unknown.length > 0) {
     throw new Error(
-      `unknown ts_code(s) — not in the local stock list or index data: ${unknown.join(', ')}. ` +
+      `unknown or unsynced ts_code(s) — not in local stock data, synced ETF bars, or index data: ${unknown.join(', ')}. ` +
         'Look the instrument up with the searchInstruments tool and use the returned ts_code; never write a ts_code from memory.',
     );
   }

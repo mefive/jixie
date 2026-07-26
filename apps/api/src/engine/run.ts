@@ -729,7 +729,15 @@ function rebalance(
     if (tgt < pos.shares && !limitBlocked(engineData, code, date, 'sell', px)) {
       const delta = tgt - pos.shares;
       const fillPx = execPrice(engineData, code, date, 'sell', px, -delta * px, cost);
-      portfolio.fill(code, delta, fillPx, date, sellableFrom, engineData.adjAt(code, date)!);
+      portfolio.fill(
+        code,
+        delta,
+        fillPx,
+        date,
+        sellableFrom,
+        engineData.adjAt(code, date)!,
+        engineData.assetType(code),
+      );
     }
   }
 
@@ -740,7 +748,15 @@ function rebalance(
     if (tgt > cur && !limitBlocked(engineData, code, date, 'buy', px)) {
       const delta = tgt - cur;
       const fillPx = execPrice(engineData, code, date, 'buy', px, delta * px, cost);
-      portfolio.fill(code, delta, fillPx, date, sellableFrom, engineData.adjAt(code, date)!);
+      portfolio.fill(
+        code,
+        delta,
+        fillPx,
+        date,
+        sellableFrom,
+        engineData.adjAt(code, date)!,
+        engineData.assetType(code),
+      );
     }
   }
 }
@@ -771,7 +787,15 @@ function executeOrders(
     const sell = Math.min(-delta, pos.shares);
     if (sell > 0 && !limitBlocked(engineData, code, date, 'sell', px)) {
       const fillPx = execPrice(engineData, code, date, 'sell', px, sell * px, cost);
-      portfolio.fill(code, -sell, fillPx, date, sellableFrom, engineData.adjAt(code, date)!);
+      portfolio.fill(
+        code,
+        -sell,
+        fillPx,
+        date,
+        sellableFrom,
+        engineData.adjAt(code, date)!,
+        engineData.assetType(code),
+      );
     }
   }
 
@@ -788,9 +812,18 @@ function executeOrders(
     } // up-limit sealed — can't buy
     // Slippage lifts the buy price → size affordability on the slipped price so we don't overspend.
     const fillPx = execPrice(engineData, code, date, 'buy', px, delta * px, cost);
-    const buy = Math.min(delta, portfolio.affordableShares(fillPx));
+    const assetType = engineData.assetType(code);
+    const buy = Math.min(delta, portfolio.affordableShares(fillPx, assetType));
     if (buy > 0) {
-      portfolio.fill(code, buy, fillPx, date, sellableFrom, engineData.adjAt(code, date)!);
+      portfolio.fill(
+        code,
+        buy,
+        fillPx,
+        date,
+        sellableFrom,
+        engineData.adjAt(code, date)!,
+        assetType,
+      );
     }
   }
 }

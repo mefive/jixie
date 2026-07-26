@@ -55,7 +55,7 @@ export async function runScreen(spec: ScreenSpec): Promise<ScreenResult> {
   return { tradeDate: date, total, rows: picked };
 }
 
-/** A stock's raw OHLC + volume + PE series, optionally bounded by date, for the stock charts. */
+/** A stock/ETF raw OHLC + volume series, optionally bounded by date, for instrument charts. */
 export async function stockSeries(
   tsCode: string,
   start?: string,
@@ -68,6 +68,39 @@ export async function stockSeries(
           ...(end ? { lte: end } : {}),
         }
       : undefined;
+  const etf = await prisma.etfBasic.findUnique({
+    where: { tsCode },
+    select: { name: true },
+  });
+  if (etf) {
+    const [px, adj] = await Promise.all([
+      prisma.etfDaily.findMany({
+        where: { tsCode, tradeDate },
+        select: { tradeDate: true, open: true, high: true, low: true, close: true, vol: true },
+        orderBy: { tradeDate: 'asc' },
+      }),
+      prisma.etfAdjFactor.findMany({
+        where: { tsCode, tradeDate },
+        select: { tradeDate: true, adjFactor: true },
+      }),
+    ]);
+    const adjMap = new Map(adj.map((row) => [row.tradeDate, row.adjFactor]));
+    return {
+      tsCode,
+      name: etf.name,
+      points: px.map((row) => ({
+        date: row.tradeDate,
+        open: row.open,
+        high: row.high,
+        low: row.low,
+        close: row.close,
+        vol: row.vol,
+        pe: null,
+        adjFactor: adjMap.get(row.tradeDate) ?? null,
+      })),
+    };
+  }
+
   const [px, db, adj, basic] = await Promise.all([
     prisma.daily.findMany({
       where: { tsCode, tradeDate },

@@ -26,6 +26,12 @@ export const SQL_TABLE_DOCS: Record<string, string> = {
     'tsCode, tradeDate, open, high, low, close, preClose, pctChg(%), vol(手), amount(千元) — daily bars, unadjusted; tens-of-millions of rows, always filter by tradeDate or tsCode',
   AdjFactor:
     'tsCode, tradeDate, adjFactor — adjustment factor (after-adjustment price = close×adjFactor)',
+  EtfBasic:
+    'tsCode, name, fullName, indexCode, indexName, setupDate, listDate, delistDate, listStatus(L/P/D), exchange, managerName, custodianName, managementFee, fundType, etfType, sameDayTurnover, lotSize — ETF metadata across listed, pending, and delisted statuses',
+  EtfDaily:
+    'tsCode, tradeDate, open, high, low, close, preClose, pctChg(%), vol(lots), amount(thousand CNY) — ETF daily bars, unadjusted',
+  EtfAdjFactor:
+    'tsCode, tradeDate, adjFactor — ETF adjustment factor (after-adjustment price = close×adjFactor)',
   StkLimit: 'tsCode, tradeDate, upLimit, downLimit — daily up/down price limits (unadjusted)',
   TopList:
     'tsCode, tradeDate, netAmount(元) — Dragon-Tiger List net buy amount, sparse event table (no appearance that day = no row)',

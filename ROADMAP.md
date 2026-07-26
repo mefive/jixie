@@ -192,7 +192,7 @@ stk_limit / moneyflow / toplist 只覆盖 2020-2024;跑更早回测前:`pnpm syn
 
 ### 4.2 数据扩展 💤(需求拉动,别囤)
 
-候选:北向资金、融资融券、概念板块;`FactorBar` 补 roe(fina_indicator 已在库)。**规则:有策略/因子想用了再加**。**2026-07-07 盘点完成**:缺口清单 + 波次计划见 `docs/design/data-expansion.md`。**波次一当日完成**:fina_indicator 扩 7 列(毛利率/净利率/负债率/ROA/营收与净利同比/经营现金流比,迁移 20260707200000 按 migrate-lock 先例手动应用),sync 支持 `refresh` 断点续传回填(~77 分钟已启动),SQL 白名单文档同步;顺手 `sync:index` 补齐中证1000/500 全历史日线+成分(指数对比问答解锁)。
+候选:北向资金、融资融券、概念板块;`FactorBar` 补 roe(fina_indicator 已在库)。**规则:有策略/因子想用了再加**。**2026-07-07 盘点完成**:缺口清单 + 波次计划见 `docs/design/data-expansion.md`。**波次一当日完成**:fina_indicator 扩 7 列(毛利率/净利率/负债率/ROA/营收与净利同比/经营现金流比,迁移 20260707200000 按 migrate-lock 先例手动应用),sync 支持 `refresh` 断点续传回填(~77 分钟已启动),SQL 白名单文档同步;顺手 `sync:index` 补齐中证1000/500 全历史日线+成分(指数对比问答解锁)。**2026-07-26 ETF 日频通道完成**:全量元数据 + 12 只主要 ETF 的日线/复权(2015 至今),代码×年份断点续传;回测、搜索、行情序列和 agent SQL 已接通,ETF 成交费率与股票印花税/过户费分离。详见 `docs/design/etf-trading.md`。
 
 ### 4.3 研究面板 B/C ✅(B 2026-07-03 已随 IDE 化完成;C 2026-07-25 收官)
 

@@ -11,7 +11,7 @@
 
 - [x] monorepo 骨架(pnpm,对齐 `~/Projects/marginalia`、`~/Tools/fangtu`)
 - [x] Tushare HTTP 数据通道 + 连通自测
-- [x] 行情落库(Prisma + SQLite:StockBasic / TradeCal / Daily / AdjFactor)
+- [x] 行情落库(Prisma + SQLite:A 股、主要指数、期货、ETF)
 - [ ] 因子库(动量 / 反转 / 波动率)+ `FactorValue` 预计算表
 - [ ] 向量化十分位分层回测(IC/IR、分层净值、Sharpe / 最大回撤)
 - [ ] HTML 因子报告
@@ -31,7 +31,7 @@
 
 ```
 apps/api/                # Hono + Prisma 后端
-  prisma/schema.prisma   # StockBasic / TradeCal / Daily / AdjFactor
+  prisma/schema.prisma   # 股票 / 指数 / 期货 / ETF 行情与研究数据
   src/tushare/           # Tushare client + 接口封装
   src/store/             # 同步落库
   src/lib/prisma.ts      # Prisma client 单例
@@ -47,6 +47,7 @@ pnpm install                                            # 装依赖（顺带构�
 pnpm --filter api exec prisma migrate dev --name init   # 建库 + 生成 Prisma Client
 pnpm smoke                                              # 验证 token 连通
 pnpm sync 20240101 20240131                             # 同步行情到 SQLite
+pnpm --filter api sync:etf 20150101 20260724 major      # 同步主要 ETF（日线 + 复权）
 pnpm peek 000001.SZ 20240101 20240131                   # 查看落库 + 后复权价
 pnpm --filter api db:studio                             # 可视化浏览数据库
 ```

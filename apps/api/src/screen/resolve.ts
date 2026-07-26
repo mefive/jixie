@@ -1,14 +1,14 @@
 import { prisma } from '../lib/prisma.js';
 
 /**
- * Direct instrument resolution: map a raw query to specific ts_codes when it is a *reference* to a stock
+ * Direct instrument resolution: map a raw query to specific ts_codes when it is a *reference* to an instrument
  * (a 6-digit code, an exact name, or a short name fragment) rather than a metric screen. This is the
  * deterministic fast-path the unified query endpoint tries BEFORE the LLM — a pure code / exact name is
  * unambiguous, so a DB lookup is both instant and *more* accurate than a model (which could mistranscribe
  * a code). Empty result = "not a direct reference"; the caller then falls back to NL parsing.
  *
- * Codes always come from our own stock_basic — even on the LLM lookup path the model only normalizes a
- * name, which we re-resolve here, so a hallucinated code can never reach the user.
+ * Codes always come from our own stock/ETF metadata — even on the LLM lookup path the model only
+ * normalizes a name, which we re-resolve here, so a hallucinated code can never reach the user.
  */
 
 const CODE_RE = /^(\d{6})(\.(SH|SZ|BJ))?$/i;
@@ -25,18 +25,34 @@ export async function resolveInstruments(text: string): Promise<string[]> {
     return [];
   }
 
-  // 1. Pure code (600519 / 600519.SH). symbol is the 6-digit; maps to exactly one A-share ts_code.
+  // 1. Pure code (600519 / 510300.SH). Resolve across stocks and ETFs.
   const m = t.match(CODE_RE);
   if (m) {
     const symbol = m[1];
-    const rows = await prisma.stockBasic.findMany({ where: { symbol }, select: { tsCode: true } });
-    return rows.map((r) => r.tsCode);
+    const normalizedCode = m[2] ? `${symbol}.${m[3].toUpperCase()}` : undefined;
+    const [stocks, etfs] = await Promise.all([
+      prisma.stockBasic.findMany({ where: { symbol }, select: { tsCode: true } }),
+      prisma.etfBasic.findMany({
+        where: normalizedCode
+          ? { tsCode: normalizedCode }
+          : { tsCode: { startsWith: `${symbol}.` } },
+        select: { tsCode: true },
+      }),
+    ]);
+    return [...stocks, ...etfs].map((row) => row.tsCode);
   }
 
-  // 2. Exact full name (a full stock name resolves to its ts_code, e.g. ICBC → 601398.SH).
-  const exact = await prisma.stockBasic.findMany({ where: { name: t }, select: { tsCode: true } });
+  // 2. Exact full name.
+  const [exactStocks, exactEtfs] = await Promise.all([
+    prisma.stockBasic.findMany({ where: { name: t }, select: { tsCode: true } }),
+    prisma.etfBasic.findMany({
+      where: { OR: [{ name: t }, { fullName: t }] },
+      select: { tsCode: true },
+    }),
+  ]);
+  const exact = [...exactStocks, ...exactEtfs];
   if (exact.length) {
-    return exact.map((r) => r.tsCode);
+    return exact.map((row) => row.tsCode);
   }
 
   // 3. Short name fragment (a brand fragment matches the full names containing it, e.g. "Maotai" →
@@ -44,13 +60,24 @@ export async function resolveInstruments(text: string): Promise<string[]> {
   //    "cheap high-dividend") simply matches no name → [] → caller goes to the LLM. Capped so a
   //    generic fragment can't flood.
   if (NAME_TOKEN_RE.test(t)) {
-    const hits = await prisma.stockBasic.findMany({
-      where: { name: { contains: t } },
-      select: { tsCode: true },
-      orderBy: { tsCode: 'asc' },
-      take: MAX_HITS,
-    });
-    return hits.map((r) => r.tsCode);
+    const [stocks, etfs] = await Promise.all([
+      prisma.stockBasic.findMany({
+        where: { name: { contains: t } },
+        select: { tsCode: true },
+        orderBy: { tsCode: 'asc' },
+        take: MAX_HITS,
+      }),
+      prisma.etfBasic.findMany({
+        where: { OR: [{ name: { contains: t } }, { fullName: { contains: t } }] },
+        select: { tsCode: true },
+        orderBy: { tsCode: 'asc' },
+        take: MAX_HITS,
+      }),
+    ]);
+    return [...stocks, ...etfs]
+      .map((row) => row.tsCode)
+      .sort()
+      .slice(0, MAX_HITS);
   }
 
   return [];

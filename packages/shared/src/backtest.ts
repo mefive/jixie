@@ -39,7 +39,7 @@ export interface TradeRecord {
   fee: number;
   realShares: number; // real shares filled (buys are whole lots)
   realPrice: number; // unadjusted (raw) fill price — what you'd actually have paid
-  assetType?: 'stock' | 'future';
+  assetType?: 'stock' | 'etf' | 'future';
   actualCode?: string;
   contracts?: number;
   multiplier?: number;

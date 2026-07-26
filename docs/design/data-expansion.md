@@ -5,10 +5,14 @@
 > 同步实现照抄现有范式(`tushare/api.ts` 加接口 → `store/sync.ts` 加幂等 sync → `scripts/` 加脚本 →
 > schema 加 model + migrate),每个波次一个会话认领。
 
-## 已入库(12 张市场表,2026-07-07 核实)
+## 已入库的核心市场数据
 
 StockBasic / TradeCal / Daily / AdjFactor / StkLimit / TopList / Moneyflow / DailyBasic /
-FinaIndicator(**仅 roe、roeWaa 两列**)/ Dividend / IndexWeight / IndexDaily。
+FinaIndicator / Dividend / IndexWeight / IndexDaily，以及期货合约、行情、主力映射和结算数据。
+
+**2026-07-26 ETF 日频通道完成**：EtfBasic / EtfDaily / EtfAdjFactor 全部接入，
+元数据 1783 条；首批 12 只主要 ETF 从 2015 年（或各自上市日）同步到 2026-07-24，
+共 27,323 条行情。范围、同步方式和交易规则见 [`etf-trading.md`](./etf-trading.md)。
 
 ## 缺口按需求归类
 
@@ -38,6 +42,7 @@ FinaIndicator(**仅 roe、roeWaa 两列**)/ Dividend / IndexWeight / IndexDaily�
 | `index_dailybasic` | 指数估值(全市场 PE 分位 = 择时/情绪基准) | agent 查询「现在市场贵不贵」直接可答 |
 | `margin` / `margin_detail` | 融资融券(情绪/杠杆因子原料) | 4.2 原候选 |
 | `suspend_d` | 停牌明细 | 现在靠「无行=停牌」推断,审计(4.7)可用它对账 |
+| `etf_basic` / `fund_daily` / `fund_adj` | ETF 元数据、日线与复权 | ✅ 首批主要 ETF 已完成；按需扩展代码列表，不全量囤积日线 |
 
 ## 落库纪律(所有波次通用)
 

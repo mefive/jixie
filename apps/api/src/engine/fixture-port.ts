@@ -2,6 +2,7 @@ import type {
   BarsRows,
   CrossSectionRows,
   EngineDataPort,
+  EtfBasicDataRow,
   FinaIndicatorRow,
   FutureContractRow,
   FutureDailyDataRow,
@@ -36,6 +37,7 @@ export interface FixtureBar {
 
 export interface FixtureStock {
   code: string;
+  assetType?: 'stock' | 'etf';
   listDate?: string; // default long ago (never "recently listed")
   industry?: string;
   bars: FixtureBar[];
@@ -73,11 +75,23 @@ export function fixturePort(spec: FixtureSpec): EngineDataPort {
     },
 
     async stockBasics(): Promise<StockBasicRow[]> {
-      return spec.stocks.map((s) => ({
-        tsCode: s.code,
-        listDate: s.listDate ?? '20000101',
-        industry: s.industry ?? null,
-      }));
+      return spec.stocks
+        .filter((stock) => stock.assetType !== 'etf')
+        .map((stock) => ({
+          tsCode: stock.code,
+          listDate: stock.listDate ?? '20000101',
+          industry: stock.industry ?? null,
+        }));
+    },
+
+    async etfBasics(): Promise<EtfBasicDataRow[]> {
+      return spec.stocks
+        .filter((stock) => stock.assetType === 'etf')
+        .map((stock) => ({
+          tsCode: stock.code,
+          listDate: stock.listDate ?? '20000101',
+          sameDayTurnover: false,
+        }));
     },
 
     async topListRange(start, end) {
@@ -96,6 +110,9 @@ export function fixturePort(spec: FixtureSpec): EngineDataPort {
       const wanted = codes ? new Set(codes) : null;
       const out: CrossSectionRows = { price: [], adj: [], basic: [] };
       for (const stock of spec.stocks) {
+        if (stock.assetType === 'etf') {
+          continue;
+        }
         if (wanted && !wanted.has(stock.code)) {
           continue;
         }

@@ -8,7 +8,7 @@ import { m } from '../i18n/index.js';
 /**
  * Market read-only helpers (cross-domain infrastructure, mounted at /api/app/market):
  *   GET /names?codes=                 tsCode → name (bulk) — e.g. the traded-instruments queue
- *   GET /stocks/:code/series          a stock's OHLC/vol/pe series for the K-line/PE/volume charts
+ *   GET /stocks/:code/series          a stock/ETF OHLC/vol/pe series (legacy path kept for the UI)
  *   GET /indices/:code/series         index daily close — the benchmark return curve in trade details
  * Naming rules: see docs/design/api-route-naming.md.
  */
@@ -17,8 +17,12 @@ export const marketRoute = new Hono();
 // tsCode → name (bulk) — e.g. the traded-instruments queue in trade details.
 marketRoute.get('/names', validateQuery(z.object({ codes: z.string().min(1) })), async (c) => {
   const codes = c.req.valid('query').codes.split(',').filter(Boolean).slice(0, 500);
-  const [stocks, futures] = await Promise.all([
+  const [stocks, etfs, futures] = await Promise.all([
     prisma.stockBasic.findMany({
+      where: { tsCode: { in: codes } },
+      select: { tsCode: true, name: true },
+    }),
+    prisma.etfBasic.findMany({
       where: { tsCode: { in: codes } },
       select: { tsCode: true, name: true },
     }),
@@ -28,7 +32,7 @@ marketRoute.get('/names', validateQuery(z.object({ codes: z.string().min(1) })),
     }),
   ]);
   const names: Record<string, string> = Object.fromEntries(
-    [...stocks, ...futures].map((row) => [row.tsCode, row.name]),
+    [...stocks, ...etfs, ...futures].map((row) => [row.tsCode, row.name]),
   );
   const continuousNames: Record<string, string> = {
     'IF.CFX': '沪深300股指期货主力',

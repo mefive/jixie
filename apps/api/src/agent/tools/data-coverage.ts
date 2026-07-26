@@ -5,6 +5,8 @@ import type { AgentTool } from './types.js';
 const TABLE_LABELS = {
   daily: 'daily bars (OHLC/volume)',
   adjFactor: 'adjustment factor',
+  etfDaily: 'ETF daily bars',
+  etfAdjFactor: 'ETF adjustment factor',
   dailyBasic: 'daily metrics (PE/PB/dividend yield/market cap/turnover)',
   moneyflow: 'per-stock moneyflow',
   stkLimit: 'daily up/down price limits',
@@ -47,6 +49,12 @@ async function tableCoverage(table: TableKey): Promise<Coverage> {
       break;
     case 'adjFactor':
       aggregate = await prisma.adjFactor.aggregate(aggregateArgs);
+      break;
+    case 'etfDaily':
+      aggregate = await prisma.etfDaily.aggregate(aggregateArgs);
+      break;
+    case 'etfAdjFactor':
+      aggregate = await prisma.etfAdjFactor.aggregate(aggregateArgs);
       break;
     case 'dailyBasic':
       aggregate = await prisma.dailyBasic.aggregate(aggregateArgs);
