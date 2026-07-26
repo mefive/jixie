@@ -408,8 +408,20 @@ function buildContext(
         get close() {
           return engineData.indexCloseAsOf(indexCode, date);
         },
+        get pe() {
+          return engineData.indexValuationAsOf(indexCode, date, 'pe');
+        },
+        get peTtm() {
+          return engineData.indexValuationAsOf(indexCode, date, 'peTtm');
+        },
+        get pb() {
+          return engineData.indexValuationAsOf(indexCode, date, 'pb');
+        },
         sma(n: number) {
           return engineData.indexSma(indexCode, date, n);
+        },
+        percentile(field, lookback) {
+          return engineData.indexValuationPercentile(indexCode, date, field, lookback);
         },
       };
     },
@@ -566,8 +578,20 @@ function buildMultiAssetContext(
         get close() {
           return engineData.indexCloseAsOf(indexCode, date);
         },
+        get pe() {
+          return engineData.indexValuationAsOf(indexCode, date, 'pe');
+        },
+        get peTtm() {
+          return engineData.indexValuationAsOf(indexCode, date, 'peTtm');
+        },
+        get pb() {
+          return engineData.indexValuationAsOf(indexCode, date, 'pb');
+        },
         sma(n: number) {
           return engineData.indexSma(indexCode, date, n);
+        },
+        percentile(field, lookback) {
+          return engineData.indexValuationPercentile(indexCode, date, field, lookback);
         },
       };
     },

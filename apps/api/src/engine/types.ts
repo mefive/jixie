@@ -121,9 +121,17 @@ export interface BarRow {
 
 /** What the strategy sees and acts through, each bar. */
 /** Read-only market-index handle (ctx.index) — point-in-time as-of today; an index isn't tradable. */
+export type IndexValuationField = 'pe' | 'peTtm' | 'pb';
+
 export interface IndexHandle {
   readonly close: number | null; // today's index level (as-of ≤ today); null if not synced
+  readonly pe: number | null; // provider-computed static PE, as-of today
+  readonly peTtm: number | null; // provider-computed trailing-twelve-month PE, as-of today
+  readonly pb: number | null; // provider-computed PB, as-of today
   sma(n: number): number | null; // n-day moving average (index close series); null if insufficient data
+  /** Percentile rank in [0, 1] among observations available up to today. `lookback` is the maximum
+   * number of daily observations (e.g. 2520 ≈ ten trading years); omitted means all history. */
+  percentile(field: IndexValuationField, lookback?: number): number | null;
 }
 
 export interface BarContext {
@@ -171,10 +179,9 @@ export interface BarContext {
   /** Point-in-time constituents of an index (e.g. '000300.SH' CSI 300) as of today — the codes from the
    * latest monthly snapshot ≤ today. Async (lazily loads the index's snapshots on first use). */
   indexMembers(indexCode: string): Promise<string[]>;
-  /** Market-index handle (e.g. '000300.SH' CSI 300) — point-in-time read-only: `close` today's level,
-   * `sma(n)` the n-day moving average (index's own close series). For market-timing filters (e.g. "go long
-   * only when CSI 300 is above its 200-day moving average"). The index isn't tradable; data comes from
-   * IndexDaily (must be synced), close/sma return null if not synced. */
+  /** Market-index handle (e.g. '000300.SH' CSI 300) — point-in-time read-only: close/PE/PB are as-of
+   * today, `sma(n)` uses index levels, and `percentile('pe', 2520)` ranks today's PE in roughly ten
+   * trading years of history. The index isn't tradable; unsynced fields return null. */
   index(indexCode: string): IndexHandle;
   /** Stock-index futures bar for an actual or logical continuous code as-of today. */
   future(code: string): FutureBar | null;

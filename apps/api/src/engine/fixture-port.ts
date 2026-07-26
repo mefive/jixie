@@ -8,6 +8,7 @@ import type {
   FutureDailyDataRow,
   FutureMappingDataRow,
   FutureSettlementDataRow,
+  IndexDailyBasicDataRow,
   IndexDailyRow,
   IndexWeightRow,
   MoneyflowRow,
@@ -50,6 +51,7 @@ export interface FixtureSpec {
   dates: string[]; // open trading days, ascending
   stocks: FixtureStock[];
   indexDaily?: IndexDailyRow[];
+  indexDailyBasic?: IndexDailyBasicDataRow[];
   indexWeights?: Record<string, IndexWeightRow[]>;
   finaIndicators?: FinaIndicatorRow[];
   topList?: TopListRow[];
@@ -100,6 +102,10 @@ export function fixturePort(spec: FixtureSpec): EngineDataPort {
 
     async indexDailyAll() {
       return spec.indexDaily ?? [];
+    },
+
+    async indexDailyBasicAll() {
+      return spec.indexDailyBasic ?? [];
     },
 
     async moneyflowRange(start, end) {

@@ -223,9 +223,9 @@ export const SDK_ENTRIES = [
     iface: 'StrategyCtx',
     name: 'index',
     group: '数据 / 选股',
-    sig: 'index(indexCode: string): { readonly close: number | null; sma(n: number): number | null }',
-    zh: '大盘指数句柄(如 000300.SH 沪深300)时点只读:close 今日点位、sma(n) n 日均线。用于大盘择时滤网(如「沪深300 站上 200 日线才做多」)。指数≠个股,不可交易。数据来自 IndexDaily(需已同步),未同步返 null。',
-    en: 'Index handle (e.g. 000300.SH 沪深300) — read-only, as-of today: close = level, sma(n) = n-day MA (on the index close). For 大盘择时 regime filters; an index is not tradable.',
+    sig: "index(indexCode: string): { readonly close: number | null; readonly pe: number | null; readonly peTtm: number | null; readonly pb: number | null; sma(n: number): number | null; percentile(field: 'pe' | 'peTtm' | 'pb', lookback?: number): number | null }",
+    zh: "大盘指数句柄(如 000300.SH 沪深300)时点只读:close/pe/peTtm/pb 均截至今天；percentile('pe', 2520) 计算约十个交易年的 PE 历史分位,返回 0~1,不传窗口则用全部已有历史；sma(n) 为指数 n 日均线。指数不可直接交易,未同步字段返 null。",
+    en: "Read-only, point-in-time index handle: close/PE/PB are as-of today; percentile('pe', 2520) ranks today's PE within roughly ten trading years and returns 0..1 (all available history when omitted); sma(n) is the index close MA.",
   },
   {
     iface: 'StrategyCtx',

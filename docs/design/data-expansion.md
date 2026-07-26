@@ -39,7 +39,8 @@ FinaIndicator / Dividend / IndexWeight / IndexDaily，以及期货合约、行�
 | 接口 | 用途 | 备注 |
 |---|---|---|
 | `index_daily`(补指数) | **实测 IndexDaily 目前只有 000300.SH**——中证1000/500 等未同步,指数间相关性/对比问答会答不了(agent 已能诚实报告缺数) | 跑一次 `sync:index` 补 000852.SH/000905.SH 等,零开发 |
-| `index_dailybasic` | 指数估值(全市场 PE 分位 = 择时/情绪基准) | agent 查询「现在市场贵不贵」直接可答 |
+| `index_dailybasic` | 指数估值(全市场 PE 分位 = 择时/情绪基准) | ✅ 2026-07-26 接入；主要宽基自 2004 年起按十年窗口同步，保留 PE/PE TTM/PB 与市值、换手字段 |
+| `sw_daily` | 申万行业指数行情与估值 | 官方直接提供 PE/PB、总市值和流通市值；当前系统尚未接入，行业估值策略应优先用它，不必从成分股反算 |
 | `margin` / `margin_detail` | 融资融券(情绪/杠杆因子原料) | 4.2 原候选 |
 | `suspend_d` | 停牌明细 | 现在靠「无行=停牌」推断,审计(4.7)可用它对账 |
 | `etf_basic` / `fund_daily` / `fund_adj` | ETF 元数据、日线与复权 | ✅ 首批主要 ETF 已完成；按需扩展代码列表，不全量囤积日线 |
@@ -55,7 +56,7 @@ FinaIndicator / Dividend / IndexWeight / IndexDaily，以及期货合约、行�
 ## 建议波次
 
 1. **波次一(最划算)**:fina_indicator 扩列(~8 个核心指标)+ 全量重同步 + SQL 白名单文档更新。一张表满足需求①大半 + 3.5 的 ROE/毛利率因子数据面。
-2. **波次二**:index_dailybasic + stk_holdernumber(小表、接口简单)。
+2. **波次二**:index_dailybasic ✅；剩余 stk_holdernumber(小表、接口简单)。
 3. **波次三(等应计因子立项)**:三大报表。
 4. 观望:hk_hold(数据断点)、forecast/express(等事件研究)。
 
