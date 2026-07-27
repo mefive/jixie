@@ -156,10 +156,8 @@ const router = createBrowserRouter(
         <Route path="/lab" element={<LabRoute />} />
         <Route path="/screen" element={<ComplexRoute key="screen" entry={screenEntry} />} />
         <Route path="/factors" element={<FactorRoute />} />
-        <Route
-          path="/valuation"
-          element={<ComplexRoute key="valuation" entry={valuationEntry} />}
-        />
+        <Route path="/market" element={<ComplexRoute key="market" entry={valuationEntry} />} />
+        <Route path="/valuation" element={<Navigate to="/market" replace />} />
         <Route path="/stock/:code" element={<StockRoute />} />
         <Route path="/trades" element={<TradePage />} />
       </Route>

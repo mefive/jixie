@@ -5,8 +5,11 @@ import type {
   IndexValuationMetric,
   IndexValuationMetricSummary,
   IndexValuationPoint,
+  MarketStateRegime,
+  MarketStateScope,
 } from '@jixie/shared';
 import { complex } from './complex';
+import { MarketStateOverview } from './market-state-overview';
 import './valuation.css';
 
 const ValuationChart = lazy(() => import('./valuation-chart'));
@@ -21,6 +24,7 @@ export const Valuation = complex.component(() => {
   const series = store.seriesLoader.result;
   const catalog = store.catalogLoader.result;
   const loading = store.seriesLoader.loading || !series;
+  const marketState = store.marketStateLoader.result;
   const displayPoints = useMemo(
     () => (series ? filterPoints(series.points, series.asOf, historyRange) : []),
     [series, historyRange],
@@ -35,6 +39,49 @@ export const Valuation = complex.component(() => {
             <span className="jx-valuation-kicker">{t('kicker')}</span>
             <h1 className="jx-valuation-title">{t('title')}</h1>
             <p className="jx-valuation-subtitle">{t('subtitle')}</p>
+          </div>
+          <div className="jx-valuation-heroStatus">
+            <span className="jx-valuation-heroStatusLabel">
+              {t('marketState.todayScope', {
+                scope: t(marketScopeLabelKey(store.marketScope)),
+              })}
+            </span>
+            <strong className="jx-valuation-heroStatusValue">
+              {marketState ? t(regimeLabelKey(marketState.regime)) : t('loading')}
+            </strong>
+            <span className="jx-valuation-heroStatusMeta">
+              {marketState
+                ? t('marketState.coverage', {
+                    date: formatDate(marketState.asOf),
+                    count: marketState.latest.tradedCount,
+                  })
+                : t('marketState.waiting')}
+            </span>
+          </div>
+        </section>
+
+        {store.marketStateLoader.error ? (
+          <Alert
+            type="error"
+            showIcon
+            message={t('marketState.loadFailed')}
+            description={store.marketStateLoader.errorObject?.message}
+          />
+        ) : marketState ? (
+          <MarketStateOverview
+            snapshot={marketState}
+            loading={store.marketStateLoader.loading}
+            onScopeChange={(scope) => store.setMarketScope(scope)}
+          />
+        ) : (
+          <DashboardSkeleton />
+        )}
+
+        <section className="jx-valuation-sectionHead">
+          <div>
+            <span className="jx-valuation-sectionKicker">{t('valuationSection.kicker')}</span>
+            <h2 className="jx-valuation-sectionTitle">{t('valuationSection.title')}</h2>
+            <p className="jx-valuation-sectionSubtitle">{t('valuationSection.subtitle')}</p>
           </div>
           <div className="jx-valuation-indexControl">
             <label className="jx-valuation-controlLabel">{t('selectIndex')}</label>
@@ -211,6 +258,14 @@ function metricLabelKey(metric: IndexValuationMetric) {
 
 function indexNameKey(code: string) {
   return INDEX_NAME_KEYS[code] ?? 'indices.unknown';
+}
+
+function regimeLabelKey(regime: MarketStateRegime) {
+  return `marketState.regimes.${regime}.label` as const;
+}
+
+function marketScopeLabelKey(scope: MarketStateScope) {
+  return `marketState.scopes.${scope === 'all' ? 'all' : scope.replaceAll('.', '_')}` as const;
 }
 
 const SUMMARY_METRICS: IndexValuationMetric[] = ['peTtm', 'pb', 'pe', 'turnoverRate'];

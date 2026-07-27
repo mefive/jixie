@@ -225,6 +225,8 @@ import type {
   ScreenConversationMeta,
   IndexValuationCatalog,
   IndexValuationSeries,
+  MarketStateScope,
+  MarketStateSnapshot,
   ScreenResult,
   ScreenSpec,
   StockSeries,
@@ -390,6 +392,13 @@ export function fetchIndexValuationSeries(
   signal?: AbortSignal,
 ): Promise<IndexValuationSeries> {
   return request(`/api/app/market/indices/${encodeURIComponent(code)}/valuation`, { signal });
+}
+
+export function fetchMarketState(
+  scope: MarketStateScope,
+  signal?: AbortSignal,
+): Promise<MarketStateSnapshot> {
+  return request(`/api/app/market/state?scope=${encodeURIComponent(scope)}`, { signal });
 }
 
 import type {

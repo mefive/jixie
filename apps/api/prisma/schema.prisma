@@ -272,6 +272,69 @@ model IndexDailyBasic {
   @@index([tradeDate])
 }
 
+/// Precomputed whole-market daily state. Values are descriptive measurements, not forecasts:
+/// activity, participation breadth, trend, concentration, and speculative extremes. Price-window
+/// fields use adjusted closes and only stocks with sufficient point-in-time history enter each
+/// denominator.
+model MarketIndicator {
+  tradeDate                 String @id
+  tradedCount               Int
+  return20                  Float?
+  advanceRatio              Float?
+  aboveMa20Ratio            Float?
+  aboveMa60Ratio            Float?
+  totalAmount               Float?
+  floatWeightedTurnoverRate Float?
+  topFivePercentAmountShare Float?
+  extremeMoveRatio          Float?
+  limitUpCount              Int
+  limitDownCount            Int
+}
+
+/// Precomputed point-in-time index-universe state. Each trading day uses the latest constituent
+/// snapshot available on or before that date, so historical breadth and activity do not use today's
+/// members. return20 follows the official index close; the remaining fields aggregate constituents.
+model IndexIndicator {
+  indexCode                 String
+  tradeDate                 String
+  membershipDate            String
+  tradedCount               Int
+  return20                  Float?
+  advanceRatio              Float?
+  aboveMa20Ratio            Float?
+  aboveMa60Ratio            Float?
+  totalAmount               Float?
+  floatWeightedTurnoverRate Float?
+  topFivePercentAmountShare Float?
+  extremeMoveRatio          Float?
+  limitUpCount              Int
+  limitDownCount            Int
+
+  @@id([indexCode, tradeDate])
+  @@index([tradeDate])
+}
+
+/// Precomputed Shenwan level-1 industry state using the membership spell valid on each trade date.
+/// Industry heat is assembled at read time from trend, breadth, and activity percentiles so every
+/// component remains visible and independently interpretable.
+model IndustryIndicator {
+  l1Code                    String
+  l1Name                    String
+  tradeDate                 String
+  tradedCount               Int
+  return20                  Float?
+  excessReturn20            Float?
+  positiveReturn20Ratio     Float?
+  aboveMa20Ratio            Float?
+  aboveMa60Ratio            Float?
+  floatWeightedTurnoverRate Float?
+  amountShare               Float?
+  topFiveAmountShare        Float?
+
+  @@id([l1Code, tradeDate])
+  @@index([tradeDate])
+}
+
 /// CFFEX stock-index futures contracts. Only IF/IH/IC/IM actual delivery-month contracts are stored;
 /// continuous symbols (e.g. IF.CFX) live in FutureMapping and must never be treated as tradable contracts.
 model FutureContract {
