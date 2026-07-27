@@ -219,7 +219,7 @@ export interface IndexDailyRow {
 }
 
 /** Index daily close (e.g. 000300.SH CSI 300) — benchmark return curves + future regime filters.
- * One call returns the whole range (a few thousand rows). */
+ * Callers must split ranges that may exceed the upstream response limit. */
 export async function indexDaily(
   client: TushareClient,
   params: { ts_code: TsCode; start_date?: TradeDate; end_date?: TradeDate },

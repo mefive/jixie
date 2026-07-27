@@ -5,6 +5,7 @@ export const zhCommon = {
     backtest: '回测工作台',
     screen: '选股看图',
     factor: '因子研究',
+    valuation: '市场估值',
   },
   logout: '退出',
   language: {

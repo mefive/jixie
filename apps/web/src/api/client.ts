@@ -223,6 +223,8 @@ export function findBacktestRunningJob(strategyId: string): Promise<{ jobId: str
 import type {
   ScreenConversationDetail,
   ScreenConversationMeta,
+  IndexValuationCatalog,
+  IndexValuationSeries,
   ScreenResult,
   ScreenSpec,
   StockSeries,
@@ -377,6 +379,17 @@ export function fetchIndexSeries(
   end: string,
 ): Promise<{ points: { date: string; close: number }[] }> {
   return request(`/api/app/market/indices/${code}/series?start=${start}&end=${end}`);
+}
+
+export function fetchIndexValuationCatalog(signal?: AbortSignal): Promise<IndexValuationCatalog> {
+  return request('/api/app/market/indices/valuation/catalog', { signal });
+}
+
+export function fetchIndexValuationSeries(
+  code: string,
+  signal?: AbortSignal,
+): Promise<IndexValuationSeries> {
+  return request(`/api/app/market/indices/${encodeURIComponent(code)}/valuation`, { signal });
 }
 
 import type {

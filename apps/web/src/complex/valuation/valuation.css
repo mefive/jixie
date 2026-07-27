@@ -1,0 +1,207 @@
+@reference '../../styles/index.css';
+
+.jx-valuation {
+  @apply overflow-auto;
+  height: 100%;
+}
+
+.jx-valuation-body {
+  @apply flex flex-col gap-4;
+  width: min(1440px, 100%);
+  margin: 0 auto;
+  padding: 22px 24px 36px;
+}
+
+.jx-valuation-hero {
+  @apply flex items-end justify-between gap-8 rounded-xl;
+  @apply bg-primary text-white;
+  padding: 26px 30px;
+}
+
+.jx-valuation-heroCopy {
+  max-width: 720px;
+}
+
+.jx-valuation-kicker {
+  @apply font-semibold uppercase;
+  color: #aeb7c5;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+}
+
+.jx-valuation-title {
+  @apply m-0 font-semibold;
+  margin-top: 6px;
+  font-size: 30px;
+  letter-spacing: -0.02em;
+}
+
+.jx-valuation-subtitle {
+  @apply m-0;
+  color: #cbd1da;
+  margin-top: 7px;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.jx-valuation-indexControl {
+  @apply flex shrink-0 flex-col gap-2;
+  width: 300px;
+}
+
+.jx-valuation-controlLabel {
+  @apply text-xs font-medium;
+  color: #d9dee6;
+}
+
+.jx-valuation-indexSelect {
+  width: 100%;
+}
+
+.jx-valuation-updated {
+  @apply text-xs;
+  color: #aeb7c5;
+}
+
+.jx-valuation-summary {
+  @apply grid grid-cols-4 gap-3;
+}
+
+.jx-valuation-metricCard {
+  @apply rounded-xl border border-line bg-card;
+  padding: 18px 19px 16px;
+}
+
+.jx-valuation-metricHead {
+  @apply flex items-baseline justify-between gap-3;
+}
+
+.jx-valuation-metricLabel {
+  @apply text-sm font-medium text-muted;
+}
+
+.jx-valuation-metricValue {
+  @apply font-semibold text-ink;
+  font-size: 24px;
+  letter-spacing: -0.02em;
+}
+
+.jx-valuation-percentileMain {
+  @apply mt-5 flex items-center justify-between;
+  @apply text-xs text-muted;
+}
+
+.jx-valuation-percentileValue {
+  @apply text-sm font-semibold text-ink;
+}
+
+.jx-valuation-percentileTrack {
+  @apply mt-2 overflow-hidden rounded-full;
+  background: #eceef1;
+  height: 7px;
+}
+
+.jx-valuation-percentileFill {
+  @apply block rounded-full bg-primary;
+  height: 100%;
+  min-width: 2px;
+}
+
+.jx-valuation-percentileFoot {
+  @apply mt-2 flex items-center justify-between gap-2;
+  @apply text-muted;
+  font-size: 10px;
+}
+
+.jx-valuation-chartCard {
+  @apply rounded-xl border border-line bg-card;
+  padding: 20px 20px 14px;
+}
+
+.jx-valuation-chartHead {
+  @apply flex items-start justify-between gap-6;
+  padding: 0 4px 14px;
+}
+
+.jx-valuation-chartTitle {
+  @apply m-0 font-semibold text-ink;
+  font-size: 18px;
+}
+
+.jx-valuation-chartSubtitle {
+  @apply m-0 mt-1 text-sm text-muted;
+}
+
+.jx-valuation-chartControls {
+  @apply flex flex-wrap items-center justify-end gap-2;
+}
+
+.jx-valuation-chart {
+  height: 430px;
+}
+
+.jx-valuation-chartSkeleton {
+  width: 100% !important;
+  height: 430px !important;
+}
+
+.jx-valuation-method {
+  @apply flex items-start gap-3 rounded-lg border border-line;
+  background: #f1f2f4;
+  padding: 13px 16px;
+}
+
+.jx-valuation-methodLabel {
+  @apply shrink-0 text-xs font-semibold text-ink;
+}
+
+.jx-valuation-methodText {
+  @apply m-0 text-xs text-muted;
+  line-height: 1.6;
+}
+
+.jx-valuation-dashboardSkeleton {
+  @apply grid grid-cols-1 gap-4;
+  padding: 12px 4px;
+}
+
+@media (max-width: 1050px) {
+  .jx-valuation-summary {
+    @apply grid-cols-2;
+  }
+
+  .jx-valuation-chartHead {
+    @apply flex-col;
+  }
+
+  .jx-valuation-chartControls {
+    @apply justify-start;
+  }
+}
+
+@media (max-width: 720px) {
+  .jx-valuation-body {
+    padding: 14px 12px 24px;
+  }
+
+  .jx-valuation-hero {
+    @apply flex-col items-stretch;
+    padding: 22px 20px;
+  }
+
+  .jx-valuation-indexControl {
+    width: 100%;
+  }
+
+  .jx-valuation-summary {
+    @apply grid-cols-1;
+  }
+
+  .jx-valuation-chartControls {
+    @apply items-start;
+  }
+
+  .jx-valuation-chart {
+    height: 360px;
+  }
+}

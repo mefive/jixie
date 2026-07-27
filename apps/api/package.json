@@ -30,6 +30,7 @@
     "sync:futures": "tsx --env-file=.env scripts/sync-futures.ts",
     "sync:etf": "tsx --env-file=.env scripts/sync-etf.ts",
     "sync:index": "tsx --env-file=.env scripts/sync-index.ts",
+    "sync:index-daily": "tsx --env-file=.env scripts/sync-index-daily.ts",
     "sync:index-basic": "tsx --env-file=.env scripts/sync-index-basic.ts",
     "sync:limit": "tsx --env-file=.env scripts/sync-limit.ts",
     "sync:moneyflow": "tsx --env-file=.env scripts/sync-moneyflow.ts",

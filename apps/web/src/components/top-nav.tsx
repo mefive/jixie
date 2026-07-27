@@ -29,6 +29,9 @@ export const TopNav = observer(() => {
           <NavLink to="/factors" className={linkClass}>
             {t('nav.factor')}
           </NavLink>
+          <NavLink to="/valuation" className={linkClass}>
+            {t('nav.valuation')}
+          </NavLink>
         </nav>
       </div>
       <div className="jx-topnav-user">
@@ -47,7 +50,7 @@ export const TopNav = observer(() => {
           icon={<FontAwesomeIcon icon={faRightFromBracket} />}
           onClick={() => void authStore.logout()}
         >
-          {t('logout')}
+          <span className="jx-topnav-logoutText">{t('logout')}</span>
         </Button>
       </div>
     </header>

@@ -7,6 +7,7 @@ export const enCommon: typeof zhCommon = {
     backtest: 'Backtest Lab',
     screen: 'Screener',
     factor: 'Factors',
+    valuation: 'Valuation',
   },
   logout: 'Log out',
   language: {
