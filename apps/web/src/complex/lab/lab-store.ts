@@ -17,12 +17,14 @@ import {
   deleteStrategy,
   findBacktestRunningJob,
   getStrategy,
+  fetchIndexSeries,
   listStrategies,
   pollBacktest,
   sendAgent,
   submitBacktest,
 } from '@src/api/client';
 import { DEFAULT_CODE } from './default-strategy';
+import { BENCHMARKS, type BenchmarkSeries } from './benchmarks';
 import { pushRecent, readRecents, removeRecent } from './recents';
 
 type LabSetupParams = { id?: string; isNew?: boolean };
@@ -65,6 +67,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
 
   public backtestPoller = new PollingModel();
   public savedLoader = new LoaderModel<StrategyCard[]>(); // My strategies / History cards
+  public benchmarkLoader = new LoaderModel<BenchmarkSeries>();
 
   public constructor(parentStore?: any) {
     super(parentStore);
@@ -95,8 +98,20 @@ export class LabStore extends BaseStore<LabSetupParams> {
     super.setup(params);
     this.backtestPoller.setup({ interval: POLL_INTERVAL_MS, request: () => this.pollOnce() });
     this.savedLoader.setup({ request: () => listStrategies() });
+    this.benchmarkLoader.setup({
+      request: async ({ start, end }: { start: string; end: string }) => {
+        const series = await Promise.all(
+          BENCHMARKS.map(async ({ code }) => {
+            const result = await fetchIndexSeries(code, start, end);
+            return [code, result.points] as const;
+          }),
+        );
+        return Object.fromEntries(series) as BenchmarkSeries;
+      },
+    });
     this.registCleaner(() => this.backtestPoller.cleanup());
     this.registCleaner(() => this.savedLoader.cleanup());
+    this.registCleaner(() => this.benchmarkLoader.cleanup());
     this.registCleaner(() => this.turnStream.detach()); // drop the SSE subscription; the turn keeps running
     void this.savedLoader.run(); // prime My strategies (also feeds the hero's Recent-visits cards)
     // A fresh (never-run) strategy: empty run-baseline → dirty → Run-backtest enabled; but the pristine
@@ -289,6 +304,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
       this.savedConfig = ''; // never run → dirty (runnable)
       this.persistedConfig = this.configKey(); // pristine skeleton → not edited (no leave guard)
     });
+    this.resetBenchmarks();
   }
 
   /** Run a backtest. This is the commit point: it persists the current config (code/range/capital) onto
@@ -315,6 +331,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
       this.logLines = [];
       this.error = null;
     });
+    this.resetBenchmarks();
     void this.savedLoader.run();
     this.startPolling(jobId);
   }
@@ -386,6 +403,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
       this.savedConfig = s.lastResult ? this.configKey() : '';
       this.persistedConfig = this.configKey();
     });
+    this.loadBenchmarks(this.result);
     pushRecent(id); // record the visit → hero Recent-visits + auto-open on next entry
     void this.reattachTurn(); // a live agent turn for this strategy? re-subscribe (snapshot replays)
     // Re-attach to a still-running backtest (found server-side by strategyId — no localStorage, works
@@ -441,6 +459,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
           this.result = result;
           this.name = name;
         });
+        this.loadBenchmarks(result);
         void this.savedLoader.run();
         return false;
       }
@@ -457,6 +476,22 @@ export class LabStore extends BaseStore<LabSetupParams> {
       // job gone (server restart / expired) / network — stop; the saved last result (if any) stays shown.
       return false;
     }
+  }
+
+  private loadBenchmarks(result: BacktestSummary | null) {
+    const start = result?.nav?.[0]?.date;
+    const end = result?.nav?.at(-1)?.date;
+    if (!start || !end) {
+      this.resetBenchmarks();
+      return;
+    }
+
+    void this.benchmarkLoader.run({ start, end }).catch(() => {});
+  }
+
+  private resetBenchmarks() {
+    this.benchmarkLoader.abort();
+    this.benchmarkLoader.reset();
   }
 }
 

@@ -365,12 +365,12 @@ export function fetchFutureSeries(code: string, start: string, end: string): Pro
   return request(`/api/app/market/futures/${code}/series?start=${start}&end=${end}`);
 }
 
-// tsCode → name (bulk) — e.g. the traded-instruments queue in Trade detail.
+// tsCode → name (bulk) — e.g. instrument labels in execution detail.
 export function fetchNames(codes: string[]): Promise<Record<string, string>> {
   return request(`/api/app/market/names?codes=${encodeURIComponent(codes.join(','))}`);
 }
 
-// Index daily close (e.g. 000300.SH) over a range — the benchmark return curve in Trade detail.
+// Index daily close (e.g. 000300.SH) over a range — benchmark curves in backtest results.
 export function fetchIndexSeries(
   code: string,
   start: string,

@@ -4,11 +4,12 @@ import type { ChatMessage } from '@jixie/shared';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import classNames from 'classnames';
-import { Button, DatePicker, Input, InputNumber, Modal, Splitter, Tabs } from 'antd';
+import { Button, DatePicker, Input, InputNumber, Modal, Popover, Splitter, Tabs } from 'antd';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 import {
   faPaperPlane,
+  faPen,
   faPlay,
   faPlus,
   faSpinner,
@@ -33,6 +34,8 @@ import './lab.css';
 // Our dates are 'YYYYMMDD' strings; enable dayjs to parse that format for the DatePicker.
 dayjs.extend(customParseFormat);
 const ymd = (s: string) => (s ? dayjs(s, 'YYYYMMDD') : null);
+const formatYmd = (date: string) =>
+  date ? `${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)}` : '—';
 
 const NavChart = lazy(() => import('./nav-chart'));
 const CodeEditor = lazy(() => import('./code-editor'));
@@ -42,8 +45,8 @@ const TradeDetail = lazy(() => import('./trade-detail'));
  * Backtest workbench — code-first, IDE-style. A first-time visit (no recents) opens a focused prompt
  * hero; otherwise New pops a prompt modal over the workbench. The workbench is a 3-column Splitter: an
  * Agent panel (a chat that iterates on the strategy code, plus a History tab) | the code editor over a
- * collapsible log dock | a right column with the start/end/capital + Run-backtest bar over Results-overview /
- * Trade-detail tabs (Trade-detail = candlestick over the trade table). All regions are drag-resizable.
+ * collapsible log dock | a right column with the run summary/actions over Results-overview /
+ * Trade-detail tabs. All regions are drag-resizable.
  */
 export const Lab = complex.component(() => {
   const store = complex.useStore();
@@ -423,50 +426,20 @@ const AgentChat = complex.component(() => {
   );
 }, 'AgentChat');
 
-// Run bar atop the results column: start/end/capital + Run-backtest, on its own row above the result
-// tabs — the trigger sits with the output it produces (mirrors the factor / screen "controls over results"
-// pattern). The strategy name is auto-generated on run — no name field.
+// Run bar atop the results column: a compact read-only summary + primary Run action. The edit trigger
+// opens the less-frequent start/end/capital controls without making the result header look like a form.
 const RunConfig = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('lab');
   return (
     <div className="jx-lab-runConfig">
-      <label className="jx-lab-runField">
-        <span className="jx-lab-runLabel">{t('runStart')}</span>
-        <DatePicker
-          size="small"
-          className="jx-lab-runControl"
-          value={ymd(store.start)}
-          format="YYYY-MM-DD"
-          allowClear={false}
-          onChange={(d) => store.setField('start', d ? d.format('YYYYMMDD') : '')}
-        />
-      </label>
-      <label className="jx-lab-runField">
-        <span className="jx-lab-runLabel">{t('runEnd')}</span>
-        <DatePicker
-          size="small"
-          className="jx-lab-runControl"
-          value={ymd(store.end)}
-          format="YYYY-MM-DD"
-          allowClear={false}
-          onChange={(d) => store.setField('end', d ? d.format('YYYYMMDD') : '')}
-        />
-      </label>
-      <label className="jx-lab-runField">
-        <span className="jx-lab-runLabel">{t('runCapital')}</span>
-        <InputNumber
-          size="small"
-          className="jx-lab-runControl"
-          addonAfter={t('unitWan')}
-          value={store.initialCash / 10000}
-          min={1}
-          step={10}
-          formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-          parser={(v) => Number((v ?? '').replace(/,/g, ''))}
-          onChange={(v) => store.setField('initialCash', (v ?? 0) * 10000)}
-        />
-      </label>
+      <span className="jx-lab-runSummary">
+        {t('runSummary', {
+          start: formatYmd(store.start),
+          end: formatYmd(store.end),
+          capital: (store.initialCash / 10000).toLocaleString(),
+        })}
+      </span>
       <LoaderButton
         type="primary"
         size="small"
@@ -479,6 +452,60 @@ const RunConfig = complex.component(() => {
       >
         {t('runBacktest')}
       </LoaderButton>
+      <Popover
+        placement="bottomRight"
+        trigger="click"
+        content={
+          <div className="jx-lab-runPanel">
+            <div className="jx-lab-runPanelTitle">{t('runParameters')}</div>
+            <label className="jx-lab-runPanelField">
+              <span className="jx-lab-runLabel">{t('runStart')}</span>
+              <DatePicker
+                size="small"
+                className="jx-lab-runPanelControl"
+                value={ymd(store.start)}
+                format="YYYY-MM-DD"
+                allowClear={false}
+                onChange={(date) => store.setField('start', date ? date.format('YYYYMMDD') : '')}
+              />
+            </label>
+            <label className="jx-lab-runPanelField">
+              <span className="jx-lab-runLabel">{t('runEnd')}</span>
+              <DatePicker
+                size="small"
+                className="jx-lab-runPanelControl"
+                value={ymd(store.end)}
+                format="YYYY-MM-DD"
+                allowClear={false}
+                onChange={(date) => store.setField('end', date ? date.format('YYYYMMDD') : '')}
+              />
+            </label>
+            <label className="jx-lab-runPanelField">
+              <span className="jx-lab-runLabel">{t('runCapital')}</span>
+              <InputNumber
+                size="small"
+                className="jx-lab-runPanelControl"
+                addonAfter={t('unitWan')}
+                value={store.initialCash / 10000}
+                min={1}
+                step={10}
+                formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                parser={(value) => Number((value ?? '').replace(/,/g, ''))}
+                onChange={(value) => store.setField('initialCash', (value ?? 0) * 10000)}
+              />
+            </label>
+          </div>
+        }
+      >
+        <Button
+          type="text"
+          size="small"
+          className="jx-lab-runEditBtn"
+          icon={<FontAwesomeIcon icon={faPen} />}
+          aria-label={t('runEditParameters')}
+          title={t('runEditParameters')}
+        />
+      </Popover>
     </div>
   );
 }, 'RunConfig');
@@ -730,16 +757,19 @@ const ResultPanel = complex.component(() => {
         ))}
       </div>
       <Suspense fallback={<div className="jx-lab-placeholder">{t('loadingChart')}</div>}>
-        <NavChart nav={r.nav} up={up} />
+        <NavChart
+          nav={r.nav}
+          up={up}
+          benchmarks={store.benchmarkLoader.result ?? {}}
+          benchmarksLoading={store.benchmarkLoader.loading}
+        />
       </Suspense>
       {r.monthly?.length ? <MonthlyReturns monthly={r.monthly} /> : null}
     </>
   );
 }, 'ResultPanel');
 
-// The bottom dock — a collapsible IDE-style panel with a Log (streamed system + user console) and, once
-// a run has trades, Trade-detail (candlestick + trade list, in place — no modal). Running auto-selects the Log; the tab
-// label spins while the worker streams.
+// The bottom dock — a collapsible IDE-style panel with streamed system + user console output.
 const LogDock = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('lab');
@@ -755,8 +785,8 @@ const LogDock = complex.component(() => {
   );
 }, 'LogDock');
 
-// Right column: Results-overview (metrics + equity curve + monthly returns) / Trade-detail (candlestick over the trade table) as tabs — no
-// vertical split (that was too cramped). Trade-detail appears only once a run has trades.
+// Right column: Results-overview (metrics + performance chart + monthly returns) / portfolio-level
+// execution detail as tabs. Trade-detail appears only once a run has trades.
 const ResultTabs = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('lab');
@@ -782,12 +812,7 @@ const ResultTabs = complex.component(() => {
       children: (
         <div className="jx-lab-tradesTab">
           <Suspense fallback={<div className="jx-lab-placeholder">{t('loadingTrades')}</div>}>
-            <TradeDetail
-              tradeLog={result.tradeLog ?? []}
-              start={result.start}
-              end={result.end}
-              nav={result.nav}
-            />
+            <TradeDetail tradeLog={result.tradeLog ?? []} />
           </Suspense>
         </div>
       ),

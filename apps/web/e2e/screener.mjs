@@ -466,7 +466,8 @@ try {
 
   // Unrun edits guard: change 资金 (万) → 新建 warns before discarding; 取消 keeps the current strategy.
   // (Code/params only commit on a run, so an edit + 新建/切策略 would drop them — hence the confirm.)
-  const cashInput = page.locator('.jx-lab-runConfig .ant-input-number-input');
+  await page.getByRole('button', { name: '编辑启动参数' }).click();
+  const cashInput = page.locator('.jx-lab-runPanel .ant-input-number-input');
   await cashInput.fill('200'); // 200万 ≠ the seeded 100万 → edited
   await cashInput.blur();
   await page.getByRole('button', { name: '新建' }).click();
@@ -525,7 +526,7 @@ try {
     await page.screenshot({ path: `${SHOTS}5-lab-result.png` });
     log('shot 5: code backtest result');
 
-    // 5c. 交易明细 tab (appears once a run has trades) — K线 over the trade table, in place (no modal).
+    // 5c. 交易明细 tab (appears once a run has trades) — execution metrics, filters, and fill ledger.
     await page
       .locator('.jx-lab-resultTabs')
       .getByRole('tab', { name: /交易明细/ })
@@ -534,22 +535,19 @@ try {
       .locator('.jx-lab-tradesTab .jx-td-list .jx-td-row')
       .first()
       .waitFor({ timeout: 8000 });
-    await page.locator('.jx-lab-tradesTab .jx-td-canvas canvas').first().waitFor({ timeout: 8000 });
-    await page.waitForTimeout(600); // let the scatter + slider paint
     log(
       'trade detail: rows',
       await page.locator('.jx-lab-tradesTab .jx-td-list .jx-td-row').count(),
     );
     await page.screenshot({ path: `${SHOTS}5c-trade-detail.png` });
 
-    // 5d. 页面打开 → the standalone /trades page (new tab) renders the same K线 + list.
+    // 5d. 页面打开 → the standalone /trades page renders the same execution detail.
     const [tradePage] = await Promise.all([
       page.context().waitForEvent('page'),
       page.getByRole('button', { name: /页面打开/ }).click(),
     ]);
     await tradePage.waitForLoadState('domcontentloaded');
-    await tradePage.locator('.jx-td-canvas canvas').first().waitFor({ timeout: 12000 });
-    await tradePage.waitForTimeout(600);
+    await tradePage.locator('.jx-td-list .jx-td-row').first().waitFor({ timeout: 12000 });
     log('trade page:', tradePage.url());
     await tradePage.screenshot({ path: `${SHOTS}5d-trade-page.png` });
     await tradePage.close();
