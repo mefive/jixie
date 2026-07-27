@@ -72,7 +72,13 @@ export function buildMarketStateSnapshot(
   const industries = buildIndustryHeat(industryRows, asOf, historyStart);
   const scope = context.scope ?? 'all';
   const scopeOptions = context.scopeOptions ?? [
-    { value: scope, startDate: availableStart, endDate: asOf },
+    {
+      value: scope,
+      startDate: availableStart,
+      endDate: asOf,
+      trend: latest.trend,
+      breadth: latest.breadth,
+    },
   ];
 
   return {

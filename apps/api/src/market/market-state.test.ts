@@ -79,8 +79,20 @@ describe('market state snapshot', () => {
       }),
     );
     const scopeOptions = [
-      { value: 'all' as const, startDate: '20150101', endDate: '20260120' },
-      { value: '000300.SH' as const, startDate: '20160129', endDate: '20260120' },
+      {
+        value: 'all' as const,
+        startDate: '20150101',
+        endDate: '20260120',
+        trend: 0.01,
+        breadth: 0.5,
+      },
+      {
+        value: '000300.SH' as const,
+        startDate: '20160129',
+        endDate: '20260120',
+        trend: 0.02,
+        breadth: 0.6,
+      },
     ];
 
     const result = buildMarketStateSnapshot(marketRows, [], {

@@ -17,12 +17,26 @@ export const enValuation: typeof zhValuation = {
     scopeAllHint: 'All A-shares traded on each day · history available from {{start}}',
     scopeIndexHint:
       'Point-in-time index constituents · history from {{start}} · current snapshot {{membership}}',
+    scopeGroups: {
+      broad: 'Broad market',
+      boards: 'Market boards',
+      styles: 'Strategy styles',
+    },
+    scopeMetrics: {
+      trend: '20D',
+      breadth: 'Breadth',
+    },
     scopes: {
       all: 'All A-shares',
+      '000016_SH': 'SSE 50',
       '000300_SH': 'CSI 300',
       '000905_SH': 'CSI 500',
       '000852_SH': 'CSI 1000',
       '932000_CSI': 'CSI 2000',
+      '000510_SH': 'CSI A500',
+      '399006_SZ': 'ChiNext',
+      '000688_SH': 'STAR 50',
+      '000922_CSI': 'CSI Dividend',
     },
     metrics: {
       activity: {

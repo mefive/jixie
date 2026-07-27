@@ -4,12 +4,24 @@ export type MarketStateMetric = 'activity' | 'breadth' | 'trend' | 'crowding';
 
 export type MarketStateRegime = 'hotBroad' | 'hotNarrow' | 'coldBroad' | 'coldWeak' | 'balanced';
 
-export type MarketStateScope = 'all' | '000300.SH' | '000905.SH' | '000852.SH' | '932000.CSI';
+export type MarketStateScope =
+  | 'all'
+  | '000016.SH'
+  | '000300.SH'
+  | '000905.SH'
+  | '000852.SH'
+  | '932000.CSI'
+  | '000510.SH'
+  | '399006.SZ'
+  | '000688.SH'
+  | '000922.CSI';
 
 export interface MarketStateScopeOption {
   value: MarketStateScope;
   startDate: TradeDate;
   endDate: TradeDate;
+  trend: number | null;
+  breadth: number | null;
 }
 
 export interface MarketStateMetricSummary {

@@ -28,7 +28,8 @@
 
 ### `IndexIndicator`
 
-每个指数观察范围、每个交易日一行。目前覆盖沪深300、中证500、中证1000和中证2000。
+每个指数观察范围、每个交易日一行。目前覆盖上证50、沪深300、中证500、中证1000、
+中证2000、中证A500、创业板指、科创50和中证红利。
 
 - 成分范围使用不晚于观察日的最新 `IndexWeight` 月度快照，并保持到下一期快照生效；
 - `membershipDate` 保存当日实际采用的成分快照日期，便于审计；
@@ -53,7 +54,7 @@
 
 ## 读取层指标
 
-页面的四个市场指标可在全A与四个指数观察范围间切换：
+页面的四个市场指标可在全A与九个指数观察范围间切换：
 
 - 交易热度：`floatWeightedTurnoverRate` 的 20 日均值；
 - 市场广度：`aboveMa20Ratio` 与 `aboveMa60Ratio` 等权；
@@ -93,9 +94,21 @@ GET /api/app/market/state?scope=all
 GET /api/app/market/state?scope=000300.SH
 ```
 
-`scope` 支持 `all`、`000300.SH`、`000905.SH`、`000852.SH`、`932000.CSI`。接口只读取
-`MarketIndicator` / `IndexIndicator` / `IndustryIndicator` 预计算表，再在小数据集上计算
-近三年百分位和行业分项排名。页面请求不扫描原始 `Daily` / `DailyBasic` / `AdjFactor` 大表。
+`scope` 支持 `all` 以及九个指数代码。观察范围使用文字触发器打开分组弹层；弹层按规模宽基、
+特色板块、策略风格分组，并展示每个范围最新的20日趋势和市场广度。底色只跟随趋势正负做轻量
+视觉提示，不额外合成“市场热度分”，也不混入覆盖不完整的指数估值。
+
+接口只读取 `MarketIndicator` / `IndexIndicator` / `IndustryIndicator` 预计算表，再在小数据集上
+计算近三年百分位和行业分项排名。页面请求不扫描原始 `Daily` / `DailyBasic` / `AdjFactor` 大表。
+
+指数原始行情与历史成分可统一同步：
+
+```bash
+pnpm --filter api sync:index market-state 20150101 20260727
+```
+
+同步预置包含所有市场状态指数。科创50从 2020-07-31、中证A500从 2024-09-30的首个可信历史
+成分快照自然开始，不回填发布前状态。
 
 ## 明确边界
 

@@ -1,13 +1,16 @@
 import { lazy, Suspense, useState } from 'react';
-import { Segmented, Skeleton, Table } from 'antd';
+import { Button, Popover, Segmented, Skeleton, Table } from 'antd';
 import type { TableColumnsType } from 'antd';
 import classNames from 'classnames';
+import { faChevronDown } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useTranslation } from 'react-i18next';
 import type {
   IndustryHeatItem,
   MarketStateMetric,
   MarketStateMetricSummary,
   MarketStateScope,
+  MarketStateScopeOption,
   MarketStateSnapshot,
 } from '@jixie/shared';
 
@@ -22,6 +25,7 @@ interface Props {
 export function MarketStateOverview({ snapshot, loading, onScopeChange }: Props) {
   const { t } = useTranslation('valuation');
   const [metric, setMetric] = useState<MarketStateMetric>('activity');
+  const [scopePickerOpen, setScopePickerOpen] = useState(false);
   const scopeName = t(marketScopeLabelKey(snapshot.scope));
   const columns: TableColumnsType<IndustryHeatItem> = [
     {
@@ -114,16 +118,31 @@ export function MarketStateOverview({ snapshot, loading, onScopeChange }: Props)
                 })}
           </p>
         </div>
-        <Segmented
-          className="jx-marketState-scopeSegmented"
-          value={snapshot.scope}
-          disabled={loading}
-          onChange={(value) => onScopeChange(value as MarketStateScope)}
-          options={snapshot.scopeOptions.map((option) => ({
-            value: option.value,
-            label: t(marketScopeLabelKey(option.value)),
-          }))}
-        />
+        <Popover
+          open={scopePickerOpen}
+          onOpenChange={setScopePickerOpen}
+          placement="bottomRight"
+          trigger="click"
+          content={
+            <ScopePicker
+              options={snapshot.scopeOptions}
+              selectedScope={snapshot.scope}
+              onSelect={(scope) => {
+                setScopePickerOpen(false);
+                onScopeChange(scope);
+              }}
+            />
+          }
+        >
+          <Button
+            className="jx-marketState-scopeTrigger"
+            disabled={loading}
+            aria-label={t('marketState.scopeLabel')}
+          >
+            <span>{scopeName}</span>
+            <FontAwesomeIcon icon={faChevronDown} />
+          </Button>
+        </Popover>
       </section>
 
       <section className="jx-marketState-summary" aria-label={t('marketState.summaryLabel')}>
@@ -265,6 +284,110 @@ function MarketMetricCard({
   );
 }
 
+function ScopePicker({
+  options,
+  selectedScope,
+  onSelect,
+}: {
+  options: MarketStateScopeOption[];
+  selectedScope: MarketStateScope;
+  onSelect: (scope: MarketStateScope) => void;
+}) {
+  const { t } = useTranslation('valuation');
+  const optionByValue = new Map(options.map((option) => [option.value, option]));
+
+  return (
+    <div className="jx-marketState-scopePicker">
+      {MARKET_SCOPE_GROUPS.map((group, groupIndex) => {
+        const groupOptions = group.scopes.flatMap((scope) => {
+          const option = optionByValue.get(scope);
+          return option ? [option] : [];
+        });
+        if (groupOptions.length === 0) {
+          return null;
+        }
+
+        return (
+          <section
+            key={group.key}
+            className={classNames(
+              'jx-marketState-scopeGroup',
+              `jx-marketState-scopeGroup--${group.key}`,
+              {
+                'jx-marketState-scopeGroup--divided': groupIndex > 0,
+              },
+            )}
+          >
+            <span className="jx-marketState-scopeGroupLabel">
+              {t(`marketState.scopeGroups.${group.key}`)}
+            </span>
+            <div className="jx-marketState-scopeGroupOptions">
+              {groupOptions.map((option) => (
+                <ScopePickerOption
+                  key={option.value}
+                  option={option}
+                  selected={option.value === selectedScope}
+                  onSelect={onSelect}
+                />
+              ))}
+            </div>
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
+function ScopePickerOption({
+  option,
+  selected,
+  onSelect,
+}: {
+  option: MarketStateScopeOption;
+  selected: boolean;
+  onSelect: (scope: MarketStateScope) => void;
+}) {
+  const { t } = useTranslation('valuation');
+
+  return (
+    <Button
+      type="text"
+      className={classNames('jx-marketState-scopeOption', {
+        'jx-marketState-scopeOption--selected': selected,
+      })}
+      role="option"
+      aria-selected={selected}
+      onClick={() => onSelect(option.value)}
+    >
+      <span className="jx-marketState-scopeOptionIdentity">
+        <i
+          className={classNames('jx-marketState-scopeOptionDot', {
+            'jx-marketState-scopeOptionDot--selected': selected,
+            'jx-marketState-scopeOptionDot--up':
+              !selected && option.trend != null && option.trend > 0,
+            'jx-marketState-scopeOptionDot--down':
+              !selected && option.trend != null && option.trend < 0,
+          })}
+          aria-hidden="true"
+        />
+        <strong className="jx-marketState-scopeOptionName">
+          {t(marketScopeLabelKey(option.value))}
+        </strong>
+      </span>
+      <span className="jx-marketState-scopeOptionMetric">
+        {t('marketState.scopeMetrics.trend')}
+        <b className="jx-marketState-scopeOptionMetricValue">{formatSignedPercent(option.trend)}</b>
+      </span>
+      <span className="jx-marketState-scopeOptionMetric">
+        {t('marketState.scopeMetrics.breadth')}
+        <b className="jx-marketState-scopeOptionMetricValue">
+          {formatPercent(option.breadth, true)}
+        </b>
+      </span>
+    </Button>
+  );
+}
+
 function DetailItem({ label, value }: { label: string; value: string }) {
   return (
     <div className="jx-marketState-detailItem">
@@ -353,3 +476,21 @@ function formatDate(date: string): string {
 }
 
 const MARKET_METRICS: MarketStateMetric[] = ['activity', 'breadth', 'trend', 'crowding'];
+
+const MARKET_SCOPE_GROUPS: Array<{
+  key: 'broad' | 'boards' | 'styles';
+  scopes: MarketStateScope[];
+}> = [
+  {
+    key: 'broad',
+    scopes: ['all', '000016.SH', '000300.SH', '000905.SH', '000852.SH', '932000.CSI', '000510.SH'],
+  },
+  {
+    key: 'boards',
+    scopes: ['399006.SZ', '000688.SH'],
+  },
+  {
+    key: 'styles',
+    scopes: ['000922.CSI'],
+  },
+];

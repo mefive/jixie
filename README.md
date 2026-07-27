@@ -50,6 +50,7 @@ pnpm sync 20240101 20240131                             # 同步行情到 SQLite
 pnpm --filter api sync:etf 20150101 20260724 major      # 同步主要 ETF（日线 + 复权）
 pnpm --filter api sync:index-daily 19900101 20260724 major # 同步主要指数收盘历史
 pnpm --filter api sync:index-basic 20040101 20260724 major # 同步主要指数历史 PE/PB
+pnpm --filter api sync:index market-state 20150101 20260727 # 同步市场状态指数行情与历史成分
 pnpm --filter api sync:market-state 20150101 20260727      # 预计算全A/指数状态与申万行业热力
 pnpm peek 000001.SZ 20240101 20240131                   # 查看落库 + 后复权价
 pnpm --filter api db:studio                             # 可视化浏览数据库

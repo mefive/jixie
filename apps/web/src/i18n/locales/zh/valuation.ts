@@ -13,12 +13,26 @@ export const zhValuation = {
     scopeLabel: '市场脉搏观察范围',
     scopeAllHint: '全A按当日实际交易股票统计 · 可用历史自 {{start}}',
     scopeIndexHint: '按历史指数成分统计 · 可用历史自 {{start}} · 当前成分快照 {{membership}}',
+    scopeGroups: {
+      broad: '规模宽基',
+      boards: '特色板块',
+      styles: '策略风格',
+    },
+    scopeMetrics: {
+      trend: '20日',
+      breadth: '广度',
+    },
     scopes: {
       all: '全A',
+      '000016_SH': '上证50',
       '000300_SH': '沪深300',
       '000905_SH': '中证500',
       '000852_SH': '中证1000',
       '932000_CSI': '中证2000',
+      '000510_SH': '中证A500',
+      '399006_SZ': '创业板指',
+      '000688_SH': '科创50',
+      '000922_CSI': '中证红利',
     },
     metrics: {
       activity: {
