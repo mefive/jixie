@@ -30,16 +30,16 @@ try {
   if (metricCards !== 4) {
     throw new Error(`expected 4 market-state metric cards, got ${metricCards}`);
   }
-  const scopeOptions = await page
-    .locator('.jx-marketState-scopeSegmented input[type="radio"]')
-    .count();
-  if (scopeOptions !== 5) {
-    throw new Error(`expected 5 market-state scopes, got ${scopeOptions}`);
+  await page.locator('.jx-marketState-scopeTrigger').click();
+  const scopeOptions = await page.locator('.jx-marketState-scopeOption').count();
+  if (scopeOptions !== 10) {
+    throw new Error(`expected 10 market-state scopes, got ${scopeOptions}`);
   }
+  await page.screenshot({ path: `${SHOTS}market-state-scope-picker.png` });
 
   await Promise.all([
     page.waitForResponse((response) => response.url().includes('/market/state?scope=000300.SH')),
-    page.locator('.jx-marketState-scopeSegmented').getByText('沪深300', { exact: true }).click(),
+    page.locator('.jx-marketState-scopeOption').filter({ hasText: '沪深300' }).click(),
   ]);
   await page.locator('.jx-valuation-heroStatusLabel').filter({ hasText: '沪深300' }).waitFor();
   const indexCoverage = await page.locator('.jx-valuation-heroStatusMeta').innerText();

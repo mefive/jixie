@@ -167,12 +167,41 @@ marketRoute.get('/state', validateQuery(marketStateQuery), async (c) => {
     return apiError(c, 'NOT_FOUND', m(c, 'noDataInRange'));
   }
 
-  const scopeOptions = buildMarketStateScopeOptions(marketCoverage, indexCoverage);
   const historyStart = `${Number(asOf.slice(0, 4)) - 3}${asOf.slice(4)}`;
-  const industryRows = await prisma.industryIndicator.findMany({
-    where: { tradeDate: { gte: historyStart, lte: asOf } },
-    orderBy: [{ tradeDate: 'asc' }, { l1Code: 'asc' }],
-  });
+  const latestIndexKeys = indexCoverage.flatMap((row) =>
+    row._max.tradeDate ? [{ indexCode: row.indexCode, tradeDate: row._max.tradeDate }] : [],
+  );
+  const [industryRows, latestMarketRow, latestIndexRows] = await Promise.all([
+    prisma.industryIndicator.findMany({
+      where: { tradeDate: { gte: historyStart, lte: asOf } },
+      orderBy: [{ tradeDate: 'asc' }, { l1Code: 'asc' }],
+    }),
+    prisma.marketIndicator.findFirst({
+      orderBy: { tradeDate: 'desc' },
+      select: {
+        return20: true,
+        aboveMa20Ratio: true,
+        aboveMa60Ratio: true,
+      },
+    }),
+    latestIndexKeys.length > 0
+      ? prisma.indexIndicator.findMany({
+          where: { OR: latestIndexKeys },
+          select: {
+            indexCode: true,
+            return20: true,
+            aboveMa20Ratio: true,
+            aboveMa60Ratio: true,
+          },
+        })
+      : [],
+  ]);
+  const scopeOptions = buildMarketStateScopeOptions(
+    marketCoverage,
+    indexCoverage,
+    latestMarketRow,
+    latestIndexRows,
+  );
   const snapshot = buildMarketStateSnapshot(marketRows, industryRows, { scope, scopeOptions });
   if (!snapshot) {
     return apiError(c, 'NOT_FOUND', m(c, 'noDataInRange'));
@@ -191,8 +220,11 @@ function buildMarketStateScopeOptions(
     _min: { tradeDate: string | null };
     _max: { tradeDate: string | null };
   }>,
+  latestMarketRow: ScopeMetricRow | null,
+  latestIndexRows: Array<ScopeMetricRow & { indexCode: string }>,
 ): MarketStateScopeOption[] {
   const indexCoverageByCode = new Map(indexCoverage.map((row) => [row.indexCode, row]));
+  const latestIndexByCode = new Map(latestIndexRows.map((row) => [row.indexCode, row]));
   const options: MarketStateScopeOption[] = [];
 
   if (marketCoverage._min.tradeDate && marketCoverage._max.tradeDate) {
@@ -200,6 +232,7 @@ function buildMarketStateScopeOptions(
       value: 'all',
       startDate: marketCoverage._min.tradeDate,
       endDate: marketCoverage._max.tradeDate,
+      ...scopeMetrics(latestMarketRow),
     });
   }
   for (const indexCode of MARKET_STATE_INDEX_CODES) {
@@ -209,11 +242,34 @@ function buildMarketStateScopeOptions(
         value: indexCode,
         startDate: coverage._min.tradeDate,
         endDate: coverage._max.tradeDate,
+        ...scopeMetrics(latestIndexByCode.get(indexCode) ?? null),
       });
     }
   }
 
   return options;
+}
+
+interface ScopeMetricRow {
+  return20: number | null;
+  aboveMa20Ratio: number | null;
+  aboveMa60Ratio: number | null;
+}
+
+function scopeMetrics(
+  row: ScopeMetricRow | null,
+): Pick<MarketStateScopeOption, 'trend' | 'breadth'> {
+  const breadthValues = [row?.aboveMa20Ratio, row?.aboveMa60Ratio].filter(
+    (value): value is number => value != null,
+  );
+
+  return {
+    trend: row?.return20 ?? null,
+    breadth:
+      breadthValues.length > 0
+        ? breadthValues.reduce((sum, value) => sum + value, 0) / breadthValues.length
+        : null,
+  };
 }
 
 // Index daily close (e.g. 000300.SH CSI 300) over a range — the benchmark return curve in trade details.
