@@ -15,6 +15,7 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "audit:data": "pnpm --filter api audit:data",
     "smoke": "pnpm --filter api smoke",
     "sync": "pnpm --filter api sync",
     "peek": "pnpm --filter api peek",

@@ -12,6 +12,7 @@
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
     "backup": "node scripts/backup-db.mjs",
+    "audit:data": "tsx --env-file=.env scripts/audit-data.ts",
     "gen:stats-doc": "tsx scripts/gen-stats-doc.ts",
     "gen:invite": "tsx --env-file=.env scripts/gen-invite.ts",
     "migrate:agent-conversations": "tsx --env-file=.env scripts/migrate-agent-conversations.ts",
