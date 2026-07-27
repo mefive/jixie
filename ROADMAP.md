@@ -217,7 +217,7 @@ stk_limit / moneyflow / toplist 只覆盖 2020-2024;跑更早回测前:`pnpm syn
 
 `dev.db` 单文件装着全部:行情(丢失=数周限频重同步)+ 策略/研究史/回测记录(**不可重建**)。**实况**:`pnpm --filter api backup`(`scripts/backup-db.mjs`,纯 .mjs 只用 node 内置——ops 脚本要"有 node 就能跑",不依赖 tsx/构建)—— shell 出 `sqlite3 .backup` 在线备份(WAL 安全、可在 api 运行时跑),写到仓库外 `~/jixie-backups`(env `JIXIE_BACKUP_DIR`/`JIXIE_DB_PATH`/`JIXIE_BACKUP_KEEP` 可配),校验副本可读后轮转保留最近 N 份(默认 5)。实测 6.1GB → 15s、66 张表、轮转删旧已验。**定时(跨平台)**:macOS 本地 `com.jixie.backup.plist`(launchd);**Linux VPS `jixie-backup.service`+`.timer`(systemd,Persistent 补跑)或 cron 一行**(见 .timer 头注),都直接 `node backup-db.mjs`。**待用户做**:目标机装调度器 + 把备份目录推**离本机**(VPS 单盘本地备份=没备份:rsync/对象存储/litestream;Mac 上纳入 iCloud/Time Machine)。
 
-### 4.7 数据质量审计 ⬜(可信度的地基之下还有地基)
+### 4.7 数据质量审计 ✅(2026-07-27)
 
 回测规则再对,数据层坏了引擎防不住(幸存者偏差会从数据层混进来)。做 `pnpm audit:data` 脚本,输出报告:
 
@@ -229,6 +229,18 @@ stk_limit / moneyflow / toplist 只覆盖 2020-2024;跑更早回测前:`pnpm syn
 - 财务表 annDate ≥ endDate 校验(PIT 完整性)。
 
 每次大同步后顺手跑;单数据源(Tushare)风险的对冲 = 继续坚守「抓来的数据必须落库、同步幂等可续传」。
+
+**实况**:`pnpm audit:data [start] [end]` 已落地为全程只读审计,覆盖密集日表交易日断档/异常缩量、
+龙虎榜稀疏事件区间、日线与估值关键空值、无同日实施分红解释的复权因子单日跳变、退市股与历史代码
+主表关联、历史可投资状态能力、跨历史截面的 60 交易日窗口覆盖率、财务 `annDate >= endDate` PIT
+不变量;支持 `--window` / `--points`、`--json` 和用于 CI 的 `--strict`。6.1GB 真库全历史实跑约
+76 秒。
+
+首份审计把此前隐含的数据债显式化:① `StockBasic` 只有 5,533 只当前上市股,历史 Daily 的 5,790
+个代码中有 257 个无法关联主表,存在幸存者偏差风险;② 尚无 ST / 风险警示 / 待退市 / 上市状态的
+时点历史;③ moneyflow / stk_limit / toplist 的 2015~2019 缺口仍在;④ 955 个复权因子 >20% 跳变
+没有同日实施分红解释,需按样本继续区分送转/拆并股、数据源异常与真实公司行动。审计已完成,
+这些修复作为后续数据任务认领,不在审计脚本里静默改数据。
 
 ### 4.8 多语言 i18n(中英双语)🚧(2026-07-07 用户立项)
 
