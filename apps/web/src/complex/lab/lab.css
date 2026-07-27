@@ -150,18 +150,18 @@
   font-size: 14px;
 }
 
-/* Run bar atop the results column: start / end / capital inline on one row, Run-backtest pushed to the
-   far right. Wraps gracefully when the column is dragged narrow. */
+/* Compact result header: current run parameters stay readable; editing moves into a popover. */
 .jx-lab-runConfig {
-  @apply flex flex-wrap items-center border-b border-line;
+  @apply flex items-center gap-2 border-b border-line;
   flex: none;
-  gap: 8px 16px;
   padding: 8px 12px;
 }
 
-.jx-lab-runField {
-  @apply flex items-center gap-1.5;
+.jx-lab-runSummary {
+  @apply flex-1 truncate text-ink;
   min-width: 0;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
 }
 
 .jx-lab-runLabel {
@@ -169,14 +169,31 @@
   flex: none;
 }
 
-/* antd DatePicker/InputNumber roots don't stretch on their own — give them a comfortable fixed width. */
-.jx-lab-runControl {
-  width: 132px;
+.jx-lab-runBtn {
+  flex: none;
 }
 
-/* push the Run button to the far right of the bar */
-.jx-lab-runBtn {
-  margin-left: auto;
+.jx-lab-runEditBtn {
+  flex: none;
+  width: 28px;
+}
+
+.jx-lab-runPanel {
+  @apply flex flex-col gap-3;
+  width: 286px;
+}
+
+.jx-lab-runPanelTitle {
+  @apply font-medium text-ink;
+  font-size: 12px;
+}
+
+.jx-lab-runPanelField {
+  @apply flex items-center justify-between gap-3;
+}
+
+.jx-lab-runPanelControl {
+  width: 190px;
 }
 
 .jx-lab-chatLog {
@@ -299,7 +316,7 @@
   height: 100%;
 }
 
-/* Trade-detail tab — TradeDetail fills (candlestick top / detail table bottom, 50/50, handled in trade-detail.css) */
+/* Trade-detail tab — TradeDetail fills; its summary, filters, and ledger live in trade-detail.css. */
 .jx-lab-tradesTab {
   @apply flex flex-1 flex-col overflow-hidden;
   padding: 6px 0 10px;
@@ -323,6 +340,43 @@
 .jx-lab-metricValue {
   @apply font-semibold text-ink;
   font-size: 20px;
+}
+
+.jx-lab-performance {
+  @apply flex flex-1 flex-col;
+  min-height: 360px;
+}
+
+.jx-lab-performanceHead {
+  @apply flex flex-wrap items-center justify-between gap-2;
+}
+
+.jx-lab-benchmarkFilter {
+  width: 28px;
+}
+
+.jx-lab-benchmarkPopup {
+  @apply flex flex-col gap-3;
+  width: 180px;
+}
+
+.jx-lab-benchmarkPopupTitle {
+  @apply font-medium text-ink;
+  font-size: 12px;
+}
+
+.jx-lab-benchmarkOptions {
+  @apply flex flex-col gap-2;
+}
+
+.jx-lab-benchmarkPopupHint {
+  @apply text-muted;
+  font-size: 10px;
+}
+
+.jx-lab-performanceMeta {
+  @apply truncate text-muted;
+  font-size: 11px;
 }
 
 .jx-lab-chart {

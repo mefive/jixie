@@ -8,8 +8,8 @@ import './trade-page.css';
 const TradeDetail = lazy(() => import('./trade-detail'));
 type Strategy = Awaited<ReturnType<typeof getStrategy>>;
 
-/** Standalone trade-detail page (opened from the modal's "open in page" button, `/trades?id=<strategyId>`). Loads
- * the strategy's last backtest result and renders the same candlestick + trade list, full-window. */
+/** Standalone execution-detail page (`/trades?id=<strategyId>`). Loads the strategy's last backtest
+ * result and renders the same portfolio-level summary, filters, and fill ledger. */
 export default function TradePage() {
   const { t } = useTranslation('lab');
   const [sp] = useSearchParams();
@@ -48,8 +48,8 @@ export default function TradePage() {
         ) : !r?.tradeLog?.length ? (
           <div className="jx-tp-empty">{t('tpNoTrades')}</div>
         ) : (
-          <Suspense fallback={<div className="jx-tp-empty">{t('tpLoadingChart')}</div>}>
-            <TradeDetail tradeLog={r.tradeLog} start={r.start} end={r.end} nav={r.nav} />
+          <Suspense fallback={<div className="jx-tp-empty">{t('tpLoadingDetail')}</div>}>
+            <TradeDetail tradeLog={r.tradeLog} />
           </Suspense>
         )}
       </main>

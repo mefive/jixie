@@ -1,87 +1,71 @@
 @reference '../../styles/index.css';
 
-/* vertical: candlestick chart on top, trade table below (roughly 50/50), fills the container */
 .jx-td {
   @apply flex flex-col gap-3;
-  height: 100%; /* fills its container — the Trade-detail tab or the /trades page body */
+  height: 100%;
+  min-height: 0;
 }
 
-.jx-td-chart {
+.jx-td-metrics {
+  @apply grid gap-2;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.jx-td-metric {
+  @apply flex min-w-0 flex-col gap-1;
+  @apply rounded-lg border border-line bg-bg;
+  padding: 8px 7px;
+}
+
+.jx-td-metricLabel {
+  @apply truncate text-muted;
+  font-size: 11px;
+}
+
+.jx-td-metricValue {
+  @apply truncate font-semibold text-ink;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.jx-td-toolbar {
+  @apply flex items-center justify-between gap-3;
+  min-height: 30px;
+}
+
+.jx-td-ledgerTitle {
+  @apply flex items-center gap-2;
+}
+
+.jx-td-sectionTitle {
+  @apply font-medium text-ink;
+  font-size: 13px;
+}
+
+.jx-td-sectionMeta {
+  @apply text-muted;
+  font-size: 11px;
+}
+
+.jx-td-ledger {
   @apply flex flex-1 flex-col;
   min-height: 0;
 }
 
-/* traded-instruments queue — click to switch, no search/filter */
-.jx-td-queue {
-  @apply flex gap-2 overflow-x-auto;
+.jx-td-toolbar {
   padding-bottom: 6px;
 }
 
-.jx-td-chip {
-  @apply flex items-baseline gap-1;
-  @apply rounded-lg border border-line;
-  flex: none;
-  padding: 4px 10px;
-  cursor: pointer;
+.jx-td-filters {
+  @apply flex min-w-0 items-center justify-end gap-1;
 }
 
-.jx-td-chip:hover {
-  border-color: var(--color-ink);
+.jx-td-instrumentFilter {
+  width: 150px;
 }
 
-.jx-td-chip--active {
-  @apply border-ink bg-ink;
-}
-
-.jx-td-chipName {
-  @apply text-ink;
-  font-size: 13px;
-}
-
-.jx-td-chipCode {
-  @apply text-muted;
-  font-size: 11px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-}
-
-.jx-td-chipCount {
-  @apply text-muted;
-  font-size: 11px;
-}
-
-.jx-td-chipType,
-.jx-td-instType {
-  @apply rounded bg-chip text-muted;
-  padding: 0 4px;
-  font-size: 9px;
-  line-height: 16px;
-}
-
-.jx-td-chip--active .jx-td-chipName,
-.jx-td-chip--active .jx-td-chipCode,
-.jx-td-chip--active .jx-td-chipType,
-.jx-td-chip--active .jx-td-chipCount {
-  color: #fff;
-}
-
-.jx-td-chip--active .jx-td-chipType {
-  background: rgb(255 255 255 / 0.16);
-}
-
-.jx-td-hint {
-  @apply text-muted;
-  font-size: 12px;
-  padding-bottom: 6px;
-}
-
-.jx-td-canvas {
-  @apply flex-1;
-  min-height: 0;
-}
-
-.jx-td-loading {
-  @apply flex flex-1 items-center justify-center text-muted;
-  font-size: 13px;
+.jx-td-compactFilter {
+  width: 72px;
 }
 
 .jx-td-list {
@@ -92,10 +76,10 @@
 .jx-td-head,
 .jx-td-row {
   display: grid;
-  grid-template-columns: 92px 40px 1fr 62px 62px;
-  gap: 4px;
+  grid-template-columns: minmax(150px, 1.4fr) 92px 44px minmax(60px, 0.7fr) 66px 78px 62px;
+  gap: 8px;
   align-items: center;
-  padding: 6px 10px;
+  padding: 7px 10px;
   font-size: 12px;
 }
 
@@ -107,8 +91,8 @@
   @apply border-b border-line text-ink;
 }
 
-.jx-td-row--active {
-  @apply bg-chip;
+.jx-td-row:hover {
+  @apply bg-bg;
 }
 
 .jx-td-num {
@@ -116,23 +100,17 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* All view — an extra instrument (name+code) column */
-.jx-td-list--all .jx-td-head,
-.jx-td-list--all .jx-td-row {
-  grid-template-columns: 96px 84px 30px 1fr 52px 56px;
-}
-
 .jx-td-inst {
-  @apply flex flex-col;
-  min-width: 0;
+  @apply flex min-w-0 flex-col;
   line-height: 1.25;
 }
 
 .jx-td-instName {
-  @apply text-ink;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  @apply truncate text-ink;
+}
+
+.jx-td-instMeta {
+  @apply flex min-w-0 items-center gap-1;
 }
 
 .jx-td-instCode {
@@ -141,10 +119,31 @@
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
-.jx-td-instMeta {
-  @apply flex items-center gap-1;
+.jx-td-instType {
+  @apply rounded bg-chip text-muted;
+  padding: 0 4px;
+  font-size: 9px;
+  line-height: 13px;
 }
 
-.jx-td-instType {
-  line-height: 13px;
+.jx-td-instActual {
+  @apply truncate text-muted;
+  font-size: 9px;
+}
+
+.jx-td-empty {
+  @apply flex flex-1 items-center justify-center text-muted;
+  min-height: 80px;
+  font-size: 12px;
+}
+
+@media (max-width: 1100px) {
+  .jx-td-metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .jx-td-head,
+  .jx-td-row {
+    min-width: 760px;
+  }
 }
