@@ -22,3 +22,11 @@ export const MAJOR_INDEX_DAILY_BASIC_CODES = [
   '399005.SZ', // SME Board
   '399006.SZ', // ChiNext
 ] as const;
+
+/** Point-in-time constituent universes exposed by the market-state scope selector. */
+export const MARKET_STATE_INDEX_CODES = [
+  '000300.SH', // CSI 300
+  '000905.SH', // CSI 500
+  '000852.SH', // CSI 1000
+  '932000.CSI', // CSI 2000
+] as const;

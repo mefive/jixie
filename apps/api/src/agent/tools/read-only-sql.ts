@@ -48,6 +48,12 @@ export const SQL_TABLE_DOCS: Record<string, string> = {
   IndexDaily: 'tsCode, tradeDate, close — index daily bars (e.g. 000300.SH CSI 300)',
   IndexDailyBasic:
     'tsCode, tradeDate, totalMv(yuan), floatMv(yuan), totalShare(shares), floatShare(shares), freeShare(shares), turnoverRate(%), turnoverRateF(% free-float), pe, peTtm, pb — provider-computed broad-market index daily valuation metrics; use only history available on or before the evaluated date when calculating valuation percentiles',
+  MarketIndicator:
+    'tradeDate, tradedCount, return20(decimal), advanceRatio(0..1), aboveMa20Ratio(0..1), aboveMa60Ratio(0..1), totalAmount(thousand CNY), floatWeightedTurnoverRate(%), topFivePercentAmountShare(0..1), extremeMoveRatio(0..1), limitUpCount, limitDownCount — precomputed descriptive whole-market state',
+  IndexIndicator:
+    'indexCode, tradeDate, membershipDate(latest point-in-time constituent snapshot on or before tradeDate), tradedCount, return20(decimal official-index 20-day close return), advanceRatio(0..1), aboveMa20Ratio(0..1), aboveMa60Ratio(0..1), totalAmount(thousand CNY), floatWeightedTurnoverRate(%), topFivePercentAmountShare(0..1 within index universe), extremeMoveRatio(0..1), limitUpCount, limitDownCount — precomputed descriptive state for historical index constituents',
+  IndustryIndicator:
+    'l1Code, l1Name, tradeDate, tradedCount, return20(decimal), excessReturn20(decimal vs whole-market equal-weight return), positiveReturn20Ratio(0..1), aboveMa20Ratio(0..1), aboveMa60Ratio(0..1), floatWeightedTurnoverRate(%), amountShare(0..1 of whole market), topFiveAmountShare(0..1 within industry) — point-in-time Shenwan level-1 state',
   FutureContract:
     'tsCode(actual contract, e.g. IF2509.CFX), symbol, productCode(IF/IH/IC/IM), name, exchange(CFFEX), multiplier(CNY/index point), tradeUnit, perUnit, quoteUnit, quoteUnitDesc, deliveryMode, listDate, delistDate, deliveryMonth, lastDeliveryDate, tradeTimeDesc — actual stock-index futures contract metadata; continuous symbols are not tradable contracts',
   FutureDaily:

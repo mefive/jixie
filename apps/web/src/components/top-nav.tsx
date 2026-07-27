@@ -29,7 +29,7 @@ export const TopNav = observer(() => {
           <NavLink to="/factors" className={linkClass}>
             {t('nav.factor')}
           </NavLink>
-          <NavLink to="/valuation" className={linkClass}>
+          <NavLink to="/market" className={linkClass}>
             {t('nav.valuation')}
           </NavLink>
         </nav>

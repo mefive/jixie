@@ -5,7 +5,9 @@ import { prisma } from '../lib/prisma.js';
 import { stockSeries } from '../screen/query.js';
 import { m } from '../i18n/index.js';
 import { buildIndexValuationSeries } from '../market/index-valuation.js';
-import { MAJOR_INDEX_DAILY_BASIC_CODES } from '../store/index-presets.js';
+import { buildMarketStateSnapshot } from '../market/market-state.js';
+import { MAJOR_INDEX_DAILY_BASIC_CODES, MARKET_STATE_INDEX_CODES } from '../store/index-presets.js';
+import type { MarketStateScope, MarketStateScopeOption } from '@jixie/shared';
 
 /**
  * Market read-only helpers (cross-domain infrastructure, mounted at /api/app/market):
@@ -14,6 +16,7 @@ import { MAJOR_INDEX_DAILY_BASIC_CODES } from '../store/index-presets.js';
  *   GET /indices/:code/series         index daily close — the benchmark return curve in trade details
  *   GET /indices/valuation/catalog    broad-index valuation coverage
  *   GET /indices/:code/valuation      index close + valuation history and current percentiles
+ *   GET /state?scope=                  whole-market/index pulse + Shenwan level-1 direction heat
  * Naming rules: see docs/design/api-route-naming.md.
  */
 export const marketRoute = new Hono();
@@ -61,6 +64,11 @@ const seriesQuery = z.object({
     .string()
     .regex(/^\d{8}$/)
     .optional(),
+});
+
+const marketStateScopes = ['all', ...MARKET_STATE_INDEX_CODES] as const;
+const marketStateQuery = z.object({
+  scope: z.enum(marketStateScopes).default('all'),
 });
 
 marketRoute.get('/stocks/:code/series', validateQuery(seriesQuery), async (c) => {
@@ -134,6 +142,79 @@ marketRoute.get('/indices/:code/valuation', async (c) => {
 
   return c.json(series);
 });
+
+marketRoute.get('/state', validateQuery(marketStateQuery), async (c) => {
+  const scope = c.req.valid('query').scope as MarketStateScope;
+  const [marketRows, marketCoverage, indexCoverage] = await Promise.all([
+    scope === 'all'
+      ? prisma.marketIndicator.findMany({ orderBy: { tradeDate: 'asc' } })
+      : prisma.indexIndicator.findMany({
+          where: { indexCode: scope },
+          orderBy: { tradeDate: 'asc' },
+        }),
+    prisma.marketIndicator.aggregate({
+      _min: { tradeDate: true },
+      _max: { tradeDate: true },
+    }),
+    prisma.indexIndicator.groupBy({
+      by: ['indexCode'],
+      _min: { tradeDate: true },
+      _max: { tradeDate: true },
+    }),
+  ]);
+  const asOf = marketRows.at(-1)?.tradeDate;
+  if (!asOf) {
+    return apiError(c, 'NOT_FOUND', m(c, 'noDataInRange'));
+  }
+
+  const scopeOptions = buildMarketStateScopeOptions(marketCoverage, indexCoverage);
+  const historyStart = `${Number(asOf.slice(0, 4)) - 3}${asOf.slice(4)}`;
+  const industryRows = await prisma.industryIndicator.findMany({
+    where: { tradeDate: { gte: historyStart, lte: asOf } },
+    orderBy: [{ tradeDate: 'asc' }, { l1Code: 'asc' }],
+  });
+  const snapshot = buildMarketStateSnapshot(marketRows, industryRows, { scope, scopeOptions });
+  if (!snapshot) {
+    return apiError(c, 'NOT_FOUND', m(c, 'noDataInRange'));
+  }
+
+  return c.json(snapshot);
+});
+
+function buildMarketStateScopeOptions(
+  marketCoverage: {
+    _min: { tradeDate: string | null };
+    _max: { tradeDate: string | null };
+  },
+  indexCoverage: Array<{
+    indexCode: string;
+    _min: { tradeDate: string | null };
+    _max: { tradeDate: string | null };
+  }>,
+): MarketStateScopeOption[] {
+  const indexCoverageByCode = new Map(indexCoverage.map((row) => [row.indexCode, row]));
+  const options: MarketStateScopeOption[] = [];
+
+  if (marketCoverage._min.tradeDate && marketCoverage._max.tradeDate) {
+    options.push({
+      value: 'all',
+      startDate: marketCoverage._min.tradeDate,
+      endDate: marketCoverage._max.tradeDate,
+    });
+  }
+  for (const indexCode of MARKET_STATE_INDEX_CODES) {
+    const coverage = indexCoverageByCode.get(indexCode);
+    if (coverage?._min.tradeDate && coverage._max.tradeDate) {
+      options.push({
+        value: indexCode,
+        startDate: coverage._min.tradeDate,
+        endDate: coverage._max.tradeDate,
+      });
+    }
+  }
+
+  return options;
+}
 
 // Index daily close (e.g. 000300.SH CSI 300) over a range — the benchmark return curve in trade details.
 marketRoute.get('/indices/:code/series', validateQuery(seriesQuery), async (c) => {
