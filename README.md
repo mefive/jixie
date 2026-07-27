@@ -48,6 +48,7 @@ pnpm --filter api exec prisma migrate dev --name init   # 建库 + 生成 Prisma
 pnpm smoke                                              # 验证 token 连通
 pnpm sync 20240101 20240131                             # 同步行情到 SQLite
 pnpm --filter api sync:etf 20150101 20260724 major      # 同步主要 ETF（日线 + 复权）
+pnpm --filter api sync:index-daily 19900101 20260724 major # 同步主要指数收盘历史
 pnpm --filter api sync:index-basic 20040101 20260724 major # 同步主要指数历史 PE/PB
 pnpm peek 000001.SZ 20240101 20240131                   # 查看落库 + 后复权价
 pnpm --filter api db:studio                             # 可视化浏览数据库

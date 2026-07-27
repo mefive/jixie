@@ -726,24 +726,44 @@ export async function syncSwIndustry(client: TushareClient): Promise<number> {
   return rows.length;
 }
 
-/** Sync an index's daily close (e.g. 000300.SH) — for benchmark return curves. One call covers the
- * whole range; idempotent (deleteMany the range + createMany). */
+/** Sync an index's daily close (e.g. 000300.SH) — for benchmark return curves. The upstream endpoint
+ * truncates large responses, so the requested range is fetched in ten-year windows. */
 export async function syncIndexDaily(
   client: TushareClient,
   indexCode: string,
   start: TradeDate,
   end: TradeDate,
 ): Promise<void> {
-  const rows = await indexDaily(client, { ts_code: indexCode, start_date: start, end_date: end });
-  await prisma.$transaction([
-    prisma.indexDaily.deleteMany({
-      where: { tsCode: indexCode, tradeDate: { gte: start, lte: end } },
-    }),
-    prisma.indexDaily.createMany({
-      data: rows.map((r) => ({ tsCode: r.ts_code, tradeDate: r.trade_date, close: r.close })),
-    }),
-  ]);
-  log(`syncIndexDaily ${indexCode}: ${rows.length} 行`);
+  const startYear = Number(start.slice(0, 4));
+  const endYear = Number(end.slice(0, 4));
+  let total = 0;
+
+  for (let windowStartYear = startYear; windowStartYear <= endYear; windowStartYear += 10) {
+    const windowEndYear = Math.min(windowStartYear + 9, endYear);
+    const windowStart = `${windowStartYear}0101` < start ? start : `${windowStartYear}0101`;
+    const windowEnd = `${windowEndYear}1231` > end ? end : `${windowEndYear}1231`;
+    const rows = await indexDaily(client, {
+      ts_code: indexCode,
+      start_date: windowStart,
+      end_date: windowEnd,
+    });
+
+    await prisma.$transaction([
+      prisma.indexDaily.deleteMany({
+        where: { tsCode: indexCode, tradeDate: { gte: windowStart, lte: windowEnd } },
+      }),
+      prisma.indexDaily.createMany({
+        data: rows.map((row) => ({
+          tsCode: row.ts_code,
+          tradeDate: row.trade_date,
+          close: row.close,
+        })),
+      }),
+    ]);
+    total += rows.length;
+  }
+
+  log(`syncIndexDaily ${indexCode}: ${total} 行`);
 }
 
 /** Sync provider-computed daily valuation metrics for broad-market indices. The upstream endpoint has

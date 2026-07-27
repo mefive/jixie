@@ -36,3 +36,30 @@
 .jx-topnav-email {
   @apply text-sm text-muted;
 }
+
+@media (max-width: 720px) {
+  .jx-topnav {
+    padding: 0 10px;
+  }
+
+  .jx-topnav-left {
+    @apply gap-1;
+    min-width: 0;
+  }
+
+  .jx-topnav-banner,
+  .jx-topnav-email,
+  .jx-topnav-logoutText {
+    @apply hidden;
+  }
+
+  .jx-topnav-link {
+    @apply whitespace-nowrap;
+    padding: 5px 6px;
+    font-size: 11px;
+  }
+
+  .jx-topnav-user {
+    @apply gap-1;
+  }
+}

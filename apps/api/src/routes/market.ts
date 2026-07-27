@@ -4,12 +4,16 @@ import { apiError, validateQuery } from '../lib/httpError.js';
 import { prisma } from '../lib/prisma.js';
 import { stockSeries } from '../screen/query.js';
 import { m } from '../i18n/index.js';
+import { buildIndexValuationSeries } from '../market/index-valuation.js';
+import { MAJOR_INDEX_DAILY_BASIC_CODES } from '../store/index-presets.js';
 
 /**
  * Market read-only helpers (cross-domain infrastructure, mounted at /api/app/market):
  *   GET /names?codes=                 tsCode → name (bulk) — e.g. the traded-instruments queue
  *   GET /stocks/:code/series          a stock/ETF OHLC/vol/pe series (legacy path kept for the UI)
  *   GET /indices/:code/series         index daily close — the benchmark return curve in trade details
+ *   GET /indices/valuation/catalog    broad-index valuation coverage
+ *   GET /indices/:code/valuation      index close + valuation history and current percentiles
  * Naming rules: see docs/design/api-route-naming.md.
  */
 export const marketRoute = new Hono();
@@ -69,6 +73,65 @@ marketRoute.get('/stocks/:code/series', validateQuery(seriesQuery), async (c) =>
   if (series.points.length === 0) {
     return apiError(c, 'NOT_FOUND', m(c, 'noDataInRange'));
   }
+  return c.json(series);
+});
+
+marketRoute.get('/indices/valuation/catalog', async (c) => {
+  const coverage = await prisma.indexDailyBasic.groupBy({
+    by: ['tsCode'],
+    where: { tsCode: { in: [...MAJOR_INDEX_DAILY_BASIC_CODES] } },
+    _min: { tradeDate: true },
+    _max: { tradeDate: true },
+    _count: { _all: true },
+  });
+  const coverageByCode = new Map(coverage.map((row) => [row.tsCode, row]));
+  const indices = MAJOR_INDEX_DAILY_BASIC_CODES.flatMap((tsCode) => {
+    const row = coverageByCode.get(tsCode);
+    return row?._min.tradeDate && row._max.tradeDate
+      ? [
+          {
+            tsCode,
+            startDate: row._min.tradeDate,
+            endDate: row._max.tradeDate,
+            rows: row._count._all,
+          },
+        ]
+      : [];
+  });
+
+  return c.json({ indices });
+});
+
+marketRoute.get('/indices/:code/valuation', async (c) => {
+  const tsCode = c.req.param('code').toUpperCase();
+  if (!MAJOR_INDEX_DAILY_BASIC_CODES.some((code) => code === tsCode)) {
+    return apiError(c, 'NOT_FOUND', m(c, 'noDataInRange'));
+  }
+
+  const [basicRows, closeRows] = await Promise.all([
+    prisma.indexDailyBasic.findMany({
+      where: { tsCode },
+      select: {
+        tsCode: true,
+        tradeDate: true,
+        pe: true,
+        peTtm: true,
+        pb: true,
+        turnoverRate: true,
+      },
+      orderBy: { tradeDate: 'asc' },
+    }),
+    prisma.indexDaily.findMany({
+      where: { tsCode },
+      select: { tradeDate: true, close: true },
+      orderBy: { tradeDate: 'asc' },
+    }),
+  ]);
+  const series = buildIndexValuationSeries(tsCode, basicRows, closeRows);
+  if (!series) {
+    return apiError(c, 'NOT_FOUND', m(c, 'noDataInRange'));
+  }
+
   return c.json(series);
 });
 
