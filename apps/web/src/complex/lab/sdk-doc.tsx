@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { observer } from 'mobx-react';
 import classNames from 'classnames';
-import banner from '@src/assets/banner.png';
 import { localeStore } from '@src/i18n/locale-store';
+import { PublicDocsHeader } from '@src/components/public-docs-header';
 import { SDK_ENTRIES, OHLC_FIELDS, LINKABLE_TYPES, type SdkEntry } from '@jixie/shared';
 import './sdk-doc.css';
 
@@ -34,29 +34,7 @@ function SdkDocPage() {
 
   return (
     <div className="jx-docs">
-      <header className="jx-docs-bar">
-        <a className="jx-docs-brand" href="/lab">
-          <img className="jx-docs-banner" src={banner} alt={t('机械交易系', 'jixie')} />
-          <span className="jx-docs-brandSub">{t('· 策略 SDK', '· Strategy SDK')}</span>
-        </a>
-        <div className="jx-docs-barRight">
-          <a className="jx-docs-tutLink" href="/learn">
-            {t('入门教程 ↗', 'Tutorial ↗')}
-          </a>
-          <div className="jx-docs-lang">
-            {(['zh', 'en'] as const).map((l) => (
-              <button
-                key={l}
-                type="button"
-                className={classNames('jx-docs-langBtn', { 'jx-docs-langBtn--on': lang === l })}
-                onClick={() => localeStore.setLocale(l)}
-              >
-                {l === 'zh' ? '中文' : 'EN'}
-              </button>
-            ))}
-          </div>
-        </div>
-      </header>
+      <PublicDocsHeader current="sdk" />
 
       <div className="jx-docs-layout">
         <nav className="jx-docs-nav">

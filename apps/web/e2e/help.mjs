@@ -10,6 +10,65 @@ const context = await browser.newContext({ viewport: { width: 1440, height: 1000
 const page = await context.newPage();
 
 try {
+  await page.goto(`${BASE}/help/getting-started/first-screen`, {
+    waitUntil: 'domcontentloaded',
+  });
+  await page.getByRole('heading', { level: 1, name: '第一次完成选股' }).waitFor();
+  if (page.url().includes('/login')) {
+    throw new Error('public help page redirected to login');
+  }
+  const publicHeader = page.locator('.jx-publicDocsHeader');
+  await publicHeader.getByRole('link', { name: '使用帮助', exact: true }).waitFor();
+  if (
+    (await publicHeader
+      .getByRole('link', { name: '使用帮助', exact: true })
+      .getAttribute('target')) ||
+    (await publicHeader.getByRole('link', { name: 'SDK 文档', exact: true }).getAttribute('target'))
+  ) {
+    throw new Error('help and SDK header links must stay in the current tab');
+  }
+  if ((await page.getByRole('link', { name: '返回产品' }).count()) !== 0) {
+    throw new Error('help page still renders the removed Back to product link');
+  }
+  const articleImage = page.locator('.jx-help-figure .ant-image').first();
+  await articleImage.scrollIntoViewIfNeeded();
+  await articleImage.hover();
+  const imageCover = articleImage.locator('.ant-image-cover');
+  if ((await imageCover.count()) > 0 && (await imageCover.isVisible())) {
+    throw new Error('help image still renders a dark hover cover');
+  }
+
+  await page.evaluate(() => {
+    window.__publicDocsSpaMarker = 'same-document';
+  });
+  await publicHeader.getByRole('link', { name: 'SDK 文档', exact: true }).click();
+  await page.waitForURL('**/docs');
+  await page.getByRole('heading', { level: 1, name: '策略 SDK' }).waitFor();
+  if ((await page.evaluate(() => window.__publicDocsSpaMarker)) !== 'same-document') {
+    throw new Error('help to SDK navigation performed a full-page reload');
+  }
+  if (page.url().includes('/login')) {
+    throw new Error('public SDK page redirected to login');
+  }
+  const sdkHeader = page.locator('.jx-publicDocsHeader');
+  if (
+    (await sdkHeader.getByRole('link', { name: '使用帮助', exact: true }).getAttribute('target')) ||
+    (await sdkHeader.getByRole('link', { name: 'SDK 文档', exact: true }).getAttribute('target'))
+  ) {
+    throw new Error('SDK header links must stay in the current tab');
+  }
+  if ((await page.getByRole('link', { name: /教程/ }).count()) !== 0) {
+    throw new Error('SDK page still renders a tutorial link');
+  }
+  await sdkHeader.getByRole('link', { name: '使用帮助', exact: true }).click();
+  await page.waitForURL('**/help/getting-started/overview');
+  if ((await page.evaluate(() => window.__publicDocsSpaMarker)) !== 'same-document') {
+    throw new Error('SDK to help navigation performed a full-page reload');
+  }
+
+  await page.goto(`${BASE}/learn`, { waitUntil: 'domcontentloaded' });
+  await page.waitForURL('**/help/getting-started/overview');
+
   await page.goto(BASE, { waitUntil: 'networkidle' });
   const loginStatus = await page.evaluate(async () => {
     const response = await fetch('/api/auth/dev/login', {
@@ -29,9 +88,16 @@ try {
   if ((await helpEntry.getAttribute('href')) !== '/help') {
     throw new Error('top navigation help entry does not point to /help');
   }
+  if ((await helpEntry.getAttribute('target')) !== '_blank') {
+    throw new Error('product help entry does not open in a new tab');
+  }
 
-  await helpEntry.click();
-  await page.waitForURL('**/help/getting-started/overview');
+  const [openedHelp] = await Promise.all([context.waitForEvent('page'), helpEntry.click()]);
+  await openedHelp.waitForURL('**/help/getting-started/overview');
+  await openedHelp.getByRole('heading', { level: 1, name: '产品可以做什么' }).waitFor();
+  await openedHelp.close();
+
+  await page.goto(`${BASE}/help/getting-started/overview`, { waitUntil: 'domcontentloaded' });
   await page.getByRole('heading', { level: 1, name: '产品可以做什么' }).waitFor();
 
   const articleHrefs = [
@@ -141,7 +207,7 @@ try {
   });
 
   console.log(
-    '[help-e2e] article groups, screenshots, image preview, locale switch, links, and narrow layout ok',
+    '[help-e2e] public docs, same-tab docs nav, product popup, no tutorial, image hover, articles, and narrow layout ok',
   );
 } finally {
   await context.close();
