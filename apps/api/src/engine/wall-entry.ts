@@ -14,8 +14,8 @@ import type { Locale } from '@jixie/shared';
  *
  * The wall's two doorways, both host-provided References:
  *   - __hostFetch: the DataPort bridge. Each engine data load becomes ONE crossing —
- *     applySyncPromise blocks the isolate's own thread while the host answers with Prisma
- *     (the host event loop keeps running). Crossings ≈ DB queries, already minimized by
+ *     Reference.apply proxies the host's async Prisma promise back into the isolate. Crossings ≈ DB
+ *     queries, already minimized by
  *     EngineData's caching, so no per-ctx-call chatter.
  *   - __hostLog: fire-and-forget log lines (system progress + the strategy's console.*).
  * The user strategy module (host-compiled TS→CJS) is evaluated in here too — same JS world as the
@@ -23,7 +23,14 @@ import type { Locale } from '@jixie/shared';
  */
 
 interface HostFn {
-  applySyncPromise(receiver: undefined, args: unknown[]): unknown;
+  apply(
+    receiver: undefined,
+    args: unknown[],
+    options: {
+      arguments: { copy: true };
+      result: { promise: true; copy: true };
+    },
+  ): Promise<unknown>;
   applyIgnored(receiver: undefined, args: unknown[]): void;
 }
 declare const __hostFetch: HostFn;
@@ -31,12 +38,12 @@ declare const __hostLog: HostFn;
 
 const bridgePort: EngineDataPort = new Proxy({} as EngineDataPort, {
   get(_target, method: string) {
-    return (...args: unknown[]) =>
-      // Sync from the isolate's point of view (its thread parks); async on the host.
-      Promise.resolve(
-        JSON.parse(
-          __hostFetch.applySyncPromise(undefined, [method, JSON.stringify(args)]) as string,
-        ),
+    return async (...args: unknown[]) =>
+      JSON.parse(
+        (await __hostFetch.apply(undefined, [method, JSON.stringify(args)], {
+          arguments: { copy: true },
+          result: { promise: true, copy: true },
+        })) as string,
       );
   },
 });
