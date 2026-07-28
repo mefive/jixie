@@ -467,7 +467,7 @@ try {
   // Unrun edits guard: change 资金 (万) → 新建 warns before discarding; 取消 keeps the current strategy.
   // (Code/params only commit on a run, so an edit + 新建/切策略 would drop them — hence the confirm.)
   await page.getByRole('button', { name: '编辑启动参数' }).click();
-  const cashInput = page.locator('.jx-lab-runPanel .ant-input-number-input');
+  const cashInput = page.locator('.jx-lab-runPanel').getByRole('spinbutton', { name: /资金/ });
   await cashInput.fill('200'); // 200万 ≠ the seeded 100万 → edited
   await cashInput.blur();
   await page.getByRole('button', { name: '新建' }).click();
@@ -484,6 +484,7 @@ try {
     .getByText('有改动尚未运行')
     .waitFor({ state: 'detached', timeout: 5000 })
     .catch(() => {});
+  await page.getByRole('button', { name: '编辑启动参数' }).click();
   await cashInput.fill('100'); // restore 100万 → not edited, so leaving for /docs·/factors won't beforeunload
   await cashInput.blur();
 

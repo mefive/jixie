@@ -77,7 +77,10 @@ try {
   };
 
   const universeHover = await hoverAt('ctx.universe', 6);
-  if (!universeHover.includes('StrategyCtx.universe(')) {
+  if (
+    !universeHover.includes('StrategyCtx') ||
+    !universeHover.includes('.universe(indexCode?: string): Promise<Universe>')
+  ) {
     throw new Error(`hover lost the TS QuickInfo signature: ${JSON.stringify(universeHover)}`);
   }
   if (!/链式选股入口|chainable universe/.test(universeHover)) {
