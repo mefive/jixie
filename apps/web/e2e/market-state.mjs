@@ -30,6 +30,10 @@ try {
   if (metricCards !== 4) {
     throw new Error(`expected 4 market-state metric cards, got ${metricCards}`);
   }
+  const marketHeaders = await page.locator('.jx-market-hero').count();
+  if (marketHeaders !== 0) {
+    throw new Error(`expected the market header to be removed, got ${marketHeaders}`);
+  }
   await page.locator('.jx-marketState-scopeTrigger').click();
   const scopeOptions = await page.locator('.jx-marketState-scopeOption').count();
   if (scopeOptions !== 10) {
@@ -41,32 +45,32 @@ try {
     page.waitForResponse((response) => response.url().includes('/market/state?scope=000300.SH')),
     page.locator('.jx-marketState-scopeOption').filter({ hasText: '沪深300' }).click(),
   ]);
-  await page.locator('.jx-valuation-heroStatusLabel').filter({ hasText: '沪深300' }).waitFor();
-  const indexCoverage = await page.locator('.jx-valuation-heroStatusMeta').innerText();
+  const indexCoverage = await page.locator('.jx-marketState-toolbarMeta').innerText();
   if (!indexCoverage.includes('覆盖 300 只')) {
     throw new Error(`expected CSI 300 coverage, got "${indexCoverage}"`);
   }
 
-  const industryRows = await page
-    .locator('.jx-marketState-industryTable tbody tr.ant-table-row')
-    .count();
-  if (industryRows !== 31) {
-    throw new Error(`expected 31 industry rows, got ${industryRows}`);
+  const industryHeatCards = await page.locator('.jx-marketState-industryCard').count();
+  if (industryHeatCards !== 0) {
+    throw new Error(`expected direction heat to be removed, got ${industryHeatCards} cards`);
   }
 
   await page.screenshot({ path: `${SHOTS}market-state-index-scope.png` });
-  await page.locator('.jx-marketState-industryCard').scrollIntoViewIfNeeded();
-  await page.screenshot({ path: `${SHOTS}market-state-industries.png` });
 
-  await page.locator('.jx-valuation-sectionHead').scrollIntoViewIfNeeded();
+  await page.goto(`${BASE}/valuation`, { waitUntil: 'networkidle' });
   await page.locator('.jx-valuation-summary').waitFor();
+  const valuationHeaders = await page.locator('.jx-valuation-hero').count();
+  if (valuationHeaders !== 0) {
+    throw new Error(`expected the valuation header to be removed, got ${valuationHeaders}`);
+  }
   const valuationCards = await page.locator('.jx-valuation-metricCard').count();
   if (valuationCards !== 4) {
     throw new Error(`expected 4 valuation cards, got ${valuationCards}`);
   }
+  await page.screenshot({ path: `${SHOTS}valuation.png`, fullPage: true });
 
   console.log(
-    `[market-state-e2e] metrics=${metricCards} scopes=${scopeOptions} industries=${industryRows} valuation=${valuationCards}`,
+    `[market-state-e2e] metrics=${metricCards} scopes=${scopeOptions} headers=${marketHeaders + valuationHeaders} directionHeat=${industryHeatCards} valuation=${valuationCards}`,
   );
 } finally {
   await browser.close();
