@@ -13,5 +13,6 @@ export const enHelp: typeof zhHelp = {
   next: 'Next',
   groups: {
     gettingStarted: 'Getting started',
+    basics: 'Quantitative trading basics',
   },
 };
