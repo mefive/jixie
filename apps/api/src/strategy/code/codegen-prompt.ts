@@ -60,10 +60,12 @@ export function buildCodegenPrompt(
 - Output **only the code itself** — no explanation, no markdown fences.
 - Shaped like \`export default defineStrategy({ name, onBar(ctx) { … } })\`. **Do not write any import** (defineStrategy and the ctx type are both injected globally).
 - Keep cross-bar state in module-level variables (e.g. \`let last = ''\`); they persist across the entire backtest.
+- Put user-tunable numeric constants under \`params: { lookback: 20, ... }\` and read them through \`ctx.params.lookback\`; this keeps the strategy eligible for parameter robustness scans. Do not put instrument codes or categorical choices in params.
 - When the user names a specific stock or ETF, **resolve it with the searchInstruments tool first** and use the returned ts_code — never write a ts_code from memory. For ETFs, only matches with \`hasDailyData: true\` are currently backtestable.
 
 # SDK (capabilities on ctx)
 The backtest engine calls onBar(ctx) once per trading day; you read data and place orders through ctx. Orders fill at the next open; suspension, price adjustment, slippage, and asset-aware costs are enforced behind your orders. The daily engine has no intraday round trip, even for ETF categories whose exchange rules permit same-day turnover.
+- ctx.params: the strategy's frozen numeric parameters for this run; parameter scans override declared defaults without rewriting source
 - ctx.date / ctx.cash / ctx.value: today's date, cash, and total equity
 - ctx.period('daily'|'weekly'|'monthly'): today's period key (combine with \`let last\` to act "only once per month/week")
 - ctx.shares(code): shares held; ctx.price(code): today's backward-adjusted close

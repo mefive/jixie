@@ -68,6 +68,7 @@ export class Portfolio {
     sellableFrom: string,
     adj: number,
     assetType: CashAssetType = 'stock',
+    preSlippagePrice = price,
   ): void {
     if (Math.abs(delta) < 1e-9 || price <= 0 || adj <= 0) {
       return;
@@ -86,6 +87,7 @@ export class Portfolio {
     }
 
     const value = Math.abs(delta) * price; // real money (= realShares × realPrice)
+    const slippageCost = Math.abs(price - preSlippagePrice) * Math.abs(delta);
     const realPrice = price / adj;
     let fee: number;
 
@@ -117,6 +119,7 @@ export class Portfolio {
       price,
       amount: value,
       fee,
+      slippageCost,
       realShares,
       realPrice,
       assetType,

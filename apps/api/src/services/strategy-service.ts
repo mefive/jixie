@@ -23,6 +23,8 @@ export function strategyRunKey(config: unknown): string {
           minCommission: cost.minCommission,
           stampDuty: cost.stampDuty,
           transferFee: cost.transferFee,
+          slippageBps: cost.slippageBps,
+          impactCoef: cost.impactCoef,
           futureCommissionRate: cost.futureCommissionRate,
           futureCloseTodayRate: cost.futureCloseTodayRate,
           futureSlippageTicks: cost.futureSlippageTicks,

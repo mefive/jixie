@@ -460,6 +460,7 @@ model User {
 
   sessions            Session[]
   strategies          Strategy[]
+  strategyScanReports StrategyScanReport[]
   savedScreens        SavedScreen[]
   screenConversations ScreenConversation[]
   agentConversations  AgentConversation[]
@@ -555,6 +556,8 @@ model Job {
   logs           String? // JSON(LogLine[]) — flushed once on finish; live logs stream from memory (see lib/jobs.ts)
   factorReportId String?       @unique
   factorReport   FactorReport? @relation(fields: [factorReportId], references: [id], onDelete: Cascade)
+  strategyScanReportId String?             @unique
+  strategyScanReport   StrategyScanReport? @relation(fields: [strategyScanReportId], references: [id], onDelete: Cascade)
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
@@ -592,11 +595,36 @@ model Strategy {
   lastResult    Json? // last BacktestSummary (metrics + nav + tradeLog) — shown on reopen, refreshed each run
   messages      Json? // ChatMessage[] — the Agent-panel conversation that authored this strategy (per-strategy)
   conversations AgentConversation[]
+  scanReports   StrategyScanReport[]
   createdAt     DateTime            @default(now())
   updatedAt     DateTime            @updatedAt
 
   @@unique([userId, name]) // name = identity within a user → enables upsert-by-name
   @@index([userId, updatedAt]) // list a user's strategies, newest first
+}
+
+/// Immutable parameter-scan report. The strategy/config/spec snapshots make each explicit scan a
+/// durable research record; the payload stores compact per-combination metrics, not full trade logs.
+model StrategyScanReport {
+  id           String    @id // ULID
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  strategyId   String
+  strategy     Strategy  @relation(fields: [strategyId], references: [id], onDelete: Cascade)
+  strategyName String
+  status       String // 'running' | 'done' | 'error' | 'stale'
+  config       Json // frozen BacktestConfig
+  spec         Json // StrategyScanSpec
+  codeHash     String
+  dataCutoff   String?
+  payload      Json? // StrategyScanPayload
+  error        String?
+  job          Job?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([userId, strategyId, createdAt])
+  @@index([userId, status])
 }
 
 /// A factor as code (code-first, mirrors Strategy). `code` is a defineFactor TS module, compiled +

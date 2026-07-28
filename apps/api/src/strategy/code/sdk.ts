@@ -12,9 +12,12 @@ import type { BarContext, BarRow, Strategy, StrategyAccounts } from '../../engin
  */
 
 export type Schedule = 'daily' | 'weekly' | 'monthly';
+export type StrategyParams = Record<string, number>;
 
 /** What user code sees each bar: the engine primitives (BarContext) + the SDK helpers below. */
-export interface StrategyCtx extends BarContext {
+export interface StrategyCtx<Params extends StrategyParams = StrategyParams> extends BarContext {
+  /** Frozen run parameters. Parameter scans override declared defaults without rewriting source. */
+  readonly params: Readonly<Params>;
   /** Period key for today on a schedule — compare to your own `let last` to fire once per period:
    * `if (ctx.period('monthly') === last) return; last = ctx.period('monthly');` */
   period(schedule: Schedule): string;
@@ -42,8 +45,10 @@ export interface StrategyCtx extends BarContext {
   avgVol(code: string, n: number): number | null;
 }
 
-export interface CodeStrategy {
+export interface CodeStrategy<Params extends StrategyParams = StrategyParams> {
   name?: string;
+  /** Finite numeric defaults exposed to parameter scans. */
+  params?: Params;
   /** Precomputed factor columns to preload (price-window signals like mom/rev/vol). */
   factors?: string[];
   /** Instruments to preload bar series for up front (per-instrument systems read bars()/price()). */
@@ -52,7 +57,7 @@ export interface CodeStrategy {
   futures?: string[];
   /** Initial capital split for a mixed stock/futures strategy. */
   accounts?: StrategyAccounts;
-  onBar(ctx: StrategyCtx): void | Promise<void>;
+  onBar(ctx: StrategyCtx<Params>): void | Promise<void>;
 }
 
 /** Today's universe as a chainable view over codes — filter, rank, take a slice. Each step returns a new
@@ -146,20 +151,32 @@ export class Universe {
 
 /** Identity-with-types factory for a code strategy; wraps onBar so it receives the enriched ctx. The
  * code loader injects THIS as the `defineStrategy` ambient. */
-export function defineStrategy(s: CodeStrategy): Strategy {
-  return {
+export function defineStrategy<const Params extends StrategyParams = Record<string, never>>(
+  s: CodeStrategy<Params>,
+): Strategy {
+  const strategy: Strategy = {
     name: s.name ?? '未命名策略',
+    params: normalizeStrategyParams(s.params),
     factors: s.factors,
     watch: s.watch,
     futures: s.futures,
     accounts: s.accounts,
-    onBar: (core: BarContext) => s.onBar(enrich(core)),
+    onBar: (core: BarContext) => s.onBar(enrich(core, strategy.params as Params)),
   };
+  return strategy;
 }
 
 /** Layer the SDK helpers onto the engine's per-bar core ctx. */
-export function enrich(ctx: BarContext): StrategyCtx {
-  const enriched = ctx as StrategyCtx;
+export function enrich<Params extends StrategyParams = StrategyParams>(
+  ctx: BarContext,
+  params = {} as Params,
+): StrategyCtx<Params> {
+  const enriched = ctx as StrategyCtx<Params>;
+  Object.defineProperty(enriched, 'params', {
+    configurable: true,
+    enumerable: true,
+    value: Object.freeze({ ...params }),
+  });
   enriched.period = (schedule) => periodKey(ctx.date, schedule);
   // The index restriction is pushed into the data load (loadCrossSection only reads those rows), not
   // filtered in memory here — so CSI 300 reads ~300 rows, not the full ~5370. See engine/data crossSection.
@@ -218,6 +235,38 @@ export function enrich(ctx: BarContext): StrategyCtx {
   enriched.avgAmount = (code, n) => avgField(ctx.bars(code, n), n, (bar) => bar.amount);
   enriched.avgVol = (code, n) => avgField(ctx.bars(code, n), n, (bar) => bar.vol);
   return enriched;
+}
+
+export function applyStrategyParamOverrides(
+  strategy: Strategy,
+  overrides?: Record<string, number>,
+): void {
+  if (!overrides) {
+    return;
+  }
+  const declared = strategy.params ?? {};
+  const merged = { ...declared };
+  for (const [key, value] of Object.entries(overrides)) {
+    if (!(key in declared)) {
+      throw new Error(`unknown strategy parameter: ${key}`);
+    }
+    if (!Number.isFinite(value)) {
+      throw new Error(`strategy parameter ${key} must be a finite number`);
+    }
+    merged[key] = value;
+  }
+  strategy.params = merged;
+}
+
+function normalizeStrategyParams(params?: StrategyParams): StrategyParams {
+  const normalized: StrategyParams = {};
+  for (const [key, value] of Object.entries(params ?? {})) {
+    if (!key.trim() || !Number.isFinite(value)) {
+      throw new Error('strategy params must use non-empty keys and finite numeric values');
+    }
+    normalized[key] = value;
+  }
+  return normalized;
 }
 
 /** Mean of a per-bar field over the window, or null if fewer than n valid values. */

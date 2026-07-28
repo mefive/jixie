@@ -68,6 +68,54 @@ export interface WalledBacktestConfig {
   locale?: Locale;
   /** Referenced custom factors, host-prepared (ownership-checked + TS→CJS) — evaluated in-wall. */
   customFactors?: CustomFactorModule[];
+  /** Numeric overrides merged into the strategy's declared params inside the isolate. */
+  paramOverrides?: Record<string, number>;
+}
+
+async function compileUserSource(code: string): Promise<string> {
+  try {
+    return (
+      await transform(code, {
+        loader: 'ts',
+        format: 'cjs',
+        target: 'es2022',
+      })
+    ).code;
+  } catch (error) {
+    throw new Error(
+      `strategy code compilation failed: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+}
+
+/** Evaluate only the strategy declaration inside the hard sandbox and return its numeric defaults. */
+export async function inspectWalledStrategyParameters(
+  code: string,
+): Promise<Record<string, number>> {
+  const userJs = await compileUserSource(code);
+  const isolate = new ivm.Isolate({ memoryLimit: 128 });
+  try {
+    const context = await isolate.createContext();
+    await context.global.set(
+      '__hostFetch',
+      new ivm.Reference(() => {
+        throw new Error('market data is unavailable while inspecting strategy parameters');
+      }),
+    );
+    await context.global.set('__hostLog', new ivm.Reference(() => {}));
+    await context.eval(await wallBundle(), { timeout: 60_000 });
+    await context.global.set('__userJs', new ivm.ExternalCopy(userJs).copyInto({ release: true }));
+    const resultJson = await context.eval('__inspectStrategyParameters(__userJs)', {
+      timeout: 5_000,
+      copy: true,
+    });
+    if (typeof resultJson !== 'string') {
+      throw new Error('strategy parameter inspection returned a non-string result');
+    }
+    return JSON.parse(resultJson) as Record<string, number>;
+  } finally {
+    isolate.dispose();
+  }
 }
 
 /**
@@ -81,18 +129,7 @@ export async function runWalledBacktest(
   onUserLog?: UserLogSink,
 ): Promise<BacktestResult> {
   // TS → CJS on the host (esbuild can't run in-wall); the module evaluates inside the wall.
-  let userJs: string;
-  try {
-    ({ code: userJs } = await transform(cfg.code, {
-      loader: 'ts',
-      format: 'cjs',
-      target: 'es2022',
-    }));
-  } catch (e) {
-    throw new Error(
-      `strategy code compilation failed: ${e instanceof Error ? e.message : String(e)}`,
-    );
-  }
+  const userJs = await compileUserSource(cfg.code);
 
   const isolate = new ivm.Isolate({ memoryLimit: WALL_MEMORY_MB });
   try {
@@ -134,6 +171,7 @@ export async function runWalledBacktest(
         cost: cfg.cost,
         locale: cfg.locale,
         customFactors: cfg.customFactors,
+        paramOverrides: cfg.paramOverrides,
         captureUserLogs: onUserLog != null,
       }),
     );

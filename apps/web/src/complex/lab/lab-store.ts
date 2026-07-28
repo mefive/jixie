@@ -5,8 +5,12 @@ import {
   type BacktestConfig,
   type BacktestSummary,
   type ChatMessage,
+  type CostConfig,
   type LogLine,
   type StrategyCard,
+  type StrategyScanReport,
+  type StrategyScanReportSummary,
+  type StrategyScanSpec,
 } from '@jixie/shared';
 import { BaseStore, LoaderModel, PollingModel } from '@src/lib';
 import i18n from '@src/i18n';
@@ -16,12 +20,18 @@ import {
   createStrategy,
   deleteStrategy,
   findBacktestRunningJob,
+  findRunningStrategyScan,
   getStrategy,
+  getStrategyScanReport,
   fetchIndexSeries,
+  inspectStrategyParameters,
+  listStrategyScans,
   listStrategies,
   pollBacktest,
+  pollStrategyScan,
   sendAgent,
   submitBacktest,
+  submitStrategyScan,
 } from '@src/api/client';
 import { DEFAULT_CODE } from './default-strategy';
 import { BENCHMARKS, type BenchmarkSeries } from './benchmarks';
@@ -45,6 +55,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
   public start = '20200101';
   public end = '20241231';
   public initialCash = 1_000_000;
+  public cost: CostConfig = { slippageBps: 2, impactCoef: 0.1 };
   public code = DEFAULT_CODE;
 
   public nlText = ''; // the Agent chat draft / hero prompt
@@ -61,13 +72,22 @@ export class LabStore extends BaseStore<LabSetupParams> {
   public savedConfig = ''; // run-relevant config at the LAST RUN (or '' if never run) — baseline for `dirty`
   public persistedConfig = ''; // run-relevant config as PERSISTED in the DB (create/run/open) — baseline for `edited`
   public initializing = false; // opening the initial strategy on mount — render a neutral loader, not the hero
+  public scanReport: StrategyScanReport | null = null;
+  public scanLogLines: LogLine[] = [];
+  public scanError: string | null = null;
 
   private jobId: string | null = null; // polling cursor for the current backtest
   private since = 0;
+  private scanReportId: string | null = null;
+  private scanSince = 0;
 
   public backtestPoller = new PollingModel();
+  public scanPoller = new PollingModel();
   public savedLoader = new LoaderModel<StrategyCard[]>(); // My strategies / History cards
   public benchmarkLoader = new LoaderModel<BenchmarkSeries>();
+  public scanParametersLoader = new LoaderModel<Record<string, number>>();
+  public scanHistoryLoader = new LoaderModel<StrategyScanReportSummary[]>();
+  public scanReportLoader = new LoaderModel<StrategyScanReport>();
 
   public constructor(parentStore?: any) {
     super(parentStore);
@@ -76,6 +96,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
       start: observable.ref,
       end: observable.ref,
       initialCash: observable.ref,
+      cost: observable.ref,
       code: observable.ref,
       nlText: observable.ref,
       chatMessages: observable.ref,
@@ -87,6 +108,9 @@ export class LabStore extends BaseStore<LabSetupParams> {
       savedConfig: observable.ref,
       persistedConfig: observable.ref,
       initializing: observable.ref,
+      scanReport: observable.ref,
+      scanLogLines: observable.ref,
+      scanError: observable.ref,
       config: computed,
       dirty: computed,
       edited: computed,
@@ -97,6 +121,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
   public setup(params: LabSetupParams) {
     super.setup(params);
     this.backtestPoller.setup({ interval: POLL_INTERVAL_MS, request: () => this.pollOnce() });
+    this.scanPoller.setup({ interval: POLL_INTERVAL_MS, request: () => this.pollScanOnce() });
     this.savedLoader.setup({ request: () => listStrategies() });
     this.benchmarkLoader.setup({
       request: async ({ start, end }: { start: string; end: string }) => {
@@ -109,9 +134,20 @@ export class LabStore extends BaseStore<LabSetupParams> {
         return Object.fromEntries(series) as BenchmarkSeries;
       },
     });
+    this.scanParametersLoader.setup({
+      request: async (code: string) => (await inspectStrategyParameters(code)).parameters,
+    });
+    this.scanHistoryLoader.setup({
+      request: (strategyId: string) => listStrategyScans(strategyId),
+    });
+    this.scanReportLoader.setup({ request: (reportId: string) => getStrategyScanReport(reportId) });
     this.registCleaner(() => this.backtestPoller.cleanup());
+    this.registCleaner(() => this.scanPoller.cleanup());
     this.registCleaner(() => this.savedLoader.cleanup());
     this.registCleaner(() => this.benchmarkLoader.cleanup());
+    this.registCleaner(() => this.scanParametersLoader.cleanup());
+    this.registCleaner(() => this.scanHistoryLoader.cleanup());
+    this.registCleaner(() => this.scanReportLoader.cleanup());
     this.registCleaner(() => this.turnStream.detach()); // drop the SSE subscription; the turn keeps running
     void this.savedLoader.run(); // prime My strategies (also feeds the hero's Recent-visits cards)
     // A fresh (never-run) strategy: empty run-baseline → dirty → Run-backtest enabled; but the pristine
@@ -161,6 +197,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
       start: this.start,
       end: this.end,
       initialCash: this.initialCash,
+      cost: this.cost,
       code: this.code,
     };
   }
@@ -169,6 +206,54 @@ export class LabStore extends BaseStore<LabSetupParams> {
     runInAction(() => {
       (this as LabStore)[key] = value;
     });
+  }
+
+  public setCostField<K extends keyof CostConfig>(key: K, value: CostConfig[K]) {
+    runInAction(() => {
+      this.cost = { ...this.cost, [key]: value };
+    });
+  }
+
+  public loadScanParameters() {
+    return this.scanParametersLoader.run(this.code);
+  }
+
+  public async runScan(spec: StrategyScanSpec) {
+    await this.ensureStrategy();
+    if (!this.savedId) {
+      runInAction(() => (this.scanError = i18n.t('lab:storeSaveFailedNoBacktest')));
+      return;
+    }
+
+    try {
+      const { reportId } = await submitStrategyScan(this.savedId, this.config, spec);
+      runInAction(() => {
+        this.scanReport = null;
+        this.scanLogLines = [];
+        this.scanError = null;
+      });
+      this.startScanPolling(reportId);
+      void this.scanHistoryLoader.run(this.savedId);
+    } catch (error) {
+      runInAction(() => {
+        this.scanError = error instanceof Error ? error.message : i18n.t('lab:scanSubmitFailed');
+      });
+    }
+  }
+
+  public async loadScanReport(reportId: string) {
+    try {
+      const report = await this.scanReportLoader.run(reportId);
+      runInAction(() => {
+        this.scanReport = report;
+        this.scanError =
+          report.error ?? (report.status === 'stale' ? i18n.t('lab:scanInterrupted') : null);
+      });
+    } catch (error) {
+      runInAction(() => {
+        this.scanError = error instanceof Error ? error.message : i18n.t('lab:scanLoadFailed');
+      });
+    }
   }
 
   /** One Agent turn — streamed. Append the user message locally, ensure the strategy exists (the
@@ -295,16 +380,24 @@ export class LabStore extends BaseStore<LabSetupParams> {
     runInAction(() => {
       this.name = '';
       this.code = DEFAULT_CODE;
+      this.cost = { slippageBps: 2, impactCoef: 0.1 };
       this.nlText = '';
       this.chatMessages = [];
       this.result = null;
       this.error = null;
       this.logLines = [];
+      this.scanReport = null;
+      this.scanLogLines = [];
+      this.scanError = null;
       this.savedId = null;
       this.savedConfig = ''; // never run → dirty (runnable)
       this.persistedConfig = this.configKey(); // pristine skeleton → not edited (no leave guard)
     });
     this.resetBenchmarks();
+    this.scanPoller.stop();
+    this.scanParametersLoader.reset();
+    this.scanHistoryLoader.reset();
+    this.scanReportLoader.reset();
   }
 
   /** Run a backtest. This is the commit point: it persists the current config (code/range/capital) onto
@@ -361,6 +454,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
       this.start = config.start;
       this.end = config.end;
       this.initialCash = config.initialCash;
+      this.cost = { slippageBps: 2, impactCoef: 0.1, ...config.cost };
       this.code = config.code;
     });
   }
@@ -371,6 +465,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
       start: this.start,
       end: this.end,
       initialCash: this.initialCash,
+      cost: this.cost,
       code: this.code,
     });
   }
@@ -402,10 +497,18 @@ export class LabStore extends BaseStore<LabSetupParams> {
       // DB → not edited (opening it doesn't false-warn the leave guard).
       this.savedConfig = s.lastResult ? this.configKey() : '';
       this.persistedConfig = this.configKey();
+      this.scanReport = null;
+      this.scanLogLines = [];
+      this.scanError = null;
     });
     this.loadBenchmarks(this.result);
     pushRecent(id); // record the visit → hero Recent-visits + auto-open on next entry
     void this.reattachTurn(); // a live agent turn for this strategy? re-subscribe (snapshot replays)
+    void this.scanHistoryLoader.run(id).then((reports) => {
+      if (reports[0] && !this.scanReport) {
+        void this.loadScanReport(reports[0].id);
+      }
+    });
     // Re-attach to a still-running backtest (found server-side by strategyId — no localStorage, works
     // cross-client) so a refresh keeps streaming logs instead of losing the run.
     try {
@@ -415,6 +518,14 @@ export class LabStore extends BaseStore<LabSetupParams> {
       }
     } catch {
       /* none running / expired — the saved lastResult stays shown */
+    }
+    try {
+      const runningScan = await findRunningStrategyScan(id);
+      if (runningScan.reportId) {
+        this.startScanPolling(runningScan.reportId);
+      }
+    } catch {
+      /* none running */
     }
   }
 
@@ -432,6 +543,47 @@ export class LabStore extends BaseStore<LabSetupParams> {
     this.jobId = jobId;
     this.since = 0;
     this.backtestPoller.start();
+  }
+
+  private startScanPolling(reportId: string) {
+    this.scanReportId = reportId;
+    this.scanSince = 0;
+    runInAction(() => {
+      this.scanLogLines = [];
+      this.scanError = null;
+    });
+    this.scanPoller.start();
+  }
+
+  private async pollScanOnce(): Promise<false | void> {
+    try {
+      const job = await pollStrategyScan(this.scanReportId!, this.scanSince);
+      if (job.logs.length) {
+        runInAction(() => {
+          this.scanLogLines = [...this.scanLogLines, ...job.logs];
+          this.scanSince = job.nextSince;
+        });
+      }
+      if (job.status === 'done') {
+        await this.loadScanReport(this.scanReportId!);
+        if (this.savedId) {
+          void this.scanHistoryLoader.run(this.savedId);
+        }
+        return false;
+      }
+      if (job.status === 'error' || job.status === 'stale') {
+        runInAction(() => {
+          this.scanError =
+            job.status === 'stale'
+              ? i18n.t('lab:scanInterrupted')
+              : job.error || i18n.t('lab:scanFailed');
+        });
+        void this.loadScanReport(this.scanReportId!);
+        return false;
+      }
+    } catch {
+      return false;
+    }
   }
 
   /** One poll tick — append new logs; return false to stop the poller (done / error / expired). */

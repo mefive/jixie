@@ -27,6 +27,7 @@ import type { AgentTurnStream } from '@src/components/agent-turn-stream';
 import type { AgentToolTraceItem } from '@src/api/client';
 import { complex } from './complex';
 import { MonthlyReturns } from './monthly-returns';
+import { ParameterScanButton, ParameterScanPanel } from './parameter-scan';
 import { StrategyCardView } from './strategy-card';
 import { readRecents } from './recents';
 import './lab.css';
@@ -452,6 +453,7 @@ const RunConfig = complex.component(() => {
       >
         {t('runBacktest')}
       </LoaderButton>
+      <ParameterScanButton />
       <Popover
         placement="bottomRight"
         trigger="click"
@@ -467,6 +469,31 @@ const RunConfig = complex.component(() => {
                 format="YYYY-MM-DD"
                 allowClear={false}
                 onChange={(date) => store.setField('start', date ? date.format('YYYYMMDD') : '')}
+              />
+            </label>
+            <label className="jx-lab-runPanelField">
+              <span className="jx-lab-runLabel">{t('runSlippageBps')}</span>
+              <InputNumber
+                size="small"
+                className="jx-lab-runPanelControl"
+                value={store.cost.slippageBps}
+                min={0}
+                max={10_000}
+                step={1}
+                addonAfter="bp"
+                onChange={(value) => store.setCostField('slippageBps', value ?? 0)}
+              />
+            </label>
+            <label className="jx-lab-runPanelField">
+              <span className="jx-lab-runLabel">{t('runImpactCoef')}</span>
+              <InputNumber
+                size="small"
+                className="jx-lab-runPanelControl"
+                value={store.cost.impactCoef}
+                min={0}
+                max={10}
+                step={0.05}
+                onChange={(value) => store.setCostField('impactCoef', value ?? 0)}
               />
             </label>
             <label className="jx-lab-runPanelField">
@@ -717,6 +744,18 @@ const ResultPanel = complex.component(() => {
     { label: t('metricFinalValue'), value: Math.round(r.finalValue).toLocaleString() },
     { label: t('metricTrades'), value: r.trades.toLocaleString() },
   ];
+  if (r.totalFees != null || r.totalSlippage != null) {
+    metrics.push(
+      {
+        label: t('metricFees'),
+        value: r.totalFees == null ? '—' : Math.round(r.totalFees).toLocaleString(),
+      },
+      {
+        label: t('metricSlippage'),
+        value: r.totalSlippage == null ? '—' : Math.round(r.totalSlippage).toLocaleString(),
+      },
+    );
+  }
   const finalSleeves = r.sleeveNav?.at(-1);
   if (finalSleeves && finalSleeves.stockValue > 0 && finalSleeves.futureValue > 0) {
     metrics.push(
@@ -818,9 +857,19 @@ const ResultTabs = complex.component(() => {
       ),
     });
   }
+  if (store.savedId) {
+    items.push({
+      key: 'scan',
+      label: t('scanTab'),
+      children: <ParameterScanPanel />,
+    });
+  }
 
   // A tab may vanish (a rerun with no trades) — fall back to Results-overview so the panel never blanks.
-  const activeKey = active === 'trades' && !hasTrades ? 'overview' : active;
+  const activeKey =
+    (active === 'trades' && !hasTrades) || (active === 'scan' && !store.savedId)
+      ? 'overview'
+      : active;
 
   return (
     <div className="jx-lab-resultTabs">

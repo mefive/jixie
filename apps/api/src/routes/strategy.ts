@@ -10,6 +10,7 @@ import { KNOWN_INDICES } from '../strategy/code/codegen-prompt.js';
 import { BUILTIN_USER_ID } from '../factor/builtin-factors.js';
 import { localeFromRequest, m } from '../i18n/index.js';
 import { backtestRoute } from './backtest.js';
+import { strategyScansRoute } from './strategy-scans.js';
 import { proposeStrategyName } from '../services/strategy-service.js';
 
 /**
@@ -23,6 +24,7 @@ export const strategyRoute = new Hono();
 
 // Backtest runs on a strategy — its Job routes ride under the strategy workbench.
 strategyRoute.route('/backtest', backtestRoute);
+strategyRoute.route('/scans', strategyScansRoute);
 
 /** Formatted list of indices whose constituents are actually synced — only offer what we can resolve. */
 async function syncedIndices(): Promise<string> {

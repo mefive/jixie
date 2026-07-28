@@ -146,7 +146,7 @@ async function runStockStrategy(cfg: EngineConfig): Promise<BacktestResult> {
   }
 
   const bench = engineData.indexCloses(BENCHMARK); // CSI 300 for excess-return/IR (preloaded)
-  const result = summarize(cfg, nav, portfolio.trades, bench);
+  const result = summarize(cfg, nav, portfolio.trades, bench, cost);
   log(
     t(locale, 'backtestDone', {
       days: result.days,
@@ -265,7 +265,7 @@ async function runMultiAssetStrategy(cfg: EngineConfig): Promise<BacktestResult>
   const trades = [...stockPortfolio.trades, ...futurePortfolio.trades].sort((a, b) =>
     a.date.localeCompare(b.date),
   );
-  return summarize(cfg, nav, trades, engineData.indexCloses(BENCHMARK), sleeveNav);
+  return summarize(cfg, nav, trades, engineData.indexCloses(BENCHMARK), cost, sleeveNav);
 }
 
 function accountAllocation(cfg: EngineConfig): { stock: number; futures: number } {
@@ -761,6 +761,7 @@ function rebalance(
         sellableFrom,
         engineData.adjAt(code, date)!,
         engineData.assetType(code),
+        px,
       );
     }
   }
@@ -780,6 +781,7 @@ function rebalance(
         sellableFrom,
         engineData.adjAt(code, date)!,
         engineData.assetType(code),
+        px,
       );
     }
   }
@@ -819,6 +821,7 @@ function executeOrders(
         sellableFrom,
         engineData.adjAt(code, date)!,
         engineData.assetType(code),
+        px,
       );
     }
   }
@@ -847,6 +850,7 @@ function executeOrders(
         sellableFrom,
         engineData.adjAt(code, date)!,
         assetType,
+        px,
       );
     }
   }
@@ -902,6 +906,7 @@ function summarize(
   nav: { date: string; value: number }[],
   tradeLog: BacktestResult['tradeLog'],
   bench: { date: string; close: number }[],
+  cost: CostModel,
   sleeveNav?: SleeveNavPoint[],
 ): BacktestResult {
   const values = nav.map((n) => n.value);
@@ -946,6 +951,8 @@ function summarize(
   const traded = tradeLog.reduce((s, t) => s + t.amount, 0);
   const years = nav.length / PERIODS_PER_YEAR;
   const turnover = avgEquity > 0 && years > 0 ? traded / 2 / avgEquity / years : 0;
+  const totalFees = tradeLog.reduce((sum, trade) => sum + trade.fee, 0);
+  const totalSlippage = tradeLog.reduce((sum, trade) => sum + trade.slippageCost, 0);
 
   // —— Monthly return table (month-end equity chained; first month based on initial cash) ——
   const monthEnd = new Map<string, number>(); // 'YYYYMM' → last equity of the month
@@ -982,6 +989,9 @@ function summarize(
     winRate,
     profitFactor,
     turnover,
+    totalFees,
+    totalSlippage,
+    cost,
     monthly,
   };
 }

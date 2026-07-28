@@ -105,6 +105,46 @@ const MESSAGES = {
     zh: '回测进程异常退出 (code {code})',
     en: 'Backtest process exited abnormally (code {code})',
   },
+  strategyScanCodeInvalid: {
+    zh: '策略代码无法读取参数，请检查 params 声明',
+    en: 'Could not inspect strategy parameters; check the params declaration',
+  },
+  strategyScanInvalid: {
+    zh: '参数扫描配置不合法',
+    en: 'Invalid parameter-scan configuration',
+  },
+  strategyScanNoParameters: {
+    zh: '策略尚未声明可扫描的数值参数',
+    en: 'The strategy does not declare any numeric parameters to scan',
+  },
+  strategyScanSplitInvalid: {
+    zh: '样本切分日必须是回测区间内的交易日，且之后仍有交易日',
+    en: 'The split must be a trading day inside the backtest range with a later trading day available',
+  },
+  strategyScanInProgress: {
+    zh: '该策略已有正在进行的参数扫描',
+    en: 'This strategy already has a parameter scan in progress',
+  },
+  strategyScanStartFailed: {
+    zh: '参数扫描进程启动失败',
+    en: 'Could not start the parameter-scan process',
+  },
+  strategyScanProcExited: {
+    zh: '参数扫描进程异常退出 (code {code})',
+    en: 'Parameter-scan process exited abnormally (code {code})',
+  },
+  strategyScanNotFound: {
+    zh: '参数扫描报告不存在',
+    en: 'Parameter-scan report not found',
+  },
+  strategyScanJobNotFound: {
+    zh: '参数扫描任务不存在或已过期',
+    en: 'Parameter-scan job not found or expired',
+  },
+  strategyScanCell: {
+    zh: '参数组合 {current}/{total} · {values}',
+    en: 'Parameter combination {current}/{total} · {values}',
+  },
 
   // —— Backtest engine progress logs (system-tagged, streamed to the job) ——
   backtestStart: {

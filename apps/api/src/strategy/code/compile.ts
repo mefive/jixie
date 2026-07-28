@@ -7,7 +7,7 @@ import {
   type SandboxConsole,
   type UserLogSink,
 } from '../../lib/sandbox-console.js';
-import { defineStrategy } from './sdk.js';
+import { applyStrategyParamOverrides, defineStrategy } from './sdk.js';
 
 /**
  * Compile user-authored TypeScript into an engine Strategy. This single function IS the execution
@@ -25,6 +25,7 @@ export async function compileStrategy(
   source: string,
   onUserLog?: UserLogSink,
   locale: Locale = DEFAULT_LOCALE,
+  paramOverrides?: Record<string, number>,
 ): Promise<Strategy> {
   let js: string;
   try {
@@ -60,6 +61,7 @@ export async function compileStrategy(
   if (!strategy.name) {
     strategy.name = 'Untitled strategy';
   }
+  applyStrategyParamOverrides(strategy as Strategy, paramOverrides);
   return strategy as Strategy;
 }
 

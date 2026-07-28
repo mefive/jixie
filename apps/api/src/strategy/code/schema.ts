@@ -13,6 +13,8 @@ export const codeConfigSchema = z.object({
       minCommission: z.number().min(0).optional(),
       stampDuty: z.number().min(0).optional(),
       transferFee: z.number().min(0).optional(),
+      slippageBps: z.number().min(0).max(10_000).optional(),
+      impactCoef: z.number().min(0).max(10).optional(),
       futureCommissionRate: z.number().min(0).optional(),
       futureCloseTodayRate: z.number().min(0).optional(),
       futureSlippageTicks: z.number().min(0).optional(),

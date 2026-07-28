@@ -113,6 +113,7 @@ export class FuturesPortfolio {
         oldFill,
         position.multiplier,
         closeFee,
+        oldBar.open,
       );
       this.recordTrade(
         date,
@@ -123,6 +124,7 @@ export class FuturesPortfolio {
         newFill,
         newBar.multiplier,
         openFee,
+        newBar.open,
       );
       position.actualCode = desiredActualCode;
       position.referencePrice = newFill;
@@ -197,7 +199,17 @@ export class FuturesPortfolio {
     }
 
     this.cash = nextCash;
-    this.recordTrade(date, code, actualCode, side, Math.abs(delta), fillPrice, multiplier, fee);
+    this.recordTrade(
+      date,
+      code,
+      actualCode,
+      side,
+      Math.abs(delta),
+      fillPrice,
+      multiplier,
+      fee,
+      bar.open,
+    );
     if (newContracts === 0) {
       this.positions.delete(code);
     } else {
@@ -245,6 +257,7 @@ export class FuturesPortfolio {
     price: number,
     multiplier: number,
     fee: number,
+    preSlippagePrice: number,
   ): void {
     const amount = contracts * price * multiplier;
     this.trades.push({
@@ -255,6 +268,7 @@ export class FuturesPortfolio {
       price,
       amount,
       fee,
+      slippageCost: contracts * Math.abs(price - preSlippagePrice) * multiplier,
       realShares: contracts,
       realPrice: price,
       assetType: 'future',

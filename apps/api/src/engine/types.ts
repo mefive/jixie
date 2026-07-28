@@ -28,6 +28,7 @@ export interface TradeRecord {
   price: number; // hfq (adjusted) fill price (engine-internal)
   amount: number; // realShares × realPrice = shares × price (trade value, real money)
   fee: number; // commission + stamp + transfer
+  slippageCost: number; // adverse fill-price loss versus the unslipped open
   realShares: number; // real shares filled — buys are whole lots (100 shares each)
   realPrice: number; // unadjusted (raw) fill price — what you'd actually have paid
   assetType?: 'stock' | 'etf' | 'future';
@@ -225,6 +226,8 @@ export interface StrategyAccounts {
 
 export interface Strategy {
   name: string;
+  /** User-declared finite numeric parameters. Scan overrides replace these values before a run. */
+  params?: Record<string, number>;
   /** Moneyflow columns to preload (e.g. ['mf_net_main']) for ctx.factor(). Omit unless the strategy
    * reads moneyflow; price/valuation signals need no preload (computed on the fly / read from bar()). */
   factors?: string[];
@@ -283,6 +286,9 @@ export interface BacktestResult {
   winRate: number; // share of profitable closed trades
   profitFactor: number; // Σ profit / Σ loss
   turnover: number; // annualized turnover
+  totalFees: number;
+  totalSlippage: number;
+  cost: CostModel;
   monthly: { month: string; ret: number }[]; // 'YYYYMM' → monthly return
 }
 

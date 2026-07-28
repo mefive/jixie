@@ -180,5 +180,10 @@ describe('A 股规则:停牌与滑点', () => {
     const [buy, sell] = result.tradeLog;
     expect(buy.price).toBeCloseTo(10 * 1.002, 10);
     expect(sell.price).toBeCloseTo(10 * 0.998, 10);
+    expect(buy.slippageCost).toBeCloseTo(2, 10);
+    expect(sell.slippageCost).toBeCloseTo(2, 10);
+    expect(result.totalSlippage).toBeCloseTo(4, 10);
+    expect(result.totalFees).toBeCloseTo(buy.fee + sell.fee, 10);
+    expect(result.cost.slippageBps).toBe(20);
   });
 });
