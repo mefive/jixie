@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   canonicalJson,
   createDefaultFactorAnalysisSpecV2,
+  createDefaultFactorAnalysisSpecV3,
   factorTestKey,
   factorVariantKey,
   normalizeFactorAnalysisSpec,
@@ -9,6 +10,19 @@ import {
 } from './report-spec.js';
 
 describe('factor report spec', () => {
+  it('defaults new reports to PIT historical-risk exclusions in V3', () => {
+    const spec = createDefaultFactorAnalysisSpecV3({
+      freq: 'month',
+      start: '20200101',
+      end: '20241231',
+      neutral: 'none',
+    });
+
+    expect(spec.version).toBe(3);
+    expect(spec.universe.excludeRiskWarnings).toBe(true);
+    expect(spec.universe.excludePendingDelisting).toBe(true);
+  });
+
   it('normalizes defaults and preserves the versioned shape', () => {
     expect(
       normalizeFactorAnalysisSpec({

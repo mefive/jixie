@@ -26,6 +26,8 @@
     "zeng:backtest": "tsx --env-file=.env scripts/zeng-backtest.ts",
     "smoke": "tsx --env-file=.env scripts/smoke.ts",
     "sync": "tsx --env-file=.env scripts/sync.ts",
+    "sync:stock-history": "tsx --env-file=.env scripts/sync-stock-history.ts",
+    "canonicalize:stock-codes": "tsx --env-file=.env scripts/canonicalize-stock-codes.ts",
     "sync:basic": "tsx --env-file=.env scripts/sync-basic.ts",
     "sync:fina": "tsx --env-file=.env scripts/sync-fina.ts",
     "sync:futures": "tsx --env-file=.env scripts/sync-futures.ts",

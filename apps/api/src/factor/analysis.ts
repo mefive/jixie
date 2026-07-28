@@ -14,6 +14,7 @@ import { compileFactor, type FactorBatchItem } from './compile-factor.js';
 import type { UserLogSink } from '../lib/sandbox-console.js';
 import { sameMonth, sameWeek, minusDays } from '../lib/date.js';
 import { t } from '../i18n/messages.js';
+import { StockNameLookup } from '../market/stock-identity.js';
 import * as st from '../lib/stats.js';
 
 // Wire shapes live in @jixie/shared (the /factors page renders them); re-export for local imports.
@@ -35,6 +36,8 @@ const LEGACY_POLICY = {
   commissionPerSide: 0.00025,
   stampDutySellSide: 0.0005,
   slippagePerSide: 0.001,
+  excludeRiskWarnings: false,
+  excludePendingDelisting: false,
 };
 
 export interface FactorSeriesAudit {
@@ -694,17 +697,28 @@ export async function analyzeFactor(
   const forwardSnaps = await loadSnapshots([...forwardDates]);
   const decaySeries: number[][] = IC_DECAY_HORIZONS.map(() => []);
 
-  // List date per stock, to enforce the configured minimum listing age. Absent (delisted) → kept.
+  // List date per stock, to enforce the configured minimum listing age. Missing metadata fails open.
   const firstBar = new Map(
     (await prisma.stockBasic.findMany({ select: { tsCode: true, listDate: true } })).map((s) => [
       s.tsCode,
       s.listDate ?? '00000000',
     ]),
   );
+  const stockNames =
+    spec.version === 3
+      ? new StockNameLookup(
+          await prisma.stockNameHistory.findMany({
+            select: { tsCode: true, name: true, startDate: true, endDate: true },
+            orderBy: [{ tsCode: 'asc' }, { startDate: 'asc' }],
+          }),
+        )
+      : new StockNameLookup([]);
   const stageTotals = {
     factorValue: { before: 0, after: 0 },
     quotes: { before: 0, after: 0 },
     listingAge: { before: 0, after: 0 },
+    riskWarning: { before: 0, after: 0 },
+    pendingDelisting: { before: 0, after: 0 },
     liquidity: { before: 0, after: 0 },
   };
   let periodsConsidered = 0;
@@ -773,6 +787,23 @@ export async function analyzeFactor(
     );
     stageTotals.listingAge.after += listingEligible.length;
     candidates = listingEligible;
+    if (spec.version === 3) {
+      stageTotals.riskWarning.before += candidates.length;
+      if (policy.excludeRiskWarnings) {
+        candidates = candidates.filter(
+          (candidate) => !stockNames.at(candidate.tsCode, date).riskWarning,
+        );
+      }
+      stageTotals.riskWarning.after += candidates.length;
+
+      stageTotals.pendingDelisting.before += candidates.length;
+      if (policy.excludePendingDelisting) {
+        candidates = candidates.filter(
+          (candidate) => !stockNames.at(candidate.tsCode, date).pendingDelisting,
+        );
+      }
+      stageTotals.pendingDelisting.after += candidates.length;
+    }
     if (spec.version === 1 && candidates.length < policy.minimumCandidates) {
       continue;
     }
@@ -782,7 +813,7 @@ export async function analyzeFactor(
     candidates.sort((x, y) => x.amount - y.amount);
     candidates = candidates.slice(Math.floor(candidates.length * policy.liquidityDropFraction));
     stageTotals.liquidity.after += candidates.length;
-    if (spec.version === 2 && candidates.length < policy.minimumCandidates) {
+    if (spec.version !== 1 && candidates.length < policy.minimumCandidates) {
       continue;
     }
 
@@ -942,6 +973,12 @@ export async function analyzeFactor(
       { key: 'factor_value', ...stageTotals.factorValue },
       { key: 'formation_and_forward_quote', ...stageTotals.quotes },
       { key: 'listing_age', ...stageTotals.listingAge },
+      ...(spec.version === 3
+        ? [
+            { key: 'risk_warning' as const, ...stageTotals.riskWarning },
+            { key: 'pending_delisting' as const, ...stageTotals.pendingDelisting },
+          ]
+        : []),
       { key: 'liquidity', ...stageTotals.liquidity },
     ],
     windowCoverage: computed.audit.declaredWindowDays
@@ -956,12 +993,10 @@ export async function analyzeFactor(
           droppedForCoverage: computed.audit.droppedForCoverage,
         }
       : undefined,
-    unavailableHistoricalFilters: [
-      'risk_warning',
-      'pending_delisting',
-      'negative_equity',
-      'long_suspension',
-    ],
+    unavailableHistoricalFilters:
+      spec.version === 3
+        ? ['negative_equity', 'long_suspension']
+        : ['risk_warning', 'pending_delisting', 'negative_equity', 'long_suspension'],
   };
 
   return {
@@ -1000,6 +1035,8 @@ function analysisPolicy(spec: FactorAnalysisSpec) {
     ...spec.missing,
     ...spec.outliers,
     ...spec.costs,
+    excludeRiskWarnings: spec.version === 3 ? spec.universe.excludeRiskWarnings : false,
+    excludePendingDelisting: spec.version === 3 ? spec.universe.excludePendingDelisting : false,
   };
 }
 

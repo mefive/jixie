@@ -20,7 +20,11 @@ import type { AgentTool } from './types.js';
 /** Whitelisted tables with the column docs shown to the model (and to validation). */
 export const SQL_TABLE_DOCS: Record<string, string> = {
   StockBasic:
-    'tsCode, symbol, name, area, industry, market, listDate, listStatus — stock list (listed only)',
+    'tsCode, symbol, name, area, industry, market, listDate, delistDate, listStatus(L/D/P/G) — complete stock master across listed, delisted, suspended-listing, and approved-but-not-yet-traded instruments',
+  StockCodeChange:
+    'oldTsCode, newTsCode, effectiveDate, source — exchange-confirmed security-code succession; market history is canonicalized to newTsCode',
+  StockNameHistory:
+    'tsCode, name, startDate, endDate(null=current), announcementDate, changeReason — point-in-time security-name spells; for date D use startDate<=D and (endDate is null or D<=endDate), and derive ST/risk-warning state from that historical name rather than today’s name',
   TradeCal: 'exchange, calDate, isOpen, pretradeDate — trading calendar (SSE)',
   Daily:
     'tsCode, tradeDate, open, high, low, close, preClose, pctChg(%), vol(手), amount(千元) — daily bars, unadjusted; tens-of-millions of rows, always filter by tradeDate or tsCode',

@@ -14,16 +14,43 @@ datasource db {
 // "delete the day first, then createMany" makes repeatable syncs idempotent.
 // ============================================================================
 
-/// Stock list (full overwrite refresh)
+/// Stock list across listed, delisted, suspended-listing, and approved-but-not-yet-traded statuses.
 model StockBasic {
   tsCode     String  @id
   symbol     String
   name       String
   area       String?
   industry   String?
-  market     String
-  listDate   String
+  market     String?
+  listDate   String?
+  delistDate String?
   listStatus String
+}
+
+/// Exchange-confirmed security-code succession. Market tables use `newTsCode` as their canonical
+/// storage identity; this table preserves the old identity and its effective-date boundary.
+model StockCodeChange {
+  oldTsCode     String @id
+  newTsCode     String
+  effectiveDate String
+  source        String
+
+  @@index([newTsCode])
+}
+
+/// Point-in-time stock-name spell from Tushare namechange. Risk-warning and delisting-period states
+/// are derived from the historical name that covers the evaluated date, never from today's name.
+model StockNameHistory {
+  tsCode           String
+  name             String
+  startDate        String
+  endDate          String?
+  announcementDate String?
+  changeReason     String?
+
+  @@id([tsCode, startDate])
+  @@index([tsCode, endDate])
+  @@index([announcementDate])
 }
 
 /// Shenwan (SW2021) level-1 industry membership, point-in-time. One row per (stock, industry, spell):

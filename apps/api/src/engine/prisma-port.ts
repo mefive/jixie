@@ -21,6 +21,13 @@ export const prismaDataPort: EngineDataPort = {
     });
   },
 
+  async stockNameHistory() {
+    return prisma.stockNameHistory.findMany({
+      select: { tsCode: true, name: true, startDate: true, endDate: true },
+      orderBy: [{ tsCode: 'asc' }, { startDate: 'asc' }],
+    });
+  },
+
   async etfBasics() {
     return prisma.etfBasic.findMany({
       select: { tsCode: true, listDate: true, sameDayTurnover: true },

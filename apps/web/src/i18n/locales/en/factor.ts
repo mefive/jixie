@@ -67,6 +67,8 @@ export const enFactor: typeof zhFactor = {
   liquidityDropPercent: 'Drop least liquid',
   minimumCandidates: 'Minimum sample size',
   minimumWindowCoverage: 'Minimum window coverage',
+  excludeRiskWarnings: 'Exclude ST / risk warnings',
+  excludePendingDelisting: 'Exclude delisting-period stocks',
   methodologyOutliers: 'Outlier handling',
   factorExposureOutlier: 'Factor exposure',
   forwardReturnOutlier: 'Forward return',
@@ -180,12 +182,17 @@ export const enFactor: typeof zhFactor = {
   stageFactorValue: 'Factor values',
   stageQuotes: 'Formation/forward quotes',
   stageListingAge: 'Listing age',
+  stageRiskWarning: 'ST/risk warning',
+  stagePendingDelisting: 'Delisting period',
   stageLiquidity: 'Liquidity',
   universeSpec:
     'Listed ≥{{days}} days · drop least-liquid {{liquidity}}% · ≥{{candidates}} names per period',
   outlierSpec: 'Factor exposure: {{exposure}} · forward return: {{returns}}',
   costSpec:
     'Commission {{commission}}bp/side · stamp {{stamp}}bp/sell · slippage {{slippage}}bp/side',
+  historicalStatusSpec: 'ST/risk-warning filter: {{risk}} · delisting-period filter: {{delisting}}',
+  enabled: 'enabled',
+  disabled: 'disabled',
   windowCoverageAudit:
     '{{window}}-day window · minimum {{minimum}} · mean {{mean}} · {{dropped}} observations dropped for coverage',
   historicalFiltersUnavailable:

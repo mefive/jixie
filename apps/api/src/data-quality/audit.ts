@@ -67,7 +67,8 @@ interface StockMasterRow {
 
 interface StockCoverageRow {
   dailyCodes: bigint | number;
-  orphanDailyCodes: bigint | number;
+  unexplainedOrphanCodes: bigint | number;
+  aliasedDailyCodes: bigint | number;
 }
 
 interface FinancialPitRow {
@@ -157,7 +158,7 @@ export async function runDataQualityAudit(
     await auditKeyNullRates(database, startDate, endDate),
     await auditAdjustmentJumps(database, startDate, endDate),
     await auditStockUniverse(database),
-    auditHistoricalInvestability(),
+    await auditHistoricalInvestability(database),
     await auditWindowCoverage(database, openDates, windowTradingDays, evaluationPoints),
     await auditFinancialPit(database),
   );
@@ -562,22 +563,27 @@ async function auditStockUniverse(database: Prisma): Promise<AuditFinding> {
     database.$queryRaw<StockCoverageRow[]>`
       SELECT
         COUNT(DISTINCT d.tsCode) AS dailyCodes,
-        COUNT(DISTINCT CASE WHEN b.tsCode IS NULL THEN d.tsCode END) AS orphanDailyCodes
+        COUNT(DISTINCT CASE WHEN b.tsCode IS NULL AND c.oldTsCode IS NULL THEN d.tsCode END)
+          AS unexplainedOrphanCodes,
+        COUNT(DISTINCT CASE WHEN c.oldTsCode IS NOT NULL THEN d.tsCode END) AS aliasedDailyCodes
       FROM Daily d
       LEFT JOIN StockBasic b ON b.tsCode = d.tsCode
+      LEFT JOIN StockCodeChange c ON c.oldTsCode = d.tsCode
     `,
   ]);
   const counts = new Map(statusRows.map((row) => [row.listStatus, toNumber(row.count)]));
   const delistedCount = counts.get('D') ?? 0;
-  const orphanDailyCodes = toNumber(coverageRows[0]?.orphanDailyCodes);
+  const unexplainedOrphanCodes = toNumber(coverageRows[0]?.unexplainedOrphanCodes);
+  const aliasedDailyCodes = toNumber(coverageRows[0]?.aliasedDailyCodes);
   const dailyCodes = toNumber(coverageRows[0]?.dailyCodes);
-  const hasSurvivorshipRisk = delistedCount === 0 || orphanDailyCodes > 0;
+  const hasSurvivorshipRisk =
+    delistedCount === 0 || unexplainedOrphanCodes > 0 || aliasedDailyCodes > 0;
 
   return {
     id: 'stock-universe-survivorship',
     title: 'Stock universe: delisted coverage',
     status: hasSurvivorshipRisk ? 'error' : 'pass',
-    summary: `${delistedCount} delisted instruments in StockBasic; ${orphanDailyCodes} of ${dailyCodes} historical Daily codes lack metadata`,
+    summary: `${delistedCount} delisted instruments; ${unexplainedOrphanCodes} unexplained and ${aliasedDailyCodes} non-canonical of ${dailyCodes} Daily codes`,
     details: [
       `StockBasic status counts: ${statusRows.map((row) => `${row.listStatus}=${toNumber(row.count)}`).join(', ') || 'empty'}.`,
       ...(delistedCount === 0
@@ -585,25 +591,94 @@ async function auditStockUniverse(database: Prisma): Promise<AuditFinding> {
             'No delisted instruments are retained in StockBasic; a universe built from this table alone has survivorship risk.',
           ]
         : []),
-      ...(orphanDailyCodes > 0
+      ...(unexplainedOrphanCodes > 0
         ? [
-            `${orphanDailyCodes} historical price codes cannot be joined to listing metadata and need a full-status stock master sync.`,
+            `${unexplainedOrphanCodes} historical price codes cannot be explained by StockBasic or StockCodeChange.`,
+          ]
+        : []),
+      ...(aliasedDailyCodes > 0
+        ? [
+            `${aliasedDailyCodes} superseded codes remain in Daily and can duplicate a security in cross-sectional analysis.`,
           ]
         : []),
     ],
   };
 }
 
-function auditHistoricalInvestability(): AuditFinding {
+async function auditHistoricalInvestability(database: Prisma): Promise<AuditFinding> {
+  const [summaryRows, overlapRows, openDuplicateRows, currentMissingRows] = await Promise.all([
+    database.$queryRaw<
+      Array<{
+        spells: bigint | number;
+        codes: bigint | number;
+        riskSpells: bigint | number;
+        delistingSpells: bigint | number;
+      }>
+    >`
+      SELECT
+        COUNT(*) AS spells,
+        COUNT(DISTINCT tsCode) AS codes,
+        SUM(CASE
+          WHEN name LIKE 'ST%' OR name LIKE '*ST%' OR name LIKE 'SST%'
+            OR name LIKE 'S*ST%' OR name LIKE 'PT%'
+          THEN 1 ELSE 0 END) AS riskSpells,
+        SUM(CASE WHEN name LIKE '%退' OR name LIKE '退市%' THEN 1 ELSE 0 END) AS delistingSpells
+      FROM StockNameHistory
+    `,
+    database.$queryRaw<Array<{ count: bigint | number }>>`
+      SELECT COUNT(*) AS count
+      FROM StockNameHistory earlier
+      JOIN StockNameHistory later
+        ON later.tsCode = earlier.tsCode
+       AND later.startDate > earlier.startDate
+       AND (earlier.endDate IS NULL OR later.startDate <= earlier.endDate)
+    `,
+    database.$queryRaw<Array<{ count: bigint | number }>>`
+      SELECT COUNT(*) AS count
+      FROM (
+        SELECT tsCode
+        FROM StockNameHistory
+        WHERE endDate IS NULL
+        GROUP BY tsCode
+        HAVING COUNT(*) > 1
+      )
+    `,
+    database.$queryRaw<Array<{ count: bigint | number }>>`
+      SELECT COUNT(*) AS count
+      FROM StockBasic basic
+      WHERE basic.listStatus = 'L'
+        AND NOT EXISTS (
+          SELECT 1
+          FROM StockNameHistory history
+          WHERE history.tsCode = basic.tsCode
+            AND history.endDate IS NULL
+        )
+    `,
+  ]);
+  const summary = summaryRows[0];
+  const spells = toNumber(summary?.spells);
+  const codes = toNumber(summary?.codes);
+  const riskSpells = toNumber(summary?.riskSpells);
+  const delistingSpells = toNumber(summary?.delistingSpells);
+  const overlaps = toNumber(overlapRows[0]?.count);
+  const duplicateOpenSpells = toNumber(openDuplicateRows[0]?.count);
+  const listedMissingOpenSpell = toNumber(currentMissingRows[0]?.count);
+  const status: AuditStatus =
+    spells === 0 || overlaps > 0 || duplicateOpenSpells > 0
+      ? 'error'
+      : listedMissingOpenSpell > 0
+        ? 'warn'
+        : 'pass';
+
   return {
     id: 'historical-investability',
     title: 'Historical investability status',
-    status: 'error',
-    summary:
-      'Historical ST, risk-warning, pending-delisting, and listing-status spells are unavailable',
+    status,
+    summary: `${formatNumber(spells)} name spells across ${formatNumber(codes)} codes; ${overlaps} overlaps; ${listedMissingOpenSpell} listed codes lack an open spell`,
     details: [
-      'StockBasic stores only the latest name and listing status; there is no point-in-time status-history table.',
-      'Backtests must not use today’s name or status as a historical substitute. Add a point-in-time source before claiming these filters are active.',
+      `${formatNumber(riskSpells)} risk-warning spells and ${formatNumber(delistingSpells)} delisting-period spells are derivable point-in-time.`,
+      `${duplicateOpenSpells} codes have more than one open-ended name spell.`,
+      'Historical filters must use the name spell covering the evaluated date, never the current StockBasic name.',
     ],
   };
 }

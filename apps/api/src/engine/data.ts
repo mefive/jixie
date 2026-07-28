@@ -7,6 +7,7 @@ import {
 } from '@jixie/shared';
 import { daysBetween } from '../lib/date.js';
 import { t } from '../i18n/messages.js'; // direct import — keeps hono/locale out of the wall bundle
+import { StockNameLookup } from '../market/stock-identity.js';
 import type { EngineDataPort, FutureDailyDataRow } from './data-port.js';
 import type { BarRow, FutureBar, IndexValuationField, OhlcBar } from './types.js';
 
@@ -59,6 +60,7 @@ export class EngineData {
   private nextDayOf = new Map<string, string>();
   private listDateOf = new Map<string, string>();
   private industryOf = new Map<string, string>(); // code -> industry label (current, not point-in-time)
+  private stockNames = new StockNameLookup([]);
   private etfCodes = new Set<string>();
   private sameDayTurnoverEtfCodes = new Set<string>();
   private lhbByDate = new Map<string, Map<string, number>>(); // Dragon-Tiger List: date -> code -> net buy amount (yuan), exact day only
@@ -212,9 +214,16 @@ export class EngineData {
 
     // List dates: used for the point-in-time "stock age" primitive (exclude recently-listed).
     // Industry: a current label per stock (Tushare's classification) — for sector-neutral / rotation logic.
-    const [sb, etfs] = await Promise.all([this.port.stockBasics(), this.port.etfBasics()]);
+    const [sb, etfs, stockNameHistory] = await Promise.all([
+      this.port.stockBasics(),
+      this.port.etfBasics(),
+      this.port.stockNameHistory(),
+    ]);
+    this.stockNames = new StockNameLookup(stockNameHistory);
     for (const s of sb) {
-      this.listDateOf.set(s.tsCode, s.listDate);
+      if (s.listDate) {
+        this.listDateOf.set(s.tsCode, s.listDate);
+      }
       if (s.industry) {
         this.industryOf.set(s.tsCode, s.industry);
       }
@@ -542,8 +551,10 @@ export class EngineData {
         continue;
       } // not tradable that day
       const fina = this.roeAsOf(basic.tsCode, date);
+      const stockStatus = this.stockNames.at(basic.tsCode, date);
       byCode.set(basic.tsCode, {
         code: basic.tsCode,
+        ...stockStatus,
         open: price.open,
         high: price.high,
         low: price.low,
