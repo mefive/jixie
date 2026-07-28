@@ -11,5 +11,6 @@ export const zhHelp = {
   next: '下一篇',
   groups: {
     gettingStarted: '开始使用',
+    basics: '量化交易基础',
   },
 };

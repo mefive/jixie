@@ -9,12 +9,18 @@ import {
 import { Link, Navigate, useLocation, useParams } from 'react-router-dom';
 import { observer } from 'mobx-react';
 import { useTranslation } from 'react-i18next';
-import { Segmented } from 'antd';
+import { Image, Segmented } from 'antd';
 import { XMarkdown, type ComponentProps } from '@ant-design/x-markdown';
 import type { Locale } from '@jixie/shared';
 import banner from '@src/assets/banner.png';
 import { localeStore } from '@src/i18n/locale-store';
-import { DEFAULT_HELP_SLUG, findHelpArticle, HELP_ARTICLES, type HelpArticle } from './articles';
+import {
+  DEFAULT_HELP_SLUG,
+  findHelpArticle,
+  HELP_ARTICLES,
+  HELP_GROUPS,
+  type HelpArticle,
+} from './articles';
 import './help.css';
 
 type Heading = {
@@ -133,19 +139,23 @@ function ArticleNavigation({
   const { t } = useTranslation('help');
   const content = (
     <>
-      <div className="jx-help-navGroupTitle">{t(`groups.${article.group}`)}</div>
-      {HELP_ARTICLES.filter((item) => item.group === article.group).map((item) => (
-        <Link
-          className={
-            item.slug === article.slug
-              ? 'jx-help-navLink jx-help-navLink--active'
-              : 'jx-help-navLink'
-          }
-          to={`/help/${item.slug}`}
-          key={item.slug}
-        >
-          {item.title[locale]}
-        </Link>
+      {HELP_GROUPS.map((group) => (
+        <div className="jx-help-navGroup" key={group}>
+          <div className="jx-help-navGroupTitle">{t(`groups.${group}`)}</div>
+          {HELP_ARTICLES.filter((item) => item.group === group).map((item) => (
+            <Link
+              className={
+                item.slug === article.slug
+                  ? 'jx-help-navLink jx-help-navLink--active'
+                  : 'jx-help-navLink'
+              }
+              to={`/help/${item.slug}`}
+              key={item.slug}
+            >
+              {item.title[locale]}
+            </Link>
+          ))}
+        </div>
       ))}
     </>
   );
@@ -191,6 +201,7 @@ function HelpMarkdown({ content }: { content: string }) {
       h2: createHeading(2),
       h3: createHeading(3),
       a: HelpLink,
+      img: HelpImage,
     }),
     [],
   );
@@ -203,6 +214,20 @@ function HelpMarkdown({ content }: { content: string }) {
       escapeRawHtml
       openLinksInNewTab={false}
     />
+  );
+}
+
+function HelpImage({
+  domNode: _domNode,
+  streamStatus: _streamStatus,
+  src = '',
+  alt = '',
+}: ComponentProps<{ src?: string; alt?: string }>) {
+  return (
+    <figure className="jx-help-figure">
+      <Image src={src} alt={alt} preview />
+      {alt ? <figcaption>{alt}</figcaption> : null}
+    </figure>
   );
 }
 

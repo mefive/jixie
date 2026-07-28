@@ -291,14 +291,31 @@
   color: inherit;
 }
 
-.jx-help-markdown img {
+.jx-help-figure {
+  margin: 24px 0 30px;
+}
+
+.jx-help-figure .ant-image {
+  display: block;
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+.jx-help-figure .ant-image-img {
   display: block;
   max-width: 100%;
   height: auto;
-  margin: 22px auto;
   border: 1px solid var(--help-line);
   border-radius: 10px;
   box-shadow: 0 8px 28px rgb(0 0 0 / 0.08);
+}
+
+.jx-help-figure figcaption {
+  margin-top: 9px;
+  color: var(--help-tertiary);
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: center;
 }
 
 .jx-help-pager {
