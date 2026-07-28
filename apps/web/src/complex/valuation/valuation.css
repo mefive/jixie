@@ -1,126 +1,35 @@
 @reference '../../styles/index.css';
 
+.jx-market,
 .jx-valuation {
   @apply overflow-auto;
   height: 100%;
 }
 
+.jx-market-body,
 .jx-valuation-body {
   @apply flex flex-col gap-4;
   width: min(1440px, 100%);
   margin: 0 auto;
-  padding: 22px 24px 36px;
-}
-
-.jx-valuation-hero {
-  @apply flex items-end justify-between gap-8 rounded-xl;
-  @apply bg-primary text-white;
-  padding: 26px 30px;
-}
-
-.jx-valuation-heroCopy {
-  max-width: 720px;
-}
-
-.jx-valuation-kicker {
-  @apply font-semibold uppercase;
-  color: #aeb7c5;
-  font-size: 11px;
-  letter-spacing: 0.16em;
-}
-
-.jx-valuation-title {
-  @apply m-0 font-semibold;
-  margin-top: 6px;
-  font-size: 30px;
-  letter-spacing: -0.02em;
-}
-
-.jx-valuation-subtitle {
-  @apply m-0;
-  color: #cbd1da;
-  margin-top: 7px;
-  font-size: 14px;
-  line-height: 1.7;
-}
-
-.jx-valuation-heroStatus {
-  @apply flex shrink-0 flex-col rounded-lg border;
-  border-color: rgba(255, 255, 255, 0.16);
-  background: rgba(255, 255, 255, 0.06);
-  min-width: 286px;
-  padding: 15px 18px;
-}
-
-.jx-valuation-heroStatusLabel {
-  @apply text-xs font-medium;
-  color: #aeb7c5;
-}
-
-.jx-valuation-heroStatusValue {
-  @apply font-semibold;
-  margin-top: 3px;
-  font-size: 23px;
-}
-
-.jx-valuation-heroStatusMeta {
-  @apply text-xs;
-  color: #cbd1da;
-  margin-top: 5px;
-}
-
-.jx-valuation-sectionHead {
-  @apply flex items-end justify-between gap-8;
-  margin-top: 12px;
-  padding: 10px 4px 0;
-}
-
-.jx-valuation-sectionKicker {
-  @apply text-xs font-semibold uppercase text-muted;
-  letter-spacing: 0.12em;
-}
-
-.jx-valuation-sectionTitle {
-  @apply m-0 mt-1 font-semibold text-ink;
-  font-size: 24px;
-}
-
-.jx-valuation-sectionSubtitle {
-  @apply m-0 mt-1 text-sm text-muted;
-}
-
-.jx-valuation-indexControl {
-  @apply flex shrink-0 flex-col gap-2;
-  width: 300px;
-}
-
-.jx-valuation-controlLabel {
-  @apply text-xs font-medium text-muted;
+  padding: 16px 24px 36px;
 }
 
 .jx-valuation-indexSelect {
-  width: 100%;
+  width: 250px;
 }
 
-.jx-valuation-updated {
+.jx-valuation-toolbar {
+  @apply flex min-h-10 items-center justify-between gap-4;
+  padding: 0 4px;
+}
+
+.jx-valuation-toolbarMeta {
   @apply text-xs text-muted;
 }
 
 .jx-marketState-scopeBar {
-  @apply flex items-center justify-between gap-6 rounded-xl border border-line bg-card;
-  padding: 14px 18px;
-}
-
-.jx-marketState-scopeCopy {
-  @apply min-w-0;
-}
-
-.jx-marketState-scopeLabel {
-  @apply text-sm font-semibold text-ink;
-}
-
-.jx-marketState-scopeHint {
-  @apply m-0 mt-1 text-xs text-muted;
+  @apply flex min-h-10 items-center justify-between gap-4;
+  padding: 0 4px;
 }
 
 .jx-marketState-scopeTrigger {
@@ -140,6 +49,10 @@
 .jx-marketState-scopeTrigger.ant-popover-open {
   border-color: #c2c7d0;
   box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.04);
+}
+
+.jx-marketState-toolbarMeta {
+  @apply text-xs text-muted;
 }
 
 .jx-marketState-scopePicker {
@@ -227,24 +140,7 @@
 
 .jx-marketState-metricCard {
   @apply rounded-xl border border-line bg-card;
-  border-top-width: 3px;
   padding: 16px 18px 15px;
-}
-
-.jx-marketState-metricCard--activity {
-  border-top-color: #d97706;
-}
-
-.jx-marketState-metricCard--breadth {
-  border-top-color: #2563eb;
-}
-
-.jx-marketState-metricCard--trend {
-  border-top-color: #dc2626;
-}
-
-.jx-marketState-metricCard--crowding {
-  border-top-color: #7c3aed;
 }
 
 .jx-marketState-metricHead {
@@ -307,8 +203,7 @@
   @apply text-sm font-semibold text-ink;
 }
 
-.jx-marketState-chartCard,
-.jx-marketState-industryCard {
+.jx-marketState-chartCard {
   @apply rounded-xl border border-line bg-card;
   padding: 20px 20px 14px;
 }
@@ -334,59 +229,6 @@
 
 .jx-marketState-chartSkeleton {
   width: 100% !important;
-}
-
-.jx-marketState-asOf {
-  @apply shrink-0 text-xs text-muted;
-  padding-top: 4px;
-}
-
-.jx-marketState-industryName {
-  @apply flex items-center justify-between gap-2;
-}
-
-.jx-marketState-industryNameLabel {
-  @apply font-medium text-ink;
-}
-
-.jx-marketState-industryNameCount {
-  @apply text-muted;
-  font-size: 10px;
-}
-
-.jx-marketState-score {
-  @apply flex items-center gap-2;
-}
-
-.jx-marketState-scoreValue {
-  @apply font-medium text-ink;
-  width: 25px;
-  font-size: 12px;
-}
-
-.jx-marketState-scoreTrack {
-  @apply block flex-1 overflow-hidden rounded-full;
-  background: #eceef1;
-  height: 5px;
-}
-
-.jx-marketState-scoreFill {
-  @apply block rounded-full;
-  background: #8a9099;
-  height: 100%;
-}
-
-.jx-marketState-score--emphasis .jx-marketState-scoreValue {
-  @apply font-semibold;
-}
-
-.jx-marketState-score--emphasis .jx-marketState-scoreFill {
-  background: #111827;
-}
-
-.jx-marketState-return {
-  @apply font-medium;
-  font-variant-numeric: tabular-nums;
 }
 
 .jx-marketState-method {
@@ -501,6 +343,7 @@
   line-height: 1.6;
 }
 
+.jx-market-dashboardSkeleton,
 .jx-valuation-dashboardSkeleton {
   @apply grid grid-cols-1 gap-4;
   padding: 12px 4px;
@@ -517,14 +360,6 @@
     @apply flex-col;
   }
 
-  .jx-marketState-scopeBar {
-    @apply flex-col items-stretch;
-  }
-
-  .jx-marketState-scopeTrigger {
-    width: 100%;
-  }
-
   .jx-valuation-chartControls {
     @apply justify-start;
   }
@@ -539,25 +374,19 @@
 }
 
 @media (max-width: 720px) {
+  .jx-market-body,
   .jx-valuation-body {
     padding: 14px 12px 24px;
   }
 
-  .jx-valuation-hero {
-    @apply flex-col items-stretch;
-    padding: 22px 20px;
+  .jx-valuation-toolbar,
+  .jx-marketState-scopeBar {
+    @apply items-center;
   }
 
-  .jx-valuation-heroStatus {
-    min-width: 0;
-  }
-
-  .jx-valuation-sectionHead {
-    @apply flex-col items-stretch;
-  }
-
-  .jx-valuation-indexControl {
-    width: 100%;
+  .jx-valuation-indexSelect,
+  .jx-marketState-scopeTrigger {
+    width: min(210px, 62vw);
   }
 
   .jx-valuation-summary,
@@ -577,16 +406,11 @@
     @apply grid-cols-2;
   }
 
-  .jx-marketState-scopeBar {
-    padding: 14px 12px;
-  }
-
   .jx-marketState-detailItem {
     border-right: 0;
   }
 
-  .jx-marketState-chartCard,
-  .jx-marketState-industryCard {
+  .jx-marketState-chartCard {
     padding: 17px 12px 12px;
   }
 

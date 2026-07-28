@@ -1,12 +1,10 @@
 import { lazy, Suspense, useState } from 'react';
-import { Button, Popover, Segmented, Skeleton, Table } from 'antd';
-import type { TableColumnsType } from 'antd';
+import { Button, Popover, Segmented, Skeleton } from 'antd';
 import classNames from 'classnames';
 import { faChevronDown } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useTranslation } from 'react-i18next';
 import type {
-  IndustryHeatItem,
   MarketStateMetric,
   MarketStateMetricSummary,
   MarketStateScope,
@@ -27,97 +25,10 @@ export function MarketStateOverview({ snapshot, loading, onScopeChange }: Props)
   const [metric, setMetric] = useState<MarketStateMetric>('activity');
   const [scopePickerOpen, setScopePickerOpen] = useState(false);
   const scopeName = t(marketScopeLabelKey(snapshot.scope));
-  const columns: TableColumnsType<IndustryHeatItem> = [
-    {
-      title: t('marketState.industry.rank'),
-      dataIndex: 'rank',
-      width: 54,
-      align: 'center',
-    },
-    {
-      title: t('marketState.industry.name'),
-      dataIndex: 'l1Name',
-      width: 110,
-      fixed: 'left',
-      render: (name: string, item) => (
-        <div className="jx-marketState-industryName">
-          <strong className="jx-marketState-industryNameLabel">{name}</strong>
-          <span className="jx-marketState-industryNameCount">{item.tradedCount}</span>
-        </div>
-      ),
-    },
-    {
-      title: t('marketState.industry.heat'),
-      dataIndex: 'heatScore',
-      width: 124,
-      sorter: (left, right) => left.heatScore - right.heatScore,
-      render: (value: number) => <ScoreBar value={value} emphasis />,
-    },
-    {
-      title: t('marketState.industry.trendScore'),
-      dataIndex: 'trendScore',
-      width: 112,
-      render: (value: number) => <ScoreBar value={value} />,
-    },
-    {
-      title: t('marketState.industry.breadthScore'),
-      dataIndex: 'breadthScore',
-      width: 112,
-      render: (value: number) => <ScoreBar value={value} />,
-    },
-    {
-      title: t('marketState.industry.activityScore'),
-      dataIndex: 'activityScore',
-      width: 112,
-      render: (value: number) => <ScoreBar value={value} />,
-    },
-    {
-      title: t('marketState.industry.excessReturn20'),
-      dataIndex: 'excessReturn20',
-      width: 106,
-      align: 'right',
-      sorter: (left, right) => (left.excessReturn20 ?? 0) - (right.excessReturn20 ?? 0),
-      render: (value: number | null) => <ReturnValue value={value} />,
-    },
-    {
-      title: t('marketState.industry.turnover'),
-      dataIndex: 'turnoverRate',
-      width: 92,
-      align: 'right',
-      render: (value: number | null) => formatPercent(value, false),
-    },
-    {
-      title: t('marketState.industry.amountShare'),
-      dataIndex: 'amountShare',
-      width: 98,
-      align: 'right',
-      render: (value: number | null) => formatPercent(value, true),
-    },
-    {
-      title: t('marketState.industry.concentration'),
-      dataIndex: 'topFiveAmountShare',
-      width: 112,
-      align: 'right',
-      render: (value: number | null) => formatPercent(value, true),
-    },
-  ];
 
   return (
     <>
       <section className="jx-marketState-scopeBar">
-        <div className="jx-marketState-scopeCopy">
-          <span className="jx-marketState-scopeLabel">{t('marketState.scopeLabel')}</span>
-          <p className="jx-marketState-scopeHint">
-            {snapshot.scope === 'all'
-              ? t('marketState.scopeAllHint', {
-                  start: formatDate(snapshot.availableStart),
-                })
-              : t('marketState.scopeIndexHint', {
-                  start: formatDate(snapshot.availableStart),
-                  membership: formatDate(snapshot.membershipAsOf ?? snapshot.asOf),
-                })}
-          </p>
-        </div>
         <Popover
           open={scopePickerOpen}
           onOpenChange={setScopePickerOpen}
@@ -143,6 +54,12 @@ export function MarketStateOverview({ snapshot, loading, onScopeChange }: Props)
             <FontAwesomeIcon icon={faChevronDown} />
           </Button>
         </Popover>
+        <span className="jx-marketState-toolbarMeta">
+          {t('marketState.coverage', {
+            date: formatDate(snapshot.asOf),
+            count: snapshot.latest.tradedCount,
+          })}
+        </span>
       </section>
 
       <section className="jx-marketState-summary" aria-label={t('marketState.summaryLabel')}>
@@ -211,27 +128,6 @@ export function MarketStateOverview({ snapshot, loading, onScopeChange }: Props)
         </Suspense>
       </section>
 
-      <section className="jx-marketState-industryCard">
-        <div className="jx-marketState-cardHead">
-          <div>
-            <h2 className="jx-marketState-cardTitle">{t('marketState.industry.title')}</h2>
-            <p className="jx-marketState-cardSubtitle">{t('marketState.industry.subtitle')}</p>
-          </div>
-          <span className="jx-marketState-asOf">
-            {t('marketState.industry.asOf', { date: formatDate(snapshot.asOf) })}
-          </span>
-        </div>
-        <Table
-          className="jx-marketState-industryTable"
-          rowKey="l1Code"
-          size="small"
-          columns={columns}
-          dataSource={snapshot.industries}
-          pagination={false}
-          scroll={{ x: 1030 }}
-        />
-      </section>
-
       <section className="jx-marketState-method">
         <span className="jx-marketState-methodLabel">{t('marketState.methodLabel')}</span>
         <p className="jx-marketState-methodText">
@@ -259,7 +155,7 @@ function MarketMetricCard({
   const percentile = toPercent(summary.percentile3Year);
 
   return (
-    <article className={`jx-marketState-metricCard jx-marketState-metricCard--${metric}`}>
+    <article className="jx-marketState-metricCard">
       <div className="jx-marketState-metricHead">
         <span className="jx-marketState-metricLabel">{t(metricLabelKey(metric))}</span>
         <strong className="jx-marketState-metricValue">
@@ -394,37 +290,6 @@ function DetailItem({ label, value }: { label: string; value: string }) {
       <span className="jx-marketState-detailLabel">{label}</span>
       <strong className="jx-marketState-detailValue">{value}</strong>
     </div>
-  );
-}
-
-function ScoreBar({ value, emphasis = false }: { value: number; emphasis?: boolean }) {
-  return (
-    <div
-      className={classNames('jx-marketState-score', {
-        'jx-marketState-score--emphasis': emphasis,
-      })}
-    >
-      <span className="jx-marketState-scoreValue">{Math.round(value)}</span>
-      <i className="jx-marketState-scoreTrack">
-        <b
-          className="jx-marketState-scoreFill"
-          style={{ width: `${Math.max(0, Math.min(100, value))}%` }}
-        />
-      </i>
-    </div>
-  );
-}
-
-function ReturnValue({ value }: { value: number | null }) {
-  return (
-    <span
-      className={classNames('jx-marketState-return', {
-        'text-up': value != null && value > 0,
-        'text-down': value != null && value < 0,
-      })}
-    >
-      {formatSignedPercent(value)}
-    </span>
   );
 }
 

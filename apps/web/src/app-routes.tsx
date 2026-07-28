@@ -16,6 +16,7 @@ import labEntry from '@src/complex/lab';
 import screenEntry from '@src/complex/screen';
 import stockEntry from '@src/complex/stock';
 import factorEntry from '@src/complex/factor';
+import marketEntry from '@src/complex/market';
 import valuationEntry from '@src/complex/valuation';
 import { TopNav } from '@src/components/top-nav';
 import { authStore } from '@src/store';
@@ -156,8 +157,11 @@ const router = createBrowserRouter(
         <Route path="/lab" element={<LabRoute />} />
         <Route path="/screen" element={<ComplexRoute key="screen" entry={screenEntry} />} />
         <Route path="/factors" element={<FactorRoute />} />
-        <Route path="/market" element={<ComplexRoute key="market" entry={valuationEntry} />} />
-        <Route path="/valuation" element={<Navigate to="/market" replace />} />
+        <Route path="/market" element={<ComplexRoute key="market" entry={marketEntry} />} />
+        <Route
+          path="/valuation"
+          element={<ComplexRoute key="valuation" entry={valuationEntry} />}
+        />
         <Route path="/stock/:code" element={<StockRoute />} />
         <Route path="/trades" element={<TradePage />} />
       </Route>
