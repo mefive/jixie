@@ -10,8 +10,15 @@
 
 export interface StockBasicRow {
   tsCode: string;
-  listDate: string;
+  listDate: string | null;
   industry: string | null;
+}
+
+export interface StockNameHistoryRow {
+  tsCode: string;
+  name: string;
+  startDate: string;
+  endDate: string | null;
 }
 
 export interface EtfBasicDataRow {
@@ -154,6 +161,8 @@ export interface EngineDataPort {
   openDates(start: string, end: string): Promise<string[]>;
   /** The full stock list (list dates + current industry labels). */
   stockBasics(): Promise<StockBasicRow[]>;
+  /** Point-in-time stock-name spells used to derive historical risk-warning states. */
+  stockNameHistory(): Promise<StockNameHistoryRow[]>;
   /** ETF metadata needed by the daily execution lane. */
   etfBasics(): Promise<EtfBasicDataRow[]>;
   /** Dragon-Tiger List rows within [start, end] (sparse event data). */

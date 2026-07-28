@@ -7,8 +7,9 @@ export interface StockBasicRow {
   name: string;
   area: string | null;
   industry: string | null;
-  market: string;
-  list_date: TradeDate;
+  market: string | null;
+  list_date: TradeDate | null;
+  delist_date: TradeDate | null;
   list_status: string;
 }
 
@@ -20,9 +21,31 @@ export async function stockBasic(
   const rows = await client.call(
     'stock_basic',
     { list_status: 'L', ...params },
-    'ts_code,symbol,name,area,industry,market,list_date,list_status',
+    'ts_code,symbol,name,area,industry,market,list_date,delist_date,list_status',
   );
   return rows as unknown as StockBasicRow[];
+}
+
+export interface NameChangeRow {
+  ts_code: TsCode;
+  name: string;
+  start_date: TradeDate;
+  end_date: TradeDate | null;
+  ann_date: TradeDate | null;
+  change_reason: string | null;
+}
+
+/** Historical name spells. `start_date` / `end_date` inputs filter the announcement date. */
+export async function nameChange(
+  client: TushareClient,
+  params: { ts_code?: TsCode; start_date?: TradeDate; end_date?: TradeDate } = {},
+): Promise<NameChangeRow[]> {
+  const rows = await client.call(
+    'namechange',
+    params,
+    'ts_code,name,start_date,end_date,ann_date,change_reason',
+  );
+  return rows as unknown as NameChangeRow[];
 }
 
 export interface TradeCalRow {

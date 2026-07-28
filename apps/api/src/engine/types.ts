@@ -95,6 +95,9 @@ export interface OhlcBar {
  */
 export interface BarRow {
   code: string;
+  name: string | null; // point-in-time security name
+  riskWarning: boolean; // ST / *ST / other exchange risk-warning prefix as-of this date
+  pendingDelisting: boolean; // delisting-period name as-of this date
   open: number | null; // unadjusted
   high: number | null;
   low: number | null;

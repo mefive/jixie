@@ -182,12 +182,22 @@ export interface FactorAnalysisSpecV2 {
   };
 }
 
-export type FactorAnalysisSpec = FactorAnalysisSpecV1 | FactorAnalysisSpecV2;
+export interface FactorAnalysisSpecV3 extends Omit<FactorAnalysisSpecV2, 'version' | 'universe'> {
+  version: 3;
+  universe: FactorAnalysisSpecV2['universe'] & {
+    excludeRiskWarnings: boolean;
+    excludePendingDelisting: boolean;
+  };
+}
+
+export type FactorAnalysisSpec = FactorAnalysisSpecV1 | FactorAnalysisSpecV2 | FactorAnalysisSpecV3;
 
 export type FactorSampleStageKey =
   | 'factor_value'
   | 'formation_and_forward_quote'
   | 'listing_age'
+  | 'risk_warning'
+  | 'pending_delisting'
   | 'liquidity';
 
 export interface FactorSampleStageAudit {
@@ -205,7 +215,7 @@ export interface FactorWindowCoverageAudit {
 }
 
 export interface FactorMethodologyAudit {
-  specVersion: 1 | 2;
+  specVersion: 1 | 2 | 3;
   dataCutoff: string;
   periodsConsidered: number;
   periodsAnalyzed: number;

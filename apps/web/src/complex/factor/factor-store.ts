@@ -9,7 +9,7 @@ import {
   type FactorReportListResponse,
   type FactorReportSummary,
   type FactorAnalysisSpec,
-  type FactorAnalysisSpecV2,
+  type FactorAnalysisSpecV3,
   type FactorFreq,
   type FactorCorrelation,
   type FactorResearchIntentV1,
@@ -57,7 +57,7 @@ const DEFAULT_END = '20261231';
 const POLL_INTERVAL_MS = 800;
 
 type FactorMethodologyParams = Pick<
-  FactorAnalysisSpecV2,
+  FactorAnalysisSpecV3,
   'universe' | 'missing' | 'outliers' | 'costs'
 >;
 
@@ -66,6 +66,8 @@ const DEFAULT_METHODOLOGY: FactorMethodologyParams = {
     minimumListingDays: 365,
     liquidityDropFraction: 0.25,
     minimumCandidates: 100,
+    excludeRiskWarnings: true,
+    excludePendingDelisting: true,
   },
   missing: { minimumWindowCoverage: 2 / 3 },
   outliers: {
@@ -130,7 +132,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   public neutral: Neutral = 'none'; // cross-sectional neutralization in the draft analysis spec
   public start = DEFAULT_START;
   public end = DEFAULT_END;
-  public specVersion: 1 | 2 = 2;
+  public specVersion: 1 | 2 | 3 = 3;
   public methodology = defaultMethodology();
   public logs: LogLine[] = []; // streamed progress of the current run (job), tagged system/user
   public jobRunning = false; // a streamed analysis is in flight
@@ -273,9 +275,24 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       end: this.end,
       neutral: this.neutral,
     };
-    return this.specVersion === 1
-      ? { version: 1, ...common }
-      : { version: 2, ...common, ...this.methodology };
+    if (this.specVersion === 1) {
+      return { version: 1, ...common };
+    }
+    if (this.specVersion === 2) {
+      return {
+        version: 2,
+        ...common,
+        universe: {
+          minimumListingDays: this.methodology.universe.minimumListingDays,
+          liquidityDropFraction: this.methodology.universe.liquidityDropFraction,
+          minimumCandidates: this.methodology.universe.minimumCandidates,
+        },
+        missing: this.methodology.missing,
+        outliers: this.methodology.outliers,
+        costs: this.methodology.costs,
+      };
+    }
+    return { version: 3, ...common, ...this.methodology };
   }
 
   /** The editor source no longer matches the immutable source that produced the selected report. */
@@ -307,30 +324,33 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   public setFreq(v: FactorFreq) {
     runInAction(() => {
       this.freq = v;
-      this.specVersion = 2;
+      this.specVersion = 3;
     });
   }
   public setNeutral(v: Neutral) {
     runInAction(() => {
       this.neutral = v;
-      this.specVersion = 2;
+      this.specVersion = 3;
     });
   }
   public setStart(v: string) {
     runInAction(() => {
       this.start = v;
-      this.specVersion = 2;
+      this.specVersion = 3;
     });
   }
   public setEnd(v: string) {
     runInAction(() => {
       this.end = v;
-      this.specVersion = 2;
+      this.specVersion = 3;
     });
   }
 
-  public setUniverseParameter(key: keyof FactorMethodologyParams['universe'], value: number) {
-    this.specVersion = 2;
+  public setUniverseParameter<Key extends keyof FactorMethodologyParams['universe']>(
+    key: Key,
+    value: FactorMethodologyParams['universe'][Key],
+  ) {
+    this.specVersion = 3;
     this.methodology = {
       ...this.methodology,
       universe: { ...this.methodology.universe, [key]: value },
@@ -338,7 +358,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   }
 
   public setMinimumWindowCoverage(value: number) {
-    this.specVersion = 2;
+    this.specVersion = 3;
     this.methodology = { ...this.methodology, missing: { minimumWindowCoverage: value } };
   }
 
@@ -346,7 +366,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     key: keyof FactorMethodologyParams['outliers'],
     method: FactorMethodologyParams['outliers']['factorExposure']['method'],
   ) {
-    this.specVersion = 2;
+    this.specVersion = 3;
     this.methodology = {
       ...this.methodology,
       outliers: {
@@ -357,7 +377,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   }
 
   public setCostParameter(key: keyof FactorMethodologyParams['costs'], value: number) {
-    this.specVersion = 2;
+    this.specVersion = 3;
     this.methodology = {
       ...this.methodology,
       costs: { ...this.methodology.costs, [key]: value },
@@ -715,9 +735,19 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       this.end = detail.spec.end;
       this.specVersion = detail.spec.version;
       this.methodology =
-        detail.spec.version === 2
+        detail.spec.version === 2 || detail.spec.version === 3
           ? {
-              universe: structuredClone(detail.spec.universe),
+              universe: {
+                ...structuredClone(detail.spec.universe),
+                excludeRiskWarnings:
+                  detail.spec.version === 3
+                    ? detail.spec.universe.excludeRiskWarnings
+                    : DEFAULT_METHODOLOGY.universe.excludeRiskWarnings,
+                excludePendingDelisting:
+                  detail.spec.version === 3
+                    ? detail.spec.universe.excludePendingDelisting
+                    : DEFAULT_METHODOLOGY.universe.excludePendingDelisting,
+              },
               missing: structuredClone(detail.spec.missing),
               outliers: structuredClone(detail.spec.outliers),
               costs: structuredClone(detail.spec.costs),

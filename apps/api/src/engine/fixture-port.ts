@@ -13,6 +13,7 @@ import type {
   IndexWeightRow,
   MoneyflowRow,
   StockBasicRow,
+  StockNameHistoryRow,
   TopListRow,
 } from './data-port.js';
 
@@ -41,6 +42,7 @@ export interface FixtureStock {
   assetType?: 'stock' | 'etf';
   listDate?: string; // default long ago (never "recently listed")
   industry?: string;
+  nameHistory?: Omit<StockNameHistoryRow, 'tsCode'>[];
   bars: FixtureBar[];
   /** Optional per-date valuation overrides (peTtm etc.); a basic row is emitted for every bar
    * regardless, since the cross-section only includes codes that have one. */
@@ -84,6 +86,12 @@ export function fixturePort(spec: FixtureSpec): EngineDataPort {
           listDate: stock.listDate ?? '20000101',
           industry: stock.industry ?? null,
         }));
+    },
+
+    async stockNameHistory(): Promise<StockNameHistoryRow[]> {
+      return spec.stocks.flatMap((stock) =>
+        (stock.nameHistory ?? []).map((spell) => ({ ...spell, tsCode: stock.code })),
+      );
     },
 
     async etfBasics(): Promise<EtfBasicDataRow[]> {

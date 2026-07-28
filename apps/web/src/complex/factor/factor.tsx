@@ -20,6 +20,7 @@ import {
   Segmented,
   Select,
   Splitter,
+  Switch,
   Tabs,
   Tooltip,
 } from 'antd';
@@ -793,6 +794,20 @@ const ParamsPopover = complex.component(() => {
               onChange={(value) => store.setMinimumWindowCoverage((value ?? 10) / 100)}
             />
           </label>
+          <label>
+            <span>{t('excludeRiskWarnings')}</span>
+            <Switch
+              checked={store.methodology.universe.excludeRiskWarnings}
+              onChange={(checked) => store.setUniverseParameter('excludeRiskWarnings', checked)}
+            />
+          </label>
+          <label>
+            <span>{t('excludePendingDelisting')}</span>
+            <Switch
+              checked={store.methodology.universe.excludePendingDelisting}
+              onChange={(checked) => store.setUniverseParameter('excludePendingDelisting', checked)}
+            />
+          </label>
         </div>
         <div className="jx-factor-paramSectionTitle">{t('methodologyOutliers')}</div>
         <div className="jx-factor-paramGrid">
@@ -1374,6 +1389,8 @@ const MethodologyCard = complex.component(() => {
     factor_value: t('stageFactorValue'),
     formation_and_forward_quote: t('stageQuotes'),
     listing_age: t('stageListingAge'),
+    risk_warning: t('stageRiskWarning'),
+    pending_delisting: t('stagePendingDelisting'),
     liquidity: t('stageLiquidity'),
   };
   const unavailable = methodology.unavailableHistoricalFilters.map((key) =>
@@ -1408,7 +1425,7 @@ const MethodologyCard = complex.component(() => {
           </span>
         ))}
       </div>
-      {spec.version === 2 && (
+      {spec.version !== 1 && (
         <div className="jx-factor-methodologySpec">
           <span>
             {t('universeSpec', {
@@ -1430,6 +1447,14 @@ const MethodologyCard = complex.component(() => {
               slippage: (spec.costs.slippagePerSide * 10000).toFixed(1),
             })}
           </span>
+          {spec.version === 3 && (
+            <span>
+              {t('historicalStatusSpec', {
+                risk: spec.universe.excludeRiskWarnings ? t('enabled') : t('disabled'),
+                delisting: spec.universe.excludePendingDelisting ? t('enabled') : t('disabled'),
+              })}
+            </span>
+          )}
         </div>
       )}
       {methodology.windowCoverage && (

@@ -2,8 +2,8 @@ import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import type {
   FactorAnalysisSpec,
-  FactorAnalysisSpecV1,
   FactorAnalysisSpecV2,
+  FactorAnalysisSpecV3,
   FactorResearchIntentV1,
 } from '@jixie/shared';
 
@@ -46,9 +46,18 @@ export const factorAnalysisSpecV2Schema = z.object({
   }),
 });
 
+export const factorAnalysisSpecV3Schema = factorAnalysisSpecV2Schema.extend({
+  version: z.literal(3),
+  universe: factorAnalysisSpecV2Schema.shape.universe.extend({
+    excludeRiskWarnings: z.boolean(),
+    excludePendingDelisting: z.boolean(),
+  }),
+});
+
 export const factorAnalysisSpecSchema = z.discriminatedUnion('version', [
   factorAnalysisSpecV1Schema,
   factorAnalysisSpecV2Schema,
+  factorAnalysisSpecV3Schema,
 ]);
 
 export const DEFAULT_FACTOR_ANALYSIS_SPEC_V2: Omit<
@@ -72,6 +81,19 @@ export const DEFAULT_FACTOR_ANALYSIS_SPEC_V2: Omit<
     commissionPerSide: 0.00025,
     stampDutySellSide: 0.0005,
     slippagePerSide: 0.001,
+  },
+};
+
+export const DEFAULT_FACTOR_ANALYSIS_SPEC_V3: Omit<
+  FactorAnalysisSpecV3,
+  'freq' | 'start' | 'end' | 'neutral'
+> = {
+  ...DEFAULT_FACTOR_ANALYSIS_SPEC_V2,
+  version: 3,
+  universe: {
+    ...DEFAULT_FACTOR_ANALYSIS_SPEC_V2.universe,
+    excludeRiskWarnings: true,
+    excludePendingDelisting: true,
   },
 };
 
@@ -116,7 +138,7 @@ export const factorResearchIntentV1Schema = z
 export function normalizeFactorAnalysisSpec(input: unknown): FactorAnalysisSpec {
   const spec = factorAnalysisSpecSchema.parse(input);
 
-  if (spec.version === 2) {
+  if (spec.version === 2 || spec.version === 3) {
     return spec;
   }
 
@@ -136,6 +158,19 @@ export function createDefaultFactorAnalysisSpecV2(input: {
   neutral: FactorAnalysisSpecV2['neutral'];
 }): FactorAnalysisSpecV2 {
   return { ...DEFAULT_FACTOR_ANALYSIS_SPEC_V2, ...input };
+}
+
+export function createDefaultFactorAnalysisSpecV3(input: {
+  freq: FactorAnalysisSpecV3['freq'];
+  start: string;
+  end: string;
+  neutral: FactorAnalysisSpecV3['neutral'];
+}): FactorAnalysisSpecV3 {
+  return {
+    ...DEFAULT_FACTOR_ANALYSIS_SPEC_V3,
+    ...input,
+    universe: { ...DEFAULT_FACTOR_ANALYSIS_SPEC_V3.universe },
+  };
 }
 
 export function canonicalJson(value: unknown): string {
