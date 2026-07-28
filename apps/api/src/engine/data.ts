@@ -800,6 +800,17 @@ export class EngineData {
     return i == null ? null : b.adj[i];
   }
 
+  /** Most recent adjustment factor on or before `date`, used to translate an end-of-day model
+   * position into real shares even when the instrument is suspended on the signal date. */
+  adjAsOf(code: string, date: string): number | null {
+    const bars = this.barsCache.get(code);
+    if (!bars) {
+      return null;
+    }
+    const index = lastIndexAtOrBefore(bars.dates, date);
+    return index < 0 ? null : bars.adj[index];
+  }
+
   /** Raw up/down-limit price on exactly `date` (null if the day's limit wasn't synced) — to block fills at the limit. */
   limitAt(code: string, date: string): { up: number | null; down: number | null } | null {
     const b = this.barsCache.get(code);
@@ -825,6 +836,19 @@ export class EngineData {
     }
     const j = lastIndexAtOrBefore(b.dates, date);
     return j < 0 ? null : b.adjClose[j];
+  }
+
+  /** Unadjusted close as of `date`, carried forward across suspensions for an executable reference. */
+  rawCloseAsOf(code: string, date: string): number | null {
+    const bars = this.barsCache.get(code);
+    if (!bars) {
+      return null;
+    }
+    const index = lastIndexAtOrBefore(bars.dates, date);
+    if (index < 0 || bars.adj[index] <= 0) {
+      return null;
+    }
+    return bars.adjClose[index] / bars.adj[index];
   }
 
   /** Last n adjusted prices (open|high|low|close) up to and including `date` (empty if not cached). */

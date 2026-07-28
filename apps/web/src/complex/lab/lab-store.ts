@@ -8,6 +8,7 @@ import {
   type CostConfig,
   type LogLine,
   type StrategyCard,
+  type StrategyDeployment,
   type StrategyScanReport,
   type StrategyScanReportSummary,
   type StrategyScanSpec,
@@ -18,10 +19,12 @@ import { QueryCardResults } from '@src/components/query-card-model';
 import { AgentTurnStream, type AgentTurnHandlers } from '@src/components/agent-turn-stream';
 import {
   createStrategy,
+  deployStrategy,
   deleteStrategy,
   findBacktestRunningJob,
   findRunningStrategyScan,
   getStrategy,
+  getCurrentStrategyDeployment,
   getStrategyScanReport,
   fetchIndexSeries,
   inspectStrategyParameters,
@@ -29,6 +32,7 @@ import {
   listStrategies,
   pollBacktest,
   pollStrategyScan,
+  pauseStrategyDeployment,
   sendAgent,
   submitBacktest,
   submitStrategyScan,
@@ -38,6 +42,9 @@ import { BENCHMARKS, type BenchmarkSeries } from './benchmarks';
 import { pushRecent, readRecents, removeRecent } from './recents';
 
 type LabSetupParams = { id?: string; isNew?: boolean };
+type DeploymentAction =
+  | { type: 'deploy'; strategyId: string }
+  | { type: 'pause'; deploymentId: string };
 
 /**
  * Backtest workbench store — code-first. Persistence model (per the agent workflow):
@@ -75,6 +82,8 @@ export class LabStore extends BaseStore<LabSetupParams> {
   public scanReport: StrategyScanReport | null = null;
   public scanLogLines: LogLine[] = [];
   public scanError: string | null = null;
+  public deployment: StrategyDeployment | null = null;
+  public deploymentError: string | null = null;
 
   private jobId: string | null = null; // polling cursor for the current backtest
   private since = 0;
@@ -88,6 +97,8 @@ export class LabStore extends BaseStore<LabSetupParams> {
   public scanParametersLoader = new LoaderModel<Record<string, number>>();
   public scanHistoryLoader = new LoaderModel<StrategyScanReportSummary[]>();
   public scanReportLoader = new LoaderModel<StrategyScanReport>();
+  public deploymentLoader = new LoaderModel<StrategyDeployment | null>();
+  public deploymentActionLoader = new LoaderModel<StrategyDeployment>();
 
   public constructor(parentStore?: any) {
     super(parentStore);
@@ -111,10 +122,13 @@ export class LabStore extends BaseStore<LabSetupParams> {
       scanReport: observable.ref,
       scanLogLines: observable.ref,
       scanError: observable.ref,
+      deployment: observable.ref,
+      deploymentError: observable.ref,
       config: computed,
       dirty: computed,
       edited: computed,
       isFresh: computed,
+      deploymentCurrent: computed,
     });
   }
 
@@ -141,6 +155,16 @@ export class LabStore extends BaseStore<LabSetupParams> {
       request: (strategyId: string) => listStrategyScans(strategyId),
     });
     this.scanReportLoader.setup({ request: (reportId: string) => getStrategyScanReport(reportId) });
+    this.deploymentLoader.setup({
+      request: async (strategyId: string) =>
+        (await getCurrentStrategyDeployment(strategyId)).deployment,
+    });
+    this.deploymentActionLoader.setup({
+      request: (action: DeploymentAction) =>
+        action.type === 'deploy'
+          ? deployStrategy(action.strategyId)
+          : pauseStrategyDeployment(action.deploymentId),
+    });
     this.registCleaner(() => this.backtestPoller.cleanup());
     this.registCleaner(() => this.scanPoller.cleanup());
     this.registCleaner(() => this.savedLoader.cleanup());
@@ -148,6 +172,8 @@ export class LabStore extends BaseStore<LabSetupParams> {
     this.registCleaner(() => this.scanParametersLoader.cleanup());
     this.registCleaner(() => this.scanHistoryLoader.cleanup());
     this.registCleaner(() => this.scanReportLoader.cleanup());
+    this.registCleaner(() => this.deploymentLoader.cleanup());
+    this.registCleaner(() => this.deploymentActionLoader.cleanup());
     this.registCleaner(() => this.turnStream.detach()); // drop the SSE subscription; the turn keeps running
     void this.savedLoader.run(); // prime My strategies (also feeds the hero's Recent-visits cards)
     // A fresh (never-run) strategy: empty run-baseline → dirty → Run-backtest enabled; but the pristine
@@ -188,6 +214,23 @@ export class LabStore extends BaseStore<LabSetupParams> {
    * if never run → dirty), so opening one doesn't false-warn. */
   public get edited(): boolean {
     return this.configKey() !== this.persistedConfig;
+  }
+
+  /** The active deployment freezes exactly the currently committed run configuration. */
+  public get deploymentCurrent(): boolean {
+    if (!this.deployment) {
+      return false;
+    }
+    const config = this.deployment.config;
+    return (
+      JSON.stringify({
+        start: config.start,
+        end: config.end,
+        initialCash: config.initialCash,
+        cost: config.cost,
+        code: config.code,
+      }) === this.configKey()
+    );
   }
 
   /** Range/capital + the strategy code → a runnable BacktestConfig. */
@@ -389,6 +432,8 @@ export class LabStore extends BaseStore<LabSetupParams> {
       this.scanReport = null;
       this.scanLogLines = [];
       this.scanError = null;
+      this.deployment = null;
+      this.deploymentError = null;
       this.savedId = null;
       this.savedConfig = ''; // never run → dirty (runnable)
       this.persistedConfig = this.configKey(); // pristine skeleton → not edited (no leave guard)
@@ -398,6 +443,50 @@ export class LabStore extends BaseStore<LabSetupParams> {
     this.scanParametersLoader.reset();
     this.scanHistoryLoader.reset();
     this.scanReportLoader.reset();
+    this.deploymentLoader.reset();
+    this.deploymentActionLoader.reset();
+  }
+
+  public async deploy() {
+    if (!this.savedId || !this.result || this.dirty) {
+      return;
+    }
+    try {
+      const deployment = await this.deploymentActionLoader.run({
+        type: 'deploy',
+        strategyId: this.savedId,
+      });
+      runInAction(() => {
+        this.deployment = deployment;
+        this.deploymentError = null;
+      });
+    } catch (error) {
+      runInAction(() => {
+        this.deploymentError =
+          error instanceof Error ? error.message : i18n.t('lab:deploymentFailed');
+      });
+    }
+  }
+
+  public async pauseDeployment() {
+    if (!this.deployment) {
+      return;
+    }
+    try {
+      await this.deploymentActionLoader.run({
+        type: 'pause',
+        deploymentId: this.deployment.id,
+      });
+      runInAction(() => {
+        this.deployment = null;
+        this.deploymentError = null;
+      });
+    } catch (error) {
+      runInAction(() => {
+        this.deploymentError =
+          error instanceof Error ? error.message : i18n.t('lab:deploymentPauseFailed');
+      });
+    }
   }
 
   /** Run a backtest. This is the commit point: it persists the current config (code/range/capital) onto
@@ -480,6 +569,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
   /** Reopen a saved strategy: load its config + last result, and re-attach to a running backtest if one
    * is still in flight for it (so a refresh continues streaming logs instead of losing the run). */
   public async openSaved(id: string) {
+    this.deploymentActionLoader.reset();
     let s;
     try {
       s = await getStrategy(id);
@@ -500,6 +590,8 @@ export class LabStore extends BaseStore<LabSetupParams> {
       this.scanReport = null;
       this.scanLogLines = [];
       this.scanError = null;
+      this.deployment = null;
+      this.deploymentError = null;
     });
     this.loadBenchmarks(this.result);
     pushRecent(id); // record the visit → hero Recent-visits + auto-open on next entry
@@ -507,6 +599,14 @@ export class LabStore extends BaseStore<LabSetupParams> {
     void this.scanHistoryLoader.run(id).then((reports) => {
       if (reports[0] && !this.scanReport) {
         void this.loadScanReport(reports[0].id);
+      }
+    });
+    void this.deploymentLoader.run(id).then((deployment) => {
+      if (this.savedId === id) {
+        runInAction(() => {
+          this.deployment = deployment;
+          this.deploymentError = null;
+        });
       }
     });
     // Re-attach to a still-running backtest (found server-side by strategyId — no localStorage, works

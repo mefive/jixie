@@ -146,6 +146,94 @@ const MESSAGES = {
     en: 'Parameter combination {current}/{total} · {values}',
   },
 
+  // —— Daily strategy deployment and signals ——
+  strategyNeedsBacktestBeforeDeploy: {
+    zh: '策略必须先完成一次回测才能上线',
+    en: 'Run the strategy successfully before deploying it',
+  },
+  strategyFutureSignalsUnsupported: {
+    zh: '每日信号当前只支持股票和 ETF 策略，期货策略暂不能上线',
+    en: 'Daily signals currently support stock and ETF strategies only; futures deployments are not available yet',
+  },
+  strategyDeploymentNotFound: {
+    zh: '策略部署不存在',
+    en: 'Strategy deployment not found',
+  },
+  strategyDeploymentPaused: {
+    zh: '策略部署已暂停',
+    en: 'Strategy deployment is paused',
+  },
+  signalRunNotFound: {
+    zh: '信号运行不存在',
+    en: 'Signal run not found',
+  },
+  signalJobNotFound: {
+    zh: '信号任务不存在或已过期',
+    en: 'Signal job not found or expired',
+  },
+  signalTradeDateInvalid: {
+    zh: '信号日期必须是已收盘的交易日',
+    en: 'The signal date must be a completed trading day',
+  },
+  signalNextTradeDateMissing: {
+    zh: '交易日历中缺少下一交易日，请先同步交易日历',
+    en: 'The next trading day is missing; sync the trading calendar first',
+  },
+  signalDataNotReady: {
+    zh: '{date} 的市场数据尚未准备完成',
+    en: 'Market data for {date} is not ready yet',
+  },
+  signalStartFailed: {
+    zh: '信号生成进程启动失败',
+    en: 'Could not start the signal-generation process',
+  },
+  signalProcExited: {
+    zh: '信号生成进程异常退出 (code {code})',
+    en: 'Signal-generation process exited abnormally (code {code})',
+  },
+  signalCaptureStart: {
+    zh: '生成 {date} 收盘信号 · 执行日 {execDate}',
+    en: 'Generating signals from the {date} close · execution date {execDate}',
+  },
+  signalCaptureDone: {
+    zh: '信号生成完成 · {count} 条',
+    en: 'Signal generation complete · {count} instruction(s)',
+  },
+  signalEmailSubject: {
+    zh: '[机械交易系] {execDate} 信号：{buys} 买 {sells} 卖',
+    en: '[Jixie] {execDate} signals: {buys} buy, {sells} sell',
+  },
+  signalEmailEmptySubject: {
+    zh: '[机械交易系] {execDate} 今日无操作',
+    en: '[Jixie] {execDate}: no action',
+  },
+  signalEmailErrorSubject: {
+    zh: '[机械交易系] {tradeDate} 信号生成失败',
+    en: '[Jixie] {tradeDate} signal generation failed',
+  },
+  signalEmailHeading: {
+    zh: '{strategy} · 次日执行清单',
+    en: '{strategy} · next-open instructions',
+  },
+  signalEmailEmpty: {
+    zh: '策略今日没有产生买卖操作。机械系统的不动也是决策。',
+    en: 'The strategy produced no orders today. Doing nothing is still a mechanical decision.',
+  },
+  signalEmailError: {
+    zh: '信号生成失败：{error}',
+    en: 'Signal generation failed: {error}',
+  },
+  signalEmailReferenceNote: {
+    zh: '参考价为信号日不复权收盘价，实际成交以次日开盘为准。',
+    en: 'Reference prices are raw closes on the signal date; actual fills depend on the next open.',
+  },
+  signalEmailOpenPage: {
+    zh: '打开今日信号',
+    en: 'Open daily signals',
+  },
+  signalEmailBuy: { zh: '买入', en: 'BUY' },
+  signalEmailSell: { zh: '卖出', en: 'SELL' },
+
   // —— Backtest engine progress logs (system-tagged, streamed to the job) ——
   backtestStart: {
     zh: '开始回测 · {start} ~ {end} · 初始资金 {cash}',

@@ -1,149 +1,172 @@
-# 设计:每日交易信号 → 分阶段接实盘
+# 设计：每日交易信号 → 分阶段接实盘
 
-> 2026-07-06 设计,对应 `ROADMAP.md` 主线五。方向已定:系统未来接**自动化下单接口**;现阶段做到「每日收盘后自动出信号 + 推送提醒,用户照单手动下单」。这是「机械交易——机器决策、人只执行」的落点。
+> 2026-07-06 初版；2026-07-28 在参数扫描、ETF、历史可投资状态与不可变研究记录完成后修订并实施。
+> 对应 `ROADMAP.md` 主线五。
 
-## 边界与路线(2026-07-06 用户拍定)
+## 目标与边界
 
-**永不做:日内高频 / tick 级 / 日内回转。** 三重否决:T+1 制度性封死股票日内往返;印花税(千 0.5 仅卖)+佣金+滑点的成本结构杀死高换手;高频基础设施(colocation/专线)个人零胜算且正面撞量化私募主战场。jixie 策略全是日频决策(收盘出信号、次开执行),延迟需求是分钟级,**瓶颈是纪律不是速度**。
+系统未来可以接自动化下单，但当前只做「收盘后自动生成次日开盘指令、展示并发送邮件，用户手工执行」。
+自动化的价值是拿掉回撤中拒绝执行的主观干预，不是追求日内速度。
 
-**自动化的论证 = 拿掉「回撤中拒绝执行的那只手」(纪律的最后一环),不是速度。** 分三阶段:
+V1：
 
-| 阶段 | 内容 | 状态 |
-|---|---|---|
-| 1 | 信号生成 + 推送提醒(本文档主体) | ⬜ |
-| 2 | 半自动:执行清单勾选 + 实际成交回填;止损走券商条件单 | ⬜ 随阶段 1 尾 |
-| 3 | 自动执行:miniQMT/PTrade adapter 实现 SignalExecutor | 💤 远期 |
+- 支持股票和 ETF，参考价一律是不复权收盘价；
+- 每个部署版本使用独立模型资金，全历史重放至信号日；
+- 支持自动三档重试、CLI 补跑和页面手动运行；
+- 有信号、空信号和失败都发邮件；
+- 不支持期货、止损条件单、成交回填、真实账户对齐、跨策略资金仲裁和券商接口。
 
-**日内高频 ≠ 日内止损**:趋势策略的日内触价止损(ROADMAP 2.1)实盘不需要 API——**券商条件单**,人挂一次单、券商服务器盯盘执行,见阶段 2。
+日内高频、tick 和股票日内回转仍永久排除。期货需要实际合约映射、换月、保证金和对冲意图，不能把
+股票的 `buy | sell + shares` 契约硬套过去，因此 V1 部署时明确拒绝，而不是静默漏单。
 
-## 一句话
+## 核心模型：部署版本，不是 `Strategy.live`
 
-策略「上线」后,每个交易日收盘、当日数据同步完成后,自动重放策略至今日,把**明日开盘应执行的订单**(股票/方向/手数/参考价)落库、前端展示并推送提醒。
+`Strategy.config` 是研究工作台的可变当前版本。给它加一个布尔 `live` 会让代码、参数或成本在下一次
+保存后悄悄改变线上行为，无法回答某条真实信号由什么产生。
 
-## 核心洞察:引擎已经会算信号,只是把它丢了
+新增不可变 `StrategyDeployment`：
 
-引擎模型(`engine/run.ts`):策略在 D 日 `onBar` 排单(`pendingTargets` 声明式调仓 / `pendingOrders` 按股数),**D+1 开盘成交**。回测跑到最新交易日时,循环结束、最后一天排的单没有「明天」去成交——**残留的 pendingTargets/pendingOrders 恰好就是「明日应执行清单」**,现在被丢弃。
+- 冻结完整 `BacktestConfig`、策略名、代码 hash、通知语言和上线时间；
+- 只允许已成功回测且没有未运行编辑的策略上线；
+- 同策略重新部署时暂停旧部署，新建快照；旧信号继续指向旧部署；
+- 编辑研究策略不影响已上线版本，必须显式重新部署；
+- 暂停只改变部署状态，不删除版本和历史。
 
-信号模式 = 跑到今天 + 捕获这个残留 + 换算成人能执行的订单。引擎主循环几乎零改动(`runStrategy` 加一个可选返回 `pendingSignals`,或 `EngineConfig` 加 `captureSignals` 开关)。
+这与 `StrategyScanReport` 的冻结配置、代码 hash、数据截止日纪律保持一致。
 
-**手数是真实的**:引擎已按真实股数整手下单(`portfolio.ts`,realShares 落 tradeLog),所以 pendingOrders 的股数可直接执行;pendingTargets(目标权重)需在信号层用**今日不复权收盘价**换算成整手数(与引擎 rebalance 同款取整逻辑)。
+## 信号捕获
 
-## 重放模型:每日全量重放,无状态、幂等
+引擎每天的顺序是：
 
-- 每天从策略配置的 `start` **全量重放到今天**,不做增量持仓续跑。Why:策略可能有指标热身/内部状态,增量要持久化引擎状态,复杂且易错;全量重放天然幂等(重跑同一天结果一致)、无隐藏状态。
-- 性能可接受:watch 类策略秒级;横截面全市场 ~78s/5年,每天一次无所谓。以后真嫌慢再优化(缓存/窗口),别提前。
-- **持仓对齐(现阶段明确不做,写清楚)**:重放假设从初始资金起步,信号 = **模型组合**的目标变化。真实账户与模型的偏差(用户少买了一手、场外加了钱)由用户自行对齐;未来接下单接口时才做账户状态同步(broker 实际持仓 → 与模型 diff → 生成修正单),届时另出设计。
+1. D 日开盘执行 D−1 留下的意图；
+2. D 日收盘计价；
+3. 调用 `onBar`，留下 D+1 开盘的 `pendingTargets` / `pendingOrders`。
 
-## 数据依赖与时序
+普通回测结束时第三步的残留原先被丢弃。新增 `runStrategyWithSignals` 与
+`runWalledSignalCapture`，在不改变普通 `BacktestResult` 的前提下返回：
 
-- Tushare 当日 daily / adj_factor / daily_basic 约 **17:00-18:00** 后可用(moneyflow/龙虎榜更晚,用到的策略等更晚的档)。
-- 任务流程:① `TradeCal` 判今天是否交易日,否则跳过;② 同步当日数据(复用现有 sync,幂等);③ **校验数据真的到了**(Daily 表有今日行数)——没到进入重试;④ 逐个 live 策略跑信号。
-- 重试:17:30 首跑,数据未出则 18:30 / 19:30 再试,三次仍无 → SignalRun 落 error 状态,前端可见「今日信号生成失败」。
+- 信号日、模型权益、模型现金；
+- 声明式目标仓位产生的真实股数差额；
+- 按股数订单产生的真实股数差额；
+- 标的类型、方向、参考价、概算金额、来源和可选目标权重。
 
-## Schema
+信号捕获与普通用户策略一样在 isolated-vm 硬沙箱内运行，DataPort 留在墙外。直跑/进墙的结果与信号
+均有 parity 测试。
 
-```prisma
-model Strategy {
-  // …现有字段…
-  live Boolean @default(false)   /// 上线开关:每日信号任务只跑 live=true 的策略
-}
+### 目标仓位的执行近似
 
-/// 一次信号生成 = 某策略基于某交易日收盘的「明日应执行清单」。
-/// 幂等键 (strategyId, tradeDate):重跑覆盖(upsert)。
-model SignalRun {
-  id         String   @id            // ULID
-  userId     String
-  strategyId String
-  tradeDate  String                  // 信号基于的收盘日 YYYYMMDD
-  execDate   String                  // 应执行日 = 次一交易日(TradeCal 查)
-  status     String                  // 'running' | 'done' | 'error'
-  error      String?
-  signals    Json?                   // SignalItem[],见下
-  equity     Float?                  // 重放到 tradeDate 的模型权益(供权重换手数、对照)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+目标权重只能在次日真实开盘价出现后精确换算，但人需要在开盘前拿到股数。V1 用信号日收盘模型权益和
+不复权收盘价投影参考股数：
 
-  @@unique([strategyId, tradeDate])
-  @@index([userId, tradeDate])
-}
-```
+- 买入向下取整到 100 股；
+- 卖出按模型真实持股差额给出，可出现零股；
+- 原始 `targetWeight` 一并保存，方便后续对账。
+
+因此 SignalItem 是「次日执行参考」，不是假装已知未来开盘价的精确回测成交。5.2 将用用户回填的实际
+成交测量这段执行落差。
+
+## 数据模型
+
+`SignalRun` 是一个部署在一个收盘日的原子结果：
+
+- 唯一键 `(deploymentId, tradeDate)`，三个定时档、手动按钮和 CLI 重复触发均幂等；
+- `running | done | error | stale` 状态持久化；
+- 保存 `execDate`、数据截止日、模型权益/现金、SignalItem JSON 和通知状态；
+- 每次失败重试新建 Job，SignalRun 本身不重复；
+- Job 日志在运行时内存流式、结束时刷库；服务重启后 Job 与 SignalRun 一起标 stale。
+
+SignalItem：
 
 ```ts
-/** 一条可机读的订单意图 —— 从第一天就按「未来能直接喂给下单接口」设计 */
 interface SignalItem {
-  code: string;          // ts_code
-  name: string;          // 股票名(展示)
-  action: 'buy' | 'sell' | 'setStop'; // setStop = 挂券商条件单(阶段 2,引擎挂单机制 2.1 落地后)
-  shares: number;        // 真实股数,整手(卖出清仓可能带零股;setStop 为持仓数)
-  refPrice: number;      // 参考价 = tradeDate 不复权收盘价(实际按明日开盘市价成交)
-  triggerPrice?: number; // setStop 专用:条件单触发价(不复权)
-  refAmount: number;     // shares × refPrice,概算金额
-  note?: string;         // 备注:如「目标权重 8%」「止损触发」「涨停可能无法买入」
-  // 阶段 2 回填(用户手动录入):
-  executed?: boolean;    // 已下单勾选
-  fillPrice?: number;    // 实际成交价 → 积累模型 vs 真实账户的对齐数据(阶段 3 地基)
+  code: string;
+  name: string;
+  assetType: 'stock' | 'etf';
+  action: 'buy' | 'sell';
+  shares: number;
+  refPrice: number;
+  refAmount: number;
+  source: 'target' | 'order';
+  targetWeight?: number;
 }
 ```
 
-- **不建 Signal 子表**:一次 run 的 items 是原子整体,JSON 列够用(同 lastResult 先例);要按股票查询了再拆表。
-- 涨跌停/停牌风险:引擎回测里会阻断,但信号是「明天的单」,明天涨停与否未知 → 信号照出,`note` 提示(如 tradeDate 已涨停的票标注)。
+一次 run 的指令是原子整体，继续用 JSON；需要跨日按标的统计时再拆交易流水表。
 
-## 调度(定时任务)
+## 数据同步与调度
 
-三个入口,一套执行:
+一套 `runDailySignalCycle` 被两种入口复用：
 
-1. **进程内 cron(主)**:api 进程用 `node-cron`(或 setInterval 自算,依赖最小)注册工作日 17:30/18:30/19:30;触发后走**现有 Job/worker 管道**(Job.kind 加 `'signal'`,信号重放跑 worker 不阻塞主线程,流式日志复用)。
-   - trade-off:api 进程重启会错过当次触发(dev 常见,prod 单进程常驻可接受);胜在零外部依赖、与现有 Job 体系同构。
-2. **脚本入口(补跑/外部 cron)**:`pnpm signals:run [dateYYYYMMDD]`——无参=今天,带参=补生成历史某日信号(数据都在,全量重放天然支持回补)。部署后想更可靠可用系统 cron/launchd 调它,进程内 cron 只是默认。
-3. **手动按钮(兜底)**:前端「今日信号」页「立即生成」,POST 触发同一管道。
+1. 生产进程内调度：上海时区 17:30、18:30、19:30；
+2. `pnpm signals:run [YYYYMMDD]`：手动补跑或外部 cron/launchd。
 
-三入口全部收敛到同一个 `generateSignals(tradeDate)` 函数,(strategyId, tradeDate) upsert 保证幂等。
+生产默认启用，开发默认关闭；`SIGNALS_SCHEDULER_ENABLED=true|false` 可覆盖。
 
-## API 与前端
+每轮：
 
-- 路由 `routes/signals.ts`(挂 `/api/app/signals`,requireAuth,owner-scoped):
-  - `GET /today` → 各 live 策略最新 SignalRun;
-  - `GET /runs?strategyId=&limit=` → 历史列表;
-  - `POST /run` → 手动触发(走 Job,返 jobId 轮询,复用现有 PollingModel);
-  - `PATCH /strategies/:id/live` → 上线/下线(或并入现有策略路由)。
-- 前端:
-  - 导航新条目「今日信号」(complex `apps/web/src/complex/signals/`):每个 live 策略一张卡 → SignalItem 表格(名称/方向红绿/手数/参考价/概算金额/备注),空单也展示「今日无操作」(机械系统的「不动」也是决策);历史 run 时间线可回看。
-  - lab workbench:策略页加「上线」开关(antd Switch),live 策略在列表卡片上带标记。
-- 展示原则:**参考价 = 不复权真实价**(用户对照券商 app),不是引擎内部的后复权口径。
+1. 同步 TradeCal 至未来 14 个自然日，以取得下一交易日；
+2. 非交易日直接结束；
+3. 同步股票 daily / adj_factor / daily_basic / stk_limit；
+4. 根据活跃部署代码与声明按需同步 moneyflow / toplist；
+5. 识别 watch 中的 ETF，刷新这些 ETF 当日日线和复权因子；
+6. 再次检查核心数据确实存在；
+7. 活跃部署按上线顺序串行启动独立子进程，避免同时占满 SQLite 和 isolate 内存；原生沙箱崩溃与
+   API 进程隔离，父进程只在收到结果且子进程完整退出后提交终态。
 
-## 信号提醒(阶段 1 正式范围,2026-07-06 从开放问题升级)
+页面“立即生成”不在 HTTP 请求内调用外部数据源，只对已经落库的数据运行；数据尚未准备时明确报错。
 
-- 信号生成完成(含空信号)→ 推送通知。**空信号日也发「今日无操作」**:机械系统的不动也是决策,且每天到点的通知本身证明系统活着(哪天没收到 = 任务挂了,这是免费的监控)。
-- **渠道抽象**:`Notifier { send(subject, body): Promise<void> }`,首个实现 = 邮件(登录已有邮箱验证链路,SMTP 基建现成);未来 Bark(iOS 推送,个人自用最轻)/Telegram 等按需加,实现同一接口。
-- 内容:策略名 + 执行日 + 信号摘要(N 买 M 卖,概算金额)+ 链接到「今日信号」页;error 状态也通知(「今日信号生成失败」比静默可怕得多)。
-- 发送挂在 `generateSignals` 收尾,失败不影响信号落库(best-effort + 日志)。
+## API 与界面
 
-## 阶段 2:半自动执行(随阶段 1 尾声做)
+资源路由挂 `/api/app/signals`：
 
-- **执行清单**:「今日信号」页每笔可勾「已下单」+ 回填实际成交价(SignalItem.executed/fillPrice,PATCH 更新 SignalRun.signals)——从第一天就积累**模型 vs 真实账户**的成交偏差数据,这是阶段 3 账户对齐的地基,也是滑点模型的实证校准来源。
-- **止损条件单**:引擎挂单机制(2.1)落地后,策略里声明的止损在信号侧翻译成 `action: 'setStop'` 项(标的/触发价/数量),用户在券商 app 挂条件单,券商服务器盯盘触发——日内止损的实盘落地,零 API。
+- `GET /today`：活跃部署及其最新 SignalRun；
+- `GET /deployments/current?strategyId=`：Lab 恢复上线状态；
+- `POST /deployments`：冻结当前已回测版本；
+- `POST /deployments/:id/pause`：暂停；
+- `GET /runs?deploymentId=&limit=` / `GET /runs/:id`：历史；
+- `POST /run`：手动生成；
+- `GET /jobs/:jobId?since=`：轮询日志。
 
-## 阶段 3 / 未来:自动化下单接口(本期不做,只留缝)
+Lab 的部署按钮：
 
-```ts
-interface SignalExecutor {
-  execute(run: SignalRun): Promise<ExecutionReport>;
-}
-```
+- 没有成功回测或存在未运行改动时禁用；
+- 当前部署与当前回测版本一致时显示暂停；
+- 线上仍是旧版本时明确提示先暂停再重新部署。
 
-- 本期唯一实现 = 「人工模式」(什么都不做,用户照单下单);未来 broker adapter 实现同一接口,信号生成侧零改动。
-- **通道现实约束(2026-07-06 记录)**:A 股个人程序化 ≈ **QMT/miniQMT**(券商版,常见 50 万资金门槛,**仅 Windows**)或 **PTrade**(券商托管服务器),无 IBKR 式开放 API;同花顺/东财野路子接口是灰色地带不做。届时形态大概率 = 一台 Windows 机器/VM 跑 miniQMT adapter,轮询 jixie API 取信号、回写成交。
-- 到那步才需要:账户状态同步(实际持仓 vs 模型持仓 diff)、成交回报回写、风控限额——**届时另出设计,本期不预埋代码,只保证 SignalItem 可机读**。
+“今日信号”页按部署展示最新状态、执行日、模型权益、邮件状态、买卖清单、运行日志和历史。空信号使用
+明确成功态，不与“尚未运行”混淆。
 
-## 验收标准
+## 邮件
 
-1. 一个 live 趋势策略在某交易日 17:30 后自动生成 SignalRun,信号与「手动把回测 end 设为当日、人肉读最后一天调仓意图」一致。
-2. 手数为整手真实股数、参考价与券商行情对得上。
-3. 非交易日不跑;数据未出时按计划重试;重跑同一天 upsert 不产生重复。
-4. `pnpm signals:run 20260701` 能回补历史信号。
-5. e2e:上线开关 → 手动「立即生成」→ 信号表格渲染(mock 或短区间策略),按前端 e2e 硬规矩截图。
+首个也是当前唯一通知渠道是邮件，直接复用登录验证码已有的 Resend HTTP 封装和 `User.email`：
 
-## 开放问题(实现时再定,不阻塞)
+- `done + 非空`：买卖数量摘要和逐条清单；
+- `done + 空`：发送“今日无操作”，证明系统按时运行；
+- `error`：发送失败原因；
+- 发送失败不回滚信号，错误记录在 SignalRun；
+- 部署时冻结通知语言，因为定时任务没有 HTTP `Accept-Language`；
+- 配置 `JIXIE_PUBLIC_URL` 后邮件带“打开今日信号”链接；
+- 开发未配置邮件时只打印跳过日志，生产未配置则记录通知错误。
 
-- 多策略资金各自独立(每策略一个模型账户)——现设计即如此;「多个策略共享一个真实账户」的资金分配是自动化下单阶段的问题。
-- moneyflow/龙虎榜类数据出得晚,依赖它们的策略信号档期是否单独延后(如 20:30 档)。
+## 验收
+
+1. fixture 最后一日目标仓位/股数订单捕获正确，真实价/真实股数正确；
+2. 相同代码、数据和日期在直跑与 isolated-vm 两条车道的回测和捕获逐位一致；
+3. 股票和 ETF 都能生成，期货部署被明确拒绝；
+4. 同部署同日期重复触发不重复，失败可重试，重启后 running 变 stale；
+5. 非交易日、未收盘日期、缺下一交易日和数据未到均确定性失败；
+6. CLI 能同步数据并串行补跑全部活跃部署；
+7. 邮件对非空、空和失败分别生成正确主题，HTML 转义外部名称；
+8. 中英文浏览器 E2E：回测版本上线 → 今日信号手动生成 → 刷新续接 → 指令表/空信号/失败态；
+9. 完成前运行 API/web typecheck、API 单测、web build，并检查中英文桌面/窄屏截图。
+
+2026-07-28 真库验收：短周期贵州茅台目标仓位策略完成回测、部署与页面手动生成，持久化
+`20260728 → 20260729` 买入 300 股、参考价 ¥1,320 的指令；开发环境正确跳过真邮件。中英文桌面
+与 760px 窄屏 E2E 均通过，临时策略及级联运行数据随后删除。
+
+## 后续
+
+- 5.1b：用次日真实开盘和同一成交规则维护模拟账户；
+- 2.1 + 5.2：止损/限价意图翻译为券商条件单，执行勾选与实际成交回填；
+- 累积 6 个月后：回测重放 / 模拟 / 真实账户三线对比，实测执行成本反哺滑点；
+- 多策略：每部署资金硬隔离，合并清单保留来源；资金仲裁和组合回测另行设计。

@@ -4,7 +4,7 @@ import type { Prisma } from '@prisma/client';
 import { prisma } from './prisma.js';
 
 /**
- * Shared background-job registry for backtest + factor analysis.
+ * Shared background-job registry for backtests, factor analysis, strategy scans, and daily signals.
  *  - Status is durable (the Job table) → cross-client resume (`findRunningJob`) + boot stale-marking.
  *  - Progress logs stream in-memory here (cheap, no per-line DB write); on finish the whole buffer is
  *    flushed once to Job.logs, so reopening a finished job (after the 5-min eviction, or a restart) still
@@ -15,7 +15,7 @@ import { prisma } from './prisma.js';
  * A job's `key` ties it to what it computes (factor: variantKey, backtest: strategyId). Factor pages
  * restore through the report relation; legacy findRunningJob remains for backtests and correlation.
  */
-export type JobKind = 'backtest' | 'factor' | 'strategy-scan';
+export type JobKind = 'backtest' | 'factor' | 'strategy-scan' | 'signal';
 export type JobStatus = 'running' | 'done' | 'error' | 'stale';
 
 const logsByJob = new Map<string, LogLine[]>();
@@ -110,6 +110,40 @@ export async function finishStrategyScanJob(
   setTimeout(() => logsByJob.delete(jobId), LOG_TTL_MS).unref?.();
 }
 
+/** Finish one daily-signal attempt and its durable run atomically. */
+export async function finishSignalRunJob(
+  jobId: string,
+  signalRunId: string,
+  status: 'done' | 'error',
+  output?: {
+    dataCutoff: string;
+    modelEquity: number;
+    modelCash: number;
+    signals: Prisma.InputJsonValue;
+  },
+  error?: string,
+): Promise<void> {
+  const logs = logsByJob.get(jobId);
+  await prisma.$transaction([
+    prisma.signalRun.update({
+      where: { id: signalRunId },
+      data: {
+        status,
+        dataCutoff: status === 'done' ? output?.dataCutoff : undefined,
+        modelEquity: status === 'done' ? output?.modelEquity : undefined,
+        modelCash: status === 'done' ? output?.modelCash : undefined,
+        signals: status === 'done' ? output?.signals : undefined,
+        error: status === 'error' ? (error ?? null) : null,
+      },
+    }),
+    prisma.job.update({
+      where: { id: jobId },
+      data: { status, error: error ?? null, logs: logs ? JSON.stringify(logs) : undefined },
+    }),
+  ]);
+  setTimeout(() => logsByJob.delete(jobId), LOG_TTL_MS).unref?.();
+}
+
 /** Poll an owner-scoped job: DB status + logs after `since` — live in memory, else from the DB copy. */
 export async function getJob(userId: string, jobId: string, since = 0) {
   const job = await prisma.job.findFirst({ where: { id: jobId, userId } });
@@ -157,7 +191,7 @@ export async function markRunningJobsStale(): Promise<number> {
   return prisma.$transaction(async (transaction) => {
     const running = await transaction.job.findMany({
       where: { status: 'running' },
-      select: { factorReportId: true, strategyScanReportId: true },
+      select: { factorReportId: true, strategyScanReportId: true, signalRunId: true },
     });
     const reportIds = running
       .map((job) => job.factorReportId)
@@ -175,6 +209,15 @@ export async function markRunningJobsStale(): Promise<number> {
     if (scanReportIds.length > 0) {
       await transaction.strategyScanReport.updateMany({
         where: { id: { in: scanReportIds }, status: 'running' },
+        data: { status: 'stale', error: null },
+      });
+    }
+    const signalRunIds = running
+      .map((job) => job.signalRunId)
+      .filter((runId): runId is string => !!runId);
+    if (signalRunIds.length > 0) {
+      await transaction.signalRun.updateMany({
+        where: { id: { in: signalRunIds }, status: 'running' },
         data: { status: 'stale', error: null },
       });
     }

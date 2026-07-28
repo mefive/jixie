@@ -1,4 +1,4 @@
-import { runStrategy } from './run.js';
+import { runStrategy, runStrategyWithSignals } from './run.js';
 import { applyStrategyParamOverrides, defineStrategy } from '../strategy/code/sdk.js';
 import { makeSandboxConsole, noopSandboxConsole } from '../lib/sandbox-console.js';
 import type { SandboxConsole } from '../lib/sandbox-console.js';
@@ -51,6 +51,7 @@ interface WalledConfig {
   customFactors?: CustomFactorModule[]; // host-prepared factor modules, evaluated in-wall by run.ts
   paramOverrides?: Record<string, number>;
   captureUserLogs: boolean;
+  captureSignals: boolean;
 }
 
 function loadStrategy(userJs: string, sandboxConsole: SandboxConsole): Strategy {
@@ -81,6 +82,15 @@ function loadStrategy(userJs: string, sandboxConsole: SandboxConsole): Strategy 
 (globalThis as Record<string, unknown>).__inspectStrategyParameters = (userJs: string) =>
   JSON.stringify(loadStrategy(userJs, noopSandboxConsole).params ?? {});
 
+(globalThis as Record<string, unknown>).__inspectStrategyMetadata = (userJs: string) => {
+  const strategy = loadStrategy(userJs, noopSandboxConsole);
+  return JSON.stringify({
+    watch: strategy.watch ?? [],
+    futures: strategy.futures ?? [],
+    factors: strategy.factors ?? [],
+  });
+};
+
 (globalThis as Record<string, unknown>).__runBacktest = async (cfgJson: string) => {
   const cfg = JSON.parse(cfgJson) as WalledConfig;
 
@@ -96,7 +106,7 @@ function loadStrategy(userJs: string, sandboxConsole: SandboxConsole): Strategy 
   const strategy = loadStrategy(cfg.userJs, sandboxConsole);
   applyStrategyParamOverrides(strategy, cfg.paramOverrides);
 
-  const result = await runStrategy({
+  const engineConfig = {
     start: cfg.start,
     end: cfg.end,
     initialCash: cfg.initialCash,
@@ -105,7 +115,10 @@ function loadStrategy(userJs: string, sandboxConsole: SandboxConsole): Strategy 
     strategy,
     dataPort: bridgePort,
     customFactors: cfg.customFactors,
-    onLog: (line) => __hostLog.applyIgnored(undefined, ['system', 'info', line]),
-  });
+    onLog: (line: string) => __hostLog.applyIgnored(undefined, ['system', 'info', line]),
+  };
+  const result = cfg.captureSignals
+    ? await runStrategyWithSignals(engineConfig)
+    : await runStrategy(engineConfig);
   return JSON.stringify(result);
 };

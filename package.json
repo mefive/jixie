@@ -19,6 +19,7 @@
     "smoke": "pnpm --filter api smoke",
     "sync": "pnpm --filter api sync",
     "peek": "pnpm --filter api peek",
+    "signals:run": "pnpm --filter api signals:run",
     "loc": "node scripts/loc.mjs",
     "prepare": "simple-git-hooks"
   },

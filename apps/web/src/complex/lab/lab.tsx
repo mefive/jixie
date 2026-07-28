@@ -12,7 +12,10 @@ import {
   faPen,
   faPlay,
   faPlus,
+  faRocket,
+  faPause,
   faSpinner,
+  faTriangleExclamation,
   faUpRightFromSquare,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -454,6 +457,43 @@ const RunConfig = complex.component(() => {
         {t('runBacktest')}
       </LoaderButton>
       <ParameterScanButton />
+      {store.deployment ? (
+        <Button
+          type="text"
+          size="small"
+          danger
+          loading={store.deploymentActionLoader.loading}
+          icon={<FontAwesomeIcon icon={faPause} />}
+          onClick={() => void store.pauseDeployment()}
+          title={store.deploymentCurrent ? t('deploymentActive') : t('deploymentOutdated')}
+        >
+          {store.deploymentCurrent ? t('deploymentPause') : t('deploymentRedeployNeeded')}
+        </Button>
+      ) : (
+        <Button
+          type="text"
+          size="small"
+          loading={store.deploymentActionLoader.loading}
+          disabled={!store.savedId || !store.result || store.dirty || store.running}
+          icon={<FontAwesomeIcon icon={faRocket} />}
+          onClick={() => void store.deploy()}
+          title={
+            store.dirty
+              ? t('deploymentRunFirst')
+              : !store.result
+                ? t('deploymentNeedsResult')
+                : t('deploymentActionHint')
+          }
+        >
+          {t('deploymentAction')}
+        </Button>
+      )}
+      {store.deploymentError && (
+        <span className="jx-lab-deploymentError" title={store.deploymentError}>
+          <FontAwesomeIcon icon={faTriangleExclamation} />
+          {store.deploymentError}
+        </span>
+      )}
       <Popover
         placement="bottomRight"
         trigger="click"

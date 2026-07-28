@@ -12,3 +12,4 @@ export * from './sdk-reference.js';
 export * from './engine-factors.js';
 export * from './index-valuation.js';
 export * from './market-state.js';
+export * from './signals.js';

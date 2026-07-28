@@ -55,6 +55,16 @@ export const enLab: typeof zhLab = {
   unitWan: 'w',
   runBacktest: 'Run backtest',
   runDisabledHint: 'Change the strategy to re-run',
+  deploymentAction: 'Deploy',
+  deploymentActionHint: 'Freeze this backtested version for daily close signals',
+  deploymentActive: 'This backtested version is deployed',
+  deploymentPause: 'Pause',
+  deploymentOutdated: 'The live deployment is an older version; pause it before redeploying',
+  deploymentRedeployNeeded: 'Pause old version',
+  deploymentRunFirst: 'Run the current changes before deploying',
+  deploymentNeedsResult: 'Run the strategy successfully before deploying',
+  deploymentFailed: 'Failed to deploy the strategy',
+  deploymentPauseFailed: 'Failed to pause the deployment',
 
   // Code editor
   loadingEditor: 'Loading editor…',

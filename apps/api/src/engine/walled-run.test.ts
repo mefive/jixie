@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { runStrategy } from './run.js';
-import { runWalledBacktest } from './walled-run.js';
+import { runStrategy, runStrategyWithSignals } from './run.js';
+import { runWalledBacktest, runWalledSignalCapture } from './walled-run.js';
 import { compileStrategy } from '../strategy/code/compile.js';
 import { fixturePort, type FixtureSpec } from './fixture-port.js';
 
@@ -140,6 +140,45 @@ describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
       (_level, text) => logs.push(text),
     );
     expect(logs.some((line) => line.includes('process-type:undefined'))).toBe(true);
+  });
+
+  it('末日目标仓位信号按真实价和真实股数捕获，且双车道一致', { timeout: 60_000 }, async () => {
+    const code = `
+      export default defineStrategy({
+        name: 'signal-capture',
+        watch: ['AAA', 'BBB'],
+        onBar(ctx) {
+          if (ctx.date === '${D[0]}') ctx.setHoldings({ AAA: 0.5 });
+          if (ctx.date === '${D.at(-1)}') ctx.setHoldings({ BBB: 0.4 });
+        },
+      });
+    `;
+    const direct = await runStrategyWithSignals({
+      start: D[0],
+      end: D.at(-1)!,
+      initialCash: 100_000,
+      strategy: await compileStrategy(code),
+      dataPort: fixturePort(SPEC),
+    });
+    const walled = await runWalledSignalCapture(
+      { code, start: D[0], end: D.at(-1)!, initialCash: 100_000 },
+      fixturePort(SPEC),
+    );
+
+    expect(walled.capture).toEqual(direct.capture);
+    expect(walled.result.nav).toEqual(direct.result.nav);
+    expect(walled.capture.tradeDate).toBe(D.at(-1));
+    expect(walled.capture.signals).toEqual([
+      expect.objectContaining({ code: 'AAA', action: 'sell', source: 'target' }),
+      expect.objectContaining({
+        code: 'BBB',
+        action: 'buy',
+        source: 'target',
+        shares: expect.any(Number),
+        refPrice: 44.5,
+      }),
+    ]);
+    expect(walled.capture.signals.every((signal) => signal.shares > 0)).toBe(true);
   });
 
   it('期货逐日盯市与成交在直跑和进墙车道一致', { timeout: 60_000 }, async () => {

@@ -1,0 +1,152 @@
+@reference '../../styles/index.css';
+
+.jx-signals {
+  @apply mx-auto flex w-full max-w-7xl flex-col gap-5 p-6;
+}
+
+.jx-signals-header {
+  @apply flex items-start justify-between gap-4;
+}
+
+.jx-signals-title {
+  @apply m-0 text-2xl font-semibold text-gray-950;
+}
+
+.jx-signals-subtitle {
+  @apply mt-1 mb-0 text-sm text-gray-500;
+}
+
+.jx-signals-alert {
+  @apply w-full;
+}
+
+.jx-signals-empty {
+  @apply rounded-xl border border-gray-200 bg-white py-20;
+}
+
+.jx-signals-layout {
+  @apply grid min-h-0 gap-5;
+  grid-template-columns: 260px minmax(0, 1fr);
+}
+
+.jx-signals-sidebar {
+  @apply flex flex-col gap-2;
+}
+
+.jx-signals-deploymentCard {
+  @apply flex w-full flex-col gap-1 rounded-lg border border-gray-200 bg-white p-4 text-left transition-colors hover:border-gray-400;
+}
+
+.jx-signals-deploymentCard--active {
+  @apply border-gray-900 bg-gray-50;
+}
+
+.jx-signals-deploymentName {
+  @apply font-medium text-gray-950;
+}
+
+.jx-signals-deploymentMeta {
+  @apply text-xs text-gray-500;
+}
+
+.jx-signals-content {
+  @apply flex min-w-0 flex-col gap-5 rounded-xl border border-gray-200 bg-white p-5;
+}
+
+.jx-signals-signalHeader {
+  @apply flex items-start justify-between;
+}
+
+.jx-signals-strategyName {
+  @apply m-0 text-xl font-semibold text-gray-950;
+}
+
+.jx-signals-version {
+  @apply mt-1 mb-0 text-xs text-gray-500;
+}
+
+.jx-signals-actions {
+  @apply flex items-center gap-3;
+}
+
+.jx-signals-actionHint {
+  @apply text-xs text-gray-500;
+}
+
+.jx-signals-log {
+  @apply max-h-48 overflow-auto rounded-lg border border-gray-200 bg-gray-50;
+}
+
+.jx-signals-runMeta {
+  @apply grid grid-cols-2 gap-3 lg:grid-cols-4;
+}
+
+.jx-signals-metric {
+  @apply flex flex-col gap-1 rounded-lg bg-gray-50 p-3;
+}
+
+.jx-signals-metricLabel {
+  @apply text-xs text-gray-500;
+}
+
+.jx-signals-metricValue {
+  @apply text-sm font-medium text-gray-950;
+}
+
+.jx-signals-noAction {
+  @apply flex items-start gap-3 rounded-lg border border-green-200 bg-green-50 p-5 text-green-800;
+}
+
+.jx-signals-noActionTitle {
+  @apply text-sm;
+}
+
+.jx-signals-noActionText {
+  @apply mt-1 mb-0 text-xs;
+}
+
+.jx-signals-table {
+  @apply overflow-hidden rounded-lg border border-gray-200;
+}
+
+.jx-signals-code {
+  @apply mt-0.5 block font-mono text-xs text-gray-500;
+}
+
+.jx-signals-referenceNote {
+  @apply m-0 text-xs text-gray-500;
+}
+
+.jx-signals-history {
+  @apply border-t border-gray-200 pt-4;
+}
+
+.jx-signals-historyTitle {
+  @apply mt-0 mb-3 text-sm font-semibold text-gray-950;
+}
+
+.jx-signals-historyList {
+  @apply flex flex-col divide-y divide-gray-100;
+}
+
+.jx-signals-historyRow {
+  @apply grid grid-cols-[120px_90px_1fr] items-center gap-3 py-2 text-sm text-gray-600;
+}
+
+@media (max-width: 768px) {
+  .jx-signals {
+    @apply p-3;
+  }
+
+  .jx-signals-layout {
+    @apply flex flex-col;
+  }
+
+  .jx-signals-sidebar {
+    @apply grid grid-cols-2;
+  }
+
+  .jx-signals-runMeta {
+    @apply grid-cols-2;
+  }
+}

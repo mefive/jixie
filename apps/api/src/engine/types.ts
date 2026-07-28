@@ -292,6 +292,29 @@ export interface BacktestResult {
   monthly: { month: string; ret: number }[]; // 'YYYYMM' → monthly return
 }
 
+export interface PendingCashSignal {
+  code: string;
+  assetType: 'stock' | 'etf';
+  action: 'buy' | 'sell';
+  shares: number;
+  refPrice: number;
+  refAmount: number;
+  source: 'target' | 'order';
+  targetWeight?: number;
+}
+
+export interface StrategySignalCapture {
+  tradeDate: string;
+  modelEquity: number;
+  modelCash: number;
+  signals: PendingCashSignal[];
+}
+
+export interface SignalBacktestOutput {
+  result: BacktestResult;
+  capture: StrategySignalCapture;
+}
+
 export interface SleeveNavPoint {
   date: string;
   stockValue: number;

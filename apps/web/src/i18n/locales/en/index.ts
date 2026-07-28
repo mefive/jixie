@@ -6,6 +6,7 @@ import { enFactor } from './factor';
 import { enScreen } from './screen';
 import { enStock } from './stock';
 import { enValuation } from './valuation';
+import { enSignals } from './signals';
 
 // English resource bundle, keyed by namespace. Must mirror the zh bundle's namespaces/keys.
 export const enResources = {
@@ -17,4 +18,5 @@ export const enResources = {
   screen: enScreen,
   stock: enStock,
   valuation: enValuation,
+  signals: enSignals,
 };

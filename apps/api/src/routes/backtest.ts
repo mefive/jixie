@@ -99,6 +99,7 @@ backtestRoute.post('/', validateQuery(strategyQuery), validateJson(codeConfigSch
     return apiError(c, 'SERVICE_UNAVAILABLE', m(c, 'backtestStartFailed'));
   }
   let finished = false;
+  let terminalMessage: { status: 'done' } | { status: 'error'; error?: string } | null = null;
   const done = (status: 'done' | 'error', error?: string) => {
     if (finished) {
       return;
@@ -110,15 +111,22 @@ backtestRoute.post('/', validateQuery(strategyQuery), validateJson(codeConfigSch
     if (msg.type === 'log') {
       appendLog(jobId, msg.entry!);
     } else if (msg.type === 'done') {
-      void renamePromise.finally(() => done('done'));
+      terminalMessage = { status: 'done' };
     } else if (msg.type === 'error') {
-      done('error', msg.message);
+      terminalMessage = { status: 'error', error: msg.message };
     }
   });
   worker.on('error', (err) => done('error', err.message));
   worker.on('exit', (code) => {
-    if (code !== 0) {
+    if (finished) {
+      return;
+    }
+    if (code !== 0 || !terminalMessage) {
       done('error', m(c, 'backtestProcExited', { code }));
+    } else if (terminalMessage.status === 'error') {
+      done('error', terminalMessage.error);
+    } else {
+      void renamePromise.finally(() => done('done'));
     }
   });
   return c.json({ jobId });
