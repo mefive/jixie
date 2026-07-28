@@ -8,6 +8,7 @@ export const zhCommon = {
     market: '市场',
     valuation: '估值',
     signals: '今日信号',
+    help: '使用帮助',
   },
   logout: '退出',
   language: {

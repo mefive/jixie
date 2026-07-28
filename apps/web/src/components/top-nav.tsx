@@ -38,6 +38,9 @@ export const TopNav = observer(() => {
           <NavLink to="/signals" className={linkClass}>
             {t('nav.signals')}
           </NavLink>
+          <NavLink to="/help" className={linkClass}>
+            {t('nav.help')}
+          </NavLink>
         </nav>
       </div>
       <div className="jx-topnav-user">

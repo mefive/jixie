@@ -1,0 +1,469 @@
+@reference '../../styles/index.css';
+
+.jx-help {
+  --help-text: #1d1d1f;
+  --help-secondary: #6e6e73;
+  --help-tertiary: #86868b;
+  --help-line: #d9d9de;
+  --help-soft: #f5f5f7;
+  min-height: 100%;
+  background: #fff;
+  color: var(--help-text);
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, 'PingFang SC',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.jx-help-bar {
+  @apply sticky top-0 z-20 flex items-center justify-between;
+  height: 56px;
+  padding: 0 28px;
+  border-bottom: 1px solid var(--help-line);
+  background: rgb(255 255 255 / 0.9);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+}
+
+.jx-help-brand,
+.jx-help-actions {
+  @apply flex items-center;
+}
+
+.jx-help-brand {
+  gap: 10px;
+  color: var(--help-text);
+}
+
+.jx-help-banner {
+  height: 24px;
+}
+
+.jx-help-brandDivider {
+  width: 1px;
+  height: 18px;
+  background: var(--help-line);
+}
+
+.jx-help-brandTitle {
+  @apply font-medium;
+  font-size: 15px;
+}
+
+.jx-help-actions {
+  gap: 18px;
+}
+
+.jx-help-secondaryLink {
+  color: var(--help-secondary);
+  font-size: 14px;
+}
+
+.jx-help-secondaryLink:hover {
+  color: var(--help-text);
+}
+
+.jx-help-productLink {
+  @apply rounded-full font-medium;
+  padding: 7px 15px;
+  background: var(--help-text);
+  color: #fff;
+  font-size: 13px;
+}
+
+.jx-help-layout {
+  @apply grid;
+  grid-template-columns: 220px minmax(0, 760px) 190px;
+  justify-content: center;
+  gap: 44px;
+  width: min(1360px, 100%);
+  margin: 0 auto;
+  padding: 0 32px;
+}
+
+.jx-help-nav,
+.jx-help-toc {
+  @apply sticky self-start overflow-auto;
+  top: 56px;
+  max-height: calc(100vh - 56px);
+  padding: 38px 0 48px;
+}
+
+.jx-help-nav {
+  padding-right: 24px;
+  border-right: 1px solid var(--help-line);
+}
+
+.jx-help-navTitle,
+.jx-help-tocTitle {
+  @apply font-semibold;
+  margin-bottom: 20px;
+  color: var(--help-text);
+  font-size: 13px;
+}
+
+.jx-help-navGroupTitle {
+  @apply font-semibold uppercase;
+  margin: 22px 0 7px;
+  color: var(--help-tertiary);
+  font-size: 11px;
+  letter-spacing: 0.6px;
+}
+
+.jx-help-navLink,
+.jx-help-tocLink {
+  @apply block;
+  color: var(--help-secondary);
+}
+
+.jx-help-navLink {
+  margin-left: -10px;
+  padding: 7px 10px;
+  border-radius: 7px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.jx-help-navLink:hover,
+.jx-help-navLink--active {
+  background: var(--help-soft);
+  color: var(--help-text);
+}
+
+.jx-help-navLink--active {
+  @apply font-medium;
+}
+
+.jx-help-main {
+  min-width: 0;
+  padding: 42px 0 120px;
+}
+
+.jx-help-breadcrumb {
+  @apply font-semibold;
+  color: var(--help-tertiary);
+  font-size: 12px;
+  letter-spacing: 0.2px;
+}
+
+.jx-help-breadcrumb span {
+  margin: 0 5px;
+}
+
+.jx-help-summary {
+  max-width: 660px;
+  margin: 15px 0 26px;
+  color: var(--help-secondary);
+  font-size: 17px;
+  line-height: 1.65;
+}
+
+.jx-help-toc {
+  padding-left: 2px;
+}
+
+.jx-help-tocLink {
+  padding: 5px 0;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.jx-help-tocLink:hover {
+  color: var(--help-text);
+}
+
+.jx-help-tocLink--3 {
+  padding-left: 13px;
+  font-size: 12px;
+}
+
+.jx-help-mobileNav {
+  @apply hidden;
+}
+
+.jx-help-markdown {
+  color: var(--help-text);
+  font-size: 16px;
+  line-height: 1.75;
+}
+
+.jx-help-markdown h1 {
+  @apply font-semibold;
+  margin: 0 0 22px;
+  font-size: 38px;
+  line-height: 1.16;
+  letter-spacing: -0.025em;
+}
+
+.jx-help-markdown h2 {
+  @apply font-semibold;
+  margin: 48px 0 16px;
+  padding-top: 26px;
+  border-top: 1px solid var(--help-line);
+  font-size: 26px;
+  line-height: 1.3;
+  letter-spacing: -0.012em;
+  scroll-margin-top: 70px;
+}
+
+.jx-help-markdown h3 {
+  @apply font-semibold;
+  margin: 30px 0 12px;
+  font-size: 19px;
+  line-height: 1.4;
+  scroll-margin-top: 70px;
+}
+
+.jx-help-markdown p {
+  margin: 0 0 18px;
+}
+
+.jx-help-markdown ul,
+.jx-help-markdown ol {
+  margin: 0 0 20px;
+  padding-left: 26px;
+}
+
+.jx-help-markdown li {
+  margin: 7px 0;
+  padding-left: 4px;
+}
+
+.jx-help-markdown a {
+  color: #2457a6;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.jx-help-markdown blockquote {
+  margin: 24px 0;
+  padding: 13px 18px;
+  border-left: 3px solid var(--help-text);
+  background: var(--help-soft);
+  color: var(--help-secondary);
+}
+
+.jx-help-markdown blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+.jx-help-markdown table {
+  width: 100%;
+  margin: 20px 0 26px;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.jx-help-markdown th,
+.jx-help-markdown td {
+  padding: 11px 13px;
+  border: 1px solid var(--help-line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.jx-help-markdown th {
+  @apply font-semibold;
+  background: var(--help-soft);
+}
+
+.jx-help-markdown code {
+  padding: 2px 5px;
+  border-radius: 5px;
+  background: var(--help-soft);
+  font-family: 'SF Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.88em;
+}
+
+.jx-help-markdown pre {
+  @apply overflow-auto;
+  margin: 20px 0;
+  padding: 18px 20px;
+  border-radius: 12px;
+  background: #202124;
+  color: #f5f5f7;
+}
+
+.jx-help-markdown pre code {
+  padding: 0;
+  background: transparent;
+  color: inherit;
+}
+
+.jx-help-markdown img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 22px auto;
+  border: 1px solid var(--help-line);
+  border-radius: 10px;
+  box-shadow: 0 8px 28px rgb(0 0 0 / 0.08);
+}
+
+.jx-help-pager {
+  @apply grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 56px;
+  padding-top: 24px;
+  border-top: 1px solid var(--help-line);
+}
+
+.jx-help-pagerLink {
+  @apply flex flex-col;
+  gap: 4px;
+  padding: 15px 17px;
+  border: 1px solid var(--help-line);
+  border-radius: 10px;
+  color: var(--help-text);
+}
+
+.jx-help-pagerLink:last-child {
+  text-align: right;
+}
+
+.jx-help-pagerLink:hover {
+  background: var(--help-soft);
+}
+
+.jx-help-pagerLink span {
+  color: var(--help-tertiary);
+  font-size: 12px;
+}
+
+.jx-help-pagerLink strong {
+  @apply font-medium;
+  font-size: 14px;
+}
+
+@media (max-width: 1100px) {
+  .jx-help-layout {
+    grid-template-columns: 210px minmax(0, 760px);
+    gap: 34px;
+  }
+
+  .jx-help-toc {
+    @apply hidden;
+  }
+}
+
+@media (max-width: 720px) {
+  .jx-help-bar {
+    height: 52px;
+    padding: 0 14px;
+  }
+
+  .jx-help-brand {
+    gap: 7px;
+  }
+
+  .jx-help-banner {
+    height: 21px;
+    max-width: 92px;
+    object-fit: contain;
+  }
+
+  .jx-help-brandDivider,
+  .jx-help-brandTitle,
+  .jx-help-secondaryLink {
+    @apply hidden;
+  }
+
+  .jx-help-actions {
+    gap: 8px;
+  }
+
+  .jx-help-productLink {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  .jx-help-layout {
+    @apply block;
+    padding: 0 18px;
+  }
+
+  .jx-help-nav {
+    @apply hidden;
+  }
+
+  .jx-help-main {
+    padding: 20px 0 72px;
+  }
+
+  .jx-help-mobileNav {
+    @apply block;
+    margin: 0 0 26px;
+    border: 1px solid var(--help-line);
+    border-radius: 10px;
+    background: var(--help-soft);
+  }
+
+  .jx-help-mobileNav summary {
+    @apply font-medium;
+    padding: 12px 14px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+
+  .jx-help-mobileNavBody {
+    padding: 0 14px 14px;
+  }
+
+  .jx-help-mobileNavBody .jx-help-navGroupTitle {
+    margin-top: 5px;
+  }
+
+  .jx-help-mobileNavBody .jx-help-navLink {
+    margin-left: 0;
+    background: #fff;
+  }
+
+  .jx-help-summary {
+    margin-bottom: 20px;
+    font-size: 15px;
+  }
+
+  .jx-help-markdown {
+    font-size: 15px;
+    line-height: 1.72;
+  }
+
+  .jx-help-markdown h1 {
+    margin-bottom: 18px;
+    font-size: 30px;
+  }
+
+  .jx-help-markdown h2 {
+    margin-top: 38px;
+    padding-top: 22px;
+    font-size: 23px;
+    scroll-margin-top: 64px;
+  }
+
+  .jx-help-markdown h3 {
+    font-size: 18px;
+    scroll-margin-top: 64px;
+  }
+
+  .jx-help-markdown table {
+    display: block;
+    overflow-x: auto;
+    font-size: 13px;
+  }
+
+  .jx-help-markdown th,
+  .jx-help-markdown td {
+    min-width: 120px;
+    padding: 9px 10px;
+  }
+
+  .jx-help-pager {
+    @apply block;
+  }
+
+  .jx-help-pagerLink + .jx-help-pagerLink {
+    margin-top: 12px;
+  }
+}
