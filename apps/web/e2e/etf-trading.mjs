@@ -75,21 +75,17 @@ export default defineStrategy({
     .getByRole('tab', { name: /交易明细/ })
     .click();
   await page.locator('.jx-lab-tradesTab .jx-td-row').first().waitFor({ timeout: 10_000 });
-  await page.locator('.jx-lab-tradesTab .jx-td-canvas canvas').first().waitFor({ timeout: 10_000 });
 
   const badgeCount = await page
-    .locator('.jx-lab-tradesTab .jx-td-chipType', { hasText: 'ETF' })
+    .locator('.jx-lab-tradesTab .jx-td-instType', { hasText: 'ETF' })
     .count();
-  if (badgeCount !== 1) {
-    throw new Error(`expected one ETF badge, got ${badgeCount}`);
+  if (badgeCount !== 2) {
+    throw new Error(`expected two ETF badges, got ${badgeCount}`);
   }
-  const instrumentName = await page
-    .locator('.jx-lab-tradesTab .jx-td-chipName')
-    .nth(1)
-    .textContent();
-  if (!instrumentName?.includes('沪深300ETF')) {
-    throw new Error(`unexpected ETF instrument name: ${instrumentName}`);
-  }
+  const instrumentName = page
+    .locator('.jx-lab-tradesTab .jx-td-instName', { hasText: '沪深300ETF' })
+    .first();
+  await instrumentName.waitFor({ timeout: 10_000 });
   const tradeRows = await page.locator('.jx-lab-tradesTab .jx-td-row').count();
   if (tradeRows !== 2) {
     throw new Error(`expected two ETF fills, got ${tradeRows}`);

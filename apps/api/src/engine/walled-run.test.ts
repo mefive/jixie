@@ -1,3 +1,4 @@
+import { Worker } from 'node:worker_threads';
 import { describe, expect, it } from 'vitest';
 import { runStrategy, runStrategyWithSignals } from './run.js';
 import { runWalledBacktest, runWalledSignalCapture } from './walled-run.js';
@@ -8,7 +9,7 @@ import { fixturePort, type FixtureSpec } from './fixture-port.js';
  * Dual-lane drift guard (定死护栏, python-and-sandbox.md Phase B): the SAME strategy code over the
  * SAME fixture world must produce identical results on the direct lane (host new Function + fixture
  * port) and the walled lane (engine bundled into an isolated-vm isolate, data served across the
- * bridge). If the bundle, the serialization, or the applySyncPromise bridge breaks, this goes red —
+ * bridge). If the bundle, the serialization, or the async Reference bridge breaks, this goes red —
  * nobody has to notice by eyeballing a backtest.
  */
 
@@ -87,6 +88,25 @@ export default defineStrategy({
     console.log('bar', ctx.date, Math.round(ctx.value));
   },
 });
+`;
+
+const PARAMETERIZED_CODE = `
+  let lastPeriod = '';
+  export default defineStrategy({
+    name: 'parameterized-order',
+    params: { sharesPerMonth: 100 },
+    watch: ['AAA'],
+    onBar(ctx) {
+      const period = ctx.period('monthly');
+      if (period === lastPeriod) return;
+      lastPeriod = period;
+      const price = ctx.price('AAA');
+      if (price == null) return;
+      const held = ctx.shares('AAA');
+      const target = ctx.params.sharesPerMonth;
+      if (held < target) ctx.order('AAA', target - held);
+    },
+  });
 `;
 
 describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
@@ -238,5 +258,46 @@ describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
     expect(walled.nav).toEqual(direct.nav);
     expect(walled.sleeveNav).toEqual(direct.sleeveNav);
     expect(walled.tradeLog).toEqual(direct.tradeLog);
+  });
+
+  it('数值参数与单股持仓查询在进墙车道可直接用于下单', { timeout: 60_000 }, async () => {
+    const direct = await runStrategy({
+      start: D[0],
+      end: D.at(-1)!,
+      initialCash: 100_000,
+      strategy: await compileStrategy(PARAMETERIZED_CODE),
+      dataPort: fixturePort(SPEC),
+    });
+    const walled = await runWalledBacktest(
+      { code: PARAMETERIZED_CODE, start: D[0], end: D.at(-1)!, initialCash: 100_000 },
+      fixturePort(SPEC),
+    );
+
+    expect(walled.nav).toEqual(direct.nav);
+    expect(walled.tradeLog).toEqual(direct.tradeLog);
+    expect(walled.trades).toBeGreaterThan(0);
+  });
+
+  it('Node Worker 内的进墙车道可以异步读取数据', { timeout: 60_000 }, async () => {
+    const outcome = await new Promise<{
+      trades?: number;
+      nav?: { date: string; value: number }[];
+      error?: string;
+    }>((resolve, reject) => {
+      const worker = new Worker(new URL('./walled-run.test-worker.mjs', import.meta.url), {
+        workerData: { code: PARAMETERIZED_CODE, spec: SPEC },
+      });
+      worker.once('message', resolve);
+      worker.once('error', reject);
+      worker.once('exit', (code) => {
+        if (code !== 0) {
+          reject(new Error(`test worker exited with code ${code}`));
+        }
+      });
+    });
+
+    expect(outcome.error).toBeUndefined();
+    expect(outcome.trades).toBeGreaterThan(0);
+    expect(outcome.nav).toHaveLength(D.length);
   });
 });

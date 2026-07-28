@@ -54,6 +54,7 @@ try {
     .catch(() => {});
   port.postMessage({ type: 'done' });
 } catch (e) {
+  console.error('[backtest-worker] run failed', e);
   port.postMessage({ type: 'error', message: e instanceof Error ? e.message : String(e) });
 } finally {
   await prisma.$disconnect();
