@@ -1,10 +1,10 @@
 import { fileURLToPath } from 'node:url';
 import ivm from 'isolated-vm';
 import { build, transform } from 'esbuild';
-import type { Locale } from '@jixie/shared';
+import type { Locale, StrategySignalMetadata } from '@jixie/shared';
 import type { EngineDataPort } from './data-port.js';
 import type { CustomFactorModule } from './custom-factor.js';
-import type { BacktestResult, CostModel } from './types.js';
+import type { BacktestResult, CostModel, SignalBacktestOutput } from './types.js';
 import type { UserLogSink } from '../lib/sandbox-console.js';
 
 /**
@@ -118,6 +118,34 @@ export async function inspectWalledStrategyParameters(
   }
 }
 
+/** Safely inspect the declaration fields needed for deployment eligibility and data synchronization. */
+export async function inspectWalledStrategyMetadata(code: string): Promise<StrategySignalMetadata> {
+  const userJs = await compileUserSource(code);
+  const isolate = new ivm.Isolate({ memoryLimit: 128 });
+  try {
+    const context = await isolate.createContext();
+    await context.global.set(
+      '__hostFetch',
+      new ivm.Reference(() => {
+        throw new Error('market data is unavailable while inspecting strategy metadata');
+      }),
+    );
+    await context.global.set('__hostLog', new ivm.Reference(() => {}));
+    await context.eval(await wallBundle(), { timeout: 60_000 });
+    await context.global.set('__userJs', new ivm.ExternalCopy(userJs).copyInto({ release: true }));
+    const resultJson = await context.eval('__inspectStrategyMetadata(__userJs)', {
+      timeout: 5_000,
+      copy: true,
+    });
+    if (typeof resultJson !== 'string') {
+      throw new Error('strategy metadata inspection returned a non-string result');
+    }
+    return JSON.parse(resultJson) as StrategySignalMetadata;
+  } finally {
+    isolate.dispose();
+  }
+}
+
 /**
  * Run one backtest on the walled lane. `port` is the host-side data source the wall's crossings
  * are served from (prismaDataPort in production, fixturePort in tests).
@@ -128,6 +156,26 @@ export async function runWalledBacktest(
   onLog?: (line: string) => void,
   onUserLog?: UserLogSink,
 ): Promise<BacktestResult> {
+  return runWalled(cfg, port, false, onLog, onUserLog) as Promise<BacktestResult>;
+}
+
+/** Run a stock/ETF deployment and return both its backtest and final next-open intent. */
+export async function runWalledSignalCapture(
+  cfg: WalledBacktestConfig,
+  port: EngineDataPort,
+  onLog?: (line: string) => void,
+  onUserLog?: UserLogSink,
+): Promise<SignalBacktestOutput> {
+  return runWalled(cfg, port, true, onLog, onUserLog) as Promise<SignalBacktestOutput>;
+}
+
+async function runWalled(
+  cfg: WalledBacktestConfig,
+  port: EngineDataPort,
+  captureSignals: boolean,
+  onLog?: (line: string) => void,
+  onUserLog?: UserLogSink,
+): Promise<BacktestResult | SignalBacktestOutput> {
   // TS → CJS on the host (esbuild can't run in-wall); the module evaluates inside the wall.
   const userJs = await compileUserSource(cfg.code);
 
@@ -173,6 +221,7 @@ export async function runWalledBacktest(
         customFactors: cfg.customFactors,
         paramOverrides: cfg.paramOverrides,
         captureUserLogs: onUserLog != null,
+        captureSignals,
       }),
     );
     await context.global.set('__cfg', cfgCopy.copyInto({ release: true }));
@@ -184,7 +233,7 @@ export async function runWalledBacktest(
     if (typeof resultJson !== 'string') {
       throw new Error('walled backtest returned a non-string result');
     }
-    return JSON.parse(resultJson) as BacktestResult;
+    return JSON.parse(resultJson) as BacktestResult | SignalBacktestOutput;
   } finally {
     isolate.dispose();
   }

@@ -48,6 +48,16 @@ export const zhLab = {
   unitWan: '万',
   runBacktest: '运行回测',
   runDisabledHint: '改动策略后可重新运行',
+  deploymentAction: '部署上线',
+  deploymentActionHint: '冻结当前回测版本并生成每日收盘信号',
+  deploymentActive: '当前回测版本已部署',
+  deploymentPause: '暂停上线',
+  deploymentOutdated: '线上仍运行旧版本；暂停后可重新部署当前版本',
+  deploymentRedeployNeeded: '暂停旧版本',
+  deploymentRunFirst: '请先运行当前改动，再部署上线',
+  deploymentNeedsResult: '策略必须先完成一次回测',
+  deploymentFailed: '策略部署失败',
+  deploymentPauseFailed: '暂停部署失败',
 
   // Code editor
   loadingEditor: '加载编辑器…',

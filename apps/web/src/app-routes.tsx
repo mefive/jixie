@@ -18,6 +18,7 @@ import stockEntry from '@src/complex/stock';
 import factorEntry from '@src/complex/factor';
 import marketEntry from '@src/complex/market';
 import valuationEntry from '@src/complex/valuation';
+import signalsEntry from '@src/complex/signals';
 import { TopNav } from '@src/components/top-nav';
 import { authStore } from '@src/store';
 import './app-layout.css';
@@ -164,6 +165,7 @@ const router = createBrowserRouter(
         />
         <Route path="/stock/:code" element={<StockRoute />} />
         <Route path="/trades" element={<TradePage />} />
+        <Route path="/signals" element={<ComplexRoute key="signals" entry={signalsEntry} />} />
       </Route>
       {/* Standalone doc pages: authed but full-screen, no TopNav. */}
       <Route

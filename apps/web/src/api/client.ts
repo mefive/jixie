@@ -95,6 +95,9 @@ import type {
   StrategyScanReport,
   StrategyScanReportSummary,
   StrategyScanSpec,
+  SignalRun,
+  SignalTodayEntry,
+  StrategyDeployment,
   ToolTraceItem,
 } from '@jixie/shared';
 
@@ -259,6 +262,55 @@ export function getStrategyScanReport(reportId: string): Promise<StrategyScanRep
 
 export function pollStrategyScan(reportId: string, since = 0): Promise<BacktestJob> {
   return request(`/api/app/strategy/scans/${reportId}/job?since=${since}`);
+}
+
+// —— Daily signals ——
+
+export function deployStrategy(strategyId: string): Promise<StrategyDeployment> {
+  return request('/api/app/signals/deployments', {
+    method: 'POST',
+    body: JSON.stringify({ strategyId }),
+  });
+}
+
+export function pauseStrategyDeployment(deploymentId: string): Promise<StrategyDeployment> {
+  return request(`/api/app/signals/deployments/${deploymentId}/pause`, { method: 'POST' });
+}
+
+export function getCurrentStrategyDeployment(
+  strategyId: string,
+): Promise<{ deployment: StrategyDeployment | null }> {
+  return request(
+    `/api/app/signals/deployments/current?strategyId=${encodeURIComponent(strategyId)}`,
+  );
+}
+
+export function listTodaySignals(): Promise<SignalTodayEntry[]> {
+  return request('/api/app/signals/today');
+}
+
+export function listSignalRuns(deploymentId: string, limit = 30): Promise<SignalRun[]> {
+  return request(
+    `/api/app/signals/runs?deploymentId=${encodeURIComponent(deploymentId)}&limit=${limit}`,
+  );
+}
+
+export function getSignalRun(runId: string): Promise<SignalRun> {
+  return request(`/api/app/signals/runs/${runId}`);
+}
+
+export function submitSignalRun(
+  deploymentId: string,
+  tradeDate?: string,
+): Promise<{ runId: string; jobId: string | null; started: boolean }> {
+  return request('/api/app/signals/run', {
+    method: 'POST',
+    body: JSON.stringify({ deploymentId, ...(tradeDate ? { tradeDate } : {}) }),
+  });
+}
+
+export function pollSignalJob(jobId: string, since = 0): Promise<BacktestJob> {
+  return request(`/api/app/signals/jobs/${jobId}?since=${since}`);
 }
 
 import type {

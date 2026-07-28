@@ -53,6 +53,7 @@ pnpm --filter api sync:index-basic 20040101 20260724 major # 同步主要指数�
 pnpm --filter api sync:index market-state 20150101 20260727 # 同步市场状态指数行情与历史成分
 pnpm --filter api sync:market-state 20150101 20260727      # 预计算全A/指数状态与申万行业热力
 pnpm audit:data                                           # 只读审计断档、复权、股票池、窗口覆盖与财务 PIT
+pnpm signals:run 20260728                                 # 同步并补跑当日所有已上线策略信号
 pnpm peek 000001.SZ 20240101 20240131                   # 查看落库 + 后复权价
 pnpm --filter api db:studio                             # 可视化浏览数据库
 ```

@@ -12,7 +12,10 @@ import {
   type BarContext,
   type CostModel,
   type EngineConfig,
+  type PendingCashSignal,
+  type SignalBacktestOutput,
   type SleeveNavPoint,
+  type StrategySignalCapture,
 } from './types.js';
 
 type FutureIntent =
@@ -56,10 +59,25 @@ export async function runStrategy(cfg: EngineConfig): Promise<BacktestResult> {
   if (cfg.strategy.futures?.length) {
     return runMultiAssetStrategy(cfg);
   }
-  return runStockStrategy(cfg);
+  return (await runStockStrategyCore(cfg, false)).result;
 }
 
-async function runStockStrategy(cfg: EngineConfig): Promise<BacktestResult> {
+/** Run a stock/ETF strategy and retain its final next-open intent for daily signal generation. */
+export async function runStrategyWithSignals(cfg: EngineConfig): Promise<SignalBacktestOutput> {
+  if (cfg.strategy.futures?.length) {
+    throw new Error('Daily signals currently support stock and ETF strategies only');
+  }
+  const output = await runStockStrategyCore(cfg, true);
+  if (!output.capture) {
+    throw new Error('Signal capture was not produced');
+  }
+  return { result: output.result, capture: output.capture };
+}
+
+async function runStockStrategyCore(
+  cfg: EngineConfig,
+  captureSignals: boolean,
+): Promise<{ result: BacktestResult; capture: StrategySignalCapture | null }> {
   const cost = { ...DEFAULT_COST, ...cfg.cost };
   const locale = cfg.locale ?? DEFAULT_LOCALE;
   const log = cfg.onLog ?? (() => {}); // progress sink (worker forwards to the job; scripts no-op)
@@ -145,6 +163,15 @@ async function runStockStrategy(cfg: EngineConfig): Promise<BacktestResult> {
     }
   }
 
+  const capture = captureSignals
+    ? await capturePendingCashSignals(
+        engineData,
+        portfolio,
+        pendingTargets,
+        pendingOrders,
+        nav.at(-1)?.date,
+      )
+    : null;
   const bench = engineData.indexCloses(BENCHMARK); // CSI 300 for excess-return/IR (preloaded)
   const result = summarize(cfg, nav, portfolio.trades, bench, cost);
   log(
@@ -155,7 +182,7 @@ async function runStockStrategy(cfg: EngineConfig): Promise<BacktestResult> {
       ret: (result.totalReturn * 100).toFixed(2),
     }),
   );
-  return result;
+  return { result, capture };
 }
 
 async function runMultiAssetStrategy(cfg: EngineConfig): Promise<BacktestResult> {
@@ -666,6 +693,117 @@ function assertStockOrdersEnabled(enabled: boolean): void {
   if (!enabled) {
     throw new Error('Stock orders require a positive strategy.accounts.stock.cashWeight');
   }
+}
+
+async function capturePendingCashSignals(
+  engineData: EngineData,
+  portfolio: Portfolio,
+  pendingTargets: Map<string, number> | null,
+  pendingOrders: Map<string, number> | null,
+  tradeDate?: string,
+): Promise<StrategySignalCapture> {
+  if (!tradeDate) {
+    throw new Error('Cannot capture signals from an empty trading range');
+  }
+
+  const codes = new Set<string>([
+    ...portfolio.positions.keys(),
+    ...(pendingTargets?.keys() ?? []),
+    ...(pendingOrders?.keys() ?? []),
+  ]);
+  await engineData.loadBars([...codes]);
+
+  const modelEquity = portfolio.equity((code) => engineData.closeAt(code, tradeDate));
+  const signals: PendingCashSignal[] = [];
+
+  if (pendingTargets) {
+    const targetCodes = new Set([...portfolio.positions.keys(), ...pendingTargets.keys()]);
+    for (const code of targetCodes) {
+      const adjustedClose = engineData.closeAt(code, tradeDate);
+      const adjustmentFactor = engineData.adjAsOf(code, tradeDate);
+      const refPrice = engineData.rawCloseAsOf(code, tradeDate);
+      if (adjustedClose == null || adjustedClose <= 0 || !adjustmentFactor || !refPrice) {
+        continue;
+      }
+
+      const targetWeight = pendingTargets.get(code) ?? 0;
+      const targetShares = (targetWeight * modelEquity) / adjustedClose;
+      const currentShares = portfolio.positions.get(code)?.shares ?? 0;
+      const signal = projectCashSignal(
+        engineData,
+        code,
+        targetShares - currentShares,
+        adjustmentFactor,
+        refPrice,
+        'target',
+        targetWeight,
+      );
+      if (signal) {
+        signals.push(signal);
+      }
+    }
+  }
+
+  if (pendingOrders) {
+    for (const [code, delta] of pendingOrders) {
+      const adjustmentFactor = engineData.adjAsOf(code, tradeDate);
+      const refPrice = engineData.rawCloseAsOf(code, tradeDate);
+      if (!adjustmentFactor || !refPrice) {
+        continue;
+      }
+
+      const currentShares = portfolio.positions.get(code)?.shares ?? 0;
+      const executableDelta = delta < 0 ? -Math.min(-delta, currentShares) : delta;
+      const signal = projectCashSignal(
+        engineData,
+        code,
+        executableDelta,
+        adjustmentFactor,
+        refPrice,
+        'order',
+      );
+      if (signal) {
+        signals.push(signal);
+      }
+    }
+  }
+
+  return {
+    tradeDate,
+    modelEquity,
+    modelCash: portfolio.cash,
+    signals,
+  };
+}
+
+function projectCashSignal(
+  engineData: EngineData,
+  code: string,
+  adjustedDelta: number,
+  adjustmentFactor: number,
+  refPrice: number,
+  source: PendingCashSignal['source'],
+  targetWeight?: number,
+): PendingCashSignal | null {
+  const realDelta = adjustedDelta * adjustmentFactor;
+  const shares =
+    realDelta > 0
+      ? Math.floor(realDelta / 100) * 100
+      : Math.max(0, Math.round(Math.abs(realDelta)));
+  if (shares === 0) {
+    return null;
+  }
+
+  return {
+    code,
+    assetType: engineData.assetType(code),
+    action: realDelta > 0 ? 'buy' : 'sell',
+    shares,
+    refPrice,
+    refAmount: shares * refPrice,
+    source,
+    ...(targetWeight == null ? {} : { targetWeight }),
+  };
 }
 
 function executeFutureIntents(

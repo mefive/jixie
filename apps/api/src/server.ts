@@ -10,10 +10,12 @@ import { marketRoute } from './routes/market.js';
 import { factorRoute } from './routes/factor.js';
 import { factorsRoute } from './routes/factors.js';
 import { agentRoute } from './routes/agent.js';
+import { signalsRoute } from './routes/signals.js';
 import { requireAuth } from './lib/session.js';
 import { markRunningJobsStale } from './lib/jobs.js';
 import { seedBuiltinFactors } from './factor/builtin-factors.js';
 import { markRunningAgentTurnsInterrupted } from './agent/persistence.js';
+import { startSignalScheduler } from './signals/scheduler.js';
 
 /**
  * Start the backend.
@@ -33,6 +35,7 @@ export function startServer(port: number) {
   );
   // Materialize the built-in preset factors (idempotent; repo is the source of truth).
   void seedBuiltinFactors().catch((e) => console.error('[jixie] preset factor seed failed', e));
+  startSignalScheduler();
   serve({ fetch: app.fetch, port });
   return app;
 }
@@ -61,6 +64,7 @@ export function buildApp() {
   app.route('/api/app/strategies', strategiesRoute);
   app.route('/api/app/screens', screensRoute);
   app.route('/api/app/factors', factorsRoute);
+  app.route('/api/app/signals', signalsRoute);
   app.route('/api/app/strategy', strategyRoute);
   app.route('/api/app/screen', screenRoute);
   app.route('/api/app/factor', factorRoute);

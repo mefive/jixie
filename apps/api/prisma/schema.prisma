@@ -461,6 +461,8 @@ model User {
   sessions            Session[]
   strategies          Strategy[]
   strategyScanReports StrategyScanReport[]
+  strategyDeployments StrategyDeployment[]
+  signalRuns          SignalRun[]
   savedScreens        SavedScreen[]
   screenConversations ScreenConversation[]
   agentConversations  AgentConversation[]
@@ -547,21 +549,24 @@ model FactorCorrelation {
 /// (factor: variantKey, backtest: strategyId). Factor jobs are restored through factorReportId; on boot,
 /// running jobs and their reports become stale. Results live on FactorReport / Strategy, not Job.
 model Job {
-  id             String        @id // ULID
-  userId         String
-  kind           String // 'backtest' | 'factor'
-  key            String // dedupe/lookup key (see model doc)
-  status         String // 'running' | 'done' | 'error' | 'stale'
-  error          String?
-  logs           String? // JSON(LogLine[]) — flushed once on finish; live logs stream from memory (see lib/jobs.ts)
-  factorReportId String?       @unique
-  factorReport   FactorReport? @relation(fields: [factorReportId], references: [id], onDelete: Cascade)
+  id                   String              @id // ULID
+  userId               String
+  kind                 String // 'backtest' | 'factor' | 'strategy-scan' | 'signal'
+  key                  String // dedupe/lookup key (see model doc)
+  status               String // 'running' | 'done' | 'error' | 'stale'
+  error                String?
+  logs                 String? // JSON(LogLine[]) — flushed once on finish; live logs stream from memory (see lib/jobs.ts)
+  factorReportId       String?             @unique
+  factorReport         FactorReport?       @relation(fields: [factorReportId], references: [id], onDelete: Cascade)
   strategyScanReportId String?             @unique
   strategyScanReport   StrategyScanReport? @relation(fields: [strategyScanReportId], references: [id], onDelete: Cascade)
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  signalRunId          String?
+  signalRun            SignalRun?          @relation(fields: [signalRunId], references: [id], onDelete: Cascade)
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
 
   @@index([userId, kind, key, status]) // find a user's running job for a key
+  @@index([signalRunId, createdAt])
 }
 
 /// Email verification challenge. Only the SHA256 of the code is stored, 10-min TTL, rejected at attempts≥5 (anti-brute-force).
@@ -587,30 +592,83 @@ model EmailLoginChallenge {
 /// A saved backtest strategy (holds a BacktestConfig as JSON). Created before its first Agent turn or
 /// backtest, then its runnable config is committed by id whenever a backtest starts.
 model Strategy {
-  id            String              @id // ULID
+  id            String               @id // ULID
   userId        String
-  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   name          String
   config        Json // BacktestConfig
   lastResult    Json? // last BacktestSummary (metrics + nav + tradeLog) — shown on reopen, refreshed each run
   messages      Json? // ChatMessage[] — the Agent-panel conversation that authored this strategy (per-strategy)
   conversations AgentConversation[]
   scanReports   StrategyScanReport[]
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
+  deployments   StrategyDeployment[]
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
 
   @@unique([userId, name]) // name = identity within a user → enables upsert-by-name
   @@index([userId, updatedAt]) // list a user's strategies, newest first
 }
 
+/// One immutable strategy version promoted from research into daily operation. Editing Strategy.config
+/// never mutates an active deployment; a changed code/config/cost snapshot requires an explicit redeploy.
+model StrategyDeployment {
+  id           String      @id // ULID
+  userId       String
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  strategyId   String
+  strategy     Strategy    @relation(fields: [strategyId], references: [id], onDelete: Cascade)
+  strategyName String
+  status       String // 'active' | 'paused'
+  config       Json // frozen BacktestConfig
+  codeHash     String
+  locale       String // 'zh' | 'en', frozen for scheduler-generated notifications
+  deployedAt   DateTime    @default(now())
+  stoppedAt    DateTime?
+  signalRuns   SignalRun[]
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([userId, status])
+  @@index([strategyId, status])
+}
+
+/// One durable next-open signal set generated from a deployment and one market close. Retries reuse
+/// the same row, while every computation attempt has its own Job for logs and stale recovery.
+model SignalRun {
+  id                String             @id // ULID
+  userId            String
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deploymentId      String
+  deployment        StrategyDeployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
+  strategyId        String
+  tradeDate         String // signal is based on this market close (YYYYMMDD)
+  execDate          String // intended next open (YYYYMMDD)
+  status            String // 'running' | 'done' | 'error' | 'stale'
+  dataCutoff        String?
+  modelEquity       Float?
+  modelCash         Float?
+  signals           Json? // SignalItem[]
+  error             String?
+  notifiedAt        DateTime?
+  notificationError String?
+  jobs              Job[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@unique([deploymentId, tradeDate])
+  @@index([userId, tradeDate])
+  @@index([strategyId, tradeDate])
+  @@index([status])
+}
+
 /// Immutable parameter-scan report. The strategy/config/spec snapshots make each explicit scan a
 /// durable research record; the payload stores compact per-combination metrics, not full trade logs.
 model StrategyScanReport {
-  id           String    @id // ULID
+  id           String   @id // ULID
   userId       String
-  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   strategyId   String
-  strategy     Strategy  @relation(fields: [strategyId], references: [id], onDelete: Cascade)
+  strategy     Strategy @relation(fields: [strategyId], references: [id], onDelete: Cascade)
   strategyName String
   status       String // 'running' | 'done' | 'error' | 'stale'
   config       Json // frozen BacktestConfig
@@ -620,8 +678,8 @@ model StrategyScanReport {
   payload      Json? // StrategyScanPayload
   error        String?
   job          Job?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@index([userId, strategyId, createdAt])
   @@index([userId, status])

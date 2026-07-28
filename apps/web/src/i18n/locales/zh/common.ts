@@ -7,6 +7,7 @@ export const zhCommon = {
     factor: '因子研究',
     market: '市场',
     valuation: '估值',
+    signals: '今日信号',
   },
   logout: '退出',
   language: {
