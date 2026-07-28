@@ -12,7 +12,6 @@ export const enLab: typeof zhLab = {
     'e.g. "Buy the 20 highest-dividend-yield stocks each month, equal weight" or "The 30 CSI 300 names with ROE above 15%, rebalanced monthly"',
   examplesLabel: 'Try:',
   writeCodeDirectly: 'Or write code directly →',
-  firstTimeTutorial: 'First time? See the tutorial ↗',
   newButton: 'New',
 
   // Example starter prompts (chip label + the sentence sent to the agent)

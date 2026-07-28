@@ -15,62 +15,6 @@
   -webkit-font-smoothing: antialiased;
 }
 
-.jx-help-bar {
-  @apply sticky top-0 z-20 flex items-center justify-between;
-  height: 56px;
-  padding: 0 28px;
-  border-bottom: 1px solid var(--help-line);
-  background: rgb(255 255 255 / 0.9);
-  backdrop-filter: saturate(180%) blur(20px);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-}
-
-.jx-help-brand,
-.jx-help-actions {
-  @apply flex items-center;
-}
-
-.jx-help-brand {
-  gap: 10px;
-  color: var(--help-text);
-}
-
-.jx-help-banner {
-  height: 24px;
-}
-
-.jx-help-brandDivider {
-  width: 1px;
-  height: 18px;
-  background: var(--help-line);
-}
-
-.jx-help-brandTitle {
-  @apply font-medium;
-  font-size: 15px;
-}
-
-.jx-help-actions {
-  gap: 18px;
-}
-
-.jx-help-secondaryLink {
-  color: var(--help-secondary);
-  font-size: 14px;
-}
-
-.jx-help-secondaryLink:hover {
-  color: var(--help-text);
-}
-
-.jx-help-productLink {
-  @apply rounded-full font-medium;
-  padding: 7px 15px;
-  background: var(--help-text);
-  color: #fff;
-  font-size: 13px;
-}
-
 .jx-help-layout {
   @apply grid;
   grid-template-columns: 220px minmax(0, 760px) 190px;
@@ -84,8 +28,8 @@
 .jx-help-nav,
 .jx-help-toc {
   @apply sticky self-start overflow-auto;
-  top: 56px;
-  max-height: calc(100vh - 56px);
+  top: 52px;
+  max-height: calc(100vh - 52px);
   padding: 38px 0 48px;
 }
 
@@ -104,7 +48,7 @@
 
 .jx-help-navGroupTitle {
   @apply font-semibold uppercase;
-  margin: 22px 0 7px;
+  margin: 20px 0 6px;
   color: var(--help-tertiary);
   font-size: 11px;
   letter-spacing: 0.6px;
@@ -117,21 +61,23 @@
 }
 
 .jx-help-navLink {
-  margin-left: -10px;
-  padding: 7px 10px;
-  border-radius: 7px;
-  font-size: 14px;
+  padding: 6px 10px;
+  border-left: 2px solid transparent;
+  border-radius: 0 7px 7px 0;
+  font-size: 13.5px;
   line-height: 1.45;
 }
 
-.jx-help-navLink:hover,
-.jx-help-navLink--active {
+.jx-help-navLink:hover {
   background: var(--help-soft);
   color: var(--help-text);
 }
 
 .jx-help-navLink--active {
   @apply font-medium;
+  border-left-color: var(--help-text);
+  background: transparent;
+  color: var(--help-text);
 }
 
 .jx-help-main {
@@ -310,6 +256,14 @@
   box-shadow: 0 8px 28px rgb(0 0 0 / 0.08);
 }
 
+.jx-help-figure .ant-image-cover {
+  display: none !important;
+}
+
+.jx-help-figure .ant-image:hover .ant-image-img {
+  opacity: 1;
+}
+
 .jx-help-figure figcaption {
   margin-top: 9px;
   color: var(--help-tertiary);
@@ -366,36 +320,6 @@
 }
 
 @media (max-width: 720px) {
-  .jx-help-bar {
-    height: 52px;
-    padding: 0 14px;
-  }
-
-  .jx-help-brand {
-    gap: 7px;
-  }
-
-  .jx-help-banner {
-    height: 21px;
-    max-width: 92px;
-    object-fit: contain;
-  }
-
-  .jx-help-brandDivider,
-  .jx-help-brandTitle,
-  .jx-help-secondaryLink {
-    @apply hidden;
-  }
-
-  .jx-help-actions {
-    gap: 8px;
-  }
-
-  .jx-help-productLink {
-    padding: 6px 10px;
-    font-size: 12px;
-  }
-
   .jx-help-layout {
     @apply block;
     padding: 0 18px;
@@ -434,7 +358,12 @@
 
   .jx-help-mobileNavBody .jx-help-navLink {
     margin-left: 0;
+    border-left: 0;
     background: #fff;
+  }
+
+  .jx-help-mobileNavBody .jx-help-navLink--active {
+    background: #ececf0;
   }
 
   .jx-help-summary {

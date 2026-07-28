@@ -321,9 +321,6 @@ const NewStrategyPrompt = complex.component(
           <button type="button" className="jx-lab-heroSkip" onClick={onSkip}>
             {t('writeCodeDirectly')}
           </button>
-          <a className="jx-lab-heroSkip" href="/learn" target="_blank" rel="noreferrer">
-            {t('firstTimeTutorial')}
-          </a>
         </div>
       </>
     );

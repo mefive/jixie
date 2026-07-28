@@ -25,8 +25,6 @@ import './app-layout.css';
 
 // Standalone SDK reference page (also opened from the lab Docs button + the 📖 links in editor hovers).
 const SdkDocPage = lazy(() => import('@src/complex/lab/sdk-doc'));
-// Standalone getting-started tutorial (linear learning path; linked from /docs + the lab hero).
-const LearnPage = lazy(() => import('@src/complex/lab/learn'));
 // Standalone product manual. Content is stored as Markdown and remains separate from the SDK reference.
 const HelpPage = lazy(() => import('@src/complex/help/help'));
 // Standalone trade-detail page (opened from the backtest result modal's "open in page" button).
@@ -169,35 +167,22 @@ const router = createBrowserRouter(
         <Route path="/trades" element={<TradePage />} />
         <Route path="/signals" element={<ComplexRoute key="signals" entry={signalsEntry} />} />
       </Route>
-      {/* Standalone doc pages: authed but full-screen, no TopNav. */}
+      {/* Standalone public docs: full-screen, no TopNav, and no sign-in required. */}
       <Route
         path="/docs"
         element={
-          <RequireAuth>
-            <Suspense fallback={null}>
-              <SdkDocPage />
-            </Suspense>
-          </RequireAuth>
+          <Suspense fallback={null}>
+            <SdkDocPage />
+          </Suspense>
         }
       />
-      <Route
-        path="/learn"
-        element={
-          <RequireAuth>
-            <Suspense fallback={null}>
-              <LearnPage />
-            </Suspense>
-          </RequireAuth>
-        }
-      />
+      <Route path="/learn" element={<Navigate to="/help" replace />} />
       <Route
         path="/help/*"
         element={
-          <RequireAuth>
-            <Suspense fallback={null}>
-              <HelpPage />
-            </Suspense>
-          </RequireAuth>
+          <Suspense fallback={null}>
+            <HelpPage />
+          </Suspense>
         }
       />
       <Route path="*" element={<Navigate to="/lab" replace />} />

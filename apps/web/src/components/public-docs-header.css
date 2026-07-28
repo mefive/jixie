@@ -1,0 +1,92 @@
+@reference '../styles/index.css';
+
+.jx-publicDocsHeader {
+  @apply sticky top-0 z-20 flex items-center justify-between;
+  height: 52px;
+  padding: 0 28px;
+  border-bottom: 1px solid #d2d2d7;
+  background: rgb(255 255 255 / 0.9);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+}
+
+.jx-publicDocsHeader-brand {
+  @apply flex items-center gap-2;
+  color: #1d1d1f;
+  font-size: 15px;
+}
+
+.jx-publicDocsHeader-banner {
+  height: 24px;
+}
+
+.jx-publicDocsHeader-brandSub {
+  color: #86868b;
+  font-size: 14px;
+}
+
+.jx-publicDocsHeader-nav {
+  @apply flex items-center;
+  gap: 26px;
+}
+
+.jx-publicDocsHeader-link {
+  color: #1d1d1f;
+  font-size: 14px;
+}
+
+.jx-publicDocsHeader-link:hover,
+.jx-publicDocsHeader-link[aria-current='page'] {
+  color: #1d1d1f;
+}
+
+.jx-publicDocsHeader-link[aria-current='page'] {
+  @apply font-medium;
+}
+
+.jx-publicDocsHeader-language {
+  @apply flex overflow-hidden;
+  border: 1px solid #d2d2d7;
+  border-radius: 999px;
+}
+
+.jx-publicDocsHeader-languageButton {
+  padding: 4px 14px;
+  color: #6e6e73;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.jx-publicDocsHeader-languageButton--active {
+  background: #1d1d1f;
+  color: #fff;
+}
+
+@media (max-width: 720px) {
+  .jx-publicDocsHeader {
+    padding: 0 14px;
+  }
+
+  .jx-publicDocsHeader-banner {
+    height: 21px;
+    max-width: 92px;
+    object-fit: contain;
+  }
+
+  .jx-publicDocsHeader-brandSub {
+    @apply hidden;
+  }
+
+  .jx-publicDocsHeader-nav {
+    gap: 12px;
+  }
+
+  .jx-publicDocsHeader-link {
+    font-size: 12px;
+  }
+
+  .jx-publicDocsHeader-languageButton {
+    padding: 3px 9px;
+    font-size: 12px;
+  }
+}

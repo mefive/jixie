@@ -9,7 +9,6 @@ export const zhLab = {
     '如「每月买入股息率最高的 20 只，等权」「沪深300 里 ROE 大于 15% 的 30 只，每月调仓」',
   examplesLabel: '试试：',
   writeCodeDirectly: '或直接写代码 →',
-  firstTimeTutorial: '第一次用?看入门教程 ↗',
   newButton: '新建',
 
   // Example starter prompts (chip label + the sentence sent to the agent)

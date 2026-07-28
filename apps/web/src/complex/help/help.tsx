@@ -9,11 +9,11 @@ import {
 import { Link, Navigate, useLocation, useParams } from 'react-router-dom';
 import { observer } from 'mobx-react';
 import { useTranslation } from 'react-i18next';
-import { Image, Segmented } from 'antd';
+import { Image } from 'antd';
 import { XMarkdown, type ComponentProps } from '@ant-design/x-markdown';
 import type { Locale } from '@jixie/shared';
-import banner from '@src/assets/banner.png';
 import { localeStore } from '@src/i18n/locale-store';
+import { PublicDocsHeader } from '@src/components/public-docs-header';
 import {
   DEFAULT_HELP_SLUG,
   findHelpArticle,
@@ -59,32 +59,7 @@ export default observer(function HelpPage() {
 
   return (
     <div className="jx-help">
-      <header className="jx-help-bar">
-        <Link className="jx-help-brand" to="/help">
-          <img className="jx-help-banner" src={banner} alt={t('brandAlt')} />
-          <span className="jx-help-brandDivider" aria-hidden="true" />
-          <span className="jx-help-brandTitle">{t('title')}</span>
-        </Link>
-        <div className="jx-help-actions">
-          <Link className="jx-help-secondaryLink" to="/docs">
-            {t('sdkReference')}
-          </Link>
-          <Segmented
-            className="jx-help-language"
-            size="small"
-            aria-label={t('language')}
-            value={locale}
-            onChange={(value) => localeStore.setLocale(value as Locale)}
-            options={[
-              { label: '中', value: 'zh' },
-              { label: 'EN', value: 'en' },
-            ]}
-          />
-          <Link className="jx-help-productLink" to="/lab">
-            {t('backToProduct')}
-          </Link>
-        </div>
-      </header>
+      <PublicDocsHeader current="help" />
 
       <div className="jx-help-layout">
         <ArticleNavigation article={article} locale={locale} mobile={false} />
@@ -225,7 +200,7 @@ function HelpImage({
 }: ComponentProps<{ src?: string; alt?: string }>) {
   return (
     <figure className="jx-help-figure">
-      <Image src={src} alt={alt} preview />
+      <Image src={src} alt={alt} preview={{ cover: false }} />
       {alt ? <figcaption>{alt}</figcaption> : null}
     </figure>
   );
