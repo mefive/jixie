@@ -1,0 +1,58 @@
+@reference '../../styles/index.css';
+
+.jx-parameterScan {
+  @apply flex min-h-0 flex-col gap-4 p-4;
+}
+
+.jx-parameterScan-toolbar {
+  @apply flex flex-wrap items-center gap-2;
+}
+
+.jx-parameterScan-history {
+  width: 260px;
+}
+
+.jx-parameterScan-metric {
+  width: 160px;
+}
+
+.jx-parameterScan-form {
+  @apply flex flex-col gap-3 py-2;
+}
+
+.jx-parameterScan-note,
+.jx-parameterScan-meta {
+  @apply m-0 text-xs text-slate-500;
+}
+
+.jx-parameterScan-dimension {
+  @apply grid grid-cols-[100px_1fr] items-center gap-2;
+}
+
+.jx-parameterScan-label {
+  @apply text-sm font-medium text-slate-700;
+}
+
+.jx-parameterScan-control {
+  width: 100%;
+}
+
+.jx-parameterScan-empty {
+  @apply flex min-h-32 items-center justify-center text-sm text-slate-400;
+}
+
+.jx-parameterScan-error {
+  @apply rounded-md bg-red-50 px-3 py-2 text-sm text-red-700;
+}
+
+.jx-parameterScan-progress {
+  height: 180px;
+}
+
+.jx-parameterScan-chart {
+  height: 300px;
+}
+
+.jx-parameterScan-table {
+  @apply min-h-0;
+}

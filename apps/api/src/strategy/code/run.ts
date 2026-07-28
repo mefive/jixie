@@ -14,6 +14,7 @@ export interface CodeBacktestConfig {
   /** Host-prepared custom factor modules (prepare-custom-factors.ts) — the product path prepares
    * them in the worker; repo scripts that reference none may omit this. */
   customFactors?: CustomFactorModule[];
+  paramOverrides?: Record<string, number>;
 }
 
 /** Compile a code strategy and run it through the engine. The code-first counterpart of runBacktestConfig
@@ -24,7 +25,7 @@ export async function runCodeBacktest(
   onUserLog?: UserLogSink,
   locale?: Locale,
 ): Promise<BacktestResult> {
-  const strategy = await compileStrategy(cfg.code, onUserLog, locale);
+  const strategy = await compileStrategy(cfg.code, onUserLog, locale, cfg.paramOverrides);
   return runStrategy({
     start: cfg.start,
     end: cfg.end,

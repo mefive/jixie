@@ -95,8 +95,12 @@ interface StrategyAccounts {
 
 type Schedule = 'daily' | 'weekly' | 'monthly';`;
 
-const POSTLUDE = `interface CodeStrategy {
+const POSTLUDE = `type StrategyParams = Record<string, number>;
+
+interface CodeStrategy<Params extends StrategyParams = StrategyParams> {
   name?: string;
+  /** Finite numeric defaults exposed to parameter scans. */
+  params?: Params;
   /** Opt-in factor columns, read via ctx.factor(): moneyflow columns + custom:<key> research factors. */
   factors?: FactorKey[];
   /** Instruments to preload bar series for up front (per-instrument systems). */
@@ -105,11 +109,13 @@ const POSTLUDE = `interface CodeStrategy {
   futures?: string[];
   /** Initial capital split for a mixed stock/futures strategy; weights must sum to 1. */
   accounts?: StrategyAccounts;
-  onBar(ctx: StrategyCtx): void | Promise<void>;
+  onBar(ctx: StrategyCtx<Params>): void | Promise<void>;
 }
 
 /** Define a strategy: export default defineStrategy({ onBar(ctx) { … } }). */
-declare function defineStrategy(s: CodeStrategy): void;`;
+declare function defineStrategy<const Params extends StrategyParams = Record<string, never>>(
+  s: CodeStrategy<Params>,
+): void;`;
 
 /** A finalized factor offered in the editor's FactorKey union, referenced by its immutable strategy key. */
 export interface DtsFactorOption {
@@ -726,6 +732,7 @@ export const CTX_PROP_NAMES = [
   'stockAvailableCash',
   'futureAvailableCash',
   'futureMargin',
+  'params',
 ] as const;
 const CTX_PROP_TYPES: Record<(typeof CTX_PROP_NAMES)[number], string> = {
   date: 'string',
@@ -737,6 +744,7 @@ const CTX_PROP_TYPES: Record<(typeof CTX_PROP_NAMES)[number], string> = {
   stockAvailableCash: 'number',
   futureAvailableCash: 'number',
   futureMargin: 'number',
+  params: 'Readonly<Params>',
 };
 const CTX_PROPS = CTX_PROP_NAMES.map(
   (propName) => `  readonly ${propName}: ${CTX_PROP_TYPES[propName]};`,
@@ -807,7 +815,7 @@ ${ofIface('Universe')}
 }
 
 /** ${TYPE_DOCS.strategyCtx[locale]}${tl('StrategyCtx')} */
-interface StrategyCtx {
+interface StrategyCtx<Params extends StrategyParams = StrategyParams> {
 ${CTX_PROPS}
 ${ofIface('StrategyCtx')}
 }

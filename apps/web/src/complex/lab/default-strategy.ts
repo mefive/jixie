@@ -5,6 +5,8 @@
 export const DEFAULT_CODE = `// Describe the strategy you want to the Agent on the left; the generated code lands here. You can also edit it directly.
 export default defineStrategy({
   name: 'New strategy',
+  // Put tunable numeric constants in params and read them through ctx.params to enable parameter scans.
+  params: {},
   onBar(ctx) {
     // Called once per trading day: use ctx to read data and place orders (T+1 / price limits / adjustment / costs are handled by the engine).
   },

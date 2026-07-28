@@ -8,7 +8,7 @@
 
 .jx-td-metrics {
   @apply grid gap-2;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
 .jx-td-metric {
@@ -76,7 +76,7 @@
 .jx-td-head,
 .jx-td-row {
   display: grid;
-  grid-template-columns: minmax(150px, 1.4fr) 92px 44px minmax(60px, 0.7fr) 66px 78px 62px;
+  grid-template-columns: minmax(150px, 1.4fr) 92px 44px minmax(60px, 0.7fr) 66px 78px 62px 62px;
   gap: 8px;
   align-items: center;
   padding: 7px 10px;

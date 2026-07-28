@@ -1,6 +1,7 @@
 import { runStrategy } from './run.js';
-import { defineStrategy } from '../strategy/code/sdk.js';
+import { applyStrategyParamOverrides, defineStrategy } from '../strategy/code/sdk.js';
 import { makeSandboxConsole, noopSandboxConsole } from '../lib/sandbox-console.js';
+import type { SandboxConsole } from '../lib/sandbox-console.js';
 import type { EngineDataPort } from './data-port.js';
 import type { CustomFactorModule } from './custom-factor.js';
 import type { Strategy } from './types.js';
@@ -48,8 +49,37 @@ interface WalledConfig {
   cost?: Record<string, number>;
   locale?: Locale;
   customFactors?: CustomFactorModule[]; // host-prepared factor modules, evaluated in-wall by run.ts
+  paramOverrides?: Record<string, number>;
   captureUserLogs: boolean;
 }
+
+function loadStrategy(userJs: string, sandboxConsole: SandboxConsole): Strategy {
+  const mod: { exports: Record<string, unknown> } = { exports: {} };
+  try {
+    const run = new Function('module', 'exports', 'defineStrategy', 'console', 'require', userJs);
+    run(mod, mod.exports, defineStrategy, sandboxConsole, (id: string) => {
+      throw new Error(
+        `strategy code cannot import external modules (${id}) — all capabilities are on ctx`,
+      );
+    });
+  } catch (error) {
+    throw new Error(
+      `strategy code execution error: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+
+  const strategy = (mod.exports.default ?? mod.exports) as Partial<Strategy>;
+  if (!strategy || typeof strategy.onBar !== 'function') {
+    throw new Error('strategy must `export default defineStrategy({ onBar(ctx) { … } })`');
+  }
+  if (!strategy.name) {
+    strategy.name = 'Untitled strategy';
+  }
+  return strategy as Strategy;
+}
+
+(globalThis as Record<string, unknown>).__inspectStrategyParameters = (userJs: string) =>
+  JSON.stringify(loadStrategy(userJs, noopSandboxConsole).params ?? {});
 
 (globalThis as Record<string, unknown>).__runBacktest = async (cfgJson: string) => {
   const cfg = JSON.parse(cfgJson) as WalledConfig;
@@ -63,31 +93,8 @@ interface WalledConfig {
         cfg.locale,
       )
     : noopSandboxConsole;
-  const mod: { exports: Record<string, unknown> } = { exports: {} };
-  try {
-    const run = new Function(
-      'module',
-      'exports',
-      'defineStrategy',
-      'console',
-      'require',
-      cfg.userJs,
-    );
-    run(mod, mod.exports, defineStrategy, sandboxConsole, (id: string) => {
-      throw new Error(
-        `strategy code cannot import external modules (${id}) — all capabilities are on ctx`,
-      );
-    });
-  } catch (e) {
-    throw new Error(`strategy code execution error: ${e instanceof Error ? e.message : String(e)}`);
-  }
-  const strategy = (mod.exports.default ?? mod.exports) as Partial<Strategy>;
-  if (!strategy || typeof strategy.onBar !== 'function') {
-    throw new Error('strategy must `export default defineStrategy({ onBar(ctx) { … } })`');
-  }
-  if (!strategy.name) {
-    strategy.name = 'Untitled strategy';
-  }
+  const strategy = loadStrategy(cfg.userJs, sandboxConsole);
+  applyStrategyParamOverrides(strategy, cfg.paramOverrides);
 
   const result = await runStrategy({
     start: cfg.start,
@@ -95,7 +102,7 @@ interface WalledConfig {
     initialCash: cfg.initialCash,
     cost: cfg.cost,
     locale: cfg.locale,
-    strategy: strategy as Strategy,
+    strategy,
     dataPort: bridgePort,
     customFactors: cfg.customFactors,
     onLog: (line) => __hostLog.applyIgnored(undefined, ['system', 'info', line]),

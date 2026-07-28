@@ -92,6 +92,9 @@ import type {
   ComputeChartSpec,
   LogLine,
   SqlRows,
+  StrategyScanReport,
+  StrategyScanReportSummary,
+  StrategyScanSpec,
   ToolTraceItem,
 } from '@jixie/shared';
 
@@ -218,6 +221,44 @@ export function pollBacktest(jobId: string, since = 0): Promise<BacktestJob> {
 // A still-running backtest job for a strategy — to re-attach after a refresh (DB-backed, no localStorage).
 export function findBacktestRunningJob(strategyId: string): Promise<{ jobId: string | null }> {
   return request(`/api/app/strategy/backtest/running?strategyId=${encodeURIComponent(strategyId)}`);
+}
+
+export function inspectStrategyParameters(
+  code: string,
+): Promise<{ parameters: Record<string, number> }> {
+  return request('/api/app/strategy/scans/parameters', {
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  });
+}
+
+export function submitStrategyScan(
+  strategyId: string,
+  config: BacktestConfig,
+  spec: StrategyScanSpec,
+): Promise<{ reportId: string; jobId: string }> {
+  return request(`/api/app/strategy/scans?strategyId=${encodeURIComponent(strategyId)}`, {
+    method: 'POST',
+    body: JSON.stringify({ config, spec }),
+  });
+}
+
+export function listStrategyScans(strategyId: string): Promise<StrategyScanReportSummary[]> {
+  return request(`/api/app/strategy/scans?strategyId=${encodeURIComponent(strategyId)}`);
+}
+
+export function findRunningStrategyScan(
+  strategyId: string,
+): Promise<{ reportId: string | null; jobId: string | null }> {
+  return request(`/api/app/strategy/scans/running?strategyId=${encodeURIComponent(strategyId)}`);
+}
+
+export function getStrategyScanReport(reportId: string): Promise<StrategyScanReport> {
+  return request(`/api/app/strategy/scans/${reportId}`);
+}
+
+export function pollStrategyScan(reportId: string, since = 0): Promise<BacktestJob> {
+  return request(`/api/app/strategy/scans/${reportId}/job?since=${since}`);
 }
 
 import type {

@@ -64,6 +64,7 @@ export default function TradeDetail({ tradeLog }: { tradeLog: TradeRecord[] }) {
     const sellCount = filteredTrades.length - buyCount;
     const turnover = filteredTrades.reduce((sum, trade) => sum + trade.amount, 0);
     const fees = filteredTrades.reduce((sum, trade) => sum + trade.fee, 0);
+    const slippage = filteredTrades.reduce((sum, trade) => sum + (trade.slippageCost ?? 0), 0);
 
     return [
       { label: t('tdMetricInstruments'), value: instrumentCount.toLocaleString() },
@@ -73,6 +74,7 @@ export default function TradeDetail({ tradeLog }: { tradeLog: TradeRecord[] }) {
       },
       { label: t('tdMetricTurnover'), value: formatCompactMoney(turnover, t('unitWan')) },
       { label: t('tdMetricFees'), value: formatYuan(fees, 0) },
+      { label: t('tdMetricSlippage'), value: formatYuan(slippage, 0) },
       {
         label: t('tdMetricAverage'),
         value: formatMoney(turnover / Math.max(filteredTrades.length, 1), t('unitWan')),
@@ -166,6 +168,7 @@ export default function TradeDetail({ tradeLog }: { tradeLog: TradeRecord[] }) {
             <span className="jx-td-num">{t('tdColPrice')}</span>
             <span className="jx-td-num">{t('tdColAmount')}</span>
             <span className="jx-td-num">{t('tdColFee')}</span>
+            <span className="jx-td-num">{t('tdColSlippage')}</span>
           </div>
           {filteredTrades.map((trade, index) => {
             const type = normalizedAssetType(trade);
@@ -196,6 +199,9 @@ export default function TradeDetail({ tradeLog }: { tradeLog: TradeRecord[] }) {
                 <span className="jx-td-num">{(trade.realPrice ?? trade.price).toFixed(2)}</span>
                 <span className="jx-td-num">{formatMoney(trade.amount, t('unitWan'))}</span>
                 <span className="jx-td-num">{trade.fee.toFixed(2)}</span>
+                <span className="jx-td-num">
+                  {trade.slippageCost == null ? '—' : trade.slippageCost.toFixed(2)}
+                </span>
               </div>
             );
           })}

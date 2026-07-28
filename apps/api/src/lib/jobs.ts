@@ -1,5 +1,6 @@
 import { ulid } from 'ulid';
 import type { LogLine } from '@jixie/shared';
+import type { Prisma } from '@prisma/client';
 import { prisma } from './prisma.js';
 
 /**
@@ -14,7 +15,7 @@ import { prisma } from './prisma.js';
  * A job's `key` ties it to what it computes (factor: variantKey, backtest: strategyId). Factor pages
  * restore through the report relation; legacy findRunningJob remains for backtests and correlation.
  */
-export type JobKind = 'backtest' | 'factor';
+export type JobKind = 'backtest' | 'factor' | 'strategy-scan';
 export type JobStatus = 'running' | 'done' | 'error' | 'stale';
 
 const logsByJob = new Map<string, LogLine[]>();
@@ -83,6 +84,32 @@ export async function finishFactorReportJob(
   setTimeout(() => logsByJob.delete(jobId), LOG_TTL_MS).unref?.();
 }
 
+/** Finish a strategy parameter scan and its job atomically. */
+export async function finishStrategyScanJob(
+  jobId: string,
+  reportId: string,
+  status: 'done' | 'error',
+  payload?: Prisma.InputJsonValue,
+  error?: string,
+): Promise<void> {
+  const logs = logsByJob.get(jobId);
+  await prisma.$transaction([
+    prisma.strategyScanReport.update({
+      where: { id: reportId },
+      data: {
+        status,
+        payload: status === 'done' ? payload : undefined,
+        error: status === 'error' ? (error ?? null) : null,
+      },
+    }),
+    prisma.job.update({
+      where: { id: jobId },
+      data: { status, error: error ?? null, logs: logs ? JSON.stringify(logs) : undefined },
+    }),
+  ]);
+  setTimeout(() => logsByJob.delete(jobId), LOG_TTL_MS).unref?.();
+}
+
 /** Poll an owner-scoped job: DB status + logs after `since` — live in memory, else from the DB copy. */
 export async function getJob(userId: string, jobId: string, since = 0) {
   const job = await prisma.job.findFirst({ where: { id: jobId, userId } });
@@ -130,7 +157,7 @@ export async function markRunningJobsStale(): Promise<number> {
   return prisma.$transaction(async (transaction) => {
     const running = await transaction.job.findMany({
       where: { status: 'running' },
-      select: { factorReportId: true },
+      select: { factorReportId: true, strategyScanReportId: true },
     });
     const reportIds = running
       .map((job) => job.factorReportId)
@@ -139,6 +166,15 @@ export async function markRunningJobsStale(): Promise<number> {
     if (reportIds.length > 0) {
       await transaction.factorReport.updateMany({
         where: { id: { in: reportIds }, status: 'running' },
+        data: { status: 'stale', error: null },
+      });
+    }
+    const scanReportIds = running
+      .map((job) => job.strategyScanReportId)
+      .filter((reportId): reportId is string => !!reportId);
+    if (scanReportIds.length > 0) {
+      await transaction.strategyScanReport.updateMany({
+        where: { id: { in: scanReportIds }, status: 'running' },
         data: { status: 'stale', error: null },
       });
     }
