@@ -237,6 +237,21 @@
   color: inherit;
 }
 
+.jx-help-markdown > .block-katex,
+.jx-help-markdown > .inline-katex,
+.jx-help-markdown > .katex-display {
+  @apply overflow-x-auto overflow-y-hidden;
+  display: block;
+  max-width: 100%;
+  margin: 22px 0;
+  padding: 4px 0;
+  text-align: center;
+}
+
+.jx-help-markdown .inline-katex {
+  max-width: 100%;
+}
+
 .jx-help-figure {
   margin: 24px 0 30px;
 }

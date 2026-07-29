@@ -29,6 +29,7 @@
     "test:e2e:help-content-etf-futures": "node e2e/help-content-etf-futures.mjs",
     "test:e2e:help-content-strategy-agent": "node e2e/help-content-strategy-agent.mjs",
     "test:e2e:help-content-factor-basics": "node e2e/help-content-factor-basics.mjs",
+    "test:e2e:help-content-factor-metrics": "node e2e/help-content-factor-metrics.mjs",
     "test:e2e:help-screen-live": "node e2e/help-screen-live.mjs"
   },
   "dependencies": {

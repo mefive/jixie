@@ -39,10 +39,18 @@ import workspaceEn from '@src/content/help/en/backtesting/workspace.md?raw';
 import workspaceZh from '@src/content/help/zh/backtesting/workspace.md?raw';
 import analysisSettingsEn from '@src/content/help/en/factors/analysis-settings.md?raw';
 import analysisSettingsZh from '@src/content/help/zh/factors/analysis-settings.md?raw';
+import decileReturnsEn from '@src/content/help/en/factors/decile-returns.md?raw';
+import decileReturnsZh from '@src/content/help/zh/factors/decile-returns.md?raw';
 import firstPresetAnalysisEn from '@src/content/help/en/factors/first-preset-analysis.md?raw';
 import firstPresetAnalysisZh from '@src/content/help/zh/factors/first-preset-analysis.md?raw';
+import neutralizationEn from '@src/content/help/en/factors/neutralization.md?raw';
+import neutralizationZh from '@src/content/help/zh/factors/neutralization.md?raw';
+import rankIcIcirEn from '@src/content/help/en/factors/rank-ic-icir.md?raw';
+import rankIcIcirZh from '@src/content/help/zh/factors/rank-ic-icir.md?raw';
 import factorResultsOverviewEn from '@src/content/help/en/factors/results-overview.md?raw';
 import factorResultsOverviewZh from '@src/content/help/zh/factors/results-overview.md?raw';
+import turnoverCostsEn from '@src/content/help/en/factors/turnover-costs.md?raw';
+import turnoverCostsZh from '@src/content/help/zh/factors/turnover-costs.md?raw';
 import whatFactorResearchEn from '@src/content/help/en/factors/what-factor-research.md?raw';
 import whatFactorResearchZh from '@src/content/help/zh/factors/what-factor-research.md?raw';
 import firstBacktestEn from '@src/content/help/en/getting-started/first-backtest.md?raw';
@@ -665,6 +673,70 @@ export const HELP_ARTICLES: HelpArticle[] = [
     content: {
       zh: factorResultsOverviewZh,
       en: factorResultsOverviewEn,
+    },
+  },
+  {
+    slug: 'factors/decile-returns',
+    group: 'factorResearch',
+    title: {
+      zh: '分组收益和前瞻收益',
+      en: 'Decile and forward returns',
+    },
+    summary: {
+      zh: '用公式和数字例子理解前瞻收益、D1 至 D10、等权和市值加权。',
+      en: 'Use formulas and examples to understand forward returns, deciles, and weighting.',
+    },
+    content: {
+      zh: decileReturnsZh,
+      en: decileReturnsEn,
+    },
+  },
+  {
+    slug: 'factors/rank-ic-icir',
+    group: 'factorResearch',
+    title: {
+      zh: 'Rank IC、ICIR 和 IC 衰减',
+      en: 'Rank IC, ICIR, and IC decay',
+    },
+    summary: {
+      zh: '理解因子排名与后续收益排名的关系、历史稳定性和不同前瞻期限。',
+      en: 'Understand ranking relationships, historical consistency, and forward horizons.',
+    },
+    content: {
+      zh: rankIcIcirZh,
+      en: rankIcIcirEn,
+    },
+  },
+  {
+    slug: 'factors/turnover-costs',
+    group: 'factorResearch',
+    title: {
+      zh: '换手、交易成本和费后收益',
+      en: 'Turnover, trading costs, and net returns',
+    },
+    summary: {
+      zh: '计算最高档换手、基点、往返成本和扣除两边换手后的费后多空收益。',
+      en: 'Calculate top-group turnover, basis points, round-trip cost, and net long-short returns.',
+    },
+    content: {
+      zh: turnoverCostsZh,
+      en: turnoverCostsEn,
+    },
+  },
+  {
+    slug: 'factors/neutralization',
+    group: 'factorResearch',
+    title: {
+      zh: '市值和行业中性化',
+      en: 'Size and industry neutralization',
+    },
+    summary: {
+      zh: '理解中性化残差，运行市值行业中性报告，并与原始报告正确比较。',
+      en: 'Understand residuals, run a neutralized report, and compare it with the raw result.',
+    },
+    content: {
+      zh: neutralizationZh,
+      en: neutralizationEn,
     },
   },
 ];

@@ -124,8 +124,8 @@ try {
         .evaluateAll((links) => links.map((link) => link.getAttribute('href'))),
     ),
   ].filter(Boolean);
-  if (articleHrefs.length !== 36) {
-    throw new Error(`expected 36 help articles, got ${articleHrefs.length}`);
+  if (articleHrefs.length !== 40) {
+    throw new Error(`expected 40 help articles, got ${articleHrefs.length}`);
   }
   for (const href of articleHrefs) {
     await page.goto(`${BASE}${href}`, { waitUntil: 'domcontentloaded' });
@@ -312,6 +312,47 @@ try {
   }
   await page.getByRole('heading', { level: 2, name: '第一次需要看懂的指标' }).waitFor();
 
+  await page.getByRole('link', { name: '分组收益和前瞻收益', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '分组收益和前瞻收益' }).waitFor();
+  if ((await page.locator('.jx-help-figure').count()) !== 1) {
+    throw new Error('decile-return article does not render its screenshot');
+  }
+  if ((await page.locator('.jx-help-markdown .katex').count()) < 10) {
+    throw new Error('decile-return formulas did not render with KaTeX');
+  }
+
+  await page.getByRole('link', { name: 'Rank IC、ICIR 和 IC 衰减', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: 'Rank IC、ICIR 和 IC 衰减' }).waitFor();
+  if ((await page.locator('.jx-help-figure').count()) !== 2) {
+    throw new Error('Rank IC article does not render both screenshots');
+  }
+  if ((await page.locator('.jx-help-markdown .katex').count()) < 20) {
+    throw new Error('Rank IC formulas did not render with KaTeX');
+  }
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(100);
+  await page.screenshot({
+    path: `${SHOTS}12a-help-factor-formulas.png`,
+  });
+
+  await page.getByRole('link', { name: '换手、交易成本和费后收益', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '换手、交易成本和费后收益' }).waitFor();
+  if ((await page.locator('.jx-help-figure').count()) !== 2) {
+    throw new Error('turnover and cost article does not render both screenshots');
+  }
+  if ((await page.locator('.jx-help-markdown .katex').count()) < 10) {
+    throw new Error('turnover and cost formulas did not render with KaTeX');
+  }
+
+  await page.getByRole('link', { name: '市值和行业中性化', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '市值和行业中性化' }).waitFor();
+  if ((await page.locator('.jx-help-figure').count()) !== 3) {
+    throw new Error('neutralization article does not render all three screenshots');
+  }
+  if ((await page.locator('.jx-help-markdown .katex').count()) < 10) {
+    throw new Error('neutralization formulas did not render with KaTeX');
+  }
+
   await page.getByRole('link', { name: '页面导航', exact: true }).first().click();
   await page.getByRole('heading', { level: 1, name: '页面导航' }).waitFor();
 
@@ -349,8 +390,24 @@ try {
     fullPage: true,
   });
 
+  await page.goto(`${BASE}/help/factors/rank-ic-icir`, {
+    waitUntil: 'domcontentloaded',
+  });
+  await page.getByRole('heading', { level: 1, name: 'Rank IC, ICIR, and IC decay' }).waitFor();
+  await page.locator('.jx-help-markdown .katex').first().waitFor();
+  const formulaPageOverflow = await page.evaluate(
+    () => document.documentElement.scrollWidth > window.innerWidth + 1,
+  );
+  if (formulaPageOverflow) {
+    throw new Error('factor formula page has horizontal overflow at 390px');
+  }
+  await page.screenshot({
+    path: `${SHOTS}12b-help-factor-formulas-mobile.png`,
+    fullPage: true,
+  });
+
   console.log(
-    '[help-e2e] public docs, same-tab docs nav, product popup, no tutorial, image hover, articles, and narrow layout ok',
+    '[help-e2e] public docs, same-tab docs nav, product popup, no tutorial, image hover, articles, formulas, and narrow layout ok',
   );
 } finally {
   await context.close();
