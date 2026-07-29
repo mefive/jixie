@@ -16,7 +16,11 @@ export const PublicDocsHeader = observer(function PublicDocsHeader({
 
   return (
     <header className="jx-publicDocsHeader">
-      <Link className="jx-publicDocsHeader-brand" to={current === 'help' ? '/help' : '/docs'}>
+      <Link
+        className="jx-publicDocsHeader-brand"
+        to="/"
+        aria-label={t('机械交易系，返回工作台', 'Jixie, back to workspace')}
+      >
         <img className="jx-publicDocsHeader-banner" src={banner} alt={t('机械交易系', 'Jixie')} />
         <span className="jx-publicDocsHeader-brandSub">
           {current === 'help' ? t('· 使用帮助', '· Help') : t('· 策略 SDK', '· Strategy SDK')}
@@ -55,6 +59,18 @@ export const PublicDocsHeader = observer(function PublicDocsHeader({
             </button>
           ))}
         </div>
+        <Link
+          className="jx-publicDocsHeader-workspaceLink"
+          to="/"
+          aria-label={t('返回工作台', 'Back to workspace')}
+        >
+          <span className="jx-publicDocsHeader-workspaceText">
+            {t('返回工作台', 'Back to workspace')}
+          </span>
+          <span className="jx-publicDocsHeader-workspaceTextMobile">
+            {t('工作台', 'Workspace')}
+          </span>
+        </Link>
       </nav>
     </header>
   );

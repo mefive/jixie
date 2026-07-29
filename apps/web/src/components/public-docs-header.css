@@ -62,6 +62,23 @@
   color: #fff;
 }
 
+.jx-publicDocsHeader-workspaceLink {
+  @apply rounded-full font-medium;
+  padding: 6px 15px;
+  background: #1d1d1f;
+  color: #fff;
+  font-size: 12.5px;
+}
+
+.jx-publicDocsHeader-workspaceLink:hover {
+  background: #363638;
+  color: #fff;
+}
+
+.jx-publicDocsHeader-workspaceTextMobile {
+  @apply hidden;
+}
+
 @media (max-width: 720px) {
   .jx-publicDocsHeader {
     padding: 0 14px;
@@ -78,7 +95,7 @@
   }
 
   .jx-publicDocsHeader-nav {
-    gap: 12px;
+    gap: 9px;
   }
 
   .jx-publicDocsHeader-link {
@@ -86,7 +103,20 @@
   }
 
   .jx-publicDocsHeader-languageButton {
-    padding: 3px 9px;
+    padding: 3px 8px;
     font-size: 12px;
+  }
+
+  .jx-publicDocsHeader-workspaceLink {
+    padding: 5px 10px;
+    font-size: 12px;
+  }
+
+  .jx-publicDocsHeader-workspaceText {
+    @apply hidden;
+  }
+
+  .jx-publicDocsHeader-workspaceTextMobile {
+    @apply inline;
   }
 }
