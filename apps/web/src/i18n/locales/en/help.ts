@@ -12,5 +12,6 @@ export const enHelp: typeof zhHelp = {
     basics: 'Quantitative trading basics',
     screening: 'Screener',
     stockDetail: 'Stock detail',
+    backtesting: 'Backtest workspace',
   },
 };

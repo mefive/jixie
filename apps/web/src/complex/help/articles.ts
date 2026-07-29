@@ -9,6 +9,18 @@ import stocksEtfsIndicesEn from '@src/content/help/en/basics/stocks-etfs-indices
 import stocksEtfsIndicesZh from '@src/content/help/zh/basics/stocks-etfs-indices.md?raw';
 import strategyBacktestEn from '@src/content/help/en/basics/strategy-backtest.md?raw';
 import strategyBacktestZh from '@src/content/help/zh/basics/strategy-backtest.md?raw';
+import equityDrawdownEn from '@src/content/help/en/backtesting/equity-drawdown.md?raw';
+import equityDrawdownZh from '@src/content/help/zh/backtesting/equity-drawdown.md?raw';
+import resultsOverviewEn from '@src/content/help/en/backtesting/results-overview.md?raw';
+import resultsOverviewZh from '@src/content/help/zh/backtesting/results-overview.md?raw';
+import runAndLogsEn from '@src/content/help/en/backtesting/run-and-logs.md?raw';
+import runAndLogsZh from '@src/content/help/zh/backtesting/run-and-logs.md?raw';
+import runSettingsEn from '@src/content/help/en/backtesting/run-settings.md?raw';
+import runSettingsZh from '@src/content/help/zh/backtesting/run-settings.md?raw';
+import tradesCostsEn from '@src/content/help/en/backtesting/trades-costs.md?raw';
+import tradesCostsZh from '@src/content/help/zh/backtesting/trades-costs.md?raw';
+import workspaceEn from '@src/content/help/en/backtesting/workspace.md?raw';
+import workspaceZh from '@src/content/help/zh/backtesting/workspace.md?raw';
 import firstBacktestEn from '@src/content/help/en/getting-started/first-backtest.md?raw';
 import firstBacktestZh from '@src/content/help/zh/getting-started/first-backtest.md?raw';
 import firstScreenEn from '@src/content/help/en/getting-started/first-screen.md?raw';
@@ -36,7 +48,13 @@ import peVolumeDataZh from '@src/content/help/zh/stock-detail/pe-volume-data.md?
 import readChartEn from '@src/content/help/en/stock-detail/read-chart.md?raw';
 import readChartZh from '@src/content/help/zh/stock-detail/read-chart.md?raw';
 
-export const HELP_GROUPS = ['gettingStarted', 'basics', 'screening', 'stockDetail'] as const;
+export const HELP_GROUPS = [
+  'gettingStarted',
+  'basics',
+  'screening',
+  'stockDetail',
+  'backtesting',
+] as const;
 export type HelpGroup = (typeof HELP_GROUPS)[number];
 
 export type HelpArticle = {
@@ -334,6 +352,102 @@ export const HELP_ARTICLES: HelpArticle[] = [
     content: {
       zh: peVolumeDataZh,
       en: peVolumeDataEn,
+    },
+  },
+  {
+    slug: 'backtesting/workspace',
+    group: 'backtesting',
+    title: {
+      zh: '认识回测工作台',
+      en: 'Understand the Backtest workspace',
+    },
+    summary: {
+      zh: '认识策略、代码、结果和日志区域，并正确打开、新建和切换策略。',
+      en: 'Learn the strategy, code, results, and logs areas, and open or create a strategy.',
+    },
+    content: {
+      zh: workspaceZh,
+      en: workspaceEn,
+    },
+  },
+  {
+    slug: 'backtesting/run-settings',
+    group: 'backtesting',
+    title: {
+      zh: '设置回测参数',
+      en: 'Set backtest parameters',
+    },
+    summary: {
+      zh: '设置日期、资金、基础滑点和冲击系数，并检查策略自身参数。',
+      en: 'Set dates, capital, base slippage, and impact, and check strategy parameters.',
+    },
+    content: {
+      zh: runSettingsZh,
+      en: runSettingsEn,
+    },
+  },
+  {
+    slug: 'backtesting/run-and-logs',
+    group: 'backtesting',
+    title: {
+      zh: '运行回测和查看日志',
+      en: 'Run a backtest and inspect logs',
+    },
+    summary: {
+      zh: '正确提交回测，查看运行状态、实时日志、完成结果和失败信息。',
+      en: 'Submit a run correctly and inspect progress, logs, completion, and failures.',
+    },
+    content: {
+      zh: runAndLogsZh,
+      en: runAndLogsEn,
+    },
+  },
+  {
+    slug: 'backtesting/results-overview',
+    group: 'backtesting',
+    title: {
+      zh: '查看回测结果',
+      en: 'Inspect backtest results',
+    },
+    summary: {
+      zh: '按顺序检查成交、收益、风险、成本、净值和日志。',
+      en: 'Review trades, return, risk, costs, equity, and logs in a reliable order.',
+    },
+    content: {
+      zh: resultsOverviewZh,
+      en: resultsOverviewEn,
+    },
+  },
+  {
+    slug: 'backtesting/equity-drawdown',
+    group: 'backtesting',
+    title: {
+      zh: '查看净值、回撤和月度收益',
+      en: 'Read equity, drawdown, and monthly returns',
+    },
+    summary: {
+      zh: '切换净值和回撤图，比较基准，并阅读月度收益表。',
+      en: 'Switch equity and drawdown views, compare a benchmark, and read monthly returns.',
+    },
+    content: {
+      zh: equityDrawdownZh,
+      en: equityDrawdownEn,
+    },
+  },
+  {
+    slug: 'backtesting/trades-costs',
+    group: 'backtesting',
+    title: {
+      zh: '查看交易明细和成本',
+      en: 'Inspect trades and costs',
+    },
+    summary: {
+      zh: '核对成交日期、方向、数量、价格、手续费和滑点。',
+      en: 'Verify fill dates, directions, quantities, prices, fees, and slippage.',
+    },
+    content: {
+      zh: tradesCostsZh,
+      en: tradesCostsEn,
     },
   },
 ];

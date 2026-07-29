@@ -10,5 +10,6 @@ export const zhHelp = {
     basics: '量化交易基础',
     screening: '选股看图',
     stockDetail: '股票详情',
+    backtesting: '回测工作台',
   },
 };

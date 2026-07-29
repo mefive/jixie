@@ -23,6 +23,7 @@
     "test:e2e:help": "node e2e/help.mjs",
     "test:e2e:help-content": "node e2e/help-content.mjs",
     "test:e2e:help-content-screen": "node e2e/help-content-screen.mjs",
+    "test:e2e:help-content-backtest": "node e2e/help-content-backtest.mjs",
     "test:e2e:help-screen-live": "node e2e/help-screen-live.mjs"
   },
   "dependencies": {
