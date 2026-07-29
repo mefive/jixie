@@ -124,8 +124,8 @@ try {
         .evaluateAll((links) => links.map((link) => link.getAttribute('href'))),
     ),
   ].filter(Boolean);
-  if (articleHrefs.length !== 18) {
-    throw new Error(`expected 18 help articles, got ${articleHrefs.length}`);
+  if (articleHrefs.length !== 24) {
+    throw new Error(`expected 24 help articles, got ${articleHrefs.length}`);
   }
   for (const href of articleHrefs) {
     await page.goto(`${BASE}${href}`, { waitUntil: 'domcontentloaded' });
@@ -207,6 +207,23 @@ try {
   await page.screenshot({
     path: `${SHOTS}10b-help-stock-adjustment-guide.png`,
   });
+
+  await page.getByRole('link', { name: '设置回测参数', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '设置回测参数' }).waitFor();
+  if ((await page.locator('.jx-help-figure').count()) !== 1) {
+    throw new Error('backtest settings article does not render its screenshot');
+  }
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(100);
+  await page.screenshot({
+    path: `${SHOTS}11a-help-backtest-settings-guide.png`,
+  });
+
+  await page.getByRole('link', { name: '查看交易明细和成本', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '查看交易明细和成本' }).waitFor();
+  if ((await page.locator('.jx-help-figure').count()) !== 2) {
+    throw new Error('backtest trades article does not render both screenshots');
+  }
 
   await page.getByRole('link', { name: '页面导航', exact: true }).first().click();
   await page.getByRole('heading', { level: 1, name: '页面导航' }).waitFor();
