@@ -80,10 +80,10 @@
 | 路由 | `/lab`、`/lab?id=<策略编号>`、`/lab?new=1` |
 | 页面操作 | 新建策略；输入一句话描述；使用示例；直接写代码；打开历史策略；修改策略；处理未运行修改提示 |
 | 使用手册文章 | 认识回测工作台；新建策略；一句话生成策略；使用示例；直接写代码；历史策略；修改后重新运行；未运行修改提示 |
-| 当前 E2E | `screener.mjs`、`learn.mjs`、`sdk-hover.mjs`、`help-content-backtest.mjs` |
-| 当前截图 | `workspace-01.png`；历史验收目录中的 `4-lab-hero.png`、`4b-lab-cards.png`、`4c-code-editor.png`、`4c1-factor-hover.png`、`4d-new-dirty-confirm.png`、`learn-6-lab-hero.png`、`7r-sdk-hover.png` |
-| 本轮结果 | 阶段 E 新增工作台分区文章和正式截图；新建页、历史策略、代码编辑器、因子链接、SDK 悬停帮助和未运行修改提示的既有 E2E 仍可用 |
-| 缺口 | 真实模型生成策略尚未重跑；需要为继续修改和“有改动尚未运行”保护补当前正式截图 |
+| 当前 E2E | `screener.mjs`、`learn.mjs`、`sdk-hover.mjs`、`help-content-backtest.mjs`、`help-content-backtest-states.mjs` |
+| 当前截图 | `workspace-01.png`、`edit-rerun-01.png`；历史验收目录中的 `4-lab-hero.png`、`4b-lab-cards.png`、`4c-code-editor.png`、`4c1-factor-hover.png`、`4d-new-dirty-confirm.png`、`learn-6-lab-hero.png`、`7r-sdk-hover.png` |
+| 本轮结果 | 工作台分区、修改后重新运行和“有改动尚未运行”保护均有当前正式截图；新建页、历史策略、代码编辑器、因子链接和 SDK 悬停帮助的既有 E2E 仍可用 |
+| 缺口 | 真实模型生成策略和继续对话修改尚未重跑 |
 
 ### 2.6 回测工作台：设置与运行
 
@@ -91,10 +91,10 @@
 | --- | --- |
 | 页面操作 | 设置起始日期、结束日期、资金、基础滑点、冲击系数和策略参数；运行回测；查看运行状态；查看日志；重新连接进行中的任务 |
 | 使用手册文章 | 设置回测参数；运行回测和查看日志；运行中刷新页面；失败处理 |
-| 当前 E2E | `strategy-orchestration.mjs`、`help-content-backtest.mjs` |
-| 当前截图 | `run-settings-01.png`、`run-logs-01.png` |
-| 本轮结果 | 普通月度策略真实回测通过；日期、资金、基础滑点、冲击系数、运行状态和日志已生成当前正式截图；重复提交会被拒绝，结果会保存到策略 |
-| 缺口 | 需要补运行中刷新后的重新连接和错误状态专项 E2E 与截图 |
+| 当前 E2E | `strategy-orchestration.mjs`、`help-content-backtest.mjs`、`help-content-backtest-states.mjs` |
+| 当前截图 | `run-settings-01.png`、`run-logs-01.png`、`reconnect-01.png`、`failure-01.png` |
+| 本轮结果 | 普通月度策略真实回测通过；日期、资金、成本、运行状态、日志、刷新后任务恢复和代码编译失败均有当前正式截图；重复提交会被拒绝，结果会保存到策略 |
+| 缺口 | 普通策略的运行状态无缺口；ETF、期货和混合策略仍待专项验证 |
 
 本轮修正了主 E2E 中两处过时操作：
 
@@ -118,11 +118,11 @@
 | 项目 | 内容 |
 | --- | --- |
 | 页面操作 | 打开参数扫描；选择参数和值；选择观察指标；运行多个组合；查看结果图表；打开某个组合 |
-| 使用手册文章 | 参数扫描；比较参数组合；避免只挑最好结果 |
-| 当前 E2E | `strategy-parameter-scan.mjs` |
-| 当前截图 | `strategy-parameter-scan.png` |
-| 本轮结果 | 四个参数组合完成并显示结果，专项测试通过 |
-| 缺口 | 需要补充从工作台打开扫描的连续步骤；量化基础中必须解释反复挑参和过度拟合 |
+| 使用手册文章 | 比较多组策略参数；为什么回测不等于未来收益 |
+| 当前 E2E | `strategy-parameter-scan.mjs`、`help-content-parameter-scan.mjs` |
+| 当前截图 | `parameter-scan-settings-01.png`、`parameter-scan-results-01.png`；验收目录中的 `strategy-parameter-scan.png` |
+| 本轮结果 | 从工作台打开扫描、填写两维参数、运行四个组合、切换指标、查看组合图和明细表均通过；文章解释样本切分、参数敏感和反复挑参造成的过度拟合 |
+| 缺口 | 无；后续策略增加非数值参数扫描时再扩展 |
 
 ### 2.9 ETF 策略
 
