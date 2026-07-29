@@ -80,10 +80,10 @@
 | 路由 | `/lab`、`/lab?id=<策略编号>`、`/lab?new=1` |
 | 页面操作 | 新建策略；输入一句话描述；使用示例；直接写代码；打开历史策略；修改策略；处理未运行修改提示 |
 | 使用手册文章 | 认识回测工作台；新建策略；一句话生成策略；使用示例；直接写代码；历史策略；修改后重新运行；未运行修改提示 |
-| 当前 E2E | `screener.mjs`、`learn.mjs`、`sdk-hover.mjs`、`help-content-backtest.mjs`、`help-content-backtest-states.mjs` |
-| 当前截图 | `workspace-01.png`、`edit-rerun-01.png`；历史验收目录中的 `4-lab-hero.png`、`4b-lab-cards.png`、`4c-code-editor.png`、`4c1-factor-hover.png`、`4d-new-dirty-confirm.png`、`learn-6-lab-hero.png`、`7r-sdk-hover.png` |
-| 本轮结果 | 工作台分区、修改后重新运行和“有改动尚未运行”保护均有当前正式截图；新建页、历史策略、代码编辑器、因子链接和 SDK 悬停帮助的既有 E2E 仍可用 |
-| 缺口 | 真实模型生成策略和继续对话修改尚未重跑 |
+| 当前 E2E | `screener.mjs`、`learn.mjs`、`sdk-hover.mjs`、`help-content-backtest.mjs`、`help-content-backtest-states.mjs`、`help-content-strategy-agent.mjs` |
+| 当前截图 | `workspace-01.png`、`strategy-description-01.png`、`strategy-generated-01.png`、`strategy-revised-01.png`、`strategy-revised-result-01.png`、`edit-rerun-01.png`；历史验收目录中的 `4-lab-hero.png`、`4b-lab-cards.png`、`4c-code-editor.png`、`4c1-factor-hover.png`、`4d-new-dirty-confirm.png`、`learn-6-lab-hero.png`、`7r-sdk-hover.png` |
+| 本轮结果 | 使用专用账号完成两次真实模型调用：从描述生成沪深 300 ETF 100 股策略，继续修改为 200 股并运行回测；工作台分区、新建、历史、代码、修改保护和 SDK 入口均有验证 |
+| 缺口 | 无 |
 
 ### 2.6 回测工作台：设置与运行
 
@@ -301,6 +301,7 @@
 | `sdk-hover.mjs` | 通过 | 修正泛型显示相关的过时断言后通过 |
 | `factor-strategy-history.mjs` | 失败 | 真实数据库回测报 `number 0 is not a function`；相关引擎单元测试通过 |
 | `strategy-orchestration.mjs` | 通过 | API 重启后，普通月度定投回测通过，成交 1 笔 |
+| `help-content-strategy-agent.mjs` | 通过 | 两次真实模型调用完成策略生成和 100→200 股修改，随后真实回测通过 |
 | `strategy-parameter-scan.mjs` | 通过 | 四个参数组合通过 |
 | `daily-signals.mjs` | 失败 | 前置回测报 `number 1 is not a function` |
 | `etf-trading.mjs` | 通过 | ETF 页面入口、真实买卖成交、资产标识和交易明细通过 |

@@ -27,6 +27,7 @@
     "test:e2e:help-content-backtest-states": "node e2e/help-content-backtest-states.mjs",
     "test:e2e:help-content-parameter-scan": "node e2e/help-content-parameter-scan.mjs",
     "test:e2e:help-content-etf-futures": "node e2e/help-content-etf-futures.mjs",
+    "test:e2e:help-content-strategy-agent": "node e2e/help-content-strategy-agent.mjs",
     "test:e2e:help-screen-live": "node e2e/help-screen-live.mjs"
   },
   "dependencies": {

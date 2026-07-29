@@ -11,6 +11,8 @@ import strategyBacktestEn from '@src/content/help/en/basics/strategy-backtest.md
 import strategyBacktestZh from '@src/content/help/zh/basics/strategy-backtest.md?raw';
 import equityDrawdownEn from '@src/content/help/en/backtesting/equity-drawdown.md?raw';
 import equityDrawdownZh from '@src/content/help/zh/backtesting/equity-drawdown.md?raw';
+import createFromDescriptionEn from '@src/content/help/en/backtesting/create-from-description.md?raw';
+import createFromDescriptionZh from '@src/content/help/zh/backtesting/create-from-description.md?raw';
 import editRerunEn from '@src/content/help/en/backtesting/edit-rerun.md?raw';
 import editRerunZh from '@src/content/help/zh/backtesting/edit-rerun.md?raw';
 import etfStrategyEn from '@src/content/help/en/backtesting/etf-strategy.md?raw';
@@ -23,6 +25,8 @@ import parameterScanEn from '@src/content/help/en/backtesting/parameter-scan.md?
 import parameterScanZh from '@src/content/help/zh/backtesting/parameter-scan.md?raw';
 import reconnectFailureEn from '@src/content/help/en/backtesting/reconnect-failure.md?raw';
 import reconnectFailureZh from '@src/content/help/zh/backtesting/reconnect-failure.md?raw';
+import reviseWithChatEn from '@src/content/help/en/backtesting/revise-with-chat.md?raw';
+import reviseWithChatZh from '@src/content/help/zh/backtesting/revise-with-chat.md?raw';
 import resultsOverviewEn from '@src/content/help/en/backtesting/results-overview.md?raw';
 import resultsOverviewZh from '@src/content/help/zh/backtesting/results-overview.md?raw';
 import runAndLogsEn from '@src/content/help/en/backtesting/run-and-logs.md?raw';
@@ -380,6 +384,38 @@ export const HELP_ARTICLES: HelpArticle[] = [
     content: {
       zh: workspaceZh,
       en: workspaceEn,
+    },
+  },
+  {
+    slug: 'backtesting/create-from-description',
+    group: 'backtesting',
+    title: {
+      zh: '用策略描述创建回测',
+      en: 'Create a backtest from a strategy description',
+    },
+    summary: {
+      zh: '写清证券、时间、条件和数量，并核对页面生成的策略代码。',
+      en: 'Specify the instrument, schedule, conditions, and quantity, then verify generated code.',
+    },
+    content: {
+      zh: createFromDescriptionZh,
+      en: createFromDescriptionEn,
+    },
+  },
+  {
+    slug: 'backtesting/revise-with-chat',
+    group: 'backtesting',
+    title: {
+      zh: '继续修改策略并重新运行',
+      en: 'Revise a strategy and run it again',
+    },
+    summary: {
+      zh: '提出明确修改，核对代码变化，再运行回测并比较新结果。',
+      en: 'Request a precise change, verify the code, rerun, and compare the new result.',
+    },
+    content: {
+      zh: reviseWithChatZh,
+      en: reviseWithChatEn,
     },
   },
   {
