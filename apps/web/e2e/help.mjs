@@ -124,8 +124,8 @@ try {
         .evaluateAll((links) => links.map((link) => link.getAttribute('href'))),
     ),
   ].filter(Boolean);
-  if (articleHrefs.length !== 27) {
-    throw new Error(`expected 27 help articles, got ${articleHrefs.length}`);
+  if (articleHrefs.length !== 30) {
+    throw new Error(`expected 30 help articles, got ${articleHrefs.length}`);
   }
   for (const href of articleHrefs) {
     await page.goto(`${BASE}${href}`, { waitUntil: 'domcontentloaded' });
@@ -241,6 +241,29 @@ try {
   await page.screenshot({
     path: `${SHOTS}11b-help-parameter-scan-guide.png`,
   });
+
+  await page.getByRole('link', { name: '运行 ETF 策略', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '运行 ETF 策略' }).waitFor();
+  if ((await page.locator('.jx-help-figure').count()) !== 2) {
+    throw new Error('ETF strategy article does not render both screenshots');
+  }
+
+  await page.getByRole('link', { name: '运行股指期货策略', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '运行股指期货策略' }).waitFor();
+  if ((await page.locator('.jx-help-figure').count()) !== 1) {
+    throw new Error('index futures article does not render its screenshot');
+  }
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(100);
+  await page.screenshot({
+    path: `${SHOTS}11c-help-index-futures-guide.png`,
+  });
+
+  await page.getByRole('link', { name: '运行股票与期货混合策略', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '运行股票与期货混合策略' }).waitFor();
+  if ((await page.locator('.jx-help-figure').count()) !== 2) {
+    throw new Error('mixed stock and futures article does not render both screenshots');
+  }
 
   await page.getByRole('link', { name: '页面导航', exact: true }).first().click();
   await page.getByRole('heading', { level: 1, name: '页面导航' }).waitFor();

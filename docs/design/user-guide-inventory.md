@@ -130,10 +130,10 @@
 | --- | --- |
 | 页面操作 | 从回测工作台使用 ETF 示例；在选股看图中直接查询 ETF；运行 ETF 策略；查看 ETF 交易明细 |
 | 使用手册文章 | 查询 ETF；运行 ETF 策略；ETF 与股票策略的差异 |
-| 当前 E2E | `etf-trading.mjs` |
-| 当前截图 | `etf-1-lab-entry.png`、`etf-2-research-entry.png`；旧目录中可能有 `etf-3-trade-detail.png` |
-| 本轮结果 | 页面入口截图成功；真实回测 job 报错 `number 1 is not a function`，结果页面等待超时 |
-| 缺口 | 必须先解决或解释该真实回测失败，之后重跑交易明细；不能用旧截图冒充本轮验证结果 |
+| 当前 E2E | `etf-trading.mjs`、`help-content-etf-futures.mjs` |
+| 当前截图 | `etf-entry-01.png`、`etf-trades-01.png`；验收目录中的 `etf-1-lab-entry.png`、`etf-2-research-entry.png`、`etf-3-trade-detail.png` |
+| 本轮结果 | 主要 ETF 轮动入口、真实 ETF 买入和卖出、ETF 资产标识、成交汇总和筛选通过；此前的 worker 错误未再出现 |
+| 缺口 | 无；不同 ETF 品种的具体交易制度后续随品种支持范围补充 |
 
 ### 2.10 股指期货和混合策略
 
@@ -141,10 +141,10 @@
 | --- | --- |
 | 页面操作 | 声明股指期货；查看股票账户权益、期货账户权益和期货保证金；查看期货成交；运行股票和股指期货混合策略 |
 | 使用手册文章 | 股指期货基础；期货保证金；混合策略；期货风险 |
-| 当前 E2E | `mixed-futures.mjs` |
-| 当前截图 | `mixed-futures-result.png` 为历史文件，本轮未生成新的成功截图 |
-| 本轮结果 | 页面等待两分钟后超时；测试结束时 backtest job 仍为 `running`；收尾时停止测试 API，重启后该孤立 job 已自动标记为 `stale` |
-| 缺口 | 需要单独诊断任务卡住原因；重新执行后才能确定是性能问题还是稳定失败 |
+| 当前 E2E | `mixed-futures.mjs`、`help-content-etf-futures.mjs` |
+| 当前截图 | `futures-trades-01.png`、`mixed-results-01.png`、`mixed-trades-01.png`；验收目录中的 `mixed-futures-result.png` |
+| 本轮结果 | 纯股指期货开平仓、主力换月和实际月合约通过；混合策略约 6 秒完成，分账户权益、保证金、净敞口及股票期货合并成交通过；此前两分钟超时未再出现 |
+| 缺口 | 无；当前文章已说明手数、名义金额、保证金、换月成本和对冲不能消除全部风险 |
 
 ### 2.11 因子研究：预设因子与分析
 
@@ -303,9 +303,9 @@
 | `strategy-orchestration.mjs` | 通过 | API 重启后，普通月度定投回测通过，成交 1 笔 |
 | `strategy-parameter-scan.mjs` | 通过 | 四个参数组合通过 |
 | `daily-signals.mjs` | 失败 | 前置回测报 `number 1 is not a function` |
-| `etf-trading.mjs` | 失败 | 页面入口通过，真实回测 job 报 `number 1 is not a function` |
+| `etf-trading.mjs` | 通过 | ETF 页面入口、真实买卖成交、资产标识和交易明细通过 |
 | `market-state.mjs` | 通过 | 四项市场指标、十个观察范围和四项估值指标通过 |
-| `mixed-futures.mjs` | 超时 | 等待两分钟后页面没有出现账户指标；孤立 job 已在测试服务重启后标记为 `stale` |
+| `mixed-futures.mjs` | 通过 | 混合回测约 6 秒完成，股票／期货账户权益、保证金和净敞口通过；测试策略已自动清理 |
 
 ### 4.2 相关单元测试
 
