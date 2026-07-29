@@ -18,7 +18,18 @@ try {
     throw new Error('public help page redirected to login');
   }
   const publicHeader = page.locator('.jx-publicDocsHeader');
+  const publicBrand = publicHeader.locator('.jx-publicDocsHeader-brand');
+  const workspaceEntry = publicHeader.locator('.jx-publicDocsHeader-workspaceLink');
   await publicHeader.getByRole('link', { name: '使用帮助', exact: true }).waitFor();
+  if ((await publicBrand.getAttribute('href')) !== '/') {
+    throw new Error('public docs logo does not point to the product root');
+  }
+  if (
+    (await workspaceEntry.getAttribute('href')) !== '/' ||
+    (await workspaceEntry.getAttribute('target'))
+  ) {
+    throw new Error('workspace entry must open the product root in the current tab');
+  }
   if (
     (await publicHeader
       .getByRole('link', { name: '使用帮助', exact: true })
@@ -51,6 +62,12 @@ try {
     throw new Error('public SDK page redirected to login');
   }
   const sdkHeader = page.locator('.jx-publicDocsHeader');
+  if (
+    (await sdkHeader.locator('.jx-publicDocsHeader-brand').getAttribute('href')) !== '/' ||
+    (await sdkHeader.locator('.jx-publicDocsHeader-workspaceLink').getAttribute('href')) !== '/'
+  ) {
+    throw new Error('SDK header product entries do not point to the product root');
+  }
   if (
     (await sdkHeader.getByRole('link', { name: '使用帮助', exact: true }).getAttribute('target')) ||
     (await sdkHeader.getByRole('link', { name: 'SDK 文档', exact: true }).getAttribute('target'))
