@@ -1,6 +1,6 @@
 import dayjs from 'dayjs';
-import customParseFormat from 'dayjs/plugin/customParseFormat';
-import isoWeek from 'dayjs/plugin/isoWeek';
+import customParseFormat from 'dayjs/plugin/customParseFormat.js';
+import isoWeek from 'dayjs/plugin/isoWeek.js';
 
 // Our dates are 'YYYYMMDD' strings (Tushare format), which dayjs can't parse by default —
 // customParseFormat enables dayjs(str, 'YYYYMMDD'). isoWeek adds Mon–Sun week bucketing.
