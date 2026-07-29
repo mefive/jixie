@@ -124,8 +124,8 @@ try {
         .evaluateAll((links) => links.map((link) => link.getAttribute('href'))),
     ),
   ].filter(Boolean);
-  if (articleHrefs.length !== 24) {
-    throw new Error(`expected 24 help articles, got ${articleHrefs.length}`);
+  if (articleHrefs.length !== 27) {
+    throw new Error(`expected 27 help articles, got ${articleHrefs.length}`);
   }
   for (const href of articleHrefs) {
     await page.goto(`${BASE}${href}`, { waitUntil: 'domcontentloaded' });
@@ -224,6 +224,23 @@ try {
   if ((await page.locator('.jx-help-figure').count()) !== 2) {
     throw new Error('backtest trades article does not render both screenshots');
   }
+
+  await page.getByRole('link', { name: '恢复运行任务和处理失败', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '恢复运行任务和处理失败' }).waitFor();
+  if ((await page.locator('.jx-help-figure').count()) !== 2) {
+    throw new Error('backtest reconnect and failure article does not render both screenshots');
+  }
+
+  await page.getByRole('link', { name: '比较多组策略参数', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '比较多组策略参数' }).waitFor();
+  if ((await page.locator('.jx-help-figure').count()) !== 2) {
+    throw new Error('parameter scan article does not render both screenshots');
+  }
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(100);
+  await page.screenshot({
+    path: `${SHOTS}11b-help-parameter-scan-guide.png`,
+  });
 
   await page.getByRole('link', { name: '页面导航', exact: true }).first().click();
   await page.getByRole('heading', { level: 1, name: '页面导航' }).waitFor();

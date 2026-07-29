@@ -11,6 +11,12 @@ import strategyBacktestEn from '@src/content/help/en/basics/strategy-backtest.md
 import strategyBacktestZh from '@src/content/help/zh/basics/strategy-backtest.md?raw';
 import equityDrawdownEn from '@src/content/help/en/backtesting/equity-drawdown.md?raw';
 import equityDrawdownZh from '@src/content/help/zh/backtesting/equity-drawdown.md?raw';
+import editRerunEn from '@src/content/help/en/backtesting/edit-rerun.md?raw';
+import editRerunZh from '@src/content/help/zh/backtesting/edit-rerun.md?raw';
+import parameterScanEn from '@src/content/help/en/backtesting/parameter-scan.md?raw';
+import parameterScanZh from '@src/content/help/zh/backtesting/parameter-scan.md?raw';
+import reconnectFailureEn from '@src/content/help/en/backtesting/reconnect-failure.md?raw';
+import reconnectFailureZh from '@src/content/help/zh/backtesting/reconnect-failure.md?raw';
 import resultsOverviewEn from '@src/content/help/en/backtesting/results-overview.md?raw';
 import resultsOverviewZh from '@src/content/help/zh/backtesting/results-overview.md?raw';
 import runAndLogsEn from '@src/content/help/en/backtesting/run-and-logs.md?raw';
@@ -403,6 +409,38 @@ export const HELP_ARTICLES: HelpArticle[] = [
     },
   },
   {
+    slug: 'backtesting/edit-rerun',
+    group: 'backtesting',
+    title: {
+      zh: '修改策略和重新运行',
+      en: 'Edit a strategy and run it again',
+    },
+    summary: {
+      zh: '修改代码或参数后重新运行，并正确处理尚未运行的改动。',
+      en: 'Run again after changing code or settings, and handle changes that have not been run.',
+    },
+    content: {
+      zh: editRerunZh,
+      en: editRerunEn,
+    },
+  },
+  {
+    slug: 'backtesting/reconnect-failure',
+    group: 'backtesting',
+    title: {
+      zh: '恢复运行任务和处理失败',
+      en: 'Reconnect to a run and handle failures',
+    },
+    summary: {
+      zh: '刷新后继续查看正在运行的回测，并根据错误和日志处理失败。',
+      en: 'Reconnect after a refresh and use errors and logs to handle a failed run.',
+    },
+    content: {
+      zh: reconnectFailureZh,
+      en: reconnectFailureEn,
+    },
+  },
+  {
     slug: 'backtesting/results-overview',
     group: 'backtesting',
     title: {
@@ -448,6 +486,22 @@ export const HELP_ARTICLES: HelpArticle[] = [
     content: {
       zh: tradesCostsZh,
       en: tradesCostsEn,
+    },
+  },
+  {
+    slug: 'backtesting/parameter-scan',
+    group: 'backtesting',
+    title: {
+      zh: '比较多组策略参数',
+      en: 'Compare several strategy parameters',
+    },
+    summary: {
+      zh: '设置一维或二维参数扫描，比较组合结果并检查参数是否敏感。',
+      en: 'Run one- or two-parameter scans, compare combinations, and check parameter sensitivity.',
+    },
+    content: {
+      zh: parameterScanZh,
+      en: parameterScanEn,
     },
   },
 ];

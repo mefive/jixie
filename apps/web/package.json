@@ -24,6 +24,8 @@
     "test:e2e:help-content": "node e2e/help-content.mjs",
     "test:e2e:help-content-screen": "node e2e/help-content-screen.mjs",
     "test:e2e:help-content-backtest": "node e2e/help-content-backtest.mjs",
+    "test:e2e:help-content-backtest-states": "node e2e/help-content-backtest-states.mjs",
+    "test:e2e:help-content-parameter-scan": "node e2e/help-content-parameter-scan.mjs",
     "test:e2e:help-screen-live": "node e2e/help-screen-live.mjs"
   },
   "dependencies": {
