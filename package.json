@@ -16,6 +16,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "audit:data": "pnpm --filter api audit:data",
+    "import:data": "./scripts/import-market-data.sh",
     "smoke": "pnpm --filter api smoke",
     "sync": "pnpm --filter api sync",
     "peek": "pnpm --filter api peek",

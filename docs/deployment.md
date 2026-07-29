@@ -71,24 +71,20 @@ sudo certbot --nginx -d jixie.你的域名
 
 ### A. VPS 自己同步(默认;不搬大文件、prod 库干净)
 
-限频 400ms/次(~150 call/min),**首轮全量按年断点续传,后台跑**(数小时~1 天级,取决于 Tushare 积分档)。已有 `.env` 软链后:
+限频 400ms/次(~150 call/min),**首轮全量按年断点续传,后台跑**(数小时~1 天级,取决于 Tushare 积分档)。已有 `.env` 软链后，运行全量导入脚本：
 
 ```bash
 cd /opt/jixie
-# daily / adj_factor / daily_basic —— 逐年拉(可断点续,失败重跑该年即可)
-for y in 2015 2016 2017 2018 2019 2020 2021 2022 2023 2024 2025; do
-  pnpm --filter api sync ${y}0101 ${y}1231
-done
-# 涨跌停 / 资金流 / 龙虎榜(现覆盖 2020+,按需往前扩)
-pnpm --filter api sync:limit     20200101 20241231
-pnpm --filter api sync:moneyflow 20200101 20241231
-pnpm --filter api sync:toplist   20200101 20241231
-# 财务 / 指数(沪深300 等基准)
-pnpm --filter api sync:fina
-pnpm --filter api sync:index
+sudo systemctl stop jixie-api
+nohup pnpm import:data > /var/lib/jixie/full-import.log 2>&1 &
+tail -f /var/lib/jixie/full-import.log
+# 全部完成后
+sudo systemctl start jixie-api
 ```
 
-> 用 `nohup ... &` 或 `tmux`/`screen` 跑,别让 ssh 断开中断。**研究史(策略/因子/回测记录)不会来**——Tushare 只给行情,prod 从空开始积累自己的研究。
+默认导入 2015 年至今的 A 股日线/复权、每日估值、涨跌停、资金流、龙虎榜、财务与分红、申万行业、主要 ETF、指数、股指期货，并预计算市场状态、执行数据审计；股票名称历史和指数基准会按各自更早的数据起点导入。脚本把完成阶段记录在 `.jixie-import/<start>-<end>`，失败或 SSH 断线后重新执行同一命令即可续传。显式日期范围用 `pnpm import:data 20150101 20260729`；需要忽略完成标记时设置 `JIXIE_IMPORT_IGNORE_STATE=1`。
+
+> **研究史(用户、策略、因子、回测记录)不会生成或迁移**——Tushare 只提供市场数据，prod 从空库开始积累自己的研究。
 
 ### B. 从本机传库(最快;带研究史)
 
