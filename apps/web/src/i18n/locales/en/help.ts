@@ -10,5 +10,7 @@ export const enHelp: typeof zhHelp = {
   groups: {
     gettingStarted: 'Getting started',
     basics: 'Quantitative trading basics',
+    screening: 'Screener',
+    stockDetail: 'Stock detail',
   },
 };

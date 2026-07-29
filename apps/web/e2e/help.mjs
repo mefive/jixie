@@ -124,8 +124,8 @@ try {
         .evaluateAll((links) => links.map((link) => link.getAttribute('href'))),
     ),
   ].filter(Boolean);
-  if (articleHrefs.length !== 10) {
-    throw new Error(`expected 10 help articles, got ${articleHrefs.length}`);
+  if (articleHrefs.length !== 18) {
+    throw new Error(`expected 18 help articles, got ${articleHrefs.length}`);
   }
   for (const href of articleHrefs) {
     await page.goto(`${BASE}${href}`, { waitUntil: 'domcontentloaded' });
@@ -185,6 +185,28 @@ try {
   await page.getByRole('link', { name: '为什么回测不等于未来收益', exact: true }).first().click();
   await page.getByRole('heading', { level: 1, name: '为什么回测不等于未来收益' }).waitFor();
   await page.getByRole('heading', { level: 2, name: '过度拟合' }).waitFor();
+
+  await page.getByRole('link', { name: '按条件筛选并查看结果', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '按条件筛选并查看结果' }).waitFor();
+  if ((await page.locator('.jx-help-figure').count()) !== 1) {
+    throw new Error('screening result article does not render its screenshot');
+  }
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(100);
+  await page.screenshot({
+    path: `${SHOTS}10a-help-screening-guide.png`,
+  });
+
+  await page.getByRole('link', { name: '切换复权和价格坐标', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '切换复权和价格坐标' }).waitFor();
+  if ((await page.locator('.jx-help-figure').count()) !== 1) {
+    throw new Error('stock adjustment article does not render its screenshot');
+  }
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(100);
+  await page.screenshot({
+    path: `${SHOTS}10b-help-stock-adjustment-guide.png`,
+  });
 
   await page.getByRole('link', { name: '页面导航', exact: true }).first().click();
   await page.getByRole('heading', { level: 1, name: '页面导航' }).waitFor();

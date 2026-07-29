@@ -21,7 +21,8 @@
     "test:e2e:etf": "node e2e/etf-trading.mjs",
     "test:e2e:market-state": "node e2e/market-state.mjs",
     "test:e2e:help": "node e2e/help.mjs",
-    "test:e2e:help-content": "node e2e/help-content.mjs"
+    "test:e2e:help-content": "node e2e/help-content.mjs",
+    "test:e2e:help-content-screen": "node e2e/help-content-screen.mjs"
   },
   "dependencies": {
     "@ant-design/x": "^2.8.0",

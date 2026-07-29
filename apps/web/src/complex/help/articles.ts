@@ -19,8 +19,24 @@ import navigationEn from '@src/content/help/en/getting-started/navigation.md?raw
 import navigationZh from '@src/content/help/zh/getting-started/navigation.md?raw';
 import overviewEn from '@src/content/help/en/getting-started/overview.md?raw';
 import overviewZh from '@src/content/help/zh/getting-started/overview.md?raw';
+import conversationsEn from '@src/content/help/en/screening/conversations.md?raw';
+import conversationsZh from '@src/content/help/zh/screening/conversations.md?raw';
+import directQueryEn from '@src/content/help/en/screening/direct-query.md?raw';
+import directQueryZh from '@src/content/help/zh/screening/direct-query.md?raw';
+import editSortEn from '@src/content/help/en/screening/edit-sort.md?raw';
+import editSortZh from '@src/content/help/zh/screening/edit-sort.md?raw';
+import filterResultsEn from '@src/content/help/en/screening/filter-results.md?raw';
+import filterResultsZh from '@src/content/help/zh/screening/filter-results.md?raw';
+import saveReuseEn from '@src/content/help/en/screening/save-reuse.md?raw';
+import saveReuseZh from '@src/content/help/zh/screening/save-reuse.md?raw';
+import adjustmentsScaleEn from '@src/content/help/en/stock-detail/adjustments-scale.md?raw';
+import adjustmentsScaleZh from '@src/content/help/zh/stock-detail/adjustments-scale.md?raw';
+import peVolumeDataEn from '@src/content/help/en/stock-detail/pe-volume-data.md?raw';
+import peVolumeDataZh from '@src/content/help/zh/stock-detail/pe-volume-data.md?raw';
+import readChartEn from '@src/content/help/en/stock-detail/read-chart.md?raw';
+import readChartZh from '@src/content/help/zh/stock-detail/read-chart.md?raw';
 
-export const HELP_GROUPS = ['gettingStarted', 'basics'] as const;
+export const HELP_GROUPS = ['gettingStarted', 'basics', 'screening', 'stockDetail'] as const;
 export type HelpGroup = (typeof HELP_GROUPS)[number];
 
 export type HelpArticle = {
@@ -190,6 +206,134 @@ export const HELP_ARTICLES: HelpArticle[] = [
     content: {
       zh: backtestLimitationsZh,
       en: backtestLimitationsEn,
+    },
+  },
+  {
+    slug: 'screening/direct-query',
+    group: 'screening',
+    title: {
+      zh: '直接查询股票或 ETF',
+      en: 'Query a stock or ETF directly',
+    },
+    summary: {
+      zh: '按名称或代码查询标的，并核对名称、时间范围和数据日期。',
+      en: 'Query by name or code and verify the instrument, period, and data date.',
+    },
+    content: {
+      zh: directQueryZh,
+      en: directQueryEn,
+    },
+  },
+  {
+    slug: 'screening/filter-results',
+    group: 'screening',
+    title: {
+      zh: '按条件筛选并查看结果',
+      en: 'Screen by criteria and inspect results',
+    },
+    summary: {
+      zh: '输入筛选条件，检查页面实际执行的规则、快照日期和结果表。',
+      en: 'Enter criteria and inspect the executed rules, snapshot date, and result table.',
+    },
+    content: {
+      zh: filterResultsZh,
+      en: filterResultsEn,
+    },
+  },
+  {
+    slug: 'screening/edit-sort',
+    group: 'screening',
+    title: {
+      zh: '修改条件和排序',
+      en: 'Edit conditions and sorting',
+    },
+    summary: {
+      zh: '修改字段、比较符号和数值，增加或删除条件，并调整结果顺序。',
+      en: 'Edit fields, operators, and values; add or remove conditions; and change row order.',
+    },
+    content: {
+      zh: editSortZh,
+      en: editSortEn,
+    },
+  },
+  {
+    slug: 'screening/save-reuse',
+    group: 'screening',
+    title: {
+      zh: '保存并再次运行筛选',
+      en: 'Save and rerun a screen',
+    },
+    summary: {
+      zh: '保存筛选规则，并了解重新打开时为什么会使用最新数据。',
+      en: 'Save screening rules and understand why reopening uses current data.',
+    },
+    content: {
+      zh: saveReuseZh,
+      en: saveReuseEn,
+    },
+  },
+  {
+    slug: 'screening/conversations',
+    group: 'screening',
+    title: {
+      zh: '使用历史对话',
+      en: 'Use conversations',
+    },
+    summary: {
+      zh: '新建、继续和删除对话，并区分历史对话与已保存筛选。',
+      en: 'Start, continue, and delete chats, and distinguish them from saved screens.',
+    },
+    content: {
+      zh: conversationsZh,
+      en: conversationsEn,
+    },
+  },
+  {
+    slug: 'stock-detail/read-chart',
+    group: 'stockDetail',
+    title: {
+      zh: '查看股票详情和 K 线',
+      en: 'Read Stock detail and candlesticks',
+    },
+    summary: {
+      zh: '从筛选结果打开股票详情，认识 K 线、时间范围和最新数据日期。',
+      en: 'Open Stock detail from a screen and read candlesticks, time range, and the latest date.',
+    },
+    content: {
+      zh: readChartZh,
+      en: readChartEn,
+    },
+  },
+  {
+    slug: 'stock-detail/adjustments-scale',
+    group: 'stockDetail',
+    title: {
+      zh: '切换复权和价格坐标',
+      en: 'Switch adjustment and price scale',
+    },
+    summary: {
+      zh: '区分前复权、后复权和不复权，并选择线性或对数坐标。',
+      en: 'Distinguish adjustment modes and choose a linear or logarithmic price scale.',
+    },
+    content: {
+      zh: adjustmentsScaleZh,
+      en: adjustmentsScaleEn,
+    },
+  },
+  {
+    slug: 'stock-detail/pe-volume-data',
+    group: 'stockDetail',
+    title: {
+      zh: '查看 PE、成交量和数据日期',
+      en: 'Read PE, volume, and data dates',
+    },
+    summary: {
+      zh: '正确使用价格和 PE 的不同纵轴，查看成交量并核对数据截止日期。',
+      en: 'Use the separate price and PE axes, inspect volume, and verify the data end date.',
+    },
+    content: {
+      zh: peVolumeDataZh,
+      en: peVolumeDataEn,
     },
   },
 ];
