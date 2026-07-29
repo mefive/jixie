@@ -8,6 +8,7 @@ mkdirSync(SHOTS, { recursive: true });
 const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
 const page = await context.newPage();
+let strategyId = '';
 
 try {
   await page.goto(BASE, { waitUntil: 'networkidle' });
@@ -22,7 +23,7 @@ try {
     throw new Error(`dev login failed: ${loginStatus}`);
   }
 
-  const strategyId = await page.evaluate(async () => {
+  strategyId = await page.evaluate(async () => {
     const code = `export default defineStrategy({
   name: 'e2e 股票期货混合对冲',
   watch: ['600519.SH'],
@@ -74,5 +75,10 @@ try {
   await page.screenshot({ path, fullPage: true });
   console.log(`[e2e] mixed futures screenshot: ${path}`);
 } finally {
+  if (strategyId) {
+    await page
+      .evaluate((id) => fetch(`/api/app/strategies/${id}`, { method: 'DELETE' }), strategyId)
+      .catch(() => {});
+  }
   await browser.close();
 }
