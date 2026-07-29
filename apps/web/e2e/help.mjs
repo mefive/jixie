@@ -124,8 +124,8 @@ try {
         .evaluateAll((links) => links.map((link) => link.getAttribute('href'))),
     ),
   ].filter(Boolean);
-  if (articleHrefs.length !== 30) {
-    throw new Error(`expected 30 help articles, got ${articleHrefs.length}`);
+  if (articleHrefs.length !== 32) {
+    throw new Error(`expected 32 help articles, got ${articleHrefs.length}`);
   }
   for (const href of articleHrefs) {
     await page.goto(`${BASE}${href}`, { waitUntil: 'domcontentloaded' });
@@ -217,6 +217,23 @@ try {
   await page.waitForTimeout(100);
   await page.screenshot({
     path: `${SHOTS}11a-help-backtest-settings-guide.png`,
+  });
+
+  await page.getByRole('link', { name: '用策略描述创建回测', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '用策略描述创建回测' }).waitFor();
+  if ((await page.locator('.jx-help-figure').count()) !== 2) {
+    throw new Error('strategy description article does not render both screenshots');
+  }
+
+  await page.getByRole('link', { name: '继续修改策略并重新运行', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '继续修改策略并重新运行' }).waitFor();
+  if ((await page.locator('.jx-help-figure').count()) !== 2) {
+    throw new Error('strategy revision article does not render both screenshots');
+  }
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(100);
+  await page.screenshot({
+    path: `${SHOTS}11e-help-strategy-revision-guide.png`,
   });
 
   await page.getByRole('link', { name: '查看交易明细和成本', exact: true }).first().click();
