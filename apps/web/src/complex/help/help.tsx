@@ -11,6 +11,7 @@ import { observer } from 'mobx-react';
 import { useTranslation } from 'react-i18next';
 import { Image } from 'antd';
 import { XMarkdown, type ComponentProps } from '@ant-design/x-markdown';
+import Latex from '@ant-design/x-markdown/plugins/Latex';
 import type { Locale } from '@jixie/shared';
 import { localeStore } from '@src/i18n/locale-store';
 import { PublicDocsHeader } from '@src/components/public-docs-header';
@@ -28,6 +29,8 @@ type Heading = {
   id: string;
   text: string;
 };
+
+const helpMarkdownConfig = { extensions: Latex() };
 
 export default observer(function HelpPage() {
   const { '*': slug } = useParams();
@@ -185,6 +188,7 @@ function HelpMarkdown({ content }: { content: string }) {
     <XMarkdown
       className="jx-help-markdown"
       content={content}
+      config={helpMarkdownConfig}
       components={components}
       escapeRawHtml
       openLinksInNewTab={false}

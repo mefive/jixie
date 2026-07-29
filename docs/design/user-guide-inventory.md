@@ -153,9 +153,9 @@
 | 路由 | `/factors`、`/factors?factor=<因子>`、`/factors?factor=<因子>&report=<报告>` |
 | 页面操作 | 打开因子库；选择预设因子；查看只读代码；设置频率和区间；设置中性化；设置股票池、缺失值、异常值和交易成本；运行分析 |
 | 使用手册文章 | 因子研究能回答什么；预设因子；分析设置；运行分析 |
-| 当前 E2E | `screener.mjs`、`historical-investability.mjs`、`factor-report-history.mjs`、`help-content-factor-basics.mjs` |
-| 当前截图 | 正式截图 `factor-workspace-01.png`、`factor-settings-01.png`、`factor-research-card-01.png`、`factor-running-01.png`；验收目录中的 `7-factors.png`、`7f-abturn-builtin.png`、`7c-preset-readonly.png`、`7o-factor-methodology.png`、`4-7a-historical-investability.png` |
-| 本轮结果 | 阶段 F 第一批使用盈利收益率完成真实预设因子分析；覆盖因子库、只读预设、月频、区间、中性化、股票池、异常值、纯探索研究卡、运行状态和日志 |
+| 当前 E2E | `screener.mjs`、`historical-investability.mjs`、`factor-report-history.mjs`、`help-content-factor-basics.mjs`、`help-content-factor-metrics.mjs` |
+| 当前截图 | 正式截图 `factor-workspace-01.png`、`factor-settings-01.png`、`factor-research-card-01.png`、`factor-running-01.png`、`factor-neutralization-setting-01.png`、`factor-neutralization-history-01.png`；验收目录中的 `7-factors.png`、`7f-abturn-builtin.png`、`7c-preset-readonly.png`、`7o-factor-methodology.png`、`4-7a-historical-investability.png` |
+| 本轮结果 | 阶段 F 前两批使用盈利收益率完成真实预设因子分析，并对比原始报告与市值加行业中性化报告；覆盖因子库、只读预设、月频、区间、中性化、股票池、异常值、纯探索研究卡、运行状态、日志和报告历史 |
 | 缺口 | 基础预设因子闭环已完成；自定义因子、策略标识和历史报告作为后续批次 |
 
 ### 2.12 因子研究：结果
@@ -164,10 +164,10 @@
 | --- | --- |
 | 页面操作 | 查看分组收益、分位数组合、Rank IC、IC 衰减、多空收益、费后净值、换手、样本数、相关性矩阵和计算图表 |
 | 使用手册文章 | 分组收益；Rank IC；IC 衰减；多空收益；交易成本；换手；相关性矩阵；计算图表 |
-| 当前 E2E | `screener.mjs`、`computed-chart.mjs`、`help-content-factor-basics.mjs` |
-| 当前截图 | 正式截图 `factor-methodology-01.png`、`factor-overview-01.png`；验收目录中的 `7-factors.png`、`7b-factors-week.png`、`7d-factors-neutral.png`、`7e-factors-correlation.png`、`7q-computed-chart-cards.png` |
-| 本轮结果 | 第一批文章已解释样本口径、D1 至 D10、Rank IC、ICIR、方向一致率、多空回撤和换手；月度、周度、中性化、费后净值、相关性矩阵和计算图表功能继续保持通过 |
-| 缺口 | IC 衰减、费前费后净值、中性化对比和相关性矩阵需要下一批独立文章与正式截图 |
+| 当前 E2E | `screener.mjs`、`computed-chart.mjs`、`help-content-factor-basics.mjs`、`help-content-factor-metrics.mjs` |
+| 当前截图 | 正式截图 `factor-methodology-01.png`、`factor-overview-01.png`、`factor-deciles-01.png`、`factor-rank-ic-01.png`、`factor-ic-decay-01.png`、`factor-cost-settings-01.png`、`factor-cost-results-01.png`、`factor-neutralization-result-01.png`；验收目录中的 `7-factors.png`、`7b-factors-week.png`、`7d-factors-neutral.png`、`7e-factors-correlation.png`、`7q-computed-chart-cards.png` |
+| 本轮结果 | 第二批文章以产品实际计算口径解释分组收益、前瞻收益、Rank IC、ICIR、IC 衰减、换手、交易成本、费后收益以及市值和行业中性化；必要公式均有符号、单位和可手算例子，真实原始报告与中性化报告通过 |
+| 缺口 | 相关性矩阵和多因子重复信息需要下一批独立文章与正式截图 |
 
 ### 2.13 因子研究：历史报告与样本外
 
@@ -298,6 +298,7 @@
 | `historical-investability.mjs` | 通过 | 默认股票池和历史可投资性设置通过 |
 | `factor-report-history.mjs` | 通过 | 历史、修改保护、研究卡和留出期通过 |
 | `help-content-factor-basics.mjs` | 通过 | 真实盈利收益率分析和 6 张阶段 F 入门标注截图通过 |
+| `help-content-factor-metrics.mjs` | 通过 | 原始及市值加行业中性化分析和 8 张阶段 F 指标标注截图通过 |
 | `computed-chart.mjs` | 通过 | 310 行计算结果和图表卡片通过 |
 | `sdk-hover.mjs` | 通过 | 修正泛型显示相关的过时断言后通过 |
 | `factor-strategy-history.mjs` | 失败 | 真实数据库回测报 `number 0 is not a function`；相关引擎单元测试通过 |
