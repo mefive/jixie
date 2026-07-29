@@ -13,5 +13,6 @@ export const enHelp: typeof zhHelp = {
     screening: 'Screener',
     stockDetail: 'Stock detail',
     backtesting: 'Backtest workspace',
+    factorResearch: 'Factor research',
   },
 };

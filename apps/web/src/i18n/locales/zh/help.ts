@@ -11,5 +11,6 @@ export const zhHelp = {
     screening: '选股看图',
     stockDetail: '股票详情',
     backtesting: '回测工作台',
+    factorResearch: '因子研究',
   },
 };

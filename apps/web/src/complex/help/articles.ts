@@ -37,6 +37,14 @@ import tradesCostsEn from '@src/content/help/en/backtesting/trades-costs.md?raw'
 import tradesCostsZh from '@src/content/help/zh/backtesting/trades-costs.md?raw';
 import workspaceEn from '@src/content/help/en/backtesting/workspace.md?raw';
 import workspaceZh from '@src/content/help/zh/backtesting/workspace.md?raw';
+import analysisSettingsEn from '@src/content/help/en/factors/analysis-settings.md?raw';
+import analysisSettingsZh from '@src/content/help/zh/factors/analysis-settings.md?raw';
+import firstPresetAnalysisEn from '@src/content/help/en/factors/first-preset-analysis.md?raw';
+import firstPresetAnalysisZh from '@src/content/help/zh/factors/first-preset-analysis.md?raw';
+import factorResultsOverviewEn from '@src/content/help/en/factors/results-overview.md?raw';
+import factorResultsOverviewZh from '@src/content/help/zh/factors/results-overview.md?raw';
+import whatFactorResearchEn from '@src/content/help/en/factors/what-factor-research.md?raw';
+import whatFactorResearchZh from '@src/content/help/zh/factors/what-factor-research.md?raw';
 import firstBacktestEn from '@src/content/help/en/getting-started/first-backtest.md?raw';
 import firstBacktestZh from '@src/content/help/zh/getting-started/first-backtest.md?raw';
 import firstScreenEn from '@src/content/help/en/getting-started/first-screen.md?raw';
@@ -70,6 +78,7 @@ export const HELP_GROUPS = [
   'screening',
   'stockDetail',
   'backtesting',
+  'factorResearch',
 ] as const;
 export type HelpGroup = (typeof HELP_GROUPS)[number];
 
@@ -592,6 +601,70 @@ export const HELP_ARTICLES: HelpArticle[] = [
     content: {
       zh: mixedStockFuturesZh,
       en: mixedStockFuturesEn,
+    },
+  },
+  {
+    slug: 'factors/what-factor-research',
+    group: 'factorResearch',
+    title: {
+      zh: '因子研究能回答什么',
+      en: 'What factor research can answer',
+    },
+    summary: {
+      zh: '用盈利收益率理解因子、分组比较，以及因子研究能说明和不能说明的内容。',
+      en: 'Use earnings yield to understand factors, group comparisons, and the limits of factor research.',
+    },
+    content: {
+      zh: whatFactorResearchZh,
+      en: whatFactorResearchEn,
+    },
+  },
+  {
+    slug: 'factors/first-preset-analysis',
+    group: 'factorResearch',
+    title: {
+      zh: '第一次运行预设因子分析',
+      en: 'Run your first preset factor analysis',
+    },
+    summary: {
+      zh: '选择盈利收益率，使用纯探索研究卡，运行分析并确认任务完成。',
+      en: 'Select earnings yield, use an exploratory research card, and complete the analysis.',
+    },
+    content: {
+      zh: firstPresetAnalysisZh,
+      en: firstPresetAnalysisEn,
+    },
+  },
+  {
+    slug: 'factors/analysis-settings',
+    group: 'factorResearch',
+    title: {
+      zh: '设置分析范围和样本处理',
+      en: 'Set the analysis range and sample treatment',
+    },
+    summary: {
+      zh: '设置频率、区间、中性化、股票池、缺失值、异常值和交易成本。',
+      en: 'Set frequency, dates, neutralization, universe, missing data, outliers, and costs.',
+    },
+    content: {
+      zh: analysisSettingsZh,
+      en: analysisSettingsEn,
+    },
+  },
+  {
+    slug: 'factors/results-overview',
+    group: 'factorResearch',
+    title: {
+      zh: '查看第一份因子分析结果',
+      en: 'Read your first factor analysis result',
+    },
+    summary: {
+      zh: '先核对研究口径，再阅读分组收益、Rank IC、稳定性、回撤和换手。',
+      en: 'Verify the methodology, then read group returns, Rank IC, consistency, drawdown, and turnover.',
+    },
+    content: {
+      zh: factorResultsOverviewZh,
+      en: factorResultsOverviewEn,
     },
   },
 ];
