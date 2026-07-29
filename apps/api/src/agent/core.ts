@@ -60,21 +60,64 @@ export interface AgentTurnResult {
 }
 
 /** Hard cap on tool-executing rounds per turn; after that the model must answer with what it has. */
-const MAX_TOOL_ROUNDS = 5;
+const MAX_TOOL_ROUNDS = 8;
 
 /** Internal tool-protocol markers must never become a user-visible or persisted final reply. Some
  * OpenAI-compatible providers occasionally emit a tool request as plain content (rather than the
  * structured tool_calls field), especially after tools have been disabled at the round limit. */
 const TOOL_PROTOCOL_PATTERNS = [
-  /<\s*\|\s*DSML\s*\|/i,
+  /<\s*(?:[|｜]\s*){1,2}DSML\s*(?:[|｜]\s*){1,2}/i,
   /<\/?\s*tool_calls?\s*>/i,
   /<\/?\s*invoke\b[^>]*\bname\s*=/i,
   /<\/?\s*parameter\b[^>]*\bname\s*=/i,
-  /<\|(?:tool_call|tool_calls|function_call|function_calls)\|>/i,
+  /<[|｜](?:tool_call|tool_calls|function_call|function_calls)[|｜]>/i,
 ];
 
 function hasLeakedToolProtocol(text: string): boolean {
   return TOOL_PROTOCOL_PATTERNS.some((pattern) => pattern.test(text));
+}
+
+/** Recover DeepSeek's serialized DSML tool requests when an OpenAI-compatible endpoint puts them
+ * in `content` instead of `tool_calls`. Only the narrow invoke/parameter grammar is accepted here;
+ * the normal tool whitelist, JSON parsing and each tool's zod schema still gate execution. */
+function recoverDsmlToolCalls(text: string, callNumber: number): ToolCall[] {
+  const prefix = String.raw`<\s*(?:[|｜]\s*){1,2}DSML\s*(?:[|｜]\s*){1,2}\s*`;
+  const invokePattern = new RegExp(`${prefix}invoke\\s+name\\s*=\\s*["']([^"']+)["'][^>]*>`, 'gi');
+  const invokes = [...text.matchAll(invokePattern)];
+  if (invokes.length === 0) {
+    return [];
+  }
+
+  return invokes.map((invoke, index) => {
+    const segmentStart = (invoke.index ?? 0) + invoke[0].length;
+    const segmentEnd = invokes[index + 1]?.index ?? text.length;
+    const segment = text.slice(segmentStart, segmentEnd);
+    const parameterPattern = new RegExp(
+      `${prefix}parameter\\s+name\\s*=\\s*["']([^"']+)["'][^>]*>`,
+      'gi',
+    );
+    const parameters = [...segment.matchAll(parameterPattern)];
+    const args: Record<string, string> = {};
+
+    for (let parameterIndex = 0; parameterIndex < parameters.length; parameterIndex++) {
+      const parameter = parameters[parameterIndex];
+      const valueStart = (parameter.index ?? 0) + parameter[0].length;
+      const nextParameterStart = parameters[parameterIndex + 1]?.index ?? segment.length;
+      const candidate = segment.slice(valueStart, nextParameterStart);
+      const nextProtocolMarker = candidate.search(
+        new RegExp(`${prefix}(?:/?parameter|/?invoke|/?tool_calls?)\\b`, 'i'),
+      );
+      args[parameter[1]] = candidate
+        .slice(0, nextProtocolMarker < 0 ? undefined : nextProtocolMarker)
+        .trim();
+    }
+
+    return {
+      id: `recovered-${callNumber}-${index + 1}`,
+      name: invoke[1],
+      args: JSON.stringify(args),
+    };
+  });
 }
 
 /** A turn result as the assistant message's parts: the explanation text + any query/chart cards the
@@ -220,6 +263,7 @@ export async function agentTurn(
   let attempts = 0;
   let raw = '';
   let toolRounds = 0;
+  let protocolToolRetries = 0;
   for (;;) {
     throwIfAborted();
     const allowTools = tools.length > 0 && toolRounds < MAX_TOOL_ROUNDS;
@@ -234,15 +278,40 @@ export async function agentTurn(
     });
     attempts++;
     hooks?.onModelDone?.(modelCall);
-    if (allowTools && res.toolCalls?.length) {
+    const recoveredToolCalls =
+      allowTools && res.text && !res.toolCalls?.length && hasLeakedToolProtocol(res.text)
+        ? recoverDsmlToolCalls(res.text, modelCall)
+        : [];
+    const requestedToolCalls = res.toolCalls?.length ? res.toolCalls : recoveredToolCalls;
+    if (
+      allowTools &&
+      res.text &&
+      requestedToolCalls.length === 0 &&
+      hasLeakedToolProtocol(res.text) &&
+      protocolToolRetries < 1
+    ) {
+      protocolToolRetries++;
+      messages.push({
+        role: 'assistant',
+        content: null,
+        reasoningContent: res.reasoningContent,
+      });
+      messages.push({
+        role: 'user',
+        content:
+          'Your previous response serialized an internal tool request as text. Retry now by issuing the intended tool request through the structured tool-call interface. Do not emit tool-call markup as text.',
+      });
+      continue;
+    }
+    if (allowTools && requestedToolCalls.length) {
       toolRounds++;
       messages.push({
         role: 'assistant',
-        content: res.text ?? null,
+        content: recoveredToolCalls.length ? null : (res.text ?? null),
         reasoningContent: res.reasoningContent,
-        toolCalls: res.toolCalls,
+        toolCalls: requestedToolCalls,
       });
-      for (const call of res.toolCalls) {
+      for (const call of requestedToolCalls) {
         throwIfAborted();
         hooks?.onToolStart?.(call.name, (call.args || '{}').slice(0, 200));
         const executed = await executeToolCall(tools, call);

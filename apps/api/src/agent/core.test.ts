@@ -218,6 +218,67 @@ describe('agentTurn tool loop', () => {
     expect(onDelta).toHaveBeenCalledWith('查询调用失败，暂时无法得出可靠结论。');
   });
 
+  it('recovers fullwidth DSML requests as whitelisted tool calls', async () => {
+    const tool = fakeTool('sqlQuery', async (args) => ({
+      observation: JSON.stringify({ args }),
+      rows: 1,
+    }));
+    const leaked =
+      '先查询两只 ETF。<｜｜DSML｜｜tool_calls>' +
+      '<｜｜DSML｜｜invoke name="sqlQuery"><｜｜DSML｜｜parameter name="sql" string="true">SELECT close FROM etfDaily WHERE ticker = \'510300.SH\'' +
+      '<｜｜DSML｜｜invoke name="sqlQuery"><｜｜DSML｜｜parameter name="sql" string="true">SELECT close FROM etfDaily WHERE ticker = \'518880.SH\'';
+    const llm = scriptedLlm([
+      { text: leaked },
+      { text: '沪深300ETF 与黄金ETF 的近一年表现已经完成比较。' },
+    ]);
+    const onDelta = vi.fn();
+
+    const result = await agentTurn(toolProfile([tool], false), [], '查询 ETF', '', llm, {
+      hooks: { onDelta },
+    });
+
+    expect(result.reply).toContain('已经完成比较');
+    expect(result.attempts).toBe(2);
+    expect(result.toolTrace).toHaveLength(2);
+    const recoveredRequest = llm.mock.calls[1][0].find(
+      (message) => message.role === 'assistant' && message.toolCalls?.length,
+    );
+    expect(recoveredRequest?.role).toBe('assistant');
+    if (recoveredRequest?.role === 'assistant') {
+      expect(recoveredRequest.content).toBeNull();
+      expect(recoveredRequest.toolCalls?.map((call) => JSON.parse(call.args))).toEqual([
+        { sql: "SELECT close FROM etfDaily WHERE ticker = '510300.SH'" },
+        { sql: "SELECT close FROM etfDaily WHERE ticker = '518880.SH'" },
+      ]);
+    }
+    expect(llm.mock.calls[1][0].filter((message) => message.role === 'tool')).toHaveLength(2);
+    expect(onDelta).toHaveBeenCalledOnce();
+    expect(onDelta).toHaveBeenCalledWith('沪深300ETF 与黄金ETF 的近一年表现已经完成比较。');
+  });
+
+  it('asks for a structured retry when serialized protocol cannot be parsed', async () => {
+    const tool = fakeTool('sqlQuery', async () => ({
+      observation: '{"rows":[{"close":4.7}]}',
+      rows: 1,
+    }));
+    const llm = scriptedLlm([
+      { text: '<｜｜DSML｜｜tool_calls>' },
+      { toolCalls: [{ id: 'c1', name: 'sqlQuery', args: '{"sql":"SELECT close"}' }] },
+      { text: '沪深300ETF 最新收盘价为 4.7。' },
+    ]);
+
+    const result = await agentTurn(toolProfile([tool], false), [], '查询 ETF', '', llm);
+
+    expect(result.reply).toContain('4.7');
+    expect(result.attempts).toBe(3);
+    expect(
+      llm.mock.calls[1][0].some(
+        (message) =>
+          message.role === 'user' && message.content.includes('structured tool-call interface'),
+      ),
+    ).toBe(true);
+  });
+
   it('fails the turn when tool protocol still leaks after repair', async () => {
     const leaked = '<tool_calls><invoke name="sqlQuery"><parameter name="sql">SELECT 1';
     const llm = scriptedLlm([{ text: leaked }]);
@@ -237,11 +298,11 @@ describe('agentTurn tool loop', () => {
         : { text: '到此为止。' },
     );
     const result = await agentTurn(toolProfile([tool], false), [], '一直查', '', llm);
-    expect(result.toolTrace).toHaveLength(5); // MAX_TOOL_ROUNDS
-    expect(result.attempts).toBe(6); // 5 tool rounds + 1 forced finish
+    expect(result.toolTrace).toHaveLength(8); // MAX_TOOL_ROUNDS
+    expect(result.attempts).toBe(9); // 8 tool rounds + 1 forced finish
     expect(result.reply).toBe('到此为止。');
     // The forced-finish call got no tools and saw the cap notice.
-    const lastCallArgs = llm.mock.calls[5];
+    const lastCallArgs = llm.mock.calls[8];
     expect(lastCallArgs[1]).toEqual([]);
     expect(
       lastCallArgs[0].some(

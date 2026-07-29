@@ -67,7 +67,7 @@ type AgentLlm = (
 ) => Promise<{ text?: string; toolCalls?: ToolCall[] }>;
 ```
 
-- 核心循环加 tool 分支:模型返回 `toolCalls` → 逐个执行 → 结果以 `role:'tool'` 消息回灌 → 再调模型;**每 turn 工具轮数硬上限 5**,超限强制要求文字收尾(防选错工具来回打转)。
+- 核心循环加 tool 分支:模型返回 `toolCalls` → 逐个执行 → 结果以 `role:'tool'` 消息回灌 → 再调模型;**每 turn 工具轮数硬上限 8**,超限强制要求文字收尾(覆盖多标的比较所需的查询步骤，同时防选错工具来回打转)。
 - 温度保持 0;`chatText` 不动,新增 `chatTools`(同一 DeepSeek client)。
 
 ### 首批工具(3 个,克制)
@@ -88,7 +88,7 @@ type AgentLlm = (
 
 一个 turn 的完整生命周期,**工具阶段在前、修复阶段在后,互不嵌套**:
 
-1. **工具阶段**:模型可连续请求工具(≤5 轮),观察逐轮回灌;
+1. **工具阶段**:模型可连续请求工具(≤8 轮),观察逐轮回灌;
 2. **产出阶段**:模型给出文字(+可选代码围栏);
 3. **修复阶段**:若代码编译失败,错误回灌重试 ≤2 轮——**修复轮禁用工具**(修复 prompt 本就要求"只输出代码",给工具只会打转)。
 
@@ -160,7 +160,7 @@ interface ChatMessage {
 | 阶段 | 内容 | 验收 |
 |---|---|---|
 | A 统一核心 | 合并两 agent + /qa 成 `agent/core.ts` + 4 个 profile;纯重构 | 现有 agent 测试全部迁移后通过;lab/factor 前端零改动、行为无差异 |
-| B 工具调用 | `AgentLlm` + tool 循环(轮数 ≤5)+ 首批 3 工具,接入 strategy/factor/qa profile | mock 测试:模型请求工具 → 观察回灌 → 终答;真实冒烟:「库里股息率数据到哪天」能查库答对,而不是编造 |
+| B 工具调用 | `AgentLlm` + tool 循环(轮数 ≤8)+ 首批 3 工具,接入 strategy/factor/qa profile | mock 测试:模型请求工具 → 观察回灌 → 终答;真实冒烟:「库里股息率数据到哪天」能查库答对,而不是编造 |
 | C 卡片协议 | MessagePart + card 渲染 + 保存到 SavedScreen;旧消息兼容读 | 对话「筛出 PE<15 高股息」→ 回复带可点击卡片 → 重开会话卡片重跑 → 保存后 SavedScreen 可见;旧会话正常显示 |
 | D screen 收编 | screen 页改「一面墙两种卡片」(查询卡片 + 会话卡片),NL 框下线,nl-to-screen 删除,新增 ScreenConversation 表 | 原 NL 用例(选股/点名股票)在 agent 对话中等效完成;查询卡片重跑/编辑/删除跑通;会话卡片回看续聊、改名删除跑通;删会话不影响已保存查询卡片;按前端 e2e 硬规矩截图 |
 
