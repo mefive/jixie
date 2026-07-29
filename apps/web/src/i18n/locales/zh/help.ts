@@ -8,5 +8,7 @@ export const zhHelp = {
   groups: {
     gettingStarted: '开始使用',
     basics: '量化交易基础',
+    screening: '选股看图',
+    stockDetail: '股票详情',
   },
 };
