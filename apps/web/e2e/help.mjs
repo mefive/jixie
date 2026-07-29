@@ -124,8 +124,8 @@ try {
         .evaluateAll((links) => links.map((link) => link.getAttribute('href'))),
     ),
   ].filter(Boolean);
-  if (articleHrefs.length !== 32) {
-    throw new Error(`expected 32 help articles, got ${articleHrefs.length}`);
+  if (articleHrefs.length !== 36) {
+    throw new Error(`expected 36 help articles, got ${articleHrefs.length}`);
   }
   for (const href of articleHrefs) {
     await page.goto(`${BASE}${href}`, { waitUntil: 'domcontentloaded' });
@@ -281,6 +281,36 @@ try {
   if ((await page.locator('.jx-help-figure').count()) !== 2) {
     throw new Error('mixed stock and futures article does not render both screenshots');
   }
+
+  await page.getByRole('link', { name: '因子研究能回答什么', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '因子研究能回答什么' }).waitFor();
+  if ((await page.locator('.jx-help-figure').count()) !== 1) {
+    throw new Error('factor research introduction does not render its screenshot');
+  }
+
+  await page.getByRole('link', { name: '第一次运行预设因子分析', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '第一次运行预设因子分析' }).waitFor();
+  if ((await page.locator('.jx-help-figure').count()) !== 3) {
+    throw new Error('first preset factor article does not render all three screenshots');
+  }
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(100);
+  await page.screenshot({
+    path: `${SHOTS}11f-help-first-factor-guide.png`,
+  });
+
+  await page.getByRole('link', { name: '设置分析范围和样本处理', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '设置分析范围和样本处理' }).waitFor();
+  if ((await page.locator('.jx-help-figure').count()) !== 1) {
+    throw new Error('factor analysis settings article does not render its screenshot');
+  }
+
+  await page.getByRole('link', { name: '查看第一份因子分析结果', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '查看第一份因子分析结果' }).waitFor();
+  if ((await page.locator('.jx-help-figure').count()) !== 2) {
+    throw new Error('factor result article does not render both screenshots');
+  }
+  await page.getByRole('heading', { level: 2, name: '第一次需要看懂的指标' }).waitFor();
 
   await page.getByRole('link', { name: '页面导航', exact: true }).first().click();
   await page.getByRole('heading', { level: 1, name: '页面导航' }).waitFor();
