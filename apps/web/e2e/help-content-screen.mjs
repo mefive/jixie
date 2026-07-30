@@ -2,8 +2,10 @@ import { mkdirSync } from 'node:fs';
 import { chromium } from 'playwright';
 
 const BASE = process.env.E2E_BASE ?? 'http://localhost:5173';
-const SCREEN_OUTPUT = new URL('../public/help/zh/screening/', import.meta.url).pathname;
-const STOCK_OUTPUT = new URL('../public/help/zh/stock-detail/', import.meta.url).pathname;
+const SCREEN_OUTPUT = new URL('../../docs/public/images/help/zh/screening/', import.meta.url)
+  .pathname;
+const STOCK_OUTPUT = new URL('../../docs/public/images/help/zh/stock-detail/', import.meta.url)
+  .pathname;
 mkdirSync(SCREEN_OUTPUT, { recursive: true });
 mkdirSync(STOCK_OUTPUT, { recursive: true });
 

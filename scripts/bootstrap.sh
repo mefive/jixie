@@ -196,9 +196,9 @@ log "prisma generate + migrate deploy (建库 schema 于 $DB_FILE)"
 pnpm --filter api exec prisma generate
 pnpm --filter api exec prisma migrate deploy
 
-log "pnpm -r build (拓扑序: shared -> api -> web)"
+log "pnpm -r build (拓扑序: shared -> api -> web; Node heap 4GB)"
 # ⚠ 内存:vite build + 回测都偏吃内存。<2GB 的 VPS 建议配 swap,或本机构建后 rsync apps/web/dist。
-pnpm -r build
+NODE_OPTIONS="--max-old-space-size=4096" pnpm -r build
 
 if [[ "$JIXIE_INVITES_EXPLICIT" -ne 1 && "$DB_ALREADY_EXISTS" -eq 1 ]]; then
   log "数据库已存在,跳过默认邀请码生成(如需补发,显式设 JIXIE_INVITES=N)"
@@ -225,6 +225,9 @@ NGINX_DST="/etc/nginx/sites-available/$JIXIE_DOMAIN"
 [[ -d /etc/nginx/sites-available ]] || NGINX_DST="/etc/nginx/conf.d/$JIXIE_DOMAIN.conf"
 if nginx_vhost_has_tls "$NGINX_DST"; then
   log "nginx vhost 已含 TLS,保留 certbot 改写结果"
+  if ! sudo grep -Fq "$JIXIE_DIR/deploy/nginx-docs-app.conf" "$NGINX_DST"; then
+    warn "现有 TLS vhost 尚未 include deploy/nginx-docs-app.conf;公开文档路由需按 docs/deployment.md §3.5 完成一次性迁移"
+  fi
 else
   log "安装/更新 nginx vhost ($JIXIE_DOMAIN)"
   sed -e "s#/opt/jixie#$JIXIE_DIR#g" \

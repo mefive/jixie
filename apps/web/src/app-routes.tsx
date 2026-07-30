@@ -1,4 +1,4 @@
-import { lazy, Suspense, useLayoutEffect, useMemo, useRef, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, type ReactNode } from 'react';
 import {
   createBrowserRouter,
   createRoutesFromElements,
@@ -23,10 +23,6 @@ import { TopNav } from '@src/components/top-nav';
 import { authStore } from '@src/store';
 import './app-layout.css';
 
-// Standalone SDK reference page (also opened from the lab Docs button + the 📖 links in editor hovers).
-const SdkDocPage = lazy(() => import('@src/complex/lab/sdk-doc'));
-// Standalone product manual. Content is stored as Markdown and remains separate from the SDK reference.
-const HelpPage = lazy(() => import('@src/complex/help/help'));
 // Standalone trade-detail page (opened from the backtest result modal's "open in page" button).
 const TradePage = lazy(() => import('@src/complex/lab/trade-page'));
 
@@ -167,25 +163,24 @@ const router = createBrowserRouter(
         <Route path="/trades" element={<TradePage />} />
         <Route path="/signals" element={<ComplexRoute key="signals" entry={signalsEntry} />} />
       </Route>
-      {/* Standalone public docs: full-screen, no TopNav, and no sign-in required. */}
-      <Route
-        path="/docs"
-        element={
-          <Suspense fallback={null}>
-            <SdkDocPage />
-          </Suspense>
-        }
-      />
-      <Route path="/learn" element={<Navigate to="/help" replace />} />
-      <Route
-        path="/help/*"
-        element={
-          <Suspense fallback={null}>
-            <HelpPage />
-          </Suspense>
-        }
-      />
+      <Route path="/learn" element={<ExternalRedirect to="/docs/help" />} />
+      <Route path="/help/*" element={<LegacyHelpRedirect />} />
       <Route path="*" element={<Navigate to="/lab" replace />} />
     </>,
   ),
 );
+
+function ExternalRedirect({ to }: { to: string }): null {
+  useEffect(() => {
+    window.location.replace(to);
+  }, [to]);
+
+  return null;
+}
+
+function LegacyHelpRedirect() {
+  const location = useLocation();
+  const suffix = location.pathname.slice('/help'.length);
+
+  return <ExternalRedirect to={`/docs/help${suffix}${location.search}${location.hash}`} />;
+}

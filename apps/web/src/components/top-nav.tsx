@@ -38,7 +38,7 @@ export const TopNav = observer(() => {
           <NavLink to="/signals" className={linkClass}>
             {t('nav.signals')}
           </NavLink>
-          <a href="/help" className="jx-topnav-link" target="_blank" rel="noopener noreferrer">
+          <a href="/docs/help" className="jx-topnav-link" target="_blank" rel="noopener noreferrer">
             {t('nav.help')}
           </a>
         </nav>

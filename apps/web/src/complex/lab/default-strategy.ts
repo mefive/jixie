@@ -1,7 +1,7 @@
 /** The starter strategy in a fresh editor — a neutral, empty skeleton (not a pre-made strategy). It's
  * what the Agent sees as "current code" on the first turn, so the agent writes from scratch instead of
  * treating a demo strategy as the user's own. The user can also hand-write here; the SDK reference lives
- * in /docs. A short commented example points at the cross-section chain without cluttering the canvas. */
+ * in /docs/sdk. A short commented example points at the cross-section chain without cluttering the canvas. */
 export const DEFAULT_CODE = `// Describe the strategy you want to the Agent on the left; the generated code lands here. You can also edit it directly.
 export default defineStrategy({
   name: 'New strategy',

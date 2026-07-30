@@ -189,7 +189,7 @@ function installSdk(m: Monaco) {
         ),
         contents: [
           {
-            value: `[📖 ${i18n.t('lab:sdkDocTooltip', { name: word.word })}](${location.origin}/docs#${word.word})`,
+            value: `[📖 ${i18n.t('lab:sdkDocTooltip', { name: word.word })}](${location.origin}/docs/sdk#${word.word})`,
           },
         ],
       };
@@ -224,7 +224,7 @@ function CodeEditor({ value, onChange }: { value: string; onChange: (v: string) 
       beforeMount={installSdk}
       onMount={(editor) => {
         // Jump to the SDK doc for the symbol under the cursor (right-click menu + ⌘/Ctrl+I) — a keyboard
-        // alternative to Cmd+clicking the symbol (which the link provider makes a link to /docs#name).
+        // alternative to Cmd+clicking the symbol (the link provider points to /docs/sdk#name).
         editor.addAction({
           id: 'jixie.openSdkDoc',
           label: i18n.t('lab:sdkDocMenuLabel'),
@@ -234,7 +234,7 @@ function CodeEditor({ value, onChange }: { value: string; onChange: (v: string) 
           run(ed) {
             const pos = ed.getPosition();
             const word = pos ? ed.getModel()?.getWordAtPosition(pos)?.word : undefined;
-            window.open(word ? `/docs#${word}` : '/docs', '_blank');
+            window.open(word ? `/docs/sdk#${word}` : '/docs/sdk', '_blank');
           },
         });
       }}

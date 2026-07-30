@@ -2,7 +2,7 @@ import { mkdirSync } from 'node:fs';
 import { chromium } from 'playwright';
 
 const BASE = process.env.E2E_BASE ?? 'http://localhost:5173';
-const OUTPUT = new URL('../public/help/zh/factors/', import.meta.url).pathname;
+const OUTPUT = new URL('../../docs/public/images/help/zh/factors/', import.meta.url).pathname;
 mkdirSync(OUTPUT, { recursive: true });
 
 const browser = await chromium.launch({ headless: true });
