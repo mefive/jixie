@@ -64,8 +64,9 @@ sudo certbot --nginx -d jixie.你的域名
 
 `nginx-jixie.conf` 会在 server block 内 include 仓库中的
 `/opt/jixie/deploy/nginx-docs-app.conf`。该文件把独立构建的 `apps/docs/dist/docs` 挂载到
-`/docs/`，并处理文档深链；日常部署只需 reload Nginx，不会覆盖 Certbot 写入主 vhost 的
-证书配置。
+`/docs/`，并处理文档深链。只更新文档静态产物时不需要 reload Nginx；完整部署会校验并
+reload Nginx，以便仓库内的 Nginx include 配置变更生效。脚本不会覆盖 Certbot 写入主
+vhost 的证书配置。
 
 从旧版配置升级且 vhost 已被 Certbot 改写时，需要做一次迁移：在 HTTPS server block 的
 `root` / `index` 后加入下面一行，然后校验并 reload。不要重新覆盖整个 vhost，否则会丢失
@@ -146,8 +147,21 @@ sudo systemctl daemon-reload && sudo systemctl enable --now jixie-backup.timer
 
 ```bash
 ssh vps
-cd /opt/jixie && ./scripts/deploy.sh    # pull -> install -> migrate -> build -> reload nginx -> restart
+cd /opt/jixie
+./scripts/deploy.sh          # 默认 all，保持原有完整部署行为
+./scripts/deploy.sh docs     # 只构建 shared + docs，不迁移、不 reload Nginx、不重启 API
+./scripts/deploy.sh web      # 只构建 shared + web
+./scripts/deploy.sh api      # 只构建 shared + API、执行迁移并重启 API
 ```
+
+每次只能指定一个目标：`all`、`api`、`web` 或 `docs`。所有目标都会先检查部署目录、Git
+分支/upstream、tracked worktree 是否干净、Node 版本和必需命令，再执行
+`git pull --ff-only` 与 `pnpm install --frozen-lockfile`。这是有意保留的前置步骤：即使只改
+docs，也可能同时改了 lockfile 或 `@jixie/shared`。
+
+脚本用文件锁阻止并发部署；`web` / `docs` 会先在临时目录完成 typecheck 和构建，确认有
+`index.html` 后再替换线上目录。重复执行同一命令是安全的；若静态产物切换被中断，下次执行
+会先恢复或清理上一次的切换状态。
 
 ## 7. 排障
 
