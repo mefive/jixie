@@ -39,14 +39,22 @@ import workspaceEn from '@src/content/help/en/backtesting/workspace.md?raw';
 import workspaceZh from '@src/content/help/zh/backtesting/workspace.md?raw';
 import analysisSettingsEn from '@src/content/help/en/factors/analysis-settings.md?raw';
 import analysisSettingsZh from '@src/content/help/zh/factors/analysis-settings.md?raw';
+import correlationMatrixEn from '@src/content/help/en/factors/correlation-matrix.md?raw';
+import correlationMatrixZh from '@src/content/help/zh/factors/correlation-matrix.md?raw';
 import decileReturnsEn from '@src/content/help/en/factors/decile-returns.md?raw';
 import decileReturnsZh from '@src/content/help/zh/factors/decile-returns.md?raw';
 import firstPresetAnalysisEn from '@src/content/help/en/factors/first-preset-analysis.md?raw';
 import firstPresetAnalysisZh from '@src/content/help/zh/factors/first-preset-analysis.md?raw';
+import holdoutResultsEn from '@src/content/help/en/factors/holdout-results.md?raw';
+import holdoutResultsZh from '@src/content/help/zh/factors/holdout-results.md?raw';
 import neutralizationEn from '@src/content/help/en/factors/neutralization.md?raw';
 import neutralizationZh from '@src/content/help/zh/factors/neutralization.md?raw';
 import rankIcIcirEn from '@src/content/help/en/factors/rank-ic-icir.md?raw';
 import rankIcIcirZh from '@src/content/help/zh/factors/rank-ic-icir.md?raw';
+import reportHistoryEn from '@src/content/help/en/factors/report-history.md?raw';
+import reportHistoryZh from '@src/content/help/zh/factors/report-history.md?raw';
+import researchCardEn from '@src/content/help/en/factors/research-card.md?raw';
+import researchCardZh from '@src/content/help/zh/factors/research-card.md?raw';
 import factorResultsOverviewEn from '@src/content/help/en/factors/results-overview.md?raw';
 import factorResultsOverviewZh from '@src/content/help/zh/factors/results-overview.md?raw';
 import turnoverCostsEn from '@src/content/help/en/factors/turnover-costs.md?raw';
@@ -737,6 +745,70 @@ export const HELP_ARTICLES: HelpArticle[] = [
     content: {
       zh: neutralizationZh,
       en: neutralizationEn,
+    },
+  },
+  {
+    slug: 'factors/report-history',
+    group: 'factorResearch',
+    title: {
+      zh: '报告历史和结果已过期',
+      en: 'Report history and outdated results',
+    },
+    summary: {
+      zh: '打开不可变历史报告，恢复当时参数，并正确处理代码或设置已修改的提示。',
+      en: 'Open immutable reports, restore saved settings, and handle code or setting changes.',
+    },
+    content: {
+      zh: reportHistoryZh,
+      en: reportHistoryEn,
+    },
+  },
+  {
+    slug: 'factors/research-card',
+    group: 'factorResearch',
+    title: {
+      zh: '运行前研究卡和探索变体',
+      en: 'Pre-run research cards and variants',
+    },
+    summary: {
+      zh: '在看结果前写下假设、方向和主要标准，并理解探索变体与假阳性提示。',
+      en: 'Record a hypothesis, direction, and criterion before reading the result.',
+    },
+    content: {
+      zh: researchCardZh,
+      en: researchCardEn,
+    },
+  },
+  {
+    slug: 'factors/holdout-results',
+    group: 'factorResearch',
+    title: {
+      zh: '正式保留段和样本外结果',
+      en: 'Formal holdout and out-of-sample results',
+    },
+    summary: {
+      zh: '使用冻结代码验证预留数据，理解结果封存、不可逆揭示和主要标准判定。',
+      en: 'Validate reserved data with frozen code and understand sealing and reveal.',
+    },
+    content: {
+      zh: holdoutResultsZh,
+      en: holdoutResultsEn,
+    },
+  },
+  {
+    slug: 'factors/correlation-matrix',
+    group: 'factorResearch',
+    title: {
+      zh: '因子相关性矩阵',
+      en: 'Factor correlation matrix',
+    },
+    summary: {
+      zh: '计算多个因子的平均排名相关性，识别重复信息和市值暴露。',
+      en: 'Calculate average rank correlations and identify repeated information and size exposure.',
+    },
+    content: {
+      zh: correlationMatrixZh,
+      en: correlationMatrixEn,
     },
   },
 ];

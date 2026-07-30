@@ -143,8 +143,8 @@ try {
         .evaluateAll((links) => links.map((link) => link.getAttribute('href'))),
     ),
   ].filter(Boolean);
-  if (articleHrefs.length !== 40) {
-    throw new Error(`expected 40 help articles, got ${articleHrefs.length}`);
+  if (articleHrefs.length !== 44) {
+    throw new Error(`expected 44 help articles, got ${articleHrefs.length}`);
   }
   for (const href of articleHrefs) {
     if (new URL(page.url()).pathname !== href) {
@@ -384,6 +384,45 @@ try {
   if ((await page.locator('.jx-help-markdown .katex').count()) < 10) {
     throw new Error('neutralization formulas did not render with KaTeX');
   }
+
+  await page.getByRole('link', { name: '报告历史和结果已过期', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '报告历史和结果已过期' }).waitFor();
+  if ((await page.locator('.jx-help-figure').count()) !== 2) {
+    throw new Error('factor report-history article does not render both screenshots');
+  }
+
+  await page.getByRole('link', { name: '运行前研究卡和探索变体', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '运行前研究卡和探索变体' }).waitFor();
+  if ((await page.locator('.jx-help-figure').count()) !== 2) {
+    throw new Error('factor research-card article does not render both screenshots');
+  }
+  if ((await page.locator('.jx-help-markdown .katex').count()) < 2) {
+    throw new Error('factor research-card formulas did not render with KaTeX');
+  }
+
+  await page.getByRole('link', { name: '正式保留段和样本外结果', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '正式保留段和样本外结果' }).waitFor();
+  if ((await page.locator('.jx-help-figure').count()) !== 5) {
+    throw new Error('factor holdout article does not render all five screenshots');
+  }
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(100);
+  await page.screenshot({
+    path: `${SHOTS}12c-help-factor-holdout.png`,
+  });
+
+  await page.getByRole('link', { name: '因子相关性矩阵', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '因子相关性矩阵' }).waitFor();
+  if ((await page.locator('.jx-help-figure').count()) !== 2) {
+    throw new Error('factor correlation article does not render both screenshots');
+  }
+  if ((await page.locator('.jx-help-markdown .katex').count()) < 4) {
+    throw new Error('factor correlation formulas did not render with KaTeX');
+  }
+  await page.getByText('EN', { exact: true }).last().click();
+  await page.getByRole('heading', { level: 1, name: 'Factor correlation matrix' }).waitFor();
+  await page.getByText('中文', { exact: true }).last().click();
+  await page.getByRole('heading', { level: 1, name: '因子相关性矩阵' }).waitFor();
 
   await page.getByRole('link', { name: '页面导航', exact: true }).first().click();
   await page.getByRole('heading', { level: 1, name: '页面导航' }).waitFor();
