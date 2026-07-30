@@ -30,6 +30,7 @@
     "test:e2e:help-content-factor-basics": "node e2e/help-content-factor-basics.mjs",
     "test:e2e:help-content-factor-metrics": "node e2e/help-content-factor-metrics.mjs",
     "test:e2e:help-content-factor-discipline": "node e2e/help-content-factor-discipline.mjs",
+    "test:e2e:help-content-factor-custom": "node e2e/help-content-factor-custom.mjs",
     "test:e2e:help-screen-live": "node e2e/help-screen-live.mjs"
   },
   "dependencies": {

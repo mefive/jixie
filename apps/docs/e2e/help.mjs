@@ -143,8 +143,8 @@ try {
         .evaluateAll((links) => links.map((link) => link.getAttribute('href'))),
     ),
   ].filter(Boolean);
-  if (articleHrefs.length !== 44) {
-    throw new Error(`expected 44 help articles, got ${articleHrefs.length}`);
+  if (articleHrefs.length !== 48) {
+    throw new Error(`expected 48 help articles, got ${articleHrefs.length}`);
   }
   for (const href of articleHrefs) {
     if (new URL(page.url()).pathname !== href) {
@@ -423,6 +423,44 @@ try {
   await page.getByRole('heading', { level: 1, name: 'Factor correlation matrix' }).waitFor();
   await page.getByText('中文', { exact: true }).last().click();
   await page.getByRole('heading', { level: 1, name: '因子相关性矩阵' }).waitFor();
+
+  await page.getByRole('link', { name: '复制预设因子', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '复制预设因子' }).waitFor();
+  if ((await page.locator('.jx-help-figure').count()) !== 2) {
+    throw new Error('preset factor copy article does not render both screenshots');
+  }
+
+  await page.getByRole('link', { name: '新建和编辑自定义因子', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '新建和编辑自定义因子' }).waitFor();
+  if ((await page.locator('.jx-help-figure').count()) !== 3) {
+    throw new Error('custom factor article does not render all three screenshots');
+  }
+  if ((await page.locator('.jx-help-markdown .katex').count()) < 1) {
+    throw new Error('custom factor formula did not render with KaTeX');
+  }
+
+  await page.getByRole('link', { name: '确认策略标识', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '确认策略标识' }).waitFor();
+  if ((await page.locator('.jx-help-figure').count()) !== 2) {
+    throw new Error('strategy key article does not render both screenshots');
+  }
+
+  await page.getByRole('link', { name: '在策略中使用自定义因子', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '在策略中使用自定义因子' }).waitFor();
+  if ((await page.locator('.jx-help-figure').count()) !== 3) {
+    throw new Error('factor strategy article does not render all three screenshots');
+  }
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(100);
+  await page.screenshot({
+    path: `${SHOTS}12d-help-factor-custom.png`,
+  });
+  await page.getByText('EN', { exact: true }).last().click();
+  await page
+    .getByRole('heading', { level: 1, name: 'Use a custom factor in a strategy' })
+    .waitFor();
+  await page.getByText('中文', { exact: true }).last().click();
+  await page.getByRole('heading', { level: 1, name: '在策略中使用自定义因子' }).waitFor();
 
   await page.getByRole('link', { name: '页面导航', exact: true }).first().click();
   await page.getByRole('heading', { level: 1, name: '页面导航' }).waitFor();
