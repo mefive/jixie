@@ -207,11 +207,11 @@
 | --- | --- |
 | 路由 | `/market` |
 | 页面操作 | 查看交易热度、市场广度、趋势强度和交易拥挤；切换十个观察范围；查看近三年历史；阅读口径 |
-| 使用手册文章 | 市场页面；四项市场指标；切换观察范围；近三年历史；指标口径 |
-| 当前 E2E | `market-state.mjs` |
-| 当前截图 | `market-state-scope-picker.png`、`market-state-index-scope.png` |
-| 本轮结果 | 四项指标和十个观察范围通过 |
-| 缺口 | 测试日志中的 `headers=0`、`directionHeat=0` 需要在写作前确认是当前设计还是测试未覆盖；文档必须强调这些指标不输出涨跌预测 |
+| 使用手册文章 | 查看市场页面和切换范围；理解四项市场指标 |
+| 当前 E2E | `market-state.mjs`、`help-content-market-valuation.mjs` |
+| 当前截图 | 正式截图 `market-overview-01.png`、`market-scope-01.png`、`market-index-01.png`；验收目录中的 `market-state-scope-picker.png`、`market-state-index-scope.png` |
+| 本轮结果 | 四项指标、十个观察范围、当日明细、近三年历史和指数历史成分口径均有正式文章和真实标注截图；旧头图与行业热度卡已按设计移除 |
+| 缺口 | 无；正文明确四项指标不合成总温度，也不输出涨跌预测 |
 
 ### 2.16 估值
 
@@ -219,11 +219,11 @@
 | --- | --- |
 | 路由 | `/valuation` |
 | 页面操作 | 选择指数；查看市盈率 TTM、市净率、静态市盈率和换手率；查看近十年和全历史百分位；缩放历史图；阅读口径 |
-| 使用手册文章 | 指数估值；四项估值指标；历史百分位；缩放图表；估值口径 |
-| 当前 E2E | `market-state.mjs` |
-| 当前截图 | `valuation.png` |
-| 本轮结果 | 四项估值指标显示通过 |
-| 缺口 | 需要逐项截图切换和图表缩放；必须说明低百分位不等于马上上涨 |
+| 使用手册文章 | 查看指数估值；正确理解历史百分位 |
+| 当前 E2E | `market-state.mjs`、`help-content-market-valuation.mjs` |
+| 当前截图 | 正式截图 `valuation-overview-01.png`、`valuation-index-01.png`、`valuation-history-01.png`；验收目录中的 `valuation.png` |
+| 本轮结果 | 指数切换、四项指标、近 5 年、近 10 年、全部历史、图表缩放、两种百分位和计算口径均有正式文章和真实标注截图 |
+| 缺口 | 无；正文明确低百分位不等于马上上涨，不同指数相同百分位也不等于绝对估值相同 |
 
 ### 2.17 今日信号
 
@@ -232,11 +232,11 @@
 | 路由 | `/signals` |
 | 前置操作 | 在回测工作台完成回测并点击“部署上线” |
 | 页面操作 | 查看运行中策略；立即生成；查看信号日、执行日、模型权益、邮件通知、买卖方向、股数、参考价、概算金额和运行历史；理解“今日无操作”；处理中断或失败 |
-| 使用手册文章 | 部署上线；生成信号；查看指令；今日无操作；运行历史；通知状态；暂停上线 |
-| 当前 E2E | `daily-signals.mjs` |
-| 当前截图 | 本轮只生成 `daily-signals-error.png`；目录中的成功截图不能视为本轮结果 |
-| 本轮结果 | 前置回测失败，job 错误为 `number 1 is not a function`，没有进入成功的信号页面步骤 |
-| 缺口 | 修复或查明前置回测后，重新生成中文、英文和窄屏截图；补测部署和暂停 |
+| 使用手册文章 | 部署回测策略；生成今日信号；查看信号指令；查看历史并暂停上线 |
+| 当前 E2E | `daily-signals.mjs`、`help-content-signals.mjs` |
+| 当前截图 | 正式截图 `signal-deploy-ready-01.png`、`signal-deploy-active-01.png`、`signal-deploy-outdated-01.png`、`signal-empty-01.png`、`signal-no-action-01.png`、`signal-result-01.png`、`signal-history-01.png`、`signal-pause-01.png`；验收目录中的中文、英文和窄屏成功截图 |
+| 本轮结果 | 真实前置回测、冻结部署、未运行修改保护、立即生成、今日无操作、300 股买入、信号日与执行日、模型权益、通知、历史和暂停上线全部通过；旧 `number 1 is not a function` 未再出现 |
+| 缺口 | 无；E2E 使用已有完整行情的固定信号日，避免当前日期超过本地固定数据截止日 |
 
 ### 2.18 策略 SDK 参考
 
@@ -307,7 +307,9 @@
 | `strategy-orchestration.mjs` | 通过 | API 重启后，普通月度定投回测通过，成交 1 笔 |
 | `help-content-strategy-agent.mjs` | 通过 | 两次真实模型调用完成策略生成和 100→200 股修改，随后真实回测通过 |
 | `strategy-parameter-scan.mjs` | 通过 | 四个参数组合通过 |
-| `daily-signals.mjs` | 失败 | 前置回测报 `number 1 is not a function` |
+| `daily-signals.mjs` | 通过 | 真实回测、部署、页面立即生成、300 股买入、持久化结果、中英文和窄屏通过 |
+| `help-content-market-valuation.mjs` | 通过 | 市场、估值、观察范围、指标与历史切换和 6 张标注截图通过 |
+| `help-content-signals.mjs` | 通过 | 部署、版本过期、无操作、买入指令、历史、暂停和 8 张标注截图通过 |
 | `etf-trading.mjs` | 通过 | ETF 页面入口、真实买卖成交、资产标识和交易明细通过 |
 | `market-state.mjs` | 通过 | 四项市场指标、十个观察范围和四项估值指标通过 |
 | `mixed-futures.mjs` | 通过 | 混合回测约 6 秒完成，股票／期货账户权益、保证金和净敞口通过；测试策略已自动清理 |
@@ -386,9 +388,9 @@
 1. 新使用手册入口使用 `/docs/help`，策略 SDK 使用 `/docs/sdk`。
 2. 中文第一版按普通用户路径组织，策略代码和因子代码放在进阶部分。
 3. 现有验收截图不直接进入手册。
-4. 自然语言生成、真实结果页、交易明细、ETF、今日信号和混合期货仍需补测或修复。
-5. `factor-strategy-history` 已于 2026-07-30 重跑通过；`daily-signals` 的历史失败仍需按当前版本重新核对。
-6. `mixed-futures` 长任务已终止且 job 已标记为 `stale`，但卡住原因仍需单独诊断。
+4. 自然语言生成、真实结果页、交易明细、ETF、今日信号和混合期货均已有当前真实 E2E。
+5. `factor-strategy-history` 与 `daily-signals` 的历史函数调用错误均已于 2026-07-30 重跑关闭。
+6. `mixed-futures` 已重跑通过，股票与期货混合回测约 6 秒完成。
 
-下一阶段从 `docs/design/user-guide.md` 的阶段 G 开始：先重跑市场、估值和今日信号相关 E2E，
-确认当前页面与历史失败状态，再确定文章和正式截图清单。
+下一阶段从 `docs/design/user-guide.md` 的阶段 H 开始：从新账号按文档顺序完成整体验收，
+核对 56 篇正文、截图、链接、标题锚点、桌面和窄屏，并建立后续维护检查项。

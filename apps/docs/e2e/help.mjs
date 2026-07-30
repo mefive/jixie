@@ -143,8 +143,8 @@ try {
         .evaluateAll((links) => links.map((link) => link.getAttribute('href'))),
     ),
   ].filter(Boolean);
-  if (articleHrefs.length !== 48) {
-    throw new Error(`expected 48 help articles, got ${articleHrefs.length}`);
+  if (articleHrefs.length !== 56) {
+    throw new Error(`expected 56 help articles, got ${articleHrefs.length}`);
   }
   for (const href of articleHrefs) {
     if (new URL(page.url()).pathname !== href) {
@@ -462,6 +462,79 @@ try {
   await page.getByText('中文', { exact: true }).last().click();
   await page.getByRole('heading', { level: 1, name: '在策略中使用自定义因子' }).waitFor();
 
+  await page.getByRole('link', { name: '查看市场页面和切换范围', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '查看市场页面和切换范围' }).waitFor();
+  if ((await page.locator('.jx-help-figure').count()) !== 3) {
+    throw new Error('market overview article does not render all three screenshots');
+  }
+
+  await page.getByRole('link', { name: '理解四项市场指标', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '理解四项市场指标' }).waitFor();
+  if ((await page.locator('.jx-help-figure').count()) !== 1) {
+    throw new Error('market metrics article does not render its screenshot');
+  }
+  if ((await page.locator('.jx-help-markdown .katex').count()) < 4) {
+    throw new Error('market metric formulas did not render with KaTeX');
+  }
+
+  await page.getByRole('link', { name: '查看指数估值', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '查看指数估值' }).waitFor();
+  if ((await page.locator('.jx-help-figure').count()) !== 3) {
+    throw new Error('index valuation article does not render all three screenshots');
+  }
+  if ((await page.locator('.jx-help-markdown .katex').count()) < 2) {
+    throw new Error('index valuation formulas did not render with KaTeX');
+  }
+
+  await page.getByRole('link', { name: '正确理解历史百分位', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '正确理解历史百分位' }).waitFor();
+  if ((await page.locator('.jx-help-figure').count()) !== 2) {
+    throw new Error('percentile article does not render both screenshots');
+  }
+  if ((await page.locator('.jx-help-markdown .katex').count()) < 1) {
+    throw new Error('percentile formula did not render with KaTeX');
+  }
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(100);
+  await page.screenshot({
+    path: `${SHOTS}13a-help-market-valuation.png`,
+  });
+
+  await page.getByRole('link', { name: '部署回测策略', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '部署回测策略' }).waitFor();
+  if ((await page.locator('.jx-help-figure').count()) !== 3) {
+    throw new Error('strategy deployment article does not render all three screenshots');
+  }
+
+  await page.getByRole('link', { name: '生成今日信号', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '生成今日信号' }).waitFor();
+  if ((await page.locator('.jx-help-figure').count()) !== 2) {
+    throw new Error('signal generation article does not render both screenshots');
+  }
+
+  await page.getByRole('link', { name: '查看信号指令', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '查看信号指令' }).waitFor();
+  if ((await page.locator('.jx-help-figure').count()) !== 2) {
+    throw new Error('signal instruction article does not render both screenshots');
+  }
+
+  await page.getByRole('link', { name: '查看历史并暂停上线', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '查看历史并暂停上线' }).waitFor();
+  if ((await page.locator('.jx-help-figure').count()) !== 2) {
+    throw new Error('signal history article does not render both screenshots');
+  }
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(100);
+  await page.screenshot({
+    path: `${SHOTS}13b-help-signals.png`,
+  });
+  await page.getByText('EN', { exact: true }).last().click();
+  await page
+    .getByRole('heading', { level: 1, name: 'View history and pause a deployment' })
+    .waitFor();
+  await page.getByText('中文', { exact: true }).last().click();
+  await page.getByRole('heading', { level: 1, name: '查看历史并暂停上线' }).waitFor();
+
   await page.getByRole('link', { name: '页面导航', exact: true }).first().click();
   await page.getByRole('heading', { level: 1, name: '页面导航' }).waitFor();
 
@@ -514,6 +587,17 @@ try {
     path: `${SHOTS}12b-help-factor-formulas-mobile.png`,
     fullPage: true,
   });
+
+  await page.goto(`${BASE}/docs/help/signals/read-signals`, {
+    waitUntil: 'domcontentloaded',
+  });
+  await page.getByRole('heading', { level: 1, name: 'Read signal instructions' }).waitFor();
+  const signalPageOverflow = await page.evaluate(
+    () => document.documentElement.scrollWidth > window.innerWidth + 1,
+  );
+  if (signalPageOverflow) {
+    throw new Error('signal instruction page has horizontal overflow at 390px');
+  }
 
   console.log(
     '[help-e2e] public docs, same-tab docs nav, product popup, no tutorial, image hover, articles, formulas, and narrow layout ok',

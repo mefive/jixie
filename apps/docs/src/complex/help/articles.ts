@@ -79,6 +79,14 @@ import navigationEn from '@src/content/help/en/getting-started/navigation.md?raw
 import navigationZh from '@src/content/help/zh/getting-started/navigation.md?raw';
 import overviewEn from '@src/content/help/en/getting-started/overview.md?raw';
 import overviewZh from '@src/content/help/zh/getting-started/overview.md?raw';
+import indexValuationEn from '@src/content/help/en/market-valuation/index-valuation.md?raw';
+import indexValuationZh from '@src/content/help/zh/market-valuation/index-valuation.md?raw';
+import marketMetricsEn from '@src/content/help/en/market-valuation/market-metrics.md?raw';
+import marketMetricsZh from '@src/content/help/zh/market-valuation/market-metrics.md?raw';
+import marketOverviewEn from '@src/content/help/en/market-valuation/market-overview.md?raw';
+import marketOverviewZh from '@src/content/help/zh/market-valuation/market-overview.md?raw';
+import percentilesEn from '@src/content/help/en/market-valuation/percentiles.md?raw';
+import percentilesZh from '@src/content/help/zh/market-valuation/percentiles.md?raw';
 import conversationsEn from '@src/content/help/en/screening/conversations.md?raw';
 import conversationsZh from '@src/content/help/zh/screening/conversations.md?raw';
 import directQueryEn from '@src/content/help/en/screening/direct-query.md?raw';
@@ -89,6 +97,14 @@ import filterResultsEn from '@src/content/help/en/screening/filter-results.md?ra
 import filterResultsZh from '@src/content/help/zh/screening/filter-results.md?raw';
 import saveReuseEn from '@src/content/help/en/screening/save-reuse.md?raw';
 import saveReuseZh from '@src/content/help/zh/screening/save-reuse.md?raw';
+import deployStrategyEn from '@src/content/help/en/signals/deploy-strategy.md?raw';
+import deployStrategyZh from '@src/content/help/zh/signals/deploy-strategy.md?raw';
+import generateSignalsEn from '@src/content/help/en/signals/generate-signals.md?raw';
+import generateSignalsZh from '@src/content/help/zh/signals/generate-signals.md?raw';
+import historyPauseEn from '@src/content/help/en/signals/history-pause.md?raw';
+import historyPauseZh from '@src/content/help/zh/signals/history-pause.md?raw';
+import readSignalsEn from '@src/content/help/en/signals/read-signals.md?raw';
+import readSignalsZh from '@src/content/help/zh/signals/read-signals.md?raw';
 import adjustmentsScaleEn from '@src/content/help/en/stock-detail/adjustments-scale.md?raw';
 import adjustmentsScaleZh from '@src/content/help/zh/stock-detail/adjustments-scale.md?raw';
 import peVolumeDataEn from '@src/content/help/en/stock-detail/pe-volume-data.md?raw';
@@ -103,6 +119,8 @@ export const HELP_GROUPS = [
   'stockDetail',
   'backtesting',
   'factorResearch',
+  'marketValuation',
+  'signals',
 ] as const;
 export type HelpGroup = (typeof HELP_GROUPS)[number];
 
@@ -881,6 +899,134 @@ export const HELP_ARTICLES: HelpArticle[] = [
     content: {
       zh: factorInStrategyZh,
       en: factorInStrategyEn,
+    },
+  },
+  {
+    slug: 'market-valuation/market-overview',
+    group: 'marketValuation',
+    title: {
+      zh: '查看市场页面和切换范围',
+      en: 'View the Market page and change scope',
+    },
+    summary: {
+      zh: '打开市场页面，核对数据日期，并在全A、宽基、板块和风格范围之间切换。',
+      en: 'Open the Market page, verify the data date, and change the observation scope.',
+    },
+    content: {
+      zh: marketOverviewZh,
+      en: marketOverviewEn,
+    },
+  },
+  {
+    slug: 'market-valuation/market-metrics',
+    group: 'marketValuation',
+    title: {
+      zh: '理解四项市场指标',
+      en: 'Understand the four market metrics',
+    },
+    summary: {
+      zh: '理解交易热度、市场广度、趋势强度和交易拥挤的实际计算口径。',
+      en: 'Understand the calculation and meaning of activity, breadth, trend, and crowding.',
+    },
+    content: {
+      zh: marketMetricsZh,
+      en: marketMetricsEn,
+    },
+  },
+  {
+    slug: 'market-valuation/index-valuation',
+    group: 'marketValuation',
+    title: {
+      zh: '查看指数估值',
+      en: 'View index valuation',
+    },
+    summary: {
+      zh: '切换指数和估值指标，查看市盈率、市净率、换手率及历史曲线。',
+      en: 'Change indices and inspect valuation metrics, turnover, and historical charts.',
+    },
+    content: {
+      zh: indexValuationZh,
+      en: indexValuationEn,
+    },
+  },
+  {
+    slug: 'market-valuation/percentiles',
+    group: 'marketValuation',
+    title: {
+      zh: '正确理解历史百分位',
+      en: 'Interpret historical percentiles correctly',
+    },
+    summary: {
+      zh: '理解近三年、近十年和全历史百分位，以及它们不能直接预测涨跌的原因。',
+      en: 'Interpret three-year, ten-year, and all-history percentiles without treating them as forecasts.',
+    },
+    content: {
+      zh: percentilesZh,
+      en: percentilesEn,
+    },
+  },
+  {
+    slug: 'signals/deploy-strategy',
+    group: 'signals',
+    title: {
+      zh: '部署回测策略',
+      en: 'Deploy a backtested strategy',
+    },
+    summary: {
+      zh: '冻结已经完成回测的版本，并区分编辑器草稿、回测结果和线上版本。',
+      en: 'Freeze a completed backtest version and distinguish drafts, results, and deployments.',
+    },
+    content: {
+      zh: deployStrategyZh,
+      en: deployStrategyEn,
+    },
+  },
+  {
+    slug: 'signals/generate-signals',
+    group: 'signals',
+    title: {
+      zh: '生成今日信号',
+      en: "Generate today's signals",
+    },
+    summary: {
+      zh: '打开已上线策略，生成收盘信号，并正确处理今日无操作和数据未准备状态。',
+      en: 'Generate close-based signals and handle no-action and data-not-ready states.',
+    },
+    content: {
+      zh: generateSignalsZh,
+      en: generateSignalsEn,
+    },
+  },
+  {
+    slug: 'signals/read-signals',
+    group: 'signals',
+    title: {
+      zh: '查看信号指令',
+      en: 'Read signal instructions',
+    },
+    summary: {
+      zh: '核对信号日和执行日，阅读方向、股数、参考价、概算金额和模型权益。',
+      en: 'Read dates, direction, shares, reference price, estimated amount, and model equity.',
+    },
+    content: {
+      zh: readSignalsZh,
+      en: readSignalsEn,
+    },
+  },
+  {
+    slug: 'signals/history-pause',
+    group: 'signals',
+    title: {
+      zh: '查看历史并暂停上线',
+      en: 'View history and pause a deployment',
+    },
+    summary: {
+      zh: '查看完成、失败和中断记录，暂停后续运行，并保留已有信号历史。',
+      en: 'Review completed, failed, and interrupted runs, then pause future generation.',
+    },
+    content: {
+      zh: historyPauseZh,
+      en: historyPauseEn,
     },
   },
 ];
