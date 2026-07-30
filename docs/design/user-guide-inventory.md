@@ -188,9 +188,9 @@
 | 使用手册文章 | 复制预设因子；自定义因子；策略标识；在策略中使用因子 |
 | 当前 E2E | `screener.mjs`、`sdk-hover.mjs`、`factor-strategy-history.mjs` |
 | 当前截图 | `7c-preset-readonly.png`、`7c1-factor-key.png`、`4c1-factor-hover.png`、`7r-sdk-hover.png` |
-| 本轮结果 | 复制、锁定标识、编辑器链接和 SDK 悬停通过 |
-| 失败 | `factor-strategy-history.mjs` 的真实数据库回测稳定失败；API 重启后错误为 `number 0 is not a function`；相关单元测试通过 |
-| 缺口 | 在真实回测问题解决前，不把“窗口历史自定义因子用于策略”写成已经验证的步骤 |
+| 本轮结果 | 复制、锁定标识、编辑器链接和 SDK 悬停通过；2026-07-30 重跑窗口历史自定义因子的真实数据库策略回测，隔离 worker 完成并产生 28 笔交易，测试数据自动清理 |
+| 验证 | `factor-strategy-history.mjs` 通过；`factor-semantics.test.ts` 11 项通过；原 `number 0 is not a function` 阻塞已关闭 |
+| 缺口 | 功能路径已经验证，尚需按普通用户页面操作重新截图并完成 4 篇正式文章 |
 
 本轮把 SDK 悬停断言改为验证稳定内容：
 
@@ -302,7 +302,7 @@
 | `help-content-factor-discipline.mjs` | 通过 | 假设探索、正式保留段封存揭示、相关性计算和 10 张阶段 F 研究纪律标注截图通过 |
 | `computed-chart.mjs` | 通过 | 310 行计算结果和图表卡片通过 |
 | `sdk-hover.mjs` | 通过 | 修正泛型显示相关的过时断言后通过 |
-| `factor-strategy-history.mjs` | 失败 | 真实数据库回测报 `number 0 is not a function`；相关引擎单元测试通过 |
+| `factor-strategy-history.mjs` | 通过 | 2026-07-30 真实数据库重跑通过：窗口历史自定义因子进入隔离 worker，回测完成并产生 28 笔交易 |
 | `strategy-orchestration.mjs` | 通过 | API 重启后，普通月度定投回测通过，成交 1 笔 |
 | `help-content-strategy-agent.mjs` | 通过 | 两次真实模型调用完成策略生成和 100→200 股修改，随后真实回测通过 |
 | `strategy-parameter-scan.mjs` | 通过 | 四个参数组合通过 |
@@ -386,7 +386,7 @@
 2. 中文第一版按普通用户路径组织，策略代码和因子代码放在进阶部分。
 3. 现有验收截图不直接进入手册。
 4. 自然语言生成、真实结果页、交易明细、ETF、今日信号和混合期货仍需补测或修复。
-5. `factor-strategy-history`、`daily-signals`、`etf-trading` 的真实回测错误需要单独诊断。
+5. `factor-strategy-history` 已于 2026-07-30 重跑通过；`daily-signals` 的历史失败仍需按当前版本重新核对。
 6. `mixed-futures` 长任务已终止且 job 已标记为 `stale`，但卡住原因仍需单独诊断。
 
 下一阶段从 `docs/design/user-guide.md` 的阶段 B 开始：建立 `/docs/help`、Markdown 内容加载、文档目录、标题锚点、图片和内部链接，并用一篇示例文章完成桌面与窄屏验收。
