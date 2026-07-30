@@ -186,11 +186,11 @@
 | --- | --- |
 | 页面操作 | 复制预设因子；编辑副本；新建自定义因子；确认并锁定策略标识；从策略编辑器查看因子实现；在策略中引用因子 |
 | 使用手册文章 | 复制预设因子；自定义因子；策略标识；在策略中使用因子 |
-| 当前 E2E | `screener.mjs`、`sdk-hover.mjs`、`factor-strategy-history.mjs` |
-| 当前截图 | `7c-preset-readonly.png`、`7c1-factor-key.png`、`4c1-factor-hover.png`、`7r-sdk-hover.png` |
-| 本轮结果 | 复制、锁定标识、编辑器链接和 SDK 悬停通过；2026-07-30 重跑窗口历史自定义因子的真实数据库策略回测，隔离 worker 完成并产生 28 笔交易，测试数据自动清理 |
+| 当前 E2E | `screener.mjs`、`sdk-hover.mjs`、`factor-strategy-history.mjs`、`help-content-factor-custom.mjs` |
+| 当前截图 | 正式截图 `factor-custom-copy-01.png`、`factor-custom-copy-02.png`、`factor-custom-new-01.png`、`factor-custom-edited-01.png`、`factor-custom-analysis-01.png`、`factor-strategy-key-01.png`、`factor-strategy-key-locked-01.png`、`factor-strategy-reference-01.png`、`factor-strategy-hover-01.png`、`factor-strategy-result-01.png`；验收目录中的 `7c-preset-readonly.png`、`7c1-factor-key.png`、`4c1-factor-hover.png`、`7r-sdk-hover.png` |
+| 本轮结果 | 4 篇中英文正式文章完成；复制、新建、直接编辑、真实因子分析、刷新恢复、标识锁定、策略声明与读取、编辑器悬停和真实回测均有当前标注截图；2026-07-30 重跑窗口历史自定义因子的真实数据库策略回测，隔离 worker 完成并产生 28 笔交易 |
 | 验证 | `factor-strategy-history.mjs` 通过；`factor-semantics.test.ts` 11 项通过；原 `number 0 is not a function` 阻塞已关闭 |
-| 缺口 | 功能路径已经验证，尚需按普通用户页面操作重新截图并完成 4 篇正式文章 |
+| 缺口 | 无；Agent 入口已说明，固定截图流程不依赖外部模型响应，其余关键步骤均通过真实页面和真实计算 |
 
 本轮把 SDK 悬停断言改为验证稳定内容：
 
@@ -300,6 +300,7 @@
 | `help-content-factor-basics.mjs` | 通过 | 真实盈利收益率分析和 6 张阶段 F 入门标注截图通过 |
 | `help-content-factor-metrics.mjs` | 通过 | 原始及市值加行业中性化分析和 8 张阶段 F 指标标注截图通过 |
 | `help-content-factor-discipline.mjs` | 通过 | 假设探索、正式保留段封存揭示、相关性计算和 10 张阶段 F 研究纪律标注截图通过 |
+| `help-content-factor-custom.mjs` | 通过 | 复制、新建、真实分析、标识锁定、策略引用、编辑器悬停、真实回测和 10 张标注截图通过 |
 | `computed-chart.mjs` | 通过 | 310 行计算结果和图表卡片通过 |
 | `sdk-hover.mjs` | 通过 | 修正泛型显示相关的过时断言后通过 |
 | `factor-strategy-history.mjs` | 通过 | 2026-07-30 真实数据库重跑通过：窗口历史自定义因子进入隔离 worker，回测完成并产生 28 笔交易 |
@@ -389,4 +390,5 @@
 5. `factor-strategy-history` 已于 2026-07-30 重跑通过；`daily-signals` 的历史失败仍需按当前版本重新核对。
 6. `mixed-futures` 长任务已终止且 job 已标记为 `stale`，但卡住原因仍需单独诊断。
 
-下一阶段从 `docs/design/user-guide.md` 的阶段 B 开始：建立 `/docs/help`、Markdown 内容加载、文档目录、标题锚点、图片和内部链接，并用一篇示例文章完成桌面与窄屏验收。
+下一阶段从 `docs/design/user-guide.md` 的阶段 G 开始：先重跑市场、估值和今日信号相关 E2E，
+确认当前页面与历史失败状态，再确定文章和正式截图清单。

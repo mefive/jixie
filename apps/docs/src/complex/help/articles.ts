@@ -41,8 +41,14 @@ import analysisSettingsEn from '@src/content/help/en/factors/analysis-settings.m
 import analysisSettingsZh from '@src/content/help/zh/factors/analysis-settings.md?raw';
 import correlationMatrixEn from '@src/content/help/en/factors/correlation-matrix.md?raw';
 import correlationMatrixZh from '@src/content/help/zh/factors/correlation-matrix.md?raw';
+import copyPresetFactorEn from '@src/content/help/en/factors/copy-preset-factor.md?raw';
+import copyPresetFactorZh from '@src/content/help/zh/factors/copy-preset-factor.md?raw';
+import createCustomFactorEn from '@src/content/help/en/factors/create-custom-factor.md?raw';
+import createCustomFactorZh from '@src/content/help/zh/factors/create-custom-factor.md?raw';
 import decileReturnsEn from '@src/content/help/en/factors/decile-returns.md?raw';
 import decileReturnsZh from '@src/content/help/zh/factors/decile-returns.md?raw';
+import factorInStrategyEn from '@src/content/help/en/factors/factor-in-strategy.md?raw';
+import factorInStrategyZh from '@src/content/help/zh/factors/factor-in-strategy.md?raw';
 import firstPresetAnalysisEn from '@src/content/help/en/factors/first-preset-analysis.md?raw';
 import firstPresetAnalysisZh from '@src/content/help/zh/factors/first-preset-analysis.md?raw';
 import holdoutResultsEn from '@src/content/help/en/factors/holdout-results.md?raw';
@@ -55,6 +61,8 @@ import reportHistoryEn from '@src/content/help/en/factors/report-history.md?raw'
 import reportHistoryZh from '@src/content/help/zh/factors/report-history.md?raw';
 import researchCardEn from '@src/content/help/en/factors/research-card.md?raw';
 import researchCardZh from '@src/content/help/zh/factors/research-card.md?raw';
+import strategyKeyEn from '@src/content/help/en/factors/strategy-key.md?raw';
+import strategyKeyZh from '@src/content/help/zh/factors/strategy-key.md?raw';
 import factorResultsOverviewEn from '@src/content/help/en/factors/results-overview.md?raw';
 import factorResultsOverviewZh from '@src/content/help/zh/factors/results-overview.md?raw';
 import turnoverCostsEn from '@src/content/help/en/factors/turnover-costs.md?raw';
@@ -809,6 +817,70 @@ export const HELP_ARTICLES: HelpArticle[] = [
     content: {
       zh: correlationMatrixZh,
       en: correlationMatrixEn,
+    },
+  },
+  {
+    slug: 'factors/copy-preset-factor',
+    group: 'factorResearch',
+    title: {
+      zh: '复制预设因子',
+      en: 'Copy a preset factor',
+    },
+    summary: {
+      zh: '把只读预设因子复制成独立的可编辑副本，并确认复制后的页面状态。',
+      en: 'Copy a read-only preset into an independent editable custom factor.',
+    },
+    content: {
+      zh: copyPresetFactorZh,
+      en: copyPresetFactorEn,
+    },
+  },
+  {
+    slug: 'factors/create-custom-factor',
+    group: 'factorResearch',
+    title: {
+      zh: '新建和编辑自定义因子',
+      en: 'Create and edit a custom factor',
+    },
+    summary: {
+      zh: '通过 Agent 或直接编辑编写因子代码，处理缺失值，并运行真实分析。',
+      en: 'Write factor code with the Agent or editor, handle missing values, and run an analysis.',
+    },
+    content: {
+      zh: createCustomFactorZh,
+      en: createCustomFactorEn,
+    },
+  },
+  {
+    slug: 'factors/strategy-key',
+    group: 'factorResearch',
+    title: {
+      zh: '确认策略标识',
+      en: 'Confirm the strategy key',
+    },
+    summary: {
+      zh: '按命名规则填写并锁定不可修改的策略标识，区分显示名称和代码引用。',
+      en: 'Enter and lock a stable strategy key, distinct from the factor display name.',
+    },
+    content: {
+      zh: strategyKeyZh,
+      en: strategyKeyEn,
+    },
+  },
+  {
+    slug: 'factors/factor-in-strategy',
+    group: 'factorResearch',
+    title: {
+      zh: '在策略中使用自定义因子',
+      en: 'Use a custom factor in a strategy',
+    },
+    summary: {
+      zh: '在策略中声明和读取自定义因子，核对实现，并运行真实回测。',
+      en: 'Declare and read a custom factor in strategy code, inspect it, and run a backtest.',
+    },
+    content: {
+      zh: factorInStrategyZh,
+      en: factorInStrategyEn,
     },
   },
 ];
