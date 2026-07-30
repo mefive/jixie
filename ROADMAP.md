@@ -225,7 +225,7 @@ before/after 样本数(因子值→成仓/前瞻行情→上市时间→流动�
 
 ### 4.6 数据库备份 ✅(2026-07-06 做完,定时安装待用户执行)
 
-`dev.db` 单文件装着全部:行情(丢失=数周限频重同步)+ 策略/研究史/回测记录(**不可重建**)。**实况**:`pnpm --filter api backup`(`scripts/backup-db.mjs`,纯 .mjs 只用 node 内置——ops 脚本要"有 node 就能跑",不依赖 tsx/构建)—— shell 出 `sqlite3 .backup` 在线备份(WAL 安全、可在 api 运行时跑),写到仓库外 `~/jixie-backups`(env `JIXIE_BACKUP_DIR`/`JIXIE_DB_PATH`/`JIXIE_BACKUP_KEEP` 可配),校验副本可读后轮转保留最近 N 份(默认 5)。实测 6.1GB → 15s、66 张表、轮转删旧已验。**定时(跨平台)**:macOS 本地 `com.jixie.backup.plist`(launchd);**Linux VPS `jixie-backup.service`+`.timer`(systemd,Persistent 补跑)或 cron 一行**(见 .timer 头注),都直接 `node backup-db.mjs`。**待用户做**:目标机装调度器 + 把备份目录推**离本机**(VPS 单盘本地备份=没备份:rsync/对象存储/litestream;Mac 上纳入 iCloud/Time Machine)。
+`dev.db` 单文件装着全部:行情(丢失=数周限频重同步)+ 策略/研究史/回测记录(**不可重建**)。**实况**:`pnpm --filter api backup`(`scripts/backup-db.mjs`,纯 .mjs 只用 node 内置——ops 脚本要"有 node 就能跑",不依赖 tsx/构建)—— shell 出 `sqlite3 .backup` 在线备份(WAL 安全、可在 api 运行时跑),写到仓库外 `~/jixie-backups`(env `JIXIE_BACKUP_DIR`/`JIXIE_DB_PATH`/`JIXIE_BACKUP_KEEP` 可配),校验副本可读后轮转保留最近 N 份(默认 5)。实测 6.1GB → 15s、66 张表、轮转删旧已验。**定时(跨平台)**:macOS 本地 `com.jixie.backup.plist`(launchd);**Linux VPS `jixie-backup.service`+`.timer`(systemd,Persistent 补跑)或 cron 一行**(见 .timer 头注),都直接 `node backup-db.mjs`。**待用户做**:目标机装调度器 + 把备份目录推**离本机**(VPS 单盘本地备份=没备份:rsync/对象存储/litestream;Mac 上纳入 iCloud/Time Machine)。生产增量维护、派生市场状态、慢频刷新与备份安装的统一实施计划见 **`docs/design/production-maintenance.md`**。
 
 ### 4.7 数据质量审计 ✅(2026-07-27)
 
