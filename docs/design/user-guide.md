@@ -608,7 +608,8 @@ apps/docs/src/content/help/
 
 尚未解决：
 
-- 窗口历史自定义因子的真实数据库回测报 `number 0 is not a function`。
+- 窗口历史自定义因子的真实数据库回测报 `number 0 is not a function`（后续已修复并于
+  2026-07-30 重跑通过，见本节阶段 F 记录）。
 - 今日信号的前置回测报 `number 1 is not a function`。
 - ETF 真实回测报 `number 1 is not a function`。
 - 股票和股指期货混合回测在两分钟页面等待期内未完成。
@@ -1010,4 +1011,7 @@ apps/docs/src/content/help/
 下一批入口：
 
 - 覆盖复制预设因子、新建自定义因子、编辑与保存、确认策略标识，以及在策略中引用因子的用户流程。
-- 先重跑自定义因子真实策略 E2E；真实数据库策略路径未修复前，不把失败路径写成已经验证的步骤。
+- 2026-07-30 已重跑 `factor-strategy-history.mjs`：自定义因子完成创建、策略标识定稿、隔离
+  worker 真实数据库回测和结果落库，共产生 28 笔交易；测试策略与因子自动清理。
+- 引擎 `factor-semantics.test.ts` 11 项同时通过，原 `number 0 is not a function` 阻塞记录已关闭；
+  下一批可以直接进入自定义因子用户流程和正式文档截图。
