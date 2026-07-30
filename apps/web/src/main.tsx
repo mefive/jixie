@@ -23,6 +23,8 @@ const theme = {
     colorPrimary: '#111827',
     colorLink: '#111827',
     colorLinkHover: '#374151',
+    controlItemBgActive: '#eef0f2',
+    controlItemBgActiveHover: '#eef0f2',
     borderRadius: 8,
     fontFamily:
       "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif",

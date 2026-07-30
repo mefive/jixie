@@ -9,6 +9,7 @@ export const zhCommon = {
     valuation: '估值',
     signals: '今日信号',
     help: '使用帮助',
+    menu: '页面导航',
   },
   logout: '退出',
   language: {
