@@ -135,6 +135,8 @@ run_stage index-membership "Import point-in-time constituents for market-state i
   pnpm --filter api sync:index market-state "$START_DATE" "$END_DATE"
 run_stage futures "Import stock-index futures contracts, bars, mappings, and settlements" \
   pnpm --filter api sync:futures "$START_DATE" "$END_DATE"
+run_stage canonicalize-stock-codes "Canonicalize superseded stock codes" \
+  pnpm --filter api canonicalize:stock-codes
 run_stage market-state "Precompute whole-market, index, and industry state" \
   pnpm --filter api sync:market-state "$START_DATE" "$END_DATE"
 run_stage audit "Run the read-only full data-quality audit" \
