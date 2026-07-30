@@ -19,6 +19,16 @@
   @apply flex items-center gap-1;
 }
 
+.jx-topnav-mobileMenu {
+  @apply hidden;
+  @apply focus-visible:ring-2 focus-visible:ring-line;
+  outline: none !important;
+}
+
+.jx-topnav-mobileMenuText {
+  @apply truncate;
+}
+
 .jx-topnav-link {
   @apply rounded text-sm text-muted;
   @apply hover:bg-chip;
@@ -44,7 +54,9 @@
 
   .jx-topnav-left {
     @apply gap-1;
+    flex: 1 1 auto;
     min-width: 0;
+    overflow: hidden;
   }
 
   .jx-topnav-banner,
@@ -59,7 +71,31 @@
     font-size: 11px;
   }
 
+  .jx-topnav-nav {
+    @apply w-full;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .jx-topnav-nav::-webkit-scrollbar {
+    display: none;
+  }
+
   .jx-topnav-user {
     @apply gap-1;
+    flex: 0 0 auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .jx-topnav-nav {
+    @apply hidden;
+  }
+
+  .jx-topnav-mobileMenu {
+    @apply inline-flex;
+    max-width: 100%;
   }
 }
