@@ -99,6 +99,10 @@ build_static_app() {
     --outDir "$STAGING_DIR" \
     --emptyOutDir
 
+  # mktemp creates the staging root with mode 0700. The directory becomes the live Nginx document
+  # root after activation, so make the public static tree readable and traversable first.
+  chmod -R a+rX "$STAGING_DIR"
+
   log "Activate $package_name"
   activate_static_build "$live_dir" "$STAGING_DIR"
 }
