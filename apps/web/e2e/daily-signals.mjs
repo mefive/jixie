@@ -120,7 +120,30 @@ try {
 
   await page.getByRole('link', { name: '今日信号' }).click();
   await page.getByRole('heading', { name: '每日信号验收' }).waitFor({ timeout: 15_000 });
+  await page.route('**/api/app/signals/run', async (route) => {
+    if (route.request().method() !== 'POST') {
+      await route.continue();
+      return;
+    }
+    const body = route.request().postDataJSON();
+    await route.continue({
+      headers: {
+        ...route.request().headers(),
+        'content-type': 'application/json',
+      },
+      postData: JSON.stringify({ ...body, tradeDate: '20260728' }),
+    });
+  });
+  const signalSubmission = page.waitForResponse(
+    (response) =>
+      response.request().method() === 'POST' &&
+      new URL(response.url()).pathname === '/api/app/signals/run',
+  );
   await page.getByRole('button', { name: '立即生成' }).click();
+  const signalResponse = await signalSubmission;
+  if (signalResponse.status() !== 200) {
+    fail(`signal submission failed: ${signalResponse.status()} ${await signalResponse.text()}`);
+  }
 
   await page.locator('.jx-signals-table').waitFor({ timeout: 120_000 });
   const row = page.locator('.jx-signals-table .ant-table-row[data-row-key]').first();
