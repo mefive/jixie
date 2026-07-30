@@ -17,3 +17,4 @@ apps/web/design/
 
 # 前端 e2e 验收截图(每次前端改动产出,供用户看图验收)
 apps/web/acceptance/
+apps/docs/acceptance/

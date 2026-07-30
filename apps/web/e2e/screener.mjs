@@ -554,8 +554,8 @@ try {
     await tradePage.close();
   }
 
-  // 6. SDK 文档 standalone page (/docs) — bilingual reference generated from sdk-reference; anchored per method.
-  await page.goto(`${BASE}/docs#universe`, { waitUntil: 'networkidle' });
+  // 6. SDK documentation app — bilingual reference generated from sdk-reference; anchored per method.
+  await page.goto(`${BASE}/docs/sdk#universe`, { waitUntil: 'networkidle' });
   await page.locator('#universe .jx-docs-symName').waitFor({ timeout: 10000 });
   await page.screenshot({ path: `${SHOTS}6-sdk-docs.png` });
   log('shot 6: SDK docs page (zh)');

@@ -34,7 +34,7 @@ export default tseslint.config(
   },
   // 前端：浏览器 + node 全局（vite.config 用 node）；框架惯用 any（parentStore 等）与 {} setup 参数
   {
-    files: ['apps/web/**/*.{ts,tsx}'],
+    files: ['apps/{web,docs}/**/*.{ts,tsx}'],
     plugins: { 'react-hooks': reactHooks },
     languageOptions: {
       globals: { ...globals.browser, ...globals.node },
@@ -54,7 +54,7 @@ export default tseslint.config(
   },
   // e2e Playwright 脚本：node 里跑，但 page.evaluate 回调是浏览器代码（document/location 等）
   {
-    files: ['apps/web/e2e/**/*.mjs'],
+    files: ['apps/{web,docs}/e2e/**/*.mjs'],
     languageOptions: {
       globals: { ...globals.node, ...globals.browser },
     },

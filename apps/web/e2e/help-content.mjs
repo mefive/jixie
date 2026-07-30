@@ -2,7 +2,8 @@ import { mkdirSync } from 'node:fs';
 import { chromium } from 'playwright';
 
 const BASE = process.env.E2E_BASE ?? 'http://localhost:5173';
-const OUTPUT = new URL('../public/help/zh/getting-started/', import.meta.url).pathname;
+const OUTPUT = new URL('../../docs/public/images/help/zh/getting-started/', import.meta.url)
+  .pathname;
 const ONLY_LAB = process.env.HELP_CONTENT_ONLY_LAB === '1';
 const RESULT_STRATEGY_ID = process.env.HELP_CONTENT_RESULT_STRATEGY_ID;
 mkdirSync(OUTPUT, { recursive: true });

@@ -2,7 +2,7 @@ import { mkdirSync } from 'node:fs';
 import { chromium } from 'playwright';
 
 const BASE = process.env.E2E_BASE ?? 'http://localhost:5173';
-const OUTPUT = new URL('../public/help/zh/backtesting/', import.meta.url).pathname;
+const OUTPUT = new URL('../../docs/public/images/help/zh/backtesting/', import.meta.url).pathname;
 const PREFIX = '帮助文档资产：';
 mkdirSync(OUTPUT, { recursive: true });
 

@@ -13,7 +13,7 @@
 - pnpm workspaces monorepo(Node 20+,纯 ESM),结构参照 `~/Projects/marginalia`、`~/Tools/fangtu`
 - 后端 `apps/api`:**Hono + Prisma 6(不升 7)+ SQLite**;dev `tsx watch`,prod `tsc` + `node`
 - 数据源:Tushare HTTP API(`http://api.tushare.pro`,POST + token),client 见 `apps/api/src/tushare`
-- 前端 `apps/web`:React + Vite + Tailwind v4 + MobX「complex」架构(一页一 store)。**前端硬约定见 `apps/web/CLAUDE.md`**(具名 BEM class + `.css` 里 `@apply`、classnames、FontAwesome、echarts)
+- 前端 `apps/web`(登录与工作台)和 `apps/docs`(公开文档):React + Vite + Tailwind v4 + MobX「complex」架构(一页一 store)。**两个应用都遵循 `apps/web/CLAUDE.md` 的前端硬约定**(具名 BEM class + `.css` 里 `@apply`、classnames、FontAwesome、echarts)
 - 共享类型 `packages/shared`
 
 ## 数据 / 存储宗旨(本项目核心原则)
@@ -26,7 +26,8 @@
 ## 目录约定(对齐 fangtu)
 
 - `apps/api` — Hono 后端 + `prisma/schema.prisma` + 领域逻辑(`src/tushare`、`src/store`,未来 `src/factor`、`src/backtest`)+ 研究 / 导入脚本(`scripts/`,wired 成 `smoke` / `sync` / `peek` 等)
-- `apps/web` — 前端(二期)
+- `apps/web` — 登录与工作台前端
+- `apps/docs` — 独立公开文档前端，挂载 `/docs/help/*` 与 `/docs/sdk`
 - `packages/shared` — 共享类型;依赖方向 `apps/* → packages/*`,反向禁止
 - `packages/shared` 编译到 `dist`(后端/前端依赖其类型),改完类型需 `pnpm --filter @jixie/shared build`(install 时 `prepare` 也会自动构建)
 

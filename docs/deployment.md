@@ -24,7 +24,8 @@ jixie 在 Linux VPS(Ubuntu / CentOS)上的部署。配套产物:`scripts/bootstr
 | 数据(prod.db) | `/var/lib/jixie/prod.db`(**在代码目录外,redeploy 不动**) |
 | 端口 | `3001`(nginx 反代 `/api/` 到此) |
 | service | `jixie-api` |
-| web | 根路径 `/`(Vite dist,普通 `build`,无 BASE_PATH) |
+| web | `apps/web/dist`，挂载 `/`，只包含登录和工作台 |
+| docs | `apps/docs/dist/docs`，独立构建，挂载 `/docs/help/*` 和 `/docs/sdk` |
 
 ## 3. 一次性初始化(bootstrap 的人工展开版)
 
@@ -59,6 +60,23 @@ sudo cp deploy/nginx-jixie.conf /etc/nginx/sites-available/jixie.你的域名
 sudo ln -s /etc/nginx/sites-available/jixie.你的域名 /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
 sudo certbot --nginx -d jixie.你的域名
+```
+
+`nginx-jixie.conf` 会在 server block 内 include 仓库中的
+`/opt/jixie/deploy/nginx-docs-app.conf`。该文件把独立构建的 `apps/docs/dist/docs` 挂载到
+`/docs/`，并处理文档深链；日常部署只需 reload Nginx，不会覆盖 Certbot 写入主 vhost 的
+证书配置。
+
+从旧版配置升级且 vhost 已被 Certbot 改写时，需要做一次迁移：在 HTTPS server block 的
+`root` / `index` 后加入下面一行，然后校验并 reload。不要重新覆盖整个 vhost，否则会丢失
+Certbot 管理的 TLS 配置。
+
+```nginx
+include /opt/jixie/deploy/nginx-docs-app.conf;
+```
+
+```bash
+sudo nginx -t && sudo systemctl reload nginx
 ```
 
 > **坑 1(与 fangtu 同)**:api 的 `tsconfig` 用 `rootDir "."` 且 include 了 `scripts/`,tsc 产物是 **`dist/src/index.js`**(不是 `dist/index.js`)。systemd `ExecStart` 已据此指向 `dist/src/index.js`;`apps/api` 的 `start` 脚本仍写 `dist/index.js` 是历史小 bug,不影响(systemd 用绝对路径)。
@@ -128,7 +146,7 @@ sudo systemctl daemon-reload && sudo systemctl enable --now jixie-backup.timer
 
 ```bash
 ssh vps
-cd /opt/jixie && ./scripts/deploy.sh    # git pull -> install -> migrate deploy -> build -> restart
+cd /opt/jixie && ./scripts/deploy.sh    # pull -> install -> migrate -> build -> reload nginx -> restart
 ```
 
 ## 7. 排障

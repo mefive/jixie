@@ -2,7 +2,7 @@ import { mkdirSync } from 'node:fs';
 import { chromium } from 'playwright';
 
 const BASE = process.env.E2E_BASE ?? 'http://localhost:5173';
-const OUTPUT = new URL('../public/help/zh/backtesting/', import.meta.url).pathname;
+const OUTPUT = new URL('../../docs/public/images/help/zh/backtesting/', import.meta.url).pathname;
 const INITIAL_PROMPT =
   '只交易沪深300ETF（510300.SH）：每月第一个交易日买入100股；如果已经持有就不重复买入。';
 const REVISION_PROMPT = '把每月买入数量改为200股，其他规则不变。';

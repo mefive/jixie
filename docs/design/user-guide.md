@@ -16,8 +16,8 @@
 
 ## 2. 当前文档现状
 
-- `/docs` 是策略 SDK 参考页，由结构化的 SDK 定义生成，不是 Markdown 使用手册。
-- 原 `/learn` 策略入门教程已经下线；旧地址统一跳转到 `/help`。
+- `/docs/sdk` 是策略 SDK 参考页，由结构化的 SDK 定义生成，不是 Markdown 使用手册。
+- 原 `/learn` 策略入门教程已经下线；旧地址统一跳转到 `/docs/help`。
 - 前端已有 CommonMark/GFM Markdown 渲染组件，但目前主要用于对话内容，缺少文档目录、页面路由、图片规范和文档专用样式。
 - `apps/web/acceptance/` 已有大量 E2E 验收截图，可以帮助核对页面，但不能直接视为最终手册截图。手册截图需要重新按教学步骤拍摄并编号标注。
 
@@ -259,7 +259,7 @@
 建议目录：
 
 ```text
-apps/web/src/content/help/
+apps/docs/src/content/help/
 ├── zh/
 │   ├── index.md
 │   ├── getting-started/
@@ -304,8 +304,8 @@ apps/web/src/content/help/
 
 ### 5.3 与现有页面的关系
 
-- 新的使用手册使用独立入口，例如 `/help`。
-- `/docs` 保持为策略 SDK 参考。
+- 新的使用手册使用独立入口 `/docs/help`。
+- `/docs/sdk` 保持为策略 SDK 参考。
 - `/learn` 的内容经过页面核对后迁入使用手册，不直接复制旧文案。
 - 回测工作台中的“第一次用?看入门教程”改为指向新的对应文章。
 - 各主要页面在合适位置提供“使用帮助”入口，直接打开该页面对应章节。
@@ -392,7 +392,7 @@ apps/web/src/content/help/
 
 工作：
 
-1. 建立 `/help` 页面和文档目录。
+1. 建立 `/docs/help` 页面和文档目录。
 2. 加载 Markdown 文件。
 3. 增加文档专用样式。
 4. 支持标题锚点、文章导航、图片和内部链接。
@@ -563,7 +563,7 @@ apps/web/src/content/help/
 | 阶段 | 状态 | 更新时间 | 记录 |
 | --- | --- | --- | --- |
 | A：页面和功能清点 | 已完成 | 2026-07-28 | 详见 `docs/design/user-guide-inventory.md` |
-| B：Markdown 文档页面 | 已完成 | 2026-07-28 | `/help/getting-started/navigation` 已通过 E2E |
+| B：Markdown 文档页面 | 已完成 | 2026-07-28 | `/docs/help/getting-started/navigation` 已通过 E2E |
 | C：开始使用和基础知识 | 已完成 | 2026-07-28 | 10 篇文章、9 张标注截图已通过 E2E |
 | D：选股看图和股票详情 | 已完成 | 2026-07-29 | 8 篇文章、6 张标注截图和真实查询专项 E2E 已通过 |
 | E：回测工作台 | 已完成 | 2026-07-29 | 14 篇文章、21 张标注截图；创建、修改、运行、状态、参数扫描、ETF 和股指期货均通过真实 E2E |
@@ -582,7 +582,7 @@ apps/web/src/content/help/
 
 已完成：
 
-1. 清点 `/login`、顶部导航、`/screen`、`/stock/:code`、`/lab`、`/trades`、`/factors`、`/market`、`/valuation`、`/signals`、`/docs` 和 `/learn`。
+1. 清点 `/login`、顶部导航、`/screen`、`/stock/:code`、`/lab`、`/trades`、`/factors`、`/market`、`/valuation`、`/signals`、`/docs/sdk` 和 `/learn`。
 2. 建立页面功能、操作文章、量化基础、E2E 和截图的对应表。
 3. 运行主 E2E 和所有现有专项 E2E。
 4. 审计旧 `/learn` 七个章节，确定迁移、拆分和重写方式。
@@ -623,7 +623,7 @@ apps/web/src/content/help/
 
 已完成：
 
-1. 建立独立的 `/help` 使用帮助页面，保留 `/docs` 作为策略 SDK 参考。
+1. 建立独立的 `/docs/help` 使用帮助页面，保留 `/docs/sdk` 作为策略 SDK 参考。
 2. 正文使用独立的中文和英文 Markdown 文件。
 3. 支持文章目录、当前文章目录、标题锚点、上一篇和下一篇、内部链接及窄屏布局。
 4. 在产品顶部导航增加“使用帮助”入口。
@@ -695,11 +695,11 @@ apps/web/src/content/help/
 
 页面验收调整：
 
-1. `/help/*` 使用帮助和 `/docs` 策略 SDK 均改为公开页面，不要求登录。
+1. `/docs/help/*` 使用帮助和 `/docs/sdk` 策略 SDK 均改为公开页面，不要求登录。
 2. 两个页面共用策略 SDK 风格的顶部导航，包含“使用帮助”“策略 SDK”、语言切换和“返回工作台”。
 3. 使用帮助与策略 SDK 之间通过前端路由切换，保留当前页面状态，不打开新标签页。
 4. 仅从产品顶部导航进入“使用帮助”时打开新标签页。
-5. 使用帮助页不再显示原有“返回产品”，两个文档页的共享头部改为“返回工作台”；按钮和 Logo 当前均进入根路径 `/`。原 `/learn` 教程入口和页面删除，旧地址跳转到 `/help`。
+5. 使用帮助页不再显示原有“返回产品”，两个文档页的共享头部改为“返回工作台”；按钮和 Logo 当前均进入根路径 `/`。原 `/learn` 教程入口和页面删除，旧地址跳转到 `/docs/help`。
 6. 帮助文章图片保留点击放大，关闭悬停遮罩，鼠标移入时不再变灰。
 7. 使用帮助 E2E 增加公开访问、同页路由切换、产品入口新标签页、文档页工作台入口和图片悬停层检查。
 
@@ -707,10 +707,10 @@ apps/web/src/content/help/
 
 已完成：
 
-1. 新增独立的 `/help/*` 使用帮助路由，保留 `/docs` 策略 SDK 参考和 `/learn` 旧教程，不改变其现有用途。
+1. 新增独立的 `/docs/help/*` 使用帮助路由，保留 `/docs/sdk` 策略 SDK 参考；`/learn` 仅作为兼容地址跳转到使用帮助。
 2. 建立中英文 Markdown 内容目录：
-   - `apps/web/src/content/help/zh/`
-   - `apps/web/src/content/help/en/`
+   - `apps/docs/src/content/help/zh/`
+   - `apps/docs/src/content/help/en/`
 3. 建立文章注册表。每篇文章具有稳定地址、所属章节、中英文标题、摘要和正文。
 4. 建立使用帮助页面外壳：
    - 桌面端左侧显示文章目录，右侧显示当前文章目录。
@@ -726,9 +726,9 @@ apps/web/src/content/help/
    - 语言切换
    - 当前账号和退出
    - 帮助中心的目录和返回产品操作
-8. 新增 `test:e2e:help`，验证：
+8. 在独立 docs workspace 新增 `test:e2e`，验证：
    - 从产品顶部进入使用帮助
-   - `/help` 跳转到稳定文章地址
+   - `/docs/help` 跳转到稳定文章地址
    - Markdown 标题和本页目录
    - 标题锚点跳转
    - 中英文切换
@@ -740,17 +740,17 @@ apps/web/src/content/help/
 - `pnpm --filter web typecheck`
 - `pnpm --filter web lint`
 - `pnpm --filter web build`
-- `pnpm --filter web test:e2e:help`
+- `pnpm --filter docs test:e2e`
 
 验收截图：
 
-- `apps/web/acceptance/8a-help-desktop.png`
-- `apps/web/acceptance/8b-help-mobile.png`
+- `apps/docs/acceptance/8a-help-desktop.png`
+- `apps/docs/acceptance/8b-help-mobile.png`
 
 阶段说明：
 
-- 现有 `/docs` 和 `/learn` 是专用 React 页面，不是可扩展的 Markdown 文档系统。
-- 聊天区已有 Markdown 渲染能力，但不具备使用手册需要的文章注册、目录、稳定路由和文档版式，因此 `/help` 使用独立外壳。
+- 现有 `/docs/sdk` 是专用 React 页面；`/learn` 是已下线的旧入口。
+- 聊天区已有 Markdown 渲染能力，但不具备使用手册需要的文章注册、目录、稳定路由和文档版式，因此 `/docs/help` 使用独立外壳。
 - 阶段 B 只用“页面导航”验证文档系统。真实业务步骤截图从阶段 C 开始按 E2E 流程重新采集，不复用旧验收图片。
 
 ### 11.5 下一阶段入口
@@ -813,7 +813,7 @@ apps/web/src/content/help/
 
 - `test:e2e:help-content-screen`：固定筛选、条件修改、排序、保存、对话入口、股票详情、后复权和对数坐标截图。
 - `test:e2e:help-screen-live`：股票直接查询、同会话继续追问和 ETF 比较。
-- `test:e2e:help`：18 篇文章、全部图片和站内链接、中英文切换、图片放大、文档页导航和 390 像素窄屏。
+- `pnpm --filter docs test:e2e`：18 篇文章、全部图片和站内链接、中英文切换、图片放大、文档页导航和 390 像素窄屏。
 - Agent 核心单元测试 20 项，包括工具协议恢复、失败重试与泄露拒绝。
 - Web 类型检查、代码检查和生产构建。
 

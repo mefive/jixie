@@ -2,7 +2,7 @@ import { mkdirSync } from 'node:fs';
 import { chromium } from 'playwright';
 
 const BASE = process.env.E2E_BASE ?? 'http://localhost:5173';
-const OUTPUT = new URL('../public/help/zh/backtesting/', import.meta.url).pathname;
+const OUTPUT = new URL('../../docs/public/images/help/zh/backtesting/', import.meta.url).pathname;
 const STRATEGY_NAME = '帮助文档：茅台月度定投';
 mkdirSync(OUTPUT, { recursive: true });
 

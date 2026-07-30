@@ -16,8 +16,12 @@ pnpm install --frozen-lockfile
 echo "==> prisma migrate deploy (applies any new migrations to the prod DB)"
 pnpm --filter api exec prisma migrate deploy
 
-echo "==> build shared + api + web (topo order)"
-pnpm -r build
+echo "==> build shared + api + web (topo order; Node heap 4GB)"
+NODE_OPTIONS="--max-old-space-size=4096" pnpm -r build
+
+echo "==> validate + reload nginx (picks up the independently built docs app)"
+sudo nginx -t
+sudo systemctl reload nginx
 
 echo "==> restart $SERVICE"
 sudo systemctl restart "$SERVICE"
