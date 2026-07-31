@@ -1,18 +1,11 @@
 #!/usr/bin/env bash
-# jixie 一键「从零」部署 —— 在 VPS 上以普通 sudo 用户(如 ubuntu)执行,幂等可重复跑。
+# jixie 一键部署 —— 新机器安装缺失资源，已有机器安全更新，幂等可重复跑。
 #
 #   ssh 登录后:  cd /opt/jixie && ./scripts/bootstrap.sh
 #   (首次机器上还没有代码时,先把这个脚本单独 scp 上去跑,它会自己 clone。)
 #
-# 与 scripts/deploy.sh 的区别:
-#   - deploy.sh    = 日常「pull & restart」,要求机器已 provisioning 完毕。
-#   - bootstrap.sh = 从一台干净(或半干净)的 Ubuntu/CentOS 机器把站点搭到能访问。
-#
 # 幂等:已装依赖不重装、已有代码 pull 不重 clone、已存在的 .env.production 不覆盖(只 upsert 注入的密钥)、
-# 已被 certbot 改写的 HTTPS vhost 不覆盖、默认邀请码只在新库首次生成。
-#
-# 全部配置走 env var。⚠ 行情数据本脚本不碰 —— 它建的是空库 schema;数据要另跑 `pnpm sync` 回填
-# 或从本机传库,见 docs/deployment.md。
+# 已被 certbot 改写的 HTTPS vhost 不覆盖、默认邀请码只在新库首次生成、空库全量导入可断点续传。
 set -euo pipefail
 
 # ─────────────────────────────── 配置(env var 覆盖) ───────────────────────────────
@@ -21,6 +14,7 @@ JIXIE_BRANCH="${JIXIE_BRANCH:-main}"
 JIXIE_DIR="${JIXIE_DIR:-/opt/jixie}"
 JIXIE_DATA_DIR="${JIXIE_DATA_DIR:-/var/lib/jixie}"
 JIXIE_BACKUP_DIR="${JIXIE_BACKUP_DIR:-/var/backups/jixie}"
+JIXIE_BOOTSTRAP_LOCK_FILE="${JIXIE_BOOTSTRAP_LOCK_FILE:-/tmp/jixie-bootstrap.lock}"
 JIXIE_PORT="${JIXIE_PORT:-3001}"
 JIXIE_DOMAIN="${JIXIE_DOMAIN:-jixie.example.com}"
 JIXIE_SERVICE="${JIXIE_SERVICE:-jixie-api}"
@@ -141,13 +135,24 @@ if ! have pnpm; then
 fi
 log "运行时: node $(node -v) / pnpm $(pnpm -v) / sqlite3 $(sqlite3 --version | awk '{print $1}')"
 
+if [[ "${JIXIE_BOOTSTRAP_LOCK_HELD:-0}" != "1" ]]; then
+  exec 8>>"$JIXIE_BOOTSTRAP_LOCK_FILE"
+  flock -n 8 || die "另一个 bootstrap 正在运行"
+  export JIXIE_BOOTSTRAP_LOCK_HELD=1
+fi
+
 # ─────────────────────────────── 2. 拉代码 ───────────────────────────────
 if [[ -d "$JIXIE_DIR/.git" ]]; then
   log "代码已存在,git pull --ff-only"
+  git -C "$JIXIE_DIR" diff --quiet &&
+    git -C "$JIXIE_DIR" diff --cached --quiet ||
+    die "部署目录存在未提交的 tracked 修改,请先提交或恢复"
+  PREVIOUS_REVISION="$(git -C "$JIXIE_DIR" rev-parse HEAD)"
   git -C "$JIXIE_DIR" fetch origin "$JIXIE_BRANCH"
   git -C "$JIXIE_DIR" checkout "$JIXIE_BRANCH"
   git -C "$JIXIE_DIR" pull --ff-only
 else
+  PREVIOUS_REVISION=""
   log "首次 clone 到 $JIXIE_DIR"
   sudo mkdir -p "$JIXIE_DIR"
   sudo chown "$JIXIE_DEPLOY_USER:$JIXIE_DEPLOY_USER" "$JIXIE_DIR"
@@ -155,6 +160,11 @@ else
     || die "git clone 失败 —— 私有仓库需在本机配 GitHub 访问凭据(SSH key / deploy token)。"
 fi
 cd "$JIXIE_DIR"
+CURRENT_REVISION="$(git rev-parse HEAD)"
+if [[ "${JIXIE_BOOTSTRAP_REEXEC:-0}" != "1" && "$CURRENT_REVISION" != "$PREVIOUS_REVISION" ]]; then
+  log "使用刚拉取的新版本 bootstrap 继续"
+  exec env JIXIE_BOOTSTRAP_REEXEC=1 "$JIXIE_DIR/scripts/bootstrap.sh"
+fi
 
 # ─────────────────────────────── 3. 数据目录(DB 落在代码目录外) ───────────────────────────────
 log "准备数据目录 $JIXIE_DATA_DIR"
@@ -163,8 +173,8 @@ sudo chown "$JIXIE_DEPLOY_USER:$JIXIE_DEPLOY_USER" "$JIXIE_DATA_DIR"
 sudo mkdir -p "$JIXIE_BACKUP_DIR"
 sudo chown "$JIXIE_DEPLOY_USER:$JIXIE_DEPLOY_USER" "$JIXIE_BACKUP_DIR"
 DB_FILE="$JIXIE_DATA_DIR/prod.db"
-DB_ALREADY_EXISTS=0
-[[ -f "$DB_FILE" ]] && DB_ALREADY_EXISTS=1
+exec 9>>"$JIXIE_DATA_DIR/maintenance.lock"
+flock -n -E 75 9 || die "maintenance 正在运行,本次 bootstrap 不与其并发"
 
 # ─────────────────────────────── 4. 环境变量 ───────────────────────────────
 log "配置 .env.production"
@@ -204,8 +214,23 @@ log "pnpm -r build (拓扑序: shared -> api -> web; Node heap 4GB)"
 # ⚠ 内存:vite build + 回测都偏吃内存。<2GB 的 VPS 建议配 swap,或本机构建后 rsync apps/web/dist。
 NODE_OPTIONS="--max-old-space-size=4096" pnpm -r build
 
-if [[ "$JIXIE_INVITES_EXPLICIT" -ne 1 && "$DB_ALREADY_EXISTS" -eq 1 ]]; then
-  log "数据库已存在,跳过默认邀请码生成(如需补发,显式设 JIXIE_INVITES=N)"
+IMPORT_REQUIRED_MARKER="$JIXIE_DATA_DIR/full-import.required"
+DAILY_ROWS="$(sqlite3 "$DB_FILE" 'SELECT count(*) FROM "Daily";' 2>/dev/null || echo 0)"
+if [[ "${DAILY_ROWS:-0}" -eq 0 ]]; then
+  touch "$IMPORT_REQUIRED_MARKER"
+fi
+if [[ -f "$IMPORT_REQUIRED_MARKER" ]]; then
+  log "行情库尚未完成初始化,执行可断点续传的全量导入"
+  if systemctl is-active --quiet "$JIXIE_SERVICE" 2>/dev/null; then
+    sudo systemctl stop "$JIXIE_SERVICE"
+  fi
+  pnpm import:data
+  rm -f "$IMPORT_REQUIRED_MARKER"
+fi
+
+INVITE_COUNT="$(sqlite3 "$DB_FILE" 'SELECT count(*) FROM "InviteCode";' 2>/dev/null || echo 0)"
+if [[ "$JIXIE_INVITES_EXPLICIT" -ne 1 && "${INVITE_COUNT:-0}" -gt 0 ]]; then
+  log "邀请码已存在,跳过默认邀请码生成(如需补发,显式设 JIXIE_INVITES=N)"
 elif [[ "$JIXIE_INVITES" -gt 0 ]]; then
   log "生成 $JIXIE_INVITES 个邀请码"
   pnpm --filter api gen:invite "$JIXIE_INVITES" "bootstrap" || warn "gen:invite 失败,可稍后手动补。"
@@ -241,21 +266,9 @@ for unit in \
 done
 sudo systemctl daemon-reload
 sudo systemctl enable --now jixie-backup.timer
-WATERMARK="$(
-  sqlite3 "$DB_FILE" \
-    "SELECT dailyPublishedThrough FROM MaintenanceState WHERE key = 'global';" 2>/dev/null ||
-    true
-)"
-if [[ -n "$WATERMARK" ]]; then
-  sudo systemctl enable --now \
-    jixie-maintenance.timer \
-    jixie-maintenance-weekly.timer
-else
-  sudo systemctl disable --now \
-    jixie-maintenance.timer \
-    jixie-maintenance-weekly.timer
-  warn "daily/weekly timer 暂未启用——数据导入完成后运行: ./scripts/activate-maintenance.sh"
-fi
+sudo systemctl disable --now \
+  jixie-maintenance.timer \
+  jixie-maintenance-weekly.timer
 
 # ─────────────────────────────── 7. nginx vhost ───────────────────────────────
 NGINX_DST="/etc/nginx/sites-available/$JIXIE_DOMAIN"
@@ -290,7 +303,10 @@ else
   warn "JIXIE_TLS=skip,跳过证书。注意:NODE_ENV=production 用 secure cookie,纯 HTTP 下登录不保持!"
 fi
 
-# ─────────────────────────────── 9. 冒烟测试 ───────────────────────────────
+# ─────────────────────────────── 9. 激活维护与冒烟测试 ───────────────────────────────
+flock -u 9
+"$JIXIE_DIR/scripts/activate-maintenance.sh"
+
 log "冒烟测试"
 sleep 1
 systemctl is-active --quiet "$JIXIE_SERVICE" \
@@ -300,32 +316,16 @@ HEALTH="$(curl -fsS "localhost:$JIXIE_PORT/api/health" 2>/dev/null || true)"
 echo "  /api/health: ${HEALTH:-<无响应>}"
 [[ "$HEALTH" == *'"ok":true'* ]] || warn "健康检查未过,查日志: journalctl -u $JIXIE_SERVICE -e"
 
-# 行情数据检查:空库提醒回填
 ROWS="$(sqlite3 "$DB_FILE" 'SELECT count(*) FROM "Daily";' 2>/dev/null || echo 0)"
-if [[ "${ROWS:-0}" -eq 0 ]]; then
-  warn "行情库为空(Daily 0 行)—— 站点能开但没数据。回填见下。"
-else
-  WATERMARK="$(sqlite3 "$DB_FILE" 'SELECT dailyPublishedThrough FROM "MaintenanceState" WHERE key = "global";' 2>/dev/null || true)"
-  [[ -n "$WATERMARK" ]] ||
-    warn "维护水位尚未初始化——全量导入后运行: ./scripts/activate-maintenance.sh"
-fi
+WATERMARK="$(sqlite3 "$DB_FILE" 'SELECT dailyPublishedThrough FROM "MaintenanceState" WHERE key = "global";' 2>/dev/null || true)"
+[[ "${ROWS:-0}" -gt 0 && -n "$WATERMARK" ]] ||
+  die "行情数据或连续发布水位未准备完成"
 
 log "完成 ✅  访问: https://$JIXIE_DOMAIN  (若 TLS 未签发则 http://)"
 cat <<EOF
 
-下一步 —— 回填行情数据(二选一):
-  A. VPS 自己同步(按年断点续传,后台跑;首轮全量数小时~1天):
-       cd $JIXIE_DIR
-       pnpm --filter api sync 20150101 20151231     # 逐年:daily/adj/basic
-       pnpm --filter api sync:limit 20200101 20241231
-       pnpm --filter api sync:moneyflow 20200101 20241231
-       pnpm --filter api sync:toplist 20200101 20241231
-       pnpm --filter api sync:fina && pnpm --filter api sync:index
-  B. 从本机传库(最快,带研究史):本机 pnpm --filter api backup,
-       再 rsync ~/jixie-backups/dev-*.db 到 $DB_FILE(停服→替换→起服)。
-  详见 docs/deployment.md。
+以后安装、更新、迁移和资源补全都运行:
+  cd $JIXIE_DIR && ./scripts/bootstrap.sh
 
-日常更新: cd $JIXIE_DIR && ./scripts/deploy.sh
-激活维护: ./scripts/activate-maintenance.sh
 定时任务: systemctl list-timers 'jixie-*'
 EOF

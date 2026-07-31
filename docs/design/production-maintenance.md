@@ -1,8 +1,8 @@
 # 生产维护与调度设计
 
 > 状态：代码已实现，待生产验收。本文同时记录已落地行为和生产启用步骤。仓库中的 service、timer、
-> CLI、状态表和前端 Gate 已可用，但仍需部署到目标机器、初始化发布水位并按第 13 节验收后，才能认为
-> 生产定时维护已经启用。
+> CLI、状态表和前端 Gate 已可用。bootstrap 会在目标机器自动完成导入、首次 daily 基线建立和 timer
+> 激活；仍需按第 13 节观察验收后，才能认为生产定时维护稳定运行。
 
 ## 1. 目标与边界
 
@@ -94,8 +94,8 @@ API 启动时的 `startSignalScheduler()` 和 `setInterval` 已删除。保留�
 生产切换按以下顺序：
 
 1. 实现 daily pipeline、状态表、维护 Gate 和 systemd 单元；
-2. 全量导入先执行 `maintenance:heal-baseline` 修复最近基线切片，再生成 market-state、通过严格审计并
-   执行 `maintenance:init`；
+2. 全量导入先执行 `maintenance:heal-baseline` 修复最近基线切片，再生成 market-state 并通过严格
+   审计；首次 daily coordinator 在同一状态机内验证基线并建立发布水位；
 3. 手动运行 daily service 验收；
 4. enable systemd timer，连续观察至少三个交易日。
 
@@ -196,7 +196,8 @@ index(status, updatedAt)
 
 另需维护一个连续发布水位，例如 `MaintenanceState.dailyPublishedThrough`：
 
-- 首次全量导入通过完整性审计后，把水位初始化为最后一个完整交易日；
+- 没有水位时，首次 daily 先登记运行、等待在途任务、验证并自愈最近基线，再把水位初始化为最后一个
+  完整交易日；weekly 不初始化水位；
 - 只有水位之后的每个 SSE 开市日都完成原始数据、market-state 和后置验证，水位才能向前推进；
 - 不能使用任意原始表的 `MAX(tradeDate)` 或“最新一条 done run”替代连续水位，因为中间可能有洞；
 - 状态接口的 `lastSuccessfulDailyDate` 就来自这个水位；
@@ -347,13 +348,15 @@ pnpm --filter api maintenance:daily [YYYYMMDD] [--force]
 
 1. 取得 `/var/lib/jixie/maintenance.lock`；
 2. 使用本地交易日历确定 cutoff；本地日历不足时只拉取候选日历到内存，暂不修改数据库；
-3. 从 `dailyPublishedThrough` 到 cutoff 枚举 `missingDates`，并回查水位前最近
+3. 水位为空时先创建 baseline daily run，等待在途任务，自愈并验证最近基线，建立水位；然后继续同一
+   coordinator 的正常 catch-up；
+4. 从 `dailyPublishedThrough` 到 cutoff 枚举 `missingDates`，并回查水位前最近
    `MAINTENANCE_DAILY_REPAIR_LOOKBACK_DAYS`（默认 5）个开市日；
-4. 没有向前缺失日期时仍以短维护运行回查已发布切片；无缺口时直接进入 Stage 6，有允许列表缺口时
+5. 没有向前缺失日期时仍以短维护运行回查已发布切片；无缺口时直接进入 Stage 6，有允许列表缺口时
    自动重拉、重新过门禁并按需重算派生数据；
-5. 为本次 cutoff 创建或接管 daily `MaintenanceRun`，写入 `running / stage=starting`；
-6. App 进入维护模式并展示 catch-up 范围和进度；
-7. 阻止新增长任务，并等待已经运行的数据读取 worker 和 Agent 数据工具到达终态；清零后还保持默认
+6. 为本次 cutoff 创建或接管 daily `MaintenanceRun`，写入 `running / stage=starting`；
+7. App 进入维护模式并展示 catch-up 范围和进度；
+8. 阻止新增长任务，并等待已经运行的数据读取 worker 和 Agent 数据工具到达终态；清零后还保持默认
    5 秒安静窗口，以覆盖“请求刚通过 Gate、尚未来得及登记 Job”的竞态。等待超时则在任何市场数据写入
    前失败，留给下一时点重试。
 
@@ -671,7 +674,7 @@ flock -n -E 75 /var/lib/jixie/maintenance.lock \
 
 现有 `sync:*` 命令保留为开发、首次回填和 maintenance 内部构件，但不作为生产日常运行手册的入口。
 
-### 9.4 首次初始化自愈
+### 9.4 首次 daily 的基线自愈
 
 `pnpm import:data` 在最终 market-state 和严格审计之前自动执行：
 
@@ -679,10 +682,11 @@ flock -n -E 75 /var/lib/jixie/maintenance.lock \
 pnpm --filter api maintenance:heal-baseline [YYYYMMDD]
 ```
 
-它以最近已收盘 SSE 交易日为上限，默认回查 20 日，修复确定性的密集切片缺口。随后全量
-market-state、严格审计和 `maintenance:init` 仍依次执行；任一步失败都不会初始化或推进发布水位。
-单独执行 `maintenance:init [YYYYMMDD]` 时也会先自愈目标日并补算缺失的派生快照，适合恢复已完成导入
-但尚未建立水位的实例。
+它以最近已收盘 SSE 交易日为上限，默认回查 20 日，修复确定性的密集切片缺口。随后完成全量
+market-state 和严格审计，但不通过独立 CLI 写水位。bootstrap 启动 daily coordinator 后，daily
+发现水位为空会在自己的 `MaintenanceRun`、文件锁、App Gate 和任务安静窗口内再次验证最近基线，
+按需补算派生快照并建立 `dailyPublishedThrough`，然后继续正常 catch-up。任一步失败都不会初始化或
+推进发布水位。
 
 ## 10. 并发模型与失败处理
 
@@ -827,7 +831,7 @@ systemctl status jixie-backup.service
 
 1. 首次全量导入和数据审计通过；
 2. 所有股票关联表不存在已登记旧代码，随机抽样代码变更证券的行情、复权、成分和行业历史连续；
-3. 全量导入结束时初始化 `dailyPublishedThrough` 基线；
+3. bootstrap 启动首次 daily，由 daily 在 Gate 和维护锁内建立 `dailyPublishedThrough` 基线；
 4. 手动启动 daily service，journal 展示每个 stage；
 5. 维护期间浏览器显示 Gate，Lab 当前 URL 和草稿不丢；
 6. 原始行情与三张 market-state 表最大可用日期一致；

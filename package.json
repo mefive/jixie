@@ -17,7 +17,6 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "audit:data": "pnpm --filter api audit:data",
-    "maintenance:init": "pnpm --filter api maintenance:init",
     "maintenance:heal-baseline": "pnpm --filter api maintenance:heal-baseline",
     "maintenance:daily": "pnpm --filter api maintenance:daily",
     "maintenance:weekly": "pnpm --filter api maintenance:weekly",
