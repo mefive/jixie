@@ -240,10 +240,22 @@ for unit in \
       "$JIXIE_DIR/deploy/$unit" | sudo tee "/etc/systemd/system/$unit" >/dev/null
 done
 sudo systemctl daemon-reload
-sudo systemctl enable --now \
-  jixie-maintenance.timer \
-  jixie-maintenance-weekly.timer \
-  jixie-backup.timer
+sudo systemctl enable --now jixie-backup.timer
+WATERMARK="$(
+  sqlite3 "$DB_FILE" \
+    "SELECT dailyPublishedThrough FROM MaintenanceState WHERE key = 'global';" 2>/dev/null ||
+    true
+)"
+if [[ -n "$WATERMARK" ]]; then
+  sudo systemctl enable --now \
+    jixie-maintenance.timer \
+    jixie-maintenance-weekly.timer
+else
+  sudo systemctl disable --now \
+    jixie-maintenance.timer \
+    jixie-maintenance-weekly.timer
+  warn "daily/weekly timer 暂未启用——数据导入完成后运行: ./scripts/activate-maintenance.sh"
+fi
 
 # ─────────────────────────────── 7. nginx vhost ───────────────────────────────
 NGINX_DST="/etc/nginx/sites-available/$JIXIE_DOMAIN"
@@ -295,7 +307,7 @@ if [[ "${ROWS:-0}" -eq 0 ]]; then
 else
   WATERMARK="$(sqlite3 "$DB_FILE" 'SELECT dailyPublishedThrough FROM "MaintenanceState" WHERE key = "global";' 2>/dev/null || true)"
   [[ -n "$WATERMARK" ]] ||
-    warn "维护水位尚未初始化——全量审计通过后运行: pnpm --filter api maintenance:init"
+    warn "维护水位尚未初始化——全量导入后运行: ./scripts/activate-maintenance.sh"
 fi
 
 log "完成 ✅  访问: https://$JIXIE_DOMAIN  (若 TLS 未签发则 http://)"
@@ -314,5 +326,6 @@ cat <<EOF
   详见 docs/deployment.md。
 
 日常更新: cd $JIXIE_DIR && ./scripts/deploy.sh
+激活维护: ./scripts/activate-maintenance.sh
 定时任务: systemctl list-timers 'jixie-*'
 EOF
