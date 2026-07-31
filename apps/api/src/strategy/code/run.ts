@@ -1,4 +1,4 @@
-import type { Locale } from '@jixie/shared';
+import type { Locale, StrategyParamValue } from '@jixie/shared';
 import { runStrategy } from '../../engine/run.js';
 import type { CustomFactorModule } from '../../engine/custom-factor.js';
 import type { BacktestResult, CostModel } from '../../engine/types.js';
@@ -14,7 +14,7 @@ export interface CodeBacktestConfig {
   /** Host-prepared custom factor modules (prepare-custom-factors.ts) — the product path prepares
    * them in the worker; repo scripts that reference none may omit this. */
   customFactors?: CustomFactorModule[];
-  paramOverrides?: Record<string, number>;
+  paramOverrides?: Record<string, StrategyParamValue>;
 }
 
 /** Compile a code strategy and run it through the engine. The code-first counterpart of runBacktestConfig

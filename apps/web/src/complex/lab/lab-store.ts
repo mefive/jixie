@@ -12,6 +12,7 @@ import {
   type StrategyScanReport,
   type StrategyScanReportSummary,
   type StrategyScanSpec,
+  type StrategyParamValue,
 } from '@jixie/shared';
 import { BaseStore, LoaderModel, PollingModel } from '@src/lib';
 import i18n from '@src/i18n';
@@ -94,7 +95,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
   public scanPoller = new PollingModel();
   public savedLoader = new LoaderModel<StrategyCard[]>(); // My strategies / History cards
   public benchmarkLoader = new LoaderModel<BenchmarkSeries>();
-  public scanParametersLoader = new LoaderModel<Record<string, number>>();
+  public scanParametersLoader = new LoaderModel<Record<string, StrategyParamValue>>();
   public scanHistoryLoader = new LoaderModel<StrategyScanReportSummary[]>();
   public scanReportLoader = new LoaderModel<StrategyScanReport>();
   public deploymentLoader = new LoaderModel<StrategyDeployment | null>();

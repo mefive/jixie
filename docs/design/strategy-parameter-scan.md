@@ -5,17 +5,19 @@
 ## 目标
 
 本轮把已有但不可见的滑点模型变成可对账的回测口径，并给 code-first 策略增加一套不改写源码的
-可调数值参数声明。在同一份冻结代码、成本和数据区间上串行运行一维或二维参数网格，同时可选地把每组
+可调参数声明。在同一份冻结代码、成本和数据区间上串行运行一维或二维参数网格，同时可选地把每组
 参数分别跑样本内与样本外区间，用邻域稳定性而不是单点最优判断策略。
 
 ## 边界
 
-- V1 只支持有限数值参数，一次扫描一至两个参数，参数组合最多 25 组。
+- 普通稳健性扫描支持有限数值与非空字符串参数，一次扫描一至两个同类型参数，组合最多 25 组。
+- 仓位方案视图只扫描一个字符串参数、2~5 个方案，不允许样本切分；每格额外保存从 1 起步的净值，
+  用于多方案叠画，并计算年化波动率与最长水下交易日。
 - 调度 worker 串行启动独立 OS 子进程，每个参数组合退出后再跑下一组，不并发打 SQLite。
 - 样本切分是可选的单个交易日边界，不做 walk-forward、自动调参或贝叶斯优化。
 - 扫描不修改策略代码、默认参数、`Strategy.lastResult` 或普通回测历史。
 - 报告保存每组摘要，不保存每组完整净值与成交明细。
-- 本轮不做仓位方案扫描、容量曲线、分类参数和每日信号。
+- 容量曲线和每日信号不进入参数扫描。
 
 ## 滑点口径
 
@@ -44,7 +46,8 @@ export default defineStrategy({
 });
 ```
 
-`defineStrategy` 用泛型把 `params` 的键和值推导到 `ctx.params`。扫描请求只传覆盖值；运行前由墙内
+`defineStrategy` 用泛型把 `params` 的键和值推导到 `ctx.params`（字面量会拓宽为 number/string，
+使分类分支可比较）。扫描请求只传同类型覆盖值；运行前由墙内
 加载器把覆盖值合并到声明值。服务端拒绝未知键、非有限数值和没有声明参数的扫描。这样不做源码
 字符串替换，也不产生代码与扫描值不同步的第二份策略表示。
 
@@ -52,8 +55,9 @@ export default defineStrategy({
 
 ```ts
 interface StrategyScanSpec {
-  dimensions: Array<{ key: string; values: number[] }>; // one or two
+  dimensions: Array<{ key: string; values: Array<number | string> }>; // one or two
   splitDate?: TradeDate; // absent = full-sample only
+  view?: 'parameters' | 'sizing';
 }
 ```
 
@@ -82,18 +86,19 @@ Profit Factor、换手、成交数、期末权益、显性费用与滑点。完�
 ## API 与 UI
 
 - `POST /api/app/strategy/scans?strategyId=…`：冻结当前编辑器 config 并创建报告/Job。
-- `POST /api/app/strategy/scans/parameters`：在硬沙箱内读取当前代码声明的有限数值参数。
+- `POST /api/app/strategy/scans/parameters`：在硬沙箱内读取当前代码声明的有限数值/字符串参数。
 - `GET /api/app/strategy/scans/running?strategyId=…`：恢复运行中任务。
 - `GET /api/app/strategy/scans/:reportId`：报告详情与结果。
 - `GET /api/app/strategy/scans/:reportId/job?since=…`：轮询日志。
 - `GET /api/app/strategy/scans?strategyId=…`：历史摘要。
 
-Lab 的 Run 参数弹层增加成本参数与“参数扫描”入口。扫描弹层从当前代码的安全编译结果读取数值参数，
+Lab 的 Run 参数弹层增加成本参数与“参数扫描”入口。扫描弹层从当前代码的安全编译结果读取参数，
 选择一或二维、填写值与可选切分日期。结果在 Lab 内展示：
 
 - 一维：逐参数表格与指标折线；
 - 二维：指标热力图；
 - 有切分：样本内/样本外指标并排，颜色不把单点“最优”包装成推荐。
+- 仓位方案：归一化净值叠画 + 年化收益/波动、最大回撤、最长水下期、Sharpe 对照表。
 
 ## 验收
 

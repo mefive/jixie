@@ -5,6 +5,7 @@ import type {
   Locale,
   LogLine,
   StrategyScanPayload,
+  StrategyParamValue,
   StrategyScanSpec,
 } from '@jixie/shared';
 import { t } from '../i18n/index.js';
@@ -28,7 +29,7 @@ type ScanRanges =
 const { config, spec, parameters, ranges, userId, locale } = workerData as {
   config: BacktestConfig;
   spec: StrategyScanSpec;
-  parameters: Record<string, number>;
+  parameters: Record<string, StrategyParamValue>;
   ranges: ScanRanges;
   userId: string;
   locale: Locale;
@@ -76,7 +77,7 @@ try {
 function runScanCell(data: {
   config: BacktestConfig;
   customFactors: Awaited<ReturnType<typeof prepareCustomFactors>>;
-  paramOverrides: Record<string, number>;
+  paramOverrides: Record<string, StrategyParamValue>;
   locale: Locale;
 }): Promise<BacktestResult> {
   return new Promise((resolve, reject) => {

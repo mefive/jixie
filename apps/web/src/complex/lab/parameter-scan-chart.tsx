@@ -14,7 +14,21 @@ export default function ParameterScanChart({
   const sample = report.spec.splitDate ? 'outOfSample' : 'full';
   let option: ECOption;
 
-  if (!second) {
+  if (report.spec.view === 'sizing') {
+    option = {
+      tooltip: { trigger: 'axis' },
+      legend: { type: 'scroll', top: 0 },
+      grid: { left: 58, right: 24, top: 42, bottom: 42 },
+      xAxis: { type: 'category', data: cells[0]?.nav?.map((point) => point.date) ?? [] },
+      yAxis: { type: 'value', scale: true },
+      series: cells.map((cell) => ({
+        name: String(cell.params[first.key]),
+        type: 'line' as const,
+        showSymbol: false,
+        data: cell.nav?.map((point) => point.value) ?? [],
+      })),
+    };
+  } else if (!second) {
     option = {
       tooltip: { trigger: 'axis' },
       grid: { left: 58, right: 24, top: 24, bottom: 42 },
@@ -88,7 +102,12 @@ function formatValue(metric: ScanMetric, value: unknown): string {
   if (!Number.isFinite(numeric)) {
     return '—';
   }
-  if (metric === 'annReturn' || metric === 'maxDrawdown' || metric === 'excessReturn') {
+  if (
+    metric === 'annReturn' ||
+    metric === 'maxDrawdown' ||
+    metric === 'excessReturn' ||
+    metric === 'annVolatility'
+  ) {
     return `${(numeric * 100).toFixed(2)}%`;
   }
   if (metric === 'turnover') {
@@ -96,6 +115,9 @@ function formatValue(metric: ScanMetric, value: unknown): string {
   }
   if (metric === 'totalSlippage') {
     return `¥${Math.round(numeric).toLocaleString()}`;
+  }
+  if (metric === 'maxUnderwaterDays') {
+    return `${Math.round(numeric)}`;
   }
   return numeric.toFixed(2);
 }

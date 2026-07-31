@@ -245,7 +245,7 @@ export interface StrategyAccounts {
 export interface Strategy {
   name: string;
   /** User-declared finite numeric parameters. Scan overrides replace these values before a run. */
-  params?: Record<string, number>;
+  params?: Record<string, number | string>;
   /** Moneyflow columns to preload (e.g. ['mf_net_main']) for ctx.factor(). Omit unless the strategy
    * reads moneyflow; price/valuation signals need no preload (computed on the fly / read from bar()). */
   factors?: string[];

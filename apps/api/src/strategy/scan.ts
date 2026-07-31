@@ -3,6 +3,7 @@ import type {
   StrategyScanCell,
   StrategyScanPayload,
   StrategyScanSpec,
+  StrategyParamValue,
 } from '@jixie/shared';
 import type { BacktestResult } from '../engine/types.js';
 
@@ -10,7 +11,7 @@ export const MAX_SCAN_COMBINATIONS = 25;
 
 export function normalizeScanSpec(
   spec: StrategyScanSpec,
-  declaredParams: Record<string, number>,
+  declaredParams: Record<string, StrategyParamValue>,
 ): StrategyScanSpec {
   if (spec.dimensions.length < 1 || spec.dimensions.length > 2) {
     throw new Error('parameter scan requires one or two dimensions');
@@ -26,10 +27,16 @@ export function normalizeScanSpec(
     }
     seenKeys.add(key);
 
-    const values: number[] = [];
+    const values: StrategyParamValue[] = [];
     for (const value of dimension.values) {
-      if (!Number.isFinite(value)) {
-        throw new Error(`strategy parameter ${key} must use finite values`);
+      if (typeof value !== typeof declaredParams[key]) {
+        throw new Error(`strategy parameter ${key} scan values must match its declared type`);
+      }
+      if (
+        (typeof value === 'number' && !Number.isFinite(value)) ||
+        (typeof value === 'string' && (!value.trim() || value.length > 100))
+      ) {
+        throw new Error(`strategy parameter ${key} must use finite numbers or non-empty strings`);
       }
       if (!values.includes(value)) {
         values.push(value);
@@ -48,20 +55,33 @@ export function normalizeScanSpec(
   if (combinationCount > MAX_SCAN_COMBINATIONS) {
     throw new Error(`parameter scan is limited to ${MAX_SCAN_COMBINATIONS} combinations`);
   }
+  if (spec.view === 'sizing') {
+    if (
+      dimensions.length !== 1 ||
+      typeof declaredParams[dimensions[0].key] !== 'string' ||
+      dimensions[0].values.length > 5 ||
+      spec.splitDate
+    ) {
+      throw new Error('sizing comparison requires one dimension, 2-5 values, and no sample split');
+    }
+  }
 
   return {
     dimensions,
     splitDate: spec.splitDate,
+    view: spec.view ?? 'parameters',
   };
 }
 
-export function parameterCombinations(spec: StrategyScanSpec): Record<string, number>[] {
+export function parameterCombinations(
+  spec: StrategyScanSpec,
+): Record<string, StrategyParamValue>[] {
   const [first, second] = spec.dimensions;
   if (!second) {
     return first.values.map((value) => ({ [first.key]: value }));
   }
 
-  const combinations: Record<string, number>[] = [];
+  const combinations: Record<string, StrategyParamValue>[] = [];
   for (const firstValue of first.values) {
     for (const secondValue of second.values) {
       combinations.push({
@@ -93,12 +113,14 @@ export function metricSummary(result: BacktestResult): BacktestMetricSummary {
     turnover: result.turnover,
     totalFees: result.totalFees,
     totalSlippage: result.totalSlippage,
+    annVolatility: annualizedVolatility(result.nav),
+    maxUnderwaterDays: maximumUnderwaterDays(result.nav),
   };
 }
 
 export async function executeStrategyScan(options: {
   spec: StrategyScanSpec;
-  parameters: Record<string, number>;
+  parameters: Record<string, StrategyParamValue>;
   ranges:
     | { full: { start: string; end: string } }
     | {
@@ -106,10 +128,10 @@ export async function executeStrategyScan(options: {
         outOfSample: { start: string; end: string };
       };
   run(
-    params: Record<string, number>,
+    params: Record<string, StrategyParamValue>,
     range: { start: string; end: string },
   ): Promise<BacktestResult>;
-  onCellStart?(index: number, total: number, params: Record<string, number>): void;
+  onCellStart?(index: number, total: number, params: Record<string, StrategyParamValue>): void;
 }): Promise<StrategyScanPayload> {
   const combinations = parameterCombinations(options.spec);
   const cells: StrategyScanCell[] = [];
@@ -120,7 +142,11 @@ export async function executeStrategyScan(options: {
 
     if ('full' in options.ranges) {
       const result = await options.run(params, options.ranges.full);
-      cells.push({ params, full: metricSummary(result) });
+      cells.push({
+        params,
+        full: metricSummary(result),
+        nav: options.spec.view === 'sizing' ? rebaseNav(result.nav, result.initialCash) : undefined,
+      });
       continue;
     }
 
@@ -134,4 +160,46 @@ export async function executeStrategyScan(options: {
   }
 
   return { parameters: options.parameters, cells };
+}
+
+function annualizedVolatility(nav: { value: number }[]): number {
+  if (nav.length < 2) {
+    return 0;
+  }
+  const returns: number[] = [];
+  for (let i = 1; i < nav.length; i++) {
+    if (nav[i - 1].value > 0) {
+      returns.push(nav[i].value / nav[i - 1].value - 1);
+    }
+  }
+  if (returns.length < 2) {
+    return 0;
+  }
+  const mean = returns.reduce((sum, value) => sum + value, 0) / returns.length;
+  const variance =
+    returns.reduce((sum, value) => sum + (value - mean) ** 2, 0) / (returns.length - 1);
+  return Math.sqrt(variance * 252);
+}
+
+function maximumUnderwaterDays(nav: { value: number }[]): number {
+  let peak = -Infinity;
+  let current = 0;
+  let longest = 0;
+  for (const point of nav) {
+    if (point.value >= peak) {
+      peak = point.value;
+      current = 0;
+    } else {
+      current++;
+      longest = Math.max(longest, current);
+    }
+  }
+  return longest;
+}
+
+function rebaseNav(
+  nav: { date: string; value: number }[],
+  initialCash: number,
+): { date: string; value: number }[] {
+  return nav.map((point) => ({ date: point.date, value: point.value / initialCash }));
 }

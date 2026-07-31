@@ -1,8 +1,23 @@
 import { lazy, Suspense, useState } from 'react';
-import type { BacktestMetricSummary, StrategyScanReport, StrategyScanSpec } from '@jixie/shared';
+import type {
+  BacktestMetricSummary,
+  StrategyParamValue,
+  StrategyScanReport,
+  StrategyScanSpec,
+} from '@jixie/shared';
 import { faFlask } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { Button, Checkbox, DatePicker, Input, Modal, Select, Table } from 'antd';
+import {
+  Button,
+  Checkbox,
+  DatePicker,
+  Input,
+  Modal,
+  Segmented,
+  Select,
+  Table,
+  Tooltip,
+} from 'antd';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import { LogView } from '@src/components/log-view';
@@ -23,6 +38,7 @@ export const ParameterScanButton = complex.component(() => {
   const [splitEnabled, setSplitEnabled] = useState(false);
   const [splitDate, setSplitDate] = useState<string>();
   const [formError, setFormError] = useState('');
+  const [view, setView] = useState<'parameters' | 'sizing'>('parameters');
 
   const openModal = async () => {
     setOpen(true);
@@ -43,18 +59,23 @@ export const ParameterScanButton = complex.component(() => {
 
   const submit = () => {
     try {
+      const firstDefault = parameters[firstKey];
       const dimensions = [
-        { key: firstKey, values: parseValues(firstValues, t('scanValuesInvalid')) },
+        {
+          key: firstKey,
+          values: parseValues(firstValues, firstDefault, t('scanValuesInvalid')),
+        },
       ];
-      if (twoDimensions) {
+      if (twoDimensions && view === 'parameters') {
         dimensions.push({
           key: secondKey,
-          values: parseValues(secondValues, t('scanValuesInvalid')),
+          values: parseValues(secondValues, parameters[secondKey], t('scanValuesInvalid')),
         });
       }
       const spec: StrategyScanSpec = {
         dimensions,
-        splitDate: splitEnabled ? splitDate : undefined,
+        splitDate: splitEnabled && view === 'parameters' ? splitDate : undefined,
+        view,
       };
       if (splitEnabled && !splitDate) {
         throw new Error(t('scanSplitRequired'));
@@ -71,69 +92,107 @@ export const ParameterScanButton = complex.component(() => {
     value: key,
     label: `${key} (${value})`,
   }));
+  const sizingOptions = parameterOptions.filter(
+    (option) => typeof parameters[option.value] === 'string',
+  );
+  const activeOptions = view === 'sizing' ? sizingOptions : parameterOptions;
+
+  const changeView = (next: string | number) => {
+    const nextView = next as 'parameters' | 'sizing';
+    setView(nextView);
+    setTwoDimensions(false);
+    setSplitEnabled(false);
+    const options = nextView === 'sizing' ? sizingOptions : parameterOptions;
+    const first = options[0];
+    setFirstKey(first?.value ?? '');
+    setFirstValues(first ? suggestedValues(parameters[first.value], nextView) : '');
+  };
 
   return (
     <>
-      <Button
-        size="small"
-        icon={<FontAwesomeIcon icon={faFlask} />}
-        disabled={store.running || store.scanPoller.running}
-        onClick={() => void openModal()}
-      >
-        {t('scanAction')}
-      </Button>
+      <Tooltip title={t('scanAction')}>
+        <Button
+          type="text"
+          size="small"
+          icon={<FontAwesomeIcon icon={faFlask} />}
+          disabled={store.running || store.scanPoller.running}
+          aria-label={t('scanAction')}
+          onClick={() => void openModal()}
+        />
+      </Tooltip>
       <Modal
         open={open}
         title={t('scanTitle')}
         okText={t('scanStart')}
         okButtonProps={{
-          disabled: store.scanParametersLoader.loading || parameterOptions.length === 0,
+          disabled: store.scanParametersLoader.loading || activeOptions.length === 0,
         }}
         onOk={submit}
         onCancel={() => setOpen(false)}
       >
         <div className="jx-parameterScan-form">
           <p className="jx-parameterScan-note">{t('scanIntro')}</p>
+          <Segmented
+            block
+            value={view}
+            options={[
+              { value: 'parameters', label: t('scanViewParameters') },
+              { value: 'sizing', label: t('scanViewSizing') },
+            ]}
+            onChange={changeView}
+          />
           {store.scanParametersLoader.loading ? (
             <div className="jx-parameterScan-empty">{t('scanReadingParams')}</div>
           ) : store.scanParametersLoader.error ? (
             <div className="jx-parameterScan-error">{String(store.scanParametersLoader.error)}</div>
-          ) : parameterOptions.length === 0 ? (
-            <div className="jx-parameterScan-empty">{t('scanNoParams')}</div>
+          ) : activeOptions.length === 0 ? (
+            <div className="jx-parameterScan-empty">
+              {t(view === 'sizing' ? 'scanNoSizingParam' : 'scanNoParams')}
+            </div>
           ) : (
             <>
               <ScanDimension
                 label={t('scanDimensionOne')}
                 parameter={firstKey}
                 values={firstValues}
-                options={parameterOptions}
-                onParameter={setFirstKey}
+                options={activeOptions}
+                onParameter={(key) => {
+                  setFirstKey(key);
+                  setFirstValues(suggestedValues(parameters[key], view));
+                }}
                 onValues={setFirstValues}
               />
-              <Checkbox
-                checked={twoDimensions}
-                disabled={parameterOptions.length < 2}
-                onChange={(event) => setTwoDimensions(event.target.checked)}
-              >
-                {t('scanTwoDimensions')}
-              </Checkbox>
-              {twoDimensions ? (
+              {view === 'parameters' ? (
+                <Checkbox
+                  checked={twoDimensions}
+                  disabled={parameterOptions.length < 2}
+                  onChange={(event) => setTwoDimensions(event.target.checked)}
+                >
+                  {t('scanTwoDimensions')}
+                </Checkbox>
+              ) : null}
+              {twoDimensions && view === 'parameters' ? (
                 <ScanDimension
                   label={t('scanDimensionTwo')}
                   parameter={secondKey}
                   values={secondValues}
                   options={parameterOptions.filter((option) => option.value !== firstKey)}
-                  onParameter={setSecondKey}
+                  onParameter={(key) => {
+                    setSecondKey(key);
+                    setSecondValues(suggestedValues(parameters[key], 'parameters'));
+                  }}
                   onValues={setSecondValues}
                 />
               ) : null}
-              <Checkbox
-                checked={splitEnabled}
-                onChange={(event) => setSplitEnabled(event.target.checked)}
-              >
-                {t('scanUseSplit')}
-              </Checkbox>
-              {splitEnabled ? (
+              {view === 'parameters' ? (
+                <Checkbox
+                  checked={splitEnabled}
+                  onChange={(event) => setSplitEnabled(event.target.checked)}
+                >
+                  {t('scanUseSplit')}
+                </Checkbox>
+              ) : null}
+              {splitEnabled && view === 'parameters' ? (
                 <DatePicker
                   className="jx-parameterScan-control"
                   value={splitDate ? dayjs(splitDate, 'YYYYMMDD') : null}
@@ -175,15 +234,17 @@ export const ParameterScanPanel = complex.component(() => {
           allowClear={false}
           onChange={(reportId) => void store.loadScanReport(reportId)}
         />
-        <Select
-          className="jx-parameterScan-metric"
-          value={metric}
-          options={SCAN_METRICS.map((item) => ({
-            value: item.key,
-            label: t(item.labelKey),
-          }))}
-          onChange={setMetric}
-        />
+        {report?.spec.view !== 'sizing' ? (
+          <Select
+            className="jx-parameterScan-metric"
+            value={metric}
+            options={SCAN_METRICS.map((item) => ({
+              value: item.key,
+              label: t(item.labelKey),
+            }))}
+            onChange={setMetric}
+          />
+        ) : null}
       </div>
 
       {store.scanError ? <div className="jx-parameterScan-error">{store.scanError}</div> : null}
@@ -207,7 +268,11 @@ export const ParameterScanPanel = complex.component(() => {
           <Suspense fallback={<div className="jx-parameterScan-chart" />}>
             <ParameterScanChart report={report} metric={metric} />
           </Suspense>
-          <ScanTable report={report} metric={metric} />
+          {report.spec.view === 'sizing' ? (
+            <SizingTable report={report} />
+          ) : (
+            <ScanTable report={report} metric={metric} />
+          )}
         </>
       ) : null}
     </div>
@@ -221,6 +286,41 @@ interface ScanDimensionProps {
   options: { value: string; label: string }[];
   onParameter(value: string): void;
   onValues(value: string): void;
+}
+
+function SizingTable({ report }: { report: StrategyScanReport }) {
+  const { t } = useTranslation('lab');
+  const dimension = report.spec.dimensions[0];
+  const rows = report.payload!.cells.map((cell, index) => ({
+    key: index,
+    scheme: String(cell.params[dimension.key]),
+    annReturn: formatMetric('annReturn', cell.full),
+    maxDrawdown: formatMetric('maxDrawdown', cell.full),
+    annVolatility: formatMetric('annVolatility', cell.full),
+    maxUnderwaterDays: formatMetric('maxUnderwaterDays', cell.full),
+    sharpe: formatMetric('sharpe', cell.full),
+  }));
+  return (
+    <Table
+      className="jx-parameterScan-table"
+      size="small"
+      pagination={false}
+      columns={[
+        { title: dimension.key, dataIndex: 'scheme', key: 'scheme' },
+        { title: t('metricAnnReturn'), dataIndex: 'annReturn', key: 'annReturn' },
+        { title: t('metricMaxDrawdown'), dataIndex: 'maxDrawdown', key: 'maxDrawdown' },
+        { title: t('scanMetricVolatility'), dataIndex: 'annVolatility', key: 'annVolatility' },
+        {
+          title: t('scanMetricUnderwater'),
+          dataIndex: 'maxUnderwaterDays',
+          key: 'maxUnderwaterDays',
+        },
+        { title: t('scanMetricSharpe'), dataIndex: 'sharpe', key: 'sharpe' },
+      ]}
+      dataSource={rows}
+      scroll={{ x: true }}
+    />
+  );
 }
 
 function ScanDimension(props: ScanDimensionProps) {
@@ -294,7 +394,9 @@ export type ScanMetric =
   | 'maxDrawdown'
   | 'excessReturn'
   | 'turnover'
-  | 'totalSlippage';
+  | 'totalSlippage'
+  | 'annVolatility'
+  | 'maxUnderwaterDays';
 
 export const SCAN_METRICS: { key: ScanMetric; labelKey: string }[] = [
   { key: 'annReturn', labelKey: 'metricAnnReturn' },
@@ -303,6 +405,8 @@ export const SCAN_METRICS: { key: ScanMetric; labelKey: string }[] = [
   { key: 'excessReturn', labelKey: 'metricExcessReturn' },
   { key: 'turnover', labelKey: 'metricTurnover' },
   { key: 'totalSlippage', labelKey: 'metricSlippage' },
+  { key: 'annVolatility', labelKey: 'scanMetricVolatility' },
+  { key: 'maxUnderwaterDays', labelKey: 'scanMetricUnderwater' },
 ];
 
 export function metricValue(
@@ -321,6 +425,7 @@ function formatMetric(metric: ScanMetric, summary?: BacktestMetricSummary): stri
     case 'annReturn':
     case 'maxDrawdown':
     case 'excessReturn':
+    case 'annVolatility':
       return `${(value * 100).toFixed(2)}%`;
     case 'turnover':
       return `${value.toFixed(1)}×`;
@@ -328,21 +433,40 @@ function formatMetric(metric: ScanMetric, summary?: BacktestMetricSummary): stri
       return `¥${Math.round(value).toLocaleString()}`;
     case 'sharpe':
       return value.toFixed(2);
+    case 'maxUnderwaterDays':
+      return `${Math.round(value)}`;
   }
 }
 
-function parseValues(raw: string, errorMessage: string): number[] {
-  const values = raw
-    .split(/[\s,，]+/)
-    .filter(Boolean)
-    .map(Number);
-  if (values.length < 2 || values.some((value) => !Number.isFinite(value))) {
+function parseValues(
+  raw: string,
+  declared: StrategyParamValue | undefined,
+  errorMessage: string,
+): StrategyParamValue[] {
+  const tokens = raw.split(/[\s,，]+/).filter(Boolean);
+  if (typeof declared === 'number') {
+    const values = tokens.map(Number);
+    if (values.length < 2 || values.some((value) => !Number.isFinite(value))) {
+      throw new Error(errorMessage);
+    }
+    return [...new Set(values)];
+  }
+  if (tokens.length < 2) {
     throw new Error(errorMessage);
   }
-  return values;
+  return [...new Set(tokens)];
 }
 
-function suggestedValues(value: number): string {
+function suggestedValues(
+  value: StrategyParamValue | undefined,
+  view: 'parameters' | 'sizing' = 'parameters',
+): string {
+  if (typeof value === 'string') {
+    return view === 'sizing' ? [...new Set([value, 'equal', 'fixed', 'atr'])].join(', ') : value;
+  }
+  if (value == null) {
+    return '';
+  }
   const candidates =
     value === 0
       ? [-1, 0, 1]

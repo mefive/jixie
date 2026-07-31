@@ -4,7 +4,17 @@ import type { ChatMessage } from '@jixie/shared';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import classNames from 'classnames';
-import { Button, DatePicker, Input, InputNumber, Modal, Popover, Splitter, Tabs } from 'antd';
+import {
+  Button,
+  DatePicker,
+  Input,
+  InputNumber,
+  Modal,
+  Popover,
+  Splitter,
+  Tabs,
+  Tooltip,
+} from 'antd';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 import {
@@ -441,49 +451,61 @@ const RunConfig = complex.component(() => {
           capital: (store.initialCash / 10000).toLocaleString(),
         })}
       </span>
-      <LoaderButton
-        type="primary"
-        size="small"
-        className="jx-lab-runBtn"
-        icon={<FontAwesomeIcon icon={faPlay} />}
-        loading={store.running}
-        disabled={!store.dirty}
-        title={store.dirty ? '' : t('runDisabledHint')}
-        action={() => store.run()}
+      <Tooltip
+        title={store.dirty ? t('runBacktest') : `${t('runBacktest')} · ${t('runDisabledHint')}`}
       >
-        {t('runBacktest')}
-      </LoaderButton>
+        <LoaderButton
+          type="text"
+          size="small"
+          className="jx-lab-runBtn"
+          icon={<FontAwesomeIcon icon={faPlay} />}
+          loading={store.running}
+          disabled={!store.dirty}
+          aria-label={t('runBacktest')}
+          action={() => store.run()}
+        />
+      </Tooltip>
       <ParameterScanButton />
       {store.deployment ? (
-        <Button
-          type="text"
-          size="small"
-          danger
-          loading={store.deploymentActionLoader.loading}
-          icon={<FontAwesomeIcon icon={faPause} />}
-          onClick={() => void store.pauseDeployment()}
-          title={store.deploymentCurrent ? t('deploymentActive') : t('deploymentOutdated')}
-        >
-          {store.deploymentCurrent ? t('deploymentPause') : t('deploymentRedeployNeeded')}
-        </Button>
-      ) : (
-        <Button
-          type="text"
-          size="small"
-          loading={store.deploymentActionLoader.loading}
-          disabled={!store.savedId || !store.result || store.dirty || store.running}
-          icon={<FontAwesomeIcon icon={faRocket} />}
-          onClick={() => void store.deploy()}
+        <Tooltip
           title={
-            store.dirty
-              ? t('deploymentRunFirst')
-              : !store.result
-                ? t('deploymentNeedsResult')
-                : t('deploymentActionHint')
+            store.deploymentCurrent
+              ? t('deploymentPause')
+              : `${t('deploymentRedeployNeeded')} · ${t('deploymentOutdated')}`
           }
         >
-          {t('deploymentAction')}
-        </Button>
+          <Button
+            type="text"
+            size="small"
+            danger
+            loading={store.deploymentActionLoader.loading}
+            icon={<FontAwesomeIcon icon={faPause} />}
+            onClick={() => void store.pauseDeployment()}
+            aria-label={
+              store.deploymentCurrent ? t('deploymentPause') : t('deploymentRedeployNeeded')
+            }
+          />
+        </Tooltip>
+      ) : (
+        <Tooltip
+          title={
+            store.dirty
+              ? `${t('deploymentAction')} · ${t('deploymentRunFirst')}`
+              : !store.result
+                ? `${t('deploymentAction')} · ${t('deploymentNeedsResult')}`
+                : t('deploymentAction')
+          }
+        >
+          <Button
+            type="text"
+            size="small"
+            loading={store.deploymentActionLoader.loading}
+            disabled={!store.savedId || !store.result || store.dirty || store.running}
+            icon={<FontAwesomeIcon icon={faRocket} />}
+            onClick={() => void store.deploy()}
+            aria-label={t('deploymentAction')}
+          />
+        </Tooltip>
       )}
       {store.deploymentError && (
         <span className="jx-lab-deploymentError" title={store.deploymentError}>
@@ -561,14 +583,15 @@ const RunConfig = complex.component(() => {
           </div>
         }
       >
-        <Button
-          type="text"
-          size="small"
-          className="jx-lab-runEditBtn"
-          icon={<FontAwesomeIcon icon={faPen} />}
-          aria-label={t('runEditParameters')}
-          title={t('runEditParameters')}
-        />
+        <Tooltip title={t('runEditParameters')}>
+          <Button
+            type="text"
+            size="small"
+            className="jx-lab-runEditBtn"
+            icon={<FontAwesomeIcon icon={faPen} />}
+            aria-label={t('runEditParameters')}
+          />
+        </Tooltip>
       </Popover>
     </div>
   );

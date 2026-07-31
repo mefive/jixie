@@ -14,6 +14,7 @@ describe('strategy parameter scan', () => {
     ).toEqual({
       dimensions: [{ key: 'lookback', values: [10, 20, 40] }],
       splitDate: undefined,
+      view: 'parameters',
     });
     expect(() =>
       normalizeScanSpec({ dimensions: [{ key: 'missing', values: [1, 2] }] }, { lookback: 20 }),
@@ -29,6 +30,28 @@ describe('strategy parameter scan', () => {
         { lookback: 20, fraction: 0.1 },
       ),
     ).toThrow('limited to 25');
+  });
+
+  it('supports categorical sizing schemes and rejects mixed-type values', () => {
+    expect(
+      normalizeScanSpec(
+        {
+          view: 'sizing',
+          dimensions: [{ key: 'sizing', values: ['equal', 'fixed', 'atr', 'atr'] }],
+        },
+        { sizing: 'equal' },
+      ),
+    ).toEqual({
+      dimensions: [{ key: 'sizing', values: ['equal', 'fixed', 'atr'] }],
+      splitDate: undefined,
+      view: 'sizing',
+    });
+    expect(() =>
+      normalizeScanSpec(
+        { dimensions: [{ key: 'sizing', values: ['equal', 1] }] },
+        { sizing: 'equal' },
+      ),
+    ).toThrow('match its declared type');
   });
 
   it('builds a stable row-major one- or two-dimensional grid', () => {
@@ -79,6 +102,26 @@ describe('strategy parameter scan', () => {
     });
     expect(payload.cells[0]).not.toHaveProperty('inSample.tradeLog');
   });
+
+  it('retains rebased NAV and path-risk metrics only for sizing comparisons', async () => {
+    const payload = await executeStrategyScan({
+      spec: {
+        view: 'sizing',
+        dimensions: [{ key: 'sizing', values: ['equal', 'atr'] }],
+      },
+      parameters: { sizing: 'equal' },
+      ranges: { full: { start: '20200101', end: '20200103' } },
+      run: async (params) => result(params.sizing === 'atr' ? 20 : 10, '20200101', '20200103'),
+    });
+
+    expect(payload.cells[0].nav).toEqual([
+      { date: '20200101', value: 1 },
+      { date: '20200102', value: 0.9 },
+      { date: '20200103', value: 1.1 },
+    ]);
+    expect(payload.cells[0].full?.annVolatility).toBeGreaterThan(0);
+    expect(payload.cells[0].full?.maxUnderwaterDays).toBe(1);
+  });
 });
 
 function result(parameter: number, start: string, end: string): BacktestResult {
@@ -95,7 +138,11 @@ function result(parameter: number, start: string, end: string): BacktestResult {
     maxDrawdown: -0.1,
     trades: 1,
     tradeLog: [],
-    nav: [],
+    nav: [
+      { date: '20200101', value: 100 },
+      { date: '20200102', value: 90 },
+      { date: '20200103', value: 100 + parameter },
+    ],
     benchReturn: 0,
     excessReturn: parameter / 100,
     informationRatio: 1,

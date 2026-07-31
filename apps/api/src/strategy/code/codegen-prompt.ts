@@ -60,12 +60,12 @@ export function buildCodegenPrompt(
 - Output **only the code itself** — no explanation, no markdown fences.
 - Shaped like \`export default defineStrategy({ name, onBar(ctx) { … } })\`. **Do not write any import** (defineStrategy and the ctx type are both injected globally).
 - Keep cross-bar state in module-level variables (e.g. \`let last = ''\`); they persist across the entire backtest.
-- Put user-tunable numeric constants under \`params: { lookback: 20, ... }\` and read them through \`ctx.params.lookback\`; this keeps the strategy eligible for parameter robustness scans. Do not put instrument codes or categorical choices in params.
+- Put user-tunable constants under \`params: { lookback: 20, sizing: 'atr', ... }\` and read them through \`ctx.params\`; finite numbers and non-empty categorical strings are eligible for parameter/sizing scans. Do not put instrument codes in params.
 - When the user names a specific stock or ETF, **resolve it with the searchInstruments tool first** and use the returned ts_code — never write a ts_code from memory. For ETFs, only matches with \`hasDailyData: true\` are currently backtestable.
 
 # SDK (capabilities on ctx)
 The backtest engine calls onBar(ctx) once per trading day; you read data and place orders through ctx. Orders fill at the next open; suspension, price adjustment, slippage, and asset-aware costs are enforced behind your orders. The daily engine has no intraday round trip, even for ETF categories whose exchange rules permit same-day turnover.
-- ctx.params: the strategy's frozen numeric parameters for this run; parameter scans override declared defaults without rewriting source
+- ctx.params: the strategy's frozen numeric/categorical parameters for this run; scans override declared defaults without rewriting source
 - ctx.date / ctx.cash / ctx.value: today's date, cash, and total equity
 - ctx.period('daily'|'weekly'|'monthly'): today's period key (combine with \`let last\` to act "only once per month/week")
 - ctx.shares(code): shares held; ctx.price(code): today's backward-adjusted close
@@ -77,6 +77,9 @@ The backtest engine calls onBar(ctx) once per trading day; you read data and pla
   weekly trend filter with today's daily price/bars for multi-timeframe strategies.
 - **Built-in indicators** (prefer these, don't hand-roll; all require the instrument's K-line already loaded, return null when data is insufficient):
   ${SDK_SECTIONS.indicators}
+- Neutral sizing primitives: ctx.atrUnits(code,riskPct,atrPeriod=20) returns adjusted shares sized so
+  one ATR risks about equity×riskPct; ctx.volTargetWeights(codes,lookback=20) returns inverse-volatility
+  weights summing to 1. Loaded-bar requirements still apply; the engine rounds actual buys to real lots.
 - Next-open orders: ctx.order(code, shares) (+buy/-sell), ctx.orderLots(code, lots) (100 real shares/lot),
   ctx.exit(code), ctx.orderTargetPercent(code, w), ctx.setHoldings({code:w}), ctx.equalWeight(codes)
 - Persistent conditional orders (declared after today's close; eligible from the next trading day):
@@ -304,6 +307,25 @@ export default defineStrategy({
     if (weeklyFast > weeklySlow && price > priorDailyHigh && ctx.shares(code) === 0) {
       ctx.orderLots(code, Math.floor((ctx.cash * 0.1) / (price * 100)));
     } else if (weeklyFast < weeklySlow && ctx.shares(code) > 0) {
+      ctx.exit(code);
+    }
+  },
+});
+
+# Example 12: one entry signal with scan-ready fixed / ATR / full-weight sizing schemes
+export default defineStrategy({
+  name: '仓位方案对比',
+  params: { sizing: 'atr', riskPct: 0.01, fixedLots: 10 },
+  watch: ['600519.SH'],
+  onBar(ctx) {
+    const code = '600519.SH';
+    const price = ctx.price(code), fast = ctx.sma(code, 20), slow = ctx.sma(code, 60);
+    if (price == null || fast == null || slow == null) return;
+    if (fast > slow && ctx.shares(code) === 0) {
+      if (ctx.params.sizing === 'equal') ctx.orderTargetPercent(code, 1);
+      else if (ctx.params.sizing === 'fixed') ctx.orderLots(code, ctx.params.fixedLots);
+      else ctx.order(code, ctx.atrUnits(code, ctx.params.riskPct, 20));
+    } else if (fast < slow && ctx.shares(code) > 0) {
       ctx.exit(code);
     }
   },

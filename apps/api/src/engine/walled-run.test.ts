@@ -109,6 +109,19 @@ const PARAMETERIZED_CODE = `
   });
 `;
 
+const CATEGORICAL_PARAMETER_CODE = `
+  export default defineStrategy({
+    name: 'categorical-parameter',
+    params: { sizing: 'disabled' },
+    watch: ['AAA'],
+    onBar(ctx) {
+      if (ctx.date === '20240101' && ctx.params.sizing === 'fixed') {
+        ctx.order('AAA', 100);
+      }
+    },
+  });
+`;
+
 describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
   it('净值逐日一致、成交逐笔一致、用户日志穿墙到达', { timeout: 60_000 }, async () => {
     const direct = await runStrategy({
@@ -338,6 +351,36 @@ describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
     });
     const walled = await runWalledBacktest(
       { code: PARAMETERIZED_CODE, start: D[0], end: D.at(-1)!, initialCash: 100_000 },
+      fixturePort(SPEC),
+    );
+
+    expect(walled.nav).toEqual(direct.nav);
+    expect(walled.tradeLog).toEqual(direct.tradeLog);
+    expect(walled.trades).toBeGreaterThan(0);
+  });
+
+  it('分类参数覆盖在直跑与进墙车道保持一致', { timeout: 60_000 }, async () => {
+    const paramOverrides = { sizing: 'fixed' };
+    const direct = await runStrategy({
+      start: D[0],
+      end: D.at(-1)!,
+      initialCash: 100_000,
+      strategy: await compileStrategy(
+        CATEGORICAL_PARAMETER_CODE,
+        undefined,
+        undefined,
+        paramOverrides,
+      ),
+      dataPort: fixturePort(SPEC),
+    });
+    const walled = await runWalledBacktest(
+      {
+        code: CATEGORICAL_PARAMETER_CODE,
+        start: D[0],
+        end: D.at(-1)!,
+        initialCash: 100_000,
+        paramOverrides,
+      },
       fixturePort(SPEC),
     );
 

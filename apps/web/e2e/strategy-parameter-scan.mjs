@@ -32,14 +32,16 @@ try {
       "let last = '';",
       'export default defineStrategy({',
       "  name: 'Parameter scan E2E',",
-      '  params: { lookback: 3, shares: 100 },',
+      "  params: { lookback: 3, shares: 100, sizing: 'fixed' },",
       "  watch: ['510300.SH'],",
       '  onBar(ctx) {',
       "    const period = ctx.period('monthly');",
       '    const history = ctx.history("510300.SH", "close", ctx.params.lookback);',
       '    if (period !== last && history.length === ctx.params.lookback) {',
       '      last = period;',
-      "      ctx.order('510300.SH', ctx.params.shares);",
+      "      if (ctx.params.sizing === 'equal') ctx.orderTargetPercent('510300.SH', 1);",
+      "      else if (ctx.params.sizing === 'atr') ctx.order('510300.SH', ctx.atrUnits('510300.SH', 0.01, 2));",
+      "      else ctx.order('510300.SH', ctx.params.shares);",
       '    }',
       '  },',
       '});',
@@ -65,8 +67,24 @@ try {
 
   await page.goto(`${BASE}/lab?id=${strategyId}`, { waitUntil: 'domcontentloaded' });
   await page.locator('.jx-lab-code .monaco-editor').waitFor({ timeout: 30_000 });
-  await page.getByRole('button', { name: '参数扫描' }).first().click();
-  await page.getByRole('dialog', { name: '参数稳健性扫描' }).waitFor();
+  const runAction = page.getByRole('button', { name: '运行回测' });
+  const scanAction = page.getByRole('button', { name: '参数扫描' }).first();
+  const deployAction = page.getByRole('button', { name: '部署上线' });
+  const editAction = page.getByRole('button', { name: '编辑启动参数' });
+  for (const [label, action] of [
+    ['run', runAction],
+    ['scan', scanAction],
+    ['deploy', deployAction],
+    ['edit', editAction],
+  ]) {
+    if ((await action.textContent()).trim()) {
+      throw new Error(`${label} action should be icon-only`);
+    }
+  }
+  await scanAction.hover();
+  await page.getByRole('tooltip').filter({ hasText: '参数扫描' }).waitFor();
+  await scanAction.click();
+  await page.getByRole('dialog', { name: '扫描与仓位对比' }).waitFor();
   await page.locator('.jx-parameterScan-dimension .ant-input').first().waitFor({
     timeout: 15_000,
   });
@@ -106,12 +124,43 @@ try {
   if (persisted.detail.status !== 'done' || persisted.detail.payload?.cells?.length !== 4) {
     throw new Error(`invalid persisted scan: ${JSON.stringify(persisted.detail)}`);
   }
+
+  await page.getByRole('button', { name: '参数扫描' }).first().click();
+  await page.getByRole('dialog', { name: '扫描与仓位对比' }).waitFor();
+  await page.getByText('仓位方案对比', { exact: true }).click();
+  await page.locator('.jx-parameterScan-dimension .ant-input').first().waitFor();
+  await page.locator('.jx-parameterScan-dimension .ant-input').first().fill('equal, fixed, atr');
+  await page.getByRole('button', { name: '开始扫描' }).click();
+  await page.locator('.jx-parameterScan-progress').waitFor({ timeout: 30_000 });
+  await page.locator('.jx-parameterScan-progress').waitFor({ state: 'detached', timeout: 120_000 });
+  await page.locator('.jx-parameterScan-chart canvas').first().waitFor({ timeout: 30_000 });
+  const sizingRows = await page
+    .locator('.jx-parameterScan-table .ant-table-row[data-row-key]')
+    .count();
+  if (sizingRows !== 3) {
+    throw new Error(`expected three sizing schemes, got ${sizingRows}`);
+  }
+  const sizingReport = await page.evaluate(async (id) => {
+    const reports = await (await fetch(`/api/app/strategy/scans?strategyId=${id}`)).json();
+    return await (await fetch(`/api/app/strategy/scans/${reports[0].id}`)).json();
+  }, strategyId);
+  if (
+    sizingReport.spec?.view !== 'sizing' ||
+    sizingReport.payload?.cells?.length !== 3 ||
+    sizingReport.payload.cells.some((cell) => !Array.isArray(cell.nav) || cell.nav.length === 0)
+  ) {
+    throw new Error(`invalid sizing report: ${JSON.stringify(sizingReport)}`);
+  }
   if (pageErrors.length) {
     throw new Error(`page errors: ${JSON.stringify(pageErrors)}`);
   }
 
+  await runAction.hover();
+  await page.getByRole('tooltip').filter({ hasText: '运行回测' }).waitFor();
   await page.screenshot({ path: `${SHOTS}strategy-parameter-scan.png`, fullPage: true });
-  console.log(`[strategy-parameter-scan] PASS id=${strategyId} cells=${rowCount}`);
+  console.log(
+    `[strategy-parameter-scan] PASS id=${strategyId} parameterCells=${rowCount} sizingCells=${sizingRows}`,
+  );
 } catch (error) {
   await page
     .screenshot({ path: `${SHOTS}strategy-parameter-scan-error.png`, fullPage: true })
