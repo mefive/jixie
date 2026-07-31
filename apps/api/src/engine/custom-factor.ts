@@ -18,7 +18,7 @@ export interface CustomFactorModule {
   historyFields?: CustomFactorHistoryField[];
 }
 
-export type CustomFactorHistoryField = 'turnoverRateF' | 'roe';
+export type CustomFactorHistoryField = 'turnoverRateF' | 'roe' | 'grossprofitMargin';
 
 /** Identify expensive auxiliary histories before factor code enters the engine wall. */
 export function extractCustomFactorHistoryFields(source: string): CustomFactorHistoryField[] {
@@ -28,6 +28,9 @@ export function extractCustomFactorHistoryFields(source: string): CustomFactorHi
   }
   if (/['"]roe['"]/.test(source)) {
     fields.push('roe');
+  }
+  if (/['"]grossprofitMargin['"]/.test(source)) {
+    fields.push('grossprofitMargin');
   }
   return fields;
 }
@@ -121,8 +124,12 @@ export class CustomFactorRuntime {
       // Point-in-time ROE per bar date (as-of announcement), materialized lazily on first read —
       // fina is preloaded by run.ts when the factor declares the 'roe' history field.
       let roes: (number | null)[] | null = null;
+      let grossProfitMargins: (number | null)[] | null = null;
       ctx = {
-        history(n: number, field?: 'date' | 'amount' | 'turnoverRateF' | 'roe') {
+        history(
+          n: number,
+          field?: 'date' | 'amount' | 'turnoverRateF' | 'roe' | 'grossprofitMargin',
+        ) {
           // Auxiliary histories are loaded only when requested by host metadata and stay aligned
           // with the OHLC bars.
           const source =
@@ -134,7 +141,11 @@ export class CustomFactorRuntime {
                   ? turnoverRatesF
                   : field === 'roe'
                     ? (roes ??= bars.map((bar) => engineData.roeHistoryAt(code, bar.date)))
-                    : closes;
+                    : field === 'grossprofitMargin'
+                      ? (grossProfitMargins ??= bars.map((bar) =>
+                          engineData.grossProfitMarginHistoryAt(code, bar.date),
+                        ))
+                      : closes;
           if (n <= 0 || source.length < n) {
             return [];
           }
@@ -152,9 +163,8 @@ export class CustomFactorRuntime {
     }
   }
 
-  /** The factor-side bar for (code, today), assembled from the engine's cross-section row. Fields the
-   * engine does not track (grossprofitMargin / debtToAssets — factor-analysis-side fundamentals) are
-   * null here; moneyflow columns come through the engine's own flow-semantics store when declared. */
+  /** The factor-side bar for (code, today), assembled from the engine's cross-section row. Moneyflow
+   * columns come through the engine's own flow-semantics store when declared. */
   private assembleFactorBar(date: string, code: string, crossBar: BarRow | null): FactorBar {
     return {
       code,
@@ -171,8 +181,8 @@ export class CustomFactorRuntime {
       netMain: this.engineData.factor('mf_net_main', date, code),
       netTotal: this.engineData.factor('mf_net_total', date, code),
       roe: crossBar?.roe ?? null,
-      grossprofitMargin: null,
-      debtToAssets: null,
+      grossprofitMargin: crossBar?.grossprofitMargin ?? null,
+      debtToAssets: crossBar?.debtToAssets ?? null,
     };
   }
 }

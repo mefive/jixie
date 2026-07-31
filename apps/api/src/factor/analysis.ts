@@ -246,6 +246,7 @@ export async function computeFactorSeries(
   audit.minimumCoverage = effectiveMinimumCoverage;
   const needsTurnoverRateFHistory = factorCode.includes("'turnoverRateF'");
   const needsRoeHistory = factorCode.includes("'roe'");
+  const needsGrossProfitMarginHistory = factorCode.includes("'grossprofitMargin'");
 
   // Preload all financial reports once (PIT-gated by annDate); loadBars picks each stock's as-of report.
   const finaIndex = await loadFinaIndex();
@@ -427,6 +428,11 @@ export async function computeFactorSeries(
       const roes: (number | null)[] = needsRoeHistory
         ? tradeDates.map((tradeDate) => finaAsOf(finaIndex, tsCode, tradeDate)?.roe ?? null)
         : [];
+      const grossProfitMargins: (number | null)[] = needsGrossProfitMarginHistory
+        ? tradeDates.map(
+            (tradeDate) => finaAsOf(finaIndex, tsCode, tradeDate)?.grossprofitMargin ?? null,
+          )
+        : [];
       // One wall-crossing per stock: every rebalance index becomes a batch item carrying the
       // bar + the hfq close/date window ENDING at that day (ctx.history slices tails in-wall).
       const items: FactorBatchItem[] = [];
@@ -458,6 +464,9 @@ export async function computeFactorSeries(
             .slice(from, end + 1)
             .map((tradeDate) => turnoverRateFMap.get(tradeDate) ?? null),
           roes: needsRoeHistory ? roes.slice(from, end + 1) : undefined,
+          grossProfitMargins: needsGrossProfitMarginHistory
+            ? grossProfitMargins.slice(from, end + 1)
+            : undefined,
         });
         itemDates.push(date);
       }

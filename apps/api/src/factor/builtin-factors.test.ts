@@ -430,6 +430,37 @@ describe('3.5 preset-menu additions', () => {
     expect(missing).toBeNull();
   });
 
+  it('exposes point-in-time gross-margin history to candidate factors', async () => {
+    const factor = await compileFactor(`export default defineFactor({
+      name: 'gross-margin delta',
+      window: 3,
+      compute(bar, ctx) {
+        const values = ctx.history(3, 'grossprofitMargin');
+        return values.length === 3 && values.every((value) => value != null)
+          ? values[2] - values[0]
+          : null;
+      },
+    });`);
+    const [actual, missing] = await factor.computeBatch([
+      {
+        bar: NULL_BAR,
+        closes: [10, 10, 10],
+        dates: ['20240101', '20240102', '20240103'],
+        grossProfitMargins: [20, 20, 24],
+      },
+      {
+        bar: NULL_BAR,
+        closes: [10, 10, 10],
+        dates: ['20240101', '20240102', '20240103'],
+        grossProfitMargins: [null, 20, 24],
+      },
+    ]);
+    factor.dispose();
+
+    expect(actual).toBe(4);
+    expect(missing).toBeNull();
+  });
+
   it('amihud = mean absolute return / turnover amount, with strict amount and gap checks', async () => {
     const closes = Array.from({ length: 21 }, (_value, index) => 10 * 1.01 ** index);
     const dates = Array.from(

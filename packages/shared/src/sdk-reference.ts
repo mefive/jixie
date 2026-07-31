@@ -875,6 +875,24 @@ export const SDK_ENTRIES = [
     en: 'Weighted average ROE %.',
     prompt: 'roeWaa (weighted ROE %, point-in-time)',
   },
+  {
+    iface: 'BarRow',
+    name: 'grossprofitMargin',
+    group: '业务类型 BarRow(整行字段)',
+    sig: 'grossprofitMargin: number | null',
+    zh: '毛利率 %(时点)。',
+    en: 'Gross profit margin % (point-in-time).',
+    prompt: 'grossprofitMargin (gross profit margin %, point-in-time)',
+  },
+  {
+    iface: 'BarRow',
+    name: 'debtToAssets',
+    group: '业务类型 BarRow(整行字段)',
+    sig: 'debtToAssets: number | null',
+    zh: '资产负债率 %(时点)。',
+    en: 'Debt-to-assets ratio % (point-in-time).',
+    prompt: 'debtToAssets (debt-to-assets ratio %, point-in-time)',
+  },
 ] as const satisfies readonly SdkEntry[];
 
 /** Literal union of the entry names of one interface — the anchor for the api-side drift type-test. */

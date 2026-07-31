@@ -125,6 +125,9 @@
   (探索 −0.013 / 保留段 −0.011)——约一半信号是市值/行业结构,当低换手弱质量信号用,别高估。
 - 基建顺带落地:`ctx.history(n, 'roe')` 贯通因子分析侧(finaAsOf 逐日对齐)与引擎侧(preloadFina +
   roeHistoryAt,双车道 parity 单测),SDK dts / codegen prompt / Monaco 文档同步。
+- **2026-07-31 下一候选准备**:`ctx.history(n, 'grossprofitMargin')` 已按同一 annDate PIT 阶梯语义贯通
+  因子分析、策略引擎、SDK / Agent prompt 与 Monaco；`gross_margin_stability` 仍是候选，未完成
+  explore + 一次性 holdout 前不进入预置菜单。
 - 应计等需扩资产负债/现金流数据的仍不做(守 4.2 需求拉动);下一批候选:特异波动率(需基准收益
   历史进 ctx)、毛利率稳定性(复用 roe 管道加字段)。
 

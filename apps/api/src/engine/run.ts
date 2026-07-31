@@ -82,8 +82,10 @@ function needsTurnoverRateFHistory(cfg: EngineConfig): boolean {
   );
 }
 
-function needsRoeHistory(cfg: EngineConfig): boolean {
-  return (cfg.customFactors ?? []).some((factor) => factor.historyFields?.includes('roe'));
+function needsFundamentalHistory(cfg: EngineConfig): boolean {
+  return (cfg.customFactors ?? []).some((factor) =>
+    factor.historyFields?.some((field) => field === 'roe' || field === 'grossprofitMargin'),
+  );
 }
 
 /**
@@ -143,7 +145,7 @@ async function runStockStrategyCore(
   if (cfg.strategy.watch?.length) {
     await engineData.loadBars(cfg.strategy.watch);
   } // per-instrument preload
-  if (needsRoeHistory(cfg)) {
+  if (needsFundamentalHistory(cfg)) {
     await engineData.preloadFina();
   } // custom-factor 'roe' histories read fina synchronously
   const customFactors = buildCustomFactorRuntime(cfg, engineData, locale, log);
@@ -279,7 +281,7 @@ async function runMultiAssetStrategy(cfg: EngineConfig): Promise<BacktestResult>
   if (cfg.strategy.watch?.length) {
     await engineData.loadBars(cfg.strategy.watch);
   }
-  if (needsRoeHistory(cfg)) {
+  if (needsFundamentalHistory(cfg)) {
     await engineData.preloadFina();
   }
   const customFactors = buildCustomFactorRuntime(cfg, engineData, locale, log);
