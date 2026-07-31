@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { ulid } from 'ulid';
 import { z } from 'zod';
 import type { Prisma } from '@prisma/client';
+import type { FactorCompositeDefinitionV1 } from '@jixie/shared';
 import { apiError, validateJson } from '../lib/httpError.js';
 import { prisma } from '../lib/prisma.js';
 import { BUILTIN_KEYS, BUILTIN_USER_ID, builtinCatalog } from '../factor/builtin-factors.js';
@@ -9,6 +10,7 @@ import { compileFactor } from '../factor/compile-factor.js';
 import { chatMessagesSchema } from '../lib/chat-schema.js';
 import { m } from '../i18n/index.js';
 import { localeFromRequest } from '../i18n/index.js';
+import { factorCompositeDefinitionV1Schema } from '../factor/report-spec.js';
 
 const FACTOR_KEY_PATTERN = /^[a-z][a-z0-9_]{0,31}$/;
 
@@ -46,7 +48,106 @@ factorsRoute.get('/catalog', async (c) => {
     keyCandidate: factor.keyCandidate ?? undefined,
     kind: 'custom' as const,
   }));
-  return c.json([...builtinCatalog(), ...customMeta]);
+  const composites = await prisma.factorComposite.findMany({
+    where: { userId: c.var.userId },
+    orderBy: { updatedAt: 'desc' },
+  });
+  const compositeMeta = composites.map((composite) => ({
+    key: composite.id,
+    label: composite.name,
+    kind: 'composite' as const,
+    composite: composite.definition as unknown as FactorCompositeDefinitionV1,
+  }));
+  return c.json([...builtinCatalog(), ...customMeta, ...compositeMeta]);
+});
+
+const compositeBody = z.object({ definition: factorCompositeDefinitionV1Schema });
+
+async function validateCompositeComponents(
+  userId: string,
+  definition: FactorCompositeDefinitionV1,
+) {
+  const customIds = definition.components
+    .map((component) => component.factor)
+    .filter((factor) => !BUILTIN_KEYS.has(factor));
+  if (customIds.length === 0) {
+    return null;
+  }
+  const owned = await prisma.factor.findMany({
+    where: { userId, id: { in: customIds } },
+    select: { id: true },
+  });
+  const ownedIds = new Set(owned.map((factor) => factor.id));
+  return customIds.find((id) => !ownedIds.has(id)) ?? null;
+}
+
+function compositeResource(row: {
+  id: string;
+  name: string;
+  definition: Prisma.JsonValue;
+  createdAt: Date;
+  updatedAt: Date;
+}) {
+  return {
+    id: row.id,
+    name: row.name,
+    definition: row.definition as unknown as FactorCompositeDefinitionV1,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
+factorsRoute.get('/composites/:id', async (c) => {
+  const row = await prisma.factorComposite.findFirst({
+    where: { id: c.req.param('id'), userId: c.var.userId },
+  });
+  return row ? c.json(compositeResource(row)) : apiError(c, 'NOT_FOUND', m(c, 'factorNotFound'));
+});
+
+factorsRoute.post('/composites', validateJson(compositeBody), async (c) => {
+  const definition = c.req.valid('json').definition;
+  const invalid = await validateCompositeComponents(c.var.userId, definition);
+  if (invalid) {
+    return apiError(c, 'VALIDATION_FAILED', m(c, 'unknownFactor', { factor: invalid }));
+  }
+  const row = await prisma.factorComposite.create({
+    data: {
+      id: ulid(),
+      userId: c.var.userId,
+      name: definition.name,
+      definition: definition as unknown as Prisma.InputJsonValue,
+    },
+  });
+  return c.json(compositeResource(row));
+});
+
+factorsRoute.post('/composites/:id', validateJson(compositeBody), async (c) => {
+  const definition = c.req.valid('json').definition;
+  const invalid = await validateCompositeComponents(c.var.userId, definition);
+  if (invalid) {
+    return apiError(c, 'VALIDATION_FAILED', m(c, 'unknownFactor', { factor: invalid }));
+  }
+  const updated = await prisma.factorComposite.updateMany({
+    where: { id: c.req.param('id'), userId: c.var.userId },
+    data: {
+      name: definition.name,
+      definition: definition as unknown as Prisma.InputJsonValue,
+    },
+  });
+  if (updated.count === 0) {
+    return apiError(c, 'NOT_FOUND', m(c, 'factorNotFound'));
+  }
+  const row = await prisma.factorComposite.findUniqueOrThrow({
+    where: { id: c.req.param('id') },
+  });
+  return c.json(compositeResource(row));
+});
+
+factorsRoute.delete('/composites/:id', async (c) => {
+  await prisma.factorComposite.deleteMany({
+    where: { id: c.req.param('id'), userId: c.var.userId },
+  });
+  return c.json({ ok: true });
 });
 
 // —— Custom factors (code-first, Agent-authored — mirrors the strategy workbench) —— created on the

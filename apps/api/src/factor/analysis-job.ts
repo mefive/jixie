@@ -8,17 +8,57 @@ import type {
   RunFactorAnalysisResponse,
 } from '@jixie/shared';
 import { ulid } from 'ulid';
+import { z } from 'zod';
 import { appendLog, finishFactorReportJob, initializeJobLogs } from '../lib/jobs.js';
 import { prisma } from '../lib/prisma.js';
-import { factorTestKey, factorVariantKey, sha256 } from './report-spec.js';
+import {
+  canonicalJson,
+  factorCompositeDefinitionV1Schema,
+  factorTestKey,
+  factorVariantKey,
+  sha256,
+} from './report-spec.js';
+import type { FactorAnalysisRuntimeSource } from './composite.js';
 
 const workerUrl = import.meta.url.endsWith('.ts')
   ? new URL('./factor-worker.boot.mjs', import.meta.url)
   : new URL('./factor-worker.js', import.meta.url);
 
-export interface FactorAnalysisSource {
-  code: string;
-  label: string;
+export type FactorAnalysisSource = FactorAnalysisRuntimeSource;
+
+const factorAnalysisRuntimeSourceSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('single'), code: z.string().min(1), label: z.string().min(1) }),
+  z.object({
+    kind: z.literal('composite'),
+    label: z.string().min(1),
+    definition: factorCompositeDefinitionV1Schema,
+    components: z
+      .array(
+        z.object({
+          factor: z.string().min(1),
+          code: z.string().min(1),
+          label: z.string().min(1),
+          direction: z.enum(['positive', 'negative']),
+        }),
+      )
+      .min(2)
+      .max(5),
+  }),
+]);
+
+export function factorAnalysisSourceSnapshot(source: FactorAnalysisSource): string {
+  return source.kind === 'single' ? source.code : canonicalJson(source);
+}
+
+export function parseFactorAnalysisSourceSnapshot(
+  snapshot: string,
+  label: string,
+  composite: boolean,
+): FactorAnalysisSource {
+  if (!composite) {
+    return { kind: 'single', code: snapshot, label };
+  }
+  return factorAnalysisRuntimeSourceSchema.parse(JSON.parse(snapshot));
 }
 
 export async function startFactorAnalysis(options: {
@@ -33,7 +73,8 @@ export async function startFactorAnalysis(options: {
   exitedMessage: (code: number) => string;
   launchWorker?: typeof launchFactorWorker;
 }): Promise<RunFactorAnalysisResponse> {
-  const factorCodeHash = sha256(options.source.code);
+  const factorCodeSnapshot = factorAnalysisSourceSnapshot(options.source);
+  const factorCodeHash = sha256(factorCodeSnapshot);
   const dataRevision = null;
   const variantKey = factorVariantKey(options.spec, factorCodeHash, dataRevision);
   const testKey = factorTestKey(options.spec, factorCodeHash, options.researchIntent);
@@ -74,7 +115,7 @@ export async function startFactorAnalysis(options: {
         end: options.spec.end,
         specJson: JSON.stringify(options.spec),
         variantKey,
-        factorCodeSnapshot: options.source.code,
+        factorCodeSnapshot,
         factorCodeHash,
         dataRevision,
         parentReportId: options.parentReportId ?? null,
@@ -103,8 +144,7 @@ export async function startFactorAnalysis(options: {
     reportId,
     jobId,
     factor: options.factor,
-    factorCodeSnapshot: options.source.code,
-    factorLabel: options.source.label,
+    source: options.source,
     spec: options.spec,
     locale: options.locale,
     failedMessage: options.failedMessage,
@@ -117,8 +157,7 @@ export async function launchFactorWorker(options: {
   reportId: string;
   jobId: string;
   factor: string;
-  factorCodeSnapshot: string;
-  factorLabel: string;
+  source: FactorAnalysisSource;
   spec: FactorAnalysisSpec;
   locale: Locale;
   failedMessage: string;
@@ -131,8 +170,7 @@ export async function launchFactorWorker(options: {
       workerData: {
         reportId: options.reportId,
         factor: options.factor,
-        factorCodeSnapshot: options.factorCodeSnapshot,
-        factorLabel: options.factorLabel,
+        source: options.source,
         spec: options.spec,
         locale: options.locale,
       },

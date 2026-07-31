@@ -76,7 +76,7 @@ describe('startFactorAnalysis', () => {
     const response = await startFactorAnalysis({
       userId: 'user-1',
       factor: 'factor-1',
-      source: { code: 'factor candidate', label: 'Quality' },
+      source: { kind: 'single', code: 'factor candidate', label: 'Quality' },
       spec,
       researchIntent,
       locale: 'en',
@@ -107,7 +107,7 @@ describe('startFactorAnalysis', () => {
     expect(launchWorker.mock.calls[0][0]).toMatchObject({
       reportId: response.reportId,
       jobId: response.jobId,
-      factorCodeSnapshot: 'factor candidate',
+      source: { kind: 'single', code: 'factor candidate', label: 'Quality' },
       spec,
     });
   });
@@ -122,7 +122,7 @@ describe('startFactorAnalysis', () => {
     const response = await startFactorAnalysis({
       userId: 'user-1',
       factor: 'factor-1',
-      source: { code: 'factor candidate', label: 'Quality' },
+      source: { kind: 'single', code: 'factor candidate', label: 'Quality' },
       spec,
       researchIntent,
       locale: 'en',
@@ -139,6 +139,47 @@ describe('startFactorAnalysis', () => {
     });
     expect(mocks.reportCreate).not.toHaveBeenCalled();
     expect(launchWorker).not.toHaveBeenCalled();
+  });
+
+  it('freezes the full source bundle for a composite report', async () => {
+    mocks.reportFindFirst.mockResolvedValue(null);
+    const launchWorker = vi.fn(async (_options: unknown) => {});
+    const definition = {
+      version: 1 as const,
+      name: 'Quality + value',
+      standardization: 'rank' as const,
+      weighting: 'equal' as const,
+      components: [
+        { factor: 'roe_ttm', direction: 'positive' as const },
+        { factor: 'ep_ttm', direction: 'positive' as const },
+      ],
+    };
+    const source = {
+      kind: 'composite' as const,
+      label: definition.name,
+      definition,
+      components: [
+        { factor: 'roe_ttm', label: 'ROE', code: 'roe code', direction: 'positive' as const },
+        { factor: 'ep_ttm', label: 'EP', code: 'ep code', direction: 'positive' as const },
+      ],
+    };
+    const compositeSpec = { ...spec, version: 4 as const, composite: definition };
+
+    await startFactorAnalysis({
+      userId: 'user-1',
+      factor: 'composite-1',
+      source,
+      spec: compositeSpec,
+      researchIntent,
+      locale: 'en',
+      failedMessage: 'failed',
+      exitedMessage: (code) => `exit ${code}`,
+      launchWorker,
+    });
+
+    const snapshot = mocks.reportCreate.mock.calls[0][0].data.factorCodeSnapshot;
+    expect(JSON.parse(snapshot)).toEqual(source);
+    expect(launchWorker.mock.calls[0][0]).toMatchObject({ source, spec: compositeSpec });
   });
 });
 

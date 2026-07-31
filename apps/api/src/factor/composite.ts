@@ -1,6 +1,20 @@
 import type { FactorCompositeDefinitionV1 } from '@jixie/shared';
 import type { Series } from './analysis.js';
 
+export type FactorAnalysisRuntimeSource =
+  | { kind: 'single'; code: string; label: string }
+  | {
+      kind: 'composite';
+      label: string;
+      definition: FactorCompositeDefinitionV1;
+      components: Array<{
+        factor: string;
+        code: string;
+        label: string;
+        direction: 'positive' | 'negative';
+      }>;
+    };
+
 export interface CompositeSeriesInput {
   factor: string;
   series: Series;

@@ -1,6 +1,7 @@
 import { parentPort, workerData } from 'node:worker_threads';
 import type { FactorAnalysisSpec, Locale, LogLine, LogLevel } from '@jixie/shared';
 import { analyzeFactor } from './analysis.js';
+import type { FactorAnalysisRuntimeSource } from './composite.js';
 import { prisma } from '../lib/prisma.js';
 
 /**
@@ -15,11 +16,10 @@ if (!port) {
   throw new Error('factor-worker must be spawned as a worker thread');
 }
 
-const { reportId, factor, factorCodeSnapshot, factorLabel, spec, locale } = workerData as {
+const { reportId, factor, source, spec, locale } = workerData as {
   reportId: string;
   factor: string;
-  factorCodeSnapshot: string;
-  factorLabel: string;
+  source: FactorAnalysisRuntimeSource;
   spec: FactorAnalysisSpec;
   locale: Locale;
 };
@@ -31,8 +31,7 @@ const onUserLog = (level: LogLevel, text: string) => emit({ source: 'user', leve
 
 try {
   const report = await analyzeFactor(factor, spec, onSystemLog, onUserLog, locale, {
-    code: factorCodeSnapshot,
-    label: factorLabel,
+    ...source,
   });
   port.postMessage({ type: 'done', reportId, payload: JSON.stringify(report) });
 } catch (e) {

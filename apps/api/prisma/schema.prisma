@@ -506,6 +506,7 @@ model User {
   savedScreens        SavedScreen[]
   screenConversations ScreenConversation[]
   agentConversations  AgentConversation[]
+  factorComposites    FactorComposite[]
 }
 
 /// Login session. id = session token (stored in sid cookie). 30-day TTL; expiry enforced by filtering on expiresAt at query time.
@@ -813,6 +814,20 @@ model Factor {
 
   @@unique([userId, key]) // user-factor keys are unique per owner; builtin keys are additionally reserved in the allocator
   @@index([userId, updatedAt]) // list a user's factors, newest first
+}
+
+/// A reusable multi-factor research definition. Reports freeze the full definition in specJson, so
+/// editing or deleting this row never changes historical results.
+model FactorComposite {
+  id         String   @id // ULID
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  definition Json // FactorCompositeDefinitionV1
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId, updatedAt])
 }
 
 /// An agent conversation on the screen page (a "session card" on the card wall). Strategy/factor

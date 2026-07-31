@@ -92,6 +92,7 @@ export function runFactorAnalysisTool(context: FactorResearchContext): AgentTool
         userId: context.userId,
         factor: context.factorId,
         source: {
+          kind: 'single',
           code: parsed.data.code ?? context.currentCode,
           label: factor.name,
         },
