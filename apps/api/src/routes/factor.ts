@@ -22,24 +22,14 @@ import { factorQaProfile } from '../agent/profiles/qa.js';
 import { enqueueAgentTurn, entityKey } from '../agent/turn-run.js';
 import * as turnBus from '../agent/turn-bus.js';
 import { chatMessagesSchema } from '../lib/chat-schema.js';
-import {
-  createJob,
-  appendLog,
-  finishJob,
-  finishFactorReportJob,
-  getJob,
-  findRunningJob,
-  initializeJobLogs,
-} from '../lib/jobs.js';
+import { createJob, appendLog, finishJob, getJob, findRunningJob } from '../lib/jobs.js';
 import { localeFromRequest, m } from '../i18n/index.js';
 import { refreshFactorMetadata } from '../factor/metadata.js';
 import {
   factorAnalysisSpecSchema,
   factorResearchIntentV1Schema,
-  factorTestKey,
   factorVariantKey,
   normalizeFactorAnalysisSpec,
-  sha256,
 } from '../factor/report-spec.js';
 import {
   enoughHoldoutPeriods,
@@ -47,6 +37,7 @@ import {
   parseResearchIntent,
   researchCounts,
 } from '../factor/research.js';
+import { launchFactorWorker, startFactorAnalysis } from '../factor/analysis-job.js';
 
 /**
  * Factor workbench actions (singular, mounted at /api/app/factor — product line 1.5 · factor research).
@@ -64,10 +55,6 @@ import {
  */
 export const factorRoute = new Hono();
 
-// Worker entry: dev (tsx) spawns the .mjs bootstrap; prod spawns the compiled .js.
-const workerUrl = import.meta.url.endsWith('.ts')
-  ? new URL('../factor/factor-worker.boot.mjs', import.meta.url)
-  : new URL('../factor/factor-worker.js', import.meta.url);
 const correlationWorkerUrl = import.meta.url.endsWith('.ts')
   ? new URL('../factor/correlation-worker.boot.mjs', import.meta.url)
   : new URL('../factor/correlation-worker.js', import.meta.url);
@@ -100,15 +87,16 @@ factorRoute.post('/agent', validateJson(agentBody), async (c) => {
     return apiError(c, 'VALIDATION_FAILED', m(c, 'factorTurnInProgress'));
   }
 
+  const locale = localeFromRequest(c);
   const turnId = ulid();
   enqueueAgentTurn({
     turnId,
     userId,
-    profile: factorProfile(),
+    profile: factorProfile({ userId, factorId: id, currentCode: code, locale }),
     entity,
     message,
     currentCode: code,
-    locale: localeFromRequest(c),
+    locale,
     afterTurn: async (result, messages) => {
       await refreshFactorMetadata({ factorId: id, userId, code: result.code, messages });
     },
@@ -306,73 +294,13 @@ factorRoute.post('/analysis/run', validateJson(runAnalysisBody), async (c) => {
       return apiError(c, 'NOT_FOUND', m(c, 'windowNotComputed'));
     }
   }
-  const factorCodeHash = sha256(source.code);
-  const dataRevision = null;
-  const variantKey = factorVariantKey(spec, factorCodeHash, dataRevision);
-  const testKey = factorTestKey(spec, factorCodeHash, researchIntent);
-  const reportId = ulid();
-  const jobId = ulid();
-  const created = await prisma.$transaction(async (transaction) => {
-    const running = await transaction.factorReport.findFirst({
-      where: { userId, factor, variantKey, status: 'running' },
-      include: { job: { select: { id: true, status: true } } },
-      orderBy: { createdAt: 'desc' },
-    });
-    if (running?.job?.status === 'running') {
-      return { reportId: running.id, jobId: running.job.id, reusedRunning: true };
-    }
-    if (running) {
-      await transaction.factorReport.update({
-        where: { id: running.id },
-        data: { status: 'stale' },
-      });
-    }
-
-    await transaction.factorReport.create({
-      data: {
-        id: reportId,
-        userId,
-        factor,
-        status: 'running',
-        phase: 'explore',
-        freq: spec.freq,
-        neutral: spec.neutral,
-        start: spec.start,
-        end: spec.end,
-        specJson: JSON.stringify(spec),
-        variantKey,
-        factorCodeSnapshot: source.code,
-        factorCodeHash,
-        dataRevision,
-        parentReportId: parentReportId ?? null,
-        testKey,
-        researchIntentJson: JSON.stringify(researchIntent),
-        job: {
-          create: {
-            id: jobId,
-            userId,
-            kind: 'factor',
-            key: variantKey,
-            status: 'running',
-          },
-        },
-      },
-    });
-
-    return { reportId, jobId, reusedRunning: false };
-  });
-  const response: RunFactorAnalysisResponse = { ...created, status: 'running' };
-  if (created.reusedRunning) {
-    return c.json(response);
-  }
-
-  await launchFactorWorker({
-    reportId,
-    jobId,
+  const response = await startFactorAnalysis({
+    userId,
     factor,
-    factorCodeSnapshot: source.code,
-    factorLabel: source.label,
+    source,
     spec,
+    researchIntent,
+    parentReportId,
     locale: localeFromRequest(c),
     failedMessage: m(c, 'factorAnalysisFailed'),
     exitedMessage: (code) => m(c, 'factorProcExited', { code }),
@@ -504,78 +432,6 @@ factorRoute.post('/reports/:reportId/reveal', async (c) => {
     canReveal: false,
   });
 });
-
-async function launchFactorWorker(options: {
-  reportId: string;
-  jobId: string;
-  factor: string;
-  factorCodeSnapshot: string;
-  factorLabel: string;
-  spec: FactorAnalysisSpec;
-  locale: string;
-  failedMessage: string;
-  exitedMessage: (code: number) => string;
-}): Promise<void> {
-  initializeJobLogs(options.jobId);
-  let worker: Worker;
-  try {
-    worker = new Worker(workerUrl, {
-      workerData: {
-        reportId: options.reportId,
-        factor: options.factor,
-        factorCodeSnapshot: options.factorCodeSnapshot,
-        factorLabel: options.factorLabel,
-        spec: options.spec,
-        locale: options.locale,
-      },
-    });
-  } catch (error) {
-    await finishFactorReportJob(
-      options.jobId,
-      options.reportId,
-      'error',
-      undefined,
-      error instanceof Error ? error.message : String(error),
-      options.failedMessage,
-    );
-    return;
-  }
-  let finished = false;
-  const done = (status: 'done' | 'error', payload?: string, error?: string) => {
-    if (finished) {
-      return;
-    }
-    finished = true;
-    void finishFactorReportJob(
-      options.jobId,
-      options.reportId,
-      status,
-      payload,
-      error,
-      status === 'error' ? options.failedMessage : undefined,
-    ).catch((finishError) => {
-      console.error('[jixie] failed to finalize factor report', finishError);
-    });
-  };
-  worker.on(
-    'message',
-    (message: { type: string; entry?: LogLine; message?: string; payload?: string }) => {
-      if (message.type === 'log') {
-        appendLog(options.jobId, message.entry!);
-      } else if (message.type === 'done') {
-        done('done', message.payload);
-      } else if (message.type === 'error') {
-        done('error', undefined, message.message);
-      }
-    },
-  );
-  worker.on('error', (error) => done('error', undefined, error.message));
-  worker.on('exit', (code) => {
-    if (code !== 0) {
-      done('error', undefined, options.exitedMessage(code));
-    }
-  });
-}
 
 async function holdoutEligibility(row: FactorReportRow): Promise<FactorHoldoutEligibility> {
   if (row.phase !== 'explore') {

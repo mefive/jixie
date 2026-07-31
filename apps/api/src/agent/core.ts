@@ -13,14 +13,14 @@ import type { AgentCard, AgentChart, AgentTool } from './tools/types.js';
 /**
  * Unified agent core (design: docs/design/unified-agent.md). One turn loop shared by every agent
  * surface (strategy lab / factor / screen / Q&A); what varies per surface lives in an AgentProfile:
- * the system prompt, the read-only tool set, and — when the conversation produces code — the
+ * the system prompt, the whitelisted tool set, and — when the conversation produces code — the
  * artifact validator. A turn's lifecycle is fixed: tool rounds first (≤ MAX_TOOL_ROUNDS, observations
  * fed back), then the produce step, then compile-repair rounds with tools disabled. Tool messages
  * live only inside the turn — they are never persisted into the conversation.
  */
 export interface AgentProfile {
   system: string; // full system prompt (codegen prompt + conversation-mode addendum, or a Q&A brief)
-  tools?: AgentTool[]; // whitelisted read-only tools (empty/absent = plain chat)
+  tools?: AgentTool[]; // whitelisted tools (empty/absent = plain chat)
   artifact?: {
     noun: string; // 'strategy' | 'factor' — used in the current-code wrapper and repair messages
     validate(code: string): Promise<void>; // throws with a human-readable message when the code won't compile
@@ -158,7 +158,11 @@ You are in a multi-turn conversation with the user, iterating on the "current ${
 // Appended to a profile's system prompt when it carries tools.
 export const TOOLS_HINT = `
 # Tools
-You can call read-only data tools (look up instruments / check data coverage / screen the latest snapshot by metric / read-only SQL for statistical aggregation, time-series and financial queries / draw charts / SQL + code for complex stats). When a question turns on facts in the database, **query first, then answer** — don't make things up; tool results reflect only the current state of the local database. Don't call tools when you don't need data. For simple screening prefer runScreen (its result becomes a reusable query card for the user); use sqlQuery for what it can't express; for trend/comparison/distribution conclusions that are better seen, use renderChart to draw for the user directly; for stats SQL can't handle (correlation/regression/volatility) use analyzeData.`;
+You can call read-only data tools (look up instruments / check data coverage / screen the latest snapshot by metric / read-only SQL for statistical aggregation, time-series and financial queries / draw charts / SQL + code for complex stats). When a question turns on facts in the database, **query first, then answer** — don't make things up; tool results reflect only the current state of the local database. Don't call tools when you don't need data. For simple screening prefer runScreen (its result becomes a reusable query card for the user); use sqlQuery for what it can't express; for trend/comparison/distribution conclusions that are better seen, use renderChart to draw for the user directly; for stats SQL can't handle (correlation/regression/volatility) use analyzeData. Artifact profiles may additionally expose one narrowly scoped research runner; its description is the authoritative boundary for that side effect.`;
+
+export const RESEARCH_TOOLS_HINT = `
+# Research execution discipline
+When you use a research runner, freeze the complete candidate and the test intent in its arguments before seeing metrics. Do not mechanically optimize against repeated runs, do not claim that an explore or quick result is production validation, and never imply that holdout, deployment, signals, or orders happened unless an explicit tool observation says so. After a completed result, explain the evidence and limitations; only emit candidate code that still passes the normal artifact validator.`;
 
 /** The fenced ```ts block, or null when the reply has none (a pure answer). */
 function extractFenced(text: string): string | null {

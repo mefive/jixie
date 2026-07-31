@@ -1,0 +1,161 @@
+import type { FactorAnalysisSpecV3, FactorResearchIntentV1 } from '@jixie/shared';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const mocks = vi.hoisted(() => ({
+  transaction: vi.fn(),
+  reportFindFirst: vi.fn(),
+  reportCreate: vi.fn(),
+  reportUpdate: vi.fn(),
+  rootReportFindFirst: vi.fn(),
+}));
+
+vi.mock('../lib/prisma.js', () => ({
+  prisma: {
+    $transaction: mocks.transaction,
+    factorReport: { findFirst: mocks.rootReportFindFirst },
+  },
+}));
+
+import { readFactorAnalysisResult, startFactorAnalysis } from './analysis-job.js';
+
+const spec: FactorAnalysisSpecV3 = {
+  version: 3,
+  freq: 'month',
+  start: '20200101',
+  end: '20250101',
+  neutral: 'size',
+  universe: {
+    minimumListingDays: 365,
+    liquidityDropFraction: 0.25,
+    minimumCandidates: 100,
+    excludeRiskWarnings: true,
+    excludePendingDelisting: true,
+  },
+  missing: { minimumWindowCoverage: 2 / 3 },
+  outliers: {
+    factorExposure: { method: 'winsor', tailFraction: 0.01, madThreshold: 5 },
+    forwardReturn: { method: 'winsor', tailFraction: 0.01, madThreshold: 5 },
+  },
+  costs: {
+    commissionPerSide: 0.00025,
+    stampDutySellSide: 0.0005,
+    slippagePerSide: 0.001,
+  },
+};
+
+const researchIntent: FactorResearchIntentV1 = {
+  version: 1,
+  mode: 'hypothesis',
+  hypothesis: 'Quality should predict returns.',
+  expectedDirection: 'positive',
+  primaryCriterion: { metric: 'rank_ic_mean', operator: 'gt', value: 0.02 },
+};
+
+describe('startFactorAnalysis', () => {
+  beforeEach(() => {
+    mocks.transaction.mockReset();
+    mocks.reportFindFirst.mockReset();
+    mocks.reportCreate.mockReset();
+    mocks.reportUpdate.mockReset();
+    mocks.rootReportFindFirst.mockReset();
+    mocks.transaction.mockImplementation(async (run) =>
+      run({
+        factorReport: {
+          findFirst: mocks.reportFindFirst,
+          create: mocks.reportCreate,
+          update: mocks.reportUpdate,
+        },
+      }),
+    );
+  });
+
+  it('creates one immutable explore report and launches its worker', async () => {
+    mocks.reportFindFirst.mockResolvedValue(null);
+    const launchWorker = vi.fn(async (_options: unknown) => {});
+
+    const response = await startFactorAnalysis({
+      userId: 'user-1',
+      factor: 'factor-1',
+      source: { code: 'factor candidate', label: 'Quality' },
+      spec,
+      researchIntent,
+      locale: 'en',
+      failedMessage: 'failed',
+      exitedMessage: (code) => `exit ${code}`,
+      launchWorker,
+    });
+
+    expect(response).toMatchObject({ status: 'running', reusedRunning: false });
+    expect(mocks.reportFindFirst.mock.calls[0][0].where).toMatchObject({
+      userId: 'user-1',
+      factor: 'factor-1',
+      status: 'running',
+      testKey: expect.any(String),
+    });
+    expect(mocks.reportCreate).toHaveBeenCalledOnce();
+    expect(mocks.reportCreate.mock.calls[0][0].data).toMatchObject({
+      userId: 'user-1',
+      factor: 'factor-1',
+      status: 'running',
+      phase: 'explore',
+      factorCodeSnapshot: 'factor candidate',
+      specJson: JSON.stringify(spec),
+      researchIntentJson: JSON.stringify(researchIntent),
+      job: { create: { userId: 'user-1', kind: 'factor', status: 'running' } },
+    });
+    expect(launchWorker).toHaveBeenCalledOnce();
+    expect(launchWorker.mock.calls[0][0]).toMatchObject({
+      reportId: response.reportId,
+      jobId: response.jobId,
+      factorCodeSnapshot: 'factor candidate',
+      spec,
+    });
+  });
+
+  it('reuses the same running frozen variant instead of launching twice', async () => {
+    mocks.reportFindFirst.mockResolvedValue({
+      id: 'report-existing',
+      job: { id: 'job-existing', status: 'running' },
+    });
+    const launchWorker = vi.fn(async (_options: unknown) => {});
+
+    const response = await startFactorAnalysis({
+      userId: 'user-1',
+      factor: 'factor-1',
+      source: { code: 'factor candidate', label: 'Quality' },
+      spec,
+      researchIntent,
+      locale: 'en',
+      failedMessage: 'failed',
+      exitedMessage: (code) => `exit ${code}`,
+      launchWorker,
+    });
+
+    expect(response).toEqual({
+      reportId: 'report-existing',
+      jobId: 'job-existing',
+      reusedRunning: true,
+      status: 'running',
+    });
+    expect(mocks.reportCreate).not.toHaveBeenCalled();
+    expect(launchWorker).not.toHaveBeenCalled();
+  });
+});
+
+describe('readFactorAnalysisResult', () => {
+  it('owner-scopes and parses a completed explore payload', async () => {
+    mocks.rootReportFindFirst.mockResolvedValue({
+      status: 'done',
+      error: null,
+      payload: JSON.stringify({ factor: 'factor-1', icMean: 0.03 }),
+    });
+
+    const result = await readFactorAnalysisResult('user-1', 'report-1');
+
+    expect(mocks.rootReportFindFirst).toHaveBeenCalledWith({
+      where: { id: 'report-1', userId: 'user-1', phase: 'explore' },
+      select: { status: true, error: true, payload: true },
+    });
+    expect(result).toMatchObject({ status: 'done', payload: { icMean: 0.03 } });
+  });
+});

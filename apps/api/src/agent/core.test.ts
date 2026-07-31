@@ -135,6 +135,25 @@ describe('agentTurn(factorProfile)', () => {
     expect(messages[2].content).toContain('Current factor code');
     expect(messages[2].content).toContain('第二条');
   });
+
+  it('offers factor analysis only when the factor route supplies research context', async () => {
+    const llm = scriptedLlm([{ text: '好的。' }]);
+    await agentTurn(
+      factorProfile({
+        userId: 'user-1',
+        factorId: 'factor-1',
+        currentCode: FACTOR,
+        locale: 'zh',
+      }),
+      [],
+      '先做 explore 分析',
+      FACTOR,
+      llm,
+    );
+
+    expect(llm.mock.calls[0][1].map((tool) => tool.name)).toContain('runFactorAnalysis');
+    expect(llm.mock.calls[0][0][0].content).toContain('Research execution discipline');
+  });
 });
 
 describe('agentTurn(factorQaProfile — no artifact)', () => {
