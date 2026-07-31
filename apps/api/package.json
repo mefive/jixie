@@ -12,7 +12,6 @@
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
     "backup": "node scripts/backup-db.mjs",
-    "maintenance:init": "tsx --env-file=.env scripts/init-maintenance.ts",
     "maintenance:heal-baseline": "tsx --env-file=.env scripts/run-baseline-self-heal.ts",
     "maintenance:daily": "tsx --env-file=.env scripts/run-daily-maintenance.ts",
     "maintenance:weekly": "tsx --env-file=.env scripts/run-weekly-maintenance.ts",

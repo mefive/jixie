@@ -27,6 +27,7 @@ import {
   bumpDataRevision,
   finishMaintenanceRun,
   getMaintenanceState,
+  initializeDailyWatermark,
   startMaintenanceHeartbeat,
   type MaintenanceTrigger,
   updateMaintenanceRun,
@@ -57,13 +58,7 @@ export async function runDailyMaintenance(
   const onLog = options.onLog ?? ((line: string) => console.log(`[maintenance:daily] ${line}`));
   const trigger = options.trigger ?? (process.env.INVOCATION_ID ? 'timer' : 'manual');
   const client = createClient();
-  const state = await getMaintenanceState();
-
-  if (!options.targetDate && !state.dailyPublishedThrough) {
-    throw new Error(
-      'dailyPublishedThrough is not initialized; run maintenance:init after the full import audit',
-    );
-  }
+  let state = await getMaintenanceState();
   const calendarStart =
     options.targetDate ?? state.dailyPublishedThrough ?? previousCalendarDate(shanghaiToday());
   const calendarEnd = options.targetDate
@@ -78,6 +73,9 @@ export async function runDailyMaintenance(
   assertDate(cutoff);
   if (options.targetDate && latestAvailableCutoff && options.targetDate > latestAvailableCutoff) {
     throw new Error(`${options.targetDate} has not completed in Asia/Shanghai`);
+  }
+  if (!options.targetDate && !state.dailyPublishedThrough) {
+    state = await initializePublishedBaseline(client, cutoff, trigger, onLog);
   }
 
   const dates = options.targetDate
@@ -255,6 +253,94 @@ export async function runDailyMaintenance(
     await finishMaintenanceRun(run.id, 'done', { summary });
     onLog(`Published ${summary.completedDates}/${summary.totalDates} dates through ${cutoff}`);
     return summary;
+  } catch (error) {
+    const failure = toError(error);
+    await finishMaintenanceRun(run.id, 'error', { summary, error: failure.message }).catch(
+      () => {},
+    );
+    throw failure;
+  } finally {
+    await stopHeartbeat();
+  }
+}
+
+async function initializePublishedBaseline(
+  client: TushareClient,
+  cutoff: string,
+  trigger: MaintenanceTrigger,
+  onLog: (line: string) => void,
+): Promise<Awaited<ReturnType<typeof getMaintenanceState>>> {
+  const latest = await prisma.daily.findFirst({
+    where: { tradeDate: { lte: cutoff } },
+    orderBy: { tradeDate: 'desc' },
+    select: { tradeDate: true },
+  });
+  if (!latest) {
+    throw new Error('Daily is empty; complete the full market-data import first');
+  }
+
+  const tradeDate = latest.tradeDate;
+  const run = await beginMaintenanceRun({
+    kind: 'daily',
+    targetKey: `baseline:${tradeDate}`,
+    startDate: tradeDate,
+    endDate: tradeDate,
+    trigger,
+    force: true,
+  });
+  const summary: DailyMaintenanceSummary = {
+    cutoff,
+    startDate: tradeDate,
+    readyThrough: null,
+    completedDates: 0,
+    totalDates: 0,
+    dataRevision: null,
+    selfHealing: null,
+    signals: null,
+  };
+  const stopHeartbeat = startMaintenanceHeartbeat(run.id);
+
+  try {
+    await updateMaintenanceRun(run.id, 'waiting_for_jobs', summary);
+    await waitForRunningWork(onLog);
+    const lookback = positiveInteger(process.env.MAINTENANCE_BASELINE_REPAIR_LOOKBACK_DAYS, 20);
+    const dates = await recentPublishedTradingDates(tradeDate, lookback);
+    await updateMaintenanceRun(run.id, 'self_healing', summary);
+    summary.selfHealing = await selfHealMarketDates(client, dates, {
+      maxRepairDates: lookback,
+      onLog,
+    });
+    if (summary.selfHealing.deferredDates.length > 0) {
+      throw new Error(
+        `Baseline self-heal deferred ${summary.selfHealing.deferredDates.length} dates`,
+      );
+    }
+
+    await updateMaintenanceRun(run.id, 'validating_raw', summary);
+    await validateRawMarketDate(tradeDate);
+    const marketIndicator = await prisma.marketIndicator.findUnique({
+      where: { tradeDate },
+      select: { tradeDate: true },
+    });
+    const validationStart = summary.selfHealing.earliestDerivedChange ?? tradeDate;
+    if (summary.selfHealing.earliestDerivedChange || !marketIndicator) {
+      await updateMaintenanceRun(run.id, 'market_state', summary);
+      await syncMarketIndicators(validationStart, tradeDate);
+    }
+    const expectedDates =
+      validationStart === tradeDate
+        ? [tradeDate]
+        : await tradingDatesBetween(validationStart, tradeDate);
+    await updateMaintenanceRun(run.id, 'validating_derived', summary);
+    await validateDerivedMarketRange(validationStart, tradeDate, expectedDates);
+
+    await initializeDailyWatermark(tradeDate);
+    const state = await getMaintenanceState();
+    summary.readyThrough = tradeDate;
+    summary.dataRevision = state.dataRevision;
+    await finishMaintenanceRun(run.id, 'done', { summary });
+    onLog(`Initialized validated daily publication baseline at ${tradeDate}`);
+    return state;
   } catch (error) {
     const failure = toError(error);
     await finishMaintenanceRun(run.id, 'error', { summary, error: failure.message }).catch(

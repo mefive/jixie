@@ -16,7 +16,7 @@ set -Eeuo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 DEFAULT_END="$(
-  node -e "const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const values=Object.fromEntries(parts.map((part)=>[part.type,part.value]));process.stdout.write(values.year+values.month+values.day)"
+  node -e "const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const values=Object.fromEntries(parts.map((part)=>[part.type,part.value]));const prior=new Date(Date.UTC(Number(values.year),Number(values.month)-1,Number(values.day)-1));process.stdout.write(prior.toISOString().slice(0,10).replaceAll('-',''))"
 )"
 
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
@@ -143,9 +143,6 @@ run_stage market-state "Precompute whole-market, index, and industry state" \
   pnpm --filter api sync:market-state "$START_DATE" "$END_DATE"
 run_stage audit "Run the read-only full data-quality audit" \
   pnpm audit:data "$START_DATE" "$END_DATE" --strict
-run_stage maintenance-watermark "Initialize the continuous production publication watermark" \
-  pnpm --filter api maintenance:init
-
 log "Full market-data import completed"
 printf '    Range: %s ~ %s\n' "$START_DATE" "$END_DATE"
 printf '    Resume markers: %s\n' "$STATE_DIR"

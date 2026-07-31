@@ -1,13 +1,16 @@
 # jixie 部署手记(VPS)
 
-jixie 在 Linux VPS(Ubuntu / CentOS)上的部署。配套产物:`scripts/bootstrap.sh`(一键从零,幂等)、`scripts/deploy.sh`(日常更新)、`deploy/jixie-api.service`、`deploy/nginx-jixie.conf`、`apps/api/.env.production.example`。
+jixie 在 Linux VPS（Ubuntu / CentOS）上的部署。唯一入口是幂等的 `scripts/bootstrap.sh`：新机器安装
+缺失资源，已有机器更新代码和 schema，空库自动执行可续传的全量行情导入。
 
 > **一键从零**:`ssh` 登录 VPS → `cd /opt/jixie && ./scripts/bootstrap.sh`(首次没代码时先把脚本 scp 上去单独跑,它会自己 clone)。配置全走 env var,密钥可注入:
 > ```bash
 > JIXIE_DOMAIN=jixie.你的域名 TUSHARE_TOKEN=xxx RESEND_API_KEY=re_xxx \
 > EMAIL_FROM=login@你的域名 DEEPSEEK_API_KEY=sk_xxx ./scripts/bootstrap.sh
 > ```
-> 脚本自动装齐依赖(node22 / pnpm / nginx / certbot / sqlite3;2026-07-07 起要求 **Node ≥22.13**——只读 SQL worker 用 node:sqlite;isolated-vm 硬沙箱是原生模块,需 C++ 工具链——重跑 bootstrap 一并装齐并升级)、clone/pull、建库 schema、构建、装 systemd+nginx、尝试 certbot、冒烟测试。**它不碰行情数据**——建的是空库,数据要另外回填(见 §4)。
+> 脚本自动装齐依赖（Node.js、pnpm、nginx、certbot、sqlite3 和原生编译工具链）、clone/pull、迁移、
+> 构建、空库行情导入、systemd、nginx、TLS、维护激活和冒烟测试。首次全量行情导入可能持续数小时；
+> 中断后重新执行同一条 bootstrap 命令会根据数据库标记和导入阶段标记继续。
 
 ## 1. 服务器规格建议(jixie 比一般 web 吃资源)
 
@@ -85,47 +88,28 @@ sudo nginx -t && sudo systemctl reload nginx
 > **坑 2**:prisma CLI 只读 `.env` 不读 `.env.production` → 用 `ln -sf .env.production .env`(bootstrap 已做),否则 `migrate deploy`/`sync` 找不到 `DATABASE_URL`。
 > **坑 3**:`NODE_ENV=production` 用 **secure(仅 HTTPS)cookie**。**站点必须走 HTTPS 否则登录不保持**——certbot 签证书,或前置 Cloudflare/其它 TLS。纯 HTTP 只能开发用。
 
-## 4. 行情数据回填(⭐ jixie 特有,bootstrap 不做)
+## 4. 行情数据初始化
 
-行情库 ~6GB、不可快速重建。两条路径,按你的取舍:
+bootstrap 检测到 `Daily` 为空时，会创建持久化的 `full-import.required` 标记并自动运行全量导入。导入
+按年和阶段记录断点；任何阶段失败都会让 bootstrap 非零退出，重新执行 bootstrap 会继续，而不会把
+部分数据发布为生产水位。
 
-### A. VPS 自己同步(默认;不搬大文件、prod 库干净)
-
-限频 400ms/次(~150 call/min),**首轮全量按年断点续传,后台跑**(数小时~1 天级,取决于 Tushare 积分档)。已有 `.env` 软链后，运行全量导入脚本：
+排障时可单独观察或重跑底层导入：
 
 ```bash
 cd /opt/jixie
-sudo systemctl stop jixie-api
-nohup pnpm import:data > /var/lib/jixie/full-import.log 2>&1 &
-tail -f /var/lib/jixie/full-import.log
-# 全部完成后
-sudo systemctl start jixie-api
+pnpm import:data
 ```
 
-默认导入 2015 年至今的 A 股日线/复权、每日估值、涨跌停、资金流、龙虎榜、财务与分红、申万行业、主要 ETF、指数、股指期货。最终阶段会先自动检查并修复最近 20 个已完成交易日的确定性密集切片缺口，再预计算市场状态、执行严格数据审计并初始化连续发布水位；任一步失败都不会启用残缺基线。股票名称历史和指数基准会按各自更早的数据起点导入。脚本把完成阶段记录在 `.jixie-import/<start>-<end>`，失败或 SSH 断线后重新执行同一命令即可续传。显式日期范围用 `pnpm import:data 20150101 20260729`；需要忽略完成标记时设置 `JIXIE_IMPORT_IGNORE_STATE=1`。
+默认导入 2015 年至今的 A 股日线/复权、每日估值、涨跌停、资金流、龙虎榜、财务与分红、申万行业、
+主要 ETF、指数和股指期货。最终阶段先修复基线，再预计算市场状态并执行严格数据审计。随后 bootstrap
+启动 daily coordinator，由 daily 在同一维护状态机内验证基线、建立连续发布水位并完成 catch-up。
 
 > **研究史(用户、策略、因子、回测记录)不会生成或迁移**——Tushare 只提供市场数据，prod 从空库开始积累自己的研究。
 
-### B. 从本机传库(最快;带研究史)
-
-想立刻能用、且要把本机的研究史一起带上:
-
-```bash
-# 本机:先做一份一致的 checkpoint 副本(别直接 cp WAL 库)
-pnpm --filter api backup                       # 生成 ~/jixie-backups/dev-*.db
-
-# 传到 VPS(停服 → 替换 → 起服)
-ssh vps 'sudo systemctl stop jixie-api'
-rsync -avP ~/jixie-backups/dev-YYYYMMDD-HHMMSS.db vps:/var/lib/jixie/prod.db
-ssh vps 'sudo systemctl start jixie-api'
-```
-
-> ~6GB(gzip 后约 3-4GB)一次传输。之后 VPS 仍需每日增量同步保鲜(§5)。
-
 ### 之后：systemd 每日维护
 
-全量导入脚本会在基线自愈和严格审计通过后初始化 `dailyPublishedThrough`。`bootstrap.sh` 和
-`deploy.sh api|all` 会安装三个 timer：
+`bootstrap.sh` 会安装三个 timer，并在 daily 成功建立或确认发布水位后启用：
 
 ```bash
 systemctl list-timers 'jixie-*'
@@ -140,23 +124,9 @@ coordinator 从连续水位补齐所有缺失交易日，并在每次运行中�
 完整顺序、锁、维护 Gate 和手动修复见
 [`production-maintenance.md`](./design/production-maintenance.md)。
 
-首次把 maintenance migration 部署到已有行情库时，直接执行完整部署：
-
-```bash
-./scripts/deploy.sh all
-```
-
-deploy 会在 API 重启后自动调用激活脚本，完成锁、基线初始化和 timer 启用。只有明确希望本次部署后暂不
-启动 daily/weekly 时，才设置 `JIXIE_ENABLE_MAINTENANCE_TIMERS=0`。
-
-全新机器运行 `bootstrap.sh` 时，如果数据库还是空的，脚本只启用 backup timer；完成
-`pnpm import:data` 后运行一次 `./scripts/activate-maintenance.sh`。激活脚本内部的
-`maintenance:init` 会先自愈并验证最近基线，再初始化 `dailyPublishedThrough`。之后的常规发布直接
-运行 `./scripts/deploy.sh all`；已有水位不会被重置。
-
 ## 5. 数据库备份
 
-备份 timer 也由 `bootstrap.sh` / `deploy.sh api|all` 安装，默认每天 03:00 用 SQLite 在线
+备份 timer 由 `bootstrap.sh` 安装，默认每天 03:00 用 SQLite 在线
 `.backup` 生成一致快照，校验成功后只保留最新 2 份：
 
 ```bash
@@ -177,20 +147,12 @@ ls -lh /var/backups/jixie
 ```bash
 ssh vps
 cd /opt/jixie
-./scripts/deploy.sh          # 默认 all，保持原有完整部署行为
-./scripts/deploy.sh docs     # 只构建 shared + docs，不迁移、不 reload Nginx、不重启 API
-./scripts/deploy.sh web      # 只构建 shared + web
-./scripts/deploy.sh api      # 只构建 shared + API、执行迁移并重启 API
+./scripts/bootstrap.sh
 ```
 
-每次只能指定一个目标：`all`、`api`、`web` 或 `docs`。所有目标都会先检查部署目录、Git
-分支/upstream、tracked worktree 是否干净、Node 版本和必需命令，再执行
-`git pull --ff-only` 与 `pnpm install --frozen-lockfile`。这是有意保留的前置步骤：即使只改
-docs，也可能同时改了 lockfile 或 `@jixie/shared`。
-
-脚本用文件锁阻止并发部署；`web` / `docs` 会先在临时目录完成 typecheck 和构建，确认有
-`index.html` 并把静态目录调整为 Nginx 可读后，再替换线上目录。重复执行同一命令是安全的；
-若静态产物切换被中断，下次执行会先恢复或清理上一次的切换状态。
+脚本检查已有资源并跳过不需要的安装，拉取最新代码、迁移、构建、更新 systemd/nginx、确认行情水位
+和 timer，再执行健康检查。若 bootstrap 自身在 pull 中被更新，它会自动重新执行新版本脚本，用户无需
+再次运行。
 
 ## 7. 排障
 
