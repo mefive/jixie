@@ -183,6 +183,9 @@ log "Build @jixie/shared"
 NODE_OPTIONS="$NODE_HEAP_OPTIONS" pnpm --filter @jixie/shared build
 
 if [[ "$TARGET" == "api" || "$TARGET" == "all" ]]; then
+  log "prisma generate"
+  pnpm --filter api exec prisma generate
+
   log "Build API"
   NODE_OPTIONS="$NODE_HEAP_OPTIONS" pnpm --filter api build
 
