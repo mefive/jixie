@@ -1,4 +1,12 @@
-import type { BarContext, BarRow, Strategy, StrategyAccounts } from '../../engine/types.js';
+import type {
+  BarContext,
+  BarRow,
+  OhlcBar,
+  ResamplePeriod,
+  Strategy,
+  StrategyAccounts,
+} from '../../engine/types.js';
+import { isoWeekKey } from '../../lib/date.js';
 
 /**
  * The strategy SDK — what user code is written against. Full code-first: a strategy is just
@@ -27,6 +35,12 @@ export interface StrategyCtx<Params extends StrategyParams = StrategyParams> ext
   universe(indexCode?: string): Promise<Universe>;
   /** Equal-weight the given codes (a target-book rebalance at next open). */
   equalWeight(codes: string[]): void;
+  /** Completed ISO-week bars and indicators for a loaded instrument. The current partial week is
+   * excluded; on its final market trading day it becomes visible after that day's close. */
+  weekly(code: string): TimeframeSeries;
+  /** Completed natural-month bars and indicators for a loaded instrument. The current partial month
+   * is excluded; on its final market trading day it becomes visible after that day's close. */
+  monthly(code: string): TimeframeSeries;
 
   // —— Built-in technical indicators (each requires the stock's K-line already loaded: watch preload or ensureBars; return null when data is insufficient) ——
   /** n-day simple moving average (SMA) = arithmetic mean of the last n closes. The basis of trend/MA strategies. */
@@ -43,6 +57,64 @@ export interface StrategyCtx<Params extends StrategyParams = StrategyParams> ext
   avgAmount(code: string, n: number): number | null;
   /** n-day average volume (lots) — likewise measures activity / liquidity. */
   avgVol(code: string, n: number): number | null;
+}
+
+/** A completed higher-timeframe OHLC series. All windows are oldest → newest and require the
+ * instrument's daily bars to be preloaded through watch or ensureBars(). */
+export interface TimeframeSeries {
+  bars(n: number): OhlcBar[];
+  history(field: 'open' | 'high' | 'low' | 'close', n: number): number[];
+  sma(n: number): number | null;
+  ema(n: number): number | null;
+  atr(n: number): number | null;
+  highest(field: 'open' | 'high' | 'low' | 'close', n: number): number | null;
+  lowest(field: 'open' | 'high' | 'low' | 'close', n: number): number | null;
+  avgAmount(n: number): number | null;
+  avgVol(n: number): number | null;
+}
+
+class ResampledSeries implements TimeframeSeries {
+  constructor(
+    private readonly ctx: BarContext,
+    private readonly code: string,
+    private readonly period: ResamplePeriod,
+  ) {}
+
+  bars(n: number): OhlcBar[] {
+    return this.ctx.resampledBars(this.code, this.period, n);
+  }
+
+  history(field: 'open' | 'high' | 'low' | 'close', n: number): number[] {
+    return this.bars(n).map((bar) => ohlcField(bar, field));
+  }
+
+  sma(n: number): number | null {
+    return smaValues(this.history('close', n), n);
+  }
+
+  ema(n: number): number | null {
+    return emaValues(this.history('close', n * 4), n);
+  }
+
+  atr(n: number): number | null {
+    return atrBars(this.bars(n + 1), n);
+  }
+
+  highest(field: 'open' | 'high' | 'low' | 'close', n: number): number | null {
+    return extremeValues(this.history(field, n), n, Math.max);
+  }
+
+  lowest(field: 'open' | 'high' | 'low' | 'close', n: number): number | null {
+    return extremeValues(this.history(field, n), n, Math.min);
+  }
+
+  avgAmount(n: number): number | null {
+    return avgField(this.bars(n), n, (bar) => bar.amount);
+  }
+
+  avgVol(n: number): number | null {
+    return avgField(this.bars(n), n, (bar) => bar.vol);
+  }
 }
 
 export interface CodeStrategy<Params extends StrategyParams = StrategyParams> {
@@ -190,47 +262,22 @@ export function enrich<Params extends StrategyParams = StrategyParams>(
     }
     ctx.setHoldings(targets);
   };
+  enriched.weekly = (code) => new ResampledSeries(ctx, code, 'weekly');
+  enriched.monthly = (code) => new ResampledSeries(ctx, code, 'monthly');
   enriched.sma = (code, n) => {
-    const closes = ctx.history(code, 'close', n);
-    return closes.length < n ? null : closes.reduce((sum, close) => sum + close, 0) / n;
+    return smaValues(ctx.history(code, 'close', n), n);
   };
   enriched.ema = (code, n) => {
-    const closes = ctx.history(code, 'close', n * 4); // pull several times the window to warm up the EMA
-    if (closes.length < n) {
-      return null;
-    }
-    const alpha = 2 / (n + 1); // smoothing factor: larger = more weight on the recent end (recent weight = alpha)
-    let ema = closes[0];
-    for (const close of closes.slice(1)) {
-      ema = close * alpha + ema * (1 - alpha);
-    }
-    return ema;
+    return emaValues(ctx.history(code, 'close', n * 4), n);
   };
   enriched.highest = (code, field, n) => {
-    const series = ctx.history(code, field, n);
-    return series.length < n ? null : Math.max(...series);
+    return extremeValues(ctx.history(code, field, n), n, Math.max);
   };
   enriched.lowest = (code, field, n) => {
-    const series = ctx.history(code, field, n);
-    return series.length < n ? null : Math.min(...series);
+    return extremeValues(ctx.history(code, field, n), n, Math.min);
   };
   enriched.atr = (code, n) => {
-    const bars = ctx.bars(code, n + 1);
-    if (bars.length < n + 1) {
-      return null;
-    }
-    // True Range = max(high−low, |high−prevClose|, |low−prevClose|); ATR = mean of the last n TRs
-    let trueRangeSum = 0;
-    for (let barIndex = bars.length - n; barIndex < bars.length; barIndex++) {
-      const bar = bars[barIndex];
-      const prevClose = bars[barIndex - 1].adjClose;
-      trueRangeSum += Math.max(
-        bar.adjHigh - bar.adjLow,
-        Math.abs(bar.adjHigh - prevClose),
-        Math.abs(bar.adjLow - prevClose),
-      );
-    }
-    return trueRangeSum / n;
+    return atrBars(ctx.bars(code, n + 1), n);
   };
   enriched.avgAmount = (code, n) => avgField(ctx.bars(code, n), n, (bar) => bar.amount);
   enriched.avgVol = (code, n) => avgField(ctx.bars(code, n), n, (bar) => bar.vol);
@@ -279,16 +326,66 @@ function avgField(
   return values.length < n ? null : values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
+function smaValues(values: number[], n: number): number | null {
+  return n > 0 && values.length >= n
+    ? values.slice(-n).reduce((sum, value) => sum + value, 0) / n
+    : null;
+}
+
+function emaValues(values: number[], n: number): number | null {
+  if (n <= 0 || values.length < n) {
+    return null;
+  }
+  const alpha = 2 / (n + 1);
+  let ema = values[0];
+  for (const value of values.slice(1)) {
+    ema = value * alpha + ema * (1 - alpha);
+  }
+  return ema;
+}
+
+function extremeValues(
+  values: number[],
+  n: number,
+  pick: (...values: number[]) => number,
+): number | null {
+  return n > 0 && values.length >= n ? pick(...values.slice(-n)) : null;
+}
+
+function atrBars(bars: OhlcBar[], n: number): number | null {
+  if (n <= 0 || bars.length < n + 1) {
+    return null;
+  }
+  let trueRangeSum = 0;
+  for (let barIndex = bars.length - n; barIndex < bars.length; barIndex++) {
+    const bar = bars[barIndex];
+    const prevClose = bars[barIndex - 1].adjClose;
+    trueRangeSum += Math.max(
+      bar.adjHigh - bar.adjLow,
+      Math.abs(bar.adjHigh - prevClose),
+      Math.abs(bar.adjLow - prevClose),
+    );
+  }
+  return trueRangeSum / n;
+}
+
+function ohlcField(bar: OhlcBar, field: 'open' | 'high' | 'low' | 'close'): number {
+  return field === 'open'
+    ? bar.adjOpen
+    : field === 'high'
+      ? bar.adjHigh
+      : field === 'low'
+        ? bar.adjLow
+        : bar.adjClose;
+}
+
 /** Period bucket for a schedule — a new key means a new period (rebalance boundary). */
 export function periodKey(date: string, schedule: Schedule): string {
   if (schedule === 'monthly') {
     return date.slice(0, 6);
   } // YYYYMM
   if (schedule === 'weekly') {
-    // convert the date to days-since-epoch (epochDay), integer-divide by 7 for a week index — continuous across month/year boundaries
-    const epochDay =
-      Date.UTC(+date.slice(0, 4), +date.slice(4, 6) - 1, +date.slice(6, 8)) / 86_400_000;
-    return String(Math.floor(epochDay / 7));
+    return isoWeekKey(date);
   }
   return date; // daily: each trading day is its own key
 }

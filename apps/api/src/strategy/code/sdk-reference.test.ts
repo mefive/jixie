@@ -1,6 +1,6 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
-import { CTX_PROP_NAMES, SDK_ENTRIES, type SdkEntryName } from '@jixie/shared';
-import type { StrategyCtx, Universe } from './sdk.js';
+import { CTX_PROP_NAMES, SDK_ENTRIES, TIMEFRAME_METHODS, type SdkEntryName } from '@jixie/shared';
+import type { StrategyCtx, TimeframeSeries, Universe } from './sdk.js';
 import type { BarRow } from '../../engine/types.js';
 
 /**
@@ -14,7 +14,7 @@ import type { BarRow } from '../../engine/types.js';
 
 // Members deliberately NOT in the registry: the readonly props are emitted separately (CTX_PROP_NAMES),
 // and loadCrossSection is the engine primitive behind universe() — the dts hides it from user code.
-type CtxUndocumented = (typeof CTX_PROP_NAMES)[number] | 'loadCrossSection';
+type CtxUndocumented = (typeof CTX_PROP_NAMES)[number] | 'loadCrossSection' | 'resampledBars';
 
 // Universe.length is emitted as a hardcoded readonly prop in the dts, not a registry entry.
 type UniverseUndocumented = 'length';
@@ -37,6 +37,12 @@ describe('sdk-reference registry ↔ runtime SDK types stay in sync', () => {
   it('BarRow: registry fields and runtime fields match exactly', () => {
     expectTypeOf<SdkEntryName<'BarRow'>>().toExtend<keyof BarRow>();
     expectTypeOf<Exclude<keyof BarRow, SdkEntryName<'BarRow'>>>().toEqualTypeOf<never>();
+  });
+
+  it('TimeframeSeries: static reference methods and runtime methods match exactly', () => {
+    type ReferencedMethod = (typeof TIMEFRAME_METHODS)[number]['name'];
+    expectTypeOf<ReferencedMethod>().toExtend<keyof TimeframeSeries>();
+    expectTypeOf<Exclude<keyof TimeframeSeries, ReferencedMethod>>().toEqualTypeOf<never>();
   });
 
   it('entry names are unique within each interface (they are doc anchors)', () => {

@@ -89,6 +89,9 @@ export interface OhlcBar {
   turnoverRateF: number | null; // free-float turnover rate %, from daily_basic when requested
 }
 
+/** Higher-timeframe buckets derived from daily bars. */
+export type ResamplePeriod = 'weekly' | 'monthly';
+
 /**
  * One stock's full market row on a given day: backward-adjusted (hfq) OHLC for return math, the raw
  * unadjusted OHLC for reference, and the raw daily_basic valuation (point-in-time). This is the unit
@@ -163,6 +166,9 @@ export interface BarContext {
   /** Last n adjusted OHLC bars up to today for watched/held codes (per-instrument window math:
    * Donchian channels, ATR, etc.). Empty if the code's series isn't loaded. */
   bars(code: string, n: number): OhlcBar[];
+  /** Internal primitive behind the SDK's weekly()/monthly() handles. Only periods known to have
+   * fully closed by today are returned, so the current partial week/month never leaks. */
+  resampledBars(code: string, period: ResamplePeriod, n: number): OhlcBar[];
   /** Lazily load the bar series for `codes` so bars()/history() work on them this bar. Needed when the
    * set is dynamic (a pipeline's selected names aren't known up front like a static `watch`). */
   ensureBars(codes: string[]): Promise<void>;

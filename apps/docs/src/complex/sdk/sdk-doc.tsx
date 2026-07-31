@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import classNames from 'classnames';
 import { localeStore } from '@src/i18n/locale-store';
 import { PublicDocsHeader } from '@src/components/public-docs-header';
-import { OHLC_FIELDS, LINKABLE_TYPES, type SdkEntry } from '@jixie/shared';
+import { OHLC_FIELDS, LINKABLE_TYPES, TIMEFRAME_METHODS, type SdkEntry } from '@jixie/shared';
 import { complex } from './complex';
 import './sdk-doc.css';
 
@@ -23,6 +23,7 @@ export const Sdk = complex.component(() => {
     'overview',
     'StrategyCtx',
     ...store.entries.map((entry) => entry.name),
+    'TimeframeSeries',
     'OhlcBar',
   ]);
 
@@ -56,6 +57,14 @@ export const Sdk = complex.component(() => {
               ))}
             </div>
           ))}
+          <div className="jx-docs-navGroup">
+            <div className="jx-docs-navGroupTitle">
+              {t('业务类型 TimeframeSeries', 'Type TimeframeSeries')}
+            </div>
+            <a className={navCls('TimeframeSeries', active)} href="#TimeframeSeries">
+              TimeframeSeries
+            </a>
+          </div>
           <div className="jx-docs-navGroup">
             <div className="jx-docs-navGroupTitle">{t('业务类型 OhlcBar', 'Type OhlcBar')}</div>
             <a className={navCls('OhlcBar', active)} href="#OhlcBar">
@@ -123,6 +132,25 @@ export const Sdk = complex.component(() => {
               ))}
             </section>
           ))}
+
+          <section className="jx-docs-section" id="TimeframeSeries">
+            <h2 className="jx-docs-h2">{t('业务类型 TimeframeSeries', 'Type TimeframeSeries')}</h2>
+            <p className="jx-docs-p">
+              {t(
+                'ctx.weekly(code) / ctx.monthly(code) 返回的已完成周期序列。窗口从旧到新，指标数据不足时返回 null。',
+                'The completed-period series returned by ctx.weekly(code) / ctx.monthly(code). Windows are oldest-to-newest; indicators return null when data is insufficient.',
+              )}
+            </p>
+            {TIMEFRAME_METHODS.map((method) => (
+              <article className="jx-docs-symbol" key={method.name}>
+                <div className="jx-docs-symKind">{t('实例方法', 'Instance Method')}</div>
+                <h3 className="jx-docs-symName">{method.name}</h3>
+                <p className="jx-docs-symAbstract">{t(method.zh, method.en)}</p>
+                <div className="jx-docs-declLabel">{t('声明', 'Declaration')}</div>
+                <Declaration prefix="" sig={method.sig} />
+              </article>
+            ))}
+          </section>
 
           <section className="jx-docs-section" id="OhlcBar">
             <h2 className="jx-docs-h2">

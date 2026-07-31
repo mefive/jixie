@@ -236,6 +236,39 @@ describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
     ]);
   });
 
+  it('完成周线聚合与指标在双车道一致', { timeout: 60_000 }, async () => {
+    const code = `
+      export default defineStrategy({
+        name: 'weekly-resample-drift',
+        watch: ['AAA'],
+        onBar(ctx) {
+          if (ctx.date !== '20240105') return;
+          const weekly = ctx.weekly('AAA');
+          if (weekly.sma(1) != null && weekly.highest('high', 1) != null) {
+            ctx.orderLots('AAA', 1);
+          }
+        },
+      });
+    `;
+    const direct = await runStrategy({
+      start: D[0],
+      end: D.at(-1)!,
+      initialCash: 100_000,
+      strategy: await compileStrategy(code),
+      dataPort: fixturePort(SPEC),
+    });
+    const walled = await runWalledBacktest(
+      { code, start: D[0], end: D.at(-1)!, initialCash: 100_000 },
+      fixturePort(SPEC),
+    );
+
+    expect(walled.tradeLog).toEqual(direct.tradeLog);
+    expect(walled.nav).toEqual(direct.nav);
+    expect(direct.tradeLog).toEqual([
+      expect.objectContaining({ date: '20240108', code: 'AAA', side: 'buy', realShares: 100 }),
+    ]);
+  });
+
   it('期货逐日盯市与成交在直跑和进墙车道一致', { timeout: 60_000 }, async () => {
     const code = `
       export default defineStrategy({

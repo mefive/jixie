@@ -502,6 +502,9 @@ function buildContext(
     bars(code, n) {
       return engineData.bars(code, date, n);
     },
+    resampledBars(code, period, n) {
+      return engineData.resampledBars(code, date, period, n);
+    },
     ensureBars(codes) {
       return engineData.loadBars(codes);
     },
@@ -726,6 +729,9 @@ function buildMultiAssetContext(
     },
     bars(code, n) {
       return engineData.bars(code, date, n);
+    },
+    resampledBars(code, period, n) {
+      return engineData.resampledBars(code, date, period, n);
     },
     ensureBars(codes) {
       return engineData.loadBars(codes);

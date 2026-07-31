@@ -102,12 +102,49 @@ describe('enrich', () => {
     expect(enrich(ctx).period('monthly')).toBe('202401');
     expect(enrich(ctx).period('daily')).toBe('20240131');
   });
+
+  it('weekly()/monthly() expose completed-period bars through the shared indicator surface', () => {
+    const { ctx } = ctxOf({});
+    const weeklyBars = [
+      {
+        date: '20240105',
+        adjOpen: 9,
+        adjHigh: 12,
+        adjLow: 8,
+        adjClose: 10,
+        vol: 100,
+        amount: 1000,
+        turnoverRateF: null,
+      },
+      {
+        date: '20240112',
+        adjOpen: 10,
+        adjHigh: 14,
+        adjLow: 9,
+        adjClose: 12,
+        vol: 200,
+        amount: 3000,
+        turnoverRateF: null,
+      },
+    ];
+    ctx.resampledBars = (_code, period, n) => (period === 'weekly' ? weeklyBars.slice(-n) : []);
+
+    const weekly = enrich(ctx).weekly('A');
+    expect(weekly.bars(1)).toEqual([weeklyBars[1]]);
+    expect(weekly.history('close', 2)).toEqual([10, 12]);
+    expect(weekly.sma(2)).toBe(11);
+    expect(weekly.highest('high', 2)).toBe(14);
+    expect(weekly.avgAmount(2)).toBe(2000);
+    expect(enrich(ctx).monthly('A').bars(2)).toEqual([]);
+  });
 });
 
 describe('periodKey', () => {
-  it('monthly = YYYYMM, daily = full date, weekly buckets by 7-day epoch', () => {
+  it('monthly = YYYYMM, daily = full date, weekly = ISO Monday key', () => {
     expect(periodKey('20240131', 'monthly')).toBe('202401');
     expect(periodKey('20240131', 'daily')).toBe('20240131');
-    expect(periodKey('20240101', 'weekly')).toBe(periodKey('20240103', 'weekly')); // same week
+    expect(periodKey('20240101', 'weekly')).toBe('20240101');
+    expect(periodKey('20240103', 'weekly')).toBe('20240101');
+    expect(periodKey('20231231', 'weekly')).toBe('20231225');
   });
 });

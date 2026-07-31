@@ -63,11 +63,14 @@
 - fixture 验证日内止损早于旧的收盘判断 / 次开退出;唐奇安 + ATR 示例已进入代码生成提示。direct 与
   isolated-vm 对成交和末日存续条件意图逐项一致。详见 `docs/design/conditional-orders.md`。
 
-### 2.2 多周期 resample(日→周/月)⬜
+### 2.2 多周期 resample(日→周/月)✅(2026-07-31)
 
-- **现状**:只有日频。周线趋势滤网 + 日线进场要手拼周 bar。
-- **设计要点**:SDK 加 `ctx.weekly(code)` / `ctx.monthly(code)`(从已加载日 bar 现场聚合,ISO 周/自然月,**只含已收盘的完整周期**——当周未结束不给,防未来函数);返回与 `ctx.bars` 同形的 OHLC 窗口,现有指标(sma/ema/atr/highest…)直接可用。
-- 实现是纯函数聚合 + per-run 缓存,引擎主循环零改动。
+- SDK 已新增 `ctx.weekly(code)` / `ctx.monthly(code)`:从已加载日 bar 按 ISO 周/自然月现场聚合,
+  提供 `bars/history/sma/ema/atr/highest/lowest/avgAmount/avgVol` 同一组窗口与指标接口。
+- 只暴露截至当前交易日**已经收盘的完整周期**。用仅含交易日的前视日历判断周/月边界,不读取未来价格;
+  周五、月末或节假日前的最后交易日可立即看到刚完成周期,周中/月底前不会提前看到部分 K 线。
+- 聚合与缓存都在单次 `EngineData` 运行内,主循环不增加另一套时钟。详见
+  `docs/design/multi-timeframe.md`。
 
 ### 2.3 指标库扩充 ⬜(需求驱动,不求全)
 
