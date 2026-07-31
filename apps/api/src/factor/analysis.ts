@@ -16,6 +16,7 @@ import { sameMonth, sameWeek, minusDays } from '../lib/date.js';
 import { t } from '../i18n/messages.js';
 import { StockNameLookup } from '../market/stock-identity.js';
 import * as st from '../lib/stats.js';
+import { combineFactorSeries, type FactorAnalysisRuntimeSource } from './composite.js';
 
 // Wire shapes live in @jixie/shared (the /factors page renders them); re-export for local imports.
 export type { BucketStat, FactorReport } from '@jixie/shared';
@@ -51,6 +52,17 @@ export interface FactorSeriesAudit {
 export interface FactorSeriesResult {
   series: Series;
   audit: FactorSeriesAudit;
+}
+
+function mergeFactorSeriesAudits(audits: FactorSeriesAudit[]): FactorSeriesAudit {
+  return {
+    declaredWindowDays:
+      Math.max(0, ...audits.map((audit) => audit.declaredWindowDays ?? 0)) || undefined,
+    minimumCoverage: Math.min(...audits.map((audit) => audit.minimumCoverage)),
+    coverageSum: audits.reduce((sum, audit) => sum + audit.coverageSum, 0),
+    observations: audits.reduce((sum, audit) => sum + audit.observations, 0),
+    droppedForCoverage: audits.reduce((sum, audit) => sum + audit.droppedForCoverage, 0),
+  };
 }
 
 // Rebalance days within [start,end]: the last open day of each month (or ISO week).
@@ -644,7 +656,7 @@ export async function analyzeFactor(
   onLog: (msg: string) => void = () => {},
   onUserLog?: UserLogSink,
   locale: Locale = DEFAULT_LOCALE,
-  source?: { code: string; label: string },
+  source?: FactorAnalysisRuntimeSource,
 ): Promise<FactorReport> {
   const { freq, start, end, neutral } = spec;
   const policy = analysisPolicy(spec);
@@ -654,19 +666,45 @@ export async function analyzeFactor(
   onLog(t(locale, 'factorRebalanceDates', { count: rebalanceDates.length, freq: freqLabel }));
   const snaps = await loadSnapshots(rebalanceDates, true); // rebalance snaps carry total market cap for cap-weighting
   onLog(t(locale, 'factorComputingValues', { factor: factorKey }));
-  const computed = await computeFactorSeries(
-    factorKey,
-    rebalanceDates,
-    snaps,
-    onLog,
-    onUserLog,
-    locale,
-    source?.code,
-    policy.minimumWindowCoverage,
-  );
+  let computed: FactorSeriesResult;
+  if (source?.kind === 'composite') {
+    const results: Array<{ factor: string; result: FactorSeriesResult }> = [];
+    for (const component of source.components) {
+      onLog(t(locale, 'factorComputingValues', { factor: component.label }));
+      const result = await computeFactorSeries(
+        component.factor,
+        rebalanceDates,
+        snaps,
+        onLog,
+        onUserLog,
+        locale,
+        component.code,
+        policy.minimumWindowCoverage,
+      );
+      transformSeriesOutliers(result.series, policy.factorExposure);
+      results.push({ factor: component.factor, result });
+    }
+    computed = {
+      series: combineFactorSeries(
+        results.map(({ factor, result }) => ({ factor, series: result.series })),
+        source.definition,
+      ),
+      audit: mergeFactorSeriesAudits(results.map(({ result }) => result.audit)),
+    };
+  } else {
+    computed = await computeFactorSeries(
+      factorKey,
+      rebalanceDates,
+      snaps,
+      onLog,
+      onUserLog,
+      locale,
+      source?.code,
+      policy.minimumWindowCoverage,
+    );
+    transformSeriesOutliers(computed.series, policy.factorExposure);
+  }
   const byDate = computed.series;
-
-  transformSeriesOutliers(byDate, policy.factorExposure);
 
   // Cross-sectional neutralization (3.4): replace raw values with residuals before IC / bucketing.
   if (neutral !== 'none') {

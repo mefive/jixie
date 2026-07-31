@@ -26,7 +26,7 @@ export interface QuantileHorizon {
 
 /** How a factor's values are sourced — drives the compute path (and shown as a tag in the UI).
  * 'custom' = user-authored (defineFactor); its compute runs cross-sectionally over a FactorBar. */
-export type FactorKind = 'price' | 'fundamental' | 'moneyflow' | 'custom';
+export type FactorKind = 'price' | 'fundamental' | 'moneyflow' | 'custom' | 'composite';
 
 /** Cross-sectional single-stock data a factor's `compute` receives — same-day (point-in-time)
  * valuation / size / liquidity (from daily_basic) + same-day moneyflow (from moneyflow, flow
@@ -62,6 +62,7 @@ export interface FactorMeta {
   keyCandidate?: string; // editable LLM proposal while strategyKey is absent
   kind: FactorKind;
   builtin?: boolean; // true = preset (a read-only code row in the library, can be copied into a custom factor)
+  composite?: FactorCompositeDefinitionV1;
 }
 
 /** One decile bucket's forward-return stats (bucket 0 = lowest factor value … 9 = highest). */
@@ -202,6 +203,14 @@ export interface FactorCompositeDefinitionV1 {
     factor: string;
     direction: FactorCompositeDirection;
   }>;
+}
+
+export interface FactorCompositeResource {
+  id: string;
+  name: string;
+  definition: FactorCompositeDefinitionV1;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface FactorAnalysisSpecV4 extends Omit<FactorAnalysisSpecV3, 'version'> {

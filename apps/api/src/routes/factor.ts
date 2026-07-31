@@ -27,6 +27,7 @@ import { localeFromRequest, m } from '../i18n/index.js';
 import { refreshFactorMetadata } from '../factor/metadata.js';
 import {
   factorAnalysisSpecSchema,
+  factorCompositeDefinitionV1Schema,
   factorResearchIntentV1Schema,
   factorVariantKey,
   normalizeFactorAnalysisSpec,
@@ -37,7 +38,12 @@ import {
   parseResearchIntent,
   researchCounts,
 } from '../factor/research.js';
-import { launchFactorWorker, startFactorAnalysis } from '../factor/analysis-job.js';
+import {
+  launchFactorWorker,
+  parseFactorAnalysisSourceSnapshot,
+  startFactorAnalysis,
+  type FactorAnalysisSource,
+} from '../factor/analysis-job.js';
 
 /**
  * Factor workbench actions (singular, mounted at /api/app/factor — product line 1.5 · factor research).
@@ -277,10 +283,18 @@ const runAnalysisBody = z.object({
 factorRoute.post('/analysis/run', validateJson(runAnalysisBody), async (c) => {
   const userId = c.var.userId;
   const { factor, parentReportId, researchIntent } = c.req.valid('json');
-  const spec = normalizeFactorAnalysisSpec(c.req.valid('json').spec);
+  let spec = normalizeFactorAnalysisSpec(c.req.valid('json').spec);
   const source = await resolveFactorSource(userId, factor);
   if (!source) {
     return apiError(c, 'NOT_FOUND', m(c, 'unknownFactor', { factor }));
+  }
+  if (source.kind === 'composite') {
+    if (spec.version !== 4) {
+      return apiError(c, 'VALIDATION_FAILED', m(c, 'windowNotComputed'));
+    }
+    spec = { ...spec, composite: source.definition };
+  } else if (spec.version === 4) {
+    return apiError(c, 'VALIDATION_FAILED', m(c, 'windowNotComputed'));
   }
   if (spec.start >= spec.end) {
     return apiError(c, 'VALIDATION_FAILED', m(c, 'startAfterEnd'));
@@ -388,12 +402,16 @@ factorRoute.post('/reports/:reportId/holdout', async (c) => {
   });
   const response: RunFactorAnalysisResponse = { ...created, status: 'running' };
   if (!created.reusedRunning) {
+    const source = parseFactorAnalysisSourceSnapshot(
+      factorCodeSnapshot,
+      parseReportPayload(parent.payload)?.label ?? parent.factor,
+      spec.version === 4,
+    );
     await launchFactorWorker({
       reportId,
       jobId,
       factor: parent.factor,
-      factorCodeSnapshot,
-      factorLabel: parent.factor,
+      source,
       spec,
       locale: localeFromRequest(c),
       failedMessage: m(c, 'factorAnalysisFailed'),
@@ -560,17 +578,46 @@ function parseReportPayload(payload: string | null): FactorAnalysisPayload | und
 async function resolveFactorSource(
   userId: string,
   factorId: string,
-): Promise<{ code: string; label: string } | null> {
+): Promise<FactorAnalysisSource | null> {
   const builtin = BUILTIN_FACTORS.find((factor) => factor.key === factorId);
   if (builtin) {
-    return { code: builtin.code, label: builtin.label };
+    return { kind: 'single', code: builtin.code, label: builtin.label };
   }
   const custom = await prisma.factor.findFirst({
     where: { id: factorId, userId },
     select: { code: true, name: true },
   });
 
-  return custom ? { code: custom.code, label: custom.name } : null;
+  if (custom) {
+    return { kind: 'single', code: custom.code, label: custom.name };
+  }
+  const composite = await prisma.factorComposite.findFirst({
+    where: { id: factorId, userId },
+    select: { name: true, definition: true },
+  });
+  if (!composite) {
+    return null;
+  }
+  const definition = factorCompositeDefinitionV1Schema.parse(composite.definition);
+  const components: Extract<FactorAnalysisSource, { kind: 'composite' }>['components'] = [];
+  for (const component of definition.components) {
+    const source = await resolveFactorSource(userId, component.factor);
+    if (!source || source.kind !== 'single') {
+      return null;
+    }
+    components.push({
+      factor: component.factor,
+      code: source.code,
+      label: source.label,
+      direction: component.direction,
+    });
+  }
+  return {
+    kind: 'composite',
+    label: composite.name,
+    definition,
+    components,
+  };
 }
 
 // —— Correlation matrix (3.4): 2–8 factors × a fixed size column, cross-sectional Spearman ——
