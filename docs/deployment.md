@@ -140,13 +140,14 @@ coordinator 从连续水位补齐所有缺失交易日，并在每次运行中�
 完整顺序、锁、维护 Gate 和手动修复见
 [`production-maintenance.md`](./design/production-maintenance.md)。
 
-首次把 maintenance migration 部署到已有行情库时，先不要启动 daily/weekly timer，然后用激活脚本
-完成锁、基线初始化、API 重启和 timer 启用：
+首次把 maintenance migration 部署到已有行情库时，直接执行完整部署：
 
 ```bash
-JIXIE_ENABLE_MAINTENANCE_TIMERS=0 ./scripts/deploy.sh all
-./scripts/activate-maintenance.sh
+./scripts/deploy.sh all
 ```
+
+deploy 会在 API 重启后自动调用激活脚本，完成锁、基线初始化和 timer 启用。只有明确希望本次部署后暂不
+启动 daily/weekly 时，才设置 `JIXIE_ENABLE_MAINTENANCE_TIMERS=0`。
 
 全新机器运行 `bootstrap.sh` 时，如果数据库还是空的，脚本只启用 backup timer；完成
 `pnpm import:data` 后运行一次 `./scripts/activate-maintenance.sh`。激活脚本内部的

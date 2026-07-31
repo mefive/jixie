@@ -226,15 +226,13 @@ if [[ "$TARGET" == "api" || "$TARGET" == "all" ]]; then
     jixie-backup.service \
     jixie-backup.timer
   sudo systemctl enable --now jixie-backup.timer
-  if [[ "$ENABLE_MAINTENANCE_TIMERS" == "1" ]]; then
-    sudo systemctl enable --now \
-      jixie-maintenance.timer \
-      jixie-maintenance-weekly.timer
-  else
+  if [[ "$ENABLE_MAINTENANCE_TIMERS" == "0" ]]; then
     log "Leave daily and weekly maintenance timers disabled for one-time initialization"
     sudo systemctl disable --now \
       jixie-maintenance.timer \
       jixie-maintenance-weekly.timer
+  else
+    log "Maintenance timers will activate after the API restart"
   fi
 fi
 
@@ -259,6 +257,10 @@ if [[ "$TARGET" == "api" || "$TARGET" == "all" ]]; then
   sleep 1
   systemctl is-active --quiet "$SERVICE" ||
     die "$SERVICE is not running; inspect logs with: journalctl -u $SERVICE -e"
+
+  if [[ "$ENABLE_MAINTENANCE_TIMERS" == "1" ]]; then
+    "$PROJECT_DIR/scripts/activate-maintenance.sh"
+  fi
 fi
 
 log "Deployed target '$TARGET' @ $(git rev-parse --short HEAD)"
