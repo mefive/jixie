@@ -10,6 +10,8 @@ import {
   type FactorReportSummary,
   type FactorAnalysisSpec,
   type FactorAnalysisSpecV3,
+  type FactorCompositeDefinitionV1,
+  type FactorCompositeResource,
   type FactorFreq,
   type FactorCorrelation,
   type FactorResearchIntentV1,
@@ -44,6 +46,9 @@ import {
   getFactorResearchWindow,
   runFactorHoldout,
   revealFactorHoldout,
+  createFactorComposite,
+  updateFactorComposite,
+  deleteFactorComposite,
 } from '@src/api/client';
 
 // Initial state from the URL. A stable report id restores both the result and its frozen parameters.
@@ -113,7 +118,8 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
 
   public selectedKey = ''; // preset key OR custom factor id — the analysis target
   public selectedReportId = '';
-  public mode: 'preset' | 'custom' = 'preset';
+  public mode: 'preset' | 'custom' | 'composite' = 'preset';
+  public compositeDefinition: FactorCompositeDefinitionV1 | null = null;
   public code = ''; // the custom factor's defineFactor source (empty for presets)
   public persistedCode = ''; // code as persisted in the DB — baseline for `edited`
   public pendingAgentCode: string | null = null; // Agent result held back when the user edited mid-turn
@@ -156,6 +162,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       selectedKey: observable.ref,
       selectedReportId: observable.ref,
       mode: observable.ref,
+      compositeDefinition: observable.ref,
       code: observable.ref,
       persistedCode: observable.ref,
       pendingAgentCode: observable.ref,
@@ -292,12 +299,12 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         costs: this.methodology.costs,
       };
     }
-    if (this.specVersion === 4 && this.reportDetail?.spec.version === 4) {
+    if (this.specVersion === 4 && this.compositeDefinition) {
       return {
         version: 4,
         ...common,
         ...this.methodology,
-        composite: structuredClone(this.reportDetail.spec.composite),
+        composite: structuredClone(this.compositeDefinition),
       };
     }
     return { version: 3, ...common, ...this.methodology };
@@ -305,6 +312,9 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
 
   /** The editor source no longer matches the immutable source that produced the selected report. */
   public get codeModifiedSinceReport(): boolean {
+    if (this.mode === 'composite') {
+      return false;
+    }
     const snapshot = this.reportDetail?.factorCodeSnapshot;
     return snapshot !== undefined && this.code !== snapshot;
   }
@@ -326,31 +336,35 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
 
   /** A preset factor is selected → the Agent is in Q&A mode (answers questions, never writes code). */
   public get qaMode(): boolean {
-    return this.mode === 'preset' && !!this.selectedKey;
+    return (this.mode === 'preset' || this.mode === 'composite') && !!this.selectedKey;
+  }
+
+  private nextSpecVersion(): 3 | 4 {
+    return this.mode === 'composite' ? 4 : 3;
   }
 
   public setFreq(v: FactorFreq) {
     runInAction(() => {
       this.freq = v;
-      this.specVersion = 3;
+      this.specVersion = this.nextSpecVersion();
     });
   }
   public setNeutral(v: Neutral) {
     runInAction(() => {
       this.neutral = v;
-      this.specVersion = 3;
+      this.specVersion = this.nextSpecVersion();
     });
   }
   public setStart(v: string) {
     runInAction(() => {
       this.start = v;
-      this.specVersion = 3;
+      this.specVersion = this.nextSpecVersion();
     });
   }
   public setEnd(v: string) {
     runInAction(() => {
       this.end = v;
-      this.specVersion = 3;
+      this.specVersion = this.nextSpecVersion();
     });
   }
 
@@ -358,7 +372,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     key: Key,
     value: FactorMethodologyParams['universe'][Key],
   ) {
-    this.specVersion = 3;
+    this.specVersion = this.nextSpecVersion();
     this.methodology = {
       ...this.methodology,
       universe: { ...this.methodology.universe, [key]: value },
@@ -366,7 +380,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   }
 
   public setMinimumWindowCoverage(value: number) {
-    this.specVersion = 3;
+    this.specVersion = this.nextSpecVersion();
     this.methodology = { ...this.methodology, missing: { minimumWindowCoverage: value } };
   }
 
@@ -374,7 +388,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     key: keyof FactorMethodologyParams['outliers'],
     method: FactorMethodologyParams['outliers']['factorExposure']['method'],
   ) {
-    this.specVersion = 3;
+    this.specVersion = this.nextSpecVersion();
     this.methodology = {
       ...this.methodology,
       outliers: {
@@ -385,7 +399,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   }
 
   public setCostParameter(key: keyof FactorMethodologyParams['costs'], value: number) {
-    this.specVersion = 3;
+    this.specVersion = this.nextSpecVersion();
     this.methodology = {
       ...this.methodology,
       costs: { ...this.methodology.costs, [key]: value },
@@ -427,10 +441,13 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     const catalog = this.catalogLoader.result ?? (await this.catalogLoader.run());
     const meta = catalog.find((factor) => factor.key === key);
     const isCustom = meta?.kind === 'custom';
+    const isComposite = meta?.kind === 'composite';
     runInAction(() => {
       this.selectedKey = key;
       this.selectedReportId = preferredReportId ?? '';
-      this.mode = isCustom ? 'custom' : 'preset';
+      this.mode = isCustom ? 'custom' : isComposite ? 'composite' : 'preset';
+      this.compositeDefinition = isComposite ? structuredClone(meta?.composite ?? null) : null;
+      this.specVersion = isComposite ? 4 : 3;
       this.jobRunning = false;
       this.jobId = null;
       this.logs = [];
@@ -446,6 +463,22 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         this.chatMessages = [];
       }
     });
+    if (isComposite) {
+      const reports = await this.reportsLoader.run();
+      void this.researchSummaryLoader.run();
+      if (this.selectedKey !== key) {
+        return;
+      }
+      const target = preferredReportId
+        ? reports.items.find((report) => report.id === preferredReportId)
+        : reports.items[0];
+      if (target && (await this.openReport(target.id))) {
+        return;
+      }
+      runInAction(() => (this.selectedReportId = ''));
+      this.reportLoader.reset();
+      return;
+    }
     try {
       // Presets are code rows too (seeded, readonly) — the same endpoint serves both kinds.
       const factor = await getCustomFactor(key);
@@ -508,6 +541,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       this.selectedKey = '';
       this.selectedReportId = '';
       this.mode = 'custom';
+      this.compositeDefinition = null;
       this.code = DEFAULT_FACTOR_CODE;
       this.persistedCode = DEFAULT_FACTOR_CODE; // pristine skeleton → not edited
       this.chatMessages = [];
@@ -719,6 +753,34 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     await this.catalogLoader.run();
   }
 
+  public async saveComposite(
+    definition: FactorCompositeDefinitionV1,
+    id?: string,
+  ): Promise<FactorCompositeResource> {
+    const saved = id
+      ? await updateFactorComposite(id, definition)
+      : await createFactorComposite(definition);
+    await this.catalogLoader.run();
+    await this.selectFactor(saved.id);
+    return saved;
+  }
+
+  public async removeComposite(id: string) {
+    await deleteFactorComposite(id);
+    if (this.selectedKey === id) {
+      runInAction(() => {
+        this.selectedKey = '';
+        this.selectedReportId = '';
+        this.mode = 'preset';
+        this.compositeDefinition = null;
+        this.logs = [];
+      });
+      this.reportLoader.reset();
+      this.reportsLoader.reset();
+    }
+    await this.catalogLoader.run();
+  }
+
   /** Open an immutable report, restore its parameters, and reattach its live Job when needed. */
   public async openReport(reportId: string): Promise<boolean> {
     this.analysisPoller.stop();
@@ -742,6 +804,12 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       this.start = detail.spec.start;
       this.end = detail.spec.end;
       this.specVersion = detail.spec.version;
+      this.compositeDefinition =
+        detail.spec.version === 4
+          ? structuredClone(detail.spec.composite)
+          : this.mode === 'composite'
+            ? this.compositeDefinition
+            : null;
       this.methodology =
         detail.spec.version !== 1
           ? {

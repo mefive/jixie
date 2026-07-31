@@ -552,6 +552,8 @@ import type {
   FactorReportListResponse,
   FactorFreq,
   FactorCorrelation,
+  FactorCompositeDefinitionV1,
+  FactorCompositeResource,
   FactorHoldoutPolicyV1,
   FactorResearchIntentV1,
   FactorResearchSummary,
@@ -561,6 +563,29 @@ import type {
 // Factor research: the factor list (identity + kind) — preset + this user's custom factors.
 export function getFactorCatalog(): Promise<FactorMeta[]> {
   return request('/api/app/factors/catalog');
+}
+
+export function createFactorComposite(
+  definition: FactorCompositeDefinitionV1,
+): Promise<FactorCompositeResource> {
+  return request('/api/app/factors/composites', {
+    method: 'POST',
+    body: JSON.stringify({ definition }),
+  });
+}
+
+export function updateFactorComposite(
+  id: string,
+  definition: FactorCompositeDefinitionV1,
+): Promise<FactorCompositeResource> {
+  return request(`/api/app/factors/composites/${encodeURIComponent(id)}`, {
+    method: 'POST',
+    body: JSON.stringify({ definition }),
+  });
+}
+
+export function deleteFactorComposite(id: string): Promise<{ ok: true }> {
+  return request(`/api/app/factors/composites/${encodeURIComponent(id)}`, { method: 'DELETE' });
 }
 
 // —— Custom factors (code-first, Agent-authored) —— created on the first Agent prompt, then updated by
