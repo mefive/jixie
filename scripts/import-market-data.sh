@@ -138,7 +138,7 @@ run_stage futures "Import stock-index futures contracts, bars, mappings, and set
 run_stage canonicalize-stock-codes "Canonicalize superseded stock codes" \
   pnpm --filter api canonicalize:stock-codes
 run_stage baseline-self-heal "Repair deterministic gaps near the initial publication baseline" \
-  pnpm --filter api maintenance:heal-baseline "$END_DATE"
+  pnpm maintenance baseline "$END_DATE"
 run_stage market-state "Precompute whole-market, index, and industry state" \
   pnpm --filter api sync:market-state "$START_DATE" "$END_DATE"
 run_stage audit "Run the read-only full data-quality audit" \

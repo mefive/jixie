@@ -10,7 +10,7 @@ Group=jixie
 WorkingDirectory=/opt/jixie/apps/api
 EnvironmentFile=/opt/jixie/apps/api/.env.production
 Environment=JIXIE_MAINTENANCE_LOCK_HELD=1
-ExecStart=/usr/bin/flock -n -E 75 /var/lib/jixie/maintenance.lock /usr/bin/node /opt/jixie/apps/api/dist/scripts/run-weekly-maintenance.js
+ExecStart=/usr/bin/flock -n -E 75 /var/lib/jixie/maintenance.lock /usr/bin/node /opt/jixie/apps/api/dist/scripts/run-maintenance.js weekly
 TimeoutStartSec=12h
 Nice=10
 NoNewPrivileges=true

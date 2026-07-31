@@ -242,7 +242,7 @@ export async function initializeDailyWatermark(tradeDate: string): Promise<void>
     }
     if (current.dailyPublishedThrough) {
       throw new Error(
-        `dailyPublishedThrough is already initialized to ${current.dailyPublishedThrough}; use maintenance:daily or maintenance:repair`,
+        `dailyPublishedThrough is already initialized to ${current.dailyPublishedThrough}; use maintenance daily or maintenance repair`,
       );
     }
     await transaction.maintenanceState.update({

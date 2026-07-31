@@ -42,18 +42,14 @@ packages/shared/         # 共享类型(TsCode、TradeDate)
 ## 快速开始
 
 ```bash
-pnpm install                                            # 装依赖（顺带构建 shared）
+pnpm install
 # 配置 apps/api/.env：DATABASE_URL 已默认，填 TUSHARE_TOKEN
-pnpm --filter api exec prisma migrate dev --name init   # 建库 + 生成 Prisma Client
-pnpm smoke                                              # 验证 token 连通
-pnpm sync 20240101 20240131                             # 同步行情到 SQLite
-pnpm --filter api sync:etf 20150101 20260724 major      # 同步主要 ETF（日线 + 复权）
-pnpm --filter api sync:index-daily 19900101 20260724 major # 同步主要指数收盘历史
-pnpm --filter api sync:index-basic 20040101 20260724 major # 同步主要指数历史 PE/PB
-pnpm --filter api sync:index market-state 20150101 20260727 # 同步市场状态指数行情与历史成分
-pnpm --filter api sync:market-state 20150101 20260727      # 预计算全A/指数状态与申万行业热力
-pnpm audit:data                                           # 只读审计断档、复权、股票池、窗口覆盖与财务 PIT
-pnpm signals:run 20260728                                 # 同步并补跑当日所有已上线策略信号
-pnpm peek 000001.SZ 20240101 20240131                   # 查看落库 + 后复权价
-pnpm --filter api db:studio                             # 可视化浏览数据库
+pnpm --filter api db:migrate
+pnpm import:data                 # 首次完整导入，可续传
+pnpm dev:api                     # terminal 1
+pnpm dev:web                     # terminal 2
 ```
+
+日常数据补齐统一运行 `pnpm maintenance`；它会按连续发布水位自动判断缺失交易日。底层
+`sync:*`、审计和研究脚本只用于开发与排障，不是生产部署步骤。生产机器无论首次安装还是升级都只运行
+`./scripts/bootstrap.sh`，详见 [`docs/deployment.md`](./docs/deployment.md)。

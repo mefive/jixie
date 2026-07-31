@@ -31,46 +31,14 @@ jixie 在 Linux VPS（Ubuntu / CentOS）上的部署。唯一入口是幂等的 
 | web | `apps/web/dist`，挂载 `/`，只包含登录和工作台 |
 | docs | `apps/docs/dist/docs`，独立构建，挂载 `/docs/help/*` 和 `/docs/sdk` |
 
-## 3. 一次性初始化(bootstrap 的人工展开版)
+## 3. bootstrap 管理的资源
 
-`bootstrap.sh` 已把下面全部脚本化;这里是背景说明,排障时对照。
+`bootstrap.sh` 自动检查并收敛系统依赖、代码版本、生产 env、Prisma Client 与 schema、前后端构建、
+邀请码、systemd units、Nginx、TLS、行情初始化、发布水位和 timers。已有资源会复用或更新，缺失资源
+会补建；不要再手工组合 API npm scripts 模拟一次部署。
 
-```bash
-# 3.1 拉代码 + 数据目录
-sudo mkdir -p /opt/jixie && sudo chown $USER:$USER /opt/jixie
-git clone https://github.com/mefive/jixie.git /opt/jixie && cd /opt/jixie
-sudo mkdir -p /var/lib/jixie && sudo chown $USER:$USER /var/lib/jixie
-
-# 3.2 env(填真实值:TUSHARE_TOKEN 必填,否则 app 拒绝启动)
-cp apps/api/.env.production.example apps/api/.env.production
-$EDITOR apps/api/.env.production
-chmod 600 apps/api/.env.production
-ln -sf .env.production apps/api/.env   # prisma CLI / sync / gen:invite 读 .env
-
-# 3.3 安装 / 迁移(空库 schema)/ 构建 / 邀请码
-pnpm install --frozen-lockfile
-pnpm --filter api exec prisma generate
-pnpm --filter api exec prisma migrate deploy
-pnpm -r build
-pnpm --filter api gen:invite 1 "首批"
-
-# 3.4 systemd(注意 ExecStart 指向 dist/src/index.js —— tsc rootDir "." 的产物路径)
-sudo cp deploy/jixie-api.service /etc/systemd/system/
-sudo systemctl daemon-reload && sudo systemctl enable --now jixie-api
-curl -s localhost:3001/api/health    # {"ok":true}
-
-# 3.5 nginx + 证书
-sudo cp deploy/nginx-jixie.conf /etc/nginx/sites-available/jixie.你的域名
-sudo ln -s /etc/nginx/sites-available/jixie.你的域名 /etc/nginx/sites-enabled/
-sudo nginx -t && sudo systemctl reload nginx
-sudo certbot --nginx -d jixie.你的域名
-```
-
-`nginx-jixie.conf` 会在 server block 内 include 仓库中的
-`/opt/jixie/deploy/nginx-docs-app.conf`。该文件把独立构建的 `apps/docs/dist/docs` 挂载到
-`/docs/`，并处理文档深链。只更新文档静态产物时不需要 reload Nginx；完整部署会校验并
-reload Nginx，以便仓库内的 Nginx include 配置变更生效。脚本不会覆盖 Certbot 写入主
-vhost 的证书配置。
+Nginx 主配置会 include 仓库中的 `/opt/jixie/deploy/nginx-docs-app.conf`，把独立构建的
+`apps/docs/dist/docs` 挂载到 `/docs/` 并处理深链。脚本不会覆盖 Certbot 已写入的 TLS 配置。
 
 从旧版配置升级且 vhost 已被 Certbot 改写时，需要做一次迁移：在 HTTPS server block 的
 `root` / `index` 后加入下面一行，然后校验并 reload。不要重新覆盖整个 vhost，否则会丢失
@@ -84,9 +52,13 @@ include /opt/jixie/deploy/nginx-docs-app.conf;
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-> **坑 1(与 fangtu 同)**:api 的 `tsconfig` 用 `rootDir "."` 且 include 了 `scripts/`,tsc 产物是 **`dist/src/index.js`**(不是 `dist/index.js`)。systemd `ExecStart` 已据此指向 `dist/src/index.js`;`apps/api` 的 `start` 脚本仍写 `dist/index.js` 是历史小 bug,不影响(systemd 用绝对路径)。
-> **坑 2**:prisma CLI 只读 `.env` 不读 `.env.production` → 用 `ln -sf .env.production .env`(bootstrap 已做),否则 `migrate deploy`/`sync` 找不到 `DATABASE_URL`。
-> **坑 3**:`NODE_ENV=production` 用 **secure(仅 HTTPS)cookie**。**站点必须走 HTTPS 否则登录不保持**——certbot 签证书,或前置 Cloudflare/其它 TLS。纯 HTTP 只能开发用。
+> **排障提示 1**:api 的 `tsconfig` 用 `rootDir "."` 且 include 了 `scripts/`，因此 tsc 入口产物是
+> `dist/src/index.js`；npm `start` 和 systemd 均已指向该路径。
+>
+> **排障提示 2**:prisma CLI 只读 `.env` 不读 `.env.production`。bootstrap 会自动维护软链，无需手工
+> 处理。
+>
+> **排障提示 3**:`NODE_ENV=production` 使用 secure cookie，站点必须经 HTTPS 访问。
 
 ## 4. 行情数据初始化
 
