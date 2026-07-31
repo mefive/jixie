@@ -5,7 +5,7 @@ import type { SandboxConsole } from '../lib/sandbox-console.js';
 import type { EngineDataPort } from './data-port.js';
 import type { CustomFactorModule } from './custom-factor.js';
 import type { Strategy } from './types.js';
-import type { Locale } from '@jixie/shared';
+import type { Locale, StrategyParamValue } from '@jixie/shared';
 
 /**
  * The walled lane's IN-WALL entry (sandbox Phase B2). This file is esbuild-BUNDLED (engine + SDK +
@@ -56,7 +56,7 @@ interface WalledConfig {
   cost?: Record<string, number>;
   locale?: Locale;
   customFactors?: CustomFactorModule[]; // host-prepared factor modules, evaluated in-wall by run.ts
-  paramOverrides?: Record<string, number>;
+  paramOverrides?: Record<string, StrategyParamValue>;
   captureUserLogs: boolean;
   captureSignals: boolean;
 }

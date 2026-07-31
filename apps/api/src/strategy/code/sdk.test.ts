@@ -81,6 +81,51 @@ describe('enrich', () => {
     expect(setHoldingsArg.value).toEqual({ A: 1 / 3, B: 1 / 3, C: 1 / 3 });
   });
 
+  it('provides neutral ATR-risk units and inverse-volatility weights', () => {
+    const { ctx } = ctxOf({});
+    Object.defineProperty(ctx, 'value', { value: 100_000 });
+    ctx.bars = () => [
+      {
+        date: '1',
+        adjOpen: 9,
+        adjHigh: 11,
+        adjLow: 9,
+        adjClose: 10,
+        vol: 1,
+        amount: 1,
+        turnoverRateF: null,
+      },
+      {
+        date: '2',
+        adjOpen: 10,
+        adjHigh: 13,
+        adjLow: 10,
+        adjClose: 12,
+        vol: 1,
+        amount: 1,
+        turnoverRateF: null,
+      },
+      {
+        date: '3',
+        adjOpen: 12,
+        adjHigh: 14,
+        adjLow: 11,
+        adjClose: 13,
+        vol: 1,
+        amount: 1,
+        turnoverRateF: null,
+      },
+    ];
+    ctx.history = (code) => (code === 'A' ? [100, 110, 100] : code === 'B' ? [100, 102, 104] : []);
+
+    const sdk = enrich(ctx);
+    expect(sdk.atrUnits('A', 0.01, 2)).toBe(333);
+    const weights = sdk.volTargetWeights(['A', 'B', 'MISSING'], 2);
+    expect([...weights.keys()]).toEqual(['A', 'B']);
+    expect((weights.get('B') ?? 0) > (weights.get('A') ?? 0)).toBe(true);
+    expect([...weights.values()].reduce((sum, value) => sum + value, 0)).toBeCloseTo(1);
+  });
+
   it('universe() loads the cross-section into a Universe', async () => {
     const { ctx } = ctxOf({ A: { peTtm: 10 }, B: { peTtm: 20 } });
     const u = await enrich(ctx).universe();

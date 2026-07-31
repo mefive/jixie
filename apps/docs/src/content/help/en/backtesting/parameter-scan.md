@@ -1,17 +1,17 @@
 # Compare several strategy parameters
 
-A parameter scan runs the same strategy code with several numeric parameter values and compares the results. Use it to check whether a result depends on one unusually favorable value.
+A parameter scan runs the same strategy code with several parameter values and compares the results. Numeric values test whether a result depends on one unusually favorable setting; string values can represent sizing schemes.
 
 ## Before starting
 
-The strategy must declare numeric values under `params` and use them through `ctx.params`. For example, a lookback period and order quantity can be declared as `lookback` and `shares`.
+The strategy must declare finite numbers or non-empty strings under `params` and use them through `ctx.params`. For example, a lookback, order quantity, and sizing scheme can be declared as `lookback`, `shares`, and `sizing`.
 
 A scan does not rewrite strategy code or replace the normal backtest shown under Overview. One scan supports up to two parameters and 25 combinations, run sequentially in the background.
 
 ## Enter scan settings
 
 1. Open a saved strategy.
-2. Confirm that its code has numeric parameters that can be scanned.
+2. Confirm that its code has numeric or string parameters that can be scanned.
 3. Select **Parameter scan** at the top.
 4. Choose the first parameter and enter at least two comma-separated values.
 5. To compare two parameters, select **Scan a second parameter** and enter its values.
@@ -78,9 +78,20 @@ Check:
 
 A parameter scan cannot prove that a strategy will work in the future. It can expose parameter sensitivity and signs of overfitting, which must still be checked against trades, different market periods, and reasonable costs.
 
+## Compare sizing schemes
+
+Declare the position-sizing choice as a string while keeping the entry and exit rules unchanged:
+
+```ts
+params: { sizing: 'atr', riskPct: 0.01, fixedLots: 10 }
+```
+
+Branch on `ctx.params.sizing` for equal weight, fixed lots, or ATR risk sizing. In the scan dialog choose **Sizing comparison**, select `sizing`, and enter `equal, fixed, atr`. A comparison accepts two to five schemes and does not combine with a sample split.
+
+The result overlays NAV rebased to 1 and compares annual return, maximum drawdown, annual volatility, longest underwater trading period, and Sharpe. It changes only the declared sizing branch and never rewrites entry or exit logic.
+
 ## Related articles
 
 - [Why a backtest is not a forecast](/help/basics/backtest-limitations)
 - [Inspect backtest results](/help/backtesting/results-overview)
 - [Read equity, drawdown, and monthly returns](/help/backtesting/equity-drawdown)
-

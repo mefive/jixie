@@ -45,6 +45,12 @@ describe('sdk-reference registry ↔ runtime SDK types stay in sync', () => {
     expectTypeOf<Exclude<keyof TimeframeSeries, ReferencedMethod>>().toEqualTypeOf<never>();
   });
 
+  it('categorical defaults widen on ctx so scan overrides remain type-correct', () => {
+    type SizingCtx = StrategyCtx<{ sizing: 'equal'; riskPct: 0.01 }>;
+    expectTypeOf<SizingCtx['params']['sizing']>().toEqualTypeOf<string>();
+    expectTypeOf<SizingCtx['params']['riskPct']>().toEqualTypeOf<number>();
+  });
+
   it('entry names are unique within each interface (they are doc anchors)', () => {
     const seen = new Set<string>();
     for (const entry of SDK_ENTRIES) {

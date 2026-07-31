@@ -117,6 +117,7 @@ import type {
   StrategyScanReport,
   StrategyScanReportSummary,
   StrategyScanSpec,
+  StrategyParamValue,
   SignalRun,
   SignalTodayEntry,
   StrategyExecutionOverview,
@@ -262,7 +263,7 @@ export function findBacktestRunningJob(strategyId: string): Promise<{ jobId: str
 
 export function inspectStrategyParameters(
   code: string,
-): Promise<{ parameters: Record<string, number> }> {
+): Promise<{ parameters: Record<string, StrategyParamValue> }> {
   return request('/api/app/strategy/scans/parameters', {
     method: 'POST',
     body: JSON.stringify({ code }),

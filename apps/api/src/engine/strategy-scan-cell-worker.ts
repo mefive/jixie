@@ -1,4 +1,4 @@
-import type { BacktestConfig, Locale } from '@jixie/shared';
+import type { BacktestConfig, Locale, StrategyParamValue } from '@jixie/shared';
 import { prisma } from '../lib/prisma.js';
 import type { CustomFactorModule } from './custom-factor.js';
 import { prismaDataPort } from './prisma-port.js';
@@ -7,7 +7,7 @@ import { runWalledBacktest } from './walled-run.js';
 interface CellRequest {
   config: BacktestConfig;
   customFactors: CustomFactorModule[];
-  paramOverrides: Record<string, number>;
+  paramOverrides: Record<string, StrategyParamValue>;
   locale: Locale;
 }
 

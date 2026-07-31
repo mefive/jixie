@@ -20,12 +20,16 @@ import { isoWeekKey } from '../../lib/date.js';
  */
 
 export type Schedule = 'daily' | 'weekly' | 'monthly';
-export type StrategyParams = Record<string, number>;
+export type StrategyParamValue = number | string;
+export type StrategyParams = Record<string, StrategyParamValue>;
+export type WidenStrategyParams<Params extends StrategyParams> = {
+  [Key in keyof Params]: Params[Key] extends number ? number : string;
+};
 
 /** What user code sees each bar: the engine primitives (BarContext) + the SDK helpers below. */
 export interface StrategyCtx<Params extends StrategyParams = StrategyParams> extends BarContext {
   /** Frozen run parameters. Parameter scans override declared defaults without rewriting source. */
-  readonly params: Readonly<Params>;
+  readonly params: Readonly<WidenStrategyParams<Params>>;
   /** Period key for today on a schedule — compare to your own `let last` to fire once per period:
    * `if (ctx.period('monthly') === last) return; last = ctx.period('monthly');` */
   period(schedule: Schedule): string;
@@ -35,6 +39,12 @@ export interface StrategyCtx<Params extends StrategyParams = StrategyParams> ext
   universe(indexCode?: string): Promise<Universe>;
   /** Equal-weight the given codes (a target-book rebalance at next open). */
   equalWeight(codes: string[]): void;
+  /** ATR risk sizing in engine-adjusted shares: a one-ATR adverse move risks about value × riskPct.
+   * The eventual buy fill is still rounded to real 100-share lots by the engine. */
+  atrUnits(code: string, riskPct: number, atrPeriod?: number): number;
+  /** Inverse-volatility weights over loaded daily closes; codes without enough valid history are
+   * omitted and the remaining weights sum to 1. */
+  volTargetWeights(codes: string[], lookback?: number): Map<string, number>;
   /** Completed ISO-week bars and indicators for a loaded instrument. The current partial week is
    * excluded; on its final market trading day it becomes visible after that day's close. */
   weekly(code: string): TimeframeSeries;
@@ -119,7 +129,7 @@ class ResampledSeries implements TimeframeSeries {
 
 export interface CodeStrategy<Params extends StrategyParams = StrategyParams> {
   name?: string;
-  /** Finite numeric defaults exposed to parameter scans. */
+  /** Finite numeric or non-empty categorical defaults exposed to scans. */
   params?: Params;
   /** Precomputed factor columns to preload (price-window signals like mom/rev/vol). */
   factors?: string[];
@@ -262,6 +272,40 @@ export function enrich<Params extends StrategyParams = StrategyParams>(
     }
     ctx.setHoldings(targets);
   };
+  enriched.atrUnits = (code, riskPct, atrPeriod = 20) => {
+    const window = Math.floor(atrPeriod);
+    if (!(riskPct > 0) || window <= 0) {
+      return 0;
+    }
+    const atr = atrBars(ctx.bars(code, window + 1), window);
+    return atr == null || atr <= 0 ? 0 : Math.floor((ctx.value * riskPct) / atr);
+  };
+  enriched.volTargetWeights = (codes, lookback = 20) => {
+    const window = Math.floor(lookback);
+    if (window < 2) {
+      return new Map();
+    }
+    const inverseVol = new Map<string, number>();
+    for (const code of codes) {
+      const closes = ctx.history(code, 'close', window + 1);
+      if (closes.length < window + 1) {
+        continue;
+      }
+      const returns = closes
+        .slice(1)
+        .map((close, index) => close / closes[index] - 1)
+        .filter(Number.isFinite);
+      if (returns.length !== window) {
+        continue;
+      }
+      const volatility = sampleDeviation(returns);
+      if (volatility > 0) {
+        inverseVol.set(code, 1 / volatility);
+      }
+    }
+    const total = [...inverseVol.values()].reduce((sum, value) => sum + value, 0);
+    return new Map([...inverseVol].map(([code, value]) => [code, value / total]));
+  };
   enriched.weekly = (code) => new ResampledSeries(ctx, code, 'weekly');
   enriched.monthly = (code) => new ResampledSeries(ctx, code, 'monthly');
   enriched.sma = (code, n) => {
@@ -286,7 +330,7 @@ export function enrich<Params extends StrategyParams = StrategyParams>(
 
 export function applyStrategyParamOverrides(
   strategy: Strategy,
-  overrides?: Record<string, number>,
+  overrides?: Record<string, StrategyParamValue>,
 ): void {
   if (!overrides) {
     return;
@@ -297,8 +341,11 @@ export function applyStrategyParamOverrides(
     if (!(key in declared)) {
       throw new Error(`unknown strategy parameter: ${key}`);
     }
-    if (!Number.isFinite(value)) {
-      throw new Error(`strategy parameter ${key} must be a finite number`);
+    if (typeof value !== typeof declared[key]) {
+      throw new Error(`strategy parameter ${key} override must match its declared type`);
+    }
+    if (!validParamValue(value)) {
+      throw new Error(`strategy parameter ${key} must be a finite number or non-empty string`);
     }
     merged[key] = value;
   }
@@ -308,12 +355,18 @@ export function applyStrategyParamOverrides(
 function normalizeStrategyParams(params?: StrategyParams): StrategyParams {
   const normalized: StrategyParams = {};
   for (const [key, value] of Object.entries(params ?? {})) {
-    if (!key.trim() || !Number.isFinite(value)) {
-      throw new Error('strategy params must use non-empty keys and finite numeric values');
+    if (!key.trim() || !validParamValue(value)) {
+      throw new Error('strategy params must use non-empty keys and finite numbers or strings');
     }
     normalized[key] = value;
   }
   return normalized;
+}
+
+function validParamValue(value: StrategyParamValue): boolean {
+  return typeof value === 'number'
+    ? Number.isFinite(value)
+    : value.trim().length > 0 && value.length <= 100;
 }
 
 /** Mean of a per-bar field over the window, or null if fewer than n valid values. */
@@ -377,6 +430,16 @@ function ohlcField(bar: OhlcBar, field: 'open' | 'high' | 'low' | 'close'): numb
       : field === 'low'
         ? bar.adjLow
         : bar.adjClose;
+}
+
+function sampleDeviation(values: number[]): number {
+  if (values.length < 2) {
+    return 0;
+  }
+  const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
+  return Math.sqrt(
+    values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / (values.length - 1),
+  );
 }
 
 /** Period bucket for a schedule — a new key means a new period (rebalance boundary). */

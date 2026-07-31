@@ -1,5 +1,5 @@
 import { transform } from 'esbuild';
-import { DEFAULT_LOCALE, type Locale } from '@jixie/shared';
+import { DEFAULT_LOCALE, type Locale, type StrategyParamValue } from '@jixie/shared';
 import type { Strategy } from '../../engine/types.js';
 import {
   makeSandboxConsole,
@@ -25,7 +25,7 @@ export async function compileStrategy(
   source: string,
   onUserLog?: UserLogSink,
   locale: Locale = DEFAULT_LOCALE,
-  paramOverrides?: Record<string, number>,
+  paramOverrides?: Record<string, StrategyParamValue>,
 ): Promise<Strategy> {
   let js: string;
   try {

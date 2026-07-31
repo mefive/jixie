@@ -169,11 +169,15 @@ interface StrategyAccounts {
 
 type Schedule = 'daily' | 'weekly' | 'monthly';`;
 
-const POSTLUDE = `type StrategyParams = Record<string, number>;
+const POSTLUDE = `type StrategyParamValue = number | string;
+type StrategyParams = Record<string, StrategyParamValue>;
+type WidenStrategyParams<Params extends StrategyParams> = {
+  [Key in keyof Params]: Params[Key] extends number ? number : string;
+};
 
 interface CodeStrategy<Params extends StrategyParams = StrategyParams> {
   name?: string;
-  /** Finite numeric defaults exposed to parameter scans. */
+  /** Finite numeric or non-empty categorical defaults exposed to parameter scans. */
   params?: Params;
   /** Opt-in factor columns, read via ctx.factor(): moneyflow columns + custom:<key> research factors. */
   factors?: FactorKey[];
@@ -513,6 +517,24 @@ export const SDK_ENTRIES = [
     sig: 'equalWeight(codes: string[]): void',
     zh: '把这些票等权(次开成交的目标仓位调仓)。',
     en: 'Equal-weight the codes (a target-book rebalance at next open).',
+  },
+  {
+    iface: 'StrategyCtx',
+    name: 'atrUnits',
+    group: '仓位管理',
+    sig: 'atrUnits(code: string, riskPct: number, atrPeriod?: number): number',
+    zh: 'ATR 风险仓位股数:1 个 ATR 的不利波动约等于当前权益 × riskPct；默认 ATR20，实际买入仍由引擎按真实 100 股整手取整。',
+    en: 'ATR risk-sized adjusted shares: a one-ATR adverse move is about current equity × riskPct; defaults to ATR20 and actual buys remain rounded to real 100-share lots.',
+    prompt: 'ctx.atrUnits(code,riskPct,atrPeriod=20)',
+  },
+  {
+    iface: 'StrategyCtx',
+    name: 'volTargetWeights',
+    group: '仓位管理',
+    sig: 'volTargetWeights(codes: string[], lookback?: number): Map<string, number>',
+    zh: '按最近日收益波动率倒数分配权重；默认 20 日，历史不足的票剔除，其余权重和为 1。需先加载 K 线。',
+    en: 'Inverse-volatility weights from recent daily returns; defaults to 20 days, omits insufficient histories, and normalizes remaining weights to 1. Bars must be loaded first.',
+    prompt: 'ctx.volTargetWeights(codes,lookback=20)',
   },
   {
     iface: 'StrategyCtx',
@@ -884,7 +906,7 @@ const CTX_PROP_TYPES: Record<(typeof CTX_PROP_NAMES)[number], string> = {
   stockAvailableCash: 'number',
   futureAvailableCash: 'number',
   futureMargin: 'number',
-  params: 'Readonly<Params>',
+  params: 'Readonly<WidenStrategyParams<Params>>',
 };
 const CTX_PROPS = CTX_PROP_NAMES.map(
   (propName) => `  readonly ${propName}: ${CTX_PROP_TYPES[propName]};`,

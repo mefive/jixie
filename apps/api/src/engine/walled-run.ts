@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import ivm from 'isolated-vm';
 import { build, transform } from 'esbuild';
-import type { Locale, StrategySignalMetadata } from '@jixie/shared';
+import type { Locale, StrategyParamValue, StrategySignalMetadata } from '@jixie/shared';
 import type { EngineDataPort } from './data-port.js';
 import type { CustomFactorModule } from './custom-factor.js';
 import type { BacktestResult, CostModel, SignalBacktestOutput } from './types.js';
@@ -68,8 +68,8 @@ export interface WalledBacktestConfig {
   locale?: Locale;
   /** Referenced custom factors, host-prepared (ownership-checked + TS→CJS) — evaluated in-wall. */
   customFactors?: CustomFactorModule[];
-  /** Numeric overrides merged into the strategy's declared params inside the isolate. */
-  paramOverrides?: Record<string, number>;
+  /** Type-matched overrides merged into the strategy's declared params inside the isolate. */
+  paramOverrides?: Record<string, StrategyParamValue>;
 }
 
 async function compileUserSource(code: string): Promise<string> {

@@ -6,6 +6,7 @@ import type {
   StrategyScanReport,
   StrategyScanReportSummary,
   StrategyScanSpec,
+  StrategyParamValue,
 } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
 import { Hono } from 'hono';
@@ -33,7 +34,10 @@ const scanSpecSchema = z.object({
     .array(
       z.object({
         key: z.string().min(1).max(100),
-        values: z.array(z.number().finite()).min(2).max(25),
+        values: z
+          .array(z.union([z.number().finite(), z.string().trim().min(1).max(100)]))
+          .min(2)
+          .max(25),
       }),
     )
     .min(1)
@@ -42,6 +46,7 @@ const scanSpecSchema = z.object({
     .string()
     .regex(/^\d{8}$/)
     .optional(),
+  view: z.enum(['parameters', 'sizing']).optional(),
 });
 const createBody = z.object({
   config: codeConfigSchema,
@@ -67,7 +72,7 @@ strategyScansRoute.post('/', validateQuery(strategyQuery), validateJson(createBo
     return apiError(c, 'VALIDATION_FAILED', m(c, 'startAfterEnd'), { field: 'start' });
   }
 
-  let parameters: Record<string, number>;
+  let parameters: Record<string, StrategyParamValue>;
   let spec: StrategyScanSpec;
   try {
     parameters = await inspectWalledStrategyParameters(config.code);

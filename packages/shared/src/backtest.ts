@@ -86,14 +86,17 @@ export interface BacktestSummary {
   monthly?: { month: string; ret: number }[]; // 'YYYYMM' → monthly return (monthly-return table)
 }
 
+export type StrategyParamValue = number | string;
+
 export interface StrategyParameterDimension {
   key: string;
-  values: number[];
+  values: StrategyParamValue[];
 }
 
 export interface StrategyScanSpec {
   dimensions: StrategyParameterDimension[];
   splitDate?: TradeDate;
+  view?: 'parameters' | 'sizing';
 }
 
 export interface BacktestMetricSummary {
@@ -115,17 +118,21 @@ export interface BacktestMetricSummary {
   turnover: number;
   totalFees: number;
   totalSlippage: number;
+  annVolatility?: number;
+  maxUnderwaterDays?: number;
 }
 
 export interface StrategyScanCell {
-  params: Record<string, number>;
+  params: Record<string, StrategyParamValue>;
   full?: BacktestMetricSummary;
   inSample?: BacktestMetricSummary;
   outOfSample?: BacktestMetricSummary;
+  /** Rebased NAV (starts at 1) is retained only for the dedicated sizing comparison view. */
+  nav?: { date: string; value: number }[];
 }
 
 export interface StrategyScanPayload {
-  parameters: Record<string, number>;
+  parameters: Record<string, StrategyParamValue>;
   cells: StrategyScanCell[];
 }
 
