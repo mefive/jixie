@@ -714,7 +714,7 @@ export async function analyzeFactor(
     ]),
   );
   const stockNames =
-    spec.version === 3
+    spec.version >= 3
       ? new StockNameLookup(
           await prisma.stockNameHistory.findMany({
             select: { tsCode: true, name: true, startDate: true, endDate: true },
@@ -796,7 +796,7 @@ export async function analyzeFactor(
     );
     stageTotals.listingAge.after += listingEligible.length;
     candidates = listingEligible;
-    if (spec.version === 3) {
+    if (spec.version >= 3) {
       stageTotals.riskWarning.before += candidates.length;
       if (policy.excludeRiskWarnings) {
         candidates = candidates.filter(
@@ -982,7 +982,7 @@ export async function analyzeFactor(
       { key: 'factor_value', ...stageTotals.factorValue },
       { key: 'formation_and_forward_quote', ...stageTotals.quotes },
       { key: 'listing_age', ...stageTotals.listingAge },
-      ...(spec.version === 3
+      ...(spec.version >= 3
         ? [
             { key: 'risk_warning' as const, ...stageTotals.riskWarning },
             { key: 'pending_delisting' as const, ...stageTotals.pendingDelisting },
@@ -1003,7 +1003,7 @@ export async function analyzeFactor(
         }
       : undefined,
     unavailableHistoricalFilters:
-      spec.version === 3
+      spec.version >= 3
         ? ['negative_equity', 'long_suspension']
         : ['risk_warning', 'pending_delisting', 'negative_equity', 'long_suspension'],
   };
@@ -1044,8 +1044,10 @@ function analysisPolicy(spec: FactorAnalysisSpec) {
     ...spec.missing,
     ...spec.outliers,
     ...spec.costs,
-    excludeRiskWarnings: spec.version === 3 ? spec.universe.excludeRiskWarnings : false,
-    excludePendingDelisting: spec.version === 3 ? spec.universe.excludePendingDelisting : false,
+    excludeRiskWarnings:
+      'excludeRiskWarnings' in spec.universe ? spec.universe.excludeRiskWarnings : false,
+    excludePendingDelisting:
+      'excludePendingDelisting' in spec.universe ? spec.universe.excludePendingDelisting : false,
   };
 }
 

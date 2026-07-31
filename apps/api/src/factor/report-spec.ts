@@ -4,6 +4,8 @@ import type {
   FactorAnalysisSpec,
   FactorAnalysisSpecV2,
   FactorAnalysisSpecV3,
+  FactorAnalysisSpecV4,
+  FactorCompositeDefinitionV1,
   FactorResearchIntentV1,
 } from '@jixie/shared';
 
@@ -54,10 +56,46 @@ export const factorAnalysisSpecV3Schema = factorAnalysisSpecV2Schema.extend({
   }),
 });
 
+export const factorCompositeDefinitionV1Schema: z.ZodType<FactorCompositeDefinitionV1> = z
+  .object({
+    version: z.literal(1),
+    name: z.string().trim().min(1).max(80),
+    standardization: z.enum(['rank', 'zscore']),
+    weighting: z.literal('equal'),
+    components: z
+      .array(
+        z.object({
+          factor: z.string().trim().min(1).max(80),
+          direction: z.enum(['positive', 'negative']),
+        }),
+      )
+      .min(2)
+      .max(5),
+  })
+  .superRefine((definition, context) => {
+    const seen = new Set<string>();
+    definition.components.forEach((component, index) => {
+      if (seen.has(component.factor)) {
+        context.addIssue({
+          code: 'custom',
+          path: ['components', index, 'factor'],
+          message: 'Composite factors must be distinct',
+        });
+      }
+      seen.add(component.factor);
+    });
+  });
+
+export const factorAnalysisSpecV4Schema = factorAnalysisSpecV3Schema.extend({
+  version: z.literal(4),
+  composite: factorCompositeDefinitionV1Schema,
+});
+
 export const factorAnalysisSpecSchema = z.discriminatedUnion('version', [
   factorAnalysisSpecV1Schema,
   factorAnalysisSpecV2Schema,
   factorAnalysisSpecV3Schema,
+  factorAnalysisSpecV4Schema,
 ]);
 
 export const DEFAULT_FACTOR_ANALYSIS_SPEC_V2: Omit<
@@ -138,7 +176,7 @@ export const factorResearchIntentV1Schema = z
 export function normalizeFactorAnalysisSpec(input: unknown): FactorAnalysisSpec {
   const spec = factorAnalysisSpecSchema.parse(input);
 
-  if (spec.version === 2 || spec.version === 3) {
+  if (spec.version === 2 || spec.version === 3 || spec.version === 4) {
     return spec;
   }
 
@@ -169,6 +207,21 @@ export function createDefaultFactorAnalysisSpecV3(input: {
   return {
     ...DEFAULT_FACTOR_ANALYSIS_SPEC_V3,
     ...input,
+    universe: { ...DEFAULT_FACTOR_ANALYSIS_SPEC_V3.universe },
+  };
+}
+
+export function createDefaultFactorAnalysisSpecV4(input: {
+  freq: FactorAnalysisSpecV4['freq'];
+  start: string;
+  end: string;
+  neutral: FactorAnalysisSpecV4['neutral'];
+  composite: FactorCompositeDefinitionV1;
+}): FactorAnalysisSpecV4 {
+  return {
+    ...DEFAULT_FACTOR_ANALYSIS_SPEC_V3,
+    ...input,
+    version: 4,
     universe: { ...DEFAULT_FACTOR_ANALYSIS_SPEC_V3.universe },
   };
 }

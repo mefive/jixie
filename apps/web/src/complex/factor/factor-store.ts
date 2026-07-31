@@ -132,7 +132,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   public neutral: Neutral = 'none'; // cross-sectional neutralization in the draft analysis spec
   public start = DEFAULT_START;
   public end = DEFAULT_END;
-  public specVersion: 1 | 2 | 3 = 3;
+  public specVersion: 1 | 2 | 3 | 4 = 3;
   public methodology = defaultMethodology();
   public logs: LogLine[] = []; // streamed progress of the current run (job), tagged system/user
   public jobRunning = false; // a streamed analysis is in flight
@@ -290,6 +290,14 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         missing: this.methodology.missing,
         outliers: this.methodology.outliers,
         costs: this.methodology.costs,
+      };
+    }
+    if (this.specVersion === 4 && this.reportDetail?.spec.version === 4) {
+      return {
+        version: 4,
+        ...common,
+        ...this.methodology,
+        composite: structuredClone(this.reportDetail.spec.composite),
       };
     }
     return { version: 3, ...common, ...this.methodology };
@@ -735,16 +743,16 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       this.end = detail.spec.end;
       this.specVersion = detail.spec.version;
       this.methodology =
-        detail.spec.version === 2 || detail.spec.version === 3
+        detail.spec.version !== 1
           ? {
               universe: {
                 ...structuredClone(detail.spec.universe),
                 excludeRiskWarnings:
-                  detail.spec.version === 3
+                  'excludeRiskWarnings' in detail.spec.universe
                     ? detail.spec.universe.excludeRiskWarnings
                     : DEFAULT_METHODOLOGY.universe.excludeRiskWarnings,
                 excludePendingDelisting:
-                  detail.spec.version === 3
+                  'excludePendingDelisting' in detail.spec.universe
                     ? detail.spec.universe.excludePendingDelisting
                     : DEFAULT_METHODOLOGY.universe.excludePendingDelisting,
               },

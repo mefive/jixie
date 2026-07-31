@@ -3,6 +3,7 @@ import {
   canonicalJson,
   createDefaultFactorAnalysisSpecV2,
   createDefaultFactorAnalysisSpecV3,
+  createDefaultFactorAnalysisSpecV4,
   factorTestKey,
   factorVariantKey,
   normalizeFactorAnalysisSpec,
@@ -21,6 +22,49 @@ describe('factor report spec', () => {
     expect(spec.version).toBe(3);
     expect(spec.universe.excludeRiskWarnings).toBe(true);
     expect(spec.universe.excludePendingDelisting).toBe(true);
+  });
+
+  it('validates and freezes a V4 equal-weight composite definition', () => {
+    const spec = createDefaultFactorAnalysisSpecV4({
+      freq: 'month',
+      start: '20200101',
+      end: '20241231',
+      neutral: 'size_industry',
+      composite: {
+        version: 1,
+        name: 'Quality + value',
+        standardization: 'rank',
+        weighting: 'equal',
+        components: [
+          { factor: 'roe_ttm', direction: 'positive' },
+          { factor: 'ep_ttm', direction: 'positive' },
+        ],
+      },
+    });
+
+    expect(normalizeFactorAnalysisSpec(spec)).toEqual(spec);
+    expect(spec.version).toBe(4);
+  });
+
+  it('rejects duplicate factors in a V4 composite', () => {
+    const spec = createDefaultFactorAnalysisSpecV4({
+      freq: 'month',
+      start: '20200101',
+      end: '20241231',
+      neutral: 'none',
+      composite: {
+        version: 1,
+        name: 'Duplicate',
+        standardization: 'zscore',
+        weighting: 'equal',
+        components: [
+          { factor: 'roe_ttm', direction: 'positive' },
+          { factor: 'roe_ttm', direction: 'negative' },
+        ],
+      },
+    });
+
+    expect(() => normalizeFactorAnalysisSpec(spec)).toThrow(/distinct/);
   });
 
   it('normalizes defaults and preserves the versioned shape', () => {
