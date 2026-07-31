@@ -53,6 +53,17 @@ Execution rate is filled decisions divided by all recorded decisions. Average ad
 
 Estimated amount does not include execution-day price changes, realized slippage, or every fee.
 
+## Conditional orders to place
+
+When a strategy uses a stop loss, trailing stop, limit buy, or take profit, every intent still active in the model appears separately under “Conditional orders to place.” The table provides:
+
+- order type and side;
+- real shares to place;
+- the unadjusted trigger price;
+- the trailing percentage when applicable.
+
+The condition becomes eligible on the trading day after the signal date. It is not a next-open fill and does not enter that day's execution rate. Place it manually in the broker client so the broker server can monitor it. Jixie does not currently read broker order status.
+
 ## Reference price is not a fill price
 
 The page states that:
@@ -107,7 +118,7 @@ The model evolves from the deployed initial cash and historical strategy run. It
 
 ### Does a table row mean an order was placed?
 
-No. The actual shadow account applies a trade only after the user records it as executed. The system still does not read or control a brokerage account.
+No. A market instruction reaches the actual shadow account only after the user records it as executed. A “Conditional order to place” must also be created manually at the broker. The system still does not read or control a brokerage account.
 
 ## Related articles
 

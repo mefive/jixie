@@ -21,7 +21,8 @@ export const zhSignals = {
   notificationSkipped: '开发环境未发送',
   noAction: '今日无操作',
   noActionHint: '机械系统的不动也是决策，也证明每日链路正常运行。',
-  referenceNote: '参考价为信号日不复权收盘价；实际成交以次日开盘和市场可成交状态为准。',
+  referenceNote:
+    '市价指令参考信号日不复权收盘价并在次日开盘执行；条件单从下一交易日起等待触发，需在券商端挂单。',
   history: '运行历史',
   instructionCount: '{{count}} 条指令',
   instrument: '标的',
@@ -33,6 +34,20 @@ export const zhSignals = {
   instruction: '指令',
   simulation: '模拟成交',
   actual: '实际执行',
+  conditional: {
+    title: '待挂条件单',
+    hint: '这些意图仍在模型中生效；请按触发价在券商端挂单，不计作次日开盘成交。',
+    type: '条件类型',
+    trigger: '触发价',
+    trailing: '回撤 {{value}}',
+    orderType: {
+      market_open: '次日开盘',
+      stop_loss: '止损',
+      trailing_stop: '跟踪止损',
+      limit_buy: '限价买入',
+      take_profit: '止盈',
+    },
+  },
   account: {
     title: '模型、模拟与实际账户',
     hint: '同一模型持仓基线；差异分别反映市场可成交性和人工执行损耗。',

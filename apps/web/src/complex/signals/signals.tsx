@@ -295,6 +295,8 @@ function SignalResult({
 
   const signals = run.signals ?? [];
   const executions = run.executions ?? [];
+  const conditionalSignals = signals.filter((signal) => signal.source === 'conditional');
+  const legacyImmediateSignals = signals.filter((signal) => signal.source !== 'conditional');
   return (
     <section className="jx-signals-run">
       <div className="jx-signals-sectionHeading">
@@ -331,25 +333,46 @@ function SignalResult({
             <p className="jx-signals-noActionText">{t('noActionHint')}</p>
           </div>
         </div>
-      ) : executions.length > 0 ? (
-        <Table<SignalExecution>
-          className="jx-signals-table"
-          rowKey="id"
-          columns={executionColumns(t, savingExecutionId, onSave)}
-          dataSource={executions}
-          pagination={false}
-          size="small"
-          scroll={{ x: 940 }}
-        />
       ) : (
-        <Table<SignalItem>
-          className="jx-signals-table"
-          rowKey={(signal) => `${signal.code}-${signal.source}`}
-          columns={legacySignalColumns(t)}
-          dataSource={signals}
-          pagination={false}
-          size="small"
-        />
+        <>
+          {executions.length > 0 ? (
+            <Table<SignalExecution>
+              className="jx-signals-table"
+              rowKey="id"
+              columns={executionColumns(t, savingExecutionId, onSave)}
+              dataSource={executions}
+              pagination={false}
+              size="small"
+              scroll={{ x: 940 }}
+            />
+          ) : legacyImmediateSignals.length > 0 ? (
+            <Table<SignalItem>
+              className="jx-signals-table"
+              rowKey={(signal) => `${signal.code}-${signal.source}`}
+              columns={legacySignalColumns(t)}
+              dataSource={legacyImmediateSignals}
+              pagination={false}
+              size="small"
+            />
+          ) : null}
+          {conditionalSignals.length > 0 && (
+            <div className="jx-signals-conditional">
+              <div className="jx-signals-conditionalHeading">
+                <h4>{t('conditional.title')}</h4>
+                <p>{t('conditional.hint')}</p>
+              </div>
+              <Table<SignalItem>
+                className="jx-signals-table"
+                rowKey={(signal) => `${signal.code}-${signal.orderType}`}
+                columns={conditionalSignalColumns(t)}
+                dataSource={conditionalSignals}
+                pagination={false}
+                size="small"
+                scroll={{ x: 720 }}
+              />
+            </div>
+          )}
+        </>
       )}
       <p className="jx-signals-referenceNote">{t('referenceNote')}</p>
     </section>
@@ -719,6 +742,63 @@ function legacySignalColumns(t: (key: string, options?: any) => string): Columns
       dataIndex: 'refAmount',
       align: 'right',
       render: (amount: number) => formatMoney(amount),
+    },
+  ];
+}
+
+function conditionalSignalColumns(
+  t: (key: string, options?: any) => string,
+): ColumnsType<SignalItem> {
+  return [
+    {
+      title: t('instrument'),
+      key: 'instrument',
+      fixed: 'left',
+      width: 170,
+      render: (_, signal) => (
+        <div>
+          <strong>{signal.name}</strong>
+          <span className="jx-signals-code">{signal.code}</span>
+        </div>
+      ),
+    },
+    {
+      title: t('conditional.type'),
+      dataIndex: 'orderType',
+      width: 150,
+      render: (orderType: SignalItem['orderType']) =>
+        t(`conditional.orderType.${orderType ?? 'market_open'}`),
+    },
+    {
+      title: t('instruction'),
+      key: 'instruction',
+      width: 150,
+      render: (_, signal) => (
+        <div>
+          <span className={signal.action === 'buy' ? 'text-up' : 'text-down'}>
+            {t(`actionType.${signal.action}`)}
+          </span>
+          <span className="jx-signals-code">
+            {signal.shares.toLocaleString()} {t('shares')}
+          </span>
+        </div>
+      ),
+    },
+    {
+      title: t('conditional.trigger'),
+      key: 'trigger',
+      align: 'right',
+      width: 180,
+      render: (_, signal) => (
+        <div>
+          <strong>¥{signal.triggerPrice?.toFixed(2) ?? '—'}</strong>
+          {signal.trailingPct != null && (
+            <span className="jx-signals-code">
+              {t('conditional.trailing', { value: `${(signal.trailingPct * 100).toFixed(1)}%` })}
+            </span>
+          )}
+        </div>
+      ),
     },
   ];
 }

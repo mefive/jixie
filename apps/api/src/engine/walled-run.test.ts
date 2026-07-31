@@ -201,6 +201,41 @@ describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
     expect(walled.capture.signals.every((signal) => signal.shares > 0)).toBe(true);
   });
 
+  it('条件单撮合与末日存续意图在双车道一致', { timeout: 60_000 }, async () => {
+    const code = `
+      export default defineStrategy({
+        name: 'conditional-drift',
+        watch: ['AAA'],
+        onBar(ctx) {
+          if (ctx.date === '${D[0]}') ctx.orderLots('AAA', 1);
+          if (ctx.shares('AAA') > 0) ctx.trailingStop('AAA', 0.08);
+        },
+      });
+    `;
+    const direct = await runStrategyWithSignals({
+      start: D[0],
+      end: D.at(-1)!,
+      initialCash: 100_000,
+      strategy: await compileStrategy(code),
+      dataPort: fixturePort(SPEC),
+    });
+    const walled = await runWalledSignalCapture(
+      { code, start: D[0], end: D.at(-1)!, initialCash: 100_000 },
+      fixturePort(SPEC),
+    );
+
+    expect(walled.result.tradeLog).toEqual(direct.result.tradeLog);
+    expect(walled.capture).toEqual(direct.capture);
+    expect(walled.capture.signals).toEqual([
+      expect.objectContaining({
+        code: 'AAA',
+        source: 'conditional',
+        orderType: 'trailing_stop',
+        action: 'sell',
+      }),
+    ]);
+  });
+
   it('期货逐日盯市与成交在直跑和进墙车道一致', { timeout: 60_000 }, async () => {
     const code = `
       export default defineStrategy({

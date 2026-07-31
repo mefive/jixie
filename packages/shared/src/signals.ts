@@ -4,9 +4,16 @@ import type { TradeDate } from './types.js';
 
 export type SignalAssetType = 'stock' | 'etf';
 export type SignalAction = 'buy' | 'sell';
-export type SignalSource = 'target' | 'order';
+export type SignalSource = 'target' | 'order' | 'conditional';
+export type SignalOrderType =
+  | 'market_open'
+  | 'stop_loss'
+  | 'trailing_stop'
+  | 'limit_buy'
+  | 'take_profit';
 
-/** One next-open order instruction derived from a deployed strategy's final pending intent. */
+/** One executable instruction derived from a deployed strategy's final pending intent. Market orders
+ * target the next open; conditional orders remain active until their trigger or cancellation. */
 export interface SignalItem {
   code: string;
   name: string;
@@ -16,6 +23,9 @@ export interface SignalItem {
   refPrice: number;
   refAmount: number;
   source: SignalSource;
+  orderType?: SignalOrderType;
+  triggerPrice?: number;
+  trailingPct?: number;
   targetWeight?: number;
 }
 

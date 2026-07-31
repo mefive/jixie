@@ -10,9 +10,11 @@ import {
   DEFAULT_COST,
   type BacktestResult,
   type BarContext,
+  type ConditionalOrderKind,
   type CostModel,
   type EngineConfig,
   type PendingCashSignal,
+  type PendingConditionalSignal,
   type SignalBacktestOutput,
   type SleeveNavPoint,
   type StrategySignalCapture,
@@ -23,6 +25,52 @@ type FutureIntent =
   | { kind: 'contracts'; value: number }
   | { kind: 'notional'; value: number }
   | { kind: 'hedge'; value: number };
+
+type ConditionalOrder =
+  | {
+      kind: 'stop_loss';
+      code: string;
+      triggerPrice: number;
+      placedDate: string;
+    }
+  | {
+      kind: 'trailing_stop';
+      code: string;
+      trailingPct: number;
+      highWater: number;
+      placedDate: string;
+    }
+  | {
+      kind: 'limit_buy';
+      code: string;
+      triggerPrice: number;
+      shares: number;
+      placedDate: string;
+    }
+  | {
+      kind: 'take_profit';
+      code: string;
+      triggerPrice: number;
+      placedDate: string;
+    };
+
+type ConditionalCommand =
+  | {
+      action: 'upsert';
+      order:
+        | { kind: 'stop_loss'; code: string; triggerPrice: number }
+        | { kind: 'trailing_stop'; code: string; trailingPct: number; highWater: number }
+        | { kind: 'limit_buy'; code: string; triggerPrice: number; shares: number }
+        | { kind: 'take_profit'; code: string; triggerPrice: number };
+    }
+  | { action: 'cancel'; code: string; kind?: ConditionalOrderKind };
+
+type CollectedStockOrders = {
+  targets: Map<string, number> | null;
+  orders: Map<string, number> | null;
+  lotOrders: Map<string, number> | null;
+  conditionalCommands: ConditionalCommand[];
+};
 
 const PERIODS_PER_YEAR = 252; // trading days
 const BENCHMARK = '000300.SH'; // CSI 300 — the excess/IR benchmark
@@ -113,11 +161,14 @@ async function runStockStrategyCore(
   const nav: { date: string; value: number }[] = [];
   let pendingTargets: Map<string, number> | null = null;
   let pendingOrders: Map<string, number> | null = null;
+  let pendingLotOrders: Map<string, number> | null = null;
+  const conditionalOrders = new Map<string, ConditionalOrder>();
   let lastYear = '';
   const total = engineData.timeline.length;
 
   for (let i = 0; i < total; i++) {
     const date = engineData.timeline[i];
+    const heldBeforeOpen = new Set(portfolio.positions.keys());
     // 1. Execute what was queued yesterday, at today's open (declarative rebalance OR share orders).
     if (pendingTargets) {
       const codes = new Set<string>([...pendingTargets.keys(), ...portfolio.positions.keys()]);
@@ -126,10 +177,26 @@ async function runStockStrategyCore(
       pendingTargets = null;
       log(t(locale, 'backtestRebalance', { date: fmtDate(date), count: portfolio.positions.size }));
     }
-    if (pendingOrders) {
-      await engineData.loadBars([...pendingOrders.keys()]);
-      executeOrders(portfolio, engineData, date, pendingOrders, cost);
+    if (pendingOrders || pendingLotOrders) {
+      const codes = new Set([
+        ...(pendingOrders?.keys() ?? []),
+        ...(pendingLotOrders?.keys() ?? []),
+      ]);
+      await engineData.loadBars([...codes]);
+      executeOrders(
+        portfolio,
+        engineData,
+        date,
+        mergeShareAndLotOrders(engineData, date, pendingOrders, pendingLotOrders),
+        cost,
+      );
       pendingOrders = null;
+      pendingLotOrders = null;
+    }
+    removeConditionsForClosedPositions(conditionalOrders, heldBeforeOpen, portfolio);
+    if (conditionalOrders.size > 0) {
+      await engineData.loadBars([...new Set([...conditionalOrders.values()].map((o) => o.code))]);
+      executeConditionalOrders(portfolio, engineData, date, conditionalOrders, cost);
     }
 
     // 2. Mark equity at today's close.
@@ -150,10 +217,12 @@ async function runStockStrategyCore(
     }
 
     // 3. Strategy decides (may await market data). It may queue targets or orders for next open.
-    const collected: {
-      targets: Map<string, number> | null;
-      orders: Map<string, number> | null;
-    } = { targets: null, orders: null };
+    const collected: CollectedStockOrders = {
+      targets: null,
+      orders: null,
+      lotOrders: null,
+      conditionalCommands: [],
+    };
     await cfg.strategy.onBar(buildContext(date, engineData, portfolio, collected, customFactors));
     if (collected.targets) {
       pendingTargets = collected.targets;
@@ -161,6 +230,10 @@ async function runStockStrategyCore(
     if (collected.orders) {
       pendingOrders = collected.orders;
     }
+    if (collected.lotOrders) {
+      pendingLotOrders = collected.lotOrders;
+    }
+    applyConditionalCommands(conditionalOrders, collected.conditionalCommands, date);
   }
 
   const capture = captureSignals
@@ -169,6 +242,8 @@ async function runStockStrategyCore(
         portfolio,
         pendingTargets,
         pendingOrders,
+        pendingLotOrders,
+        conditionalOrders,
         nav.at(-1)?.date,
       )
     : null;
@@ -215,12 +290,15 @@ async function runMultiAssetStrategy(cfg: EngineConfig): Promise<BacktestResult>
   const sleeveNav: SleeveNavPoint[] = [];
   let pendingTargets: Map<string, number> | null = null;
   let pendingOrders: Map<string, number> | null = null;
+  let pendingLotOrders: Map<string, number> | null = null;
   let pendingFutureIntents: Map<string, FutureIntent> | null = null;
+  const conditionalOrders = new Map<string, ConditionalOrder>();
 
   for (let index = 0; index < engineData.timeline.length; index++) {
     const date = engineData.timeline[index];
     const previousDate = engineData.timeline[index - 1];
     if (previousDate) {
+      const heldBeforeOpen = new Set(stockPortfolio.positions.keys());
       futurePortfolio.roll(engineData, date, previousDate);
       if (pendingTargets) {
         const codes = new Set<string>([
@@ -231,10 +309,28 @@ async function runMultiAssetStrategy(cfg: EngineConfig): Promise<BacktestResult>
         rebalance(stockPortfolio, engineData, date, pendingTargets, cost);
         pendingTargets = null;
       }
-      if (pendingOrders) {
-        await engineData.loadBars([...pendingOrders.keys()]);
-        executeOrders(stockPortfolio, engineData, date, pendingOrders, cost);
+      if (pendingOrders || pendingLotOrders) {
+        const codes = new Set([
+          ...(pendingOrders?.keys() ?? []),
+          ...(pendingLotOrders?.keys() ?? []),
+        ]);
+        await engineData.loadBars([...codes]);
+        executeOrders(
+          stockPortfolio,
+          engineData,
+          date,
+          mergeShareAndLotOrders(engineData, date, pendingOrders, pendingLotOrders),
+          cost,
+        );
         pendingOrders = null;
+        pendingLotOrders = null;
+      }
+      removeConditionsForClosedPositions(conditionalOrders, heldBeforeOpen, stockPortfolio);
+      if (conditionalOrders.size > 0) {
+        await engineData.loadBars([
+          ...new Set([...conditionalOrders.values()].map((order) => order.code)),
+        ]);
+        executeConditionalOrders(stockPortfolio, engineData, date, conditionalOrders, cost);
       }
       if (pendingFutureIntents) {
         executeFutureIntents(
@@ -271,6 +367,8 @@ async function runMultiAssetStrategy(cfg: EngineConfig): Promise<BacktestResult>
     const collected = {
       targets: null as Map<string, number> | null,
       orders: null as Map<string, number> | null,
+      lotOrders: null as Map<string, number> | null,
+      conditionalCommands: [] as ConditionalCommand[],
       futureIntents: null as Map<string, FutureIntent> | null,
     };
     await cfg.strategy.onBar(
@@ -286,7 +384,9 @@ async function runMultiAssetStrategy(cfg: EngineConfig): Promise<BacktestResult>
     );
     pendingTargets = collected.targets;
     pendingOrders = collected.orders;
+    pendingLotOrders = collected.lotOrders;
     pendingFutureIntents = collected.futureIntents;
+    applyConditionalCommands(conditionalOrders, collected.conditionalCommands, date);
   }
 
   const trades = [...stockPortfolio.trades, ...futurePortfolio.trades].sort((a, b) =>
@@ -354,7 +454,7 @@ function buildContext(
   date: string,
   engineData: EngineData,
   portfolio: Portfolio,
-  collected: { targets: Map<string, number> | null; orders: Map<string, number> | null },
+  collected: CollectedStockOrders,
   customFactors: CustomFactorRuntime | null,
 ): BarContext {
   let cross: CrossSection | null = null; // today's cross-section, loaded on first loadCrossSection() call
@@ -488,6 +588,14 @@ function buildContext(
       }
       collected.orders.set(code, (collected.orders.get(code) ?? 0) + shares);
     },
+    orderLots(code, lots) {
+      const wholeLots = Math.trunc(lots);
+      if (!wholeLots) {
+        return;
+      }
+      collected.lotOrders ??= new Map();
+      collected.lotOrders.set(code, (collected.lotOrders.get(code) ?? 0) + wholeLots);
+    },
     exit(code) {
       const held = portfolio.positions.get(code)?.shares ?? 0;
       if (held > 0) {
@@ -496,6 +604,50 @@ function buildContext(
         }
         collected.orders.set(code, (collected.orders.get(code) ?? 0) - held);
       }
+    },
+    stopLoss(code, price) {
+      assertPositiveOrderValue(price, 'Stop-loss price');
+      collected.conditionalCommands.push({
+        action: 'upsert',
+        order: { kind: 'stop_loss', code, triggerPrice: price },
+      });
+    },
+    trailingStop(code, pct) {
+      assertFraction(pct, 'Trailing-stop percentage');
+      const highWater = engineData.closeAt(code, date);
+      if (highWater == null || highWater <= 0) {
+        return;
+      }
+      collected.conditionalCommands.push({
+        action: 'upsert',
+        order: { kind: 'trailing_stop', code, trailingPct: pct, highWater },
+      });
+    },
+    limitBuy(code, price, shares) {
+      assertPositiveOrderValue(price, 'Limit-buy price');
+      assertPositiveOrderValue(shares, 'Limit-buy shares');
+      collected.conditionalCommands.push({
+        action: 'upsert',
+        order: { kind: 'limit_buy', code, triggerPrice: price, shares },
+      });
+    },
+    takeProfit(code, pct) {
+      assertPositiveOrderValue(pct, 'Take-profit percentage');
+      const position = portfolio.positions.get(code);
+      if (!position) {
+        return;
+      }
+      collected.conditionalCommands.push({
+        action: 'upsert',
+        order: {
+          kind: 'take_profit',
+          code,
+          triggerPrice: position.avgCost * (1 + pct),
+        },
+      });
+    },
+    cancelConditional(code, kind) {
+      collected.conditionalCommands.push({ action: 'cancel', code, kind });
     },
     orderFuture() {
       throw new Error('Declare strategy.futures to use futures orders');
@@ -523,6 +675,8 @@ function buildMultiAssetContext(
   collected: {
     targets: Map<string, number> | null;
     orders: Map<string, number> | null;
+    lotOrders: Map<string, number> | null;
+    conditionalCommands: ConditionalCommand[];
     futureIntents: Map<string, FutureIntent> | null;
   },
   customFactors: CustomFactorRuntime | null,
@@ -648,6 +802,15 @@ function buildMultiAssetContext(
       collected.orders ??= new Map();
       collected.orders.set(code, (collected.orders.get(code) ?? 0) + shares);
     },
+    orderLots(code, lots) {
+      assertStockOrdersEnabled(stockOrdersEnabled);
+      const wholeLots = Math.trunc(lots);
+      if (!wholeLots) {
+        return;
+      }
+      collected.lotOrders ??= new Map();
+      collected.lotOrders.set(code, (collected.lotOrders.get(code) ?? 0) + wholeLots);
+    },
     exit(code) {
       assertStockOrdersEnabled(stockOrdersEnabled);
       const held = stockPortfolio.positions.get(code)?.shares ?? 0;
@@ -656,6 +819,55 @@ function buildMultiAssetContext(
       }
       collected.orders ??= new Map();
       collected.orders.set(code, (collected.orders.get(code) ?? 0) - held);
+    },
+    stopLoss(code, price) {
+      assertStockOrdersEnabled(stockOrdersEnabled);
+      assertPositiveOrderValue(price, 'Stop-loss price');
+      collected.conditionalCommands.push({
+        action: 'upsert',
+        order: { kind: 'stop_loss', code, triggerPrice: price },
+      });
+    },
+    trailingStop(code, pct) {
+      assertStockOrdersEnabled(stockOrdersEnabled);
+      assertFraction(pct, 'Trailing-stop percentage');
+      const highWater = engineData.closeAt(code, date);
+      if (highWater == null || highWater <= 0) {
+        return;
+      }
+      collected.conditionalCommands.push({
+        action: 'upsert',
+        order: { kind: 'trailing_stop', code, trailingPct: pct, highWater },
+      });
+    },
+    limitBuy(code, price, shares) {
+      assertStockOrdersEnabled(stockOrdersEnabled);
+      assertPositiveOrderValue(price, 'Limit-buy price');
+      assertPositiveOrderValue(shares, 'Limit-buy shares');
+      collected.conditionalCommands.push({
+        action: 'upsert',
+        order: { kind: 'limit_buy', code, triggerPrice: price, shares },
+      });
+    },
+    takeProfit(code, pct) {
+      assertStockOrdersEnabled(stockOrdersEnabled);
+      assertPositiveOrderValue(pct, 'Take-profit percentage');
+      const position = stockPortfolio.positions.get(code);
+      if (!position) {
+        return;
+      }
+      collected.conditionalCommands.push({
+        action: 'upsert',
+        order: {
+          kind: 'take_profit',
+          code,
+          triggerPrice: position.avgCost * (1 + pct),
+        },
+      });
+    },
+    cancelConditional(code, kind) {
+      assertStockOrdersEnabled(stockOrdersEnabled);
+      collected.conditionalCommands.push({ action: 'cancel', code, kind });
     },
     shares(code) {
       return stockPortfolio.positions.get(code)?.shares ?? 0;
@@ -695,11 +907,244 @@ function assertStockOrdersEnabled(enabled: boolean): void {
   }
 }
 
+function assertPositiveOrderValue(value: number, label: string): void {
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new Error(`${label} must be a positive finite number`);
+  }
+}
+
+function assertFraction(value: number, label: string): void {
+  if (!Number.isFinite(value) || value <= 0 || value >= 1) {
+    throw new Error(`${label} must be between 0 and 1`);
+  }
+}
+
+function conditionalOrderKey(kind: ConditionalOrderKind, code: string): string {
+  return `${kind}:${code}`;
+}
+
+function removeConditionsForClosedPositions(
+  book: Map<string, ConditionalOrder>,
+  heldBeforeOpen: Set<string>,
+  portfolio: Portfolio,
+): void {
+  for (const code of heldBeforeOpen) {
+    if (portfolio.positions.has(code)) {
+      continue;
+    }
+    for (const [key, order] of book) {
+      if (order.code === code && order.kind !== 'limit_buy') {
+        book.delete(key);
+      }
+    }
+  }
+}
+
+function applyConditionalCommands(
+  book: Map<string, ConditionalOrder>,
+  commands: ConditionalCommand[],
+  placedDate: string,
+): void {
+  for (const command of commands) {
+    if (command.action === 'cancel') {
+      if (command.kind) {
+        book.delete(conditionalOrderKey(command.kind, command.code));
+      } else {
+        for (const [key, order] of book) {
+          if (order.code === command.code) {
+            book.delete(key);
+          }
+        }
+      }
+      continue;
+    }
+
+    const key = conditionalOrderKey(command.order.kind, command.order.code);
+    const existing = book.get(key);
+    if (command.order.kind === 'trailing_stop') {
+      book.set(key, {
+        ...command.order,
+        highWater:
+          existing?.kind === 'trailing_stop'
+            ? Math.max(existing.highWater, command.order.highWater)
+            : command.order.highWater,
+        placedDate: existing?.placedDate ?? placedDate,
+      });
+    } else {
+      book.set(key, { ...command.order, placedDate });
+    }
+  }
+}
+
+/** Execute persistent conditions against one exact daily OHLC bar. Stop exits are evaluated before
+ * profit exits when both ends of the range were touched because daily data cannot reveal which came
+ * first; choosing the adverse branch avoids optimistic path assumptions. Trailing stops use only the
+ * high-water mark known before this bar, then advance it after evaluation. */
+function executeConditionalOrders(
+  portfolio: Portfolio,
+  engineData: EngineData,
+  date: string,
+  book: Map<string, ConditionalOrder>,
+  cost: CostModel,
+): void {
+  const byCode = new Map<string, ConditionalOrder[]>();
+  for (const order of book.values()) {
+    const orders = byCode.get(order.code) ?? [];
+    orders.push(order);
+    byCode.set(order.code, orders);
+  }
+
+  for (const [code, orders] of byCode) {
+    const bar = engineData.ohlcAt(code, date);
+    if (!bar) {
+      continue;
+    }
+
+    const position = portfolio.positions.get(code);
+    const sellable = position != null && position.frozenUntil <= date;
+    const stopCandidates: Array<{
+      order: Extract<ConditionalOrder, { kind: 'stop_loss' | 'trailing_stop' }>;
+      triggerPrice: number;
+    }> = [];
+    for (const order of orders) {
+      if (order.kind === 'stop_loss' && bar.low <= order.triggerPrice) {
+        stopCandidates.push({ order, triggerPrice: order.triggerPrice });
+      } else if (order.kind === 'trailing_stop') {
+        const triggerPrice = order.highWater * (1 - order.trailingPct);
+        if (bar.low <= triggerPrice) {
+          stopCandidates.push({ order, triggerPrice });
+        }
+      }
+    }
+    stopCandidates.sort((left, right) => right.triggerPrice - left.triggerPrice);
+    const takeProfit = orders.find(
+      (order): order is Extract<ConditionalOrder, { kind: 'take_profit' }> =>
+        order.kind === 'take_profit' && bar.high >= order.triggerPrice,
+    );
+    const exitCandidate: {
+      order: Extract<ConditionalOrder, { kind: 'stop_loss' | 'trailing_stop' | 'take_profit' }>;
+      triggerPrice: number;
+    } | null =
+      stopCandidates.length > 0
+        ? stopCandidates[0]
+        : takeProfit
+          ? { order: takeProfit, triggerPrice: takeProfit.triggerPrice }
+          : null;
+
+    if (
+      sellable &&
+      position &&
+      exitCandidate &&
+      !conditionalLimitBlocked(engineData, code, date, 'sell', bar)
+    ) {
+      const isProfit = exitCandidate.order.kind === 'take_profit';
+      const basePrice = isProfit
+        ? bar.open >= exitCandidate.triggerPrice
+          ? bar.open
+          : exitCandidate.triggerPrice
+        : bar.open <= exitCandidate.triggerPrice
+          ? bar.open
+          : exitCandidate.triggerPrice;
+      const slippedPrice = execPrice(
+        engineData,
+        code,
+        date,
+        'sell',
+        basePrice,
+        position.shares * basePrice,
+        cost,
+      );
+      const fillPrice = isProfit
+        ? Math.max(exitCandidate.triggerPrice, slippedPrice)
+        : slippedPrice;
+      portfolio.fill(
+        code,
+        -position.shares,
+        fillPrice,
+        date,
+        engineData.nextDay(date),
+        engineData.adjAt(code, date)!,
+        engineData.assetType(code),
+        basePrice,
+      );
+      for (const order of orders) {
+        if (order.kind !== 'limit_buy') {
+          book.delete(conditionalOrderKey(order.kind, code));
+        }
+      }
+    }
+
+    for (const order of orders) {
+      if (order.kind !== 'limit_buy' || bar.low > order.triggerPrice) {
+        continue;
+      }
+      if (conditionalLimitBlocked(engineData, code, date, 'buy', bar)) {
+        continue;
+      }
+      const basePrice = bar.open <= order.triggerPrice ? bar.open : order.triggerPrice;
+      const slippedPrice = execPrice(
+        engineData,
+        code,
+        date,
+        'buy',
+        basePrice,
+        order.shares * basePrice,
+        cost,
+      );
+      const fillPrice = Math.min(order.triggerPrice, slippedPrice);
+      const buy = Math.min(
+        order.shares,
+        portfolio.affordableShares(fillPrice, engineData.assetType(code)),
+      );
+      if (buy <= 0) {
+        continue;
+      }
+      portfolio.fill(
+        code,
+        buy,
+        fillPrice,
+        date,
+        engineData.nextDay(date),
+        engineData.adjAt(code, date)!,
+        engineData.assetType(code),
+        basePrice,
+      );
+      book.delete(conditionalOrderKey(order.kind, code));
+    }
+
+    for (const order of orders) {
+      if (order.kind === 'trailing_stop' && book.has(conditionalOrderKey(order.kind, code))) {
+        order.highWater = Math.max(order.highWater, bar.high);
+      }
+    }
+  }
+}
+
+function conditionalLimitBlocked(
+  engineData: EngineData,
+  code: string,
+  date: string,
+  side: 'buy' | 'sell',
+  bar: { high: number; low: number },
+): boolean {
+  const limit = engineData.limitAt(code, date);
+  const adjustmentFactor = engineData.adjAt(code, date);
+  if (!limit || !adjustmentFactor || adjustmentFactor <= 0) {
+    return false;
+  }
+  const epsilon = 1e-3;
+  return side === 'buy'
+    ? limit.up != null && bar.low / adjustmentFactor >= limit.up - epsilon
+    : limit.down != null && bar.high / adjustmentFactor <= limit.down + epsilon;
+}
+
 async function capturePendingCashSignals(
   engineData: EngineData,
   portfolio: Portfolio,
   pendingTargets: Map<string, number> | null,
   pendingOrders: Map<string, number> | null,
+  pendingLotOrders: Map<string, number> | null,
+  conditionalOrders: Map<string, ConditionalOrder>,
   tradeDate?: string,
 ): Promise<StrategySignalCapture> {
   if (!tradeDate) {
@@ -710,6 +1155,8 @@ async function capturePendingCashSignals(
     ...portfolio.positions.keys(),
     ...(pendingTargets?.keys() ?? []),
     ...(pendingOrders?.keys() ?? []),
+    ...(pendingLotOrders?.keys() ?? []),
+    ...[...conditionalOrders.values()].map((order) => order.code),
   ]);
   await engineData.loadBars([...codes]);
 
@@ -730,7 +1177,7 @@ async function capturePendingCashSignals(
       },
     ];
   });
-  const signals: PendingCashSignal[] = [];
+  const signals: Array<PendingCashSignal | PendingConditionalSignal> = [];
 
   if (pendingTargets) {
     const targetCodes = new Set([...portfolio.positions.keys(), ...pendingTargets.keys()]);
@@ -782,6 +1229,74 @@ async function capturePendingCashSignals(
         signals.push(signal);
       }
     }
+  }
+
+  if (pendingLotOrders) {
+    for (const [code, lots] of pendingLotOrders) {
+      const adjustmentFactor = engineData.adjAsOf(code, tradeDate);
+      const refPrice = engineData.rawCloseAsOf(code, tradeDate);
+      if (!adjustmentFactor || !refPrice) {
+        continue;
+      }
+      const signal = projectCashSignal(
+        engineData,
+        code,
+        (lots * 100) / adjustmentFactor,
+        adjustmentFactor,
+        refPrice,
+        'order',
+      );
+      if (signal) {
+        signals.push(signal);
+      }
+    }
+  }
+
+  for (const order of conditionalOrders.values()) {
+    const adjustmentFactor = engineData.adjAsOf(order.code, tradeDate);
+    const refPrice = engineData.rawCloseAsOf(order.code, tradeDate);
+    if (!adjustmentFactor || !refPrice) {
+      continue;
+    }
+    const position = portfolio.positions.get(order.code);
+    const action = order.kind === 'limit_buy' ? 'buy' : 'sell';
+    const adjustedTrigger =
+      order.kind === 'trailing_stop'
+        ? order.highWater * (1 - order.trailingPct)
+        : order.triggerPrice;
+    const triggerPrice = adjustedTrigger / adjustmentFactor;
+    let projectedShares = position?.shares ?? 0;
+    if (pendingTargets?.has(order.code)) {
+      const adjustedClose = engineData.closeAt(order.code, tradeDate);
+      if (adjustedClose != null && adjustedClose > 0) {
+        projectedShares = (pendingTargets.get(order.code)! * modelEquity) / adjustedClose;
+      }
+    }
+    projectedShares = Math.max(
+      0,
+      projectedShares +
+        (pendingOrders?.get(order.code) ?? 0) +
+        ((pendingLotOrders?.get(order.code) ?? 0) * 100) / adjustmentFactor,
+    );
+    const realShares =
+      action === 'buy'
+        ? Math.floor((order.kind === 'limit_buy' ? order.shares * adjustmentFactor : 0) / 100) * 100
+        : Math.max(0, Math.round(projectedShares * adjustmentFactor));
+    if (realShares <= 0) {
+      continue;
+    }
+    signals.push({
+      code: order.code,
+      assetType: engineData.assetType(order.code),
+      action,
+      shares: realShares,
+      refPrice,
+      refAmount: realShares * triggerPrice,
+      source: 'conditional',
+      orderType: order.kind,
+      triggerPrice,
+      ...(order.kind === 'trailing_stop' ? { trailingPct: order.trailingPct } : {}),
+    });
   }
 
   return {
@@ -947,6 +1462,24 @@ function rebalance(
  * clamped to the T+1-sellable shares actually held, a buy to what cash can afford. Suspended codes
  * (no open) are skipped — the strategy can re-queue next bar.
  */
+function mergeShareAndLotOrders(
+  engineData: EngineData,
+  date: string,
+  shareOrders: Map<string, number> | null,
+  lotOrders: Map<string, number> | null,
+): Map<string, number> {
+  const merged = new Map(shareOrders ?? []);
+  for (const [code, lots] of lotOrders ?? []) {
+    const adjustmentFactor = engineData.adjAt(code, date);
+    if (adjustmentFactor == null || adjustmentFactor <= 0) {
+      continue;
+    }
+    const adjustedShares = (lots * 100) / adjustmentFactor;
+    merged.set(code, (merged.get(code) ?? 0) + adjustedShares);
+  }
+  return merged;
+}
+
 function executeOrders(
   portfolio: Portfolio,
   engineData: EngineData,

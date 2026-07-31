@@ -224,8 +224,8 @@ const MESSAGES = {
     en: '[Jixie] {tradeDate} signal generation failed',
   },
   signalEmailHeading: {
-    zh: '{strategy} · 次日执行清单',
-    en: '{strategy} · next-open instructions',
+    zh: '{strategy} · 执行清单',
+    en: '{strategy} · execution instructions',
   },
   signalEmailEmpty: {
     zh: '策略今日没有产生买卖操作。机械系统的不动也是决策。',
@@ -236,8 +236,8 @@ const MESSAGES = {
     en: 'Signal generation failed: {error}',
   },
   signalEmailReferenceNote: {
-    zh: '参考价为信号日不复权收盘价，实际成交以次日开盘为准。',
-    en: 'Reference prices are raw closes on the signal date; actual fills depend on the next open.',
+    zh: '市价指令次日开盘执行；条件单从下一交易日起等待触发，需在券商端挂单。',
+    en: 'Market instructions execute at the next open; conditional orders wait for a trigger from the next trading day and must be placed with the broker.',
   },
   signalEmailOpenPage: {
     zh: '打开今日信号',
@@ -245,6 +245,11 @@ const MESSAGES = {
   },
   signalEmailBuy: { zh: '买入', en: 'BUY' },
   signalEmailSell: { zh: '卖出', en: 'SELL' },
+  signalEmailMarketOpen: { zh: '次日开盘', en: 'NEXT OPEN' },
+  signalEmailStopLoss: { zh: '止损', en: 'STOP LOSS' },
+  signalEmailTrailingStop: { zh: '跟踪止损', en: 'TRAILING STOP' },
+  signalEmailLimitBuy: { zh: '限价买入', en: 'LIMIT BUY' },
+  signalEmailTakeProfit: { zh: '止盈', en: 'TAKE PROFIT' },
 
   // —— Backtest engine progress logs (system-tagged, streamed to the job) ——
   backtestStart: {
