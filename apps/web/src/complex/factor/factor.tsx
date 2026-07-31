@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent, ReactNode } from 'react';
 import type { TFunction } from 'i18next';
 import { useBlocker, useSearchParams } from 'react-router-dom';
@@ -37,6 +37,7 @@ import type {
   FactorWeight,
   FactorOutlierMethod,
   FactorSampleStageKey,
+  FactorCompositeDefinitionV1,
 } from '@jixie/shared';
 import {
   faSpinner,
@@ -49,6 +50,8 @@ import {
   faClockRotateLeft,
   faCheck,
   faTriangleExclamation,
+  faLayerGroup,
+  faPen,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { LoaderButton } from '@src/components/loader-button';
@@ -245,7 +248,13 @@ const AgentChat = complex.component(() => {
       <ChatLog
         messages={store.chatMessages}
         sending={store.sending}
-        qa={qa}
+        emptyKey={
+          qa
+            ? store.mode === 'composite'
+              ? 'chatEmptyComposite'
+              : 'chatEmptyQa'
+            : 'chatEmptyAuthor'
+        }
         cards={store.cardResults}
         stream={store.turnStream}
       />
@@ -254,7 +263,13 @@ const AgentChat = complex.component(() => {
           value={store.nlText}
           onChange={(v) => store.setNlText(v)}
           onSubmit={() => void store.sendAgent(store.nlText)}
-          placeholder={t(qa ? 'placeholderQa' : 'placeholderAuthor')}
+          placeholder={t(
+            qa
+              ? store.mode === 'composite'
+                ? 'placeholderCompositeQa'
+                : 'placeholderQa'
+              : 'placeholderAuthor',
+          )}
         />
       </div>
     </div>
@@ -265,13 +280,13 @@ const AgentChat = complex.component(() => {
 function ChatLog({
   messages,
   sending,
-  qa,
+  emptyKey,
   cards,
   stream,
 }: {
   messages: ChatMessage[];
   sending: boolean;
-  qa: boolean;
+  emptyKey: 'chatEmptyQa' | 'chatEmptyComposite' | 'chatEmptyAuthor';
   cards: QueryCardResults;
   stream: AgentTurnStream;
 }) {
@@ -286,7 +301,7 @@ function ChatLog({
   return (
     <div ref={ref} className="jx-factor-chatLog">
       {messages.length === 0 && !sending && (
-        <div className="jx-factor-chatEmpty">{t(qa ? 'chatEmptyQa' : 'chatEmptyAuthor')}</div>
+        <div className="jx-factor-chatEmpty">{t(emptyKey)}</div>
       )}
       {messages.map((message, index) => (
         <div
@@ -318,9 +333,12 @@ const FactorLibrary = complex.component(
     const { t } = useTranslation('factor');
     const { modal } = App.useApp();
     const [corrOpen, setCorrOpen] = useState(false);
+    const [compositeOpen, setCompositeOpen] = useState(false);
+    const [editingComposite, setEditingComposite] = useState<FactorMeta | null>(null);
     const list = store.catalogLoader.result ?? [];
-    const presets = list.filter((f) => f.kind !== 'custom');
+    const presets = list.filter((f) => f.kind !== 'custom' && f.kind !== 'composite');
     const custom = list.filter((f) => f.kind === 'custom');
+    const composites = list.filter((f) => f.kind === 'composite');
 
     // A custom factor → jump to Agent (edit/chat); a preset stays here (select → analyze, no code).
     const pick = (key: string, isCustom: boolean) => {
@@ -346,6 +364,15 @@ const FactorLibrary = complex.component(
         cancelText: t('cancel'),
         onOk: () => store.removeFactor(id),
       });
+    const askDeleteComposite = (id: string, name: string) =>
+      modal.confirm({
+        title: t('compositeDeleteTitle'),
+        content: t('compositeDeleteContent', { name }),
+        okText: t('deleteOk'),
+        okButtonProps: { danger: true },
+        cancelText: t('cancel'),
+        onOk: () => store.removeComposite(id),
+      });
 
     // Catalog loading is scoped here (a small region) with a delayed spinner — not the whole workbench.
     return (
@@ -361,6 +388,23 @@ const FactorLibrary = complex.component(
               {t('corrTrigger')}
             </Button>
             <CorrelationModal open={corrOpen} onClose={() => setCorrOpen(false)} />
+            <Button
+              className="jx-factor-compositeTrigger"
+              size="small"
+              block
+              icon={<FontAwesomeIcon icon={faLayerGroup} />}
+              onClick={() => {
+                setEditingComposite(null);
+                setCompositeOpen(true);
+              }}
+            >
+              {t('compositeCreate')}
+            </Button>
+            <CompositeModal
+              open={compositeOpen}
+              editing={editingComposite}
+              onClose={() => setCompositeOpen(false)}
+            />
             <div className="jx-factor-libGroup">{t('presetGroup')}</div>
             {presets.map((f) => (
               <button
@@ -375,6 +419,59 @@ const FactorLibrary = complex.component(
                   {t(KIND_KEY[f.kind])}
                 </span>
               </button>
+            ))}
+
+            <div className="jx-factor-libGroup">{t('compositeGroup')}</div>
+            {composites.length === 0 && (
+              <div className="jx-factor-libEmpty">{t('compositeEmpty')}</div>
+            )}
+            {composites.map((factor) => (
+              <div
+                key={factor.key}
+                role="button"
+                tabIndex={0}
+                className={classNames('jx-factor-libItem', {
+                  'jx-factor-libItem--active': factor.key === store.selectedKey,
+                })}
+                onClick={() => pick(factor.key, false)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    pick(factor.key, false);
+                  }
+                }}
+              >
+                <span className="jx-factor-libName">{factorDisplayName(factor)}</span>
+                <span className="jx-factor-libActions">
+                  <Tooltip title={t('edit')}>
+                    <Button
+                      type="text"
+                      size="small"
+                      className="jx-factor-libDel"
+                      icon={<FontAwesomeIcon icon={faPen} />}
+                      aria-label={t('edit')}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setEditingComposite(factor);
+                        setCompositeOpen(true);
+                      }}
+                    />
+                  </Tooltip>
+                  <Tooltip title={t('deleteTitle')}>
+                    <Button
+                      type="text"
+                      size="small"
+                      className="jx-factor-libDel"
+                      icon={<FontAwesomeIcon icon={faTrash} />}
+                      aria-label={t('deleteTitle')}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        askDeleteComposite(factor.key, factor.label);
+                      }}
+                    />
+                  </Tooltip>
+                </span>
+              </div>
             ))}
 
             <div className="jx-factor-libGroup">{t('customGroup')}</div>
@@ -409,6 +506,178 @@ const FactorLibrary = complex.component(
   'FactorLibrary',
 );
 
+const CompositeModal = complex.component(
+  ({
+    open,
+    editing,
+    onClose,
+  }: {
+    open: boolean;
+    editing: FactorMeta | null;
+    onClose: () => void;
+  }) => {
+    const store = complex.useStore();
+    const { t } = useTranslation('factor');
+    const { message } = App.useApp();
+    const available = useMemo(
+      () => (store.catalogLoader.result ?? []).filter((factor) => factor.kind !== 'composite'),
+      [store.catalogLoader.result],
+    );
+    const [definition, setDefinition] = useState<FactorCompositeDefinitionV1>(() =>
+      emptyCompositeDefinition(available),
+    );
+    const [saving, setSaving] = useState(false);
+
+    useEffect(() => {
+      if (!open) {
+        return;
+      }
+      setDefinition(
+        editing?.composite
+          ? structuredClone(editing.composite)
+          : emptyCompositeDefinition(available),
+      );
+    }, [open, editing, available]);
+
+    const chosen = new Set(definition.components.map((component) => component.factor));
+    const valid =
+      definition.name.trim().length > 0 &&
+      definition.components.length >= 2 &&
+      definition.components.length <= 5 &&
+      definition.components.every((component) => component.factor) &&
+      chosen.size === definition.components.length;
+    const save = async () => {
+      if (!valid || saving) {
+        return;
+      }
+      setSaving(true);
+      try {
+        await store.saveComposite({ ...definition, name: definition.name.trim() }, editing?.key);
+        void message.success(t(editing ? 'compositeUpdated' : 'compositeCreated'));
+        onClose();
+      } finally {
+        setSaving(false);
+      }
+    };
+
+    return (
+      <Modal
+        open={open}
+        title={t(editing ? 'compositeEditTitle' : 'compositeCreateTitle')}
+        okText={t('save')}
+        cancelText={t('cancel')}
+        confirmLoading={saving}
+        okButtonProps={{ disabled: !valid }}
+        onOk={save}
+        onCancel={onClose}
+        width={620}
+      >
+        <div className="jx-factor-compositeForm">
+          <label>
+            <span>{t('compositeName')}</span>
+            <Input
+              value={definition.name}
+              maxLength={80}
+              placeholder={t('compositeNamePlaceholder')}
+              onChange={(event) => setDefinition({ ...definition, name: event.target.value })}
+            />
+          </label>
+          <label>
+            <span>{t('compositeStandardizationLabel')}</span>
+            <Segmented
+              value={definition.standardization}
+              options={[
+                { value: 'rank', label: t('compositeStandardization.rank') },
+                { value: 'zscore', label: t('compositeStandardization.zscore') },
+              ]}
+              onChange={(standardization) =>
+                setDefinition({
+                  ...definition,
+                  standardization: standardization as 'rank' | 'zscore',
+                })
+              }
+            />
+          </label>
+          <div className="jx-factor-compositeFormHead">
+            <span>{t('compositeComponents')}</span>
+            <span>{t('compositeCount', { count: definition.components.length })}</span>
+          </div>
+          <div className="jx-factor-compositeRows">
+            {definition.components.map((component, index) => (
+              <div className="jx-factor-compositeRow" key={`${index}-${component.factor}`}>
+                <Select
+                  showSearch
+                  value={component.factor || undefined}
+                  placeholder={t('compositeFactorPlaceholder')}
+                  optionFilterProp="label"
+                  options={available.map((factor) => ({
+                    value: factor.key,
+                    label: factorDisplayName(factor),
+                    disabled: factor.key !== component.factor && chosen.has(factor.key),
+                  }))}
+                  onChange={(factor) => {
+                    const components = definition.components.slice();
+                    components[index] = { ...components[index], factor };
+                    setDefinition({ ...definition, components });
+                  }}
+                />
+                <Select
+                  value={component.direction}
+                  options={[
+                    { value: 'positive', label: t('compositeDirection.positive') },
+                    { value: 'negative', label: t('compositeDirection.negative') },
+                  ]}
+                  onChange={(direction) => {
+                    const components = definition.components.slice();
+                    components[index] = { ...components[index], direction };
+                    setDefinition({ ...definition, components });
+                  }}
+                />
+                <Tooltip title={t('deleteTitle')}>
+                  <Button
+                    type="text"
+                    icon={<FontAwesomeIcon icon={faTrash} />}
+                    aria-label={t('deleteTitle')}
+                    disabled={definition.components.length <= 2}
+                    onClick={() =>
+                      setDefinition({
+                        ...definition,
+                        components: definition.components.filter((_, item) => item !== index),
+                      })
+                    }
+                  />
+                </Tooltip>
+              </div>
+            ))}
+          </div>
+          <Button
+            type="dashed"
+            block
+            icon={<FontAwesomeIcon icon={faPlus} />}
+            disabled={definition.components.length >= 5 || available.length <= chosen.size}
+            onClick={() =>
+              setDefinition({
+                ...definition,
+                components: [
+                  ...definition.components,
+                  {
+                    factor: available.find((factor) => !chosen.has(factor.key))?.key ?? '',
+                    direction: 'positive',
+                  },
+                ],
+              })
+            }
+          >
+            {t('compositeAddFactor')}
+          </Button>
+          <Alert type="info" showIcon title={t('compositeEqualOnlyHint')} />
+        </div>
+      </Modal>
+    );
+  },
+  'CompositeModal',
+);
+
 // Correlation matrix (3.4): pick 2–8 factors → mean cross-sectional Spearman heatmap (+ a fixed size
 // column). Uses the params bar's freq/range. Self-contained modal so it doesn't disturb the workbench.
 const CorrelationModal = complex.component(
@@ -416,7 +685,9 @@ const CorrelationModal = complex.component(
     const store = complex.useStore();
     const { t } = useTranslation('factor');
     const list = store.catalogLoader.result ?? [];
-    const options = list.map((f) => ({ value: f.key, label: factorDisplayName(f) }));
+    const options = list
+      .filter((factor) => factor.kind !== 'composite')
+      .map((factor) => ({ value: factor.key, label: factorDisplayName(factor) }));
     const per = t(store.freq === 'week' ? 'unitWeek' : 'unitMonth');
 
     // Re-attach to a running correlation job when the modal opens (survives a refresh).
@@ -494,6 +765,9 @@ const MiddleColumn = complex.component(({ guardDiscard }: { guardDiscard: GuardD
   const store = complex.useStore();
   const { t } = useTranslation('factor');
   const preset = store.mode === 'preset';
+  if (store.mode === 'composite') {
+    return <CompositeWorkspace />;
+  }
   if (preset && !store.code) {
     return <FactorDock />; // nothing selected yet (or the preset row failed to load)
   }
@@ -552,6 +826,61 @@ const MiddleColumn = complex.component(({ guardDiscard }: { guardDiscard: GuardD
     </Splitter>
   );
 }, 'MiddleColumn');
+
+const CompositeWorkspace = complex.component(() => {
+  const store = complex.useStore();
+  const { t } = useTranslation('factor');
+  const [open, setOpen] = useState(false);
+  const definition = store.compositeDefinition;
+  const catalog = store.catalogLoader.result ?? [];
+  if (!definition) {
+    return <FactorDock />;
+  }
+  return (
+    <Splitter orientation="vertical">
+      <Splitter.Panel min="20%">
+        <section className="jx-factor-compositeWorkspace">
+          <div className="jx-factor-compositeHead">
+            <div>
+              <div className="jx-factor-compositeTitle">{definition.name}</div>
+              <div className="jx-factor-compositeRule">
+                {t(`compositeStandardization.${definition.standardization}`)} ·{' '}
+                {t('compositeEqualWeight')}
+              </div>
+            </div>
+            <Tooltip title={t('edit')}>
+              <Button
+                type="text"
+                icon={<FontAwesomeIcon icon={faPen} />}
+                aria-label={t('edit')}
+                onClick={() => setOpen(true)}
+              />
+            </Tooltip>
+          </div>
+          <div className="jx-factor-compositeComponents">
+            {definition.components.map((component, index) => {
+              const factor = catalog.find((item) => item.key === component.factor);
+              return (
+                <div className="jx-factor-compositeComponent" key={component.factor}>
+                  <span className="jx-factor-compositeIndex">{index + 1}</span>
+                  <span>{factor ? factorDisplayName(factor) : component.factor}</span>
+                  <span className="jx-factor-compositeDirection">
+                    {t(`compositeDirection.${component.direction}`)}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+          <Alert type="info" showIcon title={t('compositeMethodHint')} />
+        </section>
+        <CompositeModal open={open} editing={store.selected} onClose={() => setOpen(false)} />
+      </Splitter.Panel>
+      <Splitter.Panel defaultSize="28%" min="6%" collapsible>
+        <FactorDock />
+      </Splitter.Panel>
+    </Splitter>
+  );
+}, 'CompositeWorkspace');
 
 const FactorIdentityBar = complex.component(() => {
   const store = complex.useStore();
@@ -647,7 +976,7 @@ const ReportOutdatedWarning = complex.component(() => {
     : t('reportOutdatedParams');
   return (
     <div className="jx-factor-reportWarning">
-      <Alert type="warning" showIcon message={message} />
+      <Alert type="warning" showIcon title={message} />
     </div>
   );
 }, 'ReportOutdatedWarning');
@@ -939,7 +1268,7 @@ const ResearchDisciplineBar = complex.component(() => {
                     )}
                   </div>
                   {editorCodeChanged && (
-                    <Alert type="warning" showIcon message={t('holdoutCodeChanged')} />
+                    <Alert type="warning" showIcon title={t('holdoutCodeChanged')} />
                   )}
                 </div>
               ),
@@ -1079,7 +1408,7 @@ const ResearchRunButton = complex.component(
                 </div>
               </>
             ) : (
-              <Alert type="info" showIcon message={t('exploratoryNotice')} />
+              <Alert type="info" showIcon title={t('exploratoryNotice')} />
             )}
           </div>
         </Modal>
@@ -1261,7 +1590,7 @@ const ReportBody = complex.component(() => {
         <Alert
           type={criterionPassed(r, store.reportDetail.researchIntent) ? 'success' : 'warning'}
           showIcon
-          message={t(
+          title={t(
             criterionPassed(r, store.reportDetail.researchIntent)
               ? 'holdoutCriterionPassed'
               : 'holdoutCriterionMissed',
@@ -1455,6 +1784,14 @@ const MethodologyCard = complex.component(() => {
               })}
             </span>
           )}
+          {spec.version === 4 && (
+            <span>
+              {t('compositeMethodologySpec', {
+                count: spec.composite.components.length,
+                standardization: t(`compositeStandardization.${spec.composite.standardization}`),
+              })}
+            </span>
+          )}
         </div>
       )}
       {methodology.windowCoverage && (
@@ -1471,7 +1808,7 @@ const MethodologyCard = complex.component(() => {
         <Alert
           type="warning"
           showIcon
-          message={t('historicalFiltersUnavailable', { filters: unavailable.join('、') })}
+          title={t('historicalFiltersUnavailable', { filters: unavailable.join('、') })}
         />
       )}
     </div>
@@ -1544,11 +1881,29 @@ function traceOf(message: ChatMessage): AgentToolTraceItem[] | undefined {
 }
 
 // FactorKind → its i18n label key (in the 'factor' namespace).
+function emptyCompositeDefinition(factors: FactorMeta[]): FactorCompositeDefinitionV1 {
+  const components = factors.slice(0, 2).map((factor) => ({
+    factor: factor.key,
+    direction: 'positive' as const,
+  }));
+  while (components.length < 2) {
+    components.push({ factor: '', direction: 'positive' });
+  }
+  return {
+    version: 1,
+    name: '',
+    standardization: 'rank',
+    weighting: 'equal',
+    components,
+  };
+}
+
 const KIND_KEY: Record<FactorKind, string> = {
   price: 'kindPrice',
   fundamental: 'kindFundamental',
   moneyflow: 'kindMoneyflow',
   custom: 'kindCustom',
+  composite: 'kindComposite',
 };
 
 // Display name for a catalog item: a built-in preset shows its localized name (keyed by slug); a custom

@@ -11,17 +11,51 @@ export const enFactor: typeof zhFactor = {
 
   placeholderQa:
     'Ask about this preset factor — e.g. "is IC 0.03 strong?", "what horizon suits it?" — Enter to send',
+  placeholderCompositeQa:
+    'Ask about this composite — e.g. "are the components redundant?", "how should I read composite IC?" — Enter to send',
   placeholderAuthor:
     'Describe the factor you want, e.g. "earnings yield 1/PE", "small cap"; or keep chatting to refine — Enter to send',
 
   chatEmptyQa:
     'This is a preset factor (read-only code, see the middle editor). Ask anything about it or the analysis — the Agent only answers, it does not edit the code; to tweak parameters into a variant, click "Copy as custom" above the editor.',
+  chatEmptyComposite:
+    'This is a multi-factor composite (see its definition in the middle). Ask about directions, correlation, or report interpretation; the Agent answers questions without silently changing the composition.',
   chatEmptyAuthor:
     'Tell the Agent the factor you want (valuation / size / liquidity / money flow / price momentum & volatility) and it writes the code into the middle editor. Financial-statement detail (ROE growth, etc.) has no data yet.',
 
   presetGroup: 'Preset factors',
   customGroup: 'Custom factors',
   customEmpty: 'None yet — write one with the Agent',
+  compositeGroup: 'Multi-factor composites',
+  compositeEmpty: 'No composites yet',
+  compositeCreate: 'New multi-factor composite',
+  compositeCreateTitle: 'New multi-factor composite',
+  compositeEditTitle: 'Edit multi-factor composite',
+  compositeName: 'Name',
+  compositeNamePlaceholder: 'e.g. Quality + value',
+  compositeStandardizationLabel: 'Cross-sectional standardization',
+  compositeStandardization: { rank: 'Rank', zscore: 'Z-score' },
+  compositeComponents: 'Component factors (2–5)',
+  compositeCount: '{{count}} / 5',
+  compositeFactorPlaceholder: 'Select a factor',
+  compositeDirection: {
+    positive: 'Positive (higher is better)',
+    negative: 'Negative (lower is better)',
+  },
+  compositeAddFactor: 'Add component',
+  compositeEqualWeight: 'Equal weight',
+  compositeEqualOnlyHint:
+    'V1 is equal-weight only: standardize on the common universe, align directions, then average. This avoids fitting weights on the same explore sample.',
+  compositeMethodHint:
+    'Each period keeps stocks covered by every component. Component code, directions, and composition rules are frozen with the report.',
+  compositeMethodologySpec: '{{count}} components · {{standardization}} · equal weight',
+  compositeCreated: 'Multi-factor composite created',
+  compositeUpdated: 'Multi-factor composite updated',
+  compositeDeleteTitle: 'Delete multi-factor composite?',
+  compositeDeleteContent: 'Delete “{{name}}”? Historical reports will remain available.',
+  kindComposite: 'Composite',
+  edit: 'Edit',
+  save: 'Save',
   deleteTitle: 'Delete',
   deleteConfirmTitle: 'Confirm delete',
   deleteConfirmContent: 'Delete custom factor "{{name}}"? This cannot be undone.',

@@ -36,6 +36,11 @@
   background: rgb(240 160 32 / 0.18);
 }
 
+.jx-factor-kind--composite {
+  @apply text-ink;
+  background: rgb(88 80 236 / 0.14);
+}
+
 /* —— left column: Agent panel (chat | factor-library tabs) —— */
 .jx-factor-agent {
   @apply flex flex-col overflow-hidden bg-card;
@@ -180,10 +185,84 @@
   @apply text-down;
 }
 
+.jx-factor-libActions {
+  @apply flex items-center gap-3;
+}
+
 .jx-factor-libEmpty {
   @apply text-muted;
   padding: 4px 10px;
   font-size: 12px;
+}
+
+.jx-factor-compositeTrigger {
+  margin-bottom: 2px;
+}
+
+.jx-factor-compositeForm {
+  @apply flex flex-col gap-4;
+  padding-top: 8px;
+}
+
+.jx-factor-compositeForm > label {
+  @apply flex flex-col gap-1.5 text-muted;
+  font-size: 12px;
+}
+
+.jx-factor-compositeFormHead {
+  @apply flex items-center justify-between text-muted;
+  font-size: 12px;
+}
+
+.jx-factor-compositeRows {
+  @apply flex flex-col gap-2;
+}
+
+.jx-factor-compositeRow {
+  @apply grid items-center gap-2;
+  grid-template-columns: minmax(0, 1fr) 190px 32px;
+}
+
+.jx-factor-compositeWorkspace {
+  @apply flex h-full flex-col gap-4 overflow-auto bg-card;
+  padding: 18px;
+}
+
+.jx-factor-compositeHead {
+  @apply flex items-start justify-between gap-3;
+}
+
+.jx-factor-compositeTitle {
+  @apply font-semibold text-ink;
+  font-size: 18px;
+}
+
+.jx-factor-compositeRule {
+  @apply text-muted;
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.jx-factor-compositeComponents {
+  @apply flex flex-col gap-2;
+}
+
+.jx-factor-compositeComponent {
+  @apply grid items-center gap-3 rounded-lg border border-line bg-bg text-ink;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  padding: 10px 12px;
+  font-size: 13px;
+}
+
+.jx-factor-compositeIndex {
+  @apply flex items-center justify-center rounded-full bg-chip text-muted;
+  height: 24px;
+  font-size: 11px;
+}
+
+.jx-factor-compositeDirection {
+  @apply text-muted;
+  font-size: 11px;
 }
 
 /* —— middle: custom-factor editor (over the log dock) —— */
