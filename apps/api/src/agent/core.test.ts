@@ -82,6 +82,24 @@ describe('agentTurn(strategyProfile)', () => {
       'analyzeData',
     ]);
   });
+
+  it('offers quick backtesting only when the strategy route supplies research context', async () => {
+    const llm = scriptedLlm([{ text: '好的。' }]);
+    await agentTurn(
+      strategyProfile(undefined, undefined, {
+        userId: 'user-1',
+        strategyId: 'strategy-1',
+        currentCode: STRATEGY,
+        locale: 'zh',
+      }),
+      [],
+      '先试跑',
+      STRATEGY,
+      llm,
+    );
+
+    expect(llm.mock.calls[0][1].map((tool) => tool.name)).toContain('runQuickBacktest');
+  });
 });
 
 describe('agentTurn(factorProfile)', () => {

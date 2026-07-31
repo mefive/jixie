@@ -3,6 +3,8 @@ import { compileStrategy } from '../../strategy/code/compile.js';
 import { prisma } from '../../lib/prisma.js';
 import { buildAgentMode, TOOLS_HINT, type AgentProfile } from '../core.js';
 import { defaultTools } from '../tools/index.js';
+import { runQuickBacktestTool } from '../tools/run-quick-backtest.js';
+import type { Locale } from '@jixie/shared';
 
 /** ts_code-shaped literals in the strategy code (6 digits + exchange suffix), deduped. Comments are
  * scanned too — a stale code in a comment forces the model to clean it up, which is fine. */
@@ -48,10 +50,11 @@ async function assertKnownInstruments(code: string): Promise<void> {
 export function strategyProfile(
   availableIndices?: string,
   referencableFactors?: string,
+  research?: { userId: string; strategyId: string; currentCode: string; locale: Locale },
 ): AgentProfile {
   return {
     system: `${buildCodegenPrompt(availableIndices, referencableFactors)}\n${buildAgentMode('strategy')}\n${TOOLS_HINT}`,
-    tools: defaultTools(),
+    tools: [...defaultTools(), ...(research ? [runQuickBacktestTool(research)] : [])],
     artifact: {
       noun: 'strategy',
       validate: async (code) => {

@@ -182,6 +182,7 @@ function extractRepairCode(text: string): string {
 async function executeToolCall(
   tools: AgentTool[],
   call: ToolCall,
+  signal?: AbortSignal,
 ): Promise<{ observation: string; trace: ToolTraceItem; card?: AgentCard; chart?: AgentChart }> {
   const startedAt = Date.now();
   const argsSummary = (call.args || '{}').slice(0, 200);
@@ -203,7 +204,7 @@ async function executeToolCall(
   }
 
   try {
-    const result = await tool.run(args);
+    const result = await tool.run(args, { signal });
     return {
       observation: result.observation,
       card: result.card,
@@ -314,7 +315,7 @@ export async function agentTurn(
       for (const call of requestedToolCalls) {
         throwIfAborted();
         hooks?.onToolStart?.(call.name, (call.args || '{}').slice(0, 200));
-        const executed = await executeToolCall(tools, call);
+        const executed = await executeToolCall(tools, call, hooks?.signal);
         toolTrace.push(executed.trace);
         hooks?.onToolDone?.(executed.trace, {
           modelCall,
