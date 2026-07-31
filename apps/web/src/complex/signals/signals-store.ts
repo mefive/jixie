@@ -1,17 +1,33 @@
 import { computed, makeObservable, observable, runInAction } from 'mobx';
-import type { LogLine, SignalRun, SignalTodayEntry } from '@jixie/shared';
+import type {
+  ActualExecutionUpdate,
+  LogLine,
+  SignalRun,
+  SignalTodayEntry,
+  StrategyExecutionOverview,
+} from '@jixie/shared';
 import { BaseStore, LoaderModel, PollingModel } from '@src/lib';
-import { listSignalRuns, listTodaySignals, pollSignalJob, submitSignalRun } from '@src/api/client';
+import {
+  getStrategyExecutionOverview,
+  listSignalRuns,
+  listTodaySignals,
+  pollSignalJob,
+  submitSignalRun,
+  updateSignalExecution,
+} from '@src/api/client';
 import i18n from '@src/i18n';
 
 export class SignalsStore extends BaseStore {
   public selectedDeploymentId = '';
+  public selectedRunId = '';
   public runningDeploymentId = '';
+  public savingExecutionId = '';
   public logLines: LogLine[] = [];
   public error: string | null = null;
 
   public todayLoader = new LoaderModel<SignalTodayEntry[]>();
   public historyLoader = new LoaderModel<SignalRun[]>();
+  public overviewLoader = new LoaderModel<StrategyExecutionOverview>();
   public poller = new PollingModel();
 
   private jobId = '';
@@ -21,11 +37,14 @@ export class SignalsStore extends BaseStore {
     super(parentStore);
     makeObservable(this, {
       selectedDeploymentId: observable.ref,
+      selectedRunId: observable.ref,
       runningDeploymentId: observable.ref,
+      savingExecutionId: observable.ref,
       logLines: observable.ref,
       error: observable.ref,
       entries: computed,
       selected: computed,
+      selectedRun: computed,
     });
   }
 
@@ -35,9 +54,13 @@ export class SignalsStore extends BaseStore {
     this.historyLoader.setup({
       request: (deploymentId: string) => listSignalRuns(deploymentId),
     });
+    this.overviewLoader.setup({
+      request: (deploymentId: string) => getStrategyExecutionOverview(deploymentId),
+    });
     this.poller.setup({ interval: 1500, request: () => this.pollOnce() });
     this.registCleaner(() => this.todayLoader.cleanup());
     this.registCleaner(() => this.historyLoader.cleanup());
+    this.registCleaner(() => this.overviewLoader.cleanup());
     this.registCleaner(() => this.poller.cleanup());
 
     void this.refresh();
@@ -55,17 +78,28 @@ export class SignalsStore extends BaseStore {
     );
   }
 
+  public get selectedRun(): SignalRun | null {
+    const runs = this.historyLoader.result ?? [];
+    return (
+      runs.find((run) => run.id === this.selectedRunId) ?? this.selected?.run ?? runs[0] ?? null
+    );
+  }
+
   public async refresh() {
     try {
       const entries = await this.todayLoader.run();
       const selected =
         entries.find((entry) => entry.deployment.id === this.selectedDeploymentId) ?? entries[0];
+      const deploymentChanged = selected?.deployment.id !== this.selectedDeploymentId;
       runInAction(() => {
         this.selectedDeploymentId = selected?.deployment.id ?? '';
+        if (deploymentChanged) {
+          this.selectedRunId = '';
+        }
         this.error = null;
       });
       if (selected) {
-        void this.historyLoader.run(selected.deployment.id);
+        void this.loadDeployment(selected.deployment.id);
         const jobId = selected.run?.status === 'running' ? selected.run.jobId : null;
         if (jobId) {
           this.startPolling(selected.deployment.id, jobId);
@@ -84,10 +118,42 @@ export class SignalsStore extends BaseStore {
     }
     runInAction(() => {
       this.selectedDeploymentId = deploymentId;
+      this.selectedRunId = '';
       this.logLines = [];
       this.error = null;
     });
-    void this.historyLoader.run(deploymentId);
+    void this.loadDeployment(deploymentId);
+  }
+
+  public selectRun(runId: string) {
+    runInAction(() => {
+      this.selectedRunId = runId;
+    });
+  }
+
+  public async saveExecution(executionId: string, input: ActualExecutionUpdate) {
+    if (this.savingExecutionId) {
+      return;
+    }
+    runInAction(() => {
+      this.savingExecutionId = executionId;
+      this.error = null;
+    });
+    try {
+      const run = await updateSignalExecution(executionId, input);
+      runInAction(() => {
+        this.selectedRunId = run.id;
+      });
+      await this.loadDeployment(run.deploymentId);
+    } catch (error) {
+      runInAction(() => {
+        this.error = error instanceof Error ? error.message : i18n.t('signals:executionSaveFailed');
+      });
+    } finally {
+      runInAction(() => {
+        this.savingExecutionId = '';
+      });
+    }
   }
 
   public async generate(deploymentId: string) {
@@ -125,6 +191,13 @@ export class SignalsStore extends BaseStore {
       this.logLines = [];
     });
     this.poller.start();
+  }
+
+  private async loadDeployment(deploymentId: string) {
+    await Promise.all([
+      this.historyLoader.run(deploymentId),
+      this.overviewLoader.run(deploymentId),
+    ]);
   }
 
   private async pollOnce(): Promise<false | void> {

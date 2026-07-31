@@ -5,6 +5,7 @@ import type {
   BacktestConfig,
   Locale,
   LogLine,
+  ModelPositionSnapshot,
   SignalItem,
   SignalRun,
   StrategyDeployment,
@@ -16,6 +17,7 @@ import { appendLog, finishSignalRunJob, initializeJobLogs } from '../lib/jobs.js
 import { prisma } from '../lib/prisma.js';
 import { t } from '../i18n/messages.js';
 import { notifySignalRun } from './notifier.js';
+import { executionWire, initializeSignalAccounting } from './accounting.js';
 
 const workerUrl = import.meta.url.endsWith('.ts')
   ? new URL('../engine/signal-worker.boot.mjs', import.meta.url)
@@ -114,7 +116,10 @@ export async function listTodaySignals(
       signalRuns: {
         orderBy: { tradeDate: 'desc' },
         take: 1,
-        include: { jobs: { orderBy: { createdAt: 'desc' }, take: 1 } },
+        include: {
+          jobs: { orderBy: { createdAt: 'desc' }, take: 1 },
+          executions: { orderBy: { signalIndex: 'asc' } },
+        },
       },
     },
   });
@@ -140,7 +145,10 @@ export async function listSignalRuns(
     where: { deploymentId, userId },
     orderBy: { tradeDate: 'desc' },
     take: limit,
-    include: { jobs: { orderBy: { createdAt: 'desc' }, take: 1 } },
+    include: {
+      jobs: { orderBy: { createdAt: 'desc' }, take: 1 },
+      executions: { orderBy: { signalIndex: 'asc' } },
+    },
   });
   return rows.map((row) => signalRunWire(row, deployment.strategyName));
 }
@@ -151,6 +159,7 @@ export async function getSignalRun(userId: string, runId: string): Promise<Signa
     include: {
       deployment: { select: { strategyName: true } },
       jobs: { orderBy: { createdAt: 'desc' }, take: 1 },
+      executions: { orderBy: { signalIndex: 'asc' } },
     },
   });
   return row ? signalRunWire(row, row.deployment.strategyName) : null;
@@ -227,6 +236,7 @@ export async function enqueueSignalRun(
           dataCutoff: null,
           modelEquity: null,
           modelCash: null,
+          modelPositions: [] as Prisma.InputJsonValue,
           signals: [] as Prisma.InputJsonValue,
           notifiedAt: null,
           notificationError: null,
@@ -326,8 +336,10 @@ async function startSignalWorker(input: {
           dataCutoff: output.dataCutoff,
           modelEquity: output.modelEquity,
           modelCash: output.modelCash,
+          modelPositions: output.modelPositions as unknown as Prisma.InputJsonValue,
           signals: output.signals as unknown as Prisma.InputJsonValue,
         });
+        await initializeSignalAccounting(input.runId);
       } else {
         await finishSignalRunJob(input.jobId, input.runId, 'error', undefined, error);
       }
@@ -487,6 +499,7 @@ function signalRunWire(
     dataCutoff: string | null;
     modelEquity: number | null;
     modelCash: number | null;
+    modelPositions: unknown;
     signals: unknown;
     error: string | null;
     notifiedAt: Date | null;
@@ -494,6 +507,7 @@ function signalRunWire(
     createdAt: Date;
     updatedAt: Date;
     jobs?: Array<{ id: string }>;
+    executions?: Parameters<typeof executionWire>[0][];
   },
   strategyName: string,
 ): SignalRun {
@@ -511,7 +525,11 @@ function signalRunWire(
     dataCutoff: row.dataCutoff,
     modelEquity: row.modelEquity,
     modelCash: row.modelCash,
+    modelPositions: Array.isArray(row.modelPositions)
+      ? (row.modelPositions as unknown as ModelPositionSnapshot[])
+      : [],
     signals: Array.isArray(row.signals) ? (row.signals as unknown as SignalItem[]) : [],
+    executions: row.executions?.map(executionWire) ?? [],
     error: row.error,
     notifiedAt: row.notifiedAt?.toISOString() ?? null,
     notificationError: row.notificationError,
@@ -525,6 +543,7 @@ interface SignalWorkerOutput {
   dataCutoff: string;
   modelEquity: number;
   modelCash: number;
+  modelPositions: ModelPositionSnapshot[];
   signals: SignalItem[];
 }
 

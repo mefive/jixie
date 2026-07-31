@@ -1,6 +1,6 @@
 # Read signal instructions
 
-After generation completes, verify the dates and model equity before reading direction, shares, reference price, and estimated amount.
+After generation completes, verify the dates and model equity before reading the instruction, simulated fill, and actual execution. The simulation settles after execution-day close data is published; the user records the actual result.
 
 ## The result
 
@@ -33,16 +33,23 @@ The frozen strategy's model-account equity after running through the signal date
 
 The state can be sent, failed, or skipped. Delivery and calculation are separate; an email failure does not mean signal calculation failed.
 
-## Read the table
+## Compare the three account layers
+
+- Model equity is the theoretical account from replaying the frozen strategy.
+- Simulation equity starts from the same holdings and applies the real open, suspensions, price limits, T+1, fees, and slippage.
+- Actual equity applies only user-confirmed fills. A skipped or pending instruction is never assumed to have filled.
+
+Execution rate is filled decisions divided by all recorded decisions. Average adverse deviation compares actual and simulated prices; a higher buy or lower sell is adverse.
+
+## Read and update the execution table
 
 | Column | Meaning |
 | --- | --- |
 | Instrument | Security name and code |
-| Asset | Stock or ETF |
-| Direction | Buy or sell |
-| Shares | Quantity based on model equity and target holdings, adjusted to the trading unit |
-| Reference price | Unadjusted close on the signal date |
-| Estimated amount | Reference price multiplied by shares |
+| Instruction | Side, model quantity, and signal-day reference price |
+| Simulation | Whether it filled, with simulated quantity, next-open price, or block reason |
+| Actual | The user-recorded fill or skip state |
+| Record | Actual quantity, price, fee, reason, and note |
 
 Estimated amount does not include execution-day price changes, realized slippage, or every fee.
 
@@ -77,7 +84,7 @@ The lower section retains status and instruction count by signal date:
 
 ![Today signal run history](/docs/images/help/zh/signals/signal-history-01.png)
 
-“One instruction” means one table row. It does not mean a real trade has filled.
+Select any history row to reopen its execution table. “1 / 1 recorded” means every instruction has a recorded decision, not that all instructions filled.
 
 ## Check before acting
 
@@ -100,7 +107,7 @@ The model evolves from the deployed initial cash and historical strategy run. It
 
 ### Does a table row mean an order was placed?
 
-No. The page displays calculated instructions, not a broker acknowledgement or fill.
+No. The actual shadow account applies a trade only after the user records it as executed. The system still does not read or control a brokerage account.
 
 ## Related articles
 

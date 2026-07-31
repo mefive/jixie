@@ -714,6 +714,22 @@ async function capturePendingCashSignals(
   await engineData.loadBars([...codes]);
 
   const modelEquity = portfolio.equity((code) => engineData.closeAt(code, tradeDate));
+  const modelPositions = [...portfolio.positions].flatMap(([code, position]) => {
+    const adjustmentFactor = engineData.adjAsOf(code, tradeDate);
+    const markPrice = engineData.rawCloseAsOf(code, tradeDate);
+    if (!adjustmentFactor || !markPrice) {
+      return [];
+    }
+    return [
+      {
+        code,
+        assetType: engineData.assetType(code),
+        shares: position.shares * adjustmentFactor,
+        markPrice,
+        sellableFrom: position.frozenUntil,
+      },
+    ];
+  });
   const signals: PendingCashSignal[] = [];
 
   if (pendingTargets) {
@@ -772,6 +788,7 @@ async function capturePendingCashSignals(
     tradeDate,
     modelEquity,
     modelCash: portfolio.cash,
+    modelPositions,
     signals,
   };
 }

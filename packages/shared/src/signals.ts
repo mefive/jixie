@@ -19,6 +19,75 @@ export interface SignalItem {
   targetWeight?: number;
 }
 
+/** Real-share model position frozen at the signal close to seed forward shadow accounting. */
+export interface ModelPositionSnapshot {
+  code: string;
+  name: string;
+  assetType: SignalAssetType;
+  shares: number;
+  markPrice: number;
+  sellableFrom: TradeDate;
+}
+
+export type SimulatedExecutionStatus = 'pending' | 'filled' | 'blocked';
+export type ActualExecutionStatus = 'pending' | 'filled' | 'skipped';
+
+/** Queryable execution state for one signal instruction. */
+export interface SignalExecution {
+  id: string;
+  signalRunId: string;
+  signalIndex: number;
+  signal: SignalItem;
+  simulatedStatus: SimulatedExecutionStatus;
+  simulatedShares?: number | null;
+  simulatedPrice?: number | null;
+  simulatedFee?: number | null;
+  simulatedSlippage?: number | null;
+  simulatedReason?: string | null;
+  actualStatus: ActualExecutionStatus;
+  actualShares?: number | null;
+  actualPrice?: number | null;
+  actualFee?: number | null;
+  actualReason?: string | null;
+  actualNote?: string | null;
+  actualRecordedAt?: string | null;
+}
+
+/** End-of-day point from either the deterministic simulation or the manual execution shadow account. */
+export interface StrategyAccountPoint {
+  date: TradeDate;
+  cash: number;
+  marketValue: number;
+  equity: number;
+  isBaseline: boolean;
+}
+
+export interface StrategyExecutionOverview {
+  model: Array<{ date: TradeDate; equity: number }>;
+  simulation: StrategyAccountPoint[];
+  actual: StrategyAccountPoint[];
+  execution: {
+    total: number;
+    filled: number;
+    skipped: number;
+    pending: number;
+    executionRate: number | null;
+    averagePriceDeviationBps: number | null;
+  };
+}
+
+export type ActualExecutionUpdate =
+  | { status: 'pending' }
+  | {
+      status: 'filled';
+      shares: number;
+      price: number;
+      fee?: number;
+      reason?: string;
+      note?: string;
+    }
+  | { status: 'skipped'; reason: string; note?: string };
+
 export type StrategyDeploymentStatus = 'active' | 'paused';
 
 /** Immutable runnable strategy version used by the daily signal scheduler. */
@@ -50,7 +119,9 @@ export interface SignalRun {
   dataCutoff?: TradeDate | null;
   modelEquity?: number | null;
   modelCash?: number | null;
+  modelPositions?: ModelPositionSnapshot[];
   signals?: SignalItem[];
+  executions?: SignalExecution[];
   error?: string | null;
   notifiedAt?: string | null;
   notificationError?: string | null;

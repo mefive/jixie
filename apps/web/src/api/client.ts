@@ -108,6 +108,7 @@ export function logout(): Promise<{ ok: true }> {
 import type {
   AgentStreamEvent,
   AgentTurnDetail,
+  ActualExecutionUpdate,
   BacktestConfig,
   ChatMessage,
   ComputeChartSpec,
@@ -118,6 +119,7 @@ import type {
   StrategyScanSpec,
   SignalRun,
   SignalTodayEntry,
+  StrategyExecutionOverview,
   StrategyDeployment,
   ToolTraceItem,
 } from '@jixie/shared';
@@ -343,6 +345,22 @@ export function submitSignalRun(
 
 export function pollSignalJob(jobId: string, since = 0): Promise<BacktestJob> {
   return request(`/api/app/signals/jobs/${jobId}?since=${since}`);
+}
+
+export function getStrategyExecutionOverview(
+  deploymentId: string,
+): Promise<StrategyExecutionOverview> {
+  return request(`/api/app/signals/deployments/${deploymentId}/execution-overview`);
+}
+
+export function updateSignalExecution(
+  executionId: string,
+  input: ActualExecutionUpdate,
+): Promise<SignalRun> {
+  return request(`/api/app/signals/executions/${executionId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  });
 }
 
 import type {

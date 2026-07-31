@@ -1,6 +1,7 @@
 import { prisma } from '../lib/prisma.js';
 import { enqueueSignalRun } from './service.js';
 import { syncSignalMarketData } from './sync.js';
+import { settleStrategyAccounts } from './accounting.js';
 
 /** Run one complete daily cycle: synchronize data once, then compute active deployments serially. */
 export async function runDailySignalCycle(
@@ -24,6 +25,7 @@ export async function generateDailySignals(
     return { deployments: 0, done: 0, errors: 0 };
   }
 
+  await settleStrategyAccounts(tradeDate, onLog);
   const deployments = await prisma.strategyDeployment.findMany({
     where: { status: 'active' },
     orderBy: { deployedAt: 'asc' },

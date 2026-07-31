@@ -488,12 +488,13 @@ Daily + AdjFactor + DailyBasic + StkLimit
 
 只有 `readyThrough === cutoff`，市场数据和派生状态全部追平后，才为 cutoff 生成当前仍可执行的信号：
 
-1. 查询活跃 `StrategyDeployment`；
-2. 只调用“生成信号”函数，不再执行第二轮数据同步；
-3. 部署按上线顺序串行计算，避免同时占满 SQLite、CPU 和 isolate 内存；
-4. `SignalRun(deploymentId, tradeDate)` 唯一，已有 `done` 时不重复计算；
-5. 同一 run 的重试复用 `SignalRun`，每次 attempt 新建 Job；
-6. 仅首次提交终态后发送一次通知。
+1. 先结算所有 `execDate ≤ cutoff` 的模拟 / 实际影子账户，包含已经暂停但尚有待执行信号的部署；
+2. 查询活跃 `StrategyDeployment`；
+3. 只调用“生成信号”函数，不再执行第二轮数据同步；
+4. 部署按上线顺序串行计算，避免同时占满 SQLite、CPU 和 isolate 内存；
+5. `SignalRun(deploymentId, tradeDate)` 唯一，已有 `done` 时不重复计算；
+6. 同一 run 的重试复用 `SignalRun`，每次 attempt 新建 Job；
+7. 仅首次提交终态后发送一次通知。
 
 `SignalRun` 的唯一键只能保护结果表，不能替代 maintenance 锁、数据完整性门禁或通知幂等。
 
