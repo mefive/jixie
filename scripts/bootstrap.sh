@@ -9,6 +9,42 @@
 set -euo pipefail
 
 # ─────────────────────────────── 配置(env var 覆盖) ───────────────────────────────
+JIXIE_BOOTSTRAP_CONFIG_FILE="${JIXIE_BOOTSTRAP_CONFIG_FILE:-/etc/jixie/bootstrap.env}"
+JIXIE_CONFIG_KEYS=(
+  JIXIE_REPO
+  JIXIE_BRANCH
+  JIXIE_DIR
+  JIXIE_DATA_DIR
+  JIXIE_BACKUP_DIR
+  JIXIE_PORT
+  JIXIE_DOMAIN
+  JIXIE_SERVICE
+  JIXIE_DEPLOY_USER
+  JIXIE_TLS
+  JIXIE_TLS_EMAIL
+)
+declare -A JIXIE_EXPLICIT_CONFIG=()
+for config_key in "${JIXIE_CONFIG_KEYS[@]}"; do
+  [[ -n "${!config_key+x}" ]] && JIXIE_EXPLICIT_CONFIG["$config_key"]=1
+done
+
+# Parse only known literal KEY=VALUE entries. The persistent file is data, never executable shell.
+if [[ -e "$JIXIE_BOOTSTRAP_CONFIG_FILE" ]]; then
+  [[ -r "$JIXIE_BOOTSTRAP_CONFIG_FILE" ]] ||
+    {
+      printf '[err] 部署配置不可读: %s\n' "$JIXIE_BOOTSTRAP_CONFIG_FILE" >&2
+      exit 1
+    }
+  while IFS= read -r config_line || [[ -n "$config_line" ]]; do
+    [[ -z "$config_line" || "$config_line" == \#* || "$config_line" != *=* ]] && continue
+    config_key="${config_line%%=*}"
+    config_value="${config_line#*=}"
+    [[ " ${JIXIE_CONFIG_KEYS[*]} " == *" $config_key "* ]] || continue
+    [[ -n "${JIXIE_EXPLICIT_CONFIG[$config_key]:-}" ]] && continue
+    printf -v "$config_key" '%s' "$config_value"
+  done <"$JIXIE_BOOTSTRAP_CONFIG_FILE"
+fi
+
 JIXIE_REPO="${JIXIE_REPO:-https://github.com/mefive/jixie.git}"
 JIXIE_BRANCH="${JIXIE_BRANCH:-main}"
 JIXIE_DIR="${JIXIE_DIR:-/opt/jixie}"
@@ -16,7 +52,7 @@ JIXIE_DATA_DIR="${JIXIE_DATA_DIR:-/var/lib/jixie}"
 JIXIE_BACKUP_DIR="${JIXIE_BACKUP_DIR:-/var/backups/jixie}"
 JIXIE_BOOTSTRAP_LOCK_FILE="${JIXIE_BOOTSTRAP_LOCK_FILE:-/tmp/jixie-bootstrap.lock}"
 JIXIE_PORT="${JIXIE_PORT:-3001}"
-JIXIE_DOMAIN="${JIXIE_DOMAIN:-jixie.example.com}"
+JIXIE_DOMAIN="${JIXIE_DOMAIN:-}"
 JIXIE_SERVICE="${JIXIE_SERVICE:-jixie-api}"
 JIXIE_DEPLOY_USER="${JIXIE_DEPLOY_USER:-$(id -un)}"   # 跑服务的系统用户,默认当前登录用户
 JIXIE_TLS="${JIXIE_TLS:-auto}"                        # auto = 尝试 certbot 签证书; skip = 只起 80
@@ -42,6 +78,69 @@ nginx_vhost_has_tls() {
   [[ -f "$file" ]] && sudo grep -Eq 'listen[[:space:]].*443|ssl_certificate' "$file"
 }
 
+is_valid_production_domain() {
+  local domain="$1"
+  [[ "$domain" =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$ ]] &&
+    [[ "$domain" == *.* ]] &&
+    [[ "$domain" != "example.com" ]] &&
+    [[ "$domain" != *.example.com ]]
+}
+
+discover_existing_domain() {
+  local nginx_directory nginx_file domain_token
+  local -a nginx_files=()
+  declare -A domains=()
+
+  for nginx_directory in /etc/nginx/sites-enabled /etc/nginx/conf.d; do
+    [[ -d "$nginx_directory" ]] || continue
+    while IFS= read -r -d '' nginx_file; do
+      nginx_files+=("$nginx_file")
+    done < <(sudo find -L "$nginx_directory" -maxdepth 1 -type f -print0 2>/dev/null)
+  done
+
+  for nginx_file in "${nginx_files[@]}"; do
+    if ! sudo grep -Fq "$JIXIE_DIR/apps/web/dist" "$nginx_file" &&
+      ! sudo grep -Fq "$JIXIE_DIR/deploy/nginx-docs-app.conf" "$nginx_file"; then
+      continue
+    fi
+
+    while IFS= read -r domain_token; do
+      domain_token="${domain_token%;}"
+      if is_valid_production_domain "$domain_token"; then
+        domains["$domain_token"]=1
+      fi
+    done < <(
+      sudo awk '
+        $1 == "server_name" {
+          for (index = 2; index <= NF; index += 1) {
+            print $index
+          }
+        }
+      ' "$nginx_file"
+    )
+  done
+
+  if ((${#domains[@]} == 1)); then
+    printf '%s\n' "${!domains[@]}"
+  elif ((${#domains[@]} > 1)); then
+    warn "从现有 Jixie nginx 配置发现多个域名: ${!domains[*]}"
+  fi
+}
+
+persist_bootstrap_config() {
+  local config_key config_value temporary_file
+
+  temporary_file="$(mktemp)"
+  for config_key in "${JIXIE_CONFIG_KEYS[@]}"; do
+    config_value="${!config_key}"
+    [[ "$config_value" != *$'\n'* && "$config_value" != *$'\r'* ]] ||
+      die "$config_key 不能包含换行"
+    printf '%s=%s\n' "$config_key" "$config_value" >>"$temporary_file"
+  done
+  sudo install -D -m 0644 "$temporary_file" "$JIXIE_BOOTSTRAP_CONFIG_FILE"
+  rm -f "$temporary_file"
+}
+
 # 在 KEY=VALUE 文件里 upsert 一行(存在则替换,不存在则追加)。值用 "" 包裹。空值跳过(不清除现有)。
 set_env_var() {
   local file="$1" key="$2" val="$3"
@@ -52,6 +151,64 @@ set_env_var() {
   else
     printf '%s="%s"\n' "$key" "$val" >>"$file"
   fi
+}
+
+STAGING_DIR=""
+ACTIVE_LIVE_DIR=""
+ACTIVE_PREVIOUS_DIR=""
+NODE_HEAP_OPTIONS="--max-old-space-size=4096"
+
+recover_interrupted_activation() {
+  local live_dir="$1"
+  local previous_dir="$live_dir.deploy-previous"
+
+  if [[ ! -e "$live_dir" && -e "$previous_dir" ]]; then
+    log "恢复中断的静态资源切换: $live_dir"
+    mv -- "$previous_dir" "$live_dir"
+  elif [[ -e "$live_dir" && -e "$previous_dir" ]]; then
+    rm -rf -- "$previous_dir"
+  fi
+}
+
+activate_static_build() {
+  local live_dir="$1"
+  local staging_dir="$2"
+  local previous_dir="$live_dir.deploy-previous"
+
+  [[ -f "$staging_dir/index.html" ]] || die "静态构建不完整: $staging_dir/index.html"
+  mkdir -p -- "$(dirname -- "$live_dir")"
+  recover_interrupted_activation "$live_dir"
+
+  ACTIVE_LIVE_DIR="$live_dir"
+  ACTIVE_PREVIOUS_DIR="$previous_dir"
+  if [[ -e "$live_dir" ]]; then
+    mv -- "$live_dir" "$previous_dir"
+  fi
+  mv -- "$staging_dir" "$live_dir"
+  STAGING_DIR=""
+
+  if [[ -e "$previous_dir" ]]; then
+    rm -rf -- "$previous_dir"
+  fi
+  ACTIVE_LIVE_DIR=""
+  ACTIVE_PREVIOUS_DIR=""
+}
+
+build_static_app() {
+  local package_name="$1"
+  local app_dir="$2"
+  local live_dir="$3"
+
+  STAGING_DIR="$(mktemp -d "$app_dir/.deploy-dist.XXXXXX")"
+  log "在 staging 中 typecheck + build $package_name"
+  NODE_OPTIONS="$NODE_HEAP_OPTIONS" pnpm --filter "$package_name" exec tsc --noEmit
+  NODE_OPTIONS="$NODE_HEAP_OPTIONS" pnpm --filter "$package_name" exec vite build \
+    --outDir "$STAGING_DIR" \
+    --emptyOutDir
+  chmod -R a+rX "$STAGING_DIR"
+
+  log "原子切换 $package_name 静态资源"
+  activate_static_build "$live_dir" "$STAGING_DIR"
 }
 
 # ─────────────────────────────── 0. 前置检查 ───────────────────────────────
@@ -68,16 +225,6 @@ elif have yum; then
 else
   die "未找到 apt/dnf/yum —— 仅支持 Ubuntu/Debian 或 CentOS/RHEL。"
 fi
-
-log "目标配置"
-cat <<EOF
-  代码目录   : $JIXIE_DIR  (来自 $JIXIE_REPO @ $JIXIE_BRANCH)
-  数据目录   : $JIXIE_DATA_DIR  (prod.db 落这里,不在 git 内)
-  域名/端口  : $JIXIE_DOMAIN  ->  127.0.0.1:$JIXIE_PORT
-  systemd    : $JIXIE_SERVICE  (User=$JIXIE_DEPLOY_USER)
-  TLS        : $JIXIE_TLS
-  包管理器   : $PKG
-EOF
 
 # ─────────────────────────────── 1. 系统依赖 ───────────────────────────────
 log "检查/安装系统依赖"
@@ -141,6 +288,33 @@ if [[ "${JIXIE_BOOTSTRAP_LOCK_HELD:-0}" != "1" ]]; then
   export JIXIE_BOOTSTRAP_LOCK_HELD=1
 fi
 
+if [[ -z "$JIXIE_DOMAIN" ]]; then
+  JIXIE_DOMAIN="$(discover_existing_domain)"
+  if [[ -n "$JIXIE_DOMAIN" ]]; then
+    log "从现有 Jixie nginx 配置识别域名: $JIXIE_DOMAIN"
+  else
+    die "未配置且无法唯一识别生产域名。首次运行请使用 JIXIE_DOMAIN=你的域名 ./scripts/bootstrap.sh"
+  fi
+fi
+is_valid_production_domain "$JIXIE_DOMAIN" ||
+  die "拒绝无效或占位域名 '$JIXIE_DOMAIN';请设置真实生产域名"
+case "$JIXIE_TLS" in
+  auto | skip) ;;
+  *) die "JIXIE_TLS 只能是 auto 或 skip" ;;
+esac
+persist_bootstrap_config
+
+log "目标配置"
+cat <<EOF
+  代码目录   : $JIXIE_DIR  (来自 $JIXIE_REPO @ $JIXIE_BRANCH)
+  数据目录   : $JIXIE_DATA_DIR  (prod.db 落这里,不在 git 内)
+  域名/端口  : $JIXIE_DOMAIN  ->  127.0.0.1:$JIXIE_PORT
+  systemd    : $JIXIE_SERVICE  (User=$JIXIE_DEPLOY_USER)
+  TLS        : $JIXIE_TLS
+  持久配置   : $JIXIE_BOOTSTRAP_CONFIG_FILE
+  包管理器   : $PKG
+EOF
+
 # ─────────────────────────────── 2. 拉代码 ───────────────────────────────
 if [[ -d "$JIXIE_DIR/.git" ]]; then
   log "代码已存在,git pull --ff-only"
@@ -176,6 +350,33 @@ DB_FILE="$JIXIE_DATA_DIR/prod.db"
 exec 9>>"$JIXIE_DATA_DIR/maintenance.lock"
 flock -n -E 75 9 || die "maintenance 正在运行,本次 bootstrap 不与其并发"
 export JIXIE_MAINTENANCE_LOCK_HELD=1
+
+SUCCESSFUL_REVISION_FILE="$JIXIE_DATA_DIR/deployed-revision"
+DEPLOYED_REVISION=""
+if [[ -f "$SUCCESSFUL_REVISION_FILE" ]]; then
+  IFS= read -r DEPLOYED_REVISION <"$SUCCESSFUL_REVISION_FILE" || true
+fi
+read -r DEPLOY_API DEPLOY_WEB DEPLOY_DOCS DEPLOY_FULL INSTALL_DEPENDENCIES < <(
+  node --no-warnings "$JIXIE_DIR/scripts/plan-deployment.mjs" \
+    --repository "$JIXIE_DIR" \
+    --base "$DEPLOYED_REVISION" \
+    --head "$CURRENT_REVISION"
+)
+
+if [[ ! -d "$JIXIE_DIR/node_modules" || ! -d "$JIXIE_DIR/packages/shared/dist" ]]; then
+  DEPLOY_API=1
+  DEPLOY_WEB=1
+  DEPLOY_DOCS=1
+  DEPLOY_FULL=1
+  INSTALL_DEPENDENCIES=1
+fi
+[[ -f "$JIXIE_DIR/apps/web/dist/index.html" ]] || DEPLOY_WEB=1
+[[ -f "$JIXIE_DIR/apps/docs/dist/docs/index.html" ]] || DEPLOY_DOCS=1
+if [[ ! -f "$DB_FILE" ]] || ! systemctl is-active --quiet "$JIXIE_SERVICE" 2>/dev/null; then
+  DEPLOY_API=1
+fi
+
+log "本次部署范围: api=$DEPLOY_API web=$DEPLOY_WEB docs=$DEPLOY_DOCS install=$INSTALL_DEPENDENCIES"
 
 # ─────────────────────────────── 4. 环境变量 ───────────────────────────────
 log "配置 .env.production"
@@ -217,6 +418,12 @@ finish_deployment_gate() {
 cleanup_deployment_gate() {
   local exit_code=$?
   trap - EXIT
+  if [[ -n "$ACTIVE_LIVE_DIR" && ! -e "$ACTIVE_LIVE_DIR" && -e "$ACTIVE_PREVIOUS_DIR" ]]; then
+    mv -- "$ACTIVE_PREVIOUS_DIR" "$ACTIVE_LIVE_DIR" || true
+  fi
+  if [[ -n "$STAGING_DIR" && -d "$STAGING_DIR" ]]; then
+    rm -rf -- "$STAGING_DIR"
+  fi
   if [[ -n "$DEPLOYMENT_RUN_ID" ]]; then
     finish_deployment_gate error || true
   fi
@@ -225,7 +432,7 @@ cleanup_deployment_gate() {
 
 trap cleanup_deployment_gate EXIT
 
-if systemctl is-active --quiet "$JIXIE_SERVICE" 2>/dev/null; then
+if [[ "$DEPLOY_API" == "1" ]] && systemctl is-active --quiet "$JIXIE_SERVICE" 2>/dev/null; then
   MAINTENANCE_TABLE_EXISTS="$(
     sqlite3 "$DB_FILE" \
       "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'MaintenanceRun';" \
@@ -248,18 +455,36 @@ if systemctl is-active --quiet "$JIXIE_SERVICE" 2>/dev/null; then
 fi
 
 # ─────────────────────────────── 5. 安装 / 迁移 / 构建 ───────────────────────────────
-log "pnpm install --frozen-lockfile (顺带经 @jixie/shared 的 prepare 构建 shared)"
-pnpm install --frozen-lockfile
+if [[ "$INSTALL_DEPENDENCIES" == "1" ]]; then
+  log "pnpm install --frozen-lockfile"
+  pnpm install --frozen-lockfile
+else
+  log "依赖清单未变化且 node_modules 已存在,跳过 pnpm install"
+fi
 
-log "prisma generate"
-pnpm --filter api exec prisma generate
+if [[ "$DEPLOY_API" == "1" || "$DEPLOY_WEB" == "1" || "$DEPLOY_DOCS" == "1" ]]; then
+  log "构建 @jixie/shared"
+  NODE_OPTIONS="$NODE_HEAP_OPTIONS" pnpm --filter @jixie/shared build
+fi
 
-log "pnpm -r build (拓扑序: shared -> api -> web; Node heap 4GB)"
-# ⚠ 内存:vite build + 回测都偏吃内存。<2GB 的 VPS 建议配 swap,或本机构建后 rsync apps/web/dist。
-NODE_OPTIONS="--max-old-space-size=4096" pnpm -r build
+if [[ "$DEPLOY_API" == "1" ]]; then
+  log "prisma generate"
+  pnpm --filter api exec prisma generate
 
-log "prisma migrate deploy (建库/升级 schema 于 $DB_FILE)"
-pnpm --filter api exec prisma migrate deploy
+  log "构建 API"
+  NODE_OPTIONS="$NODE_HEAP_OPTIONS" pnpm --filter api build
+
+  log "prisma migrate deploy (建库/升级 schema 于 $DB_FILE)"
+  pnpm --filter api exec prisma migrate deploy
+fi
+
+if [[ "$DEPLOY_WEB" == "1" ]]; then
+  build_static_app web "$JIXIE_DIR/apps/web" "$JIXIE_DIR/apps/web/dist"
+fi
+
+if [[ "$DEPLOY_DOCS" == "1" ]]; then
+  build_static_app docs "$JIXIE_DIR/apps/docs" "$JIXIE_DIR/apps/docs/dist/docs"
+fi
 
 IMPORT_REQUIRED_MARKER="$JIXIE_DATA_DIR/full-import.required"
 DAILY_ROWS="$(sqlite3 "$DB_FILE" 'SELECT count(*) FROM "Daily";' 2>/dev/null || echo 0)"
@@ -290,10 +515,14 @@ sed -e "s#/opt/jixie#$JIXIE_DIR#g" \
     "$JIXIE_DIR/deploy/jixie-api.service" | sudo tee "$UNIT_DST" >/dev/null
 sudo systemctl daemon-reload
 sudo systemctl enable "$JIXIE_SERVICE"
-sudo systemctl restart "$JIXIE_SERVICE"
-systemctl is-active --quiet "$JIXIE_SERVICE" ||
-  die "$JIXIE_SERVICE 启动失败,查日志: journalctl -u $JIXIE_SERVICE -e"
-finish_deployment_gate done
+if [[ "$DEPLOY_API" == "1" ]] || ! systemctl is-active --quiet "$JIXIE_SERVICE"; then
+  sudo systemctl restart "$JIXIE_SERVICE"
+  systemctl is-active --quiet "$JIXIE_SERVICE" ||
+    die "$JIXIE_SERVICE 启动失败,查日志: journalctl -u $JIXIE_SERVICE -e"
+  finish_deployment_gate done
+else
+  log "API 未受本次变更影响,保持运行"
+fi
 
 log "安装 daily / weekly / backup timers"
 for unit in \
@@ -313,9 +542,21 @@ for unit in \
 done
 sudo systemctl daemon-reload
 sudo systemctl enable --now jixie-backup.timer
-sudo systemctl disable --now \
-  jixie-maintenance.timer \
-  jixie-maintenance-weekly.timer
+CURRENT_WATERMARK="$(
+  sqlite3 "$DB_FILE" \
+    "SELECT dailyPublishedThrough FROM \"MaintenanceState\" WHERE key = 'global';" \
+    2>/dev/null ||
+    true
+)"
+if [[ -n "$CURRENT_WATERMARK" ]]; then
+  sudo systemctl enable --now \
+    jixie-maintenance.timer \
+    jixie-maintenance-weekly.timer
+else
+  sudo systemctl disable --now \
+    jixie-maintenance.timer \
+    jixie-maintenance-weekly.timer
+fi
 
 # ─────────────────────────────── 7. nginx vhost ───────────────────────────────
 NGINX_DST="/etc/nginx/sites-available/$JIXIE_DOMAIN"
@@ -353,7 +594,9 @@ fi
 # ─────────────────────────────── 9. 激活维护与冒烟测试 ───────────────────────────────
 flock -u 9
 unset JIXIE_MAINTENANCE_LOCK_HELD
-"$JIXIE_DIR/scripts/activate-maintenance.sh"
+if [[ -z "$CURRENT_WATERMARK" ]]; then
+  "$JIXIE_DIR/scripts/activate-maintenance.sh"
+fi
 
 log "冒烟测试"
 sleep 1
@@ -368,6 +611,10 @@ ROWS="$(sqlite3 "$DB_FILE" 'SELECT count(*) FROM "Daily";' 2>/dev/null || echo 0
 WATERMARK="$(sqlite3 "$DB_FILE" 'SELECT dailyPublishedThrough FROM "MaintenanceState" WHERE key = "global";' 2>/dev/null || true)"
 [[ "${ROWS:-0}" -gt 0 && -n "$WATERMARK" ]] ||
   die "行情数据或连续发布水位未准备完成"
+
+REVISION_TEMP_FILE="$SUCCESSFUL_REVISION_FILE.tmp.$$"
+printf '%s\n' "$CURRENT_REVISION" >"$REVISION_TEMP_FILE"
+mv -- "$REVISION_TEMP_FILE" "$SUCCESSFUL_REVISION_FILE"
 
 log "完成 ✅  访问: https://$JIXIE_DOMAIN  (若 TLS 未签发则 http://)"
 cat <<EOF

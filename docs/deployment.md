@@ -11,6 +11,10 @@ jixie 在 Linux VPS（Ubuntu / CentOS）上的部署。唯一入口是幂等的 
 > 脚本自动装齐依赖（Node.js、pnpm、nginx、certbot、sqlite3 和原生编译工具链）、clone/pull、迁移、
 > 构建、空库行情导入、systemd、nginx、TLS、维护激活和冒烟测试。首次全量行情导入可能持续数小时；
 > 中断后重新执行同一条 bootstrap 命令会根据数据库标记和导入阶段标记继续。
+>
+> 非密钥部署参数会持久化在 `/etc/jixie/bootstrap.env`。以后直接运行 bootstrap 会复用真实域名、
+> 目录和服务名，不会退回模板域名。旧实例首次升级时会从当前启用的 Jixie Nginx vhost 自动识别
+> 唯一真实域名；无法唯一识别时脚本会停止，此时只需带一次 `JIXIE_DOMAIN=真实域名` 重跑。
 
 ## 1. 服务器规格建议(jixie 比一般 web 吃资源)
 
@@ -35,10 +39,16 @@ jixie 在 Linux VPS（Ubuntu / CentOS）上的部署。唯一入口是幂等的 
 
 `bootstrap.sh` 自动检查并收敛系统依赖、代码版本、生产 env、Prisma Client 与 schema、前后端构建、
 邀请码、systemd units、Nginx、TLS、行情初始化、发布水位和 timers。已有资源会复用或更新，缺失资源
-会补建；不要再手工组合 API npm scripts 模拟一次部署。增量更新会先写入部署维护状态阻止新任务，
-等待已有 `Job` / `AgentTurn` 结束后停止 API，再依次安装依赖、生成 Prisma Client、构建、执行 schema
-migration，最后启动服务并解除维护状态。它不会因为代码更新而主动同步行情，行情增量仍由
-maintenance timer 负责。
+会补建；不要再手工组合 API npm scripts 模拟一次部署。
+
+每次成功结束后，bootstrap 会把当前 Git revision 写入 `/var/lib/jixie/deployed-revision`。下次更新按
+该 revision 到当前 revision 的完整差异自动选择 API、Web 和 Docs，多个范围取并集；共享包、依赖锁、
+部署脚本或无法识别的新路径会保守地执行全量部署。只有 API 受影响时才进入部署维护状态、等待已有
+`Job` / `AgentTurn` 结束、停止 API、生成 Prisma Client、构建、迁移并重启；纯 Web / Docs 更新不会
+停止 API，静态产物在 staging 构建成功后原子切换。首次运行、部署记录缺失或记录无法验证时也会全量
+执行。影响规则的机器可读真相源是 `deploy/component-impact.json`。
+
+代码更新不会主动同步行情，行情增量仍由 maintenance timer 负责。
 
 Nginx 主配置会 include 仓库中的 `/opt/jixie/deploy/nginx-docs-app.conf`，把独立构建的
 `apps/docs/dist/docs` 挂载到 `/docs/` 并处理深链。脚本不会覆盖 Certbot 已写入的 TLS 配置。
@@ -125,9 +135,9 @@ cd /opt/jixie
 ./scripts/bootstrap.sh
 ```
 
-脚本检查已有资源并跳过不需要的安装，拉取最新代码、迁移、构建、更新 systemd/nginx、确认行情水位
-和 timer，再执行健康检查。若 bootstrap 自身在 pull 中被更新，它会自动重新执行新版本脚本，用户无需
-再次运行。
+脚本检查已有资源并跳过不需要的安装，拉取最新代码、按上次成功部署版本判断受影响组件、按需迁移和
+构建，同时收敛 systemd/nginx、确认行情水位和 timer，再执行健康检查。若 bootstrap 自身在 pull 中
+被更新，它会自动重新执行新版本脚本，用户无需再次运行。
 
 ## 7. 排障
 

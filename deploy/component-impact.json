@@ -1,0 +1,25 @@
+{
+  "components": {
+    "api": ["apps/api/"],
+    "web": ["apps/web/"],
+    "docs": ["apps/docs/"]
+  },
+  "allComponents": ["api", "web", "docs"],
+  "sharedPrefixes": ["packages/shared/"],
+  "fullDeployPrefixes": ["deploy/", "scripts/"],
+  "fullDeployFiles": [
+    "package.json",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
+    "tsconfig.base.json"
+  ],
+  "noRuntimePrefixes": [".github/", "docs/"],
+  "noRuntimeFiles": [
+    ".gitignore",
+    ".prettierignore",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "README.md",
+    "ROADMAP.md"
+  ]
+}
