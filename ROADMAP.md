@@ -131,11 +131,13 @@ holdout。前端完成新建/编辑/删除、定义工作台、历史恢复与�
   (探索 −0.013 / 保留段 −0.011)——约一半信号是市值/行业结构,当低换手弱质量信号用,别高估。
 - 基建顺带落地:`ctx.history(n, 'roe')` 贯通因子分析侧(finaAsOf 逐日对齐)与引擎侧(preloadFina +
   roeHistoryAt,双车道 parity 单测),SDK dts / codegen prompt / Monaco 文档同步。
-- **2026-07-31 下一候选准备**:`ctx.history(n, 'grossprofitMargin')` 已按同一 annDate PIT 阶梯语义贯通
-  因子分析、策略引擎、SDK / Agent prompt 与 Monaco；`gross_margin_stability` 仍是候选，未完成
-  explore + 一次性 holdout 前不进入预置菜单。
+- **2026-07-31 毛利率稳定性准入进行中**:`ctx.history(n, 'grossprofitMargin')` 已按同一 annDate PIT
+  阶梯语义贯通因子分析、策略引擎、SDK / Agent prompt 与 Monaco。504 日候选在冻结代码哈希
+  `cbfbef383db09` 下通过探索段预注册门槛：原始 Rank IC −0.0349，市值+行业中性化后 −0.0213
+  （门槛 `< -0.01`，2020-01-01~2025-01-27，60 期）；正式 holdout 仍未启动/揭示，故暂不进入
+  预置菜单。完整证据与决策点见 `docs/reports/factor-admission-gross-margin-stability.md`。
 - 应计等需扩资产负债/现金流数据的仍不做(守 4.2 需求拉动);下一批候选:特异波动率(需基准收益
-  历史进 ctx)；毛利率稳定性的实现管道已齐，下一步只做探索与一次性保留段准入判定。
+  历史进 ctx)；毛利率稳定性下一步只做一次性保留段验证，揭示前不再调定义或阈值。
 
 把「个人无法发明因子」翻成「这里有一张已验证过文献的菜单,逐个在 A 股本地检验」:质量(ROE 及其稳定性/毛利率/应计)、低波动、流动性溢价(Amihud)、换手率(拥挤/关注度)、12-1 动量等,每个带定义、预期方向、出处一句话。部分需扩数据(应计需资产负债/现金流表,标注依赖)。
 
