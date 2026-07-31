@@ -2,17 +2,20 @@ import { prisma } from '../lib/prisma.js';
 import { enqueueSignalRun } from './service.js';
 import { syncSignalMarketData } from './sync.js';
 
-const SLOTS = new Set(['17:30', '18:30', '19:30']);
-const seenSlots = new Set<string>();
-let cycleRunning = false;
-
 /** Run one complete daily cycle: synchronize data once, then compute active deployments serially. */
 export async function runDailySignalCycle(
   tradeDate = shanghaiNow().date,
   onLog: (line: string) => void = console.log,
 ): Promise<{ deployments: number; done: number; errors: number }> {
   await syncSignalMarketData(tradeDate, onLog);
+  return generateDailySignals(tradeDate, onLog);
+}
 
+/** Generate active-deployment signals from an already-published market-data cutoff. */
+export async function generateDailySignals(
+  tradeDate: string,
+  onLog: (line: string) => void = console.log,
+): Promise<{ deployments: number; done: number; errors: number }> {
   const open = await prisma.tradeCal.findUnique({
     where: { exchange_calDate: { exchange: 'SSE', calDate: tradeDate } },
     select: { isOpen: true },
@@ -44,35 +47,6 @@ export async function runDailySignalCycle(
     }
   }
   return { deployments: deployments.length, done, errors };
-}
-
-/** Production defaults to enabled; development must opt in to avoid surprise external sync calls. */
-export function startSignalScheduler(): NodeJS.Timeout | null {
-  const enabled =
-    process.env.SIGNALS_SCHEDULER_ENABLED === 'true' ||
-    (process.env.NODE_ENV === 'production' && process.env.SIGNALS_SCHEDULER_ENABLED !== 'false');
-  if (!enabled) {
-    return null;
-  }
-
-  const timer = setInterval(() => {
-    const now = shanghaiNow();
-    const slotKey = `${now.date} ${now.time}`;
-    if (!SLOTS.has(now.time) || seenSlots.has(slotKey) || cycleRunning) {
-      return;
-    }
-    seenSlots.add(slotKey);
-    cycleRunning = true;
-    void runDailySignalCycle(now.date)
-      .then((summary) => console.log('[signals] cycle complete', summary))
-      .catch((error) => console.error('[signals] cycle failed', error))
-      .finally(() => {
-        cycleRunning = false;
-      });
-  }, 30_000);
-  timer.unref();
-  console.log('[signals] scheduler enabled at 17:30 / 18:30 / 19:30 Asia/Shanghai');
-  return timer;
 }
 
 function shanghaiNow(): { date: string; time: string } {

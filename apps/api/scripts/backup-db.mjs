@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, statSync, unlinkSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /**
@@ -29,6 +29,7 @@ const scriptDir = dirname(fileURLToPath(import.meta.url));
 const dbPath = process.env.JIXIE_DB_PATH || join(scriptDir, '..', 'prisma', 'dev.db');
 const backupDir = process.env.JIXIE_BACKUP_DIR || join(homedir(), 'jixie-backups');
 const keep = Math.max(1, Number(process.env.JIXIE_BACKUP_KEEP) || 5);
+const backupPrefix = basename(dbPath, '.db').replaceAll(/[^a-zA-Z0-9_-]/g, '_');
 
 const mib = (bytes) => `${(bytes / 1024 / 1024).toFixed(1)} MiB`;
 
@@ -51,7 +52,7 @@ function main() {
 
   mkdirSync(backupDir, { recursive: true });
   const stamp = timestamp();
-  const dest = join(backupDir, `dev-${stamp}.db`);
+  const dest = join(backupDir, `${backupPrefix}-${stamp}.db`);
 
   // Online backup — consistent snapshot under WAL, safe while the api holds the DB open.
   console.log(`[backup] ${mib(statSync(dbPath).size)} → ${dest}`);
@@ -81,7 +82,7 @@ function main() {
 /** Keep the newest `keep` backups, delete the rest (names sort lexically = chronologically). */
 function rotate() {
   const backups = readdirSync(backupDir)
-    .filter((name) => /^dev-\d{8}-\d{6}\.db$/.test(name))
+    .filter((name) => name.startsWith(`${backupPrefix}-`) && /-\d{8}-\d{6}\.db$/.test(name))
     .sort()
     .reverse();
   const stale = backups.slice(keep);

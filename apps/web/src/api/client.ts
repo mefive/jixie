@@ -11,6 +11,22 @@ export interface AuthUser {
   name: string | null;
 }
 
+export interface MaintenanceStatus {
+  active: boolean;
+  runId: string | null;
+  kind: 'daily' | 'weekly' | 'repair' | null;
+  startDate: string | null;
+  endDate: string | null;
+  completedDates: number;
+  totalDates: number;
+  lastSuccessfulDailyDate: string | null;
+  stage: string | null;
+  startedAt: string | null;
+  heartbeatAt: string | null;
+  error: string | null;
+  retryAfterSeconds: number;
+}
+
 export class ApiError extends Error {
   public code: string;
   public field?: string;
@@ -41,6 +57,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const body = text ? JSON.parse(text) : null;
   if (!res.ok) {
     const err = body?.error;
+    notifyMaintenance(err);
     throw new ApiError(
       err?.code ?? 'UNKNOWN',
       err?.message ?? `${res.status} ${res.statusText}`,
@@ -48,6 +65,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     );
   }
   return body as T;
+}
+
+export function fetchMaintenanceStatus(): Promise<MaintenanceStatus> {
+  return request('/api/maintenance/status');
 }
 
 // Current auth state. The backend deliberately always returns 200: when not logged in it returns { user: null }
@@ -120,6 +141,7 @@ export async function subscribeAgentTurn(turnId: string, signal?: AbortSignal): 
     const body = (await res.json().catch((): null => null)) as {
       error?: { code?: string; message?: string; details?: unknown };
     } | null;
+    notifyMaintenance(body?.error);
     throw new ApiError(
       body?.error?.code ?? 'UNKNOWN',
       body?.error?.message ?? `${res.status} ${res.statusText}`,
@@ -127,6 +149,16 @@ export async function subscribeAgentTurn(turnId: string, signal?: AbortSignal): 
     );
   }
   return res;
+}
+
+function notifyMaintenance(error: { code?: string; details?: unknown } | null | undefined): void {
+  if (error?.code === 'MAINTENANCE' && error.details) {
+    window.dispatchEvent(
+      new CustomEvent<MaintenanceStatus>('jixie:maintenance', {
+        detail: error.details as MaintenanceStatus,
+      }),
+    );
+  }
 }
 
 // The live turn for an entity ('strategy:<id>' | 'factor:<id>' | 'screen:<id>') — refresh reattach.

@@ -20,6 +20,7 @@ JIXIE_REPO="${JIXIE_REPO:-https://github.com/mefive/jixie.git}"
 JIXIE_BRANCH="${JIXIE_BRANCH:-main}"
 JIXIE_DIR="${JIXIE_DIR:-/opt/jixie}"
 JIXIE_DATA_DIR="${JIXIE_DATA_DIR:-/var/lib/jixie}"
+JIXIE_BACKUP_DIR="${JIXIE_BACKUP_DIR:-/var/backups/jixie}"
 JIXIE_PORT="${JIXIE_PORT:-3001}"
 JIXIE_DOMAIN="${JIXIE_DOMAIN:-jixie.example.com}"
 JIXIE_SERVICE="${JIXIE_SERVICE:-jixie-api}"
@@ -159,6 +160,8 @@ cd "$JIXIE_DIR"
 log "准备数据目录 $JIXIE_DATA_DIR"
 sudo mkdir -p "$JIXIE_DATA_DIR"
 sudo chown "$JIXIE_DEPLOY_USER:$JIXIE_DEPLOY_USER" "$JIXIE_DATA_DIR"
+sudo mkdir -p "$JIXIE_BACKUP_DIR"
+sudo chown "$JIXIE_DEPLOY_USER:$JIXIE_DEPLOY_USER" "$JIXIE_BACKUP_DIR"
 DB_FILE="$JIXIE_DATA_DIR/prod.db"
 DB_ALREADY_EXISTS=0
 [[ -f "$DB_FILE" ]] && DB_ALREADY_EXISTS=1
@@ -220,6 +223,28 @@ sudo systemctl daemon-reload
 sudo systemctl enable "$JIXIE_SERVICE"
 sudo systemctl restart "$JIXIE_SERVICE"
 
+log "安装 daily / weekly / backup timers"
+for unit in \
+  jixie-maintenance.service \
+  jixie-maintenance.timer \
+  jixie-maintenance-weekly.service \
+  jixie-maintenance-weekly.timer \
+  jixie-backup.service \
+  jixie-backup.timer; do
+  sed -e "s#/opt/jixie#$JIXIE_DIR#g" \
+      -e "s#/var/lib/jixie#$JIXIE_DATA_DIR#g" \
+      -e "s#/var/backups/jixie#$JIXIE_BACKUP_DIR#g" \
+      -e "s#jixie-api.service#$JIXIE_SERVICE.service#g" \
+      -e "s#^User=jixie#User=$JIXIE_DEPLOY_USER#" \
+      -e "s#^Group=jixie#Group=$JIXIE_DEPLOY_USER#" \
+      "$JIXIE_DIR/deploy/$unit" | sudo tee "/etc/systemd/system/$unit" >/dev/null
+done
+sudo systemctl daemon-reload
+sudo systemctl enable --now \
+  jixie-maintenance.timer \
+  jixie-maintenance-weekly.timer \
+  jixie-backup.timer
+
 # ─────────────────────────────── 7. nginx vhost ───────────────────────────────
 NGINX_DST="/etc/nginx/sites-available/$JIXIE_DOMAIN"
 # CentOS 无 sites-available 约定,退回 conf.d
@@ -267,6 +292,10 @@ echo "  /api/health: ${HEALTH:-<无响应>}"
 ROWS="$(sqlite3 "$DB_FILE" 'SELECT count(*) FROM "Daily";' 2>/dev/null || echo 0)"
 if [[ "${ROWS:-0}" -eq 0 ]]; then
   warn "行情库为空(Daily 0 行)—— 站点能开但没数据。回填见下。"
+else
+  WATERMARK="$(sqlite3 "$DB_FILE" 'SELECT dailyPublishedThrough FROM "MaintenanceState" WHERE key = "global";' 2>/dev/null || true)"
+  [[ -n "$WATERMARK" ]] ||
+    warn "维护水位尚未初始化——全量审计通过后运行: pnpm --filter api maintenance:init"
 fi
 
 log "完成 ✅  访问: https://$JIXIE_DOMAIN  (若 TLS 未签发则 http://)"
@@ -285,4 +314,5 @@ cat <<EOF
   详见 docs/deployment.md。
 
 日常更新: cd $JIXIE_DIR && ./scripts/deploy.sh
+定时任务: systemctl list-timers 'jixie-*'
 EOF

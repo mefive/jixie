@@ -12,6 +12,8 @@ set -Eeuo pipefail
 
 DIR="${JIXIE_DIR:-/opt/jixie}"
 SERVICE="${JIXIE_SERVICE:-jixie-api}"
+DATA_DIR="${JIXIE_DATA_DIR:-/var/lib/jixie}"
+BACKUP_DIR="${JIXIE_BACKUP_DIR:-/var/backups/jixie}"
 TARGET="${1:-all}"
 LOCK_FILE="${JIXIE_DEPLOY_LOCK_FILE:-/tmp/jixie-deploy.lock}"
 LOCK_DIR="$(dirname -- "$LOCK_FILE")"
@@ -186,6 +188,39 @@ if [[ "$TARGET" == "api" || "$TARGET" == "all" ]]; then
 
   log "prisma migrate deploy"
   pnpm --filter api exec prisma migrate deploy
+
+  log "Install maintenance and backup systemd units"
+  DEPLOY_USER="$(systemctl show "$SERVICE" -p User --value)"
+  [[ -n "$DEPLOY_USER" ]] || die "Could not resolve the API service user"
+  sudo mkdir -p "$DATA_DIR" "$BACKUP_DIR"
+  sudo chown "$DEPLOY_USER:$DEPLOY_USER" "$DATA_DIR" "$BACKUP_DIR"
+  for unit in \
+    jixie-maintenance.service \
+    jixie-maintenance.timer \
+    jixie-maintenance-weekly.service \
+    jixie-maintenance-weekly.timer \
+    jixie-backup.service \
+    jixie-backup.timer; do
+    sed -e "s#/opt/jixie#$PROJECT_DIR#g" \
+        -e "s#/var/lib/jixie#$DATA_DIR#g" \
+        -e "s#/var/backups/jixie#$BACKUP_DIR#g" \
+        -e "s#jixie-api.service#$SERVICE.service#g" \
+        -e "s#^User=jixie#User=$DEPLOY_USER#" \
+        -e "s#^Group=jixie#Group=$DEPLOY_USER#" \
+        "deploy/$unit" | sudo tee "/etc/systemd/system/$unit" >/dev/null
+  done
+  sudo systemctl daemon-reload
+  sudo systemd-analyze verify \
+    jixie-maintenance.service \
+    jixie-maintenance.timer \
+    jixie-maintenance-weekly.service \
+    jixie-maintenance-weekly.timer \
+    jixie-backup.service \
+    jixie-backup.timer
+  sudo systemctl enable --now \
+    jixie-maintenance.timer \
+    jixie-maintenance-weekly.timer \
+    jixie-backup.timer
 fi
 
 if [[ "$TARGET" == "web" || "$TARGET" == "all" ]]; then

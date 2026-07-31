@@ -2,7 +2,8 @@ import { App, ConfigProvider } from 'antd';
 import { createRoot } from 'react-dom/client';
 import { observer } from 'mobx-react';
 import { AppRoutes } from './app-routes';
-import { authStore } from '@src/store';
+import { MaintenanceGate } from '@src/components/maintenance-gate';
+import { authStore, maintenanceStore } from '@src/store';
 import './i18n'; // side-effect: initialize i18next before the first render
 import { localeStore } from '@src/i18n/locale-store';
 import { antdLocale } from '@src/i18n/antd-locale';
@@ -14,7 +15,7 @@ if (!el) {
 }
 
 // On startup await /me to get auth state before rendering routes — RequireAuth has the right verdict on the first frame, no login-page flash
-await authStore.load();
+await Promise.all([authStore.load(), maintenanceStore.load()]);
 
 // antd theme aligned to ink black (matches --color-primary; theme tokens borrowed from marginalia) —
 // never let the default antd blue show. antd is cssinjs, no CSS import needed.
@@ -47,6 +48,7 @@ const Root = observer(() => (
         generates no box and doesn't break the html/body/#root height:100% chain. */}
     <App className="jx-appRoot">
       <AppRoutes />
+      <MaintenanceGate />
     </App>
   </ConfigProvider>
 ));

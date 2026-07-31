@@ -1,0 +1,487 @@
+import type { TradeDate } from '@jixie/shared';
+import { loadTushareConfig } from '../config.js';
+import { prisma } from '../lib/prisma.js';
+import { syncMarketIndicators } from '../market/sync-market-indicators.js';
+import { generateDailySignals } from '../signals/scheduler.js';
+import { latestCompletedTradeDate } from '../signals/service.js';
+import { syncSignalMarketData } from '../signals/sync.js';
+import { MAJOR_INDEX_DAILY_BASIC_CODES, MAJOR_INDEX_DAILY_CODES } from '../store/index-presets.js';
+import {
+  syncDailyCoreDate,
+  syncIndexDaily,
+  syncIndexDailyBasic,
+  syncMoneyflow,
+  syncTopList,
+  syncTradeCal,
+} from '../store/sync.js';
+import { TushareClient } from '../tushare/client.js';
+import { validateDerivedMarketRange, validateRawMarketDate } from './quality.js';
+import {
+  recentPublishedTradingDates,
+  selfHealMarketDates,
+  type SelfHealSummary,
+} from './self-heal.js';
+import {
+  advanceDailyWatermark,
+  beginMaintenanceRun,
+  bumpDataRevision,
+  finishMaintenanceRun,
+  getMaintenanceState,
+  startMaintenanceHeartbeat,
+  type MaintenanceTrigger,
+  updateMaintenanceRun,
+} from './state.js';
+
+export interface DailyMaintenanceOptions {
+  targetDate?: string;
+  force?: boolean;
+  trigger?: MaintenanceTrigger;
+  onLog?: (line: string) => void;
+}
+
+export interface DailyMaintenanceSummary {
+  cutoff: string;
+  startDate: string | null;
+  readyThrough: string | null;
+  completedDates: number;
+  totalDates: number;
+  dataRevision: number | null;
+  selfHealing: SelfHealSummary | null;
+  signals: { deployments: number; done: number; errors: number } | null;
+}
+
+export async function runDailyMaintenance(
+  options: DailyMaintenanceOptions = {},
+): Promise<DailyMaintenanceSummary> {
+  assertProductionLock();
+  const onLog = options.onLog ?? ((line: string) => console.log(`[maintenance:daily] ${line}`));
+  const trigger = options.trigger ?? (process.env.INVOCATION_ID ? 'timer' : 'manual');
+  const client = createClient();
+  const state = await getMaintenanceState();
+
+  if (!options.targetDate && !state.dailyPublishedThrough) {
+    throw new Error(
+      'dailyPublishedThrough is not initialized; run maintenance:init after the full import audit',
+    );
+  }
+  const calendarStart =
+    options.targetDate ?? state.dailyPublishedThrough ?? previousCalendarDate(shanghaiToday());
+  const calendarEnd = options.targetDate
+    ? addCalendarDays(options.targetDate, 14)
+    : addCalendarDays(shanghaiToday(), 14);
+  await syncTradeCal(client, calendarStart as TradeDate, calendarEnd as TradeDate);
+  const latestAvailableCutoff = await latestCompletedTradeDate();
+  const cutoff = options.targetDate ?? latestAvailableCutoff;
+  if (!cutoff) {
+    throw new Error('No completed SSE trading date is available');
+  }
+  assertDate(cutoff);
+  if (options.targetDate && latestAvailableCutoff && options.targetDate > latestAvailableCutoff) {
+    throw new Error(`${options.targetDate} has not completed in Asia/Shanghai`);
+  }
+
+  const dates = options.targetDate
+    ? await explicitTradingDates(cutoff)
+    : await missingTradingDates(state.dailyPublishedThrough!, cutoff);
+  if (dates.length === 0) {
+    if (options.targetDate) {
+      onLog(`${cutoff} is not an open trading day; no maintenance is needed`);
+      return {
+        cutoff,
+        startDate: null,
+        readyThrough: state.dailyPublishedThrough,
+        completedDates: 0,
+        totalDates: 0,
+        dataRevision: state.dataRevision,
+        selfHealing: null,
+        signals: null,
+      };
+    }
+    onLog(`No data gap through ${cutoff}; retrying unfinished signals only`);
+    return runSignalOnlyMaintenance(
+      client,
+      cutoff,
+      state.dailyPublishedThrough!,
+      state.dataRevision,
+      trigger,
+      onLog,
+    );
+  }
+
+  const startDate = dates[0];
+  const run = await beginMaintenanceRun({
+    kind: 'daily',
+    targetKey: cutoff,
+    startDate,
+    endDate: cutoff,
+    trigger,
+    force: options.force,
+  });
+  if (run.skipped && !options.force) {
+    onLog(`Daily data run ${cutoff} is already complete; retrying unfinished signals only`);
+    return runSignalOnlyMaintenance(
+      client,
+      cutoff,
+      state.dailyPublishedThrough ?? cutoff,
+      state.dataRevision,
+      trigger,
+      onLog,
+    );
+  }
+
+  const summary: DailyMaintenanceSummary = {
+    cutoff,
+    startDate,
+    readyThrough: null,
+    completedDates: 0,
+    totalDates: dates.length,
+    dataRevision: null,
+    selfHealing: null,
+    signals: null,
+  };
+  const stopHeartbeat = startMaintenanceHeartbeat(run.id);
+
+  try {
+    await updateMaintenanceRun(run.id, 'waiting_for_jobs', summary);
+    await waitForRunningWork(onLog);
+    if (!options.targetDate && state.dailyPublishedThrough) {
+      summary.selfHealing = await healPublishedTail(
+        client,
+        run.id,
+        state.dailyPublishedThrough,
+        onLog,
+      );
+      if (summary.selfHealing.repairedDates.length > 0) {
+        summary.dataRevision = await bumpDataRevision();
+      }
+      if (summary.selfHealing.deferredDates.length > 0) {
+        throw new Error(
+          `Daily self-heal deferred ${summary.selfHealing.deferredDates.length} dates`,
+        );
+      }
+    }
+    const completedDates: string[] = [];
+    let dateFailure: Error | null = null;
+
+    for (const tradeDate of dates) {
+      try {
+        await updateMaintenanceRun(run.id, 'syncing_raw', {
+          ...summary,
+          currentDate: tradeDate,
+        });
+        onLog(`Fetching validated candidates for ${tradeDate}`);
+        const core = await syncDailyCoreDate(client, tradeDate as TradeDate);
+        await syncMoneyflow(client, tradeDate as TradeDate, tradeDate as TradeDate, {
+          refresh: true,
+        });
+        await syncTopList(client, tradeDate as TradeDate, tradeDate as TradeDate, {
+          refresh: true,
+        });
+
+        await updateMaintenanceRun(run.id, 'syncing_indices', {
+          ...summary,
+          currentDate: tradeDate,
+          core,
+        });
+        for (const indexCode of MAJOR_INDEX_DAILY_CODES) {
+          await syncIndexDaily(client, indexCode, tradeDate as TradeDate, tradeDate as TradeDate);
+        }
+        await syncIndexDailyBasic(
+          client,
+          [...MAJOR_INDEX_DAILY_BASIC_CODES],
+          tradeDate as TradeDate,
+          tradeDate as TradeDate,
+        );
+        await syncSignalMarketData(tradeDate, onLog, {
+          coreAlreadyPublished: true,
+          extensionsAlreadyPublished: true,
+          refresh: true,
+        });
+
+        await updateMaintenanceRun(run.id, 'validating_raw', {
+          ...summary,
+          currentDate: tradeDate,
+          core,
+        });
+        const quality = await validateRawMarketDate(tradeDate);
+        completedDates.push(tradeDate);
+        summary.completedDates = completedDates.length;
+        summary.readyThrough = tradeDate;
+        await updateMaintenanceRun(run.id, 'raw_ready', {
+          ...summary,
+          currentDate: tradeDate,
+          core,
+          quality,
+        });
+      } catch (error) {
+        dateFailure = toError(error);
+        onLog(`${tradeDate} failed before derived publication: ${dateFailure.message}`);
+        break;
+      }
+    }
+
+    if (completedDates.length > 0) {
+      const readyThrough = completedDates.at(-1)!;
+      await updateMaintenanceRun(run.id, 'market_state', summary);
+      onLog(`Computing market state ${startDate}..${readyThrough}`);
+      await syncMarketIndicators(startDate, readyThrough);
+
+      await updateMaintenanceRun(run.id, 'validating_derived', summary);
+      const derived = await validateDerivedMarketRange(startDate, readyThrough, completedDates);
+      const advancesWatermark =
+        !options.targetDate ||
+        (state.dailyPublishedThrough != null &&
+          (await isNextTradingDate(state.dailyPublishedThrough, readyThrough)));
+      summary.dataRevision = advancesWatermark
+        ? await advanceDailyWatermark(readyThrough)
+        : await bumpDataRevision();
+      summary.readyThrough = readyThrough;
+      await updateMaintenanceRun(run.id, 'published', { ...summary, derived });
+    }
+
+    if (dateFailure) {
+      throw dateFailure;
+    }
+    if (summary.readyThrough !== cutoff) {
+      throw new Error(
+        `Daily maintenance reached ${summary.readyThrough ?? 'none'} but cutoff is ${cutoff}`,
+      );
+    }
+
+    if (cutoff === latestAvailableCutoff) {
+      await updateMaintenanceRun(run.id, 'signals', summary);
+      summary.signals = await generateDailySignals(cutoff, onLog);
+    }
+    await finishMaintenanceRun(run.id, 'done', { summary });
+    onLog(`Published ${summary.completedDates}/${summary.totalDates} dates through ${cutoff}`);
+    return summary;
+  } catch (error) {
+    const failure = toError(error);
+    await finishMaintenanceRun(run.id, 'error', { summary, error: failure.message }).catch(
+      () => {},
+    );
+    throw failure;
+  } finally {
+    await stopHeartbeat();
+  }
+}
+
+async function runSignalOnlyMaintenance(
+  client: TushareClient,
+  cutoff: string,
+  publishedThrough: string,
+  dataRevision: number,
+  trigger: MaintenanceTrigger,
+  onLog: (line: string) => void,
+): Promise<DailyMaintenanceSummary> {
+  const run = await beginMaintenanceRun({
+    kind: 'daily',
+    targetKey: cutoff,
+    startDate: cutoff,
+    endDate: cutoff,
+    trigger,
+    force: true,
+  });
+  const summary: DailyMaintenanceSummary = {
+    cutoff,
+    startDate: null,
+    readyThrough: cutoff,
+    completedDates: 0,
+    totalDates: 0,
+    dataRevision,
+    selfHealing: null,
+    signals: null,
+  };
+  const stopHeartbeat = startMaintenanceHeartbeat(run.id);
+
+  try {
+    await updateMaintenanceRun(run.id, 'waiting_for_jobs', summary);
+    await waitForRunningWork(onLog);
+    summary.selfHealing = await healPublishedTail(client, run.id, publishedThrough, onLog);
+    if (summary.selfHealing.repairedDates.length > 0) {
+      summary.dataRevision = await bumpDataRevision();
+    }
+    if (summary.selfHealing.deferredDates.length > 0) {
+      throw new Error(`Daily self-heal deferred ${summary.selfHealing.deferredDates.length} dates`);
+    }
+    await updateMaintenanceRun(run.id, 'signals', summary);
+    summary.signals = await generateDailySignals(cutoff, onLog);
+    await finishMaintenanceRun(run.id, 'done', { summary });
+    return summary;
+  } catch (error) {
+    const failure = toError(error);
+    await finishMaintenanceRun(run.id, 'error', { summary, error: failure.message }).catch(
+      () => {},
+    );
+    throw failure;
+  } finally {
+    await stopHeartbeat();
+  }
+}
+
+async function healPublishedTail(
+  client: TushareClient,
+  runId: string,
+  publishedThrough: string,
+  onLog: (line: string) => void,
+): Promise<SelfHealSummary> {
+  const lookback = positiveInteger(process.env.MAINTENANCE_DAILY_REPAIR_LOOKBACK_DAYS, 5);
+  const dates = await recentPublishedTradingDates(publishedThrough, lookback);
+  await updateMaintenanceRun(runId, 'self_healing', {
+    publishedThrough,
+    inspectedDates: dates.length,
+  });
+  const repaired = await selfHealMarketDates(client, dates, {
+    maxRepairDates: lookback,
+    onLog,
+  });
+  await validateRawMarketDate(publishedThrough);
+  if (repaired.earliestDerivedChange) {
+    await updateMaintenanceRun(runId, 'market_state', repaired);
+    await syncMarketIndicators(repaired.earliestDerivedChange, publishedThrough);
+    const expectedDates = await tradingDatesBetween(
+      repaired.earliestDerivedChange,
+      publishedThrough,
+    );
+    await updateMaintenanceRun(runId, 'validating_derived', repaired);
+    await validateDerivedMarketRange(
+      repaired.earliestDerivedChange,
+      publishedThrough,
+      expectedDates,
+    );
+  }
+  return repaired;
+}
+
+async function missingTradingDates(watermark: string, cutoff: string): Promise<string[]> {
+  const rows = await prisma.tradeCal.findMany({
+    where: {
+      exchange: 'SSE',
+      isOpen: 1,
+      calDate: { gt: watermark, lte: cutoff },
+    },
+    orderBy: { calDate: 'asc' },
+    select: { calDate: true },
+  });
+  return rows.map((row) => row.calDate);
+}
+
+async function explicitTradingDates(tradeDate: string): Promise<string[]> {
+  const row = await prisma.tradeCal.findUnique({
+    where: { exchange_calDate: { exchange: 'SSE', calDate: tradeDate } },
+    select: { isOpen: true },
+  });
+  if (!row || row.isOpen !== 1) {
+    return [];
+  }
+  return [tradeDate];
+}
+
+async function tradingDatesBetween(startDate: string, endDate: string): Promise<string[]> {
+  const rows = await prisma.tradeCal.findMany({
+    where: {
+      exchange: 'SSE',
+      isOpen: 1,
+      calDate: { gte: startDate, lte: endDate },
+    },
+    orderBy: { calDate: 'asc' },
+    select: { calDate: true },
+  });
+  return rows.map((row) => row.calDate);
+}
+
+async function isNextTradingDate(watermark: string, tradeDate: string): Promise<boolean> {
+  const next = await prisma.tradeCal.findFirst({
+    where: { exchange: 'SSE', isOpen: 1, calDate: { gt: watermark } },
+    orderBy: { calDate: 'asc' },
+    select: { calDate: true },
+  });
+  return next?.calDate === tradeDate;
+}
+
+export async function waitForRunningWork(onLog: (line: string) => void): Promise<void> {
+  const timeoutMilliseconds = Number(process.env.MAINTENANCE_JOB_DRAIN_TIMEOUT_MS ?? 120_000);
+  const quietMilliseconds = Number(process.env.MAINTENANCE_JOB_QUIET_MS ?? 5_000);
+  const deadline = Date.now() + timeoutMilliseconds;
+  let quietSince: number | null = null;
+
+  for (;;) {
+    const [jobs, agentTurns] = await Promise.all([
+      prisma.job.count({ where: { status: 'running' } }),
+      prisma.agentTurn.count({ where: { status: 'running' } }),
+    ]);
+    if (jobs + agentTurns === 0) {
+      quietSince ??= Date.now();
+      if (Date.now() - quietSince >= quietMilliseconds) {
+        return;
+      }
+    } else {
+      quietSince = null;
+    }
+    if (Date.now() >= deadline) {
+      throw new Error(
+        `Timed out waiting for ${jobs} background jobs and ${agentTurns} Agent turns`,
+      );
+    }
+    if (jobs + agentTurns > 0) {
+      onLog(`Waiting for ${jobs} background jobs and ${agentTurns} Agent turns`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 2_000));
+  }
+}
+
+function createClient(): TushareClient {
+  const config = loadTushareConfig();
+  return new TushareClient({
+    token: config.token,
+    baseUrl: config.baseUrl,
+    minIntervalMs: config.minIntervalMs,
+  });
+}
+
+function shanghaiToday(): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  })
+    .format(new Date())
+    .replaceAll('-', '');
+}
+
+function addCalendarDays(date: string, days: number): string {
+  const parsed = new Date(
+    Date.UTC(
+      Number(date.slice(0, 4)),
+      Number(date.slice(4, 6)) - 1,
+      Number(date.slice(6, 8)) + days,
+    ),
+  );
+  return parsed.toISOString().slice(0, 10).replaceAll('-', '');
+}
+
+function previousCalendarDate(date: string): string {
+  return addCalendarDays(date, -1);
+}
+
+function assertDate(date: string): void {
+  if (!/^\d{8}$/.test(date)) {
+    throw new Error(`Invalid maintenance date ${date}; expected YYYYMMDD`);
+  }
+}
+
+function positiveInteger(value: string | undefined, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+export function assertProductionLock(): void {
+  if (process.env.NODE_ENV === 'production' && process.env.JIXIE_MAINTENANCE_LOCK_HELD !== '1') {
+    throw new Error('Production maintenance must run through the flock-protected systemd service');
+  }
+}
+
+function toError(error: unknown): Error {
+  return error instanceof Error ? error : new Error(String(error));
+}

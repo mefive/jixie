@@ -1,0 +1,23 @@
+[Unit]
+Description=jixie weekly reference-data maintenance
+After=network-online.target jixie-api.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=jixie
+Group=jixie
+WorkingDirectory=/opt/jixie/apps/api
+EnvironmentFile=/opt/jixie/apps/api/.env.production
+Environment=JIXIE_MAINTENANCE_LOCK_HELD=1
+ExecStart=/usr/bin/flock -n -E 75 /var/lib/jixie/maintenance.lock /usr/bin/node /opt/jixie/apps/api/dist/scripts/run-weekly-maintenance.js
+TimeoutStartSec=12h
+Nice=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/jixie
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=jixie-maintenance-weekly

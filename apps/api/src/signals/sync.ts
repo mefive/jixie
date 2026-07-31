@@ -17,6 +17,11 @@ import { TushareClient } from '../tushare/client.js';
 export async function syncSignalMarketData(
   tradeDate: string,
   onLog: (line: string) => void = console.log,
+  options: {
+    coreAlreadyPublished?: boolean;
+    extensionsAlreadyPublished?: boolean;
+    refresh?: boolean;
+  } = {},
 ): Promise<void> {
   const config = loadTushareConfig();
   const client = new TushareClient({
@@ -38,7 +43,9 @@ export async function syncSignalMarketData(
   );
 
   onLog(`Syncing signal data for ${tradeDate}`);
-  await syncTradeCal(client, tradeDate, addCalendarDays(tradeDate, 14));
+  if (!options.coreAlreadyPublished) {
+    await syncTradeCal(client, tradeDate, addCalendarDays(tradeDate, 14));
+  }
   const calendar = await prisma.tradeCal.findUnique({
     where: { exchange_calDate: { exchange: 'SSE', calDate: tradeDate } },
     select: { isOpen: true },
@@ -48,20 +55,25 @@ export async function syncSignalMarketData(
     return;
   }
 
-  await syncDaily(client, tradeDate, tradeDate);
-  await syncDailyBasic(client, tradeDate, tradeDate);
-  await syncStkLimit(client, tradeDate, tradeDate);
+  if (!options.coreAlreadyPublished) {
+    await syncDaily(client, tradeDate, tradeDate);
+    await syncDailyBasic(client, tradeDate, tradeDate);
+    await syncStkLimit(client, tradeDate, tradeDate);
+  }
 
   const factorKeys = definitions.flatMap((definition) => definition.factors);
   const sourceCode = deployments
     .map((deployment) => (deployment.config as { code?: unknown }).code)
     .filter((code): code is string => typeof code === 'string')
     .join('\n');
-  if (factorKeys.some((key) => key.startsWith('mf_')) || sourceCode.includes('netMain')) {
-    await syncMoneyflow(client, tradeDate, tradeDate);
+  if (
+    !options.extensionsAlreadyPublished &&
+    (factorKeys.some((key) => key.startsWith('mf_')) || sourceCode.includes('netMain'))
+  ) {
+    await syncMoneyflow(client, tradeDate, tradeDate, { refresh: options.refresh });
   }
-  if (sourceCode.includes('.lhbNet(')) {
-    await syncTopList(client, tradeDate, tradeDate);
+  if (!options.extensionsAlreadyPublished && sourceCode.includes('.lhbNet(')) {
+    await syncTopList(client, tradeDate, tradeDate, { refresh: options.refresh });
   }
 
   const watchedCodes = [...new Set(definitions.flatMap((definition) => definition.watch))];

@@ -1,0 +1,12 @@
+[Unit]
+Description=Run jixie daily maintenance after the A-share close
+
+[Timer]
+OnCalendar=Mon..Fri *-*-* 17:30:00 Asia/Shanghai
+OnCalendar=Mon..Fri *-*-* 18:30:00 Asia/Shanghai
+OnCalendar=Mon..Fri *-*-* 19:30:00 Asia/Shanghai
+Persistent=true
+Unit=jixie-maintenance.service
+
+[Install]
+WantedBy=timers.target

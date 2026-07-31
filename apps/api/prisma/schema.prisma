@@ -443,6 +443,44 @@ model FutureSettlement {
 }
 
 // ============================================================================
+// Production maintenance coordination. The operating-system flock is the strong cross-process lock;
+// these rows provide durable progress, retry semantics, publication watermarks, and the App gate.
+// They are operational metadata and must never be exposed through the Agent read-only SQL tool.
+// ============================================================================
+
+/// One idempotent daily, weekly, or repair maintenance run.
+model MaintenanceRun {
+  id          String    @id // ULID
+  kind        String // 'daily' | 'weekly' | 'repair'
+  targetKey   String
+  startDate   String?
+  endDate     String?
+  trigger     String // 'timer' | 'manual'
+  status      String // 'running' | 'done' | 'error'
+  stage       String
+  attempts    Int       @default(1)
+  summary     Json?
+  error       String?
+  heartbeatAt DateTime  @default(now())
+  startedAt   DateTime  @default(now())
+  finishedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([kind, targetKey])
+  @@index([status, updatedAt])
+}
+
+/// Singleton publication state. `dailyPublishedThrough` is a continuous SSE trading-day watermark.
+model MaintenanceState {
+  key                   String   @id
+  dailyPublishedThrough String?
+  weeklySyncedThrough   String?
+  dataRevision          Int      @default(0)
+  updatedAt             DateTime @updatedAt
+}
+
+// ============================================================================
 // User system (invite-only beta). Passwordless: log in with email + 6-digit verification code;
 // registering a new email requires a one-time invite code.
 // Sessions use an opaque DB session id stored in the sid cookie (not JWT); logout deletes the row

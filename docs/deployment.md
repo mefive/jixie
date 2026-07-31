@@ -12,7 +12,8 @@ jixie 在 Linux VPS(Ubuntu / CentOS)上的部署。配套产物:`scripts/bootstr
 ## 1. 服务器规格建议(jixie 比一般 web 吃资源)
 
 - **内存**:回测/因子分析加载全市场面板 + 紧循环,单次可吃 1GB+;`vite build` 也偏吃内存。**建议 ≥2GB,推荐 4GB**,并配 **≥4GB swap**(<2GB 机器 `vite build` 易 OOM,可改为本机构建后 `rsync apps/web/dist`)。
-- **磁盘**:行情库满配 **~6GB**;加备份轮转(每份=全库大小)很快吃满小盘。**建议 ≥40GB**,并把备份 `JIXIE_BACKUP_KEEP` 调小(2~3)或推离本机(见 §6)。
+- **磁盘**:行情库满配 **~6GB**;加备份轮转(每份=全库大小)很快吃满小盘。**建议 ≥40GB**；生产默认保留
+  2 份，并应推离本机(见 §5)。
 - **CPU**:回测是纯 CPU 计算,跑在 worker 线程里(不阻塞 HTTP);多核更好,单核也能跑,只是回测慢。
 - **系统**:Ubuntu 22.04/24.04 或 CentOS/RHEL 8+;需普通 sudo 用户(服务以非 root 跑)。
 
@@ -101,7 +102,7 @@ tail -f /var/lib/jixie/full-import.log
 sudo systemctl start jixie-api
 ```
 
-默认导入 2015 年至今的 A 股日线/复权、每日估值、涨跌停、资金流、龙虎榜、财务与分红、申万行业、主要 ETF、指数、股指期货，并预计算市场状态、执行数据审计；股票名称历史和指数基准会按各自更早的数据起点导入。脚本把完成阶段记录在 `.jixie-import/<start>-<end>`，失败或 SSH 断线后重新执行同一命令即可续传。显式日期范围用 `pnpm import:data 20150101 20260729`；需要忽略完成标记时设置 `JIXIE_IMPORT_IGNORE_STATE=1`。
+默认导入 2015 年至今的 A 股日线/复权、每日估值、涨跌停、资金流、龙虎榜、财务与分红、申万行业、主要 ETF、指数、股指期货。最终阶段会先自动检查并修复最近 20 个已完成交易日的确定性密集切片缺口，再预计算市场状态、执行严格数据审计并初始化连续发布水位；任一步失败都不会启用残缺基线。股票名称历史和指数基准会按各自更早的数据起点导入。脚本把完成阶段记录在 `.jixie-import/<start>-<end>`，失败或 SSH 断线后重新执行同一命令即可续传。显式日期范围用 `pnpm import:data 20150101 20260729`；需要忽略完成标记时设置 `JIXIE_IMPORT_IGNORE_STATE=1`。
 
 > **研究史(用户、策略、因子、回测记录)不会生成或迁移**——Tushare 只提供市场数据，prod 从空库开始积累自己的研究。
 
@@ -121,25 +122,39 @@ ssh vps 'sudo systemctl start jixie-api'
 
 > ~6GB(gzip 后约 3-4GB)一次传输。之后 VPS 仍需每日增量同步保鲜(§5)。
 
-### 之后:每日增量同步(保鲜,信号线的前置)
+### 之后：systemd 每日维护
 
-历史回填完,每天收盘后补当天一根(为将来的每日信号做准备)。cron 一行:
-
-```cron
-30 18 * * 1-5  cd /opt/jixie && pnpm --filter api sync $(date +\%Y\%m\%d) $(date +\%Y\%m\%d) >> /var/log/jixie-sync.log 2>&1
-```
-
-> 交易日 17:00-18:00 后 Tushare 出当日数据;非交易日 sync 空跑无害。这块将来由主线五「每日信号」正式接管(自动同步 + 出信号)。
-
-## 5. 数据库备份(见 ROADMAP 4.6)
-
-`scripts/backup-db.mjs` + systemd timer 已就绪。VPS 上:
+全量导入脚本会在基线自愈和严格审计通过后初始化 `dailyPublishedThrough`。`bootstrap.sh` 和
+`deploy.sh api|all` 会安装三个 timer：
 
 ```bash
-sudo cp apps/api/scripts/jixie-backup.service apps/api/scripts/jixie-backup.timer /etc/systemd/system/
-# 编辑 .service:User=、JIXIE_BACKUP_DIR=/var/backups/jixie、ExecStart 路径、JIXIE_BACKUP_KEEP(小盘调 2~3)
-sudo systemctl daemon-reload && sudo systemctl enable --now jixie-backup.timer
+systemctl list-timers 'jixie-*'
+sudo systemctl start jixie-maintenance.service
+journalctl -u jixie-maintenance.service -n 200 --no-pager
 ```
+
+`jixie-maintenance.timer` 在工作日上海时间 17:30、18:30、19:30 尝试同一流水线；停机数日后由
+coordinator 从连续水位补齐所有缺失交易日，并在每次运行中回查水位前最近 5 个交易日。周任务回查
+最近 252 个交易日；允许列表内的量价、复权、估值、涨跌停、资金流和主要指数缺口会自动重拉、复检并
+按需重算 market-state。不要再安装旧 cron，也不要在 API 内启动第二个 scheduler。
+完整顺序、锁、维护 Gate 和手动修复见
+[`production-maintenance.md`](./design/production-maintenance.md)。
+
+## 5. 数据库备份
+
+备份 timer 也由 `bootstrap.sh` / `deploy.sh api|all` 安装，默认每天 03:00 用 SQLite 在线
+`.backup` 生成一致快照，校验成功后只保留最新 2 份：
+
+```bash
+sudo systemctl start jixie-backup.service
+systemctl status jixie-backup.service
+journalctl -u jixie-backup.service -n 100 --no-pager
+ls -lh /var/backups/jixie
+```
+
+自定义目录可在部署时设置 `JIXIE_BACKUP_DIR`；调整保留数时修改渲染后的
+`/etc/systemd/system/jixie-backup.service` 中 `JIXIE_BACKUP_KEEP`，再执行
+`sudo systemctl daemon-reload`。
 
 > ⚠ **VPS 单盘本地备份 = 没备份**。真正的持久化是把备份目录**推离本机**:`rsync` 到另一台 / 对象存储 / litestream。行情可重同步、研究史不可重建,后者尤其要异地。
 
@@ -170,7 +185,8 @@ docs，也可能同时改了 lockfile 或 `@jixie/shared`。
 - 端口:`ss -tlnp | grep 3001`
 - 健康:`curl -s localhost:3001/api/health` → `{"ok":true}`
 - nginx:`sudo nginx -t`、`/var/log/nginx/error.log`
-- 同步进度:`tail -f /var/log/jixie-sync.log`;库行数 `sqlite3 /var/lib/jixie/prod.db 'SELECT count(*) FROM "Daily";'`
+- 维护进度：`journalctl -u jixie-maintenance.service -f`；库行数：
+  `sqlite3 /var/lib/jixie/prod.db 'SELECT count(*) FROM "Daily";'`
 
 ## 8. 注意事项
 

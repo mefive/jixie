@@ -95,22 +95,19 @@ interface SignalItem {
 
 ## 数据同步与调度
 
-一套 `runDailySignalCycle` 被两种入口复用：
-
-1. 生产进程内调度：上海时区 17:30、18:30、19:30；
-2. `pnpm signals:run [YYYYMMDD]`：手动补跑或外部 cron/launchd。
-
-生产默认启用，开发默认关闭；`SIGNALS_SCHEDULER_ENABLED=true|false` 可覆盖。
+生产不再使用 API 进程内调度。systemd 的 `jixie-maintenance.timer` 在上海时区
+17:30、18:30、19:30 调用 `maintenance:daily`；API 重启和横向扩容不会创建第二个定时来源。
+`pnpm signals:run [YYYYMMDD]` 仅保留为开发诊断入口，生产补跑应使用受同一维护锁保护的
+`maintenance:daily`。
 
 每轮：
 
-1. 同步 TradeCal 至未来 14 个自然日，以取得下一交易日；
-2. 非交易日直接结束；
-3. 同步股票 daily / adj_factor / daily_basic / stk_limit；
-4. 根据活跃部署代码与声明按需同步 moneyflow / toplist；
-5. 识别 watch 中的 ETF，刷新这些 ETF 当日日线和复权因子；
-6. 再次检查核心数据确实存在；
-7. 活跃部署按上线顺序串行启动独立子进程，避免同时占满 SQLite 和 isolate 内存；原生沙箱崩溃与
+1. maintenance coordinator 补齐连续发布水位之后的全部缺失交易日；
+2. 候选校验并原子发布股票 daily / adj_factor / daily_basic / stk_limit；
+3. 根据活跃部署代码与声明按需同步 moneyflow / toplist 和 ETF；
+4. 完整性门禁通过后生成并验证 market-state；
+5. 水位追平最近收盘日后才生成信号；
+6. 活跃部署按上线顺序串行启动独立子进程，避免同时占满 SQLite 和 isolate 内存；原生沙箱崩溃与
    API 进程隔离，父进程只在收到结果且子进程完整退出后提交终态。
 
 页面“立即生成”不在 HTTP 请求内调用外部数据源，只对已经落库的数据运行；数据尚未准备时明确报错。
