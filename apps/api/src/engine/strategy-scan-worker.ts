@@ -10,7 +10,7 @@ import type {
 } from '@jixie/shared';
 import { t } from '../i18n/index.js';
 import { prisma } from '../lib/prisma.js';
-import { executeStrategyScan } from '../strategy/scan.js';
+import { executeStrategyScan, scanCellOverrides } from '../strategy/scan.js';
 import { prepareCustomFactors } from './prepare-custom-factors.js';
 import type { BacktestResult } from './types.js';
 
@@ -46,13 +46,20 @@ try {
     spec,
     parameters,
     ranges,
-    run: (params, range) =>
-      runScanCell({
-        config: { ...config, start: range.start, end: range.end },
+    run: (params, range) => {
+      const overrides = scanCellOverrides(spec, params);
+      return runScanCell({
+        config: {
+          ...config,
+          start: range.start,
+          end: range.end,
+          initialCash: overrides.initialCash ?? config.initialCash,
+        },
         customFactors,
-        paramOverrides: params,
+        paramOverrides: overrides.paramOverrides,
         locale,
-      }),
+      });
+    },
     onCellStart: (index, total, params) => {
       const values = Object.entries(params)
         .map(([key, value]) => `${key}=${value}`)

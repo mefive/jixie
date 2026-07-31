@@ -32,7 +32,7 @@ try {
       "let last = '';",
       'export default defineStrategy({',
       "  name: 'Parameter scan E2E',",
-      "  params: { lookback: 3, shares: 100, sizing: 'fixed' },",
+      "  params: { lookback: 3, shares: 100, sizing: 'equal' },",
       "  watch: ['510300.SH'],",
       '  onBar(ctx) {',
       "    const period = ctx.period('monthly');",
@@ -84,7 +84,7 @@ try {
   await scanAction.hover();
   await page.getByRole('tooltip').filter({ hasText: '参数扫描' }).waitFor();
   await scanAction.click();
-  await page.getByRole('dialog', { name: '扫描与仓位对比' }).waitFor();
+  await page.getByRole('dialog', { name: '扫描实验' }).waitFor();
   await page.locator('.jx-parameterScan-dimension .ant-input').first().waitFor({
     timeout: 15_000,
   });
@@ -126,7 +126,7 @@ try {
   }
 
   await page.getByRole('button', { name: '参数扫描' }).first().click();
-  await page.getByRole('dialog', { name: '扫描与仓位对比' }).waitFor();
+  await page.getByRole('dialog', { name: '扫描实验' }).waitFor();
   await page.getByText('仓位方案对比', { exact: true }).click();
   await page.locator('.jx-parameterScan-dimension .ant-input').first().waitFor();
   await page.locator('.jx-parameterScan-dimension .ant-input').first().fill('equal, fixed, atr');
@@ -151,6 +151,48 @@ try {
   ) {
     throw new Error(`invalid sizing report: ${JSON.stringify(sizingReport)}`);
   }
+
+  await page.getByRole('button', { name: '参数扫描' }).first().click();
+  await page.getByRole('dialog', { name: '扫描实验' }).waitFor();
+  await page.getByText('容量测算', { exact: true }).click();
+  await page.locator('.jx-parameterScan-dimension .ant-input').fill('50, 500, 5000');
+  await page.getByRole('button', { name: '开始扫描' }).click();
+  await page.locator('.jx-parameterScan-progress').waitFor({ timeout: 30_000 });
+  await page.locator('.jx-parameterScan-progress').waitFor({ state: 'detached', timeout: 120_000 });
+  await page.locator('.jx-parameterScan-chart canvas').first().waitFor({ timeout: 30_000 });
+  const capacityRows = await page
+    .locator('.jx-parameterScan-table .ant-table-row[data-row-key]')
+    .count();
+  if (capacityRows !== 3) {
+    throw new Error(`expected three capital levels, got ${capacityRows}`);
+  }
+  const capacityReport = await page.evaluate(async (id) => {
+    const reports = await (await fetch(`/api/app/strategy/scans?strategyId=${id}`)).json();
+    return await (await fetch(`/api/app/strategy/scans/${reports[0].id}`)).json();
+  }, strategyId);
+  if (
+    capacityReport.spec?.view !== 'capacity' ||
+    capacityReport.payload?.cells?.length !== 3 ||
+    capacityReport.payload.cells.some(
+      (cell) =>
+        typeof cell.params?.initialCash !== 'number' ||
+        typeof cell.full?.annSlippageDrag !== 'number',
+    )
+  ) {
+    throw new Error(`invalid capacity report: ${JSON.stringify(capacityReport)}`);
+  }
+  const orderedCapacityCells = [...capacityReport.payload.cells].sort(
+    (first, second) => first.params.initialCash - second.params.initialCash,
+  );
+  if (
+    orderedCapacityCells.at(-1).full.annSlippageDrag <= orderedCapacityCells[0].full.annSlippageDrag
+  ) {
+    throw new Error('capacity scan did not increase slippage drag as capital grew');
+  }
+  const capacityInsights = await page.locator('.jx-parameterScan-capacityInsight').count();
+  if (capacityInsights !== 3) {
+    throw new Error(`expected three capacity insights, got ${capacityInsights}`);
+  }
   if (pageErrors.length) {
     throw new Error(`page errors: ${JSON.stringify(pageErrors)}`);
   }
@@ -159,7 +201,7 @@ try {
   await page.getByRole('tooltip').filter({ hasText: '运行回测' }).waitFor();
   await page.screenshot({ path: `${SHOTS}strategy-parameter-scan.png`, fullPage: true });
   console.log(
-    `[strategy-parameter-scan] PASS id=${strategyId} parameterCells=${rowCount} sizingCells=${sizingRows}`,
+    `[strategy-parameter-scan] PASS id=${strategyId} parameterCells=${rowCount} sizingCells=${sizingRows} capacityCells=${capacityRows}`,
   );
 } catch (error) {
   await page

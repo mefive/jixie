@@ -8,11 +8,15 @@ import type {
 import type { BacktestResult } from '../engine/types.js';
 
 export const MAX_SCAN_COMBINATIONS = 25;
+export const CAPACITY_DIMENSION_KEY = 'initialCash';
 
 export function normalizeScanSpec(
   spec: StrategyScanSpec,
   declaredParams: Record<string, StrategyParamValue>,
 ): StrategyScanSpec {
+  if (spec.view === 'capacity') {
+    return normalizeCapacitySpec(spec);
+  }
   if (spec.dimensions.length < 1 || spec.dimensions.length > 2) {
     throw new Error('parameter scan requires one or two dimensions');
   }
@@ -115,7 +119,28 @@ export function metricSummary(result: BacktestResult): BacktestMetricSummary {
     totalSlippage: result.totalSlippage,
     annVolatility: annualizedVolatility(result.nav),
     maxUnderwaterDays: maximumUnderwaterDays(result.nav),
+    annSlippageDrag:
+      result.initialCash > 0 && result.days > 0
+        ? (result.totalSlippage / result.initialCash) * (252 / result.days)
+        : 0,
   };
+}
+
+export function scanCellOverrides(
+  spec: StrategyScanSpec,
+  combination: Record<string, StrategyParamValue>,
+): {
+  initialCash?: number;
+  paramOverrides: Record<string, StrategyParamValue>;
+} {
+  if (spec.view !== 'capacity') {
+    return { paramOverrides: combination };
+  }
+  const initialCash = combination[CAPACITY_DIMENSION_KEY];
+  if (typeof initialCash !== 'number') {
+    throw new Error('capacity scan requires a numeric initialCash value');
+  }
+  return { initialCash, paramOverrides: {} };
 }
 
 export async function executeStrategyScan(options: {
@@ -202,4 +227,38 @@ function rebaseNav(
   initialCash: number,
 ): { date: string; value: number }[] {
   return nav.map((point) => ({ date: point.date, value: point.value / initialCash }));
+}
+
+function normalizeCapacitySpec(spec: StrategyScanSpec): StrategyScanSpec {
+  if (spec.dimensions.length !== 1 || spec.splitDate) {
+    throw new Error('capacity scan requires one dimension and no sample split');
+  }
+  const dimension = spec.dimensions[0];
+  if (dimension.key.trim() !== CAPACITY_DIMENSION_KEY) {
+    throw new Error(`capacity scan dimension must be ${CAPACITY_DIMENSION_KEY}`);
+  }
+  const values = [...new Set(dimension.values)];
+  if (
+    values.length < 3 ||
+    values.length > 7 ||
+    values.some(
+      (value) =>
+        typeof value !== 'number' ||
+        !Number.isFinite(value) ||
+        value < 10_000 ||
+        value > 10_000_000_000,
+    )
+  ) {
+    throw new Error('capacity scan requires 3-7 capital values between 10,000 and 10 billion');
+  }
+  return {
+    dimensions: [
+      {
+        key: CAPACITY_DIMENSION_KEY,
+        values: (values as number[]).sort((first, second) => first - second),
+      },
+    ],
+    splitDate: undefined,
+    view: 'capacity',
+  };
 }

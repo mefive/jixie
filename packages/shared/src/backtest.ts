@@ -96,7 +96,7 @@ export interface StrategyParameterDimension {
 export interface StrategyScanSpec {
   dimensions: StrategyParameterDimension[];
   splitDate?: TradeDate;
-  view?: 'parameters' | 'sizing';
+  view?: 'parameters' | 'sizing' | 'capacity';
 }
 
 export interface BacktestMetricSummary {
@@ -120,6 +120,8 @@ export interface BacktestMetricSummary {
   totalSlippage: number;
   annVolatility?: number;
   maxUnderwaterDays?: number;
+  /** Annualized slippage loss divided by initial capital. */
+  annSlippageDrag?: number;
 }
 
 export interface StrategyScanCell {
