@@ -256,9 +256,12 @@ export async function computeFactorSeries(
   const effectiveMinimumCoverage = factor.minCoverage ?? minimumWindowCoverage;
   audit.declaredWindowDays = factor.window;
   audit.minimumCoverage = effectiveMinimumCoverage;
-  const needsTurnoverRateFHistory = factorCode.includes("'turnoverRateF'");
-  const needsRoeHistory = factorCode.includes("'roe'");
-  const needsGrossProfitMarginHistory = factorCode.includes("'grossprofitMargin'");
+  const needsTurnoverRateFHistory = factorSourceReferencesHistoryField(factorCode, 'turnoverRateF');
+  const needsRoeHistory = factorSourceReferencesHistoryField(factorCode, 'roe');
+  const needsGrossProfitMarginHistory = factorSourceReferencesHistoryField(
+    factorCode,
+    'grossprofitMargin',
+  );
 
   // Preload all financial reports once (PIT-gated by annDate); loadBars picks each stock's as-of report.
   const finaIndex = await loadFinaIndex();
@@ -496,6 +499,10 @@ export async function computeFactorSeries(
     factor.dispose();
   }
   return { series, audit };
+}
+
+export function factorSourceReferencesHistoryField(source: string, field: string): boolean {
+  return [`'${field}'`, `"${field}"`, `\`${field}\``].some((literal) => source.includes(literal));
 }
 
 function lowerBound(values: string[], target: string): number {
