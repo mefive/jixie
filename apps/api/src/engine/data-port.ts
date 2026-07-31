@@ -59,6 +59,8 @@ export interface FinaIndicatorRow {
   annDate: string;
   roe: number | null;
   roeWaa: number | null;
+  grossprofitMargin: number | null;
+  debtToAssets: number | null;
 }
 
 export interface IndexWeightRow {

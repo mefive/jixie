@@ -64,6 +64,10 @@ const FACTOR_DOCS: Record<string, Record<Locale, string>> = {
     zh: 'Point-in-time ROE(%)历史:每日取「公告日 ≤ 当日」的最新报告(阶梯序列,公告日跳变);首份报告前为 null。',
     en: 'Point-in-time ROE (%) history: each day carries the latest report announced on/before it (a step series jumping on announcement days); null before the first report.',
   },
+  historyGrossProfitMargin: {
+    zh: 'Point-in-time 毛利率(%)历史:每日取「公告日 ≤ 当日」的最新报告(阶梯序列,公告日跳变);首份报告前为 null。',
+    en: 'Point-in-time gross profit margin (%) history: each day carries the latest report announced on/before it; null before the first report.',
+  },
   name: { zh: '因子名(展示用)', en: 'Factor name (for display)' },
   window: {
     zh: '所需历史长度(交易日数,含当天)。声明后 compute 里才能用 ctx.history。',
@@ -112,6 +116,8 @@ interface FactorCtx {
   history(n: number, field: 'turnoverRateF'): (number | null)[];
   /** ${doc('historyRoe')} */
   history(n: number, field: 'roe'): (number | null)[];
+  /** ${doc('historyGrossProfitMargin')} */
+  history(n: number, field: 'grossprofitMargin'): (number | null)[];
 }
 interface CustomFactor {
   /** ${doc('name')} */

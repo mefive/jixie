@@ -25,6 +25,9 @@ export interface FactorCtx {
    * (as-of by announcement date, no look-ahead; a step series that jumps on publication days).
    * Aligned with `history(n)`; null before the first published report. */
   history(n: number, field: 'roe'): (number | null)[];
+  /** Point-in-time gross profit margin (%) history, with the same announcement-date gating and
+   * alignment rules as ROE history. Null before the first published report. */
+  history(n: number, field: 'grossprofitMargin'): (number | null)[];
 }
 
 export interface CustomFactor {

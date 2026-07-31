@@ -324,27 +324,47 @@ describe('extractCustomFactorKeys (host-side source scan)', () => {
       'turnoverRateF',
     ]);
     expect(extractCustomFactorHistoryFields("ctx.history(504, 'roe')")).toEqual(['roe']);
+    expect(extractCustomFactorHistoryFields("ctx.history(504, 'grossprofitMargin')")).toEqual([
+      'grossprofitMargin',
+    ]);
     expect(extractCustomFactorHistoryFields('bar.roe && ctx.history(21)')).toEqual([]);
     expect(extractCustomFactorHistoryFields("ctx.history(21, 'amount')")).toEqual([]);
   });
 });
 
-describe('point-in-time roe history for custom factors', () => {
+describe('point-in-time fundamental history for custom factors', () => {
   it('serves the as-of step series aligned with bars, on both lanes', async () => {
     const roeSpec = spec();
     // Two published reports: roe=10 public from D1, roe=16 public from D3 — the aligned history
     // must step exactly on the announcement day, and read null before the first report.
     roeSpec.finaIndicators = [
-      { tsCode: 'A', annDate: D[1], roe: 10, roeWaa: null },
-      { tsCode: 'A', annDate: D[3], roe: 16, roeWaa: null },
+      {
+        tsCode: 'A',
+        annDate: D[1],
+        roe: 10,
+        roeWaa: null,
+        grossprofitMargin: 30,
+        debtToAssets: 40,
+      },
+      {
+        tsCode: 'A',
+        annDate: D[3],
+        roe: 16,
+        roeWaa: null,
+        grossprofitMargin: 36,
+        debtToAssets: 42,
+      },
     ];
     const factorCode = `export default defineFactor({
-      name: 'roe step',
+      name: 'fundamental steps',
       window: 3,
       compute(bar, ctx) {
         const roes = ctx.history(3, 'roe');
-        if (roes.length < 3) { return null; }
-        return roes.reduce((sum, value) => sum + (value ?? 0), 0);
+        const grossMargins = ctx.history(3, 'grossprofitMargin');
+        if (roes.length < 3 || grossMargins.length < 3) { return null; }
+        const roeSum = roes.reduce((sum, value) => sum + (value ?? 0), 0);
+        const marginSum = grossMargins.reduce((sum, value) => sum + (value ?? 0), 0);
+        return roeSum * 1000 + marginSum;
       },
     });`;
     const js = await toCommonJs(factorCode, 'factor code');
@@ -364,13 +384,13 @@ describe('point-in-time roe history for custom factors', () => {
       initialCash: 100_000,
       strategy,
       dataPort: fixturePort(roeSpec),
-      customFactors: [{ key: 'custom:roestep', js, historyFields: ['roe'] }],
+      customFactors: [{ key: 'custom:roestep', js, historyFields: ['roe', 'grossprofitMargin'] }],
     });
 
     expect(seen[D[1]]).toBeNull(); // only 2 bars of history
-    expect(seen[D[2]]).toBe(0 + 10 + 10); // window D0..D2: null, 10, 10
-    expect(seen[D[3]]).toBe(10 + 10 + 16); // report 2 becomes visible exactly on its annDate
-    expect(seen[D[4]]).toBe(10 + 16 + 16);
+    expect(seen[D[2]]).toBe((0 + 10 + 10) * 1000 + (0 + 30 + 30));
+    expect(seen[D[3]]).toBe((10 + 10 + 16) * 1000 + (30 + 30 + 36));
+    expect(seen[D[4]]).toBe((10 + 16 + 16) * 1000 + (30 + 36 + 36));
 
     const logged: string[] = [];
     await runWalledBacktest(
@@ -386,13 +406,13 @@ describe('point-in-time roe history for custom factors', () => {
         start: D[0],
         end: D[4],
         initialCash: 100_000,
-        customFactors: [{ key: 'custom:roestep', js, historyFields: ['roe'] }],
+        customFactors: [{ key: 'custom:roestep', js, historyFields: ['roe', 'grossprofitMargin'] }],
       },
       fixturePort(roeSpec),
       undefined,
       (_level, text) => logged.push(text),
     );
-    expect(logged).toContain(`${D[3]}=${10 + 10 + 16}`);
-    expect(logged).toContain(`${D[4]}=${10 + 16 + 16}`);
+    expect(logged).toContain(`${D[3]}=${(10 + 10 + 16) * 1000 + (30 + 30 + 36)}`);
+    expect(logged).toContain(`${D[4]}=${(10 + 16 + 16) * 1000 + (30 + 36 + 36)}`);
   });
 });

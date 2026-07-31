@@ -17,6 +17,7 @@ export interface FactorBatchItem {
   amounts?: (number | null)[]; // aligned daily turnover amounts (thousand yuan)
   turnoverRatesF?: (number | null)[]; // aligned free-float turnover rates for the window
   roes?: (number | null)[]; // aligned point-in-time ROE values (as-of announcement date)
+  grossProfitMargins?: (number | null)[]; // aligned point-in-time gross margins
 }
 
 export interface CompiledFactor {
@@ -62,6 +63,8 @@ const FACTOR_SETUP = `
                     ? item.turnoverRatesF
                   : field === 'roe'
                     ? item.roes
+                    : field === 'grossprofitMargin'
+                      ? item.grossProfitMargins
                     : item.closes;
                 if (n <= 0 || src.length < n) {
                   return [];

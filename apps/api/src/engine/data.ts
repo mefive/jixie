@@ -75,11 +75,17 @@ export class EngineData {
   private resampledBarsCache = new Map<string, ResampledBars>();
   private factorByKey = new Map<string, Map<string, number>>(); // `${factor}|${date}` -> code -> value
   private factorDates = new Map<string, string[]>(); // factor -> ascending dates it has values on
-  // Point-in-time fundamentals (ROE), loaded lazily on first cross-section build (cross-section work is
+  // Point-in-time fundamentals, loaded lazily on first cross-section build (cross-section work is
   // the only place they're read). code -> reports ascending by annDate.
   private finaByCode = new Map<
     string,
-    { annDate: string; roe: number | null; roeWaa: number | null }[]
+    {
+      annDate: string;
+      roe: number | null;
+      roeWaa: number | null;
+      grossprofitMargin: number | null;
+      debtToAssets: number | null;
+    }[]
   >();
   private finaLoaded = false;
   // Index constituents per index, loaded lazily. indexCode -> { dates ascending, members per date }.
@@ -561,7 +567,7 @@ export class EngineData {
       if (!price || adj == null || price.close == null) {
         continue;
       } // not tradable that day
-      const fina = this.roeAsOf(basic.tsCode, date);
+      const fina = this.finaAsOf(basic.tsCode, date);
       const stockStatus = this.stockNames.at(basic.tsCode, date);
       byCode.set(basic.tsCode, {
         code: basic.tsCode,
@@ -588,6 +594,8 @@ export class EngineData {
         turnoverRate: basic.turnoverRate,
         roe: fina?.roe ?? null,
         roeWaa: fina?.roeWaa ?? null,
+        grossprofitMargin: fina?.grossprofitMargin ?? null,
+        debtToAssets: fina?.debtToAssets ?? null,
       });
       codes.push(basic.tsCode);
     }
@@ -624,7 +632,12 @@ export class EngineData {
   /** Point-in-time ROE (%) for `code` as-of `date` — sync read for custom-factor 'roe' histories.
    * Callers must have awaited preloadFina() (run.ts does when a factor declares the field). */
   roeHistoryAt(code: string, date: string): number | null {
-    return this.roeAsOf(code, date)?.roe ?? null;
+    return this.finaAsOf(code, date)?.roe ?? null;
+  }
+
+  /** Point-in-time gross profit margin (%) for custom-factor histories. */
+  grossProfitMarginHistoryAt(code: string, date: string): number | null {
+    return this.finaAsOf(code, date)?.grossprofitMargin ?? null;
   }
 
   /** Explicit fina preload for sync as-of reads before any cross-section has been requested. */
@@ -644,15 +657,26 @@ export class EngineData {
       if (!list) {
         this.finaByCode.set(r.tsCode, (list = []));
       }
-      list.push({ annDate: r.annDate, roe: r.roe, roeWaa: r.roeWaa });
+      list.push({
+        annDate: r.annDate,
+        roe: r.roe,
+        roeWaa: r.roeWaa,
+        grossprofitMargin: r.grossprofitMargin,
+        debtToAssets: r.debtToAssets,
+      });
     }
   }
 
   /** Latest financial report public as-of `date` for `code` (point-in-time), or null. */
-  private roeAsOf(
+  private finaAsOf(
     code: string,
     date: string,
-  ): { roe: number | null; roeWaa: number | null } | null {
+  ): {
+    roe: number | null;
+    roeWaa: number | null;
+    grossprofitMargin: number | null;
+    debtToAssets: number | null;
+  } | null {
     const list = this.finaByCode.get(code);
     if (!list || !list.length) {
       return null;

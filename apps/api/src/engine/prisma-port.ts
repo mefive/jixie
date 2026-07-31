@@ -103,7 +103,14 @@ export const prismaDataPort: EngineDataPort = {
   async finaIndicators() {
     const rows = await prisma.finaIndicator.findMany({
       where: { annDate: { not: null } }, // only reports with a public date can be used point-in-time
-      select: { tsCode: true, annDate: true, roe: true, roeWaa: true },
+      select: {
+        tsCode: true,
+        annDate: true,
+        roe: true,
+        roeWaa: true,
+        grossprofitMargin: true,
+        debtToAssets: true,
+      },
       orderBy: [{ tsCode: 'asc' }, { annDate: 'asc' }],
     });
     return rows.map((row) => ({ ...row, annDate: row.annDate! }));
