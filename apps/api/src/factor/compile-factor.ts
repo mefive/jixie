@@ -96,6 +96,7 @@ export async function compileFactor(
     injectGlobals: 'globalThis.defineFactor = (factor) => factor;',
     setup: FACTOR_SETUP,
   });
+  let reportedComputeError = false;
 
   // Console lines (and caught compute errors) drain to the run-log sink after every crossing.
   const drainTo = (sink?: UserLogSink) => {
@@ -109,7 +110,10 @@ export async function compileFactor(
       } else if (line.startsWith('[warn] ')) {
         sink('warn', line.slice('[warn] '.length));
       } else if (line.startsWith('[factor-error] ')) {
-        sink('error', line); // keep the prefix — analysis.ts uses it to surface the first error
+        if (!reportedComputeError) {
+          reportedComputeError = true;
+          sink('error', line); // keep the prefix — analysis.ts uses it to surface the first error
+        }
       } else {
         sink('info', line);
       }
