@@ -162,6 +162,18 @@
   @apply overflow-hidden rounded-lg border border-gray-200;
 }
 
+.jx-signals-conditional {
+  @apply flex flex-col gap-3;
+}
+
+.jx-signals-conditionalHeading h4 {
+  @apply m-0 text-sm font-semibold text-gray-950;
+}
+
+.jx-signals-conditionalHeading p {
+  @apply mt-1 mb-0 text-xs text-gray-500;
+}
+
 .jx-signals-code {
   @apply mt-0.5 block font-mono text-xs text-gray-500;
 }

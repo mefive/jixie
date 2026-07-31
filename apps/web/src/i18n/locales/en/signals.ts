@@ -26,7 +26,7 @@ export const enSignals: typeof zhSignals = {
   noActionHint:
     'Doing nothing is still a mechanical decision and confirms the daily pipeline is healthy.',
   referenceNote:
-    'Reference prices are raw closes on the signal date; actual fills depend on the next open and tradability.',
+    'Market instructions use the raw signal-date close and execute at the next open. Conditional orders wait for a trigger from the next trading day and must be placed with the broker.',
   history: 'Run history',
   instructionCount: '{{count}} instruction(s)',
   instrument: 'Instrument',
@@ -38,6 +38,20 @@ export const enSignals: typeof zhSignals = {
   instruction: 'Instruction',
   simulation: 'Simulation',
   actual: 'Actual',
+  conditional: {
+    title: 'Conditional orders to place',
+    hint: 'These intents remain active in the model. Place them with the broker at the shown trigger; they are not next-open fills.',
+    type: 'Order type',
+    trigger: 'Trigger',
+    trailing: '{{value}} trail',
+    orderType: {
+      market_open: 'Next open',
+      stop_loss: 'Stop loss',
+      trailing_stop: 'Trailing stop',
+      limit_buy: 'Limit buy',
+      take_profit: 'Take profit',
+    },
+  },
   account: {
     title: 'Model, simulation, and actual accounts',
     hint: 'All start from the same model portfolio; gaps isolate market tradability and manual execution loss.',

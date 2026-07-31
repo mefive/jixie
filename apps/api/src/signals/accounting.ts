@@ -87,8 +87,11 @@ export async function initializeSignalAccounting(runId: string): Promise<void> {
   const positions = run.modelPositions as unknown as ModelPositionSnapshot[];
   await prisma.$transaction(async (transaction) => {
     if (run.executions.length === 0 && signals.length > 0) {
+      const immediateSignals = signals.flatMap((signal, signalIndex) =>
+        signal.source === 'conditional' ? [] : [{ signal, signalIndex }],
+      );
       await transaction.signalExecution.createMany({
-        data: signals.map((signal, signalIndex) => ({
+        data: immediateSignals.map(({ signal, signalIndex }) => ({
           id: ulid(),
           userId: run.userId,
           signalRunId: run.id,

@@ -204,7 +204,17 @@ export interface BarContext {
   // Imperative (share deltas): fits per-instrument systems (Turtle: add a unit, hit a stop). Orders
   // queue and fill at the next open. A bar uses either the declarative or the imperative API.
   order(code: string, shares: number): void; // +buy / -sell
+  /** Queue whole real-share lots (100 shares per lot) for the next open. */
+  orderLots(code: string, lots: number): void;
   exit(code: string): void; // sell the entire current position
+
+  // Persistent conditional orders. They are declared after today's close and become eligible on the
+  // next trading day; re-declaring the same kind/code updates it without resetting trailing history.
+  stopLoss(code: string, price: number): void;
+  trailingStop(code: string, pct: number): void;
+  limitBuy(code: string, price: number, shares: number): void;
+  takeProfit(code: string, pct: number): void;
+  cancelConditional(code: string, kind?: ConditionalOrderKind): void;
 
   /** Convenience: current shares held of `code` (0 if none). */
   shares(code: string): number;
@@ -218,6 +228,8 @@ export interface BarContext {
   hedgeFuture(code: string, beta?: number): void;
   exitFuture(code: string): void;
 }
+
+export type ConditionalOrderKind = 'stop_loss' | 'trailing_stop' | 'limit_buy' | 'take_profit';
 
 export interface StrategyAccounts {
   stock: { cashWeight: number };
@@ -303,6 +315,19 @@ export interface PendingCashSignal {
   targetWeight?: number;
 }
 
+export interface PendingConditionalSignal {
+  code: string;
+  assetType: 'stock' | 'etf';
+  action: 'buy' | 'sell';
+  shares: number;
+  refPrice: number;
+  refAmount: number;
+  source: 'conditional';
+  orderType: ConditionalOrderKind;
+  triggerPrice: number;
+  trailingPct?: number;
+}
+
 export interface PendingModelPosition {
   code: string;
   assetType: 'stock' | 'etf';
@@ -316,7 +341,7 @@ export interface StrategySignalCapture {
   modelEquity: number;
   modelCash: number;
   modelPositions: PendingModelPosition[];
-  signals: PendingCashSignal[];
+  signals: Array<PendingCashSignal | PendingConditionalSignal>;
 }
 
 export interface SignalBacktestOutput {

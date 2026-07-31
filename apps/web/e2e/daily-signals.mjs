@@ -40,6 +40,9 @@ try {
       "    if (ctx.date === '20260728') {",
       "      ctx.setHoldings({ '600519.SH': 0.5 });",
       '    }',
+      "    if (ctx.shares('600519.SH') > 0) {",
+      "      ctx.trailingStop('600519.SH', 0.08);",
+      '    }',
       '  },',
       '});',
     ].join('\n');
@@ -204,6 +207,31 @@ try {
 
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.getByRole('heading', { name: '每日信号验收' }).waitFor({ timeout: 15_000 });
+  await page.getByRole('heading', { name: '待挂条件单' }).waitFor({ timeout: 15_000 });
+  const conditionRow = page.locator('.jx-signals-conditional .ant-table-row[data-row-key]').first();
+  const conditionText = await conditionRow.innerText();
+  if (!conditionText.includes('跟踪止损') || !conditionText.includes('600519.SH')) {
+    fail(`unexpected conditional signal row: ${conditionText}`);
+  }
+  const latestEntry = await page.evaluate(async () => {
+    const entries = await (await fetch('/api/app/signals/today')).json();
+    return entries.find((item) => item.deployment.strategyName === '每日信号验收') ?? null;
+  });
+  const conditionalSignal = latestEntry?.run?.signals?.find(
+    (item) => item.source === 'conditional',
+  );
+  if (
+    latestEntry?.run?.tradeDate !== '20260729' ||
+    conditionalSignal?.orderType !== 'trailing_stop' ||
+    conditionalSignal?.triggerPrice <= 0
+  ) {
+    fail(`invalid durable conditional signal: ${JSON.stringify(latestEntry)}`);
+  }
+  await page.waitForFunction(() => {
+    const canvas = document.querySelector('.jx-signals-executionChart canvas');
+    return canvas instanceof HTMLCanvasElement && canvas.getBoundingClientRect().width > 500;
+  });
+  await page.screenshot({ path: `${SHOTS}daily-signals-conditional-zh.png`, fullPage: true });
   await page.locator('.jx-signals-historyRow').filter({ hasText: '2026-07-28' }).click();
   const executionRow = page.locator('.jx-signals-table .ant-table-row[data-row-key]').first();
   await executionRow.getByText('已模拟成交', { exact: true }).waitFor({ timeout: 15_000 });

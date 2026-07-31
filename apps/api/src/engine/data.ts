@@ -778,6 +778,29 @@ export class EngineData {
     return i == null ? null : b.adjOpen[i];
   }
 
+  /** Adjusted OHLC on exactly `date` (null when suspended / no bar). Conditional orders must use
+   * an exact-day row instead of the carried history helpers, otherwise a suspension could retrigger
+   * against an earlier day's range. */
+  ohlcAt(
+    code: string,
+    date: string,
+  ): { open: number; high: number; low: number; close: number } | null {
+    const bars = this.barsCache.get(code);
+    if (!bars) {
+      return null;
+    }
+    const index = bars.idx.get(date);
+    if (index == null) {
+      return null;
+    }
+    return {
+      open: bars.adjOpen[index],
+      high: bars.adjHigh[index],
+      low: bars.adjLow[index],
+      close: bars.adjClose[index],
+    };
+  }
+
   /** Raw turnover (thousand yuan) on exactly `date` (null if the stock didn't trade that day) — the day's turnover,
    * the liquidity gate for the slippage/impact model (a big order in a thin name pays more). */
   amountAt(code: string, date: string): number | null {

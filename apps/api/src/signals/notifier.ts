@@ -125,15 +125,29 @@ function signalTable(signals: SignalItem[], locale: Locale): string {
       (signal) => `<tr>
         <td style="padding:8px;border-bottom:1px solid #eaecf0;">${escapeHtml(signal.name)}</td>
         <td style="padding:8px;border-bottom:1px solid #eaecf0;font-family:monospace;">${escapeHtml(signal.code)}</td>
-        <td style="padding:8px;border-bottom:1px solid #eaecf0;color:${signal.action === 'buy' ? '#b42318' : '#067647'};">${escapeHtml(t(locale, signal.action === 'buy' ? 'signalEmailBuy' : 'signalEmailSell'))}</td>
+        <td style="padding:8px;border-bottom:1px solid #eaecf0;color:${signal.action === 'buy' ? '#b42318' : '#067647'};">${escapeHtml(t(locale, signal.action === 'buy' ? 'signalEmailBuy' : 'signalEmailSell'))}<br><span style="font-size:12px;color:#667085;">${escapeHtml(signalOrderType(signal, locale))}</span></td>
         <td style="padding:8px;border-bottom:1px solid #eaecf0;text-align:right;">${signal.shares.toLocaleString()}</td>
-        <td style="padding:8px;border-bottom:1px solid #eaecf0;text-align:right;">¥${signal.refPrice.toFixed(2)}</td>
+        <td style="padding:8px;border-bottom:1px solid #eaecf0;text-align:right;">¥${(signal.triggerPrice ?? signal.refPrice).toFixed(2)}</td>
       </tr>`,
     )
     .join('');
   return `<table style="width:100%;border-collapse:collapse;font-size:14px;">
     <tbody>${rows}</tbody>
   </table>`;
+}
+
+function signalOrderType(signal: SignalItem, locale: Locale): string {
+  const key =
+    signal.orderType === 'stop_loss'
+      ? 'signalEmailStopLoss'
+      : signal.orderType === 'trailing_stop'
+        ? 'signalEmailTrailingStop'
+        : signal.orderType === 'limit_buy'
+          ? 'signalEmailLimitBuy'
+          : signal.orderType === 'take_profit'
+            ? 'signalEmailTakeProfit'
+            : 'signalEmailMarketOpen';
+  return t(locale, key);
 }
 
 function parseSignals(value: unknown): SignalItem[] {

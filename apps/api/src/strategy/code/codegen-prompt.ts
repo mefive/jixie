@@ -74,8 +74,13 @@ The backtest engine calls onBar(ctx) once per trading day; you read data and pla
 - ctx.history(code, 'open'|'high'|'low'|'close', n) / ctx.bars(code, n): the last n backward-adjusted prices / OHLC bars
 - **Built-in indicators** (prefer these, don't hand-roll; all require the instrument's K-line already loaded, return null when data is insufficient):
   ${SDK_SECTIONS.indicators}
-- Orders (filled at next open): ctx.order(code, shares) (+buy/-sell), ctx.exit(code) (liquidate),
-  ctx.orderTargetPercent(code, w), ctx.setHoldings({code:w}), ctx.equalWeight(codes)
+- Next-open orders: ctx.order(code, shares) (+buy/-sell), ctx.orderLots(code, lots) (100 real shares/lot),
+  ctx.exit(code), ctx.orderTargetPercent(code, w), ctx.setHoldings({code:w}), ctx.equalWeight(codes)
+- Persistent conditional orders (declared after today's close; eligible from the next trading day):
+  ctx.stopLoss(code, price), ctx.trailingStop(code, pct), ctx.limitBuy(code, price, shares),
+  ctx.takeProfit(code, pct), ctx.cancelConditional(code, kind?). A stop gap fills at the open; an intraday
+  touch fills at the trigger; T+1 still blocks shares bought that day. Price/pct arguments are adjusted-price
+  strategy units and decimal fractions (0.08 = 8%).
 
 # Stock-index futures (daily; futures-only or mixed stock/futures execution)
 - Available logical main-contract codes: IF.CFX (CSI 300), IH.CFX (SSE 50), IC.CFX (CSI 500), IM.CFX (CSI 1000).
@@ -260,6 +265,26 @@ export default defineStrategy({
 
 # Example 9: monthly ETF momentum rotation from an explicit synced watch list
 ${ETF_ROTATION_EXAMPLE}
+
+# Example 10: Donchian breakout with an ATR-scaled persistent trailing stop
+export default defineStrategy({
+  name: 'Donchian ATR trail',
+  watch: ['600519.SH'],
+  onBar(ctx) {
+    const code = '600519.SH';
+    const bars = ctx.bars(code, 21);
+    const price = ctx.price(code);
+    const atr = ctx.atr(code, 20);
+    if (bars.length < 21 || price == null || atr == null) return;
+    const priorHigh = Math.max(...bars.slice(0, -1).map(bar => bar.adjHigh));
+    if (ctx.shares(code) === 0 && price > priorHigh) {
+      ctx.orderLots(code, Math.floor((ctx.cash * 0.1) / (price * 100)));
+    }
+    if (ctx.shares(code) > 0) {
+      ctx.trailingStop(code, Math.min(0.5, (2 * atr) / price));
+    }
+  },
+});
 
 # Refusal example 1 (missing data)
 User: "buy the 50 stocks with the highest year-over-year revenue growth" → output only:
