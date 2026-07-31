@@ -22,9 +22,13 @@ export interface ToolRunResult {
   chart?: AgentChart; // set when this call should surface a chart card in the reply
 }
 
+export interface AgentToolRunContext {
+  signal?: AbortSignal;
+}
+
 /** A whitelisted read-only tool. `run` re-validates args with zod (the JSON schema shown to the
  * model is generated from the same zod schema) and throws a human-readable error on bad input —
  * the core feeds it back as an observation so the model can fix its own arguments. */
 export interface AgentTool extends ToolSpec {
-  run(args: unknown): Promise<ToolRunResult>;
+  run(args: unknown, context?: AgentToolRunContext): Promise<ToolRunResult>;
 }

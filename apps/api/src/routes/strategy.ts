@@ -78,16 +78,22 @@ strategyRoute.post('/agent', validateJson(agentBody), async (c) => {
     return apiError(c, 'VALIDATION_FAILED', m(c, 'strategyTurnInProgress'));
   }
 
+  const locale = localeFromRequest(c);
   const [idx, factors] = await Promise.all([syncedIndices(), referencableFactors(userId)]);
   const turnId = ulid();
   enqueueAgentTurn({
     turnId,
     userId,
-    profile: strategyProfile(idx, factors),
+    profile: strategyProfile(idx, factors, {
+      userId,
+      strategyId: id,
+      currentCode: code,
+      locale,
+    }),
     entity,
     message,
     currentCode: code,
-    locale: localeFromRequest(c),
+    locale,
   });
   return c.json({ turnId });
 });
