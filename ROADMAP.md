@@ -424,7 +424,9 @@ SQL 的统计边界(无 stddev/相关/回归、多步流水线易错)的逃生�
 
 **不做**:饼图、对话内 K 线(个股页已有)、用 chart 重造 IC/分层/回测(仍去因子页 / lab)。
 
-**远期(本期不做)**:`runFactorAnalysis` / `runQuickBacktest` 工具让 agent 写完自己跑、看结果自己改——依赖长任务进对话流的形态,届时另出设计。
+### 7.9 Agent 研究闭环 ✅(2026-07-31,详设 `docs/design/agent-research-loop.md`)
+
+`runQuickBacktest` 只注入策略 Agent:以当前编辑器代码或显式候选代码启动独立 worker,沿用正式回测的硬沙箱 / 自定义因子 / A 股规则,只回紧凑指标并写入 Agent trace;不提交 `Strategy.config`、不覆盖正式 `lastResult`、不部署和不下单。`runFactorAnalysis` 只注入自定义因子 Agent:模型必须先提交 research card,服务端强制 V3 口径与 explore 截止日,创建不可变 `FactorReport` + durable Job,等待结果后把 IC / 净多空 / 换手摘要回灌;不提供 holdout / reveal / finalize / deploy 工具。两者共用 turn 的 `tool_start/tool_done` 流式状态与取消信号,同轮通常最多比较两个实质候选,防止机械样本内调参。前端沿用通用工具状态,无需新增专用交互。
 
 ---
 
@@ -436,7 +438,7 @@ SQL 的统计边界(无 stddev/相关/回归、多步流水线易错)的逃生�
 | 近期 A(已完成) | 2.1 订单类型 + 2.4 helper → 5.2 券商条件单 | 日内止损语义和半自动挂单已纵向打通 |
 | 近期 B | 2.2 多周期 | 支持周线过滤、日线进场等常见趋势策略 |
 | 中期 A | 6.1 仓位实验室 + 6.4 容量测算 | 复用参数扫描和滑点基础设施 |
-| 中期 B | Agent `runFactorAnalysis` / `runQuickBacktest` | 让 Agent 从写代码推进到受研究纪律约束的闭环验证 |
+| 中期 B(已完成) | Agent `runFactorAnalysis` / `runQuickBacktest` | 让 Agent 从写代码推进到受研究纪律约束的闭环验证 |
 | 持续项 | 3.5 预置因子三道门扩充;3.6b-B 随候选库扩大补 | 菜单按证据增长,不批量导入 factor zoo |
 | 远期 | 3.3 多因子合成 → 3.7 ML 合成 · 1.3 分红 Model B + 6.5 股息税 · 4.2 数据扩展 · 4.5 多用户工程 | 有前置或等需求拉动;线性合成是 ML 的对照基线,顺序不可倒 |
 

@@ -23,7 +23,7 @@
   **(2026-07-07 用户拍板放宽:新增 `sqlQuery`/`renderChart` 工具,对 12 张行情/财务数据表开放只读 SQL——统计聚合/时序/财务是 spec 白名单表达不了的;硬只读边界 = worker 线程里 node:sqlite readOnly 连接 + 语句守卫,应用表绝不暴露。见 ROADMAP 7.6。)**
 - **问答边界 = prompt 软约束**:「只回答交易/金融相关」写进 system prompt 即可。个人工具、无对抗性用户,不上分类器硬拦截,不过度工程。
 - **聊天是差的「结果货架」**:对话流里的卡片会被埋掉,而选股有强「反复看、定期跑」属性 → 生产卡片的能力归 agent,陈列和复用归页面(卡片墙),screen 页不删、改货架。
-- **本期不做**:agent 自主跑回测/因子分析(`runQuickBacktest`/`runFactorAnalysis` 工具)——那是 tool loop 兑现最大价值的时刻,但依赖本设计 A/B/C 全部落地 + 长任务(Job)如何进对话流的答案,远期另说(见开放问题)。
+- **后续已完成(2026-07-31)**:agent 自主跑回测/因子分析(`runQuickBacktest`/`runFactorAnalysis`)已在 A/B/C 和持久化 turn 落地后实现;长任务契约、研究纪律和副作用边界见 `agent-research-loop.md`。
 
 ## 设计 1:统一 agent 核心 + Profile(阶段 A)
 
@@ -201,5 +201,5 @@ model ScreenConversation {
 
 - ~~**流式与中间态**~~:✅ 2026-07-06 已落地(SSE + 刷新续接,见「Turn API 契约」节;用户拉动,仿 marginalia)。
 - **DeepSeek FC 实测质量**:B 阶段第一件事拿 3 个工具跑真实冒烟,不行走 JSON 协议退路(设计 2 已备)。
-- **远期工具**:`runFactorAnalysis` / `runQuickBacktest` 让 agent「写完自己跑、看 IC/回撤、自己改」——依赖长任务(Job/worker)进对话流的形态(轮询?turn 挂起?),届时另出设计,本期只保证 tool 插槽形状容得下异步工具。
+- **研究执行工具(2026-07-31 已完成)**:`runFactorAnalysis` / `runQuickBacktest` 让 agent「写完自己跑、看 IC/回撤、自己改」;采用后台 turn 挂起等待 worker / Job、SSE 报告工具状态、紧凑结果回灌的形态,详见 `agent-research-loop.md`。
 - 卡片是否要扩展 chart 类型(如筛选结果的市值分布图)——先只做表格,图表等真实使用拉动。

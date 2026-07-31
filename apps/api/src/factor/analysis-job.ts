@@ -1,0 +1,220 @@
+import { Worker } from 'node:worker_threads';
+import type {
+  FactorAnalysisSpec,
+  FactorReport,
+  FactorResearchIntentV1,
+  Locale,
+  LogLine,
+  RunFactorAnalysisResponse,
+} from '@jixie/shared';
+import { ulid } from 'ulid';
+import { appendLog, finishFactorReportJob, initializeJobLogs } from '../lib/jobs.js';
+import { prisma } from '../lib/prisma.js';
+import { factorTestKey, factorVariantKey, sha256 } from './report-spec.js';
+
+const workerUrl = import.meta.url.endsWith('.ts')
+  ? new URL('./factor-worker.boot.mjs', import.meta.url)
+  : new URL('./factor-worker.js', import.meta.url);
+
+export interface FactorAnalysisSource {
+  code: string;
+  label: string;
+}
+
+export async function startFactorAnalysis(options: {
+  userId: string;
+  factor: string;
+  source: FactorAnalysisSource;
+  spec: FactorAnalysisSpec;
+  researchIntent: FactorResearchIntentV1;
+  parentReportId?: string | null;
+  locale: Locale;
+  failedMessage: string;
+  exitedMessage: (code: number) => string;
+  launchWorker?: typeof launchFactorWorker;
+}): Promise<RunFactorAnalysisResponse> {
+  const factorCodeHash = sha256(options.source.code);
+  const dataRevision = null;
+  const variantKey = factorVariantKey(options.spec, factorCodeHash, dataRevision);
+  const testKey = factorTestKey(options.spec, factorCodeHash, options.researchIntent);
+  const reportId = ulid();
+  const jobId = ulid();
+  const created = await prisma.$transaction(async (transaction) => {
+    const running = await transaction.factorReport.findFirst({
+      where: {
+        userId: options.userId,
+        factor: options.factor,
+        variantKey,
+        testKey,
+        status: 'running',
+      },
+      include: { job: { select: { id: true, status: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (running?.job?.status === 'running') {
+      return { reportId: running.id, jobId: running.job.id, reusedRunning: true };
+    }
+    if (running) {
+      await transaction.factorReport.update({
+        where: { id: running.id },
+        data: { status: 'stale' },
+      });
+    }
+
+    await transaction.factorReport.create({
+      data: {
+        id: reportId,
+        userId: options.userId,
+        factor: options.factor,
+        status: 'running',
+        phase: 'explore',
+        freq: options.spec.freq,
+        neutral: options.spec.neutral,
+        start: options.spec.start,
+        end: options.spec.end,
+        specJson: JSON.stringify(options.spec),
+        variantKey,
+        factorCodeSnapshot: options.source.code,
+        factorCodeHash,
+        dataRevision,
+        parentReportId: options.parentReportId ?? null,
+        testKey,
+        researchIntentJson: JSON.stringify(options.researchIntent),
+        job: {
+          create: {
+            id: jobId,
+            userId: options.userId,
+            kind: 'factor',
+            key: variantKey,
+            status: 'running',
+          },
+        },
+      },
+    });
+
+    return { reportId, jobId, reusedRunning: false };
+  });
+  const response: RunFactorAnalysisResponse = { ...created, status: 'running' };
+  if (created.reusedRunning) {
+    return response;
+  }
+
+  await (options.launchWorker ?? launchFactorWorker)({
+    reportId,
+    jobId,
+    factor: options.factor,
+    factorCodeSnapshot: options.source.code,
+    factorLabel: options.source.label,
+    spec: options.spec,
+    locale: options.locale,
+    failedMessage: options.failedMessage,
+    exitedMessage: options.exitedMessage,
+  });
+  return response;
+}
+
+export async function launchFactorWorker(options: {
+  reportId: string;
+  jobId: string;
+  factor: string;
+  factorCodeSnapshot: string;
+  factorLabel: string;
+  spec: FactorAnalysisSpec;
+  locale: Locale;
+  failedMessage: string;
+  exitedMessage: (code: number) => string;
+}): Promise<void> {
+  initializeJobLogs(options.jobId);
+  let worker: Worker;
+  try {
+    worker = new Worker(workerUrl, {
+      workerData: {
+        reportId: options.reportId,
+        factor: options.factor,
+        factorCodeSnapshot: options.factorCodeSnapshot,
+        factorLabel: options.factorLabel,
+        spec: options.spec,
+        locale: options.locale,
+      },
+    });
+  } catch (error) {
+    await finishFactorReportJob(
+      options.jobId,
+      options.reportId,
+      'error',
+      undefined,
+      error instanceof Error ? error.message : String(error),
+      options.failedMessage,
+    );
+    return;
+  }
+  let finished = false;
+  const done = (status: 'done' | 'error', payload?: string, error?: string) => {
+    if (finished) {
+      return;
+    }
+    finished = true;
+    void finishFactorReportJob(
+      options.jobId,
+      options.reportId,
+      status,
+      payload,
+      error,
+      status === 'error' ? options.failedMessage : undefined,
+    ).catch((finishError) => {
+      console.error('[jixie] failed to finalize factor report', finishError);
+    });
+  };
+  worker.on(
+    'message',
+    (message: { type: string; entry?: LogLine; message?: string; payload?: string }) => {
+      switch (message.type) {
+        case 'log':
+          appendLog(options.jobId, message.entry!);
+          break;
+        case 'done':
+          done('done', message.payload);
+          break;
+        case 'error':
+          done('error', undefined, message.message);
+          break;
+      }
+    },
+  );
+  worker.on('error', (error) => done('error', undefined, error.message));
+  worker.on('exit', (code) => {
+    if (code !== 0) {
+      done('error', undefined, options.exitedMessage(code));
+    }
+  });
+}
+
+export async function readFactorAnalysisResult(
+  userId: string,
+  reportId: string,
+): Promise<{
+  status: 'running' | 'done' | 'error' | 'stale';
+  error?: string;
+  payload?: FactorReport;
+} | null> {
+  const row = await prisma.factorReport.findFirst({
+    where: { id: reportId, userId, phase: 'explore' },
+    select: { status: true, error: true, payload: true },
+  });
+  if (!row) {
+    return null;
+  }
+
+  const status = ['running', 'done', 'error', 'stale'].includes(row.status)
+    ? (row.status as 'running' | 'done' | 'error' | 'stale')
+    : 'error';
+  let payload: FactorReport | undefined;
+  if (row.payload) {
+    try {
+      payload = JSON.parse(row.payload) as FactorReport;
+    } catch {
+      return { status: 'error', error: 'Factor report payload is invalid.' };
+    }
+  }
+  return { status, error: row.error ?? undefined, payload };
+}

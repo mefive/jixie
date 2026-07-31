@@ -1,7 +1,7 @@
 import { buildCodegenPrompt, KNOWN_INDICES } from '../../strategy/code/codegen-prompt.js';
 import { compileStrategy } from '../../strategy/code/compile.js';
 import { prisma } from '../../lib/prisma.js';
-import { buildAgentMode, TOOLS_HINT, type AgentProfile } from '../core.js';
+import { buildAgentMode, RESEARCH_TOOLS_HINT, TOOLS_HINT, type AgentProfile } from '../core.js';
 import { defaultTools } from '../tools/index.js';
 import { runQuickBacktestTool } from '../tools/run-quick-backtest.js';
 import type { Locale } from '@jixie/shared';
@@ -53,7 +53,7 @@ export function strategyProfile(
   research?: { userId: string; strategyId: string; currentCode: string; locale: Locale },
 ): AgentProfile {
   return {
-    system: `${buildCodegenPrompt(availableIndices, referencableFactors)}\n${buildAgentMode('strategy')}\n${TOOLS_HINT}`,
+    system: `${buildCodegenPrompt(availableIndices, referencableFactors)}\n${buildAgentMode('strategy')}\n${TOOLS_HINT}${research ? RESEARCH_TOOLS_HINT : ''}`,
     tools: [...defaultTools(), ...(research ? [runQuickBacktestTool(research)] : [])],
     artifact: {
       noun: 'strategy',
