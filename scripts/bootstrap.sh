@@ -203,17 +203,63 @@ grep -qE '^TUSHARE_TOKEN=""?$'   "$ENV_PROD" 2>/dev/null && warn "TUSHARE_TOKEN 
 grep -qE '^RESEND_API_KEY=""?$'  "$ENV_PROD" 2>/dev/null && warn "RESEND_API_KEY 为空 —— 生产无 console 兜底,没人能登录。"
 grep -qE '^DEEPSEEK_API_KEY=""?$' "$ENV_PROD" 2>/dev/null && warn "DEEPSEEK_API_KEY 为空 —— NL→代码 / Agent 不可用(其余功能正常)。"
 
+DEPLOYMENT_RUN_ID=""
+
+finish_deployment_gate() {
+  local outcome="$1"
+  [[ -n "$DEPLOYMENT_RUN_ID" ]] || return 0
+
+  node --no-warnings "$JIXIE_DIR/scripts/deployment-gate.mjs" \
+    finish "$DB_FILE" "$DEPLOYMENT_RUN_ID" "$outcome"
+  DEPLOYMENT_RUN_ID=""
+}
+
+cleanup_deployment_gate() {
+  local exit_code=$?
+  trap - EXIT
+  if [[ -n "$DEPLOYMENT_RUN_ID" ]]; then
+    finish_deployment_gate error || true
+  fi
+  exit "$exit_code"
+}
+
+trap cleanup_deployment_gate EXIT
+
+if systemctl is-active --quiet "$JIXIE_SERVICE" 2>/dev/null; then
+  MAINTENANCE_TABLE_EXISTS="$(
+    sqlite3 "$DB_FILE" \
+      "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'MaintenanceRun';" \
+      2>/dev/null ||
+      echo 0
+  )"
+  if [[ "$MAINTENANCE_TABLE_EXISTS" -gt 0 ]]; then
+    log "进入部署维护模式并等待后台任务结束"
+    DEPLOYMENT_RUN_ID="$(
+      node --no-warnings "$JIXIE_DIR/scripts/deployment-gate.mjs" \
+        begin "$DB_FILE" "$CURRENT_REVISION"
+    )"
+    [[ -n "$DEPLOYMENT_RUN_ID" ]] || die "无法创建部署维护状态"
+  else
+    warn "旧数据库尚无维护状态表,直接停止 API 完成首次 schema 升级"
+  fi
+
+  log "停止 $JIXIE_SERVICE,避免部署期间混用新旧代码并释放 SQLite 连接"
+  sudo systemctl stop "$JIXIE_SERVICE"
+fi
+
 # ─────────────────────────────── 5. 安装 / 迁移 / 构建 ───────────────────────────────
 log "pnpm install --frozen-lockfile (顺带经 @jixie/shared 的 prepare 构建 shared)"
 pnpm install --frozen-lockfile
 
-log "prisma generate + migrate deploy (建库 schema 于 $DB_FILE)"
+log "prisma generate"
 pnpm --filter api exec prisma generate
-pnpm --filter api exec prisma migrate deploy
 
 log "pnpm -r build (拓扑序: shared -> api -> web; Node heap 4GB)"
 # ⚠ 内存:vite build + 回测都偏吃内存。<2GB 的 VPS 建议配 swap,或本机构建后 rsync apps/web/dist。
 NODE_OPTIONS="--max-old-space-size=4096" pnpm -r build
+
+log "prisma migrate deploy (建库/升级 schema 于 $DB_FILE)"
+pnpm --filter api exec prisma migrate deploy
 
 IMPORT_REQUIRED_MARKER="$JIXIE_DATA_DIR/full-import.required"
 DAILY_ROWS="$(sqlite3 "$DB_FILE" 'SELECT count(*) FROM "Daily";' 2>/dev/null || echo 0)"
@@ -222,9 +268,6 @@ if [[ "${DAILY_ROWS:-0}" -eq 0 ]]; then
 fi
 if [[ -f "$IMPORT_REQUIRED_MARKER" ]]; then
   log "行情库尚未完成初始化,执行可断点续传的全量导入"
-  if systemctl is-active --quiet "$JIXIE_SERVICE" 2>/dev/null; then
-    sudo systemctl stop "$JIXIE_SERVICE"
-  fi
   pnpm import:data
   rm -f "$IMPORT_REQUIRED_MARKER"
 fi
@@ -248,6 +291,9 @@ sed -e "s#/opt/jixie#$JIXIE_DIR#g" \
 sudo systemctl daemon-reload
 sudo systemctl enable "$JIXIE_SERVICE"
 sudo systemctl restart "$JIXIE_SERVICE"
+systemctl is-active --quiet "$JIXIE_SERVICE" ||
+  die "$JIXIE_SERVICE 启动失败,查日志: journalctl -u $JIXIE_SERVICE -e"
+finish_deployment_gate done
 
 log "安装 daily / weekly / backup timers"
 for unit in \

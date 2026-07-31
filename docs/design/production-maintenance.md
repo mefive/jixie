@@ -171,7 +171,7 @@ ExecStart=/usr/bin/flock -n -E 75 \
 ```text
 MaintenanceRun
   id
-  kind              daily | weekly | repair
+  kind              daily | weekly | repair | deploy
   targetKey
   startDate
   endDate

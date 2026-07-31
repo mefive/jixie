@@ -448,10 +448,10 @@ model FutureSettlement {
 // They are operational metadata and must never be exposed through the Agent read-only SQL tool.
 // ============================================================================
 
-/// One idempotent daily, weekly, or repair maintenance run.
+/// One idempotent daily, weekly, repair, or deployment maintenance run.
 model MaintenanceRun {
   id          String    @id // ULID
-  kind        String // 'daily' | 'weekly' | 'repair'
+  kind        String // 'daily' | 'weekly' | 'repair' | 'deploy'
   targetKey   String
   startDate   String?
   endDate     String?

@@ -26,7 +26,11 @@ export const MaintenanceGate = observer(() => {
         <div className="jx-maintenanceGate-copy">
           <h1 className="jx-maintenanceGate-title">{t('maintenance.title')}</h1>
           <p className="jx-maintenanceGate-description">
-            {status.error ? t('maintenance.retrying') : t('maintenance.description')}
+            {status.error
+              ? t('maintenance.retrying')
+              : status.kind === 'deploy'
+                ? t('maintenance.deploymentDescription')
+                : t('maintenance.description')}
           </p>
         </div>
         {status.totalDates > 0 && (

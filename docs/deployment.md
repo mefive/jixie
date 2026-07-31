@@ -35,7 +35,10 @@ jixie 在 Linux VPS（Ubuntu / CentOS）上的部署。唯一入口是幂等的 
 
 `bootstrap.sh` 自动检查并收敛系统依赖、代码版本、生产 env、Prisma Client 与 schema、前后端构建、
 邀请码、systemd units、Nginx、TLS、行情初始化、发布水位和 timers。已有资源会复用或更新，缺失资源
-会补建；不要再手工组合 API npm scripts 模拟一次部署。
+会补建；不要再手工组合 API npm scripts 模拟一次部署。增量更新会先写入部署维护状态阻止新任务，
+等待已有 `Job` / `AgentTurn` 结束后停止 API，再依次安装依赖、生成 Prisma Client、构建、执行 schema
+migration，最后启动服务并解除维护状态。它不会因为代码更新而主动同步行情，行情增量仍由
+maintenance timer 负责。
 
 Nginx 主配置会 include 仓库中的 `/opt/jixie/deploy/nginx-docs-app.conf`，把独立构建的
 `apps/docs/dist/docs` 挂载到 `/docs/` 并处理深链。脚本不会覆盖 Certbot 已写入的 TLS 配置。

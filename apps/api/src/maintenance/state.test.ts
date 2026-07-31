@@ -69,6 +69,38 @@ describe('maintenance status gate', () => {
     });
   });
 
+  it('uses a deployment run as the same App maintenance gate', async () => {
+    findFirst
+      .mockResolvedValueOnce({
+        id: 'deploy-1',
+        kind: 'deploy',
+        startDate: null,
+        endDate: null,
+        stage: 'waiting_for_jobs',
+        summary: null,
+        error: null,
+        startedAt: new Date('2026-07-31T09:30:00Z'),
+        heartbeatAt: new Date('2026-07-31T09:30:00Z'),
+      })
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null);
+    findState.mockResolvedValue({
+      dailyPublishedThrough: '20260730',
+      weeklySyncedThrough: null,
+      dataRevision: 1,
+    });
+
+    const status = await getMaintenanceStatus();
+
+    expect(status).toMatchObject({
+      active: true,
+      runId: 'deploy-1',
+      kind: 'deploy',
+      stage: 'waiting_for_jobs',
+    });
+  });
+
   it('keeps the gate active after an unpublished daily failure', async () => {
     findFirst
       .mockResolvedValueOnce(null)

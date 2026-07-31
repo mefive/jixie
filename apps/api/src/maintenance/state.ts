@@ -2,7 +2,7 @@ import { ulid } from 'ulid';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 
-export type MaintenanceKind = 'daily' | 'weekly' | 'repair';
+export type MaintenanceKind = 'daily' | 'weekly' | 'repair' | 'deploy';
 export type MaintenanceTrigger = 'timer' | 'manual';
 
 export interface MaintenanceStatus {
