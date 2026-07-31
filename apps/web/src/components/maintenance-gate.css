@@ -1,0 +1,46 @@
+@reference '../styles/index.css';
+
+.jx-maintenanceGate {
+  @apply fixed inset-0 z-50 flex items-center justify-center p-6;
+  @apply bg-neutral-100/95 backdrop-blur-sm;
+}
+
+.jx-maintenanceGate-card {
+  @apply flex w-full max-w-lg flex-col items-center gap-6 rounded-2xl border border-neutral-200 bg-white p-8 shadow-xl;
+}
+
+.jx-maintenanceGate-copy {
+  @apply space-y-2 text-center;
+}
+
+.jx-maintenanceGate-title {
+  @apply text-2xl font-semibold text-neutral-900;
+}
+
+.jx-maintenanceGate-description {
+  @apply text-sm leading-6 text-neutral-600;
+}
+
+.jx-maintenanceGate-progress {
+  @apply w-full;
+}
+
+.jx-maintenanceGate-details {
+  @apply w-full divide-y divide-neutral-100 rounded-xl bg-neutral-50 px-4;
+}
+
+.jx-maintenanceGate-detail {
+  @apply flex items-center justify-between gap-4 py-3 text-sm;
+}
+
+.jx-maintenanceGate-detailLabel {
+  @apply text-neutral-500;
+}
+
+.jx-maintenanceGate-detailValue {
+  @apply text-right font-medium text-neutral-900;
+}
+
+.jx-maintenanceGate-footnote {
+  @apply text-center text-xs text-neutral-500;
+}

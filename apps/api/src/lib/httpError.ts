@@ -13,6 +13,7 @@ export type ErrorCode =
   | 'NOT_FOUND' // resource addressed by the URL does not exist
   | 'UNAUTHORIZED' // not logged in / session expired / cookie missing
   | 'FORBIDDEN' // logged in but not permitted (account disabled)
+  | 'MAINTENANCE' // market data is being updated or awaiting a safe retry
   | 'SERVICE_UNAVAILABLE'; // upstream dependency temporarily unavailable (email service, etc.)
 
 export interface ApiErrorBody {
@@ -28,6 +29,7 @@ const STATUS_FOR: Record<ErrorCode, ContentfulStatusCode> = {
   NOT_FOUND: 404,
   UNAUTHORIZED: 401,
   FORBIDDEN: 403,
+  MAINTENANCE: 503,
   SERVICE_UNAVAILABLE: 503,
 };
 

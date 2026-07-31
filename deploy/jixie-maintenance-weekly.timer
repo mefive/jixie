@@ -1,0 +1,10 @@
+[Unit]
+Description=Run jixie weekly reference-data maintenance
+
+[Timer]
+OnCalendar=Sun *-*-* 04:30:00 Asia/Shanghai
+Persistent=true
+Unit=jixie-maintenance-weekly.service
+
+[Install]
+WantedBy=timers.target

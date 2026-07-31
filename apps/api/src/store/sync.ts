@@ -26,8 +26,11 @@ import {
   futureDaily,
   futureMapping,
   futureSettlement,
+  type AdjFactorRow,
+  type DailyBasicRow,
   type DailyRow,
   type NameChangeRow,
+  type StkLimitRow,
 } from '../tushare/api.js';
 import { prisma } from '../lib/prisma.js';
 import { day, daysBetween } from '../lib/date.js';
@@ -390,6 +393,154 @@ async function getOpenDates(
   return rows.map((r) => r.calDate);
 }
 
+export interface DailyCoreSyncSummary {
+  tradeDate: string;
+  daily: number;
+  adjustment: number;
+  basic: number;
+  limits: number;
+  priorMedianDaily: number | null;
+}
+
+/**
+ * Fetch, validate, and atomically publish the four dense stock datasets required by every daily
+ * calculation. No database row for the target date changes before every candidate has passed.
+ */
+export async function syncDailyCoreDate(
+  client: TushareClient,
+  tradeDate: TradeDate,
+): Promise<DailyCoreSyncSummary> {
+  const [priceRows, adjustmentRows, basicRows, limitRows] = await Promise.all([
+    daily(client, { trade_date: tradeDate }),
+    adjFactor(client, { trade_date: tradeDate }),
+    dailyBasic(client, { trade_date: tradeDate }),
+    stkLimit(client, { trade_date: tradeDate }),
+  ]);
+  const prices = canonicalizeCandidateRows(priceRows, tradeDate, 'Daily');
+  const adjustments = canonicalizeCandidateRows(adjustmentRows, tradeDate, 'AdjFactor');
+  const basics = canonicalizeCandidateRows(basicRows, tradeDate, 'DailyBasic');
+  const limits = canonicalizeCandidateRows(limitRows, tradeDate, 'StkLimit');
+  const priorMedianDaily = await recentDailyCountMedian(tradeDate);
+
+  validateDailyCoreCandidates({
+    tradeDate,
+    prices,
+    adjustments,
+    basics,
+    limits,
+    priorMedianDaily,
+  });
+
+  await prisma.$transaction([
+    prisma.daily.deleteMany({ where: { tradeDate } }),
+    prisma.daily.createMany({ data: prices.map(toDaily) }),
+    prisma.adjFactor.deleteMany({ where: { tradeDate } }),
+    prisma.adjFactor.createMany({
+      data: adjustments.map((row) => ({
+        tsCode: canonicalStockCode(row.ts_code),
+        tradeDate: row.trade_date,
+        adjFactor: row.adj_factor,
+      })),
+    }),
+    prisma.dailyBasic.deleteMany({ where: { tradeDate } }),
+    prisma.dailyBasic.createMany({ data: basics.map(toDailyBasic) }),
+    prisma.stkLimit.deleteMany({ where: { tradeDate } }),
+    prisma.stkLimit.createMany({ data: limits.map(toStkLimit) }),
+  ]);
+
+  return {
+    tradeDate,
+    daily: prices.length,
+    adjustment: adjustments.length,
+    basic: basics.length,
+    limits: limits.length,
+    priorMedianDaily,
+  };
+}
+
+function canonicalizeCandidateRows<Row extends { ts_code: string; trade_date: string }>(
+  rows: Row[],
+  tradeDate: string,
+  table: string,
+): Row[] {
+  const canonical = new Map<string, Row>();
+  for (const row of rows) {
+    if (row.trade_date !== tradeDate) {
+      throw new Error(`${table} returned unexpected date ${row.trade_date} for ${tradeDate}`);
+    }
+    const code = canonicalStockCode(row.ts_code);
+    if (canonical.has(code)) {
+      throw new Error(`${table} returned duplicate canonical code ${code} for ${tradeDate}`);
+    }
+    canonical.set(code, { ...row, ts_code: code });
+  }
+  return [...canonical.values()];
+}
+
+async function recentDailyCountMedian(tradeDate: string): Promise<number | null> {
+  const rows = await prisma.daily.groupBy({
+    by: ['tradeDate'],
+    where: { tradeDate: { lt: tradeDate } },
+    _count: { _all: true },
+    orderBy: { tradeDate: 'desc' },
+    take: 20,
+  });
+  if (rows.length < 5) {
+    return null;
+  }
+  const counts = rows.map((row) => row._count._all).sort((left, right) => left - right);
+  const middle = Math.floor(counts.length / 2);
+  return counts.length % 2 === 0 ? (counts[middle - 1] + counts[middle]) / 2 : counts[middle];
+}
+
+function validateDailyCoreCandidates(input: {
+  tradeDate: string;
+  prices: DailyRow[];
+  adjustments: AdjFactorRow[];
+  basics: DailyBasicRow[];
+  limits: StkLimitRow[];
+  priorMedianDaily: number | null;
+}): void {
+  if (input.prices.length === 0) {
+    throw new Error(`Daily candidate is empty for ${input.tradeDate}`);
+  }
+  if (
+    input.priorMedianDaily != null &&
+    input.prices.length < Math.floor(input.priorMedianDaily * 0.7)
+  ) {
+    throw new Error(
+      `Daily candidate has ${input.prices.length} rows for ${input.tradeDate}; recent median is ${input.priorMedianDaily}`,
+    );
+  }
+
+  const priceCodes = new Set(input.prices.map((row) => row.ts_code));
+  assertCodeCoverage(input.tradeDate, 'AdjFactor', priceCodes, input.adjustments, 0.98);
+  assertCodeCoverage(input.tradeDate, 'DailyBasic', priceCodes, input.basics, 0.85);
+  assertCodeCoverage(input.tradeDate, 'StkLimit', priceCodes, input.limits, 0.85);
+}
+
+function assertCodeCoverage<Row extends { ts_code: string }>(
+  tradeDate: string,
+  table: string,
+  expected: Set<string>,
+  rows: Row[],
+  minimumFraction: number,
+): void {
+  const covered = new Set(rows.map((row) => row.ts_code));
+  let matches = 0;
+  for (const code of expected) {
+    if (covered.has(code)) {
+      matches++;
+    }
+  }
+  const fraction = expected.size > 0 ? matches / expected.size : 0;
+  if (fraction < minimumFraction) {
+    throw new Error(
+      `${table} covers ${(fraction * 100).toFixed(1)}% of Daily codes for ${tradeDate}; minimum is ${(minimumFraction * 100).toFixed(1)}%`,
+    );
+  }
+}
+
 /**
  * Sync "whole-market daily quotes + adjustment factors" day by day, per trading day.
  *
@@ -432,7 +583,7 @@ export async function syncDaily(
       prisma.adjFactor.deleteMany({ where: { tradeDate: d } }),
       prisma.adjFactor.createMany({
         data: adj.map((r) => ({
-          tsCode: r.ts_code,
+          tsCode: canonicalStockCode(r.ts_code),
           tradeDate: r.trade_date,
           adjFactor: r.adj_factor,
         })),
@@ -475,21 +626,7 @@ export async function syncDailyBasic(
     await prisma.$transaction([
       prisma.dailyBasic.deleteMany({ where: { tradeDate: d } }),
       prisma.dailyBasic.createMany({
-        data: rows.map((r) => ({
-          tsCode: r.ts_code,
-          tradeDate: r.trade_date,
-          pe: r.pe,
-          peTtm: r.pe_ttm,
-          pb: r.pb,
-          ps: r.ps,
-          psTtm: r.ps_ttm,
-          dvRatio: r.dv_ratio,
-          dvTtm: r.dv_ttm,
-          totalMv: r.total_mv,
-          circMv: r.circ_mv,
-          turnoverRate: r.turnover_rate,
-          turnoverRateF: r.turnover_rate_f,
-        })),
+        data: rows.map(toDailyBasic),
       }),
     ]);
     done++;
@@ -529,12 +666,7 @@ export async function syncStkLimit(
     await prisma.$transaction([
       prisma.stkLimit.deleteMany({ where: { tradeDate: d } }),
       prisma.stkLimit.createMany({
-        data: rows.map((r) => ({
-          tsCode: r.ts_code,
-          tradeDate: r.trade_date,
-          upLimit: r.up_limit,
-          downLimit: r.down_limit,
-        })),
+        data: rows.map(toStkLimit),
       }),
     ]);
     done++;
@@ -554,6 +686,7 @@ export async function syncTopList(
   client: TushareClient,
   start: TradeDate,
   end: TradeDate,
+  options: { refresh?: boolean } = {},
 ): Promise<void> {
   let dates = await getOpenDates(start, end);
   if (dates.length === 0) {
@@ -567,7 +700,7 @@ export async function syncTopList(
     select: { tradeDate: true },
   });
   const have = new Set(existing.map((e) => e.tradeDate));
-  const todo = dates.filter((d) => !have.has(d));
+  const todo = options.refresh ? dates : dates.filter((d) => !have.has(d));
   log(`syncTopList: 区间 ${dates.length} 开市日，已同步 ${have.size}，待补 ${todo.length}`);
 
   let done = 0;
@@ -578,7 +711,8 @@ export async function syncTopList(
       if (r.net_amount == null) {
         continue;
       }
-      netByCode.set(r.ts_code, (netByCode.get(r.ts_code) ?? 0) + r.net_amount);
+      const tsCode = canonicalStockCode(r.ts_code);
+      netByCode.set(tsCode, (netByCode.get(tsCode) ?? 0) + r.net_amount);
     }
     await prisma.$transaction([
       prisma.topList.deleteMany({ where: { tradeDate: d } }),
@@ -606,6 +740,7 @@ export async function syncMoneyflow(
   client: TushareClient,
   start: TradeDate,
   end: TradeDate,
+  options: { refresh?: boolean } = {},
 ): Promise<void> {
   let dates = await getOpenDates(start, end);
   if (dates.length === 0) {
@@ -618,14 +753,14 @@ export async function syncMoneyflow(
     select: { tradeDate: true },
   });
   const have = new Set(existing.map((e) => e.tradeDate));
-  const todo = dates.filter((d) => !have.has(d));
+  const todo = options.refresh ? dates : dates.filter((d) => !have.has(d));
   log(`syncMoneyflow: 区间 ${dates.length} 开市日，已同步 ${have.size}，待补 ${todo.length}`);
 
   let done = 0;
   for (const d of todo) {
     const rows = await moneyflow(client, { trade_date: d });
     const data = rows.map((r) => ({
-      tsCode: r.ts_code,
+      tsCode: canonicalStockCode(r.ts_code),
       tradeDate: d,
       // main-force = (large + extra-large orders) buy − sell; net total = net_mf_amount (source may be missing → null)
       netMain:
@@ -668,18 +803,20 @@ async function getAllStockCodes(): Promise<string[]> {
 export async function syncFinaIndicator(
   client: TushareClient,
   codes?: string[],
-  opts: { refresh?: boolean } = {},
+  opts: { refresh?: boolean; forceAll?: boolean } = {},
 ): Promise<void> {
   const all = codes ?? (await getAllStockCodes());
-  const existing = await prisma.finaIndicator.findMany({
-    ...(opts.refresh ? { where: { debtToAssets: { not: null } } } : {}),
-    distinct: ['tsCode'],
-    select: { tsCode: true },
-  });
+  const existing = opts.forceAll
+    ? []
+    : await prisma.finaIndicator.findMany({
+        ...(opts.refresh ? { where: { debtToAssets: { not: null } } } : {}),
+        distinct: ['tsCode'],
+        select: { tsCode: true },
+      });
   const have = new Set(existing.map((e) => e.tsCode));
   const todo = all.filter((c) => !have.has(c));
   log(
-    `syncFinaIndicator${opts.refresh ? '(扩列回填)' : ''}: 共 ${all.length} 只，已同步 ${have.size}，待补 ${todo.length}`,
+    `syncFinaIndicator${opts.forceAll ? '(全量刷新)' : opts.refresh ? '(扩列回填)' : ''}: 共 ${all.length} 只，已同步 ${have.size}，待补 ${todo.length}`,
   );
 
   let done = 0;
@@ -694,7 +831,7 @@ export async function syncFinaIndicator(
       }
     }
     const data = [...byPeriod.values()].map((r) => ({
-      tsCode: r.ts_code,
+      tsCode: canonicalStockCode(r.ts_code),
       endDate: r.end_date,
       annDate: r.ann_date,
       roe: r.roe,
@@ -723,12 +860,18 @@ export async function syncFinaIndicator(
  * Sync dividend distributions per stock (raw rows across proposal→execution stages). Resumable:
  * skips stocks already synced. Same financial rate limit applies.
  */
-export async function syncDividend(client: TushareClient, codes?: string[]): Promise<void> {
+export async function syncDividend(
+  client: TushareClient,
+  codes?: string[],
+  options: { forceAll?: boolean } = {},
+): Promise<void> {
   const all = codes ?? (await getAllStockCodes());
-  const existing = await prisma.dividend.findMany({
-    distinct: ['tsCode'],
-    select: { tsCode: true },
-  });
+  const existing = options.forceAll
+    ? []
+    : await prisma.dividend.findMany({
+        distinct: ['tsCode'],
+        select: { tsCode: true },
+      });
   const have = new Set(existing.map((e) => e.tsCode));
   const todo = all.filter((c) => !have.has(c));
   log(`syncDividend: 共 ${all.length} 只，已同步 ${have.size}，待补 ${todo.length}`);
@@ -738,7 +881,7 @@ export async function syncDividend(client: TushareClient, codes?: string[]): Pro
     const rows = await dividend(client, { ts_code: code });
     const data = rows.map((r) => ({
       id: ulid(),
-      tsCode: r.ts_code,
+      tsCode: canonicalStockCode(r.ts_code),
       endDate: r.end_date,
       annDate: r.ann_date,
       exDate: r.ex_date,
@@ -793,7 +936,7 @@ export async function syncIndexWeight(
       prisma.indexWeight.createMany({
         data: rows.map((r) => ({
           indexCode: r.index_code,
-          conCode: r.con_code,
+          conCode: canonicalStockCode(r.con_code),
           tradeDate: r.trade_date,
           weight: r.weight,
         })),
@@ -827,13 +970,14 @@ export async function syncSwIndustry(client: TushareClient): Promise<number> {
     for (const isNew of ['Y', 'N']) {
       const members = await indexMemberAll(client, { l1_code: industry.index_code, is_new: isNew });
       for (const member of members) {
-        const key = `${member.ts_code}|${member.l1_code}|${member.in_date}`;
+        const tsCode = canonicalStockCode(member.ts_code);
+        const key = `${tsCode}|${member.l1_code}|${member.in_date}`;
         if (seen.has(key)) {
           continue;
         }
         seen.add(key);
         rows.push({
-          tsCode: member.ts_code,
+          tsCode,
           l1Code: member.l1_code,
           l1Name: member.l1_name,
           inDate: member.in_date,
@@ -1128,7 +1272,7 @@ async function overlappingFutureContracts(start: TradeDate, end: TradeDate) {
 
 function toDaily(r: DailyRow) {
   return {
-    tsCode: r.ts_code,
+    tsCode: canonicalStockCode(r.ts_code),
     tradeDate: r.trade_date,
     open: r.open,
     high: r.high,
@@ -1138,5 +1282,32 @@ function toDaily(r: DailyRow) {
     pctChg: r.pct_chg,
     vol: r.vol,
     amount: r.amount,
+  };
+}
+
+function toDailyBasic(row: DailyBasicRow) {
+  return {
+    tsCode: canonicalStockCode(row.ts_code),
+    tradeDate: row.trade_date,
+    pe: row.pe,
+    peTtm: row.pe_ttm,
+    pb: row.pb,
+    ps: row.ps,
+    psTtm: row.ps_ttm,
+    dvRatio: row.dv_ratio,
+    dvTtm: row.dv_ttm,
+    totalMv: row.total_mv,
+    circMv: row.circ_mv,
+    turnoverRate: row.turnover_rate,
+    turnoverRateF: row.turnover_rate_f,
+  };
+}
+
+function toStkLimit(row: StkLimitRow) {
+  return {
+    tsCode: canonicalStockCode(row.ts_code),
+    tradeDate: row.trade_date,
+    upLimit: row.up_limit,
+    downLimit: row.down_limit,
   };
 }

@@ -1,6 +1,3 @@
-# Compatibility copy for operators who previously installed units from apps/api/scripts.
-# New deployments install the canonical deploy/jixie-backup.service via bootstrap.sh/deploy.sh.
-
 [Unit]
 Description=jixie SQLite online backup and rotation
 After=network.target

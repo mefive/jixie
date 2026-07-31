@@ -15,7 +15,7 @@ import { requireAuth } from './lib/session.js';
 import { markRunningJobsStale } from './lib/jobs.js';
 import { seedBuiltinFactors } from './factor/builtin-factors.js';
 import { markRunningAgentTurnsInterrupted } from './agent/persistence.js';
-import { startSignalScheduler } from './signals/scheduler.js';
+import { maintenanceGate, maintenanceRoute } from './maintenance/http.js';
 
 /**
  * Start the backend.
@@ -35,7 +35,6 @@ export function startServer(port: number) {
   );
   // Materialize the built-in preset factors (idempotent; repo is the source of truth).
   void seedBuiltinFactors().catch((e) => console.error('[jixie] preset factor seed failed', e));
-  startSignalScheduler();
   serve({ fetch: app.fetch, port });
   return app;
 }
@@ -49,10 +48,12 @@ export function buildApp() {
 
   // Public: the auth routes handle the login state themselves
   app.route('/api/auth', authRoute);
+  app.route('/api/maintenance', maintenanceRoute);
 
   // Protected prefix: apply requireAuth uniformly to this prefix before mounting business routes.
   // In phase two, mount backtest and other routes here; handlers use c.var.userId / c.var.user
   // directly.
+  app.use('/api/app/*', maintenanceGate);
   app.use('/api/app/*', requireAuth);
 
   // Mount-point naming rules (docs/design/api-route-naming.md):

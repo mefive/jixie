@@ -1,5 +1,3 @@
-# Compatibility copy; deploy/jixie-backup.timer is the canonical unit.
-
 [Unit]
 Description=Run jixie SQLite backup daily
 

@@ -6,6 +6,10 @@ import { DEFAULT_LOCALE, type Locale } from '@jixie/shared';
 // in code, never routed through i18n (see docs/design/i18n.md).
 const MESSAGES = {
   invalidInput: { zh: '入参不合法', en: 'Invalid input' },
+  maintenanceInProgress: {
+    zh: '市场数据正在维护，请稍后再试',
+    en: 'Market data maintenance is in progress; try again shortly',
+  },
 
   // —— Agent reply chrome (code-generated, not model output; localized by the turn's locale) ——
   codeUpdated: { zh: '(已更新代码)', en: '(code updated)' },
