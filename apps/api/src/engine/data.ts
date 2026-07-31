@@ -5,11 +5,11 @@ import {
   type EngineFactorDef,
   type Locale,
 } from '@jixie/shared';
-import { daysBetween } from '../lib/date.js';
+import { addDays, daysBetween, isoWeekKey } from '../lib/date.js';
 import { t } from '../i18n/messages.js'; // direct import — keeps hono/locale out of the wall bundle
 import { StockNameLookup } from '../market/stock-identity.js';
 import type { EngineDataPort, FutureDailyDataRow } from './data-port.js';
-import type { BarRow, FutureBar, IndexValuationField, OhlcBar } from './types.js';
+import type { BarRow, FutureBar, IndexValuationField, OhlcBar, ResamplePeriod } from './types.js';
 
 /** Whole-market cross-section for one trading day. */
 export interface CrossSection {
@@ -30,6 +30,12 @@ interface StockBars {
   amount: (number | null)[];
   turnoverRateF: (number | null)[];
   idx: Map<string, number>; // date -> index (exact)
+}
+
+interface ResampledBars {
+  keys: string[];
+  dates: string[];
+  bars: OhlcBar[];
 }
 
 // Stored ("column") factors the engine can preload, keyed for the semantics lookup in factor().
@@ -66,6 +72,7 @@ export class EngineData {
   private lhbByDate = new Map<string, Map<string, number>>(); // Dragon-Tiger List: date -> code -> net buy amount (yuan), exact day only
   private crossCache = new Map<string, CrossSection>();
   private barsCache = new Map<string, StockBars>();
+  private resampledBarsCache = new Map<string, ResampledBars>();
   private factorByKey = new Map<string, Map<string, number>>(); // `${factor}|${date}` -> code -> value
   private factorDates = new Map<string, string[]>(); // factor -> ascending dates it has values on
   // Point-in-time fundamentals (ROE), loaded lazily on first cross-section build (cross-section work is
@@ -207,9 +214,13 @@ export class EngineData {
   }
 
   async load(): Promise<void> {
-    this.timeline = await this.port.openDates(this.start, this.end);
-    for (let i = 0; i < this.timeline.length - 1; i++) {
-      this.nextDayOf.set(this.timeline[i], this.timeline[i + 1]);
+    // Price reads stay strictly inside [start, end]. The small calendar-only lookahead lets the last
+    // backtest bar tell whether its ISO week / natural month has actually closed (including a
+    // holiday-shortened final trading day) without seeing any future price.
+    const calendar = await this.port.openDates(this.start, addDays(this.end, 40));
+    this.timeline = calendar.filter((date) => date <= this.end);
+    for (let i = 0; i < calendar.length - 1; i++) {
+      this.nextDayOf.set(calendar[i], calendar[i + 1]);
     }
 
     // List dates: used for the point-in-time "stock age" primitive (exclude recently-listed).
@@ -926,11 +937,96 @@ export class EngineData {
     return out;
   }
 
+  /** Last n completed ISO-week or natural-month bars as-of `date` (empty if daily bars aren't loaded).
+   * The aggregate is cached once per code/timeframe for this EngineData run; visibility is sliced
+   * point-in-time on every call. Volume/amount are period sums, while turnoverRateF is the mean of
+   * available daily observations. */
+  resampledBars(code: string, date: string, period: ResamplePeriod, n: number): OhlcBar[] {
+    if (n <= 0) {
+      return [];
+    }
+    const daily = this.barsCache.get(code);
+    if (!daily) {
+      return [];
+    }
+    const cacheKey = `${code}|${period}`;
+    let resampled = this.resampledBarsCache.get(cacheKey);
+    if (!resampled) {
+      resampled = aggregateBars(daily, period);
+      this.resampledBarsCache.set(cacheKey, resampled);
+    }
+
+    const currentKey = resampleKey(date, period);
+    const nextOpen = this.nextDayOf.get(date);
+    const currentPeriodClosed = nextOpen != null && resampleKey(nextOpen, period) !== currentKey;
+    let end = lastIndexAtOrBefore(resampled.dates, date);
+    while (end >= 0 && resampled.keys[end] === currentKey && !currentPeriodClosed) {
+      end--;
+    }
+    return end < 0 ? [] : resampled.bars.slice(Math.max(0, end - n + 1), end + 1);
+  }
+
   /** Index of the bar on `date`, or the last bar before it (-1 if none); used by history/bars. */
   private endIndex(b: StockBars, date: string): number {
     const exact = b.idx.get(date);
     return exact != null ? exact : lastIndexAtOrBefore(b.dates, date);
   }
+}
+
+function resampleKey(date: string, period: ResamplePeriod): string {
+  return period === 'weekly' ? isoWeekKey(date) : date.slice(0, 6);
+}
+
+/** Pure daily → completed-period candidate aggregation. Point-in-time visibility is applied later. */
+function aggregateBars(daily: StockBars, period: ResamplePeriod): ResampledBars {
+  const keys: string[] = [];
+  const bars: OhlcBar[] = [];
+  const turnoverSums: number[] = [];
+  const turnoverCounts: number[] = [];
+  for (let i = 0; i < daily.dates.length; i++) {
+    const key = resampleKey(daily.dates[i], period);
+    const previousKey = keys.at(-1);
+    if (previousKey !== key) {
+      keys.push(key);
+      turnoverSums.push(daily.turnoverRateF[i] ?? 0);
+      turnoverCounts.push(daily.turnoverRateF[i] == null ? 0 : 1);
+      bars.push({
+        date: daily.dates[i],
+        adjOpen: daily.adjOpen[i],
+        adjHigh: daily.adjHigh[i],
+        adjLow: daily.adjLow[i],
+        adjClose: daily.adjClose[i],
+        vol: daily.vol[i],
+        amount: daily.amount[i],
+        turnoverRateF: daily.turnoverRateF[i],
+      });
+      continue;
+    }
+    const aggregate = bars[bars.length - 1];
+    aggregate.date = daily.dates[i];
+    aggregate.adjHigh = Math.max(aggregate.adjHigh, daily.adjHigh[i]);
+    aggregate.adjLow = Math.min(aggregate.adjLow, daily.adjLow[i]);
+    aggregate.adjClose = daily.adjClose[i];
+    aggregate.vol = sumNullable(aggregate.vol, daily.vol[i]);
+    aggregate.amount = sumNullable(aggregate.amount, daily.amount[i]);
+    const bucketIndex = bars.length - 1;
+    const turnover = daily.turnoverRateF[i];
+    if (turnover != null) {
+      turnoverSums[bucketIndex] += turnover;
+      turnoverCounts[bucketIndex] += 1;
+    }
+    aggregate.turnoverRateF = turnoverCounts[bucketIndex]
+      ? turnoverSums[bucketIndex] / turnoverCounts[bucketIndex]
+      : null;
+  }
+  return { keys, dates: bars.map((bar) => bar.date), bars };
+}
+
+function sumNullable(left: number | null, right: number | null): number | null {
+  if (left == null && right == null) {
+    return null;
+  }
+  return (left ?? 0) + (right ?? 0);
 }
 
 /** Index of the largest element ≤ target in a sorted string array (-1 if none). */

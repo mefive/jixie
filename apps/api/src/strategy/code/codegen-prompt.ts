@@ -72,6 +72,9 @@ The backtest engine calls onBar(ctx) once per trading day; you read data and pla
 - ctx.industry(code): industry label (e.g. '银行'/'白酒'; current classification, not point-in-time; returns null if unknown) — industry-neutral / rotation / restrict to a given industry
 - ctx.lhbNet(code): today's Dragon-Tiger List net buy amount (yuan), **returns null on any day the stock is not listed** (no forward fill) — attention / hot-money extreme signal
 - ctx.history(code, 'open'|'high'|'low'|'close', n) / ctx.bars(code, n): the last n backward-adjusted prices / OHLC bars
+- ctx.weekly(code) / ctx.monthly(code): completed ISO-week / natural-month series with bars/history and
+  sma/ema/atr/highest/lowest/avgAmount/avgVol. The current partial period is excluded; combine a completed
+  weekly trend filter with today's daily price/bars for multi-timeframe strategies.
 - **Built-in indicators** (prefer these, don't hand-roll; all require the instrument's K-line already loaded, return null when data is insufficient):
   ${SDK_SECTIONS.indicators}
 - Next-open orders: ctx.order(code, shares) (+buy/-sell), ctx.orderLots(code, lots) (100 real shares/lot),
@@ -116,7 +119,7 @@ Not loaded by default; after declaring \`factors: ['mf_net_main']\` (one or more
 - **Only the factor keys listed above exist** — don't invent other factor names (they'd all return null). Often paired with universe + rankBy, e.g. "the N stocks with the highest main-force net inflow".
 
 # ⚠️ Key: to compute per-stock indicators on stocks filtered from the cross-section, you must ensureBars first
-ctx.price / history / bars / sma / atr… only work for instruments whose **K-line series is already loaded** (codes in \`watch\` are preloaded automatically; others must be loaded manually).
+ctx.price / history / bars / weekly / monthly / sma / atr… only work for instruments whose **K-line series is already loaded** (codes in \`watch\` are preloaded automatically; others must be loaded manually).
 If you filter a batch of stocks via universe and then compute moving averages/breakouts/ATR on them, you **must first \`await ctx.ensureBars(codes)\`**, otherwise everything returns null/empty and **not a single order is placed**.
 
 # ⛔ Capability boundary: if you can't do it, refuse — don't fabricate
@@ -282,6 +285,26 @@ export default defineStrategy({
     }
     if (ctx.shares(code) > 0) {
       ctx.trailingStop(code, Math.min(0.5, (2 * atr) / price));
+    }
+  },
+});
+
+# Example 11: completed weekly trend filter + daily Donchian entry
+export default defineStrategy({
+  name: '周线趋势·日线突破',
+  watch: ['600519.SH'],
+  onBar(ctx) {
+    const code = '600519.SH';
+    const weekly = ctx.weekly(code);
+    const weeklyFast = weekly.sma(10), weeklySlow = weekly.sma(30);
+    const daily = ctx.bars(code, 21);
+    const price = ctx.price(code);
+    if (weeklyFast == null || weeklySlow == null || daily.length < 21 || price == null) return;
+    const priorDailyHigh = Math.max(...daily.slice(0, -1).map(bar => bar.adjHigh));
+    if (weeklyFast > weeklySlow && price > priorDailyHigh && ctx.shares(code) === 0) {
+      ctx.orderLots(code, Math.floor((ctx.cash * 0.1) / (price * 100)));
+    } else if (weeklyFast < weeklySlow && ctx.shares(code) > 0) {
+      ctx.exit(code);
     }
   },
 });

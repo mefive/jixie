@@ -24,9 +24,19 @@ export function sameWeek(a: string, b: string): boolean {
   return day(a).startOf('isoWeek').isSame(day(b).startOf('isoWeek'), 'day');
 }
 
+/** Monday date (YYYYMMDD) of the ISO week containing `ymd`. */
+export function isoWeekKey(ymd: string): string {
+  return day(ymd).startOf('isoWeek').format(FMT);
+}
+
+/** The 'YYYYMMDD' that is `n` calendar days after `ymd` (negative values move backwards). */
+export function addDays(ymd: string, n: number): string {
+  return day(ymd).add(n, 'day').format(FMT);
+}
+
 /** The 'YYYYMMDD' that is `n` calendar days before `ymd`. */
 export function minusDays(ymd: string, n: number): string {
-  return day(ymd).subtract(n, 'day').format(FMT);
+  return addDays(ymd, -n);
 }
 
 // Days since the Unix epoch for a 'YYYYMMDD' string, via plain integer math (no dayjs).

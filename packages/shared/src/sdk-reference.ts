@@ -24,7 +24,13 @@ export interface SdkEntry {
 }
 
 // Business types whose names are linkified (in declarations + the editor) + given a doc-section anchor.
-export const LINKABLE_TYPES = ['StrategyCtx', 'BarRow', 'OhlcBar', 'Universe'] as const;
+export const LINKABLE_TYPES = [
+  'StrategyCtx',
+  'TimeframeSeries',
+  'BarRow',
+  'OhlcBar',
+  'Universe',
+] as const;
 
 // OhlcBar is small + rarely hand-written, so it stays static (with its own 📖 link); its fields are
 // documented in the doc page directly. (BarRow is generated from the entries below.)
@@ -38,15 +44,78 @@ export const OHLC_FIELDS: { name: string; type: string; zh: string; en: string }
   { name: 'amount', type: 'number | null', zh: '成交额(千元)', en: 'Turnover (千元)' },
 ];
 
+/** TimeframeSeries is static like OhlcBar because its method names intentionally overlap ctx methods
+ * (bars/history/sma...), while SDK_ENTRIES names are also global documentation anchors. */
+export const TIMEFRAME_METHODS = [
+  {
+    name: 'bars',
+    sig: 'bars(n: number): OhlcBar[]',
+    zh: '最近 n 根已完成周期 K 线，从旧到新。',
+    en: 'Last n completed-period bars, oldest to newest.',
+  },
+  {
+    name: 'history',
+    sig: "history(field: 'open' | 'high' | 'low' | 'close', n: number): number[]",
+    zh: '最近 n 个周期字段值，从旧到新。',
+    en: 'Last n period values for a field, oldest to newest.',
+  },
+  {
+    name: 'sma',
+    sig: 'sma(n: number): number | null',
+    zh: 'n 周/月简单收盘均线。',
+    en: 'n-period simple moving average of closes.',
+  },
+  {
+    name: 'ema',
+    sig: 'ema(n: number): number | null',
+    zh: 'n 周/月指数收盘均线。',
+    en: 'n-period exponential moving average of closes.',
+  },
+  {
+    name: 'atr',
+    sig: 'atr(n: number): number | null',
+    zh: 'n 周/月平均真实波幅，需要 n+1 根周期 K 线。',
+    en: 'n-period average true range; requires n+1 period bars.',
+  },
+  {
+    name: 'highest',
+    sig: "highest(field: 'open' | 'high' | 'low' | 'close', n: number): number | null",
+    zh: '最近 n 个周期指定字段的最高值。',
+    en: 'Highest field value over the last n periods.',
+  },
+  {
+    name: 'lowest',
+    sig: "lowest(field: 'open' | 'high' | 'low' | 'close', n: number): number | null",
+    zh: '最近 n 个周期指定字段的最低值。',
+    en: 'Lowest field value over the last n periods.',
+  },
+  {
+    name: 'avgAmount',
+    sig: 'avgAmount(n: number): number | null',
+    zh: '最近 n 个周期的平均成交额（周期成交额为日成交额之和）。',
+    en: 'Average period turnover over the last n periods (each period sums daily turnover).',
+  },
+  {
+    name: 'avgVol',
+    sig: 'avgVol(n: number): number | null',
+    zh: '最近 n 个周期的平均成交量（周期成交量为日成交量之和）。',
+    en: 'Average period volume over the last n periods (each period sums daily volume).',
+  },
+] as const;
+
 // Bilingual doc comments for the ambient types + prelude (member-level copy lives on each SdkEntry /
 // OHLC_FIELDS). One entry per comment site so the editor hover switches with the active locale.
 const TYPE_DOCS: Record<
-  'ohlcBar' | 'barRow' | 'universe' | 'strategyCtx',
+  'ohlcBar' | 'timeframeSeries' | 'barRow' | 'universe' | 'strategyCtx',
   Record<Locale, string>
 > = {
   ohlcBar: {
     zh: '某票某日的后复权 OHLC —— ctx.bars() 返回的单元。 [📖 文档](/docs#OhlcBar)',
     en: 'Adjusted (hfq) OHLC of a code on a day — the unit ctx.bars() returns. [📖 docs](/docs#OhlcBar)',
+  },
+  timeframeSeries: {
+    zh: '已完成的周/月 K 线序列；窗口从旧到新，指标数据不足时返回 null。',
+    en: 'Completed weekly/monthly OHLC series; windows are oldest-to-newest and indicators return null when data is insufficient.',
   },
   barRow: {
     zh: '某票今天的整行:不复权 + 后复权 OHLC + 时点估值快照(universe 里 rankBy/where 的 b)。',
@@ -65,6 +134,11 @@ const TYPE_DOCS: Record<
 const buildPrelude = (locale: Locale) => `/** ${TYPE_DOCS.ohlcBar[locale]} */
 interface OhlcBar {
 ${OHLC_FIELDS.map((f) => `  ${f.name}: ${f.type};`).join('\n')}
+}
+
+/** ${TYPE_DOCS.timeframeSeries[locale]} */
+interface TimeframeSeries {
+${TIMEFRAME_METHODS.map((method) => `  /** ${method[locale]} */\n  ${method.sig};`).join('\n')}
 }
 
 interface FutureBar {
@@ -306,6 +380,24 @@ export const SDK_ENTRIES = [
     sig: 'bars(code: string, n: number): OhlcBar[]',
     zh: '最近 n 根后复权 OHLC(给唐奇安/ATR 等)。',
     en: 'Last n adjusted OHLC bars (Donchian / ATR etc.).',
+  },
+  {
+    iface: 'StrategyCtx',
+    name: 'weekly',
+    group: '行情 / 序列',
+    sig: 'weekly(code: string): TimeframeSeries',
+    zh: '已完成 ISO 周(周一至周日)K 线与指标句柄；不含尚未收盘的当周，需先加载该票 K 线。',
+    en: 'Completed ISO-week bars and indicators; excludes the current partial week. The instrument bars must be loaded first.',
+    prompt: 'ctx.weekly(code).bars/history/sma/ema/atr/highest/lowest/avgAmount/avgVol',
+  },
+  {
+    iface: 'StrategyCtx',
+    name: 'monthly',
+    group: '行情 / 序列',
+    sig: 'monthly(code: string): TimeframeSeries',
+    zh: '已完成自然月 K 线与指标句柄；不含尚未收盘的当月，需先加载该票 K 线。',
+    en: 'Completed natural-month bars and indicators; excludes the current partial month. The instrument bars must be loaded first.',
+    prompt: 'ctx.monthly(code).bars/history/sma/ema/atr/highest/lowest/avgAmount/avgVol',
   },
   {
     iface: 'StrategyCtx',
