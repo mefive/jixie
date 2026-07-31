@@ -1447,7 +1447,7 @@ const MethodologyCard = complex.component(() => {
               slippage: (spec.costs.slippagePerSide * 10000).toFixed(1),
             })}
           </span>
-          {spec.version === 3 && (
+          {'excludeRiskWarnings' in spec.universe && (
             <span>
               {t('historicalStatusSpec', {
                 risk: spec.universe.excludeRiskWarnings ? t('enabled') : t('disabled'),

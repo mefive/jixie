@@ -190,7 +190,30 @@ export interface FactorAnalysisSpecV3 extends Omit<FactorAnalysisSpecV2, 'versio
   };
 }
 
-export type FactorAnalysisSpec = FactorAnalysisSpecV1 | FactorAnalysisSpecV2 | FactorAnalysisSpecV3;
+export type FactorCompositeStandardization = 'rank' | 'zscore';
+export type FactorCompositeDirection = 'positive' | 'negative';
+
+export interface FactorCompositeDefinitionV1 {
+  version: 1;
+  name: string;
+  standardization: FactorCompositeStandardization;
+  weighting: 'equal';
+  components: Array<{
+    factor: string;
+    direction: FactorCompositeDirection;
+  }>;
+}
+
+export interface FactorAnalysisSpecV4 extends Omit<FactorAnalysisSpecV3, 'version'> {
+  version: 4;
+  composite: FactorCompositeDefinitionV1;
+}
+
+export type FactorAnalysisSpec =
+  | FactorAnalysisSpecV1
+  | FactorAnalysisSpecV2
+  | FactorAnalysisSpecV3
+  | FactorAnalysisSpecV4;
 
 export type FactorSampleStageKey =
   | 'factor_value'
@@ -215,7 +238,7 @@ export interface FactorWindowCoverageAudit {
 }
 
 export interface FactorMethodologyAudit {
-  specVersion: 1 | 2 | 3;
+  specVersion: 1 | 2 | 3 | 4;
   dataCutoff: string;
   periodsConsidered: number;
   periodsAnalyzed: number;
