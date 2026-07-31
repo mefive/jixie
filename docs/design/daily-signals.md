@@ -96,9 +96,9 @@ interface SignalItem {
 ## 数据同步与调度
 
 生产不再使用 API 进程内调度。systemd 的 `jixie-maintenance.timer` 在上海时区
-17:30、18:30、19:30 调用 `maintenance:daily`；API 重启和横向扩容不会创建第二个定时来源。
+17:30、18:30、19:30 调用统一的 `maintenance daily` 入口；API 重启和横向扩容不会创建第二个定时来源。
 `pnpm signals:run [YYYYMMDD]` 仅保留为开发诊断入口，生产补跑应使用受同一维护锁保护的
-`maintenance:daily`。
+`maintenance daily`。
 
 每轮：
 

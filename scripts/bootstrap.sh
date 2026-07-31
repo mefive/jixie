@@ -175,6 +175,7 @@ sudo chown "$JIXIE_DEPLOY_USER:$JIXIE_DEPLOY_USER" "$JIXIE_BACKUP_DIR"
 DB_FILE="$JIXIE_DATA_DIR/prod.db"
 exec 9>>"$JIXIE_DATA_DIR/maintenance.lock"
 flock -n -E 75 9 || die "maintenance 正在运行,本次 bootstrap 不与其并发"
+export JIXIE_MAINTENANCE_LOCK_HELD=1
 
 # ─────────────────────────────── 4. 环境变量 ───────────────────────────────
 log "配置 .env.production"
@@ -277,7 +278,7 @@ NGINX_DST="/etc/nginx/sites-available/$JIXIE_DOMAIN"
 if nginx_vhost_has_tls "$NGINX_DST"; then
   log "nginx vhost 已含 TLS,保留 certbot 改写结果"
   if ! sudo grep -Fq "$JIXIE_DIR/deploy/nginx-docs-app.conf" "$NGINX_DST"; then
-    warn "现有 TLS vhost 尚未 include deploy/nginx-docs-app.conf;公开文档路由需按 docs/deployment.md §3.5 完成一次性迁移"
+    warn "现有 TLS vhost 尚未 include deploy/nginx-docs-app.conf;公开文档路由需按 docs/deployment.md §3 完成一次性迁移"
   fi
 else
   log "安装/更新 nginx vhost ($JIXIE_DOMAIN)"
@@ -305,6 +306,7 @@ fi
 
 # ─────────────────────────────── 9. 激活维护与冒烟测试 ───────────────────────────────
 flock -u 9
+unset JIXIE_MAINTENANCE_LOCK_HELD
 "$JIXIE_DIR/scripts/activate-maintenance.sh"
 
 log "冒烟测试"

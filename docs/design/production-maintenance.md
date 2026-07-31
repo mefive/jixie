@@ -94,7 +94,7 @@ API 启动时的 `startSignalScheduler()` 和 `setInterval` 已删除。保留�
 生产切换按以下顺序：
 
 1. 实现 daily pipeline、状态表、维护 Gate 和 systemd 单元；
-2. 全量导入先执行 `maintenance:heal-baseline` 修复最近基线切片，再生成 market-state 并通过严格
+2. 全量导入通过统一维护入口的内部 `baseline` 子命令修复最近基线切片，再生成 market-state 并通过严格
    审计；首次 daily coordinator 在同一状态机内验证基线并建立发布水位；
 3. 手动运行 daily service 验收；
 4. enable systemd timer，连续观察至少三个交易日。
@@ -154,11 +154,12 @@ systemd service 通过同一个入口取得锁：
 ```ini
 ExecStart=/usr/bin/flock -n -E 75 \
   /var/lib/jixie/maintenance.lock \
-  /usr/bin/node /opt/jixie/apps/api/dist/scripts/run-daily-maintenance.js
+  /usr/bin/node /opt/jixie/apps/api/dist/scripts/run-maintenance.js daily
 ```
 
-退出码 `75` 解释为 `already_running`。生产人工补跑优先使用 `systemctl start`；若直接运行 CLI，外层
-也必须经过同一个锁封装。不能通过直接执行若干低层 `sync:*` 命令绕过锁和状态机。
+退出码 `75` 解释为 `already_running`。生产人工补跑优先使用 `systemctl start`；根目录的
+`pnpm maintenance` 会自动取得同一个锁，不需要用户手写 `flock`。不能通过直接执行若干低层
+`sync:*` 命令绕过锁和状态机。
 
 备份不使用此维护锁。SQLite 在线备份允许 API 运行时生成一致快照；它只在自己的 service 内避免重复
 实例。
@@ -313,14 +314,14 @@ ETF 历史仍走独立回填。
 命令：
 
 ```bash
-pnpm --filter api maintenance:daily [YYYYMMDD] [--force]
+pnpm maintenance [daily] [YYYYMMDD] [--force]
 ```
 
 生产由 `jixie-maintenance.service` 调用同一入口。不能让 timer 拼接多个松散的 `pnpm sync:*` 命令。
 
 ### Catch-up 语义
 
-不带日期的 `maintenance:daily` 是 catch-up coordinator：
+不带日期的 `pnpm maintenance` 是 catch-up coordinator：
 
 ```text
 刷新/获取交易日历候选
@@ -335,7 +336,7 @@ pnpm --filter api maintenance:daily [YYYYMMDD] [--force]
 ```
 
 显式传入 `YYYYMMDD` 时只处理该日期，主要用于人工补跑；历史区间优先使用
-`maintenance:repair start end`。
+`maintenance repair start end`。
 
 每次 catch-up 使用一个以 cutoff 为 `targetKey` 的 daily `MaintenanceRun`，summary 持续记录当前日期
 和 `completedDates / totalDates`。每完成一个连续前缀就推进 `dailyPublishedThrough`；即使进程随后
@@ -525,7 +526,7 @@ Daily + AdjFactor + DailyBasic + StkLimit
 命令：
 
 ```bash
-pnpm --filter api maintenance:weekly [--force]
+pnpm maintenance weekly [--force]
 ```
 
 与 daily 共用文件锁和 `MaintenanceRun` 状态机，避免周日人工补跑 daily 时并发写 SQLite。
@@ -629,12 +630,10 @@ sudo systemctl start jixie-backup.service
 
 ### 9.2 指定日期补跑
 
-需要指定日期或 `--force` 时，使用受同一文件锁保护的运维封装：
+需要指定日期或 `--force` 时，统一入口会自动取得生产维护锁：
 
 ```bash
-flock -n -E 75 /var/lib/jixie/maintenance.lock \
-  env JIXIE_MAINTENANCE_LOCK_HELD=1 \
-  pnpm --filter api maintenance:daily 20260730 --force
+pnpm maintenance daily 20260730 --force
 ```
 
 `--force` 不绕过前置校验和完整性门禁，只绕过“同目标已经 done”的短路。任何跳过数据质量检查的能力都
@@ -643,9 +642,7 @@ flock -n -E 75 /var/lib/jixie/maintenance.lock \
 不带日期的 CLI 与 systemd service 相同，会自动 catch up 全部缺失交易日：
 
 ```bash
-flock -n -E 75 /var/lib/jixie/maintenance.lock \
-  env JIXIE_MAINTENANCE_LOCK_HELD=1 \
-  pnpm --filter api maintenance:daily
+pnpm maintenance
 ```
 
 ### 9.3 历史区间修复
@@ -653,9 +650,7 @@ flock -n -E 75 /var/lib/jixie/maintenance.lock \
 历史修复不直接裸跑 `sync:market-state`。推荐增加：
 
 ```bash
-flock -n -E 75 /var/lib/jixie/maintenance.lock \
-  env JIXIE_MAINTENANCE_LOCK_HELD=1 \
-  pnpm --filter api maintenance:repair 20260701 20260730
+pnpm maintenance repair 20260701 20260730
 ```
 
 顺序仍为：
@@ -679,7 +674,7 @@ flock -n -E 75 /var/lib/jixie/maintenance.lock \
 `pnpm import:data` 在最终 market-state 和严格审计之前自动执行：
 
 ```bash
-pnpm --filter api maintenance:heal-baseline [YYYYMMDD]
+pnpm maintenance baseline [YYYYMMDD]
 ```
 
 它以最近已收盘 SSE 交易日为上限，默认回查 20 日，修复确定性的密集切片缺口。随后完成全量
