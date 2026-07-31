@@ -46,7 +46,7 @@ const scanSpecSchema = z.object({
     .string()
     .regex(/^\d{8}$/)
     .optional(),
-  view: z.enum(['parameters', 'sizing']).optional(),
+  view: z.enum(['parameters', 'sizing', 'capacity']).optional(),
 });
 const createBody = z.object({
   config: codeConfigSchema,
@@ -82,7 +82,7 @@ strategyScansRoute.post('/', validateQuery(strategyQuery), validateJson(createBo
       reason: error instanceof Error ? error.message : String(error),
     });
   }
-  if (Object.keys(parameters).length === 0) {
+  if (spec.view !== 'capacity' && Object.keys(parameters).length === 0) {
     return apiError(c, 'VALIDATION_FAILED', m(c, 'strategyScanNoParameters'));
   }
 

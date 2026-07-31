@@ -90,6 +90,18 @@ Branch on `ctx.params.sizing` for equal weight, fixed lots, or ATR risk sizing. 
 
 The result overlays NAV rebased to 1 and compares annual return, maximum drawdown, annual volatility, longest underwater trading period, and Sharpe. It changes only the declared sizing branch and never rewrites entry or exit logic.
 
+## Estimate strategy capacity
+
+A capacity estimate asks when growing capital begins to erode returns through market impact. It does not require declared strategy parameters. Open the scan dialog, choose **Capacity estimate**, and enter three to seven capital levels in CNY 10,000 units, for example `50, 200, 1000, 5000, 20000`.
+
+Every level uses the same strategy code, date range, and cost model while changing only initial capital. The result plots annual return and annualized slippage drag, then identifies:
+
+- The smallest capital level used as the baseline.
+- The first level where annualized slippage drag reaches 1%.
+- The first level where annual return falls to half the small-capital baseline.
+
+**Not reached** means the largest entered level did not cross that threshold; it does not mean the strategy has unlimited capacity. The estimate depends on turnover, traded liquidity, board-lot constraints, and the configured cost model. A fixed-share strategy will also reduce its invested fraction as capital grows, so confirm that its order-sizing logic represents the scaling behavior you intend to study.
+
 ## Related articles
 
 - [Why a backtest is not a forecast](/help/basics/backtest-limitations)

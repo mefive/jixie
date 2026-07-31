@@ -1,4 +1,5 @@
 import type { StrategyScanReport } from '@jixie/shared';
+import { useTranslation } from 'react-i18next';
 import { EChart, type ECOption } from '@src/components/echart';
 import { metricValue, type ScanMetric } from './parameter-scan';
 
@@ -9,6 +10,7 @@ export default function ParameterScanChart({
   report: StrategyScanReport;
   metric: ScanMetric;
 }) {
+  const { t, i18n } = useTranslation('lab');
   const [first, second] = report.spec.dimensions;
   const cells = report.payload?.cells ?? [];
   const sample = report.spec.splitDate ? 'outOfSample' : 'full';
@@ -27,6 +29,47 @@ export default function ParameterScanChart({
         showSymbol: false,
         data: cell.nav?.map((point) => point.value) ?? [],
       })),
+    };
+  } else if (report.spec.view === 'capacity') {
+    const ordered = [...cells].sort(
+      (firstCell, secondCell) =>
+        Number(firstCell.params[first.key]) - Number(secondCell.params[first.key]),
+    );
+    option = {
+      tooltip: { trigger: 'axis' },
+      legend: { top: 0 },
+      grid: { left: 58, right: 24, top: 42, bottom: 42 },
+      xAxis: {
+        type: 'category',
+        data: ordered.map((cell) =>
+          formatCapital(Number(cell.params[first.key]), i18n.resolvedLanguage),
+        ),
+        name: t('scanCapital'),
+      },
+      yAxis: {
+        type: 'value',
+        scale: true,
+        name: '%',
+        axisLabel: { formatter: '{value}%' },
+      },
+      series: [
+        {
+          name: t('metricAnnReturn'),
+          type: 'line',
+          symbolSize: 7,
+          data: ordered.map((cell) => Number(((cell.full?.annReturn ?? 0) * 100).toFixed(4))),
+          lineStyle: { color: '#111827', width: 2 },
+          itemStyle: { color: '#111827' },
+        },
+        {
+          name: t('scanMetricSlippageDrag'),
+          type: 'line',
+          symbolSize: 7,
+          data: ordered.map((cell) => Number(((cell.full?.annSlippageDrag ?? 0) * 100).toFixed(4))),
+          lineStyle: { color: '#ef4444', width: 2 },
+          itemStyle: { color: '#ef4444' },
+        },
+      ],
     };
   } else if (!second) {
     option = {
@@ -106,7 +149,8 @@ function formatValue(metric: ScanMetric, value: unknown): string {
     metric === 'annReturn' ||
     metric === 'maxDrawdown' ||
     metric === 'excessReturn' ||
-    metric === 'annVolatility'
+    metric === 'annVolatility' ||
+    metric === 'annSlippageDrag'
   ) {
     return `${(numeric * 100).toFixed(2)}%`;
   }
@@ -120,4 +164,13 @@ function formatValue(metric: ScanMetric, value: unknown): string {
     return `${Math.round(numeric)}`;
   }
   return numeric.toFixed(2);
+}
+
+function formatCapital(value: number, language?: string): string {
+  return new Intl.NumberFormat(language?.startsWith('en') ? 'en-US' : 'zh-CN', {
+    style: 'currency',
+    currency: 'CNY',
+    notation: 'compact',
+    maximumFractionDigits: 1,
+  }).format(value);
 }

@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { BacktestResult } from '../engine/types.js';
-import { executeStrategyScan, normalizeScanSpec, parameterCombinations } from './scan.js';
+import {
+  executeStrategyScan,
+  normalizeScanSpec,
+  parameterCombinations,
+  scanCellOverrides,
+} from './scan.js';
 
 describe('strategy parameter scan', () => {
   it('normalizes values, rejects unknown keys, and caps the Cartesian product', () => {
@@ -52,6 +57,35 @@ describe('strategy parameter scan', () => {
         { sizing: 'equal' },
       ),
     ).toThrow('match its declared type');
+  });
+
+  it('normalizes capacity grids independently of declared strategy parameters', () => {
+    const spec = normalizeScanSpec(
+      {
+        view: 'capacity',
+        dimensions: [{ key: ' initialCash ', values: [2_000_000, 500_000, 10_000_000] }],
+      },
+      {},
+    );
+
+    expect(spec).toEqual({
+      dimensions: [{ key: 'initialCash', values: [500_000, 2_000_000, 10_000_000] }],
+      splitDate: undefined,
+      view: 'capacity',
+    });
+    expect(scanCellOverrides(spec, { initialCash: 2_000_000 })).toEqual({
+      initialCash: 2_000_000,
+      paramOverrides: {},
+    });
+    expect(() =>
+      normalizeScanSpec(
+        {
+          view: 'capacity',
+          dimensions: [{ key: 'initialCash', values: [100_000, 200_000] }],
+        },
+        {},
+      ),
+    ).toThrow('3-7 capital values');
   });
 
   it('builds a stable row-major one- or two-dimensional grid', () => {
@@ -121,6 +155,7 @@ describe('strategy parameter scan', () => {
     ]);
     expect(payload.cells[0].full?.annVolatility).toBeGreaterThan(0);
     expect(payload.cells[0].full?.maxUnderwaterDays).toBe(1);
+    expect(payload.cells[0].full?.annSlippageDrag).toBeCloseTo(2.52);
   });
 });
 

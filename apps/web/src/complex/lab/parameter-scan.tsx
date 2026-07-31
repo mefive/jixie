@@ -25,6 +25,7 @@ import { complex } from './complex';
 import './parameter-scan.css';
 
 const ParameterScanChart = lazy(() => import('./parameter-scan-chart'));
+type ScanView = 'parameters' | 'sizing' | 'capacity';
 
 export const ParameterScanButton = complex.component(() => {
   const store = complex.useStore();
@@ -38,7 +39,8 @@ export const ParameterScanButton = complex.component(() => {
   const [splitEnabled, setSplitEnabled] = useState(false);
   const [splitDate, setSplitDate] = useState<string>();
   const [formError, setFormError] = useState('');
-  const [view, setView] = useState<'parameters' | 'sizing'>('parameters');
+  const [view, setView] = useState<ScanView>('parameters');
+  const [capitalValues, setCapitalValues] = useState(suggestedCapitalValues);
 
   const openModal = async () => {
     setOpen(true);
@@ -52,6 +54,7 @@ export const ParameterScanButton = complex.component(() => {
       setFirstValues(first ? suggestedValues(first[1]) : '');
       setSecondKey(second?.[0] ?? '');
       setSecondValues(second ? suggestedValues(second[1]) : '');
+      setCapitalValues(suggestedCapitalValues());
     } catch {
       /* Loader error is rendered in the modal. */
     }
@@ -59,6 +62,20 @@ export const ParameterScanButton = complex.component(() => {
 
   const submit = () => {
     try {
+      if (view === 'capacity') {
+        const spec: StrategyScanSpec = {
+          dimensions: [
+            {
+              key: 'initialCash',
+              values: parseCapitalValues(capitalValues, t('scanCapitalValuesInvalid')),
+            },
+          ],
+          view,
+        };
+        setOpen(false);
+        void store.runScan(spec);
+        return;
+      }
       const firstDefault = parameters[firstKey];
       const dimensions = [
         {
@@ -98,10 +115,15 @@ export const ParameterScanButton = complex.component(() => {
   const activeOptions = view === 'sizing' ? sizingOptions : parameterOptions;
 
   const changeView = (next: string | number) => {
-    const nextView = next as 'parameters' | 'sizing';
+    const nextView = next as ScanView;
     setView(nextView);
     setTwoDimensions(false);
     setSplitEnabled(false);
+    if (nextView === 'capacity') {
+      setFirstKey('');
+      setFirstValues('');
+      return;
+    }
     const options = nextView === 'sizing' ? sizingOptions : parameterOptions;
     const first = options[0];
     setFirstKey(first?.value ?? '');
@@ -125,7 +147,9 @@ export const ParameterScanButton = complex.component(() => {
         title={t('scanTitle')}
         okText={t('scanStart')}
         okButtonProps={{
-          disabled: store.scanParametersLoader.loading || activeOptions.length === 0,
+          disabled:
+            view !== 'capacity' &&
+            (store.scanParametersLoader.loading || activeOptions.length === 0),
         }}
         onOk={submit}
         onCancel={() => setOpen(false)}
@@ -138,10 +162,22 @@ export const ParameterScanButton = complex.component(() => {
             options={[
               { value: 'parameters', label: t('scanViewParameters') },
               { value: 'sizing', label: t('scanViewSizing') },
+              { value: 'capacity', label: t('scanViewCapacity') },
             ]}
             onChange={changeView}
           />
-          {store.scanParametersLoader.loading ? (
+          {view === 'capacity' ? (
+            <div className="jx-parameterScan-dimension">
+              <div className="jx-parameterScan-label">{t('scanCapitalValues')}</div>
+              <Input
+                className="jx-parameterScan-control"
+                value={capitalValues}
+                placeholder={t('scanCapitalValuesPlaceholder')}
+                onChange={(event) => setCapitalValues(event.target.value)}
+              />
+              <div className="jx-parameterScan-capitalHint">{t('scanCapitalValuesHint')}</div>
+            </div>
+          ) : store.scanParametersLoader.loading ? (
             <div className="jx-parameterScan-empty">{t('scanReadingParams')}</div>
           ) : store.scanParametersLoader.error ? (
             <div className="jx-parameterScan-error">{String(store.scanParametersLoader.error)}</div>
@@ -234,7 +270,7 @@ export const ParameterScanPanel = complex.component(() => {
           allowClear={false}
           onChange={(reportId) => void store.loadScanReport(reportId)}
         />
-        {report?.spec.view !== 'sizing' ? (
+        {report?.spec.view !== 'sizing' && report?.spec.view !== 'capacity' ? (
           <Select
             className="jx-parameterScan-metric"
             value={metric}
@@ -268,11 +304,11 @@ export const ParameterScanPanel = complex.component(() => {
           <Suspense fallback={<div className="jx-parameterScan-chart" />}>
             <ParameterScanChart report={report} metric={metric} />
           </Suspense>
-          {report.spec.view === 'sizing' ? (
-            <SizingTable report={report} />
-          ) : (
+          {report.spec.view === 'sizing' ? <SizingTable report={report} /> : null}
+          {report.spec.view === 'capacity' ? <CapacitySummary report={report} /> : null}
+          {!report.spec.view || report.spec.view === 'parameters' ? (
             <ScanTable report={report} metric={metric} />
-          )}
+          ) : null}
         </>
       ) : null}
     </div>
@@ -320,6 +356,72 @@ function SizingTable({ report }: { report: StrategyScanReport }) {
       dataSource={rows}
       scroll={{ x: true }}
     />
+  );
+}
+
+function CapacitySummary({ report }: { report: StrategyScanReport }) {
+  const { t, i18n } = useTranslation('lab');
+  const dimension = report.spec.dimensions[0];
+  const cells = [...report.payload!.cells].sort(
+    (first, second) => Number(first.params[dimension.key]) - Number(second.params[dimension.key]),
+  );
+  const baseline = cells[0];
+  const baselineReturn = baseline.full?.annReturn;
+  const slippageThreshold = cells.find((cell) => (cell.full?.annSlippageDrag ?? 0) >= 0.01);
+  const halfReturnThreshold =
+    baselineReturn != null && baselineReturn > 0
+      ? cells.slice(1).find((cell) => (cell.full?.annReturn ?? Infinity) <= baselineReturn / 2)
+      : undefined;
+  const capital = (cell: (typeof cells)[number] | undefined) =>
+    cell
+      ? formatCapital(Number(cell.params[dimension.key]), i18n.resolvedLanguage)
+      : t('scanNotReached');
+  const rows = cells.map((cell, index) => ({
+    key: index,
+    capital: formatCapital(Number(cell.params[dimension.key]), i18n.resolvedLanguage),
+    annReturn: formatMetric('annReturn', cell.full),
+    annSlippageDrag: formatMetric('annSlippageDrag', cell.full),
+    totalSlippage: formatMetric('totalSlippage', cell.full),
+    maxDrawdown: formatMetric('maxDrawdown', cell.full),
+    trades: cell.full?.trades ?? '—',
+  }));
+
+  return (
+    <>
+      <div className="jx-parameterScan-capacityInsights">
+        <div className="jx-parameterScan-capacityInsight">
+          <span>{t('scanCapacityBaseline')}</span>
+          <strong className="jx-parameterScan-capacityValue">{capital(baseline)}</strong>
+        </div>
+        <div className="jx-parameterScan-capacityInsight">
+          <span>{t('scanCapacitySlippageThreshold')}</span>
+          <strong className="jx-parameterScan-capacityValue">{capital(slippageThreshold)}</strong>
+        </div>
+        <div className="jx-parameterScan-capacityInsight">
+          <span>{t('scanCapacityHalfReturnThreshold')}</span>
+          <strong className="jx-parameterScan-capacityValue">{capital(halfReturnThreshold)}</strong>
+        </div>
+      </div>
+      <Table
+        className="jx-parameterScan-table"
+        size="small"
+        pagination={false}
+        columns={[
+          { title: t('scanCapital'), dataIndex: 'capital', key: 'capital' },
+          { title: t('metricAnnReturn'), dataIndex: 'annReturn', key: 'annReturn' },
+          {
+            title: t('scanMetricSlippageDrag'),
+            dataIndex: 'annSlippageDrag',
+            key: 'annSlippageDrag',
+          },
+          { title: t('metricSlippage'), dataIndex: 'totalSlippage', key: 'totalSlippage' },
+          { title: t('metricMaxDrawdown'), dataIndex: 'maxDrawdown', key: 'maxDrawdown' },
+          { title: t('metricTrades'), dataIndex: 'trades', key: 'trades' },
+        ]}
+        dataSource={rows}
+        scroll={{ x: true }}
+      />
+    </>
   );
 }
 
@@ -396,7 +498,8 @@ export type ScanMetric =
   | 'turnover'
   | 'totalSlippage'
   | 'annVolatility'
-  | 'maxUnderwaterDays';
+  | 'maxUnderwaterDays'
+  | 'annSlippageDrag';
 
 export const SCAN_METRICS: { key: ScanMetric; labelKey: string }[] = [
   { key: 'annReturn', labelKey: 'metricAnnReturn' },
@@ -426,6 +529,7 @@ function formatMetric(metric: ScanMetric, summary?: BacktestMetricSummary): stri
     case 'maxDrawdown':
     case 'excessReturn':
     case 'annVolatility':
+    case 'annSlippageDrag':
       return `${(value * 100).toFixed(2)}%`;
     case 'turnover':
       return `${value.toFixed(1)}×`;
@@ -459,7 +563,7 @@ function parseValues(
 
 function suggestedValues(
   value: StrategyParamValue | undefined,
-  view: 'parameters' | 'sizing' = 'parameters',
+  view: Exclude<ScanView, 'capacity'> = 'parameters',
 ): string {
   if (typeof value === 'string') {
     return view === 'sizing' ? [...new Set([value, 'equal', 'fixed', 'atr'])].join(', ') : value;
@@ -476,4 +580,33 @@ function suggestedValues(
             : Number(candidate.toPrecision(6)),
         );
   return [...new Set(candidates)].join(', ');
+}
+
+function parseCapitalValues(raw: string, errorMessage: string): number[] {
+  const values = raw
+    .split(/[\s,，]+/)
+    .filter(Boolean)
+    .map(Number);
+  const unique = [...new Set(values)];
+  if (
+    unique.length < 3 ||
+    unique.length > 7 ||
+    unique.some((value) => !Number.isFinite(value) || value < 1 || value > 1_000_000)
+  ) {
+    throw new Error(errorMessage);
+  }
+  return unique.map((value) => value * 10_000);
+}
+
+function suggestedCapitalValues(): string {
+  return '50, 200, 1000, 5000, 20000';
+}
+
+function formatCapital(value: number, language?: string): string {
+  return new Intl.NumberFormat(language?.startsWith('en') ? 'en-US' : 'zh-CN', {
+    style: 'currency',
+    currency: 'CNY',
+    notation: 'compact',
+    maximumFractionDigits: 1,
+  }).format(value);
 }

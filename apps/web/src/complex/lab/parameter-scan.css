@@ -37,6 +37,10 @@
   width: 100%;
 }
 
+.jx-parameterScan-capitalHint {
+  @apply col-start-2 text-xs text-slate-500;
+}
+
 .jx-parameterScan-empty {
   @apply flex min-h-32 items-center justify-center text-sm text-slate-400;
 }
@@ -55,4 +59,16 @@
 
 .jx-parameterScan-table {
   @apply min-h-0;
+}
+
+.jx-parameterScan-capacityInsights {
+  @apply grid grid-cols-3 gap-2;
+}
+
+.jx-parameterScan-capacityInsight {
+  @apply flex flex-col gap-1 rounded-lg border border-line bg-slate-50 p-3 text-xs text-slate-500;
+}
+
+.jx-parameterScan-capacityValue {
+  @apply text-sm text-ink;
 }
