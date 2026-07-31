@@ -501,6 +501,8 @@ model User {
   strategyScanReports StrategyScanReport[]
   strategyDeployments StrategyDeployment[]
   signalRuns          SignalRun[]
+  signalExecutions    SignalExecution[]
+  accountSnapshots    StrategyAccountSnapshot[]
   savedScreens        SavedScreen[]
   screenConversations ScreenConversation[]
   agentConversations  AgentConversation[]
@@ -650,21 +652,22 @@ model Strategy {
 /// One immutable strategy version promoted from research into daily operation. Editing Strategy.config
 /// never mutates an active deployment; a changed code/config/cost snapshot requires an explicit redeploy.
 model StrategyDeployment {
-  id           String      @id // ULID
-  userId       String
-  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  strategyId   String
-  strategy     Strategy    @relation(fields: [strategyId], references: [id], onDelete: Cascade)
-  strategyName String
-  status       String // 'active' | 'paused'
-  config       Json // frozen BacktestConfig
-  codeHash     String
-  locale       String // 'zh' | 'en', frozen for scheduler-generated notifications
-  deployedAt   DateTime    @default(now())
-  stoppedAt    DateTime?
-  signalRuns   SignalRun[]
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  id               String                    @id // ULID
+  userId           String
+  user             User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  strategyId       String
+  strategy         Strategy                  @relation(fields: [strategyId], references: [id], onDelete: Cascade)
+  strategyName     String
+  status           String // 'active' | 'paused'
+  config           Json // frozen BacktestConfig
+  codeHash         String
+  locale           String // 'zh' | 'en', frozen for scheduler-generated notifications
+  deployedAt       DateTime                  @default(now())
+  stoppedAt        DateTime?
+  signalRuns       SignalRun[]
+  accountSnapshots StrategyAccountSnapshot[]
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
 
   @@index([userId, status])
   @@index([strategyId, status])
@@ -685,11 +688,13 @@ model SignalRun {
   dataCutoff        String?
   modelEquity       Float?
   modelCash         Float?
+  modelPositions    Json? // ModelPositionSnapshot[] at the signal close; seeds forward account tracking
   signals           Json? // SignalItem[]
   error             String?
   notifiedAt        DateTime?
   notificationError String?
   jobs              Job[]
+  executions        SignalExecution[]
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
 
@@ -697,6 +702,69 @@ model SignalRun {
   @@index([userId, tradeDate])
   @@index([strategyId, tradeDate])
   @@index([status])
+}
+
+/// One immutable signal instruction plus its simulated fill and user-entered real execution. The
+/// instruction columns are copied out of SignalRun.signals so cross-day execution quality is queryable.
+model SignalExecution {
+  id                String    @id // ULID
+  userId            String
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  signalRunId       String
+  signalRun         SignalRun @relation(fields: [signalRunId], references: [id], onDelete: Cascade)
+  signalIndex       Int
+  code              String
+  name              String
+  assetType         String // 'stock' | 'etf'
+  action            String // 'buy' | 'sell'
+  requestedShares   Float
+  refPrice          Float
+  refAmount         Float
+  source            String // 'target' | 'order'
+  targetWeight      Float?
+  simulatedStatus   String    @default("pending") // 'pending' | 'filled' | 'blocked'
+  simulatedShares   Float?
+  simulatedPrice    Float?
+  simulatedFee      Float?
+  simulatedSlippage Float?
+  simulatedReason   String?
+  actualStatus      String    @default("pending") // 'pending' | 'filled' | 'skipped'
+  actualShares      Float?
+  actualPrice       Float?
+  actualFee         Float?
+  actualReason      String?
+  actualNote        String?
+  actualRecordedAt  DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@unique([signalRunId, signalIndex])
+  @@index([userId, actualStatus])
+  @@index([code, createdAt])
+}
+
+/// Rebuildable end-of-day shadow-account state. The first row for each deployment/kind is the frozen
+/// model baseline; later rows are replayed from SignalExecution and raw market data.
+model StrategyAccountSnapshot {
+  id           String             @id // ULID
+  userId       String
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deploymentId String
+  deployment   StrategyDeployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
+  kind         String // 'simulation' | 'actual'
+  tradeDate    String
+  cash         Float
+  marketValue  Float
+  equity       Float
+  positions    Json // AccountPositionSnapshot[]
+  isBaseline   Boolean            @default(false)
+  sourceRunId  String?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  @@unique([deploymentId, kind, tradeDate])
+  @@index([userId, kind, tradeDate])
+  @@index([deploymentId, kind, isBaseline])
 }
 
 /// Immutable parameter-scan report. The strategy/config/spec snapshots make each explicit scan a

@@ -7,16 +7,16 @@
 
 ## 当前进度
 
-**第一期:引擎 + 数据(进行中)**
+**研究、回测与日常运行主链路已打通**
 
 - [x] monorepo 骨架(pnpm,对齐 `~/Projects/marginalia`、`~/Tools/fangtu`)
 - [x] Tushare HTTP 数据通道 + 连通自测
 - [x] 行情落库(Prisma + SQLite:A 股、主要指数、期货、ETF)
-- [ ] 因子库(动量 / 反转 / 波动率)+ `FactorValue` 预计算表
-- [ ] 向量化十分位分层回测(IC/IR、分层净值、Sharpe / 最大回撤)
-- [ ] HTML 因子报告
-
-**第二期**:`apps/web` 前端 + 回测任务 API + worker 隔离。
+- [x] code-first 因子研究(IC/IR、分层净值、中性化、费后、holdout 与不可变报告)
+- [x] code-first 策略回测(股票 / ETF / 期货、参数扫描、成本与滑点、isolated-vm)
+- [x] Web 工作台、统一 Agent、市场状态与中英文公开帮助
+- [x] 每日信号、邮件提醒、模拟账户、人工成交回填与执行偏差
+- [x] 生产 bootstrap、增量维护、数据审计与备份编排(待目标机连续运行验收)
 
 **长期功能规划见 [`ROADMAP.md`](./ROADMAP.md)**(可信度 / 表达力 / 因子闭环 / 数据工程 / 每日信号五条主线),详设在 `docs/design/`。
 

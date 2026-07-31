@@ -303,10 +303,19 @@ export interface PendingCashSignal {
   targetWeight?: number;
 }
 
+export interface PendingModelPosition {
+  code: string;
+  assetType: 'stock' | 'etf';
+  shares: number;
+  markPrice: number;
+  sellableFrom: string;
+}
+
 export interface StrategySignalCapture {
   tradeDate: string;
   modelEquity: number;
   modelCash: number;
+  modelPositions: PendingModelPosition[];
   signals: PendingCashSignal[];
 }
 

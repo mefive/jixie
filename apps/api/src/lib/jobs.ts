@@ -119,6 +119,7 @@ export async function finishSignalRunJob(
     dataCutoff: string;
     modelEquity: number;
     modelCash: number;
+    modelPositions: Prisma.InputJsonValue;
     signals: Prisma.InputJsonValue;
   },
   error?: string,
@@ -132,6 +133,7 @@ export async function finishSignalRunJob(
         dataCutoff: status === 'done' ? output?.dataCutoff : undefined,
         modelEquity: status === 'done' ? output?.modelEquity : undefined,
         modelCash: status === 'done' ? output?.modelCash : undefined,
+        modelPositions: status === 'done' ? output?.modelPositions : undefined,
         signals: status === 'done' ? output?.signals : undefined,
         error: status === 'error' ? (error ?? null) : null,
       },

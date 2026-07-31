@@ -171,6 +171,14 @@ const MESSAGES = {
     zh: '信号运行不存在',
     en: 'Signal run not found',
   },
+  signalExecutionNotFound: {
+    zh: '执行记录不存在',
+    en: 'Signal execution not found',
+  },
+  signalExecutionUnavailable: {
+    zh: '该执行记录尚不可回填，或成交数量超过指令数量',
+    en: 'This execution cannot be recorded yet, or the filled quantity exceeds the instruction',
+  },
   signalJobNotFound: {
     zh: '信号任务不存在或已过期',
     en: 'Signal job not found or expired',

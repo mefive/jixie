@@ -175,6 +175,69 @@ try {
     fail(`development notification should be skipped: ${JSON.stringify(persisted.run)}`);
   }
 
+  await page.unroute('**/api/app/signals/run');
+  const settlement = await page.evaluate(async (deploymentId) => {
+    const submitted = await fetch('/api/app/signals/run', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ deploymentId, tradeDate: '20260729' }),
+    });
+    const body = await submitted.json();
+    if (!submitted.ok) {
+      return { status: submitted.status, body };
+    }
+    if (!body.jobId) {
+      return { status: 200, body };
+    }
+    for (let attempt = 0; attempt < 120; attempt++) {
+      const job = await (await fetch(`/api/app/signals/jobs/${body.jobId}`)).json();
+      if (job.status !== 'running') {
+        return { status: 200, body: job };
+      }
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+    return { status: 408, body: { error: 'signal settlement polling timed out' } };
+  }, persisted.deployment.id);
+  if (settlement.status !== 200 || settlement.body.status === 'error') {
+    fail(`next-day settlement failed: ${JSON.stringify(settlement)}`);
+  }
+
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.getByRole('heading', { name: '每日信号验收' }).waitFor({ timeout: 15_000 });
+  await page.locator('.jx-signals-historyRow').filter({ hasText: '2026-07-28' }).click();
+  const executionRow = page.locator('.jx-signals-table .ant-table-row[data-row-key]').first();
+  await executionRow.getByText('已模拟成交', { exact: true }).waitFor({ timeout: 15_000 });
+
+  const executionResponse = page.waitForResponse(
+    (response) =>
+      response.request().method() === 'PATCH' &&
+      new URL(response.url()).pathname.startsWith('/api/app/signals/executions/'),
+  );
+  await executionRow.getByRole('button', { name: '记录' }).click();
+  const modal = page.locator('.ant-modal').last();
+  await modal.locator('.ant-select').first().click();
+  await page.getByText('已执行', { exact: true }).last().click();
+  await modal.getByRole('button', { name: '保存执行' }).click();
+  if ((await executionResponse).status() !== 200) {
+    fail('actual execution update failed');
+  }
+  await modal.waitFor({ state: 'hidden' });
+  await executionRow.getByText('已执行', { exact: true }).waitFor({ timeout: 15_000 });
+
+  const accounting = await page.evaluate(
+    async (deploymentId) =>
+      await (await fetch(`/api/app/signals/deployments/${deploymentId}/execution-overview`)).json(),
+    persisted.deployment.id,
+  );
+  if (
+    accounting.simulation?.length < 2 ||
+    accounting.actual?.length < 2 ||
+    accounting.execution?.filled !== 1 ||
+    accounting.execution?.executionRate !== 1
+  ) {
+    fail(`invalid execution accounting: ${JSON.stringify(accounting)}`);
+  }
+
   await page.screenshot({ path: `${SHOTS}daily-signals-zh.png`, fullPage: true });
 
   await page.getByText('EN', { exact: true }).click();
@@ -184,6 +247,10 @@ try {
 
   await page.setViewportSize({ width: 760, height: 1000 });
   await page.getByRole('heading', { name: 'Daily signals' }).waitFor();
+  await page.waitForFunction(() => {
+    const canvas = document.querySelector('.jx-signals-executionChart canvas');
+    return canvas instanceof HTMLCanvasElement && canvas.getBoundingClientRect().width > 500;
+  });
   await page.screenshot({ path: `${SHOTS}daily-signals-mobile.png`, fullPage: true });
 
   if (pageErrors.length > 0) {

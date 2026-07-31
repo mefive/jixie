@@ -1,4 +1,11 @@
-import type { BacktestConfig, Locale, LogLine, LogLevel, SignalItem } from '@jixie/shared';
+import type {
+  BacktestConfig,
+  Locale,
+  LogLine,
+  LogLevel,
+  ModelPositionSnapshot,
+  SignalItem,
+} from '@jixie/shared';
 import { codeConfigSchema } from '../strategy/code/schema.js';
 import { prepareCustomFactors } from './prepare-custom-factors.js';
 import { runWalledSignalCapture } from './walled-run.js';
@@ -43,7 +50,12 @@ try {
     systemLog,
     userLog,
   );
-  const codes = [...new Set(output.capture.signals.map((signal) => signal.code))];
+  const codes = [
+    ...new Set([
+      ...output.capture.signals.map((signal) => signal.code),
+      ...output.capture.modelPositions.map((position) => position.code),
+    ]),
+  ];
   const [stocks, etfs] = await Promise.all([
     prisma.stockBasic.findMany({
       where: { tsCode: { in: codes } },
@@ -61,6 +73,10 @@ try {
     ...signal,
     name: names.get(signal.code) ?? signal.code,
   }));
+  const modelPositions: ModelPositionSnapshot[] = output.capture.modelPositions.map((position) => ({
+    ...position,
+    name: names.get(position.code) ?? position.code,
+  }));
   systemLog(t(locale, 'signalCaptureDone', { count: signals.length }));
   process.send({
     type: 'done',
@@ -68,6 +84,7 @@ try {
       dataCutoff: output.capture.tradeDate,
       modelEquity: output.capture.modelEquity,
       modelCash: output.capture.modelCash,
+      modelPositions,
       signals,
     },
   });
