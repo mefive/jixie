@@ -14,6 +14,7 @@ DIR="${JIXIE_DIR:-/opt/jixie}"
 SERVICE="${JIXIE_SERVICE:-jixie-api}"
 DATA_DIR="${JIXIE_DATA_DIR:-/var/lib/jixie}"
 BACKUP_DIR="${JIXIE_BACKUP_DIR:-/var/backups/jixie}"
+ENABLE_MAINTENANCE_TIMERS="${JIXIE_ENABLE_MAINTENANCE_TIMERS:-1}"
 TARGET="${1:-all}"
 LOCK_FILE="${JIXIE_DEPLOY_LOCK_FILE:-/tmp/jixie-deploy.lock}"
 LOCK_DIR="$(dirname -- "$LOCK_FILE")"
@@ -118,6 +119,10 @@ case "$TARGET" in
   all | api | web | docs) ;;
   *) die "Unknown deployment target '$TARGET'; expected all, api, web, or docs" ;;
 esac
+case "$ENABLE_MAINTENANCE_TIMERS" in
+  0 | 1) ;;
+  *) die "JIXIE_ENABLE_MAINTENANCE_TIMERS must be 0 or 1" ;;
+esac
 
 trap cleanup EXIT INT TERM
 
@@ -220,10 +225,17 @@ if [[ "$TARGET" == "api" || "$TARGET" == "all" ]]; then
     jixie-maintenance-weekly.timer \
     jixie-backup.service \
     jixie-backup.timer
-  sudo systemctl enable --now \
-    jixie-maintenance.timer \
-    jixie-maintenance-weekly.timer \
-    jixie-backup.timer
+  sudo systemctl enable --now jixie-backup.timer
+  if [[ "$ENABLE_MAINTENANCE_TIMERS" == "1" ]]; then
+    sudo systemctl enable --now \
+      jixie-maintenance.timer \
+      jixie-maintenance-weekly.timer
+  else
+    log "Leave daily and weekly maintenance timers disabled for one-time initialization"
+    sudo systemctl disable --now \
+      jixie-maintenance.timer \
+      jixie-maintenance-weekly.timer
+  fi
 fi
 
 if [[ "$TARGET" == "web" || "$TARGET" == "all" ]]; then
