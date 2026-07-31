@@ -74,11 +74,11 @@ fi
 sudo systemctl start "$SERVICE"
 API_STOPPED=0
 
+flock -u 9
 log "Enable production maintenance timers"
 sudo systemctl enable --now \
   jixie-maintenance.timer \
   jixie-maintenance-weekly.timer
-flock -u 9
 
 systemctl list-timers 'jixie-*' --no-pager
 log "Maintenance activation complete"
