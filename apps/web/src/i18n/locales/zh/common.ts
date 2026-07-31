@@ -19,6 +19,7 @@ export const zhCommon = {
   maintenance: {
     title: '系统正在维护',
     description: '正在校验并发布最新市场数据，请稍候。',
+    deploymentDescription: '正在安全更新系统版本，请稍候。',
     retrying: '本轮数据未能安全发布，系统将在下一时点自动重试。',
     stage: '当前阶段',
     preparing: '准备中',
@@ -28,6 +29,7 @@ export const zhCommon = {
     stages: {
       starting: '准备维护',
       waiting_for_jobs: '等待后台任务结束',
+      ready_to_stop: '准备重启服务',
       syncing_raw: '同步量价与基础行情',
       syncing_indices: '同步指数与策略数据',
       validating_raw: '校验原始数据',

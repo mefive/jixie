@@ -14,7 +14,7 @@ export interface AuthUser {
 export interface MaintenanceStatus {
   active: boolean;
   runId: string | null;
-  kind: 'daily' | 'weekly' | 'repair' | null;
+  kind: 'daily' | 'weekly' | 'repair' | 'deploy' | null;
   startDate: string | null;
   endDate: string | null;
   completedDates: number;
