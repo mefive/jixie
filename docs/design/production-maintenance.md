@@ -71,11 +71,11 @@ SQLite 在线 `.backup`，不切换 App 维护模式；如果实测磁盘竞争�
 
 ### 2.2 当前实现边界
 
-截至 2026-07-31，daily/weekly/repair coordinator、状态表、API Gate、前端 `PollingModel`、systemd
+截至 2026-08-01，daily/weekly/repair coordinator、状态表、API Gate、前端 `PollingModel`、systemd
 单元、部署安装和备份轮转均已落地，API 内置定时器已删除。仍需注意：
 
-- weekly 当前对财务指标和分红执行全股票强制刷新，正确但较慢；后续可在同步函数能可靠报告受影响股票
-  和日期后改为增量；
+- weekly 通过 `fina_indicator_vip` 按报告期完整核对财务指标，并按股票完整核对分红；长阶段持久化
+  checkpoint，进程被 kill 后可从未完成报告期或股票继续；
 - weekly 当前刷新最近六个月的指数权重，并回查最近 252 个交易日的密集行情切片；发现核心量价、
   资金流或主要指数缺口时按日期幂等重拉，并对代码、成分、行业成员、核心量价或指数变化重算
   market-state；
@@ -535,21 +535,29 @@ pnpm maintenance weekly [--force]
 错过多个周日后不逐周启动多次完整任务。weekly 从上次成功水位增量刷新到当前时间，必须覆盖期间所有
 公告、财报、分红、成分和成员快照，再执行一次当前完整性审计和必要的历史 market-state 重算。
 
-建议顺序：
+执行顺序：
 
 1. `StockBasic` 与股票名称历史；
-2. `FinaIndicator`；
-3. `Dividend`；
-4. `IndexWeight` 当前及最近季度快照；
-5. 申万行业分类与成员 spell；
-6. ETF 元数据；
-7. 期货合约元数据、交易参数和主力映射；
-8. 回查最近 `MAINTENANCE_WEEKLY_REPAIR_LOOKBACK_DAYS`（默认 252）个已发布交易日的核心量价、资金
+2. 从行情研究起点前一个年报期开始，按季度调用 `fina_indicator_vip` 获取全市场财务指标；
+3. 同一股票和报告期按公告日及 `update_flag` 选择最新修订，再按 `tsCode + endDate` 差异写库；
+4. 对所有行情股票逐只获取完整 `Dividend` 历史，内容变化时才原子替换该股票切片；
+5. `IndexWeight` 当前及最近季度快照；
+6. 申万行业分类与成员 spell；
+7. ETF 元数据；
+8. 期货合约元数据、交易参数和主力映射；
+9. 回查最近 `MAINTENANCE_WEEKLY_REPAIR_LOOKBACK_DAYS`（默认 252）个已发布交易日的核心量价、资金
    流和主要指数切片，并自动修复允许列表缺口；
-9. 对所有股票关联表执行代码身份检查，并按需收敛已登记的旧代码；
-10. 对近期窗口运行严格数据审计，并运行全表结构审计；
-11. 对受代码、成分、行业成员、核心量价或指数修订影响的日期区间重算 market-state；
-12. 验证派生表，写入 weekly summary 并退出维护模式。
+10. 对所有股票关联表执行代码身份检查，并按需收敛已登记的旧代码；
+11. 对近期窗口运行严格数据审计，并运行全表结构审计；
+12. 对受代码、成分、行业成员、核心量价或指数修订影响的日期区间重算 market-state；
+13. 验证派生表，写入 weekly summary 并退出维护模式。
+
+财务阶段按报告期、分红阶段按股票写入 `MaintenanceCheckpoint`。失败和 OOM 保留 checkpoint；同一
+weekly 目标重试时跳过已完成项目。财务默认每 4 个报告期、分红默认每 200 只股票启动独立子进程；批次
+退出后原生匿名内存由操作系统回收，父进程再执行 `PRAGMA wal_checkpoint(PASSIVE)`。
+
+批次参数可通过 `MAINTENANCE_WEEKLY_FINANCIAL_PERIODS_PER_PROCESS`（默认 4）和
+`MAINTENANCE_WEEKLY_DIVIDEND_CODES_PER_PROCESS`（默认 200）调整。
 
 同步函数必须返回“新增、更新、删除数量”和“最早受影响日期”。只有以下变化需要触发历史派生重算：
 
@@ -561,8 +569,8 @@ pnpm maintenance weekly [--force]
 财务、分红和名称历史目前不参与三张 market-state 表，不因这些变化无条件重算市场状态。它们仍会改变
 因子、筛选或历史可投资状态，数据 revision 必须更新。
 
-周任务不能直接复用“已有股票就永久跳过”的历史回填语义。财务和分红需要按近期公告或受影响股票真正
-增量刷新；指数成分要保留历史快照，不能用当前成分覆盖过去。
+周任务每周完整拉取研究范围内全部财务报告期和全部股票分红历史，但只差异写库，不做全表删除重写。
+这避免依赖公告发现窗口而遗漏供应商静默修订。指数成分保留历史快照，不能用当前成分覆盖过去。
 
 `audit:data` 是只读诊断，不负责修复。生产审计分三档：
 
@@ -783,10 +791,8 @@ systemctl status jixie-backup.service
 
 ### Phase C：每周维护
 
-1. 为财务、分红、指数成分等实现真正增量刷新；
-2. 让同步函数报告受影响日期；
-3. 新增 weekly pipeline、service 和 timer；
-4. 验证必要的历史 market-state 重算。
+已完成 weekly pipeline、service/timer、财务 VIP 全报告期核对、分红全股票核对、持久化断点，以及
+成分/行情变化驱动的历史 market-state 重算。
 
 ### Phase D：异地备份与外部告警
 

@@ -507,6 +507,7 @@ export interface FinaIndicatorRow {
   or_yoy: number | null; // revenue YoY growth, %
   netprofit_yoy: number | null; // net profit attributable to parent, YoY growth, %
   ocf_to_profit: number | null; // operating cash flow / operating profit
+  update_flag: string | null; // 1 = revised record
 }
 
 /** Financial indicators per report period. Pulled per ts_code (one call returns its full history,
@@ -518,7 +519,21 @@ export async function finaIndicator(
   const rows = await client.call(
     'fina_indicator',
     params,
-    'ts_code,ann_date,end_date,roe,roe_waa,roa,grossprofit_margin,netprofit_margin,debt_to_assets,or_yoy,netprofit_yoy,ocf_to_profit',
+    'ts_code,ann_date,end_date,roe,roe_waa,roa,grossprofit_margin,netprofit_margin,debt_to_assets,or_yoy,netprofit_yoy,ocf_to_profit,update_flag',
+  );
+  return rows as unknown as FinaIndicatorRow[];
+}
+
+/** Fetch one report period for the whole A-share market. The VIP endpoint requires 5,000 points
+ * and currently caps one response at 10,000 rows. */
+export async function finaIndicatorVip(
+  client: TushareClient,
+  period: TradeDate,
+): Promise<FinaIndicatorRow[]> {
+  const rows = await client.call(
+    'fina_indicator_vip',
+    { period },
+    'ts_code,ann_date,end_date,roe,roe_waa,roa,grossprofit_margin,netprofit_margin,debt_to_assets,or_yoy,netprofit_yoy,ocf_to_profit,update_flag',
   );
   return rows as unknown as FinaIndicatorRow[];
 }

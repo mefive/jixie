@@ -88,7 +88,9 @@ pnpm import:data
 
 默认导入 2015 年至今的 A 股日线/复权、每日估值、涨跌停、资金流、龙虎榜、财务与分红、申万行业、
 主要 ETF、指数和股指期货。最终阶段先修复基线，再预计算市场状态并执行严格数据审计。随后 bootstrap
-启动 daily coordinator，由 daily 在同一维护状态机内验证基线、建立连续发布水位并完成 catch-up。
+启动 daily coordinator，由 daily 在同一维护状态机内验证基线、建立连续发布水位并完成 catch-up。财务
+和分红阶段内部按股票分批启动短生命周期子进程，避免首次导入也积累 Node/Prisma 原生内存；这不会增加
+新的部署命令。
 
 > **研究史(用户、策略、因子、回测记录)不会生成或迁移**——Tushare 只提供市场数据，prod 从空库开始积累自己的研究。
 
@@ -105,7 +107,9 @@ journalctl -u jixie-maintenance.service -n 200 --no-pager
 `jixie-maintenance.timer` 在工作日上海时间 17:30、18:30、19:30 尝试同一流水线；停机数日后由
 coordinator 从连续水位补齐所有缺失交易日，并在每次运行中回查水位前最近 5 个交易日。周任务回查
 最近 252 个交易日；允许列表内的量价、复权、估值、涨跌停、资金流和主要指数缺口会自动重拉、复检并
-按需重算 market-state。不要再安装旧 cron，也不要在 API 内启动第二个 scheduler。
+按需重算 market-state。财务通过 VIP 按全部报告期核对，分红按全部股票核对，并用持久化 checkpoint
+支持 OOM 或重启后续传；财务默认每 4 个报告期、分红默认每 200 只股票启动独立子进程，批次结束即释放
+Node/Prisma 原生内存。不要再安装旧 cron，也不要在 API 内启动第二个 scheduler。
 完整顺序、锁、维护 Gate 和手动修复见
 [`production-maintenance.md`](./design/production-maintenance.md)。
 

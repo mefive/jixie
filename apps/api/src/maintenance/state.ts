@@ -103,7 +103,7 @@ export async function finishMaintenanceRun(
   status: 'done' | 'error',
   options: { summary?: unknown; error?: string } = {},
 ): Promise<void> {
-  await prisma.maintenanceRun.update({
+  const finish = prisma.maintenanceRun.update({
     where: { id: runId },
     data: {
       status,
@@ -113,6 +113,38 @@ export async function finishMaintenanceRun(
       heartbeatAt: new Date(),
       finishedAt: new Date(),
     },
+  });
+  if (status === 'done') {
+    await prisma.$transaction([
+      finish,
+      prisma.maintenanceCheckpoint.deleteMany({ where: { runId } }),
+    ]);
+    return;
+  }
+
+  await finish;
+}
+
+export async function completedMaintenanceItems(
+  runId: string,
+  stage: string,
+): Promise<Set<string>> {
+  const rows = await prisma.maintenanceCheckpoint.findMany({
+    where: { runId, stage },
+    select: { itemKey: true },
+  });
+  return new Set(rows.map((row) => row.itemKey));
+}
+
+export async function completeMaintenanceItem(
+  runId: string,
+  stage: string,
+  itemKey: string,
+): Promise<void> {
+  await prisma.maintenanceCheckpoint.upsert({
+    where: { runId_stage_itemKey: { runId, stage, itemKey } },
+    create: { runId, stage, itemKey },
+    update: { completedAt: new Date() },
   });
 }
 
