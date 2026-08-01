@@ -11,6 +11,7 @@ import {
   financialHistoryStart,
   quarterlyReportPeriods,
 } from '../src/maintenance/reference-periods.js';
+import { stockCodesWithDailyData } from '../src/store/sync.js';
 
 /**
  * Sync per-stock financials (fina_indicator + dividend history) into the local store.
@@ -22,7 +23,7 @@ async function main(): Promise<void> {
   const interval = Math.max(cfg.minIntervalMs, 800);
   const financialChunkSize = positiveInteger(
     process.env.MAINTENANCE_WEEKLY_FINANCIAL_PERIODS_PER_PROCESS,
-    4,
+    1,
   );
   const dividendChunkSize = positiveInteger(
     process.env.MAINTENANCE_WEEKLY_DIVIDEND_CODES_PER_PROCESS,
@@ -32,12 +33,7 @@ async function main(): Promise<void> {
   console.log(
     `Syncing financials (VIP periods + per-stock dividend, rate limit ${interval}ms/call)\n`,
   );
-  const allCodeRows = await prisma.daily.findMany({
-    distinct: ['tsCode'],
-    select: { tsCode: true },
-    orderBy: { tsCode: 'asc' },
-  });
-  const allCodes = allCodeRows.map((row) => row.tsCode);
+  const allCodes = await stockCodesWithDailyData();
   const earliestMarketRow = await prisma.daily.findFirst({
     orderBy: { tradeDate: 'asc' },
     select: { tradeDate: true },

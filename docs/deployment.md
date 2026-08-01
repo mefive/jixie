@@ -108,7 +108,7 @@ journalctl -u jixie-maintenance.service -n 200 --no-pager
 coordinator 从连续水位补齐所有缺失交易日，并在每次运行中回查水位前最近 5 个交易日。周任务回查
 最近 252 个交易日；允许列表内的量价、复权、估值、涨跌停、资金流和主要指数缺口会自动重拉、复检并
 按需重算 market-state。财务通过 VIP 按全部报告期核对，分红按全部股票核对，并用持久化 checkpoint
-支持 OOM 或重启后续传；财务默认每 4 个报告期、分红默认每 200 只股票启动独立子进程，批次结束即释放
+支持 OOM 或重启后续传；财务默认每 1 个报告期、分红默认每 200 只股票启动独立子进程，批次结束即释放
 Node/Prisma 原生内存。不要再安装旧 cron，也不要在 API 内启动第二个 scheduler。
 完整顺序、锁、维护 Gate 和手动修复见
 [`production-maintenance.md`](./design/production-maintenance.md)。
