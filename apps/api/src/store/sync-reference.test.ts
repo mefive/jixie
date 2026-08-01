@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   dividendFindMany: vi.fn(),
   dividendDeleteMany: vi.fn(),
   dividendCreateMany: vi.fn(),
+  dailyGroupBy: vi.fn(),
 }));
 
 vi.mock('../tushare/api.js', () => ({
@@ -38,6 +39,9 @@ vi.mock('../lib/prisma.js', () => {
         deleteMany: mocks.dividendDeleteMany,
         createMany: mocks.dividendCreateMany,
       },
+      daily: {
+        groupBy: mocks.dailyGroupBy,
+      },
       $transaction: vi.fn(async (input) =>
         typeof input === 'function' ? input(transactionClient) : Promise.all(input),
       ),
@@ -45,7 +49,8 @@ vi.mock('../lib/prisma.js', () => {
   };
 });
 
-const { syncDividend, syncFinaIndicator, syncFinaIndicatorVip } = await import('./sync.js');
+const { stockCodesWithDailyData, syncDividend, syncFinaIndicator, syncFinaIndicatorVip } =
+  await import('./sync.js');
 const client = {} as TushareClient;
 
 describe('incremental financial reference synchronization', () => {
@@ -71,6 +76,16 @@ describe('incremental financial reference synchronization', () => {
     expect(summary).toMatchObject({ processed: 1, changed: 0, created: 0, updated: 0 });
     expect(mocks.finaCreateMany).not.toHaveBeenCalled();
     expect(mocks.finaUpdate).not.toHaveBeenCalled();
+  });
+
+  it('deduplicates the Daily universe inside SQLite', async () => {
+    mocks.dailyGroupBy.mockResolvedValue([{ tsCode: '000001.SZ' }, { tsCode: '000002.SZ' }]);
+
+    await expect(stockCodesWithDailyData()).resolves.toEqual(['000001.SZ', '000002.SZ']);
+    expect(mocks.dailyGroupBy).toHaveBeenCalledWith({
+      by: ['tsCode'],
+      orderBy: { tsCode: 'asc' },
+    });
   });
 
   it('updates only a changed financial report period', async () => {

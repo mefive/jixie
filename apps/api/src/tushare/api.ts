@@ -530,12 +530,19 @@ export async function finaIndicatorVip(
   client: TushareClient,
   period: TradeDate,
 ): Promise<FinaIndicatorRow[]> {
-  const rows = await client.call(
-    'fina_indicator_vip',
-    { period },
-    'ts_code,ann_date,end_date,roe,roe_waa,roa,grossprofit_margin,netprofit_margin,debt_to_assets,or_yoy,netprofit_yoy,ocf_to_profit,update_flag',
-  );
-  return rows as unknown as FinaIndicatorRow[];
+  const pageSize = 10_000;
+  const rows: FinaIndicatorRow[] = [];
+  for (let offset = 0; ; offset += pageSize) {
+    const page = await client.call(
+      'fina_indicator_vip',
+      { period, limit: pageSize, offset },
+      'ts_code,ann_date,end_date,roe,roe_waa,roa,grossprofit_margin,netprofit_margin,debt_to_assets,or_yoy,netprofit_yoy,ocf_to_profit,update_flag',
+    );
+    rows.push(...(page as unknown as FinaIndicatorRow[]));
+    if (page.length < pageSize) {
+      return rows;
+    }
+  }
 }
 
 export interface DividendRow {

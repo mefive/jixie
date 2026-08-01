@@ -783,11 +783,11 @@ export async function syncMoneyflow(
   log('syncMoneyflow 完成');
 }
 
-/** All stock codes that have price data (incl. delisted), the universe for per-stock financial sync. */
-async function getAllStockCodes(): Promise<string[]> {
-  const rows = await prisma.daily.findMany({
-    distinct: ['tsCode'],
-    select: { tsCode: true },
+/** All stock codes that have price data (incl. delisted). GROUP BY must happen in SQLite: Prisma's
+ * client-side distinct can materialize the multi-million-row Daily code column in Node. */
+export async function stockCodesWithDailyData(): Promise<string[]> {
+  const rows = await prisma.daily.groupBy({
+    by: ['tsCode'],
     orderBy: { tsCode: 'asc' },
   });
   return rows.map((r) => r.tsCode);
@@ -810,7 +810,7 @@ export async function syncFinaIndicator(
     onCodeComplete?: (code: string) => Promise<void> | void;
   } = {},
 ): Promise<ReferenceSyncSummary> {
-  const all = codes ?? (await getAllStockCodes());
+  const all = codes ?? (await stockCodesWithDailyData());
   const existing = opts.refreshExisting
     ? []
     : await prisma.finaIndicator.findMany({
@@ -887,7 +887,7 @@ export async function syncDividend(
     onCodeComplete?: (code: string) => Promise<void> | void;
   } = {},
 ): Promise<ReferenceSyncSummary> {
-  const all = codes ?? (await getAllStockCodes());
+  const all = codes ?? (await stockCodesWithDailyData());
   const existing = options.refreshExisting
     ? []
     : await prisma.dividend.findMany({
@@ -965,9 +965,6 @@ export async function syncFinaIndicatorVip(
 
   for (const period of periods) {
     const rows = await finaIndicatorVip(client, period as TradeDate);
-    if (rows.length >= 10_000) {
-      throw new Error(`fina_indicator_vip reached its 10,000-row limit for ${period}`);
-    }
     if (rows.some((row) => row.end_date !== period)) {
       throw new Error(`fina_indicator_vip returned a mismatched report period for ${period}`);
     }

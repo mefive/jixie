@@ -553,10 +553,11 @@ pnpm maintenance weekly [--force]
 13. 验证派生表，写入 weekly summary 并退出维护模式。
 
 财务阶段按报告期、分红阶段按股票写入 `MaintenanceCheckpoint`。失败和 OOM 保留 checkpoint；同一
-weekly 目标重试时跳过已完成项目。财务默认每 4 个报告期、分红默认每 200 只股票启动独立子进程；批次
+weekly 目标重试时跳过已完成项目。财务默认每 1 个报告期、分红默认每 200 只股票启动独立子进程；批次
 退出后原生匿名内存由操作系统回收，父进程再执行 `PRAGMA wal_checkpoint(PASSIVE)`。
 
-批次参数可通过 `MAINTENANCE_WEEKLY_FINANCIAL_PERIODS_PER_PROCESS`（默认 4）和
+单个 VIP 响应达到 10,000 行时使用 `limit/offset` 继续分页，不把截断数据视为完整报告期。批次参数可通过
+`MAINTENANCE_WEEKLY_FINANCIAL_PERIODS_PER_PROCESS`（默认 1）和
 `MAINTENANCE_WEEKLY_DIVIDEND_CODES_PER_PROCESS`（默认 200）调整。
 
 同步函数必须返回“新增、更新、删除数量”和“最早受影响日期”。只有以下变化需要触发历史派生重算：

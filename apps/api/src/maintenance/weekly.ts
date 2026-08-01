@@ -11,6 +11,7 @@ import {
   syncStockBasic,
   syncStockNameHistory,
   syncSwIndustry,
+  stockCodesWithDailyData,
   type ReferenceSyncSummary,
 } from '../store/sync.js';
 import { TushareClient } from '../tushare/client.js';
@@ -108,12 +109,7 @@ export async function runWeeklyMaintenance(
     await syncStockBasic(standardClient);
     await syncStockNameHistory(standardClient, '19900101' as TradeDate, today as TradeDate);
 
-    const allCodeRows = await prisma.daily.findMany({
-      distinct: ['tsCode'],
-      select: { tsCode: true },
-      orderBy: { tsCode: 'asc' },
-    });
-    const allCodes = allCodeRows.map((row) => row.tsCode);
+    const allCodes = await stockCodesWithDailyData();
     const earliestMarketRow = await prisma.daily.findFirst({
       orderBy: { tradeDate: 'asc' },
       select: { tradeDate: true },
@@ -134,7 +130,7 @@ export async function runWeeklyMaintenance(
       run.id,
       'financials',
       financialPeriods,
-      positiveInteger(process.env.MAINTENANCE_WEEKLY_FINANCIAL_PERIODS_PER_PROCESS, 4),
+      positiveInteger(process.env.MAINTENANCE_WEEKLY_FINANCIAL_PERIODS_PER_PROCESS, 1),
       onLog,
     );
     await checkpointSqliteWal();
