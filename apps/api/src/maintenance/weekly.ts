@@ -5,14 +5,13 @@ import { prisma } from '../lib/prisma.js';
 import { syncMarketIndicators } from '../market/sync-market-indicators.js';
 import { MARKET_STATE_INDEX_CODES } from '../store/index-presets.js';
 import {
-  syncDividend,
   syncEtfBasic,
-  syncFinaIndicator,
   syncFutureContracts,
   syncIndexWeight,
   syncStockBasic,
   syncStockNameHistory,
   syncSwIndustry,
+  type ReferenceSyncSummary,
 } from '../store/sync.js';
 import { TushareClient } from '../tushare/client.js';
 import { canonicalizeStockCodes } from './canonicalize-stock-codes.js';
@@ -26,12 +25,21 @@ import {
 import {
   advanceWeeklyWatermark,
   beginMaintenanceRun,
+  completedMaintenanceItems,
   finishMaintenanceRun,
   getMaintenanceState,
   startMaintenanceHeartbeat,
   type MaintenanceTrigger,
   updateMaintenanceRun,
 } from './state.js';
+import { financialHistoryStart, quarterlyReportPeriods } from './reference-periods.js';
+import {
+  addReferenceSyncSummary,
+  chunkReferenceCodes,
+  emptyReferenceSyncSummary,
+  runReferenceWorkerProcess,
+} from './reference-worker-process.js';
+import type { ReferenceWorkerStage } from './reference-worker.js';
 
 export interface WeeklyMaintenanceSummary {
   date: string;
@@ -41,7 +49,14 @@ export interface WeeklyMaintenanceSummary {
   canonicalizedRows: number;
   earliestMarketChange: string | null;
   selfHealing: SelfHealSummary | null;
+  financials: WeeklyReferenceSyncSummary | null;
+  dividends: WeeklyReferenceSyncSummary | null;
   dataRevision: number | null;
+}
+
+interface WeeklyReferenceSyncSummary extends ReferenceSyncSummary {
+  planned: number;
+  resumed: number;
 }
 
 export async function runWeeklyMaintenance(
@@ -72,6 +87,8 @@ export async function runWeeklyMaintenance(
     canonicalizedRows: 0,
     earliestMarketChange: null,
     selfHealing: null,
+    financials: null,
+    dividends: null,
     dataRevision: null,
   };
   if (run.skipped && !options.force) {
@@ -84,16 +101,53 @@ export async function runWeeklyMaintenance(
     await updateMaintenanceRun(run.id, 'waiting_for_jobs', summary);
     await waitForRunningWork(onLog);
     const standardClient = createClient();
-    const financialClient = createClient(800);
     const weightStart = addMonths(today, -6);
+    const state = await getMaintenanceState();
 
     await updateMaintenanceRun(run.id, 'stock_reference', summary);
     await syncStockBasic(standardClient);
     await syncStockNameHistory(standardClient, '19900101' as TradeDate, today as TradeDate);
 
+    const allCodeRows = await prisma.daily.findMany({
+      distinct: ['tsCode'],
+      select: { tsCode: true },
+      orderBy: { tsCode: 'asc' },
+    });
+    const allCodes = allCodeRows.map((row) => row.tsCode);
+    const earliestMarketRow = await prisma.daily.findFirst({
+      orderBy: { tradeDate: 'asc' },
+      select: { tradeDate: true },
+    });
+    if (!earliestMarketRow) {
+      throw new Error('Daily is empty; complete the full market-data import first');
+    }
+    const financialPeriods = quarterlyReportPeriods(
+      financialHistoryStart(earliestMarketRow.tradeDate),
+      today,
+    );
+    onLog(
+      `Full reference reconciliation: ${financialPeriods.length} financial periods via VIP, ${allCodes.length} dividend stocks`,
+    );
+
     await updateMaintenanceRun(run.id, 'financials', summary);
-    await syncFinaIndicator(financialClient, undefined, { forceAll: true });
-    await syncDividend(financialClient, undefined, { forceAll: true });
+    summary.financials = await runReferenceStage(
+      run.id,
+      'financials',
+      financialPeriods,
+      positiveInteger(process.env.MAINTENANCE_WEEKLY_FINANCIAL_PERIODS_PER_PROCESS, 4),
+      onLog,
+    );
+    await checkpointSqliteWal();
+
+    await updateMaintenanceRun(run.id, 'dividends', summary);
+    summary.dividends = await runReferenceStage(
+      run.id,
+      'dividends',
+      allCodes,
+      positiveInteger(process.env.MAINTENANCE_WEEKLY_DIVIDEND_CODES_PER_PROCESS, 200),
+      onLog,
+    );
+    await checkpointSqliteWal();
 
     const indexBefore = await prisma.indexWeight.findMany({
       where: {
@@ -153,7 +207,6 @@ export async function runWeeklyMaintenance(
       canonicalization.earliestMarketDate,
     ]);
 
-    const state = await getMaintenanceState();
     if (state.dailyPublishedThrough) {
       const lookback = positiveInteger(process.env.MAINTENANCE_WEEKLY_REPAIR_LOOKBACK_DAYS, 252);
       const repairDates = await recentPublishedTradingDates(state.dailyPublishedThrough, lookback);
@@ -226,6 +279,38 @@ function createClient(minimumInterval = 0): TushareClient {
     baseUrl: config.baseUrl,
     minIntervalMs: Math.max(config.minIntervalMs, minimumInterval),
   });
+}
+
+async function runReferenceStage(
+  runId: string,
+  stage: ReferenceWorkerStage,
+  plannedItems: string[],
+  chunkSize: number,
+  onLog: (line: string) => void,
+): Promise<WeeklyReferenceSyncSummary> {
+  const completed = await completedMaintenanceItems(runId, stage);
+  const remaining = plannedItems.filter((item) => !completed.has(item));
+  const chunks = chunkReferenceCodes(remaining, chunkSize);
+  let result = emptyReferenceSyncSummary();
+
+  for (const [index, items] of chunks.entries()) {
+    onLog(
+      `${stage} worker batch ${index + 1}/${chunks.length}: ${items.length} items (process-isolated)`,
+    );
+    const current = await runReferenceWorkerProcess(stage, runId, items);
+    result = addReferenceSyncSummary(result, current);
+    await checkpointSqliteWal();
+  }
+
+  return {
+    ...result,
+    planned: plannedItems.length,
+    resumed: plannedItems.length - remaining.length,
+  };
+}
+
+async function checkpointSqliteWal(): Promise<void> {
+  await prisma.$queryRawUnsafe('PRAGMA wal_checkpoint(PASSIVE);');
 }
 
 async function rollingAuditStart(endDate: string): Promise<string> {

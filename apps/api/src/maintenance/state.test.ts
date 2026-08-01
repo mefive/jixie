@@ -2,34 +2,55 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const findFirst = vi.fn();
 const updateMany = vi.fn();
+const updateRun = vi.fn();
+const checkpointFindMany = vi.fn();
+const checkpointUpsert = vi.fn();
+const checkpointDeleteMany = vi.fn();
 const findState = vi.fn();
 const createState = vi.fn();
 const updateState = vi.fn();
-const runTransaction = vi.fn(async (callback) =>
-  callback({
-    maintenanceState: {
-      findUnique: findState,
-      create: createState,
-      update: updateState,
-    },
-  }),
+const runTransaction = vi.fn(async (input) =>
+  typeof input === 'function'
+    ? input({
+        maintenanceState: {
+          findUnique: findState,
+          create: createState,
+          update: updateState,
+        },
+      })
+    : Promise.all(input),
 );
 
 vi.mock('../lib/prisma.js', () => ({
   prisma: {
     $transaction: runTransaction,
-    maintenanceRun: { findFirst, updateMany },
+    maintenanceRun: { findFirst, updateMany, update: updateRun },
+    maintenanceCheckpoint: {
+      findMany: checkpointFindMany,
+      upsert: checkpointUpsert,
+      deleteMany: checkpointDeleteMany,
+    },
     maintenanceState: { findUnique: findState },
   },
 }));
 
-const { getMaintenanceStatus, initializeDailyWatermark, recoverInterruptedMaintenanceRuns } =
-  await import('./state.js');
+const {
+  completeMaintenanceItem,
+  completedMaintenanceItems,
+  finishMaintenanceRun,
+  getMaintenanceStatus,
+  initializeDailyWatermark,
+  recoverInterruptedMaintenanceRuns,
+} = await import('./state.js');
 
 describe('maintenance status gate', () => {
   beforeEach(() => {
     findFirst.mockReset();
     updateMany.mockReset();
+    updateRun.mockReset();
+    checkpointFindMany.mockReset();
+    checkpointUpsert.mockReset();
+    checkpointDeleteMany.mockReset();
     findState.mockReset();
     createState.mockReset();
     updateState.mockReset();
@@ -198,6 +219,37 @@ describe('maintenance status gate', () => {
         data: expect.objectContaining({ status: 'error', stage: 'interrupted' }),
       }),
     );
+  });
+
+  it('persists resumable per-item checkpoints', async () => {
+    checkpointFindMany.mockResolvedValue([{ itemKey: '000001.SZ' }, { itemKey: '000002.SZ' }]);
+    checkpointUpsert.mockResolvedValue({});
+
+    await expect(completedMaintenanceItems('weekly-1', 'financials')).resolves.toEqual(
+      new Set(['000001.SZ', '000002.SZ']),
+    );
+    await completeMaintenanceItem('weekly-1', 'financials', '000003.SZ');
+
+    expect(checkpointUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          runId_stage_itemKey: {
+            runId: 'weekly-1',
+            stage: 'financials',
+            itemKey: '000003.SZ',
+          },
+        },
+      }),
+    );
+  });
+
+  it('clears checkpoints only after a successful terminal state', async () => {
+    updateRun.mockResolvedValue({});
+    checkpointDeleteMany.mockResolvedValue({ count: 2 });
+
+    await finishMaintenanceRun('weekly-1', 'done');
+
+    expect(checkpointDeleteMany).toHaveBeenCalledWith({ where: { runId: 'weekly-1' } });
   });
 
   it('treats repeated initialization at the same watermark as a no-op', async () => {

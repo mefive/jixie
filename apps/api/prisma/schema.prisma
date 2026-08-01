@@ -471,6 +471,18 @@ model MaintenanceRun {
   @@index([status, updatedAt])
 }
 
+/// Durable per-item progress for long maintenance stages. Failed or killed runs keep checkpoints
+/// so the retry can resume; a successful run removes them after recording its terminal state.
+model MaintenanceCheckpoint {
+  runId       String
+  stage       String
+  itemKey     String
+  completedAt DateTime @default(now())
+
+  @@id([runId, stage, itemKey])
+  @@index([runId, stage])
+}
+
 /// Singleton publication state. `dailyPublishedThrough` is a continuous SSE trading-day watermark.
 model MaintenanceState {
   key                   String   @id

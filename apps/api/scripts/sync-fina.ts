@@ -1,33 +1,66 @@
 import { loadTushareConfig } from '../src/config.js';
-import { TushareClient } from '../src/tushare/client.js';
 import { prisma } from '../src/lib/prisma.js';
-import { syncFinaIndicator, syncDividend } from '../src/store/sync.js';
+import {
+  addReferenceSyncSummary,
+  chunkReferenceCodes,
+  emptyReferenceSyncSummary,
+  runReferenceWorkerProcess,
+} from '../src/maintenance/reference-worker-process.js';
+import type { ReferenceWorkerStage } from '../src/maintenance/reference-worker.js';
+import {
+  financialHistoryStart,
+  quarterlyReportPeriods,
+} from '../src/maintenance/reference-periods.js';
 
 /**
  * Sync per-stock financials (fina_indicator + dividend history) into the local store.
- * Usage: pnpm --filter api sync:fina [refresh]
- *   refresh — re-pull stocks synced before the 2026-07 fina_indicator column expansion
- *             (gross margin / net margin / debt ratio / YoY growth / ROA / cash-flow ratio;
- *             resumable, see syncFinaIndicator).
- *
- * Financial APIs are rate-limited (~80/min on lower tiers), so this uses a ≥800ms interval. All
- * syncs are resumable (skip stocks already present), so an interrupted run can simply be re-run.
+ * Financial indicators use the VIP all-market endpoint by report period. Dividend history remains
+ * per-stock. Both stages run in bounded child processes.
  */
 async function main(): Promise<void> {
   const cfg = loadTushareConfig();
-  const refresh = process.argv[2] === 'refresh';
-  const interval = Math.max(cfg.minIntervalMs, 800); // respect the financial 80/min limit
-  const client = new TushareClient({
-    token: cfg.token,
-    baseUrl: cfg.baseUrl,
-    minIntervalMs: interval,
-  });
+  const interval = Math.max(cfg.minIntervalMs, 800);
+  const financialChunkSize = positiveInteger(
+    process.env.MAINTENANCE_WEEKLY_FINANCIAL_PERIODS_PER_PROCESS,
+    4,
+  );
+  const dividendChunkSize = positiveInteger(
+    process.env.MAINTENANCE_WEEKLY_DIVIDEND_CODES_PER_PROCESS,
+    200,
+  );
 
   console.log(
-    `Syncing financials (fina_indicator + dividend, rate limit ${interval}ms/call${refresh ? ', column backfill' : ''})\n`,
+    `Syncing financials (VIP periods + per-stock dividend, rate limit ${interval}ms/call)\n`,
   );
-  await syncFinaIndicator(client, undefined, { refresh });
-  await syncDividend(client);
+  const allCodeRows = await prisma.daily.findMany({
+    distinct: ['tsCode'],
+    select: { tsCode: true },
+    orderBy: { tsCode: 'asc' },
+  });
+  const allCodes = allCodeRows.map((row) => row.tsCode);
+  const earliestMarketRow = await prisma.daily.findFirst({
+    orderBy: { tradeDate: 'asc' },
+    select: { tradeDate: true },
+  });
+  if (!earliestMarketRow) {
+    throw new Error('Daily is empty; import market bars before financial references');
+  }
+  const financialPeriods = quarterlyReportPeriods(
+    financialHistoryStart(earliestMarketRow.tradeDate),
+    shanghaiToday(),
+  );
+  const dividendRows = await prisma.dividend.findMany({
+    distinct: ['tsCode'],
+    select: { tsCode: true },
+  });
+  const dividendExisting = new Set(dividendRows.map((row) => row.tsCode));
+
+  await syncStage('financials', financialPeriods, financialChunkSize);
+  await syncStage(
+    'dividends',
+    allCodes.filter((code) => !dividendExisting.has(code)),
+    dividendChunkSize,
+  );
 
   console.log('\nStored row counts:');
   console.table({
@@ -37,6 +70,38 @@ async function main(): Promise<void> {
 
   await prisma.$disconnect();
   console.log('✅ Financial sync complete');
+}
+
+async function syncStage(
+  stage: ReferenceWorkerStage,
+  codes: string[],
+  chunkSize: number,
+): Promise<void> {
+  const chunks = chunkReferenceCodes(codes, chunkSize);
+  let summary = emptyReferenceSyncSummary();
+
+  for (const [index, chunk] of chunks.entries()) {
+    console.log(`  ${stage} process ${index + 1}/${chunks.length}: ${chunk.length} items`);
+    const current = await runReferenceWorkerProcess(stage, null, chunk);
+    summary = addReferenceSyncSummary(summary, current);
+  }
+  console.log(`  ${stage} complete: ${summary.processed} processed, ${summary.changed} changed`);
+}
+
+function shanghaiToday(): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  })
+    .format(new Date())
+    .replaceAll('-', '');
+}
+
+function positiveInteger(value: string | undefined, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
 }
 
 main().catch(async (e: unknown) => {
