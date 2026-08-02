@@ -15,6 +15,7 @@ import {
   syncTradeCal,
 } from '../store/sync.js';
 import { TushareClient } from '../tushare/client.js';
+import { shouldSkipScheduledClosedDay } from './daily-schedule.js';
 import { validateDerivedMarketRange, validateRawMarketDate } from './quality.js';
 import {
   recentPublishedTradingDates,
@@ -58,12 +59,13 @@ export async function runDailyMaintenance(
   const onLog = options.onLog ?? ((line: string) => console.log(`[maintenance:daily] ${line}`));
   const trigger = options.trigger ?? (process.env.INVOCATION_ID ? 'timer' : 'manual');
   const client = createClient();
+  const today = shanghaiToday();
   let state = await getMaintenanceState();
   const calendarStart =
-    options.targetDate ?? state.dailyPublishedThrough ?? previousCalendarDate(shanghaiToday());
+    options.targetDate ?? state.dailyPublishedThrough ?? previousCalendarDate(today);
   const calendarEnd = options.targetDate
     ? addCalendarDays(options.targetDate, 14)
-    : addCalendarDays(shanghaiToday(), 14);
+    : addCalendarDays(today, 14);
   await syncTradeCal(client, calendarStart as TradeDate, calendarEnd as TradeDate);
   const latestAvailableCutoff = await latestCompletedTradeDate();
   const cutoff = options.targetDate ?? latestAvailableCutoff;
@@ -81,6 +83,38 @@ export async function runDailyMaintenance(
   const dates = options.targetDate
     ? await explicitTradingDates(cutoff)
     : await missingTradingDates(state.dailyPublishedThrough!, cutoff);
+
+  if (!options.targetDate && trigger === 'timer') {
+    const todayCalendar = await prisma.tradeCal.findUnique({
+      where: { exchange_calDate: { exchange: 'SSE', calDate: today } },
+      select: { isOpen: true },
+    });
+
+    // systemd understands weekdays, not SSE holidays. Exit before opening the normal daily run
+    // only when the refreshed calendar explicitly marks today closed and no older trading date
+    // is missing. An absent calendar row must follow the normal path instead of hiding a sync
+    // issue. First-time baseline initialization, when needed, has already run above.
+    if (
+      shouldSkipScheduledClosedDay({
+        trigger,
+        pendingDates: dates.length,
+        todayIsOpen: todayCalendar?.isOpen ?? null,
+      })
+    ) {
+      onLog(`${today} is not an open SSE trading day and no catch-up is pending; skipping`);
+      return {
+        cutoff,
+        startDate: null,
+        readyThrough: state.dailyPublishedThrough,
+        completedDates: 0,
+        totalDates: 0,
+        dataRevision: state.dataRevision,
+        selfHealing: null,
+        signals: null,
+      };
+    }
+  }
+
   if (dates.length === 0) {
     if (options.targetDate) {
       onLog(`${cutoff} is not an open trading day; no maintenance is needed`);
