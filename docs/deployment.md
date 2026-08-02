@@ -104,8 +104,10 @@ sudo systemctl start jixie-maintenance.service
 journalctl -u jixie-maintenance.service -n 200 --no-pager
 ```
 
-`jixie-maintenance.timer` 在工作日上海时间 17:30、18:30、19:30 尝试同一流水线；停机数日后由
-coordinator 从连续水位补齐所有缺失交易日，并在每次运行中回查水位前最近 5 个交易日。周任务回查
+`jixie-maintenance.timer` 在工作日上海时间 22:30 尝试一次流水线。systemd 不识别交易所节假日，
+因此休市工作日仍会唤醒 service；已有发布水位时，coordinator 刷新 SSE 交易日历后若没有历史缺口，
+会在进入正常 daily 维护流程前成功退出，若有缺口则照常补齐。停机数日后由 coordinator 从连续水位
+补齐所有缺失交易日，并在每次运行中回查水位前最近 5 个交易日。周任务回查
 最近 252 个交易日；允许列表内的量价、复权、估值、涨跌停、资金流和主要指数缺口会自动重拉、复检并
 按需重算 market-state。财务通过 VIP 按全部报告期核对，分红按全部股票核对，并用持久化 checkpoint
 支持 OOM 或重启后续传；财务默认每 1 个报告期、分红默认每 200 只股票启动独立子进程，批次结束即释放
