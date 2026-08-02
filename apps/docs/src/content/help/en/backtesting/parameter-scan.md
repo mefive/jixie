@@ -90,6 +90,14 @@ Branch on `ctx.params.sizing` for equal weight, fixed lots, or ATR risk sizing. 
 
 The result overlays NAV rebased to 1 and compares annual return, maximum drawdown, annual volatility, longest underwater trading period, and Sharpe. It changes only the declared sizing branch and never rewrites entry or exit logic.
 
+The next image marks the sizing-comparison mode, scheme input, and start action:
+
+![Enter sizing schemes for comparison](/docs/images/help/zh/backtesting/sizing-scan-settings-01.png)
+
+The result marks report history, rebased NAV comparison, and per-scheme metrics:
+
+![Sizing-scheme NAV and metric comparison](/docs/images/help/zh/backtesting/sizing-scan-results-01.png)
+
 ## Estimate strategy capacity
 
 A capacity estimate asks when growing capital begins to erode returns through market impact. It does not require declared strategy parameters. Open the scan dialog, choose **Capacity estimate**, and enter three to seven capital levels in CNY 10,000 units, for example `50, 200, 1000, 5000, 20000`.
@@ -101,6 +109,14 @@ Every level uses the same strategy code, date range, and cost model while changi
 - The first level where annual return falls to half the small-capital baseline.
 
 **Not reached** means the largest entered level did not cross that threshold; it does not mean the strategy has unlimited capacity. The estimate depends on turnover, traded liquidity, board-lot constraints, and the configured cost model. A fixed-share strategy will also reduce its invested fraction as capital grows, so confirm that its order-sizing logic represents the scaling behavior you intend to study.
+
+The next image shows where to enter three capital levels:
+
+![Enter capital levels for a capacity estimate](/docs/images/help/zh/backtesting/capacity-scan-settings-01.png)
+
+The result marks report history, return and slippage curves, three threshold notes, and level details:
+
+![Capacity return decay and slippage drag](/docs/images/help/zh/backtesting/capacity-scan-results-01.png)
 
 ## Related articles
 

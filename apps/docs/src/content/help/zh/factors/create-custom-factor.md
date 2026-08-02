@@ -69,6 +69,14 @@ export default defineFactor({
 
 不要为了让所有股票都有数值而把不能计算的情况写成 `0`。零是一个真实数值，会参与排序；`null` 才表示本期没有可用值。
 
+## 使用财务历史字段
+
+自定义因子可以读取按公告日对齐的 ROE 和毛利率历史。`grossprofitMargin` 的单位是百分比，例如 `35` 表示毛利率 35%，不是 `0.35`。
+
+历史字段遵守时点规则：在日期 $t$ 只能使用公告日不晚于 $t$ 的最新报告。报告发布前的交易日不会提前看到数据，首份可用报告之前返回 `null`。财务历史表现为公告日发生变化的阶梯序列，不是每天重新计算的新财务报表。
+
+需要研究毛利率稳定性时，应先写清窗口和缺失值要求。例如使用最近 504 个交易日的有效毛利率计算波动，并在覆盖不足时返回 `null`。不要把尚未公告的年报或当前网页上看到的最新毛利率回填到历史日期。
+
 ## 运行分析并保存当前代码
 
 1. 检查右上方的频率、日期区间和中性化设置。
@@ -78,6 +86,8 @@ export default defineFactor({
 5. 等待右侧出现研究口径、分组收益和指标。
 
 提交分析时，页面会使用并保存当前代码。分析完成后刷新页面，名称、代码和报告仍然存在。
+
+也可以在对话中要求 Agent 为一个明确候选运行探索分析。它会创建同样的不可变报告，但不能启动或揭示正式保留段。具体操作见[让因子 Agent 运行探索分析](/docs/help/factors/agent-explore-analysis)。
 
 下图中的标记分别是：
 
@@ -127,3 +137,4 @@ export default defineFactor({
 - [设置分析范围和样本处理](/docs/help/factors/analysis-settings)
 - [查看第一份因子分析结果](/docs/help/factors/results-overview)
 - [确认策略标识](/docs/help/factors/strategy-key)
+- [让因子 Agent 运行探索分析](/docs/help/factors/agent-explore-analysis)
