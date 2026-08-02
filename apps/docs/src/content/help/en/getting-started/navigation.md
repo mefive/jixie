@@ -54,4 +54,15 @@ Select “Help” in the top navigation whenever you need this manual.
 - On a narrow screen, select “All articles” above the article to expand the article list.
 - Use the previous and next links at the bottom to read in order.
 
-Select “Back to product” in the upper-right corner to leave the Help Center.
+Select **Back to workspace** in the upper-right corner to leave the Help Center. The product logo in the upper-left also returns to the product root.
+
+## System maintenance
+
+While publishing a release or validating new market data, the product may temporarily show **System maintenance**. The page displays the current stage, completion progress, and latest available data date.
+
+- Do not repeatedly refresh, sign out, or resubmit jobs.
+- The original page returns automatically after maintenance completes.
+- “The system will retry at the next scheduled time” means that the current data batch was not published safely; wait for the retry.
+- If it does not recover for an extended period, record the stage and available-through date before reporting the issue.
+
+The maintenance page never asks for a password, verification code, or brokerage information.

@@ -90,9 +90,15 @@ That does not mean the change failed. Check:
 
 Do not repeatedly alter parameters until historical return is highest and treat that combination as reliable.
 
+## Quick backtests in the conversation
+
+The Agent can now run one quick backtest for an explicit candidate and read compact metrics. That result is not saved as the workbench's official result and never deploys automatically. Even when the reply explains a trial return, inspect the code, select **Run backtest**, and review the complete charts and trades.
+
+See [Ask the strategy Agent for a quick backtest](/docs/help/backtesting/agent-quick-backtest) for the full distinction.
+
 ## Related articles
 
 - [Edit a strategy and run it again](/help/backtesting/edit-rerun)
 - [Inspect backtest results](/help/backtesting/results-overview)
 - [Compare several strategy parameters](/help/backtesting/parameter-scan)
-
+- [Ask the strategy Agent for a quick backtest](/help/backtesting/agent-quick-backtest)

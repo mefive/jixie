@@ -69,6 +69,14 @@ The numbered areas are:
 
 Do not return `0` merely to give every stock a value. Zero is a real number and participates in ranking. `null` means that no usable value exists for that period.
 
+## Use financial history fields
+
+Custom factors can read announcement-aligned ROE and gross-profit-margin history. `grossprofitMargin` uses percentage points: `35` means a 35% margin, not `0.35`.
+
+Financial history follows point-in-time rules. On date $t$, only the latest report announced on or before $t$ is available. Earlier dates do not see a future report, and dates before the first available report return `null`. The history is a step series that changes on announcement dates, not a newly calculated financial statement every day.
+
+For gross-margin stability, state the window and missing-data rule first. For example, calculate dispersion from valid values over the latest 504 trading days and return `null` when coverage is insufficient. Never backfill historical dates with the latest margin visible today.
+
 ## Run an analysis and save the current code
 
 1. Check the frequency, date range, and neutralization setting at the top right.
@@ -78,6 +86,8 @@ Do not return `0` merely to give every stock a value. Zero is a real number and 
 5. Wait for the methodology, grouped returns, and metrics on the right.
 
 Submitting the analysis uses and saves the current code. After completion, refresh the page and confirm that the name, code, and report remain available.
+
+You can also ask the Agent to run exploratory analysis for one explicit candidate. It creates the same immutable report but cannot start or reveal a formal holdout. See [Ask the factor Agent to run exploratory analysis](/docs/help/factors/agent-explore-analysis).
 
 The numbered areas are:
 
@@ -127,3 +137,4 @@ Yes. Verify fields, direction, missing-value treatment, and units, then use a re
 - [Set the analysis range and sample treatment](/docs/help/factors/analysis-settings)
 - [Read your first factor analysis result](/docs/help/factors/results-overview)
 - [Confirm the strategy key](/docs/help/factors/strategy-key)
+- [Ask the factor Agent to run exploratory analysis](/docs/help/factors/agent-explore-analysis)

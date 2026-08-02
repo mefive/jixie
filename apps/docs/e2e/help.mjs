@@ -143,8 +143,8 @@ try {
         .evaluateAll((links) => links.map((link) => link.getAttribute('href'))),
     ),
   ].filter(Boolean);
-  if (articleHrefs.length !== 56) {
-    throw new Error(`expected 56 help articles, got ${articleHrefs.length}`);
+  if (articleHrefs.length !== 63) {
+    throw new Error(`expected 63 help articles, got ${articleHrefs.length}`);
   }
   for (const href of articleHrefs) {
     if (new URL(page.url()).pathname !== href) {
@@ -268,6 +268,10 @@ try {
     path: `${SHOTS}11e-help-strategy-revision-guide.png`,
   });
 
+  await page.getByRole('link', { name: '让策略 Agent 先做快捷回测', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '让策略 Agent 先做快捷回测' }).waitFor();
+  await page.getByRole('heading', { level: 2, name: '快捷回测不会做什么' }).waitFor();
+
   await page.getByRole('link', { name: '查看交易明细和成本', exact: true }).first().click();
   await page.getByRole('heading', { level: 1, name: '查看交易明细和成本' }).waitFor();
   if ((await page.locator('.jx-help-figure').count()) !== 2) {
@@ -282,14 +286,20 @@ try {
 
   await page.getByRole('link', { name: '比较多组策略参数', exact: true }).first().click();
   await page.getByRole('heading', { level: 1, name: '比较多组策略参数' }).waitFor();
-  if ((await page.locator('.jx-help-figure').count()) !== 2) {
-    throw new Error('parameter scan article does not render both screenshots');
+  if ((await page.locator('.jx-help-figure').count()) !== 6) {
+    throw new Error('parameter scan article does not render all six screenshots');
   }
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.waitForTimeout(100);
   await page.screenshot({
     path: `${SHOTS}11b-help-parameter-scan-guide.png`,
   });
+
+  await page.getByRole('link', { name: '使用周线和月线条件', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '使用周线和月线条件' }).waitFor();
+  if ((await page.locator('.jx-help-markdown .katex').count()) < 1) {
+    throw new Error('multi-timeframe formula did not render with KaTeX');
+  }
 
   await page.getByRole('link', { name: '运行 ETF 策略', exact: true }).first().click();
   await page.getByRole('heading', { level: 1, name: '运行 ETF 策略' }).waitFor();
@@ -424,6 +434,24 @@ try {
   await page.getByText('中文', { exact: true }).last().click();
   await page.getByRole('heading', { level: 1, name: '因子相关性矩阵' }).waitFor();
 
+  await page.getByRole('link', { name: '新建和编辑多因子合成', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '新建和编辑多因子合成' }).waitFor();
+  if ((await page.locator('.jx-help-figure').count()) !== 1) {
+    throw new Error('factor-composite definition article does not render its screenshot');
+  }
+  if ((await page.locator('.jx-help-markdown .katex').count()) < 1) {
+    throw new Error('factor-composite formula did not render with KaTeX');
+  }
+
+  await page.getByRole('link', { name: '查看多因子合成报告', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '查看多因子合成报告' }).waitFor();
+  if ((await page.locator('.jx-help-figure').count()) !== 1) {
+    throw new Error('factor-composite report article does not render its screenshot');
+  }
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(100);
+  await page.screenshot({ path: `${SHOTS}14a-help-factor-composite.png` });
+
   await page.getByRole('link', { name: '复制预设因子', exact: true }).first().click();
   await page.getByRole('heading', { level: 1, name: '复制预设因子' }).waitFor();
   if ((await page.locator('.jx-help-figure').count()) !== 2) {
@@ -438,6 +466,10 @@ try {
   if ((await page.locator('.jx-help-markdown .katex').count()) < 1) {
     throw new Error('custom factor formula did not render with KaTeX');
   }
+
+  await page.getByRole('link', { name: '让因子 Agent 运行探索分析', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '让因子 Agent 运行探索分析' }).waitFor();
+  await page.getByRole('heading', { level: 2, name: 'Agent 不能做什么' }).waitFor();
 
   await page.getByRole('link', { name: '确认策略标识', exact: true }).first().click();
   await page.getByRole('heading', { level: 1, name: '确认策略标识' }).waitFor();
@@ -517,6 +549,24 @@ try {
   if ((await page.locator('.jx-help-figure').count()) !== 2) {
     throw new Error('signal instruction article does not render both screenshots');
   }
+
+  await page.getByRole('link', { name: '记录实际成交并比较执行偏差', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '记录实际成交并比较执行偏差' }).waitFor();
+  if ((await page.locator('.jx-help-figure').count()) !== 3) {
+    throw new Error('execution-record article does not render all three screenshots');
+  }
+  if ((await page.locator('.jx-help-markdown .katex').count()) < 1) {
+    throw new Error('execution-rate formula did not render with KaTeX');
+  }
+
+  await page.getByRole('link', { name: '使用和记录条件单', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '使用和记录条件单' }).waitFor();
+  if ((await page.locator('.jx-help-figure').count()) !== 1) {
+    throw new Error('conditional-order article does not render its screenshot');
+  }
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(100);
+  await page.screenshot({ path: `${SHOTS}14b-help-signal-execution.png` });
 
   await page.getByRole('link', { name: '查看历史并暂停上线', exact: true }).first().click();
   await page.getByRole('heading', { level: 1, name: '查看历史并暂停上线' }).waitFor();

@@ -127,5 +127,7 @@ A 股普通股票按整手处理。实际交易规则以证券类型和市场为
 ## 相关内容
 
 - [生成今日信号](/docs/help/signals/generate-signals)
+- [记录实际成交并比较执行偏差](/docs/help/signals/record-execution)
+- [使用和记录条件单](/docs/help/signals/conditional-orders)
 - [查看历史并暂停上线](/docs/help/signals/history-pause)
 - [查看交易明细和成本](/docs/help/backtesting/trades-costs)

@@ -2,6 +2,8 @@
 
 After a custom factor has completed an analysis and received a locked strategy key, a backtest can read its values, rank stocks, and select holdings.
 
+A factor composite is a research object and cannot be referenced as one strategy key. To use similar logic in a strategy, explicitly declare the component factors and combination rule in strategy code so weights, directions, and missing-value handling remain reviewable.
+
 ## Before you start
 
 Confirm that:

@@ -20,18 +20,20 @@ try {
   await page.locator('.jx-lab-code .monaco-editor').waitFor({ timeout: 30_000 });
 
   await page.getByRole('button', { name: '参数扫描' }).first().click();
-  const dialog = page.getByRole('dialog', { name: '参数稳健性扫描' });
+  const dialog = page.getByRole('dialog', { name: '扫描实验' });
   await dialog.waitFor();
   const dimensions = page.locator('.jx-parameterScan-dimension');
   await dimensions.first().locator('.ant-input').fill('2, 3');
   await page.getByRole('checkbox', { name: '扫描第二个参数' }).check();
   await dimensions.nth(1).locator('.ant-input').fill('100, 200');
+  await settleAnimations();
 
   await annotatedScreenshot(page, `${OUTPUT}parameter-scan-settings-01.png`, [
-    { locator: dimensions.first(), number: 1 },
-    { locator: dimensions.nth(1), number: 2 },
-    { locator: page.getByRole('checkbox', { name: '同时运行样本内 / 样本外' }), number: 3 },
-    { locator: page.getByRole('button', { name: '开始扫描' }), number: 4 },
+    { locator: dialog.locator('.ant-segmented'), number: 1 },
+    { locator: dimensions.first(), number: 2 },
+    { locator: dimensions.nth(1), number: 3 },
+    { locator: page.getByRole('checkbox', { name: '同时运行样本内 / 样本外' }), number: 4 },
+    { locator: page.getByRole('button', { name: '开始扫描' }), number: 5 },
   ]);
 
   await page.getByRole('button', { name: '开始扫描' }).click();
@@ -59,7 +61,63 @@ try {
     { locator: page.locator('.jx-parameterScan-chart'), number: 3 },
     { locator: page.locator('.jx-parameterScan-table'), number: 4 },
   ]);
-  log(`parameter scan screenshots completed; cells=${rowCount}`);
+
+  await page.getByRole('button', { name: '参数扫描' }).first().click();
+  const sizingDialog = page.getByRole('dialog', { name: '扫描实验' });
+  await sizingDialog.waitFor();
+  await sizingDialog.getByText('仓位方案对比', { exact: true }).click();
+  const sizingDimension = sizingDialog.locator('.jx-parameterScan-dimension');
+  const sizingValues = sizingDimension.locator('.ant-input');
+  await sizingValues.fill('equal, fixed, atr');
+  await sizingValues.press('Home');
+  await settleAnimations();
+  await annotatedScreenshot(page, `${OUTPUT}sizing-scan-settings-01.png`, [
+    { locator: sizingDialog.locator('.ant-segmented'), number: 1 },
+    { locator: sizingDimension, number: 2 },
+    { locator: sizingDialog.getByRole('button', { name: '开始扫描' }), number: 3 },
+  ]);
+  await sizingDialog.getByRole('button', { name: '开始扫描' }).click();
+  await waitForCompletedScan();
+  const sizingRows = page.locator('.jx-parameterScan-table .ant-table-row[data-row-key]');
+  if ((await sizingRows.count()) !== 3) {
+    throw new Error(`expected three sizing rows, got ${await sizingRows.count()}`);
+  }
+  await annotatedScreenshot(page, `${OUTPUT}sizing-scan-results-01.png`, [
+    { locator: page.locator('.jx-parameterScan-history'), number: 1 },
+    { locator: page.locator('.jx-parameterScan-chart'), number: 2 },
+    { locator: page.locator('.jx-parameterScan-table'), number: 3 },
+  ]);
+
+  await page.getByRole('button', { name: '参数扫描' }).first().click();
+  const capacityDialog = page.getByRole('dialog', { name: '扫描实验' });
+  await capacityDialog.waitFor();
+  await capacityDialog.getByText('容量测算', { exact: true }).click();
+  const capacityDimension = capacityDialog.locator('.jx-parameterScan-dimension');
+  await capacityDimension.locator('.ant-input').fill('50, 500, 5000');
+  await settleAnimations();
+  await annotatedScreenshot(page, `${OUTPUT}capacity-scan-settings-01.png`, [
+    { locator: capacityDialog.locator('.ant-segmented'), number: 1 },
+    { locator: capacityDimension, number: 2 },
+    { locator: capacityDialog.getByRole('button', { name: '开始扫描' }), number: 3 },
+  ]);
+  await capacityDialog.getByRole('button', { name: '开始扫描' }).click();
+  await waitForCompletedScan();
+  const capacityRows = page.locator('.jx-parameterScan-table .ant-table-row[data-row-key]');
+  if ((await capacityRows.count()) !== 3) {
+    throw new Error(`expected three capacity rows, got ${await capacityRows.count()}`);
+  }
+  if ((await page.locator('.jx-parameterScan-capacityInsight').count()) !== 3) {
+    throw new Error('expected three capacity insights');
+  }
+  await annotatedScreenshot(page, `${OUTPUT}capacity-scan-results-01.png`, [
+    { locator: page.locator('.jx-parameterScan-history'), number: 1 },
+    { locator: page.locator('.jx-parameterScan-chart'), number: 2 },
+    { locator: page.locator('.jx-parameterScan-capacityInsights'), number: 3 },
+    { locator: page.locator('.jx-parameterScan-table'), number: 4 },
+  ]);
+  log(
+    `scan screenshots completed; parameter=${rowCount} sizing=${await sizingRows.count()} capacity=${await capacityRows.count()}`,
+  );
 } finally {
   await cleanup().catch((error) => log('cleanup failed:', error.message));
   await context.close();
@@ -87,14 +145,20 @@ async function seedStrategy() {
     "let lastMonth = '';",
     'export default defineStrategy({',
     `  name: '${STRATEGY_NAME}',`,
-    '  params: { lookback: 3, shares: 100 },',
+    "  params: { lookback: 3, shares: 100, sizing: 'equal' },",
     "  watch: ['510300.SH'],",
     '  onBar(ctx) {',
     "    const month = ctx.period('monthly');",
     '    const closes = ctx.history("510300.SH", "close", ctx.params.lookback);',
     '    if (month === lastMonth || closes.length < ctx.params.lookback) return;',
     '    lastMonth = month;',
-    "    ctx.order('510300.SH', ctx.params.shares);",
+    "    if (ctx.params.sizing === 'equal') {",
+    "      ctx.orderTargetPercent('510300.SH', 1);",
+    "    } else if (ctx.params.sizing === 'atr') {",
+    "      ctx.order('510300.SH', ctx.atrUnits('510300.SH', 0.01, 2));",
+    '    } else {',
+    "      ctx.order('510300.SH', ctx.params.shares);",
+    '    }',
     '  },',
     '});',
   ].join('\n');
@@ -120,6 +184,25 @@ async function seedStrategy() {
     throw new Error(`strategy seed failed: ${JSON.stringify(seeded)}`);
   }
   return seeded.body.id;
+}
+
+async function waitForCompletedScan() {
+  await page.locator('.jx-parameterScan-progress').waitFor({ timeout: 30_000 });
+  await page.locator('.jx-parameterScan-progress').waitFor({ state: 'detached', timeout: 120_000 });
+  await page.locator('.jx-parameterScan-chart canvas').first().waitFor({ timeout: 30_000 });
+}
+
+async function settleAnimations() {
+  await page.evaluate(() => {
+    for (const animation of document.getAnimations()) {
+      try {
+        animation.finish();
+      } catch {
+        // Infinite animations do not have a finite finish time.
+      }
+    }
+  });
+  await page.waitForTimeout(100);
 }
 
 async function cleanup() {

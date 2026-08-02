@@ -11,6 +11,8 @@ import strategyBacktestEn from '@src/content/help/en/basics/strategy-backtest.md
 import strategyBacktestZh from '@src/content/help/zh/basics/strategy-backtest.md?raw';
 import equityDrawdownEn from '@src/content/help/en/backtesting/equity-drawdown.md?raw';
 import equityDrawdownZh from '@src/content/help/zh/backtesting/equity-drawdown.md?raw';
+import agentQuickBacktestEn from '@src/content/help/en/backtesting/agent-quick-backtest.md?raw';
+import agentQuickBacktestZh from '@src/content/help/zh/backtesting/agent-quick-backtest.md?raw';
 import createFromDescriptionEn from '@src/content/help/en/backtesting/create-from-description.md?raw';
 import createFromDescriptionZh from '@src/content/help/zh/backtesting/create-from-description.md?raw';
 import editRerunEn from '@src/content/help/en/backtesting/edit-rerun.md?raw';
@@ -21,6 +23,8 @@ import indexFuturesEn from '@src/content/help/en/backtesting/index-futures.md?ra
 import indexFuturesZh from '@src/content/help/zh/backtesting/index-futures.md?raw';
 import mixedStockFuturesEn from '@src/content/help/en/backtesting/mixed-stock-futures.md?raw';
 import mixedStockFuturesZh from '@src/content/help/zh/backtesting/mixed-stock-futures.md?raw';
+import multiTimeframeEn from '@src/content/help/en/backtesting/multi-timeframe.md?raw';
+import multiTimeframeZh from '@src/content/help/zh/backtesting/multi-timeframe.md?raw';
 import parameterScanEn from '@src/content/help/en/backtesting/parameter-scan.md?raw';
 import parameterScanZh from '@src/content/help/zh/backtesting/parameter-scan.md?raw';
 import reconnectFailureEn from '@src/content/help/en/backtesting/reconnect-failure.md?raw';
@@ -39,12 +43,16 @@ import workspaceEn from '@src/content/help/en/backtesting/workspace.md?raw';
 import workspaceZh from '@src/content/help/zh/backtesting/workspace.md?raw';
 import analysisSettingsEn from '@src/content/help/en/factors/analysis-settings.md?raw';
 import analysisSettingsZh from '@src/content/help/zh/factors/analysis-settings.md?raw';
+import agentExploreAnalysisEn from '@src/content/help/en/factors/agent-explore-analysis.md?raw';
+import agentExploreAnalysisZh from '@src/content/help/zh/factors/agent-explore-analysis.md?raw';
 import correlationMatrixEn from '@src/content/help/en/factors/correlation-matrix.md?raw';
 import correlationMatrixZh from '@src/content/help/zh/factors/correlation-matrix.md?raw';
 import copyPresetFactorEn from '@src/content/help/en/factors/copy-preset-factor.md?raw';
 import copyPresetFactorZh from '@src/content/help/zh/factors/copy-preset-factor.md?raw';
 import createCustomFactorEn from '@src/content/help/en/factors/create-custom-factor.md?raw';
 import createCustomFactorZh from '@src/content/help/zh/factors/create-custom-factor.md?raw';
+import createCompositeEn from '@src/content/help/en/factors/create-composite.md?raw';
+import createCompositeZh from '@src/content/help/zh/factors/create-composite.md?raw';
 import decileReturnsEn from '@src/content/help/en/factors/decile-returns.md?raw';
 import decileReturnsZh from '@src/content/help/zh/factors/decile-returns.md?raw';
 import factorInStrategyEn from '@src/content/help/en/factors/factor-in-strategy.md?raw';
@@ -57,6 +65,8 @@ import neutralizationEn from '@src/content/help/en/factors/neutralization.md?raw
 import neutralizationZh from '@src/content/help/zh/factors/neutralization.md?raw';
 import rankIcIcirEn from '@src/content/help/en/factors/rank-ic-icir.md?raw';
 import rankIcIcirZh from '@src/content/help/zh/factors/rank-ic-icir.md?raw';
+import readCompositeReportEn from '@src/content/help/en/factors/read-composite-report.md?raw';
+import readCompositeReportZh from '@src/content/help/zh/factors/read-composite-report.md?raw';
 import reportHistoryEn from '@src/content/help/en/factors/report-history.md?raw';
 import reportHistoryZh from '@src/content/help/zh/factors/report-history.md?raw';
 import researchCardEn from '@src/content/help/en/factors/research-card.md?raw';
@@ -105,6 +115,10 @@ import historyPauseEn from '@src/content/help/en/signals/history-pause.md?raw';
 import historyPauseZh from '@src/content/help/zh/signals/history-pause.md?raw';
 import readSignalsEn from '@src/content/help/en/signals/read-signals.md?raw';
 import readSignalsZh from '@src/content/help/zh/signals/read-signals.md?raw';
+import recordExecutionEn from '@src/content/help/en/signals/record-execution.md?raw';
+import recordExecutionZh from '@src/content/help/zh/signals/record-execution.md?raw';
+import conditionalOrdersEn from '@src/content/help/en/signals/conditional-orders.md?raw';
+import conditionalOrdersZh from '@src/content/help/zh/signals/conditional-orders.md?raw';
 import adjustmentsScaleEn from '@src/content/help/en/stock-detail/adjustments-scale.md?raw';
 import adjustmentsScaleZh from '@src/content/help/zh/stock-detail/adjustments-scale.md?raw';
 import peVolumeDataEn from '@src/content/help/en/stock-detail/pe-volume-data.md?raw';
@@ -470,6 +484,22 @@ export const HELP_ARTICLES: HelpArticle[] = [
     },
   },
   {
+    slug: 'backtesting/agent-quick-backtest',
+    group: 'backtesting',
+    title: {
+      zh: '让策略 Agent 先做快捷回测',
+      en: 'Ask the strategy Agent for a quick backtest',
+    },
+    summary: {
+      zh: '让 Agent 试算一个明确候选，并区分快捷指标、正式结果、部署和信号。',
+      en: 'Trial one explicit candidate and distinguish quick metrics from formal results.',
+    },
+    content: {
+      zh: agentQuickBacktestZh,
+      en: agentQuickBacktestEn,
+    },
+  },
+  {
     slug: 'backtesting/run-settings',
     group: 'backtesting',
     title: {
@@ -595,6 +625,22 @@ export const HELP_ARTICLES: HelpArticle[] = [
     content: {
       zh: parameterScanZh,
       en: parameterScanEn,
+    },
+  },
+  {
+    slug: 'backtesting/multi-timeframe',
+    group: 'backtesting',
+    title: {
+      zh: '使用周线和月线条件',
+      en: 'Use weekly and monthly conditions',
+    },
+    summary: {
+      zh: '用已完成周线或月线过滤日线交易，并避免读取尚未结束的周期。',
+      en: 'Combine completed weekly or monthly filters with daily trading rules.',
+    },
+    content: {
+      zh: multiTimeframeZh,
+      en: multiTimeframeEn,
     },
   },
   {
@@ -838,6 +884,38 @@ export const HELP_ARTICLES: HelpArticle[] = [
     },
   },
   {
+    slug: 'factors/create-composite',
+    group: 'factorResearch',
+    title: {
+      zh: '新建和编辑多因子合成',
+      en: 'Create and edit a factor composite',
+    },
+    summary: {
+      zh: '选择 2～5 个成分、方向和标准化方法，建立等权多因子研究对象。',
+      en: 'Choose components, directions, and standardization for an equal-weight composite.',
+    },
+    content: {
+      zh: createCompositeZh,
+      en: createCompositeEn,
+    },
+  },
+  {
+    slug: 'factors/read-composite-report',
+    group: 'factorResearch',
+    title: {
+      zh: '查看多因子合成报告',
+      en: 'Read a factor-composite report',
+    },
+    summary: {
+      zh: '核对冻结成分和共同股票池，并与单因子正确比较。',
+      en: 'Verify frozen components and the common universe, then compare components.',
+    },
+    content: {
+      zh: readCompositeReportZh,
+      en: readCompositeReportEn,
+    },
+  },
+  {
     slug: 'factors/copy-preset-factor',
     group: 'factorResearch',
     title: {
@@ -867,6 +945,22 @@ export const HELP_ARTICLES: HelpArticle[] = [
     content: {
       zh: createCustomFactorZh,
       en: createCustomFactorEn,
+    },
+  },
+  {
+    slug: 'factors/agent-explore-analysis',
+    group: 'factorResearch',
+    title: {
+      zh: '让因子 Agent 运行探索分析',
+      en: 'Ask the factor Agent to run exploratory analysis',
+    },
+    summary: {
+      zh: '在对话中冻结候选和研究卡，生成探索报告，并保留正式保留段边界。',
+      en: 'Freeze a candidate and research card in chat while preserving holdout boundaries.',
+    },
+    content: {
+      zh: agentExploreAnalysisZh,
+      en: agentExploreAnalysisEn,
     },
   },
   {
@@ -1005,12 +1099,44 @@ export const HELP_ARTICLES: HelpArticle[] = [
       en: 'Read signal instructions',
     },
     summary: {
-      zh: '核对信号日和执行日，阅读方向、股数、参考价、概算金额和模型权益。',
-      en: 'Read dates, direction, shares, reference price, estimated amount, and model equity.',
+      zh: '核对日期、模型权益、指令、模拟成交、实际执行和待挂条件。',
+      en: 'Read dates, model equity, instructions, simulated fills, actual status, and conditions.',
     },
     content: {
       zh: readSignalsZh,
       en: readSignalsEn,
+    },
+  },
+  {
+    slug: 'signals/record-execution',
+    group: 'signals',
+    title: {
+      zh: '记录实际成交并比较执行偏差',
+      en: 'Record actual fills and compare execution',
+    },
+    summary: {
+      zh: '回填已执行或未执行，比较模型、模拟和实际账户、执行率与成交偏差。',
+      en: 'Record decisions and compare model, simulated, and actual accounts.',
+    },
+    content: {
+      zh: recordExecutionZh,
+      en: recordExecutionEn,
+    },
+  },
+  {
+    slug: 'signals/conditional-orders',
+    group: 'signals',
+    title: {
+      zh: '使用和记录条件单',
+      en: 'Use and record conditional orders',
+    },
+    summary: {
+      zh: '核对止损、跟踪止损、限价买入和止盈，并在券商端正确操作。',
+      en: 'Review stops, limit buys, and take profit, then recreate them at the broker.',
+    },
+    content: {
+      zh: conditionalOrdersZh,
+      en: conditionalOrdersEn,
     },
   },
   {

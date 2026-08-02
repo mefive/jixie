@@ -1,6 +1,6 @@
 # 用户使用手册功能与截图清单
 
-> 阶段 A 工作记录。首次清点日期：2026-07-28。  
+> 阶段 A 工作记录。首次清点日期：2026-07-28；阶段 I 更新日期：2026-08-01。
 > 总体计划见 `docs/design/user-guide.md`。
 
 ## 1. 使用方式
@@ -34,11 +34,11 @@
 | 项目 | 内容 |
 | --- | --- |
 | 页面入口 | 回测工作台、选股看图、因子研究、市场、估值、今日信号 |
-| 共享操作 | 切换中文/英文、查看当前邮箱、退出 |
+| 共享操作 | 切换中文/英文、打开使用帮助、查看当前邮箱、退出；系统维护时查看等待说明 |
 | 使用手册文章 | 页面导航；切换语言；退出登录 |
-| 当前 E2E | 各专项测试会通过导航页面，但没有单独验证整套顶部导航 |
+| 当前 E2E | `help.mjs` 会验证产品侧新窗口打开帮助、文档内部同页切换，以及桌面和窄屏导航 |
 | 当前截图 | 多数桌面截图包含顶部导航 |
-| 缺口 | 当前没有“使用帮助”入口；阶段 B 需要增加入口并验证当前文章跳转 |
+| 缺口 | 无；维护页正文已补充刷新、等待和联系维护人员的判断方法 |
 
 ### 2.3 选股看图
 
@@ -78,19 +78,19 @@
 | 项目 | 内容 |
 | --- | --- |
 | 路由 | `/lab`、`/lab?id=<策略编号>`、`/lab?new=1` |
-| 页面操作 | 新建策略；输入一句话描述；使用示例；直接写代码；打开历史策略；修改策略；处理未运行修改提示 |
-| 使用手册文章 | 认识回测工作台；新建策略；一句话生成策略；使用示例；直接写代码；历史策略；修改后重新运行；未运行修改提示 |
+| 页面操作 | 新建策略；输入一句话描述；使用示例；直接写代码；打开历史策略；修改策略；处理未运行修改提示；让策略 Agent 快捷试算当前代码 |
+| 使用手册文章 | 认识回测工作台；新建策略；一句话生成策略；Agent 快捷回测；使用示例；直接写代码；历史策略；修改后重新运行；未运行修改提示 |
 | 当前 E2E | `screener.mjs`、`learn.mjs`、`sdk-hover.mjs`、`help-content-backtest.mjs`、`help-content-backtest-states.mjs`、`help-content-strategy-agent.mjs` |
 | 当前截图 | `workspace-01.png`、`strategy-description-01.png`、`strategy-generated-01.png`、`strategy-revised-01.png`、`strategy-revised-result-01.png`、`edit-rerun-01.png`；历史验收目录中的 `4-lab-hero.png`、`4b-lab-cards.png`、`4c-code-editor.png`、`4c1-factor-hover.png`、`4d-new-dirty-confirm.png`、`learn-6-lab-hero.png`、`7r-sdk-hover.png` |
-| 本轮结果 | 使用专用账号完成两次真实模型调用：从描述生成沪深 300 ETF 100 股策略，继续修改为 200 股并运行回测；工作台分区、新建、历史、代码、修改保护和 SDK 入口均有验证 |
+| 本轮结果 | 使用专用账号完成两次真实模型调用：从描述生成沪深 300 ETF 100 股策略，继续修改为 200 股并运行回测；补充快捷试算只用于当前对话检查、正式结果仍须在工作台运行的边界 |
 | 缺口 | 无 |
 
 ### 2.6 回测工作台：设置与运行
 
 | 项目 | 内容 |
 | --- | --- |
-| 页面操作 | 设置起始日期、结束日期、资金、基础滑点、冲击系数和策略参数；运行回测；查看运行状态；查看日志；重新连接进行中的任务 |
-| 使用手册文章 | 设置回测参数；运行回测和查看日志；运行中刷新页面；失败处理 |
+| 页面操作 | 设置起始日期、结束日期、资金、基础滑点、冲击系数和策略参数；选择日线、周线或月线；运行回测；查看运行状态；查看日志；重新连接进行中的任务 |
+| 使用手册文章 | 设置回测参数；使用日线、周线和月线；运行回测和查看日志；运行中刷新页面；失败处理 |
 | 当前 E2E | `strategy-orchestration.mjs`、`help-content-backtest.mjs`、`help-content-backtest-states.mjs` |
 | 当前截图 | `run-settings-01.png`、`run-logs-01.png`、`reconnect-01.png`、`failure-01.png` |
 | 本轮结果 | 普通月度策略真实回测通过；日期、资金、成本、运行状态、日志、刷新后任务恢复和代码编译失败均有当前正式截图；重复提交会被拒绝，结果会保存到策略 |
@@ -117,12 +117,12 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 页面操作 | 打开参数扫描；选择参数和值；选择观察指标；运行多个组合；查看结果图表；打开某个组合 |
-| 使用手册文章 | 比较多组策略参数；为什么回测不等于未来收益 |
+| 页面操作 | 打开扫描实验；在参数稳健性、仓位方案对比和容量测算间切换；填写候选值；选择观察指标；运行多个组合；查看结果图表和容量提示；打开某个组合 |
+| 使用手册文章 | 比较多组策略参数、仓位方案和容量；为什么回测不等于未来收益 |
 | 当前 E2E | `strategy-parameter-scan.mjs`、`help-content-parameter-scan.mjs` |
-| 当前截图 | `parameter-scan-settings-01.png`、`parameter-scan-results-01.png`；验收目录中的 `strategy-parameter-scan.png` |
-| 本轮结果 | 从工作台打开扫描、填写两维参数、运行四个组合、切换指标、查看组合图和明细表均通过；文章解释样本切分、参数敏感和反复挑参造成的过度拟合 |
-| 缺口 | 无；后续策略增加非数值参数扫描时再扩展 |
+| 当前截图 | `parameter-scan-settings-01.png`、`parameter-scan-results-01.png`、`sizing-scan-settings-01.png`、`sizing-scan-results-01.png`、`capacity-scan-settings-01.png`、`capacity-scan-results-01.png`；验收目录中的 `strategy-parameter-scan.png` |
+| 本轮结果 | 真实运行 4 组参数组合、3 种仓位方案和 3 个容量等级；图表、明细表与容量提示均通过；文章解释样本切分、过度拟合、仓位口径、成交额占比和冲击成本 |
+| 缺口 | 无；后续增加新的扫描模式时同步扩展 |
 
 ### 2.9 ETF 策略
 
@@ -151,11 +151,11 @@
 | 项目 | 内容 |
 | --- | --- |
 | 路由 | `/factors`、`/factors?factor=<因子>`、`/factors?factor=<因子>&report=<报告>` |
-| 页面操作 | 打开因子库；选择预设因子；查看只读代码；设置频率和区间；设置中性化；设置股票池、缺失值、异常值和交易成本；运行分析 |
-| 使用手册文章 | 因子研究能回答什么；预设因子；分析设置；运行分析 |
+| 页面操作 | 打开因子库；选择预设因子；查看只读代码；设置频率和区间；设置中性化；设置股票池、缺失值、异常值和交易成本；运行分析；让因子 Agent 运行探索分析 |
+| 使用手册文章 | 因子研究能回答什么；预设因子；分析设置；运行分析；因子 Agent 探索分析 |
 | 当前 E2E | `screener.mjs`、`historical-investability.mjs`、`factor-report-history.mjs`、`help-content-factor-basics.mjs`、`help-content-factor-metrics.mjs`、`help-content-factor-discipline.mjs` |
 | 当前截图 | 正式截图 `factor-workspace-01.png`、`factor-settings-01.png`、`factor-research-card-01.png`、`factor-running-01.png`、`factor-neutralization-setting-01.png`、`factor-neutralization-history-01.png`、`factor-research-hypothesis-01.png`、`factor-research-summary-01.png`；验收目录中的 `7-factors.png`、`7f-abturn-builtin.png`、`7c-preset-readonly.png`、`7o-factor-methodology.png`、`4-7a-historical-investability.png` |
-| 本轮结果 | 阶段 F 前三批使用盈利收益率完成纯探索和假设验证，比较原始与市值加行业中性化报告，并走通正式保留段封存与揭示；覆盖因子库、只读预设、分析设置、研究卡、研究计数、运行状态、日志和报告历史 |
+| 本轮结果 | 阶段 F 使用盈利收益率完成探索、假设验证和正式保留段；阶段 I 补充 Agent 探索分析与正式保留段的边界，以及 `grossprofitMargin` 百分比单位和时点历史口径 |
 | 缺口 | 预设因子和研究纪律闭环已完成；自定义因子与策略标识作为下一批 |
 
 ### 2.12 因子研究：结果
@@ -180,15 +180,15 @@
 | 本轮结果 | 历史恢复、报告过期提示、研究卡、探索变体计数、正式保留段资格、冻结代码、结果封存、不可逆揭示、首次揭示时间和预设标准判定均有当前正式文章与真实截图 |
 | 缺口 | 无；正文已排在预设因子基础和指标文章之后 |
 
-### 2.14 因子研究：自定义因子与策略
+### 2.14 因子研究：自定义、多因子与策略
 
 | 项目 | 内容 |
 | --- | --- |
-| 页面操作 | 复制预设因子；编辑副本；新建自定义因子；确认并锁定策略标识；从策略编辑器查看因子实现；在策略中引用因子 |
-| 使用手册文章 | 复制预设因子；自定义因子；策略标识；在策略中使用因子 |
-| 当前 E2E | `screener.mjs`、`sdk-hover.mjs`、`factor-strategy-history.mjs`、`help-content-factor-custom.mjs` |
-| 当前截图 | 正式截图 `factor-custom-copy-01.png`、`factor-custom-copy-02.png`、`factor-custom-new-01.png`、`factor-custom-edited-01.png`、`factor-custom-analysis-01.png`、`factor-strategy-key-01.png`、`factor-strategy-key-locked-01.png`、`factor-strategy-reference-01.png`、`factor-strategy-hover-01.png`、`factor-strategy-result-01.png`；验收目录中的 `7c-preset-readonly.png`、`7c1-factor-key.png`、`4c1-factor-hover.png`、`7r-sdk-hover.png` |
-| 本轮结果 | 4 篇中英文正式文章完成；复制、新建、直接编辑、真实因子分析、刷新恢复、标识锁定、策略声明与读取、编辑器悬停和真实回测均有当前标注截图；2026-07-30 重跑窗口历史自定义因子的真实数据库策略回测，隔离 worker 完成并产生 28 笔交易 |
+| 页面操作 | 复制预设因子；编辑副本；新建自定义因子；创建和编辑多因子合成；运行并阅读合成报告；确认并锁定策略标识；从策略编辑器查看因子实现；在策略中引用单因子 |
+| 使用手册文章 | 复制预设因子；自定义因子；创建多因子合成；阅读多因子报告；策略标识；在策略中使用因子 |
+| 当前 E2E | `screener.mjs`、`sdk-hover.mjs`、`factor-strategy-history.mjs`、`help-content-factor-custom.mjs`、`help-content-factor-composite.mjs` |
+| 当前截图 | 自定义因子正式截图 10 张；新增 `factor-composite-definition-01.png`、`factor-composite-report-01.png`；验收目录中的 `7c-preset-readonly.png`、`7c1-factor-key.png`、`4c1-factor-hover.png`、`7r-sdk-hover.png` |
+| 本轮结果 | 自定义因子的复制、编辑、真实分析、标识锁定和策略引用已验证；阶段 I 新增等权多因子合成，使用盈利收益率和 ROE 完成真实 V4 分析，并说明共同股票池、标准化、方向和当前不能直接作为策略键引用的边界 |
 | 验证 | `factor-strategy-history.mjs` 通过；`factor-semantics.test.ts` 11 项通过；原 `number 0 is not a function` 阻塞已关闭 |
 | 缺口 | 无；Agent 入口已说明，固定截图流程不依赖外部模型响应，其余关键步骤均通过真实页面和真实计算 |
 
@@ -231,11 +231,11 @@
 | --- | --- |
 | 路由 | `/signals` |
 | 前置操作 | 在回测工作台完成回测并点击“部署上线” |
-| 页面操作 | 查看运行中策略；立即生成；查看信号日、执行日、模型权益、邮件通知、买卖方向、股数、参考价、概算金额和运行历史；理解“今日无操作”；处理中断或失败 |
-| 使用手册文章 | 部署回测策略；生成今日信号；查看信号指令；查看历史并暂停上线 |
+| 页面操作 | 查看运行中策略；立即生成；查看信号日、执行日、模型权益、邮件通知、买卖方向、股数、参考价、概算金额和运行历史；区分模型、模拟和实际账户；回填实际成交；查看执行率与偏差；把待挂条件单录入券商；理解“今日无操作”；处理中断或失败 |
+| 使用手册文章 | 部署回测策略；生成今日信号；查看信号指令；记录实际成交并比较执行偏差；使用和记录条件单；查看历史并暂停上线 |
 | 当前 E2E | `daily-signals.mjs`、`help-content-signals.mjs` |
-| 当前截图 | 正式截图 `signal-deploy-ready-01.png`、`signal-deploy-active-01.png`、`signal-deploy-outdated-01.png`、`signal-empty-01.png`、`signal-no-action-01.png`、`signal-result-01.png`、`signal-history-01.png`、`signal-pause-01.png`；验收目录中的中文、英文和窄屏成功截图 |
-| 本轮结果 | 真实前置回测、冻结部署、未运行修改保护、立即生成、今日无操作、300 股买入、信号日与执行日、模型权益、通知、历史和暂停上线全部通过；旧 `number 1 is not a function` 未再出现 |
+| 当前截图 | 原有部署与信号正式截图 8 张；新增 `signal-conditional-01.png`、`signal-execution-overview-01.png`、`signal-execution-record-01.png`、`signal-execution-complete-01.png`；验收目录中的中文、英文和窄屏成功截图 |
+| 本轮结果 | 真实前置回测、部署、无操作、300 股买入和下一交易日结算通过；待挂跟踪止损、模拟成交、实际成交回填、实际账户指标、执行率和成交偏差均由专项 E2E 验证；旧 `number 1 is not a function` 未再出现 |
 | 缺口 | 无；E2E 使用已有完整行情的固定信号日，避免当前日期超过本地固定数据截止日 |
 
 ### 2.18 策略 SDK 参考
@@ -243,11 +243,11 @@
 | 项目 | 内容 |
 | --- | --- |
 | 路由 | `/docs/sdk` |
-| 页面操作 | 按分组查找方法；使用锚点；从编辑器悬停或菜单打开；切换中英文；跳到教程 |
+| 页面操作 | 按分组查找方法；使用锚点；从编辑器悬停或菜单打开；切换中英文；同页切换到使用帮助；返回工作台 |
 | 使用手册文章 | 只在“直接编写策略代码”部分介绍如何查 SDK |
-| 当前 E2E | `screener.mjs`、`learn.mjs`、`sdk-hover.mjs` |
+| 当前 E2E | `screener.mjs`、`learn.mjs`、`sdk-hover.mjs`、`help.mjs` |
 | 当前截图 | `6-sdk-docs.png`、`6b-sdk-docs-en.png`、`learn-5-docs-crosslink.png`、`7r-sdk-hover.png` |
-| 本轮结果 | 页面、语言切换、锚点、教程链接和编辑器悬停链接通过 |
+| 本轮结果 | 页面、语言切换、锚点、帮助切换、工作台入口和编辑器悬停链接通过 |
 | 处理方式 | 保持结构化生成，不迁入 Markdown 使用手册 |
 
 ### 2.19 旧入门教程
@@ -259,7 +259,7 @@
 | 当前 E2E | `learn.mjs` |
 | 当前截图 | `learn-1-top.png` 至 `learn-6-lab-hero.png` |
 | 本轮结果 | 页面、章节滚动、SDK 交叉链接和工作台入口通过 |
-| 处理方式 | 不原样保留为产品总入门；按第 5 节迁入进阶策略代码文章 |
+| 处理方式 | 已从导航移除并由产品路由跳转到新使用帮助；可复用内容已按第 5 节迁入进阶策略代码文章 |
 
 ## 3. 量化交易基础与页面对应表
 
@@ -277,13 +277,17 @@
 | 换手、佣金、印花税、滑点、市场冲击 | 回测结果、因子研究 | 回测设置；交易成本 |
 | T+1、涨跌停、停牌、整手 | 回测、交易明细 | 为什么订单没有成交 |
 | 参数选择和过度拟合 | 参数扫描 | 参数扫描 |
+| 仓位方案、策略容量和市场冲击 | 扫描实验 | 比较多组策略参数 |
 | 因子 | 因子研究 | 第一次运行预设因子 |
+| 多因子标准化、方向和等权合成 | 因子研究 | 创建多因子合成；阅读多因子报告 |
 | 分组收益和 Rank IC | 因子结果 | 阅读因子报告 |
 | 中性化 | 因子设置 | 市值和行业中性化 |
 | 样本内、留出期和样本外 | 因子历史 | 留出期和样本外结果 |
 | 历史百分位 | 市场、估值 | 阅读百分位 |
 | 保证金和期货逐日结算 | 混合策略 | 股指期货基础 |
 | 信号日、执行日和参考价 | 今日信号 | 查看今日信号 |
+| 模型、模拟、实际账户与执行率 | 今日信号 | 记录实际成交并比较执行偏差 |
+| 止损、跟踪止损、限价买入和止盈 | 今日信号 | 使用和记录条件单 |
 
 基础文章使用产品中的具体例子，不另写与产品无关的量化教材。
 
@@ -307,9 +311,11 @@
 | `strategy-orchestration.mjs` | 通过 | API 重启后，普通月度定投回测通过，成交 1 笔 |
 | `help-content-strategy-agent.mjs` | 通过 | 两次真实模型调用完成策略生成和 100→200 股修改，随后真实回测通过 |
 | `strategy-parameter-scan.mjs` | 通过 | 四个参数组合通过 |
+| `help-content-parameter-scan.mjs` | 通过 | 4 组参数、3 种仓位方案、3 个容量等级和 6 张正式截图通过 |
+| `help-content-factor-composite.mjs` | 通过 | 真实创建盈利收益率与 ROE 等权合成，完成 V4 分析和 2 张正式截图 |
 | `daily-signals.mjs` | 通过 | 真实回测、部署、页面立即生成、300 股买入、持久化结果、中英文和窄屏通过 |
 | `help-content-market-valuation.mjs` | 通过 | 市场、估值、观察范围、指标与历史切换和 6 张标注截图通过 |
-| `help-content-signals.mjs` | 通过 | 部署、版本过期、无操作、买入指令、历史、暂停和 8 张标注截图通过 |
+| `help-content-signals.mjs` | 通过 | 部署、版本过期、无操作、买入、下一日结算、待挂条件、模拟与实际成交和 12 张标注截图通过 |
 | `etf-trading.mjs` | 通过 | ETF 页面入口、真实买卖成交、资产标识和交易明细通过 |
 | `market-state.mjs` | 通过 | 四项市场指标、十个观察范围和四项估值指标通过 |
 | `mixed-futures.mjs` | 通过 | 混合回测约 6 秒完成，股票／期货账户权益、保证金和净敞口通过；测试策略已自动清理 |
@@ -392,5 +398,5 @@
 5. `factor-strategy-history` 与 `daily-signals` 的历史函数调用错误均已于 2026-07-30 重跑关闭。
 6. `mixed-futures` 已重跑通过，股票与期货混合回测约 6 秒完成。
 
-下一阶段从 `docs/design/user-guide.md` 的阶段 H 开始：从新账号按文档顺序完成整体验收，
-核对 56 篇正文、截图、链接、标题锚点、桌面和窄屏，并建立后续维护检查项。
+阶段 I 已把阶段 G 后的用户功能补入帮助中心。阶段 H 继续暂缓；恢复时从新账号按文档顺序完成
+整体验收，核对 63 篇正文、截图、链接、标题锚点、桌面和窄屏，并建立后续维护检查项。

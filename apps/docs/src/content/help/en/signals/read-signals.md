@@ -123,5 +123,7 @@ No. A market instruction reaches the actual shadow account only after the user r
 ## Related articles
 
 - [Generate today's signals](/docs/help/signals/generate-signals)
+- [Record actual fills and compare execution](/docs/help/signals/record-execution)
+- [Use and record conditional orders](/docs/help/signals/conditional-orders)
 - [View history and pause a deployment](/docs/help/signals/history-pause)
 - [Read trades and costs](/docs/help/backtesting/trades-costs)
