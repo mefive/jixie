@@ -369,8 +369,10 @@ import type {
   ScreenConversationMeta,
   IndexValuationCatalog,
   IndexValuationSeries,
+  IndustryWeatherSeries,
   MarketStateScope,
   MarketStateSnapshot,
+  MarketWeatherFrequency,
   ScreenResult,
   ScreenSpec,
   StockSeries,
@@ -543,6 +545,15 @@ export function fetchMarketState(
   signal?: AbortSignal,
 ): Promise<MarketStateSnapshot> {
   return request(`/api/app/market/state?scope=${encodeURIComponent(scope)}`, { signal });
+}
+
+export function fetchIndustryWeather(
+  frequency: MarketWeatherFrequency,
+  signal?: AbortSignal,
+): Promise<IndustryWeatherSeries> {
+  return request(`/api/app/market/industry-weather?frequency=${encodeURIComponent(frequency)}`, {
+    signal,
+  });
 }
 
 import type {

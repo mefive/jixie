@@ -23,7 +23,11 @@ export const Market = complex.component(() => {
           <MarketStateOverview
             snapshot={marketState}
             loading={store.marketStateLoader.loading}
+            weatherSeries={store.industryWeatherLoader.result}
+            weatherLoading={store.industryWeatherLoader.loading}
+            weatherFrequency={store.weatherFrequency}
             onScopeChange={(scope) => store.setMarketScope(scope)}
+            onWeatherFrequencyChange={(frequency) => store.setWeatherFrequency(frequency)}
           />
         ) : (
           <DashboardSkeleton />

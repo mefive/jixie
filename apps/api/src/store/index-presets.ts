@@ -15,6 +15,18 @@ export const MAJOR_INDEX_DAILY_CODES = [
   '399006.SZ', // ChiNext
 ] as const;
 
+/** Official growth/value pairs selected from Tushare mkt_idx_bmk where idx_type=风格类指数. */
+export const MARKET_STYLE_INDEX_PAIRS = [
+  { key: 'csi300', growth: '000918.CSI', value: '000919.CSI' },
+  { key: 'csi500', growth: 'H30351.CSI', value: 'H30352.CSI' },
+  { key: 'csi800', growth: 'H30355.CSI', value: 'H30356.CSI' },
+] as const;
+
+export const MARKET_STYLE_INDEX_CODES = MARKET_STYLE_INDEX_PAIRS.flatMap((pair) => [
+  pair.growth,
+  pair.value,
+]);
+
 /** Broad-market indices supported by Tushare index_dailybasic.
  * This is a data-coverage preset, not an investment recommendation. */
 export const MAJOR_INDEX_DAILY_BASIC_CODES = [

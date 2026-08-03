@@ -21,8 +21,10 @@ import {
   indexWeight,
   indexDaily,
   indexDailyBasic,
+  indexBenchmark,
   indexClassify,
   indexMemberAll,
+  swDaily,
   futureContracts,
   futureDaily,
   futureMapping,
@@ -1278,6 +1280,82 @@ export async function syncSwIndustry(client: TushareClient): Promise<number> {
     prisma.swIndustryMember.createMany({ data: rows }),
   ]);
   log(`syncSwIndustry 完成，共 ${rows.length} 行`);
+  return rows.length;
+}
+
+/** Replace the small official benchmark catalog used to audit index classifications. */
+export async function syncIndexBenchmarks(client: TushareClient): Promise<number> {
+  const rows = await indexBenchmark(client);
+
+  await prisma.$transaction([
+    prisma.indexBenchmark.deleteMany({}),
+    prisma.indexBenchmark.createMany({
+      data: rows.map((row) => ({
+        tsCode: row.ts_code,
+        symbol: row.symbol,
+        name: row.name,
+        fullName: row.fullname,
+        bmkLevel: row.bmk_level,
+        bmkType: row.bmk_type,
+        bmkSource: row.bmk_src,
+        indexType: row.idx_type,
+      })),
+    }),
+  ]);
+  log(`syncIndexBenchmarks complete: ${rows.length} rows`);
+  return rows.length;
+}
+
+/** Sync official SW2021 level-1 industry bars. A single-date refresh uses one upstream call; range
+ * backfills fetch one industry at a time to stay under the response cap. */
+export async function syncSwIndexDaily(
+  client: TushareClient,
+  start: TradeDate,
+  end: TradeDate,
+): Promise<number> {
+  const industries = await indexClassify(client, { level: 'L1', src: 'SW2021' });
+  const allowedCodes = new Set(industries.map((industry) => industry.index_code));
+  let rows = [] as Awaited<ReturnType<typeof swDaily>>;
+
+  if (start === end) {
+    const dateRows = await swDaily(client, { trade_date: start });
+    rows = dateRows.filter((row) => allowedCodes.has(row.ts_code));
+  } else {
+    for (const industry of industries) {
+      const industryRows = await swDaily(client, {
+        ts_code: industry.index_code,
+        start_date: start,
+        end_date: end,
+      });
+      rows.push(...industryRows);
+    }
+  }
+
+  await prisma.$transaction([
+    prisma.swIndexDaily.deleteMany({
+      where: { tradeDate: { gte: start, lte: end }, tsCode: { in: [...allowedCodes] } },
+    }),
+    prisma.swIndexDaily.createMany({
+      data: rows.map((row) => ({
+        tsCode: row.ts_code,
+        tradeDate: row.trade_date,
+        name: row.name,
+        open: row.open,
+        low: row.low,
+        high: row.high,
+        close: row.close,
+        change: row.change,
+        pctChange: row.pct_change,
+        volume: row.vol,
+        amount: row.amount,
+        pe: row.pe,
+        pb: row.pb,
+        floatMv: row.float_mv,
+        totalMv: row.total_mv,
+      })),
+    }),
+  ]);
+  log(`syncSwIndexDaily ${start}..${end}: ${rows.length} rows`);
   return rows.length;
 }
 

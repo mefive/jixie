@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import type { IndustryIndicatorRow, MarketIndicatorRow } from './market-state.js';
-import { buildMarketStateSnapshot } from './market-state.js';
+import type { IndustryIndicatorRow, MarketIndicatorRow, SwIndexDailyRow } from './market-state.js';
+import {
+  buildIndustryWeatherSeries,
+  buildIndexTrailingReturns,
+  buildMarketStylePairs,
+  buildMarketStateSnapshot,
+} from './market-state.js';
 
 describe('market state snapshot', () => {
   it('keeps activity, breadth, trend, and crowding independently explainable', () => {
@@ -83,14 +88,18 @@ describe('market state snapshot', () => {
         value: 'all' as const,
         startDate: '20150101',
         endDate: '20260120',
-        trend: 0.01,
+        return5Day: 0.005,
+        return20Day: 0.01,
+        return60Day: 0.03,
         breadth: 0.5,
       },
       {
         value: '000300.SH' as const,
         startDate: '20160129',
         endDate: '20260120',
-        trend: 0.02,
+        return5Day: 0.01,
+        return20Day: 0.02,
+        return60Day: 0.04,
         breadth: 0.6,
       },
     ];
@@ -104,6 +113,181 @@ describe('market state snapshot', () => {
     expect(result?.membershipAsOf).toBe('20251231');
     expect(result?.scopeOptions).toEqual(scopeOptions);
     expect(result?.latest.tradedCount).toBe(300);
+  });
+
+  it('calculates index returns over three trading-day windows', () => {
+    const rows = Array.from({ length: 61 }, (_, index) => ({
+      tsCode: '000300.SH',
+      tradeDate: `2026${String(index + 1).padStart(4, '0')}`,
+      close: 100 + index,
+    }));
+
+    const result = buildIndexTrailingReturns(rows).get('000300.SH');
+
+    expect(result?.return5Day).toBeCloseTo(160 / 155 - 1);
+    expect(result?.return20Day).toBeCloseTo(160 / 140 - 1);
+    expect(result?.return60Day).toBeCloseTo(0.6);
+  });
+
+  it('reports weekly and monthly industry rank changes with positive values for climbers', () => {
+    const marketRows: MarketIndicatorRow[] = Array.from({ length: 21 }, (_, index) => ({
+      tradeDate: `202601${String(index + 1).padStart(2, '0')}`,
+      tradedCount: 5000,
+      return20: 0,
+      advanceRatio: 0.5,
+      aboveMa20Ratio: 0.5,
+      aboveMa60Ratio: 0.5,
+      totalAmount: 1_000_000,
+      floatWeightedTurnoverRate: 1,
+      topFivePercentAmountShare: 0.4,
+      extremeMoveRatio: 0.05,
+      limitUpCount: 10,
+      limitDownCount: 10,
+    }));
+    const industryRows = marketRows.flatMap((marketRow, index) => {
+      const hasClimbed = index === marketRows.length - 1;
+      return [
+        industryRow(
+          '801080.SI',
+          '电子',
+          marketRow.tradeDate,
+          hasClimbed ? 3 : 1,
+          hasClimbed ? 0.1 : -0.1,
+          hasClimbed ? 0.8 : 0.2,
+        ),
+        industryRow(
+          '801780.SI',
+          '银行',
+          marketRow.tradeDate,
+          hasClimbed ? 1 : 3,
+          hasClimbed ? -0.1 : 0.1,
+          hasClimbed ? 0.2 : 0.8,
+        ),
+      ];
+    });
+
+    const result = buildMarketStateSnapshot(marketRows, industryRows);
+    const electronics = result?.industries.find((industry) => industry.l1Code === '801080.SI');
+
+    expect(electronics?.rank).toBe(1);
+    expect(electronics?.rankChange5Day).toBe(1);
+    expect(electronics?.rankChange20Day).toBe(1);
+  });
+
+  it('only builds style pairs when both legs carry the official style-index classification', () => {
+    const closeRows = ['000918.CSI', '000919.CSI'].flatMap((tsCode, codeIndex) =>
+      Array.from({ length: 61 }, (_, index) => ({
+        tsCode,
+        tradeDate: `2026${String(index + 1).padStart(4, '0')}`,
+        close: 100 + index * (codeIndex === 0 ? 2 : 1),
+      })),
+    );
+    const result = buildMarketStylePairs(closeRows, [
+      {
+        tsCode: '000918.CSI',
+        name: '300成长',
+        bmkSource: '中证指数',
+        indexType: '风格类指数',
+      },
+      {
+        tsCode: '000919.CSI',
+        name: '300价值',
+        bmkSource: '中证指数',
+        indexType: '风格类指数',
+      },
+    ]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].key).toBe('csi300');
+    expect(result[0].growth.name).toBe('300成长');
+    expect(result[0].spread20Day).toBeGreaterThan(0);
+  });
+
+  it('uses official SW index returns and own-history valuation percentiles for industries', () => {
+    const dates = Array.from(
+      { length: 61 },
+      (_, index) => `2026${String(index + 1).padStart(4, '0')}`,
+    );
+    const marketRows = dates.map(
+      (tradeDate): MarketIndicatorRow => ({
+        tradeDate,
+        tradedCount: 5000,
+        return20: 0,
+        advanceRatio: 0.5,
+        aboveMa20Ratio: 0.5,
+        aboveMa60Ratio: 0.5,
+        totalAmount: 1_000_000,
+        floatWeightedTurnoverRate: 1,
+        topFivePercentAmountShare: 0.4,
+        extremeMoveRatio: 0.05,
+        limitUpCount: 10,
+        limitDownCount: 10,
+      }),
+    );
+    const industryRows = [
+      industryRow('801080.SI', '电子', dates.at(-1)!, 2, -0.2, 0.7),
+      industryRow('801780.SI', '银行', dates.at(-1)!, 1, 0.2, 0.3),
+    ];
+    const swIndexRows = ['801080.SI', '801780.SI'].flatMap((tsCode, codeIndex) =>
+      dates.map((tradeDate, index) => ({
+        tsCode,
+        tradeDate,
+        close: 100 + index * (codeIndex === 0 ? 2 : 0.5),
+        pe: 10 + index + codeIndex * 100,
+        pb: 1 + index / 10 + codeIndex * 10,
+      })),
+    );
+
+    const result = buildMarketStateSnapshot(marketRows, industryRows, { swIndexRows });
+    const electronics = result?.industries.find((industry) => industry.l1Code === '801080.SI');
+
+    expect(electronics?.officialReturn20Day).toBeGreaterThan(0);
+    expect(electronics?.trendScore).toBe(100);
+    expect(electronics?.pe).toBe(70);
+    expect(electronics?.pePercentile10Year).toBe(1);
+  });
+
+  it('builds replayable calendar periods from official SW industry closes', () => {
+    const dates = ['20260130', '20260227', '20260331'];
+    const industryRows = dates.flatMap((tradeDate, index) => [
+      industryRow('801080.SI', '电子', tradeDate, index + 1, 0.1, 0.8),
+      industryRow('801780.SI', '银行', tradeDate, 1, -0.1, 0.2),
+    ]);
+    const swIndexRows: SwIndexDailyRow[] = dates.flatMap((tradeDate, index) => [
+      {
+        tsCode: '801080.SI',
+        tradeDate,
+        close: [100, 120, 150][index],
+        pe: [30, 25, 20][index],
+        pb: [3, 2.5, 2][index],
+      },
+      {
+        tsCode: '801780.SI',
+        tradeDate,
+        close: [100, 90, 80][index],
+        pe: [8, 9, 10][index],
+        pb: [0.8, 0.9, 1][index],
+      },
+    ]);
+
+    const monthly = buildIndustryWeatherSeries(industryRows, swIndexRows, 'month');
+    const quarterly = buildIndustryWeatherSeries(industryRows, swIndexRows, 'quarter');
+    const februaryElectronics = monthly?.periods[1].industries.find(
+      (industry) => industry.l1Code === '801080.SI',
+    );
+    const februaryBank = monthly?.periods[1].industries.find(
+      (industry) => industry.l1Code === '801780.SI',
+    );
+
+    expect(monthly?.periods.map((period) => period.key)).toEqual(['2026-01', '2026-02', '2026-03']);
+    expect(quarterly?.periods).toHaveLength(1);
+    expect(monthly?.periods[0].industries.every((industry) => industry.periodReturn == null)).toBe(
+      true,
+    );
+    expect(februaryElectronics?.periodReturn).toBeCloseTo(0.2);
+    expect(februaryBank?.periodReturn).toBeCloseTo(-0.1);
+    expect(februaryElectronics?.heatScore).toBeGreaterThan(februaryBank?.heatScore ?? 0);
+    expect(februaryElectronics?.heatChange).not.toBeNull();
   });
 });
 

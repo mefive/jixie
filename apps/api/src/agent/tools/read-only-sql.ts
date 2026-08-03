@@ -52,6 +52,10 @@ export const SQL_TABLE_DOCS: Record<string, string> = {
   IndexDaily: 'tsCode, tradeDate, close — index daily bars (e.g. 000300.SH CSI 300)',
   IndexDailyBasic:
     'tsCode, tradeDate, totalMv(yuan), floatMv(yuan), totalShare(shares), floatShare(shares), freeShare(shares), turnoverRate(%), turnoverRateF(% free-float), pe, peTtm, pb — provider-computed broad-market index daily valuation metrics; use only history available on or before the evaluated date when calculating valuation percentiles',
+  IndexBenchmark:
+    'tsCode, symbol, name, fullName, bmkLevel, bmkType, bmkSource, indexType — official public-fund benchmark catalog from Tushare mkt_idx_bmk; use indexType/bmkType rather than inferring index categories from names',
+  SwIndexDaily:
+    'tsCode, tradeDate, name, open, low, high, close, change, pctChange(%), volume(10k shares), amount(10k CNY), pe, pb, floatMv(10k CNY), totalMv(10k CNY) — official Shenwan SW2021 level-1 industry index daily bars only; calculate valuation percentiles within the same industry over history',
   MarketIndicator:
     'tradeDate, tradedCount, return20(decimal), advanceRatio(0..1), aboveMa20Ratio(0..1), aboveMa60Ratio(0..1), totalAmount(thousand CNY), floatWeightedTurnoverRate(%), topFivePercentAmountShare(0..1), extremeMoveRatio(0..1), limitUpCount, limitDownCount — precomputed descriptive whole-market state',
   IndexIndicator:

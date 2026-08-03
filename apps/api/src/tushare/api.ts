@@ -266,6 +266,27 @@ export interface IndexDailyBasicRow {
   pb: number | null;
 }
 
+export interface IndexBenchmarkRow {
+  ts_code: TsCode;
+  symbol: string;
+  name: string;
+  fullname: string;
+  bmk_level: string;
+  bmk_type: string;
+  bmk_src: string;
+  idx_type: string;
+}
+
+/** Official public-fund benchmark catalog with index type and compiler provenance. */
+export async function indexBenchmark(client: TushareClient): Promise<IndexBenchmarkRow[]> {
+  const rows = await client.call(
+    'mkt_idx_bmk',
+    {},
+    'ts_code,symbol,name,fullname,bmk_level,bmk_type,bmk_src,idx_type',
+  );
+  return rows as unknown as IndexBenchmarkRow[];
+}
+
 /** Broad-market index daily valuation metrics. The upstream endpoint supports a limited set of major
  * indices and returns provider-computed PE/PB values rather than constituent-level approximations. */
 export async function indexDailyBasic(
@@ -589,6 +610,42 @@ export interface IndexClassifyRow {
   index_code: string; // SW industry index code, e.g. 801120.SI
   industry_name: string;
   level: string; // L1 / L2 / L3
+}
+
+export interface SwDailyRow {
+  ts_code: TsCode;
+  trade_date: TradeDate;
+  name: string;
+  open: number | null;
+  low: number | null;
+  high: number | null;
+  close: number | null;
+  change: number | null;
+  pct_change: number | null;
+  vol: number | null;
+  amount: number | null;
+  pe: number | null;
+  pb: number | null;
+  float_mv: number | null;
+  total_mv: number | null;
+}
+
+/** Shenwan index daily bars. Callers must whitelist SW2021 level-1 codes via index_classify. */
+export async function swDaily(
+  client: TushareClient,
+  params: {
+    ts_code?: TsCode;
+    trade_date?: TradeDate;
+    start_date?: TradeDate;
+    end_date?: TradeDate;
+  },
+): Promise<SwDailyRow[]> {
+  const rows = await client.call(
+    'sw_daily',
+    params,
+    'ts_code,trade_date,name,open,low,high,close,change,pct_change,vol,amount,pe,pb,float_mv,total_mv',
+  );
+  return rows as unknown as SwDailyRow[];
 }
 
 /** Shenwan industry classification list. Defaults to SW2021 level-1 (the 31 top-level industries). */

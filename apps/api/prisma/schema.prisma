@@ -299,6 +299,42 @@ model IndexDailyBasic {
   @@index([tradeDate])
 }
 
+/// Official public-fund benchmark catalog from Tushare mkt_idx_bmk. The type fields distinguish
+/// broad, style, strategy, industry, and thematic indices without inferring categories from names.
+model IndexBenchmark {
+  tsCode    String @id
+  symbol    String
+  name      String
+  fullName  String
+  bmkLevel  String
+  bmkType   String
+  bmkSource String
+  indexType String
+}
+
+/// Official Shenwan index daily bars. Only SW2021 level-1 industries from index_classify are stored,
+/// so broad Shenwan indices and level-2/level-3 industries cannot leak into the industry dashboard.
+model SwIndexDaily {
+  tsCode    String
+  tradeDate String
+  name      String
+  open      Float?
+  low       Float?
+  high      Float?
+  close     Float?
+  change    Float?
+  pctChange Float? // percent
+  volume    Float? // 10k shares
+  amount    Float? // 10k CNY
+  pe        Float?
+  pb        Float?
+  floatMv   Float? // 10k CNY
+  totalMv   Float? // 10k CNY
+
+  @@id([tsCode, tradeDate])
+  @@index([tradeDate])
+}
+
 /// Precomputed whole-market daily state. Values are descriptive measurements, not forecasts:
 /// activity, participation breadth, trend, concentration, and speculative extremes. Price-window
 /// fields use adjusted closes and only stocks with sufficient point-in-time history enter each

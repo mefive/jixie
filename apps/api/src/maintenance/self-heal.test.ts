@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { MAJOR_INDEX_DAILY_BASIC_CODES, MAJOR_INDEX_DAILY_CODES } from '../store/index-presets.js';
+import {
+  MAJOR_INDEX_DAILY_BASIC_CODES,
+  MAJOR_INDEX_DAILY_CODES,
+  MARKET_STYLE_INDEX_CODES,
+} from '../store/index-presets.js';
 import { buildMarketDateRepairPlan, type MarketDateCounts } from './self-heal.js';
 
 function complete(overrides: Partial<MarketDateCounts> = {}): MarketDateCounts {
@@ -10,8 +14,9 @@ function complete(overrides: Partial<MarketDateCounts> = {}): MarketDateCounts {
     basic: 5_300,
     limits: 5_300,
     moneyflow: 5_100,
-    indexDailyCodes: [...MAJOR_INDEX_DAILY_CODES],
+    indexDailyCodes: [...MAJOR_INDEX_DAILY_CODES, ...MARKET_STYLE_INDEX_CODES],
     indexDailyBasicCodes: [...MAJOR_INDEX_DAILY_BASIC_CODES],
+    swIndexDaily: 31,
     ...overrides,
   };
 }
@@ -81,6 +86,12 @@ describe('market-date self-heal plan', () => {
         moneyflow: false,
         indices: true,
       }),
+    ]);
+  });
+
+  it('repairs an incomplete official SW level-1 industry slice', () => {
+    expect(buildMarketDateRepairPlan([complete({ swIndexDaily: 30 })])).toEqual([
+      expect.objectContaining({ indices: true }),
     ]);
   });
 });
