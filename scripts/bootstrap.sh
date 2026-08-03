@@ -153,6 +153,22 @@ set_env_var() {
   fi
 }
 
+market_reference_coverage() {
+  local database_file="$1"
+  local reference_start="$2"
+
+  sqlite3 -separator ' ' "$database_file" "
+    SELECT
+      (SELECT count(*) FROM \"IndexBenchmark\"),
+      (SELECT count(*) FROM (
+        SELECT \"tsCode\"
+        FROM \"SwIndexDaily\"
+        GROUP BY \"tsCode\"
+        HAVING min(\"tradeDate\") <= '$reference_start'
+      ));
+  "
+}
+
 STAGING_DIR=""
 ACTIVE_LIVE_DIR=""
 ACTIVE_PREVIOUS_DIR=""
@@ -495,6 +511,38 @@ if [[ -f "$IMPORT_REQUIRED_MARKER" ]]; then
   log "行情库尚未完成初始化,执行可断点续传的全量导入"
   pnpm import:data
   rm -f "$IMPORT_REQUIRED_MARKER"
+else
+  read -r MARKET_REFERENCE_START MARKET_REFERENCE_END < <(
+    sqlite3 -separator ' ' "$DB_FILE" '
+      SELECT
+        coalesce(
+          (SELECT min("tradeDate") FROM "IndustryIndicator"),
+          (SELECT min("tradeDate") FROM "Daily")
+        ),
+        coalesce(
+          (SELECT max("tradeDate") FROM "IndustryIndicator"),
+          (SELECT max("tradeDate") FROM "Daily")
+        );
+    '
+  )
+  [[ "$MARKET_REFERENCE_START" =~ ^[0-9]{8}$ && "$MARKET_REFERENCE_END" =~ ^[0-9]{8}$ ]] ||
+    die "无法确定官方市场参考数据的回填区间"
+
+  read -r INDEX_BENCHMARK_ROWS SW_HISTORICAL_CODES < <(
+    market_reference_coverage "$DB_FILE" "$MARKET_REFERENCE_START"
+  )
+  if [[ "$INDEX_BENCHMARK_ROWS" -eq 0 || "$SW_HISTORICAL_CODES" -ne 31 ]]; then
+    log "补全官方指数分类、风格指数和申万一级行业历史行情: $MARKET_REFERENCE_START ~ $MARKET_REFERENCE_END"
+    pnpm --filter api sync:market-reference "$MARKET_REFERENCE_START" "$MARKET_REFERENCE_END"
+
+    read -r INDEX_BENCHMARK_ROWS SW_HISTORICAL_CODES < <(
+      market_reference_coverage "$DB_FILE" "$MARKET_REFERENCE_START"
+    )
+    [[ "$INDEX_BENCHMARK_ROWS" -gt 0 && "$SW_HISTORICAL_CODES" -eq 31 ]] ||
+      die "官方市场参考数据回填后仍不完整"
+  else
+    log "官方市场参考数据历史覆盖完整,跳过回填"
+  fi
 fi
 
 INVITE_COUNT="$(sqlite3 "$DB_FILE" 'SELECT count(*) FROM "InviteCode";' 2>/dev/null || echo 0)"

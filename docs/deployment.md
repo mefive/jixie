@@ -48,7 +48,9 @@ jixie 在 Linux VPS（Ubuntu / CentOS）上的部署。唯一入口是幂等的 
 停止 API，静态产物在 staging 构建成功后原子切换。首次运行、部署记录缺失或记录无法验证时也会全量
 执行。影响规则的机器可读真相源是 `deploy/component-impact.json`。
 
-代码更新不会主动同步行情，行情增量仍由 maintenance timer 负责。
+代码更新不会重复同步常规行情，行情增量仍由 maintenance timer 负责。`bootstrap.sh` 会单独检查官方
+指数分类、风格指数和申万一级行业行情的历史覆盖；已有行情库升级后缺少这组参考数据时，会按
+`IndustryIndicator` 的可用区间自动执行一次 `sync:market-reference`，覆盖完整后再次部署会跳过。
 
 Nginx 主配置会 include 仓库中的 `/opt/jixie/deploy/nginx-docs-app.conf`，把独立构建的
 `apps/docs/dist/docs` 挂载到 `/docs/` 并处理深链。脚本不会覆盖 Certbot 已写入的 TLS 配置。
@@ -87,10 +89,10 @@ pnpm import:data
 ```
 
 默认导入 2015 年至今的 A 股日线/复权、每日估值、涨跌停、资金流、龙虎榜、财务与分红、申万行业、
-主要 ETF、指数和股指期货。最终阶段先修复基线，再预计算市场状态并执行严格数据审计。随后 bootstrap
-启动 daily coordinator，由 daily 在同一维护状态机内验证基线、建立连续发布水位并完成 catch-up。财务
-和分红阶段内部按股票分批启动短生命周期子进程，避免首次导入也积累 Node/Prisma 原生内存；这不会增加
-新的部署命令。
+官方指数分类、风格指数与申万一级行业行情、主要 ETF、指数和股指期货。最终阶段先修复基线，再预计算
+市场状态并执行严格数据审计。随后 bootstrap 启动 daily coordinator，由 daily 在同一维护状态机内验证
+基线、建立连续发布水位并完成 catch-up。财务和分红阶段内部按股票分批启动短生命周期子进程，避免首次
+导入也积累 Node/Prisma 原生内存；这不会增加新的部署命令。
 
 > **研究史(用户、策略、因子、回测记录)不会生成或迁移**——Tushare 只提供市场数据，prod 从空库开始积累自己的研究。
 
