@@ -1,11 +1,16 @@
 import type { TradeDate } from '@jixie/shared';
 import { prisma } from '../lib/prisma.js';
-import { MAJOR_INDEX_DAILY_BASIC_CODES, MAJOR_INDEX_DAILY_CODES } from '../store/index-presets.js';
+import {
+  MAJOR_INDEX_DAILY_BASIC_CODES,
+  MAJOR_INDEX_DAILY_CODES,
+  MARKET_STYLE_INDEX_CODES,
+} from '../store/index-presets.js';
 import {
   syncDailyCoreDate,
   syncIndexDaily,
   syncIndexDailyBasic,
   syncMoneyflow,
+  syncSwIndexDaily,
   syncTopList,
 } from '../store/sync.js';
 import type { TushareClient } from '../tushare/client.js';
@@ -20,6 +25,7 @@ export interface MarketDateCounts {
   moneyflow: number;
   indexDailyCodes: string[];
   indexDailyBasicCodes: string[];
+  swIndexDaily: number;
 }
 
 export interface MarketDateRepair {
@@ -93,13 +99,24 @@ export function buildMarketDateRepairPlan(counts: MarketDateCounts[]): MarketDat
     const dailyCodes = new Set(row.indexDailyCodes);
     const basicCodes = new Set(row.indexDailyBasicCodes);
     const missingDaily = MAJOR_INDEX_DAILY_CODES.filter((code) => !dailyCodes.has(code));
+    const missingStyle = MARKET_STYLE_INDEX_CODES.filter((code) => !dailyCodes.has(code));
     const missingBasic = MAJOR_INDEX_DAILY_BASIC_CODES.filter((code) => !basicCodes.has(code));
-    const indices = missingDaily.length > 0 || missingBasic.length > 0;
+    const indices =
+      missingDaily.length > 0 ||
+      missingStyle.length > 0 ||
+      missingBasic.length > 0 ||
+      row.swIndexDaily < 31;
     if (missingDaily.length > 0) {
       reasons.push(`IndexDaily missing ${missingDaily.join(',')}`);
     }
     if (missingBasic.length > 0) {
       reasons.push(`IndexDailyBasic missing ${missingBasic.join(',')}`);
+    }
+    if (missingStyle.length > 0) {
+      reasons.push(`Official style IndexDaily missing ${missingStyle.join(',')}`);
+    }
+    if (row.swIndexDaily < 31) {
+      reasons.push(`SwIndexDaily has ${row.swIndexDaily}/31 level-1 industries`);
     }
 
     return core || moneyflow || indices
@@ -171,10 +188,11 @@ export async function selfHealMarketDates(
       await syncTopList(client, tradeDate, tradeDate, { refresh: true });
     }
     if (repair.indices) {
-      for (const indexCode of MAJOR_INDEX_DAILY_CODES) {
+      for (const indexCode of [...MAJOR_INDEX_DAILY_CODES, ...MARKET_STYLE_INDEX_CODES]) {
         await syncIndexDaily(client, indexCode, tradeDate, tradeDate);
       }
       await syncIndexDailyBasic(client, [...MAJOR_INDEX_DAILY_BASIC_CODES], tradeDate, tradeDate);
+      await syncSwIndexDaily(client, tradeDate, tradeDate);
       summary.indexDates.push(tradeDate);
     }
     await validateRawMarketDate(tradeDate);
@@ -187,7 +205,7 @@ export async function selfHealMarketDates(
 
 async function inspectMarketDates(tradeDates: string[]): Promise<MarketDateCounts[]> {
   const where = { tradeDate: { in: tradeDates } };
-  const [daily, adjustment, basic, limits, moneyflow, indexDaily, indexDailyBasic] =
+  const [daily, adjustment, basic, limits, moneyflow, indexDaily, indexDailyBasic, swIndexDaily] =
     await Promise.all([
       prisma.daily.groupBy({ by: ['tradeDate'], where, _count: { _all: true } }),
       prisma.adjFactor.groupBy({ by: ['tradeDate'], where, _count: { _all: true } }),
@@ -195,12 +213,20 @@ async function inspectMarketDates(tradeDates: string[]): Promise<MarketDateCount
       prisma.stkLimit.groupBy({ by: ['tradeDate'], where, _count: { _all: true } }),
       prisma.moneyflow.groupBy({ by: ['tradeDate'], where, _count: { _all: true } }),
       prisma.indexDaily.findMany({
-        where: { ...where, tsCode: { in: [...MAJOR_INDEX_DAILY_CODES] } },
+        where: {
+          ...where,
+          tsCode: { in: [...MAJOR_INDEX_DAILY_CODES, ...MARKET_STYLE_INDEX_CODES] },
+        },
         select: { tradeDate: true, tsCode: true },
       }),
       prisma.indexDailyBasic.findMany({
         where: { ...where, tsCode: { in: [...MAJOR_INDEX_DAILY_BASIC_CODES] } },
         select: { tradeDate: true, tsCode: true },
+      }),
+      prisma.swIndexDaily.groupBy({
+        by: ['tradeDate'],
+        where,
+        _count: { _all: true },
       }),
     ]);
 
@@ -222,6 +248,7 @@ async function inspectMarketDates(tradeDates: string[]): Promise<MarketDateCount
   const moneyflowByDate = countMap(moneyflow);
   const indexDailyByDate = codesByDate(indexDaily);
   const indexDailyBasicByDate = codesByDate(indexDailyBasic);
+  const swIndexDailyByDate = countMap(swIndexDaily);
 
   return tradeDates.map((tradeDate) => ({
     tradeDate,
@@ -232,6 +259,7 @@ async function inspectMarketDates(tradeDates: string[]): Promise<MarketDateCount
     moneyflow: moneyflowByDate.get(tradeDate) ?? 0,
     indexDailyCodes: indexDailyByDate.get(tradeDate) ?? [],
     indexDailyBasicCodes: indexDailyBasicByDate.get(tradeDate) ?? [],
+    swIndexDaily: swIndexDailyByDate.get(tradeDate) ?? 0,
   }));
 }
 

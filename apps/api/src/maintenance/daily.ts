@@ -5,12 +5,17 @@ import { syncMarketIndicators } from '../market/sync-market-indicators.js';
 import { generateDailySignals } from '../signals/scheduler.js';
 import { latestCompletedTradeDate } from '../signals/service.js';
 import { syncSignalMarketData } from '../signals/sync.js';
-import { MAJOR_INDEX_DAILY_BASIC_CODES, MAJOR_INDEX_DAILY_CODES } from '../store/index-presets.js';
+import {
+  MAJOR_INDEX_DAILY_BASIC_CODES,
+  MAJOR_INDEX_DAILY_CODES,
+  MARKET_STYLE_INDEX_CODES,
+} from '../store/index-presets.js';
 import {
   syncDailyCoreDate,
   syncIndexDaily,
   syncIndexDailyBasic,
   syncMoneyflow,
+  syncSwIndexDaily,
   syncTopList,
   syncTradeCal,
 } from '../store/sync.js';
@@ -215,9 +220,10 @@ export async function runDailyMaintenance(
           currentDate: tradeDate,
           core,
         });
-        for (const indexCode of MAJOR_INDEX_DAILY_CODES) {
+        for (const indexCode of [...MAJOR_INDEX_DAILY_CODES, ...MARKET_STYLE_INDEX_CODES]) {
           await syncIndexDaily(client, indexCode, tradeDate as TradeDate, tradeDate as TradeDate);
         }
+        await syncSwIndexDaily(client, tradeDate as TradeDate, tradeDate as TradeDate);
         await syncIndexDailyBasic(
           client,
           [...MAJOR_INDEX_DAILY_BASIC_CODES],

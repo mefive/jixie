@@ -38,6 +38,7 @@
     "sync:index-daily": "tsx --env-file=.env scripts/sync-index-daily.ts",
     "sync:index-basic": "tsx --env-file=.env scripts/sync-index-basic.ts",
     "sync:market-state": "tsx --env-file=.env scripts/sync-market-state.ts",
+    "sync:market-reference": "tsx --env-file=.env scripts/sync-market-reference.ts",
     "sync:limit": "tsx --env-file=.env scripts/sync-limit.ts",
     "sync:moneyflow": "tsx --env-file=.env scripts/sync-moneyflow.ts",
     "sync:sw-industry": "tsx --env-file=.env scripts/sync-sw-industry.ts",

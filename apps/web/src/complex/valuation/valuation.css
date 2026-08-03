@@ -55,6 +55,61 @@
   @apply text-xs text-muted;
 }
 
+.jx-marketState-layerHead,
+.jx-marketState-layerTitle {
+  @apply flex items-start gap-3;
+  padding: 0 4px;
+}
+
+.jx-marketState-layerIndex {
+  @apply shrink-0 rounded-md font-semibold text-muted;
+  padding: 3px 7px;
+  background: #eef0f3;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.jx-marketState-readout {
+  @apply flex items-center gap-3 rounded-xl border border-line bg-card;
+  padding: 13px 16px;
+}
+
+.jx-marketState-regime {
+  @apply shrink-0 rounded-full font-semibold;
+  margin: 0;
+  padding: 3px 10px;
+}
+
+.jx-marketState-regime--hotBroad {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+.jx-marketState-regime--hotNarrow {
+  color: #9a3412;
+  background: #ffedd5;
+}
+
+.jx-marketState-regime--coldBroad {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.jx-marketState-regime--coldWeak {
+  color: #166534;
+  background: #e7f5eb;
+}
+
+.jx-marketState-regime--balanced {
+  color: #374151;
+  background: #eef0f3;
+}
+
+.jx-marketState-readoutText {
+  @apply m-0 text-sm text-ink;
+  line-height: 1.6;
+}
+
 .jx-marketState-scopePicker {
   @apply grid gap-2;
   width: min(680px, calc(100vw - 48px));
@@ -203,7 +258,10 @@
   @apply text-sm font-semibold text-ink;
 }
 
-.jx-marketState-chartCard {
+.jx-marketState-chartCard,
+.jx-marketState-styleCard,
+.jx-marketState-industryMapCard,
+.jx-marketState-industryCard {
   @apply rounded-xl border border-line bg-card;
   padding: 20px 20px 14px;
 }
@@ -229,6 +287,216 @@
 
 .jx-marketState-chartSkeleton {
   width: 100% !important;
+}
+
+.jx-marketState-styleGrid {
+  @apply grid grid-cols-3 gap-3;
+}
+
+.jx-marketState-stylePair {
+  @apply rounded-xl border border-line;
+  padding: 15px 16px 13px;
+  background: #fafafa;
+}
+
+.jx-marketState-stylePairHead {
+  @apply flex items-start justify-between gap-3;
+}
+
+.jx-marketState-stylePairLabel {
+  @apply text-sm font-semibold text-ink;
+}
+
+.jx-marketState-stylePairNames {
+  @apply text-right text-xs text-muted;
+}
+
+.jx-marketState-styleLead {
+  @apply mt-4 flex items-baseline justify-between gap-3;
+}
+
+.jx-marketState-styleLead strong {
+  @apply font-semibold text-ink;
+  font-size: 22px;
+  letter-spacing: -0.02em;
+}
+
+.jx-marketState-styleLead span {
+  @apply text-xs font-medium text-muted;
+}
+
+.jx-marketState-stylePeriods {
+  @apply mt-4 grid grid-cols-3 overflow-hidden rounded-lg border border-line;
+  background: #fff;
+}
+
+.jx-marketState-stylePeriod {
+  @apply flex flex-col gap-1 border-r border-line text-center;
+  padding: 7px 5px;
+}
+
+.jx-marketState-stylePeriod:last-child {
+  border-right: 0;
+}
+
+.jx-marketState-stylePeriod span {
+  @apply text-muted;
+  font-size: 10px;
+}
+
+.jx-marketState-stylePeriod strong {
+  @apply font-medium text-ink;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.jx-marketState-stylePeriod--emphasis {
+  background: #f0f1f3;
+}
+
+.jx-marketState-styleBreadth {
+  @apply mt-3 flex items-center justify-between gap-3 text-xs text-muted;
+}
+
+.jx-marketState-styleBreadth strong {
+  @apply font-semibold text-ink;
+}
+
+.jx-marketState-asOf {
+  @apply shrink-0 text-xs text-muted;
+  padding-top: 4px;
+}
+
+.jx-marketState-industryMap,
+.jx-marketState-industryMapSkeleton {
+  height: 440px;
+}
+
+.jx-marketState-industryMapSkeleton {
+  width: 100% !important;
+}
+
+.jx-marketState-industryName {
+  @apply flex items-center justify-between gap-2;
+}
+
+.jx-marketState-industryNameLabel {
+  @apply font-medium text-ink;
+}
+
+.jx-marketState-industryNameCount {
+  @apply text-muted;
+  font-size: 10px;
+}
+
+.jx-marketState-industryTable {
+  cursor: pointer;
+}
+
+.jx-marketState-score {
+  @apply flex items-center gap-2;
+}
+
+.jx-marketState-scoreValue {
+  @apply font-medium text-ink;
+  width: 25px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.jx-marketState-scoreTrack {
+  @apply block flex-1 overflow-hidden rounded-full;
+  background: #eceef1;
+  height: 5px;
+}
+
+.jx-marketState-scoreFill {
+  @apply block rounded-full;
+  background: #8a9099;
+  height: 100%;
+}
+
+.jx-marketState-score--emphasis .jx-marketState-scoreValue {
+  @apply font-semibold;
+}
+
+.jx-marketState-score--emphasis .jx-marketState-scoreFill {
+  background: #111827;
+}
+
+.jx-marketState-industryTag {
+  @apply rounded-full;
+  margin: 0;
+  font-size: 11px;
+}
+
+.jx-marketState-valuationTag {
+  @apply rounded-full;
+  margin: 0;
+  font-size: 11px;
+}
+
+.jx-marketState-valuationTag--low {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.jx-marketState-valuationTag--neutral {
+  color: #4b5563;
+  background: #eef0f3;
+}
+
+.jx-marketState-valuationTag--high {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+.jx-marketState-valuationTag--unknown {
+  color: #6b7280;
+  background: #f3f4f6;
+}
+
+.jx-marketState-industryTag--leading {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+.jx-marketState-industryTag--overheated {
+  color: #9f1239;
+  background: #ffe4e6;
+}
+
+.jx-marketState-industryTag--activeLagging {
+  color: #9a3412;
+  background: #ffedd5;
+}
+
+.jx-marketState-industryTag--cooling {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.jx-marketState-industryTag--balanced {
+  color: #4b5563;
+  background: #eef0f3;
+}
+
+.jx-marketState-return {
+  @apply font-medium;
+  font-variant-numeric: tabular-nums;
+}
+
+.jx-marketState-rankChange {
+  @apply inline-flex items-center gap-1 text-xs text-muted;
+  font-variant-numeric: tabular-nums;
+}
+
+.jx-marketState-rankChange--up {
+  color: #dc2626;
+}
+
+.jx-marketState-rankChange--down {
+  color: #16a34a;
 }
 
 .jx-marketState-method {
@@ -360,6 +628,10 @@
     @apply flex-col;
   }
 
+  .jx-marketState-styleGrid {
+    @apply grid-cols-2;
+  }
+
   .jx-valuation-chartControls {
     @apply justify-start;
   }
@@ -406,12 +678,31 @@
     @apply grid-cols-2;
   }
 
+  .jx-marketState-styleGrid {
+    @apply grid-cols-1;
+  }
+
   .jx-marketState-detailItem {
     border-right: 0;
   }
 
   .jx-marketState-chartCard {
     padding: 17px 12px 12px;
+  }
+
+  .jx-marketState-styleCard,
+  .jx-marketState-industryMapCard,
+  .jx-marketState-industryCard {
+    padding: 17px 12px 12px;
+  }
+
+  .jx-marketState-readout {
+    @apply items-start;
+  }
+
+  .jx-marketState-industryMap,
+  .jx-marketState-industryMapSkeleton {
+    height: 380px;
   }
 
   .jx-marketState-chart,

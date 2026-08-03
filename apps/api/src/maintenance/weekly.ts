@@ -8,6 +8,7 @@ import {
   syncEtfBasic,
   syncFutureContracts,
   syncIndexWeight,
+  syncIndexBenchmarks,
   syncStockBasic,
   syncStockNameHistory,
   syncSwIndustry,
@@ -191,6 +192,7 @@ export async function runWeeklyMaintenance(
     );
 
     await updateMaintenanceRun(run.id, 'metadata', summary);
+    await syncIndexBenchmarks(standardClient);
     await syncEtfBasic(standardClient);
     await syncFutureContracts(standardClient);
 

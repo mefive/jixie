@@ -106,6 +106,7 @@ const DENSE_TABLES = [
   { id: 'daily-basic', title: 'Daily valuation metrics' },
   { id: 'moneyflow', title: 'Daily money flow' },
   { id: 'stk-limit', title: 'Daily price limits' },
+  { id: 'sw-index-daily', title: 'SW2021 Level-1 industry bars' },
 ] as const;
 
 export async function runDataQualityAudit(
@@ -290,7 +291,7 @@ async function loadDenseDateCounts(
   endDate: string,
 ): Promise<Record<(typeof DENSE_TABLES)[number]['id'], DateCount[]>> {
   const range = { gte: startDate, lte: endDate };
-  const [daily, adjFactor, dailyBasic, moneyflow, stkLimit] = await Promise.all([
+  const [daily, adjFactor, dailyBasic, moneyflow, stkLimit, swIndexDaily] = await Promise.all([
     database.daily.groupBy({
       by: ['tradeDate'],
       where: { tradeDate: range },
@@ -321,6 +322,12 @@ async function loadDenseDateCounts(
       _count: { _all: true },
       orderBy: { tradeDate: 'asc' },
     }),
+    database.swIndexDaily.groupBy({
+      by: ['tradeDate'],
+      where: { tradeDate: range },
+      _count: { _all: true },
+      orderBy: { tradeDate: 'asc' },
+    }),
   ]);
   const normalize = (rows: Array<{ tradeDate: string; _count: { _all: number } }>) =>
     rows.map((row) => ({ tradeDate: row.tradeDate, count: row._count._all }));
@@ -331,6 +338,7 @@ async function loadDenseDateCounts(
     'daily-basic': normalize(dailyBasic),
     moneyflow: normalize(moneyflow),
     'stk-limit': normalize(stkLimit),
+    'sw-index-daily': normalize(swIndexDaily),
   };
 }
 

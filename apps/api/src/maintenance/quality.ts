@@ -2,6 +2,7 @@ import {
   MARKET_STATE_INDEX_CODES,
   MAJOR_INDEX_DAILY_BASIC_CODES,
   MAJOR_INDEX_DAILY_CODES,
+  MARKET_STYLE_INDEX_CODES,
 } from '../store/index-presets.js';
 import { prisma } from '../lib/prisma.js';
 
@@ -14,6 +15,8 @@ export interface RawDateQuality {
   moneyflowCoverage: number;
   indexDaily: number;
   indexDailyBasic: number;
+  styleIndexDaily: number;
+  swIndexDaily: number;
   oldestIndexWeightSnapshot: string;
   activeIndustries: number;
 }
@@ -36,7 +39,7 @@ interface CoverageRow {
 }
 
 export async function validateRawMarketDate(tradeDate: string): Promise<RawDateQuality> {
-  const [coverageRows, indexCodes, indexBasicCodes, activeIndustries, indexSnapshots] =
+  const [coverageRows, indexCodes, indexBasicCodes, swIndexRows, activeIndustries, indexSnapshots] =
     await Promise.all([
       prisma.$queryRaw<CoverageRow[]>`
       SELECT
@@ -55,11 +58,18 @@ export async function validateRawMarketDate(tradeDate: string): Promise<RawDateQ
       WHERE d.tradeDate = ${tradeDate}
     `,
       prisma.indexDaily.findMany({
-        where: { tradeDate, tsCode: { in: [...MAJOR_INDEX_DAILY_CODES] } },
+        where: {
+          tradeDate,
+          tsCode: { in: [...MAJOR_INDEX_DAILY_CODES, ...MARKET_STYLE_INDEX_CODES] },
+        },
         select: { tsCode: true },
       }),
       prisma.indexDailyBasic.findMany({
         where: { tradeDate, tsCode: { in: [...MAJOR_INDEX_DAILY_BASIC_CODES] } },
+        select: { tsCode: true },
+      }),
+      prisma.swIndexDaily.findMany({
+        where: { tradeDate },
         select: { tsCode: true },
       }),
       prisma.swIndustryMember.groupBy({
@@ -108,6 +118,12 @@ export async function validateRawMarketDate(tradeDate: string): Promise<RawDateQ
   if (missingIndexCodes.length > 0) {
     throw new Error(`IndexDaily is missing ${missingIndexCodes.join(', ')} for ${tradeDate}`);
   }
+  const missingStyleCodes = MARKET_STYLE_INDEX_CODES.filter((code) => !actualIndexCodes.has(code));
+  if (missingStyleCodes.length > 0) {
+    throw new Error(
+      `Official style IndexDaily is missing ${missingStyleCodes.join(', ')} for ${tradeDate}`,
+    );
+  }
   const actualIndexBasicCodes = new Set(indexBasicCodes.map((row) => row.tsCode));
   const missingIndexBasicCodes = MAJOR_INDEX_DAILY_BASIC_CODES.filter(
     (code) => !actualIndexBasicCodes.has(code),
@@ -142,6 +158,11 @@ export async function validateRawMarketDate(tradeDate: string): Promise<RawDateQ
       `Only ${activeIndustries.length} active Shenwan industries are available for ${tradeDate}`,
     );
   }
+  if (swIndexRows.length !== 31) {
+    throw new Error(
+      `SwIndexDaily has ${swIndexRows.length}/31 level-1 industries for ${tradeDate}`,
+    );
+  }
 
   return {
     tradeDate,
@@ -152,6 +173,8 @@ export async function validateRawMarketDate(tradeDate: string): Promise<RawDateQ
     moneyflowCoverage,
     indexDaily: actualIndexCodes.size,
     indexDailyBasic: actualIndexBasicCodes.size,
+    styleIndexDaily: MARKET_STYLE_INDEX_CODES.length,
+    swIndexDaily: swIndexRows.length,
     oldestIndexWeightSnapshot: indexSnapshots.map((snapshot) => snapshot!.tradeDate).sort()[0],
     activeIndustries: activeIndustries.length,
   };

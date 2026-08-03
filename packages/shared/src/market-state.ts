@@ -2,6 +2,44 @@ import type { TradeDate } from './types.js';
 
 export type MarketStateMetric = 'activity' | 'breadth' | 'trend' | 'crowding';
 
+export type MarketWeatherFrequency = 'week' | 'month' | 'quarter' | 'year';
+
+export type IndustryWeatherState =
+  | 'undervalued'
+  | 'warming'
+  | 'expanding'
+  | 'overheated'
+  | 'crowded'
+  | 'cooling'
+  | 'balanced';
+
+export interface IndustryWeatherItem {
+  l1Code: string;
+  l1Name: string;
+  periodReturn: number | null;
+  heatScore: number;
+  heatChange: number | null;
+  activityScore: number;
+  breadthScore: number;
+  valuationPercentile: number | null;
+  state: IndustryWeatherState;
+}
+
+export interface IndustryWeatherPeriod {
+  key: string;
+  startDate: TradeDate;
+  endDate: TradeDate;
+  snapshotDate: TradeDate;
+  industries: IndustryWeatherItem[];
+}
+
+export interface IndustryWeatherSeries {
+  frequency: MarketWeatherFrequency;
+  startDate: TradeDate;
+  endDate: TradeDate;
+  periods: IndustryWeatherPeriod[];
+}
+
 export type MarketStateRegime = 'hotBroad' | 'hotNarrow' | 'coldBroad' | 'coldWeak' | 'balanced';
 
 export type MarketStateScope =
@@ -20,8 +58,30 @@ export interface MarketStateScopeOption {
   value: MarketStateScope;
   startDate: TradeDate;
   endDate: TradeDate;
-  trend: number | null;
+  return5Day: number | null;
+  return20Day: number | null;
+  return60Day: number | null;
   breadth: number | null;
+}
+
+export type MarketStylePairKey = 'csi300' | 'csi500' | 'csi800';
+
+export interface MarketStyleIndexLeg {
+  tsCode: string;
+  name: string;
+  source: string;
+  return5Day: number | null;
+  return20Day: number | null;
+  return60Day: number | null;
+}
+
+export interface MarketStylePair {
+  key: MarketStylePairKey;
+  growth: MarketStyleIndexLeg;
+  value: MarketStyleIndexLeg;
+  spread5Day: number | null;
+  spread20Day: number | null;
+  spread60Day: number | null;
 }
 
 export interface MarketStateMetricSummary {
@@ -47,6 +107,8 @@ export interface MarketStatePoint {
 
 export interface IndustryHeatItem {
   rank: number;
+  rankChange5Day: number | null;
+  rankChange20Day: number | null;
   l1Code: string;
   l1Name: string;
   tradedCount: number;
@@ -54,6 +116,13 @@ export interface IndustryHeatItem {
   trendScore: number;
   breadthScore: number;
   activityScore: number;
+  officialReturn5Day: number | null;
+  officialReturn20Day: number | null;
+  officialReturn60Day: number | null;
+  pe: number | null;
+  pb: number | null;
+  pePercentile10Year: number | null;
+  pbPercentile10Year: number | null;
   return20: number | null;
   excessReturn20: number | null;
   positiveReturn20Ratio: number | null;
@@ -75,5 +144,6 @@ export interface MarketStateSnapshot {
   summaries: Record<MarketStateMetric, MarketStateMetricSummary>;
   latest: MarketStatePoint;
   points: MarketStatePoint[];
+  stylePairs: MarketStylePair[];
   industries: IndustryHeatItem[];
 }

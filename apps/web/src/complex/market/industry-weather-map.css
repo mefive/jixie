@@ -1,0 +1,460 @@
+@reference '../../styles/index.css';
+
+.jx-industryWeather {
+  @apply relative overflow-visible rounded-2xl border border-line;
+  background:
+    radial-gradient(circle at 9% 0%, rgb(191 219 254 / 55%), transparent 29%),
+    radial-gradient(circle at 93% 7%, rgb(254 215 170 / 48%), transparent 25%),
+    linear-gradient(145deg, #edf4f7 0%, #f7f4ed 100%);
+  padding: 22px;
+}
+
+.jx-industryWeather-head {
+  @apply flex items-start justify-between gap-6;
+}
+
+.jx-industryWeather-eyebrow {
+  @apply mb-1 font-semibold uppercase text-muted;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+}
+
+.jx-industryWeather-title {
+  @apply m-0 font-semibold text-ink;
+  font-size: 26px;
+  letter-spacing: -0.035em;
+}
+
+.jx-industryWeather-subtitle {
+  @apply m-0 mt-1 text-sm text-muted;
+  max-width: 760px;
+  line-height: 1.65;
+}
+
+.jx-industryWeather-frequency {
+  @apply shrink-0;
+}
+
+.jx-industryWeather-brief {
+  @apply mt-5 flex items-center gap-5 rounded-xl;
+  color: #e5edf3;
+  background: rgb(15 29 41 / 94%);
+  padding: 13px 16px;
+  box-shadow: 0 12px 30px rgb(15 23 42 / 12%);
+}
+
+.jx-industryWeather-periodReadout {
+  @apply flex shrink-0 flex-col border-r;
+  border-color: rgb(255 255 255 / 16%);
+  padding-right: 18px;
+}
+
+.jx-industryWeather-periodReadout strong {
+  @apply text-base font-semibold text-white;
+}
+
+.jx-industryWeather-periodReadout span {
+  color: #9fb0be;
+  font-size: 10px;
+}
+
+.jx-industryWeather-brief p {
+  @apply m-0 text-sm;
+  line-height: 1.6;
+}
+
+.jx-industryWeather-groups {
+  @apply mt-4 grid grid-cols-3 gap-3;
+}
+
+.jx-industryWeather-group {
+  @apply rounded-xl border;
+  border-color: rgb(255 255 255 / 84%);
+  background: rgb(255 255 255 / 58%);
+  padding: 12px;
+  box-shadow: inset 0 0 0 1px rgb(15 23 42 / 3%);
+  backdrop-filter: blur(12px);
+}
+
+.jx-industryWeather-groupHead {
+  @apply mb-2 flex items-center justify-between px-1;
+}
+
+.jx-industryWeather-groupHead strong {
+  @apply text-sm font-semibold text-ink;
+}
+
+.jx-industryWeather-groupHead span {
+  @apply flex items-center justify-center rounded-full text-muted;
+  width: 20px;
+  height: 20px;
+  background: rgb(255 255 255 / 72%);
+  font-size: 10px;
+}
+
+.jx-industryWeather-cards {
+  @apply grid grid-cols-2 gap-2;
+}
+
+.jx-industryWeather-card {
+  @apply relative flex cursor-pointer appearance-none flex-col overflow-hidden rounded-xl border text-left;
+  min-height: 148px;
+  border-color: rgb(255 255 255 / 72%);
+  padding: 11px 12px 10px;
+  color: #17212b;
+  transition:
+    background 320ms ease,
+    box-shadow 220ms ease,
+    border-color 220ms ease,
+    transform 220ms ease;
+}
+
+.jx-industryWeather-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 22px rgb(15 23 42 / 13%);
+}
+
+.jx-industryWeather-card:focus-visible {
+  outline: 2px solid #111827;
+  outline-offset: 2px;
+}
+
+.jx-industryWeather-card--selected {
+  border-color: #111827;
+  box-shadow: 0 0 0 2px rgb(17 24 39 / 14%);
+}
+
+.jx-industryWeather-card--active {
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 75%);
+}
+
+.jx-industryWeather-card--cold {
+  background: linear-gradient(145deg, #dbeafe, #bfdbfe);
+}
+
+.jx-industryWeather-card--mild {
+  background: linear-gradient(145deg, #dff3ee, #c5e5dc);
+}
+
+.jx-industryWeather-card--warm {
+  background: linear-gradient(145deg, #fef3c7, #fde68a);
+}
+
+.jx-industryWeather-card--hot {
+  background: linear-gradient(145deg, #ffedd5, #fdba74);
+}
+
+.jx-industryWeather-card--extreme {
+  background: linear-gradient(145deg, #fee2e2, #fca5a5);
+}
+
+.jx-industryWeather-cardTop {
+  @apply flex items-start justify-between gap-2;
+}
+
+.jx-industryWeather-cardTop strong {
+  @apply font-semibold;
+  font-size: 15px;
+}
+
+.jx-industryWeather-state {
+  @apply shrink-0 rounded-full font-medium;
+  background: rgb(255 255 255 / 66%);
+  padding: 2px 6px;
+  font-size: 9px;
+}
+
+.jx-industryWeather-card--state-overheated .jx-industryWeather-state,
+.jx-industryWeather-card--state-crowded .jx-industryWeather-state {
+  color: #991b1b;
+  background: rgb(255 255 255 / 78%);
+}
+
+.jx-industryWeather-card--state-undervalued .jx-industryWeather-state,
+.jx-industryWeather-card--state-warming .jx-industryWeather-state {
+  color: #075985;
+}
+
+.jx-industryWeather-performance {
+  @apply mt-3 flex items-end justify-between gap-2;
+}
+
+.jx-industryWeather-performance > span {
+  @apply text-muted;
+  font-size: 10px;
+}
+
+.jx-industryWeather-performance strong {
+  @apply font-semibold;
+  font-size: 23px;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.jx-industryWeather-cardMetrics {
+  @apply mt-3 grid grid-cols-3 gap-1 border-t;
+  border-color: rgb(23 33 43 / 10%);
+  padding-top: 7px;
+}
+
+.jx-industryWeather-cardMetrics span {
+  @apply flex flex-col text-muted;
+  font-size: 9px;
+}
+
+.jx-industryWeather-cardMetrics b {
+  @apply font-semibold text-ink;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.jx-industryWeather-cardBottom {
+  @apply mt-auto flex items-end justify-between gap-2 pt-2;
+  font-size: 9px;
+}
+
+.jx-industryWeather-change {
+  @apply inline-flex items-center gap-1 font-semibold text-muted;
+  font-variant-numeric: tabular-nums;
+}
+
+.jx-industryWeather-change--up {
+  color: var(--color-up);
+}
+
+.jx-industryWeather-change--down {
+  color: var(--color-down);
+}
+
+.jx-industryWeather-valuation {
+  @apply rounded-full font-medium;
+  color: #4b5563;
+  background: rgb(255 255 255 / 64%);
+  padding: 2px 6px;
+}
+
+.jx-industryWeather-valuation--low {
+  color: #166534;
+}
+
+.jx-industryWeather-valuation--high {
+  color: #991b1b;
+}
+
+.jx-industryWeather-timeline {
+  @apply sticky z-10 mt-4 flex items-center gap-4 rounded-xl border border-line;
+  bottom: 12px;
+  background: rgb(255 255 255 / 94%);
+  padding: 12px 16px 9px;
+  box-shadow: 0 14px 35px rgb(15 23 42 / 16%);
+  backdrop-filter: blur(14px);
+}
+
+.jx-industryWeather-playback {
+  @apply flex shrink-0 items-center gap-1;
+}
+
+.jx-industryWeather-playButton {
+  background: #111827;
+}
+
+.jx-industryWeather-sliderWrap {
+  @apply min-w-0 flex-1;
+}
+
+.jx-industryWeather-slider {
+  @apply m-0;
+}
+
+.jx-industryWeather-range {
+  @apply -mt-1 flex items-center justify-between gap-3 text-muted;
+  font-size: 9px;
+}
+
+.jx-industryWeather-range strong {
+  @apply text-xs font-semibold text-ink;
+}
+
+.jx-industryWeather-legend {
+  @apply mt-3 flex items-center gap-2 text-muted;
+  font-size: 10px;
+}
+
+.jx-industryWeather-gradient {
+  @apply block rounded-full;
+  width: 120px;
+  height: 7px;
+  background: linear-gradient(90deg, #bfdbfe, #c5e5dc, #fde68a, #fdba74, #fca5a5);
+}
+
+.jx-industryWeather-legendNote {
+  @apply ml-auto;
+}
+
+.jx-industryWeather-loading {
+  @apply mt-5 rounded-xl bg-white;
+  min-height: 680px;
+  padding: 20px;
+}
+
+.jx-industryWeather-drawer {
+  @apply flex flex-col gap-5;
+}
+
+.jx-industryWeather-drawerState {
+  @apply flex items-end justify-between rounded-xl;
+  background: #f2f4f6;
+  padding: 16px;
+}
+
+.jx-industryWeather-drawerState span {
+  @apply text-sm font-medium text-muted;
+}
+
+.jx-industryWeather-drawerState strong {
+  @apply font-semibold;
+  font-size: 28px;
+}
+
+.jx-industryWeather-drawerMetrics {
+  @apply grid grid-cols-4 gap-2;
+}
+
+.jx-industryWeather-drawerMetrics div {
+  @apply flex flex-col gap-1 rounded-lg border border-line;
+  padding: 10px;
+}
+
+.jx-industryWeather-drawerMetrics span {
+  @apply text-muted;
+  font-size: 10px;
+}
+
+.jx-industryWeather-drawerMetrics strong {
+  @apply text-base font-semibold text-ink;
+}
+
+.jx-industryWeather-drawer h3 {
+  @apply m-0 text-sm font-semibold text-ink;
+}
+
+.jx-industryWeather-historyStrip {
+  @apply grid gap-1;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+}
+
+.jx-industryWeather-historyCell {
+  @apply block rounded-sm;
+  height: 22px;
+}
+
+.jx-industryWeather-historyCell--cold {
+  background: #bfdbfe;
+}
+
+.jx-industryWeather-historyCell--mild {
+  background: #c5e5dc;
+}
+
+.jx-industryWeather-historyCell--warm {
+  background: #fde68a;
+}
+
+.jx-industryWeather-historyCell--hot {
+  background: #fdba74;
+}
+
+.jx-industryWeather-historyCell--extreme {
+  background: #fca5a5;
+}
+
+.jx-industryWeather-historyList {
+  @apply divide-y divide-line rounded-xl border border-line;
+}
+
+.jx-industryWeather-historyList div {
+  @apply grid grid-cols-3 items-center gap-3;
+  padding: 9px 12px;
+  font-size: 12px;
+}
+
+.jx-industryWeather-historyList span:nth-child(2) {
+  @apply text-center text-muted;
+}
+
+.jx-industryWeather-historyList strong {
+  @apply text-right;
+}
+
+@media (max-width: 1120px) {
+  .jx-industryWeather-groups {
+    @apply grid-cols-2;
+  }
+}
+
+@media (max-width: 720px) {
+  .jx-industryWeather {
+    padding: 15px 11px;
+  }
+
+  .jx-industryWeather-head {
+    @apply flex-col gap-3;
+  }
+
+  .jx-industryWeather-title {
+    font-size: 22px;
+  }
+
+  .jx-industryWeather-frequency {
+    width: 100%;
+  }
+
+  .jx-industryWeather-brief {
+    @apply flex-col items-start gap-2;
+  }
+
+  .jx-industryWeather-periodReadout {
+    @apply w-full flex-row items-baseline justify-between border-r-0 border-b;
+    padding-right: 0;
+    padding-bottom: 8px;
+  }
+
+  .jx-industryWeather-groups {
+    @apply grid-cols-1;
+  }
+
+  .jx-industryWeather-group {
+    padding: 9px;
+  }
+
+  .jx-industryWeather-card {
+    min-height: 142px;
+    padding: 10px;
+  }
+
+  .jx-industryWeather-cardTop strong {
+    font-size: 13px;
+  }
+
+  .jx-industryWeather-performance strong {
+    font-size: 20px;
+  }
+
+  .jx-industryWeather-timeline {
+    @apply flex-col items-stretch gap-1;
+    bottom: 6px;
+    padding: 8px 10px 7px;
+  }
+
+  .jx-industryWeather-playback {
+    @apply justify-center;
+  }
+
+  .jx-industryWeather-range span {
+    max-width: 30%;
+  }
+
+  .jx-industryWeather-legendNote {
+    @apply hidden;
+  }
+}

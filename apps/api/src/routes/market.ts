@@ -5,9 +5,24 @@ import { prisma } from '../lib/prisma.js';
 import { stockSeries } from '../screen/query.js';
 import { m } from '../i18n/index.js';
 import { buildIndexValuationSeries } from '../market/index-valuation.js';
-import { buildMarketStateSnapshot } from '../market/market-state.js';
-import { MAJOR_INDEX_DAILY_BASIC_CODES, MARKET_STATE_INDEX_CODES } from '../store/index-presets.js';
-import type { MarketStateScope, MarketStateScopeOption } from '@jixie/shared';
+import {
+  buildIndustryWeatherSeries,
+  buildIndexTrailingReturns,
+  buildMarketStylePairs,
+  buildMarketStateSnapshot,
+} from '../market/market-state.js';
+import type { IndustryIndicatorRow, SwIndexDailyRow } from '../market/market-state.js';
+import {
+  MAJOR_INDEX_DAILY_BASIC_CODES,
+  MARKET_STATE_INDEX_CODES,
+  MARKET_STYLE_INDEX_CODES,
+} from '../store/index-presets.js';
+import type {
+  IndustryWeatherSeries,
+  MarketStateScope,
+  MarketStateScopeOption,
+  MarketWeatherFrequency,
+} from '@jixie/shared';
 
 /**
  * Market read-only helpers (cross-domain infrastructure, mounted at /api/app/market):
@@ -16,6 +31,7 @@ import type { MarketStateScope, MarketStateScopeOption } from '@jixie/shared';
  *   GET /indices/:code/series         index daily close — the benchmark return curve in trade details
  *   GET /indices/valuation/catalog    broad-index valuation coverage
  *   GET /indices/:code/valuation      index close + valuation history and current percentiles
+ *   GET /industry-weather?frequency=  replayable SW level-1 industry weather periods
  *   GET /state?scope=                  whole-market/index pulse + Shenwan level-1 direction heat
  * Naming rules: see docs/design/api-route-naming.md.
  */
@@ -70,6 +86,18 @@ const marketStateScopes = ['all', ...MARKET_STATE_INDEX_CODES] as const;
 const marketStateQuery = z.object({
   scope: z.enum(marketStateScopes).default('all'),
 });
+const marketWeatherFrequencies = ['week', 'month', 'quarter', 'year'] as const;
+const industryWeatherQuery = z.object({
+  frequency: z.enum(marketWeatherFrequencies).default('month'),
+});
+const industryWeatherCache = new Map<string, IndustryWeatherSeries>();
+let industryWeatherRawCache:
+  | {
+      coverageKey: string;
+      industryRows: IndustryIndicatorRow[];
+      swIndexRows: SwIndexDailyRow[];
+    }
+  | undefined;
 
 marketRoute.get('/stocks/:code/series', validateQuery(seriesQuery), async (c) => {
   const code = c.req.param('code');
@@ -143,6 +171,67 @@ marketRoute.get('/indices/:code/valuation', async (c) => {
   return c.json(series);
 });
 
+marketRoute.get('/industry-weather', validateQuery(industryWeatherQuery), async (c) => {
+  const frequency = c.req.valid('query').frequency as MarketWeatherFrequency;
+  const [industryCoverage, swCoverage] = await Promise.all([
+    prisma.industryIndicator.aggregate({
+      _min: { tradeDate: true },
+      _max: { tradeDate: true },
+    }),
+    prisma.swIndexDaily.aggregate({
+      _min: { tradeDate: true },
+      _max: { tradeDate: true },
+    }),
+  ]);
+  const cacheKey = `${frequency}:${industryCoverage._max.tradeDate}:${swCoverage._max.tradeDate}`;
+  const cached = industryWeatherCache.get(cacheKey);
+  if (cached) {
+    return c.json(cached);
+  }
+
+  const coverageKey = `${industryCoverage._max.tradeDate}:${swCoverage._max.tradeDate}`;
+  if (!industryWeatherRawCache || industryWeatherRawCache.coverageKey !== coverageKey) {
+    const [industryRows, swIndexRows] = await Promise.all([
+      prisma.industryIndicator.findMany({
+        select: {
+          l1Code: true,
+          l1Name: true,
+          tradeDate: true,
+          tradedCount: true,
+          return20: true,
+          excessReturn20: true,
+          positiveReturn20Ratio: true,
+          aboveMa20Ratio: true,
+          aboveMa60Ratio: true,
+          floatWeightedTurnoverRate: true,
+          amountShare: true,
+          topFiveAmountShare: true,
+        },
+        orderBy: [{ tradeDate: 'asc' }, { l1Code: 'asc' }],
+      }),
+      prisma.swIndexDaily.findMany({
+        select: { tsCode: true, tradeDate: true, close: true, pe: true, pb: true },
+        orderBy: [{ tsCode: 'asc' }, { tradeDate: 'asc' }],
+      }),
+    ]);
+    industryWeatherRawCache = { coverageKey, industryRows, swIndexRows };
+    industryWeatherCache.clear();
+  }
+  const { industryRows, swIndexRows } = industryWeatherRawCache;
+  const series = buildIndustryWeatherSeries(industryRows, swIndexRows, frequency);
+  if (!series) {
+    return apiError(c, 'NOT_FOUND', m(c, 'noDataInRange'));
+  }
+
+  for (const key of industryWeatherCache.keys()) {
+    if (key.startsWith(`${frequency}:`)) {
+      industryWeatherCache.delete(key);
+    }
+  }
+  industryWeatherCache.set(cacheKey, series);
+  return c.json(series);
+});
+
 marketRoute.get('/state', validateQuery(marketStateQuery), async (c) => {
   const scope = c.req.valid('query').scope as MarketStateScope;
   const [marketRows, marketCoverage, indexCoverage] = await Promise.all([
@@ -171,7 +260,14 @@ marketRoute.get('/state', validateQuery(marketStateQuery), async (c) => {
   const latestIndexKeys = indexCoverage.flatMap((row) =>
     row._max.tradeDate ? [{ indexCode: row.indexCode, tradeDate: row._max.tradeDate }] : [],
   );
-  const [industryRows, latestMarketRow, latestIndexRows] = await Promise.all([
+  const [
+    industryRows,
+    latestMarketRow,
+    latestIndexRows,
+    indexCloseRows,
+    styleMetadataRows,
+    swIndexRows,
+  ] = await Promise.all([
     prisma.industryIndicator.findMany({
       where: { tradeDate: { gte: historyStart, lte: asOf } },
       orderBy: [{ tradeDate: 'asc' }, { l1Code: 'asc' }],
@@ -195,14 +291,41 @@ marketRoute.get('/state', validateQuery(marketStateQuery), async (c) => {
           },
         })
       : [],
+    prisma.indexDaily.findMany({
+      where: {
+        tsCode: { in: [...MARKET_STATE_INDEX_CODES, ...MARKET_STYLE_INDEX_CODES] },
+        tradeDate: { gte: `${Number(asOf.slice(0, 4)) - 1}${asOf.slice(4)}`, lte: asOf },
+      },
+      select: { tsCode: true, tradeDate: true, close: true },
+      orderBy: [{ tsCode: 'asc' }, { tradeDate: 'asc' }],
+    }),
+    prisma.indexBenchmark.findMany({
+      where: { tsCode: { in: [...MARKET_STYLE_INDEX_CODES] }, indexType: '风格类指数' },
+      select: { tsCode: true, name: true, bmkSource: true, indexType: true },
+    }),
+    prisma.swIndexDaily.findMany({
+      where: {
+        tradeDate: { gte: `${Number(asOf.slice(0, 4)) - 10}${asOf.slice(4)}`, lte: asOf },
+      },
+      select: { tsCode: true, tradeDate: true, close: true, pe: true, pb: true },
+      orderBy: [{ tsCode: 'asc' }, { tradeDate: 'asc' }],
+    }),
   ]);
+  const trailingReturnsByCode = buildIndexTrailingReturns(indexCloseRows);
   const scopeOptions = buildMarketStateScopeOptions(
     marketCoverage,
     indexCoverage,
     latestMarketRow,
     latestIndexRows,
+    trailingReturnsByCode,
   );
-  const snapshot = buildMarketStateSnapshot(marketRows, industryRows, { scope, scopeOptions });
+  const stylePairs = buildMarketStylePairs(indexCloseRows, styleMetadataRows);
+  const snapshot = buildMarketStateSnapshot(marketRows, industryRows, {
+    scope,
+    scopeOptions,
+    stylePairs,
+    swIndexRows,
+  });
   if (!snapshot) {
     return apiError(c, 'NOT_FOUND', m(c, 'noDataInRange'));
   }
@@ -222,6 +345,10 @@ function buildMarketStateScopeOptions(
   }>,
   latestMarketRow: ScopeMetricRow | null,
   latestIndexRows: Array<ScopeMetricRow & { indexCode: string }>,
+  trailingReturnsByCode: Map<
+    string,
+    Pick<MarketStateScopeOption, 'return5Day' | 'return20Day' | 'return60Day'>
+  >,
 ): MarketStateScopeOption[] {
   const indexCoverageByCode = new Map(indexCoverage.map((row) => [row.indexCode, row]));
   const latestIndexByCode = new Map(latestIndexRows.map((row) => [row.indexCode, row]));
@@ -232,6 +359,8 @@ function buildMarketStateScopeOptions(
       value: 'all',
       startDate: marketCoverage._min.tradeDate,
       endDate: marketCoverage._max.tradeDate,
+      return5Day: null,
+      return60Day: null,
       ...scopeMetrics(latestMarketRow),
     });
   }
@@ -242,6 +371,7 @@ function buildMarketStateScopeOptions(
         value: indexCode,
         startDate: coverage._min.tradeDate,
         endDate: coverage._max.tradeDate,
+        ...(trailingReturnsByCode.get(indexCode) ?? EMPTY_TRAILING_RETURNS),
         ...scopeMetrics(latestIndexByCode.get(indexCode) ?? null),
       });
     }
@@ -258,19 +388,25 @@ interface ScopeMetricRow {
 
 function scopeMetrics(
   row: ScopeMetricRow | null,
-): Pick<MarketStateScopeOption, 'trend' | 'breadth'> {
+): Pick<MarketStateScopeOption, 'return20Day' | 'breadth'> {
   const breadthValues = [row?.aboveMa20Ratio, row?.aboveMa60Ratio].filter(
     (value): value is number => value != null,
   );
 
   return {
-    trend: row?.return20 ?? null,
+    return20Day: row?.return20 ?? null,
     breadth:
       breadthValues.length > 0
         ? breadthValues.reduce((sum, value) => sum + value, 0) / breadthValues.length
         : null,
   };
 }
+
+const EMPTY_TRAILING_RETURNS = {
+  return5Day: null,
+  return20Day: null,
+  return60Day: null,
+};
 
 // Index daily close (e.g. 000300.SH CSI 300) over a range — the benchmark return curve in trade details.
 marketRoute.get('/indices/:code/series', validateQuery(seriesQuery), async (c) => {
