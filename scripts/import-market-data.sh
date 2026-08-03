@@ -133,6 +133,8 @@ run_stage index-basic "Import available valuation history for the major index pr
   pnpm --filter api sync:index-basic 20040101 "$END_DATE" major
 run_stage index-membership "Import point-in-time constituents for market-state indices" \
   pnpm --filter api sync:index market-state "$START_DATE" "$END_DATE"
+run_stage market-reference "Import official index classifications, style indices, and SW industry bars" \
+  pnpm --filter api sync:market-reference "$START_DATE" "$END_DATE"
 run_stage futures "Import stock-index futures contracts, bars, mappings, and settlements" \
   pnpm --filter api sync:futures "$START_DATE" "$END_DATE"
 run_stage canonicalize-stock-codes "Canonicalize superseded stock codes" \
