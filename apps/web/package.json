@@ -21,6 +21,7 @@
     "test:e2e:signals": "node e2e/daily-signals.mjs",
     "test:e2e:etf": "node e2e/etf-trading.mjs",
     "test:e2e:market-state": "node e2e/market-state.mjs",
+    "test:e2e:login-error": "node e2e/login-error.mjs",
     "test:e2e:help-content": "node e2e/help-content.mjs",
     "test:e2e:help-content-screen": "node e2e/help-content-screen.mjs",
     "test:e2e:help-content-backtest": "node e2e/help-content-backtest.mjs",
