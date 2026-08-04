@@ -17,10 +17,10 @@ export const TopNav = observer(() => {
   const location = useLocation();
   const activeMobileKey = mobileNavKey(location.pathname);
   const mobileMenuItems: MenuProps['items'] = [
+    { key: 'market', label: <NavLink to="/market">{t('nav.market')}</NavLink> },
     { key: 'backtest', label: <NavLink to="/lab">{t('nav.backtest')}</NavLink> },
     { key: 'screen', label: <NavLink to="/screen">{t('nav.screen')}</NavLink> },
     { key: 'factor', label: <NavLink to="/factors">{t('nav.factor')}</NavLink> },
-    { key: 'market', label: <NavLink to="/market">{t('nav.market')}</NavLink> },
     { key: 'valuation', label: <NavLink to="/valuation">{t('nav.valuation')}</NavLink> },
     { key: 'signals', label: <NavLink to="/signals">{t('nav.signals')}</NavLink> },
     {
@@ -54,6 +54,9 @@ export const TopNav = observer(() => {
           </Button>
         </Dropdown>
         <nav className="jx-topnav-nav">
+          <NavLink to="/market" className={linkClass}>
+            {t('nav.market')}
+          </NavLink>
           <NavLink to="/lab" end className={linkClass}>
             {t('nav.backtest')}
           </NavLink>
@@ -62,9 +65,6 @@ export const TopNav = observer(() => {
           </NavLink>
           <NavLink to="/factors" className={linkClass}>
             {t('nav.factor')}
-          </NavLink>
-          <NavLink to="/market" className={linkClass}>
-            {t('nav.market')}
           </NavLink>
           <NavLink to="/valuation" className={linkClass}>
             {t('nav.valuation')}

@@ -145,16 +145,16 @@ const router = createBrowserRouter(
   createRoutesFromElements(
     <>
       <Route path="/login" element={<ComplexRoute entry={loginEntry} />} />
-      {/* The backtest workbench lives at a stable /lab route; bare "/" just redirects there. */}
-      <Route path="/" element={<Navigate to="/lab" replace />} />
+      {/* Market is the product homepage; each workbench keeps its own stable route. */}
+      <Route path="/" element={<Navigate to="/market" replace />} />
       {/* Shared layout for the TopNav pages: TopNav is rendered ONCE here and persists across
           navigations (react-router only swaps <Outlet/> below it) — so switching pages no longer
           unmounts/remounts the nav and flashes it. */}
       <Route element={<AuthedLayout />}>
+        <Route path="/market" element={<ComplexRoute key="market" entry={marketEntry} />} />
         <Route path="/lab" element={<LabRoute />} />
         <Route path="/screen" element={<ComplexRoute key="screen" entry={screenEntry} />} />
         <Route path="/factors" element={<FactorRoute />} />
-        <Route path="/market" element={<ComplexRoute key="market" entry={marketEntry} />} />
         <Route
           path="/valuation"
           element={<ComplexRoute key="valuation" entry={valuationEntry} />}
@@ -165,7 +165,7 @@ const router = createBrowserRouter(
       </Route>
       <Route path="/learn" element={<ExternalRedirect to="/docs/help" />} />
       <Route path="/help/*" element={<LegacyHelpRedirect />} />
-      <Route path="*" element={<Navigate to="/lab" replace />} />
+      <Route path="*" element={<Navigate to="/market" replace />} />
     </>,
   ),
 );
