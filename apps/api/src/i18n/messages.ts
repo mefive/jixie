@@ -71,6 +71,34 @@ const MESSAGES = {
     zh: '预置因子只读,不能删除',
     en: 'Preset factors are read-only and cannot be deleted',
   },
+  factorWeatherRequiresFinalized: {
+    zh: '只有已定稿并分配策略标识的因子才能加入因子气象',
+    en: 'Only finalized factors with an immutable strategy key can be added to factor weather',
+  },
+  factorWeatherDirectionRequired: {
+    zh: '请先选择因子的预期方向',
+    en: 'Select the factor expected direction first',
+  },
+  factorWeatherPinNotFound: {
+    zh: '因子气象卡片不存在',
+    en: 'Factor weather card not found',
+  },
+  factorWeatherComputeFailed: {
+    zh: '月度历史计算失败，请稍后重试',
+    en: 'Monthly history computation failed; try again later',
+  },
+  factorWeatherRunningCannotUnpin: {
+    zh: '月度历史正在计算，完成后才能取消钉住',
+    en: 'Monthly history is being computed; unpin it after the run finishes',
+  },
+  pinnedFactorReadonlyEdit: {
+    zh: '该因子已加入因子气象,代码版本已锁定;请复制为新因子后修改',
+    en: 'This factor is pinned to factor weather and its code version is locked; copy it to a new factor before editing',
+  },
+  pinnedFactorReadonlyDelete: {
+    zh: '该因子已加入因子气象,请先取消钉住再删除',
+    en: 'This factor is pinned to factor weather; unpin it before deleting',
+  },
   unknownFactor: { zh: '未知因子 {factor}', en: 'Unknown factor {factor}' },
   windowNotComputed: {
     zh: '该窗口尚未计算,请先运行',

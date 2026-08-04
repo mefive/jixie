@@ -169,6 +169,13 @@ async function computeOne(key: string, bar: FactorBar): Promise<number | null> {
 // —— tests ——
 
 describe('preset factor code compiles and has the right shape', () => {
+  it('declares a usable expected direction for every preset', () => {
+    expect(BUILTIN_FACTORS).not.toHaveLength(0);
+    for (const factor of BUILTIN_FACTORS) {
+      expect(['positive', 'negative']).toContain(factor.expectedDirection);
+    }
+  });
+
   it.each(BUILTIN_FACTORS.map((factor) => [factor.key, factor] as const))(
     '%s compiles',
     async (_key, def) => {

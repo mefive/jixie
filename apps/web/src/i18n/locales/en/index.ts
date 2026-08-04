@@ -3,6 +3,7 @@ import { enLogin } from './login';
 import { enComponents } from './components';
 import { enLab } from './lab';
 import { enFactor } from './factor';
+import { enFactorWeather } from './factor-weather';
 import { enScreen } from './screen';
 import { enStock } from './stock';
 import { enValuation } from './valuation';
@@ -15,6 +16,7 @@ export const enResources = {
   components: enComponents,
   lab: enLab,
   factor: enFactor,
+  factorWeather: enFactorWeather,
   screen: enScreen,
   stock: enStock,
   valuation: enValuation,

@@ -263,6 +263,12 @@ factorsRoute.post('/custom/:id', validateJson(updateBody), async (c) => {
   if (!existing) {
     return apiError(c, 'NOT_FOUND', m(c, 'factorNotFound'));
   }
+  if (code !== undefined && code !== existing.code) {
+    const pinned = await prisma.factorWeatherPin.count({ where: { factorId: id } });
+    if (pinned > 0) {
+      return apiError(c, 'VALIDATION_FAILED', m(c, 'pinnedFactorReadonlyEdit'));
+    }
+  }
 
   const data: Prisma.FactorUpdateInput = {};
   if (messages !== undefined) {
@@ -349,6 +355,10 @@ factorsRoute.delete('/custom/:id', async (c) => {
   const id = c.req.param('id');
   if (BUILTIN_KEYS.has(id)) {
     return apiError(c, 'VALIDATION_FAILED', m(c, 'presetFactorReadonlyDelete'));
+  }
+  const pinned = await prisma.factorWeatherPin.count({ where: { factorId: id } });
+  if (pinned > 0) {
+    return apiError(c, 'VALIDATION_FAILED', m(c, 'pinnedFactorReadonlyDelete'));
   }
   await prisma.factor.deleteMany({ where: { id, userId } });
   return c.json({ ok: true });

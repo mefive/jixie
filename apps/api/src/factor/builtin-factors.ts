@@ -18,6 +18,7 @@ export interface BuiltinFactorDef {
   key: string; // stable slug — never rename (cache keys / URLs)
   label: string;
   kind: FactorKind;
+  expectedDirection: 'positive' | 'negative';
   code: string; // defineFactor TS module, materialized into the Factor row
 }
 
@@ -291,23 +292,67 @@ export default defineFactor({
 `;
 
 export const BUILTIN_FACTORS: BuiltinFactorDef[] = [
-  { key: 'mom', label: '动量(60日,跳5)', kind: 'price', code: MOMENTUM_CODE },
-  { key: 'mom_12_1', label: '动量(12-1月)', kind: 'price', code: MOMENTUM_12_1_CODE },
-  { key: 'rev', label: '反转(5日)', kind: 'price', code: REVERSAL_CODE },
-  { key: 'vol', label: '波动率(20日)', kind: 'price', code: VOLATILITY_CODE },
-  { key: 'amihud', label: 'Amihud非流动性(20日)', kind: 'price', code: AMIHUD_CODE },
-  { key: 'vol120', label: '波动率(120日)', kind: 'price', code: VOLATILITY_120_CODE },
+  {
+    key: 'mom',
+    label: '动量(60日,跳5)',
+    kind: 'price',
+    expectedDirection: 'positive',
+    code: MOMENTUM_CODE,
+  },
+  {
+    key: 'mom_12_1',
+    label: '动量(12-1月)',
+    kind: 'price',
+    expectedDirection: 'positive',
+    code: MOMENTUM_12_1_CODE,
+  },
+  {
+    key: 'rev',
+    label: '反转(5日)',
+    kind: 'price',
+    expectedDirection: 'negative',
+    code: REVERSAL_CODE,
+  },
+  {
+    key: 'vol',
+    label: '波动率(20日)',
+    kind: 'price',
+    expectedDirection: 'negative',
+    code: VOLATILITY_CODE,
+  },
+  {
+    key: 'amihud',
+    label: 'Amihud非流动性(20日)',
+    kind: 'price',
+    expectedDirection: 'positive',
+    code: AMIHUD_CODE,
+  },
+  {
+    key: 'vol120',
+    label: '波动率(120日)',
+    kind: 'price',
+    expectedDirection: 'negative',
+    code: VOLATILITY_120_CODE,
+  },
   {
     key: 'abturn',
     label: '异常换手率(21日/252日)',
     kind: 'price',
+    expectedDirection: 'negative',
     code: ABNORMAL_TURNOVER_CODE,
   },
-  { key: 'turn20', label: '换手率(20日均)', kind: 'price', code: TURNOVER_LEVEL_CODE },
+  {
+    key: 'turn20',
+    label: '换手率(20日均)',
+    kind: 'price',
+    expectedDirection: 'negative',
+    code: TURNOVER_LEVEL_CODE,
+  },
   {
     key: 'ep',
     label: '盈利收益率(1/PE_TTM)',
     kind: 'fundamental',
+    expectedDirection: 'positive',
     code: `// Preset: earnings yield — reciprocal of PE_TTM (cheaper = larger value); loss-making stocks (PE <= 0) are dropped.
 export default defineFactor({
   name: '盈利收益率(1/PE_TTM)',
@@ -319,6 +364,7 @@ export default defineFactor({
     key: 'bp',
     label: '账面市值比(1/PB)',
     kind: 'fundamental',
+    expectedDirection: 'positive',
     code: `// Preset: book-to-market — reciprocal of PB (classic value factor).
 export default defineFactor({
   name: '账面市值比(1/PB)',
@@ -330,6 +376,7 @@ export default defineFactor({
     key: 'dv',
     label: '股息率(%)',
     kind: 'fundamental',
+    expectedDirection: 'positive',
     code: `// Preset: dividend yield — raw dvRatio value from daily_basic (%).
 export default defineFactor({
   name: '股息率(%)',
@@ -341,6 +388,7 @@ export default defineFactor({
     key: 'size',
     label: '规模(ln总市值)',
     kind: 'fundamental',
+    expectedDirection: 'negative',
     code: `// Preset: size — ln(total market cap). Direction is revealed by IC (A-share long-run small-cap premium = negative IC).
 export default defineFactor({
   name: '规模(ln总市值)',
@@ -352,6 +400,7 @@ export default defineFactor({
     key: 'roe',
     label: 'ROE质量(%)',
     kind: 'fundamental',
+    expectedDirection: 'positive',
     code: `// Preset: ROE quality — return on equity from the latest published report (point-in-time: the value
 // only becomes visible on its announcement date, no look-ahead). Classic profitability/quality factor
 // (Novy-Marx 2013 family); literature expects positive. Entangled with valuation and size in A-shares —
@@ -366,12 +415,14 @@ export default defineFactor({
     key: 'roe_stability',
     label: 'ROE稳定性(504日)',
     kind: 'fundamental',
+    expectedDirection: 'negative',
     code: ROE_STABILITY_CODE,
   },
   {
     key: 'gross_margin',
     label: '毛利率(%)',
     kind: 'fundamental',
+    expectedDirection: 'positive',
     code: `// Preset: gross profit margin — from the latest published report (point-in-time via announcement
 // date). A "quality of earnings" proxy: harder to manipulate than net profit. Literature expects
 // positive; strongly industry-structured (banks have no gross margin), so the industry-neutralized
@@ -386,6 +437,7 @@ export default defineFactor({
     key: 'mf_net_main',
     label: '主力净额(万元)',
     kind: 'moneyflow',
+    expectedDirection: 'positive',
     code: `// Preset: main-force net amount — (large + extra-large orders) buy minus sell, in 10k yuan. Flow semantics: null when no data that day, never carried forward.
 export default defineFactor({
   name: '主力净额(万元)',
@@ -397,6 +449,7 @@ export default defineFactor({
     key: 'mf_net_total',
     label: '总净额(万元)',
     kind: 'moneyflow',
+    expectedDirection: 'positive',
     code: `// Preset: total net amount — net inflow across all order sizes (net_mf_amount), in 10k yuan. Flow semantics: null when no data that day, never carried forward.
 export default defineFactor({
   name: '总净额(万元)',
@@ -410,12 +463,13 @@ export const BUILTIN_KEYS = new Set(BUILTIN_FACTORS.map((factor) => factor.key))
 
 /** Catalog metadata for the presets — identity comes from this registry, code rows from the seed. */
 export function builtinCatalog(): FactorMeta[] {
-  return BUILTIN_FACTORS.map(({ key, label, kind }) => ({
+  return BUILTIN_FACTORS.map(({ key, label, kind, expectedDirection }) => ({
     key,
     label,
     strategyKey: `custom:${key}`,
     kind,
     builtin: true,
+    expectedDirection,
   }));
 }
 

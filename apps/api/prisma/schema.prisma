@@ -559,6 +559,7 @@ model User {
   screenConversations ScreenConversation[]
   agentConversations  AgentConversation[]
   factorComposites    FactorComposite[]
+  factorWeatherPins   FactorWeatherPin[]
 }
 
 /// Login session. id = session token (stored in sid cookie). 30-day TTL; expiry enforced by filtering on expiresAt at query time.
@@ -861,11 +862,58 @@ model Factor {
   code          String // defineFactor TS source
   messages      Json? // ChatMessage[] — the Agent-panel conversation that authored this factor (per-factor)
   conversations AgentConversation[]
+  weatherPins   FactorWeatherPin[]
   createdAt     DateTime            @default(now())
   updatedAt     DateTime            @updatedAt
 
   @@unique([userId, key]) // user-factor keys are unique per owner; builtin keys are additionally reserved in the allocator
   @@index([userId, updatedAt]) // list a user's factors, newest first
+}
+
+/// One user-pinned immutable factor version monitored under the canonical monthly weather methodology.
+/// The source snapshot and direction are frozen; editing requires a fork instead of mutating history.
+model FactorWeatherPin {
+  id              String               @id
+  userId          String
+  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  factorId        String
+  factor          Factor               @relation(fields: [factorId], references: [id], onDelete: Restrict)
+  factorName      String
+  builtin         Boolean
+  direction       String // 'positive' | 'negative'
+  factorCode      String
+  factorCodeHash  String
+  methodologyHash String
+  status          String               @default("pending") // 'pending' | 'running' | 'ready' | 'error'
+  error           String?
+  computedThrough String?
+  points          FactorWeatherPoint[]
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@unique([userId, factorId])
+  @@index([status, updatedAt])
+}
+
+/// A compact realized monthly factor observation. It stores aggregate research diagnostics only;
+/// per-security factor values remain ephemeral inside the sandboxed worker.
+model FactorWeatherPoint {
+  pinId                String
+  pin                  FactorWeatherPin @relation(fields: [pinId], references: [id], onDelete: Cascade)
+  formationDate        String
+  periodEndDate        String
+  rankIc               Float
+  topReturn            Float
+  bottomReturn         Float
+  longShortGrossReturn Float
+  longShortNetReturn   Float
+  topTurnover          Float?
+  sampleSize           Int
+  sampleCoverage       Float
+  createdAt            DateTime         @default(now())
+
+  @@id([pinId, periodEndDate])
+  @@index([periodEndDate])
 }
 
 /// A reusable multi-factor research definition. Reports freeze the full definition in specJson, so

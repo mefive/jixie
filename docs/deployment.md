@@ -115,6 +115,8 @@ journalctl -u jixie-maintenance.service -n 200 --no-pager
 按需重算 market-state。财务通过 VIP 按全部报告期核对，分红按全部股票核对，并用持久化 checkpoint
 支持 OOM 或重启后续传；财务默认每 1 个报告期、分红默认每 200 只股票启动独立子进程，批次结束即释放
 Node/Prisma 原生内存。不要再安装旧 cron，也不要在 API 内启动第二个 scheduler。
+weekly 还会在市场派生数据完成后增量计算所有已钉住因子的月度气象点。首次钉住会由 API worker 回填
+历史，部署本身不需要额外执行 factor sync；相关表由 Prisma migration 自动创建。
 完整顺序、锁、维护 Gate 和手动修复见
 [`production-maintenance.md`](./design/production-maintenance.md)。
 
