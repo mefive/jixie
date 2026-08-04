@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  DAILY_MAINTAINED_INDEX_CODES,
   MAJOR_INDEX_DAILY_BASIC_CODES,
   MAJOR_INDEX_DAILY_CODES,
-  MARKET_STYLE_INDEX_CODES,
 } from '../store/index-presets.js';
 import { buildMarketDateRepairPlan, type MarketDateCounts } from './self-heal.js';
 
@@ -14,7 +14,7 @@ function complete(overrides: Partial<MarketDateCounts> = {}): MarketDateCounts {
     basic: 5_300,
     limits: 5_300,
     moneyflow: 5_100,
-    indexDailyCodes: [...MAJOR_INDEX_DAILY_CODES, ...MARKET_STYLE_INDEX_CODES],
+    indexDailyCodes: [...DAILY_MAINTAINED_INDEX_CODES],
     indexDailyBasicCodes: [...MAJOR_INDEX_DAILY_BASIC_CODES],
     swIndexDaily: 31,
     ...overrides,

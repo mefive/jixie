@@ -12,30 +12,41 @@ import {
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useTranslation } from 'react-i18next';
 import type {
-  IndustryWeatherItem,
-  IndustryWeatherSeries,
-  IndustryWeatherState,
+  MarketWeatherDimension,
   MarketWeatherFrequency,
+  MarketWeatherItem,
+  MarketWeatherSeries,
+  MarketWeatherState,
 } from '@jixie/shared';
 import './industry-weather-map.css';
 
 interface Props {
-  series: IndustryWeatherSeries | null;
+  series: MarketWeatherSeries | null;
   loading: boolean;
+  dimension: MarketWeatherDimension;
   frequency: MarketWeatherFrequency;
+  onDimensionChange: (dimension: MarketWeatherDimension) => void;
   onFrequencyChange: (frequency: MarketWeatherFrequency) => void;
 }
 
-export function IndustryWeatherMap({ series, loading, frequency, onFrequencyChange }: Props) {
+export function MarketWeatherMap({
+  series,
+  loading,
+  dimension,
+  frequency,
+  onDimensionChange,
+  onFrequencyChange,
+}: Props) {
   const { t } = useTranslation('valuation');
   const [selectedPeriodIndex, setSelectedPeriodIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
-  const [selectedIndustryCode, setSelectedIndustryCode] = useState<string | null>(null);
+  const [selectedItemCode, setSelectedItemCode] = useState<string | null>(null);
   const displayFrequency = series?.frequency ?? frequency;
 
   useEffect(() => {
     setSelectedPeriodIndex(Math.max(0, (series?.periods.length ?? 1) - 1));
     setPlaying(false);
+    setSelectedItemCode(null);
   }, [series]);
 
   useEffect(() => {
@@ -50,25 +61,23 @@ export function IndustryWeatherMap({ series, loading, frequency, onFrequencyChan
   }, [playing, series]);
 
   const period = series?.periods[selectedPeriodIndex];
-  const industryByCode = useMemo(
-    () => new Map(period?.industries.map((industry) => [industry.l1Code, industry]) ?? []),
+  const itemByCode = useMemo(
+    () => new Map(period?.items.map((item) => [item.code, item]) ?? []),
     [period],
   );
-  const selectedIndustry = selectedIndustryCode
-    ? (industryByCode.get(selectedIndustryCode) ?? null)
-    : null;
+  const selectedItem = selectedItemCode ? (itemByCode.get(selectedItemCode) ?? null) : null;
   const attentionNames = period
-    ? period.industries
-        .filter((industry) => ATTENTION_STATES.has(industry.state))
+    ? period.items
+        .filter((item) => ATTENTION_STATES.has(item.state))
         .slice(0, 3)
-        .map((industry) => industry.l1Name)
+        .map((item) => item.name)
         .join('、')
     : '—';
   const warningNames = period
-    ? period.industries
-        .filter((industry) => WARNING_STATES.has(industry.state))
+    ? period.items
+        .filter((item) => WARNING_STATES.has(item.state))
         .slice(0, 2)
-        .map((industry) => industry.l1Name)
+        .map((item) => item.name)
         .join('、')
     : '—';
 
@@ -77,19 +86,35 @@ export function IndustryWeatherMap({ series, loading, frequency, onFrequencyChan
       <div className="jx-industryWeather-head">
         <div>
           <div className="jx-industryWeather-eyebrow">{t('marketState.weather.eyebrow')}</div>
-          <h2 className="jx-industryWeather-title">{t('marketState.weather.title')}</h2>
-          <p className="jx-industryWeather-subtitle">{t('marketState.weather.subtitle')}</p>
+          <h2 className="jx-industryWeather-title">
+            {t(`marketState.weather.dimensions.${dimension}.title`)}
+          </h2>
+          <p className="jx-industryWeather-subtitle">
+            {t(`marketState.weather.dimensions.${dimension}.subtitle`)}
+          </p>
         </div>
-        <Segmented
-          className="jx-industryWeather-frequency"
-          value={frequency}
-          disabled={loading}
-          onChange={(value) => onFrequencyChange(value as MarketWeatherFrequency)}
-          options={WEATHER_FREQUENCIES.map((value) => ({
-            value,
-            label: t(`marketState.weather.frequencies.${value}`),
-          }))}
-        />
+        <div className="jx-industryWeather-controls">
+          <Segmented
+            className="jx-industryWeather-dimension"
+            value={dimension}
+            disabled={loading}
+            onChange={(value) => onDimensionChange(value as MarketWeatherDimension)}
+            options={WEATHER_DIMENSIONS.map((value) => ({
+              value,
+              label: t(`marketState.weather.dimensions.${value}.label`),
+            }))}
+          />
+          <Segmented
+            className="jx-industryWeather-frequency"
+            value={frequency}
+            disabled={loading}
+            onChange={(value) => onFrequencyChange(value as MarketWeatherFrequency)}
+            options={WEATHER_FREQUENCIES.map((value) => ({
+              value,
+              label: t(`marketState.weather.frequencies.${value}`),
+            }))}
+          />
+        </div>
       </div>
 
       {series && period ? (
@@ -110,23 +135,23 @@ export function IndustryWeatherMap({ series, loading, frequency, onFrequencyChan
           </div>
 
           <div className="jx-industryWeather-groups">
-            {INDUSTRY_GROUPS.map((group) => (
+            {series.groups.map((group) => (
               <section className="jx-industryWeather-group" key={group.key}>
                 <div className="jx-industryWeather-groupHead">
-                  <strong>{t(`marketState.weather.groups.${group.key}`)}</strong>
+                  <strong>{t(`marketState.weather.groupLabels.${dimension}.${group.key}`)}</strong>
                   <span>{group.codes.length}</span>
                 </div>
                 <div className="jx-industryWeather-cards">
-                  {group.codes.flatMap((industryCode) => {
-                    const industry = industryByCode.get(industryCode);
-                    return industry
+                  {group.codes.flatMap((itemCode) => {
+                    const item = itemByCode.get(itemCode);
+                    return item
                       ? [
-                          <IndustryWeatherCard
-                            key={industryCode}
-                            industry={industry}
+                          <MarketWeatherCard
+                            key={itemCode}
+                            item={item}
                             frequency={displayFrequency}
-                            selected={selectedIndustryCode === industryCode}
-                            onSelect={() => setSelectedIndustryCode(industryCode)}
+                            selected={selectedItemCode === itemCode}
+                            onSelect={() => setSelectedItemCode(itemCode)}
                           />,
                         ]
                       : [];
@@ -213,32 +238,32 @@ export function IndustryWeatherMap({ series, loading, frequency, onFrequencyChan
         </div>
       )}
 
-      <IndustryWeatherDrawer
+      <MarketWeatherDrawer
         series={series}
         periodIndex={selectedPeriodIndex}
-        industry={selectedIndustry}
+        item={selectedItem}
         frequency={displayFrequency}
-        onClose={() => setSelectedIndustryCode(null)}
+        onClose={() => setSelectedItemCode(null)}
       />
     </section>
   );
 }
 
-// —— Subcomponents / helpers ——
+// Subcomponents and helpers.
 
-function IndustryWeatherCard({
-  industry,
+function MarketWeatherCard({
+  item,
   frequency,
   selected,
   onSelect,
 }: {
-  industry: IndustryWeatherItem;
+  item: MarketWeatherItem;
   frequency: MarketWeatherFrequency;
   selected: boolean;
   onSelect: () => void;
 }) {
   const { t } = useTranslation('valuation');
-  const heatBand = weatherHeatBand(industry.heatScore);
+  const heatBand = weatherHeatBand(item.heatScore);
 
   return (
     <button
@@ -246,105 +271,105 @@ function IndustryWeatherCard({
       className={classNames(
         'jx-industryWeather-card',
         `jx-industryWeather-card--${heatBand}`,
-        `jx-industryWeather-card--state-${industry.state}`,
+        `jx-industryWeather-card--state-${item.state}`,
         {
           'jx-industryWeather-card--selected': selected,
-          'jx-industryWeather-card--active': industry.activityScore >= 80,
+          'jx-industryWeather-card--active': item.activityScore != null && item.activityScore >= 80,
         },
       )}
       onClick={onSelect}
     >
       <span className="jx-industryWeather-cardTop">
-        <strong>{industry.l1Name}</strong>
+        <strong>{item.name}</strong>
         <span className="jx-industryWeather-state">
-          {t(`marketState.weather.states.${industry.state}`)}
+          {t(`marketState.weather.states.${item.state}`)}
         </span>
       </span>
       <span className="jx-industryWeather-performance">
         <span>{t(`marketState.weather.frequencies.${frequency}`)}</span>
-        <strong className={returnClassName(industry.periodReturn)}>
-          {formatSignedPercent(industry.periodReturn)}
+        <strong className={returnClassName(item.periodReturn)}>
+          {formatSignedPercent(item.periodReturn)}
         </strong>
       </span>
       <span className="jx-industryWeather-cardMetrics">
         <span>
           {t('marketState.weather.metrics.heat')}
-          <b>{Math.round(industry.heatScore)}</b>
+          <b>{formatScore(item.heatScore)}</b>
         </span>
         <span>
           {t('marketState.weather.metrics.activity')}
-          <b>{Math.round(industry.activityScore)}</b>
+          <b>{formatScore(item.activityScore)}</b>
         </span>
         <span>
           {t('marketState.weather.metrics.breadth')}
-          <b>{Math.round(industry.breadthScore)}</b>
+          <b>{formatScore(item.breadthScore)}</b>
         </span>
       </span>
       <span className="jx-industryWeather-cardBottom">
-        <span className={valuationClassName(industry.valuationPercentile)}>
-          {valuationLabel(industry.valuationPercentile, t)}
+        <span className={valuationClassName(item.valuationPercentile)}>
+          {valuationLabel(item.valuationPercentile, t)}
         </span>
-        <span className={returnClassName(industry.heatChange)}>
-          {industry.heatChange == null ? null : (
-            <FontAwesomeIcon icon={industry.heatChange >= 0 ? faArrowTrendUp : faArrowTrendDown} />
+        <span className={returnClassName(item.heatChange)}>
+          {item.heatChange == null ? null : (
+            <FontAwesomeIcon icon={item.heatChange >= 0 ? faArrowTrendUp : faArrowTrendDown} />
           )}
-          {formatHeatChange(industry.heatChange)}
+          {formatHeatChange(item.heatChange)}
         </span>
       </span>
     </button>
   );
 }
 
-function IndustryWeatherDrawer({
+function MarketWeatherDrawer({
   series,
   periodIndex,
-  industry,
+  item,
   frequency,
   onClose,
 }: {
-  series: IndustryWeatherSeries | null;
+  series: MarketWeatherSeries | null;
   periodIndex: number;
-  industry: IndustryWeatherItem | null;
+  item: MarketWeatherItem | null;
   frequency: MarketWeatherFrequency;
   onClose: () => void;
 }) {
   const { t } = useTranslation('valuation');
   const history = series
     ? series.periods.slice(Math.max(0, periodIndex - 23), periodIndex + 1).flatMap((period) => {
-        const item = period.industries.find((candidate) => candidate.l1Code === industry?.l1Code);
-        return item ? [{ period, item }] : [];
+        const historyItem = period.items.find((candidate) => candidate.code === item?.code);
+        return historyItem ? [{ period, item: historyItem }] : [];
       })
     : [];
 
   return (
-    <Drawer open={industry != null} title={industry?.l1Name} width={440} onClose={onClose}>
-      {industry ? (
+    <Drawer open={item != null} title={item?.name} width={440} onClose={onClose}>
+      {item ? (
         <div className="jx-industryWeather-drawer">
           <div className="jx-industryWeather-drawerState">
-            <span>{t(`marketState.weather.states.${industry.state}`)}</span>
-            <strong className={returnClassName(industry.periodReturn)}>
-              {formatSignedPercent(industry.periodReturn)}
+            <span>{t(`marketState.weather.states.${item.state}`)}</span>
+            <strong className={returnClassName(item.periodReturn)}>
+              {formatSignedPercent(item.periodReturn)}
             </strong>
           </div>
           <div className="jx-industryWeather-drawerMetrics">
             <WeatherMetric
               label={t('marketState.weather.metrics.heat')}
-              value={industry.heatScore}
+              value={item.heatScore}
               format="score"
             />
             <WeatherMetric
               label={t('marketState.weather.metrics.activity')}
-              value={industry.activityScore}
+              value={item.activityScore}
               format="percentile"
             />
             <WeatherMetric
               label={t('marketState.weather.metrics.breadth')}
-              value={industry.breadthScore}
+              value={item.breadthScore}
               format="percent"
             />
             <WeatherMetric
               label={t('marketState.weather.metrics.valuation')}
-              value={industry.valuationPercentile}
+              value={item.valuationPercentile}
               format="percentile"
             />
           </div>
@@ -463,6 +488,10 @@ function formatHeatChange(value: number | null): string {
   return `${value >= 0 ? '+' : ''}${Math.round(value)}`;
 }
 
+function formatScore(value: number | null): string {
+  return value == null ? '—' : String(Math.round(value));
+}
+
 function formatSignedPercent(value: number | null): string {
   if (value == null) {
     return '—';
@@ -503,49 +532,8 @@ function formatPeriodLabel(
 type WeatherHeatBand = 'cold' | 'mild' | 'warm' | 'hot' | 'extreme';
 
 const WEATHER_FREQUENCIES: MarketWeatherFrequency[] = ['week', 'month', 'quarter', 'year'];
-const ATTENTION_STATES = new Set<IndustryWeatherState>(['undervalued', 'warming', 'expanding']);
-const WARNING_STATES = new Set<IndustryWeatherState>(['overheated', 'crowded']);
-const INDUSTRY_GROUPS = [
-  {
-    key: 'financial',
-    codes: ['801780.SI', '801790.SI', '801180.SI'],
-  },
-  {
-    key: 'technology',
-    codes: ['801080.SI', '801750.SI', '801770.SI', '801760.SI', '801740.SI'],
-  },
-  {
-    key: 'resources',
-    codes: [
-      '801030.SI',
-      '801040.SI',
-      '801050.SI',
-      '801710.SI',
-      '801720.SI',
-      '801950.SI',
-      '801960.SI',
-    ],
-  },
-  {
-    key: 'manufacturing',
-    codes: ['801730.SI', '801880.SI', '801890.SI', '801140.SI', '801970.SI'],
-  },
-  {
-    key: 'consumer',
-    codes: [
-      '801010.SI',
-      '801110.SI',
-      '801120.SI',
-      '801130.SI',
-      '801200.SI',
-      '801210.SI',
-      '801980.SI',
-    ],
-  },
-  {
-    key: 'defensive',
-    codes: ['801150.SI', '801160.SI', '801170.SI', '801230.SI'],
-  },
-] as const;
+const WEATHER_DIMENSIONS: MarketWeatherDimension[] = ['industry', 'scale', 'board', 'style'];
+const ATTENTION_STATES = new Set<MarketWeatherState>(['undervalued', 'warming', 'expanding']);
+const WARNING_STATES = new Set<MarketWeatherState>(['overheated', 'crowded']);
 
-export default IndustryWeatherMap;
+export default MarketWeatherMap;

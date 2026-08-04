@@ -1,6 +1,6 @@
 import { loadTushareConfig } from '../src/config.js';
 import { prisma } from '../src/lib/prisma.js';
-import { MARKET_STYLE_INDEX_CODES } from '../src/store/index-presets.js';
+import { MARKET_WEATHER_INDEX_CODES } from '../src/store/index-presets.js';
 import { syncIndexBenchmarks, syncIndexDaily, syncSwIndexDaily } from '../src/store/sync.js';
 import { TushareClient } from '../src/tushare/client.js';
 
@@ -8,7 +8,7 @@ function currentDate(): string {
   return new Date().toISOString().slice(0, 10).replaceAll('-', '');
 }
 
-/** Sync the official index catalog, style-index closes, and SW2021 level-1 industry daily bars. */
+/** Sync the official index catalog, dashboard index closes, and SW2021 level-1 industry bars. */
 async function main(): Promise<void> {
   const config = loadTushareConfig();
   const [start = '20150101', end = currentDate()] = process.argv.slice(2);
@@ -23,7 +23,7 @@ async function main(): Promise<void> {
   });
 
   await syncIndexBenchmarks(client);
-  for (const indexCode of MARKET_STYLE_INDEX_CODES) {
+  for (const indexCode of MARKET_WEATHER_INDEX_CODES) {
     await syncIndexDaily(client, indexCode, start, end);
   }
   await syncSwIndexDaily(client, start, end);

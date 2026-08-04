@@ -165,6 +165,20 @@ market_reference_coverage() {
         FROM \"SwIndexDaily\"
         GROUP BY \"tsCode\"
         HAVING min(\"tradeDate\") <= '$reference_start'
+      )),
+      (SELECT count(*) FROM (
+        SELECT \"tsCode\"
+        FROM \"IndexDaily\"
+        WHERE \"tsCode\" IN (
+          '000985.CSI', '000016.SH', '930050.CSI', '000903.SH', '000300.SH',
+          '000510.SH', '000905.SH', '000852.SH', '932000.CSI', '000001.SH',
+          '399001.SZ', '399006.SZ', '000680.SH', '000688.SH', '931643.CSI',
+          '899050.BJ', '000918.CSI', '000919.CSI', 'H30351.CSI', 'H30352.CSI',
+          'H30355.CSI', 'H30356.CSI', '932392.CSI', '932393.CSI', '399370.SZ',
+          '399371.SZ', '000922.CSI'
+        )
+        GROUP BY \"tsCode\"
+        HAVING count(*) >= 120
       ));
   "
 }
@@ -528,17 +542,17 @@ else
   [[ "$MARKET_REFERENCE_START" =~ ^[0-9]{8}$ && "$MARKET_REFERENCE_END" =~ ^[0-9]{8}$ ]] ||
     die "无法确定官方市场参考数据的回填区间"
 
-  read -r INDEX_BENCHMARK_ROWS SW_HISTORICAL_CODES < <(
+  read -r INDEX_BENCHMARK_ROWS SW_HISTORICAL_CODES WEATHER_HISTORICAL_CODES < <(
     market_reference_coverage "$DB_FILE" "$MARKET_REFERENCE_START"
   )
-  if [[ "$INDEX_BENCHMARK_ROWS" -eq 0 || "$SW_HISTORICAL_CODES" -ne 31 ]]; then
-    log "补全官方指数分类、风格指数和申万一级行业历史行情: $MARKET_REFERENCE_START ~ $MARKET_REFERENCE_END"
+  if [[ "$INDEX_BENCHMARK_ROWS" -eq 0 || "$SW_HISTORICAL_CODES" -ne 31 || "$WEATHER_HISTORICAL_CODES" -ne 27 ]]; then
+    log "补全官方指数分类、市场气象指数和申万一级行业历史行情: $MARKET_REFERENCE_START ~ $MARKET_REFERENCE_END"
     pnpm --filter api sync:market-reference "$MARKET_REFERENCE_START" "$MARKET_REFERENCE_END"
 
-    read -r INDEX_BENCHMARK_ROWS SW_HISTORICAL_CODES < <(
+    read -r INDEX_BENCHMARK_ROWS SW_HISTORICAL_CODES WEATHER_HISTORICAL_CODES < <(
       market_reference_coverage "$DB_FILE" "$MARKET_REFERENCE_START"
     )
-    [[ "$INDEX_BENCHMARK_ROWS" -gt 0 && "$SW_HISTORICAL_CODES" -eq 31 ]] ||
+    [[ "$INDEX_BENCHMARK_ROWS" -gt 0 && "$SW_HISTORICAL_CODES" -eq 31 && "$WEATHER_HISTORICAL_CODES" -eq 27 ]] ||
       die "官方市场参考数据回填后仍不完整"
   else
     log "官方市场参考数据历史覆盖完整,跳过回填"

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { IndustryIndicatorRow, MarketIndicatorRow, SwIndexDailyRow } from './market-state.js';
 import {
   buildIndustryWeatherSeries,
+  buildIndexWeatherSeries,
   buildIndexTrailingReturns,
   buildMarketStylePairs,
   buildMarketStateSnapshot,
@@ -288,6 +289,48 @@ describe('market state snapshot', () => {
     expect(februaryBank?.periodReturn).toBeCloseTo(-0.1);
     expect(februaryElectronics?.heatScore).toBeGreaterThan(februaryBank?.heatScore ?? 0);
     expect(februaryElectronics?.heatChange).not.toBeNull();
+  });
+
+  it('builds fixed grouped cards and exposes partial index metric coverage', () => {
+    const groups = [{ key: 'sizeLadder', codes: ['000300.SH', '000905.SH'] }] as const;
+    const closeRows = ['20260130', '20260227'].flatMap((tradeDate, index) => [
+      { tsCode: '000300.SH', tradeDate, close: [100, 110][index] },
+      { tsCode: '000905.SH', tradeDate, close: [100, 95][index] },
+    ]);
+    const indicatorRows = ['20260130', '20260227'].map((tradeDate, index) => ({
+      indexCode: '000300.SH',
+      tradeDate,
+      return20: 0.02,
+      aboveMa20Ratio: 0.6 + index / 10,
+      aboveMa60Ratio: 0.5 + index / 10,
+      floatWeightedTurnoverRate: 1 + index,
+    }));
+
+    const series = buildIndexWeatherSeries(
+      'scale',
+      groups,
+      closeRows,
+      indicatorRows,
+      [],
+      [
+        { tsCode: '000300.SH', name: '沪深300' },
+        { tsCode: '000905.SH', name: '中证500' },
+      ],
+      'month',
+    );
+    const latest = series?.periods.at(-1)?.items;
+
+    expect(series?.groups).toEqual([{ key: 'sizeLadder', codes: ['000300.SH', '000905.SH'] }]);
+    expect(latest?.map((item) => item.name)).toEqual(['沪深300', '中证500']);
+    expect(latest?.[0].coverage).toBe('full');
+    expect(latest?.[0].activityScore).not.toBeNull();
+    expect(latest?.[1]).toMatchObject({
+      coverage: 'partial',
+      activityScore: null,
+      breadthScore: null,
+    });
+    expect(latest?.[0].periodReturn).toBeCloseTo(0.1);
+    expect(latest?.[1].periodReturn).toBeCloseTo(-0.05);
   });
 });
 

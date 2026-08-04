@@ -3,7 +3,8 @@ import { prisma } from '../lib/prisma.js';
 import {
   MAJOR_INDEX_DAILY_BASIC_CODES,
   MAJOR_INDEX_DAILY_CODES,
-  MARKET_STYLE_INDEX_CODES,
+  DAILY_MAINTAINED_INDEX_CODES,
+  MARKET_WEATHER_INDEX_CODES,
 } from '../store/index-presets.js';
 import {
   syncDailyCoreDate,
@@ -99,11 +100,11 @@ export function buildMarketDateRepairPlan(counts: MarketDateCounts[]): MarketDat
     const dailyCodes = new Set(row.indexDailyCodes);
     const basicCodes = new Set(row.indexDailyBasicCodes);
     const missingDaily = MAJOR_INDEX_DAILY_CODES.filter((code) => !dailyCodes.has(code));
-    const missingStyle = MARKET_STYLE_INDEX_CODES.filter((code) => !dailyCodes.has(code));
+    const missingWeather = MARKET_WEATHER_INDEX_CODES.filter((code) => !dailyCodes.has(code));
     const missingBasic = MAJOR_INDEX_DAILY_BASIC_CODES.filter((code) => !basicCodes.has(code));
     const indices =
       missingDaily.length > 0 ||
-      missingStyle.length > 0 ||
+      missingWeather.length > 0 ||
       missingBasic.length > 0 ||
       row.swIndexDaily < 31;
     if (missingDaily.length > 0) {
@@ -112,8 +113,8 @@ export function buildMarketDateRepairPlan(counts: MarketDateCounts[]): MarketDat
     if (missingBasic.length > 0) {
       reasons.push(`IndexDailyBasic missing ${missingBasic.join(',')}`);
     }
-    if (missingStyle.length > 0) {
-      reasons.push(`Official style IndexDaily missing ${missingStyle.join(',')}`);
+    if (missingWeather.length > 0) {
+      reasons.push(`Market weather IndexDaily missing ${missingWeather.join(',')}`);
     }
     if (row.swIndexDaily < 31) {
       reasons.push(`SwIndexDaily has ${row.swIndexDaily}/31 level-1 industries`);
@@ -188,7 +189,7 @@ export async function selfHealMarketDates(
       await syncTopList(client, tradeDate, tradeDate, { refresh: true });
     }
     if (repair.indices) {
-      for (const indexCode of [...MAJOR_INDEX_DAILY_CODES, ...MARKET_STYLE_INDEX_CODES]) {
+      for (const indexCode of DAILY_MAINTAINED_INDEX_CODES) {
         await syncIndexDaily(client, indexCode, tradeDate, tradeDate);
       }
       await syncIndexDailyBasic(client, [...MAJOR_INDEX_DAILY_BASIC_CODES], tradeDate, tradeDate);
@@ -215,7 +216,7 @@ async function inspectMarketDates(tradeDates: string[]): Promise<MarketDateCount
       prisma.indexDaily.findMany({
         where: {
           ...where,
-          tsCode: { in: [...MAJOR_INDEX_DAILY_CODES, ...MARKET_STYLE_INDEX_CODES] },
+          tsCode: { in: DAILY_MAINTAINED_INDEX_CODES },
         },
         select: { tradeDate: true, tsCode: true },
       }),

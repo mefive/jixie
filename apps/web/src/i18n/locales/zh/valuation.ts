@@ -8,10 +8,32 @@ export const zhValuation = {
     readout:
       '方向热度由 {{leader}} 领跑，{{active}} 的成交最活跃，{{undervalued}} 的行业估值位置最低；当前市场广度为 {{breadth}}。',
     weather: {
-      eyebrow: '01 · MARKET WEATHER',
+      eyebrow: 'MARKET WEATHER',
       title: '申万行业气象图',
       subtitle:
         '拖动时间轴观察31个申万一级行业如何升温、扩散、拥挤和退潮；卡片位置固定，颜色只表达当期交易热度。',
+      dimensions: {
+        industry: {
+          label: '申万行业',
+          title: '申万行业气象图',
+          subtitle: '观察31个申万一级行业的热度、估值、交投活跃与历史表现。',
+        },
+        scale: {
+          label: '规模宽基',
+          title: '规模宽基气象图',
+          subtitle: '从全市场到大盘、小盘，观察资金正在偏向哪一段市值区间。',
+        },
+        board: {
+          label: '市场板块',
+          title: '市场板块气象图',
+          subtitle: '比较沪深交易所、创业板、科创板与北交所等官方板块指数。',
+        },
+        style: {
+          label: '风格策略',
+          title: '风格策略气象图',
+          subtitle: '用官方成长、价值与红利指数观察市场偏好，不用主观标签替代指数口径。',
+        },
+      },
       snapshotDate: '快照 {{date}}',
       readout: '值得关注：{{attention}}；过热或拥挤预警：{{warning}}。',
       frequencies: {
@@ -27,6 +49,34 @@ export const zhValuation = {
         manufacturing: '中游制造',
         consumer: '消费服务',
         defensive: '防御民生',
+      },
+      groupLabels: {
+        industry: {
+          financial: '金融地产',
+          technology: '科技成长',
+          resources: '周期资源',
+          manufacturing: '中游制造',
+          consumer: '消费服务',
+          defensive: '防御民生',
+        },
+        scale: {
+          wholeMarket: '全市场',
+          largeCore: '大盘核心',
+          sizeLadder: '规模阶梯',
+        },
+        board: {
+          exchange: '交易所综合',
+          innovation: '创新板块',
+          beijing: '北交所',
+        },
+        style: {
+          csi300: '沪深300风格',
+          csi500: '中证500风格',
+          csi800: '中证800风格',
+          csi1000: '中证1000风格',
+          broadStyle: '深证风格',
+          income: '收益策略',
+        },
       },
       states: {
         undervalued: '低估潜伏',

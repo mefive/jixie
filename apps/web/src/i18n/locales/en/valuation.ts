@@ -10,10 +10,36 @@ export const enValuation: typeof zhValuation = {
     readout:
       '{{leader}} leads direction heat, {{active}} is the most actively traded, and {{undervalued}} has the lowest industry valuation position. Current market breadth is {{breadth}}.',
     weather: {
-      eyebrow: '01 · MARKET WEATHER',
+      eyebrow: 'MARKET WEATHER',
       title: 'Shenwan industry weather map',
       subtitle:
         'Scrub the timeline to watch 31 Shenwan level-1 industries warm, broaden, crowd, and cool. Card positions stay fixed; color only represents trading heat.',
+      dimensions: {
+        industry: {
+          label: 'SW industries',
+          title: 'Shenwan industry weather',
+          subtitle:
+            'Track heat, valuation, trading activity, and history across 31 Shenwan level-1 industries.',
+        },
+        scale: {
+          label: 'Market cap',
+          title: 'Market-cap weather',
+          subtitle:
+            'Compare the whole market, large caps, and small caps to see where capital is concentrating.',
+        },
+        board: {
+          label: 'Market boards',
+          title: 'Market-board weather',
+          subtitle:
+            'Compare official exchange, ChiNext, STAR Market, and Beijing Stock Exchange indices.',
+        },
+        style: {
+          label: 'Styles',
+          title: 'Style and strategy weather',
+          subtitle:
+            'Use official growth, value, and dividend indices to read preferences without subjective relabeling.',
+        },
+      },
       snapshotDate: 'Snapshot {{date}}',
       readout: 'Worth watching: {{attention}}. Overheating or crowding alerts: {{warning}}.',
       frequencies: {
@@ -29,6 +55,34 @@ export const enValuation: typeof zhValuation = {
         manufacturing: 'Midstream manufacturing',
         consumer: 'Consumer & services',
         defensive: 'Defensive & public services',
+      },
+      groupLabels: {
+        industry: {
+          financial: 'Financials & property',
+          technology: 'Technology & growth',
+          resources: 'Cyclicals & resources',
+          manufacturing: 'Midstream manufacturing',
+          consumer: 'Consumer & services',
+          defensive: 'Defensive & public services',
+        },
+        scale: {
+          wholeMarket: 'Whole market',
+          largeCore: 'Large-cap core',
+          sizeLadder: 'Size ladder',
+        },
+        board: {
+          exchange: 'Exchange composites',
+          innovation: 'Innovation boards',
+          beijing: 'Beijing exchange',
+        },
+        style: {
+          csi300: 'CSI 300 styles',
+          csi500: 'CSI 500 styles',
+          csi800: 'CSI 800 styles',
+          csi1000: 'CSI 1000 styles',
+          broadStyle: 'SZSE styles',
+          income: 'Income strategies',
+        },
       },
       states: {
         undervalued: 'Undervalued base',

@@ -1,33 +1,32 @@
 import { Alert, Skeleton } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { complex } from './complex';
-import { MarketStateOverview } from './market-state-overview';
-import '@src/complex/valuation/valuation.css';
+import { MarketWeatherMap } from './industry-weather-map';
+import './market.css';
 
 export const Market = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('valuation');
-  const marketState = store.marketStateLoader.result;
+  const weatherSeries = store.weatherLoader.result;
 
   return (
     <div className="jx-market">
       <main className="jx-market-body">
-        {store.marketStateLoader.error ? (
+        {store.weatherLoader.error ? (
           <Alert
             type="error"
             showIcon
             message={t('marketState.loadFailed')}
-            description={store.marketStateLoader.errorObject?.message}
+            description={store.weatherLoader.errorObject?.message}
           />
-        ) : marketState ? (
-          <MarketStateOverview
-            snapshot={marketState}
-            loading={store.marketStateLoader.loading}
-            weatherSeries={store.industryWeatherLoader.result}
-            weatherLoading={store.industryWeatherLoader.loading}
-            weatherFrequency={store.weatherFrequency}
-            onScopeChange={(scope) => store.setMarketScope(scope)}
-            onWeatherFrequencyChange={(frequency) => store.setWeatherFrequency(frequency)}
+        ) : weatherSeries ? (
+          <MarketWeatherMap
+            series={weatherSeries}
+            loading={store.weatherLoader.loading}
+            dimension={store.weatherDimension}
+            frequency={store.weatherFrequency}
+            onDimensionChange={(dimension) => store.setWeatherDimension(dimension)}
+            onFrequencyChange={(frequency) => store.setWeatherFrequency(frequency)}
           />
         ) : (
           <DashboardSkeleton />
@@ -37,7 +36,7 @@ export const Market = complex.component(() => {
   );
 }, 'Market');
 
-// —— Subcomponents / helpers ——
+// Subcomponents and helpers.
 
 function DashboardSkeleton() {
   return (

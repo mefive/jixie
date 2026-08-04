@@ -31,6 +31,11 @@
   line-height: 1.65;
 }
 
+.jx-industryWeather-controls {
+  @apply flex shrink-0 flex-col items-end gap-2;
+}
+
+.jx-industryWeather-dimension,
 .jx-industryWeather-frequency {
   @apply shrink-0;
 }
@@ -406,6 +411,14 @@
   }
 
   .jx-industryWeather-frequency {
+    width: 100%;
+  }
+
+  .jx-industryWeather-controls {
+    @apply w-full items-stretch;
+  }
+
+  .jx-industryWeather-dimension {
     width: 100%;
   }
 

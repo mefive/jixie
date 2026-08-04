@@ -49,8 +49,8 @@ jixie 在 Linux VPS（Ubuntu / CentOS）上的部署。唯一入口是幂等的 
 执行。影响规则的机器可读真相源是 `deploy/component-impact.json`。
 
 代码更新不会重复同步常规行情，行情增量仍由 maintenance timer 负责。`bootstrap.sh` 会单独检查官方
-指数分类、风格指数和申万一级行业行情的历史覆盖；已有行情库升级后缺少这组参考数据时，会按
-`IndustryIndicator` 的可用区间自动执行一次 `sync:market-reference`，覆盖完整后再次部署会跳过。
+指数分类、27个市场气象指数和申万一级行业行情的历史覆盖；已有行情库升级后缺少这组参考数据时，
+会按 `IndustryIndicator` 的可用区间自动执行一次 `sync:market-reference`，覆盖完整后再次部署会跳过。
 
 Nginx 主配置会 include 仓库中的 `/opt/jixie/deploy/nginx-docs-app.conf`，把独立构建的
 `apps/docs/dist/docs` 挂载到 `/docs/` 并处理深链。脚本不会覆盖 Certbot 已写入的 TLS 配置。

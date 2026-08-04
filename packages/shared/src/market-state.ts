@@ -4,6 +4,52 @@ export type MarketStateMetric = 'activity' | 'breadth' | 'trend' | 'crowding';
 
 export type MarketWeatherFrequency = 'week' | 'month' | 'quarter' | 'year';
 
+export type MarketWeatherDimension = 'industry' | 'scale' | 'board' | 'style';
+
+export type MarketWeatherState =
+  | 'undervalued'
+  | 'warming'
+  | 'expanding'
+  | 'overheated'
+  | 'crowded'
+  | 'cooling'
+  | 'balanced';
+
+export interface MarketWeatherItem {
+  code: string;
+  name: string;
+  periodReturn: number | null;
+  heatScore: number;
+  heatChange: number | null;
+  activityScore: number | null;
+  breadthScore: number | null;
+  valuationPercentile: number | null;
+  state: MarketWeatherState;
+  coverage: 'full' | 'partial';
+}
+
+export interface MarketWeatherGroup {
+  key: string;
+  codes: string[];
+}
+
+export interface MarketWeatherPeriod {
+  key: string;
+  startDate: TradeDate;
+  endDate: TradeDate;
+  snapshotDate: TradeDate;
+  items: MarketWeatherItem[];
+}
+
+export interface MarketWeatherSeries {
+  dimension: MarketWeatherDimension;
+  frequency: MarketWeatherFrequency;
+  startDate: TradeDate;
+  endDate: TradeDate;
+  groups: MarketWeatherGroup[];
+  periods: MarketWeatherPeriod[];
+}
+
 export type IndustryWeatherState =
   | 'undervalued'
   | 'warming'

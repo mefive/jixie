@@ -1,0 +1,24 @@
+@reference '../../styles/index.css';
+
+.jx-market {
+  @apply overflow-auto;
+  height: 100%;
+}
+
+.jx-market-body {
+  @apply flex flex-col gap-4;
+  width: min(1440px, 100%);
+  margin: 0 auto;
+  padding: 16px 24px 36px;
+}
+
+.jx-market-dashboardSkeleton {
+  @apply grid grid-cols-1 gap-4;
+  padding: 12px 4px;
+}
+
+@media (max-width: 720px) {
+  .jx-market-body {
+    padding: 14px 12px 24px;
+  }
+}

@@ -2,6 +2,10 @@ import type {
   IndustryHeatItem,
   IndustryWeatherItem,
   IndustryWeatherSeries,
+  MarketWeatherDimension,
+  MarketWeatherItem,
+  MarketWeatherSeries,
+  MarketWeatherState,
   MarketStylePair,
   MarketStateMetric,
   MarketStateMetricSummary,
@@ -64,6 +68,32 @@ export interface SwIndexDailyRow {
   close: number | null;
   pe: number | null;
   pb: number | null;
+}
+
+export interface IndexWeatherIndicatorRow {
+  indexCode: string;
+  tradeDate: string;
+  return20: number | null;
+  aboveMa20Ratio: number | null;
+  aboveMa60Ratio: number | null;
+  floatWeightedTurnoverRate: number | null;
+}
+
+export interface IndexWeatherBasicRow {
+  tsCode: string;
+  tradeDate: string;
+  peTtm: number | null;
+  pb: number | null;
+}
+
+export interface IndexWeatherMetadataRow {
+  tsCode: string;
+  name: string;
+}
+
+export interface IndexWeatherGroupConfig {
+  key: string;
+  codes: readonly string[];
 }
 
 const METRICS: MarketStateMetric[] = ['activity', 'breadth', 'trend', 'crowding'];
@@ -423,6 +453,164 @@ export function buildIndustryWeatherSeries(
   };
 }
 
+export function toUnifiedIndustryWeatherSeries(
+  series: IndustryWeatherSeries,
+  groups: readonly IndexWeatherGroupConfig[],
+): MarketWeatherSeries {
+  return {
+    dimension: 'industry',
+    frequency: series.frequency,
+    startDate: series.startDate,
+    endDate: series.endDate,
+    groups: groups.map((group) => ({ key: group.key, codes: [...group.codes] })),
+    periods: series.periods.map((period) => ({
+      key: period.key,
+      startDate: period.startDate,
+      endDate: period.endDate,
+      snapshotDate: period.snapshotDate,
+      items: period.industries.map((industry) => ({
+        code: industry.l1Code,
+        name: industry.l1Name,
+        periodReturn: industry.periodReturn,
+        heatScore: industry.heatScore,
+        heatChange: industry.heatChange,
+        activityScore: industry.activityScore,
+        breadthScore: industry.breadthScore,
+        valuationPercentile: industry.valuationPercentile,
+        state: industry.state,
+        coverage: 'full',
+      })),
+    })),
+  };
+}
+
+export function buildIndexWeatherSeries(
+  dimension: Exclude<MarketWeatherDimension, 'industry'>,
+  groups: readonly IndexWeatherGroupConfig[],
+  closeRows: IndexCloseRow[],
+  indicatorRows: IndexWeatherIndicatorRow[],
+  basicRows: IndexWeatherBasicRow[],
+  metadataRows: IndexWeatherMetadataRow[],
+  frequency: MarketWeatherFrequency,
+): MarketWeatherSeries | null {
+  const configuredCodes = groups.flatMap((group) => [...group.codes]);
+  const metadataByCode = new Map(metadataRows.map((row) => [row.tsCode, row]));
+  const closeByCodeAndDate = new Map(
+    closeRows.map((row) => [`${row.tsCode}:${row.tradeDate}`, row.close]),
+  );
+  const indicatorEndDate = indicatorRows.reduce(
+    (latest, row) => (row.tradeDate > latest ? row.tradeDate : latest),
+    '',
+  );
+  const availableDates = [
+    ...new Set(
+      closeRows.flatMap((row) =>
+        !indicatorEndDate || row.tradeDate <= indicatorEndDate ? [row.tradeDate] : [],
+      ),
+    ),
+  ].sort();
+  const periodBoundaries = buildWeatherPeriodBoundaries(availableDates, frequency);
+  if (periodBoundaries.length === 0) {
+    return null;
+  }
+
+  const indicatorByCodeAndDate = new Map(
+    indicatorRows.map((row) => [`${row.indexCode}:${row.tradeDate}`, row]),
+  );
+  const snapshotDates = new Set(periodBoundaries.map((boundary) => boundary.snapshotDate));
+  const activityPercentiles = buildRollingPercentileLookup(
+    indicatorRows,
+    (row) => row.indexCode,
+    (row) => row.floatWeightedTurnoverRate,
+    3,
+    snapshotDates,
+  );
+  const pePercentiles = buildRollingPercentileLookup(
+    basicRows,
+    (row) => row.tsCode,
+    (row) => row.peTtm,
+    10,
+    snapshotDates,
+  );
+  const pbPercentiles = buildRollingPercentileLookup(
+    basicRows,
+    (row) => row.tsCode,
+    (row) => row.pb,
+    10,
+    snapshotDates,
+  );
+  const previousHeatByCode = new Map<string, number>();
+  const periods = periodBoundaries.map((boundary, periodIndex) => {
+    const previousSnapshotDate =
+      periodIndex > 0 ? periodBoundaries[periodIndex - 1].snapshotDate : undefined;
+    const periodReturnByCode = new Map(
+      configuredCodes.map((code) => {
+        const currentClose = closeByCodeAndDate.get(`${code}:${boundary.snapshotDate}`);
+        const previousClose = previousSnapshotDate
+          ? closeByCodeAndDate.get(`${code}:${previousSnapshotDate}`)
+          : null;
+        const periodReturn =
+          currentClose == null || previousClose == null || previousClose === 0
+            ? null
+            : currentClose / previousClose - 1;
+        return [code, periodReturn] as const;
+      }),
+    );
+    const trendValues = configuredCodes.map((code) => periodReturnByCode.get(code) ?? null);
+    const items = configuredCodes.flatMap((code): MarketWeatherItem[] => {
+      const currentClose = closeByCodeAndDate.get(`${code}:${boundary.snapshotDate}`);
+      if (currentClose == null) {
+        return [];
+      }
+
+      const periodReturn = periodReturnByCode.get(code) ?? null;
+      const trendScore = scorePercentile(trendValues, periodReturn);
+      const lookupKey = `${code}:${boundary.snapshotDate}`;
+      const indicator = indicatorByCodeAndDate.get(lookupKey);
+      const breadthScore = average([
+        indicator?.aboveMa20Ratio ?? null,
+        indicator?.aboveMa60Ratio ?? null,
+      ]);
+      const activityPercentile = activityPercentiles.get(lookupKey);
+      const valuationPercentile = average([
+        pePercentiles.get(lookupKey) ?? null,
+        pbPercentiles.get(lookupKey) ?? null,
+      ]);
+      const activityScore = activityPercentile == null ? null : activityPercentile * 100;
+      const normalizedBreadth = breadthScore == null ? null : breadthScore * 100;
+      const normalizedValuation = valuationPercentile == null ? null : valuationPercentile * 100;
+      const heatScore = average([trendScore, normalizedBreadth, activityScore]) ?? 0;
+      const previousHeat = previousHeatByCode.get(code);
+      const heatChange = previousHeat == null ? null : heatScore - previousHeat;
+      previousHeatByCode.set(code, heatScore);
+      const item = {
+        code,
+        name: metadataByCode.get(code)?.name ?? code,
+        periodReturn,
+        heatScore,
+        heatChange,
+        activityScore,
+        breadthScore: normalizedBreadth,
+        valuationPercentile: normalizedValuation,
+        coverage: activityScore != null && normalizedBreadth != null ? 'full' : 'partial',
+      } as const;
+
+      return [{ ...item, state: classifyMarketWeather(item) }];
+    });
+
+    return { ...boundary, items };
+  });
+
+  return {
+    dimension,
+    frequency,
+    startDate: periods[0].startDate,
+    endDate: periods.at(-1)!.endDate,
+    groups: groups.map((group) => ({ key: group.key, codes: [...group.codes] })),
+    periods,
+  };
+}
+
 function classifyIndustryWeather(
   item: Pick<
     IndustryWeatherItem,
@@ -434,6 +622,20 @@ function classifyIndustryWeather(
     | 'valuationPercentile'
   >,
 ): IndustryWeatherItem['state'] {
+  return classifyMarketWeather(item);
+}
+
+function classifyMarketWeather(
+  item: Pick<
+    MarketWeatherItem,
+    | 'periodReturn'
+    | 'heatScore'
+    | 'heatChange'
+    | 'activityScore'
+    | 'breadthScore'
+    | 'valuationPercentile'
+  >,
+): MarketWeatherState {
   if (
     item.periodReturn != null &&
     item.periodReturn < 0 &&
@@ -446,6 +648,7 @@ function classifyIndustryWeather(
     item.valuationPercentile != null &&
     item.valuationPercentile >= 70 &&
     item.heatScore >= 75 &&
+    item.activityScore != null &&
     item.activityScore >= 75
   ) {
     return 'crowded';
@@ -454,6 +657,7 @@ function classifyIndustryWeather(
     item.periodReturn != null &&
     item.periodReturn > 0 &&
     item.heatScore >= 85 &&
+    item.activityScore != null &&
     item.activityScore >= 80
   ) {
     return 'overheated';
@@ -462,6 +666,7 @@ function classifyIndustryWeather(
     item.periodReturn != null &&
     item.periodReturn > 0 &&
     item.heatScore >= 68 &&
+    item.breadthScore != null &&
     item.breadthScore >= 60
   ) {
     return 'expanding';
