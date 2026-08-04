@@ -286,7 +286,15 @@ function MarketWeatherCard({
         </span>
       </span>
       <span className="jx-industryWeather-performance">
-        <span>{t(`marketState.weather.frequencies.${frequency}`)}</span>
+        <span className="jx-industryWeather-performanceLabels">
+          <span>{t(`marketState.weather.frequencies.${frequency}`)}</span>
+          {item.relativeReturn == null ? null : (
+            <b className={returnClassName(item.relativeReturn)}>
+              {t('marketState.weather.metrics.relativeReturn')}{' '}
+              {formatSignedPercent(item.relativeReturn)}
+            </b>
+          )}
+        </span>
         <strong className={returnClassName(item.periodReturn)}>
           {formatSignedPercent(item.periodReturn)}
         </strong>
@@ -306,9 +314,17 @@ function MarketWeatherCard({
         </span>
       </span>
       <span className="jx-industryWeather-cardBottom">
-        <span className={valuationClassName(item.valuationPercentile)}>
-          {valuationLabel(item.valuationPercentile, t)}
-        </span>
+        <Tooltip
+          title={
+            item.valuationSource == null
+              ? undefined
+              : t(`marketState.weather.valuation.${item.valuationSource}`)
+          }
+        >
+          <span className={valuationClassName(item.valuationPercentile)}>
+            {valuationLabel(item.valuationPercentile, t)}
+          </span>
+        </Tooltip>
         <span className={returnClassName(item.heatChange)}>
           {item.heatChange == null ? null : (
             <FontAwesomeIcon icon={item.heatChange >= 0 ? faArrowTrendUp : faArrowTrendDown} />
@@ -351,6 +367,14 @@ function MarketWeatherDrawer({
               {formatSignedPercent(item.periodReturn)}
             </strong>
           </div>
+          {item.relativeReturn == null ? null : (
+            <div className="jx-industryWeather-drawerRelative">
+              <span>{t('marketState.weather.relativeTo', { name: item.benchmarkName })}</span>
+              <strong className={returnClassName(item.relativeReturn)}>
+                {formatSignedPercent(item.relativeReturn)}
+              </strong>
+            </div>
+          )}
           <div className="jx-industryWeather-drawerMetrics">
             <WeatherMetric
               label={t('marketState.weather.metrics.heat')}
@@ -368,7 +392,7 @@ function MarketWeatherDrawer({
               format="percent"
             />
             <WeatherMetric
-              label={t('marketState.weather.metrics.valuation')}
+              label={valuationMetricLabel(item.valuationSource, t)}
               value={item.valuationPercentile}
               format="percentile"
             />
@@ -479,6 +503,14 @@ function valuationLabel(
   }
   const state = value <= 30 ? 'low' : value >= 70 ? 'high' : 'neutral';
   return t(`marketState.weather.valuation.${state}`, { value: Math.round(value) });
+}
+
+function valuationMetricLabel(
+  source: MarketWeatherItem['valuationSource'],
+  t: ReturnType<typeof useTranslation<'valuation'>>['t'],
+): string {
+  const metric = t('marketState.weather.metrics.valuation');
+  return source == null ? metric : `${metric} · ${t(`marketState.weather.valuation.${source}`)}`;
 }
 
 function formatHeatChange(value: number | null): string {

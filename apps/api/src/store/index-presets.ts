@@ -36,13 +36,14 @@ export const MARKET_WEATHER_INDEX_GROUPS = {
       key: 'largeCore',
       codes: ['000016.SH', '930050.CSI', '000903.SH', '000300.SH', '000510.SH'],
     },
+    { key: 'largeMid', codes: ['000906.SH'] },
     { key: 'sizeLadder', codes: ['000905.SH', '000852.SH', '932000.CSI'] },
   ],
   board: [
     { key: 'exchange', codes: ['000001.SH', '399001.SZ'] },
     {
       key: 'innovation',
-      codes: ['399006.SZ', '000680.SH', '000688.SH', '931643.CSI'],
+      codes: ['399006.SZ', '399102.SZ', '000680.SH', '000688.SH', '931643.CSI'],
     },
     { key: 'beijing', codes: ['899050.BJ'] },
   ],
@@ -53,8 +54,42 @@ export const MARKET_WEATHER_INDEX_GROUPS = {
     { key: 'csi1000', codes: ['932392.CSI', '932393.CSI'] },
     { key: 'broadStyle', codes: ['399370.SZ', '399371.SZ'] },
     { key: 'income', codes: ['000922.CSI'] },
+    {
+      key: 'coreFactors',
+      codes: ['000984.CSI', 'H30260.CSI', '930860.CSI', '930955.CSI', '980092.SZ'],
+    },
   ],
 } as const;
+
+/** Canonical official fallback names for newly allowlisted indices. mkt_idx_bmk metadata wins when
+ * the smaller public-fund benchmark catalog contains the code. */
+export const MARKET_WEATHER_INDEX_NAMES: Readonly<Record<string, string>> = {
+  '000906.SH': '中证800',
+  '399102.SZ': '创业板综',
+  '000984.CSI': '300等权',
+  'H30260.CSI': '300动量',
+  '930860.CSI': '盈利质量',
+  '930955.CSI': '红利低波100',
+  '980092.SZ': '国证自由现金流',
+};
+
+/** Parent benchmarks used to separate factor relative strength from broad market beta. */
+export const MARKET_WEATHER_INDEX_BENCHMARKS: Readonly<Record<string, string>> = {
+  '000918.CSI': '000300.SH',
+  '000919.CSI': '000300.SH',
+  'H30351.CSI': '000905.SH',
+  'H30352.CSI': '000905.SH',
+  'H30355.CSI': '000906.SH',
+  'H30356.CSI': '000906.SH',
+  '932392.CSI': '000852.SH',
+  '932393.CSI': '000852.SH',
+  '000922.CSI': '000985.CSI',
+  '000984.CSI': '000300.SH',
+  'H30260.CSI': '000300.SH',
+  '930860.CSI': '000985.CSI',
+  '930955.CSI': '000985.CSI',
+  '980092.SZ': '000985.CSI',
+};
 
 export const MARKET_WEATHER_INDUSTRY_GROUPS = [
   { key: 'financial', codes: ['801780.SI', '801790.SI', '801180.SI'] },
@@ -102,6 +137,10 @@ export const MARKET_WEATHER_INDEX_CODES = [
     ),
   ),
 ] as string[];
+
+/** All index universes whose monthly point-in-time constituents feed weather-card breadth,
+ * activity, and constituent-derived valuation. */
+export const MARKET_WEATHER_INDICATOR_INDEX_CODES = [...MARKET_WEATHER_INDEX_CODES] as string[];
 
 /** All official index close series that daily maintenance keeps current. */
 export const DAILY_MAINTAINED_INDEX_CODES = [

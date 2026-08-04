@@ -1188,10 +1188,12 @@ function sameRowMultiset(left: unknown[], right: unknown[]): boolean {
   return leftRows.every((row, index) => row === rightRows[index]);
 }
 
+const LARGE_INDEX_WEIGHT_CODES = new Set(['000985.CSI', '000001.SH', '399102.SZ', '932000.CSI']);
+
 /**
- * Sync an index's monthly constituents (index_weight) over a date range. Fetched quarter by quarter
- * to stay under the per-call row cap; each quarter is written as deleteMany + createMany (idempotent,
- * resumable on rerun). E.g. CSI 1000 = 000852.SH.
+ * Sync an index's monthly constituents (index_weight) over a date range. Large universes are fetched
+ * month by month because one snapshot can exceed 5,000 constituents; smaller indices use quarterly
+ * slices. Every slice is replaced atomically, so retries remain idempotent and resumable.
  */
 export async function syncIndexWeight(
   client: TushareClient,
@@ -1201,24 +1203,61 @@ export async function syncIndexWeight(
 ): Promise<void> {
   const startYear = +start.slice(0, 4);
   const endYear = +end.slice(0, 4);
-  const quarters: [string, string][] = [];
-  for (let y = startYear; y <= endYear; y++) {
-    quarters.push([`${y}0101`, `${y}0331`], [`${y}0401`, `${y}0630`]);
-    quarters.push([`${y}0701`, `${y}0930`], [`${y}1001`, `${y}1231`]);
+  const slices: [string, string][] = [];
+  for (let year = startYear; year <= endYear; year++) {
+    if (LARGE_INDEX_WEIGHT_CODES.has(indexCode)) {
+      for (let month = 1; month <= 12; month++) {
+        const monthText = String(month).padStart(2, '0');
+        const monthEnd = new Date(Date.UTC(year, month, 0)).getUTCDate();
+        slices.push([
+          `${year}${monthText}01`,
+          `${year}${monthText}${String(monthEnd).padStart(2, '0')}`,
+        ]);
+      }
+    } else {
+      slices.push([`${year}0101`, `${year}0331`], [`${year}0401`, `${year}0630`]);
+      slices.push([`${year}0701`, `${year}0930`], [`${year}1001`, `${year}1231`]);
+    }
   }
-  log(`syncIndexWeight ${indexCode}: ${quarters.length} 个季度区间`);
+  log(`syncIndexWeight ${indexCode}: ${slices.length} slices`);
 
   let total = 0;
-  for (const [qs, qe] of quarters) {
-    const s = qs < start ? start : qs;
-    const e = qe > end ? end : qe;
-    if (s > e) {
+  for (const [sliceStart, sliceEnd] of slices) {
+    const effectiveStart = sliceStart < start ? start : sliceStart;
+    const effectiveEnd = sliceEnd > end ? end : sliceEnd;
+    if (effectiveStart > effectiveEnd) {
       continue;
     }
-    const rows = await indexWeight(client, { index_code: indexCode, start_date: s, end_date: e });
+    const rows = await indexWeight(client, {
+      index_code: indexCode,
+      start_date: effectiveStart,
+      end_date: effectiveEnd,
+    });
+    if (rows.length === 0) {
+      const existingRows = await prisma.indexWeight.count({
+        where: { indexCode, tradeDate: { gte: effectiveStart, lte: effectiveEnd } },
+      });
+      if (existingRows > 0) {
+        log(
+          `  syncIndexWeight ${indexCode} ${effectiveStart}~${effectiveEnd}: provider returned no rows; preserving ${existingRows} existing rows`,
+        );
+      }
+      continue;
+    }
+    const weightByDate = new Map<string, number>();
+    for (const row of rows) {
+      weightByDate.set(row.trade_date, (weightByDate.get(row.trade_date) ?? 0) + (row.weight ?? 0));
+    }
+    for (const [tradeDate, weight] of weightByDate) {
+      if (weight < 95 || weight > 105) {
+        throw new Error(
+          `IndexWeight ${indexCode} ${tradeDate} sums to ${weight.toFixed(2)}; refusing a possibly truncated snapshot`,
+        );
+      }
+    }
     await prisma.$transaction([
       prisma.indexWeight.deleteMany({
-        where: { indexCode, tradeDate: { gte: s, lte: e } },
+        where: { indexCode, tradeDate: { gte: effectiveStart, lte: effectiveEnd } },
       }),
       prisma.indexWeight.createMany({
         data: rows.map((r) => ({

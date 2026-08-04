@@ -19,11 +19,15 @@ export interface MarketWeatherItem {
   code: string;
   name: string;
   periodReturn: number | null;
+  benchmarkCode: string | null;
+  benchmarkName: string | null;
+  relativeReturn: number | null;
   heatScore: number;
   heatChange: number | null;
   activityScore: number | null;
   breadthScore: number | null;
   valuationPercentile: number | null;
+  valuationSource: 'official' | 'constituents' | null;
   state: MarketWeatherState;
   coverage: 'full' | 'partial';
 }

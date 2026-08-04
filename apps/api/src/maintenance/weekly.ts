@@ -3,7 +3,7 @@ import { loadTushareConfig } from '../config.js';
 import { runDataQualityAudit } from '../data-quality/audit.js';
 import { prisma } from '../lib/prisma.js';
 import { syncMarketIndicators } from '../market/sync-market-indicators.js';
-import { MARKET_STATE_INDEX_CODES } from '../store/index-presets.js';
+import { MARKET_WEATHER_INDICATOR_INDEX_CODES } from '../store/index-presets.js';
 import {
   syncEtfBasic,
   syncFutureContracts,
@@ -148,13 +148,13 @@ export async function runWeeklyMaintenance(
 
     const indexBefore = await prisma.indexWeight.findMany({
       where: {
-        indexCode: { in: [...MARKET_STATE_INDEX_CODES] },
+        indexCode: { in: MARKET_WEATHER_INDICATOR_INDEX_CODES },
         tradeDate: { gte: weightStart, lte: today },
       },
       orderBy: [{ indexCode: 'asc' }, { tradeDate: 'asc' }, { conCode: 'asc' }],
     });
     await updateMaintenanceRun(run.id, 'index_membership', summary);
-    for (const indexCode of MARKET_STATE_INDEX_CODES) {
+    for (const indexCode of MARKET_WEATHER_INDICATOR_INDEX_CODES) {
       await syncIndexWeight(
         standardClient,
         indexCode,
@@ -164,7 +164,7 @@ export async function runWeeklyMaintenance(
     }
     const indexAfter = await prisma.indexWeight.findMany({
       where: {
-        indexCode: { in: [...MARKET_STATE_INDEX_CODES] },
+        indexCode: { in: MARKET_WEATHER_INDICATOR_INDEX_CODES },
         tradeDate: { gte: weightStart, lte: today },
       },
       orderBy: [{ indexCode: 'asc' }, { tradeDate: 'asc' }, { conCode: 'asc' }],

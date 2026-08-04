@@ -62,6 +62,7 @@ export const zhValuation = {
         scale: {
           wholeMarket: '全市场',
           largeCore: '大盘核心',
+          largeMid: '大中盘',
           sizeLadder: '规模阶梯',
         },
         board: {
@@ -76,6 +77,7 @@ export const zhValuation = {
           csi1000: '中证1000风格',
           broadStyle: '深证风格',
           income: '收益策略',
+          coreFactors: '核心因子',
         },
       },
       states: {
@@ -92,13 +94,17 @@ export const zhValuation = {
         activity: '活跃',
         breadth: '广度',
         valuation: '估值',
+        relativeReturn: '超额',
       },
       valuation: {
         low: '低估 P{{value}}',
         neutral: '估值 P{{value}}',
         high: '偏贵 P{{value}}',
         unknown: '估值缺失',
+        official: '官方估值',
+        constituents: '成分估值',
       },
+      relativeTo: '相对{{name}}',
       periodLabels: {
         week: '{{year}}年第{{value}}周',
         month: '{{year}}年{{value}}月',

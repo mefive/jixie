@@ -23,8 +23,10 @@ import {
   MAJOR_INDEX_DAILY_BASIC_CODES,
   MARKET_STATE_INDEX_CODES,
   MARKET_STYLE_INDEX_CODES,
+  MARKET_WEATHER_INDEX_BENCHMARKS,
   MARKET_WEATHER_INDEX_GROUPS,
   MARKET_WEATHER_INDUSTRY_GROUPS,
+  MARKET_WEATHER_INDEX_NAMES,
 } from '../store/index-presets.js';
 import type {
   IndustryWeatherSeries,
@@ -205,6 +207,10 @@ marketRoute.get('/weather', validateQuery(marketWeatherQuery), async (c) => {
 
   const groups = MARKET_WEATHER_INDEX_GROUPS[dimension];
   const codes = groups.flatMap((group) => [...group.codes]);
+  const referenceCodes = [
+    ...new Set(codes.flatMap((code) => MARKET_WEATHER_INDEX_BENCHMARKS[code] ?? [])),
+  ];
+  const closeCodes = [...new Set([...codes, ...referenceCodes])];
   const [closeCoverage, indicatorCoverage, basicCoverage] = await Promise.all([
     prisma.indexDaily.aggregate({
       where: { tsCode: { in: codes } },
@@ -232,9 +238,9 @@ marketRoute.get('/weather', validateQuery(marketWeatherQuery), async (c) => {
     return c.json(cached);
   }
 
-  const [closeRows, indicatorRows, basicRows, metadataRows] = await Promise.all([
+  const [closeRows, indicatorRows, officialBasicRows, benchmarkMetadataRows] = await Promise.all([
     prisma.indexDaily.findMany({
-      where: { tsCode: { in: codes } },
+      where: { tsCode: { in: closeCodes } },
       select: { tsCode: true, tradeDate: true, close: true },
       orderBy: [{ tsCode: 'asc' }, { tradeDate: 'asc' }],
     }),
@@ -247,6 +253,9 @@ marketRoute.get('/weather', validateQuery(marketWeatherQuery), async (c) => {
         aboveMa20Ratio: true,
         aboveMa60Ratio: true,
         floatWeightedTurnoverRate: true,
+        peTtm: true,
+        pb: true,
+        valuationCoverage: true,
       },
       orderBy: [{ indexCode: 'asc' }, { tradeDate: 'asc' }],
     }) as Promise<IndexWeatherIndicatorRow[]>,
@@ -254,12 +263,18 @@ marketRoute.get('/weather', validateQuery(marketWeatherQuery), async (c) => {
       where: { tsCode: { in: codes } },
       select: { tsCode: true, tradeDate: true, peTtm: true, pb: true },
       orderBy: [{ tsCode: 'asc' }, { tradeDate: 'asc' }],
-    }) as Promise<IndexWeatherBasicRow[]>,
+    }),
     prisma.indexBenchmark.findMany({
-      where: { tsCode: { in: codes } },
+      where: { tsCode: { in: closeCodes } },
       select: { tsCode: true, name: true },
     }),
   ]);
+  const basicRows = mergeIndexWeatherValuations(officialBasicRows, indicatorRows);
+  const benchmarkMetadataByCode = new Map(benchmarkMetadataRows.map((row) => [row.tsCode, row]));
+  const metadataRows = closeCodes.map((tsCode) => ({
+    tsCode,
+    name: benchmarkMetadataByCode.get(tsCode)?.name ?? MARKET_WEATHER_INDEX_NAMES[tsCode] ?? tsCode,
+  }));
   const series = buildIndexWeatherSeries(
     dimension,
     groups,
@@ -268,6 +283,7 @@ marketRoute.get('/weather', validateQuery(marketWeatherQuery), async (c) => {
     basicRows,
     metadataRows,
     frequency,
+    MARKET_WEATHER_INDEX_BENCHMARKS,
   );
   if (!series || !closeCoverage._min.tradeDate) {
     return apiError(c, 'NOT_FOUND', m(c, 'noDataInRange'));
@@ -291,6 +307,34 @@ marketRoute.get('/industry-weather', validateQuery(industryWeatherQuery), async 
 
   return c.json(series);
 });
+
+function mergeIndexWeatherValuations(
+  officialRows: Array<Omit<IndexWeatherBasicRow, 'source'>>,
+  indicatorRows: IndexWeatherIndicatorRow[],
+): IndexWeatherBasicRow[] {
+  const rowsByKey = new Map<string, IndexWeatherBasicRow>();
+
+  for (const row of indicatorRows) {
+    if ((row.valuationCoverage ?? 0) < 0.8) {
+      continue;
+    }
+    rowsByKey.set(`${row.indexCode}:${row.tradeDate}`, {
+      tsCode: row.indexCode,
+      tradeDate: row.tradeDate,
+      peTtm: row.peTtm ?? null,
+      pb: row.pb ?? null,
+      source: 'constituents',
+    });
+  }
+  for (const row of officialRows) {
+    rowsByKey.set(`${row.tsCode}:${row.tradeDate}`, { ...row, source: 'official' });
+  }
+
+  return [...rowsByKey.values()].sort(
+    (left, right) =>
+      left.tsCode.localeCompare(right.tsCode) || left.tradeDate.localeCompare(right.tradeDate),
+  );
+}
 
 async function loadIndustryWeatherSeries(
   frequency: MarketWeatherFrequency,

@@ -311,7 +311,13 @@ describe('market state snapshot', () => {
       groups,
       closeRows,
       indicatorRows,
-      [],
+      ['20260130', '20260227'].map((tradeDate, index) => ({
+        tsCode: '000300.SH',
+        tradeDate,
+        peTtm: 10 + index,
+        pb: 1 + index / 10,
+        source: 'constituents' as const,
+      })),
       [
         { tsCode: '000300.SH', name: '沪深300' },
         { tsCode: '000905.SH', name: '中证500' },
@@ -331,6 +337,49 @@ describe('market state snapshot', () => {
     });
     expect(latest?.[0].periodReturn).toBeCloseTo(0.1);
     expect(latest?.[1].periodReturn).toBeCloseTo(-0.05);
+    expect(latest?.[0].valuationSource).toBe('constituents');
+  });
+
+  it('uses factor excess return against its parent benchmark for trend ranking', () => {
+    const groups = [{ key: 'coreFactors', codes: ['000984.CSI'] }] as const;
+    const closeRows = ['20260130', '20260227'].flatMap((tradeDate, index) => [
+      { tsCode: '000984.CSI', tradeDate, close: [100, 112][index] },
+      { tsCode: '000300.SH', tradeDate, close: [100, 108][index] },
+    ]);
+    const indicatorRows = ['20260130', '20260227'].map((tradeDate) => ({
+      indexCode: '000984.CSI',
+      tradeDate,
+      return20: 0.02,
+      aboveMa20Ratio: 0.6,
+      aboveMa60Ratio: 0.5,
+      floatWeightedTurnoverRate: 1,
+    }));
+    const basicRows = ['20260130', '20260227'].map((tradeDate) => ({
+      tsCode: '000984.CSI',
+      tradeDate,
+      peTtm: 12,
+      pb: 1.5,
+      source: 'constituents' as const,
+    }));
+
+    const series = buildIndexWeatherSeries(
+      'style',
+      groups,
+      closeRows,
+      indicatorRows,
+      basicRows,
+      [
+        { tsCode: '000984.CSI', name: '300等权' },
+        { tsCode: '000300.SH', name: '沪深300' },
+      ],
+      'month',
+      { '000984.CSI': '000300.SH' },
+    );
+    const latest = series?.periods.at(-1)?.items[0];
+
+    expect(latest?.periodReturn).toBeCloseTo(0.12);
+    expect(latest?.relativeReturn).toBeCloseTo(1.12 / 1.08 - 1);
+    expect(latest?.benchmarkName).toBe('沪深300');
   });
 });
 

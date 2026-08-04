@@ -1,5 +1,5 @@
 import { prisma } from '../lib/prisma.js';
-import { MARKET_STATE_INDEX_CODES } from '../store/index-presets.js';
+import { MARKET_WEATHER_INDICATOR_INDEX_CODES } from '../store/index-presets.js';
 import { log } from '../util/log.js';
 
 interface DateSlice {
@@ -8,7 +8,7 @@ interface DateSlice {
 }
 
 const DATE_PATTERN = /^\d{8}$/;
-const INDEX_CODES_SQL = MARKET_STATE_INDEX_CODES.map((code) => `'${code}'`).join(', ');
+const INDEX_CODES_SQL = MARKET_WEATHER_INDICATOR_INDEX_CODES.map((code) => `'${code}'`).join(', ');
 
 /**
  * Precompute whole-market, point-in-time index-universe, and Shenwan level-1 industry state. The
@@ -49,7 +49,9 @@ async function syncSlice(panelStart: string, slice: DateSlice): Promise<void> {
             d."pctChg" AS "pctChg",
             d."amount" AS "amount",
             db."circMv" AS "circMv",
-            db."turnoverRate" AS "turnoverRate",
+            COALESCE(db."turnoverRateF", db."turnoverRate") AS "turnoverRate",
+            db."peTtm" AS "peTtm",
+            db."pb" AS "pb",
             sl."upLimit" AS "upLimit",
             sl."downLimit" AS "downLimit",
             COUNT(d."close" * a."adjFactor") OVER (
@@ -133,6 +135,10 @@ async function syncSlice(panelStart: string, slice: DateSlice): Promise<void> {
           weight."indexCode",
           weight."conCode",
           weight."tradeDate" AS "membershipDate",
+          weight."weight" AS "membershipWeight",
+          SUM(COALESCE(weight."weight", 0)) OVER (
+            PARTITION BY weight."indexCode", weight."tradeDate"
+          ) AS "membershipTotalWeight",
           snapshot."nextTradeDate"
         FROM "IndexWeight" weight
         JOIN snapshot_dates snapshot
@@ -172,6 +178,8 @@ async function syncSlice(panelStart: string, slice: DateSlice): Promise<void> {
           panel.*,
           member."indexCode",
           member."membershipDate",
+          member."membershipWeight",
+          member."membershipTotalWeight",
           ROW_NUMBER() OVER (
             PARTITION BY member."indexCode", panel."tradeDate"
             ORDER BY COALESCE(panel."amount", 0) DESC
@@ -304,6 +312,9 @@ async function syncSlice(panelStart: string, slice: DateSlice): Promise<void> {
           "aboveMa60Ratio",
           "totalAmount",
           "floatWeightedTurnoverRate",
+          "peTtm",
+          "pb",
+          "valuationCoverage",
           "topFivePercentAmountShare",
           "extremeMoveRatio",
           "limitUpCount",
@@ -334,14 +345,78 @@ async function syncSlice(panelStart: string, slice: DateSlice): Promise<void> {
           SUM(COALESCE(ranked."amount", 0)) AS "totalAmount",
           CASE
             WHEN SUM(
-              CASE WHEN ranked."turnoverRate" IS NOT NULL THEN ranked."circMv" ELSE 0 END
+              CASE
+                WHEN ranked."turnoverRate" IS NOT NULL
+                  THEN COALESCE(ranked."membershipWeight", 0)
+                ELSE 0
+              END
             ) > 0
-              THEN SUM(ranked."turnoverRate" * ranked."circMv")
+              THEN SUM(ranked."turnoverRate" * ranked."membershipWeight")
                 / SUM(
-                  CASE WHEN ranked."turnoverRate" IS NOT NULL THEN ranked."circMv" ELSE 0 END
+                  CASE
+                    WHEN ranked."turnoverRate" IS NOT NULL
+                      THEN COALESCE(ranked."membershipWeight", 0)
+                    ELSE 0
+                  END
                 )
             ELSE NULL
           END AS "floatWeightedTurnoverRate",
+          CASE
+            WHEN SUM(
+              CASE
+                WHEN ranked."peTtm" IS NOT NULL AND ABS(ranked."peTtm") > 0.000001
+                  THEN ranked."membershipWeight" / ranked."peTtm"
+                ELSE 0
+              END
+            ) > 0
+              THEN SUM(
+                CASE
+                  WHEN ranked."peTtm" IS NOT NULL AND ABS(ranked."peTtm") > 0.000001
+                    THEN ranked."membershipWeight"
+                  ELSE 0
+                END
+              ) / SUM(
+                CASE
+                  WHEN ranked."peTtm" IS NOT NULL AND ABS(ranked."peTtm") > 0.000001
+                    THEN ranked."membershipWeight" / ranked."peTtm"
+                  ELSE 0
+                END
+              )
+            ELSE NULL
+          END AS "peTtm",
+          CASE
+            WHEN SUM(
+              CASE
+                WHEN ranked."pb" > 0 THEN ranked."membershipWeight" / ranked."pb"
+                ELSE 0
+              END
+            ) > 0
+              THEN SUM(
+                CASE WHEN ranked."pb" > 0 THEN ranked."membershipWeight" ELSE 0 END
+              ) / SUM(
+                CASE
+                  WHEN ranked."pb" > 0 THEN ranked."membershipWeight" / ranked."pb"
+                  ELSE 0
+                END
+              )
+            ELSE NULL
+          END AS "pb",
+          CASE
+            WHEN MAX(ranked."membershipTotalWeight") > 0
+              THEN MIN(
+                SUM(
+                  CASE
+                    WHEN ranked."peTtm" IS NOT NULL AND ABS(ranked."peTtm") > 0.000001
+                      THEN ranked."membershipWeight"
+                    ELSE 0
+                  END
+                ),
+                SUM(
+                  CASE WHEN ranked."pb" > 0 THEN ranked."membershipWeight" ELSE 0 END
+                )
+              ) / MAX(ranked."membershipTotalWeight")
+            ELSE NULL
+          END AS "valuationCoverage",
           CASE
             WHEN SUM(COALESCE(ranked."amount", 0)) > 0
               THEN SUM(
