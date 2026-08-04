@@ -184,9 +184,17 @@
   @apply mt-3 flex items-end justify-between gap-2;
 }
 
-.jx-industryWeather-performance > span {
+.jx-industryWeather-performanceLabels {
+  @apply flex flex-col items-start gap-1;
+}
+
+.jx-industryWeather-performanceLabels > span {
   @apply text-muted;
   font-size: 10px;
+}
+
+.jx-industryWeather-performanceLabels b {
+  font-size: 9px;
 }
 
 .jx-industryWeather-performance strong {
@@ -319,6 +327,19 @@
 .jx-industryWeather-drawerState strong {
   @apply font-semibold;
   font-size: 28px;
+}
+
+.jx-industryWeather-drawerRelative {
+  @apply -mt-3 flex items-center justify-between rounded-lg border border-line;
+  padding: 8px 12px;
+}
+
+.jx-industryWeather-drawerRelative span {
+  @apply text-xs text-muted;
+}
+
+.jx-industryWeather-drawerRelative strong {
+  @apply text-sm font-semibold;
 }
 
 .jx-industryWeather-drawerMetrics {

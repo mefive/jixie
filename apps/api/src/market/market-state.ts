@@ -77,6 +77,9 @@ export interface IndexWeatherIndicatorRow {
   aboveMa20Ratio: number | null;
   aboveMa60Ratio: number | null;
   floatWeightedTurnoverRate: number | null;
+  peTtm?: number | null;
+  pb?: number | null;
+  valuationCoverage?: number | null;
 }
 
 export interface IndexWeatherBasicRow {
@@ -84,6 +87,7 @@ export interface IndexWeatherBasicRow {
   tradeDate: string;
   peTtm: number | null;
   pb: number | null;
+  source?: 'official' | 'constituents';
 }
 
 export interface IndexWeatherMetadataRow {
@@ -472,11 +476,15 @@ export function toUnifiedIndustryWeatherSeries(
         code: industry.l1Code,
         name: industry.l1Name,
         periodReturn: industry.periodReturn,
+        benchmarkCode: null,
+        benchmarkName: null,
+        relativeReturn: null,
         heatScore: industry.heatScore,
         heatChange: industry.heatChange,
         activityScore: industry.activityScore,
         breadthScore: industry.breadthScore,
         valuationPercentile: industry.valuationPercentile,
+        valuationSource: industry.valuationPercentile == null ? null : 'official',
         state: industry.state,
         coverage: 'full',
       })),
@@ -492,12 +500,17 @@ export function buildIndexWeatherSeries(
   basicRows: IndexWeatherBasicRow[],
   metadataRows: IndexWeatherMetadataRow[],
   frequency: MarketWeatherFrequency,
+  benchmarks: Readonly<Record<string, string>> = {},
 ): MarketWeatherSeries | null {
   const configuredCodes = groups.flatMap((group) => [...group.codes]);
   const metadataByCode = new Map(metadataRows.map((row) => [row.tsCode, row]));
+  const basicByCodeAndDate = new Map(
+    basicRows.map((row) => [`${row.tsCode}:${row.tradeDate}`, row]),
+  );
   const closeByCodeAndDate = new Map(
     closeRows.map((row) => [`${row.tsCode}:${row.tradeDate}`, row.close]),
   );
+  const closeCodes = [...new Set(closeRows.map((row) => row.tsCode))];
   const indicatorEndDate = indicatorRows.reduce(
     (latest, row) => (row.tradeDate > latest ? row.tradeDate : latest),
     '',
@@ -544,7 +557,7 @@ export function buildIndexWeatherSeries(
     const previousSnapshotDate =
       periodIndex > 0 ? periodBoundaries[periodIndex - 1].snapshotDate : undefined;
     const periodReturnByCode = new Map(
-      configuredCodes.map((code) => {
+      closeCodes.map((code) => {
         const currentClose = closeByCodeAndDate.get(`${code}:${boundary.snapshotDate}`);
         const previousClose = previousSnapshotDate
           ? closeByCodeAndDate.get(`${code}:${previousSnapshotDate}`)
@@ -556,7 +569,23 @@ export function buildIndexWeatherSeries(
         return [code, periodReturn] as const;
       }),
     );
-    const trendValues = configuredCodes.map((code) => periodReturnByCode.get(code) ?? null);
+    const relativeReturnByCode = new Map(
+      configuredCodes.map((code) => {
+        const benchmarkCode = benchmarks[code];
+        const periodReturn = periodReturnByCode.get(code) ?? null;
+        const benchmarkReturn = benchmarkCode
+          ? (periodReturnByCode.get(benchmarkCode) ?? null)
+          : null;
+        const relativeReturn =
+          periodReturn == null || benchmarkReturn == null || benchmarkReturn === -1
+            ? null
+            : (1 + periodReturn) / (1 + benchmarkReturn) - 1;
+        return [code, relativeReturn] as const;
+      }),
+    );
+    const trendValues = configuredCodes.map(
+      (code) => relativeReturnByCode.get(code) ?? periodReturnByCode.get(code) ?? null,
+    );
     const items = configuredCodes.flatMap((code): MarketWeatherItem[] => {
       const currentClose = closeByCodeAndDate.get(`${code}:${boundary.snapshotDate}`);
       if (currentClose == null) {
@@ -564,7 +593,9 @@ export function buildIndexWeatherSeries(
       }
 
       const periodReturn = periodReturnByCode.get(code) ?? null;
-      const trendScore = scorePercentile(trendValues, periodReturn);
+      const benchmarkCode = benchmarks[code] ?? null;
+      const relativeReturn = relativeReturnByCode.get(code) ?? null;
+      const trendScore = scorePercentile(trendValues, relativeReturn ?? periodReturn);
       const lookupKey = `${code}:${boundary.snapshotDate}`;
       const indicator = indicatorByCodeAndDate.get(lookupKey);
       const breadthScore = average([
@@ -587,12 +618,24 @@ export function buildIndexWeatherSeries(
         code,
         name: metadataByCode.get(code)?.name ?? code,
         periodReturn,
+        benchmarkCode,
+        benchmarkName: benchmarkCode
+          ? (metadataByCode.get(benchmarkCode)?.name ?? benchmarkCode)
+          : null,
+        relativeReturn,
         heatScore,
         heatChange,
         activityScore,
         breadthScore: normalizedBreadth,
         valuationPercentile: normalizedValuation,
-        coverage: activityScore != null && normalizedBreadth != null ? 'full' : 'partial',
+        valuationSource:
+          normalizedValuation == null
+            ? null
+            : (basicByCodeAndDate.get(lookupKey)?.source ?? 'official'),
+        coverage:
+          activityScore != null && normalizedBreadth != null && normalizedValuation != null
+            ? 'full'
+            : 'partial',
       } as const;
 
       return [{ ...item, state: classifyMarketWeather(item) }];

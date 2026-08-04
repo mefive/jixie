@@ -158,6 +158,16 @@ market_reference_coverage() {
   local reference_start="$2"
 
   sqlite3 -separator ' ' "$database_file" "
+    WITH weather_codes(code) AS (
+      VALUES
+        ('000985.CSI'), ('000016.SH'), ('930050.CSI'), ('000903.SH'), ('000300.SH'),
+        ('000510.SH'), ('000906.SH'), ('000905.SH'), ('000852.SH'), ('932000.CSI'),
+        ('000001.SH'), ('399001.SZ'), ('399006.SZ'), ('399102.SZ'), ('000680.SH'),
+        ('000688.SH'), ('931643.CSI'), ('899050.BJ'), ('000918.CSI'), ('000919.CSI'),
+        ('H30351.CSI'), ('H30352.CSI'), ('H30355.CSI'), ('H30356.CSI'), ('932392.CSI'),
+        ('932393.CSI'), ('399370.SZ'), ('399371.SZ'), ('000922.CSI'), ('000984.CSI'),
+        ('H30260.CSI'), ('930860.CSI'), ('930955.CSI'), ('980092.SZ')
+    )
     SELECT
       (SELECT count(*) FROM \"IndexBenchmark\"),
       (SELECT count(*) FROM (
@@ -169,16 +179,21 @@ market_reference_coverage() {
       (SELECT count(*) FROM (
         SELECT \"tsCode\"
         FROM \"IndexDaily\"
-        WHERE \"tsCode\" IN (
-          '000985.CSI', '000016.SH', '930050.CSI', '000903.SH', '000300.SH',
-          '000510.SH', '000905.SH', '000852.SH', '932000.CSI', '000001.SH',
-          '399001.SZ', '399006.SZ', '000680.SH', '000688.SH', '931643.CSI',
-          '899050.BJ', '000918.CSI', '000919.CSI', 'H30351.CSI', 'H30352.CSI',
-          'H30355.CSI', 'H30356.CSI', '932392.CSI', '932393.CSI', '399370.SZ',
-          '399371.SZ', '000922.CSI'
-        )
+        WHERE \"tsCode\" IN (SELECT code FROM weather_codes)
         GROUP BY \"tsCode\"
         HAVING count(*) >= 120
+      )),
+      (SELECT count(*) FROM (
+        SELECT \"indexCode\"
+        FROM \"IndexWeight\"
+        WHERE \"indexCode\" IN (SELECT code FROM weather_codes)
+        GROUP BY \"indexCode\"
+      )),
+      (SELECT count(*) FROM (
+        SELECT \"indexCode\"
+        FROM \"IndexIndicator\"
+        WHERE \"indexCode\" IN (SELECT code FROM weather_codes)
+        GROUP BY \"indexCode\"
       ));
   "
 }
@@ -542,20 +557,37 @@ else
   [[ "$MARKET_REFERENCE_START" =~ ^[0-9]{8}$ && "$MARKET_REFERENCE_END" =~ ^[0-9]{8}$ ]] ||
     die "无法确定官方市场参考数据的回填区间"
 
-  read -r INDEX_BENCHMARK_ROWS SW_HISTORICAL_CODES WEATHER_HISTORICAL_CODES < <(
+  read -r INDEX_BENCHMARK_ROWS SW_HISTORICAL_CODES WEATHER_HISTORICAL_CODES WEATHER_WEIGHT_CODES WEATHER_INDICATOR_CODES < <(
     market_reference_coverage "$DB_FILE" "$MARKET_REFERENCE_START"
   )
-  if [[ "$INDEX_BENCHMARK_ROWS" -eq 0 || "$SW_HISTORICAL_CODES" -ne 31 || "$WEATHER_HISTORICAL_CODES" -ne 27 ]]; then
+  if [[ "$INDEX_BENCHMARK_ROWS" -eq 0 || "$SW_HISTORICAL_CODES" -ne 31 || "$WEATHER_HISTORICAL_CODES" -ne 34 ]]; then
     log "补全官方指数分类、市场气象指数和申万一级行业历史行情: $MARKET_REFERENCE_START ~ $MARKET_REFERENCE_END"
     pnpm --filter api sync:market-reference "$MARKET_REFERENCE_START" "$MARKET_REFERENCE_END"
 
-    read -r INDEX_BENCHMARK_ROWS SW_HISTORICAL_CODES WEATHER_HISTORICAL_CODES < <(
+    read -r INDEX_BENCHMARK_ROWS SW_HISTORICAL_CODES WEATHER_HISTORICAL_CODES WEATHER_WEIGHT_CODES WEATHER_INDICATOR_CODES < <(
       market_reference_coverage "$DB_FILE" "$MARKET_REFERENCE_START"
     )
-    [[ "$INDEX_BENCHMARK_ROWS" -gt 0 && "$SW_HISTORICAL_CODES" -eq 31 && "$WEATHER_HISTORICAL_CODES" -eq 27 ]] ||
+    [[ "$INDEX_BENCHMARK_ROWS" -gt 0 && "$SW_HISTORICAL_CODES" -eq 31 && "$WEATHER_HISTORICAL_CODES" -eq 34 ]] ||
       die "官方市场参考数据回填后仍不完整"
   else
     log "官方市场参考数据历史覆盖完整,跳过回填"
+  fi
+
+  if [[ "$WEATHER_WEIGHT_CODES" -ne 34 ]]; then
+    log "补全34个市场气象指数的历史成分权重: $MARKET_REFERENCE_START ~ $MARKET_REFERENCE_END"
+    pnpm --filter api sync:index market-state "$MARKET_REFERENCE_START" "$MARKET_REFERENCE_END"
+  fi
+  if [[ "$WEATHER_WEIGHT_CODES" -ne 34 || "$WEATHER_INDICATOR_CODES" -ne 34 ]]; then
+    log "按时点成分重算市场气象广度、活跃度和估值"
+    pnpm --filter api sync:market-state "$MARKET_REFERENCE_START" "$MARKET_REFERENCE_END"
+
+    read -r INDEX_BENCHMARK_ROWS SW_HISTORICAL_CODES WEATHER_HISTORICAL_CODES WEATHER_WEIGHT_CODES WEATHER_INDICATOR_CODES < <(
+      market_reference_coverage "$DB_FILE" "$MARKET_REFERENCE_START"
+    )
+    [[ "$WEATHER_WEIGHT_CODES" -eq 34 && "$WEATHER_INDICATOR_CODES" -eq 34 ]] ||
+      die "市场气象成分权重或派生指标回填后仍不完整"
+  else
+    log "市场气象成分权重与派生指标覆盖完整,跳过重算"
   fi
 fi
 

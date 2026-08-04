@@ -68,6 +68,7 @@ export const enValuation: typeof zhValuation = {
         scale: {
           wholeMarket: 'Whole market',
           largeCore: 'Large-cap core',
+          largeMid: 'Large and mid cap',
           sizeLadder: 'Size ladder',
         },
         board: {
@@ -82,6 +83,7 @@ export const enValuation: typeof zhValuation = {
           csi1000: 'CSI 1000 styles',
           broadStyle: 'SZSE styles',
           income: 'Income strategies',
+          coreFactors: 'Core factors',
         },
       },
       states: {
@@ -98,13 +100,17 @@ export const enValuation: typeof zhValuation = {
         activity: 'Activity',
         breadth: 'Breadth',
         valuation: 'Valuation',
+        relativeReturn: 'Excess',
       },
       valuation: {
         low: 'Low P{{value}}',
         neutral: 'Value P{{value}}',
         high: 'High P{{value}}',
         unknown: 'No valuation',
+        official: 'Official valuation',
+        constituents: 'Constituent valuation',
       },
+      relativeTo: 'vs {{name}}',
       periodLabels: {
         week: 'W{{value}} {{year}}',
         month: '{{value}}/{{year}}',

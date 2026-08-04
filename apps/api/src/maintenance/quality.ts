@@ -1,5 +1,5 @@
 import {
-  MARKET_STATE_INDEX_CODES,
+  MARKET_WEATHER_INDICATOR_INDEX_CODES,
   MAJOR_INDEX_DAILY_BASIC_CODES,
   MAJOR_INDEX_DAILY_CODES,
   DAILY_MAINTAINED_INDEX_CODES,
@@ -81,7 +81,7 @@ export async function validateRawMarketDate(tradeDate: string): Promise<RawDateQ
         },
       }),
       Promise.all(
-        MARKET_STATE_INDEX_CODES.map((indexCode) =>
+        MARKET_WEATHER_INDICATOR_INDEX_CODES.map((indexCode) =>
           prisma.indexWeight.findFirst({
             where: { indexCode, tradeDate: { lte: tradeDate } },
             orderBy: { tradeDate: 'desc' },
@@ -136,7 +136,9 @@ export async function validateRawMarketDate(tradeDate: string): Promise<RawDateQ
       `IndexDailyBasic is missing ${missingIndexBasicCodes.join(', ')} for ${tradeDate}`,
     );
   }
-  const missingSnapshots = MARKET_STATE_INDEX_CODES.filter((_, index) => !indexSnapshots[index]);
+  const missingSnapshots = MARKET_WEATHER_INDICATOR_INDEX_CODES.filter(
+    (_, index) => !indexSnapshots[index],
+  );
   if (missingSnapshots.length > 0) {
     throw new Error(
       `IndexWeight has no point-in-time snapshot for ${missingSnapshots.join(', ')} by ${tradeDate}`,
@@ -147,7 +149,7 @@ export async function validateRawMarketDate(tradeDate: string): Promise<RawDateQ
     190,
   );
   const oldestAllowedSnapshot = addCalendarDays(tradeDate, -maximumIndexWeightAgeDays);
-  const staleSnapshots = MARKET_STATE_INDEX_CODES.filter((_, index) => {
+  const staleSnapshots = MARKET_WEATHER_INDICATOR_INDEX_CODES.filter((_, index) => {
     const snapshotDate = indexSnapshots[index]?.tradeDate;
     return snapshotDate != null && snapshotDate < oldestAllowedSnapshot;
   });
@@ -188,7 +190,7 @@ export async function validateDerivedMarketRange(
   endDate: string,
   expectedDates: string[],
 ): Promise<DerivedRangeQuality> {
-  const [marketRows, indexRows, industryRows] = await Promise.all([
+  const [marketRows, indexRows, industryRows, indexWeightCoverage] = await Promise.all([
     prisma.marketIndicator.findMany({
       where: { tradeDate: { gte: startDate, lte: endDate } },
       select: {
@@ -200,6 +202,11 @@ export async function validateDerivedMarketRange(
     }),
     prisma.indexIndicator.count({ where: { tradeDate: { gte: startDate, lte: endDate } } }),
     prisma.industryIndicator.count({ where: { tradeDate: { gte: startDate, lte: endDate } } }),
+    prisma.indexWeight.groupBy({
+      by: ['indexCode'],
+      where: { indexCode: { in: MARKET_WEATHER_INDICATOR_INDEX_CODES } },
+      _min: { tradeDate: true },
+    }),
   ]);
   const marketByDate = new Map(marketRows.map((row) => [row.tradeDate, row]));
   const missingDates = expectedDates.filter((date) => !marketByDate.has(date));
@@ -213,9 +220,14 @@ export async function validateDerivedMarketRange(
       }
     }
   }
-  if (indexRows < expectedDates.length * MARKET_STATE_INDEX_CODES.length) {
+  const expectedIndexRows = indexWeightCoverage.reduce(
+    (total, coverage) =>
+      total + expectedDates.filter((tradeDate) => tradeDate >= coverage._min.tradeDate!).length,
+    0,
+  );
+  if (indexRows < expectedIndexRows) {
     throw new Error(
-      `IndexIndicator has ${indexRows} rows; expected at least ${expectedDates.length * MARKET_STATE_INDEX_CODES.length}`,
+      `IndexIndicator has ${indexRows} rows; expected at least ${expectedIndexRows} from point-in-time weight coverage`,
     );
   }
   if (industryRows < expectedDates.length * 20) {

@@ -357,6 +357,7 @@ model MarketIndicator {
 /// Precomputed point-in-time index-universe state. Each trading day uses the latest constituent
 /// snapshot available on or before that date, so historical breadth and activity do not use today's
 /// members. return20 follows the official index close; the remaining fields aggregate constituents.
+/// peTtm and pb are constituent-derived valuation proxies, not official index-provider metrics.
 model IndexIndicator {
   indexCode                 String
   tradeDate                 String
@@ -368,6 +369,9 @@ model IndexIndicator {
   aboveMa60Ratio            Float?
   totalAmount               Float?
   floatWeightedTurnoverRate Float?
+  peTtm                     Float?
+  pb                        Float?
+  valuationCoverage         Float?
   topFivePercentAmountShare Float?
   extremeMoveRatio          Float?
   limitUpCount              Int

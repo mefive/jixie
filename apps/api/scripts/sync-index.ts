@@ -1,12 +1,12 @@
 import { loadTushareConfig } from '../src/config.js';
 import { TushareClient } from '../src/tushare/client.js';
 import { prisma } from '../src/lib/prisma.js';
-import { MARKET_STATE_INDEX_CODES } from '../src/store/index-presets.js';
+import { MARKET_WEATHER_INDICATOR_INDEX_CODES } from '../src/store/index-presets.js';
 import { syncIndexWeight, syncIndexDaily } from '../src/store/sync.js';
 
 function parseCodes(value: string): string[] {
   if (value === 'market-state') {
-    return [...MARKET_STATE_INDEX_CODES];
+    return [...MARKET_WEATHER_INDICATOR_INDEX_CODES];
   }
 
   return value
