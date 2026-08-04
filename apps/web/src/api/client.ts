@@ -4,6 +4,7 @@
 // Every request carries Accept-Language so the API localizes its user-facing messages and the agent replies in the user's language.
 
 import { localeStore } from '@src/i18n/locale-store';
+import i18n from '@src/i18n';
 
 export interface AuthUser {
   id: string;
@@ -54,7 +55,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     },
   });
   const text = await res.text();
-  const body = text ? JSON.parse(text) : null;
+  const body = parseResponseBody(res, text);
   if (!res.ok) {
     const err = body?.error;
     notifyMaintenance(err);
@@ -65,6 +66,21 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     );
   }
   return body as T;
+}
+
+function parseResponseBody(response: Response, text: string): any {
+  if (!text) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new ApiError('INVALID_RESPONSE', i18n.t('common:errors.serviceUnavailable'), {
+      status: response.status,
+      contentType: response.headers.get('content-type'),
+    });
+  }
 }
 
 export function fetchMaintenanceStatus(): Promise<MaintenanceStatus> {

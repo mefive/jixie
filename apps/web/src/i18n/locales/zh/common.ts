@@ -16,6 +16,9 @@ export const zhCommon = {
     zh: '中',
     en: 'EN',
   },
+  errors: {
+    serviceUnavailable: '服务暂时不可用，请稍后重试',
+  },
   maintenance: {
     title: '系统正在维护',
     description: '正在校验并发布最新市场数据，请稍候。',

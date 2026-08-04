@@ -18,6 +18,9 @@ export const enCommon: typeof zhCommon = {
     zh: '中',
     en: 'EN',
   },
+  errors: {
+    serviceUnavailable: 'Service temporarily unavailable. Please try again shortly.',
+  },
   maintenance: {
     title: 'System maintenance',
     description: 'The latest market data is being validated and published.',
