@@ -53,6 +53,10 @@ It may be expired or belong to an earlier request. Restart sign-in and use the n
 
 The email address has not been registered. A valid invitation code is required before the verification email can be sent.
 
+### The page says “Service temporarily unavailable. Please try again later.”
+
+The sign-in service did not respond normally. This does not necessarily mean the email, invitation code, or verification code is wrong. Do not submit repeatedly. Open the sign-in page again later; if the message persists, report the time and the step where it appeared.
+
 ## Related articles
 
 - [What the product does](/help/getting-started/overview)

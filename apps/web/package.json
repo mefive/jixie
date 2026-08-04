@@ -35,6 +35,7 @@
     "test:e2e:help-content-factor-discipline": "node e2e/help-content-factor-discipline.mjs",
     "test:e2e:help-content-factor-custom": "node e2e/help-content-factor-custom.mjs",
     "test:e2e:help-content-factor-composite": "node e2e/help-content-factor-composite.mjs",
+    "test:e2e:help-content-factor-weather": "node e2e/help-content-factor-weather.mjs",
     "test:e2e:help-content-market-valuation": "node e2e/help-content-market-valuation.mjs",
     "test:e2e:help-content-signals": "node e2e/help-content-signals.mjs",
     "test:e2e:help-screen-live": "node e2e/help-screen-live.mjs"

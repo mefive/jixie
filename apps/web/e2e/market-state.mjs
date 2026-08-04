@@ -42,11 +42,11 @@ try {
   await page.screenshot({ path: `${SHOTS}market-weather-history.png` });
   await page.getByRole('button', { name: '关闭' }).click();
 
-  await switchDimension(page, '规模宽基', 'scale', 3, 9);
+  await switchDimension(page, '规模宽基', 'scale', 4, 10);
   await page.screenshot({ path: `${SHOTS}market-weather-scale.png`, fullPage: true });
-  await switchDimension(page, '市场板块', 'board', 3, 7);
+  await switchDimension(page, '市场板块', 'board', 3, 8);
   await page.screenshot({ path: `${SHOTS}market-weather-board.png`, fullPage: true });
-  await switchDimension(page, '风格策略', 'style', 6, 11);
+  await switchDimension(page, '风格策略', 'style', 7, 16);
   await page.screenshot({ path: `${SHOTS}market-weather-style.png`, fullPage: true });
 
   await Promise.all([

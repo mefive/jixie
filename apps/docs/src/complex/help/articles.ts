@@ -57,6 +57,10 @@ import decileReturnsEn from '@src/content/help/en/factors/decile-returns.md?raw'
 import decileReturnsZh from '@src/content/help/zh/factors/decile-returns.md?raw';
 import factorInStrategyEn from '@src/content/help/en/factors/factor-in-strategy.md?raw';
 import factorInStrategyZh from '@src/content/help/zh/factors/factor-in-strategy.md?raw';
+import factorWeatherGettingStartedEn from '@src/content/help/en/factor-weather/getting-started.md?raw';
+import factorWeatherGettingStartedZh from '@src/content/help/zh/factor-weather/getting-started.md?raw';
+import factorWeatherReadCardsEn from '@src/content/help/en/factor-weather/read-cards.md?raw';
+import factorWeatherReadCardsZh from '@src/content/help/zh/factor-weather/read-cards.md?raw';
 import firstPresetAnalysisEn from '@src/content/help/en/factors/first-preset-analysis.md?raw';
 import firstPresetAnalysisZh from '@src/content/help/zh/factors/first-preset-analysis.md?raw';
 import holdoutResultsEn from '@src/content/help/en/factors/holdout-results.md?raw';
@@ -97,6 +101,8 @@ import marketOverviewEn from '@src/content/help/en/market-valuation/market-overv
 import marketOverviewZh from '@src/content/help/zh/market-valuation/market-overview.md?raw';
 import percentilesEn from '@src/content/help/en/market-valuation/percentiles.md?raw';
 import percentilesZh from '@src/content/help/zh/market-valuation/percentiles.md?raw';
+import weatherPlaybackEn from '@src/content/help/en/market-valuation/weather-playback.md?raw';
+import weatherPlaybackZh from '@src/content/help/zh/market-valuation/weather-playback.md?raw';
 import conversationsEn from '@src/content/help/en/screening/conversations.md?raw';
 import conversationsZh from '@src/content/help/zh/screening/conversations.md?raw';
 import directQueryEn from '@src/content/help/en/screening/direct-query.md?raw';
@@ -133,6 +139,7 @@ export const HELP_GROUPS = [
   'stockDetail',
   'backtesting',
   'factorResearch',
+  'factorWeather',
   'marketValuation',
   'signals',
 ] as const;
@@ -996,15 +1003,47 @@ export const HELP_ARTICLES: HelpArticle[] = [
     },
   },
   {
+    slug: 'factor-weather/getting-started',
+    group: 'factorWeather',
+    title: {
+      zh: '开始使用因子气象',
+      en: 'Get started with Factor Weather',
+    },
+    summary: {
+      zh: '钉住一个已定稿因子，理解固定月频方法，并等待首次历史回填。',
+      en: 'Pin a finalized factor, understand the fixed monthly method, and wait for its first backfill.',
+    },
+    content: {
+      zh: factorWeatherGettingStartedZh,
+      en: factorWeatherGettingStartedEn,
+    },
+  },
+  {
+    slug: 'factor-weather/read-cards',
+    group: 'factorWeather',
+    title: {
+      zh: '阅读因子气象卡片',
+      en: 'Read Factor Weather cards',
+    },
+    summary: {
+      zh: '阅读月度费后多空收益、近 3 月与近 12 月复合收益、IC、覆盖率和换手。',
+      en: 'Read monthly net long-short return, compound returns, IC, coverage, and turnover.',
+    },
+    content: {
+      zh: factorWeatherReadCardsZh,
+      en: factorWeatherReadCardsEn,
+    },
+  },
+  {
     slug: 'market-valuation/market-overview',
     group: 'marketValuation',
     title: {
-      zh: '查看市场页面和切换范围',
-      en: 'View the Market page and change scope',
+      zh: '查看市场气象图',
+      en: 'View the Market Weather map',
     },
     summary: {
-      zh: '打开市场页面，核对数据日期，并在全A、宽基、板块和风格范围之间切换。',
-      en: 'Open the Market page, verify the data date, and change the observation scope.',
+      zh: '从产品首页查看行业、规模、板块和风格气象，并切换周、月、季、年。',
+      en: 'View industry, size, board, and style weather, then change the weekly, monthly, quarterly, or yearly period.',
     },
     content: {
       zh: marketOverviewZh,
@@ -1015,16 +1054,32 @@ export const HELP_ARTICLES: HelpArticle[] = [
     slug: 'market-valuation/market-metrics',
     group: 'marketValuation',
     title: {
-      zh: '理解四项市场指标',
-      en: 'Understand the four market metrics',
+      zh: '理解市场气象卡片',
+      en: 'Understand Market Weather cards',
     },
     summary: {
-      zh: '理解交易热度、市场广度、趋势强度和交易拥挤的实际计算口径。',
-      en: 'Understand the calculation and meaning of activity, breadth, trend, and crowding.',
+      zh: '理解周期收益、热度、活跃、广度、估值角标和七种页面状态。',
+      en: 'Understand period return, heat, activity, breadth, valuation badges, and the seven page states.',
     },
     content: {
       zh: marketMetricsZh,
       en: marketMetricsEn,
+    },
+  },
+  {
+    slug: 'market-valuation/weather-playback',
+    group: 'marketValuation',
+    title: {
+      zh: '回放历史并查看卡片详情',
+      en: 'Replay history and inspect card details',
+    },
+    summary: {
+      zh: '使用时间轴逐期回放，在固定卡片位置观察变化，并打开最近历史详情。',
+      en: 'Replay periods on the timeline, compare cards in fixed positions, and inspect recent history.',
+    },
+    content: {
+      zh: weatherPlaybackZh,
+      en: weatherPlaybackEn,
     },
   },
   {
@@ -1051,8 +1106,8 @@ export const HELP_ARTICLES: HelpArticle[] = [
       en: 'Interpret historical percentiles correctly',
     },
     summary: {
-      zh: '理解近三年、近十年和全历史百分位，以及它们不能直接预测涨跌的原因。',
-      en: 'Interpret three-year, ten-year, and all-history percentiles without treating them as forecasts.',
+      zh: '理解市场活跃度、估值角标、近十年和全历史百分位，不把它们当作涨跌概率。',
+      en: 'Interpret activity, valuation badges, ten-year, and all-history percentiles without treating them as forecasts.',
     },
     content: {
       zh: percentilesZh,

@@ -8,10 +8,11 @@ The top navigation contains these entries:
 
 | Page | What to use it for |
 | --- | --- |
+| Market | View industry, size, board, and style weather; the product root opens here after sign-in |
+| Factor Weather | Monitor monthly return, IC, coverage, and turnover for pinned factors |
 | Backtest Lab | Write or generate a strategy, set backtest parameters, run it, and inspect the result |
 | Screener | Filter stocks with conditions and inspect individual stock charts |
 | Factors | Review grouped factor performance, returns, and saved research reports |
-| Market | Review major indices, market breadth, and the current market state |
 | Valuation | Review index valuation levels and their historical positions |
 | Signals | Review signals produced by saved strategies for the latest trading day |
 | Help | Read product instructions and introductory quantitative-trading material |
@@ -24,6 +25,8 @@ For example, to screen stocks:
 4. Select a stock code in the results to open its detail page.
 
 [Open Screener](/screen)
+
+Selecting the product logo or opening the product root returns to **Market**.
 
 ## Change the display language
 

@@ -1,90 +1,85 @@
-# View the Market page and change scope
+# View the Market Weather map
 
-The Market page presents activity, breadth, trend, and crowding separately. It describes current market conditions and does not predict whether prices will rise or fall.
+After sign-in, the product opens **Market** by default. The page places industries and official size, board, and style indices in fixed cards, so you can use one timeline to see how different parts of the market changed. It describes completed periods and does not predict the next return.
 
 ## Open the Market page
 
-1. Sign in and select **Market** in the top navigation.
-2. Wait for the scope at the upper left and the update date and coverage at the upper right.
-3. Confirm that four metric cards, daily details, and a three-year chart are visible.
+1. Sign in. The product root opens **Market** automatically.
+2. From another page, select **Market** in the top navigation.
+3. Wait for the weather cards and the timeline to appear.
+4. Check the selected period and the **Snapshot** date first.
 
 The numbered areas are:
 
-1. Current scope, data date, and stock coverage.
-2. Four market metrics and their three-year percentiles.
-3. Daily market details.
-4. Three-year history for the selected metric.
-5. Calculation notes.
+1. Market Weather dimension.
+2. Weekly, monthly, quarterly, and yearly periods.
+3. Current period, snapshot date, and page summary.
+4. Cards in fixed official groups.
 
-![Main areas of the Market page](/docs/images/help/zh/market-valuation/market-overview-01.png)
+The historical replay timeline appears below the card wall. See [Replay history and inspect card details](/docs/help/market-valuation/weather-playback) for its controls.
 
-Check the **Updated through** date before reading any value. Market data normally updates after the trading-day close. Every value describes the date shown on the page.
+![Main areas of the Market Weather page](/docs/images/help/zh/market-valuation/market-weather-overview-01.png)
 
-## Change the scope
+The snapshot is the actual data date used for the period. It is not a forecast date and may not be today. Market holidays, unfinished maintenance, or a later index launch date can make the available start date differ by card.
 
-1. Select the current scope at the upper left, such as **All A-shares**.
-2. Choose a scope from the popup.
-3. Wait for the page to reload.
-4. Check the coverage count to confirm the change.
+## Change the four dimensions
 
-The choices are grouped as:
+| Dimension | Current coverage | Useful for observing |
+| --- | --- | --- |
+| SW industries | 31 SW2021 level-one industries in 6 groups | Industry rotation, participation, and valuation position |
+| Size indices | 10 official broad-market indices in 4 groups | Differences among the full market, large, mid, and small caps |
+| Market boards | 8 official board indices in 3 groups | Shanghai, Shenzhen, ChiNext, STAR, and Beijing boards |
+| Style strategies | 16 official growth, value, dividend, and core-factor indices in 7 groups | Style and strategy performance under official index definitions |
 
-- Broad size indices: All A-shares, SSE 50, CSI 300, CSI 500, CSI 1000, CSI 2000, and CSI A500.
-- Boards: ChiNext and STAR 50.
-- Strategy style: CSI Dividend.
+To change the dimension:
 
-The numbered areas are:
+1. Select **SW industries**, **Size indices**, **Market boards**, or **Style strategies**.
+2. Wait for the groups and card titles to update.
+3. Confirm that the period did not change before comparing dimensions.
 
-1. Scope selector.
-2. Broad size indices.
-3. Boards.
-4. Strategy style.
+![Change the Market Weather dimension](/docs/images/help/zh/market-valuation/market-weather-dimensions-01.png)
 
-![Select a market scope](/docs/images/help/zh/market-valuation/market-scope-01.png)
+These are official index and industry classifications, not concept groups inferred from names. Coverage may change as additional official data becomes available; use the list shown on the page.
 
-The 20-day return and breadth beside each option support a quick comparison. After selection, the cards, daily details, chart, and percentiles all use the new scope.
+## Change the period
 
-## Read an index scope
+Select **Week**, **Month**, **Quarter**, or **Year** to reload the corresponding calendar period:
 
-The screenshot below selects the CSI 300 and displays Trend strength:
+- Week uses calendar weeks.
+- Month uses calendar months.
+- Quarter uses calendar quarters.
+- Year uses calendar years.
 
-1. Scope, update date, and coverage.
-2. Four CSI 300 metrics.
-3. Daily constituent details.
-4. Metric selector for the chart.
-5. Three-year history.
-6. Method for an index scope.
-
-![View CSI 300 market conditions](/docs/images/help/zh/market-valuation/market-index-01.png)
-
-An index scope uses the latest monthly constituent snapshot available on each historical date and carries it forward. It does not fill the current constituents back through all history. Trend uses official index closes; the other metrics aggregate the constituents available at the time.
+A longer period smooths short-term movement but is not automatically more reliable. Compare cards only at the same dimension, period, and point in time.
 
 ## Recommended reading order
 
-1. Confirm the update date and scope.
-2. Read the current values before the percentiles.
-3. Check details such as Above MA20, Above MA60, and Advancing today.
-4. Inspect the three-year history to see whether the current value is a short-lived change.
-5. Read the method note at the bottom.
+1. Check the dimension, period, and snapshot date.
+2. Read period returns first.
+3. Then read heat, activity, breadth, and the separate valuation badge.
+4. Review the page summary for notable and overheated items.
+5. Replay the previous few periods.
+6. Open a card to inspect its history.
 
-Do not compress the four metrics into one “market temperature.” Activity can be high while breadth is low, meaning trading is active but relatively few stocks are above their moving averages.
+The summary only highlights states found in the current cards. It is not a buy or sell list.
 
 ## Common questions
 
-### The page date is not today
+### Why does the product no longer open Backtest Lab by default?
 
-Check whether today is a trading day, whether the market has closed, and whether the latest data has completed processing. Refresh cannot create market data that is not yet ready.
+Market is now the product home page. Backtest Lab remains available in the top navigation.
 
-### Values change substantially between scopes
+### Why does a card have no valuation?
 
-The constituents, sizes, and styles differ. It is normal for All A-shares, CSI Dividend, and ChiNext to show different conditions.
+Some indices do not have an official valuation series, or historical constituent data may not cover that period. The page shows a missing value instead of using today's constituents to fabricate the past.
 
-### Why does coverage change?
+### Why does one name have different colors across periods?
 
-All A-shares uses stocks that actually traded on the date. Index scopes use historical constituent snapshots. Listings, delistings, suspensions, and index reviews can change the count.
+Week, month, quarter, and year use different observation windows. A short-term recovery and a weak yearly state can occur at the same time.
 
 ## Related articles
 
-- [Understand the four market metrics](/docs/help/market-valuation/market-metrics)
+- [Understand Market Weather cards](/docs/help/market-valuation/market-metrics)
+- [Replay history and inspect card details](/docs/help/market-valuation/weather-playback)
 - [Interpret historical percentiles correctly](/docs/help/market-valuation/percentiles)
 - [View index valuation](/docs/help/market-valuation/index-valuation)

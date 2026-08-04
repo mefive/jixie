@@ -1,104 +1,80 @@
-# Understand the four market metrics
+# Understand Market Weather cards
 
-The Market page displays activity, breadth, trend, and crowding separately. Each answers a different question.
+Each card displays period return, heat, activity, breadth, and valuation position. These answer different questions; no single number is a trading signal.
 
-## Trading activity
+## Main information on a card
 
-Trading activity is the 20-trading-day average of float-market-cap-weighted turnover:
+![Return and state metrics on Market Weather cards](/docs/images/help/zh/market-valuation/market-weather-overview-01.png)
+
+- **Period return**: price change for the selected week, month, quarter, or year, using the corresponding official industry or index series.
+- **Relative return**: a style or strategy index's return minus its labeled parent index over the same period. It is hidden when no reliable parent is available.
+- **Heat**: a combined view of trend, breadth, and activity.
+- **Activity**: the current turnover level within its own latest three-year history.
+- **Breadth**: how many constituents participate in the stronger state rather than a few names driving it.
+- **Valuation badge**: the PE or PB position within its own history, separate from the card background.
+- **Heat change**: change from the preceding snapshot of the same period.
+
+The page follows the mainland China convention of red for gains and green for losses. The card background represents weather heat, not valuation; valuation appears separately below the card.
+
+## How heat is composed
+
+The directional heat score equally combines the three visible components:
 
 $$
-\text{Activity}_t
+\text{Directional heat}
 =
-\frac{1}{20}\sum_{i=0}^{19}\text{Float-weighted turnover}_{t-i}
+\frac{\text{Trend score}+\text{Breadth score}+\text{Activity score}}{3}
 $$
 
-- A higher value means trading has recently been more active.
-- A lower value means trading has been relatively quiet.
-- It is not upward momentum. A falling market with heavy volume can also have high activity.
+- Trend compares period performance across cards in the same dimension.
+- Breadth describes participation among the card's constituents.
+- Activity compares current turnover with the card's own latest three-year history.
 
-## Market breadth
+The weights were not optimized for future returns. A high heat score means several current conditions are strong or active at the same time; it does not mean the next period will rise.
 
-The page averages the percentage of stocks above their 20-day and 60-day moving averages:
+## The seven page states
 
-$$
-\text{Breadth}
-=
-\frac{\text{Above MA20 ratio}+\text{Above MA60 ratio}}{2}
-$$
+| State | Historical condition expressed by the page | It does not mean |
+| --- | --- | --- |
+| Undervalued | Valuation is relatively low but trading conditions have not clearly warmed | A bottom is certain |
+| Warming | Trend, breadth, or activity has begun to improve | An uptrend is confirmed |
+| Expanding | Performance is strong with broader participation | Valuation and risk can be ignored |
+| Overheated | Current heat is in a high region | An immediate reversal |
+| Crowded | Strong performance is accompanied by concentrated trading | You must sell now |
+| Cooling | Performance, breadth, or activity has weakened | Prices must keep falling |
+| Balanced | No other pronounced state applies | There is no risk or opportunity |
 
-If 40% of stocks are above MA20 and 20% are above MA60, breadth is 30%.
+State labels help you locate cards quickly. Read the component values and their history before drawing a conclusion.
 
-- Higher breadth means more stocks are above both short- and medium-term reference levels.
-- Lower breadth means improvement is concentrated in fewer stocks.
-- Breadth is not the day's advancing-stock ratio. **Advancing today** describes only one session.
+## Industry cards and index cards
 
-## Trend strength
+Industry cards use 31 official SW level-one industry indices and supplement them with constituent breadth and activity. PE and PB use the official SW industry definition when available.
 
-Trend strength is the return over the latest 20 trading days:
+Size, board, and style cards use official index closes for return. Breadth and activity use historical constituent snapshots that were available by the observation date. Valuation prefers an official index series and uses constituent aggregation only when the official series is unavailable.
 
-$$
-\text{Trend}_t
-=
-\frac{P_t}{P_{t-20}}-1
-$$
+The page never fills all historical periods with today's constituents. An early card may therefore have return data but no breadth or valuation; that is an intentional data boundary.
 
-- All A-shares aggregates equal-weighted returns calculated from adjusted stock prices.
-- An index scope uses official index closes.
+## Compare cards correctly
 
-A positive value means the current level is above its level about 20 trading days earlier. It describes a completed change and does not forecast the next 20 days.
-
-## Trading crowding
-
-Crowding is the share of total trading amount contributed by the highest-amount 5% of stocks:
-
-$$
-\text{Crowding}
-=
-\frac{\text{Amount from the top 5\% of stocks}}{\text{Total amount in the scope}}
-$$
-
-A higher value means trading is more concentrated in a small number of stocks. It does not mean those stocks rose or that the entire market lacks liquidity.
-
-## Read the metrics together
-
-The numbered areas are:
-
-1. Scope and data date.
-2. Current value, description, and three-year percentile for each metric.
-3. Moving-average, advance, limit, and trading-amount details.
-4. Metric selector and history.
-5. Calculation method.
-
-![Market metric cards and history](/docs/images/help/zh/market-valuation/market-overview-01.png)
-
-Use specific descriptions instead of saying that the market is simply “good”:
-
-- High activity and high breadth: trading is active and many stocks are above their moving averages.
-- High activity and low breadth: trading is active but concentrated in fewer stocks.
-- Positive trend and high crowding: the scope rose over 20 days, with trading concentrated in fewer names.
-- Negative trend and many stocks advancing today: a one-day rebound has not offset the 20-day change.
-
-These remain descriptions of historical state, not trading instructions.
-
-## Use the three-year history
-
-1. Switch among the four metrics above the chart.
-2. Look for earlier periods near the current value.
-3. Compare the chart with the three-year percentile in the metric card.
-4. Drag the lower zoom control to inspect a shorter interval.
-
-A percentile compares the same metric and scope across valid trading days in the latest three years. A CSI 300 percentile of 90% is not directly interchangeable with a 90% value from another metric or scope.
+1. Compare horizontally only within the same dimension and period.
+2. Check the snapshot date and any missing metric.
+3. Read return with breadth to distinguish broad participation from a move driven by a few constituents.
+4. Keep activity separate from return direction; a selloff can also be highly active.
+5. Treat valuation as independent context rather than a substitute for trend.
+6. Replay several periods instead of deciding from the latest card alone.
 
 ## Common mistakes
 
-- Treating high activity as bullish.
-- Treating one day with many advancing stocks as a lasting breadth improvement.
-- Assuming high crowding must reverse immediately.
-- Combining the four values into an undocumented personal score.
-- Comparing values without checking scope and data date.
+- Reading heat 80 as an 80% probability of rising.
+- Treating an undervalued badge as an immediate rise.
+- Assuming high activity means money must keep flowing in.
+- Comparing a weekly return with a yearly return.
+- Ignoring the parent index used for relative return.
+- Reading only color without the snapshot date and component metrics.
 
 ## Related articles
 
-- [View the Market page and change scope](/docs/help/market-valuation/market-overview)
+- [View the Market Weather map](/docs/help/market-valuation/market-overview)
+- [Replay history and inspect card details](/docs/help/market-valuation/weather-playback)
 - [Interpret historical percentiles correctly](/docs/help/market-valuation/percentiles)
-- [Why a backtest is not a future return](/docs/help/basics/backtest-limitations)
+- [Why a backtest is not a forecast](/docs/help/basics/backtest-limitations)
