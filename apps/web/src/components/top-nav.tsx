@@ -18,6 +18,10 @@ export const TopNav = observer(() => {
   const activeMobileKey = mobileNavKey(location.pathname);
   const mobileMenuItems: MenuProps['items'] = [
     { key: 'market', label: <NavLink to="/market">{t('nav.market')}</NavLink> },
+    {
+      key: 'factorWeather',
+      label: <NavLink to="/factor-weather">{t('nav.factorWeather')}</NavLink>,
+    },
     { key: 'backtest', label: <NavLink to="/lab">{t('nav.backtest')}</NavLink> },
     { key: 'screen', label: <NavLink to="/screen">{t('nav.screen')}</NavLink> },
     { key: 'factor', label: <NavLink to="/factors">{t('nav.factor')}</NavLink> },
@@ -56,6 +60,9 @@ export const TopNav = observer(() => {
         <nav className="jx-topnav-nav">
           <NavLink to="/market" className={linkClass}>
             {t('nav.market')}
+          </NavLink>
+          <NavLink to="/factor-weather" className={linkClass}>
+            {t('nav.factorWeather')}
           </NavLink>
           <NavLink to="/lab" end className={linkClass}>
             {t('nav.backtest')}
@@ -111,6 +118,7 @@ const MOBILE_NAV_LABEL_KEYS = {
   screen: 'screen',
   factor: 'factor',
   market: 'market',
+  factorWeather: 'factorWeather',
   valuation: 'valuation',
   signals: 'signals',
 } as const;
@@ -123,6 +131,9 @@ function mobileNavKey(pathname: string): MobileNavKey {
   }
   if (pathname.startsWith('/factors')) {
     return 'factor';
+  }
+  if (pathname.startsWith('/factor-weather')) {
+    return 'factorWeather';
   }
   if (pathname.startsWith('/market')) {
     return 'market';

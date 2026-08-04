@@ -785,6 +785,7 @@ export async function analyzeFactor(
   const lsNetReturns: number[] = []; // long-short after per-rebalance trading cost (equal-weight)
   const lsNetReturnsMktcap: number[] = []; // ditto, cap-weight
   const lsPeriodDates: string[] = []; // period-end date per pushed long-short return (for the NAV x-axis)
+  const periodObservations: NonNullable<FactorReport['periodObservations']> = [];
   let firstFormationDate: string | null = null; // first non-skipped formation date (NAV starts at 1 here)
   const turnovers: number[] = [];
   // Quantile × forward horizon (daily-normalized): qh[hi][bucket] = per-rebalance-date list of that quantile's daily-average forward return → mean taken at the end
@@ -877,7 +878,8 @@ export async function analyzeFactor(
       policy.forwardReturn,
     );
 
-    icSeries.push(st.spearman(values, fwdW)); // Rank IC (factor value vs forward return)
+    const rankIc = st.spearman(values, fwdW);
+    icSeries.push(rankIc); // Rank IC (factor value vs forward return)
 
     const buckets = st.quantileBuckets(values, N_BUCKETS); // decile index per candidate
 
@@ -909,14 +911,29 @@ export async function analyzeFactor(
     const buyCost = policy.commissionPerSide + policy.slippagePerSide;
     const sellCost = policy.commissionPerSide + policy.stampDutySellSide + policy.slippagePerSide;
     const roundTripCost = buyCost + sellCost;
+    const topTurnover = prevTop ? oneWayTurnover(top, prevTop) : null;
+    const bottomTurnover = prevBottom ? oneWayTurnover(bottom, prevBottom) : null;
     const periodCost =
-      prevTop && prevBottom
-        ? (oneWayTurnover(top, prevTop) + oneWayTurnover(bottom, prevBottom)) * roundTripCost
+      topTurnover != null && bottomTurnover != null
+        ? (topTurnover + bottomTurnover) * roundTripCost
         : buyCost + sellCost; // establishment of the two legs
-    lsNetReturns.push(lsGrossEqual - periodCost);
+    const lsNetEqual = lsGrossEqual - periodCost;
+    lsNetReturns.push(lsNetEqual);
     lsNetReturnsMktcap.push(lsGrossMktcap - periodCost);
     lsPeriodDates.push(nextDate);
     firstFormationDate ??= date;
+    periodObservations.push({
+      formationDate: date,
+      periodEndDate: nextDate,
+      rankIc,
+      topReturn: equalMean(perBucket[N_BUCKETS - 1]),
+      bottomReturn: equalMean(perBucket[0]),
+      longShortGrossReturn: lsGrossEqual,
+      longShortNetReturn: lsNetEqual,
+      topTurnover,
+      sampleSize: candidates.length,
+      sampleCoverage: snapDate.size > 0 ? candidates.length / snapDate.size : 0,
+    });
 
     // IC-decay + per-decile return at each forward horizon (daily-normalized so horizons compare).
     // Only on the subsampled decay dates (bounds the forward-snapshot load; see decayDates above).
@@ -955,8 +972,8 @@ export async function analyzeFactor(
       }
     }
 
-    if (prevTop) {
-      turnovers.push(oneWayTurnover(top, prevTop));
+    if (topTurnover != null) {
+      turnovers.push(topTurnover);
     }
     prevTop = top;
     prevBottom = bottom;
@@ -1076,6 +1093,7 @@ export async function analyzeFactor(
     longShortNet: toLongShort(lsNetReturns),
     longShortNetMktcap: toLongShort(lsNetReturnsMktcap),
     lsNav,
+    periodObservations,
     methodology,
   };
 }

@@ -62,6 +62,7 @@ export interface FactorMeta {
   keyCandidate?: string; // editable LLM proposal while strategyKey is absent
   kind: FactorKind;
   builtin?: boolean; // true = preset (a read-only code row in the library, can be copied into a custom factor)
+  expectedDirection?: Exclude<FactorExpectedDirection, 'unknown'>;
   composite?: FactorCompositeDefinitionV1;
 }
 
@@ -89,6 +90,22 @@ export interface LongShortNav {
   dates: string[]; // YYYYMMDD, length = periods + 1
   gross: number[]; // cumulative NAV before trading cost
   net: number[]; // cumulative NAV after per-rebalance trading cost (turnover × round-trip)
+}
+
+/** One realized rebalance period. The formation cross-section is observed on `formationDate`, and
+ * returns are measured through `periodEndDate`. This compact series supports offline factor
+ * monitoring without persisting per-stock factor values. */
+export interface FactorPeriodObservation {
+  formationDate: string;
+  periodEndDate: string;
+  rankIc: number;
+  topReturn: number;
+  bottomReturn: number;
+  longShortGrossReturn: number;
+  longShortNetReturn: number;
+  topTurnover: number | null;
+  sampleSize: number;
+  sampleCoverage: number;
 }
 
 /** Rank IC measured against the N-trading-day-forward return — one point on the IC-decay curve. */
@@ -124,6 +141,7 @@ export interface FactorReport {
   longShortNet?: LongShortStat; // equal-weight long-short, net of trading cost
   longShortNetMktcap?: LongShortStat; // market-cap-weight long-short, net of trading cost
   lsNav?: LongShortNav; // equal-weight long-short NAV, gross vs net (the net-of-cost line chart)
+  periodObservations?: FactorPeriodObservation[];
   methodology?: FactorMethodologyAudit;
 }
 

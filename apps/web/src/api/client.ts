@@ -588,6 +588,8 @@ import type {
   FactorResearchIntentV1,
   FactorResearchSummary,
   RunFactorAnalysisResponse,
+  FactorWeatherDirection,
+  FactorWeatherResponse,
 } from '@jixie/shared';
 
 // Factor research: the factor list (identity + kind) — preset + this user's custom factors.
@@ -810,4 +812,30 @@ export function findCorrelationRunningJob(
 ): Promise<{ jobId: string | null }> {
   const q = new URLSearchParams({ keys: keys.join(','), freq, start, end });
   return request(`/api/app/factor/correlation/running?${q}`);
+}
+
+// —— Factor weather: immutable pinned factors with offline monthly observations ——
+
+export function getFactorWeather(): Promise<FactorWeatherResponse> {
+  return request('/api/app/factor-weather');
+}
+
+export function pinFactorWeather(
+  factorId: string,
+  direction?: FactorWeatherDirection,
+): Promise<{ id: string; status: string }> {
+  return request('/api/app/factor-weather/pins', {
+    method: 'POST',
+    body: JSON.stringify({ factorId, direction }),
+  });
+}
+
+export function refreshFactorWeatherPin(id: string): Promise<{ id: string; status: string }> {
+  return request(`/api/app/factor-weather/pins/${encodeURIComponent(id)}/refresh`, {
+    method: 'POST',
+  });
+}
+
+export function unpinFactorWeather(id: string): Promise<{ ok: true }> {
+  return request(`/api/app/factor-weather/pins/${encodeURIComponent(id)}`, { method: 'DELETE' });
 }

@@ -531,11 +531,12 @@ export async function waitForRunningWork(onLog: (line: string) => void): Promise
   let quietSince: number | null = null;
 
   for (;;) {
-    const [jobs, agentTurns] = await Promise.all([
+    const [jobs, agentTurns, factorWeatherRuns] = await Promise.all([
       prisma.job.count({ where: { status: 'running' } }),
       prisma.agentTurn.count({ where: { status: 'running' } }),
+      prisma.factorWeatherPin.count({ where: { status: 'running' } }),
     ]);
-    if (jobs + agentTurns === 0) {
+    if (jobs + agentTurns + factorWeatherRuns === 0) {
       quietSince ??= Date.now();
       if (Date.now() - quietSince >= quietMilliseconds) {
         return;
@@ -545,11 +546,13 @@ export async function waitForRunningWork(onLog: (line: string) => void): Promise
     }
     if (Date.now() >= deadline) {
       throw new Error(
-        `Timed out waiting for ${jobs} background jobs and ${agentTurns} Agent turns`,
+        `Timed out waiting for ${jobs} background jobs, ${agentTurns} Agent turns, and ${factorWeatherRuns} factor weather runs`,
       );
     }
-    if (jobs + agentTurns > 0) {
-      onLog(`Waiting for ${jobs} background jobs and ${agentTurns} Agent turns`);
+    if (jobs + agentTurns + factorWeatherRuns > 0) {
+      onLog(
+        `Waiting for ${jobs} background jobs, ${agentTurns} Agent turns, and ${factorWeatherRuns} factor weather runs`,
+      );
     }
     await new Promise((resolve) => setTimeout(resolve, 2_000));
   }

@@ -3,6 +3,7 @@ import { loadTushareConfig } from '../config.js';
 import { runDataQualityAudit } from '../data-quality/audit.js';
 import { prisma } from '../lib/prisma.js';
 import { syncMarketIndicators } from '../market/sync-market-indicators.js';
+import { refreshAllFactorWeatherPins } from '../factor/weather.js';
 import { MARKET_WEATHER_INDICATOR_INDEX_CODES } from '../store/index-presets.js';
 import {
   syncEtfBasic,
@@ -53,6 +54,7 @@ export interface WeeklyMaintenanceSummary {
   selfHealing: SelfHealSummary | null;
   financials: WeeklyReferenceSyncSummary | null;
   dividends: WeeklyReferenceSyncSummary | null;
+  factorWeatherPoints: number;
   dataRevision: number | null;
 }
 
@@ -91,6 +93,7 @@ export async function runWeeklyMaintenance(
     selfHealing: null,
     financials: null,
     dividends: null,
+    factorWeatherPoints: 0,
     dataRevision: null,
   };
   if (run.skipped && !options.force) {
@@ -252,6 +255,13 @@ export async function runWeeklyMaintenance(
         state.dailyPublishedThrough,
       ]);
     }
+
+    await updateMaintenanceRun(run.id, 'factor_weather', summary);
+    const factorWeather = await refreshAllFactorWeatherPins({ onLog });
+    summary.factorWeatherPoints = factorWeather.reduce(
+      (total, result) => total + result.pointsWritten,
+      0,
+    );
 
     summary.dataRevision = await advanceWeeklyWatermark(today);
     await finishMaintenanceRun(run.id, 'done', { summary });

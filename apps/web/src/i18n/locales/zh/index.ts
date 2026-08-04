@@ -3,6 +3,7 @@ import { zhLogin } from './login';
 import { zhComponents } from './components';
 import { zhLab } from './lab';
 import { zhFactor } from './factor';
+import { zhFactorWeather } from './factor-weather';
 import { zhScreen } from './screen';
 import { zhStock } from './stock';
 import { zhValuation } from './valuation';
@@ -15,6 +16,7 @@ export const zhResources = {
   components: zhComponents,
   lab: zhLab,
   factor: zhFactor,
+  factorWeather: zhFactorWeather,
   screen: zhScreen,
   stock: zhStock,
   valuation: zhValuation,

@@ -17,6 +17,7 @@ import screenEntry from '@src/complex/screen';
 import stockEntry from '@src/complex/stock';
 import factorEntry from '@src/complex/factor';
 import marketEntry from '@src/complex/market';
+import factorWeatherEntry from '@src/complex/factor-weather';
 import valuationEntry from '@src/complex/valuation';
 import signalsEntry from '@src/complex/signals';
 import { TopNav } from '@src/components/top-nav';
@@ -152,6 +153,10 @@ const router = createBrowserRouter(
           unmounts/remounts the nav and flashes it. */}
       <Route element={<AuthedLayout />}>
         <Route path="/market" element={<ComplexRoute key="market" entry={marketEntry} />} />
+        <Route
+          path="/factor-weather"
+          element={<ComplexRoute key="factor-weather" entry={factorWeatherEntry} />}
+        />
         <Route path="/lab" element={<LabRoute />} />
         <Route path="/screen" element={<ComplexRoute key="screen" entry={screenEntry} />} />
         <Route path="/factors" element={<FactorRoute />} />

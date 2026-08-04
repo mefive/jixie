@@ -9,11 +9,13 @@ import { screensRoute } from './routes/screens.js';
 import { marketRoute } from './routes/market.js';
 import { factorRoute } from './routes/factor.js';
 import { factorsRoute } from './routes/factors.js';
+import { factorWeatherRoute } from './routes/factor-weather.js';
 import { agentRoute } from './routes/agent.js';
 import { signalsRoute } from './routes/signals.js';
 import { requireAuth } from './lib/session.js';
 import { markRunningJobsStale } from './lib/jobs.js';
 import { seedBuiltinFactors } from './factor/builtin-factors.js';
+import { resetInterruptedFactorWeatherRefreshes } from './factor/weather.js';
 import { markRunningAgentTurnsInterrupted } from './agent/persistence.js';
 import { maintenanceGate, maintenanceRoute } from './maintenance/http.js';
 
@@ -23,16 +25,23 @@ import { maintenanceGate, maintenanceRoute } from './maintenance/http.js';
  *   /api/auth/*   public (login / logout / me) — see routes/auth.ts
  *   /api/app/*    protected example prefix — gated uniformly by requireAuth
  */
-export function startServer(port: number) {
+export async function startServer(port: number) {
   const app = buildApp();
   // Any job left 'running' from a previous process is a zombie (its worker died) → mark stale.
-  void markRunningJobsStale().then(
-    (n) => n && console.log(`[jixie] marked ${n} orphaned job(s) as stale`),
-  );
-  void markRunningAgentTurnsInterrupted().then(
-    (count) =>
-      count && console.log(`[jixie] marked ${count} orphaned Agent turn(s) as interrupted`),
-  );
+  const [staleJobs, interruptedTurns, interruptedWeather] = await Promise.all([
+    markRunningJobsStale(),
+    markRunningAgentTurnsInterrupted(),
+    resetInterruptedFactorWeatherRefreshes(),
+  ]);
+  if (staleJobs) {
+    console.log(`[jixie] marked ${staleJobs} orphaned job(s) as stale`);
+  }
+  if (interruptedTurns) {
+    console.log(`[jixie] marked ${interruptedTurns} orphaned Agent turn(s) as interrupted`);
+  }
+  if (interruptedWeather) {
+    console.log(`[jixie] reset ${interruptedWeather} interrupted factor weather run(s) to pending`);
+  }
   // Materialize the built-in preset factors (idempotent; repo is the source of truth).
   void seedBuiltinFactors().catch((e) => console.error('[jixie] preset factor seed failed', e));
   serve({ fetch: app.fetch, port });
@@ -65,6 +74,7 @@ export function buildApp() {
   app.route('/api/app/strategies', strategiesRoute);
   app.route('/api/app/screens', screensRoute);
   app.route('/api/app/factors', factorsRoute);
+  app.route('/api/app/factor-weather', factorWeatherRoute);
   app.route('/api/app/signals', signalsRoute);
   app.route('/api/app/strategy', strategyRoute);
   app.route('/api/app/screen', screenRoute);

@@ -11,6 +11,7 @@ import { localeFromRequest, t } from '../i18n/index.js';
 export type ErrorCode =
   | 'VALIDATION_FAILED' // malformed input (zod validation failed) / business-rule validation failed
   | 'NOT_FOUND' // resource addressed by the URL does not exist
+  | 'CONFLICT' // resource exists but its current state rejects this mutation
   | 'UNAUTHORIZED' // not logged in / session expired / cookie missing
   | 'FORBIDDEN' // logged in but not permitted (account disabled)
   | 'MAINTENANCE' // market data is being updated or awaiting a safe retry
@@ -27,6 +28,7 @@ export interface ApiErrorBody {
 const STATUS_FOR: Record<ErrorCode, ContentfulStatusCode> = {
   VALIDATION_FAILED: 400,
   NOT_FOUND: 404,
+  CONFLICT: 409,
   UNAUTHORIZED: 401,
   FORBIDDEN: 403,
   MAINTENANCE: 503,
