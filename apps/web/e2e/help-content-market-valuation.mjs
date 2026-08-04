@@ -40,48 +40,92 @@ async function login() {
 
 async function captureMarket() {
   await page.goto(`${BASE}/market`, { waitUntil: 'networkidle' });
-  await page.locator('.jx-marketState-summary').waitFor({ timeout: 20_000 });
-  await page.locator('.jx-marketState-chartCard canvas').waitFor({ timeout: 30_000 });
+  await assertWeatherDimension('申万行业', 6, 31);
   await page.waitForTimeout(400);
 
-  await annotatedScreenshot(page, `${OUTPUT}market-overview-01.png`, [
-    { locator: page.locator('.jx-marketState-scopeBar'), number: 1 },
-    { locator: page.locator('.jx-marketState-summary'), number: 2 },
-    { locator: page.locator('.jx-marketState-detailStrip'), number: 3 },
-    { locator: page.locator('.jx-marketState-chartCard'), number: 4 },
-    { locator: page.locator('.jx-marketState-method'), number: 5 },
+  await annotatedScreenshot(page, `${OUTPUT}market-weather-overview-01.png`, [
+    { locator: page.locator('.jx-industryWeather-dimension'), number: 1 },
+    { locator: page.locator('.jx-industryWeather-frequency'), number: 2 },
+    { locator: page.locator('.jx-industryWeather-brief'), number: 3 },
+    { locator: page.locator('.jx-industryWeather-group').first(), number: 4 },
   ]);
 
-  await page.locator('.jx-marketState-scopeTrigger').click();
-  const picker = page.locator('.jx-marketState-scopePicker');
-  await picker.waitFor();
-  await annotatedScreenshot(page, `${OUTPUT}market-scope-01.png`, [
-    { locator: page.locator('.jx-marketState-scopeTrigger'), number: 1 },
-    { locator: picker.locator('.jx-marketState-scopeGroup--broad'), number: 2 },
-    { locator: picker.locator('.jx-marketState-scopeGroup--boards'), number: 3 },
-    { locator: picker.locator('.jx-marketState-scopeGroup--styles'), number: 4 },
+  await switchWeatherDimension('规模宽基', 'scale', 4, 10);
+  await switchWeatherDimension('市场板块', 'board', 3, 8);
+  await switchWeatherDimension('风格策略', 'style', 7, 16);
+  await page.locator('.jx-industryWeather-head').scrollIntoViewIfNeeded();
+  await annotatedScreenshot(page, `${OUTPUT}market-weather-dimensions-01.png`, [
+    {
+      locator: page
+        .locator('.jx-industryWeather-dimension .ant-segmented-item')
+        .filter({ hasText: '申万行业' }),
+      number: 1,
+    },
+    {
+      locator: page
+        .locator('.jx-industryWeather-dimension .ant-segmented-item')
+        .filter({ hasText: '规模宽基' }),
+      number: 2,
+    },
+    {
+      locator: page
+        .locator('.jx-industryWeather-dimension .ant-segmented-item')
+        .filter({ hasText: '市场板块' }),
+      number: 3,
+    },
+    {
+      locator: page
+        .locator('.jx-industryWeather-dimension .ant-segmented-item')
+        .filter({ hasText: '风格策略' }),
+      number: 4,
+    },
   ]);
 
-  const response = page.waitForResponse((item) =>
-    item.url().includes('/api/app/market/state?scope=000300.SH'),
-  );
-  await picker.getByRole('option', { name: /沪深300/ }).click();
-  if ((await response).status() !== 200) {
-    throw new Error('CSI 300 market-state request failed');
+  const timeline = page.locator('.jx-industryWeather-timeline');
+  await timeline.scrollIntoViewIfNeeded();
+  await annotatedScreenshot(page, `${OUTPUT}market-weather-playback-01.png`, [
+    { locator: page.getByRole('button', { name: '上一个周期' }), number: 1 },
+    { locator: page.getByRole('button', { name: '播放' }), number: 2 },
+    { locator: page.getByRole('button', { name: '下一个周期' }), number: 3 },
+    { locator: page.locator('.jx-industryWeather-slider'), number: 4 },
+    { locator: page.locator('.jx-industryWeather-range'), number: 5 },
+  ]);
+
+  await switchWeatherDimension('申万行业', 'industry', 6, 31);
+  const bankCard = page.locator('.jx-industryWeather-card').filter({ hasText: '银行' });
+  await bankCard.scrollIntoViewIfNeeded();
+  await bankCard.click();
+  const drawer = page.getByRole('dialog', { name: '银行' });
+  await drawer.waitFor();
+  await page.waitForTimeout(500);
+  await annotatedScreenshot(page, `${OUTPUT}market-weather-detail-01.png`, [
+    { locator: drawer.locator('.jx-industryWeather-drawerState'), number: 1 },
+    { locator: drawer.locator('.jx-industryWeather-drawerMetrics'), number: 2 },
+    { locator: drawer.locator('.jx-industryWeather-historyStrip'), number: 3 },
+    { locator: drawer.locator('.jx-industryWeather-historyList'), number: 4 },
+  ]);
+  await page.getByRole('button', { name: '关闭' }).click();
+}
+
+async function switchWeatherDimension(label, dimension, groups, cards) {
+  await Promise.all([
+    page.waitForResponse((response) =>
+      response.url().includes(`/market/weather?dimension=${dimension}&frequency=month`),
+    ),
+    page.getByText(label, { exact: true }).click(),
+  ]);
+  await assertWeatherDimension(label, groups, cards);
+}
+
+async function assertWeatherDimension(label, expectedGroups, expectedCards) {
+  await page.locator('.jx-industryWeather-card').first().waitFor({ timeout: 30_000 });
+  const groups = await page.locator('.jx-industryWeather-group').count();
+  const cards = await page.locator('.jx-industryWeather-card').count();
+  if (groups !== expectedGroups || cards !== expectedCards) {
+    throw new Error(
+      `${label}: expected ${expectedGroups} groups/${expectedCards} cards, got ${groups}/${cards}`,
+    );
   }
-  await page.getByText('覆盖 300 只', { exact: false }).waitFor();
-  await page
-    .locator('.jx-marketState-chartCard .ant-segmented-item', { hasText: '趋势强度' })
-    .click();
-  await page.waitForTimeout(400);
-  await annotatedScreenshot(page, `${OUTPUT}market-index-01.png`, [
-    { locator: page.locator('.jx-marketState-scopeBar'), number: 1 },
-    { locator: page.locator('.jx-marketState-summary'), number: 2 },
-    { locator: page.locator('.jx-marketState-detailStrip'), number: 3 },
-    { locator: page.locator('.jx-marketState-chartCard .ant-segmented'), number: 4 },
-    { locator: page.locator('.jx-marketState-chartCard canvas'), number: 5 },
-    { locator: page.locator('.jx-marketState-method'), number: 6 },
-  ]);
 }
 
 async function captureValuation() {

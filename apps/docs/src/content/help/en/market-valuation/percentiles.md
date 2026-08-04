@@ -19,15 +19,20 @@ If 800 of 1,000 valid trading days are at or below the current value, the percen
 - 20% means it is at or above about two tenths of historical days.
 - It does not mean an 80% probability of rising or a 20% probability of falling.
 
-## Three-year percentiles on the Market page
+## Percentiles and scores in Market Weather
 
-The Market page compares current activity, breadth, trend, and crowding separately with valid history from the latest three years for the same scope.
+Market Weather cards contain both scores and historical positions. Do not treat them as the same measure:
 
-Area 2 below contains the four percentiles, and area 4 contains the corresponding history:
+- Activity compares current turnover with the industry's or index's own latest three-year history.
+- The valuation badge uses the labeled official or constituent valuation series to show the historical position of PE or PB.
+- Heat combines trend, breadth, and activity components; it is not a historical event probability.
+- Breadth describes current constituent participation; it is not the percentage of stocks that will rise next.
 
-![Three-year percentiles for market metrics](/docs/images/help/zh/market-valuation/market-overview-01.png)
+![Activity and valuation position on Market Weather cards](/docs/images/help/zh/market-valuation/market-weather-overview-01.png)
 
-Interpret only the same metric and scope together. “CSI 300 crowding at the 90th percentile” means crowding is high relative to its own latest three years. It does not mean a 90% probability of reversal.
+Interpret only the same card, source, and metric together. Activity 90 for an index means its current turnover is high within its own history. It does not mean a 90% probability of continuation or reversal.
+
+Also check the valuation source. An **official valuation** series and a **constituent valuation** proxy aggregated from historical constituents are not the same series, so their percentiles should not be joined into one direct comparison.
 
 ## Two percentiles on the Valuation page
 
@@ -62,7 +67,7 @@ A low valuation percentile does not establish:
 - That one index is absolutely cheaper than another.
 - That a full position should be opened now.
 
-High activity, trend, or crowding percentiles also cannot prove continuation or immediate reversal.
+High heat, activity, or valuation position also cannot prove continuation or immediate reversal.
 
 Possible reasons include:
 
@@ -92,5 +97,6 @@ A percentile provides historical context. It is not a standalone buy or sell but
 ## Related articles
 
 - [View index valuation](/docs/help/market-valuation/index-valuation)
-- [Understand the four market metrics](/docs/help/market-valuation/market-metrics)
+- [Understand Market Weather cards](/docs/help/market-valuation/market-metrics)
+- [Replay history and inspect card details](/docs/help/market-valuation/weather-playback)
 - [Formal holdout and out-of-sample results](/docs/help/factors/holdout-results)

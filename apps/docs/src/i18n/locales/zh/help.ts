@@ -12,6 +12,7 @@ export const zhHelp = {
     stockDetail: '股票详情',
     backtesting: '回测工作台',
     factorResearch: '因子研究',
+    factorWeather: '因子气象',
     marketValuation: '市场与估值',
     signals: '今日信号',
   },

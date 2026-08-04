@@ -1,15 +1,16 @@
 # 产品可以做什么
 
-机械交易系用于查询市场数据、按条件筛选股票、检验交易规则和查看策略在最新交易日产生的信号。第一次使用时，建议先完成一次选股和一次回测，再按需要学习其他页面。
+机械交易系用于观察市场状态、查询市场数据、按条件筛选股票、研究因子、检验交易规则和查看策略在最新交易日产生的信号。登录后默认进入市场气象页。第一次使用时，可以先了解当前市场，再完成一次选股和一次回测。
 
 ## 主要功能
 
 | 页面 | 可以完成的事情 |
 | --- | --- |
+| 市场 | 按行业、规模、板块和风格查看周、月、季、年气象，并回放历史变化 |
 | 选股看图 | 查询股票或 ETF，按估值、股息率、市值等条件筛选股票，并打开个股图表 |
 | 回测工作台 | 用文字描述或代码建立策略，设置回测参数，查看历史收益、风险和交易明细 |
 | 因子研究 | 检查一个选股指标在历史上的分组收益、Rank IC、换手和相关性 |
-| 市场 | 查看主要指数、市场广度、趋势强度和交易拥挤情况 |
+| 因子气象 | 用统一月频方法持续观察已定稿因子的近期收益、IC、覆盖率和换手 |
 | 估值 | 查看指数的市盈率、市净率、换手率及历史百分位 |
 | 今日信号 | 查看已部署策略在最新交易日生成的买卖信号和运行记录 |
 
@@ -18,10 +19,11 @@
 ## 建议的第一次使用顺序
 
 1. 按照[登录](/help/getting-started/login)完成登录。
-2. 阅读[页面导航](/help/getting-started/navigation)，认识顶部入口。
-3. 按照[第一次完成选股](/help/getting-started/first-screen)得到一份股票列表。
-4. 按照[第一次运行回测](/help/getting-started/first-backtest)完成一次历史检验。
-5. 阅读[为什么回测不等于未来收益](/help/basics/backtest-limitations)。
+2. 阅读[查看市场气象图](/help/market-valuation/market-overview)，认识默认首页。
+3. 阅读[页面导航](/help/getting-started/navigation)，认识顶部入口。
+4. 按照[第一次完成选股](/help/getting-started/first-screen)得到一份股票列表。
+5. 按照[第一次运行回测](/help/getting-started/first-backtest)完成一次历史检验。
+6. 阅读[为什么回测不等于未来收益](/help/basics/backtest-limitations)。
 
 ## 产品不能替你完成什么
 
@@ -45,3 +47,4 @@
 - [股票、ETF 和指数](/help/basics/stocks-etfs-indices)
 - [策略和回测](/help/basics/strategy-backtest)
 - [收益和风险指标](/help/basics/performance-risk)
+- [开始使用因子气象](/help/factor-weather/getting-started)

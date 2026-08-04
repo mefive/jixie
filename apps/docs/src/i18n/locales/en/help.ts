@@ -14,6 +14,7 @@ export const enHelp: typeof zhHelp = {
     stockDetail: 'Stock detail',
     backtesting: 'Backtest workspace',
     factorResearch: 'Factor research',
+    factorWeather: 'Factor weather',
     marketValuation: 'Market and valuation',
     signals: 'Today signals',
   },

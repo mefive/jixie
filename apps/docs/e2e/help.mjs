@@ -143,8 +143,8 @@ try {
         .evaluateAll((links) => links.map((link) => link.getAttribute('href'))),
     ),
   ].filter(Boolean);
-  if (articleHrefs.length !== 63) {
-    throw new Error(`expected 63 help articles, got ${articleHrefs.length}`);
+  if (articleHrefs.length !== 66) {
+    throw new Error(`expected 66 help articles, got ${articleHrefs.length}`);
   }
   for (const href of articleHrefs) {
     if (new URL(page.url()).pathname !== href) {
@@ -494,19 +494,47 @@ try {
   await page.getByText('中文', { exact: true }).last().click();
   await page.getByRole('heading', { level: 1, name: '在策略中使用自定义因子' }).waitFor();
 
-  await page.getByRole('link', { name: '查看市场页面和切换范围', exact: true }).first().click();
-  await page.getByRole('heading', { level: 1, name: '查看市场页面和切换范围' }).waitFor();
-  if ((await page.locator('.jx-help-figure').count()) !== 3) {
-    throw new Error('market overview article does not render all three screenshots');
+  await page.getByRole('link', { name: '开始使用因子气象', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '开始使用因子气象' }).waitFor();
+  if ((await page.locator('.jx-help-figure').count()) !== 2) {
+    throw new Error('factor weather getting-started article does not render both screenshots');
+  }
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(100);
+  await page.screenshot({ path: `${SHOTS}15a-help-factor-weather.png` });
+
+  await page.getByRole('link', { name: '阅读因子气象卡片', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '阅读因子气象卡片' }).waitFor();
+  if ((await page.locator('.jx-help-figure').count()) !== 1) {
+    throw new Error('factor weather card article does not render its screenshot');
+  }
+  if ((await page.locator('.jx-help-markdown .katex').count()) < 2) {
+    throw new Error('factor weather compound-return formula did not render with KaTeX');
+  }
+  await page.getByText('EN', { exact: true }).last().click();
+  await page.getByRole('heading', { level: 1, name: 'Read Factor Weather cards' }).waitFor();
+  await page.getByText('中文', { exact: true }).last().click();
+  await page.getByRole('heading', { level: 1, name: '阅读因子气象卡片' }).waitFor();
+
+  await page.getByRole('link', { name: '查看市场气象图', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '查看市场气象图' }).waitFor();
+  if ((await page.locator('.jx-help-figure').count()) !== 2) {
+    throw new Error('market weather overview article does not render both screenshots');
   }
 
-  await page.getByRole('link', { name: '理解四项市场指标', exact: true }).first().click();
-  await page.getByRole('heading', { level: 1, name: '理解四项市场指标' }).waitFor();
+  await page.getByRole('link', { name: '理解市场气象卡片', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '理解市场气象卡片' }).waitFor();
   if ((await page.locator('.jx-help-figure').count()) !== 1) {
-    throw new Error('market metrics article does not render its screenshot');
+    throw new Error('market weather card article does not render its screenshot');
   }
-  if ((await page.locator('.jx-help-markdown .katex').count()) < 4) {
-    throw new Error('market metric formulas did not render with KaTeX');
+  if ((await page.locator('.jx-help-markdown .katex').count()) < 1) {
+    throw new Error('market weather heat formula did not render with KaTeX');
+  }
+
+  await page.getByRole('link', { name: '回放历史并查看卡片详情', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '回放历史并查看卡片详情' }).waitFor();
+  if ((await page.locator('.jx-help-figure').count()) !== 2) {
+    throw new Error('market weather playback article does not render both screenshots');
   }
 
   await page.getByRole('link', { name: '查看指数估值', exact: true }).first().click();
@@ -529,7 +557,7 @@ try {
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.waitForTimeout(100);
   await page.screenshot({
-    path: `${SHOTS}13a-help-market-valuation.png`,
+    path: `${SHOTS}15b-help-market-weather.png`,
   });
 
   await page.getByRole('link', { name: '部署回测策略', exact: true }).first().click();
