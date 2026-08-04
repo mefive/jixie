@@ -2,7 +2,8 @@ import {
   MARKET_STATE_INDEX_CODES,
   MAJOR_INDEX_DAILY_BASIC_CODES,
   MAJOR_INDEX_DAILY_CODES,
-  MARKET_STYLE_INDEX_CODES,
+  DAILY_MAINTAINED_INDEX_CODES,
+  MARKET_WEATHER_INDEX_CODES,
 } from '../store/index-presets.js';
 import { prisma } from '../lib/prisma.js';
 
@@ -15,7 +16,7 @@ export interface RawDateQuality {
   moneyflowCoverage: number;
   indexDaily: number;
   indexDailyBasic: number;
-  styleIndexDaily: number;
+  weatherIndexDaily: number;
   swIndexDaily: number;
   oldestIndexWeightSnapshot: string;
   activeIndustries: number;
@@ -60,7 +61,7 @@ export async function validateRawMarketDate(tradeDate: string): Promise<RawDateQ
       prisma.indexDaily.findMany({
         where: {
           tradeDate,
-          tsCode: { in: [...MAJOR_INDEX_DAILY_CODES, ...MARKET_STYLE_INDEX_CODES] },
+          tsCode: { in: DAILY_MAINTAINED_INDEX_CODES },
         },
         select: { tsCode: true },
       }),
@@ -118,10 +119,12 @@ export async function validateRawMarketDate(tradeDate: string): Promise<RawDateQ
   if (missingIndexCodes.length > 0) {
     throw new Error(`IndexDaily is missing ${missingIndexCodes.join(', ')} for ${tradeDate}`);
   }
-  const missingStyleCodes = MARKET_STYLE_INDEX_CODES.filter((code) => !actualIndexCodes.has(code));
-  if (missingStyleCodes.length > 0) {
+  const missingWeatherCodes = MARKET_WEATHER_INDEX_CODES.filter(
+    (code) => !actualIndexCodes.has(code),
+  );
+  if (missingWeatherCodes.length > 0) {
     throw new Error(
-      `Official style IndexDaily is missing ${missingStyleCodes.join(', ')} for ${tradeDate}`,
+      `Market weather IndexDaily is missing ${missingWeatherCodes.join(', ')} for ${tradeDate}`,
     );
   }
   const actualIndexBasicCodes = new Set(indexBasicCodes.map((row) => row.tsCode));
@@ -173,7 +176,7 @@ export async function validateRawMarketDate(tradeDate: string): Promise<RawDateQ
     moneyflowCoverage,
     indexDaily: actualIndexCodes.size,
     indexDailyBasic: actualIndexBasicCodes.size,
-    styleIndexDaily: MARKET_STYLE_INDEX_CODES.length,
+    weatherIndexDaily: MARKET_WEATHER_INDEX_CODES.length,
     swIndexDaily: swIndexRows.length,
     oldestIndexWeightSnapshot: indexSnapshots.map((snapshot) => snapshot!.tradeDate).sort()[0],
     activeIndustries: activeIndustries.length,

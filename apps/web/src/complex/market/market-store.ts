@@ -1,52 +1,50 @@
 import { action, makeObservable, observable } from 'mobx';
 import type {
-  IndustryWeatherSeries,
-  MarketStateScope,
-  MarketStateSnapshot,
+  MarketWeatherDimension,
   MarketWeatherFrequency,
+  MarketWeatherSeries,
 } from '@jixie/shared';
-import { fetchIndustryWeather, fetchMarketState } from '@src/api/client';
+import { fetchMarketWeather } from '@src/api/client';
 import { BaseStore, LoaderModel } from '@src/lib';
 
+interface MarketWeatherRequest {
+  dimension: MarketWeatherDimension;
+  frequency: MarketWeatherFrequency;
+}
+
 export class MarketStore extends BaseStore {
-  public marketScope: MarketStateScope = 'all';
+  public weatherDimension: MarketWeatherDimension = 'industry';
   public weatherFrequency: MarketWeatherFrequency = 'month';
-  public marketStateLoader = new LoaderModel<MarketStateSnapshot>();
-  public industryWeatherLoader = new LoaderModel<IndustryWeatherSeries>();
+  public weatherLoader = new LoaderModel<MarketWeatherSeries>();
 
   public constructor(parentStore?: any) {
     super(parentStore);
     makeObservable(this, {
-      marketScope: observable.ref,
+      weatherDimension: observable.ref,
       weatherFrequency: observable.ref,
-      setMarketScope: action,
+      setWeatherDimension: action,
       setWeatherFrequency: action,
     });
   }
 
   public setup() {
     super.setup();
-    this.marketStateLoader.setup({
-      request: (scope: MarketStateScope, signal) => fetchMarketState(scope, signal),
+    this.weatherLoader.setup({
+      request: ({ dimension, frequency }: MarketWeatherRequest, signal) =>
+        fetchMarketWeather(dimension, frequency, signal),
     });
-    this.industryWeatherLoader.setup({
-      request: (frequency: MarketWeatherFrequency, signal) =>
-        fetchIndustryWeather(frequency, signal),
-    });
-    this.registCleaner(() => this.marketStateLoader.cleanup());
-    this.registCleaner(() => this.industryWeatherLoader.cleanup());
+    this.registCleaner(() => this.weatherLoader.cleanup());
 
-    void this.marketStateLoader.run(this.marketScope);
-    void this.industryWeatherLoader.run(this.weatherFrequency);
+    this.loadWeather();
   }
 
-  public setMarketScope(scope: MarketStateScope) {
-    if (!scope || scope === this.marketScope) {
+  public setWeatherDimension(dimension: MarketWeatherDimension) {
+    if (!dimension || dimension === this.weatherDimension) {
       return;
     }
 
-    this.marketScope = scope;
-    void this.marketStateLoader.run(scope);
+    this.weatherDimension = dimension;
+    this.loadWeather();
   }
 
   public setWeatherFrequency(frequency: MarketWeatherFrequency) {
@@ -55,6 +53,13 @@ export class MarketStore extends BaseStore {
     }
 
     this.weatherFrequency = frequency;
-    void this.industryWeatherLoader.run(frequency);
+    this.loadWeather();
+  }
+
+  private loadWeather() {
+    void this.weatherLoader.run({
+      dimension: this.weatherDimension,
+      frequency: this.weatherFrequency,
+    });
   }
 }

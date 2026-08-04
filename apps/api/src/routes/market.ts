@@ -7,18 +7,29 @@ import { m } from '../i18n/index.js';
 import { buildIndexValuationSeries } from '../market/index-valuation.js';
 import {
   buildIndustryWeatherSeries,
+  buildIndexWeatherSeries,
   buildIndexTrailingReturns,
   buildMarketStylePairs,
   buildMarketStateSnapshot,
+  toUnifiedIndustryWeatherSeries,
 } from '../market/market-state.js';
-import type { IndustryIndicatorRow, SwIndexDailyRow } from '../market/market-state.js';
+import type {
+  IndustryIndicatorRow,
+  IndexWeatherBasicRow,
+  IndexWeatherIndicatorRow,
+  SwIndexDailyRow,
+} from '../market/market-state.js';
 import {
   MAJOR_INDEX_DAILY_BASIC_CODES,
   MARKET_STATE_INDEX_CODES,
   MARKET_STYLE_INDEX_CODES,
+  MARKET_WEATHER_INDEX_GROUPS,
+  MARKET_WEATHER_INDUSTRY_GROUPS,
 } from '../store/index-presets.js';
 import type {
   IndustryWeatherSeries,
+  MarketWeatherDimension,
+  MarketWeatherSeries,
   MarketStateScope,
   MarketStateScopeOption,
   MarketWeatherFrequency,
@@ -31,7 +42,8 @@ import type {
  *   GET /indices/:code/series         index daily close — the benchmark return curve in trade details
  *   GET /indices/valuation/catalog    broad-index valuation coverage
  *   GET /indices/:code/valuation      index close + valuation history and current percentiles
- *   GET /industry-weather?frequency=  replayable SW level-1 industry weather periods
+ *   GET /weather?dimension=&frequency= replayable card-only market weather dimensions
+ *   GET /industry-weather?frequency=  legacy SW level-1 industry weather periods
  *   GET /state?scope=                  whole-market/index pulse + Shenwan level-1 direction heat
  * Naming rules: see docs/design/api-route-naming.md.
  */
@@ -90,7 +102,13 @@ const marketWeatherFrequencies = ['week', 'month', 'quarter', 'year'] as const;
 const industryWeatherQuery = z.object({
   frequency: z.enum(marketWeatherFrequencies).default('month'),
 });
+const marketWeatherDimensions = ['industry', 'scale', 'board', 'style'] as const;
+const marketWeatherQuery = z.object({
+  dimension: z.enum(marketWeatherDimensions).default('industry'),
+  frequency: z.enum(marketWeatherFrequencies).default('month'),
+});
 const industryWeatherCache = new Map<string, IndustryWeatherSeries>();
+const marketWeatherCache = new Map<string, MarketWeatherSeries>();
 let industryWeatherRawCache:
   | {
       coverageKey: string;
@@ -171,8 +189,112 @@ marketRoute.get('/indices/:code/valuation', async (c) => {
   return c.json(series);
 });
 
+marketRoute.get('/weather', validateQuery(marketWeatherQuery), async (c) => {
+  const { dimension, frequency } = c.req.valid('query') as {
+    dimension: MarketWeatherDimension;
+    frequency: MarketWeatherFrequency;
+  };
+  if (dimension === 'industry') {
+    const industrySeries = await loadIndustryWeatherSeries(frequency);
+    if (!industrySeries) {
+      return apiError(c, 'NOT_FOUND', m(c, 'noDataInRange'));
+    }
+
+    return c.json(toUnifiedIndustryWeatherSeries(industrySeries, MARKET_WEATHER_INDUSTRY_GROUPS));
+  }
+
+  const groups = MARKET_WEATHER_INDEX_GROUPS[dimension];
+  const codes = groups.flatMap((group) => [...group.codes]);
+  const [closeCoverage, indicatorCoverage, basicCoverage] = await Promise.all([
+    prisma.indexDaily.aggregate({
+      where: { tsCode: { in: codes } },
+      _min: { tradeDate: true },
+      _max: { tradeDate: true },
+    }),
+    prisma.indexIndicator.aggregate({
+      where: { indexCode: { in: codes } },
+      _max: { tradeDate: true },
+    }),
+    prisma.indexDailyBasic.aggregate({
+      where: { tsCode: { in: codes } },
+      _max: { tradeDate: true },
+    }),
+  ]);
+  const cacheKey = [
+    dimension,
+    frequency,
+    closeCoverage._max.tradeDate,
+    indicatorCoverage._max.tradeDate,
+    basicCoverage._max.tradeDate,
+  ].join(':');
+  const cached = marketWeatherCache.get(cacheKey);
+  if (cached) {
+    return c.json(cached);
+  }
+
+  const [closeRows, indicatorRows, basicRows, metadataRows] = await Promise.all([
+    prisma.indexDaily.findMany({
+      where: { tsCode: { in: codes } },
+      select: { tsCode: true, tradeDate: true, close: true },
+      orderBy: [{ tsCode: 'asc' }, { tradeDate: 'asc' }],
+    }),
+    prisma.indexIndicator.findMany({
+      where: { indexCode: { in: codes } },
+      select: {
+        indexCode: true,
+        tradeDate: true,
+        return20: true,
+        aboveMa20Ratio: true,
+        aboveMa60Ratio: true,
+        floatWeightedTurnoverRate: true,
+      },
+      orderBy: [{ indexCode: 'asc' }, { tradeDate: 'asc' }],
+    }) as Promise<IndexWeatherIndicatorRow[]>,
+    prisma.indexDailyBasic.findMany({
+      where: { tsCode: { in: codes } },
+      select: { tsCode: true, tradeDate: true, peTtm: true, pb: true },
+      orderBy: [{ tsCode: 'asc' }, { tradeDate: 'asc' }],
+    }) as Promise<IndexWeatherBasicRow[]>,
+    prisma.indexBenchmark.findMany({
+      where: { tsCode: { in: codes } },
+      select: { tsCode: true, name: true },
+    }),
+  ]);
+  const series = buildIndexWeatherSeries(
+    dimension,
+    groups,
+    closeRows,
+    indicatorRows,
+    basicRows,
+    metadataRows,
+    frequency,
+  );
+  if (!series || !closeCoverage._min.tradeDate) {
+    return apiError(c, 'NOT_FOUND', m(c, 'noDataInRange'));
+  }
+
+  for (const key of marketWeatherCache.keys()) {
+    if (key.startsWith(`${dimension}:${frequency}:`)) {
+      marketWeatherCache.delete(key);
+    }
+  }
+  marketWeatherCache.set(cacheKey, series);
+  return c.json(series);
+});
+
 marketRoute.get('/industry-weather', validateQuery(industryWeatherQuery), async (c) => {
   const frequency = c.req.valid('query').frequency as MarketWeatherFrequency;
+  const series = await loadIndustryWeatherSeries(frequency);
+  if (!series) {
+    return apiError(c, 'NOT_FOUND', m(c, 'noDataInRange'));
+  }
+
+  return c.json(series);
+});
+
+async function loadIndustryWeatherSeries(
+  frequency: MarketWeatherFrequency,
+): Promise<IndustryWeatherSeries | null> {
   const [industryCoverage, swCoverage] = await Promise.all([
     prisma.industryIndicator.aggregate({
       _min: { tradeDate: true },
@@ -186,7 +308,7 @@ marketRoute.get('/industry-weather', validateQuery(industryWeatherQuery), async 
   const cacheKey = `${frequency}:${industryCoverage._max.tradeDate}:${swCoverage._max.tradeDate}`;
   const cached = industryWeatherCache.get(cacheKey);
   if (cached) {
-    return c.json(cached);
+    return cached;
   }
 
   const coverageKey = `${industryCoverage._max.tradeDate}:${swCoverage._max.tradeDate}`;
@@ -220,7 +342,7 @@ marketRoute.get('/industry-weather', validateQuery(industryWeatherQuery), async 
   const { industryRows, swIndexRows } = industryWeatherRawCache;
   const series = buildIndustryWeatherSeries(industryRows, swIndexRows, frequency);
   if (!series) {
-    return apiError(c, 'NOT_FOUND', m(c, 'noDataInRange'));
+    return null;
   }
 
   for (const key of industryWeatherCache.keys()) {
@@ -229,8 +351,8 @@ marketRoute.get('/industry-weather', validateQuery(industryWeatherQuery), async 
     }
   }
   industryWeatherCache.set(cacheKey, series);
-  return c.json(series);
-});
+  return series;
+}
 
 marketRoute.get('/state', validateQuery(marketStateQuery), async (c) => {
   const scope = c.req.valid('query').scope as MarketStateScope;

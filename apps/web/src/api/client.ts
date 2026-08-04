@@ -369,10 +369,11 @@ import type {
   ScreenConversationMeta,
   IndexValuationCatalog,
   IndexValuationSeries,
-  IndustryWeatherSeries,
   MarketStateScope,
   MarketStateSnapshot,
+  MarketWeatherDimension,
   MarketWeatherFrequency,
+  MarketWeatherSeries,
   ScreenResult,
   ScreenSpec,
   StockSeries,
@@ -547,13 +548,15 @@ export function fetchMarketState(
   return request(`/api/app/market/state?scope=${encodeURIComponent(scope)}`, { signal });
 }
 
-export function fetchIndustryWeather(
+export function fetchMarketWeather(
+  dimension: MarketWeatherDimension,
   frequency: MarketWeatherFrequency,
   signal?: AbortSignal,
-): Promise<IndustryWeatherSeries> {
-  return request(`/api/app/market/industry-weather?frequency=${encodeURIComponent(frequency)}`, {
-    signal,
-  });
+): Promise<MarketWeatherSeries> {
+  return request(
+    `/api/app/market/weather?dimension=${encodeURIComponent(dimension)}&frequency=${encodeURIComponent(frequency)}`,
+    { signal },
+  );
 }
 
 import type {
