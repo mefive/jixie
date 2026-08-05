@@ -28,7 +28,10 @@ const workerUrl = import.meta.url.endsWith('.ts')
 
 const strategyQuery = z.object({ strategyId: z.string().min(1) });
 const sinceQuery = z.object({ since: z.string().regex(/^\d+$/).optional() });
-const parametersBody = z.object({ code: z.string().min(1).max(50_000) });
+const parametersBody = z.object({
+  code: z.string().min(1).max(50_000),
+  language: z.enum(['typescript', 'python']).optional(),
+});
 const scanSpecSchema = z.object({
   dimensions: z
     .array(
@@ -54,8 +57,12 @@ const createBody = z.object({
 });
 
 strategyScansRoute.post('/parameters', validateJson(parametersBody), async (c) => {
+  const body = c.req.valid('json');
+  if (body.language === 'python') {
+    return apiError(c, 'VALIDATION_FAILED', m(c, 'strategyPythonScanUnsupported'));
+  }
   try {
-    const parameters = await inspectWalledStrategyParameters(c.req.valid('json').code);
+    const parameters = await inspectWalledStrategyParameters(body.code);
     return c.json({ parameters });
   } catch (error) {
     return apiError(c, 'VALIDATION_FAILED', m(c, 'strategyScanCodeInvalid'), {
@@ -68,6 +75,9 @@ strategyScansRoute.post('/', validateQuery(strategyQuery), validateJson(createBo
   const { strategyId } = c.req.valid('query');
   const body = c.req.valid('json');
   const config = body.config as BacktestConfig;
+  if ((config.language ?? 'typescript') === 'python') {
+    return apiError(c, 'VALIDATION_FAILED', m(c, 'strategyPythonScanUnsupported'));
+  }
   if (config.start >= config.end) {
     return apiError(c, 'VALIDATION_FAILED', m(c, 'startAfterEnd'), { field: 'start' });
   }

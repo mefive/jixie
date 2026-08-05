@@ -27,6 +27,7 @@ export type DeployStrategyResult =
   | { kind: 'ready'; deployment: StrategyDeployment }
   | { kind: 'not_found' }
   | { kind: 'no_backtest' }
+  | { kind: 'language_unsupported' }
   | { kind: 'futures_unsupported' };
 
 export async function deployStrategy(
@@ -46,6 +47,9 @@ export async function deployStrategy(
   }
 
   const config = codeConfigSchema.parse(strategy.config) as BacktestConfig;
+  if ((config.language ?? 'typescript') === 'python') {
+    return { kind: 'language_unsupported' };
+  }
   const metadata = await inspectWalledStrategyMetadata(config.code);
   if (metadata.futures.length > 0) {
     return { kind: 'futures_unsupported' };

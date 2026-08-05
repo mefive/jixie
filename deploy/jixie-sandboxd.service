@@ -1,0 +1,32 @@
+# /etc/systemd/system/jixie-sandboxd.service
+[Unit]
+Description=jixie untrusted-code sandbox daemon
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/jixie/apps/sandboxd
+Environment=NODE_ENV=production
+Environment=JIXIE_SANDBOX_SOCKET=/var/lib/jixie/sandboxd.sock
+Environment=JIXIE_SANDBOXD_MODE=podman
+Environment=JIXIE_PYTHON_IMAGE=jixie-python-runtime:py-v1
+Environment=JIXIE_SANDBOX_MAX_SESSIONS=4
+Environment=JIXIE_SANDBOX_SESSION_TIMEOUT_MS=3600000
+Environment=JIXIE_PYTHON_CODE_TIMEOUT_SECONDS=10
+ExecStart=/usr/bin/node /opt/jixie/apps/sandboxd/dist/src/index.js
+Restart=always
+RestartSec=5
+# Installed as a systemd user service. The user manager delegates this subtree to rootless Podman.
+Delegate=yes
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=jixie-sandboxd
+
+# The daemon owns no application data. It only needs its Unix socket and rootless Podman storage.
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/jixie
+
+[Install]
+WantedBy=default.target

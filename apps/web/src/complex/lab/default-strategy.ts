@@ -16,3 +16,18 @@ export default defineStrategy({
 // Example — ETF rotation: watch the synced ETF codes, rank ctx.history(code, 'close', 61) once a month, then ctx.equalWeight(the top two).
 // Example — whole-market cross-section: (await ctx.universe()).rankBy(b => 1 / b.peTtm).top(0.1), then ctx.equalWeight(picks).
 `;
+
+export const DEFAULT_PYTHON_CODE = `# Describe the strategy you want to the Agent on the left, or edit it directly.
+from jixie import Strategy
+
+strategy = Strategy(
+    name="New strategy",
+    params={},
+    watch=[],
+)
+
+@strategy.on_bar
+def handle_bar(ctx):
+    # Called once per trading day. The TypeScript engine enforces T+1, price limits, lots, costs and slippage.
+    pass
+`;

@@ -1,5 +1,7 @@
 import { buildCodegenPrompt, KNOWN_INDICES } from '../../strategy/code/codegen-prompt.js';
 import { compileStrategy } from '../../strategy/code/compile.js';
+import { buildPythonCodegenPrompt } from '../../strategy/python/codegen-prompt.js';
+import { createPythonStrategyRuntime } from '../../strategy/python/runtime.js';
 import { prisma } from '../../lib/prisma.js';
 import { buildAgentMode, RESEARCH_TOOLS_HINT, TOOLS_HINT, type AgentProfile } from '../core.js';
 import { defaultTools } from '../tools/index.js';
@@ -51,14 +53,25 @@ export function strategyProfile(
   availableIndices?: string,
   referencableFactors?: string,
   research?: { userId: string; strategyId: string; currentCode: string; locale: Locale },
+  language: 'typescript' | 'python' = 'typescript',
 ): AgentProfile {
+  const codegenPrompt =
+    language === 'python'
+      ? buildPythonCodegenPrompt(availableIndices)
+      : buildCodegenPrompt(availableIndices, referencableFactors);
   return {
-    system: `${buildCodegenPrompt(availableIndices, referencableFactors)}\n${buildAgentMode('strategy')}\n${TOOLS_HINT}${research ? RESEARCH_TOOLS_HINT : ''}`,
+    system: `${codegenPrompt}\n${buildAgentMode('strategy', language)}\n${TOOLS_HINT}${research ? RESEARCH_TOOLS_HINT : ''}`,
     tools: [...defaultTools(), ...(research ? [runQuickBacktestTool(research)] : [])],
     artifact: {
       noun: 'strategy',
+      language,
       validate: async (code) => {
-        await compileStrategy(code);
+        if (language === 'python') {
+          const runtime = await createPythonStrategyRuntime(code);
+          await runtime.close();
+        } else {
+          await compileStrategy(code);
+        }
         await assertKnownInstruments(code);
       },
     },

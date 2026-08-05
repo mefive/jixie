@@ -1,4 +1,109 @@
-# 分析:Python 支持与沙箱升级(决策文档)
+# Python 策略运行时与沙箱（决策文档）
+
+> **2026-08-05 决策更新：下文 2026-07-07 的“不支持 Python 策略”结论已被新需求取代。**
+> 当前采用“单一 TypeScript Engine + Python 策略进程 + 独立 `jixie-sandboxd` + rootless
+> Podman”，不复制一份 Python Engine。旧分析保留在后半部分，作为决策演进记录。
+
+## 2026-08-05 定稿：保留一套 Engine，增加 Python 语言适配层
+
+### 核心边界
+
+```text
+API backtest worker
+  └─ TypeScript Engine（撮合、账户、A 股规则、指标数据缓存，唯一真相）
+       ⇅ 粗粒度 framed JSON RPC（截面 / K 线块 / 交易意图）
+     jixie-sandboxd（Unix socket、并发与生命周期控制）
+       └─ rootless Podman container（每次运行一个 Python 进程）
+            └─ py-v1 SDK + 用户策略
+```
+
+不重写 Python Engine。若做两套 Engine，T+1、涨跌停、停牌、整手、复权、成本、期货逐日
+盯市等规则都会产生两个实现和两个结果；长期校准成本远大于语言适配成本。Python 只负责表达
+“今天读什么、下什么意图”，最终撮合始终回到现有 Engine。
+
+通信也不是让每个 `ctx.*` 都跨进程：
+
+- `universe()` 一次请求当天截面及已声明因子；`where/rank/top` 在 Python 内完成；
+- `ensure_bars()` / 首次窗口指标一次请求一批代码的历史 K 线，随后保留进程内缓存；
+- 每个交易日只推账户快照和 watch/持仓代码的增量 bar；
+- Python 一次 `on_bar` 完成后批量返回交易指令，由 Engine 依次重放。
+
+这保留了动态数据访问语义，同时把 IPC 从“函数调用次数”收敛为“数据块加载次数”。协议使用
+4-byte big-endian 长度头 + JSON，不能依赖换行，因为用户 `print()` 也要作为日志回传。
+
+### 语言与版本
+
+策略配置新增向后兼容字段：
+
+- `language: "typescript" | "python"`，旧配置缺失时视为 `typescript`；
+- `runtimeVersion: "ts-v1" | "py-v1"`，旧配置缺失时视为 `ts-v1`；
+- language/runtime 必须匹配，运行 key 也包含两者，避免跨运行时错误复用结果。
+
+`py-v1` 的源码形态是一个持久模块：
+
+```python
+from jixie import Strategy
+
+strategy = Strategy(name="示例", params={"lookback": 20}, watch=["510300.SH"])
+
+@strategy.on_bar
+def handle_bar(ctx):
+    if ctx.sma("510300.SH", ctx.params.lookback):
+        ctx.order_target_percent("510300.SH", 1.0)
+```
+
+模块变量在整次回测中保留。当前覆盖股票/ETF、选股链、日线窗口指标、预置因子、目标仓位/
+股数订单和条件单；暂不开放期货、自定义 TypeScript 因子、参数扫描与每日信号部署。前端在 Python
+模式隐藏未支持入口，后端仍须把不匹配的直接请求视为不支持，而不是按 TypeScript 误解析。
+
+### 生产沙箱
+
+生产 API 不直接启动 Python，也不拥有 Podman 控制权，只连接 `/var/lib/jixie/sandboxd.sock`。
+`jixie-sandboxd` 为每个会话执行一个无挂载容器，并固定：
+
+- rootless Podman、非 root 容器用户；
+- `--network=none`、只读根文件系统、64MB `noexec` tmpfs；
+- drop all capabilities、`no-new-privileges`、默认 seccomp；
+- 768MB 内存、1GB memory+swap 总上限、1 CPU、64 PID（宿主必须使用 cgroups v2）；
+- 最多 4 个并发会话、单会话最多 1 小时；
+- 策略模块初始化和每次 `on_bar` 最多连续执行 10 秒，等待 Engine 数据的时间不计入。
+
+镜像只含 CPython、py-v1 runner、固定版本 NumPy/pandas，不挂载代码库、数据库、宿主目录或密钥。
+本地开发/测试可显式使用 `JIXIE_PYTHON_LOCAL=1`，但 production 会拒绝该逃生口。
+
+### macOS 验证路径
+
+macOS 本身没有 Linux namespaces/cgroups，因此不假装在宿主上验证生产隔离，而是使用 Colima 的
+Linux VM。`sandboxd` 提供仅非 production 可启用的 `docker` backend；它和 Podman backend 使用
+相同镜像、Unix socket 协议、用户、网络、只读文件系统、capability、PID/CPU/内存限制。推荐步骤：
+
+```bash
+colima start
+docker build -t jixie-python-runtime:py-v1 \
+  -f apps/sandboxd/Dockerfile.python apps/sandboxd
+pnpm --filter sandboxd build
+
+JIXIE_SANDBOX_SOCKET=/tmp/jixie-sandboxd.sock \
+JIXIE_SANDBOXD_MODE=docker NODE_ENV=test \
+node apps/sandboxd/dist/src/index.js
+
+JIXIE_SANDBOX_SOCKET=/tmp/jixie-sandboxd.sock \
+pnpm --filter api exec vitest run src/strategy/python/runtime.test.ts
+```
+
+这能验收镜像、依赖、协议和绝大多数容器限制；不能替代 VPS 上的 rootless Podman、systemd unit、
+subuid/subgid 和 cgroups v2 验收。最终上线前仍应在目标 Linux 主机运行 bootstrap 和一次 Python
+fixture 回测。
+
+### 当前验收护栏
+
+- 同一 fixture 上 Python 与原生 TS 策略的每日 NAV、成交逐笔完全一致；
+- Python traceback 保留 `strategy.py` 行号；
+- 初始化死循环被中断；
+- 同一用例既直连 runner 验证，也经 Unix socket 的 sandboxd relay 验证；
+- 容器镜像仍需在有 Podman/Docker daemon 的 Linux 环境完成实际构建与启动验收。
+
+## 历史分析（2026-07-07，已被上述决定取代）
 
 > 2026-07-07 应用户要求分析,**未实施**——本文是给用户拍板用的 trade-off 分析。两个独立问题:
 > ① 策略/因子是否支持用 Python 编写;② 现有 `new Function` 沙箱(`compileStrategy`/`compileFactor`)是否/何时升级硬隔离(ROADMAP 4.5)。

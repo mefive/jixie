@@ -15,6 +15,7 @@ test('selects a single application', () => {
     api: false,
     web: false,
     docs: true,
+    sandboxd: false,
     fullDeploy: false,
     installDependencies: false,
     reasons: ['docs'],
@@ -28,6 +29,7 @@ test('unions independently changed applications', () => {
       api: true,
       web: true,
       docs: false,
+      sandboxd: false,
       fullDeploy: false,
       installDependencies: false,
       reasons: ['api', 'web'],
@@ -40,6 +42,7 @@ test('shared package selects every application', () => {
   assert.equal(result.api, true);
   assert.equal(result.web, true);
   assert.equal(result.docs, true);
+  assert.equal(result.sandboxd, true);
   assert.equal(result.fullDeploy, true);
 });
 
@@ -54,6 +57,7 @@ test('documentation changes do not rebuild runtime applications', () => {
     api: false,
     web: false,
     docs: false,
+    sandboxd: false,
     fullDeploy: false,
     installDependencies: false,
     reasons: [],
@@ -64,6 +68,18 @@ test('application package changes install dependencies', () => {
   const result = classifyChangedPaths(['apps/docs/package.json'], manifest);
   assert.equal(result.docs, true);
   assert.equal(result.installDependencies, true);
+});
+
+test('selects the Python sandbox daemon independently', () => {
+  assert.deepEqual(classifyChangedPaths(['apps/sandboxd/src/index.ts'], manifest), {
+    api: false,
+    web: false,
+    docs: false,
+    sandboxd: true,
+    fullDeploy: false,
+    installDependencies: false,
+    reasons: ['sandboxd'],
+  });
 });
 
 test('unknown paths fail safe to a full deployment', () => {

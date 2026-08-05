@@ -2,9 +2,10 @@
   "components": {
     "api": ["apps/api/"],
     "web": ["apps/web/"],
-    "docs": ["apps/docs/"]
+    "docs": ["apps/docs/"],
+    "sandboxd": ["apps/sandboxd/"]
   },
-  "allComponents": ["api", "web", "docs"],
+  "allComponents": ["api", "web", "docs", "sandboxd"],
   "sharedPrefixes": ["packages/shared/"],
   "fullDeployPrefixes": ["deploy/", "scripts/"],
   "fullDeployFiles": [

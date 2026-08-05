@@ -23,6 +23,7 @@ export interface AgentProfile {
   tools?: AgentTool[]; // whitelisted tools (empty/absent = plain chat)
   artifact?: {
     noun: string; // 'strategy' | 'factor' — used in the current-code wrapper and repair messages
+    language?: 'typescript' | 'python';
     validate(code: string): Promise<void>; // throws with a human-readable message when the code won't compile
   };
 }
@@ -143,12 +144,16 @@ export const REPLY_LANGUAGE =
 
 // Conversation-mode addendum layered over a one-shot codegen prompt — it flips the output contract
 // from "code only, no prose" to "short explanation + full code in a fence", which the chat UI needs.
-export function buildAgentMode(noun: string): string {
+export function buildAgentMode(
+  noun: string,
+  language: 'typescript' | 'python' = 'typescript',
+): string {
+  const fence = language === 'python' ? 'python' : 'ts';
   return `
 # Conversation mode (important — overrides the "output requirements" above)
 You are in a multi-turn conversation with the user, iterating on the "current ${noun} code". Each turn:
 - First say, in one or two sentences, what you changed (or why you didn't) — keep it brief.
-- If you change the code, after the explanation output the **complete** ${noun} module (not a fragment — the full file that can replace the editor's contents), wrapped in a \`\`\`ts fence.
+- If you change the code, after the explanation output the **complete** ${noun} module (not a fragment — the full file that can replace the editor's contents), wrapped in a \`\`\`${fence} fence.
 - If the user is only asking a question, or no code change is needed, just answer — do **not** output a fence.
 - Edit the "current ${noun} code" incrementally; don't rewrite from scratch and lose existing logic (unless the user explicitly asks for a rewrite).
 - Stay within your capabilities: if you can't do something, say what data/capability is missing — do **not** force out code.
@@ -164,20 +169,20 @@ export const RESEARCH_TOOLS_HINT = `
 # Research execution discipline
 When you use a research runner, freeze the complete candidate and the test intent in its arguments before seeing metrics. Do not mechanically optimize against repeated runs, do not claim that an explore or quick result is production validation, and never imply that holdout, deployment, signals, or orders happened unless an explicit tool observation says so. After a completed result, explain the evidence and limitations; only emit candidate code that still passes the normal artifact validator.`;
 
-/** The fenced ```ts block, or null when the reply has none (a pure answer). */
+/** The fenced artifact block, or null when the reply has none (a pure answer). */
 function extractFenced(text: string): string | null {
-  const fenced = text.match(/```(?:ts|typescript|js|javascript)?\s*([\s\S]*?)```/i);
+  const fenced = text.match(/```(?:ts|typescript|js|javascript|py|python)?\s*([\s\S]*?)```/i);
   return fenced ? fenced[1].trim() : null;
 }
 
 /** The human-readable part of a reply = the text with the code fence removed. */
 function stripFence(text: string): string {
-  return text.replace(/```(?:ts|typescript|js|javascript)?\s*[\s\S]*?```/i, '').trim();
+  return text.replace(/```(?:ts|typescript|js|javascript|py|python)?\s*[\s\S]*?```/i, '').trim();
 }
 
 /** Pull the code out of a repair-round reply — tolerates fences / prose, else uses it whole. */
 function extractRepairCode(text: string): string {
-  const fenced = text.match(/```(?:ts|typescript|js|javascript)?\s*([\s\S]*?)```/i);
+  const fenced = text.match(/```(?:ts|typescript|js|javascript|py|python)?\s*([\s\S]*?)```/i);
   return (fenced ? fenced[1] : text).trim();
 }
 
@@ -252,8 +257,9 @@ export async function agentTurn(
     }
   };
   const tools = profile.tools ?? [];
+  const artifactFence = artifact?.language === 'python' ? 'python' : 'ts';
   const userContent = artifact
-    ? `Current ${artifact.noun} code:\n\`\`\`ts\n${currentCode}\n\`\`\`\n\nUser: ${message}`
+    ? `Current ${artifact.noun} code:\n\`\`\`${artifactFence}\n${currentCode}\n\`\`\`\n\nUser: ${message}`
     : message;
   const messages: ToolAwareMessage[] = [
     { role: 'system', content: profile.system },
@@ -429,7 +435,7 @@ export async function agentTurn(
       messages.push({ role: 'assistant', content: code });
       messages.push({
         role: 'user',
-        content: `The code above does not compile/run: ${lastError}. Output only the complete, compilable TS ${artifact.noun} module (you may omit the explanation; no markdown fence).`,
+        content: `The code above does not compile/run: ${lastError}. Output only the complete, compilable ${artifact.language === 'python' ? 'Python' : 'TypeScript'} ${artifact.noun} module (you may omit the explanation; no markdown fence).`,
       });
     }
   }

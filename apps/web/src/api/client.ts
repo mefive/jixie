@@ -405,10 +405,11 @@ export function sendAgent(
   strategyId: string,
   message: string,
   code: string,
+  language: 'typescript' | 'python' = 'typescript',
 ): Promise<{ turnId: string }> {
   return request('/api/app/strategy/agent', {
     method: 'POST',
-    body: JSON.stringify({ id: strategyId, message, code }),
+    body: JSON.stringify({ id: strategyId, message, code, language }),
   });
 }
 

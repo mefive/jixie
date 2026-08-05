@@ -1,0 +1,9 @@
+FROM python:3.13.5-slim-bookworm
+
+RUN pip install --no-cache-dir numpy==2.3.2 pandas==2.3.1 \
+  && useradd --system --uid 65532 --home-dir /nonexistent --shell /usr/sbin/nologin sandbox
+
+COPY python/jixie_runner.py /opt/jixie/jixie_runner.py
+
+USER 65532:65532
+ENTRYPOINT ["python3", "-I", "-u", "/opt/jixie/jixie_runner.py"]

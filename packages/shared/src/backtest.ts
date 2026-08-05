@@ -18,14 +18,21 @@ export interface CostConfig {
   futureMarginRate?: number;
 }
 
-/** A full, runnable backtest spec: range + capital + cost + the user-authored TS strategy code. */
+export type StrategyLanguage = 'typescript' | 'python';
+export type StrategyRuntimeVersion = 'ts-v1' | 'py-v1';
+
+/** A full, runnable backtest spec: range + capital + cost + user-authored strategy code. */
 export interface BacktestConfig {
   name: string;
   start: TradeDate;
   end: TradeDate;
   initialCash: number;
   cost?: CostConfig;
-  code: string; // TypeScript strategy module: export default defineStrategy({ … })
+  /** Missing on legacy rows and interpreted as TypeScript. */
+  language?: StrategyLanguage;
+  /** Frozen authoring/runtime contract. Missing on legacy rows and interpreted as ts-v1. */
+  runtimeVersion?: StrategyRuntimeVersion;
+  code: string;
 }
 
 /** One executed fill (the trade-log unit shown on the chart + list). `shares`/`price` are the engine's

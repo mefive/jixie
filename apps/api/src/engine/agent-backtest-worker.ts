@@ -1,8 +1,6 @@
 import { parentPort, workerData } from 'node:worker_threads';
 import type { BacktestConfig, Locale } from '@jixie/shared';
-import { prepareCustomFactors } from './prepare-custom-factors.js';
-import { prismaDataPort } from './prisma-port.js';
-import { runWalledBacktest } from './walled-run.js';
+import { runConfiguredBacktest } from './configured-run.js';
 import { metricSummary } from '../strategy/scan.js';
 import { prisma } from '../lib/prisma.js';
 
@@ -18,8 +16,7 @@ const { config, userId, locale } = workerData as {
 };
 
 try {
-  const customFactors = await prepareCustomFactors(config.code, userId, locale);
-  const result = await runWalledBacktest({ ...config, customFactors, locale }, prismaDataPort);
+  const result = await runConfiguredBacktest(config, userId, locale);
   port.postMessage({ type: 'done', summary: metricSummary(result) });
 } catch (error) {
   port.postMessage({

@@ -13,6 +13,7 @@ WorkingDirectory=/opt/jixie/apps/api
 
 # Load all KEY=VALUE from .env.production as environment variables (DATABASE_URL, TUSHARE_TOKEN, …).
 EnvironmentFile=/opt/jixie/apps/api/.env.production
+Environment=JIXIE_SANDBOX_SOCKET=/var/lib/jixie/sandboxd.sock
 
 # Absolute path, don't depend on PATH.
 # Note: api tsconfig has rootDir "." + includes scripts/, so tsc emits dist/src/index.js (not dist/index.js).

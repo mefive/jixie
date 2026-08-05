@@ -64,10 +64,11 @@ const agentBody = z.object({
   id: z.string().min(1),
   message: z.string().trim().min(1).max(2000),
   code: z.string().min(1).max(50_000),
+  language: z.enum(['typescript', 'python']).optional(),
 });
 
 strategyRoute.post('/agent', validateJson(agentBody), async (c) => {
-  const { id, message, code } = c.req.valid('json');
+  const { id, message, code, language = 'typescript' } = c.req.valid('json');
   const userId = c.var.userId;
   const strategy = await prisma.strategy.findFirst({ where: { id, userId }, select: { id: true } });
   if (!strategy) {
@@ -84,12 +85,17 @@ strategyRoute.post('/agent', validateJson(agentBody), async (c) => {
   enqueueAgentTurn({
     turnId,
     userId,
-    profile: strategyProfile(idx, factors, {
-      userId,
-      strategyId: id,
-      currentCode: code,
-      locale,
-    }),
+    profile: strategyProfile(
+      idx,
+      factors,
+      {
+        userId,
+        strategyId: id,
+        currentCode: code,
+        locale,
+      },
+      language,
+    ),
     entity,
     message,
     currentCode: code,

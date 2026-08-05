@@ -72,6 +72,8 @@ signalsRoute.post(
         return apiError(c, 'NOT_FOUND', m(c, 'strategyNotFound'));
       case 'no_backtest':
         return apiError(c, 'VALIDATION_FAILED', m(c, 'strategyNeedsBacktestBeforeDeploy'));
+      case 'language_unsupported':
+        return apiError(c, 'VALIDATION_FAILED', m(c, 'strategyPythonSignalsUnsupported'));
       case 'futures_unsupported':
         return apiError(c, 'VALIDATION_FAILED', m(c, 'strategyFutureSignalsUnsupported'));
       case 'invalid':
