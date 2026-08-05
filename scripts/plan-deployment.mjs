@@ -63,6 +63,7 @@ export function classifyChangedPaths(changedPaths, manifest) {
     api: selectedComponents.has('api'),
     web: selectedComponents.has('web'),
     docs: selectedComponents.has('docs'),
+    sandboxd: selectedComponents.has('sandboxd'),
     fullDeploy,
     installDependencies,
     reasons: [...reasons],
@@ -80,6 +81,7 @@ function fullPlan(manifest, reason) {
     api: true,
     web: true,
     docs: true,
+    sandboxd: true,
     fullDeploy: true,
     installDependencies: true,
     changedCount: 0,
@@ -151,11 +153,13 @@ async function main() {
   const reasonText = plan.reasons.length > 0 ? plan.reasons.join(',') : 'no-runtime-changes';
   process.stderr.write(
     `Deployment impact: api=${Number(plan.api)} web=${Number(plan.web)} docs=${Number(plan.docs)} ` +
+      `sandboxd=${Number(plan.sandboxd)} ` +
       `full=${Number(plan.fullDeploy)} install=${Number(plan.installDependencies)} ` +
       `changed=${plan.changedCount} reason=${reasonText}\n`,
   );
   process.stdout.write(
-    `${Number(plan.api)} ${Number(plan.web)} ${Number(plan.docs)} ${Number(plan.fullDeploy)} ` +
+    `${Number(plan.api)} ${Number(plan.web)} ${Number(plan.docs)} ${Number(plan.sandboxd)} ` +
+      `${Number(plan.fullDeploy)} ` +
       `${Number(plan.installDependencies)}\n`,
   );
 }

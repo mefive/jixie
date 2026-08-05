@@ -17,6 +17,8 @@ export function strategyRunKey(config: unknown): string {
     start: candidate?.start,
     end: candidate?.end,
     initialCash: candidate?.initialCash,
+    language: candidate?.language ?? 'typescript',
+    runtimeVersion: candidate?.runtimeVersion ?? 'ts-v1',
     cost: cost
       ? {
           commission: cost.commission,

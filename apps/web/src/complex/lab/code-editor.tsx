@@ -4,7 +4,7 @@ import { observer } from 'mobx-react';
 import * as monaco from 'monaco-editor';
 import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
 import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker';
-import type { DtsFactorOption, Locale } from '@jixie/shared';
+import type { DtsFactorOption, Locale, StrategyLanguage } from '@jixie/shared';
 import i18n from '@src/i18n';
 import { localeStore } from '@src/i18n/locale-store';
 import { getFactorCatalog } from '@src/api/client';
@@ -202,7 +202,15 @@ function installSdk(m: Monaco) {
  * and type errors against the real API. Lazy-loaded (Monaco is heavy → its own chunk). `observer` so the
  * hover docs re-register live when the global locale switches.
  */
-function CodeEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function CodeEditor({
+  value,
+  language,
+  onChange,
+}: {
+  value: string;
+  language: StrategyLanguage;
+  onChange: (v: string) => void;
+}) {
   const locale = localeStore.locale;
 
   // Re-register the ambient SDK .d.ts whenever the UI locale changes so hover docs switch language live
@@ -216,8 +224,8 @@ function CodeEditor({ value, onChange }: { value: string; onChange: (v: string) 
   return (
     <Editor
       height="100%"
-      defaultLanguage="typescript"
-      path="file:///strategy.ts"
+      language={language}
+      path={language === 'python' ? 'file:///strategy.py' : 'file:///strategy.ts'}
       theme="vs"
       value={value}
       onChange={(v) => onChange(v ?? '')}

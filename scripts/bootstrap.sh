@@ -288,6 +288,7 @@ have rsync   || PKGS+=(rsync)
 have flock   || PKGS+=(util-linux)
 have nginx   || PKGS+=(nginx)
 have sqlite3 || PKGS+=(sqlite3)     # backup 脚本(scripts/backup-db.mjs)依赖 sqlite3 CLI
+have podman  || PKGS+=(podman)      # rootless runtime for untrusted Python strategy containers
 # isolated-vm(硬沙箱)是原生模块,pnpm install 时需要 C++ 工具链编译
 if [[ "$PKG" == apt ]]; then
   have g++ || PKGS+=(build-essential python3)
@@ -391,6 +392,28 @@ sudo mkdir -p "$JIXIE_DATA_DIR"
 sudo chown "$JIXIE_DEPLOY_USER:$JIXIE_DEPLOY_USER" "$JIXIE_DATA_DIR"
 sudo mkdir -p "$JIXIE_BACKUP_DIR"
 sudo chown "$JIXIE_DEPLOY_USER:$JIXIE_DEPLOY_USER" "$JIXIE_BACKUP_DIR"
+JIXIE_DEPLOY_UID="$(id -u "$JIXIE_DEPLOY_USER")"
+JIXIE_DEPLOY_HOME="$(getent passwd "$JIXIE_DEPLOY_USER" | cut -d: -f6)"
+[[ -n "$JIXIE_DEPLOY_HOME" ]] || die "无法读取部署用户 $JIXIE_DEPLOY_USER 的 home"
+JIXIE_USER_RUNTIME_DIR="/run/user/$JIXIE_DEPLOY_UID"
+sudo loginctl enable-linger "$JIXIE_DEPLOY_USER"
+sudo systemctl start "user@$JIXIE_DEPLOY_UID.service"
+podman_as_deploy_user() {
+  if [[ "$(id -un)" == "$JIXIE_DEPLOY_USER" ]]; then
+    XDG_RUNTIME_DIR="$JIXIE_USER_RUNTIME_DIR" \
+      DBUS_SESSION_BUS_ADDRESS="unix:path=$JIXIE_USER_RUNTIME_DIR/bus" podman "$@"
+  else
+    sudo -H -u "$JIXIE_DEPLOY_USER" env \
+      XDG_RUNTIME_DIR="$JIXIE_USER_RUNTIME_DIR" \
+      DBUS_SESSION_BUS_ADDRESS="unix:path=$JIXIE_USER_RUNTIME_DIR/bus" podman "$@"
+  fi
+}
+PODMAN_ROOTLESS="$(podman_as_deploy_user info --format '{{.Host.Security.Rootless}}' 2>/dev/null)" ||
+  die "部署用户 $JIXIE_DEPLOY_USER 无法启动 rootless Podman；请检查 /etc/subuid、/etc/subgid 和 podman info"
+[[ "$PODMAN_ROOTLESS" == "true" ]] || die "拒绝以 root 模式运行 Python 策略沙箱"
+PODMAN_CGROUP_VERSION="$(podman_as_deploy_user info --format '{{.Host.CgroupsVersion}}')"
+[[ "$PODMAN_CGROUP_VERSION" == "v2" ]] ||
+  die "Python 策略资源限制要求 cgroups v2，当前 Podman 报告 $PODMAN_CGROUP_VERSION"
 DB_FILE="$JIXIE_DATA_DIR/prod.db"
 exec 9>>"$JIXIE_DATA_DIR/maintenance.lock"
 flock -n -E 75 9 || die "maintenance 正在运行,本次 bootstrap 不与其并发"
@@ -401,7 +424,7 @@ DEPLOYED_REVISION=""
 if [[ -f "$SUCCESSFUL_REVISION_FILE" ]]; then
   IFS= read -r DEPLOYED_REVISION <"$SUCCESSFUL_REVISION_FILE" || true
 fi
-read -r DEPLOY_API DEPLOY_WEB DEPLOY_DOCS DEPLOY_FULL INSTALL_DEPENDENCIES < <(
+read -r DEPLOY_API DEPLOY_WEB DEPLOY_DOCS DEPLOY_SANDBOXD DEPLOY_FULL INSTALL_DEPENDENCIES < <(
   node --no-warnings "$JIXIE_DIR/scripts/plan-deployment.mjs" \
     --repository "$JIXIE_DIR" \
     --base "$DEPLOYED_REVISION" \
@@ -412,16 +435,20 @@ if [[ ! -d "$JIXIE_DIR/node_modules" || ! -d "$JIXIE_DIR/packages/shared/dist" ]
   DEPLOY_API=1
   DEPLOY_WEB=1
   DEPLOY_DOCS=1
+  DEPLOY_SANDBOXD=1
   DEPLOY_FULL=1
   INSTALL_DEPENDENCIES=1
 fi
 [[ -f "$JIXIE_DIR/apps/web/dist/index.html" ]] || DEPLOY_WEB=1
 [[ -f "$JIXIE_DIR/apps/docs/dist/docs/index.html" ]] || DEPLOY_DOCS=1
+[[ -f "$JIXIE_DIR/apps/sandboxd/dist/src/index.js" ]] || DEPLOY_SANDBOXD=1
 if [[ ! -f "$DB_FILE" ]] || ! systemctl is-active --quiet "$JIXIE_SERVICE" 2>/dev/null; then
   DEPLOY_API=1
 fi
+# Restart the API through its maintenance gate when the runtime it connects to changes.
+[[ "$DEPLOY_SANDBOXD" == "1" ]] && DEPLOY_API=1
 
-log "本次部署范围: api=$DEPLOY_API web=$DEPLOY_WEB docs=$DEPLOY_DOCS install=$INSTALL_DEPENDENCIES"
+log "本次部署范围: api=$DEPLOY_API web=$DEPLOY_WEB docs=$DEPLOY_DOCS sandboxd=$DEPLOY_SANDBOXD install=$INSTALL_DEPENDENCIES"
 
 # ─────────────────────────────── 4. 环境变量 ───────────────────────────────
 log "配置 .env.production"
@@ -531,6 +558,17 @@ if [[ "$DEPLOY_DOCS" == "1" ]]; then
   build_static_app docs "$JIXIE_DIR/apps/docs" "$JIXIE_DIR/apps/docs/dist/docs"
 fi
 
+if [[ "$DEPLOY_SANDBOXD" == "1" ]]; then
+  log "构建 Python sandbox daemon"
+  NODE_OPTIONS="$NODE_HEAP_OPTIONS" pnpm --filter sandboxd build
+
+  log "构建固定 Python runtime image"
+  podman_as_deploy_user build \
+    --tag jixie-python-runtime:py-v1 \
+    --file "$JIXIE_DIR/apps/sandboxd/Dockerfile.python" \
+    "$JIXIE_DIR/apps/sandboxd"
+fi
+
 IMPORT_REQUIRED_MARKER="$JIXIE_DATA_DIR/full-import.required"
 DAILY_ROWS="$(sqlite3 "$DB_FILE" 'SELECT count(*) FROM "Daily";' 2>/dev/null || echo 0)"
 if [[ "${DAILY_ROWS:-0}" -eq 0 ]]; then
@@ -600,6 +638,29 @@ elif [[ "$JIXIE_INVITES" -gt 0 ]]; then
 fi
 
 # ─────────────────────────────── 6. systemd 服务 ───────────────────────────────
+log "安装 rootless systemd user 服务 jixie-sandboxd"
+JIXIE_USER_UNIT_DIR="$JIXIE_DEPLOY_HOME/.config/systemd/user"
+sudo install -d -m 0755 -o "$JIXIE_DEPLOY_USER" -g "$JIXIE_DEPLOY_USER" "$JIXIE_USER_UNIT_DIR"
+sed -e "s#/opt/jixie#$JIXIE_DIR#g" \
+    -e "s#/var/lib/jixie#$JIXIE_DATA_DIR#g" \
+    "$JIXIE_DIR/deploy/jixie-sandboxd.service" | \
+  sudo tee "$JIXIE_USER_UNIT_DIR/jixie-sandboxd.service" >/dev/null
+sudo chown "$JIXIE_DEPLOY_USER:$JIXIE_DEPLOY_USER" \
+  "$JIXIE_USER_UNIT_DIR/jixie-sandboxd.service"
+sandbox_systemctl() {
+  sudo -u "$JIXIE_DEPLOY_USER" env \
+    XDG_RUNTIME_DIR="$JIXIE_USER_RUNTIME_DIR" \
+    DBUS_SESSION_BUS_ADDRESS="unix:path=$JIXIE_USER_RUNTIME_DIR/bus" \
+    systemctl --user "$@"
+}
+sandbox_systemctl daemon-reload
+sandbox_systemctl enable jixie-sandboxd.service
+if [[ "$DEPLOY_SANDBOXD" == "1" ]] || ! sandbox_systemctl is-active --quiet jixie-sandboxd.service; then
+  sandbox_systemctl restart jixie-sandboxd.service
+  sandbox_systemctl is-active --quiet jixie-sandboxd.service ||
+    die "jixie-sandboxd 启动失败,请以 $JIXIE_DEPLOY_USER 运行 journalctl --user -u jixie-sandboxd -e"
+fi
+
 log "安装 systemd 服务 $JIXIE_SERVICE"
 UNIT_DST="/etc/systemd/system/$JIXIE_SERVICE.service"
 sed -e "s#/opt/jixie#$JIXIE_DIR#g" \

@@ -12,13 +12,19 @@ This example tests buying 100 shares of Kweichow Moutai on the first trading day
 
 1. Select Backtest Lab.
 2. Select New or open a new backtest.
-3. Enter `每月第一个交易日买入100股贵州茅台` in **1**.
-4. Press Enter or use the send button marked **2**.
-5. Example descriptions appear in **3**.
+3. Choose TypeScript or Python under Strategy language. Keep TypeScript for this walkthrough, or choose
+   Python to have the Agent and editor use py-v1.
+4. Enter `每月第一个交易日买入100股贵州茅台` in **1**.
+5. Press Enter or use the send button marked **2**.
+6. Example descriptions appear in **3**.
 
 ![Strategy description, send button, and examples in Backtest Lab](/docs/images/help/zh/getting-started/first-backtest-01-prompt.png)
 
 Wait for the explanation on the left and strategy code in the center. Verify that the stock, quantity, and frequency match your description before running it.
+
+py-v1 currently supports stock and ETF backtests. Futures, custom TypeScript factors, parameter scans,
+and daily-signal deployments are not yet available. T+1, price limits, suspensions, board lots,
+adjustments, and costs are still enforced by the same backtest engine.
 
 ## Set the backtest parameters
 

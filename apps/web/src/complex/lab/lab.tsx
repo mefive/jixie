@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
-import type { ChatMessage } from '@jixie/shared';
+import type { ChatMessage, StrategyLanguage } from '@jixie/shared';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import classNames from 'classnames';
@@ -11,6 +11,7 @@ import {
   InputNumber,
   Modal,
   Popover,
+  Segmented,
   Splitter,
   Tabs,
   Tooltip,
@@ -144,17 +145,17 @@ export const Lab = complex.component(() => {
   const onOpenStrategy = (id: string) => tryLeave(() => navigate(`/lab?id=${id}`));
   // From the modal: start a new strategy with a first Agent message, or a blank one to hand-write. Both
   // reset to a fresh strategy and clear the URL (?new=1 keeps the URL sync from auto-opening a recent).
-  const startNew = (text: string) => {
+  const startNew = (text: string, language: StrategyLanguage) => {
     setHeroDismissed(true);
     setNewModalOpen(false);
-    store.newStrategy();
+    store.newStrategy(language);
     void store.sendAgent(text);
     navigate('/lab?new=1', { replace: true });
   };
-  const startBlank = () => {
+  const startBlank = (language: StrategyLanguage) => {
     setHeroDismissed(true);
     setNewModalOpen(false);
-    store.newStrategy();
+    store.newStrategy(language);
     navigate('/lab?new=1', { replace: true });
   };
 
@@ -172,8 +173,15 @@ export const Lab = complex.component(() => {
     <div className="jx-lab">
       {showHero ? (
         <StrategyHero
-          onSubmit={(text) => void store.sendAgent(text)}
-          onSkip={() => setHeroDismissed(true)}
+          onSubmit={(text, language) => {
+            store.newStrategy(language);
+            setHeroDismissed(true);
+            void store.sendAgent(text);
+          }}
+          onSkip={(language) => {
+            store.newStrategy(language);
+            setHeroDismissed(true);
+          }}
         />
       ) : (
         // IDE layout: Agent | (editor over log dock) | right column of Results / Trade-detail tabs — all drag-resizable.
@@ -231,7 +239,13 @@ export const Lab = complex.component(() => {
 // strategy → the Agent writes it → the workbench takes over. Below the prompt, Recent visits tiles the
 // last-opened strategies for one-click reopen.
 const StrategyHero = complex.component(
-  ({ onSubmit, onSkip }: { onSubmit: (text: string) => void; onSkip: () => void }) => {
+  ({
+    onSubmit,
+    onSkip,
+  }: {
+    onSubmit: (text: string, language: StrategyLanguage) => void;
+    onSkip: (language: StrategyLanguage) => void;
+  }) => {
     const store = complex.useStore();
     const { t } = useTranslation('lab');
     const navigate = useNavigate();
@@ -284,20 +298,33 @@ const NewStrategyPrompt = complex.component(
     onSkip,
     autoFocus,
   }: {
-    onSubmit: (text: string) => void;
-    onSkip: () => void;
+    onSubmit: (text: string, language: StrategyLanguage) => void;
+    onSkip: (language: StrategyLanguage) => void;
     autoFocus?: boolean;
   }) => {
     const { t } = useTranslation('lab');
     const [text, setText] = useState('');
+    const [language, setLanguage] = useState<StrategyLanguage>('typescript');
     const submit = () => {
       const trimmed = text.trim();
       if (trimmed) {
-        onSubmit(trimmed);
+        onSubmit(trimmed, language);
       }
     };
     return (
       <>
+        <div className="jx-lab-newLanguage">
+          <span>{t('strategyLanguage')}</span>
+          <Segmented
+            size="small"
+            value={language}
+            options={[
+              { label: 'TypeScript', value: 'typescript' },
+              { label: 'Python', value: 'python' },
+            ]}
+            onChange={(value) => setLanguage(value as StrategyLanguage)}
+          />
+        </div>
         <div className="jx-lab-heroBox">
           <PromptBox
             className="jx-lab-heroInput"
@@ -321,14 +348,18 @@ const NewStrategyPrompt = complex.component(
         <div className="jx-lab-examples">
           <span className="jx-lab-examplesLabel">{t('examplesLabel')}</span>
           {EXAMPLE_PROMPTS.map((ex) => (
-            <Button key={ex.labelKey} size="small" onClick={() => onSubmit(t(ex.promptKey))}>
+            <Button
+              key={ex.labelKey}
+              size="small"
+              onClick={() => onSubmit(t(ex.promptKey), language)}
+            >
               {t(ex.labelKey)}
             </Button>
           ))}
         </div>
 
         <div className="jx-lab-heroLinks">
-          <button type="button" className="jx-lab-heroSkip" onClick={onSkip}>
+          <button type="button" className="jx-lab-heroSkip" onClick={() => onSkip(language)}>
             {t('writeCodeDirectly')}
           </button>
         </div>
@@ -346,8 +377,8 @@ function NewStrategyModal({
   onCancel,
 }: {
   open: boolean;
-  onSubmit: (text: string) => void;
-  onBlank: () => void;
+  onSubmit: (text: string, language: StrategyLanguage) => void;
+  onBlank: (language: StrategyLanguage) => void;
   onCancel: () => void;
 }) {
   const { t } = useTranslation('lab');
@@ -465,48 +496,49 @@ const RunConfig = complex.component(() => {
           action={() => store.run()}
         />
       </Tooltip>
-      <ParameterScanButton />
-      {store.deployment ? (
-        <Tooltip
-          title={
-            store.deploymentCurrent
-              ? t('deploymentPause')
-              : `${t('deploymentRedeployNeeded')} · ${t('deploymentOutdated')}`
-          }
-        >
-          <Button
-            type="text"
-            size="small"
-            danger
-            loading={store.deploymentActionLoader.loading}
-            icon={<FontAwesomeIcon icon={faPause} />}
-            onClick={() => void store.pauseDeployment()}
-            aria-label={
-              store.deploymentCurrent ? t('deploymentPause') : t('deploymentRedeployNeeded')
+      {store.language === 'typescript' && <ParameterScanButton />}
+      {store.language === 'typescript' &&
+        (store.deployment ? (
+          <Tooltip
+            title={
+              store.deploymentCurrent
+                ? t('deploymentPause')
+                : `${t('deploymentRedeployNeeded')} · ${t('deploymentOutdated')}`
             }
-          />
-        </Tooltip>
-      ) : (
-        <Tooltip
-          title={
-            store.dirty
-              ? `${t('deploymentAction')} · ${t('deploymentRunFirst')}`
-              : !store.result
-                ? `${t('deploymentAction')} · ${t('deploymentNeedsResult')}`
-                : t('deploymentAction')
-          }
-        >
-          <Button
-            type="text"
-            size="small"
-            loading={store.deploymentActionLoader.loading}
-            disabled={!store.savedId || !store.result || store.dirty || store.running}
-            icon={<FontAwesomeIcon icon={faRocket} />}
-            onClick={() => void store.deploy()}
-            aria-label={t('deploymentAction')}
-          />
-        </Tooltip>
-      )}
+          >
+            <Button
+              type="text"
+              size="small"
+              danger
+              loading={store.deploymentActionLoader.loading}
+              icon={<FontAwesomeIcon icon={faPause} />}
+              onClick={() => void store.pauseDeployment()}
+              aria-label={
+                store.deploymentCurrent ? t('deploymentPause') : t('deploymentRedeployNeeded')
+              }
+            />
+          </Tooltip>
+        ) : (
+          <Tooltip
+            title={
+              store.dirty
+                ? `${t('deploymentAction')} · ${t('deploymentRunFirst')}`
+                : !store.result
+                  ? `${t('deploymentAction')} · ${t('deploymentNeedsResult')}`
+                  : t('deploymentAction')
+            }
+          >
+            <Button
+              type="text"
+              size="small"
+              loading={store.deploymentActionLoader.loading}
+              disabled={!store.savedId || !store.result || store.dirty || store.running}
+              icon={<FontAwesomeIcon icon={faRocket} />}
+              onClick={() => void store.deploy()}
+              aria-label={t('deploymentAction')}
+            />
+          </Tooltip>
+        ))}
       {store.deploymentError && (
         <span className="jx-lab-deploymentError" title={store.deploymentError}>
           <FontAwesomeIcon icon={faTriangleExclamation} />
@@ -735,10 +767,38 @@ const StrategyCode = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('lab');
   return (
-    <div className="jx-lab-code">
-      <Suspense fallback={<div className="jx-lab-placeholder">{t('loadingEditor')}</div>}>
-        <CodeEditor value={store.code} onChange={(v) => store.setField('code', v)} />
-      </Suspense>
+    <div className="jx-lab-codeShell">
+      <div className="jx-lab-codeToolbar">
+        <Segmented
+          size="small"
+          value={store.language}
+          options={[
+            { label: 'TypeScript', value: 'typescript' },
+            { label: 'Python', value: 'python' },
+          ]}
+          onChange={(language) => {
+            Modal.confirm({
+              title: t('languageSwitchTitle'),
+              content: t('languageSwitchBody'),
+              okText: t('languageSwitchConfirm'),
+              cancelText: t('cancel'),
+              onOk: () => store.changeLanguage(language as StrategyLanguage),
+            });
+          }}
+        />
+        {store.language === 'python' && (
+          <span className="jx-lab-runtimeBadge">py-v1 · {t('pythonRuntimeHint')}</span>
+        )}
+      </div>
+      <div className="jx-lab-code">
+        <Suspense fallback={<div className="jx-lab-placeholder">{t('loadingEditor')}</div>}>
+          <CodeEditor
+            value={store.code}
+            language={store.language}
+            onChange={(value) => store.setField('code', value)}
+          />
+        </Suspense>
+      </div>
     </div>
   );
 }, 'StrategyCode');

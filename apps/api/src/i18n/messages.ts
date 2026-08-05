@@ -141,6 +141,10 @@ const MESSAGES = {
     zh: '策略代码无法读取参数，请检查 params 声明',
     en: 'Could not inspect strategy parameters; check the params declaration',
   },
+  strategyPythonScanUnsupported: {
+    zh: 'py-v1 暂不支持参数扫描，请先运行普通回测',
+    en: 'py-v1 does not support parameter scans yet; run a regular backtest instead',
+  },
   strategyScanInvalid: {
     zh: '参数扫描配置不合法',
     en: 'Invalid parameter-scan configuration',
@@ -186,6 +190,10 @@ const MESSAGES = {
   strategyFutureSignalsUnsupported: {
     zh: '每日信号当前只支持股票和 ETF 策略，期货策略暂不能上线',
     en: 'Daily signals currently support stock and ETF strategies only; futures deployments are not available yet',
+  },
+  strategyPythonSignalsUnsupported: {
+    zh: 'py-v1 暂不支持每日信号部署',
+    en: 'py-v1 does not support daily-signal deployments yet',
   },
   strategyDeploymentNotFound: {
     zh: '策略部署不存在',

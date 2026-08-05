@@ -9,6 +9,7 @@ export const zhLab = {
     '如「每月买入股息率最高的 20 只，等权」「沪深300 里 ROE 大于 15% 的 30 只，每月调仓」',
   examplesLabel: '试试：',
   writeCodeDirectly: '或直接写代码 →',
+  strategyLanguage: '策略语言',
   newButton: '新建',
 
   // Example starter prompts (chip label + the sentence sent to the agent)
@@ -64,6 +65,10 @@ export const zhLab = {
   sdkDocMenuLabel: '📖 查看 SDK 文档',
   factorLinkTooltip: '查看因子实现:{{name}}',
   factorImplementationLink: '查看因子实现',
+  languageSwitchTitle: '切换策略语言',
+  languageSwitchBody: '切换语言会用对应语言的空白模板替换当前代码。',
+  languageSwitchConfirm: '切换并替换',
+  pythonRuntimeHint: '股票 / ETF 回测预览',
 
   // Result overview
   runningCalc: '回测计算中…… 实时日志见下方「日志」',

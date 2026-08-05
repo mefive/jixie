@@ -12,6 +12,7 @@ export const enLab: typeof zhLab = {
     'e.g. "Buy the 20 highest-dividend-yield stocks each month, equal weight" or "The 30 CSI 300 names with ROE above 15%, rebalanced monthly"',
   examplesLabel: 'Try:',
   writeCodeDirectly: 'Or write code directly →',
+  strategyLanguage: 'Strategy language',
   newButton: 'New',
 
   // Example starter prompts (chip label + the sentence sent to the agent)
@@ -71,6 +72,10 @@ export const enLab: typeof zhLab = {
   sdkDocMenuLabel: '📖 View SDK docs',
   factorLinkTooltip: 'View factor implementation: {{name}}',
   factorImplementationLink: 'View factor implementation',
+  languageSwitchTitle: 'Switch strategy language',
+  languageSwitchBody: 'Switching replaces the current code with the selected language template.',
+  languageSwitchConfirm: 'Switch and replace',
+  pythonRuntimeHint: 'Stock / ETF preview',
 
   // Result overview
   runningCalc: 'Running backtest… live logs in the "Logs" panel below',

@@ -8,7 +8,7 @@ jixie 在 Linux VPS（Ubuntu / CentOS）上的部署。唯一入口是幂等的 
 > JIXIE_DOMAIN=jixie.你的域名 TUSHARE_TOKEN=xxx RESEND_API_KEY=re_xxx \
 > EMAIL_FROM=login@你的域名 DEEPSEEK_API_KEY=sk_xxx ./scripts/bootstrap.sh
 > ```
-> 脚本自动装齐依赖（Node.js、pnpm、nginx、certbot、sqlite3 和原生编译工具链）、clone/pull、迁移、
+> 脚本自动装齐依赖（Node.js、pnpm、nginx、certbot、sqlite3、Podman 和原生编译工具链）、clone/pull、迁移、
 > 构建、空库行情导入、systemd、nginx、TLS、维护激活和冒烟测试。首次全量行情导入可能持续数小时；
 > 中断后重新执行同一条 bootstrap 命令会根据数据库标记和导入阶段标记继续。
 >
@@ -22,7 +22,8 @@ jixie 在 Linux VPS（Ubuntu / CentOS）上的部署。唯一入口是幂等的 
 - **磁盘**:行情库满配 **~6GB**;加备份轮转(每份=全库大小)很快吃满小盘。**建议 ≥40GB**；生产默认保留
   2 份，并应推离本机(见 §5)。
 - **CPU**:回测是纯 CPU 计算,跑在 worker 线程里(不阻塞 HTTP);多核更好,单核也能跑,只是回测慢。
-- **系统**:Ubuntu 22.04/24.04 或 CentOS/RHEL 8+;需普通 sudo 用户(服务以非 root 跑)。
+- **系统**:Ubuntu 22.04/24.04 或 CentOS/RHEL 8+;需普通 sudo 用户(服务以非 root 跑)。Python
+  策略的 rootless Podman 资源限制要求宿主启用 cgroups v2，bootstrap 会检查并拒绝降级为无限制运行。
 
 ## 2. 隔离约定(与同机其它服务)
 
@@ -31,7 +32,8 @@ jixie 在 Linux VPS（Ubuntu / CentOS）上的部署。唯一入口是幂等的 
 | 代码 | `/opt/jixie` |
 | 数据(prod.db) | `/var/lib/jixie/prod.db`(**在代码目录外,redeploy 不动**) |
 | 端口 | `3001`(nginx 反代 `/api/` 到此) |
-| service | `jixie-api` |
+| service | `jixie-api`、`jixie-sandboxd`（Python 策略隔离运行时） |
+| sandbox socket | `/var/lib/jixie/sandboxd.sock`（仅同组 API 可访问） |
 | web | `apps/web/dist`，挂载 `/`，只包含登录和工作台 |
 | docs | `apps/docs/dist/docs`，独立构建，挂载 `/docs/help/*` 和 `/docs/sdk` |
 
@@ -40,6 +42,15 @@ jixie 在 Linux VPS（Ubuntu / CentOS）上的部署。唯一入口是幂等的 
 `bootstrap.sh` 自动检查并收敛系统依赖、代码版本、生产 env、Prisma Client 与 schema、前后端构建、
 邀请码、systemd units、Nginx、TLS、行情初始化、发布水位和 timers。已有资源会复用或更新，缺失资源
 会补建；不要再手工组合 API npm scripts 模拟一次部署。
+
+Python 策略运行时由 bootstrap 以 `JIXIE_DEPLOY_USER` 构建为 rootless Podman 镜像
+`jixie-python-runtime:py-v1`，再先启动 `jixie-sandboxd`、后启动 API。容器不挂载代码库或数据库，
+不能访问网络，API 只通过 Unix socket 发送带长度头的协议帧。Python runtime 或 sandboxd 变更会把
+API 一并纳入维护窗口，避免 API 连接到新旧不一致的协议版本。
+
+`jixie-sandboxd` 是部署用户的 systemd **user service**，不是带 `User=` 的 system service。
+bootstrap 会执行 `loginctl enable-linger`，使用户管理器和 sandboxd 在开机后、无人登录时仍运行；
+这也是 rootless Podman 获取 cgroups v2 delegation、落实每容器资源限制的必要条件。
 
 每次成功结束后，bootstrap 会把当前 Git revision 写入 `/var/lib/jixie/deployed-revision`。下次更新按
 该 revision 到当前 revision 的完整差异自动选择 API、Web 和 Docs，多个范围取并集；共享包、依赖锁、
@@ -75,6 +86,13 @@ sudo nginx -t && sudo systemctl reload nginx
 > 处理。
 >
 > **排障提示 3**:`NODE_ENV=production` 使用 secure cookie，站点必须经 HTTPS 访问。
+>
+> **排障提示 4**:Python 策略依赖 rootless Podman。部署用户必须能直接执行 `podman info` 和
+> `podman run`；若发行版没有为该用户配置 `/etc/subuid`、`/etc/subgid`，先按 Podman 文档分配互不
+> 冲突的 subordinate ID range，并确认 `podman info --format '{{.Host.CgroupsVersion}}'` 输出 `v2`，
+> 再重跑 bootstrap。不要把 sandboxd 改为 root 服务绕过此检查。
+> `jixie-sandboxd.service` 必须作为 user service 并保留 `Delegate=yes`；没有有效 user session
+> 和 cgroup delegation 时，rootless Podman 虽能启动普通容器，但会拒绝 CPU、内存和 PID 限额。
 
 ## 4. 行情数据初始化
 
@@ -153,7 +171,14 @@ cd /opt/jixie
 ## 7. 排障
 
 - 服务日志:`journalctl -u jixie-api -f`
-- 服务状态:`systemctl status jixie-api` / `sudo systemctl restart jixie-api`
+- API 状态:`systemctl status jixie-api`
+- 沙箱状态（以部署用户执行）:`systemctl --user status jixie-sandboxd`
+- 沙箱日志（以部署用户执行）:`journalctl --user -u jixie-sandboxd -f`
+- rootless runtime:`podman info --format '{{.Host.Security.Rootless}}'` 应输出 `true`；镜像检查：
+  `podman image exists jixie-python-runtime:py-v1`
+- socket:`ss -xl | grep /var/lib/jixie/sandboxd.sock`
+- 重启 sandbox（以部署用户执行）:`systemctl --user restart jixie-sandboxd`；随后
+  `sudo systemctl restart jixie-api`
 - 端口:`ss -tlnp | grep 3001`
 - 健康:`curl -s localhost:3001/api/health` → `{"ok":true}`
 - nginx:`sudo nginx -t`、`/var/log/nginx/error.log`

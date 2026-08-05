@@ -21,5 +21,7 @@ export const codeConfigSchema = z.object({
       futureMarginRate: z.number().positive().max(1).optional(),
     })
     .optional(),
+  language: z.enum(['typescript', 'python']).optional(),
+  runtimeVersion: z.enum(['ts-v1', 'py-v1']).optional(),
   code: z.string().min(1).max(50_000),
 });

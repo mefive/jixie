@@ -13,6 +13,7 @@ import {
   type StrategyScanReportSummary,
   type StrategyScanSpec,
   type StrategyParamValue,
+  type StrategyLanguage,
 } from '@jixie/shared';
 import { BaseStore, LoaderModel, PollingModel } from '@src/lib';
 import i18n from '@src/i18n';
@@ -38,7 +39,7 @@ import {
   submitBacktest,
   submitStrategyScan,
 } from '@src/api/client';
-import { DEFAULT_CODE } from './default-strategy';
+import { DEFAULT_CODE, DEFAULT_PYTHON_CODE } from './default-strategy';
 import { BENCHMARKS, type BenchmarkSeries } from './benchmarks';
 import { pushRecent, readRecents, removeRecent } from './recents';
 
@@ -65,6 +66,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
   public initialCash = 1_000_000;
   public cost: CostConfig = { slippageBps: 2, impactCoef: 0.1 };
   public code = DEFAULT_CODE;
+  public language: StrategyLanguage = 'typescript';
 
   public nlText = ''; // the Agent chat draft / hero prompt
 
@@ -110,6 +112,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
       initialCash: observable.ref,
       cost: observable.ref,
       code: observable.ref,
+      language: observable.ref,
       nlText: observable.ref,
       chatMessages: observable.ref,
       sending: observable.ref,
@@ -230,6 +233,8 @@ export class LabStore extends BaseStore<LabSetupParams> {
         initialCash: config.initialCash,
         cost: config.cost,
         code: config.code,
+        language: config.language ?? 'typescript',
+        runtimeVersion: config.runtimeVersion ?? 'ts-v1',
       }) === this.configKey()
     );
   }
@@ -242,6 +247,8 @@ export class LabStore extends BaseStore<LabSetupParams> {
       end: this.end,
       initialCash: this.initialCash,
       cost: this.cost,
+      language: this.language,
+      runtimeVersion: this.language === 'python' ? 'py-v1' : 'ts-v1',
       code: this.code,
     };
   }
@@ -327,7 +334,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
       return;
     }
     try {
-      const { turnId } = await sendAgent(this.savedId, text, this.code);
+      const { turnId } = await sendAgent(this.savedId, text, this.code, this.language);
       await this.turnStream.attach(turnId, this.turnHandlers()); // resolves after the terminal event
     } catch (e) {
       runInAction(() => {
@@ -420,10 +427,11 @@ export class LabStore extends BaseStore<LabSetupParams> {
   }
 
   /** Start fresh: a blank skeleton strategy. Empty baseline → dirty → Run-backtest enabled. */
-  public newStrategy() {
+  public newStrategy(language: StrategyLanguage = 'typescript') {
     runInAction(() => {
       this.name = '';
-      this.code = DEFAULT_CODE;
+      this.language = language;
+      this.code = language === 'python' ? DEFAULT_PYTHON_CODE : DEFAULT_CODE;
       this.cost = { slippageBps: 2, impactCoef: 0.1 };
       this.nlText = '';
       this.chatMessages = [];
@@ -545,6 +553,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
       this.end = config.end;
       this.initialCash = config.initialCash;
       this.cost = { slippageBps: 2, impactCoef: 0.1, ...config.cost };
+      this.language = config.language ?? 'typescript';
       this.code = config.code;
     });
   }
@@ -556,8 +565,24 @@ export class LabStore extends BaseStore<LabSetupParams> {
       end: this.end,
       initialCash: this.initialCash,
       cost: this.cost,
+      language: this.language,
+      runtimeVersion: this.language === 'python' ? 'py-v1' : 'ts-v1',
       code: this.code,
     });
+  }
+
+  public changeLanguage(language: StrategyLanguage) {
+    if (language === this.language) {
+      return;
+    }
+    runInAction(() => {
+      this.language = language;
+      this.code = language === 'python' ? DEFAULT_PYTHON_CODE : DEFAULT_CODE;
+      this.scanReport = null;
+      this.scanError = null;
+    });
+    this.scanParametersLoader.reset();
+    this.scanReportLoader.reset();
   }
 
   /** A run committed the current config: it's both the new run baseline (dirty) and persisted (edited). */
