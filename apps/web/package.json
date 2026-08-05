@@ -17,6 +17,7 @@
     "test:e2e:sdk-hover": "node e2e/sdk-hover.mjs",
     "test:e2e:factor-strategy-history": "node e2e/factor-strategy-history.mjs",
     "test:e2e:strategy": "node e2e/strategy-orchestration.mjs",
+    "test:e2e:strategy-python": "node e2e/python-strategy.mjs",
     "test:e2e:strategy-scan": "node e2e/strategy-parameter-scan.mjs",
     "test:e2e:signals": "node e2e/daily-signals.mjs",
     "test:e2e:etf": "node e2e/etf-trading.mjs",

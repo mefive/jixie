@@ -286,7 +286,11 @@ class Context:
         return self._bars.get(code, [])[-max(0, int(count)) :]
 
     def history(self, code: str, field: str, count: int) -> list[float]:
-        field_name = f"adj_{field}"
+        field_name = field if field.startswith("adj_") else f"adj_{field}"
+        if field_name not in {"adj_open", "adj_high", "adj_low", "adj_close"}:
+            raise ValueError(
+                "history field must be open, high, low, close, or its adj_ equivalent"
+            )
         return [row[field_name] for row in self.bars(code, count)]
 
     def price(self, code: str) -> float | None:

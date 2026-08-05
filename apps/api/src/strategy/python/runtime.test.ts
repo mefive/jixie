@@ -42,6 +42,7 @@ strategy = Strategy(name="python-drift", watch=["AAA", "BBB"])
 def handle_bar(ctx):
     if ctx.date == "20240101":
         assert ctx.sma("AAA", 1) is not None
+        assert ctx.history("AAA", "adj_close", 1) == ctx.history("AAA", "close", 1)
         ctx.set_holdings({"AAA": 0.4, "BBB": 0.4})
     if ctx.date == "20240103":
         ctx.exit("BBB")
