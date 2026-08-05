@@ -93,6 +93,11 @@ sudo nginx -t && sudo systemctl reload nginx
 > 再重跑 bootstrap。不要把 sandboxd 改为 root 服务绕过此检查。
 > `jixie-sandboxd.service` 必须作为 user service 并保留 `Delegate=yes`；没有有效 user session
 > 和 cgroup delegation 时，rootless Podman 虽能启动普通容器，但会拒绝 CPU、内存和 PID 限额。
+> 不要给 sandboxd unit 增加 `PrivateTmp`、`ProtectSystem` 或其它 systemd mount namespace 隔离；
+> sandboxd 是可信宿主进程，它需要创建和重入 rootless Podman 的 user/mount namespaces。Python
+> 用户代码仍由 Podman 的只读 rootfs、无网络、capability、seccomp 和资源限制负责隔离。若旧 unit
+> 曾启用这些选项并出现 `invalid internal status` / `cannot clone`，移除选项后停止 sandboxd，执行
+> `podman system migrate`，再启动 sandboxd。
 
 ## 4. 行情数据初始化
 

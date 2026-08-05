@@ -23,10 +23,9 @@ StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=jixie-sandboxd
 
-# The daemon owns no application data. It only needs its Unix socket and rootless Podman storage.
-PrivateTmp=true
-ProtectSystem=strict
-ReadWritePaths=/var/lib/jixie
+# Do not add systemd mount-namespace hardening here. The trusted daemon launches rootless Podman,
+# which must create and rejoin its own user/mount namespaces. The untrusted Python process is
+# isolated by the Podman flags in apps/sandboxd/src/index.ts instead.
 
 [Install]
 WantedBy=default.target
