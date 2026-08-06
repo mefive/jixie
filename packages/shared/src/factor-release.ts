@@ -1,7 +1,7 @@
 import type { FactorAnalysisKind, FactorResearchIntentV1 } from './factor.js';
 
 export type FactorReleaseSourceKind = 'single' | 'composite';
-export type FactorInputDomain = 'price' | 'fundamental' | 'rates' | 'commodity' | 'macro';
+export type FactorInputDomain = 'price' | 'fundamental' | 'flow' | 'rates' | 'commodity' | 'macro';
 export type FactorTargetAssetClass = 'equity' | 'fixed_income' | 'commodity' | 'cash' | 'fx';
 export type FactorOutputScope = 'asset' | 'global';
 export type FactorReleaseMaturity = 'experimental' | 'validated' | 'production';
@@ -41,9 +41,11 @@ export interface PublishFactorReleaseRequest {
   sourceId: string;
   releaseKey?: string;
   approvedReportId: string;
-  inputDomains: FactorInputDomain[];
-  targetAssetClasses: FactorTargetAssetClass[];
-  outputScope: FactorOutputScope;
+  /** Compatibility-only assertions. The API derives and persists canonical metadata from the
+   * approved immutable report; supplied values must match that derivation exactly. */
+  inputDomains?: FactorInputDomain[];
+  targetAssetClasses?: FactorTargetAssetClass[];
+  outputScope?: FactorOutputScope;
   maturity: FactorReleaseMaturity;
 }
 

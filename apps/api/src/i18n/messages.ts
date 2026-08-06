@@ -121,6 +121,14 @@ const MESSAGES = {
     zh: 'production 发布尚未开放，需先完成运行稳定性与数据新鲜度门槛',
     en: 'Production releases are not available until operational and data-freshness gates are implemented',
   },
+  factorReleaseInputDependenciesUnknown: {
+    zh: '无法从冻结因子定义中可靠识别数据依赖，暂不能发布',
+    en: 'Data dependencies cannot be derived reliably from the frozen factor definition',
+  },
+  factorReleaseMetadataMismatch: {
+    zh: '提交的发布元数据与批准报告推导出的元数据不一致',
+    en: 'Submitted release metadata does not match the approved report derivation',
+  },
   windowNotComputed: {
     zh: '该窗口尚未计算,请先运行',
     en: 'This window has not been computed yet; run it first',

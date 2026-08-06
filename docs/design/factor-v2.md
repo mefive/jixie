@@ -165,7 +165,7 @@ compositeId         组合来源时指向 FactorComposite，可空
 releaseKey          用户可读稳定键
 version             同 releaseKey 单调递增
 sourceKind          single | composite
-inputDomains        price/fundamental/rates/commodity/macro 等输入域数组
+inputDomains        price/fundamental/flow/rates/commodity/macro 等输入域数组
 targetAssetClasses  equity/fixed_income/commodity/cash/fx 等目标资产数组
 outputScope         asset | global
 codeSnapshot        单因子代码或组合完整定义
@@ -185,6 +185,9 @@ createdAt
   稳定 key，后续版本复用，不再形成另一套身份命名空间；
 - 发布后禁止修改；修正定义必须发布新版本；
 - `approvedReportId` 必须属于相同代码 hash；不同 maturity 按第 10 节验证对应的研究和运行门槛；
+- `inputDomains`、`targetAssetClasses`、`outputScope` 由批准报告的冻结定义和研究协议推导，客户端传值
+  只作一致性断言，不能改写发布契约；旧 equity SDK 暂按冻结代码的字段访问保守推导，无法识别时拒绝
+  发布，Definition V2 上线后改由其声明式字段目录提供；
 - `experimental` 只供研究引用，`validated` 表示已通过正式 holdout，只有 `production + active` 可以
   进入每日部署；
 - retire 只阻止新策略引用，不影响历史回测、部署或报告；
@@ -470,6 +473,9 @@ const bondSignal = ctx.signal('bond-trend@1', '511260.SH');
 - worker 已改由 evaluator registry 调度，现有 `analyzeFactor` 包装为 `CrossSectionalEvaluator`；adapter
   只透传冻结 protocol、source、日志和 locale，不进行数值变换，其他 analysis kind 在注册实现前
   fail-closed。
+- 发布元数据不再信任前端填写：当前 equity adapter 从批准报告冻结代码推导 price、fundamental、flow
+  输入域，并从 cross-sectional 研究协议推导 equity 目标和 asset 输出；旧客户端可继续提交这些字段，
+  但仅作为一致性断言，未知依赖或不一致声明都会 fail-closed。
 
 尚未完成：发布区前端和策略消费。
 因此这一批只建立不可变身份与契约，不改变既有因子计算结果，也不能对外宣称 Factor V2 已可用。

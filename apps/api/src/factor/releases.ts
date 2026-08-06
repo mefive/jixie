@@ -1,9 +1,12 @@
 import type { FactorReport as FactorReportPayload, FactorResearchIntentV1 } from '@jixie/shared';
 import type {
   FactorAnalysisKind,
+  FactorInputDomain,
   FactorRelease as FactorReleaseResource,
   FactorReleaseMaturity,
   FactorReleaseMethodologyV1,
+  FactorOutputScope,
+  FactorTargetAssetClass,
   PublishFactorReleaseRequest,
 } from '@jixie/shared';
 import type {
@@ -24,14 +27,16 @@ export const publishFactorReleaseBodySchema = z.object({
   releaseKey: z.string().trim().regex(FACTOR_KEY_PATTERN).optional(),
   approvedReportId: z.string().trim().min(1).max(80),
   inputDomains: z
-    .array(z.enum(['price', 'fundamental', 'rates', 'commodity', 'macro']))
+    .array(z.enum(['price', 'fundamental', 'flow', 'rates', 'commodity', 'macro']))
     .min(1)
-    .max(5),
+    .max(6)
+    .optional(),
   targetAssetClasses: z
     .array(z.enum(['equity', 'fixed_income', 'commodity', 'cash', 'fx']))
     .min(1)
-    .max(5),
-  outputScope: z.enum(['asset', 'global']),
+    .max(5)
+    .optional(),
+  outputScope: z.enum(['asset', 'global']).optional(),
   maturity: z.enum(['experimental', 'validated', 'production']),
 });
 
@@ -41,7 +46,9 @@ export type FactorReleaseErrorReason =
   | 'key_unavailable'
   | 'report_invalid'
   | 'validation_required'
-  | 'production_not_ready';
+  | 'production_not_ready'
+  | 'input_dependencies_unknown'
+  | 'metadata_mismatch';
 
 export class FactorReleaseError extends Error {
   constructor(readonly reason: FactorReleaseErrorReason) {
@@ -56,6 +63,12 @@ interface ReleaseValidationReport {
   revealedAt: Date | null;
   payload: string | null;
   researchIntentJson: string | null;
+}
+
+export interface DerivedFactorReleaseMetadata {
+  inputDomains: FactorInputDomain[];
+  targetAssetClasses: FactorTargetAssetClass[];
+  outputScope: FactorOutputScope;
 }
 
 export function assertReleaseMaturity(
@@ -102,6 +115,12 @@ export async function publishFactorRelease(
     throw new FactorReleaseError('report_invalid');
   }
   assertReleaseMaturity(report, request.maturity);
+  const metadata = deriveFactorReleaseMetadata(
+    request.sourceKind,
+    report.factorCodeSnapshot,
+    analysisKind(report.analysisKind),
+  );
+  assertReleaseMetadata(request, metadata);
 
   const releaseKey = await resolveReleaseKey(userId, request, source.releaseKey);
   const methodologySnapshot = methodologyFor(report);
@@ -125,9 +144,9 @@ export async function publishFactorRelease(
             version: (latest?.version ?? 0) + 1,
             sourceKind: request.sourceKind,
             sourceName: source.name,
-            inputDomains: request.inputDomains,
-            targetAssetClasses: request.targetAssetClasses,
-            outputScope: request.outputScope,
+            inputDomains: metadata.inputDomains,
+            targetAssetClasses: metadata.targetAssetClasses,
+            outputScope: metadata.outputScope,
             codeSnapshot: report.factorCodeSnapshot!,
             codeHash: report.factorCodeHash!,
             approvedReportId: report.id,
@@ -144,6 +163,99 @@ export async function publishFactorRelease(
     }
   }
   throw new FactorReleaseError('key_unavailable');
+}
+
+/** Derive the publish contract from the exact source bytes approved by the report. This is the
+ * compatibility adapter for the equity Factor SDK; future research protocols must expose typed
+ * inputs before their releases are enabled. */
+export function deriveFactorReleaseMetadata(
+  sourceKind: PublishFactorReleaseRequest['sourceKind'],
+  snapshot: string,
+  kind: FactorAnalysisKind,
+): DerivedFactorReleaseMetadata {
+  if (kind !== 'cross_sectional') {
+    throw new FactorReleaseError('input_dependencies_unknown');
+  }
+
+  const sources = sourceKind === 'single' ? [snapshot] : compositeComponentSources(snapshot);
+  const domains = new Set<FactorInputDomain>();
+  for (const source of sources) {
+    collectSourceDomains(source, domains);
+  }
+  if (domains.size === 0) {
+    throw new FactorReleaseError('input_dependencies_unknown');
+  }
+  return {
+    inputDomains: [...domains].sort(),
+    targetAssetClasses: ['equity'],
+    outputScope: 'asset',
+  };
+}
+
+export function assertReleaseMetadata(
+  claim: Pick<PublishFactorReleaseRequest, 'inputDomains' | 'targetAssetClasses' | 'outputScope'>,
+  derived: DerivedFactorReleaseMetadata,
+): void {
+  if (
+    (claim.inputDomains && !sameMembers(claim.inputDomains, derived.inputDomains)) ||
+    (claim.targetAssetClasses &&
+      !sameMembers(claim.targetAssetClasses, derived.targetAssetClasses)) ||
+    (claim.outputScope && claim.outputScope !== derived.outputScope)
+  ) {
+    throw new FactorReleaseError('metadata_mismatch');
+  }
+}
+
+function compositeComponentSources(snapshot: string): string[] {
+  try {
+    const parsed = JSON.parse(snapshot) as { components?: Array<{ code?: unknown }> };
+    const sources = parsed.components?.flatMap((component) =>
+      typeof component.code === 'string' ? [component.code] : [],
+    );
+    if (sources?.length) {
+      return sources;
+    }
+  } catch {
+    // The immutable snapshot is validated when the report is created. A malformed legacy snapshot
+    // must fail closed at publication instead of receiving guessed metadata.
+  }
+  throw new FactorReleaseError('input_dependencies_unknown');
+}
+
+function collectSourceDomains(source: string, domains: Set<FactorInputDomain>): void {
+  const barFields = new Set(
+    [...source.matchAll(/\bbar\s*\.\s*([A-Za-z][A-Za-z0-9_]*)/g)].map((match) => match[1]),
+  );
+  for (const match of source.matchAll(/ctx\s*\.\s*history\s*\(([^)]*)\)/g)) {
+    const args = match[1];
+    if (/['"`](roe|grossprofitMargin)['"`]/.test(args)) {
+      domains.add('fundamental');
+    } else {
+      domains.add('price');
+    }
+  }
+
+  if (hasAny(barFields, ['totalMv', 'circMv', 'turnoverRate'])) {
+    domains.add('price');
+  }
+  if (hasAny(barFields, ['pe', 'peTtm', 'pb', 'ps', 'psTtm', 'dvRatio', 'dvTtm'])) {
+    domains.add('price');
+    domains.add('fundamental');
+  }
+  if (hasAny(barFields, ['roe', 'grossprofitMargin', 'debtToAssets'])) {
+    domains.add('fundamental');
+  }
+  if (hasAny(barFields, ['netMain', 'netTotal'])) {
+    domains.add('flow');
+  }
+}
+
+function hasAny(values: Set<string>, candidates: string[]): boolean {
+  return candidates.some((candidate) => values.has(candidate));
+}
+
+function sameMembers<T extends string>(left: T[], right: T[]): boolean {
+  return [...new Set(left)].sort().join('\0') === [...new Set(right)].sort().join('\0');
 }
 
 export async function listFactorReleases(userId: string): Promise<FactorReleaseResource[]> {
