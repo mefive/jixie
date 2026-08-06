@@ -6,6 +6,9 @@
 
 export type FactorFreq = 'month' | 'week';
 
+/** Evaluation protocol used by one immutable research run. */
+export type FactorAnalysisKind = 'cross_sectional' | 'time_series' | 'panel' | 'macro_regime';
+
 /** Cross-sectional neutralization applied to factor values before IC / bucketing (3.4). 'none' = raw
  * values; 'size' = residual after regressing on log(total market cap); 'size_industry' = additionally
  * orthogonal to Shenwan level-1 industry (removes the "new factor is just a small-cap / sector bet"
@@ -328,6 +331,7 @@ export interface FactorHoldoutEligibility {
 export interface FactorReportSummary {
   id: string;
   factor: string;
+  analysisKind: FactorAnalysisKind;
   status: FactorReportStatus;
   phase: FactorReportPhase;
   spec: FactorAnalysisSpec;

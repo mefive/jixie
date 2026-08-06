@@ -560,6 +560,7 @@ model User {
   agentConversations  AgentConversation[]
   factorComposites    FactorComposite[]
   factorWeatherPins   FactorWeatherPin[]
+  factorReleases      FactorRelease[]
 }
 
 /// Login session. id = session token (stored in sid cookie). 30-day TTL; expiry enforced by filtering on expiresAt at query time.
@@ -599,6 +600,7 @@ model FactorReport {
   factor             String
   status             String    @default("done") // 'running' | 'done' | 'error' | 'stale'
   phase              String    @default("legacy") // 'legacy' | 'explore' | 'holdout'
+  analysisKind       String    @default("cross_sectional") // 'cross_sectional' | 'time_series' | 'panel' | 'macro_regime'
   freq               String // 'month' | 'week'
   neutral            String    @default("none") // 'none' | 'size' | 'size_industry'
   start              String // YYYYMMDD
@@ -618,7 +620,8 @@ model FactorReport {
   createdAt          DateTime  @default(now())
   computedAt         DateTime?
 
-  job Job?
+  job      Job?
+  releases FactorRelease[]
 
   @@index([userId, factor, createdAt])
   @@index([userId, variantKey])
@@ -863,6 +866,7 @@ model Factor {
   messages      Json? // ChatMessage[] — the Agent-panel conversation that authored this factor (per-factor)
   conversations AgentConversation[]
   weatherPins   FactorWeatherPin[]
+  releases      FactorRelease[]
   createdAt     DateTime            @default(now())
   updatedAt     DateTime            @updatedAt
 
@@ -878,6 +882,8 @@ model FactorWeatherPin {
   user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   factorId        String
   factor          Factor               @relation(fields: [factorId], references: [id], onDelete: Restrict)
+  releaseId       String?
+  release         FactorRelease?       @relation(fields: [releaseId], references: [id], onDelete: SetNull)
   factorName      String
   builtin         Boolean
   direction       String // 'positive' | 'negative'
@@ -892,6 +898,7 @@ model FactorWeatherPin {
   updatedAt       DateTime             @updatedAt
 
   @@unique([userId, factorId])
+  @@index([releaseId])
   @@index([status, updatedAt])
 }
 
@@ -919,15 +926,51 @@ model FactorWeatherPoint {
 /// A reusable multi-factor research definition. Reports freeze the full definition in specJson, so
 /// editing or deleting this row never changes historical results.
 model FactorComposite {
-  id         String   @id // ULID
+  id         String          @id // ULID
   userId     String
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   name       String
   definition Json // FactorCompositeDefinitionV1
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  releases   FactorRelease[]
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
 
   @@index([userId, updatedAt])
+}
+
+/// An explicitly published, immutable factor version. Editable source rows may be deleted without
+/// invalidating the frozen definition and methodology that historical strategies referenced.
+model FactorRelease {
+  id                  String             @id
+  userId              String
+  user                User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  factorId            String?
+  factor              Factor?            @relation(fields: [factorId], references: [id], onDelete: SetNull)
+  compositeId         String?
+  composite           FactorComposite?   @relation(fields: [compositeId], references: [id], onDelete: SetNull)
+  sourceRef           String
+  releaseKey          String
+  version             Int
+  sourceKind          String // 'single' | 'composite'
+  sourceName          String
+  inputDomains        Json
+  targetAssetClasses  Json
+  outputScope         String // 'asset' | 'global'
+  codeSnapshot        String
+  codeHash            String
+  approvedReportId    String
+  approvedReport      FactorReport       @relation(fields: [approvedReportId], references: [id], onDelete: Restrict)
+  methodologySnapshot Json
+  maturity            String // 'experimental' | 'validated' | 'production'
+  lifecycle           String             @default("active") // 'active' | 'retired'
+  weatherPins         FactorWeatherPin[]
+  createdAt           DateTime           @default(now())
+
+  @@unique([userId, releaseKey, version])
+  @@index([userId, lifecycle, createdAt])
+  @@index([factorId, createdAt])
+  @@index([compositeId, createdAt])
+  @@index([approvedReportId])
 }
 
 /// An agent conversation on the screen page (a "session card" on the card wall). Strategy/factor

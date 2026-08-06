@@ -11,8 +11,32 @@ import { chatMessagesSchema } from '../lib/chat-schema.js';
 import { m } from '../i18n/index.js';
 import { localeFromRequest } from '../i18n/index.js';
 import { factorCompositeDefinitionV1Schema } from '../factor/report-spec.js';
+import {
+  FactorReleaseError,
+  getFactorRelease,
+  listFactorReleases,
+  publishFactorRelease,
+  publishFactorReleaseBodySchema,
+  retireFactorRelease,
+} from '../factor/releases.js';
 
 const FACTOR_KEY_PATTERN = /^[a-z][a-z0-9_]{0,31}$/;
+
+function factorReleaseApiError(c: Parameters<typeof apiError>[0], error: FactorReleaseError) {
+  const messageKey = {
+    source_not_found: 'factorNotFound',
+    key_required: 'factorReleaseKeyRequired',
+    key_unavailable: 'factorReleaseKeyUnavailable',
+    report_invalid: 'factorReleaseReportInvalid',
+    validation_required: 'factorReleaseValidationRequired',
+    production_not_ready: 'factorReleaseProductionNotReady',
+  }[error.reason] as Parameters<typeof m>[1];
+  return apiError(
+    c,
+    error.reason === 'source_not_found' ? 'NOT_FOUND' : 'VALIDATION_FAILED',
+    m(c, messageKey),
+  );
+}
 
 const strategyKey = (key: string | null): string | undefined => (key ? `custom:${key}` : undefined);
 
@@ -24,6 +48,29 @@ const strategyKey = (key: string | null): string | undefined => (key ? `custom:$
  * Naming rules: see docs/design/api-route-naming.md.
  */
 export const factorsRoute = new Hono();
+
+factorsRoute.get('/releases', async (c) => c.json(await listFactorReleases(c.var.userId)));
+
+factorsRoute.get('/releases/:id', async (c) => {
+  const release = await getFactorRelease(c.var.userId, c.req.param('id'));
+  return release ? c.json(release) : apiError(c, 'NOT_FOUND', m(c, 'factorReleaseNotFound'));
+});
+
+factorsRoute.post('/releases', validateJson(publishFactorReleaseBodySchema), async (c) => {
+  try {
+    return c.json(await publishFactorRelease(c.var.userId, c.req.valid('json')));
+  } catch (error) {
+    if (error instanceof FactorReleaseError) {
+      return factorReleaseApiError(c, error);
+    }
+    throw error;
+  }
+});
+
+factorsRoute.post('/releases/:id/retire', async (c) => {
+  const release = await retireFactorRelease(c.var.userId, c.req.param('id'));
+  return release ? c.json(release) : apiError(c, 'NOT_FOUND', m(c, 'factorReleaseNotFound'));
+});
 
 factorsRoute.get('/catalog', async (c) => {
   // Preset factors (registry identity; code lives on their seeded rows) + this user's custom factors.
@@ -324,6 +371,12 @@ factorsRoute.post('/custom/:id/finalize-key', validateJson(finalizeKeyBody), asy
     const suffixText = suffix === 1 ? '' : `_${suffix}`;
     const candidate = `${requested.slice(0, 32 - suffixText.length).replace(/_+$/g, '')}${suffixText}`;
     if (BUILTIN_KEYS.has(candidate)) {
+      continue;
+    }
+    const published = await prisma.factorRelease.count({
+      where: { userId, releaseKey: candidate },
+    });
+    if (published > 0) {
       continue;
     }
     try {

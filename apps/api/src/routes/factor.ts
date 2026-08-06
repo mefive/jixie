@@ -520,6 +520,12 @@ function reportSummary(
   return {
     id: row.id,
     factor: row.factor,
+    analysisKind:
+      row.analysisKind === 'time_series' ||
+      row.analysisKind === 'panel' ||
+      row.analysisKind === 'macro_regime'
+        ? row.analysisKind
+        : 'cross_sectional',
     status: reportStatus(row.status),
     phase: row.phase === 'explore' || row.phase === 'holdout' ? row.phase : 'legacy',
     spec: reportSpec(row),
