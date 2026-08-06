@@ -467,8 +467,11 @@ const bondSignal = ctx.signal('bond-trend@1', '511260.SH');
   商品跨资产面板、宏观状态四个样例均可由可辨识联合表达；旧 V1–V5 spec 和 payload 在读取时自动
   包装为 `cross_sectional`，新报告将统一 envelope 写入 `specJson`，兼容字段继续供当前 UI 使用；
   时间序列明确冻结 Newey-West 推断和 PIT revision policy，未实现的 evaluator 会被 API 明确拒绝。
+- worker 已改由 evaluator registry 调度，现有 `analyzeFactor` 包装为 `CrossSectionalEvaluator`；adapter
+  只透传冻结 protocol、source、日志和 locale，不进行数值变换，其他 analysis kind 在注册实现前
+  fail-closed。
 
-尚未完成：`CrossSectionalEvaluator` 包装、发布区前端和策略消费。
+尚未完成：发布区前端和策略消费。
 因此这一批只建立不可变身份与契约，不改变既有因子计算结果，也不能对外宣称 Factor V2 已可用。
 
 **后端：**

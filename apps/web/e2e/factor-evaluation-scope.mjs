@@ -49,7 +49,9 @@ try {
     await popover.getByRole('checkbox', { name: label }).check();
   }
   await page.keyboard.press('Escape');
-  await page.locator('.ant-select-dropdown:visible').waitFor({ state: 'hidden' });
+  for (const dropdown of await page.locator('.ant-select-dropdown').all()) {
+    await dropdown.waitFor({ state: 'hidden' });
+  }
   await popover.locator('.jx-factor-diagnosticChoices').waitFor();
   for (const expected of ['沪深 300', '申万一级行业内排序']) {
     await page.locator('.jx-factor-paramSummary', { hasText: expected }).waitFor();

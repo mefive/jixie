@@ -1,8 +1,9 @@
 import { parentPort, workerData } from 'node:worker_threads';
 import type { FactorAnalysisSpec, Locale, LogLine, LogLevel } from '@jixie/shared';
-import { analyzeFactor } from './analysis.js';
 import type { FactorAnalysisRuntimeSource } from './composite.js';
 import { prisma } from '../lib/prisma.js';
+import { factorEvaluatorFor } from './evaluator.js';
+import { normalizeFactorResearchSpec } from './report-spec.js';
 
 /**
  * Factor-analysis worker thread. analyzeFactor loads whole-market panels + tight cross-sectional loops,
@@ -30,8 +31,18 @@ const onSystemLog = (text: string) => emit({ source: 'system', level: 'info', te
 const onUserLog = (level: LogLevel, text: string) => emit({ source: 'user', level, text });
 
 try {
-  const report = await analyzeFactor(factor, spec, onSystemLog, onUserLog, locale, {
-    ...source,
+  const researchSpec = normalizeFactorResearchSpec(spec);
+  const evaluator = factorEvaluatorFor(researchSpec);
+  if (researchSpec.analysisKind !== 'cross_sectional') {
+    throw new Error(`Factor evaluator ${researchSpec.analysisKind} is not implemented.`);
+  }
+  const report = await evaluator.evaluate({
+    factor,
+    researchSpec,
+    onSystemLog,
+    onUserLog,
+    locale,
+    source: { ...source },
   });
   port.postMessage({ type: 'done', reportId, payload: JSON.stringify(report) });
 } catch (e) {
