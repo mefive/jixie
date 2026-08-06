@@ -18,6 +18,7 @@
     "test:e2e:chart": "node e2e/computed-chart.mjs",
     "test:e2e:sdk-hover": "node e2e/sdk-hover.mjs",
     "test:e2e:factor-strategy-history": "node e2e/factor-strategy-history.mjs",
+    "test:e2e:strategy-factor-release": "node e2e/strategy-factor-release.mjs",
     "test:e2e:strategy": "node e2e/strategy-orchestration.mjs",
     "test:e2e:strategy-python": "node e2e/python-strategy.mjs",
     "test:e2e:strategy-scan": "node e2e/strategy-parameter-scan.mjs",
