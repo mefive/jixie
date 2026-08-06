@@ -93,6 +93,14 @@ export const zhLab = {
   metricFutureSleeve: '期货账户权益',
   metricFutureMargin: '期货保证金',
   metricNetExposure: '净敞口',
+  factorReleasesTitle: '本次回测的因子发布版本',
+  factorReleasesFrozen: '按 release ID 与代码 hash 冻结',
+  factorReleaseMaturity: {
+    experimental: '实验 · 仅研究',
+    validated: '已验证 · 仅研究',
+    production: '生产',
+  },
+  deploymentFactorReleaseBlocked: '包含非 production 因子发布版本，只能研究回测',
 
   // Performance charts
   navEquity: '权益',

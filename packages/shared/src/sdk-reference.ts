@@ -179,7 +179,7 @@ interface CodeStrategy<Params extends StrategyParams = StrategyParams> {
   name?: string;
   /** Finite numeric or non-empty categorical defaults exposed to parameter scans. */
   params?: Params;
-  /** Opt-in factor columns, read via ctx.factor(): moneyflow columns + custom:<key> research factors. */
+  /** Opt-in factor columns, read via ctx.factor(): moneyflow columns + immutable release:<ULID> factors. */
   factors?: FactorKey[];
   /** Instruments to preload bar series for up front (per-instrument systems). */
   watch?: string[];
@@ -195,17 +195,18 @@ declare function defineStrategy<const Params extends StrategyParams = Record<str
   s: CodeStrategy<Params>,
 ): void;`;
 
-/** A finalized factor offered in the editor's FactorKey union, referenced by its immutable strategy key. */
+/** A factor dependency offered in the editor's FactorKey union. */
 export interface DtsFactorOption {
-  key: string; // the full finalized 'custom:<key>' strategy reference
+  key: string; // immutable 'release:<ULID>' or supported legacy 'custom:<key>'
   factorId: string; // Factor page identity used by editor navigation
+  reportId?: string; // approved report for immutable release navigation
   label: string; // the factor's display name (shown as a trailing comment in the union)
   description?: string; // optional summary shown by editor integrations
 }
 
 const FACTOR_KEY_DOC: Record<Locale, string> = {
-  zh: '可通过 ctx.factor 读取的因子列 —— 需先在 factors 里声明;custom:<key> 为已确认且锁定的因子策略标识。',
-  en: 'Factor columns readable via ctx.factor — declare in `factors` first; custom:<key> is a finalized, immutable research-factor key.',
+  zh: '可通过 ctx.factor 读取的因子列 —— 需先在 factors 里声明；新策略使用不可变 release:<ULID>，custom:<key> 仅兼容旧策略。',
+  en: 'Factor columns readable via ctx.factor — declare in `factors` first; new strategies use immutable release:<ULID>, while custom:<key> is legacy compatibility.',
 };
 
 /** The FactorKey ambient type: engine column factors plus finalized research factors from the catalog. */
@@ -356,8 +357,8 @@ export const SDK_ENTRIES = [
     name: 'factor',
     group: '数据 / 选股',
     sig: 'factor(name: FactorKey, code: string): number | null',
-    zh: '可选因子列(需在 factors 声明)当日值。资金流(万元,+流入/−流出,精确当天):mf_net_main / mf_net_total;custom:<key> 为已锁定的因子策略标识,逐日现场算(带 window 的需先 ensureBars)。',
-    en: "Opt-in factor column for today (declare in `factors`). Moneyflow: 'mf_net_main' / 'mf_net_total' (万元, exact day). custom:<key> runs a finalized research factor on the fly (windowed ones need ensureBars first).",
+    zh: '可选因子列(需在 factors 声明)当日值。资金流(万元,+流入/−流出,精确当天):mf_net_main / mf_net_total；release:<ULID> 按不可变发布快照现场计算(带 window 的需先 ensureBars)。',
+    en: "Opt-in factor column for today (declare in `factors`). Moneyflow: 'mf_net_main' / 'mf_net_total' (万元, exact day). release:<ULID> runs the immutable published snapshot on the fly (windowed ones need ensureBars first).",
   },
 
   // —— ctx: per-instrument price/series ——

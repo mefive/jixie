@@ -7,7 +7,7 @@ import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker'
 import type { DtsFactorOption, Locale, StrategyLanguage } from '@jixie/shared';
 import i18n from '@src/i18n';
 import { localeStore } from '@src/i18n/locale-store';
-import { getFactorCatalog } from '@src/api/client';
+import { getFactorCatalog, listFactorReleases } from '@src/api/client';
 import { sdkDts } from './sdk-dts';
 import { SDK_ENTRIES, LINKABLE_TYPES } from '@jixie/shared';
 
@@ -28,7 +28,7 @@ let monacoRef: Monaco | null = null;
 let sdkLibDisposable: monaco.IDisposable | null = null;
 let staticSdkInstalled = false;
 // The user's factor catalog (presets + own factors) → the FactorKey union members, fetched once per
-// page load; until it arrives (or if it fails) the dts falls back to the `custom:${string}` tail.
+// page load; active releases are offered first and legacy custom references remain type-compatible.
 let factorOptions: DtsFactorOption[] = [];
 let factorOptionsRequested = false;
 
@@ -38,12 +38,12 @@ interface FactorReference {
   end: number;
 }
 
-// Find a catalog-backed custom factor string. Restricting this to known catalog entries prevents an
-// unrelated string that happens to start with "custom:" from becoming a navigation link.
+// Find a catalog-backed legacy factor or an active immutable release. Restricting this to known
+// options prevents arbitrary strings from becoming navigation links.
 function factorReferences(text: string): FactorReference[] {
   const optionsByKey = new Map(factorOptions.map((option) => [option.key, option]));
   const references: FactorReference[] = [];
-  const literal = /(['"`])(custom:[^'"`\\\s]+)\1/g;
+  const literal = /(['"`])((?:custom|release):[^'"`\\\s]+)\1/g;
   let match: RegExpExecArray | null;
   while ((match = literal.exec(text)) !== null) {
     const option = optionsByKey.get(match[2]);
@@ -55,7 +55,11 @@ function factorReferences(text: string): FactorReference[] {
 }
 
 function factorUrl(option: DtsFactorOption): string {
-  return `${location.origin}/factors?factor=${encodeURIComponent(option.factorId)}`;
+  const query = new URLSearchParams({ factor: option.factorId });
+  if (option.reportId) {
+    query.set('report', option.reportId);
+  }
+  return `${location.origin}/factors?${query}`;
 }
 
 function escapeMarkdown(value: string): string {
@@ -72,27 +76,41 @@ function applySdkDts(m: Monaco, locale: Locale) {
   );
 }
 
-// ctx.factor autocomplete for the user's actual factors: load the catalog once, then re-register the
-// dts with the concrete finalized custom:<key> union members (each carrying the factor's name).
+// ctx.factor autocomplete: immutable active releases first; legacy custom:<key> members remain so
+// old strategy source does not become a type error during the migration.
 function loadFactorOptions(m: Monaco) {
   if (factorOptionsRequested) {
     return;
   }
   factorOptionsRequested = true;
-  getFactorCatalog()
-    .then((catalog) => {
-      factorOptions = catalog.flatMap((meta) =>
+  Promise.all([listFactorReleases(), getFactorCatalog()])
+    .then(([releases, catalog]) => {
+      const published = releases.flatMap((release) =>
+        release.lifecycle === 'active' && release.sourceKind === 'single'
+          ? [
+              {
+                key: `release:${release.id}`,
+                factorId: release.sourceId,
+                reportId: release.approvedReportId,
+                label: `${release.sourceName} · ${release.releaseKey}@v${release.version}`,
+                description: `${release.maturity} · ${release.inputDomains.join(' / ')}`,
+              },
+            ]
+          : [],
+      );
+      const legacy = catalog.flatMap((meta) =>
         meta.strategyKey
           ? [
               {
                 key: meta.strategyKey,
                 factorId: meta.key,
-                label: meta.label,
+                label: `${meta.label} · legacy`,
                 description: meta.description,
               },
             ]
           : [],
       );
+      factorOptions = [...published, ...legacy];
       applySdkDts(m, localeStore.locale);
     })
     .catch(() => {}); // no catalog → only the static engine factors remain available
