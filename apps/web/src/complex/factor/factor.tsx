@@ -992,11 +992,13 @@ const ParamsBar = complex.component(() => {
     size: t('neutralSize'),
     size_industry: t('neutralSizeIndustry'),
   }[store.neutral];
+  const universe = t(`evaluationUniverse.${store.evaluationUniverse}`);
   const summary = t('paramsSummary', {
     frequency,
     start: dayjs(store.start, 'YYYYMMDD').format('YYYY-MM-DD'),
     end: dayjs(store.end, 'YYYYMMDD').format('YYYY-MM-DD'),
     neutral,
+    universe,
   });
 
   return (
@@ -1081,6 +1083,22 @@ const ParamsPopover = complex.component(() => {
             ]}
           />
         </div>
+        {store.mode !== 'composite' && (
+          <div className="jx-factor-paramField">
+            <span className="jx-factor-paramLabel">{t('evaluationUniverseLabel')}</span>
+            <Select
+              className="jx-factor-neutralSelect"
+              value={store.evaluationUniverse}
+              onChange={(value) => store.setEvaluationUniverse(value)}
+              options={[
+                { value: 'cn_a', label: t('evaluationUniverse.cn_a') },
+                { value: '000300.SH', label: t('evaluationUniverse.000300.SH') },
+                { value: '000905.SH', label: t('evaluationUniverse.000905.SH') },
+                { value: '000852.SH', label: t('evaluationUniverse.000852.SH') },
+              ]}
+            />
+          </div>
+        )}
         <div className="jx-factor-paramSectionTitle">{t('methodologyUniverse')}</div>
         <div className="jx-factor-paramGrid">
           <label>
@@ -1717,6 +1735,7 @@ const MethodologyCard = complex.component(() => {
   const stageLabels: Record<FactorSampleStageKey, string> = {
     factor_value: t('stageFactorValue'),
     formation_and_forward_quote: t('stageQuotes'),
+    evaluation_universe: t('stageEvaluationUniverse'),
     listing_age: t('stageListingAge'),
     risk_warning: t('stageRiskWarning'),
     pending_delisting: t('stagePendingDelisting'),
@@ -1756,6 +1775,19 @@ const MethodologyCard = complex.component(() => {
       </div>
       {spec.version !== 1 && (
         <div className="jx-factor-methodologySpec">
+          {spec.version === 5 && (
+            <span>
+              {t('evaluationUniverseSpec', {
+                universe: t(
+                  `evaluationUniverse.${
+                    spec.evaluationScope.universe.kind === 'market'
+                      ? 'cn_a'
+                      : spec.evaluationScope.universe.indexCode
+                  }`,
+                ),
+              })}
+            </span>
+          )}
           <span>
             {t('universeSpec', {
               days: spec.universe.minimumListingDays,
@@ -1835,7 +1867,17 @@ function reportParamsLabel(report: FactorReportSummary, t: TFunction<'factor'>):
         ? 'neutralSizeIndustry'
         : 'neutralNone',
   );
-  return `${frequency} · ${dayjs(spec.start, 'YYYYMMDD').format('YYYY-MM-DD')} – ${dayjs(spec.end, 'YYYYMMDD').format('YYYY-MM-DD')} · ${neutral}`;
+  const universe =
+    spec.version === 5
+      ? t(
+          `evaluationUniverse.${
+            spec.evaluationScope.universe.kind === 'market'
+              ? 'cn_a'
+              : spec.evaluationScope.universe.indexCode
+          }`,
+        )
+      : t('evaluationUniverse.cn_a');
+  return `${frequency} · ${dayjs(spec.start, 'YYYYMMDD').format('YYYY-MM-DD')} – ${dayjs(spec.end, 'YYYYMMDD').format('YYYY-MM-DD')} · ${universe} · ${neutral}`;
 }
 
 // Cursor-style chat input — Enter sends, Shift+Enter newline, IME-safe.

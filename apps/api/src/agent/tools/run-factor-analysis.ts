@@ -10,6 +10,7 @@ import { startFactorAnalysis, readFactorAnalysisResult } from '../../factor/anal
 import { getHoldoutPolicy } from '../../factor/research.js';
 import {
   createDefaultFactorAnalysisSpecV3,
+  createDefaultFactorAnalysisSpecV5,
   factorResearchIntentV1Schema,
 } from '../../factor/report-spec.js';
 import { t } from '../../i18n/index.js';
@@ -25,6 +26,7 @@ const argsSchema = z.object({
   start: z.string().regex(/^\d{8}$/),
   end: z.string().regex(/^\d{8}$/),
   neutral: z.enum(['none', 'size', 'size_industry']).default('none'),
+  universe: z.enum(['cn_a', '000300.SH', '000905.SH', '000852.SH']).default('cn_a'),
   researchIntent: factorResearchIntentV1Schema,
 });
 
@@ -81,12 +83,25 @@ export function runFactorAnalysisTool(context: FactorResearchContext): AgentTool
         );
       }
 
-      const spec = createDefaultFactorAnalysisSpecV3({
+      const commonSpec = {
         freq: parsed.data.freq,
         start: parsed.data.start,
         end: parsed.data.end,
         neutral: parsed.data.neutral,
-      });
+      };
+      const spec =
+        parsed.data.universe === 'cn_a'
+          ? createDefaultFactorAnalysisSpecV3(commonSpec)
+          : createDefaultFactorAnalysisSpecV5({
+              ...commonSpec,
+              evaluationScope: {
+                version: 1,
+                universe: { kind: 'index', indexCode: parsed.data.universe },
+                membership: 'point_in_time',
+                rankingScope: 'global',
+                diagnostics: [],
+              },
+            });
       const start = context.start ?? startFactorAnalysis;
       const started = await start({
         userId: context.userId,

@@ -10,6 +10,8 @@ import {
   type FactorReportSummary,
   type FactorAnalysisSpec,
   type FactorAnalysisSpecV3,
+  type FactorEvaluationScopeV1,
+  type FactorEquityIndexCode,
   type FactorCompositeDefinitionV1,
   type FactorCompositeResource,
   type FactorFreq,
@@ -60,6 +62,7 @@ type FactorSetupParams = {
 const DEFAULT_START = '20150101';
 const DEFAULT_END = '20261231';
 const POLL_INTERVAL_MS = 800;
+type FactorUniverseChoice = 'cn_a' | FactorEquityIndexCode;
 
 type FactorMethodologyParams = Pick<
   FactorAnalysisSpecV3,
@@ -88,6 +91,16 @@ const DEFAULT_METHODOLOGY: FactorMethodologyParams = {
 
 function defaultMethodology(): FactorMethodologyParams {
   return structuredClone(DEFAULT_METHODOLOGY);
+}
+
+function defaultEvaluationScope(): FactorEvaluationScopeV1 {
+  return {
+    version: 1,
+    universe: { kind: 'market', market: 'cn_a' },
+    membership: 'point_in_time',
+    rankingScope: 'global',
+    diagnostics: [],
+  };
 }
 
 // Starter skeleton for a brand-new custom factor (what the middle editor shows before the Agent writes).
@@ -138,7 +151,8 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   public neutral: Neutral = 'none'; // cross-sectional neutralization in the draft analysis spec
   public start = DEFAULT_START;
   public end = DEFAULT_END;
-  public specVersion: 1 | 2 | 3 | 4 = 3;
+  public specVersion: 1 | 2 | 3 | 4 | 5 = 5;
+  public evaluationScope = defaultEvaluationScope();
   public methodology = defaultMethodology();
   public logs: LogLine[] = []; // streamed progress of the current run (job), tagged system/user
   public jobRunning = false; // a streamed analysis is in flight
@@ -177,6 +191,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       start: observable.ref,
       end: observable.ref,
       specVersion: observable.ref,
+      evaluationScope: observable.ref,
       methodology: observable.ref,
       logs: observable.ref,
       jobRunning: observable.ref,
@@ -189,6 +204,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       correlation: computed,
       paramsModified: computed,
       analysisSpec: computed,
+      evaluationUniverse: computed,
       codeModifiedSinceReport: computed,
       reportOutdated: computed,
       hasDraftChanges: computed,
@@ -199,6 +215,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       setStart: action,
       setEnd: action,
       setUniverseParameter: action,
+      setEvaluationUniverse: action,
       setMinimumWindowCoverage: action,
       setOutlierMethod: action,
       setCostParameter: action,
@@ -307,7 +324,21 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         composite: structuredClone(this.compositeDefinition),
       };
     }
+    if (this.specVersion === 5) {
+      return {
+        version: 5,
+        ...common,
+        ...this.methodology,
+        evaluationScope: structuredClone(this.evaluationScope),
+      };
+    }
     return { version: 3, ...common, ...this.methodology };
+  }
+
+  public get evaluationUniverse(): FactorUniverseChoice {
+    return this.evaluationScope.universe.kind === 'market'
+      ? 'cn_a'
+      : this.evaluationScope.universe.indexCode;
   }
 
   /** The editor source no longer matches the immutable source that produced the selected report. */
@@ -339,8 +370,8 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     return (this.mode === 'preset' || this.mode === 'composite') && !!this.selectedKey;
   }
 
-  private nextSpecVersion(): 3 | 4 {
-    return this.mode === 'composite' ? 4 : 3;
+  private nextSpecVersion(): 4 | 5 {
+    return this.mode === 'composite' ? 4 : 5;
   }
 
   public setFreq(v: FactorFreq) {
@@ -376,6 +407,15 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     this.methodology = {
       ...this.methodology,
       universe: { ...this.methodology.universe, [key]: value },
+    };
+  }
+
+  public setEvaluationUniverse(value: FactorUniverseChoice) {
+    this.specVersion = 5;
+    this.evaluationScope = {
+      ...this.evaluationScope,
+      universe:
+        value === 'cn_a' ? { kind: 'market', market: 'cn_a' } : { kind: 'index', indexCode: value },
     };
   }
 
@@ -447,7 +487,8 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       this.selectedReportId = preferredReportId ?? '';
       this.mode = isCustom ? 'custom' : isComposite ? 'composite' : 'preset';
       this.compositeDefinition = isComposite ? structuredClone(meta?.composite ?? null) : null;
-      this.specVersion = isComposite ? 4 : 3;
+      this.specVersion = isComposite ? 4 : 5;
+      this.evaluationScope = defaultEvaluationScope();
       this.jobRunning = false;
       this.jobId = null;
       this.logs = [];
@@ -804,6 +845,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       this.start = detail.spec.start;
       this.end = detail.spec.end;
       this.specVersion = detail.spec.version;
+      this.evaluationScope =
+        detail.spec.version === 5
+          ? structuredClone(detail.spec.evaluationScope)
+          : defaultEvaluationScope();
       this.compositeDefinition =
         detail.spec.version === 4
           ? structuredClone(detail.spec.composite)

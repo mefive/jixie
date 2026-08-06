@@ -455,8 +455,12 @@ const bondSignal = ctx.signal('bond-trend@1', '511260.SH');
 - 新发布身份与 `FactorWeatherPin.releaseId` 已预留关联，旧 pin 保持 `null` 和既有冻结快照；
 - migration 已在空白临时数据库从首个版本完整执行通过；当前运行中的开发数据库因 SQLite 锁未停服
   应用，待服务释放连接后再执行。
+- 研究范围首批实现新增 `FactorAnalysisSpecV5`：全 A、沪深 300、中证 500、中证 1000 可形成独立
+  report variant；指数范围按研究日读取不晚于当日的历史成分快照，缺少快照或快照过期时明确失败；
+  前端和 Factor Agent 均可选择范围，报告审计展示 PIT Universe 过滤前后样本数。
 
-尚未完成：分型 `FactorResearchSpecV1` / payload、`CrossSectionalEvaluator` 包装、发布区前端和策略消费。
+尚未完成：行业内排序、行业 / 市值 / 流动性诊断切片、分型 `FactorResearchSpecV1` / payload、
+`CrossSectionalEvaluator` 包装、发布区前端和策略消费。
 因此这一批只建立不可变身份与契约，不改变既有因子计算结果，也不能对外宣称 Factor V2 已可用。
 
 **后端：**
