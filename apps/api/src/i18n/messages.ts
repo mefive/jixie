@@ -130,6 +130,14 @@ const MESSAGES = {
     zh: '因子分析失败，请查看任务日志后重试',
     en: 'Factor analysis failed; review the job log and try again',
   },
+  factorUniverseHistoryMissing: {
+    zh: '指数 {index} 在 {date} 之前没有历史成分，无法进行时点无偏的因子研究',
+    en: 'Index {index} has no constituent snapshot on or before {date}; point-in-time factor research cannot continue',
+  },
+  factorUniverseHistoryStale: {
+    zh: '指数 {index} 在研究日 {date} 只能取得 {snapshot} 的过期成分，请先同步历史指数成分',
+    en: 'Index {index} only has the stale {snapshot} constituent snapshot for research date {date}; sync historical constituents first',
+  },
   factorProcExited: {
     zh: '因子分析进程异常退出 (code {code})',
     en: 'Factor analysis process exited abnormally (code {code})',

@@ -4,6 +4,7 @@ import {
   createDefaultFactorAnalysisSpecV2,
   createDefaultFactorAnalysisSpecV3,
   createDefaultFactorAnalysisSpecV4,
+  createDefaultFactorAnalysisSpecV5,
   factorTestKey,
   factorVariantKey,
   normalizeFactorAnalysisSpec,
@@ -44,6 +45,36 @@ describe('factor report spec', () => {
 
     expect(normalizeFactorAnalysisSpec(spec)).toEqual(spec);
     expect(spec.version).toBe(4);
+  });
+
+  it('freezes a point-in-time index universe as a distinct V5 research identity', () => {
+    const spec = createDefaultFactorAnalysisSpecV5({
+      freq: 'month',
+      start: '20200101',
+      end: '20250101',
+      neutral: 'size',
+      evaluationScope: {
+        version: 1,
+        universe: { kind: 'index', indexCode: '000300.SH' },
+        membership: 'point_in_time',
+        rankingScope: 'global',
+        diagnostics: [],
+      },
+    });
+
+    expect(normalizeFactorAnalysisSpec(spec)).toEqual(spec);
+    expect(factorVariantKey(spec, 'hash')).not.toEqual(
+      factorVariantKey(
+        createDefaultFactorAnalysisSpecV5({
+          ...spec,
+          evaluationScope: {
+            ...spec.evaluationScope,
+            universe: { kind: 'market', market: 'cn_a' },
+          },
+        }),
+        'hash',
+      ),
+    );
   });
 
   it('rejects duplicate factors in a V4 composite', () => {

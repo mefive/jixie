@@ -5,6 +5,7 @@ import type {
   FactorAnalysisSpecV2,
   FactorAnalysisSpecV3,
   FactorAnalysisSpecV4,
+  FactorAnalysisSpecV5,
   FactorCompositeDefinitionV1,
   FactorResearchIntentV1,
 } from '@jixie/shared';
@@ -91,11 +92,32 @@ export const factorAnalysisSpecV4Schema = factorAnalysisSpecV3Schema.extend({
   composite: factorCompositeDefinitionV1Schema,
 });
 
+export const factorEvaluationScopeV1Schema = z.object({
+  version: z.literal(1),
+  universe: z.discriminatedUnion('kind', [
+    z.object({ kind: z.literal('market'), market: z.literal('cn_a') }),
+    z.object({
+      kind: z.literal('index'),
+      indexCode: z.enum(['000300.SH', '000905.SH', '000852.SH']),
+    }),
+  ]),
+  membership: z.literal('point_in_time'),
+  // The contract reserves within-industry ranking, but the evaluator must reject it until Phase 1b.
+  rankingScope: z.literal('global'),
+  diagnostics: z.array(z.never()).max(0),
+});
+
+export const factorAnalysisSpecV5Schema = factorAnalysisSpecV3Schema.extend({
+  version: z.literal(5),
+  evaluationScope: factorEvaluationScopeV1Schema,
+});
+
 export const factorAnalysisSpecSchema = z.discriminatedUnion('version', [
   factorAnalysisSpecV1Schema,
   factorAnalysisSpecV2Schema,
   factorAnalysisSpecV3Schema,
   factorAnalysisSpecV4Schema,
+  factorAnalysisSpecV5Schema,
 ]);
 
 export const DEFAULT_FACTOR_ANALYSIS_SPEC_V2: Omit<
@@ -133,6 +155,14 @@ export const DEFAULT_FACTOR_ANALYSIS_SPEC_V3: Omit<
     excludeRiskWarnings: true,
     excludePendingDelisting: true,
   },
+};
+
+export const DEFAULT_FACTOR_EVALUATION_SCOPE_V1: FactorAnalysisSpecV5['evaluationScope'] = {
+  version: 1,
+  universe: { kind: 'market', market: 'cn_a' },
+  membership: 'point_in_time',
+  rankingScope: 'global',
+  diagnostics: [],
 };
 
 const primaryCriterionSchema = z.object({
@@ -176,7 +206,7 @@ export const factorResearchIntentV1Schema = z
 export function normalizeFactorAnalysisSpec(input: unknown): FactorAnalysisSpec {
   const spec = factorAnalysisSpecSchema.parse(input);
 
-  if (spec.version === 2 || spec.version === 3 || spec.version === 4) {
+  if (spec.version === 2 || spec.version === 3 || spec.version === 4 || spec.version === 5) {
     return spec;
   }
 
@@ -223,6 +253,22 @@ export function createDefaultFactorAnalysisSpecV4(input: {
     ...input,
     version: 4,
     universe: { ...DEFAULT_FACTOR_ANALYSIS_SPEC_V3.universe },
+  };
+}
+
+export function createDefaultFactorAnalysisSpecV5(input: {
+  freq: FactorAnalysisSpecV5['freq'];
+  start: string;
+  end: string;
+  neutral: FactorAnalysisSpecV5['neutral'];
+  evaluationScope?: FactorAnalysisSpecV5['evaluationScope'];
+}): FactorAnalysisSpecV5 {
+  return {
+    ...DEFAULT_FACTOR_ANALYSIS_SPEC_V3,
+    ...input,
+    version: 5,
+    universe: { ...DEFAULT_FACTOR_ANALYSIS_SPEC_V3.universe },
+    evaluationScope: structuredClone(input.evaluationScope ?? DEFAULT_FACTOR_EVALUATION_SCOPE_V1),
   };
 }
 

@@ -115,6 +115,48 @@ describe('runFactorAnalysisTool', () => {
     });
   });
 
+  it('freezes a V5 point-in-time scope for index-universe research', async () => {
+    const started: RunFactorAnalysisResponse = {
+      reportId: 'report-index',
+      jobId: 'job-index',
+      status: 'running',
+      reusedRunning: false,
+    };
+    const start = vi.fn(async (_options: unknown) => started);
+    const wait = vi.fn(async () => ({ status: 'done' as const, payload: report }));
+    const tool = runFactorAnalysisTool({
+      userId: 'user-1',
+      factorId: 'factor-1',
+      currentCode: 'current factor code',
+      locale: 'zh',
+      getPolicy: async () => policy,
+      start,
+      wait,
+    });
+
+    await tool.run({
+      freq: 'month',
+      start: '20200101',
+      end: '20260130',
+      neutral: 'none',
+      universe: '000300.SH',
+      researchIntent: intent,
+    });
+
+    expect(start.mock.calls[0][0]).toMatchObject({
+      spec: {
+        version: 5,
+        evaluationScope: {
+          version: 1,
+          universe: { kind: 'index', indexCode: '000300.SH' },
+          membership: 'point_in_time',
+          rankingScope: 'global',
+          diagnostics: [],
+        },
+      },
+    });
+  });
+
   it('rejects any sample that crosses into sealed holdout data', async () => {
     const start = vi.fn(async () => {
       throw new Error('should not run');

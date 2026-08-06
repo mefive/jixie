@@ -7,6 +7,7 @@ import type {
   FactorOutlierSpecV1,
   FactorReport,
   FactorFreq,
+  FactorEvaluationScopeV1,
   Neutral,
 } from '@jixie/shared';
 import { prisma } from '../lib/prisma.js';
@@ -17,12 +18,24 @@ import { t } from '../i18n/messages.js';
 import { StockNameLookup } from '../market/stock-identity.js';
 import * as st from '../lib/stats.js';
 import { combineFactorSeries, type FactorAnalysisRuntimeSource } from './composite.js';
+import {
+  filterEvaluationUniverse,
+  isIndexMembershipFresh,
+  PointInTimeIndexMembership,
+} from './evaluation-scope.js';
 
 // Wire shapes live in @jixie/shared (the /factors page renders them); re-export for local imports.
 export type { BucketStat, FactorReport } from '@jixie/shared';
 
 const N_BUCKETS = 10; // deciles
 const IC_DECAY_HORIZONS = [1, 5, 10, 20, 60]; // forward horizons (trading days) for the IC-decay curve
+const LEGACY_EVALUATION_SCOPE: FactorEvaluationScopeV1 = {
+  version: 1,
+  universe: { kind: 'market', market: 'cn_a' },
+  membership: 'point_in_time',
+  rankingScope: 'global',
+  diagnostics: [],
+};
 
 // Net-of-cost view (3.4): per-side trading cost estimates for the hypothetical long-short. A round-trip
 // (churning one name) = buy side + sell side ≈ 30bps — the first tradability gate for high-turnover
@@ -669,6 +682,20 @@ export async function analyzeFactor(
   const policy = analysisPolicy(spec);
   const periodsPerYear = freq === 'week' ? 52 : 12;
   const rebalanceDates = await getRebalanceDates(freq, start, end);
+  const evaluationScope = spec.version === 5 ? spec.evaluationScope : LEGACY_EVALUATION_SCOPE;
+  const indexMembership =
+    evaluationScope.universe.kind === 'index'
+      ? new PointInTimeIndexMembership(
+          await prisma.indexWeight.findMany({
+            where: {
+              indexCode: evaluationScope.universe.indexCode,
+              tradeDate: { lte: end },
+            },
+            select: { conCode: true, tradeDate: true },
+            orderBy: { tradeDate: 'asc' },
+          }),
+        )
+      : undefined;
   const freqLabel = t(locale, freq === 'week' ? 'freqWeek' : 'freqMonth');
   onLog(t(locale, 'factorRebalanceDates', { count: rebalanceDates.length, freq: freqLabel }));
   const snaps = await loadSnapshots(rebalanceDates, true); // rebalance snaps carry total market cap for cap-weighting
@@ -770,6 +797,7 @@ export async function analyzeFactor(
   const stageTotals = {
     factorValue: { before: 0, after: 0 },
     quotes: { before: 0, after: 0 },
+    evaluationUniverse: { before: 0, after: 0 },
     listingAge: { before: 0, after: 0 },
     riskWarning: { before: 0, after: 0 },
     pendingDelisting: { before: 0, after: 0 },
@@ -836,6 +864,32 @@ export async function analyzeFactor(
       });
     }
     stageTotals.quotes.after += candidates.length;
+    stageTotals.evaluationUniverse.before += candidates.length;
+    const scoped = filterEvaluationUniverse(candidates, evaluationScope, date, indexMembership);
+    if (!scoped.hasSnapshot && evaluationScope.universe.kind === 'index') {
+      throw new Error(
+        t(locale, 'factorUniverseHistoryMissing', {
+          index: evaluationScope.universe.indexCode,
+          date,
+        }),
+      );
+    }
+    if (
+      evaluationScope.universe.kind === 'index' &&
+      !isIndexMembershipFresh(scoped.snapshotDate!, date)
+    ) {
+      throw new Error(
+        t(locale, 'factorUniverseHistoryStale', {
+          index: evaluationScope.universe.indexCode,
+          snapshot: scoped.snapshotDate!,
+          date,
+        }),
+      );
+    }
+    candidates = scoped.rows;
+    stageTotals.evaluationUniverse.after += candidates.length;
+    const evaluationUniverseSize =
+      evaluationScope.universe.kind === 'index' ? scoped.universeSize : snapDate.size;
     stageTotals.listingAge.before += candidates.length;
     const listingEligible = candidates.filter(
       (candidate) => (firstBar.get(candidate.tsCode) ?? '00000000') <= minListDate,
@@ -932,7 +986,7 @@ export async function analyzeFactor(
       longShortNetReturn: lsNetEqual,
       topTurnover,
       sampleSize: candidates.length,
-      sampleCoverage: snapDate.size > 0 ? candidates.length / snapDate.size : 0,
+      sampleCoverage: evaluationUniverseSize > 0 ? candidates.length / evaluationUniverseSize : 0,
     });
 
     // IC-decay + per-decile return at each forward horizon (daily-normalized so horizons compare).
@@ -1037,12 +1091,21 @@ export async function analyzeFactor(
     )?.tradeDate ?? end;
   const methodology: FactorMethodologyAudit = {
     specVersion: spec.version,
+    ...(spec.version === 5 ? { evaluationScope: spec.evaluationScope } : {}),
     dataCutoff,
     periodsConsidered,
     periodsAnalyzed: icSeries.length,
     stages: [
       { key: 'factor_value', ...stageTotals.factorValue },
       { key: 'formation_and_forward_quote', ...stageTotals.quotes },
+      ...(spec.version === 5
+        ? [
+            {
+              key: 'evaluation_universe' as const,
+              ...stageTotals.evaluationUniverse,
+            },
+          ]
+        : []),
       { key: 'listing_age', ...stageTotals.listingAge },
       ...(spec.version >= 3
         ? [

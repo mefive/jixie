@@ -239,15 +239,37 @@ export interface FactorAnalysisSpecV4 extends Omit<FactorAnalysisSpecV3, 'versio
   composite: FactorCompositeDefinitionV1;
 }
 
+export type FactorEquityIndexCode = '000300.SH' | '000905.SH' | '000852.SH';
+
+export interface FactorEvaluationScopeV1 {
+  version: 1;
+  universe:
+    | { kind: 'market'; market: 'cn_a' }
+    | { kind: 'index'; indexCode: FactorEquityIndexCode };
+  membership: 'point_in_time';
+  rankingScope: 'global' | 'within_industry';
+  diagnostics: Array<'industry' | 'size_bucket' | 'liquidity_bucket'>;
+}
+
+/** First scope-aware cross-sectional spec. V5 initially executes global ranking; the contract already
+ * freezes future within-industry ranking and diagnostic choices so those additions cannot mutate a
+ * historical report's identity. */
+export interface FactorAnalysisSpecV5 extends Omit<FactorAnalysisSpecV3, 'version'> {
+  version: 5;
+  evaluationScope: FactorEvaluationScopeV1;
+}
+
 export type FactorAnalysisSpec =
   | FactorAnalysisSpecV1
   | FactorAnalysisSpecV2
   | FactorAnalysisSpecV3
-  | FactorAnalysisSpecV4;
+  | FactorAnalysisSpecV4
+  | FactorAnalysisSpecV5;
 
 export type FactorSampleStageKey =
   | 'factor_value'
   | 'formation_and_forward_quote'
+  | 'evaluation_universe'
   | 'listing_age'
   | 'risk_warning'
   | 'pending_delisting'
@@ -268,7 +290,8 @@ export interface FactorWindowCoverageAudit {
 }
 
 export interface FactorMethodologyAudit {
-  specVersion: 1 | 2 | 3 | 4;
+  specVersion: 1 | 2 | 3 | 4 | 5;
+  evaluationScope?: FactorEvaluationScopeV1;
   dataCutoff: string;
   periodsConsidered: number;
   periodsAnalyzed: number;
