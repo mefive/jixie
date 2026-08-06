@@ -476,8 +476,14 @@ const bondSignal = ctx.signal('bond-trend@1', '511260.SH');
 - 发布元数据不再信任前端填写：当前 equity adapter 从批准报告冻结代码推导 price、fundamental、flow
   输入域，并从 cross-sectional 研究协议推导 equity 目标和 asset 输出；旧客户端可继续提交这些字段，
   但仅作为一致性断言，未知依赖或不一致声明都会 fail-closed。
+- 报告结果页已增加发布区：直接展示“发布版 ← 批准报告 ← 代码 hash”血缘、后端推导的数据契约、
+  maturity 和 lifecycle；experimental 与符合条件的 validated 可选，production 在运行门槛完成前禁用，
+  自定义因子未锁定策略标识时不能发布，组合因子首次发布要求稳定 key。
+- 真实浏览器 E2E 已覆盖完成报告发布、price + fundamental → equity → asset 契约核对、版本展示和
+  retire，验收截图保存在 `apps/web/acceptance/7r-factor-release-approval.png` 与
+  `7s-factor-release-lineage.png`。
 
-尚未完成：发布区前端和策略消费。
+尚未完成：策略消费 release。
 因此这一批只建立不可变身份与契约，不改变既有因子计算结果，也不能对外宣称 Factor V2 已可用。
 
 **后端：**
