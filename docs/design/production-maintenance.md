@@ -258,6 +258,8 @@ GET /api/maintenance/status
 3. 维护界面使用项目统一的 `PollingModel` 每 5 秒查询 `/api/maintenance/status`；
 4. `done` 后刷新当前 URL，让所有页面数据按新的 `dataRevision` 重新加载；
 5. 当前路由始终保留在浏览器 URL 中，无需额外保存开放重定向参数。
+6. API 上游返回 `502` / `503` / `504`、非 JSON 网关错误或网络连接失败时，进入不依赖 API 状态的
+   服务不可用兜底 Gate；每 5 秒重新探测状态接口，恢复后接回真实维护状态并最终自动刷新。
 
 daily 在目标截止日尚未发布、weekly 失败或 repair 失败时保持 `active=true`，等待下一档重试或人工
 修复；这是保守策略，因为 weekly/repair 可能已经原子替换了若干切片，不能证明整个跨表版本仍一致。

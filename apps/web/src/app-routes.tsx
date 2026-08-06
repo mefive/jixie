@@ -131,9 +131,13 @@ function AuthedLayout() {
   );
 }
 
-// Auth guard: if authStore.authenticated is false → redirect to /login, carrying the source path
+// Auth failures during an outage leave the current URL untouched under the maintenance Gate. Redirect only
+// after /me successfully confirms that there is no authenticated user.
 const RequireAuth = observer(({ children }: { children: ReactNode }) => {
   const location = useLocation();
+  if (!authStore.authenticationResolved) {
+    return null;
+  }
   if (!authStore.authenticated) {
     return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />;
   }

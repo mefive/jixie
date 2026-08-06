@@ -7,33 +7,40 @@ import './maintenance-gate.css';
 export const MaintenanceGate = observer(() => {
   const { t } = useTranslation('common');
   const status = maintenanceStore.status;
-  if (!status?.active) {
+  const serviceUnavailable = maintenanceStore.serviceUnavailable;
+  if (!status?.active && !serviceUnavailable) {
     return null;
   }
 
   const percent =
-    status.totalDates > 0
+    (status?.totalDates ?? 0) > 0
       ? Math.min(100, Math.round((status.completedDates / status.totalDates) * 100))
       : 0;
-  const stage = status.stage
-    ? t(`maintenance.stages.${status.stage}`, { defaultValue: status.stage })
-    : t('maintenance.preparing');
+  const stage = serviceUnavailable
+    ? t('maintenance.stages.reconnecting')
+    : status?.stage
+      ? t(`maintenance.stages.${status.stage}`, { defaultValue: status.stage })
+      : t('maintenance.preparing');
 
   return (
     <div className="jx-maintenanceGate">
       <section className="jx-maintenanceGate-card" aria-live="polite">
         <Spin size="large" />
         <div className="jx-maintenanceGate-copy">
-          <h1 className="jx-maintenanceGate-title">{t('maintenance.title')}</h1>
+          <h1 className="jx-maintenanceGate-title">
+            {serviceUnavailable ? t('maintenance.serviceUnavailableTitle') : t('maintenance.title')}
+          </h1>
           <p className="jx-maintenanceGate-description">
-            {status.error
-              ? t('maintenance.retrying')
-              : status.kind === 'deploy'
-                ? t('maintenance.deploymentDescription')
-                : t('maintenance.description')}
+            {serviceUnavailable
+              ? t('maintenance.serviceUnavailableDescription')
+              : status.error
+                ? t('maintenance.retrying')
+                : status.kind === 'deploy'
+                  ? t('maintenance.deploymentDescription')
+                  : t('maintenance.description')}
           </p>
         </div>
-        {status.totalDates > 0 && (
+        {!serviceUnavailable && status.totalDates > 0 && (
           <Progress className="jx-maintenanceGate-progress" percent={percent} showInfo={false} />
         )}
         <dl className="jx-maintenanceGate-details">
@@ -41,7 +48,7 @@ export const MaintenanceGate = observer(() => {
             <dt className="jx-maintenanceGate-detailLabel">{t('maintenance.stage')}</dt>
             <dd className="jx-maintenanceGate-detailValue">{stage}</dd>
           </div>
-          {status.lastSuccessfulDailyDate && (
+          {!serviceUnavailable && status.lastSuccessfulDailyDate && (
             <div className="jx-maintenanceGate-detail">
               <dt className="jx-maintenanceGate-detailLabel">
                 {t('maintenance.availableThrough')}
@@ -49,7 +56,7 @@ export const MaintenanceGate = observer(() => {
               <dd className="jx-maintenanceGate-detailValue">{status.lastSuccessfulDailyDate}</dd>
             </div>
           )}
-          {status.totalDates > 0 && (
+          {!serviceUnavailable && status.totalDates > 0 && (
             <div className="jx-maintenanceGate-detail">
               <dt className="jx-maintenanceGate-detailLabel">{t('maintenance.progress')}</dt>
               <dd className="jx-maintenanceGate-detailValue">
