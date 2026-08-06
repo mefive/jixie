@@ -12,6 +12,7 @@
     "test:e2e": "node e2e/screener.mjs",
     "test:e2e:factor-history": "node e2e/factor-report-history.mjs",
     "test:e2e:factor-composite": "node e2e/factor-composite.mjs",
+    "test:e2e:factor-scope": "node e2e/factor-evaluation-scope.mjs",
     "test:e2e:historical-investability": "node e2e/historical-investability.mjs",
     "test:e2e:chart": "node e2e/computed-chart.mjs",
     "test:e2e:sdk-hover": "node e2e/sdk-hover.mjs",
