@@ -130,6 +130,10 @@ const MESSAGES = {
     zh: '因子分析失败，请查看任务日志后重试',
     en: 'Factor analysis failed; review the job log and try again',
   },
+  factorAnalysisKindUnsupported: {
+    zh: '研究类型 {kind} 的评估器尚未启用',
+    en: 'The evaluator for analysis kind {kind} is not enabled yet',
+  },
   factorUniverseHistoryMissing: {
     zh: '指数 {index} 在 {date} 之前没有历史成分，无法进行时点无偏的因子研究',
     en: 'Index {index} has no constituent snapshot on or before {date}; point-in-time factor research cannot continue',

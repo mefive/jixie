@@ -29,8 +29,11 @@ import {
   factorAnalysisSpecSchema,
   factorCompositeDefinitionV1Schema,
   factorResearchIntentV1Schema,
+  factorResearchSpecV1Schema,
   factorVariantKey,
+  crossSectionalProtocol,
   normalizeFactorAnalysisSpec,
+  normalizeFactorResearchSpec,
 } from '../factor/report-spec.js';
 import {
   enoughHoldoutPeriods,
@@ -215,10 +218,14 @@ factorRoute.get('/reports/:reportId', async (c) => {
   }
   const summary = reportSummary(row);
   const sealed = row.phase === 'holdout' && row.revealedAt === null;
+  const payload = sealed ? undefined : parseReportPayload(row.payload);
 
   return c.json({
     ...summary,
-    payload: sealed ? undefined : parseReportPayload(row.payload),
+    payload,
+    researchPayload: payload
+      ? { version: 1, analysisKind: 'cross_sectional' as const, report: payload }
+      : undefined,
     factorCodeSnapshot: row.factorCodeSnapshot ?? undefined,
     factorCodeHash: row.factorCodeHash ?? undefined,
     dataRevision: row.dataRevision ?? undefined,
@@ -275,7 +282,7 @@ factorRoute.get('/research/summary', validateQuery(researchSummaryQuery), async 
 
 const runAnalysisBody = z.object({
   factor: z.string().min(1),
-  spec: factorAnalysisSpecSchema,
+  spec: z.union([factorAnalysisSpecSchema, factorResearchSpecV1Schema]),
   parentReportId: z.string().min(1).nullable().optional(),
   researchIntent: factorResearchIntentV1Schema,
 });
@@ -283,7 +290,15 @@ const runAnalysisBody = z.object({
 factorRoute.post('/analysis/run', validateJson(runAnalysisBody), async (c) => {
   const userId = c.var.userId;
   const { factor, parentReportId, researchIntent } = c.req.valid('json');
-  let spec = normalizeFactorAnalysisSpec(c.req.valid('json').spec);
+  const researchSpec = normalizeFactorResearchSpec(c.req.valid('json').spec);
+  if (researchSpec.analysisKind !== 'cross_sectional') {
+    return apiError(
+      c,
+      'VALIDATION_FAILED',
+      m(c, 'factorAnalysisKindUnsupported', { kind: researchSpec.analysisKind }),
+    );
+  }
+  let spec = crossSectionalProtocol(researchSpec);
   const source = await resolveFactorSource(userId, factor);
   if (!source) {
     return apiError(c, 'NOT_FOUND', m(c, 'unknownFactor', { factor }));
@@ -386,7 +401,12 @@ factorRoute.post('/reports/:reportId/holdout', async (c) => {
         neutral: spec.neutral,
         start: spec.start,
         end: spec.end,
-        specJson: JSON.stringify(spec),
+        analysisKind: 'cross_sectional',
+        specJson: JSON.stringify({
+          version: 1,
+          analysisKind: 'cross_sectional',
+          protocol: spec,
+        }),
         variantKey,
         factorCodeSnapshot,
         factorCodeHash,
@@ -516,19 +536,16 @@ function reportSummary(
 ): FactorReportSummary {
   const sealed = row.phase === 'holdout' && row.revealedAt === null;
   const payload = sealed ? undefined : parseReportPayload(row.payload);
+  const researchSpec = reportResearchSpec(row);
 
   return {
     id: row.id,
     factor: row.factor,
-    analysisKind:
-      row.analysisKind === 'time_series' ||
-      row.analysisKind === 'panel' ||
-      row.analysisKind === 'macro_regime'
-        ? row.analysisKind
-        : 'cross_sectional',
+    analysisKind: researchSpec.analysisKind,
     status: reportStatus(row.status),
     phase: row.phase === 'explore' || row.phase === 'holdout' ? row.phase : 'legacy',
     spec: reportSpec(row),
+    researchSpec,
     variantKey: row.variantKey ?? undefined,
     jobId: row.job?.id,
     createdAt: row.createdAt.toISOString(),
@@ -542,21 +559,25 @@ function reportSummary(
 }
 
 function reportSpec(row: FactorReportRow): FactorAnalysisSpec {
+  return crossSectionalProtocol(reportResearchSpec(row));
+}
+
+function reportResearchSpec(row: FactorReportRow) {
   if (row.specJson) {
     try {
-      return normalizeFactorAnalysisSpec(JSON.parse(row.specJson));
+      return normalizeFactorResearchSpec(JSON.parse(row.specJson));
     } catch {
       // Legacy rows still have queryable parameter columns as a safe fallback.
     }
   }
 
-  return {
+  return normalizeFactorResearchSpec({
     version: 1,
     freq: row.freq === 'week' ? 'week' : 'month',
     start: row.start,
     end: row.end,
     neutral: row.neutral === 'size' || row.neutral === 'size_industry' ? row.neutral : 'none',
-  };
+  });
 }
 
 function reportStatus(status: string): FactorReportStatus {

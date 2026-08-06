@@ -124,6 +124,9 @@ try {
   if (
     detail.status !== 'done' ||
     detail.spec?.version !== 5 ||
+    detail.researchSpec?.analysisKind !== 'cross_sectional' ||
+    detail.researchSpec?.protocol?.version !== 5 ||
+    detail.researchPayload?.analysisKind !== 'cross_sectional' ||
     detail.payload?.methodology?.ranking?.kind !== 'within_industry_percentile' ||
     !['industry', 'size_bucket', 'liquidity_bucket'].every((dimension) => dimensions.has(dimension))
   ) {
@@ -131,6 +134,8 @@ try {
       `invalid scope-aware report: ${JSON.stringify({
         status: detail.status,
         version: detail.spec?.version,
+        researchSpec: detail.researchSpec,
+        researchPayloadKind: detail.researchPayload?.analysisKind,
         ranking: detail.payload?.methodology?.ranking,
         dimensions: [...dimensions],
       })}`,

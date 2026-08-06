@@ -1,3 +1,5 @@
+import type { FactorResearchReportPayloadV1, FactorResearchSpecV1 } from './factor-research.js';
+
 /**
  * Factor-analysis wire types (product line 1.5 · factor research). Each analysis is a single-factor, monthly- or
  * weekly-rebalanced cross-sectional study over a date range — decile-sorted forward returns + Rank IC
@@ -384,6 +386,7 @@ export interface FactorReportSummary {
   status: FactorReportStatus;
   phase: FactorReportPhase;
   spec: FactorAnalysisSpec;
+  researchSpec?: FactorResearchSpecV1;
   variantKey?: string;
   jobId?: string;
   createdAt: string;
@@ -400,6 +403,7 @@ export interface FactorReportSummary {
 
 export interface FactorReportDetail extends FactorReportSummary {
   payload?: FactorReport;
+  researchPayload?: FactorResearchReportPayloadV1;
   factorCodeSnapshot?: string;
   factorCodeHash?: string;
   dataRevision?: string;

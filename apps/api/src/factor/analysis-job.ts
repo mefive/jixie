@@ -16,6 +16,7 @@ import {
   factorCompositeDefinitionV1Schema,
   factorTestKey,
   factorVariantKey,
+  normalizeFactorResearchSpec,
   sha256,
 } from './report-spec.js';
 import type { FactorAnalysisRuntimeSource } from './composite.js';
@@ -76,6 +77,7 @@ export async function startFactorAnalysis(options: {
   const factorCodeSnapshot = factorAnalysisSourceSnapshot(options.source);
   const factorCodeHash = sha256(factorCodeSnapshot);
   const dataRevision = null;
+  const researchSpec = normalizeFactorResearchSpec(options.spec);
   const variantKey = factorVariantKey(options.spec, factorCodeHash, dataRevision);
   const testKey = factorTestKey(options.spec, factorCodeHash, options.researchIntent);
   const reportId = ulid();
@@ -113,7 +115,8 @@ export async function startFactorAnalysis(options: {
         neutral: options.spec.neutral,
         start: options.spec.start,
         end: options.spec.end,
-        specJson: JSON.stringify(options.spec),
+        analysisKind: researchSpec.analysisKind,
+        specJson: JSON.stringify(researchSpec),
         variantKey,
         factorCodeSnapshot,
         factorCodeHash,

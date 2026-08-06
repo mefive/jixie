@@ -7,6 +7,7 @@ import type {
   FactorAnalysisSpecV4,
   FactorAnalysisSpecV5,
   FactorCompositeDefinitionV1,
+  FactorResearchSpecV1,
   FactorResearchIntentV1,
 } from '@jixie/shared';
 
@@ -122,6 +123,70 @@ export const factorAnalysisSpecSchema = z.discriminatedUnion('version', [
   factorAnalysisSpecV5Schema,
 ]);
 
+const factorObservationFrequencySchema = z.enum(['daily', 'weekly', 'monthly']);
+const factorForwardReturnTargetV1Schema = z.object({
+  kind: z.literal('forward_total_return'),
+  horizon: z.number().int().positive().max(1200),
+  horizonUnit: z.enum(['trade_day', 'calendar_day', 'month']),
+});
+const factorPointInTimePolicyV1Schema = z.object({
+  pointInTime: z.literal(true),
+  revisionPolicy: z.literal('as_available'),
+  dataCutoff: z
+    .string()
+    .regex(/^\d{8}$/)
+    .nullable(),
+});
+const factorAssetListBaseSchema = z.array(z.string().trim().min(1).max(80));
+const factorAssetListSchema = factorAssetListBaseSchema
+  .min(1)
+  .max(200)
+  .refine((assets) => new Set(assets).size === assets.length, 'Assets must be unique.');
+const datedResearchProtocolShape = {
+  version: z.literal(1),
+  start: z.string().regex(/^\d{8}$/),
+  end: z.string().regex(/^\d{8}$/),
+  observationFrequency: factorObservationFrequencySchema,
+  target: factorForwardReturnTargetV1Schema,
+  dataPolicy: factorPointInTimePolicyV1Schema,
+};
+
+export const factorResearchSpecV1Schema = z.discriminatedUnion('analysisKind', [
+  z.object({
+    version: z.literal(1),
+    analysisKind: z.literal('cross_sectional'),
+    protocol: factorAnalysisSpecSchema,
+  }),
+  z.object({
+    ...datedResearchProtocolShape,
+    analysisKind: z.literal('time_series'),
+    assets: factorAssetListSchema,
+    inference: z.object({
+      standardError: z.literal('newey_west'),
+      lag: z.union([z.literal('automatic'), z.number().int().min(0).max(1200)]),
+    }),
+  }),
+  z.object({
+    ...datedResearchProtocolShape,
+    analysisKind: z.literal('panel'),
+    assets: factorAssetListBaseSchema
+      .min(2)
+      .max(200)
+      .refine((assets) => new Set(assets).size === assets.length, 'Assets must be unique.'),
+    rankingScope: z.literal('cross_asset'),
+    volatilityScaling: z.enum(['none', 'inverse_volatility']),
+  }),
+  z.object({
+    ...datedResearchProtocolShape,
+    analysisKind: z.literal('macro_regime'),
+    targetAssets: factorAssetListSchema,
+    stateModel: z.object({
+      kind: z.enum(['threshold', 'quantile']),
+      states: z.number().int().min(2).max(10),
+    }),
+  }),
+]);
+
 export const DEFAULT_FACTOR_ANALYSIS_SPEC_V2: Omit<
   FactorAnalysisSpecV2,
   'freq' | 'start' | 'end' | 'neutral'
@@ -219,6 +284,30 @@ export function normalizeFactorAnalysisSpec(input: unknown): FactorAnalysisSpec 
     end: spec.end,
     neutral: spec.neutral,
   };
+}
+
+export function normalizeFactorResearchSpec(input: unknown): FactorResearchSpecV1 {
+  const unified = factorResearchSpecV1Schema.safeParse(input);
+  if (unified.success) {
+    return unified.data.analysisKind === 'cross_sectional'
+      ? { ...unified.data, protocol: normalizeFactorAnalysisSpec(unified.data.protocol) }
+      : unified.data;
+  }
+
+  return {
+    version: 1,
+    analysisKind: 'cross_sectional',
+    protocol: normalizeFactorAnalysisSpec(input),
+  };
+}
+
+export function crossSectionalProtocol(spec: FactorResearchSpecV1): FactorAnalysisSpec {
+  if (spec.analysisKind !== 'cross_sectional') {
+    throw new Error(
+      `Analysis kind ${spec.analysisKind} is not supported by the cross-sectional evaluator.`,
+    );
+  }
+  return spec.protocol;
 }
 
 export function createDefaultFactorAnalysisSpecV2(input: {
