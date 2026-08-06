@@ -157,6 +157,46 @@ describe('runFactorAnalysisTool', () => {
     });
   });
 
+  it('freezes within-industry ranking for all-A research instead of falling back to V3', async () => {
+    const started: RunFactorAnalysisResponse = {
+      reportId: 'report-industry',
+      jobId: 'job-industry',
+      status: 'running',
+      reusedRunning: false,
+    };
+    const start = vi.fn(async (_options: unknown) => started);
+    const wait = vi.fn(async () => ({ status: 'done' as const, payload: report }));
+    const tool = runFactorAnalysisTool({
+      userId: 'user-1',
+      factorId: 'factor-1',
+      currentCode: 'current factor code',
+      locale: 'zh',
+      getPolicy: async () => policy,
+      start,
+      wait,
+    });
+
+    await tool.run({
+      freq: 'month',
+      start: '20200101',
+      end: '20260130',
+      neutral: 'none',
+      universe: 'cn_a',
+      rankingScope: 'within_industry',
+      researchIntent: intent,
+    });
+
+    expect(start.mock.calls[0][0]).toMatchObject({
+      spec: {
+        version: 5,
+        evaluationScope: {
+          universe: { kind: 'market', market: 'cn_a' },
+          rankingScope: 'within_industry',
+        },
+      },
+    });
+  });
+
   it('rejects any sample that crosses into sealed holdout data', async () => {
     const start = vi.fn(async () => {
       throw new Error('should not run');

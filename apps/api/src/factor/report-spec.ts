@@ -102,8 +102,7 @@ export const factorEvaluationScopeV1Schema = z.object({
     }),
   ]),
   membership: z.literal('point_in_time'),
-  // The contract reserves within-industry ranking, but the evaluator must reject it until Phase 1b.
-  rankingScope: z.literal('global'),
+  rankingScope: z.enum(['global', 'within_industry']),
   diagnostics: z.array(z.never()).max(0),
 });
 

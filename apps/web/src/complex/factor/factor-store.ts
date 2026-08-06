@@ -216,6 +216,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       setEnd: action,
       setUniverseParameter: action,
       setEvaluationUniverse: action,
+      setEvaluationRankingScope: action,
       setMinimumWindowCoverage: action,
       setOutlierMethod: action,
       setCostParameter: action,
@@ -417,6 +418,11 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       universe:
         value === 'cn_a' ? { kind: 'market', market: 'cn_a' } : { kind: 'index', indexCode: value },
     };
+  }
+
+  public setEvaluationRankingScope(value: FactorEvaluationScopeV1['rankingScope']) {
+    this.specVersion = 5;
+    this.evaluationScope = { ...this.evaluationScope, rankingScope: value };
   }
 
   public setMinimumWindowCoverage(value: number) {

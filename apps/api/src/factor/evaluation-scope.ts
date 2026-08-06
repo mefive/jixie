@@ -2,6 +2,7 @@ import type { FactorEvaluationScopeV1 } from '@jixie/shared';
 import { minusDays } from '../lib/date.js';
 
 export const MAX_INDEX_MEMBERSHIP_AGE_DAYS = 45;
+export const WITHIN_INDUSTRY_MIN_GROUP_SIZE = 5;
 
 export interface IndexMembershipRow {
   conCode: string;
@@ -51,6 +52,74 @@ export class PointInTimeIndexMembership {
 /** Keep a dated universe fail-closed when the upstream constituent history has stopped updating. */
 export function isIndexMembershipFresh(snapshotDate: string, decisionDate: string): boolean {
   return snapshotDate >= minusDays(decisionDate, MAX_INDEX_MEMBERSHIP_AGE_DAYS);
+}
+
+export interface WithinGroupRankResult<T> {
+  rows: T[];
+  missingGroup: number;
+  smallGroup: number;
+  groups: number;
+}
+
+/** Convert raw values to comparable within-group percentile ranks. Missing classifications and groups
+ * below the frozen minimum are excluded instead of being merged into an economically unrelated group. */
+export function rankWithinGroups<T extends { value: number }>(
+  rows: T[],
+  groupKeys: Array<string | null>,
+  minimumGroupSize = WITHIN_INDUSTRY_MIN_GROUP_SIZE,
+): WithinGroupRankResult<T> {
+  if (rows.length !== groupKeys.length) {
+    throw new Error('Rows and group keys must have the same length.');
+  }
+  const indexesByGroup = new Map<string, number[]>();
+  let missingGroup = 0;
+  for (let index = 0; index < rows.length; index++) {
+    const key = groupKeys[index];
+    if (!key) {
+      missingGroup += 1;
+      continue;
+    }
+    const indexes = indexesByGroup.get(key) ?? [];
+    indexes.push(index);
+    indexesByGroup.set(key, indexes);
+  }
+
+  const rankedValues = new Map<number, number>();
+  let smallGroup = 0;
+  let groups = 0;
+  for (const indexes of indexesByGroup.values()) {
+    if (indexes.length < minimumGroupSize) {
+      smallGroup += indexes.length;
+      continue;
+    }
+    groups += 1;
+    const ordered = indexes.slice().sort((a, b) => rows[a].value - rows[b].value);
+    let start = 0;
+    while (start < ordered.length) {
+      let end = start;
+      while (
+        end + 1 < ordered.length &&
+        rows[ordered[end + 1]].value === rows[ordered[start]].value
+      ) {
+        end += 1;
+      }
+      const percentile = ((start + end) / 2 + 0.5) / ordered.length;
+      for (let position = start; position <= end; position++) {
+        rankedValues.set(ordered[position], percentile);
+      }
+      start = end + 1;
+    }
+  }
+
+  return {
+    rows: rows.flatMap((row, index) => {
+      const value = rankedValues.get(index);
+      return value == null ? [] : [{ ...row, value }];
+    }),
+    missingGroup,
+    smallGroup,
+    groups,
+  };
 }
 
 export function filterEvaluationUniverse<T extends { tsCode: string }>(

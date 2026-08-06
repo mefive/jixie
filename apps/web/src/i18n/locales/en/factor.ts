@@ -88,13 +88,18 @@ export const enFactor: typeof zhFactor = {
   neutralSizeIndustry: 'Size + industry',
   neutralSizeTag: '·size-neut',
   neutralSizeIndustryTag: '·size+ind-neut',
-  paramsSummary: '{{frequency}} · {{start}} to {{end}} · {{universe}} · {{neutral}}',
+  paramsSummary: '{{frequency}} · {{start}} to {{end}} · {{universe}} · {{ranking}} · {{neutral}}',
   evaluationUniverseLabel: 'Research universe',
   evaluationUniverse: {
     cn_a: 'All A-shares',
     '000300.SH': 'CSI 300',
     '000905.SH': 'CSI 500',
     '000852.SH': 'CSI 1000',
+  },
+  evaluationRankingLabel: 'Ranking scope',
+  evaluationRanking: {
+    global: 'Global ranking',
+    within_industry: 'Within SW L1 industries',
   },
   paramsSettings: 'Analysis settings',
   paramsMore: 'More settings',
@@ -223,6 +228,7 @@ export const enFactor: typeof zhFactor = {
   stageFactorValue: 'Factor values',
   stageQuotes: 'Formation/forward quotes',
   stageEvaluationUniverse: 'Point-in-time universe',
+  stageRankingScope: 'Ranking scope',
   stageListingAge: 'Listing age',
   stageRiskWarning: 'ST/risk warning',
   stagePendingDelisting: 'Delisting period',
@@ -230,6 +236,9 @@ export const enFactor: typeof zhFactor = {
   universeSpec:
     'Listed ≥{{days}} days · drop least-liquid {{liquidity}}% · ≥{{candidates}} names per period',
   evaluationUniverseSpec: 'Research universe: {{universe}} · historical constituents',
+  evaluationRankingSpec: 'Ranking method: {{ranking}} · point-in-time industry classifications',
+  evaluationRankingAudit:
+    'Ranking audit (period totals): {{groups}} industry-periods · {{missing}} missing classifications · {{small}} rows from groups below {{minimum}} excluded',
   outlierSpec: 'Factor exposure: {{exposure}} · forward return: {{returns}}',
   costSpec:
     'Commission {{commission}}bp/side · stamp {{stamp}}bp/sell · slippage {{slippage}}bp/side',

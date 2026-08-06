@@ -4,6 +4,7 @@ import {
   filterEvaluationUniverse,
   isIndexMembershipFresh,
   PointInTimeIndexMembership,
+  rankWithinGroups,
 } from './evaluation-scope.js';
 
 const scope: FactorEvaluationScopeV1 = {
@@ -49,5 +50,25 @@ describe('factor evaluation scope', () => {
   it('rejects snapshots older than the frozen 45-day freshness boundary', () => {
     expect(isIndexMembershipFresh('20240101', '20240215')).toBe(true);
     expect(isIndexMembershipFresh('20240101', '20240216')).toBe(false);
+  });
+
+  it('ranks values within each group and excludes missing or undersized groups', () => {
+    const rows = [
+      { id: 'a1', value: 10 },
+      { id: 'a2', value: 20 },
+      { id: 'a3', value: 20 },
+      { id: 'b1', value: 100 },
+      { id: 'b2', value: 200 },
+      { id: 'missing', value: 999 },
+    ];
+
+    const result = rankWithinGroups(rows, ['A', 'A', 'A', 'B', 'B', null], 3);
+
+    expect(result).toMatchObject({ missingGroup: 1, smallGroup: 2, groups: 1 });
+    expect(result.rows).toEqual([
+      { id: 'a1', value: 1 / 6 },
+      { id: 'a2', value: 2 / 3 },
+      { id: 'a3', value: 2 / 3 },
+    ]);
   });
 });
