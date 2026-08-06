@@ -14,6 +14,10 @@ FinaIndicator / Dividend / IndexWeight / IndexDaily，以及期货合约、行�
 元数据 1783 条；首批 12 只主要 ETF 从 2015 年（或各自上市日）同步到 2026-07-24，
 共 27,323 条行情。范围、同步方式和交易规则见 [`etf-trading.md`](./etf-trading.md)。
 
+**2026-08-04 大类资产配置数据立项**：债券 ETF、商品 ETF、收益率曲线、商品期限结构和
+PIT 宏观数据的目标、边界及实施波次见 [`asset-allocation-data.md`](./asset-allocation-data.md)。
+该计划单独排期，不并入下方股票基本面波次。
+
 ## 缺口按需求归类
 
 ### 需求① agent 基本面问答与筛选(「毛利率>30% 的消费股」「负债率最低的银行」)
