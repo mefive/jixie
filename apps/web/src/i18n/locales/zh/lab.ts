@@ -1,6 +1,8 @@
 // Backtest workbench (/lab): the code-first IDE, trade detail, strategy cards. zh is the source-of-truth shape.
 export const zhLab = {
   // New-strategy hero + prompt block
+  factorReleaseStarterPrompt:
+    '请使用已发布因子“{{name}}”（{{key}}@v{{version}}，不可变引用 release:{{id}}）设计一套策略。先说明选股范围、调仓周期、组合构建和风险控制，再生成可回测代码。',
   heroTitle: '新建策略',
   heroHint: '用一句话描述你的策略，AI 写成代码，再自己调参',
   newModalHint: '用一句话描述你的新策略，AI 写成代码，再自己调参',

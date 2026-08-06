@@ -62,6 +62,7 @@ function LabRoute() {
   const setupParams = useRef({
     id: searchParams.get('id') || undefined,
     isNew: searchParams.has('new'),
+    factorReleaseId: searchParams.get('factorRelease') || undefined,
   }).current;
   return <ComplexRoute entry={labEntry} setupParams={setupParams} />;
 }

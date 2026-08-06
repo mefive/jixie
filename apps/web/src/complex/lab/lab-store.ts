@@ -6,6 +6,7 @@ import {
   type BacktestSummary,
   type ChatMessage,
   type CostConfig,
+  type FactorRelease,
   type LogLine,
   type StrategyCard,
   type StrategyDeployment,
@@ -30,6 +31,7 @@ import {
   getStrategyScanReport,
   fetchIndexSeries,
   inspectStrategyParameters,
+  listFactorReleases,
   listStrategyScans,
   listStrategies,
   pollBacktest,
@@ -43,7 +45,7 @@ import { DEFAULT_CODE, DEFAULT_PYTHON_CODE } from './default-strategy';
 import { BENCHMARKS, type BenchmarkSeries } from './benchmarks';
 import { pushRecent, readRecents, removeRecent } from './recents';
 
-type LabSetupParams = { id?: string; isNew?: boolean };
+type LabSetupParams = { id?: string; isNew?: boolean; factorReleaseId?: string };
 type DeploymentAction =
   | { type: 'deploy'; strategyId: string }
   | { type: 'pause'; deploymentId: string };
@@ -102,6 +104,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
   public scanReportLoader = new LoaderModel<StrategyScanReport>();
   public deploymentLoader = new LoaderModel<StrategyDeployment | null>();
   public deploymentActionLoader = new LoaderModel<StrategyDeployment>();
+  public factorReleaseLoader = new LoaderModel<FactorRelease | null>();
 
   public constructor(parentStore?: any) {
     super(parentStore);
@@ -169,6 +172,10 @@ export class LabStore extends BaseStore<LabSetupParams> {
           ? deployStrategy(action.strategyId)
           : pauseStrategyDeployment(action.deploymentId),
     });
+    this.factorReleaseLoader.setup({
+      request: async (releaseId: string) =>
+        (await listFactorReleases()).find((release) => release.id === releaseId) ?? null,
+    });
     this.registCleaner(() => this.backtestPoller.cleanup());
     this.registCleaner(() => this.scanPoller.cleanup());
     this.registCleaner(() => this.savedLoader.cleanup());
@@ -178,12 +185,16 @@ export class LabStore extends BaseStore<LabSetupParams> {
     this.registCleaner(() => this.scanReportLoader.cleanup());
     this.registCleaner(() => this.deploymentLoader.cleanup());
     this.registCleaner(() => this.deploymentActionLoader.cleanup());
+    this.registCleaner(() => this.factorReleaseLoader.cleanup());
     this.registCleaner(() => this.turnStream.detach()); // drop the SSE subscription; the turn keeps running
     void this.savedLoader.run(); // prime My strategies (also feeds the hero's Recent-visits cards)
     // A fresh (never-run) strategy: empty run-baseline → dirty → Run-backtest enabled; but the pristine
     // skeleton IS the "persisted" state (nothing to lose) → not edited → no leave guard.
     this.savedConfig = '';
     this.persistedConfig = this.configKey();
+    if (params.isNew && params.factorReleaseId) {
+      void this.prefillFactorRelease(params.factorReleaseId).catch((): void => undefined);
+    }
     // Resolve the initial view: `?new=1` forces the blank hero; else an explicit ?id; else the
     // most-recently-opened strategy (so re-entering /lab lands on your last work, not the blank hero);
     // else the blank starter. When we WILL open one, set `initializing` synchronously so the first paint
@@ -193,6 +204,21 @@ export class LabStore extends BaseStore<LabSetupParams> {
       this.initializing = true;
       void this.openSaved(initialId).finally(() => runInAction(() => (this.initializing = false)));
     }
+  }
+
+  private async prefillFactorRelease(releaseId: string): Promise<void> {
+    const release = await this.factorReleaseLoader.run(releaseId);
+    if (!release || release.lifecycle !== 'active' || release.sourceKind !== 'single') {
+      return;
+    }
+    runInAction(() => {
+      this.nlText = i18n.t('lab:factorReleaseStarterPrompt', {
+        name: release.sourceName,
+        key: release.releaseKey,
+        version: release.version,
+        id: release.id,
+      });
+    });
   }
 
   /** True while a backtest is running (drives the loading state + progress log). */

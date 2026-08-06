@@ -548,13 +548,17 @@ horizon 的显著性不使用朴素独立样本 t 值。
 - 每日 worker 只在最终决策 bar 记录策略真实调用过的 release/资产/value；`SignalRun.factorInputs` 按
   release 保存覆盖数、有效数、最小/最大/均值，并保留本次交易或持仓资产的实际值。这里明确叫“因子输入
   快照”，不把尚未校准 expected return、概率和 horizon 的 equity factor value 冒充 `FactorSignal`；
+- active single release 可从已批准的因子报告一键打开新 Strategy Lab；页面按当前用户重新读取发布版并
+  预填带 `release:<ULID>` 的 Agent 请求，发布名称只用于解释，不作为可变运行时引用；无权限、已退役或
+  非 single 的 release 不会被带入；
 - 组合 release、时间序列/面板/宏观 evaluator 尚未进入策略 runtime，引用时明确失败，不做静默降级。
 - 真实浏览器纵向 E2E 已完成 `FactorReport → ep@v1 → release:<ULID> 策略 → 30 笔真实成交 → 结果血缘`
   闭环，并验证非 production 版本的 UI/API 双重部署门禁；截图为
-  `apps/web/acceptance/8a-strategy-factor-release.png`。
+  `apps/web/acceptance/8a-strategy-factor-release.png`；一键带入入口与不可变引用预填截图为
+  `apps/web/acceptance/8b-factor-release-to-lab.png`。
 
-尚未完成：“从因子报告一键带入 Strategy Lab”的生成动作，以及面向时间序列 evaluator 的校准
-`FactorSignal` 输出。
+尚未完成：面向时间序列 evaluator 的校准 `FactorSignal` 输出。当前一键带入只形成明确的策略研究请求，
+仍由 Agent 生成策略并经策略回测验证，不把因子报告本身误认为交易算法。
 
 **交付：**
 

@@ -55,6 +55,7 @@ import {
   faTriangleExclamation,
   faLayerGroup,
   faPen,
+  faFlask,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { LoaderButton } from '@src/components/loader-button';
@@ -2068,15 +2069,28 @@ const FactorReleaseCard = complex.component(() => {
                   date: dayjs(release.createdAt).format('YYYY-MM-DD HH:mm'),
                 })}
                 {release.lifecycle === 'active' && (
-                  <Button
-                    type="link"
-                    size="small"
-                    danger
-                    loading={store.retireReleaseLoader.loading}
-                    onClick={() => confirmRetire(release)}
-                  >
-                    {t('release.retire')}
-                  </Button>
+                  <>
+                    {release.sourceKind === 'single' && (
+                      <Button
+                        type="link"
+                        size="small"
+                        icon={<FontAwesomeIcon icon={faFlask} />}
+                        href={`/lab?new=1&factorRelease=${encodeURIComponent(release.id)}`}
+                        data-testid="factor-release-use-in-lab"
+                      >
+                        {t('release.useInLab')}
+                      </Button>
+                    )}
+                    <Button
+                      type="link"
+                      size="small"
+                      danger
+                      loading={store.retireReleaseLoader.loading}
+                      onClick={() => confirmRetire(release)}
+                    >
+                      {t('release.retire')}
+                    </Button>
+                  </>
                 )}
               </div>
             </div>
