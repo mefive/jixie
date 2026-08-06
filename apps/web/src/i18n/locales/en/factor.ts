@@ -230,6 +230,7 @@ export const enFactor: typeof zhFactor = {
   release: {
     title: 'Publishing and strategy references',
     hint: 'Approve an immutable report as a version that strategies can reference exactly',
+    useInLab: 'Use in Strategy Lab',
     publishReport: 'Publish this report',
     reportRef: 'Report {{id}}',
     codeRef: 'Code {{hash}}',

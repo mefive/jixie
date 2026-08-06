@@ -3,6 +3,8 @@ import type { zhLab } from '../zh/lab';
 // English mirror of zhLab (structurally identical — enforced by typeof).
 export const enLab: typeof zhLab = {
   // New-strategy hero + prompt block
+  factorReleaseStarterPrompt:
+    'Design a strategy using the published factor “{{name}}” ({{key}}@v{{version}}, immutable reference release:{{id}}). Explain the universe, rebalance schedule, portfolio construction, and risk controls before generating backtestable code.',
   heroTitle: 'New strategy',
   heroHint: 'Describe your strategy in one sentence; the AI writes the code, then you tune it',
   newModalHint:

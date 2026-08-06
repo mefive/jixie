@@ -211,6 +211,7 @@ export const zhFactor = {
   release: {
     title: '发布与策略引用',
     hint: '批准不可变报告，形成可被策略精确引用的版本',
+    useInLab: '带入策略 Lab',
     publishReport: '发布此报告',
     reportRef: '报告 {{id}}',
     codeRef: '代码 {{hash}}',
