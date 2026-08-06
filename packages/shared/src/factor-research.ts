@@ -69,13 +69,23 @@ export type FactorResearchSpecV1 =
   | PanelFactorResearchSpecV1
   | MacroRegimeFactorResearchSpecV1;
 
-export interface FactorTimeSeriesReportV1 {
-  assets: string[];
-  periods: number;
+export interface FactorTimeSeriesAssetReportV1 {
+  assetId: string;
+  observations: number;
   correlation: number;
   regressionSlope: number;
   directionHitRate: number;
+  neweyWestLag: number;
   neweyWestTStat: number;
+  positiveStateMeanReturn: number | null;
+  negativeStateMeanReturn: number | null;
+}
+
+export interface FactorTimeSeriesReportV1 {
+  assets: string[];
+  periods: number;
+  observations: number;
+  byAsset: FactorTimeSeriesAssetReportV1[];
 }
 
 export interface FactorPanelReportV1 {

@@ -483,8 +483,8 @@ const bondSignal = ctx.signal('bond-trend@1', '511260.SH');
   retire，验收截图保存在 `apps/web/acceptance/7r-factor-release-approval.png` 与
   `7s-factor-release-lineage.png`。
 
-尚未完成：策略消费 release。
-因此这一批只建立不可变身份与契约，不改变既有因子计算结果，也不能对外宣称 Factor V2 已可用。
+策略消费 release 已在 Phase 3 的首个纵向切片落地。Phase 1 仍不改变既有横截面因子计算结果，且统一
+因子库的草稿 / 已验证 / 已发布筛选尚未收口，不能据此对外宣称完整 Factor V2 已可用。
 
 **后端：**
 
@@ -515,6 +515,12 @@ const bondSignal = ctx.signal('bond-trend@1', '511260.SH');
 
 1. ETF 20/60/120 日趋势；
 2. 国债收益率趋势或曲线斜率 → 债券 ETF 未来收益。
+
+**2026-08-06 统计内核切片：**已实现独立 `TimeSeriesEvaluator` 的第一层纯计算边界：按资产输出因子值
+与未来收益相关性、回归斜率、方向命中率、正负状态条件收益和 Newey-West t 值。评估输入显式携带
+`featureAvailableDate`、`asOfDate`、`targetDate`，拒绝决策日后才可得的特征、越过冻结 data cutoff 的
+前瞻收益、重复观测和未声明资产；自动或手填 lag 都不得低于重叠预测窗口所需的最小滞后。当前尚未接入
+worker registry、ETF 调整价数据加载和报告 UI，因此仍保持 API fail-closed，不能由产品页面发起。
 
 **交付：**
 
