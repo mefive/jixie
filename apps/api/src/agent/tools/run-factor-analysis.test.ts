@@ -183,6 +183,7 @@ describe('runFactorAnalysisTool', () => {
       neutral: 'none',
       universe: 'cn_a',
       rankingScope: 'within_industry',
+      diagnostics: ['industry'],
       researchIntent: intent,
     });
 
@@ -192,6 +193,7 @@ describe('runFactorAnalysisTool', () => {
         evaluationScope: {
           universe: { kind: 'market', market: 'cn_a' },
           rankingScope: 'within_industry',
+          diagnostics: ['industry'],
         },
       },
     });

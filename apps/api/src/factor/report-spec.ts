@@ -103,7 +103,10 @@ export const factorEvaluationScopeV1Schema = z.object({
   ]),
   membership: z.literal('point_in_time'),
   rankingScope: z.enum(['global', 'within_industry']),
-  diagnostics: z.array(z.never()).max(0),
+  diagnostics: z
+    .array(z.enum(['industry', 'size_bucket', 'liquidity_bucket']))
+    .max(3)
+    .refine((items) => new Set(items).size === items.length, 'Diagnostics must be unique.'),
 });
 
 export const factorAnalysisSpecV5Schema = factorAnalysisSpecV3Schema.extend({

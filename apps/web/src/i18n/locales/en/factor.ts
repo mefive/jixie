@@ -101,6 +101,12 @@ export const enFactor: typeof zhFactor = {
     global: 'Global ranking',
     within_industry: 'Within SW L1 industries',
   },
+  evaluationDiagnosticsLabel: 'Diagnostic slices (primary result unchanged)',
+  evaluationDiagnostics: {
+    industry: 'Industry',
+    size_bucket: 'Size bucket',
+    liquidity_bucket: 'Liquidity bucket',
+  },
   paramsSettings: 'Analysis settings',
   paramsMore: 'More settings',
   paramsChanged: 'Parameters or code changed; running will create a new report',
@@ -239,6 +245,23 @@ export const enFactor: typeof zhFactor = {
   evaluationRankingSpec: 'Ranking method: {{ranking}} · point-in-time industry classifications',
   evaluationRankingAudit:
     'Ranking audit (period totals): {{groups}} industry-periods · {{missing}} missing classifications · {{small}} rows from groups below {{minimum}} excluded',
+  diagnosticsTitle: 'Robustness diagnostics',
+  diagnosticsSlice: 'Slice',
+  diagnosticsPeriods: 'Periods',
+  diagnosticsObservations: 'Observations',
+  diagnosticsIc: 'Rank IC',
+  diagnosticsIcir: 'Annual ICIR',
+  diagnosticsPositive: 'Positive IC',
+  diagnosticsSliceLabel: '{{dimension}} · {{key}}',
+  diagnosticsCap:
+    'Diagnostic slices locate signal robustness; they do not change primary metrics or release criteria.',
+  diagnosticKey: {
+    small: 'Small cap',
+    mid: 'Middle',
+    large: 'Large cap',
+    low: 'Low liquidity',
+    high: 'High liquidity',
+  },
   outlierSpec: 'Factor exposure: {{exposure}} · forward return: {{returns}}',
   costSpec:
     'Commission {{commission}}bp/side · stamp {{stamp}}bp/sell · slippage {{slippage}}bp/side',

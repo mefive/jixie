@@ -704,6 +704,44 @@
   font-size: 11px;
 }
 
+.jx-factor-diagnosticChoices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+
+.jx-factor-diagnosticChoices label {
+  @apply text-muted;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+}
+
+.jx-factor-diagnosticsTableWrap {
+  overflow-x: auto;
+}
+
+.jx-factor-diagnostics table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.jx-factor-diagnostics th,
+.jx-factor-diagnostics td {
+  @apply border-line;
+  padding: 7px 10px;
+  border-bottom-width: 1px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.jx-factor-diagnostics th:first-child,
+.jx-factor-diagnostics td:first-child {
+  text-align: left;
+}
+
 .jx-factor-metric {
   @apply flex flex-col gap-1;
   @apply rounded-lg border border-line bg-bg;

@@ -28,6 +28,10 @@ const argsSchema = z.object({
   neutral: z.enum(['none', 'size', 'size_industry']).default('none'),
   universe: z.enum(['cn_a', '000300.SH', '000905.SH', '000852.SH']).default('cn_a'),
   rankingScope: z.enum(['global', 'within_industry']).default('global'),
+  diagnostics: z
+    .array(z.enum(['industry', 'size_bucket', 'liquidity_bucket']))
+    .max(3)
+    .default([]),
   researchIntent: factorResearchIntentV1Schema,
 });
 
@@ -91,7 +95,9 @@ export function runFactorAnalysisTool(context: FactorResearchContext): AgentTool
         neutral: parsed.data.neutral,
       };
       const spec =
-        parsed.data.universe === 'cn_a' && parsed.data.rankingScope === 'global'
+        parsed.data.universe === 'cn_a' &&
+        parsed.data.rankingScope === 'global' &&
+        parsed.data.diagnostics.length === 0
           ? createDefaultFactorAnalysisSpecV3(commonSpec)
           : createDefaultFactorAnalysisSpecV5({
               ...commonSpec,
@@ -103,7 +109,7 @@ export function runFactorAnalysisTool(context: FactorResearchContext): AgentTool
                     : { kind: 'index', indexCode: parsed.data.universe },
                 membership: 'point_in_time',
                 rankingScope: parsed.data.rankingScope,
-                diagnostics: [],
+                diagnostics: parsed.data.diagnostics,
               },
             });
       const start = context.start ?? startFactorAnalysis;

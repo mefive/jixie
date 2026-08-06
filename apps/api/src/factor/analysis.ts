@@ -761,7 +761,9 @@ export async function analyzeFactor(
   }
   const byDate = computed.series;
   const needsIndustry =
-    neutral === 'size_industry' || evaluationScope.rankingScope === 'within_industry';
+    neutral === 'size_industry' ||
+    evaluationScope.rankingScope === 'within_industry' ||
+    evaluationScope.diagnostics.includes('industry');
   const industryByStock = needsIndustry
     ? await loadIndustryLookup()
     : new Map<string, IndustrySpell[]>();
@@ -843,6 +845,15 @@ export async function analyzeFactor(
     undersizedGroup: 0,
     groupsEvaluated: 0,
   };
+  const diagnosticSeries = new Map<
+    string,
+    {
+      dimension: 'industry' | 'size_bucket' | 'liquidity_bucket';
+      key: string;
+      ics: number[];
+      observations: number;
+    }
+  >();
   let periodsConsidered = 0;
 
   const icSeries: number[] = [];
@@ -994,6 +1005,70 @@ export async function analyzeFactor(
     const rankIc = st.spearman(values, fwdW);
     icSeries.push(rankIc); // Rank IC (factor value vs forward return)
 
+    if (spec.version === 5 && evaluationScope.diagnostics.length > 0) {
+      const collect = (
+        dimension: 'industry' | 'size_bucket' | 'liquidity_bucket',
+        keys: Array<string | null>,
+      ) => {
+        const indexesByKey = new Map<string, number[]>();
+        for (let index = 0; index < keys.length; index++) {
+          const key = keys[index];
+          if (!key) {
+            continue;
+          }
+          const indexes = indexesByKey.get(key) ?? [];
+          indexes.push(index);
+          indexesByKey.set(key, indexes);
+        }
+        for (const [key, indexes] of indexesByKey) {
+          if (indexes.length < 5) {
+            continue;
+          }
+          const id = `${dimension}:${key}`;
+          const accumulator = diagnosticSeries.get(id) ?? {
+            dimension,
+            key,
+            ics: [],
+            observations: 0,
+          };
+          accumulator.ics.push(
+            st.spearman(
+              indexes.map((index) => values[index]),
+              indexes.map((index) => fwdW[index]),
+            ),
+          );
+          accumulator.observations += indexes.length;
+          diagnosticSeries.set(id, accumulator);
+        }
+      };
+      if (evaluationScope.diagnostics.includes('industry')) {
+        collect(
+          'industry',
+          candidates.map((candidate) => industryOn(industryByStock.get(candidate.tsCode), date)),
+        );
+      }
+      if (evaluationScope.diagnostics.includes('size_bucket')) {
+        const sizeBuckets = st.quantileBuckets(
+          candidates.map((candidate) => candidate.mktcap),
+          3,
+        );
+        collect(
+          'size_bucket',
+          sizeBuckets.map((bucket) => ['small', 'mid', 'large'][bucket]),
+        );
+      }
+      if (evaluationScope.diagnostics.includes('liquidity_bucket')) {
+        const liquidityBuckets = st.quantileBuckets(
+          candidates.map((candidate) => candidate.amount),
+          3,
+        );
+        collect(
+          'liquidity_bucket',
+          liquidityBuckets.map((bucket) => ['low', 'mid', 'high'][bucket]),
+        );
+      }
+    }
+
     const buckets = st.quantileBuckets(values, N_BUCKETS); // decile index per candidate
 
     // Main decile forward returns (next period): equal-weight + cap-weight, plus the top/bottom sets
@@ -1124,6 +1199,21 @@ export async function analyzeFactor(
     navEnd: st.navFromReturns(rets).at(-1)!,
   });
   const buckets = toBuckets(bucketReturns);
+  const diagnostics = [...diagnosticSeries.values()]
+    .map((slice) => {
+      const mean = st.mean(slice.ics);
+      const sd = st.std(slice.ics);
+      return {
+        dimension: slice.dimension,
+        key: slice.key,
+        periods: slice.ics.length,
+        observations: slice.observations,
+        rankIcMean: mean,
+        rankIcirAnnual: sd > 0 ? (mean / sd) * Math.sqrt(periodsPerYear) : 0,
+        rankIcPositiveRate: slice.ics.filter((value) => value > 0).length / slice.ics.length,
+      };
+    })
+    .sort((a, b) => a.dimension.localeCompare(b.dimension) || a.key.localeCompare(b.key));
   const quantileHorizons = IC_DECAY_HORIZONS.map((horizonDays, hi) => ({
     horizonDays,
     equal: qhEqual[hi].map((list) => st.mean(list)),
@@ -1232,6 +1322,7 @@ export async function analyzeFactor(
     longShortNetMktcap: toLongShort(lsNetReturnsMktcap),
     lsNav,
     periodObservations,
+    ...(spec.version === 5 && evaluationScope.diagnostics.length > 0 ? { diagnostics } : {}),
     methodology,
   };
 }
