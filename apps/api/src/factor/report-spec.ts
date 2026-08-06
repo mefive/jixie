@@ -372,7 +372,7 @@ export function sha256(value: string): string {
 }
 
 export function factorVariantKey(
-  spec: FactorAnalysisSpec,
+  spec: FactorAnalysisSpec | FactorResearchSpecV1,
   factorCodeHash: string,
   dataRevision: string | null = null,
 ): string {
@@ -380,7 +380,7 @@ export function factorVariantKey(
 }
 
 export function factorTestKey(
-  spec: FactorAnalysisSpec,
+  spec: FactorAnalysisSpec | FactorResearchSpecV1,
   factorCodeHash: string,
   intent: FactorResearchIntentV1,
 ): string {

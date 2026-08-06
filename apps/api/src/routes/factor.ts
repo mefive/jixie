@@ -10,6 +10,9 @@ import type {
   FactorReport as FactorAnalysisPayload,
   FactorReportStatus,
   FactorReportSummary,
+  FactorResearchReportPayloadV1,
+  FactorResearchSpecV1,
+  FactorTimeSeriesReportV1,
   LogLine,
   ChatMessage,
   RunFactorAnalysisResponse,
@@ -217,15 +220,16 @@ factorRoute.get('/reports/:reportId', async (c) => {
     return apiError(c, 'NOT_FOUND', m(c, 'windowNotComputed'));
   }
   const summary = reportSummary(row);
+  const researchSpec = reportResearchSpec(row);
   const sealed = row.phase === 'holdout' && row.revealedAt === null;
-  const payload = sealed ? undefined : parseReportPayload(row.payload);
+  const researchPayload = sealed ? undefined : parseResearchPayload(row.payload, researchSpec);
+  const payload =
+    researchPayload?.analysisKind === 'cross_sectional' ? researchPayload.report : undefined;
 
   return c.json({
     ...summary,
     payload,
-    researchPayload: payload
-      ? { version: 1, analysisKind: 'cross_sectional' as const, report: payload }
-      : undefined,
+    researchPayload,
     factorCodeSnapshot: row.factorCodeSnapshot ?? undefined,
     factorCodeHash: row.factorCodeHash ?? undefined,
     dataRevision: row.dataRevision ?? undefined,
@@ -290,28 +294,49 @@ const runAnalysisBody = z.object({
 factorRoute.post('/analysis/run', validateJson(runAnalysisBody), async (c) => {
   const userId = c.var.userId;
   const { factor, parentReportId, researchIntent } = c.req.valid('json');
-  const researchSpec = normalizeFactorResearchSpec(c.req.valid('json').spec);
-  if (researchSpec.analysisKind !== 'cross_sectional') {
+  let researchSpec = normalizeFactorResearchSpec(c.req.valid('json').spec);
+  let source: FactorAnalysisSource | null;
+  if (researchSpec.analysisKind === 'cross_sectional') {
+    let protocol = researchSpec.protocol;
+    source = await resolveFactorSource(userId, factor);
+    if (!source) {
+      return apiError(c, 'NOT_FOUND', m(c, 'unknownFactor', { factor }));
+    }
+    if (source.kind === 'composite') {
+      if (protocol.version !== 4) {
+        return apiError(c, 'VALIDATION_FAILED', m(c, 'windowNotComputed'));
+      }
+      protocol = { ...protocol, composite: source.definition };
+    } else if (protocol.version === 4) {
+      return apiError(c, 'VALIDATION_FAILED', m(c, 'windowNotComputed'));
+    }
+    researchSpec = { ...researchSpec, protocol };
+  } else if (researchSpec.analysisKind === 'time_series') {
+    source = resolveTimeSeriesFactorSource(factor);
+    if (!source) {
+      return apiError(c, 'NOT_FOUND', m(c, 'unknownFactor', { factor }));
+    }
+    if (researchIntent.mode !== 'exploratory') {
+      return apiError(c, 'VALIDATION_FAILED', m(c, 'factorTimeSeriesExploratoryOnly'));
+    }
+    const dataCutoff = await resolveEtfDataCutoff(researchSpec);
+    if (!dataCutoff) {
+      return apiError(c, 'VALIDATION_FAILED', m(c, 'windowNotComputed'));
+    }
+    researchSpec = {
+      ...researchSpec,
+      dataPolicy: { ...researchSpec.dataPolicy, dataCutoff },
+    };
+  } else {
     return apiError(
       c,
       'VALIDATION_FAILED',
       m(c, 'factorAnalysisKindUnsupported', { kind: researchSpec.analysisKind }),
     );
   }
-  let spec = crossSectionalProtocol(researchSpec);
-  const source = await resolveFactorSource(userId, factor);
-  if (!source) {
-    return apiError(c, 'NOT_FOUND', m(c, 'unknownFactor', { factor }));
-  }
-  if (source.kind === 'composite') {
-    if (spec.version !== 4) {
-      return apiError(c, 'VALIDATION_FAILED', m(c, 'windowNotComputed'));
-    }
-    spec = { ...spec, composite: source.definition };
-  } else if (spec.version === 4) {
-    return apiError(c, 'VALIDATION_FAILED', m(c, 'windowNotComputed'));
-  }
-  if (spec.start >= spec.end) {
+  const researchWindow =
+    researchSpec.analysisKind === 'cross_sectional' ? researchSpec.protocol : researchSpec;
+  if (researchWindow.start >= researchWindow.end) {
     return apiError(c, 'VALIDATION_FAILED', m(c, 'startAfterEnd'));
   }
   if (parentReportId) {
@@ -327,7 +352,7 @@ factorRoute.post('/analysis/run', validateJson(runAnalysisBody), async (c) => {
     userId,
     factor,
     source,
-    spec,
+    spec: researchSpec,
     researchIntent,
     parentReportId,
     locale: localeFromRequest(c),
@@ -432,7 +457,7 @@ factorRoute.post('/reports/:reportId/holdout', async (c) => {
       jobId,
       factor: parent.factor,
       source,
-      spec,
+      spec: normalizeFactorResearchSpec(spec),
       locale: localeFromRequest(c),
       failedMessage: m(c, 'factorAnalysisFailed'),
       exitedMessage: (code) => m(c, 'factorProcExited', { code }),
@@ -535,8 +560,10 @@ function reportSummary(
   row: FactorReportRow & { job?: { id: string } | null },
 ): FactorReportSummary {
   const sealed = row.phase === 'holdout' && row.revealedAt === null;
-  const payload = sealed ? undefined : parseReportPayload(row.payload);
   const researchSpec = reportResearchSpec(row);
+  const researchPayload = sealed ? undefined : parseResearchPayload(row.payload, researchSpec);
+  const crossSectionalPayload =
+    researchPayload?.analysisKind === 'cross_sectional' ? researchPayload.report : undefined;
 
   return {
     id: row.id,
@@ -544,7 +571,7 @@ function reportSummary(
     analysisKind: researchSpec.analysisKind,
     status: reportStatus(row.status),
     phase: row.phase === 'explore' || row.phase === 'holdout' ? row.phase : 'legacy',
-    spec: reportSpec(row),
+    spec: researchSpec.analysisKind === 'cross_sectional' ? researchSpec.protocol : undefined,
     researchSpec,
     variantKey: row.variantKey ?? undefined,
     jobId: row.job?.id,
@@ -554,7 +581,7 @@ function reportSummary(
     sealed,
     revealedAt: row.revealedAt?.toISOString(),
     researchIntent: parseResearchIntent(row.researchIntentJson),
-    metrics: payload ? { rankIc: payload.icMean } : undefined,
+    metrics: crossSectionalPayload ? { rankIc: crossSectionalPayload.icMean } : undefined,
   };
 }
 
@@ -600,6 +627,75 @@ function parseReportPayload(payload: string | null): FactorAnalysisPayload | und
   } catch {
     return undefined;
   }
+}
+
+function parseResearchPayload(
+  payload: string | null,
+  researchSpec: FactorResearchSpecV1,
+): FactorResearchReportPayloadV1 | undefined {
+  if (!payload) {
+    return undefined;
+  }
+  try {
+    const report = JSON.parse(payload) as unknown;
+    switch (researchSpec.analysisKind) {
+      case 'cross_sectional':
+        return {
+          version: 1,
+          analysisKind: 'cross_sectional',
+          report: report as FactorAnalysisPayload,
+        };
+      case 'time_series':
+        return {
+          version: 1,
+          analysisKind: 'time_series',
+          report: report as FactorTimeSeriesReportV1,
+        };
+      case 'panel':
+      case 'macro_regime':
+        return undefined;
+    }
+  } catch {
+    return undefined;
+  }
+}
+
+const ETF_TREND_SOURCES: Record<string, Extract<FactorAnalysisSource, { kind: 'etf_trend' }>> = {
+  etf_trend_20: { kind: 'etf_trend', label: 'ETF 20-day trend', lookback: 20 },
+  etf_trend_60: { kind: 'etf_trend', label: 'ETF 60-day trend', lookback: 60 },
+  etf_trend_120: { kind: 'etf_trend', label: 'ETF 120-day trend', lookback: 120 },
+};
+
+function resolveTimeSeriesFactorSource(
+  factor: string,
+): Extract<FactorAnalysisSource, { kind: 'etf_trend' }> | null {
+  const source = ETF_TREND_SOURCES[factor];
+  return source ? { ...source } : null;
+}
+
+async function resolveEtfDataCutoff(
+  researchSpec: Extract<FactorResearchSpecV1, { analysisKind: 'time_series' }>,
+): Promise<string | null> {
+  const latestRows = await prisma.etfDaily.groupBy({
+    by: ['tsCode'],
+    where: { tsCode: { in: researchSpec.assets }, close: { not: null } },
+    _max: { tradeDate: true },
+  });
+  if (latestRows.length !== researchSpec.assets.length) {
+    return null;
+  }
+  const availableCutoff = latestRows
+    .map((row) => row._max.tradeDate)
+    .filter((tradeDate): tradeDate is string => tradeDate !== null)
+    .sort()[0];
+  if (!availableCutoff) {
+    return null;
+  }
+  const requestedCutoff = researchSpec.dataPolicy.dataCutoff;
+  if (requestedCutoff && requestedCutoff > availableCutoff) {
+    return null;
+  }
+  return requestedCutoff ?? availableCutoff;
 }
 
 async function resolveFactorSource(

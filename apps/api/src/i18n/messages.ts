@@ -150,6 +150,18 @@ const MESSAGES = {
     zh: '研究类型 {kind} 的评估器尚未启用',
     en: 'The evaluator for analysis kind {kind} is not enabled yet',
   },
+  factorTimeSeriesExploratoryOnly: {
+    zh: '时间序列研究当前只开放探索模式，样本外验证门槛将在报告协议完成后启用',
+    en: 'Time-series research currently supports exploratory runs only; holdout validation will open after the report protocol is complete',
+  },
+  factorTimeSeriesLoading: {
+    zh: '正在加载 {count} 个 ETF 的复权历史…',
+    en: 'Loading adjusted ETF history for {count} asset(s)…',
+  },
+  factorTimeSeriesEvaluating: {
+    zh: '正在评估 {count} 条时点观测…',
+    en: 'Evaluating {count} point-in-time observation(s)…',
+  },
   factorUniverseHistoryMissing: {
     zh: '指数 {index} 在 {date} 之前没有历史成分，无法进行时点无偏的因子研究',
     en: 'Index {index} has no constituent snapshot on or before {date}; point-in-time factor research cannot continue',

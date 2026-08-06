@@ -3,6 +3,7 @@ import type {
   FactorAnalysisSpec,
   FactorReport,
   FactorResearchIntentV1,
+  FactorResearchSpecV1,
   Locale,
   LogLine,
   RunFactorAnalysisResponse,
@@ -25,10 +26,17 @@ const workerUrl = import.meta.url.endsWith('.ts')
   ? new URL('./factor-worker.boot.mjs', import.meta.url)
   : new URL('./factor-worker.js', import.meta.url);
 
-export type FactorAnalysisSource = FactorAnalysisRuntimeSource;
+export type FactorAnalysisSource =
+  | FactorAnalysisRuntimeSource
+  | { kind: 'etf_trend'; label: string; lookback: 20 | 60 | 120 };
 
 const factorAnalysisRuntimeSourceSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('single'), code: z.string().min(1), label: z.string().min(1) }),
+  z.object({
+    kind: z.literal('etf_trend'),
+    label: z.string().min(1),
+    lookback: z.union([z.literal(20), z.literal(60), z.literal(120)]),
+  }),
   z.object({
     kind: z.literal('composite'),
     label: z.string().min(1),
@@ -66,7 +74,7 @@ export async function startFactorAnalysis(options: {
   userId: string;
   factor: string;
   source: FactorAnalysisSource;
-  spec: FactorAnalysisSpec;
+  spec: FactorAnalysisSpec | FactorResearchSpecV1;
   researchIntent: FactorResearchIntentV1;
   parentReportId?: string | null;
   locale: Locale;
@@ -78,8 +86,11 @@ export async function startFactorAnalysis(options: {
   const factorCodeHash = sha256(factorCodeSnapshot);
   const dataRevision = null;
   const researchSpec = normalizeFactorResearchSpec(options.spec);
-  const variantKey = factorVariantKey(options.spec, factorCodeHash, dataRevision);
-  const testKey = factorTestKey(options.spec, factorCodeHash, options.researchIntent);
+  const identitySpec =
+    researchSpec.analysisKind === 'cross_sectional' ? researchSpec.protocol : researchSpec;
+  const variantKey = factorVariantKey(identitySpec, factorCodeHash, dataRevision);
+  const testKey = factorTestKey(identitySpec, factorCodeHash, options.researchIntent);
+  const reportColumns = reportCompatibilityColumns(researchSpec);
   const reportId = ulid();
   const jobId = ulid();
   const created = await prisma.$transaction(async (transaction) => {
@@ -111,10 +122,7 @@ export async function startFactorAnalysis(options: {
         factor: options.factor,
         status: 'running',
         phase: 'explore',
-        freq: options.spec.freq,
-        neutral: options.spec.neutral,
-        start: options.spec.start,
-        end: options.spec.end,
+        ...reportColumns,
         analysisKind: researchSpec.analysisKind,
         specJson: JSON.stringify(researchSpec),
         variantKey,
@@ -148,7 +156,7 @@ export async function startFactorAnalysis(options: {
     jobId,
     factor: options.factor,
     source: options.source,
-    spec: options.spec,
+    spec: researchSpec,
     locale: options.locale,
     failedMessage: options.failedMessage,
     exitedMessage: options.exitedMessage,
@@ -161,7 +169,7 @@ export async function launchFactorWorker(options: {
   jobId: string;
   factor: string;
   source: FactorAnalysisSource;
-  spec: FactorAnalysisSpec;
+  spec: FactorResearchSpecV1;
   locale: Locale;
   failedMessage: string;
   exitedMessage: (code: number) => string;
@@ -228,6 +236,29 @@ export async function launchFactorWorker(options: {
       done('error', undefined, options.exitedMessage(code));
     }
   });
+}
+
+function reportCompatibilityColumns(researchSpec: FactorResearchSpecV1): {
+  freq: string;
+  neutral: string;
+  start: string;
+  end: string;
+} {
+  if (researchSpec.analysisKind === 'cross_sectional') {
+    return {
+      freq: researchSpec.protocol.freq,
+      neutral: researchSpec.protocol.neutral,
+      start: researchSpec.protocol.start,
+      end: researchSpec.protocol.end,
+    };
+  }
+  const frequency = { daily: 'day', weekly: 'week', monthly: 'month' } as const;
+  return {
+    freq: frequency[researchSpec.observationFrequency],
+    neutral: 'none',
+    start: researchSpec.start,
+    end: researchSpec.end,
+  };
 }
 
 export async function readFactorAnalysisResult(

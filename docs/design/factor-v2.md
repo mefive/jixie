@@ -520,13 +520,21 @@ const bondSignal = ctx.signal('bond-trend@1', '511260.SH');
 与未来收益相关性、回归斜率、方向命中率、正负状态条件收益和 Newey-West t 值。评估输入显式携带
 `featureAvailableDate`、`asOfDate`、`targetDate`，拒绝决策日后才可得的特征、越过冻结 data cutoff 的
 前瞻收益、重复观测和未声明资产；自动或手填 lag 都不得低于重叠预测窗口所需的最小滞后。当前尚未接入
-worker registry 和报告 UI，因此仍保持 API fail-closed，不能由产品页面发起。
+报告 UI，不能由产品页面发起。
 
 **2026-08-06 ETF 观测切片：**已接入 `EtfDaily + EtfAdjFactor` 的批量加载和纯观测生成器，首版只接受
 日频、交易日 horizon，可生成任意 2–504 交易日趋势（产品模板使用 20 / 60 / 120）及严格向后的未来
 总收益。趋势和目标收益统一使用复权价，缺少复权因子、重复日期、未声明资产均 fail-closed；fixture
 验证了份额拆分不会制造趋势、改变未来目标价格不会反向改变当日因子值。该切片尚未替代通用
 `FactorDefinitionV2` 字段注册表，只是用现有 ETF 数据验收时间边界和复权口径。
+
+**2026-08-06 worker 与报告接线切片：**统一 `/factor/analysis/run` 已接受 `time_series` spec，但只解析
+`etf_trend_20 / 60 / 120` 三个受控模板；路由按全部目标 ETF 的共同最新行情冻结 data cutoff，拒绝未知
+模板、无行情资产、超前 cutoff、panel/macro 和尚未实现的时间序列 hypothesis/holdout。durable Job 将
+完整研究 spec 与模板快照交给 worker，结果以 `FactorTimeSeriesReportV1` 持久化并通过分型
+`researchPayload` 读取，不再伪装为旧 `FactorReport`。横截面 variant/test key 继续使用旧 protocol 计算，
+避免已有报告身份漂移。真实 worker 线程已用国债、黄金、沪深 300 ETF 的 2024 年数据跑通 720 条观测；
+下一步是报告 UI、报告历史入口和产品侧 E2E。
 
 **交付：**
 
