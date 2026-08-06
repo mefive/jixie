@@ -53,6 +53,7 @@ export type EngineFactorKey = (typeof ENGINE_FACTORS)[number]['key'];
 
 /** A finalized user-authored factor referenced from a strategy: `custom:` + its immutable key. */
 export const CUSTOM_FACTOR_PREFIX = 'custom:';
+export const FACTOR_RELEASE_PREFIX = 'release:';
 
 export function isCustomFactorKey(key: string): boolean {
   return key.startsWith(CUSTOM_FACTOR_PREFIX);
@@ -60,4 +61,18 @@ export function isCustomFactorKey(key: string): boolean {
 
 export function customFactorId(key: string): string {
   return key.slice(CUSTOM_FACTOR_PREFIX.length);
+}
+
+export function isFactorReleaseKey(key: string): boolean {
+  return key.startsWith(FACTOR_RELEASE_PREFIX);
+}
+
+export function factorReleaseId(key: string): string {
+  return key.slice(FACTOR_RELEASE_PREFIX.length);
+}
+
+/** Both legacy mutable custom factors and immutable releases execute through the computed-factor
+ * runtime. New strategies should prefer release:<ULID>. */
+export function isComputedFactorKey(key: string): boolean {
+  return isCustomFactorKey(key) || isFactorReleaseKey(key);
 }

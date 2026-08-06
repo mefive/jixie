@@ -7,7 +7,7 @@ import type {
   SignalItem,
 } from '@jixie/shared';
 import { codeConfigSchema } from '../strategy/code/schema.js';
-import { prepareCustomFactors } from './prepare-custom-factors.js';
+import { prepareStrategyFactors } from './prepare-custom-factors.js';
 import { runWalledSignalCapture } from './walled-run.js';
 import { prismaDataPort } from './prisma-port.js';
 import { prisma } from '../lib/prisma.js';
@@ -38,13 +38,13 @@ try {
   }
   systemLog(t(locale, 'signalCaptureStart', { date: run.tradeDate, execDate: run.execDate }));
 
-  const customFactors = await prepareCustomFactors(config.code, run.userId, locale);
+  const prepared = await prepareStrategyFactors(config.code, run.userId, locale, 'production');
   const output = await runWalledSignalCapture(
     {
       ...config,
       end: run.tradeDate,
       locale,
-      customFactors,
+      customFactors: prepared.modules,
     },
     prismaDataPort,
     systemLog,

@@ -1,7 +1,7 @@
 import type { BacktestConfig, Locale, StrategyParamValue } from '@jixie/shared';
 import type { UserLogSink } from '../lib/sandbox-console.js';
 import { createPythonStrategyRuntime } from '../strategy/python/runtime.js';
-import { prepareCustomFactors } from './prepare-custom-factors.js';
+import { prepareStrategyFactors } from './prepare-custom-factors.js';
 import { prismaDataPort } from './prisma-port.js';
 import { runStrategy } from './run.js';
 import type { BacktestResult } from './types.js';
@@ -26,13 +26,15 @@ export async function runConfiguredBacktest(
   }
 
   if (language === 'typescript') {
-    const customFactors = await prepareCustomFactors(config.code, userId, locale);
-    return runWalledBacktest(
-      { ...config, customFactors, locale, paramOverrides },
+    const prepared = await prepareStrategyFactors(config.code, userId, locale);
+    const result = await runWalledBacktest(
+      { ...config, customFactors: prepared.modules, locale, paramOverrides },
       prismaDataPort,
       onSystemLog,
       onUserLog,
     );
+    result.factorReleases = prepared.releases;
+    return result;
   }
 
   const runtime = await createPythonStrategyRuntime(config.code, onUserLog, paramOverrides, locale);

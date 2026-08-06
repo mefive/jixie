@@ -1,4 +1,11 @@
-import { CUSTOM_FACTOR_PREFIX, customFactorId, type Locale } from '@jixie/shared';
+import {
+  CUSTOM_FACTOR_PREFIX,
+  FACTOR_RELEASE_PREFIX,
+  customFactorId,
+  factorReleaseId,
+  type FactorReleaseDependency,
+  type Locale,
+} from '@jixie/shared';
 import { prisma } from '../lib/prisma.js';
 import { toCommonJs } from '../lib/isolate-run.js';
 import { t } from '../i18n/messages.js';
@@ -20,7 +27,48 @@ export function extractCustomFactorKeys(source: string): string[] {
   return [...new Set(source.match(/custom:[a-z][a-z0-9_]{0,31}/g) ?? [])];
 }
 
+export function extractFactorReleaseKeys(source: string): string[] {
+  return [
+    ...new Set(
+      (source.match(/release:[0-9A-HJKMNP-TV-Z]{26}/gi) ?? []).map(
+        (key) => FACTOR_RELEASE_PREFIX + key.slice(FACTOR_RELEASE_PREFIX.length).toUpperCase(),
+      ),
+    ),
+  ];
+}
+
+export type FactorReleaseUsage = 'research' | 'production';
+
+export interface PreparedStrategyFactors {
+  modules: CustomFactorModule[];
+  releases: FactorReleaseDependency[];
+}
+
+export async function prepareStrategyFactors(
+  source: string,
+  userId: string,
+  locale: Locale,
+  usage: FactorReleaseUsage = 'research',
+): Promise<PreparedStrategyFactors> {
+  const [legacyModules, releaseData] = await Promise.all([
+    prepareLegacyCustomFactors(source, userId, locale),
+    prepareFactorReleases(source, userId, locale, usage),
+  ]);
+  return {
+    modules: [...legacyModules, ...releaseData.modules],
+    releases: releaseData.releases,
+  };
+}
+
 export async function prepareCustomFactors(
+  source: string,
+  userId: string,
+  locale: Locale,
+): Promise<CustomFactorModule[]> {
+  return (await prepareStrategyFactors(source, userId, locale)).modules;
+}
+
+async function prepareLegacyCustomFactors(
   source: string,
   userId: string,
   locale: Locale,
@@ -51,4 +99,74 @@ export async function prepareCustomFactors(
       historyFields: extractCustomFactorHistoryFields(row.code),
     })),
   );
+}
+
+async function prepareFactorReleases(
+  source: string,
+  userId: string,
+  locale: Locale,
+  usage: FactorReleaseUsage,
+): Promise<PreparedStrategyFactors> {
+  const keys = extractFactorReleaseKeys(source);
+  if (keys.length === 0) {
+    return { modules: [], releases: [] };
+  }
+  const ids = keys.map(factorReleaseId);
+  const rows = await prisma.factorRelease.findMany({
+    where: { id: { in: ids }, userId },
+    select: {
+      id: true,
+      releaseKey: true,
+      sourceRef: true,
+      version: true,
+      sourceKind: true,
+      codeSnapshot: true,
+      codeHash: true,
+      approvedReportId: true,
+      maturity: true,
+      lifecycle: true,
+    },
+  });
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  const missing = ids.filter((id) => !byId.has(id));
+  if (missing.length > 0) {
+    throw new Error(
+      t(locale, 'customFactorMissing', {
+        keys: missing.map((id) => FACTOR_RELEASE_PREFIX + id).join(', '),
+      }),
+    );
+  }
+
+  const ordered = ids.map((id) => byId.get(id)!);
+  for (const row of ordered) {
+    const label = `${row.releaseKey}@v${row.version}`;
+    if (row.sourceKind !== 'single') {
+      throw new Error(t(locale, 'factorReleaseRuntimeUnsupported', { key: label }));
+    }
+    if (usage === 'production' && (row.maturity !== 'production' || row.lifecycle !== 'active')) {
+      throw new Error(t(locale, 'factorReleaseProductionRequired', { key: label }));
+    }
+  }
+
+  return {
+    modules: await Promise.all(
+      ordered.map(async (row) => ({
+        key: FACTOR_RELEASE_PREFIX + row.id,
+        js: await toCommonJs(row.codeSnapshot, 'factor release code'),
+        historyFields: extractCustomFactorHistoryFields(row.codeSnapshot),
+      })),
+    ),
+    releases: ordered.map((row) => ({
+      releaseId: row.id,
+      sourceId: row.sourceRef,
+      releaseKey: row.releaseKey,
+      version: row.version,
+      codeHash: row.codeHash,
+      approvedReportId: row.approvedReportId,
+      maturity:
+        row.maturity === 'validated' || row.maturity === 'production'
+          ? row.maturity
+          : 'experimental',
+    })),
+  };
 }
