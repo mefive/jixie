@@ -704,6 +704,79 @@
   font-size: 11px;
 }
 
+.jx-factor-release {
+  @apply flex flex-col gap-3 rounded-lg border border-line bg-bg;
+  padding: 12px;
+}
+
+.jx-factor-releaseHead {
+  @apply flex items-start justify-between gap-3;
+}
+
+.jx-factor-releaseTitle {
+  @apply font-semibold text-ink;
+  font-size: 13px;
+}
+
+.jx-factor-releaseHint,
+.jx-factor-releaseEmpty,
+.jx-factor-releaseEvidence,
+.jx-factor-releaseMaturityHelp {
+  @apply text-muted;
+  font-size: 11px;
+}
+
+.jx-factor-releaseLineage,
+.jx-factor-releaseIdentity,
+.jx-factor-releaseContract,
+.jx-factor-releaseEvidence {
+  @apply flex flex-wrap items-center gap-2;
+}
+
+.jx-factor-releaseLineage {
+  @apply text-muted;
+  font-size: 11px;
+}
+
+.jx-factor-releaseLineage code {
+  @apply rounded bg-chip px-2 py-1;
+}
+
+.jx-factor-releaseList,
+.jx-factor-releaseModal {
+  @apply flex flex-col gap-3;
+}
+
+.jx-factor-releaseItem {
+  @apply flex flex-col gap-2 rounded border border-line bg-chip;
+  padding: 10px;
+}
+
+.jx-factor-releaseIdentity strong {
+  @apply text-ink;
+  font-size: 12px;
+}
+
+.jx-factor-releaseContract {
+  @apply text-muted;
+  font-size: 11px;
+}
+
+.jx-factor-releaseEvidence .ant-btn {
+  height: auto;
+  padding: 0;
+  font-size: 11px;
+}
+
+.jx-factor-releaseModal label {
+  @apply grid gap-1 text-ink;
+  font-size: 12px;
+}
+
+.jx-factor-releaseModal .ant-select {
+  width: 100%;
+}
+
 .jx-factor-diagnosticChoices {
   display: flex;
   flex-wrap: wrap;
