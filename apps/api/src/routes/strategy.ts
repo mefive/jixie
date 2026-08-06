@@ -7,7 +7,6 @@ import { strategyProfile } from '../agent/profiles/strategy.js';
 import { enqueueAgentTurn, entityKey } from '../agent/turn-run.js';
 import * as turnBus from '../agent/turn-bus.js';
 import { KNOWN_INDICES } from '../strategy/code/codegen-prompt.js';
-import { BUILTIN_USER_ID } from '../factor/builtin-factors.js';
 import { localeFromRequest, m } from '../i18n/index.js';
 import { backtestRoute } from './backtest.js';
 import { strategyScansRoute } from './strategy-scans.js';
@@ -38,22 +37,22 @@ async function syncedIndices(): Promise<string> {
     : '(no index constituents on record yet)';
 }
 
-/** The finalized factors this user may reference as custom:<key> — own factors + builtin presets — formatted
- * for the codegen prompt (same pattern as syncedIndices: only offer what actually resolves). */
+/** Active immutable releases available to new research/backtest strategies. Legacy custom:<key>
+ * references still execute, but the Agent no longer creates new mutable dependencies. */
 async function referencableFactors(userId: string): Promise<string> {
-  const rows = await prisma.factor.findMany({
-    where: { userId: { in: [userId, BUILTIN_USER_ID] }, key: { not: null } },
-    select: { key: true, name: true, descriptionEn: true },
-    orderBy: { updatedAt: 'desc' },
+  const rows = await prisma.factorRelease.findMany({
+    where: { userId, lifecycle: 'active', sourceKind: 'single' },
+    select: { id: true, releaseKey: true, version: true, sourceName: true, maturity: true },
+    orderBy: { createdAt: 'desc' },
   });
   return rows.length
     ? rows
         .map(
           (row) =>
-            `${row.name}=custom:${row.key}${row.descriptionEn ? ` (${row.descriptionEn})` : ''}`,
+            `${row.sourceName} ${row.releaseKey}@v${row.version}=release:${row.id} (${row.maturity})`,
         )
         .join('、')
-    : '(none yet)';
+    : '(no active factor releases yet)';
 }
 
 // POST /api/app/strategy/agent — START one turn of the strategy Agent and return a turnId

@@ -532,6 +532,21 @@ horizon 的显著性不使用朴素独立样本 t 值。
 
 ### Phase 3：发布信号进入策略 Lab
 
+**2026-08-06 首个纵向切片：**已开始，当前仅支持现有 equity Factor SDK 的单因子 release：
+
+- TypeScript 策略使用 `release:<ULID>` 在 `factors` 与 `ctx.factor` 中引用不可变版本；运行时按用户权限
+  读取 `FactorRelease.codeSnapshot`，不再回查可编辑 Factor 行；旧 `custom:<key>` 仅作兼容，不再由 Agent
+  为新策略生成；
+- 回测与参数扫描可使用 experimental / validated release，回测结果保存 release ID、稳定 key、版本、
+  code hash 与批准报告，可从结果页回到因子报告；
+- Agent prompt 与 Monaco 自动完成只把 active single release 作为新入口，并保留 legacy key 的类型兼容；
+- 每日信号 worker 与部署 API 双重要求 `production + active`；当前 production 发布门槛尚未开放，因此使用
+  因子 release 的策略只能研究回测，界面会禁用上线动作；
+- 组合 release、时间序列/面板/宏观 evaluator 尚未进入策略 runtime，引用时明确失败，不做静默降级。
+
+尚未完成：在部署与每日 `SignalRun` 输出中单独结构化保存 release 依赖和实际预测信号摘要，以及“从因子
+报告一键带入 Strategy Lab”的生成动作。
+
 **交付：**
 
 - 新增策略 SDK 的版本化 release 引用；

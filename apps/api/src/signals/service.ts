@@ -13,6 +13,7 @@ import type {
 import type { Prisma } from '@prisma/client';
 import { codeConfigSchema } from '../strategy/code/schema.js';
 import { inspectWalledStrategyMetadata } from '../engine/walled-run.js';
+import { prepareStrategyFactors } from '../engine/prepare-custom-factors.js';
 import { appendLog, finishSignalRunJob, initializeJobLogs } from '../lib/jobs.js';
 import { prisma } from '../lib/prisma.js';
 import { t } from '../i18n/messages.js';
@@ -54,6 +55,9 @@ export async function deployStrategy(
   if (metadata.futures.length > 0) {
     return { kind: 'futures_unsupported' };
   }
+  // The UI pre-disables this path, but deployment safety is an API invariant: research-only or
+  // retired releases must never become a daily-signal dependency through a direct request.
+  await prepareStrategyFactors(config.code, userId, locale, 'production');
 
   const frozenConfig = { ...config, name: strategy.name };
   const codeHash = createHash('sha256').update(frozenConfig.code).digest('hex');

@@ -473,6 +473,9 @@ const AgentChat = complex.component(() => {
 const RunConfig = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('lab');
+  const releaseDeploymentBlocked = store.result?.factorReleases?.some(
+    (release) => release.maturity !== 'production',
+  );
   return (
     <div className="jx-lab-runConfig">
       <span className="jx-lab-runSummary">
@@ -525,14 +528,22 @@ const RunConfig = complex.component(() => {
                 ? `${t('deploymentAction')} · ${t('deploymentRunFirst')}`
                 : !store.result
                   ? `${t('deploymentAction')} · ${t('deploymentNeedsResult')}`
-                  : t('deploymentAction')
+                  : releaseDeploymentBlocked
+                    ? `${t('deploymentAction')} · ${t('deploymentFactorReleaseBlocked')}`
+                    : t('deploymentAction')
             }
           >
             <Button
               type="text"
               size="small"
               loading={store.deploymentActionLoader.loading}
-              disabled={!store.savedId || !store.result || store.dirty || store.running}
+              disabled={
+                !store.savedId ||
+                !store.result ||
+                store.dirty ||
+                store.running ||
+                releaseDeploymentBlocked
+              }
               icon={<FontAwesomeIcon icon={faRocket} />}
               onClick={() => void store.deploy()}
               aria-label={t('deploymentAction')}
@@ -900,6 +911,33 @@ const ResultPanel = complex.component(() => {
 
   return (
     <>
+      {r.factorReleases?.length ? (
+        <div className="jx-lab-factorReleases" data-testid="strategy-factor-releases">
+          <div className="jx-lab-factorReleasesHead">
+            <strong>{t('factorReleasesTitle')}</strong>
+            <span>{t('factorReleasesFrozen')}</span>
+          </div>
+          <div className="jx-lab-factorReleaseList">
+            {r.factorReleases.map((release) => (
+              <a
+                key={release.releaseId}
+                href={`/factors?factor=${encodeURIComponent(release.sourceId)}&report=${encodeURIComponent(release.approvedReportId)}`}
+                target="_blank"
+                rel="noreferrer"
+                className="jx-lab-factorRelease"
+              >
+                <span>
+                  <b>
+                    {release.releaseKey}@v{release.version}
+                  </b>
+                  <code>{release.codeHash.slice(0, 12)}</code>
+                </span>
+                <span>{t(`factorReleaseMaturity.${release.maturity}`)}</span>
+              </a>
+            ))}
+          </div>
+        </div>
+      ) : null}
       <div className="jx-lab-metrics">
         {metrics.map((m) => (
           <div className="jx-lab-metric" key={m.label}>

@@ -100,6 +100,15 @@ export const enLab: typeof zhLab = {
   metricFutureSleeve: 'Futures sleeve',
   metricFutureMargin: 'Futures margin',
   metricNetExposure: 'Net exposure',
+  factorReleasesTitle: 'Factor releases used by this backtest',
+  factorReleasesFrozen: 'Frozen by release ID and code hash',
+  factorReleaseMaturity: {
+    experimental: 'Experimental · research only',
+    validated: 'Validated · research only',
+    production: 'Production',
+  },
+  deploymentFactorReleaseBlocked:
+    'Contains a non-production factor release and is limited to research backtests',
 
   // Performance charts
   navEquity: 'Equity',
