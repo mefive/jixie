@@ -251,9 +251,8 @@ export interface FactorEvaluationScopeV1 {
   diagnostics: Array<'industry' | 'size_bucket' | 'liquidity_bucket'>;
 }
 
-/** First scope-aware cross-sectional spec. V5 initially executes global ranking; the contract already
- * freezes future within-industry ranking and diagnostic choices so those additions cannot mutate a
- * historical report's identity. */
+/** First scope-aware cross-sectional spec. EvaluationScope V1 freezes global or point-in-time SW L1
+ * within-industry ranking. Diagnostic choices remain part of report identity as they are enabled. */
 export interface FactorAnalysisSpecV5 extends Omit<FactorAnalysisSpecV3, 'version'> {
   version: 5;
   evaluationScope: FactorEvaluationScopeV1;
@@ -270,6 +269,7 @@ export type FactorSampleStageKey =
   | 'factor_value'
   | 'formation_and_forward_quote'
   | 'evaluation_universe'
+  | 'ranking_scope'
   | 'listing_age'
   | 'risk_warning'
   | 'pending_delisting'
@@ -289,9 +289,21 @@ export interface FactorWindowCoverageAudit {
   droppedForCoverage: number;
 }
 
+export type FactorRankingAudit =
+  | { kind: 'global' }
+  | {
+      kind: 'within_industry_percentile';
+      classification: 'sw_l1';
+      minimumGroupSize: 5;
+      missingClassification: number;
+      undersizedGroup: number;
+      groupsEvaluated: number;
+    };
+
 export interface FactorMethodologyAudit {
   specVersion: 1 | 2 | 3 | 4 | 5;
   evaluationScope?: FactorEvaluationScopeV1;
+  ranking?: FactorRankingAudit;
   dataCutoff: string;
   periodsConsidered: number;
   periodsAnalyzed: number;

@@ -27,6 +27,7 @@ const argsSchema = z.object({
   end: z.string().regex(/^\d{8}$/),
   neutral: z.enum(['none', 'size', 'size_industry']).default('none'),
   universe: z.enum(['cn_a', '000300.SH', '000905.SH', '000852.SH']).default('cn_a'),
+  rankingScope: z.enum(['global', 'within_industry']).default('global'),
   researchIntent: factorResearchIntentV1Schema,
 });
 
@@ -49,7 +50,7 @@ interface FactorResearchContext {
 export function runFactorAnalysisTool(context: FactorResearchContext): AgentTool {
   return {
     name: 'runFactorAnalysis',
-    description: `Run one disciplined EXPLORE analysis for the current custom factor or a candidate full factor module. You must declare the research card before seeing metrics: mode, hypothesis, expected direction, and primary criterion. Use exploratory mode only when no directional hypothesis exists; exploratory reports are not holdout-eligible. The end date must not cross the returned holdout boundary. Results are immutable FactorReports. This tool cannot start or reveal holdout, finalize a factor, deploy a strategy, or alter the saved factor code. Normally compare at most two materially different candidates in one turn.`,
+    description: `Run one disciplined EXPLORE analysis for the current custom factor or a candidate full factor module. You must declare the research card before seeing metrics: mode, hypothesis, expected direction, and primary criterion. Use exploratory mode only when no directional hypothesis exists; exploratory reports are not holdout-eligible. Choose the formal universe explicitly when it matters; use within_industry ranking to test stock selection inside point-in-time SW L1 industries, not as a cosmetic report filter. The end date must not cross the returned holdout boundary. Results are immutable FactorReports. This tool cannot start or reveal holdout, finalize a factor, deploy a strategy, or alter the saved factor code. Normally compare at most two materially different candidates in one turn.`,
     parameters: z.toJSONSchema(argsSchema),
     async run(args, runContext) {
       const parsed = argsSchema.safeParse(args);
@@ -90,15 +91,18 @@ export function runFactorAnalysisTool(context: FactorResearchContext): AgentTool
         neutral: parsed.data.neutral,
       };
       const spec =
-        parsed.data.universe === 'cn_a'
+        parsed.data.universe === 'cn_a' && parsed.data.rankingScope === 'global'
           ? createDefaultFactorAnalysisSpecV3(commonSpec)
           : createDefaultFactorAnalysisSpecV5({
               ...commonSpec,
               evaluationScope: {
                 version: 1,
-                universe: { kind: 'index', indexCode: parsed.data.universe },
+                universe:
+                  parsed.data.universe === 'cn_a'
+                    ? { kind: 'market', market: 'cn_a' }
+                    : { kind: 'index', indexCode: parsed.data.universe },
                 membership: 'point_in_time',
-                rankingScope: 'global',
+                rankingScope: parsed.data.rankingScope,
                 diagnostics: [],
               },
             });

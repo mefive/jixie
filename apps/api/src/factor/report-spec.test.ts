@@ -77,6 +77,22 @@ describe('factor report spec', () => {
     );
   });
 
+  it('freezes within-industry ranking as a distinct V5 research identity', () => {
+    const global = createDefaultFactorAnalysisSpecV5({
+      freq: 'month',
+      start: '20200101',
+      end: '20250101',
+      neutral: 'none',
+    });
+    const withinIndustry = createDefaultFactorAnalysisSpecV5({
+      ...global,
+      evaluationScope: { ...global.evaluationScope, rankingScope: 'within_industry' },
+    });
+
+    expect(normalizeFactorAnalysisSpec(withinIndustry)).toEqual(withinIndustry);
+    expect(factorVariantKey(global, 'hash')).not.toEqual(factorVariantKey(withinIndustry, 'hash'));
+  });
+
   it('rejects duplicate factors in a V4 composite', () => {
     const spec = createDefaultFactorAnalysisSpecV4({
       freq: 'month',

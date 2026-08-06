@@ -22,6 +22,7 @@ import {
   filterEvaluationUniverse,
   isIndexMembershipFresh,
   PointInTimeIndexMembership,
+  rankWithinGroups,
 } from './evaluation-scope.js';
 
 // Wire shapes live in @jixie/shared (the /factors page renders them); re-export for local imports.
@@ -665,6 +666,26 @@ function neutralizeSeries(
   }
 }
 
+function neutralizeCandidates<T extends { tsCode: string; value: number; mktcap: number }>(
+  candidates: T[],
+  date: string,
+  industryByStock: Map<string, IndustrySpell[]>,
+  mode: Exclude<Neutral, 'none'>,
+): T[] {
+  const kept = candidates.filter((candidate) => candidate.mktcap > 0);
+  const groups = kept.map((candidate) =>
+    mode === 'size_industry'
+      ? (industryOn(industryByStock.get(candidate.tsCode), date) ?? 'unknown')
+      : '',
+  );
+  const residuals = st.residualize(
+    kept.map((candidate) => candidate.value),
+    kept.map((candidate) => Math.log(candidate.mktcap)),
+    mode === 'size_industry' ? mergeSmallGroups(groups) : undefined,
+  );
+  return kept.map((candidate, index) => ({ ...candidate, value: residuals[index] }));
+}
+
 /**
  * Analyze one factor over a (freq, start, end) window: monthly/weekly cross-sectional deciles + Rank IC
  * + long-short. Values are computed on the fly and held only for this call — the caller persists the
@@ -739,13 +760,26 @@ export async function analyzeFactor(
     transformSeriesOutliers(computed.series, policy.factorExposure);
   }
   const byDate = computed.series;
+  const needsIndustry =
+    neutral === 'size_industry' || evaluationScope.rankingScope === 'within_industry';
+  const industryByStock = needsIndustry
+    ? await loadIndustryLookup()
+    : new Map<string, IndustrySpell[]>();
+  if (evaluationScope.rankingScope === 'within_industry') {
+    if (industryByStock.size === 0) {
+      throw new Error(t(locale, 'factorIndustryHistoryMissing'));
+    }
+    onLog(t(locale, 'factorRankingWithinIndustry'));
+  }
 
   // Cross-sectional neutralization (3.4): replace raw values with residuals before IC / bucketing.
+  // V5 defers this step until after the formal universe and eligibility filters, so neutralization is
+  // estimated inside the declared research population. V1–V4 retain their historical evaluator.
   if (neutral !== 'none') {
     onLog(t(locale, 'factorNeutralizing', { mode: neutral }));
-    const industryByStock =
-      neutral === 'size_industry' ? await loadIndustryLookup() : new Map<string, IndustrySpell[]>();
-    neutralizeSeries(byDate, snaps, industryByStock, neutral);
+    if (spec.version !== 5) {
+      neutralizeSeries(byDate, snaps, industryByStock, neutral);
+    }
   }
 
   // IC-decay: for each rebalance date D, the trading day D+h (h ∈ horizons) via the open-day calendar,
@@ -798,10 +832,16 @@ export async function analyzeFactor(
     factorValue: { before: 0, after: 0 },
     quotes: { before: 0, after: 0 },
     evaluationUniverse: { before: 0, after: 0 },
+    rankingScope: { before: 0, after: 0 },
     listingAge: { before: 0, after: 0 },
     riskWarning: { before: 0, after: 0 },
     pendingDelisting: { before: 0, after: 0 },
     liquidity: { before: 0, after: 0 },
+  };
+  const rankingTotals = {
+    missingClassification: 0,
+    undersizedGroup: 0,
+    groupsEvaluated: 0,
   };
   let periodsConsidered = 0;
 
@@ -922,6 +962,25 @@ export async function analyzeFactor(
     candidates.sort((x, y) => x.amount - y.amount);
     candidates = candidates.slice(Math.floor(candidates.length * policy.liquidityDropFraction));
     stageTotals.liquidity.after += candidates.length;
+    if (spec.version !== 1 && candidates.length < policy.minimumCandidates) {
+      continue;
+    }
+
+    if (spec.version === 5 && neutral !== 'none') {
+      candidates = neutralizeCandidates(candidates, date, industryByStock, neutral);
+    }
+    stageTotals.rankingScope.before += candidates.length;
+    if (evaluationScope.rankingScope === 'within_industry') {
+      const ranked = rankWithinGroups(
+        candidates,
+        candidates.map((candidate) => industryOn(industryByStock.get(candidate.tsCode), date)),
+      );
+      rankingTotals.missingClassification += ranked.missingGroup;
+      rankingTotals.undersizedGroup += ranked.smallGroup;
+      rankingTotals.groupsEvaluated += ranked.groups;
+      candidates = ranked.rows;
+    }
+    stageTotals.rankingScope.after += candidates.length;
     if (spec.version !== 1 && candidates.length < policy.minimumCandidates) {
       continue;
     }
@@ -1092,6 +1151,19 @@ export async function analyzeFactor(
   const methodology: FactorMethodologyAudit = {
     specVersion: spec.version,
     ...(spec.version === 5 ? { evaluationScope: spec.evaluationScope } : {}),
+    ...(spec.version === 5
+      ? {
+          ranking:
+            evaluationScope.rankingScope === 'global'
+              ? ({ kind: 'global' } as const)
+              : ({
+                  kind: 'within_industry_percentile',
+                  classification: 'sw_l1',
+                  minimumGroupSize: 5,
+                  ...rankingTotals,
+                } as const),
+        }
+      : {}),
     dataCutoff,
     periodsConsidered,
     periodsAnalyzed: icSeries.length,
@@ -1114,6 +1186,9 @@ export async function analyzeFactor(
           ]
         : []),
       { key: 'liquidity', ...stageTotals.liquidity },
+      ...(spec.version === 5
+        ? [{ key: 'ranking_scope' as const, ...stageTotals.rankingScope }]
+        : []),
     ],
     windowCoverage: computed.audit.declaredWindowDays
       ? {

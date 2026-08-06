@@ -138,6 +138,14 @@ const MESSAGES = {
     zh: '指数 {index} 在研究日 {date} 只能取得 {snapshot} 的过期成分，请先同步历史指数成分',
     en: 'Index {index} only has the stale {snapshot} constituent snapshot for research date {date}; sync historical constituents first',
   },
+  factorIndustryHistoryMissing: {
+    zh: '缺少申万一级行业历史，无法进行行业内排序',
+    en: 'Shenwan level-1 history is unavailable; within-industry ranking cannot continue',
+  },
+  factorRankingWithinIndustry: {
+    zh: '使用研究日可见的申万一级行业进行行业内排序',
+    en: 'Ranking within point-in-time Shenwan level-1 industries',
+  },
   factorProcExited: {
     zh: '因子分析进程异常退出 (code {code})',
     en: 'Factor analysis process exited abnormally (code {code})',

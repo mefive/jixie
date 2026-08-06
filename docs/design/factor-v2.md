@@ -458,8 +458,12 @@ const bondSignal = ctx.signal('bond-trend@1', '511260.SH');
 - 研究范围首批实现新增 `FactorAnalysisSpecV5`：全 A、沪深 300、中证 500、中证 1000 可形成独立
   report variant；指数范围按研究日读取不晚于当日的历史成分快照，缺少快照或快照过期时明确失败；
   前端和 Factor Agent 均可选择范围，报告审计展示 PIT Universe 过滤前后样本数。
+- `EvaluationScope V1` 支持全局排序和申万一级行业内排序：后者按研究日历史行业归属计算组内
+  percentile rank，缺失行业或少于 5 只股票的行业不并入其他行业，而是剔除并计入样本审计；V5
+  的方法论审计另存缺失分类数、小行业剔除数和参与行业数；V5 的中性化也在正式研究范围和可交易性
+  过滤后估计，避免指数研究借用范围外股票的信息。
 
-尚未完成：行业内排序、行业 / 市值 / 流动性诊断切片、分型 `FactorResearchSpecV1` / payload、
+尚未完成：行业 / 市值 / 流动性诊断切片、分型 `FactorResearchSpecV1` / payload、
 `CrossSectionalEvaluator` 包装、发布区前端和策略消费。
 因此这一批只建立不可变身份与契约，不改变既有因子计算结果，也不能对外宣称 Factor V2 已可用。
 
