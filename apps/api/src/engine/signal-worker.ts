@@ -16,6 +16,7 @@ import {
   assertFactorReleaseDependencies,
   factorReleaseDependenciesFromJson,
 } from '../signals/factor-release-lineage.js';
+import { summarizeFactorInputs } from '../signals/factor-inputs.js';
 
 const runId = process.argv[2];
 if (!runId || !process.send) {
@@ -85,6 +86,12 @@ try {
     ...position,
     name: names.get(position.code) ?? position.code,
   }));
+  const factorInputs = summarizeFactorInputs(
+    prepared.releases,
+    output.capture.tradeDate,
+    output.capture.factorObservations,
+    [...signals.map((signal) => signal.code), ...modelPositions.map((position) => position.code)],
+  );
   systemLog(t(locale, 'signalCaptureDone', { count: signals.length }));
   process.send({
     type: 'done',
@@ -94,6 +101,7 @@ try {
       modelCash: output.capture.modelCash,
       modelPositions,
       signals,
+      factorInputs,
     },
   });
 } catch (error) {

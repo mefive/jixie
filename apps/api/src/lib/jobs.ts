@@ -121,6 +121,7 @@ export async function finishSignalRunJob(
     modelCash: number;
     modelPositions: Prisma.InputJsonValue;
     signals: Prisma.InputJsonValue;
+    factorInputs: Prisma.InputJsonValue;
   },
   error?: string,
 ): Promise<void> {
@@ -135,6 +136,7 @@ export async function finishSignalRunJob(
         modelCash: status === 'done' ? output?.modelCash : undefined,
         modelPositions: status === 'done' ? output?.modelPositions : undefined,
         signals: status === 'done' ? output?.signals : undefined,
+        factorInputs: status === 'done' ? output?.factorInputs : undefined,
         error: status === 'error' ? (error ?? null) : null,
       },
     }),

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { runStrategy } from './run.js';
+import { runStrategy, runStrategyWithSignals } from './run.js';
 import { runWalledBacktest } from './walled-run.js';
 import { fixturePort, type FixtureSpec } from './fixture-port.js';
 import { toCommonJs } from '../lib/isolate-run.js';
@@ -134,7 +134,7 @@ describe('custom (defineFactor) factors inside the engine', () => {
         seen[ctx.date] = ctx.factor(releaseKey, 'A');
       },
     };
-    await runStrategy({
+    const output = await runStrategyWithSignals({
       start: D[0],
       end: D[4],
       initialCash: 100_000,
@@ -144,6 +144,7 @@ describe('custom (defineFactor) factors inside the engine', () => {
     });
     expect(seen[D[0]]).toBe(10);
     expect(seen[D[4]]).toBe(10);
+    expect(output.capture.factorObservations).toEqual([{ key: releaseKey, code: 'A', value: 10 }]);
   });
 
   it('windowed factor reads ctx.history from the engine bars cache (after ensureBars)', async () => {

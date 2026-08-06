@@ -3,6 +3,7 @@ import { fork, type ChildProcess } from 'node:child_process';
 import { ulid } from 'ulid';
 import type {
   BacktestConfig,
+  FactorInputSummary,
   Locale,
   LogLine,
   ModelPositionSnapshot,
@@ -248,6 +249,7 @@ export async function enqueueSignalRun(
           modelCash: null,
           modelPositions: [] as Prisma.InputJsonValue,
           signals: [] as Prisma.InputJsonValue,
+          factorInputs: [] as Prisma.InputJsonValue,
           notifiedAt: null,
           notificationError: null,
         },
@@ -352,6 +354,7 @@ async function startSignalWorker(input: {
           modelCash: output.modelCash,
           modelPositions: output.modelPositions as unknown as Prisma.InputJsonValue,
           signals: output.signals as unknown as Prisma.InputJsonValue,
+          factorInputs: output.factorInputs as unknown as Prisma.InputJsonValue,
         });
         await initializeSignalAccounting(input.runId);
       } else {
@@ -513,6 +516,7 @@ function signalRunWire(
     execDate: string;
     status: string;
     factorReleases: unknown;
+    factorInputs: unknown;
     dataCutoff: string | null;
     modelEquity: number | null;
     modelCash: number | null;
@@ -540,6 +544,9 @@ function signalRunWire(
         ? row.status
         : 'running',
     factorReleases: factorReleaseDependenciesFromJson(row.factorReleases) ?? [],
+    factorInputs: Array.isArray(row.factorInputs)
+      ? (row.factorInputs as unknown as FactorInputSummary[])
+      : [],
     dataCutoff: row.dataCutoff,
     modelEquity: row.modelEquity,
     modelCash: row.modelCash,
@@ -563,6 +570,7 @@ interface SignalWorkerOutput {
   modelCash: number;
   modelPositions: ModelPositionSnapshot[];
   signals: SignalItem[];
+  factorInputs: FactorInputSummary[];
 }
 
 type SignalWorkerMessage =

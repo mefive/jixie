@@ -545,13 +545,16 @@ horizon 的显著性不使用朴素独立样本 t 值。
 - `StrategyDeployment.factorReleases` 冻结部署实际解析出的 release ID、版本、代码 hash 与批准报告；新建
   `SignalRun` 再复制同一份依赖快照，worker 执行前会把快照与当前不可变 release 解析结果比对，发现漂移
   或损坏即失败；历史部署保留 `null` 兼容语义；
+- 每日 worker 只在最终决策 bar 记录策略真实调用过的 release/资产/value；`SignalRun.factorInputs` 按
+  release 保存覆盖数、有效数、最小/最大/均值，并保留本次交易或持仓资产的实际值。这里明确叫“因子输入
+  快照”，不把尚未校准 expected return、概率和 horizon 的 equity factor value 冒充 `FactorSignal`；
 - 组合 release、时间序列/面板/宏观 evaluator 尚未进入策略 runtime，引用时明确失败，不做静默降级。
 - 真实浏览器纵向 E2E 已完成 `FactorReport → ep@v1 → release:<ULID> 策略 → 30 笔真实成交 → 结果血缘`
   闭环，并验证非 production 版本的 UI/API 双重部署门禁；截图为
   `apps/web/acceptance/8a-strategy-factor-release.png`。
 
-尚未完成：在每日 `SignalRun` 输出中保存产生交易决策时的实际预测信号摘要，以及“从因子报告一键带入
-Strategy Lab”的生成动作。
+尚未完成：“从因子报告一键带入 Strategy Lab”的生成动作，以及面向时间序列 evaluator 的校准
+`FactorSignal` 输出。
 
 **交付：**
 

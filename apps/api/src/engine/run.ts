@@ -1,4 +1,9 @@
-import { DEFAULT_LOCALE, isComputedFactorKey, type Locale } from '@jixie/shared';
+import {
+  DEFAULT_LOCALE,
+  isComputedFactorKey,
+  isFactorReleaseKey,
+  type Locale,
+} from '@jixie/shared';
 import * as st from '../lib/stats.js';
 import { t } from '../i18n/messages.js'; // direct import — keeps hono/locale out of the wall bundle
 import { EngineData, type CrossSection } from './data.js';
@@ -165,6 +170,7 @@ async function runStockStrategyCore(
   let pendingOrders: Map<string, number> | null = null;
   let pendingLotOrders: Map<string, number> | null = null;
   const conditionalOrders = new Map<string, ConditionalOrder>();
+  const factorObservations = new Map<string, Map<string, number | null>>();
   let lastYear = '';
   const total = engineData.timeline.length;
 
@@ -225,7 +231,20 @@ async function runStockStrategyCore(
       lotOrders: null,
       conditionalCommands: [],
     };
-    await cfg.strategy.onBar(buildContext(date, engineData, portfolio, collected, customFactors));
+    const observeFactor =
+      captureSignals && i === total - 1
+        ? (key: string, code: string, value: number | null) => {
+            if (!isFactorReleaseKey(key)) {
+              return;
+            }
+            const byCode = factorObservations.get(key) ?? new Map<string, number | null>();
+            byCode.set(code, value);
+            factorObservations.set(key, byCode);
+          }
+        : undefined;
+    await cfg.strategy.onBar(
+      buildContext(date, engineData, portfolio, collected, customFactors, observeFactor),
+    );
     if (collected.targets) {
       pendingTargets = collected.targets;
     }
@@ -246,6 +265,7 @@ async function runStockStrategyCore(
         pendingOrders,
         pendingLotOrders,
         conditionalOrders,
+        factorObservations,
         nav.at(-1)?.date,
       )
     : null;
@@ -458,6 +478,7 @@ function buildContext(
   portfolio: Portfolio,
   collected: CollectedStockOrders,
   customFactors: CustomFactorRuntime | null,
+  onFactorRead?: (key: string, code: string, value: number | null) => void,
 ): BarContext {
   let cross: CrossSection | null = null; // today's cross-section, loaded on first loadCrossSection() call
   return {
@@ -526,10 +547,11 @@ function buildContext(
       return engineData.history(code, date, field, n);
     },
     factor(name, code) {
-      if (customFactors?.has(name)) {
-        return customFactors.value(name, date, code, cross?.byCode.get(code) ?? null);
-      }
-      return engineData.factor(name, date, code);
+      const value = customFactors?.has(name)
+        ? customFactors.value(name, date, code, cross?.byCode.get(code) ?? null)
+        : engineData.factor(name, date, code);
+      onFactorRead?.(name, code, value);
+      return value;
     },
     indexMembers(indexCode) {
       return engineData.indexMembers(indexCode, date);
@@ -1153,6 +1175,7 @@ async function capturePendingCashSignals(
   pendingOrders: Map<string, number> | null,
   pendingLotOrders: Map<string, number> | null,
   conditionalOrders: Map<string, ConditionalOrder>,
+  factorObservations: Map<string, Map<string, number | null>>,
   tradeDate?: string,
 ): Promise<StrategySignalCapture> {
   if (!tradeDate) {
@@ -1313,6 +1336,9 @@ async function capturePendingCashSignals(
     modelCash: portfolio.cash,
     modelPositions,
     signals,
+    factorObservations: [...factorObservations].flatMap(([key, byCode]) =>
+      [...byCode].map(([code, value]) => ({ key, code, value })),
+    ),
   };
 }
 
