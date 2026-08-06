@@ -21,6 +21,7 @@ import {
   Select,
   Splitter,
   Switch,
+  Tag,
   Tabs,
   Tooltip,
 } from 'antd';
@@ -38,6 +39,8 @@ import type {
   FactorOutlierMethod,
   FactorSampleStageKey,
   FactorCompositeDefinitionV1,
+  FactorRelease,
+  FactorReleaseMaturity,
 } from '@jixie/shared';
 import {
   faSpinner,
@@ -1676,6 +1679,7 @@ const ReportBody = complex.component(() => {
       </div>
 
       <MethodologyCard />
+      <FactorReleaseCard />
 
       {r.diagnostics?.length ? (
         <div className="jx-factor-diagnostics">
@@ -1936,6 +1940,207 @@ const MethodologyCard = complex.component(() => {
     </div>
   );
 }, 'MethodologyCard');
+
+const FactorReleaseCard = complex.component(() => {
+  const store = complex.useStore();
+  const { t } = useTranslation('factor');
+  const { message, modal } = App.useApp();
+  const [open, setOpen] = useState(false);
+  const [maturity, setMaturity] = useState<FactorReleaseMaturity>('experimental');
+  const [releaseKey, setReleaseKey] = useState('');
+  const detail = store.reportDetail;
+  const releases = store.selectedReleases;
+  if (!detail) {
+    return null;
+  }
+
+  const validatedEligible =
+    detail.phase === 'holdout' &&
+    !!detail.revealedAt &&
+    !!detail.payload &&
+    criterionPassed(detail.payload, detail.researchIntent);
+  const customKeyMissing = store.mode === 'custom' && !store.strategyKey;
+  const compositeKeyRequired = store.mode === 'composite' && releases.length === 0;
+  const normalizedReleaseKey = releaseKey.trim();
+  const duplicate = releases.some(
+    (release) =>
+      release.approvedReportId === detail.id &&
+      release.maturity === maturity &&
+      release.lifecycle === 'active',
+  );
+  const canSubmit =
+    !duplicate &&
+    !customKeyMissing &&
+    (!compositeKeyRequired || /^[a-z][a-z0-9_]{0,31}$/.test(normalizedReleaseKey));
+
+  const startPublish = () => {
+    setMaturity(validatedEligible ? 'validated' : 'experimental');
+    setReleaseKey(releases[0]?.releaseKey ?? '');
+    setOpen(true);
+  };
+  const submitPublish = async () => {
+    try {
+      const release = await store.publishSelectedReport(
+        maturity,
+        compositeKeyRequired ? normalizedReleaseKey : undefined,
+      );
+      message.success(t('release.published', { version: release.version }));
+      setOpen(false);
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : t('release.publishFailed'));
+    }
+  };
+  const confirmRetire = (release: FactorRelease) => {
+    modal.confirm({
+      title: t('release.retireTitle', { version: release.version }),
+      content: t('release.retireContent'),
+      okText: t('release.retire'),
+      okButtonProps: { danger: true },
+      cancelText: t('cancel'),
+      onOk: async () => {
+        try {
+          await store.retireRelease(release.id);
+          message.success(t('release.retired', { version: release.version }));
+        } catch (error) {
+          message.error(error instanceof Error ? error.message : t('release.retireFailed'));
+          throw error;
+        }
+      },
+    });
+  };
+
+  return (
+    <div className="jx-factor-release" data-testid="factor-release-card">
+      <div className="jx-factor-releaseHead">
+        <div>
+          <div className="jx-factor-releaseTitle">{t('release.title')}</div>
+          <div className="jx-factor-releaseHint">{t('release.hint')}</div>
+        </div>
+        <Button
+          size="small"
+          type="primary"
+          icon={<FontAwesomeIcon icon={faLock} />}
+          disabled={detail.status !== 'done' || customKeyMissing}
+          onClick={startPublish}
+          data-testid="factor-release-publish"
+        >
+          {t('release.publishReport')}
+        </Button>
+      </div>
+      <div className="jx-factor-releaseLineage">
+        <code>{t('release.reportRef', { id: detail.id.slice(-8) })}</code>
+        <span>←</span>
+        <code>{t('release.codeRef', { hash: detail.factorCodeHash?.slice(0, 12) })}</code>
+      </div>
+      {customKeyMissing && <Alert type="warning" showIcon title={t('release.finalizeKeyFirst')} />}
+      {releases.length === 0 ? (
+        <div className="jx-factor-releaseEmpty">{t('release.empty')}</div>
+      ) : (
+        <div className="jx-factor-releaseList">
+          {releases.map((release) => (
+            <div className="jx-factor-releaseItem" key={release.id}>
+              <div className="jx-factor-releaseIdentity">
+                <strong data-testid="factor-release-version">
+                  {release.releaseKey}@v{release.version}
+                </strong>
+                <Tag color={releaseMaturityColor(release.maturity)}>
+                  {t(`release.maturity.${release.maturity}`)}
+                </Tag>
+                <Tag>{t(`release.lifecycle.${release.lifecycle}`)}</Tag>
+              </div>
+              <div className="jx-factor-releaseContract">
+                <span>
+                  {t('release.inputs')} ·{' '}
+                  {release.inputDomains.map((domain) => t(`release.domain.${domain}`)).join(' / ')}
+                </span>
+                <span>
+                  {t('release.target')} ·{' '}
+                  {release.targetAssetClasses
+                    .map((assetClass) => t(`release.assetClass.${assetClass}`))
+                    .join(' / ')}
+                </span>
+                <span>{t(`release.output.${release.outputScope}`)}</span>
+              </div>
+              <div className="jx-factor-releaseEvidence">
+                {t('release.approvedBy', {
+                  id: release.approvedReportId.slice(-8),
+                  hash: release.codeHash.slice(0, 12),
+                  date: dayjs(release.createdAt).format('YYYY-MM-DD HH:mm'),
+                })}
+                {release.lifecycle === 'active' && (
+                  <Button
+                    type="link"
+                    size="small"
+                    danger
+                    loading={store.retireReleaseLoader.loading}
+                    onClick={() => confirmRetire(release)}
+                  >
+                    {t('release.retire')}
+                  </Button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <Modal
+        open={open}
+        title={t('release.publishTitle')}
+        okText={t('release.publish')}
+        cancelText={t('cancel')}
+        confirmLoading={store.publishReleaseLoader.loading}
+        okButtonProps={{ disabled: !canSubmit }}
+        onOk={() => void submitPublish()}
+        onCancel={() => setOpen(false)}
+        data-testid="factor-release-modal"
+      >
+        <div className="jx-factor-releaseModal">
+          <Alert type="info" showIcon title={t('release.metadataDerived')} />
+          {compositeKeyRequired && (
+            <label>
+              <span>{t('release.releaseKey')}</span>
+              <Input
+                value={releaseKey}
+                maxLength={32}
+                placeholder={t('release.releaseKeyPlaceholder')}
+                onChange={(event) => setReleaseKey(event.target.value)}
+              />
+            </label>
+          )}
+          <label>
+            <span>{t('release.maturityLabel')}</span>
+            <Select
+              value={maturity}
+              onChange={(value) => setMaturity(value)}
+              options={[
+                { value: 'experimental', label: t('release.maturity.experimental') },
+                {
+                  value: 'validated',
+                  label: t('release.maturity.validated'),
+                  disabled: !validatedEligible,
+                },
+                {
+                  value: 'production',
+                  label: t('release.productionDisabled'),
+                  disabled: true,
+                },
+              ]}
+            />
+          </label>
+          <div className="jx-factor-releaseMaturityHelp">
+            {maturity === 'validated' ? t('release.validatedHelp') : t('release.experimentalHelp')}
+          </div>
+          {duplicate && <Alert type="warning" showIcon title={t('release.duplicate')} />}
+        </div>
+      </Modal>
+    </div>
+  );
+}, 'FactorReleaseCard');
+
+function releaseMaturityColor(maturity: FactorReleaseMaturity): string {
+  return maturity === 'production' ? 'green' : maturity === 'validated' ? 'blue' : 'gold';
+}
 
 function Metric({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (

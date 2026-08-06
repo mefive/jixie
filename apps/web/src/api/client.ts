@@ -631,6 +631,8 @@ import type {
   FactorHoldoutPolicyV1,
   FactorResearchIntentV1,
   FactorResearchSummary,
+  FactorRelease,
+  PublishFactorReleaseRequest,
   RunFactorAnalysisResponse,
   FactorWeatherDirection,
   FactorWeatherResponse,
@@ -639,6 +641,23 @@ import type {
 // Factor research: the factor list (identity + kind) — preset + this user's custom factors.
 export function getFactorCatalog(): Promise<FactorMeta[]> {
   return request('/api/app/factors/catalog');
+}
+
+export function listFactorReleases(): Promise<FactorRelease[]> {
+  return request('/api/app/factors/releases');
+}
+
+export function publishFactorRelease(release: PublishFactorReleaseRequest): Promise<FactorRelease> {
+  return request('/api/app/factors/releases', {
+    method: 'POST',
+    body: JSON.stringify(release),
+  });
+}
+
+export function retireFactorRelease(id: string): Promise<FactorRelease> {
+  return request(`/api/app/factors/releases/${encodeURIComponent(id)}/retire`, {
+    method: 'POST',
+  });
 }
 
 export function createFactorComposite(

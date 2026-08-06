@@ -18,6 +18,8 @@ import {
   type FactorCorrelation,
   type FactorResearchIntentV1,
   type FactorResearchSummary,
+  type FactorRelease,
+  type FactorReleaseMaturity,
   type FactorHoldoutPolicyV1,
   type Neutral,
   type LogLine,
@@ -51,6 +53,9 @@ import {
   createFactorComposite,
   updateFactorComposite,
   deleteFactorComposite,
+  listFactorReleases,
+  publishFactorRelease,
+  retireFactorRelease,
 } from '@src/api/client';
 
 // Initial state from the URL. A stable report id restores both the result and its frozen parameters.
@@ -128,6 +133,9 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   public analysisPoller = new PollingModel();
   public researchSummaryLoader = new LoaderModel<FactorResearchSummary>();
   public researchWindowLoader = new LoaderModel<FactorHoldoutPolicyV1>();
+  public releasesLoader = new LoaderModel<FactorRelease[]>();
+  public publishReleaseLoader = new LoaderModel<FactorRelease>();
+  public retireReleaseLoader = new LoaderModel<FactorRelease>();
 
   public selectedKey = ''; // preset key OR custom factor id — the analysis target
   public selectedReportId = '';
@@ -201,6 +209,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       selected: computed,
       report: computed,
       reportDetail: computed,
+      selectedReleases: computed,
       correlation: computed,
       paramsModified: computed,
       analysisSpec: computed,
@@ -237,6 +246,20 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       request: () => getFactorResearchSummary(this.selectedKey || undefined),
     });
     this.researchWindowLoader.setup({ request: () => getFactorResearchWindow() });
+    this.releasesLoader.setup({ request: () => listFactorReleases() });
+    this.publishReleaseLoader.setup({
+      request: (input: { maturity: FactorReleaseMaturity; releaseKey?: string }) =>
+        publishFactorRelease({
+          sourceKind: this.mode === 'composite' ? 'composite' : 'single',
+          sourceId: this.selectedKey,
+          approvedReportId: this.selectedReportId,
+          maturity: input.maturity,
+          ...(input.releaseKey ? { releaseKey: input.releaseKey } : {}),
+        }),
+    });
+    this.retireReleaseLoader.setup({
+      request: (releaseId: string) => retireFactorRelease(releaseId),
+    });
     this.correlationLoader.setup({
       request: () => getFactorCorrelation(this.corrKeys, this.freq, this.start, this.end),
     });
@@ -251,6 +274,9 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     this.registCleaner(() => this.analysisPoller.cleanup());
     this.registCleaner(() => this.researchSummaryLoader.cleanup());
     this.registCleaner(() => this.researchWindowLoader.cleanup());
+    this.registCleaner(() => this.releasesLoader.cleanup());
+    this.registCleaner(() => this.publishReleaseLoader.cleanup());
+    this.registCleaner(() => this.retireReleaseLoader.cleanup());
     this.registCleaner(() => this.correlationLoader.cleanup());
     this.registCleaner(() => this.correlationPoller.cleanup());
     this.registCleaner(() => this.turnStream.detach()); // drop the SSE subscription; the turn keeps running
@@ -261,6 +287,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       }
     });
     void this.researchSummaryLoader.run();
+    void this.releasesLoader.run();
 
     // Preselect synchronously so the first paint shows the workbench while detail/history load.
     if (params.factor) {
@@ -286,6 +313,13 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     return detail && detail.factor === this.selectedKey && detail.id === this.selectedReportId
       ? detail
       : null;
+  }
+
+  public get selectedReleases(): FactorRelease[] {
+    const sourceKind = this.mode === 'composite' ? 'composite' : 'single';
+    return (this.releasesLoader.result ?? []).filter(
+      (release) => release.sourceKind === sourceKind && release.sourceId === this.selectedKey,
+    );
   }
 
   /** Draft parameters are independent from the selected immutable report. */
@@ -977,6 +1011,21 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     runInAction(() => (this.reportLoader.result = detail));
     void this.reportsLoader.run();
     void this.researchSummaryLoader.run();
+  }
+
+  public async publishSelectedReport(
+    maturity: FactorReleaseMaturity,
+    releaseKey?: string,
+  ): Promise<FactorRelease> {
+    const release = await this.publishReleaseLoader.run({ maturity, releaseKey });
+    await this.releasesLoader.run();
+    return release;
+  }
+
+  public async retireRelease(releaseId: string): Promise<FactorRelease> {
+    const release = await this.retireReleaseLoader.run(releaseId);
+    await this.releasesLoader.run();
+    return release;
   }
 
   /** Reload mutable metadata after the server-side Agent/metadata hook has completed. */
