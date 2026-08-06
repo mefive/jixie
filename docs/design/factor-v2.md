@@ -361,6 +361,38 @@ FactorReportDetail
 所有报告共享：数据覆盖、PIT 声明、代码 hash、研究卡、样本内外、尝试次数、成本口径和发布资格；
 IC、命中率、状态收益等方法专属指标只出现在对应 payload 中。
 
+### 7.4 研究范围、排序范围与诊断切片
+
+因子在不同股票范围、行业和市场状态下的表现是专业研究的必要部分，但产品必须避免把任意切片变成
+挑选最好结果的工具。统一研究协议将三个概念分开：
+
+1. **Universe：正式样本范围。**第一批支持全 A、沪深 300、中证 500、中证 1000；指数成分必须按
+   历史时点读取。改变 Universe 会改变研究假设和样本，必须生成新的 report variant、计入尝试次数，
+   并独立满足 holdout 纪律。
+2. **Ranking scope：预测值的比较范围。**`global` 表示全 Universe 排序；`within_industry` 表示在
+   每个历史行业截面内标准化 / 排序后再组合。它与“回归消除行业暴露后全市场排序”不是同一方法，
+   必须作为冻结 spec 的正式字段。
+3. **Diagnostic slices：同一正式报告的稳健性分解。**第一批支持行业、市值、流动性；以后可增加年份、
+   市场状态和宏观阶段。诊断切片展示 Rank IC、分层收益、覆盖率、样本数和不确定性，不自动产生新的
+   发布资格；用户将某个切片提升为正式适用范围时，必须重新运行对应 Universe 的研究。
+
+建议共享契约：
+
+```ts
+interface FactorEvaluationScopeV1 {
+  version: 1;
+  universe:
+    | { kind: 'market'; market: 'cn_a' }
+    | { kind: 'index'; indexCode: '000300.SH' | '000905.SH' | '000852.SH' };
+  membership: 'point_in_time';
+  rankingScope: 'global' | 'within_industry';
+  diagnostics: Array<'industry' | 'size_bucket' | 'liquidity_bucket'>;
+}
+```
+
+债券和商品复用相同分层思想，但使用各自的领域维度：债券按久期、发行人类型和信用等级，商品按能源、
+金属、农产品及品种分组。它们不能借用股票行业字段形成一套表面统一、实际含义错误的分类。
+
 ## 8. 从因子发布到策略
 
 ### 8.1 策略只引用不可变发布版
@@ -413,9 +445,24 @@ const bondSignal = ctx.signal('bond-trend@1', '511260.SH');
 
 ### Phase 1：通用报告骨架与发布版本
 
+**2026-08-06 第一批实施状态：**已完成后端地基，但尚未完成 Phase 1 验收：
+
+- `FactorReport` 增加 `analysisKind`，历史和现有运行默认按 `cross_sectional` 读取；
+- 新增共享 `FactorSignal`、`FactorRelease` 及发布请求类型；
+- 新增不可变 `FactorRelease` schema、Prisma migration，以及列表、详情、发布、retire API；
+- `experimental` 只接受已完成报告，`validated` 必须通过已揭示 holdout 的主判据；
+- `production` 在运行一致性、数据新鲜度和可交易性门槛实现前明确拒绝；
+- 新发布身份与 `FactorWeatherPin.releaseId` 已预留关联，旧 pin 保持 `null` 和既有冻结快照；
+- migration 已在空白临时数据库从首个版本完整执行通过；当前运行中的开发数据库因 SQLite 锁未停服
+  应用，待服务释放连接后再执行。
+
+尚未完成：分型 `FactorResearchSpecV1` / payload、`CrossSectionalEvaluator` 包装、发布区前端和策略消费。
+因此这一批只建立不可变身份与契约，不改变既有因子计算结果，也不能对外宣称 Factor V2 已可用。
+
 **后端：**
 
 - 新增 `FactorResearchSpecV1` 和分型 report payload；
+- 新增 `FactorEvaluationScopeV1`，冻结 PIT Universe、排序范围和诊断切片；
 - 将现有横截面分析包装为 `CrossSectionalEvaluator`；
 - `FactorReport` 增加 `analysisKind`，历史行按 `cross_sectional` 解释；
 - 新增 `FactorRelease` 及发布、列表、retire API；
@@ -430,6 +477,8 @@ const bondSignal = ctx.signal('bond-trend@1', '511260.SH');
 **验收门：**
 
 - 当前全部股票因子报告金标准零漂移；
+- 全 A / 沪深 300 / 中证 500 / 中证 1000 使用历史成分且形成独立 report variant；
+- 行业内排序和行业中性化具有不同 spec 身份，行业 / 市值 / 流动性诊断不改变主报告发布判据；
 - 同一 Factor 可发布 v1/v2，两版不可修改；
 - 策略尚未消费 release，但 UI 能追溯“发布版 ← 批准报告 ← 代码快照”。
 

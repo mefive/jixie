@@ -871,6 +871,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       const summary: FactorReportSummary = {
         id: response.reportId,
         factor: this.selectedKey,
+        analysisKind: 'cross_sectional',
         status: 'running',
         phase: 'explore',
         spec,

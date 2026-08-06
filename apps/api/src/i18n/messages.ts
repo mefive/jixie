@@ -100,6 +100,27 @@ const MESSAGES = {
     en: 'This factor is pinned to factor weather; unpin it before deleting',
   },
   unknownFactor: { zh: '未知因子 {factor}', en: 'Unknown factor {factor}' },
+  factorReleaseNotFound: { zh: '因子发布版本不存在', en: 'Factor release not found' },
+  factorReleaseKeyRequired: {
+    zh: '首次发布组合因子时需要稳定的发布标识',
+    en: 'A stable release key is required for the first composite release',
+  },
+  factorReleaseKeyUnavailable: {
+    zh: '因子发布标识已被占用',
+    en: 'The factor release key is already in use',
+  },
+  factorReleaseReportInvalid: {
+    zh: '发布依据必须是同一因子已完成且具有代码快照的研究报告',
+    en: 'The approved report must be a completed report for the same factor with a code snapshot',
+  },
+  factorReleaseValidationRequired: {
+    zh: 'validated 版本必须通过已揭示的正式样本外检验',
+    en: 'A validated release must pass a revealed formal holdout test',
+  },
+  factorReleaseProductionNotReady: {
+    zh: 'production 发布尚未开放，需先完成运行稳定性与数据新鲜度门槛',
+    en: 'Production releases are not available until operational and data-freshness gates are implemented',
+  },
   windowNotComputed: {
     zh: '该窗口尚未计算,请先运行',
     en: 'This window has not been computed yet; run it first',
