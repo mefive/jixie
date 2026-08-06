@@ -969,6 +969,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         status: 'running',
         phase: 'explore',
         spec,
+        researchSpec: { version: 1, analysisKind: 'cross_sectional', protocol: spec },
         jobId: response.jobId,
         createdAt: new Date().toISOString(),
       };

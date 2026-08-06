@@ -385,8 +385,9 @@ export interface FactorReportSummary {
   analysisKind: FactorAnalysisKind;
   status: FactorReportStatus;
   phase: FactorReportPhase;
-  spec: FactorAnalysisSpec;
-  researchSpec?: FactorResearchSpecV1;
+  /** Legacy cross-sectional protocol. New analysis kinds use researchSpec only. */
+  spec?: FactorAnalysisSpec;
+  researchSpec: FactorResearchSpecV1;
   variantKey?: string;
   jobId?: string;
   createdAt: string;
@@ -419,7 +420,7 @@ export interface FactorReportListResponse {
 
 export interface RunFactorAnalysisRequest {
   factor: string;
-  spec: FactorAnalysisSpec;
+  spec: FactorAnalysisSpec | FactorResearchSpecV1;
   parentReportId?: string | null;
   researchIntent: FactorResearchIntentV1;
 }

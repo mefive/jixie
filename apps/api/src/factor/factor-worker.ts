@@ -1,9 +1,12 @@
 import { parentPort, workerData } from 'node:worker_threads';
-import type { FactorAnalysisSpec, Locale, LogLine, LogLevel } from '@jixie/shared';
-import type { FactorAnalysisRuntimeSource } from './composite.js';
+import type { FactorResearchSpecV1, Locale, LogLine, LogLevel } from '@jixie/shared';
+import type { FactorAnalysisSource } from './analysis-job.js';
 import { prisma } from '../lib/prisma.js';
 import { factorEvaluatorFor } from './evaluator.js';
 import { normalizeFactorResearchSpec } from './report-spec.js';
+import { loadEtfTrendObservations } from './etf-trend-observations.js';
+import { TimeSeriesEvaluator } from './time-series-evaluator.js';
+import { t } from '../i18n/index.js';
 
 /**
  * Factor-analysis worker thread. analyzeFactor loads whole-market panels + tight cross-sectional loops,
@@ -20,8 +23,8 @@ if (!port) {
 const { reportId, factor, source, spec, locale } = workerData as {
   reportId: string;
   factor: string;
-  source: FactorAnalysisRuntimeSource;
-  spec: FactorAnalysisSpec;
+  source: FactorAnalysisSource;
+  spec: FactorResearchSpecV1;
   locale: Locale;
 };
 
@@ -32,19 +35,38 @@ const onUserLog = (level: LogLevel, text: string) => emit({ source: 'user', leve
 
 try {
   const researchSpec = normalizeFactorResearchSpec(spec);
-  const evaluator = factorEvaluatorFor(researchSpec);
-  if (researchSpec.analysisKind !== 'cross_sectional') {
-    throw new Error(`Factor evaluator ${researchSpec.analysisKind} is not implemented.`);
+  switch (researchSpec.analysisKind) {
+    case 'cross_sectional': {
+      if (source.kind === 'etf_trend') {
+        throw new Error('ETF trend source cannot run with a cross-sectional protocol.');
+      }
+      const evaluator = factorEvaluatorFor(researchSpec);
+      const report = await evaluator.evaluate({
+        factor,
+        researchSpec,
+        onSystemLog,
+        onUserLog,
+        locale,
+        source: { ...source },
+      });
+      port.postMessage({ type: 'done', reportId, payload: JSON.stringify(report) });
+      break;
+    }
+    case 'time_series': {
+      if (source.kind !== 'etf_trend') {
+        throw new Error('Time-series evaluator requires an ETF trend source.');
+      }
+      onSystemLog(t(locale, 'factorTimeSeriesLoading', { count: researchSpec.assets.length }));
+      const observations = await loadEtfTrendObservations(researchSpec, source.lookback);
+      onSystemLog(t(locale, 'factorTimeSeriesEvaluating', { count: observations.length }));
+      const report = new TimeSeriesEvaluator().evaluate(researchSpec, observations);
+      port.postMessage({ type: 'done', reportId, payload: JSON.stringify(report) });
+      break;
+    }
+    case 'panel':
+    case 'macro_regime':
+      throw new Error(`Factor evaluator ${researchSpec.analysisKind} is not implemented.`);
   }
-  const report = await evaluator.evaluate({
-    factor,
-    researchSpec,
-    onSystemLog,
-    onUserLog,
-    locale,
-    source: { ...source },
-  });
-  port.postMessage({ type: 'done', reportId, payload: JSON.stringify(report) });
 } catch (e) {
   port.postMessage({ type: 'error', message: e instanceof Error ? e.message : String(e) });
 } finally {

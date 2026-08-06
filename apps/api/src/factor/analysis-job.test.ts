@@ -1,4 +1,8 @@
-import type { FactorAnalysisSpecV3, FactorResearchIntentV1 } from '@jixie/shared';
+import type {
+  FactorAnalysisSpecV3,
+  FactorResearchIntentV1,
+  TimeSeriesFactorResearchSpecV1,
+} from '@jixie/shared';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -17,6 +21,7 @@ vi.mock('../lib/prisma.js', () => ({
 }));
 
 import { readFactorAnalysisResult, startFactorAnalysis } from './analysis-job.js';
+import { factorVariantKey, sha256 } from './report-spec.js';
 
 const spec: FactorAnalysisSpecV3 = {
   version: 3,
@@ -104,13 +109,61 @@ describe('startFactorAnalysis', () => {
       researchIntentJson: JSON.stringify(researchIntent),
       job: { create: { userId: 'user-1', kind: 'factor', status: 'running' } },
     });
+    expect(mocks.reportCreate.mock.calls[0][0].data.variantKey).toBe(
+      factorVariantKey(spec, sha256('factor candidate'), null),
+    );
     expect(launchWorker).toHaveBeenCalledOnce();
     expect(launchWorker.mock.calls[0][0]).toMatchObject({
       reportId: response.reportId,
       jobId: response.jobId,
       source: { kind: 'single', code: 'factor candidate', label: 'Quality' },
-      spec,
+      spec: { version: 1, analysisKind: 'cross_sectional', protocol: spec },
     });
+  });
+
+  it('persists a frozen ETF time-series protocol and source', async () => {
+    mocks.reportFindFirst.mockResolvedValue(null);
+    const launchWorker = vi.fn(async (_options: unknown) => {});
+    const timeSeriesSpec: TimeSeriesFactorResearchSpecV1 = {
+      version: 1,
+      analysisKind: 'time_series',
+      start: '20200101',
+      end: '20241231',
+      observationFrequency: 'daily',
+      assets: ['511010.SH'],
+      target: { kind: 'forward_total_return', horizon: 20, horizonUnit: 'trade_day' },
+      dataPolicy: { pointInTime: true, revisionPolicy: 'as_available', dataCutoff: '20250131' },
+      inference: { standardError: 'newey_west', lag: 'automatic' },
+    };
+    const source = { kind: 'etf_trend' as const, label: 'ETF 20-day trend', lookback: 20 as const };
+
+    await startFactorAnalysis({
+      userId: 'user-1',
+      factor: 'etf_trend_20',
+      source,
+      spec: timeSeriesSpec,
+      researchIntent: {
+        version: 1,
+        mode: 'exploratory',
+        expectedDirection: 'positive',
+      },
+      locale: 'en',
+      failedMessage: 'failed',
+      exitedMessage: (code) => `exit ${code}`,
+      launchWorker,
+    });
+
+    expect(mocks.reportCreate.mock.calls[0][0].data).toMatchObject({
+      factor: 'etf_trend_20',
+      analysisKind: 'time_series',
+      freq: 'day',
+      neutral: 'none',
+      start: '20200101',
+      end: '20241231',
+      factorCodeSnapshot: JSON.stringify(source),
+    });
+    expect(JSON.parse(mocks.reportCreate.mock.calls[0][0].data.specJson)).toEqual(timeSeriesSpec);
+    expect(launchWorker.mock.calls[0][0]).toMatchObject({ source, spec: timeSeriesSpec });
   });
 
   it('reuses the same running frozen variant instead of launching twice', async () => {
@@ -180,7 +233,10 @@ describe('startFactorAnalysis', () => {
 
     const snapshot = mocks.reportCreate.mock.calls[0][0].data.factorCodeSnapshot;
     expect(JSON.parse(snapshot)).toEqual(source);
-    expect(launchWorker.mock.calls[0][0]).toMatchObject({ source, spec: compositeSpec });
+    expect(launchWorker.mock.calls[0][0]).toMatchObject({
+      source,
+      spec: { version: 1, analysisKind: 'cross_sectional', protocol: compositeSpec },
+    });
   });
 });
 
