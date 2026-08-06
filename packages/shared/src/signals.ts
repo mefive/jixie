@@ -1,5 +1,5 @@
 import type { BacktestConfig } from './backtest.js';
-import type { FactorReleaseDependency } from './factor-release.js';
+import type { FactorInputSummary, FactorReleaseDependency } from './factor-release.js';
 import type { Locale } from './i18n.js';
 import type { TradeDate } from './types.js';
 
@@ -129,6 +129,7 @@ export interface SignalRun {
   execDate: TradeDate;
   status: SignalRunStatus;
   factorReleases: FactorReleaseDependency[];
+  factorInputs: FactorInputSummary[];
   dataCutoff?: TradeDate | null;
   modelEquity?: number | null;
   modelCash?: number | null;

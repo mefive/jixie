@@ -90,6 +90,8 @@ P0 在 V1 上增加：
 - 唯一键 `(deploymentId, tradeDate)`，三个定时档、手动按钮和 CLI 重复触发均幂等；
 - `running | done | error | stale` 状态持久化；
 - 创建时复制部署的因子 release 依赖，使每次实际运行可独立审计；历史 `null` 快照继续兼容；
+- 成功后保存最终决策 bar 的 `factorInputs`：每个 release 的读取覆盖与分布摘要，以及交易/持仓资产实际
+  输入值；它是 `ctx.factor()` 输入审计，不等同于尚未校准的预期收益或上涨概率；
 - 保存 `execDate`、数据截止日、模型权益/现金、SignalItem JSON 和通知状态；
 - 每次失败重试新建 Job，SignalRun 本身不重复；
 - Job 日志在运行时内存流式、结束时刷库；服务重启后 Job 与 SignalRun 一起标 stale。

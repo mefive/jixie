@@ -345,12 +345,19 @@ export interface PendingModelPosition {
   sellableFrom: string;
 }
 
+export interface PendingFactorObservation {
+  key: string;
+  code: string;
+  value: number | null;
+}
+
 export interface StrategySignalCapture {
   tradeDate: string;
   modelEquity: number;
   modelCash: number;
   modelPositions: PendingModelPosition[];
   signals: Array<PendingCashSignal | PendingConditionalSignal>;
+  factorObservations: PendingFactorObservation[];
 }
 
 export interface SignalBacktestOutput {

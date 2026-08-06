@@ -744,6 +744,7 @@ model SignalRun {
   execDate          String // intended next open (YYYYMMDD)
   status            String // 'running' | 'done' | 'error' | 'stale'
   factorReleases    Json? // deployment release dependencies copied when this run is created
+  factorInputs      Json? // FactorInputSummary[] consumed on the final decision bar
   dataCutoff        String?
   modelEquity       Float?
   modelCash         Float?

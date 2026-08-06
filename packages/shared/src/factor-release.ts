@@ -71,3 +71,21 @@ export interface FactorSignal {
   releaseId: string;
   dataCutoff: string;
 }
+
+/** One release value actually read for an asset during a deployed strategy's final decision bar. */
+export interface FactorInputObservation {
+  assetId: string;
+  value: number | null;
+}
+
+/** Compact audit summary of the values a strategy actually consumed from one immutable release. */
+export interface FactorInputSummary {
+  releaseId: string;
+  asOfDate: string;
+  observedAssets: number;
+  validAssets: number;
+  minValue: number | null;
+  maxValue: number | null;
+  meanValue: number | null;
+  decisionObservations: FactorInputObservation[];
+}
