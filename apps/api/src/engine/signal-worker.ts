@@ -12,6 +12,10 @@ import { runWalledSignalCapture } from './walled-run.js';
 import { prismaDataPort } from './prisma-port.js';
 import { prisma } from '../lib/prisma.js';
 import { t } from '../i18n/messages.js';
+import {
+  assertFactorReleaseDependencies,
+  factorReleaseDependenciesFromJson,
+} from '../signals/factor-release-lineage.js';
 
 const runId = process.argv[2];
 if (!runId || !process.send) {
@@ -39,6 +43,10 @@ try {
   systemLog(t(locale, 'signalCaptureStart', { date: run.tradeDate, execDate: run.execDate }));
 
   const prepared = await prepareStrategyFactors(config.code, run.userId, locale, 'production');
+  const deploymentDependencies = factorReleaseDependenciesFromJson(run.deployment.factorReleases);
+  const runDependencies = factorReleaseDependenciesFromJson(run.factorReleases);
+  assertFactorReleaseDependencies(deploymentDependencies, prepared.releases);
+  assertFactorReleaseDependencies(runDependencies, prepared.releases);
   const output = await runWalledSignalCapture(
     {
       ...config,

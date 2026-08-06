@@ -542,13 +542,16 @@ horizon 的显著性不使用朴素独立样本 t 值。
 - Agent prompt 与 Monaco 自动完成只把 active single release 作为新入口，并保留 legacy key 的类型兼容；
 - 每日信号 worker 与部署 API 双重要求 `production + active`；当前 production 发布门槛尚未开放，因此使用
   因子 release 的策略只能研究回测，界面会禁用上线动作；
+- `StrategyDeployment.factorReleases` 冻结部署实际解析出的 release ID、版本、代码 hash 与批准报告；新建
+  `SignalRun` 再复制同一份依赖快照，worker 执行前会把快照与当前不可变 release 解析结果比对，发现漂移
+  或损坏即失败；历史部署保留 `null` 兼容语义；
 - 组合 release、时间序列/面板/宏观 evaluator 尚未进入策略 runtime，引用时明确失败，不做静默降级。
 - 真实浏览器纵向 E2E 已完成 `FactorReport → ep@v1 → release:<ULID> 策略 → 30 笔真实成交 → 结果血缘`
   闭环，并验证非 production 版本的 UI/API 双重部署门禁；截图为
   `apps/web/acceptance/8a-strategy-factor-release.png`。
 
-尚未完成：在部署与每日 `SignalRun` 输出中单独结构化保存 release 依赖和实际预测信号摘要，以及“从因子
-报告一键带入 Strategy Lab”的生成动作。
+尚未完成：在每日 `SignalRun` 输出中保存产生交易决策时的实际预测信号摘要，以及“从因子报告一键带入
+Strategy Lab”的生成动作。
 
 **交付：**
 
