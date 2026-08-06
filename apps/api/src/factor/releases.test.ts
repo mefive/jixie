@@ -1,6 +1,11 @@
 import type { FactorReport, FactorResearchIntentV1 } from '@jixie/shared';
 import { describe, expect, it } from 'vitest';
-import { assertReleaseMaturity, FactorReleaseError } from './releases.js';
+import {
+  assertReleaseMaturity,
+  assertReleaseMetadata,
+  deriveFactorReleaseMetadata,
+  FactorReleaseError,
+} from './releases.js';
 
 const reportPayload = {
   icMean: 0.04,
@@ -55,5 +60,76 @@ describe('factor release maturity gates', () => {
     expect(() => assertReleaseMaturity(report(), 'production')).toThrowError(
       new FactorReleaseError('production_not_ready'),
     );
+  });
+});
+
+describe('factor release metadata derivation', () => {
+  it('derives price and fundamental dependencies from a frozen valuation factor', () => {
+    expect(
+      deriveFactorReleaseMetadata(
+        'single',
+        `export default defineFactor({ compute(bar) { return bar.pb / bar.roe; } });`,
+        'cross_sectional',
+      ),
+    ).toEqual({
+      inputDomains: ['fundamental', 'price'],
+      targetAssetClasses: ['equity'],
+      outputScope: 'asset',
+    });
+  });
+
+  it('unions dependencies from immutable composite component code', () => {
+    const snapshot = JSON.stringify({
+      kind: 'composite',
+      components: [
+        { code: `ctx.history(20)` },
+        { code: `bar.netMain` },
+        { code: `ctx.history(504, 'grossprofitMargin')` },
+      ],
+    });
+    expect(
+      deriveFactorReleaseMetadata('composite', snapshot, 'cross_sectional').inputDomains,
+    ).toEqual(['flow', 'fundamental', 'price']);
+  });
+
+  it('fails closed for unknown legacy dependencies and unevaluated research types', () => {
+    expect(() => deriveFactorReleaseMetadata('single', 'return 1', 'cross_sectional')).toThrowError(
+      new FactorReleaseError('input_dependencies_unknown'),
+    );
+    expect(() => deriveFactorReleaseMetadata('single', 'bar.pb', 'time_series')).toThrowError(
+      new FactorReleaseError('input_dependencies_unknown'),
+    );
+  });
+
+  it('treats compatibility metadata as assertions, independent of array order', () => {
+    const derived = {
+      inputDomains: ['fundamental', 'price'] as const,
+      targetAssetClasses: ['equity'] as const,
+      outputScope: 'asset' as const,
+    };
+    expect(() =>
+      assertReleaseMetadata(
+        {
+          inputDomains: ['price', 'fundamental'],
+          targetAssetClasses: ['equity'],
+          outputScope: 'asset',
+        },
+        {
+          inputDomains: [...derived.inputDomains],
+          targetAssetClasses: [...derived.targetAssetClasses],
+          outputScope: derived.outputScope,
+        },
+      ),
+    ).not.toThrow();
+    expect(() =>
+      assertReleaseMetadata(
+        { inputDomains: ['price'], targetAssetClasses: ['equity'], outputScope: 'asset' },
+        {
+          inputDomains: [...derived.inputDomains],
+          targetAssetClasses: [...derived.targetAssetClasses],
+          outputScope: derived.outputScope,
+        },
+      ),
+    ).toThrowError(new FactorReleaseError('metadata_mismatch'));
   });
 });

@@ -30,6 +30,8 @@ function factorReleaseApiError(c: Parameters<typeof apiError>[0], error: FactorR
     report_invalid: 'factorReleaseReportInvalid',
     validation_required: 'factorReleaseValidationRequired',
     production_not_ready: 'factorReleaseProductionNotReady',
+    input_dependencies_unknown: 'factorReleaseInputDependenciesUnknown',
+    metadata_mismatch: 'factorReleaseMetadataMismatch',
   }[error.reason] as Parameters<typeof m>[1];
   return apiError(
     c,
