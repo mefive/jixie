@@ -36,6 +36,16 @@ export interface FactorRelease {
   createdAt: string;
 }
 
+export interface FactorReleaseDependency {
+  releaseId: string;
+  sourceId: string;
+  releaseKey: string;
+  version: number;
+  codeHash: string;
+  approvedReportId: string;
+  maturity: FactorReleaseMaturity;
+}
+
 export interface PublishFactorReleaseRequest {
   sourceKind: FactorReleaseSourceKind;
   sourceId: string;

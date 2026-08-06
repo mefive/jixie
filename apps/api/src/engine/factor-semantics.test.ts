@@ -119,6 +119,33 @@ describe('custom (defineFactor) factors inside the engine', () => {
     expect(seen[D[4]]).toBe(20);
   });
 
+  it('executes an immutable release key through the same computed-factor runtime', async () => {
+    const releaseKey = 'release:01ARZ3NDEKTSV4RRFFQ69G5FAV';
+    const js = await toCommonJs(
+      `export default defineFactor({ compute: (bar) => bar.peTtm });`,
+      'factor release code',
+    );
+    const seen: Record<string, number | null> = {};
+    const strategy: Strategy = {
+      name: 'read release',
+      factors: [releaseKey],
+      async onBar(ctx) {
+        await ctx.loadCrossSection();
+        seen[ctx.date] = ctx.factor(releaseKey, 'A');
+      },
+    };
+    await runStrategy({
+      start: D[0],
+      end: D[4],
+      initialCash: 100_000,
+      strategy,
+      dataPort: fixturePort(specWithValuation()),
+      customFactors: [{ key: releaseKey, js }],
+    });
+    expect(seen[D[0]]).toBe(10);
+    expect(seen[D[4]]).toBe(10);
+  });
+
   it('windowed factor reads ctx.history from the engine bars cache (after ensureBars)', async () => {
     const js = await toCommonJs(
       `export default defineFactor({
@@ -313,6 +340,15 @@ describe('extractCustomFactorKeys (host-side source scan)', () => {
         },
       });`;
     expect(extractCustomFactorKeys(source)).toEqual(['custom:earnings_yield', 'custom:mom_12_1']);
+  });
+
+  it('finds immutable release references and canonicalizes ULIDs', async () => {
+    const { extractFactorReleaseKeys } = await import('./prepare-custom-factors.js');
+    const source = `
+      factors: ['release:01arz3ndektsv4rrffq69g5fav'],
+      ctx.factor('release:01ARZ3NDEKTSV4RRFFQ69G5FAV', 'A');
+      ctx.factor('release:not-a-release', 'A');`;
+    expect(extractFactorReleaseKeys(source)).toEqual(['release:01ARZ3NDEKTSV4RRFFQ69G5FAV']);
   });
 
   it('extracts auxiliary history requirements from factor source', async () => {

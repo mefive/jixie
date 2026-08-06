@@ -129,6 +129,14 @@ const MESSAGES = {
     zh: '提交的发布元数据与批准报告推导出的元数据不一致',
     en: 'Submitted release metadata does not match the approved report derivation',
   },
+  factorReleaseRuntimeUnsupported: {
+    zh: '因子发布 {key} 的运行类型尚未接入策略引擎',
+    en: 'The runtime type of factor release {key} is not available in the strategy engine',
+  },
+  factorReleaseProductionRequired: {
+    zh: '每日信号只能使用生效中的 production 因子发布版本：{key}',
+    en: 'Daily signals require an active production factor release: {key}',
+  },
   windowNotComputed: {
     zh: '该窗口尚未计算,请先运行',
     en: 'This window has not been computed yet; run it first',

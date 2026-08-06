@@ -1,4 +1,5 @@
 import type { TradeDate } from './types.js';
+import type { FactorReleaseDependency } from './factor-release.js';
 
 /**
  * Backtest config + result — the wire types for product line 1 (strategy backtest). The strategy itself is now
@@ -91,6 +92,8 @@ export interface BacktestSummary {
   totalSlippage?: number; // implicit adverse fill-price loss
   cost?: Required<CostConfig>; // applied cost snapshot; absent on results saved before cost transparency
   monthly?: { month: string; ret: number }[]; // 'YYYYMM' → monthly return (monthly-return table)
+  /** Immutable factor definitions actually loaded for this run. Missing on legacy results. */
+  factorReleases?: FactorReleaseDependency[];
 }
 
 export type StrategyParamValue = number | string;

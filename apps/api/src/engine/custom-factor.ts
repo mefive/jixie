@@ -13,7 +13,7 @@ import type { BarRow } from './types.js';
  * wall bundle.
  */
 export interface CustomFactorModule {
-  key: string; // 'custom:<factor row id>'
+  key: string; // legacy 'custom:<key>' or immutable 'release:<ULID>'
   js: string; // the factor module, host-transformed TS→CJS
   historyFields?: CustomFactorHistoryField[];
 }

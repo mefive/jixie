@@ -1,4 +1,4 @@
-import { DEFAULT_LOCALE, isCustomFactorKey, type Locale } from '@jixie/shared';
+import { DEFAULT_LOCALE, isComputedFactorKey, type Locale } from '@jixie/shared';
 import * as st from '../lib/stats.js';
 import { t } from '../i18n/messages.js'; // direct import — keeps hono/locale out of the wall bundle
 import { EngineData, type CrossSection } from './data.js';
@@ -429,7 +429,7 @@ function buildCustomFactorRuntime(
   locale: Locale,
   log: (line: string) => void,
 ): CustomFactorRuntime | null {
-  const declaredCustomKeys = (cfg.strategy.factors ?? []).filter(isCustomFactorKey);
+  const declaredCustomKeys = (cfg.strategy.factors ?? []).filter(isComputedFactorKey);
   const modules = cfg.customFactors ?? [];
   if (declaredCustomKeys.length === 0 && modules.length === 0) {
     return null;
