@@ -19,6 +19,7 @@ import { prisma } from '../lib/prisma.js';
 import { t } from '../i18n/messages.js';
 import { notifySignalRun } from './notifier.js';
 import { executionWire, initializeSignalAccounting } from './accounting.js';
+import { factorReleaseDependenciesFromJson } from './factor-release-lineage.js';
 
 const workerUrl = import.meta.url.endsWith('.ts')
   ? new URL('../engine/signal-worker.boot.mjs', import.meta.url)
@@ -57,7 +58,7 @@ export async function deployStrategy(
   }
   // The UI pre-disables this path, but deployment safety is an API invariant: research-only or
   // retired releases must never become a daily-signal dependency through a direct request.
-  await prepareStrategyFactors(config.code, userId, locale, 'production');
+  const prepared = await prepareStrategyFactors(config.code, userId, locale, 'production');
 
   const frozenConfig = { ...config, name: strategy.name };
   const codeHash = createHash('sha256').update(frozenConfig.code).digest('hex');
@@ -74,6 +75,7 @@ export async function deployStrategy(
         strategyName: strategy.name,
         status: 'active',
         config: frozenConfig as unknown as Prisma.InputJsonValue,
+        factorReleases: prepared.releases as unknown as Prisma.InputJsonValue,
         codeHash,
         locale,
       },
@@ -194,7 +196,7 @@ export async function enqueueSignalRun(
 > {
   const deployment = await prisma.strategyDeployment.findFirst({
     where: { id: deploymentId, userId },
-    select: { id: true, status: true, locale: true },
+    select: { id: true, status: true, locale: true, factorReleases: true },
   });
   if (!deployment) {
     return { kind: 'not_found' };
@@ -260,6 +262,10 @@ export async function enqueueSignalRun(
           tradeDate,
           execDate: calendar.execDate,
           status: 'running',
+          factorReleases:
+            deployment.factorReleases == null
+              ? undefined
+              : (deployment.factorReleases as Prisma.InputJsonValue),
         },
       });
     }
@@ -474,6 +480,7 @@ export function deploymentWire(row: {
   strategyName: string;
   status: string;
   config: unknown;
+  factorReleases: unknown;
   codeHash: string;
   locale: string;
   deployedAt: Date;
@@ -487,6 +494,7 @@ export function deploymentWire(row: {
     strategyName: row.strategyName,
     status: row.status === 'active' ? 'active' : 'paused',
     config: row.config as unknown as BacktestConfig,
+    factorReleases: factorReleaseDependenciesFromJson(row.factorReleases) ?? [],
     codeHash: row.codeHash,
     locale: row.locale === 'en' ? 'en' : 'zh',
     deployedAt: row.deployedAt.toISOString(),
@@ -504,6 +512,7 @@ function signalRunWire(
     tradeDate: string;
     execDate: string;
     status: string;
+    factorReleases: unknown;
     dataCutoff: string | null;
     modelEquity: number | null;
     modelCash: number | null;
@@ -530,6 +539,7 @@ function signalRunWire(
       row.status === 'done' || row.status === 'error' || row.status === 'stale'
         ? row.status
         : 'running',
+    factorReleases: factorReleaseDependenciesFromJson(row.factorReleases) ?? [],
     dataCutoff: row.dataCutoff,
     modelEquity: row.modelEquity,
     modelCash: row.modelCash,
