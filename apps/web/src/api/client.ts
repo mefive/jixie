@@ -32,12 +32,14 @@ export class ApiError extends Error {
   public code: string;
   public field?: string;
   public details?: unknown;
+  public status?: number;
 
-  public constructor(code: string, message: string, details?: unknown) {
+  public constructor(code: string, message: string, details?: unknown, status?: number) {
     super(message);
     this.name = 'ApiError';
     this.code = code;
     this.details = details;
+    this.status = status;
     // The backend puts { field } in details for field-level errors; the login page uses it to focus the matching input
     if (details && typeof details === 'object' && 'field' in details) {
       this.field = (details as { field?: string }).field;
@@ -46,23 +48,47 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, {
-    ...init,
-    headers: {
-      'content-type': 'application/json',
-      'accept-language': localeStore.locale,
-      ...(init?.headers ?? {}),
-    },
-  });
+  let res: Response;
+  try {
+    res = await fetch(path, {
+      ...init,
+      headers: {
+        'content-type': 'application/json',
+        'accept-language': localeStore.locale,
+        ...(init?.headers ?? {}),
+      },
+    });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw error;
+    }
+
+    notifyServiceUnavailable();
+    throw new ApiError('SERVICE_UNAVAILABLE', i18n.t('common:errors.serviceUnavailable'));
+  }
+
   const text = await res.text();
-  const body = parseResponseBody(res, text);
+  let body: any;
+  try {
+    body = parseResponseBody(res, text);
+  } catch (error) {
+    if (isGatewayUnavailableStatus(res.status)) {
+      notifyServiceUnavailable();
+    }
+    throw error;
+  }
+
   if (!res.ok) {
     const err = body?.error;
     notifyMaintenance(err);
+    if (err?.code !== 'MAINTENANCE' && isGatewayUnavailableStatus(res.status)) {
+      notifyServiceUnavailable();
+    }
     throw new ApiError(
       err?.code ?? 'UNKNOWN',
       err?.message ?? `${res.status} ${res.statusText}`,
       err?.details,
+      res.status,
     );
   }
   return body as T;
@@ -76,11 +102,24 @@ function parseResponseBody(response: Response, text: string): any {
   try {
     return JSON.parse(text);
   } catch {
-    throw new ApiError('INVALID_RESPONSE', i18n.t('common:errors.serviceUnavailable'), {
-      status: response.status,
-      contentType: response.headers.get('content-type'),
-    });
+    throw new ApiError(
+      'INVALID_RESPONSE',
+      i18n.t('common:errors.serviceUnavailable'),
+      {
+        status: response.status,
+        contentType: response.headers.get('content-type'),
+      },
+      response.status,
+    );
   }
+}
+
+function isGatewayUnavailableStatus(status: number): boolean {
+  return status === 502 || status === 503 || status === 504;
+}
+
+function notifyServiceUnavailable(): void {
+  window.dispatchEvent(new Event('jixie:service-unavailable'));
 }
 
 export function fetchMaintenanceStatus(): Promise<MaintenanceStatus> {
@@ -161,10 +200,14 @@ export async function subscribeAgentTurn(turnId: string, signal?: AbortSignal): 
       error?: { code?: string; message?: string; details?: unknown };
     } | null;
     notifyMaintenance(body?.error);
+    if (body?.error?.code !== 'MAINTENANCE' && isGatewayUnavailableStatus(res.status)) {
+      notifyServiceUnavailable();
+    }
     throw new ApiError(
       body?.error?.code ?? 'UNKNOWN',
       body?.error?.message ?? `${res.status} ${res.statusText}`,
       body?.error?.details,
+      res.status,
     );
   }
   return res;

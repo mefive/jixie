@@ -8,7 +8,11 @@ class AuthStore {
   public loader = new LoaderModel<{ user: AuthUser | null }>();
 
   public constructor() {
-    makeObservable(this, { user: computed, authenticated: computed });
+    makeObservable(this, {
+      user: computed,
+      authenticated: computed,
+      authenticationResolved: computed,
+    });
     this.loader.setup({ request: () => fetchMe() });
   }
 
@@ -23,6 +27,10 @@ class AuthStore {
 
   public get authenticated(): boolean {
     return !!this.user;
+  }
+
+  public get authenticationResolved(): boolean {
+    return this.loader.loaded;
   }
 
   // Called by login-store after a successful login to push the already-obtained user into the loader, saving a /me call
