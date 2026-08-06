@@ -453,8 +453,7 @@ const bondSignal = ctx.signal('bond-trend@1', '511260.SH');
 - `experimental` 只接受已完成报告，`validated` 必须通过已揭示 holdout 的主判据；
 - `production` 在运行一致性、数据新鲜度和可交易性门槛实现前明确拒绝；
 - 新发布身份与 `FactorWeatherPin.releaseId` 已预留关联，旧 pin 保持 `null` 和既有冻结快照；
-- migration 已在空白临时数据库从首个版本完整执行通过；当前运行中的开发数据库因 SQLite 锁未停服
-  应用，待服务释放连接后再执行。
+- migration 已在空白临时数据库从首个版本完整执行通过，并在因子范围 E2E 前应用到开发数据库；
 - 研究范围首批实现新增 `FactorAnalysisSpecV5`：全 A、沪深 300、中证 500、中证 1000 可形成独立
   report variant；指数范围按研究日读取不晚于当日的历史成分快照，缺少快照或快照过期时明确失败；
   前端和 Factor Agent 均可选择范围，报告审计展示 PIT Universe 过滤前后样本数。
@@ -464,9 +463,12 @@ const bondSignal = ctx.signal('bond-trend@1', '511260.SH');
   过滤后估计，避免指数研究借用范围外股票的信息。
 - 行业、市值三分位和流动性三分位诊断切片已进入 V5：逐期计算切片 Rank IC、年化 ICIR 和 IC
   正率，仅作为稳健性诊断展示，不改变主报告指标、研究假设判据或发布门禁。
+- 新增分型 `FactorResearchSpecV1` 与 `FactorResearchReportPayloadV1`：股票横截面、债券 ETF 时间序列、
+  商品跨资产面板、宏观状态四个样例均可由可辨识联合表达；旧 V1–V5 spec 和 payload 在读取时自动
+  包装为 `cross_sectional`，新报告将统一 envelope 写入 `specJson`，兼容字段继续供当前 UI 使用；
+  时间序列明确冻结 Newey-West 推断和 PIT revision policy，未实现的 evaluator 会被 API 明确拒绝。
 
-尚未完成：分型 `FactorResearchSpecV1` / payload、
-`CrossSectionalEvaluator` 包装、发布区前端和策略消费。
+尚未完成：`CrossSectionalEvaluator` 包装、发布区前端和策略消费。
 因此这一批只建立不可变身份与契约，不改变既有因子计算结果，也不能对外宣称 Factor V2 已可用。
 
 **后端：**

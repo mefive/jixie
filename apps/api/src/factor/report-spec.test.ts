@@ -8,6 +8,8 @@ import {
   factorTestKey,
   factorVariantKey,
   normalizeFactorAnalysisSpec,
+  normalizeFactorResearchSpec,
+  crossSectionalProtocol,
   sha256,
 } from './report-spec.js';
 
@@ -23,6 +25,69 @@ describe('factor report spec', () => {
     expect(spec.version).toBe(3);
     expect(spec.universe.excludeRiskWarnings).toBe(true);
     expect(spec.universe.excludePendingDelisting).toBe(true);
+  });
+
+  it('adapts every legacy analysis spec to the unified cross-sectional envelope', () => {
+    const legacy = createDefaultFactorAnalysisSpecV5({
+      freq: 'month',
+      start: '20200101',
+      end: '20250101',
+      neutral: 'none',
+    });
+    const research = normalizeFactorResearchSpec(legacy);
+
+    expect(research).toEqual({
+      version: 1,
+      analysisKind: 'cross_sectional',
+      protocol: legacy,
+    });
+    expect(crossSectionalProtocol(research)).toEqual(legacy);
+  });
+
+  it('validates time-series research with PIT data and Newey-West inference', () => {
+    const research = normalizeFactorResearchSpec({
+      version: 1,
+      analysisKind: 'time_series',
+      start: '20200101',
+      end: '20250101',
+      observationFrequency: 'daily',
+      assets: ['511260.SH'],
+      target: { kind: 'forward_total_return', horizon: 20, horizonUnit: 'trade_day' },
+      dataPolicy: { pointInTime: true, revisionPolicy: 'as_available', dataCutoff: '20250101' },
+      inference: { standardError: 'newey_west', lag: 'automatic' },
+    });
+
+    expect(research.analysisKind).toBe('time_series');
+    expect(() => crossSectionalProtocol(research)).toThrow(/time_series/);
+  });
+
+  it('validates commodity panel and macro-regime protocols without routing them to equities', () => {
+    const common = {
+      version: 1,
+      start: '20200101',
+      end: '20250101',
+      observationFrequency: 'daily',
+      target: { kind: 'forward_total_return', horizon: 20, horizonUnit: 'trade_day' },
+      dataPolicy: { pointInTime: true, revisionPolicy: 'as_available', dataCutoff: '20250101' },
+    } as const;
+    const panel = normalizeFactorResearchSpec({
+      ...common,
+      analysisKind: 'panel',
+      assets: ['AU.SHF', 'CU.SHF'],
+      rankingScope: 'cross_asset',
+      volatilityScaling: 'inverse_volatility',
+    });
+    const macro = normalizeFactorResearchSpec({
+      ...common,
+      analysisKind: 'macro_regime',
+      targetAssets: ['511260.SH', '518880.SH'],
+      stateModel: { kind: 'quantile', states: 3 },
+    });
+
+    expect(panel.analysisKind).toBe('panel');
+    expect(macro.analysisKind).toBe('macro_regime');
+    expect(() => crossSectionalProtocol(panel)).toThrow(/panel/);
+    expect(() => crossSectionalProtocol(macro)).toThrow(/macro_regime/);
   });
 
   it('validates and freezes a V4 equal-weight composite definition', () => {
