@@ -204,6 +204,17 @@ before/after 样本数(因子值→成仓/前瞻行情→上市时间→流动�
 
 树模型(LightGBM 类)吃因子暴露、吐横截面打分,**输出当作一个因子**塞回同一条检验管道(IC/分层/费后/保留期,不享受评估特权);walk-forward 逐年重训防前视;feature importance 保可解释性。**触发条件:3.3 线性合成先做且证明有价值**(线性是 ML 的对照基线;线性做不出的 ML 救不了)。**不做**:深度学习端到端预测价格(个人零优势);黑箱与执行纪律冲突(回撤中无法回答「系统坏了吗」),可解释性对个人是生存问题非品味问题。实现注意:Node 生态无好用的 GBDT 训练库,届时评估 Python sidecar vs ONNX,先不定。
 
+### 3.8 Factor V2：统一因子研究与预测信号闭环 📋
+
+把当前股票横截面 FactorReport 升级为资产无关的研究协议：保留现有 `Factor` / `FactorReport`、
+研究卡、holdout 和策略回测，新增横截面 / 时间序列 / 跨资产 panel / 宏观状态四类评估器；通过不可变
+`FactorRelease` 把研究结果发布为版本化 `FactorSignal`，策略 Lab 引用具体版本并继续用 `period`
+调仓。债券、商品和宏观提供数据字段、特征和模板，不各建一套回测产品；预测因子与久期、信用、通胀等
+风险因子分开。**MVP = Phase 0–3**：股票零回归 + 一个 ETF/债券时间序列因子完成样本外 → 发布 →
+策略回测 → 部署 → 今日信号可追溯；跨资产 panel 作为 Multi-Asset V1。详设、迁移和验收见
+[`docs/design/factor-v2.md`](docs/design/factor-v2.md)，数据依赖见
+[`docs/design/asset-allocation-data.md`](docs/design/asset-allocation-data.md)。
+
 ---
 
 ## 主线四 · 数据与工程(支撑性)
