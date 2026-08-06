@@ -217,6 +217,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       setUniverseParameter: action,
       setEvaluationUniverse: action,
       setEvaluationRankingScope: action,
+      toggleEvaluationDiagnostic: action,
       setMinimumWindowCoverage: action,
       setOutlierMethod: action,
       setCostParameter: action,
@@ -423,6 +424,14 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   public setEvaluationRankingScope(value: FactorEvaluationScopeV1['rankingScope']) {
     this.specVersion = 5;
     this.evaluationScope = { ...this.evaluationScope, rankingScope: value };
+  }
+
+  public toggleEvaluationDiagnostic(value: FactorEvaluationScopeV1['diagnostics'][number]) {
+    this.specVersion = 5;
+    const diagnostics = this.evaluationScope.diagnostics.includes(value)
+      ? this.evaluationScope.diagnostics.filter((item) => item !== value)
+      : [...this.evaluationScope.diagnostics, value];
+    this.evaluationScope = { ...this.evaluationScope, diagnostics };
   }
 
   public setMinimumWindowCoverage(value: number) {

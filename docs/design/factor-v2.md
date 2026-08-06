@@ -462,8 +462,10 @@ const bondSignal = ctx.signal('bond-trend@1', '511260.SH');
   percentile rank，缺失行业或少于 5 只股票的行业不并入其他行业，而是剔除并计入样本审计；V5
   的方法论审计另存缺失分类数、小行业剔除数和参与行业数；V5 的中性化也在正式研究范围和可交易性
   过滤后估计，避免指数研究借用范围外股票的信息。
+- 行业、市值三分位和流动性三分位诊断切片已进入 V5：逐期计算切片 Rank IC、年化 ICIR 和 IC
+  正率，仅作为稳健性诊断展示，不改变主报告指标、研究假设判据或发布门禁。
 
-尚未完成：行业 / 市值 / 流动性诊断切片、分型 `FactorResearchSpecV1` / payload、
+尚未完成：分型 `FactorResearchSpecV1` / payload、
 `CrossSectionalEvaluator` 包装、发布区前端和策略消费。
 因此这一批只建立不可变身份与契约，不改变既有因子计算结果，也不能对外宣称 Factor V2 已可用。
 

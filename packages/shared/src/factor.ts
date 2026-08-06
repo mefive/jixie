@@ -118,6 +118,19 @@ export interface IcDecayPoint {
   icir: number; // icMean / icStd across periods
 }
 
+export type FactorDiagnosticDimension = 'industry' | 'size_bucket' | 'liquidity_bucket';
+
+/** Robustness-only slice. It never changes the primary report metrics or release criterion. */
+export interface FactorDiagnosticSlice {
+  dimension: FactorDiagnosticDimension;
+  key: string;
+  periods: number;
+  observations: number;
+  rankIcMean: number;
+  rankIcirAnnual: number;
+  rankIcPositiveRate: number;
+}
+
 /** A single-factor analysis report over one (freq, start, end) window. */
 export interface FactorReport {
   factor: string; // unique key
@@ -145,6 +158,7 @@ export interface FactorReport {
   longShortNetMktcap?: LongShortStat; // market-cap-weight long-short, net of trading cost
   lsNav?: LongShortNav; // equal-weight long-short NAV, gross vs net (the net-of-cost line chart)
   periodObservations?: FactorPeriodObservation[];
+  diagnostics?: FactorDiagnosticSlice[];
   methodology?: FactorMethodologyAudit;
 }
 

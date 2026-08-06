@@ -93,6 +93,25 @@ describe('factor report spec', () => {
     expect(factorVariantKey(global, 'hash')).not.toEqual(factorVariantKey(withinIndustry, 'hash'));
   });
 
+  it('freezes diagnostic slices without changing the formal evaluation scope', () => {
+    const base = createDefaultFactorAnalysisSpecV5({
+      freq: 'month',
+      start: '20200101',
+      end: '20250101',
+      neutral: 'none',
+    });
+    const diagnostic = createDefaultFactorAnalysisSpecV5({
+      ...base,
+      evaluationScope: {
+        ...base.evaluationScope,
+        diagnostics: ['industry', 'size_bucket', 'liquidity_bucket'],
+      },
+    });
+
+    expect(normalizeFactorAnalysisSpec(diagnostic)).toEqual(diagnostic);
+    expect(factorVariantKey(base, 'hash')).not.toEqual(factorVariantKey(diagnostic, 'hash'));
+  });
+
   it('rejects duplicate factors in a V4 composite', () => {
     const spec = createDefaultFactorAnalysisSpecV4({
       freq: 'month',

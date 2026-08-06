@@ -1116,6 +1116,21 @@ const ParamsPopover = complex.component(() => {
                 ]}
               />
             </div>
+            <div className="jx-factor-paramField">
+              <span className="jx-factor-paramLabel">{t('evaluationDiagnosticsLabel')}</span>
+              <div className="jx-factor-diagnosticChoices">
+                {(['industry', 'size_bucket', 'liquidity_bucket'] as const).map((diagnostic) => (
+                  <label key={diagnostic}>
+                    <input
+                      type="checkbox"
+                      checked={store.evaluationScope.diagnostics.includes(diagnostic)}
+                      onChange={() => store.toggleEvaluationDiagnostic(diagnostic)}
+                    />
+                    {t(`evaluationDiagnostics.${diagnostic}`)}
+                  </label>
+                ))}
+              </div>
+            </div>
           </>
         )}
         <div className="jx-factor-paramSectionTitle">{t('methodologyUniverse')}</div>
@@ -1661,6 +1676,44 @@ const ReportBody = complex.component(() => {
       </div>
 
       <MethodologyCard />
+
+      {r.diagnostics?.length ? (
+        <div className="jx-factor-diagnostics">
+          <div className="jx-factor-sectionTitle">{t('diagnosticsTitle')}</div>
+          <div className="jx-factor-diagnosticsTableWrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>{t('diagnosticsSlice')}</th>
+                  <th>{t('diagnosticsPeriods')}</th>
+                  <th>{t('diagnosticsObservations')}</th>
+                  <th>{t('diagnosticsIc')}</th>
+                  <th>{t('diagnosticsIcir')}</th>
+                  <th>{t('diagnosticsPositive')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {r.diagnostics.map((slice) => (
+                  <tr key={`${slice.dimension}:${slice.key}`}>
+                    <td>
+                      {t('diagnosticsSliceLabel', {
+                        dimension: t(`evaluationDiagnostics.${slice.dimension}`),
+                        key: t(`diagnosticKey.${slice.key}`, { defaultValue: slice.key }),
+                      })}
+                    </td>
+                    <td>{slice.periods}</td>
+                    <td>{slice.observations.toLocaleString()}</td>
+                    <td>{slice.rankIcMean.toFixed(3)}</td>
+                    <td>{slice.rankIcirAnnual.toFixed(2)}</td>
+                    <td>{pct(slice.rankIcPositiveRate)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="jx-factor-chartCap">{t('diagnosticsCap')}</div>
+        </div>
+      ) : null}
 
       <Suspense fallback={<div className="jx-factor-chart" />}>
         <DecileChart buckets={buckets} />
