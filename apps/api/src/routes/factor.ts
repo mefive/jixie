@@ -50,6 +50,7 @@ import {
   startFactorAnalysis,
   type FactorAnalysisSource,
 } from '../factor/analysis-job.js';
+import { resolveTimeSeriesTemplateSource } from '../factor/time-series-templates.js';
 
 /**
  * Factor workbench actions (singular, mounted at /api/app/factor — product line 1.5 · factor research).
@@ -312,7 +313,7 @@ factorRoute.post('/analysis/run', validateJson(runAnalysisBody), async (c) => {
     }
     researchSpec = { ...researchSpec, protocol };
   } else if (researchSpec.analysisKind === 'time_series') {
-    source = resolveTimeSeriesFactorSource(factor);
+    source = resolveTimeSeriesTemplateSource(factor);
     if (!source) {
       return apiError(c, 'NOT_FOUND', m(c, 'unknownFactor', { factor }));
     }
@@ -658,19 +659,6 @@ function parseResearchPayload(
   } catch {
     return undefined;
   }
-}
-
-const ETF_TREND_SOURCES: Record<string, Extract<FactorAnalysisSource, { kind: 'etf_trend' }>> = {
-  etf_trend_20: { kind: 'etf_trend', label: 'ETF 20-day trend', lookback: 20 },
-  etf_trend_60: { kind: 'etf_trend', label: 'ETF 60-day trend', lookback: 60 },
-  etf_trend_120: { kind: 'etf_trend', label: 'ETF 120-day trend', lookback: 120 },
-};
-
-function resolveTimeSeriesFactorSource(
-  factor: string,
-): Extract<FactorAnalysisSource, { kind: 'etf_trend' }> | null {
-  const source = ETF_TREND_SOURCES[factor];
-  return source ? { ...source } : null;
 }
 
 async function resolveEtfDataCutoff(

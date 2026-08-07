@@ -21,6 +21,9 @@ import {
   type FactorRelease,
   type FactorReleaseMaturity,
   type FactorHoldoutPolicyV1,
+  type FactorResearchSpecV1,
+  type FactorTimeSeriesReportV1,
+  type TimeSeriesFactorResearchSpecV1,
   type Neutral,
   type LogLine,
 } from '@jixie/shared';
@@ -67,6 +70,8 @@ type FactorSetupParams = {
 const DEFAULT_START = '20150101';
 const DEFAULT_END = '20261231';
 const POLL_INTERVAL_MS = 800;
+export const TIME_SERIES_ASSETS = ['511010.SH', '518880.SH', '510300.SH'] as const;
+export type TimeSeriesAsset = (typeof TIME_SERIES_ASSETS)[number];
 type FactorUniverseChoice = 'cn_a' | FactorEquityIndexCode;
 
 type FactorMethodologyParams = Pick<
@@ -139,7 +144,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
 
   public selectedKey = ''; // preset key OR custom factor id — the analysis target
   public selectedReportId = '';
-  public mode: 'preset' | 'custom' | 'composite' = 'preset';
+  public mode: 'preset' | 'custom' | 'composite' | 'time_series' = 'preset';
   public compositeDefinition: FactorCompositeDefinitionV1 | null = null;
   public code = ''; // the custom factor's defineFactor source (empty for presets)
   public persistedCode = ''; // code as persisted in the DB — baseline for `edited`
@@ -162,6 +167,8 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   public specVersion: 1 | 2 | 3 | 4 | 5 = 5;
   public evaluationScope = defaultEvaluationScope();
   public methodology = defaultMethodology();
+  public timeSeriesAssets: TimeSeriesAsset[] = [...TIME_SERIES_ASSETS];
+  public timeSeriesHorizon: 5 | 20 | 60 = 20;
   public logs: LogLine[] = []; // streamed progress of the current run (job), tagged system/user
   public jobRunning = false; // a streamed analysis is in flight
 
@@ -201,6 +208,8 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       specVersion: observable.ref,
       evaluationScope: observable.ref,
       methodology: observable.ref,
+      timeSeriesAssets: observable.ref,
+      timeSeriesHorizon: observable.ref,
       logs: observable.ref,
       jobRunning: observable.ref,
       corrKeys: observable.ref,
@@ -208,11 +217,14 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       corrRunning: observable.ref,
       selected: computed,
       report: computed,
+      timeSeriesReport: computed,
+      isTimeSeries: computed,
       reportDetail: computed,
       selectedReleases: computed,
       correlation: computed,
       paramsModified: computed,
       analysisSpec: computed,
+      researchSpec: computed,
       evaluationUniverse: computed,
       codeModifiedSinceReport: computed,
       reportOutdated: computed,
@@ -230,6 +242,8 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       setMinimumWindowCoverage: action,
       setOutlierMethod: action,
       setCostParameter: action,
+      setTimeSeriesAssets: action,
+      setTimeSeriesHorizon: action,
       setCorrKeys: action,
       setKeyDraft: action,
     });
@@ -308,6 +322,15 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     return this.reportDetail?.payload ?? null;
   }
 
+  public get timeSeriesReport(): FactorTimeSeriesReportV1 | null {
+    const payload = this.reportDetail?.researchPayload;
+    return payload?.analysisKind === 'time_series' ? payload.report : null;
+  }
+
+  public get isTimeSeries(): boolean {
+    return this.mode === 'time_series';
+  }
+
   public get reportDetail(): FactorReportDetail | null {
     const detail = this.reportLoader.result;
     return detail && detail.factor === this.selectedKey && detail.id === this.selectedReportId
@@ -324,8 +347,18 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
 
   /** Draft parameters are independent from the selected immutable report. */
   public get paramsModified(): boolean {
-    const spec = this.reportDetail?.spec;
-    return !!spec && JSON.stringify(spec) !== JSON.stringify(this.analysisSpec);
+    const detail = this.reportDetail;
+    if (!detail) {
+      return false;
+    }
+    if (detail.analysisKind === 'time_series') {
+      const frozen = detail.researchSpec;
+      if (frozen.analysisKind !== 'time_series') {
+        return true;
+      }
+      return JSON.stringify(timeSeriesDraftIdentity(frozen)) !== JSON.stringify(this.researchSpec);
+    }
+    return !!detail.spec && JSON.stringify(detail.spec) !== JSON.stringify(this.analysisSpec);
   }
 
   public get analysisSpec(): FactorAnalysisSpec {
@@ -371,6 +404,27 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     return { version: 3, ...common, ...this.methodology };
   }
 
+  public get researchSpec(): FactorResearchSpecV1 {
+    if (!this.isTimeSeries) {
+      return { version: 1, analysisKind: 'cross_sectional', protocol: this.analysisSpec };
+    }
+    return {
+      version: 1,
+      analysisKind: 'time_series',
+      start: this.start,
+      end: this.end,
+      observationFrequency: 'daily',
+      assets: [...this.timeSeriesAssets],
+      target: {
+        kind: 'forward_total_return',
+        horizon: this.timeSeriesHorizon,
+        horizonUnit: 'trade_day',
+      },
+      dataPolicy: { pointInTime: true, revisionPolicy: 'as_available', dataCutoff: null },
+      inference: { standardError: 'newey_west', lag: 'automatic' },
+    };
+  }
+
   public get evaluationUniverse(): FactorUniverseChoice {
     return this.evaluationScope.universe.kind === 'market'
       ? 'cn_a'
@@ -379,7 +433,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
 
   /** The editor source no longer matches the immutable source that produced the selected report. */
   public get codeModifiedSinceReport(): boolean {
-    if (this.mode === 'composite') {
+    if (this.mode === 'composite' || this.isTimeSeries) {
       return false;
     }
     const snapshot = this.reportDetail?.factorCodeSnapshot;
@@ -403,7 +457,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
 
   /** A preset factor is selected → the Agent is in Q&A mode (answers questions, never writes code). */
   public get qaMode(): boolean {
-    return (this.mode === 'preset' || this.mode === 'composite') && !!this.selectedKey;
+    return (
+      (this.mode === 'preset' || this.mode === 'composite' || this.isTimeSeries) &&
+      !!this.selectedKey
+    );
   }
 
   private nextSpecVersion(): 4 | 5 {
@@ -495,6 +552,16 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     };
   }
 
+  public setTimeSeriesAssets(values: string[]) {
+    this.timeSeriesAssets = values.filter((value): value is TimeSeriesAsset =>
+      TIME_SERIES_ASSETS.includes(value as TimeSeriesAsset),
+    );
+  }
+
+  public setTimeSeriesHorizon(value: 5 | 20 | 60) {
+    this.timeSeriesHorizon = value;
+  }
+
   public setCode(v: string) {
     runInAction(() => (this.code = v));
   }
@@ -531,13 +598,22 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     const meta = catalog.find((factor) => factor.key === key);
     const isCustom = meta?.kind === 'custom';
     const isComposite = meta?.kind === 'composite';
+    const isTimeSeries = meta?.analysisKind === 'time_series';
     runInAction(() => {
       this.selectedKey = key;
       this.selectedReportId = preferredReportId ?? '';
-      this.mode = isCustom ? 'custom' : isComposite ? 'composite' : 'preset';
+      this.mode = isCustom
+        ? 'custom'
+        : isComposite
+          ? 'composite'
+          : isTimeSeries
+            ? 'time_series'
+            : 'preset';
       this.compositeDefinition = isComposite ? structuredClone(meta?.composite ?? null) : null;
       this.specVersion = isComposite ? 4 : 5;
       this.evaluationScope = defaultEvaluationScope();
+      this.timeSeriesAssets = [...TIME_SERIES_ASSETS];
+      this.timeSeriesHorizon = 20;
       this.jobRunning = false;
       this.jobId = null;
       this.logs = [];
@@ -553,7 +629,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         this.chatMessages = [];
       }
     });
-    if (isComposite) {
+    if (isComposite || isTimeSeries) {
       const reports = await this.reportsLoader.run();
       void this.researchSummaryLoader.run();
       if (this.selectedKey !== key) {
@@ -888,39 +964,64 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       return false;
     }
 
+    if (
+      detail.analysisKind === 'time_series' &&
+      detail.researchSpec.analysisKind === 'time_series'
+    ) {
+      const spec = detail.researchSpec;
+      runInAction(() => {
+        this.mode = 'time_series';
+        this.start = spec.start;
+        this.end = spec.end;
+        this.timeSeriesAssets = spec.assets.filter((asset): asset is TimeSeriesAsset =>
+          TIME_SERIES_ASSETS.includes(asset as TimeSeriesAsset),
+        );
+        this.timeSeriesHorizon = ([5, 20, 60] as const).includes(spec.target.horizon as 5 | 20 | 60)
+          ? (spec.target.horizon as 5 | 20 | 60)
+          : 20;
+      });
+      if (detail.status === 'running' && detail.jobId) {
+        this.startPolling(detail.jobId, detail.id);
+      }
+      return true;
+    }
+
+    const spec = detail.spec;
+    if (!spec) {
+      return false;
+    }
+
     runInAction(() => {
-      this.freq = detail.spec.freq;
-      this.neutral = detail.spec.neutral;
-      this.start = detail.spec.start;
-      this.end = detail.spec.end;
-      this.specVersion = detail.spec.version;
+      this.freq = spec.freq;
+      this.neutral = spec.neutral;
+      this.start = spec.start;
+      this.end = spec.end;
+      this.specVersion = spec.version;
       this.evaluationScope =
-        detail.spec.version === 5
-          ? structuredClone(detail.spec.evaluationScope)
-          : defaultEvaluationScope();
+        spec.version === 5 ? structuredClone(spec.evaluationScope) : defaultEvaluationScope();
       this.compositeDefinition =
-        detail.spec.version === 4
-          ? structuredClone(detail.spec.composite)
+        spec.version === 4
+          ? structuredClone(spec.composite)
           : this.mode === 'composite'
             ? this.compositeDefinition
             : null;
       this.methodology =
-        detail.spec.version !== 1
+        spec.version !== 1
           ? {
               universe: {
-                ...structuredClone(detail.spec.universe),
+                ...structuredClone(spec.universe),
                 excludeRiskWarnings:
-                  'excludeRiskWarnings' in detail.spec.universe
-                    ? detail.spec.universe.excludeRiskWarnings
+                  'excludeRiskWarnings' in spec.universe
+                    ? spec.universe.excludeRiskWarnings
                     : DEFAULT_METHODOLOGY.universe.excludeRiskWarnings,
                 excludePendingDelisting:
-                  'excludePendingDelisting' in detail.spec.universe
-                    ? detail.spec.universe.excludePendingDelisting
+                  'excludePendingDelisting' in spec.universe
+                    ? spec.universe.excludePendingDelisting
                     : DEFAULT_METHODOLOGY.universe.excludePendingDelisting,
               },
-              missing: structuredClone(detail.spec.missing),
-              outliers: structuredClone(detail.spec.outliers),
-              costs: structuredClone(detail.spec.costs),
+              missing: structuredClone(spec.missing),
+              outliers: structuredClone(spec.outliers),
+              costs: structuredClone(spec.costs),
             }
           : defaultMethodology();
     });
@@ -955,7 +1056,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       this.jobRunning = true;
     });
     try {
-      const spec = this.analysisSpec;
+      const isTimeSeries = this.isTimeSeries;
+      const protocol = this.analysisSpec;
+      const researchSpec = this.researchSpec;
+      const spec = isTimeSeries ? researchSpec : protocol;
       const response = await runFactorAnalysis(
         this.selectedKey,
         spec,
@@ -965,11 +1069,11 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       const summary: FactorReportSummary = {
         id: response.reportId,
         factor: this.selectedKey,
-        analysisKind: 'cross_sectional',
+        analysisKind: isTimeSeries ? 'time_series' : 'cross_sectional',
         status: 'running',
         phase: 'explore',
-        spec,
-        researchSpec: { version: 1, analysisKind: 'cross_sectional', protocol: spec },
+        ...(isTimeSeries ? {} : { spec: protocol }),
+        researchSpec,
         jobId: response.jobId,
         createdAt: new Date().toISOString(),
       };
@@ -1213,4 +1317,24 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       /* no live job */
     }
   }
+}
+
+function timeSeriesDraftIdentity(
+  spec: TimeSeriesFactorResearchSpecV1,
+): TimeSeriesFactorResearchSpecV1 {
+  return {
+    version: 1,
+    analysisKind: 'time_series',
+    start: spec.start,
+    end: spec.end,
+    observationFrequency: spec.observationFrequency,
+    assets: [...spec.assets],
+    target: structuredClone(spec.target),
+    dataPolicy: {
+      pointInTime: true,
+      revisionPolicy: spec.dataPolicy.revisionPolicy,
+      dataCutoff: null,
+    },
+    inference: structuredClone(spec.inference),
+  };
 }

@@ -534,7 +534,20 @@ const bondSignal = ctx.signal('bond-trend@1', '511260.SH');
 完整研究 spec 与模板快照交给 worker，结果以 `FactorTimeSeriesReportV1` 持久化并通过分型
 `researchPayload` 读取，不再伪装为旧 `FactorReport`。横截面 variant/test key 继续使用旧 protocol 计算，
 避免已有报告身份漂移。真实 worker 线程已用国债、黄金、沪深 300 ETF 的 2024 年数据跑通 720 条观测；
-下一步是报告 UI、报告历史入口和产品侧 E2E。
+
+**2026-08-06 产品纵向切片：**`/factors` 已按“研究定义决定评估协议”的原则接入首个时间序列产品：
+因子库把现有股票预设归入横截面组，并新增 ETF 20 / 60 / 120 日趋势模板；用户不再先选择一个抽象的
+evaluator，而是在选中模板后只配置研究资产、未来收益 horizon 和样本区间。中间工作区展示只读信号
+定义、输入和输出，不伪装成股票 `defineFactor` 代码；右侧报告按资产展示相关性、回归斜率、方向命中率、
+Newey-West t 值和正负状态条件收益，并明确标注“信号证据不是策略回测”。不可变报告 URL、运行续接、
+参数变更提示和历史恢复已打通，前端不再读取旧 `payload` 或调用股票发布区。真实浏览器已用国债、黄金、
+沪深 300 ETF 跑通 7,287 条观测，配置态与报告态验收截图分别为
+`apps/web/acceptance/9a-factor-time-series-config.jpg` 和
+`apps/web/acceptance/9b-factor-time-series-report.jpg`。
+
+该切片仍然只有 exploratory：时间序列研究卡、holdout/reveal、尝试计数、模板发布和策略 runtime 尚未
+接通，因此还不能视为 Phase 2 完成。下一步应先补齐时间序列研究纪律与发布，再进入 Phase 3 的 ETF
+策略消费；真实国债曲线模板仍受收益率曲线数据权限和同步阻塞，不能用债券 ETF 自身价格冒充利率驱动。
 
 **交付：**
 
