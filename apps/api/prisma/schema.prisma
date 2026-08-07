@@ -863,6 +863,7 @@ model Factor {
   key           String? // immutable strategy handle after finalization; null while a user factor is a draft
   keyCandidate  String? // LLM proposal, editable by the user until key is finalized
   name          String // canonical Chinese display name, refreshed from the factor context
+  analysisKind  String              @default("cross_sectional") // immutable definition protocol
   descriptionZh String              @default("")
   descriptionEn String              @default("")
   code          String // defineFactor TS source

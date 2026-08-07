@@ -6,7 +6,7 @@ import type { FactorCompositeDefinitionV1 } from '@jixie/shared';
 import { apiError, validateJson } from '../lib/httpError.js';
 import { prisma } from '../lib/prisma.js';
 import { BUILTIN_KEYS, BUILTIN_USER_ID, builtinCatalog } from '../factor/builtin-factors.js';
-import { compileFactor } from '../factor/compile-factor.js';
+import { validateFactorDefinition } from '../factor/validate-factor-definition.js';
 import { chatMessagesSchema } from '../lib/chat-schema.js';
 import { m } from '../i18n/index.js';
 import { localeFromRequest } from '../i18n/index.js';
@@ -87,6 +87,7 @@ factorsRoute.get('/catalog', async (c) => {
       key: true,
       keyCandidate: true,
       name: true,
+      analysisKind: true,
       descriptionZh: true,
       descriptionEn: true,
     },
@@ -100,6 +101,14 @@ factorsRoute.get('/catalog', async (c) => {
     strategyKey: strategyKey(factor.key),
     keyCandidate: factor.keyCandidate ?? undefined,
     kind: 'custom' as const,
+    analysisKind:
+      factor.analysisKind === 'time_series'
+        ? ('time_series' as const)
+        : ('cross_sectional' as const),
+    targetAssetClasses:
+      factor.analysisKind === 'time_series'
+        ? (['equity', 'fixed_income', 'commodity'] as const)
+        : (['equity'] as const),
   }));
   const composites = await prisma.factorComposite.findMany({
     where: { userId: c.var.userId },
@@ -229,7 +238,14 @@ async function uniqueFactorName(userId: string, base: string): Promise<string> {
 factorsRoute.get('/custom', async (c) => {
   const rows = await prisma.factor.findMany({
     where: { userId: c.var.userId },
-    select: { id: true, key: true, keyCandidate: true, name: true, updatedAt: true },
+    select: {
+      id: true,
+      key: true,
+      keyCandidate: true,
+      name: true,
+      analysisKind: true,
+      updatedAt: true,
+    },
     orderBy: { updatedAt: 'desc' },
   });
   return c.json(rows);
@@ -249,6 +265,7 @@ factorsRoute.get('/custom/:id', async (c) => {
       key: true,
       keyCandidate: true,
       name: true,
+      analysisKind: true,
       descriptionZh: true,
       descriptionEn: true,
       code: true,
@@ -273,14 +290,15 @@ factorsRoute.get('/custom/:id', async (c) => {
 const createBody = z.object({
   name: z.string().min(1).max(40),
   code: z.string().min(1),
+  analysisKind: z.enum(['cross_sectional', 'time_series']).default('cross_sectional'),
   messages: chatMessagesSchema.optional(),
 });
 
 factorsRoute.post('/custom', validateJson(createBody), async (c) => {
   const userId = c.var.userId;
-  const { name, code, messages } = c.req.valid('json');
+  const { name, code, analysisKind, messages } = c.req.valid('json');
   try {
-    (await compileFactor(code)).dispose(); // validate-only
+    await validateFactorDefinition(code, analysisKind);
   } catch (e) {
     return apiError(
       c,
@@ -295,6 +313,7 @@ factorsRoute.post('/custom', validateJson(createBody), async (c) => {
       id,
       userId,
       name: uniqueName,
+      analysisKind,
       code,
       ...(messages !== undefined ? { messages: messages as Prisma.InputJsonValue } : {}),
     },
@@ -320,7 +339,7 @@ factorsRoute.post('/custom/:id', validateJson(updateBody), async (c) => {
   }
   const existing = await prisma.factor.findFirst({
     where: { id, userId },
-    select: { name: true, code: true },
+    select: { name: true, code: true, analysisKind: true },
   });
   if (!existing) {
     return apiError(c, 'NOT_FOUND', m(c, 'factorNotFound'));
@@ -338,7 +357,10 @@ factorsRoute.post('/custom/:id', validateJson(updateBody), async (c) => {
   }
   if (code !== undefined) {
     try {
-      (await compileFactor(code)).dispose(); // validate-only
+      await validateFactorDefinition(
+        code,
+        existing.analysisKind === 'time_series' ? 'time_series' : 'cross_sectional',
+      );
     } catch (e) {
       return apiError(
         c,
@@ -438,7 +460,7 @@ factorsRoute.post('/custom/:id/fork', async (c) => {
   const userId = c.var.userId;
   const source = await prisma.factor.findFirst({
     where: { id: c.req.param('id'), userId: { in: [userId, BUILTIN_USER_ID] } },
-    select: { name: true, code: true },
+    select: { name: true, code: true, analysisKind: true },
   });
   if (!source) {
     return apiError(c, 'NOT_FOUND', m(c, 'factorNotFound'));
@@ -446,6 +468,8 @@ factorsRoute.post('/custom/:id/fork', async (c) => {
 
   const name = await uniqueFactorName(userId, `${source.name} ${m(c, 'copySuffix')}`.slice(0, 40));
   const id = ulid();
-  await prisma.factor.create({ data: { id, userId, name, code: source.code } });
+  await prisma.factor.create({
+    data: { id, userId, name, code: source.code, analysisKind: source.analysisKind },
+  });
   return c.json({ id, name });
 });
