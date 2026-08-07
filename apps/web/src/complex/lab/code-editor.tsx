@@ -7,7 +7,7 @@ import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker'
 import type { DtsFactorOption, Locale, StrategyLanguage } from '@jixie/shared';
 import i18n from '@src/i18n';
 import { localeStore } from '@src/i18n/locale-store';
-import { getFactorCatalog, listFactorReleases } from '@src/api/client';
+import { getFactorCatalog } from '@src/api/client';
 import { sdkDts } from './sdk-dts';
 import { SDK_ENTRIES, LINKABLE_TYPES } from '@jixie/shared';
 
@@ -28,7 +28,7 @@ let monacoRef: Monaco | null = null;
 let sdkLibDisposable: monaco.IDisposable | null = null;
 let staticSdkInstalled = false;
 // The user's factor catalog (presets + own factors) → the FactorKey union members, fetched once per
-// page load; active releases are offered first and legacy custom references remain type-compatible.
+// page load; only published factors expose a strategyKey.
 let factorOptions: DtsFactorOption[] = [];
 let factorOptionsRequested = false;
 
@@ -38,12 +38,12 @@ interface FactorReference {
   end: number;
 }
 
-// Find a catalog-backed legacy factor or an active immutable release. Restricting this to known
-// options prevents arbitrary strings from becoming navigation links.
+// Find a catalog-backed published factor. Restricting this to known options prevents arbitrary
+// strings from becoming navigation links.
 function factorReferences(text: string): FactorReference[] {
   const optionsByKey = new Map(factorOptions.map((option) => [option.key, option]));
   const references: FactorReference[] = [];
-  const literal = /(['"`])((?:custom|release):[^'"`\\\s]+)\1/g;
+  const literal = /(['"`])([a-z][a-z0-9_]{0,31})\1/g;
   let match: RegExpExecArray | null;
   while ((match = literal.exec(text)) !== null) {
     const option = optionsByKey.get(match[2]);
@@ -66,6 +66,32 @@ function escapeMarkdown(value: string): string {
   return value.replace(/[\\`*_{}[\]()#+.!|>-]/g, '\\$&');
 }
 
+function factorCompletionContext(
+  m: Monaco,
+  model: monaco.editor.ITextModel,
+  position: monaco.Position,
+): { partial: string; range: monaco.IRange } | null {
+  const beforeCursor = model.getValueInRange(
+    new m.Range(1, 1, position.lineNumber, position.column),
+  );
+  const call = beforeCursor.match(/\bctx\s*\.\s*factor\s*\(\s*(['"])([^'"]*)$/);
+  const declaration = beforeCursor.match(/\bfactors\s*:\s*\[[^\]]*(['"])([^'"]*)$/);
+  const match = call ?? declaration;
+  if (!match) {
+    return null;
+  }
+  const partial = match[2];
+  return {
+    partial,
+    range: new m.Range(
+      position.lineNumber,
+      Math.max(1, position.column - partial.length),
+      position.lineNumber,
+      position.column,
+    ),
+  };
+}
+
 // (Re)register the ambient SDK .d.ts in the given locale — only the doc-comment language changes, so the
 // signatures (and thus type-checking) stay identical. Disposing first avoids a duplicate-lib for the path.
 function applySdkDts(m: Monaco, locale: Locale) {
@@ -76,41 +102,26 @@ function applySdkDts(m: Monaco, locale: Locale) {
   );
 }
 
-// ctx.factor autocomplete: immutable active releases first; legacy custom:<key> members remain so
-// old strategy source does not become a type error during the migration.
+// ctx.factor autocomplete uses immutable keys from published factors.
 function loadFactorOptions(m: Monaco) {
   if (factorOptionsRequested) {
     return;
   }
   factorOptionsRequested = true;
-  Promise.all([listFactorReleases(), getFactorCatalog()])
-    .then(([releases, catalog]) => {
-      const published = releases.flatMap((release) =>
-        release.lifecycle === 'active' && release.sourceKind === 'single'
-          ? [
-              {
-                key: `release:${release.id}`,
-                factorId: release.sourceId,
-                reportId: release.approvedReportId,
-                label: `${release.sourceName} · ${release.releaseKey}@v${release.version}`,
-                description: `${release.maturity} · ${release.inputDomains.join(' / ')}`,
-              },
-            ]
-          : [],
-      );
-      const legacy = catalog.flatMap((meta) =>
+  getFactorCatalog()
+    .then((catalog) => {
+      factorOptions = catalog.flatMap((meta) =>
         meta.strategyKey
           ? [
               {
                 key: meta.strategyKey,
                 factorId: meta.key,
-                label: `${meta.label} · legacy`,
+                label: `${meta.strategyKey} · ${meta.label}`,
                 description: meta.description,
               },
             ]
           : [],
       );
-      factorOptions = [...published, ...legacy];
       applySdkDts(m, localeStore.locale);
     })
     .catch(() => {}); // no catalog → only the static engine factors remain available
@@ -141,7 +152,7 @@ function installSdk(m: Monaco) {
     lib: ['es2020'],
   });
 
-  // Cmd+click links ONLY for catalog-backed 'custom:<key>' strings (they carry no TS info anyway).
+  // Cmd+click links only for catalog-backed published factor keys.
   // SDK members/types deliberately do NOT become links: a link's tooltip REPLACES the TypeScript
   // QuickInfo in the hover widget, which used to reduce every ctx.*/BarRow hover to a one-line
   // "cmd+click" hint — the localized JSDoc never showed. Their doc links ride the hover instead.
@@ -166,7 +177,7 @@ function installSdk(m: Monaco) {
     },
   });
 
-  // Hover: factor-reference cards for 'custom:' strings, and a 📖 doc link appended under the TS
+  // Hover: published-factor reference cards and a doc link appended under the TS
   // QuickInfo for SDK members/types (hover-provider results merge with the TS hover, unlike links).
   const sdkNames = new Set<string>([...MEMBER_NAMES, ...LINKABLE_TYPES]);
   m.languages.registerHoverProvider('typescript', {
@@ -210,6 +221,36 @@ function installSdk(m: Monaco) {
             value: `[📖 ${i18n.t('lab:sdkDocTooltip', { name: word.word })}](${location.origin}/docs/sdk#${word.word})`,
           },
         ],
+      };
+    },
+  });
+
+  // TypeScript's literal-union completion proves a key is valid but renders it as an anonymous
+  // string. This product completion keeps identity understandable: search by key or display name,
+  // show both, and insert only the immutable raw key used by the runtime.
+  m.languages.registerCompletionItemProvider('typescript', {
+    triggerCharacters: ["'", '"'],
+    provideCompletionItems(model: monaco.editor.ITextModel, position: monaco.Position) {
+      const context = factorCompletionContext(m, model, position);
+      if (!context) {
+        return { suggestions: [] };
+      }
+      return {
+        suggestions: factorOptions.map((option) => ({
+          label: {
+            label: option.key,
+            description: option.label.replace(`${option.key} · `, ''),
+          },
+          kind: m.languages.CompletionItemKind.Value,
+          detail: option.description,
+          documentation: {
+            value: `**${escapeMarkdown(option.label)}**${option.description ? `\n\n${escapeMarkdown(option.description)}` : ''}\n\n[${i18n.t('lab:factorImplementationLink')}](${factorUrl(option)})`,
+          },
+          filterText: `${option.key} ${option.label}`,
+          insertText: option.key,
+          range: context.range,
+          sortText: `0_${option.key}`,
+        })),
       };
     },
   });

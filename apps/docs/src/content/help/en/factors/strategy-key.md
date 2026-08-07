@@ -1,24 +1,21 @@
-# Confirm the strategy key
+# Set a Factor key
 
-A strategy key is the fixed name that strategy code uses to reference a custom factor. It is different from the display name and cannot be changed after confirmation.
+A Factor key is the unique English identifier used by strategy code. It is different from the display name, is chosen when the Factor is created, and cannot be changed afterward.
 
 ## Before you start
 
 Complete these checks first:
 
-1. Review the factor name and code.
-2. Complete at least one analysis successfully.
-3. Confirm that the factor needs to be used in a strategy.
+1. Choose an identifier that can describe the research for a long time.
+2. Avoid temporary experiment numbers or mechanically copying the display name.
+3. To revise a published Factor, use **Copy** and keep or edit the suggested `_vN` key for the independent draft.
 
-You do not need to confirm a key immediately if the factor is only being researched.
+## Enter the key when creating
 
-## Enter the key
-
-1. Open the custom factor.
-2. Find **Strategy key** above the code.
-3. Enter a recognizable name that can remain in use.
-4. Select **Confirm and lock**.
-5. Read the irreversible-change notice and confirm.
+1. Select **New** on the Factors page.
+2. Choose the research method.
+3. Enter a display name, which may be Chinese or English.
+4. Enter the unique key and confirm creation.
 
 The name may contain lowercase letters, digits, and underscores. It must start with a letter and contain at most 32 characters. For example:
 
@@ -26,66 +23,45 @@ The name may contain lowercase letters, digits, and underscores. It must start w
 help_book_to_market
 ```
 
-The numbered areas are:
-
-1. Strategy key label.
-2. Key input.
-3. **Confirm and lock**.
-4. Naming rules and lock notice.
-
-![Enter a strategy key before locking it](/docs/images/help/zh/factors/factor-strategy-key-01.png)
-
-## Use the finalized value
-
-After confirmation, the page shows the complete key:
+The complete key displayed after creation is the strategy reference:
 
 ```text
-custom:help_book_to_market
+help_book_to_market
 ```
 
-The numbered areas are:
+The product does not add a `custom:` or release-version prefix. A key cannot conflict with another Factor owned by the same user or with a built-in key. Creation fails on conflict so the user can choose an explicit alternative.
 
-1. Strategy-key area.
-2. Complete fixed key.
-3. Locked status.
-
-![A locked strategy key for a custom factor](/docs/images/help/zh/factors/factor-strategy-key-locked-01.png)
-
-The product adds `custom:` to distinguish custom factors. Copy the complete value shown on the page into strategy code.
-
-If the requested name is already in use, the finalized key may include an automatically added suffix. Do not infer the value from the text you entered; use the value displayed after locking.
-
-## Display name and strategy key
+## Display name and Factor key
 
 | Item | Example | Can it change? |
 | --- | --- | --- |
 | Factor display name | Book-to-market (custom) | Yes |
-| Strategy key | `custom:help_book_to_market` | No, after locking |
+| Factor key | `help_book_to_market` | No, after creation |
 
-The display name is for reading in the interface and may contain Chinese text. The strategy key is a stable code reference.
+The display name is for reading in the interface and may contain Chinese text. The Factor key is a stable code reference.
 
-You can still edit factor code after locking the key, but the key does not change with the code. After a code change, rerun the factor analysis and every affected backtest. An older result still belongs to the older code.
+A draft can be edited and analyzed again. After publication, the name, code, and research definition are immutable. Use **Copy** to create an independent draft with a suggested `_v2` or `_v3` key.
 
 ## Naming guidance
 
 - Use a name that describes the calculation, such as `book_to_market`.
 - Avoid dates, temporary experiment numbers, or labels such as `final`.
 - Avoid names such as `factor1` or `test` that will be hard to identify later.
-- Check spelling before locking because the value cannot be edited later.
+- Check spelling before creation because the value cannot be edited later.
 
 ## Common questions
 
-### Confirm and lock is disabled
+### Create is disabled
 
-Check the allowed characters, confirm that the first character is a letter, and keep the name within 32 characters.
+Check that the name and key are present, the key uses allowed characters, the first character is a letter, and its length does not exceed 32 characters.
 
-### Can I delete a factor after locking its key?
+### Can I delete a Factor after creation?
 
-Before deletion, check which strategies still reference the key. Those strategies cannot read the custom factor after it is deleted.
+Drafts can be deleted. A published Factor cannot be deleted, only archived. Archived Factors are removed from new-strategy completion, while existing deployments continue using their frozen dependency.
 
 ### Does changing the display name affect a strategy?
 
-No. Strategy code uses the complete locked key, not the display name.
+No. Strategy code uses the Factor key, not the display name.
 
 ## Related articles
 

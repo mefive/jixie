@@ -92,10 +92,13 @@ factorRoute.post('/agent', validateJson(agentBody), async (c) => {
   const userId = c.var.userId;
   const factor = await prisma.factor.findFirst({
     where: { id, userId },
-    select: { id: true, analysisKind: true },
+    select: { id: true, analysisKind: true, status: true },
   });
   if (!factor) {
     return apiError(c, 'NOT_FOUND', m(c, 'factorNotFound'));
+  }
+  if (factor.status !== 'draft') {
+    return apiError(c, 'VALIDATION_FAILED', m(c, 'publishedFactorReadonly'));
   }
   const entity = { kind: 'factor' as const, id };
   if (turnBus.findRunning(entityKey(entity), userId)) {
@@ -158,10 +161,13 @@ factorRoute.post('/metadata', validateJson(metadataBody), async (c) => {
   const { id, code } = c.req.valid('json');
   const factor = await prisma.factor.findFirst({
     where: { id, userId: c.var.userId },
-    select: { messages: true },
+    select: { messages: true, status: true },
   });
   if (!factor) {
     return apiError(c, 'NOT_FOUND', m(c, 'factorNotFound'));
+  }
+  if (factor.status !== 'draft') {
+    return apiError(c, 'VALIDATION_FAILED', m(c, 'publishedFactorReadonly'));
   }
   try {
     await refreshFactorMetadata({

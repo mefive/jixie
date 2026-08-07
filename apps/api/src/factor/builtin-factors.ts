@@ -1,5 +1,6 @@
 import type { FactorKind, FactorMeta } from '@jixie/shared';
 import { prisma } from '../lib/prisma.js';
+import { sha256 } from './report-spec.js';
 
 /**
  * Built-in preset factors as CODE (design: factor-to-strategy.md Step 1b — code-first carried through on the factor side).
@@ -466,7 +467,8 @@ export function builtinCatalog(): FactorMeta[] {
   return BUILTIN_FACTORS.map(({ key, label, kind, expectedDirection }) => ({
     key,
     label,
-    strategyKey: `custom:${key}`,
+    strategyKey: key,
+    status: 'published',
     kind,
     builtin: true,
     expectedDirection,
@@ -482,7 +484,7 @@ export async function seedBuiltinFactors(): Promise<void> {
   for (const def of BUILTIN_FACTORS) {
     const existing = await prisma.factor.findUnique({
       where: { id: def.key },
-      select: { key: true, code: true, name: true },
+      select: { key: true, code: true, name: true, status: true, codeHash: true },
     });
 
     if (!existing) {
@@ -493,14 +495,31 @@ export async function seedBuiltinFactors(): Promise<void> {
           key: def.key,
           name: def.label,
           code: def.code,
+          status: 'published',
+          codeHash: sha256(def.code),
+          publishedAt: new Date(),
         },
       });
       continue;
     }
-    if (existing.key !== def.key || existing.code !== def.code || existing.name !== def.label) {
+    if (
+      existing.key !== def.key ||
+      existing.code !== def.code ||
+      existing.name !== def.label ||
+      existing.status !== 'published' ||
+      existing.codeHash !== sha256(def.code)
+    ) {
       await prisma.factor.update({
         where: { id: def.key },
-        data: { key: def.key, name: def.label, code: def.code },
+        data: {
+          key: def.key,
+          name: def.label,
+          code: def.code,
+          status: 'published',
+          codeHash: sha256(def.code),
+          publishedAt: new Date(),
+          archivedAt: null,
+        },
       });
     }
   }

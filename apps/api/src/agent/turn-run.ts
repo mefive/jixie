@@ -212,7 +212,16 @@ async function writeMessages(entity: TurnEntity, messages: ChatMessage[]): Promi
       await prisma.strategy.update({ where: { id: entity.id }, data });
       break;
     case 'factor':
-      await prisma.factor.update({ where: { id: entity.id }, data });
+      if (
+        (
+          await prisma.factor.updateMany({
+            where: { id: entity.id, status: 'draft' },
+            data,
+          })
+        ).count !== 1
+      ) {
+        throw new Error('Published factor conversation is immutable');
+      }
       break;
     case 'screen':
       await prisma.screenConversation.update({ where: { id: entity.id }, data });

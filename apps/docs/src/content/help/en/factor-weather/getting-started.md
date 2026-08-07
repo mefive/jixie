@@ -23,25 +23,25 @@ The fixed method makes cards comparable. You cannot change the decile count, neu
 ## Pin a factor
 
 1. Select **Pin factor** in the upper-right corner.
-2. Choose an unpinned preset or a finalized custom factor.
+2. Choose an unpinned preset or a published custom Factor.
 3. A preset uses its system-defined direction.
 4. For a custom factor, choose **Higher values first** or **Lower values first**.
 5. Check the direction, then select **Pin and backfill**.
 6. Wait for the monthly history to finish.
 
-![Choose a factor version and expected direction](/docs/images/help/zh/factor-weather/factor-weather-pin-01.png)
+![Choose a published Factor and expected direction](/docs/images/help/zh/factor-weather/factor-weather-pin-01.png)
 
 Direction only aligns color and return so that a result matching the expectation is positive. The system retains raw Rank IC and raw group returns and does not change factor code.
 
 ## Which factors can be pinned
 
 - A preset can be selected directly and has a product-defined expected direction.
-- A custom factor must first have an immutable strategy key confirmed in Factor Research.
+- A custom Factor must first be published with an approved report in Factor Research.
 - A custom factor still in draft is disabled.
 - Factor composites cannot currently be pinned.
-- The same factor version cannot be pinned twice.
+- The same Factor cannot be pinned twice.
 
-Pinning freezes factor code, name, direction, and method version. A pinned custom factor cannot be edited or deleted. To iterate, copy it into a new version and research that version separately.
+Pinning stores another snapshot of the Factor code, name, direction, and method. A published Factor is already immutable and cannot be deleted. To iterate, copy it to an independent draft, then research and publish the copy.
 
 ## Wait for the first backfill
 
@@ -66,5 +66,5 @@ Unpinning is not a hide action. Pinning it again later regenerates the history u
 
 - [Read Factor Weather cards](/docs/help/factor-weather/read-cards)
 - [What factor research can answer](/docs/help/factors/what-factor-research)
-- [Confirm the strategy key](/docs/help/factors/strategy-key)
+- [Set a Factor key](/docs/help/factors/strategy-key)
 - [Formal holdout and out-of-sample results](/docs/help/factors/holdout-results)

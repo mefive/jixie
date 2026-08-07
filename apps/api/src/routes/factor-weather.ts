@@ -62,13 +62,13 @@ factorWeatherRoute.post('/pins', validateJson(createPinBody), async (c) => {
   const { factorId, direction: requestedDirection } = c.req.valid('json');
   const factor = await prisma.factor.findFirst({
     where: { id: factorId, userId: { in: [c.var.userId, BUILTIN_USER_ID] } },
-    select: { id: true, userId: true, key: true, name: true, code: true },
+    select: { id: true, userId: true, key: true, name: true, code: true, status: true },
   });
   if (!factor) {
     return apiError(c, 'NOT_FOUND', m(c, 'factorNotFound'));
   }
   const builtin = factor.userId === BUILTIN_USER_ID;
-  if (!builtin && !factor.key) {
+  if (!builtin && factor.status !== 'published') {
     return apiError(c, 'VALIDATION_FAILED', m(c, 'factorWeatherRequiresFinalized'));
   }
   const direction = builtinDirections.get(factor.id) ?? requestedDirection;

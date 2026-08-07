@@ -1,4 +1,5 @@
 import type { FactorResearchReportPayloadV1, FactorResearchSpecV1 } from './factor-research.js';
+import type { FactorStatus } from './factor-dependency.js';
 
 /**
  * Factor-analysis wire types (product line 1.5 · factor research). Each analysis is a single-factor, monthly- or
@@ -63,8 +64,8 @@ export interface FactorMeta {
   key: string; // preset = stable slug (mom / ep / mf_net_main …); custom = the Factor row's ULID
   label: string; // Chinese
   description?: string; // optional catalog summary; surfaced by strategy-editor factor hovers when present
-  strategyKey?: string; // finalized strategy reference, e.g. custom:earnings_yield; absent for drafts
-  keyCandidate?: string; // editable LLM proposal while strategyKey is absent
+  strategyKey?: string; // immutable Factor.key; absent for drafts and archived factors
+  status?: FactorStatus;
   kind: FactorKind;
   builtin?: boolean; // true = preset (a read-only code row in the library, can be copied into a custom factor)
   expectedDirection?: Exclude<FactorExpectedDirection, 'unknown'>;
@@ -124,7 +125,7 @@ export interface IcDecayPoint {
 
 export type FactorDiagnosticDimension = 'industry' | 'size_bucket' | 'liquidity_bucket';
 
-/** Robustness-only slice. It never changes the primary report metrics or release criterion. */
+/** Robustness-only slice. It never changes the primary report metrics or publication criterion. */
 export interface FactorDiagnosticSlice {
   dimension: FactorDiagnosticDimension;
   key: string;

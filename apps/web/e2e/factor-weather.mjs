@@ -36,7 +36,8 @@ await context.route('**/api/app/factors/catalog', (route) =>
     {
       key: 'mom',
       label: '动量(60日,跳5)',
-      strategyKey: 'custom:mom',
+      strategyKey: 'mom',
+      status: 'published',
       kind: 'price',
       builtin: true,
       expectedDirection: 'positive',
@@ -44,13 +45,15 @@ await context.route('**/api/app/factors/catalog', (route) =>
     {
       key: 'custom-quality-id',
       label: '盈利质量变体',
-      strategyKey: 'custom:quality_v1',
+      strategyKey: 'quality_v1',
+      status: 'published',
       kind: 'custom',
     },
     {
       key: 'ep',
       label: '盈利收益率(1/PE_TTM)',
-      strategyKey: 'custom:ep',
+      strategyKey: 'ep',
+      status: 'published',
       kind: 'fundamental',
       builtin: true,
       expectedDirection: 'positive',

@@ -71,7 +71,7 @@ describe('flow factor semantics (mf_net_*)', () => {
   it('a declared custom key without a prepared module fails loudly (deleted/foreign factor)', async () => {
     const custom: Strategy = {
       name: 'custom ref',
-      factors: ['custom:missing_factor'],
+      factors: ['missing_factor'],
       onBar() {},
     };
     await expect(
@@ -82,7 +82,7 @@ describe('flow factor semantics (mf_net_*)', () => {
         strategy: custom,
         dataPort: fixturePort(spec()),
       }),
-    ).rejects.toThrow(/custom:missing_factor/);
+    ).rejects.toThrow(/missing_factor/);
   });
 });
 
@@ -101,10 +101,10 @@ describe('custom (defineFactor) factors inside the engine', () => {
     const seen: Record<string, number | null> = {};
     const strategy: Strategy = {
       name: 'read custom',
-      factors: ['custom:f1'],
+      factors: ['f1'],
       async onBar(ctx) {
         await ctx.loadCrossSection();
-        seen[ctx.date] = ctx.factor('custom:f1', 'A');
+        seen[ctx.date] = ctx.factor('f1', 'A');
       },
     };
     await runStrategy({
@@ -113,25 +113,25 @@ describe('custom (defineFactor) factors inside the engine', () => {
       initialCash: 100_000,
       strategy,
       dataPort: fixturePort(specWithValuation()),
-      customFactors: [{ key: 'custom:f1', js }],
+      customFactors: [{ key: 'f1', js }],
     });
     expect(seen[D[0]]).toBe(20);
     expect(seen[D[4]]).toBe(20);
   });
 
-  it('executes an immutable release key through the same computed-factor runtime', async () => {
-    const releaseKey = 'release:01ARZ3NDEKTSV4RRFFQ69G5FAV';
+  it('executes an immutable Factor key through the same computed-factor runtime', async () => {
+    const factorKey = 'etf_trend_20';
     const js = await toCommonJs(
       `export default defineFactor({ compute: (bar) => bar.peTtm });`,
-      'factor release code',
+      'published factor code',
     );
     const seen: Record<string, number | null> = {};
     const strategy: Strategy = {
-      name: 'read release',
-      factors: [releaseKey],
+      name: 'read published factor',
+      factors: [factorKey],
       async onBar(ctx) {
         await ctx.loadCrossSection();
-        seen[ctx.date] = ctx.factor(releaseKey, 'A');
+        seen[ctx.date] = ctx.factor(factorKey, 'A');
       },
     };
     const output = await runStrategyWithSignals({
@@ -140,15 +140,15 @@ describe('custom (defineFactor) factors inside the engine', () => {
       initialCash: 100_000,
       strategy,
       dataPort: fixturePort(specWithValuation()),
-      customFactors: [{ key: releaseKey, js }],
+      customFactors: [{ key: factorKey, js }],
     });
     expect(seen[D[0]]).toBe(10);
     expect(seen[D[4]]).toBe(10);
-    expect(output.capture.factorObservations).toEqual([{ key: releaseKey, code: 'A', value: 10 }]);
+    expect(output.capture.factorObservations).toEqual([{ key: factorKey, code: 'A', value: 10 }]);
   });
 
-  it('executes an ETF time-series release from adjusted history on direct and walled lanes', async () => {
-    const releaseKey = 'release:01ARZ3NDEKTSV4RRFFQ69G5FAV';
+  it('executes an ETF time-series Factor from adjusted history on direct and walled lanes', async () => {
+    const factorKey = 'etf_trend_20';
     const etfCode = '510300.SH';
     const timeSeriesSpec: FixtureSpec = {
       dates: D,
@@ -189,10 +189,10 @@ describe('custom (defineFactor) factors inside the engine', () => {
           return current != null && previous != null ? current / previous - 1 : null;
         },
       });`,
-      'time-series factor release code',
+      'time-series factor code',
     );
     const module = {
-      key: releaseKey,
+      key: factorKey,
       js,
       analysisKind: 'time_series' as const,
       timeSeries: { window: 3, inputs: ['etf.adjustedClose' as const] },
@@ -201,12 +201,12 @@ describe('custom (defineFactor) factors inside the engine', () => {
     const invalidSeen: Record<string, number | null> = {};
     const directLogs: string[] = [];
     const strategy: Strategy = {
-      name: 'read ETF time-series release',
+      name: 'read ETF time-series factor',
       watch: [etfCode, 'A'],
-      factors: [releaseKey],
+      factors: [factorKey],
       onBar(ctx) {
-        seen[ctx.date] = ctx.factor(releaseKey, etfCode);
-        invalidSeen[ctx.date] = ctx.factor(releaseKey, 'A');
+        seen[ctx.date] = ctx.factor(factorKey, etfCode);
+        invalidSeen[ctx.date] = ctx.factor(factorKey, 'A');
       },
     };
 
@@ -224,12 +224,12 @@ describe('custom (defineFactor) factors inside the engine', () => {
     expect(seen[D[4]]).toBeCloseTo(28 / 24 - 1);
     expect(invalidSeen[D[4]]).toBeNull();
     expect(directLogs).toContain(
-      `[factor-error] ${releaseKey}: input etf.adjustedClose requires an ETF code, received A`,
+      `[factor-error] ${factorKey}: input etf.adjustedClose requires an ETF code, received A`,
     );
     expect(output.capture.factorObservations).toEqual(
       expect.arrayContaining([
-        { key: releaseKey, code: 'A', value: null },
-        { key: releaseKey, code: etfCode, value: expect.closeTo(28 / 24 - 1) },
+        { key: factorKey, code: 'A', value: null },
+        { key: factorKey, code: etfCode, value: expect.closeTo(28 / 24 - 1) },
       ]),
     );
 
@@ -237,12 +237,12 @@ describe('custom (defineFactor) factors inside the engine', () => {
     await runWalledBacktest(
       {
         code: `export default defineStrategy({
-          name: 'walled ETF time-series release',
+          name: 'walled ETF time-series factor',
           watch: ['${etfCode}', 'A'],
-          factors: ['${releaseKey}'],
+          factors: ['${factorKey}'],
           onBar(ctx) {
-            console.log(ctx.date + '=' + String(ctx.factor('${releaseKey}', '${etfCode}')));
-            console.log(ctx.date + '=stock=' + String(ctx.factor('${releaseKey}', 'A')));
+            console.log(ctx.date + '=' + String(ctx.factor('${factorKey}', '${etfCode}')));
+            console.log(ctx.date + '=stock=' + String(ctx.factor('${factorKey}', 'A')));
           },
         });`,
         start: D[0],
@@ -275,10 +275,10 @@ describe('custom (defineFactor) factors inside the engine', () => {
     const seen: Record<string, number | null> = {};
     const strategy: Strategy = {
       name: 'read windowed',
-      factors: ['custom:w1'],
+      factors: ['w1'],
       async onBar(ctx) {
         await ctx.ensureBars(['A']);
-        seen[ctx.date] = ctx.factor('custom:w1', 'A');
+        seen[ctx.date] = ctx.factor('w1', 'A');
       },
     };
     await runStrategy({
@@ -287,7 +287,7 @@ describe('custom (defineFactor) factors inside the engine', () => {
       initialCash: 100_000,
       strategy,
       dataPort: fixturePort(spec()),
-      customFactors: [{ key: 'custom:w1', js }],
+      customFactors: [{ key: 'w1', js }],
     });
     expect(seen[D[0]]).toBeNull(); // only 1 bar of history — window unfilled
     expect(seen[D[1]]).toBeNull();
@@ -320,10 +320,10 @@ describe('custom (defineFactor) factors inside the engine', () => {
     const seen: Record<string, number | null> = {};
     const strategy: Strategy = {
       name: 'read amount history',
-      factors: ['custom:amount'],
+      factors: ['amount'],
       async onBar(ctx) {
         await ctx.ensureBars(['A']);
-        seen[ctx.date] = ctx.factor('custom:amount', 'A');
+        seen[ctx.date] = ctx.factor('amount', 'A');
       },
     };
 
@@ -333,7 +333,7 @@ describe('custom (defineFactor) factors inside the engine', () => {
       initialCash: 100_000,
       strategy,
       dataPort: fixturePort(amountSpec),
-      customFactors: [{ key: 'custom:amount', js }],
+      customFactors: [{ key: 'amount', js }],
     });
 
     expect(seen[D[1]]).toBeNull();
@@ -364,10 +364,10 @@ describe('custom (defineFactor) factors inside the engine', () => {
     const seen: Record<string, number | null> = {};
     const strategy: Strategy = {
       name: 'read free-float turnover history',
-      factors: ['custom:turnover'],
+      factors: ['turnover'],
       async onBar(ctx) {
         await ctx.ensureBars(['A']);
-        seen[ctx.date] = ctx.factor('custom:turnover', 'A');
+        seen[ctx.date] = ctx.factor('turnover', 'A');
       },
     };
 
@@ -377,7 +377,7 @@ describe('custom (defineFactor) factors inside the engine', () => {
       initialCash: 100_000,
       strategy,
       dataPort: fixturePort(turnoverSpec),
-      customFactors: [{ key: 'custom:turnover', js, historyFields: ['turnoverRateF'] }],
+      customFactors: [{ key: 'turnover', js, historyFields: ['turnoverRateF'] }],
     });
 
     expect(seen[D[1]]).toBeNull();
@@ -389,16 +389,16 @@ describe('custom (defineFactor) factors inside the engine', () => {
       {
         code: `export default defineStrategy({
           name: 'walled turnover history',
-          factors: ['custom:turnover'],
+          factors: ['turnover'],
           async onBar(ctx) {
             await ctx.ensureBars(['A']);
-            console.log(ctx.date + '=' + String(ctx.factor('custom:turnover', 'A')));
+            console.log(ctx.date + '=' + String(ctx.factor('turnover', 'A')));
           },
         });`,
         start: D[0],
         end: D[4],
         initialCash: 100_000,
-        customFactors: [{ key: 'custom:turnover', js, historyFields: ['turnoverRateF'] }],
+        customFactors: [{ key: 'turnover', js, historyFields: ['turnoverRateF'] }],
       },
       fixturePort(turnoverSpec),
       undefined,
@@ -416,10 +416,10 @@ describe('custom (defineFactor) factors inside the engine', () => {
     const strategyCode = `
       export default defineStrategy({
         name: 'walled custom read',
-        factors: ['custom:f1'],
+        factors: ['f1'],
         async onBar(ctx) {
           await ctx.universe();
-          console.log(ctx.date + '=' + String(ctx.factor('custom:f1', 'A')));
+          console.log(ctx.date + '=' + String(ctx.factor('f1', 'A')));
         },
       });`;
     const logged: string[] = [];
@@ -429,7 +429,7 @@ describe('custom (defineFactor) factors inside the engine', () => {
         start: D[0],
         end: D[4],
         initialCash: 100_000,
-        customFactors: [{ key: 'custom:f1', js }],
+        customFactors: [{ key: 'f1', js }],
       },
       fixturePort(specWithValuation()),
       undefined,
@@ -440,28 +440,19 @@ describe('custom (defineFactor) factors inside the engine', () => {
   });
 });
 
-describe('extractCustomFactorKeys (host-side source scan)', () => {
-  it('finds custom: references in factors arrays and inline reads, deduped', async () => {
-    const { extractCustomFactorKeys } = await import('./prepare-custom-factors.js');
+describe('extractFactorKeys (host-side source scan)', () => {
+  it('finds published factor keys in ctx.factor reads, deduped', async () => {
+    const { extractFactorKeys } = await import('./prepare-custom-factors.js');
     const source = `
       export default defineStrategy({
-        factors: ['custom:earnings_yield', 'mf_net_main'],
+        factors: ['earnings_yield', 'mf_net_main'],
         onBar(ctx) {
-          ctx.factor('custom:earnings_yield', 'A');
-          ctx.factor('custom:mom_12_1', 'A'); // a builtin preset referenced by slug
-          ctx.factor('custom:01ARZ3NDEKTSV4RRFFQ69G5FAV', 'A'); // legacy ULID: ignored
+          ctx.factor('earnings_yield', 'A');
+          ctx.factor('mom_12_1', 'A');
+          ctx.factor('mf_net_main', 'A');
         },
       });`;
-    expect(extractCustomFactorKeys(source)).toEqual(['custom:earnings_yield', 'custom:mom_12_1']);
-  });
-
-  it('finds immutable release references and canonicalizes ULIDs', async () => {
-    const { extractFactorReleaseKeys } = await import('./prepare-custom-factors.js');
-    const source = `
-      factors: ['release:01arz3ndektsv4rrffq69g5fav'],
-      ctx.factor('release:01ARZ3NDEKTSV4RRFFQ69G5FAV', 'A');
-      ctx.factor('release:not-a-release', 'A');`;
-    expect(extractFactorReleaseKeys(source)).toEqual(['release:01ARZ3NDEKTSV4RRFFQ69G5FAV']);
+    expect(extractFactorKeys(source)).toEqual(['earnings_yield', 'mom_12_1']);
   });
 
   it('extracts auxiliary history requirements from factor source', async () => {
@@ -520,10 +511,10 @@ describe('point-in-time fundamental history for custom factors', () => {
     const seen: Record<string, number | null> = {};
     const strategy: Strategy = {
       name: 'read roe history',
-      factors: ['custom:roestep'],
+      factors: ['roestep'],
       async onBar(ctx) {
         await ctx.ensureBars(['A']);
-        seen[ctx.date] = ctx.factor('custom:roestep', 'A');
+        seen[ctx.date] = ctx.factor('roestep', 'A');
       },
     };
 
@@ -533,7 +524,7 @@ describe('point-in-time fundamental history for custom factors', () => {
       initialCash: 100_000,
       strategy,
       dataPort: fixturePort(roeSpec),
-      customFactors: [{ key: 'custom:roestep', js, historyFields: ['roe', 'grossprofitMargin'] }],
+      customFactors: [{ key: 'roestep', js, historyFields: ['roe', 'grossprofitMargin'] }],
     });
 
     expect(seen[D[1]]).toBeNull(); // only 2 bars of history
@@ -546,16 +537,16 @@ describe('point-in-time fundamental history for custom factors', () => {
       {
         code: `export default defineStrategy({
           name: 'walled roe history',
-          factors: ['custom:roestep'],
+          factors: ['roestep'],
           async onBar(ctx) {
             await ctx.ensureBars(['A']);
-            console.log(ctx.date + '=' + String(ctx.factor('custom:roestep', 'A')));
+            console.log(ctx.date + '=' + String(ctx.factor('roestep', 'A')));
           },
         });`,
         start: D[0],
         end: D[4],
         initialCash: 100_000,
-        customFactors: [{ key: 'custom:roestep', js, historyFields: ['roe', 'grossprofitMargin'] }],
+        customFactors: [{ key: 'roestep', js, historyFields: ['roe', 'grossprofitMargin'] }],
       },
       fixturePort(roeSpec),
       undefined,

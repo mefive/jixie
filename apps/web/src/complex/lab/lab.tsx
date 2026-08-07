@@ -314,7 +314,7 @@ const NewStrategyPrompt = complex.component(
     const [language, setLanguage] = useState<StrategyLanguage>('typescript');
     useEffect(() => {
       if (initialText) {
-        // Factor-release prefill arrives asynchronously after the hero's first paint. Preserve any
+        // Published-Factor prefill arrives asynchronously after the hero's first paint. Preserve any
         // text the user has already entered instead of replacing an in-progress draft.
         setText((current) => current || initialText);
       }
@@ -487,8 +487,8 @@ const AgentChat = complex.component(() => {
 const RunConfig = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('lab');
-  const releaseDeploymentBlocked = store.result?.factorReleases?.some(
-    (release) => release.maturity !== 'production',
+  const factorDeploymentBlocked = store.result?.factorDependencies?.some(
+    (factor) => factor.analysisKind === 'time_series',
   );
   return (
     <div className="jx-lab-runConfig">
@@ -542,8 +542,8 @@ const RunConfig = complex.component(() => {
                 ? `${t('deploymentAction')} · ${t('deploymentRunFirst')}`
                 : !store.result
                   ? `${t('deploymentAction')} · ${t('deploymentNeedsResult')}`
-                  : releaseDeploymentBlocked
-                    ? `${t('deploymentAction')} · ${t('deploymentFactorReleaseBlocked')}`
+                  : factorDeploymentBlocked
+                    ? `${t('deploymentAction')} · ${t('deploymentFactorBlocked')}`
                     : t('deploymentAction')
             }
           >
@@ -556,7 +556,7 @@ const RunConfig = complex.component(() => {
                 !store.result ||
                 store.dirty ||
                 store.running ||
-                releaseDeploymentBlocked
+                factorDeploymentBlocked
               }
               icon={<FontAwesomeIcon icon={faRocket} />}
               onClick={() => void store.deploy()}
@@ -925,28 +925,26 @@ const ResultPanel = complex.component(() => {
 
   return (
     <>
-      {r.factorReleases?.length ? (
-        <div className="jx-lab-factorReleases" data-testid="strategy-factor-releases">
-          <div className="jx-lab-factorReleasesHead">
-            <strong>{t('factorReleasesTitle')}</strong>
-            <span>{t('factorReleasesFrozen')}</span>
+      {r.factorDependencies?.length ? (
+        <div className="jx-lab-factorDependencies" data-testid="strategy-factor-dependencies">
+          <div className="jx-lab-factorDependenciesHead">
+            <strong>{t('factorDependenciesTitle')}</strong>
+            <span>{t('factorDependenciesFrozen')}</span>
           </div>
-          <div className="jx-lab-factorReleaseList">
-            {r.factorReleases.map((release) => (
+          <div className="jx-lab-factorDependencyList">
+            {r.factorDependencies.map((factor) => (
               <a
-                key={release.releaseId}
-                href={`/factors?factor=${encodeURIComponent(release.sourceId)}&report=${encodeURIComponent(release.approvedReportId)}`}
+                key={factor.factorId}
+                href={`/factors?factor=${encodeURIComponent(factor.factorId)}${factor.approvedReportId ? `&report=${encodeURIComponent(factor.approvedReportId)}` : ''}`}
                 target="_blank"
                 rel="noreferrer"
-                className="jx-lab-factorRelease"
+                className="jx-lab-factorDependency"
               >
                 <span>
-                  <b>
-                    {release.releaseKey}@v{release.version}
-                  </b>
-                  <code>{release.codeHash.slice(0, 12)}</code>
+                  <b>{factor.key}</b>
+                  <code>{factor.codeHash.slice(0, 12)}</code>
                 </span>
-                <span>{t(`factorReleaseMaturity.${release.maturity}`)}</span>
+                <span>{factor.name}</span>
               </a>
             ))}
           </div>

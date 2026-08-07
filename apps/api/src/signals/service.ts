@@ -20,7 +20,7 @@ import { prisma } from '../lib/prisma.js';
 import { t } from '../i18n/messages.js';
 import { notifySignalRun } from './notifier.js';
 import { executionWire, initializeSignalAccounting } from './accounting.js';
-import { factorReleaseDependenciesFromJson } from './factor-release-lineage.js';
+import { factorDependenciesFromJson } from './factor-dependency-lineage.js';
 
 const workerUrl = import.meta.url.endsWith('.ts')
   ? new URL('../engine/signal-worker.boot.mjs', import.meta.url)
@@ -58,8 +58,8 @@ export async function deployStrategy(
     return { kind: 'futures_unsupported' };
   }
   // The UI pre-disables this path, but deployment safety is an API invariant: research-only or
-  // retired releases must never become a daily-signal dependency through a direct request.
-  const prepared = await prepareStrategyFactors(config.code, userId, locale, 'production');
+  // archived factors must never become a new daily-signal dependency through a direct request.
+  const prepared = await prepareStrategyFactors(config.code, userId, locale, 'deployment');
 
   const frozenConfig = { ...config, name: strategy.name };
   const codeHash = createHash('sha256').update(frozenConfig.code).digest('hex');
@@ -76,7 +76,7 @@ export async function deployStrategy(
         strategyName: strategy.name,
         status: 'active',
         config: frozenConfig as unknown as Prisma.InputJsonValue,
-        factorReleases: prepared.releases as unknown as Prisma.InputJsonValue,
+        factorDependencies: prepared.factors as unknown as Prisma.InputJsonValue,
         codeHash,
         locale,
       },
@@ -197,7 +197,7 @@ export async function enqueueSignalRun(
 > {
   const deployment = await prisma.strategyDeployment.findFirst({
     where: { id: deploymentId, userId },
-    select: { id: true, status: true, locale: true, factorReleases: true },
+    select: { id: true, status: true, locale: true, factorDependencies: true },
   });
   if (!deployment) {
     return { kind: 'not_found' };
@@ -264,10 +264,10 @@ export async function enqueueSignalRun(
           tradeDate,
           execDate: calendar.execDate,
           status: 'running',
-          factorReleases:
-            deployment.factorReleases == null
+          factorDependencies:
+            deployment.factorDependencies == null
               ? undefined
-              : (deployment.factorReleases as Prisma.InputJsonValue),
+              : (deployment.factorDependencies as Prisma.InputJsonValue),
         },
       });
     }
@@ -483,7 +483,7 @@ export function deploymentWire(row: {
   strategyName: string;
   status: string;
   config: unknown;
-  factorReleases: unknown;
+  factorDependencies: unknown;
   codeHash: string;
   locale: string;
   deployedAt: Date;
@@ -497,7 +497,7 @@ export function deploymentWire(row: {
     strategyName: row.strategyName,
     status: row.status === 'active' ? 'active' : 'paused',
     config: row.config as unknown as BacktestConfig,
-    factorReleases: factorReleaseDependenciesFromJson(row.factorReleases) ?? [],
+    factorDependencies: factorDependenciesFromJson(row.factorDependencies) ?? [],
     codeHash: row.codeHash,
     locale: row.locale === 'en' ? 'en' : 'zh',
     deployedAt: row.deployedAt.toISOString(),
@@ -515,7 +515,7 @@ function signalRunWire(
     tradeDate: string;
     execDate: string;
     status: string;
-    factorReleases: unknown;
+    factorDependencies: unknown;
     factorInputs: unknown;
     dataCutoff: string | null;
     modelEquity: number | null;
@@ -543,7 +543,7 @@ function signalRunWire(
       row.status === 'done' || row.status === 'error' || row.status === 'stale'
         ? row.status
         : 'running',
-    factorReleases: factorReleaseDependenciesFromJson(row.factorReleases) ?? [],
+    factorDependencies: factorDependenciesFromJson(row.factorDependencies) ?? [],
     factorInputs: Array.isArray(row.factorInputs)
       ? (row.factorInputs as unknown as FactorInputSummary[])
       : [],

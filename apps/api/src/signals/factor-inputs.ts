@@ -1,13 +1,9 @@
-import {
-  FACTOR_RELEASE_PREFIX,
-  type FactorInputSummary,
-  type FactorReleaseDependency,
-} from '@jixie/shared';
+import type { FactorDependency, FactorInputSummary } from '@jixie/shared';
 import type { PendingFactorObservation } from '../engine/types.js';
 
 /** Reduce final-bar factor reads to statistics plus values for assets affected by the run. */
 export function summarizeFactorInputs(
-  releases: FactorReleaseDependency[],
+  factors: FactorDependency[],
   asOfDate: string,
   observations: PendingFactorObservation[],
   decisionAssetIds: Iterable<string>,
@@ -20,13 +16,14 @@ export function summarizeFactorInputs(
     byKey.set(observation.key, byAsset);
   }
 
-  return releases.map((release) => {
-    const observationsByAsset = byKey.get(FACTOR_RELEASE_PREFIX + release.releaseId) ?? new Map();
+  return factors.map((factor) => {
+    const observationsByAsset = byKey.get(factor.key) ?? new Map();
     const validValues = [...observationsByAsset.values()].filter(
       (value): value is number => value != null && Number.isFinite(value),
     );
     return {
-      releaseId: release.releaseId,
+      factorId: factor.factorId,
+      key: factor.key,
       asOfDate,
       observedAssets: observationsByAsset.size,
       validAssets: validValues.length,

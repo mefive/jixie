@@ -16,66 +16,59 @@ import {
   timeSeriesTemplateResource,
 } from '../factor/time-series-templates.js';
 import {
-  FactorReleaseError,
-  getFactorRelease,
-  listFactorReleases,
-  publishFactorRelease,
-  publishFactorReleaseBodySchema,
-  retireFactorRelease,
-} from '../factor/releases.js';
+  archiveFactor,
+  FactorPublicationError,
+  publishFactor,
+  publishFactorBodySchema,
+} from '../factor/publication.js';
 
 const FACTOR_KEY_PATTERN = /^[a-z][a-z0-9_]{0,31}$/;
 
-function factorReleaseApiError(c: Parameters<typeof apiError>[0], error: FactorReleaseError) {
+function factorPublicationApiError(
+  c: Parameters<typeof apiError>[0],
+  error: FactorPublicationError,
+) {
   const messageKey = {
-    source_not_found: 'factorNotFound',
-    key_required: 'factorReleaseKeyRequired',
-    key_unavailable: 'factorReleaseKeyUnavailable',
-    report_invalid: 'factorReleaseReportInvalid',
-    validation_required: 'factorReleaseValidationRequired',
-    production_not_ready: 'factorReleaseProductionNotReady',
-    input_dependencies_unknown: 'factorReleaseInputDependenciesUnknown',
-    metadata_mismatch: 'factorReleaseMetadataMismatch',
+    not_found: 'factorNotFound',
+    not_draft: 'publishedFactorReadonly',
+    report_invalid: 'factorPublishReportInvalid',
+    report_outdated: 'factorPublishReportOutdated',
   }[error.reason] as Parameters<typeof m>[1];
   return apiError(
     c,
-    error.reason === 'source_not_found' ? 'NOT_FOUND' : 'VALIDATION_FAILED',
+    error.reason === 'not_found' ? 'NOT_FOUND' : 'VALIDATION_FAILED',
     m(c, messageKey),
   );
 }
 
-const strategyKey = (key: string | null): string | undefined => (key ? `custom:${key}` : undefined);
+const strategyKey = (key: string, status: string): string | undefined =>
+  status === 'published' ? key : undefined;
 
 /**
  * Factor resources (plural, mounted at /api/app/factors):
  *   GET  /catalog        the factor list (identity + kind) — presets + this user's custom factors
- *   /custom…             custom-factor CRUD + fork (code-first, Agent-authored)
+ *   /custom…             custom-factor CRUD + publish/archive/copy (code-first, Agent-authored)
  * Workbench actions (agent / qa / name / analysis / correlation / runs) live in factor.ts (singular).
  * Naming rules: see docs/design/api-route-naming.md.
  */
 export const factorsRoute = new Hono();
 
-factorsRoute.get('/releases', async (c) => c.json(await listFactorReleases(c.var.userId)));
-
-factorsRoute.get('/releases/:id', async (c) => {
-  const release = await getFactorRelease(c.var.userId, c.req.param('id'));
-  return release ? c.json(release) : apiError(c, 'NOT_FOUND', m(c, 'factorReleaseNotFound'));
-});
-
-factorsRoute.post('/releases', validateJson(publishFactorReleaseBodySchema), async (c) => {
+factorsRoute.post('/custom/:id/publish', validateJson(publishFactorBodySchema), async (c) => {
   try {
-    return c.json(await publishFactorRelease(c.var.userId, c.req.valid('json')));
+    return c.json(
+      await publishFactor(c.var.userId, c.req.param('id'), c.req.valid('json').approvedReportId),
+    );
   } catch (error) {
-    if (error instanceof FactorReleaseError) {
-      return factorReleaseApiError(c, error);
+    if (error instanceof FactorPublicationError) {
+      return factorPublicationApiError(c, error);
     }
     throw error;
   }
 });
 
-factorsRoute.post('/releases/:id/retire', async (c) => {
-  const release = await retireFactorRelease(c.var.userId, c.req.param('id'));
-  return release ? c.json(release) : apiError(c, 'NOT_FOUND', m(c, 'factorReleaseNotFound'));
+factorsRoute.post('/custom/:id/archive', async (c) => {
+  const factor = await archiveFactor(c.var.userId, c.req.param('id'));
+  return factor ? c.json(factor) : apiError(c, 'NOT_FOUND', m(c, 'factorNotFound'));
 });
 
 factorsRoute.get('/catalog', async (c) => {
@@ -85,9 +78,9 @@ factorsRoute.get('/catalog', async (c) => {
     select: {
       id: true,
       key: true,
-      keyCandidate: true,
       name: true,
       analysisKind: true,
+      status: true,
       descriptionZh: true,
       descriptionEn: true,
     },
@@ -98,8 +91,11 @@ factorsRoute.get('/catalog', async (c) => {
     key: factor.id,
     label: factor.name,
     description: locale === 'en' ? factor.descriptionEn : factor.descriptionZh,
-    strategyKey: strategyKey(factor.key),
-    keyCandidate: factor.keyCandidate ?? undefined,
+    strategyKey: strategyKey(factor.key, factor.status),
+    status:
+      factor.status === 'published' || factor.status === 'archived'
+        ? factor.status
+        : ('draft' as const),
     kind: 'custom' as const,
     analysisKind:
       factor.analysisKind === 'time_series'
@@ -220,30 +216,15 @@ factorsRoute.delete('/composites/:id', async (c) => {
 // —— Custom factors (code-first, Agent-authored — mirrors the strategy workbench) —— created on the
 // first Agent prompt, then updated by id: messages in real time, code/name on an analysis run.
 
-/** Give copied factors a distinct display name; display names are not program identities. */
-async function uniqueFactorName(userId: string, base: string): Promise<string> {
-  for (let suffix = 1; suffix <= 50; suffix++) {
-    const name = suffix === 1 ? base : `${base} ${suffix}`;
-    const taken = await prisma.factor.findFirst({
-      where: { userId, name },
-      select: { id: true },
-    });
-    if (!taken) {
-      return name;
-    }
-  }
-  return `${base} ${ulid().slice(-4)}`;
-}
-
 factorsRoute.get('/custom', async (c) => {
   const rows = await prisma.factor.findMany({
     where: { userId: c.var.userId },
     select: {
       id: true,
       key: true,
-      keyCandidate: true,
       name: true,
       analysisKind: true,
+      status: true,
       updatedAt: true,
     },
     orderBy: { updatedAt: 'desc' },
@@ -263,9 +244,13 @@ factorsRoute.get('/custom/:id', async (c) => {
     select: {
       id: true,
       key: true,
-      keyCandidate: true,
       name: true,
       analysisKind: true,
+      status: true,
+      approvedReportId: true,
+      codeHash: true,
+      publishedAt: true,
+      archivedAt: true,
       descriptionZh: true,
       descriptionEn: true,
       code: true,
@@ -280,14 +265,15 @@ factorsRoute.get('/custom/:id', async (c) => {
   return c.json({
     ...rest,
     description: localeFromRequest(c) === 'en' ? row.descriptionEn : row.descriptionZh,
-    strategyKey: strategyKey(row.key),
+    strategyKey: strategyKey(row.key, row.status),
     builtin: ownerId === BUILTIN_USER_ID,
   });
 });
 
-// POST /custom — create a NEW factor row (up front on the first Agent prompt). The conversation rides
-// along as optional `messages`; the code is compile-checked before persisting.
+// POST /custom — create and persist a draft immediately with its immutable key. The conversation rides
+// along as optional `messages`; the initial template is compile-checked before persisting.
 const createBody = z.object({
+  key: z.string().trim().regex(FACTOR_KEY_PATTERN),
   name: z.string().min(1).max(40),
   code: z.string().min(1),
   analysisKind: z.enum(['cross_sectional', 'time_series']).default('cross_sectional'),
@@ -296,7 +282,10 @@ const createBody = z.object({
 
 factorsRoute.post('/custom', validateJson(createBody), async (c) => {
   const userId = c.var.userId;
-  const { name, code, analysisKind, messages } = c.req.valid('json');
+  const { key, name, code, analysisKind, messages } = c.req.valid('json');
+  if (BUILTIN_KEYS.has(key)) {
+    return apiError(c, 'VALIDATION_FAILED', m(c, 'factorKeyUnavailable'));
+  }
   try {
     await validateFactorDefinition(code, analysisKind);
   } catch (e) {
@@ -306,24 +295,30 @@ factorsRoute.post('/custom', validateJson(createBody), async (c) => {
       e instanceof Error ? e.message : m(c, 'factorCodeInvalid'),
     );
   }
-  const uniqueName = await uniqueFactorName(userId, name);
   const id = ulid();
-  await prisma.factor.create({
-    data: {
-      id,
-      userId,
-      name: uniqueName,
-      analysisKind,
-      code,
-      ...(messages !== undefined ? { messages: messages as Prisma.InputJsonValue } : {}),
-    },
-  });
-  return c.json({ id, name: uniqueName });
+  try {
+    await prisma.factor.create({
+      data: {
+        id,
+        userId,
+        key,
+        name,
+        analysisKind,
+        code,
+        ...(messages !== undefined ? { messages: messages as Prisma.InputJsonValue } : {}),
+      },
+    });
+    return c.json({ id, key, name, status: 'draft' });
+  } catch (error) {
+    if ((error as { code?: string }).code === 'P2002') {
+      return apiError(c, 'VALIDATION_FAILED', m(c, 'factorKeyUnavailable'));
+    }
+    throw error;
+  }
 });
 
-// POST /custom/:id — update by id. `{ messages }` alone = real-time chat save (code/name untouched);
-// `{ code, name }` = an analysis run's commit (compile-check and rename unless it collides). Historical
-// reports keep their frozen code snapshots. Either may be present.
+// POST /custom/:id — autosave a draft by id. Historical reports keep their frozen code snapshots.
+// Published and archived Factors are immutable; either code/name/messages may be present for drafts.
 const updateBody = z.object({
   code: z.string().min(1).optional(),
   name: z.string().min(1).max(40).optional(),
@@ -339,10 +334,13 @@ factorsRoute.post('/custom/:id', validateJson(updateBody), async (c) => {
   }
   const existing = await prisma.factor.findFirst({
     where: { id, userId },
-    select: { name: true, code: true, analysisKind: true },
+    select: { name: true, code: true, analysisKind: true, status: true },
   });
   if (!existing) {
     return apiError(c, 'NOT_FOUND', m(c, 'factorNotFound'));
+  }
+  if (existing.status !== 'draft') {
+    return apiError(c, 'VALIDATION_FAILED', m(c, 'publishedFactorReadonly'));
   }
   if (code !== undefined && code !== existing.code) {
     const pinned = await prisma.factorWeatherPin.count({ where: { factorId: id } });
@@ -356,18 +354,6 @@ factorsRoute.post('/custom/:id', validateJson(updateBody), async (c) => {
     data.messages = messages as Prisma.InputJsonValue;
   }
   if (code !== undefined) {
-    try {
-      await validateFactorDefinition(
-        code,
-        existing.analysisKind === 'time_series' ? 'time_series' : 'cross_sectional',
-      );
-    } catch (e) {
-      return apiError(
-        c,
-        'VALIDATION_FAILED',
-        e instanceof Error ? e.message : m(c, 'factorCodeInvalid'),
-      );
-    }
     data.code = code;
   }
   if (name !== undefined && name !== existing.name) {
@@ -382,69 +368,18 @@ factorsRoute.post('/custom/:id', validateJson(updateBody), async (c) => {
   return c.json(row);
 });
 
-const finalizeKeyBody = z.object({ key: z.string().trim().min(1).max(32) });
-
-/** Allocate an immutable strategy key. LLM/user proposals are advisory; this loop owns uniqueness. */
-factorsRoute.post('/custom/:id/finalize-key', validateJson(finalizeKeyBody), async (c) => {
-  const id = c.req.param('id');
-  const userId = c.var.userId;
-  const requested = c.req.valid('json').key;
-  if (!FACTOR_KEY_PATTERN.test(requested)) {
-    return apiError(c, 'VALIDATION_FAILED', m(c, 'factorKeyInvalid'));
-  }
-
-  const factor = await prisma.factor.findFirst({
-    where: { id, userId },
-    select: { key: true },
-  });
-  if (!factor) {
-    return apiError(c, 'NOT_FOUND', m(c, 'factorNotFound'));
-  }
-  if (factor.key) {
-    return c.json({ id, key: factor.key, strategyKey: strategyKey(factor.key) });
-  }
-
-  for (let suffix = 1; suffix <= 100; suffix++) {
-    const suffixText = suffix === 1 ? '' : `_${suffix}`;
-    const candidate = `${requested.slice(0, 32 - suffixText.length).replace(/_+$/g, '')}${suffixText}`;
-    if (BUILTIN_KEYS.has(candidate)) {
-      continue;
-    }
-    const published = await prisma.factorRelease.count({
-      where: { userId, releaseKey: candidate },
-    });
-    if (published > 0) {
-      continue;
-    }
-    try {
-      const updated = await prisma.factor.updateMany({
-        where: { id, userId, key: null },
-        data: { key: candidate, keyCandidate: candidate },
-      });
-      if (updated.count === 1) {
-        return c.json({ id, key: candidate, strategyKey: strategyKey(candidate) });
-      }
-      const current = await prisma.factor.findFirst({
-        where: { id, userId },
-        select: { key: true },
-      });
-      if (current?.key) {
-        return c.json({ id, key: current.key, strategyKey: strategyKey(current.key) });
-      }
-    } catch (error) {
-      if ((error as { code?: string }).code !== 'P2002') {
-        throw error;
-      }
-    }
-  }
-  return apiError(c, 'VALIDATION_FAILED', m(c, 'factorKeyUnavailable'));
-});
-
 factorsRoute.delete('/custom/:id', async (c) => {
   const userId = c.var.userId;
   const id = c.req.param('id');
   if (BUILTIN_KEYS.has(id)) {
     return apiError(c, 'VALIDATION_FAILED', m(c, 'presetFactorReadonlyDelete'));
+  }
+  const factor = await prisma.factor.findFirst({ where: { id, userId }, select: { status: true } });
+  if (!factor) {
+    return apiError(c, 'NOT_FOUND', m(c, 'factorNotFound'));
+  }
+  if (factor.status !== 'draft') {
+    return apiError(c, 'VALIDATION_FAILED', m(c, 'publishedFactorCannotDelete'));
   }
   const pinned = await prisma.factorWeatherPin.count({ where: { factorId: id } });
   if (pinned > 0) {
@@ -454,22 +389,59 @@ factorsRoute.delete('/custom/:id', async (c) => {
   return c.json({ ok: true });
 });
 
-// POST /custom/:id/fork — copy a factor's code (a builtin preset or one of your own) into a NEW
-// editable custom factor — the "tweak params to spawn a variant" research path (factor-to-strategy.md path 2).
-factorsRoute.post('/custom/:id/fork', async (c) => {
+// POST /custom/:id/copy — take one independent snapshot into a new editable draft.
+factorsRoute.post('/custom/:id/copy', async (c) => {
   const userId = c.var.userId;
   const source = await prisma.factor.findFirst({
     where: { id: c.req.param('id'), userId: { in: [userId, BUILTIN_USER_ID] } },
-    select: { name: true, code: true, analysisKind: true },
+    select: {
+      key: true,
+      name: true,
+      code: true,
+      analysisKind: true,
+      descriptionZh: true,
+      descriptionEn: true,
+      messages: true,
+    },
   });
   if (!source) {
     return apiError(c, 'NOT_FOUND', m(c, 'factorNotFound'));
   }
 
-  const name = await uniqueFactorName(userId, `${source.name} ${m(c, 'copySuffix')}`.slice(0, 40));
+  const { key, version } = await nextCopyKey(userId, source.key);
+  const nameBase = source.name.replace(/\s+v\d+$/i, '');
+  const name = `${nameBase} v${version}`.slice(0, 40);
   const id = ulid();
   await prisma.factor.create({
-    data: { id, userId, name, code: source.code, analysisKind: source.analysisKind },
+    data: {
+      id,
+      userId,
+      key,
+      name,
+      code: source.code,
+      analysisKind: source.analysisKind,
+      descriptionZh: source.descriptionZh,
+      descriptionEn: source.descriptionEn,
+      messages: source.messages ?? undefined,
+    },
   });
-  return c.json({ id, name });
+  return c.json({ id, key, name, status: 'draft' });
 });
+
+async function nextCopyKey(
+  userId: string,
+  sourceKey: string,
+): Promise<{ key: string; version: number }> {
+  const matched = sourceKey.match(/^(.*)_v(\d+)$/);
+  const base = matched?.[1] || sourceKey;
+  const startingVersion = matched ? Number(matched[2]) + 1 : 2;
+  for (let version = startingVersion; version <= startingVersion + 100; version++) {
+    const suffix = `_v${version}`;
+    const key = `${base.slice(0, 32 - suffix.length).replace(/_+$/g, '')}${suffix}`;
+    const taken = await prisma.factor.findFirst({ where: { userId, key }, select: { id: true } });
+    if (!taken && !BUILTIN_KEYS.has(key)) {
+      return { key, version };
+    }
+  }
+  throw new FactorPublicationError('not_draft');
+}

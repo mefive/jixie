@@ -56,7 +56,7 @@ Complete one preset analysis before learning custom factor code.
 
 ## How Factor Weather differs
 
-Factor Research defines and tests a factor under user-selected dates, frequency, sample treatment, and costs, then saves an immutable report. Factor Weather accepts finalized single factors and continuously adds complete months under one fixed monthly method to monitor favorable and unfavorable phases.
+Factor Research defines and tests a Factor under user-selected dates, frequency, sample treatment, and costs, then saves an immutable report. Factor Weather accepts published single Factors and continuously adds complete months under one fixed monthly method to monitor favorable and unfavorable phases.
 
 Complete the definition, research card, and holdout work in Factor Research before pinning a factor. Recent weather cannot replace formal research or turn months you have already seen into out-of-sample data.
 

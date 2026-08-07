@@ -22,12 +22,13 @@ No derivation is needed here. Calculate the reciprocal only when price-to-book i
 
 1. Open **Factor Research**.
 2. Select **New** on the left.
-3. Enter the calculation request at the bottom left, or select the middle code editor and write it directly.
+3. Choose the research method, enter a display name, and choose the unique key that cannot change after creation.
+4. After creating it, enter the calculation request at the bottom left or edit the code directly.
 
 The numbered areas are:
 
 1. **New**.
-2. The unnamed factor.
+2. The newly created and autosaved Factor.
 3. Prompt input for the Agent.
 4. Factor code editor.
 5. **Run analysis**.
@@ -85,7 +86,7 @@ For gross-margin stability, state the window and missing-data rule first. For ex
 4. Select **Freeze research card and run**.
 5. Wait for the methodology, grouped returns, and metrics on the right.
 
-Submitting the analysis uses and saves the current code. After completion, refresh the page and confirm that the name, code, and report remain available.
+The Factor is persisted when the creation dialog is confirmed, and draft edits autosave. Analysis waits for the current code to save; after completion, refresh the page and confirm that the name, key, code, and report remain available.
 
 You can also ask the Agent to run exploratory analysis for one explicit candidate. It creates the same immutable report but cannot start or reveal a formal holdout. See [Ask the factor Agent to run exploratory analysis](/docs/help/factors/agent-explore-analysis).
 
@@ -136,5 +137,5 @@ Yes. Verify fields, direction, missing-value treatment, and units, then use a re
 
 - [Set the analysis range and sample treatment](/docs/help/factors/analysis-settings)
 - [Read your first factor analysis result](/docs/help/factors/results-overview)
-- [Confirm the strategy key](/docs/help/factors/strategy-key)
+- [Set a Factor key](/docs/help/factors/strategy-key)
 - [Ask the factor Agent to run exploratory analysis](/docs/help/factors/agent-explore-analysis)

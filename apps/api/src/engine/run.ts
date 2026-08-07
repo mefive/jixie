@@ -1,9 +1,4 @@
-import {
-  DEFAULT_LOCALE,
-  isComputedFactorKey,
-  isFactorReleaseKey,
-  type Locale,
-} from '@jixie/shared';
+import { DEFAULT_LOCALE, isComputedFactorKey, type Locale } from '@jixie/shared';
 import * as st from '../lib/stats.js';
 import { t } from '../i18n/messages.js'; // direct import — keeps hono/locale out of the wall bundle
 import { EngineData, type CrossSection } from './data.js';
@@ -234,7 +229,7 @@ async function runStockStrategyCore(
     const observeFactor =
       captureSignals && i === total - 1
         ? (key: string, code: string, value: number | null) => {
-            if (!isFactorReleaseKey(key)) {
+            if (!isComputedFactorKey(key)) {
               return;
             }
             const byCode = factorObservations.get(key) ?? new Map<string, number | null>();
@@ -441,7 +436,7 @@ function fmtDate(d: string): string {
 
 /** Evaluate the host-prepared custom factor modules and bind them into a per-run runtime. Every
  * custom key the strategy DECLARES must have a module (the host couldn't find a deleted/foreign
- * factor row — fail loudly, not silent nulls). Inline ctx.factor('custom:…') reads of undeclared
+ * factor row — fail loudly, not silent nulls). Inline ctx.factor() reads of undeclared
  * keys simply see null, consistent with undeclared moneyflow columns. */
 function buildCustomFactorRuntime(
   cfg: EngineConfig,

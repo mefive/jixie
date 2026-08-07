@@ -288,17 +288,9 @@
   padding: 5px 10px;
 }
 
-.jx-factor-keyBar--draft {
-  @apply flex-wrap;
-}
-
 .jx-factor-keyLabel {
   @apply flex-none text-muted;
   font-size: 12px;
-}
-
-.jx-factor-keyInput {
-  width: min(320px, 48%);
 }
 
 .jx-factor-keyValue {
@@ -704,76 +696,96 @@
   font-size: 11px;
 }
 
-.jx-factor-release {
+.jx-factor-publication {
   @apply flex flex-col gap-3 rounded-lg border border-line bg-bg;
   padding: 12px;
 }
 
-.jx-factor-releaseHead {
+.jx-factor-publicationHead {
   @apply flex items-start justify-between gap-3;
 }
 
-.jx-factor-releaseTitle {
+.jx-factor-publicationActions {
+  @apply flex items-center gap-2;
+}
+
+.jx-factor-createForm {
+  @apply flex flex-col gap-4 pt-2;
+}
+
+.jx-factor-createField {
+  @apply flex flex-col gap-2;
+}
+
+.jx-factor-createLabel {
+  @apply text-sm font-medium text-gray-700;
+}
+
+.jx-factor-createHint {
+  @apply text-xs text-gray-500;
+}
+
+.jx-factor-publicationTitle {
   @apply font-semibold text-ink;
   font-size: 13px;
 }
 
-.jx-factor-releaseHint,
-.jx-factor-releaseEmpty,
-.jx-factor-releaseEvidence,
-.jx-factor-releaseMaturityHelp {
+.jx-factor-publicationHint,
+.jx-factor-publicationEmpty,
+.jx-factor-publicationEvidence,
+.jx-factor-publicationMaturityHelp {
   @apply text-muted;
   font-size: 11px;
 }
 
-.jx-factor-releaseLineage,
-.jx-factor-releaseIdentity,
-.jx-factor-releaseContract,
-.jx-factor-releaseEvidence {
+.jx-factor-publicationLineage,
+.jx-factor-publicationIdentity,
+.jx-factor-publicationContract,
+.jx-factor-publicationEvidence {
   @apply flex flex-wrap items-center gap-2;
 }
 
-.jx-factor-releaseLineage {
+.jx-factor-publicationLineage {
   @apply text-muted;
   font-size: 11px;
 }
 
-.jx-factor-releaseLineage code {
+.jx-factor-publicationLineage code {
   @apply rounded bg-chip px-2 py-1;
 }
 
-.jx-factor-releaseList,
-.jx-factor-releaseModal {
+.jx-factor-publicationList,
+.jx-factor-publicationModal {
   @apply flex flex-col gap-3;
 }
 
-.jx-factor-releaseItem {
+.jx-factor-publicationItem {
   @apply flex flex-col gap-2 rounded border border-line bg-chip;
   padding: 10px;
 }
 
-.jx-factor-releaseIdentity strong {
+.jx-factor-publicationIdentity strong {
   @apply text-ink;
   font-size: 12px;
 }
 
-.jx-factor-releaseContract {
+.jx-factor-publicationContract {
   @apply text-muted;
   font-size: 11px;
 }
 
-.jx-factor-releaseEvidence .ant-btn {
+.jx-factor-publicationEvidence .ant-btn {
   height: auto;
   padding: 0;
   font-size: 11px;
 }
 
-.jx-factor-releaseModal label {
+.jx-factor-publicationModal label {
   @apply grid gap-1 text-ink;
   font-size: 12px;
 }
 
-.jx-factor-releaseModal .ant-select {
+.jx-factor-publicationModal .ant-select {
   width: 100%;
 }
 

@@ -94,7 +94,7 @@ export default defineFactor({
 
 ```ts
 interface FactorDef {
-  key: string;                 // 'mf_net_main' | 'custom:<factorId>' | …
+  key: string;                 // 'mf_net_main' | 'book_to_market' | …
   label: string;               // 中文名(UI/日志)
   kind: 'flow' | 'level';      // 流量=精确当天、缺则 null、不前填;存量=as-of 往前填
   freq: 'daily' | 'monthly';   // 数据固有频率(决定 as-of 回看上限)
@@ -108,10 +108,10 @@ interface FactorDef {
 
 ### 自定义因子接入
 
-- 策略声明 `factors: ['custom:<factorId>']`(沿用现有 factors 数组作为统一读取口)→ 引擎 worker 启动时按 id 加载 Factor 表代码、`compileFactor` 编译一次。
-- **现场算零存储**:`ctx.factor('custom:x')` 对当天该股跑 `compute`;声明了 `window` 的因子,复用策略侧已有的 bars 缓存(策略要用该因子的股票本就 `ensureBars` 过)。
+- 策略声明 `factors: ['book_to_market']`（沿用现有 factors 数组作为统一读取口），也可直接写 `ctx.factor('book_to_market', code)`；引擎启动时按当前用户和唯一 key 加载已发布 Factor，编译一次。
+- **现场算零存储**：`ctx.factor('book_to_market', code)` 对当天该股跑 `compute`；声明了 `window` 的因子复用策略侧已有的 bars 缓存。
 - **贵且反复用的才惰性物化**:per-run 内存 LRU(有界,比如 10 万值),**不落库**。真到撑不住再谈 DuckDB/Parquet(见数据模型定论,别提前)。
-- 权限:只能引用自己 userId 的因子;策略保存时校验因子存在,跑时因子被删 → 明确报错(不静默 null)。
+- 权限：只能引用系统内置或自己 userId 的已发布因子。发布后 Factor 不可修改、草稿才可删除；归档 Factor 不再进入新部署，但已有部署仍按冻结依赖运行。
 
 ### DX:key 自动生成 dts
 
@@ -119,7 +119,7 @@ interface FactorDef {
 
 ```ts
 /** 主力净流入(万元)· flow·daily · 当日无数据返回 null */
-type FactorKey = 'mf_net_main' | 'mf_net_total' | 'custom:01H…' | …
+type FactorKey = 'mf_net_main' | 'mf_net_total' | 'book_to_market' | …
 ```
 
 注入 Monaco dts(自定义因子部分按用户动态拼)+ codegen prompt(LLM 知道有哪些因子可用)。**依赖 ROADMAP 4.4(SDK 单一来源)先行**则最省,否则先只生成 dts、prompt 手动同步。
@@ -130,7 +130,7 @@ type FactorKey = 'mf_net_main' | 'mf_net_total' | 'custom:01H…' | …
 
 ### 验收
 
-- 因子页新建自定义因子 → 分析确认有 edge → lab 里 `ctx.factor('custom:…')` 直接用于打分选股,回测跑通。
+- 因子页新建自定义因子 → 分析确认有 edge → 选择批准报告发布 → Lab 里通过代码补全插入 `ctx.factor('book_to_market', code)` → 回测跑通。
 - moneyflow flow 语义修正后,`ctx.factor('mf_net_main')` 当日无数据返 null(与文档一致)。
 - Monaco 里 `ctx.factor(` 有全部 key 补全 + 中文 JSDoc。
 

@@ -33,7 +33,7 @@ export async function runConfiguredBacktest(
       onSystemLog,
       onUserLog,
     );
-    result.factorReleases = prepared.releases;
+    result.factorDependencies = prepared.factors;
     return result;
   }
 

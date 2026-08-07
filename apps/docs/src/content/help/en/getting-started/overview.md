@@ -10,7 +10,7 @@ Jixie helps you observe market conditions, query data, screen stocks, research f
 | Screener | Query stocks or ETFs, filter stocks by valuation, dividend yield, or market capitalization, and open stock charts |
 | Backtest Lab | Describe or code a strategy, set backtest parameters, and inspect historical returns, risk, and trades |
 | Factors | Inspect grouped returns, Rank IC, turnover, and correlations for a factor |
-| Factor Weather | Monitor recent return, IC, coverage, and turnover for finalized factors under one monthly method |
+| Factor Weather | Monitor recent return, IC, coverage, and turnover for published Factors under one monthly method |
 | Valuation | Review index PE, PB, turnover, and historical percentiles |
 | Signals | Review signals and run history for deployed strategies |
 

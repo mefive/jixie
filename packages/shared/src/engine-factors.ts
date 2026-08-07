@@ -48,31 +48,16 @@ export const ENGINE_FACTORS = [
   },
 ] as const satisfies readonly EngineFactorDef[];
 
-/** Literal union of the engine-served factor keys (custom factors ride on `custom:<key>` instead). */
+/** Literal union of the engine-served stored factor keys. */
 export type EngineFactorKey = (typeof ENGINE_FACTORS)[number]['key'];
 
-/** A finalized user-authored factor referenced from a strategy: `custom:` + its immutable key. */
-export const CUSTOM_FACTOR_PREFIX = 'custom:';
-export const FACTOR_RELEASE_PREFIX = 'release:';
+/** User-authored factor keys share the same lower_snake_case namespace as engine factor keys. */
+export const FACTOR_KEY_PATTERN = /^[a-z][a-z0-9_]{0,31}$/;
 
-export function isCustomFactorKey(key: string): boolean {
-  return key.startsWith(CUSTOM_FACTOR_PREFIX);
+export function isEngineFactorKey(key: string): key is EngineFactorKey {
+  return ENGINE_FACTORS.some((factor) => factor.key === key);
 }
 
-export function customFactorId(key: string): string {
-  return key.slice(CUSTOM_FACTOR_PREFIX.length);
-}
-
-export function isFactorReleaseKey(key: string): boolean {
-  return key.startsWith(FACTOR_RELEASE_PREFIX);
-}
-
-export function factorReleaseId(key: string): string {
-  return key.slice(FACTOR_RELEASE_PREFIX.length);
-}
-
-/** Both legacy mutable custom factors and immutable releases execute through the computed-factor
- * runtime. New strategies should prefer release:<ULID>. */
 export function isComputedFactorKey(key: string): boolean {
-  return isCustomFactorKey(key) || isFactorReleaseKey(key);
+  return FACTOR_KEY_PATTERN.test(key) && !isEngineFactorKey(key);
 }

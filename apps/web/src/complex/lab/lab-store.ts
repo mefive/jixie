@@ -6,7 +6,7 @@ import {
   type BacktestSummary,
   type ChatMessage,
   type CostConfig,
-  type FactorRelease,
+  type FactorMeta,
   type LogLine,
   type StrategyCard,
   type StrategyDeployment,
@@ -31,7 +31,9 @@ import {
   getStrategyScanReport,
   fetchIndexSeries,
   inspectStrategyParameters,
-  listFactorReleases,
+  getCustomFactor,
+  getFactorCatalog,
+  getFactorReport,
   listStrategyScans,
   listStrategies,
   pollBacktest,
@@ -45,7 +47,7 @@ import { DEFAULT_CODE, DEFAULT_PYTHON_CODE } from './default-strategy';
 import { BENCHMARKS, type BenchmarkSeries } from './benchmarks';
 import { pushRecent, readRecents, removeRecent } from './recents';
 
-type LabSetupParams = { id?: string; isNew?: boolean; factorReleaseId?: string };
+type LabSetupParams = { id?: string; isNew?: boolean; factorKey?: string };
 type DeploymentAction =
   | { type: 'deploy'; strategyId: string }
   | { type: 'pause'; deploymentId: string };
@@ -104,7 +106,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
   public scanReportLoader = new LoaderModel<StrategyScanReport>();
   public deploymentLoader = new LoaderModel<StrategyDeployment | null>();
   public deploymentActionLoader = new LoaderModel<StrategyDeployment>();
-  public factorReleaseLoader = new LoaderModel<FactorRelease | null>();
+  public factorLoader = new LoaderModel<{ factor: FactorMeta; assets: string[] } | null>();
 
   public constructor(parentStore?: any) {
     super(parentStore);
@@ -172,9 +174,22 @@ export class LabStore extends BaseStore<LabSetupParams> {
           ? deployStrategy(action.strategyId)
           : pauseStrategyDeployment(action.deploymentId),
     });
-    this.factorReleaseLoader.setup({
-      request: async (releaseId: string) =>
-        (await listFactorReleases()).find((release) => release.id === releaseId) ?? null,
+    this.factorLoader.setup({
+      request: async (factorKey: string) => {
+        const factor = (await getFactorCatalog()).find(
+          (candidate) => candidate.strategyKey === factorKey && candidate.status === 'published',
+        );
+        if (!factor) {
+          return null;
+        }
+        const detail = await getCustomFactor(factor.key);
+        const report = detail.approvedReportId
+          ? await getFactorReport(detail.approvedReportId)
+          : null;
+        const assets =
+          report?.researchSpec.analysisKind === 'time_series' ? report.researchSpec.assets : [];
+        return { factor, assets };
+      },
     });
     this.registCleaner(() => this.backtestPoller.cleanup());
     this.registCleaner(() => this.scanPoller.cleanup());
@@ -185,16 +200,16 @@ export class LabStore extends BaseStore<LabSetupParams> {
     this.registCleaner(() => this.scanReportLoader.cleanup());
     this.registCleaner(() => this.deploymentLoader.cleanup());
     this.registCleaner(() => this.deploymentActionLoader.cleanup());
-    this.registCleaner(() => this.factorReleaseLoader.cleanup());
+    this.registCleaner(() => this.factorLoader.cleanup());
     this.registCleaner(() => this.turnStream.detach()); // drop the SSE subscription; the turn keeps running
     void this.savedLoader.run(); // prime My strategies (also feeds the hero's Recent-visits cards)
     // A fresh (never-run) strategy: empty run-baseline → dirty → Run-backtest enabled; but the pristine
     // skeleton IS the "persisted" state (nothing to lose) → not edited → no leave guard.
     this.savedConfig = '';
     this.persistedConfig = this.configKey();
-    if (params.isNew && params.factorReleaseId) {
-      void this.prefillFactorRelease(params.factorReleaseId).catch((error): void => {
-        console.error('Failed to prefill factor release in Strategy Lab', error);
+    if (params.isNew && params.factorKey) {
+      void this.prefillFactor(params.factorKey).catch((error): void => {
+        console.error('Failed to prefill factor in Strategy Lab', error);
       });
     }
     // Resolve the initial view: `?new=1` forces the blank hero; else an explicit ?id; else the
@@ -208,24 +223,19 @@ export class LabStore extends BaseStore<LabSetupParams> {
     }
   }
 
-  private async prefillFactorRelease(releaseId: string): Promise<void> {
-    const release = await this.factorReleaseLoader.run(releaseId);
-    if (!release || release.lifecycle !== 'active' || release.sourceKind !== 'single') {
+  private async prefillFactor(factorKey: string): Promise<void> {
+    const loaded = await this.factorLoader.run(factorKey);
+    if (!loaded) {
       return;
     }
     runInAction(() => {
-      const isTimeSeries = release.methodology.analysisKind === 'time_series';
-      const assets = isTimeSeries ? timeSeriesReleaseAssets(release) : [];
+      const isTimeSeries = loaded.factor.analysisKind === 'time_series';
       this.nlText = i18n.t(
-        isTimeSeries
-          ? 'lab:factorReleaseTimeSeriesStarterPrompt'
-          : 'lab:factorReleaseStarterPrompt',
+        isTimeSeries ? 'lab:factorTimeSeriesStarterPrompt' : 'lab:factorStarterPrompt',
         {
-          name: release.sourceName,
-          key: release.releaseKey,
-          version: release.version,
-          id: release.id,
-          assets: assets.join('、'),
+          name: loaded.factor.label,
+          key: loaded.factor.strategyKey,
+          assets: loaded.assets.join('、'),
         },
       );
     });
@@ -807,17 +817,6 @@ export class LabStore extends BaseStore<LabSetupParams> {
     this.benchmarkLoader.abort();
     this.benchmarkLoader.reset();
   }
-}
-
-function timeSeriesReleaseAssets(release: FactorRelease): string[] {
-  const spec = release.methodology.spec;
-  if (!spec || typeof spec !== 'object' || !('assets' in spec)) {
-    return [];
-  }
-  const assets = (spec as { assets?: unknown }).assets;
-  return Array.isArray(assets)
-    ? assets.filter((asset): asset is string => typeof asset === 'string' && asset.length > 0)
-    : [];
 }
 
 // —— helpers ——

@@ -13,9 +13,9 @@ import { prismaDataPort } from './prisma-port.js';
 import { prisma } from '../lib/prisma.js';
 import { t } from '../i18n/messages.js';
 import {
-  assertFactorReleaseDependencies,
-  factorReleaseDependenciesFromJson,
-} from '../signals/factor-release-lineage.js';
+  assertFactorDependencies,
+  factorDependenciesFromJson,
+} from '../signals/factor-dependency-lineage.js';
 import { summarizeFactorInputs } from '../signals/factor-inputs.js';
 
 const runId = process.argv[2];
@@ -43,11 +43,13 @@ try {
   }
   systemLog(t(locale, 'signalCaptureStart', { date: run.tradeDate, execDate: run.execDate }));
 
-  const prepared = await prepareStrategyFactors(config.code, run.userId, locale, 'production');
-  const deploymentDependencies = factorReleaseDependenciesFromJson(run.deployment.factorReleases);
-  const runDependencies = factorReleaseDependenciesFromJson(run.factorReleases);
-  assertFactorReleaseDependencies(deploymentDependencies, prepared.releases);
-  assertFactorReleaseDependencies(runDependencies, prepared.releases);
+  // Existing deployments retain their frozen dependency after a Factor is archived. The lineage
+  // assertion below still rejects code or identity drift before the signal is calculated.
+  const prepared = await prepareStrategyFactors(config.code, run.userId, locale, 'signal');
+  const deploymentDependencies = factorDependenciesFromJson(run.deployment.factorDependencies);
+  const runDependencies = factorDependenciesFromJson(run.factorDependencies);
+  assertFactorDependencies(deploymentDependencies, prepared.factors);
+  assertFactorDependencies(runDependencies, prepared.factors);
   const output = await runWalledSignalCapture(
     {
       ...config,
@@ -87,7 +89,7 @@ try {
     name: names.get(position.code) ?? position.code,
   }));
   const factorInputs = summarizeFactorInputs(
-    prepared.releases,
+    prepared.factors,
     output.capture.tradeDate,
     output.capture.factorObservations,
     [...signals.map((signal) => signal.code), ...modelPositions.map((position) => position.code)],

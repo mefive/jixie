@@ -19,8 +19,8 @@ import {
   type FactorCorrelation,
   type FactorResearchIntentV1,
   type FactorResearchSummary,
-  type FactorRelease,
-  type FactorReleaseMaturity,
+  type FactorStatus,
+  type PublishedFactor,
   type FactorHoldoutPolicyV1,
   type FactorResearchSpecV1,
   type FactorTimeSeriesReportV1,
@@ -42,10 +42,9 @@ import {
   createFactor,
   updateFactor,
   deleteCustomFactor,
-  forkFactor,
+  copyFactor,
   sendFactorAgent,
   factorQa,
-  finalizeFactorKey,
   refreshFactorMetadata,
   runFactorCorrelation,
   getFactorCorrelation,
@@ -57,9 +56,8 @@ import {
   createFactorComposite,
   updateFactorComposite,
   deleteFactorComposite,
-  listFactorReleases,
-  publishFactorRelease,
-  retireFactorRelease,
+  publishFactor,
+  archiveFactor,
 } from '@src/api/client';
 
 // Initial state from the URL. A stable report id restores both the result and its frozen parameters.
@@ -148,22 +146,20 @@ type EditableFactorAnalysisKind = Extract<FactorAnalysisKind, 'cross_sectional' 
 /**
  * Factor research store — Agent-authored, IDE-style (mirrors the strategy workbench). Two kinds of factor:
  *  - preset (mom/ep/dv/…): a built-in formula → just pick it and run analysis; no code, no chat;
- *  - custom: Agent authors a `defineFactor` module. Created on the first Agent prompt (LLM-named),
- *    messages saved in real time, code/name committed only on an analysis run (which re-derives the name
- *    from the code). `edited` (code vs the persisted DB copy) gates the leave guard.
+ *  - custom: a draft row is created up front with an immutable key; Agent and editor changes autosave,
+ *    while publishing locks its name, code, research type, and approved report.
  * Each explicit analysis run creates an immutable report; only an identical in-flight variant is reused.
  */
 export class FactorStore extends BaseStore<FactorSetupParams> {
   public catalogLoader = new LoaderModel<FactorMeta[]>();
   public reportLoader = new LoaderModel<FactorReportDetail>();
   public reportsLoader = new LoaderModel<FactorReportListResponse>();
-  public keyLoader = new LoaderModel<{ id: string; key: string; strategyKey: string }>();
+  public saveLoader = new LoaderModel<{ id: string; name: string }>();
   public analysisPoller = new PollingModel();
   public researchSummaryLoader = new LoaderModel<FactorResearchSummary>();
   public researchWindowLoader = new LoaderModel<FactorHoldoutPolicyV1>();
-  public releasesLoader = new LoaderModel<FactorRelease[]>();
-  public publishReleaseLoader = new LoaderModel<FactorRelease>();
-  public retireReleaseLoader = new LoaderModel<FactorRelease>();
+  public publishLoader = new LoaderModel<PublishedFactor>();
+  public archiveLoader = new LoaderModel<PublishedFactor>();
 
   public selectedKey = ''; // preset key OR custom factor id — the analysis target
   public selectedReportId = '';
@@ -178,11 +174,9 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   public turnStream = new AgentTurnStream(); // the in-flight turn's SSE mirror (pending bubble)
   public sending = false; // an Agent turn is in flight
   public nlText = ''; // the Agent chat draft
-  public strategyKey = ''; // finalized custom:<key>; empty while the factor is a draft
-  public keyDraft = ''; // LLM proposal or the user's edit before finalization
+  public factorKey = ''; // immutable Factor.key used by strategies
+  public factorStatus: FactorStatus = 'draft';
   public description = ''; // localized catalog summary generated from the current context
-
-  private keyDraftEdited = false;
 
   public freq: FactorFreq = 'month';
   public neutral: Neutral = 'none'; // cross-sectional neutralization in the draft analysis spec
@@ -199,6 +193,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   private jobId: string | null = null;
   private pollingReportId: string | null = null;
   private since = 0;
+  private saveTimer: ReturnType<typeof setTimeout> | null = null;
 
   // —— Correlation matrix (its own params: a factor multi-select over the shared freq/range) ——
   public correlationLoader = new LoaderModel<FactorCorrelation>();
@@ -223,8 +218,8 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       chatMessages: observable.ref,
       sending: observable.ref,
       nlText: observable.ref,
-      strategyKey: observable.ref,
-      keyDraft: observable.ref,
+      factorKey: observable.ref,
+      factorStatus: observable.ref,
       description: observable.ref,
       freq: observable.ref,
       neutral: observable.ref,
@@ -245,7 +240,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       timeSeriesReport: computed,
       isTimeSeries: computed,
       reportDetail: computed,
-      selectedReleases: computed,
       correlation: computed,
       paramsModified: computed,
       analysisSpec: computed,
@@ -270,7 +264,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       setTimeSeriesAssets: action,
       setTimeSeriesHorizon: action,
       setCorrKeys: action,
-      setKeyDraft: action,
     });
   }
 
@@ -278,27 +271,20 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     super.setup(params);
     this.catalogLoader.setup({ request: () => getFactorCatalog() });
     this.reportsLoader.setup({ request: () => getFactorReports(this.selectedKey) });
-    this.keyLoader.setup({ request: (key: string) => finalizeFactorKey(this.selectedKey, key) });
+    this.saveLoader.setup({
+      request: (input: { id: string; code: string }) =>
+        updateFactor(input.id, { code: input.code }),
+    });
     this.reportLoader.setup({ request: (reportId: string) => getFactorReport(reportId) });
     this.analysisPoller.setup({ interval: POLL_INTERVAL_MS, request: () => this.pollOnce() });
     this.researchSummaryLoader.setup({
       request: () => getFactorResearchSummary(this.selectedKey || undefined),
     });
     this.researchWindowLoader.setup({ request: () => getFactorResearchWindow() });
-    this.releasesLoader.setup({ request: () => listFactorReleases() });
-    this.publishReleaseLoader.setup({
-      request: (input: { maturity: FactorReleaseMaturity; releaseKey?: string }) =>
-        publishFactorRelease({
-          sourceKind: this.mode === 'composite' ? 'composite' : 'single',
-          sourceId: this.selectedKey,
-          approvedReportId: this.selectedReportId,
-          maturity: input.maturity,
-          ...(input.releaseKey ? { releaseKey: input.releaseKey } : {}),
-        }),
+    this.publishLoader.setup({
+      request: (reportId: string) => publishFactor(this.selectedKey, reportId),
     });
-    this.retireReleaseLoader.setup({
-      request: (releaseId: string) => retireFactorRelease(releaseId),
-    });
+    this.archiveLoader.setup({ request: () => archiveFactor(this.selectedKey) });
     this.correlationLoader.setup({
       request: () => getFactorCorrelation(this.corrKeys, this.freq, this.start, this.end),
     });
@@ -308,14 +294,18 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     });
     this.registCleaner(() => this.catalogLoader.cleanup());
     this.registCleaner(() => this.reportsLoader.cleanup());
-    this.registCleaner(() => this.keyLoader.cleanup());
+    this.registCleaner(() => this.saveLoader.cleanup());
+    this.registCleaner(() => {
+      if (this.saveTimer) {
+        clearTimeout(this.saveTimer);
+      }
+    });
     this.registCleaner(() => this.reportLoader.cleanup());
     this.registCleaner(() => this.analysisPoller.cleanup());
     this.registCleaner(() => this.researchSummaryLoader.cleanup());
     this.registCleaner(() => this.researchWindowLoader.cleanup());
-    this.registCleaner(() => this.releasesLoader.cleanup());
-    this.registCleaner(() => this.publishReleaseLoader.cleanup());
-    this.registCleaner(() => this.retireReleaseLoader.cleanup());
+    this.registCleaner(() => this.publishLoader.cleanup());
+    this.registCleaner(() => this.archiveLoader.cleanup());
     this.registCleaner(() => this.correlationLoader.cleanup());
     this.registCleaner(() => this.correlationPoller.cleanup());
     this.registCleaner(() => this.turnStream.detach()); // drop the SSE subscription; the turn keeps running
@@ -326,7 +316,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       }
     });
     void this.researchSummaryLoader.run();
-    void this.releasesLoader.run();
 
     // Preselect synchronously so the first paint shows the workbench while detail/history load.
     if (params.factor) {
@@ -364,13 +353,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     return detail && detail.factor === this.selectedKey && detail.id === this.selectedReportId
       ? detail
       : null;
-  }
-
-  public get selectedReleases(): FactorRelease[] {
-    const sourceKind = this.mode === 'composite' ? 'composite' : 'single';
-    return (this.releasesLoader.result ?? []).filter(
-      (release) => release.sourceKind === sourceKind && release.sourceId === this.selectedKey,
-    );
   }
 
   /** Draft parameters are independent from the selected immutable report. */
@@ -486,7 +468,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   /** A preset factor is selected → the Agent is in Q&A mode (answers questions, never writes code). */
   public get qaMode(): boolean {
     return (
-      (this.mode === 'preset' || this.mode === 'composite' || this.mode === 'time_series') &&
+      (this.mode === 'preset' ||
+        this.mode === 'composite' ||
+        this.mode === 'time_series' ||
+        (this.mode === 'custom' && this.factorStatus !== 'draft')) &&
       !!this.selectedKey
     );
   }
@@ -592,6 +577,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
 
   public setCode(v: string) {
     runInAction(() => (this.code = v));
+    this.scheduleDraftSave();
   }
 
   public applyPendingAgentCode() {
@@ -602,6 +588,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       this.code = this.pendingAgentCode!;
       this.pendingAgentCode = null;
     });
+    this.scheduleDraftSave();
   }
 
   public dismissPendingAgentCode() {
@@ -611,11 +598,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   }
   public setNlText(v: string) {
     runInAction(() => (this.nlText = v));
-  }
-
-  public setKeyDraft(value: string) {
-    this.keyDraft = value;
-    this.keyDraftEdited = true;
   }
 
   /** Pick a factor from the factor library. A preset → readonly code + Q&A agent. A custom factor → load its
@@ -647,10 +629,9 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       this.jobId = null;
       this.logs = [];
       this.nlText = '';
-      this.strategyKey = meta?.strategyKey ?? '';
-      this.keyDraft = meta?.keyCandidate ?? meta?.strategyKey?.slice('custom:'.length) ?? '';
+      this.factorKey = meta?.strategyKey ?? '';
+      this.factorStatus = meta?.status ?? 'draft';
       this.description = meta?.description ?? '';
-      this.keyDraftEdited = false;
       this.pendingAgentCode = null;
       if (!isCustom) {
         this.code = '';
@@ -686,10 +667,9 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         this.definitionAnalysisKind =
           factor.analysisKind === 'time_series' ? 'time_series' : 'cross_sectional';
         this.chatMessages = isCustom ? (factor.messages ?? []).map(normalizeChatMessage) : [];
-        this.strategyKey = factor.strategyKey ?? '';
-        this.keyDraft = factor.keyCandidate ?? factor.key ?? '';
+        this.factorKey = factor.key;
+        this.factorStatus = factor.status ?? (factor.builtin ? 'published' : 'draft');
         this.description = factor.description ?? '';
-        this.keyDraftEdited = false;
       });
       if (isCustom) {
         void this.reattachTurn(); // a live agent turn for this factor? re-subscribe (snapshot replays)
@@ -720,47 +700,27 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     }
   }
 
-  /** Copy the selected preset's (or own factor's) code into a NEW editable custom factor — the
-   * "fork a variant, tweak params" research path. Selection jumps to the fresh copy. */
-  public async forkSelected() {
-    if (!this.selectedKey) {
+  /** Copy the selected preset or owned Factor into an independent editable draft. */
+  public async copySelected(sourceId = this.selectedKey) {
+    if (!sourceId) {
       return;
     }
-    const copy = await forkFactor(this.selectedKey);
+    const copy = await copyFactor(sourceId);
     await this.catalogLoader.run();
     await this.selectFactor(copy.id);
   }
 
-  /** Start authoring a brand-new custom factor (blank skeleton, ready for the Agent). */
-  public newFactor(analysisKind: EditableFactorAnalysisKind = 'cross_sectional') {
+  /** Persist a brand-new draft before opening its editor or Agent conversation. */
+  public async newFactor(analysisKind: EditableFactorAnalysisKind, key: string, name: string) {
     this.analysisPoller.stop();
     const code =
       analysisKind === 'time_series' ? DEFAULT_TIME_SERIES_FACTOR_CODE : DEFAULT_FACTOR_CODE;
-    runInAction(() => {
-      this.selectedKey = '';
-      this.selectedReportId = '';
-      this.mode = 'custom';
-      this.definitionAnalysisKind = analysisKind;
-      this.compositeDefinition = null;
-      this.code = code;
-      this.persistedCode = code; // pristine skeleton → not edited
-      this.chatMessages = [];
-      this.nlText = '';
-      this.strategyKey = '';
-      this.keyDraft = '';
-      this.description = '';
-      this.keyDraftEdited = false;
-      this.pendingAgentCode = null;
-      this.logs = [];
-      this.jobRunning = false;
-    });
-    this.reportLoader.reset();
-    this.reportsLoader.reset();
+    const created = await createFactor(key, name, code, analysisKind);
+    await this.catalogLoader.run();
+    await this.selectFactor(created.id);
   }
 
-  /** One Agent turn: ensure the factor exists (the first prompt creates it, LLM-named from the prompt),
-   * ask the server, append the reply, apply the returned code. Conversation saves in real time; the code
-   * is NOT persisted here (only an analysis run commits it) and the analysis result is NOT cleared. */
+  /** Run one Agent turn for an already persisted draft factor. */
   public async sendAgent(message: string) {
     const text = message.trim();
     if (!text || this.sending) {
@@ -770,24 +730,16 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     if (this.qaMode) {
       return this.runQa(text);
     }
-    // Continue editing only when the current selection is a SAVED custom factor; otherwise (nothing
-    // selected) a chat starts a fresh custom factor — clear the selection so ensureFactor creates a new
-    // row instead of attaching to nothing.
+    // Continue editing only when the current selection is an editable saved custom factor.
     const editingSaved = !!this.selectedKey && this.selected?.kind === 'custom';
-    const authoringNew = this.mode === 'custom' && !this.selectedKey;
-    if (!editingSaved && !authoringNew) {
-      this.reportLoader.reset();
-      this.reportsLoader.reset();
+    if (!editingSaved) {
       runInAction(() => {
-        this.selectedKey = '';
-        this.selectedReportId = '';
-        this.selectedReportId = '';
-        this.definitionAnalysisKind = 'cross_sectional';
-        this.code = DEFAULT_FACTOR_CODE;
-        this.persistedCode = DEFAULT_FACTOR_CODE;
-        this.chatMessages = [];
-        this.pendingAgentCode = null;
+        this.chatMessages = [
+          ...this.chatMessages,
+          textMessage('assistant', i18n.t('factor:saveFailed')),
+        ];
       });
+      return;
     }
     runInAction(() => {
       this.mode = 'custom';
@@ -795,20 +747,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       this.sending = true;
       this.nlText = '';
     });
-    await this.ensureFactor();
-    if (!this.selectedKey) {
-      runInAction(() => {
-        this.chatMessages = [
-          ...this.chatMessages,
-          textMessage(
-            'assistant',
-            i18n.t('factor:errorPrefix', { message: i18n.t('factor:saveFailed') }),
-          ),
-        ];
-        this.sending = false;
-      });
-      return;
-    }
     try {
       const codeAtRequest = this.code;
       const { turnId } = await sendFactorAgent(this.selectedKey, text, codeAtRequest);
@@ -851,6 +789,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
             } else {
               this.code = done.code; // editor updates; analysis result stays until the next run
               this.pendingAgentCode = null;
+              this.scheduleDraftSave();
             }
           }
         });
@@ -885,6 +824,31 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     runInAction(() => (this.sending = false)); // resolved at the terminal event (or no live turn)
   }
 
+  private scheduleDraftSave() {
+    if (!this.selectedKey || this.mode !== 'custom' || this.factorStatus !== 'draft') {
+      return;
+    }
+    if (this.saveTimer) {
+      clearTimeout(this.saveTimer);
+    }
+    this.saveTimer = setTimeout(() => {
+      this.saveTimer = null;
+      void this.saveDraft().catch(() => {});
+    }, 600);
+  }
+
+  private async saveDraft() {
+    const id = this.selectedKey;
+    const code = this.code;
+    if (!id || code === this.persistedCode || this.factorStatus !== 'draft') {
+      return;
+    }
+    await this.saveLoader.run({ id, code });
+    if (this.selectedKey === id && this.code === code) {
+      runInAction(() => (this.persistedCode = code));
+    }
+  }
+
   /** Q&A about the selected preset — answer only, no code, no factor, no persistence (ephemeral chat,
    * still streamed; no reattach since there is no host row to rediscover). */
   private async runQa(text: string) {
@@ -913,28 +877,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     }
   }
 
-  /** Create the draft row if it doesn't exist yet; metadata arrives after the first successful turn. */
-  private async ensureFactor() {
-    if (this.selectedKey) {
-      return;
-    }
-    try {
-      // No messages in the create payload — the turn runner appends the user message server-side.
-      const meta = await createFactor(
-        i18n.t('factor:unnamedFactor'),
-        this.code,
-        this.definitionAnalysisKind,
-      );
-      runInAction(() => {
-        this.selectedKey = meta.id;
-        this.persistedCode = this.code; // just persisted this code
-      });
-      void this.catalogLoader.run();
-    } catch {
-      /* best-effort */
-    }
-  }
-
   /** Delete a custom factor; deselect it if it was open, then refresh the catalog. */
   public async removeFactor(id: string) {
     await deleteCustomFactor(id);
@@ -947,10 +889,9 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         this.code = '';
         this.persistedCode = '';
         this.chatMessages = [];
-        this.strategyKey = '';
-        this.keyDraft = '';
+        this.factorKey = '';
+        this.factorStatus = 'draft';
         this.description = '';
-        this.keyDraftEdited = false;
         this.pendingAgentCode = null;
       });
       this.reportLoader.reset();
@@ -1079,14 +1020,16 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   /** Commit custom code, create a new immutable report, then stream its one-to-one Job. */
   public async runAnalysis(researchIntent: FactorResearchIntentV1) {
     if (this.mode === 'custom') {
-      await this.ensureFactor(); // create if authoring a never-saved factor and running directly
       if (!this.selectedKey) {
         return;
       }
       if (this.code !== this.persistedCode) {
         try {
-          await updateFactor(this.selectedKey, { code: this.code });
-          runInAction(() => (this.persistedCode = this.code));
+          if (this.saveTimer) {
+            clearTimeout(this.saveTimer);
+            this.saveTimer = null;
+          }
+          await this.saveDraft();
           void refreshFactorMetadata(this.selectedKey, this.code).then(() =>
             this.refreshIdentity(),
           );
@@ -1163,19 +1106,26 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     void this.researchSummaryLoader.run();
   }
 
-  public async publishSelectedReport(
-    maturity: FactorReleaseMaturity,
-    releaseKey?: string,
-  ): Promise<FactorRelease> {
-    const release = await this.publishReleaseLoader.run({ maturity, releaseKey });
-    await this.releasesLoader.run();
-    return release;
+  public async publishSelectedReport(): Promise<PublishedFactor> {
+    if (this.saveTimer) {
+      clearTimeout(this.saveTimer);
+      this.saveTimer = null;
+    }
+    await this.saveDraft();
+    const factor = await this.publishLoader.run(this.selectedReportId);
+    runInAction(() => {
+      this.factorStatus = factor.status;
+      this.factorKey = factor.key;
+    });
+    await this.catalogLoader.run();
+    return factor;
   }
 
-  public async retireRelease(releaseId: string): Promise<FactorRelease> {
-    const release = await this.retireReleaseLoader.run(releaseId);
-    await this.releasesLoader.run();
-    return release;
+  public async archiveSelected(): Promise<PublishedFactor> {
+    const factor = await this.archiveLoader.run();
+    runInAction(() => (this.factorStatus = factor.status));
+    await this.catalogLoader.run();
+    return factor;
   }
 
   /** Reload mutable metadata after the server-side Agent/metadata hook has completed. */
@@ -1190,27 +1140,14 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         if (this.selectedKey !== selectedKey) {
           return;
         }
-        this.strategyKey = factor.strategyKey ?? '';
+        this.factorKey = factor.key;
+        this.factorStatus = factor.status ?? 'draft';
         this.description = factor.description ?? '';
-        if (!this.keyDraftEdited) {
-          this.keyDraft = factor.keyCandidate ?? factor.key ?? '';
-        }
       });
       await this.catalogLoader.run();
     } catch {
       /* best-effort */
     }
-  }
-
-  /** Finalize the code-facing key once. The server appends a suffix when the requested key is taken. */
-  public async finalizeKey() {
-    const finalized = await this.keyLoader.run(this.keyDraft);
-    runInAction(() => {
-      this.strategyKey = finalized.strategyKey;
-      this.keyDraft = finalized.key;
-      this.keyDraftEdited = false;
-    });
-    await this.catalogLoader.run();
   }
 
   private startPolling(jobId: string, reportId: string) {

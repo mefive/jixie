@@ -37,33 +37,28 @@ async function syncedIndices(): Promise<string> {
     : '(no index constituents on record yet)';
 }
 
-/** Active immutable releases available to new research/backtest strategies. Legacy custom:<key>
- * references still execute, but the Agent no longer creates new mutable dependencies. */
+/** Published immutable factors available to new research/backtest strategies. */
 async function referencableFactors(userId: string): Promise<string> {
-  const rows = await prisma.factorRelease.findMany({
-    where: { userId, lifecycle: 'active', sourceKind: 'single' },
+  const rows = await prisma.factor.findMany({
+    where: { userId, status: 'published' },
     select: {
-      id: true,
-      releaseKey: true,
-      version: true,
-      sourceName: true,
-      maturity: true,
-      methodologySnapshot: true,
+      key: true,
+      name: true,
+      analysisKind: true,
     },
-    orderBy: { createdAt: 'desc' },
+    orderBy: { publishedAt: 'desc' },
   });
   return rows.length
     ? rows
         .map((row) => {
-          const methodology = row.methodologySnapshot as { analysisKind?: unknown };
           const kind =
-            methodology?.analysisKind === 'time_series'
+            row.analysisKind === 'time_series'
               ? 'time_series ETF signal'
               : 'cross_sectional stock factor';
-          return `${row.sourceName} ${row.releaseKey}@v${row.version}=release:${row.id} (${row.maturity}; ${kind})`;
+          return `${row.name}=${row.key} (${kind})`;
         })
         .join('、')
-    : '(no active factor releases yet)';
+    : '(no published factors yet)';
 }
 
 // POST /api/app/strategy/agent — START one turn of the strategy Agent and return a turnId

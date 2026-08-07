@@ -633,8 +633,8 @@ import type {
   FactorHoldoutPolicyV1,
   FactorResearchIntentV1,
   FactorResearchSummary,
-  FactorRelease,
-  PublishFactorReleaseRequest,
+  FactorStatus,
+  PublishedFactor,
   RunFactorAnalysisResponse,
   FactorWeatherDirection,
   FactorWeatherResponse,
@@ -645,19 +645,15 @@ export function getFactorCatalog(): Promise<FactorMeta[]> {
   return request('/api/app/factors/catalog');
 }
 
-export function listFactorReleases(): Promise<FactorRelease[]> {
-  return request('/api/app/factors/releases');
-}
-
-export function publishFactorRelease(release: PublishFactorReleaseRequest): Promise<FactorRelease> {
-  return request('/api/app/factors/releases', {
+export function publishFactor(id: string, approvedReportId: string): Promise<PublishedFactor> {
+  return request(`/api/app/factors/custom/${encodeURIComponent(id)}/publish`, {
     method: 'POST',
-    body: JSON.stringify(release),
+    body: JSON.stringify({ approvedReportId }),
   });
 }
 
-export function retireFactorRelease(id: string): Promise<FactorRelease> {
-  return request(`/api/app/factors/releases/${encodeURIComponent(id)}/retire`, {
+export function archiveFactor(id: string): Promise<PublishedFactor> {
+  return request(`/api/app/factors/custom/${encodeURIComponent(id)}/archive`, {
     method: 'POST',
   });
 }
@@ -690,16 +686,20 @@ export function deleteFactorComposite(id: string): Promise<{ ok: true }> {
 export interface CustomFactorMeta {
   id: string;
   name: string;
-  key?: string | null;
-  keyCandidate?: string | null;
+  key: string;
+  status?: FactorStatus;
   updatedAt: string;
 }
 export function getCustomFactor(id: string): Promise<{
   id: string;
   name: string;
   analysisKind?: FactorAnalysisKind;
-  key?: string | null;
-  keyCandidate?: string | null;
+  key: string;
+  status?: FactorStatus;
+  approvedReportId?: string | null;
+  codeHash?: string | null;
+  publishedAt?: string | null;
+  archivedAt?: string | null;
   strategyKey?: string;
   description?: string;
   code: string;
@@ -709,19 +709,24 @@ export function getCustomFactor(id: string): Promise<{
   return request(`/api/app/factors/custom/${id}`);
 }
 
-// Copy a factor's code (a builtin preset or your own) into a NEW editable custom factor.
-export function forkFactor(id: string): Promise<{ id: string; name: string }> {
-  return request(`/api/app/factors/custom/${id}/fork`, { method: 'POST' });
+// Copy a factor snapshot into a new independent draft.
+export function copyFactor(
+  id: string,
+): Promise<{ id: string; key: string; name: string; status: 'draft' }> {
+  return request(`/api/app/factors/custom/${id}/copy`, { method: 'POST' });
 }
 
 // Create a NEW factor row (up front on the first Agent prompt / first run of a hand-written one).
 export function createFactor(
+  key: string,
   name: string,
   code: string,
   analysisKind: Extract<FactorAnalysisKind, 'cross_sectional' | 'time_series'> = 'cross_sectional',
   messages?: ChatMessage[],
-): Promise<{ id: string; name: string }> {
-  const body = messages ? { name, code, analysisKind, messages } : { name, code, analysisKind };
+): Promise<{ id: string; key: string; name: string; status: 'draft' }> {
+  const body = messages
+    ? { key, name, code, analysisKind, messages }
+    : { key, name, code, analysisKind };
   return request('/api/app/factors/custom', { method: 'POST', body: JSON.stringify(body) });
 }
 
@@ -732,16 +737,6 @@ export function updateFactor(
   patch: { code?: string; name?: string; messages?: ChatMessage[] },
 ): Promise<{ id: string; name: string }> {
   return request(`/api/app/factors/custom/${id}`, { method: 'POST', body: JSON.stringify(patch) });
-}
-
-export function finalizeFactorKey(
-  id: string,
-  key: string,
-): Promise<{ id: string; key: string; strategyKey: string }> {
-  return request(`/api/app/factors/custom/${id}/finalize-key`, {
-    method: 'POST',
-    body: JSON.stringify({ key }),
-  });
 }
 
 export function deleteCustomFactor(id: string): Promise<{ ok: true }> {

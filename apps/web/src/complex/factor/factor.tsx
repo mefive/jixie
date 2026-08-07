@@ -40,8 +40,7 @@ import type {
   FactorOutlierMethod,
   FactorSampleStageKey,
   FactorCompositeDefinitionV1,
-  FactorRelease,
-  FactorReleaseMaturity,
+  FactorAnalysisKind,
   FactorTimeSeriesReportV1,
   TimeSeriesFactorResearchSpecV1,
 } from '@jixie/shared';
@@ -59,7 +58,6 @@ import {
   faTriangleExclamation,
   faLayerGroup,
   faPen,
-  faFlask,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { LoaderButton } from '@src/components/loader-button';
@@ -87,6 +85,7 @@ const FactorEditor = lazy(() => import('./factor-editor'));
 const TimeSeriesStateChart = lazy(() => import('./time-series-state-chart'));
 
 type GuardDiscard = (action: () => void) => void;
+type EditableFactorAnalysisKind = Extract<FactorAnalysisKind, 'cross_sectional' | 'time_series'>;
 
 /**
  * Factor research — Agent-authored, IDE-style (aligned with the strategy workbench). 3-column Splitter: an Agent
@@ -191,9 +190,9 @@ export const Factor = complex.component(() => {
 
 // Left column: Agent (chat authors the factor) | factor library (presets + custom, to select).
 const AgentPanel = complex.component(({ guardDiscard }: { guardDiscard: GuardDiscard }) => {
-  const store = complex.useStore();
   const { t } = useTranslation('factor');
   const [tab, setTab] = useState('agent');
+  const [newKind, setNewKind] = useState<EditableFactorAnalysisKind | null>(null);
   return (
     <div className="jx-factor-agent">
       <Tabs
@@ -211,8 +210,7 @@ const AgentPanel = complex.component(({ guardDiscard }: { guardDiscard: GuardDis
               ],
               onClick: ({ key }) => {
                 guardDiscard(() => {
-                  store.newFactor(key === 'time_series' ? 'time_series' : 'cross_sectional');
-                  setTab('agent');
+                  setNewKind(key === 'time_series' ? 'time_series' : 'cross_sectional');
                 });
               },
             }}
@@ -234,9 +232,100 @@ const AgentPanel = complex.component(({ guardDiscard }: { guardDiscard: GuardDis
           },
         ]}
       />
+      <NewFactorModal
+        analysisKind={newKind}
+        onClose={() => setNewKind(null)}
+        onCreated={() => setTab('agent')}
+      />
     </div>
   );
 }, 'AgentPanel');
+
+const NewFactorModal = complex.component(
+  ({
+    analysisKind,
+    onClose,
+    onCreated,
+  }: {
+    analysisKind: EditableFactorAnalysisKind | null;
+    onClose: () => void;
+    onCreated: () => void;
+  }) => {
+    const store = complex.useStore();
+    const { t } = useTranslation('factor');
+    const { message } = App.useApp();
+    const [name, setName] = useState('');
+    const [key, setKey] = useState('');
+    const [saving, setSaving] = useState(false);
+
+    useEffect(() => {
+      if (analysisKind) {
+        setName('');
+        setKey('');
+      }
+    }, [analysisKind]);
+
+    const valid = name.trim().length > 0 && /^[a-z][a-z0-9_]{0,31}$/.test(key.trim());
+    const create = async () => {
+      if (!analysisKind || !valid || saving) {
+        return;
+      }
+      setSaving(true);
+      try {
+        await store.newFactor(analysisKind, key.trim(), name.trim());
+        message.success(t('factorCreated'));
+        onCreated();
+        onClose();
+      } catch (error) {
+        message.error(error instanceof Error ? error.message : t('saveFailed'));
+      } finally {
+        setSaving(false);
+      }
+    };
+
+    return (
+      <Modal
+        open={analysisKind !== null}
+        title={t(
+          analysisKind === 'time_series' ? 'newFactorTimeSeries' : 'newFactorCrossSectional',
+        )}
+        okText={t('create')}
+        cancelText={t('cancel')}
+        confirmLoading={saving}
+        okButtonProps={{ disabled: !valid }}
+        onOk={() => void create()}
+        onCancel={onClose}
+        data-testid="new-factor-modal"
+      >
+        <div className="jx-factor-createForm">
+          <label className="jx-factor-createField">
+            <span className="jx-factor-createLabel">{t('factorName')}</span>
+            <Input
+              value={name}
+              maxLength={40}
+              placeholder={t('factorNamePlaceholder')}
+              onChange={(event) => setName(event.target.value)}
+              data-testid="new-factor-name"
+            />
+          </label>
+          <label className="jx-factor-createField">
+            <span className="jx-factor-createLabel">{t('strategyKey')}</span>
+            <Input
+              value={key}
+              maxLength={32}
+              placeholder={t('strategyKeyPlaceholder')}
+              status={key && !/^[a-z][a-z0-9_]{0,31}$/.test(key) ? 'error' : undefined}
+              onChange={(event) => setKey(event.target.value)}
+              data-testid="new-factor-key"
+            />
+            <small className="jx-factor-createHint">{t('factorKeyCreateHint')}</small>
+          </label>
+        </div>
+      </Modal>
+    );
+  },
+  'NewFactorModal',
+);
 
 // Agent tab: a chat that writes / iterates the custom factor code, over a Cursor-style composer.
 const AgentChat = complex.component(() => {
@@ -282,6 +371,7 @@ const AgentChat = complex.component(() => {
           value={store.nlText}
           onChange={(v) => store.setNlText(v)}
           onSubmit={() => void store.sendAgent(store.nlText)}
+          disabled={!qa && !store.selectedKey}
           placeholder={t(
             qa
               ? store.isTimeSeries
@@ -539,17 +629,31 @@ const FactorLibrary = complex.component(
                         : 'crossSectional.methodBadge',
                     )}
                   </span>
+                  <Tag>{t(`factorStatus.${f.status ?? 'draft'}`)}</Tag>
                   <span
                     role="button"
-                    title={t('deleteTitle')}
+                    title={t('copy')}
                     className="jx-factor-libDel"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      askDelete(f.key, f.label);
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      void store.copySelected(f.key);
                     }}
                   >
-                    <FontAwesomeIcon icon={faTrash} />
+                    <FontAwesomeIcon icon={faCopy} />
                   </span>
+                  {(f.status ?? 'draft') === 'draft' && (
+                    <span
+                      role="button"
+                      title={t('deleteTitle')}
+                      className="jx-factor-libDel"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        askDelete(f.key, f.label);
+                      }}
+                    >
+                      <FontAwesomeIcon icon={faTrash} />
+                    </span>
+                  )}
                 </span>
               </button>
             ))}
@@ -846,7 +950,7 @@ const MiddleColumn = complex.component(({ guardDiscard }: { guardDiscard: GuardD
                 icon={<FontAwesomeIcon icon={faCopy} />}
                 action={() =>
                   guardDiscard(() => {
-                    void store.forkSelected();
+                    void store.copySelected();
                   })
                 }
               >
@@ -875,7 +979,7 @@ const MiddleColumn = complex.component(({ guardDiscard }: { guardDiscard: GuardD
               <FactorEditor
                 value={store.code}
                 onChange={(v) => store.setCode(v)}
-                readOnly={preset}
+                readOnly={preset || store.factorStatus !== 'draft'}
               />
             </Suspense>
           </div>
@@ -891,7 +995,7 @@ const MiddleColumn = complex.component(({ guardDiscard }: { guardDiscard: GuardD
 const TimeSeriesWorkspace = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('factor');
-  const editable = store.mode === 'custom';
+  const editable = store.mode === 'custom' && store.factorStatus === 'draft';
   const window = store.code.match(/\bwindow:\s*(\d+)/)?.[1] ?? '—';
   return (
     <Splitter orientation="vertical">
@@ -1005,45 +1109,21 @@ const CompositeWorkspace = complex.component(() => {
 const FactorIdentityBar = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('factor');
-  const valid = /^[a-z][a-z0-9_]{0,31}$/.test(store.keyDraft);
-  if (store.strategyKey) {
-    return (
-      <div className="jx-factor-keyBar">
-        <span className="jx-factor-keyLabel">{t('strategyKey')}</span>
-        <code className="jx-factor-keyValue">{store.strategyKey}</code>
-        <span className="jx-factor-keyLocked">
-          <FontAwesomeIcon icon={faLock} /> {t('strategyKeyLocked')}
-        </span>
-      </div>
-    );
-  }
   return (
-    <div className="jx-factor-keyBar jx-factor-keyBar--draft">
+    <div className="jx-factor-keyBar">
       <span className="jx-factor-keyLabel">{t('strategyKey')}</span>
-      <Input
-        className="jx-factor-keyInput"
-        size="small"
-        addonBefore="custom:"
-        value={store.keyDraft}
-        placeholder={t('strategyKeyPlaceholder')}
-        status={store.keyDraft && !valid ? 'error' : undefined}
-        onChange={(event) => store.setKeyDraft(event.target.value)}
-      />
-      <LoaderButton
-        size="small"
-        type="primary"
-        icon={<FontAwesomeIcon icon={faLock} />}
-        loader={store.keyLoader}
-        disabled={!valid}
-        confirm={t('strategyKeyConfirm', { key: `custom:${store.keyDraft}` })}
-        action={() => store.finalizeKey()}
-        successMessage={t('strategyKeyFinalized')}
-      >
-        {t('strategyKeyFinalize')}
-      </LoaderButton>
-      <span className="jx-factor-keyHint">
-        {store.keyDraft && !valid ? t('strategyKeyInvalid') : t('strategyKeyDraftHint')}
+      <code className="jx-factor-keyValue">{store.factorKey}</code>
+      <span className="jx-factor-keyLocked">
+        <FontAwesomeIcon icon={faLock} /> {t('strategyKeyLocked')}
       </span>
+      <Tag color={store.factorStatus === 'published' ? 'green' : undefined}>
+        {t(`factorStatus.${store.factorStatus}`)}
+      </Tag>
+      {store.factorStatus === 'draft' && (
+        <span className="jx-factor-keyHint">
+          {store.saveLoader.loading ? t('saving') : store.edited ? t('savePending') : t('saved')}
+        </span>
+      )}
     </div>
   );
 }, 'FactorIdentityBar');
@@ -1917,7 +1997,7 @@ const TimeSeriesReportBody = complex.component(() => {
         />
       </div>
 
-      <FactorReleaseCard />
+      <FactorPublicationCard />
 
       <div className="jx-factor-sectionTitle">{t('timeSeries.comparisonTitle')}</div>
       <div className="jx-factor-timeAssetList">
@@ -2022,7 +2102,7 @@ const ReportBody = complex.component(() => {
       </div>
 
       <MethodologyCard />
-      <FactorReleaseCard />
+      <FactorPublicationCard />
 
       {r.diagnostics?.length ? (
         <div className="jx-factor-diagnostics">
@@ -2284,68 +2364,45 @@ const MethodologyCard = complex.component(() => {
   );
 }, 'MethodologyCard');
 
-const FactorReleaseCard = complex.component(() => {
+const FactorPublicationCard = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('factor');
   const { message, modal } = App.useApp();
-  const [open, setOpen] = useState(false);
-  const [maturity, setMaturity] = useState<FactorReleaseMaturity>('experimental');
-  const [releaseKey, setReleaseKey] = useState('');
   const detail = store.reportDetail;
-  const releases = store.selectedReleases;
-  if (!detail) {
+  if (!detail || store.mode !== 'custom') {
     return null;
   }
 
-  const validatedEligible =
-    detail.phase === 'holdout' &&
-    !!detail.revealedAt &&
-    !!detail.researchPayload &&
-    factorResearchCriterionPassed(detail.researchPayload, detail.researchIntent);
-  const customKeyMissing = store.mode === 'custom' && !store.strategyKey;
-  const compositeKeyRequired = store.mode === 'composite' && releases.length === 0;
-  const normalizedReleaseKey = releaseKey.trim();
-  const duplicate = releases.some(
-    (release) =>
-      release.approvedReportId === detail.id &&
-      release.maturity === maturity &&
-      release.lifecycle === 'active',
-  );
-  const canSubmit =
-    !duplicate &&
-    !customKeyMissing &&
-    (!compositeKeyRequired || /^[a-z][a-z0-9_]{0,31}$/.test(normalizedReleaseKey));
-
-  const startPublish = () => {
-    setMaturity(validatedEligible ? 'validated' : 'experimental');
-    setReleaseKey(releases[0]?.releaseKey ?? '');
-    setOpen(true);
-  };
-  const submitPublish = async () => {
-    try {
-      const release = await store.publishSelectedReport(
-        maturity,
-        compositeKeyRequired ? normalizedReleaseKey : undefined,
-      );
-      message.success(t('release.published', { version: release.version }));
-      setOpen(false);
-    } catch (error) {
-      message.error(error instanceof Error ? error.message : t('release.publishFailed'));
-    }
-  };
-  const confirmRetire = (release: FactorRelease) => {
+  const publish = () => {
     modal.confirm({
-      title: t('release.retireTitle', { version: release.version }),
-      content: t('release.retireContent'),
-      okText: t('release.retire'),
+      title: t('publication.publishTitle'),
+      content: t('publication.publishContent', { key: store.factorKey }),
+      okText: t('publication.publish'),
+      cancelText: t('cancel'),
+      onOk: async () => {
+        try {
+          await store.publishSelectedReport();
+          message.success(t('publication.published'));
+        } catch (error) {
+          message.error(error instanceof Error ? error.message : t('publication.publishFailed'));
+          throw error;
+        }
+      },
+    });
+  };
+  const archive = () => {
+    modal.confirm({
+      title: t('publication.archiveTitle'),
+      content: t('publication.archiveContent'),
+      okText: t('publication.archive'),
       okButtonProps: { danger: true },
       cancelText: t('cancel'),
       onOk: async () => {
         try {
-          await store.retireRelease(release.id);
-          message.success(t('release.retired', { version: release.version }));
+          await store.archiveSelected();
+          message.success(t('publication.archived'));
         } catch (error) {
-          message.error(error instanceof Error ? error.message : t('release.retireFailed'));
+          message.error(error instanceof Error ? error.message : t('publication.archiveFailed'));
           throw error;
         }
       },
@@ -2353,160 +2410,69 @@ const FactorReleaseCard = complex.component(() => {
   };
 
   return (
-    <div className="jx-factor-release" data-testid="factor-release-card">
-      <div className="jx-factor-releaseHead">
+    <div className="jx-factor-publication" data-testid="factor-publication-card">
+      <div className="jx-factor-publicationHead">
         <div>
-          <div className="jx-factor-releaseTitle">
-            {t(store.isTimeSeries ? 'release.timeSeriesTitle' : 'release.title')}
-          </div>
-          <div className="jx-factor-releaseHint">
-            {t(store.isTimeSeries ? 'release.timeSeriesHint' : 'release.hint')}
+          <div className="jx-factor-publicationTitle">{t('publication.title')}</div>
+          <div className="jx-factor-publicationHint">
+            {t(`publication.hint.${store.factorStatus}`)}
           </div>
         </div>
-        <Button
-          size="small"
-          type="primary"
-          icon={<FontAwesomeIcon icon={faLock} />}
-          disabled={detail.status !== 'done' || customKeyMissing}
-          onClick={startPublish}
-          data-testid="factor-release-publish"
-        >
-          {t('release.publishReport')}
-        </Button>
-      </div>
-      <div className="jx-factor-releaseLineage">
-        <code>{t('release.reportRef', { id: detail.id.slice(-8) })}</code>
-        <span>←</span>
-        <code>{t('release.codeRef', { hash: detail.factorCodeHash?.slice(0, 12) })}</code>
-      </div>
-      {customKeyMissing && <Alert type="warning" showIcon title={t('release.finalizeKeyFirst')} />}
-      {releases.length === 0 ? (
-        <div className="jx-factor-releaseEmpty">{t('release.empty')}</div>
-      ) : (
-        <div className="jx-factor-releaseList">
-          {releases.map((release) => (
-            <div className="jx-factor-releaseItem" key={release.id}>
-              <div className="jx-factor-releaseIdentity">
-                <strong data-testid="factor-release-version">
-                  {release.releaseKey}@v{release.version}
-                </strong>
-                <Tag color={releaseMaturityColor(release.maturity)}>
-                  {t(`release.maturity.${release.maturity}`)}
-                </Tag>
-                <Tag>{t(`release.lifecycle.${release.lifecycle}`)}</Tag>
-              </div>
-              <div className="jx-factor-releaseContract">
-                <span>
-                  {t('release.inputs')} ·{' '}
-                  {release.inputDomains.map((domain) => t(`release.domain.${domain}`)).join(' / ')}
-                </span>
-                <span>
-                  {t('release.target')} ·{' '}
-                  {release.targetAssetClasses
-                    .map((assetClass) => t(`release.assetClass.${assetClass}`))
-                    .join(' / ')}
-                </span>
-                <span>{t(`release.output.${release.outputScope}`)}</span>
-              </div>
-              <div className="jx-factor-releaseEvidence">
-                {t('release.approvedBy', {
-                  id: release.approvedReportId.slice(-8),
-                  hash: release.codeHash.slice(0, 12),
-                  date: dayjs(release.createdAt).format('YYYY-MM-DD HH:mm'),
-                })}
-                {release.lifecycle === 'active' && (
-                  <>
-                    {release.sourceKind === 'single' &&
-                      (release.methodology.analysisKind === 'cross_sectional' ||
-                        release.methodology.analysisKind === 'time_series') && (
-                        <Button
-                          type="link"
-                          size="small"
-                          icon={<FontAwesomeIcon icon={faFlask} />}
-                          href={`/lab?new=1&factorRelease=${encodeURIComponent(release.id)}`}
-                          data-testid="factor-release-use-in-lab"
-                        >
-                          {t('release.useInLab')}
-                        </Button>
-                      )}
-                    <Button
-                      type="link"
-                      size="small"
-                      danger
-                      loading={store.retireReleaseLoader.loading}
-                      onClick={() => confirmRetire(release)}
-                    >
-                      {t('release.retire')}
-                    </Button>
-                  </>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <Modal
-        open={open}
-        title={t('release.publishTitle')}
-        okText={t('release.publish')}
-        cancelText={t('cancel')}
-        confirmLoading={store.publishReleaseLoader.loading}
-        okButtonProps={{ disabled: !canSubmit }}
-        onOk={() => void submitPublish()}
-        onCancel={() => setOpen(false)}
-        data-testid="factor-release-modal"
-      >
-        <div className="jx-factor-releaseModal">
-          <Alert type="info" showIcon title={t('release.metadataDerived')} />
-          {compositeKeyRequired && (
-            <label>
-              <span>{t('release.releaseKey')}</span>
-              <Input
-                value={releaseKey}
-                maxLength={32}
-                placeholder={t('release.releaseKeyPlaceholder')}
-                onChange={(event) => setReleaseKey(event.target.value)}
-              />
-            </label>
+        <div className="jx-factor-publicationActions">
+          {store.factorStatus === 'draft' ? (
+            <Button
+              size="small"
+              type="primary"
+              icon={<FontAwesomeIcon icon={faLock} />}
+              loading={store.publishLoader.loading}
+              disabled={
+                detail.status !== 'done' || store.reportOutdated || store.sending || store.edited
+              }
+              onClick={publish}
+              data-testid="factor-publish"
+            >
+              {t('publication.publish')}
+            </Button>
+          ) : (
+            <>
+              {store.factorStatus === 'published' && (
+                <Button
+                  size="small"
+                  href={`/lab?new=1&factorKey=${encodeURIComponent(store.factorKey)}`}
+                  data-testid="factor-use-in-lab"
+                >
+                  {t('publication.useInLab')}
+                </Button>
+              )}
+              <Button
+                size="small"
+                icon={<FontAwesomeIcon icon={faCopy} />}
+                onClick={() => void store.copySelected()}
+              >
+                {t('copy')}
+              </Button>
+              {store.factorStatus === 'published' && (
+                <Button size="small" danger loading={store.archiveLoader.loading} onClick={archive}>
+                  {t('publication.archive')}
+                </Button>
+              )}
+            </>
           )}
-          <label>
-            <span>{t('release.maturityLabel')}</span>
-            <Select
-              value={maturity}
-              onChange={(value) => setMaturity(value)}
-              options={[
-                { value: 'experimental', label: t('release.maturity.experimental') },
-                {
-                  value: 'validated',
-                  label: t('release.maturity.validated'),
-                  disabled: !validatedEligible,
-                },
-                {
-                  value: 'production',
-                  label: t('release.productionDisabled'),
-                  disabled: true,
-                },
-              ]}
-            />
-          </label>
-          <div className="jx-factor-releaseMaturityHelp">
-            {store.isTimeSeries
-              ? t('release.timeSeriesMaturityHelp')
-              : maturity === 'validated'
-                ? t('release.validatedHelp')
-                : t('release.experimentalHelp')}
-          </div>
-          {duplicate && <Alert type="warning" showIcon title={t('release.duplicate')} />}
         </div>
-      </Modal>
+      </div>
+      <div className="jx-factor-publicationLineage">
+        <code>{store.factorKey}</code>
+        <span>←</span>
+        <code>{t('publication.reportRef', { id: detail.id.slice(-8) })}</code>
+        <span>·</span>
+        <code>{t('publication.codeRef', { hash: detail.factorCodeHash?.slice(0, 12) })}</code>
+      </div>
+      {store.factorStatus === 'draft' && store.reportOutdated && (
+        <Alert type="warning" showIcon title={t('publication.outdated')} />
+      )}
     </div>
   );
-}, 'FactorReleaseCard');
-
-function releaseMaturityColor(maturity: FactorReleaseMaturity): string {
-  return maturity === 'production' ? 'green' : maturity === 'validated' ? 'blue' : 'gold';
-}
+}, 'FactorPublicationCard');
 
 function Metric({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
@@ -2563,11 +2529,13 @@ function PromptBox({
   onChange,
   onSubmit,
   placeholder,
+  disabled,
 }: {
   value: string;
   onChange: (v: string) => void;
   onSubmit: () => void;
   placeholder: string;
+  disabled?: boolean;
 }) {
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.nativeEvent.isComposing) {
@@ -2585,6 +2553,7 @@ function PromptBox({
       onChange={(e) => onChange(e.target.value)}
       onKeyDown={onKeyDown}
       placeholder={placeholder}
+      disabled={disabled}
       autoSize={{ minRows: 3, maxRows: 10 }}
       variant="borderless"
     />

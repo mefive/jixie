@@ -3,7 +3,7 @@ import { chromium } from 'playwright';
 
 const BASE = process.env.E2E_BASE ?? 'http://localhost:5173';
 const OUTPUT = new URL('../../docs/public/images/help/zh/factors/', import.meta.url).pathname;
-const EMAIL = 'e2e-help-factor-custom@test.com';
+const EMAIL = `e2e-help-factor-custom-${Date.now()}@test.com`;
 const FACTOR_CODE = [
   'export default defineFactor({',
   "  name: '账面市值比（自定义）',",
@@ -86,23 +86,38 @@ async function capturePresetCopyFlow() {
 }
 
 async function captureNewFactorFlow() {
-  await page.getByRole('button', { name: '新建' }).click();
+  const previousFactorId = new URL(page.url()).searchParams.get('factor');
+  await page.getByRole('button', { name: '新建', exact: true }).click();
+  await page.getByRole('menuitem', { name: '股票横截面因子' }).click();
+  const createModal = page.getByTestId('new-factor-modal');
+  await createModal.getByTestId('new-factor-name').fill('账面市值比（自定义）');
+  await createModal.getByTestId('new-factor-key').fill(STRATEGY_KEY_DRAFT);
+  await annotatedScreenshot(page, `${OUTPUT}factor-custom-new-01.png`, [
+    { locator: createModal, number: 1 },
+    { locator: createModal.getByTestId('new-factor-name'), number: 2 },
+    { locator: createModal.getByTestId('new-factor-key'), number: 3 },
+    { locator: createModal.getByRole('button', { name: /创\s*建/ }), number: 4 },
+  ]);
+  await createModal.getByRole('button', { name: /创\s*建/ }).click();
+  await page.waitForFunction(
+    (previous) => {
+      const current = new URL(location.href).searchParams.get('factor');
+      return !!current && current !== previous;
+    },
+    previousFactorId,
+    { timeout: 20_000 },
+  );
+  factorId = new URL(page.url()).searchParams.get('factor') ?? '';
+  if (!factorId) {
+    throw new Error(`new Factor id missing from ${page.url()}`);
+  }
   const prompt = page.locator('.jx-factor-chatInput textarea');
   await prompt.waitFor({ timeout: 20_000 });
-  await annotatedScreenshot(page, `${OUTPUT}factor-custom-new-01.png`, [
-    { locator: page.getByRole('button', { name: '新建' }), number: 1 },
-    { locator: page.locator('.jx-factor-agentIdentity'), number: 2 },
-    { locator: page.locator('.jx-factor-chatInput'), number: 3 },
-    { locator: page.locator('.jx-factor-code'), number: 4 },
-    { locator: page.locator('.jx-factor-runButton'), number: 5 },
-  ]);
-
-  const created = await json('/api/app/factors/custom', {
+  await json(`/api/app/factors/custom/${factorId}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ name: '账面市值比（自定义）', code: FACTOR_CODE }),
   });
-  factorId = created.id;
   await page.goto(`${BASE}/factors?factor=${factorId}`, { waitUntil: 'domcontentloaded' });
   await page.locator('.jx-factor-code .monaco-editor').waitFor({ timeout: 30_000 });
   await page
@@ -161,32 +176,30 @@ async function runCustomFactorAnalysis() {
 }
 
 async function captureStrategyKeyFlow() {
-  const keyInput = page.locator('.jx-factor-keyInput input');
-  await keyInput.waitFor({ timeout: 20_000 });
-  await keyInput.fill(STRATEGY_KEY_DRAFT);
+  const keyBar = page.locator('.jx-factor-keyBar');
+  await keyBar.waitFor({ timeout: 20_000 });
   await annotatedScreenshot(page, `${OUTPUT}factor-strategy-key-01.png`, [
     { locator: page.locator('.jx-factor-keyLabel'), number: 1 },
-    { locator: page.locator('.jx-factor-keyInput'), number: 2 },
-    { locator: page.getByRole('button', { name: '确认并锁定' }), number: 3 },
-    { locator: page.locator('.jx-factor-keyHint'), number: 4 },
+    { locator: page.locator('.jx-factor-keyValue'), number: 2 },
+    { locator: page.locator('.jx-factor-keyLocked'), number: 3 },
+    { locator: keyBar.getByText('草稿', { exact: true }), number: 4 },
   ]);
 
-  await page.getByRole('button', { name: '确认并锁定' }).click();
-  const confirm = page.locator('.ant-modal-confirm');
+  await page.getByTestId('factor-publish').click();
+  const confirm = page.locator('.ant-modal-confirm:visible');
   await confirm.waitFor();
-  await confirm.locator('.ant-btn-primary').click();
-  await page.locator('.jx-factor-keyValue').waitFor({ timeout: 20_000 });
+  await confirm.getByRole('button', { name: /发\s*布/ }).click();
   await confirm.waitFor({ state: 'hidden' });
   await page.locator('.ant-message-notice').waitFor({ state: 'hidden', timeout: 5_000 });
   await annotatedScreenshot(page, `${OUTPUT}factor-strategy-key-locked-01.png`, [
     { locator: page.locator('.jx-factor-keyLabel'), number: 1 },
     { locator: page.locator('.jx-factor-keyValue'), number: 2 },
-    { locator: page.locator('.jx-factor-keyLocked'), number: 3 },
+    { locator: keyBar.getByText('已发布', { exact: true }), number: 3 },
   ]);
 
   const factorKey = ((await page.locator('.jx-factor-keyValue').textContent()) ?? '').trim();
-  if (!factorKey.startsWith('custom:')) {
-    throw new Error(`unexpected finalized factor key: ${factorKey}`);
+  if (factorKey !== STRATEGY_KEY_DRAFT) {
+    throw new Error(`unexpected Factor key: ${factorKey}`);
   }
   return factorKey;
 }
@@ -291,7 +304,11 @@ async function cleanupDedicatedAccount() {
     }
     const catalog = await (await fetch('/api/app/factors/catalog')).json();
     for (const factor of catalog.filter((item) => item.kind === 'custom')) {
-      await fetch(`/api/app/factors/custom/${factor.key}`, { method: 'DELETE' });
+      if (factor.status === 'draft') {
+        await fetch(`/api/app/factors/custom/${factor.key}`, { method: 'DELETE' });
+      } else if (factor.status === 'published') {
+        await fetch(`/api/app/factors/custom/${factor.key}/archive`, { method: 'POST' });
+      }
     }
   });
   factorId = '';

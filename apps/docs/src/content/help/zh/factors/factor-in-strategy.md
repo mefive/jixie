@@ -1,22 +1,22 @@
 # 在策略中使用自定义因子
 
-自定义因子完成分析并锁定策略标识后，可以在回测策略中读取因子值、给股票排序并选择持仓。
+自定义因子完成分析并选择批准报告发布后，可以在回测策略中读取因子值、给股票排序并选择持仓。
 
-多因子合成是因子研究对象，不能直接作为一个策略标识引用。需要用于策略时，应在策略代码中明确写出要读取的单因子和组合规则，让权重、方向和缺失值处理可以独立审查。
+多因子合成是因子研究对象，不能直接作为一个 Factor key 引用。需要用于策略时，应在策略代码中明确写出要读取的单因子和组合规则，让权重、方向和缺失值处理可以独立审查。
 
 ## 开始前
 
 确认以下条件：
 
 - 自定义因子已经成功运行分析。
-- 页面显示“已锁定”的完整策略标识。
+- Factor 已发布，页面显示不可变的 key。
 - 已经知道因子值越高或越低分别代表什么。
 - 回测工作台中已经有一段可以编辑的策略。
 
 本页使用：
 
 ```text
-custom:help_book_to_market
+help_book_to_market
 ```
 
 实际操作时，应替换成自己页面上显示的完整标识。
@@ -35,7 +35,7 @@ let last = '';
 
 export default defineStrategy({
   name: '账面市值比因子示例',
-  factors: ['custom:help_book_to_market'],
+  factors: ['help_book_to_market'],
 
   async onBar(ctx) {
     if (ctx.period('monthly') === last) return;
@@ -46,7 +46,7 @@ export default defineStrategy({
 
     const picks = universe
       .rankBy((_bar, code) =>
-        ctx.factor('custom:help_book_to_market', code),
+        ctx.factor('help_book_to_market', code),
       )
       .top(10);
 
@@ -72,7 +72,7 @@ export default defineStrategy({
 
 ![在策略声明和选股逻辑中引用自定义因子](/docs/images/help/zh/factors/factor-strategy-reference-01.png)
 
-标识必须在两处完全一致，包括 `custom:` 前缀。
+key 必须在两处完全一致。编辑器输入 `ctx.factor(` 时会建议当前可用的已发布 Factor，并插入原始 key。
 
 ## 在编辑器中核对因子
 
@@ -119,7 +119,7 @@ export default defineStrategy({
 
 ### 提示找不到因子
 
-检查标识是否已经锁定，并完整复制了 `custom:` 前缀。不要使用因子的中文显示名称代替策略标识。
+检查 Factor 是否已经发布，并使用页面显示的原始 key。不要使用中文显示名称代替 key。
 
 ### 声明了 `factors`，但策略仍然不能读取
 
@@ -133,13 +133,13 @@ export default defineStrategy({
 
 先查看日志，再检查日期区间内是否有足够的有效因子值、股票池是否为空、`top` 数量和其他筛选条件是否过严。
 
-### 修改因子代码后需要改策略标识吗
+### 发布后怎样修改因子代码
 
-不需要。锁定标识保持不变，但应重新运行因子分析和回测，让新结果对应新代码。
+已发布 Factor 不能修改。使用“复制”创建独立草稿，重新分析和发布，再在策略中明确替换为新 key。
 
 ## 相关内容
 
-- [确认策略标识](/docs/help/factors/strategy-key)
+- [设置 Factor key](/docs/help/factors/strategy-key)
 - [设置回测参数](/docs/help/backtesting/run-settings)
 - [查看回测结果概览](/docs/help/backtesting/results-overview)
 - [正式保留段和样本外结果](/docs/help/factors/holdout-results)

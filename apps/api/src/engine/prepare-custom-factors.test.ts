@@ -1,84 +1,77 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({
-  factorFindMany: vi.fn(),
-  releaseFindMany: vi.fn(),
-}));
+const mocks = vi.hoisted(() => ({ factorFindMany: vi.fn() }));
 
 vi.mock('../lib/prisma.js', () => ({
-  prisma: {
-    factor: { findMany: mocks.factorFindMany },
-    factorRelease: { findMany: mocks.releaseFindMany },
-  },
+  prisma: { factor: { findMany: mocks.factorFindMany } },
 }));
 
-import { prepareStrategyFactors } from './prepare-custom-factors.js';
+import { extractFactorKeys, prepareStrategyFactors } from './prepare-custom-factors.js';
 
-const RELEASE_ID = '01ARZ3NDEKTSV4RRFFQ69G5FAV';
 const SOURCE = `export default defineFactor({ compute: (bar) => bar.pb });`;
 
-function release(overrides: Record<string, unknown> = {}) {
+function factor(overrides: Record<string, unknown> = {}) {
   return {
-    id: RELEASE_ID,
-    releaseKey: 'book_to_market',
-    sourceRef: 'factor-1',
-    version: 2,
-    sourceKind: 'single',
-    codeSnapshot: SOURCE,
+    id: 'factor-1',
+    key: 'book_to_market',
+    name: 'Book to market',
+    code: SOURCE,
+    analysisKind: 'cross_sectional',
     codeHash: 'abc123',
     approvedReportId: 'report-1',
-    methodologySnapshot: { version: 1, analysisKind: 'cross_sectional' },
-    maturity: 'validated',
-    lifecycle: 'active',
+    userId: 'user-1',
     ...overrides,
   };
 }
 
-describe('immutable factor release preparation', () => {
+describe('published factor preparation', () => {
   beforeEach(() => {
-    mocks.factorFindMany.mockReset().mockResolvedValue([]);
-    mocks.releaseFindMany.mockReset().mockResolvedValue([release()]);
+    mocks.factorFindMany.mockReset().mockResolvedValue([factor()]);
   });
 
-  it('loads the exact owned release snapshot and records run lineage', async () => {
+  it('loads the exact owned factor and records run lineage', async () => {
     const prepared = await prepareStrategyFactors(
-      `factors: ['release:${RELEASE_ID}']`,
+      `ctx.factor('book_to_market', '000001.SZ')`,
       'user-1',
       'zh',
     );
 
-    expect(mocks.releaseFindMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: { in: [RELEASE_ID] }, userId: 'user-1' } }),
+    expect(mocks.factorFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ key: { in: ['book_to_market'] } }),
+      }),
     );
-    expect(prepared.modules).toHaveLength(1);
-    expect(prepared.modules[0]).toMatchObject({ key: `release:${RELEASE_ID}` });
+    expect(prepared.modules[0]).toMatchObject({ key: 'book_to_market' });
     expect(prepared.modules[0].js).toContain('defineFactor');
-    expect(prepared.releases).toEqual([
+    expect(prepared.factors).toEqual([
       {
-        releaseId: RELEASE_ID,
-        sourceId: 'factor-1',
-        releaseKey: 'book_to_market',
-        version: 2,
+        factorId: 'factor-1',
+        key: 'book_to_market',
+        name: 'Book to market',
+        analysisKind: 'cross_sectional',
         codeHash: 'abc123',
         approvedReportId: 'report-1',
-        maturity: 'validated',
       },
     ]);
   });
 
-  it('requires active production releases for daily signals', async () => {
-    mocks.releaseFindMany.mockResolvedValue([release({ maturity: 'experimental' })]);
-    await expect(
-      prepareStrategyFactors(`release:${RELEASE_ID}`, 'user-1', 'en', 'production'),
-    ).rejects.toThrow(/active production/);
+  it('finds raw keys in both the declaration and direct calls', () => {
+    expect(
+      extractFactorKeys(`
+        export default defineStrategy({
+          factors: ['book_to_market', 'mf_net_main'],
+          onBar(ctx) { return ctx.factor('quality_score', '000001.SZ'); },
+        });
+      `),
+    ).toEqual(['quality_score', 'book_to_market']);
   });
 
-  it('compiles the frozen time-series contract for research backtests', async () => {
-    mocks.releaseFindMany.mockResolvedValue([
-      release({
-        releaseKey: 'etf_trend_20',
-        methodologySnapshot: { version: 1, analysisKind: 'time_series' },
-        codeSnapshot: `export default defineFactorV2({
+  it('compiles the published time-series contract for research backtests', async () => {
+    mocks.factorFindMany.mockResolvedValue([
+      factor({
+        key: 'etf_trend_20',
+        analysisKind: 'time_series',
+        code: `export default defineFactorV2({
           version: 2,
           name: 'ETF trend',
           analysisKind: 'time_series',
@@ -92,36 +85,47 @@ describe('immutable factor release preparation', () => {
       }),
     ]);
 
-    const prepared = await prepareStrategyFactors(`release:${RELEASE_ID}`, 'user-1', 'en');
+    const prepared = await prepareStrategyFactors(
+      `ctx.factor('etf_trend_20', '510300.SH')`,
+      'user-1',
+      'en',
+    );
     expect(prepared.modules[0]).toMatchObject({
-      key: `release:${RELEASE_ID}`,
+      key: 'etf_trend_20',
       analysisKind: 'time_series',
       timeSeries: { window: 21, inputs: ['etf.adjustedClose'] },
     });
-    expect(prepared.modules[0].js).toContain('defineFactorV2');
   });
 
-  it('keeps time-series releases out of daily signal deployment', async () => {
-    mocks.releaseFindMany.mockResolvedValue([
-      release({
-        maturity: 'production',
-        methodologySnapshot: { version: 1, analysisKind: 'time_series' },
-      }),
+  it('keeps time-series factors out of daily signal deployment', async () => {
+    mocks.factorFindMany.mockResolvedValue([
+      factor({ key: 'etf_trend_20', analysisKind: 'time_series' }),
     ]);
     await expect(
-      prepareStrategyFactors(`release:${RELEASE_ID}`, 'user-1', 'en', 'production'),
+      prepareStrategyFactors(
+        `ctx.factor('etf_trend_20', '510300.SH')`,
+        'user-1',
+        'en',
+        'deployment',
+      ),
     ).rejects.toThrow(/research backtests but not yet for daily signal deployment/);
   });
 
-  it('fails closed for foreign, deleted, and composite releases', async () => {
-    mocks.releaseFindMany.mockResolvedValue([]);
-    await expect(prepareStrategyFactors(`release:${RELEASE_ID}`, 'user-1', 'en')).rejects.toThrow(
-      `release:${RELEASE_ID}`,
+  it('allows an archived dependency for an existing signal run', async () => {
+    await expect(
+      prepareStrategyFactors(`ctx.factor('book_to_market', '000001.SZ')`, 'user-1', 'en', 'signal'),
+    ).resolves.toMatchObject({ factors: [{ key: 'book_to_market' }] });
+    expect(mocks.factorFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ status: { in: ['published', 'archived'] } }),
+      }),
     );
+  });
 
-    mocks.releaseFindMany.mockResolvedValue([release({ sourceKind: 'composite' })]);
-    await expect(prepareStrategyFactors(`release:${RELEASE_ID}`, 'user-1', 'en')).rejects.toThrow(
-      /runtime type/,
-    );
+  it('fails closed for missing or unpublished factors', async () => {
+    mocks.factorFindMany.mockResolvedValue([]);
+    await expect(
+      prepareStrategyFactors(`ctx.factor('book_to_market', '000001.SZ')`, 'user-1', 'en'),
+    ).rejects.toThrow('book_to_market');
   });
 });
