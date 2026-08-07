@@ -572,8 +572,21 @@ cutoff 与 Newey–West 自动 lag，只返回逐资产指标及跨资产中位 
 产品当前能力一致，仍不能揭示 holdout、发布、部署或代表用户下单。
 
 时间序列策略内核和策略 Lab 产品入口已进入 Phase 3，自定义 V2 定义与 Factor Agent 作者能力也已开放；
-但真实国债曲线模板仍受收益率曲线数据权限和同步阻塞，不能用债券 ETF 自身价格冒充利率驱动，因此仍不
-把 Phase 2 标记为全部完成。
+**2026-08-07 国债曲线因子纵向切片：**Factor V2 字段目录已开放财政部中国国债收益率曲线
+`rates.cgb.yield.2y / 5y / 10y / 30y`，单位为百分比；定义自行将变化量和期限利差转换为 bp。源数据
+完整同步 2006-03-01 至 2026-08-06，曲线在约 17:30 发布，所以每个点从下一上交所交易日才允许进入
+`ctx.value / ctx.lag`。research observation loader、策略 direct lane 与 walled lane 复用相同 PIT 口径，
+未知字段、非债券 ETF 目标、缺曲线和普通股票代码均 fail-closed。
+
+内置模板新增 10Y 收益率 20 日下行、10Y−2Y 曲线斜率与 2Y/5Y/10Y 曲率，并作为只读 published
+Factor 使用唯一 key。真实页面用 5Y/10Y/30Y 国债 ETF 在 2018-01-01 至 2026-08-06 生成 4,853 条
+20 日前瞻观测；报告显式展示来源、下一交易日可得规则、逐资产相关性、Newey–West t 与方向命中率。
+浏览器回归与截图为 `apps/web/e2e/bond-curve-factor.mjs`、
+`apps/web/acceptance/11a-cgb-yield-factor-config.png`、
+`11b-cgb-yield-factor-report.png` 和 `11c-cgb-yield-factor-metrics.png`。
+
+至此 Phase 2 的“价格信号 + 真实债券驱动”交付完成；生产日常维护与每日信号开放仍属于 Phase 3 的
+production 门槛，不因研究链路跑通而自动开放。
 
 **交付：**
 
@@ -583,8 +596,8 @@ cutoff 与 Newey–West 自动 lag，只返回逐资产指标及跨资产中位 
 - 研究卡、holdout、揭示、报告历史和尝试计数复用；
 - 至少一个内置 ETF 时间序列因子和一个债券因子模板。
 
-**数据依赖：**ETF 日线已具备；债券模板依赖收益率曲线权限与同步，未满足时不得用 ETF 价格反推并
-冒充曲线数据。
+**数据依赖：**ETF 日线与官方国债曲线已具备；后续曲线同步必须保留来源归属、北京时间解析和
+下一交易日可得门控，不得改用 ETF 价格反推并冒充曲线数据。
 
 **验收门：**同一因子在 fixture、worker、报告重跑中可复现；人为构造未来泄漏会被测试拦截；重叠
 horizon 的显著性不使用朴素独立样本 t 值。

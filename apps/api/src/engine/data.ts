@@ -107,6 +107,7 @@ export class EngineData {
       pb: (number | null)[];
     }
   >();
+  private governmentYieldByTerm = new Map<number, { dates: string[]; values: number[] }>();
   private futureContractByCode = new Map<
     string,
     { productCode: string; multiplier: number; listDate: string; delistDate: string }
@@ -131,12 +132,26 @@ export class EngineData {
     private port: EngineDataPort,
     private futureCodes: string[] = [],
     private includeTurnoverRateFHistory = false,
+    private includeGovernmentYieldCurve = false,
   ) {}
 
   /** Index daily close series (sync, from the preload) — the excess-return/IR benchmark (caller aligns to nav). */
   indexCloses(code: string): { date: string; close: number }[] {
     const s = this.indexByCode.get(code);
     return s ? s.dates.map((date, i) => ({ date, close: s.closes[i] })) : [];
+  }
+
+  /** Latest official government yield visible on the decision date, with a daily staleness cap. */
+  governmentYieldAsOf(termYears: number, date: string): number | null {
+    const series = this.governmentYieldByTerm.get(termYears);
+    if (!series) {
+      return null;
+    }
+    const index = lastIndexAtOrBefore(series.dates, date);
+    if (index < 0 || daysBetween(series.dates[index], date) > DAILY_ASOF_CAP_DAYS) {
+      return null;
+    }
+    return series.values[index];
   }
 
   /** Index close as-of `date` (latest index date ≤ date); null if the index isn't synced / no data yet.
@@ -289,6 +304,18 @@ export class EngineData {
       series.pe.push(row.pe);
       series.peTtm.push(row.peTtm);
       series.pb.push(row.pb);
+    }
+
+    if (this.includeGovernmentYieldCurve) {
+      const points = await this.port.yieldCurvePoints(this.end);
+      for (const point of points) {
+        let series = this.governmentYieldByTerm.get(point.termYears);
+        if (!series) {
+          this.governmentYieldByTerm.set(point.termYears, (series = { dates: [], values: [] }));
+        }
+        series.dates.push(point.availableDate);
+        series.values.push(point.yieldPct);
+      }
     }
 
     if (this.futureCodes.length > 0) {

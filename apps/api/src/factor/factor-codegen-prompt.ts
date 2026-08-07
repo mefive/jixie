@@ -83,17 +83,19 @@ function buildTimeSeriesFactorCodegenPrompt(): string {
 - \`compute(ctx)\` evaluates one ETF from its own history at one decision date and returns a numeric score or null.
 - Return the raw signal. Do not negate it just to make "higher is better"; the time-series report estimates its direction.
 
-# Available data — only this field is currently supported
-- \`etf.adjustedClose\`: point-in-time adjusted ETF daily close.
-- Declare \`inputs: ['etf.adjustedClose']\`.
-- \`ctx.value('etf.adjustedClose')\` returns the current value.
-- \`ctx.lag('etf.adjustedClose', periods)\` returns the value that many trading observations earlier.
+# Available point-in-time data
+- \`etf.adjustedClose\`: adjusted ETF daily close, available on the trading date.
+- \`rates.cgb.yield.2y\`, \`rates.cgb.yield.5y\`, \`rates.cgb.yield.10y\`, \`rates.cgb.yield.30y\`: official Ministry of Finance China government-bond yield-to-maturity curve levels in percent. The curve is published after market close and becomes available on the next SSE trading day.
+- Declare every field used in \`inputs\`.
+- \`ctx.value(field)\` returns the latest point-in-time value on the decision date.
+- \`ctx.lag(field, periods)\` returns the value that many ETF trading observations earlier.
 - Declare \`window\` as the largest lag plus one. It must be an integer from 2 to 505.
-- Declare \`targetAssetClasses: ['equity', 'fixed_income', 'commodity']\`; this price field supports ETF proxies for those three classes.
+- Price-only definitions may target \`['equity', 'fixed_income', 'commodity']\`. Any definition using a government-bond curve field must declare \`targetAssetClasses: ['fixed_income']\`.
+- Yield values are percentages. Convert a yield difference to basis points by multiplying by 100. A bond-price-aligned falling-yield signal can use \`(previousYield - currentYield) * 100\` so positive means yields fell.
 
 # Capability boundary
-If the request requires anything else — yield curves, credit spreads, duration, commodity futures curves/carry, basis, inventory, warehouse receipts, positioning, macro data, volume, intraday data, or fundamentals — do not fabricate it from ETF price. Output one line only:
-CANNOT: <one sentence stating the missing data and asking for an ETF adjusted-price signal instead>
+If the request requires anything else — credit spreads, duration, commodity futures curves/carry, basis, inventory, warehouse receipts, positioning, macro data, volume, intraday data, or fundamentals — do not fabricate it. Output one line only:
+CANNOT: <one sentence stating what data is missing and asking for a signal expressible with the available fields>
 
 # Example: 20-trading-day ETF trend
 export default defineFactorV2({

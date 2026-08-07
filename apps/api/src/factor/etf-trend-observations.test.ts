@@ -1,7 +1,11 @@
 import type { TimeSeriesFactorResearchSpecV1 } from '@jixie/shared';
 import { describe, expect, it } from 'vitest';
 import { compileTimeSeriesFactor } from './compile-time-series-factor.js';
-import { buildEtfTimeSeriesObservations, type EtfTrendDailyRow } from './etf-trend-observations.js';
+import {
+  buildEtfTimeSeriesObservations,
+  type EtfTrendDailyRow,
+  type YieldCurveObservationRow,
+} from './etf-trend-observations.js';
 
 const spec: TimeSeriesFactorResearchSpecV1 = {
   version: 1,
@@ -86,5 +90,40 @@ describe('ETF trend observations', () => {
     incomplete[3].adjustmentFactor = Number.NaN;
 
     await expect(build(incomplete)).rejects.toThrow(/incomplete/);
+  });
+
+  it('joins the government curve by next-trading-day availability without same-day leakage', async () => {
+    const curveFactor = await compileTimeSeriesFactor(`export default defineFactorV2({
+      version: 2,
+      name: 'CGB 10Y yield decline',
+      analysisKind: 'time_series',
+      outputScope: 'asset',
+      frequency: 'daily',
+      inputs: ['rates.cgb.yield.10y'],
+      targetAssetClasses: ['fixed_income'],
+      window: 2,
+      compute(ctx) {
+        const current = ctx.value('rates.cgb.yield.10y');
+        const previous = ctx.lag('rates.cgb.yield.10y', 1);
+        return current != null && previous != null ? (previous - current) * 100 : null;
+      },
+    });`);
+    const curveRows: YieldCurveObservationRow[] = [
+      { tradeDate: '20231229', availableDate: '20240101', termYears: 10, yieldPct: 2 },
+      { tradeDate: '20240102', availableDate: '20240103', termYears: 10, yieldPct: 1.9 },
+      { tradeDate: '20240103', availableDate: '20240104', termYears: 10, yieldPct: 1.7 },
+    ];
+    try {
+      const observations = await buildEtfTimeSeriesObservations(spec, rows, curveFactor, curveRows);
+
+      expect(observations[0]).toMatchObject({
+        asOfDate: '20240103',
+        featureAvailableDate: '20240103',
+      });
+      expect(observations[0].score).toBeCloseTo(10, 12);
+      expect(observations[1].score).toBeCloseTo(20, 12);
+    } finally {
+      curveFactor.dispose();
+    }
   });
 });

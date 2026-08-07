@@ -1,5 +1,6 @@
 import type { FactorBar } from '@jixie/shared';
 import type { CustomFactor, FactorCtx } from '../factor/factor-sdk.js';
+import { factorV2YieldTerm, type FactorV2FieldKey } from '../factor/factor-v2-fields.js';
 import type { EngineData } from './data.js';
 import type { BarRow } from './types.js';
 
@@ -23,7 +24,7 @@ export interface CustomFactorModule {
 }
 
 export type CustomFactorHistoryField = 'turnoverRateF' | 'roe' | 'grossprofitMargin';
-export type TimeSeriesFactorInput = 'etf.adjustedClose';
+export type TimeSeriesFactorInput = FactorV2FieldKey;
 
 export interface TimeSeriesFactorRuntimeMeta {
   window: number;
@@ -247,11 +248,11 @@ export class CustomFactorRuntime {
     date: string,
     code: string,
   ): number | null {
-    if (
-      evaluated.meta.inputs.includes('etf.adjustedClose') &&
-      this.engineData.assetType(code) !== 'etf'
-    ) {
-      this.onComputeError(key, `input etf.adjustedClose requires an ETF code, received ${code}`);
+    if (this.engineData.assetType(code) !== 'etf') {
+      const message = evaluated.meta.inputs.includes('etf.adjustedClose')
+        ? `input etf.adjustedClose requires an ETF code, received ${code}`
+        : `time-series Factor V2 requires an ETF code, received ${code}`;
+      this.onComputeError(key, message);
       return null;
     }
     const bars = this.engineData.bars(code, date, evaluated.meta.window);
@@ -271,7 +272,13 @@ export class CustomFactorRuntime {
       if (!bar) {
         return null;
       }
-      const value = field === 'etf.adjustedClose' ? bar.adjClose : null;
+      const yieldTerm = factorV2YieldTerm(field);
+      const value =
+        field === 'etf.adjustedClose'
+          ? bar.adjClose
+          : yieldTerm === null
+            ? null
+            : this.engineData.governmentYieldAsOf(yieldTerm, bar.date);
       return value != null && Number.isFinite(value) ? value : null;
     };
 

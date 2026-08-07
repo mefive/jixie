@@ -15,6 +15,7 @@ import type {
   StockBasicRow,
   StockNameHistoryRow,
   TopListRow,
+  YieldCurvePointDataRow,
 } from './data-port.js';
 
 /**
@@ -58,6 +59,7 @@ export interface FixtureSpec {
   finaIndicators?: FinaIndicatorRow[];
   topList?: TopListRow[];
   moneyflow?: MoneyflowRow[];
+  yieldCurvePoints?: YieldCurvePointDataRow[];
   futureContracts?: FutureContractRow[];
   futureDaily?: FutureDailyDataRow[];
   futureMappings?: FutureMappingDataRow[];
@@ -114,6 +116,10 @@ export function fixturePort(spec: FixtureSpec): EngineDataPort {
 
     async indexDailyBasicAll() {
       return spec.indexDailyBasic ?? [];
+    },
+
+    async yieldCurvePoints(end) {
+      return (spec.yieldCurvePoints ?? []).filter((row) => row.availableDate <= end);
     },
 
     async moneyflowRange(start, end) {

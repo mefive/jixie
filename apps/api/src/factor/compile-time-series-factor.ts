@@ -16,7 +16,7 @@ export interface TimeSeriesFactorDefinitionMeta {
 export interface CompiledTimeSeriesFactor extends TimeSeriesFactorDefinitionMeta {
   /** Computes one score per requested index. All declared field arrays are aligned by trade date. */
   computeSeries(
-    fields: Record<FactorV2FieldKey, number[]>,
+    fields: Partial<Record<FactorV2FieldKey, number[]>>,
     indexes: number[],
   ): Promise<(number | null)[]>;
   dispose(): void;

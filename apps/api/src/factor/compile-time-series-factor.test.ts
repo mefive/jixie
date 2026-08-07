@@ -45,6 +45,43 @@ describe('compileTimeSeriesFactor', () => {
     ).rejects.toThrow(/unknown input field/);
   });
 
+  it('computes a bond-price-aligned signal from the point-in-time government curve', async () => {
+    const factor = await compileTimeSeriesFactor(`export default defineFactorV2({
+      version: 2,
+      name: 'CGB 10Y yield decline',
+      analysisKind: 'time_series',
+      outputScope: 'asset',
+      frequency: 'daily',
+      inputs: ['rates.cgb.yield.10y'],
+      targetAssetClasses: ['fixed_income'],
+      window: 3,
+      compute(ctx) {
+        const current = ctx.value('rates.cgb.yield.10y');
+        const previous = ctx.lag('rates.cgb.yield.10y', 2);
+        return current != null && previous != null ? (previous - current) * 100 : null;
+      },
+    });`);
+    try {
+      const [score] = await factor.computeSeries({ 'rates.cgb.yield.10y': [2.1, 2.08, 2.03] }, [2]);
+      expect(score).toBeCloseTo(7, 12);
+    } finally {
+      factor.dispose();
+    }
+  });
+
+  it('rejects government-curve inputs for non-fixed-income target classes', async () => {
+    await expect(
+      compileTimeSeriesFactor(
+        source
+          .replace("inputs: ['etf.adjustedClose']", "inputs: ['rates.cgb.yield.10y']")
+          .replace(
+            "targetAssetClasses: ['equity', 'fixed_income', 'commodity']",
+            "targetAssetClasses: ['equity']",
+          ),
+      ),
+    ).rejects.toThrow(/target asset classes are incompatible/);
+  });
+
   it('returns null and reports an undeclared runtime access once', async () => {
     const logs: string[] = [];
     const factor = await compileTimeSeriesFactor(
