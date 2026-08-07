@@ -133,6 +133,10 @@ const MESSAGES = {
     zh: '因子发布 {key} 的运行类型尚未接入策略引擎',
     en: 'The runtime type of factor release {key} is not available in the strategy engine',
   },
+  factorTimeSeriesReleaseProductionUnsupported: {
+    zh: '时间序列因子发布 {key} 已可用于研究回测，但尚未开放每日信号部署',
+    en: 'Time-series factor release {key} is available for research backtests but not yet for daily signal deployment',
+  },
   factorReleaseProductionRequired: {
     zh: '每日信号只能使用生效中的 production 因子发布版本：{key}',
     en: 'Daily signals require an active production factor release: {key}',

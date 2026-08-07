@@ -16,9 +16,42 @@ export interface CustomFactorModule {
   key: string; // legacy 'custom:<key>' or immutable 'release:<ULID>'
   js: string; // the factor module, host-transformed TS→CJS
   historyFields?: CustomFactorHistoryField[];
+  /** Omitted means the legacy cross-sectional Factor SDK. Time-series releases carry their
+   * compiler-derived execution contract across the engine wall with the frozen source. */
+  analysisKind?: 'cross_sectional' | 'time_series';
+  timeSeries?: TimeSeriesFactorRuntimeMeta;
 }
 
 export type CustomFactorHistoryField = 'turnoverRateF' | 'roe' | 'grossprofitMargin';
+export type TimeSeriesFactorInput = 'etf.adjustedClose';
+
+export interface TimeSeriesFactorRuntimeMeta {
+  window: number;
+  inputs: TimeSeriesFactorInput[];
+}
+
+interface TimeSeriesFactorDefinition {
+  version: 2;
+  analysisKind: 'time_series';
+  outputScope: 'asset';
+  frequency: 'daily';
+  inputs: TimeSeriesFactorInput[];
+  window: number;
+  compute(ctx: TimeSeriesFactorContext): number | null;
+}
+
+interface TimeSeriesFactorContext {
+  value(field: TimeSeriesFactorInput): number | null;
+  lag(field: TimeSeriesFactorInput, periods: number): number | null;
+}
+
+export type EvaluatedCustomFactor =
+  | { kind: 'cross_sectional'; factor: CustomFactor }
+  | {
+      kind: 'time_series';
+      factor: TimeSeriesFactorDefinition;
+      meta: TimeSeriesFactorRuntimeMeta;
+    };
 
 /** Identify expensive auxiliary histories before factor code enters the engine wall. */
 export function extractCustomFactorHistoryFields(source: string): CustomFactorHistoryField[] {
@@ -36,14 +69,22 @@ export function extractCustomFactorHistoryFields(source: string): CustomFactorHi
 }
 
 /** Evaluate one factor module — mirrors wall-entry's strategy evaluation (same ambient style). */
-export function evaluateCustomFactorModule(mod: CustomFactorModule): CustomFactor {
+export function evaluateCustomFactorModule(mod: CustomFactorModule): EvaluatedCustomFactor {
   const moduleShim: { exports: Record<string, unknown> } = { exports: {} };
   try {
-    const run = new Function('module', 'exports', 'defineFactor', 'require', mod.js);
+    const run = new Function(
+      'module',
+      'exports',
+      'defineFactor',
+      'defineFactorV2',
+      'require',
+      mod.js,
+    );
     run(
       moduleShim,
       moduleShim.exports,
       (factor: CustomFactor) => factor,
+      (factor: TimeSeriesFactorDefinition) => factor,
       (id: string) => {
         throw new Error(`factor code cannot import external modules (${id})`);
       },
@@ -54,11 +95,40 @@ export function evaluateCustomFactorModule(mod: CustomFactorModule): CustomFacto
     );
   }
 
-  const factor = (moduleShim.exports.default ?? moduleShim.exports) as Partial<CustomFactor>;
+  const factor = (moduleShim.exports.default ?? moduleShim.exports) as Partial<
+    CustomFactor & TimeSeriesFactorDefinition
+  >;
   if (!factor || typeof factor.compute !== 'function') {
-    throw new Error(`factor ${mod.key} must \`export default defineFactor({ compute })\``);
+    throw new Error(`factor ${mod.key} must export a factor definition with compute`);
   }
-  return factor as CustomFactor;
+  if (mod.analysisKind === 'time_series') {
+    const meta = mod.timeSeries;
+    if (
+      !meta ||
+      factor.version !== 2 ||
+      factor.analysisKind !== 'time_series' ||
+      factor.outputScope !== 'asset' ||
+      factor.frequency !== 'daily' ||
+      factor.window !== meta.window ||
+      !sameStringArray(factor.inputs, meta.inputs)
+    ) {
+      throw new Error(`factor ${mod.key} does not match its compiled time-series contract`);
+    }
+    return {
+      kind: 'time_series',
+      factor: factor as TimeSeriesFactorDefinition,
+      meta,
+    };
+  }
+  return { kind: 'cross_sectional', factor: factor as CustomFactor };
+}
+
+function sameStringArray(left: unknown, right: string[]): boolean {
+  return (
+    Array.isArray(left) &&
+    left.length === right.length &&
+    left.every((value, index) => value === right[index])
+  );
 }
 
 const NO_HISTORY_CTX: FactorCtx = {
@@ -82,7 +152,7 @@ export class CustomFactorRuntime {
   private memo = new Map<string, number | null>();
 
   constructor(
-    private factors: Map<string, CustomFactor>,
+    private factors: Map<string, EvaluatedCustomFactor>,
     private engineData: EngineData,
     private onComputeError: (key: string, message: string) => void,
   ) {}
@@ -107,12 +177,16 @@ export class CustomFactorRuntime {
   }
 
   private compute(
-    factor: CustomFactor,
+    evaluated: EvaluatedCustomFactor,
     key: string,
     date: string,
     code: string,
     crossBar: BarRow | null,
   ): number | null {
+    if (evaluated.kind === 'time_series') {
+      return this.computeTimeSeries(evaluated, key, date, code);
+    }
+    const factor = evaluated.factor;
     let ctx = NO_HISTORY_CTX;
     if (factor.window != null) {
       const bars = this.engineData.bars(code, date, factor.window);
@@ -156,6 +230,49 @@ export class CustomFactorRuntime {
 
     try {
       const value = factor.compute(this.assembleFactorBar(date, code, crossBar), ctx);
+      return value == null || !Number.isFinite(value) ? null : value;
+    } catch (e) {
+      this.onComputeError(key, e instanceof Error ? e.message : String(e));
+      return null;
+    }
+  }
+
+  /** Execute Factor V2 against adjusted bars ending on the decision date. The host compiler has
+   * already validated the frozen release and attached its contract; this second check and runtime
+   * live inside the engine wall so neither direct nor walled backtests trust report statistics as a
+   * trading signal. */
+  private computeTimeSeries(
+    evaluated: Extract<EvaluatedCustomFactor, { kind: 'time_series' }>,
+    key: string,
+    date: string,
+    code: string,
+  ): number | null {
+    const bars = this.engineData.bars(code, date, evaluated.meta.window);
+    if (bars.length < evaluated.meta.window) {
+      return null;
+    }
+    const declaredInputs = new Set(evaluated.meta.inputs);
+    const currentIndex = bars.length - 1;
+    const read = (field: TimeSeriesFactorInput, periods: number): number | null => {
+      if (!declaredInputs.has(field)) {
+        throw new Error(`Factor code accessed undeclared input ${field}`);
+      }
+      if (!Number.isInteger(periods) || periods < 0) {
+        throw new Error('ctx.lag periods must be a non-negative integer');
+      }
+      const bar = bars[currentIndex - periods];
+      if (!bar) {
+        return null;
+      }
+      const value = field === 'etf.adjustedClose' ? bar.adjClose : null;
+      return value != null && Number.isFinite(value) ? value : null;
+    };
+
+    try {
+      const value = evaluated.factor.compute({
+        value: (field) => read(field, 0),
+        lag: (field, periods) => read(field, periods),
+      });
       return value == null || !Number.isFinite(value) ? null : value;
     } catch (e) {
       this.onComputeError(key, e instanceof Error ? e.message : String(e));

@@ -27,6 +27,7 @@ function release(overrides: Record<string, unknown> = {}) {
     codeSnapshot: SOURCE,
     codeHash: 'abc123',
     approvedReportId: 'report-1',
+    methodologySnapshot: { version: 1, analysisKind: 'cross_sectional' },
     maturity: 'validated',
     lifecycle: 'active',
     ...overrides,
@@ -70,6 +71,46 @@ describe('immutable factor release preparation', () => {
     await expect(
       prepareStrategyFactors(`release:${RELEASE_ID}`, 'user-1', 'en', 'production'),
     ).rejects.toThrow(/active production/);
+  });
+
+  it('compiles the frozen time-series contract for research backtests', async () => {
+    mocks.releaseFindMany.mockResolvedValue([
+      release({
+        releaseKey: 'etf_trend_20',
+        methodologySnapshot: { version: 1, analysisKind: 'time_series' },
+        codeSnapshot: `export default defineFactorV2({
+          version: 2,
+          name: 'ETF trend',
+          analysisKind: 'time_series',
+          outputScope: 'asset',
+          frequency: 'daily',
+          inputs: ['etf.adjustedClose'],
+          targetAssetClasses: ['equity', 'fixed_income', 'commodity'],
+          window: 21,
+          compute(ctx) { return ctx.value('etf.adjustedClose'); },
+        });`,
+      }),
+    ]);
+
+    const prepared = await prepareStrategyFactors(`release:${RELEASE_ID}`, 'user-1', 'en');
+    expect(prepared.modules[0]).toMatchObject({
+      key: `release:${RELEASE_ID}`,
+      analysisKind: 'time_series',
+      timeSeries: { window: 21, inputs: ['etf.adjustedClose'] },
+    });
+    expect(prepared.modules[0].js).toContain('defineFactorV2');
+  });
+
+  it('keeps time-series releases out of daily signal deployment', async () => {
+    mocks.releaseFindMany.mockResolvedValue([
+      release({
+        maturity: 'production',
+        methodologySnapshot: { version: 1, analysisKind: 'time_series' },
+      }),
+    ]);
+    await expect(
+      prepareStrategyFactors(`release:${RELEASE_ID}`, 'user-1', 'en', 'production'),
+    ).rejects.toThrow(/research backtests but not yet for daily signal deployment/);
   });
 
   it('fails closed for foreign, deleted, and composite releases', async () => {
