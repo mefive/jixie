@@ -51,7 +51,7 @@ export const enFactor: typeof zhFactor = {
     horizonOption: '{{value}}d',
     dailyFrequency: 'Observation frequency: daily',
     neweyWestAuto: 'Inference: Newey–West (automatic lag)',
-    exploratoryMode: 'Research mode: exploratory',
+    disciplinedResearch: 'Research mode: research card / holdout',
     reportNotice:
       'This is a signal evidence report, not a strategy backtest. Trading rules, rebalancing and costs must be tested in a strategy.',
     researchType: 'Research method',
@@ -249,6 +249,8 @@ export const enFactor: typeof zhFactor = {
   criterionRankIc: 'Mean Rank IC',
   criterionIcir: 'Annualized ICIR',
   criterionNetLs: 'Net long-short annualized',
+  criterionTimeSeriesMedianT: 'Median Newey–West t across assets',
+  criterionTimeSeriesMeanHitRate: 'Mean direction hit rate across assets',
   exploratoryNotice:
     'This run is labeled pure exploration and cannot later be presented as a prior hypothesis.',
   confirmRun: 'Freeze card and run',
@@ -278,6 +280,7 @@ export const enFactor: typeof zhFactor = {
     'Revealing records an irreversible first-view time. This data will no longer be unobserved.',
   holdoutCriterionPassed: 'Primary criterion met · first revealed {{time}}',
   holdoutCriterionMissed: 'Primary criterion not met · first revealed {{time}}',
+  historyMedianT: 'median t {{value}}',
 
   computing:
     'Computing… the report is already in history, so you can refresh or switch factors · live log in the middle "Log"',

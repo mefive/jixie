@@ -1,4 +1,10 @@
-import type { FactorAnalysisKind, FactorAnalysisSpec, FactorReport } from './factor.js';
+import type {
+  FactorAnalysisKind,
+  FactorAnalysisSpec,
+  FactorReport,
+  FactorResearchIntentV1,
+  FactorResearchMetric,
+} from './factor.js';
 import type { FactorSignalHorizonUnit } from './factor-release.js';
 
 export type FactorObservationFrequency = 'daily' | 'weekly' | 'monthly';
@@ -107,6 +113,73 @@ export type FactorResearchReportPayloadV1 =
   | { version: 1; analysisKind: 'time_series'; report: FactorTimeSeriesReportV1 }
   | { version: 1; analysisKind: 'panel'; report: FactorPanelReportV1 }
   | { version: 1; analysisKind: 'macro_regime'; report: FactorMacroRegimeReportV1 };
+
+export interface FactorTimeSeriesAggregateMetricsV1 {
+  medianNeweyWestT: number;
+  meanDirectionHitRate: number;
+}
+
+export function timeSeriesAggregateMetrics(
+  report: FactorTimeSeriesReportV1,
+): FactorTimeSeriesAggregateMetricsV1 {
+  const orderedTStats = report.byAsset
+    .map((asset) => asset.neweyWestTStat)
+    .filter(Number.isFinite)
+    .sort((left, right) => left - right);
+  const middle = Math.floor(orderedTStats.length / 2);
+  const medianNeweyWestT =
+    orderedTStats.length === 0
+      ? Number.NaN
+      : orderedTStats.length % 2 === 0
+        ? (orderedTStats[middle - 1] + orderedTStats[middle]) / 2
+        : orderedTStats[middle];
+  const hitRates = report.byAsset.map((asset) => asset.directionHitRate).filter(Number.isFinite);
+  return {
+    medianNeweyWestT,
+    meanDirectionHitRate:
+      hitRates.length === 0
+        ? Number.NaN
+        : hitRates.reduce((sum, value) => sum + value, 0) / hitRates.length,
+  };
+}
+
+export function factorResearchMetricValue(
+  payload: FactorResearchReportPayloadV1,
+  metric: FactorResearchMetric,
+): number {
+  if (payload.analysisKind === 'cross_sectional') {
+    const values = {
+      rank_ic_mean: payload.report.icMean,
+      rank_icir_annual: payload.report.icirAnnual,
+      net_long_short_annualized: payload.report.longShortNet?.annReturn ?? Number.NaN,
+    } as Partial<Record<FactorResearchMetric, number>>;
+    return values[metric] ?? Number.NaN;
+  }
+  if (payload.analysisKind === 'time_series') {
+    const aggregate = timeSeriesAggregateMetrics(payload.report);
+    const values = {
+      time_series_median_newey_west_t: aggregate.medianNeweyWestT,
+      time_series_mean_direction_hit_rate: aggregate.meanDirectionHitRate,
+    } as Partial<Record<FactorResearchMetric, number>>;
+    return values[metric] ?? Number.NaN;
+  }
+  return Number.NaN;
+}
+
+export function factorResearchCriterionPassed(
+  payload: FactorResearchReportPayloadV1,
+  intent?: FactorResearchIntentV1,
+): boolean {
+  const criterion = intent?.primaryCriterion;
+  if (!criterion) {
+    return false;
+  }
+  const value = factorResearchMetricValue(payload, criterion.metric);
+  if (!Number.isFinite(value)) {
+    return false;
+  }
+  return criterion.operator === 'gt' ? value > criterion.value : value < criterion.value;
+}
 
 export function researchAnalysisKind(spec: FactorResearchSpecV1): FactorAnalysisKind {
   return spec.analysisKind;

@@ -84,7 +84,11 @@ export function researchCounts(
   };
 }
 
-export function enoughHoldoutPeriods(freq: 'month' | 'week', start: string, end: string): boolean {
+export function enoughHoldoutPeriods(
+  freq: 'day' | 'month' | 'week',
+  start: string,
+  end: string,
+): boolean {
   const days = dayjs(end, 'YYYYMMDD').diff(dayjs(start, 'YYYYMMDD'), 'day');
-  return freq === 'week' ? days >= 77 : days >= 152;
+  return freq === 'day' ? days >= 252 : freq === 'week' ? days >= 77 : days >= 152;
 }

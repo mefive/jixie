@@ -150,9 +150,9 @@ const MESSAGES = {
     zh: '研究类型 {kind} 的评估器尚未启用',
     en: 'The evaluator for analysis kind {kind} is not enabled yet',
   },
-  factorTimeSeriesExploratoryOnly: {
-    zh: '时间序列研究当前只开放探索模式，样本外验证门槛将在报告协议完成后启用',
-    en: 'Time-series research currently supports exploratory runs only; holdout validation will open after the report protocol is complete',
+  factorCriterionUnsupported: {
+    zh: '主判据与当前研究方法不匹配',
+    en: 'The primary criterion does not match the selected research method',
   },
   factorTimeSeriesLoading: {
     zh: '正在加载 {count} 个 ETF 的复权历史…',

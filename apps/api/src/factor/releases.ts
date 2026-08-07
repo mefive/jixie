@@ -410,8 +410,13 @@ function criterionPassed(report: FactorReportPayload, intent: FactorResearchInte
     rank_ic_mean: report.icMean,
     rank_icir_annual: report.icirAnnual,
     net_long_short_annualized: report.longShortNet?.annReturn ?? Number.NaN,
+    time_series_median_newey_west_t: Number.NaN,
+    time_series_mean_direction_hit_rate: Number.NaN,
   }[criterion.metric];
-  return criterion.operator === 'gt' ? value > criterion.value : value < criterion.value;
+  return (
+    Number.isFinite(value) &&
+    (criterion.operator === 'gt' ? value > criterion.value : value < criterion.value)
+  );
 }
 
 function analysisKind(value: string): FactorAnalysisKind {

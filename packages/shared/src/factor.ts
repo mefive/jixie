@@ -340,7 +340,9 @@ export type FactorExpectedDirection = 'positive' | 'negative' | 'unknown';
 export type FactorResearchMetric =
   | 'rank_ic_mean'
   | 'rank_icir_annual'
-  | 'net_long_short_annualized';
+  | 'net_long_short_annualized'
+  | 'time_series_median_newey_west_t'
+  | 'time_series_mean_direction_hit_rate';
 
 export interface FactorResearchIntentV1 {
   version: 1;
@@ -401,6 +403,8 @@ export interface FactorReportSummary {
   metrics?: {
     ic?: number;
     rankIc?: number;
+    medianNeweyWestT?: number;
+    meanDirectionHitRate?: number;
   };
 }
 
