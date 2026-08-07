@@ -182,6 +182,8 @@ describe('agentTurn(factorProfile)', () => {
     expect(result.code).toBe(TIME_SERIES_FACTOR2);
     expect(llm.mock.calls[0][0][0].content).toContain('Factor Definition V2');
     expect(llm.mock.calls[0][1].map((tool) => tool.name)).not.toContain('runFactorAnalysis');
+    expect(llm.mock.calls[0][1].map((tool) => tool.name)).toContain('runTimeSeriesFactorAnalysis');
+    expect(llm.mock.calls[0][0][0].content).toContain('Research execution discipline');
   });
 });
 
