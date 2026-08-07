@@ -8,7 +8,7 @@ export * from './screen.js';
 export * from './saved.js';
 export * from './factor.js';
 export * from './factor-research.js';
-export * from './factor-release.js';
+export * from './factor-dependency.js';
 export * from './factor-weather.js';
 export * from './agent.js';
 export * from './sdk-reference.js';

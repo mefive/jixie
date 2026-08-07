@@ -546,6 +546,9 @@ if [[ "$DEPLOY_API" == "1" ]]; then
   log "构建 API"
   NODE_OPTIONS="$NODE_HEAP_OPTIONS" pnpm --filter api build
 
+  log "补齐 Factor 唯一 key（幂等）"
+  pnpm --filter api migrate:factor-identity
+
   log "prisma migrate deploy (建库/升级 schema 于 $DB_FILE)"
   pnpm --filter api exec prisma migrate deploy
 fi

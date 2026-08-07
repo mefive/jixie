@@ -43,8 +43,8 @@ P0 在 V1 上增加：
 新增不可变 `StrategyDeployment`：
 
 - 冻结完整 `BacktestConfig`、策略名、代码 hash、通知语言和上线时间；
-- 冻结策略实际引用的 `FactorReleaseDependency[]`；每日 `SignalRun` 创建时复制该快照，worker 执行前校验
-  release ID、版本、代码 hash 和批准报告没有漂移；
+- 冻结策略实际引用的 `FactorDependency[]`；每日 `SignalRun` 创建时复制该快照，worker 执行前校验
+  Factor ID、key、代码 hash 和批准报告没有漂移；
 - 只允许已成功回测且没有未运行编辑的策略上线；
 - 同策略重新部署时暂停旧部署，新建快照；旧信号继续指向旧部署；
 - 编辑研究策略不影响已上线版本，必须显式重新部署；
@@ -89,8 +89,8 @@ P0 在 V1 上增加：
 
 - 唯一键 `(deploymentId, tradeDate)`，三个定时档、手动按钮和 CLI 重复触发均幂等；
 - `running | done | error | stale` 状态持久化；
-- 创建时复制部署的因子 release 依赖，使每次实际运行可独立审计；历史 `null` 快照继续兼容；
-- 成功后保存最终决策 bar 的 `factorInputs`：每个 release 的读取覆盖与分布摘要，以及交易/持仓资产实际
+- 创建时复制部署的 `FactorDependency`，使每次实际运行可独立审计；
+- 成功后保存最终决策 bar 的 `factorInputs`：每个 Factor 的读取覆盖与分布摘要，以及交易/持仓资产实际
   输入值；它是 `ctx.factor()` 输入审计，不等同于尚未校准的预期收益或上涨概率；
 - 保存 `execDate`、数据截止日、模型权益/现金、SignalItem JSON 和通知状态；
 - 每次失败重试新建 Job，SignalRun 本身不重复；

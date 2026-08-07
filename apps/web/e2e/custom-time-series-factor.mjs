@@ -11,7 +11,6 @@ const page = await context.newPage();
 const browserErrors = [];
 const ASSETS = ['510300.SH', '518880.SH', '511010.SH'];
 let factorId = null;
-let releaseId = null;
 let strategyId = null;
 
 page.on('pageerror', (error) => browserErrors.push(`pageerror: ${error.message}`));
@@ -44,7 +43,17 @@ try {
   await page.goto(`${BASE}/factors`, { waitUntil: 'domcontentloaded' });
   await page.getByRole('button', { name: '新建' }).click();
   await page.getByRole('menuitem', { name: 'ETF 时间序列信号' }).click();
+  const createModal = page.getByTestId('new-factor-modal');
+  await createModal.getByTestId('new-factor-name').fill('E2E ETF 趋势信号');
+  await createModal.getByTestId('new-factor-key').fill('e2e_etf_trend');
+  await createModal.getByRole('button', { name: /创\s*建/ }).click();
+  await page.waitForURL(/\/factors\?factor=[^&]+/, { timeout: 30_000 });
+  factorId = new URL(page.url()).searchParams.get('factor');
+  if (!factorId) {
+    throw new Error(`custom factor id missing from ${page.url()}`);
+  }
   await page.getByText('自定义时间序列定义，创建后研究协议不可更改').waitFor();
+  await page.locator('.jx-factor-keyValue', { hasText: 'e2e_etf_trend' }).waitFor();
   await page.locator('.jx-factor-code .monaco-editor').waitFor({ timeout: 30_000 });
   await page.getByText('窗口：21 个交易日').waitFor();
   await page.screenshot({
@@ -57,10 +66,6 @@ try {
   await researchCard.getByText('纯探索', { exact: true }).click();
   await researchCard.getByRole('button', { name: '冻结研究卡并运行' }).click();
   await page.waitForURL(/\/factors\?factor=[^&]+&report=/, { timeout: 30_000 });
-  factorId = new URL(page.url()).searchParams.get('factor');
-  if (!factorId) {
-    throw new Error(`custom factor id missing from ${page.url()}`);
-  }
 
   await page.getByText('逐资产信号表现', { exact: true }).waitFor({ timeout: 180_000 });
   await page.getByText('国债 ETF', { exact: true }).waitFor();
@@ -73,20 +78,12 @@ try {
     throw new Error(`custom Definition V2 was not persisted: ${JSON.stringify(resource)}`);
   }
 
-  const finalized = await api(`/api/app/factors/custom/${factorId}/finalize-key`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ key: 'e2e_etf_trend' }),
-  });
-  if (!finalized.ok || finalized.body.strategyKey !== 'custom:e2e_etf_trend') {
-    throw new Error(`custom factor key finalization failed: ${JSON.stringify(finalized)}`);
-  }
-
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.getByText('自定义时间序列定义，创建后研究协议不可更改').waitFor();
   await page.getByText('国债 ETF', { exact: true }).waitFor({ timeout: 30_000 });
+  await page.locator('.jx-factor-code .monaco-editor').waitFor({ timeout: 30_000 });
   await page.getByRole('tab', { name: '因子库' }).click();
-  await page.getByRole('button', { name: /未命名因子 时间序列/ }).waitFor();
+  await page.getByRole('button', { name: /E2E ETF 趋势信号 时间序列/ }).waitFor();
   await page.locator('.jx-factor-result').evaluate((element) => {
     element.scrollTop = 520;
   });
@@ -95,33 +92,31 @@ try {
     fullPage: true,
   });
 
-  await page.getByTestId('factor-release-publish').click();
-  const releaseModal = page.getByTestId('factor-release-modal');
-  await releaseModal.getByRole('button', { name: /发\s*布/ }).click();
-  await page.getByText('e2e_etf_trend@v1', { exact: true }).waitFor({ timeout: 30_000 });
-  const releases = await api('/api/app/factors/releases');
-  const release = releases.body.find(
-    (candidate) =>
-      candidate.sourceId === factorId &&
-      candidate.releaseKey === 'e2e_etf_trend' &&
-      candidate.lifecycle === 'active',
-  );
-  if (!release || release.methodology?.analysisKind !== 'time_series') {
-    throw new Error(`custom time-series release missing: ${JSON.stringify(releases)}`);
+  await page.getByTestId('factor-publish').click();
+  const publishModal = page.locator('.ant-modal-confirm:visible');
+  await publishModal.getByRole('button', { name: /发\s*布/ }).click();
+  await page.getByText('已发布', { exact: true }).waitFor({ timeout: 30_000 });
+  const published = await api(`/api/app/factors/custom/${factorId}`);
+  if (
+    !published.ok ||
+    published.body.status !== 'published' ||
+    published.body.strategyKey !== 'e2e_etf_trend' ||
+    published.body.approvedReportId !== new URL(page.url()).searchParams.get('report')
+  ) {
+    throw new Error(`custom time-series publication missing: ${JSON.stringify(published)}`);
   }
-  releaseId = release.id;
 
-  await page.getByTestId('factor-release-use-in-lab').click();
-  await page.waitForURL(/\/lab\?new=1&factorRelease=/, { timeout: 30_000 });
+  await page.getByTestId('factor-use-in-lab').click();
+  await page.waitForURL(/\/lab\?new=1&factorKey=e2e_etf_trend/, { timeout: 30_000 });
   const prompt = page.locator('.jx-lab-heroInput');
   await prompt.waitFor({ timeout: 30_000 });
   await page.waitForFunction(
-    (id) => document.querySelector('.jx-lab-heroInput')?.value.includes(`release:${id}`),
-    releaseId,
+    (key) => document.querySelector('.jx-lab-heroInput')?.value.includes(key),
+    'e2e_etf_trend',
     { timeout: 30_000 },
   );
 
-  const factorRef = `release:${releaseId}`;
+  const factorRef = 'e2e_etf_trend';
   const strategyCode = [
     `const etfs = ${JSON.stringify(ASSETS)};`,
     "let last = '';",
@@ -189,17 +184,18 @@ try {
     },
     { strategyId, jobId: backtest.body.jobId },
   );
-  const dependency = completed.lastResult?.factorReleases?.[0];
+  const dependency = completed.lastResult?.factorDependencies?.[0];
   if (
     completed.lastResult?.trades <= 0 ||
-    dependency?.releaseId !== releaseId ||
-    dependency?.codeHash !== release.codeHash
+    dependency?.factorId !== factorId ||
+    dependency?.key !== factorRef ||
+    dependency?.codeHash !== published.body.codeHash
   ) {
     throw new Error(`custom time-series lineage failed: ${JSON.stringify(completed)}`);
   }
   await page.goto(`${BASE}/lab?id=${strategyId}`, { waitUntil: 'domcontentloaded' });
-  await page.getByTestId('strategy-factor-releases').waitFor({ timeout: 30_000 });
-  await page.getByText('e2e_etf_trend@v1', { exact: false }).waitFor();
+  await page.getByTestId('strategy-factor-dependencies').waitFor({ timeout: 30_000 });
+  await page.getByText('e2e_etf_trend', { exact: false }).waitFor();
   await page.locator('.jx-lab-chart canvas').waitFor({ timeout: 30_000 });
   await page.screenshot({
     path: `${SHOTS}10c-custom-time-series-strategy.png`,
@@ -210,17 +206,14 @@ try {
     throw new Error(`browser errors: ${browserErrors.join('\n')}`);
   }
   console.log(
-    `[custom-time-series-factor-e2e] factor=${factorId} release=${releaseId} strategy=${strategyId} observations=7227 trades=${completed.lastResult.trades} screenshots=3`,
+    `[custom-time-series-factor-e2e] factor=${factorId} key=e2e_etf_trend strategy=${strategyId} observations=7227 trades=${completed.lastResult.trades} screenshots=3`,
   );
 } finally {
   if (strategyId) {
     await api(`/api/app/strategies/${strategyId}`, { method: 'DELETE' }).catch(() => {});
   }
-  if (releaseId) {
-    await api(`/api/app/factors/releases/${releaseId}/retire`, { method: 'POST' }).catch(() => {});
-  }
   if (factorId) {
-    await api(`/api/app/factors/custom/${factorId}`, { method: 'DELETE' }).catch(() => {});
+    await api(`/api/app/factors/custom/${factorId}/archive`, { method: 'POST' }).catch(() => {});
   }
   await browser.close();
 }

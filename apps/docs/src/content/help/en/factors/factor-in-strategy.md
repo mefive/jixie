@@ -1,22 +1,22 @@
 # Use a custom factor in a strategy
 
-After a custom factor has completed an analysis and received a locked strategy key, a backtest can read its values, rank stocks, and select holdings.
+After a custom factor has completed an analysis and is published with an approved report, a backtest can read its values, rank stocks, and select holdings.
 
-A factor composite is a research object and cannot be referenced as one strategy key. To use similar logic in a strategy, explicitly declare the component factors and combination rule in strategy code so weights, directions, and missing-value handling remain reviewable.
+A factor composite is a research object and cannot be referenced as one Factor key. To use similar logic in a strategy, explicitly declare the component factors and combination rule in strategy code so weights, directions, and missing-value handling remain reviewable.
 
 ## Before you start
 
 Confirm that:
 
 - The custom factor has completed an analysis successfully.
-- Its page shows a complete locked strategy key.
+- The Factor is published and its page shows the immutable key.
 - You know what high and low factor values mean.
 - An editable strategy is available in the Backtest workspace.
 
 This article uses:
 
 ```text
-custom:help_book_to_market
+help_book_to_market
 ```
 
 Replace it with the complete key displayed on your factor page.
@@ -35,7 +35,7 @@ let last = '';
 
 export default defineStrategy({
   name: 'Book-to-market factor example',
-  factors: ['custom:help_book_to_market'],
+  factors: ['help_book_to_market'],
 
   async onBar(ctx) {
     if (ctx.period('monthly') === last) return;
@@ -46,7 +46,7 @@ export default defineStrategy({
 
     const picks = universe
       .rankBy((_bar, code) =>
-        ctx.factor('custom:help_book_to_market', code),
+        ctx.factor('help_book_to_market', code),
       )
       .top(10);
 
@@ -72,7 +72,7 @@ The numbered areas are:
 
 ![Reference a custom factor in the declaration and selection logic](/docs/images/help/zh/factors/factor-strategy-reference-01.png)
 
-The complete key, including the `custom:` prefix, must match in both places.
+The raw key must match in both places. When you type `ctx.factor(`, the editor suggests available published Factors and inserts their raw keys.
 
 ## Verify the factor in the editor
 
@@ -119,7 +119,7 @@ Trades show that the strategy read the factor and selected stocks. They do not e
 
 ### The factor cannot be found
 
-Confirm that the key is locked and that the complete `custom:` prefix was copied. Do not use the factor's display name as the code key.
+Confirm that the Factor is published and use the raw key shown on its page. Do not substitute the display name.
 
 ### The factor is declared but cannot be read
 
@@ -133,13 +133,13 @@ Confirm that the same complete key also appears in the top-level `factors` array
 
 Inspect the log first. Then check that the date range has enough valid factor values, the universe is not empty, and `top` or other filters are not too restrictive.
 
-### Does editing factor code require a new strategy key?
+### How do I edit Factor code after publication?
 
-No. The locked key remains unchanged. Run a new factor analysis and backtest so that the new results correspond to the new code.
+A published Factor is immutable. Use **Copy** to create an independent draft, analyze and publish it, then explicitly replace the key in strategy code.
 
 ## Related articles
 
-- [Confirm the strategy key](/docs/help/factors/strategy-key)
+- [Set a Factor key](/docs/help/factors/strategy-key)
 - [Set backtest run parameters](/docs/help/backtesting/run-settings)
 - [Read the backtest result summary](/docs/help/backtesting/results-overview)
 - [Formal holdout and out-of-sample results](/docs/help/factors/holdout-results)

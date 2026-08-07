@@ -184,8 +184,8 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 页面操作 | 复制预设因子；编辑副本；新建自定义因子；创建和编辑多因子合成；运行并阅读合成报告；确认并锁定策略标识；从策略编辑器查看因子实现；在策略中引用单因子 |
-| 使用手册文章 | 复制预设因子；自定义因子；创建多因子合成；阅读多因子报告；策略标识；在策略中使用因子 |
+| 页面操作 | 复制预设因子；编辑副本；新建自定义因子并设置唯一 key；创建和编辑多因子合成；运行并阅读合成报告；发布 Factor；从策略编辑器查看因子实现；在策略中引用单因子 |
+| 使用手册文章 | 复制预设因子；自定义因子；创建多因子合成；阅读多因子报告；Factor key；在策略中使用因子 |
 | 当前 E2E | `screener.mjs`、`sdk-hover.mjs`、`factor-strategy-history.mjs`、`help-content-factor-custom.mjs`、`help-content-factor-composite.mjs` |
 | 当前截图 | 自定义因子正式截图 10 张；新增 `factor-composite-definition-01.png`、`factor-composite-report-01.png`；验收目录中的 `7c-preset-readonly.png`、`7c1-factor-key.png`、`4c1-factor-hover.png`、`7r-sdk-hover.png` |
 | 本轮结果 | 自定义因子的复制、编辑、真实分析、标识锁定和策略引用已验证；阶段 I 新增等权多因子合成，使用盈利收益率和 ROE 完成真实 V4 分析，并说明共同股票池、标准化、方向和当前不能直接作为策略键引用的边界 |
@@ -316,7 +316,7 @@
 | `help-content-factor-basics.mjs` | 通过 | 真实盈利收益率分析和 6 张阶段 F 入门标注截图通过 |
 | `help-content-factor-metrics.mjs` | 通过 | 原始及市值加行业中性化分析和 8 张阶段 F 指标标注截图通过 |
 | `help-content-factor-discipline.mjs` | 通过 | 假设探索、正式保留段封存揭示、相关性计算和 10 张阶段 F 研究纪律标注截图通过 |
-| `help-content-factor-custom.mjs` | 通过 | 复制、新建、真实分析、标识锁定、策略引用、编辑器悬停、真实回测和 10 张标注截图通过 |
+| `help-content-factor-custom.mjs` | 通过 | 复制、新建、真实分析、Factor 发布、raw key 策略引用、编辑器悬停、真实回测和标注截图通过 |
 | `computed-chart.mjs` | 通过 | 310 行计算结果和图表卡片通过 |
 | `sdk-hover.mjs` | 通过 | 修正泛型显示相关的过时断言后通过 |
 | `factor-strategy-history.mjs` | 通过 | 2026-07-30 真实数据库重跑通过：窗口历史自定义因子进入隔离 worker，回测完成并产生 28 笔交易 |

@@ -8,7 +8,7 @@
 // Factors are a strategy-side concern: valuation signals read bar() (daily_basic) directly; price-window
 // signals (mom/rev/vol) compute on the fly from the bar series; moneyflow opts into a preloaded column.
 
-import type { FactorReleaseDependency, Locale } from '@jixie/shared';
+import type { FactorDependency, Locale } from '@jixie/shared';
 import type { EngineDataPort } from './data-port.js';
 import type { CustomFactorModule } from './custom-factor.js';
 
@@ -278,7 +278,7 @@ export interface EngineConfig {
   /** Storage doorway (Phase B1). Defaults to prismaDataPort (the direct lane); tests inject fixture
    * ports; the Phase B2 walled lane injects the isolate bridge. */
   dataPort?: EngineDataPort;
-  /** Custom (defineFactor) factors the strategy references via `factors: ['custom:<key>']` —
+  /** Published defineFactor modules referenced through immutable Factor.key values —
    * host-prepared (ownership-checked, TS→CJS); evaluated in the engine's own world (see
    * custom-factor.ts). A declared custom key with no module here fails the run explicitly. */
   customFactors?: CustomFactorModule[];
@@ -310,7 +310,7 @@ export interface BacktestResult {
   totalSlippage: number;
   cost: CostModel;
   monthly: { month: string; ret: number }[]; // 'YYYYMM' → monthly return
-  factorReleases?: FactorReleaseDependency[];
+  factorDependencies?: FactorDependency[];
 }
 
 export interface PendingCashSignal {

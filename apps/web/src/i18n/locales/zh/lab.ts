@@ -1,10 +1,10 @@
 // Backtest workbench (/lab): the code-first IDE, trade detail, strategy cards. zh is the source-of-truth shape.
 export const zhLab = {
   // New-strategy hero + prompt block
-  factorReleaseStarterPrompt:
-    '请使用已发布因子“{{name}}”（{{key}}@v{{version}}，不可变引用 release:{{id}}）设计一套策略。先说明选股范围、调仓周期、组合构建和风险控制，再生成可回测代码。',
-  factorReleaseTimeSeriesStarterPrompt:
-    '请使用已发布的 ETF 时间序列信号“{{name}}”（{{key}}@v{{version}}，不可变引用 release:{{id}}）设计轮动策略。研究资产为 {{assets}}：把它们放入显式 watch 列表，在 factors 中声明该 release，用 ctx.factor(release, ETF) 读取每只 ETF 当日分数，过滤 null 后排序。使用 ctx.period 做月度调仓，选最强 2 只等权，不足 2 只时空仓。这是研究回测，不要尝试部署。',
+  factorStarterPrompt:
+    '请使用已发布因子“{{name}}”（唯一 key：{{key}}）设计一套策略。先说明选股范围、调仓周期、组合构建和风险控制，再生成可回测代码；在 factors 和 ctx.factor 中都直接使用该 key。',
+  factorTimeSeriesStarterPrompt:
+    '请使用已发布的 ETF 时间序列信号“{{name}}”（唯一 key：{{key}}）设计轮动策略。研究资产为 {{assets}}：把它们放入显式 watch 列表，在 factors 中声明该 key，用 ctx.factor(key, ETF) 读取每只 ETF 当日分数，过滤 null 后排序。使用 ctx.period 做月度调仓，选最强 2 只等权，不足 2 只时空仓。这是研究回测，不要尝试部署。',
   heroTitle: '新建策略',
   heroHint: '用一句话描述你的策略，AI 写成代码，再自己调参',
   newModalHint: '用一句话描述你的新策略，AI 写成代码，再自己调参',
@@ -97,14 +97,9 @@ export const zhLab = {
   metricFutureSleeve: '期货账户权益',
   metricFutureMargin: '期货保证金',
   metricNetExposure: '净敞口',
-  factorReleasesTitle: '本次回测的因子发布版本',
-  factorReleasesFrozen: '按 release ID 与代码 hash 冻结',
-  factorReleaseMaturity: {
-    experimental: '实验 · 仅研究',
-    validated: '已验证 · 仅研究',
-    production: '生产',
-  },
-  deploymentFactorReleaseBlocked: '包含非 production 因子发布版本，只能研究回测',
+  factorDependenciesTitle: '本次回测使用的因子',
+  factorDependenciesFrozen: '按 Factor ID 与代码 hash 冻结',
+  deploymentFactorBlocked: '时间序列因子目前只能研究回测',
 
   // Performance charts
   navEquity: '权益',

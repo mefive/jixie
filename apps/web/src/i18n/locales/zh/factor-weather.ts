@@ -2,7 +2,7 @@ export const zhFactorWeather = {
   eyebrow: 'FACTOR OBSERVATORY',
   title: '因子气象',
   subtitle:
-    '按统一月频口径观察预置因子和已定稿自定义因子的实际表现。颜色代表符合预期方向的费后多空收益。',
+    '按统一月频口径观察预置因子和已发布自定义因子的实际表现。颜色代表符合预期方向的费后多空收益。',
   methodology: {
     monthly: '月末调仓',
     neutral: '行业＋市值中性化',
@@ -47,12 +47,12 @@ export const zhFactorWeather = {
     noPeriods: '尚无完整月度观测',
   },
   picker: {
-    title: '钉住一个因子版本',
+    title: '钉住一个已发布因子',
     factor: '因子',
-    factorPlaceholder: '选择预置或已定稿因子',
+    factorPlaceholder: '选择预置或已发布因子',
     direction: '预期方向',
     directionHint: '方向只用于对齐颜色和收益符号，不会修改原始 Rank IC 或因子代码。',
-    draftHint: '草稿因子需要先在因子研究中分配不可变策略标识。',
+    draftHint: '草稿因子需要先在因子研究中选择批准报告并发布。',
     confirm: '钉住并回填',
   },
   unpin: {

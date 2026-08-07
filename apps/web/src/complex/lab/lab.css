@@ -350,35 +350,35 @@
   grid-template-columns: repeat(3, 1fr);
 }
 
-.jx-lab-factorReleases {
+.jx-lab-factorDependencies {
   @apply flex flex-col gap-2 rounded-lg border border-line bg-bg;
   padding: 12px 14px;
 }
 
-.jx-lab-factorReleasesHead {
+.jx-lab-factorDependenciesHead {
   @apply flex flex-wrap items-center justify-between gap-2 text-ink;
   font-size: 12px;
 }
 
-.jx-lab-factorReleasesHead span {
+.jx-lab-factorDependenciesHead span {
   @apply text-muted;
   font-size: 11px;
 }
 
-.jx-lab-factorReleaseList {
+.jx-lab-factorDependencyList {
   @apply flex flex-wrap gap-2;
 }
 
-.jx-lab-factorRelease {
+.jx-lab-factorDependency {
   @apply flex items-center gap-3 rounded border border-line bg-chip px-3 py-2 text-ink;
   font-size: 11px;
 }
 
-.jx-lab-factorRelease > span:first-child {
+.jx-lab-factorDependency > span:first-child {
   @apply flex items-center gap-2;
 }
 
-.jx-lab-factorRelease code {
+.jx-lab-factorDependency code {
   @apply text-muted;
   font-size: 10px;
 }

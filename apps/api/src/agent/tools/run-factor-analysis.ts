@@ -50,11 +50,11 @@ interface FactorResearchContext {
 }
 
 /** Create the custom-factor research tool. It can only freeze an explore report; holdout creation,
- * reveal, factor finalization, and strategy deployment remain explicit user actions outside Agent. */
+ * reveal, Factor publication, and strategy deployment remain explicit user actions outside Agent. */
 export function runFactorAnalysisTool(context: FactorResearchContext): AgentTool {
   return {
     name: 'runFactorAnalysis',
-    description: `Run one disciplined EXPLORE analysis for the current custom factor or a candidate full factor module. You must declare the research card before seeing metrics: mode, hypothesis, expected direction, and primary criterion. Use exploratory mode only when no directional hypothesis exists; exploratory reports are not holdout-eligible. Choose the formal universe explicitly when it matters; use within_industry ranking to test stock selection inside point-in-time SW L1 industries, not as a cosmetic report filter. The end date must not cross the returned holdout boundary. Results are immutable FactorReports. This tool cannot start or reveal holdout, finalize a factor, deploy a strategy, or alter the saved factor code. Normally compare at most two materially different candidates in one turn.`,
+    description: `Run one disciplined EXPLORE analysis for the current custom factor or a candidate full factor module. You must declare the research card before seeing metrics: mode, hypothesis, expected direction, and primary criterion. Use exploratory mode only when no directional hypothesis exists; exploratory reports are not holdout-eligible. Choose the formal universe explicitly when it matters; use within_industry ranking to test stock selection inside point-in-time SW L1 industries, not as a cosmetic report filter. The end date must not cross the returned holdout boundary. Results are immutable FactorReports. This tool cannot start or reveal holdout, publish a Factor, deploy a strategy, or alter the saved factor code. Normally compare at most two materially different candidates in one turn.`,
     parameters: z.toJSONSchema(argsSchema),
     async run(args, runContext) {
       const parsed = argsSchema.safeParse(args);

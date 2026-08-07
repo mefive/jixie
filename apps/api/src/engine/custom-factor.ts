@@ -5,7 +5,7 @@ import type { BarRow } from './types.js';
 
 /**
  * Custom (defineFactor) factors inside the BACKTEST ENGINE (factor-to-strategy.md Step 2): a strategy
- * declares `factors: ['custom:<key>']` and reads today's value via ctx.factor — computed on the fly,
+ * declares a published factor key and reads today's value via ctx.factor — computed on the fly,
  * nothing stored. The host prepares each referenced factor's code (ownership-checked, TS→CJS
  * transformed) and passes it in EngineConfig.customFactors; THIS file evaluates and serves it in
  * whatever world the engine runs in — inside the isolate on the walled lane (DB-origin code stays
@@ -13,11 +13,11 @@ import type { BarRow } from './types.js';
  * wall bundle.
  */
 export interface CustomFactorModule {
-  key: string; // legacy 'custom:<key>' or immutable 'release:<ULID>'
+  key: string; // immutable Factor.key
   js: string; // the factor module, host-transformed TS→CJS
   historyFields?: CustomFactorHistoryField[];
-  /** Omitted means the legacy cross-sectional Factor SDK. Time-series releases carry their
-   * compiler-derived execution contract across the engine wall with the frozen source. */
+  /** Omitted means the cross-sectional Factor SDK. Time-series factors carry their
+   * compiler-derived execution contract across the engine wall. */
   analysisKind?: 'cross_sectional' | 'time_series';
   timeSeries?: TimeSeriesFactorRuntimeMeta;
 }
@@ -143,7 +143,7 @@ const NO_HISTORY_CTX: FactorCtx = {
 const MEMO_CAP = 100_000;
 
 /**
- * Serves ctx.factor('custom:…') reads: per-(factor, date, code) compute with a bounded per-run memo
+ * Serves published-factor reads: per-(factor, date, code) compute with a bounded per-run memo
  * (a monthly rebalance re-reads the same values while ranking — memoizing keeps that O(1)).
  * Windowed factors read the strategy-side bars cache — same "K-line must be loaded" contract as
  * ctx.sma (ensureBars first); without bars the window is short and compute sees [] from history().
@@ -238,7 +238,7 @@ export class CustomFactorRuntime {
   }
 
   /** Execute Factor V2 against adjusted bars ending on the decision date. The host compiler has
-   * already validated the frozen release and attached its contract; this second check and runtime
+   * already validated the frozen Factor dependency and attached its contract; this second check and runtime
    * live inside the engine wall so neither direct nor walled backtests trust report statistics as a
    * trading signal. */
   private computeTimeSeries(

@@ -5,7 +5,7 @@ import type {
   FactorResearchIntentV1,
   FactorResearchMetric,
 } from './factor.js';
-import type { FactorSignalHorizonUnit } from './factor-release.js';
+import type { FactorSignalHorizonUnit } from './factor-dependency.js';
 
 export type FactorObservationFrequency = 'daily' | 'weekly' | 'monthly';
 

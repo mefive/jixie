@@ -56,12 +56,12 @@ const MESSAGES = {
   // —— Factor ——
   factorCodeInvalid: { zh: '因子代码无效', en: 'Invalid factor code' },
   factorKeyInvalid: {
-    zh: '策略标识只能使用小写英文、数字和下划线,且必须以字母开头',
-    en: 'The strategy key may contain only lowercase letters, digits, and underscores, and must start with a letter',
+    zh: 'Factor key 只能使用小写英文、数字和下划线,且必须以字母开头',
+    en: 'The Factor key may contain only lowercase letters, digits, and underscores, and must start with a letter',
   },
   factorKeyUnavailable: {
-    zh: '无法分配唯一的策略标识,请换一个名称',
-    en: 'Could not allocate a unique strategy key; choose another name',
+    zh: 'Factor key 已被占用或与内置 key 冲突,请换一个 key',
+    en: 'The Factor key is already used or reserved by a built-in Factor; choose another key',
   },
   presetFactorReadonlyEdit: {
     zh: '预置因子只读,不能修改;可「复制为自定义」后改副本',
@@ -72,8 +72,8 @@ const MESSAGES = {
     en: 'Preset factors are read-only and cannot be deleted',
   },
   factorWeatherRequiresFinalized: {
-    zh: '只有已定稿并分配策略标识的因子才能加入因子气象',
-    en: 'Only finalized factors with an immutable strategy key can be added to factor weather',
+    zh: '只有已发布的因子才能加入因子气象',
+    en: 'Only published factors can be added to factor weather',
   },
   factorWeatherDirectionRequired: {
     zh: '请先选择因子的预期方向',
@@ -92,7 +92,7 @@ const MESSAGES = {
     en: 'Monthly history is being computed; unpin it after the run finishes',
   },
   pinnedFactorReadonlyEdit: {
-    zh: '该因子已加入因子气象,代码版本已锁定;请复制为新因子后修改',
+    zh: '该因子已加入因子气象,代码快照已锁定;请复制为新因子后修改',
     en: 'This factor is pinned to factor weather and its code version is locked; copy it to a new factor before editing',
   },
   pinnedFactorReadonlyDelete: {
@@ -100,46 +100,25 @@ const MESSAGES = {
     en: 'This factor is pinned to factor weather; unpin it before deleting',
   },
   unknownFactor: { zh: '未知因子 {factor}', en: 'Unknown factor {factor}' },
-  factorReleaseNotFound: { zh: '因子发布版本不存在', en: 'Factor release not found' },
-  factorReleaseKeyRequired: {
-    zh: '首次发布组合因子时需要稳定的发布标识',
-    en: 'A stable release key is required for the first composite release',
+  publishedFactorReadonly: {
+    zh: '已发布或已归档的因子不可修改，请先复制为新草稿',
+    en: 'Published or archived factors are immutable; copy one into a new draft to edit it',
   },
-  factorReleaseKeyUnavailable: {
-    zh: '因子发布标识已被占用',
-    en: 'The factor release key is already in use',
+  publishedFactorCannotDelete: {
+    zh: '已发布的因子不能删除，只能归档',
+    en: 'A published factor cannot be deleted; archive it instead',
   },
-  factorReleaseReportInvalid: {
-    zh: '发布依据必须是同一因子已完成且具有代码快照的研究报告',
-    en: 'The approved report must be a completed report for the same factor with a code snapshot',
+  factorPublishReportInvalid: {
+    zh: '发布依据必须是同一因子已完成且已揭示的研究报告',
+    en: 'The approved report must be a completed and revealed report for the same factor',
   },
-  factorReleaseValidationRequired: {
-    zh: 'validated 版本必须通过已揭示的正式样本外检验',
-    en: 'A validated release must pass a revealed formal holdout test',
+  factorPublishReportOutdated: {
+    zh: '因子代码已在该报告后发生变化，请重新运行研究',
+    en: 'The factor code changed after this report; run the research again before publishing',
   },
-  factorReleaseProductionNotReady: {
-    zh: 'production 发布尚未开放，需先完成运行稳定性与数据新鲜度门槛',
-    en: 'Production releases are not available until operational and data-freshness gates are implemented',
-  },
-  factorReleaseInputDependenciesUnknown: {
-    zh: '无法从冻结因子定义中可靠识别数据依赖，暂不能发布',
-    en: 'Data dependencies cannot be derived reliably from the frozen factor definition',
-  },
-  factorReleaseMetadataMismatch: {
-    zh: '提交的发布元数据与批准报告推导出的元数据不一致',
-    en: 'Submitted release metadata does not match the approved report derivation',
-  },
-  factorReleaseRuntimeUnsupported: {
-    zh: '因子发布 {key} 的运行类型尚未接入策略引擎',
-    en: 'The runtime type of factor release {key} is not available in the strategy engine',
-  },
-  factorTimeSeriesReleaseProductionUnsupported: {
-    zh: '时间序列因子发布 {key} 已可用于研究回测，但尚未开放每日信号部署',
-    en: 'Time-series factor release {key} is available for research backtests but not yet for daily signal deployment',
-  },
-  factorReleaseProductionRequired: {
-    zh: '每日信号只能使用生效中的 production 因子发布版本：{key}',
-    en: 'Daily signals require an active production factor release: {key}',
+  factorTimeSeriesProductionUnsupported: {
+    zh: '时间序列因子 {key} 已可用于研究回测，但尚未开放每日信号部署',
+    en: 'Time-series factor {key} is available for research backtests but not yet for daily signal deployment',
   },
   windowNotComputed: {
     zh: '该窗口尚未计算,请先运行',
@@ -382,8 +361,8 @@ const MESSAGES = {
     en: 'Index {indexCode} has no constituent data on record (cannot restrict to this index)',
   },
   unknownEngineFactor: {
-    zh: '未知因子 {key}(可用:{available},或 custom:<因子标识>)',
-    en: 'Unknown factor {key} (available: {available}, or custom:<factor key>)',
+    zh: '未知因子 {key}(可用:{available},或已发布的因子 key)',
+    en: 'Unknown factor {key} (available: {available}, or a published factor key)',
   },
   customFactorMissing: {
     zh: '自定义因子不存在或已删除:{keys}(只能引用自己的因子)',

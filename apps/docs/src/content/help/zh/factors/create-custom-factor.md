@@ -22,12 +22,13 @@ $$
 
 1. 打开顶部的“因子研究”。
 2. 点击左侧的“新建”。
-3. 在左下方输入计算要求，或者直接点击中间代码编辑器。
+3. 选择研究方式，填写显示名称和创建后不可修改的唯一 key。
+4. 确认创建后，在左下方输入计算要求，或者直接点击中间代码编辑器。
 
 下图中的标记分别是：
 
 1. “新建”按钮。
-2. 当前尚未命名的新因子。
+2. 已创建并自动保存的新因子。
 3. 给 Agent 输入要求的位置。
 4. 因子代码编辑器。
 5. “运行分析”按钮。
@@ -85,7 +86,7 @@ export default defineFactor({
 4. 点击“冻结研究卡并运行”。
 5. 等待右侧出现研究口径、分组收益和指标。
 
-提交分析时，页面会使用并保存当前代码。分析完成后刷新页面，名称、代码和报告仍然存在。
+Factor 在新建确认时就已持久化，草稿编辑会自动保存。提交分析前还会等待当前代码保存完成；分析结束后刷新页面，名称、key、代码和报告仍然存在。
 
 也可以在对话中要求 Agent 为一个明确候选运行探索分析。它会创建同样的不可变报告，但不能启动或揭示正式保留段。具体操作见[让因子 Agent 运行探索分析](/docs/help/factors/agent-explore-analysis)。
 
@@ -136,5 +137,5 @@ export default defineFactor({
 
 - [设置分析范围和样本处理](/docs/help/factors/analysis-settings)
 - [查看第一份因子分析结果](/docs/help/factors/results-overview)
-- [确认策略标识](/docs/help/factors/strategy-key)
+- [设置 Factor key](/docs/help/factors/strategy-key)
 - [让因子 Agent 运行探索分析](/docs/help/factors/agent-explore-analysis)

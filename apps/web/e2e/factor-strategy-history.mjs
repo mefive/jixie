@@ -29,14 +29,16 @@ try {
   await json('/api/auth/dev/login', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ email: 'e2e@test.com' }),
+    body: JSON.stringify({ email: `e2e-factor-history-${Date.now()}@test.com` }),
   });
 
   const factor = await json('/api/app/factors/custom', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
+      key: 'e2e_turnover_history',
       name: 'e2e换手率历史',
+      analysisKind: 'cross_sectional',
       code: [
         'export default defineFactor({',
         '  name: "e2e换手率历史",',
@@ -52,12 +54,66 @@ try {
   });
   factorId = factor.id;
 
-  const finalized = await json(`/api/app/factors/custom/${factorId}/finalize-key`, {
+  const reportRun = await json('/api/app/factor/analysis/run', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ key: 'e2e_turnover_history' }),
+    body: JSON.stringify({
+      factor: factorId,
+      spec: {
+        version: 5,
+        freq: 'month',
+        start: '20240101',
+        end: '20240630',
+        neutral: 'none',
+        universe: {
+          minimumListingDays: 365,
+          liquidityDropFraction: 0.25,
+          minimumCandidates: 100,
+          excludeRiskWarnings: true,
+          excludePendingDelisting: true,
+        },
+        missing: { minimumWindowCoverage: 2 / 3 },
+        outliers: {
+          factorExposure: { method: 'winsor', tailFraction: 0.01, madThreshold: 5 },
+          forwardReturn: { method: 'winsor', tailFraction: 0.01, madThreshold: 5 },
+        },
+        costs: {
+          commissionPerSide: 0.00025,
+          stampDutySellSide: 0.0005,
+          slippagePerSide: 0.001,
+        },
+        evaluationScope: {
+          version: 1,
+          universe: { kind: 'market', market: 'cn_a' },
+          membership: 'point_in_time',
+          rankingScope: 'global',
+          diagnostics: [],
+        },
+      },
+      parentReportId: null,
+      researchIntent: { version: 1, mode: 'exploratory', expectedDirection: 'unknown' },
+    }),
   });
-  const factorKey = finalized.strategyKey;
+  let report = null;
+  for (let attempt = 0; attempt < 180; attempt++) {
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    report = await json(`/api/app/factor/reports/${reportRun.reportId}`);
+    if (report.status === 'done') {
+      break;
+    }
+    if (report.status === 'error' || report.status === 'stale') {
+      throw new Error(`factor analysis ${report.status}: ${report.error ?? ''}`);
+    }
+  }
+  if (report?.status !== 'done') {
+    throw new Error('factor analysis timed out');
+  }
+  await json(`/api/app/factors/custom/${factorId}/publish`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ approvedReportId: report.id }),
+  });
+  const factorKey = factor.key;
   const strategyCode = [
     "let last = '';",
     'export default defineStrategy({',
@@ -135,7 +191,7 @@ try {
   if (factorId) {
     await page
       .evaluate(async (id) => {
-        await fetch(`/api/app/factors/custom/${id}`, { method: 'DELETE' });
+        await fetch(`/api/app/factors/custom/${id}/archive`, { method: 'POST' });
       }, factorId)
       .catch(() => {});
   }

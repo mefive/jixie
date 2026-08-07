@@ -560,7 +560,6 @@ model User {
   agentConversations  AgentConversation[]
   factorComposites    FactorComposite[]
   factorWeatherPins   FactorWeatherPin[]
-  factorReleases      FactorRelease[]
 }
 
 /// Login session. id = session token (stored in sid cookie). 30-day TTL; expiry enforced by filtering on expiresAt at query time.
@@ -620,8 +619,8 @@ model FactorReport {
   createdAt          DateTime  @default(now())
   computedAt         DateTime?
 
-  job      Job?
-  releases FactorRelease[]
+  job            Job?
+  approvedFactor Factor?
 
   @@index([userId, factor, createdAt])
   @@index([userId, variantKey])
@@ -709,23 +708,23 @@ model Strategy {
 /// One immutable strategy version promoted from research into daily operation. Editing Strategy.config
 /// never mutates an active deployment; a changed code/config/cost snapshot requires an explicit redeploy.
 model StrategyDeployment {
-  id               String                    @id // ULID
-  userId           String
-  user             User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  strategyId       String
-  strategy         Strategy                  @relation(fields: [strategyId], references: [id], onDelete: Cascade)
-  strategyName     String
-  status           String // 'active' | 'paused'
-  config           Json // frozen BacktestConfig
-  factorReleases   Json? // frozen FactorReleaseDependency[] used by this deployment
-  codeHash         String
-  locale           String // 'zh' | 'en', frozen for scheduler-generated notifications
-  deployedAt       DateTime                  @default(now())
-  stoppedAt        DateTime?
-  signalRuns       SignalRun[]
-  accountSnapshots StrategyAccountSnapshot[]
-  createdAt        DateTime                  @default(now())
-  updatedAt        DateTime                  @updatedAt
+  id                 String                    @id // ULID
+  userId             String
+  user               User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  strategyId         String
+  strategy           Strategy                  @relation(fields: [strategyId], references: [id], onDelete: Cascade)
+  strategyName       String
+  status             String // 'active' | 'paused'
+  config             Json // frozen BacktestConfig
+  factorDependencies Json? // frozen FactorDependency[] used by this deployment
+  codeHash           String
+  locale             String // 'zh' | 'en', frozen for scheduler-generated notifications
+  deployedAt         DateTime                  @default(now())
+  stoppedAt          DateTime?
+  signalRuns         SignalRun[]
+  accountSnapshots   StrategyAccountSnapshot[]
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
 
   @@index([userId, status])
   @@index([strategyId, status])
@@ -734,29 +733,29 @@ model StrategyDeployment {
 /// One durable next-open signal set generated from a deployment and one market close. Retries reuse
 /// the same row, while every computation attempt has its own Job for logs and stale recovery.
 model SignalRun {
-  id                String             @id // ULID
-  userId            String
-  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  deploymentId      String
-  deployment        StrategyDeployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
-  strategyId        String
-  tradeDate         String // signal is based on this market close (YYYYMMDD)
-  execDate          String // intended next open (YYYYMMDD)
-  status            String // 'running' | 'done' | 'error' | 'stale'
-  factorReleases    Json? // deployment release dependencies copied when this run is created
-  factorInputs      Json? // FactorInputSummary[] consumed on the final decision bar
-  dataCutoff        String?
-  modelEquity       Float?
-  modelCash         Float?
-  modelPositions    Json? // ModelPositionSnapshot[] at the signal close; seeds forward account tracking
-  signals           Json? // SignalItem[]
-  error             String?
-  notifiedAt        DateTime?
-  notificationError String?
-  jobs              Job[]
-  executions        SignalExecution[]
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
+  id                 String             @id // ULID
+  userId             String
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deploymentId       String
+  deployment         StrategyDeployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
+  strategyId         String
+  tradeDate          String // signal is based on this market close (YYYYMMDD)
+  execDate           String // intended next open (YYYYMMDD)
+  status             String // 'running' | 'done' | 'error' | 'stale'
+  factorDependencies Json? // deployment factor dependencies copied when this run is created
+  factorInputs       Json? // FactorInputSummary[] consumed on the final decision bar
+  dataCutoff         String?
+  modelEquity        Float?
+  modelCash          Float?
+  modelPositions     Json? // ModelPositionSnapshot[] at the signal close; seeds forward account tracking
+  signals            Json? // SignalItem[]
+  error              String?
+  notifiedAt         DateTime?
+  notificationError  String?
+  jobs               Job[]
+  executions         SignalExecution[]
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
 
   @@unique([deploymentId, tradeDate])
   @@index([userId, tradeDate])
@@ -858,36 +857,38 @@ model StrategyScanReport {
 ///     factor/builtin-factors.ts (git is the source of truth), read-only via the routes.
 /// Plain userId (no relation), like FactorReport.
 model Factor {
-  id            String              @id // ULID, or a preset slug for builtin rows
-  userId        String
-  key           String? // immutable strategy handle after finalization; null while a user factor is a draft
-  keyCandidate  String? // LLM proposal, editable by the user until key is finalized
-  name          String // canonical Chinese display name, refreshed from the factor context
-  analysisKind  String              @default("cross_sectional") // immutable definition protocol
-  descriptionZh String              @default("")
-  descriptionEn String              @default("")
-  code          String // defineFactor TS source
-  messages      Json? // ChatMessage[] — the Agent-panel conversation that authored this factor (per-factor)
-  conversations AgentConversation[]
-  weatherPins   FactorWeatherPin[]
-  releases      FactorRelease[]
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
+  id               String              @id // ULID, or a preset slug for builtin rows
+  userId           String
+  key              String // immutable strategy handle, unique per owner
+  name             String // localized display name; not a program identity
+  analysisKind     String              @default("cross_sectional") // immutable definition protocol
+  descriptionZh    String              @default("")
+  descriptionEn    String              @default("")
+  code             String // defineFactor TS source
+  messages         Json? // ChatMessage[] — the Agent-panel conversation that authored this factor (per-factor)
+  status           String              @default("draft") // 'draft' | 'published' | 'archived'
+  approvedReportId String?             @unique
+  approvedReport   FactorReport?       @relation(fields: [approvedReportId], references: [id], onDelete: Restrict)
+  codeHash         String?
+  publishedAt      DateTime?
+  archivedAt       DateTime?
+  conversations    AgentConversation[]
+  weatherPins      FactorWeatherPin[]
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
 
   @@unique([userId, key]) // user-factor keys are unique per owner; builtin keys are additionally reserved in the allocator
   @@index([userId, updatedAt]) // list a user's factors, newest first
 }
 
-/// One user-pinned immutable factor version monitored under the canonical monthly weather methodology.
-/// The source snapshot and direction are frozen; editing requires a fork instead of mutating history.
+/// One user-pinned immutable Factor snapshot monitored under the canonical monthly weather methodology.
+/// The source snapshot and direction are frozen; later Factor copies do not mutate its history.
 model FactorWeatherPin {
   id              String               @id
   userId          String
   user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   factorId        String
   factor          Factor               @relation(fields: [factorId], references: [id], onDelete: Restrict)
-  releaseId       String?
-  release         FactorRelease?       @relation(fields: [releaseId], references: [id], onDelete: SetNull)
   factorName      String
   builtin         Boolean
   direction       String // 'positive' | 'negative'
@@ -902,7 +903,6 @@ model FactorWeatherPin {
   updatedAt       DateTime             @updatedAt
 
   @@unique([userId, factorId])
-  @@index([releaseId])
   @@index([status, updatedAt])
 }
 
@@ -930,51 +930,15 @@ model FactorWeatherPoint {
 /// A reusable multi-factor research definition. Reports freeze the full definition in specJson, so
 /// editing or deleting this row never changes historical results.
 model FactorComposite {
-  id         String          @id // ULID
+  id         String   @id // ULID
   userId     String
-  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   name       String
   definition Json // FactorCompositeDefinitionV1
-  releases   FactorRelease[]
-  createdAt  DateTime        @default(now())
-  updatedAt  DateTime        @updatedAt
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@index([userId, updatedAt])
-}
-
-/// An explicitly published, immutable factor version. Editable source rows may be deleted without
-/// invalidating the frozen definition and methodology that historical strategies referenced.
-model FactorRelease {
-  id                  String             @id
-  userId              String
-  user                User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  factorId            String?
-  factor              Factor?            @relation(fields: [factorId], references: [id], onDelete: SetNull)
-  compositeId         String?
-  composite           FactorComposite?   @relation(fields: [compositeId], references: [id], onDelete: SetNull)
-  sourceRef           String
-  releaseKey          String
-  version             Int
-  sourceKind          String // 'single' | 'composite'
-  sourceName          String
-  inputDomains        Json
-  targetAssetClasses  Json
-  outputScope         String // 'asset' | 'global'
-  codeSnapshot        String
-  codeHash            String
-  approvedReportId    String
-  approvedReport      FactorReport       @relation(fields: [approvedReportId], references: [id], onDelete: Restrict)
-  methodologySnapshot Json
-  maturity            String // 'experimental' | 'validated' | 'production'
-  lifecycle           String             @default("active") // 'active' | 'retired'
-  weatherPins         FactorWeatherPin[]
-  createdAt           DateTime           @default(now())
-
-  @@unique([userId, releaseKey, version])
-  @@index([userId, lifecycle, createdAt])
-  @@index([factorId, createdAt])
-  @@index([compositeId, createdAt])
-  @@index([approvedReportId])
 }
 
 /// An agent conversation on the screen page (a "session card" on the card wall). Strategy/factor

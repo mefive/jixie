@@ -14,6 +14,7 @@ import { chromium } from 'playwright';
 const BASE = process.env.E2E_BASE ?? 'http://localhost:5173';
 // Acceptance screenshots — gitignored; the user reviews these after each frontend change.
 const SHOTS = new URL('../acceptance/', import.meta.url).pathname;
+const CLOSED_LOOP_KEY = `e2e_loop_${String(Date.now()).slice(-10)}`;
 mkdirSync(SHOTS, { recursive: true });
 
 const log = (...a) => console.log('[e2e]', ...a);
@@ -336,30 +337,8 @@ try {
       await fetch(`/api/app/strategies/${it.id}`, { method: 'DELETE' });
     }
 
-    const factorResponse = await fetch('/api/app/factors/custom', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        name: 'e2e编辑器因子',
-        code: 'export default defineFactor({ name: "e2e editor factor", compute: (bar) => bar.peTtm });',
-      }),
-    });
-    const factor = await factorResponse.json();
-    if (!factorResponse.ok) {
-      throw new Error(`factor seed failed: ${JSON.stringify(factor)}`);
-    }
-
-    const keyResponse = await fetch(`/api/app/factors/custom/${factor.id}/finalize-key`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ key: 'e2e_editor_factor' }),
-    });
-    const finalized = await keyResponse.json();
-    if (!keyResponse.ok) {
-      throw new Error(`factor key finalization failed: ${JSON.stringify(finalized)}`);
-    }
-
-    const factorKey = finalized.strategyKey;
+    const factor = { id: 'ep', key: 'ep' };
+    const factorKey = factor.key;
     const code = [
       "let last = '';",
       'export default defineStrategy({',
@@ -419,13 +398,13 @@ try {
   await page.screenshot({ path: `${SHOTS}4c-code-editor.png` });
   log('shot 4c: strategy code editor (Monaco)');
 
-  // A custom factor literal carries catalog-backed navigation and hover metadata in Monaco.
+  // A published factor literal carries catalog-backed navigation and hover metadata in Monaco.
   const factorLiteral = page
     .locator('.jx-lab-code .view-line span')
     .filter({ hasText: seeded.factorKey })
     .first();
   await factorLiteral.hover();
-  const factorHover = page.locator('.monaco-hover', { hasText: 'e2e编辑器因子' });
+  const factorHover = page.locator('.monaco-hover', { hasText: '盈利收益率' });
   await factorHover.waitFor({ timeout: 10000 });
   const factorImplementationLink = factorHover.getByText('查看因子实现', { exact: true });
   const factorHref = await factorImplementationLink.getAttribute('data-href');
@@ -433,7 +412,7 @@ try {
     throw new Error(`factor hover link has unexpected target: ${factorHref}`);
   }
   await page.screenshot({ path: `${SHOTS}4c1-factor-hover.png` });
-  log('shot 4c1: custom factor hover with implementation link');
+  log('shot 4c1: published Factor hover with implementation link');
 
   const [factorPage] = await Promise.all([
     page.context().waitForEvent('page'),
@@ -597,55 +576,41 @@ try {
   await page.locator('.jx-factor-libItem', { hasText: '盈利收益率' }).click();
 
   // 7a. Presets are seeded READ-ONLY code rows now: the middle editor shows the code under a lock
-  //     bar with 复制为自定义 (fork). Verify the bar, fork, land on an editable custom copy, delete it.
+  //     bar with 复制为自定义. Verify the bar, copy, land on an editable draft with an immutable key.
   await page.locator('.jx-factor-presetBar').waitFor({ timeout: 10000 });
   await page.locator('.jx-factor-code .monaco-editor').waitFor({ timeout: 20000 });
   await page.screenshot({ path: `${SHOTS}7c-preset-readonly.png` });
-  log('shot 7c: preset factor readonly code + fork bar');
+  log('shot 7c: preset factor readonly code + copy action');
   await page.getByRole('button', { name: '复制为自定义' }).click();
   await page.waitForFunction(() => !document.querySelector('.jx-factor-presetBar'), {
     timeout: 15000,
   });
-  const forkedName = ((await page.locator('.jx-factor-agentNameText').textContent()) ?? '').trim();
-  if (!forkedName.includes('副本')) {
-    throw new Error(`fork 后未切到副本因子: ${forkedName}`);
+  const copiedName = ((await page.locator('.jx-factor-agentNameText').textContent()) ?? '').trim();
+  if (!copiedName.includes('v2')) {
+    throw new Error(`复制后未切到 v2 草稿: ${copiedName}`);
   }
-  log('preset forked into editable copy:', forkedName);
-  const keyInput = page.locator('.jx-factor-keyInput input');
-  await keyInput.fill('e2e_ep_copy');
-  await page.getByRole('button', { name: '确认并锁定' }).click();
-  await page.locator('.ant-modal-confirm-btns .ant-btn-primary').click();
-  await page.locator('.jx-factor-keyValue', { hasText: 'custom:e2e_ep_copy' }).waitFor();
-  await page.locator('.ant-modal-confirm').waitFor({ state: 'hidden' });
-  await page.locator('.ant-message-notice').waitFor({ state: 'hidden', timeout: 5000 });
+  log('preset copied into editable draft:', copiedName);
+  await page.locator('.jx-factor-keyValue', { hasText: 'ep_v2' }).waitFor();
   await page.screenshot({ path: `${SHOTS}7c1-factor-key.png` });
-  log('shot 7c1: custom factor strategy key finalized and locked');
-  const collisionKey = await page.evaluate(async () => {
-    const created = await (
-      await fetch('/api/app/factors/custom', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          name: 'e2e重名因子',
-          code: 'export default defineFactor({ name: "collision", compute: (bar) => bar.pb });',
-        }),
-      })
-    ).json();
-    const finalized = await (
-      await fetch(`/api/app/factors/custom/${created.id}/finalize-key`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ key: 'e2e_ep_copy' }),
-      })
-    ).json();
-    await fetch(`/api/app/factors/custom/${created.id}`, { method: 'DELETE' });
-    return finalized.key;
+  log('shot 7c1: copied Factor received immutable key ep_v2');
+  const collisionRejected = await page.evaluate(async () => {
+    const response = await fetch('/api/app/factors/custom', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        key: 'ep_v2',
+        name: 'e2e重名因子',
+        analysisKind: 'cross_sectional',
+        code: 'export default defineFactor({ name: "collision", compute: (bar) => bar.pb });',
+      }),
+    });
+    return !response.ok;
   });
-  if (collisionKey !== 'e2e_ep_copy_2') {
-    throw new Error(`factor key collision did not append a suffix: ${collisionKey}`);
+  if (!collisionRejected) {
+    throw new Error('duplicate Factor key was not rejected');
   }
   await page.evaluate(async () => {
-    // delete the forked copy (cleanup) — presets themselves must reject deletion server-side.
+    // delete the draft copy (cleanup) — presets themselves must reject deletion server-side.
     const catalog = await (await fetch('/api/app/factors/catalog')).json();
     for (const item of catalog.filter((f) => f.kind === 'custom')) {
       await fetch(`/api/app/factors/custom/${item.key}`, { method: 'DELETE' });
@@ -655,10 +620,10 @@ try {
       throw new Error('预置因子删除竟然成功了 — 只读守卫失效');
     }
   });
-  log('forked copy cleaned up; preset delete correctly rejected');
+  log('draft copy cleaned up; preset delete correctly rejected');
 
   // back to the preset for the analysis shots below — reload first so the catalog drops the deleted
-  // fork (otherwise 「盈利收益率」matches both the preset and the stale 副本 entry).
+  // copy (otherwise 「盈利收益率」matches both the preset and the stale draft entry).
   await page.goto(`${BASE}/factors`, { waitUntil: 'domcontentloaded' });
   await page.locator('.jx-factor-agent').getByRole('tab', { name: '因子库' }).click();
   await page.locator('.jx-factor-libItem').first().waitFor({ timeout: 15000 });
@@ -785,15 +750,17 @@ try {
   await page.screenshot({ path: `${SHOTS}7b-factors-week.png` });
 
   // 8. Factor→strategy closed loop (3.2 acceptance): create a custom factor that needs auxiliary
-  //    turnover history, reference it from a strategy via ctx.factor('custom:<key>'), run a REAL
+  //    turnover history, publish it, reference its raw key from a strategy, run a REAL
   //    short backtest through the walled worker, and confirm the result lands. API-level (the UI
   //    flows above already covered both editors).
-  const loopResult = await page.evaluate(async () => {
+  const loopResult = await page.evaluate(async (closedLoopKey) => {
     const factorRes = await fetch('/api/app/factors/custom', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
+        key: closedLoopKey,
         name: 'e2e闭环换手率',
+        analysisKind: 'cross_sectional',
         code: [
           'export default defineFactor({',
           '  name: "e2e闭环换手率",',
@@ -812,16 +779,75 @@ try {
       return { error: `factor create failed: ${JSON.stringify(factor)}` };
     }
 
-    const keyRes = await fetch(`/api/app/factors/custom/${factor.id}/finalize-key`, {
+    const reportRes = await fetch('/api/app/factor/analysis/run', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ key: 'e2e_closed_loop_turnover' }),
+      body: JSON.stringify({
+        factor: factor.id,
+        spec: {
+          version: 5,
+          freq: 'month',
+          start: '20240101',
+          end: '20240630',
+          neutral: 'none',
+          universe: {
+            minimumListingDays: 365,
+            liquidityDropFraction: 0.25,
+            minimumCandidates: 100,
+            excludeRiskWarnings: true,
+            excludePendingDelisting: true,
+          },
+          missing: { minimumWindowCoverage: 2 / 3 },
+          outliers: {
+            factorExposure: { method: 'winsor', tailFraction: 0.01, madThreshold: 5 },
+            forwardReturn: { method: 'winsor', tailFraction: 0.01, madThreshold: 5 },
+          },
+          costs: {
+            commissionPerSide: 0.00025,
+            stampDutySellSide: 0.0005,
+            slippagePerSide: 0.001,
+          },
+          evaluationScope: {
+            version: 1,
+            universe: { kind: 'market', market: 'cn_a' },
+            membership: 'point_in_time',
+            rankingScope: 'global',
+            diagnostics: [],
+          },
+        },
+        parentReportId: null,
+        researchIntent: { version: 1, mode: 'exploratory', expectedDirection: 'unknown' },
+      }),
     });
-    const finalized = await keyRes.json();
-    if (!keyRes.ok) {
-      return { error: `factor key finalization failed: ${JSON.stringify(finalized)}` };
+    const started = await reportRes.json();
+    if (!reportRes.ok) {
+      return { error: `factor report failed: ${JSON.stringify(started)}` };
     }
-    const factorKey = finalized.strategyKey;
+    let report = null;
+    for (let attempt = 0; attempt < 180; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      report = await (await fetch(`/api/app/factor/reports/${started.reportId}`)).json();
+      if (report.status === 'done') {
+        break;
+      }
+      if (report.status === 'error' || report.status === 'stale') {
+        return { error: `factor report ${report.status}: ${report.error ?? ''}` };
+      }
+    }
+    if (report?.status !== 'done') {
+      return { error: 'factor report timed out' };
+    }
+
+    const publishRes = await fetch(`/api/app/factors/custom/${factor.id}/publish`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ approvedReportId: report.id }),
+    });
+    const published = await publishRes.json();
+    if (!publishRes.ok) {
+      return { error: `factor publication failed: ${JSON.stringify(published)}` };
+    }
+    const factorKey = factor.key;
 
     const code = [
       "let last = '';",
@@ -874,7 +900,7 @@ try {
       const job = await (await fetch(`/api/app/strategy/backtest/${jobId}?since=0`)).json();
       if (job.status === 'done') {
         const saved = await (await fetch(`/api/app/strategies/${strategy.id}`)).json();
-        await fetch(`/api/app/factors/custom/${factor.id}`, { method: 'DELETE' });
+        await fetch(`/api/app/factors/custom/${factor.id}/archive`, { method: 'POST' });
         return { trades: saved.lastResult?.trades ?? 0 };
       }
       if (job.status === 'error' || job.status === 'stale') {
@@ -882,7 +908,7 @@ try {
       }
     }
     return { error: 'backtest timed out' };
-  });
+  }, CLOSED_LOOP_KEY);
   if (loopResult.error || !(loopResult.trades > 0)) {
     throw new Error(`因子→策略闭环失败: ${loopResult.error ?? 'no trades'}`);
   }

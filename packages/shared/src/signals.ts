@@ -1,5 +1,5 @@
 import type { BacktestConfig } from './backtest.js';
-import type { FactorInputSummary, FactorReleaseDependency } from './factor-release.js';
+import type { FactorDependency, FactorInputSummary } from './factor-dependency.js';
 import type { Locale } from './i18n.js';
 import type { TradeDate } from './types.js';
 
@@ -108,7 +108,7 @@ export interface StrategyDeployment {
   strategyName: string;
   status: StrategyDeploymentStatus;
   config: BacktestConfig;
-  factorReleases: FactorReleaseDependency[];
+  factorDependencies: FactorDependency[];
   codeHash: string;
   locale: Locale;
   deployedAt: string;
@@ -128,7 +128,7 @@ export interface SignalRun {
   tradeDate: TradeDate;
   execDate: TradeDate;
   status: SignalRunStatus;
-  factorReleases: FactorReleaseDependency[];
+  factorDependencies: FactorDependency[];
   factorInputs: FactorInputSummary[];
   dataCutoff?: TradeDate | null;
   modelEquity?: number | null;

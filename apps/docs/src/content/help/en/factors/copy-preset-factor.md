@@ -34,7 +34,7 @@ The new copy opens automatically. The numbered areas are:
 
 1. Custom-factor label.
 2. New entry under Custom factors.
-3. Strategy key that has not yet been confirmed.
+3. The suggested Factor key, which cannot change after the copy is created.
 4. Editable factor code.
 
 ![A custom factor immediately after copying a preset](/docs/images/help/zh/factors/factor-custom-copy-02.png)
@@ -43,15 +43,15 @@ At this point:
 
 - The copy and the preset are independent. Editing the copy does not change the preset.
 - The calculation code is copied, but previous reports are not. Run a separate analysis for the copy.
-- The new factor does not yet have a fixed key for strategy code.
+- The new Factor already has an independent fixed key, but it is a draft and cannot be referenced by a strategy until publication.
 - You may change its name and code before running the first analysis.
 
 ## Next steps
 
 1. Edit the code in the middle panel.
 2. Select **Run analysis** to create a report from the current code.
-3. Review the code and report before confirming a strategy key.
-4. A locked strategy key is required only when strategy code needs to use this factor.
+3. Review the code and report, then publish the Factor with the approved report.
+4. After publication, it appears in strategy-editor completion and can no longer be edited.
 
 ## Common questions
 
@@ -70,5 +70,5 @@ Yes. Each copy is independent. Give each one a name that clearly describes the d
 ## Related articles
 
 - [Create and edit a custom factor](/docs/help/factors/create-custom-factor)
-- [Confirm the strategy key](/docs/help/factors/strategy-key)
+- [Set a Factor key](/docs/help/factors/strategy-key)
 - [Run your first preset factor analysis](/docs/help/factors/first-preset-analysis)

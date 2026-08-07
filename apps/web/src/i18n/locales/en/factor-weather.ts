@@ -4,7 +4,7 @@ export const enFactorWeather: typeof zhFactorWeather = {
   eyebrow: 'FACTOR OBSERVATORY',
   title: 'Factor Weather',
   subtitle:
-    'Monitor preset and finalized custom factors under one monthly methodology. Colors show net long-short returns aligned to the expected direction.',
+    'Monitor preset and published custom Factors under one monthly methodology. Colors show net long-short returns aligned to the expected direction.',
   methodology: {
     monthly: 'Month-end rebalance',
     neutral: 'Industry + size neutral',
@@ -50,13 +50,13 @@ export const enFactorWeather: typeof zhFactorWeather = {
     noPeriods: 'No completed monthly observations yet',
   },
   picker: {
-    title: 'Pin a factor version',
+    title: 'Pin a published Factor',
     factor: 'Factor',
-    factorPlaceholder: 'Choose a preset or finalized factor',
+    factorPlaceholder: 'Choose a preset or published Factor',
     direction: 'Expected direction',
     directionHint:
       'Direction only aligns colors and return signs; it never changes the raw Rank IC or factor code.',
-    draftHint: 'Finalize the factor with an immutable strategy key in Factor Research first.',
+    draftHint: 'Publish the Factor with an approved report in Factor Research first.',
     confirm: 'Pin and backfill',
   },
   unpin: {
