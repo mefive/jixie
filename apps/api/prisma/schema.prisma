@@ -167,6 +167,25 @@ model EtfSyncSlice {
   @@id([tsCode, startDate, endDate])
 }
 
+/// Official Ministry of Finance China government-bond yield-curve points. The source publishes
+/// after the domestic market close, so `availableDate` is the next SSE trading day and is the PIT
+/// gate for research. Yields are percentages; term is measured in years.
+model YieldCurvePoint {
+  source        String
+  curveCode     String
+  curveName     String
+  curveType     String
+  tradeDate     String
+  availableDate String
+  termYears     Float
+  yieldPct      Float
+  retrievedAt   DateTime @default(now())
+
+  @@id([source, curveCode, curveType, tradeDate, termYears])
+  @@index([curveCode, availableDate])
+  @@index([tradeDate])
+}
+
 /// Daily price limits (unadjusted up/down limit prices). The engine blocks buys at the up-limit open and sells at
 /// the down-limit open (covers board-specific limits: Main Board ±10 / ST ±5 / ChiNext & STAR ±20 / BSE ±30).
 model StkLimit {

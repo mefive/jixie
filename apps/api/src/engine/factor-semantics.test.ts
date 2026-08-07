@@ -259,6 +259,95 @@ describe('custom (defineFactor) factors inside the engine', () => {
     expect(logged).toContain(`${D[4]}=stock=null`);
   });
 
+  it('executes an official yield-curve Factor using only values available by the decision date', async () => {
+    const factorKey = 'cgb_yield_decline_1';
+    const etfCode = '511010.SH';
+    const rateSpec: FixtureSpec = {
+      dates: D,
+      stocks: [
+        {
+          code: etfCode,
+          assetType: 'etf',
+          bars: D.map((date) => ({ date, open: 100, close: 100 })),
+        },
+      ],
+      yieldCurvePoints: [
+        { availableDate: D[1], termYears: 10, yieldPct: 3 },
+        { availableDate: D[3], termYears: 10, yieldPct: 2.5 },
+      ],
+    };
+    const js = await toCommonJs(
+      `export default defineFactorV2({
+        version: 2,
+        name: 'One-day 10Y yield decline',
+        analysisKind: 'time_series',
+        outputScope: 'asset',
+        frequency: 'daily',
+        inputs: ['rates.cgb.yield.10y'],
+        targetAssetClasses: ['fixed_income'],
+        window: 2,
+        compute(ctx) {
+          const current = ctx.value('rates.cgb.yield.10y');
+          const previous = ctx.lag('rates.cgb.yield.10y', 1);
+          return current != null && previous != null ? (previous - current) * 100 : null;
+        },
+      });`,
+      'yield-curve factor code',
+    );
+    const module = {
+      key: factorKey,
+      js,
+      analysisKind: 'time_series' as const,
+      timeSeries: { window: 2, inputs: ['rates.cgb.yield.10y' as const] },
+    };
+    const seen: Record<string, number | null> = {};
+
+    await runStrategy({
+      start: D[0],
+      end: D[4],
+      initialCash: 100_000,
+      strategy: {
+        name: 'read official yield curve',
+        watch: [etfCode],
+        factors: [factorKey],
+        onBar(ctx) {
+          seen[ctx.date] = ctx.factor(factorKey, etfCode);
+        },
+      },
+      dataPort: fixturePort(rateSpec),
+      customFactors: [module],
+    });
+
+    expect(seen[D[0]]).toBeNull();
+    expect(seen[D[1]]).toBeNull();
+    expect(seen[D[2]]).toBe(0);
+    expect(seen[D[3]]).toBe(50);
+    expect(seen[D[4]]).toBe(0);
+
+    const logged: string[] = [];
+    await runWalledBacktest(
+      {
+        code: `export default defineStrategy({
+          name: 'walled official yield curve',
+          watch: ['${etfCode}'],
+          factors: ['${factorKey}'],
+          onBar(ctx) {
+            console.log(ctx.date + '=' + String(ctx.factor('${factorKey}', '${etfCode}')));
+          },
+        });`,
+        start: D[0],
+        end: D[4],
+        initialCash: 100_000,
+        customFactors: [module],
+      },
+      fixturePort(rateSpec),
+      undefined,
+      (_level, text) => logged.push(text),
+    );
+    expect(logged).toContain(`${D[2]}=0`);
+    expect(logged).toContain(`${D[3]}=50`);
+  });
+
   it('windowed factor reads ctx.history from the engine bars cache (after ensureBars)', async () => {
     const js = await toCommonJs(
       `export default defineFactor({

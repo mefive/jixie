@@ -1,4 +1,9 @@
 import { prisma } from '../lib/prisma.js';
+import {
+  CHINA_TREASURY_CURVE_CODE,
+  CHINA_TREASURY_CURVE_SOURCE,
+  CHINA_TREASURY_CURVE_TYPE,
+} from '../rates/china-treasury-curve.js';
 import type { BarsRows, EngineDataPort } from './data-port.js';
 
 // Kept in its own module (not data-port.ts) so the Phase B2 engine bundle can alias THIS file
@@ -52,6 +57,19 @@ export const prismaDataPort: EngineDataPort = {
     return prisma.indexDailyBasic.findMany({
       select: { tsCode: true, tradeDate: true, pe: true, peTtm: true, pb: true },
       orderBy: [{ tsCode: 'asc' }, { tradeDate: 'asc' }],
+    });
+  },
+
+  async yieldCurvePoints(end) {
+    return prisma.yieldCurvePoint.findMany({
+      where: {
+        source: CHINA_TREASURY_CURVE_SOURCE,
+        curveCode: CHINA_TREASURY_CURVE_CODE,
+        curveType: CHINA_TREASURY_CURVE_TYPE,
+        availableDate: { lte: end },
+      },
+      select: { availableDate: true, termYears: true, yieldPct: true },
+      orderBy: [{ termYears: 'asc' }, { availableDate: 'asc' }],
     });
   },
 

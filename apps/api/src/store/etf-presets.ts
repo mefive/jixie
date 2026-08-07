@@ -13,6 +13,8 @@ export const MAJOR_ETF_CODES = [
   '518880.SH', // Gold
   '513100.SH', // Nasdaq 100 QDII
   '511010.SH', // 5-year government bond
+  '511260.SH', // 10-year government bond
+  '511090.SH', // 30-year government bond
 ] as const;
 
 export const MAJOR_ETF_CODE_SET = new Set<string>(MAJOR_ETF_CODES);

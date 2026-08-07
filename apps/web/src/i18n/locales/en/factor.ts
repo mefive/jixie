@@ -44,7 +44,16 @@ export const enFactor: typeof zhFactor = {
     codeReadonly: 'Built-in time-series definition, read-only code',
     codeEditable:
       'Custom time-series definition; its research protocol is immutable after creation',
-    inputAudit: 'Input: adjusted ETF close',
+    inputAudit: 'Inputs: {{inputs}}',
+    inputSeparator: ', ',
+    inputFields: {
+      etfAdjustedClose: 'adjusted ETF close',
+      cgbYield2y: 'CGB yield 2Y',
+      cgbYield5y: 'CGB yield 5Y',
+      cgbYield10y: 'CGB yield 10Y',
+      cgbYield30y: 'CGB yield 30Y',
+      unknown: 'unknown field',
+    },
     windowAudit: 'Window: {{value}} trading days',
     assetScopeAudit: 'Output: per-asset score',
     placeholderQa:
@@ -54,7 +63,7 @@ export const enFactor: typeof zhFactor = {
     chatEmpty:
       'This is a controlled ETF time-series research template. Ask about the definition, robust inference, or report interpretation; the template is read-only, while assets, horizon, and sample range are configured on the right.',
     chatEmptyAuthor:
-      'This is an editable ETF time-series Factor Definition V2. Tell the Agent what historical pattern to study; it will use the currently available adjusted ETF close to produce per-asset scores. Configure assets and forward-return horizon on the right.',
+      'This is an editable ETF time-series Factor Definition V2. Tell the Agent what historical pattern to study; it can use adjusted ETF closes or the official Ministry of Finance government yield curve to produce per-asset scores. Configure assets and forward-return horizon on the right.',
     workspaceMethodValue: 'Single-asset history · signal predicts future return',
     formula: 'Signal definition',
     formulaValue: '{{lookback}}-day cumulative return',
@@ -74,6 +83,9 @@ export const enFactor: typeof zhFactor = {
     disciplinedResearch: 'Research mode: research card / holdout',
     reportNotice:
       'This is a signal evidence report, not a strategy backtest. Trading rules, rebalancing and costs must be tested in a strategy.',
+    curveSourceTitle: 'Government curve source and availability',
+    curveSourceDescription:
+      'Source: Ministry of Finance China government-bond yield curve, hosted by ChinaBond. The curve is published around 17:30 on working days and becomes usable in research on the next SSE trading day. Yields are percentages; spreads and changes are converted to basis points in the definition.',
     researchType: 'Research method',
     target: 'Prediction target',
     targetValue: 'Next {{horizon}} trading-day total return',
@@ -97,6 +109,8 @@ export const enFactor: typeof zhFactor = {
     unsupportedReport: 'Unsupported research report',
     assetNames: {
       '511010.SH': 'Treasury Bond ETF',
+      '511260.SH': '10Y Treasury Bond ETF',
+      '511090.SH': '30Y Treasury Bond ETF',
       '518880.SH': 'Gold ETF',
       '510300.SH': 'CSI 300 ETF',
     },
@@ -429,6 +443,7 @@ export const enFactor: typeof zhFactor = {
   kindPrice: 'Price',
   kindFundamental: 'Fundamental',
   kindMoneyflow: 'Money flow',
+  kindRates: 'Rates',
   kindCustom: 'Custom',
 
   // Chart axis / tooltip labels (decile bar chart, IC-decay line, quantile heatmap).

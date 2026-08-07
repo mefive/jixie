@@ -82,6 +82,12 @@ function needsTurnoverRateFHistory(cfg: EngineConfig): boolean {
   );
 }
 
+function needsGovernmentYieldCurve(cfg: EngineConfig): boolean {
+  return (cfg.customFactors ?? []).some((factor) =>
+    factor.timeSeries?.inputs.some((field) => field.startsWith('rates.cgb.yield.')),
+  );
+}
+
 function needsFundamentalHistory(cfg: EngineConfig): boolean {
   return (cfg.customFactors ?? []).some((factor) =>
     factor.historyFields?.some((field) => field === 'roe' || field === 'grossprofitMargin'),
@@ -140,6 +146,7 @@ async function runStockStrategyCore(
     cfg.dataPort ?? prismaDataPort,
     [],
     needsTurnoverRateFHistory(cfg),
+    needsGovernmentYieldCurve(cfg),
   );
   await engineData.load();
   if (cfg.strategy.watch?.length) {
@@ -291,6 +298,7 @@ async function runMultiAssetStrategy(cfg: EngineConfig): Promise<BacktestResult>
     cfg.dataPort ?? prismaDataPort,
     futureCodes,
     needsTurnoverRateFHistory(cfg),
+    needsGovernmentYieldCurve(cfg),
   );
   await engineData.load();
   if (cfg.strategy.watch?.length) {

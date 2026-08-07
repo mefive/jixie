@@ -47,6 +47,12 @@ export interface IndexDailyBasicDataRow {
   pb: number | null;
 }
 
+export interface YieldCurvePointDataRow {
+  availableDate: string;
+  termYears: number;
+  yieldPct: number;
+}
+
 export interface MoneyflowRow {
   tsCode: string;
   tradeDate: string;
@@ -173,6 +179,8 @@ export interface EngineDataPort {
   indexDailyAll(): Promise<IndexDailyRow[]>;
   /** All synced broad-index valuation rows (tiny), ascending by (code, date). */
   indexDailyBasicAll(): Promise<IndexDailyBasicDataRow[]>;
+  /** Official government yield-curve points available on or before `end`. */
+  yieldCurvePoints(end: string): Promise<YieldCurvePointDataRow[]>;
   /** Moneyflow rows within [start, end] (only fetched when a strategy declares mf factors). */
   moneyflowRange(start: string, end: string): Promise<MoneyflowRow[]>;
   /** One day's cross-section panel rows; `codes` restricts the read (universe gate pushdown). */

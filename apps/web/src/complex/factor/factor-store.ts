@@ -69,7 +69,14 @@ type FactorSetupParams = {
 const DEFAULT_START = '20150101';
 const DEFAULT_END = '20261231';
 const POLL_INTERVAL_MS = 800;
-export const TIME_SERIES_ASSETS = ['511010.SH', '518880.SH', '510300.SH'] as const;
+export const TIME_SERIES_ASSET_OPTIONS = [
+  { code: '511010.SH', assetClass: 'fixed_income' },
+  { code: '511260.SH', assetClass: 'fixed_income' },
+  { code: '511090.SH', assetClass: 'fixed_income' },
+  { code: '518880.SH', assetClass: 'commodity' },
+  { code: '510300.SH', assetClass: 'equity' },
+] as const;
+export const TIME_SERIES_ASSETS = TIME_SERIES_ASSET_OPTIONS.map((asset) => asset.code);
 export type TimeSeriesAsset = (typeof TIME_SERIES_ASSETS)[number];
 type FactorUniverseChoice = 'cn_a' | FactorEquityIndexCode;
 
@@ -623,7 +630,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       this.compositeDefinition = isComposite ? structuredClone(meta?.composite ?? null) : null;
       this.specVersion = isComposite ? 4 : 5;
       this.evaluationScope = defaultEvaluationScope();
-      this.timeSeriesAssets = [...TIME_SERIES_ASSETS];
+      this.timeSeriesAssets = timeSeriesAssetsFor(meta?.targetAssetClasses);
       this.timeSeriesHorizon = 20;
       this.jobRunning = false;
       this.jobId = null;
@@ -1299,6 +1306,15 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       /* no live job */
     }
   }
+}
+
+function timeSeriesAssetsFor(
+  targetAssetClasses?: Array<'equity' | 'fixed_income' | 'commodity'>,
+): TimeSeriesAsset[] {
+  const allowed = new Set(targetAssetClasses ?? ['equity', 'fixed_income', 'commodity']);
+  return TIME_SERIES_ASSET_OPTIONS.filter((asset) => allowed.has(asset.assetClass)).map(
+    (asset) => asset.code,
+  );
 }
 
 function timeSeriesDraftIdentity(

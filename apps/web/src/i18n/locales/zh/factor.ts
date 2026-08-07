@@ -38,7 +38,16 @@ export const zhFactor = {
     methodBadge: '时间序列',
     codeReadonly: '内置时间序列定义，代码只读',
     codeEditable: '自定义时间序列定义，创建后研究协议不可更改',
-    inputAudit: '输入：ETF 复权收盘价',
+    inputAudit: '输入：{{inputs}}',
+    inputSeparator: '、',
+    inputFields: {
+      etfAdjustedClose: 'ETF 复权收盘价',
+      cgbYield2y: '国债收益率 2Y',
+      cgbYield5y: '国债收益率 5Y',
+      cgbYield10y: '国债收益率 10Y',
+      cgbYield30y: '国债收益率 30Y',
+      unknown: '未知字段',
+    },
     windowAudit: '窗口：{{value}} 个交易日',
     assetScopeAudit: '输出：逐资产分数',
     placeholderQa:
@@ -48,7 +57,7 @@ export const zhFactor = {
     chatEmpty:
       '这是一个受控的 ETF 时间序列研究模板。可以询问信号定义、稳健推断和报告解读；模板本身只读，资产、预测周期与样本区间在右侧设置。',
     chatEmptyAuthor:
-      '这是可编辑的 ETF 时间序列 Factor Definition V2。告诉 Agent 你想研究的历史规律，它会使用当前已开放的 ETF 复权收盘价生成逐资产信号；研究资产和未来收益周期在右侧设置。',
+      '这是可编辑的 ETF 时间序列 Factor Definition V2。告诉 Agent 你想研究的历史规律，它可以使用 ETF 复权收盘价或财政部国债收益率曲线生成逐资产信号；研究资产和未来收益周期在右侧设置。',
     workspaceMethodValue: '单资产历史序列 · 信号预测未来收益',
     formula: '信号定义',
     formulaValue: '{{lookback}} 日累计收益率',
@@ -66,6 +75,9 @@ export const zhFactor = {
     neweyWestAuto: '推断：Newey–West（滞后阶数自动）',
     disciplinedResearch: '研究模式：研究卡 / Holdout',
     reportNotice: '这是信号证据报告，不是策略回测；交易规则、调仓和成本需要在策略中另行验证。',
+    curveSourceTitle: '国债曲线来源与可得时间',
+    curveSourceDescription:
+      '来源：财政部-中国国债收益率曲线（中债信息网承载）。曲线约在工作日 17:30 发布，研究从下一上交所交易日才允许使用；收益率单位为%，期限利差和变化量在定义中转换为 bp。',
     researchType: '研究方法',
     target: '预测目标',
     targetValue: '未来 {{horizon}} 个交易日总收益',
@@ -88,6 +100,8 @@ export const zhFactor = {
     unsupportedReport: '暂不支持的研究报告',
     assetNames: {
       '511010.SH': '国债 ETF',
+      '511260.SH': '10年国债 ETF',
+      '511090.SH': '30年国债 ETF',
       '518880.SH': '黄金 ETF',
       '510300.SH': '沪深 300 ETF',
     },
@@ -400,6 +414,7 @@ export const zhFactor = {
   kindPrice: '价格',
   kindFundamental: '基本面',
   kindMoneyflow: '资金流',
+  kindRates: '利率',
   kindCustom: '自定义',
 
   // Chart axis / tooltip labels (decile bar chart, IC-decay line, quantile heatmap).

@@ -16,14 +16,14 @@ import type { AgentTool } from './types.js';
 
 const REPORT_WAIT_TIMEOUT_MS = 15 * 60_000;
 const REPORT_POLL_INTERVAL_MS = 500;
-const assetSchema = z.enum(['511010.SH', '518880.SH', '510300.SH']);
+const assetSchema = z.enum(['511010.SH', '511260.SH', '511090.SH', '518880.SH', '510300.SH']);
 
 const argsSchema = z
   .object({
     code: z.string().min(1).max(20_000).optional(),
     start: z.string().regex(/^\d{8}$/),
     end: z.string().regex(/^\d{8}$/),
-    assets: z.array(assetSchema).min(1).max(3),
+    assets: z.array(assetSchema).min(1).max(5),
     horizon: z.union([z.literal(5), z.literal(20), z.literal(60)]),
     researchIntent: factorResearchIntentV1Schema,
   })
@@ -68,7 +68,7 @@ interface TimeSeriesResearchContext {
 export function runTimeSeriesFactorAnalysisTool(context: TimeSeriesResearchContext): AgentTool {
   return {
     name: 'runTimeSeriesFactorAnalysis',
-    description: `Run one disciplined EXPLORE time-series study for the current custom Factor Definition V2 or a candidate full definition. Freeze the candidate code, ETF assets, forward-return horizon, sample dates, hypothesis/direction, and a time-series primary criterion before seeing metrics. Current assets are 511010.SH (Treasury Bond ETF), 518880.SH (Gold ETF), and 510300.SH (CSI 300 ETF); horizon is 5, 20, or 60 trading days. The observation frequency is daily, prices are adjusted, inference is Newey–West with automatic lag, and data cutoff is the requested end date. This tool cannot reveal holdout, publish, deploy, place orders, or claim strategy performance. Normally compare at most two materially different candidates in one turn.`,
+    description: `Run one disciplined EXPLORE time-series study for the current custom Factor Definition V2 or a candidate full definition. Freeze the candidate code, ETF assets, forward-return horizon, sample dates, hypothesis/direction, and a time-series primary criterion before seeing metrics. Current assets are 511010.SH (5Y Treasury Bond ETF), 511260.SH (10Y Treasury Bond ETF), 511090.SH (30Y Treasury Bond ETF), 518880.SH (Gold ETF), and 510300.SH (CSI 300 ETF); government-curve inputs only support the fixed-income ETFs. Horizon is 5, 20, or 60 trading days. The observation frequency is daily, prices are adjusted, inference is Newey–West with automatic lag, and data cutoff is the requested end date. This tool cannot reveal holdout, publish, deploy, place orders, or claim strategy performance. Normally compare at most two materially different candidates in one turn.`,
     parameters: z.toJSONSchema(argsSchema),
     async run(args, runContext) {
       const parsed = argsSchema.safeParse(args);

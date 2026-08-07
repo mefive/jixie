@@ -74,6 +74,7 @@ import { LoadingArea } from '@src/components/loading-area';
 import { LogView } from '@src/components/log-view';
 import { QuantileHeatmap } from './quantile-heatmap';
 import { complex } from './complex';
+import { TIME_SERIES_ASSET_OPTIONS } from './factor-store';
 import './factor.css';
 
 dayjs.extend(customParseFormat);
@@ -997,6 +998,9 @@ const TimeSeriesWorkspace = complex.component(() => {
   const { t } = useTranslation('factor');
   const editable = store.mode === 'custom' && store.factorStatus === 'draft';
   const window = store.code.match(/\bwindow:\s*(\d+)/)?.[1] ?? '—';
+  const inputs = factorV2Inputs(store.code)
+    .map((input) => timeSeriesInputLabel(input, t))
+    .join(t('timeSeries.inputSeparator'));
   return (
     <Splitter orientation="vertical">
       <Splitter.Panel min="20%">
@@ -1029,7 +1033,7 @@ const TimeSeriesWorkspace = complex.component(() => {
           )}
           <div className="jx-factor-timeDefinitionAudit">
             <span>{t('timeSeries.methodBadge')}</span>
-            <span>{t('timeSeries.inputAudit')}</span>
+            <span>{t('timeSeries.inputAudit', { inputs: inputs || '—' })}</span>
             <span>{t('timeSeries.windowAudit', { value: window })}</span>
             <span>{t('timeSeries.assetScopeAudit')}</span>
           </div>
@@ -1471,9 +1475,9 @@ const TimeSeriesParamsPopover = complex.component(
               value={store.timeSeriesAssets}
               placeholder={t('timeSeries.assetsPlaceholder')}
               onChange={(values) => store.setTimeSeriesAssets(values)}
-              options={['511010.SH', '518880.SH', '510300.SH'].map((asset) => ({
-                value: asset,
-                label: `${t(`timeSeries.assetNames.${asset}`)} · ${asset}`,
+              options={TIME_SERIES_ASSET_OPTIONS.map((asset) => ({
+                value: asset.code,
+                label: `${t(`timeSeries.assetNames.${asset.code}`)} · ${asset.code}`,
               }))}
             />
           </div>
@@ -1983,6 +1987,14 @@ const TimeSeriesReportBody = complex.component(() => {
         />
       )}
       <Alert type="info" showIcon title={t('timeSeries.reportNotice')} />
+      {store.reportDetail?.factorCodeSnapshot?.includes('rates.cgb.yield.') && (
+        <Alert
+          type="info"
+          showIcon
+          title={t('timeSeries.curveSourceTitle')}
+          description={t('timeSeries.curveSourceDescription')}
+        />
+      )}
       <div className="jx-factor-timeAudit">
         <Metric label={t('timeSeries.researchType')} value={t('timeSeries.methodBadge')} />
         <Metric
@@ -2590,9 +2602,26 @@ const KIND_KEY: Record<FactorKind, string> = {
   price: 'kindPrice',
   fundamental: 'kindFundamental',
   moneyflow: 'kindMoneyflow',
+  rates: 'kindRates',
   custom: 'kindCustom',
   composite: 'kindComposite',
 };
+
+function factorV2Inputs(source: string): string[] {
+  const declaration = source.match(/\binputs\s*:\s*\[([\s\S]*?)\]/)?.[1] ?? '';
+  return [...declaration.matchAll(/['"]([^'"]+)['"]/g)].map((match) => match[1]);
+}
+
+function timeSeriesInputLabel(input: string, t: TFunction<'factor'>): string {
+  const keys: Record<string, string> = {
+    'etf.adjustedClose': 'timeSeries.inputFields.etfAdjustedClose',
+    'rates.cgb.yield.2y': 'timeSeries.inputFields.cgbYield2y',
+    'rates.cgb.yield.5y': 'timeSeries.inputFields.cgbYield5y',
+    'rates.cgb.yield.10y': 'timeSeries.inputFields.cgbYield10y',
+    'rates.cgb.yield.30y': 'timeSeries.inputFields.cgbYield30y',
+  };
+  return t(keys[input] ?? 'timeSeries.inputFields.unknown');
+}
 
 // Display name for a catalog item: a built-in preset shows its localized name (keyed by slug); a custom
 // factor keeps the user-given name unchanged.

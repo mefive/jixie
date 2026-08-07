@@ -36,6 +36,8 @@ export const SQL_TABLE_DOCS: Record<string, string> = {
     'tsCode, tradeDate, open, high, low, close, preClose, pctChg(%), vol(lots), amount(thousand CNY) — ETF daily bars, unadjusted',
   EtfAdjFactor:
     'tsCode, tradeDate, adjFactor — ETF adjustment factor (after-adjustment price = close×adjFactor)',
+  YieldCurvePoint:
+    'source, curveCode, curveName, curveType, tradeDate(curve observation date), availableDate(next SSE trading day; mandatory PIT gate), termYears(years), yieldPct(%), retrievedAt — official government-bond yield-curve points; research must filter availableDate<=decision date, and 10Y−2Y spread in basis points is (yieldPct10−yieldPct2)×100',
   StkLimit: 'tsCode, tradeDate, upLimit, downLimit — daily up/down price limits (unadjusted)',
   TopList:
     'tsCode, tradeDate, netAmount(元) — Dragon-Tiger List net buy amount, sparse event table (no appearance that day = no row)',
