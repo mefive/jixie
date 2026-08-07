@@ -68,6 +68,8 @@ export interface FactorMeta {
   kind: FactorKind;
   builtin?: boolean; // true = preset (a read-only code row in the library, can be copied into a custom factor)
   expectedDirection?: Exclude<FactorExpectedDirection, 'unknown'>;
+  analysisKind?: FactorAnalysisKind;
+  targetAssetClasses?: Array<'equity' | 'fixed_income' | 'commodity'>;
   composite?: FactorCompositeDefinitionV1;
 }
 

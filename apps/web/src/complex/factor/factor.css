@@ -834,3 +834,103 @@
   @apply text-muted;
   font-size: 11px;
 }
+
+.jx-factor-methodBadge {
+  @apply rounded bg-blue-50 px-1.5 py-0.5 text-blue-600;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.jx-factor-timeWorkspace {
+  @apply flex h-full flex-col gap-5 overflow-auto bg-bg p-6;
+}
+
+.jx-factor-timeWorkspaceHead {
+  @apply flex items-start justify-between gap-4;
+}
+
+.jx-factor-timeWorkspaceTitle {
+  @apply font-semibold text-ink;
+  font-size: 18px;
+}
+
+.jx-factor-timeWorkspaceMethod {
+  @apply mt-1 text-sm text-muted;
+}
+
+.jx-factor-timeDefinition {
+  @apply grid gap-3 rounded-lg border border-line bg-chip p-4;
+}
+
+.jx-factor-timeDefinition > div {
+  @apply flex flex-col gap-1;
+}
+
+.jx-factor-timeDefinition span {
+  @apply text-xs text-muted;
+}
+
+.jx-factor-timeDefinition code,
+.jx-factor-timeDefinition strong {
+  @apply text-sm font-medium text-ink;
+}
+
+.jx-factor-paramField--stacked {
+  @apply items-stretch;
+}
+
+.jx-factor-paramField--stacked .ant-select {
+  min-width: 360px;
+}
+
+.jx-factor-timeFixed {
+  @apply flex flex-col gap-1 rounded-lg bg-chip p-3 text-xs text-muted;
+}
+
+.jx-factor-timeReport {
+  @apply flex flex-col gap-4;
+}
+
+.jx-factor-timeAudit {
+  @apply grid gap-2;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+}
+
+.jx-factor-timeAssetList {
+  @apply flex flex-col gap-2;
+}
+
+.jx-factor-timeAssetCard {
+  @apply rounded-lg border border-line bg-bg p-3;
+}
+
+.jx-factor-timeAssetHead {
+  @apply flex items-start justify-between gap-3 text-xs text-muted;
+}
+
+.jx-factor-timeAssetHead > span:first-child {
+  @apply flex flex-col;
+}
+
+.jx-factor-timeAssetHead strong {
+  @apply text-sm text-ink;
+}
+
+.jx-factor-timeAssetMetrics {
+  @apply mt-3 grid grid-cols-4 gap-2;
+}
+
+.jx-factor-timeAssetMetrics > span {
+  @apply flex min-w-0 flex-col;
+}
+
+.jx-factor-timeAssetMetrics small,
+.jx-factor-timeAssetMetrics em {
+  @apply truncate text-muted;
+  font-size: 10px;
+  font-style: normal;
+}
+
+.jx-factor-timeAssetMetrics strong {
+  @apply mt-0.5 text-sm text-ink;
+}

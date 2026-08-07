@@ -11,6 +11,7 @@ import { chatMessagesSchema } from '../lib/chat-schema.js';
 import { m } from '../i18n/index.js';
 import { localeFromRequest } from '../i18n/index.js';
 import { factorCompositeDefinitionV1Schema } from '../factor/report-spec.js';
+import { timeSeriesTemplateCatalog } from '../factor/time-series-templates.js';
 import {
   FactorReleaseError,
   getFactorRelease,
@@ -107,7 +108,12 @@ factorsRoute.get('/catalog', async (c) => {
     kind: 'composite' as const,
     composite: composite.definition as unknown as FactorCompositeDefinitionV1,
   }));
-  return c.json([...builtinCatalog(), ...customMeta, ...compositeMeta]);
+  return c.json([
+    ...builtinCatalog(),
+    ...timeSeriesTemplateCatalog(locale),
+    ...customMeta,
+    ...compositeMeta,
+  ]);
 });
 
 const compositeBody = z.object({ definition: factorCompositeDefinitionV1Schema });
