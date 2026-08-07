@@ -315,7 +315,9 @@ factorRoute.post('/analysis/run', validateJson(runAnalysisBody), async (c) => {
     }
     researchSpec = { ...researchSpec, protocol };
   } else if (researchSpec.analysisKind === 'time_series') {
-    source = resolveTimeSeriesTemplateSource(factor);
+    source =
+      resolveTimeSeriesTemplateSource(factor) ??
+      (await resolveCustomTimeSeriesFactorSource(userId, factor));
     if (!source) {
       return apiError(c, 'NOT_FOUND', m(c, 'unknownFactor', { factor }));
     }
@@ -800,10 +802,10 @@ async function resolveFactorSource(
   }
   const custom = await prisma.factor.findFirst({
     where: { id: factorId, userId },
-    select: { code: true, name: true },
+    select: { code: true, name: true, analysisKind: true },
   });
 
-  if (custom) {
+  if (custom && custom.analysisKind !== 'time_series') {
     return { kind: 'single', code: custom.code, label: custom.name };
   }
   const composite = await prisma.factorComposite.findFirst({
@@ -833,6 +835,17 @@ async function resolveFactorSource(
     definition,
     components,
   };
+}
+
+async function resolveCustomTimeSeriesFactorSource(
+  userId: string,
+  factorId: string,
+): Promise<FactorAnalysisSource | null> {
+  const custom = await prisma.factor.findFirst({
+    where: { id: factorId, userId, analysisKind: 'time_series' },
+    select: { code: true, name: true },
+  });
+  return custom ? { kind: 'time_series', code: custom.code, label: custom.name } : null;
 }
 
 // —— Correlation matrix (3.4): 2–8 factors × a fixed size column, cross-sectional Spearman ——
