@@ -588,11 +588,17 @@ reveal → 不可变 URL 回放”，并确认 3 个 ETF 的正式保留段截�
 序列定义使用可编辑 Monaco、Definition V2 输入/窗口/输出审计和时间序列参数报告；因子库仍以“内置模板
 与自定义因子”为所有权主结构，并用研究方法徽标区分定义。相关性矩阵和多因子合成只接收横截面定义，
 避免把不同样本结构错误混算。Factor Agent 已按持久化 `analysisKind` 选择专用提示词和严格编译器；当前
-只允许 `etf.adjustedClose`，遇到曲线、Carry、库存或宏观请求必须明确拒绝，且在时间序列研究工具适配前
-不会暴露股票横截面的一键研究工具。真实浏览器已完成“新建 ETF 时间序列定义 → 冻结探索研究卡 →
+只允许 `etf.adjustedClose`，遇到曲线、Carry、库存或宏观请求必须明确拒绝。真实浏览器已完成“新建 ETF
+时间序列定义 → 冻结探索研究卡 →
 7,227 条观测报告 → 刷新恢复 → 因子库方法徽标”，截图为
 `apps/web/acceptance/10a-custom-time-series-definition.png` 和
 `apps/web/acceptance/10b-custom-time-series-report.png`；发布和策略消费的后半段验收见 Phase 3。
+
+**2026-08-07 时间序列 Agent 研究工具：**自定义 Definition V2 的 Agent 已获得独立
+`runTimeSeriesFactorAnalysis`，不再误用股票的频率、股票池、中性化和 Rank IC 参数。每次调用必须在看到
+结果前冻结候选完整代码、ETF 资产、未来收益 horizon、样本区间和研究卡；工具固定日频复权价格、PIT
+cutoff 与 Newey–West 自动 lag，只返回逐资产指标及跨资产中位 t / 平均命中率。首版资产和 horizon 与
+产品当前能力一致，仍不能揭示 holdout、发布、部署或代表用户下单。
 
 时间序列策略内核和策略 Lab 产品入口已进入 Phase 3，自定义 V2 定义与 Factor Agent 作者能力也已开放；
 但真实国债曲线模板仍受收益率曲线数据权限和同步阻塞，不能用债券 ETF 自身价格冒充利率驱动，因此仍不
