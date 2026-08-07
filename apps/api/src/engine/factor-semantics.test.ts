@@ -147,6 +147,97 @@ describe('custom (defineFactor) factors inside the engine', () => {
     expect(output.capture.factorObservations).toEqual([{ key: releaseKey, code: 'A', value: 10 }]);
   });
 
+  it('executes an ETF time-series release from adjusted history on direct and walled lanes', async () => {
+    const releaseKey = 'release:01ARZ3NDEKTSV4RRFFQ69G5FAV';
+    const etfCode = '510300.SH';
+    const timeSeriesSpec: FixtureSpec = {
+      dates: D,
+      stocks: [
+        {
+          code: etfCode,
+          assetType: 'etf',
+          bars: D.map((date, index) => ({
+            date,
+            open: 10 + index,
+            close: 10 + index,
+            adj: index < 2 ? 1 : 2,
+          })),
+        },
+      ],
+    };
+    const js = await toCommonJs(
+      `export default defineFactorV2({
+        version: 2,
+        name: 'ETF two-day adjusted trend',
+        analysisKind: 'time_series',
+        outputScope: 'asset',
+        frequency: 'daily',
+        inputs: ['etf.adjustedClose'],
+        targetAssetClasses: ['equity', 'fixed_income', 'commodity'],
+        window: 3,
+        compute(ctx) {
+          const current = ctx.value('etf.adjustedClose');
+          const previous = ctx.lag('etf.adjustedClose', 2);
+          return current != null && previous != null ? current / previous - 1 : null;
+        },
+      });`,
+      'time-series factor release code',
+    );
+    const module = {
+      key: releaseKey,
+      js,
+      analysisKind: 'time_series' as const,
+      timeSeries: { window: 3, inputs: ['etf.adjustedClose' as const] },
+    };
+    const seen: Record<string, number | null> = {};
+    const strategy: Strategy = {
+      name: 'read ETF time-series release',
+      watch: [etfCode],
+      factors: [releaseKey],
+      onBar(ctx) {
+        seen[ctx.date] = ctx.factor(releaseKey, etfCode);
+      },
+    };
+
+    const output = await runStrategyWithSignals({
+      start: D[0],
+      end: D[4],
+      initialCash: 100_000,
+      strategy,
+      dataPort: fixturePort(timeSeriesSpec),
+      customFactors: [module],
+    });
+    expect(seen[D[1]]).toBeNull();
+    expect(seen[D[2]]).toBeCloseTo(24 / 10 - 1);
+    expect(seen[D[4]]).toBeCloseTo(28 / 24 - 1);
+    expect(output.capture.factorObservations).toEqual([
+      { key: releaseKey, code: etfCode, value: expect.closeTo(28 / 24 - 1) },
+    ]);
+
+    const logged: string[] = [];
+    await runWalledBacktest(
+      {
+        code: `export default defineStrategy({
+          name: 'walled ETF time-series release',
+          watch: ['${etfCode}'],
+          factors: ['${releaseKey}'],
+          onBar(ctx) {
+            console.log(ctx.date + '=' + String(ctx.factor('${releaseKey}', '${etfCode}')));
+          },
+        });`,
+        start: D[0],
+        end: D[4],
+        initialCash: 100_000,
+        customFactors: [module],
+      },
+      fixturePort(timeSeriesSpec),
+      undefined,
+      (_level, text) => logged.push(text),
+    );
+    expect(logged).toContain(`${D[1]}=null`);
+    expect(logged).toContain(`${D[4]}=${28 / 24 - 1}`);
+  });
+
   it('windowed factor reads ctx.history from the engine bars cache (after ensureBars)', async () => {
     const js = await toCommonJs(
       `export default defineFactor({

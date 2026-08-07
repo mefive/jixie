@@ -10,6 +10,7 @@ import { prisma } from '../lib/prisma.js';
 import { toCommonJs } from '../lib/isolate-run.js';
 import { t } from '../i18n/messages.js';
 import { BUILTIN_USER_ID } from '../factor/builtin-factors.js';
+import { compileTimeSeriesFactor } from '../factor/compile-time-series-factor.js';
 import { extractCustomFactorHistoryFields, type CustomFactorModule } from './custom-factor.js';
 
 /**
@@ -123,6 +124,7 @@ async function prepareFactorReleases(
       codeSnapshot: true,
       codeHash: true,
       approvedReportId: true,
+      methodologySnapshot: true,
       maturity: true,
       lifecycle: true,
     },
@@ -143,19 +145,20 @@ async function prepareFactorReleases(
     if (row.sourceKind !== 'single') {
       throw new Error(t(locale, 'factorReleaseRuntimeUnsupported', { key: label }));
     }
+    const analysisKind = releaseAnalysisKind(row.methodologySnapshot);
+    if (analysisKind !== 'cross_sectional' && analysisKind !== 'time_series') {
+      throw new Error(t(locale, 'factorReleaseRuntimeUnsupported', { key: label }));
+    }
+    if (usage === 'production' && analysisKind === 'time_series') {
+      throw new Error(t(locale, 'factorTimeSeriesReleaseProductionUnsupported', { key: label }));
+    }
     if (usage === 'production' && (row.maturity !== 'production' || row.lifecycle !== 'active')) {
       throw new Error(t(locale, 'factorReleaseProductionRequired', { key: label }));
     }
   }
 
   return {
-    modules: await Promise.all(
-      ordered.map(async (row) => ({
-        key: FACTOR_RELEASE_PREFIX + row.id,
-        js: await toCommonJs(row.codeSnapshot, 'factor release code'),
-        historyFields: extractCustomFactorHistoryFields(row.codeSnapshot),
-      })),
-    ),
+    modules: await Promise.all(ordered.map(prepareReleaseModule)),
     releases: ordered.map((row) => ({
       releaseId: row.id,
       sourceId: row.sourceRef,
@@ -169,4 +172,41 @@ async function prepareFactorReleases(
           : 'experimental',
     })),
   };
+}
+
+function releaseAnalysisKind(value: unknown): string {
+  if (value && typeof value === 'object' && 'analysisKind' in value) {
+    return String((value as { analysisKind: unknown }).analysisKind);
+  }
+  // Releases created before methodology snapshots carried an analysis kind used the original
+  // cross-sectional Factor SDK. Keeping that compatibility does not guess for new unknown kinds.
+  return 'cross_sectional';
+}
+
+async function prepareReleaseModule(row: {
+  id: string;
+  codeSnapshot: string;
+  methodologySnapshot: unknown;
+}): Promise<CustomFactorModule> {
+  const key = FACTOR_RELEASE_PREFIX + row.id;
+  if (releaseAnalysisKind(row.methodologySnapshot) !== 'time_series') {
+    return {
+      key,
+      js: await toCommonJs(row.codeSnapshot, 'factor release code'),
+      historyFields: extractCustomFactorHistoryFields(row.codeSnapshot),
+    };
+  }
+
+  let compiled: Awaited<ReturnType<typeof compileTimeSeriesFactor>> | null = null;
+  try {
+    compiled = await compileTimeSeriesFactor(row.codeSnapshot);
+    return {
+      key,
+      js: await toCommonJs(row.codeSnapshot, 'factor release code'),
+      analysisKind: 'time_series',
+      timeSeries: { window: compiled.window, inputs: [...compiled.inputs] },
+    };
+  } finally {
+    compiled?.dispose();
+  }
 }
