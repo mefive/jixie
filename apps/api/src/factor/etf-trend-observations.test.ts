@@ -1,6 +1,7 @@
 import type { TimeSeriesFactorResearchSpecV1 } from '@jixie/shared';
 import { describe, expect, it } from 'vitest';
-import { buildEtfTrendObservations, type EtfTrendDailyRow } from './etf-trend-observations.js';
+import { compileTimeSeriesFactor } from './compile-time-series-factor.js';
+import { buildEtfTimeSeriesObservations, type EtfTrendDailyRow } from './etf-trend-observations.js';
 
 const spec: TimeSeriesFactorResearchSpecV1 = {
   version: 1,
@@ -30,9 +31,34 @@ const rows: EtfTrendDailyRow[] = [
   adjustmentFactor,
 }));
 
+const factorCode = `export default defineFactorV2({
+  version: 2,
+  name: 'ETF 2-day trend',
+  analysisKind: 'time_series',
+  outputScope: 'asset',
+  frequency: 'daily',
+  inputs: ['etf.adjustedClose'],
+  targetAssetClasses: ['fixed_income'],
+  window: 3,
+  compute(ctx) {
+    const current = ctx.value('etf.adjustedClose');
+    const previous = ctx.lag('etf.adjustedClose', 2);
+    return current != null && previous != null ? current / previous - 1 : null;
+  },
+});`;
+
+async function build(sourceRows: EtfTrendDailyRow[]) {
+  const factor = await compileTimeSeriesFactor(factorCode);
+  try {
+    return await buildEtfTimeSeriesObservations(spec, sourceRows, factor);
+  } finally {
+    factor.dispose();
+  }
+}
+
 describe('ETF trend observations', () => {
-  it('uses adjusted prices for both trend scores and forward returns', () => {
-    const observations = buildEtfTrendObservations(spec, rows, 2);
+  it('uses frozen Factor V2 code and adjusted prices for scores and forward returns', async () => {
+    const observations = await build(rows);
 
     expect(observations).toHaveLength(4);
     expect(observations[0]).toMatchObject({
@@ -45,20 +71,20 @@ describe('ETF trend observations', () => {
     expect(observations[1].score).toBeCloseTo(103 / 101 - 1, 12);
   });
 
-  it('does not let later target prices change an earlier factor score', () => {
-    const baseline = buildEtfTrendObservations(spec, rows, 2);
+  it('does not let later target prices change an earlier factor score', async () => {
+    const baseline = await build(rows);
     const changed = rows.map((row) => ({ ...row }));
     changed[4].close *= 10;
-    const withChangedFuture = buildEtfTrendObservations(spec, changed, 2);
+    const withChangedFuture = await build(changed);
 
     expect(withChangedFuture[0].score).toBe(baseline[0].score);
     expect(withChangedFuture[0].forwardReturn).not.toBe(baseline[0].forwardReturn);
   });
 
-  it('fails closed when an adjustment factor is missing', () => {
+  it('fails closed when an adjustment factor is missing', async () => {
     const incomplete = rows.map((row) => ({ ...row }));
     incomplete[3].adjustmentFactor = Number.NaN;
 
-    expect(() => buildEtfTrendObservations(spec, incomplete, 2)).toThrow(/incomplete/);
+    await expect(build(incomplete)).rejects.toThrow(/incomplete/);
   });
 });

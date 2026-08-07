@@ -23,6 +23,10 @@ export const zhFactor = {
   timeSeries: {
     libraryGroup: 'ETF 时间序列信号',
     methodBadge: '时间序列',
+    codeReadonly: '内置时间序列定义，代码只读',
+    inputAudit: '输入：ETF 复权收盘价',
+    windowAudit: '窗口：{{value}} 个交易日',
+    assetScopeAudit: '输出：逐资产分数',
     placeholderQa:
       '问问这个时间序列信号 —— 如「t 值怎么理解」「为什么不同资产表现不同」—— 回车发送',
     chatEmpty:
