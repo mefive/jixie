@@ -573,9 +573,10 @@ reveal → 不可变 URL 回放”，并确认 3 个 ETF 的正式保留段截�
 **2026-08-07 ETF 策略求值内核：**已发布的单因子时间序列 Definition V2 可在研究回测中通过
 `ctx.factor('release:<ULID>', etfCode)` 按策略决策日逐资产求值。host 从不可变 `codeSnapshot` 重新编译
 并冻结 window / inputs 契约，direct 与 walled lane 在引擎内使用同一实现读取截至当日的 ETF 复权行情；
-窗口未满返回 `null`，动态标的仍须先 `ensureBars`，显式 `watch` 会在运行前加载。策略得到的是定义本身
-算出的 score，不会把研究报告中的相关性、t 值或命中率误作交易信号。production / 每日信号继续明确
-关闭，直到数据新鲜度、运行一致性和可交易性门槛完成。
+窗口未满返回 `null`，声明 `etf.adjustedClose` 的定义若收到普通股票代码也返回 `null` 并记录首个契约错误；
+动态标的仍须先 `ensureBars`，显式 `watch` 会在运行前加载。策略得到的是定义本身算出的 score，不会把
+研究报告中的相关性、t 值或命中率误作交易信号。production / 每日信号继续明确关闭，直到数据新鲜度、
+运行一致性和可交易性门槛完成。
 
 时间序列策略内核和策略 Lab 产品入口已进入 Phase 3，但 V2 自定义定义与 Factor Agent 作者能力仍未开放，
 因此还不能视为 Phase 2 完成。真实国债曲线模板仍受收益率曲线数据权限和同步阻塞，不能用债券 ETF 自身

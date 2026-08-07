@@ -247,6 +247,13 @@ export class CustomFactorRuntime {
     date: string,
     code: string,
   ): number | null {
+    if (
+      evaluated.meta.inputs.includes('etf.adjustedClose') &&
+      this.engineData.assetType(code) !== 'etf'
+    ) {
+      this.onComputeError(key, `input etf.adjustedClose requires an ETF code, received ${code}`);
+      return null;
+    }
     const bars = this.engineData.bars(code, date, evaluated.meta.window);
     if (bars.length < evaluated.meta.window) {
       return null;

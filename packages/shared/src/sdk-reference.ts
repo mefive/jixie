@@ -357,8 +357,8 @@ export const SDK_ENTRIES = [
     name: 'factor',
     group: '数据 / 选股',
     sig: 'factor(name: FactorKey, code: string): number | null',
-    zh: '可选因子列(需在 factors 声明)当日值。资金流(万元,+流入/−流出,精确当天):mf_net_main / mf_net_total；release:<ULID> 按不可变发布快照现场计算(带 window 的需先 ensureBars)。',
-    en: "Opt-in factor column for today (declare in `factors`). Moneyflow: 'mf_net_main' / 'mf_net_total' (万元, exact day). release:<ULID> runs the immutable published snapshot on the fly (windowed ones need ensureBars first).",
+    zh: '可选因子列(需在 factors 声明)当日值。资金流(万元,+流入/−流出,精确当天):mf_net_main / mf_net_total；release:<ULID> 按不可变发布快照现场计算(带 window 的需先 ensureBars)。声明 etf.adjustedClose 的时间序列发布只接受 ETF 代码。',
+    en: "Opt-in factor column for today (declare in `factors`). Moneyflow: 'mf_net_main' / 'mf_net_total' (万元, exact day). release:<ULID> runs the immutable published snapshot on the fly (windowed ones need ensureBars first). A time-series release declaring etf.adjustedClose accepts ETF codes only.",
   },
 
   // —— ctx: per-instrument price/series ——

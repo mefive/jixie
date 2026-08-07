@@ -163,6 +163,14 @@ describe('custom (defineFactor) factors inside the engine', () => {
             adj: index < 2 ? 1 : 2,
           })),
         },
+        {
+          code: 'A',
+          bars: D.map((date, index) => ({
+            date,
+            open: 20 + index,
+            close: 20 + index,
+          })),
+        },
       ],
     };
     const js = await toCommonJs(
@@ -190,12 +198,15 @@ describe('custom (defineFactor) factors inside the engine', () => {
       timeSeries: { window: 3, inputs: ['etf.adjustedClose' as const] },
     };
     const seen: Record<string, number | null> = {};
+    const invalidSeen: Record<string, number | null> = {};
+    const directLogs: string[] = [];
     const strategy: Strategy = {
       name: 'read ETF time-series release',
-      watch: [etfCode],
+      watch: [etfCode, 'A'],
       factors: [releaseKey],
       onBar(ctx) {
         seen[ctx.date] = ctx.factor(releaseKey, etfCode);
+        invalidSeen[ctx.date] = ctx.factor(releaseKey, 'A');
       },
     };
 
@@ -206,23 +217,32 @@ describe('custom (defineFactor) factors inside the engine', () => {
       strategy,
       dataPort: fixturePort(timeSeriesSpec),
       customFactors: [module],
+      onLog: (line) => directLogs.push(line),
     });
     expect(seen[D[1]]).toBeNull();
     expect(seen[D[2]]).toBeCloseTo(24 / 10 - 1);
     expect(seen[D[4]]).toBeCloseTo(28 / 24 - 1);
-    expect(output.capture.factorObservations).toEqual([
-      { key: releaseKey, code: etfCode, value: expect.closeTo(28 / 24 - 1) },
-    ]);
+    expect(invalidSeen[D[4]]).toBeNull();
+    expect(directLogs).toContain(
+      `[factor-error] ${releaseKey}: input etf.adjustedClose requires an ETF code, received A`,
+    );
+    expect(output.capture.factorObservations).toEqual(
+      expect.arrayContaining([
+        { key: releaseKey, code: 'A', value: null },
+        { key: releaseKey, code: etfCode, value: expect.closeTo(28 / 24 - 1) },
+      ]),
+    );
 
     const logged: string[] = [];
     await runWalledBacktest(
       {
         code: `export default defineStrategy({
           name: 'walled ETF time-series release',
-          watch: ['${etfCode}'],
+          watch: ['${etfCode}', 'A'],
           factors: ['${releaseKey}'],
           onBar(ctx) {
             console.log(ctx.date + '=' + String(ctx.factor('${releaseKey}', '${etfCode}')));
+            console.log(ctx.date + '=stock=' + String(ctx.factor('${releaseKey}', 'A')));
           },
         });`,
         start: D[0],
@@ -236,6 +256,7 @@ describe('custom (defineFactor) factors inside the engine', () => {
     );
     expect(logged).toContain(`${D[1]}=null`);
     expect(logged).toContain(`${D[4]}=${28 / 24 - 1}`);
+    expect(logged).toContain(`${D[4]}=stock=null`);
   });
 
   it('windowed factor reads ctx.history from the engine bars cache (after ensureBars)', async () => {
