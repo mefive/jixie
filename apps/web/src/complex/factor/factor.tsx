@@ -2367,7 +2367,8 @@ const FactorReleaseCard = complex.component(() => {
                 {release.lifecycle === 'active' && (
                   <>
                     {release.sourceKind === 'single' &&
-                      release.methodology.analysisKind === 'cross_sectional' && (
+                      (release.methodology.analysisKind === 'cross_sectional' ||
+                        release.methodology.analysisKind === 'time_series') && (
                         <Button
                           type="link"
                           size="small"

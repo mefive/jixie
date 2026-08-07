@@ -193,7 +193,9 @@ export class LabStore extends BaseStore<LabSetupParams> {
     this.savedConfig = '';
     this.persistedConfig = this.configKey();
     if (params.isNew && params.factorReleaseId) {
-      void this.prefillFactorRelease(params.factorReleaseId).catch((): void => undefined);
+      void this.prefillFactorRelease(params.factorReleaseId).catch((error): void => {
+        console.error('Failed to prefill factor release in Strategy Lab', error);
+      });
     }
     // Resolve the initial view: `?new=1` forces the blank hero; else an explicit ?id; else the
     // most-recently-opened strategy (so re-entering /lab lands on your last work, not the blank hero);
@@ -212,12 +214,20 @@ export class LabStore extends BaseStore<LabSetupParams> {
       return;
     }
     runInAction(() => {
-      this.nlText = i18n.t('lab:factorReleaseStarterPrompt', {
-        name: release.sourceName,
-        key: release.releaseKey,
-        version: release.version,
-        id: release.id,
-      });
+      const isTimeSeries = release.methodology.analysisKind === 'time_series';
+      const assets = isTimeSeries ? timeSeriesReleaseAssets(release) : [];
+      this.nlText = i18n.t(
+        isTimeSeries
+          ? 'lab:factorReleaseTimeSeriesStarterPrompt'
+          : 'lab:factorReleaseStarterPrompt',
+        {
+          name: release.sourceName,
+          key: release.releaseKey,
+          version: release.version,
+          id: release.id,
+          assets: assets.join('、'),
+        },
+      );
     });
   }
 
@@ -797,6 +807,17 @@ export class LabStore extends BaseStore<LabSetupParams> {
     this.benchmarkLoader.abort();
     this.benchmarkLoader.reset();
   }
+}
+
+function timeSeriesReleaseAssets(release: FactorRelease): string[] {
+  const spec = release.methodology.spec;
+  if (!spec || typeof spec !== 'object' || !('assets' in spec)) {
+    return [];
+  }
+  const assets = (spec as { assets?: unknown }).assets;
+  return Array.isArray(assets)
+    ? assets.filter((asset): asset is string => typeof asset === 'string' && asset.length > 0)
+    : [];
 }
 
 // —— helpers ——

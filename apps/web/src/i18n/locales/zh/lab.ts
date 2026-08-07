@@ -3,6 +3,8 @@ export const zhLab = {
   // New-strategy hero + prompt block
   factorReleaseStarterPrompt:
     '请使用已发布因子“{{name}}”（{{key}}@v{{version}}，不可变引用 release:{{id}}）设计一套策略。先说明选股范围、调仓周期、组合构建和风险控制，再生成可回测代码。',
+  factorReleaseTimeSeriesStarterPrompt:
+    '请使用已发布的 ETF 时间序列信号“{{name}}”（{{key}}@v{{version}}，不可变引用 release:{{id}}）设计轮动策略。研究资产为 {{assets}}：把它们放入显式 watch 列表，在 factors 中声明该 release，用 ctx.factor(release, ETF) 读取每只 ETF 当日分数，过滤 null 后排序。使用 ctx.period 做月度调仓，选最强 2 只等权，不足 2 只时空仓。这是研究回测，不要尝试部署。',
   heroTitle: '新建策略',
   heroHint: '用一句话描述你的策略，AI 写成代码，再自己调参',
   newModalHint: '用一句话描述你的新策略，AI 写成代码，再自己调参',
