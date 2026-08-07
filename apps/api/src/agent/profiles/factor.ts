@@ -1,5 +1,5 @@
 import { buildFactorCodegenPrompt } from '../../factor/factor-codegen-prompt.js';
-import { compileFactor } from '../../factor/compile-factor.js';
+import { validateFactorDefinition } from '../../factor/validate-factor-definition.js';
 import type { Locale } from '@jixie/shared';
 import { buildAgentMode, RESEARCH_TOOLS_HINT, TOOLS_HINT, type AgentProfile } from '../core.js';
 import { defaultTools } from '../tools/index.js';
@@ -11,14 +11,19 @@ export function factorProfile(research?: {
   factorId: string;
   currentCode: string;
   locale: Locale;
+  analysisKind?: 'cross_sectional' | 'time_series';
 }): AgentProfile {
+  const analysisKind = research?.analysisKind ?? 'cross_sectional';
   return {
-    system: `${buildFactorCodegenPrompt()}\n${buildAgentMode('factor')}\n${TOOLS_HINT}${research ? RESEARCH_TOOLS_HINT : ''}`,
-    tools: [...defaultTools(), ...(research ? [runFactorAnalysisTool(research)] : [])],
+    system: `${buildFactorCodegenPrompt(analysisKind)}\n${buildAgentMode('factor')}\n${TOOLS_HINT}${research && analysisKind === 'cross_sectional' ? RESEARCH_TOOLS_HINT : ''}`,
+    tools: [
+      ...defaultTools(),
+      ...(research && analysisKind === 'cross_sectional' ? [runFactorAnalysisTool(research)] : []),
+    ],
     artifact: {
       noun: 'factor',
       validate: async (code) => {
-        (await compileFactor(code)).dispose(); // validate-only: compile into an isolate, then free it
+        await validateFactorDefinition(code, analysisKind);
       },
     },
   };

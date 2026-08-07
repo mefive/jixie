@@ -10,6 +10,11 @@ const STRATEGY = `export default defineStrategy({ name: 'x', watch: ['600519.SH'
 const STRATEGY2 = `export default defineStrategy({ name: 'y', watch: ['600519.SH'], onBar(ctx) { ctx.order('600519.SH', 100); } });`;
 const FACTOR = `export default defineFactor({ name: 'ep', compute: (bar) => (bar.peTtm && bar.peTtm > 0 ? 1 / bar.peTtm : null) });`;
 const FACTOR2 = `export default defineFactor({ name: 'bp', compute: (bar) => (bar.pb && bar.pb > 0 ? 1 / bar.pb : null) });`;
+const TIME_SERIES_FACTOR = `export default defineFactorV2({ version: 2, name: 'ETF trend', analysisKind: 'time_series', outputScope: 'asset', frequency: 'daily', inputs: ['etf.adjustedClose'], targetAssetClasses: ['equity', 'fixed_income', 'commodity'], window: 21, compute(ctx) { const now = ctx.value('etf.adjustedClose'); const before = ctx.lag('etf.adjustedClose', 20); return now != null && before != null && before > 0 ? now / before - 1 : null; } });`;
+const TIME_SERIES_FACTOR2 = TIME_SERIES_FACTOR.replace('window: 21', 'window: 61').replace(
+  ', 20);',
+  ', 60);',
+);
 
 /** A scripted AgentLlm: pops replies in order (repeats the last one if called again). */
 function scriptedLlm(replies: Awaited<ReturnType<AgentLlm>>[]) {
@@ -153,6 +158,30 @@ describe('agentTurn(factorProfile)', () => {
 
     expect(llm.mock.calls[0][1].map((tool) => tool.name)).toContain('runFactorAnalysis');
     expect(llm.mock.calls[0][0][0].content).toContain('Research execution discipline');
+  });
+
+  it('authors Factor Definition V2 for time-series factors without exposing the cross-sectional research tool', async () => {
+    const llm = scriptedLlm([
+      { text: `改成 60 日趋势。\n\`\`\`ts\n${TIME_SERIES_FACTOR2}\n\`\`\`` },
+    ]);
+    const result = await agentTurn(
+      factorProfile({
+        userId: 'user-1',
+        factorId: 'factor-1',
+        currentCode: TIME_SERIES_FACTOR,
+        locale: 'zh',
+        analysisKind: 'time_series',
+      }),
+      [],
+      '改成 60 日趋势',
+      TIME_SERIES_FACTOR,
+      llm,
+    );
+
+    expect(result.changed).toBe(true);
+    expect(result.code).toBe(TIME_SERIES_FACTOR2);
+    expect(llm.mock.calls[0][0][0].content).toContain('Factor Definition V2');
+    expect(llm.mock.calls[0][1].map((tool) => tool.name)).not.toContain('runFactorAnalysis');
   });
 });
 

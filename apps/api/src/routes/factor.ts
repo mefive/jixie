@@ -90,7 +90,10 @@ const agentBody = z.object({
 factorRoute.post('/agent', validateJson(agentBody), async (c) => {
   const { id, message, code } = c.req.valid('json');
   const userId = c.var.userId;
-  const factor = await prisma.factor.findFirst({ where: { id, userId }, select: { id: true } });
+  const factor = await prisma.factor.findFirst({
+    where: { id, userId },
+    select: { id: true, analysisKind: true },
+  });
   if (!factor) {
     return apiError(c, 'NOT_FOUND', m(c, 'factorNotFound'));
   }
@@ -104,7 +107,13 @@ factorRoute.post('/agent', validateJson(agentBody), async (c) => {
   enqueueAgentTurn({
     turnId,
     userId,
-    profile: factorProfile({ userId, factorId: id, currentCode: code, locale }),
+    profile: factorProfile({
+      userId,
+      factorId: id,
+      currentCode: code,
+      locale,
+      analysisKind: factor.analysisKind === 'time_series' ? 'time_series' : 'cross_sectional',
+    }),
     entity,
     message,
     currentCode: code,

@@ -20,6 +20,7 @@
     "test:e2e:factor-strategy-history": "node e2e/factor-strategy-history.mjs",
     "test:e2e:strategy-factor-release": "node e2e/strategy-factor-release.mjs",
     "test:e2e:time-series-strategy": "node e2e/time-series-factor-strategy.mjs",
+    "test:e2e:custom-time-series-factor": "node e2e/custom-time-series-factor.mjs",
     "test:e2e:strategy": "node e2e/strategy-orchestration.mjs",
     "test:e2e:strategy-python": "node e2e/python-strategy.mjs",
     "test:e2e:strategy-scan": "node e2e/strategy-parameter-scan.mjs",

@@ -4,6 +4,8 @@ export const zhFactor = {
   agentLabel: 'Agent',
   libraryTab: '因子库',
   newFactor: '新建',
+  newFactorCrossSectional: '股票横截面因子',
+  newFactorTimeSeries: 'ETF 时间序列信号',
 
   unnamedNew: '新因子（未保存）',
   noneSelected: '未选择因子',
@@ -20,17 +22,23 @@ export const zhFactor = {
     '跟 Agent 说你想要的因子(估值 / 规模 / 流动性 / 资金流 / 价格动量波动类),它写成代码进中间编辑器。财报明细类(ROE 增速等)暂缺数据。',
 
   presetGroup: '股票横截面因子',
+  crossSectional: { methodBadge: '股票横截面' },
   timeSeries: {
     libraryGroup: 'ETF 时间序列信号',
     methodBadge: '时间序列',
     codeReadonly: '内置时间序列定义，代码只读',
+    codeEditable: '自定义时间序列定义，创建后研究协议不可更改',
     inputAudit: '输入：ETF 复权收盘价',
     windowAudit: '窗口：{{value}} 个交易日',
     assetScopeAudit: '输出：逐资产分数',
     placeholderQa:
       '问问这个时间序列信号 —— 如「t 值怎么理解」「为什么不同资产表现不同」—— 回车发送',
+    placeholderAuthor:
+      '描述你想研究的 ETF 时间序列信号，如「60 日趋势」「20 日反转」；或继续对话调整 —— 回车发送',
     chatEmpty:
       '这是一个受控的 ETF 时间序列研究模板。可以询问信号定义、稳健推断和报告解读；模板本身只读，资产、预测周期与样本区间在右侧设置。',
+    chatEmptyAuthor:
+      '这是可编辑的 ETF 时间序列 Factor Definition V2。告诉 Agent 你想研究的历史规律，它会使用当前已开放的 ETF 复权收盘价生成逐资产信号；研究资产和未来收益周期在右侧设置。',
     workspaceMethodValue: '单资产历史序列 · 信号预测未来收益',
     formula: '信号定义',
     formulaValue: '{{lookback}} 日累计收益率',
