@@ -563,9 +563,17 @@ Newey–West t 中位数”或“跨资产方向命中率均值”；API 拒绝�
 揭示后才显示逐资产指标与预设判据是否通过。真实浏览器已完成“研究卡 → explore → 密封 Holdout →
 reveal → 不可变 URL 回放”，并确认 3 个 ETF 的正式保留段截至共同数据日 2026-07-24，共 1,017 条观测。
 
-该切片尚未接通模板发布和策略 runtime，V2 自定义定义与 Factor Agent 作者能力也未开放，因此还不能视为
-Phase 2 完成。下一步应先让通过研究协议的内置时间序列定义形成不可变 release，再进入 Phase 3 的 ETF
-策略消费；真实国债曲线模板仍受收益率曲线数据权限和同步阻塞，不能用债券 ETF 自身价格冒充利率驱动。
+**2026-08-07 内置模板发布：**内置时间序列模板可从完成报告发布不可变 `FactorRelease`，虚拟内置身份
+使用稳定 `sourceRef/releaseKey`，不伪造 `Factor` 外键。发布时重新编译报告冻结的 Definition V2，并从
+字段注册表推导 `price → equity/fixed_income/commodity → asset` 契约，前端提交的元数据仍只作一致性断言。
+`experimental` 接受完成的探索或未通过主判据的已揭示报告；`validated` 仍必须通过已揭示 Holdout 的
+预设时间序列判据。真实浏览器已从上述未通过报告发布 `etf_trend_60@v1 experimental`，核对版本、报告、
+代码 hash 和推导契约；产品明确标注策略 runtime 尚未接入，并隐藏“带入策略 Lab”入口。
+
+该切片尚未接通时间序列策略 runtime，V2 自定义定义与 Factor Agent 作者能力也未开放，因此还不能视为
+Phase 2 完成。下一步进入 Phase 3 的 ETF 策略消费，但应先设计 release score 如何在策略决策日按资产
+求值，不把研究报告的相关性或 t 值误作交易信号；真实国债曲线模板仍受收益率曲线数据权限和同步阻塞，
+不能用债券 ETF 自身价格冒充利率驱动。
 
 **交付：**
 

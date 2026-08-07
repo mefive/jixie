@@ -2,6 +2,7 @@ export type FactorV2FieldKey = 'etf.adjustedClose';
 
 export interface FactorV2FieldDefinition {
   key: FactorV2FieldKey;
+  inputDomain: 'price' | 'fundamental' | 'flow' | 'rates' | 'commodity' | 'macro';
   frequency: 'daily';
   valueType: 'level';
   pointInTime: true;
@@ -13,6 +14,7 @@ export interface FactorV2FieldDefinition {
 export const FACTOR_V2_FIELDS: Record<FactorV2FieldKey, FactorV2FieldDefinition> = {
   'etf.adjustedClose': {
     key: 'etf.adjustedClose',
+    inputDomain: 'price',
     frequency: 'daily',
     valueType: 'level',
     pointInTime: true,

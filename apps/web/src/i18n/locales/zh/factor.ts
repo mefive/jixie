@@ -268,6 +268,9 @@ export const zhFactor = {
   release: {
     title: '发布与策略引用',
     hint: '批准不可变报告，形成可被策略精确引用的版本',
+    timeSeriesTitle: '发布与版本审计',
+    timeSeriesHint: '批准不可变报告并冻结时间序列定义；策略运行时尚未接入',
+    timeSeriesMaturityHelp: '版本用于研究证据与审计；接入策略运行时前不能用于回测或每日信号。',
     useInLab: '带入策略 Lab',
     publishReport: '发布此报告',
     reportRef: '报告 {{id}}',

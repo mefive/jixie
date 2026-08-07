@@ -88,6 +88,10 @@ export function resolveTimeSeriesTemplateSource(
     : null;
 }
 
+export function isTimeSeriesTemplateKey(key: string): boolean {
+  return ETF_TREND_TEMPLATES.some((template) => template.key === key);
+}
+
 export function timeSeriesTemplateResource(key: string, locale: Locale) {
   const template = ETF_TREND_TEMPLATES.find((candidate) => candidate.key === key);
   return template
