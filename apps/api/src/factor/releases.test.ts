@@ -4,6 +4,7 @@ import {
   assertReleaseMaturity,
   assertReleaseMetadata,
   deriveFactorReleaseMetadata,
+  deriveFactorReleaseMetadataForReport,
   FactorReleaseError,
 } from './releases.js';
 
@@ -56,6 +57,35 @@ describe('factor release maturity gates', () => {
     ).toThrowError(new FactorReleaseError('validation_required'));
   });
 
+  it('uses time-series aggregate criteria for validated releases', () => {
+    expect(() =>
+      assertReleaseMaturity(
+        report({
+          analysisKind: 'time_series',
+          payload: JSON.stringify({
+            assets: ['bond', 'gold', 'equity'],
+            periods: 100,
+            observations: 300,
+            byAsset: [
+              timeSeriesAsset('bond', 2.4),
+              timeSeriesAsset('gold', 2.1),
+              timeSeriesAsset('equity', 1.8),
+            ],
+          }),
+          researchIntentJson: JSON.stringify({
+            ...intent,
+            primaryCriterion: {
+              metric: 'time_series_median_newey_west_t',
+              operator: 'gt',
+              value: 1.96,
+            },
+          }),
+        }),
+        'validated',
+      ),
+    ).not.toThrow();
+  });
+
   it('keeps production closed until operational gates exist', () => {
     expect(() => assertReleaseMaturity(report(), 'production')).toThrowError(
       new FactorReleaseError('production_not_ready'),
@@ -101,6 +131,34 @@ describe('factor release metadata derivation', () => {
     );
   });
 
+  it('compiles Definition V2 to derive its declared release contract', async () => {
+    await expect(
+      deriveFactorReleaseMetadataForReport(
+        'single',
+        `export default defineFactorV2({
+          version: 2,
+          name: 'ETF trend',
+          analysisKind: 'time_series',
+          outputScope: 'asset',
+          frequency: 'daily',
+          inputs: ['etf.adjustedClose'],
+          targetAssetClasses: ['equity', 'fixed_income', 'commodity'],
+          window: 21,
+          compute(ctx) {
+            const current = ctx.value('etf.adjustedClose');
+            const previous = ctx.lag('etf.adjustedClose', 20);
+            return current != null && previous != null ? current / previous - 1 : null;
+          },
+        });`,
+        'time_series',
+      ),
+    ).resolves.toEqual({
+      inputDomains: ['price'],
+      targetAssetClasses: ['commodity', 'equity', 'fixed_income'],
+      outputScope: 'asset',
+    });
+  });
+
   it('treats compatibility metadata as assertions, independent of array order', () => {
     const derived = {
       inputDomains: ['fundamental', 'price'] as const,
@@ -133,3 +191,17 @@ describe('factor release metadata derivation', () => {
     ).toThrowError(new FactorReleaseError('metadata_mismatch'));
   });
 });
+
+function timeSeriesAsset(assetId: string, neweyWestTStat: number) {
+  return {
+    assetId,
+    observations: 100,
+    correlation: 0.1,
+    regressionSlope: 0.01,
+    directionHitRate: 0.55,
+    neweyWestLag: 20,
+    neweyWestTStat,
+    positiveStateMeanReturn: 0.01,
+    negativeStateMeanReturn: -0.01,
+  };
+}

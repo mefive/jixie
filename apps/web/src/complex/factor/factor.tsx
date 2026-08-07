@@ -1867,6 +1867,8 @@ const TimeSeriesReportBody = complex.component(() => {
         />
       </div>
 
+      <FactorReleaseCard />
+
       <div className="jx-factor-sectionTitle">{t('timeSeries.comparisonTitle')}</div>
       <div className="jx-factor-timeAssetList">
         {report.byAsset.map((row) => (
@@ -2248,8 +2250,8 @@ const FactorReleaseCard = complex.component(() => {
   const validatedEligible =
     detail.phase === 'holdout' &&
     !!detail.revealedAt &&
-    !!detail.payload &&
-    criterionPassed(detail.payload, detail.researchIntent);
+    !!detail.researchPayload &&
+    factorResearchCriterionPassed(detail.researchPayload, detail.researchIntent);
   const customKeyMissing = store.mode === 'custom' && !store.strategyKey;
   const compositeKeyRequired = store.mode === 'composite' && releases.length === 0;
   const normalizedReleaseKey = releaseKey.trim();
@@ -2304,8 +2306,12 @@ const FactorReleaseCard = complex.component(() => {
     <div className="jx-factor-release" data-testid="factor-release-card">
       <div className="jx-factor-releaseHead">
         <div>
-          <div className="jx-factor-releaseTitle">{t('release.title')}</div>
-          <div className="jx-factor-releaseHint">{t('release.hint')}</div>
+          <div className="jx-factor-releaseTitle">
+            {t(store.isTimeSeries ? 'release.timeSeriesTitle' : 'release.title')}
+          </div>
+          <div className="jx-factor-releaseHint">
+            {t(store.isTimeSeries ? 'release.timeSeriesHint' : 'release.hint')}
+          </div>
         </div>
         <Button
           size="small"
@@ -2360,17 +2366,18 @@ const FactorReleaseCard = complex.component(() => {
                 })}
                 {release.lifecycle === 'active' && (
                   <>
-                    {release.sourceKind === 'single' && (
-                      <Button
-                        type="link"
-                        size="small"
-                        icon={<FontAwesomeIcon icon={faFlask} />}
-                        href={`/lab?new=1&factorRelease=${encodeURIComponent(release.id)}`}
-                        data-testid="factor-release-use-in-lab"
-                      >
-                        {t('release.useInLab')}
-                      </Button>
-                    )}
+                    {release.sourceKind === 'single' &&
+                      release.methodology.analysisKind === 'cross_sectional' && (
+                        <Button
+                          type="link"
+                          size="small"
+                          icon={<FontAwesomeIcon icon={faFlask} />}
+                          href={`/lab?new=1&factorRelease=${encodeURIComponent(release.id)}`}
+                          data-testid="factor-release-use-in-lab"
+                        >
+                          {t('release.useInLab')}
+                        </Button>
+                      )}
                     <Button
                       type="link"
                       size="small"
@@ -2433,7 +2440,11 @@ const FactorReleaseCard = complex.component(() => {
             />
           </label>
           <div className="jx-factor-releaseMaturityHelp">
-            {maturity === 'validated' ? t('release.validatedHelp') : t('release.experimentalHelp')}
+            {store.isTimeSeries
+              ? t('release.timeSeriesMaturityHelp')
+              : maturity === 'validated'
+                ? t('release.validatedHelp')
+                : t('release.experimentalHelp')}
           </div>
           {duplicate && <Alert type="warning" showIcon title={t('release.duplicate')} />}
         </div>

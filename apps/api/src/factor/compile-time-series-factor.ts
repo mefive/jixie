@@ -1,6 +1,6 @@
 import { loadIsolatedModule, toCommonJs, type IsolatedModule } from '../lib/isolate-run.js';
 import type { UserLogSink } from '../lib/sandbox-console.js';
-import { isFactorV2FieldKey, type FactorV2FieldKey } from './factor-v2-fields.js';
+import { FACTOR_V2_FIELDS, isFactorV2FieldKey, type FactorV2FieldKey } from './factor-v2-fields.js';
 
 export interface TimeSeriesFactorDefinitionMeta {
   version: 2;
@@ -157,5 +157,14 @@ function validateMeta(meta: TimeSeriesFactorDefinitionMeta): void {
     meta.targetAssetClasses.some((assetClass) => !allowedAssetClasses.has(assetClass))
   ) {
     throw new Error('Factor V2 target asset classes are invalid.');
+  }
+  if (
+    meta.inputs.some((input) =>
+      meta.targetAssetClasses.some(
+        (assetClass) => !FACTOR_V2_FIELDS[input].targetAssetClasses.includes(assetClass),
+      ),
+    )
+  ) {
+    throw new Error('Factor V2 target asset classes are incompatible with its declared inputs.');
   }
 }

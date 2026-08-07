@@ -290,6 +290,11 @@ export const enFactor: typeof zhFactor = {
   release: {
     title: 'Publishing and strategy references',
     hint: 'Approve an immutable report as a version that strategies can reference exactly',
+    timeSeriesTitle: 'Publishing and version audit',
+    timeSeriesHint:
+      'Approve an immutable report and freeze the time-series definition; strategy runtime support is not connected yet',
+    timeSeriesMaturityHelp:
+      'This version is for research evidence and audit only; it cannot be used in backtests or daily signals until the strategy runtime is connected.',
     useInLab: 'Use in Strategy Lab',
     publishReport: 'Publish this report',
     reportRef: 'Report {{id}}',

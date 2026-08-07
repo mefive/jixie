@@ -1,4 +1,9 @@
-import type { FactorReport as FactorReportPayload, FactorResearchIntentV1 } from '@jixie/shared';
+import type {
+  FactorReport as FactorReportPayload,
+  FactorResearchIntentV1,
+  FactorResearchReportPayloadV1,
+} from '@jixie/shared';
+import { factorResearchCriterionPassed } from '@jixie/shared';
 import type {
   FactorAnalysisKind,
   FactorInputDomain,
@@ -18,6 +23,12 @@ import { ulid } from 'ulid';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
 import { BUILTIN_KEYS, BUILTIN_USER_ID } from './builtin-factors.js';
+import { compileTimeSeriesFactor } from './compile-time-series-factor.js';
+import { FACTOR_V2_FIELDS } from './factor-v2-fields.js';
+import {
+  isTimeSeriesTemplateKey,
+  resolveTimeSeriesTemplateSource,
+} from './time-series-templates.js';
 
 const FACTOR_KEY_PATTERN = /^[a-z][a-z0-9_]{0,31}$/;
 
@@ -60,6 +71,7 @@ export class FactorReleaseError extends Error {
 interface ReleaseValidationReport {
   status: string;
   phase: string;
+  analysisKind?: string;
   revealedAt: Date | null;
   payload: string | null;
   researchIntentJson: string | null;
@@ -85,14 +97,14 @@ export function assertReleaseMaturity(
     return;
   }
 
-  const payload = parseJson<FactorReportPayload>(report.payload);
+  const payload = releaseResearchPayload(report);
   const intent = parseJson<FactorResearchIntentV1>(report.researchIntentJson);
   if (
     report.phase !== 'holdout' ||
     !report.revealedAt ||
     !payload ||
     !intent?.primaryCriterion ||
-    !criterionPassed(payload, intent)
+    !factorResearchCriterionPassed(payload, intent)
   ) {
     throw new FactorReleaseError('validation_required');
   }
@@ -115,7 +127,7 @@ export async function publishFactorRelease(
     throw new FactorReleaseError('report_invalid');
   }
   assertReleaseMaturity(report, request.maturity);
-  const metadata = deriveFactorReleaseMetadata(
+  const metadata = await deriveFactorReleaseMetadataForReport(
     request.sourceKind,
     report.factorCodeSnapshot,
     analysisKind(report.analysisKind),
@@ -137,7 +149,7 @@ export async function publishFactorRelease(
           data: {
             id: ulid(),
             userId,
-            factorId: request.sourceKind === 'single' ? request.sourceId : null,
+            factorId: source.factorId ?? null,
             compositeId: request.sourceKind === 'composite' ? request.sourceId : null,
             sourceRef: request.sourceId,
             releaseKey,
@@ -190,6 +202,38 @@ export function deriveFactorReleaseMetadata(
     targetAssetClasses: ['equity'],
     outputScope: 'asset',
   };
+}
+
+export async function deriveFactorReleaseMetadataForReport(
+  sourceKind: PublishFactorReleaseRequest['sourceKind'],
+  snapshot: string,
+  kind: FactorAnalysisKind,
+): Promise<DerivedFactorReleaseMetadata> {
+  if (kind !== 'time_series') {
+    return deriveFactorReleaseMetadata(sourceKind, snapshot, kind);
+  }
+  if (sourceKind !== 'single') {
+    throw new FactorReleaseError('input_dependencies_unknown');
+  }
+
+  let compiled: Awaited<ReturnType<typeof compileTimeSeriesFactor>> | null = null;
+  try {
+    compiled = await compileTimeSeriesFactor(snapshot);
+    return {
+      inputDomains: [
+        ...new Set(compiled.inputs.map((input) => FACTOR_V2_FIELDS[input].inputDomain)),
+      ].sort(),
+      targetAssetClasses: [...compiled.targetAssetClasses].sort(),
+      outputScope: compiled.outputScope,
+    };
+  } catch (error) {
+    if (error instanceof FactorReleaseError) {
+      throw error;
+    }
+    throw new FactorReleaseError('input_dependencies_unknown');
+  } finally {
+    compiled?.dispose();
+  }
 }
 
 export function assertReleaseMetadata(
@@ -288,20 +332,24 @@ export async function retireFactorRelease(
 async function resolveSource(
   userId: string,
   request: PublishFactorReleaseRequest,
-): Promise<{ name: string; releaseKey?: string }> {
+): Promise<{ name: string; releaseKey?: string; factorId?: string }> {
   if (request.sourceKind === 'single') {
     const factor = await prisma.factor.findFirst({
       where: { id: request.sourceId, userId: { in: [userId, BUILTIN_USER_ID] } },
       select: { id: true, userId: true, key: true, name: true },
     });
-    if (!factor) {
-      throw new FactorReleaseError('source_not_found');
+    if (factor) {
+      const releaseKey = factor.userId === BUILTIN_USER_ID ? factor.id : factor.key;
+      if (!releaseKey) {
+        throw new FactorReleaseError('key_required');
+      }
+      return { name: factor.name, releaseKey, factorId: factor.id };
     }
-    const releaseKey = factor.userId === BUILTIN_USER_ID ? factor.id : factor.key;
-    if (!releaseKey) {
-      throw new FactorReleaseError('key_required');
+    const template = resolveTimeSeriesTemplateSource(request.sourceId);
+    if (template) {
+      return { name: template.label, releaseKey: request.sourceId };
     }
-    return { name: factor.name, releaseKey };
+    throw new FactorReleaseError('source_not_found');
   }
 
   const composite = await prisma.factorComposite.findFirst({
@@ -345,7 +393,7 @@ async function resolveReleaseKey(
   }
 
   if (request.sourceKind === 'composite') {
-    if (BUILTIN_KEYS.has(releaseKey)) {
+    if (BUILTIN_KEYS.has(releaseKey) || isTimeSeriesTemplateKey(releaseKey)) {
       throw new FactorReleaseError('key_unavailable');
     }
     const factor = await prisma.factor.findFirst({
@@ -401,22 +449,17 @@ function releaseResource(row: FactorReleaseRow): FactorReleaseResource {
   };
 }
 
-function criterionPassed(report: FactorReportPayload, intent: FactorResearchIntentV1): boolean {
-  const criterion = intent.primaryCriterion;
-  if (!criterion) {
-    return false;
+function releaseResearchPayload(
+  report: Pick<ReleaseValidationReport, 'analysisKind' | 'payload'>,
+): FactorResearchReportPayloadV1 | undefined {
+  if (report.analysisKind === 'time_series') {
+    const payload = parseJson<
+      Extract<FactorResearchReportPayloadV1, { analysisKind: 'time_series' }>['report']
+    >(report.payload);
+    return payload ? { version: 1, analysisKind: 'time_series', report: payload } : undefined;
   }
-  const value = {
-    rank_ic_mean: report.icMean,
-    rank_icir_annual: report.icirAnnual,
-    net_long_short_annualized: report.longShortNet?.annReturn ?? Number.NaN,
-    time_series_median_newey_west_t: Number.NaN,
-    time_series_mean_direction_hit_rate: Number.NaN,
-  }[criterion.metric];
-  return (
-    Number.isFinite(value) &&
-    (criterion.operator === 'gt' ? value > criterion.value : value < criterion.value)
-  );
+  const payload = parseJson<FactorReportPayload>(report.payload);
+  return payload ? { version: 1, analysisKind: 'cross_sectional', report: payload } : undefined;
 }
 
 function analysisKind(value: string): FactorAnalysisKind {
