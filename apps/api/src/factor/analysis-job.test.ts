@@ -135,7 +135,11 @@ describe('startFactorAnalysis', () => {
       dataPolicy: { pointInTime: true, revisionPolicy: 'as_available', dataCutoff: '20250131' },
       inference: { standardError: 'newey_west', lag: 'automatic' },
     };
-    const source = { kind: 'etf_trend' as const, label: 'ETF 20-day trend', lookback: 20 as const };
+    const source = {
+      kind: 'time_series' as const,
+      label: 'ETF 20-day trend',
+      code: 'executable Factor V2 source',
+    };
 
     await startFactorAnalysis({
       userId: 'user-1',
@@ -160,7 +164,7 @@ describe('startFactorAnalysis', () => {
       neutral: 'none',
       start: '20200101',
       end: '20241231',
-      factorCodeSnapshot: JSON.stringify(source),
+      factorCodeSnapshot: source.code,
     });
     expect(JSON.parse(mocks.reportCreate.mock.calls[0][0].data.specJson)).toEqual(timeSeriesSpec);
     expect(launchWorker.mock.calls[0][0]).toMatchObject({ source, spec: timeSeriesSpec });

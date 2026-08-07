@@ -131,6 +131,29 @@ interface CustomFactor {
 }
 /** ${doc('defineFactor')} */
 declare function defineFactor(factor: CustomFactor): CustomFactor;
+
+type FactorV2Field = 'etf.adjustedClose';
+type FactorV2AssetClass = 'equity' | 'fixed_income' | 'commodity';
+interface TimeSeriesFactorCtxV2 {
+  /** Current point-in-time value for a declared field. */
+  value(field: FactorV2Field): number | null;
+  /** Value N observations before the current decision date. */
+  lag(field: FactorV2Field, periods: number): number | null;
+}
+interface TimeSeriesFactorV2 {
+  version: 2;
+  name: string;
+  analysisKind: 'time_series';
+  outputScope: 'asset';
+  frequency: 'daily';
+  inputs: FactorV2Field[];
+  targetAssetClasses: FactorV2AssetClass[];
+  /** Required trading-day history, including the current observation. */
+  window: number;
+  compute: (ctx: TimeSeriesFactorCtxV2) => number | null;
+}
+/** Define an asset-scope time-series factor with explicit point-in-time inputs. */
+declare function defineFactorV2(factor: TimeSeriesFactorV2): TimeSeriesFactorV2;
 `;
 }
 

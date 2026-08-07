@@ -862,37 +862,31 @@ const MiddleColumn = complex.component(({ guardDiscard }: { guardDiscard: GuardD
 const TimeSeriesWorkspace = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('factor');
-  const lookback = Number(store.selectedKey.match(/(\d+)$/)?.[1] ?? 20);
+  const window = store.code.match(/\bwindow:\s*(\d+)/)?.[1] ?? '—';
   return (
     <Splitter orientation="vertical">
       <Splitter.Panel min="20%">
-        <section className="jx-factor-timeWorkspace" data-testid="time-series-workspace">
-          <div className="jx-factor-timeWorkspaceHead">
-            <div>
-              <div className="jx-factor-timeWorkspaceTitle">
-                {factorDisplayName(store.selected!)}
-              </div>
-              <div className="jx-factor-timeWorkspaceMethod">
-                {t('timeSeries.workspaceMethodValue')}
-              </div>
-            </div>
-            <Tag color="blue">{t('timeSeries.methodBadge')}</Tag>
+        <section
+          className="jx-factor-editor jx-factor-timeWorkspace"
+          data-testid="time-series-workspace"
+        >
+          <div className="jx-factor-presetBar">
+            <span className="jx-factor-presetNote">
+              <FontAwesomeIcon icon={faLock} /> {t('timeSeries.codeReadonly')}
+            </span>
+            <Tag color="blue">Factor Definition V2</Tag>
           </div>
-          <div className="jx-factor-timeDefinition">
-            <div>
-              <span>{t('timeSeries.formula')}</span>
-              <code>{t('timeSeries.formulaValue', { lookback })}</code>
-            </div>
-            <div>
-              <span>{t('timeSeries.inputs')}</span>
-              <strong>{t('timeSeries.inputsValue')}</strong>
-            </div>
-            <div>
-              <span>{t('timeSeries.output')}</span>
-              <strong>{t('timeSeries.outputValue')}</strong>
-            </div>
+          <div className="jx-factor-timeDefinitionAudit">
+            <span>{t('timeSeries.methodBadge')}</span>
+            <span>{t('timeSeries.inputAudit')}</span>
+            <span>{t('timeSeries.windowAudit', { value: window })}</span>
+            <span>{t('timeSeries.assetScopeAudit')}</span>
           </div>
-          <Alert type="info" showIcon title={t('timeSeries.exploratoryOnly')} />
+          <div className="jx-factor-code">
+            <Suspense fallback={<div className="jx-factor-codeEmpty">{t('editorLoading')}</div>}>
+              <FactorEditor value={store.code} onChange={() => {}} readOnly />
+            </Suspense>
+          </div>
         </section>
       </Splitter.Panel>
       <Splitter.Panel defaultSize="28%" min="6%" collapsible>

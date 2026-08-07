@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { compileTimeSeriesFactor } from './compile-time-series-factor.js';
 import {
   resolveTimeSeriesTemplateSource,
   timeSeriesTemplateCatalog,
@@ -22,12 +23,23 @@ describe('ETF time-series templates', () => {
     });
   });
 
-  it('resolves only controlled templates to worker sources', () => {
-    expect(resolveTimeSeriesTemplateSource('etf_trend_60')).toEqual({
-      kind: 'etf_trend',
+  it('resolves controlled templates to executable frozen Factor V2 sources', async () => {
+    const source = resolveTimeSeriesTemplateSource('etf_trend_60');
+    expect(source).toMatchObject({
+      kind: 'time_series',
       label: 'ETF 60-day trend',
-      lookback: 60,
     });
+    expect(source?.code).toContain("ctx.lag('etf.adjustedClose', 60)");
+    const compiled = await compileTimeSeriesFactor(source!.code);
+    try {
+      expect(compiled).toMatchObject({
+        window: 61,
+        inputs: ['etf.adjustedClose'],
+        targetAssetClasses: ['equity', 'fixed_income', 'commodity'],
+      });
+    } finally {
+      compiled.dispose();
+    }
     expect(resolveTimeSeriesTemplateSource('user_supplied_code')).toBeNull();
   });
 });

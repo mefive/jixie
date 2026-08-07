@@ -27,6 +27,10 @@ export const enFactor: typeof zhFactor = {
   timeSeries: {
     libraryGroup: 'ETF time-series signals',
     methodBadge: 'Time series',
+    codeReadonly: 'Built-in time-series definition, read-only code',
+    inputAudit: 'Input: adjusted ETF close',
+    windowAudit: 'Window: {{value}} trading days',
+    assetScopeAudit: 'Output: per-asset score',
     placeholderQa:
       'Ask about this time-series signal — e.g. "how do I read the t-stat?", "why does it differ by asset?" — Enter to send',
     chatEmpty:

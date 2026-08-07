@@ -4,8 +4,9 @@ import type { FactorAnalysisSource } from './analysis-job.js';
 import { prisma } from '../lib/prisma.js';
 import { factorEvaluatorFor } from './evaluator.js';
 import { normalizeFactorResearchSpec } from './report-spec.js';
-import { loadEtfTrendObservations } from './etf-trend-observations.js';
+import { loadEtfTimeSeriesObservations } from './etf-trend-observations.js';
 import { TimeSeriesEvaluator } from './time-series-evaluator.js';
+import { compileTimeSeriesFactor } from './compile-time-series-factor.js';
 import { t } from '../i18n/index.js';
 
 /**
@@ -37,8 +38,8 @@ try {
   const researchSpec = normalizeFactorResearchSpec(spec);
   switch (researchSpec.analysisKind) {
     case 'cross_sectional': {
-      if (source.kind === 'etf_trend') {
-        throw new Error('ETF trend source cannot run with a cross-sectional protocol.');
+      if (source.kind === 'time_series') {
+        throw new Error('Time-series source cannot run with a cross-sectional protocol.');
       }
       const evaluator = factorEvaluatorFor(researchSpec);
       const report = await evaluator.evaluate({
@@ -53,14 +54,19 @@ try {
       break;
     }
     case 'time_series': {
-      if (source.kind !== 'etf_trend') {
-        throw new Error('Time-series evaluator requires an ETF trend source.');
+      if (source.kind !== 'time_series') {
+        throw new Error('Time-series evaluator requires a Factor V2 source.');
       }
-      onSystemLog(t(locale, 'factorTimeSeriesLoading', { count: researchSpec.assets.length }));
-      const observations = await loadEtfTrendObservations(researchSpec, source.lookback);
-      onSystemLog(t(locale, 'factorTimeSeriesEvaluating', { count: observations.length }));
-      const report = new TimeSeriesEvaluator().evaluate(researchSpec, observations);
-      port.postMessage({ type: 'done', reportId, payload: JSON.stringify(report) });
+      const compiled = await compileTimeSeriesFactor(source.code, onUserLog);
+      try {
+        onSystemLog(t(locale, 'factorTimeSeriesLoading', { count: researchSpec.assets.length }));
+        const observations = await loadEtfTimeSeriesObservations(researchSpec, compiled);
+        onSystemLog(t(locale, 'factorTimeSeriesEvaluating', { count: observations.length }));
+        const report = new TimeSeriesEvaluator().evaluate(researchSpec, observations);
+        port.postMessage({ type: 'done', reportId, payload: JSON.stringify(report) });
+      } finally {
+        compiled.dispose();
+      }
       break;
     }
     case 'panel':

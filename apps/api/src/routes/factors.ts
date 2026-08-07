@@ -11,7 +11,10 @@ import { chatMessagesSchema } from '../lib/chat-schema.js';
 import { m } from '../i18n/index.js';
 import { localeFromRequest } from '../i18n/index.js';
 import { factorCompositeDefinitionV1Schema } from '../factor/report-spec.js';
-import { timeSeriesTemplateCatalog } from '../factor/time-series-templates.js';
+import {
+  timeSeriesTemplateCatalog,
+  timeSeriesTemplateResource,
+} from '../factor/time-series-templates.js';
 import {
   FactorReleaseError,
   getFactorRelease,
@@ -235,6 +238,10 @@ factorsRoute.get('/custom', async (c) => {
 factorsRoute.get('/custom/:id', async (c) => {
   // Own factors are editable; builtin (preset) rows are readable by anyone — the UI shows their
   // code read-only with a "copy as custom" affordance.
+  const timeSeriesTemplate = timeSeriesTemplateResource(c.req.param('id'), localeFromRequest(c));
+  if (timeSeriesTemplate) {
+    return c.json(timeSeriesTemplate);
+  }
   const row = await prisma.factor.findFirst({
     where: { id: c.req.param('id'), userId: { in: [c.var.userId, BUILTIN_USER_ID] } },
     select: {

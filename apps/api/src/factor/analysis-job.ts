@@ -28,14 +28,14 @@ const workerUrl = import.meta.url.endsWith('.ts')
 
 export type FactorAnalysisSource =
   | FactorAnalysisRuntimeSource
-  | { kind: 'etf_trend'; label: string; lookback: 20 | 60 | 120 };
+  | { kind: 'time_series'; label: string; code: string };
 
 const factorAnalysisRuntimeSourceSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('single'), code: z.string().min(1), label: z.string().min(1) }),
   z.object({
-    kind: z.literal('etf_trend'),
+    kind: z.literal('time_series'),
     label: z.string().min(1),
-    lookback: z.union([z.literal(20), z.literal(60), z.literal(120)]),
+    code: z.string().min(1),
   }),
   z.object({
     kind: z.literal('composite'),
@@ -56,7 +56,9 @@ const factorAnalysisRuntimeSourceSchema = z.discriminatedUnion('kind', [
 ]);
 
 export function factorAnalysisSourceSnapshot(source: FactorAnalysisSource): string {
-  return source.kind === 'single' ? source.code : canonicalJson(source);
+  return source.kind === 'single' || source.kind === 'time_series'
+    ? source.code
+    : canonicalJson(source);
 }
 
 export function parseFactorAnalysisSourceSnapshot(

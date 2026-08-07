@@ -1,6 +1,7 @@
 import type { TimeSeriesFactorResearchSpecV1 } from '@jixie/shared';
 import { addDays } from '../lib/date.js';
 import { prisma } from '../lib/prisma.js';
+import type { CompiledTimeSeriesFactor } from './compile-time-series-factor.js';
 import type { TimeSeriesEvaluationObservation } from './time-series-evaluator.js';
 
 export interface EtfTrendDailyRow {
@@ -10,12 +11,15 @@ export interface EtfTrendDailyRow {
   adjustmentFactor: number;
 }
 
-export async function loadEtfTrendObservations(
+export async function loadEtfTimeSeriesObservations(
   researchSpec: TimeSeriesFactorResearchSpecV1,
-  lookback: number,
+  factor: CompiledTimeSeriesFactor,
 ): Promise<TimeSeriesEvaluationObservation[]> {
-  assertSupportedProtocol(researchSpec, lookback);
-  const historyStart = addDays(researchSpec.start, -(lookback + researchSpec.target.horizon) * 3);
+  assertSupportedProtocol(researchSpec, factor);
+  const historyStart = addDays(
+    researchSpec.start,
+    -(factor.window - 1 + researchSpec.target.horizon) * 3,
+  );
   const upperBound = researchSpec.dataPolicy.dataCutoff ?? undefined;
   const [bars, adjustments] = await Promise.all([
     prisma.etfDaily.findMany({
@@ -38,7 +42,7 @@ export async function loadEtfTrendObservations(
   const adjustmentByAssetDate = new Map(
     adjustments.map((row) => [`${row.tsCode}:${row.tradeDate}`, row.adjFactor]),
   );
-  return buildEtfTrendObservations(
+  return buildEtfTimeSeriesObservations(
     researchSpec,
     bars.map((bar) => ({
       assetId: bar.tsCode,
@@ -46,16 +50,16 @@ export async function loadEtfTrendObservations(
       close: bar.close!,
       adjustmentFactor: adjustmentByAssetDate.get(`${bar.tsCode}:${bar.tradeDate}`) ?? Number.NaN,
     })),
-    lookback,
+    factor,
   );
 }
 
-export function buildEtfTrendObservations(
+export async function buildEtfTimeSeriesObservations(
   researchSpec: TimeSeriesFactorResearchSpecV1,
   rows: EtfTrendDailyRow[],
-  lookback: number,
-): TimeSeriesEvaluationObservation[] {
-  assertSupportedProtocol(researchSpec, lookback);
+  factor: CompiledTimeSeriesFactor,
+): Promise<TimeSeriesEvaluationObservation[]> {
+  assertSupportedProtocol(researchSpec, factor);
   const declaredAssets = new Set(researchSpec.assets);
   const byAsset = new Map<string, EtfTrendDailyRow[]>();
 
@@ -90,7 +94,12 @@ export function buildEtfTrendObservations(
       seenDates.add(row.tradeDate);
     }
     const adjustedCloses = assetRows.map((row) => row.close * row.adjustmentFactor);
-    for (let index = lookback; index + researchSpec.target.horizon < assetRows.length; index++) {
+    const indexes: number[] = [];
+    for (
+      let index = factor.window - 1;
+      index + researchSpec.target.horizon < assetRows.length;
+      index++
+    ) {
       const current = assetRows[index];
       const target = assetRows[index + researchSpec.target.horizon];
       if (current.tradeDate < researchSpec.start || current.tradeDate > researchSpec.end) {
@@ -102,12 +111,28 @@ export function buildEtfTrendObservations(
       ) {
         continue;
       }
+      indexes.push(index);
+    }
+    const scores = await factor.computeSeries({ 'etf.adjustedClose': adjustedCloses }, indexes);
+    if (scores.length !== indexes.length) {
+      throw new Error(
+        `Time-series factor returned ${scores.length} scores for ${indexes.length} observations`,
+      );
+    }
+    for (let position = 0; position < indexes.length; position++) {
+      const score = scores[position];
+      if (score == null) {
+        continue;
+      }
+      const index = indexes[position];
+      const current = assetRows[index];
+      const target = assetRows[index + researchSpec.target.horizon];
       observations.push({
         assetId,
         asOfDate: current.tradeDate,
         featureAvailableDate: current.tradeDate,
         targetDate: target.tradeDate,
-        score: adjustedCloses[index] / adjustedCloses[index - lookback] - 1,
+        score,
         forwardReturn:
           adjustedCloses[index + researchSpec.target.horizon] / adjustedCloses[index] - 1,
       });
@@ -118,7 +143,7 @@ export function buildEtfTrendObservations(
 
 function assertSupportedProtocol(
   researchSpec: TimeSeriesFactorResearchSpecV1,
-  lookback: number,
+  factor: CompiledTimeSeriesFactor,
 ): void {
   if (
     researchSpec.observationFrequency !== 'daily' ||
@@ -126,7 +151,15 @@ function assertSupportedProtocol(
   ) {
     throw new Error('ETF trend observations currently require daily trade-day horizons.');
   }
-  if (!Number.isInteger(lookback) || lookback < 2 || lookback > 504) {
-    throw new Error('ETF trend lookback must be an integer between 2 and 504 trading days.');
+  if (
+    factor.analysisKind !== 'time_series' ||
+    factor.outputScope !== 'asset' ||
+    factor.frequency !== 'daily' ||
+    factor.inputs.length !== 1 ||
+    factor.inputs[0] !== 'etf.adjustedClose'
+  ) {
+    throw new Error(
+      'ETF observations require a daily asset-scope adjusted-close Factor V2 definition.',
+    );
   }
 }

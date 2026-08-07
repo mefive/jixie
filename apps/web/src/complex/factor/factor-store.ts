@@ -629,7 +629,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         this.chatMessages = [];
       }
     });
-    if (isComposite || isTimeSeries) {
+    if (isComposite) {
       const reports = await this.reportsLoader.run();
       void this.researchSummaryLoader.run();
       if (this.selectedKey !== key) {
@@ -971,6 +971,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       const spec = detail.researchSpec;
       runInAction(() => {
         this.mode = 'time_series';
+        if (detail.factorCodeSnapshot?.includes('defineFactorV2')) {
+          this.code = detail.factorCodeSnapshot;
+          this.persistedCode = detail.factorCodeSnapshot;
+        }
         this.start = spec.start;
         this.end = spec.end;
         this.timeSeriesAssets = spec.assets.filter((asset): asset is TimeSeriesAsset =>

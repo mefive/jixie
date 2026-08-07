@@ -545,9 +545,20 @@ Newey-West t 值和正负状态条件收益，并明确标注“信号证据不�
 `apps/web/acceptance/9a-factor-time-series-config.jpg` 和
 `apps/web/acceptance/9b-factor-time-series-report.jpg`。
 
+**2026-08-07 Factor Definition V2 最小运行时：**时间序列模板已从“key → 后端硬编码 lookback”迁移为
+真实可执行定义。首版字段注册表只开放 `etf.adjustedClose`，定义必须显式声明 `version = 2`、
+`analysisKind = time_series`、`outputScope = asset`、日频、输入域、目标资产类别和所需窗口；计算上下文
+首批只提供 point-in-time 的 `ctx.value(field)` 与 `ctx.lag(field, periods)`。worker 在 isolated-vm 中编译
+冻结的 `defineFactorV2` 源码，由该源码逐资产计算 score，再交给既有 TimeSeriesEvaluator；报告保存原始
+代码快照和 SHA-256，不再把模板配置 JSON 冒充代码。20 / 60 / 120 日趋势均通过同一编译器，复权、
+未来价格隔离和未知字段 fail-closed 测试保持通过。前端中间工作区重新展示只读真实代码与输入、窗口、
+输出审计，刷新不可变报告后仍恢复被冻结定义；真实浏览器验收截图为
+`apps/web/acceptance/9c-factor-definition-v2.jpg`。
+
 该切片仍然只有 exploratory：时间序列研究卡、holdout/reveal、尝试计数、模板发布和策略 runtime 尚未
-接通，因此还不能视为 Phase 2 完成。下一步应先补齐时间序列研究纪律与发布，再进入 Phase 3 的 ETF
-策略消费；真实国债曲线模板仍受收益率曲线数据权限和同步阻塞，不能用债券 ETF 自身价格冒充利率驱动。
+接通，V2 自定义定义和 Factor Agent 作者能力也尚未开放，因此还不能视为 Phase 2 完成。下一步应先补齐
+时间序列研究纪律与发布，再进入 Phase 3 的 ETF 策略消费；真实国债曲线模板仍受收益率曲线数据权限和
+同步阻塞，不能用债券 ETF 自身价格冒充利率驱动。
 
 **交付：**
 
