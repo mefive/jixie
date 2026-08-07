@@ -4,7 +4,6 @@ import { ulid } from 'ulid';
 import { z } from 'zod';
 import type { FactorReport as FactorReportRow } from '@prisma/client';
 import type {
-  FactorAnalysisSpec,
   FactorCorrelation,
   FactorHoldoutEligibility,
   FactorReport as FactorAnalysisPayload,
@@ -17,6 +16,7 @@ import type {
   ChatMessage,
   RunFactorAnalysisResponse,
 } from '@jixie/shared';
+import { timeSeriesAggregateMetrics } from '@jixie/shared';
 import { apiError, validateJson, validateQuery } from '../lib/httpError.js';
 import { prisma } from '../lib/prisma.js';
 import { BUILTIN_FACTORS, BUILTIN_KEYS } from '../factor/builtin-factors.js';
@@ -34,7 +34,6 @@ import {
   factorResearchIntentV1Schema,
   factorResearchSpecV1Schema,
   factorVariantKey,
-  crossSectionalProtocol,
   normalizeFactorAnalysisSpec,
   normalizeFactorResearchSpec,
 } from '../factor/report-spec.js';
@@ -296,6 +295,9 @@ factorRoute.post('/analysis/run', validateJson(runAnalysisBody), async (c) => {
   const userId = c.var.userId;
   const { factor, parentReportId, researchIntent } = c.req.valid('json');
   let researchSpec = normalizeFactorResearchSpec(c.req.valid('json').spec);
+  if (!criterionMatchesAnalysisKind(researchSpec, researchIntent)) {
+    return apiError(c, 'VALIDATION_FAILED', m(c, 'factorCriterionUnsupported'));
+  }
   let source: FactorAnalysisSource | null;
   if (researchSpec.analysisKind === 'cross_sectional') {
     let protocol = researchSpec.protocol;
@@ -317,10 +319,14 @@ factorRoute.post('/analysis/run', validateJson(runAnalysisBody), async (c) => {
     if (!source) {
       return apiError(c, 'NOT_FOUND', m(c, 'unknownFactor', { factor }));
     }
-    if (researchIntent.mode !== 'exploratory') {
-      return apiError(c, 'VALIDATION_FAILED', m(c, 'factorTimeSeriesExploratoryOnly'));
-    }
-    const dataCutoff = await resolveEtfDataCutoff(researchSpec);
+    const cutoffSpec = {
+      ...researchSpec,
+      dataPolicy: {
+        ...researchSpec.dataPolicy,
+        dataCutoff: researchSpec.dataPolicy.dataCutoff ?? researchSpec.end,
+      },
+    };
+    const dataCutoff = await resolveEtfDataCutoff(cutoffSpec);
     if (!dataCutoff) {
       return apiError(c, 'VALIDATION_FAILED', m(c, 'windowNotComputed'));
     }
@@ -392,15 +398,46 @@ factorRoute.post('/reports/:reportId/holdout', async (c) => {
     });
   }
   const policy = eligibility.window!;
-  const parentSpec = reportSpec(parent);
-  const spec = normalizeFactorAnalysisSpec({
-    ...parentSpec,
-    start: policy.holdoutStart,
-    end: policy.holdoutEnd,
-  });
+  const parentResearchSpec = reportResearchSpec(parent);
+  let researchSpec: FactorResearchSpecV1;
+  if (parentResearchSpec.analysisKind === 'cross_sectional') {
+    researchSpec = {
+      version: 1,
+      analysisKind: 'cross_sectional',
+      protocol: normalizeFactorAnalysisSpec({
+        ...parentResearchSpec.protocol,
+        start: policy.holdoutStart,
+        end: policy.holdoutEnd,
+      }),
+    };
+  } else if (parentResearchSpec.analysisKind === 'time_series') {
+    const candidate = {
+      ...parentResearchSpec,
+      start: policy.holdoutStart,
+      end: policy.holdoutEnd,
+      dataPolicy: { ...parentResearchSpec.dataPolicy, dataCutoff: policy.holdoutEnd },
+    };
+    const dataCutoff = await resolveEtfDataCutoff(candidate);
+    if (!dataCutoff) {
+      return apiError(c, 'VALIDATION_FAILED', m(c, 'windowNotComputed'));
+    }
+    researchSpec = {
+      ...candidate,
+      dataPolicy: { ...candidate.dataPolicy, dataCutoff },
+    };
+  } else {
+    return apiError(
+      c,
+      'VALIDATION_FAILED',
+      m(c, 'factorAnalysisKindUnsupported', { kind: parentResearchSpec.analysisKind }),
+    );
+  }
   const factorCodeSnapshot = parent.factorCodeSnapshot!;
   const factorCodeHash = parent.factorCodeHash!;
-  const variantKey = factorVariantKey(spec, factorCodeHash, parent.dataRevision);
+  const identitySpec =
+    researchSpec.analysisKind === 'cross_sectional' ? researchSpec.protocol : researchSpec;
+  const variantKey = factorVariantKey(identitySpec, factorCodeHash, parent.dataRevision);
+  const columns = reportCompatibilityColumns(researchSpec);
   const reportId = ulid();
   const jobId = ulid();
   const created = await prisma.$transaction(async (transaction) => {
@@ -423,16 +460,9 @@ factorRoute.post('/reports/:reportId/holdout', async (c) => {
         factor: parent.factor,
         status: 'running',
         phase: 'holdout',
-        freq: spec.freq,
-        neutral: spec.neutral,
-        start: spec.start,
-        end: spec.end,
-        analysisKind: 'cross_sectional',
-        specJson: JSON.stringify({
-          version: 1,
-          analysisKind: 'cross_sectional',
-          protocol: spec,
-        }),
+        ...columns,
+        analysisKind: researchSpec.analysisKind,
+        specJson: JSON.stringify(researchSpec),
         variantKey,
         factorCodeSnapshot,
         factorCodeHash,
@@ -448,17 +478,20 @@ factorRoute.post('/reports/:reportId/holdout', async (c) => {
   });
   const response: RunFactorAnalysisResponse = { ...created, status: 'running' };
   if (!created.reusedRunning) {
-    const source = parseFactorAnalysisSourceSnapshot(
-      factorCodeSnapshot,
-      parseReportPayload(parent.payload)?.label ?? parent.factor,
-      spec.version === 4,
-    );
+    const source =
+      researchSpec.analysisKind === 'time_series'
+        ? ({ kind: 'time_series', code: factorCodeSnapshot, label: parent.factor } as const)
+        : parseFactorAnalysisSourceSnapshot(
+            factorCodeSnapshot,
+            parseReportPayload(parent.payload)?.label ?? parent.factor,
+            researchSpec.protocol.version === 4,
+          );
     await launchFactorWorker({
       reportId,
       jobId,
       factor: parent.factor,
       source,
-      spec: normalizeFactorResearchSpec(spec),
+      spec: researchSpec,
       locale: localeFromRequest(c),
       failedMessage: m(c, 'factorAnalysisFailed'),
       exitedMessage: (code) => m(c, 'factorProcExited', { code }),
@@ -485,9 +518,13 @@ factorRoute.post('/reports/:reportId/reveal', async (c) => {
     where: { id: reportId },
     include: { job: { select: { id: true } } },
   });
+  const researchSpec = reportResearchSpec(revealed);
+  const researchPayload = parseResearchPayload(revealed.payload, researchSpec);
   return c.json({
     ...reportSummary(revealed),
-    payload: parseReportPayload(revealed.payload),
+    payload:
+      researchPayload?.analysisKind === 'cross_sectional' ? researchPayload.report : undefined,
+    researchPayload,
     factorCodeSnapshot: revealed.factorCodeSnapshot ?? undefined,
     factorCodeHash: revealed.factorCodeHash ?? undefined,
     dataRevision: revealed.dataRevision ?? undefined,
@@ -513,11 +550,22 @@ async function holdoutEligibility(row: FactorReportRow): Promise<FactorHoldoutEl
   ) {
     return { eligible: false, reason: 'missing_hypothesis' };
   }
-  const policy = await getHoldoutPolicy();
+  const researchSpec = reportResearchSpec(row);
+  const basePolicy = await getHoldoutPolicy();
+  const policy =
+    basePolicy && researchSpec.analysisKind === 'time_series'
+      ? await capHoldoutPolicyAtEtfData(basePolicy, researchSpec.assets)
+      : basePolicy;
   if (!policy || row.end > policy.exploreEnd) {
     return { eligible: false, reason: 'outside_explore_window', window: policy ?? undefined };
   }
-  if (!enoughHoldoutPeriods(reportSpec(row).freq, policy.holdoutStart, policy.holdoutEnd)) {
+  const frequency =
+    researchSpec.analysisKind === 'cross_sectional'
+      ? researchSpec.protocol.freq
+      : researchSpec.analysisKind === 'time_series'
+        ? 'day'
+        : null;
+  if (!frequency || !enoughHoldoutPeriods(frequency, policy.holdoutStart, policy.holdoutEnd)) {
     return { eligible: false, reason: 'insufficient_periods', window: policy };
   }
   const existing = await prisma.factorReport.findFirst({
@@ -565,6 +613,10 @@ function reportSummary(
   const researchPayload = sealed ? undefined : parseResearchPayload(row.payload, researchSpec);
   const crossSectionalPayload =
     researchPayload?.analysisKind === 'cross_sectional' ? researchPayload.report : undefined;
+  const timeSeriesMetrics =
+    researchPayload?.analysisKind === 'time_series'
+      ? timeSeriesAggregateMetrics(researchPayload.report)
+      : undefined;
 
   return {
     id: row.id,
@@ -582,12 +634,12 @@ function reportSummary(
     sealed,
     revealedAt: row.revealedAt?.toISOString(),
     researchIntent: parseResearchIntent(row.researchIntentJson),
-    metrics: crossSectionalPayload ? { rankIc: crossSectionalPayload.icMean } : undefined,
+    metrics: crossSectionalPayload
+      ? { rankIc: crossSectionalPayload.icMean }
+      : timeSeriesMetrics
+        ? timeSeriesMetrics
+        : undefined,
   };
-}
-
-function reportSpec(row: FactorReportRow): FactorAnalysisSpec {
-  return crossSectionalProtocol(reportResearchSpec(row));
 }
 
 function reportResearchSpec(row: FactorReportRow) {
@@ -664,18 +716,7 @@ function parseResearchPayload(
 async function resolveEtfDataCutoff(
   researchSpec: Extract<FactorResearchSpecV1, { analysisKind: 'time_series' }>,
 ): Promise<string | null> {
-  const latestRows = await prisma.etfDaily.groupBy({
-    by: ['tsCode'],
-    where: { tsCode: { in: researchSpec.assets }, close: { not: null } },
-    _max: { tradeDate: true },
-  });
-  if (latestRows.length !== researchSpec.assets.length) {
-    return null;
-  }
-  const availableCutoff = latestRows
-    .map((row) => row._max.tradeDate)
-    .filter((tradeDate): tradeDate is string => tradeDate !== null)
-    .sort()[0];
+  const availableCutoff = await resolveEtfCommonLatest(researchSpec.assets);
   if (!availableCutoff) {
     return null;
   }
@@ -684,6 +725,69 @@ async function resolveEtfDataCutoff(
     return null;
   }
   return requestedCutoff ?? availableCutoff;
+}
+
+async function resolveEtfCommonLatest(assets: string[]): Promise<string | null> {
+  const latestRows = await prisma.etfDaily.groupBy({
+    by: ['tsCode'],
+    where: { tsCode: { in: assets }, close: { not: null } },
+    _max: { tradeDate: true },
+  });
+  if (latestRows.length !== assets.length) {
+    return null;
+  }
+  return (
+    latestRows
+      .map((row) => row._max.tradeDate)
+      .filter((tradeDate): tradeDate is string => tradeDate !== null)
+      .sort()[0] ?? null
+  );
+}
+
+async function capHoldoutPolicyAtEtfData(
+  policy: NonNullable<Awaited<ReturnType<typeof getHoldoutPolicy>>>,
+  assets: string[],
+) {
+  const latestDate = await resolveEtfCommonLatest(assets);
+  if (!latestDate || latestDate < policy.holdoutStart) {
+    return null;
+  }
+  return {
+    ...policy,
+    latestDate,
+    holdoutEnd: latestDate < policy.holdoutEnd ? latestDate : policy.holdoutEnd,
+    checkedAt: new Date().toISOString(),
+  };
+}
+
+function criterionMatchesAnalysisKind(
+  spec: FactorResearchSpecV1,
+  intent: NonNullable<FactorReportSummary['researchIntent']>,
+): boolean {
+  const metric = intent.primaryCriterion?.metric;
+  if (!metric) {
+    return true;
+  }
+  const timeSeriesMetric = metric.startsWith('time_series_');
+  return spec.analysisKind === 'time_series' ? timeSeriesMetric : !timeSeriesMetric;
+}
+
+function reportCompatibilityColumns(spec: FactorResearchSpecV1) {
+  if (spec.analysisKind === 'cross_sectional') {
+    return {
+      freq: spec.protocol.freq,
+      neutral: spec.protocol.neutral,
+      start: spec.protocol.start,
+      end: spec.protocol.end,
+    };
+  }
+  const frequency = { daily: 'day', weekly: 'week', monthly: 'month' } as const;
+  return {
+    freq: frequency[spec.observationFrequency],
+    neutral: 'none',
+    start: spec.start,
+    end: spec.end,
+  };
 }
 
 async function resolveFactorSource(

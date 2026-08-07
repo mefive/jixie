@@ -44,6 +44,7 @@ import type {
   FactorTimeSeriesReportV1,
   TimeSeriesFactorResearchSpecV1,
 } from '@jixie/shared';
+import { factorResearchCriterionPassed } from '@jixie/shared';
 import {
   faSpinner,
   faPlay,
@@ -1375,7 +1376,7 @@ const TimeSeriesParamsPopover = complex.component(
           <div className="jx-factor-timeFixed">
             <span>{t('timeSeries.dailyFrequency')}</span>
             <span>{t('timeSeries.neweyWestAuto')}</span>
-            <span>{t('timeSeries.exploratoryMode')}</span>
+            <span>{t('timeSeries.disciplinedResearch')}</span>
           </div>
         </div>
         <div className="jx-factor-paramPopoverActions">
@@ -1403,9 +1404,6 @@ const ResearchDisciplineBar = complex.component(() => {
   const counts = store.researchSummaryLoader.result?.factor;
   const detail = store.reportDetail;
   const holdout = detail?.holdout;
-  if (store.isTimeSeries) {
-    return null;
-  }
   // Only completed explore reports surface an ineligibility reason; other phases are natural states.
   const ineligibleReason =
     detail?.phase === 'explore' && detail.status === 'done' && holdout && !holdout.eligible
@@ -1511,12 +1509,39 @@ const ResearchRunButton = complex.component(
       previous?.expectedDirection ?? 'positive',
     );
     const [metric, setMetric] = useState<FactorResearchMetric>(
-      previous?.primaryCriterion?.metric ?? 'rank_ic_mean',
+      previous?.primaryCriterion?.metric ??
+        (store.isTimeSeries ? 'time_series_median_newey_west_t' : 'rank_ic_mean'),
     );
     const [operator, setOperator] = useState<'gt' | 'lt'>(
       previous?.primaryCriterion?.operator ?? 'gt',
     );
-    const [value, setValue] = useState(previous?.primaryCriterion?.value ?? 0.02);
+    const [value, setValue] = useState(
+      previous?.primaryCriterion?.value ?? (store.isTimeSeries ? 1.96 : 0.02),
+    );
+    const timeSeries = store.isTimeSeries;
+    useEffect(() => {
+      if (metric.startsWith('time_series_') === timeSeries) {
+        return;
+      }
+      setMetric(timeSeries ? 'time_series_median_newey_west_t' : 'rank_ic_mean');
+      setValue(timeSeries ? 1.96 : 0.02);
+    }, [metric, timeSeries]);
+    const metricOptions: Array<{ value: FactorResearchMetric; label: string }> = timeSeries
+      ? [
+          {
+            value: 'time_series_median_newey_west_t',
+            label: t('criterionTimeSeriesMedianT'),
+          },
+          {
+            value: 'time_series_mean_direction_hit_rate',
+            label: t('criterionTimeSeriesMeanHitRate'),
+          },
+        ]
+      : [
+          { value: 'rank_ic_mean', label: t('criterionRankIc') },
+          { value: 'rank_icir_annual', label: t('criterionIcir') },
+          { value: 'net_long_short_annualized', label: t('criterionNetLs') },
+        ];
     const valid =
       mode === 'exploratory' ||
       (!!hypothesis.trim() && direction !== 'unknown' && Number.isFinite(value));
@@ -1544,17 +1569,7 @@ const ResearchRunButton = complex.component(
           size={size}
           disabled={disabled}
           loading={store.reportLoader.loading}
-          onClick={() => {
-            if (store.isTimeSeries) {
-              void store.runAnalysis({
-                version: 1,
-                mode: 'exploratory',
-                expectedDirection: 'unknown',
-              });
-              return;
-            }
-            setOpen(true);
-          }}
+          onClick={() => setOpen(true)}
         >
           {children}
         </Button>
@@ -1591,7 +1606,10 @@ const ResearchRunButton = complex.component(
                 <div className="jx-factor-researchRow">
                   <Select
                     value={direction}
-                    onChange={setDirection}
+                    onChange={(next) => {
+                      setDirection(next);
+                      setOperator(next === 'negative' ? 'lt' : 'gt');
+                    }}
                     options={[
                       { value: 'positive', label: t('directionPositive') },
                       { value: 'negative', label: t('directionNegative') },
@@ -1599,12 +1617,19 @@ const ResearchRunButton = complex.component(
                   />
                   <Select
                     value={metric}
-                    onChange={setMetric}
-                    options={[
-                      { value: 'rank_ic_mean', label: t('criterionRankIc') },
-                      { value: 'rank_icir_annual', label: t('criterionIcir') },
-                      { value: 'net_long_short_annualized', label: t('criterionNetLs') },
-                    ]}
+                    onChange={(next) => {
+                      setMetric(next);
+                      setValue(
+                        next === 'time_series_median_newey_west_t'
+                          ? 1.96
+                          : next === 'time_series_mean_direction_hit_rate'
+                            ? 0.55
+                            : next === 'rank_icir_annual'
+                              ? 0.5
+                              : 0.02,
+                      );
+                    }}
+                    options={metricOptions}
                   />
                   <Select
                     value={operator}
@@ -1709,6 +1734,13 @@ const ReportHistory = complex.component(() => {
                       {t('historyRankIc', { value: report.metrics.rankIc.toFixed(4) })}
                     </span>
                   )}
+                  {report.metrics?.medianNeweyWestT != null && (
+                    <span className="jx-factor-historyMetric">
+                      {t('historyMedianT', {
+                        value: report.metrics.medianNeweyWestT.toFixed(2),
+                      })}
+                    </span>
+                  )}
                   {report.error && <span className="jx-factor-historyError">{report.error}</span>}
                 </button>
               </List.Item>
@@ -1796,6 +1828,30 @@ const TimeSeriesReportBody = complex.component(() => {
   }
   return (
     <div className="jx-factor-timeReport" data-testid="time-series-report">
+      {store.reportDetail?.phase === 'holdout' && store.reportDetail.revealedAt && (
+        <Alert
+          type={
+            store.reportDetail.researchPayload &&
+            factorResearchCriterionPassed(
+              store.reportDetail.researchPayload,
+              store.reportDetail.researchIntent,
+            )
+              ? 'success'
+              : 'warning'
+          }
+          showIcon
+          title={t(
+            store.reportDetail.researchPayload &&
+              factorResearchCriterionPassed(
+                store.reportDetail.researchPayload,
+                store.reportDetail.researchIntent,
+              )
+              ? 'holdoutCriterionPassed'
+              : 'holdoutCriterionMissed',
+            { time: dayjs(store.reportDetail.revealedAt).format('YYYY-MM-DD HH:mm') },
+          )}
+        />
+      )}
       <Alert type="info" showIcon title={t('timeSeries.reportNotice')} />
       <div className="jx-factor-timeAudit">
         <Metric label={t('timeSeries.researchType')} value={t('timeSeries.methodBadge')} />
@@ -2538,6 +2594,8 @@ function criterionPassed(report: FactorReport, intent?: FactorResearchIntentV1):
     rank_ic_mean: report.icMean,
     rank_icir_annual: report.icirAnnual,
     net_long_short_annualized: report.longShortNet?.annReturn ?? Number.NaN,
+    time_series_median_newey_west_t: Number.NaN,
+    time_series_mean_direction_hit_rate: Number.NaN,
   }[criterion.metric];
   return criterion.operator === 'gt' ? metric > criterion.value : metric < criterion.value;
 }
@@ -2547,6 +2605,8 @@ function criterionMetricLabel(t: TFunction, metric: FactorResearchMetric): strin
     rank_ic_mean: 'criterionRankIc',
     rank_icir_annual: 'criterionIcir',
     net_long_short_annualized: 'criterionNetLs',
+    time_series_median_newey_west_t: 'criterionTimeSeriesMedianT',
+    time_series_mean_direction_hit_rate: 'criterionTimeSeriesMeanHitRate',
   };
 
   return t(labelKey[metric]);

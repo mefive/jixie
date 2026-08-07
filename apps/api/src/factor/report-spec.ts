@@ -233,7 +233,13 @@ export const DEFAULT_FACTOR_EVALUATION_SCOPE_V1: FactorAnalysisSpecV5['evaluatio
 };
 
 const primaryCriterionSchema = z.object({
-  metric: z.enum(['rank_ic_mean', 'rank_icir_annual', 'net_long_short_annualized']),
+  metric: z.enum([
+    'rank_ic_mean',
+    'rank_icir_annual',
+    'net_long_short_annualized',
+    'time_series_median_newey_west_t',
+    'time_series_mean_direction_hit_rate',
+  ]),
   operator: z.enum(['gt', 'lt']),
   value: z.number().finite(),
 });
