@@ -568,7 +568,7 @@ reveal → 不可变 URL 回放”，并确认 3 个 ETF 的正式保留段截�
 字段注册表推导 `price → equity/fixed_income/commodity → asset` 契约，前端提交的元数据仍只作一致性断言。
 `experimental` 接受完成的探索或未通过主判据的已揭示报告；`validated` 仍必须通过已揭示 Holdout 的
 预设时间序列判据。真实浏览器已从上述未通过报告发布 `etf_trend_60@v1 experimental`，核对版本、报告、
-代码 hash 和推导契约；产品明确标注策略 runtime 尚未接入，并隐藏“带入策略 Lab”入口。
+代码 hash 和推导契约；发布当时产品仍隐藏“带入策略 Lab”入口，随后由 Phase 3 的策略求值切片开放。
 
 **2026-08-07 ETF 策略求值内核：**已发布的单因子时间序列 Definition V2 可在研究回测中通过
 `ctx.factor('release:<ULID>', etfCode)` 按策略决策日逐资产求值。host 从不可变 `codeSnapshot` 重新编译
@@ -577,7 +577,7 @@ reveal → 不可变 URL 回放”，并确认 3 个 ETF 的正式保留段截�
 算出的 score，不会把研究报告中的相关性、t 值或命中率误作交易信号。production / 每日信号继续明确
 关闭，直到数据新鲜度、运行一致性和可交易性门槛完成。
 
-时间序列策略内核已进入 Phase 3，但 V2 自定义定义与 Factor Agent 作者能力、策略 Lab 产品入口仍未开放，
+时间序列策略内核和策略 Lab 产品入口已进入 Phase 3，但 V2 自定义定义与 Factor Agent 作者能力仍未开放，
 因此还不能视为 Phase 2 完成。真实国债曲线模板仍受收益率曲线数据权限和同步阻塞，不能用债券 ETF 自身
 价格冒充利率驱动。
 
@@ -619,11 +619,18 @@ horizon 的显著性不使用朴素独立样本 t 值。
 - 单因子时间序列 release 已进入研究回测 runtime：策略决策日从复权 ETF 历史重算 score，窗口和输入契约
   来自冻结定义的重新编译结果；direct / walled lane fixture 已验证一致。它尚未开放 production，每日信号
   引用会明确失败。
+- 生效中的单因子时间序列 release 已开放“带入策略 Lab”：新建策略首屏预填冻结 release ID、报告研究的
+  ETF 资产、显式 `watch`、`ctx.factor` 和 `ctx.period` 约束；Strategy Agent 的全局能力说明区分股票横截面
+  release 与 ETF 时间序列 release，禁止把报告相关性 / t 值 / 命中率当成策略 score。
 - 组合 release、跨资产面板和宏观状态 evaluator 尚未进入策略 runtime，引用时明确失败，不做静默降级。
 - 真实浏览器纵向 E2E 已完成 `FactorReport → ep@v1 → release:<ULID> 策略 → 30 笔真实成交 → 结果血缘`
   闭环，并验证非 production 版本的 UI/API 双重部署门禁；截图为
   `apps/web/acceptance/8a-strategy-factor-release.png`；一键带入入口与不可变引用预填截图为
   `apps/web/acceptance/8b-factor-release-to-lab.png`。
+- 时间序列纵向 E2E 已完成 `ETF 20 日趋势报告 → experimental release → Strategy Lab 预填 → 三只 ETF
+  月度轮动 → 10 笔真实成交 → 结果血缘`，并验证 production / 每日信号仍关闭；截图为
+  `apps/web/acceptance/9d-time-series-release-to-lab.png`、`9e-time-series-lab-prefill.png` 和
+  `9f-time-series-strategy-result.png`。
 
 尚未完成：面向时间序列 evaluator 的校准 `FactorSignal` 输出。当前一键带入只形成明确的策略研究请求，
 仍由 Agent 生成策略并经策略回测验证，不把因子报告本身误认为交易算法。

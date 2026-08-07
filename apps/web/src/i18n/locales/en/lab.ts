@@ -5,6 +5,8 @@ export const enLab: typeof zhLab = {
   // New-strategy hero + prompt block
   factorReleaseStarterPrompt:
     'Design a strategy using the published factor “{{name}}” ({{key}}@v{{version}}, immutable reference release:{{id}}). Explain the universe, rebalance schedule, portfolio construction, and risk controls before generating backtestable code.',
+  factorReleaseTimeSeriesStarterPrompt:
+    'Design an ETF rotation strategy using the published time-series signal “{{name}}” ({{key}}@v{{version}}, immutable reference release:{{id}}). The research assets are {{assets}}. Put them in an explicit watch list, declare the release in factors, and read each ETF’s daily score with ctx.factor(release, ETF). Filter nulls, rank the scores, rebalance monthly with ctx.period, and equal-weight the strongest two; hold cash when fewer than two are valid. This is a research backtest—do not attempt deployment.',
   heroTitle: 'New strategy',
   heroHint: 'Describe your strategy in one sentence; the AI writes the code, then you tune it',
   newModalHint:

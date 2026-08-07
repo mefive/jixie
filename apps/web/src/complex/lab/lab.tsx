@@ -263,7 +263,12 @@ const StrategyHero = complex.component(
           <h1 className="jx-lab-heroTitle">{t('heroTitle')}</h1>
           <p className="jx-lab-heroHint">{t('heroHint')}</p>
 
-          <NewStrategyPrompt onSubmit={onSubmit} onSkip={onSkip} autoFocus />
+          <NewStrategyPrompt
+            onSubmit={onSubmit}
+            onSkip={onSkip}
+            initialText={store.nlText}
+            autoFocus
+          />
 
           {recentCards.length > 0 && (
             <div className="jx-lab-recents">
@@ -296,15 +301,24 @@ const NewStrategyPrompt = complex.component(
   ({
     onSubmit,
     onSkip,
+    initialText,
     autoFocus,
   }: {
     onSubmit: (text: string, language: StrategyLanguage) => void;
     onSkip: (language: StrategyLanguage) => void;
+    initialText?: string;
     autoFocus?: boolean;
   }) => {
     const { t } = useTranslation('lab');
-    const [text, setText] = useState('');
+    const [text, setText] = useState(initialText ?? '');
     const [language, setLanguage] = useState<StrategyLanguage>('typescript');
+    useEffect(() => {
+      if (initialText) {
+        // Factor-release prefill arrives asynchronously after the hero's first paint. Preserve any
+        // text the user has already entered instead of replacing an in-progress draft.
+        setText((current) => current || initialText);
+      }
+    }, [initialText]);
     const submit = () => {
       const trimmed = text.trim();
       if (trimmed) {

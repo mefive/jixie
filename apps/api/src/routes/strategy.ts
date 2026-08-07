@@ -42,15 +42,26 @@ async function syncedIndices(): Promise<string> {
 async function referencableFactors(userId: string): Promise<string> {
   const rows = await prisma.factorRelease.findMany({
     where: { userId, lifecycle: 'active', sourceKind: 'single' },
-    select: { id: true, releaseKey: true, version: true, sourceName: true, maturity: true },
+    select: {
+      id: true,
+      releaseKey: true,
+      version: true,
+      sourceName: true,
+      maturity: true,
+      methodologySnapshot: true,
+    },
     orderBy: { createdAt: 'desc' },
   });
   return rows.length
     ? rows
-        .map(
-          (row) =>
-            `${row.sourceName} ${row.releaseKey}@v${row.version}=release:${row.id} (${row.maturity})`,
-        )
+        .map((row) => {
+          const methodology = row.methodologySnapshot as { analysisKind?: unknown };
+          const kind =
+            methodology?.analysisKind === 'time_series'
+              ? 'time_series ETF signal'
+              : 'cross_sectional stock factor';
+          return `${row.sourceName} ${row.releaseKey}@v${row.version}=release:${row.id} (${row.maturity}; ${kind})`;
+        })
         .join('、')
     : '(no active factor releases yet)';
 }
