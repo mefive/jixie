@@ -592,7 +592,7 @@ reveal → 不可变 URL 回放”，并确认 3 个 ETF 的正式保留段截�
 不会暴露股票横截面的一键研究工具。真实浏览器已完成“新建 ETF 时间序列定义 → 冻结探索研究卡 →
 7,227 条观测报告 → 刷新恢复 → 因子库方法徽标”，截图为
 `apps/web/acceptance/10a-custom-time-series-definition.png` 和
-`apps/web/acceptance/10b-custom-time-series-report.png`。
+`apps/web/acceptance/10b-custom-time-series-report.png`；发布和策略消费的后半段验收见 Phase 3。
 
 时间序列策略内核和策略 Lab 产品入口已进入 Phase 3，自定义 V2 定义与 Factor Agent 作者能力也已开放；
 但真实国债曲线模板仍受收益率曲线数据权限和同步阻塞，不能用债券 ETF 自身价格冒充利率驱动，因此仍不
@@ -648,6 +648,10 @@ horizon 的显著性不使用朴素独立样本 t 值。
   月度轮动 → 10 笔真实成交 → 结果血缘`，并验证 production / 每日信号仍关闭；截图为
   `apps/web/acceptance/9d-time-series-release-to-lab.png`、`9e-time-series-lab-prefill.png` 和
   `9f-time-series-strategy-result.png`。
+- 自定义 Definition V2 也已走通同一不可变发布链：`自定义 ETF 定义 → 7,227 条时间序列观测 → 锁定
+  strategy key → experimental release → Strategy Lab 预填 → 月度 ETF 轮动 → 10 笔真实成交`。回测结果
+  核验实际消费的 release ID 与 code hash；E2E 自动退役发布版并清理测试因子与策略，策略结果截图为
+  `apps/web/acceptance/10c-custom-time-series-strategy.png`。
 
 尚未完成：面向时间序列 evaluator 的校准 `FactorSignal` 输出。当前一键带入只形成明确的策略研究请求，
 仍由 Agent 生成策略并经策略回测验证，不把因子报告本身误认为交易算法。

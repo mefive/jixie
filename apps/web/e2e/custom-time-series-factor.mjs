@@ -9,7 +9,10 @@ const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
 const page = await context.newPage();
 const browserErrors = [];
+const ASSETS = ['510300.SH', '518880.SH', '511010.SH'];
 let factorId = null;
+let releaseId = null;
+let strategyId = null;
 
 page.on('pageerror', (error) => browserErrors.push(`pageerror: ${error.message}`));
 page.on('console', (message) => {
@@ -70,6 +73,15 @@ try {
     throw new Error(`custom Definition V2 was not persisted: ${JSON.stringify(resource)}`);
   }
 
+  const finalized = await api(`/api/app/factors/custom/${factorId}/finalize-key`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ key: 'e2e_etf_trend' }),
+  });
+  if (!finalized.ok || finalized.body.strategyKey !== 'custom:e2e_etf_trend') {
+    throw new Error(`custom factor key finalization failed: ${JSON.stringify(finalized)}`);
+  }
+
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.getByText('自定义时间序列定义，创建后研究协议不可更改').waitFor();
   await page.getByText('国债 ETF', { exact: true }).waitFor({ timeout: 30_000 });
@@ -83,11 +95,130 @@ try {
     fullPage: true,
   });
 
+  await page.getByTestId('factor-release-publish').click();
+  const releaseModal = page.getByTestId('factor-release-modal');
+  await releaseModal.getByRole('button', { name: /发\s*布/ }).click();
+  await page.getByText('e2e_etf_trend@v1', { exact: true }).waitFor({ timeout: 30_000 });
+  const releases = await api('/api/app/factors/releases');
+  const release = releases.body.find(
+    (candidate) =>
+      candidate.sourceId === factorId &&
+      candidate.releaseKey === 'e2e_etf_trend' &&
+      candidate.lifecycle === 'active',
+  );
+  if (!release || release.methodology?.analysisKind !== 'time_series') {
+    throw new Error(`custom time-series release missing: ${JSON.stringify(releases)}`);
+  }
+  releaseId = release.id;
+
+  await page.getByTestId('factor-release-use-in-lab').click();
+  await page.waitForURL(/\/lab\?new=1&factorRelease=/, { timeout: 30_000 });
+  const prompt = page.locator('.jx-lab-heroInput');
+  await prompt.waitFor({ timeout: 30_000 });
+  await page.waitForFunction(
+    (id) => document.querySelector('.jx-lab-heroInput')?.value.includes(`release:${id}`),
+    releaseId,
+    { timeout: 30_000 },
+  );
+
+  const factorRef = `release:${releaseId}`;
+  const strategyCode = [
+    `const etfs = ${JSON.stringify(ASSETS)};`,
+    "let last = '';",
+    'export default defineStrategy({',
+    "  name: '自定义 ETF 时间序列轮动',",
+    '  watch: etfs,',
+    `  factors: ['${factorRef}'],`,
+    '  onBar(ctx) {',
+    "    const period = ctx.period('monthly');",
+    '    if (period === last) return;',
+    '    last = period;',
+    '    const picks = etfs',
+    `      .map(code => ({ code, score: ctx.factor('${factorRef}', code) }))`,
+    '      .filter(item => item.score != null)',
+    '      .sort((a, b) => b.score - a.score || a.code.localeCompare(b.code))',
+    '      .slice(0, 2)',
+    '      .map(item => item.code);',
+    '    if (picks.length === 2) ctx.equalWeight(picks);',
+    '    else ctx.setHoldings({});',
+    '  },',
+    '});',
+  ].join('\n');
+  const config = {
+    name: '自定义 ETF 时间序列轮动',
+    start: '20250101',
+    end: '20250630',
+    initialCash: 1_000_000,
+    code: strategyCode,
+  };
+  const strategy = await api('/api/app/strategies', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(config),
+  });
+  if (!strategy.ok || !strategy.body.id) {
+    throw new Error(`strategy creation failed: ${JSON.stringify(strategy)}`);
+  }
+  strategyId = strategy.body.id;
+  const backtest = await api(`/api/app/strategy/backtest?strategyId=${strategyId}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(config),
+  });
+  if (!backtest.ok) {
+    throw new Error(`backtest failed to start: ${JSON.stringify(backtest)}`);
+  }
+  const completed = await page.evaluate(
+    async ({ strategyId, jobId }) => {
+      const deadline = Date.now() + 180_000;
+      while (Date.now() < deadline) {
+        const job = await fetch(`/api/app/strategy/backtest/${jobId}?since=0`, {
+          cache: 'no-store',
+        }).then((response) => response.json());
+        if (job.status === 'done') {
+          return fetch(`/api/app/strategies/${strategyId}`, { cache: 'no-store' }).then(
+            (response) => response.json(),
+          );
+        }
+        if (job.status === 'error' || job.status === 'stale') {
+          throw new Error(`backtest ${job.status}: ${job.error ?? ''}`);
+        }
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+      throw new Error(`backtest ${jobId} timed out`);
+    },
+    { strategyId, jobId: backtest.body.jobId },
+  );
+  const dependency = completed.lastResult?.factorReleases?.[0];
+  if (
+    completed.lastResult?.trades <= 0 ||
+    dependency?.releaseId !== releaseId ||
+    dependency?.codeHash !== release.codeHash
+  ) {
+    throw new Error(`custom time-series lineage failed: ${JSON.stringify(completed)}`);
+  }
+  await page.goto(`${BASE}/lab?id=${strategyId}`, { waitUntil: 'domcontentloaded' });
+  await page.getByTestId('strategy-factor-releases').waitFor({ timeout: 30_000 });
+  await page.getByText('e2e_etf_trend@v1', { exact: false }).waitFor();
+  await page.locator('.jx-lab-chart canvas').waitFor({ timeout: 30_000 });
+  await page.screenshot({
+    path: `${SHOTS}10c-custom-time-series-strategy.png`,
+    fullPage: true,
+  });
+
   if (browserErrors.length > 0) {
     throw new Error(`browser errors: ${browserErrors.join('\n')}`);
   }
-  console.log(`[custom-time-series-factor-e2e] factor=${factorId} observations=7227 screenshots=2`);
+  console.log(
+    `[custom-time-series-factor-e2e] factor=${factorId} release=${releaseId} strategy=${strategyId} observations=7227 trades=${completed.lastResult.trades} screenshots=3`,
+  );
 } finally {
+  if (strategyId) {
+    await api(`/api/app/strategies/${strategyId}`, { method: 'DELETE' }).catch(() => {});
+  }
+  if (releaseId) {
+    await api(`/api/app/factors/releases/${releaseId}/retire`, { method: 'POST' }).catch(() => {});
+  }
   if (factorId) {
     await api(`/api/app/factors/custom/${factorId}`, { method: 'DELETE' }).catch(() => {});
   }
