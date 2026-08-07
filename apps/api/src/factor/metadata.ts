@@ -41,6 +41,7 @@ export async function generateFactorMetadata(
     currentName?: string;
     currentDescriptionZh?: string;
     currentDescriptionEn?: string;
+    analysisKind?: 'cross_sectional' | 'time_series';
   },
   llm: LlmCall = chatJson,
 ): Promise<FactorMetadata> {
@@ -51,7 +52,7 @@ export async function generateFactorMetadata(
   const raw = await llm([
     {
       role: 'system',
-      content: `You maintain metadata for an A-share research factor. Return one JSON object with exactly these fields:
+      content: `You maintain metadata for a ${input.analysisKind === 'time_series' ? 'multi-asset ETF time-series signal' : 'cross-sectional A-share research factor'}. Return one JSON object with exactly these fields:
 - nameZh: a concise Chinese factor name, at most 12 Chinese characters when practical.
 - key: a short, descriptive lower_snake_case English identifier suitable for source code. Do not add "factor" unless necessary.
 - descriptionZh: one concise Chinese sentence explaining the signal, direction, and important window or data dependency.
@@ -93,6 +94,7 @@ export async function refreshFactorMetadata(input: {
       name: true,
       descriptionZh: true,
       descriptionEn: true,
+      analysisKind: true,
     },
   });
   if (!existing) {
@@ -105,6 +107,7 @@ export async function refreshFactorMetadata(input: {
     currentName: existing.name,
     currentDescriptionZh: existing.descriptionZh,
     currentDescriptionEn: existing.descriptionEn,
+    analysisKind: existing.analysisKind === 'time_series' ? 'time_series' : 'cross_sectional',
   });
   await prisma.factor.update({
     where: { id: input.factorId },

@@ -5,6 +5,8 @@ export const enFactor: typeof zhFactor = {
   agentLabel: 'Agent',
   libraryTab: 'Library',
   newFactor: 'New',
+  newFactorCrossSectional: 'Equity cross-sectional factor',
+  newFactorTimeSeries: 'ETF time-series signal',
 
   unnamedNew: 'New factor (unsaved)',
   noneSelected: 'No factor selected',
@@ -24,17 +26,24 @@ export const enFactor: typeof zhFactor = {
     'Tell the Agent the factor you want (valuation / size / liquidity / money flow / price momentum & volatility) and it writes the code into the middle editor. Financial-statement detail (ROE growth, etc.) has no data yet.',
 
   presetGroup: 'Equity cross-sectional factors',
+  crossSectional: { methodBadge: 'Equity cross-section' },
   timeSeries: {
     libraryGroup: 'ETF time-series signals',
     methodBadge: 'Time series',
     codeReadonly: 'Built-in time-series definition, read-only code',
+    codeEditable:
+      'Custom time-series definition; its research protocol is immutable after creation',
     inputAudit: 'Input: adjusted ETF close',
     windowAudit: 'Window: {{value}} trading days',
     assetScopeAudit: 'Output: per-asset score',
     placeholderQa:
       'Ask about this time-series signal — e.g. "how do I read the t-stat?", "why does it differ by asset?" — Enter to send',
+    placeholderAuthor:
+      'Describe the ETF time-series signal to study, e.g. "60-day trend" or "20-day reversal"; or keep refining — Enter to send',
     chatEmpty:
       'This is a controlled ETF time-series research template. Ask about the definition, robust inference, or report interpretation; the template is read-only, while assets, horizon, and sample range are configured on the right.',
+    chatEmptyAuthor:
+      'This is an editable ETF time-series Factor Definition V2. Tell the Agent what historical pattern to study; it will use the currently available adjusted ETF close to produce per-asset scores. Configure assets and forward-return horizon on the right.',
     workspaceMethodValue: 'Single-asset history · signal predicts future return',
     formula: 'Signal definition',
     formulaValue: '{{lookback}}-day cumulative return',

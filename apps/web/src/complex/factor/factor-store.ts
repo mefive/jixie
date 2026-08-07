@@ -9,6 +9,7 @@ import {
   type FactorReportListResponse,
   type FactorReportSummary,
   type FactorAnalysisSpec,
+  type FactorAnalysisKind,
   type FactorAnalysisSpecV3,
   type FactorEvaluationScopeV1,
   type FactorEquityIndexCode,
@@ -122,6 +123,28 @@ export default defineFactor({
 });
 `;
 
+export const DEFAULT_TIME_SERIES_FACTOR_CODE = `// 用左侧 Agent 描述你想研究的 ETF 时间序列信号，AI 写成代码；也可以直接改。
+export default defineFactorV2({
+  version: 2,
+  name: 'ETF 20日趋势',
+  analysisKind: 'time_series',
+  outputScope: 'asset',
+  frequency: 'daily',
+  inputs: ['etf.adjustedClose'],
+  targetAssetClasses: ['equity', 'fixed_income', 'commodity'],
+  window: 21,
+  compute(ctx) {
+    const current = ctx.value('etf.adjustedClose');
+    const previous = ctx.lag('etf.adjustedClose', 20);
+    return current != null && previous != null && previous > 0
+      ? current / previous - 1
+      : null;
+  },
+});
+`;
+
+type EditableFactorAnalysisKind = Extract<FactorAnalysisKind, 'cross_sectional' | 'time_series'>;
+
 /**
  * Factor research store — Agent-authored, IDE-style (mirrors the strategy workbench). Two kinds of factor:
  *  - preset (mom/ep/dv/…): a built-in formula → just pick it and run analysis; no code, no chat;
@@ -145,6 +168,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   public selectedKey = ''; // preset key OR custom factor id — the analysis target
   public selectedReportId = '';
   public mode: 'preset' | 'custom' | 'composite' | 'time_series' = 'preset';
+  public definitionAnalysisKind: EditableFactorAnalysisKind = 'cross_sectional';
   public compositeDefinition: FactorCompositeDefinitionV1 | null = null;
   public code = ''; // the custom factor's defineFactor source (empty for presets)
   public persistedCode = ''; // code as persisted in the DB — baseline for `edited`
@@ -191,6 +215,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       selectedKey: observable.ref,
       selectedReportId: observable.ref,
       mode: observable.ref,
+      definitionAnalysisKind: observable.ref,
       compositeDefinition: observable.ref,
       code: observable.ref,
       persistedCode: observable.ref,
@@ -328,7 +353,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   }
 
   public get isTimeSeries(): boolean {
-    return this.mode === 'time_series';
+    return (
+      this.mode === 'time_series' ||
+      (this.mode === 'custom' && this.definitionAnalysisKind === 'time_series')
+    );
   }
 
   public get reportDetail(): FactorReportDetail | null {
@@ -433,7 +461,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
 
   /** The editor source no longer matches the immutable source that produced the selected report. */
   public get codeModifiedSinceReport(): boolean {
-    if (this.mode === 'composite' || this.isTimeSeries) {
+    if (this.mode === 'composite' || this.mode === 'time_series') {
       return false;
     }
     const snapshot = this.reportDetail?.factorCodeSnapshot;
@@ -458,7 +486,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   /** A preset factor is selected → the Agent is in Q&A mode (answers questions, never writes code). */
   public get qaMode(): boolean {
     return (
-      (this.mode === 'preset' || this.mode === 'composite' || this.isTimeSeries) &&
+      (this.mode === 'preset' || this.mode === 'composite' || this.mode === 'time_series') &&
       !!this.selectedKey
     );
   }
@@ -609,6 +637,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
           : isTimeSeries
             ? 'time_series'
             : 'preset';
+      this.definitionAnalysisKind = isTimeSeries ? 'time_series' : 'cross_sectional';
       this.compositeDefinition = isComposite ? structuredClone(meta?.composite ?? null) : null;
       this.specVersion = isComposite ? 4 : 5;
       this.evaluationScope = defaultEvaluationScope();
@@ -654,6 +683,8 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         }
         this.code = factor.code;
         this.persistedCode = factor.code;
+        this.definitionAnalysisKind =
+          factor.analysisKind === 'time_series' ? 'time_series' : 'cross_sectional';
         this.chatMessages = isCustom ? (factor.messages ?? []).map(normalizeChatMessage) : [];
         this.strategyKey = factor.strategyKey ?? '';
         this.keyDraft = factor.keyCandidate ?? factor.key ?? '';
@@ -701,15 +732,18 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   }
 
   /** Start authoring a brand-new custom factor (blank skeleton, ready for the Agent). */
-  public newFactor() {
+  public newFactor(analysisKind: EditableFactorAnalysisKind = 'cross_sectional') {
     this.analysisPoller.stop();
+    const code =
+      analysisKind === 'time_series' ? DEFAULT_TIME_SERIES_FACTOR_CODE : DEFAULT_FACTOR_CODE;
     runInAction(() => {
       this.selectedKey = '';
       this.selectedReportId = '';
       this.mode = 'custom';
+      this.definitionAnalysisKind = analysisKind;
       this.compositeDefinition = null;
-      this.code = DEFAULT_FACTOR_CODE;
-      this.persistedCode = DEFAULT_FACTOR_CODE; // pristine skeleton → not edited
+      this.code = code;
+      this.persistedCode = code; // pristine skeleton → not edited
       this.chatMessages = [];
       this.nlText = '';
       this.strategyKey = '';
@@ -748,6 +782,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         this.selectedKey = '';
         this.selectedReportId = '';
         this.selectedReportId = '';
+        this.definitionAnalysisKind = 'cross_sectional';
         this.code = DEFAULT_FACTOR_CODE;
         this.persistedCode = DEFAULT_FACTOR_CODE;
         this.chatMessages = [];
@@ -885,7 +920,11 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     }
     try {
       // No messages in the create payload — the turn runner appends the user message server-side.
-      const meta = await createFactor(i18n.t('factor:unnamedFactor'), this.code);
+      const meta = await createFactor(
+        i18n.t('factor:unnamedFactor'),
+        this.code,
+        this.definitionAnalysisKind,
+      );
       runInAction(() => {
         this.selectedKey = meta.id;
         this.persistedCode = this.code; // just persisted this code
@@ -904,6 +943,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         this.selectedKey = '';
         this.selectedReportId = '';
         this.mode = 'preset';
+        this.definitionAnalysisKind = 'cross_sectional';
         this.code = '';
         this.persistedCode = '';
         this.chatMessages = [];
@@ -970,8 +1010,9 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     ) {
       const spec = detail.researchSpec;
       runInAction(() => {
-        this.mode = 'time_series';
-        if (detail.factorCodeSnapshot?.includes('defineFactorV2')) {
+        this.mode = this.selected?.kind === 'custom' ? 'custom' : 'time_series';
+        this.definitionAnalysisKind = 'time_series';
+        if (this.mode === 'time_series' && detail.factorCodeSnapshot?.includes('defineFactorV2')) {
           this.code = detail.factorCodeSnapshot;
           this.persistedCode = detail.factorCodeSnapshot;
         }

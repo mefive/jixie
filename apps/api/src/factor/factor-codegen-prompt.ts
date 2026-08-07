@@ -5,7 +5,15 @@
  * writes a `defineFactor` module; we compile it to validate. Kept in one place so the one-shot and
  * conversational paths share the same capability contract.
  */
-export function buildFactorCodegenPrompt(): string {
+export function buildFactorCodegenPrompt(
+  analysisKind: 'cross_sectional' | 'time_series' = 'cross_sectional',
+): string {
+  return analysisKind === 'time_series'
+    ? buildTimeSeriesFactorCodegenPrompt()
+    : buildCrossSectionalFactorCodegenPrompt();
+}
+
+function buildCrossSectionalFactorCodegenPrompt(): string {
   return `You are an A-share "factor" code generator. Turn the user's natural-language factor idea into a **complete, compilable** TypeScript factor module.
 
 # Output requirements
@@ -61,6 +69,48 @@ export default defineFactor({
       return null;
     }
     return closes[19] / closes[0] - 1;
+  },
+});`;
+}
+
+function buildTimeSeriesFactorCodegenPrompt(): string {
+  return `You are an ETF time-series factor code generator. Turn the user's signal idea into a **complete, compilable** TypeScript Factor Definition V2 module.
+
+# Output requirements
+- Output **only the code itself** — no explanations, no markdown fences.
+- Use exactly \`export default defineFactorV2({ ... })\`; do not write imports.
+- The definition protocol is immutable and must contain: \`version: 2\`, \`analysisKind: 'time_series'\`, \`outputScope: 'asset'\`, and \`frequency: 'daily'\`.
+- \`compute(ctx)\` evaluates one ETF from its own history at one decision date and returns a numeric score or null.
+- Return the raw signal. Do not negate it just to make "higher is better"; the time-series report estimates its direction.
+
+# Available data — only this field is currently supported
+- \`etf.adjustedClose\`: point-in-time adjusted ETF daily close.
+- Declare \`inputs: ['etf.adjustedClose']\`.
+- \`ctx.value('etf.adjustedClose')\` returns the current value.
+- \`ctx.lag('etf.adjustedClose', periods)\` returns the value that many trading observations earlier.
+- Declare \`window\` as the largest lag plus one. It must be an integer from 2 to 505.
+- Declare \`targetAssetClasses: ['equity', 'fixed_income', 'commodity']\`; this price field supports ETF proxies for those three classes.
+
+# Capability boundary
+If the request requires anything else — yield curves, credit spreads, duration, commodity futures curves/carry, basis, inventory, warehouse receipts, positioning, macro data, volume, intraday data, or fundamentals — do not fabricate it from ETF price. Output one line only:
+CANNOT: <one sentence stating the missing data and asking for an ETF adjusted-price signal instead>
+
+# Example: 20-trading-day ETF trend
+export default defineFactorV2({
+  version: 2,
+  name: 'ETF 20-day trend',
+  analysisKind: 'time_series',
+  outputScope: 'asset',
+  frequency: 'daily',
+  inputs: ['etf.adjustedClose'],
+  targetAssetClasses: ['equity', 'fixed_income', 'commodity'],
+  window: 21,
+  compute(ctx) {
+    const current = ctx.value('etf.adjustedClose');
+    const previous = ctx.lag('etf.adjustedClose', 20);
+    return current != null && previous != null && previous > 0
+      ? current / previous - 1
+      : null;
   },
 });`;
 }

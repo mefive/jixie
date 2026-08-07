@@ -620,6 +620,7 @@ export function fetchMarketWeather(
 }
 
 import type {
+  FactorAnalysisKind,
   FactorMeta,
   FactorAnalysisSpec,
   FactorResearchSpecV1,
@@ -696,6 +697,7 @@ export interface CustomFactorMeta {
 export function getCustomFactor(id: string): Promise<{
   id: string;
   name: string;
+  analysisKind?: FactorAnalysisKind;
   key?: string | null;
   keyCandidate?: string | null;
   strategyKey?: string;
@@ -716,9 +718,10 @@ export function forkFactor(id: string): Promise<{ id: string; name: string }> {
 export function createFactor(
   name: string,
   code: string,
+  analysisKind: Extract<FactorAnalysisKind, 'cross_sectional' | 'time_series'> = 'cross_sectional',
   messages?: ChatMessage[],
 ): Promise<{ id: string; name: string }> {
-  const body = messages ? { name, code, messages } : { name, code };
+  const body = messages ? { name, code, analysisKind, messages } : { name, code, analysisKind };
   return request('/api/app/factors/custom', { method: 'POST', body: JSON.stringify(body) });
 }
 

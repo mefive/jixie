@@ -581,12 +581,22 @@ reveal → 不可变 URL 回放”，并确认 3 个 ETF 的正式保留段截�
 **2026-08-07 自定义定义类型地基：**`Factor` 已持久化创建后不可变的 `analysisKind`，历史记录默认保持
 `cross_sectional`。创建和更新不再用“任一编译器能通过”来猜测定义类型，而是按该身份严格选择
 `defineFactor` 或 `defineFactorV2` 编译器；研究路由同样拒绝把股票定义交给时间序列 evaluator，或把
-时间序列定义交给股票 evaluator。自定义 ETF 时间序列定义已经具备保存和运行的后端契约，前端创建入口
-和 Factor Agent 作者能力将在下一批开放。
+时间序列定义交给股票 evaluator。
 
-时间序列策略内核和策略 Lab 产品入口已进入 Phase 3，但 V2 自定义定义与 Factor Agent 作者能力仍未开放，
-因此还不能视为 Phase 2 完成。真实国债曲线模板仍受收益率曲线数据权限和同步阻塞，不能用债券 ETF 自身
-价格冒充利率驱动。
+**2026-08-07 自定义 Definition V2 产品切片：**“新建”只让用户选择创建后不可变的定义协议——股票
+横截面因子或 ETF 时间序列信号，而不是再增加一组会与资产类别互相冲突的 evaluator 开关。自定义时间
+序列定义使用可编辑 Monaco、Definition V2 输入/窗口/输出审计和时间序列参数报告；因子库仍以“内置模板
+与自定义因子”为所有权主结构，并用研究方法徽标区分定义。相关性矩阵和多因子合成只接收横截面定义，
+避免把不同样本结构错误混算。Factor Agent 已按持久化 `analysisKind` 选择专用提示词和严格编译器；当前
+只允许 `etf.adjustedClose`，遇到曲线、Carry、库存或宏观请求必须明确拒绝，且在时间序列研究工具适配前
+不会暴露股票横截面的一键研究工具。真实浏览器已完成“新建 ETF 时间序列定义 → 冻结探索研究卡 →
+7,227 条观测报告 → 刷新恢复 → 因子库方法徽标”，截图为
+`apps/web/acceptance/10a-custom-time-series-definition.png` 和
+`apps/web/acceptance/10b-custom-time-series-report.png`。
+
+时间序列策略内核和策略 Lab 产品入口已进入 Phase 3，自定义 V2 定义与 Factor Agent 作者能力也已开放；
+但真实国债曲线模板仍受收益率曲线数据权限和同步阻塞，不能用债券 ETF 自身价格冒充利率驱动，因此仍不
+把 Phase 2 标记为全部完成。
 
 **交付：**
 

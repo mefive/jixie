@@ -11,6 +11,7 @@ import {
   Alert,
   Button,
   DatePicker,
+  Dropdown,
   Input,
   InputNumber,
   List,
@@ -201,19 +202,25 @@ const AgentPanel = complex.component(({ guardDiscard }: { guardDiscard: GuardDis
         activeKey={tab}
         onChange={setTab}
         tabBarExtraContent={
-          <Button
-            size="small"
-            type="text"
-            icon={<FontAwesomeIcon icon={faPlus} />}
-            onClick={() => {
-              guardDiscard(() => {
-                store.newFactor();
-                setTab('agent');
-              });
+          <Dropdown
+            trigger={['click']}
+            menu={{
+              items: [
+                { key: 'cross_sectional', label: t('newFactorCrossSectional') },
+                { key: 'time_series', label: t('newFactorTimeSeries') },
+              ],
+              onClick: ({ key }) => {
+                guardDiscard(() => {
+                  store.newFactor(key === 'time_series' ? 'time_series' : 'cross_sectional');
+                  setTab('agent');
+                });
+              },
             }}
           >
-            {t('newFactor')}
-          </Button>
+            <Button size="small" type="text" icon={<FontAwesomeIcon icon={faPlus} />}>
+              {t('newFactor')}
+            </Button>
+          </Dropdown>
         }
         items={[
           { key: 'agent', label: t('agentLabel'), children: <AgentChat /> },
@@ -263,7 +270,9 @@ const AgentChat = complex.component(() => {
               : store.mode === 'composite'
                 ? 'chatEmptyComposite'
                 : 'chatEmptyQa'
-            : 'chatEmptyAuthor'
+            : store.isTimeSeries
+              ? 'timeSeries.chatEmptyAuthor'
+              : 'chatEmptyAuthor'
         }
         cards={store.cardResults}
         stream={store.turnStream}
@@ -280,7 +289,9 @@ const AgentChat = complex.component(() => {
                 : store.mode === 'composite'
                   ? 'placeholderCompositeQa'
                   : 'placeholderQa'
-              : 'placeholderAuthor',
+              : store.isTimeSeries
+                ? 'timeSeries.placeholderAuthor'
+                : 'placeholderAuthor',
           )}
         />
       </div>
@@ -298,7 +309,12 @@ function ChatLog({
 }: {
   messages: ChatMessage[];
   sending: boolean;
-  emptyKey: 'chatEmptyQa' | 'chatEmptyComposite' | 'chatEmptyAuthor' | 'timeSeries.chatEmpty';
+  emptyKey:
+    | 'chatEmptyQa'
+    | 'chatEmptyComposite'
+    | 'chatEmptyAuthor'
+    | 'timeSeries.chatEmpty'
+    | 'timeSeries.chatEmptyAuthor';
   cards: QueryCardResults;
   stream: AgentTurnStream;
 }) {
@@ -351,7 +367,7 @@ const FactorLibrary = complex.component(
     const presets = list.filter(
       (f) => f.kind !== 'custom' && f.kind !== 'composite' && f.analysisKind !== 'time_series',
     );
-    const timeSeries = list.filter((f) => f.analysisKind === 'time_series');
+    const timeSeries = list.filter((f) => f.kind !== 'custom' && f.analysisKind === 'time_series');
     const custom = list.filter((f) => f.kind === 'custom');
     const composites = list.filter((f) => f.kind === 'composite');
 
@@ -515,16 +531,25 @@ const FactorLibrary = complex.component(
                 onClick={() => pick(f.key, true)}
               >
                 <span className="jx-factor-libName">{factorDisplayName(f)}</span>
-                <span
-                  role="button"
-                  title={t('deleteTitle')}
-                  className="jx-factor-libDel"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    askDelete(f.key, f.label);
-                  }}
-                >
-                  <FontAwesomeIcon icon={faTrash} />
+                <span className="jx-factor-libActions">
+                  <span className="jx-factor-methodBadge">
+                    {t(
+                      f.analysisKind === 'time_series'
+                        ? 'timeSeries.methodBadge'
+                        : 'crossSectional.methodBadge',
+                    )}
+                  </span>
+                  <span
+                    role="button"
+                    title={t('deleteTitle')}
+                    className="jx-factor-libDel"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      askDelete(f.key, f.label);
+                    }}
+                  >
+                    <FontAwesomeIcon icon={faTrash} />
+                  </span>
                 </span>
               </button>
             ))}
@@ -550,7 +575,10 @@ const CompositeModal = complex.component(
     const { t } = useTranslation('factor');
     const { message } = App.useApp();
     const available = useMemo(
-      () => (store.catalogLoader.result ?? []).filter((factor) => factor.kind !== 'composite'),
+      () =>
+        (store.catalogLoader.result ?? []).filter(
+          (factor) => factor.kind !== 'composite' && factor.analysisKind !== 'time_series',
+        ),
       [store.catalogLoader.result],
     );
     const [definition, setDefinition] = useState<FactorCompositeDefinitionV1>(() =>
@@ -716,7 +744,7 @@ const CorrelationModal = complex.component(
     const { t } = useTranslation('factor');
     const list = store.catalogLoader.result ?? [];
     const options = list
-      .filter((factor) => factor.kind !== 'composite')
+      .filter((factor) => factor.kind !== 'composite' && factor.analysisKind !== 'time_series')
       .map((factor) => ({ value: factor.key, label: factorDisplayName(factor) }));
     const per = t(store.freq === 'week' ? 'unitWeek' : 'unitMonth');
 
@@ -863,6 +891,7 @@ const MiddleColumn = complex.component(({ guardDiscard }: { guardDiscard: GuardD
 const TimeSeriesWorkspace = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('factor');
+  const editable = store.mode === 'custom';
   const window = store.code.match(/\bwindow:\s*(\d+)/)?.[1] ?? '—';
   return (
     <Splitter orientation="vertical">
@@ -873,10 +902,27 @@ const TimeSeriesWorkspace = complex.component(() => {
         >
           <div className="jx-factor-presetBar">
             <span className="jx-factor-presetNote">
-              <FontAwesomeIcon icon={faLock} /> {t('timeSeries.codeReadonly')}
+              {!editable && <FontAwesomeIcon icon={faLock} />}{' '}
+              {t(editable ? 'timeSeries.codeEditable' : 'timeSeries.codeReadonly')}
             </span>
             <Tag color="blue">Factor Definition V2</Tag>
           </div>
+          {editable && store.selectedKey && <FactorIdentityBar />}
+          {editable && store.pendingAgentCode !== null && (
+            <div className="jx-factor-agentCodeConflict">
+              <span>
+                <FontAwesomeIcon icon={faTriangleExclamation} /> {t('agentCodeConflict')}
+              </span>
+              <span className="jx-factor-agentCodeConflictActions">
+                <Button size="small" onClick={() => store.dismissPendingAgentCode()}>
+                  {t('keepMyCode')}
+                </Button>
+                <Button size="small" type="primary" onClick={() => store.applyPendingAgentCode()}>
+                  {t('applyAgentCode')}
+                </Button>
+              </span>
+            </div>
+          )}
           <div className="jx-factor-timeDefinitionAudit">
             <span>{t('timeSeries.methodBadge')}</span>
             <span>{t('timeSeries.inputAudit')}</span>
@@ -885,7 +931,11 @@ const TimeSeriesWorkspace = complex.component(() => {
           </div>
           <div className="jx-factor-code">
             <Suspense fallback={<div className="jx-factor-codeEmpty">{t('editorLoading')}</div>}>
-              <FactorEditor value={store.code} onChange={() => {}} readOnly />
+              <FactorEditor
+                value={store.code}
+                onChange={(value) => store.setCode(value)}
+                readOnly={!editable}
+              />
             </Suspense>
           </div>
         </section>
