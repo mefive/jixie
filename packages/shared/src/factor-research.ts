@@ -50,12 +50,28 @@ export interface PanelFactorResearchSpecV1 {
   start: string;
   end: string;
   observationFrequency: FactorObservationFrequency;
-  assets: string[];
+  assets: Array<{
+    assetId: string;
+    assetClass: MultiAssetClass;
+  }>;
   target: FactorForwardReturnTargetV1;
   dataPolicy: FactorPointInTimePolicyV1;
   rankingScope: 'cross_asset';
   volatilityScaling: 'none' | 'inverse_volatility';
+  minimumAssetsPerPeriod: number;
+  portfolio: {
+    topFraction: number;
+    bottomFraction: number;
+    transactionCostPerSide: number;
+  };
 }
+
+export type MultiAssetClass =
+  | 'cn_equity'
+  | 'overseas_equity'
+  | 'fixed_income'
+  | 'gold'
+  | 'commodity';
 
 export interface MacroRegimeFactorResearchSpecV1 {
   version: 1;
@@ -94,12 +110,57 @@ export interface FactorTimeSeriesReportV1 {
   byAsset: FactorTimeSeriesAssetReportV1[];
 }
 
+export interface FactorPanelAssetCoverageV1 {
+  assetId: string;
+  assetClass: MultiAssetClass;
+  observations: number;
+  firstAsOfDate: string | null;
+  lastAsOfDate: string | null;
+}
+
+export interface FactorPanelAssetClassReportV1 {
+  assetClass: MultiAssetClass;
+  observations: number;
+  meanForwardReturn: number;
+  topSelections: number;
+  bottomSelections: number;
+}
+
+export interface FactorPanelPeriodReportV1 {
+  asOfDate: string;
+  targetDate: string;
+  eligibleAssets: number;
+  rankIc: number;
+  equalWeightReturn: number;
+  topReturn: number;
+  bottomReturn: number;
+  longShortGrossReturn: number;
+  longShortNetReturn: number;
+  oneWayTurnover: number;
+}
+
 export interface FactorPanelReportV1 {
-  assets: string[];
+  assets: Array<{ assetId: string; assetClass: MultiAssetClass }>;
   periods: number;
+  observations: number;
+  skippedPeriods: number;
+  coverage: {
+    minimumAssets: number;
+    medianAssets: number;
+    maximumAssets: number;
+    byAsset: FactorPanelAssetCoverageV1[];
+  };
   rankIcMean: number;
   rankIcirAnnual: number;
-  longShortAnnualized: number;
+  rankIcPositiveRate: number;
+  equalWeightAnnualized: number;
+  topAnnualized: number;
+  bottomAnnualized: number;
+  longShortGrossAnnualized: number;
+  longShortNetAnnualized: number;
+  averageOneWayTurnover: number;
+  byAssetClass: FactorPanelAssetClassReportV1[];
+  periodReports: FactorPanelPeriodReportV1[];
 }
 
 export interface FactorMacroRegimeReportV1 {
@@ -160,6 +221,13 @@ export function factorResearchMetricValue(
     const values = {
       time_series_median_newey_west_t: aggregate.medianNeweyWestT,
       time_series_mean_direction_hit_rate: aggregate.meanDirectionHitRate,
+    } as Partial<Record<FactorResearchMetric, number>>;
+    return values[metric] ?? Number.NaN;
+  }
+  if (payload.analysisKind === 'panel') {
+    const values = {
+      panel_rank_ic_mean: payload.report.rankIcMean,
+      panel_net_long_short_annualized: payload.report.longShortNetAnnualized,
     } as Partial<Record<FactorResearchMetric, number>>;
     return values[metric] ?? Number.NaN;
   }

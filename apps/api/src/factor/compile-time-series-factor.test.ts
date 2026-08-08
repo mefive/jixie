@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compileTimeSeriesFactor } from './compile-time-series-factor.js';
+import { compilePanelFactor, compileTimeSeriesFactor } from './compile-time-series-factor.js';
 
 const source = `export default defineFactorV2({
   version: 2,
@@ -99,5 +99,25 @@ describe('compileTimeSeriesFactor', () => {
     } finally {
       factor.dispose();
     }
+  });
+});
+
+describe('compilePanelFactor', () => {
+  it('compiles a panel definition without treating it as a time-series protocol', async () => {
+    const factor = await compilePanelFactor(
+      source.replace("analysisKind: 'time_series'", "analysisKind: 'panel'"),
+    );
+    try {
+      expect(factor.analysisKind).toBe('panel');
+      const prices = Array.from({ length: 21 }, (_value, index) => 100 + index);
+      const [score] = await factor.computeSeries({ 'etf.adjustedClose': prices }, [20]);
+      expect(score).toBeCloseTo(0.2, 12);
+    } finally {
+      factor.dispose();
+    }
+  });
+
+  it('rejects a time-series definition', async () => {
+    await expect(compilePanelFactor(source)).rejects.toThrow('analysisKind=panel');
   });
 });

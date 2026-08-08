@@ -11,6 +11,7 @@ import type {
   FactorReportSummary,
   FactorResearchReportPayloadV1,
   FactorResearchSpecV1,
+  FactorPanelReportV1,
   FactorTimeSeriesReportV1,
   LogLine,
   ChatMessage,
@@ -50,6 +51,7 @@ import {
   type FactorAnalysisSource,
 } from '../factor/analysis-job.js';
 import { resolveTimeSeriesTemplateSource } from '../factor/time-series-templates.js';
+import { resolvePanelTemplateSource } from '../factor/panel-templates.js';
 
 /**
  * Factor workbench actions (singular, mounted at /api/app/factor — product line 1.5 · factor research).
@@ -115,7 +117,10 @@ factorRoute.post('/agent', validateJson(agentBody), async (c) => {
       factorId: id,
       currentCode: code,
       locale,
-      analysisKind: factor.analysisKind === 'time_series' ? 'time_series' : 'cross_sectional',
+      analysisKind:
+        factor.analysisKind === 'time_series' || factor.analysisKind === 'panel'
+          ? factor.analysisKind
+          : 'cross_sectional',
     }),
     entity,
     message,
@@ -351,6 +356,28 @@ factorRoute.post('/analysis/run', validateJson(runAnalysisBody), async (c) => {
       ...researchSpec,
       dataPolicy: { ...researchSpec.dataPolicy, dataCutoff },
     };
+  } else if (researchSpec.analysisKind === 'panel') {
+    source =
+      resolvePanelTemplateSource(factor) ??
+      (await resolveCustomAssetFactorSource(userId, factor, 'panel'));
+    if (!source) {
+      return apiError(c, 'NOT_FOUND', m(c, 'unknownFactor', { factor }));
+    }
+    const cutoffSpec = {
+      ...researchSpec,
+      dataPolicy: {
+        ...researchSpec.dataPolicy,
+        dataCutoff: researchSpec.dataPolicy.dataCutoff ?? researchSpec.end,
+      },
+    };
+    const dataCutoff = await resolveEtfDataCutoff(cutoffSpec);
+    if (!dataCutoff) {
+      return apiError(c, 'VALIDATION_FAILED', m(c, 'windowNotComputed'));
+    }
+    researchSpec = {
+      ...researchSpec,
+      dataPolicy: { ...researchSpec.dataPolicy, dataCutoff },
+    };
   } else {
     return apiError(
       c,
@@ -427,7 +454,10 @@ factorRoute.post('/reports/:reportId/holdout', async (c) => {
         end: policy.holdoutEnd,
       }),
     };
-  } else if (parentResearchSpec.analysisKind === 'time_series') {
+  } else if (
+    parentResearchSpec.analysisKind === 'time_series' ||
+    parentResearchSpec.analysisKind === 'panel'
+  ) {
     const candidate = {
       ...parentResearchSpec,
       start: policy.holdoutStart,
@@ -496,8 +526,12 @@ factorRoute.post('/reports/:reportId/holdout', async (c) => {
   const response: RunFactorAnalysisResponse = { ...created, status: 'running' };
   if (!created.reusedRunning) {
     const source =
-      researchSpec.analysisKind === 'time_series'
-        ? ({ kind: 'time_series', code: factorCodeSnapshot, label: parent.factor } as const)
+      researchSpec.analysisKind === 'time_series' || researchSpec.analysisKind === 'panel'
+        ? ({
+            kind: researchSpec.analysisKind,
+            code: factorCodeSnapshot,
+            label: parent.factor,
+          } as const)
         : parseFactorAnalysisSourceSnapshot(
             factorCodeSnapshot,
             parseReportPayload(parent.payload)?.label ?? parent.factor,
@@ -570,8 +604,14 @@ async function holdoutEligibility(row: FactorReportRow): Promise<FactorHoldoutEl
   const researchSpec = reportResearchSpec(row);
   const basePolicy = await getHoldoutPolicy();
   const policy =
-    basePolicy && researchSpec.analysisKind === 'time_series'
-      ? await capHoldoutPolicyAtEtfData(basePolicy, researchSpec.assets)
+    basePolicy &&
+    (researchSpec.analysisKind === 'time_series' || researchSpec.analysisKind === 'panel')
+      ? await capHoldoutPolicyAtEtfData(
+          basePolicy,
+          researchSpec.analysisKind === 'panel'
+            ? researchSpec.assets.map((asset) => asset.assetId)
+            : researchSpec.assets,
+        )
       : basePolicy;
   if (!policy || row.end > policy.exploreEnd) {
     return { eligible: false, reason: 'outside_explore_window', window: policy ?? undefined };
@@ -581,7 +621,9 @@ async function holdoutEligibility(row: FactorReportRow): Promise<FactorHoldoutEl
       ? researchSpec.protocol.freq
       : researchSpec.analysisKind === 'time_series'
         ? 'day'
-        : null;
+        : researchSpec.analysisKind === 'panel'
+          ? 'month'
+          : null;
   if (!frequency || !enoughHoldoutPeriods(frequency, policy.holdoutStart, policy.holdoutEnd)) {
     return { eligible: false, reason: 'insufficient_periods', window: policy };
   }
@@ -634,6 +676,13 @@ function reportSummary(
     researchPayload?.analysisKind === 'time_series'
       ? timeSeriesAggregateMetrics(researchPayload.report)
       : undefined;
+  const panelMetrics =
+    researchPayload?.analysisKind === 'panel'
+      ? {
+          panelRankIcMean: researchPayload.report.rankIcMean,
+          panelNetLongShortAnnualized: researchPayload.report.longShortNetAnnualized,
+        }
+      : undefined;
 
   return {
     id: row.id,
@@ -655,7 +704,9 @@ function reportSummary(
       ? { rankIc: crossSectionalPayload.icMean }
       : timeSeriesMetrics
         ? timeSeriesMetrics
-        : undefined,
+        : panelMetrics
+          ? panelMetrics
+          : undefined,
   };
 }
 
@@ -722,6 +773,11 @@ function parseResearchPayload(
           report: report as FactorTimeSeriesReportV1,
         };
       case 'panel':
+        return {
+          version: 1,
+          analysisKind: 'panel',
+          report: report as FactorPanelReportV1,
+        };
       case 'macro_regime':
         return undefined;
     }
@@ -731,9 +787,13 @@ function parseResearchPayload(
 }
 
 async function resolveEtfDataCutoff(
-  researchSpec: Extract<FactorResearchSpecV1, { analysisKind: 'time_series' }>,
+  researchSpec: Extract<FactorResearchSpecV1, { analysisKind: 'time_series' | 'panel' }>,
 ): Promise<string | null> {
-  const availableCutoff = await resolveEtfCommonLatest(researchSpec.assets);
+  const availableCutoff = await resolveEtfCommonLatest(
+    researchSpec.analysisKind === 'panel'
+      ? researchSpec.assets.map((asset) => asset.assetId)
+      : researchSpec.assets,
+  );
   if (!availableCutoff) {
     return null;
   }
@@ -785,8 +845,12 @@ function criterionMatchesAnalysisKind(
   if (!metric) {
     return true;
   }
-  const timeSeriesMetric = metric.startsWith('time_series_');
-  return spec.analysisKind === 'time_series' ? timeSeriesMetric : !timeSeriesMetric;
+  const metricKind = metric.startsWith('time_series_')
+    ? 'time_series'
+    : metric.startsWith('panel_')
+      ? 'panel'
+      : 'cross_sectional';
+  return spec.analysisKind === metricKind;
 }
 
 function reportCompatibilityColumns(spec: FactorResearchSpecV1) {
@@ -820,7 +884,7 @@ async function resolveFactorSource(
     select: { code: true, name: true, analysisKind: true },
   });
 
-  if (custom && custom.analysisKind !== 'time_series') {
+  if (custom && custom.analysisKind !== 'time_series' && custom.analysisKind !== 'panel') {
     return { kind: 'single', code: custom.code, label: custom.name };
   }
   const composite = await prisma.factorComposite.findFirst({
@@ -861,6 +925,23 @@ async function resolveCustomTimeSeriesFactorSource(
     select: { code: true, name: true },
   });
   return custom ? { kind: 'time_series', code: custom.code, label: custom.name } : null;
+}
+
+async function resolveCustomAssetFactorSource<TAnalysisKind extends 'time_series' | 'panel'>(
+  userId: string,
+  factorId: string,
+  analysisKind: TAnalysisKind,
+): Promise<Extract<FactorAnalysisSource, { kind: TAnalysisKind }> | null> {
+  const custom = await prisma.factor.findFirst({
+    where: { id: factorId, userId, analysisKind },
+    select: { code: true, name: true },
+  });
+  return custom
+    ? ({ kind: analysisKind, code: custom.code, label: custom.name } as Extract<
+        FactorAnalysisSource,
+        { kind: TAnalysisKind }
+      >)
+    : null;
 }
 
 // —— Correlation matrix (3.4): 2–8 factors × a fixed size column, cross-sectional Spearman ——

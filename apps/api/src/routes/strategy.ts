@@ -54,7 +54,9 @@ async function referencableFactors(userId: string): Promise<string> {
           const kind =
             row.analysisKind === 'time_series'
               ? 'time_series ETF signal'
-              : 'cross_sectional stock factor';
+              : row.analysisKind === 'panel'
+                ? 'cross_asset ETF panel factor'
+                : 'cross_sectional stock factor';
           return `${row.name}=${row.key} (${kind})`;
         })
         .join('、')

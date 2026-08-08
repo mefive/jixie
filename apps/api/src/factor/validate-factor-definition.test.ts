@@ -21,6 +21,7 @@ const TIME_SERIES = `export default defineFactorV2({
     return current != null && previous != null && previous > 0 ? current / previous - 1 : null;
   },
 });`;
+const PANEL = TIME_SERIES.replace("analysisKind: 'time_series'", "analysisKind: 'panel'");
 
 describe('validateFactorDefinition', () => {
   it('accepts definitions under their declared protocol', async () => {
@@ -28,6 +29,7 @@ describe('validateFactorDefinition', () => {
       validateFactorDefinition(CROSS_SECTIONAL, 'cross_sectional'),
     ).resolves.toBeUndefined();
     await expect(validateFactorDefinition(TIME_SERIES, 'time_series')).resolves.toBeUndefined();
+    await expect(validateFactorDefinition(PANEL, 'panel')).resolves.toBeUndefined();
   });
 
   it('rejects cross-protocol source instead of guessing from its syntax', async () => {
@@ -36,6 +38,9 @@ describe('validateFactorDefinition', () => {
     );
     await expect(validateFactorDefinition(TIME_SERIES, 'cross_sectional')).rejects.toThrow(
       /defineFactorV2 is not defined/,
+    );
+    await expect(validateFactorDefinition(TIME_SERIES, 'panel')).rejects.toThrow(
+      /analysisKind=panel/,
     );
   });
 });

@@ -7,7 +7,10 @@ import {
 import { prisma } from '../lib/prisma.js';
 import { toCommonJs } from '../lib/isolate-run.js';
 import { BUILTIN_USER_ID } from '../factor/builtin-factors.js';
-import { compileTimeSeriesFactor } from '../factor/compile-time-series-factor.js';
+import {
+  compilePanelFactor,
+  compileTimeSeriesFactor,
+} from '../factor/compile-time-series-factor.js';
 import { normalizeAnalysisKind } from '../factor/publication.js';
 import { sha256 } from '../factor/report-spec.js';
 import { t } from '../i18n/messages.js';
@@ -82,7 +85,7 @@ export async function prepareStrategyFactors(
       analysisKind: normalizeAnalysisKind(row.analysisKind),
       codeHash: row.codeHash ?? sha256(row.code),
       approvedReportId: row.approvedReportId,
-      ...(modules[index]?.timeSeries ? { inputs: [...modules[index].timeSeries.inputs] } : {}),
+      ...(modules[index]?.assetSeries ? { inputs: [...modules[index].assetSeries.inputs] } : {}),
     })),
   };
 }
@@ -100,7 +103,7 @@ async function prepareFactorModule(row: {
   code: string;
   analysisKind: string;
 }): Promise<CustomFactorModule> {
-  if (row.analysisKind !== 'time_series') {
+  if (row.analysisKind !== 'time_series' && row.analysisKind !== 'panel') {
     return {
       key: row.key,
       js: await toCommonJs(row.code, 'factor code'),
@@ -108,14 +111,20 @@ async function prepareFactorModule(row: {
     };
   }
 
-  let compiled: Awaited<ReturnType<typeof compileTimeSeriesFactor>> | null = null;
+  let compiled:
+    | Awaited<ReturnType<typeof compileTimeSeriesFactor>>
+    | Awaited<ReturnType<typeof compilePanelFactor>>
+    | null = null;
   try {
-    compiled = await compileTimeSeriesFactor(row.code);
+    compiled =
+      row.analysisKind === 'panel'
+        ? await compilePanelFactor(row.code)
+        : await compileTimeSeriesFactor(row.code);
     return {
       key: row.key,
       js: await toCommonJs(row.code, 'factor code'),
-      analysisKind: 'time_series',
-      timeSeries: { window: compiled.window, inputs: [...compiled.inputs] },
+      analysisKind: row.analysisKind,
+      assetSeries: { window: compiled.window, inputs: [...compiled.inputs] },
     };
   } finally {
     compiled?.dispose();

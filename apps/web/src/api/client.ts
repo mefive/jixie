@@ -721,7 +721,10 @@ export function createFactor(
   key: string,
   name: string,
   code: string,
-  analysisKind: Extract<FactorAnalysisKind, 'cross_sectional' | 'time_series'> = 'cross_sectional',
+  analysisKind: Extract<
+    FactorAnalysisKind,
+    'cross_sectional' | 'time_series' | 'panel'
+  > = 'cross_sectional',
   messages?: ChatMessage[],
 ): Promise<{ id: string; key: string; name: string; status: 'draft' }> {
   const body = messages

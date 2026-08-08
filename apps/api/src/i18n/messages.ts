@@ -141,6 +141,14 @@ const MESSAGES = {
     zh: '正在评估 {count} 条时点观测…',
     en: 'Evaluating {count} point-in-time observation(s)…',
   },
+  factorPanelLoading: {
+    zh: '正在加载 {count} 个 ETF 的跨资产面板…',
+    en: 'Loading the cross-asset ETF panel for {count} asset(s)…',
+  },
+  factorPanelEvaluating: {
+    zh: '正在评估 {count} 条跨资产时点观测…',
+    en: 'Evaluating {count} cross-asset point-in-time observation(s)…',
+  },
   factorUniverseHistoryMissing: {
     zh: '指数 {index} 在 {date} 之前没有历史成分，无法进行时点无偏的因子研究',
     en: 'Index {index} has no constituent snapshot on or before {date}; point-in-time factor research cannot continue',

@@ -187,7 +187,13 @@ export class LabStore extends BaseStore<LabSetupParams> {
           ? await getFactorReport(detail.approvedReportId)
           : null;
         const assets =
-          report?.researchSpec.analysisKind === 'time_series' ? report.researchSpec.assets : [];
+          report?.researchSpec.analysisKind === 'time_series'
+            ? report.researchSpec.assets
+            : report?.researchSpec.analysisKind === 'panel'
+              ? report.researchSpec.assets.map((asset) => asset.assetId)
+              : factor.analysisKind === 'panel'
+                ? ['510300.SH', '513100.SH', '511010.SH', '518880.SH']
+                : [];
         return { factor, assets };
       },
     });
@@ -230,8 +236,13 @@ export class LabStore extends BaseStore<LabSetupParams> {
     }
     runInAction(() => {
       const isTimeSeries = loaded.factor.analysisKind === 'time_series';
+      const isPanel = loaded.factor.analysisKind === 'panel';
       this.nlText = i18n.t(
-        isTimeSeries ? 'lab:factorTimeSeriesStarterPrompt' : 'lab:factorStarterPrompt',
+        isPanel
+          ? 'lab:factorPanelStarterPrompt'
+          : isTimeSeries
+            ? 'lab:factorTimeSeriesStarterPrompt'
+            : 'lab:factorStarterPrompt',
         {
           name: loaded.factor.label,
           key: loaded.factor.strategyKey,

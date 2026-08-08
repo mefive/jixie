@@ -7,6 +7,7 @@ export const enFactor: typeof zhFactor = {
   newFactor: 'New',
   newFactorCrossSectional: 'Equity cross-sectional factor',
   newFactorTimeSeries: 'ETF time-series signal',
+  newFactorPanel: 'Cross-asset panel factor',
   factorName: 'Factor name',
   factorNamePlaceholder: 'e.g. Term spread signal',
   factorKeyCreateHint:
@@ -113,6 +114,63 @@ export const enFactor: typeof zhFactor = {
       '511090.SH': '30Y Treasury Bond ETF',
       '518880.SH': 'Gold ETF',
       '510300.SH': 'CSI 300 ETF',
+    },
+  },
+  panel: {
+    libraryGroup: 'Cross-asset panel factors',
+    methodBadge: 'Cross-asset panel',
+    codeReadonly: 'Built-in cross-asset panel definition, read-only code',
+    codeEditable:
+      'Custom cross-asset panel definition; its research protocol is immutable after creation',
+    assetScopeAudit: 'Output: comparable scores across assets on common month ends',
+    placeholderQa:
+      'Ask about this panel factor — e.g. "how do I read Rank IC?", "is the net long-short robust?" — Enter to send',
+    placeholderAuthor:
+      'Describe a price-based ETF ranking signal such as 120-day momentum; or keep refining — Enter to send',
+    chatEmpty:
+      'This is a controlled cross-asset panel template. It ranks ETFs on common month ends and reports coverage, Rank IC, turnover, and cost-adjusted long-short returns.',
+    chatEmptyAuthor:
+      'This is an editable cross-asset Panel Factor Definition V2. The first release can use adjusted ETF closes to produce comparable cross-asset scores.',
+    paramsSummary:
+      '{{assets}} cross-asset ETFs · monthly · {{horizon}}d forward · {{start}} – {{end}}',
+    universe: 'Fixed launch universe',
+    horizon: 'Holding horizon',
+    monthlyFrequency: 'Observations: common month ends',
+    portfolioRule: 'Portfolio: top/bottom 25%',
+    costRule: 'Costs: 10bp per side; report shows net returns',
+    reportNotice:
+      'This is cross-asset ranking evidence, not an asset-allocation strategy backtest. Position limits, cash management, and execution still belong in the strategy.',
+    researchType: 'Research method',
+    target: 'Prediction target',
+    targetValue: 'Next {{horizon}} trading-day total return from common month end',
+    periods: 'Eligible months',
+    observations: 'Observations',
+    evidenceTitle: 'Cross-asset ranking evidence',
+    rankIcMean: 'Mean Rank IC',
+    rankIcir: 'Annualized Rank ICIR',
+    positiveRate: 'Positive Rank IC rate',
+    equalWeight: 'Equal-weight annualized',
+    netLongShort: 'Net long-short annualized',
+    turnover: 'Average one-way turnover',
+    coverageTitle: 'Asset coverage and listing history',
+    firstObservation: 'First eligible month end',
+    lastObservation: 'Last eligible month end',
+    coverageCap:
+      'At least {{min}} assets per period, median coverage {{median}}; {{skipped}} periods skipped for insufficient history.',
+    historyParams:
+      'Cross-asset panel · {{assets}} ETFs · {{horizon}}d forward · {{start}} – {{end}}',
+    assetNames: {
+      '510300.SH': 'CSI 300 ETF',
+      '513100.SH': 'Nasdaq-100 ETF',
+      '511010.SH': 'Treasury Bond ETF',
+      '518880.SH': 'Gold ETF',
+    },
+    assetClasses: {
+      cn_equity: 'Domestic equity',
+      overseas_equity: 'Overseas equity',
+      fixed_income: 'Fixed income',
+      gold: 'Gold',
+      commodity: 'Commodity',
     },
   },
   customGroup: 'Custom factors',
@@ -279,6 +337,8 @@ export const enFactor: typeof zhFactor = {
   criterionNetLs: 'Net long-short annualized',
   criterionTimeSeriesMedianT: 'Median Newey–West t across assets',
   criterionTimeSeriesMeanHitRate: 'Mean direction hit rate across assets',
+  criterionPanelRankIc: 'Mean cross-asset Rank IC',
+  criterionPanelNetLs: 'Net cross-asset long-short annualized',
   exploratoryNotice:
     'This run is labeled pure exploration and cannot later be presented as a prior hypothesis.',
   confirmRun: 'Freeze card and run',

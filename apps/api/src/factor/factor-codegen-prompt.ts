@@ -6,11 +6,15 @@
  * conversational paths share the same capability contract.
  */
 export function buildFactorCodegenPrompt(
-  analysisKind: 'cross_sectional' | 'time_series' = 'cross_sectional',
+  analysisKind: 'cross_sectional' | 'time_series' | 'panel' = 'cross_sectional',
 ): string {
-  return analysisKind === 'time_series'
-    ? buildTimeSeriesFactorCodegenPrompt()
-    : buildCrossSectionalFactorCodegenPrompt();
+  if (analysisKind === 'time_series') {
+    return buildTimeSeriesFactorCodegenPrompt();
+  }
+  if (analysisKind === 'panel') {
+    return buildPanelFactorCodegenPrompt();
+  }
+  return buildCrossSectionalFactorCodegenPrompt();
 }
 
 function buildCrossSectionalFactorCodegenPrompt(): string {
@@ -110,6 +114,45 @@ export default defineFactorV2({
   compute(ctx) {
     const current = ctx.value('etf.adjustedClose');
     const previous = ctx.lag('etf.adjustedClose', 20);
+    return current != null && previous != null && previous > 0
+      ? current / previous - 1
+      : null;
+  },
+});`;
+}
+
+function buildPanelFactorCodegenPrompt(): string {
+  return `You are a cross-asset ETF panel-factor code generator. Turn the user's ranking signal into a **complete, compilable** TypeScript Factor Definition V2 module.
+
+# Output requirements
+- Output only code, without markdown fences or imports.
+- Use exactly \`export default defineFactorV2({ ... })\` with \`version: 2\`, \`analysisKind: 'panel'\`, \`outputScope: 'asset'\`, and \`frequency: 'daily'\`.
+- \`compute(ctx)\` returns one comparable numeric score for one ETF on a common decision date. The panel report ranks these scores across asset classes; return null when history is insufficient.
+- Return the raw score and do not encode portfolio weights or selection rules in the factor.
+
+# Available point-in-time data
+- The first panel release supports only \`etf.adjustedClose\`.
+- Declare \`inputs: ['etf.adjustedClose']\` and \`targetAssetClasses: ['equity', 'fixed_income', 'commodity']\`.
+- \`ctx.value('etf.adjustedClose')\` reads the decision-date adjusted close; \`ctx.lag('etf.adjustedClose', periods)\` reads an earlier ETF trading observation.
+- Declare \`window\` as the largest lag plus one, from 2 to 505.
+
+# Capability boundary
+If the request needs yield curves, credit spreads, futures carry, inventory, macro data, volume, fundamentals, or cross-asset data inside compute, output one line only:
+CANNOT: <state the unavailable input and ask for a price-only cross-asset ranking signal>
+
+# Example
+export default defineFactorV2({
+  version: 2,
+  name: 'Cross-asset momentum (120d)',
+  analysisKind: 'panel',
+  outputScope: 'asset',
+  frequency: 'daily',
+  inputs: ['etf.adjustedClose'],
+  targetAssetClasses: ['equity', 'fixed_income', 'commodity'],
+  window: 121,
+  compute(ctx) {
+    const current = ctx.value('etf.adjustedClose');
+    const previous = ctx.lag('etf.adjustedClose', 120);
     return current != null && previous != null && previous > 0
       ? current / previous - 1
       : null;

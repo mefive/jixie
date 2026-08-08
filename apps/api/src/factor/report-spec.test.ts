@@ -73,9 +73,19 @@ describe('factor report spec', () => {
     const panel = normalizeFactorResearchSpec({
       ...common,
       analysisKind: 'panel',
-      assets: ['AU.SHF', 'CU.SHF'],
+      assets: [
+        { assetId: '510300.SH', assetClass: 'cn_equity' },
+        { assetId: '511010.SH', assetClass: 'fixed_income' },
+        { assetId: '518880.SH', assetClass: 'gold' },
+      ],
       rankingScope: 'cross_asset',
       volatilityScaling: 'inverse_volatility',
+      minimumAssetsPerPeriod: 3,
+      portfolio: {
+        topFraction: 1 / 3,
+        bottomFraction: 1 / 3,
+        transactionCostPerSide: 0.001,
+      },
     });
     const macro = normalizeFactorResearchSpec({
       ...common,

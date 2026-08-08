@@ -142,6 +142,13 @@ const factorAssetListSchema = factorAssetListBaseSchema
   .min(1)
   .max(200)
   .refine((assets) => new Set(assets).size === assets.length, 'Assets must be unique.');
+const multiAssetClassSchema = z.enum([
+  'cn_equity',
+  'overseas_equity',
+  'fixed_income',
+  'gold',
+  'commodity',
+]);
 const datedResearchProtocolShape = {
   version: z.literal(1),
   start: z.string().regex(/^\d{8}$/),
@@ -169,12 +176,32 @@ export const factorResearchSpecV1Schema = z.discriminatedUnion('analysisKind', [
   z.object({
     ...datedResearchProtocolShape,
     analysisKind: z.literal('panel'),
-    assets: factorAssetListBaseSchema
-      .min(2)
+    assets: z
+      .array(
+        z.object({
+          assetId: z.string().trim().min(1).max(80),
+          assetClass: multiAssetClassSchema,
+        }),
+      )
+      .min(3)
       .max(200)
-      .refine((assets) => new Set(assets).size === assets.length, 'Assets must be unique.'),
+      .refine(
+        (assets) => new Set(assets.map((asset) => asset.assetId)).size === assets.length,
+        'Assets must be unique.',
+      ),
     rankingScope: z.literal('cross_asset'),
     volatilityScaling: z.enum(['none', 'inverse_volatility']),
+    minimumAssetsPerPeriod: z.number().int().min(3).max(200),
+    portfolio: z
+      .object({
+        topFraction: z.number().positive().max(0.5),
+        bottomFraction: z.number().positive().max(0.5),
+        transactionCostPerSide: z.number().min(0).max(0.05),
+      })
+      .refine(
+        (portfolio) => portfolio.topFraction + portfolio.bottomFraction <= 1,
+        'Panel top and bottom fractions cannot overlap.',
+      ),
   }),
   z.object({
     ...datedResearchProtocolShape,
@@ -239,6 +266,8 @@ const primaryCriterionSchema = z.object({
     'net_long_short_annualized',
     'time_series_median_newey_west_t',
     'time_series_mean_direction_hit_rate',
+    'panel_rank_ic_mean',
+    'panel_net_long_short_annualized',
   ]),
   operator: z.enum(['gt', 'lt']),
   value: z.number().finite(),

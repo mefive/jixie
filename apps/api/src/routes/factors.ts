@@ -15,6 +15,7 @@ import {
   timeSeriesTemplateCatalog,
   timeSeriesTemplateResource,
 } from '../factor/time-series-templates.js';
+import { panelTemplateCatalog, panelTemplateResource } from '../factor/panel-templates.js';
 import {
   archiveFactor,
   FactorPublicationError,
@@ -100,9 +101,11 @@ factorsRoute.get('/catalog', async (c) => {
     analysisKind:
       factor.analysisKind === 'time_series'
         ? ('time_series' as const)
-        : ('cross_sectional' as const),
+        : factor.analysisKind === 'panel'
+          ? ('panel' as const)
+          : ('cross_sectional' as const),
     targetAssetClasses:
-      factor.analysisKind === 'time_series'
+      factor.analysisKind === 'time_series' || factor.analysisKind === 'panel'
         ? (['equity', 'fixed_income', 'commodity'] as const)
         : (['equity'] as const),
   }));
@@ -119,6 +122,7 @@ factorsRoute.get('/catalog', async (c) => {
   return c.json([
     ...builtinCatalog(),
     ...timeSeriesTemplateCatalog(locale),
+    ...panelTemplateCatalog(locale),
     ...customMeta,
     ...compositeMeta,
   ]);
@@ -239,6 +243,10 @@ factorsRoute.get('/custom/:id', async (c) => {
   if (timeSeriesTemplate) {
     return c.json(timeSeriesTemplate);
   }
+  const panelTemplate = panelTemplateResource(c.req.param('id'), localeFromRequest(c));
+  if (panelTemplate) {
+    return c.json(panelTemplate);
+  }
   const row = await prisma.factor.findFirst({
     where: { id: c.req.param('id'), userId: { in: [c.var.userId, BUILTIN_USER_ID] } },
     select: {
@@ -276,7 +284,7 @@ const createBody = z.object({
   key: z.string().trim().regex(FACTOR_KEY_PATTERN),
   name: z.string().min(1).max(40),
   code: z.string().min(1),
-  analysisKind: z.enum(['cross_sectional', 'time_series']).default('cross_sectional'),
+  analysisKind: z.enum(['cross_sectional', 'time_series', 'panel']).default('cross_sectional'),
   messages: chatMessagesSchema.optional(),
 });
 

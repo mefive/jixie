@@ -145,10 +145,10 @@ interface TimeSeriesFactorCtxV2 {
   /** Value N observations before the current decision date. */
   lag(field: FactorV2Field, periods: number): number | null;
 }
-interface TimeSeriesFactorV2 {
+interface AssetFactorV2 {
   version: 2;
   name: string;
-  analysisKind: 'time_series';
+  analysisKind: 'time_series' | 'panel';
   outputScope: 'asset';
   frequency: 'daily';
   inputs: FactorV2Field[];
@@ -157,8 +157,8 @@ interface TimeSeriesFactorV2 {
   window: number;
   compute: (ctx: TimeSeriesFactorCtxV2) => number | null;
 }
-/** Define an asset-scope time-series factor with explicit point-in-time inputs. */
-declare function defineFactorV2(factor: TimeSeriesFactorV2): TimeSeriesFactorV2;
+/** Define an asset-scope time-series or cross-asset panel factor with explicit point-in-time inputs. */
+declare function defineFactorV2(factor: AssetFactorV2): AssetFactorV2;
 `;
 }
 
