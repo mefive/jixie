@@ -487,9 +487,6 @@ const AgentChat = complex.component(() => {
 const RunConfig = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('lab');
-  const factorDeploymentBlocked = store.result?.factorDependencies?.some(
-    (factor) => factor.analysisKind === 'time_series',
-  );
   return (
     <div className="jx-lab-runConfig">
       <span className="jx-lab-runSummary">
@@ -542,22 +539,14 @@ const RunConfig = complex.component(() => {
                 ? `${t('deploymentAction')} · ${t('deploymentRunFirst')}`
                 : !store.result
                   ? `${t('deploymentAction')} · ${t('deploymentNeedsResult')}`
-                  : factorDeploymentBlocked
-                    ? `${t('deploymentAction')} · ${t('deploymentFactorBlocked')}`
-                    : t('deploymentAction')
+                  : t('deploymentAction')
             }
           >
             <Button
               type="text"
               size="small"
               loading={store.deploymentActionLoader.loading}
-              disabled={
-                !store.savedId ||
-                !store.result ||
-                store.dirty ||
-                store.running ||
-                factorDeploymentBlocked
-              }
+              disabled={!store.savedId || !store.result || store.dirty || store.running}
               icon={<FontAwesomeIcon icon={faRocket} />}
               onClick={() => void store.deploy()}
               aria-label={t('deploymentAction')}

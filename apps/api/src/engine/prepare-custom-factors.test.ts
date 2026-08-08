@@ -97,9 +97,23 @@ describe('published factor preparation', () => {
     });
   });
 
-  it('keeps time-series factors out of daily signal deployment', async () => {
+  it('freezes time-series inputs for daily signal deployment', async () => {
     mocks.factorFindMany.mockResolvedValue([
-      factor({ key: 'etf_trend_20', analysisKind: 'time_series' }),
+      factor({
+        key: 'etf_trend_20',
+        analysisKind: 'time_series',
+        code: `export default defineFactorV2({
+          version: 2,
+          name: 'ETF trend',
+          analysisKind: 'time_series',
+          outputScope: 'asset',
+          frequency: 'daily',
+          inputs: ['etf.adjustedClose'],
+          targetAssetClasses: ['equity', 'fixed_income', 'commodity'],
+          window: 21,
+          compute(ctx) { return ctx.value('etf.adjustedClose'); },
+        });`,
+      }),
     ]);
     await expect(
       prepareStrategyFactors(
@@ -108,7 +122,9 @@ describe('published factor preparation', () => {
         'en',
         'deployment',
       ),
-    ).rejects.toThrow(/research backtests but not yet for daily signal deployment/);
+    ).resolves.toMatchObject({
+      factors: [{ key: 'etf_trend_20', inputs: ['etf.adjustedClose'] }],
+    });
   });
 
   it('allows an archived dependency for an existing signal run', async () => {

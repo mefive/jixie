@@ -23,6 +23,15 @@ export const zhSignals = {
   noActionHint: '机械系统的不动也是决策，也证明每日链路正常运行。',
   referenceNote:
     '市价指令参考信号日不复权收盘价并在次日开盘执行；条件单从下一交易日起等待触发，需在券商端挂单。',
+  factorInputs: {
+    title: '本次决策的 Factor 输入',
+    hint: '来自冻结的已发布 Factor；这里只展示策略在信号日实际读取的值。',
+    factor: 'Factor',
+    coverage: '有效 / 观察',
+    mean: '均值',
+    decisionValues: '决策标的值',
+    none: '无有效值',
+  },
   history: '运行历史',
   instructionCount: '{{count}} 条指令',
   instrument: '标的',

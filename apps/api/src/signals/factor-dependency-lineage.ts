@@ -16,7 +16,8 @@ export function factorDependenciesFromJson(value: unknown): FactorDependency[] |
       !isNonEmptyString(item.name) ||
       !isNonEmptyString(item.analysisKind) ||
       !isNonEmptyString(item.codeHash) ||
-      (item.approvedReportId != null && !isNonEmptyString(item.approvedReportId))
+      (item.approvedReportId != null && !isNonEmptyString(item.approvedReportId)) ||
+      (item.inputs != null && (!Array.isArray(item.inputs) || !item.inputs.every(isNonEmptyString)))
     ) {
       throw new Error('Invalid factor dependency snapshot');
     }
@@ -48,6 +49,7 @@ function canonicalJson(dependencies: FactorDependency[]): string {
         analysisKind: dependency.analysisKind,
         codeHash: dependency.codeHash,
         approvedReportId: dependency.approvedReportId ?? null,
+        inputs: dependency.inputs ? [...dependency.inputs].sort() : null,
       })),
   );
 }

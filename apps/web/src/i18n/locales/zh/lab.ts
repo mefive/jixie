@@ -99,7 +99,6 @@ export const zhLab = {
   metricNetExposure: '净敞口',
   factorDependenciesTitle: '本次回测使用的因子',
   factorDependenciesFrozen: '按 Factor ID 与代码 hash 冻结',
-  deploymentFactorBlocked: '时间序列因子目前只能研究回测',
 
   // Performance charts
   navEquity: '权益',

@@ -162,6 +162,10 @@
   @apply overflow-hidden rounded-lg border border-gray-200;
 }
 
+.jx-signals-factorInputs {
+  @apply flex flex-col gap-3 rounded-lg border border-blue-100 bg-blue-50/40 p-4;
+}
+
 .jx-signals-conditional {
   @apply flex flex-col gap-3;
 }

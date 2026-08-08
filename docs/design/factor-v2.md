@@ -546,8 +546,7 @@ reveal → 不可变 URL 回放”，并确认 3 个 ETF 的正式保留段截�
 window / inputs 契约，direct 与 walled lane 在引擎内使用同一实现读取截至当日的 ETF 复权行情；
 窗口未满返回 `null`，声明 `etf.adjustedClose` 的定义若收到普通股票代码也返回 `null` 并记录首个契约错误；
 动态标的仍须先 `ensureBars`，显式 `watch` 会在运行前加载。策略得到的是定义本身算出的 score，不会把
-研究报告中的相关性、t 值或命中率误作交易信号。production / 每日信号继续明确关闭，直到数据新鲜度、
-运行一致性和可交易性门槛完成。
+研究报告中的相关性、t 值或命中率误作交易信号。每日信号生产门槛及其完成状态见 Phase 3。
 
 **2026-08-07 自定义定义类型地基：**`Factor` 已持久化创建后不可变的 `analysisKind`，历史记录默认保持
 `cross_sectional`。创建和更新不再用“任一编译器能通过”来猜测定义类型，而是按该身份严格选择
@@ -619,8 +618,20 @@ horizon 的显著性不使用朴素独立样本 t 值。
   Factor ID 和 key 保存覆盖数、有效数、最小/最大/均值与决策资产实际值；
 - published Factor 可一键打开 Strategy Lab；页面按 key 重新读取当前用户的 published Factor，并从批准
   报告恢复时间序列研究资产，预填显式 `watch`、`ctx.factor` 和 `ctx.period` 约束；
-- 时间序列 Factor 已进入研究回测 runtime，但每日信号部署继续明确关闭；跨资产面板和宏观状态 evaluator
-  尚未进入策略 runtime，引用时明确失败。
+- 时间序列 Factor 已进入研究回测与每日信号 runtime；跨资产面板和宏观状态 evaluator 尚未进入策略
+  runtime，引用时明确失败。
+
+**2026-08-07 时间序列每日信号生产闭环：**部署不再按研究方法一刀切拒绝时间序列 Factor。部署快照除
+Factor ID、key、代码 hash 和批准报告外，继续冻结 Definition V2 的 `inputs`；每日 worker 重编译后逐项
+比对，数据字段发生漂移也会失败。日常维护只在活跃部署实际依赖 `rates.cgb.yield.*` 时访问财政部曲线源，
+同步最近窗口并保留“下一上交所交易日可得”的 PIT 口径；纯股票/ETF 部署不受外部曲线源影响。生成单个
+部署的信号前，按其冻结依赖逐期限检查曲线，截至决策日缺期限、含未来数据或超过 14 个日历日未更新均
+返回 `data_not_ready`，不会静默把空值当交易信号。ETF 价格时间序列使用既有按 `watch` 同步链路。
+“今日信号”同时展示该决策日真正读取的 Factor、有效覆盖、均值和逐决策标的值，而不是只在数据库保存。
+真实浏览器已走通“利率 Factor 策略回测 → 部署 → 指定已发布截止日生成信号 → 页面解释输入”，并断言
+回测、部署、SignalRun 三层均冻结 `rates.cgb.yield.10y`，最终决策值为 `511010.SH 1.1900`。回归脚本为
+`apps/web/e2e/bond-curve-signal.mjs`，截图为 `apps/web/acceptance/12a-cgb-signal-deployment.png` 和
+`12b-cgb-signal-factor-inputs.png`。
 
 尚未完成：面向时间序列 evaluator 的校准 `FactorSignal` 输出。当前一键带入只形成明确的策略研究请求，
 仍由 Agent 生成策略并经策略回测验证，不把因子报告本身误认为交易算法。

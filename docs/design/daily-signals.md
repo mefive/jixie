@@ -152,7 +152,8 @@ interface SignalItem {
 
 1. maintenance coordinator 补齐连续发布水位之后的全部缺失交易日；
 2. 候选校验并原子发布股票 daily / adj_factor / daily_basic / stk_limit；
-3. 根据活跃部署代码与声明按需同步 moneyflow / toplist 和 ETF；
+3. 根据活跃部署代码与冻结 Factor 输入按需同步 moneyflow / toplist、ETF 和官方国债收益率曲线；只有
+   利率部署访问曲线源，且每个所需期限必须在决策日可得并满足 14 日新鲜度门禁；
 4. 完整性门禁通过后生成并验证 market-state；
 5. 水位追平最近收盘日后才生成信号；
 6. 活跃部署按上线顺序串行启动独立子进程，避免同时占满 SQLite 和 isolate 内存；原生沙箱崩溃与

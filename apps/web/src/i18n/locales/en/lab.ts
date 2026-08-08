@@ -106,7 +106,6 @@ export const enLab: typeof zhLab = {
   metricNetExposure: 'Net exposure',
   factorDependenciesTitle: 'Factors used by this backtest',
   factorDependenciesFrozen: 'Frozen by Factor ID and code hash',
-  deploymentFactorBlocked: 'Time-series factors are currently limited to research backtests',
 
   // Performance charts
   navEquity: 'Equity',
