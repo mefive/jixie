@@ -5,6 +5,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import classNames from 'classnames';
 import {
+  Alert,
   Button,
   DatePicker,
   Input,
@@ -891,6 +892,7 @@ const ResultPanel = complex.component(() => {
     );
   }
   const finalSleeves = r.sleeveNav?.at(-1);
+  const hasPanelFactor = r.factorDependencies?.some((factor) => factor.analysisKind === 'panel');
   if (finalSleeves && finalSleeves.stockValue > 0 && finalSleeves.futureValue > 0) {
     metrics.push(
       {
@@ -914,6 +916,16 @@ const ResultPanel = complex.component(() => {
 
   return (
     <>
+      {hasPanelFactor ? (
+        <Alert
+          className="jx-lab-panelExecutionNotice"
+          data-testid="panel-strategy-execution-notice"
+          type="success"
+          showIcon
+          title={t('panelExecutionTitle')}
+          description={t('panelExecutionDescription')}
+        />
+      ) : null}
       {r.factorDependencies?.length ? (
         <div className="jx-lab-factorDependencies" data-testid="strategy-factor-dependencies">
           <div className="jx-lab-factorDependenciesHead">
@@ -933,7 +945,9 @@ const ResultPanel = complex.component(() => {
                   <b>{factor.key}</b>
                   <code>{factor.codeHash.slice(0, 12)}</code>
                 </span>
-                <span>{factor.name}</span>
+                <span>
+                  {factor.name} · {t(`factorKind.${factor.analysisKind}`)}
+                </span>
               </a>
             ))}
           </div>

@@ -2619,9 +2619,10 @@ const FactorPublicationCard = complex.component(() => {
   const { t } = useTranslation('factor');
   const { message, modal } = App.useApp();
   const detail = store.reportDetail;
-  if (!detail || store.mode !== 'custom') {
+  if (!detail) {
     return null;
   }
+  const ownedFactor = store.mode === 'custom';
 
   const publish = () => {
     modal.confirm({
@@ -2669,7 +2670,7 @@ const FactorPublicationCard = complex.component(() => {
           </div>
         </div>
         <div className="jx-factor-publicationActions">
-          {store.factorStatus === 'draft' ? (
+          {store.factorStatus === 'draft' && ownedFactor ? (
             <Button
               size="small"
               type="primary"
@@ -2701,7 +2702,7 @@ const FactorPublicationCard = complex.component(() => {
               >
                 {t('copy')}
               </Button>
-              {store.factorStatus === 'published' && (
+              {store.factorStatus === 'published' && ownedFactor && (
                 <Button size="small" danger loading={store.archiveLoader.loading} onClick={archive}>
                   {t('publication.archive')}
                 </Button>

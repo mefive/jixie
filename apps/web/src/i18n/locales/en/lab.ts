@@ -108,6 +108,15 @@ export const enLab: typeof zhLab = {
   metricNetExposure: 'Net exposure',
   factorDependenciesTitle: 'Factors used by this backtest',
   factorDependenciesFrozen: 'Frozen by Factor ID and code hash',
+  factorKind: {
+    cross_sectional: 'Stock cross-section',
+    time_series: 'Time series',
+    panel: 'Cross-asset panel',
+    macro_regime: 'Macro regime',
+  },
+  panelExecutionTitle: 'Strategy backtest · actual long-only ETF execution',
+  panelExecutionDescription:
+    "The results below come from the strategy's actual holdings, cash, fees, and fill constraints; they are not the factor report's equal-weight benchmark or long-short diagnostic return.",
 
   // Performance charts
   navEquity: 'Equity',

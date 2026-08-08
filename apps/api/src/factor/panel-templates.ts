@@ -67,10 +67,13 @@ export function panelTemplateResource(key: string, locale: Locale) {
   return template
     ? {
         id: template.key,
+        key: template.key,
         name: template.label[locale],
         description: template.description[locale],
         code: template.code,
         builtin: true as const,
+        status: 'published' as const,
+        strategyKey: template.key,
         analysisKind: 'panel' as const,
         targetAssetClasses: template.targetAssetClasses,
       }
