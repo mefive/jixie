@@ -12,4 +12,18 @@ describe('strategy codegen prompt published-Factor semantics', () => {
     expect(prompt).toContain('Use `ctx.period`');
     expect(prompt).toContain('do not substitute report correlation, t-statistic, or hit rate');
   });
+
+  it('keeps panel research diagnostics separate from an executable ETF portfolio', () => {
+    const factor =
+      'Cross-asset momentum=cross_asset_momentum_120 (published; panel cross-asset factor)';
+    const prompt = buildCodegenPrompt('沪深300=000300.SH', factor);
+
+    expect(prompt).toContain(factor);
+    expect(prompt).toContain('common dates');
+    expect(prompt).toContain('long-only ETF portfolio');
+    expect(prompt).toContain(
+      "report's equal-weight and long-short series are research diagnostics",
+    );
+    expect(prompt).toContain('backtest must create actual orders');
+  });
 });

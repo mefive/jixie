@@ -355,6 +355,10 @@
   padding: 12px 14px;
 }
 
+.jx-lab-panelExecutionNotice {
+  flex: none;
+}
+
 .jx-lab-factorDependenciesHead {
   @apply flex flex-wrap items-center justify-between gap-2 text-ink;
   font-size: 12px;

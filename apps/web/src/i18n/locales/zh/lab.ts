@@ -101,6 +101,15 @@ export const zhLab = {
   metricNetExposure: '净敞口',
   factorDependenciesTitle: '本次回测使用的因子',
   factorDependenciesFrozen: '按 Factor ID 与代码 hash 冻结',
+  factorKind: {
+    cross_sectional: '股票横截面',
+    time_series: '时间序列',
+    panel: '跨资产面板',
+    macro_regime: '宏观状态',
+  },
+  panelExecutionTitle: '策略回测 · ETF 多头真实执行',
+  panelExecutionDescription:
+    '下方收益来自策略的实际持仓、现金、交易费用与成交约束；它不是因子研究报告中的等权基准或多空诊断收益。',
 
   // Performance charts
   navEquity: '权益',

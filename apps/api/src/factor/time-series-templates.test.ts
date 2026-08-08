@@ -3,6 +3,7 @@ import { compileTimeSeriesFactor } from './compile-time-series-factor.js';
 import {
   resolveTimeSeriesTemplateSource,
   timeSeriesTemplateCatalog,
+  timeSeriesTemplateResource,
 } from './time-series-templates.js';
 
 describe('ETF time-series templates', () => {
@@ -23,6 +24,12 @@ describe('ETF time-series templates', () => {
       builtin: true,
       analysisKind: 'time_series',
       targetAssetClasses: ['equity', 'fixed_income', 'commodity'],
+    });
+    expect(timeSeriesTemplateResource('etf_trend_20', 'zh')).toMatchObject({
+      key: 'etf_trend_20',
+      strategyKey: 'etf_trend_20',
+      status: 'published',
+      builtin: true,
     });
   });
 

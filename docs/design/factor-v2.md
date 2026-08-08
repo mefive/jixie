@@ -689,10 +689,13 @@ fail-closed，不会静默回填。报告同时展示跨资产 Rank IC / ICIR、
 `Factor.key` 进入多资产策略；从报告进入 Strategy Lab 会预填固定资产池、`watch`、`ctx.factor` 与
 月度 `ctx.period` 的研究请求。
 
-真实 E2E 在 2020–2024 样本得到 59 个有效月末、236 条观测，并验证 Panel 报告与 Strategy Lab 预填；
-脚本为 `apps/web/e2e/factor-panel.mjs`，截图为
-`apps/web/acceptance/factor-panel-report.png`。该样本平均 Rank IC 为 0.0712，但单边 10bp 后多空年化为
-负 7.14%，产品因此明确提示“排序证据不等于可交易资产配置策略”。
+真实 E2E 在 2020–2024 样本得到 59 个有效月末、236 条观测，并从内置已发布 Factor 的“用于策略”
+入口进入 Strategy Lab；内置与用户自建 Factor 共享策略入口，但只有用户自建 Factor 能发布或归档。
+脚本随后用同一 key 对四类 ETF 做月频排序、选择最强两只等权，2023-01 至 2025-01 实际产生 42 笔
+ETF 成交和 30.24% 区间收益，并冻结 `analysisKind = panel` 的因子血缘。研究报告的样本平均 Rank IC
+为 0.0712、单边 10bp 后多空年化为负 7.14%；策略结果页另行标注其收益来自真实持仓、现金、费用和
+成交约束，不把两条收益序列混为一谈。回归脚本为 `apps/web/e2e/factor-panel.mjs`，截图为
+`apps/web/acceptance/factor-panel-report.png` 和 `apps/web/acceptance/factor-panel-strategy.png`。
 
 **本 Phase 剩余：**Panel holdout/reveal 的真实浏览器验收；加入短债/长债分层与有历史行情的商品 ETF；
 资产类别内/类别间标准化；Panel 组合因子；策略结果中的资产收益贡献、风险贡献、配置漂移与宏观阶段

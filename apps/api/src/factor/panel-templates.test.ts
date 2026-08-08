@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { compilePanelFactor } from './compile-time-series-factor.js';
-import { panelTemplateCatalog, resolvePanelTemplateSource } from './panel-templates.js';
+import {
+  panelTemplateCatalog,
+  panelTemplateResource,
+  resolvePanelTemplateSource,
+} from './panel-templates.js';
 
 describe('multi-asset panel templates', () => {
   it('publishes an explicit panel method in the localized catalog', () => {
@@ -12,6 +16,12 @@ describe('multi-asset panel templates', () => {
         targetAssetClasses: ['equity', 'fixed_income', 'commodity'],
       }),
     ]);
+    expect(panelTemplateResource('cross_asset_momentum_120', 'zh')).toMatchObject({
+      key: 'cross_asset_momentum_120',
+      strategyKey: 'cross_asset_momentum_120',
+      status: 'published',
+      builtin: true,
+    });
   });
 
   it('resolves to an executable frozen Factor V2 panel source', async () => {

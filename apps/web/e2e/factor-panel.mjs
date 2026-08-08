@@ -9,6 +9,8 @@ const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
 const page = await context.newPage();
 const browserErrors = [];
+const ASSETS = ['510300.SH', '513100.SH', '511010.SH', '518880.SH'];
+let strategyId = null;
 page.on('pageerror', (error) => browserErrors.push(`pageerror: ${error.message}`));
 page.on('console', (message) => {
   if (message.type() === 'error' && !message.text().startsWith('Warning: [antd:')) {
@@ -126,13 +128,105 @@ try {
     { timeout: 30_000 },
   );
 
+  const factorKey = 'cross_asset_momentum_120';
+  const strategyCode = [
+    `const etfs = ${JSON.stringify(ASSETS)};`,
+    "let last = '';",
+    'export default defineStrategy({',
+    "  name: '跨资产 ETF 月度轮动',",
+    '  watch: etfs,',
+    `  factors: ['${factorKey}'],`,
+    '  onBar(ctx) {',
+    "    const period = ctx.period('monthly');",
+    '    if (period === last) return;',
+    '    last = period;',
+    '    const picks = etfs',
+    `      .map(code => ({ code, score: ctx.factor('${factorKey}', code) }))`,
+    '      .filter(item => item.score != null)',
+    '      .sort((a, b) => b.score - a.score || a.code.localeCompare(b.code))',
+    '      .slice(0, 2)',
+    '      .map(item => item.code);',
+    '    if (picks.length === 2) ctx.equalWeight(picks);',
+    '    else ctx.setHoldings({});',
+    '  },',
+    '});',
+  ].join('\n');
+  const config = {
+    name: '跨资产 ETF 月度轮动',
+    start: '20230101',
+    end: '20250127',
+    initialCash: 1_000_000,
+    code: strategyCode,
+  };
+  const strategy = await api('/api/app/strategies', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(config),
+  });
+  if (strategy.status !== 200 || !strategy.body.id) {
+    throw new Error(`panel strategy creation failed: ${JSON.stringify(strategy)}`);
+  }
+  strategyId = strategy.body.id;
+  const backtest = await api(`/api/app/strategy/backtest?strategyId=${strategyId}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(config),
+  });
+  if (backtest.status !== 200 || !backtest.body.jobId) {
+    throw new Error(`panel backtest failed to start: ${JSON.stringify(backtest)}`);
+  }
+  const completed = await page.evaluate(
+    async ({ strategyId, jobId }) => {
+      const deadline = Date.now() + 180_000;
+      while (Date.now() < deadline) {
+        const job = await fetch(`/api/app/strategy/backtest/${jobId}?since=0`, {
+          cache: 'no-store',
+        }).then((response) => response.json());
+        if (job.status === 'done') {
+          return fetch(`/api/app/strategies/${strategyId}`, { cache: 'no-store' }).then(
+            (response) => response.json(),
+          );
+        }
+        if (job.status === 'error' || job.status === 'stale') {
+          throw new Error(`panel backtest ${job.status}: ${job.error ?? ''}`);
+        }
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+      throw new Error(`panel backtest ${jobId} timed out`);
+    },
+    { strategyId, jobId: backtest.body.jobId },
+  );
+  const result = completed.lastResult;
+  const dependency = result?.factorDependencies?.[0];
+  if (
+    result?.trades <= 0 ||
+    result?.factorDependencies?.length !== 1 ||
+    dependency?.key !== factorKey ||
+    dependency?.analysisKind !== 'panel' ||
+    !result.tradeLog.every((trade) => ASSETS.includes(trade.code) && trade.assetType === 'etf')
+  ) {
+    throw new Error(`panel strategy execution or lineage failed: ${JSON.stringify(completed)}`);
+  }
+
+  await page.goto(`${BASE}/lab?id=${strategyId}`, { waitUntil: 'domcontentloaded' });
+  await page.getByTestId('panel-strategy-execution-notice').waitFor({ timeout: 30_000 });
+  await page.getByText('策略回测 · ETF 多头真实执行', { exact: true }).waitFor();
+  const dependencyPanel = page.getByTestId('strategy-factor-dependencies');
+  await dependencyPanel.getByText(factorKey, { exact: false }).waitFor();
+  await dependencyPanel.getByText('跨资产面板', { exact: false }).waitFor();
+  await page.locator('.jx-lab-chart canvas').waitFor({ timeout: 30_000 });
+  await page.screenshot({ path: `${SHOTS}factor-panel-strategy.png`, fullPage: true });
+
   if (browserErrors.length > 0) {
     throw new Error(`browser errors: ${browserErrors.join('\n')}`);
   }
   console.log(
-    `[factor-panel-e2e] report=${run.body.reportId} periods=${report.periods} observations=${report.observations} rankIc=${report.rankIcMean.toFixed(4)} netLs=${report.longShortNetAnnualized.toFixed(4)} labPrefill=ok screenshot=1`,
+    `[factor-panel-e2e] report=${run.body.reportId} periods=${report.periods} observations=${report.observations} rankIc=${report.rankIcMean.toFixed(4)} netLs=${report.longShortNetAnnualized.toFixed(4)} strategy=${strategyId} trades=${result.trades} return=${result.totalReturn.toFixed(4)} screenshots=2`,
   );
 } finally {
+  if (strategyId) {
+    await api(`/api/app/strategies/${strategyId}`, { method: 'DELETE' }).catch(() => {});
+  }
   await context.close();
   await browser.close();
 }
