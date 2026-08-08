@@ -27,6 +27,15 @@ export const enSignals: typeof zhSignals = {
     'Doing nothing is still a mechanical decision and confirms the daily pipeline is healthy.',
   referenceNote:
     'Market instructions use the raw signal-date close and execute at the next open. Conditional orders wait for a trigger from the next trading day and must be placed with the broker.',
+  factorInputs: {
+    title: 'Factor inputs for this decision',
+    hint: 'Values actually read on the signal date from frozen published Factors.',
+    factor: 'Factor',
+    coverage: 'Valid / observed',
+    mean: 'Mean',
+    decisionValues: 'Decision asset values',
+    none: 'No valid value',
+  },
   history: 'Run history',
   instructionCount: '{{count}} instruction(s)',
   instrument: 'Instrument',

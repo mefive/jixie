@@ -13,6 +13,8 @@ export interface FactorDependency {
   analysisKind: FactorAnalysisKind;
   codeHash: string;
   approvedReportId?: string | null;
+  /** Point-in-time data fields consumed by an executable Definition V2 factor. */
+  inputs?: string[];
 }
 
 export interface PublishFactorRequest {

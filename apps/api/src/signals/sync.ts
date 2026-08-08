@@ -2,6 +2,11 @@ import { loadTushareConfig } from '../config.js';
 import { inspectWalledStrategyMetadata } from '../engine/walled-run.js';
 import { prisma } from '../lib/prisma.js';
 import {
+  MinistryOfFinanceCurveClient,
+  syncChinaTreasuryYieldCurve,
+} from '../rates/china-treasury-curve.js';
+import { governmentYieldTermsFromDependencies } from '../rates/signal-readiness.js';
+import {
   syncDaily,
   syncDailyBasic,
   syncEtfBasic,
@@ -12,6 +17,7 @@ import {
   syncTradeCal,
 } from '../store/sync.js';
 import { TushareClient } from '../tushare/client.js';
+import { factorDependenciesFromJson } from './factor-dependency-lineage.js';
 
 /** Synchronize the datasets needed by active stock/ETF deployments for one signal close. */
 export async function syncSignalMarketData(
@@ -31,7 +37,7 @@ export async function syncSignalMarketData(
   });
   const deployments = await prisma.strategyDeployment.findMany({
     where: { status: 'active' },
-    select: { config: true },
+    select: { config: true, factorDependencies: true },
   });
   const definitions = await Promise.all(
     deployments.map(async (deployment) => {
@@ -59,6 +65,20 @@ export async function syncSignalMarketData(
     await syncDaily(client, tradeDate, tradeDate);
     await syncDailyBasic(client, tradeDate, tradeDate);
     await syncStkLimit(client, tradeDate, tradeDate);
+  }
+
+  const factorDependencies = deployments.flatMap(
+    (deployment) => factorDependenciesFromJson(deployment.factorDependencies) ?? [],
+  );
+  const yieldTerms = governmentYieldTermsFromDependencies(factorDependencies);
+  if (yieldTerms.length > 0) {
+    onLog(`Syncing government yield curve for active maturities ${yieldTerms.join(', ')}Y`);
+    await syncChinaTreasuryYieldCurve(
+      new MinistryOfFinanceCurveClient(),
+      addCalendarDays(tradeDate, -21),
+      tradeDate,
+      onLog,
+    );
   }
 
   const factorKeys = definitions.flatMap((definition) => definition.factors);

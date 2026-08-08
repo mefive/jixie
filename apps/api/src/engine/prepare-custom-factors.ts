@@ -6,11 +6,11 @@ import {
 } from '@jixie/shared';
 import { prisma } from '../lib/prisma.js';
 import { toCommonJs } from '../lib/isolate-run.js';
-import { t } from '../i18n/messages.js';
 import { BUILTIN_USER_ID } from '../factor/builtin-factors.js';
 import { compileTimeSeriesFactor } from '../factor/compile-time-series-factor.js';
 import { normalizeAnalysisKind } from '../factor/publication.js';
 import { sha256 } from '../factor/report-spec.js';
+import { t } from '../i18n/messages.js';
 import { extractCustomFactorHistoryFields, type CustomFactorModule } from './custom-factor.js';
 
 const ENGINE_FACTOR_KEYS = new Set<string>(ENGINE_FACTORS.map((factor) => factor.key));
@@ -71,21 +71,18 @@ export async function prepareStrategyFactors(
   }
 
   const ordered = keys.map((key) => byKey.get(key)!);
-  for (const row of ordered) {
-    if (usage !== 'research' && row.analysisKind === 'time_series') {
-      throw new Error(t(locale, 'factorTimeSeriesProductionUnsupported', { key: row.key }));
-    }
-  }
+  const modules = await Promise.all(ordered.map(prepareFactorModule));
 
   return {
-    modules: await Promise.all(ordered.map(prepareFactorModule)),
-    factors: ordered.map((row) => ({
+    modules,
+    factors: ordered.map((row, index) => ({
       factorId: row.id,
       key: row.key,
       name: row.name,
       analysisKind: normalizeAnalysisKind(row.analysisKind),
       codeHash: row.codeHash ?? sha256(row.code),
       approvedReportId: row.approvedReportId,
+      ...(modules[index]?.timeSeries ? { inputs: [...modules[index].timeSeries.inputs] } : {}),
     })),
   };
 }

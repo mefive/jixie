@@ -116,10 +116,6 @@ const MESSAGES = {
     zh: '因子代码已在该报告后发生变化，请重新运行研究',
     en: 'The factor code changed after this report; run the research again before publishing',
   },
-  factorTimeSeriesProductionUnsupported: {
-    zh: '时间序列因子 {key} 已可用于研究回测，但尚未开放每日信号部署',
-    en: 'Time-series factor {key} is available for research backtests but not yet for daily signal deployment',
-  },
   windowNotComputed: {
     zh: '该窗口尚未计算,请先运行',
     en: 'This window has not been computed yet; run it first',

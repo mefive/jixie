@@ -22,6 +22,8 @@ import {
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import type {
   ActualExecutionUpdate,
+  FactorDependency,
+  FactorInputSummary,
   SignalExecution,
   SignalItem,
   SignalRun,
@@ -325,6 +327,8 @@ function SignalResult({
         <NotificationState run={run} />
       </div>
 
+      <FactorInputs factors={run.factorInputs ?? []} dependencies={run.factorDependencies ?? []} />
+
       {signals.length === 0 ? (
         <div className="jx-signals-noAction">
           <FontAwesomeIcon icon={faCircleCheck} />
@@ -379,6 +383,68 @@ function SignalResult({
   );
 }
 
+function FactorInputs({
+  factors,
+  dependencies,
+}: {
+  factors: FactorInputSummary[];
+  dependencies: FactorDependency[];
+}) {
+  const { t } = useTranslation('signals');
+  if (factors.length === 0) {
+    return null;
+  }
+  return (
+    <section className="jx-signals-factorInputs" data-testid="signal-factor-inputs">
+      <div className="jx-signals-conditionalHeading">
+        <h4>{t('factorInputs.title')}</h4>
+        <p>{t('factorInputs.hint')}</p>
+      </div>
+      <Table<FactorInputSummary>
+        rowKey="factorId"
+        pagination={false}
+        size="small"
+        columns={[
+          {
+            title: t('factorInputs.factor'),
+            render: (_, factor) => {
+              const dependency = dependencies.find((item) => item.factorId === factor.factorId);
+              return (
+                <span>
+                  {dependency?.name ?? factor.key}
+                  <code className="jx-signals-code">{factor.key}</code>
+                </span>
+              );
+            },
+          },
+          {
+            title: t('factorInputs.coverage'),
+            render: (_, factor) => `${factor.validAssets} / ${factor.observedAssets}`,
+          },
+          {
+            title: t('factorInputs.mean'),
+            render: (_, factor) => formatFactorValue(factor.meanValue),
+          },
+          {
+            title: t('factorInputs.decisionValues'),
+            render: (_, factor) =>
+              factor.decisionObservations.length > 0
+                ? factor.decisionObservations
+                    .map(
+                      (observation) =>
+                        `${observation.assetId} ${formatFactorValue(observation.value)}`,
+                    )
+                    .join(' · ')
+                : t('factorInputs.none'),
+          },
+        ]}
+        dataSource={factors}
+        scroll={{ x: 720 }}
+      />
+    </section>
+  );
+}
+
 function NotificationState({ run }: { run: SignalRun }) {
   const { t } = useTranslation('signals');
   return (
@@ -398,6 +464,13 @@ function NotificationState({ run }: { run: SignalRun }) {
       </strong>
     </div>
   );
+}
+
+function formatFactorValue(value: number | null): string {
+  if (value == null) {
+    return '—';
+  }
+  return Math.abs(value) >= 100 ? value.toFixed(2) : value.toFixed(4);
 }
 
 function History({

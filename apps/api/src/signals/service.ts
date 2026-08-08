@@ -18,6 +18,7 @@ import { prepareStrategyFactors } from '../engine/prepare-custom-factors.js';
 import { appendLog, finishSignalRunJob, initializeJobLogs } from '../lib/jobs.js';
 import { prisma } from '../lib/prisma.js';
 import { t } from '../i18n/messages.js';
+import { governmentYieldCurveReady } from '../rates/signal-readiness.js';
 import { notifySignalRun } from './notifier.js';
 import { executionWire, initializeSignalAccounting } from './accounting.js';
 import { factorDependenciesFromJson } from './factor-dependency-lineage.js';
@@ -211,6 +212,10 @@ export async function enqueueSignalRun(
     return calendar;
   }
   if (!(await signalDataReady(tradeDate))) {
+    return { kind: 'data_not_ready' };
+  }
+  const factorDependencies = factorDependenciesFromJson(deployment.factorDependencies) ?? [];
+  if (!(await governmentYieldCurveReady(factorDependencies, tradeDate))) {
     return { kind: 'data_not_ready' };
   }
 
