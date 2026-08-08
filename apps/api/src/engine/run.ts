@@ -84,7 +84,7 @@ function needsTurnoverRateFHistory(cfg: EngineConfig): boolean {
 
 function needsGovernmentYieldCurve(cfg: EngineConfig): boolean {
   return (cfg.customFactors ?? []).some((factor) =>
-    factor.timeSeries?.inputs.some((field) => field.startsWith('rates.cgb.yield.')),
+    factor.assetSeries?.inputs.some((field) => field.startsWith('rates.cgb.yield.')),
   );
 }
 

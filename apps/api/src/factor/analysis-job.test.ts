@@ -1,6 +1,7 @@
 import type {
   FactorAnalysisSpecV3,
   FactorResearchIntentV1,
+  PanelFactorResearchSpecV1,
   TimeSeriesFactorResearchSpecV1,
 } from '@jixie/shared';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -168,6 +169,65 @@ describe('startFactorAnalysis', () => {
     });
     expect(JSON.parse(mocks.reportCreate.mock.calls[0][0].data.specJson)).toEqual(timeSeriesSpec);
     expect(launchWorker.mock.calls[0][0]).toMatchObject({ source, spec: timeSeriesSpec });
+  });
+
+  it('persists the full cross-asset panel protocol and executable source', async () => {
+    mocks.reportFindFirst.mockResolvedValue(null);
+    const launchWorker = vi.fn(async (_options: unknown) => {});
+    const panelSpec: PanelFactorResearchSpecV1 = {
+      version: 1,
+      analysisKind: 'panel',
+      start: '20200101',
+      end: '20241231',
+      observationFrequency: 'monthly',
+      assets: [
+        { assetId: '510300.SH', assetClass: 'cn_equity' },
+        { assetId: '513100.SH', assetClass: 'overseas_equity' },
+        { assetId: '511010.SH', assetClass: 'fixed_income' },
+        { assetId: '518880.SH', assetClass: 'gold' },
+      ],
+      target: { kind: 'forward_total_return', horizon: 20, horizonUnit: 'trade_day' },
+      dataPolicy: { pointInTime: true, revisionPolicy: 'as_available', dataCutoff: '20250131' },
+      rankingScope: 'cross_asset',
+      volatilityScaling: 'none',
+      minimumAssetsPerPeriod: 3,
+      portfolio: {
+        topFraction: 0.25,
+        bottomFraction: 0.25,
+        transactionCostPerSide: 0.001,
+      },
+    };
+    const source = {
+      kind: 'panel' as const,
+      label: 'Cross-asset momentum',
+      code: 'executable panel Factor V2 source',
+    };
+
+    await startFactorAnalysis({
+      userId: 'user-1',
+      factor: 'cross_asset_momentum_120',
+      source,
+      spec: panelSpec,
+      researchIntent: {
+        version: 1,
+        mode: 'hypothesis',
+        expectedDirection: 'positive',
+        primaryCriterion: { metric: 'panel_rank_ic_mean', operator: 'gt', value: 0 },
+      },
+      locale: 'en',
+      failedMessage: 'failed',
+      exitedMessage: (code) => `exit ${code}`,
+      launchWorker,
+    });
+
+    expect(mocks.reportCreate.mock.calls[0][0].data).toMatchObject({
+      factor: 'cross_asset_momentum_120',
+      analysisKind: 'panel',
+      freq: 'month',
+      factorCodeSnapshot: source.code,
+    });
+    expect(JSON.parse(mocks.reportCreate.mock.calls[0][0].data.specJson)).toEqual(panelSpec);
+    expect(launchWorker.mock.calls[0][0]).toMatchObject({ source, spec: panelSpec });
   });
 
   it('reuses the same running frozen variant instead of launching twice', async () => {

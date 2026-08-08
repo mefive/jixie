@@ -7,6 +7,8 @@ export const enLab: typeof zhLab = {
     'Design a strategy using the published factor “{{name}}” (immutable key: {{key}}). Explain the universe, rebalance schedule, portfolio construction, and risk controls before generating backtestable code; use this key directly in both factors and ctx.factor.',
   factorTimeSeriesStarterPrompt:
     'Design an ETF rotation strategy using the published time-series signal “{{name}}” (immutable key: {{key}}). The research assets are {{assets}}. Put them in an explicit watch list, declare the key in factors, and read each ETF’s daily score with ctx.factor(key, ETF). Filter nulls, rank the scores, rebalance monthly with ctx.period, and equal-weight the strongest two; hold cash when fewer than two are valid. This is a research backtest—do not attempt deployment.',
+  factorPanelStarterPrompt:
+    'Design a multi-asset ETF rotation strategy using the published cross-asset panel factor “{{name}}” (immutable key: {{key}}). The research assets are {{assets}}. Put them in an explicit watch list, declare the key in factors, and read comparable scores with ctx.factor(key, ETF) on each common rebalance date. Filter nulls, rank scores, rebalance monthly with ctx.period, and equal-weight the strongest two; hold cash when fewer than two are valid. The report long-short is a research diagnostic, so validate the actual long-only ETF trades in the strategy backtest.',
   heroTitle: 'New strategy',
   heroHint: 'Describe your strategy in one sentence; the AI writes the code, then you tune it',
   newModalHint:

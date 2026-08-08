@@ -5,6 +5,8 @@ export const zhLab = {
     '请使用已发布因子“{{name}}”（唯一 key：{{key}}）设计一套策略。先说明选股范围、调仓周期、组合构建和风险控制，再生成可回测代码；在 factors 和 ctx.factor 中都直接使用该 key。',
   factorTimeSeriesStarterPrompt:
     '请使用已发布的 ETF 时间序列信号“{{name}}”（唯一 key：{{key}}）设计轮动策略。研究资产为 {{assets}}：把它们放入显式 watch 列表，在 factors 中声明该 key，用 ctx.factor(key, ETF) 读取每只 ETF 当日分数，过滤 null 后排序。使用 ctx.period 做月度调仓，选最强 2 只等权，不足 2 只时空仓。这是研究回测，不要尝试部署。',
+  factorPanelStarterPrompt:
+    '请使用已发布的跨资产面板因子“{{name}}”（唯一 key：{{key}}）设计多资产 ETF 轮动策略。研究资产为 {{assets}}：把它们放入显式 watch 列表，在 factors 中声明该 key，用 ctx.factor(key, ETF) 在共同调仓日读取可比分数并过滤 null。使用 ctx.period 做月度调仓，按分数排序后选最强 2 只等权，不足 2 只时空仓；报告中的多空组合只是研究诊断，策略必须按 ETF 多头真实成交回测。',
   heroTitle: '新建策略',
   heroHint: '用一句话描述你的策略，AI 写成代码，再自己调参',
   newModalHint: '用一句话描述你的新策略，AI 写成代码，再自己调参',

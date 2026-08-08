@@ -93,7 +93,43 @@ describe('published factor preparation', () => {
     expect(prepared.modules[0]).toMatchObject({
       key: 'etf_trend_20',
       analysisKind: 'time_series',
-      timeSeries: { window: 21, inputs: ['etf.adjustedClose'] },
+      assetSeries: { window: 21, inputs: ['etf.adjustedClose'] },
+    });
+  });
+
+  it('carries a published panel factor into the same asset-series strategy runtime', async () => {
+    mocks.factorFindMany.mockResolvedValue([
+      factor({
+        key: 'cross_asset_momentum_120',
+        analysisKind: 'panel',
+        code: `export default defineFactorV2({
+          version: 2,
+          name: 'Cross-asset momentum',
+          analysisKind: 'panel',
+          outputScope: 'asset',
+          frequency: 'daily',
+          inputs: ['etf.adjustedClose'],
+          targetAssetClasses: ['equity', 'fixed_income', 'commodity'],
+          window: 121,
+          compute(ctx) { return ctx.value('etf.adjustedClose'); },
+        });`,
+      }),
+    ]);
+
+    const prepared = await prepareStrategyFactors(
+      `ctx.factor('cross_asset_momentum_120', '510300.SH')`,
+      'user-1',
+      'en',
+    );
+    expect(prepared.modules[0]).toMatchObject({
+      key: 'cross_asset_momentum_120',
+      analysisKind: 'panel',
+      assetSeries: { window: 121, inputs: ['etf.adjustedClose'] },
+    });
+    expect(prepared.factors[0]).toMatchObject({
+      key: 'cross_asset_momentum_120',
+      analysisKind: 'panel',
+      inputs: ['etf.adjustedClose'],
     });
   });
 

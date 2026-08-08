@@ -343,7 +343,9 @@ export type FactorResearchMetric =
   | 'rank_icir_annual'
   | 'net_long_short_annualized'
   | 'time_series_median_newey_west_t'
-  | 'time_series_mean_direction_hit_rate';
+  | 'time_series_mean_direction_hit_rate'
+  | 'panel_rank_ic_mean'
+  | 'panel_net_long_short_annualized';
 
 export interface FactorResearchIntentV1 {
   version: 1;
@@ -406,6 +408,8 @@ export interface FactorReportSummary {
     rankIc?: number;
     medianNeweyWestT?: number;
     meanDirectionHitRate?: number;
+    panelRankIcMean?: number;
+    panelNetLongShortAnnualized?: number;
   };
 }
 

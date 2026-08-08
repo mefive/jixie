@@ -42,6 +42,7 @@ import type {
   FactorCompositeDefinitionV1,
   FactorAnalysisKind,
   FactorTimeSeriesReportV1,
+  PanelFactorResearchSpecV1,
   TimeSeriesFactorResearchSpecV1,
 } from '@jixie/shared';
 import { factorResearchCriterionPassed } from '@jixie/shared';
@@ -74,7 +75,7 @@ import { LoadingArea } from '@src/components/loading-area';
 import { LogView } from '@src/components/log-view';
 import { QuantileHeatmap } from './quantile-heatmap';
 import { complex } from './complex';
-import { TIME_SERIES_ASSET_OPTIONS } from './factor-store';
+import { PANEL_ASSETS, TIME_SERIES_ASSET_OPTIONS } from './factor-store';
 import './factor.css';
 
 dayjs.extend(customParseFormat);
@@ -86,7 +87,10 @@ const FactorEditor = lazy(() => import('./factor-editor'));
 const TimeSeriesStateChart = lazy(() => import('./time-series-state-chart'));
 
 type GuardDiscard = (action: () => void) => void;
-type EditableFactorAnalysisKind = Extract<FactorAnalysisKind, 'cross_sectional' | 'time_series'>;
+type EditableFactorAnalysisKind = Extract<
+  FactorAnalysisKind,
+  'cross_sectional' | 'time_series' | 'panel'
+>;
 
 /**
  * Factor research — Agent-authored, IDE-style (aligned with the strategy workbench). 3-column Splitter: an Agent
@@ -208,10 +212,11 @@ const AgentPanel = complex.component(({ guardDiscard }: { guardDiscard: GuardDis
               items: [
                 { key: 'cross_sectional', label: t('newFactorCrossSectional') },
                 { key: 'time_series', label: t('newFactorTimeSeries') },
+                { key: 'panel', label: t('newFactorPanel') },
               ],
               onClick: ({ key }) => {
                 guardDiscard(() => {
-                  setNewKind(key === 'time_series' ? 'time_series' : 'cross_sectional');
+                  setNewKind(key === 'time_series' || key === 'panel' ? key : 'cross_sectional');
                 });
               },
             }}
@@ -288,7 +293,11 @@ const NewFactorModal = complex.component(
       <Modal
         open={analysisKind !== null}
         title={t(
-          analysisKind === 'time_series' ? 'newFactorTimeSeries' : 'newFactorCrossSectional',
+          analysisKind === 'time_series'
+            ? 'newFactorTimeSeries'
+            : analysisKind === 'panel'
+              ? 'newFactorPanel'
+              : 'newFactorCrossSectional',
         )}
         okText={t('create')}
         cancelText={t('cancel')}
@@ -355,14 +364,18 @@ const AgentChat = complex.component(() => {
         sending={store.sending}
         emptyKey={
           qa
-            ? store.isTimeSeries
-              ? 'timeSeries.chatEmpty'
-              : store.mode === 'composite'
-                ? 'chatEmptyComposite'
-                : 'chatEmptyQa'
-            : store.isTimeSeries
-              ? 'timeSeries.chatEmptyAuthor'
-              : 'chatEmptyAuthor'
+            ? store.isPanel
+              ? 'panel.chatEmpty'
+              : store.isTimeSeries
+                ? 'timeSeries.chatEmpty'
+                : store.mode === 'composite'
+                  ? 'chatEmptyComposite'
+                  : 'chatEmptyQa'
+            : store.isPanel
+              ? 'panel.chatEmptyAuthor'
+              : store.isTimeSeries
+                ? 'timeSeries.chatEmptyAuthor'
+                : 'chatEmptyAuthor'
         }
         cards={store.cardResults}
         stream={store.turnStream}
@@ -375,14 +388,18 @@ const AgentChat = complex.component(() => {
           disabled={!qa && !store.selectedKey}
           placeholder={t(
             qa
-              ? store.isTimeSeries
-                ? 'timeSeries.placeholderQa'
-                : store.mode === 'composite'
-                  ? 'placeholderCompositeQa'
-                  : 'placeholderQa'
-              : store.isTimeSeries
-                ? 'timeSeries.placeholderAuthor'
-                : 'placeholderAuthor',
+              ? store.isPanel
+                ? 'panel.placeholderQa'
+                : store.isTimeSeries
+                  ? 'timeSeries.placeholderQa'
+                  : store.mode === 'composite'
+                    ? 'placeholderCompositeQa'
+                    : 'placeholderQa'
+              : store.isPanel
+                ? 'panel.placeholderAuthor'
+                : store.isTimeSeries
+                  ? 'timeSeries.placeholderAuthor'
+                  : 'placeholderAuthor',
           )}
         />
       </div>
@@ -405,7 +422,9 @@ function ChatLog({
     | 'chatEmptyComposite'
     | 'chatEmptyAuthor'
     | 'timeSeries.chatEmpty'
-    | 'timeSeries.chatEmptyAuthor';
+    | 'timeSeries.chatEmptyAuthor'
+    | 'panel.chatEmpty'
+    | 'panel.chatEmptyAuthor';
   cards: QueryCardResults;
   stream: AgentTurnStream;
 }) {
@@ -456,9 +475,14 @@ const FactorLibrary = complex.component(
     const [editingComposite, setEditingComposite] = useState<FactorMeta | null>(null);
     const list = store.catalogLoader.result ?? [];
     const presets = list.filter(
-      (f) => f.kind !== 'custom' && f.kind !== 'composite' && f.analysisKind !== 'time_series',
+      (f) =>
+        f.kind !== 'custom' &&
+        f.kind !== 'composite' &&
+        f.analysisKind !== 'time_series' &&
+        f.analysisKind !== 'panel',
     );
     const timeSeries = list.filter((f) => f.kind !== 'custom' && f.analysisKind === 'time_series');
+    const panel = list.filter((f) => f.kind !== 'custom' && f.analysisKind === 'panel');
     const custom = list.filter((f) => f.kind === 'custom');
     const composites = list.filter((f) => f.kind === 'composite');
 
@@ -558,6 +582,21 @@ const FactorLibrary = complex.component(
               </button>
             ))}
 
+            <div className="jx-factor-libGroup">{t('panel.libraryGroup')}</div>
+            {panel.map((factor) => (
+              <button
+                key={factor.key}
+                data-testid={`factor-template-${factor.key}`}
+                className={classNames('jx-factor-libItem', {
+                  'jx-factor-libItem--active': factor.key === store.selectedKey,
+                })}
+                onClick={() => pick(factor.key, false)}
+              >
+                <span className="jx-factor-libName">{factorDisplayName(factor)}</span>
+                <span className="jx-factor-methodBadge">{t('panel.methodBadge')}</span>
+              </button>
+            ))}
+
             <div className="jx-factor-libGroup">{t('compositeGroup')}</div>
             {composites.length === 0 && (
               <div className="jx-factor-libEmpty">{t('compositeEmpty')}</div>
@@ -627,7 +666,9 @@ const FactorLibrary = complex.component(
                     {t(
                       f.analysisKind === 'time_series'
                         ? 'timeSeries.methodBadge'
-                        : 'crossSectional.methodBadge',
+                        : f.analysisKind === 'panel'
+                          ? 'panel.methodBadge'
+                          : 'crossSectional.methodBadge',
                     )}
                   </span>
                   <Tag>{t(`factorStatus.${f.status ?? 'draft'}`)}</Tag>
@@ -682,7 +723,10 @@ const CompositeModal = complex.component(
     const available = useMemo(
       () =>
         (store.catalogLoader.result ?? []).filter(
-          (factor) => factor.kind !== 'composite' && factor.analysisKind !== 'time_series',
+          (factor) =>
+            factor.kind !== 'composite' &&
+            factor.analysisKind !== 'time_series' &&
+            factor.analysisKind !== 'panel',
         ),
       [store.catalogLoader.result],
     );
@@ -849,7 +893,12 @@ const CorrelationModal = complex.component(
     const { t } = useTranslation('factor');
     const list = store.catalogLoader.result ?? [];
     const options = list
-      .filter((factor) => factor.kind !== 'composite' && factor.analysisKind !== 'time_series')
+      .filter(
+        (factor) =>
+          factor.kind !== 'composite' &&
+          factor.analysisKind !== 'time_series' &&
+          factor.analysisKind !== 'panel',
+      )
       .map((factor) => ({ value: factor.key, label: factorDisplayName(factor) }));
     const per = t(store.freq === 'week' ? 'unitWeek' : 'unitMonth');
 
@@ -928,7 +977,7 @@ const MiddleColumn = complex.component(({ guardDiscard }: { guardDiscard: GuardD
   const store = complex.useStore();
   const { t } = useTranslation('factor');
   const preset = store.mode === 'preset';
-  if (store.isTimeSeries) {
+  if (store.isTimeSeries || store.isPanel) {
     return <TimeSeriesWorkspace />;
   }
   if (store.mode === 'composite') {
@@ -1011,7 +1060,15 @@ const TimeSeriesWorkspace = complex.component(() => {
           <div className="jx-factor-presetBar">
             <span className="jx-factor-presetNote">
               {!editable && <FontAwesomeIcon icon={faLock} />}{' '}
-              {t(editable ? 'timeSeries.codeEditable' : 'timeSeries.codeReadonly')}
+              {t(
+                store.isPanel
+                  ? editable
+                    ? 'panel.codeEditable'
+                    : 'panel.codeReadonly'
+                  : editable
+                    ? 'timeSeries.codeEditable'
+                    : 'timeSeries.codeReadonly',
+              )}
             </span>
             <Tag color="blue">Factor Definition V2</Tag>
           </div>
@@ -1032,10 +1089,10 @@ const TimeSeriesWorkspace = complex.component(() => {
             </div>
           )}
           <div className="jx-factor-timeDefinitionAudit">
-            <span>{t('timeSeries.methodBadge')}</span>
+            <span>{t(store.isPanel ? 'panel.methodBadge' : 'timeSeries.methodBadge')}</span>
             <span>{t('timeSeries.inputAudit', { inputs: inputs || '—' })}</span>
             <span>{t('timeSeries.windowAudit', { value: window })}</span>
-            <span>{t('timeSeries.assetScopeAudit')}</span>
+            <span>{t(store.isPanel ? 'panel.assetScopeAudit' : 'timeSeries.assetScopeAudit')}</span>
           </div>
           <div className="jx-factor-code">
             <Suspense fallback={<div className="jx-factor-codeEmpty">{t('editorLoading')}</div>}>
@@ -1198,21 +1255,28 @@ const ParamsBar = complex.component(() => {
   }[store.neutral];
   const universe = t(`evaluationUniverse.${store.evaluationUniverse}`);
   const ranking = t(`evaluationRanking.${store.evaluationScope.rankingScope}`);
-  const summary = store.isTimeSeries
-    ? t('timeSeries.paramsSummary', {
-        assets: store.timeSeriesAssets.length,
+  const summary = store.isPanel
+    ? t('panel.paramsSummary', {
+        assets: PANEL_ASSETS.length,
         horizon: store.timeSeriesHorizon,
         start: dayjs(store.start, 'YYYYMMDD').format('YYYY-MM-DD'),
         end: dayjs(store.end, 'YYYYMMDD').format('YYYY-MM-DD'),
       })
-    : t('paramsSummary', {
-        frequency,
-        start: dayjs(store.start, 'YYYYMMDD').format('YYYY-MM-DD'),
-        end: dayjs(store.end, 'YYYYMMDD').format('YYYY-MM-DD'),
-        neutral,
-        universe,
-        ranking,
-      });
+    : store.isTimeSeries
+      ? t('timeSeries.paramsSummary', {
+          assets: store.timeSeriesAssets.length,
+          horizon: store.timeSeriesHorizon,
+          start: dayjs(store.start, 'YYYYMMDD').format('YYYY-MM-DD'),
+          end: dayjs(store.end, 'YYYYMMDD').format('YYYY-MM-DD'),
+        })
+      : t('paramsSummary', {
+          frequency,
+          start: dayjs(store.start, 'YYYYMMDD').format('YYYY-MM-DD'),
+          end: dayjs(store.end, 'YYYYMMDD').format('YYYY-MM-DD'),
+          neutral,
+          universe,
+          ranking,
+        });
 
   return (
     <div className="jx-factor-params">
@@ -1255,6 +1319,9 @@ const ParamsPopover = complex.component(() => {
   const { t } = useTranslation('factor');
   const runningSameDraft = store.reportDetail?.status === 'running' && !store.reportOutdated;
 
+  if (store.isPanel) {
+    return <PanelParamsPopover runningSameDraft={runningSameDraft} />;
+  }
   if (store.isTimeSeries) {
     return <TimeSeriesParamsPopover runningSameDraft={runningSameDraft} />;
   }
@@ -1524,6 +1591,67 @@ const TimeSeriesParamsPopover = complex.component(
   'TimeSeriesParamsPopover',
 );
 
+const PanelParamsPopover = complex.component(
+  ({ runningSameDraft }: { runningSameDraft: boolean }) => {
+    const store = complex.useStore();
+    const { t } = useTranslation('factor');
+    return (
+      <div className="jx-factor-paramPopover jx-factor-timeParams">
+        <div className="jx-factor-paramPopoverTitle">{t('paramsSettings')}</div>
+        <div className="jx-factor-paramPopoverBody">
+          <div className="jx-factor-paramField jx-factor-paramField--stacked">
+            <span className="jx-factor-paramLabel">{t('panel.universe')}</span>
+            <div className="jx-factor-timeFixed" data-testid="panel-universe">
+              {PANEL_ASSETS.map((asset) => (
+                <span key={asset.assetId}>
+                  {t(`panel.assetNames.${asset.assetId}`)} · {asset.assetId}
+                </span>
+              ))}
+            </div>
+          </div>
+          <div className="jx-factor-paramField">
+            <span className="jx-factor-paramLabel">{t('panel.horizon')}</span>
+            <Segmented
+              data-testid="panel-horizon"
+              value={store.timeSeriesHorizon}
+              options={[5, 20, 60].map((value) => ({
+                value,
+                label: t('timeSeries.horizonOption', { value }),
+              }))}
+              onChange={(value) => store.setTimeSeriesHorizon(value as 5 | 20 | 60)}
+            />
+          </div>
+          <div className="jx-factor-paramField">
+            <span className="jx-factor-paramLabel">{t('range')}</span>
+            <DatePicker.RangePicker
+              className="jx-factor-dateRange"
+              value={[dayjs(store.start, 'YYYYMMDD'), dayjs(store.end, 'YYYYMMDD')]}
+              onChange={(dates) => {
+                if (dates?.[0] && dates[1]) {
+                  store.setStart(dates[0].format('YYYYMMDD'));
+                  store.setEnd(dates[1].format('YYYYMMDD'));
+                }
+              }}
+              allowClear={false}
+            />
+          </div>
+          <div className="jx-factor-timeFixed">
+            <span>{t('panel.monthlyFrequency')}</span>
+            <span>{t('panel.portfolioRule')}</span>
+            <span>{t('panel.costRule')}</span>
+          </div>
+        </div>
+        <div className="jx-factor-paramPopoverActions">
+          <ResearchRunButton disabled={runningSameDraft}>
+            {runningSameDraft ? t('running') : t(store.reportOutdated ? 'rerunShort' : 'run')}
+          </ResearchRunButton>
+        </div>
+      </div>
+    );
+  },
+  'PanelParamsPopover',
+);
+
 function outlierOptions(t: TFunction<'factor'>) {
   return [
     { value: 'none', label: t('outlierNone') },
@@ -1644,7 +1772,11 @@ const ResearchRunButton = complex.component(
     );
     const [metric, setMetric] = useState<FactorResearchMetric>(
       previous?.primaryCriterion?.metric ??
-        (store.isTimeSeries ? 'time_series_median_newey_west_t' : 'rank_ic_mean'),
+        (store.isPanel
+          ? 'panel_rank_ic_mean'
+          : store.isTimeSeries
+            ? 'time_series_median_newey_west_t'
+            : 'rank_ic_mean'),
     );
     const [operator, setOperator] = useState<'gt' | 'lt'>(
       previous?.primaryCriterion?.operator ?? 'gt',
@@ -1652,30 +1784,54 @@ const ResearchRunButton = complex.component(
     const [value, setValue] = useState(
       previous?.primaryCriterion?.value ?? (store.isTimeSeries ? 1.96 : 0.02),
     );
-    const timeSeries = store.isTimeSeries;
+    const researchKind = store.isPanel
+      ? 'panel'
+      : store.isTimeSeries
+        ? 'time_series'
+        : 'cross_sectional';
     useEffect(() => {
-      if (metric.startsWith('time_series_') === timeSeries) {
+      const metricKind = metric.startsWith('time_series_')
+        ? 'time_series'
+        : metric.startsWith('panel_')
+          ? 'panel'
+          : 'cross_sectional';
+      if (metricKind === researchKind) {
         return;
       }
-      setMetric(timeSeries ? 'time_series_median_newey_west_t' : 'rank_ic_mean');
-      setValue(timeSeries ? 1.96 : 0.02);
-    }, [metric, timeSeries]);
-    const metricOptions: Array<{ value: FactorResearchMetric; label: string }> = timeSeries
-      ? [
-          {
-            value: 'time_series_median_newey_west_t',
-            label: t('criterionTimeSeriesMedianT'),
-          },
-          {
-            value: 'time_series_mean_direction_hit_rate',
-            label: t('criterionTimeSeriesMeanHitRate'),
-          },
-        ]
-      : [
-          { value: 'rank_ic_mean', label: t('criterionRankIc') },
-          { value: 'rank_icir_annual', label: t('criterionIcir') },
-          { value: 'net_long_short_annualized', label: t('criterionNetLs') },
-        ];
+      setMetric(
+        researchKind === 'panel'
+          ? 'panel_rank_ic_mean'
+          : researchKind === 'time_series'
+            ? 'time_series_median_newey_west_t'
+            : 'rank_ic_mean',
+      );
+      setValue(researchKind === 'time_series' ? 1.96 : 0.02);
+    }, [metric, researchKind]);
+    const metricOptions: Array<{ value: FactorResearchMetric; label: string }> =
+      researchKind === 'time_series'
+        ? [
+            {
+              value: 'time_series_median_newey_west_t',
+              label: t('criterionTimeSeriesMedianT'),
+            },
+            {
+              value: 'time_series_mean_direction_hit_rate',
+              label: t('criterionTimeSeriesMeanHitRate'),
+            },
+          ]
+        : researchKind === 'panel'
+          ? [
+              { value: 'panel_rank_ic_mean', label: t('criterionPanelRankIc') },
+              {
+                value: 'panel_net_long_short_annualized',
+                label: t('criterionPanelNetLs'),
+              },
+            ]
+          : [
+              { value: 'rank_ic_mean', label: t('criterionRankIc') },
+              { value: 'rank_icir_annual', label: t('criterionIcir') },
+              { value: 'net_long_short_annualized', label: t('criterionNetLs') },
+            ];
     const valid =
       mode === 'exploratory' ||
       (!!hypothesis.trim() && direction !== 'unknown' && Number.isFinite(value));
@@ -1758,9 +1914,11 @@ const ResearchRunButton = complex.component(
                           ? 1.96
                           : next === 'time_series_mean_direction_hit_rate'
                             ? 0.55
-                            : next === 'rank_icir_annual'
-                              ? 0.5
-                              : 0.02,
+                            : next === 'panel_net_long_short_annualized'
+                              ? 0.03
+                              : next === 'rank_icir_annual'
+                                ? 0.5
+                                : 0.02,
                       );
                     }}
                     options={metricOptions}
@@ -1938,7 +2096,9 @@ const FactorResult = complex.component(() => {
   return (
     <LoadingArea loader={loader} empty={runPrompt}>
       {() =>
-        store.reportDetail?.analysisKind === 'time_series' ? (
+        store.reportDetail?.analysisKind === 'panel' ? (
+          <PanelReportBody />
+        ) : store.reportDetail?.analysisKind === 'time_series' ? (
           <TimeSeriesReportBody />
         ) : (
           <ReportBody />
@@ -2055,6 +2215,84 @@ const TimeSeriesReportBody = complex.component(() => {
     </div>
   );
 }, 'TimeSeriesReportBody');
+
+const PanelReportBody = complex.component(() => {
+  const store = complex.useStore();
+  const { t } = useTranslation('factor');
+  const report = store.panelReport;
+  const researchSpec = store.reportDetail?.researchSpec;
+  const spec =
+    researchSpec?.analysisKind === 'panel' ? (researchSpec as PanelFactorResearchSpecV1) : null;
+  if (!report || !spec) {
+    return <Placeholder icon={faPlay} text={t('runPrompt')} />;
+  }
+  return (
+    <div className="jx-factor-timeReport" data-testid="panel-report">
+      <Alert type="info" showIcon title={t('panel.reportNotice')} />
+      <div className="jx-factor-timeAudit">
+        <Metric label={t('panel.researchType')} value={t('panel.methodBadge')} />
+        <Metric
+          label={t('panel.target')}
+          value={t('panel.targetValue', { horizon: spec.target.horizon })}
+        />
+        <Metric label={t('panel.periods')} value={String(report.periods)} />
+        <Metric label={t('panel.observations')} value={report.observations.toLocaleString()} />
+        <Metric
+          label={t('timeSeries.dataCutoffLabel')}
+          value={formatTradeDate(spec.dataPolicy.dataCutoff ?? spec.end)}
+        />
+      </div>
+
+      <FactorPublicationCard />
+
+      <div className="jx-factor-sectionTitle">{t('panel.evidenceTitle')}</div>
+      <div className="jx-factor-timeAudit">
+        <Metric label={t('panel.rankIcMean')} value={report.rankIcMean.toFixed(3)} />
+        <Metric label={t('panel.rankIcir')} value={report.rankIcirAnnual.toFixed(2)} />
+        <Metric label={t('panel.positiveRate')} value={pct(report.rankIcPositiveRate)} />
+        <Metric label={t('panel.equalWeight')} value={pct(report.equalWeightAnnualized)} />
+        <Metric label={t('panel.netLongShort')} value={pct(report.longShortNetAnnualized)} />
+        <Metric label={t('panel.turnover')} value={pct(report.averageOneWayTurnover)} />
+      </div>
+
+      <div className="jx-factor-sectionTitle">{t('panel.coverageTitle')}</div>
+      <div className="jx-factor-timeAssetList">
+        {report.coverage.byAsset.map((row) => (
+          <div className="jx-factor-timeAssetCard" key={row.assetId}>
+            <div className="jx-factor-timeAssetHead">
+              <span>
+                <strong>{t(`panel.assetNames.${row.assetId}`)}</strong>
+                <small>{row.assetId}</small>
+              </span>
+              <Tag>{t(`panel.assetClasses.${row.assetClass}`)}</Tag>
+            </div>
+            <div className="jx-factor-timeAssetMetrics">
+              <span>
+                <small>{t('panel.observations')}</small>
+                <strong>{row.observations}</strong>
+              </span>
+              <span>
+                <small>{t('panel.firstObservation')}</small>
+                <strong>{row.firstAsOfDate ? formatTradeDate(row.firstAsOfDate) : '—'}</strong>
+              </span>
+              <span>
+                <small>{t('panel.lastObservation')}</small>
+                <strong>{row.lastAsOfDate ? formatTradeDate(row.lastAsOfDate) : '—'}</strong>
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="jx-factor-chartCap">
+        {t('panel.coverageCap', {
+          min: report.coverage.minimumAssets,
+          median: report.coverage.medianAssets,
+          skipped: report.skippedPeriods,
+        })}
+      </div>
+    </div>
+  );
+}, 'PanelReportBody');
 
 // The report render (decile chart + metrics + IC decay + heatmap) for the loaded analysis.
 const ReportBody = complex.component(() => {
@@ -2506,6 +2744,15 @@ function reportParamsLabel(report: FactorReportSummary, t: TFunction<'factor'>):
       end: dayjs(spec.end, 'YYYYMMDD').format('YYYY-MM-DD'),
     });
   }
+  if (report.researchSpec.analysisKind === 'panel') {
+    const spec = report.researchSpec;
+    return t('panel.historyParams', {
+      assets: spec.assets.length,
+      horizon: spec.target.horizon,
+      start: dayjs(spec.start, 'YYYYMMDD').format('YYYY-MM-DD'),
+      end: dayjs(spec.end, 'YYYYMMDD').format('YYYY-MM-DD'),
+    });
+  }
   const spec = report.spec;
   if (!spec) {
     return t('timeSeries.unsupportedReport');
@@ -2656,6 +2903,8 @@ function criterionPassed(report: FactorReport, intent?: FactorResearchIntentV1):
     net_long_short_annualized: report.longShortNet?.annReturn ?? Number.NaN,
     time_series_median_newey_west_t: Number.NaN,
     time_series_mean_direction_hit_rate: Number.NaN,
+    panel_rank_ic_mean: Number.NaN,
+    panel_net_long_short_annualized: Number.NaN,
   }[criterion.metric];
   return criterion.operator === 'gt' ? metric > criterion.value : metric < criterion.value;
 }
@@ -2667,6 +2916,8 @@ function criterionMetricLabel(t: TFunction, metric: FactorResearchMetric): strin
     net_long_short_annualized: 'criterionNetLs',
     time_series_median_newey_west_t: 'criterionTimeSeriesMedianT',
     time_series_mean_direction_hit_rate: 'criterionTimeSeriesMeanHitRate',
+    panel_rank_ic_mean: 'criterionPanelRankIc',
+    panel_net_long_short_annualized: 'criterionPanelNetLs',
   };
 
   return t(labelKey[metric]);

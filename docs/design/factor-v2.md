@@ -618,8 +618,8 @@ horizon 的显著性不使用朴素独立样本 t 值。
   Factor ID 和 key 保存覆盖数、有效数、最小/最大/均值与决策资产实际值；
 - published Factor 可一键打开 Strategy Lab；页面按 key 重新读取当前用户的 published Factor，并从批准
   报告恢复时间序列研究资产，预填显式 `watch`、`ctx.factor` 和 `ctx.period` 约束；
-- 时间序列 Factor 已进入研究回测与每日信号 runtime；跨资产面板和宏观状态 evaluator 尚未进入策略
-  runtime，引用时明确失败。
+- 时间序列 Factor 已进入研究回测与每日信号 runtime；跨资产面板 Factor 已进入研究与策略回测
+  runtime，宏观状态 evaluator 仍未进入策略 runtime，引用时明确失败。
 
 **2026-08-07 时间序列每日信号生产闭环：**部署不再按研究方法一刀切拒绝时间序列 Factor。部署快照除
 Factor ID、key、代码 hash 和批准报告外，继续冻结 Definition V2 的 `inputs`；每日 worker 重编译后逐项
@@ -679,6 +679,24 @@ Factor ID、key、代码 hash 和批准报告外，继续冻结 Definition V2 �
 - Top/Bottom 研究组合和实际 ETF 多头策略明确区分；
 - 研究费后诊断与策略真实成交回测能解释差异；
 - 等权和简单规则是强制基线，优化器不提前进入。
+
+**2026-08-08 第一条 Panel 纵切：**已实现结构化 `PanelSpec`、共同月末 ETF 面板装载、
+`PanelEvaluator`、Definition V2 `analysisKind = panel` 编译与 worker、策略运行时和 Factor Lab 专属报告。
+首发固定资产池为沪深 300 ETF（境内权益）、纳指 ETF（海外权益）、国债 ETF（固收）和黄金 ETF；
+ETF 元数据必须与声明资产类别一致，上市较晚、历史窗口不足、共同目标日缺行情和超出数据 cutoff 均
+fail-closed，不会静默回填。报告同时展示跨资产 Rank IC / ICIR、等权强制基线、Top/Bottom、成本前后
+多空、单边换手和逐资产覆盖。内置 `cross_asset_momentum_120` 可复制、研究，并在发布后通过唯一
+`Factor.key` 进入多资产策略；从报告进入 Strategy Lab 会预填固定资产池、`watch`、`ctx.factor` 与
+月度 `ctx.period` 的研究请求。
+
+真实 E2E 在 2020–2024 样本得到 59 个有效月末、236 条观测，并验证 Panel 报告与 Strategy Lab 预填；
+脚本为 `apps/web/e2e/factor-panel.mjs`，截图为
+`apps/web/acceptance/factor-panel-report.png`。该样本平均 Rank IC 为 0.0712，但单边 10bp 后多空年化为
+负 7.14%，产品因此明确提示“排序证据不等于可交易资产配置策略”。
+
+**本 Phase 剩余：**Panel holdout/reveal 的真实浏览器验收；加入短债/长债分层与有历史行情的商品 ETF；
+资产类别内/类别间标准化；Panel 组合因子；策略结果中的资产收益贡献、风险贡献、配置漂移与宏观阶段
+分解。专业期货 Carry、库存和宏观 vintage 仍归 Phase 5。
 
 ### Phase 5：商品专业特征、宏观状态与风险因子
 

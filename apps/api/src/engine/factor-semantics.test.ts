@@ -195,7 +195,7 @@ describe('custom (defineFactor) factors inside the engine', () => {
       key: factorKey,
       js,
       analysisKind: 'time_series' as const,
-      timeSeries: { window: 3, inputs: ['etf.adjustedClose' as const] },
+      assetSeries: { window: 3, inputs: ['etf.adjustedClose' as const] },
     };
     const seen: Record<string, number | null> = {};
     const invalidSeen: Record<string, number | null> = {};
@@ -298,7 +298,7 @@ describe('custom (defineFactor) factors inside the engine', () => {
       key: factorKey,
       js,
       analysisKind: 'time_series' as const,
-      timeSeries: { window: 2, inputs: ['rates.cgb.yield.10y' as const] },
+      assetSeries: { window: 2, inputs: ['rates.cgb.yield.10y' as const] },
     };
     const seen: Record<string, number | null> = {};
 

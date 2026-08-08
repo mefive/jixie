@@ -163,6 +163,8 @@ export function timeSeriesTemplateCatalog(locale: Locale): FactorMeta[] {
     description: template.description[locale],
     kind: template.kind,
     builtin: true,
+    strategyKey: template.key,
+    status: 'published',
     analysisKind: 'time_series',
     targetAssetClasses: template.targetAssetClasses,
   }));

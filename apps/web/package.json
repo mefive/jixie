@@ -22,6 +22,7 @@
     "test:e2e:custom-time-series-factor": "node e2e/custom-time-series-factor.mjs",
     "test:e2e:bond-curve-factor": "node e2e/bond-curve-factor.mjs",
     "test:e2e:bond-curve-signal": "node e2e/bond-curve-signal.mjs",
+    "test:e2e:factor-panel": "node e2e/factor-panel.mjs",
     "test:e2e:strategy": "node e2e/strategy-orchestration.mjs",
     "test:e2e:strategy-python": "node e2e/python-strategy.mjs",
     "test:e2e:strategy-scan": "node e2e/strategy-parameter-scan.mjs",

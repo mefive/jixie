@@ -28,12 +28,18 @@ const workerUrl = import.meta.url.endsWith('.ts')
 
 export type FactorAnalysisSource =
   | FactorAnalysisRuntimeSource
-  | { kind: 'time_series'; label: string; code: string };
+  | { kind: 'time_series'; label: string; code: string }
+  | { kind: 'panel'; label: string; code: string };
 
 const factorAnalysisRuntimeSourceSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('single'), code: z.string().min(1), label: z.string().min(1) }),
   z.object({
     kind: z.literal('time_series'),
+    label: z.string().min(1),
+    code: z.string().min(1),
+  }),
+  z.object({
+    kind: z.literal('panel'),
     label: z.string().min(1),
     code: z.string().min(1),
   }),
@@ -56,7 +62,7 @@ const factorAnalysisRuntimeSourceSchema = z.discriminatedUnion('kind', [
 ]);
 
 export function factorAnalysisSourceSnapshot(source: FactorAnalysisSource): string {
-  return source.kind === 'single' || source.kind === 'time_series'
+  return source.kind === 'single' || source.kind === 'time_series' || source.kind === 'panel'
     ? source.code
     : canonicalJson(source);
 }

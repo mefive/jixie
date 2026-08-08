@@ -7,6 +7,9 @@ import { normalizeFactorResearchSpec } from './report-spec.js';
 import { loadEtfTimeSeriesObservations } from './etf-trend-observations.js';
 import { TimeSeriesEvaluator } from './time-series-evaluator.js';
 import { compileTimeSeriesFactor } from './compile-time-series-factor.js';
+import { compilePanelFactor } from './compile-time-series-factor.js';
+import { loadPanelEtfObservations } from './panel-observations.js';
+import { PanelEvaluator } from './panel-evaluator.js';
 import { t } from '../i18n/index.js';
 
 /**
@@ -38,8 +41,8 @@ try {
   const researchSpec = normalizeFactorResearchSpec(spec);
   switch (researchSpec.analysisKind) {
     case 'cross_sectional': {
-      if (source.kind === 'time_series') {
-        throw new Error('Time-series source cannot run with a cross-sectional protocol.');
+      if (source.kind === 'time_series' || source.kind === 'panel') {
+        throw new Error('Asset-scope Factor V2 source cannot run with a cross-sectional protocol.');
       }
       const evaluator = factorEvaluatorFor(researchSpec);
       const report = await evaluator.evaluate({
@@ -69,7 +72,22 @@ try {
       }
       break;
     }
-    case 'panel':
+    case 'panel': {
+      if (source.kind !== 'panel') {
+        throw new Error('Panel evaluator requires a panel Factor V2 source.');
+      }
+      const compiled = await compilePanelFactor(source.code, onUserLog);
+      try {
+        onSystemLog(t(locale, 'factorPanelLoading', { count: researchSpec.assets.length }));
+        const observations = await loadPanelEtfObservations(researchSpec, compiled);
+        onSystemLog(t(locale, 'factorPanelEvaluating', { count: observations.length }));
+        const report = new PanelEvaluator().evaluate(researchSpec, observations);
+        port.postMessage({ type: 'done', reportId, payload: JSON.stringify(report) });
+      } finally {
+        compiled.dispose();
+      }
+      break;
+    }
     case 'macro_regime':
       throw new Error(`Factor evaluator ${researchSpec.analysisKind} is not implemented.`);
   }

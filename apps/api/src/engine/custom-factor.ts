@@ -17,31 +17,31 @@ export interface CustomFactorModule {
   key: string; // immutable Factor.key
   js: string; // the factor module, host-transformed TS→CJS
   historyFields?: CustomFactorHistoryField[];
-  /** Omitted means the cross-sectional Factor SDK. Time-series factors carry their
-   * compiler-derived execution contract across the engine wall. */
-  analysisKind?: 'cross_sectional' | 'time_series';
-  timeSeries?: TimeSeriesFactorRuntimeMeta;
+  /** Omitted means the cross-sectional Factor SDK. Asset-scoped Factor V2 definitions carry
+   * their compiler-derived execution contract across the engine wall. */
+  analysisKind?: 'cross_sectional' | 'time_series' | 'panel';
+  assetSeries?: AssetFactorRuntimeMeta;
 }
 
 export type CustomFactorHistoryField = 'turnoverRateF' | 'roe' | 'grossprofitMargin';
 export type TimeSeriesFactorInput = FactorV2FieldKey;
 
-export interface TimeSeriesFactorRuntimeMeta {
+export interface AssetFactorRuntimeMeta {
   window: number;
   inputs: TimeSeriesFactorInput[];
 }
 
-interface TimeSeriesFactorDefinition {
+interface AssetFactorDefinition {
   version: 2;
-  analysisKind: 'time_series';
+  analysisKind: 'time_series' | 'panel';
   outputScope: 'asset';
   frequency: 'daily';
   inputs: TimeSeriesFactorInput[];
   window: number;
-  compute(ctx: TimeSeriesFactorContext): number | null;
+  compute(ctx: AssetFactorContext): number | null;
 }
 
-interface TimeSeriesFactorContext {
+interface AssetFactorContext {
   value(field: TimeSeriesFactorInput): number | null;
   lag(field: TimeSeriesFactorInput, periods: number): number | null;
 }
@@ -49,9 +49,9 @@ interface TimeSeriesFactorContext {
 export type EvaluatedCustomFactor =
   | { kind: 'cross_sectional'; factor: CustomFactor }
   | {
-      kind: 'time_series';
-      factor: TimeSeriesFactorDefinition;
-      meta: TimeSeriesFactorRuntimeMeta;
+      kind: 'asset_series';
+      factor: AssetFactorDefinition;
+      meta: AssetFactorRuntimeMeta;
     };
 
 /** Identify expensive auxiliary histories before factor code enters the engine wall. */
@@ -85,7 +85,7 @@ export function evaluateCustomFactorModule(mod: CustomFactorModule): EvaluatedCu
       moduleShim,
       moduleShim.exports,
       (factor: CustomFactor) => factor,
-      (factor: TimeSeriesFactorDefinition) => factor,
+      (factor: AssetFactorDefinition) => factor,
       (id: string) => {
         throw new Error(`factor code cannot import external modules (${id})`);
       },
@@ -97,27 +97,27 @@ export function evaluateCustomFactorModule(mod: CustomFactorModule): EvaluatedCu
   }
 
   const factor = (moduleShim.exports.default ?? moduleShim.exports) as Partial<
-    CustomFactor & TimeSeriesFactorDefinition
+    CustomFactor & AssetFactorDefinition
   >;
   if (!factor || typeof factor.compute !== 'function') {
     throw new Error(`factor ${mod.key} must export a factor definition with compute`);
   }
-  if (mod.analysisKind === 'time_series') {
-    const meta = mod.timeSeries;
+  if (mod.analysisKind === 'time_series' || mod.analysisKind === 'panel') {
+    const meta = mod.assetSeries;
     if (
       !meta ||
       factor.version !== 2 ||
-      factor.analysisKind !== 'time_series' ||
+      factor.analysisKind !== mod.analysisKind ||
       factor.outputScope !== 'asset' ||
       factor.frequency !== 'daily' ||
       factor.window !== meta.window ||
       !sameStringArray(factor.inputs, meta.inputs)
     ) {
-      throw new Error(`factor ${mod.key} does not match its compiled time-series contract`);
+      throw new Error(`factor ${mod.key} does not match its compiled asset-series contract`);
     }
     return {
-      kind: 'time_series',
-      factor: factor as TimeSeriesFactorDefinition,
+      kind: 'asset_series',
+      factor: factor as AssetFactorDefinition,
       meta,
     };
   }
@@ -184,8 +184,8 @@ export class CustomFactorRuntime {
     code: string,
     crossBar: BarRow | null,
   ): number | null {
-    if (evaluated.kind === 'time_series') {
-      return this.computeTimeSeries(evaluated, key, date, code);
+    if (evaluated.kind === 'asset_series') {
+      return this.computeAssetSeries(evaluated, key, date, code);
     }
     const factor = evaluated.factor;
     let ctx = NO_HISTORY_CTX;
@@ -242,8 +242,8 @@ export class CustomFactorRuntime {
    * already validated the frozen Factor dependency and attached its contract; this second check and runtime
    * live inside the engine wall so neither direct nor walled backtests trust report statistics as a
    * trading signal. */
-  private computeTimeSeries(
-    evaluated: Extract<EvaluatedCustomFactor, { kind: 'time_series' }>,
+  private computeAssetSeries(
+    evaluated: Extract<EvaluatedCustomFactor, { kind: 'asset_series' }>,
     key: string,
     date: string,
     code: string,
@@ -251,7 +251,7 @@ export class CustomFactorRuntime {
     if (this.engineData.assetType(code) !== 'etf') {
       const message = evaluated.meta.inputs.includes('etf.adjustedClose')
         ? `input etf.adjustedClose requires an ETF code, received ${code}`
-        : `time-series Factor V2 requires an ETF code, received ${code}`;
+        : `asset-scoped Factor V2 requires an ETF code, received ${code}`;
       this.onComputeError(key, message);
       return null;
     }

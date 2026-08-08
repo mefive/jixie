@@ -2,6 +2,7 @@ import type { FactorKind, FactorMeta } from '@jixie/shared';
 import { prisma } from '../lib/prisma.js';
 import { sha256 } from './report-spec.js';
 import { TIME_SERIES_TEMPLATES } from './time-series-templates.js';
+import { PANEL_TEMPLATES } from './panel-templates.js';
 
 /**
  * Built-in preset factors as CODE (design: factor-to-strategy.md Step 1b — code-first carried through on the factor side).
@@ -464,6 +465,7 @@ export default defineFactor({
 export const BUILTIN_KEYS = new Set([
   ...BUILTIN_FACTORS.map((factor) => factor.key),
   ...TIME_SERIES_TEMPLATES.map((factor) => factor.key),
+  ...PANEL_TEMPLATES.map((factor) => factor.key),
 ]);
 
 /** Catalog metadata for the presets — identity comes from this registry, code rows from the seed. */
@@ -572,6 +574,59 @@ export async function seedBuiltinFactors(): Promise<void> {
           name,
           code: template.code,
           analysisKind: 'time_series',
+          status: 'published',
+          codeHash,
+          publishedAt: new Date(),
+          archivedAt: null,
+        },
+      });
+    }
+  }
+  for (const template of PANEL_TEMPLATES) {
+    const existing = await prisma.factor.findUnique({
+      where: { id: template.key },
+      select: {
+        key: true,
+        code: true,
+        name: true,
+        status: true,
+        codeHash: true,
+        analysisKind: true,
+      },
+    });
+    const name = template.label.zh;
+    const codeHash = sha256(template.code);
+    if (!existing) {
+      await prisma.factor.create({
+        data: {
+          id: template.key,
+          userId: BUILTIN_USER_ID,
+          key: template.key,
+          name,
+          code: template.code,
+          analysisKind: 'panel',
+          status: 'published',
+          codeHash,
+          publishedAt: new Date(),
+        },
+      });
+      continue;
+    }
+    if (
+      existing.key !== template.key ||
+      existing.code !== template.code ||
+      existing.name !== name ||
+      existing.status !== 'published' ||
+      existing.codeHash !== codeHash ||
+      existing.analysisKind !== 'panel'
+    ) {
+      await prisma.factor.update({
+        where: { id: template.key },
+        data: {
+          key: template.key,
+          name,
+          code: template.code,
+          analysisKind: 'panel',
           status: 'published',
           codeHash,
           publishedAt: new Date(),

@@ -12,14 +12,14 @@ export function factorProfile(research?: {
   factorId: string;
   currentCode: string;
   locale: Locale;
-  analysisKind?: 'cross_sectional' | 'time_series';
+  analysisKind?: 'cross_sectional' | 'time_series' | 'panel';
 }): AgentProfile {
   const analysisKind = research?.analysisKind ?? 'cross_sectional';
   return {
     system: `${buildFactorCodegenPrompt(analysisKind)}\n${buildAgentMode('factor')}\n${TOOLS_HINT}${research ? RESEARCH_TOOLS_HINT : ''}`,
     tools: [
       ...defaultTools(),
-      ...(research
+      ...(research && analysisKind !== 'panel'
         ? [
             analysisKind === 'time_series'
               ? runTimeSeriesFactorAnalysisTool(research)
