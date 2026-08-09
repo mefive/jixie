@@ -12,6 +12,9 @@ export const PANEL_ASSETS: PanelFactorResearchSpecV1['assets'] = [
   { assetId: '511260.SH', assetClass: 'fixed_income' },
   { assetId: '511090.SH', assetClass: 'fixed_income' },
   { assetId: '518880.SH', assetClass: 'gold' },
+  { assetId: '159985.SZ', assetClass: 'commodity' },
+  { assetId: '159980.SZ', assetClass: 'commodity' },
+  { assetId: '159981.SZ', assetClass: 'commodity' },
 ];
 
 export const PANEL_ASSET_IDS = PANEL_ASSETS.map((asset) => asset.assetId);

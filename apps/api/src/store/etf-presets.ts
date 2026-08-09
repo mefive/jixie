@@ -15,6 +15,9 @@ export const MAJOR_ETF_CODES = [
   '511010.SH', // 5-year government bond
   '511260.SH', // 10-year government bond
   '511090.SH', // 30-year government bond
+  '159985.SZ', // Soybean meal futures
+  '159980.SZ', // Non-ferrous metals futures
+  '159981.SZ', // Energy and chemicals futures
 ] as const;
 
 export const MAJOR_ETF_CODE_SET = new Set<string>(MAJOR_ETF_CODES);

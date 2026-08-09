@@ -9,7 +9,17 @@ const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
 const page = await context.newPage();
 const browserErrors = [];
-const ASSETS = ['510300.SH', '513100.SH', '511010.SH', '511260.SH', '511090.SH', '518880.SH'];
+const ASSETS = [
+  '510300.SH',
+  '513100.SH',
+  '511010.SH',
+  '511260.SH',
+  '511090.SH',
+  '518880.SH',
+  '159985.SZ',
+  '159980.SZ',
+  '159981.SZ',
+];
 let strategyId = null;
 page.on('pageerror', (error) => browserErrors.push(`pageerror: ${error.message}`));
 page.on('console', (message) => {
@@ -77,6 +87,9 @@ try {
           { assetId: '511260.SH', assetClass: 'fixed_income' },
           { assetId: '511090.SH', assetClass: 'fixed_income' },
           { assetId: '518880.SH', assetClass: 'gold' },
+          { assetId: '159985.SZ', assetClass: 'commodity' },
+          { assetId: '159980.SZ', assetClass: 'commodity' },
+          { assetId: '159981.SZ', assetClass: 'commodity' },
         ],
         target: { kind: 'forward_total_return', horizon: 20, horizonUnit: 'trade_day' },
         dataPolicy: {
@@ -112,6 +125,9 @@ try {
   const fiveYearCoverage = report?.coverage?.byAsset?.find((row) => row.assetId === '511010.SH');
   const tenYearCoverage = report?.coverage?.byAsset?.find((row) => row.assetId === '511260.SH');
   const thirtyYearCoverage = report?.coverage?.byAsset?.find((row) => row.assetId === '511090.SH');
+  const commodityCoverage = ['159985.SZ', '159980.SZ', '159981.SZ'].map((assetId) =>
+    report?.coverage?.byAsset?.find((row) => row.assetId === assetId),
+  );
   if (
     detail.status !== 'done' ||
     detail.analysisKind !== 'panel' ||
@@ -119,14 +135,23 @@ try {
     detail.researchPayload?.analysisKind !== 'panel' ||
     report?.assets?.length !== ASSETS.length ||
     report?.periods < 50 ||
-    report?.observations <= report.periods * 5 ||
-    report?.observations >= report.periods * ASSETS.length ||
+    report?.coverage?.minimumAssets !== 5 ||
+    report?.coverage?.medianAssets !== 8 ||
+    report?.coverage?.maximumAssets !== ASSETS.length ||
     fiveYearCoverage?.observations !== report.periods ||
     tenYearCoverage?.observations !== report.periods ||
     !thirtyYearCoverage?.firstAsOfDate ||
     thirtyYearCoverage.firstAsOfDate <= '20230613' ||
     thirtyYearCoverage.observations <= 0 ||
     thirtyYearCoverage.observations >= report.periods ||
+    commodityCoverage.some(
+      (row) =>
+        !row?.firstAsOfDate ||
+        row.firstAsOfDate < '20200501' ||
+        row.firstAsOfDate > '20200831' ||
+        row.observations < 50 ||
+        row.observations >= report.periods,
+    ) ||
     detail.holdout?.eligible !== true ||
     !Number.isFinite(report?.rankIcMean) ||
     !Number.isFinite(report?.longShortNetAnnualized)
@@ -146,6 +171,9 @@ try {
   await page.screenshot({ path: `${SHOTS}factor-panel-report.png`, fullPage: true });
   await durationCoverage.scrollIntoViewIfNeeded();
   await page.screenshot({ path: `${SHOTS}factor-panel-duration-coverage.png` });
+  const commodityCoverageCard = page.getByText('能源化工期货 ETF', { exact: true });
+  await commodityCoverageCard.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: `${SHOTS}factor-panel-commodity-coverage.png` });
 
   await page.getByRole('button', { name: '验证保留段', exact: true }).click();
   const holdoutConfirm = page.locator('.ant-modal-confirm:visible');
@@ -235,9 +263,17 @@ try {
       const value = document.querySelector('.jx-lab-heroInput')?.value ?? '';
       return (
         value.includes('cross_asset_momentum_120') &&
-        ['510300.SH', '513100.SH', '511010.SH', '511260.SH', '511090.SH', '518880.SH'].every(
-          (asset) => value.includes(asset),
-        )
+        [
+          '510300.SH',
+          '513100.SH',
+          '511010.SH',
+          '511260.SH',
+          '511090.SH',
+          '518880.SH',
+          '159985.SZ',
+          '159980.SZ',
+          '159981.SZ',
+        ].every((asset) => value.includes(asset))
       );
     },
     undefined,
@@ -337,7 +373,7 @@ try {
     throw new Error(`browser errors: ${browserErrors.join('\n')}`);
   }
   console.log(
-    `[factor-panel-e2e] explore=${run.body.reportId} periods=${report.periods} rankIc=${report.rankIcMean.toFixed(4)} holdout=${holdoutRun.reportId} holdoutRankIc=${holdoutReport.rankIcMean.toFixed(4)} criterion=${criterionPassed ? 'passed' : 'missed'} strategy=${strategyId} trades=${result.trades} return=${result.totalReturn.toFixed(4)} screenshots=5`,
+    `[factor-panel-e2e] explore=${run.body.reportId} periods=${report.periods} observations=${report.observations} medianAssets=${report.coverage.medianAssets} rankIc=${report.rankIcMean.toFixed(4)} holdout=${holdoutRun.reportId} holdoutRankIc=${holdoutReport.rankIcMean.toFixed(4)} criterion=${criterionPassed ? 'passed' : 'missed'} strategy=${strategyId} trades=${result.trades} return=${result.totalReturn.toFixed(4)} screenshots=6`,
   );
 } finally {
   if (strategyId) {
