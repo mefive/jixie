@@ -809,7 +809,25 @@ Lab 的“多资产配置归因”新增“相关性”页，可切换 60/120 �
 有效样本门槛分别为 40/80。回归脚本为 `apps/web/e2e/factor-panel-composite.mjs`，新增截图
 `apps/web/acceptance/factor-panel-composite-correlation.png`。
 
-**本 Phase 剩余：**宏观阶段分解。专业期货 Carry、库存和宏观 vintage 仍归 Phase 5。
+**2026-08-09 利率环境分解 V1：**在完整宏观长表和 vintage 尚未落库前，Phase 4 不用最终修订的 PMI、
+CPI 等数据伪造“经济四象限”，而是先复用已经通过 PIT 验收的官方国债收益率曲线。每个交易日只读取
+`availableDate <= decisionDate` 的曲线点；10 年收益率相对 60 个曲线观测前分为上行/下行，10Y−2Y
+利差相对过去 252 个曲线观测的中位数分为较陡/较平，中位数至少需要 120 个同日有效观测。超过 14 个
+自然日没有新曲线时停止分类，不把陈旧数据无限前填。
+
+这四种透明状态只用于策略结果的条件表现复盘，不参与当次策略权重，也不发布为 Factor。引擎按批准
+Panel Universe 的资产类别市场收益统计状态交易日、阶段数、平均持续时间、条件日均收益、年化均值、
+年化波动、正收益比例和最差连续状态段回撤；Lab 新增“利率环境”页，展示最新状态、10 年收益率变化、
+期限利差与历史中位数，并明确披露覆盖率和方法。增长、通胀、信用、流动性和外部环境仍须先完成
+`MacroSeries` / `MacroObservation`、available date 和 vintage 底座，再进入 Phase 5 的完整宏观状态研究。
+
+九资产真实 E2E 的 2023-01 至 2025-01 策略区间共 502 个交易日，502 日均可分类，四种状态分别出现
+13、108、215 和 166 日；截至 2025-01-27 为“利率下行・曲线较平”，10 年收益率 1.65%，60 观察期
+下降 48.7bp，10Y−2Y 利差 33.8bp，低于历史中位数 55.6bp。页面默认展示与利率最相关的固定收益，
+也可切换中国权益、海外权益、黄金和商品。回归脚本为 `apps/web/e2e/factor-panel-composite.mjs`，新增
+截图 `apps/web/acceptance/factor-panel-composite-rate-regime.png`。
+
+**Phase 4 已完成。**专业期货 Carry、库存和完整宏观 PIT/vintage 状态研究归 Phase 5。
 
 ### Phase 5：商品专业特征、宏观状态与风险因子
 

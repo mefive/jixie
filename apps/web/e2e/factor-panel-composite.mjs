@@ -308,6 +308,7 @@ try {
   const oneTwentyDayCorrelation = allocation?.correlations?.windows?.find(
     (window) => window.window === 120,
   );
+  const rateRegimes = allocation?.rateRegimes;
   const equityBondCorrelation = sixtyDayCorrelation?.series?.find(
     (series) =>
       [series.left, series.right].includes('cn_equity') &&
@@ -336,6 +337,28 @@ try {
     ) ||
     oneTwentyDayCorrelation?.minimumObservations !== 80 ||
     oneTwentyDayCorrelation?.series?.length !== 10 ||
+    rateRegimes?.methodology !== 'cgb_10y_direction_and_10y_2y_relative_slope' ||
+    rateRegimes?.pointInTime !== 'available_date' ||
+    rateRegimes?.directionLookbackObservations !== 60 ||
+    rateRegimes?.curveMedianLookbackObservations !== 252 ||
+    rateRegimes?.curveMedianMinimumObservations !== 120 ||
+    rateRegimes?.classifiedDays / rateRegimes?.totalDays < 0.95 ||
+    !rateRegimes?.latest?.state ||
+    rateRegimes?.states?.length < 2 ||
+    rateRegimes.states.reduce((sum, state) => sum + state.observations, 0) !==
+      rateRegimes.classifiedDays ||
+    !rateRegimes.states.every(
+      (state) =>
+        state.episodes > 0 &&
+        state.averageDuration > 0 &&
+        state.assetClasses.length === 5 &&
+        state.assetClasses.every(
+          (assetClass) =>
+            assetClass.observations > 0 &&
+            Number.isFinite(assetClass.annualizedMeanReturn) &&
+            Number.isFinite(assetClass.annualizedVolatility),
+        ),
+    ) ||
     !equityBondCorrelation?.points?.length ||
     equityBondValidPoints / equityBondCorrelation.points.length < 0.8 ||
     Math.abs(returnContribution - completed.lastResult.totalReturn) > 1e-8 ||
@@ -378,6 +401,14 @@ try {
   await correlationPanel.getByText(/至少需要 40 个成对有效日收益/).waitFor();
   await allocationPanel.screenshot({
     path: `${SHOTS}factor-panel-composite-correlation.png`,
+  });
+  await allocationPanel.getByRole('tab', { name: '利率环境' }).click();
+  const rateRegimePanel = page.getByTestId('allocation-rate-regime');
+  await rateRegimePanel.waitFor({ timeout: 30_000 });
+  await rateRegimePanel.getByText(/状态只用于条件表现复盘/).waitFor();
+  await rateRegimePanel.getByText(/已分类 .* 个交易日/).waitFor();
+  await allocationPanel.screenshot({
+    path: `${SHOTS}factor-panel-composite-rate-regime.png`,
   });
   await page.locator('.jx-lab-chart canvas').waitFor({ timeout: 30_000 });
   await page.screenshot({
@@ -477,7 +508,7 @@ try {
     throw new Error(browserErrors.join('\n'));
   }
   console.log(
-    `[factor-panel-composite-e2e] PASS composite=${compositeId} report=${run.body.reportId} periods=${report.periods} observations=${report.observations} strategy=${strategyId} trades=${completed.lastResult.trades} correlationPairs=${sixtyDayCorrelation.series.length} screenshots=6`,
+    `[factor-panel-composite-e2e] PASS composite=${compositeId} report=${run.body.reportId} periods=${report.periods} observations=${report.observations} strategy=${strategyId} trades=${completed.lastResult.trades} correlationPairs=${sixtyDayCorrelation.series.length} rateStates=${rateRegimes.states.length} screenshots=7`,
   );
 } finally {
   if (deploymentId) {

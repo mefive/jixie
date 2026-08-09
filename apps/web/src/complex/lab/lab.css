@@ -428,6 +428,69 @@
   height: 240px;
 }
 
+.jx-lab-rateRegime {
+  @apply flex flex-col gap-3;
+}
+
+.jx-lab-rateRegimeSummary {
+  @apply grid gap-2;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.jx-lab-rateRegimeSummary > div {
+  @apply flex flex-col gap-1 rounded bg-chip px-3 py-2;
+}
+
+.jx-lab-rateRegimeSummary span,
+.jx-lab-rateRegimeControls,
+.jx-lab-rateRegimeStateHead span,
+.jx-lab-rateRegimeMetrics span {
+  @apply text-muted;
+  font-size: 11px;
+}
+
+.jx-lab-rateRegimeSummary b {
+  @apply text-sm text-ink;
+}
+
+.jx-lab-rateRegimeControls {
+  @apply flex flex-wrap items-center justify-between gap-2;
+}
+
+.jx-lab-rateRegimeAssetClass {
+  width: min(100%, 180px);
+}
+
+.jx-lab-rateRegimeStates {
+  @apply grid gap-2;
+}
+
+.jx-lab-rateRegimeState {
+  @apply flex flex-col gap-3 rounded border border-line bg-card;
+  padding: 12px;
+}
+
+.jx-lab-rateRegimeStateHead {
+  @apply flex flex-wrap items-center justify-between gap-2;
+}
+
+.jx-lab-rateRegimeStateHead strong {
+  @apply text-sm text-ink;
+}
+
+.jx-lab-rateRegimeMetrics {
+  @apply grid gap-2;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.jx-lab-rateRegimeMetrics > div {
+  @apply flex flex-col gap-1;
+}
+
+.jx-lab-rateRegimeMetrics b {
+  @apply text-sm;
+}
+
 .jx-lab-factorDependencies {
   @apply flex flex-col gap-2 rounded-lg border border-line bg-bg;
   padding: 12px 14px;

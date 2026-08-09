@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { AllocationAnalysisTracker, allocationAssetClasses } from './allocation-analysis.js';
+import {
+  AllocationAnalysisTracker,
+  allocationAssetClasses,
+  classifyAllocationRateRegime,
+  type AllocationRateRegimeObservation,
+} from './allocation-analysis.js';
 import type { CustomFactorModule } from './custom-factor.js';
 import type { Position, TradeRecord } from './types.js';
 
@@ -147,6 +152,71 @@ describe('allocation analysis', () => {
     expect(equityGold.points.at(-1)?.value).toBeCloseTo(-1, 10);
   });
 
+  it('groups asset-class returns by point-in-time rate environment', () => {
+    const tracker = new AllocationAnalysisTracker(
+      1_000,
+      new Map([
+        ['EQUITY', 'cn_equity'],
+        ['BOND', 'fixed_income'],
+      ]),
+    );
+    const dates = tradingDates(6);
+    const equityPrices = [100, 101, 99, 100, 102, 101];
+    const bondPrices = [100, 100.5, 101, 100.8, 101.2, 102];
+    for (let index = 0; index < dates.length; index++) {
+      const prices = { EQUITY: equityPrices[index], BOND: bondPrices[index] };
+      const state = index < 3 ? 'rates_rising_curve_steep' : 'rates_falling_curve_flat';
+      tracker.captureDay({
+        date: dates[index],
+        value: 1_000,
+        positions: new Map(),
+        closeOf: (assetId) => prices[assetId as keyof typeof prices],
+        exactCloseOf: (assetId) => prices[assetId as keyof typeof prices],
+        trades: [],
+        rateRegime: rateObservation(dates[index], state),
+      });
+    }
+
+    const analysis = tracker.finish(1_000).rateRegimes!;
+    expect(analysis).toMatchObject({
+      methodology: 'cgb_10y_direction_and_10y_2y_relative_slope',
+      pointInTime: 'available_date',
+      classifiedDays: 6,
+      totalDays: 6,
+      latest: { state: 'rates_falling_curve_flat' },
+    });
+    const rising = analysis.states.find((state) => state.key === 'rates_rising_curve_steep')!;
+    expect(rising).toMatchObject({ observations: 3, episodes: 1, averageDuration: 3 });
+    expect(rising.assetClasses.find((row) => row.assetClass === 'cn_equity')).toMatchObject({
+      observations: 2,
+      positiveDayRate: 0.5,
+    });
+    const falling = analysis.states.find((state) => state.key === 'rates_falling_curve_flat')!;
+    expect(falling).toMatchObject({ observations: 3, episodes: 1, averageDuration: 3 });
+    expect(
+      falling.assetClasses.find((row) => row.assetClass === 'fixed_income')!.annualizedMeanReturn,
+    ).toBeGreaterThan(0);
+  });
+
+  it('classifies the rate environment without reading unavailable or stale curve points', () => {
+    const dates = tradingDates(252);
+    const tenYear = dates.map((availableDate, index) => ({
+      availableDate,
+      yieldPct: 2 + index * 0.001,
+    }));
+    const twoYear = dates.map((availableDate, index) => ({
+      availableDate,
+      yieldPct: 1.5 + index * 0.0005,
+    }));
+
+    const observation = classifyAllocationRateRegime(dates.at(-1)!, tenYear, twoYear);
+    expect(observation).toMatchObject({ state: 'rates_rising_curve_steep' });
+    expect(observation?.tenYearChangeBp).toBeCloseTo(6, 10);
+    expect(observation?.curveSlopeBp).toBeGreaterThan(observation?.curveMedianBp ?? Infinity);
+    expect(classifyAllocationRateRegime('20260201', tenYear, twoYear)).toBeNull();
+    expect(classifyAllocationRateRegime(dates[118], tenYear.slice(0, 119), twoYear)).toBeNull();
+  });
+
   it('takes the approved panel universe as the authoritative asset taxonomy', () => {
     const modules: CustomFactorModule[] = [
       {
@@ -200,4 +270,18 @@ function tradingDates(count: number): string[] {
     cursor.setUTCDate(cursor.getUTCDate() + 1);
   }
   return dates;
+}
+
+function rateObservation(
+  asOfDate: string,
+  state: AllocationRateRegimeObservation['state'],
+): AllocationRateRegimeObservation {
+  return {
+    asOfDate,
+    state,
+    tenYearYieldPct: 2,
+    tenYearChangeBp: state.startsWith('rates_rising') ? 5 : -5,
+    curveSlopeBp: state.endsWith('curve_steep') ? 60 : 20,
+    curveMedianBp: 40,
+  };
 }
