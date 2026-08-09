@@ -350,6 +350,55 @@
   grid-template-columns: repeat(3, 1fr);
 }
 
+.jx-lab-allocation {
+  @apply flex flex-col rounded-lg border border-line bg-bg;
+  padding: 14px;
+}
+
+.jx-lab-allocationHead {
+  @apply flex flex-wrap items-start justify-between gap-3;
+}
+
+.jx-lab-allocationHead > div {
+  @apply flex flex-col gap-1;
+}
+
+.jx-lab-allocationHead strong {
+  @apply text-sm text-ink;
+}
+
+.jx-lab-allocationHead span {
+  @apply text-muted;
+  font-size: 11px;
+}
+
+.jx-lab-allocationReconciliation {
+  @apply rounded bg-chip px-2 py-1 text-down;
+}
+
+.jx-lab-allocationReconciliation--failed {
+  @apply text-up;
+}
+
+.jx-lab-allocationSummary {
+  @apply grid gap-2;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 12px;
+}
+
+.jx-lab-allocationSummary > div {
+  @apply flex flex-col gap-1 rounded bg-chip px-3 py-2;
+}
+
+.jx-lab-allocationSummary span {
+  @apply text-muted;
+  font-size: 11px;
+}
+
+.jx-lab-allocationSummary b {
+  @apply text-sm text-ink;
+}
+
 .jx-lab-factorDependencies {
   @apply flex flex-col gap-2 rounded-lg border border-line bg-bg;
   padding: 12px 14px;
