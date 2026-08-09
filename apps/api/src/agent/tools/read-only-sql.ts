@@ -38,6 +38,12 @@ export const SQL_TABLE_DOCS: Record<string, string> = {
     'tsCode, tradeDate, adjFactor — ETF adjustment factor (after-adjustment price = close×adjFactor)',
   YieldCurvePoint:
     'source, curveCode, curveName, curveType, tradeDate(curve observation date), availableDate(next SSE trading day; mandatory PIT gate), termYears(years), yieldPct(%), retrievedAt — official government-bond yield-curve points; research must filter availableDate<=decision date, and 10Y−2Y spread in basis points is (yieldPct10−yieldPct2)×100',
+  MacroSeries:
+    'seriesKey, nameZh, nameEn, domain(growth/inflation/etc.), frequency, unit, source, sourceApi, sourceField, defaultTransform, revisionPolicy, createdAt, updatedAt — canonical macro series catalog; join MacroObservation by seriesKey and preserve the declared unit and revision policy',
+  MacroObservation:
+    'seriesKey, period(observation month YYYYMM), vintageDate(capture date YYYYMMDD), value, releaseDate(null when unavailable), availableDate(mandatory PIT gate), availabilityKind(official_schedule/conservative_lag), vintageKind(captured_as_available/latest_value_backfill), retrievedAt — macro observation vintages; research must filter availableDate<=decision date and disclose latest_value_backfill because it is not a historical real-time vintage',
+  MacroReleaseSchedule:
+    'publishDate, title, publishMonth(calendar month containing the release), issuingOrg, dataApi, retrievedAt — raw official Chinese economic-data publication calendar; publishMonth is not the observation period and must be mapped with series-specific release rules',
   StkLimit: 'tsCode, tradeDate, upLimit, downLimit — daily up/down price limits (unadjusted)',
   TopList:
     'tsCode, tradeDate, netAmount(元) — Dragon-Tiger List net buy amount, sparse event table (no appearance that day = no row)',

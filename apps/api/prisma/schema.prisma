@@ -186,6 +186,61 @@ model YieldCurvePoint {
   @@index([tradeDate])
 }
 
+/// Canonical catalog for macroeconomic series. Source fields remain explicit so every normalized
+/// observation is reproducible and unit semantics do not depend on UI labels.
+model MacroSeries {
+  seriesKey        String   @id
+  nameZh           String
+  nameEn           String
+  domain           String
+  frequency        String
+  unit             String
+  source           String
+  sourceApi        String
+  sourceField      String
+  defaultTransform String
+  revisionPolicy   String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  observations MacroObservation[]
+}
+
+/// Point-in-time macro observation vintages. `releaseDate` is null when the original official date
+/// is unavailable; `availableDate` then uses a documented conservative lag. Historical backfills
+/// from latest-value APIs are labeled in `vintageKind` and must not be presented as real-time vintages.
+model MacroObservation {
+  seriesKey        String
+  period           String
+  vintageDate      String
+  value            Float
+  releaseDate      String?
+  availableDate    String
+  availabilityKind String
+  vintageKind      String
+  retrievedAt      DateTime @default(now())
+
+  series MacroSeries @relation(fields: [seriesKey], references: [seriesKey])
+
+  @@id([seriesKey, period, vintageDate])
+  @@index([seriesKey, availableDate])
+  @@index([period])
+}
+
+/// Raw official publication calendar entries. Publication month is not the observation period;
+/// series-specific matching rules map a release entry to its macro observation.
+model MacroReleaseSchedule {
+  publishDate  String
+  title        String
+  publishMonth String
+  issuingOrg   String
+  dataApi      String?
+  retrievedAt  DateTime @default(now())
+
+  @@id([publishDate, title])
+  @@index([dataApi, publishDate])
+}
+
 /// Daily price limits (unadjusted up/down limit prices). The engine blocks buys at the up-limit open and sells at
 /// the down-limit open (covers board-specific limits: Main Board ±10 / ST ±5 / ChiNext & STAR ±20 / BSE ±30).
 model StkLimit {

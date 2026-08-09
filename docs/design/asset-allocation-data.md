@@ -416,6 +416,18 @@ Factor V2 已开放 2Y/5Y/10Y/30Y 国债收益率输入，内置 10Y 收益率 2
 - 增加未来函数测试：月度数据在发布日期之前必须不可见；
 - 报告披露没有完整 vintage 的系列。
 
+**2026-08-09 首批纵向切片：**已落库 `MacroSeries`、`MacroObservation` 和
+`MacroReleaseSchedule`，接入制造业 PMI、CPI 同比、PPI 同比，并加入 weekly maintenance、bootstrap
+历史补全、只读 SQL 说明和数据质量审计。真实同步覆盖 2005-01 至 2026-07，共保存 775 个观测 vintage；
+相同区间幂等重跑新增 0 条。2026 年起使用 `cn_schedule` 的官方发布日期，并映射到首个上交所开市日；
+该日历没有更早历史，因此旧数据不伪造发布日期，而分别采用月末后 7 日（PMI）和 20 日（CPI/PPI）
+的保守可得日，并标记为 `conservative_lag`。
+
+Tushare 宏观接口返回的是当前值，不提供完整历史修订快照。首次回填的旧观测因此标记为
+`latest_value_backfill`，只可用于明确披露最终值偏差的探索研究，不能冒充当时真实 vintage；持续同步会
+从当前时点开始积累 `captured_as_available` vintage。下一步先实现统一 as-of 查询与未来函数测试，再接
+M1/M2 和社融，不能让后两者阻塞已经可验证的增长、通胀最小闭环。
+
 ### 波次 4：商品研究底座
 
 - 先接南华商品指数和上海黄金现货；
