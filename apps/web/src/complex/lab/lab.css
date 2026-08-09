@@ -399,6 +399,35 @@
   @apply text-sm text-ink;
 }
 
+.jx-lab-correlation {
+  @apply flex flex-col gap-3;
+}
+
+.jx-lab-correlationControls {
+  @apply flex flex-wrap items-center justify-between gap-2;
+}
+
+.jx-lab-correlationPair {
+  width: min(100%, 260px);
+}
+
+.jx-lab-correlationMeta {
+  @apply text-muted;
+  font-size: 11px;
+}
+
+.jx-lab-correlationCharts {
+  @apply flex flex-col gap-3;
+}
+
+.jx-lab-correlationHeatmap {
+  height: 340px;
+}
+
+.jx-lab-correlationRolling {
+  height: 240px;
+}
+
 .jx-lab-factorDependencies {
   @apply flex flex-col gap-2 rounded-lg border border-line bg-bg;
   padding: 12px 14px;

@@ -1,6 +1,11 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
-import type { AllocationAnalysis, ChatMessage, StrategyLanguage } from '@jixie/shared';
+import type {
+  AllocationAnalysis,
+  AllocationCorrelationAnalysis,
+  ChatMessage,
+  StrategyLanguage,
+} from '@jixie/shared';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import classNames from 'classnames';
@@ -13,6 +18,7 @@ import {
   Modal,
   Popover,
   Segmented,
+  Select,
   Splitter,
   Table,
   Tabs,
@@ -57,6 +63,7 @@ const formatYmd = (date: string) =>
 const NavChart = lazy(() => import('./nav-chart'));
 const CodeEditor = lazy(() => import('./code-editor'));
 const TradeDetail = lazy(() => import('./trade-detail'));
+const AllocationCorrelationCharts = lazy(() => import('./allocation-correlation-charts'));
 
 /**
  * Backtest workbench — code-first, IDE-style. A first-time visit (no recents) opens a focused prompt
@@ -1120,6 +1127,15 @@ const AllocationAnalysisPanel = ({ analysis }: { analysis: AllocationAnalysis })
               />
             ),
           },
+          ...(analysis.correlations?.windows.length
+            ? [
+                {
+                  key: 'correlations',
+                  label: t('allocation.correlationTab'),
+                  children: <AllocationCorrelationPanel data={analysis.correlations} />,
+                },
+              ]
+            : []),
           {
             key: 'drift',
             label: t('allocation.driftTab'),
@@ -1167,6 +1183,97 @@ const AllocationAnalysisPanel = ({ analysis }: { analysis: AllocationAnalysis })
     </section>
   );
 };
+
+const AllocationCorrelationPanel = ({ data }: { data: AllocationCorrelationAnalysis }) => {
+  const { t } = useTranslation('lab');
+  const [windowDays, setWindowDays] = useState<60 | 120>(data.windows[0]?.window ?? 60);
+  const selectedWindow =
+    data.windows.find((candidate) => candidate.window === windowDays) ?? data.windows[0];
+  const preferredPair =
+    selectedWindow?.series.find(
+      (series) =>
+        [series.left, series.right].includes('cn_equity') &&
+        [series.left, series.right].includes('fixed_income'),
+    ) ?? selectedWindow?.series[0];
+  const [pairKey, setPairKey] = useState(() =>
+    preferredPair ? correlationPairKey(preferredPair.left, preferredPair.right) : '',
+  );
+  if (!selectedWindow || !preferredPair) {
+    return <div className="jx-lab-placeholder">{t('allocation.correlationEmpty')}</div>;
+  }
+  const pair =
+    selectedWindow.series.find(
+      (candidate) => correlationPairKey(candidate.left, candidate.right) === pairKey,
+    ) ?? preferredPair;
+  const labels = Object.fromEntries(
+    selectedWindow.assetClasses.map((assetClass) => [
+      assetClass,
+      t(`allocation.assetClasses.${assetClass}`),
+    ]),
+  );
+  const strongest = selectedWindow.series
+    .map((series) => {
+      const leftIndex = selectedWindow.assetClasses.indexOf(series.left);
+      const rightIndex = selectedWindow.assetClasses.indexOf(series.right);
+      return { series, value: selectedWindow.latest[leftIndex]?.[rightIndex] ?? null };
+    })
+    .filter((row): row is { series: (typeof selectedWindow.series)[number]; value: number } =>
+      Number.isFinite(row.value),
+    )
+    .sort((left, right) => right.value - left.value)[0];
+
+  return (
+    <div className="jx-lab-correlation" data-testid="allocation-correlation">
+      <div className="jx-lab-correlationControls">
+        <Segmented
+          size="small"
+          value={selectedWindow.window}
+          options={data.windows.map((row) => ({
+            label: t('allocation.correlationWindow', { days: row.window }),
+            value: row.window,
+          }))}
+          onChange={(value) => setWindowDays(Number(value) as 60 | 120)}
+        />
+        <Select
+          className="jx-lab-correlationPair"
+          size="small"
+          value={correlationPairKey(pair.left, pair.right)}
+          options={selectedWindow.series.map((series) => ({
+            value: correlationPairKey(series.left, series.right),
+            label: `${labels[series.left]} × ${labels[series.right]}`,
+          }))}
+          onChange={setPairKey}
+        />
+      </div>
+      <div className="jx-lab-correlationMeta">
+        {t('allocation.correlationMeta', {
+          date: formatYmd(selectedWindow.asOfDate),
+          observations: selectedWindow.minimumObservations,
+        })}
+      </div>
+      {strongest ? (
+        <Alert
+          type={strongest.value >= 0.75 ? 'warning' : 'info'}
+          showIcon
+          title={t(
+            strongest.value >= 0.75
+              ? 'allocation.correlationWarning'
+              : 'allocation.correlationNormal',
+            { value: strongest.value.toFixed(2) },
+          )}
+          description={`${labels[strongest.series.left]} × ${labels[strongest.series.right]}`}
+        />
+      ) : null}
+      <Suspense fallback={<div className="jx-lab-placeholder">{t('loadingChart')}</div>}>
+        <AllocationCorrelationCharts data={selectedWindow} pair={pair} labels={labels} />
+      </Suspense>
+    </div>
+  );
+};
+
+function correlationPairKey(left: string, right: string): string {
+  return `${left}|${right}`;
+}
 
 // The bottom dock — a collapsible IDE-style panel with streamed system + user console output.
 const LogDock = complex.component(() => {

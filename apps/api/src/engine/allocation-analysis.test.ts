@@ -13,7 +13,14 @@ describe('allocation analysis', () => {
       ]),
     );
     const empty = new Map<string, Position>();
-    tracker.captureDay({ value: 1_000, positions: empty, closeOf: () => 10, trades: [] });
+    tracker.captureDay({
+      date: '20240101',
+      value: 1_000,
+      positions: empty,
+      closeOf: () => 10,
+      exactCloseOf: () => 10,
+      trades: [],
+    });
 
     const target = new Map([['EQUITY', 0.5]]);
     const preTrade = tracker.weights(1_000, empty, () => 10);
@@ -42,15 +49,19 @@ describe('allocation analysis', () => {
       postTrade,
     });
     tracker.captureDay({
+      date: '20240102',
       value: 994,
       positions,
       closeOf: () => 10,
+      exactCloseOf: () => 10,
       trades: [buy],
     });
     tracker.captureDay({
+      date: '20240103',
       value: 1_094,
       positions,
       closeOf: () => 12,
+      exactCloseOf: () => 12,
       trades: [],
     });
 
@@ -77,6 +88,63 @@ describe('allocation analysis', () => {
       preTradeDistance: 0.5,
     });
     expect(result.drift[0].postTradeDistance).toBeCloseTo(0.003018, 5);
+  });
+
+  it('computes class correlations from exact consecutive market returns with coverage gates', () => {
+    const tracker = new AllocationAnalysisTracker(
+      1_000,
+      new Map([
+        ['EQUITY', 'cn_equity'],
+        ['BOND', 'fixed_income'],
+        ['GOLD', 'gold'],
+      ]),
+    );
+    const dates = tradingDates(130);
+    let equity = 100;
+    let bond = 100;
+    let gold = 100;
+    for (let index = 0; index < dates.length; index++) {
+      if (index > 0) {
+        const equityReturn = index % 2 === 0 ? 0.01 : -0.01;
+        equity *= 1 + equityReturn;
+        bond *= 1 - equityReturn;
+        gold *= 1 - equityReturn;
+      }
+      const prices: Record<string, number | null> = {
+        EQUITY: equity,
+        BOND: index % 3 === 0 ? null : bond,
+        GOLD: gold,
+      };
+      tracker.captureDay({
+        date: dates[index],
+        value: 1_000,
+        positions: new Map(),
+        closeOf: (assetId) => prices[assetId],
+        exactCloseOf: (assetId) => prices[assetId],
+        trades: [],
+      });
+    }
+
+    const correlations = tracker.finish(1_000).correlations!;
+    expect(correlations).toMatchObject({
+      methodology: 'equal_weight_asset_class_returns',
+      sampling: 'month_end',
+      minimumCoverage: 2 / 3,
+    });
+    const sixty = correlations.windows.find((row) => row.window === 60)!;
+    const equityIndex = sixty.assetClasses.indexOf('cn_equity');
+    const bondIndex = sixty.assetClasses.indexOf('fixed_income');
+    const goldIndex = sixty.assetClasses.indexOf('gold');
+    expect(sixty.minimumObservations).toBe(40);
+    expect(sixty.latest[equityIndex][goldIndex]).toBeCloseTo(-1, 10);
+    expect(sixty.latestObservations[equityIndex][goldIndex]).toBe(60);
+    expect(sixty.latest[equityIndex][bondIndex]).toBeNull();
+    expect(sixty.latestObservations[equityIndex][bondIndex]).toBeLessThan(40);
+    const equityGold = sixty.series.find(
+      (row) => row.left === 'cn_equity' && row.right === 'gold',
+    )!;
+    expect(equityGold.points.length).toBeGreaterThan(0);
+    expect(equityGold.points.at(-1)?.value).toBeCloseTo(-1, 10);
   });
 
   it('takes the approved panel universe as the authoritative asset taxonomy', () => {
@@ -119,4 +187,17 @@ function panelModule(key: string, assetClass: 'cn_equity' | 'fixed_income'): Cus
       components: [],
     },
   };
+}
+
+function tradingDates(count: number): string[] {
+  const dates: string[] = [];
+  const cursor = new Date(Date.UTC(2024, 0, 1));
+  while (dates.length < count) {
+    const day = cursor.getUTCDay();
+    if (day !== 0 && day !== 6) {
+      dates.push(cursor.toISOString().slice(0, 10).replaceAll('-', ''));
+    }
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return dates;
 }

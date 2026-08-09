@@ -129,6 +129,7 @@ export const enLab: typeof zhLab = {
     rebalances: 'Rebalances',
     classTab: 'Asset classes',
     assetTab: 'Assets',
+    correlationTab: 'Correlation',
     driftTab: 'Allocation drift',
     assetClass: 'Asset class',
     asset: 'Asset',
@@ -142,6 +143,14 @@ export const enLab: typeof zhLab = {
     preTradeDrift: 'Pre-trade drift',
     postTradeDrift: 'Post-trade drift',
     maxDeviation: 'Max deviation',
+    correlationWindow: '{{days}}-day window',
+    correlationMeta:
+      'As of {{date}}; each window requires at least {{observations}} paired daily returns',
+    correlationWarning:
+      'The highest class correlation reached {{value}}; diversification may be weakening',
+    correlationNormal:
+      'The highest class correlation is {{value}} and remains below the warning threshold',
+    correlationEmpty: 'This result does not contain enough asset classes for correlation analysis.',
     assetClasses: {
       cn_equity: 'China equity',
       overseas_equity: 'Overseas equity',

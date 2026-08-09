@@ -797,7 +797,19 @@ Top/Bottom 诊断收益严格分离。
 `apps/web/acceptance/factor-panel-composite-attribution.png` 和
 `apps/web/acceptance/factor-panel-composite-signal.png`。
 
-**本 Phase 剩余：**滚动相关和宏观阶段分解。专业期货 Carry、库存和宏观 vintage 仍归 Phase 5。
+**2026-08-09 资产类别滚动相关：**`allocationAnalysis V1` 增加市场收益相关性，但不把策略持仓贡献
+误当作资产收益。引擎从批准 Panel 资产池读取类别，对每个交易日具有相邻两日真实复权行情的 ETF 计算
+日收益，再在类别内对当日有效 ETF 等权；缺少当日行情时不使用前值制造零收益。报告同时给出 60 日和
+120 日窗口，要求至少 2/3 的成对有效观察，并只保存最新矩阵和月末滚动点，避免在回测结果中堆积原始
+日线。类别矩阵附带逐格有效样本数，零方差或覆盖不足返回 `null`，不伪造相关系数。
+
+Lab 的“多资产配置归因”新增“相关性”页，可切换 60/120 日窗口，查看最新类别热力图，并选择任意两个
+类别观察月末滚动曲线；最高正相关达到 0.75 时提示分散效果可能下降。九资产真实 E2E 形成 5 个类别、
+10 个唯一类别对；截至 2025-01-27，60 日矩阵最高非对角相关为 0.33，没有触发预警，60/120 日最低
+有效样本门槛分别为 40/80。回归脚本为 `apps/web/e2e/factor-panel-composite.mjs`，新增截图
+`apps/web/acceptance/factor-panel-composite-correlation.png`。
+
+**本 Phase 剩余：**宏观阶段分解。专业期货 Carry、库存和宏观 vintage 仍归 Phase 5。
 
 ### Phase 5：商品专业特征、宏观状态与风险因子
 

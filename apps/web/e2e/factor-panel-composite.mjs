@@ -302,6 +302,20 @@ try {
     (sum, asset) => sum + (asset.riskContribution ?? 0),
     0,
   );
+  const sixtyDayCorrelation = allocation?.correlations?.windows?.find(
+    (window) => window.window === 60,
+  );
+  const oneTwentyDayCorrelation = allocation?.correlations?.windows?.find(
+    (window) => window.window === 120,
+  );
+  const equityBondCorrelation = sixtyDayCorrelation?.series?.find(
+    (series) =>
+      [series.left, series.right].includes('cn_equity') &&
+      [series.left, series.right].includes('fixed_income'),
+  );
+  const equityBondValidPoints = equityBondCorrelation?.points?.filter((point) =>
+    Number.isFinite(point.value),
+  ).length;
   if (
     completed.lastResult?.trades <= 0 ||
     completed.lastResult?.factorDependencies?.length !== 1 ||
@@ -312,6 +326,18 @@ try {
     allocation?.reconciliation?.reconciled !== true ||
     allocation?.assetClasses?.length !== 5 ||
     allocation?.drift?.length <= 0 ||
+    allocation?.correlations?.methodology !== 'equal_weight_asset_class_returns' ||
+    allocation?.correlations?.sampling !== 'month_end' ||
+    sixtyDayCorrelation?.assetClasses?.length !== 5 ||
+    sixtyDayCorrelation?.minimumObservations !== 40 ||
+    sixtyDayCorrelation?.series?.length !== 10 ||
+    !sixtyDayCorrelation.latest.some((row, rowIndex) =>
+      row.some((value, columnIndex) => rowIndex !== columnIndex && Number.isFinite(value)),
+    ) ||
+    oneTwentyDayCorrelation?.minimumObservations !== 80 ||
+    oneTwentyDayCorrelation?.series?.length !== 10 ||
+    !equityBondCorrelation?.points?.length ||
+    equityBondValidPoints / equityBondCorrelation.points.length < 0.8 ||
     Math.abs(returnContribution - completed.lastResult.totalReturn) > 1e-8 ||
     Math.abs(riskContribution - 1) > 1e-8 ||
     !completed.lastResult.tradeLog.every(
@@ -331,9 +357,27 @@ try {
   await allocationPanel.getByText('已与组合净值对账', { exact: true }).waitFor({
     timeout: 30_000,
   });
+  await page.setViewportSize({ width: 1440, height: 1400 });
   await allocationPanel.scrollIntoViewIfNeeded();
   await allocationPanel.screenshot({
     path: `${SHOTS}factor-panel-composite-attribution.png`,
+  });
+  await allocationPanel.getByRole('tab', { name: '相关性' }).click();
+  const correlationPanel = page.getByTestId('allocation-correlation');
+  await correlationPanel.waitFor({ timeout: 30_000 });
+  await page.waitForTimeout(2_000);
+  const correlationCanvasCount = await correlationPanel.locator('canvas').count();
+  if (correlationCanvasCount < 2) {
+    throw new Error(
+      `correlation charts did not render: canvas=${correlationCanvasCount} browserErrors=${browserErrors.join(' | ')}`,
+    );
+  }
+  await correlationPanel.getByText('120日窗口', { exact: true }).click();
+  await correlationPanel.getByText(/至少需要 80 个成对有效日收益/).waitFor();
+  await correlationPanel.getByText('60日窗口', { exact: true }).click();
+  await correlationPanel.getByText(/至少需要 40 个成对有效日收益/).waitFor();
+  await allocationPanel.screenshot({
+    path: `${SHOTS}factor-panel-composite-correlation.png`,
   });
   await page.locator('.jx-lab-chart canvas').waitFor({ timeout: 30_000 });
   await page.screenshot({
@@ -433,7 +477,7 @@ try {
     throw new Error(browserErrors.join('\n'));
   }
   console.log(
-    `[factor-panel-composite-e2e] PASS composite=${compositeId} report=${run.body.reportId} periods=${report.periods} observations=${report.observations} strategy=${strategyId} trades=${completed.lastResult.trades} screenshots=5`,
+    `[factor-panel-composite-e2e] PASS composite=${compositeId} report=${run.body.reportId} periods=${report.periods} observations=${report.observations} strategy=${strategyId} trades=${completed.lastResult.trades} correlationPairs=${sixtyDayCorrelation.series.length} screenshots=6`,
   );
 } finally {
   if (deploymentId) {
