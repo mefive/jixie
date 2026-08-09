@@ -697,9 +697,17 @@ ETF 成交和 30.24% 区间收益，并冻结 `analysisKind = panel` 的因子�
 成交约束，不把两条收益序列混为一谈。回归脚本为 `apps/web/e2e/factor-panel.mjs`，截图为
 `apps/web/acceptance/factor-panel-report.png` 和 `apps/web/acceptance/factor-panel-strategy.png`。
 
-**本 Phase 剩余：**Panel holdout/reveal 的真实浏览器验收；加入短债/长债分层与有历史行情的商品 ETF；
-资产类别内/类别间标准化；Panel 组合因子；策略结果中的资产收益贡献、风险贡献、配置漂移与宏观阶段
-分解。专业期货 Carry、库存和宏观 vintage 仍归 Phase 5。
+**2026-08-09 Panel 研究纪律验收：**真实浏览器已走通“预设假设与主要判据 → 59 个月探索段 →
+16 个月密封 Holdout → 不可逆揭示”。密封报告不返回 payload、metrics、研究结果或 Job 日志；重复揭示
+保留同一首次查看时间。`cross_asset_momentum_120` 在探索段平均 Rank IC 为 0.0712，但正式保留段为
+-0.1500，因此产品明确显示“未达到预设主要标准”，没有把探索段正向结果包装成有效信号。回归仍由
+`apps/web/e2e/factor-panel.mjs` 负责，新增截图
+`apps/web/acceptance/factor-panel-holdout-sealed.png` 和
+`apps/web/acceptance/factor-panel-holdout-revealed.png`。
+
+**本 Phase 剩余：**加入短债/长债分层与有历史行情的商品 ETF；资产类别内/类别间标准化；Panel
+组合因子；策略结果中的资产收益贡献、风险贡献、配置漂移与宏观阶段分解。专业期货 Carry、库存和
+宏观 vintage 仍归 Phase 5。
 
 ### Phase 5：商品专业特征、宏观状态与风险因子
 
