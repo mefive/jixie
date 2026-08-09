@@ -71,7 +71,7 @@ export interface FactorMeta {
   expectedDirection?: Exclude<FactorExpectedDirection, 'unknown'>;
   analysisKind?: FactorAnalysisKind;
   targetAssetClasses?: Array<'equity' | 'fixed_income' | 'commodity'>;
-  composite?: FactorCompositeDefinitionV1;
+  composite?: FactorCompositeDefinition;
 }
 
 /** One decile bucket's forward-return stats (bucket 0 = lowest factor value … 9 = highest). */
@@ -245,10 +245,28 @@ export interface FactorCompositeDefinitionV1 {
   }>;
 }
 
+/** Cross-asset panel composite. Components are resolved against the factor catalog and frozen with
+ * their executable sources in every report, while this reusable definition keeps stable identities. */
+export interface FactorPanelCompositeDefinitionV2 {
+  version: 2;
+  name: string;
+  analysisKind: 'panel';
+  standardization: FactorCompositeStandardization;
+  weighting: 'equal';
+  components: Array<{
+    factor: string;
+    direction: FactorCompositeDirection;
+  }>;
+}
+
+export type FactorCompositeDefinition =
+  | FactorCompositeDefinitionV1
+  | FactorPanelCompositeDefinitionV2;
+
 export interface FactorCompositeResource {
   id: string;
   name: string;
-  definition: FactorCompositeDefinitionV1;
+  definition: FactorCompositeDefinition;
   createdAt: string;
   updatedAt: string;
 }

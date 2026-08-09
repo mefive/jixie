@@ -628,7 +628,7 @@ import type {
   FactorReportListResponse,
   FactorFreq,
   FactorCorrelation,
-  FactorCompositeDefinitionV1,
+  FactorCompositeDefinition,
   FactorCompositeResource,
   FactorHoldoutPolicyV1,
   FactorResearchIntentV1,
@@ -659,7 +659,7 @@ export function archiveFactor(id: string): Promise<PublishedFactor> {
 }
 
 export function createFactorComposite(
-  definition: FactorCompositeDefinitionV1,
+  definition: FactorCompositeDefinition,
 ): Promise<FactorCompositeResource> {
   return request('/api/app/factors/composites', {
     method: 'POST',
@@ -669,7 +669,7 @@ export function createFactorComposite(
 
 export function updateFactorComposite(
   id: string,
-  definition: FactorCompositeDefinitionV1,
+  definition: FactorCompositeDefinition,
 ): Promise<FactorCompositeResource> {
   return request(`/api/app/factors/composites/${encodeURIComponent(id)}`, {
     method: 'POST',

@@ -8,14 +8,28 @@ import {
 
 describe('multi-asset panel templates', () => {
   it('publishes an explicit panel method in the localized catalog', () => {
-    expect(panelTemplateCatalog('zh')).toEqual([
-      expect.objectContaining({
-        key: 'cross_asset_momentum_120',
-        label: '跨资产120日动量',
-        analysisKind: 'panel',
-        targetAssetClasses: ['equity', 'fixed_income', 'commodity'],
-      }),
-    ]);
+    expect(panelTemplateCatalog('zh')).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          key: 'cross_asset_volatility_60',
+          label: '跨资产60日波动率',
+          expectedDirection: 'negative',
+          analysisKind: 'panel',
+          targetAssetClasses: ['equity', 'fixed_income', 'commodity'],
+        }),
+      ]),
+    );
+    expect(panelTemplateCatalog('zh')).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          key: 'cross_asset_momentum_120',
+          label: '跨资产120日动量',
+          expectedDirection: 'positive',
+          analysisKind: 'panel',
+          targetAssetClasses: ['equity', 'fixed_income', 'commodity'],
+        }),
+      ]),
+    );
     expect(panelTemplateResource('cross_asset_momentum_120', 'zh')).toMatchObject({
       key: 'cross_asset_momentum_120',
       strategyKey: 'cross_asset_momentum_120',

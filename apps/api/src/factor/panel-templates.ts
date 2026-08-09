@@ -3,6 +3,7 @@ import type { FactorAnalysisSource } from './analysis-job.js';
 
 export interface PanelTemplate {
   key: string;
+  expectedDirection: 'positive' | 'negative';
   targetAssetClasses: Array<'equity' | 'fixed_income' | 'commodity'>;
   label: Record<Locale, string>;
   description: Record<Locale, string>;
@@ -28,9 +29,35 @@ const CROSS_ASSET_MOMENTUM_120 = `export default defineFactorV2({
 });
 `;
 
+const CROSS_ASSET_VOLATILITY_60 = `export default defineFactorV2({
+  version: 2,
+  name: 'Cross-asset volatility (60d)',
+  analysisKind: 'panel',
+  outputScope: 'asset',
+  frequency: 'daily',
+  inputs: ['etf.adjustedClose'],
+  targetAssetClasses: ['equity', 'fixed_income', 'commodity'],
+  window: 61,
+  compute(ctx) {
+    const returns = [];
+    for (let lag = 0; lag < 60; lag++) {
+      const current = ctx.lag('etf.adjustedClose', lag);
+      const previous = ctx.lag('etf.adjustedClose', lag + 1);
+      if (current == null || previous == null || previous <= 0) return null;
+      returns.push(current / previous - 1);
+    }
+    const average = returns.reduce((sum, value) => sum + value, 0) / returns.length;
+    const variance = returns.reduce((sum, value) => sum + (value - average) ** 2, 0)
+      / (returns.length - 1);
+    return Math.sqrt(variance * 252);
+  },
+});
+`;
+
 export const PANEL_TEMPLATES: PanelTemplate[] = [
   {
     key: 'cross_asset_momentum_120',
+    expectedDirection: 'positive',
     targetAssetClasses: ['equity', 'fixed_income', 'commodity'],
     label: { zh: '跨资产120日动量', en: 'Cross-asset momentum (120d)' },
     description: {
@@ -38,6 +65,17 @@ export const PANEL_TEMPLATES: PanelTemplate[] = [
       en: 'Ranks domestic equity, overseas equity, fixed-income, and gold ETFs by 120-day momentum on common month ends, then tests next-period ranks, turnover, and cost-adjusted long-short returns.',
     },
     code: CROSS_ASSET_MOMENTUM_120,
+  },
+  {
+    key: 'cross_asset_volatility_60',
+    expectedDirection: 'negative',
+    targetAssetClasses: ['equity', 'fixed_income', 'commodity'],
+    label: { zh: '跨资产60日波动率', en: 'Cross-asset volatility (60d)' },
+    description: {
+      zh: '在共同月末比较各类 ETF 的60日年化波动率，可作为防御方向的 Panel 成分；研究组合中通常设置为负向。',
+      en: 'Compares 60-day annualized volatility across ETFs on common month ends as a defensive panel component, usually aligned with a negative direction.',
+    },
+    code: CROSS_ASSET_VOLATILITY_60,
   },
 ];
 
@@ -48,6 +86,7 @@ export function panelTemplateCatalog(locale: Locale): FactorMeta[] {
     description: template.description[locale],
     kind: 'price',
     builtin: true,
+    expectedDirection: template.expectedDirection,
     strategyKey: template.key,
     status: 'published',
     analysisKind: 'panel',

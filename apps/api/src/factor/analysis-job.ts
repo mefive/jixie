@@ -15,6 +15,7 @@ import { prisma } from '../lib/prisma.js';
 import {
   canonicalJson,
   factorCompositeDefinitionV1Schema,
+  factorPanelCompositeDefinitionV2Schema,
   factorTestKey,
   factorVariantKey,
   normalizeFactorResearchSpec,
@@ -42,6 +43,22 @@ const factorAnalysisRuntimeSourceSchema = z.discriminatedUnion('kind', [
     kind: z.literal('panel'),
     label: z.string().min(1),
     code: z.string().min(1),
+  }),
+  z.object({
+    kind: z.literal('panel_composite'),
+    label: z.string().min(1),
+    definition: factorPanelCompositeDefinitionV2Schema,
+    components: z
+      .array(
+        z.object({
+          factor: z.string().min(1),
+          code: z.string().min(1),
+          label: z.string().min(1),
+          direction: z.enum(['positive', 'negative']),
+        }),
+      )
+      .min(2)
+      .max(5),
   }),
   z.object({
     kind: z.literal('composite'),
@@ -76,6 +93,24 @@ export function parseFactorAnalysisSourceSnapshot(
     return { kind: 'single', code: snapshot, label };
   }
   return factorAnalysisRuntimeSourceSchema.parse(JSON.parse(snapshot));
+}
+
+export function parseAssetFactorAnalysisSourceSnapshot(
+  snapshot: string,
+  label: string,
+  analysisKind: 'time_series' | 'panel',
+): FactorAnalysisSource {
+  if (analysisKind === 'panel') {
+    try {
+      const parsed = factorAnalysisRuntimeSourceSchema.parse(JSON.parse(snapshot));
+      if (parsed.kind === 'panel_composite') {
+        return parsed;
+      }
+    } catch {
+      // Plain Factor V2 code is not JSON and remains the compatibility path.
+    }
+  }
+  return { kind: analysisKind, code: snapshot, label };
 }
 
 export async function startFactorAnalysis(options: {

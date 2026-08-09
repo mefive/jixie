@@ -6,7 +6,9 @@ import type {
   FactorAnalysisSpecV3,
   FactorAnalysisSpecV4,
   FactorAnalysisSpecV5,
+  FactorCompositeDefinition,
   FactorCompositeDefinitionV1,
+  FactorPanelCompositeDefinitionV2,
   FactorResearchSpecV1,
   FactorResearchIntentV1,
 } from '@jixie/shared';
@@ -87,6 +89,42 @@ export const factorCompositeDefinitionV1Schema: z.ZodType<FactorCompositeDefinit
       seen.add(component.factor);
     });
   });
+
+export const factorPanelCompositeDefinitionV2Schema: z.ZodType<FactorPanelCompositeDefinitionV2> = z
+  .object({
+    version: z.literal(2),
+    name: z.string().trim().min(1).max(80),
+    analysisKind: z.literal('panel'),
+    standardization: z.enum(['rank', 'zscore']),
+    weighting: z.literal('equal'),
+    components: z
+      .array(
+        z.object({
+          factor: z.string().trim().min(1).max(80),
+          direction: z.enum(['positive', 'negative']),
+        }),
+      )
+      .min(2)
+      .max(5),
+  })
+  .superRefine((definition, context) => {
+    const seen = new Set<string>();
+    definition.components.forEach((component, index) => {
+      if (seen.has(component.factor)) {
+        context.addIssue({
+          code: 'custom',
+          path: ['components', index, 'factor'],
+          message: 'Composite factors must be distinct',
+        });
+      }
+      seen.add(component.factor);
+    });
+  });
+
+export const factorCompositeDefinitionSchema = z.union([
+  factorCompositeDefinitionV1Schema,
+  factorPanelCompositeDefinitionV2Schema,
+]) as z.ZodType<FactorCompositeDefinition>;
 
 export const factorAnalysisSpecV4Schema = factorAnalysisSpecV3Schema.extend({
   version: z.literal(4),
