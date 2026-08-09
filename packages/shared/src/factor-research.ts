@@ -126,6 +126,15 @@ export interface FactorPanelAssetClassReportV1 {
   bottomSelections: number;
 }
 
+export interface FactorPanelNormalizationDiagnosticsV1 {
+  withinClassRankIcMean: number | null;
+  withinClassComparisons: number;
+  betweenClassRankIcMean: number | null;
+  betweenClassPeriods: number;
+  betweenClassLongShortNetAnnualized: number;
+  betweenClassAverageOneWayTurnover: number;
+}
+
 export interface FactorPanelPeriodReportV1 {
   asOfDate: string;
   targetDate: string;
@@ -160,6 +169,8 @@ export interface FactorPanelReportV1 {
   longShortNetAnnualized: number;
   averageOneWayTurnover: number;
   byAssetClass: FactorPanelAssetClassReportV1[];
+  /** Added after the initial Panel V1 launch; absent on frozen historical reports. */
+  normalizationDiagnostics?: FactorPanelNormalizationDiagnosticsV1;
   periodReports: FactorPanelPeriodReportV1[];
 }
 

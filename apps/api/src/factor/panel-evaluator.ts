@@ -25,6 +25,9 @@ interface WeightedAsset extends PanelEvaluationObservation {
 interface PeriodPortfolio {
   report: FactorPanelPeriodReportV1;
   weights: Map<string, number>;
+  betweenClassWeights: Map<string, number>;
+  betweenClassLongShortNetReturn: number;
+  betweenClassOneWayTurnover: number;
   top: PanelEvaluationObservation[];
   bottom: PanelEvaluationObservation[];
 }
@@ -41,6 +44,7 @@ export class PanelEvaluator {
     const eligibleCounts = [...observationsByDate.values()].map((rows) => rows.length);
     const periodPortfolios: PeriodPortfolio[] = [];
     let previousWeights = new Map<string, number>();
+    let previousBetweenClassWeights = new Map<string, number>();
     let skippedPeriods = 0;
 
     for (const [asOfDate, rows] of observationsByDate) {
@@ -48,9 +52,16 @@ export class PanelEvaluator {
         skippedPeriods++;
         continue;
       }
-      const portfolio = buildPeriodPortfolio(researchSpec, asOfDate, rows, previousWeights);
+      const portfolio = buildPeriodPortfolio(
+        researchSpec,
+        asOfDate,
+        rows,
+        previousWeights,
+        previousBetweenClassWeights,
+      );
       periodPortfolios.push(portfolio);
       previousWeights = portfolio.weights;
+      previousBetweenClassWeights = portfolio.betweenClassWeights;
     }
     if (periodPortfolios.length < 3) {
       throw new Error('Panel evaluation requires at least 3 eligible periods.');
@@ -106,6 +117,11 @@ export class PanelEvaluator {
       ),
       averageOneWayTurnover: mean(periodReports.map((period) => period.oneWayTurnover)),
       byAssetClass: summarizeAssetClasses(researchSpec, validated, periodPortfolios),
+      normalizationDiagnostics: buildNormalizationDiagnostics(
+        validated,
+        periodPortfolios,
+        periodsPerYear,
+      ),
       periodReports,
     };
   }
@@ -194,6 +210,7 @@ function buildPeriodPortfolio(
   asOfDate: string,
   rows: PanelEvaluationObservation[],
   previousWeights: Map<string, number>,
+  previousBetweenClassWeights: Map<string, number>,
 ): PeriodPortfolio {
   const ranked = [...rows].sort(
     (left, right) => right.score - left.score || left.assetId.localeCompare(right.assetId),
@@ -213,14 +230,32 @@ function buildPeriodPortfolio(
       observation.weight,
     ]),
   );
+  const betweenClassLegs = buildBetweenClassLegs(rows, researchSpec);
+  const betweenClassWeights = new Map(
+    [...betweenClassLegs.top, ...betweenClassLegs.bottom].map((observation) => [
+      observation.assetId,
+      observation.weight,
+    ]),
+  );
   const oneWayTurnover = portfolioTurnover(previousWeights, weights);
+  const betweenClassOneWayTurnover = portfolioTurnover(
+    previousBetweenClassWeights,
+    betweenClassWeights,
+  );
   const topReturn = weightedReturn(weightedTop, 0.5);
   const bottomReturn = weightedReturn(weightedBottom, -0.5);
   const longShortGrossReturn = topReturn - bottomReturn;
   const transactionCost = oneWayTurnover * 2 * researchSpec.portfolio.transactionCostPerSide;
+  const betweenClassLongShortGrossReturn =
+    weightedReturn(betweenClassLegs.top, 0.5) - weightedReturn(betweenClassLegs.bottom, -0.5);
+  const betweenClassTransactionCost =
+    betweenClassOneWayTurnover * 2 * researchSpec.portfolio.transactionCostPerSide;
 
   return {
     weights,
+    betweenClassWeights,
+    betweenClassLongShortNetReturn: betweenClassLongShortGrossReturn - betweenClassTransactionCost,
+    betweenClassOneWayTurnover,
     top,
     bottom,
     report: {
@@ -238,6 +273,41 @@ function buildPeriodPortfolio(
       longShortNetReturn: longShortGrossReturn - transactionCost,
       oneWayTurnover,
     },
+  };
+}
+
+function buildBetweenClassLegs(
+  observations: PanelEvaluationObservation[],
+  researchSpec: PanelFactorResearchSpecV1,
+): { top: WeightedAsset[]; bottom: WeightedAsset[] } {
+  const byClass = new Map<MultiAssetClass, PanelEvaluationObservation[]>();
+  for (const observation of observations) {
+    const rows = byClass.get(observation.assetClass) ?? [];
+    rows.push(observation);
+    byClass.set(observation.assetClass, rows);
+  }
+  const rankedClasses = [...byClass.values()].sort(
+    (left, right) =>
+      mean(right.map((row) => row.score)) - mean(left.map((row) => row.score)) ||
+      left[0].assetClass.localeCompare(right[0].assetClass),
+  );
+  const topCount = Math.max(
+    1,
+    Math.floor(rankedClasses.length * researchSpec.portfolio.topFraction),
+  );
+  const bottomCount = Math.min(
+    Math.max(1, Math.floor(rankedClasses.length * researchSpec.portfolio.bottomFraction)),
+    rankedClasses.length - topCount,
+  );
+  const selectedTop = rankedClasses.slice(0, topCount);
+  const selectedBottom = rankedClasses.slice(-bottomCount);
+  return {
+    top: selectedTop.flatMap((rows) =>
+      legWeights(rows, 0.5 / selectedTop.length, researchSpec.volatilityScaling),
+    ),
+    bottom: selectedBottom.flatMap((rows) =>
+      legWeights(rows, -0.5 / selectedBottom.length, researchSpec.volatilityScaling),
+    ),
   };
 }
 
@@ -306,6 +376,55 @@ function summarizeAssetClasses(
       ),
     };
   });
+}
+
+function buildNormalizationDiagnostics(
+  observations: PanelEvaluationObservation[],
+  portfolios: PeriodPortfolio[],
+  periodsPerYear: number,
+): FactorPanelReportV1['normalizationDiagnostics'] {
+  const withinClassRankIcs: number[] = [];
+  const betweenClassRankIcs: number[] = [];
+  for (const rows of groupByDate(observations).values()) {
+    const byClass = new Map<MultiAssetClass, PanelEvaluationObservation[]>();
+    for (const row of rows) {
+      const classRows = byClass.get(row.assetClass) ?? [];
+      classRows.push(row);
+      byClass.set(row.assetClass, classRows);
+    }
+    for (const classRows of byClass.values()) {
+      if (classRows.length >= 2) {
+        withinClassRankIcs.push(
+          spearman(
+            classRows.map((row) => row.score),
+            classRows.map((row) => row.forwardReturn),
+          ),
+        );
+      }
+    }
+    if (byClass.size >= 2) {
+      const classRows = [...byClass.values()];
+      betweenClassRankIcs.push(
+        spearman(
+          classRows.map((members) => mean(members.map((row) => row.score))),
+          classRows.map((members) => mean(members.map((row) => row.forwardReturn))),
+        ),
+      );
+    }
+  }
+  return {
+    withinClassRankIcMean: withinClassRankIcs.length ? mean(withinClassRankIcs) : null,
+    withinClassComparisons: withinClassRankIcs.length,
+    betweenClassRankIcMean: betweenClassRankIcs.length ? mean(betweenClassRankIcs) : null,
+    betweenClassPeriods: betweenClassRankIcs.length,
+    betweenClassLongShortNetAnnualized: annualizedReturn(
+      portfolios.map((portfolio) => portfolio.betweenClassLongShortNetReturn),
+      periodsPerYear,
+    ),
+    betweenClassAverageOneWayTurnover: mean(
+      portfolios.map((portfolio) => portfolio.betweenClassOneWayTurnover),
+    ),
+  };
 }
 
 function periodsPerYearFor(frequency: PanelFactorResearchSpecV1['observationFrequency']): number {

@@ -64,12 +64,64 @@ describe('PanelEvaluator', () => {
     expect(report.periodReports[0].longShortNetReturn).toBeCloseTo(0.049);
     expect(report.equalWeightAnnualized).toBeGreaterThan(0);
     expect(report.longShortNetAnnualized).toBeLessThan(report.longShortGrossAnnualized);
+    expect(report.normalizationDiagnostics).toMatchObject({
+      withinClassRankIcMean: null,
+      withinClassComparisons: 0,
+      betweenClassRankIcMean: 1,
+      betweenClassPeriods: 3,
+    });
+    expect(report.normalizationDiagnostics?.betweenClassLongShortNetAnnualized).toBeCloseTo(
+      report.longShortNetAnnualized,
+    );
     expect(report.coverage.byAsset).toEqual([
       expect.objectContaining({ assetId: 'CN', observations: 3 }),
       expect.objectContaining({ assetId: 'US', observations: 3 }),
       expect.objectContaining({ assetId: 'BOND', observations: 3 }),
       expect.objectContaining({ assetId: 'GOLD', observations: 3 }),
     ]);
+  });
+
+  it('separates within-class evidence and between-class portfolio diagnostics', () => {
+    const imbalancedSpec: PanelFactorResearchSpecV1 = {
+      ...spec,
+      assets: [
+        { assetId: 'C1', assetClass: 'commodity' },
+        { assetId: 'C2', assetClass: 'commodity' },
+        { assetId: 'C3', assetClass: 'commodity' },
+        { assetId: 'B1', assetClass: 'fixed_income' },
+        { assetId: 'B2', assetClass: 'fixed_income' },
+        { assetId: 'CN', assetClass: 'cn_equity' },
+        { assetId: 'US', assetClass: 'overseas_equity' },
+        { assetId: 'GOLD', assetClass: 'gold' },
+      ],
+      minimumAssetsPerPeriod: 8,
+      portfolio: { ...spec.portfolio, topFraction: 0.5, bottomFraction: 0.5 },
+    };
+    const makeRows = (asOfDate: string, targetDate: string) =>
+      imbalancedSpec.assets.map((asset, index) => ({
+        ...asset,
+        asOfDate,
+        featureAvailableDate: asOfDate,
+        targetDate,
+        score: 8 - index,
+        forwardReturn: [0.08, 0.08, -0.08, 0, 0, 0, 0, 0][index],
+        volatility: 0.1,
+      }));
+    const report = new PanelEvaluator().evaluate(imbalancedSpec, [
+      ...makeRows('20240131', '20240229'),
+      ...makeRows('20240229', '20240329'),
+      ...makeRows('20240329', '20240430'),
+    ]);
+
+    expect(report.normalizationDiagnostics).toMatchObject({
+      withinClassComparisons: 6,
+      betweenClassPeriods: 3,
+    });
+    expect(report.normalizationDiagnostics?.withinClassRankIcMean).not.toBeNull();
+    expect(report.normalizationDiagnostics?.betweenClassRankIcMean).not.toBeNull();
+    expect(report.normalizationDiagnostics?.betweenClassLongShortNetAnnualized).not.toBeCloseTo(
+      report.longShortNetAnnualized,
+    );
   });
 
   it('reports missing-history periods instead of silently shrinking the universe', () => {
