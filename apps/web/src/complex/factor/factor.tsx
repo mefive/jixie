@@ -2275,6 +2275,75 @@ const PanelReportBody = complex.component(() => {
         <Metric label={t('panel.turnover')} value={pct(report.averageOneWayTurnover)} />
       </div>
 
+      {report.normalizationDiagnostics && (
+        <>
+          <div className="jx-factor-sectionTitle">{t('panel.normalizationTitle')}</div>
+          <Alert type="info" showIcon title={t('panel.normalizationNotice')} />
+          <div className="jx-factor-timeAudit" data-testid="panel-normalization-diagnostics">
+            <Metric
+              label={t('panel.withinClassRankIc')}
+              value={
+                report.normalizationDiagnostics.withinClassRankIcMean == null
+                  ? '—'
+                  : report.normalizationDiagnostics.withinClassRankIcMean.toFixed(3)
+              }
+            />
+            <Metric
+              label={t('panel.withinClassComparisons')}
+              value={String(report.normalizationDiagnostics.withinClassComparisons)}
+            />
+            <Metric
+              label={t('panel.betweenClassRankIc')}
+              value={
+                report.normalizationDiagnostics.betweenClassRankIcMean == null
+                  ? '—'
+                  : report.normalizationDiagnostics.betweenClassRankIcMean.toFixed(3)
+              }
+            />
+            <Metric
+              label={t('panel.betweenClassPeriods')}
+              value={String(report.normalizationDiagnostics.betweenClassPeriods)}
+            />
+            <Metric
+              label={t('panel.betweenClassNet')}
+              value={pct(report.normalizationDiagnostics.betweenClassLongShortNetAnnualized)}
+            />
+            <Metric
+              label={t('panel.betweenClassTurnover')}
+              value={pct(report.normalizationDiagnostics.betweenClassAverageOneWayTurnover)}
+            />
+          </div>
+          <div className="jx-factor-sectionTitle">{t('panel.classDiagnosticsTitle')}</div>
+          <div className="jx-factor-timeAssetList">
+            {report.byAssetClass.map((row) => (
+              <div className="jx-factor-timeAssetCard" key={row.assetClass}>
+                <div className="jx-factor-timeAssetHead">
+                  <strong>{t(`panel.assetClasses.${row.assetClass}`)}</strong>
+                </div>
+                <div className="jx-factor-timeAssetMetrics">
+                  <span>
+                    <small>{t('panel.meanForwardReturn')}</small>
+                    <strong>{pct(row.meanForwardReturn)}</strong>
+                  </span>
+                  <span>
+                    <small>{t('panel.topSelectionRate')}</small>
+                    <strong>
+                      {pct(row.observations ? row.topSelections / row.observations : 0)}
+                    </strong>
+                  </span>
+                  <span>
+                    <small>{t('panel.bottomSelectionRate')}</small>
+                    <strong>
+                      {pct(row.observations ? row.bottomSelections / row.observations : 0)}
+                    </strong>
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
       <div className="jx-factor-sectionTitle">{t('panel.coverageTitle')}</div>
       <div className="jx-factor-timeAssetList">
         {report.coverage.byAsset.map((row) => (

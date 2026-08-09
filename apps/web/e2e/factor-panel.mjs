@@ -128,6 +128,7 @@ try {
   const commodityCoverage = ['159985.SZ', '159980.SZ', '159981.SZ'].map((assetId) =>
     report?.coverage?.byAsset?.find((row) => row.assetId === assetId),
   );
+  const normalization = report?.normalizationDiagnostics;
   if (
     detail.status !== 'done' ||
     detail.analysisKind !== 'panel' ||
@@ -152,6 +153,12 @@ try {
         row.observations < 50 ||
         row.observations >= report.periods,
     ) ||
+    normalization?.withinClassComparisons < 100 ||
+    normalization?.betweenClassPeriods !== report.periods ||
+    !Number.isFinite(normalization?.withinClassRankIcMean) ||
+    !Number.isFinite(normalization?.betweenClassRankIcMean) ||
+    !Number.isFinite(normalization?.betweenClassLongShortNetAnnualized) ||
+    !Number.isFinite(normalization?.betweenClassAverageOneWayTurnover) ||
     detail.holdout?.eligible !== true ||
     !Number.isFinite(report?.rankIcMean) ||
     !Number.isFinite(report?.longShortNetAnnualized)
@@ -169,6 +176,10 @@ try {
   await durationCoverage.waitFor();
   await page.locator('.jx-factor-code .monaco-editor').waitFor({ timeout: 30_000 });
   await page.screenshot({ path: `${SHOTS}factor-panel-report.png`, fullPage: true });
+  const normalizationDiagnostics = page.getByTestId('panel-normalization-diagnostics');
+  await normalizationDiagnostics.waitFor();
+  await normalizationDiagnostics.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: `${SHOTS}factor-panel-normalization.png` });
   await durationCoverage.scrollIntoViewIfNeeded();
   await page.screenshot({ path: `${SHOTS}factor-panel-duration-coverage.png` });
   const commodityCoverageCard = page.getByText('能源化工期货 ETF', { exact: true });
@@ -373,7 +384,7 @@ try {
     throw new Error(`browser errors: ${browserErrors.join('\n')}`);
   }
   console.log(
-    `[factor-panel-e2e] explore=${run.body.reportId} periods=${report.periods} observations=${report.observations} medianAssets=${report.coverage.medianAssets} rankIc=${report.rankIcMean.toFixed(4)} holdout=${holdoutRun.reportId} holdoutRankIc=${holdoutReport.rankIcMean.toFixed(4)} criterion=${criterionPassed ? 'passed' : 'missed'} strategy=${strategyId} trades=${result.trades} return=${result.totalReturn.toFixed(4)} screenshots=6`,
+    `[factor-panel-e2e] explore=${run.body.reportId} periods=${report.periods} observations=${report.observations} medianAssets=${report.coverage.medianAssets} rankIc=${report.rankIcMean.toFixed(4)} withinClassRankIc=${normalization.withinClassRankIcMean.toFixed(4)} betweenClassRankIc=${normalization.betweenClassRankIcMean.toFixed(4)} betweenClassNet=${normalization.betweenClassLongShortNetAnnualized.toFixed(4)} holdout=${holdoutRun.reportId} holdoutRankIc=${holdoutReport.rankIcMean.toFixed(4)} criterion=${criterionPassed ? 'passed' : 'missed'} strategy=${strategyId} trades=${result.trades} return=${result.totalReturn.toFixed(4)} screenshots=7`,
   );
 } finally {
   if (strategyId) {
