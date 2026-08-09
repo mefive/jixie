@@ -2223,11 +2223,30 @@ const PanelReportBody = complex.component(() => {
   const researchSpec = store.reportDetail?.researchSpec;
   const spec =
     researchSpec?.analysisKind === 'panel' ? (researchSpec as PanelFactorResearchSpecV1) : null;
+  const revealedHoldout =
+    store.reportDetail?.phase === 'holdout' && !!store.reportDetail.revealedAt;
+  const holdoutCriterionPassed =
+    revealedHoldout && !!store.reportDetail?.researchPayload
+      ? factorResearchCriterionPassed(
+          store.reportDetail.researchPayload,
+          store.reportDetail.researchIntent,
+        )
+      : false;
   if (!report || !spec) {
     return <Placeholder icon={faPlay} text={t('runPrompt')} />;
   }
   return (
     <div className="jx-factor-timeReport" data-testid="panel-report">
+      {revealedHoldout && (
+        <Alert
+          data-testid="panel-holdout-result"
+          type={holdoutCriterionPassed ? 'success' : 'warning'}
+          showIcon
+          title={t(holdoutCriterionPassed ? 'holdoutCriterionPassed' : 'holdoutCriterionMissed', {
+            time: dayjs(store.reportDetail.revealedAt).format('YYYY-MM-DD HH:mm'),
+          })}
+        />
+      )}
       <Alert type="info" showIcon title={t('panel.reportNotice')} />
       <div className="jx-factor-timeAudit">
         <Metric label={t('panel.researchType')} value={t('panel.methodBadge')} />
