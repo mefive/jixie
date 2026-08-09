@@ -428,6 +428,13 @@ Tushare 宏观接口返回的是当前值，不提供完整历史修订快照。
 从当前时点开始积累 `captured_as_available` vintage。下一步先实现统一 as-of 查询与未来函数测试，再接
 M1/M2 和社融，不能让后两者阻塞已经可验证的增长、通胀最小闭环。
 
+**2026-08-09 as-of 查询契约：**宏观读取已统一为两种不可混淆的 revision policy。严格研究使用
+`as_available`，同时要求 `availableDate <= decisionDate` 和 `vintageDate <= decisionDate`，再为每个
+系列与观察期选择当时最新的本地 vintage；因此在 2026-08-09 首次捕获之前，不会凭空产生“实时历史”。
+`latest_vintage` 只用于探索，会按历史可得日对齐当前数据库里的最新 revision，并在结果中强制统计
+`futureVintageRows` 与 `latestValueBackfillRows`。带有未来 vintage 的探索结果不得升级为 validated 或
+production Factor。未来函数 fixture 已覆盖发布前不可见、决策日后修订不可见和 data cutoff 三条边界。
+
 ### 波次 4：商品研究底座
 
 - 先接南华商品指数和上海黄金现货；

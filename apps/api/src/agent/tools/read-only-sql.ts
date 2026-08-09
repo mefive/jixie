@@ -41,7 +41,7 @@ export const SQL_TABLE_DOCS: Record<string, string> = {
   MacroSeries:
     'seriesKey, nameZh, nameEn, domain(growth/inflation/etc.), frequency, unit, source, sourceApi, sourceField, defaultTransform, revisionPolicy, createdAt, updatedAt — canonical macro series catalog; join MacroObservation by seriesKey and preserve the declared unit and revision policy',
   MacroObservation:
-    'seriesKey, period(observation month YYYYMM), vintageDate(capture date YYYYMMDD), value, releaseDate(null when unavailable), availableDate(mandatory PIT gate), availabilityKind(official_schedule/conservative_lag), vintageKind(captured_as_available/latest_value_backfill), retrievedAt — macro observation vintages; research must filter availableDate<=decision date and disclose latest_value_backfill because it is not a historical real-time vintage',
+    'seriesKey, period(observation month YYYYMM), vintageDate(capture date YYYYMMDD), value, releaseDate(null when unavailable), availableDate(mandatory PIT gate), availabilityKind(official_schedule/conservative_lag), vintageKind(captured_as_available/latest_value_backfill), retrievedAt — macro observation vintages; strict PIT research must filter availableDate<=decision date AND vintageDate<=decision date, select the latest eligible vintage per series+period, and disclose latest_value_backfill because it is not a historical real-time vintage',
   MacroReleaseSchedule:
     'publishDate, title, publishMonth(calendar month containing the release), issuingOrg, dataApi, retrievedAt — raw official Chinese economic-data publication calendar; publishMonth is not the observation period and must be mapped with series-specific release rules',
   StkLimit: 'tsCode, tradeDate, upLimit, downLimit — daily up/down price limits (unadjusted)',

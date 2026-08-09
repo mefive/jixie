@@ -843,6 +843,11 @@ Panel Universe 的资产类别市场收益统计状态交易日、阶段数、�
 宏观状态 evaluator；下一步以明确 revision policy 的 as-of loader 和未来函数测试作为进入 Macro Regime
 报告的硬门槛。
 
+宏观 as-of loader 随后已实现 `as_available` 与 `latest_vintage` 两条显式路径。前者同时按可得日和本地
+捕获日门控，是真实 PIT 回测的默认且唯一可发布口径；后者允许用最终值历史做信号发现，但报告必须披露
+读取的未来 revision 和 `latest_value_backfill` 数量，且不能据此通过发布门。这个区分保留了长历史探索
+能力，也避免把“按发布日期滞后最终值”错误命名为实时 vintage 回测。
+
 随后单独建设风险因子与组合归因：
 
 - 久期、曲线、信用、权益 beta、通胀、美元和商品风险暴露；
