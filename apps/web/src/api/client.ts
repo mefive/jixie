@@ -658,6 +658,22 @@ export function archiveFactor(id: string): Promise<PublishedFactor> {
   });
 }
 
+export function publishFactorComposite(
+  id: string,
+  approvedReportId: string,
+): Promise<PublishedFactor> {
+  return request(`/api/app/factors/composites/${encodeURIComponent(id)}/publish`, {
+    method: 'POST',
+    body: JSON.stringify({ approvedReportId }),
+  });
+}
+
+export function archiveFactorComposite(id: string): Promise<PublishedFactor> {
+  return request(`/api/app/factors/composites/${encodeURIComponent(id)}/archive`, {
+    method: 'POST',
+  });
+}
+
 export function createFactorComposite(
   definition: FactorCompositeDefinition,
 ): Promise<FactorCompositeResource> {
@@ -665,6 +681,10 @@ export function createFactorComposite(
     method: 'POST',
     body: JSON.stringify({ definition }),
   });
+}
+
+export function getFactorComposite(id: string): Promise<FactorCompositeResource> {
+  return request(`/api/app/factors/composites/${encodeURIComponent(id)}`);
 }
 
 export function updateFactorComposite(
@@ -679,6 +699,12 @@ export function updateFactorComposite(
 
 export function deleteFactorComposite(id: string): Promise<{ ok: true }> {
   return request(`/api/app/factors/composites/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+export function copyFactorComposite(id: string): Promise<FactorCompositeResource> {
+  return request(`/api/app/factors/composites/${encodeURIComponent(id)}/copy`, {
+    method: 'POST',
+  });
 }
 
 // —— Custom factors (code-first, Agent-authored) —— created on the first Agent prompt, then updated by

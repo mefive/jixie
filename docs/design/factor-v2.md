@@ -758,8 +758,27 @@ Panel 报告允许没有新增诊断字段，读取时保持兼容。九资产�
 `apps/web/e2e/factor-panel-composite.mjs`，截图为
 `apps/web/acceptance/factor-panel-composite.png`。
 
-**本 Phase 剩余：**Panel 组合 Factor 的不可变发布与策略 `ctx.factor` 运行时；策略结果中的资产收益贡献、
-风险贡献、配置漂移与宏观阶段分解。专业期货 Carry、库存和宏观 vintage 仍归 Phase 5。
+**2026-08-09 Panel 组合发布与策略闭环：**`FactorPanelCompositeDefinition V2` 在创建时取得用户内唯一、
+不可修改的 `key`；草稿可编辑，发布时必须绑定同一组合的完成报告，并逐字复核报告冻结的组合定义与全部
+成分源码。发布还要求每个 Panel 成分本身已经发布。发布后组合不可编辑或删除，只能归档或复制为独立的
+`_vN` 草稿；复制不继承报告、发布状态或策略引用。
+
+策略 host 从批准报告读取冻结源码包和研究 Universe，不再读取成分的当前代码；策略的显式 `watch`
+必须与批准报告资产池一致，不一致时 fail-closed。`ctx.factor(compositeKey, asset)` 在每个
+决策日先对该资产池中所有 ETF 计算共有成分，再按研究定义做共同交集、Rank/Z-score、方向对齐和
+等权合成。因此策略消费的是与报告同义的跨资产可比分数，同时仍由策略自己决定调仓周期、Top N、目标
+权重和真实订单。策略回测结果只冻结父组合 ID、key、源码包 hash、批准报告和输入字段，不把内部成分
+伪装成多条独立策略依赖。
+
+真实浏览器已走通“创建组合 → Panel explore → 密封 Holdout → 发布 → 用于策略 → 月度 ETF 多头回测”，
+2023-01 至 2025-01 产生 41 笔真实 ETF 成交；结果页显示唯一父依赖
+`momentum_low_vol_panel`，批准报告源码包 hash 与回测血缘一致。回归脚本仍为
+`apps/web/e2e/factor-panel-composite.mjs`，新增截图
+`apps/web/acceptance/factor-panel-composite-published.png` 和
+`apps/web/acceptance/factor-panel-composite-strategy.png`。
+
+**本 Phase 剩余：**策略结果中的资产收益贡献、风险贡献、配置漂移与宏观阶段分解。专业期货 Carry、
+库存和宏观 vintage 仍归 Phase 5。
 
 ### Phase 5：商品专业特征、宏观状态与风险因子
 

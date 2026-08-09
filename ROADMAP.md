@@ -208,8 +208,8 @@ before/after 样本数(因子值→成仓/前瞻行情→上市时间→流动�
 
 把当前股票横截面 FactorReport 升级为资产无关的研究协议：保留现有 `Factor` / `FactorReport`、
 研究卡、holdout 和策略回测，新增横截面 / 时间序列 / 跨资产 panel / 宏观状态四类评估器；通过不可变
-`FactorRelease` 把研究结果发布为版本化 `FactorSignal`，策略 Lab 引用具体版本并继续用 `period`
-调仓。债券、商品和宏观提供数据字段、特征和模板，不各建一套回测产品；预测因子与久期、信用、通胀等
+`Factor.key` 把完成验证的定义发布为不可修改的研究资产，策略 Lab 直接引用唯一 key 并继续用 `period`
+调仓；修改通过复制为独立 `_vN` 草稿重新研究，不设置发布版本或 `FactorRelease`。债券、商品和宏观提供数据字段、特征和模板，不各建一套回测产品；预测因子与久期、信用、通胀等
 风险因子分开。**MVP = Phase 0–3**：股票零回归 + 一个 ETF/债券时间序列因子完成样本外 → 发布 →
 策略回测 → 部署 → 今日信号可追溯；跨资产 panel 作为 Multi-Asset V1。详设、迁移和验收见
 [`docs/design/factor-v2.md`](docs/design/factor-v2.md)，数据依赖见

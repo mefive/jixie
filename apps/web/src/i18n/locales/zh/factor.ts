@@ -190,6 +190,8 @@ export const zhFactor = {
   compositeEditTitle: '编辑多因子合成',
   compositeName: '名称',
   compositeNamePlaceholder: '例如：质量 + 价值',
+  compositeStrategyKey: '策略代码',
+  compositeStrategyKeyPlaceholder: '例如：momentum_low_vol_panel',
   compositeResearchMethod: '研究方式',
   compositeResearchMethodEquity: '股票横截面',
   compositeResearchMethodPanel: '跨资产面板',

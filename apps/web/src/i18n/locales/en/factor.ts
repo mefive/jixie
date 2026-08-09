@@ -203,6 +203,8 @@ export const enFactor: typeof zhFactor = {
   compositeEditTitle: 'Edit multi-factor composite',
   compositeName: 'Name',
   compositeNamePlaceholder: 'e.g. Quality + value',
+  compositeStrategyKey: 'Strategy key',
+  compositeStrategyKeyPlaceholder: 'e.g. momentum_low_vol_panel',
   compositeResearchMethod: 'Research method',
   compositeResearchMethodEquity: 'Equity cross-section',
   compositeResearchMethodPanel: 'Cross-asset panel',

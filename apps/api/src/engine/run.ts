@@ -466,7 +466,7 @@ function buildCustomFactorRuntime(
 
   const factors = new Map(modules.map((mod) => [mod.key, evaluateCustomFactorModule(mod)]));
   const warnedKeys = new Set<string>();
-  return new CustomFactorRuntime(factors, engineData, (key, message) => {
+  return new CustomFactorRuntime(factors, engineData, cfg.strategy.watch ?? [], (key, message) => {
     // First compute error per factor reaches the run log; later ones are dropped (same failure repeats per stock×day).
     if (!warnedKeys.has(key)) {
       warnedKeys.add(key);

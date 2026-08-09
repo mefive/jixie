@@ -15,12 +15,20 @@ import type { BarRow } from './types.js';
  */
 export interface CustomFactorModule {
   key: string; // immutable Factor.key
-  js: string; // the factor module, host-transformed TS→CJS
+  js?: string; // factor module transformed to CJS; omitted for a frozen panel composite bundle
   historyFields?: CustomFactorHistoryField[];
   /** Omitted means the cross-sectional Factor SDK. Asset-scoped Factor V2 definitions carry
    * their compiler-derived execution contract across the engine wall. */
   analysisKind?: 'cross_sectional' | 'time_series' | 'panel';
   assetSeries?: AssetFactorRuntimeMeta;
+  panelComposite?: {
+    standardization: 'rank' | 'zscore';
+    assetUniverse: string[];
+    components: Array<{
+      direction: 'positive' | 'negative';
+      module: CustomFactorModule;
+    }>;
+  };
 }
 
 export type CustomFactorHistoryField = 'turnoverRateF' | 'roe' | 'grossprofitMargin';
@@ -52,6 +60,15 @@ export type EvaluatedCustomFactor =
       kind: 'asset_series';
       factor: AssetFactorDefinition;
       meta: AssetFactorRuntimeMeta;
+    }
+  | {
+      kind: 'panel_composite';
+      standardization: 'rank' | 'zscore';
+      assetUniverse: string[];
+      components: Array<{
+        direction: 'positive' | 'negative';
+        evaluated: Extract<EvaluatedCustomFactor, { kind: 'asset_series' }>;
+      }>;
     };
 
 /** Identify expensive auxiliary histories before factor code enters the engine wall. */
@@ -71,6 +88,27 @@ export function extractCustomFactorHistoryFields(source: string): CustomFactorHi
 
 /** Evaluate one factor module — mirrors wall-entry's strategy evaluation (same ambient style). */
 export function evaluateCustomFactorModule(mod: CustomFactorModule): EvaluatedCustomFactor {
+  if (mod.panelComposite) {
+    if (mod.analysisKind !== 'panel' || mod.panelComposite.components.length < 2) {
+      throw new Error(`factor ${mod.key} has an invalid panel composite contract`);
+    }
+    const components = mod.panelComposite.components.map((component) => {
+      const evaluated = evaluateCustomFactorModule(component.module);
+      if (evaluated.kind !== 'asset_series' || evaluated.factor.analysisKind !== 'panel') {
+        throw new Error(`factor ${mod.key} panel composite components must be panel factors`);
+      }
+      return { direction: component.direction, evaluated };
+    });
+    return {
+      kind: 'panel_composite',
+      standardization: mod.panelComposite.standardization,
+      assetUniverse: [...mod.panelComposite.assetUniverse],
+      components,
+    };
+  }
+  if (!mod.js) {
+    throw new Error(`factor ${mod.key} is missing executable code`);
+  }
   const moduleShim: { exports: Record<string, unknown> } = { exports: {} };
   try {
     const run = new Function(
@@ -155,8 +193,20 @@ export class CustomFactorRuntime {
   constructor(
     private factors: Map<string, EvaluatedCustomFactor>,
     private engineData: EngineData,
+    private assetUniverse: string[],
     private onComputeError: (key: string, message: string) => void,
-  ) {}
+  ) {
+    for (const [key, factor] of factors) {
+      if (
+        factor.kind === 'panel_composite' &&
+        !sameAssetUniverse(factor.assetUniverse, assetUniverse)
+      ) {
+        throw new Error(
+          `factor ${key} requires strategy.watch to match its approved research universe`,
+        );
+      }
+    }
+  }
 
   has(key: string): boolean {
     return this.factors.has(key);
@@ -184,6 +234,9 @@ export class CustomFactorRuntime {
     code: string,
     crossBar: BarRow | null,
   ): number | null {
+    if (evaluated.kind === 'panel_composite') {
+      return this.computePanelComposite(evaluated, key, date, code);
+    }
     if (evaluated.kind === 'asset_series') {
       return this.computeAssetSeries(evaluated, key, date, code);
     }
@@ -236,6 +289,45 @@ export class CustomFactorRuntime {
       this.onComputeError(key, e instanceof Error ? e.message : String(e));
       return null;
     }
+  }
+
+  private computePanelComposite(
+    evaluated: Extract<EvaluatedCustomFactor, { kind: 'panel_composite' }>,
+    key: string,
+    date: string,
+    requestedCode: string,
+  ): number | null {
+    const componentValues = evaluated.components.map((component, componentIndex) => ({
+      component,
+      values: this.assetUniverse.map((assetId) =>
+        this.compute(
+          component.evaluated,
+          `${key}:component:${componentIndex}`,
+          date,
+          assetId,
+          null,
+        ),
+      ),
+    }));
+    const eligibleIndexes = this.assetUniverse
+      .map((_, index) => index)
+      .filter((index) => componentValues.every((component) => component.values[index] != null));
+    if (eligibleIndexes.length === 0) {
+      return null;
+    }
+    const standardized = componentValues.map((component) => {
+      const raw = eligibleIndexes.map((index) => component.values[index]!);
+      return evaluated.standardization === 'rank' ? centeredRanks(raw) : standardScores(raw);
+    });
+    for (let position = 0; position < eligibleIndexes.length; position++) {
+      const assetId = this.assetUniverse[eligibleIndexes[position]];
+      const score = componentValues.reduce((sum, component, componentIndex) => {
+        const direction = component.component.direction === 'positive' ? 1 : -1;
+        return sum + standardized[componentIndex][position] * direction;
+      }, 0);
+      this.memo.set(`${key}|${date}|${assetId}`, score / componentValues.length);
+    }
+    return this.memo.get(`${key}|${date}|${requestedCode}`) ?? null;
   }
 
   /** Execute Factor V2 against adjusted bars ending on the decision date. The host compiler has
@@ -316,4 +408,45 @@ export class CustomFactorRuntime {
       debtToAssets: crossBar?.debtToAssets ?? null,
     };
   }
+}
+
+function centeredRanks(values: number[]): number[] {
+  if (values.length === 1) {
+    return [0];
+  }
+  const order = values
+    .map((value, index) => ({ value, index }))
+    .sort((left, right) => left.value - right.value);
+  const ranks = new Array<number>(values.length).fill(0);
+  let cursor = 0;
+  while (cursor < order.length) {
+    let last = cursor;
+    while (last + 1 < order.length && order[last + 1].value === order[cursor].value) {
+      last++;
+    }
+    const averageRank = (cursor + last) / 2;
+    for (let index = cursor; index <= last; index++) {
+      ranks[order[index].index] = averageRank;
+    }
+    cursor = last + 1;
+  }
+  return ranks.map((rank) => rank / (values.length - 1) - 0.5);
+}
+
+function standardScores(values: number[]): number[] {
+  const average = values.reduce((sum, value) => sum + value, 0) / values.length;
+  const variance = values.reduce((sum, value) => sum + (value - average) ** 2, 0) / values.length;
+  const standardDeviation = Math.sqrt(variance);
+  return standardDeviation === 0
+    ? values.map(() => 0)
+    : values.map((value) => (value - average) / standardDeviation);
+}
+
+function sameAssetUniverse(expected: string[], actual: string[]): boolean {
+  if (expected.length !== actual.length) {
+    return false;
+  }
+  const expectedSorted = [...expected].sort();
+  const actualSorted = [...actual].sort();
+  return expectedSorted.every((assetId, index) => assetId === actualSorted[index]);
 }

@@ -93,6 +93,7 @@ export const factorCompositeDefinitionV1Schema: z.ZodType<FactorCompositeDefinit
 export const factorPanelCompositeDefinitionV2Schema: z.ZodType<FactorPanelCompositeDefinitionV2> = z
   .object({
     version: z.literal(2),
+    key: z.string().regex(/^[a-z][a-z0-9_]{0,31}$/),
     name: z.string().trim().min(1).max(80),
     analysisKind: z.literal('panel'),
     standardization: z.enum(['rank', 'zscore']),
