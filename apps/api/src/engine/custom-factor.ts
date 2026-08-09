@@ -1,4 +1,4 @@
-import type { FactorBar } from '@jixie/shared';
+import type { FactorBar, MultiAssetClass } from '@jixie/shared';
 import type { CustomFactor, FactorCtx } from '../factor/factor-sdk.js';
 import { factorV2YieldTerm, type FactorV2FieldKey } from '../factor/factor-v2-fields.js';
 import type { EngineData } from './data.js';
@@ -21,9 +21,11 @@ export interface CustomFactorModule {
    * their compiler-derived execution contract across the engine wall. */
   analysisKind?: 'cross_sectional' | 'time_series' | 'panel';
   assetSeries?: AssetFactorRuntimeMeta;
+  /** Approved Panel research universe. It is metadata for allocation accounting, not factor execution. */
+  assetUniverse?: Array<{ assetId: string; assetClass: MultiAssetClass }>;
   panelComposite?: {
     standardization: 'rank' | 'zscore';
-    assetUniverse: string[];
+    assetUniverse: Array<{ assetId: string; assetClass: MultiAssetClass }>;
     components: Array<{
       direction: 'positive' | 'negative';
       module: CustomFactorModule;
@@ -64,7 +66,7 @@ export type EvaluatedCustomFactor =
   | {
       kind: 'panel_composite';
       standardization: 'rank' | 'zscore';
-      assetUniverse: string[];
+      assetUniverse: Array<{ assetId: string; assetClass: MultiAssetClass }>;
       components: Array<{
         direction: 'positive' | 'negative';
         evaluated: Extract<EvaluatedCustomFactor, { kind: 'asset_series' }>;
@@ -102,7 +104,7 @@ export function evaluateCustomFactorModule(mod: CustomFactorModule): EvaluatedCu
     return {
       kind: 'panel_composite',
       standardization: mod.panelComposite.standardization,
-      assetUniverse: [...mod.panelComposite.assetUniverse],
+      assetUniverse: mod.panelComposite.assetUniverse.map((asset) => ({ ...asset })),
       components,
     };
   }
@@ -199,7 +201,10 @@ export class CustomFactorRuntime {
     for (const [key, factor] of factors) {
       if (
         factor.kind === 'panel_composite' &&
-        !sameAssetUniverse(factor.assetUniverse, assetUniverse)
+        !sameAssetUniverse(
+          factor.assetUniverse.map((asset) => asset.assetId),
+          assetUniverse,
+        )
       ) {
         throw new Error(
           `factor ${key} requires strategy.watch to match its approved research universe`,

@@ -1,5 +1,6 @@
 import type { TradeDate } from './types.js';
 import type { FactorDependency } from './factor-dependency.js';
+import type { MultiAssetClass } from './factor-research.js';
 
 /**
  * Backtest config + result — the wire types for product line 1 (strategy backtest). The strategy itself is now
@@ -56,6 +57,72 @@ export interface TradeRecord {
   multiplier?: number;
 }
 
+export type AllocationAssetClass = MultiAssetClass | 'other';
+
+export interface AllocationContributionRow {
+  assetId: string;
+  assetClass: AllocationAssetClass;
+  averageWeight: number;
+  grossPnl: number;
+  costs: number;
+  netPnl: number;
+  /** Additive arithmetic contribution relative to initial capital. */
+  returnContribution: number;
+  /** Euler contribution to portfolio variance; rows sum to one when portfolio variance is positive. */
+  riskContribution: number | null;
+}
+
+export interface AllocationClassContributionRow {
+  assetClass: AllocationAssetClass;
+  averageWeight: number;
+  grossPnl: number;
+  costs: number;
+  netPnl: number;
+  returnContribution: number;
+  riskContribution: number | null;
+}
+
+export interface AllocationWeightPoint {
+  assetId: string;
+  assetClass: AllocationAssetClass;
+  weight: number;
+}
+
+export interface AllocationDriftEvent {
+  decisionDate: TradeDate;
+  executionDate: TradeDate;
+  target: AllocationWeightPoint[];
+  preTrade: AllocationWeightPoint[];
+  postTrade: AllocationWeightPoint[];
+  /** Half of the absolute weight differences, including cash. */
+  preTradeDistance: number;
+  postTradeDistance: number;
+  maxPostTradeDeviation: number;
+}
+
+/** Engine-produced allocation diagnostics. Consumers must not reconstruct accounting from fills. */
+export interface AllocationAnalysis {
+  version: 1;
+  methodology: 'daily_component_pnl';
+  riskMethodology: 'component_covariance';
+  observations: number;
+  reconciliation: {
+    portfolioPnl: number;
+    attributedNetPnl: number;
+    residual: number;
+    tolerance: number;
+    reconciled: boolean;
+  };
+  costs: {
+    fees: number;
+    slippage: number;
+    total: number;
+  };
+  assets: AllocationContributionRow[];
+  assetClasses: AllocationClassContributionRow[];
+  drift: AllocationDriftEvent[];
+}
+
 /** Backtest result shape returned over the wire (mirrors the engine's BacktestResult). */
 export interface BacktestSummary {
   name: string;
@@ -94,6 +161,8 @@ export interface BacktestSummary {
   monthly?: { month: string; ret: number }[]; // 'YYYYMM' → monthly return (monthly-return table)
   /** Immutable published factor definitions actually loaded for this run. */
   factorDependencies?: FactorDependency[];
+  /** Multi-asset allocation attribution, produced when the run carries an approved asset-class universe. */
+  allocationAnalysis?: AllocationAnalysis;
 }
 
 export type StrategyParamValue = number | string;

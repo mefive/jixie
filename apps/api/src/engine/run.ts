@@ -6,6 +6,7 @@ import { CustomFactorRuntime, evaluateCustomFactorModule } from './custom-factor
 import { prismaDataPort } from './prisma-port.js';
 import { Portfolio } from './portfolio.js';
 import { FuturesPortfolio } from './futures-portfolio.js';
+import { AllocationAnalysisTracker, allocationAssetClasses } from './allocation-analysis.js';
 import {
   DEFAULT_COST,
   type BacktestResult,
@@ -157,6 +158,11 @@ async function runStockStrategyCore(
   } // custom-factor 'roe' histories read fina synchronously
   const customFactors = buildCustomFactorRuntime(cfg, engineData, locale, log);
   const portfolio = new Portfolio(cfg.initialCash, cost);
+  const allocationClasses = allocationAssetClasses(cfg.customFactors);
+  const allocationTracker =
+    allocationClasses.size > 0
+      ? new AllocationAnalysisTracker(cfg.initialCash, allocationClasses)
+      : null;
 
   const yuan = (v: number) => `¥${Math.round(v).toLocaleString()}`;
   log(
@@ -169,12 +175,14 @@ async function runStockStrategyCore(
 
   const nav: { date: string; value: number }[] = [];
   let pendingTargets: Map<string, number> | null = null;
+  let pendingTargetDecisionDate: string | null = null;
   let pendingOrders: Map<string, number> | null = null;
   let pendingLotOrders: Map<string, number> | null = null;
   const conditionalOrders = new Map<string, ConditionalOrder>();
   const factorObservations = new Map<string, Map<string, number | null>>();
   let lastYear = '';
   const total = engineData.timeline.length;
+  let capturedTrades = 0;
 
   for (let i = 0; i < total; i++) {
     const date = engineData.timeline[i];
@@ -183,8 +191,27 @@ async function runStockStrategyCore(
     if (pendingTargets) {
       const codes = new Set<string>([...pendingTargets.keys(), ...portfolio.positions.keys()]);
       await engineData.loadBars([...codes]); // ensure bars before fills/marking
+      const preTrade = allocationTracker?.weights(
+        portfolio.cash,
+        portfolio.positions,
+        (code) => engineData.openAt(code, date) ?? engineData.closeAt(code, date),
+      );
       rebalance(portfolio, engineData, date, pendingTargets, cost);
+      if (allocationTracker && preTrade && pendingTargetDecisionDate) {
+        allocationTracker.captureRebalance({
+          decisionDate: pendingTargetDecisionDate,
+          executionDate: date,
+          targets: pendingTargets,
+          preTrade,
+          postTrade: allocationTracker.weights(
+            portfolio.cash,
+            portfolio.positions,
+            (code) => engineData.openAt(code, date) ?? engineData.closeAt(code, date),
+          ),
+        });
+      }
       pendingTargets = null;
+      pendingTargetDecisionDate = null;
       log(t(locale, 'backtestRebalance', { date: fmtDate(date), count: portfolio.positions.size }));
     }
     if (pendingOrders || pendingLotOrders) {
@@ -212,6 +239,13 @@ async function runStockStrategyCore(
     // 2. Mark equity at today's close.
     const value = portfolio.equity((c) => engineData.closeAt(c, date));
     nav.push({ date, value });
+    allocationTracker?.captureDay({
+      value,
+      positions: portfolio.positions,
+      closeOf: (code) => engineData.closeAt(code, date),
+      trades: portfolio.trades.slice(capturedTrades),
+    });
+    capturedTrades = portfolio.trades.length;
 
     // Yearly heartbeat — keeps the run visibly advancing even between rebalances (any archetype).
     const year = date.slice(0, 4);
@@ -249,6 +283,7 @@ async function runStockStrategyCore(
     );
     if (collected.targets) {
       pendingTargets = collected.targets;
+      pendingTargetDecisionDate = date;
     }
     if (collected.orders) {
       pendingOrders = collected.orders;
@@ -273,6 +308,9 @@ async function runStockStrategyCore(
     : null;
   const bench = engineData.indexCloses(BENCHMARK); // CSI 300 for excess-return/IR (preloaded)
   const result = summarize(cfg, nav, portfolio.trades, bench, cost);
+  if (allocationTracker) {
+    result.allocationAnalysis = allocationTracker.finish(result.finalValue);
+  }
   log(
     t(locale, 'backtestDone', {
       days: result.days,
