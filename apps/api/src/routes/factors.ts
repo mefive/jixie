@@ -10,7 +10,10 @@ import { validateFactorDefinition } from '../factor/validate-factor-definition.j
 import { chatMessagesSchema } from '../lib/chat-schema.js';
 import { m } from '../i18n/index.js';
 import { localeFromRequest } from '../i18n/index.js';
-import { factorCompositeDefinitionSchema } from '../factor/report-spec.js';
+import {
+  factorCompositeDefinitionSchema,
+  factorPanelCompositeDefinitionV2Schema,
+} from '../factor/report-spec.js';
 import {
   timeSeriesTemplateCatalog,
   timeSeriesTemplateResource,
@@ -22,6 +25,10 @@ import {
   publishFactor,
   publishFactorBodySchema,
 } from '../factor/publication.js';
+import {
+  archivePanelComposite,
+  publishPanelComposite,
+} from '../factor/panel-composite-publication.js';
 
 const FACTOR_KEY_PATTERN = /^[a-z][a-z0-9_]{0,31}$/;
 
@@ -72,6 +79,28 @@ factorsRoute.post('/custom/:id/archive', async (c) => {
   return factor ? c.json(factor) : apiError(c, 'NOT_FOUND', m(c, 'factorNotFound'));
 });
 
+factorsRoute.post('/composites/:id/publish', validateJson(publishFactorBodySchema), async (c) => {
+  try {
+    return c.json(
+      await publishPanelComposite(
+        c.var.userId,
+        c.req.param('id'),
+        c.req.valid('json').approvedReportId,
+      ),
+    );
+  } catch (error) {
+    if (error instanceof FactorPublicationError) {
+      return factorPublicationApiError(c, error);
+    }
+    throw error;
+  }
+});
+
+factorsRoute.post('/composites/:id/archive', async (c) => {
+  const composite = await archivePanelComposite(c.var.userId, c.req.param('id'));
+  return composite ? c.json(composite) : apiError(c, 'NOT_FOUND', m(c, 'factorNotFound'));
+});
+
 factorsRoute.get('/catalog', async (c) => {
   // Preset factors (registry identity; code lives on their seeded rows) + this user's custom factors.
   const custom = await prisma.factor.findMany({
@@ -113,20 +142,26 @@ factorsRoute.get('/catalog', async (c) => {
     where: { userId: c.var.userId },
     orderBy: { updatedAt: 'desc' },
   });
-  const compositeMeta = composites.map((composite) => ({
-    key: composite.id,
-    label: composite.name,
-    kind: 'composite' as const,
-    composite: composite.definition as unknown as FactorCompositeDefinition,
-    analysisKind:
-      (composite.definition as { version?: number }).version === 2
-        ? ('panel' as const)
-        : ('cross_sectional' as const),
-    targetAssetClasses:
-      (composite.definition as { version?: number }).version === 2
-        ? (['equity', 'fixed_income', 'commodity'] as const)
-        : (['equity'] as const),
-  }));
+  const compositeMeta = composites.map((composite) => {
+    const definition = factorCompositeDefinitionSchema.parse(composite.definition);
+    return {
+      key: composite.id,
+      label: composite.name,
+      kind: 'composite' as const,
+      composite: definition,
+      factorKey: composite.key ?? undefined,
+      strategyKey: strategyKey(composite.key ?? '', composite.status),
+      status:
+        composite.status === 'published' || composite.status === 'archived'
+          ? composite.status
+          : ('draft' as const),
+      analysisKind: definition.version === 2 ? ('panel' as const) : ('cross_sectional' as const),
+      targetAssetClasses:
+        definition.version === 2
+          ? (['equity', 'fixed_income', 'commodity'] as const)
+          : (['equity'] as const),
+    };
+  });
   return c.json([
     ...builtinCatalog(),
     ...timeSeriesTemplateCatalog(locale),
@@ -161,15 +196,28 @@ async function validateCompositeComponents(userId: string, definition: FactorCom
 
 function compositeResource(row: {
   id: string;
+  key: string | null;
   name: string;
   definition: Prisma.JsonValue;
+  status: string;
+  approvedReportId: string | null;
+  codeHash: string | null;
+  publishedAt: Date | null;
+  archivedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }) {
   return {
     id: row.id,
+    key: row.key,
     name: row.name,
     definition: row.definition as unknown as FactorCompositeDefinition,
+    status:
+      row.status === 'published' || row.status === 'archived' ? row.status : ('draft' as const),
+    approvedReportId: row.approvedReportId,
+    codeHash: row.codeHash,
+    publishedAt: row.publishedAt?.toISOString() ?? null,
+    archivedAt: row.archivedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -188,15 +236,38 @@ factorsRoute.post('/composites', validateJson(compositeBody), async (c) => {
   if (invalid) {
     return apiError(c, 'VALIDATION_FAILED', m(c, 'unknownFactor', { factor: invalid }));
   }
-  const row = await prisma.factorComposite.create({
-    data: {
-      id: ulid(),
-      userId: c.var.userId,
-      name: definition.name,
-      definition: definition as unknown as Prisma.InputJsonValue,
-    },
-  });
-  return c.json(compositeResource(row));
+  if (definition.version === 2) {
+    const unavailable =
+      BUILTIN_KEYS.has(definition.key) ||
+      (await prisma.factor.findFirst({
+        where: { key: definition.key, userId: { in: [c.var.userId, BUILTIN_USER_ID] } },
+        select: { id: true },
+      })) ||
+      (await prisma.factorComposite.findFirst({
+        where: { key: definition.key, userId: c.var.userId },
+        select: { id: true },
+      }));
+    if (unavailable) {
+      return apiError(c, 'VALIDATION_FAILED', m(c, 'factorKeyUnavailable'));
+    }
+  }
+  try {
+    const row = await prisma.factorComposite.create({
+      data: {
+        id: ulid(),
+        userId: c.var.userId,
+        key: definition.version === 2 ? definition.key : null,
+        name: definition.name,
+        definition: definition as unknown as Prisma.InputJsonValue,
+      },
+    });
+    return c.json(compositeResource(row));
+  } catch (error) {
+    if ((error as { code?: string }).code === 'P2002') {
+      return apiError(c, 'VALIDATION_FAILED', m(c, 'factorKeyUnavailable'));
+    }
+    throw error;
+  }
 });
 
 factorsRoute.post('/composites/:id', validateJson(compositeBody), async (c) => {
@@ -205,8 +276,21 @@ factorsRoute.post('/composites/:id', validateJson(compositeBody), async (c) => {
   if (invalid) {
     return apiError(c, 'VALIDATION_FAILED', m(c, 'unknownFactor', { factor: invalid }));
   }
-  const updated = await prisma.factorComposite.updateMany({
+  const existing = await prisma.factorComposite.findFirst({
     where: { id: c.req.param('id'), userId: c.var.userId },
+    select: { key: true, status: true },
+  });
+  if (!existing) {
+    return apiError(c, 'NOT_FOUND', m(c, 'factorNotFound'));
+  }
+  if (existing.status !== 'draft') {
+    return apiError(c, 'VALIDATION_FAILED', m(c, 'publishedFactorReadonly'));
+  }
+  if (definition.version === 2 && existing.key !== definition.key) {
+    return apiError(c, 'VALIDATION_FAILED', m(c, 'factorKeyUnavailable'));
+  }
+  const updated = await prisma.factorComposite.updateMany({
+    where: { id: c.req.param('id'), userId: c.var.userId, status: 'draft' },
     data: {
       name: definition.name,
       definition: definition as unknown as Prisma.InputJsonValue,
@@ -222,10 +306,44 @@ factorsRoute.post('/composites/:id', validateJson(compositeBody), async (c) => {
 });
 
 factorsRoute.delete('/composites/:id', async (c) => {
-  await prisma.factorComposite.deleteMany({
+  const deleted = await prisma.factorComposite.deleteMany({
+    where: { id: c.req.param('id'), userId: c.var.userId, status: 'draft' },
+  });
+  if (deleted.count === 0) {
+    return apiError(c, 'VALIDATION_FAILED', m(c, 'publishedFactorReadonly'));
+  }
+  return c.json({ ok: true });
+});
+
+factorsRoute.post('/composites/:id/copy', async (c) => {
+  const source = await prisma.factorComposite.findFirst({
     where: { id: c.req.param('id'), userId: c.var.userId },
   });
-  return c.json({ ok: true });
+  if (!source) {
+    return apiError(c, 'NOT_FOUND', m(c, 'factorNotFound'));
+  }
+  const definition = factorPanelCompositeDefinitionV2Schema.safeParse(source.definition);
+  if (!definition.success || !source.key) {
+    return apiError(
+      c,
+      'VALIDATION_FAILED',
+      m(c, 'factorAnalysisKindUnsupported', { kind: 'composite' }),
+    );
+  }
+  const { key, version } = await nextCopyKey(c.var.userId, source.key);
+  const nameBase = source.name.replace(/\s+v\d+$/i, '');
+  const name = `${nameBase} v${version}`.slice(0, 80);
+  const copiedDefinition = { ...definition.data, key, name };
+  const row = await prisma.factorComposite.create({
+    data: {
+      id: ulid(),
+      userId: c.var.userId,
+      key,
+      name,
+      definition: copiedDefinition as unknown as Prisma.InputJsonValue,
+    },
+  });
+  return c.json(compositeResource(row));
 });
 
 // —— Custom factors (code-first, Agent-authored — mirrors the strategy workbench) —— created on the
@@ -302,7 +420,13 @@ const createBody = z.object({
 factorsRoute.post('/custom', validateJson(createBody), async (c) => {
   const userId = c.var.userId;
   const { key, name, code, analysisKind, messages } = c.req.valid('json');
-  if (BUILTIN_KEYS.has(key)) {
+  if (
+    BUILTIN_KEYS.has(key) ||
+    (await prisma.factorComposite.findFirst({
+      where: { userId, key },
+      select: { id: true },
+    }))
+  ) {
     return apiError(c, 'VALIDATION_FAILED', m(c, 'factorKeyUnavailable'));
   }
   try {
@@ -457,8 +581,11 @@ async function nextCopyKey(
   for (let version = startingVersion; version <= startingVersion + 100; version++) {
     const suffix = `_v${version}`;
     const key = `${base.slice(0, 32 - suffix.length).replace(/_+$/g, '')}${suffix}`;
-    const taken = await prisma.factor.findFirst({ where: { userId, key }, select: { id: true } });
-    if (!taken && !BUILTIN_KEYS.has(key)) {
+    const [factorTaken, compositeTaken] = await Promise.all([
+      prisma.factor.findFirst({ where: { userId, key }, select: { id: true } }),
+      prisma.factorComposite.findFirst({ where: { userId, key }, select: { id: true } }),
+    ]);
+    if (!factorTaken && !compositeTaken && !BUILTIN_KEYS.has(key)) {
       return { key, version };
     }
   }

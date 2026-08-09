@@ -619,35 +619,37 @@ const FactorLibrary = complex.component(
                 }}
               >
                 <span className="jx-factor-libName">{factorDisplayName(factor)}</span>
-                <span className="jx-factor-libActions">
-                  <Tooltip title={t('edit')}>
-                    <Button
-                      type="text"
-                      size="small"
-                      className="jx-factor-libDel"
-                      icon={<FontAwesomeIcon icon={faPen} />}
-                      aria-label={t('edit')}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setEditingComposite(factor);
-                        setCompositeOpen(true);
-                      }}
-                    />
-                  </Tooltip>
-                  <Tooltip title={t('deleteTitle')}>
-                    <Button
-                      type="text"
-                      size="small"
-                      className="jx-factor-libDel"
-                      icon={<FontAwesomeIcon icon={faTrash} />}
-                      aria-label={t('deleteTitle')}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        askDeleteComposite(factor.key, factor.label);
-                      }}
-                    />
-                  </Tooltip>
-                </span>
+                {factor.status === 'draft' && (
+                  <span className="jx-factor-libActions">
+                    <Tooltip title={t('edit')}>
+                      <Button
+                        type="text"
+                        size="small"
+                        className="jx-factor-libDel"
+                        icon={<FontAwesomeIcon icon={faPen} />}
+                        aria-label={t('edit')}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setEditingComposite(factor);
+                          setCompositeOpen(true);
+                        }}
+                      />
+                    </Tooltip>
+                    <Tooltip title={t('deleteTitle')}>
+                      <Button
+                        type="text"
+                        size="small"
+                        className="jx-factor-libDel"
+                        icon={<FontAwesomeIcon icon={faTrash} />}
+                        aria-label={t('deleteTitle')}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          askDeleteComposite(factor.key, factor.label);
+                        }}
+                      />
+                    </Tooltip>
+                  </span>
+                )}
               </div>
             ))}
 
@@ -746,6 +748,7 @@ const CompositeModal = complex.component(
     const chosen = new Set(definition.components.map((component) => component.factor));
     const valid =
       definition.name.trim().length > 0 &&
+      (definition.version === 1 || /^[a-z][a-z0-9_]{0,31}$/.test(definition.key)) &&
       definition.components.length >= 2 &&
       definition.components.length <= 5 &&
       definition.components.every((component) => component.factor) &&
@@ -786,6 +789,18 @@ const CompositeModal = complex.component(
               onChange={(event) => setDefinition({ ...definition, name: event.target.value })}
             />
           </label>
+          {definition.version === 2 && (
+            <label>
+              <span>{t('compositeStrategyKey')}</span>
+              <Input
+                value={definition.key}
+                maxLength={32}
+                placeholder={t('compositeStrategyKeyPlaceholder')}
+                disabled={!!editing}
+                onChange={(event) => setDefinition({ ...definition, key: event.target.value })}
+              />
+            </label>
+          )}
           <label>
             <span>{t('compositeResearchMethod')}</span>
             <Segmented
@@ -1146,6 +1161,7 @@ const CompositeWorkspace = complex.component(() => {
     <Splitter orientation="vertical">
       <Splitter.Panel min="20%">
         <section className="jx-factor-compositeWorkspace">
+          {definition.version === 2 && <FactorIdentityBar />}
           <div className="jx-factor-compositeHead">
             <div>
               <div className="jx-factor-compositeTitle">{definition.name}</div>
@@ -1164,6 +1180,7 @@ const CompositeWorkspace = complex.component(() => {
                 type="text"
                 icon={<FontAwesomeIcon icon={faPen} />}
                 aria-label={t('edit')}
+                disabled={store.factorStatus !== 'draft'}
                 onClick={() => setOpen(true)}
               />
             </Tooltip>
@@ -2740,7 +2757,9 @@ const FactorPublicationCard = complex.component(() => {
   if (!detail) {
     return null;
   }
-  const ownedFactor = store.mode === 'custom';
+  const ownedFactor =
+    store.mode === 'custom' ||
+    (store.mode === 'composite' && store.compositeDefinition?.version === 2);
 
   const publish = () => {
     modal.confirm({
@@ -2975,6 +2994,7 @@ function emptyCompositeDefinition(
   return analysisKind === 'panel'
     ? {
         version: 2,
+        key: '',
         name: '',
         analysisKind: 'panel',
         standardization: 'rank',

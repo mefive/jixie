@@ -32,7 +32,6 @@ import { refreshFactorMetadata } from '../factor/metadata.js';
 import {
   factorAnalysisSpecSchema,
   factorCompositeDefinitionV1Schema,
-  factorPanelCompositeDefinitionV2Schema,
   factorResearchIntentV1Schema,
   factorResearchSpecV1Schema,
   factorVariantKey,
@@ -54,6 +53,7 @@ import {
 } from '../factor/analysis-job.js';
 import { resolveTimeSeriesTemplateSource } from '../factor/time-series-templates.js';
 import { resolvePanelTemplateSource } from '../factor/panel-templates.js';
+import { resolvePanelFactorSource } from '../factor/panel-composite-source.js';
 
 /**
  * Factor workbench actions (singular, mounted at /api/app/factor — product line 1.5 · factor research).
@@ -942,51 +942,6 @@ async function resolveCustomAssetFactorSource<TAnalysisKind extends 'time_series
         { kind: TAnalysisKind }
       >)
     : null;
-}
-
-async function resolvePanelFactorSource(
-  userId: string,
-  factorId: string,
-): Promise<FactorAnalysisSource | null> {
-  const single =
-    resolvePanelTemplateSource(factorId) ??
-    (await resolveCustomAssetFactorSource(userId, factorId, 'panel'));
-  if (single) {
-    return single;
-  }
-
-  const composite = await prisma.factorComposite.findFirst({
-    where: { id: factorId, userId },
-    select: { name: true, definition: true },
-  });
-  if (!composite) {
-    return null;
-  }
-  const definition = factorPanelCompositeDefinitionV2Schema.safeParse(composite.definition);
-  if (!definition.success) {
-    return null;
-  }
-  const components: Extract<FactorAnalysisSource, { kind: 'panel_composite' }>['components'] = [];
-  for (const component of definition.data.components) {
-    const source =
-      resolvePanelTemplateSource(component.factor) ??
-      (await resolveCustomAssetFactorSource(userId, component.factor, 'panel'));
-    if (!source) {
-      return null;
-    }
-    components.push({
-      factor: component.factor,
-      code: source.code,
-      label: source.label,
-      direction: component.direction,
-    });
-  }
-  return {
-    kind: 'panel_composite',
-    label: composite.name,
-    definition: definition.data,
-    components,
-  };
 }
 
 // —— Correlation matrix (3.4): 2–8 factors × a fixed size column, cross-sectional Spearman ——

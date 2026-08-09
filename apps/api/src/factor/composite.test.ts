@@ -102,6 +102,7 @@ describe('combineFactorSeries', () => {
 describe('combinePanelFactorObservations', () => {
   const panelDefinition: FactorPanelCompositeDefinitionV2 = {
     version: 2,
+    key: 'momentum_low_vol',
     name: 'Momentum and defensive trend',
     analysisKind: 'panel',
     standardization: 'rank',

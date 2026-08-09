@@ -65,6 +65,7 @@ export interface FactorMeta {
   label: string; // Chinese
   description?: string; // optional catalog summary; surfaced by strategy-editor factor hovers when present
   strategyKey?: string; // immutable Factor.key; absent for drafts and archived factors
+  factorKey?: string; // immutable user-facing key even while a draft is not strategy-referencable
   status?: FactorStatus;
   kind: FactorKind;
   builtin?: boolean; // true = preset (a read-only code row in the library, can be copied into a custom factor)
@@ -249,6 +250,7 @@ export interface FactorCompositeDefinitionV1 {
  * their executable sources in every report, while this reusable definition keeps stable identities. */
 export interface FactorPanelCompositeDefinitionV2 {
   version: 2;
+  key: string;
   name: string;
   analysisKind: 'panel';
   standardization: FactorCompositeStandardization;
@@ -265,8 +267,14 @@ export type FactorCompositeDefinition =
 
 export interface FactorCompositeResource {
   id: string;
+  key?: string | null;
   name: string;
   definition: FactorCompositeDefinition;
+  status?: FactorStatus;
+  approvedReportId?: string | null;
+  codeHash?: string | null;
+  publishedAt?: string | null;
+  archivedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }

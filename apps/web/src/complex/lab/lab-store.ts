@@ -26,6 +26,7 @@ import {
   deleteStrategy,
   findBacktestRunningJob,
   findRunningStrategyScan,
+  getFactorComposite,
   getStrategy,
   getCurrentStrategyDeployment,
   getStrategyScanReport,
@@ -183,7 +184,10 @@ export class LabStore extends BaseStore<LabSetupParams> {
         if (!factor) {
           return null;
         }
-        const detail = await getCustomFactor(factor.key);
+        const detail =
+          factor.kind === 'composite'
+            ? await getFactorComposite(factor.key)
+            : await getCustomFactor(factor.key);
         const report = detail.approvedReportId
           ? await getFactorReport(detail.approvedReportId)
           : null;

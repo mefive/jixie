@@ -10,6 +10,8 @@ const context = await browser.newContext({ viewport: { width: 1440, height: 1000
 const page = await context.newPage();
 const browserErrors = [];
 let compositeId = null;
+let strategyId = null;
+let copyId = null;
 
 page.on('pageerror', (error) => browserErrors.push(`pageerror: ${error.message}`));
 page.on('console', (message) => {
@@ -59,6 +61,7 @@ try {
   const modal = page.getByRole('dialog', { name: '新建多因子合成' });
   await modal.getByText('跨资产面板', { exact: true }).click();
   await modal.getByRole('textbox', { name: '名称' }).fill('动量低波多资产组合');
+  await modal.getByRole('textbox', { name: '策略代码' }).fill('momentum_low_vol_panel');
   await modal.getByText('跨资产120日动量', { exact: true }).waitFor();
   await modal.getByText('跨资产60日波动率', { exact: true }).waitFor();
   await modal.getByRole('button', { name: '保 存' }).click();
@@ -179,20 +182,169 @@ try {
     throw new Error(`panel composite holdout snapshot drifted: ${JSON.stringify(sealed)}`);
   }
 
+  const publicationCard = page.getByTestId('factor-publication-card');
+  await publicationCard.getByTestId('factor-publish').click();
+  const publishModal = page.locator('.ant-modal-confirm:visible');
+  await publishModal.getByText('momentum_low_vol_panel', { exact: false }).waitFor();
+  await publishModal.getByRole('button', { name: /发\s*布/ }).click();
+  await publishModal.waitFor({ state: 'hidden', timeout: 30_000 });
+  await page.locator('.jx-factor-keyBar').getByText('已发布', { exact: true }).waitFor({
+    timeout: 30_000,
+  });
+  const published = await api(`/api/app/factors/composites/${compositeId}`);
+  if (
+    published.status !== 200 ||
+    published.body.status !== 'published' ||
+    published.body.key !== 'momentum_low_vol_panel' ||
+    published.body.approvedReportId !== run.body.reportId ||
+    published.body.codeHash !== detail.factorCodeHash
+  ) {
+    throw new Error(`invalid published panel composite: ${JSON.stringify(published)}`);
+  }
+  await page.screenshot({
+    path: `${SHOTS}factor-panel-composite-published.png`,
+    fullPage: true,
+  });
+
+  await publicationCard.getByTestId('factor-use-in-lab').click();
+  await page.waitForURL(/\/lab\?new=1&factorKey=momentum_low_vol_panel/, { timeout: 30_000 });
+  await page.waitForFunction(
+    (key) => document.querySelector('.jx-lab-heroInput')?.value.includes(key),
+    'momentum_low_vol_panel',
+    { timeout: 30_000 },
+  );
+  const assets = [
+    '510300.SH',
+    '513100.SH',
+    '511010.SH',
+    '511260.SH',
+    '511090.SH',
+    '518880.SH',
+    '159985.SZ',
+    '159980.SZ',
+    '159981.SZ',
+  ];
+  const strategyCode = [
+    `const etfs = ${JSON.stringify(assets)};`,
+    "let last = '';",
+    'export default defineStrategy({',
+    "  name: '已发布 Panel 组合轮动',",
+    '  watch: etfs,',
+    "  factors: ['momentum_low_vol_panel'],",
+    '  onBar(ctx) {',
+    "    const period = ctx.period('monthly');",
+    '    if (period === last) return;',
+    '    last = period;',
+    '    const picks = etfs',
+    "      .map(code => ({ code, score: ctx.factor('momentum_low_vol_panel', code) }))",
+    '      .filter(item => item.score != null)',
+    '      .sort((a, b) => b.score - a.score || a.code.localeCompare(b.code))',
+    '      .slice(0, 2)',
+    '      .map(item => item.code);',
+    '    if (picks.length === 2) ctx.equalWeight(picks);',
+    '    else ctx.setHoldings({});',
+    '  },',
+    '});',
+  ].join('\n');
+  const strategyConfig = {
+    name: '已发布 Panel 组合轮动',
+    start: '20230101',
+    end: exploreEnd,
+    initialCash: 1_000_000,
+    code: strategyCode,
+  };
+  const strategy = await api('/api/app/strategies', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(strategyConfig),
+  });
+  if (strategy.status !== 200 || !strategy.body.id) {
+    throw new Error(`panel composite strategy creation failed: ${JSON.stringify(strategy)}`);
+  }
+  strategyId = strategy.body.id;
+  const backtest = await api(`/api/app/strategy/backtest?strategyId=${strategyId}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(strategyConfig),
+  });
+  if (backtest.status !== 200 || !backtest.body.jobId) {
+    throw new Error(`panel composite backtest failed to start: ${JSON.stringify(backtest)}`);
+  }
+  const completed = await page.evaluate(
+    async ({ id, jobId }) => {
+      const deadline = Date.now() + 180_000;
+      while (Date.now() < deadline) {
+        const job = await fetch(`/api/app/strategy/backtest/${jobId}?since=0`, {
+          cache: 'no-store',
+        }).then((response) => response.json());
+        if (job.status === 'done') {
+          return fetch(`/api/app/strategies/${id}`, { cache: 'no-store' }).then((response) =>
+            response.json(),
+          );
+        }
+        if (job.status === 'error' || job.status === 'stale') {
+          throw new Error(`panel composite backtest ${job.status}: ${job.error ?? ''}`);
+        }
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+      throw new Error(`panel composite backtest ${jobId} timed out`);
+    },
+    { id: strategyId, jobId: backtest.body.jobId },
+  );
+  const dependency = completed.lastResult?.factorDependencies?.[0];
+  if (
+    completed.lastResult?.trades <= 0 ||
+    completed.lastResult?.factorDependencies?.length !== 1 ||
+    dependency?.factorId !== compositeId ||
+    dependency?.key !== 'momentum_low_vol_panel' ||
+    dependency?.analysisKind !== 'panel' ||
+    dependency?.codeHash !== published.body.codeHash ||
+    !completed.lastResult.tradeLog.every(
+      (trade) => assets.includes(trade.code) && trade.assetType === 'etf',
+    )
+  ) {
+    throw new Error(`panel composite strategy lineage failed: ${JSON.stringify(completed)}`);
+  }
+
+  await page.goto(`${BASE}/lab?id=${strategyId}`, { waitUntil: 'domcontentloaded' });
+  const dependencyPanel = page.getByTestId('strategy-factor-dependencies');
+  await dependencyPanel.getByText('momentum_low_vol_panel', { exact: false }).waitFor({
+    timeout: 30_000,
+  });
+  await dependencyPanel.getByText('跨资产面板', { exact: false }).waitFor();
+  await page.locator('.jx-lab-chart canvas').waitFor({ timeout: 30_000 });
+  await page.screenshot({
+    path: `${SHOTS}factor-panel-composite-strategy.png`,
+    fullPage: true,
+  });
+
+  const copied = await api(`/api/app/factors/composites/${compositeId}/copy`, {
+    method: 'POST',
+  });
+  if (
+    copied.status !== 200 ||
+    copied.body.status !== 'draft' ||
+    copied.body.key !== 'momentum_low_vol_panel_v2' ||
+    copied.body.definition?.key !== 'momentum_low_vol_panel_v2' ||
+    copied.body.approvedReportId != null ||
+    copied.body.codeHash != null
+  ) {
+    throw new Error(`panel composite copy is not independent: ${JSON.stringify(copied)}`);
+  }
+  copyId = copied.body.id;
+
   if (browserErrors.length > 0) {
     throw new Error(browserErrors.join('\n'));
   }
   console.log(
-    `[factor-panel-composite-e2e] PASS composite=${compositeId} report=${run.body.reportId} periods=${report.periods} observations=${report.observations}`,
+    `[factor-panel-composite-e2e] PASS composite=${compositeId} report=${run.body.reportId} periods=${report.periods} observations=${report.observations} strategy=${strategyId} trades=${completed.lastResult.trades} screenshots=3`,
   );
 } finally {
-  if (compositeId) {
-    await page
-      .evaluate(
-        async (id) => fetch(`/api/app/factors/composites/${id}`, { method: 'DELETE' }),
-        compositeId,
-      )
-      .catch(() => {});
+  if (copyId) {
+    await api(`/api/app/factors/composites/${copyId}`, { method: 'DELETE' }).catch(() => {});
+  }
+  if (strategyId) {
+    await api(`/api/app/strategies/${strategyId}`, { method: 'DELETE' }).catch(() => {});
   }
   await browser.close();
 }

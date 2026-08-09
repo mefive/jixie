@@ -949,14 +949,21 @@ model FactorWeatherPoint {
 /// A reusable multi-factor research definition. Reports freeze the full definition in specJson, so
 /// editing or deleting this row never changes historical results.
 model FactorComposite {
-  id         String   @id // ULID
-  userId     String
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name       String
-  definition Json // FactorCompositeDefinitionV1
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id               String    @id // ULID
+  userId           String
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  key              String? // immutable strategy handle for publishable Panel Composite V2 rows
+  name             String
+  definition       Json // FactorCompositeDefinitionV1 | FactorPanelCompositeDefinitionV2
+  status           String    @default("draft") // 'draft' | 'published' | 'archived'
+  approvedReportId String?   @unique
+  codeHash         String?
+  publishedAt      DateTime?
+  archivedAt       DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
+  @@unique([userId, key])
   @@index([userId, updatedAt])
 }
 

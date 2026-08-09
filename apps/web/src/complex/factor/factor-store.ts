@@ -58,8 +58,11 @@ import {
   createFactorComposite,
   updateFactorComposite,
   deleteFactorComposite,
+  copyFactorComposite,
   publishFactor,
   archiveFactor,
+  publishFactorComposite,
+  archiveFactorComposite,
 } from '@src/api/client';
 import { PANEL_ASSETS } from './panel-universe';
 
@@ -320,9 +323,17 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     });
     this.researchWindowLoader.setup({ request: () => getFactorResearchWindow() });
     this.publishLoader.setup({
-      request: (reportId: string) => publishFactor(this.selectedKey, reportId),
+      request: (reportId: string) =>
+        this.mode === 'composite'
+          ? publishFactorComposite(this.selectedKey, reportId)
+          : publishFactor(this.selectedKey, reportId),
     });
-    this.archiveLoader.setup({ request: () => archiveFactor(this.selectedKey) });
+    this.archiveLoader.setup({
+      request: () =>
+        this.mode === 'composite'
+          ? archiveFactorComposite(this.selectedKey)
+          : archiveFactor(this.selectedKey),
+    });
     this.correlationLoader.setup({
       request: () => getFactorCorrelation(this.corrKeys, this.freq, this.start, this.end),
     });
@@ -714,7 +725,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       this.jobId = null;
       this.logs = [];
       this.nlText = '';
-      this.factorKey = meta?.strategyKey ?? '';
+      this.factorKey = meta?.factorKey ?? meta?.strategyKey ?? '';
       this.factorStatus = meta?.status ?? 'draft';
       this.description = meta?.description ?? '';
       this.pendingAgentCode = null;
@@ -792,7 +803,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     if (!sourceId) {
       return;
     }
-    const copy = await copyFactor(sourceId);
+    const copy =
+      this.selected?.kind === 'composite'
+        ? await copyFactorComposite(sourceId)
+        : await copyFactor(sourceId);
     await this.catalogLoader.run();
     await this.selectFactor(copy.id);
   }

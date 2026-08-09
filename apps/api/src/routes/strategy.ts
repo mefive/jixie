@@ -39,15 +39,20 @@ async function syncedIndices(): Promise<string> {
 
 /** Published immutable factors available to new research/backtest strategies. */
 async function referencableFactors(userId: string): Promise<string> {
-  const rows = await prisma.factor.findMany({
-    where: { userId, status: 'published' },
-    select: {
-      key: true,
-      name: true,
-      analysisKind: true,
-    },
-    orderBy: { publishedAt: 'desc' },
-  });
+  const [factors, composites] = await Promise.all([
+    prisma.factor.findMany({
+      where: { userId, status: 'published' },
+      select: { key: true, name: true, analysisKind: true, publishedAt: true },
+    }),
+    prisma.factorComposite.findMany({
+      where: { userId, status: 'published', key: { not: null } },
+      select: { key: true, name: true, publishedAt: true },
+    }),
+  ]);
+  const rows = [
+    ...factors,
+    ...composites.map((row) => ({ ...row, key: row.key!, analysisKind: 'panel' })),
+  ].sort((left, right) => (right.publishedAt?.getTime() ?? 0) - (left.publishedAt?.getTime() ?? 0));
   return rows.length
     ? rows
         .map((row) => {

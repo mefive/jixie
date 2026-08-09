@@ -127,6 +127,7 @@ describe('factor report spec', () => {
     expect(
       factorPanelCompositeDefinitionV2Schema.parse({
         version: 2,
+        key: 'momentum_low_vol',
         name: 'Momentum and low volatility',
         analysisKind: 'panel',
         standardization: 'rank',
