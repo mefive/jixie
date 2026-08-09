@@ -2,6 +2,7 @@ import type { TradeDate } from '@jixie/shared';
 import { loadTushareConfig } from '../config.js';
 import { runDataQualityAudit } from '../data-quality/audit.js';
 import { prisma } from '../lib/prisma.js';
+import { syncChinaMacroData } from '../macro/china-macro.js';
 import { syncMarketIndicators } from '../market/sync-market-indicators.js';
 import { refreshAllFactorWeatherPins } from '../factor/weather.js';
 import { MARKET_WEATHER_INDICATOR_INDEX_CODES } from '../store/index-presets.js';
@@ -198,6 +199,12 @@ export async function runWeeklyMaintenance(
     await syncIndexBenchmarks(standardClient);
     await syncEtfBasic(standardClient);
     await syncFutureContracts(standardClient);
+    await syncChinaMacroData(
+      standardClient,
+      addMonths(today, -6).slice(0, 6),
+      today.slice(0, 6),
+      onLog,
+    );
 
     await updateMaintenanceRun(run.id, 'canonicalizing_codes', summary);
     const canonicalization = await canonicalizeStockCodes();

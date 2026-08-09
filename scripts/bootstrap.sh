@@ -232,6 +232,33 @@ commodity_etf_coverage() {
   "
 }
 
+macro_series_coverage() {
+  local database_file="$1"
+
+  sqlite3 "$database_file" "
+    WITH required(series_key) AS (
+      VALUES
+        ('cn_pmi_manufacturing'),
+        ('cn_cpi_yoy'),
+        ('cn_ppi_yoy')
+    ),
+    coverage AS (
+      SELECT
+        required.series_key,
+        min(observation.\"period\") AS first_period,
+        count(observation.\"period\") AS observation_rows
+      FROM required
+      LEFT JOIN \"MacroObservation\" AS observation
+        ON observation.\"seriesKey\" = required.series_key
+      GROUP BY required.series_key
+    )
+    SELECT count(*)
+    FROM coverage
+    WHERE first_period <= '200501'
+      AND observation_rows >= 200;
+  "
+}
+
 STAGING_DIR=""
 ACTIVE_LIVE_DIR=""
 ACTIVE_PREVIOUS_DIR=""
@@ -675,6 +702,20 @@ else
   else
     log "商品 ETF 日线与复权历史覆盖完整,跳过回填"
   fi
+fi
+
+MACRO_SYNC_END="$(
+  sqlite3 "$DB_FILE" 'SELECT substr(max("tradeDate"), 1, 6) FROM "Daily";' 2>/dev/null || true
+)"
+[[ "$MACRO_SYNC_END" =~ ^[0-9]{6}$ ]] || die "无法确定宏观数据同步截止月份"
+MACRO_SERIES_COMPLETE="$(macro_series_coverage "$DB_FILE")"
+if [[ "$MACRO_SERIES_COMPLETE" -ne 3 ]]; then
+  log "补全制造业 PMI、CPI 同比和 PPI 同比宏观 PIT 底座: 200501 ~ $MACRO_SYNC_END"
+  pnpm --filter api sync:macro 200501 "$MACRO_SYNC_END"
+  MACRO_SERIES_COMPLETE="$(macro_series_coverage "$DB_FILE")"
+  [[ "$MACRO_SERIES_COMPLETE" -eq 3 ]] || die "首批宏观系列回填后仍不完整"
+else
+  log "首批宏观系列历史覆盖完整,跳过回填"
 fi
 
 INVITE_COUNT="$(sqlite3 "$DB_FILE" 'SELECT count(*) FROM "InviteCode";' 2>/dev/null || echo 0)"

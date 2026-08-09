@@ -836,6 +836,13 @@ Panel Universe 的资产类别市场收益统计状态交易日、阶段数、�
 1. **商品因子：**实际月合约期限结构、换月、Carry、仓单和持仓；
 2. **宏观状态：**增长、通胀、信用、流动性和外部环境，严格按数据发布日期、available date 和 vintage 使用。
 
+**2026-08-09 Phase 5 宏观底座启动：**第一批先实现制造业 PMI、CPI 同比和 PPI 同比的规范系列目录、
+观测长表、发布日历与本地 vintage 积累。官方日历只覆盖 2026 年起的发布事件；更早观测使用显式保守
+滞后，`releaseDate` 保持为空。历史首次回填统一标记 `latest_value_backfill`，不得在严格 PIT 研究中
+伪装为实时 vintage。当前完成的是数据契约、同步、bootstrap 和质量审计，还没有把最终修订历史值接入
+宏观状态 evaluator；下一步以明确 revision policy 的 as-of loader 和未来函数测试作为进入 Macro Regime
+报告的硬门槛。
+
 随后单独建设风险因子与组合归因：
 
 - 久期、曲线、信用、权益 beta、通胀、美元和商品风险暴露；

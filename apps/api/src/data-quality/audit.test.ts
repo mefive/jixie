@@ -3,6 +3,7 @@ import {
   analyzeCalendarCoverage,
   findSharpRowCountDrops,
   selectEvaluationDates,
+  summarizeMacroPit,
   summarizeWindowCoverage,
 } from './audit.js';
 
@@ -64,5 +65,44 @@ describe('data quality audit helpers', () => {
     expect(result.medianCoverage).toBe(0.75);
     expect(result.tenthPercentileCoverage).toBeCloseTo(0.55);
     expect(result.belowMinimumCount).toBe(1);
+  });
+
+  it('audits macro availability evidence and vintage disclosure', () => {
+    const result = summarizeMacroPit(
+      ['cn_pmi_manufacturing', 'cn_cpi_yoy'],
+      [
+        {
+          seriesKey: 'cn_pmi_manufacturing',
+          releaseDate: '20260201',
+          availableDate: '20260202',
+          availabilityKind: 'official_schedule',
+          vintageKind: 'captured_as_available',
+        },
+        {
+          seriesKey: 'cn_cpi_yoy',
+          releaseDate: null,
+          availableDate: '20260221',
+          availabilityKind: 'conservative_lag',
+          vintageKind: 'latest_value_backfill',
+        },
+        {
+          seriesKey: 'cn_cpi_yoy',
+          releaseDate: '20260310',
+          availableDate: '20260309',
+          availabilityKind: 'official_schedule',
+          vintageKind: 'captured_as_available',
+        },
+      ],
+      new Set(['20260202', '20260309']),
+    );
+
+    expect(result).toEqual({
+      missingSeries: ['cn_ppi_yoy'],
+      invalidAvailabilityRows: 1,
+      nonTradingAvailabilityRows: 1,
+      conservativeLagRows: 1,
+      latestValueBackfillRows: 1,
+      capturedAsAvailableRows: 2,
+    });
   });
 });
