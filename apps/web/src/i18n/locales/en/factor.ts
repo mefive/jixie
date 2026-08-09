@@ -162,7 +162,9 @@ export const enFactor: typeof zhFactor = {
     assetNames: {
       '510300.SH': 'CSI 300 ETF',
       '513100.SH': 'Nasdaq-100 ETF',
-      '511010.SH': 'Treasury Bond ETF',
+      '511010.SH': '5Y Treasury Bond ETF',
+      '511260.SH': '10Y Treasury Bond ETF',
+      '511090.SH': '30Y Treasury Bond ETF',
       '518880.SH': 'Gold ETF',
     },
     assetClasses: {

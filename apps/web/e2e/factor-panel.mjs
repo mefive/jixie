@@ -9,7 +9,7 @@ const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
 const page = await context.newPage();
 const browserErrors = [];
-const ASSETS = ['510300.SH', '513100.SH', '511010.SH', '518880.SH'];
+const ASSETS = ['510300.SH', '513100.SH', '511010.SH', '511260.SH', '511090.SH', '518880.SH'];
 let strategyId = null;
 page.on('pageerror', (error) => browserErrors.push(`pageerror: ${error.message}`));
 page.on('console', (message) => {
@@ -74,6 +74,8 @@ try {
           { assetId: '510300.SH', assetClass: 'cn_equity' },
           { assetId: '513100.SH', assetClass: 'overseas_equity' },
           { assetId: '511010.SH', assetClass: 'fixed_income' },
+          { assetId: '511260.SH', assetClass: 'fixed_income' },
+          { assetId: '511090.SH', assetClass: 'fixed_income' },
           { assetId: '518880.SH', assetClass: 'gold' },
         ],
         target: { kind: 'forward_total_return', horizon: 20, horizonUnit: 'trade_day' },
@@ -107,14 +109,24 @@ try {
 
   const detail = await waitForReport(run.body.reportId);
   const report = detail.researchPayload?.report;
+  const fiveYearCoverage = report?.coverage?.byAsset?.find((row) => row.assetId === '511010.SH');
+  const tenYearCoverage = report?.coverage?.byAsset?.find((row) => row.assetId === '511260.SH');
+  const thirtyYearCoverage = report?.coverage?.byAsset?.find((row) => row.assetId === '511090.SH');
   if (
     detail.status !== 'done' ||
     detail.analysisKind !== 'panel' ||
     detail.researchSpec?.analysisKind !== 'panel' ||
     detail.researchPayload?.analysisKind !== 'panel' ||
-    report?.assets?.length !== 4 ||
+    report?.assets?.length !== ASSETS.length ||
     report?.periods < 50 ||
-    report?.observations !== report.periods * 4 ||
+    report?.observations <= report.periods * 5 ||
+    report?.observations >= report.periods * ASSETS.length ||
+    fiveYearCoverage?.observations !== report.periods ||
+    tenYearCoverage?.observations !== report.periods ||
+    !thirtyYearCoverage?.firstAsOfDate ||
+    thirtyYearCoverage.firstAsOfDate <= '20230613' ||
+    thirtyYearCoverage.observations <= 0 ||
+    thirtyYearCoverage.observations >= report.periods ||
     detail.holdout?.eligible !== true ||
     !Number.isFinite(report?.rankIcMean) ||
     !Number.isFinite(report?.longShortNetAnnualized)
@@ -128,9 +140,12 @@ try {
   );
   await page.getByTestId('panel-report').waitFor({ timeout: 30_000 });
   await page.getByText('跨资产排序证据', { exact: true }).waitFor();
-  await page.getByText('纳指 ETF', { exact: true }).waitFor();
+  const durationCoverage = page.getByText('30年国债 ETF', { exact: true });
+  await durationCoverage.waitFor();
   await page.locator('.jx-factor-code .monaco-editor').waitFor({ timeout: 30_000 });
-  await page.screenshot({ path: `${SHOTS}factor-panel-report.png` });
+  await page.screenshot({ path: `${SHOTS}factor-panel-report.png`, fullPage: true });
+  await durationCoverage.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: `${SHOTS}factor-panel-duration-coverage.png` });
 
   await page.getByRole('button', { name: '验证保留段', exact: true }).click();
   const holdoutConfirm = page.locator('.ant-modal-confirm:visible');
@@ -220,7 +235,9 @@ try {
       const value = document.querySelector('.jx-lab-heroInput')?.value ?? '';
       return (
         value.includes('cross_asset_momentum_120') &&
-        ['510300.SH', '513100.SH', '511010.SH', '518880.SH'].every((asset) => value.includes(asset))
+        ['510300.SH', '513100.SH', '511010.SH', '511260.SH', '511090.SH', '518880.SH'].every(
+          (asset) => value.includes(asset),
+        )
       );
     },
     undefined,
@@ -320,7 +337,7 @@ try {
     throw new Error(`browser errors: ${browserErrors.join('\n')}`);
   }
   console.log(
-    `[factor-panel-e2e] explore=${run.body.reportId} periods=${report.periods} rankIc=${report.rankIcMean.toFixed(4)} holdout=${holdoutRun.reportId} holdoutRankIc=${holdoutReport.rankIcMean.toFixed(4)} criterion=${criterionPassed ? 'passed' : 'missed'} strategy=${strategyId} trades=${result.trades} return=${result.totalReturn.toFixed(4)} screenshots=4`,
+    `[factor-panel-e2e] explore=${run.body.reportId} periods=${report.periods} rankIc=${report.rankIcMean.toFixed(4)} holdout=${holdoutRun.reportId} holdoutRankIc=${holdoutReport.rankIcMean.toFixed(4)} criterion=${criterionPassed ? 'passed' : 'missed'} strategy=${strategyId} trades=${result.trades} return=${result.totalReturn.toFixed(4)} screenshots=5`,
   );
 } finally {
   if (strategyId) {

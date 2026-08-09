@@ -46,6 +46,7 @@ import {
 import { DEFAULT_CODE, DEFAULT_PYTHON_CODE } from './default-strategy';
 import { BENCHMARKS, type BenchmarkSeries } from './benchmarks';
 import { pushRecent, readRecents, removeRecent } from './recents';
+import { PANEL_ASSET_IDS } from '../factor/panel-universe';
 
 type LabSetupParams = { id?: string; isNew?: boolean; factorKey?: string };
 type DeploymentAction =
@@ -192,7 +193,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
             : report?.researchSpec.analysisKind === 'panel'
               ? report.researchSpec.assets.map((asset) => asset.assetId)
               : factor.analysisKind === 'panel'
-                ? ['510300.SH', '513100.SH', '511010.SH', '518880.SH']
+                ? [...PANEL_ASSET_IDS]
                 : [];
         return { factor, assets };
       },
