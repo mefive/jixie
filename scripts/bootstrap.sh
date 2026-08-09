@@ -198,6 +198,40 @@ market_reference_coverage() {
   "
 }
 
+commodity_etf_coverage() {
+  local database_file="$1"
+  local expected_end="$2"
+
+  sqlite3 "$database_file" "
+    WITH candidates(code, list_date) AS (
+      VALUES
+        ('159985.SZ', '20191205'),
+        ('159980.SZ', '20191224'),
+        ('159981.SZ', '20200117')
+    ),
+    coverage AS (
+      SELECT
+        candidates.code,
+        candidates.list_date,
+        min(daily.\"tradeDate\") AS first_date,
+        max(daily.\"tradeDate\") AS last_date,
+        count(daily.\"tradeDate\") AS daily_rows,
+        count(adjustment.\"tradeDate\") AS adjustment_rows
+      FROM candidates
+      LEFT JOIN \"EtfDaily\" AS daily ON daily.\"tsCode\" = candidates.code
+      LEFT JOIN \"EtfAdjFactor\" AS adjustment
+        ON adjustment.\"tsCode\" = daily.\"tsCode\"
+       AND adjustment.\"tradeDate\" = daily.\"tradeDate\"
+      GROUP BY candidates.code, candidates.list_date
+    )
+    SELECT count(*)
+    FROM coverage
+    WHERE first_date <= list_date
+      AND last_date >= '$expected_end'
+      AND daily_rows = adjustment_rows;
+  "
+}
+
 STAGING_DIR=""
 ACTIVE_LIVE_DIR=""
 ACTIVE_PREVIOUS_DIR=""
@@ -629,6 +663,17 @@ else
       die "市场气象成分权重或派生指标回填后仍不完整"
   else
     log "市场气象成分权重与派生指标覆盖完整,跳过重算"
+  fi
+
+  COMMODITY_ETF_COMPLETE="$(commodity_etf_coverage "$DB_FILE" "$MARKET_REFERENCE_END")"
+  if [[ "$COMMODITY_ETF_COMPLETE" -ne 3 ]]; then
+    log "补全豆粕、有色金属和能源化工 ETF 历史行情: 20191201 ~ $MARKET_REFERENCE_END"
+    pnpm --filter api sync:etf 20191201 "$MARKET_REFERENCE_END" \
+      159985.SZ,159980.SZ,159981.SZ refresh
+    COMMODITY_ETF_COMPLETE="$(commodity_etf_coverage "$DB_FILE" "$MARKET_REFERENCE_END")"
+    [[ "$COMMODITY_ETF_COMPLETE" -eq 3 ]] || die "商品 ETF 日线或复权历史回填后仍不完整"
+  else
+    log "商品 ETF 日线与复权历史覆盖完整,跳过回填"
   fi
 fi
 

@@ -77,6 +77,9 @@ export const TIME_SERIES_ASSET_OPTIONS = [
   { code: '511260.SH', assetClass: 'fixed_income' },
   { code: '511090.SH', assetClass: 'fixed_income' },
   { code: '518880.SH', assetClass: 'commodity' },
+  { code: '159985.SZ', assetClass: 'commodity' },
+  { code: '159980.SZ', assetClass: 'commodity' },
+  { code: '159981.SZ', assetClass: 'commodity' },
   { code: '510300.SH', assetClass: 'equity' },
 ] as const;
 export const TIME_SERIES_ASSETS = TIME_SERIES_ASSET_OPTIONS.map((asset) => asset.code);

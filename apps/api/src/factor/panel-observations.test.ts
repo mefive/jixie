@@ -140,4 +140,24 @@ describe('panel ETF observations', () => {
     Object.assign(metadata, overrides);
     expect(panelEtfMatchesAssetClass(metadata, assetClass as MultiAssetClass)).toBe(true);
   });
+
+  it.each([
+    ['159985.SZ', '华夏饲料豆粕期货ETF', '大商所豆粕期货价格'],
+    ['159980.SZ', '大成有色金属期货ETF', '上期有色金属指数'],
+    ['159981.SZ', '建信易盛郑商所能源化工期货ETF', '易盛能化A'],
+  ])('classifies the real commodity ETF metadata for %s', (assetId, name, indexName) => {
+    expect(
+      panelEtfMatchesAssetClass(
+        {
+          assetId,
+          name,
+          indexCode: null,
+          indexName,
+          fundType: '其他',
+          etfType: '纯境内',
+        },
+        'commodity',
+      ),
+    ).toBe(true);
+  });
 });
