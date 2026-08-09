@@ -100,6 +100,35 @@ export interface AllocationDriftEvent {
   maxPostTradeDeviation: number;
 }
 
+export interface AllocationCorrelationPoint {
+  date: TradeDate;
+  value: number | null;
+  observations: number;
+}
+
+export interface AllocationCorrelationPairSeries {
+  left: AllocationAssetClass;
+  right: AllocationAssetClass;
+  points: AllocationCorrelationPoint[];
+}
+
+export interface AllocationCorrelationWindow {
+  window: 60 | 120;
+  asOfDate: TradeDate;
+  minimumObservations: number;
+  assetClasses: AllocationAssetClass[];
+  latest: Array<Array<number | null>>;
+  latestObservations: number[][];
+  series: AllocationCorrelationPairSeries[];
+}
+
+export interface AllocationCorrelationAnalysis {
+  methodology: 'equal_weight_asset_class_returns';
+  sampling: 'month_end';
+  minimumCoverage: number;
+  windows: AllocationCorrelationWindow[];
+}
+
 /** Engine-produced allocation diagnostics. Consumers must not reconstruct accounting from fills. */
 export interface AllocationAnalysis {
   version: 1;
@@ -121,6 +150,8 @@ export interface AllocationAnalysis {
   assets: AllocationContributionRow[];
   assetClasses: AllocationClassContributionRow[];
   drift: AllocationDriftEvent[];
+  /** Market-return diversification diagnostics; optional on cached V1 results created before this field. */
+  correlations?: AllocationCorrelationAnalysis;
 }
 
 /** Backtest result shape returned over the wire (mirrors the engine's BacktestResult). */

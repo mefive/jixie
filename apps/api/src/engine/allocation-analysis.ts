@@ -1,6 +1,8 @@
 import type {
   AllocationAnalysis,
   AllocationAssetClass,
+  AllocationCorrelationAnalysis,
+  AllocationCorrelationWindow,
   AllocationDriftEvent,
   AllocationWeightPoint,
   MultiAssetClass,
@@ -9,6 +11,8 @@ import type { CustomFactorModule } from './custom-factor.js';
 import type { Position, TradeRecord } from './types.js';
 
 const CASH = 'CASH';
+const CORRELATION_WINDOWS = [60, 120] as const;
+const MINIMUM_CORRELATION_COVERAGE = 2 / 3;
 
 interface AssetAccumulator {
   assetId: string;
@@ -42,7 +46,10 @@ export class AllocationAnalysisTracker {
   private readonly assets = new Map<string, AssetAccumulator>();
   private readonly previousShares = new Map<string, number>();
   private readonly previousClose = new Map<string, number>();
+  private readonly previousExactClose = new Map<string, number>();
   private readonly portfolioReturns: number[] = [];
+  private readonly dates: string[] = [];
+  private readonly classMarketReturns = new Map<AllocationAssetClass, Array<number | null>>();
   private readonly drift: AllocationDriftEvent[] = [];
   private previousEquity: number;
   private observations = 0;
@@ -54,15 +61,21 @@ export class AllocationAnalysisTracker {
     this.previousEquity = initialCash;
     for (const [assetId, assetClass] of assetClasses) {
       this.assets.set(assetId, emptyAsset(assetId, assetClass));
+      if (!this.classMarketReturns.has(assetClass)) {
+        this.classMarketReturns.set(assetClass, []);
+      }
     }
   }
 
   captureDay(args: {
+    date: string;
     value: number;
     positions: ReadonlyMap<string, Position>;
     closeOf: (assetId: string) => number | null;
+    exactCloseOf: (assetId: string) => number | null;
     trades: TradeRecord[];
   }): void {
+    this.captureClassMarketReturns(args.date, args.exactCloseOf);
     const codes = new Set<string>([
       ...this.assets.keys(),
       ...this.previousShares.keys(),
@@ -256,6 +269,113 @@ export class AllocationAnalysisTracker {
       assets,
       assetClasses,
       drift: this.drift,
+      correlations: this.buildCorrelations(),
+    };
+  }
+
+  private captureClassMarketReturns(
+    date: string,
+    exactCloseOf: (assetId: string) => number | null,
+  ): void {
+    const currentExactClose = new Map<string, number>();
+    const returnsByClass = new Map<AllocationAssetClass, number[]>();
+    for (const [assetId, assetClass] of this.assetClasses) {
+      const close = exactCloseOf(assetId);
+      if (close == null || !Number.isFinite(close) || close <= 0) {
+        continue;
+      }
+      currentExactClose.set(assetId, close);
+      const previous = this.previousExactClose.get(assetId);
+      if (previous == null || previous <= 0) {
+        continue;
+      }
+      const rows = returnsByClass.get(assetClass) ?? [];
+      rows.push(close / previous - 1);
+      returnsByClass.set(assetClass, rows);
+    }
+    for (const [assetClass, series] of this.classMarketReturns) {
+      const returns = returnsByClass.get(assetClass) ?? [];
+      series.push(
+        returns.length > 0 ? returns.reduce((sum, value) => sum + value, 0) / returns.length : null,
+      );
+    }
+    this.previousExactClose.clear();
+    for (const [assetId, close] of currentExactClose) {
+      this.previousExactClose.set(assetId, close);
+    }
+    this.dates.push(date);
+  }
+
+  private buildCorrelations(): AllocationCorrelationAnalysis {
+    return {
+      methodology: 'equal_weight_asset_class_returns',
+      sampling: 'month_end',
+      minimumCoverage: MINIMUM_CORRELATION_COVERAGE,
+      windows: CORRELATION_WINDOWS.map((window) => this.buildCorrelationWindow(window)),
+    };
+  }
+
+  private buildCorrelationWindow(
+    window: (typeof CORRELATION_WINDOWS)[number],
+  ): AllocationCorrelationWindow {
+    const assetClasses = [...this.classMarketReturns.keys()];
+    const minimumObservations = Math.ceil(window * MINIMUM_CORRELATION_COVERAGE);
+    const endIndex = this.dates.length - 1;
+    const latest = assetClasses.map((left) =>
+      assetClasses.map(
+        (right) =>
+          correlationAt(
+            this.classMarketReturns.get(left)!,
+            this.classMarketReturns.get(right)!,
+            endIndex,
+            window,
+            minimumObservations,
+          ).value,
+      ),
+    );
+    const latestObservations = assetClasses.map((left) =>
+      assetClasses.map(
+        (right) =>
+          correlationAt(
+            this.classMarketReturns.get(left)!,
+            this.classMarketReturns.get(right)!,
+            endIndex,
+            window,
+            minimumObservations,
+          ).observations,
+      ),
+    );
+    const monthEnds = this.dates
+      .map((date, index) => ({ date, index }))
+      .filter(
+        ({ date, index }) =>
+          index === this.dates.length - 1 || this.dates[index + 1].slice(0, 6) !== date.slice(0, 6),
+      )
+      .filter(({ index }) => index + 1 >= window);
+    const series = assetClasses.flatMap((left, leftIndex) =>
+      assetClasses.slice(leftIndex + 1).map((right) => ({
+        left,
+        right,
+        points: monthEnds.map(({ date, index }) => ({
+          date,
+          ...correlationAt(
+            this.classMarketReturns.get(left)!,
+            this.classMarketReturns.get(right)!,
+            index,
+            window,
+            minimumObservations,
+          ),
+        })),
+      })),
+    );
+    return {
+      window,
+      asOfDate: this.dates.at(-1) ?? '',
+      minimumObservations,
+      assetClasses,
+      latest,
+      latestObservations,
+      series,
     };
   }
 
@@ -323,4 +443,45 @@ function centeredCrossProduct(left: number[], right: number[]): number {
     (sum, value, index) => sum + (value - leftAverage) * (right[index] - rightAverage),
     0,
   );
+}
+
+function correlationAt(
+  left: Array<number | null>,
+  right: Array<number | null>,
+  endIndex: number,
+  window: number,
+  minimumObservations: number,
+): { value: number | null; observations: number } {
+  if (endIndex < 0 || endIndex + 1 < window) {
+    return { value: null, observations: 0 };
+  }
+  const pairs: Array<[number, number]> = [];
+  const startIndex = endIndex - window + 1;
+  for (let index = startIndex; index <= endIndex; index++) {
+    const leftValue = left[index];
+    const rightValue = right[index];
+    if (leftValue != null && rightValue != null) {
+      pairs.push([leftValue, rightValue]);
+    }
+  }
+  if (pairs.length < minimumObservations) {
+    return { value: null, observations: pairs.length };
+  }
+  const leftAverage = pairs.reduce((sum, pair) => sum + pair[0], 0) / pairs.length;
+  const rightAverage = pairs.reduce((sum, pair) => sum + pair[1], 0) / pairs.length;
+  let covariance = 0;
+  let leftVariance = 0;
+  let rightVariance = 0;
+  for (const [leftValue, rightValue] of pairs) {
+    const leftCentered = leftValue - leftAverage;
+    const rightCentered = rightValue - rightAverage;
+    covariance += leftCentered * rightCentered;
+    leftVariance += leftCentered ** 2;
+    rightVariance += rightCentered ** 2;
+  }
+  const denominator = Math.sqrt(leftVariance * rightVariance);
+  return {
+    value: denominator > 0 ? covariance / denominator : null,
+    observations: pairs.length,
+  };
 }

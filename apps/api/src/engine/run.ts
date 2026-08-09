@@ -156,9 +156,12 @@ async function runStockStrategyCore(
   if (needsFundamentalHistory(cfg)) {
     await engineData.preloadFina();
   } // custom-factor 'roe' histories read fina synchronously
+  const allocationClasses = allocationAssetClasses(cfg.customFactors);
+  if (allocationClasses.size > 0) {
+    await engineData.loadBars([...allocationClasses.keys()]);
+  }
   const customFactors = buildCustomFactorRuntime(cfg, engineData, locale, log);
   const portfolio = new Portfolio(cfg.initialCash, cost);
-  const allocationClasses = allocationAssetClasses(cfg.customFactors);
   const allocationTracker =
     allocationClasses.size > 0
       ? new AllocationAnalysisTracker(cfg.initialCash, allocationClasses)
@@ -240,9 +243,11 @@ async function runStockStrategyCore(
     const value = portfolio.equity((c) => engineData.closeAt(c, date));
     nav.push({ date, value });
     allocationTracker?.captureDay({
+      date,
       value,
       positions: portfolio.positions,
       closeOf: (code) => engineData.closeAt(code, date),
+      exactCloseOf: (code) => engineData.ohlcAt(code, date)?.close ?? null,
       trades: portfolio.trades.slice(capturedTrades),
     });
     capturedTrades = portfolio.trades.length;
