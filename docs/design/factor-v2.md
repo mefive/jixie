@@ -777,8 +777,27 @@ Panel 报告允许没有新增诊断字段，读取时保持兼容。九资产�
 `apps/web/acceptance/factor-panel-composite-published.png` 和
 `apps/web/acceptance/factor-panel-composite-strategy.png`。
 
-**本 Phase 剩余：**策略结果中的资产收益贡献、风险贡献、配置漂移与宏观阶段分解。专业期货 Carry、
-库存和宏观 vintage 仍归 Phase 5。
+**2026-08-09 多资产配置归因与每日信号闭环：**策略引擎新增结构化 `allocationAnalysis V1`，不允许
+前端根据成交日志反推会计结果。每个交易日按实际持仓价格变动、当日成交后价格变动、逐资产手续费和
+滑点计算净贡献；资产净贡献相加必须与期末权益变化逐分对账，报告同时保留对账残差和容忍度。收益贡献
+是相对初始资金的可加总算术贡献；风险贡献使用每日资产净贡献收益与组合日收益的成分协方差法，在组合
+方差有效时归一到 100%。每次 `setHoldings` / `equalWeight` 还记录决策日、次日开盘执行日，以及包含现金
+在内的目标、调仓前、调仓后权重，展示半周转口径的配置偏离和最大单项偏离。
+
+资产类别不从 ETF 代码、名称或当前产品元数据猜测，而只读取批准 Panel 报告冻结的资产池；单一 Panel
+Factor 和 Panel Composite 使用相同口径，分类冲突时 fail-closed，没有批准研究池的旧内置 Factor 则
+继续运行但不生成可能误导的配置归因。Lab 结果概览新增
+“多资产配置归因”，按资产类别、具体资产和配置漂移三层展示实际策略结果，并继续与 Factor 研究报告的
+Top/Bottom 诊断收益严格分离。
+
+真实浏览器已进一步走通“Panel Composite 发布 → 月度 ETF 回测 → 配置归因 → 部署 → 2026-07-30
+今日信号”。回测产生 41 笔 ETF 成交和 25 次调仓，组合盈亏与 9 个资产净贡献完全对账；每日信号读取到
+9/9 个有效组合分数，只记录父组合 `momentum_low_vol_panel` 的批准报告和源码包 hash。回归脚本仍为
+`apps/web/e2e/factor-panel-composite.mjs`，新增截图
+`apps/web/acceptance/factor-panel-composite-attribution.png` 和
+`apps/web/acceptance/factor-panel-composite-signal.png`。
+
+**本 Phase 剩余：**滚动相关和宏观阶段分解。专业期货 Carry、库存和宏观 vintage 仍归 Phase 5。
 
 ### Phase 5：商品专业特征、宏观状态与风险因子
 

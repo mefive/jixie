@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
-import type { ChatMessage, StrategyLanguage } from '@jixie/shared';
+import type { AllocationAnalysis, ChatMessage, StrategyLanguage } from '@jixie/shared';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import classNames from 'classnames';
@@ -14,6 +14,7 @@ import {
   Popover,
   Segmented,
   Splitter,
+  Table,
   Tabs,
   Tooltip,
 } from 'antd';
@@ -968,6 +969,7 @@ const ResultPanel = complex.component(() => {
           </div>
         ))}
       </div>
+      {r.allocationAnalysis ? <AllocationAnalysisPanel analysis={r.allocationAnalysis} /> : null}
       <Suspense fallback={<div className="jx-lab-placeholder">{t('loadingChart')}</div>}>
         <NavChart
           nav={r.nav}
@@ -980,6 +982,191 @@ const ResultPanel = complex.component(() => {
     </>
   );
 }, 'ResultPanel');
+
+const AllocationAnalysisPanel = ({ analysis }: { analysis: AllocationAnalysis }) => {
+  const { t } = useTranslation('lab');
+  const money = (value: number) => Math.round(value).toLocaleString();
+  const risk = (value: number | null) => (value == null ? '—' : pct(value));
+
+  return (
+    <section className="jx-lab-allocation" data-testid="allocation-analysis">
+      <div className="jx-lab-allocationHead">
+        <div>
+          <strong>{t('allocation.title')}</strong>
+          <span>{t('allocation.methodology')}</span>
+        </div>
+        <span
+          className={classNames('jx-lab-allocationReconciliation', {
+            'jx-lab-allocationReconciliation--failed': !analysis.reconciliation.reconciled,
+          })}
+        >
+          {analysis.reconciliation.reconciled
+            ? t('allocation.reconciled')
+            : t('allocation.notReconciled')}
+        </span>
+      </div>
+      <div className="jx-lab-allocationSummary">
+        <div>
+          <span>{t('allocation.portfolioPnl')}</span>
+          <b>{money(analysis.reconciliation.portfolioPnl)}</b>
+        </div>
+        <div>
+          <span>{t('allocation.attributedPnl')}</span>
+          <b>{money(analysis.reconciliation.attributedNetPnl)}</b>
+        </div>
+        <div>
+          <span>{t('allocation.totalCosts')}</span>
+          <b>{money(analysis.costs.total)}</b>
+        </div>
+        <div>
+          <span>{t('allocation.rebalances')}</span>
+          <b>{analysis.drift.length}</b>
+        </div>
+      </div>
+      <Tabs
+        size="small"
+        items={[
+          {
+            key: 'asset-classes',
+            label: t('allocation.classTab'),
+            children: (
+              <Table
+                rowKey="assetClass"
+                size="small"
+                pagination={false}
+                dataSource={analysis.assetClasses}
+                columns={[
+                  {
+                    title: t('allocation.assetClass'),
+                    dataIndex: 'assetClass',
+                    render: (value: string) => t(`allocation.assetClasses.${value}`),
+                  },
+                  {
+                    title: t('allocation.averageWeight'),
+                    dataIndex: 'averageWeight',
+                    align: 'right',
+                    render: pct,
+                  },
+                  {
+                    title: t('allocation.returnContribution'),
+                    dataIndex: 'returnContribution',
+                    align: 'right',
+                    render: pct,
+                  },
+                  {
+                    title: t('allocation.riskContribution'),
+                    dataIndex: 'riskContribution',
+                    align: 'right',
+                    render: risk,
+                  },
+                  {
+                    title: t('allocation.netPnl'),
+                    dataIndex: 'netPnl',
+                    align: 'right',
+                    render: money,
+                  },
+                ]}
+              />
+            ),
+          },
+          {
+            key: 'assets',
+            label: t('allocation.assetTab'),
+            children: (
+              <Table
+                rowKey="assetId"
+                size="small"
+                pagination={false}
+                scroll={{ x: 720 }}
+                dataSource={analysis.assets}
+                columns={[
+                  { title: t('allocation.asset'), dataIndex: 'assetId' },
+                  {
+                    title: t('allocation.assetClass'),
+                    dataIndex: 'assetClass',
+                    render: (value: string) => t(`allocation.assetClasses.${value}`),
+                  },
+                  {
+                    title: t('allocation.averageWeight'),
+                    dataIndex: 'averageWeight',
+                    align: 'right',
+                    render: pct,
+                  },
+                  {
+                    title: t('allocation.returnContribution'),
+                    dataIndex: 'returnContribution',
+                    align: 'right',
+                    render: pct,
+                  },
+                  {
+                    title: t('allocation.riskContribution'),
+                    dataIndex: 'riskContribution',
+                    align: 'right',
+                    render: risk,
+                  },
+                  {
+                    title: t('allocation.costs'),
+                    dataIndex: 'costs',
+                    align: 'right',
+                    render: money,
+                  },
+                  {
+                    title: t('allocation.netPnl'),
+                    dataIndex: 'netPnl',
+                    align: 'right',
+                    render: money,
+                  },
+                ]}
+              />
+            ),
+          },
+          {
+            key: 'drift',
+            label: t('allocation.driftTab'),
+            children: (
+              <Table
+                rowKey={(row) => `${row.decisionDate}-${row.executionDate}`}
+                size="small"
+                pagination={analysis.drift.length > 10 ? { pageSize: 10, size: 'small' } : false}
+                dataSource={analysis.drift}
+                columns={[
+                  {
+                    title: t('allocation.decisionDate'),
+                    dataIndex: 'decisionDate',
+                    render: formatYmd,
+                  },
+                  {
+                    title: t('allocation.executionDate'),
+                    dataIndex: 'executionDate',
+                    render: formatYmd,
+                  },
+                  {
+                    title: t('allocation.preTradeDrift'),
+                    dataIndex: 'preTradeDistance',
+                    align: 'right',
+                    render: pct,
+                  },
+                  {
+                    title: t('allocation.postTradeDrift'),
+                    dataIndex: 'postTradeDistance',
+                    align: 'right',
+                    render: pct,
+                  },
+                  {
+                    title: t('allocation.maxDeviation'),
+                    dataIndex: 'maxPostTradeDeviation',
+                    align: 'right',
+                    render: pct,
+                  },
+                ]}
+              />
+            ),
+          },
+        ]}
+      />
+    </section>
+  );
+};
 
 // The bottom dock — a collapsible IDE-style panel with streamed system + user console output.
 const LogDock = complex.component(() => {
