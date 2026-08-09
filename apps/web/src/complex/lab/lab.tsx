@@ -3,6 +3,7 @@ import type { KeyboardEvent } from 'react';
 import type {
   AllocationAnalysis,
   AllocationCorrelationAnalysis,
+  AllocationRateRegimeAnalysis,
   ChatMessage,
   StrategyLanguage,
 } from '@jixie/shared';
@@ -1136,6 +1137,15 @@ const AllocationAnalysisPanel = ({ analysis }: { analysis: AllocationAnalysis })
                 },
               ]
             : []),
+          ...(analysis.rateRegimes?.states.length
+            ? [
+                {
+                  key: 'rate-regimes',
+                  label: t('allocation.rateRegimeTab'),
+                  children: <AllocationRateRegimePanel data={analysis.rateRegimes} />,
+                },
+              ]
+            : []),
           {
             key: 'drift',
             label: t('allocation.driftTab'),
@@ -1181,6 +1191,123 @@ const AllocationAnalysisPanel = ({ analysis }: { analysis: AllocationAnalysis })
         ]}
       />
     </section>
+  );
+};
+
+const AllocationRateRegimePanel = ({ data }: { data: AllocationRateRegimeAnalysis }) => {
+  const { t } = useTranslation('lab');
+  const assetClasses = [
+    ...new Set(data.states.flatMap((state) => state.assetClasses.map((row) => row.assetClass))),
+  ];
+  const [assetClass, setAssetClass] = useState(() =>
+    assetClasses.includes('fixed_income') ? 'fixed_income' : assetClasses[0],
+  );
+  const latest = data.latest;
+
+  return (
+    <div className="jx-lab-rateRegime" data-testid="allocation-rate-regime">
+      <Alert
+        type="info"
+        showIcon
+        title={
+          latest
+            ? t('allocation.rateRegimeLatest', {
+                state: t(`allocation.rateRegimeStates.${latest.state}`),
+                date: formatYmd(latest.asOfDate),
+              })
+            : t('allocation.rateRegimeUnavailable')
+        }
+        description={t('allocation.rateRegimeMethodology', {
+          direction: data.directionLookbackObservations,
+          curve: data.curveMedianLookbackObservations,
+          minimum: data.curveMedianMinimumObservations,
+        })}
+      />
+      {latest ? (
+        <div className="jx-lab-rateRegimeSummary">
+          <div>
+            <span>{t('allocation.tenYearYield')}</span>
+            <b>{latest.tenYearYieldPct.toFixed(2)}%</b>
+          </div>
+          <div>
+            <span>{t('allocation.tenYearChange')}</span>
+            <b>{formatBp(latest.tenYearChangeBp)}</b>
+          </div>
+          <div>
+            <span>{t('allocation.curveSlope')}</span>
+            <b>{formatBp(latest.curveSlopeBp)}</b>
+          </div>
+          <div>
+            <span>{t('allocation.curveMedian')}</span>
+            <b>{formatBp(latest.curveMedianBp)}</b>
+          </div>
+        </div>
+      ) : null}
+      <div className="jx-lab-rateRegimeControls">
+        <span>
+          {t('allocation.rateRegimeCoverage', {
+            classified: data.classifiedDays,
+            total: data.totalDays,
+            coverage: pct(data.totalDays > 0 ? data.classifiedDays / data.totalDays : 0),
+          })}
+        </span>
+        <Select
+          className="jx-lab-rateRegimeAssetClass"
+          size="small"
+          aria-label={t('allocation.rateRegimeAssetClass')}
+          value={assetClass}
+          options={assetClasses.map((value) => ({
+            value,
+            label: t(`allocation.assetClasses.${value}`),
+          }))}
+          onChange={setAssetClass}
+        />
+      </div>
+      <div className="jx-lab-rateRegimeStates">
+        {data.states.map((state) => {
+          const metrics = state.assetClasses.find((row) => row.assetClass === assetClass);
+          return (
+            <div className="jx-lab-rateRegimeState" key={state.key}>
+              <div className="jx-lab-rateRegimeStateHead">
+                <strong>{t(`allocation.rateRegimeStates.${state.key}`)}</strong>
+                <span>
+                  {t('allocation.rateRegimeStateMeta', {
+                    days: state.observations,
+                    episodes: state.episodes,
+                    duration: state.averageDuration.toFixed(1),
+                  })}
+                </span>
+              </div>
+              <div className="jx-lab-rateRegimeMetrics">
+                <div>
+                  <span>{t('allocation.rateRegimeAnnualReturn')}</span>
+                  <b
+                    className={classNames({
+                      'text-up': (metrics?.annualizedMeanReturn ?? 0) >= 0,
+                      'text-down': (metrics?.annualizedMeanReturn ?? 0) < 0,
+                    })}
+                  >
+                    {metrics ? pct(metrics.annualizedMeanReturn) : '—'}
+                  </b>
+                </div>
+                <div>
+                  <span>{t('allocation.rateRegimeVolatility')}</span>
+                  <b>{metrics ? pct(metrics.annualizedVolatility) : '—'}</b>
+                </div>
+                <div>
+                  <span>{t('allocation.rateRegimePositiveRate')}</span>
+                  <b>{metrics ? pct(metrics.positiveDayRate) : '—'}</b>
+                </div>
+                <div>
+                  <span>{t('allocation.rateRegimeDrawdown')}</span>
+                  <b>{metrics ? pct(metrics.maximumEpisodeDrawdown) : '—'}</b>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 };
 
@@ -1273,6 +1400,10 @@ const AllocationCorrelationPanel = ({ data }: { data: AllocationCorrelationAnaly
 
 function correlationPairKey(left: string, right: string): string {
   return `${left}|${right}`;
+}
+
+function formatBp(value: number): string {
+  return `${value >= 0 ? '+' : ''}${value.toFixed(1)} bp`;
 }
 
 // The bottom dock — a collapsible IDE-style panel with streamed system + user console output.

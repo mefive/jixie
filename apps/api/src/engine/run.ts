@@ -6,7 +6,11 @@ import { CustomFactorRuntime, evaluateCustomFactorModule } from './custom-factor
 import { prismaDataPort } from './prisma-port.js';
 import { Portfolio } from './portfolio.js';
 import { FuturesPortfolio } from './futures-portfolio.js';
-import { AllocationAnalysisTracker, allocationAssetClasses } from './allocation-analysis.js';
+import {
+  AllocationAnalysisTracker,
+  allocationAssetClasses,
+  classifyAllocationRateRegime,
+} from './allocation-analysis.js';
 import {
   DEFAULT_COST,
   type BacktestResult,
@@ -138,6 +142,7 @@ async function runStockStrategyCore(
   const cost = { ...DEFAULT_COST, ...cfg.cost };
   const locale = cfg.locale ?? DEFAULT_LOCALE;
   const log = cfg.onLog ?? (() => {}); // progress sink (worker forwards to the job; scripts no-op)
+  const allocationClasses = allocationAssetClasses(cfg.customFactors);
   const engineData = new EngineData(
     cfg.start,
     cfg.end,
@@ -147,7 +152,7 @@ async function runStockStrategyCore(
     cfg.dataPort ?? prismaDataPort,
     [],
     needsTurnoverRateFHistory(cfg),
-    needsGovernmentYieldCurve(cfg),
+    needsGovernmentYieldCurve(cfg) || allocationClasses.size > 0,
   );
   await engineData.load();
   if (cfg.strategy.watch?.length) {
@@ -156,7 +161,6 @@ async function runStockStrategyCore(
   if (needsFundamentalHistory(cfg)) {
     await engineData.preloadFina();
   } // custom-factor 'roe' histories read fina synchronously
-  const allocationClasses = allocationAssetClasses(cfg.customFactors);
   if (allocationClasses.size > 0) {
     await engineData.loadBars([...allocationClasses.keys()]);
   }
@@ -249,6 +253,11 @@ async function runStockStrategyCore(
       closeOf: (code) => engineData.closeAt(code, date),
       exactCloseOf: (code) => engineData.ohlcAt(code, date)?.close ?? null,
       trades: portfolio.trades.slice(capturedTrades),
+      rateRegime: classifyAllocationRateRegime(
+        date,
+        engineData.governmentYieldHistoryAsOf(10, date, 252),
+        engineData.governmentYieldHistoryAsOf(2, date, 252),
+      ),
     });
     capturedTrades = portfolio.trades.length;
 

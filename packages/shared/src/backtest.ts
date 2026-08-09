@@ -129,6 +129,49 @@ export interface AllocationCorrelationAnalysis {
   windows: AllocationCorrelationWindow[];
 }
 
+export type AllocationRateRegimeKey =
+  | 'rates_rising_curve_steep'
+  | 'rates_rising_curve_flat'
+  | 'rates_falling_curve_steep'
+  | 'rates_falling_curve_flat';
+
+export interface AllocationRateRegimeClassMetrics {
+  assetClass: AllocationAssetClass;
+  observations: number;
+  meanDailyReturn: number;
+  annualizedMeanReturn: number;
+  annualizedVolatility: number;
+  positiveDayRate: number;
+  maximumEpisodeDrawdown: number;
+}
+
+export interface AllocationRateRegimeState {
+  key: AllocationRateRegimeKey;
+  observations: number;
+  episodes: number;
+  averageDuration: number;
+  assetClasses: AllocationRateRegimeClassMetrics[];
+}
+
+export interface AllocationRateRegimeAnalysis {
+  methodology: 'cgb_10y_direction_and_10y_2y_relative_slope';
+  pointInTime: 'available_date';
+  directionLookbackObservations: 60;
+  curveMedianLookbackObservations: 252;
+  curveMedianMinimumObservations: 120;
+  classifiedDays: number;
+  totalDays: number;
+  latest: {
+    asOfDate: TradeDate;
+    state: AllocationRateRegimeKey;
+    tenYearYieldPct: number;
+    tenYearChangeBp: number;
+    curveSlopeBp: number;
+    curveMedianBp: number;
+  } | null;
+  states: AllocationRateRegimeState[];
+}
+
 /** Engine-produced allocation diagnostics. Consumers must not reconstruct accounting from fills. */
 export interface AllocationAnalysis {
   version: 1;
@@ -152,6 +195,8 @@ export interface AllocationAnalysis {
   drift: AllocationDriftEvent[];
   /** Market-return diversification diagnostics; optional on cached V1 results created before this field. */
   correlations?: AllocationCorrelationAnalysis;
+  /** Point-in-time rate-environment diagnostics; optional on cached V1 results created before this field. */
+  rateRegimes?: AllocationRateRegimeAnalysis;
 }
 
 /** Backtest result shape returned over the wire (mirrors the engine's BacktestResult). */

@@ -38,6 +38,11 @@ interface ResampledBars {
   bars: OhlcBar[];
 }
 
+export interface GovernmentYieldObservation {
+  availableDate: string;
+  yieldPct: number;
+}
+
 // Stored ("column") factors the engine can preload, keyed for the semantics lookup in factor().
 const COLUMN_FACTOR_DEFS = new Map<string, EngineFactorDef>(
   ENGINE_FACTORS.filter((def) => def.source === 'column').map((def) => [def.key, def]),
@@ -152,6 +157,31 @@ export class EngineData {
       return null;
     }
     return series.values[index];
+  }
+
+  /** Official yield observations visible by `date`, newest last and bounded to the requested count. */
+  governmentYieldHistoryAsOf(
+    termYears: number,
+    date: string,
+    maximumObservations: number,
+  ): GovernmentYieldObservation[] {
+    const series = this.governmentYieldByTerm.get(termYears);
+    if (!series || maximumObservations <= 0) {
+      return [];
+    }
+    const endIndex = lastIndexAtOrBefore(series.dates, date);
+    if (endIndex < 0) {
+      return [];
+    }
+    const startIndex = Math.max(0, endIndex - Math.floor(maximumObservations) + 1);
+    const observations: GovernmentYieldObservation[] = [];
+    for (let index = startIndex; index <= endIndex; index++) {
+      observations.push({
+        availableDate: series.dates[index],
+        yieldPct: series.values[index],
+      });
+    }
+    return observations;
   }
 
   /** Index close as-of `date` (latest index date ≤ date); null if the index isn't synced / no data yet.
