@@ -61,6 +61,7 @@ import {
   publishFactor,
   archiveFactor,
 } from '@src/api/client';
+import { PANEL_ASSETS } from './panel-universe';
 
 // Initial state from the URL. A stable report id restores both the result and its frozen parameters.
 type FactorSetupParams = {
@@ -80,12 +81,6 @@ export const TIME_SERIES_ASSET_OPTIONS = [
 ] as const;
 export const TIME_SERIES_ASSETS = TIME_SERIES_ASSET_OPTIONS.map((asset) => asset.code);
 export type TimeSeriesAsset = (typeof TIME_SERIES_ASSETS)[number];
-export const PANEL_ASSETS: PanelFactorResearchSpecV1['assets'] = [
-  { assetId: '510300.SH', assetClass: 'cn_equity' },
-  { assetId: '513100.SH', assetClass: 'overseas_equity' },
-  { assetId: '511010.SH', assetClass: 'fixed_income' },
-  { assetId: '518880.SH', assetClass: 'gold' },
-];
 type FactorUniverseChoice = 'cn_a' | FactorEquityIndexCode;
 
 type FactorMethodologyParams = Pick<

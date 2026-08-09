@@ -75,7 +75,8 @@ import { LoadingArea } from '@src/components/loading-area';
 import { LogView } from '@src/components/log-view';
 import { QuantileHeatmap } from './quantile-heatmap';
 import { complex } from './complex';
-import { PANEL_ASSETS, TIME_SERIES_ASSET_OPTIONS } from './factor-store';
+import { TIME_SERIES_ASSET_OPTIONS } from './factor-store';
+import { PANEL_ASSETS } from './panel-universe';
 import './factor.css';
 
 dayjs.extend(customParseFormat);

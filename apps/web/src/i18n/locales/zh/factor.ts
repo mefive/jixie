@@ -149,7 +149,9 @@ export const zhFactor = {
     assetNames: {
       '510300.SH': '沪深 300 ETF',
       '513100.SH': '纳指 ETF',
-      '511010.SH': '国债 ETF',
+      '511010.SH': '5年国债 ETF',
+      '511260.SH': '10年国债 ETF',
+      '511090.SH': '30年国债 ETF',
       '518880.SH': '黄金 ETF',
     },
     assetClasses: {
