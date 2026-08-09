@@ -300,7 +300,11 @@ describe('custom (defineFactor) factors inside the engine', () => {
       assetSeries: { window: 2, inputs: ['etf.adjustedClose' as const] },
       panelComposite: {
         standardization: 'rank' as const,
-        assetUniverse: assetCodes,
+        assetUniverse: [
+          { assetId: 'ETF_A', assetClass: 'cn_equity' as const },
+          { assetId: 'ETF_B', assetClass: 'fixed_income' as const },
+          { assetId: 'ETF_C', assetClass: 'commodity' as const },
+        ],
         components: [
           {
             direction: 'positive' as const,

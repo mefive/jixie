@@ -83,11 +83,12 @@ export async function prepareStrategyFactors(
       approvedReportId: true,
     },
   });
-  const approvedReportIds = compositeRows.flatMap((row) =>
-    row.approvedReportId ? [row.approvedReportId] : [],
-  );
+  const approvedReportIds = [
+    ...factorRows.flatMap((row) => (row.approvedReportId ? [row.approvedReportId] : [])),
+    ...compositeRows.flatMap((row) => (row.approvedReportId ? [row.approvedReportId] : [])),
+  ];
   const approvedReports = await prisma.factorReport.findMany({
-    where: { id: { in: approvedReportIds }, userId },
+    where: { id: { in: approvedReportIds } },
     select: { id: true, factorCodeSnapshot: true, specJson: true },
   });
   const approvedReportById = new Map(
@@ -116,7 +117,10 @@ export async function prepareStrategyFactors(
   const modules = await Promise.all(
     ordered.map((item) => {
       if (item.kind === 'factor') {
-        return prepareFactorModule(item.row);
+        const report = item.row.approvedReportId
+          ? approvedReportById.get(item.row.approvedReportId)
+          : null;
+        return prepareFactorModule(item.row, report?.spec);
       }
       const reportId = item.row.approvedReportId;
       const approvedReport = reportId ? approvedReportById.get(reportId) : null;
@@ -155,11 +159,14 @@ export async function prepareCustomFactors(
   return (await prepareStrategyFactors(source, userId, locale)).modules;
 }
 
-async function prepareFactorModule(row: {
-  key: string;
-  code: string;
-  analysisKind: string;
-}): Promise<CustomFactorModule> {
+async function prepareFactorModule(
+  row: {
+    key: string;
+    code: string;
+    analysisKind: string;
+  },
+  reportSpec?: unknown,
+): Promise<CustomFactorModule> {
   if (row.analysisKind !== 'time_series' && row.analysisKind !== 'panel') {
     return {
       key: row.key,
@@ -182,6 +189,9 @@ async function prepareFactorModule(row: {
       js: await toCommonJs(row.code, 'factor code'),
       analysisKind: row.analysisKind,
       assetSeries: { window: compiled.window, inputs: [...compiled.inputs] },
+      ...(row.analysisKind === 'panel' && reportSpec != null
+        ? { assetUniverse: parseApprovedPanelUniverse(row.key, reportSpec) }
+        : {}),
     };
   } finally {
     compiled?.dispose();
@@ -238,10 +248,30 @@ async function preparePanelCompositeModule(
     key: row.key,
     analysisKind: 'panel',
     assetSeries,
+    assetUniverse: parsedSpec.data.assets.map((asset) => ({ ...asset })),
     panelComposite: {
       standardization: source.definition.standardization,
-      assetUniverse: parsedSpec.data.assets.map((asset) => asset.assetId),
+      assetUniverse: parsedSpec.data.assets.map((asset) => ({ ...asset })),
       components,
     },
   };
+}
+
+function parseApprovedPanelUniverse(
+  key: string,
+  reportSpec: unknown,
+): Array<{ assetId: string; assetClass: import('@jixie/shared').MultiAssetClass }> {
+  let parsedReportSpec = reportSpec;
+  if (typeof reportSpec === 'string') {
+    try {
+      parsedReportSpec = JSON.parse(reportSpec);
+    } catch {
+      parsedReportSpec = null;
+    }
+  }
+  const parsed = factorResearchSpecV1Schema.safeParse(parsedReportSpec);
+  if (!parsed.success || parsed.data.analysisKind !== 'panel') {
+    throw new Error(`panel factor ${key} has an invalid approved research universe`);
+  }
+  return parsed.data.assets.map((asset) => ({ ...asset }));
 }

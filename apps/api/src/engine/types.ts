@@ -8,7 +8,7 @@
 // Factors are a strategy-side concern: valuation signals read bar() (daily_basic) directly; price-window
 // signals (mom/rev/vol) compute on the fly from the bar series; moneyflow opts into a preloaded column.
 
-import type { FactorDependency, Locale } from '@jixie/shared';
+import type { AllocationAnalysis, FactorDependency, Locale } from '@jixie/shared';
 import type { EngineDataPort } from './data-port.js';
 import type { CustomFactorModule } from './custom-factor.js';
 
@@ -311,6 +311,7 @@ export interface BacktestResult {
   cost: CostModel;
   monthly: { month: string; ret: number }[]; // 'YYYYMM' → monthly return
   factorDependencies?: FactorDependency[];
+  allocationAnalysis?: AllocationAnalysis;
 }
 
 export interface PendingCashSignal {

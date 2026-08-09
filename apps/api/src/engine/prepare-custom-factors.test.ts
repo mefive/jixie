@@ -126,6 +126,30 @@ describe('published factor preparation', () => {
         });`,
       }),
     ]);
+    mocks.reportFindMany.mockResolvedValue([
+      {
+        id: 'report-1',
+        factorCodeSnapshot: null,
+        specJson: JSON.stringify({
+          version: 1,
+          analysisKind: 'panel',
+          start: '20200101',
+          end: '20241231',
+          observationFrequency: 'monthly',
+          assets: [
+            { assetId: '510300.SH', assetClass: 'cn_equity' },
+            { assetId: '511010.SH', assetClass: 'fixed_income' },
+            { assetId: '518880.SH', assetClass: 'gold' },
+          ],
+          target: { kind: 'forward_total_return', horizon: 20, horizonUnit: 'trade_day' },
+          dataPolicy: { pointInTime: true, revisionPolicy: 'as_available', dataCutoff: '20241231' },
+          rankingScope: 'cross_asset',
+          volatilityScaling: 'none',
+          minimumAssetsPerPeriod: 3,
+          portfolio: { topFraction: 0.25, bottomFraction: 0.25, transactionCostPerSide: 0.001 },
+        }),
+      },
+    ]);
 
     const prepared = await prepareStrategyFactors(
       `ctx.factor('cross_asset_momentum_120', '510300.SH')`,
@@ -136,6 +160,11 @@ describe('published factor preparation', () => {
       key: 'cross_asset_momentum_120',
       analysisKind: 'panel',
       assetSeries: { window: 121, inputs: ['etf.adjustedClose'] },
+      assetUniverse: [
+        { assetId: '510300.SH', assetClass: 'cn_equity' },
+        { assetId: '511010.SH', assetClass: 'fixed_income' },
+        { assetId: '518880.SH', assetClass: 'gold' },
+      ],
     });
     expect(prepared.factors[0]).toMatchObject({
       key: 'cross_asset_momentum_120',
@@ -246,7 +275,11 @@ describe('published factor preparation', () => {
       assetSeries: { window: 61, inputs: ['etf.adjustedClose'] },
       panelComposite: {
         standardization: 'rank',
-        assetUniverse: ['510300.SH', '511010.SH', '518880.SH'],
+        assetUniverse: [
+          { assetId: '510300.SH', assetClass: 'cn_equity' },
+          { assetId: '511010.SH', assetClass: 'fixed_income' },
+          { assetId: '518880.SH', assetClass: 'gold' },
+        ],
         components: [
           { direction: 'positive', module: { analysisKind: 'panel' } },
           { direction: 'negative', module: { analysisKind: 'panel' } },
