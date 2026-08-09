@@ -203,6 +203,9 @@ export const enFactor: typeof zhFactor = {
   compositeEditTitle: 'Edit multi-factor composite',
   compositeName: 'Name',
   compositeNamePlaceholder: 'e.g. Quality + value',
+  compositeResearchMethod: 'Research method',
+  compositeResearchMethodEquity: 'Equity cross-section',
+  compositeResearchMethodPanel: 'Cross-asset panel',
   compositeStandardizationLabel: 'Cross-sectional standardization',
   compositeStandardization: { rank: 'Rank', zscore: 'Z-score' },
   compositeComponents: 'Component factors (2–5)',
@@ -215,9 +218,11 @@ export const enFactor: typeof zhFactor = {
   compositeAddFactor: 'Add component',
   compositeEqualWeight: 'Equal weight',
   compositeEqualOnlyHint:
-    'V1 is equal-weight only: standardize on the common universe, align directions, then average. This avoids fitting weights on the same explore sample.',
+    'The initial version is equal-weight only: standardize on the common cross-section, align directions, then average. This avoids fitting weights on the same explore sample.',
   compositeMethodHint:
     'Each period keeps stocks covered by every component. Component code, directions, and composition rules are frozen with the report.',
+  compositePanelMethodHint:
+    'Each month end standardizes every component on the common ETF cross-section before direction-aligned equal weighting. Component sources and combination rules are frozen with the report.',
   compositeMethodologySpec: '{{count}} components · {{standardization}} · equal weight',
   compositeCreated: 'Multi-factor composite created',
   compositeUpdated: 'Multi-factor composite updated',

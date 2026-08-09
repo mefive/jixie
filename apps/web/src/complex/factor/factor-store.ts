@@ -13,7 +13,7 @@ import {
   type FactorAnalysisSpecV3,
   type FactorEvaluationScopeV1,
   type FactorEquityIndexCode,
-  type FactorCompositeDefinitionV1,
+  type FactorCompositeDefinition,
   type FactorCompositeResource,
   type FactorFreq,
   type FactorCorrelation,
@@ -201,7 +201,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   public selectedReportId = '';
   public mode: 'preset' | 'custom' | 'composite' | 'time_series' | 'panel' = 'preset';
   public definitionAnalysisKind: EditableFactorAnalysisKind = 'cross_sectional';
-  public compositeDefinition: FactorCompositeDefinitionV1 | null = null;
+  public compositeDefinition: FactorCompositeDefinition | null = null;
   public code = ''; // the custom factor's defineFactor source (empty for presets)
   public persistedCode = ''; // code as persisted in the DB — baseline for `edited`
   public pendingAgentCode: string | null = null; // Agent result held back when the user edited mid-turn
@@ -393,7 +393,9 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
 
   public get isPanel(): boolean {
     return (
-      this.mode === 'panel' || (this.mode === 'custom' && this.definitionAnalysisKind === 'panel')
+      this.mode === 'panel' ||
+      (this.mode === 'custom' && this.definitionAnalysisKind === 'panel') ||
+      (this.mode === 'composite' && this.compositeDefinition?.version === 2)
     );
   }
 
@@ -446,7 +448,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         costs: this.methodology.costs,
       };
     }
-    if (this.specVersion === 4 && this.compositeDefinition) {
+    if (this.specVersion === 4 && this.compositeDefinition?.version === 1) {
       return {
         version: 4,
         ...common,
@@ -704,7 +706,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
           ? 'panel'
           : 'cross_sectional';
       this.compositeDefinition = isComposite ? structuredClone(meta?.composite ?? null) : null;
-      this.specVersion = isComposite ? 4 : 5;
+      this.specVersion = isComposite && meta?.composite?.version === 1 ? 4 : 5;
       this.evaluationScope = defaultEvaluationScope();
       this.timeSeriesAssets = timeSeriesAssetsFor(meta?.targetAssetClasses);
       this.timeSeriesHorizon = 20;
@@ -990,7 +992,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   }
 
   public async saveComposite(
-    definition: FactorCompositeDefinitionV1,
+    definition: FactorCompositeDefinition,
     id?: string,
   ): Promise<FactorCompositeResource> {
     const saved = id
@@ -1063,7 +1065,12 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     if (detail.analysisKind === 'panel' && detail.researchSpec.analysisKind === 'panel') {
       const spec = detail.researchSpec;
       runInAction(() => {
-        this.mode = this.selected?.kind === 'custom' ? 'custom' : 'panel';
+        this.mode =
+          this.selected?.kind === 'custom'
+            ? 'custom'
+            : this.selected?.kind === 'composite'
+              ? 'composite'
+              : 'panel';
         this.definitionAnalysisKind = 'panel';
         if (this.mode === 'panel' && detail.factorCodeSnapshot?.includes('defineFactorV2')) {
           this.code = detail.factorCodeSnapshot;

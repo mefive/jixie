@@ -1,7 +1,8 @@
-import type { FactorCompositeDefinitionV1 } from '@jixie/shared';
+import type { FactorCompositeDefinitionV1, FactorPanelCompositeDefinitionV2 } from '@jixie/shared';
 import { describe, expect, it } from 'vitest';
-import { combineFactorSeries } from './composite.js';
+import { combineFactorSeries, combinePanelFactorObservations } from './composite.js';
 import type { Series } from './analysis.js';
+import type { PanelEvaluationObservation } from './panel-evaluator.js';
 
 function series(rows: Array<[string, number]>): Series {
   return new Map([['20240131', rows.map(([tsCode, value]) => ({ tsCode, value }))]]);
@@ -95,5 +96,73 @@ describe('combineFactorSeries', () => {
     );
 
     expect(result.size).toBe(0);
+  });
+});
+
+describe('combinePanelFactorObservations', () => {
+  const panelDefinition: FactorPanelCompositeDefinitionV2 = {
+    version: 2,
+    name: 'Momentum and defensive trend',
+    analysisKind: 'panel',
+    standardization: 'rank',
+    weighting: 'equal',
+    components: [
+      { factor: 'momentum', direction: 'positive' },
+      { factor: 'volatility_trend', direction: 'negative' },
+    ],
+  };
+
+  function observation(
+    assetId: string,
+    score: number,
+    forwardReturn: number,
+  ): PanelEvaluationObservation {
+    return {
+      assetId,
+      assetClass: assetId === 'BOND' ? 'fixed_income' : 'cn_equity',
+      asOfDate: '20240131',
+      featureAvailableDate: '20240131',
+      targetDate: '20240229',
+      score,
+      forwardReturn,
+      volatility: 0.1,
+    };
+  }
+
+  it('standardizes components on the common date and asset intersection', () => {
+    const result = combinePanelFactorObservations(
+      [
+        {
+          factor: 'momentum',
+          observations: [
+            observation('EQUITY', 3, 0.03),
+            observation('BOND', 1, 0.01),
+            observation('ONLY_MOMENTUM', 9, 0.09),
+          ],
+        },
+        {
+          factor: 'volatility_trend',
+          observations: [observation('EQUITY', 1, 0.03), observation('BOND', 3, 0.01)],
+        },
+      ],
+      panelDefinition,
+    );
+
+    expect(result.map(({ assetId, score }) => ({ assetId, score }))).toEqual([
+      { assetId: 'BOND', score: -0.5 },
+      { assetId: 'EQUITY', score: 0.5 },
+    ]);
+  });
+
+  it('rejects component observations with inconsistent forward targets', () => {
+    expect(() =>
+      combinePanelFactorObservations(
+        [
+          { factor: 'momentum', observations: [observation('EQUITY', 3, 0.03)] },
+          { factor: 'volatility_trend', observations: [observation('EQUITY', 1, 0.04)] },
+        ],
+        panelDefinition,
+      ),
+    ).toThrow('same market observation');
   });
 });

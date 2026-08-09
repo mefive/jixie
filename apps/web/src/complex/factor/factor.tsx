@@ -39,7 +39,7 @@ import type {
   FactorWeight,
   FactorOutlierMethod,
   FactorSampleStageKey,
-  FactorCompositeDefinitionV1,
+  FactorCompositeDefinition,
   FactorAnalysisKind,
   FactorTimeSeriesReportV1,
   PanelFactorResearchSpecV1,
@@ -721,18 +721,14 @@ const CompositeModal = complex.component(
     const store = complex.useStore();
     const { t } = useTranslation('factor');
     const { message } = App.useApp();
-    const available = useMemo(
-      () =>
-        (store.catalogLoader.result ?? []).filter(
-          (factor) =>
-            factor.kind !== 'composite' &&
-            factor.analysisKind !== 'time_series' &&
-            factor.analysisKind !== 'panel',
-        ),
-      [store.catalogLoader.result],
+    const catalog = useMemo(() => store.catalogLoader.result ?? [], [store.catalogLoader.result]);
+    const [definition, setDefinition] = useState<FactorCompositeDefinition>(() =>
+      emptyCompositeDefinition(catalog, 'cross_sectional'),
     );
-    const [definition, setDefinition] = useState<FactorCompositeDefinitionV1>(() =>
-      emptyCompositeDefinition(available),
+    const analysisKind = definition.version === 2 ? 'panel' : 'cross_sectional';
+    const available = useMemo(
+      () => compositeComponents(catalog, analysisKind),
+      [catalog, analysisKind],
     );
     const [saving, setSaving] = useState(false);
 
@@ -743,9 +739,9 @@ const CompositeModal = complex.component(
       setDefinition(
         editing?.composite
           ? structuredClone(editing.composite)
-          : emptyCompositeDefinition(available),
+          : emptyCompositeDefinition(catalog, 'cross_sectional'),
       );
-    }, [open, editing, available]);
+    }, [open, editing, catalog]);
 
     const chosen = new Set(definition.components.map((component) => component.factor));
     const valid =
@@ -791,6 +787,23 @@ const CompositeModal = complex.component(
             />
           </label>
           <label>
+            <span>{t('compositeResearchMethod')}</span>
+            <Segmented
+              value={analysisKind}
+              options={[
+                { value: 'cross_sectional', label: t('compositeResearchMethodEquity') },
+                { value: 'panel', label: t('compositeResearchMethodPanel') },
+              ]}
+              onChange={(nextAnalysisKind) => {
+                const next = emptyCompositeDefinition(
+                  catalog,
+                  nextAnalysisKind as 'cross_sectional' | 'panel',
+                );
+                setDefinition({ ...next, name: definition.name });
+              }}
+            />
+          </label>
+          <label>
             <span>{t('compositeStandardizationLabel')}</span>
             <Segmented
               value={definition.standardization}
@@ -825,7 +838,12 @@ const CompositeModal = complex.component(
                   }))}
                   onChange={(factor) => {
                     const components = definition.components.slice();
-                    components[index] = { ...components[index], factor };
+                    components[index] = {
+                      factor,
+                      direction:
+                        available.find((candidate) => candidate.key === factor)
+                          ?.expectedDirection ?? components[index].direction,
+                    };
                     setDefinition({ ...definition, components });
                   }}
                 />
@@ -870,7 +888,9 @@ const CompositeModal = complex.component(
                   ...definition.components,
                   {
                     factor: available.find((factor) => !chosen.has(factor.key))?.key ?? '',
-                    direction: 'positive',
+                    direction:
+                      available.find((factor) => !chosen.has(factor.key))?.expectedDirection ??
+                      'positive',
                   },
                 ],
               })
@@ -978,11 +998,11 @@ const MiddleColumn = complex.component(({ guardDiscard }: { guardDiscard: GuardD
   const store = complex.useStore();
   const { t } = useTranslation('factor');
   const preset = store.mode === 'preset';
-  if (store.isTimeSeries || store.isPanel) {
-    return <TimeSeriesWorkspace />;
-  }
   if (store.mode === 'composite') {
     return <CompositeWorkspace />;
+  }
+  if (store.isTimeSeries || store.isPanel) {
+    return <TimeSeriesWorkspace />;
   }
   if (preset && !store.code) {
     return <FactorDock />; // nothing selected yet (or the preset row failed to load)
@@ -1130,7 +1150,12 @@ const CompositeWorkspace = complex.component(() => {
             <div>
               <div className="jx-factor-compositeTitle">{definition.name}</div>
               <div className="jx-factor-compositeRule">
-                {t(`compositeStandardization.${definition.standardization}`)} ·{' '}
+                {t(
+                  definition.version === 2
+                    ? 'compositeResearchMethodPanel'
+                    : 'compositeResearchMethodEquity',
+                )}{' '}
+                · {t(`compositeStandardization.${definition.standardization}`)} ·{' '}
                 {t('compositeEqualWeight')}
               </div>
             </div>
@@ -1157,7 +1182,11 @@ const CompositeWorkspace = complex.component(() => {
               );
             })}
           </div>
-          <Alert type="info" showIcon title={t('compositeMethodHint')} />
+          <Alert
+            type="info"
+            showIcon
+            title={t(definition.version === 2 ? 'compositePanelMethodHint' : 'compositeMethodHint')}
+          />
         </section>
         <CompositeModal open={open} editing={store.selected} onClose={() => setOpen(false)} />
       </Splitter.Panel>
@@ -2918,21 +2947,47 @@ function traceOf(message: ChatMessage): AgentToolTraceItem[] | undefined {
 }
 
 // FactorKind → its i18n label key (in the 'factor' namespace).
-function emptyCompositeDefinition(factors: FactorMeta[]): FactorCompositeDefinitionV1 {
-  const components = factors.slice(0, 2).map((factor) => ({
+function compositeComponents(
+  factors: FactorMeta[],
+  analysisKind: 'cross_sectional' | 'panel',
+): FactorMeta[] {
+  return factors.filter(
+    (factor) =>
+      factor.kind !== 'composite' &&
+      (analysisKind === 'panel'
+        ? factor.analysisKind === 'panel'
+        : factor.analysisKind !== 'time_series' && factor.analysisKind !== 'panel'),
+  );
+}
+
+function emptyCompositeDefinition(
+  factors: FactorMeta[],
+  analysisKind: 'cross_sectional' | 'panel',
+): FactorCompositeDefinition {
+  const available = compositeComponents(factors, analysisKind);
+  const components = available.slice(0, 2).map((factor) => ({
     factor: factor.key,
-    direction: 'positive' as const,
+    direction: factor.expectedDirection ?? ('positive' as const),
   }));
   while (components.length < 2) {
     components.push({ factor: '', direction: 'positive' });
   }
-  return {
-    version: 1,
-    name: '',
-    standardization: 'rank',
-    weighting: 'equal',
-    components,
-  };
+  return analysisKind === 'panel'
+    ? {
+        version: 2,
+        name: '',
+        analysisKind: 'panel',
+        standardization: 'rank',
+        weighting: 'equal',
+        components,
+      }
+    : {
+        version: 1,
+        name: '',
+        standardization: 'rank',
+        weighting: 'equal',
+        components,
+      };
 }
 
 const KIND_KEY: Record<FactorKind, string> = {

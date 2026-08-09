@@ -1,4 +1,5 @@
-import type { FactorCompositeDefinitionV1 } from '@jixie/shared';
+import type { FactorCompositeDefinitionV1, FactorPanelCompositeDefinitionV2 } from '@jixie/shared';
+import type { PanelEvaluationObservation } from './panel-evaluator.js';
 import type { Series } from './analysis.js';
 
 export type FactorAnalysisRuntimeSource =
@@ -7,6 +8,17 @@ export type FactorAnalysisRuntimeSource =
       kind: 'composite';
       label: string;
       definition: FactorCompositeDefinitionV1;
+      components: Array<{
+        factor: string;
+        code: string;
+        label: string;
+        direction: 'positive' | 'negative';
+      }>;
+    }
+  | {
+      kind: 'panel_composite';
+      label: string;
+      definition: FactorPanelCompositeDefinitionV2;
       components: Array<{
         factor: string;
         code: string;
@@ -68,6 +80,95 @@ export function combineFactorSeries(
   }
 
   return combined;
+}
+
+/** Combine asset-scope component observations on the exact date/asset intersection. Each component
+ * is standardized within the common cross-asset panel before direction alignment and equal weighting.
+ * Forward returns and volatility come from the shared market observation and must agree exactly. */
+export function combinePanelFactorObservations(
+  inputs: Array<{ factor: string; observations: PanelEvaluationObservation[] }>,
+  definition: FactorPanelCompositeDefinitionV2,
+): PanelEvaluationObservation[] {
+  const observationsByFactor = new Map(
+    inputs.map((input) => [
+      input.factor,
+      new Map(
+        input.observations.map((observation) => [
+          `${observation.asOfDate}:${observation.assetId}`,
+          observation,
+        ]),
+      ),
+    ]),
+  );
+  const first = observationsByFactor.get(definition.components[0]?.factor);
+  if (!first) {
+    return [];
+  }
+
+  const commonKeys = [...first.keys()].filter((key) =>
+    definition.components.every((component) =>
+      observationsByFactor.get(component.factor)?.has(key),
+    ),
+  );
+  const keysByDate = new Map<string, string[]>();
+  for (const key of commonKeys) {
+    const date = key.slice(0, 8);
+    const keys = keysByDate.get(date) ?? [];
+    keys.push(key);
+    keysByDate.set(date, keys);
+  }
+
+  const combined: PanelEvaluationObservation[] = [];
+  for (const keys of keysByDate.values()) {
+    keys.sort();
+    const standardized = definition.components.map((component) => {
+      const observations = observationsByFactor.get(component.factor)!;
+      const raw = keys.map((key) => observations.get(key)!.score);
+      return definition.standardization === 'rank' ? centeredRankPercentiles(raw) : zscores(raw);
+    });
+    for (let keyIndex = 0; keyIndex < keys.length; keyIndex++) {
+      const reference = first.get(keys[keyIndex])!;
+      assertMatchingPanelTargets(
+        reference,
+        definition.components.map(
+          (component) => observationsByFactor.get(component.factor)!.get(keys[keyIndex])!,
+        ),
+      );
+      const score = definition.components.reduce((sum, component, componentIndex) => {
+        const direction = component.direction === 'positive' ? 1 : -1;
+        return sum + standardized[componentIndex][keyIndex] * direction;
+      }, 0);
+      combined.push({
+        ...reference,
+        score: score / definition.components.length,
+      });
+    }
+  }
+
+  return combined.sort(
+    (left, right) =>
+      left.asOfDate.localeCompare(right.asOfDate) || left.assetId.localeCompare(right.assetId),
+  );
+}
+
+function assertMatchingPanelTargets(
+  reference: PanelEvaluationObservation,
+  observations: PanelEvaluationObservation[],
+): void {
+  if (
+    observations.some(
+      (observation) =>
+        observation.assetId !== reference.assetId ||
+        observation.assetClass !== reference.assetClass ||
+        observation.asOfDate !== reference.asOfDate ||
+        observation.featureAvailableDate !== reference.featureAvailableDate ||
+        observation.targetDate !== reference.targetDate ||
+        observation.forwardReturn !== reference.forwardReturn ||
+        observation.volatility !== reference.volatility,
+    )
+  ) {
+    throw new Error('Panel composite components do not share the same market observation.');
+  }
 }
 
 function centeredRankPercentiles(values: number[]): number[] {

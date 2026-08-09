@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { ulid } from 'ulid';
 import { z } from 'zod';
 import type { Prisma } from '@prisma/client';
-import type { FactorCompositeDefinitionV1 } from '@jixie/shared';
+import type { FactorCompositeDefinition } from '@jixie/shared';
 import { apiError, validateJson } from '../lib/httpError.js';
 import { prisma } from '../lib/prisma.js';
 import { BUILTIN_KEYS, BUILTIN_USER_ID, builtinCatalog } from '../factor/builtin-factors.js';
@@ -10,7 +10,7 @@ import { validateFactorDefinition } from '../factor/validate-factor-definition.j
 import { chatMessagesSchema } from '../lib/chat-schema.js';
 import { m } from '../i18n/index.js';
 import { localeFromRequest } from '../i18n/index.js';
-import { factorCompositeDefinitionV1Schema } from '../factor/report-spec.js';
+import { factorCompositeDefinitionSchema } from '../factor/report-spec.js';
 import {
   timeSeriesTemplateCatalog,
   timeSeriesTemplateResource,
@@ -117,7 +117,15 @@ factorsRoute.get('/catalog', async (c) => {
     key: composite.id,
     label: composite.name,
     kind: 'composite' as const,
-    composite: composite.definition as unknown as FactorCompositeDefinitionV1,
+    composite: composite.definition as unknown as FactorCompositeDefinition,
+    analysisKind:
+      (composite.definition as { version?: number }).version === 2
+        ? ('panel' as const)
+        : ('cross_sectional' as const),
+    targetAssetClasses:
+      (composite.definition as { version?: number }).version === 2
+        ? (['equity', 'fixed_income', 'commodity'] as const)
+        : (['equity'] as const),
   }));
   return c.json([
     ...builtinCatalog(),
@@ -128,24 +136,27 @@ factorsRoute.get('/catalog', async (c) => {
   ]);
 });
 
-const compositeBody = z.object({ definition: factorCompositeDefinitionV1Schema });
+const compositeBody = z.object({ definition: factorCompositeDefinitionSchema });
 
-async function validateCompositeComponents(
-  userId: string,
-  definition: FactorCompositeDefinitionV1,
-) {
-  const customIds = definition.components
-    .map((component) => component.factor)
-    .filter((factor) => !BUILTIN_KEYS.has(factor));
-  if (customIds.length === 0) {
-    return null;
-  }
+async function validateCompositeComponents(userId: string, definition: FactorCompositeDefinition) {
+  const factorIds = definition.components.map((component) => component.factor);
   const owned = await prisma.factor.findMany({
-    where: { userId, id: { in: customIds } },
-    select: { id: true },
+    where: { userId: { in: [userId, BUILTIN_USER_ID] }, id: { in: factorIds } },
+    select: { id: true, analysisKind: true },
   });
-  const ownedIds = new Set(owned.map((factor) => factor.id));
-  return customIds.find((id) => !ownedIds.has(id)) ?? null;
+  const expectedAnalysisKind = definition.version === 2 ? 'panel' : 'cross_sectional';
+  const ownedById = new Map(owned.map((factor) => [factor.id, factor]));
+  return (
+    factorIds.find((id) => {
+      const factor = ownedById.get(id);
+      return (
+        !factor ||
+        (expectedAnalysisKind === 'panel'
+          ? factor.analysisKind !== 'panel'
+          : factor.analysisKind === 'time_series' || factor.analysisKind === 'panel')
+      );
+    }) ?? null
+  );
 }
 
 function compositeResource(row: {
@@ -158,7 +169,7 @@ function compositeResource(row: {
   return {
     id: row.id,
     name: row.name,
-    definition: row.definition as unknown as FactorCompositeDefinitionV1,
+    definition: row.definition as unknown as FactorCompositeDefinition,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

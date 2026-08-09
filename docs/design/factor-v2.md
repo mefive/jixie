@@ -746,8 +746,20 @@ Panel 报告允许没有新增诊断字段，读取时保持兼容。九资产�
 仍以预设全局标准判定失败。回归截图为
 `apps/web/acceptance/factor-panel-normalization.png`。
 
-**本 Phase 剩余：**Panel 组合因子；策略结果中的资产收益贡献、风险贡献、配置漂移与宏观阶段分解。
-专业期货 Carry、库存和宏观 vintage 仍归 Phase 5。
+**2026-08-09 Panel 组合因子研究纵切：**`FactorComposite V1` 继续只表达股票横截面，新建
+`FactorPanelCompositeDefinition V2` 表达跨资产 Panel，用户在同一个组合创建器中先选择研究方式，再从
+对应方法允许的 Factor 中选择 2–5 个成分。首个受控基线把跨资产 120 日动量设为正向、60 日年化波动率
+设为负向；每个月末严格取所有成分共有的 `日期 × ETF` 观测，分别做 Rank 或 Z-score 标准化、对齐方向后
+等权平均，不拟合成分权重。报告冻结完整组合定义和每个成分的可执行源码，Holdout 直接复用同一快照，
+后续修改可编辑组合或成分不会污染历史报告。
+
+九资产真实 E2E 在 2020–2024 探索段得到 59 个有效月末和 468 条组合观测，并完成密封 Holdout；页面同时
+展示组合方法、正负方向、Panel 覆盖、全局与类别分解证据。回归脚本为
+`apps/web/e2e/factor-panel-composite.mjs`，截图为
+`apps/web/acceptance/factor-panel-composite.png`。
+
+**本 Phase 剩余：**Panel 组合 Factor 的不可变发布与策略 `ctx.factor` 运行时；策略结果中的资产收益贡献、
+风险贡献、配置漂移与宏观阶段分解。专业期货 Carry、库存和宏观 vintage 仍归 Phase 5。
 
 ### Phase 5：商品专业特征、宏观状态与风险因子
 

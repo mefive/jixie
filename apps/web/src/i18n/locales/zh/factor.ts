@@ -190,6 +190,9 @@ export const zhFactor = {
   compositeEditTitle: '编辑多因子合成',
   compositeName: '名称',
   compositeNamePlaceholder: '例如：质量 + 价值',
+  compositeResearchMethod: '研究方式',
+  compositeResearchMethodEquity: '股票横截面',
+  compositeResearchMethodPanel: '跨资产面板',
   compositeStandardizationLabel: '截面标准化',
   compositeStandardization: { rank: 'Rank 排名', zscore: 'Z-score' },
   compositeComponents: '成分因子（2–5 个）',
@@ -199,8 +202,10 @@ export const zhFactor = {
   compositeAddFactor: '添加成分',
   compositeEqualWeight: '等权',
   compositeEqualOnlyHint:
-    'V1 固定等权：先在共同股票池上标准化各成分，再对齐方向并平均，避免用同一探索样本估权造成过拟合。',
+    '首版固定等权：先在共同截面上标准化各成分，再对齐方向并平均，避免用同一探索样本估权造成过拟合。',
   compositeMethodHint: '每期只保留所有成分都有值的股票；成分代码、方向和合成规则会随报告一起冻结。',
+  compositePanelMethodHint:
+    '每个月末在共同 ETF 截面内分别标准化成分，再按方向等权合成；成分源码和合成规则会随报告一起冻结。',
   compositeMethodologySpec: '{{count}} 个成分 · {{standardization}} · 等权',
   compositeCreated: '多因子合成已创建',
   compositeUpdated: '多因子合成已更新',

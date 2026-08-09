@@ -746,7 +746,7 @@ export async function analyzeFactor(
       ),
       audit: mergeFactorSeriesAudits(results.map(({ result }) => result.audit)),
     };
-  } else {
+  } else if (!source || source.kind === 'single') {
     computed = await computeFactorSeries(
       factorKey,
       rebalanceDates,
@@ -758,6 +758,8 @@ export async function analyzeFactor(
       policy.minimumWindowCoverage,
     );
     transformSeriesOutliers(computed.series, policy.factorExposure);
+  } else {
+    throw new Error('Cross-sectional analysis received an asset-scope factor source.');
   }
   const byDate = computed.series;
   const needsIndustry =

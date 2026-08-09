@@ -6,6 +6,7 @@ import {
   createDefaultFactorAnalysisSpecV4,
   createDefaultFactorAnalysisSpecV5,
   factorTestKey,
+  factorPanelCompositeDefinitionV2Schema,
   factorVariantKey,
   normalizeFactorAnalysisSpec,
   normalizeFactorResearchSpec,
@@ -120,6 +121,22 @@ describe('factor report spec', () => {
 
     expect(normalizeFactorAnalysisSpec(spec)).toEqual(spec);
     expect(spec.version).toBe(4);
+  });
+
+  it('validates a distinct V2 cross-asset panel composite definition', () => {
+    expect(
+      factorPanelCompositeDefinitionV2Schema.parse({
+        version: 2,
+        name: 'Momentum and low volatility',
+        analysisKind: 'panel',
+        standardization: 'rank',
+        weighting: 'equal',
+        components: [
+          { factor: 'cross_asset_momentum_120', direction: 'positive' },
+          { factor: 'cross_asset_volatility_60', direction: 'negative' },
+        ],
+      }),
+    ).toMatchObject({ version: 2, analysisKind: 'panel' });
   });
 
   it('freezes a point-in-time index universe as a distinct V5 research identity', () => {
