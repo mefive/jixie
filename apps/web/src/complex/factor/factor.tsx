@@ -77,7 +77,6 @@ import { LogView } from '@src/components/log-view';
 import { QuantileHeatmap } from './quantile-heatmap';
 import { complex } from './complex';
 import { TIME_SERIES_ASSET_OPTIONS } from './factor-store';
-import { PANEL_ASSETS } from './panel-universe';
 import './factor.css';
 
 dayjs.extend(customParseFormat);
@@ -609,6 +608,11 @@ const FactorLibrary = complex.component(
               >
                 <span className="jx-factor-libName">{factorDisplayName(factor)}</span>
                 <span className="jx-factor-methodBadge">{t('panel.methodBadge')}</span>
+                {factor.kind === 'commodity' && (
+                  <span className="jx-factor-kind jx-factor-kind--commodity">
+                    {t(KIND_KEY.commodity)}
+                  </span>
+                )}
               </button>
             ))}
 
@@ -1379,7 +1383,7 @@ const ParamsBar = complex.component(() => {
       })
     : store.isPanel
       ? t('panel.paramsSummary', {
-          assets: PANEL_ASSETS.length,
+          assets: store.panelAssets.length,
           horizon: store.timeSeriesHorizon,
           start: dayjs(store.start, 'YYYYMMDD').format('YYYY-MM-DD'),
           end: dayjs(store.end, 'YYYYMMDD').format('YYYY-MM-DD'),
@@ -1727,7 +1731,7 @@ const PanelParamsPopover = complex.component(
           <div className="jx-factor-paramField jx-factor-paramField--stacked">
             <span className="jx-factor-paramLabel">{t('panel.universe')}</span>
             <div className="jx-factor-timeFixed" data-testid="panel-universe">
-              {PANEL_ASSETS.map((asset) => (
+              {store.panelAssets.map((asset) => (
                 <span key={asset.assetId}>
                   {t(`panel.assetNames.${asset.assetId}`)} · {asset.assetId}
                 </span>
@@ -2570,6 +2574,9 @@ const PanelReportBody = complex.component(() => {
           store.reportDetail.researchIntent,
         )
       : false;
+  const isCommodityCarry =
+    store.reportDetail?.factorCodeSnapshot?.includes('commodity.futures.annualizedLogCarry') ??
+    false;
   if (!report || !spec) {
     return <Placeholder icon={faPlay} text={t('runPrompt')} />;
   }
@@ -2585,7 +2592,11 @@ const PanelReportBody = complex.component(() => {
           })}
         />
       )}
-      <Alert type="info" showIcon title={t('panel.reportNotice')} />
+      <Alert
+        type="info"
+        showIcon
+        title={t(isCommodityCarry ? 'panel.commodityCarryReportNotice' : 'panel.reportNotice')}
+      />
       <div className="jx-factor-timeAudit">
         <Metric label={t('panel.researchType')} value={t('panel.methodBadge')} />
         <Metric
@@ -3048,9 +3059,15 @@ const FactorPublicationCard = complex.component(() => {
   if (!detail) {
     return null;
   }
+  if (detail.factorCodeSnapshot?.includes('commodity.futures.annualizedLogCarry')) {
+    return null;
+  }
   const ownedFactor =
     store.mode === 'custom' ||
     (store.mode === 'composite' && store.compositeDefinition?.version === 2);
+  if (!store.factorKey && !ownedFactor) {
+    return null;
+  }
 
   const publish = () => {
     modal.confirm({
@@ -3273,6 +3290,7 @@ function compositeComponents(
   return factors.filter(
     (factor) =>
       factor.kind !== 'composite' &&
+      !(analysisKind === 'panel' && factor.builtin && !factor.strategyKey) &&
       (analysisKind === 'panel'
         ? factor.analysisKind === 'panel'
         : factor.analysisKind !== 'time_series' && factor.analysisKind !== 'panel'),
@@ -3315,6 +3333,7 @@ const KIND_KEY: Record<FactorKind, string> = {
   fundamental: 'kindFundamental',
   moneyflow: 'kindMoneyflow',
   rates: 'kindRates',
+  commodity: 'kindCommodity',
   macro: 'kindMacro',
   custom: 'kindCustom',
   composite: 'kindComposite',
@@ -3332,6 +3351,7 @@ function timeSeriesInputLabel(input: string, t: TFunction<'factor'>): string {
     'rates.cgb.yield.5y': 'timeSeries.inputFields.cgbYield5y',
     'rates.cgb.yield.10y': 'timeSeries.inputFields.cgbYield10y',
     'rates.cgb.yield.30y': 'timeSeries.inputFields.cgbYield30y',
+    'commodity.futures.annualizedLogCarry': 'timeSeries.inputFields.commodityAnnualizedCarry',
   };
   return t(keys[input] ?? 'timeSeries.inputFields.unknown');
 }

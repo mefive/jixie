@@ -46,6 +46,11 @@
   background: rgb(126 34 206 / 0.14);
 }
 
+.jx-factor-kind--commodity {
+  @apply text-ink;
+  background: rgb(217 119 6 / 0.16);
+}
+
 /* —— left column: Agent panel (chat | factor-library tabs) —— */
 .jx-factor-agent {
   @apply flex flex-col overflow-hidden bg-card;

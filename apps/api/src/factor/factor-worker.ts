@@ -9,6 +9,10 @@ import { TimeSeriesEvaluator } from './time-series-evaluator.js';
 import { compileTimeSeriesFactor } from './compile-time-series-factor.js';
 import { compilePanelFactor } from './compile-time-series-factor.js';
 import { loadPanelEtfObservations } from './panel-observations.js';
+import {
+  loadCommodityCarryPanelObservations,
+  panelFactorUsesCommodityCarry,
+} from './commodity-carry-panel-observations.js';
 import { PanelEvaluator } from './panel-evaluator.js';
 import { combinePanelFactorObservations } from './composite.js';
 import { loadMacroRegimeObservations } from './macro-regime-observations.js';
@@ -83,7 +87,9 @@ try {
         const compiled = await compilePanelFactor(source.code, onUserLog);
         try {
           onSystemLog(t(locale, 'factorPanelLoading', { count: researchSpec.assets.length }));
-          const observations = await loadPanelEtfObservations(researchSpec, compiled);
+          const observations = panelFactorUsesCommodityCarry(compiled)
+            ? await loadCommodityCarryPanelObservations(researchSpec, compiled)
+            : await loadPanelEtfObservations(researchSpec, compiled);
           onSystemLog(t(locale, 'factorPanelEvaluating', { count: observations.length }));
           const report = new PanelEvaluator().evaluate(researchSpec, observations);
           port.postMessage({ type: 'done', reportId, payload: JSON.stringify(report) });
@@ -101,7 +107,10 @@ try {
         onSystemLog(t(locale, 'factorPanelLoading', { count: researchSpec.assets.length }));
         const componentObservations = await Promise.all(
           compiledComponents.map((compiled, index) =>
-            loadPanelEtfObservations(researchSpec, compiled).then((observations) => ({
+            (panelFactorUsesCommodityCarry(compiled)
+              ? loadCommodityCarryPanelObservations(researchSpec, compiled)
+              : loadPanelEtfObservations(researchSpec, compiled)
+            ).then((observations) => ({
               factor: source.components[index].factor,
               observations,
             })),

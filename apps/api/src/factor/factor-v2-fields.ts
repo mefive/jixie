@@ -3,7 +3,10 @@ export type FactorV2FieldKey =
   | 'rates.cgb.yield.2y'
   | 'rates.cgb.yield.5y'
   | 'rates.cgb.yield.10y'
-  | 'rates.cgb.yield.30y';
+  | 'rates.cgb.yield.30y'
+  | 'commodity.futures.annualizedLogCarry';
+
+export const COMMODITY_CARRY_PANEL_FIELD = 'commodity.futures.annualizedLogCarry' as const;
 
 export interface FactorV2FieldDefinition {
   key: FactorV2FieldKey;
@@ -29,6 +32,14 @@ export const FACTOR_V2_FIELDS: Record<FactorV2FieldKey, FactorV2FieldDefinition>
   'rates.cgb.yield.5y': rateField('rates.cgb.yield.5y'),
   'rates.cgb.yield.10y': rateField('rates.cgb.yield.10y'),
   'rates.cgb.yield.30y': rateField('rates.cgb.yield.30y'),
+  'commodity.futures.annualizedLogCarry': {
+    key: 'commodity.futures.annualizedLogCarry',
+    inputDomain: 'commodity',
+    frequency: 'daily',
+    valueType: 'level',
+    pointInTime: true,
+    targetAssetClasses: ['commodity'],
+  },
 };
 
 function rateField(key: FactorV2FieldKey): FactorV2FieldDefinition {

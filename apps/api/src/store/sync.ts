@@ -32,11 +32,17 @@ import {
   type AdjFactorRow,
   type DailyBasicRow,
   type DailyRow,
+  type FutureContractRow,
   type NameChangeRow,
   type StkLimitRow,
 } from '../tushare/api.js';
 import { prisma } from '../lib/prisma.js';
 import { day, daysBetween } from '../lib/date.js';
+import {
+  COMMODITY_FUTURE_EXCHANGES,
+  COMMODITY_FUTURE_PRODUCT_CODES,
+  selectCommodityFutureContracts,
+} from '../commodity/commodity-futures.js';
 import {
   STOCK_CODE_CHANGES,
   canonicalStockCode,
@@ -1503,31 +1509,24 @@ export async function syncFutureContracts(client: TushareClient): Promise<number
   const rows = (await futureContracts(client, { exchange: 'CFFEX', fut_type: '1' })).filter((row) =>
     isStockIndexFuture(row.fut_code),
   );
-
-  await prisma.$transaction([
-    prisma.futureContract.deleteMany({}),
-    prisma.futureContract.createMany({
-      data: rows.map((row) => ({
-        tsCode: row.ts_code,
-        symbol: row.symbol,
-        productCode: row.fut_code.toUpperCase(),
-        name: row.name,
-        exchange: row.exchange,
-        multiplier: row.multiplier,
-        tradeUnit: row.trade_unit,
-        perUnit: row.per_unit,
-        quoteUnit: row.quote_unit,
-        quoteUnitDesc: row.quote_unit_desc,
-        deliveryMode: row.d_mode_desc,
-        listDate: row.list_date,
-        delistDate: row.delist_date,
-        deliveryMonth: row.d_month,
-        lastDeliveryDate: row.last_ddate,
-        tradeTimeDesc: row.trade_time_desc,
-      })),
-    }),
-  ]);
+  if (rows.length === 0) {
+    throw new Error('Stock-index future metadata response is empty.');
+  }
+  await replaceFutureContracts([...STOCK_INDEX_FUTURE_PRODUCTS], rows);
   log(`syncFutureContracts: ${rows.length} 个 IF/IH/IC/IM 月合约`);
+  return rows.length;
+}
+
+/** Refresh the configured research-only commodity delivery-month contracts without touching the
+ * stock-index contracts that are enabled by the trading engine. */
+export async function syncCommodityFutureContracts(client: TushareClient): Promise<number> {
+  const exchangeRows: FutureContractRow[] = [];
+  for (const exchange of COMMODITY_FUTURE_EXCHANGES) {
+    exchangeRows.push(...(await futureContracts(client, { exchange, fut_type: '1' })));
+  }
+  const rows = selectCommodityFutureContracts(exchangeRows);
+  await replaceFutureContracts(COMMODITY_FUTURE_PRODUCT_CODES, rows);
+  log(`syncCommodityFutureContracts: ${rows.length} 个 AU/CU/SC/M 实际月合约（研究只读）`);
   return rows.length;
 }
 
@@ -1538,7 +1537,39 @@ export async function syncFutureDaily(
   start: TradeDate,
   end: TradeDate,
 ): Promise<number> {
-  const contracts = await overlappingFutureContracts(start, end);
+  return syncFutureDailyForProducts(
+    client,
+    start,
+    end,
+    [...STOCK_INDEX_FUTURE_PRODUCTS],
+    'stock-index',
+  );
+}
+
+/** Sync raw settlements for configured commodity contracts. This does not create a tradable
+ * continuous series and does not enable commodity order execution. */
+export async function syncCommodityFutureDaily(
+  client: TushareClient,
+  start: TradeDate,
+  end: TradeDate,
+): Promise<number> {
+  return syncFutureDailyForProducts(
+    client,
+    start,
+    end,
+    COMMODITY_FUTURE_PRODUCT_CODES,
+    'commodity',
+  );
+}
+
+async function syncFutureDailyForProducts(
+  client: TushareClient,
+  start: TradeDate,
+  end: TradeDate,
+  productCodes: readonly string[],
+  label: string,
+): Promise<number> {
+  const contracts = await overlappingFutureContracts(start, end, productCodes, label);
   let totalRows = 0;
 
   for (const [index, contract] of contracts.entries()) {
@@ -1576,7 +1607,7 @@ export async function syncFutureDaily(
     ]);
     totalRows += rows.length;
     if ((index + 1) % 20 === 0 || index + 1 === contracts.length) {
-      log(`syncFutureDaily: ${index + 1}/${contracts.length} 合约，累计 ${totalRows} 行`);
+      log(`syncFutureDaily(${label}): ${index + 1}/${contracts.length} 合约，累计 ${totalRows} 行`);
     }
   }
   return totalRows;
@@ -1620,7 +1651,12 @@ export async function syncFutureSettlements(
   start: TradeDate,
   end: TradeDate,
 ): Promise<number> {
-  const contracts = await overlappingFutureContracts(start, end);
+  const contracts = await overlappingFutureContracts(
+    start,
+    end,
+    [...STOCK_INDEX_FUTURE_PRODUCTS],
+    'stock-index',
+  );
   let totalRows = 0;
 
   for (const [index, contract] of contracts.entries()) {
@@ -1660,16 +1696,54 @@ export async function syncFutureSettlements(
   return totalRows;
 }
 
-async function overlappingFutureContracts(start: TradeDate, end: TradeDate) {
+async function overlappingFutureContracts(
+  start: TradeDate,
+  end: TradeDate,
+  productCodes: readonly string[],
+  label: string,
+) {
   const contracts = await prisma.futureContract.findMany({
-    where: { listDate: { lte: end }, delistDate: { gte: start } },
+    where: {
+      productCode: { in: [...productCodes] },
+      listDate: { lte: end },
+      delistDate: { gte: start },
+    },
     orderBy: [{ productCode: 'asc' }, { listDate: 'asc' }],
     select: { tsCode: true, listDate: true, delistDate: true },
   });
   if (contracts.length === 0) {
-    throw new Error('No stock-index futures contracts found. Run syncFutureContracts first.');
+    throw new Error(`No ${label} futures contracts found. Sync contract metadata first.`);
   }
   return contracts;
+}
+
+async function replaceFutureContracts(
+  productCodes: readonly string[],
+  rows: Awaited<ReturnType<typeof futureContracts>>,
+): Promise<void> {
+  await prisma.$transaction([
+    prisma.futureContract.deleteMany({ where: { productCode: { in: [...productCodes] } } }),
+    prisma.futureContract.createMany({
+      data: rows.map((row) => ({
+        tsCode: row.ts_code,
+        symbol: row.symbol,
+        productCode: row.fut_code.toUpperCase(),
+        name: row.name,
+        exchange: row.exchange,
+        multiplier: row.multiplier,
+        tradeUnit: row.trade_unit,
+        perUnit: row.per_unit,
+        quoteUnit: row.quote_unit,
+        quoteUnitDesc: row.quote_unit_desc,
+        deliveryMode: row.d_mode_desc,
+        listDate: row.list_date,
+        delistDate: row.delist_date,
+        deliveryMonth: row.d_month,
+        lastDeliveryDate: row.last_ddate,
+        tradeTimeDesc: row.trade_time_desc,
+      })),
+    }),
+  ]);
 }
 
 function toDaily(r: DailyRow) {

@@ -22,6 +22,13 @@ const TIME_SERIES = `export default defineFactorV2({
   },
 });`;
 const PANEL = TIME_SERIES.replace("analysisKind: 'time_series'", "analysisKind: 'panel'");
+const COMMODITY_CARRY_PANEL = PANEL.replaceAll(
+  'etf.adjustedClose',
+  'commodity.futures.annualizedLogCarry',
+).replace(
+  "targetAssetClasses: ['equity', 'fixed_income', 'commodity']",
+  "targetAssetClasses: ['commodity']",
+);
 
 describe('validateFactorDefinition', () => {
   it('accepts definitions under their declared protocol', async () => {
@@ -41,6 +48,12 @@ describe('validateFactorDefinition', () => {
     );
     await expect(validateFactorDefinition(TIME_SERIES, 'panel')).rejects.toThrow(
       /analysisKind=panel/,
+    );
+  });
+
+  it('keeps commodity carry confined to the controlled research template', async () => {
+    await expect(validateFactorDefinition(COMMODITY_CARRY_PANEL, 'panel')).rejects.toThrow(
+      /controlled template/,
     );
   });
 });

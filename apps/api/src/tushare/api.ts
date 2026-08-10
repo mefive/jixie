@@ -307,7 +307,7 @@ export interface FutureContractRow {
   exchange: string;
   name: string;
   fut_code: string;
-  multiplier: number;
+  multiplier: number | null;
   trade_unit: string | null;
   per_unit: number | null;
   quote_unit: string | null;
@@ -320,10 +320,18 @@ export interface FutureContractRow {
   trade_time_desc: string | null;
 }
 
-/** CFFEX futures contract metadata. Callers filter the response to actual IF/IH/IC/IM contracts. */
+export type FutureExchange = 'CFFEX' | 'SHFE' | 'DCE' | 'CZCE' | 'INE' | 'GFEX';
+
+/** Futures contract metadata. Callers must filter the exchange response to explicitly configured
+ * actual delivery-month products before persistence. */
 export async function futureContracts(
   client: TushareClient,
-  params: { exchange: 'CFFEX'; fut_type?: string; fut_code?: string; list_date?: TradeDate },
+  params: {
+    exchange: FutureExchange;
+    fut_type?: string;
+    fut_code?: string;
+    list_date?: TradeDate;
+  },
 ): Promise<FutureContractRow[]> {
   const rows = await client.call(
     'fut_basic',

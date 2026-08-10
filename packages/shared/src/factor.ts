@@ -37,6 +37,7 @@ export type FactorKind =
   | 'fundamental'
   | 'moneyflow'
   | 'rates'
+  | 'commodity'
   | 'macro'
   | 'custom'
   | 'composite';

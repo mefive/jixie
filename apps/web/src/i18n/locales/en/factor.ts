@@ -7,7 +7,7 @@ export const enFactor: typeof zhFactor = {
   newFactor: 'New',
   newFactorCrossSectional: 'Equity cross-sectional factor',
   newFactorTimeSeries: 'ETF time-series signal',
-  newFactorPanel: 'Cross-asset panel factor',
+  newFactorPanel: 'Panel cross-sectional factor',
   factorName: 'Factor name',
   factorNamePlaceholder: 'e.g. Term spread signal',
   factorKeyCreateHint:
@@ -53,6 +53,7 @@ export const enFactor: typeof zhFactor = {
       cgbYield5y: 'CGB yield 5Y',
       cgbYield10y: 'CGB yield 10Y',
       cgbYield30y: 'CGB yield 30Y',
+      commodityAnnualizedCarry: 'annualized commodity futures carry',
       unknown: 'unknown field',
     },
     windowAudit: 'Window: {{value}} trading days',
@@ -120,35 +121,36 @@ export const enFactor: typeof zhFactor = {
     },
   },
   panel: {
-    libraryGroup: 'Cross-asset panel factors',
-    methodBadge: 'Cross-asset panel',
-    codeReadonly: 'Built-in cross-asset panel definition, read-only code',
+    libraryGroup: 'Panel cross-sectional factors',
+    methodBadge: 'Panel cross-section',
+    codeReadonly: 'Built-in panel cross-sectional definition, read-only code',
     codeEditable:
-      'Custom cross-asset panel definition; its research protocol is immutable after creation',
-    assetScopeAudit: 'Output: comparable scores across assets on common month ends',
+      'Custom panel cross-sectional definition; its research protocol is immutable after creation',
+    assetScopeAudit: 'Output: cross-sectionally comparable scores on common month ends',
     placeholderQa:
       'Ask about this panel factor — e.g. "how do I read Rank IC?", "is the net long-short robust?" — Enter to send',
     placeholderAuthor:
       'Describe a price-based ETF ranking signal such as 120-day momentum; or keep refining — Enter to send',
     chatEmpty:
-      'This is a controlled cross-asset panel template. It ranks ETFs on common month ends and reports coverage, Rank IC, turnover, and cost-adjusted long-short returns.',
+      'This is a controlled panel cross-sectional template. It ranks research assets on common month ends and reports coverage, Rank IC, turnover, and cost-adjusted long-short returns.',
     chatEmptyAuthor:
       'This is an editable cross-asset Panel Factor Definition V2. The first release can use adjusted ETF closes to produce comparable cross-asset scores.',
-    paramsSummary:
-      '{{assets}} cross-asset ETFs · monthly · {{horizon}}d forward · {{start}} – {{end}}',
-    universe: 'Fixed launch universe',
+    paramsSummary: 'Panel · {{assets}} ETFs · monthly · {{horizon}}d forward · {{start}} – {{end}}',
+    universe: 'Fixed research universe',
     horizon: 'Holding horizon',
     monthlyFrequency: 'Observations: common month ends',
     portfolioRule: 'Portfolio: top/bottom 25%',
     costRule: 'Costs: 10bp per side; report shows net returns',
     reportNotice:
-      'This is cross-asset ranking evidence, not an asset-allocation strategy backtest. Position limits, cash management, and execution still belong in the strategy.',
+      'This is asset cross-sectional ranking evidence, not an asset-allocation strategy backtest. Position limits, cash management, and execution still belong in the strategy.',
+    commodityCarryReportNotice:
+      'Actual futures contracts supply the term-structure carry feature while mapped proxy ETFs supply forward returns. The non-ferrous and energy ETFs are not one-to-one copper or crude-oil exposures and therefore carry category basis risk. This is commodity cross-sectional evidence, not a continuous-futures backtest, and it is not yet publishable to strategies.',
     researchType: 'Research method',
     target: 'Prediction target',
     targetValue: 'Next {{horizon}} trading-day total return from common month end',
     periods: 'Eligible months',
     observations: 'Observations',
-    evidenceTitle: 'Cross-asset ranking evidence',
+    evidenceTitle: 'Panel ranking evidence',
     rankIcMean: 'Mean Rank IC',
     rankIcir: 'Annualized Rank ICIR',
     positiveRate: 'Positive Rank IC rate',
@@ -174,7 +176,7 @@ export const enFactor: typeof zhFactor = {
     coverageCap:
       'At least {{min}} assets per period, median coverage {{median}}; {{skipped}} periods skipped for insufficient history.',
     historyParams:
-      'Cross-asset panel · {{assets}} ETFs · {{horizon}}d forward · {{start}} – {{end}}',
+      'Panel cross-section · {{assets}} ETFs · {{horizon}}d forward · {{start}} – {{end}}',
     assetNames: {
       '510300.SH': 'CSI 300 ETF',
       '513100.SH': 'Nasdaq-100 ETF',
@@ -267,7 +269,7 @@ export const enFactor: typeof zhFactor = {
   compositeStrategyKeyPlaceholder: 'e.g. momentum_low_vol_panel',
   compositeResearchMethod: 'Research method',
   compositeResearchMethodEquity: 'Equity cross-section',
-  compositeResearchMethodPanel: 'Cross-asset panel',
+  compositeResearchMethodPanel: 'Panel cross-section',
   compositeStandardizationLabel: 'Cross-sectional standardization',
   compositeStandardization: { rank: 'Rank', zscore: 'Z-score' },
   compositeComponents: 'Component factors (2–5)',
@@ -592,6 +594,7 @@ export const enFactor: typeof zhFactor = {
   kindFundamental: 'Fundamental',
   kindMoneyflow: 'Money flow',
   kindRates: 'Rates',
+  kindCommodity: 'Commodity',
   kindMacro: 'Macro',
   kindCustom: 'Custom',
 
