@@ -1,4 +1,8 @@
 import type { TradeDate } from '@jixie/shared';
+import {
+  maintainCommodityWarehouseReceipts,
+  type CommodityWarehouseReceiptMaintenanceSummary,
+} from '../commodity/commodity-warehouse-receipt-maintenance.js';
 import { loadTushareConfig } from '../config.js';
 import { prisma } from '../lib/prisma.js';
 import { syncMarketIndicators } from '../market/sync-market-indicators.js';
@@ -43,6 +47,7 @@ export interface DailyMaintenanceOptions {
   force?: boolean;
   trigger?: MaintenanceTrigger;
   onLog?: (line: string) => void;
+  maintainWarehouseReceipts?: boolean;
 }
 
 export interface DailyMaintenanceSummary {
@@ -53,6 +58,7 @@ export interface DailyMaintenanceSummary {
   totalDates: number;
   dataRevision: number | null;
   selfHealing: SelfHealSummary | null;
+  warehouseReceipts: CommodityWarehouseReceiptMaintenanceSummary | null;
   signals: { deployments: number; done: number; errors: number } | null;
 }
 
@@ -114,6 +120,7 @@ export async function runDailyMaintenance(
         totalDates: 0,
         dataRevision: state.dataRevision,
         selfHealing: null,
+        warehouseReceipts: null,
         signals: null,
       };
     }
@@ -130,6 +137,7 @@ export async function runDailyMaintenance(
         totalDates: 0,
         dataRevision: state.dataRevision,
         selfHealing: null,
+        warehouseReceipts: null,
         signals: null,
       };
     }
@@ -141,6 +149,7 @@ export async function runDailyMaintenance(
       state.dataRevision,
       trigger,
       onLog,
+      options.maintainWarehouseReceipts !== false,
     );
   }
 
@@ -162,6 +171,7 @@ export async function runDailyMaintenance(
       state.dataRevision,
       trigger,
       onLog,
+      options.maintainWarehouseReceipts !== false,
     );
   }
 
@@ -173,6 +183,7 @@ export async function runDailyMaintenance(
     totalDates: dates.length,
     dataRevision: null,
     selfHealing: null,
+    warehouseReceipts: null,
     signals: null,
   };
   const stopHeartbeat = startMaintenanceHeartbeat(run.id);
@@ -195,6 +206,15 @@ export async function runDailyMaintenance(
           `Daily self-heal deferred ${summary.selfHealing.deferredDates.length} dates`,
         );
       }
+    }
+    if (options.maintainWarehouseReceipts !== false) {
+      summary.warehouseReceipts = await refreshCommodityWarehouseReceipts(
+        client,
+        cutoff,
+        run.id,
+        summary,
+        onLog,
+      );
     }
     const completedDates: string[] = [];
     let dateFailure: Error | null = null;
@@ -335,6 +355,7 @@ async function initializePublishedBaseline(
     totalDates: 0,
     dataRevision: null,
     selfHealing: null,
+    warehouseReceipts: null,
     signals: null,
   };
   const stopHeartbeat = startMaintenanceHeartbeat(run.id);
@@ -398,6 +419,7 @@ async function runSignalOnlyMaintenance(
   dataRevision: number,
   trigger: MaintenanceTrigger,
   onLog: (line: string) => void,
+  maintainWarehouseReceipts: boolean,
 ): Promise<DailyMaintenanceSummary> {
   const run = await beginMaintenanceRun({
     kind: 'daily',
@@ -415,6 +437,7 @@ async function runSignalOnlyMaintenance(
     totalDates: 0,
     dataRevision,
     selfHealing: null,
+    warehouseReceipts: null,
     signals: null,
   };
   const stopHeartbeat = startMaintenanceHeartbeat(run.id);
@@ -429,6 +452,15 @@ async function runSignalOnlyMaintenance(
     if (summary.selfHealing.deferredDates.length > 0) {
       throw new Error(`Daily self-heal deferred ${summary.selfHealing.deferredDates.length} dates`);
     }
+    if (maintainWarehouseReceipts) {
+      summary.warehouseReceipts = await refreshCommodityWarehouseReceipts(
+        client,
+        cutoff,
+        run.id,
+        summary,
+        onLog,
+      );
+    }
     await updateMaintenanceRun(run.id, 'signals', summary);
     summary.signals = await generateDailySignals(cutoff, onLog);
     await finishMaintenanceRun(run.id, 'done', { summary });
@@ -442,6 +474,26 @@ async function runSignalOnlyMaintenance(
   } finally {
     await stopHeartbeat();
   }
+}
+
+async function refreshCommodityWarehouseReceipts(
+  client: TushareClient,
+  cutoff: string,
+  runId: string,
+  summary: DailyMaintenanceSummary,
+  onLog: (line: string) => void,
+): Promise<CommodityWarehouseReceiptMaintenanceSummary> {
+  await updateMaintenanceRun(runId, 'commodity_warehouse_receipts', summary);
+  return maintainCommodityWarehouseReceipts(client, cutoff as TradeDate, prisma, onLog, {
+    lookbackTradingDays: positiveInteger(
+      process.env.MAINTENANCE_WAREHOUSE_RECEIPT_LOOKBACK_DAYS,
+      20,
+    ),
+    maximumLagTradingDays: nonNegativeInteger(
+      process.env.MAINTENANCE_WAREHOUSE_RECEIPT_MAX_LAG_DAYS,
+      3,
+    ),
+  });
 }
 
 async function healPublishedTail(
@@ -602,6 +654,11 @@ function assertDate(date: string): void {
 function positiveInteger(value: string | undefined, fallback: number): number {
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function nonNegativeInteger(value: string | undefined, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : fallback;
 }
 
 export function assertProductionLock(): void {
