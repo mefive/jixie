@@ -180,10 +180,59 @@ export interface FactorPanelReportV1 {
   periodReports: FactorPanelPeriodReportV1[];
 }
 
+export type FactorMacroRegimeStateKeyV1 =
+  | 'growth_strong_inflation_high'
+  | 'growth_strong_inflation_low'
+  | 'growth_weak_inflation_high'
+  | 'growth_weak_inflation_low';
+
+export interface FactorMacroRegimeAssetStateReportV1 {
+  assetId: string;
+  observations: number;
+  meanForwardReturn: number | null;
+  medianForwardReturn: number | null;
+  forwardReturnVolatility: number | null;
+  positiveRate: number | null;
+  tenthPercentileReturn: number | null;
+  ninetiethPercentileReturn: number | null;
+  neweyWestMeanTStat: number | null;
+  onePeriodLagObservations: number;
+  onePeriodLagMeanForwardReturn: number | null;
+}
+
+export interface FactorMacroRegimeStateReportV1 {
+  key: FactorMacroRegimeStateKeyV1;
+  periods: number;
+  frequency: number;
+  episodes: number;
+  averageDurationPeriods: number | null;
+  maximumDurationPeriods: number;
+  byAsset: FactorMacroRegimeAssetStateReportV1[];
+}
+
+export interface FactorMacroRegimePeriodReportV1 {
+  asOfDate: string;
+  featureAvailableDate: string;
+  latestVintageDate: string;
+  targetDate: string;
+  state: FactorMacroRegimeStateKeyV1;
+  growthScore: number;
+  inflationScore: number;
+  eligibleAssets: number;
+}
+
 export interface FactorMacroRegimeReportV1 {
   targetAssets: string[];
   periods: number;
-  states: Array<{ key: string; observations: number; meanForwardReturn: number }>;
+  observations: number;
+  skippedPeriods: number;
+  revisionPolicy: MacroPointInTimePolicyV1['revisionPolicy'];
+  pointInTimeEligible: boolean;
+  latestValueBackfillRows: number;
+  futureVintageRows: number;
+  stateTransitions: number;
+  states: FactorMacroRegimeStateReportV1[];
+  periodReports: FactorMacroRegimePeriodReportV1[];
 }
 
 export type FactorResearchReportPayloadV1 =

@@ -13,6 +13,8 @@ describe('macro regime continuous score', () => {
     expect(score.inflation.score).toBeLessThan(0);
     expect(score.growth.latestPeriods).toEqual(['202412']);
     expect(score.inflation.latestPeriods).toEqual(['202411', '202411']);
+    expect(score.featureAvailableDate).toBe('20250120');
+    expect(score.latestVintageDate).toBe('20250131');
     expect(score.disclosure).toEqual({
       latestValueBackfillRows: 107,
       futureVintageRows: 107,
@@ -47,6 +49,13 @@ describe('macro regime continuous score', () => {
     expect(() => computeMacroRegimeScore(snapshot)).toThrow('duplicate period');
   });
 
+  it('fails closed when a supposedly gated snapshot contains a future release', () => {
+    const snapshot = syntheticSnapshot('latest_vintage');
+    snapshot.observations[0] = { ...snapshot.observations[0]!, availableDate: '20250201' };
+
+    expect(() => computeMacroRegimeScore(snapshot)).toThrow('unavailable on the decision date');
+  });
+
   it('builds a historical series and records dates without enough PIT history', () => {
     const snapshot = syntheticSnapshot('latest_vintage');
     const history = buildMacroRegimeScoreHistory(snapshot.observations, {
@@ -66,7 +75,7 @@ function syntheticSnapshot(revisionPolicy: MacroAsOfSnapshot['revisionPolicy']):
   const ppi = monthlyRows('cn_ppi_yoy', '202001', 59, (index) => 7 - index * 0.1);
   const observations = [...pmi, ...cpi, ...ppi];
   return {
-    decisionDate: '20241231',
+    decisionDate: '20250131',
     revisionPolicy,
     observations,
     disclosure: {
