@@ -181,6 +181,65 @@ export const zhFactor = {
       commodity: '商品',
     },
   },
+  macroRegime: {
+    libraryGroup: '宏观状态模型',
+    methodBadge: '宏观状态',
+    placeholderQa:
+      '问问这个宏观状态模型 —— 如「四象限如何划分」「为什么不能直接用于交易」—— 回车发送',
+    chatEmpty:
+      '这是冻结的宏观状态研究模型。它把 PMI、CPI 和 PPI 转成增长—通胀四象限，并比较各状态下多资产 ETF 的条件未来收益；当前只答疑，不自动生成策略权重。',
+    codeReadonly: '内置宏观状态模型，定义只读',
+    definitionTag: 'Macro Regime V1',
+    inputAudit: '输入：制造业 PMI、CPI 同比、PPI 同比',
+    transformAudit: '变换：水平 + 3个月动量，60个月标准化',
+    outputAudit: '输出：增长—通胀四象限',
+    paramsSummary:
+      '宏观状态 · {{assets}} 个 ETF · 月频 · 前瞻 {{horizon}} 日 · {{start}} – {{end}}',
+    assets: '条件收益资产',
+    horizon: '预测周期',
+    revisionPolicy: '数据修订口径',
+    latestVintage: '最新值回填（仅探索）',
+    asAvailable: '当时可得（PIT）',
+    latestVintageHint:
+      '最终修订值能覆盖较长历史，但会引入当时未知的数据；报告会披露未来 revision，且不能发布为生产 Factor。',
+    asAvailableHint:
+      '每个决策日只使用当时已捕获的 vintage。早期本地历史可能不足，但这是通过发布门所需的严格口径。',
+    monthlyFrequency: '观测频率：月末',
+    fourStateModel: '模型：增长强/弱 × 通胀高/低',
+    exploratoryMode: '研究模式：当前仅开放探索',
+    researchCardNotice:
+      '首版宏观状态只开放探索性研究：先观察条件收益和状态稳定性，不预设单一方向或准入阈值。',
+    reportNotice:
+      '这是宏观条件收益报告，不是资产配置策略回测；状态如何映射为仓位、调仓与风险约束仍需在策略中验证。',
+    pointInTimeEligible: '时点合格：所有宏观观察在对应决策日真实可得，可进入后续发布评审。',
+    pointInTimeIneligible:
+      '仅供探索：报告包含 {{rows}} 条决策日之后才出现的 revision，不能发布或直接作为策略输入。',
+    researchType: '研究方法',
+    target: '预测目标',
+    targetValue: '各宏观状态下未来 {{horizon}} 个交易日总收益',
+    periods: '有效月份',
+    observations: '资产观测',
+    transitions: '状态切换',
+    skippedPeriods: '跳过月份',
+    stateEvidenceTitle: '四象限条件收益',
+    statePeriods: '{{value}} 个月',
+    stateEpisodes: '{{value}} 个阶段',
+    averageDuration: '平均持续 {{value}} 月',
+    maximumDuration: '最长持续 {{value}} 月',
+    meanForwardReturn: '同期状态均值',
+    neweyWestT: '均值 NW t',
+    positiveRate: '正收益比例',
+    laggedMeanReturn: '滞后一期状态均值',
+    stateEvidenceCap:
+      '“同期状态”与“滞后一期状态”并列用于检查信号时点敏感性；状态内收益差异只是候选配置假设，还需样本外和策略回测。',
+    historyParams: '宏观状态 · {{assets}} 个 ETF · 前瞻 {{horizon}} 日 · {{start}} – {{end}}',
+    states: {
+      growth_strong_inflation_high: '增长强 · 通胀高',
+      growth_strong_inflation_low: '增长强 · 通胀低',
+      growth_weak_inflation_high: '增长弱 · 通胀高',
+      growth_weak_inflation_low: '增长弱 · 通胀低',
+    },
+  },
   customGroup: '自定义因子',
   customEmpty: '还没有,用 Agent 写一个',
   compositeGroup: '多因子合成',
@@ -499,6 +558,7 @@ export const zhFactor = {
   kindFundamental: '基本面',
   kindMoneyflow: '资金流',
   kindRates: '利率',
+  kindMacro: '宏观',
   kindCustom: '自定义',
 
   // Chart axis / tooltip labels (decile bar chart, IC-decay line, quantile heatmap).

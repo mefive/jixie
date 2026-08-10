@@ -35,16 +35,25 @@ function databaseWithLatestDates(
 }
 
 describe('resolveMacroRegimeDataCutoff', () => {
-  it('freezes the common cutoff at the earliest latest source date', async () => {
+  it('freezes the snapshot at the latest observed source date', async () => {
     const database = databaseWithLatestDates('20250131', [
       { tsCode: '510300.SH', tradeDate: '20250207' },
       { tsCode: '511010.SH', tradeDate: '20250206' },
     ]);
 
-    await expect(resolveMacroRegimeDataCutoff(researchSpec, database)).resolves.toBe('20250131');
+    await expect(resolveMacroRegimeDataCutoff(researchSpec, database)).resolves.toBe('20250207');
   });
 
-  it('rejects an explicit cutoff beyond the common available window', async () => {
+  it('does not censor a macro vintage captured after the latest ETF market date', async () => {
+    const database = databaseWithLatestDates('20260809', [
+      { tsCode: '510300.SH', tradeDate: '20260724' },
+      { tsCode: '511010.SH', tradeDate: '20260806' },
+    ]);
+
+    await expect(resolveMacroRegimeDataCutoff(researchSpec, database)).resolves.toBe('20260809');
+  });
+
+  it('rejects an explicit cutoff beyond the latest observed source date', async () => {
     const database = databaseWithLatestDates('20250131', [
       { tsCode: '510300.SH', tradeDate: '20250207' },
       { tsCode: '511010.SH', tradeDate: '20250206' },
@@ -52,7 +61,7 @@ describe('resolveMacroRegimeDataCutoff', () => {
 
     await expect(
       resolveMacroRegimeDataCutoff(
-        { ...researchSpec, dataPolicy: { ...researchSpec.dataPolicy, dataCutoff: '20250201' } },
+        { ...researchSpec, dataPolicy: { ...researchSpec.dataPolicy, dataCutoff: '20250208' } },
         database,
       ),
     ).resolves.toBeNull();

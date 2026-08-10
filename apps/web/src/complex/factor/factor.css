@@ -41,6 +41,11 @@
   background: rgb(88 80 236 / 0.14);
 }
 
+.jx-factor-kind--macro {
+  @apply text-ink;
+  background: rgb(126 34 206 / 0.14);
+}
+
 /* —— left column: Agent panel (chat | factor-library tabs) —— */
 .jx-factor-agent {
   @apply flex flex-col overflow-hidden bg-card;
@@ -920,4 +925,51 @@
 
 .jx-factor-timeAssetMetrics strong {
   @apply mt-0.5 text-sm text-ink;
+}
+
+.jx-factor-macroStates {
+  @apply grid gap-3;
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+}
+
+.jx-factor-macroStateCard {
+  @apply overflow-hidden rounded-lg border border-line bg-bg;
+}
+
+.jx-factor-macroStateHead {
+  @apply flex items-center justify-between border-b border-line bg-chip px-3 py-2 text-sm text-ink;
+}
+
+.jx-factor-macroStateHead > span {
+  @apply text-xs text-muted;
+}
+
+.jx-factor-macroStateMeta {
+  @apply flex flex-wrap gap-x-3 gap-y-1 border-b border-line px-3 py-2 text-xs text-muted;
+}
+
+.jx-factor-macroAssets {
+  @apply divide-y divide-line;
+}
+
+.jx-factor-macroAsset {
+  @apply grid items-center gap-2 px-3 py-2;
+  grid-template-columns: minmax(120px, 1.35fr) repeat(4, minmax(72px, 1fr));
+}
+
+.jx-factor-macroAsset > span {
+  @apply flex min-w-0 flex-col;
+}
+
+.jx-factor-macroAsset small {
+  @apply truncate text-muted;
+  font-size: 10px;
+}
+
+.jx-factor-macroAsset strong {
+  @apply truncate text-xs text-ink;
+}
+
+.jx-factor-macroAssetName strong {
+  @apply text-sm;
 }
