@@ -176,6 +176,9 @@ const factorPointInTimePolicyV1Schema = z.object({
     .regex(/^\d{8}$/)
     .nullable(),
 });
+const macroPointInTimePolicyV1Schema = factorPointInTimePolicyV1Schema.extend({
+  revisionPolicy: z.enum(['as_available', 'latest_vintage']),
+});
 const factorAssetListBaseSchema = z.array(z.string().trim().min(1).max(80));
 const factorAssetListSchema = factorAssetListBaseSchema
   .min(1)
@@ -245,6 +248,7 @@ export const factorResearchSpecV1Schema = z.discriminatedUnion('analysisKind', [
   z.object({
     ...datedResearchProtocolShape,
     analysisKind: z.literal('macro_regime'),
+    dataPolicy: macroPointInTimePolicyV1Schema,
     targetAssets: factorAssetListSchema,
     stateModel: z.object({
       kind: z.enum(['threshold', 'quantile']),
