@@ -59,6 +59,10 @@ const AU_KILOGRAM_MISLABEL_DATES = new Set([
   '20250808',
 ]);
 
+export function isAuditedAuKilogramMislabelDate(tradeDate: string): boolean {
+  return AU_KILOGRAM_MISLABEL_DATES.has(tradeDate);
+}
+
 /** Aggregates physical warehouse rows within one product and date. Absolute levels remain in the
  * exchange's original product-specific unit and must never be ranked across products directly. */
 export function buildCommodityWarehouseReceiptDaily(
@@ -97,7 +101,7 @@ export function buildCommodityWarehouseReceiptDaily(
     const unitCorrectionApplied =
       product.productCode === 'AU' &&
       row.unit === '吨' &&
-      AU_KILOGRAM_MISLABEL_DATES.has(row.trade_date);
+      isAuditedAuKilogramMislabelDate(row.trade_date);
     const normalizedUnit = unitCorrectionApplied ? '千克' : row.unit;
     if (
       !row.warehouse?.trim() ||

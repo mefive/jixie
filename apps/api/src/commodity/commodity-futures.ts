@@ -7,7 +7,7 @@ export const COMMODITY_FUTURE_SPECS = [
     name: { zh: '黄金', en: 'Gold' },
     targetEtf: '518880.SH',
     targetAssetClass: 'gold',
-    warehouseReceipt: { sourceName: '黄金', units: ['千克'] },
+    warehouseReceipt: { sourceName: '黄金', units: ['千克'], startDate: '20150105' },
   },
   {
     productCode: 'CU',
@@ -15,7 +15,7 @@ export const COMMODITY_FUTURE_SPECS = [
     name: { zh: '铜', en: 'Copper' },
     targetEtf: '159980.SZ',
     targetAssetClass: 'commodity',
-    warehouseReceipt: { sourceName: '铜', units: ['吨'] },
+    warehouseReceipt: { sourceName: '铜', units: ['吨'], startDate: '20150105' },
   },
   {
     productCode: 'SC',
@@ -23,7 +23,11 @@ export const COMMODITY_FUTURE_SPECS = [
     name: { zh: '原油', en: 'Crude oil' },
     targetEtf: '159981.SZ',
     targetAssetClass: 'commodity',
-    warehouseReceipt: { sourceName: '中质含硫原油', units: ['桶', '吨'] },
+    warehouseReceipt: {
+      sourceName: '中质含硫原油',
+      units: ['桶', '吨'],
+      startDate: '20181024',
+    },
   },
   {
     productCode: 'M',
@@ -31,7 +35,7 @@ export const COMMODITY_FUTURE_SPECS = [
     name: { zh: '豆粕', en: 'Soybean meal' },
     targetEtf: '159985.SZ',
     targetAssetClass: 'commodity',
-    warehouseReceipt: { sourceName: '豆粕', units: ['手'] },
+    warehouseReceipt: { sourceName: '豆粕', units: ['手'], startDate: '20150105' },
   },
 ] as const;
 

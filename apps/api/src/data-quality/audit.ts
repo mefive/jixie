@@ -1,6 +1,7 @@
 import { median, quantile } from '../lib/stats.js';
 import { CHINA_MACRO_SERIES } from '../macro/china-macro.js';
 import type { Prisma } from '../lib/prisma.js';
+import { auditCommodityWarehouseReceipts } from '../commodity/commodity-warehouse-receipt-quality.js';
 
 export type AuditStatus = 'pass' | 'warn' | 'error';
 
@@ -181,6 +182,7 @@ export async function runDataQualityAudit(
     await auditWindowCoverage(database, openDates, windowTradingDays, evaluationPoints),
     await auditFinancialPit(database),
     await auditMacroPit(database),
+    await auditCommodityWarehouseReceiptPit(database, startDate, endDate),
   );
 
   return {
@@ -872,6 +874,33 @@ async function auditMacroPit(database: Prisma): Promise<AuditFinding> {
       `${formatNumber(summary.conservativeLagRows)} rows use conservative release lags; ${formatNumber(summary.latestValueBackfillRows)} rows are latest-value historical backfills.`,
       `${formatNumber(summary.capturedAsAvailableRows)} rows were captured near their original availability date.`,
       'Latest-value backfills are suitable for exploratory research only and must not be presented as real-time vintages.',
+    ],
+  };
+}
+
+async function auditCommodityWarehouseReceiptPit(
+  database: Prisma,
+  startDate: string,
+  endDate: string,
+): Promise<AuditFinding> {
+  const summary = await auditCommodityWarehouseReceipts(
+    { startDate, endDate, maximumLagTradingDays: 3 },
+    database,
+  );
+
+  return {
+    id: 'commodity-warehouse-receipt-pit',
+    title: 'Commodity warehouse receipts: coverage and point-in-time availability',
+    status: summary.status,
+    summary: `${formatNumber(summary.rows)} rows; ${summary.invalidRows} invalid; ${summary.errors.length} errors and ${summary.warnings.length} warnings`,
+    details: [
+      ...summary.products.map(
+        (product) =>
+          `${product.productCode}: ${formatNumber(product.rows)} rows, latest ${product.latestTradeDate ?? 'n/a'}, available ${product.latestAvailableDate ?? 'n/a'}, lag ${product.lagTradingDays ?? 'n/a'} trading days, units ${product.units.join('/') || 'n/a'}.`,
+      ),
+      ...summary.errors.map((error) => `Error: ${error}.`),
+      ...summary.warnings.map((warning) => `Warning: ${warning}.`),
+      'Absolute levels remain product- and unit-specific; SC barrel and tonne series must never be added without a documented conversion.',
     ],
   };
 }

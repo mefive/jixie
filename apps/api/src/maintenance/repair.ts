@@ -1,4 +1,8 @@
 import type { TradeDate } from '@jixie/shared';
+import {
+  maintainCommodityWarehouseReceipts,
+  type CommodityWarehouseReceiptMaintenanceSummary,
+} from '../commodity/commodity-warehouse-receipt-maintenance.js';
 import { loadTushareConfig } from '../config.js';
 import { runDataQualityAudit } from '../data-quality/audit.js';
 import { prisma } from '../lib/prisma.js';
@@ -29,6 +33,7 @@ export async function runRepairMaintenance(startDate: string, endDate: string): 
     completedDates: 0,
     totalDates: 0,
     currentDate: null as string | null,
+    warehouseReceipts: null as CommodityWarehouseReceiptMaintenanceSummary | null,
   };
   const stopHeartbeat = startMaintenanceHeartbeat(run.id);
 
@@ -55,9 +60,21 @@ export async function runRepairMaintenance(startDate: string, endDate: string): 
     for (const row of dates) {
       summary.currentDate = row.calDate;
       await updateMaintenanceRun(run.id, 'repairing_date', summary);
-      await runDailyMaintenance({ targetDate: row.calDate, force: true, trigger: 'manual' });
+      await runDailyMaintenance({
+        targetDate: row.calDate,
+        force: true,
+        trigger: 'manual',
+        maintainWarehouseReceipts: false,
+      });
       summary.completedDates++;
     }
+
+    await updateMaintenanceRun(run.id, 'commodity_warehouse_receipts', summary);
+    summary.warehouseReceipts = await maintainCommodityWarehouseReceipts(
+      client,
+      endDate as TradeDate,
+      prisma,
+    );
 
     await updateMaintenanceRun(run.id, 'auditing', summary);
     const audit = await runDataQualityAudit(prisma, {
