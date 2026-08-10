@@ -65,13 +65,14 @@ function etfRows(): PanelEtfDailyRow[] {
 function carryPoint(
   productCode: string,
   asOfDate: string,
+  availableDate: string,
   annualizedLogCarry: number,
 ): CommodityCarryPointV1 {
   return {
     version: 1,
     productCode,
     asOfDate,
-    availableDate: asOfDate,
+    availableDate,
     nearContract: `${productCode}N`,
     farContract: `${productCode}F`,
     nearDeliveryDate: '20240615',
@@ -89,8 +90,13 @@ function carryPoint(
 function carryPoints(): CommodityCarryPointV1[] {
   return spec.assets.flatMap((asset, assetIndex) => {
     const productCode = productByAsset.get(asset.assetId)!;
-    return ['20240128', '20240228', '20240328', '20240428'].map((date, dateIndex) =>
-      carryPoint(productCode, date, (assetIndex + 1) * 0.1 + dateIndex * 0.01),
+    return ['01', '02', '03', '04'].map((month, dateIndex) =>
+      carryPoint(
+        productCode,
+        `2024${month}27`,
+        `2024${month}28`,
+        (assetIndex + 1) * 0.1 + dateIndex * 0.01,
+      ),
     );
   });
 }
@@ -129,7 +135,7 @@ describe('commodity carry panel observations', () => {
     const baseline = await build();
     const changed = carryPoints().map((point) => ({ ...point }));
     changed.find(
-      (point) => point.productCode === 'AU' && point.asOfDate === '20240428',
+      (point) => point.productCode === 'AU' && point.asOfDate === '20240427',
     )!.annualizedLogCarry = 99;
     const afterChange = await build(changed);
 
@@ -142,7 +148,7 @@ describe('commodity carry panel observations', () => {
 
   it('drops a product when its latest curve is stale at the decision date', async () => {
     const points = carryPoints().filter(
-      (point) => !(point.productCode === 'SC' && point.asOfDate === '20240328'),
+      (point) => !(point.productCode === 'SC' && point.asOfDate === '20240327'),
     );
     const observations = await build(points);
 

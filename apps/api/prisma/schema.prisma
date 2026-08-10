@@ -524,6 +524,27 @@ model FutureDaily {
   @@index([tradeDate])
 }
 
+/// Daily physical warehouse-receipt totals for configured research-only commodity products.
+/// Aggregates remain unit-stratified because SC can report barrels and tonnes on the same date;
+/// availableDate is the next SSE trading day after the after-close report and gates research use.
+model CommodityWarehouseReceipt {
+  productCode           String
+  tradeDate             String
+  availableDate         String
+  sourceName            String
+  sourceUnit            String?
+  unit                  String
+  unitCorrectionApplied Boolean  @default(false)
+  volume                Float
+  volumeChange          Float?
+  sourceRowCount        Int
+  retrievedAt           DateTime @default(now())
+
+  @@id([productCode, tradeDate, unit])
+  @@index([tradeDate])
+  @@index([availableDate])
+}
+
 /// Point-in-time mapping from a logical main/continuous symbol (e.g. IF.CFX) to an actual contract.
 /// Signals may use an adjusted continuous series, but fills must always use mappedTsCode.
 model FutureMapping {
