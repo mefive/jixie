@@ -327,7 +327,7 @@ ETF 回测回答“个人实际可以买到什么”，底层研究数据回答�
 | ETF 20/60/120 日收益 | 趋势具有持续性 | time-series | 各 ETF 未来收益 | 原 ETF |
 | 国债收益率 20/60 日变化 | 收益率下行对应债券价格走强 | time-series | 不同久期债券 ETF 未来收益 | 5Y/10Y/30Y 国债 ETF |
 | 曲线斜率及变化 | 曲线状态影响不同久期的相对收益 | time-series / panel | 久期 ETF 相对收益 | 国债 ETF 组合 |
-| 近远月年化价差 | backwardation / Carry 对未来收益有解释力 | panel | 商品间相对收益 | 商品期货 ETF |
+| 近远月年化价差 | backwardation / Carry 对未来收益有解释力 | time-series / panel | 单品种自身 / 商品间相对收益 | 商品期货 ETF |
 | 商品自身动量 | 单品种趋势具有持续性 | time-series | 商品 ETF 未来收益 | 商品期货 ETF |
 | 库存 / 仓单变化 | 供需压力影响对应商品收益 | time-series / panel | 商品未来收益 | 商品期货 ETF |
 | 增长、通胀、流动性状态 | 不同宏观状态对应不同资产条件收益 | macro-regime | 多资产 ETF 条件收益 | ETF 配置池 |
@@ -485,7 +485,7 @@ AU/CU/SC/M 的当时可得期限结构分别连接到黄金、有色、能化和
 7 个自然日的期货特征陈旧度，ETF 目标仍按真实交易日后复权价格计算；有色、能化只是铜和原油的类别
 代理，报告明确披露非一一对应的基差风险。API 冻结四个期货品种与四个 ETF
 均已落库的截止日。产品只显示四资产商品池并复用 Panel 排序报告，不提供 `strategyKey`、发布、组合或
-Lab 入口。下一步先做同一 Carry 的单品种时间序列检验，再根据横截面与时间序列证据决定是否值得进入
+Lab 入口。同一 Carry 的单品种时间序列检验见下段；两类证据都不能跳过样本外与策略成本验证直接进入
 ETF 配置策略。
 
 真实长历史同步覆盖 2015-01 至 2025-07 的 469 个重叠合约和 107,385 条日线。工作台真实运行到
@@ -493,6 +493,19 @@ ETF 配置策略。
 10bp 后的多空年化为 -3.76%，当前证据不支持跳过策略验证直接交易。验收脚本与截图分别为
 `apps/web/e2e/commodity-carry-panel.mjs` 和
 [`apps/web/acceptance/commodity-carry-panel-report.png`](../../apps/web/acceptance/commodity-carry-panel-report.png)。
+
+**2026-08-10 商品 Carry 时间序列 V1：**受控模板复用同一实际合约 Carry，但按 AU、CU、SC、M 分别
+连接到黄金、有色、能化、豆粕代理 ETF，逐资产检验自身信号与未来 20 个交易日收益，不再做共同月末的
+横向排名。期货特征最多向 ETF 交易日对齐 7 个自然日，特征可得日不得晚于决策日，目标日不得越过冻结
+截止；API 截止同时受所选 ETF 与对应期货品种的数据水位约束。自定义定义、发布和策略消费继续拒绝该
+研究专用输入。
+
+真实工作台从 2015-01-01 运行到 2025-01-27，得到 2,428 个有效交易日、6,069 条观测。黄金、豆粕、
+有色代理的 Carry/未来收益相关性为 0.070、0.110、0.132，能源化工代理为 -0.105；对应 Newey-West
+t 为 1.89、1.47、1.59、-1.85，均未达到常用双侧 5% 阈值。当前证据提示商品间存在明显异质性，尚不
+支持把“正 Carry”设为统一 ETF 配置规则；下一步应先做冻结 holdout 或更严格的代理/连续收益口径，
+而不是开放商品期货交易。验收脚本为 `apps/web/e2e/commodity-carry-time-series.mjs`，截图见
+[`apps/web/acceptance/commodity-carry-time-series-report.png`](../../apps/web/acceptance/commodity-carry-time-series-report.png)。
 
 ### 波次 5：Factor V2 与策略 Lab 闭环
 

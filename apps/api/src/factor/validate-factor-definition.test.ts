@@ -29,6 +29,13 @@ const COMMODITY_CARRY_PANEL = PANEL.replaceAll(
   "targetAssetClasses: ['equity', 'fixed_income', 'commodity']",
   "targetAssetClasses: ['commodity']",
 );
+const COMMODITY_CARRY_TIME_SERIES = TIME_SERIES.replaceAll(
+  'etf.adjustedClose',
+  'commodity.futures.annualizedLogCarry',
+).replace(
+  "targetAssetClasses: ['equity', 'fixed_income', 'commodity']",
+  "targetAssetClasses: ['commodity']",
+);
 
 describe('validateFactorDefinition', () => {
   it('accepts definitions under their declared protocol', async () => {
@@ -55,5 +62,8 @@ describe('validateFactorDefinition', () => {
     await expect(validateFactorDefinition(COMMODITY_CARRY_PANEL, 'panel')).rejects.toThrow(
       /controlled template/,
     );
+    await expect(
+      validateFactorDefinition(COMMODITY_CARRY_TIME_SERIES, 'time_series'),
+    ).rejects.toThrow(/controlled template/);
   });
 });

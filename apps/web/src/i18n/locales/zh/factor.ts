@@ -77,6 +77,10 @@ export const zhFactor = {
     neweyWestAuto: '推断：Newey–West（滞后阶数自动）',
     disciplinedResearch: '研究模式：研究卡 / Holdout',
     reportNotice: '这是信号证据报告，不是策略回测；交易规则、调仓和成本需要在策略中另行验证。',
+    commodityCarryChatEmpty:
+      '这是受控的商品 Carry 时间序列模板。它逐个检验每种商品自身的真实月合约 Carry 与映射代理 ETF 未来收益的关系，不做商品间横向排名。',
+    commodityCarryReportNotice:
+      '期货真实月合约的期限结构只用于生成各商品自身的 Carry 特征，未来收益由映射代理 ETF 计算；有色和能化 ETF 与铜、原油并非一一对应，存在类别基差。这是逐商品时间序列信号证据，不是期货连续合约回测，也暂不可直接发布到策略。',
     curveSourceTitle: '国债曲线来源与可得时间',
     curveSourceDescription:
       '来源：财政部-中国国债收益率曲线（中债信息网承载）。曲线约在工作日 17:30 发布，研究从下一上交所交易日才允许使用；收益率单位为%，期限利差和变化量在定义中转换为 bp。',

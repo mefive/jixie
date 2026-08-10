@@ -5,6 +5,7 @@ import { COMMODITY_FUTURE_PRODUCT_CODES } from './commodity-futures.js';
 export const COMMODITY_CARRY_VERSION = 1 as const;
 export const COMMODITY_CARRY_MINIMUM_DAYS_TO_DELIVERY = 10;
 export const COMMODITY_CARRY_MINIMUM_TENOR_GAP_DAYS = 7;
+export const COMMODITY_CARRY_MAX_STALENESS_DAYS = 7;
 
 export interface CommodityCarryContractBar {
   productCode: string;

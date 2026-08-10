@@ -17,6 +17,7 @@ describe('ETF time-series templates', () => {
       'cgb_yield_decline_20',
       'cgb_curve_slope_10y_2y',
       'cgb_curve_curvature_2y_5y_10y',
+      'commodity_futures_carry_time_series_v1',
     ]);
     expect(catalog[0]).toMatchObject({
       label: 'ETF 20日趋势',
@@ -31,6 +32,37 @@ describe('ETF time-series templates', () => {
       status: 'published',
       builtin: true,
     });
+  });
+
+  it('publishes commodity Carry as a controlled research-only time-series template', async () => {
+    expect(
+      timeSeriesTemplateCatalog('zh').find(
+        (entry) => entry.key === 'commodity_futures_carry_time_series_v1',
+      ),
+    ).toMatchObject({
+      label: '商品期货 Carry 时间序列',
+      kind: 'commodity',
+      analysisKind: 'time_series',
+      targetAssetClasses: ['commodity'],
+    });
+    expect(
+      timeSeriesTemplateResource('commodity_futures_carry_time_series_v1', 'zh'),
+    ).not.toHaveProperty('strategyKey');
+    const source = resolveTimeSeriesTemplateSource('commodity_futures_carry_time_series_v1');
+    const compiled = await compileTimeSeriesFactor(source!.code);
+    try {
+      expect(compiled).toMatchObject({
+        analysisKind: 'time_series',
+        window: 2,
+        inputs: ['commodity.futures.annualizedLogCarry'],
+        targetAssetClasses: ['commodity'],
+      });
+      await expect(
+        compiled.computeSeries({ 'commodity.futures.annualizedLogCarry': [-0.1, 0.2] }, [1]),
+      ).resolves.toEqual([0.2]);
+    } finally {
+      compiled.dispose();
+    }
   });
 
   it('publishes fixed-income curve templates with rates-domain definitions', async () => {

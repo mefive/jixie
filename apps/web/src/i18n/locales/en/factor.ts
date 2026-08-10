@@ -85,6 +85,10 @@ export const enFactor: typeof zhFactor = {
     disciplinedResearch: 'Research mode: research card / holdout',
     reportNotice:
       'This is a signal evidence report, not a strategy backtest. Trading rules, rebalancing and costs must be tested in a strategy.',
+    commodityCarryChatEmpty:
+      'This controlled commodity-carry time-series template tests each product’s own actual-contract carry against its mapped proxy ETF’s future return. It does not rank commodities cross-sectionally.',
+    commodityCarryReportNotice:
+      'Actual futures contracts supply each product’s own carry feature while mapped proxy ETFs supply forward returns. The non-ferrous and energy ETFs are not one-to-one copper or crude-oil exposures and therefore carry category basis risk. This is per-product time-series signal evidence, not a continuous-futures backtest, and it is not yet publishable to strategies.',
     curveSourceTitle: 'Government curve source and availability',
     curveSourceDescription:
       'Source: Ministry of Finance China government-bond yield curve, hosted by ChinaBond. The curve is published around 17:30 on working days and becomes usable in research on the next SSE trading day. Yields are percentages; spreads and changes are converted to basis points in the definition.',

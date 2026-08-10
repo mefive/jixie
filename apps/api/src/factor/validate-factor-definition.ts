@@ -1,7 +1,7 @@
 import type { FactorAnalysisKind } from '@jixie/shared';
 import { compileFactor } from './compile-factor.js';
 import { compilePanelFactor, compileTimeSeriesFactor } from './compile-time-series-factor.js';
-import { COMMODITY_CARRY_PANEL_FIELD } from './factor-v2-fields.js';
+import { COMMODITY_CARRY_FIELD } from './factor-v2-fields.js';
 
 export type EditableFactorAnalysisKind = Extract<
   FactorAnalysisKind,
@@ -15,13 +15,19 @@ export async function validateFactorDefinition(
 ): Promise<void> {
   if (analysisKind === 'time_series') {
     const compiled = await compileTimeSeriesFactor(code);
-    compiled.dispose();
+    try {
+      if (compiled.inputs.includes(COMMODITY_CARRY_FIELD)) {
+        throw new Error('Commodity carry is currently available only as a controlled template.');
+      }
+    } finally {
+      compiled.dispose();
+    }
     return;
   }
   if (analysisKind === 'panel') {
     const compiled = await compilePanelFactor(code);
     try {
-      if (compiled.inputs.includes(COMMODITY_CARRY_PANEL_FIELD)) {
+      if (compiled.inputs.includes(COMMODITY_CARRY_FIELD)) {
         throw new Error('Commodity carry is currently available only as a controlled template.');
       }
     } finally {
