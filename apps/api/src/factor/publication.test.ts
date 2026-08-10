@@ -105,4 +105,84 @@ describe('immutable Factor publication', () => {
       new FactorPublicationError('report_invalid'),
     );
   });
+
+  it('rejects a latest-vintage macro report even when its source snapshot matches', async () => {
+    mocks.factorFindFirst.mockResolvedValue({
+      id: 'factor-1',
+      key: 'macro_regime',
+      name: 'Macro regime',
+      code: CODE,
+      analysisKind: 'macro_regime',
+      status: 'draft',
+    });
+    mocks.reportFindFirst.mockResolvedValue({
+      id: 'report-1',
+      analysisKind: 'macro_regime',
+      phase: 'explore',
+      revealedAt: null,
+      factorCodeSnapshot: CODE,
+      factorCodeHash: sha256(CODE),
+      specJson: JSON.stringify({
+        version: 1,
+        analysisKind: 'macro_regime',
+        start: '20200101',
+        end: '20250101',
+        observationFrequency: 'monthly',
+        targetAssets: ['510300.SH'],
+        target: { kind: 'forward_total_return', horizon: 20, horizonUnit: 'trade_day' },
+        dataPolicy: {
+          pointInTime: true,
+          revisionPolicy: 'latest_vintage',
+          dataCutoff: '20260809',
+        },
+        stateModel: { kind: 'threshold', states: 4 },
+      }),
+      payload: JSON.stringify({ pointInTimeEligible: false, futureVintageRows: 775 }),
+    });
+
+    await expect(publishFactor('user-1', 'factor-1', 'report-1')).rejects.toEqual(
+      new FactorPublicationError('report_invalid'),
+    );
+    expect(mocks.factorUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it('allows a macro report only when both its policy and payload prove PIT eligibility', async () => {
+    mocks.factorFindFirst.mockResolvedValue({
+      id: 'factor-1',
+      key: 'macro_regime',
+      name: 'Macro regime',
+      code: CODE,
+      analysisKind: 'macro_regime',
+      status: 'draft',
+    });
+    mocks.reportFindFirst.mockResolvedValue({
+      id: 'report-1',
+      analysisKind: 'macro_regime',
+      phase: 'explore',
+      revealedAt: null,
+      factorCodeSnapshot: CODE,
+      factorCodeHash: sha256(CODE),
+      specJson: JSON.stringify({
+        version: 1,
+        analysisKind: 'macro_regime',
+        start: '20270101',
+        end: '20290101',
+        observationFrequency: 'monthly',
+        targetAssets: ['510300.SH'],
+        target: { kind: 'forward_total_return', horizon: 20, horizonUnit: 'trade_day' },
+        dataPolicy: {
+          pointInTime: true,
+          revisionPolicy: 'as_available',
+          dataCutoff: '20290131',
+        },
+        stateModel: { kind: 'threshold', states: 4 },
+      }),
+      payload: JSON.stringify({ pointInTimeEligible: true, futureVintageRows: 0 }),
+    });
+
+    await expect(publishFactor('user-1', 'factor-1', 'report-1')).resolves.toMatchObject({
+      status: 'published',
+      analysisKind: 'macro_regime',
+    });
+  });
 });

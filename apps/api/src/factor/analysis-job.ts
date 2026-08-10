@@ -30,7 +30,8 @@ const workerUrl = import.meta.url.endsWith('.ts')
 export type FactorAnalysisSource =
   | FactorAnalysisRuntimeSource
   | { kind: 'time_series'; label: string; code: string }
-  | { kind: 'panel'; label: string; code: string };
+  | { kind: 'panel'; label: string; code: string }
+  | { kind: 'macro_regime'; label: string; code: string };
 
 const factorAnalysisRuntimeSourceSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('single'), code: z.string().min(1), label: z.string().min(1) }),
@@ -41,6 +42,11 @@ const factorAnalysisRuntimeSourceSchema = z.discriminatedUnion('kind', [
   }),
   z.object({
     kind: z.literal('panel'),
+    label: z.string().min(1),
+    code: z.string().min(1),
+  }),
+  z.object({
+    kind: z.literal('macro_regime'),
     label: z.string().min(1),
     code: z.string().min(1),
   }),
@@ -79,7 +85,10 @@ const factorAnalysisRuntimeSourceSchema = z.discriminatedUnion('kind', [
 ]);
 
 export function factorAnalysisSourceSnapshot(source: FactorAnalysisSource): string {
-  return source.kind === 'single' || source.kind === 'time_series' || source.kind === 'panel'
+  return source.kind === 'single' ||
+    source.kind === 'time_series' ||
+    source.kind === 'panel' ||
+    source.kind === 'macro_regime'
     ? source.code
     : canonicalJson(source);
 }
@@ -98,7 +107,7 @@ export function parseFactorAnalysisSourceSnapshot(
 export function parseAssetFactorAnalysisSourceSnapshot(
   snapshot: string,
   label: string,
-  analysisKind: 'time_series' | 'panel',
+  analysisKind: 'time_series' | 'panel' | 'macro_regime',
 ): FactorAnalysisSource {
   if (analysisKind === 'panel') {
     try {

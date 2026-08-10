@@ -1,7 +1,7 @@
 import type { FactorAnalysisKind, PublishedFactor } from '@jixie/shared';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
-import { sha256 } from './report-spec.js';
+import { factorResearchSpecV1Schema, sha256 } from './report-spec.js';
 
 export const publishFactorBodySchema = z.object({
   approvedReportId: z.string().trim().min(1).max(80),
@@ -52,6 +52,8 @@ export async function publishFactor(
       revealedAt: true,
       factorCodeSnapshot: true,
       factorCodeHash: true,
+      specJson: true,
+      payload: true,
     },
   });
   if (
@@ -60,6 +62,9 @@ export async function publishFactor(
     (report.phase === 'holdout' && !report.revealedAt) ||
     normalizeAnalysisKind(report.analysisKind) !== normalizeAnalysisKind(factor.analysisKind)
   ) {
+    throw new FactorPublicationError('report_invalid');
+  }
+  if (factor.analysisKind === 'macro_regime' && !macroReportIsPointInTime(report)) {
     throw new FactorPublicationError('report_invalid');
   }
 
@@ -94,6 +99,31 @@ export async function publishFactor(
     publishedAt: publishedAt.toISOString(),
     archivedAt: null,
   };
+}
+
+function macroReportIsPointInTime(report: {
+  specJson: string | null;
+  payload: string | null;
+}): boolean {
+  if (!report.specJson || !report.payload) {
+    return false;
+  }
+  try {
+    const parsedSpec = factorResearchSpecV1Schema.safeParse(JSON.parse(report.specJson));
+    const payload = JSON.parse(report.payload) as {
+      pointInTimeEligible?: unknown;
+      futureVintageRows?: unknown;
+    };
+    return (
+      parsedSpec.success &&
+      parsedSpec.data.analysisKind === 'macro_regime' &&
+      parsedSpec.data.dataPolicy.revisionPolicy === 'as_available' &&
+      payload.pointInTimeEligible === true &&
+      payload.futureVintageRows === 0
+    );
+  } catch {
+    return false;
+  }
 }
 
 export async function archiveFactor(

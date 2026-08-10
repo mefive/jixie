@@ -149,6 +149,14 @@ const MESSAGES = {
     zh: '正在评估 {count} 条跨资产时点观测…',
     en: 'Evaluating {count} cross-asset point-in-time observation(s)…',
   },
+  factorMacroRegimeLoading: {
+    zh: '正在加载 {count} 个目标 ETF 的宏观状态研究数据…',
+    en: 'Loading macro-regime research data for {count} target ETF(s)…',
+  },
+  factorMacroRegimeEvaluating: {
+    zh: '正在评估 {count} 条宏观状态条件收益观测…',
+    en: 'Evaluating {count} macro-regime conditional-return observation(s)…',
+  },
   factorUniverseHistoryMissing: {
     zh: '指数 {index} 在 {date} 之前没有历史成分，无法进行时点无偏的因子研究',
     en: 'Index {index} has no constituent snapshot on or before {date}; point-in-time factor research cannot continue',
