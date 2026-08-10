@@ -1,3 +1,4 @@
+import type { FactorMacroRegimeStateKeyV1 } from '@jixie/shared';
 import type { Prisma } from '../lib/prisma.js';
 import {
   loadMacroVintagesThrough,
@@ -18,11 +19,7 @@ export const MACRO_REGIME_SERIES_KEYS = [
   'cn_ppi_yoy',
 ] as const;
 
-export type MacroRegimeStateKey =
-  | 'growth_strong_inflation_high'
-  | 'growth_strong_inflation_low'
-  | 'growth_weak_inflation_high'
-  | 'growth_weak_inflation_low';
+export type MacroRegimeStateKey = FactorMacroRegimeStateKeyV1;
 
 export interface MacroRegimeAxisV1 {
   score: number;
@@ -35,6 +32,8 @@ export interface MacroRegimeAxisV1 {
 export interface MacroRegimeScoreV1 {
   version: typeof MACRO_REGIME_SCORE_VERSION;
   asOfDate: string;
+  featureAvailableDate: string;
+  latestVintageDate: string;
   revisionPolicy: MacroAsOfSnapshot['revisionPolicy'];
   state: MacroRegimeStateKey;
   growth: MacroRegimeAxisV1 & {
@@ -69,6 +68,8 @@ export interface MacroRegimeHistoryOptions {
 interface SeriesPoint {
   period: string;
   value: number;
+  availableDate: string;
+  vintageDate: string;
 }
 
 interface SeriesScore {
@@ -134,6 +135,18 @@ export function buildMacroRegimeScoreHistory(
 
 /** Computes transparent growth/inflation axes from one already PIT-gated macro snapshot. */
 export function computeMacroRegimeScore(snapshot: MacroAsOfSnapshot): MacroRegimeScoreV1 {
+  if (
+    snapshot.observations.some(
+      (observation) =>
+        observation.availableDate > snapshot.decisionDate ||
+        (snapshot.revisionPolicy === 'as_available' &&
+          observation.vintageDate > snapshot.decisionDate),
+    )
+  ) {
+    throw new Error(
+      'Macro regime snapshot contains observations unavailable on the decision date.',
+    );
+  }
   const pmi = scoreSeries(snapshot.observations, 'cn_pmi_manufacturing');
   const cpi = scoreSeries(snapshot.observations, 'cn_cpi_yoy');
   const ppi = scoreSeries(snapshot.observations, 'cn_ppi_yoy');
@@ -150,6 +163,16 @@ export function computeMacroRegimeScore(snapshot: MacroAsOfSnapshot): MacroRegim
   return {
     version: MACRO_REGIME_SCORE_VERSION,
     asOfDate: snapshot.decisionDate,
+    featureAvailableDate: maximumDate([
+      pmi.latest.availableDate,
+      cpi.latest.availableDate,
+      ppi.latest.availableDate,
+    ]),
+    latestVintageDate: maximumDate([
+      pmi.latest.vintageDate,
+      cpi.latest.vintageDate,
+      ppi.latest.vintageDate,
+    ]),
     revisionPolicy: snapshot.revisionPolicy,
     state: stateKey(growthScore, inflationScore),
     growth: {
@@ -184,7 +207,12 @@ export function computeMacroRegimeScore(snapshot: MacroAsOfSnapshot): MacroRegim
 function scoreSeries(rows: MacroObservationVintageRow[], seriesKey: string): SeriesScore {
   const points = rows
     .filter((row) => row.seriesKey === seriesKey)
-    .map((row) => ({ period: row.period, value: row.value }))
+    .map((row) => ({
+      period: row.period,
+      value: row.value,
+      availableDate: row.availableDate,
+      vintageDate: row.vintageDate,
+    }))
     .sort((left, right) => left.period.localeCompare(right.period));
   if (points.length < MACRO_REGIME_MINIMUM_MONTHS) {
     throw new MacroRegimeInsufficientHistoryError(
@@ -214,7 +242,7 @@ function scoreSeries(rows: MacroObservationVintageRow[], seriesKey: string): Ser
   };
 }
 
-function trailingZScore(points: SeriesPoint[]): number | null {
+function trailingZScore(points: Array<{ value: number }>): number | null {
   const values = points.slice(-MACRO_REGIME_STANDARDIZATION_MONTHS).map((point) => point.value);
   if (values.length < MACRO_REGIME_MINIMUM_MONTHS) {
     return null;
@@ -261,4 +289,8 @@ function validateDecisionDates(decisionDates: string[]): string[] {
     throw new Error('Macro regime decision dates must be a non-empty unique YYYYMMDD list.');
   }
   return sorted;
+}
+
+function maximumDate(dates: string[]): string {
+  return dates.reduce((latest, date) => (date > latest ? date : latest));
 }
