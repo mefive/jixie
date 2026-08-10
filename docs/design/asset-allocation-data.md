@@ -444,8 +444,12 @@ production Factor。未来函数 fixture 已覆盖发布前不可见、决策日
 Macro Regime Report 的后端样本与统计契约已经落地：月末状态只连接决策日之后固定交易日 horizon 的 ETF
 后复权收益，按状态展示条件收益分布、波动、正收益比例、Newey-West t 值、阶段持续时间和切换频率，
 并增加前一期状态分组作为滞后敏感性对照。真实四资产探索样本得到 78 个状态月和 310 个资产观察；由于
-使用最终值历史，772 条未来 revision 被明确披露，不能进入发布门。下一步是把该 evaluator 接入统一
-Factor worker/API，再进入 Lab 报告 UI；在此之前仍不影响策略权重。
+使用最终值历史，772 条未来 revision 被明确披露，不能进入发布门。
+
+统一 Factor worker/API 已接入首个冻结模型 `china_growth_inflation_regime_v1`。API 自动冻结数据截止日，
+报告详情以 `macro_regime` 分型返回；真实 API/worker 验收复现了上述 78/310 样本。发布门要求研究协议使用
+`as_available`，且报告同时证明无未来 vintage；最终值探索报告只能用于发现假设。当前不开放自定义宏观
+模型或宏观状态到策略权重的映射，下一步进入 Lab 报告 UI 和真实浏览器验收。
 
 ### 波次 4：商品研究底座
 

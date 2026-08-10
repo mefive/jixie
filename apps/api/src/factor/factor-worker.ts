@@ -11,6 +11,8 @@ import { compilePanelFactor } from './compile-time-series-factor.js';
 import { loadPanelEtfObservations } from './panel-observations.js';
 import { PanelEvaluator } from './panel-evaluator.js';
 import { combinePanelFactorObservations } from './composite.js';
+import { loadMacroRegimeObservations } from './macro-regime-observations.js';
+import { MacroRegimeEvaluator } from './macro-regime-evaluator.js';
 import { t } from '../i18n/index.js';
 
 /**
@@ -117,8 +119,19 @@ try {
       }
       break;
     }
-    case 'macro_regime':
-      throw new Error(`Factor evaluator ${researchSpec.analysisKind} is not implemented.`);
+    case 'macro_regime': {
+      if (source.kind !== 'macro_regime') {
+        throw new Error('Macro-regime evaluator requires the frozen macro model source.');
+      }
+      onSystemLog(
+        t(locale, 'factorMacroRegimeLoading', { count: researchSpec.targetAssets.length }),
+      );
+      const data = await loadMacroRegimeObservations(researchSpec);
+      onSystemLog(t(locale, 'factorMacroRegimeEvaluating', { count: data.observations.length }));
+      const report = new MacroRegimeEvaluator().evaluate(researchSpec, data);
+      port.postMessage({ type: 'done', reportId, payload: JSON.stringify(report) });
+      break;
+    }
   }
 } catch (e) {
   port.postMessage({ type: 'error', message: e instanceof Error ? e.message : String(e) });

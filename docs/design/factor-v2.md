@@ -869,8 +869,17 @@ ETF 的未来收益、风险、持续时间和切换频率组合成 Macro Regime
 
 真实后端验收使用沪深300、5年国债、黄金和豆粕 ETF，2020-01 至 2026-06 共得到 78 个状态月、310 个
 资产观察和 32 次状态切换。同期与滞后分组在部分资产上方向不同，证明 lag sensitivity 不能省略；该结果
-使用 `latest_vintage` 并披露 772 条未来 revision，只是探索证据，不具 PIT 发布资格。当前尚未接入
-Factor worker/API 和 Lab 页面，不能从产品入口运行或发布。
+使用 `latest_vintage` 并披露 772 条未来 revision，只是探索证据，不具 PIT 发布资格。
+
+**2026-08-10 worker/API 接线：**统一 `/factor/analysis/run` 已可用稳定 key
+`china_growth_inflation_regime_v1` 运行冻结的中国增长—通胀四象限模型。API 在创建报告前冻结宏观与目标
+ETF 的数据截止日，worker 复用上述 as-of loader 和 evaluator，完成结果通过统一的分型
+`researchPayload.analysisKind = macro_regime` 返回。真实 API/worker 运行再次得到 78 个状态月、310 个资产
+观察、32 次切换和 772 条未来 revision。发布服务同时增加双重门禁：spec 必须是 `as_available`，payload
+还必须证明 `pointInTimeEligible = true` 且 `futureVintageRows = 0`；`latest_vintage` 报告不能发布。
+
+当前只开放冻结的内置模型，不伪造尚未实现的自定义宏观 DSL，也不把状态直接接入策略权重。下一步是
+Lab 报告 UI、模型入口和真实浏览器验收；宏观 holdout 与自定义模型发布留到具备足够本地 vintage 历史后。
 
 随后单独建设风险因子与组合归因：
 

@@ -11,6 +11,7 @@ import type {
   FactorReportSummary,
   FactorResearchReportPayloadV1,
   FactorResearchSpecV1,
+  FactorMacroRegimeReportV1,
   FactorPanelReportV1,
   FactorTimeSeriesReportV1,
   LogLine,
@@ -54,6 +55,8 @@ import {
 import { resolveTimeSeriesTemplateSource } from '../factor/time-series-templates.js';
 import { resolvePanelTemplateSource } from '../factor/panel-templates.js';
 import { resolvePanelFactorSource } from '../factor/panel-composite-source.js';
+import { resolveMacroRegimeTemplateSource } from '../factor/macro-regime-templates.js';
+import { resolveMacroRegimeDataCutoff } from '../factor/macro-regime-data-cutoff.js';
 
 /**
  * Factor workbench actions (singular, mounted at /api/app/factor — product line 1.5 · factor research).
@@ -320,7 +323,7 @@ factorRoute.post('/analysis/run', validateJson(runAnalysisBody), async (c) => {
   if (!criterionMatchesAnalysisKind(researchSpec, researchIntent)) {
     return apiError(c, 'VALIDATION_FAILED', m(c, 'factorCriterionUnsupported'));
   }
-  let source: FactorAnalysisSource | null;
+  let source: FactorAnalysisSource | null = null;
   if (researchSpec.analysisKind === 'cross_sectional') {
     let protocol = researchSpec.protocol;
     source = await resolveFactorSource(userId, factor);
@@ -378,12 +381,22 @@ factorRoute.post('/analysis/run', validateJson(runAnalysisBody), async (c) => {
       ...researchSpec,
       dataPolicy: { ...researchSpec.dataPolicy, dataCutoff },
     };
-  } else {
-    return apiError(
-      c,
-      'VALIDATION_FAILED',
-      m(c, 'factorAnalysisKindUnsupported', { kind: researchSpec.analysisKind }),
-    );
+  } else if (researchSpec.analysisKind === 'macro_regime') {
+    source = resolveMacroRegimeTemplateSource(factor);
+    if (!source) {
+      return apiError(c, 'NOT_FOUND', m(c, 'unknownFactor', { factor }));
+    }
+    const dataCutoff = await resolveMacroRegimeDataCutoff(researchSpec);
+    if (!dataCutoff) {
+      return apiError(c, 'VALIDATION_FAILED', m(c, 'windowNotComputed'));
+    }
+    researchSpec = {
+      ...researchSpec,
+      dataPolicy: { ...researchSpec.dataPolicy, dataCutoff },
+    };
+  }
+  if (!source) {
+    return apiError(c, 'NOT_FOUND', m(c, 'unknownFactor', { factor }));
   }
   const researchWindow =
     researchSpec.analysisKind === 'cross_sectional' ? researchSpec.protocol : researchSpec;
@@ -779,7 +792,11 @@ function parseResearchPayload(
           report: report as FactorPanelReportV1,
         };
       case 'macro_regime':
-        return undefined;
+        return {
+          version: 1,
+          analysisKind: 'macro_regime',
+          report: report as FactorMacroRegimeReportV1,
+        };
     }
   } catch {
     return undefined;
