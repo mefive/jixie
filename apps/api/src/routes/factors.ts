@@ -20,6 +20,10 @@ import {
 } from '../factor/time-series-templates.js';
 import { panelTemplateCatalog, panelTemplateResource } from '../factor/panel-templates.js';
 import {
+  macroRegimeTemplateCatalog,
+  macroRegimeTemplateResource,
+} from '../factor/macro-regime-templates.js';
+import {
   archiveFactor,
   FactorPublicationError,
   publishFactor,
@@ -166,6 +170,7 @@ factorsRoute.get('/catalog', async (c) => {
     ...builtinCatalog(),
     ...timeSeriesTemplateCatalog(locale),
     ...panelTemplateCatalog(locale),
+    ...macroRegimeTemplateCatalog(locale),
     ...customMeta,
     ...compositeMeta,
   ]);
@@ -375,6 +380,10 @@ factorsRoute.get('/custom/:id', async (c) => {
   const panelTemplate = panelTemplateResource(c.req.param('id'), localeFromRequest(c));
   if (panelTemplate) {
     return c.json(panelTemplate);
+  }
+  const macroRegimeTemplate = macroRegimeTemplateResource(c.req.param('id'), localeFromRequest(c));
+  if (macroRegimeTemplate) {
+    return c.json(macroRegimeTemplate);
   }
   const row = await prisma.factor.findFirst({
     where: { id: c.req.param('id'), userId: { in: [c.var.userId, BUILTIN_USER_ID] } },

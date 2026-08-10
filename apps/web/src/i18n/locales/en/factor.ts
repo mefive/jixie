@@ -194,6 +194,66 @@ export const enFactor: typeof zhFactor = {
       commodity: 'Commodity',
     },
   },
+  macroRegime: {
+    libraryGroup: 'Macro regime models',
+    methodBadge: 'Macro regime',
+    placeholderQa:
+      'Ask about this macro regime model — e.g. "how are the quadrants defined?", "why is it not a strategy?" — Enter to send',
+    chatEmpty:
+      'This is a frozen macro-regime research model. It transforms PMI, CPI, and PPI into growth-inflation quadrants and compares conditional multi-asset ETF returns. It answers questions but does not generate strategy weights.',
+    codeReadonly: 'Built-in macro regime model; definition is read-only',
+    definitionTag: 'Macro Regime V1',
+    inputAudit: 'Inputs: manufacturing PMI, CPI YoY, PPI YoY',
+    transformAudit: 'Transform: level + 3-month momentum, standardized over 60 months',
+    outputAudit: 'Output: four growth-inflation quadrants',
+    paramsSummary:
+      'Macro regime · {{assets}} ETFs · monthly · {{horizon}}d forward · {{start}} – {{end}}',
+    assets: 'Conditional-return assets',
+    horizon: 'Forecast horizon',
+    revisionPolicy: 'Data revision policy',
+    latestVintage: 'Latest-value backfill (explore only)',
+    asAvailable: 'As available (PIT)',
+    latestVintageHint:
+      'Final revised values provide longer history but introduce information unavailable at the time. The report discloses future revisions and cannot be published as a production Factor.',
+    asAvailableHint:
+      'Each decision date uses only vintages captured by then. Early local history may be sparse, but this strict policy is required by the publication gate.',
+    monthlyFrequency: 'Observation frequency: month end',
+    fourStateModel: 'Model: growth strong/weak × inflation high/low',
+    exploratoryMode: 'Research mode: exploratory only for now',
+    researchCardNotice:
+      'Macro Regime V1 is exploratory only: inspect conditional returns and state stability before defining a directional hypothesis or admission threshold.',
+    reportNotice:
+      'This is a macro conditional-return report, not an asset-allocation strategy backtest. State-to-weight mapping, rebalancing, and risk constraints still belong in a strategy.',
+    pointInTimeEligible:
+      'Point-in-time eligible: every macro observation was available on its decision date and may proceed to publication review.',
+    pointInTimeIneligible:
+      'Explore only: {{rows}} revisions arrived after their decision dates, so this report cannot be published or used directly by a strategy.',
+    researchType: 'Research method',
+    target: 'Prediction target',
+    targetValue: 'Next {{horizon}} trading-day total return conditional on each macro state',
+    periods: 'Eligible months',
+    observations: 'Asset observations',
+    transitions: 'State transitions',
+    skippedPeriods: 'Skipped months',
+    stateEvidenceTitle: 'Conditional returns across four quadrants',
+    statePeriods: '{{value}} months',
+    stateEpisodes: '{{value}} episodes',
+    averageDuration: '{{value}} months on average',
+    maximumDuration: '{{value}} months maximum',
+    meanForwardReturn: 'Concurrent-state mean',
+    neweyWestT: 'Mean NW t',
+    positiveRate: 'Positive-return rate',
+    laggedMeanReturn: 'Lagged-state mean',
+    stateEvidenceCap:
+      'Concurrent and one-period-lagged states are shown together to expose timing sensitivity. Return differences are candidate allocation hypotheses pending holdout and strategy backtests.',
+    historyParams: 'Macro regime · {{assets}} ETFs · {{horizon}}d forward · {{start}} – {{end}}',
+    states: {
+      growth_strong_inflation_high: 'Strong growth · high inflation',
+      growth_strong_inflation_low: 'Strong growth · low inflation',
+      growth_weak_inflation_high: 'Weak growth · high inflation',
+      growth_weak_inflation_low: 'Weak growth · low inflation',
+    },
+  },
   customGroup: 'Custom factors',
   customEmpty: 'None yet — write one with the Agent',
   compositeGroup: 'Multi-factor composites',
@@ -532,6 +592,7 @@ export const enFactor: typeof zhFactor = {
   kindFundamental: 'Fundamental',
   kindMoneyflow: 'Money flow',
   kindRates: 'Rates',
+  kindMacro: 'Macro',
   kindCustom: 'Custom',
 
   // Chart axis / tooltip labels (decile bar chart, IC-decay line, quantile heatmap).

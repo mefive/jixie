@@ -448,8 +448,17 @@ Macro Regime Report 的后端样本与统计契约已经落地：月末状态只
 
 统一 Factor worker/API 已接入首个冻结模型 `china_growth_inflation_regime_v1`。API 自动冻结数据截止日，
 报告详情以 `macro_regime` 分型返回；真实 API/worker 验收复现了上述 78/310 样本。发布门要求研究协议使用
-`as_available`，且报告同时证明无未来 vintage；最终值探索报告只能用于发现假设。当前不开放自定义宏观
-模型或宏观状态到策略权重的映射，下一步进入 Lab 报告 UI 和真实浏览器验收。
+`as_available`，且报告同时证明无未来 vintage；最终值探索报告只能用于发现假设。
+
+Factor 研究工作台现已提供该模型的只读入口、条件收益 ETF / horizon / revision policy 参数和四象限报告。
+真实浏览器从界面完成的一次 2015-01 至 2025-01 运行得到 121 个有效月份、425 条资产观察和 40 次切换，
+并将 720 条未来 revision 标为“仅探索”，不提供发布或策略引用动作。验收截图见
+[`apps/web/acceptance/macro-regime-report.png`](../../apps/web/acceptance/macro-regime-report.png)。验收还纠正了
+多源截止日的口径：宏观捕获日期与 ETF 市场日期异步，快照截止取已观察源日期的最大值，再由宏观和行情
+loader 各自执行 PIT、horizon 与缺失数据约束，不能简单取“共同最早日期”裁剪宏观 vintage。
+
+当前仍不开放自定义宏观模型或宏观状态到策略权重的映射；状态研究负责发现条件收益假设，仓位映射仍由
+策略回测验证。宏观 holdout 则等待本地积累出足够的真实 `as_available` vintage 后再开放。
 
 ### 波次 4：商品研究底座
 

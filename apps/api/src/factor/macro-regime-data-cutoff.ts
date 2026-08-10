@@ -21,7 +21,11 @@ export async function resolveMacroRegimeDataCutoff(
     return null;
   }
 
-  const availableCutoff = [macroCutoff, ...assetCutoffs].sort()[0];
+  // Macro vintages are capture/revision dates while ETF cutoffs are market dates. They do not
+  // share a common trading calendar, so taking the earliest source date can censor a legitimate
+  // latest-vintage macro snapshot merely because one ETF last traded earlier. Freeze the report at
+  // the latest observed source date; each loader still enforces its own availability and horizon.
+  const availableCutoff = [macroCutoff, ...assetCutoffs].sort().at(-1)!;
   const requestedCutoff = researchSpec.dataPolicy.dataCutoff;
   if (requestedCutoff && requestedCutoff > availableCutoff) {
     return null;

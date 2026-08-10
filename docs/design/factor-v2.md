@@ -878,8 +878,23 @@ ETF 的数据截止日，worker 复用上述 as-of loader 和 evaluator，完成
 观察、32 次切换和 772 条未来 revision。发布服务同时增加双重门禁：spec 必须是 `as_available`，payload
 还必须证明 `pointInTimeEligible = true` 且 `futureVintageRows = 0`；`latest_vintage` 报告不能发布。
 
-当前只开放冻结的内置模型，不伪造尚未实现的自定义宏观 DSL，也不把状态直接接入策略权重。下一步是
-Lab 报告 UI、模型入口和真实浏览器验收；宏观 holdout 与自定义模型发布留到具备足够本地 vintage 历史后。
+当前只开放冻结的内置模型，不伪造尚未实现的自定义宏观 DSL，也不把状态直接接入策略权重。
+
+**2026-08-10 Macro Regime 研究工作台：**Factor 因子库新增独立的“宏观状态模型”分组，首个冻结模型以
+只读定义呈现；参数面板显式选择条件收益 ETF、预测周期、研究区间和 `as_available` / `latest_vintage`
+修订口径。报告以四象限为主体，展示状态频率与持续期、各资产同期条件收益、Newey-West t 值、正收益
+比例及滞后一期敏感性，不显示发布或“用于策略 Lab”动作。首次真实浏览器运行覆盖 2015-01 至 2025-01，
+得到 121 个有效月份、425 条资产观察和 40 次状态切换；720 条未来 revision 在报告顶部明确警告并保持
+探索不可发布。验收截图见
+[`apps/web/acceptance/macro-regime-report.png`](../../apps/web/acceptance/macro-regime-report.png)。
+
+真实浏览器验收同时发现并修复了多源截止日语义：宏观 `vintageDate` 是采集/修订日期，ETF `tradeDate`
+是市场发生日期，不能把两者的最新日期取最小值当作“共同交易日”，否则会错误裁掉合法的最终值宏观
+快照。报告现在冻结到各源已观察日期的最大值，各 loader 仍分别执行自身的 available-date、目标 horizon
+和行情存在性约束。
+
+宏观 holdout 与自定义模型发布继续留到具备足够本地 vintage 历史后；状态到目标权重、调仓和风险约束
+仍应在策略回测中单独冻结与验证，不在状态研究报告里偷渡成交易结论。
 
 随后单独建设风险因子与组合归因：
 

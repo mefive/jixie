@@ -32,7 +32,14 @@ export interface QuantileHorizon {
 
 /** How a factor's values are sourced — drives the compute path (and shown as a tag in the UI).
  * 'custom' = user-authored (defineFactor); its compute runs cross-sectionally over a FactorBar. */
-export type FactorKind = 'price' | 'fundamental' | 'moneyflow' | 'rates' | 'custom' | 'composite';
+export type FactorKind =
+  | 'price'
+  | 'fundamental'
+  | 'moneyflow'
+  | 'rates'
+  | 'macro'
+  | 'custom'
+  | 'composite';
 
 /** Cross-sectional single-stock data a factor's `compute` receives — same-day (point-in-time)
  * valuation / size / liquidity (from daily_basic) + same-day moneyflow (from moneyflow, flow
