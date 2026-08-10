@@ -973,8 +973,23 @@ holdout 继续验证”的分品种证据，不能与 Panel 结果合并包装�
 warning，超过 3 日则为 error。同一 finding 已进入 `audit:data` 与 weekly maintenance。真实 20 交易日增量验证共重新聚合
 77 条，AU/CU/SC/M 均更新至 2026-08-07，对应可得日 2026-08-10，质量结果为 pass。
 
-下一批定义 AU/CU/M 品种内 5/20/60 日库存变化或标准分并做独立 time-series 证据；SC 在获得可审计换算前
-保持数据可见但不进入库存 Factor，panel 继续后置。
+**2026-08-10 Commodity Warehouse Receipt 时间序列观测 V1：**Factor V2 新增研究专用原始字段
+`commodity.warehouseReceipt.volume`，并由专用 loader 把 AU/CU/M 仓单按 `availableDate` point-in-time 对齐到
+各自代理 ETF。loader 只提供原始 level、最多允许 7 个自然日陈旧度并生成未来 ETF 收益目标；冻结的 Factor
+代码负责计算
+`pressure20(t) = log1p(W_asof(t-20 个 ETF 交易观测)) - log1p(W_asof(t))`，因此“原始数据如何变成
+Factor 分数”仍由 Factor 定义表达。零仓单通过 `log1p` 保持有限值，未来发布的数据不会回写更早得分，单位漂移
+和 SC 代理都会 fail closed。
+
+该输入仍受研究边界保护：自定义定义、发布、策略消费与每日信号均不能引用。探索样本固定为 2015-01-05 至
+2025-01-27，AU/CU/M 分别得到 2,408/1,196/1,209 条观测；`pressure20` 与未来 20 个交易日 ETF 收益的
+相关性为 0.017/-0.125/0.049，Newey-West t 为 0.25/-1.44/1.08，命中率为 0.490/0.515/0.522。
+方向与强度均不构成一致证据，所以不开放交易消费，也不根据探索结果修改公式；2025-01-28 起的冻结 holdout
+保持未查看。
+
+下一批先扩展受控模板元数据，使 Commodity Warehouse Receipt 模板显式限定 AU/CU/M 的允许与默认资产，
+避免当前按商品类别自动选中 SC；随后补齐 API 研究截止、前端配置与报告入口和真实浏览器验收。5/60 日变化、
+标准分与 panel 继续后置，只有预先登记的新假设才能使用冻结 holdout。
 
 随后单独建设风险因子与组合归因：
 

@@ -36,6 +36,13 @@ const COMMODITY_CARRY_TIME_SERIES = TIME_SERIES.replaceAll(
   "targetAssetClasses: ['equity', 'fixed_income', 'commodity']",
   "targetAssetClasses: ['commodity']",
 );
+const COMMODITY_WAREHOUSE_RECEIPT_TIME_SERIES = TIME_SERIES.replaceAll(
+  'etf.adjustedClose',
+  'commodity.warehouseReceipt.volume',
+).replace(
+  "targetAssetClasses: ['equity', 'fixed_income', 'commodity']",
+  "targetAssetClasses: ['commodity']",
+);
 
 describe('validateFactorDefinition', () => {
   it('accepts definitions under their declared protocol', async () => {
@@ -64,6 +71,9 @@ describe('validateFactorDefinition', () => {
     );
     await expect(
       validateFactorDefinition(COMMODITY_CARRY_TIME_SERIES, 'time_series'),
+    ).rejects.toThrow(/controlled template/);
+    await expect(
+      validateFactorDefinition(COMMODITY_WAREHOUSE_RECEIPT_TIME_SERIES, 'time_series'),
     ).rejects.toThrow(/controlled template/);
   });
 });

@@ -9,6 +9,10 @@ import {
   loadCommodityCarryTimeSeriesObservations,
   timeSeriesFactorUsesCommodityCarry,
 } from './commodity-carry-time-series-observations.js';
+import {
+  loadCommodityWarehouseReceiptTimeSeriesObservations,
+  timeSeriesFactorUsesCommodityWarehouseReceipts,
+} from './commodity-warehouse-receipt-time-series-observations.js';
 import { TimeSeriesEvaluator } from './time-series-evaluator.js';
 import { compileTimeSeriesFactor } from './compile-time-series-factor.js';
 import { compilePanelFactor } from './compile-time-series-factor.js';
@@ -74,18 +78,24 @@ try {
       const compiled = await compileTimeSeriesFactor(source.code, onUserLog);
       try {
         const usesCommodityCarry = timeSeriesFactorUsesCommodityCarry(compiled);
+        const usesCommodityWarehouseReceipts =
+          timeSeriesFactorUsesCommodityWarehouseReceipts(compiled);
         onSystemLog(
           t(
             locale,
             usesCommodityCarry
               ? 'factorCommodityCarryTimeSeriesLoading'
-              : 'factorTimeSeriesLoading',
+              : usesCommodityWarehouseReceipts
+                ? 'factorCommodityWarehouseReceiptTimeSeriesLoading'
+                : 'factorTimeSeriesLoading',
             { count: researchSpec.assets.length },
           ),
         );
         const observations = usesCommodityCarry
           ? await loadCommodityCarryTimeSeriesObservations(researchSpec, compiled)
-          : await loadEtfTimeSeriesObservations(researchSpec, compiled);
+          : usesCommodityWarehouseReceipts
+            ? await loadCommodityWarehouseReceiptTimeSeriesObservations(researchSpec, compiled)
+            : await loadEtfTimeSeriesObservations(researchSpec, compiled);
         onSystemLog(t(locale, 'factorTimeSeriesEvaluating', { count: observations.length }));
         const report = new TimeSeriesEvaluator().evaluate(researchSpec, observations);
         port.postMessage({ type: 'done', reportId, payload: JSON.stringify(report) });

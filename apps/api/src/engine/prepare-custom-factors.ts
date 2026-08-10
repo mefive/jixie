@@ -13,6 +13,7 @@ import {
 } from '../factor/compile-time-series-factor.js';
 import { normalizeAnalysisKind } from '../factor/publication.js';
 import { parseAssetFactorAnalysisSourceSnapshot } from '../factor/analysis-job.js';
+import { isResearchOnlyFactorV2Field } from '../factor/factor-v2-fields.js';
 import { factorResearchSpecV1Schema, sha256 } from '../factor/report-spec.js';
 import { t } from '../i18n/messages.js';
 import { extractCustomFactorHistoryFields, type CustomFactorModule } from './custom-factor.js';
@@ -127,6 +128,20 @@ export async function prepareStrategyFactors(
       return preparePanelCompositeModule(item.row, approvedReport?.snapshot, approvedReport?.spec);
     }),
   );
+  const researchOnlyInputs = [
+    ...new Set(
+      modules.flatMap((module) =>
+        (module.assetSeries?.inputs ?? []).filter(isResearchOnlyFactorV2Field),
+      ),
+    ),
+  ];
+  if (researchOnlyInputs.length > 0) {
+    throw new Error(
+      t(locale, 'factorResearchOnlyInputsUnavailable', {
+        fields: researchOnlyInputs.join(', '),
+      }),
+    );
+  }
 
   return {
     modules,

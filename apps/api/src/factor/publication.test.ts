@@ -35,6 +35,10 @@ const COMMODITY_CARRY_TIME_SERIES_CODE = COMMODITY_CARRY_CODE.replace(
   "analysisKind: 'panel'",
   "analysisKind: 'time_series'",
 );
+const COMMODITY_WAREHOUSE_RECEIPT_TIME_SERIES_CODE = COMMODITY_CARRY_TIME_SERIES_CODE.replaceAll(
+  'commodity.futures.annualizedLogCarry',
+  'commodity.warehouseReceipt.volume',
+);
 
 describe('immutable Factor publication', () => {
   beforeEach(() => {
@@ -161,6 +165,30 @@ describe('immutable Factor publication', () => {
       revealedAt: null,
       factorCodeSnapshot: COMMODITY_CARRY_TIME_SERIES_CODE,
       factorCodeHash: sha256(COMMODITY_CARRY_TIME_SERIES_CODE),
+    });
+
+    await expect(publishFactor('user-1', 'factor-1', 'report-1')).rejects.toEqual(
+      new FactorPublicationError('report_invalid'),
+    );
+    expect(mocks.factorUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it('keeps warehouse-receipt research inputs out of published Factors', async () => {
+    mocks.factorFindFirst.mockResolvedValue({
+      id: 'factor-1',
+      key: 'commodity_warehouse_receipt_pressure',
+      name: 'Commodity warehouse-receipt pressure',
+      code: COMMODITY_WAREHOUSE_RECEIPT_TIME_SERIES_CODE,
+      analysisKind: 'time_series',
+      status: 'draft',
+    });
+    mocks.reportFindFirst.mockResolvedValue({
+      id: 'report-1',
+      analysisKind: 'time_series',
+      phase: 'explore',
+      revealedAt: null,
+      factorCodeSnapshot: COMMODITY_WAREHOUSE_RECEIPT_TIME_SERIES_CODE,
+      factorCodeHash: sha256(COMMODITY_WAREHOUSE_RECEIPT_TIME_SERIES_CODE),
     });
 
     await expect(publishFactor('user-1', 'factor-1', 'report-1')).rejects.toEqual(

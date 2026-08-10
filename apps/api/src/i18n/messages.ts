@@ -141,6 +141,10 @@ const MESSAGES = {
     zh: '正在加载 {count} 个商品的期货 Carry 与代理 ETF 复权历史…',
     en: 'Loading futures carry and adjusted proxy-ETF history for {count} commodity asset(s)…',
   },
+  factorCommodityWarehouseReceiptTimeSeriesLoading: {
+    zh: '正在加载 {count} 个商品的仓单与代理 ETF 复权历史…',
+    en: 'Loading warehouse receipts and adjusted proxy-ETF history for {count} commodity asset(s)…',
+  },
   factorTimeSeriesEvaluating: {
     zh: '正在评估 {count} 条时点观测…',
     en: 'Evaluating {count} point-in-time observation(s)…',
@@ -383,6 +387,10 @@ const MESSAGES = {
   customFactorMissing: {
     zh: '自定义因子不存在或已删除:{keys}(只能引用自己的因子)',
     en: 'Custom factor missing or deleted: {keys} (only your own factors can be referenced)',
+  },
+  factorResearchOnlyInputsUnavailable: {
+    zh: '研究专用字段尚不能进入策略:{fields}',
+    en: 'Research-only fields are not yet available to strategies: {fields}',
   },
   indexCoverageGap: {
     zh: '⚠️ 指数 {indexCode} 成分数据从 {date} 起,此前的交易日按空池处理(选不出标的)',

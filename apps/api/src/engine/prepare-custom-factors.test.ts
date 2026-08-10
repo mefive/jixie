@@ -108,6 +108,31 @@ describe('published factor preparation', () => {
     });
   });
 
+  it('rejects research-only commodity inputs even when referenced by a built-in key', async () => {
+    mocks.factorFindMany.mockResolvedValue([
+      factor({
+        key: 'warehouse_pressure_20_v1',
+        userId: 'builtin',
+        analysisKind: 'time_series',
+        code: `export default defineFactorV2({
+          version: 2,
+          name: 'Commodity warehouse-receipt pressure',
+          analysisKind: 'time_series',
+          outputScope: 'asset',
+          frequency: 'daily',
+          inputs: ['commodity.warehouseReceipt.volume'],
+          targetAssetClasses: ['commodity'],
+          window: 21,
+          compute(ctx) { return ctx.value('commodity.warehouseReceipt.volume'); },
+        });`,
+      }),
+    ]);
+
+    await expect(
+      prepareStrategyFactors(`ctx.factor('warehouse_pressure_20_v1', '518880.SH')`, 'user-1', 'zh'),
+    ).rejects.toThrow('研究专用字段');
+  });
+
   it('carries a published panel factor into the same asset-series strategy runtime', async () => {
     mocks.factorFindMany.mockResolvedValue([
       factor({

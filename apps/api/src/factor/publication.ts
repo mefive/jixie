@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
 import { factorResearchSpecV1Schema, sha256 } from './report-spec.js';
 import { compilePanelFactor, compileTimeSeriesFactor } from './compile-time-series-factor.js';
-import { COMMODITY_CARRY_FIELD } from './factor-v2-fields.js';
+import { isResearchOnlyFactorV2Field } from './factor-v2-fields.js';
 
 export const publishFactorBodySchema = z.object({
   approvedReportId: z.string().trim().min(1).max(80),
@@ -119,7 +119,7 @@ async function assetFactorCodeUsesResearchOnlyInput(
         ? await compileTimeSeriesFactor(code)
         : await compilePanelFactor(code);
     try {
-      return compiled.inputs.includes(COMMODITY_CARRY_FIELD);
+      return compiled.inputs.some(isResearchOnlyFactorV2Field);
     } finally {
       compiled.dispose();
     }
