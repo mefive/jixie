@@ -309,7 +309,9 @@ function groupAndValidateCarryPoints(
     if (
       !declared.has(point.productCode) ||
       seen.has(key) ||
-      point.availableDate > point.asOfDate ||
+      !/^\d{8}$/.test(point.asOfDate) ||
+      !/^\d{8}$/.test(point.availableDate) ||
+      point.availableDate <= point.asOfDate ||
       !Number.isFinite(point.annualizedLogCarry)
     ) {
       throw new Error(`Invalid commodity carry panel point ${key}.`);

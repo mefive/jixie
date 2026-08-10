@@ -416,6 +416,48 @@ export async function futureSettlement(
   return rows as unknown as FutureSettlementRow[];
 }
 
+export interface FutureWarehouseReceiptRow {
+  trade_date: TradeDate;
+  symbol: string;
+  fut_name: string;
+  warehouse: string | null;
+  wh_id: string | null;
+  pre_vol: number | null;
+  vol: number | null;
+  vol_chg: number | null;
+  area: string | null;
+  year: string | null;
+  grade: string | null;
+  brand: string | null;
+  place: string | null;
+  pd: string | null;
+  is_ct: string | null;
+  unit: string | null;
+  exchange: string | null;
+}
+
+/** Exchange warehouse-receipt rows. Callers must isolate the configured product name, remove
+ * subtotal rows, and preserve the provider's product-specific unit before aggregation. */
+export async function futureWarehouseReceipts(
+  client: TushareClient,
+  params: {
+    trade_date?: TradeDate;
+    symbol?: string;
+    start_date?: TradeDate;
+    end_date?: TradeDate;
+    exchange?: string;
+    limit?: number;
+    offset?: number;
+  } = {},
+): Promise<FutureWarehouseReceiptRow[]> {
+  const rows = await client.call(
+    'fut_wsr',
+    params,
+    'trade_date,symbol,fut_name,warehouse,wh_id,pre_vol,vol,vol_chg,area,year,grade,brand,place,pd,is_ct,unit,exchange',
+  );
+  return rows as unknown as FutureWarehouseReceiptRow[];
+}
+
 export interface StkLimitRow {
   ts_code: TsCode;
   trade_date: TradeDate;

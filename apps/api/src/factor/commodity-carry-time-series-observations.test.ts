@@ -52,14 +52,15 @@ function etfRows(): EtfTrendDailyRow[] {
 
 function carryPoint(
   productCode: string,
-  date: string,
+  asOfDate: string,
+  availableDate: string,
   annualizedLogCarry: number,
 ): CommodityCarryPointV1 {
   return {
     version: 1,
     productCode,
-    asOfDate: date,
-    availableDate: date,
+    asOfDate,
+    availableDate,
     nearContract: `${productCode}N`,
     farContract: `${productCode}F`,
     nearDeliveryDate: '20240615',
@@ -81,6 +82,7 @@ function carryPoints(): CommodityCarryPointV1[] {
       carryPoint(
         productCode,
         `202401${String(index + 1).padStart(2, '0')}`,
+        `202401${String(index + 2).padStart(2, '0')}`,
         (assetIndex + 1) * 0.1 + index * 0.01,
       ),
     );
@@ -112,7 +114,7 @@ describe('commodity carry time-series observations', () => {
       featureAvailableDate: '20240105',
       targetDate: '20240107',
     });
-    expect(copper?.score).toBeCloseTo(0.24, 12);
+    expect(copper?.score).toBeCloseTo(0.23, 12);
     expect(
       observations.find((row) => row.assetId === '518880.SH' && row.asOfDate === '20240103')
         ?.forwardReturn,
@@ -145,6 +147,9 @@ describe('commodity carry time-series observations', () => {
     ).toBe(true);
     expect(
       observations.some((row) => row.assetId === '159981.SZ' && row.asOfDate === '20240109'),
+    ).toBe(true);
+    expect(
+      observations.some((row) => row.assetId === '159981.SZ' && row.asOfDate === '20240110'),
     ).toBe(false);
   });
 

@@ -1,4 +1,4 @@
-import { daysBetween } from '../lib/date.js';
+import { addDays, daysBetween } from '../lib/date.js';
 import { prisma, type Prisma } from '../lib/prisma.js';
 import { COMMODITY_FUTURE_PRODUCT_CODES } from './commodity-futures.js';
 
@@ -73,23 +73,34 @@ export async function loadCommodityCarryHistory(
     },
   });
   const contractByCode = new Map(contracts.map((contract) => [contract.tsCode, contract]));
-  const bars = await database.futureDaily.findMany({
-    where: {
-      tsCode: { in: contracts.map((contract) => contract.tsCode) },
-      tradeDate: { gte: options.start, lte: options.end },
-      settle: { not: null },
-      volume: { gt: 0 },
-      openInterest: { gt: 0 },
-    },
-    select: {
-      tsCode: true,
-      tradeDate: true,
-      settle: true,
-      volume: true,
-      openInterest: true,
-    },
-    orderBy: [{ tradeDate: 'asc' }, { tsCode: 'asc' }],
-  });
+  const [bars, openDates] = await Promise.all([
+    database.futureDaily.findMany({
+      where: {
+        tsCode: { in: contracts.map((contract) => contract.tsCode) },
+        tradeDate: { gte: options.start, lte: options.end },
+        settle: { not: null },
+        volume: { gt: 0 },
+        openInterest: { gt: 0 },
+      },
+      select: {
+        tsCode: true,
+        tradeDate: true,
+        settle: true,
+        volume: true,
+        openInterest: true,
+      },
+      orderBy: [{ tradeDate: 'asc' }, { tsCode: 'asc' }],
+    }),
+    database.tradeCal.findMany({
+      where: {
+        exchange: 'SSE',
+        isOpen: 1,
+        calDate: { gt: options.start, lte: addDays(options.end, 14) },
+      },
+      select: { calDate: true },
+      orderBy: { calDate: 'asc' },
+    }),
+  ]);
 
   return buildCommodityCarryHistory(
     bars.flatMap((bar) => {
@@ -109,18 +120,25 @@ export async function loadCommodityCarryHistory(
         },
       ];
     }),
-    { minimumDaysToDelivery: options.minimumDaysToDelivery },
+    {
+      minimumDaysToDelivery: options.minimumDaysToDelivery,
+      openDates: openDates.map((row) => row.calDate),
+    },
   );
 }
 
 export function buildCommodityCarryHistory(
   rows: CommodityCarryContractBar[],
-  options: { minimumDaysToDelivery?: number } = {},
+  options: { minimumDaysToDelivery?: number; openDates: string[] },
 ): CommodityCarryPointV1[] {
   const minimumDaysToDelivery =
     options.minimumDaysToDelivery ?? COMMODITY_CARRY_MINIMUM_DAYS_TO_DELIVERY;
   if (!Number.isInteger(minimumDaysToDelivery) || minimumDaysToDelivery < 0) {
     throw new Error('Commodity carry minimumDaysToDelivery must be a non-negative integer.');
+  }
+  const sortedOpenDates = [...new Set(options.openDates)].sort();
+  if (sortedOpenDates.some((date) => !/^\d{8}$/.test(date))) {
+    throw new Error('Commodity carry openDates must contain valid YYYYMMDD dates.');
   }
   const rowsByProductDate = new Map<string, CommodityCarryContractBar[]>();
   for (const row of rows) {
@@ -132,6 +150,16 @@ export function buildCommodityCarryHistory(
     }
     bucket.push(row);
     rowsByProductDate.set(key, bucket);
+  }
+  const availableDateByTradeDate = new Map<string, string>();
+  for (const tradeDate of new Set(rows.map((row) => row.tradeDate))) {
+    const availableDate = sortedOpenDates.find((date) => date > tradeDate);
+    if (!availableDate) {
+      throw new Error(
+        `No next SSE trading day is available after commodity carry date ${tradeDate}.`,
+      );
+    }
+    availableDateByTradeDate.set(tradeDate, availableDate);
   }
 
   const previousNearByProduct = new Map<string, string>();
@@ -168,7 +196,7 @@ export function buildCommodityCarryHistory(
       version: COMMODITY_CARRY_VERSION,
       productCode: near.productCode,
       asOfDate: near.tradeDate,
-      availableDate: near.tradeDate,
+      availableDate: availableDateByTradeDate.get(near.tradeDate)!,
       nearContract: near.tsCode,
       farContract: far.tsCode,
       nearDeliveryDate: near.deliveryDate,

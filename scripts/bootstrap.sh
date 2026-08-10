@@ -259,6 +259,45 @@ macro_series_coverage() {
   "
 }
 
+commodity_warehouse_receipt_coverage() {
+  local database_file="$1"
+  local expected_end="$2"
+
+  sqlite3 "$database_file" "
+    WITH required(product_code) AS (
+      VALUES ('AU'), ('CU'), ('SC'), ('M')
+    ),
+    recent_threshold AS (
+      SELECT coalesce(
+        (
+          SELECT \"calDate\"
+          FROM \"TradeCal\"
+          WHERE \"exchange\" = 'SSE'
+            AND \"isOpen\" = 1
+            AND \"calDate\" <= '$expected_end'
+          ORDER BY \"calDate\" DESC
+          LIMIT 1 OFFSET 9
+        ),
+        '00000000'
+      ) AS minimum_recent_date
+    ),
+    coverage AS (
+      SELECT
+        required.product_code,
+        max(receipt.\"tradeDate\") AS last_date,
+        count(receipt.\"tradeDate\") AS receipt_rows
+      FROM required
+      LEFT JOIN \"CommodityWarehouseReceipt\" AS receipt
+        ON receipt.\"productCode\" = required.product_code
+      GROUP BY required.product_code
+    )
+    SELECT count(*)
+    FROM coverage, recent_threshold
+    WHERE receipt_rows >= 500
+      AND last_date >= minimum_recent_date;
+  "
+}
+
 STAGING_DIR=""
 ACTIVE_LIVE_DIR=""
 ACTIVE_PREVIOUS_DIR=""
@@ -716,6 +755,24 @@ if [[ "$MACRO_SERIES_COMPLETE" -ne 3 ]]; then
   [[ "$MACRO_SERIES_COMPLETE" -eq 3 ]] || die "首批宏观系列回填后仍不完整"
 else
   log "首批宏观系列历史覆盖完整,跳过回填"
+fi
+
+WAREHOUSE_RECEIPT_SYNC_END="$(
+  sqlite3 "$DB_FILE" 'SELECT max("tradeDate") FROM "Daily";' 2>/dev/null || true
+)"
+[[ "$WAREHOUSE_RECEIPT_SYNC_END" =~ ^[0-9]{8}$ ]] || die "无法确定商品仓单同步截止日"
+WAREHOUSE_RECEIPT_COMPLETE="$(
+  commodity_warehouse_receipt_coverage "$DB_FILE" "$WAREHOUSE_RECEIPT_SYNC_END"
+)"
+if [[ "$WAREHOUSE_RECEIPT_COMPLETE" -ne 4 ]]; then
+  log "补全 AU/CU/SC/M 商品仓单研究底座: 20150101 ~ $WAREHOUSE_RECEIPT_SYNC_END"
+  pnpm --filter api sync:commodity-warehouse-receipts 20150101 "$WAREHOUSE_RECEIPT_SYNC_END"
+  WAREHOUSE_RECEIPT_COMPLETE="$(
+    commodity_warehouse_receipt_coverage "$DB_FILE" "$WAREHOUSE_RECEIPT_SYNC_END"
+  )"
+  [[ "$WAREHOUSE_RECEIPT_COMPLETE" -eq 4 ]] || die "商品仓单历史回填后仍不完整"
+else
+  log "商品仓单历史覆盖完整,跳过回填"
 fi
 
 INVITE_COUNT="$(sqlite3 "$DB_FILE" 'SELECT count(*) FROM "InviteCode";' 2>/dev/null || echo 0)"

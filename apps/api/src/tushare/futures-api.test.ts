@@ -1,6 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { TushareClient } from './client.js';
-import { futureContracts, futureDaily, futureMapping, futureSettlement } from './api.js';
+import {
+  futureContracts,
+  futureDaily,
+  futureMapping,
+  futureSettlement,
+  futureWarehouseReceipts,
+} from './api.js';
 
 function fakeClient() {
   const call = vi.fn().mockResolvedValue([]);
@@ -64,5 +70,22 @@ describe('Tushare stock-index futures APIs', () => {
       expect.stringContaining('long_margin_rate'),
     );
     expect(call.mock.calls[0][2]).toContain('offset_today_fee');
+  });
+
+  it('requests paginated exchange warehouse-receipt rows with their original units', async () => {
+    const { call, client } = fakeClient();
+    const params = {
+      symbol: 'CU',
+      start_date: '20260701',
+      end_date: '20260731',
+      limit: 1_000,
+      offset: 0,
+    };
+
+    await futureWarehouseReceipts(client, params);
+
+    expect(call).toHaveBeenCalledWith('fut_wsr', params, expect.stringContaining('warehouse'));
+    expect(call.mock.calls[0][2]).toContain('vol_chg');
+    expect(call.mock.calls[0][2]).toContain('unit');
   });
 });

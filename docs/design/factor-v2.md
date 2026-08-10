@@ -906,7 +906,9 @@ V1 每日只使用当日结算价、成交量、持仓量和合约最后交割�
 持仓的合约，按交割日选择最近两个不同月份，并定义
 `annualizedLogCarry = ln(F_near / F_far) × 365 / expiryGapDays`。正值表示 backwardation，负值表示
 contango；近月合约变化单独标记 `nearContractChanged`，不拼接价格、不把换月价差冒充资产收益。未来日期
-新增的合约行情不会改变已生成的历史曲线点，已有 fixture 固定这一 PIT 边界。
+新增的合约行情不会改变已生成的历史曲线点。期货结算价在当日收盘后才能确定，因此 `asOfDate` 保留期货
+交易日，`availableDate` 固定为其后的下一上交所交易日；研究只能在该日及以后读取特征。缺少下一交易日
+日历时直接失败，不回退到同日可用。已有 fixture 同时固定这两条 PIT 边界。
 
 真实小窗口同步覆盖 2026-07-01 至 2026-08-07：保存 934 个历史合约元数据和 1,344 条窗口日线，四个
 品种各形成 28 个 Carry 点，并各观察到一次近月切换；同期 AU 以 contango 为主、CU 以 backwardation
@@ -927,26 +929,44 @@ contango；近月合约变化单独标记 `nearContractChanged`，不拼接价�
 
 真实历史同步覆盖 2015-01 至 2025-07 的 469 个重叠合约，共落库 107,385 条日线；真实浏览器从工作台
 运行 2015-01 至探索截止 2025-01-27 的报告，得到 294 条观测和 59 个满足最少资产数的共同月份，平均
-Rank IC 0.083、年化 ICIR 0.53，但 10bp 单边成本后的多空年化为 -3.76%。产品因此只陈述候选排序证据，
-没有把统计相关包装为可交易结论。可重复验收脚本为
+Rank IC 0.019、年化 ICIR 0.13，10bp 单边成本后的多空年化为 5.10%。弱排序相关、有限月份和正的组合
+结果并不构成一致证据，产品因此只陈述候选排序结果，没有把样本内组合收益包装为可交易结论。可重复验收脚本为
 `apps/web/e2e/commodity-carry-panel.mjs`，截图见
 [`apps/web/acceptance/commodity-carry-panel-report.png`](../../apps/web/acceptance/commodity-carry-panel-report.png)。
 
 **2026-08-10 Commodity Carry 时间序列 V1：**同一受控字段新增独立
-`analysisKind=time_series` 模板，逐品种检验 AU/CU/SC/M 自身当日可得的实际合约 Carry 与各自映射代理
+`analysisKind=time_series` 模板，逐品种检验 AU/CU/SC/M 在下一交易日可得的实际合约 Carry 与各自映射代理
 ETF 未来收益的关系，不做商品间排序。装载器把最近可得 Carry 对齐到 ETF 交易日，最多允许 7 个自然日
 陈旧度，并分别冻结特征可得日、ETF 目标日和期货/ETF 共同数据截止；Newey-West 自动滞后至少覆盖 20 日
 重叠预测目标。时间序列任务会按定义输入选择期货 Carry 或 ETF/国债数据装载器，受控字段仍不能进入
 自定义定义、发布、策略 Lab、每日信号或 Factor Weather。
 
 真实浏览器从 2015-01-01 运行至探索截止 2025-01-27，共得到 2,428 个有效交易日和 6,069 条逐资产
-观测。AU、M、CU 代理的相关性分别为 0.070、0.110、0.132，Newey-West t 分别为 1.89、1.47、
-1.59；SC/能化代理相关性为 -0.105，t 为 -1.85。四者均未越过常用的双侧 5% 阈值，且代理口径与
-方向并不完全一致，因此当前只形成“值得后续样本外验证”的分品种证据，不能与 Panel 结果合并包装成
-可交易结论。可重复验收脚本为 `apps/web/e2e/commodity-carry-time-series.mjs`；截图见
+观测。AU、M、CU 代理的相关性分别为 0.079、0.109、0.129，Newey-West t 分别为 2.28、1.48、
+1.56；SC/能化代理相关性为 -0.113，t 为 -2.00。AU 与 SC 的单项统计量越过常用双侧 5% 阈值，
+但四个代理方向不一致，又同时存在多重检验、样本内探索和类别代理误差，因此当前只形成“值得冻结
+holdout 继续验证”的分品种证据，不能与 Panel 结果合并包装成可交易结论。可重复验收脚本为
+`apps/web/e2e/commodity-carry-time-series.mjs`；截图见
 [`apps/web/acceptance/commodity-carry-time-series-config.png`](../../apps/web/acceptance/commodity-carry-time-series-config.png)
 和
 [`apps/web/acceptance/commodity-carry-time-series-report.png`](../../apps/web/acceptance/commodity-carry-time-series-report.png)。
+
+**2026-08-10 Commodity Warehouse Receipt 数据层 V1：**Phase 5 已继续接入 Tushare
+[仓单日报 `fut_wsr`](https://tushare.pro/document/2?doc_id=140)，但本批只冻结可信原始数据，不提前包装
+成库存 Factor。`CommodityWarehouseReceipt` 按 AU/CU/SC/M 与日期保存物理仓库总量、上游变化量、原始
+单位、来源行数、下一上交所交易日可得日和采集时间；CLI 按月分页，bootstrap 在覆盖不足时从 2015 年
+回填。上游满 1,000 行会继续 offset，重复整页、日期越界、单位漂移或缺失下一交易日均 fail closed。
+
+聚合前必须按精确 `fut_name` 隔离品种并删除“合计/总计/小计”行。真实接口证明 CU 查询会混入
+`铜(BC)`；更重要的是 SC 同一天的物理仓库会同时使用桶和吨，缺少密度/品级时不能可靠换算。因此表按
+“品种 × 日期 × 单位”分层，SC 两种序列不相加；AU 千克、CU 吨、M 手保持各自单一单位，也不跨单位比较
+绝对库存。
+
+完整真实回填覆盖 2015-01-05 至 2026-08-07，共得到 11,158 条单位分层日聚合：AU/CU/M 分别为
+2,796/2,816/2,697 条，SC 为 1,868 条桶序列与 981 条吨序列。AU 另有 17 个确定日期把千克错标成吨；
+代码只对精确审计清单修正，并同时保存上游 `sourceUnit` 与修正标志。全量数据的可得日均晚于报告日且为
+上交所开市日。下一批先定义 AU/CU/M 品种内 5/20/60 日库存变化或标准分并做独立 time-series 证据；
+SC 在获得可审计换算前保持数据可见但不进入库存 Factor，panel 继续后置。
 
 随后单独建设风险因子与组合归因：
 
