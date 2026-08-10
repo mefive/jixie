@@ -91,12 +91,17 @@ describe('factor report spec', () => {
     const macro = normalizeFactorResearchSpec({
       ...common,
       analysisKind: 'macro_regime',
+      dataPolicy: { ...common.dataPolicy, revisionPolicy: 'latest_vintage' },
       targetAssets: ['511260.SH', '518880.SH'],
       stateModel: { kind: 'quantile', states: 3 },
     });
 
     expect(panel.analysisKind).toBe('panel');
     expect(macro.analysisKind).toBe('macro_regime');
+    if (macro.analysisKind !== 'macro_regime') {
+      throw new Error('Expected macro regime research spec');
+    }
+    expect(macro.dataPolicy.revisionPolicy).toBe('latest_vintage');
     expect(() => crossSectionalProtocol(panel)).toThrow(/panel/);
     expect(() => crossSectionalProtocol(macro)).toThrow(/macro_regime/);
   });

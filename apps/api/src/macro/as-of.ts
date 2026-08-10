@@ -30,20 +30,47 @@ export interface LoadMacroAsOfOptions {
   dataCutoff?: string | null;
 }
 
+export interface LoadMacroVintagesOptions {
+  seriesKeys: string[];
+  throughDate: string;
+  revisionPolicy: MacroRevisionPolicy;
+  dataCutoff?: string | null;
+}
+
 /** Loads one revision per series/period using an explicit real-time or latest-vintage policy. */
 export async function loadMacroObservationsAsOf(
   database: Prisma,
   options: LoadMacroAsOfOptions,
 ): Promise<MacroAsOfSnapshot> {
   assertOptions(options);
+  const rows = await loadMacroVintagesThrough(database, {
+    seriesKeys: options.seriesKeys,
+    throughDate: options.decisionDate,
+    revisionPolicy: options.revisionPolicy,
+    dataCutoff: options.dataCutoff,
+  });
+  return selectMacroObservationsAsOf(rows, options);
+}
+
+/** Loads a bounded vintage set once so a research window can evaluate many decision dates. */
+export async function loadMacroVintagesThrough(
+  database: Prisma,
+  options: LoadMacroVintagesOptions,
+): Promise<MacroObservationVintageRow[]> {
+  assertOptions({
+    seriesKeys: options.seriesKeys,
+    decisionDate: options.throughDate,
+    revisionPolicy: options.revisionPolicy,
+    dataCutoff: options.dataCutoff,
+  });
   const vintageUpperBound =
     options.revisionPolicy === 'as_available'
-      ? minimumDate(options.decisionDate, options.dataCutoff)
+      ? minimumDate(options.throughDate, options.dataCutoff)
       : (options.dataCutoff ?? undefined);
-  const rows = await database.macroObservation.findMany({
+  return database.macroObservation.findMany({
     where: {
       seriesKey: { in: options.seriesKeys },
-      availableDate: { lte: options.decisionDate },
+      availableDate: { lte: options.throughDate },
       ...(vintageUpperBound ? { vintageDate: { lte: vintageUpperBound } } : {}),
     },
     select: {
@@ -58,7 +85,6 @@ export async function loadMacroObservationsAsOf(
     },
     orderBy: [{ seriesKey: 'asc' }, { period: 'asc' }, { vintageDate: 'asc' }],
   });
-  return selectMacroObservationsAsOf(rows, options);
 }
 
 /** Pure selection helper used by evaluators and future-function fixtures. */

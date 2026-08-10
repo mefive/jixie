@@ -21,6 +21,12 @@ export interface FactorPointInTimePolicyV1 {
   dataCutoff: string | null;
 }
 
+export interface MacroPointInTimePolicyV1 {
+  pointInTime: true;
+  revisionPolicy: 'as_available' | 'latest_vintage';
+  dataCutoff: string | null;
+}
+
 /** Compatibility branch for the production equity evaluator. The nested protocol remains immutable
  * so V1–V5 reports retain byte-for-byte research identity while gaining a typed analysis envelope. */
 export interface CrossSectionalFactorResearchSpecV1 {
@@ -81,7 +87,7 @@ export interface MacroRegimeFactorResearchSpecV1 {
   observationFrequency: FactorObservationFrequency;
   targetAssets: string[];
   target: FactorForwardReturnTargetV1;
-  dataPolicy: FactorPointInTimePolicyV1;
+  dataPolicy: MacroPointInTimePolicyV1;
   stateModel: { kind: 'threshold' | 'quantile'; states: number };
 }
 
