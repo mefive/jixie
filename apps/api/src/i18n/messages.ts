@@ -142,12 +142,12 @@ const MESSAGES = {
     en: 'Evaluating {count} point-in-time observation(s)…',
   },
   factorPanelLoading: {
-    zh: '正在加载 {count} 个 ETF 的跨资产面板…',
-    en: 'Loading the cross-asset ETF panel for {count} asset(s)…',
+    zh: '正在加载 {count} 个 ETF 的 Panel 横截面…',
+    en: 'Loading the ETF panel cross-section for {count} asset(s)…',
   },
   factorPanelEvaluating: {
-    zh: '正在评估 {count} 条跨资产时点观测…',
-    en: 'Evaluating {count} cross-asset point-in-time observation(s)…',
+    zh: '正在评估 {count} 条 Panel 时点观测…',
+    en: 'Evaluating {count} panel point-in-time observation(s)…',
   },
   factorMacroRegimeLoading: {
     zh: '正在加载 {count} 个目标 ETF 的宏观状态研究数据…',

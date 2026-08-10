@@ -118,8 +118,8 @@ export async function buildPanelEtfObservations(
   const declaredAssets = new Map(
     researchSpec.assets.map((asset) => [asset.assetId, asset.assetClass]),
   );
-  const calendar = validateCalendar(openDates);
-  const decisionDates = monthlyDecisionDates(calendar, researchSpec.start, researchSpec.end);
+  const calendar = validatePanelCalendar(openDates);
+  const decisionDates = monthlyPanelDecisionDates(calendar, researchSpec.start, researchSpec.end);
   const calendarIndex = new Map(calendar.map((date, index) => [date, index]));
   const byAsset = new Map<string, PanelEtfDailyRow[]>();
 
@@ -203,7 +203,7 @@ export async function buildPanelEtfObservations(
         targetDate,
         score,
         forwardReturn: adjustedCloses[targetIndex] / adjustedCloses[index] - 1,
-        volatility: trailingVolatility(adjustedCloses, index, 20),
+        volatility: trailingPanelVolatility(adjustedCloses, index, 20),
       });
     }
   }
@@ -268,7 +268,7 @@ function assertSupportedProtocol(
   }
 }
 
-function validateCalendar(openDates: string[]): string[] {
+export function validatePanelCalendar(openDates: string[]): string[] {
   const calendar = [...openDates].sort();
   if (
     calendar.some((date) => !/^\d{8}$/.test(date)) ||
@@ -279,7 +279,11 @@ function validateCalendar(openDates: string[]): string[] {
   return calendar;
 }
 
-function monthlyDecisionDates(calendar: string[], start: string, end: string): string[] {
+export function monthlyPanelDecisionDates(
+  calendar: string[],
+  start: string,
+  end: string,
+): string[] {
   const byMonth = new Map<string, string>();
   for (const date of calendar) {
     if (date >= start && date <= end) {
@@ -289,7 +293,7 @@ function monthlyDecisionDates(calendar: string[], start: string, end: string): s
   return [...byMonth.values()];
 }
 
-function trailingVolatility(values: number[], index: number, periods: number): number {
+export function trailingPanelVolatility(values: number[], index: number, periods: number): number {
   const returns: number[] = [];
   for (let position = index - periods + 1; position <= index; position++) {
     returns.push(values[position] / values[position - 1] - 1);

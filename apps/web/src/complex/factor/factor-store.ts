@@ -66,7 +66,7 @@ import {
   publishFactorComposite,
   archiveFactorComposite,
 } from '@src/api/client';
-import { PANEL_ASSETS } from './panel-universe';
+import { panelAssetsFor } from './panel-universe';
 
 // Initial state from the URL. A stable report id restores both the result and its frozen parameters.
 type FactorSetupParams = {
@@ -299,6 +299,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       paramsModified: computed,
       analysisSpec: computed,
       researchSpec: computed,
+      panelAssets: computed,
       evaluationUniverse: computed,
       codeModifiedSinceReport: computed,
       reportOutdated: computed,
@@ -434,6 +435,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     return this.mode === 'macro_regime';
   }
 
+  public get panelAssets(): PanelFactorResearchSpecV1['assets'] {
+    return panelAssetsFor(this.selected?.targetAssetClasses);
+  }
+
   public get reportDetail(): FactorReportDetail | null {
     const detail = this.reportLoader.result;
     return detail && detail.factor === this.selectedKey && detail.id === this.selectedReportId
@@ -538,7 +543,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         start: this.start,
         end: this.end,
         observationFrequency: 'monthly',
-        assets: PANEL_ASSETS.map((asset) => ({ ...asset })),
+        assets: this.panelAssets,
         target: {
           kind: 'forward_total_return',
           horizon: this.timeSeriesHorizon,

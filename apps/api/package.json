@@ -35,6 +35,7 @@
     "sync:basic": "tsx --env-file=.env scripts/sync-basic.ts",
     "sync:fina": "tsx --env-file=.env scripts/sync-fina.ts",
     "sync:futures": "tsx --env-file=.env scripts/sync-futures.ts",
+    "sync:commodity-futures": "tsx --env-file=.env scripts/sync-commodity-futures.ts",
     "sync:etf": "tsx --env-file=.env scripts/sync-etf.ts",
     "sync:index": "tsx --env-file=.env scripts/sync-index.ts",
     "sync:index-daily": "tsx --env-file=.env scripts/sync-index-daily.ts",

@@ -2,6 +2,8 @@ import type { FactorAnalysisKind, PublishedFactor } from '@jixie/shared';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
 import { factorResearchSpecV1Schema, sha256 } from './report-spec.js';
+import { compilePanelFactor } from './compile-time-series-factor.js';
+import { COMMODITY_CARRY_PANEL_FIELD } from './factor-v2-fields.js';
 
 export const publishFactorBodySchema = z.object({
   approvedReportId: z.string().trim().min(1).max(80),
@@ -67,6 +69,9 @@ export async function publishFactor(
   if (factor.analysisKind === 'macro_regime' && !macroReportIsPointInTime(report)) {
     throw new FactorPublicationError('report_invalid');
   }
+  if (factor.analysisKind === 'panel' && (await panelCodeUsesResearchOnlyInput(factor.code))) {
+    throw new FactorPublicationError('report_invalid');
+  }
 
   const currentHash = sha256(factor.code);
   if (report.factorCodeSnapshot !== factor.code || report.factorCodeHash !== currentHash) {
@@ -99,6 +104,19 @@ export async function publishFactor(
     publishedAt: publishedAt.toISOString(),
     archivedAt: null,
   };
+}
+
+async function panelCodeUsesResearchOnlyInput(code: string): Promise<boolean> {
+  try {
+    const compiled = await compilePanelFactor(code);
+    try {
+      return compiled.inputs.includes(COMMODITY_CARRY_PANEL_FIELD);
+    } finally {
+      compiled.dispose();
+    }
+  } catch {
+    return true;
+  }
 }
 
 function macroReportIsPointInTime(report: {

@@ -208,19 +208,25 @@ export const prismaDataPort: EngineDataPort = {
 
   async futuresRange(start, end) {
     const range = { gte: start, lte: end };
-    const [contracts, daily, mappings, settlements] = await Promise.all([
-      prisma.futureContract.findMany({
-        where: { listDate: { lte: end }, delistDate: { gte: start } },
-        select: {
-          tsCode: true,
-          productCode: true,
-          multiplier: true,
-          listDate: true,
-          delistDate: true,
-        },
-      }),
+    const contracts = await prisma.futureContract.findMany({
+      where: {
+        productCode: { in: ['IF', 'IH', 'IC', 'IM'] },
+        multiplier: { not: null },
+        listDate: { lte: end },
+        delistDate: { gte: start },
+      },
+      select: {
+        tsCode: true,
+        productCode: true,
+        multiplier: true,
+        listDate: true,
+        delistDate: true,
+      },
+    });
+    const contractCodes = contracts.map((contract) => contract.tsCode);
+    const [daily, mappings, settlements] = await Promise.all([
       prisma.futureDaily.findMany({
-        where: { tradeDate: range },
+        where: { tsCode: { in: contractCodes }, tradeDate: range },
         select: {
           tsCode: true,
           tradeDate: true,
@@ -236,16 +242,27 @@ export const prismaDataPort: EngineDataPort = {
         orderBy: [{ tsCode: 'asc' }, { tradeDate: 'asc' }],
       }),
       prisma.futureMapping.findMany({
-        where: { tradeDate: range },
+        where: {
+          continuousCode: { in: ['IF.CFX', 'IH.CFX', 'IC.CFX', 'IM.CFX'] },
+          tradeDate: range,
+        },
         select: { continuousCode: true, tradeDate: true, mappedTsCode: true },
         orderBy: [{ continuousCode: 'asc' }, { tradeDate: 'asc' }],
       }),
       prisma.futureSettlement.findMany({
-        where: { tradeDate: range },
+        where: { tsCode: { in: contractCodes }, tradeDate: range },
         select: { tsCode: true, tradeDate: true, longMarginRate: true, shortMarginRate: true },
         orderBy: [{ tsCode: 'asc' }, { tradeDate: 'asc' }],
       }),
     ]);
-    return { contracts, daily, mappings, settlements };
+    return {
+      contracts: contracts.map((contract) => ({
+        ...contract,
+        multiplier: contract.multiplier!,
+      })),
+      daily,
+      mappings,
+      settlements,
+    };
   },
 };

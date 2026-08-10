@@ -896,6 +896,42 @@ ETF 的数据截止日，worker 复用上述 as-of loader 和 evaluator，完成
 宏观 holdout 与自定义模型发布继续留到具备足够本地 vintage 历史后；状态到目标权重、调仓和风险约束
 仍应在策略回测中单独冻结与验证，不在状态研究报告里偷渡成交易结论。
 
+**2026-08-10 Commodity Carry V1 数据与特征底座：**商品线从真实交割月合约启动，不从主力连续价格反推
+期限结构。首批固定 AU 黄金、CU 铜、SC 原油、M 豆粕，分别对应现有黄金、有色、能化和豆粕 ETF；
+底层 `FutureContract` / `FutureDaily` 可同时保存股指与商品合约，但交易引擎仍只读取乘数完整的
+IF/IH/IC/IM，商品保持研究只读。Tushare 对四类商品合约的 `multiplier` 实际均返回空，因此 schema
+忠实保存为 nullable，不硬编码或伪造合约乘数；Carry 计算不依赖该字段。
+
+V1 每日只使用当日结算价、成交量、持仓量和合约最后交割日：剔除距离交割不足 10 个自然日或无成交/
+持仓的合约，按交割日选择最近两个不同月份，并定义
+`annualizedLogCarry = ln(F_near / F_far) × 365 / expiryGapDays`。正值表示 backwardation，负值表示
+contango；近月合约变化单独标记 `nearContractChanged`，不拼接价格、不把换月价差冒充资产收益。未来日期
+新增的合约行情不会改变已生成的历史曲线点，已有 fixture 固定这一 PIT 边界。
+
+真实小窗口同步覆盖 2026-07-01 至 2026-08-07：保存 934 个历史合约元数据和 1,344 条窗口日线，四个
+品种各形成 28 个 Carry 点，并各观察到一次近月切换；同期 AU 以 contango 为主、CU 以 backwardation
+为主，SC 两种状态均有出现。
+
+**2026-08-10 Commodity Carry Panel V1：**Factor V2 字段目录新增
+`commodity.futures.annualizedLogCarry`，首个受控模板在共同月末横向比较 AU/CU/SC/M，并分别把结果映射
+到黄金、有色、能化和豆粕 ETF 的未来总收益。期货实际合约只提供特征，ETF 只提供收益目标；两者不混成
+一条伪连续收益。黄金和豆粕接近单品种代理，有色与能化 ETF 并非铜、原油的一一对应敞口，报告必须披露
+类别基差，不能把代理收益解释成对应期货收益。特征必须在月末已经可得，超过 7 个自然日未更新即丢弃；ETF 决策日、目标日和 20 日
+波动均要求真实行情，API 截止日同时受四个 ETF 与四个期货品种的本地水位约束。
+
+产品继续复用 `analysisKind=panel` 的 Rank IC、ICIR、命中率、换手和成本后多空报告，但参数池只显示四个
+商品 ETF，并将方法命名为“Panel 横截面”，避免把研究方法误写成资产类别。该模板不暴露 `strategyKey`、
+不进入 Panel Composite，也不显示发布/Lab 动作；自定义定义与发布服务均拒绝该研究专用输入，直到策略
+运行时、日常数据维护和可交易性另行验收。下一步是同一 Carry 的单品种时间序列研究，不是直接开放
+商品期货下单、连续收益或策略权重。
+
+真实历史同步覆盖 2015-01 至 2025-07 的 469 个重叠合约，共落库 107,385 条日线；真实浏览器从工作台
+运行 2015-01 至探索截止 2025-01-27 的报告，得到 294 条观测和 59 个满足最少资产数的共同月份，平均
+Rank IC 0.083、年化 ICIR 0.53，但 10bp 单边成本后的多空年化为 -3.76%。产品因此只陈述候选排序证据，
+没有把统计相关包装为可交易结论。可重复验收脚本为
+`apps/web/e2e/commodity-carry-panel.mjs`，截图见
+[`apps/web/acceptance/commodity-carry-panel-report.png`](../../apps/web/acceptance/commodity-carry-panel-report.png)。
+
 随后单独建设风险因子与组合归因：
 
 - 久期、曲线、信用、权益 beta、通胀、美元和商品风险暴露；

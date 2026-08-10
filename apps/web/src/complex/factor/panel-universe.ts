@@ -18,3 +18,19 @@ export const PANEL_ASSETS: PanelFactorResearchSpecV1['assets'] = [
 ];
 
 export const PANEL_ASSET_IDS = PANEL_ASSETS.map((asset) => asset.assetId);
+
+/** Keep the research method (panel) orthogonal to the selected asset domain. */
+export function panelAssetsFor(
+  targetAssetClasses?: Array<'equity' | 'fixed_income' | 'commodity'>,
+): PanelFactorResearchSpecV1['assets'] {
+  const allowed = new Set(targetAssetClasses ?? ['equity', 'fixed_income', 'commodity']);
+  return PANEL_ASSETS.filter((asset) => {
+    if (asset.assetClass === 'fixed_income') {
+      return allowed.has('fixed_income');
+    }
+    if (asset.assetClass === 'gold' || asset.assetClass === 'commodity') {
+      return allowed.has('commodity');
+    }
+    return allowed.has('equity');
+  }).map((asset) => ({ ...asset }));
+}

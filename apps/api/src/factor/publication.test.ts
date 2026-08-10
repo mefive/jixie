@@ -20,6 +20,17 @@ vi.mock('../lib/prisma.js', () => ({
 import { FactorPublicationError, publishFactor } from './publication.js';
 
 const CODE = `export default defineFactor({ compute: (bar) => bar.pb });`;
+const COMMODITY_CARRY_CODE = `export default defineFactorV2({
+  version: 2,
+  name: 'Commodity carry',
+  analysisKind: 'panel',
+  outputScope: 'asset',
+  frequency: 'daily',
+  inputs: ['commodity.futures.annualizedLogCarry'],
+  targetAssetClasses: ['commodity'],
+  window: 2,
+  compute(ctx) { return ctx.value('commodity.futures.annualizedLogCarry'); },
+});`;
 
 describe('immutable Factor publication', () => {
   beforeEach(() => {
@@ -104,6 +115,30 @@ describe('immutable Factor publication', () => {
     await expect(publishFactor('user-1', 'factor-1', 'report-1')).rejects.toEqual(
       new FactorPublicationError('report_invalid'),
     );
+  });
+
+  it('keeps the controlled commodity-carry template research-only', async () => {
+    mocks.factorFindFirst.mockResolvedValue({
+      id: 'factor-1',
+      key: 'commodity_carry',
+      name: 'Commodity carry',
+      code: COMMODITY_CARRY_CODE,
+      analysisKind: 'panel',
+      status: 'draft',
+    });
+    mocks.reportFindFirst.mockResolvedValue({
+      id: 'report-1',
+      analysisKind: 'panel',
+      phase: 'explore',
+      revealedAt: null,
+      factorCodeSnapshot: COMMODITY_CARRY_CODE,
+      factorCodeHash: sha256(COMMODITY_CARRY_CODE),
+    });
+
+    await expect(publishFactor('user-1', 'factor-1', 'report-1')).rejects.toEqual(
+      new FactorPublicationError('report_invalid'),
+    );
+    expect(mocks.factorUpdateMany).not.toHaveBeenCalled();
   });
 
   it('rejects a latest-vintage macro report even when its source snapshot matches', async () => {

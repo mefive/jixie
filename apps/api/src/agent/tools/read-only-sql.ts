@@ -71,9 +71,9 @@ export const SQL_TABLE_DOCS: Record<string, string> = {
   IndustryIndicator:
     'l1Code, l1Name, tradeDate, tradedCount, return20(decimal), excessReturn20(decimal vs whole-market equal-weight return), positiveReturn20Ratio(0..1), aboveMa20Ratio(0..1), aboveMa60Ratio(0..1), floatWeightedTurnoverRate(%), amountShare(0..1 of whole market), topFiveAmountShare(0..1 within industry) — point-in-time Shenwan level-1 state',
   FutureContract:
-    'tsCode(actual contract, e.g. IF2509.CFX), symbol, productCode(IF/IH/IC/IM), name, exchange(CFFEX), multiplier(CNY/index point), tradeUnit, perUnit, quoteUnit, quoteUnitDesc, deliveryMode, listDate, delistDate, deliveryMonth, lastDeliveryDate, tradeTimeDesc — actual stock-index futures contract metadata; continuous symbols are not tradable contracts',
+    'tsCode(actual contract, e.g. IF2509.CFX or AU2512.SHF), symbol, productCode, name, exchange, multiplier(contract multiplier; may be NULL when the provider omits it for research-only commodities), tradeUnit, perUnit, quoteUnit, quoteUnitDesc, deliveryMode, listDate, delistDate, deliveryMonth, lastDeliveryDate, tradeTimeDesc — actual delivery-month futures metadata; only IF/IH/IC/IM with a valid multiplier are trading-enabled, configured commodity products are research-only, and continuous symbols are not actual contracts',
   FutureDaily:
-    'tsCode, tradeDate, preClose, preSettle, open, high, low, close, settle, changeClose(close-preSettle), changeSettle(settle-preSettle), volume(contracts), amount(10k CNY), openInterest(contracts), openInterestChange, deliverySettle — raw daily bars for actual IF/IH/IC/IM contracts; use settle for daily variation-margin calculations',
+    'tsCode, tradeDate, preClose, preSettle, open, high, low, close, settle, changeClose(close-preSettle), changeSettle(settle-preSettle), volume(contracts), amount(10k CNY), openInterest(contracts), openInterestChange, deliverySettle — raw daily bars for actual futures contracts; price units follow FutureContract metadata, use settle for curve research and stock-index variation-margin calculations',
   FutureMapping:
     'continuousCode(e.g. IF.CFX), tradeDate, mappedTsCode(actual delivery contract) — point-in-time vendor main/continuous mapping; fills must use mappedTsCode, and mapping changes represent rolls',
   FutureSettlement:

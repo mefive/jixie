@@ -21,6 +21,18 @@ describe('Tushare stock-index futures APIs', () => {
     expect(call.mock.calls[0][2]).toContain('delist_date');
   });
 
+  it('requests commodity delivery-month metadata from non-CFFEX exchanges', async () => {
+    const { call, client } = fakeClient();
+
+    await futureContracts(client, { exchange: 'SHFE', fut_type: '1' });
+
+    expect(call).toHaveBeenCalledWith(
+      'fut_basic',
+      { exchange: 'SHFE', fut_type: '1' },
+      expect.stringContaining('last_ddate'),
+    );
+  });
+
   it('requests daily settlement and open-interest fields for an actual contract', async () => {
     const { call, client } = fakeClient();
     const params = { ts_code: 'IF2509.CFX', start_date: '20250701', end_date: '20250731' };
