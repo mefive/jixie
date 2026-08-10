@@ -1,6 +1,7 @@
 import type { MultiAssetClass, PanelFactorResearchSpecV1 } from '@jixie/shared';
 import {
   COMMODITY_CARRY_MINIMUM_DAYS_TO_DELIVERY,
+  COMMODITY_CARRY_MAX_STALENESS_DAYS,
   loadCommodityCarryHistory,
   type CommodityCarryPointV1,
 } from '../commodity/commodity-carry.js';
@@ -8,7 +9,7 @@ import { COMMODITY_FUTURE_SPECS } from '../commodity/commodity-futures.js';
 import { addDays, daysBetween } from '../lib/date.js';
 import { prisma } from '../lib/prisma.js';
 import type { CompiledPanelFactor } from './compile-time-series-factor.js';
-import { COMMODITY_CARRY_PANEL_FIELD } from './factor-v2-fields.js';
+import { COMMODITY_CARRY_FIELD } from './factor-v2-fields.js';
 import type { PanelEvaluationObservation } from './panel-evaluator.js';
 import {
   monthlyPanelDecisionDates,
@@ -18,9 +19,6 @@ import {
   type PanelEtfDailyRow,
   type PanelEtfMetadata,
 } from './panel-observations.js';
-
-export { COMMODITY_CARRY_PANEL_FIELD };
-export const COMMODITY_CARRY_MAX_STALENESS_DAYS = 7;
 
 export const COMMODITY_CARRY_PANEL_ASSETS: PanelFactorResearchSpecV1['assets'] =
   COMMODITY_FUTURE_SPECS.map((spec) => ({
@@ -203,7 +201,7 @@ export async function buildCommodityCarryPanelObservations(
     }
 
     const scores = await factor.computeSeries(
-      { [COMMODITY_CARRY_PANEL_FIELD]: productCarry.map((point) => point.annualizedLogCarry) },
+      { [COMMODITY_CARRY_FIELD]: productCarry.map((point) => point.annualizedLogCarry) },
       carryIndexes,
     );
     if (scores.length !== eligible.length) {
@@ -235,7 +233,7 @@ export async function buildCommodityCarryPanelObservations(
 }
 
 export function panelFactorUsesCommodityCarry(factor: CompiledPanelFactor): boolean {
-  return factor.inputs.length === 1 && factor.inputs[0] === COMMODITY_CARRY_PANEL_FIELD;
+  return factor.inputs.length === 1 && factor.inputs[0] === COMMODITY_CARRY_FIELD;
 }
 
 function assertCommodityCarryPanelProtocol(

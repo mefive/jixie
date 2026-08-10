@@ -137,6 +137,10 @@ const MESSAGES = {
     zh: '正在加载 {count} 个 ETF 的复权历史…',
     en: 'Loading adjusted ETF history for {count} asset(s)…',
   },
+  factorCommodityCarryTimeSeriesLoading: {
+    zh: '正在加载 {count} 个商品的期货 Carry 与代理 ETF 复权历史…',
+    en: 'Loading futures carry and adjusted proxy-ETF history for {count} commodity asset(s)…',
+  },
   factorTimeSeriesEvaluating: {
     zh: '正在评估 {count} 条时点观测…',
     en: 'Evaluating {count} point-in-time observation(s)…',

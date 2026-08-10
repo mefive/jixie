@@ -370,7 +370,9 @@ const AgentChat = complex.component(() => {
               : store.isPanel
                 ? 'panel.chatEmpty'
                 : store.isTimeSeries
-                  ? 'timeSeries.chatEmpty'
+                  ? store.selected?.kind === 'commodity'
+                    ? 'timeSeries.commodityCarryChatEmpty'
+                    : 'timeSeries.chatEmpty'
                   : store.mode === 'composite'
                     ? 'chatEmptyComposite'
                     : 'chatEmptyQa'
@@ -431,6 +433,7 @@ function ChatLog({
     | 'chatEmptyComposite'
     | 'chatEmptyAuthor'
     | 'timeSeries.chatEmpty'
+    | 'timeSeries.commodityCarryChatEmpty'
     | 'timeSeries.chatEmptyAuthor'
     | 'panel.chatEmpty'
     | 'panel.chatEmptyAuthor'
@@ -593,6 +596,11 @@ const FactorLibrary = complex.component(
               >
                 <span className="jx-factor-libName">{factorDisplayName(factor)}</span>
                 <span className="jx-factor-methodBadge">{t('timeSeries.methodBadge')}</span>
+                {factor.kind === 'commodity' && (
+                  <span className="jx-factor-kind jx-factor-kind--commodity">
+                    {t(KIND_KEY.commodity)}
+                  </span>
+                )}
               </button>
             ))}
 
@@ -2459,6 +2467,9 @@ const TimeSeriesReportBody = complex.component(() => {
     researchSpec?.analysisKind === 'time_series'
       ? (researchSpec as TimeSeriesFactorResearchSpecV1)
       : null;
+  const isCommodityCarry =
+    store.reportDetail?.factorCodeSnapshot?.includes('commodity.futures.annualizedLogCarry') ??
+    false;
   if (!report || !spec) {
     return <Placeholder icon={faPlay} text={t('runPrompt')} />;
   }
@@ -2488,7 +2499,13 @@ const TimeSeriesReportBody = complex.component(() => {
           )}
         />
       )}
-      <Alert type="info" showIcon title={t('timeSeries.reportNotice')} />
+      <Alert
+        type="info"
+        showIcon
+        title={t(
+          isCommodityCarry ? 'timeSeries.commodityCarryReportNotice' : 'timeSeries.reportNotice',
+        )}
+      />
       {store.reportDetail?.factorCodeSnapshot?.includes('rates.cgb.yield.') && (
         <Alert
           type="info"

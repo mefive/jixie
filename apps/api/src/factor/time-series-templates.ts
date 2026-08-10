@@ -1,13 +1,14 @@
-import type { FactorMeta, Locale } from '@jixie/shared';
+import type { FactorKind, FactorMeta, Locale } from '@jixie/shared';
 import type { FactorAnalysisSource } from './analysis-job.js';
 
 export interface TimeSeriesTemplate {
   key: string;
-  kind: 'price' | 'rates';
+  kind: FactorKind;
   targetAssetClasses: Array<'equity' | 'fixed_income' | 'commodity'>;
   label: Record<Locale, string>;
   description: Record<Locale, string>;
   code: string;
+  strategyEligible: boolean;
 }
 
 function etfTrendCode(lookback: 20 | 60 | 120, name: string): string {
@@ -87,6 +88,21 @@ const CGB_CURVATURE_CODE = `export default defineFactorV2({
 });
 `;
 
+const COMMODITY_FUTURES_CARRY_TIME_SERIES = `export default defineFactorV2({
+  version: 2,
+  name: 'Commodity futures carry time series',
+  analysisKind: 'time_series',
+  outputScope: 'asset',
+  frequency: 'daily',
+  inputs: ['commodity.futures.annualizedLogCarry'],
+  targetAssetClasses: ['commodity'],
+  window: 2,
+  compute(ctx) {
+    return ctx.value('commodity.futures.annualizedLogCarry');
+  },
+});
+`;
+
 export const TIME_SERIES_TEMPLATES: TimeSeriesTemplate[] = [
   {
     key: 'etf_trend_20',
@@ -98,6 +114,7 @@ export const TIME_SERIES_TEMPLATES: TimeSeriesTemplate[] = [
       en: 'Tests each ETF’s own 20-trading-day trend against its forward return using adjusted prices and robust time-series inference.',
     },
     code: etfTrendCode(20, 'ETF 20-day trend'),
+    strategyEligible: true,
   },
   {
     key: 'etf_trend_60',
@@ -109,6 +126,7 @@ export const TIME_SERIES_TEMPLATES: TimeSeriesTemplate[] = [
       en: 'Tests each ETF’s own 60-trading-day trend against its forward return for medium-term timing research.',
     },
     code: etfTrendCode(60, 'ETF 60-day trend'),
+    strategyEligible: true,
   },
   {
     key: 'etf_trend_120',
@@ -120,6 +138,7 @@ export const TIME_SERIES_TEMPLATES: TimeSeriesTemplate[] = [
       en: 'Tests each ETF’s own 120-trading-day trend against its forward return for slower trend regimes.',
     },
     code: etfTrendCode(120, 'ETF 120-day trend'),
+    strategyEligible: true,
   },
   {
     key: 'cgb_yield_decline_20',
@@ -131,6 +150,7 @@ export const TIME_SERIES_TEMPLATES: TimeSeriesTemplate[] = [
       en: 'Tests the 20-trading-day decline in the official 10-year China government yield, in basis points, against future bond ETF returns; each curve point is visible from the next trading day.',
     },
     code: cgbYieldDeclineCode(20),
+    strategyEligible: true,
   },
   {
     key: 'cgb_curve_slope_10y_2y',
@@ -142,6 +162,7 @@ export const TIME_SERIES_TEMPLATES: TimeSeriesTemplate[] = [
       en: 'Tests the official 10-year minus 2-year China government yield spread, in basis points, against future bond ETF returns.',
     },
     code: CGB_SLOPE_CODE,
+    strategyEligible: true,
   },
   {
     key: 'cgb_curve_curvature_2y_5y_10y',
@@ -153,6 +174,19 @@ export const TIME_SERIES_TEMPLATES: TimeSeriesTemplate[] = [
       en: 'Measures the belly of the official government curve as 2×5Y−2Y−10Y in basis points and tests its relation to future bond ETF returns.',
     },
     code: CGB_CURVATURE_CODE,
+    strategyEligible: true,
+  },
+  {
+    key: 'commodity_futures_carry_time_series_v1',
+    kind: 'commodity',
+    targetAssetClasses: ['commodity'],
+    label: { zh: '商品期货 Carry 时间序列', en: 'Commodity futures carry time series' },
+    description: {
+      zh: '逐个检验黄金、铜、原油和豆粕真实月合约的年化 Carry 与各自映射代理 ETF 未来收益的关系。正值代表 backwardation；有色和能化代理存在类别基差。',
+      en: 'Tests each gold, copper, crude-oil, and soybean-meal product’s own annualized actual-contract carry against the future return of its mapped proxy ETF. Positive values mean backwardation; the non-ferrous and energy proxies carry category basis risk.',
+    },
+    code: COMMODITY_FUTURES_CARRY_TIME_SERIES,
+    strategyEligible: false,
   },
 ];
 
@@ -163,7 +197,7 @@ export function timeSeriesTemplateCatalog(locale: Locale): FactorMeta[] {
     description: template.description[locale],
     kind: template.kind,
     builtin: true,
-    strategyKey: template.key,
+    ...(template.strategyEligible ? { strategyKey: template.key } : {}),
     status: 'published',
     analysisKind: 'time_series',
     targetAssetClasses: template.targetAssetClasses,
@@ -198,7 +232,7 @@ export function timeSeriesTemplateResource(key: string, locale: Locale) {
         code: template.code,
         builtin: true as const,
         status: 'published' as const,
-        strategyKey: template.key,
+        ...(template.strategyEligible ? { strategyKey: template.key } : {}),
         analysisKind: 'time_series' as const,
         targetAssetClasses: template.targetAssetClasses,
       }

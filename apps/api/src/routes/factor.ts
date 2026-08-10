@@ -57,7 +57,7 @@ import { resolvePanelTemplateSource } from '../factor/panel-templates.js';
 import { resolvePanelFactorSource } from '../factor/panel-composite-source.js';
 import { resolveMacroRegimeTemplateSource } from '../factor/macro-regime-templates.js';
 import { resolveMacroRegimeDataCutoff } from '../factor/macro-regime-data-cutoff.js';
-import { COMMODITY_CARRY_PANEL_FIELD } from '../factor/factor-v2-fields.js';
+import { COMMODITY_CARRY_FIELD } from '../factor/factor-v2-fields.js';
 import { commodityFutureProductCodesForEtfs } from '../commodity/commodity-futures.js';
 
 /**
@@ -355,7 +355,10 @@ factorRoute.post('/analysis/run', validateJson(runAnalysisBody), async (c) => {
         dataCutoff: researchSpec.dataPolicy.dataCutoff ?? researchSpec.end,
       },
     };
-    const dataCutoff = await resolveEtfDataCutoff(cutoffSpec);
+    const dataCutoff = await resolveEtfDataCutoff(
+      cutoffSpec,
+      factorAnalysisSourceUsesCommodityCarry(source),
+    );
     if (!dataCutoff) {
       return apiError(c, 'VALIDATION_FAILED', m(c, 'windowNotComputed'));
     }
@@ -484,7 +487,7 @@ factorRoute.post('/reports/:reportId/holdout', async (c) => {
     };
     const dataCutoff = await resolveEtfDataCutoff(
       candidate,
-      parent.factorCodeSnapshot?.includes(COMMODITY_CARRY_PANEL_FIELD) ?? false,
+      parent.factorCodeSnapshot?.includes(COMMODITY_CARRY_FIELD) ?? false,
     );
     if (!dataCutoff) {
       return apiError(c, 'VALIDATION_FAILED', m(c, 'windowNotComputed'));
@@ -827,7 +830,7 @@ async function resolveEtfDataCutoff(
     ? await resolveCommodityFutureCommonLatest(
         researchSpec.analysisKind === 'panel'
           ? researchSpec.assets.map((asset) => asset.assetId)
-          : [],
+          : researchSpec.assets,
       )
     : null;
   if (requiresCommodityCarry && !commodityCutoff) {
@@ -870,10 +873,10 @@ async function resolveCommodityFutureCommonLatest(assets: string[]): Promise<str
 }
 
 function factorAnalysisSourceUsesCommodityCarry(source: FactorAnalysisSource): boolean {
-  return source.kind === 'panel'
-    ? source.code.includes(COMMODITY_CARRY_PANEL_FIELD)
+  return source.kind === 'time_series' || source.kind === 'panel'
+    ? source.code.includes(COMMODITY_CARRY_FIELD)
     : source.kind === 'panel_composite'
-      ? source.components.some((component) => component.code.includes(COMMODITY_CARRY_PANEL_FIELD))
+      ? source.components.some((component) => component.code.includes(COMMODITY_CARRY_FIELD))
       : false;
 }
 

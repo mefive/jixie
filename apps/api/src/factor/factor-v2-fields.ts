@@ -6,7 +6,7 @@ export type FactorV2FieldKey =
   | 'rates.cgb.yield.30y'
   | 'commodity.futures.annualizedLogCarry';
 
-export const COMMODITY_CARRY_PANEL_FIELD = 'commodity.futures.annualizedLogCarry' as const;
+export const COMMODITY_CARRY_FIELD = 'commodity.futures.annualizedLogCarry' as const;
 
 export interface FactorV2FieldDefinition {
   key: FactorV2FieldKey;

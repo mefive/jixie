@@ -5,6 +5,10 @@ import { prisma } from '../lib/prisma.js';
 import { factorEvaluatorFor } from './evaluator.js';
 import { normalizeFactorResearchSpec } from './report-spec.js';
 import { loadEtfTimeSeriesObservations } from './etf-trend-observations.js';
+import {
+  loadCommodityCarryTimeSeriesObservations,
+  timeSeriesFactorUsesCommodityCarry,
+} from './commodity-carry-time-series-observations.js';
 import { TimeSeriesEvaluator } from './time-series-evaluator.js';
 import { compileTimeSeriesFactor } from './compile-time-series-factor.js';
 import { compilePanelFactor } from './compile-time-series-factor.js';
@@ -69,8 +73,19 @@ try {
       }
       const compiled = await compileTimeSeriesFactor(source.code, onUserLog);
       try {
-        onSystemLog(t(locale, 'factorTimeSeriesLoading', { count: researchSpec.assets.length }));
-        const observations = await loadEtfTimeSeriesObservations(researchSpec, compiled);
+        const usesCommodityCarry = timeSeriesFactorUsesCommodityCarry(compiled);
+        onSystemLog(
+          t(
+            locale,
+            usesCommodityCarry
+              ? 'factorCommodityCarryTimeSeriesLoading'
+              : 'factorTimeSeriesLoading',
+            { count: researchSpec.assets.length },
+          ),
+        );
+        const observations = usesCommodityCarry
+          ? await loadCommodityCarryTimeSeriesObservations(researchSpec, compiled)
+          : await loadEtfTimeSeriesObservations(researchSpec, compiled);
         onSystemLog(t(locale, 'factorTimeSeriesEvaluating', { count: observations.length }));
         const report = new TimeSeriesEvaluator().evaluate(researchSpec, observations);
         port.postMessage({ type: 'done', reportId, payload: JSON.stringify(report) });

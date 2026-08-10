@@ -922,8 +922,8 @@ contango；近月合约变化单独标记 `nearContractChanged`，不拼接价�
 产品继续复用 `analysisKind=panel` 的 Rank IC、ICIR、命中率、换手和成本后多空报告，但参数池只显示四个
 商品 ETF，并将方法命名为“Panel 横截面”，避免把研究方法误写成资产类别。该模板不暴露 `strategyKey`、
 不进入 Panel Composite，也不显示发布/Lab 动作；自定义定义与发布服务均拒绝该研究专用输入，直到策略
-运行时、日常数据维护和可交易性另行验收。下一步是同一 Carry 的单品种时间序列研究，不是直接开放
-商品期货下单、连续收益或策略权重。
+运行时、日常数据维护和可交易性另行验收。同一 Carry 的单品种时间序列纵切见下段；两类研究均不代表
+已经开放商品期货下单、连续收益或策略权重。
 
 真实历史同步覆盖 2015-01 至 2025-07 的 469 个重叠合约，共落库 107,385 条日线；真实浏览器从工作台
 运行 2015-01 至探索截止 2025-01-27 的报告，得到 294 条观测和 59 个满足最少资产数的共同月份，平均
@@ -931,6 +931,22 @@ Rank IC 0.083、年化 ICIR 0.53，但 10bp 单边成本后的多空年化为 -3
 没有把统计相关包装为可交易结论。可重复验收脚本为
 `apps/web/e2e/commodity-carry-panel.mjs`，截图见
 [`apps/web/acceptance/commodity-carry-panel-report.png`](../../apps/web/acceptance/commodity-carry-panel-report.png)。
+
+**2026-08-10 Commodity Carry 时间序列 V1：**同一受控字段新增独立
+`analysisKind=time_series` 模板，逐品种检验 AU/CU/SC/M 自身当日可得的实际合约 Carry 与各自映射代理
+ETF 未来收益的关系，不做商品间排序。装载器把最近可得 Carry 对齐到 ETF 交易日，最多允许 7 个自然日
+陈旧度，并分别冻结特征可得日、ETF 目标日和期货/ETF 共同数据截止；Newey-West 自动滞后至少覆盖 20 日
+重叠预测目标。时间序列任务会按定义输入选择期货 Carry 或 ETF/国债数据装载器，受控字段仍不能进入
+自定义定义、发布、策略 Lab、每日信号或 Factor Weather。
+
+真实浏览器从 2015-01-01 运行至探索截止 2025-01-27，共得到 2,428 个有效交易日和 6,069 条逐资产
+观测。AU、M、CU 代理的相关性分别为 0.070、0.110、0.132，Newey-West t 分别为 1.89、1.47、
+1.59；SC/能化代理相关性为 -0.105，t 为 -1.85。四者均未越过常用的双侧 5% 阈值，且代理口径与
+方向并不完全一致，因此当前只形成“值得后续样本外验证”的分品种证据，不能与 Panel 结果合并包装成
+可交易结论。可重复验收脚本为 `apps/web/e2e/commodity-carry-time-series.mjs`；截图见
+[`apps/web/acceptance/commodity-carry-time-series-config.png`](../../apps/web/acceptance/commodity-carry-time-series-config.png)
+和
+[`apps/web/acceptance/commodity-carry-time-series-report.png`](../../apps/web/acceptance/commodity-carry-time-series-report.png)。
 
 随后单独建设风险因子与组合归因：
 
