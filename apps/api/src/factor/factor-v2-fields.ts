@@ -4,9 +4,17 @@ export type FactorV2FieldKey =
   | 'rates.cgb.yield.5y'
   | 'rates.cgb.yield.10y'
   | 'rates.cgb.yield.30y'
-  | 'commodity.futures.annualizedLogCarry';
+  | 'commodity.futures.annualizedLogCarry'
+  | 'commodity.warehouseReceipt.volume';
 
 export const COMMODITY_CARRY_FIELD = 'commodity.futures.annualizedLogCarry' as const;
+export const COMMODITY_WAREHOUSE_RECEIPT_VOLUME_FIELD =
+  'commodity.warehouseReceipt.volume' as const;
+
+const RESEARCH_ONLY_FACTOR_V2_FIELDS = new Set<FactorV2FieldKey>([
+  COMMODITY_CARRY_FIELD,
+  COMMODITY_WAREHOUSE_RECEIPT_VOLUME_FIELD,
+]);
 
 export interface FactorV2FieldDefinition {
   key: FactorV2FieldKey;
@@ -40,6 +48,14 @@ export const FACTOR_V2_FIELDS: Record<FactorV2FieldKey, FactorV2FieldDefinition>
     pointInTime: true,
     targetAssetClasses: ['commodity'],
   },
+  'commodity.warehouseReceipt.volume': {
+    key: 'commodity.warehouseReceipt.volume',
+    inputDomain: 'commodity',
+    frequency: 'daily',
+    valueType: 'level',
+    pointInTime: true,
+    targetAssetClasses: ['commodity'],
+  },
 };
 
 function rateField(key: FactorV2FieldKey): FactorV2FieldDefinition {
@@ -60,4 +76,8 @@ export function factorV2YieldTerm(field: FactorV2FieldKey): number | null {
 
 export function isFactorV2FieldKey(value: string): value is FactorV2FieldKey {
   return Object.hasOwn(FACTOR_V2_FIELDS, value);
+}
+
+export function isResearchOnlyFactorV2Field(field: FactorV2FieldKey): boolean {
+  return RESEARCH_ONLY_FACTOR_V2_FIELDS.has(field);
 }
