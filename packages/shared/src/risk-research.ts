@@ -124,14 +124,22 @@ export interface PortfolioRiskScenarioShockV1 {
   unit: Exclude<RiskDriverUnitV1, 'score_change'>;
 }
 
-export interface PortfolioRiskScenarioResultV1 {
+interface PortfolioRiskScenarioResultBaseV1 {
   key: string;
-  kind: 'deterministic' | 'historical';
   asOfDate: TradeDate;
   shocks: PortfolioRiskScenarioShockV1[];
   estimatedReturnImpact: number;
   methodology: 'linear_factor_shock';
 }
+
+export type PortfolioRiskScenarioResultV1 = PortfolioRiskScenarioResultBaseV1 &
+  (
+    | { kind: 'deterministic' }
+    | {
+        kind: 'historical';
+        historicalWindow: { startDate: TradeDate; endDate: TradeDate };
+      }
+  );
 
 /** Optional on cached backtests created before Phase 5. Each section is populated only after its
  * own data lineage and coverage gates pass; missing evidence stays missing instead of becoming 0. */
