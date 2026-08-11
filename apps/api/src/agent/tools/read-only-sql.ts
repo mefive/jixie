@@ -37,7 +37,9 @@ export const SQL_TABLE_DOCS: Record<string, string> = {
   EtfAdjFactor:
     'tsCode, tradeDate, adjFactor — ETF adjustment factor (after-adjustment price = close×adjFactor)',
   YieldCurvePoint:
-    'source, curveCode, curveName, curveType, tradeDate(curve observation date), availableDate(next SSE trading day; mandatory PIT gate), termYears(years), yieldPct(%), retrievedAt — official government-bond yield-curve points; research must filter availableDate<=decision date, and 10Y−2Y spread in basis points is (yieldPct10−yieldPct2)×100',
+    'source, curveCode, curveName, curveType, tradeDate(source-market curve date), availableDate(first eligible SSE research date; mandatory PIT gate), termYears(years), yieldPct(%), retrievedAt — normalized sovereign yield curves including mof_cgb_ytm, us_treasury_nominal, and us_treasury_real; research must filter availableDate<=decision date, US curves are first usable on the strictly later SSE session, and a 10Y−2Y spread in basis points is (yieldPct10−yieldPct2)×100',
+  FxDaily:
+    'tsCode(USDCNH.FXCM), tradeDate(provider GMT date), availableDate(first strictly later SSE session; mandatory PIT gate), exchange(FXCM), bidOpen/bidClose/bidHigh/bidLow, askOpen/askClose/askHigh/askLow(CNH per USD), tickQty, retrievedAt — raw USD/CNH daily quotes; derive the research close as (bidClose+askClose)/2 only after filtering availableDate<=decision date, and never use the same-calendar-day unfinished global FX bar for a China close signal',
   MacroSeries:
     'seriesKey, nameZh, nameEn, domain(growth/inflation/liquidity/credit/etc.), frequency(daily/monthly), unit(percent/index_point/100m_cny/trillion_cny), source, sourceApi, sourceField, defaultTransform, revisionPolicy, createdAt, updatedAt — canonical macro and money-market series catalog; join MacroObservation by seriesKey and preserve the declared unit, frequency, and revision policy',
   MacroObservation:

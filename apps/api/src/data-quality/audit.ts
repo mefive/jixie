@@ -2,6 +2,11 @@ import { median, quantile } from '../lib/stats.js';
 import { CHINA_MACRO_SERIES } from '../macro/china-macro.js';
 import type { Prisma } from '../lib/prisma.js';
 import { auditCommodityWarehouseReceipts } from '../commodity/commodity-warehouse-receipt-quality.js';
+import {
+  US_NOMINAL_CURVE_CODE,
+  US_REAL_CURVE_CODE,
+  USD_CNH_CODE,
+} from '../rates/external-market-drivers.js';
 
 export type AuditStatus = 'pass' | 'warn' | 'error';
 
@@ -102,6 +107,21 @@ export interface MacroPitAuditSummary {
   capturedAsAvailableRows: number;
 }
 
+export interface ExternalMarketPitAuditRow {
+  seriesKey: string;
+  tradeDate: string;
+  availableDate: string;
+  validValue: boolean;
+}
+
+export interface ExternalMarketPitAuditSummary {
+  missingSeries: string[];
+  invalidAvailabilityRows: number;
+  nonTradingAvailabilityRows: number;
+  invalidValueRows: number;
+  latestAvailableDate: string | null;
+}
+
 export interface WindowCoverageSummary {
   evaluationDate: string;
   windowStart: string;
@@ -183,6 +203,7 @@ export async function runDataQualityAudit(
     await auditWindowCoverage(database, openDates, windowTradingDays, evaluationPoints),
     await auditFinancialPit(database),
     await auditMacroPit(database),
+    await auditExternalMarketPit(database, endDate),
     await auditCommodityWarehouseReceiptPit(database, startDate, endDate),
   );
 
@@ -195,6 +216,22 @@ export async function runDataQualityAudit(
       windowTradingDays,
     },
     findings,
+  };
+}
+
+export function summarizeExternalMarketPit(
+  rows: ExternalMarketPitAuditRow[],
+  openDates: Set<string>,
+): ExternalMarketPitAuditSummary {
+  const requiredSeries = [US_NOMINAL_CURVE_CODE, US_REAL_CURVE_CODE, USD_CNH_CODE];
+  const observedSeries = new Set(rows.map((row) => row.seriesKey));
+  const availableDates = rows.map((row) => row.availableDate).sort();
+  return {
+    missingSeries: requiredSeries.filter((seriesKey) => !observedSeries.has(seriesKey)),
+    invalidAvailabilityRows: rows.filter((row) => row.availableDate <= row.tradeDate).length,
+    nonTradingAvailabilityRows: rows.filter((row) => !openDates.has(row.availableDate)).length,
+    invalidValueRows: rows.filter((row) => !row.validValue).length,
+    latestAvailableDate: availableDates.at(-1) ?? null,
   };
 }
 
@@ -880,6 +917,85 @@ async function auditMacroPit(database: Prisma): Promise<AuditFinding> {
       `${formatNumber(summary.conservativeLagRows)} rows use conservative release lags; ${formatNumber(summary.latestValueBackfillRows)} rows are latest-value historical backfills.`,
       `${formatNumber(summary.capturedAsAvailableRows)} rows were captured near their original availability date.`,
       'Latest-value backfills are suitable for exploratory research only and must not be presented as real-time vintages.',
+    ],
+  };
+}
+
+async function auditExternalMarketPit(database: Prisma, endDate: string): Promise<AuditFinding> {
+  const [curveRows, fxRows] = await Promise.all([
+    database.yieldCurvePoint.findMany({
+      where: {
+        curveCode: { in: [US_NOMINAL_CURVE_CODE, US_REAL_CURVE_CODE] },
+        termYears: 10,
+      },
+      select: {
+        curveCode: true,
+        tradeDate: true,
+        availableDate: true,
+        yieldPct: true,
+      },
+    }),
+    database.fxDaily.findMany({
+      where: { tsCode: USD_CNH_CODE },
+      select: {
+        tsCode: true,
+        tradeDate: true,
+        availableDate: true,
+        bidClose: true,
+        askClose: true,
+      },
+    }),
+  ]);
+  const rows: ExternalMarketPitAuditRow[] = [
+    ...curveRows.map((row) => ({
+      seriesKey: row.curveCode,
+      tradeDate: row.tradeDate,
+      availableDate: row.availableDate,
+      validValue: Number.isFinite(row.yieldPct) && row.yieldPct > -10 && row.yieldPct < 30,
+    })),
+    ...fxRows.map((row) => ({
+      seriesKey: row.tsCode,
+      tradeDate: row.tradeDate,
+      availableDate: row.availableDate,
+      validValue:
+        Number.isFinite(row.bidClose) &&
+        Number.isFinite(row.askClose) &&
+        row.bidClose > 0 &&
+        row.bidClose <= row.askClose,
+    })),
+  ];
+  const availableDates = rows.map((row) => row.availableDate).sort();
+  const firstAvailableDate = availableDates[0];
+  const lastAvailableDate = availableDates.at(-1);
+  const calendarRows =
+    firstAvailableDate && lastAvailableDate
+      ? await database.tradeCal.findMany({
+          where: {
+            exchange: 'SSE',
+            isOpen: 1,
+            calDate: { gte: firstAvailableDate, lte: lastAvailableDate },
+          },
+          select: { calDate: true },
+        })
+      : [];
+  const summary = summarizeExternalMarketPit(rows, new Set(calendarRows.map((row) => row.calDate)));
+  const broken =
+    summary.missingSeries.length > 0 ||
+    summary.invalidAvailabilityRows > 0 ||
+    summary.nonTradingAvailabilityRows > 0 ||
+    summary.invalidValueRows > 0;
+  const stale = summary.latestAvailableDate != null && summary.latestAvailableDate < endDate;
+
+  return {
+    id: 'external-market-pit',
+    title: 'External market drivers: point-in-time availability',
+    status: broken ? 'error' : stale ? 'warn' : 'pass',
+    summary: `${formatNumber(rows.length)} daily observations; ${summary.invalidAvailabilityRows} invalid availability rows; ${summary.nonTradingAvailabilityRows} non-trading availability dates`,
+    details: [
+      `Missing required series: ${summary.missingSeries.length === 0 ? 'none' : summary.missingSeries.join(', ')}.`,
+      `${summary.invalidValueRows} rows have invalid yields or inverted USD/CNH close quotes.`,
+      `Latest China-market availability: ${summary.latestAvailableDate ?? 'none'}; audit end: ${endDate}.`,
+      'US curves and GMT FX bars must use the first strictly later SSE session; same-calendar-day use is prohibited.',
     ],
   };
 }

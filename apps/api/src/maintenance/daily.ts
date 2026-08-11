@@ -6,6 +6,10 @@ import {
 import { loadTushareConfig } from '../config.js';
 import { prisma } from '../lib/prisma.js';
 import { syncMarketIndicators } from '../market/sync-market-indicators.js';
+import {
+  syncExternalMarketDrivers,
+  type ExternalMarketSyncSummary,
+} from '../rates/external-market-drivers.js';
 import { generateDailySignals } from '../signals/scheduler.js';
 import { latestCompletedTradeDate } from '../signals/service.js';
 import { syncSignalMarketData } from '../signals/sync.js';
@@ -59,6 +63,7 @@ export interface DailyMaintenanceSummary {
   dataRevision: number | null;
   selfHealing: SelfHealSummary | null;
   warehouseReceipts: CommodityWarehouseReceiptMaintenanceSummary | null;
+  externalMarketDrivers: ExternalMarketSyncSummary | null;
   signals: { deployments: number; done: number; errors: number } | null;
 }
 
@@ -121,6 +126,7 @@ export async function runDailyMaintenance(
         dataRevision: state.dataRevision,
         selfHealing: null,
         warehouseReceipts: null,
+        externalMarketDrivers: null,
         signals: null,
       };
     }
@@ -138,6 +144,7 @@ export async function runDailyMaintenance(
         dataRevision: state.dataRevision,
         selfHealing: null,
         warehouseReceipts: null,
+        externalMarketDrivers: null,
         signals: null,
       };
     }
@@ -184,6 +191,7 @@ export async function runDailyMaintenance(
     dataRevision: null,
     selfHealing: null,
     warehouseReceipts: null,
+    externalMarketDrivers: null,
     signals: null,
   };
   const stopHeartbeat = startMaintenanceHeartbeat(run.id);
@@ -216,6 +224,13 @@ export async function runDailyMaintenance(
         onLog,
       );
     }
+    summary.externalMarketDrivers = await refreshExternalMarketDrivers(
+      client,
+      cutoff,
+      run.id,
+      summary,
+      onLog,
+    );
     const completedDates: string[] = [];
     let dateFailure: Error | null = null;
 
@@ -356,6 +371,7 @@ async function initializePublishedBaseline(
     dataRevision: null,
     selfHealing: null,
     warehouseReceipts: null,
+    externalMarketDrivers: null,
     signals: null,
   };
   const stopHeartbeat = startMaintenanceHeartbeat(run.id);
@@ -438,6 +454,7 @@ async function runSignalOnlyMaintenance(
     dataRevision,
     selfHealing: null,
     warehouseReceipts: null,
+    externalMarketDrivers: null,
     signals: null,
   };
   const stopHeartbeat = startMaintenanceHeartbeat(run.id);
@@ -461,6 +478,13 @@ async function runSignalOnlyMaintenance(
         onLog,
       );
     }
+    summary.externalMarketDrivers = await refreshExternalMarketDrivers(
+      client,
+      cutoff,
+      run.id,
+      summary,
+      onLog,
+    );
     await updateMaintenanceRun(run.id, 'signals', summary);
     summary.signals = await generateDailySignals(cutoff, onLog);
     await finishMaintenanceRun(run.id, 'done', { summary });
@@ -474,6 +498,17 @@ async function runSignalOnlyMaintenance(
   } finally {
     await stopHeartbeat();
   }
+}
+
+async function refreshExternalMarketDrivers(
+  client: TushareClient,
+  cutoff: string,
+  runId: string,
+  summary: DailyMaintenanceSummary,
+  onLog: (line: string) => void,
+): Promise<ExternalMarketSyncSummary> {
+  await updateMaintenanceRun(runId, 'external_market_drivers', summary);
+  return syncExternalMarketDrivers(client, addCalendarDays(cutoff, -14), cutoff, onLog);
 }
 
 async function refreshCommodityWarehouseReceipts(

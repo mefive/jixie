@@ -444,6 +444,21 @@ M1/M2 和社融，不能让后两者阻塞已经可验证的增长、通胀最�
 全库审计得到 0 个无效可得日、0 个非交易日可得记录和 0 条缺失必需系列；21,807 条历史最终值回填仍
 只允许探索。这批数据只扩充底座；五轴宏观状态模型仍在 Phase 5 后续切片实现。
 
+**2026-08-11 外部利率与汇率数据切片：**Tushare `us_tycr`、`us_trycr` 与 `fx_daily` 真实样本均通过。
+美国名义/实际曲线复用 `YieldCurvePoint`，curve code 分别为 `us_treasury_nominal` 和
+`us_treasury_real`；只保存源接口真实给出的期限点，不对缺失期限插值。USD/CNH 新增 `FxDaily`，原样保存
+FXCM bid/ask OHLC 与报价笔数，研究收盘价以后再确定性计算 `(bidClose + askClose) / 2`，不把中间价
+覆盖回原始行情。
+
+2005-01-01 至 2026-07-30 的真实全量回填得到 61,021 个名义曲线点、25,690 个实际曲线点和 4,382 根
+USD/CNH 日线；两条 10 年曲线都从 2005-01-03 起覆盖，USD/CNH 从 2012-02-18 起覆盖。三个接口均按
+自然年请求，分别低于单次 2,000 / 1,000 行上限；美国假日的全空名义曲线占位行不落库，也不前值填充。
+`tradeDate` 保留美国或 GMT 源日期，`availableDate` 一律使用严格晚于源日期的首个上交所交易日，因为
+中国当日收盘时美国同日曲线和完整全球 FX 日线尚未形成。bootstrap 覆盖门、daily maintenance、PIT
+审计、能力探针和 Agent 只读 SQL 已同步接入；这三条市场序列采用 `not_revised` 风险血缘，不与宏观
+`latest_value_backfill` vintage 混用。全库审计对两条 10 年曲线和 USD/CNH 共检查 15,175 个日频观测，
+结果为 0 个无效可得日、0 个非交易日可得记录、0 个无效收益率或倒挂收盘报价。
+
 **2026-08-09 as-of 查询契约：**宏观读取已统一为两种不可混淆的 revision policy。严格研究使用
 `as_available`，同时要求 `availableDate <= decisionDate` 和 `vintageDate <= decisionDate`，再为每个
 系列与观察期选择当时最新的本地 vintage；因此在 2026-08-09 首次捕获之前，不会凭空产生“实时历史”。

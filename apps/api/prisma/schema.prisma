@@ -167,9 +167,9 @@ model EtfSyncSlice {
   @@id([tsCode, startDate, endDate])
 }
 
-/// Official Ministry of Finance China government-bond yield-curve points. The source publishes
-/// after the domestic market close, so `availableDate` is the next SSE trading day and is the PIT
-/// gate for research. Yields are percentages; term is measured in years.
+/// Normalized sovereign yield-curve points. `availableDate` translates the source-market timestamp
+/// into the first SSE close that may use the value and is the mandatory PIT gate for research.
+/// Yields are percentages; term is measured in years.
 model YieldCurvePoint {
   source        String
   curveCode     String
@@ -184,6 +184,29 @@ model YieldCurvePoint {
   @@id([source, curveCode, curveType, tradeDate, termYears])
   @@index([curveCode, availableDate])
   @@index([tradeDate])
+}
+
+/// Raw FXCM daily bid/ask bars returned by Tushare. `tradeDate` is the provider's GMT date;
+/// `availableDate` is the first later SSE trading day, so China-close research cannot read an
+/// unfinished same-calendar-day global FX bar. Prices are quote currency per base currency.
+model FxDaily {
+  tsCode        String
+  tradeDate     String
+  availableDate String
+  exchange      String
+  bidOpen       Float
+  bidClose      Float
+  bidHigh       Float
+  bidLow        Float
+  askOpen       Float
+  askClose      Float
+  askHigh       Float
+  askLow        Float
+  tickQty       Int
+  retrievedAt   DateTime @default(now())
+
+  @@id([tsCode, tradeDate])
+  @@index([availableDate])
 }
 
 /// Canonical catalog for macroeconomic series. Source fields remain explicit so every normalized

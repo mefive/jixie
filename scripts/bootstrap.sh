@@ -271,6 +271,49 @@ macro_series_coverage() {
   "
 }
 
+external_market_coverage() {
+  local database_file="$1"
+  local expected_end="$2"
+
+  sqlite3 "$database_file" "
+    WITH coverage(series_key, first_date, last_available, observation_rows) AS (
+      SELECT
+        'us_treasury_nominal',
+        min(\"tradeDate\"),
+        max(\"availableDate\"),
+        count(*)
+      FROM \"YieldCurvePoint\"
+      WHERE \"curveCode\" = 'us_treasury_nominal' AND \"termYears\" = 10
+      UNION ALL
+      SELECT
+        'us_treasury_real',
+        min(\"tradeDate\"),
+        max(\"availableDate\"),
+        count(*)
+      FROM \"YieldCurvePoint\"
+      WHERE \"curveCode\" = 'us_treasury_real' AND \"termYears\" = 10
+      UNION ALL
+      SELECT
+        'USDCNH.FXCM',
+        min(\"tradeDate\"),
+        max(\"availableDate\"),
+        count(*)
+      FROM \"FxDaily\"
+      WHERE \"tsCode\" = 'USDCNH.FXCM'
+    )
+    SELECT count(*)
+    FROM coverage
+    WHERE last_available >= '$expected_end'
+      AND (
+        (series_key IN ('us_treasury_nominal', 'us_treasury_real')
+          AND first_date <= '20050103' AND observation_rows >= 4000)
+        OR
+        (series_key = 'USDCNH.FXCM'
+          AND first_date <= '20120218' AND observation_rows >= 2000)
+      );
+  "
+}
+
 commodity_warehouse_receipt_coverage() {
   local database_file="$1"
   local expected_end="$2"
@@ -767,6 +810,24 @@ if [[ "$MACRO_SERIES_COMPLETE" -ne 13 ]]; then
   [[ "$MACRO_SERIES_COMPLETE" -eq 13 ]] || die "宏观系列回填后仍不完整"
 else
   log "宏观系列历史覆盖完整,跳过回填"
+fi
+
+EXTERNAL_MARKET_SYNC_END="$(
+  sqlite3 "$DB_FILE" 'SELECT max("tradeDate") FROM "Daily";' 2>/dev/null || true
+)"
+[[ "$EXTERNAL_MARKET_SYNC_END" =~ ^[0-9]{8}$ ]] || die "无法确定外部市场数据同步截止日"
+EXTERNAL_MARKET_COMPLETE="$(
+  external_market_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
+)"
+if [[ "$EXTERNAL_MARKET_COMPLETE" -ne 3 ]]; then
+  log "补全美国名义/实际国债曲线和 USD/CNH: 20050101 ~ $EXTERNAL_MARKET_SYNC_END"
+  pnpm --filter api sync:external-market 20050101 "$EXTERNAL_MARKET_SYNC_END"
+  EXTERNAL_MARKET_COMPLETE="$(
+    external_market_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
+  )"
+  [[ "$EXTERNAL_MARKET_COMPLETE" -eq 3 ]] || die "外部市场驱动回填后仍不完整"
+else
+  log "外部市场驱动历史覆盖完整,跳过回填"
 fi
 
 WAREHOUSE_RECEIPT_SYNC_END="$(
