@@ -444,7 +444,7 @@ M1/M2 和社融，不能让后两者阻塞已经可验证的增长、通胀最�
 `cn_schedule` 未提供 `cn_m` / `sf_month` 发布事件，二者不伪造官方发布日期，继续采用月末后 20 日的
 保守可得日。bootstrap、weekly maintenance、宏观 PIT 审计和 Agent 只读 SQL 已同步纳入全部 13 条系列。
 全库审计得到 0 个无效可得日、0 个非交易日可得记录和 0 条缺失必需系列；21,807 条历史最终值回填仍
-只允许探索。这批数据只扩充底座；五轴宏观状态模型仍在 Phase 5 后续切片实现。
+只允许探索。该数据切片当时只扩充底座；五轴宏观状态模型随后已在 Phase 5 风险研究中完成。
 
 **2026-08-11 外部利率与汇率数据切片：**Tushare `us_tycr`、`us_trycr` 与 `fx_daily` 真实样本均通过。
 美国名义/实际曲线复用 `YieldCurvePoint`，curve code 分别为 `us_treasury_nominal` 和
@@ -689,7 +689,7 @@ SC 在前端保留可见的不可用解释，并由 API 硬拒绝。共同 `data
 [`apps/web/acceptance/commodity-warehouse-receipt-config.png`](../../apps/web/acceptance/commodity-warehouse-receipt-config.png)
 和
 [`apps/web/acceptance/commodity-warehouse-receipt-report.png`](../../apps/web/acceptance/commodity-warehouse-receipt-report.png)。
-5/60 日变化、标准分与仓单 panel 均继续后置到 Phase 5 讨论，不作为 Factor V2 / Multi-Asset V1 收口条件。
+5/60 日变化、标准分与仓单 Panel 作为新的研究假设继续后置，不是 Factor V2 的未完成阶段。
 
 ### 波次 5：Factor V2 与策略 Lab 闭环
 
@@ -716,7 +716,7 @@ SC 在前端保留可见的不可用解释，并由 API 硬拒绝。共同 `data
 结果，任何缺失段都保持缺失。宏观历史最终值只显示为带 future-vintage 警告的探索报告，不能参与
 发布或被表述成样本外证据。债券敏感度是统计回归 exposure，界面不得把它命名为基金披露久期。
 
-Phase 5 V1 已于 2026-08-11 通过完整真实浏览器链路：新建并发布 Panel 因子后，2020–2025 ETF 策略
+Phase 5 已于 2026-08-11 按既定完成边界通过完整真实浏览器链路：新建并发布 Panel 因子后，2020–2025 ETF 策略
 得到 127 笔成交；报告生成 252 日市场风险、60 月宏观敏感度、Alpha/Risk 重合和 11 个压力情景，
 并完成中英文渲染与截图。E2E 固化在 `apps/web/e2e/factor-panel-composite.mjs`；这验证的是研究与策略
 结果闭环，不代表宏观最终值具备 PIT 发布资格，也不扩大当前仅以 ETF 交易的范围。
