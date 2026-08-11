@@ -3,6 +3,7 @@ import type { FutureContractRow } from '../tushare/api.js';
 import {
   COMMODITY_FUTURE_PRODUCT_CODES,
   commodityFutureProductCodesForEtfs,
+  commodityWarehouseReceiptProductCodesForEtfs,
   selectCommodityFutureContracts,
 } from './commodity-futures.js';
 
@@ -62,5 +63,10 @@ describe('commodity future universe', () => {
     ).toEqual(['AU', 'CU', 'SC', 'M']);
     expect(commodityFutureProductCodesForEtfs(['510300.SH'])).toBeNull();
     expect(commodityFutureProductCodesForEtfs(['518880.SH', '518880.SH'])).toBeNull();
+
+    expect(
+      commodityWarehouseReceiptProductCodesForEtfs(['518880.SH', '159980.SZ', '159985.SZ']),
+    ).toEqual(['AU', 'CU', 'M']);
+    expect(commodityWarehouseReceiptProductCodesForEtfs(['159981.SZ'])).toBeNull();
   });
 });

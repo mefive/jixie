@@ -987,9 +987,21 @@ Factor 分数”仍由 Factor 定义表达。零仓单通过 `log1p` 保持有�
 方向与强度均不构成一致证据，所以不开放交易消费，也不根据探索结果修改公式；2025-01-28 起的冻结 holdout
 保持未查看。
 
-下一批先扩展受控模板元数据，使 Commodity Warehouse Receipt 模板显式限定 AU/CU/M 的允许与默认资产，
-避免当前按商品类别自动选中 SC；随后补齐 API 研究截止、前端配置与报告入口和真实浏览器验收。5/60 日变化、
-标准分与 panel 继续后置，只有预先登记的新假设才能使用冻结 holdout。
+**2026-08-11 Commodity Warehouse Receipt 研究产品收口：**受控模板现在通过通用
+`allowedAssets` / `defaultAssets` / `unavailableAssetReasons` 元数据只允许并默认选择 AU/CU/M；SC 仍在设置中
+可见，但会解释吨/桶口径不可审计且不能选中。该能力属于研究定义的适用范围，不等于策略可交易 Universe。
+API 对模板资产做同样的硬校验，并以所选 ETF 最新行情、所需仓单品种最新 `availableDate` 的共同最早值冻结
+`dataCutoff`，从而使前端默认值、直接 API 调用和不可变报告保持同一研究边界。研究专用模板没有
+`strategyKey`，报告不显示发布或进入策略 Lab 的动作。
+
+真实浏览器重新运行 2015-01-05 至探索截止 2025-01-27，结果与冻结观测一致：2,408 个有效时期、4,813 条
+观测，AU/CU/M 分别为 2,408/1,196/1,209 条；相关性为 0.017/-0.125/0.049，Newey-West t 为
+0.25/-1.44/1.08。SC 的直接 API 请求返回 400，2025-01-28 起的 holdout 未打开。可重复验收脚本为
+`apps/web/e2e/commodity-warehouse-receipt-time-series.mjs`；配置与报告截图见
+[`apps/web/acceptance/commodity-warehouse-receipt-config.png`](../../apps/web/acceptance/commodity-warehouse-receipt-config.png)
+和
+[`apps/web/acceptance/commodity-warehouse-receipt-report.png`](../../apps/web/acceptance/commodity-warehouse-receipt-report.png)。
+5/60 日变化、标准分、仓单 Panel 和持仓因子继续后置，只有预先登记的新假设才能使用冻结 holdout。
 
 随后单独建设风险因子与组合归因：
 
@@ -1112,3 +1124,16 @@ Factor V2 MVP 建议以里程碑 B 为交付边界。只完成 A 会得到漂亮
 
 Phase 5 的专业商品、宏观状态和风险归因是持续演进，不作为 MVP 或 Multi-Asset V1 的阻塞条件。
 研究到交易的闭环始终优先于继续扩充因子数量、增加复杂优化器或建设单独的债券/商品研究页面。
+
+### 14.3 2026-08-11 收口状态
+
+Factor V2 MVP（Phase 0–3）与 Multi-Asset V1（Phase 4）按上述完成定义冻结为已完成。最终回归同时覆盖：
+
+- 商品 Carry 时间序列研究；
+- 国债曲线 Factor 到策略回测、部署和每日信号；
+- 跨资产 Panel 合成、策略引用、成交及收益/风险归因；
+- 仓单压力研究的资产适用范围、共同数据截止、报告与研究/交易隔离。
+
+这次收口不把已探索的 Phase 5 数据切片解释为 Phase 5 完成。5/60 日仓单变体、仓单 Panel、会员持仓、
+信用与风险因子、完整宏观状态、校准后的 Factor Signal，以及商品/国债期货交易能力，均留待下一轮重新
+确认优先级和验收标准；它们不再反向扩大 Factor V2 MVP 的完成边界。

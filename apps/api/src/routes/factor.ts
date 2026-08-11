@@ -59,8 +59,15 @@ import {
 import { resolvePanelFactorSource } from '../factor/panel-composite-source.js';
 import { resolveMacroRegimeTemplateSource } from '../factor/macro-regime-templates.js';
 import { resolveMacroRegimeDataCutoff } from '../factor/macro-regime-data-cutoff.js';
-import { COMMODITY_CARRY_FIELD } from '../factor/factor-v2-fields.js';
-import { commodityFutureProductCodesForEtfs } from '../commodity/commodity-futures.js';
+import {
+  COMMODITY_CARRY_FIELD,
+  COMMODITY_WAREHOUSE_RECEIPT_VOLUME_FIELD,
+} from '../factor/factor-v2-fields.js';
+import {
+  resolveAssetFactorDataCutoff,
+  resolveEtfCommonLatest,
+  type AssetFactorDataRequirements,
+} from '../factor/asset-factor-data-cutoff.js';
 
 /**
  * Factor workbench actions (singular, mounted at /api/app/factor — product line 1.5 · factor research).
@@ -365,9 +372,9 @@ factorRoute.post('/analysis/run', validateJson(runAnalysisBody), async (c) => {
         dataCutoff: researchSpec.dataPolicy.dataCutoff ?? researchSpec.end,
       },
     };
-    const dataCutoff = await resolveEtfDataCutoff(
+    const dataCutoff = await resolveAssetFactorDataCutoff(
       cutoffSpec,
-      factorAnalysisSourceUsesCommodityCarry(source),
+      factorAnalysisSourceDataRequirements(source),
     );
     if (!dataCutoff) {
       return apiError(c, 'VALIDATION_FAILED', m(c, 'windowNotComputed'));
@@ -388,9 +395,9 @@ factorRoute.post('/analysis/run', validateJson(runAnalysisBody), async (c) => {
         dataCutoff: researchSpec.dataPolicy.dataCutoff ?? researchSpec.end,
       },
     };
-    const dataCutoff = await resolveEtfDataCutoff(
+    const dataCutoff = await resolveAssetFactorDataCutoff(
       cutoffSpec,
-      factorAnalysisSourceUsesCommodityCarry(source),
+      factorAnalysisSourceDataRequirements(source),
     );
     if (!dataCutoff) {
       return apiError(c, 'VALIDATION_FAILED', m(c, 'windowNotComputed'));
@@ -495,9 +502,9 @@ factorRoute.post('/reports/:reportId/holdout', async (c) => {
       end: policy.holdoutEnd,
       dataPolicy: { ...parentResearchSpec.dataPolicy, dataCutoff: policy.holdoutEnd },
     };
-    const dataCutoff = await resolveEtfDataCutoff(
+    const dataCutoff = await resolveAssetFactorDataCutoff(
       candidate,
-      parent.factorCodeSnapshot?.includes(COMMODITY_CARRY_FIELD) ?? false,
+      factorCodeDataRequirements(parent.factorCodeSnapshot ?? ''),
     );
     if (!dataCutoff) {
       return apiError(c, 'VALIDATION_FAILED', m(c, 'windowNotComputed'));
@@ -824,91 +831,31 @@ function parseResearchPayload(
   }
 }
 
-async function resolveEtfDataCutoff(
-  researchSpec: Extract<FactorResearchSpecV1, { analysisKind: 'time_series' | 'panel' }>,
-  requiresCommodityCarry = false,
-): Promise<string | null> {
-  const etfCutoff = await resolveEtfCommonLatest(
-    researchSpec.analysisKind === 'panel'
-      ? researchSpec.assets.map((asset) => asset.assetId)
-      : researchSpec.assets,
+function factorAnalysisSourceDataRequirements(
+  source: FactorAnalysisSource,
+): AssetFactorDataRequirements {
+  const codes =
+    source.kind === 'time_series' || source.kind === 'panel'
+      ? [source.code]
+      : source.kind === 'panel_composite'
+        ? source.components.map((component) => component.code)
+        : [];
+  return codes.reduce<AssetFactorDataRequirements>(
+    (requirements, code) => ({
+      commodityCarry: requirements.commodityCarry || code.includes(COMMODITY_CARRY_FIELD),
+      commodityWarehouseReceipts:
+        requirements.commodityWarehouseReceipts ||
+        code.includes(COMMODITY_WAREHOUSE_RECEIPT_VOLUME_FIELD),
+    }),
+    {},
   );
-  if (!etfCutoff) {
-    return null;
-  }
-  const commodityCutoff = requiresCommodityCarry
-    ? await resolveCommodityFutureCommonLatest(
-        researchSpec.analysisKind === 'panel'
-          ? researchSpec.assets.map((asset) => asset.assetId)
-          : researchSpec.assets,
-      )
-    : null;
-  if (requiresCommodityCarry && !commodityCutoff) {
-    return null;
-  }
-  const availableCutoff =
-    commodityCutoff && commodityCutoff < etfCutoff ? commodityCutoff : etfCutoff;
-  const requestedCutoff = researchSpec.dataPolicy.dataCutoff;
-  if (requestedCutoff && requestedCutoff > availableCutoff) {
-    return null;
-  }
-  return requestedCutoff ?? availableCutoff;
 }
 
-async function resolveCommodityFutureCommonLatest(assets: string[]): Promise<string | null> {
-  const productCodes = commodityFutureProductCodesForEtfs(assets);
-  if (!productCodes) {
-    return null;
-  }
-  const contracts = await prisma.futureContract.findMany({
-    where: { productCode: { in: productCodes } },
-    select: { tsCode: true, productCode: true },
-  });
-  const productByContract = new Map(contracts.map((row) => [row.tsCode, row.productCode]));
-  const latestRows = await prisma.futureDaily.groupBy({
-    by: ['tsCode'],
-    where: { tsCode: { in: contracts.map((row) => row.tsCode) }, settle: { not: null } },
-    _max: { tradeDate: true },
-  });
-  const latestByProduct = new Map<string, string>();
-  for (const row of latestRows) {
-    const productCode = productByContract.get(row.tsCode);
-    const tradeDate = row._max.tradeDate;
-    if (productCode && tradeDate && tradeDate > (latestByProduct.get(productCode) ?? '')) {
-      latestByProduct.set(productCode, tradeDate);
-    }
-  }
-  const latestDates = productCodes.map((code) => latestByProduct.get(code)).filter(isDateString);
-  return latestDates.length === productCodes.length ? (latestDates.sort()[0] ?? null) : null;
-}
-
-function factorAnalysisSourceUsesCommodityCarry(source: FactorAnalysisSource): boolean {
-  return source.kind === 'time_series' || source.kind === 'panel'
-    ? source.code.includes(COMMODITY_CARRY_FIELD)
-    : source.kind === 'panel_composite'
-      ? source.components.some((component) => component.code.includes(COMMODITY_CARRY_FIELD))
-      : false;
-}
-
-function isDateString(value: string | undefined): value is string {
-  return value !== undefined;
-}
-
-async function resolveEtfCommonLatest(assets: string[]): Promise<string | null> {
-  const latestRows = await prisma.etfDaily.groupBy({
-    by: ['tsCode'],
-    where: { tsCode: { in: assets }, close: { not: null } },
-    _max: { tradeDate: true },
-  });
-  if (latestRows.length !== assets.length) {
-    return null;
-  }
-  return (
-    latestRows
-      .map((row) => row._max.tradeDate)
-      .filter((tradeDate): tradeDate is string => tradeDate !== null)
-      .sort()[0] ?? null
-  );
+function factorCodeDataRequirements(code: string): AssetFactorDataRequirements {
+  return {
+    commodityCarry: code.includes(COMMODITY_CARRY_FIELD),
+    commodityWarehouseReceipts: code.includes(COMMODITY_WAREHOUSE_RECEIPT_VOLUME_FIELD),
+  };
 }
 
 async function capHoldoutPolicyAtEtfData(

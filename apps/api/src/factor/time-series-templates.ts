@@ -16,6 +16,7 @@ export interface TimeSeriesTemplate {
 
 const FIXED_INCOME_ETF_ASSETS = ['511010.SH', '511260.SH', '511090.SH'];
 const COMMODITY_ETF_ASSETS = ['518880.SH', '159985.SZ', '159980.SZ', '159981.SZ'];
+const WAREHOUSE_RECEIPT_ETF_ASSETS = ['518880.SH', '159980.SZ', '159985.SZ'];
 const ALL_TIME_SERIES_ETF_ASSETS = [
   ...FIXED_INCOME_ETF_ASSETS,
   ...COMMODITY_ETF_ASSETS,
@@ -110,6 +111,25 @@ const COMMODITY_FUTURES_CARRY_TIME_SERIES = `export default defineFactorV2({
   window: 2,
   compute(ctx) {
     return ctx.value('commodity.futures.annualizedLogCarry');
+  },
+});
+`;
+
+const COMMODITY_WAREHOUSE_RECEIPT_PRESSURE_20 = `export default defineFactorV2({
+  version: 2,
+  name: 'Commodity warehouse-receipt pressure (20d)',
+  analysisKind: 'time_series',
+  outputScope: 'asset',
+  frequency: 'daily',
+  inputs: ['commodity.warehouseReceipt.volume'],
+  targetAssetClasses: ['commodity'],
+  window: 21,
+  compute(ctx) {
+    const current = ctx.value('commodity.warehouseReceipt.volume');
+    const previous = ctx.lag('commodity.warehouseReceipt.volume', 20);
+    return current != null && previous != null
+      ? Math.log1p(previous) - Math.log1p(current)
+      : null;
   },
 });
 `;
@@ -211,6 +231,26 @@ export const TIME_SERIES_TEMPLATES: TimeSeriesTemplate[] = [
       en: 'Tests each gold, copper, crude-oil, and soybean-meal product’s own annualized actual-contract carry against the future return of its mapped proxy ETF. Positive values mean backwardation; the non-ferrous and energy proxies carry category basis risk.',
     },
     code: COMMODITY_FUTURES_CARRY_TIME_SERIES,
+    strategyEligible: false,
+  },
+  {
+    key: 'commodity_warehouse_pressure_20',
+    kind: 'commodity',
+    targetAssetClasses: ['commodity'],
+    allowedAssets: WAREHOUSE_RECEIPT_ETF_ASSETS,
+    defaultAssets: WAREHOUSE_RECEIPT_ETF_ASSETS,
+    unavailableAssetReasons: {
+      '159981.SZ': {
+        zh: '原油仓单同时存在吨和桶，缺少可审计换算，暂不进入该 Factor。',
+        en: 'Crude-oil receipts mix tonnes and barrels without an auditable conversion, so this Factor excludes them.',
+      },
+    },
+    label: { zh: '商品仓单压力 20 日', en: 'Commodity warehouse pressure (20d)' },
+    description: {
+      zh: '逐个检验黄金、铜和豆粕仓单在决策日可得的 20 个 ETF 交易观测变化与代理 ETF 未来收益。正值代表仓单下降；原油因吨/桶口径不可审计而排除。',
+      en: 'Tests the 20-ETF-observation decline in point-in-time gold, copper, and soybean-meal warehouse receipts against each proxy ETF’s future return. Positive values mean falling receipts; crude oil is excluded because tonne/barrel conversion is not auditable.',
+    },
+    code: COMMODITY_WAREHOUSE_RECEIPT_PRESSURE_20,
     strategyEligible: false,
   },
 ];

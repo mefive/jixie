@@ -371,7 +371,9 @@ const AgentChat = complex.component(() => {
                 ? 'panel.chatEmpty'
                 : store.isTimeSeries
                   ? store.selected?.kind === 'commodity'
-                    ? 'timeSeries.commodityCarryChatEmpty'
+                    ? store.selectedKey === 'commodity_warehouse_pressure_20'
+                      ? 'timeSeries.commodityWarehouseChatEmpty'
+                      : 'timeSeries.commodityCarryChatEmpty'
                     : 'timeSeries.chatEmpty'
                   : store.mode === 'composite'
                     ? 'chatEmptyComposite'
@@ -434,6 +436,7 @@ function ChatLog({
     | 'chatEmptyAuthor'
     | 'timeSeries.chatEmpty'
     | 'timeSeries.commodityCarryChatEmpty'
+    | 'timeSeries.commodityWarehouseChatEmpty'
     | 'timeSeries.chatEmptyAuthor'
     | 'panel.chatEmpty'
     | 'panel.chatEmptyAuthor'
@@ -1699,12 +1702,16 @@ const TimeSeriesParamsPopover = complex.component(
                 type="info"
                 showIcon
                 title={t('timeSeries.assetRestrictionTitle')}
-                description={unavailableReasons
-                  .map(
-                    ([assetId, reason]) =>
-                      `${t(`timeSeries.assetNames.${assetId}`)} · ${assetId}: ${reason}`,
-                  )
-                  .join('; ')}
+                description={
+                  <span className="jx-factor-assetRestrictionText">
+                    {unavailableReasons
+                      .map(
+                        ([assetId, reason]) =>
+                          `${t(`timeSeries.assetNames.${assetId}`)} · ${assetId}: ${reason}`,
+                      )
+                      .join('; ')}
+                  </span>
+                }
               />
             )}
           </div>
@@ -2493,6 +2500,8 @@ const TimeSeriesReportBody = complex.component(() => {
   const isCommodityCarry =
     store.reportDetail?.factorCodeSnapshot?.includes('commodity.futures.annualizedLogCarry') ??
     false;
+  const isCommodityWarehouse =
+    store.reportDetail?.factorCodeSnapshot?.includes('commodity.warehouseReceipt.volume') ?? false;
   if (!report || !spec) {
     return <Placeholder icon={faPlay} text={t('runPrompt')} />;
   }
@@ -2526,7 +2535,11 @@ const TimeSeriesReportBody = complex.component(() => {
         type="info"
         showIcon
         title={t(
-          isCommodityCarry ? 'timeSeries.commodityCarryReportNotice' : 'timeSeries.reportNotice',
+          isCommodityCarry
+            ? 'timeSeries.commodityCarryReportNotice'
+            : isCommodityWarehouse
+              ? 'timeSeries.commodityWarehouseReportNotice'
+              : 'timeSeries.reportNotice',
         )}
       />
       {store.reportDetail?.factorCodeSnapshot?.includes('rates.cgb.yield.') && (
@@ -3099,7 +3112,7 @@ const FactorPublicationCard = complex.component(() => {
   if (!detail) {
     return null;
   }
-  if (detail.factorCodeSnapshot?.includes('commodity.futures.annualizedLogCarry')) {
+  if (store.selected?.builtin && !store.selected.strategyKey) {
     return null;
   }
   const ownedFactor =
@@ -3392,6 +3405,7 @@ function timeSeriesInputLabel(input: string, t: TFunction<'factor'>): string {
     'rates.cgb.yield.10y': 'timeSeries.inputFields.cgbYield10y',
     'rates.cgb.yield.30y': 'timeSeries.inputFields.cgbYield30y',
     'commodity.futures.annualizedLogCarry': 'timeSeries.inputFields.commodityAnnualizedCarry',
+    'commodity.warehouseReceipt.volume': 'timeSeries.inputFields.commodityWarehouseReceiptVolume',
   };
   return t(keys[input] ?? 'timeSeries.inputFields.unknown');
 }
