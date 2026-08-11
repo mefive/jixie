@@ -1255,17 +1255,19 @@ const AllocationRiskPanel = ({ data }: { data: PortfolioRiskAnalysisV1 }) => {
                         rowKey="factor"
                         size="small"
                         pagination={false}
-                        scroll={{ x: 640 }}
+                        scroll={{ x: 540 }}
                         dataSource={market.exposures}
                         columns={[
                           {
                             title: t('allocation.risk.marketFactor'),
                             dataIndex: 'factor',
+                            width: 180,
                             render: factorLabel,
                           },
                           {
                             title: t('allocation.risk.sensitivity'),
                             key: 'sensitivity',
+                            width: 220,
                             align: 'right',
                             render: (_, row) =>
                               row.coefficientUnit === 'return_per_basis_point'
@@ -1279,6 +1281,8 @@ const AllocationRiskPanel = ({ data }: { data: PortfolioRiskAnalysisV1 }) => {
                           {
                             title: t('allocation.risk.varianceContribution'),
                             dataIndex: 'varianceContributionShare',
+                            width: 140,
+                            fixed: 'right',
                             align: 'right',
                             render: formatOptionalPercent,
                           },
@@ -1448,23 +1452,26 @@ const AllocationRiskPanel = ({ data }: { data: PortfolioRiskAnalysisV1 }) => {
                         rowKey={(row) => `${row.kind}-${row.key}`}
                         size="small"
                         pagination={false}
-                        scroll={{ x: 900 }}
+                        scroll={{ x: 1100 }}
                         dataSource={scenarios}
                         columns={[
                           {
                             title: t('allocation.risk.scenario'),
                             dataIndex: 'key',
+                            width: 180,
                             render: (key: string) => t(`allocation.risk.scenarios.${key}`),
                           },
                           {
                             title: t('allocation.risk.scenarioKind'),
                             dataIndex: 'kind',
+                            width: 100,
                             render: (kind: PortfolioRiskScenarioResultV1['kind']) =>
                               t(`allocation.risk.scenarioKinds.${kind}`),
                           },
                           {
                             title: t('allocation.risk.historicalWindow'),
                             key: 'historicalWindow',
+                            width: 210,
                             render: (_, row) =>
                               row.kind === 'historical'
                                 ? `${formatYmd(row.historicalWindow.startDate)} → ${formatYmd(row.historicalWindow.endDate)}`
@@ -1473,6 +1480,7 @@ const AllocationRiskPanel = ({ data }: { data: PortfolioRiskAnalysisV1 }) => {
                           {
                             title: t('allocation.risk.shocks'),
                             dataIndex: 'shocks',
+                            width: 480,
                             render: (shocks: PortfolioRiskScenarioResultV1['shocks']) =>
                               shocks
                                 .map((shock) =>
@@ -1485,6 +1493,8 @@ const AllocationRiskPanel = ({ data }: { data: PortfolioRiskAnalysisV1 }) => {
                           {
                             title: t('allocation.risk.estimatedImpact'),
                             dataIndex: 'estimatedReturnImpact',
+                            width: 130,
+                            fixed: 'right',
                             align: 'right',
                             render: (value: number) => (
                               <b
