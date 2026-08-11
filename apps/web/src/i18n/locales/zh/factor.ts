@@ -71,6 +71,8 @@ export const zhFactor = {
     paramsSummary: '{{assets}} 个 ETF · 前瞻 {{horizon}} 日 · {{start}} – {{end}}',
     assets: '研究资产',
     assetsPlaceholder: '至少选择一个 ETF',
+    assetUnsupported: '不适用于当前 Factor',
+    assetRestrictionTitle: '标的适用范围',
     horizon: '预测周期',
     horizonOption: '{{value}} 日',
     dailyFrequency: '观测频率：日频',

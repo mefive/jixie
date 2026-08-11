@@ -5,11 +5,22 @@ export interface TimeSeriesTemplate {
   key: string;
   kind: FactorKind;
   targetAssetClasses: Array<'equity' | 'fixed_income' | 'commodity'>;
+  allowedAssets: string[];
+  defaultAssets: string[];
+  unavailableAssetReasons?: Record<string, Record<Locale, string>>;
   label: Record<Locale, string>;
   description: Record<Locale, string>;
   code: string;
   strategyEligible: boolean;
 }
+
+const FIXED_INCOME_ETF_ASSETS = ['511010.SH', '511260.SH', '511090.SH'];
+const COMMODITY_ETF_ASSETS = ['518880.SH', '159985.SZ', '159980.SZ', '159981.SZ'];
+const ALL_TIME_SERIES_ETF_ASSETS = [
+  ...FIXED_INCOME_ETF_ASSETS,
+  ...COMMODITY_ETF_ASSETS,
+  '510300.SH',
+];
 
 function etfTrendCode(lookback: 20 | 60 | 120, name: string): string {
   return `export default defineFactorV2({
@@ -108,6 +119,8 @@ export const TIME_SERIES_TEMPLATES: TimeSeriesTemplate[] = [
     key: 'etf_trend_20',
     kind: 'price',
     targetAssetClasses: ['equity', 'fixed_income', 'commodity'],
+    allowedAssets: ALL_TIME_SERIES_ETF_ASSETS,
+    defaultAssets: ALL_TIME_SERIES_ETF_ASSETS,
     label: { zh: 'ETF 20日趋势', en: 'ETF 20-day trend' },
     description: {
       zh: '逐只 ETF 比较自身20个交易日趋势与未来收益，使用复权价格和时间序列稳健推断。',
@@ -120,6 +133,8 @@ export const TIME_SERIES_TEMPLATES: TimeSeriesTemplate[] = [
     key: 'etf_trend_60',
     kind: 'price',
     targetAssetClasses: ['equity', 'fixed_income', 'commodity'],
+    allowedAssets: ALL_TIME_SERIES_ETF_ASSETS,
+    defaultAssets: ALL_TIME_SERIES_ETF_ASSETS,
     label: { zh: 'ETF 60日趋势', en: 'ETF 60-day trend' },
     description: {
       zh: '逐只 ETF 比较自身60个交易日趋势与未来收益，适合研究中期择时。',
@@ -132,6 +147,8 @@ export const TIME_SERIES_TEMPLATES: TimeSeriesTemplate[] = [
     key: 'etf_trend_120',
     kind: 'price',
     targetAssetClasses: ['equity', 'fixed_income', 'commodity'],
+    allowedAssets: ALL_TIME_SERIES_ETF_ASSETS,
+    defaultAssets: ALL_TIME_SERIES_ETF_ASSETS,
     label: { zh: 'ETF 120日趋势', en: 'ETF 120-day trend' },
     description: {
       zh: '逐只 ETF 比较自身120个交易日趋势与未来收益，适合研究较慢的趋势状态。',
@@ -144,6 +161,8 @@ export const TIME_SERIES_TEMPLATES: TimeSeriesTemplate[] = [
     key: 'cgb_yield_decline_20',
     kind: 'rates',
     targetAssetClasses: ['fixed_income'],
+    allowedAssets: FIXED_INCOME_ETF_ASSETS,
+    defaultAssets: FIXED_INCOME_ETF_ASSETS,
     label: { zh: '国债10Y收益率20日下行', en: 'CGB 10Y yield decline (20d)' },
     description: {
       zh: '用财政部国债曲线10年期收益率20个交易日的下降幅度（bp）研究债券 ETF 未来收益；曲线在发布后的下一交易日才可见。',
@@ -156,6 +175,8 @@ export const TIME_SERIES_TEMPLATES: TimeSeriesTemplate[] = [
     key: 'cgb_curve_slope_10y_2y',
     kind: 'rates',
     targetAssetClasses: ['fixed_income'],
+    allowedAssets: FIXED_INCOME_ETF_ASSETS,
+    defaultAssets: FIXED_INCOME_ETF_ASSETS,
     label: { zh: '国债曲线斜率（10Y−2Y）', en: 'CGB curve slope (10Y−2Y)' },
     description: {
       zh: '以财政部国债曲线10年与2年收益率之差（bp）研究期限结构状态与债券 ETF 未来收益。',
@@ -168,6 +189,8 @@ export const TIME_SERIES_TEMPLATES: TimeSeriesTemplate[] = [
     key: 'cgb_curve_curvature_2y_5y_10y',
     kind: 'rates',
     targetAssetClasses: ['fixed_income'],
+    allowedAssets: FIXED_INCOME_ETF_ASSETS,
+    defaultAssets: FIXED_INCOME_ETF_ASSETS,
     label: { zh: '国债曲线曲率（2Y/5Y/10Y）', en: 'CGB curve curvature (2Y/5Y/10Y)' },
     description: {
       zh: '以 2×5Y−2Y−10Y（bp）衡量财政部国债曲线中段隆起程度，并研究其与债券 ETF 未来收益的关系。',
@@ -180,6 +203,8 @@ export const TIME_SERIES_TEMPLATES: TimeSeriesTemplate[] = [
     key: 'commodity_futures_carry_time_series_v1',
     kind: 'commodity',
     targetAssetClasses: ['commodity'],
+    allowedAssets: COMMODITY_ETF_ASSETS,
+    defaultAssets: COMMODITY_ETF_ASSETS,
     label: { zh: '商品期货 Carry 时间序列', en: 'Commodity futures carry time series' },
     description: {
       zh: '逐个检验黄金、铜、原油和豆粕真实月合约的年化 Carry 与各自映射代理 ETF 未来收益的关系。正值代表 backwardation；有色和能化代理存在类别基差。',
@@ -201,7 +226,36 @@ export function timeSeriesTemplateCatalog(locale: Locale): FactorMeta[] {
     status: 'published',
     analysisKind: 'time_series',
     targetAssetClasses: template.targetAssetClasses,
+    allowedAssets: [...template.allowedAssets],
+    defaultAssets: [...template.defaultAssets],
+    ...(template.unavailableAssetReasons
+      ? {
+          unavailableAssetReasons: Object.fromEntries(
+            Object.entries(template.unavailableAssetReasons).map(([assetId, reason]) => [
+              assetId,
+              reason[locale],
+            ]),
+          ),
+        }
+      : {}),
   }));
+}
+
+export function timeSeriesTemplateAssetPolicy(
+  key: string,
+): Pick<TimeSeriesTemplate, 'allowedAssets' | 'defaultAssets'> | null {
+  const template = TIME_SERIES_TEMPLATES.find((candidate) => candidate.key === key);
+  return template
+    ? {
+        allowedAssets: [...template.allowedAssets],
+        defaultAssets: [...template.defaultAssets],
+      }
+    : null;
+}
+
+export function unsupportedTimeSeriesTemplateAssets(key: string, assets: string[]): string[] {
+  const policy = timeSeriesTemplateAssetPolicy(key);
+  return policy ? assets.filter((asset) => !policy.allowedAssets.includes(asset)) : [];
 }
 
 export function resolveTimeSeriesTemplateSource(
@@ -235,6 +289,18 @@ export function timeSeriesTemplateResource(key: string, locale: Locale) {
         ...(template.strategyEligible ? { strategyKey: template.key } : {}),
         analysisKind: 'time_series' as const,
         targetAssetClasses: template.targetAssetClasses,
+        allowedAssets: [...template.allowedAssets],
+        defaultAssets: [...template.defaultAssets],
+        ...(template.unavailableAssetReasons
+          ? {
+              unavailableAssetReasons: Object.fromEntries(
+                Object.entries(template.unavailableAssetReasons).map(([assetId, reason]) => [
+                  assetId,
+                  reason[locale],
+                ]),
+              ),
+            }
+          : {}),
       }
     : null;
 }

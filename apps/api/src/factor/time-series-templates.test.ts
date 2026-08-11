@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { compileTimeSeriesFactor } from './compile-time-series-factor.js';
 import {
   resolveTimeSeriesTemplateSource,
+  timeSeriesTemplateAssetPolicy,
   timeSeriesTemplateCatalog,
   timeSeriesTemplateResource,
+  unsupportedTimeSeriesTemplateAssets,
 } from './time-series-templates.js';
 
 describe('ETF time-series templates', () => {
@@ -25,6 +27,8 @@ describe('ETF time-series templates', () => {
       builtin: true,
       analysisKind: 'time_series',
       targetAssetClasses: ['equity', 'fixed_income', 'commodity'],
+      allowedAssets: expect.arrayContaining(['510300.SH', '511010.SH', '518880.SH']),
+      defaultAssets: expect.arrayContaining(['510300.SH', '511010.SH', '518880.SH']),
     });
     expect(timeSeriesTemplateResource('etf_trend_20', 'zh')).toMatchObject({
       key: 'etf_trend_20',
@@ -32,6 +36,26 @@ describe('ETF time-series templates', () => {
       status: 'published',
       builtin: true,
     });
+  });
+
+  it('keeps template research assets explicit, unique, and server-enforceable', () => {
+    for (const template of timeSeriesTemplateCatalog('en')) {
+      expect(template.allowedAssets?.length).toBeGreaterThan(0);
+      expect(new Set(template.allowedAssets).size).toBe(template.allowedAssets?.length);
+      expect(template.defaultAssets?.length).toBeGreaterThan(0);
+      expect(
+        template.defaultAssets?.every((asset) => template.allowedAssets?.includes(asset)),
+      ).toBe(true);
+    }
+
+    expect(timeSeriesTemplateAssetPolicy('cgb_yield_decline_20')).toEqual({
+      allowedAssets: ['511010.SH', '511260.SH', '511090.SH'],
+      defaultAssets: ['511010.SH', '511260.SH', '511090.SH'],
+    });
+    expect(
+      unsupportedTimeSeriesTemplateAssets('cgb_yield_decline_20', ['511010.SH', '518880.SH']),
+    ).toEqual(['518880.SH']);
+    expect(unsupportedTimeSeriesTemplateAssets('custom-factor-id', ['518880.SH'])).toEqual([]);
   });
 
   it('publishes commodity Carry as a controlled research-only time-series template', async () => {
