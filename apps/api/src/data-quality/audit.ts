@@ -4,6 +4,7 @@ import type { Prisma } from '../lib/prisma.js';
 import { auditCommodityWarehouseReceipts } from '../commodity/commodity-warehouse-receipt-quality.js';
 import { auditCommodityHoldingPositions } from '../commodity/commodity-holding-quality.js';
 import { auditCommodityContinuousReturns } from '../commodity/commodity-continuous-return-quality.js';
+import { auditMacroRiskAxes } from '../risk/macro-risk-quality.js';
 import { auditMarketRiskDrivers } from '../risk/market-risk-quality.js';
 import { CHINABOND_PUBLIC_CURVES } from '../rates/chinabond-credit-curves.js';
 import {
@@ -217,6 +218,7 @@ export async function runDataQualityAudit(
     await auditCommodityHoldingPit(database, startDate, endDate),
     await auditCommodityContinuousReturnPit(database, startDate, endDate),
     await auditMarketRiskDriverPit(database, startDate, endDate),
+    await auditMacroRiskAxisPit(database, startDate, endDate),
   );
 
   return {
@@ -1186,6 +1188,30 @@ async function auditMarketRiskDriverPit(
       ...summary.errors.map((error) => `Error: ${error}.`),
       ...summary.warnings.map((warning) => `Warning: ${warning}.`),
       'Daily market-risk vectors remain separate from monthly macro axes. Missing drivers remove the date from multivariate estimation; no factor is filled with zero.',
+    ],
+  };
+}
+
+async function auditMacroRiskAxisPit(
+  database: Prisma,
+  startDate: string,
+  endDate: string,
+): Promise<AuditFinding> {
+  const summary = await auditMacroRiskAxes({ startDate, endDate }, database);
+  return {
+    id: 'macro-risk-axis-readiness',
+    title: 'Monthly macro-risk axes: exploratory and strict-PIT readiness',
+    status: summary.status,
+    summary: `${formatNumber(summary.exploratoryCompleteObservations)} exploratory and ${formatNumber(summary.strictCompleteObservations)} strict-PIT complete months; latest ${summary.latestExploratoryCompleteDate ?? 'n/a'}`,
+    details: [
+      ...summary.axes.map(
+        (axis) =>
+          `${axis.axis}: ${formatNumber(axis.exploratoryObservations)} exploratory changes, ${formatNumber(axis.strictObservations)} strict-PIT changes, latest ${axis.latestExploratoryDate ?? 'n/a'}.`,
+      ),
+      ...summary.errors.map((error) => `Error: ${error}.`),
+      ...summary.warnings.map((warning) => `Warning: ${warning}.`),
+      'Growth, inflation, liquidity, credit, and external-pressure score changes are monthly and remain separate from the daily market-risk covariance model.',
+      'Latest-vintage history supports exploration only. Macro sensitivity becomes publishable only after enough locally captured as-available vintages accumulate.',
     ],
   };
 }
