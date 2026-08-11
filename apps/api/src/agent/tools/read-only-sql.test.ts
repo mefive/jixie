@@ -33,6 +33,15 @@ describe('prepareReadOnlySql', () => {
     expect(prepareReadOnlySql(sql)).toContain('FutureContract');
   });
 
+  it('accepts the audited commodity return ledger with an explicit PIT gate', () => {
+    const sql = `SELECT productCode, tradeDate, continuousReturn, rollYieldProxy
+      FROM CommodityContinuousReturn
+      WHERE availableDate <= '20260730'
+      ORDER BY tradeDate`;
+
+    expect(prepareReadOnlySql(sql)).toContain('CommodityContinuousReturn');
+  });
+
   it('rejects an oversized LIMIT', () => {
     expect(() => prepareReadOnlySql('SELECT * FROM Daily LIMIT 100000')).toThrow(/LIMIT max/);
   });

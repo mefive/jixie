@@ -42,6 +42,17 @@ export const COMMODITY_FUTURE_SPECS = [
 export type CommodityFutureSpec = (typeof COMMODITY_FUTURE_SPECS)[number];
 export type CommodityFutureProductCode = CommodityFutureSpec['productCode'];
 
+export const COMMODITY_MAIN_CONTRACT_SPECS = [
+  { productCode: 'AU', continuousCode: 'AU.SHF', startDate: '20150105' },
+  { productCode: 'CU', continuousCode: 'CU.SHF', startDate: '20150105' },
+  { productCode: 'SC', continuousCode: 'SC.INE', startDate: '20180326' },
+  { productCode: 'M', continuousCode: 'M.DCE', startDate: '20150105' },
+] as const satisfies readonly {
+  productCode: CommodityFutureProductCode;
+  continuousCode: string;
+  startDate: string;
+}[];
+
 export const COMMODITY_FUTURE_PRODUCT_CODES = COMMODITY_FUTURE_SPECS.map(
   (spec) => spec.productCode,
 );

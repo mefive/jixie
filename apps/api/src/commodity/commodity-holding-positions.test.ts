@@ -115,6 +115,16 @@ describe('commodity holding positions', () => {
     ).toThrow(/exceeds contract open interest/);
   });
 
+  it('keeps a source date missing when one of the three ranked lists is absent', () => {
+    expect(
+      buildCommodityHoldingPositions(
+        [holding('甲期货', { vol: 10, long_hld: 20, short_hld: null })],
+        [representative()],
+        ['20250702'],
+      ),
+    ).toEqual([]);
+  });
+
   it('applies only the audited M 2020-11-06 doubled-row correction', () => {
     const point = buildCommodityHoldingPositions(
       [

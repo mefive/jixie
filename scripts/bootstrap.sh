@@ -407,6 +407,49 @@ commodity_holding_coverage() {
   "
 }
 
+commodity_continuous_return_coverage() {
+  local database_file="$1"
+  local expected_end="$2"
+
+  sqlite3 "$database_file" "
+    WITH required(product_code, continuous_code, latest_first_date, minimum_rows) AS (
+      VALUES
+        ('AU', 'AU.SHF', '20150105', 2500),
+        ('CU', 'CU.SHF', '20150105', 2500),
+        ('SC', 'SC.INE', '20180326', 1800),
+        ('M', 'M.DCE', '20150105', 2500)
+    ),
+    mapping_coverage AS (
+      SELECT
+        mapping.\"continuousCode\" AS continuous_code,
+        min(mapping.\"tradeDate\") AS first_mapping,
+        max(mapping.\"tradeDate\") AS last_mapping
+      FROM \"FutureMapping\" AS mapping
+      GROUP BY mapping.\"continuousCode\"
+    ),
+    return_coverage AS (
+      SELECT
+        return_row.\"productCode\" AS product_code,
+        count(return_row.\"tradeDate\") AS return_rows,
+        max(return_row.\"availableDate\") AS last_available,
+        max(return_row.\"tradeDate\") AS last_return
+      FROM \"CommodityContinuousReturn\" AS return_row
+      GROUP BY return_row.\"productCode\"
+    )
+    SELECT count(*)
+    FROM required
+    JOIN mapping_coverage
+      ON mapping_coverage.continuous_code = required.continuous_code
+    JOIN return_coverage
+      ON return_coverage.product_code = required.product_code
+    WHERE mapping_coverage.first_mapping <= required.latest_first_date
+      AND mapping_coverage.last_mapping >= '$expected_end'
+      AND return_coverage.last_available >= '$expected_end'
+      AND return_coverage.last_return >= '$expected_end'
+      AND return_coverage.return_rows >= required.minimum_rows;
+  "
+}
+
 commodity_warehouse_receipt_coverage() {
   local database_file="$1"
   local expected_end="$2"
@@ -963,6 +1006,20 @@ if [[ "$COMMODITY_HOLDING_COMPLETE" -ne 3 ]]; then
   [[ "$COMMODITY_HOLDING_COMPLETE" -eq 3 ]] || die "商品会员持仓排名回填后仍不完整"
 else
   log "商品会员持仓排名历史覆盖完整,跳过回填"
+fi
+
+COMMODITY_CONTINUOUS_COMPLETE="$(
+  commodity_continuous_return_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
+)"
+if [[ "$COMMODITY_CONTINUOUS_COMPLETE" -ne 4 ]]; then
+  log "补全 AU/CU/SC/M 主力映射、连续收益与换月台账: 20150105 ~ $EXTERNAL_MARKET_SYNC_END"
+  pnpm --filter api sync:commodity-continuous 20150105 "$EXTERNAL_MARKET_SYNC_END"
+  COMMODITY_CONTINUOUS_COMPLETE="$(
+    commodity_continuous_return_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
+  )"
+  [[ "$COMMODITY_CONTINUOUS_COMPLETE" -eq 4 ]] || die "商品主力连续收益回填后仍不完整"
+else
+  log "商品主力连续收益与换月台账覆盖完整,跳过回填"
 fi
 
 WAREHOUSE_RECEIPT_SYNC_END="$(

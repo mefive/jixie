@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { FutureContractRow } from '../tushare/api.js';
 import {
   COMMODITY_FUTURE_PRODUCT_CODES,
+  COMMODITY_MAIN_CONTRACT_SPECS,
   commodityFutureProductCodesForEtfs,
   commodityWarehouseReceiptProductCodesForEtfs,
   selectCommodityFutureContracts,
@@ -45,6 +46,15 @@ describe('commodity future universe', () => {
       'M2412.DCE',
     ]);
     expect(COMMODITY_FUTURE_PRODUCT_CODES).toEqual(['AU', 'CU', 'SC', 'M']);
+    expect(COMMODITY_MAIN_CONTRACT_SPECS.map((item) => item.continuousCode)).toEqual([
+      'AU.SHF',
+      'CU.SHF',
+      'SC.INE',
+      'M.DCE',
+    ]);
+    expect(COMMODITY_MAIN_CONTRACT_SPECS.every((item) => !item.continuousCode.includes('L.'))).toBe(
+      true,
+    );
   });
 
   it('fails closed when one configured product is missing', () => {

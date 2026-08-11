@@ -285,14 +285,12 @@ export function buildCommodityHoldingPositions(
     const volume = positiveValues(dateRows, 'vol');
     const long = positiveValues(dateRows, 'long_hld');
     const short = positiveValues(dateRows, 'short_hld');
-    if (
-      volume.length === 0 ||
-      volume.length > 20 ||
-      long.length === 0 ||
-      long.length > 20 ||
-      short.length === 0 ||
-      short.length > 20
-    ) {
+    if (volume.length === 0 || long.length === 0 || short.length === 0) {
+      // Some source dates contain only a subset of the three rankings. The date is not a valid
+      // comparable position aggregate, so preserve it as missing rather than manufacturing zeros.
+      continue;
+    }
+    if (volume.length > 20 || long.length > 20 || short.length > 20) {
       throw new Error(
         `Commodity holding ${representative.sourceSymbol} ${representative.tradeDate} has invalid ranked-list sizes.`,
       );
@@ -375,19 +373,23 @@ export async function syncCommodityHoldingPositions(
     const rows = await fetchCommodityHoldingRange(client, range);
     const points = buildCommodityHoldingPositions(rows, range.representatives, openDates);
     missingDates += range.representatives.length - points.length;
+    const retrievedAt = new Date();
+    await database.$transaction([
+      database.commodityHoldingPosition.deleteMany({
+        where: {
+          productCode: range.productCode,
+          tradeDate: { in: range.representatives.map((item) => item.tradeDate) },
+        },
+      }),
+      ...(points.length > 0
+        ? [
+            database.commodityHoldingPosition.createMany({
+              data: points.map((point) => ({ ...point, retrievedAt })),
+            }),
+          ]
+        : []),
+    ]);
     if (points.length > 0) {
-      const retrievedAt = new Date();
-      await database.$transaction([
-        database.commodityHoldingPosition.deleteMany({
-          where: {
-            productCode: range.productCode,
-            tradeDate: { in: points.map((point) => point.tradeDate) },
-          },
-        }),
-        database.commodityHoldingPosition.createMany({
-          data: points.map((point) => ({ ...point, retrievedAt })),
-        }),
-      ]);
       positions += points.length;
     }
     if ((index + 1) % 20 === 0 || index + 1 === fetchRanges.length) {

@@ -36,6 +36,7 @@
     "sync:fina": "tsx --env-file=.env scripts/sync-fina.ts",
     "sync:futures": "tsx --env-file=.env scripts/sync-futures.ts",
     "sync:commodity-futures": "tsx --env-file=.env scripts/sync-commodity-futures.ts",
+    "sync:commodity-continuous": "tsx --env-file=.env scripts/sync-commodity-continuous-returns.ts",
     "sync:commodity-holdings": "tsx --env-file=.env scripts/sync-commodity-holdings.ts",
     "sync:commodity-warehouse-receipts": "tsx --env-file=.env scripts/sync-commodity-warehouse-receipts.ts",
     "sync:etf": "tsx --env-file=.env scripts/sync-etf.ts",

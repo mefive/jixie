@@ -201,7 +201,7 @@ ETF 回测回答“个人实际可以买到什么”，底层研究数据回答�
 | 南华商品及品种指数 | `fut_index_daily` | 综合和分类商品收益代理 | P1 |
 | 上海黄金现货 | `sge_basic` / `sge_daily` | 黄金现货、成交和持仓 | P1 |
 | 各月期货合约与日线 | `fut_basic` / `fut_daily` | 期限结构、基差、展期收益 | P2 |
-| 主力 / 连续映射 | `fut_mapping` | 连续观察和实际合约解释 | P2 |
+| 主力 / 连续映射 | `fut_mapping` | 连续观察、收益拼接和换月解释 | P1，AU/CU/SC/M 已接入 |
 | 仓单日报 | `fut_wsr` | 库存压力、供需代理 | P2 |
 | 会员持仓排名 | `fut_holding` | 排名子集的多空与前五集中度 | P1，AU/CU/M 已接入，SC 缺源 |
 | 全球原油、金属和农产品基本面 | EIA / LME / CFTC / USDA 等 | 全球供需深化 | P3，非 Tushare |
@@ -484,8 +484,8 @@ maintenance、质量审计和 Agent SQL 已全部接入。当前仅用于平台�
 分母和完整来源血缘。后续可确定性派生排名净头寸、排名持仓/OI 和前五/前二十集中度，
 但报告标题必须保留“排名会员”限定。
 
-真实回填 2015-01-05 至 2026-07-30 共得到 7,745 个品种日：AU/CU 各 2,590 日，覆盖率
-均为 99.88%；M 为 2,565 日，覆盖率 98.92%。34 个源端空白日保持缺失，不前值填充；
+真实回填 2015-01-05 至 2026-07-30 共得到 8,400 个品种日：AU/CU 各 2,809 日，覆盖率
+均为 99.89%；M 为 2,782 日，覆盖率 98.93%。36 个源端空白或三榜不完整日保持缺失，不前值填充；
 全量幂等复跑计数不变。早期交易所额外提供的“期货公司/非期货公司”类别汇总会与会员排名
 重复，因此精确剔除并用 `excludedSummaryRowCount` 记录，全库共 4,136 行。M2105 在
 2020-11-06 的六个非空字段全部恰为前后日口径的两倍，全历史扫描仅此一日；系统按精确清单
@@ -493,6 +493,23 @@ maintenance、质量审计和 Agent SQL 已全部接入。当前仅用于平台�
 但 SC 在 2020/2023/2025/2026 的实际合约与交易所探测都返回空，所以当前只开放 AU/CU/M，
 不用原油 ETF、仓单或其他品种持仓冒充 SC 会员排名。全量审计为 PASS，无效行 0，三品种最新日
 均无滞后；bootstrap、daily maintenance、Agent SQL 和数据审计已纳入。
+
+**2026-08-11 商品主力连续收益与换月台账：**Tushare
+[期货主力与连续合约 `fut_mapping`](https://tushare.pro/document/2?doc_id=189) 的真实探针证明，
+`AU.SHF/CU.SHF/SC.INE/M.DCE` 是主力映射，带 `L` 的代码是近月连续映射；V1 只采用前者，
+再连接 `fut_daily` 的实际合约结算价。`CommodityContinuousReturn` 不直接用“昨日旧合约—今日新合约”
+算收益：每个区间都用今日映射合约在区间两端的结算价计算 `continuousReturn`，从而移除纯代码切换跳口；
+同时保存旧合约前结算、新合约前结算和当日新合约结算，严格校验
+`mappedLogReturn = continuousLogReturn + rollGapLogReturn`。`rollYieldProxy` 只是切换前近远合约价差的
+反号，用于解释 backwardation/contango，不是当天实现的损益，也不能与连续收益相加冒充总收益。
+
+真实全量映射 2015-01-05 至 2026-07-30 共 10,462 个品种日，交易日覆盖率 100%；形成 10,458 条
+同合约连续收益和 306 个映射切换日：AU 2,811/41、CU 2,811/138、SC 2,025/93、M 2,811/34。
+四品种的映射覆盖、同合约前值覆盖、PIT 可得日与三项分解复算均为 100%，全量审计 PASS。
+结算价和当日主力映射均按收盘后信息处理，`availableDate` 固定到下一上交所交易日；风险模型只能读
+`availableDate <= decisionDate` 的 `continuousReturn`。本表是研究市场驱动与换月解释台账，不开放
+商品期货交易，也不把 Tushare 主力选择规则当成平台的执行换月指令。bootstrap、daily maintenance、
+数据水位、Agent SQL 与 `audit:data` 均已纳入。
 
 **2026-08-09 as-of 查询契约：**宏观读取已统一为两种不可混淆的 revision policy。严格研究使用
 `as_available`，同时要求 `availableDate <= decisionDate` 和 `vintageDate <= decisionDate`，再为每个
