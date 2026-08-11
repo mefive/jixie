@@ -862,6 +862,13 @@ Phase 5 的完成边界是：上述五类日频市场风险驱动与五类月频
 标记 `latest_value_backfill`，因此这里只完成信用、流动性轴的输入底座，不提前改变现有增长/通胀 Macro
 Regime evaluator，也不扩大其发布资格。
 
+**2026-08-11 Phase 5 外部市场底座：**Tushare 美国名义曲线、实际曲线和 USD/CNH 已完成真实全量
+回填。两条曲线复用 `YieldCurvePoint`，USD/CNH 用 `FxDaily` 保存原始双边报价；三者都把美国/GMT
+源日期映射到严格更晚的首个上交所交易日，禁止中国收盘研究读取尚未完成的同日全球数据。实际覆盖为
+61,021 个名义曲线点、25,690 个实际曲线点和 4,382 根 USD/CNH 日线，已进入 bootstrap、daily
+maintenance、数据审计和 Agent SQL。它们是 `not_revised` 的日频 Market Risk Factor 输入；本切片只
+完成数据与 PIT 契约，不提前计算组合 beta、协方差或黄金/实际利率结论。
+
 **2026-08-09 Phase 5 宏观底座启动：**第一批先实现制造业 PMI、CPI 同比和 PPI 同比的规范系列目录、
 观测长表、发布日历与本地 vintage 积累。官方日历只覆盖 2026 年起的发布事件；更早观测使用显式保守
 滞后，`releaseDate` 保持为空。历史首次回填统一标记 `latest_value_backfill`，不得在严格 PIT 研究中

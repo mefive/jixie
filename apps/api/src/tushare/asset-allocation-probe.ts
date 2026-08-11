@@ -1,3 +1,4 @@
+import { addDays } from '../lib/date.js';
 import { TushareError, type TushareRow } from './client.js';
 
 export type AssetAllocationProbeStatus =
@@ -82,7 +83,11 @@ export const ASSET_ALLOCATION_PROBES: readonly AssetAllocationProbeDefinition[] 
   {
     domain: 'macro',
     apiName: 'fx_daily',
-    params: (date) => ({ ts_code: 'USDCNH.FXCM', trade_date: date }),
+    params: (date) => ({
+      ts_code: 'USDCNH.FXCM',
+      start_date: addDays(date, -10),
+      end_date: date,
+    }),
   },
   { domain: 'macro', apiName: 'cn_schedule', params: (date) => ({ date }) },
 ];

@@ -44,6 +44,7 @@
     "sync:market-state": "tsx --env-file=.env scripts/sync-market-state.ts",
     "sync:market-reference": "tsx --env-file=.env scripts/sync-market-reference.ts",
     "sync:rates": "tsx --env-file=.env scripts/sync-rates.ts",
+    "sync:external-market": "tsx --env-file=.env scripts/sync-external-market.ts",
     "sync:macro": "tsx --env-file=.env scripts/sync-macro.ts",
     "sync:limit": "tsx --env-file=.env scripts/sync-limit.ts",
     "sync:moneyflow": "tsx --env-file=.env scripts/sync-moneyflow.ts",

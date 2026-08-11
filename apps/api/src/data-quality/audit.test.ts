@@ -3,6 +3,7 @@ import {
   analyzeCalendarCoverage,
   findSharpRowCountDrops,
   selectEvaluationDates,
+  summarizeExternalMarketPit,
   summarizeMacroPit,
   summarizeWindowCoverage,
 } from './audit.js';
@@ -118,6 +119,40 @@ describe('data quality audit helpers', () => {
       conservativeLagRows: 1,
       latestValueBackfillRows: 1,
       capturedAsAvailableRows: 2,
+    });
+  });
+
+  it('audits external drivers against the next China market session', () => {
+    expect(
+      summarizeExternalMarketPit(
+        [
+          {
+            seriesKey: 'us_treasury_nominal',
+            tradeDate: '20260730',
+            availableDate: '20260731',
+            validValue: true,
+          },
+          {
+            seriesKey: 'us_treasury_real',
+            tradeDate: '20260731',
+            availableDate: '20260803',
+            validValue: true,
+          },
+          {
+            seriesKey: 'USDCNH.FXCM',
+            tradeDate: '20260730',
+            availableDate: '20260730',
+            validValue: false,
+          },
+        ],
+        new Set(['20260731', '20260803']),
+      ),
+    ).toEqual({
+      missingSeries: [],
+      invalidAvailabilityRows: 1,
+      nonTradingAvailabilityRows: 1,
+      invalidValueRows: 1,
+      latestAvailableDate: '20260803',
     });
   });
 });
