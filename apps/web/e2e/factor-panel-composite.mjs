@@ -249,7 +249,7 @@ try {
   ].join('\n');
   const strategyConfig = {
     name: '已发布 Panel 组合轮动',
-    start: '20230101',
+    start: '20200101',
     end: exploreEnd,
     initialCash: 1_000_000,
     code: strategyCode,
@@ -309,6 +309,11 @@ try {
     (window) => window.window === 120,
   );
   const rateRegimes = allocation?.rateRegimes;
+  const portfolioRisk = allocation?.risk;
+  const marketRisk = portfolioRisk?.market;
+  const macroRisk = portfolioRisk?.macro;
+  const alphaRiskOverlap = portfolioRisk?.alphaRiskOverlap;
+  const scenarios = portfolioRisk?.scenarios;
   const equityBondCorrelation = sixtyDayCorrelation?.series?.find(
     (series) =>
       [series.left, series.right].includes('cn_equity') &&
@@ -359,6 +364,24 @@ try {
             Number.isFinite(assetClass.annualizedVolatility),
         ),
     ) ||
+    marketRisk?.methodology !== 'rolling_multivariate_regression_ewma_covariance' ||
+    marketRisk?.observations !== 252 ||
+    marketRisk?.exposures?.length !== 9 ||
+    marketRisk?.lineage?.pointInTimeEligible !== true ||
+    macroRisk?.methodology !== 'monthly_multivariate_regression_newey_west' ||
+    macroRisk?.observations !== 60 ||
+    macroRisk?.sensitivities?.length !== 5 ||
+    macroRisk?.pointInTimeEligible !== false ||
+    macroRisk?.lineage?.futureVintageRows <= 0 ||
+    alphaRiskOverlap?.length !== 9 ||
+    !alphaRiskOverlap.every(
+      (row) =>
+        row.alphaFactorKey === 'momentum_low_vol_panel' &&
+        row.alphaReturnKind === 'net_long_short' &&
+        row.observations >= 50,
+    ) ||
+    scenarios?.filter((scenario) => scenario.kind === 'deterministic').length !== 8 ||
+    scenarios?.filter((scenario) => scenario.kind === 'historical').length !== 3 ||
     !equityBondCorrelation?.points?.length ||
     equityBondValidPoints / equityBondCorrelation.points.length < 0.8 ||
     Math.abs(returnContribution - completed.lastResult.totalReturn) > 1e-8 ||
@@ -410,6 +433,33 @@ try {
   await allocationPanel.screenshot({
     path: `${SHOTS}factor-panel-composite-rate-regime.png`,
   });
+  await allocationPanel.getByRole('tab', { name: '风险研究' }).click();
+  const riskPanel = page.getByTestId('allocation-risk-research');
+  await riskPanel.getByText('组合风险诊断', { exact: true }).waitFor();
+  await riskPanel.getByText('252 / 252', { exact: true }).waitFor();
+  await riskPanel.getByText('国债曲线水平', { exact: true }).waitFor();
+  await riskPanel.screenshot({ path: `${SHOTS}phase5-market-risk.png` });
+  await riskPanel.getByRole('tab', { name: '宏观敏感度' }).click();
+  await riskPanel
+    .getByText('当前宏观结果仅供探索，不能作为无未来数据的策略证据', { exact: true })
+    .waitFor();
+  await riskPanel.getByText('60 / 60', { exact: true }).waitFor();
+  await riskPanel.screenshot({ path: `${SHOTS}phase5-macro-risk-warning.png` });
+  await riskPanel.getByRole('tab', { name: 'Alpha / Risk 重合' }).click();
+  await riskPanel.getByText('momentum_low_vol_panel', { exact: true }).first().waitFor();
+  await riskPanel.getByText('研究报告费后多空', { exact: true }).first().waitFor();
+  await riskPanel.getByRole('tab', { name: '压力情景' }).click();
+  await riskPanel.getByText('这是当前暴露下的线性压力估计，不是收益预测').waitFor();
+  await riskPanel.getByText('2022 全球通胀冲击', { exact: true }).waitFor();
+  await riskPanel.screenshot({ path: `${SHOTS}phase5-risk-scenarios.png` });
+  await page.locator('.jx-topnav-user .ant-segmented-item-label', { hasText: 'EN' }).click();
+  await riskPanel.getByText('Portfolio risk diagnostics', { exact: true }).waitFor();
+  await riskPanel
+    .getByText('This is a linear stress estimate at current exposures, not a return forecast', {
+      exact: true,
+    })
+    .waitFor();
+  await page.locator('.jx-topnav-user .ant-segmented-item-label', { hasText: '中' }).click();
   await page.locator('.jx-lab-chart canvas').waitFor({ timeout: 30_000 });
   await page.screenshot({
     path: `${SHOTS}factor-panel-composite-strategy.png`,

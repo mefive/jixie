@@ -14,6 +14,7 @@
 3. 跑 e2e:
    ```bash
    pnpm --filter web test:e2e
+   pnpm --filter web test:e2e:factor-panel-composite # 含 Phase 5 多资产风险研究真实回测
    pnpm --filter docs test:e2e
    ```
 

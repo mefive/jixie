@@ -964,6 +964,16 @@ Alpha/Risk 重合和确定性/历史压力情景，不增设债券或商品专�
 exploratory，并在界面显著展示 future vintage 数量及不可用于发布/样本外结论的警告；缺覆盖的整个部分
 直接不显示，不把无证据翻译成零风险。真实浏览器验收与截图作为 Phase 5 最终收口门。
 
+**2026-08-11 Phase 5 收口验收：**真实 E2E 从新建 Panel Composite、59 期 / 468 个研究观测、发布，
+一路运行到 2020–2025 的 ETF 多资产策略，产生 127 笔真实成交，并通过 10 个相关性配对、4 个利率状态
+和完整风险报告校验。Risk 段包含 252/252 日市场样本、九项 exposure、60/60 月五轴宏观样本、九项
+Alpha/Risk 重合、8 个确定性情景和 3 个历史情景；中英文界面均实际渲染。宏观页保留 latest-vintage
+警告，窄面板下方差贡献和情景估计影响固定在右侧，不因横向滚动隐藏核心结论。验收截图为
+[`phase5-market-risk.png`](../../apps/web/acceptance/phase5-market-risk.png)、
+[`phase5-macro-risk-warning.png`](../../apps/web/acceptance/phase5-macro-risk-warning.png) 和
+[`phase5-risk-scenarios.png`](../../apps/web/acceptance/phase5-risk-scenarios.png)。至此本文定义的 Phase 5
+V1 完成边界已经闭合；后续真实 vintage 积累和新增专业数据属于持续演进，不反向把最终值报告改称 PIT。
+
 **2026-08-09 Phase 5 宏观底座启动：**第一批先实现制造业 PMI、CPI 同比和 PPI 同比的规范系列目录、
 观测长表、发布日历与本地 vintage 积累。官方日历只覆盖 2026 年起的发布事件；更早观测使用显式保守
 滞后，`releaseDate` 保持为空。历史首次回填统一标记 `latest_value_backfill`，不得在严格 PIT 研究中
