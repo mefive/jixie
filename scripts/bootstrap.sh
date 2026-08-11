@@ -347,6 +347,66 @@ credit_curve_coverage() {
   "
 }
 
+commodity_future_coverage() {
+  local database_file="$1"
+  local expected_end="$2"
+
+  sqlite3 "$database_file" "
+    WITH required(product_code, latest_first_date, minimum_rows) AS (
+      VALUES
+        ('AU', '20150105', 10000),
+        ('CU', '20150105', 15000),
+        ('M', '20150105', 10000),
+        ('SC', '20180326', 10000)
+    ),
+    coverage AS (
+      SELECT
+        required.product_code,
+        required.latest_first_date,
+        required.minimum_rows,
+        min(daily.\"tradeDate\") AS first_date,
+        max(daily.\"tradeDate\") AS last_date,
+        count(daily.\"tradeDate\") AS observation_rows
+      FROM required
+      LEFT JOIN \"FutureContract\" AS contract
+        ON contract.\"productCode\" = required.product_code
+      LEFT JOIN \"FutureDaily\" AS daily
+        ON daily.\"tsCode\" = contract.\"tsCode\"
+      GROUP BY required.product_code, required.latest_first_date, required.minimum_rows
+    )
+    SELECT count(*)
+    FROM coverage
+    WHERE first_date <= latest_first_date
+      AND last_date >= '$expected_end'
+      AND observation_rows >= minimum_rows;
+  "
+}
+
+commodity_holding_coverage() {
+  local database_file="$1"
+  local expected_end="$2"
+
+  sqlite3 "$database_file" "
+    WITH required(product_code) AS (VALUES ('AU'), ('CU'), ('M')),
+    coverage AS (
+      SELECT
+        required.product_code,
+        min(position.\"tradeDate\") AS first_date,
+        max(position.\"availableDate\") AS last_available,
+        count(position.\"tradeDate\") AS observation_rows
+      FROM required
+      LEFT JOIN \"CommodityHoldingPosition\" AS position
+        ON position.\"productCode\" = required.product_code
+      GROUP BY required.product_code
+    )
+    SELECT count(*)
+    FROM coverage
+    WHERE first_date <= '20150105'
+      AND last_available >= '$expected_end'
+      AND observation_rows >= 2000;
+  "
+}
+
 commodity_warehouse_receipt_coverage() {
   local database_file="$1"
   local expected_end="$2"
@@ -875,6 +935,34 @@ if [[ "$CREDIT_CURVE_COMPLETE" -ne 3 ]]; then
   [[ "$CREDIT_CURVE_COMPLETE" -eq 3 ]] || die "中债信用曲线回填后仍不完整"
 else
   log "中债信用曲线历史覆盖完整,跳过回填"
+fi
+
+COMMODITY_FUTURE_COMPLETE="$(
+  commodity_future_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
+)"
+if [[ "$COMMODITY_FUTURE_COMPLETE" -ne 4 ]]; then
+  log "补全 AU/CU/SC/M 实际月合约与日线: 20150105 ~ $EXTERNAL_MARKET_SYNC_END"
+  pnpm --filter api sync:commodity-futures 20150105 "$EXTERNAL_MARKET_SYNC_END"
+  COMMODITY_FUTURE_COMPLETE="$(
+    commodity_future_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
+  )"
+  [[ "$COMMODITY_FUTURE_COMPLETE" -eq 4 ]] || die "商品期货实际合约日线回填后仍不完整"
+else
+  log "商品期货实际合约日线覆盖完整,跳过回填"
+fi
+
+COMMODITY_HOLDING_COMPLETE="$(
+  commodity_holding_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
+)"
+if [[ "$COMMODITY_HOLDING_COMPLETE" -ne 3 ]]; then
+  log "补全 AU/CU/M 主导实际合约的会员持仓排名: 20150105 ~ $EXTERNAL_MARKET_SYNC_END"
+  pnpm --filter api sync:commodity-holdings 20150105 "$EXTERNAL_MARKET_SYNC_END"
+  COMMODITY_HOLDING_COMPLETE="$(
+    commodity_holding_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
+  )"
+  [[ "$COMMODITY_HOLDING_COMPLETE" -eq 3 ]] || die "商品会员持仓排名回填后仍不完整"
+else
+  log "商品会员持仓排名历史覆盖完整,跳过回填"
 fi
 
 WAREHOUSE_RECEIPT_SYNC_END="$(

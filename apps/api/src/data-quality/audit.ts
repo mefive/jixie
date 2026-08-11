@@ -2,6 +2,7 @@ import { median, quantile } from '../lib/stats.js';
 import { CHINA_MACRO_SERIES } from '../macro/china-macro.js';
 import type { Prisma } from '../lib/prisma.js';
 import { auditCommodityWarehouseReceipts } from '../commodity/commodity-warehouse-receipt-quality.js';
+import { auditCommodityHoldingPositions } from '../commodity/commodity-holding-quality.js';
 import { CHINABOND_PUBLIC_CURVES } from '../rates/chinabond-credit-curves.js';
 import {
   US_NOMINAL_CURVE_CODE,
@@ -211,6 +212,7 @@ export async function runDataQualityAudit(
     await auditExternalMarketPit(database, endDate),
     await auditCreditCurvePit(database, endDate),
     await auditCommodityWarehouseReceiptPit(database, startDate, endDate),
+    await auditCommodityHoldingPit(database, startDate, endDate),
   );
 
   return {
@@ -1110,6 +1112,30 @@ async function auditCommodityWarehouseReceiptPit(
       ...summary.errors.map((error) => `Error: ${error}.`),
       ...summary.warnings.map((warning) => `Warning: ${warning}.`),
       'Absolute levels remain product- and unit-specific; SC barrel and tonne series must never be added without a documented conversion.',
+    ],
+  };
+}
+
+async function auditCommodityHoldingPit(
+  database: Prisma,
+  startDate: string,
+  endDate: string,
+): Promise<AuditFinding> {
+  const summary = await auditCommodityHoldingPositions({ startDate, endDate }, database);
+  return {
+    id: 'commodity-holding-pit',
+    title: 'Commodity ranked-member positions: coverage and point-in-time availability',
+    status: summary.status,
+    summary: `${formatNumber(summary.rows)} product-days; ${summary.invalidRows} invalid; ${summary.errors.length} errors and ${summary.warnings.length} warnings`,
+    details: [
+      ...summary.products.map(
+        (product) =>
+          `${product.productCode}: ${formatNumber(product.observedDates)}/${formatNumber(product.expectedDates)} representative-contract dates (${formatPercent(product.coverage)}), latest ${product.latestObservedDate ?? 'n/a'}, trailing gaps ${product.trailingMissingDates}.`,
+      ),
+      ...summary.errors.map((error) => `Error: ${error}.`),
+      ...summary.warnings.map((warning) => `Warning: ${warning}.`),
+      'The stored long/short values aggregate exchange ranking subsets for the maximum-open-interest actual contract; they are not whole-market positions or a trader classification.',
+      'SC is excluded because repeated Tushare INE probes returned empty; no proxy is substituted.',
     ],
   };
 }

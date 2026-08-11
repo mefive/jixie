@@ -4,6 +4,7 @@ import {
   futureContracts,
   futureDaily,
   futureMapping,
+  futureHoldings,
   futureSettlement,
   futureWarehouseReceipts,
 } from './api.js';
@@ -87,5 +88,22 @@ describe('Tushare stock-index futures APIs', () => {
     expect(call).toHaveBeenCalledWith('fut_wsr', params, expect.stringContaining('warehouse'));
     expect(call.mock.calls[0][2]).toContain('vol_chg');
     expect(call.mock.calls[0][2]).toContain('unit');
+  });
+
+  it('requests paginated member rankings with all three ranked metric families', async () => {
+    const { call, client } = fakeClient();
+    const params = {
+      symbol: 'AU2610',
+      start_date: '20260701',
+      end_date: '20260731',
+      limit: 2_000,
+      offset: 0,
+    };
+
+    await futureHoldings(client, params);
+
+    expect(call).toHaveBeenCalledWith('fut_holding', params, expect.stringContaining('long_hld'));
+    expect(call.mock.calls[0][2]).toContain('short_hld');
+    expect(call.mock.calls[0][2]).toContain('vol_chg');
   });
 });

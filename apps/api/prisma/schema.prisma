@@ -568,6 +568,42 @@ model CommodityWarehouseReceipt {
   @@index([availableDate])
 }
 
+/// Daily aggregate of the exchange-published member ranking for one deterministic representative
+/// commodity contract. These are ranked-member subsets, not whole-market long/short positions.
+/// The report is published after close, so availableDate is the next SSE trading session.
+model CommodityHoldingPosition {
+  version                 Int      @default(1)
+  source                  String
+  productCode             String
+  tradeDate               String
+  availableDate           String
+  exchange                String
+  referenceContract       String
+  sourceSymbol            String
+  selectionMethod         String
+  contractOpenInterest    Float
+  contractVolume          Float
+  rankedVolume            Float
+  rankedVolumeChange      Float?
+  rankedLongHolding       Float
+  rankedLongChange        Float?
+  rankedShortHolding      Float
+  rankedShortChange       Float?
+  topFiveLongHolding      Float
+  topFiveShortHolding     Float
+  volumeMemberCount       Int
+  longMemberCount         Int
+  shortMemberCount        Int
+  sourceRowCount          Int
+  excludedSummaryRowCount Int      @default(0)
+  sourceCorrectionApplied Boolean  @default(false)
+  retrievedAt             DateTime @default(now())
+
+  @@id([productCode, tradeDate])
+  @@index([availableDate])
+  @@index([referenceContract, tradeDate])
+}
+
 /// Point-in-time mapping from a logical main/continuous symbol (e.g. IF.CFX) to an actual contract.
 /// Signals may use an adjusted continuous series, but fills must always use mappedTsCode.
 model FutureMapping {
