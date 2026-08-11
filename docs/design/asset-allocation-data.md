@@ -405,7 +405,7 @@ PIT 口径。
 Factor V2 已开放 2Y/5Y/10Y/30Y 国债收益率输入，内置 10Y 收益率 20 日下行、10Y−2Y 斜率和
 2Y/5Y/10Y 曲率三个债券模板；曲线模板只允许债券型 ETF 作为预测目标。5Y/10Y/30Y 国债 ETF 的真实
 20 日前瞻报告得到 4,853 条观测，研究与策略引擎都只读取决策日已经可得的曲线点。尚未完成的波次 2
-内容是 Shibor、生产日常维护和更完整的数据质量告警。
+内容是收益率曲线更细的生产告警；Shibor 已在 Phase 5 国内流动性数据切片中完成。
 
 ### 波次 3：PIT 宏观底座
 
@@ -427,6 +427,22 @@ Tushare 宏观接口返回的是当前值，不提供完整历史修订快照。
 `latest_value_backfill`，只可用于明确披露最终值偏差的探索研究，不能冒充当时真实 vintage；持续同步会
 从当前时点开始积累 `captured_as_available` vintage。下一步先实现统一 as-of 查询与未来函数测试，再接
 M1/M2 和社融，不能让后两者阻塞已经可验证的增长、通胀最小闭环。
+
+**2026-08-11 国内流动性与信用数据切片：**Tushare 真实权限探测确认 `cn_m`、`sf_month` 和
+[`shibor`](https://tushare.pro/document/1?doc_id=149) 均可用。规范目录由 3 条扩为 13 条：新增 M1/M2
+余额及同比、社融当月增量与存量，以及 Shibor O/N、1W、1M、3M。余额单位分别固定为亿元和万亿元，
+利率固定为百分比；`MacroObservation.period` 明确支持月频 `YYYYMM` 与日频 `YYYYMMDD`，不另建一张
+只为 Shibor 服务的宽表。
+
+真实全量同步 2005-01 至 2026-07 共 21,919 个 observation vintage：截至 2026-06，四条 M1/M2
+序列各 258 条，社融增量 258 条、存量 140 条；四条 Shibor 自 2006-10-08 起各 4,928 条。Shibor 接口
+单次最多 2,000 行，同步按自然年分段，避免长区间静默截断；同区间幂等复跑新增 0 条。Shibor 官方在
+交易日 11:00 发布，
+因此当日收盘研究可用当日值，非上交所开市日则映射到下一开市日，并标记 `published_intraday`。当前
+`cn_schedule` 未提供 `cn_m` / `sf_month` 发布事件，二者不伪造官方发布日期，继续采用月末后 20 日的
+保守可得日。bootstrap、weekly maintenance、宏观 PIT 审计和 Agent 只读 SQL 已同步纳入全部 13 条系列。
+全库审计得到 0 个无效可得日、0 个非交易日可得记录和 0 条缺失必需系列；21,807 条历史最终值回填仍
+只允许探索。这批数据只扩充底座；五轴宏观状态模型仍在 Phase 5 后续切片实现。
 
 **2026-08-09 as-of 查询契约：**宏观读取已统一为两种不可混淆的 revision policy。严格研究使用
 `as_available`，同时要求 `availableDate <= decisionDate` 和 `vintageDate <= decisionDate`，再为每个

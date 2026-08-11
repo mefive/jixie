@@ -2,8 +2,10 @@ import { addDays, daysBetween } from '../lib/date.js';
 import { prisma } from '../lib/prisma.js';
 import type { TushareRow } from '../tushare/client.js';
 
-export type MacroAvailabilityKind = 'official_schedule' | 'conservative_lag';
+export type MacroAvailabilityKind = 'official_schedule' | 'published_intraday' | 'conservative_lag';
 export type MacroVintageKind = 'captured_as_available' | 'latest_value_backfill';
+
+export type ChinaMacroSourceApi = 'cn_pmi' | 'cn_cpi' | 'cn_ppi' | 'cn_m' | 'sf_month' | 'shibor';
 
 export interface ChinaMacroClient {
   call(apiName: string, params?: Record<string, unknown>, fields?: string): Promise<TushareRow[]>;
@@ -13,15 +15,20 @@ export interface ChinaMacroSeriesDefinition {
   seriesKey: string;
   nameZh: string;
   nameEn: string;
-  domain: 'growth' | 'inflation';
-  frequency: 'monthly';
-  unit: 'index_point' | 'percent';
-  source: 'tushare_nbs';
-  sourceApi: 'cn_pmi' | 'cn_cpi' | 'cn_ppi';
+  domain: 'growth' | 'inflation' | 'liquidity' | 'credit';
+  frequency: 'daily' | 'monthly';
+  unit: 'index_point' | 'percent' | '100m_cny' | 'trillion_cny';
+  source: 'tushare_nbs' | 'tushare_pboc' | 'tushare_chinamoney';
+  sourceApi: ChinaMacroSourceApi;
   sourceField: string;
   defaultTransform: 'level' | 'yoy_level';
   revisionPolicy: 'latest_value_with_captured_vintages';
-  fallbackLagDays: 7 | 20;
+  fallbackLagDays: 0 | 7 | 20;
+}
+
+export interface ChinaMacroSourceRequest {
+  sourceApi: ChinaMacroSourceApi;
+  params: Record<string, unknown>;
 }
 
 export interface MacroScheduleRow {
@@ -93,6 +100,146 @@ export const CHINA_MACRO_SERIES: readonly ChinaMacroSeriesDefinition[] = [
     revisionPolicy: 'latest_value_with_captured_vintages',
     fallbackLagDays: 20,
   },
+  {
+    seriesKey: 'cn_m1_balance',
+    nameZh: '中国狭义货币 M1 余额',
+    nameEn: 'China M1 Balance',
+    domain: 'liquidity',
+    frequency: 'monthly',
+    unit: '100m_cny',
+    source: 'tushare_pboc',
+    sourceApi: 'cn_m',
+    sourceField: 'm1',
+    defaultTransform: 'level',
+    revisionPolicy: 'latest_value_with_captured_vintages',
+    fallbackLagDays: 20,
+  },
+  {
+    seriesKey: 'cn_m1_yoy',
+    nameZh: '中国狭义货币 M1 同比',
+    nameEn: 'China M1 YoY',
+    domain: 'liquidity',
+    frequency: 'monthly',
+    unit: 'percent',
+    source: 'tushare_pboc',
+    sourceApi: 'cn_m',
+    sourceField: 'm1_yoy',
+    defaultTransform: 'yoy_level',
+    revisionPolicy: 'latest_value_with_captured_vintages',
+    fallbackLagDays: 20,
+  },
+  {
+    seriesKey: 'cn_m2_balance',
+    nameZh: '中国广义货币 M2 余额',
+    nameEn: 'China M2 Balance',
+    domain: 'liquidity',
+    frequency: 'monthly',
+    unit: '100m_cny',
+    source: 'tushare_pboc',
+    sourceApi: 'cn_m',
+    sourceField: 'm2',
+    defaultTransform: 'level',
+    revisionPolicy: 'latest_value_with_captured_vintages',
+    fallbackLagDays: 20,
+  },
+  {
+    seriesKey: 'cn_m2_yoy',
+    nameZh: '中国广义货币 M2 同比',
+    nameEn: 'China M2 YoY',
+    domain: 'liquidity',
+    frequency: 'monthly',
+    unit: 'percent',
+    source: 'tushare_pboc',
+    sourceApi: 'cn_m',
+    sourceField: 'm2_yoy',
+    defaultTransform: 'yoy_level',
+    revisionPolicy: 'latest_value_with_captured_vintages',
+    fallbackLagDays: 20,
+  },
+  {
+    seriesKey: 'cn_social_financing_increment',
+    nameZh: '中国社会融资规模当月增量',
+    nameEn: 'China Aggregate Financing Monthly Increment',
+    domain: 'credit',
+    frequency: 'monthly',
+    unit: '100m_cny',
+    source: 'tushare_pboc',
+    sourceApi: 'sf_month',
+    sourceField: 'inc_month',
+    defaultTransform: 'level',
+    revisionPolicy: 'latest_value_with_captured_vintages',
+    fallbackLagDays: 20,
+  },
+  {
+    seriesKey: 'cn_social_financing_stock',
+    nameZh: '中国社会融资规模存量',
+    nameEn: 'China Aggregate Financing Outstanding',
+    domain: 'credit',
+    frequency: 'monthly',
+    unit: 'trillion_cny',
+    source: 'tushare_pboc',
+    sourceApi: 'sf_month',
+    sourceField: 'stk_endval',
+    defaultTransform: 'level',
+    revisionPolicy: 'latest_value_with_captured_vintages',
+    fallbackLagDays: 20,
+  },
+  {
+    seriesKey: 'cn_shibor_overnight',
+    nameZh: 'Shibor 隔夜',
+    nameEn: 'Shibor Overnight',
+    domain: 'liquidity',
+    frequency: 'daily',
+    unit: 'percent',
+    source: 'tushare_chinamoney',
+    sourceApi: 'shibor',
+    sourceField: 'on',
+    defaultTransform: 'level',
+    revisionPolicy: 'latest_value_with_captured_vintages',
+    fallbackLagDays: 0,
+  },
+  {
+    seriesKey: 'cn_shibor_1w',
+    nameZh: 'Shibor 1 周',
+    nameEn: 'Shibor 1 Week',
+    domain: 'liquidity',
+    frequency: 'daily',
+    unit: 'percent',
+    source: 'tushare_chinamoney',
+    sourceApi: 'shibor',
+    sourceField: '1w',
+    defaultTransform: 'level',
+    revisionPolicy: 'latest_value_with_captured_vintages',
+    fallbackLagDays: 0,
+  },
+  {
+    seriesKey: 'cn_shibor_1m',
+    nameZh: 'Shibor 1 个月',
+    nameEn: 'Shibor 1 Month',
+    domain: 'liquidity',
+    frequency: 'daily',
+    unit: 'percent',
+    source: 'tushare_chinamoney',
+    sourceApi: 'shibor',
+    sourceField: '1m',
+    defaultTransform: 'level',
+    revisionPolicy: 'latest_value_with_captured_vintages',
+    fallbackLagDays: 0,
+  },
+  {
+    seriesKey: 'cn_shibor_3m',
+    nameZh: 'Shibor 3 个月',
+    nameEn: 'Shibor 3 Month',
+    domain: 'liquidity',
+    frequency: 'daily',
+    unit: 'percent',
+    source: 'tushare_chinamoney',
+    sourceApi: 'shibor',
+    sourceField: '3m',
+    defaultTransform: 'level',
+    revisionPolicy: 'latest_value_with_captured_vintages',
+    fallbackLagDays: 0,
+  },
 ];
 
 const FIRST_SCHEDULE_MONTH = '202601';
@@ -104,7 +251,7 @@ const CHINA_DATE_FORMATTER = new Intl.DateTimeFormat('en-US', {
   day: '2-digit',
 });
 
-/** Syncs normalized NBS macro series while preserving capture vintages and availability evidence. */
+/** Syncs normalized Chinese macro series while preserving capture vintages and availability evidence. */
 export async function syncChinaMacroData(
   client: ChinaMacroClient,
   startMonth: string,
@@ -117,14 +264,12 @@ export async function syncChinaMacroData(
     endMonth < FIRST_SCHEDULE_MONTH
       ? []
       : monthRange(maximumMonth(startMonth, FIRST_SCHEDULE_MONTH), addMonths(endMonth, 1));
-  const [sourceBatches, scheduleBatches] = await Promise.all([
+  const [sourceRequestBatches, scheduleBatches] = await Promise.all([
     Promise.all(
-      [...new Set(CHINA_MACRO_SERIES.map((definition) => definition.sourceApi))].map(
-        async (sourceApi) => ({
-          sourceApi,
-          rows: await client.call(sourceApi, { start_m: startMonth, end_m: endMonth }),
-        }),
-      ),
+      chinaMacroSourceRequests(startMonth, endMonth).map(async (request) => ({
+        sourceApi: request.sourceApi,
+        rows: await client.call(request.sourceApi, request.params),
+      })),
     ),
     Promise.all(
       scheduleMonths.map(async (month) => ({
@@ -133,6 +278,7 @@ export async function syncChinaMacroData(
       })),
     ),
   ]);
+  const sourceBatches = mergeSourceRequestBatches(sourceRequestBatches);
   const schedules = parseMacroScheduleRows(scheduleBatches.flatMap((batch) => batch.rows));
   const openDates = await loadOpenDates(startMonth, endMonth);
   const prepared = CHINA_MACRO_SERIES.flatMap((definition) => {
@@ -185,9 +331,10 @@ export async function syncChinaMacroData(
     const current = latestByObservation.get(`${observation.seriesKey}|${observation.period}`);
     return !current || !sameObservation(current, observation);
   });
-  if (changed.length > 0) {
+  for (let offset = 0; offset < changed.length; offset += 500) {
+    const batch = changed.slice(offset, offset + 500);
     await prisma.$transaction(
-      changed.map((observation) =>
+      batch.map((observation) =>
         prisma.macroObservation.upsert({
           where: {
             seriesKey_period_vintageDate: {
@@ -266,19 +413,24 @@ export function prepareMacroObservations(
   const periods = new Set<string>();
   const observations: PreparedMacroObservation[] = [];
   for (const row of rows) {
-    const period = stringField(row, 'month');
-    if (!/^\d{6}$/.test(period)) {
-      throw new Error(`${definition.sourceApi} returned invalid month ${period}`);
+    const periodField = definition.frequency === 'daily' ? 'date' : 'month';
+    const period = stringField(row, periodField);
+    const periodPattern = definition.frequency === 'daily' ? /^\d{8}$/ : /^\d{6}$/;
+    if (!periodPattern.test(period)) {
+      throw new Error(`${definition.sourceApi} returned invalid ${periodField} ${period}`);
     }
     if (periods.has(period)) {
-      throw new Error(`${definition.sourceApi} returned duplicate month ${period}`);
+      throw new Error(`${definition.sourceApi} returned duplicate ${periodField} ${period}`);
     }
     periods.add(period);
     const value = numericField(row, definition.sourceField);
     if (value == null) {
       continue;
     }
-    const releaseDate = officialReleaseDate(definition, period, schedules);
+    const releaseDate =
+      definition.frequency === 'daily'
+        ? period
+        : officialReleaseDate(definition, period, schedules);
     const availabilityAnchor = releaseDate ?? addDays(monthEnd(period), definition.fallbackLagDays);
     const availableDate = openDates.find((date) => date >= availabilityAnchor);
     if (!availableDate) {
@@ -292,10 +444,46 @@ export function prepareMacroObservations(
       value,
       releaseDate,
       availableDate,
-      availabilityKind: releaseDate ? 'official_schedule' : 'conservative_lag',
+      availabilityKind:
+        definition.frequency === 'daily'
+          ? 'published_intraday'
+          : releaseDate
+            ? 'official_schedule'
+            : 'conservative_lag',
     });
   }
   return observations.sort((left, right) => left.period.localeCompare(right.period));
+}
+
+/** Builds bounded requests so Shibor never silently truncates at its 2,000-row API limit. */
+export function chinaMacroSourceRequests(
+  startMonth: string,
+  endMonth: string,
+): ChinaMacroSourceRequest[] {
+  assertMonthRange(startMonth, endMonth);
+  const monthlyApis = [
+    ...new Set(
+      CHINA_MACRO_SERIES.filter((definition) => definition.frequency === 'monthly').map(
+        (definition) => definition.sourceApi,
+      ),
+    ),
+  ];
+  const requests: ChinaMacroSourceRequest[] = monthlyApis.map((sourceApi) => ({
+    sourceApi,
+    params: { start_m: startMonth, end_m: endMonth },
+  }));
+  const startDate = `${startMonth}01`;
+  const endDate = monthEnd(endMonth);
+  for (let year = Number(startDate.slice(0, 4)); year <= Number(endDate.slice(0, 4)); year++) {
+    requests.push({
+      sourceApi: 'shibor',
+      params: {
+        start_date: maximumDate(startDate, `${year}0101`),
+        end_date: minimumDate(endDate, `${year}1231`),
+      },
+    });
+  }
+  return requests;
 }
 
 function officialReleaseDate(
@@ -319,6 +507,16 @@ function officialReleaseDate(
         schedule.publishDate >= `${releaseMonth}01` && schedule.publishDate <= `${releaseMonth}20`,
     )?.publishDate ?? null
   );
+}
+
+function mergeSourceRequestBatches(
+  batches: Array<{ sourceApi: ChinaMacroSourceApi; rows: TushareRow[] }>,
+): Array<{ sourceApi: ChinaMacroSourceApi; rows: TushareRow[] }> {
+  const rowsByApi = new Map<ChinaMacroSourceApi, TushareRow[]>();
+  for (const batch of batches) {
+    rowsByApi.set(batch.sourceApi, [...(rowsByApi.get(batch.sourceApi) ?? []), ...batch.rows]);
+  }
+  return [...rowsByApi].map(([sourceApi, rows]) => ({ sourceApi, rows }));
 }
 
 async function loadOpenDates(startMonth: string, endMonth: string): Promise<string[]> {
@@ -432,6 +630,14 @@ function monthRange(startMonth: string, endMonth: string): string[] {
 
 function maximumMonth(left: string, right: string): string {
   return left >= right ? left : right;
+}
+
+function maximumDate(left: string, right: string): string {
+  return left >= right ? left : right;
+}
+
+function minimumDate(left: string, right: string): string {
+  return left <= right ? left : right;
 }
 
 function assertMonthRange(startMonth: string, endMonth: string): void {

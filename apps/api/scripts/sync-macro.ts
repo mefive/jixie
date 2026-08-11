@@ -11,7 +11,7 @@ const CHINA_MONTH_FORMATTER = new Intl.DateTimeFormat('en-US', {
   month: '2-digit',
 });
 
-/** Sync the first normalized China macro series and their PIT availability evidence. */
+/** Sync normalized Chinese macro and money-market series with PIT availability evidence. */
 async function main(): Promise<void> {
   const [startMonth = '200501', endMonth = currentMonth()] = process.argv.slice(2);
   assertMonthRange(startMonth, endMonth);

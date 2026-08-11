@@ -90,6 +90,32 @@ describe('macro point-in-time selection', () => {
     expect(snapshot.disclosure.futureVintageRows).toBe(0);
   });
 
+  it('accepts daily macro periods without weakening the vintage gate', () => {
+    const snapshot = selectMacroObservationsAsOf(
+      [
+        {
+          seriesKey: 'cn_shibor_1w',
+          period: '20260731',
+          value: 1.453,
+          releaseDate: '20260731',
+          availableDate: '20260731',
+          availabilityKind: 'published_intraday',
+          vintageDate: '20260731',
+          vintageKind: 'captured_as_available',
+        },
+      ],
+      {
+        seriesKeys: ['cn_shibor_1w'],
+        decisionDate: '20260731',
+        revisionPolicy: 'as_available',
+      },
+    );
+
+    expect(snapshot.observations.map((row) => [row.period, row.value])).toEqual([
+      ['20260731', 1.453],
+    ]);
+  });
+
   it('fails closed when a stored vintage predates its availability date', () => {
     expect(() =>
       selectMacroObservationsAsOf([{ ...rows[0]!, vintageDate: '20250207' }], {
