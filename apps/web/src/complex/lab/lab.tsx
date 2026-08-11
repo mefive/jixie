@@ -5,6 +5,10 @@ import type {
   AllocationCorrelationAnalysis,
   AllocationRateRegimeAnalysis,
   ChatMessage,
+  MacroRiskAxisKeyV1,
+  MarketRiskFactorKeyV1,
+  PortfolioRiskAnalysisV1,
+  PortfolioRiskScenarioResultV1,
   StrategyLanguage,
 } from '@jixie/shared';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -1146,6 +1150,15 @@ const AllocationAnalysisPanel = ({ analysis }: { analysis: AllocationAnalysis })
                 },
               ]
             : []),
+          ...(analysis.risk
+            ? [
+                {
+                  key: 'risk',
+                  label: t('allocation.riskTab'),
+                  children: <AllocationRiskPanel data={analysis.risk} />,
+                },
+              ]
+            : []),
           {
             key: 'drift',
             label: t('allocation.driftTab'),
@@ -1193,6 +1206,316 @@ const AllocationAnalysisPanel = ({ analysis }: { analysis: AllocationAnalysis })
     </section>
   );
 };
+
+const AllocationRiskPanel = ({ data }: { data: PortfolioRiskAnalysisV1 }) => {
+  const { t } = useTranslation('lab');
+  const market = data.market;
+  const macro = data.macro;
+  const overlap = data.alphaRiskOverlap ?? [];
+  const scenarios = data.scenarios ?? [];
+  const factorLabel = (factor: MarketRiskFactorKeyV1) => t(`allocation.risk.factors.${factor}`);
+
+  return (
+    <div className="jx-lab-risk" data-testid="allocation-risk-research">
+      <Alert
+        type="info"
+        showIcon
+        title={t('allocation.risk.title')}
+        description={t('allocation.risk.methodology')}
+      />
+      <Tabs
+        size="small"
+        items={[
+          ...(market
+            ? [
+                {
+                  key: 'market',
+                  label: t('allocation.risk.marketTab'),
+                  children: (
+                    <div className="jx-lab-riskSection">
+                      <div className="jx-lab-riskSummary">
+                        <RiskSummaryMetric
+                          label={t('allocation.risk.asOfDate')}
+                          value={formatYmd(market.asOfDate)}
+                        />
+                        <RiskSummaryMetric
+                          label={t('allocation.risk.observations')}
+                          value={`${market.observations} / ${market.lookbackObservations}`}
+                        />
+                        <RiskSummaryMetric
+                          label={t('allocation.risk.portfolioVolatility')}
+                          value={formatOptionalPercent(market.annualizedPortfolioVolatility)}
+                        />
+                        <RiskSummaryMetric
+                          label={t('allocation.risk.explainedVariance')}
+                          value={formatOptionalPercent(market.explainedVariance)}
+                        />
+                      </div>
+                      <Table
+                        rowKey="factor"
+                        size="small"
+                        pagination={false}
+                        scroll={{ x: 640 }}
+                        dataSource={market.exposures}
+                        columns={[
+                          {
+                            title: t('allocation.risk.marketFactor'),
+                            dataIndex: 'factor',
+                            render: factorLabel,
+                          },
+                          {
+                            title: t('allocation.risk.sensitivity'),
+                            key: 'sensitivity',
+                            align: 'right',
+                            render: (_, row) =>
+                              row.coefficientUnit === 'return_per_basis_point'
+                                ? t('allocation.risk.perTenBp', {
+                                    value: signedPercent(row.coefficient * 10),
+                                  })
+                                : t('allocation.risk.beta', {
+                                    value: row.coefficient.toFixed(3),
+                                  }),
+                          },
+                          {
+                            title: t('allocation.risk.varianceContribution'),
+                            dataIndex: 'varianceContributionShare',
+                            align: 'right',
+                            render: formatOptionalPercent,
+                          },
+                        ]}
+                      />
+                      <div className="jx-lab-riskMeta">
+                        {t('allocation.risk.marketMeta', {
+                          halfLife: market.covarianceHalfLife,
+                          minimum: market.minimumObservations,
+                        })}
+                      </div>
+                    </div>
+                  ),
+                },
+              ]
+            : []),
+          ...(macro
+            ? [
+                {
+                  key: 'macro',
+                  label: t('allocation.risk.macroTab'),
+                  children: (
+                    <div className="jx-lab-riskSection">
+                      {!macro.pointInTimeEligible ? (
+                        <Alert
+                          type="warning"
+                          showIcon
+                          title={t('allocation.risk.macroExploratoryTitle')}
+                          description={t('allocation.risk.macroExploratoryDescription', {
+                            count: macro.lineage.futureVintageRows,
+                          })}
+                        />
+                      ) : null}
+                      <div className="jx-lab-riskSummary">
+                        <RiskSummaryMetric
+                          label={t('allocation.risk.asOfDate')}
+                          value={formatYmd(macro.asOfDate)}
+                        />
+                        <RiskSummaryMetric
+                          label={t('allocation.risk.observations')}
+                          value={`${macro.observations} / ${macro.lookbackObservations}`}
+                        />
+                        <RiskSummaryMetric
+                          label={t('allocation.risk.neweyWestLag')}
+                          value={String(macro.neweyWestLag)}
+                        />
+                        <RiskSummaryMetric
+                          label={t('allocation.risk.pitStatus')}
+                          value={t(
+                            macro.pointInTimeEligible
+                              ? 'allocation.risk.pitEligible'
+                              : 'allocation.risk.latestVintage',
+                          )}
+                        />
+                      </div>
+                      <Table
+                        rowKey="axis"
+                        size="small"
+                        pagination={false}
+                        dataSource={macro.sensitivities}
+                        columns={[
+                          {
+                            title: t('allocation.risk.macroAxis'),
+                            dataIndex: 'axis',
+                            render: (axis: MacroRiskAxisKeyV1) =>
+                              t(`allocation.risk.macroAxes.${axis}`),
+                          },
+                          {
+                            title: t('allocation.risk.coefficient'),
+                            dataIndex: 'coefficient',
+                            align: 'right',
+                            render: (value: number) => signedPercent(value),
+                          },
+                          {
+                            title: t('allocation.risk.neweyWestTStat'),
+                            dataIndex: 'neweyWestTStat',
+                            align: 'right',
+                            render: (value: number) => value.toFixed(2),
+                          },
+                        ]}
+                      />
+                      <div className="jx-lab-riskMeta">
+                        {t('allocation.risk.macroMeta', {
+                          minimum: macro.minimumObservations,
+                        })}
+                      </div>
+                    </div>
+                  ),
+                },
+              ]
+            : []),
+          ...(overlap.length
+            ? [
+                {
+                  key: 'overlap',
+                  label: t('allocation.risk.overlapTab'),
+                  children: (
+                    <div className="jx-lab-riskSection">
+                      <Alert
+                        type="info"
+                        showIcon
+                        title={t('allocation.risk.overlapTitle')}
+                        description={t('allocation.risk.overlapDescription')}
+                      />
+                      <Table
+                        rowKey={(row) => `${row.alphaFactorKey}-${row.marketFactor}`}
+                        size="small"
+                        pagination={overlap.length > 10 ? { pageSize: 10, size: 'small' } : false}
+                        scroll={{ x: 720 }}
+                        dataSource={overlap}
+                        columns={[
+                          {
+                            title: t('allocation.risk.alphaFactor'),
+                            dataIndex: 'alphaFactorKey',
+                          },
+                          {
+                            title: t('allocation.risk.alphaReturnKind'),
+                            dataIndex: 'alphaReturnKind',
+                            render: (value: string) => t(`allocation.risk.returnKinds.${value}`),
+                          },
+                          {
+                            title: t('allocation.risk.marketFactor'),
+                            dataIndex: 'marketFactor',
+                            render: factorLabel,
+                          },
+                          {
+                            title: t('allocation.risk.correlation'),
+                            dataIndex: 'correlation',
+                            align: 'right',
+                            render: (value: number) => value.toFixed(3),
+                          },
+                          {
+                            title: t('allocation.risk.classification'),
+                            dataIndex: 'classification',
+                            render: (value: string) => (
+                              <span className={`jx-lab-riskOverlap jx-lab-riskOverlap--${value}`}>
+                                {t(`allocation.risk.classifications.${value}`)}
+                              </span>
+                            ),
+                          },
+                          {
+                            title: t('allocation.risk.sample'),
+                            dataIndex: 'observations',
+                            align: 'right',
+                          },
+                        ]}
+                      />
+                    </div>
+                  ),
+                },
+              ]
+            : []),
+          ...(scenarios.length
+            ? [
+                {
+                  key: 'scenarios',
+                  label: t('allocation.risk.scenarioTab'),
+                  children: (
+                    <div className="jx-lab-riskSection">
+                      <Alert
+                        type="warning"
+                        showIcon
+                        title={t('allocation.risk.scenarioTitle')}
+                        description={t('allocation.risk.scenarioDescription')}
+                      />
+                      <Table
+                        rowKey={(row) => `${row.kind}-${row.key}`}
+                        size="small"
+                        pagination={false}
+                        scroll={{ x: 900 }}
+                        dataSource={scenarios}
+                        columns={[
+                          {
+                            title: t('allocation.risk.scenario'),
+                            dataIndex: 'key',
+                            render: (key: string) => t(`allocation.risk.scenarios.${key}`),
+                          },
+                          {
+                            title: t('allocation.risk.scenarioKind'),
+                            dataIndex: 'kind',
+                            render: (kind: PortfolioRiskScenarioResultV1['kind']) =>
+                              t(`allocation.risk.scenarioKinds.${kind}`),
+                          },
+                          {
+                            title: t('allocation.risk.historicalWindow'),
+                            key: 'historicalWindow',
+                            render: (_, row) =>
+                              row.kind === 'historical'
+                                ? `${formatYmd(row.historicalWindow.startDate)} → ${formatYmd(row.historicalWindow.endDate)}`
+                                : '—',
+                          },
+                          {
+                            title: t('allocation.risk.shocks'),
+                            dataIndex: 'shocks',
+                            render: (shocks: PortfolioRiskScenarioResultV1['shocks']) =>
+                              shocks
+                                .map((shock) =>
+                                  shock.unit === 'basis_point_change'
+                                    ? `${factorLabel(shock.factor)} ${signedBp(shock.shock)}`
+                                    : `${factorLabel(shock.factor)} ${signedPercent(shock.shock)}`,
+                                )
+                                .join(' · '),
+                          },
+                          {
+                            title: t('allocation.risk.estimatedImpact'),
+                            dataIndex: 'estimatedReturnImpact',
+                            align: 'right',
+                            render: (value: number) => (
+                              <b
+                                className={classNames({
+                                  'text-up': value >= 0,
+                                  'text-down': value < 0,
+                                })}
+                              >
+                                {signedPercent(value)}
+                              </b>
+                            ),
+                          },
+                        ]}
+                      />
+                    </div>
+                  ),
+                },
+              ]
+            : []),
+        ]}
+      />
+    </div>
+  );
+};
+
+const RiskSummaryMetric = ({ label, value }: { label: string; value: string }) => (
+  <div>
+    <span>{label}</span>
+    <b>{value}</b>
+  </div>
+);
 
 const AllocationRateRegimePanel = ({ data }: { data: AllocationRateRegimeAnalysis }) => {
   const { t } = useTranslation('lab');
@@ -1404,6 +1727,18 @@ function correlationPairKey(left: string, right: string): string {
 
 function formatBp(value: number): string {
   return `${value >= 0 ? '+' : ''}${value.toFixed(1)} bp`;
+}
+
+function signedBp(value: number): string {
+  return `${value >= 0 ? '+' : ''}${value.toFixed(0)} bp`;
+}
+
+function signedPercent(value: number): string {
+  return `${value >= 0 ? '+' : ''}${pct(value)}`;
+}
+
+function formatOptionalPercent(value: number | null): string {
+  return value == null ? '—' : pct(value);
 }
 
 // The bottom dock — a collapsible IDE-style panel with streamed system + user console output.

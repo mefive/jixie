@@ -491,6 +491,54 @@
   @apply text-sm;
 }
 
+.jx-lab-risk {
+  @apply flex flex-col gap-3;
+}
+
+.jx-lab-riskSection {
+  @apply flex flex-col gap-3;
+}
+
+.jx-lab-riskSummary {
+  @apply grid gap-2;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.jx-lab-riskSummary > div {
+  @apply flex flex-col gap-1 rounded bg-chip px-3 py-2;
+}
+
+.jx-lab-riskSummary span,
+.jx-lab-riskMeta {
+  @apply text-muted;
+  font-size: 11px;
+}
+
+.jx-lab-riskSummary b {
+  @apply text-sm text-ink;
+}
+
+.jx-lab-riskMeta {
+  line-height: 1.6;
+}
+
+.jx-lab-riskOverlap {
+  @apply rounded px-2 py-1;
+  font-size: 11px;
+}
+
+.jx-lab-riskOverlap--low {
+  @apply bg-chip text-muted;
+}
+
+.jx-lab-riskOverlap--material {
+  @apply bg-chip text-up;
+}
+
+.jx-lab-riskOverlap--dominant {
+  @apply bg-chip text-down;
+}
+
 .jx-lab-factorDependencies {
   @apply flex flex-col gap-2 rounded-lg border border-line bg-bg;
   padding: 12px 14px;
@@ -583,6 +631,12 @@
 .jx-lab-chart {
   @apply flex-1;
   min-height: 320px;
+}
+
+@media (max-width: 900px) {
+  .jx-lab-riskSummary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 /* Monaco hover: long SDK signatures otherwise run off the viewport. Cap the hover widget width and let the

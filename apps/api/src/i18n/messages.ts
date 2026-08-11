@@ -209,6 +209,10 @@ const MESSAGES = {
     zh: '回测进程异常退出 (code {code})',
     en: 'Backtest process exited abnormally (code {code})',
   },
+  backtestRiskAnalysisUnavailable: {
+    zh: '风险研究暂不可用，交易回测结果已保留：{error}',
+    en: 'Risk research is unavailable; the trading backtest result was preserved: {error}',
+  },
   strategyScanCodeInvalid: {
     zh: '策略代码无法读取参数，请检查 params 声明',
     en: 'Could not inspect strategy parameters; check the params declaration',

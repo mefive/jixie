@@ -1,5 +1,7 @@
 import type { BacktestConfig, Locale, StrategyParamValue } from '@jixie/shared';
 import type { UserLogSink } from '../lib/sandbox-console.js';
+import { t } from '../i18n/messages.js';
+import { attachBacktestRiskAnalysis } from '../risk/backtest-risk-analysis.js';
 import { createPythonStrategyRuntime } from '../strategy/python/runtime.js';
 import { prepareStrategyFactors } from './prepare-custom-factors.js';
 import { prismaDataPort } from './prisma-port.js';
@@ -34,12 +36,13 @@ export async function runConfiguredBacktest(
       onUserLog,
     );
     result.factorDependencies = prepared.factors;
+    await attachRiskAnalysis(result, locale, onSystemLog);
     return result;
   }
 
   const runtime = await createPythonStrategyRuntime(config.code, onUserLog, paramOverrides, locale);
   try {
-    return await runStrategy({
+    const result = await runStrategy({
       start: config.start,
       end: config.end,
       initialCash: config.initialCash,
@@ -49,7 +52,25 @@ export async function runConfiguredBacktest(
       dataPort: prismaDataPort,
       onLog: onSystemLog,
     });
+    await attachRiskAnalysis(result, locale, onSystemLog);
+    return result;
   } finally {
     await runtime.close();
+  }
+}
+
+async function attachRiskAnalysis(
+  result: BacktestResult,
+  locale: Locale,
+  onSystemLog: ((line: string) => void) | undefined,
+): Promise<void> {
+  try {
+    await attachBacktestRiskAnalysis(result);
+  } catch (error) {
+    onSystemLog?.(
+      t(locale, 'backtestRiskAnalysisUnavailable', {
+        error: error instanceof Error ? error.message : String(error),
+      }),
+    );
   }
 }
