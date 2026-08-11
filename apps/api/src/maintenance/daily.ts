@@ -7,6 +7,10 @@ import { loadTushareConfig } from '../config.js';
 import { prisma } from '../lib/prisma.js';
 import { syncMarketIndicators } from '../market/sync-market-indicators.js';
 import {
+  ChinaBondPublicCurveClient,
+  syncChinaBondCreditCurves,
+} from '../rates/chinabond-credit-curves.js';
+import {
   syncExternalMarketDrivers,
   type ExternalMarketSyncSummary,
 } from '../rates/external-market-drivers.js';
@@ -64,6 +68,7 @@ export interface DailyMaintenanceSummary {
   selfHealing: SelfHealSummary | null;
   warehouseReceipts: CommodityWarehouseReceiptMaintenanceSummary | null;
   externalMarketDrivers: ExternalMarketSyncSummary | null;
+  creditCurves: number | null;
   signals: { deployments: number; done: number; errors: number } | null;
 }
 
@@ -127,6 +132,7 @@ export async function runDailyMaintenance(
         selfHealing: null,
         warehouseReceipts: null,
         externalMarketDrivers: null,
+        creditCurves: null,
         signals: null,
       };
     }
@@ -145,6 +151,7 @@ export async function runDailyMaintenance(
         selfHealing: null,
         warehouseReceipts: null,
         externalMarketDrivers: null,
+        creditCurves: null,
         signals: null,
       };
     }
@@ -192,6 +199,7 @@ export async function runDailyMaintenance(
     selfHealing: null,
     warehouseReceipts: null,
     externalMarketDrivers: null,
+    creditCurves: null,
     signals: null,
   };
   const stopHeartbeat = startMaintenanceHeartbeat(run.id);
@@ -231,6 +239,7 @@ export async function runDailyMaintenance(
       summary,
       onLog,
     );
+    summary.creditCurves = await refreshCreditCurves(cutoff, run.id, summary, onLog);
     const completedDates: string[] = [];
     let dateFailure: Error | null = null;
 
@@ -372,6 +381,7 @@ async function initializePublishedBaseline(
     selfHealing: null,
     warehouseReceipts: null,
     externalMarketDrivers: null,
+    creditCurves: null,
     signals: null,
   };
   const stopHeartbeat = startMaintenanceHeartbeat(run.id);
@@ -455,6 +465,7 @@ async function runSignalOnlyMaintenance(
     selfHealing: null,
     warehouseReceipts: null,
     externalMarketDrivers: null,
+    creditCurves: null,
     signals: null,
   };
   const stopHeartbeat = startMaintenanceHeartbeat(run.id);
@@ -485,6 +496,7 @@ async function runSignalOnlyMaintenance(
       summary,
       onLog,
     );
+    summary.creditCurves = await refreshCreditCurves(cutoff, run.id, summary, onLog);
     await updateMaintenanceRun(run.id, 'signals', summary);
     summary.signals = await generateDailySignals(cutoff, onLog);
     await finishMaintenanceRun(run.id, 'done', { summary });
@@ -509,6 +521,21 @@ async function refreshExternalMarketDrivers(
 ): Promise<ExternalMarketSyncSummary> {
   await updateMaintenanceRun(runId, 'external_market_drivers', summary);
   return syncExternalMarketDrivers(client, addCalendarDays(cutoff, -14), cutoff, onLog);
+}
+
+async function refreshCreditCurves(
+  cutoff: string,
+  runId: string,
+  summary: DailyMaintenanceSummary,
+  onLog: (line: string) => void,
+): Promise<number> {
+  await updateMaintenanceRun(runId, 'credit_curves', summary);
+  return syncChinaBondCreditCurves(
+    new ChinaBondPublicCurveClient(),
+    addCalendarDays(cutoff, -21),
+    cutoff,
+    onLog,
+  );
 }
 
 async function refreshCommodityWarehouseReceipts(
