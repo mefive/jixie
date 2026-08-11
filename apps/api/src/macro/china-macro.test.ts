@@ -1,12 +1,31 @@
 import { describe, expect, it } from 'vitest';
 import {
   CHINA_MACRO_SERIES,
+  chinaMacroSourceRequests,
   macroVintageKind,
   parseMacroScheduleRows,
   prepareMacroObservations,
 } from './china-macro.js';
 
 describe('China macro PIT normalization', () => {
+  it('uses monthly source ranges and year-bounded Shibor requests', () => {
+    expect(chinaMacroSourceRequests('202512', '202601')).toEqual([
+      { sourceApi: 'cn_pmi', params: { start_m: '202512', end_m: '202601' } },
+      { sourceApi: 'cn_cpi', params: { start_m: '202512', end_m: '202601' } },
+      { sourceApi: 'cn_ppi', params: { start_m: '202512', end_m: '202601' } },
+      { sourceApi: 'cn_m', params: { start_m: '202512', end_m: '202601' } },
+      { sourceApi: 'sf_month', params: { start_m: '202512', end_m: '202601' } },
+      {
+        sourceApi: 'shibor',
+        params: { start_date: '20251201', end_date: '20251231' },
+      },
+      {
+        sourceApi: 'shibor',
+        params: { start_date: '20260101', end_date: '20260131' },
+      },
+    ]);
+  });
+
   it('maps official schedules to observation periods and the first tradable availability date', () => {
     const manufacturingPmi = CHINA_MACRO_SERIES.find(
       (definition) => definition.seriesKey === 'cn_pmi_manufacturing',
@@ -84,6 +103,65 @@ describe('China macro PIT normalization', () => {
       availableDate: '20250220',
       availabilityKind: 'conservative_lag',
     });
+  });
+
+  it('normalizes PBoC money and credit values with explicit units and conservative availability', () => {
+    const m1 = CHINA_MACRO_SERIES.find((definition) => definition.seriesKey === 'cn_m1_balance')!;
+    const socialFinancing = CHINA_MACRO_SERIES.find(
+      (definition) => definition.seriesKey === 'cn_social_financing_stock',
+    )!;
+
+    expect(m1).toMatchObject({ unit: '100m_cny', domain: 'liquidity', sourceApi: 'cn_m' });
+    expect(socialFinancing).toMatchObject({
+      unit: 'trillion_cny',
+      domain: 'credit',
+      sourceApi: 'sf_month',
+    });
+    expect(
+      prepareMacroObservations(m1, [{ month: '202606', m1: 1_184_775.53 }], [], ['20260720'])[0],
+    ).toEqual({
+      seriesKey: 'cn_m1_balance',
+      period: '202606',
+      value: 1_184_775.53,
+      releaseDate: null,
+      availableDate: '20260720',
+      availabilityKind: 'conservative_lag',
+    });
+  });
+
+  it('makes an intraday Shibor fixing available on the same SSE trading day', () => {
+    const shibor = CHINA_MACRO_SERIES.find(
+      (definition) => definition.seriesKey === 'cn_shibor_1w',
+    )!;
+
+    expect(
+      prepareMacroObservations(
+        shibor,
+        [
+          { date: '20260731', '1w': 1.453 },
+          { date: '20260801', '1w': 1.454 },
+        ],
+        [],
+        ['20260731', '20260803'],
+      ),
+    ).toEqual([
+      {
+        seriesKey: 'cn_shibor_1w',
+        period: '20260731',
+        value: 1.453,
+        releaseDate: '20260731',
+        availableDate: '20260731',
+        availabilityKind: 'published_intraday',
+      },
+      {
+        seriesKey: 'cn_shibor_1w',
+        period: '20260801',
+        value: 1.454,
+        releaseDate: '20260801',
+        availableDate: '20260803',
+        availabilityKind: 'published_intraday',
+      },
+    ]);
   });
 
   it('labels final-value historical imports separately from near-release captures', () => {

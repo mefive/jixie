@@ -854,6 +854,14 @@ Phase 5 的完成边界是：上述五类日频市场风险驱动与五类月频
 最终值可以探索但不能伪装成严格 PIT；在本地 vintage 积累不足时，宏观发布/holdout 不作为工程完成的
 虚假门槛，而必须保持不可发布。
 
+**2026-08-11 Phase 5 国内流动性与信用底座：**`MacroSeries` / `MacroObservation` 继续作为统一长表，
+新增 M1/M2 余额及同比、社融增量/存量、Shibor O/N/1W/1M/3M，使规范目录达到 13 条。日频 Shibor
+使用 `YYYYMMDD` observation period，并按官方 11:00 发布时间允许进入当日收盘后的研究；月频货币和
+社融在发布日历缺项时使用月末后 20 日的显式保守可得日。真实回填共 21,919 个 vintage，同区间幂等复跑
+新增 0 条；bootstrap、weekly maintenance、质量审计和 Agent SQL 文档均已覆盖。首次历史回填仍统一
+标记 `latest_value_backfill`，因此这里只完成信用、流动性轴的输入底座，不提前改变现有增长/通胀 Macro
+Regime evaluator，也不扩大其发布资格。
+
 **2026-08-09 Phase 5 宏观底座启动：**第一批先实现制造业 PMI、CPI 同比和 PPI 同比的规范系列目录、
 观测长表、发布日历与本地 vintage 积累。官方日历只覆盖 2026 年起的发布事件；更早观测使用显式保守
 滞后，`releaseDate` 保持为空。历史首次回填统一标记 `latest_value_backfill`，不得在严格 PIT 研究中

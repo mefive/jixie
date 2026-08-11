@@ -86,6 +86,7 @@ interface WindowCoverageRow {
 
 export interface MacroPitAuditRow {
   seriesKey: string;
+  period: string;
   releaseDate: string | null;
   availableDate: string;
   availabilityKind: string;
@@ -211,7 +212,11 @@ export function summarizeMacroPit(
       (row) =>
         (row.releaseDate != null && row.availableDate < row.releaseDate) ||
         (row.availabilityKind === 'official_schedule' && row.releaseDate == null) ||
-        (row.availabilityKind === 'conservative_lag' && row.releaseDate != null),
+        (row.availabilityKind === 'conservative_lag' && row.releaseDate != null) ||
+        (row.availabilityKind === 'published_intraday' && row.releaseDate !== row.period) ||
+        !['official_schedule', 'published_intraday', 'conservative_lag'].includes(
+          row.availabilityKind,
+        ),
     ).length,
     nonTradingAvailabilityRows: observations.filter((row) => !openDates.has(row.availableDate))
       .length,
@@ -830,6 +835,7 @@ async function auditMacroPit(database: Prisma): Promise<AuditFinding> {
   const observations = await database.macroObservation.findMany({
     select: {
       seriesKey: true,
+      period: true,
       releaseDate: true,
       availableDate: true,
       availabilityKind: true,

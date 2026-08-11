@@ -236,26 +236,38 @@ macro_series_coverage() {
   local database_file="$1"
 
   sqlite3 "$database_file" "
-    WITH required(series_key) AS (
+    WITH required(series_key, first_period, minimum_rows) AS (
       VALUES
-        ('cn_pmi_manufacturing'),
-        ('cn_cpi_yoy'),
-        ('cn_ppi_yoy')
+        ('cn_pmi_manufacturing', '200501', 200),
+        ('cn_cpi_yoy', '200501', 200),
+        ('cn_ppi_yoy', '200501', 200),
+        ('cn_m1_balance', '200501', 200),
+        ('cn_m1_yoy', '200501', 200),
+        ('cn_m2_balance', '200501', 200),
+        ('cn_m2_yoy', '200501', 200),
+        ('cn_social_financing_increment', '200501', 200),
+        ('cn_social_financing_stock', '200512', 100),
+        ('cn_shibor_overnight', '20061009', 2000),
+        ('cn_shibor_1w', '20061009', 2000),
+        ('cn_shibor_1m', '20061009', 2000),
+        ('cn_shibor_3m', '20061009', 2000)
     ),
     coverage AS (
       SELECT
         required.series_key,
-        min(observation.\"period\") AS first_period,
+        required.first_period AS required_first_period,
+        required.minimum_rows,
+        min(observation.\"period\") AS observed_first_period,
         count(observation.\"period\") AS observation_rows
       FROM required
       LEFT JOIN \"MacroObservation\" AS observation
         ON observation.\"seriesKey\" = required.series_key
-      GROUP BY required.series_key
+      GROUP BY required.series_key, required.first_period, required.minimum_rows
     )
     SELECT count(*)
     FROM coverage
-    WHERE first_period <= '200501'
-      AND observation_rows >= 200;
+    WHERE observed_first_period <= required_first_period
+      AND observation_rows >= minimum_rows;
   "
 }
 
@@ -748,13 +760,13 @@ MACRO_SYNC_END="$(
 )"
 [[ "$MACRO_SYNC_END" =~ ^[0-9]{6}$ ]] || die "无法确定宏观数据同步截止月份"
 MACRO_SERIES_COMPLETE="$(macro_series_coverage "$DB_FILE")"
-if [[ "$MACRO_SERIES_COMPLETE" -ne 3 ]]; then
-  log "补全制造业 PMI、CPI 同比和 PPI 同比宏观 PIT 底座: 200501 ~ $MACRO_SYNC_END"
+if [[ "$MACRO_SERIES_COMPLETE" -ne 13 ]]; then
+  log "补全增长、通胀、货币、信用和 Shibor 宏观 PIT 底座: 200501 ~ $MACRO_SYNC_END"
   pnpm --filter api sync:macro 200501 "$MACRO_SYNC_END"
   MACRO_SERIES_COMPLETE="$(macro_series_coverage "$DB_FILE")"
-  [[ "$MACRO_SERIES_COMPLETE" -eq 3 ]] || die "首批宏观系列回填后仍不完整"
+  [[ "$MACRO_SERIES_COMPLETE" -eq 13 ]] || die "宏观系列回填后仍不完整"
 else
-  log "首批宏观系列历史覆盖完整,跳过回填"
+  log "宏观系列历史覆盖完整,跳过回填"
 fi
 
 WAREHOUSE_RECEIPT_SYNC_END="$(
