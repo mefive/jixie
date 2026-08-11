@@ -103,6 +103,7 @@ export interface PortfolioMacroRiskAnalysisV1 {
   lookbackObservations: number;
   minimumObservations: number;
   observations: number;
+  neweyWestLag: number;
   pointInTimeEligible: boolean;
   sensitivities: PortfolioMacroSensitivityV1[];
   lineage: RiskDataLineageV1;
