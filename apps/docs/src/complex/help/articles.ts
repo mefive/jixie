@@ -11,6 +11,8 @@ import strategyBacktestEn from '@src/content/help/en/basics/strategy-backtest.md
 import strategyBacktestZh from '@src/content/help/zh/basics/strategy-backtest.md?raw';
 import equityDrawdownEn from '@src/content/help/en/backtesting/equity-drawdown.md?raw';
 import equityDrawdownZh from '@src/content/help/zh/backtesting/equity-drawdown.md?raw';
+import allocationAttributionEn from '@src/content/help/en/backtesting/allocation-attribution.md?raw';
+import allocationAttributionZh from '@src/content/help/zh/backtesting/allocation-attribution.md?raw';
 import agentQuickBacktestEn from '@src/content/help/en/backtesting/agent-quick-backtest.md?raw';
 import agentQuickBacktestZh from '@src/content/help/zh/backtesting/agent-quick-backtest.md?raw';
 import createFromDescriptionEn from '@src/content/help/en/backtesting/create-from-description.md?raw';
@@ -27,6 +29,10 @@ import multiTimeframeEn from '@src/content/help/en/backtesting/multi-timeframe.m
 import multiTimeframeZh from '@src/content/help/zh/backtesting/multi-timeframe.md?raw';
 import parameterScanEn from '@src/content/help/en/backtesting/parameter-scan.md?raw';
 import parameterScanZh from '@src/content/help/zh/backtesting/parameter-scan.md?raw';
+import portfolioRiskEn from '@src/content/help/en/backtesting/portfolio-risk.md?raw';
+import portfolioRiskZh from '@src/content/help/zh/backtesting/portfolio-risk.md?raw';
+import pythonStrategyEn from '@src/content/help/en/backtesting/python-strategy.md?raw';
+import pythonStrategyZh from '@src/content/help/zh/backtesting/python-strategy.md?raw';
 import reconnectFailureEn from '@src/content/help/en/backtesting/reconnect-failure.md?raw';
 import reconnectFailureZh from '@src/content/help/zh/backtesting/reconnect-failure.md?raw';
 import reviseWithChatEn from '@src/content/help/en/backtesting/revise-with-chat.md?raw';
@@ -55,6 +61,8 @@ import createCompositeEn from '@src/content/help/en/factors/create-composite.md?
 import createCompositeZh from '@src/content/help/zh/factors/create-composite.md?raw';
 import decileReturnsEn from '@src/content/help/en/factors/decile-returns.md?raw';
 import decileReturnsZh from '@src/content/help/zh/factors/decile-returns.md?raw';
+import evaluationScopeEn from '@src/content/help/en/factors/evaluation-scope.md?raw';
+import evaluationScopeZh from '@src/content/help/zh/factors/evaluation-scope.md?raw';
 import factorInStrategyEn from '@src/content/help/en/factors/factor-in-strategy.md?raw';
 import factorInStrategyZh from '@src/content/help/zh/factors/factor-in-strategy.md?raw';
 import factorWeatherGettingStartedEn from '@src/content/help/en/factor-weather/getting-started.md?raw';
@@ -67,6 +75,12 @@ import holdoutResultsEn from '@src/content/help/en/factors/holdout-results.md?ra
 import holdoutResultsZh from '@src/content/help/zh/factors/holdout-results.md?raw';
 import neutralizationEn from '@src/content/help/en/factors/neutralization.md?raw';
 import neutralizationZh from '@src/content/help/zh/factors/neutralization.md?raw';
+import macroRegimeEn from '@src/content/help/en/factors/macro-regime.md?raw';
+import macroRegimeZh from '@src/content/help/zh/factors/macro-regime.md?raw';
+import panelResearchEn from '@src/content/help/en/factors/panel-research.md?raw';
+import panelResearchZh from '@src/content/help/zh/factors/panel-research.md?raw';
+import publishFactorEn from '@src/content/help/en/factors/publish-factor.md?raw';
+import publishFactorZh from '@src/content/help/zh/factors/publish-factor.md?raw';
 import rankIcIcirEn from '@src/content/help/en/factors/rank-ic-icir.md?raw';
 import rankIcIcirZh from '@src/content/help/zh/factors/rank-ic-icir.md?raw';
 import readCompositeReportEn from '@src/content/help/en/factors/read-composite-report.md?raw';
@@ -81,6 +95,8 @@ import factorResultsOverviewEn from '@src/content/help/en/factors/results-overvi
 import factorResultsOverviewZh from '@src/content/help/zh/factors/results-overview.md?raw';
 import turnoverCostsEn from '@src/content/help/en/factors/turnover-costs.md?raw';
 import turnoverCostsZh from '@src/content/help/zh/factors/turnover-costs.md?raw';
+import timeSeriesResearchEn from '@src/content/help/en/factors/time-series-research.md?raw';
+import timeSeriesResearchZh from '@src/content/help/zh/factors/time-series-research.md?raw';
 import whatFactorResearchEn from '@src/content/help/en/factors/what-factor-research.md?raw';
 import whatFactorResearchZh from '@src/content/help/zh/factors/what-factor-research.md?raw';
 import firstBacktestEn from '@src/content/help/en/getting-started/first-backtest.md?raw';
@@ -119,6 +135,8 @@ import generateSignalsEn from '@src/content/help/en/signals/generate-signals.md?
 import generateSignalsZh from '@src/content/help/zh/signals/generate-signals.md?raw';
 import historyPauseEn from '@src/content/help/en/signals/history-pause.md?raw';
 import historyPauseZh from '@src/content/help/zh/signals/history-pause.md?raw';
+import factorInputsEn from '@src/content/help/en/signals/factor-inputs.md?raw';
+import factorInputsZh from '@src/content/help/zh/signals/factor-inputs.md?raw';
 import readSignalsEn from '@src/content/help/en/signals/read-signals.md?raw';
 import readSignalsZh from '@src/content/help/zh/signals/read-signals.md?raw';
 import recordExecutionEn from '@src/content/help/en/signals/record-execution.md?raw';
@@ -475,6 +493,22 @@ export const HELP_ARTICLES: HelpArticle[] = [
     },
   },
   {
+    slug: 'backtesting/python-strategy',
+    group: 'backtesting',
+    title: {
+      zh: '使用 Python 编写策略',
+      en: 'Write a strategy in Python',
+    },
+    summary: {
+      zh: '切换到 py-v1，运行股票或 ETF 策略，并了解当前功能边界。',
+      en: 'Switch to py-v1, run a stock or ETF strategy, and understand current limits.',
+    },
+    content: {
+      zh: pythonStrategyZh,
+      en: pythonStrategyEn,
+    },
+  },
+  {
     slug: 'backtesting/revise-with-chat',
     group: 'backtesting',
     title: {
@@ -600,6 +634,38 @@ export const HELP_ARTICLES: HelpArticle[] = [
     content: {
       zh: equityDrawdownZh,
       en: equityDrawdownEn,
+    },
+  },
+  {
+    slug: 'backtesting/allocation-attribution',
+    group: 'backtesting',
+    title: {
+      zh: '查看多资产配置归因',
+      en: 'Read multi-asset allocation attribution',
+    },
+    summary: {
+      zh: '按资产类别和标的核对收益、风险、成本、漂移、相关性和利率环境。',
+      en: 'Review return, risk, costs, drift, correlation, and rate regimes by class and asset.',
+    },
+    content: {
+      zh: allocationAttributionZh,
+      en: allocationAttributionEn,
+    },
+  },
+  {
+    slug: 'backtesting/portfolio-risk',
+    group: 'backtesting',
+    title: {
+      zh: '阅读组合风险诊断',
+      en: 'Read portfolio risk diagnostics',
+    },
+    summary: {
+      zh: '阅读市场暴露、宏观敏感度、Alpha 重合和线性压力情景。',
+      en: 'Read market exposures, macro sensitivity, Alpha overlap, and linear stress scenarios.',
+    },
+    content: {
+      zh: portfolioRiskZh,
+      en: portfolioRiskEn,
     },
   },
   {
@@ -760,6 +826,70 @@ export const HELP_ARTICLES: HelpArticle[] = [
     content: {
       zh: factorResultsOverviewZh,
       en: factorResultsOverviewEn,
+    },
+  },
+  {
+    slug: 'factors/evaluation-scope',
+    group: 'factorResearch',
+    title: {
+      zh: '设置 Factor 研究范围',
+      en: 'Set the Factor evaluation scope',
+    },
+    summary: {
+      zh: '区分正式股票池、排序范围和行业、市值、流动性诊断切片。',
+      en: 'Separate the formal universe, ranking scope, and industry, size, and liquidity slices.',
+    },
+    content: {
+      zh: evaluationScopeZh,
+      en: evaluationScopeEn,
+    },
+  },
+  {
+    slug: 'factors/time-series-research',
+    group: 'factorResearch',
+    title: {
+      zh: '运行 ETF 时间序列研究',
+      en: 'Run ETF time-series research',
+    },
+    summary: {
+      zh: '设置资产和预测周期，阅读相关性、稳健 t 值、命中率和状态收益。',
+      en: 'Set assets and horizon, then read correlation, robust t, hit rate, and state returns.',
+    },
+    content: {
+      zh: timeSeriesResearchZh,
+      en: timeSeriesResearchEn,
+    },
+  },
+  {
+    slug: 'factors/panel-research',
+    group: 'factorResearch',
+    title: {
+      zh: '运行跨资产 Panel 研究',
+      en: 'Run cross-asset Panel research',
+    },
+    summary: {
+      zh: '比较共同月末的 ETF 排名、类别证据、成本后多空和上市覆盖。',
+      en: 'Compare month-end ETF ranks, class evidence, net long-short, and listing coverage.',
+    },
+    content: {
+      zh: panelResearchZh,
+      en: panelResearchEn,
+    },
+  },
+  {
+    slug: 'factors/macro-regime',
+    group: 'factorResearch',
+    title: {
+      zh: '阅读宏观状态研究',
+      en: 'Read macro-regime research',
+    },
+    summary: {
+      zh: '理解增长—通胀四象限、数据修订口径、条件收益和使用边界。',
+      en: 'Understand growth-inflation states, revisions, conditional returns, and limits.',
+    },
+    content: {
+      zh: macroRegimeZh,
+      en: macroRegimeEn,
     },
   },
   {
@@ -974,8 +1104,8 @@ export const HELP_ARTICLES: HelpArticle[] = [
     slug: 'factors/strategy-key',
     group: 'factorResearch',
     title: {
-      zh: '确认策略标识',
-      en: 'Confirm the strategy key',
+      zh: '设置 Factor key',
+      en: 'Set a Factor key',
     },
     summary: {
       zh: '按命名规则填写并锁定不可修改的策略标识，区分显示名称和代码引用。',
@@ -984,6 +1114,22 @@ export const HELP_ARTICLES: HelpArticle[] = [
     content: {
       zh: strategyKeyZh,
       en: strategyKeyEn,
+    },
+  },
+  {
+    slug: 'factors/publish-factor',
+    group: 'factorResearch',
+    title: {
+      zh: '发布 Factor 并用于策略',
+      en: 'Publish a Factor and use it in a strategy',
+    },
+    summary: {
+      zh: '选择批准报告，锁定 Factor，进入策略 Lab，并保留不可变血缘。',
+      en: 'Approve a report, lock the Factor, continue to Strategy Lab, and preserve lineage.',
+    },
+    content: {
+      zh: publishFactorZh,
+      en: publishFactorEn,
     },
   },
   {
@@ -1176,6 +1322,22 @@ export const HELP_ARTICLES: HelpArticle[] = [
     content: {
       zh: recordExecutionZh,
       en: recordExecutionEn,
+    },
+  },
+  {
+    slug: 'signals/factor-inputs',
+    group: 'signals',
+    title: {
+      zh: '核对今日信号使用的 Factor',
+      en: 'Verify the Factors used by a signal',
+    },
+    summary: {
+      zh: '查看信号日实际读取的 Factor、覆盖数、均值和决策标的值。',
+      en: 'Inspect the Factor, coverage, mean, and decision-asset values actually read.',
+    },
+    content: {
+      zh: factorInputsZh,
+      en: factorInputsEn,
     },
   },
   {

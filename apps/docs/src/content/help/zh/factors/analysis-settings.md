@@ -26,6 +26,10 @@
 
 频率改变的不只是图表显示。它还会改变分组日期、前瞻收益区间和换手计算，因此修改后必须重新运行。
 
+## 正式研究范围和排序范围
+
+“研究范围”支持全 A、沪深 300、中证 500 和中证 1000，并按历史日期读取当时指数成分。“排序范围”决定全市场一起排序，还是在申万一级行业内部排序。行业、市值和流动性诊断只拆解主结果，不改变发布判据。详细操作见[设置 Factor 研究范围](/docs/help/factors/evaluation-scope)。
+
 ## 区间
 
 “区间”决定使用哪一段历史数据。建议：
@@ -88,3 +92,4 @@
 - [第一次运行预设因子分析](/help/factors/first-preset-analysis)
 - [查看第一份因子分析结果](/help/factors/results-overview)
 - [为什么回测不等于未来收益](/help/basics/backtest-limitations)
+- [设置 Factor 研究范围](/docs/help/factors/evaluation-scope)

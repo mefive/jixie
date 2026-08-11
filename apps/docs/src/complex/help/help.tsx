@@ -3,6 +3,7 @@ import {
   isValidElement,
   useEffect,
   useMemo,
+  useState,
   type ReactNode,
   type HTMLAttributes,
 } from 'react';
@@ -11,6 +12,10 @@ import { useTranslation } from 'react-i18next';
 import { Image } from 'antd';
 import { XMarkdown, type ComponentProps } from '@ant-design/x-markdown';
 import Latex from '@ant-design/x-markdown/plugins/Latex';
+import Prism from 'prismjs';
+import 'prismjs/components/prism-bash';
+import 'prismjs/components/prism-typescript';
+import 'prismjs/components/prism-python';
 import type { Locale } from '@jixie/shared';
 import { localeStore } from '@src/i18n/locale-store';
 import { PublicDocsHeader } from '@src/components/public-docs-header';
@@ -106,6 +111,10 @@ type Heading = {
   text: string;
 };
 
+type HelpMarkdownSegment =
+  | { kind: 'markdown'; content: string }
+  | { kind: 'codeTabs'; typescript: string; python: string };
+
 const helpMarkdownConfig = { extensions: Latex() };
 
 function ArticleNavigation({
@@ -176,6 +185,7 @@ function ArticlePager({
 }
 
 function HelpMarkdown({ content }: { content: string }) {
+  const segments = useMemo(() => splitCodeTabs(content), [content]);
   const components = useMemo(
     () => ({
       h1: createHeading(1),
@@ -183,19 +193,107 @@ function HelpMarkdown({ content }: { content: string }) {
       h3: createHeading(3),
       a: HelpLink,
       img: HelpImage,
+      pre: HelpCodeBlock,
     }),
     [],
   );
 
   return (
-    <XMarkdown
-      className="jx-help-markdown"
-      content={content}
-      config={helpMarkdownConfig}
-      components={components}
-      escapeRawHtml
-      openLinksInNewTab={false}
-    />
+    <div className="jx-help-markdown">
+      {segments.map((segment, index) =>
+        segment.kind === 'markdown' ? (
+          <XMarkdown
+            content={segment.content}
+            config={helpMarkdownConfig}
+            components={components}
+            escapeRawHtml
+            key={`markdown-${index}`}
+            openLinksInNewTab={false}
+          />
+        ) : (
+          <LanguageCodeTabs
+            key={`code-tabs-${index}`}
+            python={segment.python}
+            typescript={segment.typescript}
+          />
+        ),
+      )}
+    </div>
+  );
+}
+
+function HelpCodeBlock({
+  domNode: _domNode,
+  streamStatus: _streamStatus,
+  children,
+}: ComponentProps) {
+  const code = Children.toArray(children).find(isValidElement);
+  const className =
+    code && isValidElement<{ className?: string }>(code) ? code.props.className : '';
+  const language = normalizeCodeLanguage(className?.match(/language-([\w-]+)/)?.[1]);
+  const value = reactNodeText(code ?? children).replace(/\n$/, '');
+  return <HighlightedCode className="jx-help-codeBlock" language={language} value={value} />;
+}
+
+function LanguageCodeTabs({ typescript, python }: { typescript: string; python: string }) {
+  const [language, setLanguage] = useState<'typescript' | 'python'>('typescript');
+  return (
+    <section className="jx-help-codeTabs" data-testid="help-code-tabs">
+      <div className="jx-help-codeTabsBar" role="tablist" aria-label="Code language">
+        <button
+          aria-selected={language === 'typescript'}
+          className={
+            language === 'typescript'
+              ? 'jx-help-codeTab jx-help-codeTab--active'
+              : 'jx-help-codeTab'
+          }
+          onClick={() => setLanguage('typescript')}
+          role="tab"
+          type="button"
+        >
+          TypeScript
+        </button>
+        <button
+          aria-selected={language === 'python'}
+          className={
+            language === 'python' ? 'jx-help-codeTab jx-help-codeTab--active' : 'jx-help-codeTab'
+          }
+          onClick={() => setLanguage('python')}
+          role="tab"
+          type="button"
+        >
+          Python
+        </button>
+      </div>
+      <HighlightedCode
+        className="jx-help-codeBlock jx-help-codeBlock--tabbed"
+        language={language}
+        value={language === 'typescript' ? typescript : python}
+      />
+    </section>
+  );
+}
+
+function HighlightedCode({
+  className,
+  language,
+  value,
+}: {
+  className: string;
+  language: string;
+  value: string;
+}) {
+  const grammar = Prism.languages[language] ?? Prism.languages.plain ?? Prism.languages.markup;
+  const highlighted = Prism.highlight(value, grammar, language);
+  return (
+    <div className={className} data-code-language={language}>
+      <pre>
+        <code
+          className={`language-${language}`}
+          dangerouslySetInnerHTML={{ __html: highlighted }}
+        />
+      </pre>
+    </div>
   );
 }
 
@@ -256,6 +354,44 @@ function HelpLink({
       {children}
     </a>
   );
+}
+
+function splitCodeTabs(markdown: string): HelpMarkdownSegment[] {
+  const segments: HelpMarkdownSegment[] = [];
+  const pattern =
+    /:::code-tabs\s*\n```(?:typescript|ts)\s*\n([\s\S]*?)\n```\s*\n```(?:python|py)\s*\n([\s\S]*?)\n```\s*\n:::/g;
+  let cursor = 0;
+  for (const match of markdown.matchAll(pattern)) {
+    const index = match.index ?? 0;
+    if (index > cursor) {
+      segments.push({ kind: 'markdown', content: markdown.slice(cursor, index) });
+    }
+    segments.push({ kind: 'codeTabs', typescript: match[1], python: match[2] });
+    cursor = index + match[0].length;
+  }
+  if (cursor < markdown.length) {
+    segments.push({ kind: 'markdown', content: markdown.slice(cursor) });
+  }
+  return segments.length > 0 ? segments : [{ kind: 'markdown', content: markdown }];
+}
+
+function normalizeCodeLanguage(language?: string): string {
+  if (!language) {
+    return 'text';
+  }
+  if (language === 'ts') {
+    return 'typescript';
+  }
+  if (language === 'js') {
+    return 'javascript';
+  }
+  if (language === 'py') {
+    return 'python';
+  }
+  if (language === 'shell' || language === 'sh') {
+    return 'bash';
+  }
+  return language;
 }
 
 function extractHeadings(markdown: string): Heading[] {

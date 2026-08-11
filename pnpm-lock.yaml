@@ -138,6 +138,9 @@ importers:
       mobx-react:
         specifier: ^9.2.0
         version: 9.2.2(mobx@6.16.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      prismjs:
+        specifier: ^1.30.0
+        version: 1.30.0
       react:
         specifier: ^19.0.0
         version: 19.2.7
@@ -157,6 +160,9 @@ importers:
       '@types/node':
         specifier: ^20.19.0
         version: 20.19.43
+      '@types/prismjs':
+        specifier: ^1.26.0
+        version: 1.26.6
       '@types/react':
         specifier: ^19.0.0
         version: 19.2.17

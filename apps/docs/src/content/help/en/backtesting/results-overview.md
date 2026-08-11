@@ -59,9 +59,12 @@ After changing code, dates, capital, or costs, **Run backtest** becomes availabl
 
 When comparing results, record every setting rather than only the return.
 
+A multi-asset strategy using a published Panel Factor also shows Factors used by this backtest and Multi-asset allocation attribution. The first verifies frozen Factor ID and code hash; the second explains actual return, risk, cost, correlation, and rate regimes. With sufficient coverage, Risk research adds market exposures, macro sensitivity, Alpha overlap, and stress scenarios.
+
 ## Related articles
 
 - [Read equity, drawdown, and monthly returns](/help/backtesting/equity-drawdown)
 - [Inspect trades and costs](/help/backtesting/trades-costs)
 - [Return and risk metrics](/help/basics/performance-risk)
-
+- [Read multi-asset allocation attribution](/docs/help/backtesting/allocation-attribution)
+- [Read portfolio risk diagnostics](/docs/help/backtesting/portfolio-risk)

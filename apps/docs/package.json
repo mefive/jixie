@@ -20,6 +20,7 @@
     "katex": "^0.17.0",
     "mobx": "^6.16.0",
     "mobx-react": "^9.2.0",
+    "prismjs": "^1.30.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-i18next": "^17.0.8",
@@ -28,6 +29,7 @@
   "devDependencies": {
     "@tailwindcss/vite": "^4.0.0",
     "@types/node": "^20.19.0",
+    "@types/prismjs": "^1.26.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.0",

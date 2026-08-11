@@ -100,3 +100,4 @@ T+1、涨跌停、停牌、整手、复权和交易成本仍由同一套回测�
 - [策略和回测](/help/basics/strategy-backtest)
 - [收益和风险指标](/help/basics/performance-risk)
 - [为什么回测不等于未来收益](/help/basics/backtest-limitations)
+- [使用 Python 编写策略](/docs/help/backtesting/python-strategy)

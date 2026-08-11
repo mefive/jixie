@@ -72,3 +72,4 @@ If the trade count is zero, check the date range, capital, stock code, and wheth
 - [Strategies and backtests](/help/basics/strategy-backtest)
 - [Return and risk metrics](/help/basics/performance-risk)
 - [Why a backtest is not a forecast](/help/basics/backtest-limitations)
+- [Write a strategy in Python](/docs/help/backtesting/python-strategy)

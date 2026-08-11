@@ -59,9 +59,12 @@
 
 比较两次结果时记录所有设置，不能只记录收益数字。
 
+使用已发布 Panel Factor 的多资产策略还会显示“本次回测使用的因子”和“多资产配置归因”。前者核对冻结的 Factor ID 与代码 hash，后者解释实际收益、风险、成本、相关性和利率环境。覆盖充足时，“风险研究”继续显示市场暴露、宏观敏感度、Alpha 重合和压力情景。
+
 ## 相关内容
 
 - [查看净值、回撤和月度收益](/help/backtesting/equity-drawdown)
 - [查看交易明细和成本](/help/backtesting/trades-costs)
 - [收益和风险指标](/help/basics/performance-risk)
-
+- [查看多资产配置归因](/docs/help/backtesting/allocation-attribution)
+- [阅读组合风险诊断](/docs/help/backtesting/portfolio-risk)

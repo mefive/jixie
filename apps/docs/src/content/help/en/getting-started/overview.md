@@ -8,11 +8,11 @@ Jixie helps you observe market conditions, query data, screen stocks, research f
 | --- | --- |
 | Market | View industry, size, board, and style weather by week, month, quarter, or year and replay its history |
 | Screener | Query stocks or ETFs, filter stocks by valuation, dividend yield, or market capitalization, and open stock charts |
-| Backtest Lab | Describe or code a strategy, set backtest parameters, and inspect historical returns, risk, and trades |
-| Factors | Inspect grouped returns, Rank IC, turnover, and correlations for a factor |
+| Backtest Lab | Build in plain language, TypeScript, or Python and inspect returns, trades, allocation attribution, and portfolio risk |
+| Factors | Research stock cross-sections, ETF time series, cross-asset Panels, and macro regimes, then publish eligible Factors |
 | Factor Weather | Monitor recent return, IC, coverage, and turnover for published Factors under one monthly method |
 | Valuation | Review index PE, PB, turnover, and historical percentiles |
-| Signals | Review signals and run history for deployed strategies |
+| Signals | Review orders, Factor inputs, and run history for deployed strategies |
 
 The pages can be used together. For example, use Screener to inspect a stock universe, then use Backtest Lab to test a trading rule.
 
@@ -46,3 +46,5 @@ Before making a trade, check the data date, trading costs, whether an order coul
 - [Strategies and backtests](/help/basics/strategy-backtest)
 - [Return and risk metrics](/help/basics/performance-risk)
 - [Get started with Factor Weather](/help/factor-weather/getting-started)
+- [Write a strategy in Python](/help/backtesting/python-strategy)
+- [Run ETF time-series research](/help/factors/time-series-research)

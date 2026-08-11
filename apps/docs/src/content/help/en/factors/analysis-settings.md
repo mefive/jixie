@@ -26,6 +26,10 @@ The numbered areas are:
 
 Frequency changes the rebalance dates, forward-return horizon, and turnover calculation. Run the analysis again after changing it.
 
+## Formal universe and ranking scope
+
+Evaluation universe supports all A-shares, CSI 300, CSI 500, and CSI 1000 with historical membership. Ranking scope chooses global or within Shenwan Level-1 industry ranking. Industry, size, and liquidity diagnostics decompose the main result without changing publication criteria. See [Set the Factor evaluation scope](/docs/help/factors/evaluation-scope).
+
 ## Date range
 
 The range determines which historical observations are used. As a starting point:
@@ -83,3 +87,4 @@ Do not set all costs to zero and treat the gross result as achievable.
 - [Run your first preset factor analysis](/help/factors/first-preset-analysis)
 - [Read your first factor analysis result](/help/factors/results-overview)
 - [Why a backtest is not a forecast](/help/basics/backtest-limitations)
+- [Set the Factor evaluation scope](/docs/help/factors/evaluation-scope)

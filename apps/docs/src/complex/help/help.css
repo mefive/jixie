@@ -237,9 +237,124 @@
   color: inherit;
 }
 
+.jx-help-codeBlock {
+  margin: 20px 0;
+  border: 1px solid var(--help-line);
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.05);
+}
+
+.jx-help-codeBlock pre {
+  margin: 0;
+  border-radius: 12px;
+}
+
+.jx-help-codeBlock .token.comment,
+.jx-help-codeBlock .token.prolog,
+.jx-help-codeBlock .token.doctype,
+.jx-help-codeBlock .token.cdata {
+  color: #8b949e;
+}
+
+.jx-help-codeBlock .token.punctuation {
+  color: #c9d1d9;
+}
+
+.jx-help-codeBlock .token.property,
+.jx-help-codeBlock .token.tag,
+.jx-help-codeBlock .token.boolean,
+.jx-help-codeBlock .token.number,
+.jx-help-codeBlock .token.constant,
+.jx-help-codeBlock .token.symbol {
+  color: #79c0ff;
+}
+
+.jx-help-codeBlock .token.selector,
+.jx-help-codeBlock .token.attr-name,
+.jx-help-codeBlock .token.string,
+.jx-help-codeBlock .token.char,
+.jx-help-codeBlock .token.builtin {
+  color: #a5d6ff;
+}
+
+.jx-help-codeBlock .token.operator,
+.jx-help-codeBlock .token.entity,
+.jx-help-codeBlock .token.url,
+.jx-help-codeBlock .token.variable {
+  color: #ffa657;
+}
+
+.jx-help-codeBlock .token.atrule,
+.jx-help-codeBlock .token.attr-value,
+.jx-help-codeBlock .token.function,
+.jx-help-codeBlock .token.class-name {
+  color: #d2a8ff;
+}
+
+.jx-help-codeBlock .token.keyword {
+  color: #ff7b72;
+}
+
+.jx-help-codeBlock .token.regex,
+.jx-help-codeBlock .token.important {
+  color: #7ee787;
+}
+
+.jx-help-codeTabs {
+  margin: 20px 0;
+  overflow: hidden;
+  border: 1px solid var(--help-line);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.05);
+}
+
+.jx-help-codeTabsBar {
+  display: flex;
+  gap: 4px;
+  padding: 6px;
+  border-bottom: 1px solid var(--help-line);
+  background: var(--help-soft);
+}
+
+.jx-help-codeTab {
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--help-secondary);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.jx-help-codeTab:hover {
+  color: var(--help-text);
+}
+
+.jx-help-codeTab--active {
+  background: #fff;
+  color: var(--help-text);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.12);
+  font-weight: 600;
+}
+
+.jx-help-codeBlock--tabbed {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.jx-help-codeBlock--tabbed pre {
+  border-radius: 0 0 12px 12px;
+}
+
 .jx-help-markdown > .block-katex,
 .jx-help-markdown > .inline-katex,
-.jx-help-markdown > .katex-display {
+.jx-help-markdown > .katex-display,
+.jx-help-markdown .x-markdown > .block-katex,
+.jx-help-markdown .x-markdown > .katex-display {
   @apply overflow-x-auto overflow-y-hidden;
   display: block;
   max-width: 100%;

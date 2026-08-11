@@ -143,8 +143,8 @@ try {
         .evaluateAll((links) => links.map((link) => link.getAttribute('href'))),
     ),
   ].filter(Boolean);
-  if (articleHrefs.length !== 66) {
-    throw new Error(`expected 66 help articles, got ${articleHrefs.length}`);
+  if (articleHrefs.length !== 75) {
+    throw new Error(`expected 75 help articles, got ${articleHrefs.length}`);
   }
   for (const href of articleHrefs) {
     if (new URL(page.url()).pathname !== href) {
@@ -185,6 +185,34 @@ try {
       throw new Error(`unknown help links in ${href}: ${JSON.stringify(unknownLinks)}`);
     }
   }
+
+  await page.goto(`${BASE}/docs/help/backtesting/python-strategy`, {
+    waitUntil: 'domcontentloaded',
+  });
+  await page.getByRole('heading', { level: 1, name: '使用 Python 编写策略' }).waitFor();
+  const codeTabs = page.getByTestId('help-code-tabs');
+  await codeTabs.waitFor();
+  if ((await page.locator('.jx-help-codeBlock .token').count()) < 10) {
+    throw new Error('help code block did not render syntax-highlight tokens');
+  }
+  const codePageUrl = page.url();
+  await codeTabs.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(100);
+  await page.screenshot({ path: `${SHOTS}16a-help-code-typescript.png` });
+  await codeTabs.getByRole('tab', { name: 'Python' }).click();
+  if (page.url() !== codePageUrl) {
+    throw new Error('help code language switch changed the page URL');
+  }
+  if (
+    (await codeTabs.locator('[data-code-language="python"]').count()) !== 1 ||
+    !(await codeTabs.locator('code').textContent())?.includes('from jixie import Strategy')
+  ) {
+    throw new Error('help code language switch did not render the Python example');
+  }
+  if ((await codeTabs.locator('.token').count()) < 10) {
+    throw new Error('Python help code did not render syntax-highlight tokens');
+  }
+  await page.screenshot({ path: `${SHOTS}16b-help-code-python.png` });
 
   await page.goto(`${BASE}/docs/help/getting-started/overview`, { waitUntil: 'domcontentloaded' });
   await page.getByRole('link', { name: '登录', exact: true }).first().click();
@@ -471,11 +499,8 @@ try {
   await page.getByRole('heading', { level: 1, name: '让因子 Agent 运行探索分析' }).waitFor();
   await page.getByRole('heading', { level: 2, name: 'Agent 不能做什么' }).waitFor();
 
-  await page.getByRole('link', { name: '确认策略标识', exact: true }).first().click();
-  await page.getByRole('heading', { level: 1, name: '确认策略标识' }).waitFor();
-  if ((await page.locator('.jx-help-figure').count()) !== 2) {
-    throw new Error('strategy key article does not render both screenshots');
-  }
+  await page.getByRole('link', { name: '设置 Factor key', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '设置 Factor key' }).waitFor();
 
   await page.getByRole('link', { name: '在策略中使用自定义因子', exact: true }).first().click();
   await page.getByRole('heading', { level: 1, name: '在策略中使用自定义因子' }).waitFor();
