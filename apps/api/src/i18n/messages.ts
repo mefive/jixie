@@ -392,6 +392,10 @@ const MESSAGES = {
     zh: '研究专用字段尚不能进入策略:{fields}',
     en: 'Research-only fields are not yet available to strategies: {fields}',
   },
+  factorResearchAssetsUnsupported: {
+    zh: '该 Factor 不支持以下研究资产:{assets}',
+    en: 'This Factor does not support the following research assets: {assets}',
+  },
   indexCoverageGap: {
     zh: '⚠️ 指数 {indexCode} 成分数据从 {date} 起,此前的交易日按空池处理(选不出标的)',
     en: '⚠️ Index {indexCode} constituent data starts from {date}; earlier trading days are treated as an empty universe (no selections)',

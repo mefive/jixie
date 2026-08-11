@@ -80,6 +80,12 @@ export interface FactorMeta {
   expectedDirection?: Exclude<FactorExpectedDirection, 'unknown'>;
   analysisKind?: FactorAnalysisKind;
   targetAssetClasses?: Array<'equity' | 'fixed_income' | 'commodity'>;
+  /** Research-template capability, distinct from a strategy's tradable universe. */
+  allowedAssets?: string[];
+  /** Initial research selection; an immutable report still restores its own frozen assets. */
+  defaultAssets?: string[];
+  /** Localized explanations for visible but unsupported research assets. */
+  unavailableAssetReasons?: Record<string, string>;
   composite?: FactorCompositeDefinition;
 }
 

@@ -67,6 +67,13 @@ import {
   archiveFactorComposite,
 } from '@src/api/client';
 import { panelAssetsFor } from './panel-universe';
+import {
+  allowedTimeSeriesAssetsFor,
+  defaultTimeSeriesAssetsFor,
+  isTimeSeriesAsset,
+  TIME_SERIES_ASSETS,
+  type TimeSeriesAsset,
+} from './time-series-assets';
 
 // Initial state from the URL. A stable report id restores both the result and its frozen parameters.
 type FactorSetupParams = {
@@ -77,18 +84,6 @@ type FactorSetupParams = {
 const DEFAULT_START = '20150101';
 const DEFAULT_END = '20261231';
 const POLL_INTERVAL_MS = 800;
-export const TIME_SERIES_ASSET_OPTIONS = [
-  { code: '511010.SH', assetClass: 'fixed_income' },
-  { code: '511260.SH', assetClass: 'fixed_income' },
-  { code: '511090.SH', assetClass: 'fixed_income' },
-  { code: '518880.SH', assetClass: 'commodity' },
-  { code: '159985.SZ', assetClass: 'commodity' },
-  { code: '159980.SZ', assetClass: 'commodity' },
-  { code: '159981.SZ', assetClass: 'commodity' },
-  { code: '510300.SH', assetClass: 'equity' },
-] as const;
-export const TIME_SERIES_ASSETS = TIME_SERIES_ASSET_OPTIONS.map((asset) => asset.code);
-export type TimeSeriesAsset = (typeof TIME_SERIES_ASSETS)[number];
 export const MACRO_REGIME_ASSETS: TimeSeriesAsset[] = [
   '510300.SH',
   '511010.SH',
@@ -294,6 +289,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       isTimeSeries: computed,
       isPanel: computed,
       isMacroRegime: computed,
+      timeSeriesAllowedAssets: computed,
       reportDetail: computed,
       correlation: computed,
       paramsModified: computed,
@@ -433,6 +429,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
 
   public get isMacroRegime(): boolean {
     return this.mode === 'macro_regime';
+  }
+
+  public get timeSeriesAllowedAssets(): TimeSeriesAsset[] {
+    return allowedTimeSeriesAssetsFor(this.selected ?? undefined);
   }
 
   public get panelAssets(): PanelFactorResearchSpecV1['assets'] {
@@ -715,8 +715,9 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   }
 
   public setTimeSeriesAssets(values: string[]) {
-    this.timeSeriesAssets = values.filter((value): value is TimeSeriesAsset =>
-      TIME_SERIES_ASSETS.includes(value as TimeSeriesAsset),
+    const allowed = new Set(this.timeSeriesAllowedAssets);
+    this.timeSeriesAssets = values.filter(
+      (value): value is TimeSeriesAsset => isTimeSeriesAsset(value) && allowed.has(value),
     );
   }
 
@@ -786,7 +787,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       this.compositeDefinition = isComposite ? structuredClone(meta?.composite ?? null) : null;
       this.specVersion = isComposite && meta?.composite?.version === 1 ? 4 : 5;
       this.evaluationScope = defaultEvaluationScope();
-      this.timeSeriesAssets = timeSeriesAssetsFor(meta?.targetAssetClasses);
+      this.timeSeriesAssets = defaultTimeSeriesAssetsFor(meta);
       this.timeSeriesHorizon = 20;
       this.macroRevisionPolicy = 'latest_vintage';
       if (isMacroRegime) {
@@ -1135,9 +1136,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         }
         this.start = spec.start;
         this.end = spec.end;
-        this.timeSeriesAssets = spec.assets.filter((asset): asset is TimeSeriesAsset =>
-          TIME_SERIES_ASSETS.includes(asset as TimeSeriesAsset),
-        );
+        this.timeSeriesAssets = spec.assets.filter(isTimeSeriesAsset);
         this.timeSeriesHorizon = ([5, 20, 60] as const).includes(spec.target.horizon as 5 | 20 | 60)
           ? (spec.target.horizon as 5 | 20 | 60)
           : 20;
@@ -1183,9 +1182,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         this.persistedCode = this.code;
         this.start = spec.start;
         this.end = spec.end;
-        this.timeSeriesAssets = spec.targetAssets.filter((asset): asset is TimeSeriesAsset =>
-          TIME_SERIES_ASSETS.includes(asset as TimeSeriesAsset),
-        );
+        this.timeSeriesAssets = spec.targetAssets.filter(isTimeSeriesAsset);
         this.timeSeriesHorizon = ([5, 20, 60] as const).includes(spec.target.horizon as 5 | 20 | 60)
           ? (spec.target.horizon as 5 | 20 | 60)
           : 20;
@@ -1530,15 +1527,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       /* no live job */
     }
   }
-}
-
-function timeSeriesAssetsFor(
-  targetAssetClasses?: Array<'equity' | 'fixed_income' | 'commodity'>,
-): TimeSeriesAsset[] {
-  const allowed = new Set(targetAssetClasses ?? ['equity', 'fixed_income', 'commodity']);
-  return TIME_SERIES_ASSET_OPTIONS.filter((asset) => allowed.has(asset.assetClass)).map(
-    (asset) => asset.code,
-  );
 }
 
 function assetResearchDraftIdentity(

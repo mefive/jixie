@@ -52,8 +52,10 @@ import {
   startFactorAnalysis,
   type FactorAnalysisSource,
 } from '../factor/analysis-job.js';
-import { resolveTimeSeriesTemplateSource } from '../factor/time-series-templates.js';
-import { resolvePanelTemplateSource } from '../factor/panel-templates.js';
+import {
+  resolveTimeSeriesTemplateSource,
+  unsupportedTimeSeriesTemplateAssets,
+} from '../factor/time-series-templates.js';
 import { resolvePanelFactorSource } from '../factor/panel-composite-source.js';
 import { resolveMacroRegimeTemplateSource } from '../factor/macro-regime-templates.js';
 import { resolveMacroRegimeDataCutoff } from '../factor/macro-regime-data-cutoff.js';
@@ -347,6 +349,14 @@ factorRoute.post('/analysis/run', validateJson(runAnalysisBody), async (c) => {
       (await resolveCustomTimeSeriesFactorSource(userId, factor));
     if (!source) {
       return apiError(c, 'NOT_FOUND', m(c, 'unknownFactor', { factor }));
+    }
+    const unsupportedAssets = unsupportedTimeSeriesTemplateAssets(factor, researchSpec.assets);
+    if (unsupportedAssets.length > 0) {
+      return apiError(
+        c,
+        'VALIDATION_FAILED',
+        m(c, 'factorResearchAssetsUnsupported', { assets: unsupportedAssets.join(', ') }),
+      );
     }
     const cutoffSpec = {
       ...researchSpec,
@@ -1005,23 +1015,6 @@ async function resolveCustomTimeSeriesFactorSource(
     select: { code: true, name: true },
   });
   return custom ? { kind: 'time_series', code: custom.code, label: custom.name } : null;
-}
-
-async function resolveCustomAssetFactorSource<TAnalysisKind extends 'time_series' | 'panel'>(
-  userId: string,
-  factorId: string,
-  analysisKind: TAnalysisKind,
-): Promise<Extract<FactorAnalysisSource, { kind: TAnalysisKind }> | null> {
-  const custom = await prisma.factor.findFirst({
-    where: { id: factorId, userId, analysisKind },
-    select: { code: true, name: true },
-  });
-  return custom
-    ? ({ kind: analysisKind, code: custom.code, label: custom.name } as Extract<
-        FactorAnalysisSource,
-        { kind: TAnalysisKind }
-      >)
-    : null;
 }
 
 // —— Correlation matrix (3.4): 2–8 factors × a fixed size column, cross-sectional Spearman ——

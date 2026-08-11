@@ -78,6 +78,8 @@ export const enFactor: typeof zhFactor = {
     paramsSummary: '{{assets}} ETFs · {{horizon}}d forward · {{start}} – {{end}}',
     assets: 'Research assets',
     assetsPlaceholder: 'Select at least one ETF',
+    assetUnsupported: 'not supported by this Factor',
+    assetRestrictionTitle: 'Asset applicability',
     horizon: 'Forecast horizon',
     horizonOption: '{{value}}d',
     dailyFrequency: 'Observation frequency: daily',

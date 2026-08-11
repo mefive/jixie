@@ -76,7 +76,7 @@ import { LoadingArea } from '@src/components/loading-area';
 import { LogView } from '@src/components/log-view';
 import { QuantileHeatmap } from './quantile-heatmap';
 import { complex } from './complex';
-import { TIME_SERIES_ASSET_OPTIONS } from './factor-store';
+import { TIME_SERIES_ASSET_OPTIONS } from './time-series-assets';
 import './factor.css';
 
 dayjs.extend(customParseFormat);
@@ -1667,6 +1667,8 @@ const TimeSeriesParamsPopover = complex.component(
   ({ runningSameDraft }: { runningSameDraft: boolean }) => {
     const store = complex.useStore();
     const { t } = useTranslation('factor');
+    const allowedAssets = new Set(store.timeSeriesAllowedAssets);
+    const unavailableReasons = Object.entries(store.selected?.unavailableAssetReasons ?? {});
     return (
       <div className="jx-factor-paramPopover jx-factor-timeParams">
         <div className="jx-factor-paramPopoverTitle">{t('paramsSettings')}</div>
@@ -1679,11 +1681,32 @@ const TimeSeriesParamsPopover = complex.component(
               value={store.timeSeriesAssets}
               placeholder={t('timeSeries.assetsPlaceholder')}
               onChange={(values) => store.setTimeSeriesAssets(values)}
-              options={TIME_SERIES_ASSET_OPTIONS.map((asset) => ({
-                value: asset.code,
-                label: `${t(`timeSeries.assetNames.${asset.code}`)} · ${asset.code}`,
-              }))}
+              options={TIME_SERIES_ASSET_OPTIONS.map((asset) => {
+                const reason = store.selected?.unavailableAssetReasons?.[asset.code];
+                const unavailable = !allowedAssets.has(asset.code);
+                return {
+                  value: asset.code,
+                  disabled: unavailable,
+                  label: `${t(`timeSeries.assetNames.${asset.code}`)} · ${asset.code}${
+                    unavailable ? ` — ${reason ?? t('timeSeries.assetUnsupported')}` : ''
+                  }`,
+                };
+              })}
             />
+            {unavailableReasons.length > 0 && (
+              <Alert
+                data-testid="time-series-asset-restriction"
+                type="info"
+                showIcon
+                title={t('timeSeries.assetRestrictionTitle')}
+                description={unavailableReasons
+                  .map(
+                    ([assetId, reason]) =>
+                      `${t(`timeSeries.assetNames.${assetId}`)} · ${assetId}: ${reason}`,
+                  )
+                  .join('; ')}
+              />
+            )}
           </div>
           <div className="jx-factor-paramField">
             <span className="jx-factor-paramLabel">{t('timeSeries.horizon')}</span>
