@@ -4,6 +4,7 @@ import type { Prisma } from '../lib/prisma.js';
 import { auditCommodityWarehouseReceipts } from '../commodity/commodity-warehouse-receipt-quality.js';
 import { auditCommodityHoldingPositions } from '../commodity/commodity-holding-quality.js';
 import { auditCommodityContinuousReturns } from '../commodity/commodity-continuous-return-quality.js';
+import { auditMarketRiskDrivers } from '../risk/market-risk-quality.js';
 import { CHINABOND_PUBLIC_CURVES } from '../rates/chinabond-credit-curves.js';
 import {
   US_NOMINAL_CURVE_CODE,
@@ -215,6 +216,7 @@ export async function runDataQualityAudit(
     await auditCommodityWarehouseReceiptPit(database, startDate, endDate),
     await auditCommodityHoldingPit(database, startDate, endDate),
     await auditCommodityContinuousReturnPit(database, startDate, endDate),
+    await auditMarketRiskDriverPit(database, startDate, endDate),
   );
 
   return {
@@ -1161,6 +1163,29 @@ async function auditCommodityContinuousReturnPit(
       ...summary.errors.map((error) => `Error: ${error}.`),
       ...summary.warnings.map((warning) => `Warning: ${warning}.`),
       'The continuous return uses the current mapped contract at both interval endpoints. The separately stored roll gap is a code-switch basis; rollYieldProxy is explanatory and is not realized daily P&L.',
+    ],
+  };
+}
+
+async function auditMarketRiskDriverPit(
+  database: Prisma,
+  startDate: string,
+  endDate: string,
+): Promise<AuditFinding> {
+  const summary = await auditMarketRiskDrivers({ startDate, endDate }, database);
+  return {
+    id: 'market-risk-driver-readiness',
+    title: 'Daily market-risk drivers: complete-vector PIT readiness',
+    status: summary.status,
+    summary: `${formatNumber(summary.completeObservations)}/${formatNumber(summary.expectedDates)} complete SSE sessions (${formatPercent(summary.completeCoverage)}); latest ${summary.latestCompleteDate ?? 'n/a'}`,
+    details: [
+      ...summary.factors.map(
+        (factor) =>
+          `${factor.factor}: ${formatNumber(factor.observations)} observations, latest ${factor.latestDate ?? 'n/a'}.`,
+      ),
+      ...summary.errors.map((error) => `Error: ${error}.`),
+      ...summary.warnings.map((warning) => `Warning: ${warning}.`),
+      'Daily market-risk vectors remain separate from monthly macro axes. Missing drivers remove the date from multivariate estimation; no factor is filled with zero.',
     ],
   };
 }
