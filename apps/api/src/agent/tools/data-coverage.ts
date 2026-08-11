@@ -13,8 +13,11 @@ const TABLE_LABELS = {
   topList: 'Dragon-Tiger List',
   indexDaily: 'index daily bars',
   futureDaily: 'stock-index futures daily bars',
-  futureMapping: 'stock-index futures main-contract mapping',
+  futureMapping: 'stock-index and research-only commodity main-contract mapping',
   futureSettlement: 'stock-index futures settlement parameters',
+  commodityWarehouseReceipt: 'commodity warehouse-receipt aggregates',
+  commodityHoldingPosition: 'commodity ranked-member position aggregates',
+  commodityContinuousReturn: 'audited commodity main-contract return ledger',
 } as const;
 
 type TableKey = keyof typeof TABLE_LABELS;
@@ -79,6 +82,15 @@ async function tableCoverage(table: TableKey): Promise<Coverage> {
       break;
     case 'futureSettlement':
       aggregate = await prisma.futureSettlement.aggregate(aggregateArgs);
+      break;
+    case 'commodityWarehouseReceipt':
+      aggregate = await prisma.commodityWarehouseReceipt.aggregate(aggregateArgs);
+      break;
+    case 'commodityHoldingPosition':
+      aggregate = await prisma.commodityHoldingPosition.aggregate(aggregateArgs);
+      break;
+    case 'commodityContinuousReturn':
+      aggregate = await prisma.commodityContinuousReturn.aggregate(aggregateArgs);
       break;
   }
   return {

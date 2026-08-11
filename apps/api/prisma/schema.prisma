@@ -604,6 +604,37 @@ model CommodityHoldingPosition {
   @@index([referenceContract, tradeDate])
 }
 
+/// Audited main-contract return chain for research-only commodity products. On a mapping change,
+/// continuousReturn uses the new contract on both ends of the interval; rollGapLogReturn separately
+/// records the removed code-switch gap. rollYieldProxy is the opposite-signed basis, not realized P&L.
+model CommodityContinuousReturn {
+  version                        Int      @default(1)
+  source                         String
+  productCode                    String
+  tradeDate                      String
+  availableDate                  String
+  continuousCode                 String
+  mappingMethod                  String
+  mappedContract                 String
+  previousTradeDate              String
+  previousMappedContract         String
+  settlement                     Float
+  sameContractPreviousSettlement Float
+  previousMappedSettlement       Float
+  continuousReturn               Float
+  continuousLogReturn            Float
+  mappedLogReturn                Float
+  rollGapLogReturn               Float
+  rollYieldProxy                 Float
+  mappingChanged                 Boolean
+  retrievedAt                    DateTime @default(now())
+
+  @@id([productCode, tradeDate])
+  @@index([availableDate])
+  @@index([continuousCode, tradeDate])
+  @@index([mappedContract, tradeDate])
+}
+
 /// Point-in-time mapping from a logical main/continuous symbol (e.g. IF.CFX) to an actual contract.
 /// Signals may use an adjusted continuous series, but fills must always use mappedTsCode.
 model FutureMapping {

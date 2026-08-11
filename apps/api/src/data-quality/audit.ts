@@ -3,6 +3,7 @@ import { CHINA_MACRO_SERIES } from '../macro/china-macro.js';
 import type { Prisma } from '../lib/prisma.js';
 import { auditCommodityWarehouseReceipts } from '../commodity/commodity-warehouse-receipt-quality.js';
 import { auditCommodityHoldingPositions } from '../commodity/commodity-holding-quality.js';
+import { auditCommodityContinuousReturns } from '../commodity/commodity-continuous-return-quality.js';
 import { CHINABOND_PUBLIC_CURVES } from '../rates/chinabond-credit-curves.js';
 import {
   US_NOMINAL_CURVE_CODE,
@@ -213,6 +214,7 @@ export async function runDataQualityAudit(
     await auditCreditCurvePit(database, endDate),
     await auditCommodityWarehouseReceiptPit(database, startDate, endDate),
     await auditCommodityHoldingPit(database, startDate, endDate),
+    await auditCommodityContinuousReturnPit(database, startDate, endDate),
   );
 
   return {
@@ -1136,6 +1138,29 @@ async function auditCommodityHoldingPit(
       ...summary.warnings.map((warning) => `Warning: ${warning}.`),
       'The stored long/short values aggregate exchange ranking subsets for the maximum-open-interest actual contract; they are not whole-market positions or a trader classification.',
       'SC is excluded because repeated Tushare INE probes returned empty; no proxy is substituted.',
+    ],
+  };
+}
+
+async function auditCommodityContinuousReturnPit(
+  database: Prisma,
+  startDate: string,
+  endDate: string,
+): Promise<AuditFinding> {
+  const summary = await auditCommodityContinuousReturns({ startDate, endDate }, database);
+  return {
+    id: 'commodity-continuous-return-pit',
+    title: 'Commodity main-contract returns: mapping, roll decomposition, and PIT',
+    status: summary.status,
+    summary: `${formatNumber(summary.rows)} return rows; ${summary.invalidRows} invalid; ${summary.errors.length} errors and ${summary.warnings.length} warnings`,
+    details: [
+      ...summary.products.map(
+        (product) =>
+          `${product.productCode}: mappings ${formatNumber(product.mappingDates)}/${formatNumber(product.expectedOpenDates)} (${formatPercent(product.mappingCoverage)}), return source ${formatPercent(product.returnSourceCoverage)}, ${product.rollDays} mapped roll days, latest ${product.latestReturnDate ?? 'n/a'}.`,
+      ),
+      ...summary.errors.map((error) => `Error: ${error}.`),
+      ...summary.warnings.map((warning) => `Warning: ${warning}.`),
+      'The continuous return uses the current mapped contract at both interval endpoints. The separately stored roll gap is a code-switch basis; rollYieldProxy is explanatory and is not realized daily P&L.',
     ],
   };
 }
