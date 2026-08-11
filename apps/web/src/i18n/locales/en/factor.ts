@@ -54,6 +54,7 @@ export const enFactor: typeof zhFactor = {
       cgbYield10y: 'CGB yield 10Y',
       cgbYield30y: 'CGB yield 30Y',
       commodityAnnualizedCarry: 'annualized commodity futures carry',
+      commodityWarehouseReceiptVolume: 'commodity warehouse-receipt volume',
       unknown: 'unknown field',
     },
     windowAudit: 'Window: {{value}} trading days',
@@ -91,6 +92,10 @@ export const enFactor: typeof zhFactor = {
       'This controlled commodity-carry time-series template tests each product’s own actual-contract carry against its mapped proxy ETF’s future return. It does not rank commodities cross-sectionally.',
     commodityCarryReportNotice:
       'Actual futures contracts supply each product’s own carry feature while mapped proxy ETFs supply forward returns. The non-ferrous and energy ETFs are not one-to-one copper or crude-oil exposures and therefore carry category basis risk. This is per-product time-series signal evidence, not a continuous-futures backtest, and it is not yet publishable to strategies.',
+    commodityWarehouseChatEmpty:
+      'This controlled warehouse-pressure time-series template tests falling gold, copper, and soybean-meal warehouse receipts against each mapped proxy ETF’s future return. Crude oil is excluded because tonne/barrel conversion is not auditable.',
+    commodityWarehouseReportNotice:
+      'Warehouse-receipt volumes use point-in-time alignment from the next SSE trading day; a positive score means receipts fell over the latest 20 ETF trading observations. Gold, copper, and soybean meal map to proxy ETFs, while crude oil is excluded because tonne/barrel conversion is not auditable. This is research evidence, not a commodity-futures backtest, and it cannot enter strategies or daily signals.',
     curveSourceTitle: 'Government curve source and availability',
     curveSourceDescription:
       'Source: Ministry of Finance China government-bond yield curve, hosted by ChinaBond. The curve is published around 17:30 on working days and becomes usable in research on the next SSE trading day. Yields are percentages; spreads and changes are converted to basis points in the definition.',

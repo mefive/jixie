@@ -547,8 +547,17 @@ AU/CU/SC 各 19 条，M 20 条；四个品种最新日均为 2026-08-07，可得
 原始序列绕过研究门进入交易。探索样本固定为 2015-01-05 至 2025-01-27；AU、CU、M 分别得到
 2,408/1,196/1,209 条观测，`pressure20` 与未来 20 个交易日 ETF 收益的相关性为 0.017/-0.125/0.049，
 Newey-West t 为 0.25/-1.44/1.08。证据弱且方向不一致，当前不支持交易化，也不因样本内结果修改公式；
-2025-01-28 起的 holdout 尚未打开。下一批先让受控模板显式声明允许与默认资产，避免商品模板自动带入 SC，
-再补齐研究截止传播、前端入口和真实浏览器验收；5/60 日变化、标准分与 panel 均继续后置。
+2025-01-28 起的 holdout 尚未打开。
+
+**2026-08-11 仓单研究产品收口：**通用 Factor 模板元数据已经显式声明允许和默认资产，AU/CU/M 默认选中；
+SC 在前端保留可见的不可用解释，并由 API 硬拒绝。共同 `dataCutoff` 同时受所选 ETF 最新行情和对应仓单
+`availableDate` 约束，报告展示仓单 point-in-time 口径且不提供发布入口。真实浏览器得到 2,408 个有效时期、
+4,813 条观测，与上述冻结结果一致；验收脚本为
+`apps/web/e2e/commodity-warehouse-receipt-time-series.mjs`，截图见
+[`apps/web/acceptance/commodity-warehouse-receipt-config.png`](../../apps/web/acceptance/commodity-warehouse-receipt-config.png)
+和
+[`apps/web/acceptance/commodity-warehouse-receipt-report.png`](../../apps/web/acceptance/commodity-warehouse-receipt-report.png)。
+5/60 日变化、标准分与仓单 panel 均继续后置到 Phase 5 讨论，不作为 Factor V2 / Multi-Asset V1 收口条件。
 
 ### 波次 5：Factor V2 与策略 Lab 闭环
 

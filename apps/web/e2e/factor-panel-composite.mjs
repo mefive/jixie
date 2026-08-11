@@ -60,7 +60,7 @@ try {
   await page.locator('.jx-factor-agent').getByRole('tab', { name: '因子库' }).click();
   await page.getByRole('button', { name: '新建多因子合成' }).click();
   const modal = page.getByRole('dialog', { name: '新建多因子合成' });
-  await modal.getByText('跨资产面板', { exact: true }).click();
+  await modal.getByText('Panel 横截面', { exact: true }).click();
   await modal.getByRole('textbox', { name: '名称' }).fill('动量低波多资产组合');
   await modal.getByRole('textbox', { name: '策略代码' }).fill('momentum_low_vol_panel');
   await modal.getByText('跨资产120日动量', { exact: true }).waitFor();
@@ -159,7 +159,7 @@ try {
     { waitUntil: 'domcontentloaded' },
   );
   const workspace = page.locator('.jx-factor-compositeWorkspace');
-  await workspace.getByText('跨资产面板', { exact: false }).waitFor({ timeout: 30_000 });
+  await workspace.getByText('Panel 横截面', { exact: false }).waitFor({ timeout: 30_000 });
   await workspace.getByText('跨资产120日动量', { exact: true }).waitFor();
   await workspace.getByText('跨资产60日波动率', { exact: true }).waitFor();
   await workspace.getByText('负向（越小越好）', { exact: true }).waitFor();

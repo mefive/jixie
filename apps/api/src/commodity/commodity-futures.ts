@@ -60,6 +60,18 @@ export function commodityFutureProductCodesForEtfs(etfs: string[]): string[] | n
     : null;
 }
 
+export function commodityWarehouseReceiptProductCodesForEtfs(etfs: string[]): string[] | null {
+  const byEtf = new Map<string, CommodityFutureProductCode>(
+    COMMODITY_FUTURE_SPECS.filter(
+      (specification) => specification.warehouseReceipt.units.length === 1,
+    ).map((specification) => [specification.targetEtf, specification.productCode]),
+  );
+  const products = etfs.map((etf) => byEtf.get(etf)).filter((item) => item !== undefined);
+  return products.length === etfs.length && new Set(products).size === products.length
+    ? products
+    : null;
+}
+
 /** Keeps only the configured commodity products and fails closed before a metadata refresh can
  * delete an existing product whose upstream response unexpectedly became empty. */
 export function selectCommodityFutureContracts(rows: FutureContractRow[]): FutureContractRow[] {

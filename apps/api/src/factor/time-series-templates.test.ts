@@ -20,6 +20,7 @@ describe('ETF time-series templates', () => {
       'cgb_curve_slope_10y_2y',
       'cgb_curve_curvature_2y_5y_10y',
       'commodity_futures_carry_time_series_v1',
+      'commodity_warehouse_pressure_20',
     ]);
     expect(catalog[0]).toMatchObject({
       label: 'ETF 20日趋势',
@@ -84,6 +85,50 @@ describe('ETF time-series templates', () => {
       await expect(
         compiled.computeSeries({ 'commodity.futures.annualizedLogCarry': [-0.1, 0.2] }, [1]),
       ).resolves.toEqual([0.2]);
+    } finally {
+      compiled.dispose();
+    }
+  });
+
+  it('publishes warehouse pressure only for auditable single-unit products', async () => {
+    const catalogEntry = timeSeriesTemplateCatalog('zh').find(
+      (entry) => entry.key === 'commodity_warehouse_pressure_20',
+    );
+    expect(catalogEntry).toMatchObject({
+      label: '商品仓单压力 20 日',
+      allowedAssets: ['518880.SH', '159980.SZ', '159985.SZ'],
+      defaultAssets: ['518880.SH', '159980.SZ', '159985.SZ'],
+      unavailableAssetReasons: {
+        '159981.SZ': expect.stringContaining('吨和桶'),
+      },
+    });
+    expect(timeSeriesTemplateResource('commodity_warehouse_pressure_20', 'zh')).not.toHaveProperty(
+      'strategyKey',
+    );
+    expect(
+      unsupportedTimeSeriesTemplateAssets('commodity_warehouse_pressure_20', [
+        '518880.SH',
+        '159981.SZ',
+      ]),
+    ).toEqual(['159981.SZ']);
+
+    const source = resolveTimeSeriesTemplateSource('commodity_warehouse_pressure_20');
+    const compiled = await compileTimeSeriesFactor(source!.code);
+    try {
+      expect(compiled).toMatchObject({
+        analysisKind: 'time_series',
+        window: 21,
+        inputs: ['commodity.warehouseReceipt.volume'],
+        targetAssetClasses: ['commodity'],
+      });
+      await expect(
+        compiled.computeSeries(
+          {
+            'commodity.warehouseReceipt.volume': [100, ...Array.from({ length: 19 }, () => 90), 80],
+          },
+          [20],
+        ),
+      ).resolves.toEqual([Math.log1p(100) - Math.log1p(80)]);
     } finally {
       compiled.dispose();
     }

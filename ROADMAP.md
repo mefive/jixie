@@ -204,7 +204,7 @@ before/after 样本数(因子值→成仓/前瞻行情→上市时间→流动�
 
 树模型(LightGBM 类)吃因子暴露、吐横截面打分,**输出当作一个因子**塞回同一条检验管道(IC/分层/费后/保留期,不享受评估特权);walk-forward 逐年重训防前视;feature importance 保可解释性。**触发条件:3.3 线性合成先做且证明有价值**(线性是 ML 的对照基线;线性做不出的 ML 救不了)。**不做**:深度学习端到端预测价格(个人零优势);黑箱与执行纪律冲突(回撤中无法回答「系统坏了吗」),可解释性对个人是生存问题非品味问题。实现注意:Node 生态无好用的 GBDT 训练库,届时评估 Python sidecar vs ONNX,先不定。
 
-### 3.8 Factor V2：统一因子研究与预测信号闭环 📋
+### 3.8 Factor V2：统一因子研究与预测信号闭环 ✅(2026-08-11 Phase 0–4 收口)
 
 把当前股票横截面 FactorReport 升级为资产无关的研究协议：保留现有 `Factor` / `FactorReport`、
 研究卡、holdout 和策略回测，新增横截面 / 时间序列 / 跨资产 panel / 宏观状态四类评估器；通过不可变
@@ -214,6 +214,9 @@ before/after 样本数(因子值→成仓/前瞻行情→上市时间→流动�
 策略回测 → 部署 → 今日信号可追溯；跨资产 panel 作为 Multi-Asset V1。详设、迁移和验收见
 [`docs/design/factor-v2.md`](docs/design/factor-v2.md)，数据依赖见
 [`docs/design/asset-allocation-data.md`](docs/design/asset-allocation-data.md)。
+
+Phase 0–3 MVP 与 Phase 4 Multi-Asset V1 已按完成定义冻结。Phase 5 的商品专业特征、完整宏观状态、
+信用/风险因子及期货交易属于后续独立讨论，不反向扩大本项完成边界。
 
 ---
 

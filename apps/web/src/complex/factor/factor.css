@@ -880,6 +880,11 @@
   min-width: 360px;
 }
 
+.jx-factor-assetRestrictionText {
+  @apply whitespace-normal;
+  overflow-wrap: anywhere;
+}
+
 .jx-factor-timeFixed {
   @apply flex flex-col gap-1 rounded-lg bg-chip p-3 text-xs text-muted;
 }
