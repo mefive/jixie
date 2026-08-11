@@ -1,6 +1,6 @@
 # Read a factor-composite report
 
-A factor composite uses the same analysis pipeline as a single factor. Verify the frozen components and common stock universe before reading Rank IC, decile returns, turnover, and net results.
+A composite uses the pipeline for its selected research method. Verify frozen components and the common cross-section before reading stock deciles or Panel rankings, turnover, and net results.
 
 ## Open the report
 
@@ -33,7 +33,7 @@ The methodology card should show:
 
 If the common universe is much smaller than the single-factor samples, check whether one component has poor coverage. A sample change can alter returns and IC by itself, so do not attribute every difference to a better combination.
 
-## Compare with the components
+## Compare with component Factors
 
 Keep frequency, dates, universe, neutralization, and costs identical. Compare at least:
 
@@ -58,6 +58,8 @@ An exploratory composite does not automatically start or reveal a holdout. Consi
 
 The Agent cannot start or reveal a holdout, or deploy the composite as a strategy.
 
+A Panel report also requires class-level evidence and each ETF's listing coverage. Its Top/Bottom diagnostic portfolio is not the executed long-only ETF strategy in Strategy Lab.
+
 ## Misuses to avoid
 
 - Do not treat low correlation as proof of diversification.
@@ -70,3 +72,5 @@ The Agent cannot start or reveal a holdout, or deploy the composite as a strateg
 - [Create and edit a factor composite](/docs/help/factors/create-composite)
 - [Formal holdout and out-of-sample results](/docs/help/factors/holdout-results)
 - [Turnover, trading costs, and net returns](/docs/help/factors/turnover-costs)
+- [Run cross-asset Panel research](/docs/help/factors/panel-research)
+- [Read multi-asset allocation attribution](/docs/help/backtesting/allocation-attribution)

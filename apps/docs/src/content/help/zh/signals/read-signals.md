@@ -55,6 +55,10 @@
 
 概算金额用于估计指令规模，不包含执行日价格变化、实际滑点和全部费用。
 
+## Factor 输入
+
+策略实际读取已发布 Factor 时，指令上方会显示“本次决策的 Factor 输入”，包括有效覆盖、均值和决策标的值。它是信号日的输入快照，不是目标仓位或已经成交的订单。详细说明见[核对今日信号使用的 Factor](/docs/help/signals/factor-inputs)。
+
 ## 待挂条件单
 
 策略使用止损、跟踪止损、限价买入或止盈时，仍在模型中生效的意图会单独显示为「待挂条件单」。表格给出：
@@ -131,3 +135,4 @@ A 股普通股票按整手处理。实际交易规则以证券类型和市场为
 - [使用和记录条件单](/docs/help/signals/conditional-orders)
 - [查看历史并暂停上线](/docs/help/signals/history-pause)
 - [查看交易明细和成本](/docs/help/backtesting/trades-costs)
+- [核对今日信号使用的 Factor](/docs/help/signals/factor-inputs)

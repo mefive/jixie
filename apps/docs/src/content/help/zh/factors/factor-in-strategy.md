@@ -2,7 +2,7 @@
 
 自定义因子完成分析并选择批准报告发布后，可以在回测策略中读取因子值、给股票排序并选择持仓。
 
-多因子合成是因子研究对象，不能直接作为一个 Factor key 引用。需要用于策略时，应在策略代码中明确写出要读取的单因子和组合规则，让权重、方向和缺失值处理可以独立审查。
+股票横截面多因子合成仍是研究对象，不能直接作为一个 Factor key 引用。已发布的 Panel 合成可以通过自己的唯一 key 进入多资产策略；页面会从发布区预填对应资产池和代码。
 
 ## 开始前
 
@@ -143,3 +143,5 @@ key 必须在两处完全一致。编辑器输入 `ctx.factor(` 时会建议当�
 - [设置回测参数](/docs/help/backtesting/run-settings)
 - [查看回测结果概览](/docs/help/backtesting/results-overview)
 - [正式保留段和样本外结果](/docs/help/factors/holdout-results)
+- [发布 Factor 并用于策略](/docs/help/factors/publish-factor)
+- [运行跨资产 Panel 研究](/docs/help/factors/panel-research)

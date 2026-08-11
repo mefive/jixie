@@ -2,7 +2,7 @@
 
 After a custom factor has completed an analysis and is published with an approved report, a backtest can read its values, rank stocks, and select holdings.
 
-A factor composite is a research object and cannot be referenced as one Factor key. To use similar logic in a strategy, explicitly declare the component factors and combination rule in strategy code so weights, directions, and missing-value handling remain reviewable.
+A stock cross-sectional composite remains a research object and cannot be referenced as one Factor key. A published Panel composite can enter a multi-asset strategy through its own immutable key; the publication action prefills its universe and code.
 
 ## Before you start
 
@@ -143,3 +143,5 @@ A published Factor is immutable. Use **Copy** to create an independent draft, an
 - [Set backtest run parameters](/docs/help/backtesting/run-settings)
 - [Read the backtest result summary](/docs/help/backtesting/results-overview)
 - [Formal holdout and out-of-sample results](/docs/help/factors/holdout-results)
+- [Publish a Factor and use it in a strategy](/docs/help/factors/publish-factor)
+- [Run cross-asset Panel research](/docs/help/factors/panel-research)

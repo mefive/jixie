@@ -18,11 +18,11 @@ Record the following before creating a composite:
 1. Open **Factor research** after signing in.
 2. Select **Factor library** on the left.
 3. Select **New factor composite**.
-4. Enter a name.
-5. Choose Rank or Z-score cross-sectional standardization.
-6. Select two to five component factors.
-7. Set every component to positive or negative.
-8. Select **Save**.
+4. Enter a name and immutable strategy key.
+5. Choose Stock cross-sectional or Panel cross-sectional research.
+6. Choose Rank or Z-score standardization.
+7. Select two to five components from that research method.
+8. Set every direction and select **Save**.
 
 The numbered areas show:
 
@@ -53,9 +53,9 @@ Here $C_{i,t}$ is the composite score, $K$ is the component count, $z_{i,k,t}$ i
 
 V1 deliberately supports equal weights only. This provides a simple, auditable baseline and avoids repeatedly fitting IC-based weights to the same exploratory sample.
 
-## Common stock universe
+## Common research cross-section
 
-On each date, the system keeps only stocks with valid values for every component, then standardizes and averages them. If one component is missing, that stock is excluded for that date.
+Stock composites keep stocks with every component available on the date. Panel composites keep ETFs with every component available at a common month-end. A missing component excludes that asset for that period.
 
 Adding a component can therefore reduce the sample. Always inspect component coverage and the final common-universe count in the methodology card.
 
@@ -67,7 +67,8 @@ Adding a component can therefore reduce the sample. Always inspect component cov
 
 ## Important limits
 
-- A composite exists only in Factor research and is not a factor key that strategy code can reference directly.
+- A stock cross-sectional composite remains research-only and is not a Factor key for strategy code.
+- A Panel composite can be published and opened in Strategy Lab after holdout when every component is published. Its definition becomes immutable after publication.
 - It still requires a research card, exploratory analysis, holdout discipline, and cost checks.
 - More components do not guarantee a better result.
 - Low correlation does not prove complementarity, and equal weighting is not portfolio optimization.
@@ -77,4 +78,5 @@ Adding a component can therefore reduce the sample. Always inspect component cov
 - [Factor correlation matrix](/docs/help/factors/correlation-matrix)
 - [Read a factor-composite report](/docs/help/factors/read-composite-report)
 - [Pre-run research cards and variants](/docs/help/factors/research-card)
-
+- [Run cross-asset Panel research](/docs/help/factors/panel-research)
+- [Publish a Factor and use it in a strategy](/docs/help/factors/publish-factor)

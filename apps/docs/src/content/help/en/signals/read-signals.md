@@ -53,6 +53,10 @@ Execution rate is filled decisions divided by all recorded decisions. Average ad
 
 Estimated amount does not include execution-day price changes, realized slippage, or every fee.
 
+## Factor inputs
+
+When the strategy actually reads published Factors, Factor inputs for this decision appears above the instructions with valid coverage, mean, and decision-asset values. It is the signal-date input snapshot, not a target weight or filled order. See [Verify the Factors used by a signal](/docs/help/signals/factor-inputs).
+
 ## Conditional orders to place
 
 When a strategy uses a stop loss, trailing stop, limit buy, or take profit, every intent still active in the model appears separately under “Conditional orders to place.” The table provides:
@@ -127,3 +131,4 @@ No. A market instruction reaches the actual shadow account only after the user r
 - [Use and record conditional orders](/docs/help/signals/conditional-orders)
 - [View history and pause a deployment](/docs/help/signals/history-pause)
 - [Read trades and costs](/docs/help/backtesting/trades-costs)
+- [Verify the Factors used by a signal](/docs/help/signals/factor-inputs)
