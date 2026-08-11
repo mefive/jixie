@@ -111,6 +111,7 @@ export interface PortfolioMacroRiskAnalysisV1 {
 
 export interface AlphaRiskOverlapV1 {
   alphaFactorKey: string;
+  alphaReturnKind: 'net_long_short' | 'strategy_attributed';
   marketFactor: MarketRiskFactorKeyV1;
   observations: number;
   correlation: number;
