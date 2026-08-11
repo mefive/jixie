@@ -1,6 +1,7 @@
 import type { TradeDate } from './types.js';
 import type { FactorDependency } from './factor-dependency.js';
 import type { MultiAssetClass } from './factor-research.js';
+import type { PortfolioRiskAnalysisV1 } from './risk-research.js';
 
 /**
  * Backtest config + result — the wire types for product line 1 (strategy backtest). The strategy itself is now
@@ -197,6 +198,8 @@ export interface AllocationAnalysis {
   correlations?: AllocationCorrelationAnalysis;
   /** Point-in-time rate-environment diagnostics; optional on cached V1 results created before this field. */
   rateRegimes?: AllocationRateRegimeAnalysis;
+  /** Phase 5 market-risk, macro-sensitivity, overlap and scenario analysis. */
+  risk?: PortfolioRiskAnalysisV1;
 }
 
 /** Backtest result shape returned over the wire (mirrors the engine's BacktestResult). */
