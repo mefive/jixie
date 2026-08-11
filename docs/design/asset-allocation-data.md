@@ -543,6 +543,14 @@ z-score（至少 24 个月，±3 截断），再在轴内等权；组件缺失�
 因此截至 2026-07 的严格 PIT 完整月为 0。质量审计对此返回 WARN 而不是把缺失填 0；探索报告明确标记
 `latest_vintage`、6,615 条未来 vintage 和不可发布，等待本地 `captured_as_available` 历史自然积累。
 
+**2026-08-11 Alpha/Risk 重合 V1：**诊断使用冻结 Factor 报告的费后多空逐期收益，而不是把 Alpha score
+与风险驱动的不同单位直接相关。形成日—目标日先映射到下一 SSE 可得边界，收益型市场因子在完整周期
+复利，bp change 因子累加；每项至少 24 个有效周期，缺失即不输出。绝对相关 `<0.2`、`0.2–0.5`、
+`>=0.5` 分别为 low/material/dominant，正负方向均保留。真实 `cross_asset_momentum_120` Panel 报告
+在 2015-08 至 2024-12 有 113 个周期，九个风险驱动的绝对相关均低于 0.12，商品因历史较短使用 82 个
+配对。低重合只排除了明显线性换皮，不等于证明 Alpha；时间序列因子等待 Strategy Lab 提供明确标记的
+策略归因收益流，不从现有逐资产摘要推造总收益。
+
 **2026-08-09 as-of 查询契约：**宏观读取已统一为两种不可混淆的 revision policy。严格研究使用
 `as_available`，同时要求 `availableDate <= decisionDate` 和 `vintageDate <= decisionDate`，再为每个
 系列与观察期选择当时最新的本地 vintage；因此在 2026-08-09 首次捕获之前，不会凭空产生“实时历史”。
