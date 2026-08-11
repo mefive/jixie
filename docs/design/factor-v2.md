@@ -869,6 +869,15 @@ Regime evaluator，也不扩大其发布资格。
 maintenance、数据审计和 Agent SQL。它们是 `not_revised` 的日频 Market Risk Factor 输入；本切片只
 完成数据与 PIT 契约，不提前计算组合 beta、协方差或黄金/实际利率结论。
 
+**2026-08-11 Phase 5 信用利差底座：**Tushare 优先调研后确认 `yc_cb` 无法在当前权限与目录下
+同时提供国债和信用债曲线，因此按数据门槛接入中债官网的正式历史下载。新增
+`chinabond_cgb_ytm`、`chinabond_bank_aaa_ytm` 和 `chinabond_cp_note_aaa_ytm`，共回填
+106,550 个原始曲线点；三条 5Y 曲线共 13,897 个可审计观测，PIT 与数值检查均通过。
+信用利差不作为第四条原始数据落库；后续 Market Risk Factor 在同日、同期限上计算
+`(AAA yield - CGB yield) × 100bp`，缺期限时该观测缺失，禁止插值、用 ETF 收益差替代或强行写 0。
+daily maintenance、bootstrap、质量审计和 Agent SQL 已纳入这三条曲线；本切片仍只完成风险
+驱动的原始数据层，不提前实现组合风险模型。
+
 **2026-08-09 Phase 5 宏观底座启动：**第一批先实现制造业 PMI、CPI 同比和 PPI 同比的规范系列目录、
 观测长表、发布日历与本地 vintage 积累。官方日历只覆盖 2026 年起的发布事件；更早观测使用显式保守
 滞后，`releaseDate` 保持为空。历史首次回填统一标记 `latest_value_backfill`，不得在严格 PIT 研究中

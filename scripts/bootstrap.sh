@@ -314,6 +314,39 @@ external_market_coverage() {
   "
 }
 
+credit_curve_coverage() {
+  local database_file="$1"
+  local expected_end="$2"
+
+  sqlite3 "$database_file" "
+    WITH required(curve_code, latest_first_date, minimum_rows) AS (
+      VALUES
+        ('chinabond_cgb_ytm', '20060301', 4000),
+        ('chinabond_cp_note_aaa_ytm', '20100101', 3000),
+        ('chinabond_bank_aaa_ytm', '20100101', 3000)
+    ),
+    coverage AS (
+      SELECT
+        required.curve_code,
+        required.latest_first_date,
+        required.minimum_rows,
+        min(point.\"tradeDate\") AS first_date,
+        max(point.\"availableDate\") AS last_available,
+        count(point.\"tradeDate\") AS observation_rows
+      FROM required
+      LEFT JOIN \"YieldCurvePoint\" AS point
+        ON point.\"curveCode\" = required.curve_code
+       AND point.\"termYears\" = 5
+      GROUP BY required.curve_code, required.latest_first_date, required.minimum_rows
+    )
+    SELECT count(*)
+    FROM coverage
+    WHERE first_date <= latest_first_date
+      AND last_available >= '$expected_end'
+      AND observation_rows >= minimum_rows;
+  "
+}
+
 commodity_warehouse_receipt_coverage() {
   local database_file="$1"
   local expected_end="$2"
@@ -828,6 +861,20 @@ if [[ "$EXTERNAL_MARKET_COMPLETE" -ne 3 ]]; then
   [[ "$EXTERNAL_MARKET_COMPLETE" -eq 3 ]] || die "外部市场驱动回填后仍不完整"
 else
   log "外部市场驱动历史覆盖完整,跳过回填"
+fi
+
+CREDIT_CURVE_COMPLETE="$(
+  credit_curve_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
+)"
+if [[ "$CREDIT_CURVE_COMPLETE" -ne 3 ]]; then
+  log "补全中债国债、商业银行 AAA 和中短票 AAA 收益率曲线: 20060101 ~ $EXTERNAL_MARKET_SYNC_END"
+  pnpm --filter api sync:credit-curves 20060101 "$EXTERNAL_MARKET_SYNC_END"
+  CREDIT_CURVE_COMPLETE="$(
+    credit_curve_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
+  )"
+  [[ "$CREDIT_CURVE_COMPLETE" -eq 3 ]] || die "中债信用曲线回填后仍不完整"
+else
+  log "中债信用曲线历史覆盖完整,跳过回填"
 fi
 
 WAREHOUSE_RECEIPT_SYNC_END="$(

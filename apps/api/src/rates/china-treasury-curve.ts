@@ -117,10 +117,10 @@ export function parseChinaTreasuryCurveResponse(
   return validateCompleteDates(points);
 }
 
-export function assignCurveAvailableDates(
-  points: ChinaTreasuryCurvePoint[],
+export function assignCurveAvailableDates<T extends ChinaTreasuryCurvePoint>(
+  points: T[],
   openDates: string[],
-): AvailableChinaTreasuryCurvePoint[] {
+): Array<T & { availableDate: string }> {
   const sortedOpenDates = [...new Set(openDates)].sort();
   return points.map((point) => {
     const availableDate = sortedOpenDates.find((date) => date > point.tradeDate);
