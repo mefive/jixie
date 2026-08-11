@@ -46,6 +46,17 @@ export const COMMODITY_FUTURE_PRODUCT_CODES = COMMODITY_FUTURE_SPECS.map(
   (spec) => spec.productCode,
 );
 
+// Real fut_holding probes return ranked actual-contract members for these products. Tushare's
+// current INE/SC response is empty despite the generic documentation saying SHFE includes INE, so
+// SC remains an explicit coverage gap instead of receiving a fabricated proxy.
+export const COMMODITY_HOLDING_SPECS = [
+  { productCode: 'AU', exchange: 'SHFE', startDate: '20150105' },
+  { productCode: 'CU', exchange: 'SHFE', startDate: '20150105' },
+  { productCode: 'M', exchange: 'DCE', startDate: '20150105' },
+] as const;
+
+export type CommodityHoldingProductCode = (typeof COMMODITY_HOLDING_SPECS)[number]['productCode'];
+
 export const COMMODITY_FUTURE_EXCHANGES = [
   ...new Set(COMMODITY_FUTURE_SPECS.map((spec) => spec.exchange)),
 ];

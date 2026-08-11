@@ -1,5 +1,9 @@
 import type { TradeDate } from '@jixie/shared';
 import {
+  syncCommodityHoldingPositions,
+  type CommodityHoldingSyncSummary,
+} from '../commodity/commodity-holding-positions.js';
+import {
   maintainCommodityWarehouseReceipts,
   type CommodityWarehouseReceiptMaintenanceSummary,
 } from '../commodity/commodity-warehouse-receipt-maintenance.js';
@@ -23,6 +27,8 @@ import {
 } from '../store/index-presets.js';
 import {
   syncDailyCoreDate,
+  syncCommodityFutureContracts,
+  syncCommodityFutureDaily,
   syncIndexDaily,
   syncIndexDailyBasic,
   syncMoneyflow,
@@ -67,6 +73,7 @@ export interface DailyMaintenanceSummary {
   dataRevision: number | null;
   selfHealing: SelfHealSummary | null;
   warehouseReceipts: CommodityWarehouseReceiptMaintenanceSummary | null;
+  commodityHoldingPositions: CommodityHoldingSyncSummary | null;
   externalMarketDrivers: ExternalMarketSyncSummary | null;
   creditCurves: number | null;
   signals: { deployments: number; done: number; errors: number } | null;
@@ -131,6 +138,7 @@ export async function runDailyMaintenance(
         dataRevision: state.dataRevision,
         selfHealing: null,
         warehouseReceipts: null,
+        commodityHoldingPositions: null,
         externalMarketDrivers: null,
         creditCurves: null,
         signals: null,
@@ -150,6 +158,7 @@ export async function runDailyMaintenance(
         dataRevision: state.dataRevision,
         selfHealing: null,
         warehouseReceipts: null,
+        commodityHoldingPositions: null,
         externalMarketDrivers: null,
         creditCurves: null,
         signals: null,
@@ -198,6 +207,7 @@ export async function runDailyMaintenance(
     dataRevision: null,
     selfHealing: null,
     warehouseReceipts: null,
+    commodityHoldingPositions: null,
     externalMarketDrivers: null,
     creditCurves: null,
     signals: null,
@@ -232,6 +242,13 @@ export async function runDailyMaintenance(
         onLog,
       );
     }
+    summary.commodityHoldingPositions = await refreshCommodityHoldingPositions(
+      client,
+      cutoff,
+      run.id,
+      summary,
+      onLog,
+    );
     summary.externalMarketDrivers = await refreshExternalMarketDrivers(
       client,
       cutoff,
@@ -380,6 +397,7 @@ async function initializePublishedBaseline(
     dataRevision: null,
     selfHealing: null,
     warehouseReceipts: null,
+    commodityHoldingPositions: null,
     externalMarketDrivers: null,
     creditCurves: null,
     signals: null,
@@ -464,6 +482,7 @@ async function runSignalOnlyMaintenance(
     dataRevision,
     selfHealing: null,
     warehouseReceipts: null,
+    commodityHoldingPositions: null,
     externalMarketDrivers: null,
     creditCurves: null,
     signals: null,
@@ -489,6 +508,13 @@ async function runSignalOnlyMaintenance(
         onLog,
       );
     }
+    summary.commodityHoldingPositions = await refreshCommodityHoldingPositions(
+      client,
+      cutoff,
+      run.id,
+      summary,
+      onLog,
+    );
     summary.externalMarketDrivers = await refreshExternalMarketDrivers(
       client,
       cutoff,
@@ -556,6 +582,20 @@ async function refreshCommodityWarehouseReceipts(
       3,
     ),
   });
+}
+
+async function refreshCommodityHoldingPositions(
+  client: TushareClient,
+  cutoff: string,
+  runId: string,
+  summary: DailyMaintenanceSummary,
+  onLog: (line: string) => void,
+): Promise<CommodityHoldingSyncSummary> {
+  await updateMaintenanceRun(runId, 'commodity_holding_positions', summary);
+  const startDate = addCalendarDays(cutoff, -45);
+  await syncCommodityFutureContracts(client);
+  await syncCommodityFutureDaily(client, startDate as TradeDate, cutoff as TradeDate);
+  return syncCommodityHoldingPositions(client, startDate, cutoff, prisma, onLog);
 }
 
 async function healPublishedTail(

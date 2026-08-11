@@ -458,6 +458,41 @@ export async function futureWarehouseReceipts(
   return rows as unknown as FutureWarehouseReceiptRow[];
 }
 
+export interface FutureHoldingRow {
+  trade_date: TradeDate;
+  symbol: string;
+  broker: string;
+  vol: number | null;
+  vol_chg: number | null;
+  long_hld: number | null;
+  long_chg: number | null;
+  short_hld: number | null;
+  short_chg: number | null;
+  exchange: string | null;
+}
+
+/** Exchange-published daily member rankings. Each metric is a ranked subset; null (DCE) or zero
+ * (SHFE) means that member was not present in that metric's ranking on the date. */
+export async function futureHoldings(
+  client: TushareClient,
+  params: {
+    trade_date?: TradeDate;
+    symbol?: string;
+    start_date?: TradeDate;
+    end_date?: TradeDate;
+    exchange?: string;
+    limit?: number;
+    offset?: number;
+  } = {},
+): Promise<FutureHoldingRow[]> {
+  const rows = await client.call(
+    'fut_holding',
+    params,
+    'trade_date,symbol,broker,vol,vol_chg,long_hld,long_chg,short_hld,short_chg,exchange',
+  );
+  return rows as unknown as FutureHoldingRow[];
+}
+
 export interface StkLimitRow {
   ts_code: TsCode;
   trade_date: TradeDate;
