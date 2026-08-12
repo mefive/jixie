@@ -126,6 +126,7 @@ export const prismaDataPort: EngineDataPort = {
         annDate: true,
         roe: true,
         roeWaa: true,
+        roa: true,
         grossprofitMargin: true,
         debtToAssets: true,
       },

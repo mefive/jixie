@@ -3,6 +3,7 @@ import type { FactorBar } from '@jixie/shared';
 import { BUILTIN_FACTORS } from './builtin-factors.js';
 import { compileFactor, type CompiledFactor, type FactorBatchItem } from './compile-factor.js';
 import { daysBetween } from '../lib/date.js';
+import { sha256 } from './report-spec.js';
 
 /**
  * Step 1b acceptance: every preset compiles, and the seeded CODE reproduces the legacy hardcoded
@@ -83,6 +84,7 @@ const NULL_BAR: FactorBar = {
   netMain: null,
   netTotal: null,
   roe: null,
+  roa: null,
   grossprofitMargin: null,
   debtToAssets: null,
 };
@@ -128,6 +130,19 @@ function windowItemWithAmounts(
   };
 }
 
+function windowItemWithMarket(
+  window: number,
+  adjClose: number[],
+  marketClose: (number | null)[],
+  tradeDates: string[],
+  end: number,
+): FactorBatchItem {
+  return {
+    ...windowItem(window, adjClose, tradeDates, end),
+    marketCloses: marketClose.slice(Math.max(0, end - window + 1), end + 1),
+  };
+}
+
 /** A deterministic 120-day series: pseudo-random walk, one long suspension gap, one zero price. */
 function syntheticSeries(): { px: number[]; dates: string[] } {
   const px: number[] = [];
@@ -170,7 +185,7 @@ async function computeOne(key: string, bar: FactorBar): Promise<number | null> {
 
 describe('preset factor code compiles and has the right shape', () => {
   it('declares a usable expected direction for every preset', () => {
-    expect(BUILTIN_FACTORS).not.toHaveLength(0);
+    expect(BUILTIN_FACTORS).toHaveLength(20);
     for (const factor of BUILTIN_FACTORS) {
       expect(['positive', 'negative']).toContain(factor.expectedDirection);
     }
@@ -190,6 +205,8 @@ describe('preset factor code compiles and has the right shape', () => {
     expect((await compiled('mom')).window).toBe(61);
     expect((await compiled('rev')).window).toBe(6);
     expect((await compiled('vol')).window).toBe(21);
+    expect((await compiled('resid_vol20')).window).toBe(21);
+    expect((await compiled('maxret21')).window).toBe(22);
     expect((await compiled('ep')).window).toBeUndefined();
     expect((await compiled('mf_net_main')).window).toBeUndefined();
   });
@@ -275,7 +292,7 @@ describe('cross-sectional presets match the legacy hardcoded formulas', () => {
   ];
   const make = (partial: Partial<FactorBar>): FactorBar => ({ ...NULL_BAR, ...partial });
 
-  it('ep / bp / dv / size', async () => {
+  it('ep / bp / sales_yield / dv / size', async () => {
     for (const partial of bars) {
       const bar = make(partial);
       const legacyEp = bar.peTtm && bar.peTtm > 0 ? 1 / bar.peTtm : null;
@@ -283,6 +300,8 @@ describe('cross-sectional presets match the legacy hardcoded formulas', () => {
       const legacySize = bar.totalMv && bar.totalMv > 0 ? Math.log(bar.totalMv) : null;
       expect(await computeOne('ep', bar)).toBe(legacyEp);
       expect(await computeOne('bp', bar)).toBe(legacyBp);
+      const expectedSalesYield = bar.psTtm && bar.psTtm > 0 ? 1 / bar.psTtm : null;
+      expect(await computeOne('sales_yield', bar)).toBe(expectedSalesYield);
       expect(await computeOne('dv', bar)).toBe(bar.dvRatio);
       expect(await computeOne('size', bar)).toBe(legacySize);
     }
@@ -300,6 +319,20 @@ describe('cross-sectional presets match the legacy hardcoded formulas', () => {
     expect(await computeOne('gross_margin', bar)).toBe(45.2);
     expect(await computeOne('roe', NULL_BAR)).toBeNull();
     expect(await computeOne('gross_margin', NULL_BAR)).toBeNull();
+  });
+
+  it('exposes point-in-time ROA to candidate factors', async () => {
+    const factor = await compileFactor(`export default defineFactor({
+      name: 'ROA candidate',
+      compute: (bar) => bar.roa,
+    });`);
+    try {
+      await expect(
+        factor.computeBatch([{ bar: { ...NULL_BAR, roa: 6.25 } }, { bar: NULL_BAR }]),
+      ).resolves.toEqual([6.25, null]);
+    } finally {
+      factor.dispose();
+    }
   });
 });
 
@@ -330,6 +363,8 @@ describe('3.5 preset-menu additions', () => {
   it('declares the right windows; quality presets are cross-sectional', async () => {
     expect((await compiled('mom_12_1')).window).toBe(245);
     expect((await compiled('vol120')).window).toBe(121);
+    expect((await compiled('resid_vol20')).window).toBe(21);
+    expect((await compiled('resid_vol20')).minCoverage).toBe(0.8);
     expect((await compiled('abturn')).window).toBe(252);
     expect((await compiled('amihud')).window).toBe(21);
     expect((await compiled('amihud')).minCoverage).toBe(0.8);
@@ -337,6 +372,17 @@ describe('3.5 preset-menu additions', () => {
     expect((await compiled('roe_stability')).window).toBe(504);
     expect((await compiled('roe')).window).toBeUndefined();
     expect((await compiled('gross_margin')).window).toBeUndefined();
+    expect((await compiled('sales_yield')).window).toBeUndefined();
+  });
+
+  it('sales_yield keeps the admitted code and handles non-positive PS_TTM', async () => {
+    const definition = BUILTIN_FACTORS.find((factor) => factor.key === 'sales_yield');
+    expect(sha256(definition!.code)).toBe(
+      'abd0b11b68739b08a71e9348012aff14764fe688310575b9f93e3ce0cf81acca',
+    );
+    expect(await computeOne('sales_yield', { ...NULL_BAR, psTtm: 2.5 })).toBe(0.4);
+    expect(await computeOne('sales_yield', { ...NULL_BAR, psTtm: 0 })).toBeNull();
+    expect(await computeOne('sales_yield', { ...NULL_BAR, psTtm: -3 })).toBeNull();
   });
 
   it('mom_12_1 = close[end-21] / close[end-244] − 1, null on short history', async () => {
@@ -365,6 +411,76 @@ describe('3.5 preset-menu additions', () => {
     const mean = returns.reduce((sum, r) => sum + r, 0) / returns.length;
     const variance = returns.reduce((sum, r) => sum + (r - mean) ** 2, 0) / returns.length;
     expect(actual).toBeCloseTo(Math.sqrt(variance), 12);
+  });
+
+  it('resid_vol20 keeps the admitted code and returns market-model residual volatility', async () => {
+    const definition = BUILTIN_FACTORS.find((factor) => factor.key === 'resid_vol20');
+    expect(sha256(definition!.code)).toBe(
+      '86c8eaf2436551c4b83da1b472d600e71081d9b3108fe864289371c02322fb7a',
+    );
+
+    const marketReturns = Array.from(
+      { length: 20 },
+      (_value, index) => [-0.006, -0.002, 0.002, 0.006][index % 4],
+    );
+    const residuals = Array.from(
+      { length: 20 },
+      (_value, index) => [0.003, -0.003, -0.003, 0.003][index % 4],
+    );
+    const stockReturns = marketReturns.map(
+      (marketReturn, index) => 0.001 + 1.5 * marketReturn + residuals[index],
+    );
+    const accumulate = (returns: number[], initial: number) =>
+      returns.reduce((values, value) => [...values, values.at(-1)! * (1 + value)], [initial]);
+    const marketCloses = accumulate(marketReturns, 100);
+    const stockCloses = accumulate(stockReturns, 10);
+    const dates = Array.from({ length: 21 }, (_value, index) => {
+      const date = new Date(Date.UTC(2024, 0, 2 + index));
+      return date.toISOString().slice(0, 10).replaceAll('-', '');
+    });
+    const missingMarket: (number | null)[] = [...marketCloses];
+    missingMarket[10] = null;
+    const factor = await compiled('resid_vol20');
+    const [actual, missing, short] = await factor.computeBatch([
+      windowItemWithMarket(21, stockCloses, marketCloses, dates, 20),
+      windowItemWithMarket(21, stockCloses, missingMarket, dates, 20),
+      windowItemWithMarket(21, stockCloses, marketCloses, dates, 10),
+    ]);
+    factor.dispose();
+
+    expect(actual).toBeCloseTo(0.003, 12);
+    expect(missing).toBeNull();
+    expect(short).toBeNull();
+  });
+
+  it('maxret21 keeps the admitted code and returns the maximum of 21 daily returns', async () => {
+    const definition = BUILTIN_FACTORS.find((factor) => factor.key === 'maxret21');
+    expect(sha256(definition!.code)).toBe(
+      'a4fe26e0a155b3f172bf6a24a787cfb6b620deeac22eb1a11111ca0cfb84bf3f',
+    );
+    const returns = Array.from({ length: 21 }, (_value, index) =>
+      index === 7 ? 0.085 : (index % 5) * 0.01 - 0.02,
+    );
+    const closes = returns.reduce(
+      (values, value) => [...values, values.at(-1)! * (1 + value)],
+      [10],
+    );
+    const dates = Array.from({ length: 22 }, (_value, index) => {
+      const date = new Date(Date.UTC(2024, 0, 2 + index));
+      return date.toISOString().slice(0, 10).replaceAll('-', '');
+    });
+    const gapDates = [...dates];
+    gapDates[15] = '20240420';
+    const factor = await compiled('maxret21');
+    const [actual, gap, short] = await factor.computeBatch([
+      windowItem(22, closes, dates, 21),
+      windowItem(22, closes, gapDates, 21),
+      windowItem(22, closes, dates, 10),
+    ]);
+    factor.dispose();
+    expect(actual).toBeCloseTo(0.085, 12);
+    expect(gap).toBeNull();
+    expect(short).toBeNull();
   });
 
   it('abturn = latest 21-day mean / 252-day mean of free-float turnover', async () => {
@@ -465,6 +581,37 @@ describe('3.5 preset-menu additions', () => {
     factor.dispose();
 
     expect(actual).toBe(4);
+    expect(missing).toBeNull();
+  });
+
+  it('exposes exact-date CSI All Share closes to candidate factors', async () => {
+    const factor = await compileFactor(`export default defineFactor({
+      name: 'market-relative return',
+      window: 3,
+      compute(bar, ctx) {
+        const stock = ctx.history(3);
+        const market = ctx.history(3, 'marketClose');
+        if (market.length < 3 || market.some((value) => value == null)) { return null; }
+        return stock[2] / stock[0] - market[2] / market[0];
+      },
+    });`);
+    const [actual, missing] = await factor.computeBatch([
+      {
+        bar: NULL_BAR,
+        closes: [10, 11, 12],
+        dates: ['20240101', '20240102', '20240103'],
+        marketCloses: [100, 102, 103],
+      },
+      {
+        bar: NULL_BAR,
+        closes: [10, 11, 12],
+        dates: ['20240101', '20240102', '20240103'],
+        marketCloses: [100, null, 103],
+      },
+    ]);
+    factor.dispose();
+
+    expect(actual).toBeCloseTo(12 / 10 - 103 / 100, 12);
     expect(missing).toBeNull();
   });
 

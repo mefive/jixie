@@ -40,6 +40,10 @@ const FACTOR_DOCS: Record<string, Record<Locale, string>> = {
     zh: '净资产收益率 %(最近一份 annDate ≤ 当日的报告,PIT;未披露则 null)',
     en: 'Return on equity % (latest report with annDate ≤ today, point-in-time; null if none published)',
   },
+  roa: {
+    zh: '总资产收益率 %(最近一份 annDate ≤ 当日的报告,PIT;未披露则 null)',
+    en: 'Return on assets % (latest report with annDate ≤ today, point-in-time; null if none published)',
+  },
   grossprofitMargin: {
     zh: '毛利率 %(as-of,PIT;未披露则 null)',
     en: 'Gross profit margin % (as-of, point-in-time; null if none published)',
@@ -67,6 +71,10 @@ const FACTOR_DOCS: Record<string, Record<Locale, string>> = {
   historyGrossProfitMargin: {
     zh: 'Point-in-time 毛利率(%)历史:每日取「公告日 ≤ 当日」的最新报告(阶梯序列,公告日跳变);首份报告前为 null。',
     en: 'Point-in-time gross profit margin (%) history: each day carries the latest report announced on/before it; null before the first report.',
+  },
+  historyMarketClose: {
+    zh: '中证全指(000985.CSI)收盘价历史,与个股历史日期逐位对齐;基准当日缺失时为 null,绝不前填。',
+    en: 'CSI All Share (000985.CSI) close history aligned with the stock-history dates; null when the benchmark has no exact-date close, never forward-filled.',
   },
   name: { zh: '因子名(展示用)', en: 'Factor name (for display)' },
   window: {
@@ -102,6 +110,7 @@ interface FactorBar {
   /** ${doc('netMain')} */ readonly netMain: number | null;
   /** ${doc('netTotal')} */ readonly netTotal: number | null;
   /** ${doc('roe')} */ readonly roe: number | null;
+  /** ${doc('roa')} */ readonly roa: number | null;
   /** ${doc('grossprofitMargin')} */ readonly grossprofitMargin: number | null;
   /** ${doc('debtToAssets')} */ readonly debtToAssets: number | null;
 }
@@ -118,6 +127,8 @@ interface FactorCtx {
   history(n: number, field: 'roe'): (number | null)[];
   /** ${doc('historyGrossProfitMargin')} */
   history(n: number, field: 'grossprofitMargin'): (number | null)[];
+  /** ${doc('historyMarketClose')} */
+  history(n: number, field: 'marketClose'): (number | null)[];
 }
 interface CustomFactor {
   /** ${doc('name')} */

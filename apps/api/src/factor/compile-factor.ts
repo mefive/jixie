@@ -18,6 +18,7 @@ export interface FactorBatchItem {
   turnoverRatesF?: (number | null)[]; // aligned free-float turnover rates for the window
   roes?: (number | null)[]; // aligned point-in-time ROE values (as-of announcement date)
   grossProfitMargins?: (number | null)[]; // aligned point-in-time gross margins
+  marketCloses?: (number | null)[]; // aligned exact-date CSI All Share closes
 }
 
 export interface CompiledFactor {
@@ -65,7 +66,9 @@ const FACTOR_SETUP = `
                     ? item.roes
                     : field === 'grossprofitMargin'
                       ? item.grossProfitMargins
-                    : item.closes;
+                      : field === 'marketClose'
+                        ? item.marketCloses
+                        : item.closes;
                 if (n <= 0 || src.length < n) {
                   return [];
                 }

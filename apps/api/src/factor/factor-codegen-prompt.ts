@@ -35,7 +35,7 @@ function buildCrossSectionalFactorCodegenPrompt(): string {
 - totalMv / circMv: total market cap / circulating market cap (**in 10k CNY**)
 - turnoverRate: turnover rate %
 - netMain / netTotal: same-day moneyflow main net amount / total net amount (**in 10k CNY**; null when the day has no data, not forward-filled)
-- roe / grossprofitMargin / debtToAssets: return on equity % / gross profit margin % / debt-to-assets ratio %, **point-in-time** (the latest report whose announcement date is on/before the current day; null until a report is published)
+- roe / roa / grossprofitMargin / debtToAssets: return on equity % / return on assets % / gross profit margin % / debt-to-assets ratio %, **point-in-time** (the latest report whose announcement date is on/before the current day; null until a report is published)
 
 # History window (momentum / reversal / volatility / turnover factors)
 When you need history, declare \`window: N\` at the top level of defineFactor (the number of trading days required, **including the current day**). You may also declare \`minCoverage\` between 0.1 and 1; it defaults to the analysis spec's 2/3 threshold. The engine drops windows whose observed stock trading days do not meet that coverage before compute runs. Then in compute use:
@@ -45,11 +45,12 @@ When you need history, declare \`window: N\` at the top level of defineFactor (t
 - \`ctx.history(n, 'turnoverRateF')\`: aligned free-float turnover rates (%) as \`(number | null)[]\`; null means the source omitted that day.
 - \`ctx.history(n, 'roe')\`: aligned **point-in-time** ROE (%) — each day carries the latest report published on/before it (a step series that jumps on announcement days; null before the first report). This supports profitability-stability / quality factors.
 - \`ctx.history(n, 'grossprofitMargin')\`: aligned **point-in-time** gross profit margin (%) with the same announcement-date gating. This supports gross-margin stability factors; require several distinct published-report segments rather than treating repeated daily step values as independent reports.
+- \`ctx.history(n, 'marketClose')\`: CSI All Share (000985.CSI) closes on the same stock-history dates as \`ctx.history(n)\`, returned as \`(number | null)[]\`; a missing exact-date benchmark close is null and is never forward-filled. This supports transparent single-index market-beta / residual-volatility factors.
 - **Calling ctx.history without declaring window throws**; window must be ≥ the n you actually take.
 - Example: 20-day momentum = \`window: 20\`, \`const c = ctx.history(20); if (c.length < 20) return null; return c[19] / c[0] - 1;\`
 
 # ⛔ Capability boundary: refuse if you can't do it, don't fabricate
-compute **can only use the bar fields listed above + ctx.history**. If the user's factor depends on data beyond these — for example: intraday/minute data, share-volume history (turnover amount is available), financial-statement items NOT in the list (revenue and profit growth, cash flow, accruals, per-share items), industry/concept, institutional holdings, northbound capital —
+compute **can only use the bar fields listed above + ctx.history**. If the user's factor depends on data beyond these — for example: intraday/minute data, share-volume history (turnover amount is available), financial-statement items NOT in the list (revenue and profit growth, cash flow, accruals, per-share items), industry/concept, institutional holdings, northbound capital, or Fama-French factor-return series (\`marketClose\` is only one broad-market benchmark) —
 **never patch it together with other fields** (e.g. passing off debtToAssets as revenue growth). In that case **output a single line**:
 CANNOT: <one sentence stating what data is missing, and asking the user to rephrase into a factor expressible with the available fields>
 If you can satisfy it, output the code normally; **do not output both CANNOT and code**.

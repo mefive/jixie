@@ -155,18 +155,27 @@ export type Series = Map<string, { tsCode: string; value: number }[]>; // rebala
 type FinaReport = {
   annDate: string;
   roe: number | null;
+  roa: number | null;
   grossprofitMargin: number | null;
   debtToAssets: number | null;
 };
 type FinaIndex = Map<string, FinaReport[]>; // code -> reports ascending by annDate
 
 /** Load all financial reports once, grouped by code ascending by annDate — the point-in-time source for
- * the FactorBar fundamentals (roe / gross margin / debt ratio). Rows without an annDate are skipped (they
- * can't be PIT-gated). Mirrors EngineData.ensureFina so the factor and backtest sides read fina the same way. */
+ * the FactorBar fundamentals (ROE / ROA / gross margin / debt ratio). Rows without an annDate are
+ * skipped (they can't be PIT-gated). Mirrors EngineData.ensureFina so the factor and backtest sides
+ * read fina the same way. */
 async function loadFinaIndex(): Promise<FinaIndex> {
   const rows = await prisma.finaIndicator.findMany({
     where: { annDate: { not: null } },
-    select: { tsCode: true, annDate: true, roe: true, grossprofitMargin: true, debtToAssets: true },
+    select: {
+      tsCode: true,
+      annDate: true,
+      roe: true,
+      roa: true,
+      grossprofitMargin: true,
+      debtToAssets: true,
+    },
     orderBy: { annDate: 'asc' },
   });
   const index: FinaIndex = new Map();
@@ -178,6 +187,7 @@ async function loadFinaIndex(): Promise<FinaIndex> {
     list.push({
       annDate: r.annDate!,
       roe: r.roe,
+      roa: r.roa,
       grossprofitMargin: r.grossprofitMargin,
       debtToAssets: r.debtToAssets,
     });
@@ -276,6 +286,17 @@ export async function computeFactorSeries(
     factorCode,
     'grossprofitMargin',
   );
+  const needsMarketCloseHistory = factorSourceReferencesHistoryField(factorCode, 'marketClose');
+  const marketCloseByDate = needsMarketCloseHistory
+    ? new Map(
+        (
+          await prisma.indexDaily.findMany({
+            where: { tsCode: '000985.CSI' },
+            select: { tradeDate: true, close: true },
+          })
+        ).map((row) => [row.tradeDate, row.close]),
+      )
+    : new Map<string, number>();
 
   // Preload all financial reports once (PIT-gated by annDate); loadBars picks each stock's as-of report.
   const finaIndex = await loadFinaIndex();
@@ -325,6 +346,7 @@ export async function computeFactorSeries(
         netMain: null,
         netTotal: null,
         roe: null,
+        roa: null,
         grossprofitMargin: null,
         debtToAssets: null,
       });
@@ -349,6 +371,7 @@ export async function computeFactorSeries(
       const fina = finaAsOf(finaIndex, code, date);
       if (fina) {
         bar.roe = fina.roe;
+        bar.roa = fina.roa;
         bar.grossprofitMargin = fina.grossprofitMargin;
         bar.debtToAssets = fina.debtToAssets;
       }
@@ -496,6 +519,11 @@ export async function computeFactorSeries(
           grossProfitMargins: needsGrossProfitMarginHistory
             ? grossProfitMargins.slice(from, end + 1)
             : undefined,
+          marketCloses: needsMarketCloseHistory
+            ? tradeDates
+                .slice(from, end + 1)
+                .map((tradeDate) => marketCloseByDate.get(tradeDate) ?? null)
+            : undefined,
         });
         itemDates.push(date);
       }
@@ -566,6 +594,7 @@ const EMPTY_BAR: FactorBar = {
   netMain: null,
   netTotal: null,
   roe: null,
+  roa: null,
   grossprofitMargin: null,
   debtToAssets: null,
 };

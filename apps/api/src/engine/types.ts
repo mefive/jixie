@@ -124,6 +124,7 @@ export interface BarRow {
   turnoverRate: number | null; // turnover %
   roe: number | null; // return on equity %, point-in-time (latest report public as-of today)
   roeWaa: number | null; // weighted average return on equity %
+  roa: number | null; // return on assets %, point-in-time
   grossprofitMargin: number | null; // gross profit margin %, point-in-time
   debtToAssets: number | null; // debt-to-assets ratio %, point-in-time
 }

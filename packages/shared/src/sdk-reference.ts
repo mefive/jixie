@@ -878,6 +878,15 @@ export const SDK_ENTRIES = [
   },
   {
     iface: 'BarRow',
+    name: 'roa',
+    group: '业务类型 BarRow(整行字段)',
+    sig: 'roa: number | null',
+    zh: '总资产收益率 %(时点)。',
+    en: 'ROA % (point-in-time).',
+    prompt: 'roa (ROA %, point-in-time)',
+  },
+  {
+    iface: 'BarRow',
     name: 'grossprofitMargin',
     group: '业务类型 BarRow(整行字段)',
     sig: 'grossprofitMargin: number | null',
