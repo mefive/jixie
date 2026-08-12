@@ -12,8 +12,10 @@ import { factorsRoute } from './routes/factors.js';
 import { factorWeatherRoute } from './routes/factor-weather.js';
 import { agentRoute } from './routes/agent.js';
 import { signalsRoute } from './routes/signals.js';
+import { libraryRoute } from './routes/library.js';
 import { requireAuth } from './lib/session.js';
 import { markRunningJobsStale } from './lib/jobs.js';
+import { startJobQueue } from './lib/job-queue.js';
 import { seedBuiltinFactors } from './factor/builtin-factors.js';
 import { resetInterruptedFactorWeatherRefreshes } from './factor/weather.js';
 import { markRunningAgentTurnsInterrupted } from './agent/persistence.js';
@@ -44,6 +46,7 @@ export async function startServer(port: number) {
   }
   // Materialize the built-in preset factors (idempotent; repo is the source of truth).
   void seedBuiltinFactors().catch((e) => console.error('[jixie] preset factor seed failed', e));
+  startJobQueue();
   serve({ fetch: app.fetch, port });
   return app;
 }
@@ -76,6 +79,7 @@ export function buildApp() {
   app.route('/api/app/factors', factorsRoute);
   app.route('/api/app/factor-weather', factorWeatherRoute);
   app.route('/api/app/signals', signalsRoute);
+  app.route('/api/app/library', libraryRoute);
   app.route('/api/app/strategy', strategyRoute);
   app.route('/api/app/screen', screenRoute);
   app.route('/api/app/factor', factorRoute);

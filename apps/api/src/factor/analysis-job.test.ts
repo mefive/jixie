@@ -109,7 +109,7 @@ describe('startFactorAnalysis', () => {
       analysisKind: 'cross_sectional',
       specJson: JSON.stringify({ version: 1, analysisKind: 'cross_sectional', protocol: spec }),
       researchIntentJson: JSON.stringify(researchIntent),
-      job: { create: { userId: 'user-1', kind: 'factor', status: 'running' } },
+      job: { create: { userId: 'user-1', kind: 'factor', status: 'queued' } },
     });
     expect(mocks.reportCreate.mock.calls[0][0].data.variantKey).toBe(
       factorVariantKey(spec, sha256('factor candidate'), null),

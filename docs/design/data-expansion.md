@@ -1,6 +1,6 @@
 # 规划:数据扩展(Tushare 盘点 → 分波次落库)
 
-> 2026-07-07 制定,对应 ROADMAP 4.2(需求拉动,别囤)。触发:agent 拿到只读 SQL + 图表能力后,
+> 2026-07-07 制定；2026-08-12 随原 ROADMAP 4.2 移入 `roadmaps/05-数据战略.md`。触发:agent 拿到只读 SQL + 图表能力后,
 > 「统计分析/基本面」的**查询表达力已到位、数据本身成了短板**。本文盘点缺口、定优先级;
 > 同步实现照抄现有范式(`tushare/api.ts` 加接口 → `store/sync.ts` 加幂等 sync → `scripts/` 加脚本 →
 > schema 加 model + migrate),每个波次一个会话认领。

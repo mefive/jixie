@@ -104,7 +104,14 @@ export const Signals = complex.component(() => {
 
               {store.logLines.length > 0 && (
                 <div className="jx-signals-log">
-                  <LogView lines={store.logLines} emptyText={t('logEmpty')} />
+                  <LogView
+                    lines={store.logLines}
+                    emptyText={
+                      store.queuePosition
+                        ? t('queuePosition', { position: store.queuePosition })
+                        : t('logEmpty')
+                    }
+                  />
                 </div>
               )}
 

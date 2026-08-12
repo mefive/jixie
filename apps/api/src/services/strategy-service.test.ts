@@ -63,4 +63,21 @@ describe('commitStrategyConfig', () => {
 
     expect(update.mock.calls[0][0].data).not.toHaveProperty('lastResult');
   });
+
+  it('can make an edited public strategy private in the same config update', async () => {
+    const update = vi.fn().mockResolvedValue({ id: 's1', name: BASE_CONFIG.name });
+    const database = {
+      strategy: {
+        findFirst: vi.fn().mockResolvedValue({ config: BASE_CONFIG, name: BASE_CONFIG.name }),
+        findUnique: vi.fn().mockResolvedValue(null),
+        update,
+      },
+    };
+
+    await commitStrategyConfig(database as never, 'u1', 's1', BASE_CONFIG, undefined, {
+      forcePrivate: true,
+    });
+
+    expect(update.mock.calls[0][0].data.visibility).toBe('private');
+  });
 });

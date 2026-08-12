@@ -10,8 +10,16 @@ import type {
 } from '@jixie/shared';
 import { ulid } from 'ulid';
 import { z } from 'zod';
-import { appendLog, finishFactorReportJob, initializeJobLogs } from '../lib/jobs.js';
+import type { Prisma } from '@prisma/client';
+import {
+  ACTIVE_JOB_STATUSES,
+  appendLog,
+  finishFactorReportJob,
+  initializeJobLogs,
+} from '../lib/jobs.js';
+import { wakeJobQueue } from '../lib/job-queue.js';
 import { prisma } from '../lib/prisma.js';
+import { t } from '../i18n/messages.js';
 import {
   canonicalJson,
   factorCompositeDefinitionV1Schema,
@@ -157,7 +165,7 @@ export async function startFactorAnalysis(options: {
       include: { job: { select: { id: true, status: true } } },
       orderBy: { createdAt: 'desc' },
     });
-    if (running?.job?.status === 'running') {
+    if (running?.job && ACTIVE_JOB_STATUSES.includes(running.job.status as 'queued' | 'running')) {
       return { reportId: running.id, jobId: running.job.id, reusedRunning: true };
     }
     if (running) {
@@ -190,7 +198,16 @@ export async function startFactorAnalysis(options: {
             userId: options.userId,
             kind: 'factor',
             key: variantKey,
-            status: 'running',
+            status: 'queued',
+            payload: factorJobPayload({
+              task: 'analysis',
+              reportId,
+              factor: options.factor,
+              source: options.source,
+              spec: researchSpec,
+              locale: options.locale,
+              failedMessage: options.failedMessage,
+            }),
           },
         },
       },
@@ -203,17 +220,62 @@ export async function startFactorAnalysis(options: {
     return response;
   }
 
-  await (options.launchWorker ?? launchFactorWorker)({
+  initializeJobLogs(jobId);
+  if (options.launchWorker) {
+    await options.launchWorker({
+      reportId,
+      jobId,
+      factor: options.factor,
+      source: options.source,
+      spec: researchSpec,
+      locale: options.locale,
+      failedMessage: options.failedMessage,
+      exitedMessage: options.exitedMessage,
+    });
+  } else {
+    wakeJobQueue();
+  }
+  return response;
+}
+
+interface FactorJobPayload {
+  task: 'analysis';
+  reportId: string;
+  factor: string;
+  source: FactorAnalysisSource;
+  spec: FactorResearchSpecV1;
+  locale: Locale;
+  failedMessage: string;
+}
+
+function factorJobPayload(input: FactorJobPayload): Prisma.InputJsonValue {
+  return JSON.parse(JSON.stringify({ ...input, task: 'analysis' })) as Prisma.InputJsonValue;
+}
+
+/** Reconstruct and execute a durable factor-analysis Job claimed by the shared scheduler. */
+export async function runFactorAnalysisJob(
+  jobId: string,
+  rawPayload: Record<string, unknown>,
+): Promise<void> {
+  if (rawPayload.task !== 'analysis') {
+    throw new Error('Factor analysis job payload has an invalid task');
+  }
+  const source = factorAnalysisRuntimeSourceSchema.parse(rawPayload.source);
+  const spec = normalizeFactorResearchSpec(rawPayload.spec);
+  const locale = z.enum(['zh', 'en']).parse(rawPayload.locale);
+  const reportId = z.string().min(1).parse(rawPayload.reportId);
+  const factor = z.string().min(1).parse(rawPayload.factor);
+  const failedMessage = z.string().min(1).parse(rawPayload.failedMessage);
+  await launchFactorWorker({
     reportId,
     jobId,
-    factor: options.factor,
-    source: options.source,
-    spec: researchSpec,
-    locale: options.locale,
-    failedMessage: options.failedMessage,
-    exitedMessage: options.exitedMessage,
+    factor,
+    source,
+    spec,
+    locale,
+    failedMessage,
+    exitedMessage: (code) => t(locale, 'factorProcExited', { code }),
   });
-  return response;
 }
 
 export async function launchFactorWorker(options: {
@@ -227,66 +289,71 @@ export async function launchFactorWorker(options: {
   exitedMessage: (code: number) => string;
 }): Promise<void> {
   initializeJobLogs(options.jobId);
-  let worker: Worker;
-  try {
-    worker = new Worker(workerUrl, {
-      workerData: {
-        reportId: options.reportId,
-        factor: options.factor,
-        source: options.source,
-        spec: options.spec,
-        locale: options.locale,
-      },
-    });
-  } catch (error) {
-    await finishFactorReportJob(
-      options.jobId,
-      options.reportId,
-      'error',
-      undefined,
-      error instanceof Error ? error.message : String(error),
-      options.failedMessage,
-    );
-    return;
-  }
-  let finished = false;
-  const done = (status: 'done' | 'error', payload?: string, error?: string) => {
-    if (finished) {
+  await new Promise<void>((resolve) => {
+    let worker: Worker;
+    try {
+      worker = new Worker(workerUrl, {
+        workerData: {
+          reportId: options.reportId,
+          factor: options.factor,
+          source: options.source,
+          spec: options.spec,
+          locale: options.locale,
+        },
+      });
+    } catch (error) {
+      void finishFactorReportJob(
+        options.jobId,
+        options.reportId,
+        'error',
+        undefined,
+        error instanceof Error ? error.message : String(error),
+        options.failedMessage,
+      ).finally(resolve);
       return;
     }
-    finished = true;
-    void finishFactorReportJob(
-      options.jobId,
-      options.reportId,
-      status,
-      payload,
-      error,
-      status === 'error' ? options.failedMessage : undefined,
-    ).catch((finishError) => {
-      console.error('[jixie] failed to finalize factor report', finishError);
-    });
-  };
-  worker.on(
-    'message',
-    (message: { type: string; entry?: LogLine; message?: string; payload?: string }) => {
-      switch (message.type) {
-        case 'log':
-          appendLog(options.jobId, message.entry!);
-          break;
-        case 'done':
-          done('done', message.payload);
-          break;
-        case 'error':
-          done('error', undefined, message.message);
-          break;
+    let finished = false;
+    const done = async (status: 'done' | 'error', payload?: string, error?: string) => {
+      if (finished) {
+        return;
       }
-    },
-  );
-  worker.on('error', (error) => done('error', undefined, error.message));
-  worker.on('exit', (code) => {
-    if (code !== 0) {
-      done('error', undefined, options.exitedMessage(code));
-    }
+      finished = true;
+      await finishFactorReportJob(
+        options.jobId,
+        options.reportId,
+        status,
+        payload,
+        error,
+        status === 'error' ? options.failedMessage : undefined,
+      ).catch((finishError) => {
+        console.error('[jixie] failed to finalize factor report', finishError);
+      });
+      resolve();
+    };
+    worker.on(
+      'message',
+      (message: { type: string; entry?: LogLine; message?: string; payload?: string }) => {
+        switch (message.type) {
+          case 'log':
+            appendLog(options.jobId, message.entry!);
+            break;
+          case 'done':
+            void done('done', message.payload);
+            break;
+          case 'error':
+            void done('error', undefined, message.message);
+            break;
+        }
+      },
+    );
+    worker.on('error', (error) => void done('error', undefined, error.message));
+    worker.on('exit', (code) => {
+      if (code !== 0) {
+        void done('error', undefined, options.exitedMessage(code));
+      } else if (!finished) {
+        void done('error', undefined, options.exitedMessage(code));
+      }
+    });
   });
 }
 

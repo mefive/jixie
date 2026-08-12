@@ -94,7 +94,7 @@ export async function archivePanelComposite(
   const archivedAt = new Date();
   const updated = await prisma.factorComposite.updateMany({
     where: { id: compositeId, userId, status: 'published' },
-    data: { status: 'archived', archivedAt },
+    data: { status: 'archived', visibility: 'private', archivedAt },
   });
   if (updated.count === 0) {
     return null;

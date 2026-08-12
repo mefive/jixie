@@ -27,6 +27,7 @@ export const TopNav = observer(() => {
     { key: 'factor', label: <NavLink to="/factors">{t('nav.factor')}</NavLink> },
     { key: 'valuation', label: <NavLink to="/valuation">{t('nav.valuation')}</NavLink> },
     { key: 'signals', label: <NavLink to="/signals">{t('nav.signals')}</NavLink> },
+    { key: 'library', label: <NavLink to="/library">{t('nav.library')}</NavLink> },
     {
       key: 'help',
       label: (
@@ -79,6 +80,9 @@ export const TopNav = observer(() => {
           <NavLink to="/signals" className={linkClass}>
             {t('nav.signals')}
           </NavLink>
+          <NavLink to="/library" className={linkClass}>
+            {t('nav.library')}
+          </NavLink>
           <a href="/docs/help" className="jx-topnav-link" target="_blank" rel="noopener noreferrer">
             {t('nav.help')}
           </a>
@@ -121,6 +125,7 @@ const MOBILE_NAV_LABEL_KEYS = {
   factorWeather: 'factorWeather',
   valuation: 'valuation',
   signals: 'signals',
+  library: 'library',
 } as const;
 
 type MobileNavKey = keyof typeof MOBILE_NAV_LABEL_KEYS;
@@ -143,6 +148,9 @@ function mobileNavKey(pathname: string): MobileNavKey {
   }
   if (pathname.startsWith('/signals')) {
     return 'signals';
+  }
+  if (pathname.startsWith('/library')) {
+    return 'library';
   }
 
   return 'backtest';

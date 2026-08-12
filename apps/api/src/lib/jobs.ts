@@ -16,15 +16,23 @@ import { prisma } from './prisma.js';
  * restore through the report relation; legacy findRunningJob remains for backtests and correlation.
  */
 export type JobKind = 'backtest' | 'factor' | 'strategy-scan' | 'signal';
-export type JobStatus = 'running' | 'done' | 'error' | 'stale';
+export type JobStatus = 'queued' | 'running' | 'done' | 'error' | 'stale';
+export type ActiveJobStatus = Extract<JobStatus, 'queued' | 'running'>;
+
+export const ACTIVE_JOB_STATUSES: ActiveJobStatus[] = ['queued', 'running'];
 
 const logsByJob = new Map<string, LogLine[]>();
 const LOG_TTL_MS = 5 * 60_000; // evict a finished job's in-memory logs after 5 min (DB copy remains)
 
-/** Create a running job (DB row + in-memory log buffer). Returns the jobId. */
-export async function createJob(userId: string, kind: JobKind, key: string): Promise<string> {
+/** Create a durable queued job (DB row + in-memory log buffer). Returns the jobId. */
+export async function createJob(
+  userId: string,
+  kind: JobKind,
+  key: string,
+  payload: Prisma.InputJsonValue,
+): Promise<string> {
   const id = ulid();
-  await prisma.job.create({ data: { id, userId, kind, key, status: 'running' } });
+  await prisma.job.create({ data: { id, userId, kind, key, status: 'queued', payload } });
   initializeJobLogs(id);
   return id;
 }
@@ -48,7 +56,12 @@ export async function finishJob(
   await prisma.job
     .update({
       where: { id: jobId },
-      data: { status, error: error ?? null, logs: logs ? JSON.stringify(logs) : undefined },
+      data: {
+        status,
+        error: error ?? null,
+        logs: logs ? JSON.stringify(logs) : undefined,
+        finishedAt: new Date(),
+      },
     })
     .catch(() => {});
   setTimeout(() => logsByJob.delete(jobId), LOG_TTL_MS).unref?.();
@@ -78,7 +91,12 @@ export async function finishFactorReportJob(
     }),
     prisma.job.update({
       where: { id: jobId },
-      data: { status, error: error ?? null, logs: logs ? JSON.stringify(logs) : undefined },
+      data: {
+        status,
+        error: error ?? null,
+        logs: logs ? JSON.stringify(logs) : undefined,
+        finishedAt: new Date(),
+      },
     }),
   ]);
   setTimeout(() => logsByJob.delete(jobId), LOG_TTL_MS).unref?.();
@@ -104,7 +122,12 @@ export async function finishStrategyScanJob(
     }),
     prisma.job.update({
       where: { id: jobId },
-      data: { status, error: error ?? null, logs: logs ? JSON.stringify(logs) : undefined },
+      data: {
+        status,
+        error: error ?? null,
+        logs: logs ? JSON.stringify(logs) : undefined,
+        finishedAt: new Date(),
+      },
     }),
   ]);
   setTimeout(() => logsByJob.delete(jobId), LOG_TTL_MS).unref?.();
@@ -142,7 +165,12 @@ export async function finishSignalRunJob(
     }),
     prisma.job.update({
       where: { id: jobId },
-      data: { status, error: error ?? null, logs: logs ? JSON.stringify(logs) : undefined },
+      data: {
+        status,
+        error: error ?? null,
+        logs: logs ? JSON.stringify(logs) : undefined,
+        finishedAt: new Date(),
+      },
     }),
   ]);
   setTimeout(() => logsByJob.delete(jobId), LOG_TTL_MS).unref?.();
@@ -155,12 +183,25 @@ export async function getJob(userId: string, jobId: string, since = 0) {
     return null;
   }
   const logs = logsByJob.get(jobId) ?? parsePersistedLogs(job.logs);
+  const queuePosition =
+    job.status === 'queued'
+      ? await prisma.job.count({
+          where: {
+            status: 'queued',
+            OR: [
+              { queuedAt: { lt: job.queuedAt } },
+              { queuedAt: job.queuedAt, id: { lte: job.id } },
+            ],
+          },
+        })
+      : undefined;
   return {
     status: job.status as JobStatus,
     factorReportId: job.factorReportId,
     error: job.error,
     logs: logs.slice(since),
     nextSince: logs.length,
+    queuePosition,
   };
 }
 
@@ -176,21 +217,21 @@ function parsePersistedLogs(raw: string | null): LogLine[] {
   }
 }
 
-/** A user's currently-running job for a (kind, key) — to re-attach after a refresh (newest wins). */
+/** A user's active queued/running job for a (kind, key) — re-attach after a refresh. */
 export async function findRunningJob(
   userId: string,
   kind: JobKind,
   key: string,
 ): Promise<string | null> {
   const job = await prisma.job.findFirst({
-    where: { userId, kind, key, status: 'running' },
+    where: { userId, kind, key, status: { in: ACTIVE_JOB_STATUSES } },
     orderBy: { createdAt: 'desc' },
     select: { id: true },
   });
   return job?.id ?? null;
 }
 
-/** On boot: any job still 'running' is a zombie (its worker died with the previous process) → stale. */
+/** On boot: a running job is a zombie; queued jobs remain resumable through their frozen payload. */
 export async function markRunningJobsStale(): Promise<number> {
   return prisma.$transaction(async (transaction) => {
     const running = await transaction.job.findMany({
@@ -227,9 +268,60 @@ export async function markRunningJobsStale(): Promise<number> {
     }
     const { count } = await transaction.job.updateMany({
       where: { status: 'running' },
-      data: { status: 'stale' },
+      data: { status: 'stale', finishedAt: new Date() },
     });
 
     return count;
   });
+}
+
+/** Atomically claim one queued job for a scheduler slot. */
+export async function claimQueuedJob(jobId: string): Promise<boolean> {
+  const { count } = await prisma.job.updateMany({
+    where: { id: jobId, status: 'queued' },
+    data: { status: 'running', startedAt: new Date(), error: null },
+  });
+  return count === 1;
+}
+
+/** Mark a job and any one-to-one result entity failed when its runner cannot be reconstructed. */
+export async function failJobAndEntity(jobId: string, error: string): Promise<void> {
+  const job = await prisma.job.findUnique({
+    where: { id: jobId },
+    select: { factorReportId: true, strategyScanReportId: true, signalRunId: true },
+  });
+  if (!job) {
+    return;
+  }
+  const operations: Prisma.PrismaPromise<unknown>[] = [
+    prisma.job.update({
+      where: { id: jobId },
+      data: { status: 'error', error, finishedAt: new Date() },
+    }),
+  ];
+  if (job.factorReportId) {
+    operations.push(
+      prisma.factorReport.update({
+        where: { id: job.factorReportId },
+        data: { status: 'error', error },
+      }),
+    );
+  }
+  if (job.strategyScanReportId) {
+    operations.push(
+      prisma.strategyScanReport.update({
+        where: { id: job.strategyScanReportId },
+        data: { status: 'error', error },
+      }),
+    );
+  }
+  if (job.signalRunId) {
+    operations.push(
+      prisma.signalRun.update({
+        where: { id: job.signalRunId },
+        data: { status: 'error', error },
+      }),
+    );
+  }
+  await prisma.$transaction(operations);
 }

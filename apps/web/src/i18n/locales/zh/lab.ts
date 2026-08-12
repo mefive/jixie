@@ -285,6 +285,7 @@ export const zhLab = {
 
   // Log dock
   logStarting: '正在启动回测进程…',
+  queuePosition: '任务排队中，当前第 {{position}} 位',
   logEmpty: '运行策略后在此查看日志（系统进度 + 你的 console 输出）',
   logTab: '日志',
 

@@ -9,6 +9,7 @@ export const zhSignals = {
   generate: '立即生成',
   generateHint: '使用已冻结的部署版本，不读取编辑器草稿。',
   logEmpty: '暂无运行日志',
+  queuePosition: '任务排队中，当前第 {{position}} 位',
   noRuns: '尚未生成信号。',
   runTitle: '{{date}} 信号',
   runHint: '计划在 {{date}} 开盘执行。',

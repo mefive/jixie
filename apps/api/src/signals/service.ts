@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { fork, type ChildProcess } from 'node:child_process';
 import { ulid } from 'ulid';
+import { z } from 'zod';
 import type {
   BacktestConfig,
   FactorInputSummary,
@@ -16,6 +17,7 @@ import { codeConfigSchema } from '../strategy/code/schema.js';
 import { inspectWalledStrategyMetadata } from '../engine/walled-run.js';
 import { prepareStrategyFactors } from '../engine/prepare-custom-factors.js';
 import { appendLog, finishSignalRunJob, initializeJobLogs } from '../lib/jobs.js';
+import { waitForJobCompletion, wakeJobQueue } from '../lib/job-queue.js';
 import { prisma } from '../lib/prisma.js';
 import { t } from '../i18n/messages.js';
 import { governmentYieldCurveReady } from '../rates/signal-readiness.js';
@@ -284,31 +286,40 @@ export async function enqueueSignalRun(
         userId,
         kind: 'signal',
         key: runId,
-        status: 'running',
+        status: 'queued',
         signalRunId: runId,
+        payload: {
+          task: 'signal',
+          runId,
+          locale: deployment.locale === 'en' ? 'en' : 'zh',
+        },
       },
     });
     return { kind: 'start' as const, runId, jobId };
   });
 
   if (start.kind === 'existing') {
+    const completion = start.jobId
+      ? waitForJobCompletion(start.jobId).then((status) =>
+          status === 'done' ? ('done' as const) : ('error' as const),
+        )
+      : Promise.resolve(start.status);
     return {
       kind: 'ready',
       run: {
         runId: start.runId,
         jobId: start.jobId,
         started: false,
-        completion: Promise.resolve(start.status),
+        completion,
       },
     };
   }
 
   initializeJobLogs(start.jobId);
-  const completion = startSignalWorker({
-    runId: start.runId,
-    jobId: start.jobId,
-    locale: deployment.locale === 'en' ? 'en' : 'zh',
-  });
+  wakeJobQueue();
+  const completion = waitForJobCompletion(start.jobId).then((status) =>
+    status === 'done' ? ('done' as const) : ('error' as const),
+  );
   return {
     kind: 'ready',
     run: {
@@ -318,6 +329,21 @@ export async function enqueueSignalRun(
       completion,
     },
   };
+}
+
+const signalJobPayloadSchema = z.object({
+  task: z.literal('signal'),
+  runId: z.string().min(1),
+  locale: z.enum(['zh', 'en']),
+});
+
+/** Reconstruct and execute a daily-signal Job claimed by the shared scheduler. */
+export async function runSignalJob(
+  jobId: string,
+  rawPayload: Record<string, unknown>,
+): Promise<void> {
+  const payload = signalJobPayloadSchema.parse(rawPayload);
+  await startSignalWorker({ jobId, runId: payload.runId, locale: payload.locale });
 }
 
 async function startSignalWorker(input: {

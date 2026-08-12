@@ -1,5 +1,4 @@
 import { createHash } from 'node:crypto';
-import { Worker } from 'node:worker_threads';
 import type {
   BacktestConfig,
   StrategyScanPayload,
@@ -14,17 +13,14 @@ import { ulid } from 'ulid';
 import { z } from 'zod';
 import { inspectWalledStrategyParameters } from '../engine/walled-run.js';
 import { localeFromRequest, m } from '../i18n/index.js';
-import { appendLog, finishStrategyScanJob, getJob, initializeJobLogs } from '../lib/jobs.js';
+import { ACTIVE_JOB_STATUSES, getJob, initializeJobLogs } from '../lib/jobs.js';
+import { wakeJobQueue } from '../lib/job-queue.js';
 import { apiError, validateJson, validateQuery } from '../lib/httpError.js';
 import { prisma } from '../lib/prisma.js';
 import { normalizeScanSpec } from '../strategy/scan.js';
 import { codeConfigSchema } from '../strategy/code/schema.js';
 
 export const strategyScansRoute = new Hono();
-
-const workerUrl = import.meta.url.endsWith('.ts')
-  ? new URL('../engine/strategy-scan-worker.boot.mjs', import.meta.url)
-  : new URL('../engine/strategy-scan-worker.js', import.meta.url);
 
 const strategyQuery = z.object({ strategyId: z.string().min(1) });
 const sinceQuery = z.object({ since: z.string().regex(/^\d+$/).optional() });
@@ -102,6 +98,7 @@ strategyScansRoute.post('/', validateQuery(strategyQuery), validateJson(createBo
   }
 
   const userId = c.var.userId;
+  const locale = localeFromRequest(c);
   const reportId = ulid();
   const jobId = ulid();
   const dataCutoff = (
@@ -120,7 +117,12 @@ strategyScansRoute.post('/', validateQuery(strategyQuery), validateJson(createBo
       return { kind: 'not_found' as const };
     }
     const running = await transaction.job.findFirst({
-      where: { userId, kind: 'strategy-scan', key: strategyId, status: 'running' },
+      where: {
+        userId,
+        kind: 'strategy-scan',
+        key: strategyId,
+        status: { in: ACTIVE_JOB_STATUSES },
+      },
       select: { id: true },
     });
     if (running) {
@@ -144,7 +146,17 @@ strategyScansRoute.post('/', validateQuery(strategyQuery), validateJson(createBo
             userId,
             kind: 'strategy-scan',
             key: strategyId,
-            status: 'running',
+            status: 'queued',
+            payload: jsonValue({
+              task: 'strategy-scan',
+              reportId,
+              config,
+              spec,
+              parameters,
+              ranges,
+              userId,
+              locale,
+            }),
           },
         },
       },
@@ -159,70 +171,7 @@ strategyScansRoute.post('/', validateQuery(strategyQuery), validateJson(createBo
   }
 
   initializeJobLogs(jobId);
-  let worker: Worker;
-  try {
-    worker = new Worker(workerUrl, {
-      workerData: {
-        config,
-        spec,
-        parameters,
-        ranges,
-        userId,
-        locale: localeFromRequest(c),
-      },
-    });
-  } catch (error) {
-    await finishStrategyScanJob(
-      jobId,
-      reportId,
-      'error',
-      undefined,
-      error instanceof Error ? error.message : String(error),
-    );
-    return apiError(c, 'SERVICE_UNAVAILABLE', m(c, 'strategyScanStartFailed'));
-  }
-
-  let finished = false;
-  const finish = (status: 'done' | 'error', payload?: StrategyScanPayload, error?: string) => {
-    if (finished) {
-      return;
-    }
-    finished = true;
-    void finishStrategyScanJob(
-      jobId,
-      reportId,
-      status,
-      payload ? jsonValue(payload) : undefined,
-      error,
-    );
-  };
-  worker.on(
-    'message',
-    (message: {
-      type: string;
-      entry?: Parameters<typeof appendLog>[1];
-      payload?: StrategyScanPayload;
-      message?: string;
-    }) => {
-      switch (message.type) {
-        case 'log':
-          appendLog(jobId, message.entry!);
-          break;
-        case 'done':
-          finish('done', message.payload);
-          break;
-        case 'error':
-          finish('error', undefined, message.message);
-          break;
-      }
-    },
-  );
-  worker.on('error', (error) => finish('error', undefined, error.message));
-  worker.on('exit', (code) => {
-    if (code !== 0) {
-      finish('error', undefined, m(c, 'strategyScanProcExited', { code }));
-    }
-  });
+  wakeJobQueue();
 
   return c.json({ reportId, jobId });
 });
@@ -242,7 +191,7 @@ strategyScansRoute.get('/running', validateQuery(strategyQuery), async (c) => {
       userId: c.var.userId,
       strategyId: c.req.valid('query').strategyId,
       status: 'running',
-      job: { status: 'running' },
+      job: { status: { in: ACTIVE_JOB_STATUSES } },
     },
     orderBy: { createdAt: 'desc' },
     select: { id: true, job: { select: { id: true } } },

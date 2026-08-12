@@ -84,6 +84,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
   public logLines: LogLine[] = []; // live backtest progress (streamed via polling), tagged system/user
   public result: BacktestSummary | null = null; // a finished run OR the saved last-result on reopen
   public error: string | null = null; // backtest failure message
+  public queuePosition: number | null = null;
   public savedId: string | null = null; // this strategy's DB id (for the URL)
   public savedConfig = ''; // run-relevant config at the LAST RUN (or '' if never run) — baseline for `dirty`
   public persistedConfig = ''; // run-relevant config as PERSISTED in the DB (create/run/open) — baseline for `edited`
@@ -91,6 +92,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
   public scanReport: StrategyScanReport | null = null;
   public scanLogLines: LogLine[] = [];
   public scanError: string | null = null;
+  public scanQueuePosition: number | null = null;
   public deployment: StrategyDeployment | null = null;
   public deploymentError: string | null = null;
 
@@ -126,6 +128,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
       logLines: observable.ref,
       result: observable.ref,
       error: observable.ref,
+      queuePosition: observable.ref,
       savedId: observable.ref,
       savedConfig: observable.ref,
       persistedConfig: observable.ref,
@@ -133,6 +136,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
       scanReport: observable.ref,
       scanLogLines: observable.ref,
       scanError: observable.ref,
+      scanQueuePosition: observable.ref,
       deployment: observable.ref,
       deploymentError: observable.ref,
       config: computed,
@@ -583,6 +587,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
       this.result = null;
       this.logLines = [];
       this.error = null;
+      this.queuePosition = null;
     });
     this.resetBenchmarks();
     void this.savedLoader.run();
@@ -595,6 +600,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
       this.logLines = [];
       this.result = null;
       this.error = null;
+      this.queuePosition = null;
     });
     this.startPolling(jobId);
   }
@@ -678,6 +684,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
       this.scanReport = null;
       this.scanLogLines = [];
       this.scanError = null;
+      this.scanQueuePosition = null;
       this.deployment = null;
       this.deploymentError = null;
     });
@@ -746,6 +753,9 @@ export class LabStore extends BaseStore<LabSetupParams> {
   private async pollScanOnce(): Promise<false | void> {
     try {
       const job = await pollStrategyScan(this.scanReportId!, this.scanSince);
+      runInAction(() => {
+        this.scanQueuePosition = job.status === 'queued' ? (job.queuePosition ?? null) : null;
+      });
       if (job.logs.length) {
         runInAction(() => {
           this.scanLogLines = [...this.scanLogLines, ...job.logs];
@@ -778,6 +788,9 @@ export class LabStore extends BaseStore<LabSetupParams> {
   private async pollOnce(): Promise<false | void> {
     try {
       const job = await pollBacktest(this.jobId!, this.since);
+      runInAction(() => {
+        this.queuePosition = job.status === 'queued' ? (job.queuePosition ?? null) : null;
+      });
       if (job.logs.length) {
         this.appendLogs(job.logs);
         this.since = job.nextSince;

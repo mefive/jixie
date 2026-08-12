@@ -8,6 +8,7 @@ import { zhScreen } from './screen';
 import { zhStock } from './stock';
 import { zhValuation } from './valuation';
 import { zhSignals } from './signals';
+import { zhLibrary } from './library';
 
 // Chinese resource bundle, keyed by namespace. Add a namespace here when a page is internationalized.
 export const zhResources = {
@@ -21,4 +22,5 @@ export const zhResources = {
   stock: zhStock,
   valuation: zhValuation,
   signals: zhSignals,
+  library: zhLibrary,
 };

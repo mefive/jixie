@@ -1,4 +1,3 @@
-import { Worker } from 'node:worker_threads';
 import { Hono } from 'hono';
 import { ulid } from 'ulid';
 import { z } from 'zod';
@@ -27,7 +26,8 @@ import { factorQaProfile } from '../agent/profiles/qa.js';
 import { enqueueAgentTurn, entityKey } from '../agent/turn-run.js';
 import * as turnBus from '../agent/turn-bus.js';
 import { chatMessagesSchema } from '../lib/chat-schema.js';
-import { createJob, appendLog, finishJob, getJob, findRunningJob } from '../lib/jobs.js';
+import { createJob, getJob, findRunningJob, initializeJobLogs } from '../lib/jobs.js';
+import { wakeJobQueue } from '../lib/job-queue.js';
 import { localeFromRequest, m } from '../i18n/index.js';
 import { refreshFactorMetadata } from '../factor/metadata.js';
 import {
@@ -46,7 +46,6 @@ import {
   researchCounts,
 } from '../factor/research.js';
 import {
-  launchFactorWorker,
   parseAssetFactorAnalysisSourceSnapshot,
   parseFactorAnalysisSourceSnapshot,
   startFactorAnalysis,
@@ -84,10 +83,6 @@ import {
  * Naming rules: see docs/design/api-route-naming.md.
  */
 export const factorRoute = new Hono();
-
-const correlationWorkerUrl = import.meta.url.endsWith('.ts')
-  ? new URL('../factor/correlation-worker.boot.mjs', import.meta.url)
-  : new URL('../factor/correlation-worker.js', import.meta.url);
 
 // Correlation cache/job keys — factor keys are sorted so key order doesn't fork the cache.
 const sortedKeys = (keys: string[]) => [...keys].sort();
@@ -526,6 +521,20 @@ factorRoute.post('/reports/:reportId/holdout', async (c) => {
     researchSpec.analysisKind === 'cross_sectional' ? researchSpec.protocol : researchSpec;
   const variantKey = factorVariantKey(identitySpec, factorCodeHash, parent.dataRevision);
   const columns = reportCompatibilityColumns(researchSpec);
+  const source =
+    researchSpec.analysisKind === 'time_series' || researchSpec.analysisKind === 'panel'
+      ? parseAssetFactorAnalysisSourceSnapshot(
+          factorCodeSnapshot,
+          parent.factor,
+          researchSpec.analysisKind,
+        )
+      : parseFactorAnalysisSourceSnapshot(
+          factorCodeSnapshot,
+          parseReportPayload(parent.payload)?.label ?? parent.factor,
+          researchSpec.protocol.version === 4 ||
+            (researchSpec.protocol.version === 6 && !!researchSpec.protocol.composite),
+        );
+  const locale = localeFromRequest(c);
   const reportId = ulid();
   const jobId = ulid();
   const created = await prisma.$transaction(async (transaction) => {
@@ -559,36 +568,34 @@ factorRoute.post('/reports/:reportId/holdout', async (c) => {
         testKey: parent.testKey,
         researchIntentJson: parent.researchIntentJson,
         holdoutPolicyJson: JSON.stringify(policy),
-        job: { create: { id: jobId, userId, kind: 'factor', key: variantKey, status: 'running' } },
+        job: {
+          create: {
+            id: jobId,
+            userId,
+            kind: 'factor',
+            key: variantKey,
+            status: 'queued',
+            payload: JSON.parse(
+              JSON.stringify({
+                task: 'analysis',
+                reportId,
+                factor: parent.factor,
+                source,
+                spec: researchSpec,
+                locale,
+                failedMessage: m(c, 'factorAnalysisFailed'),
+              }),
+            ),
+          },
+        },
       },
     });
     return { reportId, jobId, reusedRunning: false };
   });
   const response: RunFactorAnalysisResponse = { ...created, status: 'running' };
   if (!created.reusedRunning) {
-    const source =
-      researchSpec.analysisKind === 'time_series' || researchSpec.analysisKind === 'panel'
-        ? parseAssetFactorAnalysisSourceSnapshot(
-            factorCodeSnapshot,
-            parent.factor,
-            researchSpec.analysisKind,
-          )
-        : parseFactorAnalysisSourceSnapshot(
-            factorCodeSnapshot,
-            parseReportPayload(parent.payload)?.label ?? parent.factor,
-            researchSpec.protocol.version === 4 ||
-              (researchSpec.protocol.version === 6 && !!researchSpec.protocol.composite),
-          );
-    await launchFactorWorker({
-      reportId,
-      jobId,
-      factor: parent.factor,
-      source,
-      spec: researchSpec,
-      locale: localeFromRequest(c),
-      failedMessage: m(c, 'factorAnalysisFailed'),
-      exitedMessage: (code) => m(c, 'factorProcExited', { code }),
-    });
+    initializeJobLogs(jobId);
+    wakeJobQueue();
   }
   return c.json(response);
 });
@@ -1073,32 +1080,17 @@ factorRoute.post('/correlation/run', validateQuery(correlationQuery), async (c) 
     userId,
     'factor',
     correlationJobKey(resolved.keys, freq, start, end),
+    {
+      task: 'correlation',
+      id,
+      userId,
+      keys: resolved.keys,
+      freq,
+      start,
+      end,
+      locale: localeFromRequest(c),
+    },
   );
-  const worker = new Worker(correlationWorkerUrl, {
-    workerData: { id, userId, keys: resolved.keys, freq, start, end, locale: localeFromRequest(c) },
-  });
-  let finished = false;
-  const done = (status: 'done' | 'error', error?: string) => {
-    if (finished) {
-      return;
-    }
-    finished = true;
-    void finishJob(jobId, status, error);
-  };
-  worker.on('message', (msg: { type: string; entry?: LogLine; message?: string }) => {
-    if (msg.type === 'log') {
-      appendLog(jobId, msg.entry!);
-    } else if (msg.type === 'done') {
-      done('done');
-    } else if (msg.type === 'error') {
-      done('error', msg.message);
-    }
-  });
-  worker.on('error', (err) => done('error', err.message));
-  worker.on('exit', (code) => {
-    if (code !== 0) {
-      done('error', m(c, 'factorProcExited', { code }));
-    }
-  });
+  wakeJobQueue();
   return c.json({ jobId });
 });

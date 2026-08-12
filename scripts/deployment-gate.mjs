@@ -116,7 +116,7 @@ async function waitForRunningWork(runId) {
     const counts = database
       .prepare(
         `SELECT
-           (SELECT count(*) FROM "Job" WHERE status = 'running') AS jobs,
+           (SELECT count(*) FROM "Job" WHERE status IN ('queued', 'running')) AS jobs,
            (SELECT count(*) FROM "AgentTurn" WHERE status = 'running') AS agentTurns`,
       )
       .get();

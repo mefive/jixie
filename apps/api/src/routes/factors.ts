@@ -65,6 +65,8 @@ const strategyKey = (key: string, status: string): string | undefined =>
  */
 export const factorsRoute = new Hono();
 
+const visibilityBody = z.object({ visibility: z.enum(['private', 'public']) });
+
 factorsRoute.post('/custom/:id/publish', validateJson(publishFactorBodySchema), async (c) => {
   try {
     return c.json(
@@ -81,6 +83,27 @@ factorsRoute.post('/custom/:id/publish', validateJson(publishFactorBodySchema), 
 factorsRoute.post('/custom/:id/archive', async (c) => {
   const factor = await archiveFactor(c.var.userId, c.req.param('id'));
   return factor ? c.json(factor) : apiError(c, 'NOT_FOUND', m(c, 'factorNotFound'));
+});
+
+factorsRoute.post('/custom/:id/visibility', validateJson(visibilityBody), async (c) => {
+  const visibility = c.req.valid('json').visibility;
+  const factor = await prisma.factor.findFirst({
+    where: { id: c.req.param('id'), userId: c.var.userId },
+    select: { id: true, status: true },
+  });
+  if (!factor) {
+    return apiError(c, 'NOT_FOUND', m(c, 'factorNotFound'));
+  }
+  if (visibility === 'public' && factor.status !== 'published') {
+    return apiError(c, 'VALIDATION_FAILED', m(c, 'assetMustBePublishedBeforeSharing'));
+  }
+  return c.json(
+    await prisma.factor.update({
+      where: { id: factor.id },
+      data: { visibility },
+      select: { id: true, visibility: true },
+    }),
+  );
 });
 
 factorsRoute.post('/composites/:id/publish', validateJson(publishFactorBodySchema), async (c) => {
@@ -103,6 +126,27 @@ factorsRoute.post('/composites/:id/publish', validateJson(publishFactorBodySchem
 factorsRoute.post('/composites/:id/archive', async (c) => {
   const composite = await archivePanelComposite(c.var.userId, c.req.param('id'));
   return composite ? c.json(composite) : apiError(c, 'NOT_FOUND', m(c, 'factorNotFound'));
+});
+
+factorsRoute.post('/composites/:id/visibility', validateJson(visibilityBody), async (c) => {
+  const visibility = c.req.valid('json').visibility;
+  const composite = await prisma.factorComposite.findFirst({
+    where: { id: c.req.param('id'), userId: c.var.userId },
+    select: { id: true, status: true },
+  });
+  if (!composite) {
+    return apiError(c, 'NOT_FOUND', m(c, 'factorNotFound'));
+  }
+  if (visibility === 'public' && composite.status !== 'published') {
+    return apiError(c, 'VALIDATION_FAILED', m(c, 'assetMustBePublishedBeforeSharing'));
+  }
+  return c.json(
+    await prisma.factorComposite.update({
+      where: { id: composite.id },
+      data: { visibility },
+      select: { id: true, visibility: true },
+    }),
+  );
 });
 
 factorsRoute.get('/catalog', async (c) => {
@@ -205,6 +249,7 @@ function compositeResource(row: {
   name: string;
   definition: Prisma.JsonValue;
   status: string;
+  visibility: string;
   approvedReportId: string | null;
   codeHash: string | null;
   publishedAt: Date | null;
@@ -219,6 +264,7 @@ function compositeResource(row: {
     definition: row.definition as unknown as FactorCompositeDefinition,
     status:
       row.status === 'published' || row.status === 'archived' ? row.status : ('draft' as const),
+    visibility: row.visibility === 'public' ? ('public' as const) : ('private' as const),
     approvedReportId: row.approvedReportId,
     codeHash: row.codeHash,
     publishedAt: row.publishedAt?.toISOString() ?? null,
@@ -230,7 +276,10 @@ function compositeResource(row: {
 
 factorsRoute.get('/composites/:id', async (c) => {
   const row = await prisma.factorComposite.findFirst({
-    where: { id: c.req.param('id'), userId: c.var.userId },
+    where: {
+      id: c.req.param('id'),
+      OR: [{ userId: c.var.userId }, { visibility: 'public', status: 'published' }],
+    },
   });
   return row ? c.json(compositeResource(row)) : apiError(c, 'NOT_FOUND', m(c, 'factorNotFound'));
 });
@@ -322,7 +371,10 @@ factorsRoute.delete('/composites/:id', async (c) => {
 
 factorsRoute.post('/composites/:id/copy', async (c) => {
   const source = await prisma.factorComposite.findFirst({
-    where: { id: c.req.param('id'), userId: c.var.userId },
+    where: {
+      id: c.req.param('id'),
+      OR: [{ userId: c.var.userId }, { visibility: 'public', status: 'published' }],
+    },
   });
   if (!source) {
     return apiError(c, 'NOT_FOUND', m(c, 'factorNotFound'));
@@ -335,7 +387,72 @@ factorsRoute.post('/composites/:id/copy', async (c) => {
       m(c, 'factorAnalysisKindUnsupported', { kind: 'composite' }),
     );
   }
-  const { key, version } = await nextCopyKey(c.var.userId, source.key);
+  if (source.userId !== c.var.userId) {
+    const factorIds = definition.data.components.map((component) => component.factor);
+    const components = await prisma.factor.findMany({
+      where: {
+        id: { in: factorIds },
+        userId: { in: [source.userId, BUILTIN_USER_ID] },
+        status: 'published',
+      },
+    });
+    if (components.length !== factorIds.length) {
+      return apiError(c, 'VALIDATION_FAILED', m(c, 'factorPublishReportInvalid'));
+    }
+    const byId = new Map(components.map((component) => [component.id, component]));
+    const row = await prisma.$transaction(async (transaction) => {
+      const copiedIds = new Map<string, string>();
+      for (const factorId of factorIds) {
+        const component = byId.get(factorId)!;
+        if (component.userId === BUILTIN_USER_ID) {
+          copiedIds.set(factorId, factorId);
+          continue;
+        }
+        const { key: componentKey, version: componentVersion } = await nextCopyKey(
+          transaction,
+          c.var.userId,
+          component.key,
+        );
+        const componentId = ulid();
+        await transaction.factor.create({
+          data: {
+            id: componentId,
+            userId: c.var.userId,
+            key: componentKey,
+            name: `${component.name.replace(/\s+v\d+$/i, '')} v${componentVersion}`.slice(0, 40),
+            code: component.code,
+            analysisKind: component.analysisKind,
+            descriptionZh: component.descriptionZh,
+            descriptionEn: component.descriptionEn,
+          },
+        });
+        copiedIds.set(factorId, componentId);
+      }
+      const { key, version } = await nextCopyKey(transaction, c.var.userId, source.key!);
+      const name = `${source.name.replace(/\s+v\d+$/i, '')} v${version}`.slice(0, 80);
+      const copiedDefinition = {
+        ...definition.data,
+        key,
+        name,
+        components: definition.data.components.map((component) => ({
+          ...component,
+          factor: copiedIds.get(component.factor)!,
+        })),
+      };
+      return transaction.factorComposite.create({
+        data: {
+          id: ulid(),
+          userId: c.var.userId,
+          key,
+          name,
+          definition: copiedDefinition as unknown as Prisma.InputJsonValue,
+        },
+      });
+    });
+    return c.json(compositeResource(row));
+  }
+
+  const { key, version } = await nextCopyKey(prisma, c.var.userId, source.key);
   const nameBase = source.name.replace(/\s+v\d+$/i, '');
   const name = `${nameBase} v${version}`.slice(0, 80);
   const copiedDefinition = { ...definition.data, key, name };
@@ -363,6 +480,7 @@ factorsRoute.get('/custom', async (c) => {
       name: true,
       analysisKind: true,
       status: true,
+      visibility: true,
       updatedAt: true,
     },
     orderBy: { updatedAt: 'desc' },
@@ -386,7 +504,13 @@ factorsRoute.get('/custom/:id', async (c) => {
     return c.json(macroRegimeTemplate);
   }
   const row = await prisma.factor.findFirst({
-    where: { id: c.req.param('id'), userId: { in: [c.var.userId, BUILTIN_USER_ID] } },
+    where: {
+      id: c.req.param('id'),
+      OR: [
+        { userId: { in: [c.var.userId, BUILTIN_USER_ID] } },
+        { visibility: 'public', status: 'published' },
+      ],
+    },
     select: {
       id: true,
       key: true,
@@ -402,6 +526,7 @@ factorsRoute.get('/custom/:id', async (c) => {
       code: true,
       messages: true,
       userId: true,
+      visibility: true,
     },
   });
   if (!row) {
@@ -410,9 +535,11 @@ factorsRoute.get('/custom/:id', async (c) => {
   const { userId: ownerId, ...rest } = row;
   return c.json({
     ...rest,
+    messages: ownerId === c.var.userId ? row.messages : null,
     description: localeFromRequest(c) === 'en' ? row.descriptionEn : row.descriptionZh,
     strategyKey: strategyKey(row.key, row.status),
     builtin: ownerId === BUILTIN_USER_ID,
+    owned: ownerId === c.var.userId,
   });
 });
 
@@ -545,7 +672,13 @@ factorsRoute.delete('/custom/:id', async (c) => {
 factorsRoute.post('/custom/:id/copy', async (c) => {
   const userId = c.var.userId;
   const source = await prisma.factor.findFirst({
-    where: { id: c.req.param('id'), userId: { in: [userId, BUILTIN_USER_ID] } },
+    where: {
+      id: c.req.param('id'),
+      OR: [
+        { userId: { in: [userId, BUILTIN_USER_ID] } },
+        { visibility: 'public', status: 'published' },
+      ],
+    },
     select: {
       key: true,
       name: true,
@@ -554,13 +687,14 @@ factorsRoute.post('/custom/:id/copy', async (c) => {
       descriptionZh: true,
       descriptionEn: true,
       messages: true,
+      userId: true,
     },
   });
   if (!source) {
     return apiError(c, 'NOT_FOUND', m(c, 'factorNotFound'));
   }
 
-  const { key, version } = await nextCopyKey(userId, source.key);
+  const { key, version } = await nextCopyKey(prisma, userId, source.key);
   const nameBase = source.name.replace(/\s+v\d+$/i, '');
   const name = `${nameBase} v${version}`.slice(0, 40);
   const id = ulid();
@@ -574,13 +708,14 @@ factorsRoute.post('/custom/:id/copy', async (c) => {
       analysisKind: source.analysisKind,
       descriptionZh: source.descriptionZh,
       descriptionEn: source.descriptionEn,
-      messages: source.messages ?? undefined,
+      ...(source.userId === userId && source.messages != null ? { messages: source.messages } : {}),
     },
   });
   return c.json({ id, key, name, status: 'draft' });
 });
 
 async function nextCopyKey(
+  database: Pick<Prisma.TransactionClient, 'factor' | 'factorComposite'>,
   userId: string,
   sourceKey: string,
 ): Promise<{ key: string; version: number }> {
@@ -591,8 +726,8 @@ async function nextCopyKey(
     const suffix = `_v${version}`;
     const key = `${base.slice(0, 32 - suffix.length).replace(/_+$/g, '')}${suffix}`;
     const [factorTaken, compositeTaken] = await Promise.all([
-      prisma.factor.findFirst({ where: { userId, key }, select: { id: true } }),
-      prisma.factorComposite.findFirst({ where: { userId, key }, select: { id: true } }),
+      database.factor.findFirst({ where: { userId, key }, select: { id: true } }),
+      database.factorComposite.findFirst({ where: { userId, key }, select: { id: true } }),
     ]);
     if (!factorTaken && !compositeTaken && !BUILTIN_KEYS.has(key)) {
       return { key, version };

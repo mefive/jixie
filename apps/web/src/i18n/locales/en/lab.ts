@@ -297,6 +297,7 @@ export const enLab: typeof zhLab = {
 
   // Log dock
   logStarting: 'Starting the backtest process…',
+  queuePosition: 'Queued — position {{position}}',
   logEmpty: 'Run a strategy to see logs here (system progress + your console output)',
   logTab: 'Logs',
 

@@ -178,6 +178,8 @@ import type {
   StrategyExecutionOverview,
   StrategyDeployment,
   ToolTraceItem,
+  PublicLibrary,
+  AssetVisibility,
 } from '@jixie/shared';
 
 // Back-compat alias — the trace item type now lives in shared (agent-stream protocol).
@@ -292,7 +294,8 @@ export async function* readSSE(res: Response): AsyncGenerator<AgentStreamEvent> 
 // only — the result lands on Strategy.lastResult (fetch it on done). 'stale' = the run's process died.
 // Logs are tagged LogLine (system progress vs the strategy's own console.*).
 export interface BacktestJob {
-  status: 'running' | 'done' | 'error' | 'stale';
+  status: 'queued' | 'running' | 'done' | 'error' | 'stale';
+  queuePosition?: number;
   logs: LogLine[];
   nextSince: number;
   error?: string | null;
@@ -485,6 +488,26 @@ export function updateStrategy(
 
 export function deleteStrategy(id: string): Promise<{ ok: true }> {
   return request(`/api/app/strategies/${id}`, { method: 'DELETE' });
+}
+
+export function fetchPublicLibrary(signal?: AbortSignal): Promise<PublicLibrary> {
+  return request('/api/app/library', { signal });
+}
+
+export function setStrategyVisibility(
+  id: string,
+  visibility: AssetVisibility,
+): Promise<{ id: string; visibility: AssetVisibility }> {
+  return request(`/api/app/strategies/${encodeURIComponent(id)}/visibility`, {
+    method: 'POST',
+    body: JSON.stringify({ visibility }),
+  });
+}
+
+export function copyPublicStrategy(id: string): Promise<{ id: string; name: string }> {
+  return request(`/api/app/library/strategies/${encodeURIComponent(id)}/copy`, {
+    method: 'POST',
+  });
 }
 
 // —— Saved screens (product line 2 persistence) —— saved on demand; { name, spec } upsert by name.
@@ -707,6 +730,18 @@ export function copyFactorComposite(id: string): Promise<FactorCompositeResource
   });
 }
 
+export function setFactorVisibility(
+  id: string,
+  kind: 'factor' | 'composite',
+  visibility: AssetVisibility,
+): Promise<{ id: string; visibility: AssetVisibility }> {
+  const path = kind === 'composite' ? 'composites' : 'custom';
+  return request(`/api/app/factors/${path}/${encodeURIComponent(id)}/visibility`, {
+    method: 'POST',
+    body: JSON.stringify({ visibility }),
+  });
+}
+
 // —— Custom factors (code-first, Agent-authored) —— created on the first Agent prompt, then updated by
 // id: messages in real time, code/name on an analysis run. Mirrors the strategy workbench.
 export interface CustomFactorMeta {
@@ -731,6 +766,8 @@ export function getCustomFactor(id: string): Promise<{
   code: string;
   messages?: ChatMessage[] | null;
   builtin?: boolean; // preset rows are readable (readonly) through the same endpoint
+  owned?: boolean;
+  visibility?: AssetVisibility;
 }> {
   return request(`/api/app/factors/custom/${id}`);
 }
@@ -856,7 +893,8 @@ export function revealFactorHoldout(reportId: string): Promise<FactorReportDetai
 }
 
 export interface FactorJob {
-  status: 'running' | 'done' | 'error' | 'stale';
+  status: 'queued' | 'running' | 'done' | 'error' | 'stale';
+  queuePosition?: number;
   factorReportId?: string | null;
   logs: LogLine[];
   nextSince: number;

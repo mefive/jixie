@@ -250,6 +250,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   public macroRevisionPolicy: MacroRevisionPolicy = 'latest_vintage';
   public logs: LogLine[] = []; // streamed progress of the current run (job), tagged system/user
   public jobRunning = false; // a streamed analysis is in flight
+  public queuePosition: number | null = null;
 
   private jobId: string | null = null;
   private pollingReportId: string | null = null;
@@ -294,6 +295,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       macroRevisionPolicy: observable.ref,
       logs: observable.ref,
       jobRunning: observable.ref,
+      queuePosition: observable.ref,
       corrKeys: observable.ref,
       corrLogs: observable.ref,
       corrRunning: observable.ref,
@@ -1412,7 +1414,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     this.jobId = jobId;
     this.pollingReportId = reportId;
     this.since = 0;
-    runInAction(() => (this.jobRunning = true));
+    runInAction(() => {
+      this.jobRunning = true;
+      this.queuePosition = null;
+    });
     this.analysisPoller.start();
   }
 
@@ -1428,6 +1433,9 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       if (this.jobId !== jobId || this.pollingReportId !== reportId) {
         return false;
       }
+      runInAction(() => {
+        this.queuePosition = job.status === 'queued' ? (job.queuePosition ?? null) : null;
+      });
       if (job.logs.length) {
         runInAction(() => (this.logs = [...this.logs, ...job.logs]));
         this.since = job.nextSince;
@@ -1450,6 +1458,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       this.jobRunning = false;
       this.jobId = null;
       this.pollingReportId = null;
+      this.queuePosition = null;
     });
   }
 

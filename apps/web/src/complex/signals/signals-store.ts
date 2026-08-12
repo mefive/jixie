@@ -24,6 +24,7 @@ export class SignalsStore extends BaseStore {
   public savingExecutionId = '';
   public logLines: LogLine[] = [];
   public error: string | null = null;
+  public queuePosition: number | null = null;
 
   public todayLoader = new LoaderModel<SignalTodayEntry[]>();
   public historyLoader = new LoaderModel<SignalRun[]>();
@@ -42,6 +43,7 @@ export class SignalsStore extends BaseStore {
       savingExecutionId: observable.ref,
       logLines: observable.ref,
       error: observable.ref,
+      queuePosition: observable.ref,
       entries: computed,
       selected: computed,
       selectedRun: computed,
@@ -163,6 +165,7 @@ export class SignalsStore extends BaseStore {
     runInAction(() => {
       this.runningDeploymentId = deploymentId;
       this.logLines = [];
+      this.queuePosition = null;
       this.error = null;
     });
     try {
@@ -203,6 +206,9 @@ export class SignalsStore extends BaseStore {
   private async pollOnce(): Promise<false | void> {
     try {
       const job = await pollSignalJob(this.jobId, this.since);
+      runInAction(() => {
+        this.queuePosition = job.status === 'queued' ? (job.queuePosition ?? null) : null;
+      });
       if (job.logs.length > 0) {
         runInAction(() => {
           this.logLines = [...this.logLines, ...job.logs];

@@ -745,6 +745,7 @@ model User {
   agentConversations  AgentConversation[]
   factorComposites    FactorComposite[]
   factorWeatherPins   FactorWeatherPin[]
+  jobs                Job[]
 }
 
 /// Login session. id = session token (stored in sid cookie). 30-day TTL; expiry enforced by filtering on expiresAt at query time.
@@ -834,7 +835,8 @@ model Job {
   userId               String
   kind                 String // 'backtest' | 'factor' | 'strategy-scan' | 'signal'
   key                  String // dedupe/lookup key (see model doc)
-  status               String // 'running' | 'done' | 'error' | 'stale'
+  status               String // 'queued' | 'running' | 'done' | 'error' | 'stale'
+  payload              Json? // Frozen runner input; required for queued jobs to survive an API restart
   error                String?
   logs                 String? // JSON(LogLine[]) — flushed once on finish; live logs stream from memory (see lib/jobs.ts)
   factorReportId       String?             @unique
@@ -843,6 +845,10 @@ model Job {
   strategyScanReport   StrategyScanReport? @relation(fields: [strategyScanReportId], references: [id], onDelete: Cascade)
   signalRunId          String?
   signalRun            SignalRun?          @relation(fields: [signalRunId], references: [id], onDelete: Cascade)
+  user                 User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  queuedAt             DateTime            @default(now())
+  startedAt            DateTime?
+  finishedAt           DateTime?
   createdAt            DateTime            @default(now())
   updatedAt            DateTime            @updatedAt
 
@@ -878,6 +884,7 @@ model Strategy {
   user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   name          String
   config        Json // BacktestConfig
+  visibility    String               @default("private") // 'private' | 'public'
   lastResult    Json? // last BacktestSummary (metrics + nav + tradeLog) — shown on reopen, refreshed each run
   messages      Json? // ChatMessage[] — the Agent-panel conversation that authored this strategy (per-strategy)
   conversations AgentConversation[]
@@ -888,6 +895,7 @@ model Strategy {
 
   @@unique([userId, name]) // name = identity within a user → enables upsert-by-name
   @@index([userId, updatedAt]) // list a user's strategies, newest first
+  @@index([visibility, updatedAt])
 }
 
 /// One immutable strategy version promoted from research into daily operation. Editing Strategy.config
@@ -1052,6 +1060,7 @@ model Factor {
   code             String // defineFactor TS source
   messages         Json? // ChatMessage[] — the Agent-panel conversation that authored this factor (per-factor)
   status           String              @default("draft") // 'draft' | 'published' | 'archived'
+  visibility       String              @default("private") // 'private' | 'public'; public requires published
   approvedReportId String?             @unique
   approvedReport   FactorReport?       @relation(fields: [approvedReportId], references: [id], onDelete: Restrict)
   codeHash         String?
@@ -1064,6 +1073,7 @@ model Factor {
 
   @@unique([userId, key]) // user-factor keys are unique per owner; builtin keys are additionally reserved in the allocator
   @@index([userId, updatedAt]) // list a user's factors, newest first
+  @@index([visibility, status, updatedAt])
 }
 
 /// One user-pinned immutable Factor snapshot monitored under the canonical monthly weather methodology.
@@ -1122,6 +1132,7 @@ model FactorComposite {
   name             String
   definition       Json // FactorCompositeDefinitionV1 | FactorPanelCompositeDefinitionV2
   status           String    @default("draft") // 'draft' | 'published' | 'archived'
+  visibility       String    @default("private") // 'private' | 'public'; public requires published
   approvedReportId String?   @unique
   codeHash         String?
   publishedAt      DateTime?
@@ -1131,6 +1142,7 @@ model FactorComposite {
 
   @@unique([userId, key])
   @@index([userId, updatedAt])
+  @@index([visibility, status, updatedAt])
 }
 
 /// An agent conversation on the screen page (a "session card" on the card wall). Strategy/factor
