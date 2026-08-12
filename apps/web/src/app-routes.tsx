@@ -20,6 +20,7 @@ import marketEntry from '@src/complex/market';
 import factorWeatherEntry from '@src/complex/factor-weather';
 import valuationEntry from '@src/complex/valuation';
 import signalsEntry from '@src/complex/signals';
+import libraryEntry from '@src/complex/library';
 import { TopNav } from '@src/components/top-nav';
 import { authStore } from '@src/store';
 import './app-layout.css';
@@ -172,6 +173,7 @@ const router = createBrowserRouter(
         <Route path="/stock/:code" element={<StockRoute />} />
         <Route path="/trades" element={<TradePage />} />
         <Route path="/signals" element={<ComplexRoute key="signals" entry={signalsEntry} />} />
+        <Route path="/library" element={<ComplexRoute key="library" entry={libraryEntry} />} />
       </Route>
       <Route path="/learn" element={<ExternalRedirect to="/docs/help" />} />
       <Route path="/help/*" element={<LegacyHelpRedirect />} />

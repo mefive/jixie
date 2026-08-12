@@ -12,6 +12,7 @@ export const enSignals: typeof zhSignals = {
   generate: 'Generate now',
   generateHint: 'Uses the frozen deployment, never unsaved editor changes.',
   logEmpty: 'No run logs',
+  queuePosition: 'Queued — position {{position}}',
   noRuns: 'No signals have been generated yet.',
   runTitle: '{{date}} signal',
   runHint: 'Scheduled for the {{date}} open.',

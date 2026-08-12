@@ -1330,7 +1330,14 @@ const FactorDock = complex.component(() => {
         {store.jobRunning && <FontAwesomeIcon icon={faSpinner} spin />}
         {t('log')}
       </div>
-      <LogView lines={store.logs} emptyText={t('logEmpty')} />
+      <LogView
+        lines={store.logs}
+        emptyText={
+          store.queuePosition
+            ? t('queuePosition', { position: store.queuePosition })
+            : t('logEmpty')
+        }
+      />
     </div>
   );
 }, 'FactorDock');

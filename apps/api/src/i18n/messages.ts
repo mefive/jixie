@@ -29,6 +29,14 @@ const MESSAGES = {
   // —— Not-found (entities) ——
   strategyNotFound: { zh: '策略不存在', en: 'Strategy not found' },
   factorNotFound: { zh: '因子不存在', en: 'Factor not found' },
+  publicStrategyMustBeSelfContained: {
+    zh: '公开策略暂不支持依赖自定义因子，请先改为只使用内置数据和因子',
+    en: 'Public strategies must currently use only built-in data and factors',
+  },
+  assetMustBePublishedBeforeSharing: {
+    zh: '因子完成发布后才能公开分享',
+    en: 'A factor must be published before it can be shared publicly',
+  },
   screenNotFound: { zh: '选股不存在', en: 'Screen not found' },
   conversationNotFound: { zh: '会话不存在', en: 'Conversation not found' },
 

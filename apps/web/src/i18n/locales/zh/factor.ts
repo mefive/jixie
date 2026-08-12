@@ -304,6 +304,7 @@ export const zhFactor = {
 
   log: '日志',
   logEmpty: '运行分析后在此查看日志(系统进度 + 你的 console 输出)',
+  queuePosition: '任务排队中，当前第 {{position}} 位',
 
   pickPrompt: '← 选一个因子,或让 Agent 写一个,再运行分析',
 

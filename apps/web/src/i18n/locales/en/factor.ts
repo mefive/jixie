@@ -321,6 +321,7 @@ export const enFactor: typeof zhFactor = {
 
   log: 'Log',
   logEmpty: 'Run an analysis to see the log here (system progress + your console output)',
+  queuePosition: 'Queued — position {{position}}',
 
   pickPrompt: '← Pick a factor, or have the Agent write one, then run analysis',
 

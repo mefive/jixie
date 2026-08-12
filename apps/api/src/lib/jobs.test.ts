@@ -1,0 +1,62 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const mocks = vi.hoisted(() => ({
+  jobFindMany: vi.fn(),
+  jobUpdateMany: vi.fn(),
+  factorReportUpdateMany: vi.fn(),
+  strategyScanReportUpdateMany: vi.fn(),
+  signalRunUpdateMany: vi.fn(),
+  transaction: vi.fn(),
+}));
+
+vi.mock('./prisma.js', () => ({
+  prisma: {
+    $transaction: mocks.transaction,
+  },
+}));
+
+const { markRunningJobsStale } = await import('./jobs.js');
+
+describe('job restart recovery', () => {
+  beforeEach(() => {
+    Object.values(mocks).forEach((mock) => mock.mockReset());
+    mocks.transaction.mockImplementation(async (callback) =>
+      callback({
+        job: { findMany: mocks.jobFindMany, updateMany: mocks.jobUpdateMany },
+        factorReport: { updateMany: mocks.factorReportUpdateMany },
+        strategyScanReport: { updateMany: mocks.strategyScanReportUpdateMany },
+        signalRun: { updateMany: mocks.signalRunUpdateMany },
+      }),
+    );
+  });
+
+  it('marks only running jobs stale and leaves durable queued jobs resumable', async () => {
+    mocks.jobFindMany.mockResolvedValue([
+      { factorReportId: 'factor-report', strategyScanReportId: null, signalRunId: null },
+      { factorReportId: null, strategyScanReportId: 'scan-report', signalRunId: 'signal-run' },
+    ]);
+    mocks.factorReportUpdateMany.mockResolvedValue({ count: 1 });
+    mocks.strategyScanReportUpdateMany.mockResolvedValue({ count: 1 });
+    mocks.signalRunUpdateMany.mockResolvedValue({ count: 1 });
+    mocks.jobUpdateMany.mockResolvedValue({ count: 2 });
+
+    await expect(markRunningJobsStale()).resolves.toBe(2);
+
+    expect(mocks.jobFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { status: 'running' } }),
+    );
+    expect(mocks.jobUpdateMany).toHaveBeenCalledWith({
+      where: { status: 'running' },
+      data: { status: 'stale', finishedAt: expect.any(Date) },
+    });
+    expect(mocks.factorReportUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: { in: ['factor-report'] }, status: 'running' } }),
+    );
+    expect(mocks.strategyScanReportUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: { in: ['scan-report'] }, status: 'running' } }),
+    );
+    expect(mocks.signalRunUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: { in: ['signal-run'] }, status: 'running' } }),
+    );
+  });
+});

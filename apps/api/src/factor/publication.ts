@@ -160,7 +160,7 @@ export async function archiveFactor(
   const archivedAt = new Date();
   const updated = await prisma.factor.updateMany({
     where: { id: factorId, userId, status: 'published' },
-    data: { status: 'archived', archivedAt },
+    data: { status: 'archived', visibility: 'private', archivedAt },
   });
   if (updated.count === 0) {
     return null;

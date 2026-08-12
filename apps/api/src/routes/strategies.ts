@@ -14,6 +14,8 @@ import {
   proposeStrategyName,
   uniqueStrategyName,
 } from '../services/strategy-service.js';
+import { ACTIVE_JOB_STATUSES } from '../lib/jobs.js';
+import { extractFactorKeys } from '../engine/prepare-custom-factors.js';
 
 /**
  * Saved strategies (product line 1 persistence). Owner-scoped CRUD over the Strategy table. The workbench
@@ -28,12 +30,20 @@ export const strategiesRoute = new Hono();
 strategiesRoute.get('/', async (c) => {
   const rows = await prisma.strategy.findMany({
     where: { userId: c.var.userId },
-    select: { id: true, name: true, createdAt: true, updatedAt: true, lastResult: true },
+    select: {
+      id: true,
+      name: true,
+      visibility: true,
+      createdAt: true,
+      updatedAt: true,
+      lastResult: true,
+    },
     orderBy: { updatedAt: 'desc' },
   });
   const cards: StrategyCard[] = rows.map((r) => ({
     id: r.id,
     name: r.name,
+    visibility: r.visibility === 'public' ? 'public' : 'private',
     createdAt: r.createdAt.toISOString(),
     updatedAt: r.updatedAt.toISOString(),
     snapshot: snapshotOf(r.lastResult),
@@ -70,6 +80,7 @@ strategiesRoute.get('/:id', async (c) => {
     config: row.config,
     lastResult: row.lastResult,
     messages: row.messages,
+    visibility: row.visibility === 'public' ? 'public' : 'private',
   });
 });
 
@@ -122,6 +133,31 @@ const updateBody = z.object({
   messages: chatMessagesSchema.optional(),
 });
 
+const visibilityBody = z.object({ visibility: z.enum(['private', 'public']) });
+
+strategiesRoute.post('/:id/visibility', validateJson(visibilityBody), async (c) => {
+  const strategy = await prisma.strategy.findFirst({
+    where: { id: c.req.param('id'), userId: c.var.userId },
+    select: { id: true, config: true },
+  });
+  if (!strategy) {
+    return apiError(c, 'NOT_FOUND', m(c, 'strategyNotFound'));
+  }
+  const visibility = c.req.valid('json').visibility;
+  if (visibility === 'public') {
+    const config = codeConfigSchema.parse(strategy.config);
+    if (extractFactorKeys(config.code).length > 0) {
+      return apiError(c, 'VALIDATION_FAILED', m(c, 'publicStrategyMustBeSelfContained'));
+    }
+  }
+  const updated = await prisma.strategy.update({
+    where: { id: strategy.id },
+    data: { visibility },
+    select: { id: true, visibility: true },
+  });
+  return c.json(updated);
+});
+
 strategiesRoute.post('/:id', validateJson(updateBody), async (c) => {
   const id = c.req.param('id');
   const userId = c.var.userId;
@@ -129,7 +165,7 @@ strategiesRoute.post('/:id', validateJson(updateBody), async (c) => {
   if (config) {
     const result = await prisma.$transaction(async (transaction) => {
       const running = await transaction.job.findFirst({
-        where: { userId, kind: 'backtest', key: id, status: 'running' },
+        where: { userId, kind: 'backtest', key: id, status: { in: ACTIVE_JOB_STATUSES } },
         select: { id: true },
       });
       if (running) {
@@ -141,6 +177,7 @@ strategiesRoute.post('/:id', validateJson(updateBody), async (c) => {
         id,
         config,
         messages as Prisma.InputJsonValue | undefined,
+        { forcePrivate: extractFactorKeys(config.code).length > 0 },
       );
       return row ? { kind: 'updated' as const, row } : { kind: 'not_found' as const };
     });

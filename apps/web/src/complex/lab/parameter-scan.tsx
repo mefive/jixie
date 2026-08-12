@@ -286,7 +286,14 @@ export const ParameterScanPanel = complex.component(() => {
       {store.scanError ? <div className="jx-parameterScan-error">{store.scanError}</div> : null}
       {store.scanPoller.running ? (
         <div className="jx-parameterScan-progress">
-          <LogView lines={store.scanLogLines} emptyText={t('scanStarting')} />
+          <LogView
+            lines={store.scanLogLines}
+            emptyText={
+              store.scanQueuePosition
+                ? t('queuePosition', { position: store.scanQueuePosition })
+                : t('scanStarting')
+            }
+          />
         </div>
       ) : null}
       {!report && !store.scanPoller.running ? (

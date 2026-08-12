@@ -1,0 +1,62 @@
+@reference '../../styles/index.css';
+
+.jx-library {
+  @apply h-full overflow-auto;
+  width: min(1280px, 100%);
+  margin: 0 auto;
+  padding: 28px 24px 48px;
+}
+
+.jx-library-hero {
+  @apply mb-5 rounded-2xl border border-line bg-card;
+  padding: 28px 32px;
+}
+
+.jx-library-hero h1 {
+  @apply m-0 text-2xl font-semibold;
+}
+
+.jx-library-hero p {
+  @apply mb-0 mt-2 text-muted;
+}
+
+.jx-library-eyebrow {
+  @apply mb-2 text-xs font-semibold tracking-widest text-muted;
+}
+
+.jx-library-sections {
+  @apply flex flex-col gap-8;
+}
+
+.jx-library-section h2 {
+  @apply mb-3 mt-0 text-base font-semibold;
+}
+
+.jx-library-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.jx-library-cardHead,
+.jx-library-actions {
+  @apply flex items-center justify-between gap-3;
+}
+
+.jx-library-meta {
+  @apply my-4 truncate text-xs text-muted;
+}
+
+.jx-library-actions {
+  @apply justify-end;
+}
+
+@media (max-width: 640px) {
+  .jx-library {
+    padding: 16px 12px 32px;
+  }
+
+  .jx-library-hero {
+    padding: 20px;
+  }
+}

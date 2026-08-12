@@ -1755,7 +1755,11 @@ function formatOptionalPercent(value: number | null): string {
 const LogDock = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('lab');
-  const emptyText = store.running ? t('logStarting') : t('logEmpty');
+  const emptyText = store.queuePosition
+    ? t('queuePosition', { position: store.queuePosition })
+    : store.running
+      ? t('logStarting')
+      : t('logEmpty');
   return (
     <div className="jx-lab-dock">
       <div className="jx-lab-dockHead">

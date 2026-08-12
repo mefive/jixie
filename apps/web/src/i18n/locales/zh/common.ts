@@ -9,6 +9,7 @@ export const zhCommon = {
     factorWeather: '因子气象',
     valuation: '估值',
     signals: '今日信号',
+    library: '公共资产库',
     help: '使用帮助',
     menu: '页面导航',
   },

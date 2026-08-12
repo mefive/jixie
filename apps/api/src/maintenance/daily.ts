@@ -727,7 +727,7 @@ export async function waitForRunningWork(onLog: (line: string) => void): Promise
 
   for (;;) {
     const [jobs, agentTurns, factorWeatherRuns] = await Promise.all([
-      prisma.job.count({ where: { status: 'running' } }),
+      prisma.job.count({ where: { status: { in: ['queued', 'running'] } } }),
       prisma.agentTurn.count({ where: { status: 'running' } }),
       prisma.factorWeatherPin.count({ where: { status: 'running' } }),
     ]);
