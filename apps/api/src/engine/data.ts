@@ -88,6 +88,7 @@ export class EngineData {
       annDate: string;
       roe: number | null;
       roeWaa: number | null;
+      roa: number | null;
       grossprofitMargin: number | null;
       debtToAssets: number | null;
     }[]
@@ -144,6 +145,16 @@ export class EngineData {
   indexCloses(code: string): { date: string; close: number }[] {
     const s = this.indexByCode.get(code);
     return s ? s.dates.map((date, i) => ({ date, close: s.closes[i] })) : [];
+  }
+
+  /** Exact-date index close. Benchmark histories must not carry a stale close across a missing day. */
+  indexCloseOn(code: string, date: string): number | null {
+    const series = this.indexByCode.get(code);
+    if (!series) {
+      return null;
+    }
+    const index = lastIndexAtOrBefore(series.dates, date);
+    return index >= 0 && series.dates[index] === date ? series.closes[index] : null;
   }
 
   /** Latest official government yield visible on the decision date, with a daily staleness cap. */
@@ -651,6 +662,7 @@ export class EngineData {
         turnoverRate: basic.turnoverRate,
         roe: fina?.roe ?? null,
         roeWaa: fina?.roeWaa ?? null,
+        roa: fina?.roa ?? null,
         grossprofitMargin: fina?.grossprofitMargin ?? null,
         debtToAssets: fina?.debtToAssets ?? null,
       });
@@ -718,6 +730,7 @@ export class EngineData {
         annDate: r.annDate,
         roe: r.roe,
         roeWaa: r.roeWaa,
+        roa: r.roa,
         grossprofitMargin: r.grossprofitMargin,
         debtToAssets: r.debtToAssets,
       });
@@ -731,6 +744,7 @@ export class EngineData {
   ): {
     roe: number | null;
     roeWaa: number | null;
+    roa: number | null;
     grossprofitMargin: number | null;
     debtToAssets: number | null;
   } | null {

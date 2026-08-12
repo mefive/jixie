@@ -673,8 +673,76 @@ describe('extractFactorKeys (host-side source scan)', () => {
     expect(extractCustomFactorHistoryFields("ctx.history(504, 'grossprofitMargin')")).toEqual([
       'grossprofitMargin',
     ]);
+    expect(extractCustomFactorHistoryFields("ctx.history(21, 'marketClose')")).toEqual([
+      'marketClose',
+    ]);
     expect(extractCustomFactorHistoryFields('bar.roe && ctx.history(21)')).toEqual([]);
     expect(extractCustomFactorHistoryFields("ctx.history(21, 'amount')")).toEqual([]);
+  });
+});
+
+describe('market benchmark history for custom factors', () => {
+  it('serves exact-date CSI All Share closes on direct and walled lanes', async () => {
+    const marketSpec = spec();
+    marketSpec.indexDaily = D.map((tradeDate, index) => ({
+      tsCode: '000985.CSI',
+      tradeDate,
+      close: 100 + index,
+    }));
+    const factorCode = `export default defineFactor({
+      name: 'market move',
+      window: 3,
+      compute(bar, ctx) {
+        const closes = ctx.history(3, 'marketClose');
+        if (closes.length < 3 || closes.some((value) => value == null)) { return null; }
+        return closes[2] - closes[0];
+      },
+    });`;
+    const js = await toCommonJs(factorCode, 'factor code');
+    const seen: Record<string, number | null> = {};
+    const strategy: Strategy = {
+      name: 'read market history',
+      factors: ['market_move'],
+      async onBar(ctx) {
+        await ctx.ensureBars(['A']);
+        seen[ctx.date] = ctx.factor('market_move', 'A');
+      },
+    };
+
+    await runStrategy({
+      start: D[0],
+      end: D[4],
+      initialCash: 100_000,
+      strategy,
+      dataPort: fixturePort(marketSpec),
+      customFactors: [{ key: 'market_move', js, historyFields: ['marketClose'] }],
+    });
+    expect(seen[D[1]]).toBeNull();
+    expect(seen[D[2]]).toBe(2);
+    expect(seen[D[4]]).toBe(2);
+
+    const logged: string[] = [];
+    await runWalledBacktest(
+      {
+        code: `export default defineStrategy({
+          name: 'walled market history',
+          factors: ['market_move'],
+          async onBar(ctx) {
+            await ctx.ensureBars(['A']);
+            console.log(ctx.date + '=' + String(ctx.factor('market_move', 'A')));
+          },
+        });`,
+        start: D[0],
+        end: D[4],
+        initialCash: 100_000,
+        customFactors: [{ key: 'market_move', js, historyFields: ['marketClose'] }],
+      },
+      fixturePort(marketSpec),
+      undefined,
+      (_level, text) => logged.push(text),
+    );
+    expect(logged).toContain(`${D[2]}=2`);
+    expect(logged).toContain(`${D[4]}=2`);
   });
 });
 
@@ -689,6 +757,7 @@ describe('point-in-time fundamental history for custom factors', () => {
         annDate: D[1],
         roe: 10,
         roeWaa: null,
+        roa: 5,
         grossprofitMargin: 30,
         debtToAssets: 40,
       },
@@ -697,6 +766,7 @@ describe('point-in-time fundamental history for custom factors', () => {
         annDate: D[3],
         roe: 16,
         roeWaa: null,
+        roa: 8,
         grossprofitMargin: 36,
         debtToAssets: 42,
       },
@@ -710,7 +780,7 @@ describe('point-in-time fundamental history for custom factors', () => {
         if (roes.length < 3 || grossMargins.length < 3) { return null; }
         const roeSum = roes.reduce((sum, value) => sum + (value ?? 0), 0);
         const marginSum = grossMargins.reduce((sum, value) => sum + (value ?? 0), 0);
-        return roeSum * 1000 + marginSum;
+        return (bar.roa ?? 0) * 1000000 + roeSum * 1000 + marginSum;
       },
     });`;
     const js = await toCommonJs(factorCode, 'factor code');
@@ -719,6 +789,7 @@ describe('point-in-time fundamental history for custom factors', () => {
       name: 'read roe history',
       factors: ['roestep'],
       async onBar(ctx) {
+        await ctx.loadCrossSection();
         await ctx.ensureBars(['A']);
         seen[ctx.date] = ctx.factor('roestep', 'A');
       },
@@ -734,9 +805,9 @@ describe('point-in-time fundamental history for custom factors', () => {
     });
 
     expect(seen[D[1]]).toBeNull(); // only 2 bars of history
-    expect(seen[D[2]]).toBe((0 + 10 + 10) * 1000 + (0 + 30 + 30));
-    expect(seen[D[3]]).toBe((10 + 10 + 16) * 1000 + (30 + 30 + 36));
-    expect(seen[D[4]]).toBe((10 + 16 + 16) * 1000 + (30 + 36 + 36));
+    expect(seen[D[2]]).toBe(5 * 1_000_000 + (0 + 10 + 10) * 1000 + (0 + 30 + 30));
+    expect(seen[D[3]]).toBe(8 * 1_000_000 + (10 + 10 + 16) * 1000 + (30 + 30 + 36));
+    expect(seen[D[4]]).toBe(8 * 1_000_000 + (10 + 16 + 16) * 1000 + (30 + 36 + 36));
 
     const logged: string[] = [];
     await runWalledBacktest(
@@ -745,6 +816,7 @@ describe('point-in-time fundamental history for custom factors', () => {
           name: 'walled roe history',
           factors: ['roestep'],
           async onBar(ctx) {
+            await ctx.universe();
             await ctx.ensureBars(['A']);
             console.log(ctx.date + '=' + String(ctx.factor('roestep', 'A')));
           },
@@ -758,7 +830,7 @@ describe('point-in-time fundamental history for custom factors', () => {
       undefined,
       (_level, text) => logged.push(text),
     );
-    expect(logged).toContain(`${D[3]}=${(10 + 10 + 16) * 1000 + (30 + 30 + 36)}`);
-    expect(logged).toContain(`${D[4]}=${(10 + 16 + 16) * 1000 + (30 + 36 + 36)}`);
+    expect(logged).toContain(`${D[3]}=${8 * 1_000_000 + (10 + 10 + 16) * 1000 + (30 + 30 + 36)}`);
+    expect(logged).toContain(`${D[4]}=${8 * 1_000_000 + (10 + 16 + 16) * 1000 + (30 + 36 + 36)}`);
   });
 });

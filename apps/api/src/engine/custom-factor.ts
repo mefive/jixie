@@ -33,7 +33,11 @@ export interface CustomFactorModule {
   };
 }
 
-export type CustomFactorHistoryField = 'turnoverRateF' | 'roe' | 'grossprofitMargin';
+export type CustomFactorHistoryField =
+  | 'turnoverRateF'
+  | 'roe'
+  | 'grossprofitMargin'
+  | 'marketClose';
 export type TimeSeriesFactorInput = FactorV2FieldKey;
 
 export interface AssetFactorRuntimeMeta {
@@ -84,6 +88,9 @@ export function extractCustomFactorHistoryFields(source: string): CustomFactorHi
   }
   if (/['"]grossprofitMargin['"]/.test(source)) {
     fields.push('grossprofitMargin');
+  }
+  if (/['"]marketClose['"]/.test(source)) {
+    fields.push('marketClose');
   }
   return fields;
 }
@@ -258,10 +265,11 @@ export class CustomFactorRuntime {
       // fina is preloaded by run.ts when the factor declares the 'roe' history field.
       let roes: (number | null)[] | null = null;
       let grossProfitMargins: (number | null)[] | null = null;
+      let marketCloses: (number | null)[] | null = null;
       ctx = {
         history(
           n: number,
-          field?: 'date' | 'amount' | 'turnoverRateF' | 'roe' | 'grossprofitMargin',
+          field?: 'date' | 'amount' | 'turnoverRateF' | 'roe' | 'grossprofitMargin' | 'marketClose',
         ) {
           // Auxiliary histories are loaded only when requested by host metadata and stay aligned
           // with the OHLC bars.
@@ -278,7 +286,11 @@ export class CustomFactorRuntime {
                       ? (grossProfitMargins ??= bars.map((bar) =>
                           engineData.grossProfitMarginHistoryAt(code, bar.date),
                         ))
-                      : closes;
+                      : field === 'marketClose'
+                        ? (marketCloses ??= bars.map((bar) =>
+                            engineData.indexCloseOn('000985.CSI', bar.date),
+                          ))
+                        : closes;
           if (n <= 0 || source.length < n) {
             return [];
           }
@@ -409,6 +421,7 @@ export class CustomFactorRuntime {
       netMain: this.engineData.factor('mf_net_main', date, code),
       netTotal: this.engineData.factor('mf_net_total', date, code),
       roe: crossBar?.roe ?? null,
+      roa: crossBar?.roa ?? null,
       grossprofitMargin: crossBar?.grossprofitMargin ?? null,
       debtToAssets: crossBar?.debtToAssets ?? null,
     };

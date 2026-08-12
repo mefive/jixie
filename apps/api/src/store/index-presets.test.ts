@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  DAILY_MAINTAINED_INDEX_CODES,
+  MAJOR_INDEX_DAILY_CODES,
   MARKET_WEATHER_INDEX_BENCHMARKS,
   MARKET_WEATHER_INDEX_CODES,
   MARKET_WEATHER_INDEX_GROUPS,
@@ -7,6 +9,11 @@ import {
 } from './index-presets.js';
 
 describe('market weather index presets', () => {
+  it('keeps CSI All Share in the core daily set for residual-volatility factors', () => {
+    expect(MAJOR_INDEX_DAILY_CODES).toContain('000985.CSI');
+    expect(DAILY_MAINTAINED_INDEX_CODES).toContain('000985.CSI');
+  });
+
   it('keeps the 34-card allowlist unique and fully covered by constituent indicators', () => {
     expect(MARKET_WEATHER_INDEX_CODES).toHaveLength(34);
     expect(new Set(MARKET_WEATHER_INDEX_CODES).size).toBe(34);

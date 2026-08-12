@@ -223,6 +223,101 @@ function gapDays(a: string, b: string): number {
 }
 `;
 
+// Keep this source byte-identical to the frozen candidate admitted in
+// docs/reports/factor-admission-market-residual-volatility.md.
+const MARKET_RESIDUAL_VOLATILITY_CODE = `export default defineFactor({
+  name: '市场残差波动率(20日)',
+  window: 21,
+  minCoverage: 0.8,
+  compute(bar, ctx) {
+    const stockCloses = ctx.history(21);
+    const marketCloses = ctx.history(21, 'marketClose');
+    const dates = ctx.history(21, 'date');
+    if (
+      stockCloses.length < 21 ||
+      marketCloses.length < 21 ||
+      marketCloses.some((value) => value == null)
+    ) {
+      return null;
+    }
+    const day = (value: string) =>
+      Date.UTC(+value.slice(0, 4), +value.slice(4, 6) - 1, +value.slice(6)) / 86400000;
+    const stockReturns: number[] = [];
+    const marketReturns: number[] = [];
+    for (let index = 1; index < stockCloses.length; index++) {
+      const previousStock = stockCloses[index - 1];
+      const previousMarket = marketCloses[index - 1];
+      const currentMarket = marketCloses[index];
+      if (
+        previousStock <= 0 ||
+        previousMarket == null ||
+        previousMarket <= 0 ||
+        currentMarket == null ||
+        currentMarket <= 0 ||
+        day(dates[index]) - day(dates[index - 1]) > 30
+      ) {
+        return null;
+      }
+      stockReturns.push(stockCloses[index] / previousStock - 1);
+      marketReturns.push(currentMarket / previousMarket - 1);
+    }
+    const stockMean = stockReturns.reduce((sum, value) => sum + value, 0) / stockReturns.length;
+    const marketMean = marketReturns.reduce((sum, value) => sum + value, 0) / marketReturns.length;
+    let marketVarianceSum = 0;
+    let covarianceSum = 0;
+    for (let index = 0; index < stockReturns.length; index++) {
+      const centeredMarket = marketReturns[index] - marketMean;
+      marketVarianceSum += centeredMarket ** 2;
+      covarianceSum += centeredMarket * (stockReturns[index] - stockMean);
+    }
+    if (marketVarianceSum <= 0) {
+      return null;
+    }
+    const beta = covarianceSum / marketVarianceSum;
+    const alpha = stockMean - beta * marketMean;
+    const residuals = stockReturns.map(
+      (value, index) => value - alpha - beta * marketReturns[index],
+    );
+    const residualMean = residuals.reduce((sum, value) => sum + value, 0) / residuals.length;
+    const residualVariance =
+      residuals.reduce((sum, value) => sum + (value - residualMean) ** 2, 0) /
+      residuals.length;
+    return Math.sqrt(residualVariance);
+  },
+});`;
+
+// Keep this source byte-identical to the frozen candidate admitted in
+// docs/reports/factor-admission-sales-yield.md.
+const SALES_YIELD_CODE = `export default defineFactor({
+  name: '销售收益率(1/PS_TTM)',
+  compute: (bar) => (bar.psTtm && bar.psTtm > 0 ? 1 / bar.psTtm : null),
+});`;
+
+// Keep this source byte-identical to the frozen candidate admitted in
+// docs/reports/factor-admission-maximum-daily-return.md.
+const MAXIMUM_DAILY_RETURN_CODE = `export default defineFactor({
+  name: '月内最大单日收益(21日)',
+  window: 22,
+  compute(bar, ctx) {
+    const closes = ctx.history(22);
+    const dates = ctx.history(22, 'date');
+    if (closes.length < 22 || dates.length < 22) {
+      return null;
+    }
+    let maximumReturn = -Infinity;
+    const day = (value: string) =>
+      Date.UTC(+value.slice(0, 4), +value.slice(4, 6) - 1, +value.slice(6)) / 86400000;
+    for (let index = 1; index < closes.length; index++) {
+      const previous = closes[index - 1];
+      if (previous <= 0 || day(dates[index]) - day(dates[index - 1]) > 30) {
+        return null;
+      }
+      maximumReturn = Math.max(maximumReturn, closes[index] / previous - 1);
+    }
+    return maximumReturn;
+  },
+});`;
+
 const ABNORMAL_TURNOVER_CODE = `// Preset: abnormal turnover from Liu et al. (2019) and Factor Investing: Methodology and Practice.
 // Definition: mean free-float turnover over the latest 21 trading days divided by its mean over the
 // latest 252 trading days. A-share evidence expects a negative relation with future returns.
@@ -338,6 +433,20 @@ export const BUILTIN_FACTORS: BuiltinFactorDef[] = [
     code: VOLATILITY_120_CODE,
   },
   {
+    key: 'resid_vol20',
+    label: '市场残差波动率(20日)',
+    kind: 'price',
+    expectedDirection: 'negative',
+    code: MARKET_RESIDUAL_VOLATILITY_CODE,
+  },
+  {
+    key: 'maxret21',
+    label: '月内最大单日收益(21日)',
+    kind: 'price',
+    expectedDirection: 'negative',
+    code: MAXIMUM_DAILY_RETURN_CODE,
+  },
+  {
     key: 'abturn',
     label: '异常换手率(21日/252日)',
     kind: 'price',
@@ -374,6 +483,13 @@ export default defineFactor({
   compute: (bar) => (bar.pb && bar.pb > 0 ? 1 / bar.pb : null),
 });
 `,
+  },
+  {
+    key: 'sales_yield',
+    label: '销售收益率(1/PS_TTM)',
+    kind: 'fundamental',
+    expectedDirection: 'positive',
+    code: SALES_YIELD_CODE,
   },
   {
     key: 'dv',

@@ -28,6 +28,9 @@ export interface FactorCtx {
   /** Point-in-time gross profit margin (%) history, with the same announcement-date gating and
    * alignment rules as ROE history. Null before the first published report. */
   history(n: number, field: 'grossprofitMargin'): (number | null)[];
+  /** CSI All Share (000985.CSI) closes on the stock-history dates, aligned with `history(n)`.
+   * Null means the benchmark has no exact close on that date; values are never forward-filled. */
+  history(n: number, field: 'marketClose'): (number | null)[];
 }
 
 export interface CustomFactor {

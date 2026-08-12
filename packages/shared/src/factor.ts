@@ -63,6 +63,7 @@ export interface FactorBar {
   // —— Fundamentals, point-in-time (as-of): the latest report whose announcement date (annDate) is on or
   // before the rebalance day, so there's no look-ahead. Null until a report has been published. ——
   roe: number | null; // return on equity %, most-recent reported (annDate ≤ today)
+  roa: number | null; // return on assets %
   grossprofitMargin: number | null; // gross profit margin %
   debtToAssets: number | null; // debt-to-assets ratio %
 }

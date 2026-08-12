@@ -6,6 +6,7 @@ export const MAJOR_INDEX_DAILY_CODES = [
   '000300.SH', // CSI 300
   '000905.SH', // CSI 500
   '000852.SH', // CSI 1000
+  '000985.CSI', // CSI All Share — market-residual-volatility benchmark
   '932000.CSI', // CSI 2000
   '000510.SH', // CSI A500
   '000688.SH', // STAR 50
