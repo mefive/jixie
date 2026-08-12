@@ -342,11 +342,11 @@ factorRoute.post('/analysis/run', validateJson(runAnalysisBody), async (c) => {
       return apiError(c, 'NOT_FOUND', m(c, 'unknownFactor', { factor }));
     }
     if (source.kind === 'composite') {
-      if (protocol.version !== 4) {
+      if (protocol.version !== 4 && protocol.version !== 6) {
         return apiError(c, 'VALIDATION_FAILED', m(c, 'windowNotComputed'));
       }
       protocol = { ...protocol, composite: source.definition };
-    } else if (protocol.version === 4) {
+    } else if (protocol.version === 4 || (protocol.version === 6 && protocol.composite)) {
       return apiError(c, 'VALIDATION_FAILED', m(c, 'windowNotComputed'));
     }
     researchSpec = { ...researchSpec, protocol };
@@ -576,7 +576,8 @@ factorRoute.post('/reports/:reportId/holdout', async (c) => {
         : parseFactorAnalysisSourceSnapshot(
             factorCodeSnapshot,
             parseReportPayload(parent.payload)?.label ?? parent.factor,
-            researchSpec.protocol.version === 4,
+            researchSpec.protocol.version === 4 ||
+              (researchSpec.protocol.version === 6 && !!researchSpec.protocol.composite),
           );
     await launchFactorWorker({
       reportId,

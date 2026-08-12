@@ -5,6 +5,7 @@ import type {
   MacroRegimeFactorResearchSpecV1,
 } from '@jixie/shared';
 import { mean, median, quantile, std } from '../lib/stats.js';
+import { neweyWestMeanInference } from '../lib/inference.js';
 import type {
   MacroRegimeEvaluationData,
   MacroRegimeEvaluationObservation,
@@ -232,7 +233,7 @@ function summarizeAssetState(
     ninetiethPercentileReturn: returns.length ? quantile(returns, 0.9) : null,
     neweyWestMeanTStat:
       returns.length >= MINIMUM_ASSET_OBSERVATIONS
-        ? neweyWestMeanTStat(returns, neweyWestLag)
+        ? (neweyWestMeanInference(returns, neweyWestLag)?.tStatistic ?? 0)
         : null,
     onePeriodLagObservations: laggedReturns.length,
     onePeriodLagMeanForwardReturn: laggedReturns.length ? mean(laggedReturns) : null,
@@ -296,24 +297,6 @@ function isFollowingMonth(previousDate: string, currentDate: string): boolean {
 
 function overlappingTargetLag(researchSpec: MacroRegimeFactorResearchSpecV1): number {
   return Math.max(0, Math.ceil(researchSpec.target.horizon / 21) - 1);
-}
-
-function neweyWestMeanTStat(returns: number[], requestedLag: number): number {
-  const average = mean(returns);
-  const residuals = returns.map((value) => value - average);
-  const count = returns.length;
-  const lag = Math.min(requestedLag, count - 1);
-  let longRunVariance = residuals.reduce((sum, residual) => sum + residual * residual, 0) / count;
-  for (let distance = 1; distance <= lag; distance++) {
-    const weight = 1 - distance / (lag + 1);
-    let covariance = 0;
-    for (let index = distance; index < count; index++) {
-      covariance += residuals[index] * residuals[index - distance];
-    }
-    longRunVariance += 2 * weight * (covariance / count);
-  }
-  const standardError = Math.sqrt(Math.max(0, longRunVariance) / count);
-  return standardError > 0 ? average / standardError : 0;
 }
 
 function maximumDisclosure(

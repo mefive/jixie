@@ -2,6 +2,7 @@ import { DEFAULT_LOCALE, type Locale } from '@jixie/shared';
 import type {
   BucketStat,
   FactorAnalysisSpec,
+  FactorAnalysisSpecV6,
   FactorBar,
   FactorMethodologyAudit,
   FactorOutlierSpecV1,
@@ -24,6 +25,12 @@ import {
   PointInTimeIndexMembership,
   rankWithinGroups,
 } from './evaluation-scope.js';
+import {
+  buildCrossSectionalRobustInference,
+  estimateFamaMacbethPeriod,
+  type EquityStyleControlExposureV1,
+  type FamaMacbethPeriodAttemptV1,
+} from './cross-sectional-inference.js';
 
 // Wire shapes live in @jixie/shared (the /factors page renders them); re-export for local imports.
 export type { BucketStat, FactorReport } from '@jixie/shared';
@@ -217,6 +224,90 @@ function finaAsOf(index: FinaIndex, code: string, date: string): FinaReport | nu
   return ans < 0 ? null : list[ans];
 }
 
+type EquityStyleControlsByDate = Map<string, Map<string, EquityStyleControlExposureV1>>;
+
+/** Point-in-time, fixed-version controls for the Fama–MacBeth auxiliary regression. Missing control
+ * inputs remove a stock from that regression only; they never change the primary report sample. */
+async function loadEquityStyleControls(
+  spec: FactorAnalysisSpecV6,
+  dates: string[],
+  formationSnaps: Map<string, Snap>,
+  finaIndex: FinaIndex,
+): Promise<EquityStyleControlsByDate> {
+  const calendar = (
+    await prisma.tradeCal.findMany({
+      where: { exchange: 'SSE', isOpen: 1, calDate: { lte: dates.at(-1) ?? spec.end } },
+      select: { calDate: true },
+      orderBy: { calDate: 'asc' },
+    })
+  ).map((row) => row.calDate);
+  const calendarIndex = new Map(calendar.map((date, index) => [date, index]));
+  const momentumDates = new Set<string>();
+  const momentumPairByDate = new Map<string, { past: string; recent: string }>();
+  const { momentumLookbackTradingDays, momentumSkipTradingDays } = spec.inference.famaMacbeth;
+  for (const date of dates) {
+    const index = calendarIndex.get(date);
+    const past = index == null ? undefined : calendar[index - momentumLookbackTradingDays];
+    const recent = index == null ? undefined : calendar[index - momentumSkipTradingDays];
+    if (!past || !recent) {
+      continue;
+    }
+    momentumDates.add(past);
+    momentumDates.add(recent);
+    momentumPairByDate.set(date, { past, recent });
+  }
+  const [momentumSnaps, basicRows] = await Promise.all([
+    loadSnapshots([...momentumDates]),
+    prisma.dailyBasic.findMany({
+      where: { tradeDate: { in: dates } },
+      select: { tsCode: true, tradeDate: true, pb: true },
+    }),
+  ]);
+  const bookToPrice = new Map(
+    basicRows
+      .filter((row) => row.pb != null && row.pb > 0)
+      .map((row) => [`${row.tradeDate}|${row.tsCode}`, 1 / row.pb!] as const),
+  );
+  const controlsByDate: EquityStyleControlsByDate = new Map();
+  for (const date of dates) {
+    const pair = momentumPairByDate.get(date);
+    const current = formationSnaps.get(date);
+    const past = pair ? momentumSnaps.get(pair.past) : undefined;
+    const recent = pair ? momentumSnaps.get(pair.recent) : undefined;
+    const controls = new Map<string, EquityStyleControlExposureV1>();
+    if (!current || !past || !recent) {
+      controlsByDate.set(date, controls);
+      continue;
+    }
+    for (const [tsCode, snap] of current) {
+      const pastQuote = past.get(tsCode);
+      const recentQuote = recent.get(tsCode);
+      const value = bookToPrice.get(`${date}|${tsCode}`);
+      const quality = finaAsOf(finaIndex, tsCode, date)?.roe;
+      if (
+        snap.mktcap <= 0 ||
+        !pastQuote ||
+        !recentQuote ||
+        pastQuote.adjClose <= 0 ||
+        recentQuote.adjClose <= 0 ||
+        value == null ||
+        quality == null ||
+        !Number.isFinite(quality)
+      ) {
+        continue;
+      }
+      controls.set(tsCode, {
+        size: Math.log(snap.mktcap),
+        value,
+        momentum: recentQuote.adjClose / pastQuote.adjClose - 1,
+        quality,
+      });
+    }
+    controlsByDate.set(date, controls);
+  }
+  return controlsByDate;
+}
+
 /**
  * Compute ONE factor's value on each rebalance date, on the fly. Presets and user factors share this
  * single path (factor-to-strategy.md Step 1b): load the Factor row's code (preset rows are seeded
@@ -238,6 +329,7 @@ export async function computeFactorSeries(
   locale: Locale = DEFAULT_LOCALE,
   factorCodeSnapshot?: string,
   minimumWindowCoverage = LEGACY_POLICY.minimumWindowCoverage,
+  preloadedFinaIndex?: FinaIndex,
 ): Promise<FactorSeriesResult> {
   const series: Series = new Map();
   const audit: FactorSeriesAudit = {
@@ -299,7 +391,7 @@ export async function computeFactorSeries(
     : new Map<string, number>();
 
   // Preload all financial reports once (PIT-gated by annDate); loadBars picks each stock's as-of report.
-  const finaIndex = await loadFinaIndex();
+  const finaIndex = preloadedFinaIndex ?? (await loadFinaIndex());
 
   // One date's FactorBar cross-section: daily_basic valuation + moneyflow (flow semantics — exact
   // date, absent = null, never carried forward) + as-of fundamentals (latest annDate ≤ date). Queried
@@ -732,7 +824,8 @@ export async function analyzeFactor(
   const policy = analysisPolicy(spec);
   const periodsPerYear = freq === 'week' ? 52 : 12;
   const rebalanceDates = await getRebalanceDates(freq, start, end);
-  const evaluationScope = spec.version === 5 ? spec.evaluationScope : LEGACY_EVALUATION_SCOPE;
+  const scopeAware = spec.version === 5 || spec.version === 6;
+  const evaluationScope = scopeAware ? spec.evaluationScope : LEGACY_EVALUATION_SCOPE;
   const indexMembership =
     evaluationScope.universe.kind === 'index'
       ? new PointInTimeIndexMembership(
@@ -749,6 +842,7 @@ export async function analyzeFactor(
   const freqLabel = t(locale, freq === 'week' ? 'freqWeek' : 'freqMonth');
   onLog(t(locale, 'factorRebalanceDates', { count: rebalanceDates.length, freq: freqLabel }));
   const snaps = await loadSnapshots(rebalanceDates, true); // rebalance snaps carry total market cap for cap-weighting
+  const preloadedFinaIndex = spec.version === 6 ? await loadFinaIndex() : undefined;
   onLog(t(locale, 'factorComputingValues', { factor: factorKey }));
   let computed: FactorSeriesResult;
   if (source?.kind === 'composite') {
@@ -764,6 +858,7 @@ export async function analyzeFactor(
         locale,
         component.code,
         policy.minimumWindowCoverage,
+        preloadedFinaIndex,
       );
       transformSeriesOutliers(result.series, policy.factorExposure);
       results.push({ factor: component.factor, result });
@@ -785,12 +880,17 @@ export async function analyzeFactor(
       locale,
       source?.code,
       policy.minimumWindowCoverage,
+      preloadedFinaIndex,
     );
     transformSeriesOutliers(computed.series, policy.factorExposure);
   } else {
     throw new Error('Cross-sectional analysis received an asset-scope factor source.');
   }
   const byDate = computed.series;
+  const equityStyleControls =
+    spec.version === 6
+      ? await loadEquityStyleControls(spec, rebalanceDates, snaps, preloadedFinaIndex!)
+      : undefined;
   const needsIndustry =
     neutral === 'size_industry' ||
     evaluationScope.rankingScope === 'within_industry' ||
@@ -806,11 +906,11 @@ export async function analyzeFactor(
   }
 
   // Cross-sectional neutralization (3.4): replace raw values with residuals before IC / bucketing.
-  // V5 defers this step until after the formal universe and eligibility filters, so neutralization is
-  // estimated inside the declared research population. V1–V4 retain their historical evaluator.
+  // Scope-aware protocols defer this step until after the formal universe and eligibility filters, so
+  // neutralization is estimated inside the declared research population. V1–V4 retain their evaluator.
   if (neutral !== 'none') {
     onLog(t(locale, 'factorNeutralizing', { mode: neutral }));
-    if (spec.version !== 5) {
+    if (!scopeAware) {
       neutralizeSeries(byDate, snaps, industryByStock, neutral);
     }
   }
@@ -896,6 +996,7 @@ export async function analyzeFactor(
   const lsNetReturnsMktcap: number[] = []; // ditto, cap-weight
   const lsPeriodDates: string[] = []; // period-end date per pushed long-short return (for the NAV x-axis)
   const periodObservations: NonNullable<FactorReport['periodObservations']> = [];
+  const famaMacbethAttempts: FamaMacbethPeriodAttemptV1[] = [];
   let firstFormationDate: string | null = null; // first non-skipped formation date (NAV starts at 1 here)
   const turnovers: number[] = [];
   // Quantile × forward horizon (daily-normalized): qh[hi][bucket] = per-rebalance-date list of that quantile's daily-average forward return → mean taken at the end
@@ -1008,7 +1109,7 @@ export async function analyzeFactor(
       continue;
     }
 
-    if (spec.version === 5 && neutral !== 'none') {
+    if (scopeAware && neutral !== 'none') {
       candidates = neutralizeCandidates(candidates, date, industryByStock, neutral);
     }
     stageTotals.rankingScope.before += candidates.length;
@@ -1036,7 +1137,28 @@ export async function analyzeFactor(
     const rankIc = st.spearman(values, fwdW);
     icSeries.push(rankIc); // Rank IC (factor value vs forward return)
 
-    if (spec.version === 5 && evaluationScope.diagnostics.length > 0) {
+    if (spec.version === 6) {
+      const controls = equityStyleControls?.get(date);
+      famaMacbethAttempts.push(
+        estimateFamaMacbethPeriod(
+          candidates.flatMap((candidate, index) => {
+            const exposure = controls?.get(candidate.tsCode);
+            return exposure
+              ? [
+                  {
+                    candidate: candidate.value,
+                    forwardReturn: fwdW[index]!,
+                    ...exposure,
+                  },
+                ]
+              : [];
+          }),
+          spec.inference.famaMacbeth.minimumObservationsPerPeriod,
+        ),
+      );
+    }
+
+    if (scopeAware && evaluationScope.diagnostics.length > 0) {
       const collect = (
         dimension: 'industry' | 'size_bucket' | 'liquidity_bucket',
         keys: Array<string | null>,
@@ -1250,6 +1372,18 @@ export async function analyzeFactor(
     equal: qhEqual[hi].map((list) => st.mean(list)),
     mktcap: qhMktcap[hi].map((list) => st.mean(list)),
   }));
+  const robustInference =
+    spec.version === 6
+      ? buildCrossSectionalRobustInference({
+          spec,
+          rankIc: icSeries,
+          equalGross: lsReturns,
+          equalNet: lsNetReturns,
+          mktcapGross: lsReturnsMktcap,
+          mktcapNet: lsNetReturnsMktcap,
+          famaMacbethAttempts,
+        })
+      : undefined;
 
   // Equal-weight long-short NAV, gross vs net-of-cost — the tradability view. navFromReturns prepends a
   // starting 1, so both series are one longer than the period count; dates lead with the first formation.
@@ -1271,8 +1405,8 @@ export async function analyzeFactor(
     )?.tradeDate ?? end;
   const methodology: FactorMethodologyAudit = {
     specVersion: spec.version,
-    ...(spec.version === 5 ? { evaluationScope: spec.evaluationScope } : {}),
-    ...(spec.version === 5
+    ...(scopeAware ? { evaluationScope: spec.evaluationScope } : {}),
+    ...(scopeAware
       ? {
           ranking:
             evaluationScope.rankingScope === 'global'
@@ -1291,7 +1425,7 @@ export async function analyzeFactor(
     stages: [
       { key: 'factor_value', ...stageTotals.factorValue },
       { key: 'formation_and_forward_quote', ...stageTotals.quotes },
-      ...(spec.version === 5
+      ...(scopeAware
         ? [
             {
               key: 'evaluation_universe' as const,
@@ -1307,9 +1441,7 @@ export async function analyzeFactor(
           ]
         : []),
       { key: 'liquidity', ...stageTotals.liquidity },
-      ...(spec.version === 5
-        ? [{ key: 'ranking_scope' as const, ...stageTotals.rankingScope }]
-        : []),
+      ...(scopeAware ? [{ key: 'ranking_scope' as const, ...stageTotals.rankingScope }] : []),
     ],
     windowCoverage: computed.audit.declaredWindowDays
       ? {
@@ -1353,7 +1485,8 @@ export async function analyzeFactor(
     longShortNetMktcap: toLongShort(lsNetReturnsMktcap),
     lsNav,
     periodObservations,
-    ...(spec.version === 5 && evaluationScope.diagnostics.length > 0 ? { diagnostics } : {}),
+    ...(scopeAware && evaluationScope.diagnostics.length > 0 ? { diagnostics } : {}),
+    ...(robustInference ? { robustInference } : {}),
     methodology,
   };
 }

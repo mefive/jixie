@@ -11,6 +11,7 @@ import {
   type FactorAnalysisSpec,
   type FactorAnalysisKind,
   type FactorAnalysisSpecV3,
+  type FactorAnalysisSpecV6,
   type FactorEvaluationScopeV1,
   type FactorEquityIndexCode,
   type FactorCompositeDefinition,
@@ -132,6 +133,21 @@ function defaultEvaluationScope(): FactorEvaluationScopeV1 {
   };
 }
 
+const DEFAULT_CROSS_SECTIONAL_INFERENCE: FactorAnalysisSpecV6['inference'] = {
+  version: 1,
+  standardError: 'newey_west',
+  lag: 'automatic',
+  confidenceLevel: 0.95,
+  famaMacbeth: {
+    controlSet: 'cn_equity_style_v1',
+    standardization: 'population_zscore',
+    minimumPeriods: 12,
+    minimumObservationsPerPeriod: 100,
+    momentumLookbackTradingDays: 252,
+    momentumSkipTradingDays: 21,
+  },
+};
+
 // Starter skeleton for a brand-new custom factor (what the middle editor shows before the Agent writes).
 export const DEFAULT_FACTOR_CODE = `// 用左侧 Agent 描述你想要的因子，AI 写成代码；也可以直接改。
 export default defineFactor({
@@ -226,7 +242,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   public neutral: Neutral = 'none'; // cross-sectional neutralization in the draft analysis spec
   public start = DEFAULT_START;
   public end = DEFAULT_END;
-  public specVersion: 1 | 2 | 3 | 4 | 5 = 5;
+  public specVersion: 1 | 2 | 3 | 4 | 5 | 6 = 6;
   public evaluationScope = defaultEvaluationScope();
   public methodology = defaultMethodology();
   public timeSeriesAssets: TimeSeriesAsset[] = [...TIME_SERIES_ASSETS];
@@ -508,6 +524,18 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         evaluationScope: structuredClone(this.evaluationScope),
       };
     }
+    if (this.specVersion === 6) {
+      return {
+        version: 6,
+        ...common,
+        ...this.methodology,
+        evaluationScope: structuredClone(this.evaluationScope),
+        inference: structuredClone(DEFAULT_CROSS_SECTIONAL_INFERENCE),
+        ...(this.mode === 'composite' && this.compositeDefinition?.version === 1
+          ? { composite: structuredClone(this.compositeDefinition) }
+          : {}),
+      };
+    }
     return { version: 3, ...common, ...this.methodology };
   }
 
@@ -625,8 +653,8 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     );
   }
 
-  private nextSpecVersion(): 4 | 5 {
-    return this.mode === 'composite' ? 4 : 5;
+  private nextSpecVersion(): 6 {
+    return 6;
   }
 
   public setFreq(v: FactorFreq) {
@@ -666,7 +694,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   }
 
   public setEvaluationUniverse(value: FactorUniverseChoice) {
-    this.specVersion = 5;
+    this.specVersion = 6;
     this.evaluationScope = {
       ...this.evaluationScope,
       universe:
@@ -675,12 +703,12 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   }
 
   public setEvaluationRankingScope(value: FactorEvaluationScopeV1['rankingScope']) {
-    this.specVersion = 5;
+    this.specVersion = 6;
     this.evaluationScope = { ...this.evaluationScope, rankingScope: value };
   }
 
   public toggleEvaluationDiagnostic(value: FactorEvaluationScopeV1['diagnostics'][number]) {
-    this.specVersion = 5;
+    this.specVersion = 6;
     const diagnostics = this.evaluationScope.diagnostics.includes(value)
       ? this.evaluationScope.diagnostics.filter((item) => item !== value)
       : [...this.evaluationScope.diagnostics, value];
@@ -785,7 +813,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
           ? 'panel'
           : 'cross_sectional';
       this.compositeDefinition = isComposite ? structuredClone(meta?.composite ?? null) : null;
-      this.specVersion = isComposite && meta?.composite?.version === 1 ? 4 : 5;
+      this.specVersion = 6;
       this.evaluationScope = defaultEvaluationScope();
       this.timeSeriesAssets = defaultTimeSeriesAssetsFor(meta);
       this.timeSeriesHorizon = 20;
@@ -1206,9 +1234,11 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       this.end = spec.end;
       this.specVersion = spec.version;
       this.evaluationScope =
-        spec.version === 5 ? structuredClone(spec.evaluationScope) : defaultEvaluationScope();
+        spec.version === 5 || spec.version === 6
+          ? structuredClone(spec.evaluationScope)
+          : defaultEvaluationScope();
       this.compositeDefinition =
-        spec.version === 4
+        spec.version === 4 || (spec.version === 6 && spec.composite)
           ? structuredClone(spec.composite)
           : this.mode === 'composite'
             ? this.compositeDefinition

@@ -53,7 +53,7 @@ describe('runFactorAnalysisTool', () => {
     mocks.findFirst.mockResolvedValue({ id: 'factor-1', name: '盈利质量' });
   });
 
-  it('freezes a V3 explore report and returns compact metrics', async () => {
+  it('freezes a V6 explore report and returns compact metrics', async () => {
     const started: RunFactorAnalysisResponse = {
       reportId: 'report-1',
       jobId: 'job-1',
@@ -90,7 +90,7 @@ describe('runFactorAnalysisTool', () => {
       factor: 'factor-1',
       source: { code: 'candidate factor code', label: '盈利质量' },
       spec: {
-        version: 3,
+        version: 6,
         freq: 'month',
         start: '20200101',
         end: '20260130',
@@ -115,7 +115,7 @@ describe('runFactorAnalysisTool', () => {
     });
   });
 
-  it('freezes a V5 point-in-time scope for index-universe research', async () => {
+  it('freezes a V6 point-in-time scope for index-universe research', async () => {
     const started: RunFactorAnalysisResponse = {
       reportId: 'report-index',
       jobId: 'job-index',
@@ -145,7 +145,7 @@ describe('runFactorAnalysisTool', () => {
 
     expect(start.mock.calls[0][0]).toMatchObject({
       spec: {
-        version: 5,
+        version: 6,
         evaluationScope: {
           version: 1,
           universe: { kind: 'index', indexCode: '000300.SH' },
@@ -157,7 +157,7 @@ describe('runFactorAnalysisTool', () => {
     });
   });
 
-  it('freezes within-industry ranking for all-A research instead of falling back to V3', async () => {
+  it('freezes within-industry ranking for all-A research in V6', async () => {
     const started: RunFactorAnalysisResponse = {
       reportId: 'report-industry',
       jobId: 'job-industry',
@@ -189,7 +189,7 @@ describe('runFactorAnalysisTool', () => {
 
     expect(start.mock.calls[0][0]).toMatchObject({
       spec: {
-        version: 5,
+        version: 6,
         evaluationScope: {
           universe: { kind: 'market', market: 'cn_a' },
           rankingScope: 'within_industry',
