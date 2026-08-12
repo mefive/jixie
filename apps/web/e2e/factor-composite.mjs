@@ -81,10 +81,10 @@ try {
         body: JSON.stringify({
           factor,
           spec: {
-            version: 4,
+            version: 6,
             freq: 'month',
-            start: '20200101',
-            end: '20221231',
+            start: '20230101',
+            end: '20250630',
             neutral: 'size_industry',
             universe: {
               minimumListingDays: 365,
@@ -102,6 +102,27 @@ try {
               commissionPerSide: 0.00025,
               stampDutySellSide: 0.0005,
               slippagePerSide: 0.001,
+            },
+            evaluationScope: {
+              version: 1,
+              universe: { kind: 'market', market: 'cn_a' },
+              membership: 'point_in_time',
+              rankingScope: 'global',
+              diagnostics: [],
+            },
+            inference: {
+              version: 1,
+              standardError: 'newey_west',
+              lag: 'automatic',
+              confidenceLevel: 0.95,
+              famaMacbeth: {
+                controlSet: 'cn_equity_style_v1',
+                standardization: 'population_zscore',
+                minimumPeriods: 12,
+                minimumObservationsPerPeriod: 100,
+                momentumLookbackTradingDays: 252,
+                momentumSkipTradingDays: 21,
+              },
             },
             composite: definition,
           },
@@ -137,7 +158,12 @@ try {
     }
     throw new Error(`timed out waiting for composite report ${reportId}`);
   }, run.body.reportId);
-  if (detail.status !== 'done' || detail.spec?.version !== 4 || !detail.payload?.methodology) {
+  if (
+    detail.status !== 'done' ||
+    detail.spec?.version !== 6 ||
+    !detail.payload?.methodology ||
+    detail.payload?.robustInference?.famaMacbeth?.status !== 'available'
+  ) {
     throw new Error(`invalid composite report: ${JSON.stringify(detail)}`);
   }
   const frozen = JSON.parse(detail.factorCodeSnapshot);
@@ -149,8 +175,9 @@ try {
     `${BASE}/factors?factor=${encodeURIComponent(compositeId)}&report=${encodeURIComponent(run.body.reportId)}`,
     { waitUntil: 'domcontentloaded' },
   );
-  await page.locator('.jx-factor-methodology', { hasText: 'v4' }).waitFor({ timeout: 30_000 });
+  await page.locator('.jx-factor-methodology', { hasText: 'v6' }).waitFor({ timeout: 30_000 });
   await page.locator('.jx-factor-methodology', { hasText: '2 个成分' }).waitFor();
+  await page.getByTestId('factor-robust-inference').waitFor();
   await page.screenshot({ path: `${SHOTS}7f-factor-composite.png` });
 } finally {
   if (compositeId) {

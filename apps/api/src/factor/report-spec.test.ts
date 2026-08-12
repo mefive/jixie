@@ -5,6 +5,7 @@ import {
   createDefaultFactorAnalysisSpecV3,
   createDefaultFactorAnalysisSpecV4,
   createDefaultFactorAnalysisSpecV5,
+  createDefaultFactorAnalysisSpecV6,
   factorTestKey,
   factorPanelCompositeDefinitionV2Schema,
   factorVariantKey,
@@ -208,6 +209,38 @@ describe('factor report spec', () => {
 
     expect(normalizeFactorAnalysisSpec(diagnostic)).toEqual(diagnostic);
     expect(factorVariantKey(base, 'hash')).not.toEqual(factorVariantKey(diagnostic, 'hash'));
+  });
+
+  it('freezes robust inference and an optional composite in V6 identity', () => {
+    const base = createDefaultFactorAnalysisSpecV6({
+      freq: 'month',
+      start: '20200101',
+      end: '20250101',
+      neutral: 'none',
+    });
+    const composite = createDefaultFactorAnalysisSpecV6({
+      ...base,
+      composite: {
+        version: 1,
+        name: 'Quality + value',
+        standardization: 'rank',
+        weighting: 'equal',
+        components: [
+          { factor: 'roe', direction: 'positive' },
+          { factor: 'bp', direction: 'positive' },
+        ],
+      },
+    });
+
+    expect(normalizeFactorAnalysisSpec(base)).toEqual(base);
+    expect(base.inference.famaMacbeth).toMatchObject({
+      controlSet: 'cn_equity_style_v1',
+      minimumPeriods: 12,
+      minimumObservationsPerPeriod: 100,
+      momentumLookbackTradingDays: 252,
+      momentumSkipTradingDays: 21,
+    });
+    expect(factorVariantKey(base, 'hash')).not.toEqual(factorVariantKey(composite, 'hash'));
   });
 
   it('rejects duplicate factors in a V4 composite', () => {

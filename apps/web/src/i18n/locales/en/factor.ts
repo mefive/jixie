@@ -528,6 +528,25 @@ export const enFactor: typeof zhFactor = {
   diagnosticsSliceLabel: '{{dimension}} · {{key}}',
   diagnosticsCap:
     'Diagnostic slices locate signal robustness; they do not change primary metrics or publication criteria.',
+  robustInferenceTitle: 'Robust statistical inference',
+  robustMetric: 'Metric',
+  robustEstimate: 'Mean / coefficient',
+  robustTStatistic: 'NW t-stat',
+  robustConfidenceInterval: '95% confidence interval',
+  robustObservationsLag: 'Periods / lag',
+  robustRankIc: 'Mean Rank IC',
+  robustLongShortGross: 'Long-short return (gross)',
+  robustLongShortNet: 'Long-short return (net)',
+  robustFamaMacbethCoefficient: 'Fama–MacBeth factor coefficient',
+  robustInferenceCap:
+    'Long-short rows follow the current “{{weighting}}” view; Fama–MacBeth estimated {{periods}} / {{considered}} periods with {{observations}} stocks per estimated period on average.',
+  robustControlsCap:
+    'Fixed control set v1: size ln(total market cap), value 1/PB, 12–1 momentum, and PIT ROE; exposures use per-period population z-scores. Robust inference adds evidence without changing primary metrics or the pre-registered criterion.',
+  robustUnavailable: {
+    insufficient_periods: 'Fewer than 12 valid regressions; coefficient inference is unavailable',
+    collinear_exposure:
+      'The factor is collinear with the fixed controls; no control was removed, so the coefficient is unidentified',
+  },
   diagnosticKey: {
     small: 'Small cap',
     mid: 'Middle',

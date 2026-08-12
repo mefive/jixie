@@ -497,6 +497,24 @@ export const zhFactor = {
   diagnosticsPositive: 'IC 正率',
   diagnosticsSliceLabel: '{{dimension}} · {{key}}',
   diagnosticsCap: '诊断切片只用于定位信号稳定性，不改变主报告指标和发布判据。',
+  robustInferenceTitle: '稳健统计推断',
+  robustMetric: '指标',
+  robustEstimate: '均值 / 系数',
+  robustTStatistic: 'NW t 值',
+  robustConfidenceInterval: '95% 置信区间',
+  robustObservationsLag: '期数 / 滞后',
+  robustRankIc: 'Rank IC 均值',
+  robustLongShortGross: '多空收益（费前）',
+  robustLongShortNet: '多空收益（费后）',
+  robustFamaMacbethCoefficient: 'Fama–MacBeth 因子系数',
+  robustInferenceCap:
+    '多空结果随当前“{{weighting}}”视图切换；Fama–MacBeth 成功估计 {{periods}} / {{considered}} 期，每期平均 {{observations}} 只股票。',
+  robustControlsCap:
+    '固定控制集 v1：规模 ln(总市值)、价值 1/PB、12-1 动量、PIT ROE；各暴露逐期做总体 z-score。稳健统计只补充证据，不改变原报告指标或预设判据。',
+  robustUnavailable: {
+    insufficient_periods: '有效回归不足 12 期，暂不报告系数推断',
+    collinear_exposure: '因子与固定控制暴露共线，未删除控制项，系数不可识别',
+  },
   diagnosticKey: {
     small: '小市值',
     mid: '中等',

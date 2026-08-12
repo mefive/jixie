@@ -6,6 +6,7 @@ import type {
   FactorAnalysisSpecV3,
   FactorAnalysisSpecV4,
   FactorAnalysisSpecV5,
+  FactorAnalysisSpecV6,
   FactorCompositeDefinition,
   FactorCompositeDefinitionV1,
   FactorPanelCompositeDefinitionV2,
@@ -154,12 +155,35 @@ export const factorAnalysisSpecV5Schema = factorAnalysisSpecV3Schema.extend({
   evaluationScope: factorEvaluationScopeV1Schema,
 });
 
+export const factorCrossSectionalInferenceSpecV1Schema = z.object({
+  version: z.literal(1),
+  standardError: z.literal('newey_west'),
+  lag: z.literal('automatic'),
+  confidenceLevel: z.literal(0.95),
+  famaMacbeth: z.object({
+    controlSet: z.literal('cn_equity_style_v1'),
+    standardization: z.literal('population_zscore'),
+    minimumPeriods: z.literal(12),
+    minimumObservationsPerPeriod: z.literal(100),
+    momentumLookbackTradingDays: z.literal(252),
+    momentumSkipTradingDays: z.literal(21),
+  }),
+});
+
+export const factorAnalysisSpecV6Schema = factorAnalysisSpecV3Schema.extend({
+  version: z.literal(6),
+  evaluationScope: factorEvaluationScopeV1Schema,
+  inference: factorCrossSectionalInferenceSpecV1Schema,
+  composite: factorCompositeDefinitionV1Schema.optional(),
+});
+
 export const factorAnalysisSpecSchema = z.discriminatedUnion('version', [
   factorAnalysisSpecV1Schema,
   factorAnalysisSpecV2Schema,
   factorAnalysisSpecV3Schema,
   factorAnalysisSpecV4Schema,
   factorAnalysisSpecV5Schema,
+  factorAnalysisSpecV6Schema,
 ]);
 
 const factorObservationFrequencySchema = z.enum(['daily', 'weekly', 'monthly']);
@@ -302,6 +326,21 @@ export const DEFAULT_FACTOR_EVALUATION_SCOPE_V1: FactorAnalysisSpecV5['evaluatio
   diagnostics: [],
 };
 
+export const DEFAULT_FACTOR_CROSS_SECTIONAL_INFERENCE_V1: FactorAnalysisSpecV6['inference'] = {
+  version: 1,
+  standardError: 'newey_west',
+  lag: 'automatic',
+  confidenceLevel: 0.95,
+  famaMacbeth: {
+    controlSet: 'cn_equity_style_v1',
+    standardization: 'population_zscore',
+    minimumPeriods: 12,
+    minimumObservationsPerPeriod: 100,
+    momentumLookbackTradingDays: 252,
+    momentumSkipTradingDays: 21,
+  },
+};
+
 const primaryCriterionSchema = z.object({
   metric: z.enum([
     'rank_ic_mean',
@@ -351,7 +390,13 @@ export const factorResearchIntentV1Schema = z
 export function normalizeFactorAnalysisSpec(input: unknown): FactorAnalysisSpec {
   const spec = factorAnalysisSpecSchema.parse(input);
 
-  if (spec.version === 2 || spec.version === 3 || spec.version === 4 || spec.version === 5) {
+  if (
+    spec.version === 2 ||
+    spec.version === 3 ||
+    spec.version === 4 ||
+    spec.version === 5 ||
+    spec.version === 6
+  ) {
     return spec;
   }
 
@@ -438,6 +483,25 @@ export function createDefaultFactorAnalysisSpecV5(input: {
     version: 5,
     universe: { ...DEFAULT_FACTOR_ANALYSIS_SPEC_V3.universe },
     evaluationScope: structuredClone(input.evaluationScope ?? DEFAULT_FACTOR_EVALUATION_SCOPE_V1),
+  };
+}
+
+export function createDefaultFactorAnalysisSpecV6(input: {
+  freq: FactorAnalysisSpecV6['freq'];
+  start: string;
+  end: string;
+  neutral: FactorAnalysisSpecV6['neutral'];
+  evaluationScope?: FactorAnalysisSpecV6['evaluationScope'];
+  composite?: FactorAnalysisSpecV6['composite'];
+}): FactorAnalysisSpecV6 {
+  return {
+    ...DEFAULT_FACTOR_ANALYSIS_SPEC_V3,
+    ...input,
+    version: 6,
+    universe: { ...DEFAULT_FACTOR_ANALYSIS_SPEC_V3.universe },
+    evaluationScope: structuredClone(input.evaluationScope ?? DEFAULT_FACTOR_EVALUATION_SCOPE_V1),
+    inference: structuredClone(DEFAULT_FACTOR_CROSS_SECTIONAL_INFERENCE_V1),
+    ...(input.composite ? { composite: structuredClone(input.composite) } : {}),
   };
 }
 

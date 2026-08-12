@@ -132,6 +132,55 @@ export interface FactorPeriodObservation {
   sampleCoverage: number;
 }
 
+/** HAC inference for the mean of one ordered period series. Estimates remain in the series' native
+ * units: Rank IC for `rankIc`, period return for long-short, and standardized cross-sectional return
+ * exposure for Fama–MacBeth. */
+export interface FactorNeweyWestEstimateV1 {
+  estimate: number;
+  standardError: number;
+  tStatistic: number;
+  confidenceInterval: {
+    lower: number;
+    upper: number;
+  };
+  observations: number;
+  lag: number;
+}
+
+export type FactorFamaMacbethControlV1 = 'size' | 'value' | 'momentum' | 'quality';
+
+export type FactorFamaMacbethUnavailableReasonV1 = 'insufficient_periods' | 'collinear_exposure';
+
+/** Second-pass summary of per-period cross-sectional regressions. The controls are deliberately
+ * fixed and versioned instead of being user-selectable, so reports remain directly comparable. */
+export interface FactorFamaMacbethReportV1 {
+  status: 'available' | 'unavailable';
+  controlSet: 'cn_equity_style_v1';
+  controls: FactorFamaMacbethControlV1[];
+  standardization: 'population_zscore';
+  periodsConsidered: number;
+  periodsEstimated: number;
+  averageObservations: number;
+  candidateCoefficient?: FactorNeweyWestEstimateV1;
+  unavailableReason?: FactorFamaMacbethUnavailableReasonV1;
+}
+
+/** Robust inference attached to scope-aware cross-sectional reports. This is evidence-only: it does
+ * not rewrite the frozen publication criterion or the primary IC / decile return series. */
+export interface FactorRobustInferenceV1 {
+  version: 1;
+  standardError: 'newey_west';
+  confidenceLevel: 0.95;
+  rankIc?: FactorNeweyWestEstimateV1;
+  longShort: {
+    equalGross?: FactorNeweyWestEstimateV1;
+    equalNet?: FactorNeweyWestEstimateV1;
+    mktcapGross?: FactorNeweyWestEstimateV1;
+    mktcapNet?: FactorNeweyWestEstimateV1;
+  };
+  famaMacbeth: FactorFamaMacbethReportV1;
+}
+
 /** Rank IC measured against the N-trading-day-forward return — one point on the IC-decay curve. */
 export interface IcDecayPoint {
   horizonDays: number; // forward horizon in trading days (1 / 5 / 10 / 20 / 60)
@@ -180,6 +229,7 @@ export interface FactorReport {
   lsNav?: LongShortNav; // equal-weight long-short NAV, gross vs net (the net-of-cost line chart)
   periodObservations?: FactorPeriodObservation[];
   diagnostics?: FactorDiagnosticSlice[];
+  robustInference?: FactorRobustInferenceV1;
   methodology?: FactorMethodologyAudit;
 }
 
@@ -318,12 +368,37 @@ export interface FactorAnalysisSpecV5 extends Omit<FactorAnalysisSpecV3, 'versio
   evaluationScope: FactorEvaluationScopeV1;
 }
 
+export interface FactorCrossSectionalInferenceSpecV1 {
+  version: 1;
+  standardError: 'newey_west';
+  lag: 'automatic';
+  confidenceLevel: 0.95;
+  famaMacbeth: {
+    controlSet: 'cn_equity_style_v1';
+    standardization: 'population_zscore';
+    minimumPeriods: 12;
+    minimumObservationsPerPeriod: 100;
+    momentumLookbackTradingDays: 252;
+    momentumSkipTradingDays: 21;
+  };
+}
+
+/** Cross-sectional V6 adds robust inference without changing V5's primary analysis population.
+ * Composite is optional because single and composite factors now share one current protocol. */
+export interface FactorAnalysisSpecV6 extends Omit<FactorAnalysisSpecV3, 'version'> {
+  version: 6;
+  evaluationScope: FactorEvaluationScopeV1;
+  inference: FactorCrossSectionalInferenceSpecV1;
+  composite?: FactorCompositeDefinitionV1;
+}
+
 export type FactorAnalysisSpec =
   | FactorAnalysisSpecV1
   | FactorAnalysisSpecV2
   | FactorAnalysisSpecV3
   | FactorAnalysisSpecV4
-  | FactorAnalysisSpecV5;
+  | FactorAnalysisSpecV5
+  | FactorAnalysisSpecV6;
 
 export type FactorSampleStageKey =
   | 'factor_value'
@@ -361,7 +436,7 @@ export type FactorRankingAudit =
     };
 
 export interface FactorMethodologyAudit {
-  specVersion: 1 | 2 | 3 | 4 | 5;
+  specVersion: 1 | 2 | 3 | 4 | 5 | 6;
   evaluationScope?: FactorEvaluationScopeV1;
   ranking?: FactorRankingAudit;
   dataCutoff: string;

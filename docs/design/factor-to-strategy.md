@@ -307,7 +307,7 @@ worker 只计算冻结输入,父进程按 reportId 将 payload 与 report/job �
 - 早期只显示 `~N/20` 意识提醒;候选规模上来后增加 Benjamini-Hochberg FDR / q-value。完整字段、API、
   封存边界和验收以 `factor-research-discipline.md` 为准。
 
-### 3.6b AnalysisSpec:把隐含口径变成结果的一部分
+### 3.6b AnalysisSpec 与稳健统计
 
 当前 `MIN_HISTORY_DAYS / LIQUIDITY_DROP / WINSOR_P / cost constants` 是 `analysis.ts` 中不可见常数。
 V1 `AnalysisSpec(freq/start/end/neutral)` 已贯穿 API → worker → FactorReport → UI。后续扩展:
@@ -319,9 +319,11 @@ V1 `AnalysisSpec(freq/start/end/neutral)` 已贯穿 API → worker → FactorRep
   或 z-score 前处理;未来收益沿用独立缩尾配置。
 - `reproducibility`:factor code hash、spec version、data cutoff、成本参数和逐步样本数均随报告展示。
 
-第二阶段再补统计推断:IC / 多空收益的 Newey-West t 值与置信区间;固定且版本化控制集的
-Fama-MacBeth 回归(size/value/momentum/quality),验证增量预测力。控制变量不做“勾到显著为止”的自由
-选择器。时序 alpha 等基准因子收益序列成熟后再上;GRS 只在比较因子模型时上;GMM 明确不做。
+上述口径已由 V2–V5 完成；V6 进一步实现 IC / 多空收益的 Newey-West t 值与置信区间，以及固定且
+版本化控制集的 Fama-MacBeth 回归(size/value/momentum/quality)。控制变量没有“勾到显著为止”的
+自由选择器，缺失控制不改变主报告样本，共线时也不删除控制。完整公式、门槛、兼容边界和真实数据验收见
+[`factor-cross-sectional-inference.md`](factor-cross-sectional-inference.md)。时序 alpha、GRS、GMM 不在当前
+路线图；只有出现新的明确业务问题和合格基准收益数据时才重新立项。
 
 ## 3.7 ML 因子合成(远期,唯一推荐姿势)
 

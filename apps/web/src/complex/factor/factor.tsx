@@ -41,6 +41,7 @@ import type {
   FactorSampleStageKey,
   FactorCompositeDefinition,
   FactorAnalysisKind,
+  FactorNeweyWestEstimateV1,
   FactorTimeSeriesReportV1,
   MacroRegimeFactorResearchSpecV1,
   PanelFactorResearchSpecV1,
@@ -2920,6 +2921,10 @@ const ReportBody = complex.component(() => {
         />
       </div>
 
+      {r.robustInference && (
+        <RobustInferenceCard inference={r.robustInference} useMktcap={useMktcap} />
+      )}
+
       {r.lsNav && r.longShortNet && (
         <>
           <div className="jx-factor-sectionTitle">{t('lsNavTitle')}</div>
@@ -2961,6 +2966,93 @@ const ReportBody = complex.component(() => {
     </>
   );
 }, 'ReportBody');
+
+function RobustInferenceCard({
+  inference,
+  useMktcap,
+}: {
+  inference: NonNullable<FactorReport['robustInference']>;
+  useMktcap: boolean;
+}) {
+  const { t } = useTranslation('factor');
+  const gross = useMktcap ? inference.longShort.mktcapGross : inference.longShort.equalGross;
+  const net = useMktcap ? inference.longShort.mktcapNet : inference.longShort.equalNet;
+  const famaMacbeth = inference.famaMacbeth;
+  const rows: Array<{
+    key: string;
+    label: string;
+    estimate?: FactorNeweyWestEstimateV1;
+    percent: boolean;
+  }> = [
+    { key: 'rank-ic', label: t('robustRankIc'), estimate: inference.rankIc, percent: false },
+    { key: 'gross', label: t('robustLongShortGross'), estimate: gross, percent: true },
+    { key: 'net', label: t('robustLongShortNet'), estimate: net, percent: true },
+    {
+      key: 'fama-macbeth',
+      label: t('robustFamaMacbethCoefficient'),
+      estimate: famaMacbeth.candidateCoefficient,
+      percent: true,
+    },
+  ];
+  const formatEstimate = (value: number, percent: boolean) =>
+    percent ? pct(value) : value.toFixed(4);
+
+  return (
+    <div className="jx-factor-robust" data-testid="factor-robust-inference">
+      <div className="jx-factor-sectionTitle">{t('robustInferenceTitle')}</div>
+      <div className="jx-factor-robustTableWrap">
+        <table>
+          <thead>
+            <tr>
+              <th>{t('robustMetric')}</th>
+              <th>{t('robustEstimate')}</th>
+              <th>{t('robustTStatistic')}</th>
+              <th>{t('robustConfidenceInterval')}</th>
+              <th>{t('robustObservationsLag')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.key}>
+                <td>{row.label}</td>
+                {row.estimate ? (
+                  <>
+                    <td>{formatEstimate(row.estimate.estimate, row.percent)}</td>
+                    <td>{row.estimate.tStatistic.toFixed(2)}</td>
+                    <td>
+                      {formatEstimate(row.estimate.confidenceInterval.lower, row.percent)} –{' '}
+                      {formatEstimate(row.estimate.confidenceInterval.upper, row.percent)}
+                    </td>
+                    <td>
+                      {row.estimate.observations} / {row.estimate.lag}
+                    </td>
+                  </>
+                ) : (
+                  <td colSpan={4} className="jx-factor-robustUnavailable">
+                    {row.key === 'fama-macbeth'
+                      ? t(
+                          `robustUnavailable.${famaMacbeth.unavailableReason ?? 'insufficient_periods'}`,
+                        )
+                      : t('notAvailable')}
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="jx-factor-chartCap">
+        {t('robustInferenceCap', {
+          weighting: t(useMktcap ? 'weightMktcap' : 'weightEqual'),
+          periods: famaMacbeth.periodsEstimated,
+          considered: famaMacbeth.periodsConsidered,
+          observations: Math.round(famaMacbeth.averageObservations),
+        })}
+      </div>
+      <div className="jx-factor-chartCap">{t('robustControlsCap')}</div>
+    </div>
+  );
+}
 
 const MethodologyCard = complex.component(() => {
   const store = complex.useStore();
@@ -3015,7 +3107,7 @@ const MethodologyCard = complex.component(() => {
       </div>
       {spec.version !== 1 && (
         <div className="jx-factor-methodologySpec">
-          {spec.version === 5 && (
+          {(spec.version === 5 || spec.version === 6) && (
             <>
               <span>
                 {t('evaluationUniverseSpec', {
@@ -3073,7 +3165,7 @@ const MethodologyCard = complex.component(() => {
               })}
             </span>
           )}
-          {spec.version === 4 && (
+          {(spec.version === 4 || (spec.version === 6 && spec.composite)) && (
             <span>
               {t('compositeMethodologySpec', {
                 count: spec.composite.components.length,
@@ -3274,7 +3366,7 @@ function reportParamsLabel(report: FactorReportSummary, t: TFunction<'factor'>):
         : 'neutralNone',
   );
   const universe =
-    spec.version === 5
+    spec.version === 5 || spec.version === 6
       ? t(
           `evaluationUniverse.${
             spec.evaluationScope.universe.kind === 'market'
@@ -3284,7 +3376,7 @@ function reportParamsLabel(report: FactorReportSummary, t: TFunction<'factor'>):
         )
       : t('evaluationUniverse.cn_a');
   const ranking =
-    spec.version === 5
+    spec.version === 5 || spec.version === 6
       ? t(`evaluationRanking.${spec.evaluationScope.rankingScope}`)
       : t('evaluationRanking.global');
   return `${frequency} · ${dayjs(spec.start, 'YYYYMMDD').format('YYYY-MM-DD')} – ${dayjs(spec.end, 'YYYYMMDD').format('YYYY-MM-DD')} · ${universe} · ${ranking} · ${neutral}`;

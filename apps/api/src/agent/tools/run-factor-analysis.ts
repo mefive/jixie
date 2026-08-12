@@ -9,8 +9,7 @@ import { z } from 'zod';
 import { startFactorAnalysis, readFactorAnalysisResult } from '../../factor/analysis-job.js';
 import { getHoldoutPolicy } from '../../factor/research.js';
 import {
-  createDefaultFactorAnalysisSpecV3,
-  createDefaultFactorAnalysisSpecV5,
+  createDefaultFactorAnalysisSpecV6,
   factorResearchIntentV1Schema,
 } from '../../factor/report-spec.js';
 import { t } from '../../i18n/index.js';
@@ -94,24 +93,19 @@ export function runFactorAnalysisTool(context: FactorResearchContext): AgentTool
         end: parsed.data.end,
         neutral: parsed.data.neutral,
       };
-      const spec =
-        parsed.data.universe === 'cn_a' &&
-        parsed.data.rankingScope === 'global' &&
-        parsed.data.diagnostics.length === 0
-          ? createDefaultFactorAnalysisSpecV3(commonSpec)
-          : createDefaultFactorAnalysisSpecV5({
-              ...commonSpec,
-              evaluationScope: {
-                version: 1,
-                universe:
-                  parsed.data.universe === 'cn_a'
-                    ? { kind: 'market', market: 'cn_a' }
-                    : { kind: 'index', indexCode: parsed.data.universe },
-                membership: 'point_in_time',
-                rankingScope: parsed.data.rankingScope,
-                diagnostics: parsed.data.diagnostics,
-              },
-            });
+      const spec = createDefaultFactorAnalysisSpecV6({
+        ...commonSpec,
+        evaluationScope: {
+          version: 1,
+          universe:
+            parsed.data.universe === 'cn_a'
+              ? { kind: 'market', market: 'cn_a' }
+              : { kind: 'index', indexCode: parsed.data.universe },
+          membership: 'point_in_time',
+          rankingScope: parsed.data.rankingScope,
+          diagnostics: parsed.data.diagnostics,
+        },
+      });
       const start = context.start ?? startFactorAnalysis;
       const started = await start({
         userId: context.userId,
