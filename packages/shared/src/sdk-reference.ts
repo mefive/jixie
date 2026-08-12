@@ -101,6 +101,36 @@ export const TIMEFRAME_METHODS = [
     zh: '最近 n 个周期的平均成交量（周期成交量为日成交量之和）。',
     en: 'Average period volume over the last n periods (each period sums daily volume).',
   },
+  {
+    name: 'adx',
+    sig: 'adx(period?: number): { readonly adx: number; readonly positiveDi: number; readonly negativeDi: number } | null',
+    zh: 'Wilder ADX 趋势强度及正/负方向指标，默认 14 个周期。',
+    en: 'Wilder ADX trend strength with positive/negative directional indicators; defaults to 14 periods.',
+  },
+  {
+    name: 'bollingerBands',
+    sig: 'bollingerBands(period?: number, standardDeviations?: number): { readonly middle: number; readonly upper: number; readonly lower: number } | null',
+    zh: '收盘价布林带，默认 20 个周期、2 倍总体标准差。',
+    en: 'Bollinger Bands over closes; defaults to 20 periods and two population standard deviations.',
+  },
+  {
+    name: 'rsi',
+    sig: 'rsi(period?: number): number | null',
+    zh: 'Wilder RSI，范围 0～100，默认 14 个周期；平盘窗口返回 50。',
+    en: 'Wilder RSI in [0, 100], defaulting to 14 periods; a flat window returns 50.',
+  },
+  {
+    name: 'macd',
+    sig: 'macd(fastPeriod?: number, slowPeriod?: number, signalPeriod?: number): { readonly line: number; readonly signal: number; readonly histogram: number } | null',
+    zh: 'MACD 线、信号线和柱值，默认 12/26/9；柱值不乘二。',
+    en: 'MACD line, signal, and histogram; defaults to 12/26/9 and does not double the histogram.',
+  },
+  {
+    name: 'kdj',
+    sig: 'kdj(period?: number, kSmoothing?: number, dSmoothing?: number): { readonly k: number; readonly d: number; readonly j: number } | null',
+    zh: 'KDJ 随机指标，默认 9/3/3，K/D 初值为 50。',
+    en: 'KDJ stochastic oscillator; defaults to 9/3/3 with K/D seeded at 50.',
+  },
 ] as const;
 
 // Bilingual doc comments for the ambient types + prelude (member-level copy lives on each SdkEntry /
@@ -393,7 +423,8 @@ export const SDK_ENTRIES = [
     sig: 'weekly(code: string): TimeframeSeries',
     zh: '已完成 ISO 周(周一至周日)K 线与指标句柄；不含尚未收盘的当周，需先加载该票 K 线。',
     en: 'Completed ISO-week bars and indicators; excludes the current partial week. The instrument bars must be loaded first.',
-    prompt: 'ctx.weekly(code).bars/history/sma/ema/atr/highest/lowest/avgAmount/avgVol',
+    prompt:
+      'ctx.weekly(code).bars/history/sma/ema/atr/highest/lowest/avgAmount/avgVol/adx/bollingerBands/rsi/macd/kdj',
   },
   {
     iface: 'StrategyCtx',
@@ -402,7 +433,8 @@ export const SDK_ENTRIES = [
     sig: 'monthly(code: string): TimeframeSeries',
     zh: '已完成自然月 K 线与指标句柄；不含尚未收盘的当月，需先加载该票 K 线。',
     en: 'Completed natural-month bars and indicators; excludes the current partial month. The instrument bars must be loaded first.',
-    prompt: 'ctx.monthly(code).bars/history/sma/ema/atr/highest/lowest/avgAmount/avgVol',
+    prompt:
+      'ctx.monthly(code).bars/history/sma/ema/atr/highest/lowest/avgAmount/avgVol/adx/bollingerBands/rsi/macd/kdj',
   },
   {
     iface: 'StrategyCtx',
@@ -484,6 +516,51 @@ export const SDK_ENTRIES = [
     zh: 'n 日平均成交量(手)。',
     en: 'n-day average volume (手).',
     prompt: 'ctx.avgVol(code,n)=n-day average volume (lots)',
+  },
+  {
+    iface: 'StrategyCtx',
+    name: 'adx',
+    group: INDICATOR_GROUP,
+    sig: 'adx(code: string, period?: number): { readonly adx: number; readonly positiveDi: number; readonly negativeDi: number } | null',
+    zh: 'Wilder ADX 趋势强度及正/负方向指标，默认 14 日。',
+    en: 'Wilder ADX trend strength with positive/negative directional indicators; defaults to 14 days.',
+    prompt: 'ctx.adx(code,period=14) -> {adx,positiveDi,negativeDi}',
+  },
+  {
+    iface: 'StrategyCtx',
+    name: 'bollingerBands',
+    group: INDICATOR_GROUP,
+    sig: 'bollingerBands(code: string, period?: number, standardDeviations?: number): { readonly middle: number; readonly upper: number; readonly lower: number } | null',
+    zh: '收盘价布林带，默认 20 日、2 倍总体标准差。',
+    en: 'Bollinger Bands over closes; defaults to 20 days and two population standard deviations.',
+    prompt: 'ctx.bollingerBands(code,period=20,standardDeviations=2) -> {middle,upper,lower}',
+  },
+  {
+    iface: 'StrategyCtx',
+    name: 'rsi',
+    group: INDICATOR_GROUP,
+    sig: 'rsi(code: string, period?: number): number | null',
+    zh: 'Wilder RSI，范围 0～100，默认 14 日；平盘窗口返回 50。',
+    en: 'Wilder RSI in [0, 100], defaulting to 14 days; a flat window returns 50.',
+    prompt: 'ctx.rsi(code,period=14)',
+  },
+  {
+    iface: 'StrategyCtx',
+    name: 'macd',
+    group: INDICATOR_GROUP,
+    sig: 'macd(code: string, fastPeriod?: number, slowPeriod?: number, signalPeriod?: number): { readonly line: number; readonly signal: number; readonly histogram: number } | null',
+    zh: 'MACD 线、信号线和柱值，默认 12/26/9；柱值 = 线 − 信号，不乘二。',
+    en: 'MACD line, signal, and histogram; defaults to 12/26/9, with histogram = line - signal and no doubling.',
+    prompt: 'ctx.macd(code,fastPeriod=12,slowPeriod=26,signalPeriod=9) -> {line,signal,histogram}',
+  },
+  {
+    iface: 'StrategyCtx',
+    name: 'kdj',
+    group: INDICATOR_GROUP,
+    sig: 'kdj(code: string, period?: number, kSmoothing?: number, dSmoothing?: number): { readonly k: number; readonly d: number; readonly j: number } | null',
+    zh: 'KDJ 随机指标，默认 9/3/3，K/D 初值为 50。',
+    en: 'KDJ stochastic oscillator; defaults to 9/3/3 with K/D seeded at 50.',
+    prompt: 'ctx.kdj(code,period=9,kSmoothing=3,dSmoothing=3) -> {k,d,j}',
   },
 
   // —— ctx: schedule / sizing / state ——

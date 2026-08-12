@@ -50,6 +50,18 @@ def handle_bar(ctx):
 
 Python module variables persist for the full backtest. `ordered` prevents the example from sending the same intent every day.
 
+## Available technical indicators
+
+The Python daily SDK provides `sma`, `ema`, `atr`, `highest`, `lowest`, `avg_amount`, and `avg_vol`, plus:
+
+- `ctx.adx(code, period=14)` returns `adx`, `positive_di`, and `negative_di`;
+- `ctx.bollinger_bands(code, period=20, standard_deviations=2)` returns `middle`, `upper`, and `lower`;
+- `ctx.rsi(code, period=14)` returns a value in [0, 100];
+- `ctx.macd(code, fast_period=12, slow_period=26, signal_period=9)` returns `line`, `signal`, and `histogram`;
+- `ctx.kdj(code, period=9, k_smoothing=3, d_smoothing=3)` returns `k`, `d`, and `j`.
+
+Every value is calculated on demand from adjusted bars available through the current date; these are not stored indicator columns. Insufficient history returns `None`, so check composite results before reading their fields.
+
 ## Run and inspect the result
 
 1. Open Edit launch parameters and set dates, capital, and costs.

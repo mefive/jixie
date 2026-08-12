@@ -18,6 +18,7 @@ _MAX_FRAME_BYTES = 64 * 1024 * 1024
 _MAX_LOG_LINES = 2_000
 _MAX_LOG_LINE_CHARS = 20_000
 _CODE_TIMEOUT_SECONDS = float(os.environ.get("JIXIE_PYTHON_CODE_TIMEOUT_SECONDS", "10"))
+_RECURSIVE_WARMUP_MULTIPLIER = 4
 _log_lines_emitted = 0
 _log_capped = False
 
@@ -126,6 +127,72 @@ def _objects(value: Any) -> Any:
     if isinstance(value, list):
         return [_objects(item) for item in value]
     return value
+
+
+def _valid_period(period: int) -> bool:
+    return (
+        isinstance(period, (int, float))
+        and not isinstance(period, bool)
+        and math.isfinite(period)
+        and period > 0
+        and int(period) == period
+    )
+
+
+def _recursive_lookback(period: int, extra: int = 0) -> int:
+    if not _valid_period(period):
+        return 0
+    return int(period) * _RECURSIVE_WARMUP_MULTIPLIER + extra
+
+
+def _mean(values: list[float]) -> float:
+    return sum(values) / len(values)
+
+
+def _ema_series(values: list[float], period: int) -> list[float | None]:
+    averages: list[float | None] = [None] * len(values)
+    if not _valid_period(period) or len(values) < period:
+        return averages
+
+    average = _mean(values[:period])
+    averages[period - 1] = average
+    alpha = 2 / (period + 1)
+    for value_index in range(period, len(values)):
+        average = values[value_index] * alpha + average * (1 - alpha)
+        averages[value_index] = average
+    return averages
+
+
+def _directional_movement(previous: AttrDict, current: AttrDict) -> AttrDict:
+    upward_move = current.adj_high - previous.adj_high
+    downward_move = previous.adj_low - current.adj_low
+    return AttrDict(
+        true_range=max(
+            current.adj_high - current.adj_low,
+            abs(current.adj_high - previous.adj_close),
+            abs(current.adj_low - previous.adj_close),
+        ),
+        positive=upward_move if upward_move > downward_move and upward_move > 0 else 0,
+        negative=downward_move if downward_move > upward_move and downward_move > 0 else 0,
+    )
+
+
+def _directional_values(
+    smoothed_true_range: float,
+    smoothed_positive_movement: float,
+    smoothed_negative_movement: float,
+) -> AttrDict:
+    if smoothed_true_range == 0:
+        return AttrDict(positive_di=0, negative_di=0, dx=0)
+
+    positive_di = 100 * smoothed_positive_movement / smoothed_true_range
+    negative_di = 100 * smoothed_negative_movement / smoothed_true_range
+    total = positive_di + negative_di
+    return AttrDict(
+        positive_di=positive_di,
+        negative_di=negative_di,
+        dx=0 if total == 0 else 100 * abs(positive_di - negative_di) / total,
+    )
 
 
 class Strategy:
@@ -359,6 +426,202 @@ class Context:
     def avg_vol(self, code: str, count: int) -> float | None:
         values = [row.vol for row in self.bars(code, count) if row.vol is not None]
         return sum(values) / count if len(values) == count else None
+
+    def adx(self, code: str, period: int = 14) -> AttrDict | None:
+        if not _valid_period(period):
+            return None
+        period = int(period)
+        rows = self.bars(code, _recursive_lookback(period))
+        if len(rows) < period * 2:
+            return None
+
+        smoothed_true_range = 0.0
+        smoothed_positive_movement = 0.0
+        smoothed_negative_movement = 0.0
+        for bar_index in range(1, period + 1):
+            movement = _directional_movement(rows[bar_index - 1], rows[bar_index])
+            smoothed_true_range += movement.true_range
+            smoothed_positive_movement += movement.positive
+            smoothed_negative_movement += movement.negative
+
+        directional = _directional_values(
+            smoothed_true_range,
+            smoothed_positive_movement,
+            smoothed_negative_movement,
+        )
+        directional_indices = [directional.dx]
+        average_directional_index: float | None = (
+            directional.dx if period == 1 else None
+        )
+        for bar_index in range(period + 1, len(rows)):
+            movement = _directional_movement(rows[bar_index - 1], rows[bar_index])
+            smoothed_true_range = (
+                smoothed_true_range
+                - smoothed_true_range / period
+                + movement.true_range
+            )
+            smoothed_positive_movement = (
+                smoothed_positive_movement
+                - smoothed_positive_movement / period
+                + movement.positive
+            )
+            smoothed_negative_movement = (
+                smoothed_negative_movement
+                - smoothed_negative_movement / period
+                + movement.negative
+            )
+            directional = _directional_values(
+                smoothed_true_range,
+                smoothed_positive_movement,
+                smoothed_negative_movement,
+            )
+
+            if len(directional_indices) < period:
+                directional_indices.append(directional.dx)
+                if len(directional_indices) == period:
+                    average_directional_index = _mean(directional_indices)
+            else:
+                average_directional_index = (
+                    (average_directional_index or 0) * (period - 1) + directional.dx
+                ) / period
+
+        if average_directional_index is None:
+            return None
+        return AttrDict(
+            adx=average_directional_index,
+            positive_di=directional.positive_di,
+            negative_di=directional.negative_di,
+        )
+
+    def bollinger_bands(
+        self,
+        code: str,
+        period: int = 20,
+        standard_deviations: float = 2,
+    ) -> AttrDict | None:
+        if (
+            not _valid_period(period)
+            or not math.isfinite(standard_deviations)
+            or standard_deviations < 0
+        ):
+            return None
+        period = int(period)
+        values = self.history(code, "close", period)
+        if len(values) < period:
+            return None
+
+        middle = _mean(values)
+        variance = sum((value - middle) ** 2 for value in values) / len(values)
+        width = math.sqrt(variance) * standard_deviations
+        return AttrDict(middle=middle, upper=middle + width, lower=middle - width)
+
+    def rsi(self, code: str, period: int = 14) -> float | None:
+        if not _valid_period(period):
+            return None
+        period = int(period)
+        values = self.history(code, "close", _recursive_lookback(period, 1))
+        if len(values) < period + 1:
+            return None
+
+        average_gain = 0.0
+        average_loss = 0.0
+        for value_index in range(1, period + 1):
+            change = values[value_index] - values[value_index - 1]
+            average_gain += max(change, 0)
+            average_loss += max(-change, 0)
+        average_gain /= period
+        average_loss /= period
+
+        for value_index in range(period + 1, len(values)):
+            change = values[value_index] - values[value_index - 1]
+            average_gain = (
+                average_gain * (period - 1) + max(change, 0)
+            ) / period
+            average_loss = (
+                average_loss * (period - 1) + max(-change, 0)
+            ) / period
+
+        if average_gain == 0 and average_loss == 0:
+            return 50
+        if average_loss == 0:
+            return 100
+        return 100 - 100 / (1 + average_gain / average_loss)
+
+    def macd(
+        self,
+        code: str,
+        fast_period: int = 12,
+        slow_period: int = 26,
+        signal_period: int = 9,
+    ) -> AttrDict | None:
+        if (
+            not _valid_period(fast_period)
+            or not _valid_period(slow_period)
+            or not _valid_period(signal_period)
+            or fast_period >= slow_period
+        ):
+            return None
+        fast_period = int(fast_period)
+        slow_period = int(slow_period)
+        signal_period = int(signal_period)
+        lookback = _recursive_lookback(slow_period, signal_period - 1)
+        values = self.history(code, "close", lookback)
+        if len(values) < slow_period + signal_period - 1:
+            return None
+
+        fast_averages = _ema_series(values, fast_period)
+        slow_averages = _ema_series(values, slow_period)
+        lines = [
+            fast - slow
+            for fast, slow in zip(fast_averages, slow_averages)
+            if fast is not None and slow is not None
+        ]
+        signals = _ema_series(lines, signal_period)
+        line = lines[-1] if lines else None
+        signal = signals[-1] if signals else None
+        if line is None or signal is None:
+            return None
+        return AttrDict(line=line, signal=signal, histogram=line - signal)
+
+    def kdj(
+        self,
+        code: str,
+        period: int = 9,
+        k_smoothing: int = 3,
+        d_smoothing: int = 3,
+    ) -> AttrDict | None:
+        if (
+            not _valid_period(period)
+            or not _valid_period(k_smoothing)
+            or not _valid_period(d_smoothing)
+        ):
+            return None
+        period = int(period)
+        k_smoothing = int(k_smoothing)
+        d_smoothing = int(d_smoothing)
+        rows = self.bars(code, _recursive_lookback(period))
+        if len(rows) < period:
+            return None
+
+        k_value = 50.0
+        d_value = 50.0
+        j_value = 50.0
+        for row_index, row in enumerate(rows):
+            start = max(0, row_index - period + 1)
+            window = rows[start : row_index + 1]
+            highest = max(window_row.adj_high for window_row in window)
+            lowest = min(window_row.adj_low for window_row in window)
+            raw_stochastic_value = (
+                100 * (row.adj_close - lowest) / (highest - lowest)
+                if highest > lowest
+                else k_value
+            )
+            k_value = (
+                (k_smoothing - 1) * k_value + raw_stochastic_value
+            ) / k_smoothing
+            d_value = ((d_smoothing - 1) * d_value + k_value) / d_smoothing
+            j_value = 3 * k_value - 2 * d_value
+        return AttrDict(k=k_value, d=d_value, j=j_value)
 
     def equal_weight(self, codes: Iterable[str]) -> None:
         values = list(codes)

@@ -7,6 +7,21 @@ import type {
   StrategyAccounts,
 } from '../../engine/types.js';
 import { isoWeekKey } from '../../lib/date.js';
+import {
+  adx as calculateAdx,
+  adxLookback,
+  bollingerBands as calculateBollingerBands,
+  kdjLookback,
+  latestKdj,
+  macd as calculateMacd,
+  macdLookback,
+  rsi as calculateRsi,
+  rsiLookback,
+  type AdxResult,
+  type BollingerBandsResult,
+  type KdjResult,
+  type MacdResult,
+} from '../../lib/indicators.js';
 
 /**
  * The strategy SDK — what user code is written against. Full code-first: a strategy is just
@@ -67,6 +82,25 @@ export interface StrategyCtx<Params extends StrategyParams = StrategyParams> ext
   avgAmount(code: string, n: number): number | null;
   /** n-day average volume (lots) — likewise measures activity / liquidity. */
   avgVol(code: string, n: number): number | null;
+  /** Wilder ADX trend strength plus positive/negative directional indicators. */
+  adx(code: string, period?: number): AdxResult | null;
+  /** Bollinger Bands over adjusted closes using population standard deviation. */
+  bollingerBands(
+    code: string,
+    period?: number,
+    standardDeviations?: number,
+  ): BollingerBandsResult | null;
+  /** Wilder Relative Strength Index in [0, 100]; a flat window is neutral at 50. */
+  rsi(code: string, period?: number): number | null;
+  /** Moving Average Convergence Divergence; histogram is line minus signal without doubling. */
+  macd(
+    code: string,
+    fastPeriod?: number,
+    slowPeriod?: number,
+    signalPeriod?: number,
+  ): MacdResult | null;
+  /** KDJ stochastic oscillator; K and D are seeded at 50. */
+  kdj(code: string, period?: number, kSmoothing?: number, dSmoothing?: number): KdjResult | null;
 }
 
 /** A completed higher-timeframe OHLC series. All windows are oldest → newest and require the
@@ -81,6 +115,11 @@ export interface TimeframeSeries {
   lowest(field: 'open' | 'high' | 'low' | 'close', n: number): number | null;
   avgAmount(n: number): number | null;
   avgVol(n: number): number | null;
+  adx(period?: number): AdxResult | null;
+  bollingerBands(period?: number, standardDeviations?: number): BollingerBandsResult | null;
+  rsi(period?: number): number | null;
+  macd(fastPeriod?: number, slowPeriod?: number, signalPeriod?: number): MacdResult | null;
+  kdj(period?: number, kSmoothing?: number, dSmoothing?: number): KdjResult | null;
 }
 
 class ResampledSeries implements TimeframeSeries {
@@ -124,6 +163,31 @@ class ResampledSeries implements TimeframeSeries {
 
   avgVol(n: number): number | null {
     return avgField(this.bars(n), n, (bar) => bar.vol);
+  }
+
+  adx(period = 14): AdxResult | null {
+    return calculateAdx(this.bars(adxLookback(period)), period);
+  }
+
+  bollingerBands(period = 20, standardDeviations = 2): BollingerBandsResult | null {
+    return calculateBollingerBands(this.history('close', period), period, standardDeviations);
+  }
+
+  rsi(period = 14): number | null {
+    return calculateRsi(this.history('close', rsiLookback(period)), period);
+  }
+
+  macd(fastPeriod = 12, slowPeriod = 26, signalPeriod = 9): MacdResult | null {
+    return calculateMacd(
+      this.history('close', macdLookback(fastPeriod, slowPeriod, signalPeriod)),
+      fastPeriod,
+      slowPeriod,
+      signalPeriod,
+    );
+  }
+
+  kdj(period = 9, kSmoothing = 3, dSmoothing = 3): KdjResult | null {
+    return latestKdj(this.bars(kdjLookback(period)), period, kSmoothing, dSmoothing);
   }
 }
 
@@ -325,6 +389,20 @@ export function enrich<Params extends StrategyParams = StrategyParams>(
   };
   enriched.avgAmount = (code, n) => avgField(ctx.bars(code, n), n, (bar) => bar.amount);
   enriched.avgVol = (code, n) => avgField(ctx.bars(code, n), n, (bar) => bar.vol);
+  enriched.adx = (code, period = 14) => calculateAdx(ctx.bars(code, adxLookback(period)), period);
+  enriched.bollingerBands = (code, period = 20, standardDeviations = 2) =>
+    calculateBollingerBands(ctx.history(code, 'close', period), period, standardDeviations);
+  enriched.rsi = (code, period = 14) =>
+    calculateRsi(ctx.history(code, 'close', rsiLookback(period)), period);
+  enriched.macd = (code, fastPeriod = 12, slowPeriod = 26, signalPeriod = 9) =>
+    calculateMacd(
+      ctx.history(code, 'close', macdLookback(fastPeriod, slowPeriod, signalPeriod)),
+      fastPeriod,
+      slowPeriod,
+      signalPeriod,
+    );
+  enriched.kdj = (code, period = 9, kSmoothing = 3, dSmoothing = 3) =>
+    latestKdj(ctx.bars(code, kdjLookback(period)), period, kSmoothing, dSmoothing);
   return enriched;
 }
 

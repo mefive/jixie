@@ -18,10 +18,16 @@ weekly.highest('high', 20);
 weekly.lowest('low', 20);
 weekly.avgAmount(20);
 weekly.avgVol(20);
+weekly.adx(14);
+weekly.bollingerBands(20, 2);
+weekly.rsi(14);
+weekly.macd(12, 26, 9);
+weekly.kdj(9, 3, 3);
 ```
 
 这些接口与日线一样要求个股 K 线已经加载：静态标的放进 `watch`，动态选股先调用
-`await ctx.ensureBars(codes)`。
+`await ctx.ensureBars(codes)`。扩充指标的公式、默认值与有限预热窗口见
+`docs/design/technical-indicators.md`。
 
 ## 聚合语义
 

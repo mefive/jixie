@@ -50,6 +50,19 @@ def handle_bar(ctx):
 
 Python 模块会在整次回测中保留变量，所以示例中的 `ordered` 可以防止每天重复下达同一意图。
 
+## 可用技术指标
+
+Python 日线 SDK 提供 `sma`、`ema`、`atr`、`highest`、`lowest`、`avg_amount`、`avg_vol`，以及：
+
+- `ctx.adx(code, period=14)`：返回 `adx`、`positive_di`、`negative_di`；
+- `ctx.bollinger_bands(code, period=20, standard_deviations=2)`：返回 `middle`、`upper`、`lower`；
+- `ctx.rsi(code, period=14)`：返回 0～100；
+- `ctx.macd(code, fast_period=12, slow_period=26, signal_period=9)`：返回 `line`、`signal`、`histogram`；
+- `ctx.kdj(code, period=9, k_smoothing=3, d_smoothing=3)`：返回 `k`、`d`、`j`。
+
+这些结果都由截至当前交易日的后复权 K 线现场计算，不是数据库中保存的指标列。历史不足时返回
+`None`，使用复合结果前先判空。
+
 ## 运行并检查结果
 
 1. 打开“编辑启动参数”，设置起止日期、资金和成本。

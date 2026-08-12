@@ -105,6 +105,91 @@ describe('Python strategy runtime', () => {
     }
   });
 
+  it('keeps Python daily technical indicators aligned with the TypeScript SDK', async () => {
+    enableTestRuntime();
+    const logs: string[] = [];
+    const runtime = await createPythonStrategyRuntime(
+      `
+from jixie import Strategy
+
+strategy = Strategy(name="python-indicators", watch=["AAA"])
+
+@strategy.on_bar
+def handle_bar(ctx):
+    if ctx.date != "20240108":
+        return
+    bands = ctx.bollinger_bands("AAA", 3, 2)
+    directional = ctx.adx("AAA", 2)
+    convergence = ctx.macd("AAA", 1, 2, 2)
+    stochastic = ctx.kdj("AAA", 3)
+    values = [
+        bands.middle, bands.upper, bands.lower,
+        ctx.rsi("AAA", 2),
+        directional.adx, directional.positive_di, directional.negative_di,
+        convergence.line, convergence.signal, convergence.histogram,
+        stochastic.k, stochastic.d, stochastic.j,
+    ]
+    print("indicator-probe", *values)
+`,
+      (_level, text) => logs.push(text),
+    );
+    let nativeValues: number[] = [];
+    const nativeStrategy = defineStrategy({
+      name: 'native-indicators',
+      watch: ['AAA'],
+      onBar(context) {
+        if (context.date !== '20240108') {
+          return;
+        }
+        const bands = context.bollingerBands('AAA', 3, 2)!;
+        const directional = context.adx('AAA', 2)!;
+        const convergence = context.macd('AAA', 1, 2, 2)!;
+        const stochastic = context.kdj('AAA', 3)!;
+        nativeValues = [
+          bands.middle,
+          bands.upper,
+          bands.lower,
+          context.rsi('AAA', 2)!,
+          directional.adx,
+          directional.positiveDi,
+          directional.negativeDi,
+          convergence.line,
+          convergence.signal,
+          convergence.histogram,
+          stochastic.k,
+          stochastic.d,
+          stochastic.j,
+        ];
+      },
+    });
+
+    try {
+      await Promise.all([
+        runStrategy({
+          start: dates[0],
+          end: dates.at(-1)!,
+          initialCash: 100_000,
+          strategy: runtime.strategy,
+          dataPort: fixturePort(spec),
+        }),
+        runStrategy({
+          start: dates[0],
+          end: dates.at(-1)!,
+          initialCash: 100_000,
+          strategy: nativeStrategy,
+          dataPort: fixturePort(spec),
+        }),
+      ]);
+
+      const probe = logs.find((line) => line.startsWith('indicator-probe '));
+      const pythonValues = probe?.split(' ').slice(1).map(Number) ?? [];
+      expect(pythonValues).toHaveLength(nativeValues.length);
+      pythonValues.forEach((value, index) => expect(value).toBeCloseTo(nativeValues[index], 10));
+    } finally {
+      await runtime.close();
+    }
+  });
+
   it('returns Python tracebacks with strategy.py line numbers', async () => {
     enableTestRuntime();
     const runtime = await createPythonStrategyRuntime(`
