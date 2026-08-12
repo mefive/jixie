@@ -1,7 +1,7 @@
 # 设计:agent 沙盒计算工具 analyzeData(SQL 取数 → 代码变换)
 
 > 2026-07-07 用户拍板立项(对话式统计分析的「逃生舱」:SQL 表达不了的中等复杂统计,
-> 由模型写一小段 JS 在沙盒里算)。**当日实施完成**,实况见 ROADMAP 7.7;本文保留为设计依据。
+> 由模型写一小段 JS 在沙盒里算)。**当日实施完成**,实况见原 ROADMAP 7.7;本文保留为设计依据。
 > 与设计的偏差:超时定 10s(含 dev 下 worker tsx 启动 ~300ms);说明书生成采用
 > 「gen 脚本物化 + vitest 防漂移」而非运行时解析(prod dist 无源码)。
 
@@ -16,8 +16,9 @@
   复杂度爆炸、模型易错。SQL 管关系代数,代码管数值计算——各归其位。
 - **不做**「模型先 sqlQuery 拉数、再把数据贴进代码」:数据过模型 = token 爆炸 + 幻觉面 +
   截断失真。取数和计算必须绑在同一次工具调用里,服务端内部传递。
-- 语言 = JS(不是 Python):沙盒/编译/修复环基建现成(compileFactor 同款),零新运行时;
-  Python 结论见 `python-and-sandbox.md`(已拍板不做平行线)。
+- 本工具的变换语言 = JS：沙盒/编译/修复环基建现成(compileFactor 同款),零新增运行时；这是
+  `analyzeData` V1 的工具契约，不是项目级“拒绝 Python”结论。Python 策略适配和唯一 Engine 边界见
+  `python-and-sandbox.md`；未来是否增加 Python 分析后端由真实库需求、隔离和可复现成本触发。
 
 ## 工具契约
 
@@ -65,7 +66,7 @@ pandas 等价物**——这恰好不是问题,因为 SQL 已经承担了 join/gr
 
 - **只读、无副作用**:代码拿不到 prisma/网络/文件,只有注入的 data 和 stats;
 - **结果不落库、不产卡片**(v1):observation 回灌 → 模型文字作答。**图表仍归 renderChart**;
-  「用算出来的数据画图」已立项为 ROADMAP **7.8**,详设见 `docs/design/computed-chart.md`
+  「用算出来的数据画图」已立项为原 ROADMAP **7.8**,详设见 `docs/design/computed-chart.md`
   (Phase A:ChartSpec `source:'compute'` + 重跑端点);
 - 工具轮数仍在每 turn ≤8 的总预算内,不单独开小灶。
 

@@ -1,10 +1,10 @@
 # 设计:计算图卡片(analyzeData → echarts)+ 图形态扩展
 
-> 2026-07-09 规划,对应 `ROADMAP.md` **7.8**。承接 7.6(`renderChart` 纯 SQL 图)与
+> 2026-07-09 规划,对应原 `ROADMAP.md` **7.8**。承接 7.6(`renderChart` 纯 SQL 图)与
 > 7.7(`analyzeData` 沙盒计算、只出文字)的缺口:「算得出、画不出」。
 > **状态:Phase A + B 已实施(2026-07-25)**——工具形态拍板为方案 2(新工具
 > `renderComputedChart`),重跑端点 `POST /agent/chart/compute`;Phase C 仍需求拉动。
-> 实况见 `ROADMAP.md` 7.8。
+> 实况见原 `ROADMAP.md` 7.8；当前归入已完成基础 C。
 
 ## 一句话
 
