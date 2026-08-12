@@ -136,7 +136,7 @@ app.route('/api/app/factor', factorRoute);     // agent, qa, name, analysis, cor
 
 ### Phase 0 · 约定落地(本文) ✅
 
-- 本文入 `docs/design/`;`ROADMAP` 4.4b 指针。
+- 本文入 `docs/design/`;原 `ROADMAP` 4.4b 指针。
 - 实施前在 `server.ts` 顶部注释写清「复数资源 / 单数动作 / 底座」三行规则。
 
 ### Phase 1 · Screen 挂载整形(收益最大、破坏面中等)

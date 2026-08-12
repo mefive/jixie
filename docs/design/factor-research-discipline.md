@@ -4,6 +4,9 @@
 > 前置：`docs/design/factor-report-history.md` 已实施  
 > 范围：`FactorReport` 的研究语义、正式保留段、结果揭示、研究变体计数  
 > 不在范围：新建 `FactorExperiment`、扩充完整 `AnalysisSpec`、Newey-West / Fama-MacBeth
+>
+> 2026-08-12 更新：上面的“不在范围”仅描述本轮历史边界；Newey-West 与 Fama–MacBeth 已由后续
+> `factor-cross-sectional-inference.md` 落地。一般研究记录的后续深化见当前 `ROADMAP.md` 1.1 / 1.2。
 
 ## 1. 结论
 
@@ -497,7 +500,7 @@ revealedAt = now → 可反复查看，但不再是未观察数据
 
 - 不做命名、归档、分享、协作型 `FactorExperiment`。
 - 不实现真正的访问控制盲测；用户拥有本地数据库，产品只提供纪律脚手架。
-- 不补完整股票池、异常值、缺失处理和成本参数；这些属于 `ROADMAP 3.6b-A` 的 `AnalysisSpec` 扩展。
+- 不补完整股票池、异常值、缺失处理和成本参数；这些属于原 `ROADMAP 3.6b-A` 的 `AnalysisSpec` 扩展。
 - 不上 Benjamini-Hochberg、q-value、Bonferroni 或 deflated Sharpe；候选数扩大后再做。
 - 不做 Newey-West、Fama-MacBeth、alpha / GRS。
 - 不把 holdout 的单一通过标准包装成自动准入结论。
