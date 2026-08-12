@@ -73,8 +73,9 @@ The backtest engine calls onBar(ctx) once per trading day; you read data and pla
 - ctx.lhbNet(code): today's Dragon-Tiger List net buy amount (yuan), **returns null on any day the stock is not listed** (no forward fill) — attention / hot-money extreme signal
 - ctx.history(code, 'open'|'high'|'low'|'close', n) / ctx.bars(code, n): the last n backward-adjusted prices / OHLC bars
 - ctx.weekly(code) / ctx.monthly(code): completed ISO-week / natural-month series with bars/history and
-  sma/ema/atr/highest/lowest/avgAmount/avgVol. The current partial period is excluded; combine a completed
-  weekly trend filter with today's daily price/bars for multi-timeframe strategies.
+  sma/ema/atr/highest/lowest/avgAmount/avgVol/adx/bollingerBands/rsi/macd/kdj. The current partial period
+  is excluded; combine a completed weekly trend filter with today's daily price/bars for multi-timeframe
+  strategies.
 - **Built-in indicators** (prefer these, don't hand-roll; all require the instrument's K-line already loaded, return null when data is insufficient):
   ${SDK_SECTIONS.indicators}
 - Neutral sizing primitives: ctx.atrUnits(code,riskPct,atrPeriod=20) returns adjusted shares sized so

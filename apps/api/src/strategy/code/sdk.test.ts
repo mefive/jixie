@@ -180,6 +180,11 @@ describe('enrich', () => {
     expect(weekly.sma(2)).toBe(11);
     expect(weekly.highest('high', 2)).toBe(14);
     expect(weekly.avgAmount(2)).toBe(2000);
+    expect(weekly.bollingerBands(2, 1)).toEqual({ middle: 11, upper: 12, lower: 10 });
+    expect(weekly.rsi(1)).toBe(100);
+    expect(weekly.adx(1)?.positiveDi).toBeGreaterThan(weekly.adx(1)?.negativeDi ?? 0);
+    expect(weekly.macd(1, 2, 1)?.histogram).toBe(0);
+    expect(weekly.kdj(2)).not.toBeNull();
     expect(enrich(ctx).monthly('A').bars(2)).toEqual([]);
   });
 });

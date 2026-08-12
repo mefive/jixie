@@ -282,6 +282,54 @@ describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
     ]);
   });
 
+  it('扩充技术指标在直跑与进墙车道使用同一计算结果', { timeout: 60_000 }, async () => {
+    const code = `
+      export default defineStrategy({
+        name: 'technical-indicator-drift',
+        watch: ['AAA'],
+        onBar(ctx) {
+          if (ctx.date !== '20240105') return;
+          const directional = ctx.adx('AAA', 2);
+          const bands = ctx.bollingerBands('AAA', 3, 2);
+          const strength = ctx.rsi('AAA', 2);
+          const convergence = ctx.macd('AAA', 1, 2, 2);
+          const stochastic = ctx.kdj('AAA', 3);
+          if (
+            directional != null &&
+            bands != null &&
+            strength != null &&
+            convergence != null &&
+            stochastic != null &&
+            directional.positiveDi > directional.negativeDi &&
+            bands.middle > 0 &&
+            strength > 50 &&
+            convergence.line > 0 &&
+            stochastic.k > stochastic.d
+          ) {
+            ctx.orderLots('AAA', 1);
+          }
+        },
+      });
+    `;
+    const direct = await runStrategy({
+      start: D[0],
+      end: D.at(-1)!,
+      initialCash: 100_000,
+      strategy: await compileStrategy(code),
+      dataPort: fixturePort(SPEC),
+    });
+    const walled = await runWalledBacktest(
+      { code, start: D[0], end: D.at(-1)!, initialCash: 100_000 },
+      fixturePort(SPEC),
+    );
+
+    expect(walled.nav).toEqual(direct.nav);
+    expect(walled.tradeLog).toEqual(direct.tradeLog);
+    expect(direct.tradeLog).toEqual([
+      expect.objectContaining({ date: '20240108', code: 'AAA', side: 'buy', realShares: 100 }),
+    ]);
+  });
+
   it('期货逐日盯市与成交在直跑和进墙车道一致', { timeout: 60_000 }, async () => {
     const code = `
       export default defineStrategy({

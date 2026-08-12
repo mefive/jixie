@@ -66,15 +66,25 @@
 ### 2.2 多周期 resample(日→周/月)✅(2026-07-31)
 
 - SDK 已新增 `ctx.weekly(code)` / `ctx.monthly(code)`:从已加载日 bar 按 ISO 周/自然月现场聚合,
-  提供 `bars/history/sma/ema/atr/highest/lowest/avgAmount/avgVol` 同一组窗口与指标接口。
+  提供 `bars/history/sma/ema/atr/highest/lowest/avgAmount/avgVol` 及 2.3 扩充指标的同一组接口。
 - 只暴露截至当前交易日**已经收盘的完整周期**。用仅含交易日的前视日历判断周/月边界,不读取未来价格;
   周五、月末或节假日前的最后交易日可立即看到刚完成周期,周中/月底前不会提前看到部分 K 线。
 - 聚合与缓存都在单次 `EngineData` 运行内,主循环不增加另一套时钟。详见
   `docs/design/multi-timeframe.md`。
 
-### 2.3 指标库扩充 ⬜(需求驱动,不求全)
+### 2.3 指标库扩充 ✅(2026-08-12)
 
-现有 sma/ema/atr/highest/lowest/avgAmount/avgVol。候选:ADX、SuperTrend、Parabolic SAR、MACD、RSI、布林带。**规则:写策略撞到了再加**,加一个同步三处镜像(sdk.ts / sdk-dts.ts / codegen-prompt.ts,见 4.4 统一计划)。
+在原有 SMA / EMA / ATR / Donchian 高低轨 / 平均量额之上，新增 ADX/DMI、布林带、RSI、MACD
+和 KDJ；全部读取单次回测内缓存的后复权 K 线现场计算，不新增派生行情表。TypeScript 日/周/月
+使用同一纯计算内核，Python `py-v1` 提供对应日线 snake_case API，并由同行情逐值一致测试约束。
+SDK 注册表继续生成 Monaco 声明、双语参考页和 Agent 提示，运行时与注册表有双向类型防漂移。
+真实产品链验收使用五项指标给 600519.SH 做趋势评分，在 Lab 里点击运行 2024 全年回测，完成
+242 个交易日、34 笔成交并保存结果；浏览器回归入口为
+`pnpm --filter web test:e2e:strategy-indicators`，验收截图可同时看到五项调用、评分日志和结果指标。
+
+SuperTrend 与 Parabolic SAR 没有纳入：二者更接近带初始化约定的复合状态规则，当前常用度和新增
+表达力不足以扩大长期 SDK 表面；若未来有真实策略需求再单独设计。公式、默认值和历史窗口语义见
+`docs/design/technical-indicators.md`。
 
 ### 2.4 止盈止损 & 按手下单 helper ✅(2026-07-31)
 
