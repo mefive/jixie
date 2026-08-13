@@ -1,0 +1,24 @@
+@reference '../styles/index.css';
+
+.jx-universeSpecCard {
+  @apply flex flex-col gap-3;
+  @apply rounded-lg border border-line bg-card p-4;
+}
+
+.jx-universeSpecCard-head {
+  @apply flex items-center justify-between gap-3;
+}
+
+.jx-universeSpecCard-badge {
+  @apply rounded bg-chip px-2 py-1 text-xs text-muted;
+}
+
+.jx-universeSpecCard-meta,
+.jx-universeSpecCard-predicates {
+  @apply flex flex-wrap gap-2;
+}
+
+.jx-universeSpecCard-chip,
+.jx-universeSpecCard-code {
+  @apply rounded bg-chip px-2 py-1 text-xs text-muted;
+}

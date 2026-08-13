@@ -1,6 +1,6 @@
 import type { ChartSpec } from './chart.js';
 import type { ScreenSpec } from './screen.js';
-import type { ResearchRunResultV1 } from './research.js';
+import type { ResearchRunResultV1, UniverseSpecV1 } from './research.js';
 
 /**
  * Agent conversation messages (docs/design/unified-agent.md design 3). A message is a list of typed
@@ -38,7 +38,14 @@ export interface ResearchPart {
   run: ResearchRunResultV1;
 }
 
-export type MessagePart = TextPart | CardPart | ChartPart | ResearchPart;
+/** A deterministic entity universe. Legacy saved screens migrate to this typed Research artifact. */
+export interface UniversePart {
+  type: 'universe';
+  title: string;
+  spec: UniverseSpecV1;
+}
+
+export type MessagePart = TextPart | CardPart | ChartPart | ResearchPart | UniversePart;
 
 export interface ChatMessage {
   id?: string;
@@ -95,6 +102,9 @@ export function messageText(message: ChatMessage): string {
       }
       if (part.type === 'chart') {
         return `(chart: ${part.title})`;
+      }
+      if (part.type === 'universe') {
+        return `(research universe: ${part.title}, predicates=${part.spec.predicates.length})`;
       }
       return `(research result: ${part.title}, protocol=${part.run.protocol.id}, observations=${part.run.result.observations})`;
     })

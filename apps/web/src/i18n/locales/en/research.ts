@@ -40,6 +40,23 @@ export const enResearch: typeof zhResearch = {
     percent_change: 'Percent change',
     year_over_year: 'Year over year',
   },
+  universe: {
+    migrated: 'Migrated from legacy screen',
+    source: {
+      equity_market: 'China equity market',
+      index_members: 'Historical index members',
+      explicit: 'Explicit entities',
+    },
+    asOf: {
+      fixed: 'Fixed historical date',
+      latest_available: 'Latest available date',
+      periodic: 'Periodic snapshots',
+    },
+    missingExclude: 'Exclude missing values',
+    noPredicates: 'All entities',
+    limit: 'Up to {{count}}',
+    sort: 'Sort',
+  },
   result: {
     observations: 'Observations',
     pearson: 'Pearson',
