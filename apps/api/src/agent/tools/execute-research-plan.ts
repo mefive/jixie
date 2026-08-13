@@ -9,7 +9,7 @@ const argsSchema = z.strictObject({ plan: researchPlanSpecV1Schema });
 export const executeResearchPlanTool: AgentTool = {
   name: 'executeResearchPlan',
   description:
-    'Execute one validated, versioned ResearchPlan. V1 supports the time_series_relationship protocol over registered instrument, macro, yield-curve, or FX series. The plan may reference only measures and sources returned by searchResearchCatalog. Never put SQL, table names, column names, JavaScript, or Python in the plan. Positive predictorLag means the predictor precedes the outcome by that many aligned periods. Use monthly alignment for year_over_year. Set alignment.partialPeriod to exclude for complete-month analysis; include is only for an explicitly requested month-to-date observation. The tool produces the structured research result card; your final text should explain the evidence and limitations without inventing numbers.',
+    'Execute one validated, versioned ResearchPlan. V1 supports the time_series_relationship protocol over registered instrument, macro, yield-curve, or FX series. The plan.question object must prespecify a regression-slope hypothesis and the outputs must include conclusion. The plan may reference only measures and sources returned by searchResearchCatalog. Never put SQL, table names, column names, JavaScript, or Python in the plan. Positive predictorLag means the predictor precedes the outcome by that many aligned periods. Use monthly alignment for year_over_year. Set alignment.partialPeriod to exclude for complete-month analysis; include is only for an explicitly requested month-to-date observation. The tool produces the structured research result card and deterministic conclusion level; your final text must preserve that level and explain the evidence and limitations without inventing numbers.',
   parameters: z.toJSONSchema(argsSchema),
   async run(args) {
     const parsed = argsSchema.safeParse(args);
@@ -29,11 +29,12 @@ export const executeResearchPlanTool: AgentTool = {
         pearson: result.pearson,
         spearman: result.spearman,
         regression: result.regression,
+        conclusion: run.conclusion,
         coverage: run.coverage,
         diagnostics: run.diagnostics,
       }),
       rows: result.observations,
-      research: { title: run.plan.question.slice(0, 120), run },
+      research: { title: run.plan.question.text.slice(0, 120), run },
     };
   },
 };

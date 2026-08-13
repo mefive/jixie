@@ -8,13 +8,42 @@ const researchRunResultSchema = z.custom<ResearchRunResultV1>((value) => {
     return false;
   }
   const run = value as Partial<ResearchRunResultV1>;
+  const plan = run.plan as unknown as { question?: unknown } | undefined;
+  const currentPlan = researchPlanSpecV1Schema.safeParse(run.plan).success;
+  const legacyPlan =
+    typeof plan?.question === 'string' &&
+    researchPlanSpecV1Schema.safeParse({
+      ...run.plan,
+      question: {
+        version: 1,
+        kind: 'time_series_relationship',
+        text: plan.question,
+        hypothesis: { estimand: 'regression_slope', direction: 'two_sided', nullValue: 0 },
+      },
+      outputs: [
+        ...((run.plan as unknown as { outputs?: unknown[] } | undefined)?.outputs ?? []).filter(
+          (output) =>
+            !(
+              typeof output === 'object' &&
+              output != null &&
+              (output as { kind?: unknown }).kind === 'conclusion'
+            ),
+        ),
+        { kind: 'conclusion' },
+      ],
+    }).success;
+  const conclusion = run.conclusion as unknown as { level?: unknown } | undefined;
   return (
     run.version === 1 &&
-    researchPlanSpecV1Schema.safeParse(run.plan).success &&
+    (currentPlan || legacyPlan) &&
     run.protocol?.id === 'time_series_relationship' &&
     run.result?.kind === 'time_series_relationship' &&
     Array.isArray(run.coverage) &&
-    Array.isArray(run.diagnostics)
+    Array.isArray(run.diagnostics) &&
+    (legacyPlan ||
+      ['supports', 'weak_support', 'does_not_support', 'indeterminate'].includes(
+        typeof conclusion?.level === 'string' ? conclusion.level : '',
+      ))
   );
 }, 'invalid research run');
 
