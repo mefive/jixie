@@ -1,8 +1,35 @@
-import { Alert, Card, Descriptions, Tabs, Tag } from 'antd';
+import {
+  Alert,
+  Button,
+  Card,
+  DatePicker,
+  Descriptions,
+  InputNumber,
+  Select,
+  Tabs,
+  Tag,
+} from 'antd';
+import dayjs from 'dayjs';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { ResearchPart, ResearchRollingRelationshipPointV1 } from '@jixie/shared';
-import { faCode, faFlask, faSquareRootVariable } from '@fortawesome/free-solid-svg-icons';
+import type {
+  ResearchConclusionV1,
+  ResearchPart,
+  ResearchPlanSpecV1,
+  ResearchRollingRelationshipPointV1,
+  ResearchRunResultV1,
+  ResearchSeriesInputSpecV1,
+  ResearchTransformV1,
+} from '@jixie/shared';
+import {
+  faCode,
+  faFlask,
+  faRotate,
+  faSliders,
+  faSquareRootVariable,
+} from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { runResearchPlan } from '@src/api/client';
 import { EChart, type ECOption } from './echart';
 import { Markdown } from './markdown';
 import './research-result-card.css';
@@ -15,12 +42,40 @@ interface ResearchResultCardProps {
  * come from the validated protocol result; the LLM cannot invent or mutate this payload. */
 export function ResearchResultCard({ part }: ResearchResultCardProps) {
   const { t, i18n } = useTranslation('research');
-  const run = part.run;
+  const [run, setRun] = useState(part.run);
+  const [draft, setDraft] = useState(() => editablePlan(part.run));
+  const [controlsOpen, setControlsOpen] = useState(false);
+  const [running, setRunning] = useState(false);
+  const [runError, setRunError] = useState('');
   const relationship = run.result;
   const regression = relationship.regression;
+  const conclusion = (run as ResearchRunResultV1 & { conclusion?: ResearchConclusionV1 })
+    .conclusion;
   const zh = i18n.language.startsWith('zh');
   const predictor = run.plan.inputs.find((input) => input.id === run.plan.protocol.predictor);
   const outcome = run.plan.inputs.find((input) => input.id === run.plan.protocol.outcome);
+
+  useEffect(() => {
+    setRun(part.run);
+    setDraft(editablePlan(part.run));
+    setControlsOpen(false);
+    setRunError('');
+  }, [part.run]);
+
+  const rerun = async () => {
+    setRunning(true);
+    setRunError('');
+    try {
+      const next = await runResearchPlan(draft);
+      setRun(next);
+      setDraft(editablePlan(next));
+      setControlsOpen(false);
+    } catch (error) {
+      setRunError(error instanceof Error ? error.message : t('result.rerunFailed'));
+    } finally {
+      setRunning(false);
+    }
+  };
 
   const tabs = [
     {
@@ -54,6 +109,45 @@ export function ResearchResultCard({ part }: ResearchResultCardProps) {
         ]
       : []),
     {
+      key: 'coverage',
+      label: t('result.coverage'),
+      children: (
+        <div className="jx-researchResult-coverage">
+          {run.coverage.map((item) => (
+            <section key={item.inputId} className="jx-researchResult-coverageItem">
+              <h4>{item.inputId}</h4>
+              <Descriptions
+                size="small"
+                column={{ xs: 1, sm: 2 }}
+                items={[
+                  {
+                    key: 'loaded',
+                    label: t('result.observationsLoaded'),
+                    children: String(item.observationsLoaded),
+                  },
+                  {
+                    key: 'aligned',
+                    label: t('result.observationsAligned'),
+                    children: String(item.observationsAligned),
+                  },
+                  {
+                    key: 'range',
+                    label: t('result.actualRange'),
+                    children: `${formatDate(item.firstDate ?? '')} — ${formatDate(item.lastDate ?? '')}`,
+                  },
+                  {
+                    key: 'missing',
+                    label: t('result.missingAfterAlignment'),
+                    children: String(item.missingAfterAlignment),
+                  },
+                ]}
+              />
+            </section>
+          ))}
+        </div>
+      ),
+    },
+    {
       key: 'method',
       label: t('result.method'),
       children: (
@@ -62,6 +156,16 @@ export function ResearchResultCard({ part }: ResearchResultCardProps) {
             size="small"
             column={1}
             items={[
+              {
+                key: 'question',
+                label: t('result.question'),
+                children: questionText(run),
+              },
+              {
+                key: 'hypothesis',
+                label: t('result.hypothesis'),
+                children: hypothesisDescription(run, t),
+              },
               {
                 key: 'period',
                 label: t('result.period'),
@@ -100,6 +204,13 @@ export function ResearchResultCard({ part }: ResearchResultCardProps) {
             ]}
           />
 
+          {(run.protocol.assumptions ?? []).length > 0 && (
+            <MethodList title={t('result.assumptions')} items={run.protocol.assumptions} zh={zh} />
+          )}
+          {(run.protocol.terminology ?? []).length > 0 && (
+            <MethodList title={t('result.terminology')} items={run.protocol.terminology} zh={zh} />
+          )}
+
           <div className="jx-researchResult-formulae">
             {run.protocol.formulae.map((formula) => (
               <section key={formula.id} className="jx-researchResult-formula">
@@ -136,8 +247,195 @@ export function ResearchResultCard({ part }: ResearchResultCardProps) {
           <FontAwesomeIcon icon={faFlask} />
           <span>{part.title}</span>
         </div>
-        <Tag>{zh ? run.protocol.nameZh : run.protocol.nameEn}</Tag>
+        <div className="jx-researchResult-actions">
+          <Tag>{zh ? run.protocol.nameZh : run.protocol.nameEn}</Tag>
+          <Button
+            size="small"
+            icon={<FontAwesomeIcon icon={faSliders} />}
+            onClick={() => setControlsOpen((open) => !open)}
+          >
+            {t('result.parameters')}
+          </Button>
+        </div>
       </div>
+
+      {controlsOpen && (
+        <div className="jx-researchResult-controls">
+          <label className="jx-researchResult-control jx-researchResult-control--wide">
+            <span>{t('result.period')}</span>
+            <DatePicker.RangePicker
+              className="jx-researchResult-controlInput"
+              allowClear={false}
+              value={[parseDate(draft.start), parseDate(draft.end)]}
+              onChange={(dates) => {
+                if (dates?.[0] && dates[1]) {
+                  setDraft((current) => ({
+                    ...current,
+                    start: dates[0].format('YYYYMMDD'),
+                    end: dates[1].format('YYYYMMDD'),
+                  }));
+                }
+              }}
+            />
+          </label>
+          <ControlSelect
+            label={t('result.frequency')}
+            value={draft.alignment.frequency}
+            options={(['daily', 'monthly'] as const).map((value) => ({
+              value,
+              label: t(`frequency.${value}`),
+            }))}
+            onChange={(frequency) =>
+              setDraft((current) => ({
+                ...current,
+                alignment: { ...current.alignment, frequency },
+              }))
+            }
+          />
+          <ControlSelect
+            label={t('result.partialPeriod')}
+            value={draft.alignment.partialPeriod}
+            options={(['exclude', 'include'] as const).map((value) => ({
+              value,
+              label: t(`partialPeriod.${value}`),
+            }))}
+            onChange={(partialPeriod) =>
+              setDraft((current) => ({
+                ...current,
+                alignment: { ...current.alignment, partialPeriod },
+              }))
+            }
+          />
+          <TransformControl
+            label={t('result.predictorTransform')}
+            input={draft.inputs.find((input) => input.id === draft.protocol.predictor)}
+            t={t}
+            onChange={(transform) =>
+              setDraft((current) =>
+                replaceTransform(current, current.protocol.predictor, transform),
+              )
+            }
+          />
+          <TransformControl
+            label={t('result.outcomeTransform')}
+            input={draft.inputs.find((input) => input.id === draft.protocol.outcome)}
+            t={t}
+            onChange={(transform) =>
+              setDraft((current) => replaceTransform(current, current.protocol.outcome, transform))
+            }
+          />
+          <ControlNumber
+            label={t('result.lag')}
+            value={draft.protocol.predictorLag}
+            min={0}
+            max={120}
+            onChange={(predictorLag) =>
+              setDraft((current) => ({
+                ...current,
+                protocol: { ...current.protocol, predictorLag },
+              }))
+            }
+          />
+          <ControlNumber
+            label={t('result.rollingWindow')}
+            value={draft.protocol.rollingWindow ?? null}
+            min={12}
+            max={1200}
+            placeholder={t('result.disabled')}
+            onChange={(rollingWindow) =>
+              setDraft((current) => ({
+                ...current,
+                protocol: {
+                  ...current.protocol,
+                  ...(rollingWindow == null ? { rollingWindow: undefined } : { rollingWindow }),
+                },
+              }))
+            }
+          />
+          <ControlNumber
+            label={t('result.hacLag')}
+            value={
+              draft.protocol.inference.lag === 'automatic' ? null : draft.protocol.inference.lag
+            }
+            min={0}
+            max={120}
+            placeholder={t('result.automatic')}
+            onChange={(lag) =>
+              setDraft((current) => ({
+                ...current,
+                protocol: {
+                  ...current.protocol,
+                  inference: { kind: 'newey_west', lag: lag ?? 'automatic' },
+                },
+              }))
+            }
+          />
+          <div className="jx-researchResult-controlActions">
+            <Button
+              type="primary"
+              icon={<FontAwesomeIcon icon={faRotate} />}
+              loading={running}
+              onClick={() => void rerun()}
+            >
+              {t('result.rerun')}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {runError && (
+        <Alert
+          className="jx-researchResult-runError"
+          type="error"
+          showIcon
+          message={t('result.rerunFailed')}
+          description={runError}
+        />
+      )}
+
+      {conclusion ? (
+        <Alert
+          className="jx-researchResult-conclusion"
+          type={conclusionAlertType(conclusion.level)}
+          showIcon
+          message={t(`result.conclusionLevel.${conclusion.level}`)}
+          description={
+            <div className="jx-researchResult-conclusionBody">
+              <p>{zh ? conclusion.summaryZh : conclusion.summaryEn}</p>
+              <div className="jx-researchResult-evidence">
+                <span>
+                  {t('result.confidenceInterval')}: {number(conclusion.confidenceInterval95.lower)}{' '}
+                  — {number(conclusion.confidenceInterval95.upper)}
+                </span>
+                <span>
+                  {t('result.effectSize')}:{' '}
+                  {t(`result.effectMagnitude.${conclusion.effectSize.magnitude}`)}
+                  {' · '}
+                  {number(conclusion.effectSize.value)}
+                </span>
+                <span>
+                  {t('result.stability')}:{' '}
+                  {conclusion.stability.consistentFraction == null
+                    ? t('result.notAssessed')
+                    : `${(conclusion.stability.consistentFraction * 100).toFixed(1)}%`}
+                </span>
+              </div>
+              <ul>
+                {(zh ? conclusion.limitationsZh : conclusion.limitationsEn).map((limitation) => (
+                  <li key={limitation}>{limitation}</li>
+                ))}
+              </ul>
+            </div>
+          }
+        />
+      ) : (
+        <Alert
+          className="jx-researchResult-conclusion"
+          type="info"
+          showIcon
+          message={t('result.legacyConclusion')}
+        />
+      )}
 
       <div className="jx-researchResult-stats">
         <Stat label={t('result.observations')} value={String(relationship.observations)} />
@@ -171,6 +469,8 @@ export function ResearchResultCard({ part }: ResearchResultCardProps) {
   );
 }
 
+// —— 子组件 / 帮助函数 ——
+
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="jx-researchResult-stat">
@@ -180,14 +480,200 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
+function ControlSelect<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: T;
+  options: Array<{ value: T; label: string }>;
+  onChange: (value: T) => void;
+}) {
+  return (
+    <label className="jx-researchResult-control">
+      <span>{label}</span>
+      <Select
+        className="jx-researchResult-controlInput"
+        value={value}
+        options={options}
+        onChange={onChange}
+      />
+    </label>
+  );
+}
+
+function ControlNumber({
+  label,
+  value,
+  min,
+  max,
+  placeholder,
+  onChange,
+}: {
+  label: string;
+  value: number | null;
+  min: number;
+  max: number;
+  placeholder?: string;
+  onChange: (value: number | null) => void;
+}) {
+  return (
+    <label className="jx-researchResult-control">
+      <span>{label}</span>
+      <InputNumber
+        className="jx-researchResult-controlInput"
+        value={value}
+        min={min}
+        max={max}
+        precision={0}
+        placeholder={placeholder}
+        onChange={onChange}
+      />
+    </label>
+  );
+}
+
+function TransformControl({
+  label,
+  input,
+  t,
+  onChange,
+}: {
+  label: string;
+  input: ResearchSeriesInputSpecV1 | undefined;
+  t: ReturnType<typeof useTranslation<'research'>>['t'];
+  onChange: (value: ResearchTransformV1) => void;
+}) {
+  if (!input) {
+    return null;
+  }
+  return (
+    <ControlSelect
+      label={label}
+      value={input.transform}
+      options={allowedTransforms(input.measure).map((value) => ({
+        value,
+        label: t(`transform.${value}`),
+      }))}
+      onChange={onChange}
+    />
+  );
+}
+
+function MethodList({
+  title,
+  items,
+  zh,
+}: {
+  title: string;
+  items: Array<{
+    id: string;
+    labelZh: string;
+    labelEn: string;
+    descriptionZh: string;
+    descriptionEn: string;
+  }>;
+  zh: boolean;
+}) {
+  return (
+    <section className="jx-researchResult-methodList">
+      <h4>{title}</h4>
+      <dl>
+        {items.map((item) => (
+          <div key={item.id}>
+            <dt>{zh ? item.labelZh : item.labelEn}</dt>
+            <dd>{zh ? item.descriptionZh : item.descriptionEn}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
+function editablePlan(run: ResearchRunResultV1): ResearchPlanSpecV1 {
+  const raw = structuredClone(run.plan) as ResearchPlanSpecV1 & { question: unknown };
+  const question = raw.question;
+  if (typeof question !== 'string') {
+    return raw;
+  }
+  return {
+    ...raw,
+    question: {
+      version: 1,
+      kind: 'time_series_relationship',
+      text: question,
+      hypothesis: { estimand: 'regression_slope', direction: 'two_sided', nullValue: 0 },
+    },
+    outputs: [
+      ...raw.outputs.filter((output) => output.kind !== 'conclusion'),
+      { kind: 'conclusion' },
+    ],
+  };
+}
+
+function replaceTransform(
+  plan: ResearchPlanSpecV1,
+  inputId: string,
+  transform: ResearchTransformV1,
+): ResearchPlanSpecV1 {
+  return {
+    ...plan,
+    inputs: plan.inputs.map((input) => (input.id === inputId ? { ...input, transform } : input)),
+  };
+}
+
+function allowedTransforms(measure: string): ResearchTransformV1[] {
+  if (measure === 'macro.observation') {
+    return ['level', 'difference', 'percent_change', 'year_over_year'];
+  }
+  if (measure === 'rates.yield_pct') {
+    return ['level', 'difference', 'percent_change'];
+  }
+  return ['level', 'difference', 'simple_return', 'percent_change'];
+}
+
+function questionText(run: ResearchRunResultV1): string {
+  const question = run.plan.question as unknown;
+  return typeof question === 'string' ? question : run.plan.question.text;
+}
+
+function hypothesisDescription(
+  run: ResearchRunResultV1,
+  t: ReturnType<typeof useTranslation<'research'>>['t'],
+): string {
+  const question = run.plan.question as unknown;
+  if (typeof question === 'string') {
+    return t('result.legacyHypothesis');
+  }
+  return t(`result.hypothesisDirection.${run.plan.question.hypothesis.direction}`);
+}
+
+function conclusionAlertType(
+  level: ResearchConclusionV1['level'],
+): 'success' | 'warning' | 'info' | 'error' {
+  if (level === 'supports') {
+    return 'success';
+  }
+  if (level === 'weak_support') {
+    return 'warning';
+  }
+  return level === 'indeterminate' ? 'error' : 'info';
+}
+
 function number(value: number | null, digits = 4): string {
   return value == null || !Number.isFinite(value) ? '—' : value.toFixed(digits);
+}
+
+function parseDate(value: string) {
+  return dayjs(`${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6)}`);
 }
 
 function formatDate(value: string): string {
   return /^\d{8}$/.test(value)
     ? `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6)}`
-    : value;
+    : value || '—';
 }
 
 function seriesDescription(
