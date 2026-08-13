@@ -119,7 +119,20 @@ export interface ResearchUniverseInputSpecV1 {
   label?: string;
 }
 
-export type ResearchInputSpecV1 = ResearchSeriesInputSpecV1 | ResearchUniverseInputSpecV1;
+export interface ResearchEventSetInputSpecV1 {
+  type: 'event_set';
+  id: string;
+  source: {
+    kind: 'dividend_proposal_announcement';
+    entities: ResearchEntityRefV1[];
+  };
+  label?: string;
+}
+
+export type ResearchInputSpecV1 =
+  | ResearchSeriesInputSpecV1
+  | ResearchUniverseInputSpecV1
+  | ResearchEventSetInputSpecV1;
 
 export interface TimeSeriesRelationshipQuestionSpecV1 {
   version: 1;
@@ -143,9 +156,21 @@ export interface DistributionComparisonQuestionSpecV1 {
   };
 }
 
+export interface EventStudyQuestionSpecV1 {
+  version: 1;
+  kind: 'event_study';
+  text: string;
+  hypothesis: {
+    estimand: 'mean_cumulative_abnormal_return';
+    direction: 'positive' | 'negative' | 'two_sided';
+    nullValue: 0;
+  };
+}
+
 export type ResearchQuestionSpecV1 =
   | TimeSeriesRelationshipQuestionSpecV1
-  | DistributionComparisonQuestionSpecV1;
+  | DistributionComparisonQuestionSpecV1
+  | EventStudyQuestionSpecV1;
 
 export interface TimeSeriesRelationshipProtocolSpecV1 {
   kind: 'time_series_relationship';
@@ -168,9 +193,25 @@ export interface DistributionComparisonProtocolSpecV1 {
   sensitivity: { kind: 'winsorized_mean'; tailFraction: number };
 }
 
+export interface EventStudyProtocolSpecV1 {
+  kind: 'event_study';
+  version: 1;
+  eventSet: string;
+  benchmark: string;
+  eventWindow: { start: number; end: number };
+  returnModel: 'market_adjusted';
+  overlappingEvents: 'keep_first';
+  inference: {
+    kind: 'event_cluster_mean';
+    clusterBy: 'event_trade_date';
+    confidenceLevel: 0.95;
+  };
+}
+
 export type ResearchProtocolSpecV1 =
   | TimeSeriesRelationshipProtocolSpecV1
-  | DistributionComparisonProtocolSpecV1;
+  | DistributionComparisonProtocolSpecV1
+  | EventStudyProtocolSpecV1;
 
 export type ResearchOutputKindV1 =
   | 'summary_table'
@@ -178,6 +219,8 @@ export type ResearchOutputKindV1 =
   | 'rolling_relationship'
   | 'distribution_boxplot'
   | 'sensitivity'
+  | 'event_path'
+  | 'event_table'
   | 'conclusion'
   | 'formula'
   | 'python_example'
@@ -207,9 +250,20 @@ export interface DistributionComparisonPlanSpecV1 {
   outputs: Array<{ kind: ResearchOutputKindV1 }>;
 }
 
+export interface EventStudyPlanSpecV1 {
+  version: 1;
+  question: EventStudyQuestionSpecV1;
+  start: TradeDate;
+  end: TradeDate;
+  inputs: [ResearchEventSetInputSpecV1, ResearchSeriesInputSpecV1];
+  protocol: EventStudyProtocolSpecV1;
+  outputs: Array<{ kind: ResearchOutputKindV1 }>;
+}
+
 export type ResearchPlanSpecV1 =
   | TimeSeriesRelationshipPlanSpecV1
-  | DistributionComparisonPlanSpecV1;
+  | DistributionComparisonPlanSpecV1
+  | EventStudyPlanSpecV1;
 
 export interface ResearchMeasureDefinitionV1 {
   id: string;
@@ -301,7 +355,22 @@ export interface ResearchUniverseCoverageV1 {
   dataRevision: number;
 }
 
-export type ResearchCoverageV1 = ResearchSeriesCoverageV1 | ResearchUniverseCoverageV1;
+export interface ResearchEventCoverageV1 {
+  inputId: string;
+  entitiesRequested: number;
+  eventsLoaded: number;
+  eventsWithTradingDate: number;
+  eventsWithCompleteWindow: number;
+  overlappingEventsExcluded: number;
+  eventsAnalyzed: number;
+  firstEventDate: TradeDate | null;
+  lastEventDate: TradeDate | null;
+}
+
+export type ResearchCoverageV1 =
+  | ResearchSeriesCoverageV1
+  | ResearchUniverseCoverageV1
+  | ResearchEventCoverageV1;
 
 export interface ResearchRelationshipRegressionV1 {
   intercept: number;
@@ -384,9 +453,48 @@ export interface DistributionComparisonResultV1 {
   };
 }
 
+export interface ResearchEventStudyEventV1 {
+  id: string;
+  entity: ResearchEntityRefV1;
+  announcementDate: TradeDate;
+  eventTradeDate: TradeDate;
+  reportPeriod: TradeDate;
+  cumulativeAbnormalReturn: number;
+}
+
+export interface ResearchEventStudyPathPointV1 {
+  relativeDay: number;
+  observations: number;
+  averageAbnormalReturn: number;
+  cumulativeAverageAbnormalReturn: number;
+  cumulativeConfidenceInterval95: { lower: number; upper: number };
+}
+
+export interface EventStudyResultV1 {
+  kind: 'event_study';
+  version: 1;
+  observations: number;
+  eventWindow: { start: number; end: number };
+  returnModel: 'market_adjusted';
+  events: ResearchEventStudyEventV1[];
+  path: ResearchEventStudyPathPointV1[];
+  aggregate: {
+    meanCumulativeAbnormalReturn: number;
+    medianCumulativeAbnormalReturn: number;
+    standardDeviation: number;
+    standardError: number;
+    eventDateClusters: number;
+    tStatistic: number;
+    confidenceInterval95: { lower: number; upper: number };
+    positiveFraction: number;
+    winsorizedMeanCumulativeAbnormalReturn: number;
+  };
+}
+
 export type ResearchProtocolResultV1 =
   | TimeSeriesRelationshipResultV1
-  | DistributionComparisonResultV1;
+  | DistributionComparisonResultV1
+  | EventStudyResultV1;
 
 export type ResearchConclusionLevelV1 =
   | 'supports'
@@ -448,9 +556,38 @@ export interface DistributionComparisonConclusionV1 {
   limitationsEn: string[];
 }
 
+export interface EventStudyConclusionV1 {
+  version: 1;
+  level: ResearchConclusionLevelV1;
+  direction: 'positive' | 'negative' | 'none';
+  estimand: 'mean_cumulative_abnormal_return';
+  estimate: number;
+  confidenceInterval95: { lower: number; upper: number };
+  intervalExcludesNull: boolean;
+  hypothesisDirectionMatches: boolean;
+  effectSize: {
+    metric: 'standardized_mean_car';
+    value: number;
+    magnitude: 'negligible' | 'small' | 'moderate' | 'large';
+  };
+  robustness: {
+    method: 'winsorized_mean_direction';
+    winsorizedEstimate: number;
+    directionMatches: boolean;
+    positiveFraction: number;
+    assessment: 'consistent' | 'sensitive';
+  };
+  rationaleCodes: string[];
+  summaryZh: string;
+  summaryEn: string;
+  limitationsZh: string[];
+  limitationsEn: string[];
+}
+
 export type ResearchConclusionV1 =
   | TimeSeriesRelationshipConclusionV1
-  | DistributionComparisonConclusionV1;
+  | DistributionComparisonConclusionV1
+  | EventStudyConclusionV1;
 
 export interface ResearchDiagnosticV1 {
   code: string;
@@ -479,9 +616,20 @@ export interface DistributionComparisonRunResultV1 {
   diagnostics: ResearchDiagnosticV1[];
 }
 
+export interface EventStudyRunResultV1 {
+  version: 1;
+  plan: EventStudyPlanSpecV1;
+  protocol: ResearchProtocolDefinitionV1;
+  coverage: [ResearchEventCoverageV1, ResearchSeriesCoverageV1];
+  result: EventStudyResultV1;
+  conclusion: EventStudyConclusionV1;
+  diagnostics: ResearchDiagnosticV1[];
+}
+
 export type ResearchRunResultV1 =
   | TimeSeriesRelationshipRunResultV1
-  | DistributionComparisonRunResultV1;
+  | DistributionComparisonRunResultV1
+  | EventStudyRunResultV1;
 
 export interface ResearchConversationMeta {
   id: string;

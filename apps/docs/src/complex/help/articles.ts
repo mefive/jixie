@@ -3,6 +3,10 @@ import backtestLimitationsEn from '@src/content/help/en/basics/backtest-limitati
 import backtestLimitationsZh from '@src/content/help/zh/basics/backtest-limitations.md?raw';
 import backtestSettingsEn from '@src/content/help/en/basics/backtest-settings.md?raw';
 import backtestSettingsZh from '@src/content/help/zh/basics/backtest-settings.md?raw';
+import distributionComparisonEn from '@src/content/help/en/basics/distribution-comparison.md?raw';
+import distributionComparisonZh from '@src/content/help/zh/basics/distribution-comparison.md?raw';
+import eventStudyEn from '@src/content/help/en/basics/event-study.md?raw';
+import eventStudyZh from '@src/content/help/zh/basics/event-study.md?raw';
 import performanceRiskEn from '@src/content/help/en/basics/performance-risk.md?raw';
 import performanceRiskZh from '@src/content/help/zh/basics/performance-risk.md?raw';
 import stocksEtfsIndicesEn from '@src/content/help/en/basics/stocks-etfs-indices.md?raw';
@@ -342,6 +346,38 @@ export const HELP_ARTICLES: HelpArticle[] = [
     content: {
       zh: timeSeriesRelationshipsZh,
       en: timeSeriesRelationshipsEn,
+    },
+  },
+  {
+    slug: 'basics/distribution-comparison',
+    group: 'basics',
+    title: {
+      zh: '怎样阅读两组分布比较',
+      en: 'How to read a two-group distribution comparison',
+    },
+    summary: {
+      zh: '理解同一截面、Welch 区间、Mann–Whitney、效应量与缩尾敏感性。',
+      en: 'Understand matched snapshots, Welch intervals, Mann–Whitney, effect sizes, and winsorized sensitivity.',
+    },
+    content: {
+      zh: distributionComparisonZh,
+      en: distributionComparisonEn,
+    },
+  },
+  {
+    slug: 'basics/event-study',
+    group: 'basics',
+    title: {
+      zh: '怎样阅读事件研究',
+      en: 'How to read an event study',
+    },
+    summary: {
+      zh: '理解事件日、异常收益、CAR/CAAR、重叠窗口、统计区间和因果边界。',
+      en: 'Understand event dates, abnormal returns, CAR/CAAR, overlap handling, intervals, and causal limits.',
+    },
+    content: {
+      zh: eventStudyZh,
+      en: eventStudyEn,
     },
   },
   {
