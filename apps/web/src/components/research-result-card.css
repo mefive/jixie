@@ -20,6 +20,58 @@
   @apply truncate;
 }
 
+.jx-researchResult-actions {
+  @apply flex shrink-0 items-center gap-2;
+}
+
+.jx-researchResult-controls {
+  @apply mt-3 grid gap-3 rounded-lg border border-line bg-card;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding: 12px;
+}
+
+.jx-researchResult-control {
+  @apply flex min-w-0 flex-col gap-1 text-muted;
+  font-size: 12px;
+}
+
+.jx-researchResult-control--wide {
+  grid-column: span 2;
+}
+
+.jx-researchResult-controlInput {
+  width: 100%;
+}
+
+.jx-researchResult-controlActions {
+  @apply flex items-end justify-end;
+  grid-column: span 4;
+}
+
+.jx-researchResult-runError,
+.jx-researchResult-conclusion {
+  @apply mt-3;
+}
+
+.jx-researchResult-conclusionBody {
+  @apply flex flex-col gap-2;
+}
+
+.jx-researchResult-conclusionBody p {
+  @apply m-0;
+}
+
+.jx-researchResult-conclusionBody ul {
+  @apply mb-0 mt-1 pl-5;
+  list-style: disc;
+}
+
+.jx-researchResult-evidence {
+  @apply flex flex-wrap gap-x-4 gap-y-1 text-muted;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
 .jx-researchResult-stats {
   @apply mt-3 grid gap-2;
   grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -58,6 +110,40 @@
   @apply flex flex-col gap-4;
 }
 
+.jx-researchResult-coverage {
+  @apply grid gap-3;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.jx-researchResult-coverageItem,
+.jx-researchResult-methodList {
+  @apply rounded-lg border border-line bg-card;
+  padding: 10px 14px;
+}
+
+.jx-researchResult-coverageItem h4,
+.jx-researchResult-methodList h4 {
+  @apply mb-2 mt-0 font-medium text-ink;
+  font-size: 13px;
+}
+
+.jx-researchResult-methodList dl {
+  @apply m-0 grid gap-2;
+}
+
+.jx-researchResult-methodList dl div {
+  @apply grid gap-1;
+  grid-template-columns: minmax(120px, 0.3fr) minmax(0, 1fr);
+}
+
+.jx-researchResult-methodList dt {
+  @apply font-medium text-ink;
+}
+
+.jx-researchResult-methodList dd {
+  @apply m-0 text-muted;
+}
+
 .jx-researchResult-formulae {
   @apply grid gap-3;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -89,12 +175,42 @@
 }
 
 @media (max-width: 920px) {
+  .jx-researchResult-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .jx-researchResult-controlActions {
+    grid-column: span 2;
+  }
+
   .jx-researchResult-stats {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 640px) {
+  .jx-researchResult-head {
+    @apply items-start;
+  }
+
+  .jx-researchResult-actions {
+    @apply flex-col items-end;
+  }
+
+  .jx-researchResult-controls,
+  .jx-researchResult-coverage {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .jx-researchResult-control--wide,
+  .jx-researchResult-controlActions {
+    grid-column: span 1;
+  }
+
+  .jx-researchResult-methodList dl div {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .jx-researchResult-stats,
   .jx-researchResult-formulae {
     grid-template-columns: repeat(2, minmax(0, 1fr));

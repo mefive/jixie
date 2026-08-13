@@ -182,6 +182,8 @@ import type {
   AssetVisibility,
   ResearchConversationMessages,
   ResearchConversationMeta,
+  ResearchPlanSpecV1,
+  ResearchRunResultV1,
 } from '@jixie/shared';
 
 // Back-compat alias — the trace item type now lives in shared (agent-stream protocol).
@@ -260,6 +262,13 @@ export function sendResearchAgent(
   return request('/api/app/research/agent', {
     method: 'POST',
     body: JSON.stringify({ message, ...(conversationId ? { conversationId } : {}) }),
+  });
+}
+
+export function runResearchPlan(plan: ResearchPlanSpecV1): Promise<ResearchRunResultV1> {
+  return request('/api/app/research/run', {
+    method: 'POST',
+    body: JSON.stringify(plan),
   });
 }
 
