@@ -1,5 +1,6 @@
 import type { ResearchRunResultV1, ResearchSeriesCoverageV1 } from '@jixie/shared';
 import { researchProtocolById } from './catalog.js';
+import { concludeTimeSeriesRelationship } from './conclusion.js';
 import { parseResearchPlanSpec } from './spec.js';
 import {
   loadResearchSeries,
@@ -69,6 +70,12 @@ export async function executeResearchPlan(
     item.observationsAligned = aligned;
     item.missingAfterAlignment = Math.max(0, item.observationsLoaded - aligned);
   }
+  const allDiagnostics = [...diagnostics, ...evaluation.diagnostics];
+  const conclusion = concludeTimeSeriesRelationship(
+    plan.question,
+    evaluation.result,
+    allDiagnostics,
+  );
 
   return {
     version: 1,
@@ -76,6 +83,7 @@ export async function executeResearchPlan(
     protocol: protocolDefinition,
     coverage,
     result: evaluation.result,
-    diagnostics: [...diagnostics, ...evaluation.diagnostics],
+    conclusion,
+    diagnostics: allDiagnostics,
   };
 }

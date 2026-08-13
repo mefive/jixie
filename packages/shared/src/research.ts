@@ -2,6 +2,10 @@ import type { TradeDate } from './types.js';
 
 export type ResearchAssetTypeV1 = 'stock' | 'etf' | 'index' | 'future';
 export type ResearchFrequencyV1 = 'daily' | 'monthly';
+export type ResearchQuestionKindV1 =
+  | 'time_series_relationship'
+  | 'distribution_comparison'
+  | 'event_study';
 export type ResearchTransformV1 =
   | 'level'
   | 'difference'
@@ -109,6 +113,19 @@ export interface ResearchSeriesInputSpecV1 {
 
 export type ResearchInputSpecV1 = ResearchSeriesInputSpecV1;
 
+export interface TimeSeriesRelationshipQuestionSpecV1 {
+  version: 1;
+  kind: 'time_series_relationship';
+  text: string;
+  hypothesis: {
+    estimand: 'regression_slope';
+    direction: 'positive' | 'negative' | 'two_sided';
+    nullValue: 0;
+  };
+}
+
+export type ResearchQuestionSpecV1 = TimeSeriesRelationshipQuestionSpecV1;
+
 export interface TimeSeriesRelationshipProtocolSpecV1 {
   kind: 'time_series_relationship';
   version: 1;
@@ -126,13 +143,14 @@ export type ResearchOutputKindV1 =
   | 'summary_table'
   | 'scatter'
   | 'rolling_relationship'
+  | 'conclusion'
   | 'formula'
   | 'python_example'
   | 'documentation';
 
 export interface ResearchPlanSpecV1 {
   version: 1;
-  question: string;
+  question: ResearchQuestionSpecV1;
   start: TradeDate;
   end: TradeDate;
   universe?: UniverseSpecV1;
@@ -168,12 +186,42 @@ export interface ResearchFormulaDefinitionV1 {
   variables: Array<{ symbol: string; descriptionZh: string; descriptionEn: string }>;
 }
 
+export interface ResearchProtocolAssumptionV1 {
+  id: string;
+  labelZh: string;
+  labelEn: string;
+  descriptionZh: string;
+  descriptionEn: string;
+}
+
+export interface ResearchProtocolParameterDefinitionV1 {
+  id: string;
+  type: 'integer' | 'enum';
+  labelZh: string;
+  labelEn: string;
+  descriptionZh: string;
+  descriptionEn: string;
+  adjustable: boolean;
+}
+
+export interface ResearchProtocolTermV1 {
+  id: string;
+  labelZh: string;
+  labelEn: string;
+  descriptionZh: string;
+  descriptionEn: string;
+}
+
 export interface ResearchProtocolDefinitionV1 {
   id: ResearchProtocolSpecV1['kind'];
   version: number;
   nameZh: string;
   nameEn: string;
+  questionKinds: ResearchQuestionKindV1[];
   minimumObservations: number;
+  assumptions: ResearchProtocolAssumptionV1[];
+  parameters: ResearchProtocolParameterDefinitionV1[];
+  terminology: ResearchProtocolTermV1[];
   formulae: ResearchFormulaDefinitionV1[];
   pythonExample: string;
   helpSlugs: { zh: string[]; en: string[] };
@@ -230,6 +278,41 @@ export interface TimeSeriesRelationshipResultV1 {
   rolling: ResearchRollingRelationshipPointV1[];
 }
 
+export type ResearchProtocolResultV1 = TimeSeriesRelationshipResultV1;
+
+export type ResearchConclusionLevelV1 =
+  | 'supports'
+  | 'weak_support'
+  | 'does_not_support'
+  | 'indeterminate';
+
+export interface ResearchConclusionV1 {
+  version: 1;
+  level: ResearchConclusionLevelV1;
+  direction: 'positive' | 'negative' | 'none';
+  estimand: 'regression_slope';
+  estimate: number;
+  confidenceInterval95: { lower: number; upper: number };
+  intervalExcludesNull: boolean;
+  hypothesisDirectionMatches: boolean;
+  effectSize: {
+    metric: 'pearson' | 'spearman';
+    value: number;
+    magnitude: 'negligible' | 'small' | 'moderate' | 'large';
+  };
+  stability: {
+    method: 'rolling_sign_consistency';
+    windows: number;
+    consistentFraction: number | null;
+    assessment: 'stable' | 'unstable' | 'not_assessed';
+  };
+  rationaleCodes: string[];
+  summaryZh: string;
+  summaryEn: string;
+  limitationsZh: string[];
+  limitationsEn: string[];
+}
+
 export interface ResearchDiagnosticV1 {
   code: string;
   severity: 'info' | 'warning' | 'error';
@@ -242,7 +325,8 @@ export interface ResearchRunResultV1 {
   plan: ResearchPlanSpecV1;
   protocol: ResearchProtocolDefinitionV1;
   coverage: ResearchSeriesCoverageV1[];
-  result: TimeSeriesRelationshipResultV1;
+  result: ResearchProtocolResultV1;
+  conclusion: ResearchConclusionV1;
   diagnostics: ResearchDiagnosticV1[];
 }
 

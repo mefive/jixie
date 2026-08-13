@@ -4,7 +4,16 @@ import { parseResearchPlanSpec, validateResearchPlanSemantics } from './spec.js'
 function validPlan() {
   return {
     version: 1,
-    question: '沪深300和中证500的月收益是否相关？',
+    question: {
+      version: 1,
+      kind: 'time_series_relationship',
+      text: '沪深300和中证500的月收益是否正相关？',
+      hypothesis: {
+        estimand: 'regression_slope',
+        direction: 'positive',
+        nullValue: 0,
+      },
+    },
     start: '20200101',
     end: '20251231',
     inputs: [
@@ -38,6 +47,7 @@ function validPlan() {
       { kind: 'summary_table' },
       { kind: 'scatter' },
       { kind: 'rolling_relationship' },
+      { kind: 'conclusion' },
       { kind: 'formula' },
       { kind: 'python_example' },
       { kind: 'documentation' },
@@ -88,6 +98,20 @@ describe('ResearchPlanSpec V1', () => {
         'unknown outcome input missing',
         'outputs must not contain duplicates',
       ]),
+    );
+  });
+
+  it('requires a protocol-matched falsifiable question and structured conclusion output', () => {
+    const plan = validPlan();
+    plan.question.kind = 'event_study' as never;
+    expect(() => parseResearchPlanSpec(plan)).toThrow();
+
+    const missingConclusion = validPlan();
+    missingConclusion.outputs = missingConclusion.outputs.filter(
+      (output) => output.kind !== 'conclusion',
+    );
+    expect(() => parseResearchPlanSpec(missingConclusion)).toThrow(
+      'outputs must include conclusion',
     );
   });
 

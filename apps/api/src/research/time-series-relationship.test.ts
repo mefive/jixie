@@ -137,6 +137,17 @@ describe('executeResearchPlan', () => {
     expect(run.result.regression.slope).toBeCloseTo(2, 1);
     expect(run.result.regression.neweyWestLag).toBeGreaterThanOrEqual(0);
     expect(run.result.rolling).toHaveLength(37);
+    expect(run.conclusion).toMatchObject({
+      level: 'supports',
+      direction: 'positive',
+      intervalExcludesNull: true,
+      hypothesisDirectionMatches: true,
+      stability: { assessment: 'stable', windows: 37 },
+    });
+    expect(run.conclusion.summaryZh).toContain('样本支持正向关系');
+    expect(run.conclusion.limitationsEn).toContain(
+      'An observed relationship is not causal evidence or proof of tradable predictability.',
+    );
     expect(run.protocol.formulae).toHaveLength(2);
     expect(run.protocol.pythonExample).toContain('statsmodels');
     expect(run.coverage.every((item) => item.observationsAligned === 60)).toBe(true);
@@ -159,7 +170,16 @@ describe('executeResearchPlan', () => {
 function relationshipPlan(): ResearchPlanSpecV1 {
   return {
     version: 1,
-    question: '两个序列的月度变化是否相关？',
+    question: {
+      version: 1,
+      kind: 'time_series_relationship',
+      text: '两个序列的月度变化是否正相关？',
+      hypothesis: {
+        estimand: 'regression_slope',
+        direction: 'positive',
+        nullValue: 0,
+      },
+    },
     start: '20200101',
     end: '20251231',
     inputs: [
@@ -193,6 +213,7 @@ function relationshipPlan(): ResearchPlanSpecV1 {
       { kind: 'summary_table' },
       { kind: 'scatter' },
       { kind: 'rolling_relationship' },
+      { kind: 'conclusion' },
       { kind: 'formula' },
       { kind: 'python_example' },
       { kind: 'documentation' },

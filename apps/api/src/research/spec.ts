@@ -120,6 +120,19 @@ const seriesInputSchema = z.strictObject({
   label: z.string().trim().min(1).max(80).optional(),
 }) satisfies z.ZodType<ResearchSeriesInputSpecV1>;
 
+const researchQuestionSpecV1Schema = z.discriminatedUnion('kind', [
+  z.strictObject({
+    version: z.literal(1),
+    kind: z.literal('time_series_relationship'),
+    text: z.string().trim().min(1).max(500),
+    hypothesis: z.strictObject({
+      estimand: z.literal('regression_slope'),
+      direction: z.enum(['positive', 'negative', 'two_sided']),
+      nullValue: z.literal(0),
+    }),
+  }),
+]);
+
 const protocolSchema = z.strictObject({
   kind: z.literal('time_series_relationship'),
   version: z.literal(1),
@@ -142,6 +155,7 @@ const outputSchema = z.strictObject({
     'summary_table',
     'scatter',
     'rolling_relationship',
+    'conclusion',
     'formula',
     'python_example',
     'documentation',
@@ -150,7 +164,7 @@ const outputSchema = z.strictObject({
 
 export const researchPlanSpecV1Schema = z.strictObject({
   version: z.literal(1),
-  question: z.string().trim().min(1).max(500),
+  question: researchQuestionSpecV1Schema,
   start: dateSchema,
   end: dateSchema,
   universe: universeSpecV1Schema.optional(),
@@ -161,7 +175,7 @@ export const researchPlanSpecV1Schema = z.strictObject({
     partialPeriod: z.enum(['exclude', 'include']),
   }),
   protocol: protocolSchema,
-  outputs: z.array(outputSchema).min(1).max(6),
+  outputs: z.array(outputSchema).min(1).max(7),
 }) satisfies z.ZodType<ResearchPlanSpecV1>;
 
 export function parseResearchPlanSpec(input: unknown): ResearchPlanSpecV1 {
@@ -205,6 +219,14 @@ export function validateResearchPlanSemantics(plan: ResearchPlanSpecV1): string[
   }
   if (!researchProtocolById.has(plan.protocol.kind)) {
     errors.push(`unknown protocol ${plan.protocol.kind}`);
+  }
+  if (plan.question.kind !== plan.protocol.kind) {
+    errors.push(
+      `question kind ${plan.question.kind} does not match protocol ${plan.protocol.kind}`,
+    );
+  }
+  if (!plan.outputs.some((output) => output.kind === 'conclusion')) {
+    errors.push('outputs must include conclusion');
   }
   if (plan.universe) {
     errors.push('time_series_relationship does not accept a universe input');

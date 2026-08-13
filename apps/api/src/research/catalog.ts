@@ -166,7 +166,98 @@ const timeSeriesRelationship = {
   version: 1,
   nameZh: '时间序列变量关系',
   nameEn: 'Time-series relationship',
+  questionKinds: ['time_series_relationship'],
   minimumObservations: 24,
+  assumptions: [
+    {
+      id: 'prespecified_window',
+      labelZh: '预先指定样本区间',
+      labelEn: 'Prespecified sample window',
+      descriptionZh: '研究区间和主要参数应在查看结果前确定，避免只展示有利时期。',
+      descriptionEn:
+        'The sample window and primary parameters should be set before inspecting results to avoid selecting favorable periods.',
+    },
+    {
+      id: 'aligned_observations',
+      labelZh: '可比时点对齐',
+      labelEn: 'Comparable timestamp alignment',
+      descriptionZh: '两个序列必须按相同频率和可得时点对齐，不能使用未来数据。',
+      descriptionEn:
+        'Both series must align on the same frequency and availability timeline without future information.',
+    },
+    {
+      id: 'linear_estimand',
+      labelZh: '线性关系口径',
+      labelEn: 'Linear estimand',
+      descriptionZh: '回归斜率描述条件均值的线性关系，不代表因果关系。',
+      descriptionEn:
+        'The regression slope describes a linear conditional-mean relationship, not causality.',
+    },
+  ],
+  parameters: [
+    {
+      id: 'frequency',
+      type: 'enum',
+      labelZh: '对齐频率',
+      labelEn: 'Alignment frequency',
+      descriptionZh: '使用日频或完整月度观测对齐两个序列。',
+      descriptionEn: 'Align both series using daily or complete monthly observations.',
+      adjustable: true,
+    },
+    {
+      id: 'predictorLag',
+      type: 'integer',
+      labelZh: '解释变量滞后',
+      labelEn: 'Predictor lag',
+      descriptionZh: '正数表示解释变量领先结果变量的对齐期数。',
+      descriptionEn: 'A positive value makes the predictor lead the outcome by aligned periods.',
+      adjustable: true,
+    },
+    {
+      id: 'rollingWindow',
+      type: 'integer',
+      labelZh: '滚动窗口',
+      labelEn: 'Rolling window',
+      descriptionZh: '用于评价方向和效应是否跨时期稳定。',
+      descriptionEn: 'Used to assess whether direction and effect remain stable across periods.',
+      adjustable: true,
+    },
+    {
+      id: 'neweyWestLag',
+      type: 'integer',
+      labelZh: 'Newey–West 滞后阶数',
+      labelEn: 'Newey–West lag',
+      descriptionZh: '控制异方差与序列相关稳健标准误的截断滞后。',
+      descriptionEn:
+        'Controls the truncation lag for heteroskedasticity and autocorrelation-consistent standard errors.',
+      adjustable: true,
+    },
+  ],
+  terminology: [
+    {
+      id: 'predictor',
+      labelZh: '解释变量',
+      labelEn: 'Predictor',
+      descriptionZh: '用于解释或领先另一个序列的变量，不自动代表可交易预测信号。',
+      descriptionEn:
+        'The variable used to explain or lead another series; it is not automatically a tradable signal.',
+    },
+    {
+      id: 'outcome',
+      labelZh: '结果变量',
+      labelEn: 'Outcome',
+      descriptionZh: '研究问题试图解释的序列。',
+      descriptionEn: 'The series the research question attempts to explain.',
+    },
+    {
+      id: 'hac_inference',
+      labelZh: 'HAC 推断',
+      labelEn: 'HAC inference',
+      descriptionZh: '对异方差与有限阶序列相关稳健的回归标准误和区间。',
+      descriptionEn:
+        'Regression standard errors and intervals robust to heteroskedasticity and finite-order autocorrelation.',
+    },
+  ],
   formulae: [
     {
       id: 'pearson_correlation',
