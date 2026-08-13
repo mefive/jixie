@@ -63,6 +63,21 @@ async function findOrCreateConversation(args: {
   history: ChatMessage[];
   message: string;
 }): Promise<{ id: string }> {
+  if (args.entity.kind === 'research') {
+    const conversation = await prisma.agentConversation.findFirst({
+      where: {
+        id: args.entity.id,
+        userId: args.userId,
+        surface: 'research',
+        archivedAt: null,
+      },
+      select: { id: true },
+    });
+    if (!conversation) {
+      throw new Error('Research conversation not found.');
+    }
+    return conversation;
+  }
   const relation =
     args.entity.kind === 'strategy'
       ? { strategyId: args.entity.id }

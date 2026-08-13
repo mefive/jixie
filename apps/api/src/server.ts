@@ -8,6 +8,7 @@ import { screenRoute } from './routes/screen.js';
 import { screensRoute } from './routes/screens.js';
 import { marketRoute } from './routes/market.js';
 import { factorRoute } from './routes/factor.js';
+import { researchRoute } from './routes/research.js';
 import { factorsRoute } from './routes/factors.js';
 import { factorWeatherRoute } from './routes/factor-weather.js';
 import { agentRoute } from './routes/agent.js';
@@ -83,6 +84,7 @@ export function buildApp() {
   app.route('/api/app/strategy', strategyRoute);
   app.route('/api/app/screen', screenRoute);
   app.route('/api/app/factor', factorRoute);
+  app.route('/api/app/research', researchRoute);
 
   return app;
 }

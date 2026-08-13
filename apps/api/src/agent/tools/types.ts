@@ -1,4 +1,4 @@
-import type { ChartSpec, ScreenSpec } from '@jixie/shared';
+import type { ChartSpec, ResearchRunResultV1, ScreenSpec } from '@jixie/shared';
 import type { ToolSpec } from '../../llm/agent-llm.js';
 
 /** A query card draft: the spec that produced a screen result (persisted, re-runnable — never the
@@ -15,11 +15,18 @@ export interface AgentChart {
   chart: ChartSpec;
 }
 
+/** A structured deterministic research result side-produced by executeResearchPlan. */
+export interface AgentResearchRun {
+  title: string;
+  run: ResearchRunResultV1;
+}
+
 export interface ToolRunResult {
   observation: string; // what the model sees (JSON string, row-capped)
   rows?: number; // row count for the toolTrace
   card?: AgentCard; // set when this call should surface a query card in the reply
   chart?: AgentChart; // set when this call should surface a chart card in the reply
+  research?: AgentResearchRun; // set when this call should surface a research result in the reply
 }
 
 export interface AgentToolRunContext {

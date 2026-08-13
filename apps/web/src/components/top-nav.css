@@ -9,14 +9,20 @@
 
 .jx-topnav-left {
   @apply flex items-center gap-6;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .jx-topnav-banner {
   height: 28px;
+  flex: 0 0 auto;
 }
 
 .jx-topnav-nav {
-  @apply flex items-center gap-1;
+  flex: 1 1 auto;
+  min-width: 0;
+  border-bottom: 0;
+  background: transparent;
 }
 
 .jx-topnav-mobileMenu {
@@ -29,18 +35,9 @@
   @apply truncate;
 }
 
-.jx-topnav-link {
-  @apply rounded text-sm text-muted;
-  @apply hover:bg-chip;
-  padding: 6px 12px;
-}
-
-.jx-topnav-link--active {
-  @apply bg-chip font-medium text-ink;
-}
-
 .jx-topnav-user {
   @apply flex items-center gap-3;
+  flex: 0 0 auto;
 }
 
 .jx-topnav-email {
@@ -65,27 +62,8 @@
     @apply hidden;
   }
 
-  .jx-topnav-link {
-    @apply whitespace-nowrap;
-    padding: 5px 6px;
-    font-size: 11px;
-  }
-
-  .jx-topnav-nav {
-    @apply w-full;
-    overflow-x: auto;
-    overscroll-behavior-inline: contain;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .jx-topnav-nav::-webkit-scrollbar {
-    display: none;
-  }
-
   .jx-topnav-user {
     @apply gap-1;
-    flex: 0 0 auto;
   }
 }
 

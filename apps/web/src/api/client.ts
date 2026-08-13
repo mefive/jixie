@@ -180,6 +180,8 @@ import type {
   ToolTraceItem,
   PublicLibrary,
   AssetVisibility,
+  ResearchConversationMessages,
+  ResearchConversationMeta,
 } from '@jixie/shared';
 
 // Back-compat alias — the trace item type now lives in shared (agent-stream protocol).
@@ -237,6 +239,44 @@ export function cancelAgentTurn(turnId: string): Promise<{ ok: true; cancelled: 
 
 export function getAgentTurn(turnId: string): Promise<AgentTurnDetail> {
   return request(`/api/app/agent/turns/${turnId}/detail`);
+}
+
+export function getAgentConversationMessages(
+  conversationId: string,
+): Promise<ResearchConversationMessages> {
+  return request(`/api/app/agent/conversations/${encodeURIComponent(conversationId)}/messages`);
+}
+
+// —— Natural-language research ——
+
+export function listResearchConversations(): Promise<ResearchConversationMeta[]> {
+  return request('/api/app/research/conversations');
+}
+
+export function sendResearchAgent(
+  message: string,
+  conversationId?: string,
+): Promise<{ conversationId: string; turnId: string }> {
+  return request('/api/app/research/agent', {
+    method: 'POST',
+    body: JSON.stringify({ message, ...(conversationId ? { conversationId } : {}) }),
+  });
+}
+
+export function renameResearchConversation(
+  conversationId: string,
+  title: string,
+): Promise<{ ok: true }> {
+  return request(`/api/app/research/conversations/${encodeURIComponent(conversationId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ title }),
+  });
+}
+
+export function deleteResearchConversation(conversationId: string): Promise<{ ok: true }> {
+  return request(`/api/app/research/conversations/${encodeURIComponent(conversationId)}`, {
+    method: 'DELETE',
+  });
 }
 
 // Read-only SQL over the market-table whitelist — chart cards re-run their persisted query here.

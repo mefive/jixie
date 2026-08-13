@@ -31,7 +31,7 @@ import { AgentTraceRecorder, finishPersistentTurn, startPersistentTurn } from '.
  * Errors/cancels persist no assistant message: a user message without a reply is the honest record.
  */
 export interface TurnEntity {
-  kind: 'strategy' | 'factor' | 'screen';
+  kind: 'strategy' | 'factor' | 'screen' | 'research';
   id: string;
 }
 
@@ -182,6 +182,35 @@ async function readMessages(
   userId: string,
   locale: Locale,
 ): Promise<unknown[]> {
+  if (entity.kind === 'research') {
+    const conversation = await prisma.agentConversation.findFirst({
+      where: { id: entity.id, userId, surface: 'research', archivedAt: null },
+      select: {
+        messages: {
+          orderBy: { sequence: 'asc' },
+          select: {
+            id: true,
+            role: true,
+            parts: true,
+            turnId: true,
+            sequence: true,
+            createdAt: true,
+          },
+        },
+      },
+    });
+    if (!conversation) {
+      throw new Error(t(locale, 'turnHostGone'));
+    }
+    return conversation.messages.map((message) => ({
+      id: message.id,
+      role: message.role,
+      parts: message.parts,
+      turnId: message.turnId ?? undefined,
+      sequence: message.sequence,
+      createdAt: message.createdAt.toISOString(),
+    }));
+  }
   const where = { id: entity.id, userId };
 
   // Exhaustive switch: a new entity kind leaves `row` unassigned and fails the build.
@@ -205,6 +234,9 @@ async function readMessages(
 }
 
 async function writeMessages(entity: TurnEntity, messages: ChatMessage[]): Promise<void> {
+  if (entity.kind === 'research') {
+    return;
+  }
   const data = { messages: messages as unknown as Prisma.InputJsonValue };
 
   switch (entity.kind) {
