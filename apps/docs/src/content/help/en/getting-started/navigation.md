@@ -11,20 +11,20 @@ The top navigation contains these entries:
 | Market | View industry, size, board, and style weather; the product root opens here after sign-in |
 | Factor Weather | Monitor monthly return, IC, coverage, and turnover for pinned factors |
 | Backtest Lab | Write or generate a strategy, set backtest parameters, run it, and inspect the result |
-| Screener | Filter stocks with conditions and inspect individual stock charts |
+| Research | Run statistical studies or point-in-time universe selection in plain language and keep typed rerunnable results |
 | Factors | Review grouped factor performance, returns, and saved research reports |
 | Valuation | Review index valuation levels and their historical positions |
 | Signals | Review signals produced by saved strategies for the latest trading day |
 | Help | Read product instructions and introductory quantitative-trading material |
 
-For example, to screen stocks:
+For example, to study an equity universe:
 
-1. Select “Screener” in the top navigation.
-2. Wait for the screening conditions to appear.
-3. Set the conditions and select the action button on the page.
-4. Select a stock code in the results to open its detail page.
+1. Select **Research** in the top navigation.
+2. Describe the as-of date, measure conditions, and sorting in plain language.
+3. Wait for the deterministic Universe result card.
+4. Select an object in the table to open unified object detail.
 
-[Open Screener](/screen)
+[Open Research](/research)
 
 Selecting the product logo or opening the product root returns to **Market**.
 

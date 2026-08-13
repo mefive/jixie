@@ -36,6 +36,35 @@ const legacyScreenSpecSchema = z.object({
   limit: z.number().int().positive().max(200).optional(),
 });
 
+const initialUniverseSpecV1Schema = z.object({
+  version: z.literal(1),
+  source: z.union([
+    z.object({ kind: z.literal('equity_market'), market: z.literal('CN') }),
+    z.object({ kind: z.literal('index_members'), indexCode: z.string() }),
+    z.object({
+      kind: z.literal('explicit'),
+      entities: z.array(
+        z.object({ assetType: z.enum(['stock', 'etf', 'index', 'future']), id: z.string() }),
+      ),
+    }),
+  ]),
+  asOf: z.union([
+    z.object({ kind: z.literal('fixed'), date: z.string() }),
+    z.object({ kind: z.literal('latest_available') }),
+    z.object({ kind: z.literal('periodic'), frequency: z.literal('month_end') }),
+  ]),
+  predicates: z.array(
+    z.object({
+      measure: z.string(),
+      op: z.enum(['>', '>=', '<', '<=', '==', '!=']),
+      value: z.union([z.number(), z.string()]),
+    }),
+  ),
+  missing: z.literal('exclude'),
+  sort: z.object({ measure: z.string(), direction: z.enum(['asc', 'desc']) }).optional(),
+  limit: z.number().int().positive().optional(),
+});
+
 const UNIVERSE_MEASURE_BY_SCREEN_FIELD: Record<z.infer<typeof legacyScreenFieldSchema>, string> = {
   close: 'equity.close',
   pctChg: 'equity.daily_return_pct',
@@ -48,6 +77,11 @@ const UNIVERSE_MEASURE_BY_SCREEN_FIELD: Record<z.infer<typeof legacyScreenFieldS
   circMv: 'equity.float_market_cap_cny_10k',
   turnoverRate: 'equity.turnover_rate_pct',
 };
+
+const LEGACY_UNIVERSE_SELECT = Object.values(UNIVERSE_MEASURE_BY_SCREEN_FIELD).map((measure) => ({
+  measure,
+  measureVersion: 1 as const,
+}));
 
 interface LegacyScreenConversationRow {
   id: string;
@@ -95,12 +129,14 @@ export interface ScreenDataMigrationSummary {
   sourceTablesPresent: boolean;
   deferred: boolean;
   dryRun: boolean;
+  finalize: boolean;
   screenConversations: number;
   savedScreens: number;
   createdConversations: number;
   reusedConversations: number;
   movedTurns: number;
   appendedMessages: number;
+  removedLegacyConversations: number;
   convertedCards: number;
 }
 
@@ -109,6 +145,7 @@ interface MutableMigrationCounts {
   reusedConversations: number;
   movedTurns: number;
   appendedMessages: number;
+  removedLegacyConversations: number;
 }
 
 /** Convert one legacy latest-snapshot screen into the final point-in-time UniverseSpec vocabulary. */
@@ -118,16 +155,24 @@ export function legacyScreenSpecToUniverseSpec(input: unknown): UniverseSpecV1 {
     version: 1,
     source: { kind: 'equity_market', market: 'CN' },
     asOf: { kind: 'latest_available' },
+    eligibility: {
+      minimumListedDays: 0,
+      suspension: 'exclude',
+      riskWarning: 'include',
+    },
     predicates: legacy.filters.map((filter) => ({
       measure: UNIVERSE_MEASURE_BY_SCREEN_FIELD[filter.field],
+      measureVersion: 1,
       op: filter.op,
       value: filter.value,
     })),
     missing: 'exclude',
+    select: LEGACY_UNIVERSE_SELECT,
     ...(legacy.sort
       ? {
           sort: {
             measure: UNIVERSE_MEASURE_BY_SCREEN_FIELD[legacy.sort.field],
+            measureVersion: 1,
             direction: legacy.sort.dir,
           },
         }
@@ -144,7 +189,16 @@ export function migrateScreenMessage(raw: unknown): {
 } {
   const normalized = normalizeChatMessage(parseJson(raw));
   let convertedCards = 0;
-  const parts = normalized.parts.map((part): MessagePart => {
+  const legacyParts = normalized.parts as Array<
+    MessagePart | { type: 'card'; title: string; spec: unknown }
+  >;
+  const parts = legacyParts.map((part): MessagePart => {
+    if (part.type === 'universe') {
+      return {
+        ...part,
+        spec: upgradeInitialUniverseSpec(part.spec),
+      };
+    }
     if (part.type !== 'card') {
       return part;
     }
@@ -159,15 +213,35 @@ export function migrateScreenMessage(raw: unknown): {
   return { message, convertedCards };
 }
 
+function upgradeInitialUniverseSpec(input: unknown): UniverseSpecV1 {
+  const current = universeSpecV1Schema.safeParse(input);
+  if (current.success) {
+    return current.data;
+  }
+  const initial = initialUniverseSpecV1Schema.parse(input);
+  return universeSpecV1Schema.parse({
+    ...initial,
+    eligibility: {
+      minimumListedDays: 0,
+      suspension: 'exclude',
+      riskWarning: 'include',
+    },
+    predicates: initial.predicates.map((predicate) => ({ ...predicate, measureVersion: 1 })),
+    ...(initial.sort ? { sort: { ...initial.sort, measureVersion: 1 } } : {}),
+    select: LEGACY_UNIVERSE_SELECT,
+  });
+}
+
 /**
  * Idempotent application-level migration. Source reads deliberately use raw SQL so this module can
  * remain runnable after the legacy Prisma models are deleted; absent source tables are a no-op.
  */
 export async function migrateScreenDataToResearch(
   database: PrismaClient,
-  options: { dryRun?: boolean } = {},
+  options: { dryRun?: boolean; finalize?: boolean } = {},
 ): Promise<ScreenDataMigrationSummary> {
   const dryRun = options.dryRun ?? false;
+  const finalize = options.finalize ?? false;
   const [hasSavedScreen, hasScreenConversation, hasAgentConversation, hasAgentMessage] =
     await Promise.all([
       tableExists(database, 'SavedScreen'),
@@ -177,7 +251,7 @@ export async function migrateScreenDataToResearch(
     ]);
   const sourceTablesPresent = hasSavedScreen || hasScreenConversation;
   if (!sourceTablesPresent) {
-    return emptySummary({ sourceTablesPresent: false, deferred: false, dryRun });
+    return emptySummary({ sourceTablesPresent: false, deferred: false, dryRun, finalize });
   }
   if (!hasAgentConversation || !hasAgentMessage) {
     const [savedCount, conversationCount] = await Promise.all([
@@ -189,7 +263,7 @@ export async function migrateScreenDataToResearch(
         '[screen-research] legacy Screen data exists but AgentConversation is unavailable; deploy the Agent conversation foundation before the Screen cutover',
       );
     }
-    return emptySummary({ sourceTablesPresent: true, deferred: true, dryRun });
+    return emptySummary({ sourceTablesPresent: true, deferred: true, dryRun, finalize });
   }
   const hasScreenConversationRelation = await columnExists(
     database,
@@ -229,14 +303,37 @@ export async function migrateScreenDataToResearch(
       reusedConversations: 0,
       movedTurns: 0,
       appendedMessages: 0,
+      removedLegacyConversations: 0,
     };
+    const legacyConversationIds: string[] = [];
     for (const screen of preparedScreens) {
-      await migrateConversation(transaction, screen, mutable, hasScreenConversationRelation);
+      const legacyConversationId = await migrateConversation(
+        transaction,
+        screen,
+        mutable,
+        hasScreenConversationRelation,
+      );
+      if (legacyConversationId) {
+        legacyConversationIds.push(legacyConversationId);
+      }
     }
     for (const saved of preparedSaved) {
       await migrateSavedScreen(transaction, saved, mutable);
     }
     await verifyMigration(transaction, preparedScreens, preparedSaved);
+    if (finalize) {
+      for (const conversationId of legacyConversationIds) {
+        const remainingTurns = await transaction.agentTurn.count({ where: { conversationId } });
+        if (remainingTurns > 0) {
+          throw new Error(
+            `[screen-research] cannot remove legacy conversation ${conversationId}: ${remainingTurns} turns remain`,
+          );
+        }
+        await transaction.agentMessage.deleteMany({ where: { conversationId } });
+        await transaction.agentConversation.delete({ where: { id: conversationId } });
+        mutable.removedLegacyConversations += 1;
+      }
+    }
     return mutable;
   };
   let counts: MutableMigrationCounts;
@@ -261,6 +358,7 @@ export async function migrateScreenDataToResearch(
     sourceTablesPresent: true,
     deferred: false,
     dryRun,
+    finalize,
     screenConversations: preparedScreens.length,
     savedScreens: preparedSaved.length,
     ...counts,
@@ -310,7 +408,7 @@ async function migrateConversation(
   source: PreparedScreenConversation,
   counts: MutableMigrationCounts,
   hasScreenConversationRelation: boolean,
-): Promise<void> {
+): Promise<string | null> {
   const linked = hasScreenConversationRelation
     ? await transaction.$queryRawUnsafe<LinkedConversationRow[]>(
         'SELECT "id", "userId", "surface" FROM "AgentConversation" WHERE "screenConversationId" = ? ORDER BY "id"',
@@ -415,6 +513,7 @@ async function migrateConversation(
     });
     counts.appendedMessages += missing.length;
   }
+  return linkedConversation?.id ?? null;
 }
 
 async function migrateSavedScreen(
@@ -623,6 +722,7 @@ function emptySummary(args: {
   sourceTablesPresent: boolean;
   deferred: boolean;
   dryRun: boolean;
+  finalize: boolean;
 }): ScreenDataMigrationSummary {
   return {
     ...args,
@@ -632,6 +732,7 @@ function emptySummary(args: {
     reusedConversations: 0,
     movedTurns: 0,
     appendedMessages: 0,
+    removedLegacyConversations: 0,
     convertedCards: 0,
   };
 }

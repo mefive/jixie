@@ -1,27 +1,15 @@
 import type { ChartSpec } from './chart.js';
-import type { ScreenSpec } from './screen.js';
 import type { ResearchRunResultV1, UniverseSpecV1 } from './research.js';
 
 /**
- * Agent conversation messages (docs/design/unified-agent.md design 3). A message is a list of typed
- * parts: text, plus query cards side-produced by the agent's runScreen tool. A card persists the SPEC
- * that produced a result — never the rows — so reopening a conversation re-runs it fresh, and the user
- * can edit the spec or pin it to the card wall (SavedScreen). Artifact code stays OUT of messages
- * (it lives on the strategy/factor row) so conversations stay light.
- *
- * Persisted per host entity (Strategy.messages / Factor.messages / ScreenConversation.messages).
+ * Agent conversation messages. Typed parts persist the deterministic chart/research/universe spec or
+ * result beside model prose. Artifact code stays on the strategy/factor host rather than in messages.
  * Legacy rows persisted `{ role, content }` — normalizeChatMessage upgrades them on read; writes are
  * always the new shape.
  */
 export interface TextPart {
   type: 'text';
   text: string;
-}
-
-export interface CardPart {
-  type: 'card';
-  title: string;
-  spec: ScreenSpec;
 }
 
 /** A chart side-produced by the agent's renderChart tool — persists the query, not the points. */
@@ -45,7 +33,7 @@ export interface UniversePart {
   spec: UniverseSpecV1;
 }
 
-export type MessagePart = TextPart | CardPart | ChartPart | ResearchPart | UniversePart;
+export type MessagePart = TextPart | ChartPart | ResearchPart | UniversePart;
 
 export interface ChatMessage {
   id?: string;
@@ -96,9 +84,6 @@ export function messageText(message: ChatMessage): string {
     .map((part) => {
       if (part.type === 'text') {
         return part.text;
-      }
-      if (part.type === 'card') {
-        return `(query card: ${part.title})`;
       }
       if (part.type === 'chart') {
         return `(chart: ${part.title})`;

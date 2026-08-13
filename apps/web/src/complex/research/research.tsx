@@ -5,6 +5,7 @@ import classNames from 'classnames';
 import type { ChatMessage, ResearchConversationMeta } from '@jixie/shared';
 import {
   faArrowDown,
+  faClockRotateLeft,
   faFlask,
   faPaperPlane,
   faPen,
@@ -22,91 +23,119 @@ import './research.css';
 const EXAMPLE_KEYS = ['indexRelationship', 'ratesAndStocks', 'goldAndStocks'] as const;
 
 export const Research = complex.component(() => {
+  const { t } = useTranslation('research');
+  const [historyOpen, setHistoryOpen] = useState(false);
   return (
     <main className="jx-research">
-      <ResearchSidebar />
-      <ResearchWorkspace />
+      <ResearchSidebar mobileOpen={historyOpen} onClose={() => setHistoryOpen(false)} />
+      {historyOpen && (
+        <button
+          className="jx-research-sidebarBackdrop"
+          onClick={() => setHistoryOpen(false)}
+          aria-label={t('closeHistory')}
+        />
+      )}
+      <ResearchWorkspace onOpenHistory={() => setHistoryOpen(true)} />
     </main>
   );
 }, 'Research');
 
-const ResearchSidebar = complex.component(() => {
-  const store = complex.useStore();
-  const { t } = useTranslation('research');
-  const conversations = store.conversationsLoader.result ?? [];
+const ResearchSidebar = complex.component(
+  ({ mobileOpen, onClose }: { mobileOpen: boolean; onClose: () => void }) => {
+    const store = complex.useStore();
+    const { t } = useTranslation('research');
+    const conversations = store.conversationsLoader.result ?? [];
 
-  return (
-    <aside className="jx-research-sidebar">
-      <div className="jx-research-sidebarHead">
-        <h1 className="jx-research-sidebarTitle">
-          <FontAwesomeIcon icon={faFlask} /> {t('title')}
-        </h1>
-        <Button icon={<FontAwesomeIcon icon={faPlus} />} onClick={() => store.newChat()}>
-          {t('newChat')}
-        </Button>
-      </div>
-      <div className="jx-research-sidebarScroll">
-        <h2 className="jx-research-sidebarLabel">{t('history')}</h2>
-        <LoadingArea
-          loader={store.conversationsLoader}
-          isEmpty={conversations.length === 0}
-          showDelay={0}
-          minimumVisibleDuration={200}
-          loading={() => (
-            <div className="jx-research-sidebarSkeleton">
-              {Array.from({ length: 4 }, (_, index) => (
-                <Skeleton key={index} active paragraph={{ rows: 1 }} title={false} />
-              ))}
-            </div>
-          )}
-        >
-          {conversations.length === 0 ? (
-            <p className="jx-research-sidebarEmpty">{t('emptyHistory')}</p>
-          ) : (
-            conversations.map((conversation) => (
-              <ConversationItem key={conversation.id} meta={conversation} />
-            ))
-          )}
-        </LoadingArea>
-      </div>
-    </aside>
-  );
-}, 'ResearchSidebar');
-
-const ConversationItem = complex.component(({ meta }: { meta: ResearchConversationMeta }) => {
-  const store = complex.useStore();
-  const { t } = useTranslation('research');
-  return (
-    <div
-      className={classNames('jx-research-historyItem', {
-        'jx-research-historyItem--active': store.conversationId === meta.id,
-      })}
-      onClick={() => void store.openConversation(meta.id)}
-    >
-      <div className="jx-research-historyText">
-        <div className="jx-research-historyTitle">{meta.title}</div>
-        <div className="jx-research-historyPreview">
-          {meta.preview || formatDay(meta.updatedAt)}
-        </div>
-      </div>
-      <Popconfirm
-        title={t('deleteChat')}
-        onConfirm={() => store.removeConversation(meta.id)}
-        onPopupClick={(event) => event.stopPropagation()}
+    return (
+      <aside
+        className={classNames('jx-research-sidebar', {
+          'jx-research-sidebar--open': mobileOpen,
+        })}
       >
-        <button
-          className="jx-research-historyDelete"
-          onClick={(event) => event.stopPropagation()}
-          aria-label={t('deleteChat')}
-        >
-          <FontAwesomeIcon icon={faTrash} />
-        </button>
-      </Popconfirm>
-    </div>
-  );
-}, 'ConversationItem');
+        <div className="jx-research-sidebarHead">
+          <h1 className="jx-research-sidebarTitle">
+            <FontAwesomeIcon icon={faFlask} /> {t('title')}
+          </h1>
+          <Button
+            icon={<FontAwesomeIcon icon={faPlus} />}
+            onClick={() => {
+              store.newChat();
+              onClose();
+            }}
+          >
+            {t('newChat')}
+          </Button>
+        </div>
+        <div className="jx-research-sidebarScroll">
+          <h2 className="jx-research-sidebarLabel">{t('history')}</h2>
+          <LoadingArea
+            loader={store.conversationsLoader}
+            isEmpty={conversations.length === 0}
+            showDelay={0}
+            minimumVisibleDuration={200}
+            loading={() => (
+              <div className="jx-research-sidebarSkeleton">
+                {Array.from({ length: 4 }, (_, index) => (
+                  <Skeleton key={index} active paragraph={{ rows: 1 }} title={false} />
+                ))}
+              </div>
+            )}
+          >
+            {conversations.length === 0 ? (
+              <p className="jx-research-sidebarEmpty">{t('emptyHistory')}</p>
+            ) : (
+              conversations.map((conversation) => (
+                <ConversationItem key={conversation.id} meta={conversation} onSelect={onClose} />
+              ))
+            )}
+          </LoadingArea>
+        </div>
+      </aside>
+    );
+  },
+  'ResearchSidebar',
+);
 
-const ResearchWorkspace = complex.component(() => {
+const ConversationItem = complex.component(
+  ({ meta, onSelect }: { meta: ResearchConversationMeta; onSelect: () => void }) => {
+    const store = complex.useStore();
+    const { t } = useTranslation('research');
+    return (
+      <div
+        className={classNames('jx-research-historyItem', {
+          'jx-research-historyItem--active': store.conversationId === meta.id,
+        })}
+        onClick={() => {
+          void store.openConversation(meta.id);
+          onSelect();
+        }}
+      >
+        <div className="jx-research-historyText">
+          <div className="jx-research-historyTitle">{meta.title}</div>
+          <div className="jx-research-historyPreview">
+            {meta.preview || formatDay(meta.updatedAt)}
+          </div>
+        </div>
+        <Popconfirm
+          title={t('deleteChat')}
+          onConfirm={() => store.removeConversation(meta.id)}
+          onPopupClick={(event) => event.stopPropagation()}
+        >
+          <button
+            className="jx-research-historyDelete"
+            onClick={(event) => event.stopPropagation()}
+            aria-label={t('deleteChat')}
+          >
+            <FontAwesomeIcon icon={faTrash} />
+          </button>
+        </Popconfirm>
+      </div>
+    );
+  },
+  'ConversationItem',
+);
+
+const ResearchWorkspace = complex.component(({ onOpenHistory }: { onOpenHistory: () => void }) => {
   const store = complex.useStore();
   const { t } = useTranslation('research');
   const [editingTitle, setEditingTitle] = useState(false);
@@ -119,6 +148,14 @@ const ResearchWorkspace = complex.component(() => {
   return (
     <section className="jx-research-workspace">
       <header className="jx-research-header">
+        <Button
+          className="jx-research-mobileHistory"
+          size="small"
+          icon={<FontAwesomeIcon icon={faClockRotateLeft} />}
+          onClick={onOpenHistory}
+        >
+          {t('history')}
+        </Button>
         {editingTitle ? (
           <Input
             className="jx-research-titleInput"
@@ -218,7 +255,7 @@ const ResearchChatLog = complex.component(({ messages }: { messages: ChatMessage
               {message.role === 'assistant' && message.turnId && (
                 <AgentTrace turnId={message.turnId} />
               )}
-              <MessageParts message={message} cards={store.cardResults} />
+              <MessageParts message={message} />
             </div>
           ))}
           {store.sending && (

@@ -20,7 +20,7 @@ import type { AgentStreamEvent, ToolTraceItem } from '@jixie/shared';
 interface TurnEntry {
   turnId: string;
   userId: string; // subscription auth: only the owner may attach
-  entityKey: string | null; // 'strategy:<id>' | 'factor:<id>' | 'screen:<id>'; null = ephemeral (QA)
+  entityKey: string | null; // 'strategy:<id>' | 'factor:<id>' | 'research:<id>'; null = ephemeral
   accText: string; // produce-phase text so far (snapshot replay)
   accReasoning: string;
   trace: ToolTraceItem[]; // completed tool calls so far (snapshot replay)

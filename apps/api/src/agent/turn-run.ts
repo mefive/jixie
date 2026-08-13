@@ -31,7 +31,7 @@ import { AgentTraceRecorder, finishPersistentTurn, startPersistentTurn } from '.
  * Errors/cancels persist no assistant message: a user message without a reply is the honest record.
  */
 export interface TurnEntity {
-  kind: 'strategy' | 'factor' | 'screen' | 'research';
+  kind: 'strategy' | 'factor' | 'research';
   id: string;
 }
 
@@ -222,9 +222,6 @@ async function readMessages(
     case 'factor':
       row = await prisma.factor.findFirst({ where, select: { messages: true } });
       break;
-    case 'screen':
-      row = await prisma.screenConversation.findFirst({ where, select: { messages: true } });
-      break;
   }
 
   if (!row) {
@@ -254,9 +251,6 @@ async function writeMessages(entity: TurnEntity, messages: ChatMessage[]): Promi
       ) {
         throw new Error('Published factor conversation is immutable');
       }
-      break;
-    case 'screen':
-      await prisma.screenConversation.update({ where: { id: entity.id }, data });
       break;
     default:
       entity.kind satisfies never; // compile error when a new kind is added but unhandled

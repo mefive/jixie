@@ -103,8 +103,8 @@ import whatFactorResearchEn from '@src/content/help/en/factors/what-factor-resea
 import whatFactorResearchZh from '@src/content/help/zh/factors/what-factor-research.md?raw';
 import firstBacktestEn from '@src/content/help/en/getting-started/first-backtest.md?raw';
 import firstBacktestZh from '@src/content/help/zh/getting-started/first-backtest.md?raw';
-import firstScreenEn from '@src/content/help/en/getting-started/first-screen.md?raw';
-import firstScreenZh from '@src/content/help/zh/getting-started/first-screen.md?raw';
+import firstResearchEn from '@src/content/help/en/getting-started/first-research.md?raw';
+import firstResearchZh from '@src/content/help/zh/getting-started/first-research.md?raw';
 import loginEn from '@src/content/help/en/getting-started/login.md?raw';
 import loginZh from '@src/content/help/zh/getting-started/login.md?raw';
 import navigationEn from '@src/content/help/en/getting-started/navigation.md?raw';
@@ -121,16 +121,10 @@ import percentilesEn from '@src/content/help/en/market-valuation/percentiles.md?
 import percentilesZh from '@src/content/help/zh/market-valuation/percentiles.md?raw';
 import weatherPlaybackEn from '@src/content/help/en/market-valuation/weather-playback.md?raw';
 import weatherPlaybackZh from '@src/content/help/zh/market-valuation/weather-playback.md?raw';
-import conversationsEn from '@src/content/help/en/screening/conversations.md?raw';
-import conversationsZh from '@src/content/help/zh/screening/conversations.md?raw';
-import directQueryEn from '@src/content/help/en/screening/direct-query.md?raw';
-import directQueryZh from '@src/content/help/zh/screening/direct-query.md?raw';
-import editSortEn from '@src/content/help/en/screening/edit-sort.md?raw';
-import editSortZh from '@src/content/help/zh/screening/edit-sort.md?raw';
-import filterResultsEn from '@src/content/help/en/screening/filter-results.md?raw';
-import filterResultsZh from '@src/content/help/zh/screening/filter-results.md?raw';
-import saveReuseEn from '@src/content/help/en/screening/save-reuse.md?raw';
-import saveReuseZh from '@src/content/help/zh/screening/save-reuse.md?raw';
+import researchUniverseEn from '@src/content/help/en/research/universe.md?raw';
+import researchUniverseZh from '@src/content/help/zh/research/universe.md?raw';
+import researchRecordsEn from '@src/content/help/en/research/records.md?raw';
+import researchRecordsZh from '@src/content/help/zh/research/records.md?raw';
 import deployStrategyEn from '@src/content/help/en/signals/deploy-strategy.md?raw';
 import deployStrategyZh from '@src/content/help/zh/signals/deploy-strategy.md?raw';
 import generateSignalsEn from '@src/content/help/en/signals/generate-signals.md?raw';
@@ -155,7 +149,7 @@ import readChartZh from '@src/content/help/zh/stock-detail/read-chart.md?raw';
 export const HELP_GROUPS = [
   'gettingStarted',
   'basics',
-  'screening',
+  'research',
   'stockDetail',
   'backtesting',
   'factorResearch',
@@ -223,19 +217,19 @@ export const HELP_ARTICLES: HelpArticle[] = [
     },
   },
   {
-    slug: 'getting-started/first-screen',
+    slug: 'getting-started/first-research',
     group: 'gettingStarted',
     title: {
-      zh: '第一次完成选股',
-      en: 'Run your first screen',
+      zh: '第一次完成自然语言研究',
+      en: 'Complete your first natural-language study',
     },
     summary: {
-      zh: '用一句筛选条件得到股票列表，并确认筛选结果来自哪些条件。',
-      en: 'Turn a plain-language condition into a stock list and verify the conditions used.',
+      zh: '用日常语言提出可检验问题，并阅读确定性的统计或 Universe 结果。',
+      en: 'Ask a testable question in plain language and read deterministic statistical or Universe results.',
     },
     content: {
-      zh: firstScreenZh,
-      en: firstScreenEn,
+      zh: firstResearchZh,
+      en: firstResearchEn,
     },
   },
   {
@@ -351,95 +345,47 @@ export const HELP_ARTICLES: HelpArticle[] = [
     },
   },
   {
-    slug: 'screening/direct-query',
-    group: 'screening',
+    slug: 'research/universe',
+    group: 'research',
     title: {
-      zh: '直接查询股票或 ETF',
-      en: 'Query a stock or ETF directly',
+      zh: '阅读和重跑 Universe 结果',
+      en: 'Read and rerun a Universe result',
     },
     summary: {
-      zh: '按名称或代码查询标的，并核对名称、时间范围和数据日期。',
-      en: 'Query by name or code and verify the instrument, period, and data date.',
+      zh: '理解时点、资格阶段、指标单位、数据版本和确定性重跑。',
+      en: 'Understand as-of dates, eligibility stages, units, data revision, and deterministic reruns.',
     },
     content: {
-      zh: directQueryZh,
-      en: directQueryEn,
+      zh: researchUniverseZh,
+      en: researchUniverseEn,
     },
   },
   {
-    slug: 'screening/filter-results',
-    group: 'screening',
+    slug: 'research/records',
+    group: 'research',
     title: {
-      zh: '按条件筛选并查看结果',
-      en: 'Screen by criteria and inspect results',
+      zh: '使用研究记录',
+      en: 'Use research records',
     },
     summary: {
-      zh: '输入筛选条件，检查页面实际执行的规则、快照日期和结果表。',
-      en: 'Enter criteria and inspect the executed rules, snapshot date, and result table.',
+      zh: '恢复、重命名、重跑和删除研究对话及类型化产物。',
+      en: 'Restore, rename, rerun, and delete research conversations and typed artifacts.',
     },
     content: {
-      zh: filterResultsZh,
-      en: filterResultsEn,
-    },
-  },
-  {
-    slug: 'screening/edit-sort',
-    group: 'screening',
-    title: {
-      zh: '修改条件和排序',
-      en: 'Edit conditions and sorting',
-    },
-    summary: {
-      zh: '修改字段、比较符号和数值，增加或删除条件，并调整结果顺序。',
-      en: 'Edit fields, operators, and values; add or remove conditions; and change row order.',
-    },
-    content: {
-      zh: editSortZh,
-      en: editSortEn,
-    },
-  },
-  {
-    slug: 'screening/save-reuse',
-    group: 'screening',
-    title: {
-      zh: '保存并再次运行筛选',
-      en: 'Save and rerun a screen',
-    },
-    summary: {
-      zh: '保存筛选规则，并了解重新打开时为什么会使用最新数据。',
-      en: 'Save screening rules and understand why reopening uses current data.',
-    },
-    content: {
-      zh: saveReuseZh,
-      en: saveReuseEn,
-    },
-  },
-  {
-    slug: 'screening/conversations',
-    group: 'screening',
-    title: {
-      zh: '使用历史对话',
-      en: 'Use conversations',
-    },
-    summary: {
-      zh: '新建、继续和删除对话，并区分历史对话与已保存筛选。',
-      en: 'Start, continue, and delete chats, and distinguish them from saved screens.',
-    },
-    content: {
-      zh: conversationsZh,
-      en: conversationsEn,
+      zh: researchRecordsZh,
+      en: researchRecordsEn,
     },
   },
   {
     slug: 'stock-detail/read-chart',
     group: 'stockDetail',
     title: {
-      zh: '查看股票详情和 K 线',
-      en: 'Read Stock detail and candlesticks',
+      zh: '查看对象详情和 K 线',
+      en: 'Read object detail and candlesticks',
     },
     summary: {
-      zh: '从筛选结果打开股票详情，认识 K 线、时间范围和最新数据日期。',
-      en: 'Open Stock detail from a screen and read candlesticks, time range, and the latest date.',
+      zh: '从研究结果打开对象详情，认识 K 线、时间范围和最新数据日期。',
+      en: 'Open object detail from Research and read candlesticks, time range, and the latest date.',
     },
     content: {
       zh: readChartZh,

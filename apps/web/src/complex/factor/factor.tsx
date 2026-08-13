@@ -66,7 +66,6 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { LoaderButton } from '@src/components/loader-button';
 import { Placeholder } from '@src/components/placeholder';
 import { MessageParts } from '@src/components/message-parts';
-import type { QueryCardResults } from '@src/components/query-card-model';
 import { ToolTrace } from '@src/components/tool-trace';
 import { AgentPending } from '@src/components/agent-pending';
 import { AgentTrace } from '@src/components/agent-trace';
@@ -387,7 +386,6 @@ const AgentChat = complex.component(() => {
                   ? 'timeSeries.chatEmptyAuthor'
                   : 'chatEmptyAuthor'
         }
-        cards={store.cardResults}
         stream={store.turnStream}
       />
       <div className="jx-factor-chatInput">
@@ -426,7 +424,6 @@ function ChatLog({
   messages,
   sending,
   emptyKey,
-  cards,
   stream,
 }: {
   messages: ChatMessage[];
@@ -442,7 +439,6 @@ function ChatLog({
     | 'panel.chatEmpty'
     | 'panel.chatEmptyAuthor'
     | 'macroRegime.chatEmpty';
-  cards: QueryCardResults;
   stream: AgentTurnStream;
 }) {
   const { t } = useTranslation('factor');
@@ -468,7 +464,7 @@ function ChatLog({
           ) : (
             traceOf(message) && <ToolTrace trace={traceOf(message)!} />
           )}
-          <MessageParts message={message} cards={cards} />
+          <MessageParts message={message} />
         </div>
       ))}
       {sending && (

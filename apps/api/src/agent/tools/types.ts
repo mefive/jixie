@@ -1,14 +1,13 @@
-import type { ChartSpec, ResearchRunResultV1, ScreenSpec } from '@jixie/shared';
+import type { ChartSpec, ResearchRunResultV1, UniverseSpecV1 } from '@jixie/shared';
 import type { ToolSpec } from '../../llm/agent-llm.js';
 
-/** A query card draft: the spec that produced a screen result (persisted, re-runnable — never the
- * result rows themselves). Produced as a side effect of the runScreen tool, consumed by the chat UI. */
-export interface AgentCard {
+/** A re-runnable point-in-time entity universe produced by the deterministic Universe executor. */
+export interface AgentUniverse {
   title: string;
-  spec: ScreenSpec;
+  spec: UniverseSpecV1;
 }
 
-/** A chart card draft — same contract as AgentCard: the query that draws it, never the points.
+/** A chart card draft: the query that draws it, never the points.
  * Produced as a side effect of the renderChart tool. */
 export interface AgentChart {
   title: string;
@@ -24,7 +23,7 @@ export interface AgentResearchRun {
 export interface ToolRunResult {
   observation: string; // what the model sees (JSON string, row-capped)
   rows?: number; // row count for the toolTrace
-  card?: AgentCard; // set when this call should surface a query card in the reply
+  universe?: AgentUniverse; // set when this call should surface a re-runnable entity universe
   chart?: AgentChart; // set when this call should surface a chart card in the reply
   research?: AgentResearchRun; // set when this call should surface a research result in the reply
 }

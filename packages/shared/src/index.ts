@@ -4,7 +4,7 @@ export * from './log.js';
 export * from './chat.js';
 export * from './chart.js';
 export * from './backtest.js';
-export * from './screen.js';
+export * from './instrument-series.js';
 export * from './saved.js';
 export * from './factor.js';
 export * from './factor-research.js';

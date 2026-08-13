@@ -4,7 +4,6 @@ import { zhComponents } from './components';
 import { zhLab } from './lab';
 import { zhFactor } from './factor';
 import { zhFactorWeather } from './factor-weather';
-import { zhScreen } from './screen';
 import { zhStock } from './stock';
 import { zhValuation } from './valuation';
 import { zhSignals } from './signals';
@@ -19,7 +18,6 @@ export const zhResources = {
   lab: zhLab,
   factor: zhFactor,
   factorWeather: zhFactorWeather,
-  screen: zhScreen,
   stock: zhStock,
   valuation: zhValuation,
   signals: zhSignals,

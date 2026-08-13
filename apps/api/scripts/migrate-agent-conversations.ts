@@ -38,28 +38,15 @@ async function main(): Promise<void> {
     });
   }
 
-  const screens = await prisma.screenConversation.findMany({
-    select: { id: true, userId: true, title: true, messages: true },
-  });
-  for (const screen of screens) {
-    created += await migrateHost({
-      userId: screen.userId,
-      surface: 'screen',
-      title: screen.title,
-      messages: screen.messages,
-      relation: { screenConversationId: screen.id },
-    });
-  }
-
   console.log(`Created ${created} Agent conversation(s)`);
 }
 
 async function migrateHost(args: {
   userId: string;
-  surface: 'strategy' | 'factor' | 'screen';
+  surface: 'strategy' | 'factor';
   title: string;
   messages: Prisma.JsonValue | null;
-  relation: { strategyId?: string; factorId?: string; screenConversationId?: string };
+  relation: { strategyId?: string; factorId?: string };
 }): Promise<number> {
   const existing = await prisma.agentConversation.findFirst({
     where: { userId: args.userId, surface: args.surface, ...args.relation },

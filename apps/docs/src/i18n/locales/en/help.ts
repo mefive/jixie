@@ -10,8 +10,8 @@ export const enHelp: typeof zhHelp = {
   groups: {
     gettingStarted: 'Getting started',
     basics: 'Quantitative trading basics',
-    screening: 'Screener',
-    stockDetail: 'Stock detail',
+    research: 'Natural-language research',
+    stockDetail: 'Object detail',
     backtesting: 'Backtest workspace',
     factorResearch: 'Factor research',
     factorWeather: 'Factor weather',

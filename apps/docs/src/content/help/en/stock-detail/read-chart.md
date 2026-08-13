@@ -1,13 +1,13 @@
-# Read Stock detail and candlesticks
+# Read object detail and candlesticks
 
 Stock detail places price candlesticks, PE, and volume in one chart. Use it to inspect historical price and valuation, not to conclude that a stock must rise or fall.
 
 ## Open Stock detail
 
-1. Run a criteria screen.
-2. Find a stock in the result table.
+1. Run a Universe query in Research.
+2. Find an object in the result table.
 3. Select its row.
-4. Stock detail opens in a new tab; the screen remains in the original tab.
+4. Object detail opens in a new tab; the Research result remains in the original tab.
 
 ## Page areas
 
@@ -51,4 +51,4 @@ A future date not shown is not a zero price and should not be filled in manually
 
 - [Switch adjustment and price scale](/help/stock-detail/adjustments-scale)
 - [Read PE, volume, and data dates](/help/stock-detail/pe-volume-data)
-- [Screen by criteria and inspect results](/help/screening/filter-results)
+- [Read and rerun a Universe result](/help/research/universe)

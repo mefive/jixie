@@ -227,7 +227,7 @@ function notifyMaintenance(error: { code?: string; details?: unknown } | null | 
   }
 }
 
-// The live turn for an entity ('strategy:<id>' | 'factor:<id>' | 'screen:<id>') — refresh reattach.
+// The live turn for an entity ('strategy:<id>' | 'factor:<id>' | 'research:<id>') — refresh reattach.
 export function findRunningAgentTurn(entityKey: string): Promise<{ turnId: string | null }> {
   return request(`/api/app/agent/turns/running?entity=${encodeURIComponent(entityKey)}`);
 }
@@ -467,8 +467,6 @@ export function updateSignalExecution(
 }
 
 import type {
-  ScreenConversationDetail,
-  ScreenConversationMeta,
   IndexValuationCatalog,
   IndexValuationSeries,
   MarketStateScope,
@@ -476,12 +474,12 @@ import type {
   MarketWeatherDimension,
   MarketWeatherFrequency,
   MarketWeatherSeries,
-  ScreenResult,
-  ScreenSpec,
+  ResearchAssetTypeV1,
+  ResearchUniverseRunResultV1,
+  UniverseSpecV1,
   StockSeries,
   SavedMeta,
   SavedStrategy,
-  SavedScreenQuery,
   StrategyCard,
 } from '@jixie/shared';
 
@@ -550,79 +548,20 @@ export function copyPublicStrategy(id: string): Promise<{ id: string; name: stri
   });
 }
 
-// —— Saved screens (product line 2 persistence) —— saved on demand; { name, spec } upsert by name.
-
-export function listScreens(): Promise<SavedMeta[]> {
-  return request('/api/app/screens');
-}
-
-export function getScreen(id: string): Promise<SavedScreenQuery> {
-  return request(`/api/app/screens/${id}`);
-}
-
-export function saveScreen(name: string, spec: ScreenSpec): Promise<SavedMeta> {
-  return request('/api/app/screens', { method: 'POST', body: JSON.stringify({ name, spec }) });
-}
-
-export function deleteScreen(id: string): Promise<{ ok: true }> {
-  return request(`/api/app/screens/${id}`, { method: 'DELETE' });
-}
-
-// —— Screener (product line 2) ——
-
-// Run a structured screen against the latest snapshot.
-export function runScreen(spec: ScreenSpec): Promise<ScreenResult> {
-  return request('/api/app/screen/run', { method: 'POST', body: JSON.stringify(spec) });
-}
-
-// Screen agent: START one turn (screening/lookup go through the agent's read-only tools; an executed
-// screen surfaces as a query card). History lives on the conversation row.
-export function sendScreenAgent(
-  conversationId: string,
-  message: string,
-): Promise<{ turnId: string }> {
-  return request('/api/app/screen/agent', {
+export function runResearchUniverse(spec: UniverseSpecV1): Promise<ResearchUniverseRunResultV1> {
+  return request('/api/app/research/universe/run', {
     method: 'POST',
-    body: JSON.stringify({ conversationId, message }),
+    body: JSON.stringify(spec),
   });
 }
 
-// —— Screen conversations (the card wall's "conversation cards") —— created on the first turn, messages saved per turn.
-
-export function listScreenConversations(): Promise<ScreenConversationMeta[]> {
-  return request('/api/app/screen/conversations');
-}
-
-export function getScreenConversation(id: string): Promise<ScreenConversationDetail> {
-  return request(`/api/app/screen/conversations/${id}`);
-}
-
-export function createScreenConversation(
-  title: string,
-  messages: ChatMessage[],
-): Promise<{ id: string; title: string }> {
-  return request('/api/app/screen/conversations', {
-    method: 'POST',
-    body: JSON.stringify({ title, messages }),
-  });
-}
-
-export function updateScreenConversation(
+// A verified object's chartable daily series.
+export function fetchObjectSeries(
+  assetType: ResearchAssetTypeV1,
   id: string,
-  patch: { title?: string; messages?: ChatMessage[] },
-): Promise<{ ok: true }> {
-  return request(`/api/app/screen/conversations/${id}`, {
-    method: 'POST',
-    body: JSON.stringify(patch),
-  });
-}
-
-export function deleteScreenConversation(id: string): Promise<{ ok: true }> {
-  return request(`/api/app/screen/conversations/${id}`, { method: 'DELETE' });
-}
-
-// A stock's OHLC/vol/pe series for the candlestick/PE/volume charts.
-export function fetchStockSeries(code: string, start?: string, end?: string): Promise<StockSeries> {
+  start?: string,
+  end?: string,
+): Promise<StockSeries> {
   const query = new URLSearchParams();
   if (start) {
     query.set('start', start);
@@ -632,7 +571,7 @@ export function fetchStockSeries(code: string, start?: string, end?: string): Pr
   }
   const suffix = query.size > 0 ? `?${query.toString()}` : '';
 
-  return request(`/api/app/market/stocks/${code}/series${suffix}`);
+  return request(`/api/app/market/objects/${assetType}/${encodeURIComponent(id)}/series${suffix}`);
 }
 
 export function fetchFutureSeries(code: string, start: string, end: string): Promise<StockSeries> {

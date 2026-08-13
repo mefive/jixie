@@ -141,8 +141,8 @@ Sharpe 与 Calmar 是结果指标，不是允许反复拟合历史的优化目�
 方向和适用股票池后，Agent 可以显示“一键转因子”建议；点击只创建带来源的私有因子草稿，仍须经过现有
 因子报告、holdout、成本与发布纪律。
 
-Research 上线时同时取代现有 Screen 一级页面。筛选直接重建为 PIT-aware 的 `UniverseSpec V1`，不扩展旧
-`ScreenSpec`；旧 SavedScreen 和会话只作为一次性迁移输入，审计后删除 Screen profile、专属 API/类型与旧表。
+Research 已取代原 Screen 一级页面。筛选直接重建为 PIT-aware 的 `UniverseSpec V1`，没有扩展旧
+`ScreenSpec`；旧 SavedScreen 和会话已通过幂等脚本迁移，Screen profile、专属 API/类型与旧表均已删除。
 股票 K 线改为按资产类型渲染的统一对象详情，研究对话和结果通过已核验的结构化对象引用跳转；股票、ETF、
 指数、期货、利率、汇率、宏观与商品数据不能被强行塞入同一种 K 线契约。
 

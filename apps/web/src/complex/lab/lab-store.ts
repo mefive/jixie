@@ -18,7 +18,6 @@ import {
 } from '@jixie/shared';
 import { BaseStore, LoaderModel, PollingModel } from '@src/lib';
 import i18n from '@src/i18n';
-import { QueryCardResults } from '@src/components/query-card-model';
 import { AgentTurnStream, type AgentTurnHandlers } from '@src/components/agent-turn-stream';
 import {
   createStrategy,
@@ -78,7 +77,6 @@ export class LabStore extends BaseStore<LabSetupParams> {
 
   public chatMessages: ChatMessage[] = []; // the Agent conversation for this strategy (persisted per strategy)
   public sending = false; // an Agent turn is in flight
-  public cardResults = new QueryCardResults(); // fresh results for the conversation's query cards
   public turnStream = new AgentTurnStream(); // the in-flight turn's SSE mirror (pending bubble)
 
   public logLines: LogLine[] = []; // live backtest progress (streamed via polling), tagged system/user

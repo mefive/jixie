@@ -8,7 +8,7 @@ import {
 } from '@jixie/shared';
 import type { AgentLlm, ToolAwareMessage, ToolCall } from '../llm/agent-llm.js';
 import { t } from '../i18n/index.js';
-import type { AgentCard, AgentChart, AgentResearchRun, AgentTool } from './tools/types.js';
+import type { AgentChart, AgentResearchRun, AgentTool, AgentUniverse } from './tools/types.js';
 
 /**
  * Unified agent core (design: docs/design/unified-agent.md). One turn loop shared by every agent
@@ -56,7 +56,7 @@ export interface AgentTurnResult {
   attempts: number; // model calls made (tool rounds + produce + compile-repair rounds)
   error?: string; // set when a proposed change wouldn't compile (code kept unchanged)
   toolTrace: ToolTraceItem[]; // every tool call this turn — display/debug only, never persisted
-  cards: AgentCard[]; // query cards side-produced by runScreen tool calls this turn
+  universes: AgentUniverse[]; // entity universes side-produced by runUniverse tool calls this turn
   charts: AgentChart[]; // chart cards side-produced by renderChart tool calls this turn
   researchRuns: AgentResearchRun[]; // deterministic ResearchPlan results side-produced by tools
 }
@@ -127,8 +127,12 @@ function recoverDsmlToolCalls(text: string, callNumber: number): ToolCall[] {
 export function turnParts(result: AgentTurnResult): MessagePart[] {
   return [
     { type: 'text', text: result.reply },
-    ...result.cards.map(
-      (card): MessagePart => ({ type: 'card', title: card.title, spec: card.spec }),
+    ...result.universes.map(
+      (universe): MessagePart => ({
+        type: 'universe',
+        title: universe.title,
+        spec: universe.spec,
+      }),
     ),
     ...result.charts.map(
       (chart): MessagePart => ({ type: 'chart', title: chart.title, chart: chart.chart }),
@@ -167,7 +171,7 @@ You are in a multi-turn conversation with the user, iterating on the "current ${
 // Appended to a profile's system prompt when it carries tools.
 export const TOOLS_HINT = `
 # Tools
-You can call read-only data tools (look up instruments / check data coverage / screen the latest snapshot by metric / read-only SQL for statistical aggregation, time-series and financial queries / draw charts / SQL + code for complex stats). When a question turns on facts in the database, **query first, then answer** — don't make things up; tool results reflect only the current state of the local database. Don't call tools when you don't need data. For simple screening prefer runScreen (its result becomes a reusable query card for the user); use sqlQuery for what it can't express; for trend/comparison/distribution conclusions that are better seen, use renderChart to draw for the user directly; for stats SQL can't handle (correlation/regression/volatility) use analyzeData. Artifact profiles may additionally expose one narrowly scoped research runner; its description is the authoritative boundary for that side effect.`;
+You can call read-only data tools (look up instruments / check data coverage / resolve a point-in-time entity universe / read-only SQL for statistical aggregation, time-series and financial queries / draw charts / SQL + code for complex stats). When a question turns on facts in the database, **query first, then answer** — don't make things up; tool results reflect only the current state of the local database. Don't call tools when you don't need data. For stock selection prefer runUniverse (its result becomes a reusable Universe artifact for the user); use sqlQuery for needs outside registered Universe measures; for trend/comparison/distribution conclusions that are better seen, use renderChart to draw for the user directly; for stats SQL can't handle (correlation/regression/volatility) use analyzeData. Artifact profiles may additionally expose one narrowly scoped research runner; its description is the authoritative boundary for that side effect.`;
 
 export const RESEARCH_TOOLS_HINT = `
 # Research execution discipline
@@ -199,7 +203,7 @@ async function executeToolCall(
 ): Promise<{
   observation: string;
   trace: ToolTraceItem;
-  card?: AgentCard;
+  universe?: AgentUniverse;
   chart?: AgentChart;
   research?: AgentResearchRun;
 }> {
@@ -226,7 +230,7 @@ async function executeToolCall(
     const result = await tool.run(args, { signal });
     return {
       observation: result.observation,
-      card: result.card,
+      universe: result.universe,
       chart: result.chart,
       research: result.research,
       trace: {
@@ -280,7 +284,7 @@ export async function agentTurn(
 
   // Tool phase → produce: let the model query tools (≤ MAX_TOOL_ROUNDS rounds), then take its text.
   const toolTrace: ToolTraceItem[] = [];
-  const cards: AgentCard[] = [];
+  const universes: AgentUniverse[] = [];
   const charts: AgentChart[] = [];
   const researchRuns: AgentResearchRun[] = [];
   let attempts = 0;
@@ -345,8 +349,8 @@ export async function agentTurn(
           arguments: call.args || '{}',
           observation: executed.observation,
         });
-        if (executed.card) {
-          cards.push(executed.card);
+        if (executed.universe) {
+          universes.push(executed.universe);
         }
         if (executed.chart) {
           charts.push(executed.chart);
@@ -407,7 +411,7 @@ export async function agentTurn(
       changed: false,
       attempts,
       toolTrace,
-      cards,
+      universes,
       charts,
       researchRuns,
     };
@@ -423,7 +427,7 @@ export async function agentTurn(
       changed: false,
       attempts,
       toolTrace,
-      cards,
+      universes,
       charts,
       researchRuns,
     };
@@ -450,7 +454,7 @@ export async function agentTurn(
     try {
       await artifact.validate(code);
       hooks?.onValidation?.(round, true, Date.now() - validationStartedAt);
-      return { reply, code, changed: true, attempts, toolTrace, cards, charts, researchRuns };
+      return { reply, code, changed: true, attempts, toolTrace, universes, charts, researchRuns };
     } catch (e) {
       lastError = e instanceof Error ? e.message : String(e);
       hooks?.onValidation?.(round, false, Date.now() - validationStartedAt, lastError);
@@ -473,7 +477,7 @@ export async function agentTurn(
     attempts,
     error: lastError,
     toolTrace,
-    cards,
+    universes,
     charts,
     researchRuns,
   };

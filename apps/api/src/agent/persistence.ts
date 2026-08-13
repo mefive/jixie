@@ -79,11 +79,7 @@ async function findOrCreateConversation(args: {
     return conversation;
   }
   const relation =
-    args.entity.kind === 'strategy'
-      ? { strategyId: args.entity.id }
-      : args.entity.kind === 'factor'
-        ? { factorId: args.entity.id }
-        : { screenConversationId: args.entity.id };
+    args.entity.kind === 'strategy' ? { strategyId: args.entity.id } : { factorId: args.entity.id };
   const existing = await prisma.agentConversation.findFirst({
     where: { userId: args.userId, surface: args.entity.kind, ...relation, archivedAt: null },
     select: { id: true },
@@ -94,20 +90,13 @@ async function findOrCreateConversation(args: {
   }
 
   const id = ulid();
-  const screenTitle =
-    args.entity.kind === 'screen'
-      ? await prisma.screenConversation.findFirst({
-          where: { id: args.entity.id, userId: args.userId },
-          select: { title: true },
-        })
-      : null;
   await prisma.$transaction(async (transaction) => {
     await transaction.agentConversation.create({
       data: {
         id,
         userId: args.userId,
         surface: args.entity.kind,
-        title: screenTitle?.title ?? args.message.slice(0, 60),
+        title: args.message.slice(0, 60),
         ...relation,
       },
     });

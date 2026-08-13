@@ -15,6 +15,7 @@ export const enStock: typeof zhStock = {
   loadingLabel: 'Loading quotes…',
   chart: {
     candlestick: 'Candlestick',
+    price: 'Price',
     pe: 'PE',
     volume: 'Volume',
     priceAxis: 'Price',

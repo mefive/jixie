@@ -837,8 +837,8 @@ if [[ "$DEPLOY_API" == "1" ]]; then
   log "构建 API"
   NODE_OPTIONS="$NODE_HEAP_OPTIONS" pnpm --filter api build
 
-  log "迁移 Screen 数据到 Research（schema 升级前，幂等）"
-  pnpm --filter api migrate:screen-to-research
+  log "迁移 Screen 数据到 Research 并清理旧 Agent 副本（schema 升级前，幂等）"
+  pnpm --filter api migrate:screen-to-research -- --finalize
 
   log "补齐 Factor 唯一 key（幂等）"
   pnpm --filter api migrate:factor-identity

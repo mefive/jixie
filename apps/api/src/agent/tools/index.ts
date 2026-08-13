@@ -1,7 +1,7 @@
 import type { AgentTool } from './types.js';
 import { searchInstruments } from './search-instruments.js';
 import { dataCoverage } from './data-coverage.js';
-import { runScreenTool } from './run-screen.js';
+import { runUniverseTool } from './run-universe.js';
 import { sqlQueryTool } from './read-only-sql.js';
 import { renderChartTool } from './render-chart.js';
 import { renderComputedChartTool } from './render-computed-chart.js';
@@ -13,7 +13,7 @@ export function defaultTools(): AgentTool[] {
   return [
     searchInstruments,
     dataCoverage,
-    runScreenTool,
+    runUniverseTool,
     sqlQueryTool,
     renderChartTool,
     renderComputedChartTool,

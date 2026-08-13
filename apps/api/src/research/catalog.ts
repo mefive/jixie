@@ -2,7 +2,111 @@ import type {
   ResearchCapabilityCatalogV1,
   ResearchMeasureDefinitionV1,
   ResearchProtocolDefinitionV1,
+  ResearchUniverseMeasureDefinitionV1,
 } from '@jixie/shared';
+
+export const researchUniverseMeasures = [
+  {
+    id: 'equity.close',
+    version: 1,
+    nameZh: '收盘价',
+    nameEn: 'Close',
+    unit: 'CNY',
+    descriptionZh: '所选交易日的未复权收盘价。',
+    descriptionEn: 'Unadjusted close on the selected trading date.',
+    pointInTime: true,
+  },
+  {
+    id: 'equity.daily_return_pct',
+    version: 1,
+    nameZh: '当日涨跌幅',
+    nameEn: 'Daily return',
+    unit: 'percent',
+    descriptionZh: '所选交易日相对前收盘价的涨跌幅。',
+    descriptionEn: 'Percentage change from the previous close on the selected date.',
+    pointInTime: true,
+  },
+  {
+    id: 'equity.pe',
+    version: 1,
+    nameZh: '市盈率',
+    nameEn: 'P/E',
+    unit: 'ratio',
+    descriptionZh: '所选交易日的静态市盈率。',
+    descriptionEn: 'Static price-to-earnings ratio on the selected date.',
+    pointInTime: true,
+  },
+  {
+    id: 'equity.pe_ttm',
+    version: 1,
+    nameZh: '市盈率 TTM',
+    nameEn: 'P/E TTM',
+    unit: 'ratio',
+    descriptionZh: '所选交易日按滚动十二个月利润计算的市盈率。',
+    descriptionEn: 'Trailing-twelve-month P/E on the selected date.',
+    pointInTime: true,
+  },
+  {
+    id: 'equity.pb',
+    version: 1,
+    nameZh: '市净率',
+    nameEn: 'P/B',
+    unit: 'ratio',
+    descriptionZh: '所选交易日的市净率。',
+    descriptionEn: 'Price-to-book ratio on the selected date.',
+    pointInTime: true,
+  },
+  {
+    id: 'equity.ps',
+    version: 1,
+    nameZh: '市销率',
+    nameEn: 'P/S',
+    unit: 'ratio',
+    descriptionZh: '所选交易日的市销率。',
+    descriptionEn: 'Price-to-sales ratio on the selected date.',
+    pointInTime: true,
+  },
+  {
+    id: 'equity.dividend_yield_pct',
+    version: 1,
+    nameZh: '股息率',
+    nameEn: 'Dividend yield',
+    unit: 'percent',
+    descriptionZh: '所选交易日的数据供应商股息率口径。',
+    descriptionEn: 'Provider-defined dividend yield on the selected date.',
+    pointInTime: true,
+  },
+  {
+    id: 'equity.total_market_cap_cny_10k',
+    version: 1,
+    nameZh: '总市值',
+    nameEn: 'Total market cap',
+    unit: 'CNY_10k',
+    descriptionZh: '所选交易日的总市值，单位万元。',
+    descriptionEn: 'Total market capitalization in CNY 10,000 on the selected date.',
+    pointInTime: true,
+  },
+  {
+    id: 'equity.float_market_cap_cny_10k',
+    version: 1,
+    nameZh: '流通市值',
+    nameEn: 'Float market cap',
+    unit: 'CNY_10k',
+    descriptionZh: '所选交易日的流通市值，单位万元。',
+    descriptionEn: 'Float market capitalization in CNY 10,000 on the selected date.',
+    pointInTime: true,
+  },
+  {
+    id: 'equity.turnover_rate_pct',
+    version: 1,
+    nameZh: '换手率',
+    nameEn: 'Turnover rate',
+    unit: 'percent',
+    descriptionZh: '所选交易日按流通股本计算的换手率。',
+    descriptionEn: 'Turnover rate based on float shares on the selected date.',
+    pointInTime: true,
+  },
+] satisfies ResearchUniverseMeasureDefinitionV1[];
 
 const measures = [
   {
@@ -104,6 +208,7 @@ spearman = aligned["predictor"].corr(aligned["outcome"], method="spearman")`,
 export const researchCapabilityCatalog: ResearchCapabilityCatalogV1 = {
   version: 1,
   measures,
+  universeMeasures: researchUniverseMeasures,
   protocols: [timeSeriesRelationship],
 };
 
@@ -113,3 +218,5 @@ export const researchMeasureById: ReadonlyMap<string, ResearchMeasureDefinitionV
 export const researchProtocolById: ReadonlyMap<string, ResearchProtocolDefinitionV1> = new Map(
   researchCapabilityCatalog.protocols.map((protocol) => [protocol.id, protocol]),
 );
+export const researchUniverseMeasureById: ReadonlyMap<string, ResearchUniverseMeasureDefinitionV1> =
+  new Map(researchUniverseMeasures.map((measure) => [measure.id, measure]));

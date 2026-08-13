@@ -14,7 +14,6 @@ import {
   sendResearchAgent,
 } from '@src/api/client';
 import { AgentTurnStream, type AgentTurnHandlers } from '@src/components/agent-turn-stream';
-import { QueryCardResults } from '@src/components/query-card-model';
 import i18n from '@src/i18n';
 
 type ResearchSetupParams = {};
@@ -27,7 +26,6 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
   public chatMessages: ChatMessage[] = [];
   public sending = false;
   public prompt = '';
-  public cardResults = new QueryCardResults();
   public turnStream = new AgentTurnStream();
   public conversationsLoader = new LoaderModel<ResearchConversationMeta[]>();
 
