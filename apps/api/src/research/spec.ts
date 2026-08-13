@@ -1,7 +1,10 @@
 import type {
+  DistributionComparisonPlanSpecV1,
   ResearchMeasureDefinitionV1,
   ResearchPlanSpecV1,
   ResearchSeriesInputSpecV1,
+  ResearchUniverseInputSpecV1,
+  TimeSeriesRelationshipPlanSpecV1,
   UniverseSpecV1,
 } from '@jixie/shared';
 import { z } from 'zod';
@@ -120,20 +123,40 @@ const seriesInputSchema = z.strictObject({
   label: z.string().trim().min(1).max(80).optional(),
 }) satisfies z.ZodType<ResearchSeriesInputSpecV1>;
 
-const researchQuestionSpecV1Schema = z.discriminatedUnion('kind', [
-  z.strictObject({
-    version: z.literal(1),
-    kind: z.literal('time_series_relationship'),
-    text: z.string().trim().min(1).max(500),
-    hypothesis: z.strictObject({
-      estimand: z.literal('regression_slope'),
-      direction: z.enum(['positive', 'negative', 'two_sided']),
-      nullValue: z.literal(0),
-    }),
+const universeInputSchema = z.strictObject({
+  type: z.literal('universe'),
+  id: idSchema,
+  universe: universeSpecV1Schema,
+  measure: z.strictObject({
+    measure: z.string().min(1).max(80),
+    measureVersion: z.literal(1),
   }),
-]);
+  label: z.string().trim().min(1).max(80).optional(),
+}) satisfies z.ZodType<ResearchUniverseInputSpecV1>;
 
-const protocolSchema = z.strictObject({
+const timeSeriesQuestionSchema = z.strictObject({
+  version: z.literal(1),
+  kind: z.literal('time_series_relationship'),
+  text: z.string().trim().min(1).max(500),
+  hypothesis: z.strictObject({
+    estimand: z.literal('regression_slope'),
+    direction: z.enum(['positive', 'negative', 'two_sided']),
+    nullValue: z.literal(0),
+  }),
+});
+
+const distributionQuestionSchema = z.strictObject({
+  version: z.literal(1),
+  kind: z.literal('distribution_comparison'),
+  text: z.string().trim().min(1).max(500),
+  hypothesis: z.strictObject({
+    estimand: z.literal('mean_difference'),
+    direction: z.enum(['group_a_higher', 'group_a_lower', 'two_sided']),
+    nullValue: z.literal(0),
+  }),
+});
+
+const timeSeriesProtocolSchema = z.strictObject({
   kind: z.literal('time_series_relationship'),
   version: z.literal(1),
   predictor: idSchema,
@@ -150,11 +173,29 @@ const protocolSchema = z.strictObject({
   rollingWindow: z.number().int().min(12).max(1200).optional(),
 });
 
+const distributionProtocolSchema = z.strictObject({
+  kind: z.literal('distribution_comparison'),
+  version: z.literal(1),
+  groupA: idSchema,
+  groupB: idSchema,
+  measure: z.strictObject({
+    measure: z.string().min(1).max(80),
+    measureVersion: z.literal(1),
+  }),
+  inference: z.strictObject({ kind: z.literal('welch'), confidenceLevel: z.literal(0.95) }),
+  sensitivity: z.strictObject({
+    kind: z.literal('winsorized_mean'),
+    tailFraction: z.number().min(0.01).max(0.2),
+  }),
+});
+
 const outputSchema = z.strictObject({
   kind: z.enum([
     'summary_table',
     'scatter',
     'rolling_relationship',
+    'distribution_boxplot',
+    'sensitivity',
     'conclusion',
     'formula',
     'python_example',
@@ -162,9 +203,9 @@ const outputSchema = z.strictObject({
   ]),
 });
 
-export const researchPlanSpecV1Schema = z.strictObject({
+const timeSeriesPlanSchema = z.strictObject({
   version: z.literal(1),
-  question: researchQuestionSpecV1Schema,
+  question: timeSeriesQuestionSchema,
   start: dateSchema,
   end: dateSchema,
   universe: universeSpecV1Schema.optional(),
@@ -174,9 +215,22 @@ export const researchPlanSpecV1Schema = z.strictObject({
     join: z.literal('inner'),
     partialPeriod: z.enum(['exclude', 'include']),
   }),
-  protocol: protocolSchema,
-  outputs: z.array(outputSchema).min(1).max(7),
-}) satisfies z.ZodType<ResearchPlanSpecV1>;
+  protocol: timeSeriesProtocolSchema,
+  outputs: z.array(outputSchema).min(1).max(9),
+}) satisfies z.ZodType<TimeSeriesRelationshipPlanSpecV1>;
+
+const distributionPlanSchema = z.strictObject({
+  version: z.literal(1),
+  question: distributionQuestionSchema,
+  inputs: z.array(universeInputSchema).length(2),
+  protocol: distributionProtocolSchema,
+  outputs: z.array(outputSchema).min(1).max(9),
+}) satisfies z.ZodType<DistributionComparisonPlanSpecV1>;
+
+export const researchPlanSpecV1Schema = z.union([
+  timeSeriesPlanSchema,
+  distributionPlanSchema,
+]) satisfies z.ZodType<ResearchPlanSpecV1>;
 
 export function parseResearchPlanSpec(input: unknown): ResearchPlanSpecV1 {
   const plan = researchPlanSpecV1Schema.parse(input);
@@ -188,6 +242,14 @@ export function parseResearchPlanSpec(input: unknown): ResearchPlanSpecV1 {
 }
 
 export function validateResearchPlanSemantics(plan: ResearchPlanSpecV1): string[] {
+  return isTimeSeriesPlan(plan) ? validateTimeSeriesPlan(plan) : validateDistributionPlan(plan);
+}
+
+function isTimeSeriesPlan(plan: ResearchPlanSpecV1): plan is TimeSeriesRelationshipPlanSpecV1 {
+  return plan.protocol.kind === 'time_series_relationship';
+}
+
+function validateTimeSeriesPlan(plan: TimeSeriesRelationshipPlanSpecV1): string[] {
   const errors: string[] = [];
   if (plan.start > plan.end) {
     errors.push('start must not be after end');
@@ -232,6 +294,75 @@ export function validateResearchPlanSemantics(plan: ResearchPlanSpecV1): string[
     errors.push('time_series_relationship does not accept a universe input');
   }
   return errors;
+}
+
+function validateDistributionPlan(plan: DistributionComparisonPlanSpecV1): string[] {
+  const errors: string[] = [];
+  const ids = new Set<string>();
+  for (const input of plan.inputs) {
+    if (ids.has(input.id)) {
+      errors.push(`duplicate input id ${input.id}`);
+    }
+    ids.add(input.id);
+    const measure = researchUniverseMeasureById.get(input.measure.measure);
+    if (!measure) {
+      errors.push(`unknown universe measure ${input.measure.measure}`);
+    }
+    if (
+      !input.universe.select.some(
+        (selected) =>
+          selected.measure === input.measure.measure &&
+          selected.measureVersion === input.measure.measureVersion,
+      )
+    ) {
+      errors.push(`input ${input.id} must select comparison measure ${input.measure.measure}`);
+    }
+    if (input.universe.asOf.kind === 'periodic') {
+      errors.push(`input ${input.id} requires a fixed or latest_available asOf`);
+    }
+    if (input.universe.limit != null) {
+      errors.push(`input ${input.id} must not truncate the comparison universe with limit`);
+    }
+  }
+  if (!ids.has(plan.protocol.groupA)) {
+    errors.push(`unknown group A input ${plan.protocol.groupA}`);
+  }
+  if (!ids.has(plan.protocol.groupB)) {
+    errors.push(`unknown group B input ${plan.protocol.groupB}`);
+  }
+  if (plan.protocol.groupA === plan.protocol.groupB) {
+    errors.push('group A and group B must be different inputs');
+  }
+  for (const input of plan.inputs) {
+    if (
+      input.measure.measure !== plan.protocol.measure.measure ||
+      input.measure.measureVersion !== plan.protocol.measure.measureVersion
+    ) {
+      errors.push(`input ${input.id} measure must match the protocol measure`);
+    }
+  }
+  if (!sameComparisonAsOf(plan.inputs[0]!.universe, plan.inputs[1]!.universe)) {
+    errors.push('distribution groups must use the same requested as-of time');
+  }
+  if (new Set(plan.outputs.map((output) => output.kind)).size !== plan.outputs.length) {
+    errors.push('outputs must not contain duplicates');
+  }
+  for (const required of ['summary_table', 'distribution_boxplot', 'sensitivity', 'conclusion']) {
+    if (!plan.outputs.some((output) => output.kind === required)) {
+      errors.push(`outputs must include ${required}`);
+    }
+  }
+  return errors;
+}
+
+function sameComparisonAsOf(left: UniverseSpecV1, right: UniverseSpecV1): boolean {
+  if (left.asOf.kind !== right.asOf.kind) {
+    return false;
+  }
+  return (
+    left.asOf.kind !== 'fixed' ||
+    (right.asOf.kind === 'fixed' && left.asOf.date === right.asOf.date)
+  );
 }
 
 function validateInput(input: ResearchSeriesInputSpecV1, errors: string[]): void {

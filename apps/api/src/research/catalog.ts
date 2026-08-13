@@ -296,11 +296,149 @@ spearman = aligned["predictor"].corr(aligned["outcome"], method="spearman")`,
   },
 } satisfies ResearchProtocolDefinitionV1;
 
+const distributionComparison = {
+  id: 'distribution_comparison',
+  version: 1,
+  nameZh: '两组分布比较',
+  nameEn: 'Two-group distribution comparison',
+  questionKinds: ['distribution_comparison'],
+  minimumObservations: 20,
+  assumptions: [
+    {
+      id: 'point_in_time_groups',
+      labelZh: '同一历史时点',
+      labelEn: 'Common point in time',
+      descriptionZh: '两组对象必须按相同可得时点、资格条件和指标版本解析。',
+      descriptionEn:
+        'Both groups must resolve with the same availability time, eligibility rules, and measure version.',
+    },
+    {
+      id: 'independent_groups',
+      labelZh: '互不重叠的样本组',
+      labelEn: 'Disjoint samples',
+      descriptionZh: 'Welch 推断要求两组对象互不重叠；系统会拒绝重复成员。',
+      descriptionEn:
+        'Welch inference requires disjoint entity groups; overlapping members are rejected.',
+    },
+    {
+      id: 'prespecified_measure',
+      labelZh: '预先指定比较指标',
+      labelEn: 'Prespecified comparison measure',
+      descriptionZh: '均值差和方向假设应在查看结果前固定，不能结果出来后更换指标。',
+      descriptionEn:
+        'The mean difference and direction should be fixed before inspecting results rather than changing the measure afterward.',
+    },
+  ],
+  parameters: [
+    {
+      id: 'groupA',
+      type: 'enum',
+      labelZh: 'A 组',
+      labelEn: 'Group A',
+      descriptionZh: '均值差按 A 组减 B 组定义。',
+      descriptionEn: 'The mean difference is defined as group A minus group B.',
+      adjustable: false,
+    },
+    {
+      id: 'groupB',
+      type: 'enum',
+      labelZh: 'B 组',
+      labelEn: 'Group B',
+      descriptionZh: '作为比较基准的第二组对象。',
+      descriptionEn: 'The second entity group used as the comparison reference.',
+      adjustable: false,
+    },
+    {
+      id: 'tailFraction',
+      type: 'number',
+      labelZh: '缩尾比例',
+      labelEn: 'Winsorization fraction',
+      descriptionZh: '两端分别缩尾的样本比例，用于检查极端值敏感性。',
+      descriptionEn:
+        'The sample fraction winsorized in each tail for the outlier-sensitivity check.',
+      adjustable: true,
+    },
+  ],
+  terminology: [
+    {
+      id: 'welch_interval',
+      labelZh: 'Welch 区间',
+      labelEn: 'Welch interval',
+      descriptionZh: '不要求两组方差相等的均值差区间与 t 统计量。',
+      descriptionEn:
+        'A mean-difference interval and t statistic that do not assume equal group variances.',
+    },
+    {
+      id: 'cohens_d',
+      labelZh: 'Cohen’s d',
+      labelEn: "Cohen's d",
+      descriptionZh: '用合并组内标准差标准化后的均值差，用于描述效应量。',
+      descriptionEn:
+        'The mean difference standardized by pooled within-group variation, used as an effect size.',
+    },
+    {
+      id: 'mann_whitney',
+      labelZh: 'Mann–Whitney 检验',
+      labelEn: 'Mann–Whitney test',
+      descriptionZh: '基于排序的分布位置比较，作为不依赖正态分布的补充。',
+      descriptionEn:
+        'A rank-based distribution-location comparison used as a non-normality-robust complement.',
+    },
+  ],
+  formulae: [
+    {
+      id: 'welch_mean_difference',
+      labelZh: 'Welch 均值差',
+      labelEn: 'Welch mean difference',
+      latex: String.raw`\Delta=\bar{x}_A-\bar{x}_B,\quad SE(\Delta)=\sqrt{\frac{s_A^2}{n_A}+\frac{s_B^2}{n_B}}`,
+      variables: [
+        {
+          symbol: '\\Delta',
+          descriptionZh: 'A 组减 B 组的均值差',
+          descriptionEn: 'Group A minus group B mean difference',
+        },
+        {
+          symbol: 's_g',
+          descriptionZh: 'g 组样本标准差',
+          descriptionEn: 'Sample standard deviation in group g',
+        },
+        {
+          symbol: 'n_g',
+          descriptionZh: 'g 组有效样本数',
+          descriptionEn: 'Valid observations in group g',
+        },
+      ],
+    },
+    {
+      id: 'cohens_d',
+      labelZh: '标准化效应量',
+      labelEn: 'Standardized effect size',
+      latex: String.raw`d=\frac{\bar{x}_A-\bar{x}_B}{\sqrt{\frac{(n_A-1)s_A^2+(n_B-1)s_B^2}{n_A+n_B-2}}}`,
+      variables: [
+        { symbol: 'd', descriptionZh: 'Cohen’s d 效应量', descriptionEn: "Cohen's d effect size" },
+      ],
+    },
+  ],
+  pythonExample: `import numpy as np
+from scipy import stats
+
+mean_difference = group_a.mean() - group_b.mean()
+welch = stats.ttest_ind(group_a, group_b, equal_var=False)
+mann_whitney = stats.mannwhitneyu(group_a, group_b, alternative="two-sided")
+lower_a, upper_a = np.quantile(group_a, [tail_fraction, 1 - tail_fraction])
+lower_b, upper_b = np.quantile(group_b, [tail_fraction, 1 - tail_fraction])
+winsorized_difference = np.clip(group_a, lower_a, upper_a).mean() - np.clip(group_b, lower_b, upper_b).mean()`,
+  helpSlugs: {
+    zh: ['/docs/help/basics/distribution-comparison'],
+    en: ['/docs/help/basics/distribution-comparison'],
+  },
+} satisfies ResearchProtocolDefinitionV1;
+
 export const researchCapabilityCatalog: ResearchCapabilityCatalogV1 = {
   version: 1,
   measures,
   universeMeasures: researchUniverseMeasures,
-  protocols: [timeSeriesRelationship],
+  protocols: [timeSeriesRelationship, distributionComparison],
 };
 
 export const researchMeasureById: ReadonlyMap<string, ResearchMeasureDefinitionV1> = new Map(

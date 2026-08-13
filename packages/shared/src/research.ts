@@ -111,7 +111,15 @@ export interface ResearchSeriesInputSpecV1 {
   label?: string;
 }
 
-export type ResearchInputSpecV1 = ResearchSeriesInputSpecV1;
+export interface ResearchUniverseInputSpecV1 {
+  type: 'universe';
+  id: string;
+  universe: UniverseSpecV1;
+  measure: ResearchUniverseMeasureRefV1;
+  label?: string;
+}
+
+export type ResearchInputSpecV1 = ResearchSeriesInputSpecV1 | ResearchUniverseInputSpecV1;
 
 export interface TimeSeriesRelationshipQuestionSpecV1 {
   version: 1;
@@ -124,7 +132,20 @@ export interface TimeSeriesRelationshipQuestionSpecV1 {
   };
 }
 
-export type ResearchQuestionSpecV1 = TimeSeriesRelationshipQuestionSpecV1;
+export interface DistributionComparisonQuestionSpecV1 {
+  version: 1;
+  kind: 'distribution_comparison';
+  text: string;
+  hypothesis: {
+    estimand: 'mean_difference';
+    direction: 'group_a_higher' | 'group_a_lower' | 'two_sided';
+    nullValue: 0;
+  };
+}
+
+export type ResearchQuestionSpecV1 =
+  | TimeSeriesRelationshipQuestionSpecV1
+  | DistributionComparisonQuestionSpecV1;
 
 export interface TimeSeriesRelationshipProtocolSpecV1 {
   kind: 'time_series_relationship';
@@ -137,32 +158,58 @@ export interface TimeSeriesRelationshipProtocolSpecV1 {
   rollingWindow?: number;
 }
 
-export type ResearchProtocolSpecV1 = TimeSeriesRelationshipProtocolSpecV1;
+export interface DistributionComparisonProtocolSpecV1 {
+  kind: 'distribution_comparison';
+  version: 1;
+  groupA: string;
+  groupB: string;
+  measure: ResearchUniverseMeasureRefV1;
+  inference: { kind: 'welch'; confidenceLevel: 0.95 };
+  sensitivity: { kind: 'winsorized_mean'; tailFraction: number };
+}
+
+export type ResearchProtocolSpecV1 =
+  | TimeSeriesRelationshipProtocolSpecV1
+  | DistributionComparisonProtocolSpecV1;
 
 export type ResearchOutputKindV1 =
   | 'summary_table'
   | 'scatter'
   | 'rolling_relationship'
+  | 'distribution_boxplot'
+  | 'sensitivity'
   | 'conclusion'
   | 'formula'
   | 'python_example'
   | 'documentation';
 
-export interface ResearchPlanSpecV1 {
+export interface TimeSeriesRelationshipPlanSpecV1 {
   version: 1;
-  question: ResearchQuestionSpecV1;
+  question: TimeSeriesRelationshipQuestionSpecV1;
   start: TradeDate;
   end: TradeDate;
   universe?: UniverseSpecV1;
-  inputs: ResearchInputSpecV1[];
+  inputs: ResearchSeriesInputSpecV1[];
   alignment: {
     frequency: ResearchFrequencyV1;
     join: 'inner';
     partialPeriod: 'exclude' | 'include';
   };
-  protocol: ResearchProtocolSpecV1;
+  protocol: TimeSeriesRelationshipProtocolSpecV1;
   outputs: Array<{ kind: ResearchOutputKindV1 }>;
 }
+
+export interface DistributionComparisonPlanSpecV1 {
+  version: 1;
+  question: DistributionComparisonQuestionSpecV1;
+  inputs: ResearchUniverseInputSpecV1[];
+  protocol: DistributionComparisonProtocolSpecV1;
+  outputs: Array<{ kind: ResearchOutputKindV1 }>;
+}
+
+export type ResearchPlanSpecV1 =
+  | TimeSeriesRelationshipPlanSpecV1
+  | DistributionComparisonPlanSpecV1;
 
 export interface ResearchMeasureDefinitionV1 {
   id: string;
@@ -196,7 +243,7 @@ export interface ResearchProtocolAssumptionV1 {
 
 export interface ResearchProtocolParameterDefinitionV1 {
   id: string;
-  type: 'integer' | 'enum';
+  type: 'integer' | 'number' | 'enum';
   labelZh: string;
   labelEn: string;
   descriptionZh: string;
@@ -243,6 +290,19 @@ export interface ResearchSeriesCoverageV1 {
   missingAfterAlignment: number;
 }
 
+export interface ResearchUniverseCoverageV1 {
+  inputId: string;
+  requestedAsOfDate: TradeDate | null;
+  asOfDate: TradeDate;
+  membershipAsOfDate: TradeDate | null;
+  membersResolved: number;
+  observationsValid: number;
+  missingMeasure: number;
+  dataRevision: number;
+}
+
+export type ResearchCoverageV1 = ResearchSeriesCoverageV1 | ResearchUniverseCoverageV1;
+
 export interface ResearchRelationshipRegressionV1 {
   intercept: number;
   slope: number;
@@ -278,7 +338,55 @@ export interface TimeSeriesRelationshipResultV1 {
   rolling: ResearchRollingRelationshipPointV1[];
 }
 
-export type ResearchProtocolResultV1 = TimeSeriesRelationshipResultV1;
+export interface ResearchDistributionSummaryV1 {
+  count: number;
+  mean: number;
+  standardDeviation: number;
+  minimum: number;
+  firstQuartile: number;
+  median: number;
+  thirdQuartile: number;
+  maximum: number;
+  winsorizedMean: number;
+}
+
+export interface ResearchDistributionObservationV1 {
+  entity: ResearchEntityRefV1;
+  name: string;
+  value: number;
+}
+
+export interface ResearchDistributionGroupV1 {
+  inputId: string;
+  label: string;
+  summary: ResearchDistributionSummaryV1;
+  observations: ResearchDistributionObservationV1[];
+}
+
+export interface DistributionComparisonResultV1 {
+  kind: 'distribution_comparison';
+  version: 1;
+  observations: number;
+  measure: ResearchUniverseMeasureDefinitionV1;
+  groups: [ResearchDistributionGroupV1, ResearchDistributionGroupV1];
+  comparison: {
+    meanDifference: number;
+    meanDifferenceStandardError: number;
+    meanDifferenceConfidenceInterval95: { lower: number; upper: number };
+    welchTStatistic: number;
+    welchDegreesOfFreedom: number;
+    mannWhitneyU: number;
+    mannWhitneyZ: number;
+    mannWhitneyTwoSidedPApprox: number;
+    cohensD: number;
+    cliffsDelta: number;
+    winsorizedMeanDifference: number;
+  };
+}
+
+export type ResearchProtocolResultV1 =
+  | TimeSeriesRelationshipResultV1
+  | DistributionComparisonResultV1;
 
 export type ResearchConclusionLevelV1 =
   | 'supports'
@@ -286,7 +394,7 @@ export type ResearchConclusionLevelV1 =
   | 'does_not_support'
   | 'indeterminate';
 
-export interface ResearchConclusionV1 {
+export interface TimeSeriesRelationshipConclusionV1 {
   version: 1;
   level: ResearchConclusionLevelV1;
   direction: 'positive' | 'negative' | 'none';
@@ -313,6 +421,37 @@ export interface ResearchConclusionV1 {
   limitationsEn: string[];
 }
 
+export interface DistributionComparisonConclusionV1 {
+  version: 1;
+  level: ResearchConclusionLevelV1;
+  direction: 'group_a_higher' | 'group_a_lower' | 'none';
+  estimand: 'mean_difference';
+  estimate: number;
+  confidenceInterval95: { lower: number; upper: number };
+  intervalExcludesNull: boolean;
+  hypothesisDirectionMatches: boolean;
+  effectSize: {
+    metric: 'cohens_d';
+    value: number;
+    magnitude: 'negligible' | 'small' | 'moderate' | 'large';
+  };
+  robustness: {
+    method: 'winsorized_mean_direction';
+    winsorizedMeanDifference: number;
+    directionMatches: boolean;
+    assessment: 'consistent' | 'sensitive';
+  };
+  rationaleCodes: string[];
+  summaryZh: string;
+  summaryEn: string;
+  limitationsZh: string[];
+  limitationsEn: string[];
+}
+
+export type ResearchConclusionV1 =
+  | TimeSeriesRelationshipConclusionV1
+  | DistributionComparisonConclusionV1;
+
 export interface ResearchDiagnosticV1 {
   code: string;
   severity: 'info' | 'warning' | 'error';
@@ -320,15 +459,29 @@ export interface ResearchDiagnosticV1 {
   messageEn: string;
 }
 
-export interface ResearchRunResultV1 {
+export interface TimeSeriesRelationshipRunResultV1 {
   version: 1;
-  plan: ResearchPlanSpecV1;
+  plan: TimeSeriesRelationshipPlanSpecV1;
   protocol: ResearchProtocolDefinitionV1;
   coverage: ResearchSeriesCoverageV1[];
-  result: ResearchProtocolResultV1;
-  conclusion: ResearchConclusionV1;
+  result: TimeSeriesRelationshipResultV1;
+  conclusion: TimeSeriesRelationshipConclusionV1;
   diagnostics: ResearchDiagnosticV1[];
 }
+
+export interface DistributionComparisonRunResultV1 {
+  version: 1;
+  plan: DistributionComparisonPlanSpecV1;
+  protocol: ResearchProtocolDefinitionV1;
+  coverage: ResearchUniverseCoverageV1[];
+  result: DistributionComparisonResultV1;
+  conclusion: DistributionComparisonConclusionV1;
+  diagnostics: ResearchDiagnosticV1[];
+}
+
+export type ResearchRunResultV1 =
+  | TimeSeriesRelationshipRunResultV1
+  | DistributionComparisonRunResultV1;
 
 export interface ResearchConversationMeta {
   id: string;

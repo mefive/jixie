@@ -33,17 +33,26 @@ const researchRunResultSchema = z.custom<ResearchRunResultV1>((value) => {
       ],
     }).success;
   const conclusion = run.conclusion as unknown as { level?: unknown } | undefined;
+  const currentProtocol = ['time_series_relationship', 'distribution_comparison'].includes(
+    run.protocol?.id ?? '',
+  );
+  const protocolMatchesResult = run.protocol?.id === run.result?.kind;
+  const conclusionIsCurrent = [
+    'supports',
+    'weak_support',
+    'does_not_support',
+    'indeterminate',
+  ].includes(typeof conclusion?.level === 'string' ? conclusion.level : '');
   return (
     run.version === 1 &&
     (currentPlan || legacyPlan) &&
-    run.protocol?.id === 'time_series_relationship' &&
-    run.result?.kind === 'time_series_relationship' &&
+    (legacyPlan
+      ? run.protocol?.id === 'time_series_relationship' &&
+        run.result?.kind === 'time_series_relationship'
+      : currentProtocol && protocolMatchesResult) &&
     Array.isArray(run.coverage) &&
     Array.isArray(run.diagnostics) &&
-    (legacyPlan ||
-      ['supports', 'weak_support', 'does_not_support', 'indeterminate'].includes(
-        typeof conclusion?.level === 'string' ? conclusion.level : '',
-      ))
+    (legacyPlan || conclusionIsCurrent)
   );
 }, 'invalid research run');
 

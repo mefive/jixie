@@ -1,0 +1,203 @@
+@reference '../styles/index.css';
+
+.jx-distributionComparison {
+  @apply mt-3 border-line bg-bg;
+}
+
+.jx-distributionComparison .ant-card-body {
+  padding: 14px;
+}
+
+.jx-distributionComparison-head,
+.jx-distributionComparison-actions,
+.jx-distributionComparison-title,
+.jx-distributionComparison-controls,
+.jx-distributionComparison-evidence,
+.jx-distributionComparison-docs {
+  @apply flex items-center;
+}
+
+.jx-distributionComparison-head {
+  @apply justify-between gap-3;
+}
+
+.jx-distributionComparison-title {
+  @apply min-w-0 gap-2 font-medium text-ink;
+}
+
+.jx-distributionComparison-title span {
+  @apply truncate;
+}
+
+.jx-distributionComparison-actions {
+  @apply shrink-0 gap-2;
+}
+
+.jx-distributionComparison-controls {
+  @apply mt-3 justify-end gap-3 rounded-lg border border-line bg-card;
+  padding: 12px;
+}
+
+.jx-distributionComparison-control {
+  @apply flex min-w-0 flex-col gap-1 text-muted;
+  width: 220px;
+  font-size: 12px;
+}
+
+.jx-distributionComparison-controlInput {
+  width: 100%;
+}
+
+.jx-distributionComparison-runError,
+.jx-distributionComparison-conclusion {
+  @apply mt-3;
+}
+
+.jx-distributionComparison-conclusionBody,
+.jx-distributionComparison-method,
+.jx-distributionComparison-sensitivity {
+  @apply flex flex-col gap-3;
+}
+
+.jx-distributionComparison-conclusionBody p {
+  @apply m-0;
+}
+
+.jx-distributionComparison-conclusionBody ul {
+  @apply mb-0 mt-1 pl-5;
+  list-style: disc;
+}
+
+.jx-distributionComparison-evidence {
+  @apply flex-wrap gap-x-4 gap-y-1 text-muted;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.jx-distributionComparison-stats {
+  @apply mt-3 grid gap-2;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.jx-distributionComparison-stat {
+  @apply flex min-w-0 flex-col rounded-lg border border-line bg-card;
+  padding: 9px 10px;
+}
+
+.jx-distributionComparison-statLabel {
+  @apply truncate text-muted;
+  font-size: 11px;
+}
+
+.jx-distributionComparison-statValue {
+  @apply font-medium text-ink;
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+}
+
+.jx-distributionComparison-diagnostics {
+  @apply mt-3 flex flex-col gap-2;
+}
+
+.jx-distributionComparison-tabs {
+  @apply mt-2;
+}
+
+.jx-distributionComparison-chart {
+  width: 100%;
+  height: 340px;
+}
+
+.jx-distributionComparison-sensitivityChart {
+  width: 100%;
+  height: 260px;
+}
+
+.jx-distributionComparison-coverage,
+.jx-distributionComparison-formulae {
+  @apply grid gap-3;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.jx-distributionComparison-coverageItem,
+.jx-distributionComparison-methodList,
+.jx-distributionComparison-formula,
+.jx-distributionComparison-code {
+  @apply rounded-lg border border-line bg-card;
+  padding: 10px 14px;
+}
+
+.jx-distributionComparison-coverageItem h4,
+.jx-distributionComparison-methodList h4,
+.jx-distributionComparison-formula h4,
+.jx-distributionComparison-code h4 {
+  @apply mb-2 mt-0 font-medium text-ink;
+  font-size: 13px;
+}
+
+.jx-distributionComparison-methodList dl {
+  @apply m-0 grid gap-2;
+}
+
+.jx-distributionComparison-methodList dl div {
+  @apply grid gap-1;
+  grid-template-columns: minmax(120px, 0.3fr) minmax(0, 1fr);
+}
+
+.jx-distributionComparison-methodList dt {
+  @apply font-medium text-ink;
+}
+
+.jx-distributionComparison-methodList dd {
+  @apply m-0 text-muted;
+}
+
+.jx-distributionComparison-formula {
+  overflow-x: auto;
+}
+
+.jx-distributionComparison-docs {
+  @apply gap-2 text-sm text-muted;
+}
+
+.jx-distributionComparison-docs a {
+  @apply text-primary hover:underline;
+}
+
+@media (max-width: 920px) {
+  .jx-distributionComparison-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .jx-distributionComparison-head {
+    @apply items-start;
+  }
+
+  .jx-distributionComparison-actions {
+    @apply flex-col items-end;
+  }
+
+  .jx-distributionComparison-controls {
+    @apply flex-col items-stretch;
+  }
+
+  .jx-distributionComparison-control {
+    width: 100%;
+  }
+
+  .jx-distributionComparison-stats,
+  .jx-distributionComparison-coverage,
+  .jx-distributionComparison-formulae {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .jx-distributionComparison-methodList dl div {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .jx-distributionComparison-chart {
+    height: 280px;
+  }
+}

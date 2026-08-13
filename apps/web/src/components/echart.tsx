@@ -4,11 +4,13 @@ import {
   LineChart,
   ScatterChart,
   HeatmapChart,
+  BoxplotChart,
   type BarSeriesOption,
   type CandlestickSeriesOption,
   type LineSeriesOption,
   type ScatterSeriesOption,
   type HeatmapSeriesOption,
+  type BoxplotSeriesOption,
 } from 'echarts/charts';
 import {
   GridComponent,
@@ -37,6 +39,7 @@ echarts.use([
   CandlestickChart,
   ScatterChart,
   HeatmapChart,
+  BoxplotChart,
   GridComponent,
   TooltipComponent,
   LegendComponent,
@@ -54,6 +57,7 @@ export type ECOption = ComposeOption<
   | CandlestickSeriesOption
   | ScatterSeriesOption
   | HeatmapSeriesOption
+  | BoxplotSeriesOption
   | GridComponentOption
   | TooltipComponentOption
   | LegendComponentOption

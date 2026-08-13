@@ -13,13 +13,13 @@ import dayjs from 'dayjs';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type {
-  ResearchConclusionV1,
   ResearchPart,
-  ResearchPlanSpecV1,
   ResearchRollingRelationshipPointV1,
-  ResearchRunResultV1,
   ResearchSeriesInputSpecV1,
   ResearchTransformV1,
+  TimeSeriesRelationshipConclusionV1,
+  TimeSeriesRelationshipPlanSpecV1,
+  TimeSeriesRelationshipRunResultV1,
 } from '@jixie/shared';
 import {
   faCode,
@@ -30,6 +30,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { runResearchPlan } from '@src/api/client';
+import { DistributionComparisonCard } from './distribution-comparison-card';
 import { EChart, type ECOption } from './echart';
 import { Markdown } from './markdown';
 import './research-result-card.css';
@@ -38,9 +39,20 @@ interface ResearchResultCardProps {
   part: ResearchPart;
 }
 
+type TimeSeriesResearchPart = Omit<ResearchPart, 'run'> & {
+  run: TimeSeriesRelationshipRunResultV1;
+};
+
 /** A deterministic ResearchRun rendered beside the model's prose. Values, formulae and code all
  * come from the validated protocol result; the LLM cannot invent or mutate this payload. */
 export function ResearchResultCard({ part }: ResearchResultCardProps) {
+  if (part.run.result.kind === 'distribution_comparison') {
+    return <DistributionComparisonCard title={part.title} run={part.run as never} />;
+  }
+  return <TimeSeriesResultCard part={part as TimeSeriesResearchPart} />;
+}
+
+function TimeSeriesResultCard({ part }: { part: TimeSeriesResearchPart }) {
   const { t, i18n } = useTranslation('research');
   const [run, setRun] = useState(part.run);
   const [draft, setDraft] = useState(() => editablePlan(part.run));
@@ -49,8 +61,11 @@ export function ResearchResultCard({ part }: ResearchResultCardProps) {
   const [runError, setRunError] = useState('');
   const relationship = run.result;
   const regression = relationship.regression;
-  const conclusion = (run as ResearchRunResultV1 & { conclusion?: ResearchConclusionV1 })
-    .conclusion;
+  const conclusion = (
+    run as TimeSeriesRelationshipRunResultV1 & {
+      conclusion?: TimeSeriesRelationshipConclusionV1;
+    }
+  ).conclusion;
   const zh = i18n.language.startsWith('zh');
   const predictor = run.plan.inputs.find((input) => input.id === run.plan.protocol.predictor);
   const outcome = run.plan.inputs.find((input) => input.id === run.plan.protocol.outcome);
@@ -592,8 +607,10 @@ function MethodList({
   );
 }
 
-function editablePlan(run: ResearchRunResultV1): ResearchPlanSpecV1 {
-  const raw = structuredClone(run.plan) as ResearchPlanSpecV1 & { question: unknown };
+function editablePlan(run: TimeSeriesRelationshipRunResultV1): TimeSeriesRelationshipPlanSpecV1 {
+  const raw = structuredClone(run.plan) as TimeSeriesRelationshipPlanSpecV1 & {
+    question: unknown;
+  };
   const question = raw.question;
   if (typeof question !== 'string') {
     return raw;
@@ -614,10 +631,10 @@ function editablePlan(run: ResearchRunResultV1): ResearchPlanSpecV1 {
 }
 
 function replaceTransform(
-  plan: ResearchPlanSpecV1,
+  plan: TimeSeriesRelationshipPlanSpecV1,
   inputId: string,
   transform: ResearchTransformV1,
-): ResearchPlanSpecV1 {
+): TimeSeriesRelationshipPlanSpecV1 {
   return {
     ...plan,
     inputs: plan.inputs.map((input) => (input.id === inputId ? { ...input, transform } : input)),
@@ -634,13 +651,13 @@ function allowedTransforms(measure: string): ResearchTransformV1[] {
   return ['level', 'difference', 'simple_return', 'percent_change'];
 }
 
-function questionText(run: ResearchRunResultV1): string {
+function questionText(run: TimeSeriesRelationshipRunResultV1): string {
   const question = run.plan.question as unknown;
   return typeof question === 'string' ? question : run.plan.question.text;
 }
 
 function hypothesisDescription(
-  run: ResearchRunResultV1,
+  run: TimeSeriesRelationshipRunResultV1,
   t: ReturnType<typeof useTranslation<'research'>>['t'],
 ): string {
   const question = run.plan.question as unknown;
@@ -651,7 +668,7 @@ function hypothesisDescription(
 }
 
 function conclusionAlertType(
-  level: ResearchConclusionV1['level'],
+  level: TimeSeriesRelationshipConclusionV1['level'],
 ): 'success' | 'warning' | 'info' | 'error' {
   if (level === 'supports') {
     return 'success';
@@ -677,7 +694,7 @@ function formatDate(value: string): string {
 }
 
 function seriesDescription(
-  input: ResearchPart['run']['plan']['inputs'][number] | undefined,
+  input: TimeSeriesRelationshipPlanSpecV1['inputs'][number] | undefined,
   t: ReturnType<typeof useTranslation<'research'>>['t'],
 ): string {
   if (!input) {
