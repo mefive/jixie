@@ -33,9 +33,11 @@ const researchRunResultSchema = z.custom<ResearchRunResultV1>((value) => {
       ],
     }).success;
   const conclusion = run.conclusion as unknown as { level?: unknown } | undefined;
-  const currentProtocol = ['time_series_relationship', 'distribution_comparison'].includes(
-    run.protocol?.id ?? '',
-  );
+  const currentProtocol = [
+    'time_series_relationship',
+    'distribution_comparison',
+    'event_study',
+  ].includes(run.protocol?.id ?? '');
   const protocolMatchesResult = run.protocol?.id === run.result?.kind;
   const conclusionIsCurrent = [
     'supports',

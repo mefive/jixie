@@ -1,6 +1,9 @@
+import type { PrismaClient } from '@prisma/client';
 import type {
   DistributionComparisonPlanSpecV1,
   DistributionComparisonRunResultV1,
+  EventStudyPlanSpecV1,
+  EventStudyRunResultV1,
   ResearchDistributionObservationV1,
   ResearchPlanSpecV1,
   ResearchRunResultV1,
@@ -13,6 +16,8 @@ import { researchProtocolById, researchUniverseMeasureById } from './catalog.js'
 import { concludeTimeSeriesRelationship } from './conclusion.js';
 import { concludeDistributionComparison } from './distribution-conclusion.js';
 import { evaluateDistributionComparison } from './distribution-comparison.js';
+import { concludeEventStudy } from './event-study-conclusion.js';
+import { executeEventStudy } from './event-study.js';
 import { parseResearchPlanSpec } from './spec.js';
 import {
   loadResearchSeries,
@@ -29,6 +34,7 @@ export type ResearchUniverseExecutor = (input: unknown) => Promise<ResearchUnive
 export interface ExecuteResearchPlanOptions {
   loadSeries?: ResearchSeriesLoader;
   executeUniverse?: ResearchUniverseExecutor;
+  database?: PrismaClient;
 }
 
 export function executeResearchPlan(
@@ -39,6 +45,10 @@ export function executeResearchPlan(
   input: DistributionComparisonPlanSpecV1,
   options?: ExecuteResearchPlanOptions,
 ): Promise<DistributionComparisonRunResultV1>;
+export function executeResearchPlan(
+  input: EventStudyPlanSpecV1,
+  options?: ExecuteResearchPlanOptions,
+): Promise<EventStudyRunResultV1>;
 export function executeResearchPlan(
   input: ResearchPlanSpecV1,
   options?: ExecuteResearchPlanOptions,
@@ -54,11 +64,17 @@ export async function executeResearchPlan(
   const plan = parseResearchPlanSpec(input);
   return isTimeSeriesPlan(plan)
     ? executeTimeSeriesPlan(plan, options)
-    : executeDistributionPlan(plan, options);
+    : isDistributionPlan(plan)
+      ? executeDistributionPlan(plan, options)
+      : executeEventStudyPlan(plan, options);
 }
 
 function isTimeSeriesPlan(plan: ResearchPlanSpecV1): plan is TimeSeriesRelationshipPlanSpecV1 {
   return plan.protocol.kind === 'time_series_relationship';
+}
+
+function isDistributionPlan(plan: ResearchPlanSpecV1): plan is DistributionComparisonPlanSpecV1 {
+  return plan.protocol.kind === 'distribution_comparison';
 }
 
 async function executeTimeSeriesPlan(
@@ -208,5 +224,30 @@ async function executeDistributionPlan(
     result: evaluation.result,
     conclusion,
     diagnostics,
+  };
+}
+
+async function executeEventStudyPlan(
+  plan: EventStudyPlanSpecV1,
+  options: ExecuteResearchPlanOptions,
+): Promise<EventStudyRunResultV1> {
+  const protocolDefinition = researchProtocolById.get(plan.protocol.kind);
+  if (!protocolDefinition) {
+    throw new Error('Event-study protocol is not registered.');
+  }
+  const execution = await executeEventStudy(
+    plan,
+    protocolDefinition.minimumObservations,
+    options.database,
+  );
+  const conclusion = concludeEventStudy(plan.question, execution.result, execution.diagnostics);
+  return {
+    version: 1,
+    plan,
+    protocol: protocolDefinition,
+    coverage: execution.coverage,
+    result: execution.result,
+    conclusion,
+    diagnostics: execution.diagnostics,
   };
 }

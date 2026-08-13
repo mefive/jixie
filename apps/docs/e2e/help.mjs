@@ -16,10 +16,10 @@ page.on('request', (request) => {
 });
 
 try {
-  await page.goto(`${BASE}/docs/help/getting-started/first-screen`, {
+  await page.goto(`${BASE}/docs/help/getting-started/first-backtest`, {
     waitUntil: 'domcontentloaded',
   });
-  await page.getByRole('heading', { level: 1, name: '第一次完成选股' }).waitFor();
+  await page.getByRole('heading', { level: 1, name: '第一次运行回测' }).waitFor();
   if (page.url().includes('/login')) {
     throw new Error('public help page redirected to login');
   }
@@ -224,12 +224,12 @@ try {
   await page.locator('.ant-image-preview-img').waitFor();
   await page.keyboard.press('Escape');
 
-  await page.getByRole('link', { name: '第一次完成选股', exact: true }).first().click();
-  await page.getByRole('heading', { level: 1, name: '第一次完成选股' }).waitFor();
+  await page.getByRole('link', { name: '第一次完成自然语言研究', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '第一次完成自然语言研究' }).waitFor();
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.waitForTimeout(100);
   await page.screenshot({
-    path: `${SHOTS}9a-help-first-screen-markdown.png`,
+    path: `${SHOTS}9a-help-first-research-markdown.png`,
   });
 
   await page.getByRole('link', { name: '第一次运行回测', exact: true }).first().click();
@@ -246,16 +246,33 @@ try {
   await page.getByRole('heading', { level: 1, name: '为什么回测不等于未来收益' }).waitFor();
   await page.getByRole('heading', { level: 2, name: '过度拟合' }).waitFor();
 
-  await page.getByRole('link', { name: '按条件筛选并查看结果', exact: true }).first().click();
-  await page.getByRole('heading', { level: 1, name: '按条件筛选并查看结果' }).waitFor();
-  if ((await page.locator('.jx-help-figure').count()) !== 1) {
-    throw new Error('screening result article does not render its screenshot');
+  await page.getByRole('link', { name: '怎样阅读两组分布比较', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '怎样阅读两组分布比较' }).waitFor();
+  await page.getByRole('heading', { level: 2, name: '均值差和 Welch 区间' }).waitFor();
+  if (
+    (await page.locator('.jx-help-markdown .katex').count()) < 2 ||
+    (await page.locator('.jx-help-codeBlock').count()) !== 1
+  ) {
+    throw new Error('distribution comparison guide did not render formulas and Python code');
   }
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.waitForTimeout(100);
   await page.screenshot({
-    path: `${SHOTS}10a-help-screening-guide.png`,
+    path: `${SHOTS}10a-help-distribution-comparison.png`,
   });
+
+  await page.getByRole('link', { name: '怎样阅读事件研究', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '怎样阅读事件研究' }).waitFor();
+  await page.getByRole('heading', { level: 2, name: 'AR、CAR 和 CAAR' }).waitFor();
+  if (
+    (await page.locator('.jx-help-markdown .katex').count()) < 3 ||
+    (await page.locator('.jx-help-codeBlock').count()) !== 1
+  ) {
+    throw new Error('event-study guide did not render formulas and Python code');
+  }
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(100);
+  await page.screenshot({ path: `${SHOTS}10c-help-event-study.png` });
 
   await page.getByRole('link', { name: '切换复权和价格坐标', exact: true }).first().click();
   await page.getByRole('heading', { level: 1, name: '切换复权和价格坐标' }).waitFor();

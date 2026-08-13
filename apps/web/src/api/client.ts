@@ -188,6 +188,8 @@ import type {
   TimeSeriesRelationshipRunResultV1,
   DistributionComparisonPlanSpecV1,
   DistributionComparisonRunResultV1,
+  EventStudyPlanSpecV1,
+  EventStudyRunResultV1,
 } from '@jixie/shared';
 
 // Back-compat alias — the trace item type now lives in shared (agent-stream protocol).
@@ -275,6 +277,7 @@ export function runResearchPlan(
 export function runResearchPlan(
   plan: DistributionComparisonPlanSpecV1,
 ): Promise<DistributionComparisonRunResultV1>;
+export function runResearchPlan(plan: EventStudyPlanSpecV1): Promise<EventStudyRunResultV1>;
 export function runResearchPlan(plan: ResearchPlanSpecV1): Promise<ResearchRunResultV1>;
 export function runResearchPlan(plan: ResearchPlanSpecV1): Promise<ResearchRunResultV1> {
   return request('/api/app/research/run', {

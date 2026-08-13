@@ -434,11 +434,172 @@ winsorized_difference = np.clip(group_a, lower_a, upper_a).mean() - np.clip(grou
   },
 } satisfies ResearchProtocolDefinitionV1;
 
+const eventStudy = {
+  id: 'event_study',
+  version: 1,
+  nameZh: '公告事件研究',
+  nameEn: 'Announcement event study',
+  questionKinds: ['event_study'],
+  minimumObservations: 5,
+  assumptions: [
+    {
+      id: 'public_event_time',
+      labelZh: '公开可得事件时点',
+      labelEn: 'Publicly available event time',
+      descriptionZh: '事件日来自本地分红记录的预案公告日，并映射到当日或其后首个交易日。',
+      descriptionEn:
+        'The event date is a proposal-stage announcement in the local dividend records and maps to the first trading day on or after it.',
+    },
+    {
+      id: 'market_adjusted_counterfactual',
+      labelZh: '市场调整基准',
+      labelEn: 'Market-adjusted benchmark',
+      descriptionZh: '异常收益定义为股票收益减同期基准收益，不等于严格的因果反事实。',
+      descriptionEn:
+        'Abnormal return is stock return minus contemporaneous benchmark return; this is not a causal counterfactual.',
+    },
+    {
+      id: 'clustered_event_inference',
+      labelZh: '事件日聚类推断',
+      labelEn: 'Event-date clustered inference',
+      descriptionZh:
+        '同一股票窗口重叠时只保留较早事件；区间在事件交易日层面聚类，允许同日公告共享冲击。',
+      descriptionEn:
+        'Earlier same-stock events are retained when windows overlap; intervals cluster by event trading date so same-day announcements may share shocks.',
+    },
+  ],
+  parameters: [
+    {
+      id: 'eventWindowStart',
+      type: 'integer',
+      labelZh: '事件前交易日',
+      labelEn: 'Pre-event trading days',
+      descriptionZh: '累计异常收益窗口相对事件日的起点。',
+      descriptionEn: 'Start of the cumulative-abnormal-return window relative to the event day.',
+      adjustable: true,
+    },
+    {
+      id: 'eventWindowEnd',
+      type: 'integer',
+      labelZh: '事件后交易日',
+      labelEn: 'Post-event trading days',
+      descriptionZh: '累计异常收益窗口相对事件日的终点。',
+      descriptionEn: 'End of the cumulative-abnormal-return window relative to the event day.',
+      adjustable: true,
+    },
+    {
+      id: 'benchmark',
+      type: 'enum',
+      labelZh: '市场基准',
+      labelEn: 'Market benchmark',
+      descriptionZh: '用于扣除同期市场收益的指数或 ETF。',
+      descriptionEn: 'The index or ETF used to remove contemporaneous market return.',
+      adjustable: false,
+    },
+  ],
+  terminology: [
+    {
+      id: 'abnormal_return',
+      labelZh: '异常收益（AR）',
+      labelEn: 'Abnormal return (AR)',
+      descriptionZh: '个股当日简单收益减基准当日简单收益。',
+      descriptionEn: 'Stock simple return minus benchmark simple return on the same trading day.',
+    },
+    {
+      id: 'cumulative_abnormal_return',
+      labelZh: '累计异常收益（CAR）',
+      labelEn: 'Cumulative abnormal return (CAR)',
+      descriptionZh: '单个事件在预设窗口内的异常收益之和。',
+      descriptionEn: 'The sum of abnormal returns for one event over the prespecified window.',
+    },
+    {
+      id: 'caar',
+      labelZh: '累计平均异常收益（CAAR）',
+      labelEn: 'Cumulative average abnormal return (CAAR)',
+      descriptionZh: '多个事件逐日异常收益取平均后累加形成的路径。',
+      descriptionEn:
+        'The path formed by cumulatively summing daily abnormal returns averaged across events.',
+    },
+  ],
+  formulae: [
+    {
+      id: 'market_adjusted_return',
+      labelZh: '市场调整异常收益',
+      labelEn: 'Market-adjusted abnormal return',
+      latex: String.raw`AR_{i,\tau}=R_{i,\tau}-R_{m,\tau}`,
+      variables: [
+        {
+          symbol: 'R_{i,\\tau}',
+          descriptionZh: '事件 i 在相对交易日 τ 的个股收益',
+          descriptionEn: 'Stock return for event i at relative trading day τ',
+        },
+        {
+          symbol: 'R_{m,\\tau}',
+          descriptionZh: '同期基准收益',
+          descriptionEn: 'Contemporaneous benchmark return',
+        },
+      ],
+    },
+    {
+      id: 'cumulative_abnormal_return',
+      labelZh: '累计平均异常收益',
+      labelEn: 'Cumulative average abnormal return',
+      latex: String.raw`CAR_i[a,b]=\sum_{\tau=a}^{b}AR_{i,\tau},\quad CAAR[a,b]=\frac{1}{N}\sum_{i=1}^{N}CAR_i[a,b]`,
+      variables: [
+        {
+          symbol: '[a,b]',
+          descriptionZh: '预设事件窗口',
+          descriptionEn: 'Prespecified event window',
+        },
+        {
+          symbol: 'N',
+          descriptionZh: '有效且不重叠的事件数',
+          descriptionEn: 'Valid non-overlapping events',
+        },
+      ],
+    },
+    {
+      id: 'event_date_clustered_standard_error',
+      labelZh: '事件日聚类标准误',
+      labelEn: 'Event-date clustered standard error',
+      latex: String.raw`SE_{cluster}(\overline{CAR})=\sqrt{\frac{G}{G-1}\frac{1}{N^2}\sum_{g=1}^{G}\left(\sum_{i\in g}(CAR_i-\overline{CAR})\right)^2}`,
+      variables: [
+        {
+          symbol: 'G',
+          descriptionZh: '不同事件交易日数',
+          descriptionEn: 'Distinct event trading dates',
+        },
+        {
+          symbol: 'g',
+          descriptionZh: '共享同一事件交易日的事件簇',
+          descriptionEn: 'Events sharing one event trading date',
+        },
+      ],
+    },
+  ],
+  pythonExample: `import numpy as np
+import pandas as pd
+import statsmodels.api as sm
+
+abnormal = stock_returns.sub(benchmark_returns, axis=0)
+event_paths = [abnormal.loc[event_window(event_date)] for event_date in event_dates]
+cars = pd.Series([path.sum() for path in event_paths])
+mean_car = cars.mean()
+fit = sm.OLS(cars, np.ones((len(cars), 1))).fit(
+    cov_type="cluster", cov_kwds={"groups": event_trade_dates}, use_t=True
+)
+interval = fit.conf_int(alpha=0.05)[0]`,
+  helpSlugs: {
+    zh: ['/docs/help/basics/event-study'],
+    en: ['/docs/help/basics/event-study'],
+  },
+} satisfies ResearchProtocolDefinitionV1;
+
 export const researchCapabilityCatalog: ResearchCapabilityCatalogV1 = {
   version: 1,
   measures,
   universeMeasures: researchUniverseMeasures,
-  protocols: [timeSeriesRelationship, distributionComparison],
+  protocols: [timeSeriesRelationship, distributionComparison, eventStudy],
 };
 
 export const researchMeasureById: ReadonlyMap<string, ResearchMeasureDefinitionV1> = new Map(

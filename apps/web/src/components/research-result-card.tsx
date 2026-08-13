@@ -31,6 +31,7 @@ import {
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { runResearchPlan } from '@src/api/client';
 import { DistributionComparisonCard } from './distribution-comparison-card';
+import { EventStudyCard } from './event-study-card';
 import { EChart, type ECOption } from './echart';
 import { Markdown } from './markdown';
 import './research-result-card.css';
@@ -48,6 +49,9 @@ type TimeSeriesResearchPart = Omit<ResearchPart, 'run'> & {
 export function ResearchResultCard({ part }: ResearchResultCardProps) {
   if (part.run.result.kind === 'distribution_comparison') {
     return <DistributionComparisonCard title={part.title} run={part.run as never} />;
+  }
+  if (part.run.result.kind === 'event_study') {
+    return <EventStudyCard title={part.title} run={part.run as never} />;
   }
   return <TimeSeriesResultCard part={part as TimeSeriesResearchPart} />;
 }

@@ -1,5 +1,6 @@
 import type {
   DistributionComparisonPlanSpecV1,
+  EventStudyPlanSpecV1,
   ResearchMeasureDefinitionV1,
   ResearchPlanSpecV1,
   ResearchSeriesInputSpecV1,
@@ -156,6 +157,17 @@ const distributionQuestionSchema = z.strictObject({
   }),
 });
 
+const eventStudyQuestionSchema = z.strictObject({
+  version: z.literal(1),
+  kind: z.literal('event_study'),
+  text: z.string().trim().min(1).max(500),
+  hypothesis: z.strictObject({
+    estimand: z.literal('mean_cumulative_abnormal_return'),
+    direction: z.enum(['positive', 'negative', 'two_sided']),
+    nullValue: z.literal(0),
+  }),
+});
+
 const timeSeriesProtocolSchema = z.strictObject({
   kind: z.literal('time_series_relationship'),
   version: z.literal(1),
@@ -189,6 +201,34 @@ const distributionProtocolSchema = z.strictObject({
   }),
 });
 
+const eventSetInputSchema = z.strictObject({
+  type: z.literal('event_set'),
+  id: idSchema,
+  source: z.strictObject({
+    kind: z.literal('dividend_proposal_announcement'),
+    entities: z.array(entityRefSchema).min(1).max(500),
+  }),
+  label: z.string().trim().min(1).max(80).optional(),
+});
+
+const eventStudyProtocolSchema = z.strictObject({
+  kind: z.literal('event_study'),
+  version: z.literal(1),
+  eventSet: idSchema,
+  benchmark: idSchema,
+  eventWindow: z.strictObject({
+    start: z.number().int().min(-60).max(0),
+    end: z.number().int().min(0).max(60),
+  }),
+  returnModel: z.literal('market_adjusted'),
+  overlappingEvents: z.literal('keep_first'),
+  inference: z.strictObject({
+    kind: z.literal('event_cluster_mean'),
+    clusterBy: z.literal('event_trade_date'),
+    confidenceLevel: z.literal(0.95),
+  }),
+});
+
 const outputSchema = z.strictObject({
   kind: z.enum([
     'summary_table',
@@ -196,6 +236,8 @@ const outputSchema = z.strictObject({
     'rolling_relationship',
     'distribution_boxplot',
     'sensitivity',
+    'event_path',
+    'event_table',
     'conclusion',
     'formula',
     'python_example',
@@ -227,9 +269,20 @@ const distributionPlanSchema = z.strictObject({
   outputs: z.array(outputSchema).min(1).max(9),
 }) satisfies z.ZodType<DistributionComparisonPlanSpecV1>;
 
+const eventStudyPlanSchema = z.strictObject({
+  version: z.literal(1),
+  question: eventStudyQuestionSchema,
+  start: dateSchema,
+  end: dateSchema,
+  inputs: z.tuple([eventSetInputSchema, seriesInputSchema]),
+  protocol: eventStudyProtocolSchema,
+  outputs: z.array(outputSchema).min(1).max(11),
+}) satisfies z.ZodType<EventStudyPlanSpecV1>;
+
 export const researchPlanSpecV1Schema = z.union([
   timeSeriesPlanSchema,
   distributionPlanSchema,
+  eventStudyPlanSchema,
 ]) satisfies z.ZodType<ResearchPlanSpecV1>;
 
 export function parseResearchPlanSpec(input: unknown): ResearchPlanSpecV1 {
@@ -242,11 +295,19 @@ export function parseResearchPlanSpec(input: unknown): ResearchPlanSpecV1 {
 }
 
 export function validateResearchPlanSemantics(plan: ResearchPlanSpecV1): string[] {
-  return isTimeSeriesPlan(plan) ? validateTimeSeriesPlan(plan) : validateDistributionPlan(plan);
+  return isTimeSeriesPlan(plan)
+    ? validateTimeSeriesPlan(plan)
+    : isDistributionPlan(plan)
+      ? validateDistributionPlan(plan)
+      : validateEventStudyPlan(plan);
 }
 
 function isTimeSeriesPlan(plan: ResearchPlanSpecV1): plan is TimeSeriesRelationshipPlanSpecV1 {
   return plan.protocol.kind === 'time_series_relationship';
+}
+
+function isDistributionPlan(plan: ResearchPlanSpecV1): plan is DistributionComparisonPlanSpecV1 {
+  return plan.protocol.kind === 'distribution_comparison';
 }
 
 function validateTimeSeriesPlan(plan: TimeSeriesRelationshipPlanSpecV1): string[] {
@@ -348,6 +409,50 @@ function validateDistributionPlan(plan: DistributionComparisonPlanSpecV1): strin
     errors.push('outputs must not contain duplicates');
   }
   for (const required of ['summary_table', 'distribution_boxplot', 'sensitivity', 'conclusion']) {
+    if (!plan.outputs.some((output) => output.kind === required)) {
+      errors.push(`outputs must include ${required}`);
+    }
+  }
+  return errors;
+}
+
+function validateEventStudyPlan(plan: EventStudyPlanSpecV1): string[] {
+  const errors: string[] = [];
+  if (plan.start > plan.end) {
+    errors.push('start must not be after end');
+  }
+  const [eventSet, benchmark] = plan.inputs;
+  if (plan.protocol.eventSet !== eventSet.id) {
+    errors.push(`unknown event-set input ${plan.protocol.eventSet}`);
+  }
+  if (plan.protocol.benchmark !== benchmark.id) {
+    errors.push(`unknown benchmark input ${plan.protocol.benchmark}`);
+  }
+  if (eventSet.source.entities.some((entity) => entity.assetType !== 'stock')) {
+    errors.push('dividend proposal events support stock entities only');
+  }
+  if (
+    benchmark.source.kind !== 'instrument' ||
+    !['index', 'etf'].includes(benchmark.source.assetType)
+  ) {
+    errors.push('event-study benchmark must be an index or ETF instrument');
+  }
+  if (benchmark.measure !== 'market.adjusted_close' || benchmark.transform !== 'simple_return') {
+    errors.push('event-study benchmark must use market.adjusted_close simple_return');
+  }
+  if (plan.protocol.eventWindow.start >= plan.protocol.eventWindow.end) {
+    errors.push('event window start must be before end');
+  }
+  if (new Set(plan.outputs.map((output) => output.kind)).size !== plan.outputs.length) {
+    errors.push('outputs must not contain duplicates');
+  }
+  for (const required of [
+    'summary_table',
+    'event_path',
+    'event_table',
+    'sensitivity',
+    'conclusion',
+  ]) {
     if (!plan.outputs.some((output) => output.kind === required)) {
       errors.push(`outputs must include ${required}`);
     }
