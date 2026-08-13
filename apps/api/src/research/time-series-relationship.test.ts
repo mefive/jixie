@@ -1,4 +1,4 @@
-import type { ResearchPlanSpecV1 } from '@jixie/shared';
+import type { TimeSeriesRelationshipPlanSpecV1 } from '@jixie/shared';
 import { describe, expect, it } from 'vitest';
 import { executeResearchPlan } from './executor.js';
 import { alignRelationshipPoints } from './time-series-relationship.js';
@@ -167,7 +167,7 @@ describe('executeResearchPlan', () => {
   });
 });
 
-function relationshipPlan(): ResearchPlanSpecV1 {
+function relationshipPlan(): TimeSeriesRelationshipPlanSpecV1 {
   return {
     version: 1,
     question: {

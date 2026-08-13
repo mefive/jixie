@@ -9,7 +9,7 @@ const argsSchema = z.strictObject({ plan: researchPlanSpecV1Schema });
 export const executeResearchPlanTool: AgentTool = {
   name: 'executeResearchPlan',
   description:
-    'Execute one validated, versioned ResearchPlan. V1 supports the time_series_relationship protocol over registered instrument, macro, yield-curve, or FX series. The plan.question object must prespecify a regression-slope hypothesis and the outputs must include conclusion. The plan may reference only measures and sources returned by searchResearchCatalog. Never put SQL, table names, column names, JavaScript, or Python in the plan. Positive predictorLag means the predictor precedes the outcome by that many aligned periods. Use monthly alignment for year_over_year. Set alignment.partialPeriod to exclude for complete-month analysis; include is only for an explicitly requested month-to-date observation. The tool produces the structured research result card and deterministic conclusion level; your final text must preserve that level and explain the evidence and limitations without inventing numbers.',
+    'Execute one validated, versioned ResearchPlan. V1 supports time_series_relationship over registered series and distribution_comparison over two disjoint point-in-time UniverseSpec groups. The plan.question object must prespecify the protocol estimand, direction, and null value, and outputs must include conclusion plus the protocol-required evidence. The plan may reference only measures and sources returned by searchResearchCatalog. Never put SQL, table names, column names, JavaScript, or Python in the plan. For time series, positive predictorLag means the predictor precedes the outcome; use monthly alignment for year_over_year and exclude incomplete periods unless explicitly requested. For a distribution comparison, both groups must use the same as-of time and measure, must not set UniverseSpec.limit, and must be mutually exclusive. The tool produces a structured research result and deterministic conclusion level; final prose must preserve that level and must not invent numbers.',
   parameters: z.toJSONSchema(argsSchema),
   async run(args) {
     const parsed = argsSchema.safeParse(args);
@@ -22,13 +22,26 @@ export const executeResearchPlanTool: AgentTool = {
     }
     const run = await executeResearchPlan(parsed.data.plan);
     const { result } = run;
+    const evidence =
+      result.kind === 'time_series_relationship'
+        ? {
+            pearson: result.pearson,
+            spearman: result.spearman,
+            regression: result.regression,
+          }
+        : {
+            groups: result.groups.map((group) => ({
+              inputId: group.inputId,
+              label: group.label,
+              summary: group.summary,
+            })),
+            comparison: result.comparison,
+          };
     return {
       observation: JSON.stringify({
         protocol: run.protocol.id,
         observations: result.observations,
-        pearson: result.pearson,
-        spearman: result.spearman,
-        regression: result.regression,
+        ...evidence,
         conclusion: run.conclusion,
         coverage: run.coverage,
         diagnostics: run.diagnostics,

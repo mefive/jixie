@@ -14,10 +14,15 @@ type UniverseValueRow = ResearchUniverseRowV1 & { values: Record<string, number 
 
 const DEFAULT_LIMIT = 50;
 
+export interface ExecuteUniverseSpecOptions {
+  defaultLimit?: number | null;
+}
+
 /** Execute one validated point-in-time equity universe without accepting SQL from the caller. */
 export async function executeUniverseSpec(
   input: unknown,
   database: PrismaClient = prisma,
+  options: ExecuteUniverseSpecOptions = {},
 ): Promise<ResearchUniverseRunResultV1> {
   const spec = parseUniverseSpec(input);
   if (spec.asOf.kind === 'periodic') {
@@ -151,7 +156,11 @@ export async function executeUniverseSpec(
     );
   }
   stages.push({ code: 'risk_warning', count: rows.length });
-  const applied = applyUniverseSpec(rows, spec);
+  const applied = applyUniverseSpec(
+    rows,
+    spec,
+    options.defaultLimit === undefined ? DEFAULT_LIMIT : options.defaultLimit,
+  );
   stages.push({ code: 'predicates', count: applied.total });
 
   const selectedMeasures = spec.select.map((ref) => researchUniverseMeasureById.get(ref.measure)!);
@@ -178,6 +187,7 @@ export async function executeUniverseSpec(
 export function applyUniverseSpec(
   inputRows: UniverseValueRow[],
   spec: UniverseSpecV1,
+  defaultLimit: number | null = DEFAULT_LIMIT,
 ): { total: number; rows: UniverseValueRow[] } {
   let rows = inputRows.filter((row) =>
     spec.predicates.every((predicate) => {
@@ -220,7 +230,8 @@ export function applyUniverseSpec(
       return (leftValue - rightValue) * sign || left.entity.id.localeCompare(right.entity.id);
     });
   }
-  return { total, rows: rows.slice(0, spec.limit ?? DEFAULT_LIMIT) };
+  const limit = spec.limit ?? defaultLimit;
+  return { total, rows: limit == null ? rows : rows.slice(0, limit) };
 }
 
 async function resolveSource(

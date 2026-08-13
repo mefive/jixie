@@ -1,6 +1,6 @@
 import type {
-  ResearchConclusionV1,
   ResearchDiagnosticV1,
+  TimeSeriesRelationshipConclusionV1,
   TimeSeriesRelationshipQuestionSpecV1,
   TimeSeriesRelationshipResultV1,
 } from '@jixie/shared';
@@ -9,7 +9,7 @@ export function concludeTimeSeriesRelationship(
   question: TimeSeriesRelationshipQuestionSpecV1,
   result: TimeSeriesRelationshipResultV1,
   diagnostics: ResearchDiagnosticV1[],
-): ResearchConclusionV1 {
+): TimeSeriesRelationshipConclusionV1 {
   const estimate = result.regression.slope;
   const confidenceInterval95 = result.regression.slopeConfidenceInterval95;
   const direction = estimate > 0 ? 'positive' : estimate < 0 ? 'negative' : 'none';
@@ -22,7 +22,7 @@ export function concludeTimeSeriesRelationship(
   const hasFatalDiagnostic = diagnostics.some((diagnostic) => diagnostic.severity === 'error');
   const rationaleCodes: string[] = [];
 
-  let level: ResearchConclusionV1['level'];
+  let level: TimeSeriesRelationshipConclusionV1['level'];
   if (hasFatalDiagnostic) {
     level = 'indeterminate';
     rationaleCodes.push('fatal_diagnostic');
@@ -79,7 +79,7 @@ export function concludeTimeSeriesRelationship(
 }
 
 function directionMatches(
-  direction: ResearchConclusionV1['direction'],
+  direction: TimeSeriesRelationshipConclusionV1['direction'],
   hypothesis: TimeSeriesRelationshipQuestionSpecV1['hypothesis']['direction'],
 ): boolean {
   if (hypothesis === 'two_sided') {
@@ -90,7 +90,7 @@ function directionMatches(
 
 function relationshipEffectSize(
   result: TimeSeriesRelationshipResultV1,
-): ResearchConclusionV1['effectSize'] {
+): TimeSeriesRelationshipConclusionV1['effectSize'] {
   const metric = result.pearson == null ? 'spearman' : 'pearson';
   const value = result[metric];
   if (value == null) {
@@ -110,8 +110,8 @@ function relationshipEffectSize(
 
 function rollingStability(
   result: TimeSeriesRelationshipResultV1,
-  direction: ResearchConclusionV1['direction'],
-): ResearchConclusionV1['stability'] {
+  direction: TimeSeriesRelationshipConclusionV1['direction'],
+): TimeSeriesRelationshipConclusionV1['stability'] {
   const slopes = result.rolling
     .map((point) => point.slope)
     .filter((slope): slope is number => slope != null && Number.isFinite(slope));
@@ -137,8 +137,8 @@ function rollingStability(
 
 function conclusionLimitations(
   diagnostics: ResearchDiagnosticV1[],
-  stability: ResearchConclusionV1['stability']['assessment'],
-): Pick<ResearchConclusionV1, 'limitationsZh' | 'limitationsEn'> {
+  stability: TimeSeriesRelationshipConclusionV1['stability']['assessment'],
+): Pick<TimeSeriesRelationshipConclusionV1, 'limitationsZh' | 'limitationsEn'> {
   const limitationsZh = ['变量关系不等同于因果关系或可交易的预测能力。'];
   const limitationsEn = [
     'An observed relationship is not causal evidence or proof of tradable predictability.',
@@ -165,13 +165,13 @@ function conclusionLimitations(
 }
 
 function conclusionSummaries(args: {
-  level: ResearchConclusionV1['level'];
-  direction: ResearchConclusionV1['direction'];
+  level: TimeSeriesRelationshipConclusionV1['level'];
+  direction: TimeSeriesRelationshipConclusionV1['direction'];
   estimate: number;
   confidenceInterval95: { lower: number; upper: number };
-  effectMagnitude: ResearchConclusionV1['effectSize']['magnitude'];
-  stability: ResearchConclusionV1['stability'];
-}): Pick<ResearchConclusionV1, 'summaryZh' | 'summaryEn'> {
+  effectMagnitude: TimeSeriesRelationshipConclusionV1['effectSize']['magnitude'];
+  stability: TimeSeriesRelationshipConclusionV1['stability'];
+}): Pick<TimeSeriesRelationshipConclusionV1, 'summaryZh' | 'summaryEn'> {
   const estimate = args.estimate.toFixed(4);
   const interval = `[${args.confidenceInterval95.lower.toFixed(4)}, ${args.confidenceInterval95.upper.toFixed(4)}]`;
   const directionZh =

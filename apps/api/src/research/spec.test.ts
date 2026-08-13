@@ -1,3 +1,4 @@
+import type { TimeSeriesRelationshipPlanSpecV1 } from '@jixie/shared';
 import { describe, expect, it } from 'vitest';
 import { parseResearchPlanSpec, validateResearchPlanSemantics } from './spec.js';
 
@@ -88,7 +89,7 @@ describe('ResearchPlanSpec V1', () => {
   });
 
   it('rejects duplicate ids, outputs, and invalid protocol references', () => {
-    const plan = parseResearchPlanSpec(validPlan());
+    const plan = parseResearchPlanSpec(validPlan()) as TimeSeriesRelationshipPlanSpecV1;
     plan.inputs[1]!.id = plan.inputs[0]!.id;
     plan.protocol.outcome = 'missing';
     plan.outputs[1] = plan.outputs[0]!;

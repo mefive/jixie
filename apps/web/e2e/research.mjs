@@ -79,6 +79,42 @@ const relationshipPlan = {
   ],
 };
 
+const distributionPlan = {
+  version: 1,
+  question: {
+    version: 1,
+    kind: 'distribution_comparison',
+    text: '沪深300成分股的市净率是否高于中证500成分股？',
+    hypothesis: {
+      estimand: 'mean_difference',
+      direction: 'group_a_higher',
+      nullValue: 0,
+    },
+  },
+  inputs: [
+    distributionUniverse('csi300', '沪深300成分股', '000300.SH'),
+    distributionUniverse('csi500', '中证500成分股', '000905.SH'),
+  ],
+  protocol: {
+    kind: 'distribution_comparison',
+    version: 1,
+    groupA: 'csi300',
+    groupB: 'csi500',
+    measure: { measure: 'equity.pb', measureVersion: 1 },
+    inference: { kind: 'welch', confidenceLevel: 0.95 },
+    sensitivity: { kind: 'winsorized_mean', tailFraction: 0.05 },
+  },
+  outputs: [
+    { kind: 'summary_table' },
+    { kind: 'distribution_boxplot' },
+    { kind: 'sensitivity' },
+    { kind: 'conclusion' },
+    { kind: 'formula' },
+    { kind: 'python_example' },
+    { kind: 'documentation' },
+  ],
+};
+
 const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext({ viewport: { width: 1440, height: 960 } });
 const page = await context.newPage();
@@ -133,6 +169,27 @@ try {
     throw new Error(`invalid relationship result: ${JSON.stringify(actualRelationship)}`);
   }
 
+  const actualDistribution = await page.evaluate(async (input) => {
+    const response = await fetch('/api/app/research/run', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+    const body = await response.json();
+    if (!response.ok) {
+      throw new Error(JSON.stringify(body));
+    }
+    return body;
+  }, distributionPlan);
+  if (
+    actualDistribution.result.kind !== 'distribution_comparison' ||
+    actualDistribution.result.groups.some((group) => group.summary.count < 20) ||
+    !actualDistribution.conclusion?.robustness ||
+    actualDistribution.coverage.length !== 2
+  ) {
+    throw new Error(`invalid distribution result: ${JSON.stringify(actualDistribution)}`);
+  }
+
   const now = new Date().toISOString();
   const universeConversation = {
     id: 'e2e-universe',
@@ -148,11 +205,22 @@ try {
     createdAt: now,
     updatedAt: now,
   };
+  const distributionConversation = {
+    id: 'e2e-distribution',
+    title: '指数成分股市净率比较',
+    preview: 'DistributionComparison V1',
+    createdAt: now,
+    updatedAt: now,
+  };
   await page.route('**/api/app/research/conversations', (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify([relationshipConversation, universeConversation]),
+      body: JSON.stringify([
+        distributionConversation,
+        relationshipConversation,
+        universeConversation,
+      ]),
     }),
   );
   await page.route('**/api/app/agent/conversations/e2e-universe/messages', (route) =>
@@ -196,13 +264,41 @@ try {
       }),
     }),
   );
+  await page.route('**/api/app/agent/conversations/e2e-distribution/messages', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        messages: [
+          {
+            role: 'assistant',
+            parts: [
+              {
+                type: 'text',
+                text: '两组按同一截面和资格口径解析，并同时报告均值差、排序证据与极端值敏感性。',
+              },
+              {
+                type: 'research',
+                title: distributionConversation.title,
+                run: actualDistribution,
+              },
+            ],
+          },
+        ],
+      }),
+    }),
+  );
   let rerunPlan = null;
   await page.route('**/api/app/research/run', (route) => {
     rerunPlan = route.request().postDataJSON();
     return route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(actualRelationship),
+      body: JSON.stringify(
+        rerunPlan.protocol.kind === 'distribution_comparison'
+          ? actualDistribution
+          : actualRelationship,
+      ),
     });
   });
 
@@ -246,12 +342,32 @@ try {
   await page.getByText('Method assumptions', { exact: true }).waitFor();
   await page.screenshot({ path: `${SHOTS}research-relationship-en.png`, fullPage: true });
 
+  await page.getByText('中', { exact: true }).click();
+  await page.getByText(distributionConversation.title, { exact: true }).click();
+  await page.locator('.jx-distributionComparison-conclusion').waitFor({ timeout: 20_000 });
+  await page.getByText('极端值敏感性', { exact: true }).click();
+  await page.getByText('单侧缩尾比例', { exact: true }).first().waitFor();
+  await page.screenshot({ path: `${SHOTS}research-distribution-zh.png`, fullPage: true });
+  await page.getByText('调整参数', { exact: true }).click();
+  await page.locator('.jx-distributionComparison-control input').fill('10');
+  await page.getByText('按新参数重跑', { exact: true }).click();
+  await page.waitForFunction(() => !document.querySelector('.jx-distributionComparison-controls'));
+  if (rerunPlan?.protocol?.sensitivity?.tailFraction !== 0.1) {
+    throw new Error(
+      `distribution rerun did not preserve winsorization: ${JSON.stringify(rerunPlan)}`,
+    );
+  }
+  await page.getByText('EN', { exact: true }).click();
+  await page.getByText('Method & reproduction', { exact: true }).click();
+  await page.getByText('Method assumptions', { exact: true }).waitFor();
+  await page.screenshot({ path: `${SHOTS}research-distribution-en.png`, fullPage: true });
+
   await page.setViewportSize({ width: 390, height: 844 });
   await page.waitForTimeout(250);
   const mobileLayout = await page.evaluate(() => {
     const sidebar = document.querySelector('.jx-research-sidebar');
     const workspace = document.querySelector('.jx-research-workspace');
-    const card = document.querySelector('.jx-researchResult');
+    const card = document.querySelector('.jx-distributionComparison');
     if (!sidebar || !workspace || !card) {
       return null;
     }
@@ -273,10 +389,32 @@ try {
   ) {
     throw new Error(`Research mobile layout is still compressed: ${JSON.stringify(mobileLayout)}`);
   }
-  await page.screenshot({ path: `${SHOTS}research-relationship-mobile.png`, fullPage: true });
+  await page.screenshot({ path: `${SHOTS}research-distribution-mobile.png`, fullPage: true });
   console.log(
-    '[research-e2e] Universe API, relationship protocol, parameter rerun, bilingual content, object detail, and responsive layout passed',
+    '[research-e2e] Universe API, relationship and distribution protocols, parameter reruns, bilingual content, object detail, and responsive layout passed',
   );
 } finally {
   await browser.close();
+}
+
+function distributionUniverse(id, label, indexCode) {
+  return {
+    type: 'universe',
+    id,
+    label,
+    universe: {
+      version: 1,
+      source: { kind: 'index_members', indexCode },
+      asOf: { kind: 'latest_available' },
+      eligibility: {
+        minimumListedDays: 365,
+        suspension: 'exclude',
+        riskWarning: 'exclude',
+      },
+      predicates: [],
+      missing: 'exclude',
+      select: [{ measure: 'equity.pb', measureVersion: 1 }],
+    },
+    measure: { measure: 'equity.pb', measureVersion: 1 },
+  };
 }
