@@ -35,6 +35,23 @@ export const zhResearch = {
     percent_change: '百分比变化',
     year_over_year: '同比变化',
   },
+  universe: {
+    migrated: '从旧筛选迁移',
+    source: {
+      equity_market: '中国股票市场',
+      index_members: '指数历史成分',
+      explicit: '指定对象',
+    },
+    asOf: {
+      fixed: '固定历史时点',
+      latest_available: '最新可得时点',
+      periodic: '定期取样',
+    },
+    missingExclude: '缺失值排除',
+    noPredicates: '全部对象',
+    limit: '最多 {{count}} 个',
+    sort: '排序',
+  },
   result: {
     observations: '观测数',
     pearson: 'Pearson',

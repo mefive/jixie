@@ -263,6 +263,13 @@ Agent 可以共享查数和图表工具，但默认目标不同：Screen 返回�
 导出。正式切换以一次数据库迁移完成，并在同一发布中删除 `/screen` 页面和路由、Screen profile、Screen 专属
 API/类型、SavedScreen 与旧 ScreenConversation，不保留长期双写、兼容重定向或两套入口。
 
+应用层迁移由幂等的 `migrate:screen-to-research` 命令完成，并在 bootstrap 的 Prisma schema 升级前后各运行一次：
+升级前保证未来删除旧表时数据已经转出，升级后兼容没有旧记录的空数据库。若旧数据存在但目标 Agent 表尚未
+创建，脚本会阻断部署，要求先升级 Agent conversation foundation，避免跨版本直升时静默丢数据。脚本用旧记录 ID
+作为稳定的 Research 对话 ID，静态映射全部 Screen 字段，将 query card 转成受 schema 校验的 Universe part，
+并在单一事务内验证 owner、消息前缀、turn 归属和迁移结果。旧表不存在时命令必须成功 no-op；`--dry-run` 执行
+完整写入与验收后回滚。迁移阶段只为仍在线的旧 Screen 保留源记录，最终切换的 schema migration 负责删除它们。
+
 当前 `runScreen` 也不是把 `ScreenSpec` 拼成 SQL。它先通过 Prisma 分别读取最新交易日的全量 `DailyBasic`、
 `Daily` 和 `StockBasic`，在应用内合并成行，再由纯函数执行过滤、排序和截断。这个实现只适合小型最新截面筛选，
 不能作为 Universe 引擎继续演进。

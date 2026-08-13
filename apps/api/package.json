@@ -22,6 +22,7 @@
     "migrate:factor-report-history": "tsx --env-file=.env scripts/migrate-factor-report-history.ts",
     "migrate:factor-research": "tsx --env-file=.env scripts/migrate-factor-research-discipline.ts",
     "migrate:factor-identity": "tsx --env-file=.env scripts/migrate-factor-identity.ts",
+    "migrate:screen-to-research": "tsx --env-file=.env scripts/migrate-screen-to-research.ts",
     "factor:report": "tsx --env-file=.env scripts/factor-report.ts",
     "backtest": "tsx --env-file=.env scripts/backtest.ts",
     "code:backtest": "tsx --env-file=.env scripts/code-backtest.ts",

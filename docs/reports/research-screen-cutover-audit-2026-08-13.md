@@ -41,14 +41,29 @@
 映射必须由迁移程序静态定义并逐条校验，不允许模型参与。迁移后保存的是 `UniverseSpec V1`，运行时不能继续
 读取 `ScreenSpec`。
 
+## 数据迁移实现状态
+
+幂等命令 `pnpm --filter api migrate:screen-to-research` 已实现并接入 bootstrap，在 Prisma schema 升级前后各
+运行一次。它不调用 LLM，也不依赖旧 Prisma model：源表使用只读 raw SQL 检测和读取，旧表已经删除时成功
+no-op。
+
+- SavedScreen 使用旧 ID 创建 Research 对话，并保存类型化的 `UniverseSpec V1` part；
+- ScreenConversation 使用旧 ID 创建 Research 对话，query card 静态转换为 Universe part；
+- 已有 Agent turn 移到 Research 对话，消息按 role、顺序和内容校验后复制，旧 Screen 在线期间不破坏源记录；
+- 全部源数据先解析，随后在单一事务中迁移和复核，任一非法 spec、owner 冲突或消息分叉都会阻断部署；
+- `--dry-run` 运行相同迁移与验收逻辑，最后回滚事务。
+
+本地真实数据演练识别 2 个 ScreenConversation、4 个 SavedScreen、18 条旧消息和 3 个 turn。数据库副本第一次
+执行创建 6 个 Research 对话和 22 条消息，第二次执行创建与追加均为 0；开发库 dry-run 后仍保持原始数据不变。
+
 ## 切换前仍需完成
 
 1. 补齐最终 `UniverseSpec V1`：结果字段、单位、历史可投资状态、停牌/风险警示、成分有效期、PIT 可得时间、
    missing/revision 规则和冻结成员快照。
 2. 实现参数化 Universe 执行器，并让 ResearchPlan 以正式 input/protocol 使用它；Research Agent 仍不能获得
    SQL 或任意代码工具。
-3. 新建保存 Universe 的正式持久化对象，提供迁移 dry-run、行数/内容校验和回滚备份。
-4. 对两套旧会话存储做去重迁移演练，保证消息顺序、query card 的含义和 owner scope 不丢失。
+3. ✅ Universe part 已作为正式 Research 对话产物持久化，迁移提供完整 dry-run、事务回滚和结果校验。
+4. ✅ 两套旧会话存储已完成去重迁移演练，消息顺序、query card 语义、turn 和 owner scope 均有断言。
 5. 完成统一对象搜索与跨资产详情首批视图，使旧 `/stock/:code` 跳转有正式替代。
 6. 在一次发布中替换导航和路由，删除 Screen 页面、profile、工具、API、共享类型与旧表；随后用全仓搜索和
    部署影响测试确认没有运行时引用残留。

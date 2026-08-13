@@ -2,7 +2,7 @@ import { z } from 'zod';
 import type { ResearchRunResultV1 } from '@jixie/shared';
 import { screenSpecSchema } from '../screen/spec.js';
 import { chartSpecSchema } from './chart-spec.js';
-import { researchPlanSpecV1Schema } from '../research/spec.js';
+import { researchPlanSpecV1Schema, universeSpecV1Schema } from '../research/spec.js';
 
 const researchRunResultSchema = z.custom<ResearchRunResultV1>((value) => {
   if (!value || typeof value !== 'object') {
@@ -25,6 +25,12 @@ const researchPartSchema = z.strictObject({
   run: researchRunResultSchema,
 });
 
+const universePartSchema = z.strictObject({
+  type: z.literal('universe'),
+  title: z.string().max(120),
+  spec: universeSpecV1Schema,
+});
+
 /** Wire validation for parts-shaped agent conversations (shared by strategy / factor / screen routes).
  * The frontend normalizes legacy `{ role, content }` rows on read, so the API only accepts the new shape. */
 export const messagePartSchema = z.discriminatedUnion('type', [
@@ -32,6 +38,7 @@ export const messagePartSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('card'), title: z.string().max(120), spec: screenSpecSchema }),
   z.object({ type: z.literal('chart'), title: z.string().max(120), chart: chartSpecSchema }),
   researchPartSchema,
+  universePartSchema,
 ]);
 
 export const chatMessageSchema = z.object({

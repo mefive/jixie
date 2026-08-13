@@ -137,5 +137,15 @@ function messagePreview(parts: unknown): string {
       (part as { type?: unknown }).type === 'text' &&
       typeof (part as { text?: unknown }).text === 'string',
   );
-  return text?.text.slice(0, 80) ?? '';
+  if (text) {
+    return text.text.slice(0, 80);
+  }
+  const artifact = parts.find(
+    (part): part is { type: 'research' | 'universe'; title: string } =>
+      typeof part === 'object' &&
+      part !== null &&
+      ['research', 'universe'].includes((part as { type?: string }).type ?? '') &&
+      typeof (part as { title?: unknown }).title === 'string',
+  );
+  return artifact?.title.slice(0, 80) ?? '';
 }
