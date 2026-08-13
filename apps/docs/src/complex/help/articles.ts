@@ -9,6 +9,8 @@ import stocksEtfsIndicesEn from '@src/content/help/en/basics/stocks-etfs-indices
 import stocksEtfsIndicesZh from '@src/content/help/zh/basics/stocks-etfs-indices.md?raw';
 import strategyBacktestEn from '@src/content/help/en/basics/strategy-backtest.md?raw';
 import strategyBacktestZh from '@src/content/help/zh/basics/strategy-backtest.md?raw';
+import timeSeriesRelationshipsEn from '@src/content/help/en/basics/time-series-relationships.md?raw';
+import timeSeriesRelationshipsZh from '@src/content/help/zh/basics/time-series-relationships.md?raw';
 import equityDrawdownEn from '@src/content/help/en/backtesting/equity-drawdown.md?raw';
 import equityDrawdownZh from '@src/content/help/zh/backtesting/equity-drawdown.md?raw';
 import allocationAttributionEn from '@src/content/help/en/backtesting/allocation-attribution.md?raw';
@@ -330,6 +332,22 @@ export const HELP_ARTICLES: HelpArticle[] = [
     content: {
       zh: backtestLimitationsZh,
       en: backtestLimitationsEn,
+    },
+  },
+  {
+    slug: 'basics/time-series-relationships',
+    group: 'basics',
+    title: {
+      zh: '怎样阅读时间序列关系研究',
+      en: 'How to read a time-series relationship study',
+    },
+    summary: {
+      zh: '理解 Pearson、Spearman、回归、HAC、滚动窗口、时间对齐和结论边界。',
+      en: 'Understand Pearson, Spearman, regression, HAC, rolling windows, alignment, and limits.',
+    },
+    content: {
+      zh: timeSeriesRelationshipsZh,
+      en: timeSeriesRelationshipsEn,
     },
   },
   {

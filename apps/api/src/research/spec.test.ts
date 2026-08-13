@@ -1,0 +1,107 @@
+import { describe, expect, it } from 'vitest';
+import { parseResearchPlanSpec, validateResearchPlanSemantics } from './spec.js';
+
+function validPlan() {
+  return {
+    version: 1,
+    question: '沪深300和中证500的月收益是否相关？',
+    start: '20200101',
+    end: '20251231',
+    inputs: [
+      {
+        type: 'series',
+        id: 'csi300',
+        source: { kind: 'instrument', assetType: 'index', id: '000300.SH' },
+        measure: 'market.adjusted_close',
+        transform: 'simple_return',
+      },
+      {
+        type: 'series',
+        id: 'csi500',
+        source: { kind: 'instrument', assetType: 'index', id: '000905.SH' },
+        measure: 'market.adjusted_close',
+        transform: 'simple_return',
+      },
+    ],
+    alignment: { frequency: 'monthly', join: 'inner', partialPeriod: 'exclude' },
+    protocol: {
+      kind: 'time_series_relationship',
+      version: 1,
+      predictor: 'csi300',
+      outcome: 'csi500',
+      predictorLag: 0,
+      correlations: ['pearson', 'spearman'],
+      inference: { kind: 'newey_west', lag: 'automatic' },
+      rollingWindow: 24,
+    },
+    outputs: [
+      { kind: 'summary_table' },
+      { kind: 'scatter' },
+      { kind: 'rolling_relationship' },
+      { kind: 'formula' },
+      { kind: 'python_example' },
+      { kind: 'documentation' },
+    ],
+  };
+}
+
+describe('ResearchPlanSpec V1', () => {
+  it('accepts a registered, structured time-series relationship plan', () => {
+    expect(parseResearchPlanSpec(validPlan())).toMatchObject({
+      version: 1,
+      protocol: { kind: 'time_series_relationship' },
+    });
+  });
+
+  it('rejects arbitrary SQL and execution code fields', () => {
+    const plan = validPlan() as ReturnType<typeof validPlan> & {
+      sql?: string;
+      code?: string;
+    };
+    plan.sql = 'SELECT * FROM Daily';
+    plan.code = 'export default () => 1';
+    expect(() => parseResearchPlanSpec(plan)).toThrow();
+  });
+
+  it('rejects an unregistered measure instead of guessing a table or column', () => {
+    const plan = validPlan();
+    plan.inputs[0]!.measure = 'Daily.close';
+    expect(() => parseResearchPlanSpec(plan)).toThrow('unknown measure Daily.close');
+  });
+
+  it('rejects source and measure combinations with different semantics', () => {
+    const plan = validPlan();
+    plan.inputs[0]!.source = { kind: 'macro', seriesKey: 'cn_cpi_yoy' } as never;
+    expect(() => parseResearchPlanSpec(plan)).toThrow(
+      'market.adjusted_close does not support source macro',
+    );
+  });
+
+  it('rejects duplicate ids, outputs, and invalid protocol references', () => {
+    const plan = parseResearchPlanSpec(validPlan());
+    plan.inputs[1]!.id = plan.inputs[0]!.id;
+    plan.protocol.outcome = 'missing';
+    plan.outputs[1] = plan.outputs[0]!;
+    expect(validateResearchPlanSemantics(plan)).toEqual(
+      expect.arrayContaining([
+        'duplicate input id csi300',
+        'unknown outcome input missing',
+        'outputs must not contain duplicates',
+      ]),
+    );
+  });
+
+  it('keeps UniverseSpec out of a protocol that does not consume an entity set', () => {
+    const plan = validPlan() as ReturnType<typeof validPlan> & { universe?: unknown };
+    plan.universe = {
+      version: 1,
+      source: { kind: 'equity_market', market: 'CN' },
+      asOf: { kind: 'periodic', frequency: 'month_end' },
+      predicates: [],
+      missing: 'exclude',
+    };
+    expect(() => parseResearchPlanSpec(plan)).toThrow(
+      'time_series_relationship does not accept a universe input',
+    );
+  });
+});

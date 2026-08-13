@@ -21,7 +21,7 @@ import { prisma } from '../lib/prisma.js';
 export const agentRoute = new Hono();
 
 const conversationQuery = z.object({
-  surface: z.enum(['strategy', 'factor', 'screen']).optional(),
+  surface: z.enum(['strategy', 'factor', 'screen', 'research']).optional(),
   entityId: z.string().optional(),
 });
 
@@ -131,7 +131,7 @@ agentRoute.get('/turns/:turnId/stream', (c) => {
 });
 
 const runningQuery = z.object({
-  entity: z.string().regex(/^(strategy|factor|screen):[A-Za-z0-9]+$/),
+  entity: z.string().regex(/^(strategy|factor|screen|research):[A-Za-z0-9]+$/),
 });
 
 agentRoute.get('/turns/running', validateQuery(runningQuery), (c) => {

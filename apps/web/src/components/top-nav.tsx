@@ -1,8 +1,7 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import classNames from 'classnames';
 import { observer } from 'mobx-react';
 import { useTranslation } from 'react-i18next';
-import { Button, Dropdown, Segmented, type MenuProps } from 'antd';
+import { Button, Dropdown, Menu, Segmented, type MenuProps } from 'antd';
 import { faBars, faRightFromBracket } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import type { Locale } from '@jixie/shared';
@@ -15,8 +14,9 @@ import './top-nav.css';
 export const TopNav = observer(() => {
   const { t } = useTranslation();
   const location = useLocation();
-  const activeMobileKey = mobileNavKey(location.pathname);
-  const mobileMenuItems: MenuProps['items'] = [
+  const activeNavigationKey = navigationKey(location.pathname);
+  const selectedNavigationKeys = activeNavigationKey ? [activeNavigationKey] : [];
+  const navigationItems: MenuProps['items'] = [
     { key: 'market', label: <NavLink to="/market">{t('nav.market')}</NavLink> },
     {
       key: 'factorWeather',
@@ -43,7 +43,7 @@ export const TopNav = observer(() => {
       <div className="jx-topnav-left">
         <img className="jx-topnav-banner" src={banner} alt={t('appName')} />
         <Dropdown
-          menu={{ items: mobileMenuItems, selectedKeys: [activeMobileKey] }}
+          menu={{ items: navigationItems, selectedKeys: selectedNavigationKeys }}
           placement="bottomLeft"
           trigger={['click']}
         >
@@ -54,39 +54,18 @@ export const TopNav = observer(() => {
             aria-label={t('nav.menu')}
           >
             <span className="jx-topnav-mobileMenuText">
-              {t(`nav.${MOBILE_NAV_LABEL_KEYS[activeMobileKey]}`)}
+              {activeNavigationKey
+                ? t(`nav.${NAVIGATION_LABEL_KEYS[activeNavigationKey]}`)
+                : t('nav.menu')}
             </span>
           </Button>
         </Dropdown>
-        <nav className="jx-topnav-nav">
-          <NavLink to="/market" className={linkClass}>
-            {t('nav.market')}
-          </NavLink>
-          <NavLink to="/factor-weather" className={linkClass}>
-            {t('nav.factorWeather')}
-          </NavLink>
-          <NavLink to="/lab" end className={linkClass}>
-            {t('nav.backtest')}
-          </NavLink>
-          <NavLink to="/screen" className={linkClass}>
-            {t('nav.screen')}
-          </NavLink>
-          <NavLink to="/factors" className={linkClass}>
-            {t('nav.factor')}
-          </NavLink>
-          <NavLink to="/valuation" className={linkClass}>
-            {t('nav.valuation')}
-          </NavLink>
-          <NavLink to="/signals" className={linkClass}>
-            {t('nav.signals')}
-          </NavLink>
-          <NavLink to="/library" className={linkClass}>
-            {t('nav.library')}
-          </NavLink>
-          <a href="/docs/help" className="jx-topnav-link" target="_blank" rel="noopener noreferrer">
-            {t('nav.help')}
-          </a>
-        </nav>
+        <Menu
+          className="jx-topnav-nav"
+          mode="horizontal"
+          items={navigationItems}
+          selectedKeys={selectedNavigationKeys}
+        />
       </div>
       <div className="jx-topnav-user">
         <Segmented
@@ -113,11 +92,7 @@ export const TopNav = observer(() => {
 
 // —— helpers ——
 
-function linkClass({ isActive }: { isActive: boolean }): string {
-  return classNames('jx-topnav-link', { 'jx-topnav-link--active': isActive });
-}
-
-const MOBILE_NAV_LABEL_KEYS = {
+const NAVIGATION_LABEL_KEYS = {
   backtest: 'backtest',
   screen: 'screen',
   factor: 'factor',
@@ -126,11 +101,12 @@ const MOBILE_NAV_LABEL_KEYS = {
   valuation: 'valuation',
   signals: 'signals',
   library: 'library',
+  help: 'help',
 } as const;
 
-type MobileNavKey = keyof typeof MOBILE_NAV_LABEL_KEYS;
+type NavigationKey = keyof typeof NAVIGATION_LABEL_KEYS;
 
-function mobileNavKey(pathname: string): MobileNavKey {
+function navigationKey(pathname: string): NavigationKey | undefined {
   if (pathname.startsWith('/screen') || pathname.startsWith('/stock')) {
     return 'screen';
   }
@@ -152,6 +128,9 @@ function mobileNavKey(pathname: string): MobileNavKey {
   if (pathname.startsWith('/library')) {
     return 'library';
   }
+  if (pathname.startsWith('/lab')) {
+    return 'backtest';
+  }
 
-  return 'backtest';
+  return undefined;
 }

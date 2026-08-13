@@ -1,0 +1,233 @@
+@reference '../../styles/index.css';
+
+.jx-research {
+  @apply flex overflow-hidden bg-card;
+  height: 100%;
+}
+
+.jx-research-sidebar {
+  @apply flex flex-col border-r border-line bg-bg;
+  width: 280px;
+  flex: none;
+}
+
+.jx-research-sidebarHead {
+  @apply flex flex-col gap-3;
+  padding: 18px 14px 12px;
+}
+
+.jx-research-sidebarTitle {
+  @apply flex items-center gap-2 font-semibold text-ink;
+  margin: 0 4px;
+  font-size: 18px;
+}
+
+.jx-research-sidebarScroll {
+  @apply flex-1 overflow-auto;
+  padding: 12px 8px 16px;
+}
+
+.jx-research-sidebarLabel {
+  @apply font-medium text-muted;
+  margin: 0;
+  padding: 0 8px 6px;
+  font-size: 12px;
+}
+
+.jx-research-sidebarEmpty {
+  @apply text-muted;
+  margin: 0;
+  padding: 10px 8px;
+  font-size: 12px;
+}
+
+.jx-research-sidebarSkeleton {
+  @apply flex flex-col gap-2;
+  padding: 7px 8px;
+}
+
+.jx-research-historyItem {
+  @apply flex cursor-pointer items-center gap-2 rounded-lg text-ink hover:bg-chip;
+  min-height: 48px;
+  padding: 7px 8px;
+}
+
+.jx-research-historyItem--active {
+  @apply bg-chip;
+}
+
+.jx-research-historyText {
+  min-width: 0;
+  flex: 1;
+}
+
+.jx-research-historyTitle,
+.jx-research-historyPreview {
+  @apply truncate;
+}
+
+.jx-research-historyTitle {
+  font-size: 13px;
+}
+
+.jx-research-historyPreview {
+  @apply text-muted;
+  font-size: 11px;
+}
+
+.jx-research-historyDelete {
+  @apply pointer-events-none cursor-pointer border-0 bg-transparent text-muted opacity-0 hover:text-ink;
+  padding: 4px;
+  font-size: 11px;
+}
+
+.jx-research-historyItem:hover .jx-research-historyDelete,
+.jx-research-historyItem:focus-within .jx-research-historyDelete {
+  @apply pointer-events-auto opacity-100;
+}
+
+.jx-research-workspace {
+  @apply flex min-w-0 flex-1 flex-col overflow-hidden bg-card;
+  padding: 16px 20px 12px;
+}
+
+.jx-research-header {
+  @apply flex items-center;
+  min-height: 32px;
+}
+
+.jx-research-chatTitle {
+  @apply flex items-center gap-1 truncate font-medium text-ink;
+  font-size: 15px;
+}
+
+.jx-research-titleEdit {
+  @apply cursor-pointer border-0 bg-transparent text-muted hover:text-ink;
+  padding: 2px 4px;
+  font-size: 12px;
+}
+
+.jx-research-titleInput {
+  width: min(480px, 100%);
+}
+
+.jx-research-hero {
+  @apply flex flex-1 flex-col items-center justify-center gap-4 text-center;
+  padding: 24px;
+}
+
+.jx-research-heroIcon {
+  @apply flex items-center justify-center rounded-2xl bg-chip text-primary;
+  width: 52px;
+  height: 52px;
+  font-size: 22px;
+}
+
+.jx-research-hero h2 {
+  @apply m-0 font-semibold text-ink;
+  font-size: 28px;
+}
+
+.jx-research-hero p {
+  @apply m-0 text-muted;
+  max-width: 620px;
+  font-size: 14px;
+}
+
+.jx-research-hero small {
+  @apply text-muted;
+}
+
+.jx-research-examples {
+  @apply flex max-w-3xl flex-wrap items-center justify-center gap-2;
+}
+
+.jx-research-examples > span {
+  @apply text-sm text-muted;
+}
+
+.jx-research-chatLogWrap {
+  @apply relative mt-3 flex min-h-0 flex-1 flex-col;
+}
+
+.jx-research-chatLog {
+  @apply flex flex-1 flex-col overflow-auto;
+}
+
+.jx-research-chatThread {
+  @apply mx-auto flex w-full flex-col;
+  max-width: 920px;
+  gap: 22px;
+  padding: 24px 0 16px;
+}
+
+.jx-research-bubble {
+  font-size: 14px;
+  line-height: 1.7;
+  word-break: break-word;
+}
+
+.jx-research-bubble--user {
+  @apply self-end rounded-2xl bg-primary text-white;
+  max-width: 85%;
+  padding: 8px 14px;
+  white-space: pre-wrap;
+  -webkit-font-smoothing: antialiased;
+}
+
+.jx-research-bubble--assistant {
+  @apply w-full text-ink;
+}
+
+.jx-research-composer {
+  @apply mx-auto flex w-full items-end gap-2 rounded-2xl border border-line bg-card;
+  max-width: 920px;
+  margin-bottom: 8px;
+  padding: 8px 8px 8px 14px;
+  box-shadow: 0 6px 24px rgb(17 24 39 / 0.1);
+}
+
+.jx-research-composer--hero {
+  width: min(760px, 100%);
+  margin-bottom: 0;
+  text-align: left;
+  box-shadow: 0 4px 18px rgb(17 24 39 / 0.05);
+}
+
+.jx-research-inputWrap {
+  @apply relative flex-1;
+  min-width: 0;
+}
+
+.jx-research-input {
+  @apply w-full bg-card;
+  font-size: 16px;
+}
+
+.jx-research-inputHint {
+  @apply pointer-events-none absolute truncate text-muted;
+  inset: 0;
+  padding: 5px 11px;
+  font-size: 16px;
+  line-height: 1.5714;
+}
+
+.jx-research-scrollDown {
+  @apply absolute flex cursor-pointer items-center justify-center rounded-full border border-line bg-card text-ink hover:bg-chip;
+  bottom: 12px;
+  left: 50%;
+  width: 34px;
+  height: 34px;
+  transform: translateX(-50%);
+  box-shadow: 0 2px 10px rgb(17 24 39 / 0.12);
+}
+
+@media (max-width: 800px) {
+  .jx-research-sidebar {
+    width: 220px;
+  }
+
+  .jx-research-chatThread {
+    padding-inline: 12px;
+  }
+}

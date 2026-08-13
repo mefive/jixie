@@ -1,5 +1,6 @@
 import type { ChartSpec } from './chart.js';
 import type { ScreenSpec } from './screen.js';
+import type { ResearchRunResultV1 } from './research.js';
 
 /**
  * Agent conversation messages (docs/design/unified-agent.md design 3). A message is a list of typed
@@ -30,7 +31,14 @@ export interface ChartPart {
   chart: ChartSpec;
 }
 
-export type MessagePart = TextPart | CardPart | ChartPart;
+/** A deterministic ResearchPlan execution. The model writes the adjacent explanation, not this payload. */
+export interface ResearchPart {
+  type: 'research';
+  title: string;
+  run: ResearchRunResultV1;
+}
+
+export type MessagePart = TextPart | CardPart | ChartPart | ResearchPart;
 
 export interface ChatMessage {
   id?: string;
@@ -82,7 +90,13 @@ export function messageText(message: ChatMessage): string {
       if (part.type === 'text') {
         return part.text;
       }
-      return part.type === 'card' ? `(query card: ${part.title})` : `(chart: ${part.title})`;
+      if (part.type === 'card') {
+        return `(query card: ${part.title})`;
+      }
+      if (part.type === 'chart') {
+        return `(chart: ${part.title})`;
+      }
+      return `(research result: ${part.title}, protocol=${part.run.protocol.id}, observations=${part.run.result.observations})`;
     })
     .join('\n')
     .trim();

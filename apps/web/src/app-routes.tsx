@@ -21,6 +21,7 @@ import factorWeatherEntry from '@src/complex/factor-weather';
 import valuationEntry from '@src/complex/valuation';
 import signalsEntry from '@src/complex/signals';
 import libraryEntry from '@src/complex/library';
+import researchEntry from '@src/complex/research';
 import { TopNav } from '@src/components/top-nav';
 import { authStore } from '@src/store';
 import './app-layout.css';
@@ -165,6 +166,7 @@ const router = createBrowserRouter(
         />
         <Route path="/lab" element={<LabRoute />} />
         <Route path="/screen" element={<ComplexRoute key="screen" entry={screenEntry} />} />
+        <Route path="/research" element={<ComplexRoute key="research" entry={researchEntry} />} />
         <Route path="/factors" element={<FactorRoute />} />
         <Route
           path="/valuation"

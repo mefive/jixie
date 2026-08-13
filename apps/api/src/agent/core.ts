@@ -8,7 +8,7 @@ import {
 } from '@jixie/shared';
 import type { AgentLlm, ToolAwareMessage, ToolCall } from '../llm/agent-llm.js';
 import { t } from '../i18n/index.js';
-import type { AgentCard, AgentChart, AgentTool } from './tools/types.js';
+import type { AgentCard, AgentChart, AgentResearchRun, AgentTool } from './tools/types.js';
 
 /**
  * Unified agent core (design: docs/design/unified-agent.md). One turn loop shared by every agent
@@ -58,6 +58,7 @@ export interface AgentTurnResult {
   toolTrace: ToolTraceItem[]; // every tool call this turn — display/debug only, never persisted
   cards: AgentCard[]; // query cards side-produced by runScreen tool calls this turn
   charts: AgentChart[]; // chart cards side-produced by renderChart tool calls this turn
+  researchRuns: AgentResearchRun[]; // deterministic ResearchPlan results side-produced by tools
 }
 
 /** Hard cap on tool-executing rounds per turn; after that the model must answer with what it has. */
@@ -132,6 +133,9 @@ export function turnParts(result: AgentTurnResult): MessagePart[] {
     ...result.charts.map(
       (chart): MessagePart => ({ type: 'chart', title: chart.title, chart: chart.chart }),
     ),
+    ...result.researchRuns.map(
+      (research): MessagePart => ({ type: 'research', title: research.title, run: research.run }),
+    ),
   ];
 }
 
@@ -192,7 +196,13 @@ async function executeToolCall(
   tools: AgentTool[],
   call: ToolCall,
   signal?: AbortSignal,
-): Promise<{ observation: string; trace: ToolTraceItem; card?: AgentCard; chart?: AgentChart }> {
+): Promise<{
+  observation: string;
+  trace: ToolTraceItem;
+  card?: AgentCard;
+  chart?: AgentChart;
+  research?: AgentResearchRun;
+}> {
   const startedAt = Date.now();
   const argsSummary = (call.args || '{}').slice(0, 200);
   const fail = (observation: string) => ({
@@ -218,6 +228,7 @@ async function executeToolCall(
       observation: result.observation,
       card: result.card,
       chart: result.chart,
+      research: result.research,
       trace: {
         name: call.name,
         argsSummary,
@@ -271,6 +282,7 @@ export async function agentTurn(
   const toolTrace: ToolTraceItem[] = [];
   const cards: AgentCard[] = [];
   const charts: AgentChart[] = [];
+  const researchRuns: AgentResearchRun[] = [];
   let attempts = 0;
   let raw = '';
   let toolRounds = 0;
@@ -339,6 +351,9 @@ export async function agentTurn(
         if (executed.chart) {
           charts.push(executed.chart);
         }
+        if (executed.research) {
+          researchRuns.push(executed.research);
+        }
         messages.push({ role: 'tool', toolCallId: call.id, content: executed.observation });
       }
       if (toolRounds >= MAX_TOOL_ROUNDS) {
@@ -394,6 +409,7 @@ export async function agentTurn(
       toolTrace,
       cards,
       charts,
+      researchRuns,
     };
   }
 
@@ -401,7 +417,16 @@ export async function agentTurn(
   let code = extractFenced(raw);
   // No code block → a pure answer / question; leave the current code as-is.
   if (!code) {
-    return { reply, code: currentCode, changed: false, attempts, toolTrace, cards, charts };
+    return {
+      reply,
+      code: currentCode,
+      changed: false,
+      attempts,
+      toolTrace,
+      cards,
+      charts,
+      researchRuns,
+    };
   }
 
   // Repair phase: validate the proposed change, feeding compile errors back — tools stay disabled
@@ -425,7 +450,7 @@ export async function agentTurn(
     try {
       await artifact.validate(code);
       hooks?.onValidation?.(round, true, Date.now() - validationStartedAt);
-      return { reply, code, changed: true, attempts, toolTrace, cards, charts };
+      return { reply, code, changed: true, attempts, toolTrace, cards, charts, researchRuns };
     } catch (e) {
       lastError = e instanceof Error ? e.message : String(e);
       hooks?.onValidation?.(round, false, Date.now() - validationStartedAt, lastError);
@@ -450,5 +475,6 @@ export async function agentTurn(
     toolTrace,
     cards,
     charts,
+    researchRuns,
   };
 }
