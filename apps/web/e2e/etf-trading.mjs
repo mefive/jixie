@@ -27,9 +27,8 @@ try {
   await page.getByRole('button', { name: '主要ETF轮动' }).waitFor({ timeout: 10_000 });
   await page.screenshot({ path: `${SHOTS}etf-1-lab-entry.png` });
 
-  await page.goto(`${BASE}/screen`, { waitUntil: 'networkidle' });
-  await page.getByRole('heading', { name: '想找什么股票或ETF？' }).waitFor({ timeout: 10_000 });
-  await page.getByRole('button', { name: '比较沪深300ETF和黄金ETF近一年表现' }).waitFor();
+  await page.goto(`${BASE}/research`, { waitUntil: 'networkidle' });
+  await page.getByRole('heading', { name: '你想研究什么？' }).waitFor({ timeout: 10_000 });
   await page.screenshot({ path: `${SHOTS}etf-2-research-entry.png` });
 
   strategyId = await page.evaluate(async () => {

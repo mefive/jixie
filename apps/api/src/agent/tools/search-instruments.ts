@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { prisma } from '../../lib/prisma.js';
-import { resolveInstruments } from '../../screen/resolve.js';
+import { resolveInstruments } from '../../market/instrument-resolver.js';
 import type { AgentTool } from './types.js';
 
 const argsSchema = z.object({
@@ -14,8 +14,7 @@ const argsSchema = z.object({
 
 const MAX_MATCHES = 20;
 
-/** Deterministic DB-backed instrument lookup (the same resolver behind the screen page's direct
- * lookup) — the agent asks this instead of hallucinating ts_codes. */
+/** Deterministic DB-backed instrument lookup — the agent asks this instead of hallucinating codes. */
 export const searchInstruments: AgentTool = {
   name: 'searchInstruments',
   description:

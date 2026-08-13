@@ -15,11 +15,11 @@ try {
   if (!ONLY_LAB) {
     await captureLogin();
   }
-  await captureFirstTasks({ onlyLab: ONLY_LAB, resultStrategyId: RESULT_STRATEGY_ID });
+  await captureFirstTasks({ resultStrategyId: RESULT_STRATEGY_ID });
   log(
     RESULT_STRATEGY_ID
       ? 'saved backtest result screenshots completed'
-      : 'login, first screener, and first backtest screenshots completed',
+      : 'login and first backtest screenshots completed',
   );
 } finally {
   await browser.close();
@@ -89,7 +89,7 @@ async function captureLogin() {
   await context.close();
 }
 
-async function captureFirstTasks({ onlyLab, resultStrategyId }) {
+async function captureFirstTasks({ resultStrategyId }) {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const page = await context.newPage();
   page.on('pageerror', (error) => log('page error:', error.message));
@@ -122,28 +122,6 @@ async function captureFirstTasks({ onlyLab, resultStrategyId }) {
     }
 
     await cleanupUserData(page);
-
-    if (!onlyLab) {
-      await page.goto(`${BASE}/screen`, { waitUntil: 'networkidle' });
-      const screenComposer = page.locator('.jx-screen-chatHero textarea');
-      await screenComposer.fill('筛选市盈率TTM低于15、股息率大于3%的股票，按总市值从高到低排列');
-      await annotatedScreenshot(page, `${OUTPUT}first-screen-01-query.png`, [
-        { locator: screenComposer, number: 1 },
-        { locator: page.locator('.jx-screen-chatHeroKbd'), number: 2 },
-      ]);
-
-      await screenComposer.press('Enter');
-      const queryCard = page.locator('.jx-queryCard').first();
-      await queryCard.waitFor({ timeout: 180_000 });
-      await page.locator('.jx-queryCard-table .ant-table-row').first().waitFor({ timeout: 30_000 });
-      await queryCard.scrollIntoViewIfNeeded();
-      await page.waitForTimeout(500);
-      await annotatedScreenshot(page, `${OUTPUT}first-screen-02-result.png`, [
-        { locator: page.locator('.jx-queryCard-head').first(), number: 1 },
-        { locator: page.locator('.jx-queryCard-table').first(), number: 2 },
-        { locator: page.locator('.jx-queryCard-pin').first(), number: 3 },
-      ]);
-    }
 
     await page.goto(`${BASE}/lab?new=1`, { waitUntil: 'domcontentloaded' });
     const strategyPrompt = page.locator('.jx-lab-heroInput');
@@ -252,14 +230,6 @@ async function setDate(locator, value, page) {
 
 async function cleanupUserData(page) {
   await page.evaluate(async () => {
-    const screens = await (await fetch('/api/app/screens')).json();
-    for (const screen of screens) {
-      await fetch(`/api/app/screens/${screen.id}`, { method: 'DELETE' });
-    }
-    const conversations = await (await fetch('/api/app/screen/conversations')).json();
-    for (const conversation of conversations) {
-      await fetch(`/api/app/screen/conversations/${conversation.id}`, { method: 'DELETE' });
-    }
     const strategies = await (await fetch('/api/app/strategies')).json();
     for (const strategy of strategies) {
       await fetch(`/api/app/strategies/${strategy.id}`, { method: 'DELETE' });

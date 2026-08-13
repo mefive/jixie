@@ -5,7 +5,7 @@ export const enCommon: typeof zhCommon = {
   appName: 'Jixie',
   nav: {
     backtest: 'Backtest Lab',
-    screen: 'Screener',
+    research: 'Research',
     factor: 'Factors',
     market: 'Market',
     factorWeather: 'Factor Weather',

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { AgentStreamEvent } from '@jixie/shared';
 import * as turnBus from './turn-bus.js';
 
-const TRACE = { name: 'runScreen', argsSummary: '{}', ok: true, rows: 3, ms: 5 };
+const TRACE = { name: 'runUniverse', argsSummary: '{}', ok: true, rows: 3, ms: 5 };
 
 function collect(): { events: AgentStreamEvent[]; send: (ev: AgentStreamEvent) => void } {
   const events: AgentStreamEvent[] = [];
@@ -59,13 +59,13 @@ describe('turnBus', () => {
   });
 
   it('findRunning locates the live turn by entity and forgets it after finish', () => {
-    turnBus.start('t1', 'u1', 'screen:c1');
-    expect(turnBus.findRunning('screen:c1', 'u1')).toBe('t1');
-    expect(turnBus.findRunning('screen:c1', 'u2')).toBeNull(); // other user
-    expect(turnBus.findRunning('screen:other', 'u1')).toBeNull();
+    turnBus.start('t1', 'u1', 'research:c1');
+    expect(turnBus.findRunning('research:c1', 'u1')).toBe('t1');
+    expect(turnBus.findRunning('research:c1', 'u2')).toBeNull(); // other user
+    expect(turnBus.findRunning('research:other', 'u1')).toBeNull();
 
     turnBus.finish('t1', { type: 'cancelled' });
-    expect(turnBus.findRunning('screen:c1', 'u1')).toBeNull();
+    expect(turnBus.findRunning('research:c1', 'u1')).toBeNull();
   });
 
   it('cancel aborts the signal exactly once for the owner', () => {

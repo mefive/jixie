@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { researchProfile } from './research.js';
 
 describe('researchProfile', () => {
-  it('exposes only semantic discovery and deterministic plan execution', () => {
+  it('exposes only semantic discovery and deterministic research execution', () => {
     const profile = researchProfile();
     const names = (profile.tools ?? []).map((tool) => tool.name);
 
-    expect(names).toEqual(['searchResearchCatalog', 'executeResearchPlan']);
+    expect(names).toEqual(['searchResearchCatalog', 'runUniverse', 'executeResearchPlan']);
     expect(names).not.toContain('sqlQuery');
     expect(names).not.toContain('analyzeData');
     expect(names).not.toContain('renderChart');

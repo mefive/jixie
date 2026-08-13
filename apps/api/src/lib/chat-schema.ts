@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import type { ResearchRunResultV1 } from '@jixie/shared';
-import { screenSpecSchema } from '../screen/spec.js';
 import { chartSpecSchema } from './chart-spec.js';
 import { researchPlanSpecV1Schema, universeSpecV1Schema } from '../research/spec.js';
 
@@ -35,7 +34,6 @@ const universePartSchema = z.strictObject({
  * The frontend normalizes legacy `{ role, content }` rows on read, so the API only accepts the new shape. */
 export const messagePartSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('text'), text: z.string().max(8000) }),
-  z.object({ type: z.literal('card'), title: z.string().max(120), spec: screenSpecSchema }),
   z.object({ type: z.literal('chart'), title: z.string().max(120), chart: chartSpecSchema }),
   researchPartSchema,
   universePartSchema,

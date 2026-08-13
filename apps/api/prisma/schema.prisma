@@ -740,8 +740,6 @@ model User {
   signalRuns          SignalRun[]
   signalExecutions    SignalExecution[]
   accountSnapshots    StrategyAccountSnapshot[]
-  savedScreens        SavedScreen[]
-  screenConversations ScreenConversation[]
   agentConversations  AgentConversation[]
   factorComposites    FactorComposite[]
   factorWeatherPins   FactorWeatherPin[]
@@ -1145,38 +1143,17 @@ model FactorComposite {
   @@index([visibility, status, updatedAt])
 }
 
-/// An agent conversation on the screen page (a "session card" on the card wall). Strategy/factor
-/// conversations ride their host entity (Strategy.messages / Factor.messages); a screening
-/// conversation has no host, so it gets its own row. Query cards (SavedScreen) are deliberately NOT
-/// linked to conversations — deleting a conversation never touches saved cards.
-model ScreenConversation {
-  id        String   @id // ULID
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  title     String // defaults to the first user message, truncated; renamable
-  messages  Json // ChatMessage[] (parts shape)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  agentConversations AgentConversation[]
-
-  @@index([userId, updatedAt])
-}
-
-/// A durable Agent conversation shared by the strategy, factor, and screen surfaces. During the
-/// compatibility migration, legacy messages remain on their host rows and new turns dual-write here.
+/// A durable Agent conversation shared by strategy, factor, and research surfaces.
 model AgentConversation {
   id                   String              @id // ULID
   userId               String
   user                 User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  surface              String // 'strategy' | 'factor' | 'screen'
+  surface              String // 'strategy' | 'factor' | 'research'
   title                String?
   strategyId           String?
   strategy             Strategy?           @relation(fields: [strategyId], references: [id], onDelete: Cascade)
   factorId             String?
   factor               Factor?             @relation(fields: [factorId], references: [id], onDelete: Cascade)
-  screenConversationId String?
-  screenConversation   ScreenConversation? @relation(fields: [screenConversationId], references: [id], onDelete: Cascade)
   archivedAt           DateTime?
   createdAt            DateTime            @default(now())
   updatedAt            DateTime            @updatedAt
@@ -1188,7 +1165,6 @@ model AgentConversation {
   @@index([userId, surface, updatedAt])
   @@index([strategyId])
   @@index([factorId])
-  @@index([screenConversationId])
 }
 
 /// One durable user-visible message. Parts remain JSON because they form one atomic render payload.
@@ -1225,19 +1201,4 @@ model AgentTurn {
 
   @@index([conversationId, startedAt])
   @@index([status, startedAt])
-}
-
-/// A saved screen query (holds a ScreenSpec as JSON). Saved on demand — the user clicks "Save" to keep
-/// an exploratory query; also upsert by name.
-model SavedScreen {
-  id        String   @id // ULID
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name      String
-  spec      Json // ScreenSpec
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([userId, name])
-  @@index([userId, updatedAt])
 }

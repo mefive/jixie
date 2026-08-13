@@ -10,6 +10,8 @@ import { localeFromRequest, m } from '../i18n/index.js';
 import { researchCapabilityCatalog } from '../research/catalog.js';
 import { executeResearchPlan } from '../research/executor.js';
 import { researchPlanSpecV1Schema } from '../research/spec.js';
+import { universeSpecV1Schema } from '../research/spec.js';
+import { executeUniverseSpec } from '../research/universe.js';
 
 /** Natural-language research workbench actions. Persistence and Agent turns join this route in M1. */
 export const researchRoute = new Hono();
@@ -122,6 +124,18 @@ researchRoute.post('/run', validateJson(researchPlanSpecV1Schema), async (c) => 
       c,
       'VALIDATION_FAILED',
       error instanceof Error ? error.message : 'Research plan failed.',
+    );
+  }
+});
+
+researchRoute.post('/universe/run', validateJson(universeSpecV1Schema), async (c) => {
+  try {
+    return c.json(await executeUniverseSpec(c.req.valid('json')));
+  } catch (error) {
+    return apiError(
+      c,
+      'VALIDATION_FAILED',
+      error instanceof Error ? error.message : 'Universe execution failed.',
     );
   }
 });

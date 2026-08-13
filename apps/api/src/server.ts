@@ -4,8 +4,6 @@ import { logger } from 'hono/logger';
 import { authRoute } from './routes/auth.js';
 import { strategyRoute } from './routes/strategy.js';
 import { strategiesRoute } from './routes/strategies.js';
-import { screenRoute } from './routes/screen.js';
-import { screensRoute } from './routes/screens.js';
 import { marketRoute } from './routes/market.js';
 import { factorRoute } from './routes/factor.js';
 import { researchRoute } from './routes/research.js';
@@ -70,19 +68,17 @@ export function buildApp() {
   app.use('/api/app/*', requireAuth);
 
   // Mount-point naming rules (docs/design/api-route-naming.md):
-  //   plural   = persistable resource CRUD  (/strategies /screens /factors)
-  //   singular = workbench actions          (/strategy /screen /factor — incl. backtest/analysis jobs)
+  //   plural   = persistable resource CRUD  (/strategies /factors)
+  //   singular = workbench actions          (/strategy /factor /research — incl. analysis jobs)
   //   base     = truly cross-domain infra   (/agent turn bus, /market read-only helpers)
   app.route('/api/app/agent', agentRoute);
   app.route('/api/app/market', marketRoute);
   app.route('/api/app/strategies', strategiesRoute);
-  app.route('/api/app/screens', screensRoute);
   app.route('/api/app/factors', factorsRoute);
   app.route('/api/app/factor-weather', factorWeatherRoute);
   app.route('/api/app/signals', signalsRoute);
   app.route('/api/app/library', libraryRoute);
   app.route('/api/app/strategy', strategyRoute);
-  app.route('/api/app/screen', screenRoute);
   app.route('/api/app/factor', factorRoute);
   app.route('/api/app/research', researchRoute);
 

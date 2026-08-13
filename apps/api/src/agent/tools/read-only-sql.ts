@@ -99,7 +99,7 @@ const FORBIDDEN_KEYWORDS =
 
 /** App tables and SQLite internals — belt-and-suspenders on top of the FROM/JOIN whitelist. */
 const FORBIDDEN_NAMES =
-  /\b(user|session|invitecode|emailloginchallenge|strategy|factor|savedscreen|screenconversation|factorreport|job|sqlite_master|sqlite_temp_master|sqlite_sequence)\b/i;
+  /\b(user|session|invitecode|emailloginchallenge|strategy|factor|factorreport|job|sqlite_master|sqlite_temp_master|sqlite_sequence)\b/i;
 
 /** Hard cap on rows fetched from SQLite (the model additionally only sees OBSERVATION_ROW_CAP). */
 export const SQL_ROW_CAP = 200;
@@ -277,11 +277,11 @@ const argsSchema = z.object({
     ),
 });
 
-/** Free-form (but guarded) SQL over the market tables — the escape hatch when runScreen's whitelist
+/** Free-form (but guarded) SQL over market tables for non-Research profiles when registered specs
  * spec can't express the question (aggregation, time series, fundamentals, joins). */
 export const sqlQueryTool: AgentTool = {
   name: 'sqlQuery',
-  description: `Run read-only SQL (SQLite dialect) over the local market/financial database. Good for needs runScreen can't express: statistical aggregation (mean / quantile / count), grouping by industry, historical time series, financials and dividends, multi-table JOINs.
+  description: `Run read-only SQL (SQLite dialect) over the local market/financial database. Good for statistical aggregation (mean / quantile / count), grouping by industry, historical time series, financials and dividends, and multi-table JOINs outside registered Research protocols.
 Queryable tables and columns:
 ${Object.entries(SQL_TABLE_DOCS)
   .map(([table, doc]) => `- ${table}: ${doc}`)

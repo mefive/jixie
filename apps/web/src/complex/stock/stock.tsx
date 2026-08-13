@@ -19,19 +19,23 @@ export const Stock = complex.component(() => {
     <div className="jx-stock">
       <main className="jx-stock-body">
         <div className="jx-stock-head">
-          <span className="jx-stock-title">{series ? series.name : store.code}</span>
-          <span className="jx-stock-code">{series?.tsCode ?? store.code}</span>
-          <Segmented
-            className="jx-stock-toggle"
-            size="small"
-            value={adjust}
-            onChange={(v) => setAdjust(v as Adjust)}
-            options={[
-              { label: t('adjust.qfq'), value: 'qfq' },
-              { label: t('adjust.hfq'), value: 'hfq' },
-              { label: t('adjust.none'), value: 'none' },
-            ]}
-          />
+          <span className="jx-stock-title">{series ? series.name : store.id}</span>
+          <span className="jx-stock-code">
+            {store.assetType} · {series?.tsCode ?? store.id}
+          </span>
+          {(store.assetType === 'stock' || store.assetType === 'etf') && (
+            <Segmented
+              className="jx-stock-toggle"
+              size="small"
+              value={adjust}
+              onChange={(v) => setAdjust(v as Adjust)}
+              options={[
+                { label: t('adjust.qfq'), value: 'qfq' },
+                { label: t('adjust.hfq'), value: 'hfq' },
+                { label: t('adjust.none'), value: 'none' },
+              ]}
+            />
+          )}
           <Segmented
             className="jx-stock-toggle"
             size="small"

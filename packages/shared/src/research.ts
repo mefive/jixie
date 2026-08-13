@@ -26,8 +26,20 @@ export type ResearchAsOfSpecV1 =
 
 export interface ResearchMeasurePredicateV1 {
   measure: string;
+  measureVersion: 1;
   op: '>' | '>=' | '<' | '<=' | '==' | '!=';
   value: number | string;
+}
+
+export interface ResearchUniverseMeasureRefV1 {
+  measure: string;
+  measureVersion: 1;
+}
+
+export interface ResearchUniverseEligibilityV1 {
+  minimumListedDays: number;
+  suspension: 'exclude';
+  riskWarning: 'include' | 'exclude';
 }
 
 /** A point-in-time entity selector. Resolution freezes the resulting members on every ResearchRun. */
@@ -35,10 +47,49 @@ export interface UniverseSpecV1 {
   version: 1;
   source: ResearchEntitySetSourceV1;
   asOf: ResearchAsOfSpecV1;
+  eligibility: ResearchUniverseEligibilityV1;
   predicates: ResearchMeasurePredicateV1[];
   missing: 'exclude';
-  sort?: { measure: string; direction: 'asc' | 'desc' };
+  sort?: ResearchUniverseMeasureRefV1 & { direction: 'asc' | 'desc' };
+  select: ResearchUniverseMeasureRefV1[];
   limit?: number;
+}
+
+export interface ResearchUniverseMeasureDefinitionV1 {
+  id: string;
+  version: 1;
+  nameZh: string;
+  nameEn: string;
+  unit: string;
+  descriptionZh: string;
+  descriptionEn: string;
+  pointInTime: true;
+}
+
+export interface ResearchUniverseRowV1 {
+  entity: ResearchEntityRefV1;
+  name: string;
+  industry: string | null;
+  values: Record<string, number | null>;
+}
+
+export interface ResearchUniverseStageV1 {
+  code: 'source' | 'listed' | 'not_suspended' | 'risk_warning' | 'predicates';
+  count: number;
+}
+
+export interface ResearchUniverseRunResultV1 {
+  version: 1;
+  spec: UniverseSpecV1;
+  requestedAsOfDate: TradeDate | null;
+  asOfDate: TradeDate;
+  membershipAsOfDate: TradeDate | null;
+  dataRevision: number;
+  total: number;
+  rows: ResearchUniverseRowV1[];
+  measures: ResearchUniverseMeasureDefinitionV1[];
+  stages: ResearchUniverseStageV1[];
+  diagnostics: ResearchDiagnosticV1[];
 }
 
 export type ResearchSeriesSourceV1 =
@@ -131,6 +182,7 @@ export interface ResearchProtocolDefinitionV1 {
 export interface ResearchCapabilityCatalogV1 {
   version: 1;
   measures: ResearchMeasureDefinitionV1[];
+  universeMeasures: ResearchUniverseMeasureDefinitionV1[];
   protocols: ResearchProtocolDefinitionV1[];
 }
 

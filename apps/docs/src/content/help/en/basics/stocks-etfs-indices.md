@@ -34,5 +34,5 @@ Outperforming an index does not necessarily mean making a profit. Both the strat
 
 ## Related articles
 
-- [Run your first screen](/help/getting-started/first-screen)
+- [Complete your first natural-language study](/help/getting-started/first-research)
 - [Strategies and backtests](/help/basics/strategy-backtest)

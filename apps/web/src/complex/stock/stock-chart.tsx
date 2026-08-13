@@ -30,6 +30,11 @@ export default function StockChart({
   const p = series.points;
   const dates = p.map((d) => d.date);
   const isShortHistory = p.length <= 120;
+  const hasTrueOhlc = p.some(
+    (point) =>
+      point.open !== point.close || point.high !== point.close || point.low !== point.close,
+  );
+  const priceSeriesName = hasTrueOhlc ? t('chart.candlestick') : t('chart.price');
 
   // Adjustment factor per mode: none→1, hfq→adjFactor, qfq→adjFactor / latest-factor (anchor = most
   // recent day, so the newest bar matches the raw quote and history is scaled).
@@ -64,7 +69,7 @@ export default function StockChart({
     tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
     axisPointer: { link: [{ xAxisIndex: 'all' }] },
     legend: {
-      data: [t('chart.candlestick'), t('chart.pe')],
+      data: [priceSeriesName, t('chart.pe')],
       right: 8,
       top: 0,
       textStyle: { color: '#8a9099' },
@@ -140,16 +145,27 @@ export default function StockChart({
       },
     ],
     series: [
-      {
-        name: t('chart.candlestick'),
-        type: 'candlestick',
-        xAxisIndex: 0,
-        yAxisIndex: 0,
-        data: candle,
-        barMaxWidth: 18,
-        itemStyle: { color: UP, color0: DOWN, borderColor: UP, borderColor0: DOWN },
-        tooltip: { valueFormatter: formatPrice },
-      },
+      hasTrueOhlc
+        ? {
+            name: priceSeriesName,
+            type: 'candlestick',
+            xAxisIndex: 0,
+            yAxisIndex: 0,
+            data: candle,
+            barMaxWidth: 18,
+            itemStyle: { color: UP, color0: DOWN, borderColor: UP, borderColor0: DOWN },
+            tooltip: { valueFormatter: formatPrice },
+          }
+        : {
+            name: priceSeriesName,
+            type: 'line',
+            xAxisIndex: 0,
+            yAxisIndex: 0,
+            data: p.map((point) => point.close),
+            showSymbol: false,
+            lineStyle: { color: UP, width: 1.5 },
+            tooltip: { valueFormatter: formatPrice },
+          },
       {
         name: t('chart.pe'),
         type: 'line',

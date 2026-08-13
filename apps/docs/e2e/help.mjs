@@ -653,8 +653,8 @@ try {
 
   await page.getByText('EN', { exact: true }).last().click();
   await page.getByRole('heading', { level: 1, name: 'Page navigation' }).waitFor();
-  await page.getByRole('link', { name: 'Open Screener' }).click();
-  await page.waitForURL('**/screen');
+  await page.getByRole('link', { name: 'Open Research' }).click();
+  await page.waitForURL('**/research');
 
   await page.goto(`${BASE}/docs/help/getting-started/first-backtest`, {
     waitUntil: 'domcontentloaded',

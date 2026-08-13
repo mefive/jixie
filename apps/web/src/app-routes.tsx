@@ -13,7 +13,6 @@ import {
 import { observer } from 'mobx-react';
 import loginEntry from '@src/complex/login';
 import labEntry from '@src/complex/lab';
-import screenEntry from '@src/complex/screen';
 import stockEntry from '@src/complex/stock';
 import factorEntry from '@src/complex/factor';
 import marketEntry from '@src/complex/market';
@@ -35,12 +34,11 @@ export function AppRoutes() {
 
 // —— Subcomponents / helpers ——
 
-// Stock detail route: read :code, pass it as setupParams (memoized), key by code so a different
-// stock remounts the complex.
-function StockRoute() {
-  const { code = '' } = useParams();
-  const setupParams = useMemo(() => ({ code }), [code]);
-  return <ComplexRoute key={code} entry={stockEntry} setupParams={setupParams} />;
+// Unified object-detail route: identity contains both a registered asset type and stable object id.
+function ObjectRoute() {
+  const { assetType = '', id = '' } = useParams();
+  const setupParams = useMemo(() => ({ assetType, id }), [assetType, id]);
+  return <ComplexRoute key={`${assetType}:${id}`} entry={stockEntry} setupParams={setupParams} />;
 }
 
 // Factor research: `/factors?factor=&report=` restores one immutable report and its parameters. Capture
@@ -165,14 +163,13 @@ const router = createBrowserRouter(
           element={<ComplexRoute key="factor-weather" entry={factorWeatherEntry} />}
         />
         <Route path="/lab" element={<LabRoute />} />
-        <Route path="/screen" element={<ComplexRoute key="screen" entry={screenEntry} />} />
         <Route path="/research" element={<ComplexRoute key="research" entry={researchEntry} />} />
         <Route path="/factors" element={<FactorRoute />} />
         <Route
           path="/valuation"
           element={<ComplexRoute key="valuation" entry={valuationEntry} />}
         />
-        <Route path="/stock/:code" element={<StockRoute />} />
+        <Route path="/objects/:assetType/:id" element={<ObjectRoute />} />
         <Route path="/trades" element={<TradePage />} />
         <Route path="/signals" element={<ComplexRoute key="signals" entry={signalsEntry} />} />
         <Route path="/library" element={<ComplexRoute key="library" entry={libraryEntry} />} />

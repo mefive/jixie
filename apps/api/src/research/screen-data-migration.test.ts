@@ -60,6 +60,7 @@ describe('screen data migration', () => {
     ]);
     expect(universe.sort).toEqual({
       measure: 'equity.total_market_cap_cny_10k',
+      measureVersion: 1,
       direction: 'desc',
     });
   });
@@ -90,7 +91,13 @@ describe('screen data migration', () => {
       where: { id: 'screen-conversation' },
       include: { messages: { orderBy: { sequence: 'asc' } } },
     });
-    expect(migratedConversation.screenConversationId).toBeNull();
+    const targetRelation = await database.$queryRawUnsafe<
+      Array<{ screenConversationId: string | null }>
+    >(
+      'SELECT "screenConversationId" FROM "AgentConversation" WHERE "id" = ?',
+      'screen-conversation',
+    );
+    expect(targetRelation[0]?.screenConversationId).toBeNull();
     expect(migratedConversation.messages).toHaveLength(2);
     const conversationParts = migratedConversation.messages[1]?.parts as unknown as Array<
       Record<string, unknown>
@@ -129,17 +136,40 @@ describe('screen data migration', () => {
     });
     expect(await database.agentConversation.count({ where: { surface: 'research' } })).toBe(2);
     expect(await database.agentMessage.count()).toBe(5);
+
+    const finalized = await migrateScreenDataToResearch(database, { finalize: true });
+    expect(finalized).toMatchObject({
+      finalize: true,
+      removedLegacyConversations: 1,
+      movedTurns: 0,
+      appendedMessages: 0,
+    });
+    expect(
+      await database.agentConversation.findUnique({ where: { id: 'legacy-agent' } }),
+    ).toBeNull();
+    expect(await database.agentTurn.findUnique({ where: { id: 'turn-1' } })).toMatchObject({
+      conversationId: 'screen-conversation',
+    });
+    expect(await database.agentMessage.count()).toBe(3);
+
+    await expect(migrateScreenDataToResearch(database, { finalize: true })).resolves.toMatchObject({
+      removedLegacyConversations: 0,
+    });
   });
 
   it('runs the complete migration and verification in dry-run mode, then rolls back', async () => {
     await seedLegacyData(database);
 
-    await expect(migrateScreenDataToResearch(database, { dryRun: true })).resolves.toMatchObject({
+    await expect(
+      migrateScreenDataToResearch(database, { dryRun: true, finalize: true }),
+    ).resolves.toMatchObject({
       dryRun: true,
+      finalize: true,
       screenConversations: 1,
       savedScreens: 1,
       createdConversations: 2,
       movedTurns: 1,
+      removedLegacyConversations: 1,
     });
     expect(await database.agentConversation.count({ where: { surface: 'research' } })).toBe(0);
     expect(
@@ -150,14 +180,13 @@ describe('screen data migration', () => {
 
   it('validates every source before writing and blocks malformed specs', async () => {
     await database.user.create({ data: { id: 'user-1', email: 'user@example.com' } });
-    await database.savedScreen.create({
-      data: {
-        id: 'bad-screen',
-        userId: 'user-1',
-        name: 'Broken',
-        spec: { filters: [{ field: 'unknown', op: '>', value: 1 }] },
-      },
-    });
+    await database.$executeRawUnsafe(
+      'INSERT INTO "SavedScreen" ("id", "userId", "name", "spec", "createdAt", "updatedAt") VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)',
+      'bad-screen',
+      'user-1',
+      'Broken',
+      JSON.stringify({ filters: [{ field: 'unknown', op: '>', value: 1 }] }),
+    );
 
     await expect(migrateScreenDataToResearch(database)).rejects.toThrow(
       'SavedScreen bad-screen cannot migrate',
@@ -207,35 +236,32 @@ async function seedLegacyData(database: PrismaClient): Promise<void> {
     },
   ];
   await database.user.create({ data: { id: 'user-1', email: 'user@example.com' } });
-  await database.screenConversation.create({
-    data: {
-      id: 'screen-conversation',
-      userId: 'user-1',
-      title: 'Inexpensive stocks',
-      messages,
-    },
-  });
-  await database.savedScreen.create({
-    data: {
-      id: 'saved-screen',
-      userId: 'user-1',
-      name: 'High dividend',
-      spec: {
-        filters: [{ field: 'dvRatio', op: '>=', value: 3 }],
-        sort: { field: 'dvRatio', dir: 'desc' },
-        limit: 10,
-      },
-    },
-  });
-  await database.agentConversation.create({
-    data: {
-      id: 'legacy-agent',
-      userId: 'user-1',
-      surface: 'screen',
-      title: 'Inexpensive stocks',
-      screenConversationId: 'screen-conversation',
-    },
-  });
+  await database.$executeRawUnsafe(
+    'INSERT INTO "ScreenConversation" ("id", "userId", "title", "messages", "createdAt", "updatedAt") VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)',
+    'screen-conversation',
+    'user-1',
+    'Inexpensive stocks',
+    JSON.stringify(messages),
+  );
+  await database.$executeRawUnsafe(
+    'INSERT INTO "SavedScreen" ("id", "userId", "name", "spec", "createdAt", "updatedAt") VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)',
+    'saved-screen',
+    'user-1',
+    'High dividend',
+    JSON.stringify({
+      filters: [{ field: 'dvRatio', op: '>=', value: 3 }],
+      sort: { field: 'dvRatio', dir: 'desc' },
+      limit: 10,
+    }),
+  );
+  await database.$executeRawUnsafe(
+    'INSERT INTO "AgentConversation" ("id", "userId", "surface", "title", "screenConversationId", "createdAt", "updatedAt") VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)',
+    'legacy-agent',
+    'user-1',
+    'screen',
+    'Inexpensive stocks',
+    'screen-conversation',
+  );
   await database.agentTurn.create({
     data: {
       id: 'turn-1',

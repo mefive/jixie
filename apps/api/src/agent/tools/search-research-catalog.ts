@@ -13,7 +13,7 @@ const RESULT_CAP = 40;
 export const searchResearchCatalogTool: AgentTool = {
   name: 'searchResearchCatalog',
   description:
-    'Search the local research catalog for stocks, ETFs, indexes, futures, FX, macro series, yield curves, registered measures, and protocols. Call this before constructing a ResearchPlan with an object or series named by the user. Every response includes the complete compact capabilities catalog. Copy exact measure ids and protocol ids from capabilities; never guess, abbreviate, translate, or substitute them.',
+    'Search the local research catalog for stocks, ETFs, indexes, futures, FX, macro series, yield curves, registered time-series measures, point-in-time Universe measures, and protocols. Call this before constructing a ResearchPlan or UniverseSpec. Every response includes the complete compact capabilities catalog. Copy exact ids, versions, and units from capabilities; never guess, abbreviate, translate, or substitute them.',
   parameters: z.toJSONSchema(argsSchema),
   async run(args) {
     const parsed = argsSchema.safeParse(args);
@@ -100,6 +100,13 @@ export const searchResearchCatalogTool: AgentTool = {
           ),
         )
         .map((item) => ({ kind: 'measure', ...item })),
+      ...researchCapabilityCatalog.universeMeasures
+        .filter((item) =>
+          [item.id, item.nameZh, item.nameEn].some((value) =>
+            value.toLocaleLowerCase().includes(normalized),
+          ),
+        )
+        .map((item) => ({ kind: 'universe_measure', ...item })),
       ...researchCapabilityCatalog.protocols
         .filter((item) =>
           [item.id, item.nameZh, item.nameEn].some((value) =>
@@ -137,6 +144,13 @@ export const searchResearchCatalogTool: AgentTool = {
         sourceKinds: measure.sourceKinds,
         assetTypes: measure.assetTypes,
         transforms: measure.transforms,
+      })),
+      universeMeasures: researchCapabilityCatalog.universeMeasures.map((measure) => ({
+        id: measure.id,
+        version: measure.version,
+        nameZh: measure.nameZh,
+        nameEn: measure.nameEn,
+        unit: measure.unit,
       })),
       protocols: researchCapabilityCatalog.protocols.map((protocol) => ({
         id: protocol.id,

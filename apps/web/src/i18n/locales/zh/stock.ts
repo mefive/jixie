@@ -13,6 +13,7 @@ export const zhStock = {
   loadingLabel: '加载行情…',
   chart: {
     candlestick: 'K线',
+    price: '价格',
     pe: 'PE',
     volume: '量',
     priceAxis: '价',

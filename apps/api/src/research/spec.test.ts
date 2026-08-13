@@ -97,8 +97,14 @@ describe('ResearchPlanSpec V1', () => {
       version: 1,
       source: { kind: 'equity_market', market: 'CN' },
       asOf: { kind: 'periodic', frequency: 'month_end' },
+      eligibility: {
+        minimumListedDays: 0,
+        suspension: 'exclude',
+        riskWarning: 'include',
+      },
       predicates: [],
       missing: 'exclude',
+      select: [{ measure: 'equity.close', measureVersion: 1 }],
     };
     expect(() => parseResearchPlanSpec(plan)).toThrow(
       'time_series_relationship does not accept a universe input',

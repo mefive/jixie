@@ -80,7 +80,7 @@ describe('agentTurn(strategyProfile)', () => {
     expect(offeredTools.map((tool) => tool.name)).toEqual([
       'searchInstruments',
       'dataCoverage',
-      'runScreen',
+      'runUniverse',
       'sqlQuery',
       'renderChart',
       'renderComputedChart',
@@ -398,19 +398,31 @@ describe('agentTurn tool loop', () => {
     expect(llm.mock.calls[1][1]).toEqual([]); // repair call offered no tools
   });
 
-  it('collects query cards side-produced by tools', async () => {
-    const spec = { filters: [] };
-    const tool = fakeTool('runScreen', async () => ({
+  it('collects universe artifacts side-produced by tools', async () => {
+    const spec = {
+      version: 1 as const,
+      source: { kind: 'equity_market' as const, market: 'CN' as const },
+      asOf: { kind: 'latest_available' as const },
+      eligibility: {
+        minimumListedDays: 0,
+        suspension: 'exclude' as const,
+        riskWarning: 'include' as const,
+      },
+      predicates: [],
+      missing: 'exclude' as const,
+      select: [{ measure: 'equity.close', measureVersion: 1 as const }],
+    };
+    const tool = fakeTool('runUniverse', async () => ({
       observation: '{"total":1}',
       rows: 1,
-      card: { title: '全市场快照', spec },
+      universe: { title: '全市场快照', spec },
     }));
     const llm = scriptedLlm([
-      { toolCalls: [{ id: 'c1', name: 'runScreen', args: '{"filters":[]}' }] },
+      { toolCalls: [{ id: 'c1', name: 'runUniverse', args: '{}' }] },
       { text: '筛好了,见卡片。' },
     ]);
     const result = await agentTurn(toolProfile([tool], false), [], '筛一下', '', llm);
-    expect(result.cards).toEqual([{ title: '全市场快照', spec }]);
+    expect(result.universes).toEqual([{ title: '全市场快照', spec }]);
   });
 
   it('fires streaming hooks: deltas forwarded, tool start/done, repair announced (no repair deltas)', async () => {

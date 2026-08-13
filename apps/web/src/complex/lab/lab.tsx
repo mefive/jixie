@@ -46,7 +46,6 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { LoaderButton } from '@src/components/loader-button';
 import { LogView } from '@src/components/log-view';
 import { MessageParts } from '@src/components/message-parts';
-import type { QueryCardResults } from '@src/components/query-card-model';
 import { ToolTrace } from '@src/components/tool-trace';
 import { AgentPending } from '@src/components/agent-pending';
 import { AgentTrace } from '@src/components/agent-trace';
@@ -478,7 +477,6 @@ const AgentChat = complex.component(() => {
         messages={store.chatMessages}
         sending={store.sending}
         quiet={store.initializing}
-        cards={store.cardResults}
         stream={store.turnStream}
       />
       <div className="jx-lab-chatInput">
@@ -664,13 +662,11 @@ function ChatLog({
   messages,
   sending,
   quiet,
-  cards,
   stream,
 }: {
   messages: ChatMessage[];
   sending: boolean;
   quiet?: boolean;
-  cards: QueryCardResults;
   stream: AgentTurnStream;
 }) {
   const { t } = useTranslation('lab');
@@ -693,7 +689,7 @@ function ChatLog({
           ) : (
             traceOf(message) && <ToolTrace trace={traceOf(message)!} />
           )}
-          <MessageParts message={message} cards={cards} />
+          <MessageParts message={message} />
         </div>
       ))}
       {sending && (

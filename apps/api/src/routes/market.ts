@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { apiError, validateQuery } from '../lib/httpError.js';
 import { prisma } from '../lib/prisma.js';
-import { stockSeries } from '../screen/query.js';
+import { instrumentSeries } from '../market/instrument-series.js';
 import { m } from '../i18n/index.js';
 import { buildIndexValuationSeries } from '../market/index-valuation.js';
 import {
@@ -40,7 +40,7 @@ import type {
 /**
  * Market read-only helpers (cross-domain infrastructure, mounted at /api/app/market):
  *   GET /names?codes=                 tsCode → name (bulk) — e.g. the traded-instruments queue
- *   GET /stocks/:code/series          a stock/ETF OHLC/vol/pe series (legacy path kept for the UI)
+ *   GET /objects/:assetType/:id/series a verified stock/ETF/index/future daily series
  *   GET /indices/:code/series         index daily close — the benchmark return curve in trade details
  *   GET /indices/valuation/catalog    broad-index valuation coverage
  *   GET /indices/:code/valuation      index close + valuation history and current percentiles
@@ -119,13 +119,17 @@ let industryWeatherRawCache:
     }
   | undefined;
 
-marketRoute.get('/stocks/:code/series', validateQuery(seriesQuery), async (c) => {
-  const code = c.req.param('code');
+marketRoute.get('/objects/:assetType/:id/series', validateQuery(seriesQuery), async (c) => {
+  const assetType = z.enum(['stock', 'etf', 'index', 'future']).safeParse(c.req.param('assetType'));
+  if (!assetType.success) {
+    return apiError(c, 'VALIDATION_FAILED', 'Unsupported object type.');
+  }
+  const id = c.req.param('id');
   const { start, end } = c.req.valid('query');
   if (start && end && start >= end) {
     return apiError(c, 'VALIDATION_FAILED', m(c, 'startAfterEnd'));
   }
-  const series = await stockSeries(code, start, end);
+  const series = await instrumentSeries(assetType.data, id, start, end);
   if (series.points.length === 0) {
     return apiError(c, 'NOT_FOUND', m(c, 'noDataInRange'));
   }
