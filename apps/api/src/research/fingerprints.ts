@@ -61,9 +61,8 @@ export function researchRunFingerprints(
 }
 
 export function researchPayloadHash(value: unknown): string {
-  return createHash('sha256')
-    .update(JSON.stringify(canonicalize(value)))
-    .digest('hex');
+  const serialized = JSON.stringify(canonicalize(value)) ?? 'undefined';
+  return createHash('sha256').update(serialized).digest('hex');
 }
 
 function canonicalize(value: unknown): unknown {

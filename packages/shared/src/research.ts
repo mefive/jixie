@@ -695,9 +695,17 @@ export interface ResearchRunComparisonV1 {
   baseRunId: string;
   candidateRunId: string;
   changes: ResearchRunChangeKindV1[];
+  planChanges: ResearchPlanChangeV1[];
+  planChangesTruncated: boolean;
   resultChanged: boolean;
   conclusionChanged: boolean;
   attribution: 'unchanged' | ResearchRunChangeKindV1 | 'multiple' | 'unavailable';
+}
+
+export interface ResearchPlanChangeV1 {
+  path: string;
+  before: string;
+  after: string;
 }
 
 export interface ResearchConversationMeta {

@@ -86,7 +86,7 @@ export const enResearch: typeof zhResearch = {
     runComparison: {
       attribution: {
         unchanged: 'Matches the previous run',
-        parameters: 'This run changed parameters',
+        parameters: 'This run changed the research specification or parameters',
         protocol: 'This run upgraded the protocol version',
         implementation: 'This run used a different research implementation',
         data: 'This run used changed input data or a new data revision',
@@ -95,7 +95,7 @@ export const enResearch: typeof zhResearch = {
         unavailable: 'The older run lacks complete fingerprints, so attribution is unavailable',
       },
       change: {
-        parameters: 'Parameters changed',
+        parameters: 'Research specification or parameters changed',
         protocol: 'Protocol version changed',
         implementation: 'Research implementation changed',
         data: 'Input data changed',
@@ -104,6 +104,9 @@ export const enResearch: typeof zhResearch = {
       resultChanged: 'Statistical result changed',
       resultUnchanged: 'Statistical result did not change',
       conclusionChanged: 'Structured conclusion changed',
+      conclusionUnchanged: 'Structured conclusion did not change',
+      planChange: '{{path}}: {{before}} → {{after}}',
+      planChangesTruncated: 'Additional specification differences omitted',
     },
     fingerprints: {
       title: 'Run fingerprints',

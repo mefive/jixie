@@ -6,6 +6,7 @@ import prismaPackage from '@prisma/client';
 import type { MessagePart, ResearchRunResultV1 } from '@jixie/shared';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
+  compareResearchPlans,
   compareResearchRunRows,
   createResearchRerun,
   listResearchStudyRuns,
@@ -97,8 +98,16 @@ describe('research records', () => {
     const base = await database.researchRun.findFirstOrThrow();
     const candidate = { ...base, id: 'candidate', parentRunId: base.id };
 
-    expect(compareResearchRunRows(base, { ...candidate, planHash: 'changed-plan' })).toMatchObject({
+    expect(
+      compareResearchRunRows(base, {
+        ...candidate,
+        plan: { ...(base.plan as object), protocol: { predictorLag: 1 } },
+        planHash: 'changed-plan',
+      }),
+    ).toMatchObject({
       changes: ['parameters'],
+      planChanges: [{ path: 'protocol.predictorLag', before: '0', after: '1' }],
+      planChangesTruncated: false,
       resultChanged: false,
       attribution: 'parameters',
     });
@@ -109,6 +118,15 @@ describe('research records', () => {
         resultHash: 'changed-result',
       }),
     ).toMatchObject({ changes: ['data'], resultChanged: true, attribution: 'data' });
+    expect(
+      compareResearchRunRows(base, {
+        ...candidate,
+        protocolVersion: 2,
+        plan: { ...(base.plan as object), protocol: { predictorLag: 0, version: 2 } },
+        planHash: 'changed-plan',
+        resultHash: 'changed-result',
+      }),
+    ).toMatchObject({ changes: ['protocol'], resultChanged: true, attribution: 'protocol' });
     expect(
       compareResearchRunRows(base, {
         ...candidate,
@@ -127,6 +145,25 @@ describe('research records', () => {
         { ...candidate, resultHash: 'changed-result' },
       ),
     ).toMatchObject({ changes: [], resultChanged: true, attribution: 'unavailable' });
+  });
+
+  it('summarizes stable-id plan arrays and caps very large alternative specifications', () => {
+    expect(
+      compareResearchPlans(
+        { inputs: [{ id: 'series-a', transform: 'level' }], protocol: { version: 1 } },
+        { inputs: [{ id: 'series-a', transform: 'simple_return' }], protocol: { version: 2 } },
+      ),
+    ).toEqual({
+      changes: [
+        { path: 'inputs[series-a].transform', before: '"level"', after: '"simple_return"' },
+        { path: 'protocol.version', before: '1', after: '2' },
+      ],
+      truncated: false,
+    });
+    expect(compareResearchPlans({ a: 1, b: 2 }, { a: 2, b: 3 }, 1)).toEqual({
+      changes: [{ path: 'a', before: '1', after: '2' }],
+      truncated: true,
+    });
   });
 });
 

@@ -113,12 +113,24 @@ export function ResearchRunComparisonNotice({
   }
   const details = [
     ...comparison.changes.map((change) => t(`result.runComparison.change.${change}`)),
+    ...(comparison.planChanges ?? []).map((change) =>
+      t('result.runComparison.planChange', {
+        path: change.path,
+        before: change.before,
+        after: change.after,
+      }),
+    ),
+    ...(comparison.planChangesTruncated ? [t('result.runComparison.planChangesTruncated')] : []),
     t(
       comparison.resultChanged
         ? 'result.runComparison.resultChanged'
         : 'result.runComparison.resultUnchanged',
     ),
-    ...(comparison.conclusionChanged ? [t('result.runComparison.conclusionChanged')] : []),
+    t(
+      comparison.conclusionChanged
+        ? 'result.runComparison.conclusionChanged'
+        : 'result.runComparison.conclusionUnchanged',
+    ),
   ];
   return (
     <Alert
