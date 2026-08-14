@@ -7,6 +7,8 @@ import distributionComparisonEn from '@src/content/help/en/basics/distribution-c
 import distributionComparisonZh from '@src/content/help/zh/basics/distribution-comparison.md?raw';
 import eventStudyEn from '@src/content/help/en/basics/event-study.md?raw';
 import eventStudyZh from '@src/content/help/zh/basics/event-study.md?raw';
+import multivariateTimeSeriesRelationshipsEn from '@src/content/help/en/basics/multivariate-time-series-relationships.md?raw';
+import multivariateTimeSeriesRelationshipsZh from '@src/content/help/zh/basics/multivariate-time-series-relationships.md?raw';
 import performanceRiskEn from '@src/content/help/en/basics/performance-risk.md?raw';
 import performanceRiskZh from '@src/content/help/zh/basics/performance-risk.md?raw';
 import stocksEtfsIndicesEn from '@src/content/help/en/basics/stocks-etfs-indices.md?raw';
@@ -362,6 +364,22 @@ export const HELP_ARTICLES: HelpArticle[] = [
     content: {
       zh: distributionComparisonZh,
       en: distributionComparisonEn,
+    },
+  },
+  {
+    slug: 'basics/multivariate-time-series-relationships',
+    group: 'basics',
+    title: {
+      zh: '怎样阅读多变量时间序列研究',
+      en: 'How to read a multivariate time-series study',
+    },
+    summary: {
+      zh: '理解核心变量、控制变量、偏回归系数、偏 R²、VIF、HAC 和滚动稳定性。',
+      en: 'Understand focal and control predictors, partial coefficients, partial R², VIF, HAC, and rolling stability.',
+    },
+    content: {
+      zh: multivariateTimeSeriesRelationshipsZh,
+      en: multivariateTimeSeriesRelationshipsEn,
     },
   },
   {

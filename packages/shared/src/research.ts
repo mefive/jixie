@@ -4,6 +4,7 @@ export type ResearchAssetTypeV1 = 'stock' | 'etf' | 'index' | 'future';
 export type ResearchFrequencyV1 = 'daily' | 'monthly';
 export type ResearchQuestionKindV1 =
   | 'time_series_relationship'
+  | 'multivariate_time_series_relationship'
   | 'distribution_comparison'
   | 'event_study';
 export type ResearchTransformV1 =
@@ -145,6 +146,18 @@ export interface TimeSeriesRelationshipQuestionSpecV1 {
   };
 }
 
+export interface MultivariateTimeSeriesQuestionSpecV1 {
+  version: 1;
+  kind: 'multivariate_time_series_relationship';
+  text: string;
+  hypothesis: {
+    estimand: 'partial_regression_coefficient';
+    focalPredictor: string;
+    direction: 'positive' | 'negative' | 'two_sided';
+    nullValue: 0;
+  };
+}
+
 export interface DistributionComparisonQuestionSpecV1 {
   version: 1;
   kind: 'distribution_comparison';
@@ -169,6 +182,7 @@ export interface EventStudyQuestionSpecV1 {
 
 export type ResearchQuestionSpecV1 =
   | TimeSeriesRelationshipQuestionSpecV1
+  | MultivariateTimeSeriesQuestionSpecV1
   | DistributionComparisonQuestionSpecV1
   | EventStudyQuestionSpecV1;
 
@@ -179,6 +193,21 @@ export interface TimeSeriesRelationshipProtocolSpecV1 {
   outcome: string;
   predictorLag: number;
   correlations: Array<'pearson' | 'spearman'>;
+  inference: { kind: 'newey_west'; lag: 'automatic' | number };
+  rollingWindow?: number;
+}
+
+export interface MultivariateTimeSeriesPredictorSpecV1 {
+  input: string;
+  role: 'focal' | 'control';
+  lag: number;
+}
+
+export interface MultivariateTimeSeriesProtocolSpecV1 {
+  kind: 'multivariate_time_series_relationship';
+  version: 1;
+  outcome: string;
+  predictors: MultivariateTimeSeriesPredictorSpecV1[];
   inference: { kind: 'newey_west'; lag: 'automatic' | number };
   rollingWindow?: number;
 }
@@ -210,6 +239,7 @@ export interface EventStudyProtocolSpecV1 {
 
 export type ResearchProtocolSpecV1 =
   | TimeSeriesRelationshipProtocolSpecV1
+  | MultivariateTimeSeriesProtocolSpecV1
   | DistributionComparisonProtocolSpecV1
   | EventStudyProtocolSpecV1;
 
@@ -217,6 +247,10 @@ export type ResearchOutputKindV1 =
   | 'summary_table'
   | 'scatter'
   | 'rolling_relationship'
+  | 'coefficient_plot'
+  | 'partial_regression'
+  | 'correlation_matrix'
+  | 'rolling_coefficients'
   | 'distribution_boxplot'
   | 'sensitivity'
   | 'event_path'
@@ -242,6 +276,21 @@ export interface TimeSeriesRelationshipPlanSpecV1 {
   outputs: Array<{ kind: ResearchOutputKindV1 }>;
 }
 
+export interface MultivariateTimeSeriesPlanSpecV1 {
+  version: 1;
+  question: MultivariateTimeSeriesQuestionSpecV1;
+  start: TradeDate;
+  end: TradeDate;
+  inputs: ResearchSeriesInputSpecV1[];
+  alignment: {
+    frequency: ResearchFrequencyV1;
+    join: 'inner';
+    partialPeriod: 'exclude' | 'include';
+  };
+  protocol: MultivariateTimeSeriesProtocolSpecV1;
+  outputs: Array<{ kind: ResearchOutputKindV1 }>;
+}
+
 export interface DistributionComparisonPlanSpecV1 {
   version: 1;
   question: DistributionComparisonQuestionSpecV1;
@@ -262,6 +311,7 @@ export interface EventStudyPlanSpecV1 {
 
 export type ResearchPlanSpecV1 =
   | TimeSeriesRelationshipPlanSpecV1
+  | MultivariateTimeSeriesPlanSpecV1
   | DistributionComparisonPlanSpecV1
   | EventStudyPlanSpecV1;
 
@@ -439,6 +489,56 @@ export interface TimeSeriesRelationshipResultV1 {
   rolling: ResearchRollingRelationshipPointV1[];
 }
 
+export interface ResearchMultivariateCoefficientV1 {
+  inputId: string;
+  role: 'focal' | 'control';
+  lag: number;
+  estimate: number;
+  standardError: number;
+  tStatistic: number;
+  confidenceInterval95: { lower: number; upper: number };
+  standardizedEstimate: number;
+  standardizedConfidenceInterval95: { lower: number; upper: number };
+  partialRSquared: number;
+  varianceInflationFactor: number;
+}
+
+export interface ResearchMultivariatePointV1 {
+  date: TradeDate;
+  outcome: number;
+  predictors: Record<string, number>;
+}
+
+export interface ResearchPartialRegressionPointV1 {
+  date: TradeDate;
+  focalResidual: number;
+  outcomeResidual: number;
+}
+
+export interface ResearchRollingCoefficientPointV1 {
+  date: TradeDate;
+  observations: number;
+  estimate: number;
+  confidenceInterval95: { lower: number; upper: number };
+  rSquared: number;
+}
+
+export interface MultivariateTimeSeriesRelationshipResultV1 {
+  kind: 'multivariate_time_series_relationship';
+  version: 1;
+  observations: number;
+  intercept: number;
+  rSquared: number;
+  adjustedRSquared: number;
+  neweyWestLag: number;
+  residualLag1Autocorrelation: number | null;
+  coefficients: ResearchMultivariateCoefficientV1[];
+  predictorCorrelations: Array<{ leftInputId: string; rightInputId: string; value: number }>;
+  points: ResearchMultivariatePointV1[];
+  partialRegression: ResearchPartialRegressionPointV1[];
+  rolling: ResearchRollingCoefficientPointV1[];
+}
+
 export interface ResearchDistributionSummaryV1 {
   count: number;
   mean: number;
@@ -525,6 +625,7 @@ export interface EventStudyResultV1 {
 
 export type ResearchProtocolResultV1 =
   | TimeSeriesRelationshipResultV1
+  | MultivariateTimeSeriesRelationshipResultV1
   | DistributionComparisonResultV1
   | EventStudyResultV1;
 
@@ -545,6 +646,34 @@ export interface TimeSeriesRelationshipConclusionV1 {
   hypothesisDirectionMatches: boolean;
   effectSize: {
     metric: 'pearson' | 'spearman';
+    value: number;
+    magnitude: 'negligible' | 'small' | 'moderate' | 'large';
+  };
+  stability: {
+    method: 'rolling_sign_consistency';
+    windows: number;
+    consistentFraction: number | null;
+    assessment: 'stable' | 'unstable' | 'not_assessed';
+  };
+  rationaleCodes: string[];
+  summaryZh: string;
+  summaryEn: string;
+  limitationsZh: string[];
+  limitationsEn: string[];
+}
+
+export interface MultivariateTimeSeriesConclusionV1 {
+  version: 1;
+  level: ResearchConclusionLevelV1;
+  direction: 'positive' | 'negative' | 'none';
+  estimand: 'partial_regression_coefficient';
+  focalPredictor: string;
+  estimate: number;
+  confidenceInterval95: { lower: number; upper: number };
+  intervalExcludesNull: boolean;
+  hypothesisDirectionMatches: boolean;
+  effectSize: {
+    metric: 'partial_r_squared';
     value: number;
     magnitude: 'negligible' | 'small' | 'moderate' | 'large';
   };
@@ -618,6 +747,7 @@ export interface EventStudyConclusionV1 {
 
 export type ResearchConclusionV1 =
   | TimeSeriesRelationshipConclusionV1
+  | MultivariateTimeSeriesConclusionV1
   | DistributionComparisonConclusionV1
   | EventStudyConclusionV1;
 
@@ -635,6 +765,17 @@ export interface TimeSeriesRelationshipRunResultV1 {
   coverage: ResearchSeriesCoverageV1[];
   result: TimeSeriesRelationshipResultV1;
   conclusion: TimeSeriesRelationshipConclusionV1;
+  diagnostics: ResearchDiagnosticV1[];
+  fingerprints?: ResearchRunFingerprintsV1;
+}
+
+export interface MultivariateTimeSeriesRunResultV1 {
+  version: 1;
+  plan: MultivariateTimeSeriesPlanSpecV1;
+  protocol: ResearchProtocolDefinitionV1;
+  coverage: ResearchSeriesCoverageV1[];
+  result: MultivariateTimeSeriesRelationshipResultV1;
+  conclusion: MultivariateTimeSeriesConclusionV1;
   diagnostics: ResearchDiagnosticV1[];
   fingerprints?: ResearchRunFingerprintsV1;
 }
@@ -663,6 +804,7 @@ export interface EventStudyRunResultV1 {
 
 export type ResearchRunResultV1 =
   | TimeSeriesRelationshipRunResultV1
+  | MultivariateTimeSeriesRunResultV1
   | DistributionComparisonRunResultV1
   | EventStudyRunResultV1;
 

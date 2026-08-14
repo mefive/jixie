@@ -4,6 +4,8 @@ import type {
   DistributionComparisonRunResultV1,
   EventStudyPlanSpecV1,
   EventStudyRunResultV1,
+  MultivariateTimeSeriesPlanSpecV1,
+  MultivariateTimeSeriesRunResultV1,
   ResearchDistributionObservationV1,
   ResearchPlanSpecV1,
   ResearchRunResultV1,
@@ -28,6 +30,8 @@ import {
   type ResearchSeriesPoint,
 } from './series.js';
 import { evaluateTimeSeriesRelationship } from './time-series-relationship.js';
+import { concludeMultivariateTimeSeriesRelationship } from './multivariate-conclusion.js';
+import { evaluateMultivariateTimeSeriesRelationship } from './multivariate-time-series.js';
 import { executeUniverseSpec } from './universe.js';
 
 export type ResearchUniverseExecutor = (input: unknown) => Promise<ResearchUniverseRunResultV1>;
@@ -42,6 +46,10 @@ export function executeResearchPlan(
   input: TimeSeriesRelationshipPlanSpecV1,
   options?: ExecuteResearchPlanOptions,
 ): Promise<TimeSeriesRelationshipRunResultV1>;
+export function executeResearchPlan(
+  input: MultivariateTimeSeriesPlanSpecV1,
+  options?: ExecuteResearchPlanOptions,
+): Promise<MultivariateTimeSeriesRunResultV1>;
 export function executeResearchPlan(
   input: DistributionComparisonPlanSpecV1,
   options?: ExecuteResearchPlanOptions,
@@ -65,9 +73,11 @@ export async function executeResearchPlan(
   const plan = parseResearchPlanSpec(input);
   return isTimeSeriesPlan(plan)
     ? executeTimeSeriesPlan(plan, options)
-    : isDistributionPlan(plan)
-      ? executeDistributionPlan(plan, options)
-      : executeEventStudyPlan(plan, options);
+    : isMultivariateTimeSeriesPlan(plan)
+      ? executeMultivariateTimeSeriesPlan(plan, options)
+      : isDistributionPlan(plan)
+        ? executeDistributionPlan(plan, options)
+        : executeEventStudyPlan(plan, options);
 }
 
 function isTimeSeriesPlan(plan: ResearchPlanSpecV1): plan is TimeSeriesRelationshipPlanSpecV1 {
@@ -76,6 +86,12 @@ function isTimeSeriesPlan(plan: ResearchPlanSpecV1): plan is TimeSeriesRelations
 
 function isDistributionPlan(plan: ResearchPlanSpecV1): plan is DistributionComparisonPlanSpecV1 {
   return plan.protocol.kind === 'distribution_comparison';
+}
+
+function isMultivariateTimeSeriesPlan(
+  plan: ResearchPlanSpecV1,
+): plan is MultivariateTimeSeriesPlanSpecV1 {
+  return plan.protocol.kind === 'multivariate_time_series_relationship';
 }
 
 async function executeTimeSeriesPlan(
@@ -156,6 +172,86 @@ async function executeTimeSeriesPlan(
     coverage,
     result: evaluation.result,
     conclusion,
+    diagnostics: allDiagnostics,
+    fingerprints: researchRunFingerprints(protocolDefinition, dataFingerprints),
+  };
+}
+
+async function executeMultivariateTimeSeriesPlan(
+  plan: MultivariateTimeSeriesPlanSpecV1,
+  options: ExecuteResearchPlanOptions,
+): Promise<MultivariateTimeSeriesRunResultV1> {
+  const protocolDefinition = researchProtocolById.get(plan.protocol.kind);
+  if (!protocolDefinition) {
+    throw new Error(`Research protocol ${plan.protocol.kind} is not registered.`);
+  }
+  const loader = options.loadSeries ?? loadResearchSeries;
+  const prepared = new Map<string, ResearchSeriesPoint[]>();
+  const coverage: ResearchSeriesCoverageV1[] = [];
+  const dataFingerprints = [];
+  const diagnostics = [];
+
+  for (const seriesInput of plan.inputs) {
+    const loaded = await loader(
+      seriesInput,
+      researchSeriesLoadStart(plan.start, plan.alignment.frequency, seriesInput.transform),
+      plan.end,
+    );
+    const points = prepareResearchSeries(
+      loaded.points,
+      plan.alignment.frequency,
+      seriesInput.transform,
+      {
+        start: plan.start,
+        end: plan.end,
+        partialPeriod: plan.alignment.partialPeriod,
+      },
+    );
+    prepared.set(seriesInput.id, points);
+    dataFingerprints.push(
+      researchDataInputFingerprint({
+        inputId: seriesInput.id,
+        payload: { loaded: loaded.points, prepared: points },
+        observations: points.length,
+        firstDate: points[0]?.date ?? null,
+        lastDate: points.at(-1)?.date ?? null,
+      }),
+    );
+    diagnostics.push(...loaded.diagnostics);
+    coverage.push({
+      inputId: seriesInput.id,
+      observationsLoaded: points.length,
+      observationsAligned: 0,
+      firstDate: points[0]?.date ?? null,
+      lastDate: points.at(-1)?.date ?? null,
+      missingAfterAlignment: 0,
+    });
+  }
+
+  const evaluation = evaluateMultivariateTimeSeriesRelationship(
+    plan.protocol,
+    prepared,
+    protocolDefinition.minimumObservations,
+  );
+  for (const item of coverage) {
+    item.observationsAligned = evaluation.result.observations;
+    item.missingAfterAlignment = Math.max(
+      0,
+      item.observationsLoaded - evaluation.result.observations,
+    );
+  }
+  const allDiagnostics = [...diagnostics, ...evaluation.diagnostics];
+  return {
+    version: 1,
+    plan,
+    protocol: protocolDefinition,
+    coverage,
+    result: evaluation.result,
+    conclusion: concludeMultivariateTimeSeriesRelationship(
+      plan.question,
+      evaluation.result,
+      allDiagnostics,
+    ),
     diagnostics: allDiagnostics,
     fingerprints: researchRunFingerprints(protocolDefinition, dataFingerprints),
   };

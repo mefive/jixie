@@ -9,7 +9,7 @@ const argsSchema = z.strictObject({ plan: researchPlanSpecV1Schema });
 export const executeResearchPlanTool: AgentTool = {
   name: 'executeResearchPlan',
   description:
-    'Execute one validated, versioned ResearchPlan. V1 supports time_series_relationship over registered series, distribution_comparison over two disjoint point-in-time UniverseSpec groups, and event_study over local proposal-stage dividend-announcement dates with an index or ETF benchmark. The plan.question object must prespecify the protocol estimand, direction, and null value, and outputs must include conclusion plus the protocol-required evidence. The plan may reference only measures and sources returned by searchResearchCatalog. Never put SQL, table names, column names, JavaScript, or Python in the plan. For time series, positive predictorLag means the predictor precedes the outcome; use monthly alignment for year_over_year and exclude incomplete periods unless explicitly requested. For a distribution comparison, both groups must use the same as-of time and measure, must not set UniverseSpec.limit, and must be mutually exclusive. For event studies, use explicit stock entities, market.adjusted_close simple_return on an index or ETF benchmark, a prespecified window, market_adjusted returns, keep_first overlap handling, and event_trade_date clustered inference. The tool produces a structured research result and deterministic conclusion level; final prose must preserve that level and must not invent numbers.',
+    'Execute one validated, versioned ResearchPlan. V1 supports time_series_relationship, multivariate_time_series_relationship, distribution_comparison, and event_study. The plan.question object must prespecify the protocol estimand, direction, and null value, and outputs must include conclusion plus the protocol-required evidence. The plan may reference only measures and sources returned by searchResearchCatalog. Never put SQL, table names, column names, JavaScript, or Python in the plan. For multivariate time series, declare exactly one focal predictor and at least one prespecified control; the question focalPredictor must match, each predictor may have its own nonnegative lag, and variables must never be added or removed after inspecting significance. Use monthly alignment for year_over_year and exclude incomplete periods unless explicitly requested. For a distribution comparison, both groups must use the same as-of time and measure, must not set UniverseSpec.limit, and must be mutually exclusive. For event studies, use explicit stock entities, market.adjusted_close simple_return on an index or ETF benchmark, a prespecified window, market_adjusted returns, keep_first overlap handling, and event_trade_date clustered inference. The tool produces a structured research result and deterministic conclusion level; final prose must preserve that level and must not invent numbers.',
   parameters: z.toJSONSchema(argsSchema),
   async run(args) {
     const parsed = argsSchema.safeParse(args);
@@ -29,20 +29,27 @@ export const executeResearchPlanTool: AgentTool = {
             spearman: result.spearman,
             regression: result.regression,
           }
-        : result.kind === 'distribution_comparison'
+        : result.kind === 'multivariate_time_series_relationship'
           ? {
-              groups: result.groups.map((group) => ({
-                inputId: group.inputId,
-                label: group.label,
-                summary: group.summary,
-              })),
-              comparison: result.comparison,
+              rSquared: result.rSquared,
+              adjustedRSquared: result.adjustedRSquared,
+              coefficients: result.coefficients,
+              residualLag1Autocorrelation: result.residualLag1Autocorrelation,
             }
-          : {
-              eventWindow: result.eventWindow,
-              aggregate: result.aggregate,
-              eventSample: result.events,
-            };
+          : result.kind === 'distribution_comparison'
+            ? {
+                groups: result.groups.map((group) => ({
+                  inputId: group.inputId,
+                  label: group.label,
+                  summary: group.summary,
+                })),
+                comparison: result.comparison,
+              }
+            : {
+                eventWindow: result.eventWindow,
+                aggregate: result.aggregate,
+                eventSample: result.events,
+              };
     return {
       observation: JSON.stringify({
         protocol: run.protocol.id,

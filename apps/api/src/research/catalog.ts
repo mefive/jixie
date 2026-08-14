@@ -375,6 +375,262 @@ spearman = aligned["predictor"].corr(aligned["outcome"], method="spearman")`,
   },
 } satisfies ResearchProtocolDefinitionV1;
 
+const multivariateTimeSeriesRelationship = {
+  id: 'multivariate_time_series_relationship',
+  version: 1,
+  nameZh: '多变量时间序列关系',
+  nameEn: 'Multivariate time-series relationship',
+  questionKinds: ['multivariate_time_series_relationship'],
+  minimumObservations: 36,
+  assumptions: [
+    {
+      id: 'prespecified_focal_predictor',
+      labelZh: '预先指定核心变量',
+      labelEn: 'Prespecified focal predictor',
+      descriptionZh:
+        '正式结论只评价查看结果前指定的一个核心解释变量；控制变量用于调整混杂，不自动筛选显著变量。',
+      descriptionEn:
+        'The formal conclusion evaluates one focal predictor chosen before results are inspected; controls adjust for confounding and are not automatically selected for significance.',
+    },
+    {
+      id: 'common_complete_cases',
+      labelZh: '共同完整样本',
+      labelEn: 'Common complete cases',
+      descriptionZh: '结果变量和全部解释变量按共同可得时点对齐，任一变量缺失的日期不进入回归。',
+      descriptionEn:
+        'The outcome and all predictors align on common availability dates; dates missing any variable are excluded.',
+    },
+    {
+      id: 'linear_conditional_mean',
+      labelZh: '线性条件均值',
+      labelEn: 'Linear conditional mean',
+      descriptionZh: '偏回归系数描述控制其他变量后的线性关系，不等同于因果效应。',
+      descriptionEn:
+        'A partial coefficient describes a linear relationship conditional on the controls, not a causal effect.',
+    },
+  ],
+  parameters: [
+    {
+      id: 'frequency',
+      type: 'enum',
+      labelZh: '对齐频率',
+      labelEn: 'Alignment frequency',
+      descriptionZh: '全部序列共同使用日频或完整月度观测。',
+      descriptionEn: 'All series use common daily or complete monthly observations.',
+      adjustable: true,
+    },
+    {
+      id: 'predictorLags',
+      type: 'integer',
+      labelZh: '各变量滞后',
+      labelEn: 'Predictor lags',
+      descriptionZh: '每个解释变量独立设置领先结果变量的对齐期数。',
+      descriptionEn: 'Each predictor independently specifies aligned periods leading the outcome.',
+      adjustable: true,
+    },
+    {
+      id: 'rollingWindow',
+      type: 'integer',
+      labelZh: '滚动窗口',
+      labelEn: 'Rolling window',
+      descriptionZh: '用固定长度窗口检查核心变量系数的跨时期稳定性。',
+      descriptionEn: 'Uses fixed-length windows to assess stability of the focal coefficient.',
+      adjustable: true,
+    },
+    {
+      id: 'neweyWestLag',
+      type: 'integer',
+      labelZh: 'Newey–West 滞后阶数',
+      labelEn: 'Newey–West lag',
+      descriptionZh: '异方差与序列相关稳健协方差的截断滞后。',
+      descriptionEn:
+        'Truncation lag for the heteroskedasticity and autocorrelation-consistent covariance.',
+      adjustable: true,
+    },
+  ],
+  terminology: [
+    {
+      id: 'focal_predictor',
+      labelZh: '核心解释变量',
+      labelEn: 'Focal predictor',
+      descriptionZh: '本次研究预先指定、唯一进入结构化结论的解释变量。',
+      descriptionEn: 'The prespecified predictor that uniquely receives the structured conclusion.',
+    },
+    {
+      id: 'control_predictor',
+      labelZh: '控制变量',
+      labelEn: 'Control predictor',
+      descriptionZh: '用于区分核心变量独立关系的其他已知维度，不因显著与否自动增删。',
+      descriptionEn:
+        'A known dimension used to isolate the focal relationship; it is not added or removed based on significance.',
+    },
+    {
+      id: 'partial_r_squared',
+      labelZh: '偏 R²',
+      labelEn: 'Partial R-squared',
+      descriptionZh: '在其他变量已进入模型后，某变量额外解释的剩余变异比例。',
+      descriptionEn:
+        'The share of remaining variation additionally explained by a predictor after the others are included.',
+    },
+    {
+      id: 'variance_inflation_factor',
+      labelZh: '方差膨胀因子（VIF）',
+      labelEn: 'Variance inflation factor (VIF)',
+      descriptionZh: '衡量一个解释变量可被其他解释变量解释的程度，用于诊断共线性。',
+      descriptionEn:
+        'Measures how much a predictor is explained by the other predictors and diagnoses collinearity.',
+    },
+  ],
+  formulae: [
+    {
+      id: 'multivariate_linear_model',
+      group: 'core_estimate',
+      labelZh: '多变量线性模型',
+      labelEn: 'Multivariate linear model',
+      latex: String.raw`y_t=\alpha+\sum_{j=1}^{p}\beta_j x_{j,t-k_j}+\varepsilon_t`,
+      variables: [
+        { symbol: 'y_t', descriptionZh: '第 t 期结果变量', descriptionEn: 'Outcome at t' },
+        {
+          symbol: 'x_{j,t-k_j}',
+          descriptionZh: '滞后 k_j 期的第 j 个解释变量',
+          descriptionEn: 'Predictor j lagged by k_j aligned periods',
+        },
+        {
+          symbol: '\\beta_j',
+          descriptionZh: '控制其他变量后的偏回归系数',
+          descriptionEn: 'Partial coefficient conditional on the other predictors',
+        },
+      ],
+    },
+    {
+      id: 'frisch_waugh_lovell',
+      group: 'core_estimate',
+      labelZh: '偏回归（Frisch–Waugh–Lovell）',
+      labelEn: 'Partial regression (Frisch–Waugh–Lovell)',
+      latex: String.raw`M_Cy=\beta_f M_Cx_f+u,\quad M_C=I-C(C'C)^{-1}C'`,
+      variables: [
+        { symbol: 'x_f', descriptionZh: '核心解释变量', descriptionEn: 'Focal predictor' },
+        {
+          symbol: 'C',
+          descriptionZh: '常数项与全部控制变量组成的矩阵',
+          descriptionEn: 'Matrix containing the intercept and all controls',
+        },
+        {
+          symbol: 'M_C',
+          descriptionZh: '剔除控制变量线性影响的残差生成矩阵',
+          descriptionEn: 'Residual-maker removing the linear effect of controls',
+        },
+      ],
+    },
+    {
+      id: 'multivariate_newey_west_covariance',
+      group: 'inference',
+      labelZh: '多变量 Newey–West HAC 协方差',
+      labelEn: 'Multivariate Newey–West HAC covariance',
+      latex: String.raw`\widehat{Var}_{HAC}(\hat\beta)=(X'X)^{-1}\hat S(X'X)^{-1}`,
+      variables: [
+        {
+          symbol: 'X',
+          descriptionZh: '包含常数项和全部解释变量的设计矩阵',
+          descriptionEn: 'Design matrix containing the intercept and all predictors',
+        },
+        {
+          symbol: '\\hat S',
+          descriptionZh: '使用 Bartlett 权重的长程协方差估计',
+          descriptionEn: 'Long-run covariance estimate using Bartlett weights',
+        },
+      ],
+    },
+    {
+      id: 'partial_coefficient_inference',
+      group: 'inference',
+      labelZh: '偏回归系数区间',
+      labelEn: 'Partial-coefficient interval',
+      latex: String.raw`CI_{95\%}(\beta_j)=\hat\beta_j\pm1.959964\,SE_{HAC}(\hat\beta_j)`,
+      variables: [
+        {
+          symbol: 'SE_{HAC}(\\hat\\beta_j)',
+          descriptionZh: '第 j 个系数的 HAC 稳健标准误',
+          descriptionEn: 'HAC-robust standard error for coefficient j',
+        },
+      ],
+    },
+    {
+      id: 'partial_r_squared',
+      group: 'robustness',
+      labelZh: '偏 R²',
+      labelEn: 'Partial R-squared',
+      latex: String.raw`R^2_{partial,j}=\frac{SSE_{-j}-SSE_{full}}{SSE_{-j}}`,
+      variables: [
+        {
+          symbol: 'SSE_{full}',
+          descriptionZh: '包含全部预设变量的残差平方和',
+          descriptionEn: 'Residual sum of squares for the full prespecified model',
+        },
+        {
+          symbol: 'SSE_{-j}',
+          descriptionZh: '仅移除第 j 个变量后的残差平方和',
+          descriptionEn: 'Residual sum of squares after removing predictor j only',
+        },
+      ],
+    },
+    {
+      id: 'variance_inflation_factor',
+      group: 'robustness',
+      labelZh: '方差膨胀因子',
+      labelEn: 'Variance inflation factor',
+      latex: String.raw`VIF_j=\frac{1}{1-R_j^2}`,
+      variables: [
+        {
+          symbol: 'R_j^2',
+          descriptionZh: '用其他解释变量回归第 j 个解释变量所得 R²',
+          descriptionEn: 'R-squared from regressing predictor j on all other predictors',
+        },
+      ],
+    },
+    {
+      id: 'rolling_partial_coefficient',
+      group: 'robustness',
+      labelZh: '滚动偏回归系数',
+      labelEn: 'Rolling partial coefficient',
+      latex: String.raw`\hat\beta_{f,t}^{(w)}=OLS\!\left(y_{t-w+1:t}\mid x_{1:p,t-w+1:t}\right)_f`,
+      variables: [
+        {
+          symbol: 'w',
+          descriptionZh: '滚动窗口观测数',
+          descriptionEn: 'Number of observations in each rolling window',
+        },
+        {
+          symbol: 'f',
+          descriptionZh: '预先指定的核心解释变量',
+          descriptionEn: 'Prespecified focal predictor',
+        },
+      ],
+    },
+  ],
+  pythonExample: `import pandas as pd
+import statsmodels.api as sm
+
+# data columns are outcome, focal, and prespecified controls on common dates
+aligned = data[["outcome", "focal", "control"]].dropna()
+X = sm.add_constant(aligned[["focal", "control"]])
+fit = sm.OLS(aligned["outcome"], X).fit(
+    cov_type="HAC", cov_kwds={"maxlags": hac_lag}
+)
+coefficient_table = fit.summary2().tables[1]
+
+# Diagnose collinearity; do not use VIF to auto-select variables after seeing results.
+from statsmodels.stats.outliers_influence import variance_inflation_factor
+vif = pd.Series(
+    [variance_inflation_factor(X.values, i) for i in range(1, X.shape[1])],
+    index=X.columns[1:],
+)`,
+  helpSlugs: {
+    zh: ['/docs/help/basics/multivariate-time-series-relationships'],
+    en: ['/docs/help/basics/multivariate-time-series-relationships'],
+  },
+} satisfies ResearchProtocolDefinitionV1;
+
 const distributionComparison = {
   id: 'distribution_comparison',
   version: 1,
@@ -822,7 +1078,12 @@ export const researchCapabilityCatalog: ResearchCapabilityCatalogV1 = {
   version: 1,
   measures,
   universeMeasures: researchUniverseMeasures,
-  protocols: [timeSeriesRelationship, distributionComparison, eventStudy],
+  protocols: [
+    timeSeriesRelationship,
+    multivariateTimeSeriesRelationship,
+    distributionComparison,
+    eventStudy,
+  ],
 };
 
 export const researchMeasureById: ReadonlyMap<string, ResearchMeasureDefinitionV1> = new Map(

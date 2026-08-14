@@ -57,6 +57,15 @@ const expectedFormulaIds = {
     'spearman_correlation',
     'rolling_relationship',
   ],
+  multivariate_time_series_relationship: [
+    'multivariate_linear_model',
+    'frisch_waugh_lovell',
+    'multivariate_newey_west_covariance',
+    'partial_coefficient_inference',
+    'partial_r_squared',
+    'variance_inflation_factor',
+    'rolling_partial_coefficient',
+  ],
   distribution_comparison: [
     'welch_mean_difference',
     'welch_inference',

@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test:e2e": "node e2e/research.mjs",
+    "test:e2e:research-multivariate": "node e2e/research-multivariate.mjs",
     "test:e2e:research-curator": "node e2e/research-curator.mjs",
     "test:e2e:factor-history": "node e2e/factor-report-history.mjs",
     "test:e2e:factor-composite": "node e2e/factor-composite.mjs",

@@ -127,6 +127,14 @@
   height: 340px;
 }
 
+.jx-researchResult-panelStack {
+  @apply flex flex-col gap-3;
+}
+
+.jx-researchResult-coefficientTable {
+  font-variant-numeric: tabular-nums;
+}
+
 .jx-researchResult-method {
   @apply flex flex-col gap-4;
 }
