@@ -183,6 +183,7 @@ import type {
   ResearchConversationMessages,
   ResearchConversationMeta,
   ResearchPlanSpecV1,
+  ResearchRunRecordV1,
   ResearchRunResultV1,
   TimeSeriesRelationshipPlanSpecV1,
   TimeSeriesRelationshipRunResultV1,
@@ -283,6 +284,21 @@ export function runResearchPlan(plan: ResearchPlanSpecV1): Promise<ResearchRunRe
   return request('/api/app/research/run', {
     method: 'POST',
     body: JSON.stringify(plan),
+  });
+}
+
+export function listResearchStudyRuns(studyId: string): Promise<ResearchRunRecordV1[]> {
+  return request(`/api/app/research/studies/${encodeURIComponent(studyId)}/runs`);
+}
+
+export function rerunResearchStudy(
+  studyId: string,
+  parentRunId: string,
+  plan: ResearchPlanSpecV1,
+): Promise<ResearchRunRecordV1> {
+  return request(`/api/app/research/studies/${encodeURIComponent(studyId)}/runs`, {
+    method: 'POST',
+    body: JSON.stringify({ parentRunId, plan }),
   });
 }
 

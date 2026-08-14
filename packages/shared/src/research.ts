@@ -631,6 +631,25 @@ export type ResearchRunResultV1 =
   | DistributionComparisonRunResultV1
   | EventStudyRunResultV1;
 
+/** Stable identity for a persisted immutable run. Legacy chat parts may not have this reference. */
+export interface ResearchRunRecordRefV1 {
+  version: 1;
+  studyId: string;
+  runId: string;
+  sequence: number;
+  createdAt: string;
+}
+
+export interface ResearchRunRecordV1 {
+  ref: ResearchRunRecordRefV1;
+  title: string;
+  origin: 'agent' | 'parameter_rerun';
+  parentRunId?: string;
+  planHash: string;
+  resultHash: string;
+  run: ResearchRunResultV1;
+}
+
 export interface ResearchConversationMeta {
   id: string;
   title: string;

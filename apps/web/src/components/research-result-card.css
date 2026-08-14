@@ -24,6 +24,10 @@
   @apply flex shrink-0 items-center gap-2;
 }
 
+.jx-researchRunHistory {
+  width: 190px;
+}
+
 .jx-researchResult-controls {
   @apply mt-3 grid gap-3 rounded-lg border border-line bg-card;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -175,6 +179,10 @@
 }
 
 @media (max-width: 920px) {
+  .jx-researchRunHistory {
+    width: 150px;
+  }
+
   .jx-researchResult-controls {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

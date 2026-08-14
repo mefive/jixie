@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type {
   EventStudyConclusionV1,
   EventStudyRunResultV1,
+  ResearchRunRecordRefV1,
   ResearchConclusionLevelV1,
 } from '@jixie/shared';
 import {
@@ -14,20 +15,26 @@ import {
   faSquareRootVariable,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { runResearchPlan } from '@src/api/client';
 import { EChart, type ECOption } from './echart';
 import { Markdown } from './markdown';
+import { ResearchRunHistorySelect, useResearchRunHistory } from './research-run-history';
 import './event-study-card.css';
 
 interface EventStudyCardProps {
   title: string;
   run: EventStudyRunResultV1;
+  record?: ResearchRunRecordRefV1;
 }
 
 /** Render the event-time path and event-level sample selection from a deterministic event study. */
-export function EventStudyCard({ title, run: initialRun }: EventStudyCardProps) {
+export function EventStudyCard({
+  title,
+  run: initialRun,
+  record: initialRecord,
+}: EventStudyCardProps) {
   const { t, i18n } = useTranslation('research');
-  const [run, setRun] = useState(initialRun);
+  const history = useResearchRunHistory(initialRun, initialRecord);
+  const run = history.run;
   const [draft, setDraft] = useState(() => structuredClone(initialRun.plan));
   const [controlsOpen, setControlsOpen] = useState(false);
   const [running, setRunning] = useState(false);
@@ -39,18 +46,16 @@ export function EventStudyCard({ title, run: initialRun }: EventStudyCardProps) 
   const benchmarkInput = run.plan.inputs[1];
 
   useEffect(() => {
-    setRun(initialRun);
-    setDraft(structuredClone(initialRun.plan));
+    setDraft(structuredClone(run.plan));
     setControlsOpen(false);
     setRunError('');
-  }, [initialRun]);
+  }, [run]);
 
   const rerun = async () => {
     setRunning(true);
     setRunError('');
     try {
-      const next = await runResearchPlan(draft);
-      setRun(next);
+      const next = await history.rerun(draft);
       setDraft(structuredClone(next.plan));
       setControlsOpen(false);
     } catch (error) {
@@ -284,6 +289,12 @@ export function EventStudyCard({ title, run: initialRun }: EventStudyCardProps) 
           <span>{title}</span>
         </div>
         <div className="jx-eventStudy-actions">
+          <ResearchRunHistorySelect
+            records={history.records}
+            runId={history.record?.runId}
+            label={t('result.runHistory')}
+            onChange={history.select}
+          />
           <Tag>{zh ? run.protocol.nameZh : run.protocol.nameEn}</Tag>
           <Button
             size="small"

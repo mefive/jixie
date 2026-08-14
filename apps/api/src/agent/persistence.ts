@@ -7,6 +7,7 @@ import {
 } from '@jixie/shared';
 import { ulid } from 'ulid';
 import { prisma } from '../lib/prisma.js';
+import { persistResearchMessageParts } from '../research/records.js';
 import type { TurnEntity } from './turn-run.js';
 
 const EMPTY_TRACE: AgentTurnTrace = { version: 1, steps: [], truncated: false };
@@ -121,24 +122,29 @@ export async function finishPersistentTurn(args: {
   parts?: MessagePart[];
   error?: string;
   trace: AgentTurnTrace;
-}): Promise<void> {
-  await prisma.$transaction(async (transaction) => {
+}): Promise<MessagePart[] | undefined> {
+  return prisma.$transaction(async (transaction) => {
     const turn = await transaction.agentTurn.findUnique({
       where: { id: args.turnId },
-      select: { conversationId: true },
+      select: {
+        conversationId: true,
+        conversation: { select: { surface: true, userId: true } },
+      },
     });
     if (!turn) {
-      return;
+      return undefined;
     }
+    let persistedParts: MessagePart[] | undefined;
     if (args.status === 'done' && args.parts) {
       const last = await transaction.agentMessage.findFirst({
         where: { conversationId: turn.conversationId },
         select: { sequence: true },
         orderBy: { sequence: 'desc' },
       });
+      const messageId = ulid();
       await transaction.agentMessage.create({
         data: {
-          id: ulid(),
+          id: messageId,
           conversationId: turn.conversationId,
           role: 'assistant',
           parts: args.parts as unknown as Prisma.InputJsonValue,
@@ -146,6 +152,22 @@ export async function finishPersistentTurn(args: {
           turnId: args.turnId,
         },
       });
+      persistedParts =
+        turn.conversation.surface === 'research'
+          ? await persistResearchMessageParts(transaction, {
+              conversationId: turn.conversationId,
+              messageId,
+              turnId: args.turnId,
+              userId: turn.conversation.userId,
+              parts: args.parts,
+            })
+          : args.parts;
+      if (persistedParts !== args.parts) {
+        await transaction.agentMessage.update({
+          where: { id: messageId },
+          data: { parts: persistedParts as unknown as Prisma.InputJsonValue },
+        });
+      }
     }
     await transaction.agentTurn.update({
       where: { id: args.turnId },
@@ -156,6 +178,7 @@ export async function finishPersistentTurn(args: {
         finishedAt: new Date(),
       },
     });
+    return persistedParts;
   });
 }
 

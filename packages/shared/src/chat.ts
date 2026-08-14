@@ -1,5 +1,5 @@
 import type { ChartSpec } from './chart.js';
-import type { ResearchRunResultV1, UniverseSpecV1 } from './research.js';
+import type { ResearchRunRecordRefV1, ResearchRunResultV1, UniverseSpecV1 } from './research.js';
 
 /**
  * Agent conversation messages. Typed parts persist the deterministic chart/research/universe spec or
@@ -24,6 +24,7 @@ export interface ResearchPart {
   type: 'research';
   title: string;
   run: ResearchRunResultV1;
+  record?: ResearchRunRecordRefV1;
 }
 
 /** A deterministic entity universe. Legacy saved screens migrate to this typed Research artifact. */
