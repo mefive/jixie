@@ -1,6 +1,7 @@
 import type { Prisma, PrismaClient, ResearchRun as ResearchRunRow } from '@prisma/client';
 import {
   type MessagePart,
+  type ResearchPlanChangeV1,
   type ResearchPart,
   type ResearchRunComparisonV1,
   type ResearchRunRecordV1,
@@ -173,7 +174,13 @@ export function compareResearchRunRows(
   candidate: ResearchRunRow,
 ): ResearchRunComparisonV1 {
   const changes: ResearchRunComparisonV1['changes'] = [];
-  if (base.planHash !== candidate.planHash) {
+  const planDifference = compareResearchPlans(base.plan, candidate.plan);
+  if (
+    base.planHash !== candidate.planHash &&
+    planDifference.changes.some(
+      (change) => change.path !== 'protocol.kind' && change.path !== 'protocol.version',
+    )
+  ) {
     changes.push('parameters');
   }
   const protocolChanged =
@@ -228,10 +235,57 @@ export function compareResearchRunRows(
     baseRunId: base.id,
     candidateRunId: candidate.id,
     changes,
+    planChanges: planDifference.changes,
+    planChangesTruncated: planDifference.truncated,
     resultChanged,
     conclusionChanged,
     attribution,
   };
+}
+
+export function compareResearchPlans(
+  base: Prisma.JsonValue,
+  candidate: Prisma.JsonValue,
+  maximumChanges = 12,
+): { changes: ResearchPlanChangeV1[]; truncated: boolean } {
+  const changes: ResearchPlanChangeV1[] = [];
+  let truncated = false;
+
+  const visit = (before: unknown, after: unknown, path: string): void => {
+    if (researchPayloadHash(before) === researchPayloadHash(after)) {
+      return;
+    }
+    if (changes.length >= maximumChanges) {
+      truncated = true;
+      return;
+    }
+    if (isPlainObject(before) && isPlainObject(after)) {
+      const keys = [...new Set([...Object.keys(before), ...Object.keys(after)])].sort();
+      for (const key of keys) {
+        visit(before[key], after[key], path ? `${path}.${key}` : key);
+      }
+      return;
+    }
+    if (Array.isArray(before) && Array.isArray(after)) {
+      const beforeById = indexObjectsById(before);
+      const afterById = indexObjectsById(after);
+      if (beforeById && afterById) {
+        const ids = [...new Set([...beforeById.keys(), ...afterById.keys()])].sort();
+        for (const id of ids) {
+          visit(beforeById.get(id), afterById.get(id), `${path}[${id}]`);
+        }
+        return;
+      }
+    }
+    changes.push({
+      path: path || '$',
+      before: summarizePlanValue(before),
+      after: summarizePlanValue(after),
+    });
+  };
+
+  visit(base, candidate, '');
+  return { changes, truncated };
 }
 
 function researchRunRecord(
@@ -380,6 +434,34 @@ function researchResultHash(run: ResearchRunResultV1): string {
     conclusion: run.conclusion,
     diagnostics: run.diagnostics,
   });
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function indexObjectsById(values: unknown[]): Map<string, unknown> | null {
+  const indexed = new Map<string, unknown>();
+  for (const value of values) {
+    if (!isPlainObject(value) || typeof value.id !== 'string' || indexed.has(value.id)) {
+      return null;
+    }
+    indexed.set(value.id, value);
+  }
+  return indexed;
+}
+
+function summarizePlanValue(value: unknown): string {
+  if (value === undefined) {
+    return '—';
+  }
+  if (Array.isArray(value)) {
+    return `[${value.length} items] · ${researchPayloadHash(value).slice(0, 12)}`;
+  }
+  if (isPlainObject(value)) {
+    return `{${Object.keys(value).length} fields} · ${researchPayloadHash(value).slice(0, 12)}`;
+  }
+  return JSON.stringify(value);
 }
 
 function hasResearchPart(parts: Prisma.JsonValue): boolean {

@@ -403,6 +403,8 @@ try {
         baseRunId: body.parentRunId,
         candidateRunId: `e2e-run-relationship-${relationshipRecords.length + 1}`,
         changes: ['parameters'],
+        planChanges: [{ path: 'protocol.predictorLag', before: '0', after: '1' }],
+        planChangesTruncated: false,
         resultChanged: false,
         conclusionChanged: false,
         attribution: 'parameters',
@@ -469,7 +471,11 @@ try {
       `persisted research rerun is missing from history (requested=${persistentRerunRequested}): ${runHistoryAfterRerun}`,
     );
   }
-  await page.getByText('本次运行调整了参数', { exact: true }).waitFor();
+  await page.getByText('本次运行调整了研究口径或参数', { exact: true }).waitFor();
+  await page
+    .locator('.jx-researchRunComparison')
+    .filter({ hasText: 'protocol.predictorLag：0 → 1' })
+    .waitFor();
   await runHistory.click();
   await page.locator('.ant-select-item-option').filter({ hasText: '#1' }).click();
   if (!(await runHistory.innerText()).includes('#1')) {

@@ -81,7 +81,7 @@ export const zhResearch = {
     runComparison: {
       attribution: {
         unchanged: '与上次运行一致',
-        parameters: '本次运行调整了参数',
+        parameters: '本次运行调整了研究口径或参数',
         protocol: '本次运行升级了协议版本',
         implementation: '本次运行使用了不同的研究实现',
         data: '本次运行的输入数据或数据修订发生变化',
@@ -90,7 +90,7 @@ export const zhResearch = {
         unavailable: '旧运行缺少完整指纹，无法唯一归因',
       },
       change: {
-        parameters: '参数已变化',
+        parameters: '研究口径或参数已变化',
         protocol: '协议版本已变化',
         implementation: '研究实现已变化',
         data: '输入数据已变化',
@@ -99,6 +99,9 @@ export const zhResearch = {
       resultChanged: '统计结果已变化',
       resultUnchanged: '统计结果未变化',
       conclusionChanged: '结构化结论已变化',
+      conclusionUnchanged: '结构化结论未变化',
+      planChange: '{{path}}：{{before}} → {{after}}',
+      planChangesTruncated: '其余口径差异已省略',
     },
     fingerprints: {
       title: '运行指纹',
