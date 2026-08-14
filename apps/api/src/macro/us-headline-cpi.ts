@@ -13,7 +13,7 @@ export const US_HEADLINE_CPI_SERIES = {
   frequency: 'monthly',
   unit: 'index_1982_1984_100',
   source: 'bls',
-  sourceApi: 'bls_public_data_v2',
+  sourceApi: 'bls_public_data_api_or_bulk',
   sourceField: US_HEADLINE_CPI_BLS_SERIES_ID,
   defaultTransform: 'year_over_year',
   revisionPolicy: 'latest_value_with_captured_vintages',
@@ -43,6 +43,11 @@ interface NormalizedCpiObservation {
 }
 
 const BLS_PUBLIC_API_URL = 'https://api.bls.gov/publicAPI/v2/timeseries/data/';
+const BLS_ALL_ITEMS_BULK_URL = 'https://download.bls.gov/pub/time.series/cu/cu.data.1.AllItems';
+const BLS_REQUEST_HEADERS = {
+  accept: 'application/json, text/plain;q=0.9',
+  'user-agent': 'jixie-research/1.0 (+https://github.com/mefive/jixie)',
+} as const;
 const PUBLIC_API_MAX_YEARS = 10;
 const CONSERVATIVE_RELEASE_LAG_DAYS = 20;
 const SHANGHAI_DATE_FORMATTER = new Intl.DateTimeFormat('en-US', {
@@ -52,9 +57,23 @@ const SHANGHAI_DATE_FORMATTER = new Intl.DateTimeFormat('en-US', {
   day: '2-digit',
 });
 
-/** Minimal official BLS Public Data API client with a bounded request and strict response checks. */
+/**
+ * Official BLS client with bounded API requests and a same-source bulk-file fallback.
+ *
+ * BLS publishes an unregistered single-series GET signature as well as the multi-series POST
+ * signature. The GET form is preferred because some gateways reject the POST form with HTTP 403.
+ * If one API form is unavailable, the client tries the other before downloading and caching the
+ * official All Items bulk file for the rest of the process.
+ */
 export class BlsPublicDataClient implements BlsPublicDataClientLike {
-  constructor(private readonly fetchImpl: typeof fetch = fetch) {}
+  private getApiFailure: Error | null = null;
+  private postApiFailure: Error | null = null;
+  private bulkTextPromise: Promise<string> | null = null;
+
+  constructor(
+    private readonly fetchImpl: typeof fetch = fetch,
+    private readonly onLog: (line: string) => void = console.warn,
+  ) {}
 
   async loadSeries(
     seriesId: string,
@@ -64,9 +83,65 @@ export class BlsPublicDataClient implements BlsPublicDataClientLike {
     if (endYear < startYear || endYear - startYear + 1 > PUBLIC_API_MAX_YEARS) {
       throw new Error('BLS public requests must cover between 1 and 10 inclusive calendar years');
     }
+
+    if (!this.getApiFailure) {
+      try {
+        return await this.loadGetApiSeries(seriesId, startYear, endYear);
+      } catch (error) {
+        this.getApiFailure = asError(error);
+        this.onLog(
+          `BLS GET API unavailable (${this.getApiFailure.message}); trying the official POST API`,
+        );
+      }
+    }
+
+    if (!this.postApiFailure) {
+      try {
+        return await this.loadPostApiSeries(seriesId, startYear, endYear);
+      } catch (error) {
+        this.postApiFailure = asError(error);
+        this.onLog(
+          `BLS POST API unavailable (${this.postApiFailure.message}); falling back to the official All Items bulk file`,
+        );
+      }
+    }
+
+    try {
+      const rows = await this.loadBulkRows(seriesId);
+      return rows.filter((row) => Number(row.year) >= startYear && Number(row.year) <= endYear);
+    } catch (error) {
+      throw new Error(
+        `BLS CPI retrieval failed: GET API: ${this.getApiFailure?.message ?? 'not attempted'}; POST API: ${this.postApiFailure?.message ?? 'not attempted'}; bulk: ${asError(error).message}`,
+      );
+    }
+  }
+
+  private async loadGetApiSeries(
+    seriesId: string,
+    startYear: number,
+    endYear: number,
+  ): Promise<BlsObservationRow[]> {
+    const url = new URL(`${BLS_PUBLIC_API_URL}${encodeURIComponent(seriesId)}`);
+    url.searchParams.set('startyear', String(startYear));
+    url.searchParams.set('endyear', String(endYear));
+    const response = await this.fetchImpl(url, {
+      headers: BLS_REQUEST_HEADERS,
+      signal: AbortSignal.timeout(30_000),
+    });
+    if (!response.ok) {
+      throw new Error(`returned HTTP ${response.status}`);
+    }
+    return parseBlsResponse(await response.json(), seriesId);
+  }
+
+  private async loadPostApiSeries(
+    seriesId: string,
+    startYear: number,
+    endYear: number,
+  ): Promise<BlsObservationRow[]> {
     const response = await this.fetchImpl(BLS_PUBLIC_API_URL, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { ...BLS_REQUEST_HEADERS, 'content-type': 'application/json' },
       body: JSON.stringify({
         seriesid: [seriesId],
         startyear: String(startYear),
@@ -75,10 +150,50 @@ export class BlsPublicDataClient implements BlsPublicDataClientLike {
       signal: AbortSignal.timeout(30_000),
     });
     if (!response.ok) {
-      throw new Error(`BLS Public Data API returned HTTP ${response.status}`);
+      throw new Error(`returned HTTP ${response.status}`);
     }
     return parseBlsResponse(await response.json(), seriesId);
   }
+
+  private loadBulkRows(seriesId: string): Promise<BlsObservationRow[]> {
+    this.bulkTextPromise ??= this.fetchImpl(BLS_ALL_ITEMS_BULK_URL, {
+      headers: BLS_REQUEST_HEADERS,
+      signal: AbortSignal.timeout(60_000),
+    }).then(async (response) => {
+      if (!response.ok) {
+        throw new Error(`official All Items file returned HTTP ${response.status}`);
+      }
+      return response.text();
+    });
+    return this.bulkTextPromise.then((value) => parseBlsBulkFile(value, seriesId));
+  }
+}
+
+/** Parses one exact series from BLS's tab-separated CPI All Items bulk file. */
+export function parseBlsBulkFile(value: string, seriesId: string): BlsObservationRow[] {
+  const rows: BlsObservationRow[] = [];
+  for (const [index, line] of value.split(/\r?\n/).entries()) {
+    if (index === 0 || line.trim() === '') {
+      continue;
+    }
+    const columns = line.split('\t');
+    if (columns[0]?.trim() !== seriesId) {
+      continue;
+    }
+    const year = columns[1]?.trim();
+    const period = columns[2]?.trim();
+    const observation = columns[3]?.trim();
+    if (!year || !period || !observation) {
+      throw new Error(
+        `BLS All Items file returned a malformed ${seriesId} row at line ${index + 1}`,
+      );
+    }
+    rows.push({ year, period, value: observation });
+  }
+  if (rows.length === 0) {
+    throw new Error(`BLS All Items file did not contain the requested series ${seriesId}`);
+  }
+  return rows;
 }
 
 /** Builds non-overlapping public-API ranges that never exceed BLS's unregistered 10-year limit. */
@@ -271,6 +386,10 @@ function responseMessages(value: unknown): string[] {
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
+}
+
+function asError(value: unknown): Error {
+  return value instanceof Error ? value : new Error(String(value));
 }
 
 async function loadOpenDates(startMonth: string, endMonth: string): Promise<string[]> {
