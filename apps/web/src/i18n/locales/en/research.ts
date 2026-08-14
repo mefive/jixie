@@ -82,6 +82,7 @@ export const enResearch: typeof zhResearch = {
     coverage: 'Data coverage',
     method: 'Method & reproduction',
     parameters: 'Adjust parameters',
+    runHistory: 'Run history',
     rerun: 'Rerun with parameters',
     rerunFailed: 'Research rerun failed',
     question: 'Research question',

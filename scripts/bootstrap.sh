@@ -850,6 +850,9 @@ if [[ "$DEPLOY_API" == "1" ]]; then
   # after schema deployment; databases with legacy rows fail before migration instead of losing data.
   log "复核 Screen 到 Research 数据迁移（schema 升级后，幂等）"
   pnpm --filter api migrate:screen-to-research
+
+  log "补齐正式 ResearchStudy / ResearchRun 记录（幂等）"
+  pnpm --filter api migrate:research-records
 fi
 
 if [[ "$DEPLOY_WEB" == "1" ]]; then

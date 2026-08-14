@@ -77,6 +77,7 @@ export const zhResearch = {
     coverage: '数据覆盖',
     method: '方法与复现',
     parameters: '调整参数',
+    runHistory: '运行历史',
     rerun: '按新参数重跑',
     rerunFailed: '研究重跑失败',
     question: '研究问题',

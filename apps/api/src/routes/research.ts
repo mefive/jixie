@@ -9,6 +9,7 @@ import * as turnBus from '../agent/turn-bus.js';
 import { localeFromRequest, m } from '../i18n/index.js';
 import { researchCapabilityCatalog } from '../research/catalog.js';
 import { executeResearchPlan } from '../research/executor.js';
+import { createResearchRerun, listResearchStudyRuns } from '../research/records.js';
 import { researchPlanSpecV1Schema } from '../research/spec.js';
 import { universeSpecV1Schema } from '../research/spec.js';
 import { executeUniverseSpec } from '../research/universe.js';
@@ -119,6 +120,44 @@ researchRoute.delete('/conversations/:id', async (c) => {
 researchRoute.post('/run', validateJson(researchPlanSpecV1Schema), async (c) => {
   try {
     return c.json(await executeResearchPlan(c.req.valid('json')));
+  } catch (error) {
+    return apiError(
+      c,
+      'VALIDATION_FAILED',
+      error instanceof Error ? error.message : 'Research plan failed.',
+    );
+  }
+});
+
+const rerunBody = z.strictObject({
+  parentRunId: z.string().min(1),
+  plan: researchPlanSpecV1Schema,
+});
+
+researchRoute.get('/studies/:studyId/runs', async (c) => {
+  const records = await listResearchStudyRuns(c.var.userId, c.req.param('studyId'));
+  return records ? c.json(records) : apiError(c, 'NOT_FOUND', m(c, 'researchStudyNotFound'));
+});
+
+researchRoute.post('/studies/:studyId/runs', validateJson(rerunBody), async (c) => {
+  const { parentRunId, plan } = c.req.valid('json');
+  const studyId = c.req.param('studyId');
+  const parent = await prisma.researchRun.findFirst({
+    where: { id: parentRunId, studyId, study: { userId: c.var.userId, status: 'active' } },
+    select: { id: true },
+  });
+  if (!parent) {
+    return apiError(c, 'NOT_FOUND', m(c, 'researchStudyNotFound'));
+  }
+  try {
+    const run = await executeResearchPlan(plan);
+    const record = await createResearchRerun({
+      userId: c.var.userId,
+      studyId,
+      parentRunId,
+      run,
+    });
+    return record ? c.json(record) : apiError(c, 'NOT_FOUND', m(c, 'researchStudyNotFound'));
   } catch (error) {
     return apiError(
       c,

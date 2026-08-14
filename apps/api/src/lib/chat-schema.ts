@@ -62,6 +62,15 @@ const researchPartSchema = z.strictObject({
   type: z.literal('research'),
   title: z.string().max(120),
   run: researchRunResultSchema,
+  record: z
+    .strictObject({
+      version: z.literal(1),
+      studyId: z.string().min(1),
+      runId: z.string().min(1),
+      sequence: z.number().int().positive(),
+      createdAt: z.string().datetime(),
+    })
+    .optional(),
 });
 
 const universePartSchema = z.strictObject({

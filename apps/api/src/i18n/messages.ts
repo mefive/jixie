@@ -39,6 +39,7 @@ const MESSAGES = {
   },
   screenNotFound: { zh: '选股不存在', en: 'Screen not found' },
   conversationNotFound: { zh: '会话不存在', en: 'Conversation not found' },
+  researchStudyNotFound: { zh: '研究记录不存在', en: 'Research study not found' },
 
   // —— Turn already running for an entity ——
   strategyTurnInProgress: {

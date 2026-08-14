@@ -30,7 +30,10 @@ export function MessageParts({ message }: MessagePartsProps) {
         }
         if (part.type === 'research') {
           return (
-            <Suspense key={partIndex} fallback={<div className="jx-chatChart--pending" />}>
+            <Suspense
+              key={`${partIndex}-${part.record?.runId ?? part.title}`}
+              fallback={<div className="jx-chatChart--pending" />}
+            >
               <ResearchResultCard part={part} />
             </Suspense>
           );

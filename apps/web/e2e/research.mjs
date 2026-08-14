@@ -221,6 +221,13 @@ try {
   }
 
   const now = new Date().toISOString();
+  const relationshipRecord = {
+    version: 1,
+    studyId: 'e2e-study-relationship',
+    runId: 'e2e-run-relationship-1',
+    sequence: 1,
+    createdAt: now,
+  };
   const universeConversation = {
     id: 'e2e-universe',
     title: '低估值大市值股票池',
@@ -295,6 +302,7 @@ try {
                 type: 'research',
                 title: relationshipConversation.title,
                 run: actualRelationship,
+                record: relationshipRecord,
               },
             ],
           },
@@ -351,6 +359,50 @@ try {
     }),
   );
   let rerunPlan = null;
+  let persistentRerunRequested = false;
+  const relationshipRecords = [
+    {
+      ref: relationshipRecord,
+      title: relationshipConversation.title,
+      origin: 'agent',
+      planHash: 'plan-1',
+      resultHash: 'result-1',
+      run: actualRelationship,
+    },
+  ];
+  await page.route('**/api/app/research/studies/e2e-study-relationship/runs', async (route) => {
+    if (route.request().method() === 'GET') {
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(relationshipRecords),
+      });
+    }
+    persistentRerunRequested = true;
+    const body = route.request().postDataJSON();
+    rerunPlan = body.plan;
+    const record = {
+      ref: {
+        version: 1,
+        studyId: relationshipRecord.studyId,
+        runId: `e2e-run-relationship-${relationshipRecords.length + 1}`,
+        sequence: relationshipRecords.length + 1,
+        createdAt: new Date(Date.now() + relationshipRecords.length * 1000).toISOString(),
+      },
+      title: relationshipConversation.title,
+      origin: 'parameter_rerun',
+      parentRunId: body.parentRunId,
+      planHash: `plan-${relationshipRecords.length + 1}`,
+      resultHash: `result-${relationshipRecords.length + 1}`,
+      run: { ...actualRelationship, plan: body.plan },
+    };
+    relationshipRecords.push(record);
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(record),
+    });
+  });
   await page.route('**/api/app/research/run', (route) => {
     rerunPlan = route.request().postDataJSON();
     return route.fulfill({
@@ -389,6 +441,7 @@ try {
 
   await page.getByText(relationshipConversation.title, { exact: true }).click();
   await page.locator('.jx-researchResult-conclusion').waitFor({ timeout: 20_000 });
+  await page.locator('.jx-researchRunHistory').waitFor({ timeout: 20_000 });
   await page.getByText('调整参数', { exact: true }).click();
   await page.locator('.jx-researchResult-controls .ant-input-number input').first().fill('1');
   await page.screenshot({ path: `${SHOTS}research-relationship-controls-zh.png`, fullPage: true });
@@ -397,6 +450,22 @@ try {
   if (rerunPlan?.protocol?.predictorLag !== 1) {
     throw new Error(`research rerun did not preserve edited lag: ${JSON.stringify(rerunPlan)}`);
   }
+  const runHistory = page.locator('.jx-researchRunHistory');
+  const runHistoryAfterRerun = await runHistory.innerText();
+  if (!persistentRerunRequested || !runHistoryAfterRerun.includes('#2')) {
+    throw new Error(
+      `persisted research rerun is missing from history (requested=${persistentRerunRequested}): ${runHistoryAfterRerun}`,
+    );
+  }
+  await runHistory.click();
+  await page.locator('.ant-select-item-option').filter({ hasText: '#1' }).click();
+  if (!(await runHistory.innerText()).includes('#1')) {
+    throw new Error('the first persisted research run could not be reopened');
+  }
+  await runHistory.click();
+  await page.locator('.ant-select-item-option').filter({ hasText: '#2' }).click();
+  await page.locator('.jx-researchResult-title').click();
+  await page.locator('.ant-select-dropdown').waitFor({ state: 'hidden' });
   await page.screenshot({ path: `${SHOTS}research-relationship-zh.png`, fullPage: true });
 
   await page.getByText('EN', { exact: true }).click();

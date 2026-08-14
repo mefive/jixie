@@ -112,24 +112,26 @@ async function runTurn(args: EnqueueTurnArgs, signal: AbortSignal): Promise<void
     // Persist the assistant message BEFORE `done` fires — a subscriber reacting to done (or a
     // refresh racing it) must find the conversation complete in the DB.
     const parts = turnParts(result);
-    const completedMessages = persisted
-      ? [...persisted, { role: 'assistant' as const, parts, turnId }]
-      : [];
     if (entity && persisted) {
-      await writeMessages(entity, completedMessages);
+      await writeMessages(entity, [...persisted, { role: 'assistant' as const, parts, turnId }]);
     }
+    let completedParts = parts;
     if (traceRecorder) {
       await traceRecorder.flush();
-      await finishPersistentTurn({
-        turnId,
-        status: 'done',
-        parts,
-        trace: traceRecorder.trace,
-      });
+      completedParts =
+        (await finishPersistentTurn({
+          turnId,
+          status: 'done',
+          parts,
+          trace: traceRecorder.trace,
+        })) ?? parts;
     }
+    const completedMessages = persisted
+      ? [...persisted, { role: 'assistant' as const, parts: completedParts, turnId }]
+      : [];
     turnBus.finish(turnId, {
       type: 'done',
-      parts,
+      parts: completedParts,
       code: result.code,
       changed: result.changed,
       attempts: result.attempts,

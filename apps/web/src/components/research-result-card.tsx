@@ -29,11 +29,11 @@ import {
   faSquareRootVariable,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { runResearchPlan } from '@src/api/client';
 import { DistributionComparisonCard } from './distribution-comparison-card';
 import { EventStudyCard } from './event-study-card';
 import { EChart, type ECOption } from './echart';
 import { Markdown } from './markdown';
+import { ResearchRunHistorySelect, useResearchRunHistory } from './research-run-history';
 import './research-result-card.css';
 
 interface ResearchResultCardProps {
@@ -48,17 +48,20 @@ type TimeSeriesResearchPart = Omit<ResearchPart, 'run'> & {
  * come from the validated protocol result; the LLM cannot invent or mutate this payload. */
 export function ResearchResultCard({ part }: ResearchResultCardProps) {
   if (part.run.result.kind === 'distribution_comparison') {
-    return <DistributionComparisonCard title={part.title} run={part.run as never} />;
+    return (
+      <DistributionComparisonCard title={part.title} run={part.run as never} record={part.record} />
+    );
   }
   if (part.run.result.kind === 'event_study') {
-    return <EventStudyCard title={part.title} run={part.run as never} />;
+    return <EventStudyCard title={part.title} run={part.run as never} record={part.record} />;
   }
   return <TimeSeriesResultCard part={part as TimeSeriesResearchPart} />;
 }
 
 function TimeSeriesResultCard({ part }: { part: TimeSeriesResearchPart }) {
   const { t, i18n } = useTranslation('research');
-  const [run, setRun] = useState(part.run);
+  const history = useResearchRunHistory(part.run, part.record);
+  const run = history.run;
   const [draft, setDraft] = useState(() => editablePlan(part.run));
   const [controlsOpen, setControlsOpen] = useState(false);
   const [running, setRunning] = useState(false);
@@ -75,18 +78,16 @@ function TimeSeriesResultCard({ part }: { part: TimeSeriesResearchPart }) {
   const outcome = run.plan.inputs.find((input) => input.id === run.plan.protocol.outcome);
 
   useEffect(() => {
-    setRun(part.run);
-    setDraft(editablePlan(part.run));
+    setDraft(editablePlan(run));
     setControlsOpen(false);
     setRunError('');
-  }, [part.run]);
+  }, [run]);
 
   const rerun = async () => {
     setRunning(true);
     setRunError('');
     try {
-      const next = await runResearchPlan(draft);
-      setRun(next);
+      const next = await history.rerun(draft);
       setDraft(editablePlan(next));
       setControlsOpen(false);
     } catch (error) {
@@ -267,6 +268,12 @@ function TimeSeriesResultCard({ part }: { part: TimeSeriesResearchPart }) {
           <span>{part.title}</span>
         </div>
         <div className="jx-researchResult-actions">
+          <ResearchRunHistorySelect
+            records={history.records}
+            runId={history.record?.runId}
+            label={t('result.runHistory')}
+            onChange={history.select}
+          />
           <Tag>{zh ? run.protocol.nameZh : run.protocol.nameEn}</Tag>
           <Button
             size="small"
