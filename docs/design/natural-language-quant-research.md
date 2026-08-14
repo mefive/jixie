@@ -164,22 +164,26 @@ interface ResearchProtocolDefinition {
 兼容。反之，即使没有新增数据库表，只要单位、可得时间或计算定义发生变化，也必须升级语义版本并说明旧研究
 如何重放。
 
-### 4.4 Research Skill、Concept Registry 与对象解析
+### 4.4 Research Playbook、Concept Binding 与对象解析
 
-领域研究知识不继续堆进全局 Agent prompt，也不把数据库实体代码复制进领域说明。系统采用三层边界：
+领域研究知识不继续堆进全局 Agent prompt，也不把数据库实体代码复制进领域说明。系统采用四层边界：
 
-- `ResearchSkillRegistry` 按需加载某个研究方向的候选变量、常见假设方向、研究步骤和禁止替代规则；
-- `ResearchConceptRegistry` 用版本化概念 ID 登记中英文名称、别名、词法检索词、优先对象类型和不可替代概念；
-- 本地 Research Catalog 用 Prisma 对真实对象、宏观序列、利率曲线和汇率做词法召回，返回精确 `source`、
-  `compatibleMeasure`、单位和版本。
+- `ResearchPlaybookRegistry` 是通过 Tool 按需加载给 LLM 的领域上下文，包含候选变量、常见假设方向、
+  研究步骤和禁止替代规则；它不是 Agent 框架 Skill；
+- `ResearchConceptRegistry` 用版本化概念 ID 登记中英文含义、别名和不可替代概念；
+- `ResearchConceptBindingRegistry` 是平台内部的审计白名单，把 Concept 映射到精确 `source`、Measure、
+  单位、频率、时区、PIT/revision 口径和允许的代理类型；
+- Research Catalog 只从 Binding 解析语义概念，并核验本地真实观测覆盖；数据库字段词法检索仅用于用户明确
+  给出的对象名称或稳定代码。
 
-Skill 只能引用 `commodity.gold.price`、`rates.us_treasury.real` 等概念 ID，不能保存 `AU.SHF`、
+Playbook 只能引用 `commodity.gold.price`、`rates.us_treasury.real` 等概念 ID，不能保存 `AU.SHF`、
 `518880.SH` 等数据库实体。概念检索返回多个语义不同的代理变量时由用户确认；返回空时只表示该精确概念没有
-登记的本地序列，不能扩大解释为协议或全部相关数据缺失。
+登记 Binding，或已登记 Binding 暂无本地观测，不能扩大解释为协议或全部相关数据缺失。
 
 `searchResearchCatalog` 接受结构化 `ConceptQuery`：`conceptIds` 用于领域概念，`text` 仅用于用户明确给出的
-对象名称或稳定代码，`filters` 表达对象类型、数据源类型和利率期限。首版使用别名与字段词法召回，不引入向量
-索引；未来若增加向量召回，它也只能补充候选，最终仍须通过本地目录验证精确身份和研究契约。
+对象名称或稳定代码，`filters` 表达对象类型、数据源类型和利率期限。首版只用别名把自然语言解析为 Concept，
+不引入向量索引；未来若增加向量召回，它也只能补充 Concept 候选，最终仍须通过 Binding 白名单验证精确身份、
+数据契约和真实覆盖范围。
 
 ## 5. 第一批研究协议
 
@@ -236,9 +240,9 @@ ROADMAP 4.1 负责审计与补充方法正确性，本设计负责把已审计�
 Agent 可以共享查数和图表工具，但默认目标不同：Screen 返回符合条件的证券集合，Research 返回一个研究计划
 和版本化研究运行。
 
-宽泛领域问题先从轻量 Skill 索引判断是否存在适用方向，再通过 `loadResearchSkill` 按需加载详细策略；首个
-fixture 是黄金价格驱动研究。Skill 给出 Concept ID，`searchResearchCatalog` 负责解析真实对象，Agent 不根据
-Skill 或模型记忆猜数据库代码。
+宽泛领域问题先从轻量 Playbook 索引判断是否存在适用方向，再通过 `loadResearchPlaybook` 按需加载详细策略；
+首个 fixture 是黄金价格驱动研究。Playbook 给出 Concept ID，`searchResearchCatalog` 只通过登记的 Binding
+解析真实对象并返回覆盖范围，Agent 不根据 Playbook、数据库名称相似度或模型记忆猜数据库代码。
 
 建议的工具边界：
 

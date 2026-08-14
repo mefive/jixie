@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { prisma } from '../../lib/prisma.js';
 import { researchCapabilityCatalog } from '../../research/catalog.js';
+import { resolveResearchConceptBindings } from '../../research/concept-binding-resolver.js';
+import { researchConceptBindings } from '../../research/concept-bindings.js';
 import {
   RESEARCH_CONCEPT_IDS,
   inferResearchConceptIds,
@@ -90,7 +92,7 @@ const CONTINUOUS_FUTURE_NAMES: Record<string, { zh: string; en: string }> = {
 export const searchResearchCatalogTool: AgentTool = {
   name: 'searchResearchCatalog',
   description:
-    'Resolve one structured ConceptQuery against the local research catalog. Use conceptIds supplied by a loaded research skill for semantic concepts; use text for a named object or exact code; optional filters constrain source kind, asset type, or yield-curve tenor. Lexical aliases and database fields recall candidates, but only returned source and compatibleMeasure objects are authoritative. Results are grouped per concept so an exact-series gap cannot be confused with a missing protocol. Never guess or substitute a different source.',
+    'Resolve one structured ConceptQuery against the local research catalog. Use conceptIds supplied by a loaded research playbook for semantic concepts; use text for a named object or exact code; optional filters constrain source kind, asset type, or yield-curve tenor. Concept ids resolve only through audited binding allow-list entries, while lexical database search is limited to explicitly named objects. Results are grouped per concept so an exact-series gap cannot be confused with a missing protocol. Never guess or substitute a different source.',
   parameters: z.toJSONSchema(argsSchema),
   async run(args) {
     const parsed = argsSchema.safeParse(args);
@@ -100,82 +102,118 @@ export const searchResearchCatalogTool: AgentTool = {
 
     const interpretation = interpretResearchCatalogQuery(parsed.data);
     const { terms, tenorYears } = interpretation;
-    const [stocks, etfs, indexes, indexCodes, continuousFutures, futures, macro, curves, fx] =
-      await Promise.all([
-        prisma.stockBasic.findMany({
-          where: { OR: terms.flatMap((term) => textSearch(term, ['tsCode', 'name'])) },
-          select: { tsCode: true, name: true, industry: true },
-          take: 30,
-        }),
-        prisma.etfBasic.findMany({
-          where: {
-            OR: terms.flatMap((term) =>
-              textSearch(term, ['tsCode', 'name', 'fundType', 'indexName']),
-            ),
-          },
-          select: { tsCode: true, name: true, fundType: true, indexName: true },
-          take: 30,
-        }),
-        prisma.indexBenchmark.findMany({
-          where: {
-            OR: terms.flatMap((term) => textSearch(term, ['tsCode', 'name', 'fullName'])),
-          },
-          select: { tsCode: true, name: true, indexType: true },
-          take: 30,
-        }),
-        prisma.indexDaily.findMany({
-          where: { OR: terms.map((term) => ({ tsCode: { contains: term } })) },
-          select: { tsCode: true },
-          distinct: ['tsCode'],
-          take: 30,
-        }),
-        prisma.futureMapping.findMany({
-          where: { OR: terms.map((term) => ({ continuousCode: { contains: term } })) },
-          select: { continuousCode: true },
-          distinct: ['continuousCode'],
-          take: 30,
-        }),
-        prisma.futureContract.findMany({
-          where: {
-            OR: terms.flatMap((term) =>
-              textSearch(term, ['tsCode', 'name', 'productCode', 'exchange']),
-            ),
-          },
-          select: { tsCode: true, name: true, productCode: true, exchange: true },
-          take: 30,
-        }),
-        prisma.macroSeries.findMany({
-          where: {
-            OR: terms.flatMap((term) => textSearch(term, ['seriesKey', 'nameZh', 'nameEn'])),
-          },
-          select: {
-            seriesKey: true,
-            nameZh: true,
-            nameEn: true,
-            frequency: true,
-            unit: true,
-            revisionPolicy: true,
-          },
-          take: 30,
-        }),
-        prisma.yieldCurvePoint.findMany({
-          where: {
-            AND: [
-              { OR: terms.flatMap((term) => textSearch(term, ['curveCode', 'curveName'])) },
-              ...(tenorYears === null ? [] : [{ termYears: tenorYears }]),
-            ],
-          },
-          select: { curveCode: true, curveName: true, curveType: true, termYears: true },
-          distinct: ['curveCode', 'curveType', 'termYears'],
-          take: 30,
-        }),
-        prisma.fxDaily.findMany({
-          where: { OR: terms.map((term) => ({ tsCode: { contains: term } })) },
-          select: { tsCode: true, exchange: true },
-          distinct: ['tsCode'],
-          take: 30,
-        }),
-      ]);
+    const bindingFilters = {
+      ...parsed.data.filters,
+      ...(tenorYears == null ? {} : { termYears: tenorYears }),
+    };
+    const registeredBindings = interpretation.conceptIds.flatMap((conceptId) =>
+      researchConceptBindings(conceptId),
+    );
+    const [
+      stocks,
+      etfs,
+      indexes,
+      indexCodes,
+      continuousFutures,
+      futures,
+      macro,
+      curves,
+      fx,
+      resolvedBindings,
+    ] = await Promise.all([
+      terms.length === 0
+        ? Promise.resolve([])
+        : prisma.stockBasic.findMany({
+            where: { OR: terms.flatMap((term) => textSearch(term, ['tsCode', 'name'])) },
+            select: { tsCode: true, name: true, industry: true },
+            take: 30,
+          }),
+      terms.length === 0
+        ? Promise.resolve([])
+        : prisma.etfBasic.findMany({
+            where: {
+              OR: terms.flatMap((term) =>
+                textSearch(term, ['tsCode', 'name', 'fundType', 'indexName']),
+              ),
+            },
+            select: { tsCode: true, name: true, fundType: true, indexName: true },
+            take: 30,
+          }),
+      terms.length === 0
+        ? Promise.resolve([])
+        : prisma.indexBenchmark.findMany({
+            where: {
+              OR: terms.flatMap((term) => textSearch(term, ['tsCode', 'name', 'fullName'])),
+            },
+            select: { tsCode: true, name: true, indexType: true },
+            take: 30,
+          }),
+      terms.length === 0
+        ? Promise.resolve([])
+        : prisma.indexDaily.findMany({
+            where: { OR: terms.map((term) => ({ tsCode: { contains: term } })) },
+            select: { tsCode: true },
+            distinct: ['tsCode'],
+            take: 30,
+          }),
+      terms.length === 0
+        ? Promise.resolve([])
+        : prisma.futureMapping.findMany({
+            where: { OR: terms.map((term) => ({ continuousCode: { contains: term } })) },
+            select: { continuousCode: true },
+            distinct: ['continuousCode'],
+            take: 30,
+          }),
+      terms.length === 0
+        ? Promise.resolve([])
+        : prisma.futureContract.findMany({
+            where: {
+              OR: terms.flatMap((term) =>
+                textSearch(term, ['tsCode', 'name', 'productCode', 'exchange']),
+              ),
+            },
+            select: { tsCode: true, name: true, productCode: true, exchange: true },
+            take: 30,
+          }),
+      terms.length === 0
+        ? Promise.resolve([])
+        : prisma.macroSeries.findMany({
+            where: {
+              OR: terms.flatMap((term) => textSearch(term, ['seriesKey', 'nameZh', 'nameEn'])),
+            },
+            select: {
+              seriesKey: true,
+              nameZh: true,
+              nameEn: true,
+              frequency: true,
+              unit: true,
+              revisionPolicy: true,
+            },
+            take: 30,
+          }),
+      terms.length === 0
+        ? Promise.resolve([])
+        : prisma.yieldCurvePoint.findMany({
+            where: {
+              AND: [
+                { OR: terms.flatMap((term) => textSearch(term, ['curveCode', 'curveName'])) },
+                ...(tenorYears === null ? [] : [{ termYears: tenorYears }]),
+              ],
+            },
+            select: { curveCode: true, curveName: true, curveType: true, termYears: true },
+            distinct: ['curveCode', 'curveType', 'termYears'],
+            take: 30,
+          }),
+      terms.length === 0
+        ? Promise.resolve([])
+        : prisma.fxDaily.findMany({
+            where: { OR: terms.map((term) => ({ tsCode: { contains: term } })) },
+            select: { tsCode: true, exchange: true },
+            distinct: ['tsCode'],
+            take: 30,
+          }),
+      resolveResearchConceptBindings(registeredBindings, bindingFilters),
+    ]);
 
     const knownIndexCodes = new Set(indexes.map((item) => item.tsCode));
     const candidates: CatalogCandidate[] = [
@@ -281,19 +319,30 @@ export const searchResearchCatalogTool: AgentTool = {
       ),
       ...registeredCapabilityCandidates(terms),
     ].filter((item) => candidateAllowed(item, parsed.data.filters));
-    const concreteCandidates = candidates.filter((item) => item.sourceKind !== 'capability');
     const conceptMatches = interpretation.conceptIds.map((conceptId) => {
       const concept = researchConceptById.get(conceptId)!;
-      const matches = concreteCandidates
-        .filter((item) => conceptCandidateAllowed(item, concept))
-        .filter((item) => searchScore(item.searchValues, concept.searchTerms) > 0)
-        .sort(
-          (left, right) =>
-            searchScore(right.searchValues, concept.searchTerms) -
-            searchScore(left.searchValues, concept.searchTerms),
-        )
+      const allRegistered = researchConceptBindings(conceptId);
+      const resolved = resolvedBindings.filter((item) => item.binding.conceptId === conceptId);
+      const matches = resolved
+        .filter((item) => item.available && item.match)
         .slice(0, CONCEPT_RESULT_CAP)
-        .map((item) => item.match);
+        .map((item) => item.match!);
+      const unavailableBindings = resolved
+        .filter((item) => !item.available)
+        .map((item) => ({
+          id: item.binding.id,
+          version: item.binding.version,
+          source: item.binding.source,
+          reason: item.unavailableReason,
+        }));
+      const availability =
+        matches.length > 0
+          ? 'registered_matches'
+          : allRegistered.length === 0
+            ? 'no_registered_binding'
+            : resolved.length === 0
+              ? 'no_binding_matches_filters'
+              : 'registered_binding_no_data';
       return {
         id: concept.id,
         version: concept.version,
@@ -304,12 +353,17 @@ export const searchResearchCatalogTool: AgentTool = {
         requestedBy: interpretation.explicitConceptIds.includes(concept.id)
           ? 'explicit_concept_id'
           : 'lexical_inference',
-        availability: matches.length > 0 ? 'registered_matches' : 'no_registered_match',
+        availability,
         doNotSubstitute: concept.doNotSubstitute ?? [],
+        registeredBindingCount: allRegistered.length,
+        unavailableBindings,
         matches,
       };
     });
-    const matches = candidates.slice(0, RESULT_CAP).map((item) => item.match);
+    const matches = uniqueCatalogMatches([
+      ...resolvedBindings.flatMap((item) => (item.available && item.match ? [item.match] : [])),
+      ...candidates.map((item) => item.match),
+    ]).slice(0, RESULT_CAP);
     const capabilities = compactCapabilityCatalog();
 
     return {
@@ -317,6 +371,7 @@ export const searchResearchCatalogTool: AgentTool = {
         request: parsed.data,
         interpretation,
         conceptRegistryVersion: 1,
+        bindingRegistryVersion: 1,
         conceptMatches,
         matches,
         capabilities,
@@ -338,19 +393,16 @@ export function interpretResearchCatalogQuery(input: ResearchCatalogQueryInput):
   const explicitConceptIds = [...new Set(input.conceptIds ?? [])];
   const inferredConceptIds = text ? inferResearchConceptIds(text) : [];
   const conceptIds = [...new Set([...explicitConceptIds, ...inferredConceptIds])];
-  const conceptTerms = conceptIds.flatMap(
-    (conceptId) => researchConceptById.get(conceptId)?.searchTerms ?? [],
-  );
   const lexicalTerms = conceptIds.length === 0 && text ? tokenizeCatalogText(text) : [];
   const stableIdentifiers = text ? stableIdentifiersFromText(text) : [];
-  const terms = [...new Set([...conceptTerms, ...lexicalTerms, ...stableIdentifiers])].slice(0, 40);
+  const terms = [...new Set([...lexicalTerms, ...stableIdentifiers])].slice(0, 40);
 
   return {
     text,
     explicitConceptIds,
     inferredConceptIds,
     conceptIds,
-    terms: terms.length > 0 ? terms : text ? [text] : [],
+    terms: terms.length > 0 ? terms : conceptIds.length === 0 && text ? [text] : [],
     tenorYears: input.filters?.termYears ?? (text ? researchCatalogTenorYears(text) : null),
   };
 }
@@ -473,29 +525,6 @@ function candidateAllowed(
   return true;
 }
 
-function conceptCandidateAllowed(
-  item: CatalogCandidate,
-  concept: NonNullable<ReturnType<typeof researchConceptById.get>>,
-): boolean {
-  if (!concept.preferredSourceKinds.includes(item.sourceKind as ResearchCatalogSourceKind)) {
-    return false;
-  }
-  if (
-    concept.preferredAssetTypes &&
-    item.assetType &&
-    !concept.preferredAssetTypes.includes(item.assetType)
-  ) {
-    return false;
-  }
-  if (concept.excludeDeliveryFutures && item.assetType === 'future' && !item.continuousFuture) {
-    return false;
-  }
-  if (concept.excludedSearchTerms?.some((term) => searchScore(item.searchValues, [term]) > 0)) {
-    return false;
-  }
-  return true;
-}
-
 function compactValues(value: object): string[] {
   return Object.values(value).filter(
     (item): item is string => typeof item === 'string' && item.length > 0,
@@ -563,4 +592,16 @@ function measureReference(id: string) {
     unit: measure.unit,
     transforms: measure.transforms,
   };
+}
+
+function uniqueCatalogMatches(matches: Record<string, unknown>[]): Record<string, unknown>[] {
+  const seen = new Set<string>();
+  return matches.filter((match) => {
+    const key = JSON.stringify(match.source ?? [match.kind, match.id]);
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
 }

@@ -5,13 +5,11 @@ import {
 } from './search-research-catalog.js';
 
 describe('research catalog query interpretation', () => {
-  it('uses the concept registry for gold and preserves stable numeric instrument codes', () => {
+  it('uses the concept registry for gold and limits lexical lookup to stable named identifiers', () => {
     const interpretation = interpretResearchCatalogQuery({ text: '沪金 AU gold ETF 518880' });
 
     expect(interpretation.conceptIds).toContain('commodity.gold.price');
-    expect(interpretation.terms).toEqual(
-      expect.arrayContaining(['黄金', '沪金', 'AU', 'AU.SHF', '518880']),
-    );
+    expect(interpretation.terms).toEqual(['518880']);
     expect(interpretResearchCatalogQuery({ text: '000300' }).terms).toContain('000300');
   });
 
@@ -30,9 +28,7 @@ describe('research catalog query interpretation', () => {
     const interpretation = interpretResearchCatalogQuery({ text: 'USD index dollar dxy' });
 
     expect(interpretation.conceptIds).toContain('fx.usd_strength.dxy');
-    expect(interpretation.terms).toEqual(expect.arrayContaining(['美元指数', 'DXY']));
-    expect(interpretation.terms).not.toContain('USD');
-    expect(interpretation.terms).not.toContain('dollar');
+    expect(interpretation.terms).toEqual([]);
     expect(interpretResearchCatalogQuery({ text: 'USDCNH' }).conceptIds).not.toContain(
       'fx.usd_strength.dxy',
     );
@@ -47,14 +43,12 @@ describe('research catalog query interpretation', () => {
     ]);
   });
 
-  it('keeps skill-provided concepts explicit and independently searchable', () => {
+  it('keeps playbook-provided concepts explicit without turning them into database search terms', () => {
     const interpretation = interpretResearchCatalogQuery({
       conceptIds: ['commodity.gold.price', 'macro.inflation.us', 'macro.inflation.cn'],
     });
 
     expect(interpretation.explicitConceptIds).toHaveLength(3);
-    expect(interpretation.terms).toEqual(
-      expect.arrayContaining(['AU.SHF', 'US CPI', 'cn_cpi_yoy']),
-    );
+    expect(interpretation.terms).toEqual([]);
   });
 });

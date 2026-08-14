@@ -23,11 +23,6 @@ export interface ResearchConceptDefinitionV1 {
   descriptionZh: string;
   descriptionEn: string;
   aliases: string[];
-  searchTerms: string[];
-  excludedSearchTerms?: string[];
-  preferredSourceKinds: ResearchCatalogSourceKind[];
-  preferredAssetTypes?: ResearchCatalogAssetType[];
-  excludeDeliveryFutures?: boolean;
   doNotSubstitute?: ResearchConceptId[];
 }
 
@@ -42,10 +37,6 @@ const concepts: Record<ResearchConceptId, ResearchConceptDefinitionV1> = {
     descriptionEn:
       'Gold-price proxies such as spot, continuous futures, or gold ETFs; currency and product type must remain explicit.',
     aliases: ['黄金', '沪金', 'gold', 'gold price', 'gold future', 'xau', 'comex gold'],
-    searchTerms: ['黄金', '沪金', 'AU', 'AU.SHF', '518880', 'gold'],
-    preferredSourceKinds: ['instrument'],
-    preferredAssetTypes: ['future', 'etf'],
-    excludeDeliveryFutures: true,
   },
   'commodity.silver.price': {
     id: 'commodity.silver.price',
@@ -56,10 +47,6 @@ const concepts: Record<ResearchConceptId, ResearchConceptDefinitionV1> = {
     descriptionZh: '白银价格代理，包括现货、连续期货或白银 ETF。',
     descriptionEn: 'Silver-price proxies such as spot, continuous futures, or silver ETFs.',
     aliases: ['白银', '沪银', 'silver', 'silver price', 'xag'],
-    searchTerms: ['白银', '沪银', 'AG', 'AG.SHF', 'silver'],
-    preferredSourceKinds: ['instrument'],
-    preferredAssetTypes: ['future', 'etf'],
-    excludeDeliveryFutures: true,
   },
   'rates.us_treasury.nominal': {
     id: 'rates.us_treasury.nominal',
@@ -77,9 +64,6 @@ const concepts: Record<ResearchConceptId, ResearchConceptDefinitionV1> = {
       'treasury yield',
       'nominal treasury yield',
     ],
-    searchTerms: ['美国国债', '美国国债名义收益率', 'us_treasury_nominal'],
-    excludedSearchTerms: ['美国国债实际收益率', 'us_treasury_real'],
-    preferredSourceKinds: ['yield_curve'],
   },
   'rates.us_treasury.real': {
     id: 'rates.us_treasury.real',
@@ -101,9 +85,6 @@ const concepts: Record<ResearchConceptId, ResearchConceptDefinitionV1> = {
       'us real yield',
       'tips yield',
     ],
-    searchTerms: ['美国国债实际收益率', 'us_treasury_real'],
-    excludedSearchTerms: ['美国国债名义收益率', 'us_treasury_nominal'],
-    preferredSourceKinds: ['yield_curve'],
   },
   'fx.usd_strength.dxy': {
     id: 'fx.usd_strength.dxy',
@@ -115,8 +96,6 @@ const concepts: Record<ResearchConceptId, ResearchConceptDefinitionV1> = {
     descriptionEn:
       'The US dollar against a basket of major currencies, not a substitute for any bilateral USD pair.',
     aliases: ['美元指数', '美元强弱', 'dxy', 'dollar index', 'usd index', 'us dollar index'],
-    searchTerms: ['美元指数', 'DXY'],
-    preferredSourceKinds: ['instrument'],
   },
   'macro.inflation.us': {
     id: 'macro.inflation.us',
@@ -127,9 +106,6 @@ const concepts: Record<ResearchConceptId, ResearchConceptDefinitionV1> = {
     descriptionZh: '美国消费者价格或其他显式登记的美国通胀序列。',
     descriptionEn: 'US consumer-price or another explicitly registered US inflation series.',
     aliases: ['美国通胀', '美国cpi', 'us inflation', 'us cpi', 'american inflation'],
-    searchTerms: ['美国居民消费价格', '美国CPI', 'US CPI', 'us_cpi'],
-    excludedSearchTerms: ['中国CPI', 'cn_cpi'],
-    preferredSourceKinds: ['macro'],
     doNotSubstitute: ['macro.inflation.cn'],
   },
   'macro.inflation.cn': {
@@ -141,9 +117,6 @@ const concepts: Record<ResearchConceptId, ResearchConceptDefinitionV1> = {
     descriptionZh: '中国消费者价格或其他显式登记的中国通胀序列。',
     descriptionEn: 'China consumer-price or another explicitly registered China inflation series.',
     aliases: ['中国通胀', '中国cpi', '居民消费价格', 'china inflation', 'china cpi', 'cn cpi'],
-    searchTerms: ['居民消费价格', '中国CPI', 'CPI', 'cn_cpi_yoy'],
-    excludedSearchTerms: ['美国CPI', 'us_cpi'],
-    preferredSourceKinds: ['macro'],
     doNotSubstitute: ['macro.inflation.us'],
   },
   'risk.market_stress.vix': {
@@ -155,9 +128,6 @@ const concepts: Record<ResearchConceptId, ResearchConceptDefinitionV1> = {
     descriptionZh: '以 VIX 为代表的期权隐含市场压力指标。',
     descriptionEn: 'Option-implied market stress represented by the VIX index.',
     aliases: ['市场压力', '恐慌指数', '避险情绪', 'vix', 'market stress', 'risk aversion'],
-    searchTerms: ['VIX', '恐慌指数', '波动率指数'],
-    preferredSourceKinds: ['instrument'],
-    preferredAssetTypes: ['index'],
   },
   'flows.central_bank.gold_reserves': {
     id: 'flows.central_bank.gold_reserves',
@@ -174,8 +144,6 @@ const concepts: Record<ResearchConceptId, ResearchConceptDefinitionV1> = {
       'central bank gold buying',
       'central bank gold reserves',
     ],
-    searchTerms: ['央行黄金储备', '官方黄金储备', 'central bank gold reserves'],
-    preferredSourceKinds: ['macro'],
   },
 };
 
