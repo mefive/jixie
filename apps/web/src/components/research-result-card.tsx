@@ -33,6 +33,7 @@ import { DistributionComparisonCard } from './distribution-comparison-card';
 import { EventStudyCard } from './event-study-card';
 import { EChart, type ECOption } from './echart';
 import { Markdown } from './markdown';
+import { ResearchFormulae } from './research-formulae';
 import {
   ResearchFailedAttemptNotice,
   ResearchFingerprintDetails,
@@ -237,14 +238,7 @@ function TimeSeriesResultCard({ part }: { part: TimeSeriesResearchPart }) {
             <MethodList title={t('result.terminology')} items={run.protocol.terminology} zh={zh} />
           )}
 
-          <div className="jx-researchResult-formulae">
-            {run.protocol.formulae.map((formula) => (
-              <section key={formula.id} className="jx-researchResult-formula">
-                <h4>{zh ? formula.labelZh : formula.labelEn}</h4>
-                <Markdown text={`$$${formula.latex}$$`} />
-              </section>
-            ))}
-          </div>
+          <ResearchFormulae formulae={run.protocol.formulae} zh={zh} />
           <ResearchFingerprintDetails run={run} />
 
           <section className="jx-researchResult-code">

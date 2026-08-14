@@ -281,11 +281,14 @@ export interface ResearchMeasureDefinitionV1 {
 
 export interface ResearchFormulaDefinitionV1 {
   id: string;
+  group: ResearchFormulaGroupV1;
   labelZh: string;
   labelEn: string;
   latex: string;
   variables: Array<{ symbol: string; descriptionZh: string; descriptionEn: string }>;
 }
+
+export type ResearchFormulaGroupV1 = 'core_estimate' | 'inference' | 'robustness';
 
 export interface ResearchProtocolAssumptionV1 {
   id: string;
@@ -720,6 +723,87 @@ export interface ResearchAttemptRecordV1 {
   createdAt: string;
   planChanges: ResearchPlanChangeV1[];
   planChangesTruncated: boolean;
+}
+
+export type ResearchCuratorFindingCategoryV1 =
+  | 'protocol_candidate'
+  | 'supplier_data_gap'
+  | 'local_capability_gap'
+  | 'documentation_gap'
+  | 'tool_or_interaction_defect'
+  | 'no_action';
+
+export type ResearchCuratorDispositionV1 =
+  | 'pending'
+  | 'accepted'
+  | 'rejected'
+  | 'deferred'
+  | 'duplicate';
+
+export interface ResearchCuratorEvidenceV1 {
+  id: string;
+  sourceType: 'message' | 'tool_failure' | 'research_attempt';
+  sourceId: string;
+  conversationId: string;
+  occurredAt: string;
+  excerpt: string;
+  signals: string[];
+}
+
+export interface ResearchCuratorVerificationMatchV1 {
+  kind:
+    | 'research_measure'
+    | 'research_protocol'
+    | 'local_data_table'
+    | 'tushare_api'
+    | 'prior_finding';
+  id: string;
+}
+
+export type ResearchCuratorVerificationNoteV1 =
+  | 'local_capability_match'
+  | 'tushare_catalog_match_requires_smoke_check'
+  | 'tushare_api_unverified'
+  | 'local_capability_unverified';
+
+export interface ResearchCuratorFindingV1 {
+  version: 1;
+  id: string;
+  runId: string;
+  category: ResearchCuratorFindingCategoryV1;
+  title: string;
+  summary: string;
+  evidence: ResearchCuratorEvidenceV1[];
+  verification: {
+    status: 'verified' | 'partial' | 'unverified' | 'duplicate';
+    matches: ResearchCuratorVerificationMatchV1[];
+    notes: ResearchCuratorVerificationNoteV1[];
+  };
+  confidence: number;
+  expectedValue: string;
+  changeSurface: string[];
+  suggestedAction: string;
+  fingerprint: string;
+  disposition: ResearchCuratorDispositionV1;
+  dispositionNote?: string;
+  disposedAt?: string;
+  createdAt: string;
+}
+
+export interface ResearchCuratorRunV1 {
+  version: 1;
+  id: string;
+  jobId?: string;
+  status: 'queued' | 'running' | 'done' | 'error' | 'stale';
+  trigger: 'manual' | 'scheduled';
+  cursorFrom?: string;
+  cursorTo: string;
+  evidenceCount: number;
+  findingsCreated: number;
+  duplicatesSkipped: number;
+  error?: string;
+  findings: ResearchCuratorFindingV1[];
+  createdAt: string;
 }
 
 export interface ResearchConversationMeta {

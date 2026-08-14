@@ -18,6 +18,7 @@ import {
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { EChart, type ECOption } from './echart';
 import { Markdown } from './markdown';
+import { ResearchFormulae } from './research-formulae';
 import {
   ResearchFailedAttemptNotice,
   ResearchFingerprintDetails,
@@ -247,14 +248,7 @@ export function DistributionComparisonCard({
           />
           <MethodList title={t('result.assumptions')} items={run.protocol.assumptions} zh={zh} />
           <MethodList title={t('result.terminology')} items={run.protocol.terminology} zh={zh} />
-          <div className="jx-distributionComparison-formulae">
-            {run.protocol.formulae.map((formula) => (
-              <section key={formula.id} className="jx-distributionComparison-formula">
-                <h4>{zh ? formula.labelZh : formula.labelEn}</h4>
-                <Markdown text={`$$${formula.latex}$$`} />
-              </section>
-            ))}
-          </div>
+          <ResearchFormulae formulae={run.protocol.formulae} zh={zh} />
           <ResearchFingerprintDetails run={run} />
           <section className="jx-distributionComparison-code">
             <h4>

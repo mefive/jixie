@@ -4,19 +4,36 @@ import {
   textMessage,
   type ChatMessage,
   type ResearchConversationMeta,
+  type ResearchCuratorDispositionV1,
+  type ResearchCuratorFindingV1,
+  type ResearchCuratorRunV1,
 } from '@jixie/shared';
-import { BaseStore, LoaderModel } from '@src/lib';
+import { BaseStore, LoaderModel, PollingModel } from '@src/lib';
 import {
   deleteResearchConversation,
   getAgentConversationMessages,
+  getLatestResearchCuratorRun,
+  getResearchCuratorRun,
   listResearchConversations,
   renameResearchConversation,
   sendResearchAgent,
+  startResearchCurator,
+  updateResearchCuratorFinding,
 } from '@src/api/client';
 import { AgentTurnStream, type AgentTurnHandlers } from '@src/components/agent-turn-stream';
 import i18n from '@src/i18n';
 
 type ResearchSetupParams = {};
+
+type ResearchCuratorMutation =
+  | { kind: 'start' }
+  | {
+      kind: 'disposition';
+      findingId: string;
+      disposition: Exclude<ResearchCuratorDispositionV1, 'pending'>;
+    };
+
+const CURATOR_POLL_INTERVAL_MS = 1_000;
 
 /** Conversation state for the natural-language research workbench. A result part is already a
  * complete, immutable ResearchRun — reopening a conversation never asks the LLM to reconstruct it. */
@@ -28,6 +45,9 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
   public prompt = '';
   public turnStream = new AgentTurnStream();
   public conversationsLoader = new LoaderModel<ResearchConversationMeta[]>();
+  public curatorLoader = new LoaderModel<ResearchCuratorRunV1 | null>();
+  public curatorMutationLoader = new LoaderModel<ResearchCuratorRunV1 | ResearchCuratorFindingV1>();
+  public curatorPoller = new PollingModel();
 
   public constructor(parentStore?: any) {
     super(parentStore);
@@ -44,9 +64,32 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
   public setup(params: ResearchSetupParams) {
     super.setup(params);
     this.conversationsLoader.setup({ request: () => listResearchConversations() });
+    this.curatorLoader.setup({
+      request: (runId?: string) =>
+        runId ? getResearchCuratorRun(runId) : getLatestResearchCuratorRun(),
+    });
+    this.curatorMutationLoader.setup({
+      preserveResult: false,
+      request: (mutation: ResearchCuratorMutation) => {
+        switch (mutation.kind) {
+          case 'start':
+            return startResearchCurator();
+          case 'disposition':
+            return updateResearchCuratorFinding(mutation.findingId, mutation.disposition);
+        }
+      },
+    });
+    this.curatorPoller.setup({
+      interval: CURATOR_POLL_INTERVAL_MS,
+      request: () => this.pollCurator(),
+    });
     this.registCleaner(() => this.conversationsLoader.cleanup());
+    this.registCleaner(() => this.curatorLoader.cleanup());
+    this.registCleaner(() => this.curatorMutationLoader.cleanup());
+    this.registCleaner(() => this.curatorPoller.cleanup());
     this.registCleaner(() => this.turnStream.detach());
     void this.conversationsLoader.run();
+    void this.loadCurator().catch(() => {});
   }
 
   public setPrompt(value: string) {
@@ -145,6 +188,28 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     }
   }
 
+  public async startCurator() {
+    const result = await this.curatorMutationLoader.run({ kind: 'start' });
+    if (!('findings' in result)) {
+      return;
+    }
+    const run = await this.curatorLoader.run(result.id);
+    if (run && isCuratorActive(run)) {
+      this.curatorPoller.start();
+    }
+  }
+
+  public async setCuratorDisposition(
+    findingId: string,
+    disposition: Exclude<ResearchCuratorDispositionV1, 'pending'>,
+  ) {
+    await this.curatorMutationLoader.run({ kind: 'disposition', findingId, disposition });
+    const runId = this.curatorLoader.result?.id;
+    if (runId) {
+      await this.curatorLoader.run(runId);
+    }
+  }
+
   private turnHandlers(): AgentTurnHandlers {
     return {
       onDone: (done) => {
@@ -194,4 +259,28 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
       this.sending = false;
     });
   }
+
+  private async loadCurator() {
+    const run = await this.curatorLoader.run();
+    if (run && isCuratorActive(run)) {
+      this.curatorPoller.start();
+    }
+  }
+
+  private async pollCurator(): Promise<false | void> {
+    const runId = this.curatorLoader.result?.id;
+    if (!runId) {
+      return false;
+    }
+    try {
+      const run = await this.curatorLoader.run(runId);
+      return isCuratorActive(run) ? undefined : false;
+    } catch {
+      return false;
+    }
+  }
+}
+
+function isCuratorActive(run: ResearchCuratorRunV1 | null): boolean {
+  return run?.status === 'queued' || run?.status === 'running';
 }

@@ -11,6 +11,7 @@ import {
   faPen,
   faPlus,
   faTrash,
+  faWandMagicSparkles,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { AgentPending } from '@src/components/agent-pending';
@@ -18,6 +19,7 @@ import { AgentTrace } from '@src/components/agent-trace';
 import { MessageParts } from '@src/components/message-parts';
 import { LoadingArea } from '@src/components/loading-area';
 import { complex } from './complex';
+import { ResearchCuratorDrawer } from './research-curator-drawer';
 import './research.css';
 
 const EXAMPLE_KEYS = ['indexRelationship', 'ratesAndStocks', 'goldAndStocks'] as const;
@@ -25,9 +27,14 @@ const EXAMPLE_KEYS = ['indexRelationship', 'ratesAndStocks', 'goldAndStocks'] as
 export const Research = complex.component(() => {
   const { t } = useTranslation('research');
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [curatorOpen, setCuratorOpen] = useState(false);
   return (
     <main className="jx-research">
-      <ResearchSidebar mobileOpen={historyOpen} onClose={() => setHistoryOpen(false)} />
+      <ResearchSidebar
+        mobileOpen={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        onOpenCurator={() => setCuratorOpen(true)}
+      />
       {historyOpen && (
         <button
           className="jx-research-sidebarBackdrop"
@@ -36,12 +43,21 @@ export const Research = complex.component(() => {
         />
       )}
       <ResearchWorkspace onOpenHistory={() => setHistoryOpen(true)} />
+      <ResearchCuratorDrawer open={curatorOpen} onClose={() => setCuratorOpen(false)} />
     </main>
   );
 }, 'Research');
 
 const ResearchSidebar = complex.component(
-  ({ mobileOpen, onClose }: { mobileOpen: boolean; onClose: () => void }) => {
+  ({
+    mobileOpen,
+    onClose,
+    onOpenCurator,
+  }: {
+    mobileOpen: boolean;
+    onClose: () => void;
+    onOpenCurator: () => void;
+  }) => {
     const store = complex.useStore();
     const { t } = useTranslation('research');
     const conversations = store.conversationsLoader.result ?? [];
@@ -64,6 +80,15 @@ const ResearchSidebar = complex.component(
             }}
           >
             {t('newChat')}
+          </Button>
+          <Button
+            icon={<FontAwesomeIcon icon={faWandMagicSparkles} />}
+            onClick={() => {
+              onOpenCurator();
+              onClose();
+            }}
+          >
+            {t('curator.open')}
           </Button>
         </div>
         <div className="jx-research-sidebarScroll">

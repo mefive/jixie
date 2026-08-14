@@ -2,12 +2,20 @@ import { Hono } from 'hono';
 import { ulid } from 'ulid';
 import { z } from 'zod';
 import { apiError, validateJson } from '../lib/httpError.js';
+import { initializeJobLogs } from '../lib/jobs.js';
+import { wakeJobQueue } from '../lib/job-queue.js';
 import { prisma } from '../lib/prisma.js';
 import { researchProfile } from '../agent/profiles/research.js';
 import { enqueueAgentTurn, entityKey } from '../agent/turn-run.js';
 import * as turnBus from '../agent/turn-bus.js';
 import { localeFromRequest, m } from '../i18n/index.js';
 import { researchCapabilityCatalog } from '../research/catalog.js';
+import {
+  curatorDispositionSchema,
+  getLatestResearchCuratorRun,
+  getResearchCuratorRun,
+  setResearchCuratorFindingDisposition,
+} from '../research/curator.js';
 import { executeResearchPlan } from '../research/executor.js';
 import {
   createFailedResearchAttempt,
@@ -23,6 +31,77 @@ import { executeUniverseSpec } from '../research/universe.js';
 export const researchRoute = new Hono();
 
 researchRoute.get('/catalog', (c) => c.json(researchCapabilityCatalog));
+
+researchRoute.post('/curator/runs', async (c) => {
+  const userId = c.var.userId;
+  const active = await prisma.researchCuratorRun.findFirst({
+    where: { userId, status: { in: ['queued', 'running'] } },
+    orderBy: { createdAt: 'desc' },
+    select: { id: true },
+  });
+  if (active) {
+    return c.json((await getResearchCuratorRun(userId, active.id))!);
+  }
+  const previous = await prisma.researchCuratorRun.findFirst({
+    where: { userId, status: 'done' },
+    orderBy: { cursorTo: 'desc' },
+    select: { cursorTo: true },
+  });
+  const runId = ulid();
+  const jobId = ulid();
+  const cursorTo = new Date();
+  await prisma.$transaction([
+    prisma.researchCuratorRun.create({
+      data: {
+        id: runId,
+        userId,
+        trigger: 'manual',
+        cursorFrom: previous?.cursorTo,
+        cursorTo,
+      },
+    }),
+    prisma.job.create({
+      data: {
+        id: jobId,
+        userId,
+        kind: 'research-curator',
+        key: 'default',
+        status: 'queued',
+        payload: { runId },
+        researchCuratorRunId: runId,
+      },
+    }),
+  ]);
+  initializeJobLogs(jobId);
+  wakeJobQueue();
+  return c.json((await getResearchCuratorRun(userId, runId))!);
+});
+
+researchRoute.get('/curator/runs/latest', async (c) =>
+  c.json(await getLatestResearchCuratorRun(c.var.userId)),
+);
+
+researchRoute.get('/curator/runs/:runId', async (c) => {
+  const run = await getResearchCuratorRun(c.var.userId, c.req.param('runId'));
+  return run ? c.json(run) : apiError(c, 'NOT_FOUND', m(c, 'researchCuratorRunNotFound'));
+});
+
+researchRoute.patch(
+  '/curator/findings/:findingId',
+  validateJson(curatorDispositionSchema),
+  async (c) => {
+    const input = c.req.valid('json');
+    const finding = await setResearchCuratorFindingDisposition(
+      c.var.userId,
+      c.req.param('findingId'),
+      input.disposition,
+      input.note,
+    );
+    return finding
+      ? c.json(finding)
+      : apiError(c, 'NOT_FOUND', m(c, 'researchCuratorFindingNotFound'));
+  },
+);
 
 researchRoute.get('/conversations', async (c) => {
   const conversations = await prisma.agentConversation.findMany({

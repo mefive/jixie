@@ -1,0 +1,64 @@
+@reference '../styles/index.css';
+
+.jx-researchFormulae {
+  width: 100%;
+}
+
+.jx-researchFormulae-group {
+  @apply grid gap-3;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.jx-researchFormulae-formula {
+  @apply min-w-0 rounded-lg border border-line bg-card;
+  padding: 10px 14px;
+}
+
+.jx-researchFormulae-formula h4,
+.jx-researchFormulae-formula h5 {
+  @apply mt-0 font-medium text-ink;
+  font-size: 13px;
+}
+
+.jx-researchFormulae-formula h4 {
+  @apply mb-2;
+}
+
+.jx-researchFormulae-formula h5 {
+  @apply mb-1;
+}
+
+.jx-researchFormulae-equation {
+  overflow-x: auto;
+}
+
+.jx-researchFormulae-variables {
+  @apply mt-3 border-t border-line pt-3;
+}
+
+.jx-researchFormulae-variables dl {
+  @apply m-0 grid gap-2;
+}
+
+.jx-researchFormulae-variables dl div {
+  @apply grid items-start gap-2;
+  grid-template-columns: minmax(90px, 0.25fr) minmax(0, 1fr);
+}
+
+.jx-researchFormulae-variables dt {
+  @apply min-w-0 font-medium text-ink;
+}
+
+.jx-researchFormulae-variables dd {
+  @apply m-0 text-muted;
+}
+
+@media (max-width: 640px) {
+  .jx-researchFormulae-group {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .jx-researchFormulae-variables dl div {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -183,6 +183,9 @@ import type {
   ResearchConversationMessages,
   ResearchConversationMeta,
   ResearchAttemptRecordV1,
+  ResearchCuratorDispositionV1,
+  ResearchCuratorFindingV1,
+  ResearchCuratorRunV1,
   ResearchPlanSpecV1,
   ResearchRunRecordV1,
   ResearchRunResultV1,
@@ -320,6 +323,29 @@ export function renameResearchConversation(
 export function deleteResearchConversation(conversationId: string): Promise<{ ok: true }> {
   return request(`/api/app/research/conversations/${encodeURIComponent(conversationId)}`, {
     method: 'DELETE',
+  });
+}
+
+export function startResearchCurator(): Promise<ResearchCuratorRunV1> {
+  return request('/api/app/research/curator/runs', { method: 'POST' });
+}
+
+export function getLatestResearchCuratorRun(): Promise<ResearchCuratorRunV1 | null> {
+  return request('/api/app/research/curator/runs/latest');
+}
+
+export function getResearchCuratorRun(runId: string): Promise<ResearchCuratorRunV1> {
+  return request(`/api/app/research/curator/runs/${encodeURIComponent(runId)}`);
+}
+
+export function updateResearchCuratorFinding(
+  findingId: string,
+  disposition: Exclude<ResearchCuratorDispositionV1, 'pending'>,
+  note?: string,
+): Promise<ResearchCuratorFindingV1> {
+  return request(`/api/app/research/curator/findings/${encodeURIComponent(findingId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ disposition, ...(note ? { note } : {}) }),
   });
 }
 

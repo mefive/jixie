@@ -19,6 +19,74 @@ export const enResearch: typeof zhResearch = {
     requestFailed: 'Request failed',
     cancelled: 'Research stopped',
   },
+  curator: {
+    title: 'Research curator',
+    open: 'Curate research records',
+    intro:
+      'Incrementally review research conversations and failures for protocol, data, documentation, and tooling candidates worth formalizing.',
+    guardrail:
+      'Read-only analysis: it cannot modify the database, sync supplier data, edit the ROADMAP, or publish features.',
+    run: 'Start curation',
+    running: 'Curating',
+    runningHint:
+      'The system is extracting evidence, grouping candidates, and checking the local capability catalogs.',
+    empty: 'No curation run yet. Start one to inspect existing research records.',
+    noFindings:
+      'This run produced no new candidates requiring review. Weak evidence is not forced into a recommendation.',
+    loadFailed: 'Failed to load research curation results',
+    actionFailed: 'Research curation action failed',
+    status: {
+      queued: 'Curation is queued',
+      running: 'Research records are being curated',
+      done: 'Curation complete',
+      error: 'Curation failed',
+      stale: 'Curation was interrupted',
+    },
+    summary: {
+      evidence: 'source evidence',
+      findings: 'new candidates',
+      duplicates: 'duplicates skipped',
+    },
+    category: {
+      protocol_candidate: 'Protocol candidate',
+      supplier_data_gap: 'Supplier data gap',
+      local_capability_gap: 'Local capability gap',
+      documentation_gap: 'Documentation gap',
+      tool_or_interaction_defect: 'Tool or interaction defect',
+      no_action: 'No action',
+    },
+    verification: {
+      verified: 'Matched system capability',
+      partial: 'Partially verified',
+      unverified: 'Needs manual verification',
+      duplicate: 'Duplicate candidate',
+    },
+    confidence: 'Grouping confidence {{value}}%',
+    expectedValue: 'Expected value',
+    suggestedAction: 'Suggested next step',
+    changeSurface: 'Likely change surface',
+    notSpecified: 'Not specified',
+    matchedCapabilities: 'System matches',
+    verificationNotes: 'Verification notes',
+    verificationNote: {
+      local_capability_match:
+        'Matched against the registered research catalog or read-only local data catalog.',
+      tushare_catalog_match_requires_smoke_check:
+        'The API name exists in the versioned Tushare probe catalog; current permission, fields, and history still require a read-only smoke check.',
+      tushare_api_unverified:
+        'No API matched the versioned Tushare probe catalog; supplier availability remains unverified.',
+      local_capability_unverified:
+        'No registered local capability matched this candidate; manual verification is required.',
+    },
+    evidence: 'Source evidence',
+    disposition: {
+      pending: 'Pending',
+      accepted: 'Accept',
+      rejected: 'Reject',
+      deferred: 'Defer',
+      duplicate: 'Mark duplicate',
+    },
+  },
   chatExample: {
     indexRelationship:
       'Are CSI 300 and CSI 500 monthly returns correlated over the past five years? Include rolling correlation and regression.',
@@ -147,6 +215,12 @@ export const enResearch: typeof zhResearch = {
     missingAfterAlignment: 'Missing after alignment',
     assumptions: 'Method assumptions',
     terminology: 'Concepts',
+    formulaGroup: {
+      core_estimate: 'Core estimates',
+      inference: 'Inference',
+      robustness: 'Robustness & effect size',
+    },
+    formulaVariables: 'Variables',
     confidenceInterval: 'Estimate 95% interval',
     effectSize: 'Effect size',
     stability: 'Rolling sign consistency',

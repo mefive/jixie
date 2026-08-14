@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   factorReportUpdateMany: vi.fn(),
   strategyScanReportUpdateMany: vi.fn(),
   signalRunUpdateMany: vi.fn(),
+  researchCuratorRunUpdateMany: vi.fn(),
   transaction: vi.fn(),
 }));
 
@@ -26,18 +27,30 @@ describe('job restart recovery', () => {
         factorReport: { updateMany: mocks.factorReportUpdateMany },
         strategyScanReport: { updateMany: mocks.strategyScanReportUpdateMany },
         signalRun: { updateMany: mocks.signalRunUpdateMany },
+        researchCuratorRun: { updateMany: mocks.researchCuratorRunUpdateMany },
       }),
     );
   });
 
   it('marks only running jobs stale and leaves durable queued jobs resumable', async () => {
     mocks.jobFindMany.mockResolvedValue([
-      { factorReportId: 'factor-report', strategyScanReportId: null, signalRunId: null },
-      { factorReportId: null, strategyScanReportId: 'scan-report', signalRunId: 'signal-run' },
+      {
+        factorReportId: 'factor-report',
+        strategyScanReportId: null,
+        signalRunId: null,
+        researchCuratorRunId: null,
+      },
+      {
+        factorReportId: null,
+        strategyScanReportId: 'scan-report',
+        signalRunId: 'signal-run',
+        researchCuratorRunId: 'curator-run',
+      },
     ]);
     mocks.factorReportUpdateMany.mockResolvedValue({ count: 1 });
     mocks.strategyScanReportUpdateMany.mockResolvedValue({ count: 1 });
     mocks.signalRunUpdateMany.mockResolvedValue({ count: 1 });
+    mocks.researchCuratorRunUpdateMany.mockResolvedValue({ count: 1 });
     mocks.jobUpdateMany.mockResolvedValue({ count: 2 });
 
     await expect(markRunningJobsStale()).resolves.toBe(2);
@@ -57,6 +70,9 @@ describe('job restart recovery', () => {
     );
     expect(mocks.signalRunUpdateMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: { in: ['signal-run'] }, status: 'running' } }),
+    );
+    expect(mocks.researchCuratorRunUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: { in: ['curator-run'] }, status: 'running' } }),
     );
   });
 });
