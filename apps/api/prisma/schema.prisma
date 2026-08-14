@@ -1231,26 +1231,29 @@ model ResearchStudy {
 /// One immutable deterministic protocol execution. Hashes identify plan and result payloads; data
 /// and runtime fingerprints are added separately so rerun differences can be attributed precisely.
 model ResearchRun {
-  id              String        @id // ULID
-  studyId         String
-  study           ResearchStudy @relation(fields: [studyId], references: [id], onDelete: Cascade)
-  parentRunId     String?
-  parentRun       ResearchRun?  @relation("ResearchRunLineage", fields: [parentRunId], references: [id], onDelete: SetNull)
-  childRuns       ResearchRun[] @relation("ResearchRunLineage")
-  sourceTurnId    String?
-  sourceTurn      AgentTurn?    @relation("ResearchRunSourceTurn", fields: [sourceTurnId], references: [id], onDelete: SetNull)
-  sourceMessageId String?
-  sourceMessage   AgentMessage? @relation("ResearchRunSourceMessage", fields: [sourceMessageId], references: [id], onDelete: SetNull)
-  sourcePartIndex Int?
-  sequence        Int
-  origin          String // 'agent' | 'parameter_rerun'
-  protocolId      String
-  protocolVersion Int
-  plan            Json // ResearchPlanSpecV1
-  result          Json // ResearchRunResultV1
-  planHash        String
-  resultHash      String
-  createdAt       DateTime      @default(now())
+  id                     String        @id // ULID
+  studyId                String
+  study                  ResearchStudy @relation(fields: [studyId], references: [id], onDelete: Cascade)
+  parentRunId            String?
+  parentRun              ResearchRun?  @relation("ResearchRunLineage", fields: [parentRunId], references: [id], onDelete: SetNull)
+  childRuns              ResearchRun[] @relation("ResearchRunLineage")
+  sourceTurnId           String?
+  sourceTurn             AgentTurn?    @relation("ResearchRunSourceTurn", fields: [sourceTurnId], references: [id], onDelete: SetNull)
+  sourceMessageId        String?
+  sourceMessage          AgentMessage? @relation("ResearchRunSourceMessage", fields: [sourceMessageId], references: [id], onDelete: SetNull)
+  sourcePartIndex        Int?
+  sequence               Int
+  origin                 String // 'agent' | 'parameter_rerun'
+  protocolId             String
+  protocolVersion        Int
+  plan                   Json // ResearchPlanSpecV1
+  result                 Json // ResearchRunResultV1
+  planHash               String
+  resultHash             String
+  protocolFingerprint    String?
+  dataFingerprint        String?
+  environmentFingerprint String?
+  createdAt              DateTime      @default(now())
 
   @@unique([studyId, sequence])
   @@unique([sourceMessageId, sourcePartIndex])

@@ -18,7 +18,12 @@ import {
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { EChart, type ECOption } from './echart';
 import { Markdown } from './markdown';
-import { ResearchRunHistorySelect, useResearchRunHistory } from './research-run-history';
+import {
+  ResearchRunComparisonNotice,
+  ResearchFingerprintDetails,
+  ResearchRunHistorySelect,
+  useResearchRunHistory,
+} from './research-run-history';
 import './distribution-comparison-card.css';
 
 interface DistributionComparisonCardProps {
@@ -249,6 +254,7 @@ export function DistributionComparisonCard({
               </section>
             ))}
           </div>
+          <ResearchFingerprintDetails run={run} />
           <section className="jx-distributionComparison-code">
             <h4>
               <FontAwesomeIcon icon={faCode} /> {t('result.pythonExample')}
@@ -292,6 +298,8 @@ export function DistributionComparisonCard({
           </Button>
         </div>
       </div>
+
+      <ResearchRunComparisonNotice comparison={history.comparison} />
 
       {controlsOpen && (
         <div className="jx-distributionComparison-controls">

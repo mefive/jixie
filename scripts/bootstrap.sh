@@ -753,6 +753,7 @@ fi
 set_env_var "$ENV_PROD" DATABASE_URL "file:$JIXIE_DATA_DIR/prod.db"
 set_env_var "$ENV_PROD" PORT "$JIXIE_PORT"
 set_env_var "$ENV_PROD" NODE_ENV "production"
+set_env_var "$ENV_PROD" JIXIE_APP_REVISION "$CURRENT_REVISION"
 set_env_var "$ENV_PROD" TUSHARE_TOKEN "$TUSHARE_TOKEN"
 set_env_var "$ENV_PROD" RESEND_API_KEY "$RESEND_API_KEY"
 set_env_var "$ENV_PROD" EMAIL_FROM "$EMAIL_FROM"

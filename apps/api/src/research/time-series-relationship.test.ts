@@ -151,6 +151,12 @@ describe('executeResearchPlan', () => {
     expect(run.protocol.formulae).toHaveLength(2);
     expect(run.protocol.pythonExample).toContain('statsmodels');
     expect(run.coverage.every((item) => item.observationsAligned === 60)).toBe(true);
+    expect(run.fingerprints).toMatchObject({
+      version: 1,
+      protocol: { id: 'time_series_relationship', version: 1 },
+      data: { inputs: [{ inputId: 'outcome' }, { inputId: 'predictor' }] },
+      environment: { nodeVersion: process.version },
+    });
   });
 
   it('rejects a sample below the protocol minimum', async () => {

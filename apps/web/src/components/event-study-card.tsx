@@ -17,7 +17,12 @@ import {
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { EChart, type ECOption } from './echart';
 import { Markdown } from './markdown';
-import { ResearchRunHistorySelect, useResearchRunHistory } from './research-run-history';
+import {
+  ResearchFingerprintDetails,
+  ResearchRunComparisonNotice,
+  ResearchRunHistorySelect,
+  useResearchRunHistory,
+} from './research-run-history';
 import './event-study-card.css';
 
 interface EventStudyCardProps {
@@ -262,6 +267,7 @@ export function EventStudyCard({
               </section>
             ))}
           </div>
+          <ResearchFingerprintDetails run={run} />
           <section className="jx-eventStudy-code">
             <h4>
               <FontAwesomeIcon icon={faCode} /> {t('result.pythonExample')}
@@ -305,6 +311,8 @@ export function EventStudyCard({
           </Button>
         </div>
       </div>
+
+      <ResearchRunComparisonNotice comparison={history.comparison} />
 
       {controlsOpen && (
         <div className="jx-eventStudy-controls">

@@ -28,6 +28,19 @@
   width: 190px;
 }
 
+.jx-researchRunComparison {
+  @apply mt-3;
+}
+
+.jx-researchFingerprints {
+  @apply rounded-lg border border-line bg-card;
+  padding: 10px 14px;
+}
+
+.jx-researchFingerprints h4 {
+  @apply mb-2 mt-0 font-medium text-ink;
+}
+
 .jx-researchResult-controls {
   @apply mt-3 grid gap-3 rounded-lg border border-line bg-card;
   grid-template-columns: repeat(4, minmax(0, 1fr));

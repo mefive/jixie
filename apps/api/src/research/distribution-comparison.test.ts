@@ -104,6 +104,10 @@ describe('distribution comparison protocol', () => {
     ]);
     expect(run.plan.inputs[0]!.universe.source.kind).toBe('explicit');
     expect(run.conclusion.level).toBe('supports');
+    expect(run.fingerprints?.data.inputs).toEqual([
+      expect.objectContaining({ inputId: 'groupA', observations: 30 }),
+      expect.objectContaining({ inputId: 'groupB', observations: 30 }),
+    ]);
   });
 
   it('rejects overlapping entity groups before applying independent-sample inference', async () => {
