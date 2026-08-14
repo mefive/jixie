@@ -261,6 +261,7 @@ const timeSeriesRelationship = {
   formulae: [
     {
       id: 'pearson_correlation',
+      group: 'core_estimate',
       labelZh: 'Pearson 相关系数',
       labelEn: 'Pearson correlation',
       latex: String.raw`r_{xy}=\frac{\sum_{t=1}^{T}(x_t-\bar{x})(y_t-\bar{y})}{\sqrt{\sum_{t=1}^{T}(x_t-\bar{x})^2}\sqrt{\sum_{t=1}^{T}(y_t-\bar{y})^2}}`,
@@ -272,6 +273,7 @@ const timeSeriesRelationship = {
     },
     {
       id: 'linear_regression',
+      group: 'core_estimate',
       labelZh: '线性回归',
       labelEn: 'Linear regression',
       latex: String.raw`y_t=\alpha+\beta x_{t-k}+\varepsilon_t`,
@@ -279,6 +281,83 @@ const timeSeriesRelationship = {
         { symbol: '\\alpha', descriptionZh: '截距', descriptionEn: 'Intercept' },
         { symbol: '\\beta', descriptionZh: '斜率', descriptionEn: 'Slope' },
         { symbol: 'k', descriptionZh: '预测变量滞后期数', descriptionEn: 'Predictor lag' },
+      ],
+    },
+    {
+      id: 'newey_west_covariance',
+      group: 'inference',
+      labelZh: 'Newey–West HAC 协方差',
+      labelEn: 'Newey–West HAC covariance',
+      latex: String.raw`\widehat{\operatorname{Var}}_{HAC}(\hat{\theta})=(X'X)^{-1}\hat{S}(X'X)^{-1},\quad \hat{S}=\sum_{t=1}^{T}\hat{u}_t^2z_tz_t'+\sum_{\ell=1}^{L}\left(1-\frac{\ell}{L+1}\right)\sum_{t=\ell+1}^{T}\hat{u}_t\hat{u}_{t-\ell}(z_tz_{t-\ell}'+z_{t-\ell}z_t')`,
+      variables: [
+        {
+          symbol: '\\hat{\\theta}=(\\hat{\\alpha},\\hat{\\beta})',
+          descriptionZh: '回归截距与斜率估计',
+          descriptionEn: 'Estimated regression intercept and slope',
+        },
+        {
+          symbol: 'z_t=(1,x_{t-k})',
+          descriptionZh: '第 t 期包含常数项的回归向量',
+          descriptionEn: 'Regression vector including the intercept at t',
+        },
+        {
+          symbol: 'L',
+          descriptionZh: 'Newey–West 截断滞后阶数',
+          descriptionEn: 'Newey–West truncation lag',
+        },
+      ],
+    },
+    {
+      id: 'slope_inference',
+      group: 'inference',
+      labelZh: '斜率 t 值与 95% 区间',
+      labelEn: 'Slope t-statistic and 95% interval',
+      latex: String.raw`t_{HAC}=\frac{\hat{\beta}}{SE_{HAC}(\hat{\beta})},\quad CI_{95\%}=\hat{\beta}\pm1.959964\,SE_{HAC}(\hat{\beta})`,
+      variables: [
+        {
+          symbol: 'SE_{HAC}(\\hat{\\beta})',
+          descriptionZh: '斜率的异方差与自相关稳健标准误',
+          descriptionEn: 'Heteroskedasticity and autocorrelation-consistent slope standard error',
+        },
+        {
+          symbol: '1.959964',
+          descriptionZh: '代码用于双侧 95% 正态近似区间的临界值',
+          descriptionEn:
+            'Critical value used by the implementation for a two-sided normal 95% interval',
+        },
+      ],
+    },
+    {
+      id: 'spearman_correlation',
+      group: 'robustness',
+      labelZh: 'Spearman 秩相关',
+      labelEn: 'Spearman rank correlation',
+      latex: String.raw`\rho_s=\operatorname{Corr}(\operatorname{rank}(x_t),\operatorname{rank}(y_t))`,
+      variables: [
+        {
+          symbol: '\\operatorname{rank}(\\cdot)',
+          descriptionZh: '并列值使用平均名次的升序秩',
+          descriptionEn: 'Ascending rank with average ranks for ties',
+        },
+      ],
+    },
+    {
+      id: 'rolling_relationship',
+      group: 'robustness',
+      labelZh: '滚动窗口关系',
+      labelEn: 'Rolling-window relationship',
+      latex: String.raw`\hat{\beta}^{(w)}_t=\frac{\sum_{j=t-w+1}^{t}(x_j-\bar{x}_{t,w})(y_j-\bar{y}_{t,w})}{\sum_{j=t-w+1}^{t}(x_j-\bar{x}_{t,w})^2},\quad r^{(w)}_t=\operatorname{Corr}_{j=t-w+1:t}(x_j,y_j)`,
+      variables: [
+        {
+          symbol: 'w',
+          descriptionZh: '每次滚动估计使用的观测窗口长度',
+          descriptionEn: 'Observation window used for each rolling estimate',
+        },
+        {
+          symbol: 't',
+          descriptionZh: '当前滚动窗口的结束时点',
+          descriptionEn: 'End date of the current rolling window',
+        },
       ],
     },
   ],
@@ -388,6 +467,7 @@ const distributionComparison = {
   formulae: [
     {
       id: 'welch_mean_difference',
+      group: 'core_estimate',
       labelZh: 'Welch 均值差',
       labelEn: 'Welch mean difference',
       latex: String.raw`\Delta=\bar{x}_A-\bar{x}_B,\quad SE(\Delta)=\sqrt{\frac{s_A^2}{n_A}+\frac{s_B^2}{n_B}}`,
@@ -410,12 +490,95 @@ const distributionComparison = {
       ],
     },
     {
+      id: 'welch_inference',
+      group: 'inference',
+      labelZh: 'Welch t 检验与 95% 区间',
+      labelEn: 'Welch t-test and 95% interval',
+      latex: String.raw`t=\frac{\Delta}{SE(\Delta)},\quad \nu=\frac{(v_A+v_B)^2}{\frac{v_A^2}{n_A-1}+\frac{v_B^2}{n_B-1}},\quad CI_{95\%}=\Delta\pm t_{0.975,\nu}SE(\Delta),\quad v_g=\frac{s_g^2}{n_g}`,
+      variables: [
+        {
+          symbol: '\\nu',
+          descriptionZh: 'Welch–Satterthwaite 近似自由度',
+          descriptionEn: 'Welch–Satterthwaite approximate degrees of freedom',
+        },
+        {
+          symbol: 't_{0.975,\\nu}',
+          descriptionZh: '自由度为 ν 的 t 分布双侧 95% 临界值',
+          descriptionEn: 'Two-sided 95% Student-t critical value with ν degrees of freedom',
+        },
+      ],
+    },
+    {
+      id: 'mann_whitney_inference',
+      group: 'inference',
+      labelZh: 'Mann–Whitney 秩检验',
+      labelEn: 'Mann–Whitney rank test',
+      latex: String.raw`U_A=R_A-\frac{n_A(n_A+1)}{2},\quad z=\frac{U_A-\frac{n_An_B}{2}-c}{\sqrt{\frac{n_An_B}{12}\left(N+1-\frac{\sum_j(t_j^3-t_j)}{N(N-1)}\right)}},\quad p\approx2[1-\Phi(|z|)]`,
+      variables: [
+        {
+          symbol: 'R_A',
+          descriptionZh: '合并两组并对并列值取平均名次后，A 组的秩和',
+          descriptionEn: 'Group A rank sum after pooling groups and averaging tied ranks',
+        },
+        {
+          symbol: 't_j',
+          descriptionZh: '第 j 组并列值的数量',
+          descriptionEn: 'Number of observations in tie group j',
+        },
+        {
+          symbol: 'c',
+          descriptionZh: '按 U 相对期望值方向取 ±0.5 的连续性修正',
+          descriptionEn: 'Continuity correction of ±0.5 in the direction of U from its expectation',
+        },
+      ],
+    },
+    {
       id: 'cohens_d',
+      group: 'robustness',
       labelZh: '标准化效应量',
       labelEn: 'Standardized effect size',
       latex: String.raw`d=\frac{\bar{x}_A-\bar{x}_B}{\sqrt{\frac{(n_A-1)s_A^2+(n_B-1)s_B^2}{n_A+n_B-2}}}`,
       variables: [
         { symbol: 'd', descriptionZh: 'Cohen’s d 效应量', descriptionEn: "Cohen's d effect size" },
+      ],
+    },
+    {
+      id: 'cliffs_delta',
+      group: 'robustness',
+      labelZh: 'Cliff’s delta',
+      labelEn: "Cliff's delta",
+      latex: String.raw`\delta=\frac{2U_A}{n_An_B}-1`,
+      variables: [
+        {
+          symbol: '\\delta',
+          descriptionZh: '随机抽取 A 组值大于 B 组值的概率减去小于的概率',
+          descriptionEn:
+            'Probability that a random A value exceeds B minus the reverse probability',
+        },
+        {
+          symbol: 'U_A',
+          descriptionZh: 'A 组的 Mann–Whitney U 统计量',
+          descriptionEn: 'Mann–Whitney U statistic for group A',
+        },
+      ],
+    },
+    {
+      id: 'winsorized_mean_difference',
+      group: 'robustness',
+      labelZh: '缩尾均值差',
+      labelEn: 'Winsorized mean difference',
+      latex: String.raw`x^{(p)}_{g,i}=\min\{Q_{g,1-p},\max(Q_{g,p},x_{g,i})\},\quad \Delta_W=\overline{x^{(p)}_A}-\overline{x^{(p)}_B}`,
+      variables: [
+        {
+          symbol: 'p',
+          descriptionZh: '每一侧的预设缩尾比例',
+          descriptionEn: 'Prespecified winsorization fraction in each tail',
+        },
+        {
+          symbol: 'Q_{g,p}',
+          descriptionZh: 'g 组使用线性插值得到的 p 分位数',
+          descriptionEn: 'Linearly interpolated p-quantile for group g',
+        },
       ],
     },
   ],
@@ -524,6 +687,7 @@ const eventStudy = {
   formulae: [
     {
       id: 'market_adjusted_return',
+      group: 'core_estimate',
       labelZh: '市场调整异常收益',
       labelEn: 'Market-adjusted abnormal return',
       latex: String.raw`AR_{i,\tau}=R_{i,\tau}-R_{m,\tau}`,
@@ -542,6 +706,7 @@ const eventStudy = {
     },
     {
       id: 'cumulative_abnormal_return',
+      group: 'core_estimate',
       labelZh: '累计平均异常收益',
       labelEn: 'Cumulative average abnormal return',
       latex: String.raw`CAR_i[a,b]=\sum_{\tau=a}^{b}AR_{i,\tau},\quad CAAR[a,b]=\frac{1}{N}\sum_{i=1}^{N}CAR_i[a,b]`,
@@ -560,6 +725,7 @@ const eventStudy = {
     },
     {
       id: 'event_date_clustered_standard_error',
+      group: 'inference',
       labelZh: '事件日聚类标准误',
       labelEn: 'Event-date clustered standard error',
       latex: String.raw`SE_{cluster}(\overline{CAR})=\sqrt{\frac{G}{G-1}\frac{1}{N^2}\sum_{g=1}^{G}\left(\sum_{i\in g}(CAR_i-\overline{CAR})\right)^2}`,
@@ -573,6 +739,63 @@ const eventStudy = {
           symbol: 'g',
           descriptionZh: '共享同一事件交易日的事件簇',
           descriptionEn: 'Events sharing one event trading date',
+        },
+        {
+          symbol: 'N',
+          descriptionZh: '有效事件总数',
+          descriptionEn: 'Total number of valid events',
+        },
+      ],
+    },
+    {
+      id: 'event_mean_inference',
+      group: 'inference',
+      labelZh: '平均 CAR 的 t 值与 95% 区间',
+      labelEn: 'Mean-CAR t-statistic and 95% interval',
+      latex: String.raw`t=\frac{\overline{CAR}}{SE_{cluster}(\overline{CAR})},\quad CI_{95\%}=\overline{CAR}\pm t_{0.975,G-1}SE_{cluster}(\overline{CAR})`,
+      variables: [
+        {
+          symbol: '\\overline{CAR}',
+          descriptionZh: '所有有效事件窗口 CAR 的算术平均值',
+          descriptionEn: 'Arithmetic mean CAR across all valid event windows',
+        },
+        {
+          symbol: 't_{0.975,G-1}',
+          descriptionZh: '自由度为事件日簇数减一的 t 分布双侧 95% 临界值',
+          descriptionEn: 'Two-sided 95% Student-t critical value with G−1 degrees of freedom',
+        },
+      ],
+    },
+    {
+      id: 'positive_car_fraction',
+      group: 'robustness',
+      labelZh: '正 CAR 占比',
+      labelEn: 'Positive-CAR share',
+      latex: String.raw`P_{+}=\frac{1}{N}\sum_{i=1}^{N}\mathbf{1}(CAR_i>0)`,
+      variables: [
+        {
+          symbol: '\\mathbf{1}(\\cdot)',
+          descriptionZh: '条件成立时取 1，否则取 0 的指示函数',
+          descriptionEn: 'Indicator equal to 1 when the condition holds and 0 otherwise',
+        },
+      ],
+    },
+    {
+      id: 'winsorized_mean_car',
+      group: 'robustness',
+      labelZh: '5% 缩尾平均 CAR',
+      labelEn: '5% winsorized mean CAR',
+      latex: String.raw`CAR_i^{(p)}=\min\{Q_{1-p},\max(Q_p,CAR_i)\},\quad \overline{CAR}_W=\frac{1}{N}\sum_{i=1}^{N}CAR_i^{(p)},\quad p=0.05`,
+      variables: [
+        {
+          symbol: 'Q_p',
+          descriptionZh: '事件 CAR 使用线性插值得到的 p 分位数',
+          descriptionEn: 'Linearly interpolated p-quantile of event CAR values',
+        },
+        {
+          symbol: 'p=0.05',
+          descriptionZh: '代码固定在每一侧使用 5% 缩尾',
+          descriptionEn: 'Implementation-fixed 5% winsorization in each tail',
         },
       ],
     },

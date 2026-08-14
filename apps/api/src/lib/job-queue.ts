@@ -177,6 +177,11 @@ async function executeClaimedJob(jobId: string): Promise<void> {
         await runSignalJob(job.id, payload);
         break;
       }
+      case 'research-curator': {
+        const { runResearchCuratorJob } = await import('../research/curator-job.js');
+        await runResearchCuratorJob(job.id, payload);
+        break;
+      }
       default:
         throw new Error(`Unsupported queued job kind: ${job.kind}`);
     }

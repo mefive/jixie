@@ -531,6 +531,15 @@ try {
   await page.getByText('Observations loaded', { exact: true }).first().waitFor();
   await page.getByText('Method & reproduction', { exact: true }).click();
   await page.getByText('Method assumptions', { exact: true }).waitFor();
+  await page.getByText('Core estimates', { exact: true }).waitFor();
+  await page.getByText('Inference', { exact: true }).click();
+  await page.getByText('Newey–West HAC covariance', { exact: true }).waitFor();
+  await page.getByText('Robustness & effect size', { exact: true }).click();
+  await page.getByText('Spearman rank correlation', { exact: true }).waitFor();
+  await page.getByText('Variables', { exact: true }).first().waitFor();
+  await page
+    .locator('.jx-researchFormulae')
+    .screenshot({ path: `${SHOTS}research-formulae-relationship-en.png` });
   await page.getByText('Run fingerprints', { exact: true }).scrollIntoViewIfNeeded();
   await page.getByText('Application revision', { exact: true }).waitFor();
   await page.screenshot({ path: `${SHOTS}research-relationship-en.png`, fullPage: true });
@@ -553,6 +562,14 @@ try {
   await page.getByText('EN', { exact: true }).click();
   await page.getByText('Method & reproduction', { exact: true }).click();
   await page.getByText('Method assumptions', { exact: true }).waitFor();
+  await page.getByText('Core estimates', { exact: true }).waitFor();
+  await page.getByText('Inference', { exact: true }).click();
+  await page.getByText('Mann–Whitney rank test', { exact: true }).waitFor();
+  await page.getByText('Robustness & effect size', { exact: true }).click();
+  await page.locator('.jx-researchFormulae').getByText("Cliff's delta", { exact: true }).waitFor();
+  await page
+    .locator('.jx-researchFormulae')
+    .screenshot({ path: `${SHOTS}research-formulae-distribution-en.png` });
   await page.getByText('Run fingerprints', { exact: true }).scrollIntoViewIfNeeded();
   await page.screenshot({ path: `${SHOTS}research-distribution-en.png`, fullPage: true });
 
@@ -572,6 +589,14 @@ try {
   await page.getByText('EN', { exact: true }).click();
   await page.getByText('Method & reproduction', { exact: true }).click();
   await page.getByText('Method assumptions', { exact: true }).waitFor();
+  await page.getByText('Core estimates', { exact: true }).waitFor();
+  await page.getByText('Inference', { exact: true }).click();
+  await page.getByText('Event-date clustered standard error', { exact: true }).waitFor();
+  await page.getByText('Robustness & effect size', { exact: true }).click();
+  await page.getByText('5% winsorized mean CAR', { exact: true }).waitFor();
+  await page
+    .locator('.jx-researchFormulae')
+    .screenshot({ path: `${SHOTS}research-formulae-event-study-en.png` });
   await page.getByText('Run fingerprints', { exact: true }).scrollIntoViewIfNeeded();
   await page.screenshot({ path: `${SHOTS}research-event-study-en.png`, fullPage: true });
 

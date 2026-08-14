@@ -148,7 +148,7 @@ describe('executeResearchPlan', () => {
     expect(run.conclusion.limitationsEn).toContain(
       'An observed relationship is not causal evidence or proof of tradable predictability.',
     );
-    expect(run.protocol.formulae).toHaveLength(2);
+    expect(run.protocol.formulae).toHaveLength(6);
     expect(run.protocol.pythonExample).toContain('statsmodels');
     expect(run.coverage.every((item) => item.observationsAligned === 60)).toBe(true);
     expect(run.fingerprints).toMatchObject({

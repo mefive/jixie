@@ -1,0 +1,151 @@
+@reference '../../styles/index.css';
+
+.jx-researchCurator-title {
+  @apply flex items-center gap-2;
+}
+
+.jx-researchCurator-intro {
+  @apply mt-0 text-sm text-muted;
+  line-height: 1.7;
+}
+
+.jx-researchCurator-guardrail,
+.jx-researchCurator-alert {
+  margin-bottom: 16px;
+}
+
+.jx-researchCurator-skeleton {
+  @apply flex flex-col gap-5;
+  margin-top: 24px;
+}
+
+.jx-researchCurator-empty {
+  margin-top: 64px;
+}
+
+.jx-researchCurator-runSummary {
+  @apply grid grid-cols-3 gap-2 rounded-xl border border-line bg-bg;
+  margin-bottom: 16px;
+  padding: 14px;
+}
+
+.jx-researchCurator-runSummary > div {
+  @apply flex flex-col;
+}
+
+.jx-researchCurator-runSummary strong {
+  @apply font-semibold text-ink;
+  font-size: 22px;
+}
+
+.jx-researchCurator-runSummary span,
+.jx-researchCurator-runSummary time {
+  @apply text-muted;
+  font-size: 12px;
+}
+
+.jx-researchCurator-runSummary time {
+  @apply col-span-3 border-t border-line;
+  padding-top: 10px;
+}
+
+.jx-researchCurator-findings {
+  @apply flex flex-col gap-4;
+}
+
+.jx-researchCurator-finding {
+  @apply rounded-xl border border-line bg-card;
+  padding: 16px;
+}
+
+.jx-researchCurator-findingHead {
+  @apply flex items-start justify-between gap-3;
+}
+
+.jx-researchCurator-tags,
+.jx-researchCurator-matches,
+.jx-researchCurator-actions {
+  @apply flex flex-wrap items-center gap-2;
+}
+
+.jx-researchCurator-tags .ant-tag,
+.jx-researchCurator-matches .ant-tag {
+  margin-inline-end: 0;
+}
+
+.jx-researchCurator-confidence {
+  @apply whitespace-nowrap text-muted;
+  font-size: 12px;
+}
+
+.jx-researchCurator-finding h3 {
+  @apply mb-1 mt-3 font-semibold text-ink;
+  font-size: 16px;
+}
+
+.jx-researchCurator-finding > p {
+  @apply m-0 text-sm text-muted;
+  line-height: 1.7;
+}
+
+.jx-researchCurator-details {
+  @apply grid gap-3;
+  margin: 16px 0;
+}
+
+.jx-researchCurator-details > div {
+  @apply grid gap-1;
+}
+
+.jx-researchCurator-details dt,
+.jx-researchCurator-evidence > strong,
+.jx-researchCurator-matches > span,
+.jx-researchCurator-verificationNotes > strong {
+  @apply font-medium text-muted;
+  font-size: 12px;
+}
+
+.jx-researchCurator-details dd {
+  @apply m-0 text-sm text-ink;
+  line-height: 1.6;
+}
+
+.jx-researchCurator-matches {
+  margin-bottom: 14px;
+}
+
+.jx-researchCurator-verificationNotes {
+  @apply mb-3 text-muted;
+  font-size: 12px;
+}
+
+.jx-researchCurator-verificationNotes ul {
+  @apply mb-0 mt-1;
+  padding-left: 18px;
+}
+
+.jx-researchCurator-evidence {
+  @apply rounded-lg bg-bg;
+  padding: 12px;
+}
+
+.jx-researchCurator-evidence blockquote {
+  @apply mb-0 border-l-2 border-line text-sm text-ink;
+  margin-top: 8px;
+  padding-left: 10px;
+  line-height: 1.6;
+}
+
+.jx-researchCurator-actions {
+  margin-top: 14px;
+}
+
+@media (max-width: 640px) {
+  .jx-researchCurator-runSummary {
+    @apply grid-cols-2;
+  }
+
+  .jx-researchCurator-runSummary time {
+    @apply col-span-2;
+  }
+}

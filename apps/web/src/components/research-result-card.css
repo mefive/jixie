@@ -165,18 +165,6 @@
   @apply m-0 text-muted;
 }
 
-.jx-researchResult-formulae {
-  @apply grid gap-3;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.jx-researchResult-formula {
-  @apply rounded-lg border border-line bg-card;
-  padding: 10px 14px;
-  overflow-x: auto;
-}
-
-.jx-researchResult-formula h4,
 .jx-researchResult-code h4 {
   @apply mb-2 mt-0 font-medium text-ink;
   font-size: 13px;
@@ -236,8 +224,7 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .jx-researchResult-stats,
-  .jx-researchResult-formulae {
+  .jx-researchResult-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 

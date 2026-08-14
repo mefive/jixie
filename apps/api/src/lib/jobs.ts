@@ -15,7 +15,7 @@ import { prisma } from './prisma.js';
  * A job's `key` ties it to what it computes (factor: variantKey, backtest: strategyId). Factor pages
  * restore through the report relation; legacy findRunningJob remains for backtests and correlation.
  */
-export type JobKind = 'backtest' | 'factor' | 'strategy-scan' | 'signal';
+export type JobKind = 'backtest' | 'factor' | 'strategy-scan' | 'signal' | 'research-curator';
 export type JobStatus = 'queued' | 'running' | 'done' | 'error' | 'stale';
 export type ActiveJobStatus = Extract<JobStatus, 'queued' | 'running'>;
 
@@ -236,7 +236,12 @@ export async function markRunningJobsStale(): Promise<number> {
   return prisma.$transaction(async (transaction) => {
     const running = await transaction.job.findMany({
       where: { status: 'running' },
-      select: { factorReportId: true, strategyScanReportId: true, signalRunId: true },
+      select: {
+        factorReportId: true,
+        strategyScanReportId: true,
+        signalRunId: true,
+        researchCuratorRunId: true,
+      },
     });
     const reportIds = running
       .map((job) => job.factorReportId)
@@ -266,6 +271,15 @@ export async function markRunningJobsStale(): Promise<number> {
         data: { status: 'stale', error: null },
       });
     }
+    const curatorRunIds = running
+      .map((job) => job.researchCuratorRunId)
+      .filter((runId): runId is string => !!runId);
+    if (curatorRunIds.length > 0) {
+      await transaction.researchCuratorRun.updateMany({
+        where: { id: { in: curatorRunIds }, status: 'running' },
+        data: { status: 'stale', error: null },
+      });
+    }
     const { count } = await transaction.job.updateMany({
       where: { status: 'running' },
       data: { status: 'stale', finishedAt: new Date() },
@@ -288,7 +302,12 @@ export async function claimQueuedJob(jobId: string): Promise<boolean> {
 export async function failJobAndEntity(jobId: string, error: string): Promise<void> {
   const job = await prisma.job.findUnique({
     where: { id: jobId },
-    select: { factorReportId: true, strategyScanReportId: true, signalRunId: true },
+    select: {
+      factorReportId: true,
+      strategyScanReportId: true,
+      signalRunId: true,
+      researchCuratorRunId: true,
+    },
   });
   if (!job) {
     return;
@@ -319,6 +338,14 @@ export async function failJobAndEntity(jobId: string, error: string): Promise<vo
     operations.push(
       prisma.signalRun.update({
         where: { id: job.signalRunId },
+        data: { status: 'error', error },
+      }),
+    );
+  }
+  if (job.researchCuratorRunId) {
+    operations.push(
+      prisma.researchCuratorRun.update({
+        where: { id: job.researchCuratorRunId },
         data: { status: 'error', error },
       }),
     );

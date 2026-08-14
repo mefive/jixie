@@ -733,19 +733,21 @@ model User {
   status    String   @default("active") // 'active' | 'disabled' (disabling does not delete the account)
   createdAt DateTime @default(now())
 
-  sessions            Session[]
-  strategies          Strategy[]
-  strategyScanReports StrategyScanReport[]
-  strategyDeployments StrategyDeployment[]
-  signalRuns          SignalRun[]
-  signalExecutions    SignalExecution[]
-  accountSnapshots    StrategyAccountSnapshot[]
-  agentConversations  AgentConversation[]
-  researchStudies     ResearchStudy[]
-  researchAttempts    ResearchAttempt[]
-  factorComposites    FactorComposite[]
-  factorWeatherPins   FactorWeatherPin[]
-  jobs                Job[]
+  sessions                Session[]
+  strategies              Strategy[]
+  strategyScanReports     StrategyScanReport[]
+  strategyDeployments     StrategyDeployment[]
+  signalRuns              SignalRun[]
+  signalExecutions        SignalExecution[]
+  accountSnapshots        StrategyAccountSnapshot[]
+  agentConversations      AgentConversation[]
+  researchStudies         ResearchStudy[]
+  researchAttempts        ResearchAttempt[]
+  researchCuratorRuns     ResearchCuratorRun[]
+  researchCuratorFindings ResearchCuratorFinding[]
+  factorComposites        FactorComposite[]
+  factorWeatherPins       FactorWeatherPin[]
+  jobs                    Job[]
 }
 
 /// Login session. id = session token (stored in sid cookie). 30-day TTL; expiry enforced by filtering on expiresAt at query time.
@@ -833,7 +835,7 @@ model FactorCorrelation {
 model Job {
   id                   String              @id // ULID
   userId               String
-  kind                 String // 'backtest' | 'factor' | 'strategy-scan' | 'signal'
+  kind                 String // 'backtest' | 'factor' | 'strategy-scan' | 'signal' | 'research-curator'
   key                  String // dedupe/lookup key (see model doc)
   status               String // 'queued' | 'running' | 'done' | 'error' | 'stale'
   payload              Json? // Frozen runner input; required for queued jobs to survive an API restart
@@ -845,6 +847,8 @@ model Job {
   strategyScanReport   StrategyScanReport? @relation(fields: [strategyScanReportId], references: [id], onDelete: Cascade)
   signalRunId          String?
   signalRun            SignalRun?          @relation(fields: [signalRunId], references: [id], onDelete: Cascade)
+  researchCuratorRunId String?             @unique
+  researchCuratorRun   ResearchCuratorRun? @relation(fields: [researchCuratorRunId], references: [id], onDelete: Cascade)
   user                 User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   queuedAt             DateTime            @default(now())
   startedAt            DateTime?
@@ -1293,4 +1297,56 @@ model ResearchAttempt {
   @@index([conversationId, createdAt])
   @@index([sourceTurnId])
   @@index([parentRunId])
+}
+
+/// One manually or periodically triggered, owner-scoped Curator pass. The successful cursor only
+/// advances through completed rows, so failed jobs never skip conversations.
+model ResearchCuratorRun {
+  id                String                   @id // ULID
+  userId            String
+  user              User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status            String                   @default("queued") // 'queued' | 'running' | 'done' | 'error' | 'stale'
+  trigger           String                   @default("manual") // 'manual' | 'scheduled'
+  cursorFrom        DateTime?
+  cursorTo          DateTime
+  evidenceCount     Int                      @default(0)
+  findingsCreated   Int                      @default(0)
+  duplicatesSkipped Int                      @default(0)
+  error             String?
+  job               Job?
+  findings          ResearchCuratorFinding[]
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([userId, status, createdAt])
+}
+
+/// One evidence-backed Curator suggestion. Fingerprints suppress repeats across runs; disposition
+/// is explicit human feedback and never triggers schema, data synchronization, or ROADMAP writes.
+model ResearchCuratorFinding {
+  id              String             @id // ULID
+  userId          String
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  runId           String
+  run             ResearchCuratorRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  category        String
+  title           String
+  summary         String
+  evidence        Json
+  verification    Json
+  confidence      Float
+  expectedValue   String
+  changeSurface   Json
+  suggestedAction String
+  fingerprint     String
+  disposition     String             @default("pending") // 'pending' | 'accepted' | 'rejected' | 'deferred' | 'duplicate'
+  dispositionNote String?
+  disposedAt      DateTime?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@unique([userId, fingerprint])
+  @@index([userId, disposition, createdAt])
+  @@index([runId, createdAt])
 }

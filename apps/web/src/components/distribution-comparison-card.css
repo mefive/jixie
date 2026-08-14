@@ -113,15 +113,13 @@
   height: 260px;
 }
 
-.jx-distributionComparison-coverage,
-.jx-distributionComparison-formulae {
+.jx-distributionComparison-coverage {
   @apply grid gap-3;
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .jx-distributionComparison-coverageItem,
 .jx-distributionComparison-methodList,
-.jx-distributionComparison-formula,
 .jx-distributionComparison-code {
   @apply rounded-lg border border-line bg-card;
   padding: 10px 14px;
@@ -129,7 +127,6 @@
 
 .jx-distributionComparison-coverageItem h4,
 .jx-distributionComparison-methodList h4,
-.jx-distributionComparison-formula h4,
 .jx-distributionComparison-code h4 {
   @apply mb-2 mt-0 font-medium text-ink;
   font-size: 13px;
@@ -150,10 +147,6 @@
 
 .jx-distributionComparison-methodList dd {
   @apply m-0 text-muted;
-}
-
-.jx-distributionComparison-formula {
-  overflow-x: auto;
 }
 
 .jx-distributionComparison-docs {
@@ -188,8 +181,7 @@
   }
 
   .jx-distributionComparison-stats,
-  .jx-distributionComparison-coverage,
-  .jx-distributionComparison-formulae {
+  .jx-distributionComparison-coverage {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
