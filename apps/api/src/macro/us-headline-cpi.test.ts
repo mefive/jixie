@@ -3,6 +3,7 @@ import {
   BlsPublicDataClient,
   blsYearRanges,
   parseBlsBulkFile,
+  parseFredUsCpiCsv,
   parseOecdUsCpiCsv,
   parseUsHeadlineCpiRows,
   prepareUsHeadlineCpiObservations,
@@ -63,6 +64,34 @@ function oecdCpiCsv({
 function nextMonth(period: string): string {
   const next = new Date(Date.UTC(Number(period.slice(0, 4)), Number(period.slice(5, 7)), 1));
   return `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
+function fredCpiCsv({
+  startPeriod = '2005-01',
+  endPeriod = '2026-07',
+  seriesId = 'CPIAUCNS',
+  unavailablePeriods = ['2025-10'],
+  omittedPeriods = [],
+}: {
+  startPeriod?: string;
+  endPeriod?: string;
+  seriesId?: string;
+  unavailablePeriods?: string[];
+  omittedPeriods?: string[];
+} = {}): string {
+  const rows = [`observation_date,${seriesId}`];
+  for (let period = startPeriod; period <= endPeriod; period = nextMonth(period)) {
+    if (omittedPeriods.includes(period)) {
+      continue;
+    }
+    const value = unavailablePeriods.includes(period)
+      ? '.'
+      : period === '2026-07'
+        ? '333.918'
+        : '237.017';
+    rows.push(`${period}-01,${value}`);
+  }
+  return rows.join('\n');
 }
 
 describe('US headline CPI normalization', () => {
@@ -148,6 +177,41 @@ describe('US headline CPI normalization', () => {
     ).toThrow('gap after 2026-05; expected 2026-06');
     expect(() =>
       parseOecdUsCpiCsv(oecdCpiCsv({ startPeriod: '2026-06', endPeriod: '2026-07' }), '2026-08'),
+    ).toThrow('stale at 2026-07; expected at least 2026-08');
+  });
+
+  it('strictly parses FRED CPIAUCNS while preserving the documented unavailable month', () => {
+    expect(
+      parseFredUsCpiCsv(fredCpiCsv({ startPeriod: '2025-09', endPeriod: '2025-11' }), '2025-11'),
+    ).toEqual([
+      { year: '2025', period: 'M09', value: '237.017' },
+      { year: '2025', period: 'M11', value: '237.017' },
+    ]);
+  });
+
+  it('fails closed when FRED identifies another series, omits a month, or is stale', () => {
+    expect(() =>
+      parseFredUsCpiCsv(
+        fredCpiCsv({
+          startPeriod: '2026-06',
+          endPeriod: '2026-07',
+          seriesId: 'CPIAUCSL',
+        }),
+        '2026-06',
+      ),
+    ).toThrow('did not identify the exact series CPIAUCNS');
+    expect(() =>
+      parseFredUsCpiCsv(
+        fredCpiCsv({
+          startPeriod: '2026-05',
+          endPeriod: '2026-07',
+          omittedPeriods: ['2026-06'],
+        }),
+        '2026-05',
+      ),
+    ).toThrow('gap after 2026-05; expected 2026-06');
+    expect(() =>
+      parseFredUsCpiCsv(fredCpiCsv({ startPeriod: '2026-06', endPeriod: '2026-07' }), '2026-08'),
     ).toThrow('stale at 2026-07; expected at least 2026-08');
   });
 
@@ -251,12 +315,97 @@ describe('US headline CPI normalization', () => {
     expect(requests[3]?.url).toContain(
       'USA.M.N.CPI.IX._T.N._Z?startPeriod=2005-01&dimensionAtObservation=AllDimensions',
     );
+    expect(requests[3]?.init?.headers).toMatchObject({
+      'accept-language': 'en',
+    });
     expect(logs).toEqual([
       'BLS GET API unavailable (returned HTTP 403); trying the official POST API',
       'BLS POST API unavailable (returned HTTP 403); falling back to the official All Items bulk file',
       'BLS bulk download unavailable (official All Items file returned HTTP 403); falling back to OECD national CPI SDMX',
       'OECD US CPI fallback loaded 258 monthly observations (200501..202607)',
     ]);
+  });
+
+  it('retries transient OECD failures and succeeds without requesting FRED', async () => {
+    const requests: string[] = [];
+    let oecdAttempts = 0;
+    const fetchImpl: typeof fetch = async (input) => {
+      const url = String(input);
+      requests.push(url);
+      if (url.includes('sdmx.oecd.org')) {
+        oecdAttempts += 1;
+        return oecdAttempts < 3
+          ? new Response('temporary upstream error', { status: 500 })
+          : new Response(oecdCpiCsv());
+      }
+      return new Response('Forbidden', { status: 403 });
+    };
+    const delays: number[] = [];
+    const logs: string[] = [];
+    const client = new BlsPublicDataClient(
+      fetchImpl,
+      (line) => logs.push(line),
+      () => new Date('2026-08-14T00:00:00.000Z'),
+      async (milliseconds) => {
+        delays.push(milliseconds);
+      },
+    );
+
+    await expect(client.loadSeries('CUUR0000SA0', 2025, 2026)).resolves.toHaveLength(18);
+
+    expect(delays).toEqual([1_000, 3_000]);
+    expect(requests).toHaveLength(6);
+    expect(requests.filter((url) => url.includes('sdmx.oecd.org'))).toHaveLength(3);
+    expect(requests.some((url) => url.includes('fred.stlouisfed.org'))).toBe(false);
+    expect(logs).toContain(
+      'OECD US CPI attempt 1/3 failed (official SDMX endpoint returned HTTP 500: temporary upstream error); retrying in 1000ms',
+    );
+    expect(logs).toContain(
+      'OECD US CPI attempt 2/3 failed (official SDMX endpoint returned HTTP 500: temporary upstream error); retrying in 3000ms',
+    );
+  });
+
+  it('falls back to cached FRED CPIAUCNS after all OECD attempts fail', async () => {
+    const requests: string[] = [];
+    const fetchImpl: typeof fetch = async (input) => {
+      const url = String(input);
+      requests.push(url);
+      if (url.includes('sdmx.oecd.org')) {
+        return new Response('temporary upstream error', { status: 500 });
+      }
+      if (url.includes('fred.stlouisfed.org')) {
+        return new Response(fredCpiCsv());
+      }
+      return new Response('Forbidden', { status: 403 });
+    };
+    const delays: number[] = [];
+    const logs: string[] = [];
+    const client = new BlsPublicDataClient(
+      fetchImpl,
+      (line) => logs.push(line),
+      () => new Date('2026-08-14T00:00:00.000Z'),
+      async (milliseconds) => {
+        delays.push(milliseconds);
+      },
+    );
+
+    const firstRange = await client.loadSeries('CUUR0000SA0', 2005, 2014);
+    const lastRange = await client.loadSeries('CUUR0000SA0', 2025, 2026);
+
+    expect(firstRange).toHaveLength(120);
+    expect(firstRange[0]).toEqual({ year: '2005', period: 'M01', value: '237.017' });
+    expect(lastRange).toHaveLength(18);
+    expect(lastRange.at(-1)).toEqual({ year: '2026', period: 'M07', value: '333.918' });
+    expect(delays).toEqual([1_000, 3_000]);
+    expect(requests).toHaveLength(7);
+    expect(requests.filter((url) => url.includes('sdmx.oecd.org'))).toHaveLength(3);
+    expect(requests.filter((url) => url.includes('fred.stlouisfed.org'))).toHaveLength(1);
+    expect(logs).toContain(
+      'OECD US CPI unavailable (official SDMX endpoint returned HTTP 500: temporary upstream error); falling back to FRED CPIAUCNS graph CSV',
+    );
+    expect(logs).toContain(
+      'FRED CPIAUCNS fallback loaded 258 monthly observations (200501..202607)',
+    );
   });
 
   it('uses month-end plus twenty days and the next available SSE session', () => {
