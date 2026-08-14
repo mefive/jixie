@@ -110,6 +110,9 @@ export const zhResearch = {
       data: '输入数据',
       environment: '运行环境',
     },
+    failedAttempts: {
+      message: '已保留 {{count}} 次失败尝试',
+    },
     rerun: '按新参数重跑',
     rerunFailed: '研究重跑失败',
     question: '研究问题',

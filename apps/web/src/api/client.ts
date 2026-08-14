@@ -182,6 +182,7 @@ import type {
   AssetVisibility,
   ResearchConversationMessages,
   ResearchConversationMeta,
+  ResearchAttemptRecordV1,
   ResearchPlanSpecV1,
   ResearchRunRecordV1,
   ResearchRunResultV1,
@@ -289,6 +290,10 @@ export function runResearchPlan(plan: ResearchPlanSpecV1): Promise<ResearchRunRe
 
 export function listResearchStudyRuns(studyId: string): Promise<ResearchRunRecordV1[]> {
   return request(`/api/app/research/studies/${encodeURIComponent(studyId)}/runs`);
+}
+
+export function listResearchStudyAttempts(studyId: string): Promise<ResearchAttemptRecordV1[]> {
+  return request(`/api/app/research/studies/${encodeURIComponent(studyId)}/attempts`);
 }
 
 export function rerunResearchStudy(

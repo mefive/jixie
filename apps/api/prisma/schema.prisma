@@ -742,6 +742,7 @@ model User {
   accountSnapshots    StrategyAccountSnapshot[]
   agentConversations  AgentConversation[]
   researchStudies     ResearchStudy[]
+  researchAttempts    ResearchAttempt[]
   factorComposites    FactorComposite[]
   factorWeatherPins   FactorWeatherPin[]
   jobs                Job[]
@@ -1159,9 +1160,10 @@ model AgentConversation {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
-  messages        AgentMessage[]
-  turns           AgentTurn[]
-  researchStudies ResearchStudy[]
+  messages         AgentMessage[]
+  turns            AgentTurn[]
+  researchStudies  ResearchStudy[]
+  researchAttempts ResearchAttempt[]
 
   @@index([userId, updatedAt])
   @@index([userId, surface, updatedAt])
@@ -1201,8 +1203,9 @@ model AgentTurn {
   startedAt      DateTime          @default(now())
   finishedAt     DateTime?
 
-  messages     AgentMessage[]
-  researchRuns ResearchRun[]  @relation("ResearchRunSourceTurn")
+  messages         AgentMessage[]
+  researchRuns     ResearchRun[]     @relation("ResearchRunSourceTurn")
+  researchAttempts ResearchAttempt[] @relation("ResearchAttemptSourceTurn")
 
   @@index([conversationId, startedAt])
   @@index([status, startedAt])
@@ -1222,7 +1225,8 @@ model ResearchStudy {
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
 
-  runs ResearchRun[]
+  runs     ResearchRun[]
+  attempts ResearchAttempt[]
 
   @@index([userId, updatedAt])
   @@index([conversationId, updatedAt])
@@ -1231,16 +1235,17 @@ model ResearchStudy {
 /// One immutable deterministic protocol execution. Hashes identify plan and result payloads; data
 /// and runtime fingerprints are added separately so rerun differences can be attributed precisely.
 model ResearchRun {
-  id                     String        @id // ULID
+  id                     String            @id // ULID
   studyId                String
-  study                  ResearchStudy @relation(fields: [studyId], references: [id], onDelete: Cascade)
+  study                  ResearchStudy     @relation(fields: [studyId], references: [id], onDelete: Cascade)
   parentRunId            String?
-  parentRun              ResearchRun?  @relation("ResearchRunLineage", fields: [parentRunId], references: [id], onDelete: SetNull)
-  childRuns              ResearchRun[] @relation("ResearchRunLineage")
+  parentRun              ResearchRun?      @relation("ResearchRunLineage", fields: [parentRunId], references: [id], onDelete: SetNull)
+  childRuns              ResearchRun[]     @relation("ResearchRunLineage")
+  failedAttempts         ResearchAttempt[] @relation("ResearchAttemptParentRun")
   sourceTurnId           String?
-  sourceTurn             AgentTurn?    @relation("ResearchRunSourceTurn", fields: [sourceTurnId], references: [id], onDelete: SetNull)
+  sourceTurn             AgentTurn?        @relation("ResearchRunSourceTurn", fields: [sourceTurnId], references: [id], onDelete: SetNull)
   sourceMessageId        String?
-  sourceMessage          AgentMessage? @relation("ResearchRunSourceMessage", fields: [sourceMessageId], references: [id], onDelete: SetNull)
+  sourceMessage          AgentMessage?     @relation("ResearchRunSourceMessage", fields: [sourceMessageId], references: [id], onDelete: SetNull)
   sourcePartIndex        Int?
   sequence               Int
   origin                 String // 'agent' | 'parameter_rerun'
@@ -1253,11 +1258,39 @@ model ResearchRun {
   protocolFingerprint    String?
   dataFingerprint        String?
   environmentFingerprint String?
-  createdAt              DateTime      @default(now())
+  createdAt              DateTime          @default(now())
 
   @@unique([studyId, sequence])
   @@unique([sourceMessageId, sourcePartIndex])
   @@index([sourceTurnId])
   @@index([sourceMessageId])
+  @@index([parentRunId])
+}
+
+/// One immutable failed execution attempt. Successful executions remain ResearchRun rows; keeping
+/// failures separate preserves a clean result contract while retaining rejected specifications.
+model ResearchAttempt {
+  id             String            @id // ULID
+  userId         String
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversationId String
+  conversation   AgentConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  studyId        String?
+  study          ResearchStudy?    @relation(fields: [studyId], references: [id], onDelete: Cascade)
+  parentRunId    String?
+  parentRun      ResearchRun?      @relation("ResearchAttemptParentRun", fields: [parentRunId], references: [id], onDelete: SetNull)
+  sourceTurnId   String?
+  sourceTurn     AgentTurn?        @relation("ResearchAttemptSourceTurn", fields: [sourceTurnId], references: [id], onDelete: SetNull)
+  sourceStepId   String?           @unique
+  origin         String // 'agent' | 'parameter_rerun'
+  plan           Json?
+  planHash       String?
+  arguments      String
+  error          String
+  createdAt      DateTime          @default(now())
+
+  @@index([studyId, createdAt])
+  @@index([conversationId, createdAt])
+  @@index([sourceTurnId])
   @@index([parentRunId])
 }

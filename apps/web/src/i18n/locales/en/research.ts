@@ -115,6 +115,9 @@ export const enResearch: typeof zhResearch = {
       data: 'Input data',
       environment: 'Runtime environment',
     },
+    failedAttempts: {
+      message: '{{count}} failed attempt(s) retained',
+    },
     rerun: 'Rerun with parameters',
     rerunFailed: 'Research rerun failed',
     question: 'Research question',

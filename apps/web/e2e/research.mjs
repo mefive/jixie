@@ -363,6 +363,7 @@ try {
   );
   let rerunPlan = null;
   let persistentRerunRequested = false;
+  const relationshipAttempts = [];
   const relationshipRecords = [
     {
       ref: relationshipRecord,
@@ -373,6 +374,13 @@ try {
       run: actualRelationship,
     },
   ];
+  await page.route('**/api/app/research/studies/e2e-study-relationship/attempts', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(relationshipAttempts),
+    }),
+  );
   await page.route('**/api/app/research/studies/e2e-study-relationship/runs', async (route) => {
     if (route.request().method() === 'GET') {
       return route.fulfill({
@@ -384,6 +392,28 @@ try {
     persistentRerunRequested = true;
     const body = route.request().postDataJSON();
     rerunPlan = body.plan;
+    if (body.plan.protocol.predictorLag === 120) {
+      relationshipAttempts.push({
+        version: 1,
+        id: 'e2e-attempt-relationship-1',
+        studyId: relationshipRecord.studyId,
+        parentRunId: body.parentRunId,
+        origin: 'parameter_rerun',
+        plan: body.plan,
+        planHash: 'failed-plan-1',
+        error: 'Insufficient aligned observations.',
+        createdAt: new Date().toISOString(),
+        planChanges: [{ path: 'protocol.predictorLag', before: '1', after: '120' }],
+        planChangesTruncated: false,
+      });
+      return route.fulfill({
+        status: 400,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          error: { code: 'VALIDATION_FAILED', message: 'Insufficient aligned observations.' },
+        }),
+      });
+    }
     const record = {
       ref: {
         version: 1,
@@ -485,6 +515,15 @@ try {
   await page.locator('.ant-select-item-option').filter({ hasText: '#2' }).click();
   await page.locator('.jx-researchResult-title').click();
   await page.locator('.ant-select-dropdown').waitFor({ state: 'hidden' });
+  await page.getByText('调整参数', { exact: true }).click();
+  await page.locator('.jx-researchResult-controls .ant-input-number input').first().fill('120');
+  await page.getByText('按新参数重跑', { exact: true }).click();
+  await page.getByText('已保留 1 次失败尝试', { exact: true }).waitFor();
+  await page
+    .locator('.jx-researchAttemptNotice')
+    .filter({ hasText: 'protocol.predictorLag：1 → 120' })
+    .waitFor();
+  await page.getByText('调整参数', { exact: true }).click();
   await page.screenshot({ path: `${SHOTS}research-relationship-zh.png`, fullPage: true });
 
   await page.getByText('EN', { exact: true }).click();

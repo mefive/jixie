@@ -3,14 +3,23 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Prisma, PrismaClient } from '@prisma/client';
 import prismaPackage from '@prisma/client';
-import type { MessagePart, ResearchRunResultV1 } from '@jixie/shared';
+import type {
+  AgentTurnTrace,
+  MessagePart,
+  ResearchPlanSpecV1,
+  ResearchRunResultV1,
+} from '@jixie/shared';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   compareResearchPlans,
   compareResearchRunRows,
+  createFailedResearchAttempt,
   createResearchRerun,
+  listResearchStudyAttempts,
   listResearchStudyRuns,
   migrateResearchRecords,
+  persistFailedResearchAttempts,
+  persistResearchMessageParts,
 } from './records.js';
 import { researchPayloadHash } from './fingerprints.js';
 
@@ -42,6 +51,7 @@ describe('research records', () => {
       studiesCreated: 1,
       runsCreated: 1,
       runsUpdated: 0,
+      attemptsCreated: 0,
     });
     await expect(migrateResearchRecords(database)).resolves.toEqual({
       messagesScanned: 1,
@@ -49,6 +59,7 @@ describe('research records', () => {
       studiesCreated: 0,
       runsCreated: 0,
       runsUpdated: 0,
+      attemptsCreated: 0,
     });
 
     const message = await database.agentMessage.findUniqueOrThrow({ where: { id: 'message-a' } });
@@ -59,6 +70,45 @@ describe('research records', () => {
     });
     expect(await database.researchStudy.count()).toBe(1);
     expect(await database.researchRun.count()).toBe(1);
+  });
+
+  it('backfills failed Agent attempts from durable turn traces idempotently', async () => {
+    await seedResearchMessage(database, sampleRun());
+    await database.agentTurn.update({
+      where: { id: 'turn-a' },
+      data: {
+        trace: {
+          version: 1,
+          truncated: false,
+          steps: [
+            {
+              id: 'migration-failed-step',
+              sequence: 0,
+              createdAt: '2026-08-14T03:00:00.000Z',
+              type: 'tool',
+              toolCallId: 'migration-call',
+              name: 'executeResearchPlan',
+              arguments: JSON.stringify({ plan: validPlan() }),
+              observation: 'Tool execution failed: Insufficient observations.',
+              ok: false,
+              durationMs: 12,
+            },
+          ],
+        },
+      },
+    });
+
+    await expect(migrateResearchRecords(database)).resolves.toMatchObject({
+      studiesCreated: 1,
+      runsCreated: 1,
+      attemptsCreated: 1,
+    });
+    await expect(migrateResearchRecords(database)).resolves.toMatchObject({
+      studiesCreated: 0,
+      runsCreated: 0,
+      attemptsCreated: 0,
+    });
+    expect(await database.researchAttempt.count()).toBe(1);
   });
 
   it('stores immutable parameter reruns in one ordered study', async () => {
@@ -84,6 +134,168 @@ describe('research records', () => {
     });
     await expect(listResearchStudyRuns('user-a', first.studyId, database)).resolves.toHaveLength(2);
     await expect(listResearchStudyRuns('user-b', first.studyId, database)).resolves.toBeNull();
+  });
+
+  it('retains failed parameter reruns beside successful history', async () => {
+    await seedResearchMessage(database, sampleRun());
+    await migrateResearchRecords(database);
+    const first = await database.researchRun.findFirstOrThrow();
+    const failed = await createFailedResearchAttempt(
+      {
+        userId: 'user-a',
+        studyId: first.studyId,
+        parentRunId: first.id,
+        plan: sampleRun(12, 2).plan,
+        error: 'Insufficient aligned observations.',
+      },
+      database,
+    );
+
+    expect(failed).toMatchObject({
+      origin: 'parameter_rerun',
+      parentRunId: first.id,
+      error: 'Insufficient aligned observations.',
+      planChanges: [{ path: 'protocol.predictorLag', before: '0', after: '2' }],
+    });
+    await expect(
+      listResearchStudyAttempts('user-a', first.studyId, database),
+    ).resolves.toHaveLength(1);
+    await expect(listResearchStudyAttempts('user-b', first.studyId, database)).resolves.toBeNull();
+  });
+
+  it('normalizes failed Agent tool calls once and links them to the recovered Study', async () => {
+    await seedResearchMessage(database, sampleRun());
+    await migrateResearchRecords(database);
+    const first = await database.researchRun.findFirstOrThrow();
+    const trace: AgentTurnTrace = {
+      version: 1,
+      truncated: false,
+      steps: [
+        {
+          id: 'failed-step-a',
+          sequence: 0,
+          createdAt: '2026-08-14T03:00:00.000Z',
+          type: 'tool',
+          toolCallId: 'call-a',
+          name: 'executeResearchPlan',
+          arguments: JSON.stringify({ plan: validPlan() }),
+          observation: 'Tool execution failed: Insufficient observations.',
+          ok: false,
+          durationMs: 12,
+        },
+      ],
+    };
+
+    await expect(
+      database.$transaction((transaction) =>
+        persistFailedResearchAttempts(transaction, {
+          conversationId: 'conversation-a',
+          turnId: 'turn-a',
+          userId: 'user-a',
+          trace,
+        }),
+      ),
+    ).resolves.toBe(1);
+    await expect(
+      database.$transaction((transaction) =>
+        persistFailedResearchAttempts(transaction, {
+          conversationId: 'conversation-a',
+          turnId: 'turn-a',
+          userId: 'user-a',
+          trace,
+        }),
+      ),
+    ).resolves.toBe(0);
+    await expect(listResearchStudyAttempts('user-a', first.studyId, database)).resolves.toEqual([
+      expect.objectContaining({
+        origin: 'agent',
+        studyId: first.studyId,
+        error: 'Insufficient observations.',
+        createdAt: '2026-08-14T03:00:00.000Z',
+      }),
+    ]);
+  });
+
+  it('keeps an all-failed Study open and reuses it after a later successful correction', async () => {
+    await database.user.create({ data: { id: 'user-a', email: 'a@example.com' } });
+    await database.agentConversation.create({
+      data: { id: 'conversation-a', userId: 'user-a', surface: 'research', title: 'Study' },
+    });
+    await database.agentTurn.create({
+      data: {
+        id: 'turn-failed',
+        conversationId: 'conversation-a',
+        status: 'done',
+        model: 'test',
+        trace: {},
+      },
+    });
+    const failedTrace: AgentTurnTrace = {
+      version: 1,
+      truncated: false,
+      steps: [
+        {
+          id: 'failed-step-only',
+          sequence: 0,
+          createdAt: '2026-08-14T03:00:00.000Z',
+          type: 'tool',
+          toolCallId: 'call-only',
+          name: 'executeResearchPlan',
+          arguments: JSON.stringify({ plan: validPlan() }),
+          observation: 'Tool execution failed: Insufficient observations.',
+          ok: false,
+          durationMs: 12,
+        },
+      ],
+    };
+    await database.$transaction((transaction) =>
+      persistFailedResearchAttempts(transaction, {
+        conversationId: 'conversation-a',
+        turnId: 'turn-failed',
+        userId: 'user-a',
+        trace: failedTrace,
+      }),
+    );
+    const failedStudy = await database.researchStudy.findFirstOrThrow();
+    expect(await database.researchRun.count()).toBe(0);
+
+    await database.agentTurn.create({
+      data: {
+        id: 'turn-success',
+        conversationId: 'conversation-a',
+        status: 'done',
+        model: 'test',
+        trace: {},
+      },
+    });
+    await database.agentMessage.create({
+      data: {
+        id: 'message-success',
+        conversationId: 'conversation-a',
+        role: 'assistant',
+        parts: [],
+        sequence: 0,
+        turnId: 'turn-success',
+      },
+    });
+    await database.$transaction((transaction) =>
+      persistResearchMessageParts(transaction, {
+        conversationId: 'conversation-a',
+        messageId: 'message-success',
+        turnId: 'turn-success',
+        userId: 'user-a',
+        parts: [{ type: 'research', title: 'Study', run: sampleRun() }],
+      }),
+    );
+
+    expect(await database.researchStudy.count()).toBe(1);
+    expect(await database.researchRun.findFirstOrThrow()).toMatchObject({
+      studyId: failedStudy.id,
+      sequence: 1,
+    });
+    expect(await database.researchAttempt.findFirstOrThrow()).toMatchObject({
+      studyId: failedStudy.id,
+    });
   });
 
   it('hashes equivalent payloads independently of object key order', () => {
@@ -167,6 +379,48 @@ describe('research records', () => {
   });
 });
 
+function validPlan(): ResearchPlanSpecV1 {
+  return {
+    version: 1,
+    question: {
+      version: 1,
+      kind: 'time_series_relationship',
+      text: 'Test relationship',
+      hypothesis: { estimand: 'regression_slope', direction: 'two_sided', nullValue: 0 },
+    },
+    start: '20200101',
+    end: '20251231',
+    inputs: [
+      {
+        type: 'series',
+        id: 'predictor',
+        source: { kind: 'instrument', assetType: 'index', id: '000300.SH' },
+        measure: 'market.adjusted_close',
+        transform: 'simple_return',
+      },
+      {
+        type: 'series',
+        id: 'outcome',
+        source: { kind: 'instrument', assetType: 'index', id: '000905.SH' },
+        measure: 'market.adjusted_close',
+        transform: 'simple_return',
+      },
+    ],
+    alignment: { frequency: 'monthly', join: 'inner', partialPeriod: 'exclude' },
+    protocol: {
+      kind: 'time_series_relationship',
+      version: 1,
+      predictor: 'predictor',
+      outcome: 'outcome',
+      predictorLag: 0,
+      correlations: ['pearson', 'spearman'],
+      inference: { kind: 'newey_west', lag: 'automatic' },
+      rollingWindow: 24,
+    },
+    outputs: [{ kind: 'summary_table' }, { kind: 'conclusion' }],
+  };
+}
+
 function sampleRun(observations = 12, predictorLag = 0): ResearchRunResultV1 {
   return {
     version: 1,
@@ -244,10 +498,12 @@ async function createFixtureSchema(database: PrismaClient) {
     'CREATE TABLE "AgentMessage" ("id" TEXT NOT NULL PRIMARY KEY, "conversationId" TEXT NOT NULL, "role" TEXT NOT NULL, "parts" JSONB NOT NULL, "sequence" INTEGER NOT NULL, "turnId" TEXT, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY ("conversationId") REFERENCES "AgentConversation"("id") ON DELETE CASCADE, FOREIGN KEY ("turnId") REFERENCES "AgentTurn"("id") ON DELETE SET NULL)',
     'CREATE TABLE "ResearchStudy" ("id" TEXT NOT NULL PRIMARY KEY, "userId" TEXT NOT NULL, "conversationId" TEXT NOT NULL, "title" TEXT NOT NULL, "question" JSONB NOT NULL, "status" TEXT NOT NULL DEFAULT \'active\', "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" DATETIME NOT NULL, FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE, FOREIGN KEY ("conversationId") REFERENCES "AgentConversation"("id") ON DELETE CASCADE)',
     'CREATE TABLE "ResearchRun" ("id" TEXT NOT NULL PRIMARY KEY, "studyId" TEXT NOT NULL, "parentRunId" TEXT, "sourceTurnId" TEXT, "sourceMessageId" TEXT, "sourcePartIndex" INTEGER, "sequence" INTEGER NOT NULL, "origin" TEXT NOT NULL, "protocolId" TEXT NOT NULL, "protocolVersion" INTEGER NOT NULL, "plan" JSONB NOT NULL, "result" JSONB NOT NULL, "planHash" TEXT NOT NULL, "resultHash" TEXT NOT NULL, "protocolFingerprint" TEXT, "dataFingerprint" TEXT, "environmentFingerprint" TEXT, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY ("studyId") REFERENCES "ResearchStudy"("id") ON DELETE CASCADE, FOREIGN KEY ("parentRunId") REFERENCES "ResearchRun"("id") ON DELETE SET NULL, FOREIGN KEY ("sourceTurnId") REFERENCES "AgentTurn"("id") ON DELETE SET NULL, FOREIGN KEY ("sourceMessageId") REFERENCES "AgentMessage"("id") ON DELETE SET NULL)',
+    'CREATE TABLE "ResearchAttempt" ("id" TEXT NOT NULL PRIMARY KEY, "userId" TEXT NOT NULL, "conversationId" TEXT NOT NULL, "studyId" TEXT, "parentRunId" TEXT, "sourceTurnId" TEXT, "sourceStepId" TEXT, "origin" TEXT NOT NULL, "plan" JSONB, "planHash" TEXT, "arguments" TEXT NOT NULL, "error" TEXT NOT NULL, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE, FOREIGN KEY ("conversationId") REFERENCES "AgentConversation"("id") ON DELETE CASCADE, FOREIGN KEY ("studyId") REFERENCES "ResearchStudy"("id") ON DELETE CASCADE, FOREIGN KEY ("parentRunId") REFERENCES "ResearchRun"("id") ON DELETE SET NULL, FOREIGN KEY ("sourceTurnId") REFERENCES "AgentTurn"("id") ON DELETE SET NULL)',
     'CREATE UNIQUE INDEX "User_email_key" ON "User"("email")',
     'CREATE UNIQUE INDEX "AgentMessage_conversationId_sequence_key" ON "AgentMessage"("conversationId", "sequence")',
     'CREATE UNIQUE INDEX "ResearchRun_studyId_sequence_key" ON "ResearchRun"("studyId", "sequence")',
     'CREATE UNIQUE INDEX "ResearchRun_sourceMessageId_sourcePartIndex_key" ON "ResearchRun"("sourceMessageId", "sourcePartIndex")',
+    'CREATE UNIQUE INDEX "ResearchAttempt_sourceStepId_key" ON "ResearchAttempt"("sourceStepId")',
   ];
   for (const statement of statements) {
     await database.$executeRawUnsafe(statement);

@@ -1,7 +1,15 @@
-import type { Prisma, PrismaClient, ResearchRun as ResearchRunRow } from '@prisma/client';
+import type {
+  Prisma,
+  PrismaClient,
+  ResearchAttempt as ResearchAttemptRow,
+  ResearchRun as ResearchRunRow,
+} from '@prisma/client';
 import {
+  type AgentTurnTrace,
   type MessagePart,
+  type ResearchAttemptRecordV1,
   type ResearchPlanChangeV1,
+  type ResearchPlanSpecV1,
   type ResearchPart,
   type ResearchRunComparisonV1,
   type ResearchRunRecordV1,
@@ -10,6 +18,7 @@ import {
 import { ulid } from 'ulid';
 import { prisma } from '../lib/prisma.js';
 import { researchPayloadHash } from './fingerprints.js';
+import { researchPlanSpecV1Schema } from './spec.js';
 
 interface PersistResearchMessagePartsArgs {
   conversationId: string;
@@ -41,18 +50,15 @@ export async function persistResearchMessageParts(
       continue;
     }
 
-    const studyId = ulid();
+    const study = await findOrCreateRunlessStudy(transaction, {
+      conversationId: args.conversationId,
+      userId: args.userId,
+      title: part.title,
+      question: part.run.plan.question,
+    });
+    const studyId = study.id;
     const runId = ulid();
     const createdAt = new Date();
-    await transaction.researchStudy.create({
-      data: {
-        id: studyId,
-        userId: args.userId,
-        conversationId: args.conversationId,
-        title: part.title,
-        question: part.run.plan.question as unknown as Prisma.InputJsonValue,
-      },
-    });
     await transaction.researchRun.create({
       data: {
         id: runId,
@@ -139,6 +145,152 @@ export async function createResearchRerun(
 
     return researchRunRecord(study.id, study.title, stored, parent);
   });
+}
+
+export async function createFailedResearchAttempt(
+  args: {
+    userId: string;
+    studyId: string;
+    parentRunId: string;
+    plan: ResearchPlanSpecV1;
+    error: string;
+  },
+  database: PrismaClient = prisma,
+): Promise<ResearchAttemptRecordV1 | null> {
+  return database.$transaction(async (transaction) => {
+    const study = await transaction.researchStudy.findFirst({
+      where: {
+        id: args.studyId,
+        userId: args.userId,
+        status: 'active',
+        runs: { some: { id: args.parentRunId } },
+      },
+      select: { id: true, conversationId: true },
+    });
+    if (!study) {
+      return null;
+    }
+    const parent = await transaction.researchRun.findUnique({ where: { id: args.parentRunId } });
+    if (!parent) {
+      return null;
+    }
+    const createdAt = new Date();
+    const stored = await transaction.researchAttempt.create({
+      data: {
+        id: ulid(),
+        userId: args.userId,
+        conversationId: study.conversationId,
+        studyId: study.id,
+        parentRunId: parent.id,
+        origin: 'parameter_rerun',
+        plan: args.plan as unknown as Prisma.InputJsonValue,
+        planHash: researchPayloadHash(args.plan),
+        arguments: JSON.stringify({ parentRunId: parent.id, plan: args.plan }),
+        error: normalizeAttemptError(args.error),
+        createdAt,
+      },
+    });
+    await transaction.researchStudy.update({
+      where: { id: study.id },
+      data: { updatedAt: createdAt },
+    });
+    return researchAttemptRecord(stored, parent);
+  });
+}
+
+export async function persistFailedResearchAttempts(
+  transaction: Prisma.TransactionClient,
+  args: {
+    conversationId: string;
+    turnId: string;
+    userId: string;
+    trace: AgentTurnTrace;
+  },
+): Promise<number> {
+  const failedSteps = (Array.isArray(args.trace.steps) ? args.trace.steps : []).filter(
+    (step): step is Extract<AgentTurnTrace['steps'][number], { type: 'tool' }> =>
+      step.type === 'tool' && step.name === 'executeResearchPlan' && !step.ok,
+  );
+  if (failedSteps.length === 0) {
+    return 0;
+  }
+  const sourceRuns = await transaction.researchRun.findMany({
+    where: { sourceTurnId: args.turnId },
+    select: { studyId: true, plan: true },
+  });
+  let created = 0;
+
+  for (const step of failedSteps) {
+    if (await transaction.researchAttempt.findUnique({ where: { sourceStepId: step.id } })) {
+      continue;
+    }
+    const parsed = parseResearchToolArguments(step.arguments);
+    const validPlan = parsed.plan
+      ? researchPlanSpecV1Schema.safeParse(parsed.plan)
+      : ({ success: false } as const);
+    let studyId: string | undefined;
+    if (validPlan.success) {
+      const questionHash = researchPayloadHash(validPlan.data.question);
+      studyId = sourceRuns.find(
+        (run) => researchPayloadHash(extractPlanQuestion(run.plan)) === questionHash,
+      )?.studyId;
+      if (!studyId && sourceRuns.length === 1) {
+        studyId = sourceRuns[0]!.studyId;
+      }
+      if (!studyId) {
+        studyId = (
+          await findOrCreateRunlessStudy(transaction, {
+            conversationId: args.conversationId,
+            userId: args.userId,
+            title: validPlan.data.question.text.slice(0, 120),
+            question: validPlan.data.question,
+          })
+        ).id;
+      }
+    }
+    await transaction.researchAttempt.create({
+      data: {
+        id: ulid(),
+        userId: args.userId,
+        conversationId: args.conversationId,
+        ...(studyId ? { studyId } : {}),
+        sourceTurnId: args.turnId,
+        sourceStepId: step.id,
+        origin: 'agent',
+        ...(parsed.plan ? { plan: parsed.plan as Prisma.InputJsonValue } : {}),
+        ...(parsed.plan ? { planHash: researchPayloadHash(parsed.plan) } : {}),
+        arguments: step.arguments,
+        error: normalizeAttemptError(step.observation),
+        createdAt: validDate(step.createdAt),
+      },
+    });
+    created++;
+  }
+  return created;
+}
+
+export async function listResearchStudyAttempts(
+  userId: string,
+  studyId: string,
+  database: PrismaClient = prisma,
+): Promise<ResearchAttemptRecordV1[] | null> {
+  const study = await database.researchStudy.findFirst({
+    where: { id: studyId, userId, status: 'active' },
+    select: {
+      attempts: { orderBy: { createdAt: 'asc' } },
+      runs: true,
+    },
+  });
+  if (!study) {
+    return null;
+  }
+  const runById = new Map(study.runs.map((run) => [run.id, run]));
+  return study.attempts.map((attempt) =>
+    researchAttemptRecord(
+      attempt,
+      attempt.parentRunId ? runById.get(attempt.parentRunId) : undefined,
+    ),
+  );
 }
 
 export async function listResearchStudyRuns(
@@ -312,12 +464,104 @@ function researchRunRecord(
   };
 }
 
+function researchAttemptRecord(
+  attempt: ResearchAttemptRow,
+  parent?: ResearchRunRow,
+): ResearchAttemptRecordV1 {
+  const parsedPlan = attempt.plan ? researchPlanSpecV1Schema.safeParse(attempt.plan) : null;
+  const plan = parsedPlan?.success ? parsedPlan.data : undefined;
+  const planDifference =
+    parent && attempt.plan
+      ? compareResearchPlans(parent.plan, attempt.plan)
+      : { changes: [], truncated: false };
+  return {
+    version: 1,
+    id: attempt.id,
+    ...(attempt.studyId ? { studyId: attempt.studyId } : {}),
+    ...(attempt.parentRunId ? { parentRunId: attempt.parentRunId } : {}),
+    origin: attempt.origin === 'parameter_rerun' ? 'parameter_rerun' : 'agent',
+    ...(plan ? { plan } : {}),
+    ...(attempt.planHash ? { planHash: attempt.planHash } : {}),
+    error: attempt.error,
+    createdAt: attempt.createdAt.toISOString(),
+    planChanges: planDifference.changes,
+    planChangesTruncated: planDifference.truncated,
+  };
+}
+
+async function findOrCreateRunlessStudy(
+  transaction: Prisma.TransactionClient,
+  args: {
+    conversationId: string;
+    userId: string;
+    title: string;
+    question: ResearchPlanSpecV1['question'];
+  },
+): Promise<{ id: string }> {
+  const candidates = await transaction.researchStudy.findMany({
+    where: {
+      conversationId: args.conversationId,
+      userId: args.userId,
+      status: 'active',
+      runs: { none: {} },
+    },
+    select: { id: true, question: true },
+    orderBy: { createdAt: 'asc' },
+  });
+  const questionHash = researchPayloadHash(args.question);
+  const existing = candidates.find(
+    (candidate) => researchPayloadHash(candidate.question) === questionHash,
+  );
+  if (existing) {
+    return { id: existing.id };
+  }
+  return transaction.researchStudy.create({
+    data: {
+      id: ulid(),
+      userId: args.userId,
+      conversationId: args.conversationId,
+      title: args.title,
+      question: args.question as unknown as Prisma.InputJsonValue,
+    },
+    select: { id: true },
+  });
+}
+
+function parseResearchToolArguments(argumentsText: string): { plan?: Prisma.JsonValue } {
+  try {
+    const parsed = JSON.parse(argumentsText) as unknown;
+    if (isPlainObject(parsed) && isPlainObject(parsed.plan)) {
+      return { plan: parsed.plan as Prisma.JsonObject };
+    }
+  } catch {
+    // Malformed tool arguments are retained verbatim but cannot form a typed plan or Study.
+  }
+  return {};
+}
+
+function extractPlanQuestion(plan: Prisma.JsonValue): unknown {
+  return isPlainObject(plan) ? plan.question : undefined;
+}
+
+function normalizeAttemptError(error: string): string {
+  return error
+    .replace(/^Tool execution failed:\s*/i, '')
+    .trim()
+    .slice(0, 8000);
+}
+
+function validDate(value: string): Date {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? new Date() : date;
+}
+
 export interface ResearchRecordMigrationSummary {
   messagesScanned: number;
   messagesUpdated: number;
   studiesCreated: number;
   runsCreated: number;
   runsUpdated: number;
+  attemptsCreated: number;
 }
 
 /** Backfill typed research artifacts that were persisted in chat before formal run records existed. */
@@ -337,6 +581,7 @@ export async function migrateResearchRecords(
   const researchMessages = messages.filter((message) => hasResearchPart(message.parts));
   const beforeStudies = await database.researchStudy.count();
   const beforeRuns = await database.researchRun.count();
+  const beforeAttempts = await database.researchAttempt.count();
   let messagesUpdated = 0;
 
   for (const message of researchMessages) {
@@ -357,6 +602,26 @@ export async function migrateResearchRecords(
         messagesUpdated++;
       }
     });
+  }
+
+  const researchTurns = await database.agentTurn.findMany({
+    where: { conversation: { surface: 'research' } },
+    select: {
+      id: true,
+      trace: true,
+      conversation: { select: { id: true, userId: true } },
+    },
+    orderBy: { startedAt: 'asc' },
+  });
+  for (const turn of researchTurns) {
+    await database.$transaction((transaction) =>
+      persistFailedResearchAttempts(transaction, {
+        conversationId: turn.conversation.id,
+        turnId: turn.id,
+        userId: turn.conversation.userId,
+        trace: turn.trace as unknown as AgentTurnTrace,
+      }),
+    );
   }
 
   const storedRuns = await database.researchRun.findMany({
@@ -395,6 +660,7 @@ export async function migrateResearchRecords(
     studiesCreated: (await database.researchStudy.count()) - beforeStudies,
     runsCreated: (await database.researchRun.count()) - beforeRuns,
     runsUpdated,
+    attemptsCreated: (await database.researchAttempt.count()) - beforeAttempts,
   };
 }
 

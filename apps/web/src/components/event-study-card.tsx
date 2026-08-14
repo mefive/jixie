@@ -18,6 +18,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { EChart, type ECOption } from './echart';
 import { Markdown } from './markdown';
 import {
+  ResearchFailedAttemptNotice,
   ResearchFingerprintDetails,
   ResearchRunComparisonNotice,
   ResearchRunHistorySelect,
@@ -313,6 +314,7 @@ export function EventStudyCard({
       </div>
 
       <ResearchRunComparisonNotice comparison={history.comparison} />
+      <ResearchFailedAttemptNotice attempts={history.attempts} />
 
       {controlsOpen && (
         <div className="jx-eventStudy-controls">

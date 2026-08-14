@@ -9,7 +9,12 @@ import * as turnBus from '../agent/turn-bus.js';
 import { localeFromRequest, m } from '../i18n/index.js';
 import { researchCapabilityCatalog } from '../research/catalog.js';
 import { executeResearchPlan } from '../research/executor.js';
-import { createResearchRerun, listResearchStudyRuns } from '../research/records.js';
+import {
+  createFailedResearchAttempt,
+  createResearchRerun,
+  listResearchStudyAttempts,
+  listResearchStudyRuns,
+} from '../research/records.js';
 import { researchPlanSpecV1Schema } from '../research/spec.js';
 import { universeSpecV1Schema } from '../research/spec.js';
 import { executeUniverseSpec } from '../research/universe.js';
@@ -139,6 +144,11 @@ researchRoute.get('/studies/:studyId/runs', async (c) => {
   return records ? c.json(records) : apiError(c, 'NOT_FOUND', m(c, 'researchStudyNotFound'));
 });
 
+researchRoute.get('/studies/:studyId/attempts', async (c) => {
+  const attempts = await listResearchStudyAttempts(c.var.userId, c.req.param('studyId'));
+  return attempts ? c.json(attempts) : apiError(c, 'NOT_FOUND', m(c, 'researchStudyNotFound'));
+});
+
 researchRoute.post('/studies/:studyId/runs', validateJson(rerunBody), async (c) => {
   const { parentRunId, plan } = c.req.valid('json');
   const studyId = c.req.param('studyId');
@@ -159,11 +169,15 @@ researchRoute.post('/studies/:studyId/runs', validateJson(rerunBody), async (c) 
     });
     return record ? c.json(record) : apiError(c, 'NOT_FOUND', m(c, 'researchStudyNotFound'));
   } catch (error) {
-    return apiError(
-      c,
-      'VALIDATION_FAILED',
-      error instanceof Error ? error.message : 'Research plan failed.',
-    );
+    const message = error instanceof Error ? error.message : 'Research plan failed.';
+    const attempt = await createFailedResearchAttempt({
+      userId: c.var.userId,
+      studyId,
+      parentRunId,
+      plan,
+      error: message,
+    });
+    return apiError(c, 'VALIDATION_FAILED', message, attempt ? { attempt } : undefined);
   }
 });
 

@@ -32,6 +32,10 @@
   @apply mt-3;
 }
 
+.jx-researchAttemptNotice {
+  @apply mt-3;
+}
+
 .jx-researchFingerprints {
   @apply rounded-lg border border-line bg-card;
   padding: 10px 14px;
