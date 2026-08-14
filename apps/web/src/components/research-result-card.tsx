@@ -33,6 +33,7 @@ import { DistributionComparisonCard } from './distribution-comparison-card';
 import { EventStudyCard } from './event-study-card';
 import { EChart, type ECOption } from './echart';
 import { Markdown } from './markdown';
+import { MultivariateTimeSeriesCard } from './multivariate-time-series-card';
 import { ResearchFormulae } from './research-formulae';
 import {
   ResearchFailedAttemptNotice,
@@ -54,6 +55,11 @@ type TimeSeriesResearchPart = Omit<ResearchPart, 'run'> & {
 /** A deterministic ResearchRun rendered beside the model's prose. Values, formulae and code all
  * come from the validated protocol result; the LLM cannot invent or mutate this payload. */
 export function ResearchResultCard({ part }: ResearchResultCardProps) {
+  if (part.run.result.kind === 'multivariate_time_series_relationship') {
+    return (
+      <MultivariateTimeSeriesCard title={part.title} run={part.run as never} record={part.record} />
+    );
+  }
   if (part.run.result.kind === 'distribution_comparison') {
     return (
       <DistributionComparisonCard title={part.title} run={part.run as never} record={part.record} />

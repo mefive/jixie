@@ -35,6 +35,7 @@ const researchRunResultSchema = z.custom<ResearchRunResultV1>((value) => {
   const conclusion = run.conclusion as unknown as { level?: unknown } | undefined;
   const currentProtocol = [
     'time_series_relationship',
+    'multivariate_time_series_relationship',
     'distribution_comparison',
     'event_study',
   ].includes(run.protocol?.id ?? '');

@@ -1,6 +1,7 @@
 import type {
   DistributionComparisonPlanSpecV1,
   EventStudyPlanSpecV1,
+  MultivariateTimeSeriesPlanSpecV1,
   ResearchMeasureDefinitionV1,
   ResearchPlanSpecV1,
   ResearchSeriesInputSpecV1,
@@ -146,6 +147,18 @@ const timeSeriesQuestionSchema = z.strictObject({
   }),
 });
 
+const multivariateTimeSeriesQuestionSchema = z.strictObject({
+  version: z.literal(1),
+  kind: z.literal('multivariate_time_series_relationship'),
+  text: z.string().trim().min(1).max(500),
+  hypothesis: z.strictObject({
+    estimand: z.literal('partial_regression_coefficient'),
+    focalPredictor: idSchema,
+    direction: z.enum(['positive', 'negative', 'two_sided']),
+    nullValue: z.literal(0),
+  }),
+});
+
 const distributionQuestionSchema = z.strictObject({
   version: z.literal(1),
   kind: z.literal('distribution_comparison'),
@@ -183,6 +196,27 @@ const timeSeriesProtocolSchema = z.strictObject({
     lag: z.union([z.literal('automatic'), z.number().int().min(0).max(120)]),
   }),
   rollingWindow: z.number().int().min(12).max(1200).optional(),
+});
+
+const multivariateTimeSeriesProtocolSchema = z.strictObject({
+  kind: z.literal('multivariate_time_series_relationship'),
+  version: z.literal(1),
+  outcome: idSchema,
+  predictors: z
+    .array(
+      z.strictObject({
+        input: idSchema,
+        role: z.enum(['focal', 'control']),
+        lag: z.number().int().min(0).max(120),
+      }),
+    )
+    .min(2)
+    .max(8),
+  inference: z.strictObject({
+    kind: z.literal('newey_west'),
+    lag: z.union([z.literal('automatic'), z.number().int().min(0).max(120)]),
+  }),
+  rollingWindow: z.number().int().min(24).max(1200).optional(),
 });
 
 const distributionProtocolSchema = z.strictObject({
@@ -234,6 +268,10 @@ const outputSchema = z.strictObject({
     'summary_table',
     'scatter',
     'rolling_relationship',
+    'coefficient_plot',
+    'partial_regression',
+    'correlation_matrix',
+    'rolling_coefficients',
     'distribution_boxplot',
     'sensitivity',
     'event_path',
@@ -261,6 +299,21 @@ const timeSeriesPlanSchema = z.strictObject({
   outputs: z.array(outputSchema).min(1).max(9),
 }) satisfies z.ZodType<TimeSeriesRelationshipPlanSpecV1>;
 
+const multivariateTimeSeriesPlanSchema = z.strictObject({
+  version: z.literal(1),
+  question: multivariateTimeSeriesQuestionSchema,
+  start: dateSchema,
+  end: dateSchema,
+  inputs: z.array(seriesInputSchema).min(3).max(9),
+  alignment: z.strictObject({
+    frequency: z.enum(['daily', 'monthly']),
+    join: z.literal('inner'),
+    partialPeriod: z.enum(['exclude', 'include']),
+  }),
+  protocol: multivariateTimeSeriesProtocolSchema,
+  outputs: z.array(outputSchema).min(1).max(13),
+}) satisfies z.ZodType<MultivariateTimeSeriesPlanSpecV1>;
+
 const distributionPlanSchema = z.strictObject({
   version: z.literal(1),
   question: distributionQuestionSchema,
@@ -281,6 +334,7 @@ const eventStudyPlanSchema = z.strictObject({
 
 export const researchPlanSpecV1Schema = z.union([
   timeSeriesPlanSchema,
+  multivariateTimeSeriesPlanSchema,
   distributionPlanSchema,
   eventStudyPlanSchema,
 ]) satisfies z.ZodType<ResearchPlanSpecV1>;
@@ -297,9 +351,11 @@ export function parseResearchPlanSpec(input: unknown): ResearchPlanSpecV1 {
 export function validateResearchPlanSemantics(plan: ResearchPlanSpecV1): string[] {
   return isTimeSeriesPlan(plan)
     ? validateTimeSeriesPlan(plan)
-    : isDistributionPlan(plan)
-      ? validateDistributionPlan(plan)
-      : validateEventStudyPlan(plan);
+    : isMultivariateTimeSeriesPlan(plan)
+      ? validateMultivariateTimeSeriesPlan(plan)
+      : isDistributionPlan(plan)
+        ? validateDistributionPlan(plan)
+        : validateEventStudyPlan(plan);
 }
 
 function isTimeSeriesPlan(plan: ResearchPlanSpecV1): plan is TimeSeriesRelationshipPlanSpecV1 {
@@ -308,6 +364,12 @@ function isTimeSeriesPlan(plan: ResearchPlanSpecV1): plan is TimeSeriesRelations
 
 function isDistributionPlan(plan: ResearchPlanSpecV1): plan is DistributionComparisonPlanSpecV1 {
   return plan.protocol.kind === 'distribution_comparison';
+}
+
+function isMultivariateTimeSeriesPlan(
+  plan: ResearchPlanSpecV1,
+): plan is MultivariateTimeSeriesPlanSpecV1 {
+  return plan.protocol.kind === 'multivariate_time_series_relationship';
 }
 
 function validateTimeSeriesPlan(plan: TimeSeriesRelationshipPlanSpecV1): string[] {
@@ -353,6 +415,78 @@ function validateTimeSeriesPlan(plan: TimeSeriesRelationshipPlanSpecV1): string[
   }
   if (plan.universe) {
     errors.push('time_series_relationship does not accept a universe input');
+  }
+  return errors;
+}
+
+function validateMultivariateTimeSeriesPlan(plan: MultivariateTimeSeriesPlanSpecV1): string[] {
+  const errors: string[] = [];
+  if (plan.start > plan.end) {
+    errors.push('start must not be after end');
+  }
+  const ids = new Set<string>();
+  for (const input of plan.inputs) {
+    if (ids.has(input.id)) {
+      errors.push(`duplicate input id ${input.id}`);
+    }
+    ids.add(input.id);
+    validateInput(input, errors);
+  }
+  const predictorIds = plan.protocol.predictors.map((predictor) => predictor.input);
+  for (const predictorId of predictorIds) {
+    if (!ids.has(predictorId)) {
+      errors.push(`unknown predictor input ${predictorId}`);
+    }
+  }
+  if (!ids.has(plan.protocol.outcome)) {
+    errors.push(`unknown outcome input ${plan.protocol.outcome}`);
+  }
+  if (predictorIds.includes(plan.protocol.outcome)) {
+    errors.push('outcome must not also be a predictor');
+  }
+  if (new Set(predictorIds).size !== predictorIds.length) {
+    errors.push('predictors must not contain duplicate inputs');
+  }
+  const focalPredictors = plan.protocol.predictors.filter(
+    (predictor) => predictor.role === 'focal',
+  );
+  if (focalPredictors.length !== 1) {
+    errors.push('protocol must define exactly one focal predictor');
+  }
+  if (!plan.protocol.predictors.some((predictor) => predictor.role === 'control')) {
+    errors.push('protocol must define at least one control predictor');
+  }
+  if (plan.question.hypothesis.focalPredictor !== focalPredictors[0]?.input) {
+    errors.push('question focal predictor must match the protocol focal predictor');
+  }
+  if (ids.size !== predictorIds.length + 1) {
+    errors.push('inputs must contain exactly the outcome and declared predictors');
+  }
+  if (new Set(plan.outputs.map((output) => output.kind)).size !== plan.outputs.length) {
+    errors.push('outputs must not contain duplicates');
+  }
+  for (const required of [
+    'summary_table',
+    'coefficient_plot',
+    'partial_regression',
+    'correlation_matrix',
+    'conclusion',
+    'formula',
+    'python_example',
+    'documentation',
+  ]) {
+    if (!plan.outputs.some((output) => output.kind === required)) {
+      errors.push(`outputs must include ${required}`);
+    }
+  }
+  if (
+    plan.protocol.rollingWindow != null &&
+    !plan.outputs.some((output) => output.kind === 'rolling_coefficients')
+  ) {
+    errors.push('outputs must include rolling_coefficients when rollingWindow is set');
+  }
+  if (!researchProtocolById.has(plan.protocol.kind)) {
+    errors.push(`unknown protocol ${plan.protocol.kind}`);
   }
   return errors;
 }

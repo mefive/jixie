@@ -27,6 +27,9 @@ describe('researchProfile', () => {
     expect(system).toContain('pass its exact concept ids to searchResearchCatalog');
     expect(system).toContain('Playbooks contain research strategy, not database entities');
     expect(system).toContain('never apply one transform to both series merely for symmetry');
+    expect(system).toContain('multivariate_time_series_relationship');
+    expect(system).toContain('exactly one focal predictor');
+    expect(system).toContain('keep all variables regardless of resulting significance');
     expect(system).toContain('no_registered_binding');
     expect(system).toContain('registered_binding_no_data');
     expect(system).toContain('blocked_by_source_rights');

@@ -64,6 +64,86 @@ describe('ResearchPlanSpec V1', () => {
     });
   });
 
+  it('accepts a multivariate plan with one focal predictor and prespecified controls', () => {
+    const plan = validPlan();
+    plan.question = {
+      version: 1,
+      kind: 'multivariate_time_series_relationship',
+      text: '实际利率变化在控制通胀后是否与黄金月收益负相关？',
+      hypothesis: {
+        estimand: 'partial_regression_coefficient',
+        focalPredictor: 'realYield',
+        direction: 'negative',
+        nullValue: 0,
+      },
+    } as never;
+    plan.inputs = [
+      {
+        type: 'series',
+        id: 'gold',
+        source: { kind: 'instrument', assetType: 'future', id: 'AU.SHF' },
+        measure: 'market.adjusted_close',
+        transform: 'simple_return',
+      },
+      {
+        type: 'series',
+        id: 'realYield',
+        source: {
+          kind: 'yield_curve',
+          curveCode: 'us_treasury_real',
+          curveType: 'par',
+          termYears: 10,
+        },
+        measure: 'rates.yield_pct',
+        transform: 'difference',
+      },
+      {
+        type: 'series',
+        id: 'headlineCpi',
+        source: { kind: 'macro', seriesKey: 'us_cpi_u_all_items_nsa' },
+        measure: 'macro.observation',
+        transform: 'year_over_year',
+      },
+    ] as never;
+    plan.protocol = {
+      kind: 'multivariate_time_series_relationship',
+      version: 1,
+      outcome: 'gold',
+      predictors: [
+        { input: 'realYield', role: 'focal', lag: 0 },
+        { input: 'headlineCpi', role: 'control', lag: 0 },
+      ],
+      inference: { kind: 'newey_west', lag: 'automatic' },
+      rollingWindow: 36,
+    } as never;
+    plan.outputs = [
+      { kind: 'summary_table' },
+      { kind: 'coefficient_plot' },
+      { kind: 'partial_regression' },
+      { kind: 'correlation_matrix' },
+      { kind: 'rolling_coefficients' },
+      { kind: 'conclusion' },
+      { kind: 'formula' },
+      { kind: 'python_example' },
+      { kind: 'documentation' },
+    ] as never;
+
+    expect(parseResearchPlanSpec(plan)).toMatchObject({
+      protocol: {
+        kind: 'multivariate_time_series_relationship',
+        outcome: 'gold',
+      },
+    });
+
+    const invalid = structuredClone(plan) as unknown as {
+      protocol: { predictors: Array<{ role: string }> };
+    };
+    invalid.protocol.predictors[1].role = 'focal';
+    expect(() => parseResearchPlanSpec(invalid)).toThrow(
+      'protocol must define exactly one focal predictor',
+    );
+  });
+
   it('rejects arbitrary SQL and execution code fields', () => {
     const plan = validPlan() as ReturnType<typeof validPlan> & {
       sql?: string;
