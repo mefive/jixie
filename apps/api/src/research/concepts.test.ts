@@ -8,6 +8,7 @@ describe('research concept registry', () => {
     expect(inferResearchConceptIds('real treasury yield')).toEqual(['rates.us_treasury.real']);
     expect(inferResearchConceptIds('treasury yield real')).toEqual(['rates.us_treasury.real']);
     expect(inferResearchConceptIds('USDCNH')).not.toContain('fx.usd_strength.dxy');
+    expect(inferResearchConceptIds('美国 CPI')).toEqual(['macro.inflation.us.cpi.headline']);
   });
 
   it('keeps every playbook concept reference inside the versioned registry', () => {

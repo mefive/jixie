@@ -5,6 +5,7 @@ import { alignRelationshipPoints } from './time-series-relationship.js';
 import {
   prepareResearchSeries,
   researchSeriesLoadStart,
+  selectMacroResearchSeries,
   type ResearchSeriesLoader,
 } from './series.js';
 
@@ -75,6 +76,37 @@ describe('research time-series preparation', () => {
     expect(researchSeriesLoadStart('20260813', 'monthly', 'simple_return')).toBe('20260701');
     expect(researchSeriesLoadStart('20260813', 'monthly', 'year_over_year')).toBe('20250801');
     expect(researchSeriesLoadStart('20260813', 'monthly', 'level')).toBe('20260813');
+  });
+
+  it('aligns historical macro backfills to audited availability without hiding the limitation', () => {
+    const loaded = selectMacroResearchSeries(
+      [
+        {
+          period: '202501',
+          vintageDate: '20260814',
+          value: 317.671,
+          availableDate: '20250220',
+          vintageKind: 'latest_value_backfill',
+        },
+        {
+          period: '202502',
+          vintageDate: '20260814',
+          value: 319.082,
+          availableDate: '20250320',
+          vintageKind: 'latest_value_backfill',
+        },
+      ],
+      '20250101',
+      '20251231',
+    );
+
+    expect(loaded.points).toEqual([
+      { date: '20250220', value: 317.671 },
+      { date: '20250320', value: 319.082 },
+    ]);
+    expect(loaded.diagnostics).toEqual([
+      expect.objectContaining({ code: 'macro_latest_value_backfill', severity: 'warning' }),
+    ]);
   });
 
   it('computes year-over-year values by calendar month rather than row offset', () => {

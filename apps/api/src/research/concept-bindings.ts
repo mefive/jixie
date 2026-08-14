@@ -54,6 +54,17 @@ const chinaMacroContract: ResearchBindingDataContractV1 = {
   revisionPolicy: 'captured vintages with latest_value_backfill disclosure for historical imports',
 };
 
+const usBlsMacroContract: ResearchBindingDataContractV1 = {
+  frequency: 'monthly',
+  unit: 'index_1982_1984_100',
+  currency: null,
+  sourceTimeZone: 'America/New_York',
+  availabilityPolicy:
+    'official release date is not present in the source response; month-end plus 20 days and the first matching SSE session is used as a documented conservative lag',
+  revisionPolicy:
+    'latest-value historical backfill with subsequently captured value-change vintages',
+};
+
 const goldInstrumentBindings: ResearchConceptBindingV1[] = [
   instrumentBinding({
     id: 'commodity.gold.price.future.au_shf',
@@ -133,6 +144,22 @@ const realTreasuryBindings = [5, 7, 10, 20, 30].map((termYears, index) =>
 );
 
 const macroBindings: ResearchConceptBindingV1[] = [
+  {
+    id: 'macro.inflation.us.cpi_u_all_items_nsa',
+    version: 1,
+    conceptId: 'macro.inflation.us.cpi.headline',
+    nameZh: '美国 CPI-U 全部项目（未经季调）',
+    nameEn: 'US CPI-U All Items, Not Seasonally Adjusted',
+    source: { kind: 'macro', seriesKey: 'us_cpi_u_all_items_nsa' },
+    measure: 'macro.observation',
+    measureVersion: 1,
+    proxyKind: 'canonical',
+    priority: 10,
+    contract: usBlsMacroContract,
+    selectionNoteZh: '原始 CPI 指数；同比由研究协议计算，不代表核心 CPI 或季调月环比。',
+    selectionNoteEn:
+      'Raw CPI index; the research protocol computes year-over-year inflation. It is not core CPI or a seasonally adjusted monthly rate.',
+  },
   {
     id: 'macro.inflation.cn.cpi_yoy',
     version: 1,

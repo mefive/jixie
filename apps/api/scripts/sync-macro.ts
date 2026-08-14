@@ -1,4 +1,5 @@
 import { syncChinaMacroData } from '../src/macro/china-macro.js';
+import { BlsPublicDataClient, syncUsHeadlineCpiData } from '../src/macro/us-headline-cpi.js';
 import { loadTushareConfig } from '../src/config.js';
 import { addDays } from '../src/lib/date.js';
 import { prisma } from '../src/lib/prisma.js';
@@ -11,7 +12,7 @@ const CHINA_MONTH_FORMATTER = new Intl.DateTimeFormat('en-US', {
   month: '2-digit',
 });
 
-/** Sync normalized Chinese macro and money-market series with PIT availability evidence. */
+/** Sync normalized China and US macro series with PIT availability evidence. */
 async function main(): Promise<void> {
   const [startMonth = '200501', endMonth = currentMonth()] = process.argv.slice(2);
   assertMonthRange(startMonth, endMonth);
@@ -22,9 +23,10 @@ async function main(): Promise<void> {
     minIntervalMs: config.minIntervalMs,
   });
   await syncTradeCal(client, `${startMonth}01`, addDays(monthEnd(endMonth), 40));
-  const summary = await syncChinaMacroData(client, startMonth, endMonth);
+  const chinaSummary = await syncChinaMacroData(client, startMonth, endMonth);
+  const usCpiSummary = await syncUsHeadlineCpiData(new BlsPublicDataClient(), startMonth, endMonth);
   console.log(
-    `China macro sync complete: ${summary.series} series, ${summary.insertedVintages} inserted vintages`,
+    `Macro sync complete: ${chinaSummary.series + usCpiSummary.series} series, ${chinaSummary.insertedVintages + usCpiSummary.insertedVintages} inserted vintages`,
   );
 }
 

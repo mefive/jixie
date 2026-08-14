@@ -45,7 +45,7 @@ describe('research catalog query interpretation', () => {
 
   it('keeps playbook-provided concepts explicit without turning them into database search terms', () => {
     const interpretation = interpretResearchCatalogQuery({
-      conceptIds: ['commodity.gold.price', 'macro.inflation.us', 'macro.inflation.cn'],
+      conceptIds: ['commodity.gold.price', 'macro.inflation.us.cpi.headline', 'macro.inflation.cn'],
     });
 
     expect(interpretation.explicitConceptIds).toHaveLength(3);

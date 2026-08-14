@@ -206,6 +206,14 @@ PIT/vintage/revision、确定性 loader、适用协议、中英文说明和真�
 名称或稳定代码。首个 Playbook 与 Binding 切片覆盖黄金价格驱动，向量召回暂不引入。后续随真实问题持续增加
 Concept、Playbook、Binding、loader 与协议兼容性；上述基础机制完成不代表 1.4 封板，1.4 始终是持续维护项。
 
+本轮短期切片已闭环：美国 headline CPI 通过 BLS 官方公共 API 幂等回填到宏观底座，登记为精确的
+`macro.inflation.us.cpi.headline` Concept/Binding，带保守 `availableDate`、latest-value backfill 披露、质量审计、
+bootstrap 和每周维护。宏观 loader 以审计后的可用日对齐历史值，使其可用于带明确警告的探索性研究，而不把
+回填值冒充历史实时 vintage。DXY 与 VIX 已完成精确数据源和使用权核验；当前供应商目录没有精确序列，官方
+来源又要求外部许可，因此以版本化、带证据和下一步动作的 `blocked_by_source_rights` 状态呈现，不用 USD/CNH、
+广义美元指数或其他波动率代理偷换概念。这代表当前黄金 Playbook 的短期数据切片收工，不改变 1.4 长期维护
+属性。
+
 ---
 
 ## 当前主线二：中英双语学习系统

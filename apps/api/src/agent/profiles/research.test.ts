@@ -29,6 +29,8 @@ describe('researchProfile', () => {
     expect(system).toContain('never apply one transform to both series merely for symmetry');
     expect(system).toContain('no_registered_binding');
     expect(system).toContain('registered_binding_no_data');
+    expect(system).toContain('blocked_by_source_rights');
+    expect(system).toContain('sourceDecisions');
     expect(system).toContain('copy those ids, versions, units, and transforms');
     expect(system).toContain('The current date is');
     expect(system).toContain('do not approximate it with a different question');

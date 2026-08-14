@@ -16,6 +16,14 @@ export interface LoadedResearchSeries {
   diagnostics: ResearchDiagnosticV1[];
 }
 
+export interface MacroResearchObservationRow {
+  period: string;
+  vintageDate: string;
+  value: number;
+  availableDate: string;
+  vintageKind: string;
+}
+
 export type ResearchSeriesLoader = (
   input: ResearchSeriesInputSpecV1,
   start: string,
@@ -256,7 +264,7 @@ async function loadMacroSeries(
   end: string,
 ): Promise<LoadedResearchSeries> {
   const rows = await prisma.macroObservation.findMany({
-    where: { seriesKey, availableDate: { lte: end }, vintageDate: { lte: end } },
+    where: { seriesKey, availableDate: { lte: end } },
     select: {
       period: true,
       vintageDate: true,
@@ -266,26 +274,40 @@ async function loadMacroSeries(
     },
     orderBy: [{ period: 'asc' }, { availableDate: 'asc' }, { vintageDate: 'asc' }],
   });
-  const firstAvailableByPeriod = new Map<string, (typeof rows)[number]>();
+  return selectMacroResearchSeries(rows, start, end);
+}
+
+/**
+ * Align macro values to their audited market availability while choosing the earliest captured
+ * vintage per period. Historical latest-value imports remain usable for exploratory work, but the
+ * returned diagnostic prevents them from being described as real-time vintage data.
+ */
+export function selectMacroResearchSeries(
+  rows: MacroResearchObservationRow[],
+  start: string,
+  end: string,
+): LoadedResearchSeries {
+  const firstAvailableByPeriod = new Map<string, MacroResearchObservationRow>();
   for (const row of rows) {
-    const effectiveDate = maxDate(row.availableDate, row.vintageDate);
-    if (effectiveDate < start || effectiveDate > end) {
+    if (row.availableDate < start || row.availableDate > end) {
       continue;
     }
     const previous = firstAvailableByPeriod.get(row.period);
-    if (!previous || effectiveDate < maxDate(previous.availableDate, previous.vintageDate)) {
+    if (
+      !previous ||
+      row.availableDate < previous.availableDate ||
+      (row.availableDate === previous.availableDate && row.vintageDate < previous.vintageDate)
+    ) {
       firstAvailableByPeriod.set(row.period, row);
     }
   }
   const selected = [...firstAvailableByPeriod.values()].sort((left, right) =>
-    maxDate(left.availableDate, left.vintageDate).localeCompare(
-      maxDate(right.availableDate, right.vintageDate),
-    ),
+    left.availableDate.localeCompare(right.availableDate),
   );
   const backfilled = selected.filter((row) => row.vintageKind === 'latest_value_backfill').length;
   return {
     points: selected.map((row) => ({
-      date: maxDate(row.availableDate, row.vintageDate),
+      date: row.availableDate,
       value: row.value,
     })),
     diagnostics:
@@ -295,8 +317,8 @@ async function loadMacroSeries(
             {
               code: 'macro_latest_value_backfill',
               severity: 'warning',
-              messageZh: `${backfilled} 个宏观观测只有最新值回填，不能视为历史实时版本。`,
-              messageEn: `${backfilled} macro observations are latest-value backfills, not historical real-time vintages.`,
+              messageZh: `${backfilled} 个宏观观测使用导入时可得的最新历史值，并按保守可用日对齐；可用于探索性研究，但不能视为历史实时版本。`,
+              messageEn: `${backfilled} macro observations use latest historical values as of import and are aligned by conservative availability dates; they support exploratory research but are not historical real-time vintages.`,
             },
           ],
   };
@@ -336,10 +358,6 @@ async function loadFxSeries(id: string, start: string, end: string): Promise<Loa
     })),
     diagnostics: [],
   };
-}
-
-function maxDate(left: string, right: string): string {
-  return left >= right ? left : right;
 }
 
 function calendarMonthEnd(date: string): string {

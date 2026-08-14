@@ -1,5 +1,6 @@
 import { median, quantile } from '../lib/stats.js';
 import { CHINA_MACRO_SERIES } from '../macro/china-macro.js';
+import { US_HEADLINE_CPI_SERIES_KEY } from '../macro/us-headline-cpi.js';
 import type { Prisma } from '../lib/prisma.js';
 import { auditCommodityWarehouseReceipts } from '../commodity/commodity-warehouse-receipt-quality.js';
 import { auditCommodityHoldingPositions } from '../commodity/commodity-holding-quality.js';
@@ -281,9 +282,10 @@ export function summarizeMacroPit(
 ): MacroPitAuditSummary {
   const observed = new Set(observedSeries);
   return {
-    missingSeries: CHINA_MACRO_SERIES.map((definition) => definition.seriesKey).filter(
-      (seriesKey) => !observed.has(seriesKey),
-    ),
+    missingSeries: [
+      ...CHINA_MACRO_SERIES.map((definition) => definition.seriesKey),
+      US_HEADLINE_CPI_SERIES_KEY,
+    ].filter((seriesKey) => !observed.has(seriesKey)),
     invalidAvailabilityRows: observations.filter(
       (row) =>
         (row.releaseDate != null && row.availableDate < row.releaseDate) ||
