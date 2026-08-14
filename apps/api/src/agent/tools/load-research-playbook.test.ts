@@ -29,5 +29,8 @@ describe('loadResearchPlaybook', () => {
     expect(observation.conceptDefinitions.map((concept) => concept.id)).toContain(
       'rates.us_treasury.real',
     );
+    expect(observation.playbook.concepts.map((concept) => concept.conceptId)).toContain(
+      'macro.inflation.us.cpi.headline',
+    );
   });
 });

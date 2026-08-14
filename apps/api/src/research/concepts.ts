@@ -5,6 +5,7 @@ export const RESEARCH_CONCEPT_IDS = [
   'rates.us_treasury.real',
   'fx.usd_strength.dxy',
   'macro.inflation.us',
+  'macro.inflation.us.cpi.headline',
   'macro.inflation.cn',
   'risk.market_stress.vix',
   'flows.central_bank.gold_reserves',
@@ -105,7 +106,28 @@ const concepts: Record<ResearchConceptId, ResearchConceptDefinitionV1> = {
     nameEn: 'US inflation',
     descriptionZh: '美国消费者价格或其他显式登记的美国通胀序列。',
     descriptionEn: 'US consumer-price or another explicitly registered US inflation series.',
-    aliases: ['美国通胀', '美国cpi', 'us inflation', 'us cpi', 'american inflation'],
+    aliases: ['美国通胀', 'us inflation', 'american inflation'],
+    doNotSubstitute: ['macro.inflation.cn'],
+  },
+  'macro.inflation.us.cpi.headline': {
+    id: 'macro.inflation.us.cpi.headline',
+    version: 1,
+    family: 'macro.inflation.us',
+    nameZh: '美国 headline CPI',
+    nameEn: 'US headline CPI',
+    descriptionZh:
+      '美国 CPI-U 全部项目未经季调指数；通常从原始指数计算同比，不代表核心 CPI 或其他通胀指标。',
+    descriptionEn:
+      'US CPI-U All Items, not seasonally adjusted; year-over-year inflation is computed from the raw index and is not core CPI or another inflation measure.',
+    aliases: [
+      '美国cpi',
+      '美国 cpi',
+      '美国headline cpi',
+      '美国整体cpi',
+      'us cpi',
+      'headline cpi',
+      'cpi-u all items',
+    ],
     doNotSubstitute: ['macro.inflation.cn'],
   },
   'macro.inflation.cn': {

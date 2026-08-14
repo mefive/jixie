@@ -23,8 +23,19 @@ describe('researchConceptBindingRegistry', () => {
   it('keeps exact missing concepts unbound instead of substituting related data', () => {
     expect(researchConceptBindings('fx.usd_strength.dxy')).toEqual([]);
     expect(researchConceptBindings('macro.inflation.us')).toEqual([]);
+    expect(researchConceptBindings('macro.inflation.us.cpi.headline')).toHaveLength(1);
     expect(researchConceptBindings('risk.market_stress.vix')).toEqual([]);
     expect(researchConceptBindings('flows.central_bank.gold_reserves')).toEqual([]);
+  });
+
+  it('binds headline US CPI only to the exact BLS index level', () => {
+    expect(researchConceptBindings('macro.inflation.us.cpi.headline')).toEqual([
+      expect.objectContaining({
+        source: { kind: 'macro', seriesKey: 'us_cpi_u_all_items_nsa' },
+        measure: 'macro.observation',
+        contract: expect.objectContaining({ unit: 'index_1982_1984_100' }),
+      }),
+    ]);
   });
 
   it('binds nominal and real yields only to their own exact curves', () => {

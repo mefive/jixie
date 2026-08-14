@@ -114,6 +114,7 @@ describe('data quality audit helpers', () => {
         'cn_shibor_1w',
         'cn_shibor_1m',
         'cn_shibor_3m',
+        'us_cpi_u_all_items_nsa',
       ],
       invalidAvailabilityRows: 1,
       nonTradingAvailabilityRows: 1,

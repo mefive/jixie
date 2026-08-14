@@ -12,6 +12,7 @@ import {
   type ResearchConceptId,
 } from '../../research/concepts.js';
 import type { AgentTool } from './types.js';
+import { researchSourceDecisions } from '../../research/source-decisions.js';
 
 const filtersSchema = z.strictObject({
   sourceKinds: z
@@ -322,6 +323,7 @@ export const searchResearchCatalogTool: AgentTool = {
     const conceptMatches = interpretation.conceptIds.map((conceptId) => {
       const concept = researchConceptById.get(conceptId)!;
       const allRegistered = researchConceptBindings(conceptId);
+      const sourceDecisions = researchSourceDecisions(conceptId);
       const resolved = resolvedBindings.filter((item) => item.binding.conceptId === conceptId);
       const matches = resolved
         .filter((item) => item.available && item.match)
@@ -339,7 +341,9 @@ export const searchResearchCatalogTool: AgentTool = {
         matches.length > 0
           ? 'registered_matches'
           : allRegistered.length === 0
-            ? 'no_registered_binding'
+            ? sourceDecisions.some((decision) => decision.status === 'blocked_external_license')
+              ? 'blocked_by_source_rights'
+              : 'no_registered_binding'
             : resolved.length === 0
               ? 'no_binding_matches_filters'
               : 'registered_binding_no_data';
@@ -356,6 +360,7 @@ export const searchResearchCatalogTool: AgentTool = {
         availability,
         doNotSubstitute: concept.doNotSubstitute ?? [],
         registeredBindingCount: allRegistered.length,
+        sourceDecisions,
         unavailableBindings,
         matches,
       };

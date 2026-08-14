@@ -174,11 +174,17 @@ interface ResearchProtocolDefinition {
 - `ResearchConceptBindingRegistry` 是平台内部的审计白名单，把 Concept 映射到精确 `source`、Measure、
   单位、频率、时区、PIT/revision 口径和允许的代理类型；
 - Research Catalog 只从 Binding 解析语义概念，并核验本地真实观测覆盖；数据库字段词法检索仅用于用户明确
-  给出的对象名称或稳定代码。
+  给出的对象名称或稳定代码；精确来源已识别但因授权无法落库时，返回版本化的来源决策、官方证据和下一步
+  动作，不把授权问题伪装成技术缺失。
 
 Playbook 只能引用 `commodity.gold.price`、`rates.us_treasury.real` 等概念 ID，不能保存 `AU.SHF`、
 `518880.SH` 等数据库实体。概念检索返回多个语义不同的代理变量时由用户确认；返回空时只表示该精确概念没有
 登记 Binding，或已登记 Binding 暂无本地观测，不能扩大解释为协议或全部相关数据缺失。
+
+黄金价格驱动的第一轮数据切片还验证了三种不同状态：美国 headline CPI 使用 BLS CPI-U 全部项目未经季调
+原始指数，完成同步、保守可用日、latest-value backfill 披露和 Binding；DXY 与 VIX 的精确官方序列因产品使用
+需要外部许可而返回 `blocked_by_source_rights`，并保留来源、使用权依据、核验日期和获得许可后的接入动作。
+相似的双边汇率、广义美元指数或其他波动率指标不能自动成为这两个 Concept 的 Binding。
 
 `searchResearchCatalog` 接受结构化 `ConceptQuery`：`conceptIds` 用于领域概念，`text` 仅用于用户明确给出的
 对象名称或稳定代码，`filters` 表达对象类型、数据源类型和利率期限。首版只用别名把自然语言解析为 Concept，

@@ -250,7 +250,8 @@ macro_series_coverage() {
         ('cn_shibor_overnight', '20061009', 2000),
         ('cn_shibor_1w', '20061009', 2000),
         ('cn_shibor_1m', '20061009', 2000),
-        ('cn_shibor_3m', '20061009', 2000)
+        ('cn_shibor_3m', '20061009', 2000),
+        ('us_cpi_u_all_items_nsa', '200501', 200)
     ),
     coverage AS (
       SELECT
@@ -951,11 +952,11 @@ MACRO_SYNC_END="$(
 )"
 [[ "$MACRO_SYNC_END" =~ ^[0-9]{6}$ ]] || die "无法确定宏观数据同步截止月份"
 MACRO_SERIES_COMPLETE="$(macro_series_coverage "$DB_FILE")"
-if [[ "$MACRO_SERIES_COMPLETE" -ne 13 ]]; then
-  log "补全增长、通胀、货币、信用和 Shibor 宏观 PIT 底座: 200501 ~ $MACRO_SYNC_END"
+if [[ "$MACRO_SERIES_COMPLETE" -ne 14 ]]; then
+  log "补全中美通胀、增长、货币、信用和 Shibor 宏观 PIT 底座: 200501 ~ $MACRO_SYNC_END"
   pnpm --filter api sync:macro 200501 "$MACRO_SYNC_END"
   MACRO_SERIES_COMPLETE="$(macro_series_coverage "$DB_FILE")"
-  [[ "$MACRO_SERIES_COMPLETE" -eq 13 ]] || die "宏观系列回填后仍不完整"
+  [[ "$MACRO_SERIES_COMPLETE" -eq 14 ]] || die "宏观系列回填后仍不完整"
 else
   log "宏观系列历史覆盖完整,跳过回填"
 fi

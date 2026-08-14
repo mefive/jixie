@@ -72,12 +72,12 @@ const playbooks: Record<ResearchPlaybookId, ResearchPlaybookDefinitionV1> = {
         rationale: 'DXY represents broad USD strength rather than one bilateral exchange rate.',
       },
       {
-        conceptId: 'macro.inflation.us',
+        conceptId: 'macro.inflation.us.cpi.headline',
         role: 'driver',
         commonHypothesisDirection: 'positive',
         commonTransform: 'year_over_year',
         rationale:
-          'US inflation is a candidate monetary-value hypothesis but must not be replaced by China CPI.',
+          'US headline CPI is a concrete monetary-value hypothesis; it must remain distinct from core CPI and China CPI.',
       },
       {
         conceptId: 'risk.market_stress.vix',
