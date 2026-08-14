@@ -1,13 +1,14 @@
-import { createHash } from 'node:crypto';
-import type { Prisma, PrismaClient } from '@prisma/client';
+import type { Prisma, PrismaClient, ResearchRun as ResearchRunRow } from '@prisma/client';
 import {
   type MessagePart,
   type ResearchPart,
+  type ResearchRunComparisonV1,
   type ResearchRunRecordV1,
   type ResearchRunResultV1,
 } from '@jixie/shared';
 import { ulid } from 'ulid';
 import { prisma } from '../lib/prisma.js';
+import { researchPayloadHash } from './fingerprints.js';
 
 interface PersistResearchMessagePartsArgs {
   conversationId: string;
@@ -65,7 +66,8 @@ export async function persistResearchMessageParts(
         plan: part.run.plan as unknown as Prisma.InputJsonValue,
         result: part.run as unknown as Prisma.InputJsonValue,
         planHash: researchPayloadHash(part.run.plan),
-        resultHash: researchPayloadHash(part.run),
+        resultHash: researchResultHash(part.run),
+        ...fingerprintColumns(part.run),
         createdAt,
       },
     });
@@ -102,7 +104,6 @@ export async function createResearchRerun(
     }
     const parent = await transaction.researchRun.findFirst({
       where: { id: args.parentRunId, studyId: study.id },
-      select: { id: true },
     });
     if (!parent) {
       return null;
@@ -112,8 +113,8 @@ export async function createResearchRerun(
     const sequence = (study.runs[0]?.sequence ?? 0) + 1;
     const createdAt = new Date();
     const planHash = researchPayloadHash(args.run.plan);
-    const resultHash = researchPayloadHash(args.run);
-    await transaction.researchRun.create({
+    const resultHash = researchResultHash(args.run);
+    const stored = await transaction.researchRun.create({
       data: {
         id,
         studyId: study.id,
@@ -126,6 +127,7 @@ export async function createResearchRerun(
         result: args.run as unknown as Prisma.InputJsonValue,
         planHash,
         resultHash,
+        ...fingerprintColumns(args.run),
         createdAt,
       },
     });
@@ -134,21 +136,7 @@ export async function createResearchRerun(
       data: { updatedAt: createdAt },
     });
 
-    return {
-      ref: {
-        version: 1,
-        studyId: study.id,
-        runId: id,
-        sequence,
-        createdAt: createdAt.toISOString(),
-      },
-      title: study.title,
-      origin: 'parameter_rerun',
-      parentRunId: parent.id,
-      planHash,
-      resultHash,
-      run: args.run,
-    };
+    return researchRunRecord(study.id, study.title, stored, parent);
   });
 }
 
@@ -169,21 +157,105 @@ export async function listResearchStudyRuns(
     return null;
   }
 
-  return study.runs.map((run) => ({
+  const runById = new Map(study.runs.map((run) => [run.id, run]));
+  return study.runs.map((run) =>
+    researchRunRecord(
+      study.id,
+      study.title,
+      run,
+      run.parentRunId ? runById.get(run.parentRunId) : undefined,
+    ),
+  );
+}
+
+export function compareResearchRunRows(
+  base: ResearchRunRow,
+  candidate: ResearchRunRow,
+): ResearchRunComparisonV1 {
+  const changes: ResearchRunComparisonV1['changes'] = [];
+  if (base.planHash !== candidate.planHash) {
+    changes.push('parameters');
+  }
+  const protocolChanged =
+    base.protocolId !== candidate.protocolId || base.protocolVersion !== candidate.protocolVersion;
+  if (protocolChanged) {
+    changes.push('protocol');
+  } else if (
+    base.protocolFingerprint &&
+    candidate.protocolFingerprint &&
+    base.protocolFingerprint !== candidate.protocolFingerprint
+  ) {
+    changes.push('implementation');
+  }
+  if (
+    base.dataFingerprint &&
+    candidate.dataFingerprint &&
+    base.dataFingerprint !== candidate.dataFingerprint
+  ) {
+    changes.push('data');
+  }
+  if (
+    base.environmentFingerprint &&
+    candidate.environmentFingerprint &&
+    base.environmentFingerprint !== candidate.environmentFingerprint
+  ) {
+    changes.push('environment');
+  }
+
+  const resultChanged = base.resultHash !== candidate.resultHash;
+  const conclusionChanged = conclusionHash(base.result) !== conclusionHash(candidate.result);
+  const fingerprintsAvailable = [
+    base.protocolFingerprint,
+    candidate.protocolFingerprint,
+    base.dataFingerprint,
+    candidate.dataFingerprint,
+    base.environmentFingerprint,
+    candidate.environmentFingerprint,
+  ].every(Boolean);
+  const attribution =
+    changes.length === 0
+      ? resultChanged
+        ? 'unavailable'
+        : 'unchanged'
+      : resultChanged && !fingerprintsAvailable
+        ? 'unavailable'
+        : changes.length === 1
+          ? changes[0]!
+          : 'multiple';
+
+  return {
+    version: 1,
+    baseRunId: base.id,
+    candidateRunId: candidate.id,
+    changes,
+    resultChanged,
+    conclusionChanged,
+    attribution,
+  };
+}
+
+function researchRunRecord(
+  studyId: string,
+  title: string,
+  run: ResearchRunRow,
+  parent?: ResearchRunRow,
+): ResearchRunRecordV1 {
+  return {
     ref: {
       version: 1,
-      studyId: study.id,
+      studyId,
       runId: run.id,
       sequence: run.sequence,
       createdAt: run.createdAt.toISOString(),
     },
-    title: study.title,
+    title,
     origin: run.origin === 'parameter_rerun' ? 'parameter_rerun' : 'agent',
     ...(run.parentRunId ? { parentRunId: run.parentRunId } : {}),
     planHash: run.planHash,
     resultHash: run.resultHash,
     run: run.result as unknown as ResearchRunResultV1,
-  }));
+    ...(parent ? { comparisonToParent: compareResearchRunRows(parent, run) } : {}),
+  };
 }
 
 export interface ResearchRecordMigrationSummary {
@@ -191,6 +263,7 @@ export interface ResearchRecordMigrationSummary {
   messagesUpdated: number;
   studiesCreated: number;
   runsCreated: number;
+  runsUpdated: number;
 }
 
 /** Backfill typed research artifacts that were persisted in chat before formal run records existed. */
@@ -232,18 +305,43 @@ export async function migrateResearchRecords(
     });
   }
 
+  const storedRuns = await database.researchRun.findMany({
+    select: {
+      id: true,
+      result: true,
+      resultHash: true,
+      protocolFingerprint: true,
+      dataFingerprint: true,
+      environmentFingerprint: true,
+    },
+  });
+  let runsUpdated = 0;
+  for (const stored of storedRuns) {
+    const run = stored.result as unknown as ResearchRunResultV1;
+    const resultHash = researchResultHash(run);
+    const fingerprints = fingerprintColumns(run);
+    if (
+      stored.resultHash === resultHash &&
+      stored.protocolFingerprint === (fingerprints.protocolFingerprint ?? null) &&
+      stored.dataFingerprint === (fingerprints.dataFingerprint ?? null) &&
+      stored.environmentFingerprint === (fingerprints.environmentFingerprint ?? null)
+    ) {
+      continue;
+    }
+    await database.researchRun.update({
+      where: { id: stored.id },
+      data: { resultHash, ...fingerprints },
+    });
+    runsUpdated++;
+  }
+
   return {
     messagesScanned: researchMessages.length,
     messagesUpdated,
     studiesCreated: (await database.researchStudy.count()) - beforeStudies,
     runsCreated: (await database.researchRun.count()) - beforeRuns,
+    runsUpdated,
   };
-}
-
-export function researchPayloadHash(value: unknown): string {
-  return createHash('sha256')
-    .update(JSON.stringify(canonicalize(value)))
-    .digest('hex');
 }
 
 function withRecordReference(
@@ -262,19 +360,26 @@ function withRecordReference(
   };
 }
 
-function canonicalize(value: unknown): unknown {
-  if (Array.isArray(value)) {
-    return value.map(canonicalize);
-  }
-  if (value && typeof value === 'object') {
-    return Object.fromEntries(
-      Object.entries(value)
-        .filter(([, entry]) => entry !== undefined)
-        .sort(([left], [right]) => left.localeCompare(right))
-        .map(([key, entry]) => [key, canonicalize(entry)]),
-    );
-  }
-  return value;
+function fingerprintColumns(run: ResearchRunResultV1) {
+  return {
+    protocolFingerprint: run.fingerprints?.protocol.implementationHash,
+    dataFingerprint: run.fingerprints?.data.hash,
+    environmentFingerprint: run.fingerprints?.environment.hash,
+  };
+}
+
+function conclusionHash(result: Prisma.JsonValue): string {
+  const run = result as unknown as { conclusion?: unknown };
+  return researchPayloadHash(run.conclusion ?? null);
+}
+
+function researchResultHash(run: ResearchRunResultV1): string {
+  return researchPayloadHash({
+    coverage: run.coverage,
+    result: run.result,
+    conclusion: run.conclusion,
+    diagnostics: run.diagnostics,
+  });
 }
 
 function hasResearchPart(parts: Prisma.JsonValue): boolean {

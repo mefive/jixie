@@ -55,6 +55,10 @@ describe('event-study protocol', () => {
     });
     expect(run.conclusion.rationaleCodes).toContain('small_event_sample');
     expect(run.conclusion.limitationsEn[0]).toContain('not a causal counterfactual');
+    expect(run.fingerprints?.data.inputs).toEqual([
+      expect.objectContaining({ inputId: 'benchmark', observations: 30 }),
+      expect.objectContaining({ inputId: 'dividendEvents', observations: 10 }),
+    ]);
   });
 
   it('rejects event samples below the protocol minimum after overlap and coverage filtering', async () => {

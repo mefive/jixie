@@ -164,7 +164,8 @@ try {
   if (
     actualRelationship.result.observations < 24 ||
     !actualRelationship.conclusion?.level ||
-    actualRelationship.coverage.length !== 2
+    actualRelationship.coverage.length !== 2 ||
+    actualRelationship.fingerprints?.data.inputs.length !== 2
   ) {
     throw new Error(`invalid relationship result: ${JSON.stringify(actualRelationship)}`);
   }
@@ -185,7 +186,8 @@ try {
     actualDistribution.result.kind !== 'distribution_comparison' ||
     actualDistribution.result.groups.some((group) => group.summary.count < 20) ||
     !actualDistribution.conclusion?.robustness ||
-    actualDistribution.coverage.length !== 2
+    actualDistribution.coverage.length !== 2 ||
+    actualDistribution.fingerprints?.data.inputs.length !== 2
   ) {
     throw new Error(`invalid distribution result: ${JSON.stringify(actualDistribution)}`);
   }
@@ -215,7 +217,8 @@ try {
     actualEvent.result.observations < 20 ||
     actualEvent.result.path.length !== 11 ||
     !actualEvent.conclusion?.robustness ||
-    actualEvent.coverage.length !== 2
+    actualEvent.coverage.length !== 2 ||
+    actualEvent.fingerprints?.data.inputs.length !== 2
   ) {
     throw new Error(`invalid event-study result: ${JSON.stringify(actualEvent)}`);
   }
@@ -395,6 +398,15 @@ try {
       planHash: `plan-${relationshipRecords.length + 1}`,
       resultHash: `result-${relationshipRecords.length + 1}`,
       run: { ...actualRelationship, plan: body.plan },
+      comparisonToParent: {
+        version: 1,
+        baseRunId: body.parentRunId,
+        candidateRunId: `e2e-run-relationship-${relationshipRecords.length + 1}`,
+        changes: ['parameters'],
+        resultChanged: false,
+        conclusionChanged: false,
+        attribution: 'parameters',
+      },
     };
     relationshipRecords.push(record);
     return route.fulfill({
@@ -457,6 +469,7 @@ try {
       `persisted research rerun is missing from history (requested=${persistentRerunRequested}): ${runHistoryAfterRerun}`,
     );
   }
+  await page.getByText('本次运行调整了参数', { exact: true }).waitFor();
   await runHistory.click();
   await page.locator('.ant-select-item-option').filter({ hasText: '#1' }).click();
   if (!(await runHistory.innerText()).includes('#1')) {
@@ -473,6 +486,8 @@ try {
   await page.getByText('Observations loaded', { exact: true }).first().waitFor();
   await page.getByText('Method & reproduction', { exact: true }).click();
   await page.getByText('Method assumptions', { exact: true }).waitFor();
+  await page.getByText('Run fingerprints', { exact: true }).scrollIntoViewIfNeeded();
+  await page.getByText('Application revision', { exact: true }).waitFor();
   await page.screenshot({ path: `${SHOTS}research-relationship-en.png`, fullPage: true });
 
   await page.getByText('中', { exact: true }).click();
@@ -493,6 +508,7 @@ try {
   await page.getByText('EN', { exact: true }).click();
   await page.getByText('Method & reproduction', { exact: true }).click();
   await page.getByText('Method assumptions', { exact: true }).waitFor();
+  await page.getByText('Run fingerprints', { exact: true }).scrollIntoViewIfNeeded();
   await page.screenshot({ path: `${SHOTS}research-distribution-en.png`, fullPage: true });
 
   await page.getByText('中', { exact: true }).click();
@@ -511,6 +527,7 @@ try {
   await page.getByText('EN', { exact: true }).click();
   await page.getByText('Method & reproduction', { exact: true }).click();
   await page.getByText('Method assumptions', { exact: true }).waitFor();
+  await page.getByText('Run fingerprints', { exact: true }).scrollIntoViewIfNeeded();
   await page.screenshot({ path: `${SHOTS}research-event-study-en.png`, fullPage: true });
 
   await page.setViewportSize({ width: 390, height: 844 });

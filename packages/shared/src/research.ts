@@ -372,6 +372,35 @@ export type ResearchCoverageV1 =
   | ResearchUniverseCoverageV1
   | ResearchEventCoverageV1;
 
+export interface ResearchDataInputFingerprintV1 {
+  inputId: string;
+  hash: string;
+  observations: number;
+  firstDate: TradeDate | null;
+  lastDate: TradeDate | null;
+  dataRevision?: number;
+}
+
+export interface ResearchRunFingerprintsV1 {
+  version: 1;
+  protocol: {
+    id: ResearchProtocolSpecV1['kind'];
+    version: number;
+    appRevision: string;
+    implementationHash: string;
+  };
+  data: {
+    hash: string;
+    inputs: ResearchDataInputFingerprintV1[];
+  };
+  environment: {
+    hash: string;
+    nodeVersion: string;
+    platform: string;
+    architecture: string;
+  };
+}
+
 export interface ResearchRelationshipRegressionV1 {
   intercept: number;
   slope: number;
@@ -604,6 +633,7 @@ export interface TimeSeriesRelationshipRunResultV1 {
   result: TimeSeriesRelationshipResultV1;
   conclusion: TimeSeriesRelationshipConclusionV1;
   diagnostics: ResearchDiagnosticV1[];
+  fingerprints?: ResearchRunFingerprintsV1;
 }
 
 export interface DistributionComparisonRunResultV1 {
@@ -614,6 +644,7 @@ export interface DistributionComparisonRunResultV1 {
   result: DistributionComparisonResultV1;
   conclusion: DistributionComparisonConclusionV1;
   diagnostics: ResearchDiagnosticV1[];
+  fingerprints?: ResearchRunFingerprintsV1;
 }
 
 export interface EventStudyRunResultV1 {
@@ -624,6 +655,7 @@ export interface EventStudyRunResultV1 {
   result: EventStudyResultV1;
   conclusion: EventStudyConclusionV1;
   diagnostics: ResearchDiagnosticV1[];
+  fingerprints?: ResearchRunFingerprintsV1;
 }
 
 export type ResearchRunResultV1 =
@@ -648,6 +680,24 @@ export interface ResearchRunRecordV1 {
   planHash: string;
   resultHash: string;
   run: ResearchRunResultV1;
+  comparisonToParent?: ResearchRunComparisonV1;
+}
+
+export type ResearchRunChangeKindV1 =
+  | 'parameters'
+  | 'protocol'
+  | 'implementation'
+  | 'data'
+  | 'environment';
+
+export interface ResearchRunComparisonV1 {
+  version: 1;
+  baseRunId: string;
+  candidateRunId: string;
+  changes: ResearchRunChangeKindV1[];
+  resultChanged: boolean;
+  conclusionChanged: boolean;
+  attribution: 'unchanged' | ResearchRunChangeKindV1 | 'multiple' | 'unavailable';
 }
 
 export interface ResearchConversationMeta {

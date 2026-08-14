@@ -33,7 +33,12 @@ import { DistributionComparisonCard } from './distribution-comparison-card';
 import { EventStudyCard } from './event-study-card';
 import { EChart, type ECOption } from './echart';
 import { Markdown } from './markdown';
-import { ResearchRunHistorySelect, useResearchRunHistory } from './research-run-history';
+import {
+  ResearchRunComparisonNotice,
+  ResearchFingerprintDetails,
+  ResearchRunHistorySelect,
+  useResearchRunHistory,
+} from './research-run-history';
 import './research-result-card.css';
 
 interface ResearchResultCardProps {
@@ -239,6 +244,7 @@ function TimeSeriesResultCard({ part }: { part: TimeSeriesResearchPart }) {
               </section>
             ))}
           </div>
+          <ResearchFingerprintDetails run={run} />
 
           <section className="jx-researchResult-code">
             <h4>
@@ -284,6 +290,8 @@ function TimeSeriesResultCard({ part }: { part: TimeSeriesResearchPart }) {
           </Button>
         </div>
       </div>
+
+      <ResearchRunComparisonNotice comparison={history.comparison} />
 
       {controlsOpen && (
         <div className="jx-researchResult-controls">

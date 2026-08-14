@@ -6,11 +6,12 @@ import prismaPackage from '@prisma/client';
 import type { MessagePart, ResearchRunResultV1 } from '@jixie/shared';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
+  compareResearchRunRows,
   createResearchRerun,
   listResearchStudyRuns,
   migrateResearchRecords,
-  researchPayloadHash,
 } from './records.js';
+import { researchPayloadHash } from './fingerprints.js';
 
 const { PrismaClient: RuntimePrismaClient } = prismaPackage;
 
@@ -39,12 +40,14 @@ describe('research records', () => {
       messagesUpdated: 1,
       studiesCreated: 1,
       runsCreated: 1,
+      runsUpdated: 0,
     });
     await expect(migrateResearchRecords(database)).resolves.toEqual({
       messagesScanned: 1,
       messagesUpdated: 0,
       studiesCreated: 0,
       runsCreated: 0,
+      runsUpdated: 0,
     });
 
     const message = await database.agentMessage.findUniqueOrThrow({ where: { id: 'message-a' } });
@@ -61,7 +64,7 @@ describe('research records', () => {
     await seedResearchMessage(database, sampleRun());
     await migrateResearchRecords(database);
     const first = await database.researchRun.findFirstOrThrow();
-    const nextRun = sampleRun(24);
+    const nextRun = sampleRun(24, 1);
 
     const created = await createResearchRerun(
       { userId: 'user-a', studyId: first.studyId, parentRunId: first.id, run: nextRun },
@@ -72,6 +75,11 @@ describe('research records', () => {
       parentRunId: first.id,
       ref: { sequence: 2 },
       run: { result: { observations: 24 } },
+      comparisonToParent: {
+        changes: ['parameters'],
+        resultChanged: true,
+        attribution: 'parameters',
+      },
     });
     await expect(listResearchStudyRuns('user-a', first.studyId, database)).resolves.toHaveLength(2);
     await expect(listResearchStudyRuns('user-b', first.studyId, database)).resolves.toBeNull();
@@ -82,9 +90,47 @@ describe('research records', () => {
       researchPayloadHash({ a: { c: 3, d: 4 }, b: 2 }),
     );
   });
+
+  it('attributes run changes without asking the model to infer their cause', async () => {
+    await seedResearchMessage(database, sampleRun());
+    await migrateResearchRecords(database);
+    const base = await database.researchRun.findFirstOrThrow();
+    const candidate = { ...base, id: 'candidate', parentRunId: base.id };
+
+    expect(compareResearchRunRows(base, { ...candidate, planHash: 'changed-plan' })).toMatchObject({
+      changes: ['parameters'],
+      resultChanged: false,
+      attribution: 'parameters',
+    });
+    expect(
+      compareResearchRunRows(base, {
+        ...candidate,
+        dataFingerprint: 'changed-data',
+        resultHash: 'changed-result',
+      }),
+    ).toMatchObject({ changes: ['data'], resultChanged: true, attribution: 'data' });
+    expect(
+      compareResearchRunRows(base, {
+        ...candidate,
+        protocolFingerprint: 'changed-implementation',
+        environmentFingerprint: 'changed-environment',
+        resultHash: 'changed-result',
+      }),
+    ).toMatchObject({
+      changes: ['implementation', 'environment'],
+      resultChanged: true,
+      attribution: 'multiple',
+    });
+    expect(
+      compareResearchRunRows(
+        { ...base, dataFingerprint: null },
+        { ...candidate, resultHash: 'changed-result' },
+      ),
+    ).toMatchObject({ changes: [], resultChanged: true, attribution: 'unavailable' });
+  });
 });
 
-function sampleRun(observations = 12): ResearchRunResultV1 {
+function sampleRun(observations = 12, predictorLag = 0): ResearchRunResultV1 {
   return {
     version: 1,
     plan: {
@@ -95,12 +141,29 @@ function sampleRun(observations = 12): ResearchRunResultV1 {
         text: 'Test relationship',
         hypothesis: { estimand: 'regression_slope', direction: 'two_sided', nullValue: 0 },
       },
+      protocol: { predictorLag },
     },
     protocol: { id: 'time_series_relationship', version: 1 },
     result: { kind: 'time_series_relationship', observations },
     coverage: [],
     conclusion: { level: 'indeterminate' },
     diagnostics: [],
+    fingerprints: {
+      version: 1,
+      protocol: {
+        id: 'time_series_relationship',
+        version: 1,
+        appRevision: 'test-revision',
+        implementationHash: 'implementation-a',
+      },
+      data: { hash: 'data-a', inputs: [] },
+      environment: {
+        hash: 'environment-a',
+        nodeVersion: 'v22.0.0',
+        platform: 'test',
+        architecture: 'test',
+      },
+    },
   } as unknown as ResearchRunResultV1;
 }
 
@@ -143,7 +206,7 @@ async function createFixtureSchema(database: PrismaClient) {
     'CREATE TABLE "AgentTurn" ("id" TEXT NOT NULL PRIMARY KEY, "conversationId" TEXT NOT NULL, "status" TEXT NOT NULL, "model" TEXT NOT NULL, "trace" JSONB NOT NULL, "error" TEXT, "startedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "finishedAt" DATETIME, FOREIGN KEY ("conversationId") REFERENCES "AgentConversation"("id") ON DELETE CASCADE)',
     'CREATE TABLE "AgentMessage" ("id" TEXT NOT NULL PRIMARY KEY, "conversationId" TEXT NOT NULL, "role" TEXT NOT NULL, "parts" JSONB NOT NULL, "sequence" INTEGER NOT NULL, "turnId" TEXT, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY ("conversationId") REFERENCES "AgentConversation"("id") ON DELETE CASCADE, FOREIGN KEY ("turnId") REFERENCES "AgentTurn"("id") ON DELETE SET NULL)',
     'CREATE TABLE "ResearchStudy" ("id" TEXT NOT NULL PRIMARY KEY, "userId" TEXT NOT NULL, "conversationId" TEXT NOT NULL, "title" TEXT NOT NULL, "question" JSONB NOT NULL, "status" TEXT NOT NULL DEFAULT \'active\', "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" DATETIME NOT NULL, FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE, FOREIGN KEY ("conversationId") REFERENCES "AgentConversation"("id") ON DELETE CASCADE)',
-    'CREATE TABLE "ResearchRun" ("id" TEXT NOT NULL PRIMARY KEY, "studyId" TEXT NOT NULL, "parentRunId" TEXT, "sourceTurnId" TEXT, "sourceMessageId" TEXT, "sourcePartIndex" INTEGER, "sequence" INTEGER NOT NULL, "origin" TEXT NOT NULL, "protocolId" TEXT NOT NULL, "protocolVersion" INTEGER NOT NULL, "plan" JSONB NOT NULL, "result" JSONB NOT NULL, "planHash" TEXT NOT NULL, "resultHash" TEXT NOT NULL, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY ("studyId") REFERENCES "ResearchStudy"("id") ON DELETE CASCADE, FOREIGN KEY ("parentRunId") REFERENCES "ResearchRun"("id") ON DELETE SET NULL, FOREIGN KEY ("sourceTurnId") REFERENCES "AgentTurn"("id") ON DELETE SET NULL, FOREIGN KEY ("sourceMessageId") REFERENCES "AgentMessage"("id") ON DELETE SET NULL)',
+    'CREATE TABLE "ResearchRun" ("id" TEXT NOT NULL PRIMARY KEY, "studyId" TEXT NOT NULL, "parentRunId" TEXT, "sourceTurnId" TEXT, "sourceMessageId" TEXT, "sourcePartIndex" INTEGER, "sequence" INTEGER NOT NULL, "origin" TEXT NOT NULL, "protocolId" TEXT NOT NULL, "protocolVersion" INTEGER NOT NULL, "plan" JSONB NOT NULL, "result" JSONB NOT NULL, "planHash" TEXT NOT NULL, "resultHash" TEXT NOT NULL, "protocolFingerprint" TEXT, "dataFingerprint" TEXT, "environmentFingerprint" TEXT, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY ("studyId") REFERENCES "ResearchStudy"("id") ON DELETE CASCADE, FOREIGN KEY ("parentRunId") REFERENCES "ResearchRun"("id") ON DELETE SET NULL, FOREIGN KEY ("sourceTurnId") REFERENCES "AgentTurn"("id") ON DELETE SET NULL, FOREIGN KEY ("sourceMessageId") REFERENCES "AgentMessage"("id") ON DELETE SET NULL)',
     'CREATE UNIQUE INDEX "User_email_key" ON "User"("email")',
     'CREATE UNIQUE INDEX "AgentMessage_conversationId_sequence_key" ON "AgentMessage"("conversationId", "sequence")',
     'CREATE UNIQUE INDEX "ResearchRun_studyId_sequence_key" ON "ResearchRun"("studyId", "sequence")',

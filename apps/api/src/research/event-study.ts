@@ -2,12 +2,14 @@ import type { PrismaClient } from '@prisma/client';
 import type {
   EventStudyPlanSpecV1,
   EventStudyResultV1,
+  ResearchDataInputFingerprintV1,
   ResearchDiagnosticV1,
   ResearchEventCoverageV1,
   ResearchEventStudyEventV1,
   ResearchSeriesCoverageV1,
 } from '@jixie/shared';
 import { prisma } from '../lib/prisma.js';
+import { researchDataInputFingerprint } from './fingerprints.js';
 
 const NORMAL_95_PERCENT_CRITICAL_VALUE = 1.959963984540054;
 
@@ -34,6 +36,7 @@ export interface EventStudyExecution {
   result: EventStudyResultV1;
   coverage: [ResearchEventCoverageV1, ResearchSeriesCoverageV1];
   diagnostics: ResearchDiagnosticV1[];
+  dataFingerprints: ResearchDataInputFingerprintV1[];
 }
 
 export async function executeEventStudy(
@@ -220,6 +223,9 @@ export async function executeEventStudy(
     winsorizedMeanCumulativeAbnormalReturn: average(winsorizedCars),
   };
   const eventDates = kept.map((window) => window.eventTradeDate).sort();
+  const benchmarkDates = kept
+    .flatMap((window) => window.benchmark.map((point) => point.date))
+    .sort();
   return {
     result: {
       kind: 'event_study',
@@ -253,6 +259,29 @@ export async function executeEventStudy(
       },
     ],
     diagnostics,
+    dataFingerprints: [
+      researchDataInputFingerprint({
+        inputId: eventSet.id,
+        payload: kept.map((window) => ({
+          event: window.event,
+          eventTradeDate: window.eventTradeDate,
+          asset: window.asset,
+        })),
+        observations: kept.length,
+        firstDate: eventDates[0] ?? null,
+        lastDate: eventDates.at(-1) ?? null,
+      }),
+      researchDataInputFingerprint({
+        inputId: benchmarkInput.id,
+        payload: kept.map((window) => ({
+          eventId: window.event.id,
+          benchmark: window.benchmark,
+        })),
+        observations: kept.length * offsets.length,
+        firstDate: benchmarkDates[0] ?? null,
+        lastDate: benchmarkDates.at(-1) ?? null,
+      }),
+    ],
   };
 }
 

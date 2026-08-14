@@ -1,10 +1,11 @@
-import { Select } from 'antd';
+import { Alert, Descriptions, Select } from 'antd';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type {
   ResearchPlanSpecV1,
   ResearchRunRecordRefV1,
   ResearchRunRecordV1,
+  ResearchRunComparisonV1,
   ResearchRunResultV1,
 } from '@jixie/shared';
 import { listResearchStudyRuns, rerunResearchStudy, runResearchPlan } from '@src/api/client';
@@ -65,7 +66,10 @@ export function useResearchRunHistory<Run extends ResearchRunResultV1>(
     setRun(selected.run as Run);
   };
 
-  return { run, record, records, rerun, select };
+  const comparison = records.find(
+    (candidate) => candidate.ref.runId === record?.runId,
+  )?.comparisonToParent;
+  return { run, record, records, comparison, rerun, select };
 }
 
 export function ResearchRunHistorySelect({
@@ -98,6 +102,74 @@ export function ResearchRunHistorySelect({
   );
 }
 
+export function ResearchRunComparisonNotice({
+  comparison,
+}: {
+  comparison?: ResearchRunComparisonV1;
+}) {
+  const { t } = useTranslation('research');
+  if (!comparison) {
+    return null;
+  }
+  const details = [
+    ...comparison.changes.map((change) => t(`result.runComparison.change.${change}`)),
+    t(
+      comparison.resultChanged
+        ? 'result.runComparison.resultChanged'
+        : 'result.runComparison.resultUnchanged',
+    ),
+    ...(comparison.conclusionChanged ? [t('result.runComparison.conclusionChanged')] : []),
+  ];
+  return (
+    <Alert
+      className="jx-researchRunComparison"
+      type={comparison.attribution === 'unchanged' ? 'success' : 'info'}
+      showIcon
+      message={t(`result.runComparison.attribution.${comparison.attribution}`)}
+      description={details.join(' · ')}
+    />
+  );
+}
+
+export function ResearchFingerprintDetails({ run }: { run: ResearchRunResultV1 }) {
+  const { t } = useTranslation('research');
+  const fingerprints = run.fingerprints;
+  if (!fingerprints) {
+    return null;
+  }
+  return (
+    <section className="jx-researchFingerprints">
+      <h4>{t('result.fingerprints.title')}</h4>
+      <Descriptions
+        size="small"
+        column={1}
+        items={[
+          {
+            key: 'protocol',
+            label: t('result.fingerprints.protocol'),
+            children: `${fingerprints.protocol.id} v${fingerprints.protocol.version} · ${shortHash(fingerprints.protocol.implementationHash)}`,
+          },
+          {
+            key: 'revision',
+            label: t('result.fingerprints.appRevision'),
+            children: shortHash(fingerprints.protocol.appRevision),
+          },
+          {
+            key: 'data',
+            label: t('result.fingerprints.data'),
+            children: shortHash(fingerprints.data.hash),
+          },
+          {
+            key: 'environment',
+            label: t('result.fingerprints.environment'),
+            children: `Node ${fingerprints.environment.nodeVersion} · ${fingerprints.environment.platform}/${fingerprints.environment.architecture} · ${shortHash(fingerprints.environment.hash)}`,
+          },
+        ]}
+      />
+    </section>
+  );
+}
+
 function formatRunTime(createdAt: string, language: string): string {
   return new Intl.DateTimeFormat(language.startsWith('zh') ? 'zh-CN' : 'en-US', {
     month: '2-digit',
@@ -106,4 +178,8 @@ function formatRunTime(createdAt: string, language: string): string {
     minute: '2-digit',
     hour12: false,
   }).format(new Date(createdAt));
+}
+
+function shortHash(value: string): string {
+  return value.length > 12 ? value.slice(0, 12) : value;
 }

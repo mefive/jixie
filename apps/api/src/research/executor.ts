@@ -18,6 +18,7 @@ import { concludeDistributionComparison } from './distribution-conclusion.js';
 import { evaluateDistributionComparison } from './distribution-comparison.js';
 import { concludeEventStudy } from './event-study-conclusion.js';
 import { executeEventStudy } from './event-study.js';
+import { researchDataInputFingerprint, researchRunFingerprints } from './fingerprints.js';
 import { parseResearchPlanSpec } from './spec.js';
 import {
   loadResearchSeries,
@@ -88,6 +89,7 @@ async function executeTimeSeriesPlan(
   const loader = options.loadSeries ?? loadResearchSeries;
   const prepared = new Map<string, ResearchSeriesPoint[]>();
   const coverage: ResearchSeriesCoverageV1[] = [];
+  const dataFingerprints = [];
   const diagnostics = [];
 
   for (const seriesInput of plan.inputs) {
@@ -107,6 +109,15 @@ async function executeTimeSeriesPlan(
       },
     );
     prepared.set(seriesInput.id, points);
+    dataFingerprints.push(
+      researchDataInputFingerprint({
+        inputId: seriesInput.id,
+        payload: { loaded: loaded.points, prepared: points },
+        observations: points.length,
+        firstDate: points[0]?.date ?? null,
+        lastDate: points.at(-1)?.date ?? null,
+      }),
+    );
     diagnostics.push(...loaded.diagnostics);
     coverage.push({
       inputId: seriesInput.id,
@@ -146,6 +157,7 @@ async function executeTimeSeriesPlan(
     result: evaluation.result,
     conclusion,
     diagnostics: allDiagnostics,
+    fingerprints: researchRunFingerprints(protocolDefinition, dataFingerprints),
   };
 }
 
@@ -215,6 +227,22 @@ async function executeDistributionPlan(
     };
   });
   const conclusion = concludeDistributionComparison(plan.question, evaluation.result, diagnostics);
+  const dataFingerprints = plan.inputs.map((universeInput, index) => {
+    const universeRun = universeRuns[index]!;
+    const observations = groupInputs[index]!.observations;
+    return researchDataInputFingerprint({
+      inputId: universeInput.id,
+      payload: {
+        asOfDate: universeRun.asOfDate,
+        membershipAsOfDate: universeRun.membershipAsOfDate,
+        observations,
+      },
+      observations: observations.length,
+      firstDate: universeRun.asOfDate,
+      lastDate: universeRun.asOfDate,
+      dataRevision: universeRun.dataRevision,
+    });
+  });
 
   return {
     version: 1,
@@ -224,6 +252,7 @@ async function executeDistributionPlan(
     result: evaluation.result,
     conclusion,
     diagnostics,
+    fingerprints: researchRunFingerprints(protocolDefinition, dataFingerprints),
   };
 }
 
@@ -249,5 +278,6 @@ async function executeEventStudyPlan(
     result: execution.result,
     conclusion,
     diagnostics: execution.diagnostics,
+    fingerprints: researchRunFingerprints(protocolDefinition, execution.dataFingerprints),
   };
 }
