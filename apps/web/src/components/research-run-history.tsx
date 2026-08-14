@@ -3,12 +3,18 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type {
   ResearchPlanSpecV1,
+  ResearchAttemptRecordV1,
   ResearchRunRecordRefV1,
   ResearchRunRecordV1,
   ResearchRunComparisonV1,
   ResearchRunResultV1,
 } from '@jixie/shared';
-import { listResearchStudyRuns, rerunResearchStudy, runResearchPlan } from '@src/api/client';
+import {
+  listResearchStudyAttempts,
+  listResearchStudyRuns,
+  rerunResearchStudy,
+  runResearchPlan,
+} from '@src/api/client';
 
 export function useResearchRunHistory<Run extends ResearchRunResultV1>(
   initialRun: Run,
@@ -17,6 +23,7 @@ export function useResearchRunHistory<Run extends ResearchRunResultV1>(
   const [run, setRun] = useState(initialRun);
   const [record, setRecord] = useState(initialRecord);
   const [records, setRecords] = useState<ResearchRunRecordV1[]>([]);
+  const [attempts, setAttempts] = useState<ResearchAttemptRecordV1[]>([]);
   const studyId = initialRecord?.studyId;
 
   useEffect(() => {
@@ -25,12 +32,13 @@ export function useResearchRunHistory<Run extends ResearchRunResultV1>(
     }
 
     let active = true;
-    void listResearchStudyRuns(studyId)
-      .then((loaded) => {
+    void Promise.all([listResearchStudyRuns(studyId), listResearchStudyAttempts(studyId)])
+      .then(([loaded, loadedAttempts]) => {
         if (!active) {
           return;
         }
         setRecords(loaded);
+        setAttempts(loadedAttempts);
         const latest = loaded.at(-1);
         if (latest) {
           setRun(latest.run as Run);
@@ -50,11 +58,20 @@ export function useResearchRunHistory<Run extends ResearchRunResultV1>(
       return next;
     }
 
-    const next = await rerunResearchStudy(record.studyId, record.runId, plan);
-    setRecords((current) => [...current, next]);
-    setRecord(next.ref);
-    setRun(next.run as Run);
-    return next.run as Run;
+    try {
+      const next = await rerunResearchStudy(record.studyId, record.runId, plan);
+      setRecords((current) => [...current, next]);
+      setRecord(next.ref);
+      setRun(next.run as Run);
+      return next.run as Run;
+    } catch (error) {
+      try {
+        setAttempts(await listResearchStudyAttempts(record.studyId));
+      } catch {
+        // Preserve the original execution error; audit refresh can retry on the next page load.
+      }
+      throw error;
+    }
   };
 
   const select = (runId: string) => {
@@ -69,7 +86,7 @@ export function useResearchRunHistory<Run extends ResearchRunResultV1>(
   const comparison = records.find(
     (candidate) => candidate.ref.runId === record?.runId,
   )?.comparisonToParent;
-  return { run, record, records, comparison, rerun, select };
+  return { run, record, records, attempts, comparison, rerun, select };
 }
 
 export function ResearchRunHistorySelect({
@@ -138,6 +155,35 @@ export function ResearchRunComparisonNotice({
       type={comparison.attribution === 'unchanged' ? 'success' : 'info'}
       showIcon
       message={t(`result.runComparison.attribution.${comparison.attribution}`)}
+      description={details.join(' · ')}
+    />
+  );
+}
+
+export function ResearchFailedAttemptNotice({ attempts }: { attempts: ResearchAttemptRecordV1[] }) {
+  const { t, i18n } = useTranslation('research');
+  const latest = attempts.at(-1);
+  if (!latest) {
+    return null;
+  }
+  const details = [
+    formatRunTime(latest.createdAt, i18n.language),
+    ...latest.planChanges.map((change) =>
+      t('result.runComparison.planChange', {
+        path: change.path,
+        before: change.before,
+        after: change.after,
+      }),
+    ),
+    ...(latest.planChangesTruncated ? [t('result.runComparison.planChangesTruncated')] : []),
+    latest.error,
+  ];
+  return (
+    <Alert
+      className="jx-researchAttemptNotice"
+      type="warning"
+      showIcon
+      message={t('result.failedAttempts.message', { count: attempts.length })}
       description={details.join(' · ')}
     />
   );

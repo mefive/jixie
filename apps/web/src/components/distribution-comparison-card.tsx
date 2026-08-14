@@ -19,8 +19,9 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { EChart, type ECOption } from './echart';
 import { Markdown } from './markdown';
 import {
-  ResearchRunComparisonNotice,
+  ResearchFailedAttemptNotice,
   ResearchFingerprintDetails,
+  ResearchRunComparisonNotice,
   ResearchRunHistorySelect,
   useResearchRunHistory,
 } from './research-run-history';
@@ -300,6 +301,7 @@ export function DistributionComparisonCard({
       </div>
 
       <ResearchRunComparisonNotice comparison={history.comparison} />
+      <ResearchFailedAttemptNotice attempts={history.attempts} />
 
       {controlsOpen && (
         <div className="jx-distributionComparison-controls">

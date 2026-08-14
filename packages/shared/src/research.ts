@@ -708,6 +708,20 @@ export interface ResearchPlanChangeV1 {
   after: string;
 }
 
+export interface ResearchAttemptRecordV1 {
+  version: 1;
+  id: string;
+  studyId?: string;
+  parentRunId?: string;
+  origin: 'agent' | 'parameter_rerun';
+  plan?: ResearchPlanSpecV1;
+  planHash?: string;
+  error: string;
+  createdAt: string;
+  planChanges: ResearchPlanChangeV1[];
+  planChangesTruncated: boolean;
+}
+
 export interface ResearchConversationMeta {
   id: string;
   title: string;
