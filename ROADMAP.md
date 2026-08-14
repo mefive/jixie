@@ -199,10 +199,12 @@ PIT/vintage/revision、确定性 loader、适用协议、中英文说明和真�
 即使不改表也必须升级版本。Research Curator 持续发现本地已有但目录不可达的数据缺口，人工确认后进入正常
 开发流程。
 
-已建立无向量的语义解析基础：版本化 `ResearchConceptRegistry` 管理概念、别名、词法检索词与不可替代关系，
-`ResearchSkillRegistry` 按需提供领域研究策略，结构化 `ConceptQuery` 再由本地目录解析为真实对象、Source 和
-Measure。首个 Skill 覆盖黄金价格驱动；Skill 不保存证券代码，向量召回暂不引入。后续随真实问题增加 Concept、
-Skill、loader 与协议兼容性，1.4 仍是持续维护项而非一次性封板功能。
+已建立无向量的语义解析基础：版本化 `ResearchConceptRegistry` 管理概念、别名与不可替代关系；
+`ResearchPlaybookRegistry` 通过 Tool 按需向 LLM 提供领域研究策略，它不是 Agent 框架 Skill；
+`ResearchConceptBindingRegistry` 则作为平台内部审计白名单，把 Concept 映射到精确 Source、Measure、数据契约
+和真实覆盖范围。结构化 `ConceptQuery` 只通过 Binding 解析语义概念，数据库字段词法搜索仅用于用户明确给出的
+名称或稳定代码。首个 Playbook 与 Binding 切片覆盖黄金价格驱动，向量召回暂不引入。后续随真实问题持续增加
+Concept、Playbook、Binding、loader 与协议兼容性；上述基础机制完成不代表 1.4 封板，1.4 始终是持续维护项。
 
 ---
 

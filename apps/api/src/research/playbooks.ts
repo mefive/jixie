@@ -4,10 +4,10 @@ import {
   type ResearchConceptDefinitionV1,
 } from './concepts.js';
 
-export const RESEARCH_SKILL_IDS = ['gold_price_drivers'] as const;
-export type ResearchSkillId = (typeof RESEARCH_SKILL_IDS)[number];
+export const RESEARCH_PLAYBOOK_IDS = ['gold_price_drivers'] as const;
+export type ResearchPlaybookId = (typeof RESEARCH_PLAYBOOK_IDS)[number];
 
-export interface ResearchSkillConceptV1 {
+export interface ResearchPlaybookConceptV1 {
   conceptId: ResearchConceptId;
   role: 'outcome' | 'driver' | 'context';
   commonHypothesisDirection?: 'positive' | 'negative' | 'two_sided';
@@ -15,19 +15,19 @@ export interface ResearchSkillConceptV1 {
   rationale: string;
 }
 
-export interface ResearchSkillDefinitionV1 {
-  id: ResearchSkillId;
+export interface ResearchPlaybookDefinitionV1 {
+  id: ResearchPlaybookId;
   version: 1;
   name: string;
   description: string;
   triggers: string[];
-  concepts: ResearchSkillConceptV1[];
+  concepts: ResearchPlaybookConceptV1[];
   workflow: string[];
   rules: string[];
   suggestedProtocolIds: string[];
 }
 
-const skills: Record<ResearchSkillId, ResearchSkillDefinitionV1> = {
+const playbooks: Record<ResearchPlaybookId, ResearchPlaybookDefinitionV1> = {
   gold_price_drivers: {
     id: 'gold_price_drivers',
     version: 1,
@@ -112,25 +112,24 @@ const skills: Record<ResearchSkillId, ResearchSkillDefinitionV1> = {
   },
 };
 
-export const researchSkillRegistry = {
+export const researchPlaybookRegistry = {
   version: 1 as const,
-  skills: RESEARCH_SKILL_IDS.map((id) => skills[id]),
+  playbooks: RESEARCH_PLAYBOOK_IDS.map((id) => playbooks[id]),
 };
 
-export const researchSkillById: ReadonlyMap<ResearchSkillId, ResearchSkillDefinitionV1> = new Map(
-  researchSkillRegistry.skills.map((skill) => [skill.id, skill]),
-);
+export const researchPlaybookById: ReadonlyMap<ResearchPlaybookId, ResearchPlaybookDefinitionV1> =
+  new Map(researchPlaybookRegistry.playbooks.map((playbook) => [playbook.id, playbook]));
 
-export function skillConceptDefinitions(
-  skill: ResearchSkillDefinitionV1,
+export function playbookConceptDefinitions(
+  playbook: ResearchPlaybookDefinitionV1,
 ): ResearchConceptDefinitionV1[] {
-  return skill.concepts.map(({ conceptId }) => researchConceptById.get(conceptId)!);
+  return playbook.concepts.map(({ conceptId }) => researchConceptById.get(conceptId)!);
 }
 
-export function researchSkillIndex(): Array<
-  Pick<ResearchSkillDefinitionV1, 'id' | 'version' | 'name' | 'description' | 'triggers'>
+export function researchPlaybookIndex(): Array<
+  Pick<ResearchPlaybookDefinitionV1, 'id' | 'version' | 'name' | 'description' | 'triggers'>
 > {
-  return researchSkillRegistry.skills.map(({ id, version, name, description, triggers }) => ({
+  return researchPlaybookRegistry.playbooks.map(({ id, version, name, description, triggers }) => ({
     id,
     version,
     name,

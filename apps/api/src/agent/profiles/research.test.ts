@@ -7,7 +7,7 @@ describe('researchProfile', () => {
     const names = (profile.tools ?? []).map((tool) => tool.name);
 
     expect(names).toEqual([
-      'loadResearchSkill',
+      'loadResearchPlaybook',
       'searchResearchCatalog',
       'runUniverse',
       'executeResearchPlan',
@@ -22,12 +22,13 @@ describe('researchProfile', () => {
 
     expect(system).toContain('searchResearchCatalog');
     expect(system).toContain('executeResearchPlan');
-    expect(system).toContain('loadResearchSkill');
+    expect(system).toContain('loadResearchPlaybook');
     expect(system).toContain('gold_price_drivers');
     expect(system).toContain('pass its exact concept ids to searchResearchCatalog');
-    expect(system).toContain('Skills contain research strategy, not database entities');
+    expect(system).toContain('Playbooks contain research strategy, not database entities');
     expect(system).toContain('never apply one transform to both series merely for symmetry');
-    expect(system).toContain('no_registered_match');
+    expect(system).toContain('no_registered_binding');
+    expect(system).toContain('registered_binding_no_data');
     expect(system).toContain('copy those ids, versions, units, and transforms');
     expect(system).toContain('The current date is');
     expect(system).toContain('do not approximate it with a different question');
