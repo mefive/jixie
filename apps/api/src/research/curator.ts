@@ -6,16 +6,28 @@ import type {
   ResearchCuratorEvidenceV1,
   ResearchCuratorFindingCategoryV1,
   ResearchCuratorFindingV1,
+  ResearchCuratorQualityMetricsV1,
   ResearchCuratorRunV1,
+  ResearchCuratorVerificationAssessmentV1,
+  ResearchCuratorVerificationEvidenceV1,
   ResearchCuratorVerificationMatchV1,
+  ResearchCuratorVerificationNoteV1,
 } from '@jixie/shared';
 import { z } from 'zod';
 import { ulid } from 'ulid';
 import { prisma } from '../lib/prisma.js';
 import { chatJson, type LlmCall } from '../llm/deepseek.js';
 import { SQL_TABLE_DOCS } from '../agent/tools/read-only-sql.js';
-import { ASSET_ALLOCATION_PROBES } from '../tushare/asset-allocation-probe.js';
+import { TUSHARE_CAPABILITIES } from '../tushare/capability-catalog.js';
+import {
+  latestTushareCapabilityProbes,
+  type StoredTushareCapabilityProbe,
+} from '../tushare/capability-probe-store.js';
 import { researchCapabilityCatalog } from './catalog.js';
+import {
+  searchCuratorRepositoryReferences,
+  type CuratorRepositoryReference,
+} from './curator-reference-search.js';
 import { researchPayloadHash } from './fingerprints.js';
 
 const findingCategorySchema = z.enum([
@@ -42,10 +54,15 @@ const curatorResponseSchema = z.strictObject({
   findings: z.array(curatorDraftSchema).max(20),
 });
 
-export const curatorDispositionSchema = z.strictObject({
-  disposition: z.enum(['accepted', 'rejected', 'deferred', 'duplicate']),
-  note: z.string().trim().max(500).optional(),
-});
+export const curatorFindingUpdateSchema = z
+  .strictObject({
+    disposition: z.enum(['accepted', 'rejected', 'deferred', 'duplicate']).optional(),
+    note: z.string().trim().max(500).optional(),
+    verificationAssessment: z.enum(['correct', 'incorrect']).optional(),
+  })
+  .refine((input) => input.disposition || input.verificationAssessment, {
+    message: 'disposition or verificationAssessment is required',
+  });
 
 const SIGNAL_PATTERNS: Array<[string, RegExp]> = [
   ['supplier', /\b(?:tushare|wind|choice|api|接口|供应商)\b/i],
@@ -56,6 +73,8 @@ const SIGNAL_PATTERNS: Array<[string, RegExp]> = [
 ];
 
 const CURATOR_EVIDENCE_CHUNK_SIZE = 80;
+const MINIMUM_REVIEWED_FINDINGS = 20;
+const MINIMUM_VERIFICATION_ASSESSMENTS = 20;
 
 type CuratorRunWithRelations = Prisma.ResearchCuratorRunGetPayload<{
   include: { job: { select: { id: true } }; findings: true };
@@ -175,6 +194,10 @@ export async function executeResearchCuratorRun(
   );
   const drafts = evidence.length > 0 ? await summarizeEvidence(evidence, llm) : [];
   const evidenceById = new Map(evidence.map((item) => [item.id, item]));
+  const latestProbes = await latestTushareCapabilityProbes(
+    TUSHARE_CAPABILITIES.map((capability) => capability.apiName),
+    database,
+  );
   let findingsCreated = 0;
   let duplicatesSkipped = 0;
 
@@ -185,7 +208,17 @@ export async function executeResearchCuratorRun(
     if (cited.length === 0 || draft.category === 'no_action') {
       continue;
     }
-    const verification = verifyDraft(draft.category, draft.title, draft.summary, cited);
+    const referenceMatches = await searchCuratorRepositoryReferences(
+      `${draft.title}\n${draft.summary}\n${cited.map((item) => item.excerpt).join('\n')}`,
+    );
+    const verification = verifyDraft(
+      draft.category,
+      draft.title,
+      draft.summary,
+      cited,
+      latestProbes,
+      referenceMatches,
+    );
     const fingerprint = findingFingerprint(draft.category, draft.title, draft.suggestedAction);
     const existing = await database.researchCuratorFinding.findUnique({
       where: { userId_fingerprint: { userId: run.userId, fingerprint } },
@@ -235,7 +268,7 @@ export async function getLatestResearchCuratorRun(
     orderBy: { createdAt: 'desc' },
     include: { job: { select: { id: true } }, findings: { orderBy: { createdAt: 'asc' } } },
   });
-  return run ? curatorRunRecord(run) : null;
+  return run ? curatorRunRecord(run, await researchCuratorQuality(userId, database)) : null;
 }
 
 export async function getResearchCuratorRun(
@@ -247,7 +280,7 @@ export async function getResearchCuratorRun(
     where: { id: runId, userId },
     include: { job: { select: { id: true } }, findings: { orderBy: { createdAt: 'asc' } } },
   });
-  return run ? curatorRunRecord(run) : null;
+  return run ? curatorRunRecord(run, await researchCuratorQuality(userId, database)) : null;
 }
 
 export async function setResearchCuratorFindingDisposition(
@@ -273,6 +306,98 @@ export async function setResearchCuratorFindingDisposition(
     },
   });
   return curatorFindingRecord(finding);
+}
+
+export async function updateResearchCuratorFindingFeedback(
+  userId: string,
+  findingId: string,
+  input: {
+    disposition?: Exclude<ResearchCuratorDispositionV1, 'pending'>;
+    note?: string;
+    verificationAssessment?: ResearchCuratorVerificationAssessmentV1;
+  },
+  database: PrismaClient = prisma,
+): Promise<ResearchCuratorFindingV1 | null> {
+  const existing = await database.researchCuratorFinding.findFirst({
+    where: { id: findingId, userId },
+    select: { id: true },
+  });
+  if (!existing) {
+    return null;
+  }
+  const now = new Date();
+  const finding = await database.researchCuratorFinding.update({
+    where: { id: findingId },
+    data: {
+      ...(input.disposition
+        ? {
+            disposition: input.disposition,
+            dispositionNote: input.note || null,
+            disposedAt: now,
+          }
+        : {}),
+      ...(input.verificationAssessment
+        ? {
+            verificationAssessment: input.verificationAssessment,
+            verificationAssessedAt: now,
+          }
+        : {}),
+    },
+  });
+  return curatorFindingRecord(finding);
+}
+
+export async function researchCuratorQuality(
+  userId: string,
+  database: PrismaClient = prisma,
+): Promise<ResearchCuratorQualityMetricsV1> {
+  const [findings, runTotals] = await Promise.all([
+    database.researchCuratorFinding.findMany({
+      where: { userId },
+      select: { disposition: true, verificationAssessment: true },
+    }),
+    database.researchCuratorRun.aggregate({
+      where: { userId },
+      _sum: { duplicatesSkipped: true },
+    }),
+  ]);
+  const countDisposition = (value: string) =>
+    findings.filter((finding) => finding.disposition === value).length;
+  const accepted = countDisposition('accepted');
+  const rejected = countDisposition('rejected');
+  const duplicates = countDisposition('duplicate');
+  const reviewed = accepted + rejected;
+  const duplicatesSkipped = runTotals._sum.duplicatesSkipped ?? 0;
+  const verificationAssessments = findings.filter(
+    (finding) => finding.verificationAssessment !== null,
+  ).length;
+  const verificationErrors = findings.filter(
+    (finding) => finding.verificationAssessment === 'incorrect',
+  ).length;
+  return {
+    totalFindings: findings.length,
+    pending: countDisposition('pending'),
+    deferred: countDisposition('deferred'),
+    reviewed,
+    accepted,
+    rejected,
+    duplicates,
+    duplicatesSkipped,
+    acceptanceRate: reviewed > 0 ? accepted / reviewed : null,
+    duplicateRate:
+      findings.length + duplicatesSkipped > 0
+        ? (duplicates + duplicatesSkipped) / (findings.length + duplicatesSkipped)
+        : null,
+    verificationAssessments,
+    verificationErrors,
+    verificationErrorRate:
+      verificationAssessments > 0 ? verificationErrors / verificationAssessments : null,
+    evaluationReady:
+      reviewed >= MINIMUM_REVIEWED_FINDINGS &&
+      verificationAssessments >= MINIMUM_VERIFICATION_ASSESSMENTS,
+    minimumReviewedFindings: MINIMUM_REVIEWED_FINDINGS,
+    minimumVerificationAssessments: MINIMUM_VERIFICATION_ASSESSMENTS,
+  };
 }
 
 async function summarizeEvidence(evidence: ResearchCuratorEvidenceV1[], llm: LlmCall) {
@@ -305,10 +430,14 @@ function verifyDraft(
   title: string,
   summary: string,
   evidence: ResearchCuratorEvidenceV1[],
-) {
+  latestProbes: Map<string, StoredTushareCapabilityProbe>,
+  repositoryReferences: CuratorRepositoryReference[],
+): ResearchCuratorFindingV1['verification'] {
   const haystack =
     `${title}\n${summary}\n${evidence.map((item) => item.excerpt).join('\n')}`.toLowerCase();
   const matches: ResearchCuratorVerificationMatchV1[] = [];
+  const verificationEvidence: ResearchCuratorVerificationEvidenceV1[] = [];
+  const notes = new Set<ResearchCuratorVerificationNoteV1>();
   for (const measure of [
     ...researchCapabilityCatalog.measures,
     ...researchCapabilityCatalog.universeMeasures,
@@ -319,6 +448,13 @@ function verifyDraft(
       haystack.includes(measure.nameEn.toLowerCase())
     ) {
       matches.push({ kind: 'research_measure', id: measure.id });
+      verificationEvidence.push({
+        stance: 'supports',
+        kind: 'catalog',
+        reference: `research-measure:${measure.id}`,
+        detailZh: `研究能力目录已有“${measure.nameZh}”指标。`,
+        detailEn: `The research capability catalog already contains “${measure.nameEn}”.`,
+      });
     }
   }
   for (const protocol of researchCapabilityCatalog.protocols) {
@@ -328,40 +464,119 @@ function verifyDraft(
       haystack.includes(protocol.nameEn.toLowerCase())
     ) {
       matches.push({ kind: 'research_protocol', id: protocol.id });
+      verificationEvidence.push({
+        stance: 'supports',
+        kind: 'catalog',
+        reference: `research-protocol:${protocol.id}`,
+        detailZh: `研究能力目录已有“${protocol.nameZh}”协议。`,
+        detailEn: `The research capability catalog already contains “${protocol.nameEn}”.`,
+      });
     }
   }
   for (const tableName of Object.keys(SQL_TABLE_DOCS)) {
     if (haystack.includes(tableName.toLowerCase())) {
       matches.push({ kind: 'local_data_table', id: tableName });
+      verificationEvidence.push({
+        stance: 'supports',
+        kind: 'catalog',
+        reference: `local-table:${tableName}`,
+        detailZh: `只读查询目录已登记本地表 ${tableName}。`,
+        detailEn: `The read-only query catalog registers local table ${tableName}.`,
+      });
     }
   }
-  for (const api of ASSET_ALLOCATION_PROBES) {
-    if (haystack.includes(api.apiName.toLowerCase())) {
-      matches.push({ kind: 'tushare_api', id: api.apiName });
+  for (const capability of TUSHARE_CAPABILITIES) {
+    const aliases = [
+      capability.apiName,
+      capability.nameZh,
+      capability.nameEn,
+      ...capability.keywords,
+    ];
+    if (aliases.some((alias) => haystack.includes(alias.toLowerCase()))) {
+      matches.push({ kind: 'tushare_api', id: capability.apiName });
+      verificationEvidence.push({
+        stance: 'supports',
+        kind: 'catalog',
+        reference: `tushare-catalog:v${capability.version}:${capability.apiName}`,
+        detailZh: `${capability.nameZh}（${capability.apiName}）已登记；频率 ${capability.history.frequency}，所需字段 ${capability.requiredFields.join(', ') || '待权限验证'}，权限 ${permissionDescription(capability.permission, 'zh')}。`,
+        detailEn: `${capability.nameEn} (${capability.apiName}) is cataloged; frequency ${capability.history.frequency}, required fields ${capability.requiredFields.join(', ') || 'pending permission verification'}, permission ${permissionDescription(capability.permission, 'en')}.`,
+      });
+      const probe = latestProbes.get(capability.apiName);
+      if (!probe) {
+        notes.add('tushare_catalog_match_requires_smoke_check');
+        continue;
+      }
+      const available = probe.status === 'ok';
+      const permissionDenied = probe.status === 'permission_denied';
+      verificationEvidence.push({
+        stance: available ? 'supports' : 'limits',
+        kind: 'probe',
+        reference: `tushare-probe:${probe.apiName}:${probe.probedAt.toISOString()}`,
+        detailZh: probeDescription(probe, 'zh'),
+        detailEn: probeDescription(probe, 'en'),
+      });
+      notes.add(
+        available
+          ? 'tushare_probe_available'
+          : permissionDenied
+            ? 'tushare_probe_permission_denied'
+            : probe.status === 'empty'
+              ? 'tushare_probe_empty'
+              : 'tushare_api_unverified',
+      );
     }
+  }
+  for (const reference of repositoryReferences) {
+    matches.push({ kind: reference.kind, id: reference.id });
+    verificationEvidence.push({
+      stance: 'supports',
+      kind: 'repository',
+      reference: reference.id,
+      detailZh: `只读检索命中：${reference.excerpt}`,
+      detailEn: `Read-only repository match: ${reference.excerpt}`,
+    });
+    notes.add('repository_reference_match');
   }
   const unique = [
     ...new Map(matches.map((match) => [`${match.kind}:${match.id}`, match])).values(),
   ];
-  const locallyVerified = unique.some((match) => match.kind !== 'tushare_api');
-  const supplierCatalogMatch = unique.some((match) => match.kind === 'tushare_api');
-  const status = locallyVerified ? 'verified' : supplierCatalogMatch ? 'partial' : 'unverified';
+  const locallyVerified = unique.some((match) =>
+    ['research_measure', 'research_protocol', 'local_data_table'].includes(match.kind),
+  );
+  const repositoryMatched = repositoryReferences.length > 0;
+  if (locallyVerified) {
+    notes.add('local_capability_match');
+  }
+  const supplierMatches = unique.filter((match) => match.kind === 'tushare_api');
+  const supplierProbeVerified = supplierMatches.some((match) => {
+    const status = latestProbes.get(match.id)?.status;
+    return status === 'ok' || status === 'permission_denied';
+  });
+  const status =
+    supplierMatches.length > 0
+      ? supplierProbeVerified
+        ? 'verified'
+        : 'partial'
+      : locallyVerified || repositoryMatched
+        ? 'verified'
+        : 'unverified';
+  if (unique.length === 0) {
+    notes.add(
+      category === 'supplier_data_gap' ? 'tushare_api_unverified' : 'local_capability_unverified',
+    );
+  }
   return {
     status,
     matches: unique,
-    notes: locallyVerified
-      ? (['local_capability_match'] as const)
-      : supplierCatalogMatch
-        ? (['tushare_catalog_match_requires_smoke_check'] as const)
-        : [
-            category === 'supplier_data_gap'
-              ? ('tushare_api_unverified' as const)
-              : ('local_capability_unverified' as const),
-          ],
+    notes: [...notes],
+    evidence: verificationEvidence,
   };
 }
 
-function curatorRunRecord(run: CuratorRunWithRelations): ResearchCuratorRunV1 {
+function curatorRunRecord(
+  run: CuratorRunWithRelations,
+  quality: ResearchCuratorQualityMetricsV1,
+): ResearchCuratorRunV1 {
   return {
     version: 1,
     id: run.id,
@@ -373,6 +588,7 @@ function curatorRunRecord(run: CuratorRunWithRelations): ResearchCuratorRunV1 {
     evidenceCount: run.evidenceCount,
     findingsCreated: run.findingsCreated,
     duplicatesSkipped: run.duplicatesSkipped,
+    quality,
     ...(run.error ? { error: run.error } : {}),
     findings: run.findings.map(curatorFindingRecord),
     createdAt: run.createdAt.toISOString(),
@@ -380,6 +596,9 @@ function curatorRunRecord(run: CuratorRunWithRelations): ResearchCuratorRunV1 {
 }
 
 function curatorFindingRecord(finding: CuratorFindingRecord): ResearchCuratorFindingV1 {
+  const persistedVerification = finding.verification as unknown as Partial<
+    ResearchCuratorFindingV1['verification']
+  >;
   return {
     version: 1,
     id: finding.id,
@@ -388,7 +607,12 @@ function curatorFindingRecord(finding: CuratorFindingRecord): ResearchCuratorFin
     title: finding.title,
     summary: finding.summary,
     evidence: finding.evidence as unknown as ResearchCuratorFindingV1['evidence'],
-    verification: finding.verification as unknown as ResearchCuratorFindingV1['verification'],
+    verification: {
+      status: persistedVerification.status ?? 'unverified',
+      matches: Array.isArray(persistedVerification.matches) ? persistedVerification.matches : [],
+      notes: Array.isArray(persistedVerification.notes) ? persistedVerification.notes : [],
+      evidence: Array.isArray(persistedVerification.evidence) ? persistedVerification.evidence : [],
+    },
     confidence: finding.confidence,
     expectedValue: finding.expectedValue,
     changeSurface: finding.changeSurface as unknown as ResearchCuratorFindingV1['changeSurface'],
@@ -397,8 +621,42 @@ function curatorFindingRecord(finding: CuratorFindingRecord): ResearchCuratorFin
     disposition: finding.disposition as ResearchCuratorFindingV1['disposition'],
     ...(finding.dispositionNote ? { dispositionNote: finding.dispositionNote } : {}),
     ...(finding.disposedAt ? { disposedAt: finding.disposedAt.toISOString() } : {}),
+    ...(finding.verificationAssessment
+      ? {
+          verificationAssessment:
+            finding.verificationAssessment as ResearchCuratorVerificationAssessmentV1,
+        }
+      : {}),
+    ...(finding.verificationAssessedAt
+      ? { verificationAssessedAt: finding.verificationAssessedAt.toISOString() }
+      : {}),
     createdAt: finding.createdAt.toISOString(),
   };
+}
+
+function permissionDescription(
+  permission: (typeof TUSHARE_CAPABILITIES)[number]['permission'],
+  language: 'zh' | 'en',
+): string {
+  if (permission.kind === 'points') {
+    return language === 'zh'
+      ? `至少 ${permission.minimumPoints} 积分（截至 ${permission.documentedAsOf}）`
+      : `at least ${permission.minimumPoints} points (as of ${permission.documentedAsOf})`;
+  }
+  if (permission.kind === 'separate_permission') {
+    return language === 'zh'
+      ? `需单独权限（截至 ${permission.documentedAsOf}）`
+      : `separate permission required (as of ${permission.documentedAsOf})`;
+  }
+  return language === 'zh' ? '随 Token 权限而定' : 'token-dependent';
+}
+
+function probeDescription(probe: StoredTushareCapabilityProbe, language: 'zh' | 'en'): string {
+  const history = probe.history ? `${probe.history.start}–${probe.history.end}` : '—';
+  if (language === 'zh') {
+    return `最近探测 ${probe.probedAt.toISOString()}：${probe.status}，${probe.rowCount} 行，字段 ${probe.fields.join(', ') || '—'}，观测区间 ${history}。`;
+  }
+  return `Latest probe ${probe.probedAt.toISOString()}: ${probe.status}, ${probe.rowCount} rows, fields ${probe.fields.join(', ') || '—'}, observed range ${history}.`;
 }
 
 function findingFingerprint(

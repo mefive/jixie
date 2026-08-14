@@ -5,12 +5,15 @@ import type {
   ResearchCuratorFindingCategoryV1,
   ResearchCuratorFindingV1,
   ResearchCuratorRunV1,
+  ResearchCuratorVerificationAssessmentV1,
 } from '@jixie/shared';
 import {
   faCheck,
   faClock,
   faClone,
   faRotate,
+  faThumbsUp,
+  faTriangleExclamation,
   faWandMagicSparkles,
   faXmark,
 } from '@fortawesome/free-solid-svg-icons';
@@ -92,6 +95,7 @@ export const ResearchCuratorDrawer = complex.component(
         ) : (
           <>
             <CuratorRunSummary run={run} locale={i18n.resolvedLanguage} />
+            <CuratorQuality run={run} />
             {running ? (
               <Alert
                 className="jx-researchCurator-alert"
@@ -156,9 +160,65 @@ const CuratorRunSummary = ({ run, locale }: { run: ResearchCuratorRunV1; locale?
   );
 };
 
+const CuratorQuality = ({ run }: { run: ResearchCuratorRunV1 }) => {
+  const { t } = useTranslation('research');
+  const { quality } = run;
+  return (
+    <section className="jx-researchCurator-quality">
+      <div className="jx-researchCurator-qualityHead">
+        <strong>{t('curator.quality.title')}</strong>
+        <Tag color={quality.evaluationReady ? 'green' : 'default'}>
+          {t(`curator.quality.${quality.evaluationReady ? 'ready' : 'collecting'}`)}
+        </Tag>
+      </div>
+      <div className="jx-researchCurator-qualityMetrics">
+        <QualityMetric
+          label={t('curator.quality.acceptance')}
+          value={formatRate(quality.acceptanceRate)}
+          sample={t('curator.quality.reviewedSample', {
+            count: quality.reviewed,
+            minimum: quality.minimumReviewedFindings,
+          })}
+        />
+        <QualityMetric
+          label={t('curator.quality.duplicates')}
+          value={formatRate(quality.duplicateRate)}
+          sample={t('curator.quality.duplicateSample', {
+            count: quality.duplicates + quality.duplicatesSkipped,
+          })}
+        />
+        <QualityMetric
+          label={t('curator.quality.verificationErrors')}
+          value={formatRate(quality.verificationErrorRate)}
+          sample={t('curator.quality.verificationSample', {
+            count: quality.verificationAssessments,
+            minimum: quality.minimumVerificationAssessments,
+          })}
+        />
+      </div>
+    </section>
+  );
+};
+
+const QualityMetric = ({
+  label,
+  value,
+  sample,
+}: {
+  label: string;
+  value: string;
+  sample: string;
+}) => (
+  <div>
+    <span>{label}</span>
+    <strong>{value}</strong>
+    <small>{sample}</small>
+  </div>
+);
+
 const CuratorFinding = complex.component(({ finding }: { finding: ResearchCuratorFindingV1 }) => {
   const store = complex.useStore();
-  const { t } = useTranslation('research');
+  const { t, i18n } = useTranslation('research');
   const saving = store.curatorMutationLoader.loading;
 
   return (
@@ -211,10 +271,48 @@ const CuratorFinding = complex.component(({ finding }: { finding: ResearchCurato
         </ul>
       </div>
 
+      {finding.verification.evidence.length > 0 && (
+        <div className="jx-researchCurator-verificationEvidence">
+          <strong>{t('curator.verificationEvidence')}</strong>
+          <ul>
+            {finding.verification.evidence.map((item) => (
+              <li key={`${item.kind}:${item.reference}`}>
+                <Tag color={item.stance === 'supports' ? 'green' : 'gold'}>
+                  {t(`curator.verificationStance.${item.stance}`)}
+                </Tag>
+                <span>
+                  {i18n.resolvedLanguage?.startsWith('zh') ? item.detailZh : item.detailEn}
+                </span>
+                <code>{item.reference}</code>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="jx-researchCurator-evidence">
         <strong>{t('curator.evidence')}</strong>
         {finding.evidence.map((evidence) => (
           <blockquote key={evidence.id}>{evidence.excerpt}</blockquote>
+        ))}
+      </div>
+
+      <div className="jx-researchCurator-verificationFeedback">
+        <span>{t('curator.verificationFeedback.label')}</span>
+        {VERIFICATION_ACTIONS.map(({ assessment, icon }) => (
+          <Button
+            key={assessment}
+            size="small"
+            type={finding.verificationAssessment === assessment ? 'primary' : 'default'}
+            danger={assessment === 'incorrect'}
+            icon={<FontAwesomeIcon icon={icon} />}
+            disabled={saving || finding.verificationAssessment === assessment}
+            onClick={() =>
+              void store.assessCuratorVerification(finding.id, assessment).catch(() => {})
+            }
+          >
+            {t(`curator.verificationFeedback.${assessment}`)}
+          </Button>
         ))}
       </div>
 
@@ -248,6 +346,18 @@ const DISPOSITION_ACTIONS: Array<{
   { disposition: 'deferred', icon: faClock },
   { disposition: 'duplicate', icon: faClone },
 ];
+
+const VERIFICATION_ACTIONS: Array<{
+  assessment: ResearchCuratorVerificationAssessmentV1;
+  icon: typeof faCheck;
+}> = [
+  { assessment: 'correct', icon: faThumbsUp },
+  { assessment: 'incorrect', icon: faTriangleExclamation },
+];
+
+function formatRate(value: number | null): string {
+  return value === null ? '—' : `${Math.round(value * 100)}%`;
+}
 
 function categoryColor(category: ResearchCuratorFindingCategoryV1): string {
   const colors: Record<ResearchCuratorFindingCategoryV1, string> = {

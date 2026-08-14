@@ -1325,28 +1325,53 @@ model ResearchCuratorRun {
 /// One evidence-backed Curator suggestion. Fingerprints suppress repeats across runs; disposition
 /// is explicit human feedback and never triggers schema, data synchronization, or ROADMAP writes.
 model ResearchCuratorFinding {
-  id              String             @id // ULID
-  userId          String
-  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  runId           String
-  run             ResearchCuratorRun @relation(fields: [runId], references: [id], onDelete: Cascade)
-  category        String
-  title           String
-  summary         String
-  evidence        Json
-  verification    Json
-  confidence      Float
-  expectedValue   String
-  changeSurface   Json
-  suggestedAction String
-  fingerprint     String
-  disposition     String             @default("pending") // 'pending' | 'accepted' | 'rejected' | 'deferred' | 'duplicate'
-  dispositionNote String?
-  disposedAt      DateTime?
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
+  id                     String             @id // ULID
+  userId                 String
+  user                   User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  runId                  String
+  run                    ResearchCuratorRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  category               String
+  title                  String
+  summary                String
+  evidence               Json
+  verification           Json
+  confidence             Float
+  expectedValue          String
+  changeSurface          Json
+  suggestedAction        String
+  fingerprint            String
+  disposition            String             @default("pending") // 'pending' | 'accepted' | 'rejected' | 'deferred' | 'duplicate'
+  dispositionNote        String?
+  disposedAt             DateTime?
+  verificationAssessment String? // 'correct' | 'incorrect'
+  verificationAssessedAt DateTime?
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
 
   @@unique([userId, fingerprint])
   @@index([userId, disposition, createdAt])
   @@index([runId, createdAt])
+}
+
+/// A bounded, read-only observation of one versioned Tushare capability. Samples are deliberately
+/// excluded: Curator only needs availability, schema, permission and observed history metadata.
+model TushareCapabilityProbe {
+  id             String   @id // ULID
+  catalogVersion Int
+  apiName        String
+  domain         String
+  probeDate      String
+  status         String
+  rowCount       Int
+  fields         Json
+  historyField   String?
+  historyStart   String?
+  historyEnd     String?
+  probeCoverage  String?
+  errorCode      Int?
+  errorMessage   String?
+  probedAt       DateTime
+
+  @@index([apiName, probedAt])
+  @@index([probedAt])
 }

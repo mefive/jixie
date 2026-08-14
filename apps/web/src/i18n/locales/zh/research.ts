@@ -40,6 +40,17 @@ export const zhResearch = {
       findings: '项新候选',
       duplicates: '项重复已跳过',
     },
+    quality: {
+      title: '人工反馈质量',
+      ready: '样本量可评估',
+      collecting: '正在积累样本',
+      acceptance: '候选接受率',
+      duplicates: '重复率',
+      verificationErrors: '核验错误率',
+      reviewedSample: '已审 {{count}} / 最少 {{minimum}}',
+      duplicateSample: '重复 {{count}} 项',
+      verificationSample: '已核验 {{count}} / 最少 {{minimum}}',
+    },
     category: {
       protocol_candidate: '研究协议候选',
       supplier_data_gap: '供应商数据缺口',
@@ -65,8 +76,22 @@ export const zhResearch = {
       local_capability_match: '已与登记的研究目录或只读本地数据目录匹配。',
       tushare_catalog_match_requires_smoke_check:
         '接口名称存在于版本化 Tushare 探测目录；当前权限、字段和历史范围仍需只读 smoke check。',
+      tushare_probe_available: '最近一次只读探测成功，并已记录返回字段和观测历史区间。',
+      tushare_probe_permission_denied: '最近一次只读探测确认当前 Token 没有该接口权限。',
+      tushare_probe_empty: '最近一次只读探测没有返回记录，不能据此确认数据可用。',
       tushare_api_unverified: '版本化 Tushare 探测目录未匹配到该接口，供应商能力尚未核验。',
       local_capability_unverified: '未匹配到已登记的本地能力，需要人工核验。',
+      repository_reference_match: '只读检索在代码、帮助、ROADMAP 或设计文档中找到相关记录。',
+    },
+    verificationEvidence: '核验依据',
+    verificationStance: {
+      supports: '支持',
+      limits: '限制',
+    },
+    verificationFeedback: {
+      label: '这次自动核验是否正确？',
+      correct: '核验正确',
+      incorrect: '核验有误',
     },
     evidence: '原始证据',
     disposition: {

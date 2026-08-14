@@ -7,6 +7,7 @@ import {
   type ResearchCuratorDispositionV1,
   type ResearchCuratorFindingV1,
   type ResearchCuratorRunV1,
+  type ResearchCuratorVerificationAssessmentV1,
 } from '@jixie/shared';
 import { BaseStore, LoaderModel, PollingModel } from '@src/lib';
 import {
@@ -31,6 +32,11 @@ type ResearchCuratorMutation =
       kind: 'disposition';
       findingId: string;
       disposition: Exclude<ResearchCuratorDispositionV1, 'pending'>;
+    }
+  | {
+      kind: 'verification';
+      findingId: string;
+      assessment: ResearchCuratorVerificationAssessmentV1;
     };
 
 const CURATOR_POLL_INTERVAL_MS = 1_000;
@@ -75,7 +81,13 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
           case 'start':
             return startResearchCurator();
           case 'disposition':
-            return updateResearchCuratorFinding(mutation.findingId, mutation.disposition);
+            return updateResearchCuratorFinding(mutation.findingId, {
+              disposition: mutation.disposition,
+            });
+          case 'verification':
+            return updateResearchCuratorFinding(mutation.findingId, {
+              verificationAssessment: mutation.assessment,
+            });
         }
       },
     });
@@ -204,6 +216,17 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     disposition: Exclude<ResearchCuratorDispositionV1, 'pending'>,
   ) {
     await this.curatorMutationLoader.run({ kind: 'disposition', findingId, disposition });
+    const runId = this.curatorLoader.result?.id;
+    if (runId) {
+      await this.curatorLoader.run(runId);
+    }
+  }
+
+  public async assessCuratorVerification(
+    findingId: string,
+    assessment: ResearchCuratorVerificationAssessmentV1,
+  ) {
+    await this.curatorMutationLoader.run({ kind: 'verification', findingId, assessment });
     const runId = this.curatorLoader.result?.id;
     if (runId) {
       await this.curatorLoader.run(runId);

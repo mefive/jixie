@@ -4,11 +4,14 @@ import { join } from 'node:path';
 import type { PrismaClient } from '@prisma/client';
 import prismaPackage from '@prisma/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { tushareCapabilityProbesAreFresh } from '../tushare/capability-probe-store.js';
 import {
   executeResearchCuratorRun,
   extractResearchCuratorEvidence,
   getResearchCuratorRun,
+  researchCuratorQuality,
   setResearchCuratorFindingDisposition,
+  updateResearchCuratorFindingFeedback,
 } from './curator.js';
 
 const { PrismaClient: RuntimePrismaClient } = prismaPackage;
@@ -93,6 +96,12 @@ describe('research curator', () => {
         matches: expect.arrayContaining([
           { kind: 'research_measure', id: 'market.adjusted_close' },
         ]),
+        evidence: expect.arrayContaining([
+          expect.objectContaining({
+            kind: 'catalog',
+            reference: 'research-measure:market.adjusted_close',
+          }),
+        ]),
       },
     });
   });
@@ -163,8 +172,101 @@ describe('research curator', () => {
     expect(run.findings[0]).toMatchObject({
       verification: {
         status: 'partial',
-        matches: [{ kind: 'tushare_api', id: 'cn_cpi' }],
+        matches: expect.arrayContaining([{ kind: 'tushare_api', id: 'cn_cpi' }]),
       },
+    });
+  });
+
+  it('uses the latest persisted supplier probe and records independent verification feedback', async () => {
+    await database.tushareCapabilityProbe.create({
+      data: {
+        id: 'probe-cpi',
+        catalogVersion: 1,
+        apiName: 'cn_cpi',
+        domain: 'macro',
+        probeDate: '20260807',
+        status: 'ok',
+        rowCount: 511,
+        fields: ['month', 'nt_yoy'],
+        historyField: 'month',
+        historyStart: '195112',
+        historyEnd: '202607',
+        probeCoverage: 'full_response',
+        probedAt: new Date('2026-08-14T02:00:00.000Z'),
+      },
+    });
+    await expect(
+      tushareCapabilityProbesAreFresh(
+        ['cn_cpi'],
+        7,
+        new Date('2026-08-14T03:00:00.000Z'),
+        database,
+      ),
+    ).resolves.toBe(true);
+    await expect(
+      tushareCapabilityProbesAreFresh(
+        ['cn_cpi', 'shibor'],
+        7,
+        new Date('2026-08-14T03:00:00.000Z'),
+        database,
+      ),
+    ).resolves.toBe(false);
+    await database.researchCuratorRun.create({
+      data: {
+        id: 'run-probed-supplier',
+        userId: 'user-b',
+        cursorTo: new Date('2026-08-14T03:00:00.000Z'),
+      },
+    });
+    const run = await executeResearchCuratorRun('run-probed-supplier', {
+      database,
+      llm: async () =>
+        JSON.stringify({
+          findings: [
+            {
+              category: 'supplier_data_gap',
+              title: 'Synchronize Tushare cn_cpi',
+              summary: 'cn_cpi is requested for local inflation research.',
+              evidenceIds: ['message:message-b'],
+              confidence: 0.9,
+              expectedValue: 'Make CPI research reproducible.',
+              changeSurface: ['macro data'],
+              suggestedAction: 'Review a bounded cn_cpi ingestion plan.',
+            },
+          ],
+        }),
+    });
+    expect(run.findings[0]).toMatchObject({
+      verification: {
+        status: 'verified',
+        notes: expect.arrayContaining(['tushare_probe_available']),
+        evidence: expect.arrayContaining([
+          expect.objectContaining({ kind: 'probe', stance: 'supports' }),
+        ]),
+      },
+    });
+
+    const assessed = await updateResearchCuratorFindingFeedback(
+      'user-b',
+      run.findings[0]!.id,
+      { verificationAssessment: 'incorrect' },
+      database,
+    );
+    expect(assessed).toMatchObject({ verificationAssessment: 'incorrect' });
+    await updateResearchCuratorFindingFeedback(
+      'user-b',
+      run.findings[0]!.id,
+      { disposition: 'accepted', note: 'Plan this.' },
+      database,
+    );
+    await expect(researchCuratorQuality('user-b', database)).resolves.toMatchObject({
+      reviewed: 1,
+      accepted: 1,
+      acceptanceRate: 1,
+      verificationAssessments: 1,
+      verificationErrors: 1,
+      verificationErrorRate: 1,
+      evaluationReady: false,
     });
   });
 
@@ -215,7 +317,8 @@ async function createFixtureSchema(database: PrismaClient) {
     'CREATE TABLE "ResearchStudy" ("id" TEXT NOT NULL PRIMARY KEY)',
     'CREATE TABLE "ResearchAttempt" ("id" TEXT NOT NULL PRIMARY KEY, "userId" TEXT NOT NULL, "conversationId" TEXT NOT NULL, "studyId" TEXT, "parentRunId" TEXT, "sourceTurnId" TEXT, "sourceStepId" TEXT, "origin" TEXT NOT NULL, "plan" JSONB, "planHash" TEXT, "arguments" TEXT NOT NULL, "error" TEXT NOT NULL, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE, FOREIGN KEY ("conversationId") REFERENCES "AgentConversation"("id") ON DELETE CASCADE)',
     'CREATE TABLE "ResearchCuratorRun" ("id" TEXT NOT NULL PRIMARY KEY, "userId" TEXT NOT NULL, "status" TEXT NOT NULL DEFAULT \'queued\', "trigger" TEXT NOT NULL DEFAULT \'manual\', "cursorFrom" DATETIME, "cursorTo" DATETIME NOT NULL, "evidenceCount" INTEGER NOT NULL DEFAULT 0, "findingsCreated" INTEGER NOT NULL DEFAULT 0, "duplicatesSkipped" INTEGER NOT NULL DEFAULT 0, "error" TEXT, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" DATETIME NOT NULL, FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE)',
-    'CREATE TABLE "ResearchCuratorFinding" ("id" TEXT NOT NULL PRIMARY KEY, "userId" TEXT NOT NULL, "runId" TEXT NOT NULL, "category" TEXT NOT NULL, "title" TEXT NOT NULL, "summary" TEXT NOT NULL, "evidence" JSONB NOT NULL, "verification" JSONB NOT NULL, "confidence" REAL NOT NULL, "expectedValue" TEXT NOT NULL, "changeSurface" JSONB NOT NULL, "suggestedAction" TEXT NOT NULL, "fingerprint" TEXT NOT NULL, "disposition" TEXT NOT NULL DEFAULT \'pending\', "dispositionNote" TEXT, "disposedAt" DATETIME, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" DATETIME NOT NULL, FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE, FOREIGN KEY ("runId") REFERENCES "ResearchCuratorRun"("id") ON DELETE CASCADE)',
+    'CREATE TABLE "ResearchCuratorFinding" ("id" TEXT NOT NULL PRIMARY KEY, "userId" TEXT NOT NULL, "runId" TEXT NOT NULL, "category" TEXT NOT NULL, "title" TEXT NOT NULL, "summary" TEXT NOT NULL, "evidence" JSONB NOT NULL, "verification" JSONB NOT NULL, "confidence" REAL NOT NULL, "expectedValue" TEXT NOT NULL, "changeSurface" JSONB NOT NULL, "suggestedAction" TEXT NOT NULL, "fingerprint" TEXT NOT NULL, "disposition" TEXT NOT NULL DEFAULT \'pending\', "dispositionNote" TEXT, "disposedAt" DATETIME, "verificationAssessment" TEXT, "verificationAssessedAt" DATETIME, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" DATETIME NOT NULL, FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE, FOREIGN KEY ("runId") REFERENCES "ResearchCuratorRun"("id") ON DELETE CASCADE)',
+    'CREATE TABLE "TushareCapabilityProbe" ("id" TEXT NOT NULL PRIMARY KEY, "catalogVersion" INTEGER NOT NULL, "apiName" TEXT NOT NULL, "domain" TEXT NOT NULL, "probeDate" TEXT NOT NULL, "status" TEXT NOT NULL, "rowCount" INTEGER NOT NULL, "fields" JSONB NOT NULL, "historyField" TEXT, "historyStart" TEXT, "historyEnd" TEXT, "probeCoverage" TEXT, "errorCode" INTEGER, "errorMessage" TEXT, "probedAt" DATETIME NOT NULL)',
     'CREATE TABLE "Job" ("id" TEXT NOT NULL PRIMARY KEY, "userId" TEXT NOT NULL, "kind" TEXT NOT NULL, "key" TEXT NOT NULL, "status" TEXT NOT NULL, "payload" JSONB, "error" TEXT, "logs" TEXT, "factorReportId" TEXT, "strategyScanReportId" TEXT, "signalRunId" TEXT, "researchCuratorRunId" TEXT, "queuedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "startedAt" DATETIME, "finishedAt" DATETIME, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" DATETIME NOT NULL, FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE, FOREIGN KEY ("researchCuratorRunId") REFERENCES "ResearchCuratorRun"("id") ON DELETE CASCADE)',
     'CREATE UNIQUE INDEX "User_email_key" ON "User"("email")',
     'CREATE UNIQUE INDEX "ResearchCuratorFinding_userId_fingerprint_key" ON "ResearchCuratorFinding"("userId", "fingerprint")',

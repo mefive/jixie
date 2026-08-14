@@ -1052,6 +1052,12 @@ else
   log "商品仓单历史覆盖完整,跳过回填"
 fi
 
+log "复核版本化 Tushare 能力目录（7 天内已有完整观测则跳过）"
+pnpm --filter api probe:asset-allocation -- \
+  --date "$EXTERNAL_MARKET_SYNC_END" \
+  --persist-if-stale \
+  --max-age-days 7 || warn "Tushare 能力目录探测失败,不阻塞本次部署"
+
 INVITE_COUNT="$(sqlite3 "$DB_FILE" 'SELECT count(*) FROM "InviteCode";' 2>/dev/null || echo 0)"
 if [[ "$JIXIE_INVITES_EXPLICIT" -ne 1 && "${INVITE_COUNT:-0}" -gt 0 ]]; then
   log "邀请码已存在,跳过默认邀请码生成(如需补发,显式设 JIXIE_INVITES=N)"
