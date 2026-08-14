@@ -3,9 +3,67 @@ import {
   BlsPublicDataClient,
   blsYearRanges,
   parseBlsBulkFile,
+  parseOecdUsCpiCsv,
   parseUsHeadlineCpiRows,
   prepareUsHeadlineCpiObservations,
 } from './us-headline-cpi.js';
+
+function oecdCpiCsv({
+  startPeriod = '2005-01',
+  endPeriod = '2026-07',
+  basePeriod = '2015',
+  adjustment = 'N',
+  omittedPeriods = ['2025-10'],
+}: {
+  startPeriod?: string;
+  endPeriod?: string;
+  basePeriod?: string;
+  adjustment?: string;
+  omittedPeriods?: string[];
+} = {}): string {
+  const header = [
+    'DATASET_NAME',
+    'REF_AREA',
+    'FREQ',
+    'METHODOLOGY',
+    'MEASURE',
+    'UNIT_MEASURE',
+    'EXPENDITURE',
+    'ADJUSTMENT',
+    'TRANSFORMATION',
+    'BASE_PER',
+    'TIME_PERIOD',
+    'OBS_VALUE',
+  ].join(',');
+  const rows: string[] = [];
+  for (let period = startPeriod; period <= endPeriod; period = nextMonth(period)) {
+    if (omittedPeriods.includes(period)) {
+      continue;
+    }
+    rows.push(
+      [
+        '"Consumer price indices, national and harmonised"',
+        'USA',
+        'M',
+        'N',
+        'CPI',
+        'IX',
+        '_T',
+        adjustment,
+        '_Z',
+        basePeriod,
+        period,
+        period === '2026-07' ? '101' : '100',
+      ].join(','),
+    );
+  }
+  return [header, ...rows].join('\r\n');
+}
+
+function nextMonth(period: string): string {
+  const next = new Date(Date.UTC(Number(period.slice(0, 4)), Number(period.slice(5, 7)), 1));
+  return `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, '0')}`;
+}
 
 describe('US headline CPI normalization', () => {
   it('chunks public BLS requests into at most ten inclusive calendar years', () => {
@@ -46,6 +104,51 @@ describe('US headline CPI normalization', () => {
       { year: '2025', period: 'M01', value: '317.671' },
       { year: '2025', period: 'M13', value: '321.943' },
     ]);
+  });
+
+  it('strictly parses OECD dimensions and restores the native BLS index scale', () => {
+    expect(
+      parseOecdUsCpiCsv(oecdCpiCsv({ startPeriod: '2026-06', endPeriod: '2026-07' }), '2026-06'),
+    ).toEqual([
+      { year: '2026', period: 'M06', value: '237.017' },
+      { year: '2026', period: 'M07', value: '239.387' },
+    ]);
+  });
+
+  it('fails closed when the OECD series has the wrong basis, adjustment, gaps, or staleness', () => {
+    expect(() =>
+      parseOecdUsCpiCsv(
+        oecdCpiCsv({
+          startPeriod: '2026-06',
+          endPeriod: '2026-07',
+          basePeriod: '2020',
+        }),
+        '2026-06',
+      ),
+    ).toThrow('BASE_PER=2020, expected 2015');
+    expect(() =>
+      parseOecdUsCpiCsv(
+        oecdCpiCsv({
+          startPeriod: '2026-06',
+          endPeriod: '2026-07',
+          adjustment: 'Y',
+        }),
+        '2026-06',
+      ),
+    ).toThrow('ADJUSTMENT=Y, expected N');
+    expect(() =>
+      parseOecdUsCpiCsv(
+        oecdCpiCsv({
+          startPeriod: '2026-05',
+          endPeriod: '2026-07',
+          omittedPeriods: ['2026-06'],
+        }),
+        '2026-05',
+      ),
+    ).toThrow('gap after 2026-05; expected 2026-06');
+    expect(() =>
+      parseOecdUsCpiCsv(oecdCpiCsv({ startPeriod: '2026-06', endPeriod: '2026-07' }), '2026-08'),
+    ).toThrow('stale at 2026-07; expected at least 2026-08');
   });
 
   it('prefers the official unregistered GET signature with the requested year range', async () => {
@@ -115,6 +218,44 @@ describe('US headline CPI normalization', () => {
     expect(logs).toEqual([
       'BLS GET API unavailable (returned HTTP 403); trying the official POST API',
       'BLS POST API unavailable (returned HTTP 403); falling back to the official All Items bulk file',
+    ]);
+  });
+
+  it('falls back once to the cached official OECD series when all BLS domains are blocked', async () => {
+    const requests: Array<{ url: string; init?: RequestInit }> = [];
+    const fetchImpl: typeof fetch = async (input, init) => {
+      requests.push({ url: String(input), init });
+      if (String(input).includes('sdmx.oecd.org')) {
+        return new Response(oecdCpiCsv());
+      }
+      return new Response('Forbidden', { status: 403 });
+    };
+    const logs: string[] = [];
+    const client = new BlsPublicDataClient(
+      fetchImpl,
+      (line) => logs.push(line),
+      () => new Date('2026-08-14T00:00:00.000Z'),
+    );
+
+    const firstRange = await client.loadSeries('CUUR0000SA0', 2005, 2014);
+    const lastRange = await client.loadSeries('CUUR0000SA0', 2025, 2026);
+
+    expect(firstRange).toHaveLength(120);
+    expect(firstRange[0]).toEqual({ year: '2005', period: 'M01', value: '237.017' });
+    expect(lastRange).toHaveLength(18);
+    expect(lastRange.at(-1)).toEqual({ year: '2026', period: 'M07', value: '239.387' });
+    expect(requests).toHaveLength(4);
+    expect(requests[0]?.url).toContain('api.bls.gov');
+    expect(requests[1]?.url).toContain('api.bls.gov');
+    expect(requests[2]?.url).toContain('download.bls.gov');
+    expect(requests[3]?.url).toContain(
+      'USA.M.N.CPI.IX._T.N._Z?startPeriod=2005-01&dimensionAtObservation=AllDimensions',
+    );
+    expect(logs).toEqual([
+      'BLS GET API unavailable (returned HTTP 403); trying the official POST API',
+      'BLS POST API unavailable (returned HTTP 403); falling back to the official All Items bulk file',
+      'BLS bulk download unavailable (official All Items file returned HTTP 403); falling back to OECD national CPI SDMX',
+      'OECD US CPI fallback loaded 258 monthly observations (200501..202607)',
     ]);
   });
 

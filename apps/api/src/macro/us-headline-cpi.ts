@@ -13,7 +13,7 @@ export const US_HEADLINE_CPI_SERIES = {
   frequency: 'monthly',
   unit: 'index_1982_1984_100',
   source: 'bls',
-  sourceApi: 'bls_public_data_api_or_bulk',
+  sourceApi: 'bls_public_data_api_or_bulk_or_oecd_sdmx',
   sourceField: US_HEADLINE_CPI_BLS_SERIES_ID,
   defaultTransform: 'year_over_year',
   revisionPolicy: 'latest_value_with_captured_vintages',
@@ -44,6 +44,14 @@ interface NormalizedCpiObservation {
 
 const BLS_PUBLIC_API_URL = 'https://api.bls.gov/publicAPI/v2/timeseries/data/';
 const BLS_ALL_ITEMS_BULK_URL = 'https://download.bls.gov/pub/time.series/cu/cu.data.1.AllItems';
+const OECD_US_CPI_URL =
+  'https://sdmx.oecd.org/public/rest/data/OECD.SDD.TPS,DSD_PRICES@DF_PRICES_ALL,1.0/USA.M.N.CPI.IX._T.N._Z?startPeriod=2005-01&dimensionAtObservation=AllDimensions&format=csvfilewithlabels';
+const OECD_US_CPI_SERIES_PATH = 'USA.M.N.CPI.IX._T.N._Z';
+const OECD_US_CPI_BASE_PERIOD = '2015';
+// Annual average of BLS CUUR0000SA0 in 2015, used to restore OECD's rebased 2015=100 index.
+const BLS_US_CPI_2015_ANNUAL_AVERAGE = 237.017;
+// BLS did not publish the all-items October 2025 index after the US funding lapse.
+const BLS_US_CPI_INTENTIONALLY_UNPUBLISHED_PERIODS = new Set(['2025-10']);
 const BLS_REQUEST_HEADERS = {
   accept: 'application/json, text/plain;q=0.9',
   'user-agent': 'jixie-research/1.0 (+https://github.com/mefive/jixie)',
@@ -58,21 +66,26 @@ const SHANGHAI_DATE_FORMATTER = new Intl.DateTimeFormat('en-US', {
 });
 
 /**
- * Official BLS client with bounded API requests and a same-source bulk-file fallback.
+ * Official BLS client with bounded API requests and official-source fallbacks.
  *
  * BLS publishes an unregistered single-series GET signature as well as the multi-series POST
  * signature. The GET form is preferred because some gateways reject the POST form with HTTP 403.
  * If one API form is unavailable, the client tries the other before downloading and caching the
- * official All Items bulk file for the rest of the process.
+ * official All Items bulk file for the rest of the process. If all BLS delivery domains are
+ * blocked, the client uses OECD's exact national, monthly, all-items, non-seasonally-adjusted CPI
+ * series and restores its 2015=100 values to BLS's native 1982-84=100 scale.
  */
 export class BlsPublicDataClient implements BlsPublicDataClientLike {
   private getApiFailure: Error | null = null;
   private postApiFailure: Error | null = null;
+  private bulkFailure: Error | null = null;
   private bulkTextPromise: Promise<string> | null = null;
+  private oecdRowsPromise: Promise<BlsObservationRow[]> | null = null;
 
   constructor(
     private readonly fetchImpl: typeof fetch = fetch,
     private readonly onLog: (line: string) => void = console.warn,
+    private readonly now: () => Date = () => new Date(),
   ) {}
 
   async loadSeries(
@@ -106,12 +119,24 @@ export class BlsPublicDataClient implements BlsPublicDataClientLike {
       }
     }
 
+    if (!this.bulkFailure) {
+      try {
+        const rows = await this.loadBulkRows(seriesId);
+        return rows.filter((row) => Number(row.year) >= startYear && Number(row.year) <= endYear);
+      } catch (error) {
+        this.bulkFailure = asError(error);
+        this.onLog(
+          `BLS bulk download unavailable (${this.bulkFailure.message}); falling back to OECD national CPI SDMX`,
+        );
+      }
+    }
+
     try {
-      const rows = await this.loadBulkRows(seriesId);
+      const rows = await this.loadOecdRows(seriesId);
       return rows.filter((row) => Number(row.year) >= startYear && Number(row.year) <= endYear);
     } catch (error) {
       throw new Error(
-        `BLS CPI retrieval failed: GET API: ${this.getApiFailure?.message ?? 'not attempted'}; POST API: ${this.postApiFailure?.message ?? 'not attempted'}; bulk: ${asError(error).message}`,
+        `BLS CPI retrieval failed: GET API: ${this.getApiFailure?.message ?? 'not attempted'}; POST API: ${this.postApiFailure?.message ?? 'not attempted'}; bulk: ${this.bulkFailure?.message ?? 'not attempted'}; OECD: ${asError(error).message}`,
       );
     }
   }
@@ -167,6 +192,188 @@ export class BlsPublicDataClient implements BlsPublicDataClientLike {
     });
     return this.bulkTextPromise.then((value) => parseBlsBulkFile(value, seriesId));
   }
+
+  private loadOecdRows(seriesId: string): Promise<BlsObservationRow[]> {
+    if (seriesId !== US_HEADLINE_CPI_BLS_SERIES_ID) {
+      return Promise.reject(
+        new Error(`OECD fallback does not represent the requested BLS series ${seriesId}`),
+      );
+    }
+    this.oecdRowsPromise ??= this.fetchImpl(OECD_US_CPI_URL, {
+      headers: {
+        accept: 'text/csv',
+        'user-agent': BLS_REQUEST_HEADERS['user-agent'],
+      },
+      signal: AbortSignal.timeout(60_000),
+    }).then(async (response) => {
+      if (!response.ok) {
+        throw new Error(`official SDMX endpoint returned HTTP ${response.status}`);
+      }
+      const rows = parseOecdUsCpiCsv(await response.text(), oecdMinimumRecentPeriod(this.now()));
+      const first = rows[0];
+      if (first?.year !== '2005' || first.period !== 'M01') {
+        throw new Error('official SDMX series did not start at the requested period 2005-01');
+      }
+      const last = rows.at(-1);
+      this.onLog(
+        `OECD US CPI fallback loaded ${rows.length} monthly observations (200501..${last?.year}${last?.period.slice(1)})`,
+      );
+      return rows;
+    });
+    return this.oecdRowsPromise;
+  }
+}
+
+const OECD_REQUIRED_DIMENSIONS = {
+  REF_AREA: 'USA',
+  FREQ: 'M',
+  METHODOLOGY: 'N',
+  MEASURE: 'CPI',
+  UNIT_MEASURE: 'IX',
+  EXPENDITURE: '_T',
+  ADJUSTMENT: 'N',
+  TRANSFORMATION: '_Z',
+  BASE_PER: OECD_US_CPI_BASE_PERIOD,
+} as const;
+
+/**
+ * Parses OECD's exact US CPI SDMX series and restores BLS's native 1982-84=100 scale.
+ *
+ * OECD rebases the same national CPI observations to 2015=100, so the conversion uses BLS's
+ * published 2015 annual average. Dimensions, base period, duplicates, undocumented gaps and
+ * freshness are all checked before any values are accepted.
+ */
+export function parseOecdUsCpiCsv(value: string, minimumRecentPeriod: string): BlsObservationRow[] {
+  if (!/^\d{4}-(?:0[1-9]|1[0-2])$/.test(minimumRecentPeriod)) {
+    throw new Error(`Invalid OECD CPI freshness period ${minimumRecentPeriod}`);
+  }
+  const csvRows = parseCsvRows(value);
+  const headers = csvRows[0];
+  if (!headers) {
+    throw new Error('OECD CPI SDMX response was empty');
+  }
+  const headerIndexes = new Map(headers.map((header, index) => [header, index]));
+  const requiredHeaders = [...Object.keys(OECD_REQUIRED_DIMENSIONS), 'TIME_PERIOD', 'OBS_VALUE'];
+  for (const header of requiredHeaders) {
+    if (!headerIndexes.has(header)) {
+      throw new Error(`OECD CPI SDMX response omitted required column ${header}`);
+    }
+  }
+
+  const observations = new Map<string, BlsObservationRow>();
+  for (const [rowIndex, columns] of csvRows.slice(1).entries()) {
+    if (columns.every((column) => column === '')) {
+      continue;
+    }
+    for (const [dimension, expected] of Object.entries(OECD_REQUIRED_DIMENSIONS)) {
+      const actual = columns[headerIndexes.get(dimension)!];
+      if (actual !== expected) {
+        throw new Error(
+          `OECD CPI row ${rowIndex + 2} had ${dimension}=${actual ?? '<missing>'}, expected ${expected}`,
+        );
+      }
+    }
+    const period = columns[headerIndexes.get('TIME_PERIOD')!];
+    if (!period || !/^\d{4}-(?:0[1-9]|1[0-2])$/.test(period)) {
+      throw new Error(`OECD CPI row ${rowIndex + 2} had invalid TIME_PERIOD=${period ?? ''}`);
+    }
+    if (observations.has(period)) {
+      throw new Error(`OECD CPI returned duplicate period ${period}`);
+    }
+    const sourceValue = Number(columns[headerIndexes.get('OBS_VALUE')!]);
+    if (!Number.isFinite(sourceValue) || sourceValue <= 0 || sourceValue >= 1_000) {
+      throw new Error(`OECD CPI returned an invalid value for ${period}`);
+    }
+    const restored = roundToThreeDecimals((sourceValue * BLS_US_CPI_2015_ANNUAL_AVERAGE) / 100);
+    observations.set(period, {
+      year: period.slice(0, 4),
+      period: `M${period.slice(5, 7)}`,
+      value: restored.toFixed(3),
+    });
+  }
+
+  const periods = [...observations.keys()].sort();
+  if (periods.length === 0) {
+    throw new Error(`OECD CPI SDMX series ${OECD_US_CPI_SERIES_PATH} returned no observations`);
+  }
+  for (let index = 1; index < periods.length; index += 1) {
+    const previous = periods[index - 1]!;
+    let expected = nextDashedMonth(previous);
+    while (
+      BLS_US_CPI_INTENTIONALLY_UNPUBLISHED_PERIODS.has(expected) &&
+      periods[index] !== expected
+    ) {
+      expected = nextDashedMonth(expected);
+    }
+    if (periods[index] !== expected) {
+      throw new Error(`OECD CPI series has a gap after ${previous}; expected ${expected}`);
+    }
+  }
+  const latest = periods.at(-1)!;
+  if (latest < minimumRecentPeriod) {
+    throw new Error(
+      `OECD CPI series is stale at ${latest}; expected at least ${minimumRecentPeriod}`,
+    );
+  }
+  return periods.map((period) => observations.get(period)!);
+}
+
+function parseCsvRows(value: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = '';
+  let quoted = false;
+  const input = value.replace(/^\uFEFF/, '');
+  for (let index = 0; index < input.length; index += 1) {
+    const character = input[index]!;
+    if (quoted) {
+      if (character === '"' && input[index + 1] === '"') {
+        field += '"';
+        index += 1;
+      } else if (character === '"') {
+        quoted = false;
+      } else {
+        field += character;
+      }
+    } else if (character === '"') {
+      quoted = true;
+    } else if (character === ',') {
+      row.push(field);
+      field = '';
+    } else if (character === '\n') {
+      row.push(field.replace(/\r$/, ''));
+      rows.push(row);
+      row = [];
+      field = '';
+    } else {
+      field += character;
+    }
+  }
+  if (quoted) {
+    throw new Error('OECD CPI SDMX response contained an unterminated CSV quote');
+  }
+  if (field !== '' || row.length > 0) {
+    row.push(field.replace(/\r$/, ''));
+    rows.push(row);
+  }
+  return rows;
+}
+
+function oecdMinimumRecentPeriod(now: Date): string {
+  const currentMonth = shanghaiDate(now).slice(0, 6);
+  const year = Number(currentMonth.slice(0, 4));
+  const monthIndex = Number(currentMonth.slice(4, 6)) - 1;
+  const minimum = new Date(Date.UTC(year, monthIndex - 2, 1));
+  return `${minimum.getUTCFullYear()}-${String(minimum.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
+function nextDashedMonth(period: string): string {
+  const next = new Date(Date.UTC(Number(period.slice(0, 4)), Number(period.slice(5, 7)), 1));
+  return `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
+function roundToThreeDecimals(value: number): number {
+  return Math.round((value + Number.EPSILON) * 1_000) / 1_000;
 }
 
 /** Parses one exact series from BLS's tab-separated CPI All Items bulk file. */
