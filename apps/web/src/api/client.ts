@@ -186,6 +186,7 @@ import type {
   ResearchCuratorDispositionV1,
   ResearchCuratorFindingV1,
   ResearchCuratorRunV1,
+  ResearchCuratorVerificationAssessmentV1,
   ResearchPlanSpecV1,
   ResearchRunRecordV1,
   ResearchRunResultV1,
@@ -340,12 +341,15 @@ export function getResearchCuratorRun(runId: string): Promise<ResearchCuratorRun
 
 export function updateResearchCuratorFinding(
   findingId: string,
-  disposition: Exclude<ResearchCuratorDispositionV1, 'pending'>,
-  note?: string,
+  input: {
+    disposition?: Exclude<ResearchCuratorDispositionV1, 'pending'>;
+    note?: string;
+    verificationAssessment?: ResearchCuratorVerificationAssessmentV1;
+  },
 ): Promise<ResearchCuratorFindingV1> {
   return request(`/api/app/research/curator/findings/${encodeURIComponent(findingId)}`, {
     method: 'PATCH',
-    body: JSON.stringify({ disposition, ...(note ? { note } : {}) }),
+    body: JSON.stringify(input),
   });
 }
 

@@ -11,10 +11,10 @@ import * as turnBus from '../agent/turn-bus.js';
 import { localeFromRequest, m } from '../i18n/index.js';
 import { researchCapabilityCatalog } from '../research/catalog.js';
 import {
-  curatorDispositionSchema,
+  curatorFindingUpdateSchema,
   getLatestResearchCuratorRun,
   getResearchCuratorRun,
-  setResearchCuratorFindingDisposition,
+  updateResearchCuratorFindingFeedback,
 } from '../research/curator.js';
 import { executeResearchPlan } from '../research/executor.js';
 import {
@@ -88,14 +88,13 @@ researchRoute.get('/curator/runs/:runId', async (c) => {
 
 researchRoute.patch(
   '/curator/findings/:findingId',
-  validateJson(curatorDispositionSchema),
+  validateJson(curatorFindingUpdateSchema),
   async (c) => {
     const input = c.req.valid('json');
-    const finding = await setResearchCuratorFindingDisposition(
+    const finding = await updateResearchCuratorFindingFeedback(
       c.var.userId,
       c.req.param('findingId'),
-      input.disposition,
-      input.note,
+      input,
     );
     return finding
       ? c.json(finding)

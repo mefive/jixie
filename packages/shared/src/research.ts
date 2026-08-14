@@ -756,6 +756,10 @@ export interface ResearchCuratorVerificationMatchV1 {
     | 'research_protocol'
     | 'local_data_table'
     | 'tushare_api'
+    | 'code_reference'
+    | 'help_article'
+    | 'roadmap_item'
+    | 'design_document'
     | 'prior_finding';
   id: string;
 }
@@ -763,8 +767,41 @@ export interface ResearchCuratorVerificationMatchV1 {
 export type ResearchCuratorVerificationNoteV1 =
   | 'local_capability_match'
   | 'tushare_catalog_match_requires_smoke_check'
+  | 'tushare_probe_available'
+  | 'tushare_probe_permission_denied'
+  | 'tushare_probe_empty'
   | 'tushare_api_unverified'
-  | 'local_capability_unverified';
+  | 'local_capability_unverified'
+  | 'repository_reference_match';
+
+export interface ResearchCuratorVerificationEvidenceV1 {
+  stance: 'supports' | 'limits';
+  kind: 'catalog' | 'probe' | 'repository';
+  reference: string;
+  detailZh: string;
+  detailEn: string;
+}
+
+export type ResearchCuratorVerificationAssessmentV1 = 'correct' | 'incorrect';
+
+export interface ResearchCuratorQualityMetricsV1 {
+  totalFindings: number;
+  pending: number;
+  deferred: number;
+  reviewed: number;
+  accepted: number;
+  rejected: number;
+  duplicates: number;
+  duplicatesSkipped: number;
+  acceptanceRate: number | null;
+  duplicateRate: number | null;
+  verificationAssessments: number;
+  verificationErrors: number;
+  verificationErrorRate: number | null;
+  evaluationReady: boolean;
+  minimumReviewedFindings: number;
+  minimumVerificationAssessments: number;
+}
 
 export interface ResearchCuratorFindingV1 {
   version: 1;
@@ -778,6 +815,7 @@ export interface ResearchCuratorFindingV1 {
     status: 'verified' | 'partial' | 'unverified' | 'duplicate';
     matches: ResearchCuratorVerificationMatchV1[];
     notes: ResearchCuratorVerificationNoteV1[];
+    evidence: ResearchCuratorVerificationEvidenceV1[];
   };
   confidence: number;
   expectedValue: string;
@@ -787,6 +825,8 @@ export interface ResearchCuratorFindingV1 {
   disposition: ResearchCuratorDispositionV1;
   dispositionNote?: string;
   disposedAt?: string;
+  verificationAssessment?: ResearchCuratorVerificationAssessmentV1;
+  verificationAssessedAt?: string;
   createdAt: string;
 }
 
@@ -801,6 +841,7 @@ export interface ResearchCuratorRunV1 {
   evidenceCount: number;
   findingsCreated: number;
   duplicatesSkipped: number;
+  quality: ResearchCuratorQualityMetricsV1;
   error?: string;
   findings: ResearchCuratorFindingV1[];
   createdAt: string;

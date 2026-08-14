@@ -31,6 +31,22 @@ const finding = {
       { kind: 'research_protocol', id: 'time_series_relationship' },
     ],
     notes: ['local_capability_match'],
+    evidence: [
+      {
+        stance: 'supports',
+        kind: 'catalog',
+        reference: 'research-measure:market.adjusted_close',
+        detailZh: '研究能力目录已有“复权收盘价”指标。',
+        detailEn: 'The research capability catalog already contains adjusted close.',
+      },
+      {
+        stance: 'supports',
+        kind: 'repository',
+        reference: 'apps/docs/src/content/help/zh/basics/time-series-relationships.md:8',
+        detailZh: '帮助中心已有时间序列关系研究说明。',
+        detailEn: 'The help center contains a time-series relationship guide.',
+      },
+    ],
   },
   confidence: 0.91,
   expectedValue: '把重复需求变为确定、可测试、可重跑的通用研究流程。',
@@ -51,6 +67,24 @@ const runningRun = {
   evidenceCount: 0,
   findingsCreated: 0,
   duplicatesSkipped: 0,
+  quality: {
+    totalFindings: 0,
+    pending: 0,
+    deferred: 0,
+    reviewed: 0,
+    accepted: 0,
+    rejected: 0,
+    duplicates: 0,
+    duplicatesSkipped: 0,
+    acceptanceRate: null,
+    duplicateRate: null,
+    verificationAssessments: 0,
+    verificationErrors: 0,
+    verificationErrorRate: null,
+    evaluationReady: false,
+    minimumReviewedFindings: 20,
+    minimumVerificationAssessments: 20,
+  },
   findings: [],
   createdAt: now,
 };
@@ -61,6 +95,13 @@ const doneRun = {
   evidenceCount: 7,
   findingsCreated: 1,
   duplicatesSkipped: 2,
+  quality: {
+    ...runningRun.quality,
+    totalFindings: 1,
+    pending: 1,
+    duplicatesSkipped: 2,
+    duplicateRate: 2 / 3,
+  },
   findings: [finding],
 };
 
@@ -116,7 +157,26 @@ try {
   });
   await page.route('**/api/app/research/curator/findings/curator-finding-1', (route) => {
     const input = route.request().postDataJSON();
-    finding.disposition = input.disposition;
+    if (input.disposition) {
+      finding.disposition = input.disposition;
+      doneRun.quality = {
+        ...doneRun.quality,
+        pending: 0,
+        reviewed: 1,
+        accepted: input.disposition === 'accepted' ? 1 : 0,
+        rejected: input.disposition === 'rejected' ? 1 : 0,
+        acceptanceRate: input.disposition === 'accepted' ? 1 : 0,
+      };
+    }
+    if (input.verificationAssessment) {
+      finding.verificationAssessment = input.verificationAssessment;
+      doneRun.quality = {
+        ...doneRun.quality,
+        verificationAssessments: 1,
+        verificationErrors: input.verificationAssessment === 'incorrect' ? 1 : 0,
+        verificationErrorRate: input.verificationAssessment === 'incorrect' ? 1 : 0,
+      };
+    }
     doneRun.findings = [finding];
     latestRun = doneRun;
     return route.fulfill({
@@ -135,11 +195,35 @@ try {
   await page.getByRole('button', { name: '开始整理' }).click();
   const card = page.locator('.jx-researchCurator-finding').filter({ hasText: finding.title });
   await card.waitFor({ timeout: 10_000 });
+  await card.getByRole('button', { name: '核验正确' }).click();
+  await page.waitForFunction(() => {
+    const buttons = [...document.querySelectorAll('button')];
+    return (
+      buttons.some((button) => button.textContent?.includes('核验正确') && button.disabled) &&
+      buttons.some((button) => button.textContent?.includes('核验有误') && !button.disabled)
+    );
+  });
+  if (!(await card.getByRole('button', { name: '核验正确' }).isDisabled())) {
+    throw new Error('Curator verification assessment was not retained');
+  }
   await card.getByRole('button', { name: '接受' }).click();
-  await card.getByRole('button', { name: '接受' }).waitFor({ state: 'visible' });
+  await page.waitForFunction(() => {
+    const buttons = [...document.querySelectorAll('button')];
+    return (
+      buttons.some((button) => button.textContent?.trim() === '接受' && button.disabled) &&
+      buttons.some((button) => button.textContent?.trim() === '拒绝' && !button.disabled)
+    );
+  });
   if (!(await card.getByRole('button', { name: '接受' }).isDisabled())) {
     throw new Error('accepted Curator disposition was not retained');
   }
+  const drawerBody = page.locator('.jx-researchCurator .ant-drawer-body');
+  await drawerBody.evaluate((element) => {
+    element.scrollTop = 0;
+  });
+  await page.waitForTimeout(100);
+  await page.screenshot({ path: `${SHOTS}research-curator-summary-zh.png`, fullPage: true });
+  await card.scrollIntoViewIfNeeded();
   await page.screenshot({ path: `${SHOTS}research-curator-zh.png`, fullPage: true });
 
   await page.getByLabel('Close').click();
@@ -152,17 +236,20 @@ try {
   await page.screenshot({ path: `${SHOTS}research-curator-en.png`, fullPage: true });
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.waitForTimeout(250);
+  await page.waitForTimeout(650);
   const drawerBox = await page.locator('.jx-researchCurator').boundingBox();
   if (!drawerBox || drawerBox.width > 392 || drawerBox.x < -2) {
     throw new Error(
       `research Curator drawer overflows mobile viewport: ${JSON.stringify(drawerBox)}`,
     );
   }
+  await page.locator('.jx-researchCurator .ant-drawer-body').evaluate((element) => {
+    element.scrollTop = 0;
+  });
   await page.screenshot({ path: `${SHOTS}research-curator-mobile.png`, fullPage: true });
 
   console.log(
-    '[research-curator-e2e] manual run, polling, evidence, verification, disposition, and bilingual guardrails passed',
+    '[research-curator-e2e] manual run, polling, quality, verification evidence, assessment, disposition, and bilingual guardrails passed',
   );
 } finally {
   await browser.close();

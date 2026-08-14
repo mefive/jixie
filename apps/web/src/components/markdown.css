@@ -61,16 +61,46 @@
   background: rgb(17 24 39 / 0.08);
 }
 
-.jx-md pre {
-  @apply rounded-lg;
+.jx-md-plainCode {
+  @apply overflow-x-auto rounded-lg;
+  margin: 16px 0;
   padding: 8px 10px;
   background: rgb(17 24 39 / 0.06);
 }
 
-.jx-md pre code {
+.jx-md-plainCode code {
   background: transparent;
   font-size: 12px;
   line-height: 1.6;
+}
+
+.jx-md-codeBlock {
+  @apply max-w-full overflow-hidden rounded-lg;
+  margin: 16px 0;
+}
+
+.jx-md-codeBlockHeader {
+  @apply border border-b-0 border-line;
+}
+
+.jx-md-codeBlockLanguage {
+  @apply uppercase tracking-wide text-muted;
+  font-size: 12px;
+}
+
+.jx-md-codeBlockBody {
+  @apply overflow-x-auto;
+}
+
+.jx-md-codeBlockBody pre {
+  min-width: max-content;
+  padding: 12px 14px !important;
+}
+
+.jx-md-codeBlockBody code {
+  background: transparent;
+  font-size: 13px !important;
+  line-height: 1.7 !important;
 }
 
 .jx-md .block-katex {

@@ -1,5 +1,10 @@
-import { addDays } from '../lib/date.js';
 import { TushareError, type TushareRow } from './client.js';
+import {
+  TUSHARE_CAPABILITIES,
+  TUSHARE_CAPABILITY_CATALOG_VERSION,
+  type TushareCapabilityDomain,
+  type TushareCapabilityProbeCoverage,
+} from './capability-catalog.js';
 
 export type AssetAllocationProbeStatus =
   | 'ok'
@@ -9,17 +14,29 @@ export type AssetAllocationProbeStatus =
   | 'network_error';
 
 export interface AssetAllocationProbeDefinition {
-  domain: 'etf' | 'rates' | 'commodity' | 'macro';
+  version?: number;
+  domain: TushareCapabilityDomain;
   apiName: string;
+  history?: {
+    field?: string;
+    probeCoverage: TushareCapabilityProbeCoverage;
+  };
   params: (probeDate: string) => Record<string, unknown>;
 }
 
 export interface AssetAllocationProbeResult {
+  catalogVersion: number;
   domain: AssetAllocationProbeDefinition['domain'];
   apiName: string;
   status: AssetAllocationProbeStatus;
   rowCount: number;
   fields: string[];
+  history?: {
+    field: string;
+    start: string;
+    end: string;
+    coverage: TushareCapabilityProbeCoverage;
+  };
   sample?: TushareRow;
   errorCode?: number;
   errorMessage?: string;
@@ -34,63 +51,8 @@ export interface AssetAllocationProbeClient {
  * Parameters deliberately request one date where possible so a permission check cannot become a
  * large accidental download. Empty results are distinct from permission and transport failures.
  */
-export const ASSET_ALLOCATION_PROBES: readonly AssetAllocationProbeDefinition[] = [
-  { domain: 'etf', apiName: 'etf_share_size', params: (date) => ({ trade_date: date }) },
-  { domain: 'rates', apiName: 'yc_cb', params: (date) => ({ trade_date: date }) },
-  { domain: 'rates', apiName: 'shibor', params: (date) => ({ date }) },
-  { domain: 'rates', apiName: 'repo_daily', params: (date) => ({ trade_date: date }) },
-  {
-    domain: 'rates',
-    apiName: 'shibor_lpr',
-    params: (date) => ({ start_date: `${date.slice(0, 6)}01`, end_date: date }),
-  },
-  {
-    domain: 'commodity',
-    apiName: 'fut_index_daily',
-    params: (date) => ({ ts_code: 'NHCI.NH', trade_date: date }),
-  },
-  { domain: 'commodity', apiName: 'sge_basic', params: () => ({}) },
-  { domain: 'commodity', apiName: 'sge_daily', params: (date) => ({ trade_date: date }) },
-  {
-    domain: 'commodity',
-    apiName: 'fut_basic',
-    params: () => ({ exchange: 'SHFE', fut_type: '1' }),
-  },
-  {
-    domain: 'commodity',
-    apiName: 'fut_daily',
-    params: (date) => ({ exchange: 'SHFE', trade_date: date }),
-  },
-  {
-    domain: 'commodity',
-    apiName: 'fut_mapping',
-    params: (date) => ({ exchange: 'SHFE', trade_date: date }),
-  },
-  { domain: 'commodity', apiName: 'fut_wsr', params: (date) => ({ trade_date: date }) },
-  {
-    domain: 'commodity',
-    apiName: 'fut_holding',
-    params: (date) => ({ exchange: 'SHFE', trade_date: date }),
-  },
-  { domain: 'macro', apiName: 'cn_pmi', params: () => ({}) },
-  { domain: 'macro', apiName: 'cn_gdp', params: () => ({}) },
-  { domain: 'macro', apiName: 'cn_cpi', params: () => ({}) },
-  { domain: 'macro', apiName: 'cn_ppi', params: () => ({}) },
-  { domain: 'macro', apiName: 'sf_month', params: () => ({}) },
-  { domain: 'macro', apiName: 'cn_m', params: () => ({}) },
-  { domain: 'macro', apiName: 'us_tycr', params: (date) => ({ date }) },
-  { domain: 'macro', apiName: 'us_trycr', params: (date) => ({ date }) },
-  {
-    domain: 'macro',
-    apiName: 'fx_daily',
-    params: (date) => ({
-      ts_code: 'USDCNH.FXCM',
-      start_date: addDays(date, -10),
-      end_date: date,
-    }),
-  },
-  { domain: 'macro', apiName: 'cn_schedule', params: (date) => ({ date }) },
-];
+export const ASSET_ALLOCATION_PROBES: readonly AssetAllocationProbeDefinition[] =
+  TUSHARE_CAPABILITIES;
 
 export async function probeAssetAllocationData(
   client: AssetAllocationProbeClient,
@@ -102,17 +64,21 @@ export async function probeAssetAllocationData(
     try {
       const rows = await client.call(definition.apiName, definition.params(probeDate));
       const sample = rows[0];
+      const history = observedHistory(rows, definition.history);
       results.push({
+        catalogVersion: definition.version ?? TUSHARE_CAPABILITY_CATALOG_VERSION,
         domain: definition.domain,
         apiName: definition.apiName,
         status: sample ? 'ok' : 'empty',
         rowCount: rows.length,
         fields: sample ? Object.keys(sample) : [],
+        ...(history ? { history } : {}),
         ...(sample ? { sample } : {}),
       });
     } catch (error) {
       if (error instanceof TushareError) {
         results.push({
+          catalogVersion: definition.version ?? TUSHARE_CAPABILITY_CATALOG_VERSION,
           domain: definition.domain,
           apiName: definition.apiName,
           status: permissionFailure(error) ? 'permission_denied' : 'request_error',
@@ -123,6 +89,7 @@ export async function probeAssetAllocationData(
         });
       } else {
         results.push({
+          catalogVersion: definition.version ?? TUSHARE_CAPABILITY_CATALOG_VERSION,
           domain: definition.domain,
           apiName: definition.apiName,
           status: 'network_error',
@@ -134,6 +101,31 @@ export async function probeAssetAllocationData(
     }
   }
   return results;
+}
+
+function observedHistory(
+  rows: TushareRow[],
+  history: AssetAllocationProbeDefinition['history'],
+): AssetAllocationProbeResult['history'] | undefined {
+  if (!history?.field) {
+    return undefined;
+  }
+  const values = rows
+    .map((row) => row[history.field!])
+    .filter(
+      (value): value is string | number => typeof value === 'string' || typeof value === 'number',
+    )
+    .map(String)
+    .sort();
+  if (values.length === 0) {
+    return undefined;
+  }
+  return {
+    field: history.field,
+    start: values[0]!,
+    end: values.at(-1)!,
+    coverage: history.probeCoverage,
+  };
 }
 
 function permissionFailure(error: TushareError): boolean {

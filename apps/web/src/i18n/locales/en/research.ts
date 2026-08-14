@@ -47,6 +47,17 @@ export const enResearch: typeof zhResearch = {
       findings: 'new candidates',
       duplicates: 'duplicates skipped',
     },
+    quality: {
+      title: 'Human-feedback quality',
+      ready: 'Sample ready to evaluate',
+      collecting: 'Collecting samples',
+      acceptance: 'Candidate acceptance',
+      duplicates: 'Duplicate rate',
+      verificationErrors: 'Verification error rate',
+      reviewedSample: '{{count}} reviewed / {{minimum}} minimum',
+      duplicateSample: '{{count}} duplicate(s)',
+      verificationSample: '{{count}} assessed / {{minimum}} minimum',
+    },
     category: {
       protocol_candidate: 'Protocol candidate',
       supplier_data_gap: 'Supplier data gap',
@@ -73,10 +84,28 @@ export const enResearch: typeof zhResearch = {
         'Matched against the registered research catalog or read-only local data catalog.',
       tushare_catalog_match_requires_smoke_check:
         'The API name exists in the versioned Tushare probe catalog; current permission, fields, and history still require a read-only smoke check.',
+      tushare_probe_available:
+        'The latest read-only probe succeeded and recorded returned fields and the observed history range.',
+      tushare_probe_permission_denied:
+        'The latest read-only probe confirms that the current token lacks permission.',
+      tushare_probe_empty:
+        'The latest read-only probe returned no rows, so availability is not confirmed.',
       tushare_api_unverified:
         'No API matched the versioned Tushare probe catalog; supplier availability remains unverified.',
       local_capability_unverified:
         'No registered local capability matched this candidate; manual verification is required.',
+      repository_reference_match:
+        'Read-only search found a related code, help, ROADMAP, or design reference.',
+    },
+    verificationEvidence: 'Verification evidence',
+    verificationStance: {
+      supports: 'Supports',
+      limits: 'Limits',
+    },
+    verificationFeedback: {
+      label: 'Was this automated verification correct?',
+      correct: 'Correct',
+      incorrect: 'Incorrect',
     },
     evidence: 'Source evidence',
     disposition: {
