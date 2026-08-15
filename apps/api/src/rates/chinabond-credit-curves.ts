@@ -21,6 +21,9 @@ export const CHINABOND_PUBLIC_CURVES = [
 ] as const;
 
 const HISTORY_ENDPOINT = 'https://yield.chinabond.com.cn/cbweb-pbc-web/pbc/historyDown';
+const RETRYABLE_HTTP_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504]);
+const RETRY_DELAYS_MS = [1_000, 3_000] as const;
+const MAX_FETCH_ATTEMPTS = RETRY_DELAYS_MS.length + 1;
 const CURVE_CODE_BY_NAME = new Map<string, ChinaBondCreditCurvePoint['curveCode']>(
   CHINABOND_PUBLIC_CURVES.map((curve) => [curve.curveName, curve.curveCode]),
 );
@@ -52,6 +55,8 @@ export class ChinaBondPublicCurveClient implements ChinaBondCreditCurveClient {
   public constructor(
     private readonly timeoutMs = 60_000,
     private readonly fetchImpl: typeof fetch = fetch,
+    private readonly onLog: (line: string) => void = console.warn,
+    private readonly delay: (milliseconds: number) => Promise<void> = sleep,
   ) {}
 
   public async fetchRange(
@@ -66,27 +71,66 @@ export class ChinaBondPublicCurveClient implements ChinaBondCreditCurveClient {
       qxId: 'ycqx',
       locale: 'cn_ZH',
     });
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
-    try {
-      const response = await this.fetchImpl(`${HISTORY_ENDPOINT}?${parameters}`, {
-        headers: {
-          accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-          'user-agent': 'jixie-research/1.0 (source attribution: ChinaBond)',
-        },
-        signal: controller.signal,
-      });
-      if (!response.ok) {
-        throw new Error(`ChinaBond public curve source returned HTTP ${response.status}`);
+    const workbook = await this.fetchWorkbook(`${HISTORY_ENDPOINT}?${parameters}`);
+    return parseChinaBondCurveWorkbook(workbook, startDate, endDate);
+  }
+
+  private async fetchWorkbook(url: string): Promise<Uint8Array> {
+    let lastError: Error | null = null;
+    for (let attempt = 1; attempt <= MAX_FETCH_ATTEMPTS; attempt += 1) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
+      try {
+        const response = await this.fetchImpl(url, {
+          headers: {
+            accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'user-agent': 'jixie-research/1.0 (source attribution: ChinaBond)',
+          },
+          signal: controller.signal,
+        });
+        if (response.ok) {
+          return new Uint8Array(await response.arrayBuffer());
+        }
+        const detail = await response.text();
+        const statusError = new ChinaBondHttpStatusError(
+          response.status,
+          `ChinaBond public curve source returned HTTP ${response.status}${httpBodySuffix(detail)}`,
+        );
+        if (!RETRYABLE_HTTP_STATUSES.has(response.status)) {
+          throw statusError;
+        }
+        lastError = statusError;
+      } catch (error) {
+        if (
+          error instanceof ChinaBondHttpStatusError &&
+          !RETRYABLE_HTTP_STATUSES.has(error.status)
+        ) {
+          throw error;
+        }
+        lastError = diagnosticError(error);
+      } finally {
+        clearTimeout(timeout);
       }
-      return parseChinaBondCurveWorkbook(
-        new Uint8Array(await response.arrayBuffer()),
-        startDate,
-        endDate,
+
+      if (attempt === MAX_FETCH_ATTEMPTS) {
+        break;
+      }
+      const delayMilliseconds = RETRY_DELAYS_MS[attempt - 1]!;
+      this.onLog(
+        `ChinaBond public curve attempt ${attempt}/${MAX_FETCH_ATTEMPTS} failed (${lastError.message}); retrying in ${delayMilliseconds}ms`,
       );
-    } finally {
-      clearTimeout(timeout);
+      await this.delay(delayMilliseconds);
     }
+    throw lastError ?? new Error('ChinaBond public curve source failed without an error');
+  }
+}
+
+class ChinaBondHttpStatusError extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
+    super(message);
   }
 }
 
@@ -335,4 +379,28 @@ function addCalendarDays(date: string, days: number): string {
     ),
   );
   return value.toISOString().slice(0, 10).replaceAll('-', '');
+}
+
+function diagnosticError(error: unknown): Error {
+  const failure = error instanceof Error ? error : new Error(String(error));
+  const cause = failure.cause;
+  if (cause == null) {
+    return new Error(`ChinaBond public curve request failed: ${failure.message}`);
+  }
+  const causeRecord = typeof cause === 'object' ? (cause as Record<string, unknown>) : null;
+  const causeCode = typeof causeRecord?.code === 'string' ? causeRecord.code : null;
+  const causeMessage = cause instanceof Error ? cause.message : String(cause);
+  const causeDetail = [causeCode, causeMessage].filter((value) => value != null).join(': ');
+  return new Error(
+    `ChinaBond public curve request failed: ${failure.message}${causeDetail === '' ? '' : ` (${causeDetail})`}`,
+  );
+}
+
+function httpBodySuffix(value: string): string {
+  const detail = value.replace(/\s+/g, ' ').trim().slice(0, 160);
+  return detail === '' ? '' : `: ${detail}`;
+}
+
+function sleep(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
