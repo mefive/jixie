@@ -1,6 +1,9 @@
 import { strToU8, zipSync } from 'fflate';
 import { describe, expect, it } from 'vitest';
-import { parseChinaBondCurveWorkbook } from './chinabond-credit-curves.js';
+import {
+  ChinaBondPublicCurveClient,
+  parseChinaBondCurveWorkbook,
+} from './chinabond-credit-curves.js';
 
 describe('ChinaBond public credit curves', () => {
   it('parses exact published terms from the official workbook without interpolation', () => {
@@ -51,6 +54,69 @@ describe('ChinaBond public credit curves', () => {
         '20260731',
       ),
     ).toThrow(/unknown header/);
+  });
+
+  it('retries network and transient HTTP failures while preserving the underlying cause', async () => {
+    const workbook = workbookFixture([
+      ['中债国债收益率曲线', '2026-07-31', '', '', '', '', '1.55', '', '', ''],
+      ['中债商业银行普通债收益率曲线(AAA)', '2026-07-31', '', '', '', '', '1.82', '', '', ''],
+      ['中债中短期票据收益率曲线(AAA)', '2026-07-31', '', '', '', '', '1.93', '', '', ''],
+    ]);
+    const requests: string[] = [];
+    let attempt = 0;
+    const fetchImpl: typeof fetch = async (input) => {
+      requests.push(String(input));
+      attempt += 1;
+      if (attempt === 1) {
+        throw new TypeError('fetch failed', {
+          cause: Object.assign(new Error('Connect Timeout Error'), {
+            code: 'UND_ERR_CONNECT_TIMEOUT',
+          }),
+        });
+      }
+      if (attempt === 2) {
+        return new Response('temporary upstream error', { status: 503 });
+      }
+      return new Response(workbook);
+    };
+    const delays: number[] = [];
+    const logs: string[] = [];
+    const client = new ChinaBondPublicCurveClient(
+      60_000,
+      fetchImpl,
+      (line) => logs.push(line),
+      async (milliseconds) => {
+        delays.push(milliseconds);
+      },
+    );
+
+    await expect(client.fetchRange('20260731', '20260731')).resolves.toHaveLength(3);
+
+    expect(requests).toHaveLength(3);
+    expect(requests[0]).toContain('startDate=2026-07-31&endDate=2026-07-31');
+    expect(delays).toEqual([1_000, 3_000]);
+    expect(logs).toEqual([
+      'ChinaBond public curve attempt 1/3 failed (ChinaBond public curve request failed: fetch failed (UND_ERR_CONNECT_TIMEOUT: Connect Timeout Error)); retrying in 1000ms',
+      'ChinaBond public curve attempt 2/3 failed (ChinaBond public curve source returned HTTP 503: temporary upstream error); retrying in 3000ms',
+    ]);
+  });
+
+  it('does not retry a non-transient HTTP rejection', async () => {
+    let requests = 0;
+    const client = new ChinaBondPublicCurveClient(
+      60_000,
+      async () => {
+        requests += 1;
+        return new Response('Access Denied', { status: 403 });
+      },
+      () => {},
+      async () => {},
+    );
+
+    await expect(client.fetchRange('20260731', '20260731')).rejects.toThrow(
+      'ChinaBond public curve source returned HTTP 403: Access Denied',
+    );
+    expect(requests).toBe(1);
   });
 });
 
