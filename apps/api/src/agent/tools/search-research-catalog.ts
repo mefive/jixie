@@ -13,6 +13,7 @@ import {
 } from '../../research/concepts.js';
 import type { AgentTool } from './types.js';
 import { researchSourceDecisions } from '../../research/source-decisions.js';
+import { compactCrossMarketDataContractRegistry } from '../../research/cross-market-data-contracts.js';
 
 const filtersSchema = z.strictObject({
   sourceKinds: z
@@ -377,6 +378,7 @@ export const searchResearchCatalogTool: AgentTool = {
         interpretation,
         conceptRegistryVersion: 1,
         bindingRegistryVersion: 1,
+        crossMarketData: compactCrossMarketDataContractRegistry(),
         conceptMatches,
         matches,
         capabilities,

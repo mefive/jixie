@@ -177,6 +177,63 @@ describe('research curator', () => {
     });
   });
 
+  it('verifies planned cross-market contracts without claiming the candidate source is integrated', async () => {
+    const cursorTo = new Date('2026-08-14T02:00:00.000Z');
+    await database.agentMessage.create({
+      data: {
+        id: 'message-us-source',
+        conversationId: 'conversation-b',
+        role: 'user',
+        parts: [
+          {
+            type: 'text',
+            text: '请评估 us.equity.adjusted_close.daily 与 tushare.us_equity。',
+          },
+        ],
+        sequence: 1,
+        createdAt: new Date('2026-08-14T01:30:00.000Z'),
+      },
+    });
+    await database.researchCuratorRun.create({
+      data: { id: 'run-us-source', userId: 'user-b', cursorTo },
+    });
+    const run = await executeResearchCuratorRun('run-us-source', {
+      database,
+      llm: async () =>
+        JSON.stringify({
+          findings: [
+            {
+              category: 'supplier_data_gap',
+              title: 'Review the Tushare US equity candidate',
+              summary: 'US equity research needs us_daily_adj and an audited local contract.',
+              evidenceIds: ['message:message-us-source'],
+              confidence: 0.85,
+              expectedValue: 'Avoid treating a documented API as integrated local data.',
+              changeSurface: ['cross-market data'],
+              suggestedAction: 'Run the registered permission and coverage checks.',
+            },
+          ],
+        }),
+    });
+
+    expect(run.findings[0]).toMatchObject({
+      verification: {
+        status: 'verified',
+        matches: expect.arrayContaining([
+          { kind: 'data_contract', id: 'us.equity.adjusted_close.daily' },
+          { kind: 'data_source_decision', id: 'tushare.us_equity' },
+        ]),
+        notes: expect.arrayContaining(['cross_market_contract_match', 'source_decision_match']),
+        evidence: expect.arrayContaining([
+          expect.objectContaining({
+            stance: 'limits',
+            reference: 'source-decision:v1:tushare.us_equity',
+          }),
+        ]),
+      },
+    });
+  });
+
   it('uses the latest persisted supplier probe and records independent verification feedback', async () => {
     await database.tushareCapabilityProbe.create({
       data: {

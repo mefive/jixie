@@ -896,6 +896,8 @@ export interface ResearchCuratorVerificationMatchV1 {
   kind:
     | 'research_measure'
     | 'research_protocol'
+    | 'data_contract'
+    | 'data_source_decision'
     | 'local_data_table'
     | 'tushare_api'
     | 'code_reference'
@@ -914,6 +916,8 @@ export type ResearchCuratorVerificationNoteV1 =
   | 'tushare_probe_empty'
   | 'tushare_api_unverified'
   | 'local_capability_unverified'
+  | 'cross_market_contract_match'
+  | 'source_decision_match'
   | 'repository_reference_match';
 
 export interface ResearchCuratorVerificationEvidenceV1 {
