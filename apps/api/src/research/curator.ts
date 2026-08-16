@@ -24,6 +24,7 @@ import {
   type StoredTushareCapabilityProbe,
 } from '../tushare/capability-probe-store.js';
 import { researchCapabilityCatalog } from './catalog.js';
+import { crossMarketDataContractRegistry } from './cross-market-data-contracts.js';
 import {
   searchCuratorRepositoryReferences,
   type CuratorRepositoryReference,
@@ -473,6 +474,46 @@ function verifyDraft(
       });
     }
   }
+  for (const contract of crossMarketDataContractRegistry.contracts) {
+    const aliases = [contract.id, contract.nameZh, contract.nameEn, ...contract.keywords];
+    if (aliases.some((alias) => haystack.includes(alias.toLowerCase()))) {
+      matches.push({ kind: 'data_contract', id: contract.id });
+      verificationEvidence.push({
+        stance: contract.status === 'integrated' ? 'supports' : 'limits',
+        kind: 'catalog',
+        reference: `cross-market-contract:v${contract.version}:${contract.id}`,
+        detailZh:
+          contract.status === 'integrated'
+            ? `跨市场契约已登记“${contract.nameZh}”，市场 ${contract.market}，时区 ${contract.calendar.timeZone}，报价币种 ${contract.currency.quoteCurrency ?? '不适用'}。`
+            : `跨市场契约已规划“${contract.nameZh}”，但尚未形成可执行的本地数据能力。`,
+        detailEn:
+          contract.status === 'integrated'
+            ? `The cross-market registry contains the integrated “${contract.nameEn}” contract for ${contract.market}, ${contract.calendar.timeZone}, quote currency ${contract.currency.quoteCurrency ?? 'not applicable'}.`
+            : `The cross-market registry plans “${contract.nameEn}”, but it is not yet an executable local-data capability.`,
+      });
+      notes.add('cross_market_contract_match');
+    }
+  }
+  for (const decision of crossMarketDataContractRegistry.sourceDecisions) {
+    const aliases = [decision.id, decision.nameZh, decision.nameEn, ...decision.keywords];
+    if (aliases.some((alias) => haystack.includes(alias.toLowerCase()))) {
+      matches.push({ kind: 'data_source_decision', id: decision.id });
+      verificationEvidence.push({
+        stance: decision.status === 'integrated' ? 'supports' : 'limits',
+        kind: 'catalog',
+        reference: `source-decision:v${decision.version}:${decision.id}`,
+        detailZh:
+          decision.status === 'integrated'
+            ? `数据源矩阵已登记可运行来源“${decision.nameZh}”；再分发权状态为 ${decision.license.redistribution}。`
+            : `数据源矩阵仅把“${decision.nameZh}”列为候选；${decision.decision}`,
+        detailEn:
+          decision.status === 'integrated'
+            ? `The source matrix registers the operational source “${decision.nameEn}”; redistribution remains ${decision.license.redistribution}.`
+            : `The source matrix lists “${decision.nameEn}” only as a candidate. ${decision.decision}`,
+      });
+      notes.add('source_decision_match');
+    }
+  }
   for (const tableName of Object.keys(SQL_TABLE_DOCS)) {
     if (haystack.includes(tableName.toLowerCase())) {
       matches.push({ kind: 'local_data_table', id: tableName });
@@ -541,7 +582,13 @@ function verifyDraft(
     ...new Map(matches.map((match) => [`${match.kind}:${match.id}`, match])).values(),
   ];
   const locallyVerified = unique.some((match) =>
-    ['research_measure', 'research_protocol', 'local_data_table'].includes(match.kind),
+    [
+      'research_measure',
+      'research_protocol',
+      'data_contract',
+      'data_source_decision',
+      'local_data_table',
+    ].includes(match.kind),
   );
   const repositoryMatched = repositoryReferences.length > 0;
   if (locallyVerified) {

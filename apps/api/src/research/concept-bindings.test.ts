@@ -33,9 +33,29 @@ describe('researchConceptBindingRegistry', () => {
       expect.objectContaining({
         source: { kind: 'macro', seriesKey: 'us_cpi_u_all_items_nsa' },
         measure: 'macro.observation',
-        contract: expect.objectContaining({ unit: 'index_1982_1984_100' }),
+        contract: expect.objectContaining({
+          id: 'us.macro.cpi.monthly.pit',
+          version: 1,
+          unit: 'index_1982_1984_100',
+        }),
       }),
     ]);
+  });
+
+  it('derives every binding contract from the cross-market registry', () => {
+    expect(
+      researchConceptBindings('commodity.gold.price').map((binding) => binding.contract.id),
+    ).toEqual(
+      expect.arrayContaining([
+        'cn.commodity_future.continuous.daily',
+        'cn.etf.adjusted_close.daily',
+      ]),
+    );
+    expect(
+      researchConceptBindings('rates.us_treasury.nominal').every(
+        (binding) => binding.contract.id === 'us.sovereign_yield.daily',
+      ),
+    ).toBe(true);
   });
 
   it('binds nominal and real yields only to their own exact curves', () => {

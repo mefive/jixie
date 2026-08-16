@@ -1,14 +1,11 @@
-import type { ResearchFrequencyV1, ResearchSeriesSourceV1 } from '@jixie/shared';
+import type { ResearchSeriesSourceV1 } from '@jixie/shared';
 import type { ResearchConceptId } from './concepts.js';
+import {
+  researchBindingDataContract,
+  type ResearchBindingDataContractProjectionV1,
+} from './cross-market-data-contracts.js';
 
-export interface ResearchBindingDataContractV1 {
-  frequency: ResearchFrequencyV1;
-  unit: string;
-  currency: string | null;
-  sourceTimeZone: string;
-  availabilityPolicy: string;
-  revisionPolicy: string;
-}
+export type ResearchBindingDataContractV1 = ResearchBindingDataContractProjectionV1;
 
 /** An audited allow-list entry from one semantic concept to one executable local series. */
 export interface ResearchConceptBindingV1 {
@@ -27,43 +24,13 @@ export interface ResearchConceptBindingV1 {
   selectionNoteEn: string;
 }
 
-const chinaMarketPriceContract: ResearchBindingDataContractV1 = {
-  frequency: 'daily',
-  unit: 'quote_currency',
-  currency: 'CNY',
-  sourceTimeZone: 'Asia/Shanghai',
-  availabilityPolicy: 'available after the registered China-market close',
-  revisionPolicy: 'not_revised',
-};
-
-const usYieldContract: ResearchBindingDataContractV1 = {
-  frequency: 'daily',
-  unit: 'percent',
-  currency: null,
-  sourceTimeZone: 'America/New_York',
-  availabilityPolicy: 'first SSE session strictly later than the source-market date',
-  revisionPolicy: 'not_revised',
-};
-
-const chinaMacroContract: ResearchBindingDataContractV1 = {
-  frequency: 'monthly',
-  unit: 'percent',
-  currency: null,
-  sourceTimeZone: 'Asia/Shanghai',
-  availabilityPolicy: 'official release date when known, otherwise a documented conservative lag',
-  revisionPolicy: 'captured vintages with latest_value_backfill disclosure for historical imports',
-};
-
-const usBlsMacroContract: ResearchBindingDataContractV1 = {
-  frequency: 'monthly',
-  unit: 'index_1982_1984_100',
-  currency: null,
-  sourceTimeZone: 'America/New_York',
-  availabilityPolicy:
-    'official release date is not present in the source response; month-end plus 20 days and the first matching SSE session is used as a documented conservative lag',
-  revisionPolicy:
-    'latest-value historical backfill with subsequently captured value-change vintages',
-};
+const chinaEtfPriceContract = researchBindingDataContract('cn.etf.adjusted_close.daily');
+const chinaCommodityFutureContract = researchBindingDataContract(
+  'cn.commodity_future.continuous.daily',
+);
+const usYieldContract = researchBindingDataContract('us.sovereign_yield.daily');
+const chinaMacroContract = researchBindingDataContract('cn.macro.monthly.pit');
+const usBlsMacroContract = researchBindingDataContract('us.macro.cpi.monthly.pit');
 
 const goldInstrumentBindings: ResearchConceptBindingV1[] = [
   instrumentBinding({
@@ -209,6 +176,8 @@ function instrumentBinding(input: {
   noteZh: string;
   noteEn: string;
 }): ResearchConceptBindingV1 {
+  const contract =
+    input.assetType === 'future' ? chinaCommodityFutureContract : chinaEtfPriceContract;
   return {
     id: input.id,
     version: 1,
@@ -220,7 +189,7 @@ function instrumentBinding(input: {
     measureVersion: 1,
     proxyKind: input.proxyKind,
     priority: input.priority,
-    contract: chinaMarketPriceContract,
+    contract,
     selectionNoteZh: input.noteZh,
     selectionNoteEn: input.noteEn,
   };
