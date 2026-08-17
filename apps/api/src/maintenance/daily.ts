@@ -13,6 +13,10 @@ import {
 } from '../commodity/commodity-warehouse-receipt-maintenance.js';
 import { loadTushareConfig } from '../config.js';
 import { prisma } from '../lib/prisma.js';
+import {
+  syncCrossMarketBenchmarks,
+  type CrossMarketBenchmarkSyncSummary,
+} from '../market/cross-market-benchmarks.js';
 import { syncMarketIndicators } from '../market/sync-market-indicators.js';
 import {
   ChinaBondPublicCurveClient,
@@ -80,6 +84,7 @@ export interface DailyMaintenanceSummary {
   commodityHoldingPositions: CommodityHoldingSyncSummary | null;
   commodityContinuousReturns: CommodityContinuousReturnSyncSummary | null;
   externalMarketDrivers: ExternalMarketSyncSummary | null;
+  crossMarketBenchmarks: CrossMarketBenchmarkSyncSummary | null;
   creditCurves: number | null;
   signals: { deployments: number; done: number; errors: number } | null;
 }
@@ -146,6 +151,7 @@ export async function runDailyMaintenance(
         commodityHoldingPositions: null,
         commodityContinuousReturns: null,
         externalMarketDrivers: null,
+        crossMarketBenchmarks: null,
         creditCurves: null,
         signals: null,
       };
@@ -167,6 +173,7 @@ export async function runDailyMaintenance(
         commodityHoldingPositions: null,
         commodityContinuousReturns: null,
         externalMarketDrivers: null,
+        crossMarketBenchmarks: null,
         creditCurves: null,
         signals: null,
       };
@@ -217,6 +224,7 @@ export async function runDailyMaintenance(
     commodityHoldingPositions: null,
     commodityContinuousReturns: null,
     externalMarketDrivers: null,
+    crossMarketBenchmarks: null,
     creditCurves: null,
     signals: null,
   };
@@ -265,6 +273,13 @@ export async function runDailyMaintenance(
       onLog,
     );
     summary.externalMarketDrivers = await refreshExternalMarketDrivers(
+      client,
+      cutoff,
+      run.id,
+      summary,
+      onLog,
+    );
+    summary.crossMarketBenchmarks = await refreshCrossMarketBenchmarks(
       client,
       cutoff,
       run.id,
@@ -415,6 +430,7 @@ async function initializePublishedBaseline(
     commodityHoldingPositions: null,
     commodityContinuousReturns: null,
     externalMarketDrivers: null,
+    crossMarketBenchmarks: null,
     creditCurves: null,
     signals: null,
   };
@@ -501,6 +517,7 @@ async function runSignalOnlyMaintenance(
     commodityHoldingPositions: null,
     commodityContinuousReturns: null,
     externalMarketDrivers: null,
+    crossMarketBenchmarks: null,
     creditCurves: null,
     signals: null,
   };
@@ -546,6 +563,13 @@ async function runSignalOnlyMaintenance(
       summary,
       onLog,
     );
+    summary.crossMarketBenchmarks = await refreshCrossMarketBenchmarks(
+      client,
+      cutoff,
+      run.id,
+      summary,
+      onLog,
+    );
     summary.creditCurves = await refreshCreditCurves(cutoff, run.id, summary, onLog);
     await updateMaintenanceRun(run.id, 'signals', summary);
     summary.signals = await generateDailySignals(cutoff, onLog);
@@ -571,6 +595,17 @@ async function refreshExternalMarketDrivers(
 ): Promise<ExternalMarketSyncSummary> {
   await updateMaintenanceRun(runId, 'external_market_drivers', summary);
   return syncExternalMarketDrivers(client, addCalendarDays(cutoff, -14), cutoff, onLog);
+}
+
+async function refreshCrossMarketBenchmarks(
+  client: TushareClient,
+  cutoff: string,
+  runId: string,
+  summary: DailyMaintenanceSummary,
+  onLog: (line: string) => void,
+): Promise<CrossMarketBenchmarkSyncSummary> {
+  await updateMaintenanceRun(runId, 'cross_market_benchmarks', summary);
+  return syncCrossMarketBenchmarks(client, addCalendarDays(cutoff, -14), cutoff, onLog);
 }
 
 async function refreshCreditCurves(

@@ -10,7 +10,9 @@ export const US_REAL_CURVE_CODE = 'us_treasury_real';
 export const US_REAL_CURVE_NAME = '美国国债实际收益率曲线';
 export const US_TREASURY_CURVE_TYPE = 'par';
 export const USD_CNH_CODE = 'USDCNH.FXCM';
+export const USD_HKD_CODE = 'USDHKD.FXCM';
 export const FXCM_EXCHANGE = 'FXCM';
+export const EXTERNAL_FX_CODES = [USD_CNH_CODE, USD_HKD_CODE] as const;
 
 const NOMINAL_TERMS = [
   { field: 'm1', termYears: 1 / 12 },
@@ -69,6 +71,7 @@ export interface ExternalMarketSyncSummary {
   nominalCurvePoints: number;
   realCurvePoints: number;
   fxBars: number;
+  fxBarsByCode: Record<string, number>;
 }
 
 /** Parse a Tushare US Treasury response without interpolating absent tenors. */
@@ -124,6 +127,16 @@ export function parseUsdCnhRows(
   startDate: string,
   endDate: string,
 ): ExternalFxDailyBar[] {
+  return parseExternalFxRows(rows, USD_CNH_CODE, startDate, endDate);
+}
+
+/** Parse one declared FXCM pair without silently accepting a different pair or inverted quotes. */
+export function parseExternalFxRows(
+  rows: TushareRow[],
+  expectedCode: (typeof EXTERNAL_FX_CODES)[number],
+  startDate: string,
+  endDate: string,
+): ExternalFxDailyBar[] {
   assertDateRange(startDate, endDate);
   const dates = new Set<string>();
   const bars: ExternalFxDailyBar[] = [];
@@ -131,15 +144,15 @@ export function parseUsdCnhRows(
     const tsCode = stringField(row, 'ts_code');
     const tradeDate = stringField(row, 'trade_date');
     if (
-      tsCode !== USD_CNH_CODE ||
+      tsCode !== expectedCode ||
       !isDate(tradeDate) ||
       tradeDate < startDate ||
       tradeDate > endDate
     ) {
-      throw new Error(`Tushare USD/CNH returned invalid identity ${tsCode} ${tradeDate}`);
+      throw new Error(`Tushare ${expectedCode} returned invalid identity ${tsCode} ${tradeDate}`);
     }
     if (dates.has(tradeDate)) {
-      throw new Error(`Tushare USD/CNH returned duplicate date ${tradeDate}`);
+      throw new Error(`Tushare ${expectedCode} returned duplicate date ${tradeDate}`);
     }
     dates.add(tradeDate);
     const bar = {
@@ -168,7 +181,7 @@ export function parseUsdCnhRows(
       bar.bidHigh > bar.askHigh ||
       bar.bidLow > bar.askLow
     ) {
-      throw new Error(`Tushare USD/CNH returned invalid quotes on ${tradeDate}`);
+      throw new Error(`Tushare ${expectedCode} returned invalid quotes on ${tradeDate}`);
     }
     bars.push(bar);
   }
@@ -202,9 +215,10 @@ export async function syncExternalMarketDrivers(
     nominalCurvePoints: 0,
     realCurvePoints: 0,
     fxBars: 0,
+    fxBarsByCode: Object.fromEntries(EXTERNAL_FX_CODES.map((code) => [code, 0])),
   };
   for (const range of yearlyRanges(startDate, endDate)) {
-    const [nominalRows, realRows, fxRows, calendarRows] = await Promise.all([
+    const [nominalRows, realRows, fxRowGroups, calendarRows] = await Promise.all([
       client.call(
         'us_tycr',
         { start_date: range.startDate, end_date: range.endDate },
@@ -215,10 +229,14 @@ export async function syncExternalMarketDrivers(
         { start_date: range.startDate, end_date: range.endDate },
         REAL_FIELDS,
       ),
-      client.call(
-        'fx_daily',
-        { ts_code: USD_CNH_CODE, start_date: range.startDate, end_date: range.endDate },
-        FX_FIELDS,
+      Promise.all(
+        EXTERNAL_FX_CODES.map((code) =>
+          client.call(
+            'fx_daily',
+            { ts_code: code, start_date: range.startDate, end_date: range.endDate },
+            FX_FIELDS,
+          ),
+        ),
       ),
       prisma.tradeCal.findMany({
         where: {
@@ -239,9 +257,11 @@ export async function syncExternalMarketDrivers(
       parseExternalYieldCurveRows(realRows, 'real', range.startDate, range.endDate),
       openDates,
     );
-    const fx = assignExternalAvailableDates(
-      parseUsdCnhRows(fxRows, range.startDate, range.endDate),
-      openDates,
+    const fxByCode = EXTERNAL_FX_CODES.map((code, index) =>
+      assignExternalAvailableDates(
+        parseExternalFxRows(fxRowGroups[index]!, code, range.startDate, range.endDate),
+        openDates,
+      ),
     );
     const retrievedAt = new Date();
     await replaceCurveRange(
@@ -260,22 +280,24 @@ export async function syncExternalMarketDrivers(
       real,
       retrievedAt,
     );
-    if (fx.length > 0) {
-      await prisma.$transaction([
-        prisma.fxDaily.deleteMany({
-          where: {
-            tsCode: USD_CNH_CODE,
-            tradeDate: { gte: range.startDate, lte: range.endDate },
-          },
-        }),
-        prisma.fxDaily.createMany({ data: fx.map((bar) => ({ ...bar, retrievedAt })) }),
-      ]);
+    for (let index = 0; index < EXTERNAL_FX_CODES.length; index++) {
+      const code = EXTERNAL_FX_CODES[index]!;
+      const fx = fxByCode[index]!;
+      if (fx.length > 0) {
+        await prisma.$transaction([
+          prisma.fxDaily.deleteMany({
+            where: { tsCode: code, tradeDate: { gte: range.startDate, lte: range.endDate } },
+          }),
+          prisma.fxDaily.createMany({ data: fx.map((bar) => ({ ...bar, retrievedAt })) }),
+        ]);
+      }
+      summary.fxBars += fx.length;
+      summary.fxBarsByCode[code] = (summary.fxBarsByCode[code] ?? 0) + fx.length;
     }
     summary.nominalCurvePoints += nominal.length;
     summary.realCurvePoints += real.length;
-    summary.fxBars += fx.length;
     onLog(
-      `External drivers ${range.startDate}..${range.endDate}: ${nominal.length} nominal points, ${real.length} real points, ${fx.length} USD/CNH bars`,
+      `External drivers ${range.startDate}..${range.endDate}: ${nominal.length} nominal points, ${real.length} real points, ${fxByCode.map((rows, index) => `${rows.length} ${EXTERNAL_FX_CODES[index]} bars`).join(', ')}`,
     );
   }
   return summary;

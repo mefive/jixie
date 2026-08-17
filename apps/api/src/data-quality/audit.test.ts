@@ -3,6 +3,7 @@ import {
   analyzeCalendarCoverage,
   findSharpRowCountDrops,
   selectEvaluationDates,
+  summarizeCrossMarketBenchmarkPit,
   summarizeExternalMarketPit,
   summarizeCreditCurvePit,
   summarizeMacroPit,
@@ -146,6 +147,12 @@ describe('data quality audit helpers', () => {
             availableDate: '20260730',
             validValue: false,
           },
+          {
+            seriesKey: 'USDHKD.FXCM',
+            tradeDate: '20260730',
+            availableDate: '20260731',
+            validValue: true,
+          },
         ],
         new Set(['20260731', '20260803']),
       ),
@@ -185,6 +192,47 @@ describe('data quality audit helpers', () => {
       invalidValueRows: 0,
       latestAvailableDate: '20260731',
       staleSeries: ['chinabond_bank_aaa_ytm'],
+    });
+  });
+
+  it('applies the local-close and strictly-later cross-market availability rules separately', () => {
+    expect(
+      summarizeCrossMarketBenchmarkPit(
+        [
+          {
+            benchmarkId: 'equity.cn.csi300.price',
+            market: 'CN',
+            tradeDate: '20260730',
+            availableDate: '20260730',
+            close: 4500,
+          },
+          {
+            benchmarkId: 'equity.hk.hsi.price',
+            market: 'HK',
+            tradeDate: '20260730',
+            availableDate: '20260731',
+            close: 25000,
+          },
+          {
+            benchmarkId: 'equity.us.spx.price',
+            market: 'US',
+            tradeDate: '20260730',
+            availableDate: '20260731',
+            close: 7000,
+          },
+        ],
+        new Set(['20260730', '20260731']),
+      ),
+    ).toEqual({
+      missingBenchmarks: [],
+      invalidAvailabilityRows: 0,
+      nonTradingAvailabilityRows: 0,
+      invalidValueRows: 0,
+      latestAvailableByBenchmark: {
+        'equity.cn.csi300.price': '20260730',
+        'equity.hk.hsi.price': '20260731',
+        'equity.us.spx.price': '20260731',
+      },
     });
   });
 });

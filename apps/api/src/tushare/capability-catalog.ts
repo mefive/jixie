@@ -1,6 +1,6 @@
 import { addDays } from '../lib/date.js';
 
-export type TushareCapabilityDomain = 'etf' | 'rates' | 'commodity' | 'macro';
+export type TushareCapabilityDomain = 'equity' | 'etf' | 'rates' | 'commodity' | 'macro';
 export type TushareCapabilityFrequency = 'reference' | 'event' | 'daily' | 'monthly' | 'quarterly';
 export type TushareCapabilityProbeCoverage =
   | 'single_date'
@@ -31,6 +31,27 @@ export interface TushareCapabilityDefinitionV1 {
 export const TUSHARE_CAPABILITY_CATALOG_VERSION = 1;
 
 export const TUSHARE_CAPABILITIES: readonly TushareCapabilityDefinitionV1[] = [
+  capability({
+    domain: 'equity',
+    apiName: 'index_global',
+    nameZh: '国际主要股票价格指数',
+    nameEn: 'Major international equity price indices',
+    keywords: ['恒生指数', '标普500', 'HSI', 'SPX', 'global index'],
+    requiredFields: [
+      'ts_code',
+      'trade_date',
+      'open',
+      'high',
+      'low',
+      'close',
+      'pre_close',
+      'change',
+      'pct_chg',
+    ],
+    permission: { kind: 'points', minimumPoints: 6000, documentedAsOf: '2026-08-16' },
+    history: { frequency: 'daily', field: 'trade_date', probeCoverage: 'bounded_window' },
+    params: (date) => ({ ts_code: 'HSI', start_date: addDays(date, -10), end_date: date }),
+  }),
   capability({
     domain: 'etf',
     apiName: 'etf_share_size',
@@ -285,7 +306,7 @@ export const TUSHARE_CAPABILITIES: readonly TushareCapabilityDefinitionV1[] = [
     apiName: 'fx_daily',
     nameZh: '外汇日行情',
     nameEn: 'Foreign-exchange daily quote',
-    keywords: ['美元人民币', 'USD/CNH', '汇率', 'foreign exchange'],
+    keywords: ['美元人民币', '美元港币', 'USD/CNH', 'USD/HKD', '汇率', 'foreign exchange'],
     requiredFields: [
       'ts_code',
       'trade_date',

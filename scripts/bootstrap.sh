@@ -232,6 +232,42 @@ commodity_etf_coverage() {
   "
 }
 
+cross_market_proxy_coverage() {
+  local database_file="$1"
+  local expected_end="$2"
+
+  sqlite3 "$database_file" "
+    WITH candidates(code, latest_first_date, minimum_rows) AS (
+      VALUES
+        ('510300.SH', '20120601', 3000),
+        ('159920.SZ', '20121026', 2800),
+        ('513500.SH', '20140120', 2500)
+    ),
+    coverage AS (
+      SELECT
+        candidates.code,
+        candidates.latest_first_date,
+        candidates.minimum_rows,
+        min(daily.\"tradeDate\") AS first_date,
+        max(daily.\"tradeDate\") AS last_date,
+        count(daily.\"tradeDate\") AS daily_rows,
+        count(adjustment.\"tradeDate\") AS adjustment_rows
+      FROM candidates
+      LEFT JOIN \"EtfDaily\" AS daily ON daily.\"tsCode\" = candidates.code
+      LEFT JOIN \"EtfAdjFactor\" AS adjustment
+        ON adjustment.\"tsCode\" = daily.\"tsCode\"
+       AND adjustment.\"tradeDate\" = daily.\"tradeDate\"
+      GROUP BY candidates.code, candidates.latest_first_date, candidates.minimum_rows
+    )
+    SELECT count(*)
+    FROM coverage
+    WHERE first_date <= latest_first_date
+      AND last_date >= '$expected_end'
+      AND daily_rows >= minimum_rows
+      AND adjustment_rows = daily_rows;
+  "
+}
+
 macro_series_coverage() {
   local database_file="$1"
 
@@ -301,6 +337,14 @@ external_market_coverage() {
         count(*)
       FROM \"FxDaily\"
       WHERE \"tsCode\" = 'USDCNH.FXCM'
+      UNION ALL
+      SELECT
+        'USDHKD.FXCM',
+        min(\"tradeDate\"),
+        max(\"availableDate\"),
+        count(*)
+      FROM \"FxDaily\"
+      WHERE \"tsCode\" = 'USDHKD.FXCM'
     )
     SELECT count(*)
     FROM coverage
@@ -309,9 +353,41 @@ external_market_coverage() {
         (series_key IN ('us_treasury_nominal', 'us_treasury_real')
           AND first_date <= '20050103' AND observation_rows >= 4000)
         OR
-        (series_key = 'USDCNH.FXCM'
+        (series_key IN ('USDCNH.FXCM', 'USDHKD.FXCM')
           AND first_date <= '20120218' AND observation_rows >= 2000)
       );
+  "
+}
+
+cross_market_benchmark_coverage() {
+  local database_file="$1"
+  local expected_end="$2"
+
+  sqlite3 "$database_file" "
+    WITH required(benchmark_id, latest_first_date, minimum_rows) AS (
+      VALUES
+        ('equity.cn.csi300.price', '20050105', 4000),
+        ('equity.hk.hsi.price', '20050105', 4000),
+        ('equity.us.spx.price', '20050105', 4000)
+    ),
+    coverage AS (
+      SELECT
+        required.benchmark_id,
+        required.latest_first_date,
+        required.minimum_rows,
+        min(daily.\"tradeDate\") AS first_date,
+        max(daily.\"availableDate\") AS last_available,
+        count(daily.\"tradeDate\") AS observation_rows
+      FROM required
+      LEFT JOIN \"MarketBenchmarkDaily\" AS daily
+        ON daily.\"benchmarkId\" = required.benchmark_id
+      GROUP BY required.benchmark_id, required.latest_first_date, required.minimum_rows
+    )
+    SELECT count(*)
+    FROM coverage
+    WHERE first_date <= latest_first_date
+      AND last_available >= '$expected_end'
+      AND observation_rows >= minimum_rows;
   "
 }
 
@@ -965,18 +1041,47 @@ EXTERNAL_MARKET_SYNC_END="$(
   sqlite3 "$DB_FILE" 'SELECT max("tradeDate") FROM "Daily";' 2>/dev/null || true
 )"
 [[ "$EXTERNAL_MARKET_SYNC_END" =~ ^[0-9]{8}$ ]] || die "无法确定外部市场数据同步截止日"
+CROSS_MARKET_PROXY_COMPLETE="$(
+  cross_market_proxy_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
+)"
+if [[ "$CROSS_MARKET_PROXY_COMPLETE" -ne 3 ]]; then
+  log "补全沪深300、恒生和标普500可交易 ETF 代理: 20120501 ~ $EXTERNAL_MARKET_SYNC_END"
+  pnpm --filter api sync:etf 20120501 "$EXTERNAL_MARKET_SYNC_END" \
+    510300.SH,159920.SZ,513500.SH refresh
+  CROSS_MARKET_PROXY_COMPLETE="$(
+    cross_market_proxy_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
+  )"
+  [[ "$CROSS_MARKET_PROXY_COMPLETE" -eq 3 ]] || die "跨市场可交易 ETF 代理回填后仍不完整"
+else
+  log "跨市场可交易 ETF 代理历史覆盖完整,跳过回填"
+fi
+
 EXTERNAL_MARKET_COMPLETE="$(
   external_market_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
 )"
-if [[ "$EXTERNAL_MARKET_COMPLETE" -ne 3 ]]; then
-  log "补全美国名义/实际国债曲线和 USD/CNH: 20050101 ~ $EXTERNAL_MARKET_SYNC_END"
+if [[ "$EXTERNAL_MARKET_COMPLETE" -ne 4 ]]; then
+  log "补全美国名义/实际国债曲线和 USD/CNH、USD/HKD: 20050101 ~ $EXTERNAL_MARKET_SYNC_END"
   pnpm --filter api sync:external-market 20050101 "$EXTERNAL_MARKET_SYNC_END"
   EXTERNAL_MARKET_COMPLETE="$(
     external_market_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
   )"
-  [[ "$EXTERNAL_MARKET_COMPLETE" -eq 3 ]] || die "外部市场驱动回填后仍不完整"
+  [[ "$EXTERNAL_MARKET_COMPLETE" -eq 4 ]] || die "外部市场驱动回填后仍不完整"
 else
   log "外部市场驱动历史覆盖完整,跳过回填"
+fi
+
+CROSS_MARKET_BENCHMARK_COMPLETE="$(
+  cross_market_benchmark_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
+)"
+if [[ "$CROSS_MARKET_BENCHMARK_COMPLETE" -ne 3 ]]; then
+  log "补全沪深300、恒生和标普500价格指数基准: 20050101 ~ $EXTERNAL_MARKET_SYNC_END"
+  pnpm --filter api sync:cross-market-benchmarks 20050101 "$EXTERNAL_MARKET_SYNC_END"
+  CROSS_MARKET_BENCHMARK_COMPLETE="$(
+    cross_market_benchmark_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
+  )"
+  [[ "$CROSS_MARKET_BENCHMARK_COMPLETE" -eq 3 ]] || die "跨市场价格指数基准回填后仍不完整"
+else
+  log "跨市场价格指数基准历史覆盖完整,跳过回填"
 fi
 
 CREDIT_CURVE_COMPLETE="$(

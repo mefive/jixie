@@ -12,6 +12,8 @@ export const MAJOR_ETF_CODES = [
   '510880.SH', // SSE Dividend
   '518880.SH', // Gold
   '513100.SH', // Nasdaq 100 QDII
+  '159920.SZ', // Hang Seng QDII tradable proxy
+  '513500.SH', // S&P 500 QDII tradable proxy
   '511010.SH', // 5-year government bond
   '511260.SH', // 10-year government bond
   '511090.SH', // 30-year government bond

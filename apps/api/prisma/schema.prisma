@@ -376,6 +376,54 @@ model IndexDaily {
   @@id([tsCode, tradeDate])
 }
 
+/// Canonical cross-market research benchmarks. A benchmark is an explanatory price index, not a
+/// tradable instrument; `tradableProxyTsCode` points to the separately modeled China-listed ETF
+/// used when a strategy or portfolio needs executable prices.
+model MarketBenchmark {
+  id                         String                 @id
+  provider                   String
+  providerCode               String
+  nameZh                     String
+  nameEn                     String
+  market                     String
+  currency                   String
+  timeZone                   String
+  calendarId                 String
+  observesDaylightSavingTime Boolean
+  returnType                 String
+  dataContractId             String
+  tradableProxyTsCode        String
+  tradableProxyKind          String
+  daily                      MarketBenchmarkDaily[]
+
+  @@unique([provider, providerCode])
+  @@index([market])
+}
+
+/// Raw price-index bars normalized onto the China-close study clock. `tradeDate` remains the
+/// source-market session date. For Hong Kong and US closes, `availableDate` is the first strictly
+/// later SSE session; for the China benchmark it equals the local trade date.
+model MarketBenchmarkDaily {
+  benchmarkId   String
+  tradeDate     String
+  availableDate String
+  open          Float?
+  high          Float?
+  low           Float?
+  close         Float
+  preClose      Float?
+  change        Float?
+  pctChange     Float?
+  swing         Float?
+  volume        Float?
+  retrievedAt   DateTime        @default(now())
+  benchmark     MarketBenchmark @relation(fields: [benchmarkId], references: [id], onDelete: Cascade)
+
+  @@id([benchmarkId, tradeDate])
+  @@index([availableDate])
+  @@index([benchmarkId, availableDate])
+}
+
 /// Daily valuation metrics for broad-market indices. Values come from Tushare index_dailybasic
 /// rather than being reconstructed from constituent stock PEs, so provider methodology is preserved.
 model IndexDailyBasic {

@@ -3,6 +3,8 @@ import backtestLimitationsEn from '@src/content/help/en/basics/backtest-limitati
 import backtestLimitationsZh from '@src/content/help/zh/basics/backtest-limitations.md?raw';
 import backtestSettingsEn from '@src/content/help/en/basics/backtest-settings.md?raw';
 import backtestSettingsZh from '@src/content/help/zh/basics/backtest-settings.md?raw';
+import crossMarketReturnsEn from '@src/content/help/en/basics/cross-market-returns.md?raw';
+import crossMarketReturnsZh from '@src/content/help/zh/basics/cross-market-returns.md?raw';
 import distributionComparisonEn from '@src/content/help/en/basics/distribution-comparison.md?raw';
 import distributionComparisonZh from '@src/content/help/zh/basics/distribution-comparison.md?raw';
 import eventStudyEn from '@src/content/help/en/basics/event-study.md?raw';
@@ -348,6 +350,22 @@ export const HELP_ARTICLES: HelpArticle[] = [
     content: {
       zh: timeSeriesRelationshipsZh,
       en: timeSeriesRelationshipsEn,
+    },
+  },
+  {
+    slug: 'basics/cross-market-returns',
+    group: 'basics',
+    title: {
+      zh: '怎样比较中港美市场收益',
+      en: 'How to compare China, Hong Kong, and US market returns',
+    },
+    summary: {
+      zh: '区分价格指数与 ETF、本币与人民币收益、汇率拆分、收盘时点和跨市场缺失日。',
+      en: 'Separate price indices from ETFs, local from CNY returns, FX legs, close timing, and cross-market holidays.',
+    },
+    content: {
+      zh: crossMarketReturnsZh,
+      en: crossMarketReturnsEn,
     },
   },
   {

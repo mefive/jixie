@@ -39,7 +39,7 @@ export const SQL_TABLE_DOCS: Record<string, string> = {
   YieldCurvePoint:
     'source, curveCode, curveName, curveType, tradeDate(source-market curve date), availableDate(first eligible SSE research date; mandatory PIT gate), termYears(years), yieldPct(%), retrievedAt — normalized sovereign and credit yield curves including mof_cgb_ytm, us_treasury_nominal, us_treasury_real, chinabond_cgb_ytm, chinabond_bank_aaa_ytm, and chinabond_cp_note_aaa_ytm; research must filter availableDate<=decision date; ChinaBond and US curves are first usable on the strictly later SSE session; a 10Y−2Y slope is (yieldPct10−yieldPct2)×100 bp, while a credit spread must subtract chinabond_cgb_ytm from the chosen AAA curve on the exact same tradeDate and termYears without interpolation',
   FxDaily:
-    'tsCode(USDCNH.FXCM), tradeDate(provider GMT date), availableDate(first strictly later SSE session; mandatory PIT gate), exchange(FXCM), bidOpen/bidClose/bidHigh/bidLow, askOpen/askClose/askHigh/askLow(CNH per USD), tickQty, retrievedAt — raw USD/CNH daily quotes; derive the research close as (bidClose+askClose)/2 only after filtering availableDate<=decision date, and never use the same-calendar-day unfinished global FX bar for a China close signal',
+    'tsCode(USDCNH.FXCM or USDHKD.FXCM), tradeDate(provider GMT date), availableDate(first strictly later SSE session; mandatory PIT gate), exchange(FXCM), bidOpen/bidClose/bidHigh/bidLow, askOpen/askClose/askHigh/askLow(quote currency per USD), tickQty, retrievedAt — raw daily FX quotes; derive each research close as (bidClose+askClose)/2 only after filtering availableDate<=decision date, derive HKD/CNH as USDCNH divided by USDHKD on the same availability date, and never use the same-calendar-day unfinished global FX bar for a China close signal',
   MacroSeries:
     'seriesKey, nameZh, nameEn, domain(growth/inflation/liquidity/credit/etc.), frequency(daily/monthly), unit(percent/index_point/100m_cny/trillion_cny), source, sourceApi, sourceField, defaultTransform, revisionPolicy, createdAt, updatedAt — canonical macro and money-market series catalog; join MacroObservation by seriesKey and preserve the declared unit, frequency, and revision policy',
   MacroObservation:
@@ -60,6 +60,10 @@ export const SQL_TABLE_DOCS: Record<string, string> = {
   IndexWeight:
     'indexCode, conCode, tradeDate, weight — monthly index constituent snapshot (e.g. 000852.SH CSI 1000)',
   IndexDaily: 'tsCode, tradeDate, close — index daily bars (e.g. 000300.SH CSI 300)',
+  MarketBenchmark:
+    'id(stable platform benchmark id), provider, providerCode, nameZh/nameEn, market(CN/HK/US), currency(CNY/HKD/USD), timeZone, calendarId, observesDaylightSavingTime, returnType(price_return only), dataContractId, tradableProxyTsCode, tradableProxyKind — fixed cross-market research benchmark catalog; a benchmark is not tradable and its ETF proxy remains a separate instrument',
+  MarketBenchmarkDaily:
+    'benchmarkId, tradeDate(source-market session date), availableDate(China-close study clock), open/high/low/close/preClose/change/pctChange/swing/volume, retrievedAt — raw price-index bars; CN availableDate equals tradeDate, HK/US availableDate is the first strictly later SSE session; joins must use MarketBenchmark.id and research must never label these price indices total return',
   IndexDailyBasic:
     'tsCode, tradeDate, totalMv(yuan), floatMv(yuan), totalShare(shares), floatShare(shares), freeShare(shares), turnoverRate(%), turnoverRateF(% free-float), pe, peTtm, pb — provider-computed broad-market index daily valuation metrics; use only history available on or before the evaluated date when calculating valuation percentiles',
   IndexBenchmark:
