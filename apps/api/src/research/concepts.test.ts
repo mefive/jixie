@@ -9,6 +9,10 @@ describe('research concept registry', () => {
     expect(inferResearchConceptIds('treasury yield real')).toEqual(['rates.us_treasury.real']);
     expect(inferResearchConceptIds('USDCNH')).not.toContain('fx.usd_strength.dxy');
     expect(inferResearchConceptIds('美国 CPI')).toEqual(['macro.inflation.us.cpi.headline']);
+    expect(inferResearchConceptIds('恒生指数人民币收益')).toContain('equity.market.hk.benchmark');
+    expect(inferResearchConceptIds('标普500和沪深300')).toEqual(
+      expect.arrayContaining(['equity.market.us.benchmark', 'equity.market.cn.benchmark']),
+    );
   });
 
   it('keeps every playbook concept reference inside the versioned registry', () => {

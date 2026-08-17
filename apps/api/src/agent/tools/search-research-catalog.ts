@@ -14,6 +14,7 @@ import {
 import type { AgentTool } from './types.js';
 import { researchSourceDecisions } from '../../research/source-decisions.js';
 import { compactCrossMarketDataContractRegistry } from '../../research/cross-market-data-contracts.js';
+import { HKD_CNH_DERIVED_CODE } from '../../market/cross-market-benchmarks.js';
 
 const filtersSchema = z.strictObject({
   sourceKinds: z
@@ -115,6 +116,7 @@ export const searchResearchCatalogTool: AgentTool = {
       stocks,
       etfs,
       indexes,
+      marketBenchmarks,
       indexCodes,
       continuousFutures,
       futures,
@@ -148,6 +150,28 @@ export const searchResearchCatalogTool: AgentTool = {
               OR: terms.flatMap((term) => textSearch(term, ['tsCode', 'name', 'fullName'])),
             },
             select: { tsCode: true, name: true, indexType: true },
+            take: 30,
+          }),
+      terms.length === 0
+        ? Promise.resolve([])
+        : prisma.marketBenchmark.findMany({
+            where: {
+              OR: terms.flatMap((term) =>
+                textSearch(term, ['id', 'providerCode', 'nameZh', 'nameEn']),
+              ),
+            },
+            select: {
+              id: true,
+              providerCode: true,
+              nameZh: true,
+              nameEn: true,
+              market: true,
+              currency: true,
+              timeZone: true,
+              returnType: true,
+              tradableProxyTsCode: true,
+              tradableProxyKind: true,
+            },
             take: 30,
           }),
       terms.length === 0
@@ -251,6 +275,21 @@ export const searchResearchCatalogTool: AgentTool = {
           'index',
         ),
       ),
+      ...rankByTerms(marketBenchmarks, terms, (item) => compactValues(item)).map((item) =>
+        candidate(
+          {
+            ...instrumentMatch('index', item.id, item.nameZh, item),
+            providerCode: item.providerCode,
+            compatibleMeasures: [
+              measureReference('market.adjusted_close'),
+              measureReference('market.cny_close'),
+            ],
+          },
+          compactValues(item),
+          'instrument',
+          'index',
+        ),
+      ),
       ...rankByTerms(indexCodes, terms, (item) => [item.tsCode])
         .filter((item) => !knownIndexCodes.has(item.tsCode))
         .map((item) =>
@@ -319,6 +358,25 @@ export const searchResearchCatalogTool: AgentTool = {
           'fx',
         ),
       ),
+      ...(matchesTerms(
+        ['港币人民币', '港币汇率', 'hkd/cnh', 'hkd/cny', 'hkdcnh', HKD_CNH_DERIVED_CODE],
+        terms,
+      )
+        ? [
+            candidate(
+              {
+                kind: 'fx',
+                id: HKD_CNH_DERIVED_CODE,
+                exchange: 'derived_from_fxcm',
+                derivation: 'USDCNH.FXCM / USDHKD.FXCM',
+                source: { kind: 'fx', id: HKD_CNH_DERIVED_CODE },
+                compatibleMeasure: measureReference('fx.mid_close'),
+              },
+              ['港币人民币', '港币汇率', 'hkd/cnh', 'hkd/cny', 'hkdcnh', HKD_CNH_DERIVED_CODE],
+              'fx',
+            ),
+          ]
+        : []),
       ...registeredCapabilityCandidates(terms),
     ].filter((item) => candidateAllowed(item, parsed.data.filters));
     const conceptMatches = interpretation.conceptIds.map((conceptId) => {

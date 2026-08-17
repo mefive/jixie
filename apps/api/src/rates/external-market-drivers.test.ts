@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   assignExternalAvailableDates,
+  parseExternalFxRows,
   parseExternalYieldCurveRows,
   parseUsdCnhRows,
 } from './external-market-drivers.js';
@@ -111,6 +112,46 @@ describe('external market driver normalization', () => {
     expect(() => parseUsdCnhRows([{ ...row, bid_close: 6.8 }], '20260701', '20260731')).toThrow(
       'invalid quotes',
     );
+  });
+
+  it('normalizes the separately declared USD/HKD conversion leg', () => {
+    expect(
+      parseExternalFxRows(
+        [
+          {
+            ts_code: 'USDHKD.FXCM',
+            trade_date: '20260730',
+            bid_open: 7.84,
+            bid_close: 7.841,
+            bid_high: 7.842,
+            bid_low: 7.839,
+            ask_open: 7.841,
+            ask_close: 7.842,
+            ask_high: 7.843,
+            ask_low: 7.84,
+            tick_qty: 12000,
+          },
+        ],
+        'USDHKD.FXCM',
+        '20260701',
+        '20260731',
+      ),
+    ).toEqual([
+      {
+        tsCode: 'USDHKD.FXCM',
+        tradeDate: '20260730',
+        exchange: 'FXCM',
+        bidOpen: 7.84,
+        bidClose: 7.841,
+        bidHigh: 7.842,
+        bidLow: 7.839,
+        askOpen: 7.841,
+        askClose: 7.842,
+        askHigh: 7.843,
+        askLow: 7.84,
+        tickQty: 12000,
+      },
+    ]);
   });
 
   it('gates US-close data on the first strictly later SSE session', () => {

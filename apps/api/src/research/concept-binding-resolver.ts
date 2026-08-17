@@ -125,6 +125,47 @@ async function resolveInstrumentBinding(
     );
   }
   if (assetType === 'index') {
+    const [benchmark, benchmarkCoverage] = await Promise.all([
+      prisma.marketBenchmark.findUnique({
+        where: { id },
+        select: {
+          nameZh: true,
+          nameEn: true,
+          providerCode: true,
+          market: true,
+          currency: true,
+          timeZone: true,
+          returnType: true,
+          tradableProxyTsCode: true,
+          tradableProxyKind: true,
+        },
+      }),
+      prisma.marketBenchmarkDaily.aggregate({
+        where: { benchmarkId: id },
+        _count: { _all: true },
+        _min: { availableDate: true },
+        _max: { availableDate: true },
+      }),
+    ]);
+    if (benchmark) {
+      return bindingResult(
+        binding,
+        coverage(
+          benchmarkCoverage._count._all,
+          benchmarkCoverage._min.availableDate,
+          benchmarkCoverage._max.availableDate,
+          'availableDate',
+        ),
+        {
+          kind: 'instrument',
+          assetType,
+          id,
+          name: benchmark.nameZh,
+          ...benchmark,
+          compatibleMeasures: ['market.adjusted_close', 'market.cny_close'],
+        },
+      );
+    }
     const [metadata, aggregate] = await Promise.all([
       prisma.indexBenchmark.findUnique({
         where: { tsCode: id },

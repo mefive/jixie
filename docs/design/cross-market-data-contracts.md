@@ -44,6 +44,7 @@ Catalog 把紧凑契约与来源矩阵交给 Agent；Research Curator 也用同�
 V1 已登记：
 
 - 中国内地、香港、美国股票复权日线；
+- 沪深 300、恒生和标普 500 跨市场价格指数基准；
 - 中国 ETF 复权日线；
 - 中国商品期货连续序列；
 - 中美国债收益率曲线；
@@ -55,8 +56,9 @@ V1 已登记：
 1 + R_base = (1 + R_local) × (1 + R_fx)
 ```
 
-但 V1 只冻结契约，不在没有明确基准币、货币对方向和换算时点时自动换算。3.2 接入跨市场基准时必须同时保留
-`R_local`、`R_fx` 和 `R_base`，不能只保存最终结果。
+3.1 冻结公式边界；3.2 已把基准币固定为 CNY，并为跨市场指数同时保留 `R_local`、`R_fx` 和 `R_base`。
+美元使用 USDCNH，港币使用 USDCNH/USDHKD，完整实现见
+[`cross-market-benchmarks.md`](./cross-market-benchmarks.md)。
 
 ## 3. 代表性 Fixture
 
@@ -81,10 +83,11 @@ fixture 的意义是验证 contract 能表达真实差异；它们在 SourceDeci
 | 中国收益率曲线 | ChinaBond，`integrated` | 官方公开历史工作簿，历史深度由落库审计实测 | 公共端点；再分发权未核验 | 按下载日与 retrievedAt 审计，不涉及退市 | 端点偶发失败；曲线不是债券总回报 |
 | 中国商品期货 | Tushare，`integrated` | 合约资料、日结算、主力连续映射；官方目录称日线始于 1996 | 仅限个人非商业使用；商用/再分发须另行授权 | 到期合约保留，映射具 PIT | 连续代码不可直接当可交易合约 |
 | 中国 ETF | Tushare，`integrated` | 基础信息、日线与复权因子 | 仅限个人非商业使用；商用/再分发须另行授权 | 退市基金已保留；PIT 部分 | 基金费用、跟踪误差和复权因子修订不能忽略 |
+| 中港美价格指数 | Tushare，`integrated` 固定样本 | `index_daily` / `index_global`；五年切片避免 4,000 行截断 | 仅限个人非商业使用；指数商权利与再分发须另审 | 源交易日与中国研究 availableDate 分开 | 只含价格收益；指数不可交易，ETF 代理另算 |
 | 美国国债曲线 | Tushare，`integrated` | `us_tycr` / `us_trycr`，明确期限字段 | 仅限个人非商业使用；商用/再分发须另行授权 | source date → 后续 SSE availableDate | 收益率不能替代债券价格/总回报 |
 | 中国宏观 | Tushare，`integrated` | 指标接口 + 发布日历 | 仅限个人非商业使用；商用/再分发须另行授权 | release/available/vintage 分开；历史回填明确标注 | 原始发布日期缺失时只能使用保守滞后 |
 | 美国 CPI | BLS → OECD → FRED 官方同序列链，`integrated` | 精确 CPI-U All Items NSA；fallback 必须验证维度、基期、连续性和新鲜度 | 公共端点；再分发权未核验 | 后续修订捕获为 vintage；历史是 latest-value backfill | 序列响应无原始发布日期，使用保守滞后 |
-| FX | Tushare / FXCM，`integrated` 数据源 | GMT 日线 bid/ask | Tushare 仅限个人非商业使用；FXCM 权利另审 | 通过 availableDate 防止读到未完成全球日线 | 3.2 前不自动转换跨币种收益 |
+| FX | Tushare / FXCM，`integrated` 数据源 | GMT 日线 bid/ask；已验证 USDCNH / USDHKD | Tushare 仅限个人非商业使用；FXCM 权利另审 | 通过 availableDate 防止读到未完成全球日线 | HKD/CNH 为显式交叉推导，不伪装直接报价 |
 
 Tushare 现行数据服务协议明确授予的是个人、不可转让、非商业、可撤销且有期限的许可，仅供个人查看使用。
 因此当前项目可继续个人本地研究；若未来对外提供原始数据、下载、商业产品或多用户数据服务，必须取得另行
@@ -103,6 +106,7 @@ Tushare 现行数据服务协议明确授予的是个人、不可转让、非商
 - [美股复权行情](https://tushare.pro/document/2?doc_id=338)
 - [期货连续映射](https://tushare.pro/document/2?doc_id=189)
 - [外汇日线](https://tushare.pro/document/2?doc_id=179)
+- [国际主要指数日线](https://tushare.pro/document/2?doc_id=211)
 - [美国实际国债收益率曲线](https://tushare.pro/document/2?doc_id=220)
 - [BLS CPI 时间序列目录](https://download.bls.gov/pub/time.series/cu/cu.series)
 - [ChinaBond 收益率曲线历史下载](https://yield.chinabond.com.cn/cbweb-pbc-web/pbc/historyDown)
@@ -113,9 +117,12 @@ Tushare 现行数据服务协议明确授予的是个人、不可转让、非商
 
 ## 6. 与后续里程碑的边界
 
-3.1 完成的是防止语义债的地基，不包含港股/美股行情落库，也不包含跨市场基准研究。下一步 3.2 应：
+3.1 完成的是防止语义债的地基，不包含港股/美股个股行情落库。3.2 已完成以下固定基准切片：
 
 1. 选择中港美代表性基准和可交易代理；
 2. 按本契约接入各自日历、时区、报价币种和复权语义；
 3. 固定 FX 方向与换算时点，同时输出本币、FX 和基准币三段收益；
 4. 用跨市场缺失日和收盘顺序 fixture 验收 Research Plan 与风险报告。
+
+这些实现仍不放宽 3.3：国际宽基指数与中国 QDII 代理不能替代港美个股证券主数据、退市覆盖、公司行动和
+财务 PIT。

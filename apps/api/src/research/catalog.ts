@@ -124,6 +124,21 @@ const measures = [
     version: 1,
   },
   {
+    id: 'market.cny_close',
+    nameZh: '人民币计价指数水平',
+    nameEn: 'CNY-denominated index level',
+    descriptionZh:
+      '把登记的跨市场价格指数按同一可得日换算为人民币；简单收益可拆成资产本币收益与汇率收益。',
+    descriptionEn:
+      'Registered cross-market price index converted to CNY on the same availability date; simple return can be separated into local asset and FX returns.',
+    unit: 'CNY_index_level',
+    sourceKinds: ['instrument'],
+    assetTypes: ['index'],
+    transforms: ['level', 'difference', 'simple_return', 'percent_change'],
+    pointInTime: true,
+    version: 1,
+  },
+  {
     id: 'macro.observation',
     nameZh: '宏观观测值',
     nameEn: 'Macroeconomic observation',
@@ -370,8 +385,8 @@ fit = sm.OLS(aligned["outcome"], x).fit(cov_type="HAC", cov_kwds={"maxlags": hac
 pearson = aligned["predictor"].corr(aligned["outcome"], method="pearson")
 spearman = aligned["predictor"].corr(aligned["outcome"], method="spearman")`,
   helpSlugs: {
-    zh: ['/docs/help/basics/time-series-relationships'],
-    en: ['/docs/help/basics/time-series-relationships'],
+    zh: ['/docs/help/basics/time-series-relationships', '/docs/help/basics/cross-market-returns'],
+    en: ['/docs/help/basics/time-series-relationships', '/docs/help/basics/cross-market-returns'],
   },
 } satisfies ResearchProtocolDefinitionV1;
 
@@ -626,8 +641,14 @@ vif = pd.Series(
     index=X.columns[1:],
 )`,
   helpSlugs: {
-    zh: ['/docs/help/basics/multivariate-time-series-relationships'],
-    en: ['/docs/help/basics/multivariate-time-series-relationships'],
+    zh: [
+      '/docs/help/basics/multivariate-time-series-relationships',
+      '/docs/help/basics/cross-market-returns',
+    ],
+    en: [
+      '/docs/help/basics/multivariate-time-series-relationships',
+      '/docs/help/basics/cross-market-returns',
+    ],
   },
 } satisfies ResearchProtocolDefinitionV1;
 

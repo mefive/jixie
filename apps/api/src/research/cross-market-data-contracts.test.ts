@@ -113,4 +113,20 @@ describe('crossMarketDataContractRegistry', () => {
       ]),
     );
   });
+
+  it('keeps integrated price benchmarks separate from planned foreign individual equities', () => {
+    expect(researchDataContractById.get('hk.equity_benchmark.price.daily')).toMatchObject({
+      status: 'integrated',
+      instrumentType: 'price_index_benchmark',
+      currency: {
+        quoteCurrency: 'HKD',
+        baseCurrencyReturnPolicy: expect.stringContaining('USDCNH divided by USDHKD'),
+      },
+      corporateActions: { totalReturnPolicy: expect.stringContaining('price return only') },
+    });
+    expect(researchDataContractById.get('us.equity.adjusted_close.daily')).toMatchObject({
+      status: 'planned',
+      instrumentType: 'stock',
+    });
+  });
 });

@@ -64,6 +64,26 @@ describe('ResearchPlanSpec V1', () => {
     });
   });
 
+  it('accepts an explicit CNY measure only for index inputs', () => {
+    const plan = validPlan();
+    plan.inputs[0] = {
+      type: 'series',
+      id: 'hsiCny',
+      source: { kind: 'instrument', assetType: 'index', id: 'equity.hk.hsi.price' },
+      measure: 'market.cny_close',
+      transform: 'simple_return',
+    };
+    plan.protocol.predictor = 'hsiCny';
+    expect(parseResearchPlanSpec(plan).inputs[0]).toMatchObject({
+      measure: 'market.cny_close',
+    });
+
+    plan.inputs[0]!.source = { kind: 'instrument', assetType: 'etf', id: '159920.SZ' };
+    expect(() => parseResearchPlanSpec(plan)).toThrow(
+      'market.cny_close does not support asset type etf',
+    );
+  });
+
   it('accepts a multivariate plan with one focal predictor and prespecified controls', () => {
     const plan = validPlan();
     plan.question = {

@@ -5,6 +5,14 @@ import type {
   ResearchTransformV1,
 } from '@jixie/shared';
 import { prisma } from '../lib/prisma.js';
+import {
+  CROSS_MARKET_BENCHMARK_BY_ID,
+  deriveBenchmarkCnyCloses,
+  deriveHkdCnhMidCloses,
+  HKD_CNH_DERIVED_CODE,
+  type CrossMarketBenchmarkDefinition,
+} from '../market/cross-market-benchmarks.js';
+import { EXTERNAL_FX_CODES } from '../rates/external-market-drivers.js';
 
 export interface ResearchSeriesPoint {
   date: string;
@@ -39,7 +47,7 @@ export interface ResearchSeriesPreparationRange {
 export const loadResearchSeries: ResearchSeriesLoader = async (input, start, end) => {
   switch (input.source.kind) {
     case 'instrument':
-      return loadInstrumentSeries(input.source, start, end);
+      return loadInstrumentSeries(input.source, input.measure, start, end);
     case 'macro':
       return loadMacroSeries(input.source.seriesKey, start, end);
     case 'yield_curve':
@@ -157,11 +165,21 @@ export function transformSeries(
 
 async function loadInstrumentSeries(
   source: Extract<ResearchSeriesInputSpecV1['source'], { kind: 'instrument' }>,
+  measure: string,
   start: string,
   end: string,
 ): Promise<LoadedResearchSeries> {
   const { assetType, id } = source;
   if (assetType === 'index') {
+    const benchmark = CROSS_MARKET_BENCHMARK_BY_ID.get(id);
+    if (benchmark) {
+      return loadCrossMarketBenchmarkSeries(benchmark, measure, start, end);
+    }
+    if (measure === 'market.cny_close') {
+      throw new Error(
+        `market.cny_close requires a registered cross-market benchmark; received ${id}`,
+      );
+    }
     const rows = await prisma.indexDaily.findMany({
       where: { tsCode: id, tradeDate: { gte: start, lte: end } },
       select: { tradeDate: true, close: true },
@@ -222,6 +240,81 @@ async function loadInstrumentSeries(
               messageEn: `${missingAdjustments} price observations lacked adjustment factors and were excluded.`,
             },
           ],
+  };
+}
+
+async function loadCrossMarketBenchmarkSeries(
+  benchmark: CrossMarketBenchmarkDefinition,
+  measure: string,
+  start: string,
+  end: string,
+): Promise<LoadedResearchSeries> {
+  const rows = await prisma.marketBenchmarkDaily.findMany({
+    where: { benchmarkId: benchmark.id, availableDate: { gte: start, lte: end } },
+    select: { availableDate: true, close: true },
+    orderBy: { availableDate: 'asc' },
+  });
+  const semanticsDiagnostic: ResearchDiagnosticV1 = {
+    code: 'price_index_not_total_return',
+    severity: 'info',
+    messageZh: `${benchmark.nameZh} 是价格指数，不含股息再投资；可交易代理 ${benchmark.tradableProxyTsCode} 的费用、跟踪误差和交易时段另行计算。`,
+    messageEn: `${benchmark.nameEn} is a price index without dividend reinvestment; fees, tracking error, and trading hours of tradable proxy ${benchmark.tradableProxyTsCode} remain separate.`,
+  };
+  if (measure !== 'market.cny_close') {
+    return {
+      points: rows.map((row) => ({ date: row.availableDate, value: row.close })),
+      diagnostics: [semanticsDiagnostic],
+    };
+  }
+  const fxRows =
+    benchmark.currency === 'CNY'
+      ? []
+      : await prisma.fxDaily.findMany({
+          where: {
+            tsCode: { in: [...EXTERNAL_FX_CODES] },
+            availableDate: { gte: shiftCalendarDays(start, -14), lte: end },
+          },
+          select: {
+            tsCode: true,
+            tradeDate: true,
+            availableDate: true,
+            bidClose: true,
+            askClose: true,
+          },
+          orderBy: [{ tsCode: 'asc' }, { availableDate: 'asc' }, { tradeDate: 'asc' }],
+        });
+  const converted = deriveBenchmarkCnyCloses(benchmark, rows, fxRows);
+  return {
+    points: converted.points,
+    diagnostics: [
+      semanticsDiagnostic,
+      {
+        code: 'benchmark_cny_conversion',
+        severity: 'info',
+        messageZh:
+          benchmark.currency === 'HKD'
+            ? '人民币指数水平按同一可得日的 USDCNH ÷ USDHKD 推导 HKD/CNH；本币收益、FX 收益和人民币收益可分别研究。'
+            : benchmark.currency === 'USD'
+              ? '人民币指数水平按同一可得日的 USDCNH 换算；本币收益、FX 收益和人民币收益可分别研究。'
+              : '该基准以人民币报价，本币与人民币收益相同。',
+        messageEn:
+          benchmark.currency === 'HKD'
+            ? 'The CNY index level derives HKD/CNH as USDCNH divided by USDHKD on the same availability date; local, FX, and CNY returns remain separately researchable.'
+            : benchmark.currency === 'USD'
+              ? 'The CNY index level uses USDCNH on the same availability date; local, FX, and CNY returns remain separately researchable.'
+              : 'This benchmark is quoted in CNY, so its local and CNY returns are identical.',
+      },
+      ...(converted.missingFxDates.length === 0
+        ? []
+        : [
+            {
+              code: 'benchmark_missing_fx',
+              severity: 'warning' as const,
+              messageZh: `${converted.missingFxDates.length} 个基准观测缺少当时已可得且不超过 7 个日历日的完整汇率腿并已排除。`,
+              messageEn: `${converted.missingFxDates.length} benchmark observations lacked all required FX legs available at the time and no more than seven calendar days old, so they were excluded.`,
+            },
+          ]),
+    ],
   };
 }
 
@@ -346,6 +439,34 @@ async function loadYieldCurveSeries(
 }
 
 async function loadFxSeries(id: string, start: string, end: string): Promise<LoadedResearchSeries> {
+  if (id === HKD_CNH_DERIVED_CODE) {
+    const rows = await prisma.fxDaily.findMany({
+      where: {
+        tsCode: { in: [...EXTERNAL_FX_CODES] },
+        availableDate: { gte: shiftCalendarDays(start, -14), lte: end },
+      },
+      select: {
+        tsCode: true,
+        tradeDate: true,
+        availableDate: true,
+        bidClose: true,
+        askClose: true,
+      },
+      orderBy: [{ tsCode: 'asc' }, { availableDate: 'asc' }, { tradeDate: 'asc' }],
+    });
+    return {
+      points: deriveHkdCnhMidCloses(rows, start, end),
+      diagnostics: [
+        {
+          code: 'derived_hkd_cnh',
+          severity: 'info',
+          messageZh: 'HKD/CNH 并非直接行情；按同一可得日的 USDCNH ÷ USDHKD 中间收盘价推导。',
+          messageEn:
+            'HKD/CNH is not a direct quote; it is derived as USDCNH divided by USDHKD mid closes on the same availability date.',
+        },
+      ],
+    };
+  }
   const rows = await prisma.fxDaily.findMany({
     where: { tsCode: id, availableDate: { gte: start, lte: end } },
     select: { availableDate: true, bidClose: true, askClose: true },

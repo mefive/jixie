@@ -56,6 +56,13 @@ describe('researchConceptBindingRegistry', () => {
         (binding) => binding.contract.id === 'us.sovereign_yield.daily',
       ),
     ).toBe(true);
+    expect(researchConceptBindings('equity.market.hk.benchmark')).toEqual([
+      expect.objectContaining({
+        source: { kind: 'instrument', assetType: 'index', id: 'equity.hk.hsi.price' },
+        measure: 'market.adjusted_close',
+        contract: expect.objectContaining({ id: 'hk.equity_benchmark.price.daily' }),
+      }),
+    ]);
   });
 
   it('binds nominal and real yields only to their own exact curves', () => {

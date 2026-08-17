@@ -568,6 +568,57 @@ const sourceDecisions: ResearchSourceDecisionMatrixEntryV1[] = [
     ],
   },
   {
+    id: 'tushare.market_benchmarks',
+    version: 1,
+    status: 'integrated',
+    provider: 'Tushare Pro',
+    dataset: 'China and international representative price-index daily bars',
+    nameZh: 'Tushare 跨市场价格指数基准',
+    nameEn: 'Tushare cross-market price-index benchmarks',
+    keywords: ['沪深300', '恒生指数', '标普500', 'index_daily', 'index_global'],
+    markets: ['CN', 'HK', 'US'],
+    assetClasses: ['equity'],
+    exactInterfaces: ['index_daily', 'index_global', 'trade_cal'],
+    reviewedAt: '2026-08-16',
+    decision:
+      'Integrate only the fixed CSI 300, Hang Seng, and S&P 500 price-index sample. Keep each source-market close, currency, and China-study-clock availableDate explicit, and never present the index as a tradable or total-return series.',
+    license: {
+      access: 'token_points',
+      localResearchUse: 'operational',
+      redistribution: 'prohibited_without_separate_authorization',
+      note: 'The current account is operational only for personal non-commercial research. Index-provider rights, commercial use, and redistribution require separate authorization.',
+    },
+    coverage: {
+      historyDepth:
+        'The international interface returns at most 4,000 rows per request; local history is synchronized in bounded five-year slices and measured separately.',
+      delistedCoverage: 'not_applicable',
+      pointInTime: 'strong',
+    },
+    rateLimit: 'At least 6,000 points for index_global; requests are bounded to five-year slices.',
+    cost: 'Existing Tushare account and point tier.',
+    auditability: 'strong',
+    knownLimits: [
+      'The integrated series are price indices and exclude dividend reinvestment.',
+      'HSI and SPX closes are unavailable at the same Shanghai close and are gated to the first strictly later SSE session.',
+      'Tradable China-listed ETF proxies have independent fees, tracking error, NAV timing, and trading calendars.',
+    ],
+    evidence: [
+      TUSHARE_PERSONAL_USE_EVIDENCE,
+      {
+        kind: 'official_capability',
+        url: 'https://tushare.pro/document/2?doc_id=211',
+        finding:
+          'The official index_global interface documents HSI and SPX codes, daily price-index fields, a 4,000-row response cap, and 6,000-point access.',
+      },
+      {
+        kind: 'implementation',
+        url: 'apps/api/src/market/cross-market-benchmarks.ts',
+        finding:
+          'The local connector validates identities and bars, persists source and available dates, and binds each benchmark to a separate tradable proxy.',
+      },
+    ],
+  },
+  {
     id: FX_SOURCE_DECISION_ID,
     version: 1,
     status: 'integrated',
@@ -579,9 +630,9 @@ const sourceDecisions: ResearchSourceDecisionMatrixEntryV1[] = [
     markets: ['CN', 'HK', 'US'],
     assetClasses: ['equity', 'bond', 'commodity'],
     exactInterfaces: ['fx_daily'],
-    reviewedAt: '2026-08-15',
+    reviewedAt: '2026-08-16',
     decision:
-      'Keep the current daily FX source available for explicit conversion contracts; do not silently convert returns until 3.2 freezes pair direction and conversion timestamps per study.',
+      'Use USDCNH and USDHKD midpoint closes on the first strictly later SSE session. Convert USD assets directly with USDCNH and derive HKD/CNH as USDCNH divided by USDHKD; never claim a direct HKDCNH quote.',
     license: {
       access: 'token_points',
       localResearchUse: 'operational',
@@ -600,6 +651,7 @@ const sourceDecisions: ResearchSourceDecisionMatrixEntryV1[] = [
     knownLimits: [
       'Provider dates are GMT and are gated to a later SSE session for China-close research.',
       'Bid/ask midpoint is not a guaranteed executable conversion price.',
+      'The probed HKDCNH code returned no rows, so the Hong Kong conversion retains both USD cross-rate legs explicitly.',
     ],
     evidence: [
       TUSHARE_PERSONAL_USE_EVIDENCE,
@@ -608,6 +660,12 @@ const sourceDecisions: ResearchSourceDecisionMatrixEntryV1[] = [
         url: 'https://tushare.pro/document/2?doc_id=179',
         finding:
           'The official interface documents GMT dates, FXCM, bid/ask fields, and point-tier access.',
+      },
+      {
+        kind: 'implementation',
+        url: 'apps/api/src/market/cross-market-benchmarks.ts',
+        finding:
+          'A bounded live probe confirmed USDHKD rows and no HKDCNH rows; local conversion therefore preserves the USDCNH/USDHKD cross-rate formula.',
       },
     ],
   },
@@ -676,6 +734,50 @@ const contracts: CrossMarketResearchDataContractV1[] = [
       'Require symbol-change and exchange-transfer spells; never concatenate same-ticker histories without evidence.',
     financialAnnouncementPolicy:
       'Use the filing or public announcement timestamp converted to the study clock; period end is never the availability date.',
+  }),
+  equityBenchmarkContract({
+    id: 'cn.equity_benchmark.price.daily',
+    market: 'CN',
+    nameZh: '沪深 300 价格指数日线',
+    nameEn: 'CSI 300 daily price index',
+    keywords: ['沪深300', 'CSI 300', 'equity.cn.csi300.price'],
+    calendarId: 'SSE_SZSE',
+    timeZone: 'Asia/Shanghai',
+    observesDaylightSavingTime: false,
+    currency: 'CNY',
+    availabilityPolicy: 'available on the local SSE/SZSE trade date after the China close',
+    baseCurrencyReturnPolicy:
+      'CNY is both the local and base currency, so the local and CNY returns are identical.',
+  }),
+  equityBenchmarkContract({
+    id: 'hk.equity_benchmark.price.daily',
+    market: 'HK',
+    nameZh: '恒生价格指数日线',
+    nameEn: 'Hang Seng daily price index',
+    keywords: ['恒生指数', 'HSI', 'equity.hk.hsi.price'],
+    calendarId: 'HKEX',
+    timeZone: 'Asia/Hong_Kong',
+    observesDaylightSavingTime: false,
+    currency: 'HKD',
+    availabilityPolicy:
+      'for China-close research, first SSE session strictly later than the Hong Kong source-market trade date',
+    baseCurrencyReturnPolicy:
+      'As of each benchmark availability date, derive HKD/CNH as USDCNH divided by USDHKD using the latest observable bars no more than seven calendar days old, then compute CNY index returns without hiding either FX leg.',
+  }),
+  equityBenchmarkContract({
+    id: 'us.equity_benchmark.price.daily',
+    market: 'US',
+    nameZh: '标普 500 价格指数日线',
+    nameEn: 'S&P 500 daily price index',
+    keywords: ['标普500', 'S&P 500', 'SPX', 'equity.us.spx.price'],
+    calendarId: 'NYSE_NASDAQ',
+    timeZone: 'America/New_York',
+    observesDaylightSavingTime: true,
+    currency: 'USD',
+    availabilityPolicy:
+      'for China-close research, first SSE session strictly later than the US source-market trade date',
+    baseCurrencyReturnPolicy:
+      'As of each benchmark availability date, multiply the USD price-index level by the latest observable USDCNH midpoint no more than seven calendar days old and keep the FX return separately researchable.',
   }),
   {
     id: 'cn.etf.adjusted_close.daily',
@@ -922,6 +1024,24 @@ const fixtures: CrossMarketContractFixtureV1[] = [
     'CN:SSE_SZSE:000001.SZ',
     '000001.SZ',
   ),
+  fixture(
+    'cn-benchmark-csi300-price',
+    'cn.equity_benchmark.price.daily',
+    'equity.cn.csi300.price',
+    '000300.SH',
+  ),
+  fixture(
+    'hk-benchmark-hsi-price',
+    'hk.equity_benchmark.price.daily',
+    'equity.hk.hsi.price',
+    'HSI',
+  ),
+  fixture(
+    'us-benchmark-spx-price',
+    'us.equity_benchmark.price.daily',
+    'equity.us.spx.price',
+    'SPX',
+  ),
   fixture('hk-stock-00001-hk', 'hk.equity.adjusted_close.daily', 'HK:HKEX:00001.HK', '00001.HK'),
   fixture('us-stock-aapl', 'us.equity.adjusted_close.daily', 'US:NASDAQ:AAPL:current', 'AAPL'),
   fixture(
@@ -1058,6 +1178,79 @@ export function validateCrossMarketDataContractRegistry(): void {
       throw new Error(`Cross-market fixture ${fixtureItem.id} does not match contract fields`);
     }
   }
+}
+
+function equityBenchmarkContract(input: {
+  id: string;
+  market: ResearchMarketV1;
+  nameZh: string;
+  nameEn: string;
+  keywords: string[];
+  calendarId: string;
+  timeZone: string;
+  observesDaylightSavingTime: boolean;
+  currency: string;
+  availabilityPolicy: string;
+  baseCurrencyReturnPolicy: string;
+}): CrossMarketResearchDataContractV1 {
+  return {
+    id: input.id,
+    version: 1,
+    status: 'integrated',
+    nameZh: input.nameZh,
+    nameEn: input.nameEn,
+    keywords: input.keywords,
+    market: input.market,
+    assetClass: 'equity',
+    instrumentType: 'price_index_benchmark',
+    sourceDecisionId: 'tushare.market_benchmarks',
+    identity: {
+      canonicalIdPolicy:
+        'Use the platform benchmark id as the stable research identity and retain the provider code as a versioned source alias.',
+      lifecyclePolicy:
+        'An index-provider methodology or return-semantics change requires a new benchmark or contract version.',
+      codeChangePolicy:
+        'Never concatenate provider codes or renamed methodologies without an explicit reviewed mapping.',
+    },
+    calendar: {
+      calendarId: input.calendarId,
+      timeZone: input.timeZone,
+      observesDaylightSavingTime: input.observesDaylightSavingTime,
+      sessionDatePolicy: 'Retain the source exchange local-session trade date.',
+      crossMarketAvailabilityPolicy: input.availabilityPolicy,
+    },
+    currency: {
+      tradingCurrency: null,
+      quoteCurrency: input.currency,
+      localReturnPolicy:
+        'Compute the price-index return from consecutive local-currency closes on the audited availability clock.',
+      baseCurrencyReturnPolicy: input.baseCurrencyReturnPolicy,
+      fxSourceDecisionId: input.currency === 'CNY' ? null : FX_SOURCE_DECISION_ID,
+    },
+    corporateActions: {
+      applicability: 'not_applicable',
+      adjustedPricePolicy:
+        'The provider price index already embodies its index methodology; do not apply security or ETF adjustment factors.',
+      totalReturnPolicy:
+        'This contract is price return only and excludes dividend reinvestment; never label it total return.',
+    },
+    pointInTime: {
+      financialAnnouncementPolicy: 'Not applicable to the benchmark price series.',
+      macroVintagePolicy: 'Not applicable.',
+      revisionPolicy:
+        'Provider history corrections change the data fingerprint and retrieval timestamp.',
+      availableDatePolicy: input.availabilityPolicy,
+    },
+    binding: bindingContract(
+      input.id,
+      'daily',
+      'price_index_points',
+      input.currency,
+      input.timeZone,
+      input.availabilityPolicy,
+      'provider history corrections change the research data fingerprint',
+    ),
+  };
 }
 
 function equityContract(input: {

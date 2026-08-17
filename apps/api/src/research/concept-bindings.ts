@@ -31,6 +31,47 @@ const chinaCommodityFutureContract = researchBindingDataContract(
 const usYieldContract = researchBindingDataContract('us.sovereign_yield.daily');
 const chinaMacroContract = researchBindingDataContract('cn.macro.monthly.pit');
 const usBlsMacroContract = researchBindingDataContract('us.macro.cpi.monthly.pit');
+const cnBenchmarkContract = researchBindingDataContract('cn.equity_benchmark.price.daily');
+const hkBenchmarkContract = researchBindingDataContract('hk.equity_benchmark.price.daily');
+const usBenchmarkContract = researchBindingDataContract('us.equity_benchmark.price.daily');
+
+const marketBenchmarkBindings: ResearchConceptBindingV1[] = [
+  benchmarkBinding({
+    id: 'equity.market.cn.csi300.price',
+    conceptId: 'equity.market.cn.benchmark',
+    sourceId: 'equity.cn.csi300.price',
+    nameZh: '沪深 300 价格指数',
+    nameEn: 'CSI 300 Price Index',
+    contract: cnBenchmarkContract,
+    noteZh: '中国本币价格指数，不含股息再投资；可交易代理为 510300.SH。',
+    noteEn:
+      'A local-currency China price index without dividend reinvestment; its tradable proxy is 510300.SH.',
+  }),
+  benchmarkBinding({
+    id: 'equity.market.hk.hsi.price',
+    conceptId: 'equity.market.hk.benchmark',
+    sourceId: 'equity.hk.hsi.price',
+    nameZh: '恒生价格指数',
+    nameEn: 'Hang Seng Price Index',
+    contract: hkBenchmarkContract,
+    noteZh:
+      '港币价格指数，不含股息再投资；中国收盘研究使用下一上交所交易日，可交易代理为 159920.SZ。',
+    noteEn:
+      'An HKD price index without dividend reinvestment, available on the next SSE session for China-close studies; its tradable proxy is 159920.SZ.',
+  }),
+  benchmarkBinding({
+    id: 'equity.market.us.spx.price',
+    conceptId: 'equity.market.us.benchmark',
+    sourceId: 'equity.us.spx.price',
+    nameZh: '标普 500 价格指数',
+    nameEn: 'S&P 500 Price Index',
+    contract: usBenchmarkContract,
+    noteZh:
+      '美元价格指数，不含股息再投资；中国收盘研究使用下一上交所交易日，可交易代理为 513500.SH。',
+    noteEn:
+      'A USD price index without dividend reinvestment, available on the next SSE session for China-close studies; its tradable proxy is 513500.SH.',
+  }),
+];
 
 const goldInstrumentBindings: ResearchConceptBindingV1[] = [
   instrumentBinding({
@@ -146,6 +187,7 @@ const macroBindings: ResearchConceptBindingV1[] = [
 ];
 
 const bindings: ResearchConceptBindingV1[] = [
+  ...marketBenchmarkBindings,
   ...goldInstrumentBindings,
   ...silverInstrumentBindings,
   ...nominalTreasuryBindings,
@@ -190,6 +232,36 @@ function instrumentBinding(input: {
     proxyKind: input.proxyKind,
     priority: input.priority,
     contract,
+    selectionNoteZh: input.noteZh,
+    selectionNoteEn: input.noteEn,
+  };
+}
+
+function benchmarkBinding(input: {
+  id: string;
+  conceptId:
+    | 'equity.market.cn.benchmark'
+    | 'equity.market.hk.benchmark'
+    | 'equity.market.us.benchmark';
+  sourceId: string;
+  nameZh: string;
+  nameEn: string;
+  contract: ResearchBindingDataContractV1;
+  noteZh: string;
+  noteEn: string;
+}): ResearchConceptBindingV1 {
+  return {
+    id: input.id,
+    version: 1,
+    conceptId: input.conceptId,
+    nameZh: input.nameZh,
+    nameEn: input.nameEn,
+    source: { kind: 'instrument', assetType: 'index', id: input.sourceId },
+    measure: 'market.adjusted_close',
+    measureVersion: 1,
+    proxyKind: 'canonical',
+    priority: 10,
+    contract: input.contract,
     selectionNoteZh: input.noteZh,
     selectionNoteEn: input.noteEn,
   };

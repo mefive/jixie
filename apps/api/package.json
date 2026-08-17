@@ -44,6 +44,7 @@
     "sync:etf": "tsx --env-file=.env scripts/sync-etf.ts",
     "sync:index": "tsx --env-file=.env scripts/sync-index.ts",
     "sync:index-daily": "tsx --env-file=.env scripts/sync-index-daily.ts",
+    "sync:cross-market-benchmarks": "tsx --env-file=.env scripts/sync-cross-market-benchmarks.ts",
     "sync:index-basic": "tsx --env-file=.env scripts/sync-index-basic.ts",
     "sync:market-state": "tsx --env-file=.env scripts/sync-market-state.ts",
     "sync:market-reference": "tsx --env-file=.env scripts/sync-market-reference.ts",

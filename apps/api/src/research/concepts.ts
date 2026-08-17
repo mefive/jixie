@@ -1,4 +1,7 @@
 export const RESEARCH_CONCEPT_IDS = [
+  'equity.market.cn.benchmark',
+  'equity.market.hk.benchmark',
+  'equity.market.us.benchmark',
   'commodity.gold.price',
   'commodity.silver.price',
   'rates.us_treasury.nominal',
@@ -28,6 +31,42 @@ export interface ResearchConceptDefinitionV1 {
 }
 
 const concepts: Record<ResearchConceptId, ResearchConceptDefinitionV1> = {
+  'equity.market.cn.benchmark': {
+    id: 'equity.market.cn.benchmark',
+    version: 1,
+    family: 'equity.market.cn.benchmark',
+    nameZh: '中国股票市场基准',
+    nameEn: 'China equity-market benchmark',
+    descriptionZh: '登记的中国宽基价格指数；价格收益不含股息再投资。',
+    descriptionEn:
+      'Registered broad China equity price index; its price return excludes dividend reinvestment.',
+    aliases: ['中国股市', 'A股市场', '中国股票市场', '沪深300', 'csi 300', 'china equity'],
+    doNotSubstitute: ['equity.market.hk.benchmark', 'equity.market.us.benchmark'],
+  },
+  'equity.market.hk.benchmark': {
+    id: 'equity.market.hk.benchmark',
+    version: 1,
+    family: 'equity.market.hk.benchmark',
+    nameZh: '香港股票市场基准',
+    nameEn: 'Hong Kong equity-market benchmark',
+    descriptionZh: '登记的香港宽基价格指数；本币收益与人民币收益必须显式区分。',
+    descriptionEn:
+      'Registered broad Hong Kong equity price index; local-currency and CNY returns must remain explicit.',
+    aliases: ['香港股市', '港股市场', '香港股票市场', '恒生指数', 'hsi', 'hang seng'],
+    doNotSubstitute: ['equity.market.cn.benchmark', 'equity.market.us.benchmark'],
+  },
+  'equity.market.us.benchmark': {
+    id: 'equity.market.us.benchmark',
+    version: 1,
+    family: 'equity.market.us.benchmark',
+    nameZh: '美国股票市场基准',
+    nameEn: 'US equity-market benchmark',
+    descriptionZh: '登记的美国宽基价格指数；本币收益与人民币收益必须显式区分。',
+    descriptionEn:
+      'Registered broad US equity price index; local-currency and CNY returns must remain explicit.',
+    aliases: ['美国股市', '美股市场', '美国股票市场', '标普500', 's&p 500', 'spx', 'us equity'],
+    doNotSubstitute: ['equity.market.cn.benchmark', 'equity.market.hk.benchmark'],
+  },
   'commodity.gold.price': {
     id: 'commodity.gold.price',
     version: 1,
