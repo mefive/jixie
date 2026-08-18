@@ -15,6 +15,7 @@ import {
 import {
   GridComponent,
   MarkPointComponent,
+  MarkLineComponent,
   TooltipComponent,
   LegendComponent,
   DataZoomComponent,
@@ -23,6 +24,7 @@ import {
   TitleComponent,
   type GridComponentOption,
   type MarkPointComponentOption,
+  type MarkLineComponentOption,
   type TooltipComponentOption,
   type LegendComponentOption,
   type DataZoomComponentOption,
@@ -46,6 +48,7 @@ echarts.use([
   TooltipComponent,
   LegendComponent,
   MarkPointComponent,
+  MarkLineComponent,
   DataZoomComponent,
   AxisPointerComponent,
   VisualMapComponent,
@@ -65,6 +68,7 @@ export type ECOption = ComposeOption<
   | TooltipComponentOption
   | LegendComponentOption
   | MarkPointComponentOption
+  | MarkLineComponentOption
   | DataZoomComponentOption
   | VisualMapComponentOption
   | TitleComponentOption

@@ -14,6 +14,7 @@
     "test:e2e:research-curator": "node e2e/research-curator.mjs",
     "test:e2e:research-affected": "node e2e/research-affected-run.mjs",
     "test:e2e:research-interrupt": "node e2e/research-interrupt.mjs",
+    "test:e2e:research-charts": "node e2e/research-chart-gallery.mjs",
     "test:e2e:factor-history": "node e2e/factor-report-history.mjs",
     "test:e2e:factor-composite": "node e2e/factor-composite.mjs",
     "test:e2e:factor-scope": "node e2e/factor-evaluation-scope.mjs",

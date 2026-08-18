@@ -1033,6 +1033,7 @@ export interface ResearchConversationMessages {
 export type ResearchCellKindV1 = 'markdown' | 'python' | 'validation';
 export type ResearchCellStatusV1 = 'idle' | 'running' | 'success' | 'error' | 'stale';
 export type ResearchCellScalarV1 = string | number | boolean | null;
+export type ResearchChartKindV1 = ChartKind | 'boxplot' | 'heatmap' | 'event_path';
 
 export interface ResearchTableOutputV1 {
   type: 'table';
@@ -1047,8 +1048,9 @@ export interface ResearchChartOutputV1 {
   type: 'chart';
   version: 1;
   title?: string;
-  kind: ChartKind;
+  kind: ResearchChartKindV1;
   x: string;
+  y?: string;
   series: ChartSeriesSpec[];
   rows: Record<string, ResearchCellScalarV1>[];
 }

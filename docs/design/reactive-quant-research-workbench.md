@@ -8,7 +8,8 @@
 > **实施状态（2026-08-18）**：jixie-native 的首个垂直切片已经完成并通过真实浏览器验收。当前覆盖持久化
 > 研究文档、三类 Cell、独立 Python runtime、AST 依赖与 stale 传播、平台时序取数、表格、Matplotlib、
 > 结构化 ECharts、静态 Research SDK Contract、Monaco 参数与返回列补全、Pyright 跨 Cell 语言服务、可搜索数据目录、
-> 目录驱动的标的/指标补全与代码插入、受影响 Cell 拓扑批量运行、运行中断、干净全文运行和 Validation → `ResearchRun`。
+> 目录驱动的标的/指标补全与代码插入、原生 line / scatter / histogram / boxplot / heatmap / event_path
+> 交互图、受影响 Cell 拓扑批量运行、运行中断、干净全文运行和 Validation → `ResearchRun`。
 > Agent 受审计修改 Cell、完整执行比较以及 Factor / Strategy 带血缘交接仍是后续里程碑，
 > 因此本文的“首版完成定义”尚未全部关闭。
 
@@ -146,6 +147,12 @@ monthly = data.series(
 即可从 SDK Contract 推导 `monthly["date"]`、`monthly["value"]` 以及 `charts.*` 的 `x` / `y` 字段候选。
 首版只承诺直接 SDK 返回值的静态 schema，不推导任意 pandas `rename` / `merge` 之后的动态结构，也不依赖
 执行后观察值来提供基础补全。
+
+原生图表 API 当前覆盖 `charts.line / area / bar / scatter / histogram / boxplot / heatmap / event_path`。
+`histogram` 在 runtime 内按有限数值和指定 bins 确定性分箱；`boxplot` 从原始值计算五数概括并支持可选分组；
+`heatmap` 要求唯一的 x/y 坐标，相关矩阵等跨零数据使用以 0 为中心的发散色阶；`event_path` 同时标记 `t=0`
+事件日和零收益线。它们都返回受 schema 约束的行式 artifact，由 ECharts 提供 tooltip、缩放、图例或色阶交互，
+不把 Python 截图冒充平台交互图。
 
 ### 5.1 Prisma、公开契约与生成边界
 

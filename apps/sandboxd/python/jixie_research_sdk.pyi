@@ -71,6 +71,51 @@ class _ChartsApi:
         labels: Mapping[str, str] | None = None,
     ) -> _ChartResult: ...
 
+    # Create a native interactive event path chart with an event-time marker.
+    def event_path(
+        self,
+        frame: pd.DataFrame,
+        *,
+        x: str,
+        y: str | list[str],
+        title: str | None = None,
+        labels: Mapping[str, str] | None = None,
+    ) -> _ChartResult: ...
+
+    # Deterministically bin a numeric column and create a native interactive histogram.
+    def histogram(
+        self,
+        frame: pd.DataFrame,
+        *,
+        column: str,
+        bins: int = 20,
+        title: str | None = None,
+        labels: Mapping[str, str] | None = None,
+    ) -> _ChartResult: ...
+
+    # Compute five-number summaries by numeric column and optional group for a native interactive box plot.
+    def boxplot(
+        self,
+        frame: pd.DataFrame,
+        *,
+        y: str | list[str],
+        group: str | None = None,
+        title: str | None = None,
+        labels: Mapping[str, str] | None = None,
+    ) -> _ChartResult: ...
+
+    # Create a native interactive heatmap from two categorical axes and one numeric value column.
+    def heatmap(
+        self,
+        frame: pd.DataFrame,
+        *,
+        x: str,
+        y: str,
+        value: str,
+        title: str | None = None,
+        labels: Mapping[str, str] | None = None,
+    ) -> _ChartResult: ...
+
 
 
 data: _DataApi

@@ -40,6 +40,15 @@ test('provides enum and chart column contexts without executing code', () => {
   assert.equal(chartContext?.kind, 'parameter_value');
   assert.equal(chartContext?.frameVariable, 'monthly');
   assert.deepEqual([...researchSdkDataFrameBindings(chart).keys()], ['monthly']);
+
+  const heatmap = `${chart.slice(0, chart.indexOf('charts.line'))}charts.heatmap(monthly, x="date", y="date", value="va`;
+  const heatmapContext = researchSdkCompletionContext(heatmap, heatmap.length);
+  assert.equal(heatmapContext?.kind, 'parameter_value');
+  if (heatmapContext?.kind === 'parameter_value') {
+    assert.equal(heatmapContext.contract.qualifiedName, 'charts.heatmap');
+    assert.equal(heatmapContext.parameterName, 'value');
+    assert.equal(heatmapContext.frameVariable, 'monthly');
+  }
 });
 
 test('provides a catalog context for the positional identifier', () => {

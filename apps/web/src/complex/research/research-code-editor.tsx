@@ -185,7 +185,11 @@ function installResearchSdkLanguage(monacoInstance: Monaco): void {
               })),
             };
           }
-          if ((parameter?.name === 'x' || parameter?.name === 'y') && context.frameVariable) {
+          if (
+            parameter &&
+            ['x', 'y', 'column', 'value', 'group'].includes(parameter.name) &&
+            context.frameVariable
+          ) {
             const frameContract = researchSdkDataFrameBindings(model.getValue()).get(
               context.frameVariable,
             );
@@ -434,6 +438,8 @@ function researchSdkParameterType(parameter: ResearchSdkParameterContractV1): st
     case 'string':
     case 'date':
       return 'str';
+    case 'integer':
+      return 'int';
     case 'dataframe':
       return 'DataFrame';
     case 'string_or_string_list':

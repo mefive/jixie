@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { RESEARCH_SERIES_SDK_CONTRACT_V1 } from '@jixie/shared';
-import { ResearchPythonInterruptionError, researchRuntimeManager } from './workbench-runtime.js';
+import {
+  ResearchPythonExecutionError,
+  ResearchPythonInterruptionError,
+  researchRuntimeManager,
+} from './workbench-runtime.js';
 
 const DOCUMENT_ID = 'research-runtime-test';
 let previousLocal: string | undefined;
@@ -62,6 +66,87 @@ describe('research workbench Python runtime', () => {
           .join(','),
       },
     ]);
+  });
+
+  it('returns native histogram, boxplot, heatmap, and event-path artifacts', async () => {
+    const histogram = await researchRuntimeManager.execute(DOCUMENT_ID, {
+      id: 'histogram',
+      source:
+        'observations = [{"return": -0.02}, {"return": -0.01}, {"return": 0.01}, {"return": 0.03}]\ncharts.histogram(observations, column="return", bins=2, title="Return distribution")',
+    });
+    expect(histogram.outputs[0]).toMatchObject({
+      type: 'chart',
+      kind: 'histogram',
+      x: 'bin',
+      title: 'Return distribution',
+      series: [{ column: 'count', label: 'return' }],
+    });
+    const histogramOutput = histogram.outputs[0];
+    if (histogramOutput?.type !== 'chart') {
+      throw new Error('Expected a histogram chart output');
+    }
+    expect(histogramOutput.rows.reduce((total, row) => total + Number(row.count), 0)).toBe(4);
+
+    const boxplot = await researchRuntimeManager.execute(DOCUMENT_ID, {
+      id: 'boxplot',
+      source: 'charts.boxplot(observations, y="return")',
+    });
+    expect(boxplot.outputs[0]).toMatchObject({
+      type: 'chart',
+      kind: 'boxplot',
+      x: 'category',
+      rows: [{ category: 'return', min: -0.02, median: 0, max: 0.03 }],
+    });
+
+    const heatmap = await researchRuntimeManager.execute(DOCUMENT_ID, {
+      id: 'heatmap',
+      source:
+        'matrix = [{"month": "Jan", "asset": "CSI 300", "corr": 0.4}, {"month": "Feb", "asset": "CSI 300", "corr": 0.6}]\ncharts.heatmap(matrix, x="month", y="asset", value="corr")',
+    });
+    expect(heatmap.outputs[0]).toMatchObject({
+      type: 'chart',
+      kind: 'heatmap',
+      x: 'month',
+      y: 'asset',
+      series: [{ column: 'corr', label: 'corr' }],
+    });
+
+    const eventPath = await researchRuntimeManager.execute(DOCUMENT_ID, {
+      id: 'event-path',
+      source:
+        'event_returns = [{"event_day": -1, "car": -0.01}, {"event_day": 0, "car": 0.02}, {"event_day": 1, "car": 0.03}]\ncharts.event_path(event_returns, x="event_day", y="car")',
+    });
+    expect(eventPath.outputs[0]).toMatchObject({
+      type: 'chart',
+      kind: 'event_path',
+      x: 'event_day',
+      series: [{ column: 'car', label: 'car' }],
+    });
+  });
+
+  it('rejects invalid chart parameters and ambiguous heatmap coordinates', async () => {
+    await expect(
+      researchRuntimeManager.execute(DOCUMENT_ID, {
+        id: 'invalid-histogram',
+        source: 'charts.histogram([{"value": 1}], column="value", bins=0)',
+      }),
+    ).rejects.toEqual(
+      expect.objectContaining<Partial<ResearchPythonExecutionError>>({
+        message: expect.stringContaining('bins must be an integer from 1 to 100'),
+      }),
+    );
+
+    await expect(
+      researchRuntimeManager.execute(DOCUMENT_ID, {
+        id: 'duplicate-heatmap',
+        source:
+          'charts.heatmap([{"x": "a", "y": "b", "value": 1}, {"x": "a", "y": "b", "value": 2}], x="x", y="y", value="value")',
+      }),
+    ).rejects.toEqual(
+      expect.objectContaining<Partial<ResearchPythonExecutionError>>({
+        message: expect.stringContaining('requires unique x/y coordinates'),
+      }),
+    );
   });
 
   it('interrupts active code and starts the next execution in a fresh session', async () => {
