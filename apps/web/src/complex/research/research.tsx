@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
-import { Alert, Button, Dropdown, Input, Popconfirm, Skeleton, Table, Tag, Tooltip } from 'antd';
+import { Alert, Button, Dropdown, Input, Popconfirm, Skeleton, Tag, Tooltip } from 'antd';
 import { useTranslation } from 'react-i18next';
 import classNames from 'classnames';
 import type {
@@ -31,7 +31,6 @@ import {
   faPlus,
   faRotate,
   faStop,
-  faTable,
   faTrash,
   faTriangleExclamation,
 } from '@fortawesome/free-solid-svg-icons';
@@ -43,6 +42,7 @@ import { LoadingArea } from '@src/components/loading-area';
 import { complex } from './complex';
 import { ResearchCuratorDrawer } from './research-curator-drawer';
 import { ResearchDataCatalogDrawer } from './research-data-catalog-drawer';
+import { ResearchCellTable } from './research-cell-table';
 import './research.css';
 
 const ResearchCodeEditor = lazy(() => import('./research-code-editor'));
@@ -691,28 +691,7 @@ function ResearchOutput({ output }: { output: ResearchCellOutputBlockV1 }) {
     case 'value':
       return <pre className="jx-research-valueOutput">{JSON.stringify(output.value, null, 2)}</pre>;
     case 'table':
-      return (
-        <section className="jx-research-tableOutput">
-          <div className="jx-research-outputMeta">
-            <FontAwesomeIcon icon={faTable} />
-            {t('workbench.tableRows', { count: output.rowCount })}
-            {output.truncated && ` · ${t('workbench.truncated')}`}
-          </div>
-          <Table
-            size="small"
-            pagination={false}
-            scroll={{ x: true }}
-            rowKey={(row) => JSON.stringify(row)}
-            dataSource={output.rows}
-            columns={output.columns.map((column) => ({
-              title: column,
-              dataIndex: column,
-              key: column,
-              render: (value: unknown) => formatTableValue(value),
-            }))}
-          />
-        </section>
-      );
+      return <ResearchCellTable output={output} />;
     case 'chart':
       return (
         <section className="jx-research-chartOutput" data-testid="research-interactive-chart">
@@ -849,14 +828,4 @@ function statusIcon(status: ResearchCellStatusV1) {
     case 'idle':
       return faClockRotateLeft;
   }
-}
-
-function formatTableValue(value: unknown): string {
-  if (typeof value === 'number') {
-    return Number.isInteger(value)
-      ? String(value)
-      : value.toFixed(4).replace(/0+$/, '').replace(/\.$/, '');
-  }
-  const text = String(value ?? '—');
-  return /^\d{4}-\d{2}-\d{2}T/.test(text) ? text.slice(0, 10) : text;
 }

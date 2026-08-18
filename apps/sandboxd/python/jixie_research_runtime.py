@@ -15,7 +15,11 @@ from typing import Any, Callable
 
 
 _MAX_TABLE_ROWS = 200
+_MAX_TABLE_COLUMNS = 64
+_MAX_TABLE_CELL_CHARACTERS = 256
 _MAX_CHART_ROWS = 5_000
+_MAX_CHART_SERIES = 20
+_MAX_IMAGE_BYTES = 4 * 1024 * 1024
 _RUNTIME_NAMES = {"charts", "data", "np", "pd"}
 
 
@@ -369,9 +373,14 @@ class _ChartsApi:
     ) -> _ChartResult:
         rows = _records(frame, _MAX_CHART_ROWS)
         y_columns = [y] if isinstance(y, str) else list(y)
+        if not y_columns or len(y_columns) > _MAX_CHART_SERIES:
+            raise ValueError(
+                f"charts.{kind} requires between 1 and {_MAX_CHART_SERIES} series"
+            )
         if not rows:
             raise ValueError("charts.* requires at least one row")
         _require_columns(rows, [x, *y_columns])
+        chart_columns = [x, *y_columns]
         return _ChartResult(
             {
                 "type": "chart",
@@ -382,7 +391,10 @@ class _ChartsApi:
                     {"column": column, "label": (labels or {}).get(column, column)}
                     for column in y_columns
                 ],
-                "rows": rows,
+                "rows": [
+                    {column: row[column] for column in chart_columns}
+                    for row in rows
+                ],
                 **({"title": title} if title else {}),
             }
         )
@@ -560,19 +572,8 @@ def _outputs(value: Any, figures_before: set[int], modules: dict[str, Any]) -> l
     outputs: list[dict[str, Any]] = []
     if isinstance(value, _ChartResult):
         outputs.append(value.spec)
-    elif _is_pandas_frame(value, modules["pandas"]):
-        rows = _records(value, _MAX_TABLE_ROWS)
-        row_count = len(value)
-        columns = [str(column) for column in value.reset_index().columns]
-        outputs.append(
-            {
-                "type": "table",
-                "columns": columns,
-                "rows": rows,
-                "rowCount": row_count,
-                "truncated": row_count > _MAX_TABLE_ROWS,
-            }
-        )
+    elif _is_pandas_frame(value, modules["pandas"]) or _is_record_table(value):
+        outputs.append(_table_output(value))
     elif value is not None:
         safe_value = _json_value(value)
         if isinstance(safe_value, dict):
@@ -588,15 +589,30 @@ def _outputs(value: Any, figures_before: set[int], modules: dict[str, Any]) -> l
             figure = pyplot.figure(figure_number)
             buffer = io.BytesIO()
             figure.savefig(buffer, format="png", dpi=144, bbox_inches="tight")
-            outputs.append(
-                {
-                    "type": "image",
-                    "mimeType": "image/png",
-                    "dataUrl": "data:image/png;base64,"
-                    + base64.b64encode(buffer.getvalue()).decode(),
-                    "alt": "Python figure",
-                }
-            )
+            image = buffer.getvalue()
+            if len(image) > _MAX_IMAGE_BYTES:
+                outputs.append(
+                    {
+                        "type": "text",
+                        "level": "warning",
+                        "text": (
+                            "Python figure omitted because its PNG artifact is "
+                            f"{len(image)} bytes; the limit is {_MAX_IMAGE_BYTES} bytes. "
+                            "Reduce figure size or DPI and rerun the Cell."
+                        ),
+                    }
+                )
+            else:
+                outputs.append(
+                    {
+                        "type": "image",
+                        "mimeType": "image/png",
+                        "dataUrl": "data:image/png;base64,"
+                        + base64.b64encode(image).decode(),
+                        "byteSize": len(image),
+                        "alt": "Python figure",
+                    }
+                )
             pyplot.close(figure)
     return outputs
 
@@ -607,6 +623,97 @@ def _is_pandas_frame(value: Any, pandas_module: Any) -> bool:
     )
 
 
+def _is_record_table(value: Any) -> bool:
+    return isinstance(value, list) and bool(value) and all(
+        isinstance(row, dict) for row in value[:_MAX_TABLE_ROWS]
+    )
+
+
+def _table_output(value: Any) -> dict[str, Any]:
+    if hasattr(value, "to_frame") and not hasattr(value, "columns"):
+        value = value.to_frame()
+
+    if hasattr(value, "reset_index") and hasattr(value, "to_dict"):
+        row_count = len(value)
+        preview = value.iloc[:_MAX_TABLE_ROWS].reset_index()
+        column_count = len(preview.columns)
+        preview = preview.iloc[:, :_MAX_TABLE_COLUMNS].copy()
+        columns = _unique_column_names(preview.columns)
+        preview.columns = columns
+        raw_rows = preview.to_dict(orient="records")
+    elif _is_record_table(value):
+        row_count = len(value)
+        raw_columns: list[Any] = []
+        seen_columns: set[str] = set()
+        for row in value[:_MAX_TABLE_ROWS]:
+            for key in row:
+                normalized = str(key)
+                if normalized not in seen_columns:
+                    seen_columns.add(normalized)
+                    raw_columns.append(key)
+        column_count = len(raw_columns)
+        selected_columns = raw_columns[:_MAX_TABLE_COLUMNS]
+        columns = _unique_column_names(selected_columns)
+        raw_rows = [
+            {
+                column: row.get(raw_column)
+                for raw_column, column in zip(selected_columns, columns)
+            }
+            for row in value[:_MAX_TABLE_ROWS]
+        ]
+    else:
+        raise TypeError("table outputs require a pandas object or a list of records")
+
+    cells_truncated = False
+    rows: list[dict[str, Any]] = []
+    for raw_row in raw_rows:
+        row: dict[str, Any] = {}
+        for column in columns:
+            scalar, truncated = _table_scalar(raw_row.get(column))
+            row[column] = scalar
+            cells_truncated = cells_truncated or truncated
+        rows.append(row)
+
+    return {
+        "type": "table",
+        "columns": columns,
+        "rows": rows,
+        "rowCount": row_count,
+        "columnCount": column_count,
+        "truncated": row_count > _MAX_TABLE_ROWS,
+        "truncatedColumns": column_count > _MAX_TABLE_COLUMNS,
+        "truncatedCells": cells_truncated,
+        "limits": {
+            "rows": _MAX_TABLE_ROWS,
+            "columns": _MAX_TABLE_COLUMNS,
+            "cellCharacters": _MAX_TABLE_CELL_CHARACTERS,
+        },
+    }
+
+
+def _unique_column_names(columns: Any) -> list[str]:
+    names: list[str] = []
+    used: set[str] = set()
+    for column in columns:
+        base = str(column)[:80] or "column"
+        candidate = base
+        suffix = 1
+        while candidate in used:
+            suffix += 1
+            candidate = f"{base} ({suffix})"
+        used.add(candidate)
+        names.append(candidate)
+    return names
+
+
+def _table_scalar(value: Any) -> tuple[Any, bool]:
+    scalar = _json_scalar(value)
+    if not isinstance(scalar, str) or len(scalar) <= _MAX_TABLE_CELL_CHARACTERS:
+        return scalar, False
+    suffix = " … [truncated]"
+    return scalar[: _MAX_TABLE_CELL_CHARACTERS - len(suffix)] + suffix, True
+
+
 def _figure_numbers(pyplot: Any) -> set[int]:
     return set(pyplot.get_fignums()) if pyplot is not None else set()
 
@@ -615,9 +722,18 @@ def _records(value: Any, limit: int) -> list[dict[str, Any]]:
     if hasattr(value, "to_frame") and not hasattr(value, "columns"):
         value = value.to_frame()
     if hasattr(value, "reset_index") and hasattr(value, "to_dict"):
-        raw_rows = value.reset_index().head(limit).to_dict(orient="records")
+        row_count = len(value)
+        if row_count > limit:
+            raise ValueError(
+                f"charts.* accepts at most {limit} rows; aggregate or sample explicitly"
+            )
+        raw_rows = value.reset_index().to_dict(orient="records")
     elif isinstance(value, list):
-        raw_rows = value[:limit]
+        if len(value) > limit:
+            raise ValueError(
+                f"charts.* accepts at most {limit} rows; aggregate or sample explicitly"
+            )
+        raw_rows = value
     else:
         raise TypeError("chart and table outputs require a pandas object or a list of records")
     if not all(isinstance(row, dict) for row in raw_rows):

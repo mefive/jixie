@@ -401,9 +401,24 @@
   font-size: 11px;
 }
 
+.jx-research-outputMetaWarning {
+  @apply text-amber-700;
+}
+
+.jx-research-outputLimit {
+  @apply ml-auto cursor-help text-amber-600;
+}
+
 .jx-research-tableOutput .ant-table-wrapper {
-  overflow: auto;
-  max-height: 360px;
+  @apply overflow-hidden;
+}
+
+.jx-research-tableOutput .ant-pagination {
+  margin: 10px 12px;
+}
+
+.jx-research-tableOutput .ant-table-cell {
+  white-space: nowrap;
 }
 
 .jx-research-chartOutput {

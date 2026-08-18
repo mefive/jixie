@@ -9,7 +9,8 @@
 > 研究文档、三类 Cell、独立 Python runtime、AST 依赖与 stale 传播、平台时序取数、表格、Matplotlib、
 > 结构化 ECharts、静态 Research SDK Contract、Monaco 参数与返回列补全、Pyright 跨 Cell 语言服务、可搜索数据目录、
 > 目录驱动的标的/指标补全与代码插入、原生 line / scatter / histogram / boxplot / heatmap / event_path
-> 交互图、受影响 Cell 拓扑批量运行、运行中断、干净全文运行和 Validation → `ResearchRun`。
+> 交互图、受控大表分页/虚拟化、输出 artifact 硬上限、受影响 Cell 拓扑批量运行、运行中断、干净全文运行和
+> Validation → `ResearchRun`。
 > Agent 受审计修改 Cell、完整执行比较以及 Factor / Strategy 带血缘交接仍是后续里程碑，
 > 因此本文的“首版完成定义”尚未全部关闭。
 
@@ -354,9 +355,17 @@ type ResearchCellOutput =
   | { kind: 'error'; name: string; message: string; traceback?: string };
 ```
 
-DataFrame 默认只把列 schema、统计摘要和有上限的 preview 送到浏览器；完整数据保留在 runtime 或受控 artifact，
-避免把百万行 JSON 写进 Prisma 或 DOM。交互图的小型 series 可以随输出冻结，大型数据使用内容寻址 artifact
-并记录 hash。正式报告不得只保存图片：必须保存产生图表的结构化结果或可重放引用。
+DataFrame 与 list-of-records 默认只发送 200 行、64 列的受控 preview，单元格最多 256 字符；返回契约同时记录
+原始行列数、具体上限及行、列、单元格是否截断。前端每页默认显示 50 行并使用虚拟滚动，元信息明确写成
+“预览行 / 总行”，不把 preview 冒充完整数据。完整对象仍留在当前 Python runtime；研究员可显式切片查看别的
+区段，页面重开后若需要完整对象则按依赖重跑。首版不把百万行 JSON 写进 Prisma，也不为探索表格另造远程查询
+接口。
+
+输出上限必须显式失败或显示警告，不能静默截断统计口径：原生图最多接收 5,000 行，通用多序列图最多 20 条
+series；Matplotlib 单张 PNG 最多 4 MiB；API 对一个 Cell 的整组持久化输出再施加 8 MiB 防线。超限图表要求
+用户明确聚合或抽样，超限静态图要求降低画布或 DPI。后续只有在真实研究需要跨会话查看完整大表或大型 series
+时，才增加内容寻址 artifact、hash 和按页读取接口。正式报告不得只保存图片：必须保存产生图表的结构化结果
+或可重放引用。
 
 ## 8. Runtime、沙箱与持久化
 

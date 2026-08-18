@@ -52,6 +52,48 @@ describe('research workbench Python runtime', () => {
     expect(result.environmentFingerprint).toMatch(/^[a-f0-9]{64}$/);
   });
 
+  it('returns a bounded table preview for record rows', async () => {
+    const result = await researchRuntimeManager.execute(DOCUMENT_ID, {
+      id: 'large-table',
+      source:
+        'rows = [{"row": index, "value": index / 10, "note": "x" * 300} for index in range(260)]\nrows',
+    });
+
+    const output = result.outputs[0];
+    expect(output).toMatchObject({
+      type: 'table',
+      columns: ['row', 'value', 'note'],
+      rowCount: 260,
+      columnCount: 3,
+      truncated: true,
+      truncatedColumns: false,
+      truncatedCells: true,
+      limits: { rows: 200, columns: 64, cellCharacters: 256 },
+    });
+    if (output?.type !== 'table') {
+      throw new Error('Expected a table output');
+    }
+    expect(output.rows).toHaveLength(200);
+    expect(output.rows[0]?.note).toMatch(/\[truncated\]$/);
+
+    const wideResult = await researchRuntimeManager.execute(DOCUMENT_ID, {
+      id: 'wide-table',
+      source: 'wide = [{f"column_{index}": index for index in range(70)}]\nwide',
+    });
+    const wideOutput = wideResult.outputs[0];
+    expect(wideOutput).toMatchObject({
+      type: 'table',
+      rowCount: 1,
+      columnCount: 70,
+      truncated: false,
+      truncatedColumns: true,
+    });
+    if (wideOutput?.type !== 'table') {
+      throw new Error('Expected a wide table output');
+    }
+    expect(wideOutput.columns).toHaveLength(64);
+  });
+
   it('keeps the Python data API signature aligned with the public SDK contract', async () => {
     const result = await researchRuntimeManager.execute(DOCUMENT_ID, {
       id: 'signature',
@@ -122,6 +164,16 @@ describe('research workbench Python runtime', () => {
       x: 'event_day',
       series: [{ column: 'car', label: 'car' }],
     });
+
+    const projectedLine = await researchRuntimeManager.execute(DOCUMENT_ID, {
+      id: 'projected-line',
+      source:
+        'charts.line([{"date": "2026-01", "nav": 1.1, "unused": "not persisted"}], x="date", y="nav")',
+    });
+    expect(projectedLine.outputs[0]).toMatchObject({
+      type: 'chart',
+      rows: [{ date: '2026-01', nav: 1.1 }],
+    });
   });
 
   it('rejects invalid chart parameters and ambiguous heatmap coordinates', async () => {
@@ -145,6 +197,30 @@ describe('research workbench Python runtime', () => {
     ).rejects.toEqual(
       expect.objectContaining<Partial<ResearchPythonExecutionError>>({
         message: expect.stringContaining('requires unique x/y coordinates'),
+      }),
+    );
+
+    await expect(
+      researchRuntimeManager.execute(DOCUMENT_ID, {
+        id: 'oversized-chart',
+        source: 'charts.line([{"x": index, "y": index} for index in range(5001)], x="x", y="y")',
+      }),
+    ).rejects.toEqual(
+      expect.objectContaining<Partial<ResearchPythonExecutionError>>({
+        message: expect.stringContaining('accepts at most 5000 rows'),
+      }),
+    );
+  });
+
+  it('rejects a Cell output that exceeds the persisted artifact budget', async () => {
+    await expect(
+      researchRuntimeManager.execute(DOCUMENT_ID, {
+        id: 'oversized-output',
+        source: '"x" * (9 * 1024 * 1024)',
+      }),
+    ).rejects.toEqual(
+      expect.objectContaining<Partial<ResearchPythonExecutionError>>({
+        message: expect.stringContaining('persisted artifact limit'),
       }),
     );
   });
