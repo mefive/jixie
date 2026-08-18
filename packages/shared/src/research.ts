@@ -389,6 +389,27 @@ export interface ResearchCapabilityCatalogV1 {
   protocols: ResearchProtocolDefinitionV1[];
 }
 
+/** Searchable, stable platform object that can be passed to `data.series`. */
+export interface ResearchDataCatalogInstrumentV1 {
+  kind: 'instrument';
+  assetType: ResearchAssetTypeV1;
+  identifier: string;
+  nameZh: string;
+  nameEn?: string;
+  description?: string;
+  tags: string[];
+  continuous?: boolean;
+  compatibleMeasureIds: string[];
+}
+
+/** One response powers the catalog UI and Monaco's identifier/measure completion. */
+export interface ResearchDataCatalogResultV1 {
+  version: 1;
+  query: string;
+  instruments: ResearchDataCatalogInstrumentV1[];
+  measures: ResearchMeasureDefinitionV1[];
+}
+
 export interface ResearchSeriesCoverageV1 {
   inputId: string;
   observationsLoaded: number;

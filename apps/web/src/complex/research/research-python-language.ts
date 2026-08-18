@@ -28,6 +28,7 @@ interface DiagnosticState {
 
 const modelContexts = new Map<string, ResearchPythonModelContext>();
 const diagnosticStates = new Map<string, DiagnosticState>();
+const lastFocusedModelByDocument = new Map<string, string>();
 let languageInstalled = false;
 
 export function researchPythonModelUri(
@@ -289,10 +290,17 @@ export function attachResearchPythonModel(
   const modelChange = context.model.onDidChangeContent(() =>
     scheduleDiagnostics(monacoInstance, context.documentId),
   );
+  const focusChange = context.editor.onDidFocusEditorWidget(() => {
+    lastFocusedModelByDocument.set(context.documentId, uri);
+  });
   return {
     dispose() {
       modelChange.dispose();
+      focusChange.dispose();
       modelContexts.delete(uri);
+      if (lastFocusedModelByDocument.get(context.documentId) === uri) {
+        lastFocusedModelByDocument.delete(context.documentId);
+      }
       monacoInstance.editor.setModelMarkers(context.model, 'pyright', []);
       if (
         ![...modelContexts.values()].some(
@@ -308,6 +316,50 @@ export function attachResearchPythonModel(
       }
     },
   };
+}
+
+/** Insert catalog-generated SDK code into the current (or first available) Python Cell. */
+export function insertResearchPythonSnippet(documentId: string, snippet: string): boolean {
+  const documentContexts = [...modelContexts.entries()].filter(
+    ([, context]) => context.documentId === documentId,
+  );
+  const focusedUri = lastFocusedModelByDocument.get(documentId);
+  const context =
+    documentContexts.find(([uri]) => uri === focusedUri)?.[1] ?? documentContexts[0]?.[1];
+  if (!context) {
+    return false;
+  }
+
+  const model = context.model;
+  const value = model.getValue();
+  const startOffset = value.length;
+  const endPosition = model.getPositionAt(startOffset);
+  const range = {
+    startLineNumber: endPosition.lineNumber,
+    startColumn: endPosition.column,
+    endLineNumber: endPosition.lineNumber,
+    endColumn: endPosition.column,
+  };
+  const prefix =
+    value.length === 0 ? '' : value.endsWith('\n\n') ? '' : value.endsWith('\n') ? '\n' : '\n\n';
+  const inserted = `${prefix}${snippet}`;
+  context.editor.pushUndoStop();
+  const applied = context.editor.executeEdits('research-data-catalog', [
+    { range, text: inserted, forceMoveMarkers: true },
+  ]);
+  context.editor.pushUndoStop();
+  if (!applied) {
+    return false;
+  }
+  const cursor = model.getPositionAt(startOffset + prefix.length + snippet.length);
+  context.editor.setPosition(cursor);
+  context.editor.revealPositionInCenterIfOutsideViewport(cursor);
+  context.editor.getDomNode()?.closest('[data-cell-id]')?.scrollIntoView({
+    block: 'center',
+    behavior: 'smooth',
+  });
+  context.editor.focus();
+  return true;
 }
 
 function scheduleDiagnostics(monacoInstance: Monaco, documentId: string, delay = 450): void {

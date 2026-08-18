@@ -7,8 +7,9 @@
 
 > **实施状态（2026-08-18）**：jixie-native 的首个垂直切片已经完成并通过真实浏览器验收。当前覆盖持久化
 > 研究文档、三类 Cell、独立 Python runtime、AST 依赖与 stale 传播、平台时序取数、表格、Matplotlib、
-> 结构化 ECharts、静态 Research SDK Contract、Monaco 参数与返回列补全、Pyright 跨 Cell 语言服务、干净全文运行
-> 和 Validation → `ResearchRun`。Agent 受审计修改 Cell、完整执行比较以及 Factor / Strategy 带血缘交接仍是后续里程碑，
+> 结构化 ECharts、静态 Research SDK Contract、Monaco 参数与返回列补全、Pyright 跨 Cell 语言服务、可搜索数据目录、
+> 目录驱动的标的/指标补全与代码插入、干净全文运行和 Validation → `ResearchRun`。Agent 受审计修改 Cell、完整执行
+> 比较以及 Factor / Strategy 带血缘交接仍是后续里程碑，
 > 因此本文的“首版完成定义”尚未全部关闭。
 
 ## 1. 产品判断
@@ -72,7 +73,8 @@ Research 页面从“聊天记录”转成“研究文档”，Agent 成为可�
 
 左侧数据目录不直接查询数据库。它通过 Research 语义目录展示稳定对象、字段、单位、频率、覆盖、PIT、revision
 和使用限制，并把受支持的取数代码插入 Python Cell。右侧 Agent 操作的是同一份文档，不另行生成不可追踪的
-“聊天版研究”。
+“聊天版研究”。当前窄屏兼容的首版先从工作区工具栏打开数据目录抽屉；当覆盖、已用变量和 Universe 管理进入
+同一阶段后，再把它演进为图中的常驻左栏，而不是提前挤压研究文档宽度。
 
 ## 4. Cell 与响应式执行
 
@@ -179,6 +181,17 @@ Pyright workspace 使用生成的 `jixie_research_sdk.pyi`，并随 `research-py
 
 首阶段不包含 debugger、终端、文件树、运行时 `pip install`、Jupyter 扩展协议或第三方包的无限类型覆盖。这些
 属于 IDE / 环境管理能力，不应和当前的 Python language service 混成一个里程碑。
+
+### 5.3 数据目录与编辑器补全
+
+数据目录不是 Prisma 表浏览器。API 从相同的证券主数据、跨市场 benchmark 登记和 Research Measure Catalog
+构造稳定的 `asset_type + identifier + measure` 组合：用户搜索中文名、英文名或代码，选择研究区间、频率和变换，
+平台只生成现有 `data.series()` 调用并插入当前或最近聚焦的 Python Cell，不创造另一条取数路径。
+
+Monaco 的 `identifier="..."` 与 `measure="..."` 补全调用同一个目录接口。标的候选按资产类别过滤；指标候选先按
+Measure Catalog 的 `assetTypes` 过滤，再使用具体标的的 `compatibleMeasureIds` 收窄。例如普通境内指数不能误选
+只对登记跨市场 benchmark 有效的 `market.cny_close`。搜索结果、抽屉代码生成与编辑器补全因此共享同一组稳定
+标识，而不是在前端各自维护代码常量。
 
 调用经宿主数据桥进入现有语义目录和确定性 loader；容器不持有数据库凭证，不挂载数据库，也不开放网络。
 每次调用记录稳定数据引用、参数、覆盖、revision、available date、返回摘要和指纹。

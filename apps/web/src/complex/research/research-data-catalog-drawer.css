@@ -1,0 +1,140 @@
+@reference '../../styles/index.css';
+
+.jx-researchDataCatalog .ant-drawer-header {
+  min-height: 58px;
+  padding: 12px 16px;
+}
+
+.jx-researchDataCatalog .ant-drawer-body {
+  padding: 18px;
+}
+
+.jx-researchDataCatalog-title {
+  @apply flex items-center gap-2 font-semibold text-ink;
+  font-size: 14px;
+}
+
+.jx-researchDataCatalog-intro {
+  @apply mt-0 text-muted;
+  margin-bottom: 14px;
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.jx-researchDataCatalog-assets {
+  margin-top: 10px;
+}
+
+.jx-researchDataCatalog-section {
+  margin-top: 22px;
+}
+
+.jx-researchDataCatalog-sectionHead {
+  @apply mb-2 flex items-center justify-between gap-3 text-ink;
+  min-height: 24px;
+  font-size: 12px;
+}
+
+.jx-researchDataCatalog-sectionHead > span,
+.jx-researchDataCatalog-sectionHead > code {
+  @apply text-muted;
+  font-size: 10px;
+  font-weight: 400;
+}
+
+.jx-researchDataCatalog-skeleton,
+.jx-researchDataCatalog-results {
+  @apply flex flex-col gap-2;
+}
+
+.jx-researchDataCatalog-results {
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 1px;
+}
+
+.jx-researchDataCatalog-result {
+  @apply flex w-full cursor-pointer items-center gap-2 border border-line bg-card text-left text-ink hover:border-slate-400 hover:bg-bg;
+  min-height: 58px;
+  padding: 9px 10px;
+  border-radius: 7px;
+  transition:
+    border-color 120ms ease,
+    background 120ms ease;
+}
+
+.jx-researchDataCatalog-result--active,
+.jx-researchDataCatalog-result--active:hover {
+  border-color: #64748b;
+  background: #f8fafc;
+  box-shadow: 0 0 0 1px #64748b;
+}
+
+.jx-researchDataCatalog-resultIcon {
+  @apply flex items-center justify-center rounded-md bg-chip text-muted;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  font-size: 12px;
+}
+
+.jx-researchDataCatalog-resultText {
+  @apply flex min-w-0 flex-1 flex-col gap-1;
+}
+
+.jx-researchDataCatalog-resultText strong {
+  @apply truncate font-medium;
+  font-size: 13px;
+}
+
+.jx-researchDataCatalog-resultText code {
+  @apply text-muted;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+}
+
+.jx-researchDataCatalog-result .ant-tag {
+  margin-inline-end: 0;
+  flex: none;
+  font-size: 10px;
+}
+
+.jx-researchDataCatalog-config {
+  @apply mt-6 border-t border-line;
+  padding-top: 18px;
+}
+
+.jx-researchDataCatalog-config > label,
+.jx-researchDataCatalog-configRow > label {
+  @apply flex flex-col gap-1 text-muted;
+  margin-top: 12px;
+  font-size: 11px;
+}
+
+.jx-researchDataCatalog-config > label .ant-select,
+.jx-researchDataCatalog-config > label .ant-picker,
+.jx-researchDataCatalog-configRow > label .ant-select {
+  width: 100%;
+}
+
+.jx-researchDataCatalog-configRow {
+  @apply grid gap-3;
+  grid-template-columns: 1fr 1fr;
+}
+
+.jx-researchDataCatalog-preview {
+  @apply mb-0 mt-4 overflow-auto border border-line bg-bg text-ink;
+  max-height: 220px;
+  padding: 12px;
+  border-radius: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  line-height: 1.6;
+  white-space: pre;
+}
+
+@media (max-width: 520px) {
+  .jx-researchDataCatalog-configRow {
+    grid-template-columns: 1fr;
+  }
+}

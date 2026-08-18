@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { ulid } from 'ulid';
 import { z } from 'zod';
-import { apiError, validateJson } from '../lib/httpError.js';
+import { apiError, validateJson, validateQuery } from '../lib/httpError.js';
 import { initializeJobLogs } from '../lib/jobs.js';
 import { wakeJobQueue } from '../lib/job-queue.js';
 import { prisma } from '../lib/prisma.js';
@@ -27,6 +27,7 @@ import { researchPlanSpecV1Schema } from '../research/spec.js';
 import { universeSpecV1Schema } from '../research/spec.js';
 import { executeUniverseSpec } from '../research/universe.js';
 import { researchPythonLanguageService } from '../research/pyright-language-service.js';
+import { searchResearchDataCatalog } from '../research/data-catalog.js';
 import {
   addResearchCell,
   analyzeResearchDocument,
@@ -45,6 +46,23 @@ import {
 export const researchRoute = new Hono();
 
 researchRoute.get('/catalog', (c) => c.json(researchCapabilityCatalog));
+
+const dataCatalogQuery = z.strictObject({
+  q: z.string().trim().max(120).default(''),
+  assetType: z.enum(['stock', 'etf', 'index', 'future']).optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(24),
+});
+
+researchRoute.get('/data-catalog', validateQuery(dataCatalogQuery), async (c) => {
+  const query = c.req.valid('query');
+  return c.json(
+    await searchResearchDataCatalog({
+      query: query.q,
+      assetType: query.assetType,
+      limit: query.limit,
+    }),
+  );
+});
 
 const createDocumentBody = z.strictObject({
   template: z.enum(['blank', 'index_relationship']).default('blank'),
