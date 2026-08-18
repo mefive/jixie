@@ -240,8 +240,9 @@ DAG。上游变化时将下游标记 `stale`；默认 lazy，不自动触发昂�
 首个可运行垂直切片已于 2026-08-17 落地：Research 页面已经以持久化研究文档为中心，支持 Markdown、
 Python 和 Validation Cell；独立 Python runtime 提供文档级共享状态、AST 定义/引用分析、平台只读时序取数、
 pandas 表格、Matplotlib 静态图，以及 line / scatter / histogram / boxplot / heatmap / event_path 等
-`charts.*` 结构化 ECharts 输出。大表输出以 200 行、64 列、每格 256 字符的受控 preview 保存，前端提供分页和
-虚拟滚动并明确展示预览/总量；图表、静态图和单 Cell 持久化输出均有不可静默越过的硬上限。修改上游后会沿传递依赖将下游标记为
+`charts.*` 结构化 ECharts 输出。大表输出以 200 行、64 列、每格 256 字符且最多 1 MiB 的受控 preview 保存，
+前端提供分页和虚拟滚动并明确展示预览/总量与字节截断状态。Matplotlib PNG 已从 Cell JSON 剥离为不可变、按文档所有者鉴权的
+`ResearchArtifact`，前端按视区懒加载并兼容旧 `dataUrl`；图表、静态图和 Cell 内联持久化输出均有不可静默越过的硬上限。修改上游后会沿传递依赖将下游标记为
 `stale` 并保留带警告的旧输出；用户也可以从任意 Python Cell 触发受影响分支，系统排除无关 Cell、按 DAG
 拓扑序运行，并在分支失败时只阻断其后代。干净运行会重建 runtime、按文档顺序执行，并让 Validation Cell
 复用现有协议固化正式 `ResearchRun`。运行中的 Python Cell 支持服务端真实中断：终止当前文档 session、

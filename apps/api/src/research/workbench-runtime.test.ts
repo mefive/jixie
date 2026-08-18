@@ -92,6 +92,28 @@ describe('research workbench Python runtime', () => {
       throw new Error('Expected a wide table output');
     }
     expect(wideOutput.columns).toHaveLength(64);
+
+    const byteLimitedResult = await researchRuntimeManager.execute(DOCUMENT_ID, {
+      id: 'byte-limited-table',
+      source:
+        'large = [{f"column_{column}": "x" * 300 for column in range(64)} for row in range(200)]\nlarge',
+    });
+    const byteLimitedOutput = byteLimitedResult.outputs[0];
+    expect(byteLimitedOutput).toMatchObject({
+      type: 'table',
+      rowCount: 200,
+      truncated: true,
+      truncatedBytes: true,
+      limits: { bytes: 1024 * 1024 },
+    });
+    if (byteLimitedOutput?.type !== 'table') {
+      throw new Error('Expected a byte-limited table output');
+    }
+    expect(byteLimitedOutput.rows.length).toBeLessThan(200);
+    expect(byteLimitedOutput.previewByteSize).toBeLessThanOrEqual(1024 * 1024);
+    expect(Buffer.byteLength(JSON.stringify(byteLimitedOutput), 'utf8')).toBe(
+      byteLimitedOutput.previewByteSize,
+    );
   });
 
   it('keeps the Python data API signature aligned with the public SDK contract', async () => {
@@ -212,7 +234,7 @@ describe('research workbench Python runtime', () => {
     );
   });
 
-  it('rejects a Cell output that exceeds the persisted artifact budget', async () => {
+  it('rejects a Cell output that exceeds the runtime transfer budget', async () => {
     await expect(
       researchRuntimeManager.execute(DOCUMENT_ID, {
         id: 'oversized-output',
@@ -220,7 +242,7 @@ describe('research workbench Python runtime', () => {
       }),
     ).rejects.toEqual(
       expect.objectContaining<Partial<ResearchPythonExecutionError>>({
-        message: expect.stringContaining('persisted artifact limit'),
+        message: expect.stringContaining('runtime transfer limit'),
       }),
     );
   });

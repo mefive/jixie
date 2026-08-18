@@ -9,7 +9,8 @@
 > 研究文档、三类 Cell、独立 Python runtime、AST 依赖与 stale 传播、平台时序取数、表格、Matplotlib、
 > 结构化 ECharts、静态 Research SDK Contract、Monaco 参数与返回列补全、Pyright 跨 Cell 语言服务、可搜索数据目录、
 > 目录驱动的标的/指标补全与代码插入、原生 line / scatter / histogram / boxplot / heatmap / event_path
-> 交互图、受控大表分页/虚拟化、输出 artifact 硬上限、受影响 Cell 拓扑批量运行、运行中断、干净全文运行和
+> 交互图、受控大表分页/虚拟化与 1 MiB 预览预算、图片 artifact 按权限懒加载、输出硬上限、受影响 Cell
+> 拓扑批量运行、运行中断、干净全文运行和
 > Validation → `ResearchRun`。
 > Agent 受审计修改 Cell、完整执行比较以及 Factor / Strategy 带血缘交接仍是后续里程碑，
 > 因此本文的“首版完成定义”尚未全部关闭。
@@ -355,17 +356,24 @@ type ResearchCellOutput =
   | { kind: 'error'; name: string; message: string; traceback?: string };
 ```
 
-DataFrame 与 list-of-records 默认只发送 200 行、64 列的受控 preview，单元格最多 256 字符；返回契约同时记录
-原始行列数、具体上限及行、列、单元格是否截断。前端每页默认显示 50 行并使用虚拟滚动，元信息明确写成
+DataFrame 与 list-of-records 默认只发送 200 行、64 列、最多 1 MiB 的受控 preview，单元格最多 256 字符；
+返回契约同时记录原始行列数、实际 preview 字节数、具体上限及行、列、单元格、字节是否截断。前端每页默认显示
+50 行并使用虚拟滚动，元信息明确写成
 “预览行 / 总行”，不把 preview 冒充完整数据。完整对象仍留在当前 Python runtime；研究员可显式切片查看别的
 区段，页面重开后若需要完整对象则按依赖重跑。首版不把百万行 JSON 写进 Prisma，也不为探索表格另造远程查询
 接口。
 
 输出上限必须显式失败或显示警告，不能静默截断统计口径：原生图最多接收 5,000 行，通用多序列图最多 20 条
-series；Matplotlib 单张 PNG 最多 4 MiB；API 对一个 Cell 的整组持久化输出再施加 8 MiB 防线。超限图表要求
-用户明确聚合或抽样，超限静态图要求降低画布或 DPI。后续只有在真实研究需要跨会话查看完整大表或大型 series
-时，才增加内容寻址 artifact、hash 和按页读取接口。正式报告不得只保存图片：必须保存产生图表的结构化结果
-或可重放引用。
+series；Matplotlib 单张 PNG 最多 4 MiB；Python runtime 向 API 传输的整组原始输出最多 8 MiB。API 会在持久化前
+剥离图片 base64，Cell / Execution 的内联 JSON 降为 2 MiB 上限；超限图表要求用户明确聚合或抽样，超限静态图要求
+降低画布或 DPI。
+
+图片作为所属 `ResearchCellExecution` 的不可变 `ResearchArtifact` BLOB 保存在 SQLite，Cell 当前输出与执行快照引用同一
+artifact id，并保存 SHA-256、类型、字节数和可得的尺寸。前端只在图片进入视区时请求按用户与文档鉴权的读取接口，
+响应可私有缓存但每次复用都必须携带 ETag 重新鉴权，不使用跨账号可直接命中的 `immutable` 缓存；旧版本已保存的内联 `dataUrl` 继续可读。本阶段保留原始 PNG，
+不在前端转 WebP 或重压缩，避免让视觉
+结果与执行产物不一致。只有当容量、备份或横向扩展数据证明 SQLite BLOB 不再合适时，才迁移到对象存储。跨会话查看完整大表或大型
+series 仍等待真实需求，再增加独立内容寻址数据产物与按页读取接口。正式报告不得只保存图片：必须保存产生图表的结构化结果或可重放引用。
 
 ## 8. Runtime、沙箱与持久化
 
@@ -444,7 +452,7 @@ Agent 修改 Cell 必须显示 diff 或明确变更摘要，并进入对话 trac
 - 只读数据桥、语义目录插入、PIT/revision 和数据指纹；
 - 静态 Research SDK Contract、生成/check、Monaco 参数与直接返回列补全；
 - `charts.line/scatter/histogram/boxplot/heatmap/event_path`；
-- ECharts 富交互、表格分页/虚拟化和 artifact 上限；
+- ECharts 富交互、表格分页/虚拟化和 artifact 上限（第二阶段已完成图片产物懒加载、1 MiB 表格预览预算与 2 MiB 内联输出上限）；
 - Agent 增删改、执行和解释 Cell。
 
 ### M3：验证、固化与现有协议接线

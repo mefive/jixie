@@ -1279,6 +1279,7 @@ model ResearchDocument {
 
   cells      ResearchCell[]
   executions ResearchCellExecution[]
+  artifacts  ResearchArtifact[]
 
   @@index([userId, updatedAt])
 }
@@ -1328,8 +1329,32 @@ model ResearchCellExecution {
   startedAt              DateTime         @default(now())
   finishedAt             DateTime?
 
+  artifacts ResearchArtifact[]
+
   @@index([documentId, startedAt])
   @@index([cellId, startedAt])
+}
+
+/// One immutable binary output owned by a Research Cell execution. Cell JSON stores only the
+/// artifact id and display metadata; authenticated reads stream the bytes lazily.
+model ResearchArtifact {
+  id          String                @id // ULID
+  documentId  String
+  document    ResearchDocument      @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  executionId String
+  execution   ResearchCellExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+  kind        String // 'image'
+  mimeType    String // 'image/png' | 'image/svg+xml'
+  data        Bytes
+  byteSize    Int
+  sha256      String
+  width       Int?
+  height      Int?
+  createdAt   DateTime              @default(now())
+
+  @@index([documentId, createdAt])
+  @@index([executionId])
+  @@index([sha256])
 }
 
 /// One durable research question. Conversations are the interaction surface; studies own the

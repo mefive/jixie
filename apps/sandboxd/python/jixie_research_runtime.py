@@ -17,6 +17,7 @@ from typing import Any, Callable
 _MAX_TABLE_ROWS = 200
 _MAX_TABLE_COLUMNS = 64
 _MAX_TABLE_CELL_CHARACTERS = 256
+_MAX_TABLE_PREVIEW_BYTES = 1 * 1024 * 1024
 _MAX_CHART_ROWS = 5_000
 _MAX_CHART_SERIES = 20
 _MAX_IMAGE_BYTES = 4 * 1024 * 1024
@@ -665,30 +666,59 @@ def _table_output(value: Any) -> dict[str, Any]:
         raise TypeError("table outputs require a pandas object or a list of records")
 
     cells_truncated = False
+    bytes_truncated = False
     rows: list[dict[str, Any]] = []
+    preview_content_byte_size = len(
+        json.dumps(
+            {"columns": columns, "rows": []},
+            ensure_ascii=False,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    )
     for raw_row in raw_rows:
         row: dict[str, Any] = {}
         for column in columns:
             scalar, truncated = _table_scalar(raw_row.get(column))
             row[column] = scalar
             cells_truncated = cells_truncated or truncated
+        row_byte_size = len(
+            json.dumps(row, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+        ) + (1 if rows else 0)
+        if (
+            preview_content_byte_size + row_byte_size
+            > _MAX_TABLE_PREVIEW_BYTES - 1024
+        ):
+            bytes_truncated = True
+            break
         rows.append(row)
+        preview_content_byte_size += row_byte_size
 
-    return {
+    output = {
         "type": "table",
         "columns": columns,
         "rows": rows,
         "rowCount": row_count,
         "columnCount": column_count,
-        "truncated": row_count > _MAX_TABLE_ROWS,
+        "truncated": row_count > len(rows),
         "truncatedColumns": column_count > _MAX_TABLE_COLUMNS,
         "truncatedCells": cells_truncated,
+        "truncatedBytes": bytes_truncated,
         "limits": {
             "rows": _MAX_TABLE_ROWS,
             "columns": _MAX_TABLE_COLUMNS,
             "cellCharacters": _MAX_TABLE_CELL_CHARACTERS,
+            "bytes": _MAX_TABLE_PREVIEW_BYTES,
         },
     }
+    preview_byte_size = 0
+    while output.get("previewByteSize") != preview_byte_size:
+        output["previewByteSize"] = preview_byte_size
+        preview_byte_size = len(
+            json.dumps(output, ensure_ascii=False, separators=(",", ":")).encode(
+                "utf-8"
+            )
+        )
+    return output
 
 
 def _unique_column_names(columns: Any) -> list[str]:
