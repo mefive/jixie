@@ -323,6 +323,12 @@ export function runResearchCell(cellId: string): Promise<ResearchDocumentV1> {
   return request(`/api/app/research/cells/${encodeURIComponent(cellId)}/run`, { method: 'POST' });
 }
 
+export function runAffectedResearchCells(cellId: string): Promise<ResearchDocumentRunResultV1> {
+  return request(`/api/app/research/cells/${encodeURIComponent(cellId)}/run-affected`, {
+    method: 'POST',
+  });
+}
+
 export function analyzeResearchDocument(documentId: string): Promise<ResearchDocumentAnalysisV1> {
   return request(`/api/app/research/documents/${encodeURIComponent(documentId)}/analyze`, {
     method: 'POST',

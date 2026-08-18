@@ -39,6 +39,23 @@ interface CellSeed {
   config?: Record<string, unknown>;
 }
 
+export type ResearchAffectedRunErrorReason = 'duplicate_definitions' | 'cyclic_dependency';
+
+export class ResearchAffectedRunError extends Error {
+  public constructor(
+    readonly reason: ResearchAffectedRunErrorReason,
+    readonly details: ResearchDependencyConflictV1[] | string[],
+  ) {
+    super(reason);
+    this.name = 'ResearchAffectedRunError';
+  }
+}
+
+export interface ResearchAffectedRunPlan {
+  cellIds: string[];
+  dependenciesByCellId: Map<string, string[]>;
+}
+
 export async function listResearchDocuments(userId: string): Promise<ResearchDocumentSummaryV1[]> {
   const conversations = await prisma.agentConversation.findMany({
     where: { userId, surface: 'research', archivedAt: null },
@@ -320,6 +337,47 @@ export async function runResearchCell(
   return getResearchDocument(userId, cell.documentId);
 }
 
+export async function runAffectedResearchCells(
+  userId: string,
+  cellId: string,
+): Promise<ResearchDocumentRunResultV1 | null> {
+  const cell = await prisma.researchCell.findFirst({
+    where: { id: cellId, document: { userId } },
+    select: { id: true, documentId: true },
+  });
+  if (!cell) {
+    return null;
+  }
+
+  const analyses = await analyzeAndPersist(cell.documentId);
+  const plan = affectedResearchCellRunPlan(cell.id, analyses);
+  const downstreamCellIds = plan.cellIds.filter((affectedCellId) => affectedCellId !== cell.id);
+  if (downstreamCellIds.length > 0) {
+    await prisma.researchCell.updateMany({
+      where: {
+        documentId: cell.documentId,
+        id: { in: downstreamCellIds },
+        lastExecutedRevision: { not: null },
+      },
+      data: { status: 'stale' },
+    });
+  }
+
+  const executedCellIds = await executeAffectedResearchCellPlan(plan, async (affectedCellId) => {
+    const document = await runResearchCell(userId, affectedCellId);
+    return (
+      document?.cells.find((candidate) => candidate.id === affectedCellId)?.status === 'success'
+    );
+  });
+
+  return {
+    version: 1,
+    document: (await getResearchDocument(userId, cell.documentId))!,
+    executedCellIds,
+    clean: false,
+  };
+}
+
 export async function runResearchDocument(
   userId: string,
   documentId: string,
@@ -506,6 +564,126 @@ export function downstreamResearchCellIds(
     }
   }
   return [...stale];
+}
+
+export function affectedResearchCellRunPlan(
+  selectedCellId: string,
+  analyses: ResearchPythonAnalysis[],
+): ResearchAffectedRunPlan {
+  const orderByCellId = new Map(analyses.map((analysis, index) => [analysis.cellId, index]));
+  if (!orderByCellId.has(selectedCellId)) {
+    return { cellIds: [], dependenciesByCellId: new Map() };
+  }
+
+  const definitionsByName = new Map<string, string[]>();
+  for (const analysis of analyses) {
+    for (const name of analysis.definitions) {
+      definitionsByName.set(name, [...(definitionsByName.get(name) ?? []), analysis.cellId]);
+    }
+  }
+
+  const dependenciesByCellId = new Map(
+    analyses.map((analysis) => [analysis.cellId, new Set<string>()]),
+  );
+  const dependentsByCellId = new Map(
+    analyses.map((analysis) => [analysis.cellId, new Set<string>()]),
+  );
+  for (const analysis of analyses) {
+    for (const reference of analysis.references) {
+      for (const providerCellId of definitionsByName.get(reference) ?? []) {
+        if (providerCellId === analysis.cellId) {
+          continue;
+        }
+        dependenciesByCellId.get(analysis.cellId)!.add(providerCellId);
+        dependentsByCellId.get(providerCellId)!.add(analysis.cellId);
+      }
+    }
+  }
+
+  const affectedCellIds = new Set([selectedCellId]);
+  const pendingCellIds = [selectedCellId];
+  while (pendingCellIds.length > 0) {
+    const pendingCellId = pendingCellIds.shift()!;
+    for (const dependentCellId of dependentsByCellId.get(pendingCellId) ?? []) {
+      if (!affectedCellIds.has(dependentCellId)) {
+        affectedCellIds.add(dependentCellId);
+        pendingCellIds.push(dependentCellId);
+      }
+    }
+  }
+
+  const conflicts = dependencyConflicts(analyses).filter((conflict) =>
+    analyses.some(
+      (analysis) =>
+        affectedCellIds.has(analysis.cellId) &&
+        (analysis.definitions.includes(conflict.name) ||
+          analysis.references.includes(conflict.name)),
+    ),
+  );
+  if (conflicts.length > 0) {
+    throw new ResearchAffectedRunError('duplicate_definitions', conflicts);
+  }
+
+  const affectedDependenciesByCellId = new Map<string, string[]>();
+  const remainingDependencyCount = new Map<string, number>();
+  for (const affectedCellId of affectedCellIds) {
+    const dependencies = [...(dependenciesByCellId.get(affectedCellId) ?? [])].filter(
+      (dependencyCellId) => affectedCellIds.has(dependencyCellId),
+    );
+    affectedDependenciesByCellId.set(affectedCellId, dependencies);
+    remainingDependencyCount.set(affectedCellId, dependencies.length);
+  }
+
+  const readyCellIds = [...affectedCellIds]
+    .filter((affectedCellId) => remainingDependencyCount.get(affectedCellId) === 0)
+    .sort((left, right) => orderByCellId.get(left)! - orderByCellId.get(right)!);
+  const orderedCellIds: string[] = [];
+  while (readyCellIds.length > 0) {
+    const readyCellId = readyCellIds.shift()!;
+    orderedCellIds.push(readyCellId);
+    for (const dependentCellId of dependentsByCellId.get(readyCellId) ?? []) {
+      if (!affectedCellIds.has(dependentCellId)) {
+        continue;
+      }
+      const remaining = remainingDependencyCount.get(dependentCellId)! - 1;
+      remainingDependencyCount.set(dependentCellId, remaining);
+      if (remaining === 0) {
+        readyCellIds.push(dependentCellId);
+        readyCellIds.sort((left, right) => orderByCellId.get(left)! - orderByCellId.get(right)!);
+      }
+    }
+  }
+
+  if (orderedCellIds.length !== affectedCellIds.size) {
+    const cyclicCellIds = [...affectedCellIds]
+      .filter((affectedCellId) => !orderedCellIds.includes(affectedCellId))
+      .sort((left, right) => orderByCellId.get(left)! - orderByCellId.get(right)!);
+    throw new ResearchAffectedRunError('cyclic_dependency', cyclicCellIds);
+  }
+
+  return { cellIds: orderedCellIds, dependenciesByCellId: affectedDependenciesByCellId };
+}
+
+export async function executeAffectedResearchCellPlan(
+  plan: ResearchAffectedRunPlan,
+  executeCellById: (cellId: string) => Promise<boolean>,
+): Promise<string[]> {
+  const blockedCellIds = new Set<string>();
+  const executedCellIds: string[] = [];
+  for (const cellId of plan.cellIds) {
+    const dependencies = plan.dependenciesByCellId.get(cellId) ?? [];
+    if (dependencies.some((dependencyCellId) => blockedCellIds.has(dependencyCellId))) {
+      blockedCellIds.add(cellId);
+      continue;
+    }
+
+    const succeeded = await executeCellById(cellId);
+    executedCellIds.push(cellId);
+    if (!succeeded) {
+      blockedCellIds.add(cellId);
+    }
+  }
+  return executedCellIds;
 }
 
 function dependencyConflicts(analyses: ResearchPythonAnalysis[]): ResearchDependencyConflictV1[] {

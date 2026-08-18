@@ -27,6 +27,7 @@ import {
   listResearchDocuments,
   renameResearchConversation,
   resetResearchDocument,
+  runAffectedResearchCells,
   runResearchCell,
   runResearchDocument,
   sendResearchAgent,
@@ -75,12 +76,14 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
   public sending = false;
   public prompt = '';
   public busyCellId: string | null = null;
+  public affectedRunningCellId: string | null = null;
   public documentRunning = false;
   public turnStream = new AgentTurnStream();
   public documentsLoader = new LoaderModel<ResearchDocumentSummaryV1[]>();
   public documentLoader = new LoaderModel<ResearchDocumentV1>();
   public documentMutationLoader = new LoaderModel<ResearchDocumentV1>();
   public documentRunLoader = new LoaderModel<ResearchDocumentRunResultV1>();
+  public affectedRunLoader = new LoaderModel<ResearchDocumentRunResultV1>();
   public dataCatalogLoader = new LoaderModel<ResearchDataCatalogResultV1>();
   public curatorLoader = new LoaderModel<ResearchCuratorRunV1 | null>();
   public curatorMutationLoader = new LoaderModel<ResearchCuratorRunV1 | ResearchCuratorFindingV1>();
@@ -94,6 +97,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
       sending: observable.ref,
       prompt: observable.ref,
       busyCellId: observable.ref,
+      affectedRunningCellId: observable.ref,
       documentRunning: observable.ref,
       setPrompt: action,
     });
@@ -131,6 +135,10 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
       request: ({ documentId, clean }: { documentId: string; clean: boolean }) =>
         runResearchDocument(documentId, clean),
     });
+    this.affectedRunLoader.setup({
+      preserveResult: false,
+      request: (cellId: string) => runAffectedResearchCells(cellId),
+    });
     this.dataCatalogLoader.setup({
       request: ({ query, assetType }: ResearchDataCatalogQuery, signal) =>
         searchResearchDataCatalog(query, assetType, signal),
@@ -164,6 +172,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     this.registCleaner(() => this.documentLoader.cleanup());
     this.registCleaner(() => this.documentMutationLoader.cleanup());
     this.registCleaner(() => this.documentRunLoader.cleanup());
+    this.registCleaner(() => this.affectedRunLoader.cleanup());
     this.registCleaner(() => this.dataCatalogLoader.cleanup());
     this.registCleaner(() => this.curatorLoader.cleanup());
     this.registCleaner(() => this.curatorMutationLoader.cleanup());
@@ -253,6 +262,24 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     } finally {
       runInAction(() => {
         this.busyCellId = null;
+      });
+    }
+  }
+
+  public async runAffected(cellId: string, source?: string) {
+    if (source !== undefined) {
+      await this.updateCell(cellId, source);
+    }
+    runInAction(() => {
+      this.affectedRunningCellId = cellId;
+    });
+    try {
+      const result = await this.affectedRunLoader.run(cellId);
+      this.acceptDocument(result.document, false);
+      void this.documentsLoader.run();
+    } finally {
+      runInAction(() => {
+        this.affectedRunningCellId = null;
       });
     }
   }
