@@ -19,6 +19,7 @@ import {
   faCode,
   faCommentDots,
   faDatabase,
+  faDiagramProject,
   faEye,
   faEyeSlash,
   faFileLines,
@@ -377,6 +378,7 @@ const ResearchWorkspace = complex.component(
                 size="small"
                 data-testid="research-run-all"
                 loading={store.documentRunning}
+                disabled={store.busyCellId !== null || store.affectedRunningCellId !== null}
                 icon={<FontAwesomeIcon icon={faBolt} />}
                 aria-label={t('workbench.cleanRun')}
                 onClick={() => void store.runAll(true)}
@@ -394,14 +396,17 @@ const ResearchWorkspace = complex.component(
             </Tooltip>
           </div>
         </header>
-        {(store.documentMutationLoader.error || store.documentRunLoader.error) && (
+        {(store.documentMutationLoader.error ||
+          store.documentRunLoader.error ||
+          store.affectedRunLoader.error) && (
           <Alert
             className="jx-research-workspaceAlert"
             type="error"
             showIcon
             title={
               store.documentMutationLoader.errorObject?.message ??
-              store.documentRunLoader.errorObject?.message
+              store.documentRunLoader.errorObject?.message ??
+              store.affectedRunLoader.errorObject?.message
             }
           />
         )}
@@ -439,6 +444,11 @@ const ResearchCell = complex.component(
       setDraft(cell.source);
     }, [cell.source, cell.revision]);
     const busy = store.busyCellId === cell.id || cell.status === 'running';
+    const affectedBusy = store.affectedRunningCellId === cell.id;
+    const anotherRunActive =
+      store.documentRunning ||
+      (store.busyCellId !== null && store.busyCellId !== cell.id) ||
+      (store.affectedRunningCellId !== null && store.affectedRunningCellId !== cell.id);
     const dirty = draft !== cell.source;
     const run = (): void => {
       void store.runCell(cell.id, draft);
@@ -447,6 +457,9 @@ const ResearchCell = complex.component(
       if (dirty) {
         void store.updateCell(cell.id, draft);
       }
+    };
+    const runAffected = (): void => {
+      void store.runAffected(cell.id, draft);
     };
     return (
       <article
@@ -495,11 +508,26 @@ const ResearchCell = complex.component(
                 type="text"
                 size="small"
                 loading={busy}
+                disabled={affectedBusy || anotherRunActive}
                 icon={<FontAwesomeIcon icon={faPlay} />}
                 aria-label={t('workbench.runCell')}
                 onClick={run}
               />
             </Tooltip>
+            {cell.kind === 'python' && (
+              <Tooltip title={t('workbench.runAffected')}>
+                <Button
+                  type="text"
+                  size="small"
+                  loading={affectedBusy}
+                  disabled={busy || anotherRunActive}
+                  data-testid="research-run-affected"
+                  icon={<FontAwesomeIcon icon={faDiagramProject} />}
+                  aria-label={t('workbench.runAffected')}
+                  onClick={runAffected}
+                />
+              </Tooltip>
+            )}
             <Tooltip title={t('workbench.deleteCell')}>
               <Popconfirm
                 title={t('workbench.deleteCell')}

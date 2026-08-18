@@ -37,6 +37,8 @@ import {
   getResearchDocument,
   listResearchDocuments,
   resetResearchDocumentRuntime,
+  ResearchAffectedRunError,
+  runAffectedResearchCells,
   runResearchCell,
   runResearchDocument,
   updateResearchCell,
@@ -181,6 +183,27 @@ researchRoute.delete('/cells/:cellId', async (c) => {
 researchRoute.post('/cells/:cellId/run', async (c) => {
   const document = await runResearchCell(c.var.userId, c.req.param('cellId'));
   return document ? c.json(document) : apiError(c, 'NOT_FOUND', m(c, 'conversationNotFound'));
+});
+
+researchRoute.post('/cells/:cellId/run-affected', async (c) => {
+  try {
+    const result = await runAffectedResearchCells(c.var.userId, c.req.param('cellId'));
+    return result ? c.json(result) : apiError(c, 'NOT_FOUND', m(c, 'conversationNotFound'));
+  } catch (error) {
+    if (error instanceof ResearchAffectedRunError) {
+      const messageKey =
+        error.reason === 'duplicate_definitions'
+          ? 'researchAffectedRunDuplicateDefinitions'
+          : 'researchAffectedRunCyclicDependency';
+      return apiError(c, 'VALIDATION_FAILED', m(c, messageKey), {
+        reason: error.reason,
+        ...(error.reason === 'duplicate_definitions'
+          ? { conflicts: error.details }
+          : { cellIds: error.details }),
+      });
+    }
+    throw error;
+  }
 });
 
 researchRoute.post('/documents/:documentId/analyze', async (c) => {

@@ -66,6 +66,7 @@ export const enResearch: typeof zhResearch = {
     hideSpec: 'Hide protocol',
     runCell: 'Run',
     runShortcut: 'Run current cell (⌘/Ctrl + Enter)',
+    runAffected: 'Run this cell and affected downstream cells',
     deleteCell: 'Delete this cell?',
     staleNotice: 'An upstream definition changed. This is old output; rerun before relying on it.',
     defines: 'Defines',

@@ -49,6 +49,14 @@ const MESSAGES = {
     zh: 'Python 语言服务暂不可用，请稍后重试',
     en: 'The Python language service is temporarily unavailable; try again shortly',
   },
+  researchAffectedRunDuplicateDefinitions: {
+    zh: '受影响分支存在重复变量定义，请先消除冲突再运行',
+    en: 'The affected branch has duplicate variable definitions; resolve them before running',
+  },
+  researchAffectedRunCyclicDependency: {
+    zh: '受影响分支存在循环依赖，请先拆解循环再运行',
+    en: 'The affected branch has a dependency cycle; break the cycle before running',
+  },
 
   // —— Turn already running for an entity ——
   strategyTurnInProgress: {

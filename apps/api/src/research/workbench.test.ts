@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { downstreamResearchCellIds } from './workbench.js';
+import {
+  affectedResearchCellRunPlan,
+  downstreamResearchCellIds,
+  executeAffectedResearchCellPlan,
+  ResearchAffectedRunError,
+} from './workbench.js';
 
 describe('reactive research dependencies', () => {
   it('marks transitive dependents without invalidating independent validation cells', () => {
@@ -20,5 +25,66 @@ describe('reactive research dependencies', () => {
     ]);
 
     expect(stale).toEqual(['consumer']);
+  });
+
+  it('orders an affected diamond while excluding independent cells', () => {
+    const plan = affectedResearchCellRunPlan('load', [
+      {
+        cellId: 'combined',
+        definitions: ['combinedSummary'],
+        references: ['leftSummary', 'rightSummary'],
+      },
+      { cellId: 'left', definitions: ['leftSummary'], references: ['monthly'] },
+      { cellId: 'independent', definitions: ['other'], references: [] },
+      { cellId: 'load', definitions: ['monthly'], references: [] },
+      { cellId: 'right', definitions: ['rightSummary'], references: ['monthly'] },
+    ]);
+
+    expect(plan.cellIds).toEqual(['load', 'left', 'right', 'combined']);
+    expect(plan.dependenciesByCellId.get('combined')).toEqual(['left', 'right']);
+  });
+
+  it('rejects duplicate definitions used by the affected branch', () => {
+    expect(() =>
+      affectedResearchCellRunPlan('load-a', [
+        { cellId: 'load-a', definitions: ['monthly'], references: [] },
+        { cellId: 'load-b', definitions: ['monthly'], references: [] },
+        { cellId: 'summary', definitions: [], references: ['monthly'] },
+      ]),
+    ).toThrowError(
+      expect.objectContaining<Partial<ResearchAffectedRunError>>({
+        reason: 'duplicate_definitions',
+      }),
+    );
+  });
+
+  it('rejects cycles in the affected branch', () => {
+    expect(() =>
+      affectedResearchCellRunPlan('left', [
+        { cellId: 'left', definitions: ['leftValue'], references: ['rightValue'] },
+        { cellId: 'right', definitions: ['rightValue'], references: ['leftValue'] },
+      ]),
+    ).toThrowError(
+      expect.objectContaining<Partial<ResearchAffectedRunError>>({ reason: 'cyclic_dependency' }),
+    );
+  });
+
+  it('continues independent branches and skips dependents of a failed cell', async () => {
+    const plan = affectedResearchCellRunPlan('load', [
+      { cellId: 'load', definitions: ['monthly'], references: [] },
+      { cellId: 'failed-branch', definitions: ['failedValue'], references: ['monthly'] },
+      { cellId: 'healthy-branch', definitions: ['healthyValue'], references: ['monthly'] },
+      { cellId: 'blocked', definitions: [], references: ['failedValue'] },
+      { cellId: 'healthy-result', definitions: [], references: ['healthyValue'] },
+    ]);
+    const attempted: string[] = [];
+
+    const executed = await executeAffectedResearchCellPlan(plan, async (cellId) => {
+      attempted.push(cellId);
+      return cellId !== 'failed-branch';
+    });
+
+    expect(executed).toEqual(['load', 'failed-branch', 'healthy-branch', 'healthy-result']);
+    expect(attempted).not.toContain('blocked');
   });
 });

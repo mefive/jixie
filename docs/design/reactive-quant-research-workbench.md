@@ -8,8 +8,8 @@
 > **实施状态（2026-08-18）**：jixie-native 的首个垂直切片已经完成并通过真实浏览器验收。当前覆盖持久化
 > 研究文档、三类 Cell、独立 Python runtime、AST 依赖与 stale 传播、平台时序取数、表格、Matplotlib、
 > 结构化 ECharts、静态 Research SDK Contract、Monaco 参数与返回列补全、Pyright 跨 Cell 语言服务、可搜索数据目录、
-> 目录驱动的标的/指标补全与代码插入、干净全文运行和 Validation → `ResearchRun`。Agent 受审计修改 Cell、完整执行
-> 比较以及 Factor / Strategy 带血缘交接仍是后续里程碑，
+> 目录驱动的标的/指标补全与代码插入、受影响 Cell 拓扑批量运行、干净全文运行和 Validation → `ResearchRun`。
+> Agent 受审计修改 Cell、完整执行比较以及 Factor / Strategy 带血缘交接仍是后续里程碑，
 > 因此本文的“首版完成定义”尚未全部关闭。
 
 ## 1. 产品判断
@@ -100,6 +100,10 @@ Python Cell 保存源码后，由 Python AST 分析其全局变量 definitions /
   `raw → clean → returns` 这样的不可变式命名；
 - 页面顺序服务于叙事，执行顺序由依赖图决定；
 - 默认不自动执行昂贵后代，只提供“运行当前”“运行受影响”“完整验证”。
+
+“运行受影响”以当前 Cell 为起点，执行当前 Cell 与全部传递下游，排除无关分支，并用稳定拓扑序而不是页面顺序
+串行运行。开始前会将已有输出的受影响下游标记 `stale`；某个 Cell 失败后，只跳过依赖该失败结果的后代，其他
+分支继续执行。受影响分支存在重复定义或循环依赖时，在执行任何 Cell 前整体拒绝并返回明确错误。
 
 Cell 状态统一为：
 

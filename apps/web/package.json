@@ -12,6 +12,7 @@
     "test:e2e": "node e2e/research.mjs",
     "test:e2e:research-multivariate": "node e2e/research-multivariate.mjs",
     "test:e2e:research-curator": "node e2e/research-curator.mjs",
+    "test:e2e:research-affected": "node e2e/research-affected-run.mjs",
     "test:e2e:factor-history": "node e2e/factor-report-history.mjs",
     "test:e2e:factor-composite": "node e2e/factor-composite.mjs",
     "test:e2e:factor-scope": "node e2e/factor-evaluation-scope.mjs",

@@ -62,6 +62,7 @@ export const zhResearch = {
     hideSpec: '收起协议',
     runCell: '运行',
     runShortcut: '运行当前 Cell（⌘/Ctrl + Enter）',
+    runAffected: '运行当前 Cell 及受影响下游',
     deleteCell: '删除这个 Cell？',
     staleNotice: '上游定义已变化；以下是旧输出，重跑后才可继续引用。',
     defines: '定义',
