@@ -93,6 +93,7 @@ export async function prepareResearchCellChangeProposal(
     select: {
       id: true,
       updatedAt: true,
+      contentRevision: true,
       cells: {
         orderBy: { position: 'asc' },
         select: {
@@ -238,6 +239,7 @@ export async function prepareResearchCellChangeProposal(
     summary: request.summary.trim().slice(0, 1_000),
     status: 'pending',
     expectedDocumentUpdatedAt: document.updatedAt.toISOString(),
+    expectedDocumentContentRevision: document.contentRevision,
     operations: analyzedOperations,
     createdAt: createdAt.toISOString(),
   };
@@ -256,6 +258,7 @@ export async function applyResearchCellChangeProposal(
             select: {
               id: true,
               updatedAt: true,
+              contentRevision: true,
               cells: {
                 orderBy: { position: 'asc' },
                 select: {
@@ -285,6 +288,8 @@ export async function applyResearchCellChangeProposal(
 
       const operations = proposal.operations as unknown as ResearchCellChangeOperationV1[];
       const conflict = proposalConflict(
+        proposal.document.contentRevision,
+        proposal.expectedDocumentContentRevision,
         proposal.document.updatedAt,
         proposal.expectedDocumentUpdatedAt,
         proposal.document.cells,
@@ -440,7 +445,7 @@ async function applyOperations(
   }
   await transaction.researchDocument.update({
     where: { id: documentId },
-    data: { updatedAt: appliedAt },
+    data: { updatedAt: appliedAt, contentRevision: { increment: 1 } },
   });
   return { seeds };
 }
@@ -537,6 +542,8 @@ function hasDependencyCycle(
 }
 
 function proposalConflict(
+  documentContentRevision: number,
+  expectedDocumentContentRevision: number | null,
   documentUpdatedAt: Date,
   expectedDocumentUpdatedAt: Date,
   currentCells: CurrentResearchCell[],
@@ -568,7 +575,11 @@ function proposalConflict(
   if (changedSourceCellIds.length > 0) {
     return { reason: 'cell_source_changed', cellIds: changedSourceCellIds };
   }
-  if (documentUpdatedAt.getTime() !== expectedDocumentUpdatedAt.getTime()) {
+  const documentChanged =
+    expectedDocumentContentRevision == null
+      ? documentUpdatedAt.getTime() !== expectedDocumentUpdatedAt.getTime()
+      : documentContentRevision !== expectedDocumentContentRevision;
+  if (documentChanged) {
     return { reason: 'document_changed', cellIds: [] };
   }
   return null;

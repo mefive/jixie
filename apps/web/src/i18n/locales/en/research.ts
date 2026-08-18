@@ -62,6 +62,16 @@ export const enResearch: typeof zhResearch = {
       error: 'Failed',
       stale: 'Stale',
     },
+    saveStatus: {
+      saved: 'Saved',
+      dirty: 'Unsaved',
+      saving: 'Saving…',
+      error: 'Save failed',
+      conflict: 'Save conflict',
+    },
+    retrySave: 'Retry save',
+    saveConflictHint:
+      'The server has a newer revision. Your local draft is preserved; refresh and reconcile it before continuing.',
     edit: 'Edit',
     preview: 'Preview',
     showSpec: 'Show protocol',

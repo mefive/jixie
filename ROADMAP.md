@@ -252,7 +252,10 @@ pandas 表格、Matplotlib 静态图，以及 line / scatter / histogram / boxpl
 
 本项保持进行中：Agent 现已能读取同一文档上下文，并以每轮最多一个受审计批量提案增删改 Cell。
 提案保存完整 before/after、Cell revision 和 AgentTurn/Message 来源，通过 Monaco Diff 审查后由用户显式
-应用或拒绝；文档或 Cell 已变化时固化为冲突而不覆盖新内容。Agent 受控执行 Cell、执行结果解释与尝试比较，
+应用或拒绝；文档或 Cell 已变化时固化为冲突而不覆盖新内容。Cell 编辑采用文档级 timer 自动保存：源码变化
+立即进入 dirty，停止输入 800ms 或持续输入 5s 后串行保存；运行、Agent 发送/应用和文档切换前强制 flush。
+Cell revision 保护单次写入，文档 `contentRevision` 只跟踪内容与结构变化并保护 Agent 批量提案，运行输出不会
+制造伪冲突；Cell 顶部独立呈现保存与执行状态。Agent 受控执行 Cell、执行结果解释与尝试比较，
 Factor / Strategy 草稿的带血缘交接及完整 `ResearchExecution` 比较仍按 M2–M4 推进。
 它们不阻塞当前个人研究 MVP，但仍属于 1.5 的完整完成定义。
 

@@ -98,6 +98,7 @@ summary`;
       },
     });
     const expectedDocumentUpdatedAt = document.updatedAt.toISOString();
+    const expectedDocumentContentRevision = document.contentRevision;
     const proposals = [
       {
         id: fixture.applyProposalId,
@@ -212,6 +213,7 @@ summary`;
         summary: draft.summary,
         status: 'pending',
         expectedDocumentUpdatedAt,
+        expectedDocumentContentRevision,
         operations: draft.operations,
         createdAt: new Date(now.getTime() + index * 1_000).toISOString(),
       };
@@ -258,6 +260,7 @@ summary`;
           title: proposal.title,
           summary: proposal.summary,
           expectedDocumentUpdatedAt: document.updatedAt,
+          expectedDocumentContentRevision,
           operations: proposal.operations,
           status: 'pending',
           createdAt: new Date(proposal.createdAt),

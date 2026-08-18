@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Alert, Button, Dropdown, Input, Popconfirm, Skeleton, Tag, Tooltip } from 'antd';
 import { useTranslation } from 'react-i18next';
+import { useBlocker } from 'react-router-dom';
 import classNames from 'classnames';
 import type {
   ChatMessage,
@@ -30,6 +31,7 @@ import {
   faPlay,
   faPlus,
   faRotate,
+  faSpinner,
   faStop,
   faTrash,
   faTriangleExclamation,
@@ -44,6 +46,7 @@ import { complex } from './complex';
 import { ResearchCuratorDrawer } from './research-curator-drawer';
 import { ResearchDataCatalogDrawer } from './research-data-catalog-drawer';
 import { ResearchCellTable } from './research-cell-table';
+import type { ResearchCellSaveStatus } from './research-autosave';
 import './research.css';
 
 const ResearchCodeEditor = lazy(() => import('./research-code-editor'));
@@ -56,6 +59,29 @@ export const Research = complex.component(() => {
   const [curatorOpen, setCuratorOpen] = useState(false);
   const [dataCatalogOpen, setDataCatalogOpen] = useState(false);
   const [agentOpen, setAgentOpen] = useState(true);
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      store.hasUnsavedDrafts && currentLocation.pathname !== nextLocation.pathname,
+  );
+  useEffect(() => {
+    if (blocker.state !== 'blocked') {
+      return;
+    }
+    let active = true;
+    void store.flushPendingChanges().then((saved) => {
+      if (!active) {
+        return;
+      }
+      if (saved) {
+        blocker.proceed();
+      } else {
+        blocker.reset();
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [blocker, store]);
   return (
     <main className="jx-research">
       <ResearchSidebar
@@ -123,7 +149,7 @@ const ResearchSidebar = complex.component(
                   icon={<FontAwesomeIcon icon={faPlus} />}
                   aria-label={t('workbench.newDocument')}
                   onClick={() => {
-                    store.newDocument();
+                    void store.newDocument();
                     onClose();
                   }}
                 />
@@ -198,7 +224,7 @@ const DocumentItem = complex.component(
         <Tooltip title={t('deleteChat')}>
           <Popconfirm
             title={t('deleteChat')}
-            onConfirm={() => store.removeConversation(document.id)}
+            onConfirm={() => void store.removeConversation(document.id)}
             onPopupClick={(event) => event.stopPropagation()}
           >
             <Button
@@ -463,12 +489,11 @@ const ResearchCell = complex.component(
   ({ cell, ordinal }: { cell: ResearchCellV1; ordinal: number }) => {
     const store = complex.useStore();
     const { t } = useTranslation('research');
-    const [draft, setDraft] = useState(cell.source);
     const [markdownEditing, setMarkdownEditing] = useState(false);
     const [validationSourceOpen, setValidationSourceOpen] = useState(cell.status !== 'success');
-    useEffect(() => {
-      setDraft(cell.source);
-    }, [cell.source, cell.revision]);
+    const draftState = store.cellDraft(cell.id);
+    const draft = draftState?.draft ?? cell.source;
+    const saveStatus = draftState?.status ?? 'saved';
     const busy = store.busyCellId === cell.id || cell.status === 'running';
     const cellRunActive = store.busyCellId === cell.id;
     const affectedBusy = store.affectedRunningCellId === cell.id;
@@ -476,17 +501,14 @@ const ResearchCell = complex.component(
       store.documentRunning ||
       (store.busyCellId !== null && store.busyCellId !== cell.id) ||
       (store.affectedRunningCellId !== null && store.affectedRunningCellId !== cell.id);
-    const dirty = draft !== cell.source;
     const run = (): void => {
-      void store.runCell(cell.id, draft);
+      void store.runCell(cell.id);
     };
     const save = (): void => {
-      if (dirty) {
-        void store.updateCell(cell.id, draft);
-      }
+      void store.flushCellDraft(cell.id);
     };
     const runAffected = (): void => {
-      void store.runAffected(cell.id, draft);
+      void store.runAffected(cell.id);
     };
     return (
       <article
@@ -501,7 +523,8 @@ const ResearchCell = complex.component(
               {t(`workbench.cellKind.${cell.kind}`)}
             </span>
             <span className="jx-research-cellOrdinal">{ordinal.toString().padStart(2, '0')}</span>
-            <CellStatus status={dirty ? 'stale' : cell.status} />
+            <CellStatus status={cell.status} />
+            <CellSaveState status={saveStatus} onRetry={() => void store.flushCellDraft(cell.id)} />
           </div>
           <div className="jx-research-cellActions">
             {cell.kind === 'markdown' && (
@@ -607,7 +630,7 @@ const ResearchCell = complex.component(
                 className="jx-research-markdownEditor"
                 autoSize={{ minRows: 5, maxRows: 18 }}
                 value={draft}
-                onChange={(event) => setDraft(event.target.value)}
+                onChange={(event) => store.changeCellDraft(cell.id, event.target.value)}
                 onBlur={save}
               />
             ) : (
@@ -622,10 +645,13 @@ const ResearchCell = complex.component(
                 cellId={cell.id}
                 cells={(store.document?.cells ?? [])
                   .filter((candidate) => candidate.kind === 'python')
-                  .map((candidate) => ({ id: candidate.id, source: candidate.source }))}
+                  .map((candidate) => ({
+                    id: candidate.id,
+                    source: store.cellDraft(candidate.id)?.draft ?? candidate.source,
+                  }))}
                 value={draft}
                 language={cell.kind === 'validation' ? 'json' : 'python'}
-                onChange={setDraft}
+                onChange={(source) => store.changeCellDraft(cell.id, source)}
                 onBlur={save}
                 onRun={run}
               />
@@ -665,6 +691,47 @@ function CellStatus({ status }: { status: ResearchCellStatusV1 }) {
     <span className={`jx-research-cellStatus jx-research-cellStatus--${status}`}>
       <FontAwesomeIcon icon={statusIcon(status)} />
       {t(`workbench.status.${status}`)}
+    </span>
+  );
+}
+
+function CellSaveState({
+  status,
+  onRetry,
+}: {
+  status: ResearchCellSaveStatus;
+  onRetry: () => void;
+}) {
+  const { t } = useTranslation('research');
+  const icon =
+    status === 'saved'
+      ? faCheck
+      : status === 'dirty'
+        ? faClockRotateLeft
+        : status === 'saving'
+          ? faSpinner
+          : faCircleExclamation;
+  return (
+    <span
+      className={`jx-research-cellSave jx-research-cellSave--${status}`}
+      data-testid="research-cell-save-status"
+      data-save-status={status}
+      title={status === 'conflict' ? t('workbench.saveConflictHint') : undefined}
+    >
+      <FontAwesomeIcon icon={icon} spin={status === 'saving'} />
+      {t(`workbench.saveStatus.${status}`)}
+      {status === 'error' && (
+        <Tooltip title={t('workbench.retrySave')}>
+          <Button
+            type="text"
+            size="small"
+            className="jx-research-cellSaveRetry"
+            icon={<FontAwesomeIcon icon={faRotate} />}
+            aria-label={t('workbench.retrySave')}
+            onClick={onRetry}
+          />
+        </Tooltip>
+      )}
     </span>
   );
 }

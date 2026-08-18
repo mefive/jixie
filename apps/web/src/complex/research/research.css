@@ -331,6 +331,34 @@
   color: #1d4ed8;
 }
 
+.jx-research-cellSave {
+  @apply flex items-center gap-1 text-muted;
+  font-size: 11px;
+}
+
+.jx-research-cellSave--saved {
+  color: #64748b;
+}
+
+.jx-research-cellSave--dirty,
+.jx-research-cellSave--saving {
+  color: #475569;
+}
+
+.jx-research-cellSave--error {
+  color: #b91c1c;
+}
+
+.jx-research-cellSave--conflict {
+  color: #a16207;
+}
+
+.jx-research-cellSaveRetry.ant-btn {
+  @apply h-5 w-5 p-0;
+  color: inherit;
+  min-width: 20px;
+}
+
 .jx-research-cellBody {
   @apply bg-card;
 }

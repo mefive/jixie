@@ -436,9 +436,28 @@ Agent 修改 Cell 必须显示 diff 或明确变更摘要，并进入对话 trac
 第一阶段不把 `createResearchCell` / `updateResearchCell` / `deleteResearchCell` 作为可立即写入的 Agent
 工具，而是收敛为每轮最多一次 `proposeResearchCellChanges` 批量提案。服务端保存每个操作的完整
 before/after 源码、行数、Cell revision、依赖定义与来源 AgentTurn/Message；前端以 Monaco
-DiffEditor 只读审查，用户显式应用或拒绝。应用使用文档时间戳、Cell revision 与原源码三重检查；
+DiffEditor 只读审查，用户显式应用或拒绝。应用使用文档 `contentRevision`、Cell revision 与原源码三重检查；
 任一条件变化即固化为 `conflicted`，不覆盖用户新内容。一个批次内的新建、修改、删除以同一
 数据库事务原子落地，仅刷新 DAG/stale，不自动执行 Cell。
+
+### 9.1 自动保存与内容修订
+
+研究文档采用文档级自动保存协调器，不让每个 Cell 各自创建 timer：编辑器 `onChange` 立即用源码精确字符串
+比较更新 `dirty`，协调器仅在存在 dirty Cell 时以 500ms tick 扫描。单个 Cell 停止输入 800ms 后保存；持续
+输入最长 5s 也必须保存一次。一个文档同一时间只发送一个保存请求，后续变化合并进队列，避免失焦、运行和
+多个 Cell 同时编辑造成乱序覆盖。
+
+Cell 顶部将编辑保存状态与执行状态分开显示：`已保存 / 待保存 / 保存中 / 保存失败 / 保存冲突` 不复用
+`idle / stale / running / success / error`。运行当前 Cell、运行受影响分支、运行全部、发送 Agent 消息、接受
+Agent 变更、新增或删除 Cell、切换或新建文档前都先 `flushAll`；保存失败或冲突时阻止后续动作。失焦只作为
+一次立即 flush 的加速器，不再是正确性的唯一保障。
+
+每次 Cell 写入携带 `expectedRevision`，服务端原子校验后才增加 Cell revision；不匹配返回 409 并保留本地
+草稿，不允许静默覆盖另一标签页或 Agent 的新内容。`ResearchDocument.contentRevision` 仅在源码、配置或 Cell
+结构变化以及 Agent 提案应用时增加；运行状态、输出与 `updatedAt` 活动时间不增加它。Agent 提案以
+`expectedDocumentContentRevision` 判断整个提案是否过期，因此单纯运行 Cell 不会制造伪冲突。
+
+刷新或浏览器崩溃后的本地草稿恢复属于后续 backlog；首版在离开页面时对未保存内容触发浏览器原生警告。
 
 ## 10. 分阶段实现
 
@@ -450,7 +469,7 @@ DiffEditor 只读审查，用户显式应用或拒绝。应用使用文档时间
 
 ### M1：研究文档框架
 
-- `ResearchDocument` / `ResearchCell` CRUD 与自动保存；
+- `ResearchDocument` / `ResearchCell` CRUD 与文档级 timer 自动保存、修订冲突保护；
 - Markdown / Python Cell、AST DAG、重复定义、循环依赖、stale 状态；
 - 单 Cell、受影响 Cell、重启和中断；
 - 文本、异常、DataFrame preview、Matplotlib PNG。

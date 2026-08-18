@@ -86,6 +86,13 @@ export class ResearchDocumentRunInProgressError extends Error {
   }
 }
 
+export class ResearchCellRevisionConflictError extends Error {
+  public constructor(readonly currentCell: { id: string; source: string; revision: number }) {
+    super('Research Cell revision changed');
+    this.name = 'ResearchCellRevisionConflictError';
+  }
+}
+
 export function isResearchDocumentRunActive(documentId: string): boolean {
   return activeResearchRuns.has(documentId);
 }
@@ -216,7 +223,10 @@ export async function addResearchCell(
         documentId,
       },
     }),
-    prisma.researchDocument.update({ where: { id: documentId }, data: { updatedAt: new Date() } }),
+    prisma.researchDocument.update({
+      where: { id: documentId },
+      data: { updatedAt: new Date(), contentRevision: { increment: 1 } },
+    }),
   ]);
   await analyzeAndPersist(documentId);
   return getResearchDocument(userId, documentId);
@@ -225,7 +235,7 @@ export async function addResearchCell(
 export async function updateResearchCell(
   userId: string,
   cellId: string,
-  patch: { source?: string; config?: Record<string, unknown> },
+  patch: { source?: string; config?: Record<string, unknown>; expectedRevision: number },
 ): Promise<ResearchDocumentV1 | null> {
   const cell = await prisma.researchCell.findFirst({
     where: { id: cellId, document: { userId } },
@@ -233,6 +243,7 @@ export async function updateResearchCell(
       id: true,
       documentId: true,
       source: true,
+      config: true,
       revision: true,
       definitions: true,
       lastExecutedRevision: true,
@@ -241,26 +252,95 @@ export async function updateResearchCell(
   if (!cell) {
     return null;
   }
+  if (cell.revision !== patch.expectedRevision) {
+    throw new ResearchCellRevisionConflictError({
+      id: cell.id,
+      source: cell.source,
+      revision: cell.revision,
+    });
+  }
   const sourceChanged = patch.source !== undefined && patch.source !== cell.source;
-  await prisma.researchCell.update({
-    where: { id: cell.id },
-    data: {
-      ...(patch.source !== undefined ? { source: patch.source } : {}),
-      ...(patch.config !== undefined
-        ? { config: patch.config as unknown as Prisma.InputJsonValue }
-        : {}),
-      ...(sourceChanged ? { revision: { increment: 1 } } : {}),
-      ...(sourceChanged ? { status: cell.lastExecutedRevision == null ? 'idle' : 'stale' } : {}),
+  const configChanged =
+    patch.config !== undefined && JSON.stringify(patch.config) !== JSON.stringify(cell.config);
+  const contentChanged = sourceChanged || configChanged;
+  if (!contentChanged) {
+    return getResearchDocument(userId, cell.documentId);
+  }
+  const documentCells = await prisma.researchCell.findMany({
+    where: { documentId: cell.documentId },
+    select: {
+      id: true,
+      kind: true,
+      source: true,
+      definitions: true,
+      references: true,
     },
+    orderBy: { position: 'asc' },
   });
-  const analyses = await analyzeAndPersist(cell.documentId);
-  if (sourceChanged) {
+  const analyses = sourceChanged
+    ? await analyzeResearchCellSources(
+        cell.documentId,
+        documentCells.map((candidate) => ({
+          id: candidate.id,
+          kind: candidate.kind,
+          source:
+            candidate.id === cell.id && patch.source !== undefined
+              ? patch.source
+              : candidate.source,
+        })),
+      )
+    : documentCells.map((candidate) => ({
+        cellId: candidate.id,
+        definitions: jsonStringArray(candidate.definitions),
+        references: jsonStringArray(candidate.references),
+      }));
+  await prisma.$transaction(async (transaction) => {
+    const result = await transaction.researchCell.updateMany({
+      where: { id: cell.id, revision: patch.expectedRevision },
+      data: {
+        ...(patch.source !== undefined ? { source: patch.source } : {}),
+        ...(patch.config !== undefined
+          ? { config: patch.config as unknown as Prisma.InputJsonValue }
+          : {}),
+        revision: { increment: 1 },
+        status: cell.lastExecutedRevision == null ? 'idle' : 'stale',
+      },
+    });
+    if (result.count === 0) {
+      const current = await transaction.researchCell.findUnique({
+        where: { id: cell.id },
+        select: { id: true, source: true, revision: true },
+      });
+      if (!current) {
+        throw new ResearchCellRevisionConflictError({
+          id: cell.id,
+          source: cell.source,
+          revision: cell.revision,
+        });
+      }
+      throw new ResearchCellRevisionConflictError(current);
+    }
+    if (sourceChanged) {
+      const analysis = analyses.find((candidate) => candidate.cellId === cell.id);
+      await transaction.researchCell.update({
+        where: { id: cell.id },
+        data: {
+          definitions: (analysis?.definitions ?? []) as unknown as Prisma.InputJsonValue,
+          references: (analysis?.references ?? []) as unknown as Prisma.InputJsonValue,
+        },
+      });
+    }
+    await transaction.researchDocument.update({
+      where: { id: cell.documentId },
+      data: { updatedAt: new Date(), contentRevision: { increment: 1 } },
+    });
+  });
+  if (contentChanged) {
     const oldDefinitions = jsonStringArray(cell.definitions);
     const current = analyses.find((analysis) => analysis.cellId === cell.id);
     const seedNames = new Set([...oldDefinitions, ...(current?.definitions ?? [])]);
     await markDownstreamStale(cell.documentId, cell.id, seedNames, analyses);
   }
-  await touchDocument(cell.documentId);
   return getResearchDocument(userId, cell.documentId);
 }
 
@@ -283,7 +363,10 @@ export async function deleteResearchCell(
     new Set(jsonStringArray(cell.definitions)),
     analyses,
   );
-  await touchDocument(cell.documentId);
+  await prisma.researchDocument.update({
+    where: { id: cell.documentId },
+    data: { updatedAt: new Date(), contentRevision: { increment: 1 } },
+  });
   return getResearchDocument(userId, cell.documentId);
 }
 
@@ -724,14 +807,7 @@ async function analyzeAndPersist(documentId: string): Promise<ResearchPythonAnal
     select: { id: true, kind: true, source: true },
     orderBy: { position: 'asc' },
   });
-  const pythonCells = cells.filter((cell) => cell.kind === 'python');
-  const pythonAnalyses =
-    pythonCells.length > 0 ? await researchRuntimeManager.analyze(documentId, pythonCells) : [];
-  const analysisById = new Map(pythonAnalyses.map((analysis) => [analysis.cellId, analysis]));
-  const analyses = cells.map(
-    (cell): ResearchPythonAnalysis =>
-      analysisById.get(cell.id) ?? { cellId: cell.id, definitions: [], references: [] },
-  );
+  const analyses = await analyzeResearchCellSources(documentId, cells);
   await prisma.$transaction(
     analyses.map((analysis) =>
       prisma.researchCell.update({
@@ -742,6 +818,21 @@ async function analyzeAndPersist(documentId: string): Promise<ResearchPythonAnal
         },
       }),
     ),
+  );
+  return analyses;
+}
+
+async function analyzeResearchCellSources(
+  documentId: string,
+  cells: Array<{ id: string; kind: string; source: string }>,
+): Promise<ResearchPythonAnalysis[]> {
+  const pythonCells = cells.filter((cell) => cell.kind === 'python');
+  const pythonAnalyses =
+    pythonCells.length > 0 ? await researchRuntimeManager.analyze(documentId, pythonCells) : [];
+  const analysisById = new Map(pythonAnalyses.map((analysis) => [analysis.cellId, analysis]));
+  const analyses = cells.map(
+    (cell): ResearchPythonAnalysis =>
+      analysisById.get(cell.id) ?? { cellId: cell.id, definitions: [], references: [] },
   );
   return analyses;
 }
@@ -952,6 +1043,7 @@ function documentView(document: ResearchDocumentRow): ResearchDocumentV1 {
     conversationId: document.conversationId,
     title: document.conversation.title ?? '',
     runtimeVersion: 'research-py-v1',
+    contentRevision: document.contentRevision,
     cells: document.cells.map(cellView),
     messages: document.conversation.messages.map(
       (message): ChatMessage => ({
@@ -1156,13 +1248,6 @@ function executionFailure(error: unknown) {
     references: [] as string[],
     environmentFingerprint: researchPayloadHash({ runtime: 'unknown' }),
   };
-}
-
-async function touchDocument(documentId: string): Promise<void> {
-  await prisma.researchDocument.update({
-    where: { id: documentId },
-    data: { updatedAt: new Date() },
-  });
 }
 
 function jsonStringArray(value: Prisma.JsonValue): string[] {
