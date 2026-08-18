@@ -7,8 +7,8 @@
 
 > **实施状态（2026-08-18）**：jixie-native 的首个垂直切片已经完成并通过真实浏览器验收。当前覆盖持久化
 > 研究文档、三类 Cell、独立 Python runtime、AST 依赖与 stale 传播、平台时序取数、表格、Matplotlib、
-> 结构化 ECharts、静态 Research SDK Contract、Monaco 参数与返回列补全、干净全文运行和 Validation →
-> `ResearchRun`。Agent 受审计修改 Cell、完整执行比较以及 Factor / Strategy 带血缘交接仍是后续里程碑，
+> 结构化 ECharts、静态 Research SDK Contract、Monaco 参数与返回列补全、Pyright 跨 Cell 语言服务、干净全文运行
+> 和 Validation → `ResearchRun`。Agent 受审计修改 Cell、完整执行比较以及 Factor / Strategy 带血缘交接仍是后续里程碑，
 > 因此本文的“首版完成定义”尚未全部关闭。
 
 ## 1. 产品判断
@@ -161,6 +161,24 @@ Research SDK Contract（唯一公开真相源）
 
 不把 Git hook 作为正确性的唯一保障。hook 可以做本地快速反馈，但可能被跳过；可复现的生成命令、根级检查和
 测试才是合并与部署时的可靠门禁。
+
+### 5.2 Python 语言服务
+
+研究编辑器使用 Monaco，但语言语义不靠正则模拟。API 常驻 Pyright language server，并把同一研究文档中按顺序
+排列的 Python Cell 组合成一个虚拟 Python module；每次请求再把位置、诊断和 workspace edit 映射回原 Cell。
+因此无需执行 Cell 即可获得：
+
+- Python、平台 SDK 与固定 runtime 库的语义补全、hover 和 signature help；
+- 未定义变量、参数和属性错误等静态诊断；
+- 跨 Cell go to definition、references 和 rename；
+- `data.series()` 直接返回列的 Contract 精确补全。
+
+Pyright workspace 使用生成的 `jixie_research_sdk.pyi`，并随 `research-py-v1` 提供 pandas、NumPy 与 Matplotlib
+常用研究接口的静态 stub。SDK stub 和沙箱生成物复用同一 renderer，避免两套签名漂移。DataFrame 任意
+`rename` / `merge` 之后的列名仍不做虚假推断；这是静态类型边界，不通过“先执行一次再观察对象”改变。
+
+首阶段不包含 debugger、终端、文件树、运行时 `pip install`、Jupyter 扩展协议或第三方包的无限类型覆盖。这些
+属于 IDE / 环境管理能力，不应和当前的 Python language service 混成一个里程碑。
 
 调用经宿主数据桥进入现有语义目录和确定性 loader；容器不持有数据库凭证，不挂载数据库，也不开放网络。
 每次调用记录稳定数据引用、参数、覆盖、revision、available date、返回摘要和指纹。

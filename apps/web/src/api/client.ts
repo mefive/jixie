@@ -188,6 +188,8 @@ import type {
   ResearchDocumentSummaryV1,
   ResearchDocumentTemplateV1,
   ResearchDocumentV1,
+  ResearchLanguageRequestV1,
+  ResearchLanguageResultV1,
   ResearchAttemptRecordV1,
   ResearchCuratorDispositionV1,
   ResearchCuratorFindingV1,
@@ -338,6 +340,17 @@ export function runResearchDocument(
 export function resetResearchDocument(documentId: string): Promise<ResearchDocumentV1> {
   return request(`/api/app/research/documents/${encodeURIComponent(documentId)}/reset`, {
     method: 'POST',
+  });
+}
+
+export function requestResearchLanguage(
+  input: ResearchLanguageRequestV1,
+  signal?: AbortSignal,
+): Promise<ResearchLanguageResultV1> {
+  return request('/api/app/research/language', {
+    method: 'POST',
+    body: JSON.stringify(input),
+    signal,
   });
 }
 

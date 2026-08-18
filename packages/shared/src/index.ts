@@ -19,4 +19,6 @@ export * from './signals.js';
 export * from './risk-research.js';
 export * from './research.js';
 export * from './research-sdk-contract.js';
+export * from './research-sdk-python-stub.js';
+export * from './research-language.js';
 export * from './library.js';
