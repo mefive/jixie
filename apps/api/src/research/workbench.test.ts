@@ -87,4 +87,24 @@ describe('reactive research dependencies', () => {
     expect(executed).toEqual(['load', 'failed-branch', 'healthy-branch', 'healthy-result']);
     expect(attempted).not.toContain('blocked');
   });
+
+  it('does not start another affected cell after interruption', async () => {
+    const plan = affectedResearchCellRunPlan('load', [
+      { cellId: 'load', definitions: ['monthly'], references: [] },
+      { cellId: 'summary', definitions: ['summary'], references: ['monthly'] },
+      { cellId: 'chart', definitions: [], references: ['summary'] },
+    ]);
+    let interrupted = false;
+
+    const executed = await executeAffectedResearchCellPlan(
+      plan,
+      async (cellId) => {
+        interrupted = cellId === 'load';
+        return true;
+      },
+      () => interrupted,
+    );
+
+    expect(executed).toEqual(['load']);
+  });
 });

@@ -35,9 +35,11 @@ import {
   createResearchDocument,
   deleteResearchCell,
   getResearchDocument,
+  interruptResearchDocument,
   listResearchDocuments,
   resetResearchDocumentRuntime,
   ResearchAffectedRunError,
+  ResearchDocumentRunInProgressError,
   runAffectedResearchCells,
   runResearchCell,
   runResearchDocument,
@@ -181,8 +183,15 @@ researchRoute.delete('/cells/:cellId', async (c) => {
 });
 
 researchRoute.post('/cells/:cellId/run', async (c) => {
-  const document = await runResearchCell(c.var.userId, c.req.param('cellId'));
-  return document ? c.json(document) : apiError(c, 'NOT_FOUND', m(c, 'conversationNotFound'));
+  try {
+    const document = await runResearchCell(c.var.userId, c.req.param('cellId'));
+    return document ? c.json(document) : apiError(c, 'NOT_FOUND', m(c, 'conversationNotFound'));
+  } catch (error) {
+    if (error instanceof ResearchDocumentRunInProgressError) {
+      return apiError(c, 'CONFLICT', m(c, 'researchDocumentRunInProgress'));
+    }
+    throw error;
+  }
 });
 
 researchRoute.post('/cells/:cellId/run-affected', async (c) => {
@@ -190,6 +199,9 @@ researchRoute.post('/cells/:cellId/run-affected', async (c) => {
     const result = await runAffectedResearchCells(c.var.userId, c.req.param('cellId'));
     return result ? c.json(result) : apiError(c, 'NOT_FOUND', m(c, 'conversationNotFound'));
   } catch (error) {
+    if (error instanceof ResearchDocumentRunInProgressError) {
+      return apiError(c, 'CONFLICT', m(c, 'researchDocumentRunInProgress'));
+    }
     if (error instanceof ResearchAffectedRunError) {
       const messageKey =
         error.reason === 'duplicate_definitions'
@@ -212,11 +224,23 @@ researchRoute.post('/documents/:documentId/analyze', async (c) => {
 });
 
 researchRoute.post('/documents/:documentId/run', validateJson(runDocumentBody), async (c) => {
-  const result = await runResearchDocument(
-    c.var.userId,
-    c.req.param('documentId'),
-    c.req.valid('json').clean,
-  );
+  try {
+    const result = await runResearchDocument(
+      c.var.userId,
+      c.req.param('documentId'),
+      c.req.valid('json').clean,
+    );
+    return result ? c.json(result) : apiError(c, 'NOT_FOUND', m(c, 'conversationNotFound'));
+  } catch (error) {
+    if (error instanceof ResearchDocumentRunInProgressError) {
+      return apiError(c, 'CONFLICT', m(c, 'researchDocumentRunInProgress'));
+    }
+    throw error;
+  }
+});
+
+researchRoute.post('/documents/:documentId/interrupt', async (c) => {
+  const result = await interruptResearchDocument(c.var.userId, c.req.param('documentId'));
   return result ? c.json(result) : apiError(c, 'NOT_FOUND', m(c, 'conversationNotFound'));
 });
 

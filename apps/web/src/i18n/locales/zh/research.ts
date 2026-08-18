@@ -41,6 +41,8 @@ export const zhResearch = {
     reset: '重置环境',
     resetHint: '清空 Python 内存状态；已有输出会标记为待重跑',
     cleanRun: '干净运行全文',
+    interruptRun: '停止当前运行',
+    runInterrupted: '运行已停止；未完成的 Cell 不会继续执行。',
     hideAgent: '隐藏 Agent',
     showAgent: '显示 Agent',
     addCell: '添加 Cell',

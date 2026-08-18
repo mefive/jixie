@@ -30,6 +30,7 @@ import {
   faPlay,
   faPlus,
   faRotate,
+  faStop,
   faTable,
   faTrash,
   faTriangleExclamation,
@@ -367,21 +368,30 @@ const ResearchWorkspace = complex.component(
               <Button
                 type="text"
                 size="small"
+                disabled={store.hasActiveRun}
                 icon={<FontAwesomeIcon icon={faRotate} />}
                 aria-label={t('workbench.reset')}
                 onClick={() => void store.resetRuntime()}
               />
             </Tooltip>
-            <Tooltip title={t('workbench.cleanRun')}>
+            <Tooltip
+              title={store.hasActiveRun ? t('workbench.interruptRun') : t('workbench.cleanRun')}
+            >
               <Button
                 type="text"
                 size="small"
-                data-testid="research-run-all"
-                loading={store.documentRunning}
-                disabled={store.busyCellId !== null || store.affectedRunningCellId !== null}
-                icon={<FontAwesomeIcon icon={faBolt} />}
-                aria-label={t('workbench.cleanRun')}
-                onClick={() => void store.runAll(true)}
+                className={classNames({
+                  'jx-research-interruptAction': store.hasActiveRun,
+                })}
+                data-testid={store.hasActiveRun ? 'research-interrupt' : 'research-run-all'}
+                disabled={store.interrupting}
+                icon={<FontAwesomeIcon icon={store.hasActiveRun ? faStop : faBolt} />}
+                aria-label={
+                  store.hasActiveRun ? t('workbench.interruptRun') : t('workbench.cleanRun')
+                }
+                onClick={() =>
+                  void (store.hasActiveRun ? store.interruptRun() : store.runAll(true))
+                }
               />
             </Tooltip>
             <Tooltip title={agentOpen ? t('workbench.hideAgent') : t('workbench.showAgent')}>
@@ -398,7 +408,8 @@ const ResearchWorkspace = complex.component(
         </header>
         {(store.documentMutationLoader.error ||
           store.documentRunLoader.error ||
-          store.affectedRunLoader.error) && (
+          store.affectedRunLoader.error ||
+          store.interruptLoader.error) && (
           <Alert
             className="jx-research-workspaceAlert"
             type="error"
@@ -406,8 +417,19 @@ const ResearchWorkspace = complex.component(
             title={
               store.documentMutationLoader.errorObject?.message ??
               store.documentRunLoader.errorObject?.message ??
-              store.affectedRunLoader.errorObject?.message
+              store.affectedRunLoader.errorObject?.message ??
+              store.interruptLoader.errorObject?.message
             }
+          />
+        )}
+        {store.runInterrupted && (
+          <Alert
+            className="jx-research-workspaceAlert"
+            type="info"
+            showIcon
+            closable
+            title={t('workbench.runInterrupted')}
+            onClose={() => store.clearRunInterrupted()}
           />
         )}
         <div className="jx-research-documentScroll">
@@ -420,6 +442,7 @@ const ResearchWorkspace = complex.component(
                 <Button
                   type="text"
                   className="jx-research-addCell"
+                  disabled={store.hasActiveRun}
                   icon={<FontAwesomeIcon icon={faPlus} />}
                   aria-label={t('workbench.addCell')}
                 />
@@ -444,6 +467,7 @@ const ResearchCell = complex.component(
       setDraft(cell.source);
     }, [cell.source, cell.revision]);
     const busy = store.busyCellId === cell.id || cell.status === 'running';
+    const cellRunActive = store.busyCellId === cell.id;
     const affectedBusy = store.affectedRunningCellId === cell.id;
     const anotherRunActive =
       store.documentRunning ||
@@ -503,28 +527,56 @@ const ResearchCell = complex.component(
                 />
               </Tooltip>
             )}
-            <Tooltip title={t('workbench.runShortcut')}>
+            <Tooltip
+              title={
+                cell.kind === 'python' && cellRunActive
+                  ? t('workbench.interruptRun')
+                  : t('workbench.runShortcut')
+              }
+            >
               <Button
                 type="text"
                 size="small"
-                loading={busy}
-                disabled={affectedBusy || anotherRunActive}
-                icon={<FontAwesomeIcon icon={faPlay} />}
-                aria-label={t('workbench.runCell')}
-                onClick={run}
+                className={classNames({
+                  'jx-research-interruptAction': cell.kind === 'python' && cellRunActive,
+                })}
+                loading={busy && !(cell.kind === 'python' && cellRunActive)}
+                disabled={
+                  store.interrupting ||
+                  (!(cell.kind === 'python' && cellRunActive) && (affectedBusy || anotherRunActive))
+                }
+                icon={
+                  <FontAwesomeIcon
+                    icon={cell.kind === 'python' && cellRunActive ? faStop : faPlay}
+                  />
+                }
+                aria-label={
+                  cell.kind === 'python' && cellRunActive
+                    ? t('workbench.interruptRun')
+                    : t('workbench.runCell')
+                }
+                onClick={() =>
+                  void (cell.kind === 'python' && cellRunActive ? store.interruptRun() : run())
+                }
               />
             </Tooltip>
             {cell.kind === 'python' && (
-              <Tooltip title={t('workbench.runAffected')}>
+              <Tooltip
+                title={affectedBusy ? t('workbench.interruptRun') : t('workbench.runAffected')}
+              >
                 <Button
                   type="text"
                   size="small"
-                  loading={affectedBusy}
-                  disabled={busy || anotherRunActive}
+                  className={classNames({
+                    'jx-research-interruptAction': affectedBusy,
+                  })}
+                  disabled={store.interrupting || (!affectedBusy && (busy || anotherRunActive))}
                   data-testid="research-run-affected"
-                  icon={<FontAwesomeIcon icon={faDiagramProject} />}
-                  aria-label={t('workbench.runAffected')}
-                  onClick={runAffected}
+                  icon={<FontAwesomeIcon icon={affectedBusy ? faStop : faDiagramProject} />}
+                  aria-label={
+                    affectedBusy ? t('workbench.interruptRun') : t('workbench.runAffected')
+                  }
+                  onClick={() => void (affectedBusy ? store.interruptRun() : runAffected())}
                 />
               </Tooltip>
             )}
@@ -537,6 +589,7 @@ const ResearchCell = complex.component(
                   type="text"
                   size="small"
                   className="jx-research-destructiveAction"
+                  disabled={store.hasActiveRun}
                   icon={<FontAwesomeIcon icon={faTrash} />}
                   aria-label={t('workbench.deleteCell')}
                 />

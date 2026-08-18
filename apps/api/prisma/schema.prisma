@@ -1319,7 +1319,7 @@ model ResearchCellExecution {
   cell                   ResearchCell     @relation(fields: [cellId], references: [id], onDelete: Cascade)
   revision               Int
   source                 String
-  status                 String // 'running' | 'success' | 'error'
+  status                 String // 'running' | 'success' | 'error' | 'cancelled'
   output                 Json?
   error                  String?
   definitions            Json

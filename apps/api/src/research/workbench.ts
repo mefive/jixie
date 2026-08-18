@@ -6,6 +6,7 @@ import type {
   ResearchCellV1,
   ResearchDependencyConflictV1,
   ResearchDocumentAnalysisV1,
+  ResearchDocumentInterruptResultV1,
   ResearchDocumentRunResultV1,
   ResearchDocumentSummaryV1,
   ResearchDocumentTemplateV1,
@@ -20,6 +21,7 @@ import { createWorkbenchResearchRun } from './records.js';
 import { researchPlanSpecV1Schema } from './spec.js';
 import {
   ResearchPythonExecutionError,
+  ResearchPythonInterruptionError,
   researchRuntimeManager,
   type ResearchPythonAnalysis,
 } from './workbench-runtime.js';
@@ -31,6 +33,10 @@ type ResearchDocumentRow = Prisma.ResearchDocumentGetPayload<{
     };
     cells: true;
   };
+}>;
+
+type ExecutableResearchCellRow = Prisma.ResearchCellGetPayload<{
+  include: { document: { include: { conversation: true } } };
 }>;
 
 interface CellSeed {
@@ -54,6 +60,24 @@ export class ResearchAffectedRunError extends Error {
 export interface ResearchAffectedRunPlan {
   cellIds: string[];
   dependenciesByCellId: Map<string, string[]>;
+}
+
+interface ResearchRunControl {
+  documentId: string;
+  interrupted: boolean;
+  settled: Promise<void>;
+  settle: () => void;
+}
+
+type ResearchCellExecutionOutcome = 'success' | 'error' | 'interrupted';
+
+const activeResearchRuns = new Map<string, ResearchRunControl>();
+
+export class ResearchDocumentRunInProgressError extends Error {
+  public constructor() {
+    super('Research document already has an active run');
+    this.name = 'ResearchDocumentRunInProgressError';
+  }
 }
 
 export async function listResearchDocuments(userId: string): Promise<ResearchDocumentSummaryV1[]> {
@@ -246,13 +270,156 @@ export async function runResearchCell(
   userId: string,
   cellId: string,
 ): Promise<ResearchDocumentV1 | null> {
+  const cell = await loadExecutableResearchCell(userId, cellId);
+  if (!cell) {
+    return null;
+  }
+  const control = startResearchRun(cell.documentId);
+  try {
+    await executeResearchCell(cell, control);
+    return getResearchDocument(userId, cell.documentId);
+  } finally {
+    finishResearchRun(control);
+  }
+}
+
+export async function runAffectedResearchCells(
+  userId: string,
+  cellId: string,
+): Promise<ResearchDocumentRunResultV1 | null> {
   const cell = await prisma.researchCell.findFirst({
     where: { id: cellId, document: { userId } },
-    include: { document: { include: { conversation: true } } },
+    select: { id: true, documentId: true },
   });
   if (!cell) {
     return null;
   }
+  const control = startResearchRun(cell.documentId);
+  try {
+    const analyses = await analyzeAndPersist(cell.documentId);
+    const plan = affectedResearchCellRunPlan(cell.id, analyses);
+    if (control.interrupted) {
+      return researchDocumentRunResult(userId, cell.documentId, [], false);
+    }
+
+    const downstreamCellIds = plan.cellIds.filter((affectedCellId) => affectedCellId !== cell.id);
+    if (downstreamCellIds.length > 0) {
+      await prisma.researchCell.updateMany({
+        where: {
+          documentId: cell.documentId,
+          id: { in: downstreamCellIds },
+          lastExecutedRevision: { not: null },
+        },
+        data: { status: 'stale' },
+      });
+    }
+
+    const executedCellIds = await executeAffectedResearchCellPlan(
+      plan,
+      async (affectedCellId) =>
+        (await executeResearchCellById(userId, affectedCellId, control)) === 'success',
+      () => control.interrupted,
+    );
+    return researchDocumentRunResult(userId, cell.documentId, executedCellIds, false);
+  } finally {
+    finishResearchRun(control);
+  }
+}
+
+export async function runResearchDocument(
+  userId: string,
+  documentId: string,
+  clean: boolean,
+): Promise<ResearchDocumentRunResultV1 | null> {
+  const document = await getResearchDocument(userId, documentId);
+  if (!document) {
+    return null;
+  }
+  const control = startResearchRun(documentId);
+  try {
+    if (clean) {
+      await researchRuntimeManager.reset(documentId);
+      if (!control.interrupted) {
+        await prisma.researchCell.updateMany({
+          where: { documentId, kind: 'python', lastExecutedRevision: { not: null } },
+          data: { status: 'stale' },
+        });
+      }
+    }
+
+    const executedCellIds: string[] = [];
+    for (const cell of document.cells) {
+      if (control.interrupted) {
+        break;
+      }
+      const outcome = await executeResearchCellById(userId, cell.id, control);
+      if (!outcome) {
+        return null;
+      }
+      if (outcome !== 'interrupted') {
+        executedCellIds.push(cell.id);
+      }
+      if (outcome === 'error' || outcome === 'interrupted') {
+        break;
+      }
+    }
+    return researchDocumentRunResult(userId, documentId, executedCellIds, clean);
+  } finally {
+    finishResearchRun(control);
+  }
+}
+
+export async function interruptResearchDocument(
+  userId: string,
+  documentId: string,
+): Promise<ResearchDocumentInterruptResultV1 | null> {
+  const owner = await prisma.researchDocument.findFirst({
+    where: { id: documentId, userId },
+    select: { id: true },
+  });
+  if (!owner) {
+    return null;
+  }
+
+  const control = activeResearchRuns.get(documentId);
+  if (!control) {
+    return {
+      version: 1,
+      document: (await getResearchDocument(userId, documentId))!,
+      interrupted: false,
+    };
+  }
+
+  control.interrupted = true;
+  researchRuntimeManager.interrupt(documentId);
+  await control.settled;
+  return {
+    version: 1,
+    document: (await getResearchDocument(userId, documentId))!,
+    interrupted: true,
+  };
+}
+
+async function executeResearchCellById(
+  userId: string,
+  cellId: string,
+  control: ResearchRunControl,
+): Promise<ResearchCellExecutionOutcome | null> {
+  if (control.interrupted) {
+    return 'interrupted';
+  }
+  const cell = await loadExecutableResearchCell(userId, cellId);
+  return cell ? executeResearchCell(cell, control) : null;
+}
+
+async function executeResearchCell(
+  cell: ExecutableResearchCellRow,
+  control: ResearchRunControl,
+): Promise<ResearchCellExecutionOutcome> {
+  if (control.interrupted) {
+    return 'interrupted';
+  }
+
   const executionId = ulid();
   const startedAt = new Date();
   await prisma.$transaction([
@@ -272,6 +439,11 @@ export async function runResearchCell(
       },
     }),
   ]);
+
+  if (control.interrupted) {
+    await persistInterruptedResearchCell(cell, executionId);
+    return 'interrupted';
+  }
 
   try {
     const result = await executeCell(cell);
@@ -303,7 +475,13 @@ export async function runResearchCell(
         data: { updatedAt: new Date() },
       }),
     ]);
+    return 'success';
   } catch (error) {
+    if (error instanceof ResearchPythonInterruptionError) {
+      await persistInterruptedResearchCell(cell, executionId, error.environmentFingerprint);
+      return 'interrupted';
+    }
+
     const failure = executionFailure(error);
     const outputs: ResearchCellOutputBlockV1[] = [
       ...failure.outputs,
@@ -332,85 +510,84 @@ export async function runResearchCell(
           finishedAt: new Date(),
         },
       }),
+      prisma.researchDocument.update({
+        where: { id: cell.documentId },
+        data: { updatedAt: new Date() },
+      }),
     ]);
+    return 'error';
   }
-  return getResearchDocument(userId, cell.documentId);
 }
 
-export async function runAffectedResearchCells(
-  userId: string,
-  cellId: string,
-): Promise<ResearchDocumentRunResultV1 | null> {
-  const cell = await prisma.researchCell.findFirst({
-    where: { id: cellId, document: { userId } },
-    select: { id: true, documentId: true },
-  });
-  if (!cell) {
-    return null;
-  }
-
-  const analyses = await analyzeAndPersist(cell.documentId);
-  const plan = affectedResearchCellRunPlan(cell.id, analyses);
-  const downstreamCellIds = plan.cellIds.filter((affectedCellId) => affectedCellId !== cell.id);
-  if (downstreamCellIds.length > 0) {
-    await prisma.researchCell.updateMany({
-      where: {
-        documentId: cell.documentId,
-        id: { in: downstreamCellIds },
-        lastExecutedRevision: { not: null },
+async function persistInterruptedResearchCell(
+  cell: ExecutableResearchCellRow,
+  executionId: string,
+  environmentFingerprint = researchPayloadHash({ runtime: 'research-py-v1', interrupted: true }),
+): Promise<void> {
+  await prisma.$transaction([
+    prisma.researchCell.update({
+      where: { id: cell.id },
+      data: { status: cell.lastExecutedRevision == null ? 'idle' : 'stale' },
+    }),
+    prisma.researchCellExecution.update({
+      where: { id: executionId },
+      data: {
+        status: 'cancelled',
+        error: 'Research cell execution was interrupted',
+        environmentFingerprint,
+        finishedAt: new Date(),
       },
-      data: { status: 'stale' },
-    });
-  }
-
-  const executedCellIds = await executeAffectedResearchCellPlan(plan, async (affectedCellId) => {
-    const document = await runResearchCell(userId, affectedCellId);
-    return (
-      document?.cells.find((candidate) => candidate.id === affectedCellId)?.status === 'success'
-    );
-  });
-
-  return {
-    version: 1,
-    document: (await getResearchDocument(userId, cell.documentId))!,
-    executedCellIds,
-    clean: false,
-  };
+    }),
+    prisma.researchDocument.update({
+      where: { id: cell.documentId },
+      data: { updatedAt: new Date() },
+    }),
+  ]);
 }
 
-export async function runResearchDocument(
+function startResearchRun(documentId: string): ResearchRunControl {
+  if (activeResearchRuns.has(documentId)) {
+    throw new ResearchDocumentRunInProgressError();
+  }
+
+  let settle = () => {};
+  const settled = new Promise<void>((resolve) => {
+    settle = resolve;
+  });
+  const control = { documentId, interrupted: false, settled, settle };
+  activeResearchRuns.set(documentId, control);
+  return control;
+}
+
+function finishResearchRun(control: ResearchRunControl): void {
+  if (activeResearchRuns.get(control.documentId) === control) {
+    activeResearchRuns.delete(control.documentId);
+  }
+  control.settle();
+}
+
+async function researchDocumentRunResult(
   userId: string,
   documentId: string,
+  executedCellIds: string[],
   clean: boolean,
-): Promise<ResearchDocumentRunResultV1 | null> {
-  const document = await getResearchDocument(userId, documentId);
-  if (!document) {
-    return null;
-  }
-  if (clean) {
-    await researchRuntimeManager.reset(documentId);
-    await prisma.researchCell.updateMany({
-      where: { documentId, kind: 'python', lastExecutedRevision: { not: null } },
-      data: { status: 'stale' },
-    });
-  }
-  const executedCellIds: string[] = [];
-  for (const cell of document.cells) {
-    const updated = await runResearchCell(userId, cell.id);
-    if (!updated) {
-      return null;
-    }
-    executedCellIds.push(cell.id);
-    if (updated.cells.find((candidate) => candidate.id === cell.id)?.status === 'error') {
-      break;
-    }
-  }
+): Promise<ResearchDocumentRunResultV1> {
   return {
     version: 1,
     document: (await getResearchDocument(userId, documentId))!,
     executedCellIds,
     clean,
   };
+}
+
+async function loadExecutableResearchCell(
+  userId: string,
+  cellId: string,
+): Promise<ExecutableResearchCellRow | null> {
+  return prisma.researchCell.findFirst({
+    where: { id: cellId, document: { userId } },
+    include: { document: { include: { conversation: true } } },
+  });
 }
 
 export async function resetResearchDocumentRuntime(
@@ -667,10 +844,14 @@ export function affectedResearchCellRunPlan(
 export async function executeAffectedResearchCellPlan(
   plan: ResearchAffectedRunPlan,
   executeCellById: (cellId: string) => Promise<boolean>,
+  shouldStop: () => boolean = () => false,
 ): Promise<string[]> {
   const blockedCellIds = new Set<string>();
   const executedCellIds: string[] = [];
   for (const cellId of plan.cellIds) {
+    if (shouldStop()) {
+      break;
+    }
     const dependencies = plan.dependenciesByCellId.get(cellId) ?? [];
     if (dependencies.some((dependencyCellId) => blockedCellIds.has(dependencyCellId))) {
       blockedCellIds.add(cellId);
