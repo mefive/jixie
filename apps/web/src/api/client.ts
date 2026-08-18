@@ -183,6 +183,7 @@ import type {
   ResearchConversationMessages,
   ResearchConversationMeta,
   ResearchCellKindV1,
+  ResearchCellChangeRunResultV1,
   ResearchCellChangeResolutionResultV1,
   ResearchDocumentAnalysisV1,
   ResearchDocumentInterruptResultV1,
@@ -383,6 +384,15 @@ export function rejectResearchCellChangeProposal(
   );
 }
 
+export function runResearchCellChangeProposal(
+  proposalId: string,
+): Promise<ResearchCellChangeRunResultV1> {
+  return request(
+    `/api/app/research/cell-change-proposals/${encodeURIComponent(proposalId)}/run-affected`,
+    { method: 'POST' },
+  );
+}
+
 export function requestResearchLanguage(
   input: ResearchLanguageRequestV1,
   signal?: AbortSignal,
@@ -409,10 +419,15 @@ export function searchResearchDataCatalog(
 export function sendResearchAgent(
   message: string,
   conversationId?: string,
+  attemptId?: string,
 ): Promise<{ conversationId: string; turnId: string }> {
   return request('/api/app/research/agent', {
     method: 'POST',
-    body: JSON.stringify({ message, ...(conversationId ? { conversationId } : {}) }),
+    body: JSON.stringify({
+      message,
+      ...(conversationId ? { conversationId } : {}),
+      ...(attemptId ? { attemptId } : {}),
+    }),
   });
 }
 

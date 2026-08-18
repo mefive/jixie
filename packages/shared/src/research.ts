@@ -1033,6 +1033,8 @@ export interface ResearchConversationMessages {
 export type ResearchCellKindV1 = 'markdown' | 'python' | 'validation';
 export type ResearchCellStatusV1 = 'idle' | 'running' | 'success' | 'error' | 'stale';
 export type ResearchCellChangeProposalStatusV1 = 'pending' | 'applied' | 'rejected' | 'conflicted';
+export type ResearchCellChangeAttemptStatusV1 = 'running' | 'success' | 'error' | 'cancelled';
+export type ResearchCellChangeAttemptScopeV1 = 'affected' | 'clean_document';
 
 interface ResearchCellChangeOperationBaseV1 {
   operationId: string;
@@ -1086,10 +1088,52 @@ export interface ResearchCellChangeProposalV1 {
   status: ResearchCellChangeProposalStatusV1;
   expectedDocumentUpdatedAt: string;
   expectedDocumentContentRevision?: number;
+  appliedDocumentContentRevision?: number;
   operations: ResearchCellChangeOperationV1[];
   conflict?: ResearchCellChangeConflictV1;
   createdAt: string;
   resolvedAt?: string;
+}
+
+export interface ResearchCellChangeAttemptCellV1 {
+  executionId: string;
+  cellId: string;
+  position: number;
+  kind: ResearchCellKindV1;
+  revision: number;
+  status: ResearchCellChangeAttemptStatusV1;
+  sourceHash: string;
+  outputHash?: string;
+  outputTypes: ResearchCellOutputBlockV1['type'][];
+  environmentFingerprint: string;
+  error?: string;
+}
+
+export interface ResearchCellChangeAttemptComparisonV1 {
+  version: 1;
+  previousAttemptId: string;
+  sourceChangedCellIds: string[];
+  outputChangedCellIds: string[];
+  statusChanged: boolean;
+  environmentChanged: boolean;
+}
+
+export interface ResearchCellChangeAttemptV1 {
+  version: 1;
+  id: string;
+  documentId: string;
+  proposalId: string;
+  contentRevision: number;
+  scope: ResearchCellChangeAttemptScopeV1;
+  rootCellIds: string[];
+  plannedCellIds: string[];
+  status: ResearchCellChangeAttemptStatusV1;
+  cells: ResearchCellChangeAttemptCellV1[];
+  error?: string;
+  explanationTurnId?: string;
+  comparisonToPrevious?: ResearchCellChangeAttemptComparisonV1;
+  startedAt: string;
+  finishedAt?: string;
 }
 export type ResearchCellScalarV1 = string | number | boolean | null;
 export type ResearchChartKindV1 = ChartKind | 'boxplot' | 'heatmap' | 'event_path';
@@ -1188,6 +1232,7 @@ export interface ResearchDocumentV1 {
   runtimeVersion: 'research-py-v1';
   contentRevision: number;
   cells: ResearchCellV1[];
+  cellChangeAttempts: ResearchCellChangeAttemptV1[];
   messages: import('./chat.js').ChatMessage[];
   createdAt: string;
   updatedAt: string;
@@ -1197,6 +1242,12 @@ export interface ResearchCellChangeResolutionResultV1 {
   version: 1;
   outcome: 'applied' | 'rejected' | 'conflicted';
   proposal: ResearchCellChangeProposalV1;
+  document: ResearchDocumentV1;
+}
+
+export interface ResearchCellChangeRunResultV1 {
+  version: 1;
+  attempt: ResearchCellChangeAttemptV1;
   document: ResearchDocumentV1;
 }
 

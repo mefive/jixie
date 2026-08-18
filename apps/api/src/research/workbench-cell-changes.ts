@@ -317,6 +317,7 @@ export async function applyResearchCellChangeProposal(
       const applied = await resolveResearchCellChangeProposalRecord(transaction, {
         proposalId: proposal.id,
         status: 'applied',
+        appliedDocumentContentRevision: proposal.document.contentRevision + 1,
         resolvedAt,
       });
       return { outcome: 'applied', proposal: applied, seeds: result.seeds };

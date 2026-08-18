@@ -18,6 +18,7 @@ import { prisma } from '../lib/prisma.js';
 import { executeResearchPlan } from './executor.js';
 import { researchPayloadHash } from './fingerprints.js';
 import { createWorkbenchResearchRun } from './records.js';
+import { listResearchCellChangeAttempts } from './research-cell-change-attempt-records.js';
 import { researchPlanSpecV1Schema } from './spec.js';
 import { materializeResearchOutputArtifacts } from './workbench-artifacts.js';
 import {
@@ -90,6 +91,13 @@ export class ResearchCellRevisionConflictError extends Error {
   public constructor(readonly currentCell: { id: string; source: string; revision: number }) {
     super('Research Cell revision changed');
     this.name = 'ResearchCellRevisionConflictError';
+  }
+}
+
+export class ResearchDocumentContentRevisionConflictError extends Error {
+  public constructor(readonly currentContentRevision: number) {
+    super('Research document content revision changed during execution');
+    this.name = 'ResearchDocumentContentRevisionConflictError';
   }
 }
 
@@ -197,7 +205,13 @@ export async function getResearchDocument(
     });
   }
   const document = await loadDocumentRow(userId, documentId);
-  return document ? documentView(document) : null;
+  if (!document) {
+    return null;
+  }
+  return {
+    ...documentView(document),
+    cellChangeAttempts: await listResearchCellChangeAttempts(userId, documentId),
+  };
 }
 
 export async function addResearchCell(
@@ -445,6 +459,71 @@ export async function runAffectedResearchCells(
   }
 }
 
+/** Execute one prevalidated, document-scoped Cell plan and attach every immutable snapshot to the
+ * same Agent proposal attempt. Content revision checks prevent a multi-tab edit from producing a
+ * mixed-source attempt. */
+export async function runResearchCellChangeAttemptPlan(
+  userId: string,
+  documentId: string,
+  plan: ResearchAffectedRunPlan,
+  args: {
+    clean: boolean;
+    attemptId: string;
+    expectedContentRevision: number;
+  },
+): Promise<ResearchDocumentRunResultV1 | null> {
+  const document = await prisma.researchDocument.findFirst({
+    where: { id: documentId, userId },
+    select: { id: true },
+  });
+  if (!document) {
+    return null;
+  }
+
+  const control = startResearchRun(documentId);
+  try {
+    if (args.clean) {
+      await researchRuntimeManager.reset(documentId);
+      if (!control.interrupted) {
+        await prisma.researchCell.updateMany({
+          where: { documentId, kind: 'python', lastExecutedRevision: { not: null } },
+          data: { status: 'stale' },
+        });
+      }
+    }
+
+    const executedCellIds = await executeAffectedResearchCellPlan(
+      plan,
+      async (cellId) => {
+        const current = await prisma.researchDocument.findUnique({
+          where: { id: documentId },
+          select: { contentRevision: true },
+        });
+        if (!current || current.contentRevision !== args.expectedContentRevision) {
+          throw new ResearchDocumentContentRevisionConflictError(
+            current?.contentRevision ?? args.expectedContentRevision,
+          );
+        }
+        const outcome = await executeResearchCellById(userId, cellId, control, args.attemptId);
+        return outcome === 'success';
+      },
+      () => control.interrupted,
+    );
+    const finalDocument = await prisma.researchDocument.findUnique({
+      where: { id: documentId },
+      select: { contentRevision: true },
+    });
+    if (!finalDocument || finalDocument.contentRevision !== args.expectedContentRevision) {
+      throw new ResearchDocumentContentRevisionConflictError(
+        finalDocument?.contentRevision ?? args.expectedContentRevision,
+      );
+    }
+    return researchDocumentRunResult(userId, documentId, executedCellIds, args.clean);
+  } finally {
+    finishResearchRun(control);
+  }
+}
+
 export async function runResearchDocument(
   userId: string,
   documentId: string,
@@ -523,17 +602,19 @@ async function executeResearchCellById(
   userId: string,
   cellId: string,
   control: ResearchRunControl,
+  cellChangeAttemptId?: string,
 ): Promise<ResearchCellExecutionOutcome | null> {
   if (control.interrupted) {
     return 'interrupted';
   }
   const cell = await loadExecutableResearchCell(userId, cellId);
-  return cell ? executeResearchCell(cell, control) : null;
+  return cell ? executeResearchCell(cell, control, cellChangeAttemptId) : null;
 }
 
 async function executeResearchCell(
   cell: ExecutableResearchCellRow,
   control: ResearchRunControl,
+  cellChangeAttemptId?: string,
 ): Promise<ResearchCellExecutionOutcome> {
   if (control.interrupted) {
     return 'interrupted';
@@ -555,6 +636,7 @@ async function executeResearchCell(
         references: cell.references as Prisma.InputJsonValue,
         environmentFingerprint: 'pending',
         startedAt,
+        ...(cellChangeAttemptId ? { cellChangeAttemptId } : {}),
       },
     }),
   ]);
@@ -886,11 +968,13 @@ export function downstreamResearchCellIds(
 }
 
 export function affectedResearchCellRunPlan(
-  selectedCellId: string,
+  selectedCellIds: string | string[],
   analyses: ResearchPythonAnalysis[],
 ): ResearchAffectedRunPlan {
+  const selected = Array.isArray(selectedCellIds) ? selectedCellIds : [selectedCellIds];
   const orderByCellId = new Map(analyses.map((analysis, index) => [analysis.cellId, index]));
-  if (!orderByCellId.has(selectedCellId)) {
+  const availableSelectedCellIds = selected.filter((cellId) => orderByCellId.has(cellId));
+  if (availableSelectedCellIds.length === 0) {
     return { cellIds: [], dependenciesByCellId: new Map() };
   }
 
@@ -919,8 +1003,8 @@ export function affectedResearchCellRunPlan(
     }
   }
 
-  const affectedCellIds = new Set([selectedCellId]);
-  const pendingCellIds = [selectedCellId];
+  const affectedCellIds = new Set(availableSelectedCellIds);
+  const pendingCellIds = [...availableSelectedCellIds];
   while (pendingCellIds.length > 0) {
     const pendingCellId = pendingCellIds.shift()!;
     for (const dependentCellId of dependentsByCellId.get(pendingCellId) ?? []) {
@@ -1045,6 +1129,7 @@ function documentView(document: ResearchDocumentRow): ResearchDocumentV1 {
     runtimeVersion: 'research-py-v1',
     contentRevision: document.contentRevision,
     cells: document.cells.map(cellView),
+    cellChangeAttempts: [],
     messages: document.conversation.messages.map(
       (message): ChatMessage => ({
         id: message.id,

@@ -255,8 +255,10 @@ pandas 表格、Matplotlib 静态图，以及 line / scatter / histogram / boxpl
 应用或拒绝；文档或 Cell 已变化时固化为冲突而不覆盖新内容。Cell 编辑采用文档级 timer 自动保存：源码变化
 立即进入 dirty，停止输入 800ms 或持续输入 5s 后串行保存；运行、Agent 发送/应用和文档切换前强制 flush。
 Cell revision 保护单次写入，文档 `contentRevision` 只跟踪内容与结构变化并保护 Agent 批量提案，运行输出不会
-制造伪冲突；Cell 顶部独立呈现保存与执行状态。Agent 受控执行 Cell、执行结果解释与尝试比较，
-Factor / Strategy 草稿的带血缘交接及完整 `ResearchExecution` 比较仍按 M2–M4 推进。
+制造伪冲突；Cell 顶部独立呈现保存与执行状态。接受提案不自动执行，用户从提案卡片独立授权后才运行受影响
+分支；每次运行保存 `ResearchCellChangeAttempt` 及其 Cell 执行快照，失败和中断同样进入台账。同一提案可比较
+源码、输出、状态与环境变化，并可让 Agent 基于指定尝试的受控精确结果解释。完整 `ResearchExecution` 的数据
+指纹、DAG 和结构化指标比较，以及 Factor / Strategy 草稿的带血缘交接仍按 M3–M4 推进。
 它们不阻塞当前个人研究 MVP，但仍属于 1.5 的完整完成定义。
 
 ### 1.6 研究方法模板与验证协议扩展 💤

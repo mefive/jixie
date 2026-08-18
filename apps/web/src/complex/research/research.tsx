@@ -437,7 +437,8 @@ const ResearchWorkspace = complex.component(
           store.documentRunLoader.error ||
           store.affectedRunLoader.error ||
           store.interruptLoader.error ||
-          store.cellChangeResolutionLoader.error) && (
+          store.cellChangeResolutionLoader.error ||
+          store.cellChangeRunLoader.error) && (
           <Alert
             className="jx-research-workspaceAlert"
             type="error"
@@ -447,7 +448,8 @@ const ResearchWorkspace = complex.component(
               store.documentRunLoader.errorObject?.message ??
               store.affectedRunLoader.errorObject?.message ??
               store.interruptLoader.errorObject?.message ??
-              store.cellChangeResolutionLoader.errorObject?.message
+              store.cellChangeResolutionLoader.errorObject?.message ??
+              store.cellChangeRunLoader.errorObject?.message
             }
           />
         )}
@@ -850,9 +852,17 @@ const ResearchAgentPanel = complex.component(() => {
             <MessageParts
               message={message}
               busyResearchCellChangeId={store.resolvingProposalId}
+              busyResearchCellChangeRunId={store.runningProposalId}
+              busyResearchCellChangeExplanationId={store.explainingAttemptId}
+              researchCellChangeAttempts={store.document?.cellChangeAttempts}
+              researchDocumentContentRevision={store.document?.contentRevision}
               onApplyResearchCellChange={(proposalId) => store.applyCellChangeProposal(proposalId)}
               onRejectResearchCellChange={(proposalId) =>
                 store.rejectCellChangeProposal(proposalId)
+              }
+              onRunResearchCellChange={(proposalId) => store.runCellChangeProposal(proposalId)}
+              onExplainResearchCellChangeAttempt={(attempt) =>
+                store.explainCellChangeAttempt(attempt)
               }
             />
           </div>

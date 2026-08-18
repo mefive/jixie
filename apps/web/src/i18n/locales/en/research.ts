@@ -120,6 +120,32 @@ export const enResearch: typeof zhResearch = {
       viewDiff: 'Review changes',
       apply: 'Apply proposal',
       reject: 'Reject proposal',
+      runAffected: 'Run Cells affected by this proposal',
+      rerunAffected: 'Rerun Cells affected by this proposal',
+      runDocumentChanged:
+        'The document changed after this proposal was applied, so it can no longer create a controlled attempt.',
+      explainAttempt: 'Ask the Agent to explain this attempt',
+      explainPrompt:
+        'Explain the findings, anomalies, limitations, and next step using the exact snapshots from the controlled attempt that just ran.',
+      attemptNumber: 'Attempt {{count}}',
+      attemptStatus: {
+        running: 'Running',
+        success: 'Succeeded',
+        error: 'Failed',
+        cancelled: 'Stopped',
+      },
+      attemptScope: {
+        affected: 'Affected branch',
+        clean_document: 'Clean full-document run',
+      },
+      executedCells: '{{executed}} / {{planned}} cells',
+      codeChanges: '{{count}} code changes',
+      outputChanges: '{{count}} output changes',
+      environmentChanged: 'environment changed',
+      environmentUnchanged: 'same environment',
+      upstreamCellFailed: 'An upstream Cell failed, so dependent Cells were skipped.',
+      documentChangedDuringRun:
+        'Document content changed during execution, so this attempt stopped.',
       diffTitle: 'Review changes: {{title}}',
       cells: 'Changed cells',
       conflict: {

@@ -34,6 +34,10 @@ import {
   rejectResearchCellChangeProposal,
 } from '../research/workbench-cell-changes.js';
 import {
+  ResearchCellChangeAttemptUnavailableError,
+  runResearchCellChangeProposalAttempt,
+} from '../research/workbench-cell-change-attempts.js';
+import {
   addResearchCell,
   analyzeResearchDocument,
   closeResearchDocumentRuntime,
@@ -239,6 +243,37 @@ researchRoute.post('/cell-change-proposals/:proposalId/reject', async (c) => {
     : apiError(c, 'NOT_FOUND', m(c, 'researchCellChangeProposalNotFound'));
 });
 
+researchRoute.post('/cell-change-proposals/:proposalId/run-affected', async (c) => {
+  try {
+    const result = await runResearchCellChangeProposalAttempt(
+      c.var.userId,
+      c.req.param('proposalId'),
+    );
+    return result
+      ? c.json(result)
+      : apiError(c, 'NOT_FOUND', m(c, 'researchCellChangeProposalNotFound'));
+  } catch (error) {
+    if (error instanceof ResearchDocumentRunInProgressError) {
+      return apiError(c, 'CONFLICT', m(c, 'researchDocumentRunInProgress'));
+    }
+    if (error instanceof ResearchCellChangeAttemptUnavailableError) {
+      const messageKey = {
+        proposal_not_applied: 'researchCellChangeAttemptProposalNotApplied',
+        proposal_revision_unavailable: 'researchCellChangeAttemptRevisionUnavailable',
+        document_changed: 'researchCellChangeAttemptDocumentChanged',
+        no_executable_cells: 'researchCellChangeAttemptNoExecutableCells',
+      } as const;
+      return apiError(
+        c,
+        error.reason === 'document_changed' ? 'CONFLICT' : 'VALIDATION_FAILED',
+        m(c, messageKey[error.reason]),
+        { reason: error.reason },
+      );
+    }
+    throw error;
+  }
+});
+
 researchRoute.post('/cells/:cellId/run', async (c) => {
   try {
     const document = await runResearchCell(c.var.userId, c.req.param('cellId'));
@@ -406,12 +441,14 @@ researchRoute.get('/conversations', async (c) => {
 const agentBody = z.strictObject({
   conversationId: z.string().min(1).optional(),
   message: z.string().trim().min(1).max(2000),
+  attemptId: z.string().min(1).max(80).optional(),
 });
 const MAX_RESEARCH_AGENT_CONTEXT_CELLS = 100;
 const MAX_RESEARCH_AGENT_SOURCE_CHARACTERS = 48_000;
+const MAX_RESEARCH_AGENT_ATTEMPT_CHARACTERS = 32_000;
 
 researchRoute.post('/agent', validateJson(agentBody), async (c) => {
-  const { message } = c.req.valid('json');
+  const { message, attemptId } = c.req.valid('json');
   const userId = c.var.userId;
   let conversationId = c.req.valid('json').conversationId;
   if (conversationId) {
@@ -442,6 +479,7 @@ researchRoute.post('/agent', validateJson(agentBody), async (c) => {
     select: {
       id: true,
       updatedAt: true,
+      contentRevision: true,
       cells: {
         orderBy: { position: 'asc' },
         select: {
@@ -458,8 +496,32 @@ researchRoute.post('/agent', validateJson(agentBody), async (c) => {
       },
     },
   });
+  const attempt = attemptId
+    ? await prisma.researchCellChangeAttempt.findFirst({
+        where: {
+          id: attemptId,
+          document: { conversationId, userId },
+          status: { in: ['success', 'error', 'cancelled'] },
+        },
+        include: {
+          executions: {
+            orderBy: { startedAt: 'asc' },
+            include: { cell: { select: { kind: true, position: true } } },
+          },
+        },
+      })
+    : null;
+  if (attemptId && !attempt) {
+    return apiError(c, 'NOT_FOUND', m(c, 'researchCellChangeAttemptNotFound'));
+  }
   const turnId = ulid();
   const agentDocument = document ? researchAgentDocumentContext(document) : undefined;
+  if (attempt) {
+    await prisma.researchCellChangeAttempt.update({
+      where: { id: attempt.id },
+      data: { explanationTurnId: turnId },
+    });
+  }
   enqueueAgentTurn({
     turnId,
     userId,
@@ -472,6 +534,7 @@ researchRoute.post('/agent', validateJson(agentBody), async (c) => {
             editableCellIds: agentDocument!.editableCellIds,
           })
         : undefined,
+      attempt ? researchAgentCellChangeAttemptContext(attempt) : undefined,
     ),
     entity,
     message,
@@ -484,6 +547,7 @@ researchRoute.post('/agent', validateJson(agentBody), async (c) => {
 function researchAgentDocumentContext(document: {
   id: string;
   updatedAt: Date;
+  contentRevision: number;
   cells: Array<{
     id: string;
     position: number;
@@ -532,12 +596,79 @@ function researchAgentDocumentContext(document: {
       version: 1,
       documentId: document.id,
       updatedAt: document.updatedAt.toISOString(),
+      contentRevision: document.contentRevision,
       runtime: 'research-py-v1',
       cells: includedCells,
       cellsTruncated: document.cells.length > includedCells.length,
     }),
     editableCellIds,
   };
+}
+
+function researchAgentCellChangeAttemptContext(attempt: {
+  id: string;
+  proposalId: string;
+  contentRevision: number;
+  scope: string;
+  status: string;
+  rootCellIds: unknown;
+  plannedCellIds: unknown;
+  error: string | null;
+  startedAt: Date;
+  finishedAt: Date | null;
+  executions: Array<{
+    id: string;
+    cellId: string;
+    revision: number;
+    source: string;
+    status: string;
+    output: unknown;
+    error: string | null;
+    environmentFingerprint: string;
+    cell: { kind: string; position: number };
+  }>;
+}): string {
+  let remainingCharacters = MAX_RESEARCH_AGENT_ATTEMPT_CHARACTERS;
+  const executions = attempt.executions.map((execution) => {
+    const sourceCharacters = Math.min(4_000, remainingCharacters, execution.source.length);
+    const source = execution.source.slice(0, sourceCharacters);
+    remainingCharacters -= sourceCharacters;
+
+    const serializedOutput = JSON.stringify(execution.output ?? null);
+    const outputCharacters = Math.min(6_000, remainingCharacters, serializedOutput.length);
+    const outputText = serializedOutput.slice(0, outputCharacters);
+    remainingCharacters -= outputCharacters;
+    return {
+      executionId: execution.id,
+      cellId: execution.cellId,
+      position: execution.cell.position,
+      kind: execution.cell.kind,
+      revision: execution.revision,
+      status: execution.status,
+      source,
+      sourceTruncated: source.length !== execution.source.length,
+      output:
+        outputText.length === serializedOutput.length
+          ? JSON.parse(outputText)
+          : { jsonPrefix: outputText, truncated: true },
+      ...(execution.error ? { error: execution.error } : {}),
+      environmentFingerprint: execution.environmentFingerprint,
+    };
+  });
+  return JSON.stringify({
+    version: 1,
+    attemptId: attempt.id,
+    proposalId: attempt.proposalId,
+    contentRevision: attempt.contentRevision,
+    scope: attempt.scope,
+    status: attempt.status,
+    rootCellIds: attempt.rootCellIds,
+    plannedCellIds: attempt.plannedCellIds,
+    executions,
+    ...(attempt.error ? { error: attempt.error } : {}),
+    startedAt: attempt.startedAt.toISOString(),
+    ...(attempt.finishedAt ? { finishedAt: attempt.finishedAt.toISOString() } : {}),
+  });
 }
 
 const renameBody = z.strictObject({ title: z.string().trim().min(1).max(120) });

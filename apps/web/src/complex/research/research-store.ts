@@ -4,6 +4,8 @@ import {
   textMessage,
   type ChatMessage,
   type ResearchCellKindV1,
+  type ResearchCellChangeAttemptV1,
+  type ResearchCellChangeRunResultV1,
   type ResearchCellChangeResolutionResultV1,
   type ResearchAssetTypeV1,
   type ResearchDataCatalogResultV1,
@@ -34,6 +36,7 @@ import {
   rejectResearchCellChangeProposal,
   resetResearchDocument,
   runAffectedResearchCells,
+  runResearchCellChangeProposal,
   runResearchCell,
   runResearchDocument,
   sendResearchAgent,
@@ -99,6 +102,8 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
   public interrupting = false;
   public runInterrupted = false;
   public resolvingProposalId: string | null = null;
+  public runningProposalId: string | null = null;
+  public explainingAttemptId: string | null = null;
   public cellDrafts = observable.map<string, ResearchCellDraftState>();
   public turnStream = new AgentTurnStream();
   public documentsLoader = new LoaderModel<ResearchDocumentSummaryV1[]>();
@@ -108,6 +113,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
   public affectedRunLoader = new LoaderModel<ResearchDocumentRunResultV1>();
   public interruptLoader = new LoaderModel<ResearchDocumentInterruptResultV1>();
   public cellChangeResolutionLoader = new LoaderModel<ResearchCellChangeResolutionResultV1>();
+  public cellChangeRunLoader = new LoaderModel<ResearchCellChangeRunResultV1>();
   public dataCatalogLoader = new LoaderModel<ResearchDataCatalogResultV1>();
   public curatorLoader = new LoaderModel<ResearchCuratorRunV1 | null>();
   public curatorMutationLoader = new LoaderModel<ResearchCuratorRunV1 | ResearchCuratorFindingV1>();
@@ -129,6 +135,8 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
       interrupting: observable.ref,
       runInterrupted: observable.ref,
       resolvingProposalId: observable.ref,
+      runningProposalId: observable.ref,
+      explainingAttemptId: observable.ref,
       setPrompt: action,
       clearRunInterrupted: action,
     });
@@ -184,6 +192,10 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
           ? applyResearchCellChangeProposal(resolution.proposalId)
           : rejectResearchCellChangeProposal(resolution.proposalId),
     });
+    this.cellChangeRunLoader.setup({
+      preserveResult: false,
+      request: (proposalId: string) => runResearchCellChangeProposal(proposalId),
+    });
     this.dataCatalogLoader.setup({
       request: ({ query, assetType }: ResearchDataCatalogQuery, signal) =>
         searchResearchDataCatalog(query, assetType, signal),
@@ -220,6 +232,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     this.registCleaner(() => this.affectedRunLoader.cleanup());
     this.registCleaner(() => this.interruptLoader.cleanup());
     this.registCleaner(() => this.cellChangeResolutionLoader.cleanup());
+    this.registCleaner(() => this.cellChangeRunLoader.cleanup());
     this.registCleaner(() => this.dataCatalogLoader.cleanup());
     this.registCleaner(() => this.curatorLoader.cleanup());
     this.registCleaner(() => this.curatorMutationLoader.cleanup());
@@ -250,7 +263,12 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
   }
 
   public get hasActiveRun(): boolean {
-    return this.busyCellId !== null || this.affectedRunningCellId !== null || this.documentRunning;
+    return (
+      this.busyCellId !== null ||
+      this.affectedRunningCellId !== null ||
+      this.documentRunning ||
+      this.runningProposalId !== null
+    );
   }
 
   public get hasUnsavedDrafts(): boolean {
@@ -441,11 +459,37 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     return this.resolveCellChangeProposal('reject', proposalId);
   }
 
+  public async runCellChangeProposal(proposalId: string) {
+    if (this.hasActiveRun || this.runningProposalId || !(await this.flushAllCellDrafts())) {
+      return;
+    }
+    runInAction(() => {
+      this.runningProposalId = proposalId;
+      this.runInterrupted = false;
+    });
+    try {
+      const result = await this.cellChangeRunLoader.run(proposalId);
+      this.acceptDocument(result.document);
+      void this.documentsLoader.run();
+    } finally {
+      runInAction(() => {
+        this.runningProposalId = null;
+      });
+    }
+  }
+
+  public explainCellChangeAttempt(attempt: ResearchCellChangeAttemptV1) {
+    return this.send(
+      i18n.t('research:workbench.cellChange.explainPrompt', { id: attempt.id }),
+      attempt.id,
+    );
+  }
+
   public searchDataCatalog(query: string, assetType?: ResearchAssetTypeV1) {
     return this.dataCatalogLoader.run({ query, assetType });
   }
 
-  public async send(message: string) {
+  public async send(message: string, attemptId?: string) {
     const text = message.trim();
     if (!text || this.sending || !this.conversationId) {
       return;
@@ -456,10 +500,11 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     runInAction(() => {
       this.chatMessages = [...this.chatMessages, textMessage('user', text)];
       this.sending = true;
+      this.explainingAttemptId = attemptId ?? null;
       this.prompt = '';
     });
     try {
-      const started = await sendResearchAgent(text, this.conversationId);
+      const started = await sendResearchAgent(text, this.conversationId, attemptId);
       await this.turnStream.attach(started.turnId, this.turnHandlers());
     } catch (error) {
       runInAction(() => {
@@ -477,6 +522,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     } finally {
       runInAction(() => {
         this.sending = false;
+        this.explainingAttemptId = null;
       });
       void this.documentsLoader.run();
     }
