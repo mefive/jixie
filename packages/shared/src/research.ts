@@ -1085,6 +1085,7 @@ export interface ResearchCellChangeProposalV1 {
   summary: string;
   status: ResearchCellChangeProposalStatusV1;
   expectedDocumentUpdatedAt: string;
+  expectedDocumentContentRevision?: number;
   operations: ResearchCellChangeOperationV1[];
   conflict?: ResearchCellChangeConflictV1;
   createdAt: string;
@@ -1185,6 +1186,7 @@ export interface ResearchDocumentV1 {
   conversationId: string;
   title: string;
   runtimeVersion: 'research-py-v1';
+  contentRevision: number;
   cells: ResearchCellV1[];
   messages: import('./chat.js').ChatMessage[];
   createdAt: string;

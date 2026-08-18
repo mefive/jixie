@@ -63,6 +63,9 @@ export async function persistResearchCellChangePart(
       title: proposal.title,
       summary: proposal.summary,
       expectedDocumentUpdatedAt: new Date(proposal.expectedDocumentUpdatedAt),
+      ...(proposal.expectedDocumentContentRevision !== undefined
+        ? { expectedDocumentContentRevision: proposal.expectedDocumentContentRevision }
+        : {}),
       operations: proposal.operations as unknown as Prisma.InputJsonValue,
       status: 'pending',
       createdAt: new Date(proposal.createdAt),
@@ -121,6 +124,9 @@ export function researchCellChangeProposalView(
     summary: proposal.summary,
     status: proposal.status as ResearchCellChangeProposalStatusV1,
     expectedDocumentUpdatedAt: proposal.expectedDocumentUpdatedAt.toISOString(),
+    ...(proposal.expectedDocumentContentRevision != null
+      ? { expectedDocumentContentRevision: proposal.expectedDocumentContentRevision }
+      : {}),
     operations: proposal.operations as unknown as ResearchCellChangeOperationV1[],
     ...(proposal.conflict
       ? { conflict: proposal.conflict as unknown as ResearchCellChangeConflictV1 }

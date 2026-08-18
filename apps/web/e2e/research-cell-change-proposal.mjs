@@ -47,6 +47,14 @@ try {
   await page.screenshot({ path: `${SHOTS}research-cell-change-diff.png` });
   await page.keyboard.press('Escape');
 
+  const beforeRun = await api(page, `/api/app/research/documents/${fixture.documentId}`);
+  const afterRun = await api(page, `/api/app/research/cells/${fixture.pythonCellId}/run`, {
+    method: 'POST',
+  });
+  if (afterRun.contentRevision !== beforeRun.contentRevision) {
+    throw new Error('Executing a Cell must not increment the document content revision.');
+  }
+
   await applyCard.getByRole('button', { name: '应用提案' }).click();
   await applyCard.getByText('已应用', { exact: true }).waitFor({ timeout: 30_000 });
   const appliedDocument = await api(page, `/api/app/research/documents/${fixture.documentId}`);
@@ -66,7 +74,10 @@ try {
 
   await api(page, `/api/app/research/cells/${fixture.markdownCellId}`, {
     method: 'PATCH',
-    body: JSON.stringify({ source: '## 用户刚刚修改的研究标题' }),
+    body: JSON.stringify({
+      source: '## 用户刚刚修改的研究标题',
+      expectedRevision: 1,
+    }),
   });
   const conflictCard = page.getByTestId(`research-cell-change-${fixture.conflictProposalId}`);
   await conflictCard.getByRole('button', { name: '应用提案' }).click();

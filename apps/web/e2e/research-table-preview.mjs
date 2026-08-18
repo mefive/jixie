@@ -56,7 +56,7 @@ try {
   }
   document = await api(page, `/api/app/research/cells/${pythonCell.id}`, {
     method: 'PATCH',
-    body: JSON.stringify({ source }),
+    body: JSON.stringify({ source, expectedRevision: pythonCell.revision }),
   });
   document = await api(page, `/api/app/research/cells/${pythonCell.id}/run`, { method: 'POST' });
   const executedCell = document.cells.find((cell) => cell.id === pythonCell.id);

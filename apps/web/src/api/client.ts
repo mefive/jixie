@@ -313,7 +313,7 @@ export function addResearchCell(
 
 export function updateResearchCell(
   cellId: string,
-  patch: { source?: string; config?: Record<string, unknown> },
+  patch: { source?: string; config?: Record<string, unknown>; expectedRevision: number },
 ): Promise<ResearchDocumentV1> {
   return request(`/api/app/research/cells/${encodeURIComponent(cellId)}`, {
     method: 'PATCH',

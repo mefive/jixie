@@ -19,6 +19,7 @@ import {
 } from '@jixie/shared';
 import { BaseStore, LoaderModel, PollingModel } from '@src/lib';
 import {
+  ApiError,
   addResearchCell,
   applyResearchCellChangeProposal,
   createResearchDocument,
@@ -43,6 +44,13 @@ import {
 } from '@src/api/client';
 import { AgentTurnStream, type AgentTurnHandlers } from '@src/components/agent-turn-stream';
 import i18n from '@src/i18n';
+import {
+  editResearchCellDraft,
+  RESEARCH_AUTOSAVE_TICK_MS,
+  researchCellDraftIsDue,
+  savedResearchCellDraft,
+  type ResearchCellDraftState,
+} from './research-autosave';
 
 type ResearchSetupParams = {};
 
@@ -54,7 +62,7 @@ interface ResearchDataCatalogQuery {
 type ResearchDocumentMutation =
   | { kind: 'create'; template: ResearchDocumentTemplateV1 }
   | { kind: 'add'; documentId: string; cellKind: ResearchCellKindV1; source?: string }
-  | { kind: 'update'; cellId: string; source: string }
+  | { kind: 'update'; cellId: string; source: string; expectedRevision: number }
   | { kind: 'delete'; cellId: string }
   | { kind: 'run'; cellId: string }
   | { kind: 'reset'; documentId: string };
@@ -91,6 +99,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
   public interrupting = false;
   public runInterrupted = false;
   public resolvingProposalId: string | null = null;
+  public cellDrafts = observable.map<string, ResearchCellDraftState>();
   public turnStream = new AgentTurnStream();
   public documentsLoader = new LoaderModel<ResearchDocumentSummaryV1[]>();
   public documentLoader = new LoaderModel<ResearchDocumentV1>();
@@ -103,6 +112,9 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
   public curatorLoader = new LoaderModel<ResearchCuratorRunV1 | null>();
   public curatorMutationLoader = new LoaderModel<ResearchCuratorRunV1 | ResearchCuratorFindingV1>();
   public curatorPoller = new PollingModel();
+  private autosaveTimer: number | null = null;
+  private saveChain: Promise<void> = Promise.resolve();
+  private queuedCellSaves = new Map<string, Promise<boolean>>();
 
   public constructor(parentStore?: any) {
     super(parentStore);
@@ -139,7 +151,10 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
               mutation.source ?? defaultCellSource(mutation.cellKind),
             );
           case 'update':
-            return updateResearchCell(mutation.cellId, { source: mutation.source });
+            return updateResearchCell(mutation.cellId, {
+              source: mutation.source,
+              expectedRevision: mutation.expectedRevision,
+            });
           case 'delete':
             return deleteResearchCell(mutation.cellId);
           case 'run':
@@ -210,6 +225,14 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     this.registCleaner(() => this.curatorMutationLoader.cleanup());
     this.registCleaner(() => this.curatorPoller.cleanup());
     this.registCleaner(() => this.turnStream.detach());
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (this.hasUnsavedDrafts) {
+        event.preventDefault();
+      }
+    };
+    window.addEventListener('beforeunload', warnBeforeUnload);
+    this.registCleaner(() => window.removeEventListener('beforeunload', warnBeforeUnload));
+    this.registCleaner(() => this.stopAutosaveTimer());
     void this.documentsLoader.run();
     void this.loadCurator().catch(() => {});
   }
@@ -230,6 +253,14 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     return this.busyCellId !== null || this.affectedRunningCellId !== null || this.documentRunning;
   }
 
+  public get hasUnsavedDrafts(): boolean {
+    return [...this.cellDrafts.values()].some((draft) => draft.status !== 'saved');
+  }
+
+  public cellDraft(cellId: string): ResearchCellDraftState | undefined {
+    return this.cellDrafts.get(cellId);
+  }
+
   public setPrompt(value: string) {
     this.prompt = value;
   }
@@ -238,10 +269,25 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     this.runInterrupted = false;
   }
 
-  public newDocument() {
+  public changeCellDraft(cellId: string, source: string) {
+    const current = this.cellDrafts.get(cellId);
+    if (!current || current.draft === source) {
+      return;
+    }
+    runInAction(() => {
+      this.cellDrafts.set(cellId, editResearchCellDraft(current, source, Date.now()));
+    });
+    this.ensureAutosaveTimer();
+  }
+
+  public async newDocument() {
+    if (!(await this.flushAllCellDrafts())) {
+      return;
+    }
     this.turnStream.detach();
     runInAction(() => {
       this.document = null;
+      this.cellDrafts.clear();
       this.chatMessages = [];
       this.sending = false;
       this.prompt = '';
@@ -251,32 +297,35 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
 
   public async createDocument(template: ResearchDocumentTemplateV1) {
     const document = await this.documentMutationLoader.run({ kind: 'create', template });
+    runInAction(() => this.cellDrafts.clear());
     this.acceptDocument(document);
     void this.documentsLoader.run();
   }
 
   public async openDocument(id: string) {
+    if (id === this.documentId || !(await this.flushAllCellDrafts())) {
+      return;
+    }
     this.turnStream.detach();
     runInAction(() => {
       this.runInterrupted = false;
+      this.cellDrafts.clear();
     });
     const document = await this.documentLoader.run(id);
     this.acceptDocument(document);
     void this.reattachTurn();
   }
 
-  public async updateCell(cellId: string, source: string) {
-    const current = this.document?.cells.find((cell) => cell.id === cellId);
-    if (!current || source === current.source) {
-      return;
-    }
-    const document = await this.documentMutationLoader.run({ kind: 'update', cellId, source });
-    this.acceptDocument(document, false);
-    void this.documentsLoader.run();
+  public flushCellDraft(cellId: string): Promise<boolean> {
+    return this.flushCellDrafts([cellId]);
+  }
+
+  public flushPendingChanges(): Promise<boolean> {
+    return this.flushAllCellDrafts();
   }
 
   public async addCell(kind: ResearchCellKindV1) {
-    if (!this.documentId) {
+    if (!this.documentId || !(await this.flushAllCellDrafts())) {
       return;
     }
     const document = await this.documentMutationLoader.run({
@@ -288,17 +337,17 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
   }
 
   public async deleteCell(cellId: string) {
+    if (!(await this.flushAllCellDrafts())) {
+      return;
+    }
     const document = await this.documentMutationLoader.run({ kind: 'delete', cellId });
     this.acceptDocument(document, false);
     void this.documentsLoader.run();
   }
 
-  public async runCell(cellId: string, source?: string) {
-    if (this.hasActiveRun) {
+  public async runCell(cellId: string) {
+    if (this.hasActiveRun || !(await this.flushAllCellDrafts())) {
       return;
-    }
-    if (source !== undefined) {
-      await this.updateCell(cellId, source);
     }
     runInAction(() => {
       this.busyCellId = cellId;
@@ -314,12 +363,9 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     }
   }
 
-  public async runAffected(cellId: string, source?: string) {
-    if (this.hasActiveRun) {
+  public async runAffected(cellId: string) {
+    if (this.hasActiveRun || !(await this.flushAllCellDrafts())) {
       return;
-    }
-    if (source !== undefined) {
-      await this.updateCell(cellId, source);
     }
     runInAction(() => {
       this.affectedRunningCellId = cellId;
@@ -337,7 +383,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
   }
 
   public async runAll(clean = true) {
-    if (!this.documentId || this.hasActiveRun) {
+    if (!this.documentId || this.hasActiveRun || !(await this.flushAllCellDrafts())) {
       return;
     }
     runInAction(() => {
@@ -377,7 +423,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
   }
 
   public async resetRuntime() {
-    if (!this.documentId) {
+    if (!this.documentId || !(await this.flushAllCellDrafts())) {
       return;
     }
     const document = await this.documentMutationLoader.run({
@@ -402,6 +448,9 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
   public async send(message: string) {
     const text = message.trim();
     if (!text || this.sending || !this.conversationId) {
+      return;
+    }
+    if (!(await this.flushAllCellDrafts())) {
       return;
     }
     runInAction(() => {
@@ -452,10 +501,19 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     }
   }
 
-  public removeConversation(id: string) {
-    void deleteResearchConversation(id).then(() => this.documentsLoader.run());
+  public async removeConversation(id: string) {
+    await deleteResearchConversation(id);
+    void this.documentsLoader.run();
     if (this.documentId === id) {
-      this.newDocument();
+      this.turnStream.detach();
+      runInAction(() => {
+        this.document = null;
+        this.cellDrafts.clear();
+        this.chatMessages = [];
+        this.sending = false;
+        this.prompt = '';
+        this.runInterrupted = false;
+      });
     }
   }
 
@@ -492,9 +550,14 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     }
   }
 
-  private acceptDocument(document: ResearchDocumentV1, replaceMessages = true) {
+  private acceptDocument(
+    document: ResearchDocumentV1,
+    replaceMessages = true,
+    savedCell?: { cellId: string; source: string },
+  ) {
     runInAction(() => {
       this.document = document;
+      this.reconcileCellDrafts(document, savedCell);
       if (replaceMessages) {
         this.chatMessages = document.messages.map(normalizeChatMessage);
       }
@@ -506,6 +569,9 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     proposalId: string,
   ) {
     if (this.resolvingProposalId) {
+      return;
+    }
+    if (kind === 'apply' && !(await this.flushAllCellDrafts())) {
       return;
     }
     runInAction(() => {
@@ -521,6 +587,158 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
       runInAction(() => {
         this.resolvingProposalId = null;
       });
+    }
+  }
+
+  private reconcileCellDrafts(
+    document: ResearchDocumentV1,
+    savedCell?: { cellId: string; source: string },
+  ) {
+    const serverCellIds = new Set(document.cells.map((cell) => cell.id));
+    for (const cellId of this.cellDrafts.keys()) {
+      if (!serverCellIds.has(cellId)) {
+        this.cellDrafts.delete(cellId);
+      }
+    }
+    for (const cell of document.cells) {
+      const current = this.cellDrafts.get(cell.id);
+      if (savedCell?.cellId === cell.id) {
+        const latest = current ?? savedResearchCellDraft(cell.id, cell.source, cell.revision);
+        const clean = latest.draft === savedCell.source;
+        this.cellDrafts.set(cell.id, {
+          ...latest,
+          persistedSource: cell.source,
+          expectedRevision: cell.revision,
+          status: clean ? 'saved' : 'dirty',
+          dirtySince: clean ? null : (latest.dirtySince ?? Date.now()),
+          lastChangedAt: clean ? null : (latest.lastChangedAt ?? Date.now()),
+        });
+        continue;
+      }
+      if (!current || current.status === 'saved') {
+        this.cellDrafts.set(cell.id, savedResearchCellDraft(cell.id, cell.source, cell.revision));
+        continue;
+      }
+      if (current.expectedRevision !== cell.revision || current.persistedSource !== cell.source) {
+        this.cellDrafts.set(cell.id, { ...current, status: 'conflict' });
+      }
+    }
+    this.ensureAutosaveTimer();
+  }
+
+  private ensureAutosaveTimer() {
+    const hasDirty = [...this.cellDrafts.values()].some((draft) => draft.status === 'dirty');
+    if (!hasDirty) {
+      this.stopAutosaveTimer();
+      return;
+    }
+    if (this.autosaveTimer !== null) {
+      return;
+    }
+    this.autosaveTimer = window.setInterval(() => this.autosaveTick(), RESEARCH_AUTOSAVE_TICK_MS);
+  }
+
+  private stopAutosaveTimer() {
+    if (this.autosaveTimer !== null) {
+      window.clearInterval(this.autosaveTimer);
+      this.autosaveTimer = null;
+    }
+  }
+
+  private autosaveTick() {
+    const now = Date.now();
+    const candidate = [...this.cellDrafts.values()].find(
+      (draft) => !this.queuedCellSaves.has(draft.cellId) && researchCellDraftIsDue(draft, now),
+    );
+    if (candidate) {
+      void this.enqueueCellSave(candidate.cellId);
+    }
+    this.ensureAutosaveTimer();
+  }
+
+  private enqueueCellSave(cellId: string): Promise<boolean> {
+    const queued = this.queuedCellSaves.get(cellId);
+    if (queued) {
+      return queued;
+    }
+    const save = this.saveChain.then(() => this.persistCellDraft(cellId));
+    this.saveChain = save.then(
+      (): void => undefined,
+      (): void => undefined,
+    );
+    this.queuedCellSaves.set(cellId, save);
+    void save.finally(() => {
+      if (this.queuedCellSaves.get(cellId) === save) {
+        this.queuedCellSaves.delete(cellId);
+      }
+      this.ensureAutosaveTimer();
+    });
+    return save;
+  }
+
+  private async persistCellDraft(cellId: string): Promise<boolean> {
+    const current = this.cellDrafts.get(cellId);
+    if (!current || current.status === 'saved') {
+      return true;
+    }
+    if (current.status === 'conflict') {
+      return false;
+    }
+    if (current.draft === current.persistedSource) {
+      runInAction(() => {
+        this.cellDrafts.set(cellId, { ...current, status: 'saved' });
+      });
+      return true;
+    }
+    const source = current.draft;
+    runInAction(() => {
+      this.cellDrafts.set(cellId, { ...current, status: 'saving' });
+    });
+    try {
+      const document = await this.documentMutationLoader.run({
+        kind: 'update',
+        cellId,
+        source,
+        expectedRevision: current.expectedRevision,
+      });
+      this.acceptDocument(document, false, { cellId, source });
+      void this.documentsLoader.run();
+      return true;
+    } catch (error) {
+      runInAction(() => {
+        const latest = this.cellDrafts.get(cellId);
+        if (latest) {
+          this.cellDrafts.set(cellId, {
+            ...latest,
+            status: error instanceof ApiError && error.status === 409 ? 'conflict' : 'error',
+          });
+        }
+      });
+      return false;
+    }
+  }
+
+  private flushAllCellDrafts(): Promise<boolean> {
+    return this.flushCellDrafts([...this.cellDrafts.keys()]);
+  }
+
+  private async flushCellDrafts(cellIds: string[]): Promise<boolean> {
+    while (true) {
+      const candidates = cellIds.filter((cellId) => {
+        const draft = this.cellDrafts.get(cellId);
+        return draft?.status === 'dirty' || draft?.status === 'error' || draft?.status === 'saving';
+      });
+      if (cellIds.some((cellId) => this.cellDrafts.get(cellId)?.status === 'conflict')) {
+        return false;
+      }
+      if (candidates.length === 0) {
+        return true;
+      }
+      for (const cellId of candidates) {
+        if (!(await this.enqueueCellSave(cellId))) {
+          return false;
+        }
+      }
     }
   }
 

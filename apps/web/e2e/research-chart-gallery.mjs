@@ -96,7 +96,7 @@ try {
   }
   document = await api(page, `/api/app/research/cells/${initialPythonCell.id}`, {
     method: 'PATCH',
-    body: JSON.stringify({ source: sources[0] }),
+    body: JSON.stringify({ source: sources[0], expectedRevision: initialPythonCell.revision }),
   });
   const chartCellIds = [initialPythonCell.id];
   for (const source of sources.slice(1)) {

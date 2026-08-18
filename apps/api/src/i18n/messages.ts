@@ -45,6 +45,10 @@ const MESSAGES = {
     zh: '研究 Cell 变更提案不存在',
     en: 'Research Cell change proposal not found',
   },
+  researchCellRevisionConflict: {
+    zh: '该 Cell 已在别处更新，请先处理保存冲突',
+    en: 'This Cell changed elsewhere; resolve the save conflict before continuing',
+  },
   researchCuratorRunNotFound: { zh: '研究整理记录不存在', en: 'Research curation run not found' },
   researchCuratorFindingNotFound: {
     zh: '研究整理候选不存在',

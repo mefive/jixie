@@ -44,6 +44,7 @@ import {
   listResearchDocuments,
   resetResearchDocumentRuntime,
   ResearchAffectedRunError,
+  ResearchCellRevisionConflictError,
   ResearchDocumentRunInProgressError,
   runAffectedResearchCells,
   runResearchCell,
@@ -110,6 +111,7 @@ const updateCellBody = z
   .strictObject({
     source: z.string().max(100_000).optional(),
     config: z.record(z.string(), z.unknown()).optional(),
+    expectedRevision: z.number().int().positive(),
   })
   .refine((value) => value.source !== undefined || value.config !== undefined);
 const runDocumentBody = z.strictObject({ clean: z.boolean().default(true) });
@@ -200,12 +202,22 @@ researchRoute.post('/documents/:documentId/cells', validateJson(createCellBody),
 });
 
 researchRoute.patch('/cells/:cellId', validateJson(updateCellBody), async (c) => {
-  const document = await updateResearchCell(
-    c.var.userId,
-    c.req.param('cellId'),
-    c.req.valid('json'),
-  );
-  return document ? c.json(document) : apiError(c, 'NOT_FOUND', m(c, 'conversationNotFound'));
+  try {
+    const document = await updateResearchCell(
+      c.var.userId,
+      c.req.param('cellId'),
+      c.req.valid('json'),
+    );
+    return document ? c.json(document) : apiError(c, 'NOT_FOUND', m(c, 'conversationNotFound'));
+  } catch (error) {
+    if (error instanceof ResearchCellRevisionConflictError) {
+      return apiError(c, 'CONFLICT', m(c, 'researchCellRevisionConflict'), {
+        reason: 'cell_revision_changed',
+        currentCell: error.currentCell,
+      });
+    }
+    throw error;
+  }
 });
 
 researchRoute.delete('/cells/:cellId', async (c) => {

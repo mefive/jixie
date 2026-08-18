@@ -434,6 +434,7 @@ describe('agentTurn tool loop', () => {
       summary: 'Add one Python cell without running it.',
       status: 'pending' as const,
       expectedDocumentUpdatedAt: '2026-08-18T08:00:00.000Z',
+      expectedDocumentContentRevision: 1,
       operations: [
         {
           operationId: 'operation-1',

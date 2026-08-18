@@ -1270,14 +1270,15 @@ model AgentTurn {
 /// One reactive research document attached to the same conversation used by the Research Agent.
 /// Cells own editable exploration state; immutable protocol evidence remains in ResearchRun.
 model ResearchDocument {
-  id             String            @id // ULID; currently identical to conversationId
-  userId         String
-  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  conversationId String            @unique
-  conversation   AgentConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  runtimeVersion String            @default("research-py-v1")
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
+  id              String            @id // ULID; currently identical to conversationId
+  userId          String
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversationId  String            @unique
+  conversation    AgentConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  runtimeVersion  String            @default("research-py-v1")
+  contentRevision Int               @default(1)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
 
   cells               ResearchCell[]
   executions          ResearchCellExecution[]
@@ -1363,22 +1364,23 @@ model ResearchArtifact {
 /// One Agent-authored batch of Cell edits awaiting explicit user application. Operations retain
 /// before/after source and optimistic revisions so the proposal remains auditable after resolution.
 model ResearchCellChangeProposal {
-  id                        String           @id // ULID
-  documentId                String
-  document                  ResearchDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  sourceTurnId              String
-  sourceTurn                AgentTurn        @relation(fields: [sourceTurnId], references: [id], onDelete: Cascade)
-  sourceMessageId           String
-  sourceMessage             AgentMessage     @relation(fields: [sourceMessageId], references: [id], onDelete: Cascade)
-  sourcePartIndex           Int
-  title                     String
-  summary                   String
-  expectedDocumentUpdatedAt DateTime
-  operations                Json
-  status                    String           @default("pending") // 'pending' | 'applied' | 'rejected' | 'conflicted'
-  conflict                  Json?
-  createdAt                 DateTime         @default(now())
-  resolvedAt                DateTime?
+  id                              String           @id // ULID
+  documentId                      String
+  document                        ResearchDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  sourceTurnId                    String
+  sourceTurn                      AgentTurn        @relation(fields: [sourceTurnId], references: [id], onDelete: Cascade)
+  sourceMessageId                 String
+  sourceMessage                   AgentMessage     @relation(fields: [sourceMessageId], references: [id], onDelete: Cascade)
+  sourcePartIndex                 Int
+  title                           String
+  summary                         String
+  expectedDocumentUpdatedAt       DateTime
+  expectedDocumentContentRevision Int?
+  operations                      Json
+  status                          String           @default("pending") // 'pending' | 'applied' | 'rejected' | 'conflicted'
+  conflict                        Json?
+  createdAt                       DateTime         @default(now())
+  resolvedAt                      DateTime?
 
   @@unique([sourceMessageId, sourcePartIndex])
   @@index([documentId, status, createdAt])
