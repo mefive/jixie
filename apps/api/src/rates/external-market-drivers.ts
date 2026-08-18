@@ -41,6 +41,8 @@ const NOMINAL_FIELDS = `date,${NOMINAL_TERMS.map((term) => term.field).join(',')
 const REAL_FIELDS = `date,${REAL_TERMS.map((term) => term.field).join(',')}`;
 const FX_FIELDS =
   'ts_code,trade_date,bid_open,bid_close,bid_high,bid_low,ask_open,ask_close,ask_high,ask_low,tick_qty';
+// FXCM history contains isolated one-pip bid/ask inversions caused by four-decimal rounding.
+const FX_ROUNDING_INVERSION_TOLERANCE = 0.0001 + 1e-9;
 
 export interface ExternalMarketClient {
   call(apiName: string, params?: Record<string, unknown>, fields?: string): Promise<TushareRow[]>;
@@ -136,6 +138,10 @@ export function parseExternalFxRows(
   expectedCode: (typeof EXTERNAL_FX_CODES)[number],
   startDate: string,
   endDate: string,
+  options: {
+    skipRoundingInversions?: boolean;
+    onWarning?: (line: string) => void;
+  } = {},
 ): ExternalFxDailyBar[] {
   assertDateRange(startDate, endDate);
   const dates = new Set<string>();
@@ -175,12 +181,23 @@ export function parseExternalFxRows(
       bar.bidLow <= 0 ||
       bar.askLow <= 0 ||
       bar.bidLow > bar.bidHigh ||
-      bar.askLow > bar.askHigh ||
-      bar.bidOpen > bar.askOpen ||
-      bar.bidClose > bar.askClose ||
-      bar.bidHigh > bar.askHigh ||
-      bar.bidLow > bar.askLow
+      bar.askLow > bar.askHigh
     ) {
+      throw new Error(`Tushare ${expectedCode} returned invalid quotes on ${tradeDate}`);
+    }
+    const maximumInversion = Math.max(
+      bar.bidOpen - bar.askOpen,
+      bar.bidClose - bar.askClose,
+      bar.bidHigh - bar.askHigh,
+      bar.bidLow - bar.askLow,
+    );
+    if (maximumInversion > 0) {
+      if (options.skipRoundingInversions && maximumInversion <= FX_ROUNDING_INVERSION_TOLERANCE) {
+        options.onWarning?.(
+          `Skipped ${expectedCode} ${tradeDate}: bid/ask rounding inversion ${maximumInversion.toFixed(4)}`,
+        );
+        continue;
+      }
       throw new Error(`Tushare ${expectedCode} returned invalid quotes on ${tradeDate}`);
     }
     bars.push(bar);
@@ -259,7 +276,10 @@ export async function syncExternalMarketDrivers(
     );
     const fxByCode = EXTERNAL_FX_CODES.map((code, index) =>
       assignExternalAvailableDates(
-        parseExternalFxRows(fxRowGroups[index]!, code, range.startDate, range.endDate),
+        parseExternalFxRows(fxRowGroups[index]!, code, range.startDate, range.endDate, {
+          skipRoundingInversions: true,
+          onWarning: onLog,
+        }),
         openDates,
       ),
     );

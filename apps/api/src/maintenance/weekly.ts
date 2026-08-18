@@ -1,10 +1,15 @@
 import type { TradeDate } from '@jixie/shared';
 import { loadTushareConfig } from '../config.js';
 import { runDataQualityAudit } from '../data-quality/audit.js';
+import { addDays } from '../lib/date.js';
 import { prisma } from '../lib/prisma.js';
 import { syncChinaMacroData } from '../macro/china-macro.js';
 import { BlsPublicDataClient, syncUsHeadlineCpiData } from '../macro/us-headline-cpi.js';
 import { syncMarketIndicators } from '../market/sync-market-indicators.js';
+import {
+  MinistryOfFinanceCurveClient,
+  syncChinaTreasuryYieldCurve,
+} from '../rates/china-treasury-curve.js';
 import { refreshAllFactorWeatherPins } from '../factor/weather.js';
 import { MARKET_WEATHER_INDICATOR_INDEX_CODES } from '../store/index-presets.js';
 import {
@@ -56,6 +61,7 @@ export interface WeeklyMaintenanceSummary {
   selfHealing: SelfHealSummary | null;
   financials: WeeklyReferenceSyncSummary | null;
   dividends: WeeklyReferenceSyncSummary | null;
+  chinaTreasuryCurve: number | null;
   factorWeatherPoints: number;
   dataRevision: number | null;
 }
@@ -95,6 +101,7 @@ export async function runWeeklyMaintenance(
     selfHealing: null,
     financials: null,
     dividends: null,
+    chinaTreasuryCurve: null,
     factorWeatherPoints: 0,
     dataRevision: null,
   };
@@ -210,6 +217,13 @@ export async function runWeeklyMaintenance(
       new BlsPublicDataClient(),
       addMonths(today, -18).slice(0, 6),
       today.slice(0, 6),
+      onLog,
+    );
+    await updateMaintenanceRun(run.id, 'china_treasury_curve', summary);
+    summary.chinaTreasuryCurve = await syncChinaTreasuryYieldCurve(
+      new MinistryOfFinanceCurveClient(),
+      addDays(today, -400),
+      today,
       onLog,
     );
 

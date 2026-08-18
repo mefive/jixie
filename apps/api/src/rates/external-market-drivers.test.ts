@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   assignExternalAvailableDates,
   parseExternalFxRows,
@@ -167,5 +167,41 @@ describe('external market driver normalization', () => {
       { tradeDate: '20260730', value: 1, availableDate: '20260731' },
       { tradeDate: '20260731', value: 2, availableDate: '20260803' },
     ]);
+  });
+
+  it('can quarantine a one-pip historical rounding inversion without accepting larger errors', () => {
+    const warning = vi.fn();
+    const roundingInversion = {
+      ts_code: 'USDHKD.FXCM',
+      trade_date: '20070727',
+      bid_open: 7.822,
+      bid_close: 7.8242,
+      bid_high: 7.8245,
+      bid_low: 7.8203,
+      ask_open: 7.8219,
+      ask_close: 7.8264,
+      ask_high: 7.8265,
+      ask_low: 7.8219,
+      tick_qty: 948,
+    };
+
+    expect(
+      parseExternalFxRows([roundingInversion], 'USDHKD.FXCM', '20070101', '20071231', {
+        skipRoundingInversions: true,
+        onWarning: warning,
+      }),
+    ).toEqual([]);
+    expect(warning).toHaveBeenCalledWith(
+      'Skipped USDHKD.FXCM 20070727: bid/ask rounding inversion 0.0001',
+    );
+    expect(() =>
+      parseExternalFxRows(
+        [{ ...roundingInversion, bid_open: 7.823 }],
+        'USDHKD.FXCM',
+        '20070101',
+        '20071231',
+        { skipRoundingInversions: true },
+      ),
+    ).toThrow('invalid quotes');
   });
 });
