@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { RESEARCH_SERIES_SDK_CONTRACT_V1 } from '@jixie/shared';
+import { RESEARCH_SDK_CONTRACT_V1, RESEARCH_SERIES_SDK_CONTRACT_V1 } from '@jixie/shared';
 import {
   parseResearchSeriesRuntimeRequest,
   parseResearchSeriesRuntimeRows,
@@ -56,5 +56,13 @@ describe('research workbench SDK contract', () => {
       kind: 'dataframe',
       columns: [{ name: 'date' }, { name: 'value' }],
     });
+  });
+
+  it('publishes every M2 native chart through the same SDK contract', () => {
+    expect(
+      RESEARCH_SDK_CONTRACT_V1.functions
+        .filter((contract) => contract.namespace === 'charts')
+        .map((contract) => contract.name),
+    ).toEqual(['line', 'area', 'bar', 'scatter', 'event_path', 'histogram', 'boxplot', 'heatmap']);
   });
 });

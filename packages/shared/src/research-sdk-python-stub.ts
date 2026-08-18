@@ -77,6 +77,9 @@ function renderParameter(parameter: ResearchSdkParameterContractV1): string {
     case 'date':
       pythonType = 'str';
       break;
+    case 'integer':
+      pythonType = 'int';
+      break;
     case 'dataframe':
       pythonType = 'pd.DataFrame';
       break;

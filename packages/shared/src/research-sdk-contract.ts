@@ -12,6 +12,7 @@ export const RESEARCH_PARTIAL_PERIOD_POLICIES_V1 = ['exclude', 'include'] as con
 export type ResearchSdkParameterTypeV1 =
   | 'string'
   | 'date'
+  | 'integer'
   | 'enum'
   | 'dataframe'
   | 'string_or_string_list'
@@ -22,7 +23,7 @@ export interface ResearchSdkParameterContractV1 {
   type: ResearchSdkParameterTypeV1;
   required: boolean;
   keywordOnly: boolean;
-  defaultValue?: string | null;
+  defaultValue?: string | number | null;
   values?: readonly string[];
   maximumLength?: number;
   descriptionZh: string;
@@ -99,7 +100,7 @@ const chartLabelsParameter = {
 } as const;
 
 function chartFunction(
-  name: 'line' | 'area' | 'bar' | 'scatter',
+  name: 'line' | 'area' | 'bar' | 'scatter' | 'event_path',
   descriptionZh: string,
   descriptionEn: string,
   yType: 'string' | 'string_or_string_list',
@@ -265,6 +266,105 @@ export const RESEARCH_SDK_CONTRACT_V1 = {
       'Create a native interactive scatter chart.',
       'string',
     ),
+    chartFunction(
+      'event_path',
+      '创建带事件时点标记的 jixie 原生交互路径图。',
+      'Create a native interactive event path chart with an event-time marker.',
+      'string_or_string_list',
+    ),
+    {
+      qualifiedName: 'charts.histogram',
+      namespace: 'charts',
+      name: 'histogram',
+      descriptionZh: '对数值列确定性分箱，创建 jixie 原生交互直方图。',
+      descriptionEn:
+        'Deterministically bin a numeric column and create a native interactive histogram.',
+      parameters: [
+        chartFrameParameter,
+        {
+          name: 'column',
+          type: 'string',
+          required: true,
+          keywordOnly: true,
+          descriptionZh: '需要观察分布的数值列名。',
+          descriptionEn: 'The numeric DataFrame column whose distribution is shown.',
+        },
+        {
+          name: 'bins',
+          type: 'integer',
+          required: false,
+          keywordOnly: true,
+          defaultValue: 20,
+          descriptionZh: '分箱数量，允许 1–100。',
+          descriptionEn: 'The number of bins, from 1 to 100.',
+        },
+        chartTitleParameter,
+        chartLabelsParameter,
+      ],
+      returns: { kind: 'chart' },
+    },
+    {
+      qualifiedName: 'charts.boxplot',
+      namespace: 'charts',
+      name: 'boxplot',
+      descriptionZh: '按数值列及可选分组计算五数概括，创建 jixie 原生交互箱线图。',
+      descriptionEn:
+        'Compute five-number summaries by numeric column and optional group for a native interactive box plot.',
+      parameters: [
+        chartFrameParameter,
+        {
+          name: 'y',
+          type: 'string_or_string_list',
+          required: true,
+          keywordOnly: true,
+          descriptionZh: '需要比较分布的一列或多列数值列名。',
+          descriptionEn: 'One or more numeric DataFrame columns to compare.',
+        },
+        {
+          name: 'group',
+          type: 'string',
+          required: false,
+          keywordOnly: true,
+          defaultValue: null,
+          descriptionZh: '可选分组列名。',
+          descriptionEn: 'An optional grouping column.',
+        },
+        chartTitleParameter,
+        chartLabelsParameter,
+      ],
+      returns: { kind: 'chart' },
+    },
+    {
+      qualifiedName: 'charts.heatmap',
+      namespace: 'charts',
+      name: 'heatmap',
+      descriptionZh: '用两个分类轴和一个数值列创建 jixie 原生交互热力图。',
+      descriptionEn:
+        'Create a native interactive heatmap from two categorical axes and one numeric value column.',
+      parameters: [
+        chartFrameParameter,
+        chartXParameter,
+        {
+          name: 'y',
+          type: 'string',
+          required: true,
+          keywordOnly: true,
+          descriptionZh: '用作纵轴分类的 DataFrame 列名。',
+          descriptionEn: 'The DataFrame column used for y-axis categories.',
+        },
+        {
+          name: 'value',
+          type: 'string',
+          required: true,
+          keywordOnly: true,
+          descriptionZh: '决定热力颜色的数值列名。',
+          descriptionEn: 'The numeric DataFrame column mapped to heatmap color.',
+        },
+        chartTitleParameter,
+        chartLabelsParameter,
+      ],
+      returns: { kind: 'chart' },
+    },
   ],
 } as const satisfies ResearchSdkContractV1;
 

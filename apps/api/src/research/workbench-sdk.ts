@@ -63,6 +63,8 @@ function sdkParameterSchema(parameter: ResearchSdkParameterContractV1): z.ZodTyp
         throw new Error(`SDK enum parameter ${parameter.name} has no values`);
       }
       return z.enum(parameter.values as [string, ...string[]]);
+    case 'integer':
+      return z.number().int();
     case 'string': {
       const schema = z.string().trim().min(1);
       return parameter.maximumLength ? schema.max(parameter.maximumLength) : schema;
