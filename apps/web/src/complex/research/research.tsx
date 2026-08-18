@@ -517,7 +517,11 @@ const ResearchCell = complex.component(
           ) : cell.kind === 'python' || validationSourceOpen ? (
             <Suspense fallback={<div className="jx-research-editorPending" />}>
               <ResearchCodeEditor
+                documentId={cell.documentId}
                 cellId={cell.id}
+                cells={(store.document?.cells ?? [])
+                  .filter((candidate) => candidate.kind === 'python')
+                  .map((candidate) => ({ id: candidate.id, source: candidate.source }))}
                 value={draft}
                 language={cell.kind === 'validation' ? 'json' : 'python'}
                 onChange={setDraft}

@@ -74,6 +74,9 @@ importers:
       openai:
         specifier: ^6.44.0
         version: 6.44.0(zod@4.4.3)
+      pyright:
+        specifier: 1.1.411
+        version: 1.1.411
       ulid:
         specifier: ^2.3.0
         version: 2.4.0
@@ -2769,6 +2772,11 @@ packages:
 
   pure-rand@6.1.0:
     resolution: {integrity: sha512-bVWawvoZoBYpp6yIoQtQXHZjmz35RSVHnUOTefl8Vcjr8snTPY1wnpSPMWekcFwbxI6gtmT7rSYPFvz71ldiOA==}
+
+  pyright@1.1.411:
+    resolution: {integrity: sha512-03S/vmS5lF1S/tVbKc2WNXCMq8JWCwta/qIYjj1jvqbQhoy+N3NgBzHTSmUlbYD6DJwqQ5XHf108QujoqeURvw==}
+    engines: {node: '>=14.0.0'}
+    hasBin: true
 
   rc9@2.1.2:
     resolution: {integrity: sha512-btXCnMmRIBINM2LDZoEmOogIZU7Qe7zn4BpomSKZ/ykbLObuBdvG+mFq11DL6fjH1DRwHhrlgtYWG96bJiC7Cg==}
@@ -5690,6 +5698,10 @@ snapshots:
   punycode@2.3.1: {}
 
   pure-rand@6.1.0: {}
+
+  pyright@1.1.411:
+    optionalDependencies:
+      fsevents: 2.3.3
 
   rc9@2.1.2:
     dependencies:

@@ -1,6 +1,7 @@
 import Editor, { loader, type Monaco } from '@monaco-editor/react';
 import {
   RESEARCH_SDK_CONTRACT_V1,
+  type ResearchLanguageCellV1,
   type ResearchSdkFunctionContractV1,
   type ResearchSdkParameterContractV1,
 } from '@jixie/shared';
@@ -15,6 +16,11 @@ import {
   researchSdkDataFrameBindings,
   researchSdkHoverContract,
 } from './research-sdk-language';
+import {
+  attachResearchPythonModel,
+  installResearchPythonLanguage,
+  researchPythonModelUri,
+} from './research-python-language';
 
 self.MonacoEnvironment = {
   getWorker(_workerId, label) {
@@ -26,7 +32,9 @@ loader.config({ monaco });
 let researchSdkLanguageInstalled = false;
 
 interface ResearchCodeEditorProps {
+  documentId: string;
   cellId: string;
+  cells: readonly ResearchLanguageCellV1[];
   value: string;
   language: 'python' | 'json';
   onChange: (value: string) => void;
@@ -36,7 +44,9 @@ interface ResearchCodeEditorProps {
 
 /** Lightweight Python/JSON editor for research cells; execution remains server-side and isolated. */
 export default function ResearchCodeEditor({
+  documentId,
   cellId,
+  cells,
   value,
   language,
   onChange,
@@ -45,18 +55,35 @@ export default function ResearchCodeEditor({
 }: ResearchCodeEditorProps) {
   const callbacksRef = useRef({ onBlur, onRun });
   callbacksRef.current = { onBlur, onRun };
+  const languageContextRef = useRef({ cells });
+  languageContextRef.current = { cells };
   const lineCount = value.split('\n').length;
   const height = Math.min(520, Math.max(128, lineCount * 20 + 32));
   return (
     <Editor
       height={height}
       language={language}
-      path={`file:///research/${cellId}.${language === 'python' ? 'py' : 'json'}`}
+      path={
+        language === 'python'
+          ? researchPythonModelUri(monaco, documentId, cellId).toString()
+          : `file:///research/${encodeURIComponent(documentId)}/${encodeURIComponent(cellId)}.json`
+      }
       theme="vs"
       value={value}
       onChange={(next) => onChange(next ?? '')}
       onMount={(editor, monacoInstance) => {
         installResearchSdkLanguage(monacoInstance);
+        installResearchPythonLanguage(monacoInstance);
+        if (language === 'python') {
+          const binding = attachResearchPythonModel(monacoInstance, {
+            documentId,
+            cellId,
+            model: editor.getModel()!,
+            editor,
+            getCells: () => languageContextRef.current.cells,
+          });
+          editor.onDidDispose(() => binding.dispose());
+        }
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () =>
           callbacksRef.current.onRun(),
         );

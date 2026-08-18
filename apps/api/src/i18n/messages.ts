@@ -45,6 +45,10 @@ const MESSAGES = {
     zh: '研究整理候选不存在',
     en: 'Research curation finding not found',
   },
+  researchLanguageServiceUnavailable: {
+    zh: 'Python 语言服务暂不可用，请稍后重试',
+    en: 'The Python language service is temporarily unavailable; try again shortly',
+  },
 
   // —— Turn already running for an entity ——
   strategyTurnInProgress: {
