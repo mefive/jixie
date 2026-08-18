@@ -20,12 +20,14 @@ import {
   DataZoomComponent,
   AxisPointerComponent,
   VisualMapComponent,
+  TitleComponent,
   type GridComponentOption,
   type MarkPointComponentOption,
   type TooltipComponentOption,
   type LegendComponentOption,
   type DataZoomComponentOption,
   type VisualMapComponentOption,
+  type TitleComponentOption,
 } from 'echarts/components';
 import * as echarts from 'echarts/core';
 import type { ComposeOption } from 'echarts/core';
@@ -47,6 +49,7 @@ echarts.use([
   DataZoomComponent,
   AxisPointerComponent,
   VisualMapComponent,
+  TitleComponent,
   CanvasRenderer,
 ]);
 
@@ -64,6 +67,7 @@ export type ECOption = ComposeOption<
   | MarkPointComponentOption
   | DataZoomComponentOption
   | VisualMapComponentOption
+  | TitleComponentOption
 >;
 
 interface Props {

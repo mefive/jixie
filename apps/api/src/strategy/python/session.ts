@@ -36,7 +36,8 @@ export class PythonSession {
         throw new Error('JIXIE_PYTHON_LOCAL is forbidden in production');
       }
       const runner = resolve(process.cwd(), '../sandboxd/python/jixie_runner.py');
-      const child = spawn('python3', ['-I', '-u', runner], { stdio: ['pipe', 'pipe', 'pipe'] });
+      const executable = process.env.JIXIE_PYTHON_EXECUTABLE ?? 'python3';
+      const child = spawn(executable, ['-I', '-u', runner], { stdio: ['pipe', 'pipe', 'pipe'] });
       let stderr = '';
       child.stderr.setEncoding('utf8');
       child.stderr.on('data', (chunk: string) => {

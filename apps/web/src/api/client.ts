@@ -182,6 +182,12 @@ import type {
   AssetVisibility,
   ResearchConversationMessages,
   ResearchConversationMeta,
+  ResearchCellKindV1,
+  ResearchDocumentAnalysisV1,
+  ResearchDocumentRunResultV1,
+  ResearchDocumentSummaryV1,
+  ResearchDocumentTemplateV1,
+  ResearchDocumentV1,
   ResearchAttemptRecordV1,
   ResearchCuratorDispositionV1,
   ResearchCuratorFindingV1,
@@ -265,6 +271,74 @@ export function getAgentConversationMessages(
 
 export function listResearchConversations(): Promise<ResearchConversationMeta[]> {
   return request('/api/app/research/conversations');
+}
+
+export function listResearchDocuments(): Promise<ResearchDocumentSummaryV1[]> {
+  return request('/api/app/research/documents');
+}
+
+export function createResearchDocument(
+  template: ResearchDocumentTemplateV1,
+): Promise<ResearchDocumentV1> {
+  return request('/api/app/research/documents', {
+    method: 'POST',
+    body: JSON.stringify({ template }),
+  });
+}
+
+export function getResearchDocument(documentId: string): Promise<ResearchDocumentV1> {
+  return request(`/api/app/research/documents/${encodeURIComponent(documentId)}`);
+}
+
+export function addResearchCell(
+  documentId: string,
+  kind: ResearchCellKindV1,
+  source = '',
+): Promise<ResearchDocumentV1> {
+  return request(`/api/app/research/documents/${encodeURIComponent(documentId)}/cells`, {
+    method: 'POST',
+    body: JSON.stringify({ kind, source }),
+  });
+}
+
+export function updateResearchCell(
+  cellId: string,
+  patch: { source?: string; config?: Record<string, unknown> },
+): Promise<ResearchDocumentV1> {
+  return request(`/api/app/research/cells/${encodeURIComponent(cellId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  });
+}
+
+export function deleteResearchCell(cellId: string): Promise<ResearchDocumentV1> {
+  return request(`/api/app/research/cells/${encodeURIComponent(cellId)}`, { method: 'DELETE' });
+}
+
+export function runResearchCell(cellId: string): Promise<ResearchDocumentV1> {
+  return request(`/api/app/research/cells/${encodeURIComponent(cellId)}/run`, { method: 'POST' });
+}
+
+export function analyzeResearchDocument(documentId: string): Promise<ResearchDocumentAnalysisV1> {
+  return request(`/api/app/research/documents/${encodeURIComponent(documentId)}/analyze`, {
+    method: 'POST',
+  });
+}
+
+export function runResearchDocument(
+  documentId: string,
+  clean = true,
+): Promise<ResearchDocumentRunResultV1> {
+  return request(`/api/app/research/documents/${encodeURIComponent(documentId)}/run`, {
+    method: 'POST',
+    body: JSON.stringify({ clean }),
+  });
+}
+
+export function resetResearchDocument(documentId: string): Promise<ResearchDocumentV1> {
+  return request(`/api/app/research/documents/${encodeURIComponent(documentId)}/reset`, {
+    method: 'POST',
+  });
 }
 
 export function sendResearchAgent(

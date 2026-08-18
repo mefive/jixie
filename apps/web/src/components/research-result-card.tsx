@@ -424,7 +424,7 @@ function TimeSeriesResultCard({ part }: { part: TimeSeriesResearchPart }) {
           className="jx-researchResult-runError"
           type="error"
           showIcon
-          message={t('result.rerunFailed')}
+          title={t('result.rerunFailed')}
           description={runError}
         />
       )}
@@ -434,7 +434,7 @@ function TimeSeriesResultCard({ part }: { part: TimeSeriesResearchPart }) {
           className="jx-researchResult-conclusion"
           type={conclusionAlertType(conclusion.level)}
           showIcon
-          message={t(`result.conclusionLevel.${conclusion.level}`)}
+          title={t(`result.conclusionLevel.${conclusion.level}`)}
           description={
             <div className="jx-researchResult-conclusionBody">
               <p>{zh ? conclusion.summaryZh : conclusion.summaryEn}</p>
@@ -469,7 +469,7 @@ function TimeSeriesResultCard({ part }: { part: TimeSeriesResearchPart }) {
           className="jx-researchResult-conclusion"
           type="info"
           showIcon
-          message={t('result.legacyConclusion')}
+          title={t('result.legacyConclusion')}
         />
       )}
 
@@ -489,7 +489,7 @@ function TimeSeriesResultCard({ part }: { part: TimeSeriesResearchPart }) {
               key={`${diagnostic.code}-${index}`}
               type={diagnostic.severity === 'error' ? 'error' : diagnostic.severity}
               showIcon
-              message={zh ? diagnostic.messageZh : diagnostic.messageEn}
+              title={zh ? diagnostic.messageZh : diagnostic.messageEn}
             />
           ))}
         </div>

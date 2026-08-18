@@ -23,14 +23,14 @@ _log_lines_emitted = 0
 _log_capped = False
 
 
-def _timeout_user_code(_signum: int, _frame: Any) -> None:
-    raise TimeoutError(
-        f"Python strategy exceeded {_CODE_TIMEOUT_SECONDS:g}s of uninterrupted execution"
-    )
+def _run_user_code(callback: Callable[[], Any], timeout_label: str = "strategy") -> Any:
+    def timeout_user_code(_signum: int, _frame: Any) -> None:
+        raise TimeoutError(
+            f"Python {timeout_label} exceeded "
+            f"{_CODE_TIMEOUT_SECONDS:g}s of uninterrupted execution"
+        )
 
-
-def _run_user_code(callback: Callable[[], Any]) -> Any:
-    previous_handler = signal.signal(signal.SIGALRM, _timeout_user_code)
+    previous_handler = signal.signal(signal.SIGALRM, timeout_user_code)
     signal.setitimer(signal.ITIMER_REAL, _CODE_TIMEOUT_SECONDS)
     try:
         return callback()
@@ -720,10 +720,7 @@ def _metadata(strategy: Strategy) -> dict[str, Any]:
     }
 
 
-def main() -> None:
-    sys.stdout = _LogStream("info")
-    sys.stderr = _LogStream("error")
-    start = _read_frame()
+def _run_strategy(start: dict[str, Any]) -> None:
     if start.get("type") != "start" or start.get("runtime_version") != "py-v1":
         raise ValueError("first sandbox frame must start py-v1")
     strategy = _run_user_code(
@@ -750,6 +747,24 @@ def main() -> None:
             _send_frame({"type": "done", "commands": context._commands})
         except Exception:
             _send_frame({"type": "error", "message": traceback.format_exc(limit=20)})
+
+
+def main() -> None:
+    sys.stdout = _LogStream("info")
+    sys.stderr = _LogStream("error")
+    start = _read_frame()
+    if start.get("type") == "research_start":
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from jixie_research_runtime import run_research
+
+        run_research(
+            start,
+            _read_frame,
+            _send_frame,
+            lambda callback: _run_user_code(callback, "research cell"),
+        )
+        return
+    _run_strategy(start)
 
 
 try:

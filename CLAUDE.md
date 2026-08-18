@@ -12,7 +12,10 @@
 
 ### 探索、验证与执行三层
 
-- **探索层**：现有统一 Agent + 只读 SQL + `analyzeData` 沙盒计算 + 计算图卡片已经构成 notebook-like 分析基础。优先增强一次研究的可追溯输入、代码、图表和结论，不为“像 Jupyter”另造一套平行产品。
+- **探索层**：Research 页面演进为 jixie 原生的响应式量化研究文档，统一承载 Markdown / Python /
+  Validation Cell、Agent、平台数据和图表；复用现有只读 SQL、`analyzeData`、计算图卡片、Python 沙箱与
+  `ResearchRun`，不引入 Jupyter，也不建设一套与 Research 平行的 Notebook 产品。上游变化必须使下游
+  输出显式 stale，正式固化须在干净环境完整执行。
 - **验证层**：FactorReport、代码快照、PIT、holdout、稳健统计、真实成本和数据截止日负责把探索结论变成可复查证据。
 - **执行层**：策略回测、每日信号和账户对账保留窄而稳定；当前不以扩券商、自动下单或实盘运营为建设重点。
 
@@ -39,6 +42,21 @@
 - 批量写入用 Prisma `createMany`;按交易日「先 `deleteMany` 当日 + `createMany`」保证可重复同步幂等(SQLite 不支持 createMany 的 skipDuplicates)。
 - **改市场数据表 schema(加列/加表/改语义)必须同步 `apps/api/src/agent/tools/read-only-sql.ts` 的 `SQL_TABLE_DOCS`**——它既是 agent 只读 SQL 的表白名单,也是喂给模型的 schema 说明书(列名/单位/PIT 规则),是 schema.prisma 的手工镜像,漏更新 = 模型查不到新数据或拿错单位。新表若含用户数据则**绝不能**进白名单。
 - **跨市场数据不能只靠代码字符串区分**：证券身份、交易所、市场时区、交易日历、交易币种、报价币种、公司行动、退市状态和数据 `availableDate` / vintage 必须有显式口径。收益比较必须说明本币或统一基准币及 FX 转换时点；缺少 PIT 历史时宁可标不可验证，不用今天的状态回填过去。
+
+## Research SDK Contract 工作流
+
+- **Prisma schema 是内部存储事实，不是 Python 公开 schema。** 禁止从 Prisma model 原样暴露或自动推断
+  Research Runtime API；字段重命名、类型转换、指标选择、频率聚合和 PIT 语义必须经过显式服务映射。
+- 修改 `apps/api/prisma/schema.prisma` 后，先判断是否改变公开 Research SDK。仅内部字段、索引、关系或 loader
+  映射变化时，生成 Prisma migration、更新 loader / 映射和测试即可，不改 SDK Contract；若是市场数据表变化，
+  仍必须同步上面的 `SQL_TABLE_DOCS`。
+- 公开方法、参数、枚举或返回列变化时，唯一真相源是
+  `packages/shared/src/research-sdk-contract.ts`；同时修改 Python runtime 实现和 API 映射，不得另写一份 Monaco
+  schema。`apps/sandboxd/python/jixie_research_sdk.pyi` 是生成物，禁止手工编辑。
+- 修改公开契约后运行 `pnpm gen:research-sdk`，再运行 `pnpm check:research-sdk`、`pnpm typecheck` 和相关测试。
+  根级 `build` / `typecheck` 已把生成物一致性作为门禁；Git hook 只能提供本地快速反馈，不能作为正确性保证。
+- `gen:research-sdk` 只从公开 Contract 生成派生产物，不读取 Prisma。Prisma → SDK 的业务映射需要人工决策；
+  Contract → `.pyi`、Monaco 补全和 API 校验必须自动同步并由契约测试约束。
 
 ## 目录约定(对齐 fangtu)
 

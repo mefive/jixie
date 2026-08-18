@@ -1,4 +1,4 @@
-import { Alert, Button, Drawer, Empty, Skeleton, Tag } from 'antd';
+import { Alert, Button, Drawer, Empty, Skeleton, Tag, Tooltip } from 'antd';
 import { useTranslation } from 'react-i18next';
 import type {
   ResearchCuratorDispositionV1,
@@ -11,10 +11,10 @@ import {
   faCheck,
   faClock,
   faClone,
+  faListCheck,
   faRotate,
   faThumbsUp,
   faTriangleExclamation,
-  faWandMagicSparkles,
   faXmark,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -37,23 +37,24 @@ export const ResearchCuratorDrawer = complex.component(
     return (
       <Drawer
         className="jx-researchCurator"
-        width="min(640px, 100vw)"
+        size="large"
         open={open}
         onClose={onClose}
         title={
           <span className="jx-researchCurator-title">
-            <FontAwesomeIcon icon={faWandMagicSparkles} /> {t('curator.title')}
+            <FontAwesomeIcon icon={faListCheck} /> {t('curator.title')}
           </span>
         }
         extra={
-          <Button
-            type="primary"
-            icon={<FontAwesomeIcon icon={run ? faRotate : faWandMagicSparkles} />}
-            loading={loading || running}
-            onClick={() => void store.startCurator().catch(() => {})}
-          >
-            {running ? t('curator.running') : t('curator.run')}
-          </Button>
+          <Tooltip title={running ? t('curator.running') : t('curator.run')}>
+            <Button
+              type="text"
+              icon={<FontAwesomeIcon icon={run ? faRotate : faListCheck} />}
+              loading={loading || running}
+              aria-label={running ? t('curator.running') : t('curator.run')}
+              onClick={() => void store.startCurator().catch(() => {})}
+            />
+          </Tooltip>
         }
       >
         <p className="jx-researchCurator-intro">{t('curator.intro')}</p>
@@ -61,7 +62,7 @@ export const ResearchCuratorDrawer = complex.component(
           className="jx-researchCurator-guardrail"
           type="info"
           showIcon
-          message={t('curator.guardrail')}
+          title={t('curator.guardrail')}
         />
 
         {store.curatorLoader.error && (
@@ -69,7 +70,7 @@ export const ResearchCuratorDrawer = complex.component(
             className="jx-researchCurator-alert"
             type="error"
             showIcon
-            message={store.curatorLoader.errorObject?.message || t('curator.loadFailed')}
+            title={store.curatorLoader.errorObject?.message || t('curator.loadFailed')}
           />
         )}
         {store.curatorMutationLoader.error && (
@@ -77,7 +78,7 @@ export const ResearchCuratorDrawer = complex.component(
             className="jx-researchCurator-alert"
             type="error"
             showIcon
-            message={store.curatorMutationLoader.errorObject?.message || t('curator.actionFailed')}
+            title={store.curatorMutationLoader.errorObject?.message || t('curator.actionFailed')}
           />
         )}
 
@@ -101,7 +102,7 @@ export const ResearchCuratorDrawer = complex.component(
                 className="jx-researchCurator-alert"
                 type="info"
                 showIcon
-                message={t(`curator.status.${run.status}`)}
+                title={t(`curator.status.${run.status}`)}
                 description={t('curator.runningHint')}
               />
             ) : run.status === 'error' || run.status === 'stale' ? (
@@ -109,7 +110,7 @@ export const ResearchCuratorDrawer = complex.component(
                 className="jx-researchCurator-alert"
                 type="error"
                 showIcon
-                message={t(`curator.status.${run.status}`)}
+                title={t(`curator.status.${run.status}`)}
                 description={run.error || t('curator.actionFailed')}
               />
             ) : run.findings.length === 0 ? (
@@ -299,39 +300,45 @@ const CuratorFinding = complex.component(({ finding }: { finding: ResearchCurato
 
       <div className="jx-researchCurator-verificationFeedback">
         <span>{t('curator.verificationFeedback.label')}</span>
-        {VERIFICATION_ACTIONS.map(({ assessment, icon }) => (
-          <Button
-            key={assessment}
-            size="small"
-            type={finding.verificationAssessment === assessment ? 'primary' : 'default'}
-            danger={assessment === 'incorrect'}
-            icon={<FontAwesomeIcon icon={icon} />}
-            disabled={saving || finding.verificationAssessment === assessment}
-            onClick={() =>
-              void store.assessCuratorVerification(finding.id, assessment).catch(() => {})
-            }
-          >
-            {t(`curator.verificationFeedback.${assessment}`)}
-          </Button>
-        ))}
+        {VERIFICATION_ACTIONS.map(({ assessment, icon }) => {
+          const label = t(`curator.verificationFeedback.${assessment}`);
+          return (
+            <Tooltip key={assessment} title={label}>
+              <Button
+                size="small"
+                type={finding.verificationAssessment === assessment ? 'primary' : 'text'}
+                danger={assessment === 'incorrect'}
+                icon={<FontAwesomeIcon icon={icon} />}
+                aria-label={label}
+                disabled={saving || finding.verificationAssessment === assessment}
+                onClick={() =>
+                  void store.assessCuratorVerification(finding.id, assessment).catch(() => {})
+                }
+              />
+            </Tooltip>
+          );
+        })}
       </div>
 
       <div className="jx-researchCurator-actions">
-        {DISPOSITION_ACTIONS.map(({ disposition, icon }) => (
-          <Button
-            key={disposition}
-            size="small"
-            type={finding.disposition === disposition ? 'primary' : 'default'}
-            icon={<FontAwesomeIcon icon={icon} />}
-            loading={saving && finding.disposition !== disposition}
-            disabled={saving || finding.disposition === disposition}
-            onClick={() =>
-              void store.setCuratorDisposition(finding.id, disposition).catch(() => {})
-            }
-          >
-            {t(`curator.disposition.${disposition}`)}
-          </Button>
-        ))}
+        {DISPOSITION_ACTIONS.map(({ disposition, icon }) => {
+          const label = t(`curator.disposition.${disposition}`);
+          return (
+            <Tooltip key={disposition} title={label}>
+              <Button
+                size="small"
+                type={finding.disposition === disposition ? 'primary' : 'text'}
+                icon={<FontAwesomeIcon icon={icon} />}
+                aria-label={label}
+                loading={saving && finding.disposition !== disposition}
+                disabled={saving || finding.disposition === disposition}
+                onClick={() =>
+                  void store.setCuratorDisposition(finding.id, disposition).catch(() => {})
+                }
+              />
+            </Tooltip>
+          );
+        })}
       </div>
     </article>
   );
