@@ -135,6 +135,8 @@ run_stage index-membership "Import point-in-time constituents for market-state i
   pnpm --filter api sync:index market-state "$START_DATE" "$END_DATE"
 run_stage market-reference "Import official index classifications, style indices, and SW industry bars" \
   pnpm --filter api sync:market-reference "$START_DATE" "$END_DATE"
+run_stage china-treasury-curve "Import Ministry of Finance China government-bond yield curve" \
+  pnpm --filter api sync:rates 20060301 "$END_DATE"
 run_stage futures "Import stock-index futures contracts, bars, mappings, and settlements" \
   pnpm --filter api sync:futures "$START_DATE" "$END_DATE"
 run_stage canonicalize-stock-codes "Canonicalize superseded stock codes" \

@@ -23,6 +23,10 @@ import {
   syncChinaBondCreditCurves,
 } from '../rates/chinabond-credit-curves.js';
 import {
+  MinistryOfFinanceCurveClient,
+  syncChinaTreasuryYieldCurve,
+} from '../rates/china-treasury-curve.js';
+import {
   syncExternalMarketDrivers,
   type ExternalMarketSyncSummary,
 } from '../rates/external-market-drivers.js';
@@ -85,6 +89,7 @@ export interface DailyMaintenanceSummary {
   commodityContinuousReturns: CommodityContinuousReturnSyncSummary | null;
   externalMarketDrivers: ExternalMarketSyncSummary | null;
   crossMarketBenchmarks: CrossMarketBenchmarkSyncSummary | null;
+  chinaTreasuryCurve: number | null;
   creditCurves: number | null;
   signals: { deployments: number; done: number; errors: number } | null;
 }
@@ -152,6 +157,7 @@ export async function runDailyMaintenance(
         commodityContinuousReturns: null,
         externalMarketDrivers: null,
         crossMarketBenchmarks: null,
+        chinaTreasuryCurve: null,
         creditCurves: null,
         signals: null,
       };
@@ -174,6 +180,7 @@ export async function runDailyMaintenance(
         commodityContinuousReturns: null,
         externalMarketDrivers: null,
         crossMarketBenchmarks: null,
+        chinaTreasuryCurve: null,
         creditCurves: null,
         signals: null,
       };
@@ -225,6 +232,7 @@ export async function runDailyMaintenance(
     commodityContinuousReturns: null,
     externalMarketDrivers: null,
     crossMarketBenchmarks: null,
+    chinaTreasuryCurve: null,
     creditCurves: null,
     signals: null,
   };
@@ -286,6 +294,7 @@ export async function runDailyMaintenance(
       summary,
       onLog,
     );
+    summary.chinaTreasuryCurve = await refreshChinaTreasuryCurve(cutoff, run.id, summary, onLog);
     summary.creditCurves = await refreshCreditCurves(cutoff, run.id, summary, onLog);
     const completedDates: string[] = [];
     let dateFailure: Error | null = null;
@@ -431,6 +440,7 @@ async function initializePublishedBaseline(
     commodityContinuousReturns: null,
     externalMarketDrivers: null,
     crossMarketBenchmarks: null,
+    chinaTreasuryCurve: null,
     creditCurves: null,
     signals: null,
   };
@@ -518,6 +528,7 @@ async function runSignalOnlyMaintenance(
     commodityContinuousReturns: null,
     externalMarketDrivers: null,
     crossMarketBenchmarks: null,
+    chinaTreasuryCurve: null,
     creditCurves: null,
     signals: null,
   };
@@ -570,6 +581,7 @@ async function runSignalOnlyMaintenance(
       summary,
       onLog,
     );
+    summary.chinaTreasuryCurve = await refreshChinaTreasuryCurve(cutoff, run.id, summary, onLog);
     summary.creditCurves = await refreshCreditCurves(cutoff, run.id, summary, onLog);
     await updateMaintenanceRun(run.id, 'signals', summary);
     summary.signals = await generateDailySignals(cutoff, onLog);
@@ -617,6 +629,21 @@ async function refreshCreditCurves(
   await updateMaintenanceRun(runId, 'credit_curves', summary);
   return syncChinaBondCreditCurves(
     new ChinaBondPublicCurveClient(),
+    addCalendarDays(cutoff, -21),
+    cutoff,
+    onLog,
+  );
+}
+
+async function refreshChinaTreasuryCurve(
+  cutoff: string,
+  runId: string,
+  summary: DailyMaintenanceSummary,
+  onLog: (line: string) => void,
+): Promise<number> {
+  await updateMaintenanceRun(runId, 'china_treasury_curve', summary);
+  return syncChinaTreasuryYieldCurve(
+    new MinistryOfFinanceCurveClient(),
     addCalendarDays(cutoff, -21),
     cutoff,
     onLog,

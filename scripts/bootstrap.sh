@@ -359,6 +359,27 @@ external_market_coverage() {
   "
 }
 
+china_treasury_curve_coverage() {
+  local database_file="$1"
+  local expected_end="$2"
+
+  sqlite3 "$database_file" "
+    SELECT count(*)
+    FROM (
+      SELECT
+        min(\"tradeDate\") AS first_date,
+        max(\"availableDate\") AS last_available,
+        count(*) AS observation_rows
+      FROM \"YieldCurvePoint\"
+      WHERE \"curveCode\" = 'mof_cgb_ytm'
+        AND \"termYears\" = 10
+    )
+    WHERE first_date <= '20060301'
+      AND last_available >= '$expected_end'
+      AND observation_rows >= 4000;
+  "
+}
+
 cross_market_benchmark_coverage() {
   local database_file="$1"
   local expected_end="$2"
@@ -846,6 +867,7 @@ grep -qE '^RESEND_API_KEY=""?$'  "$ENV_PROD" 2>/dev/null && warn "RESEND_API_KEY
 grep -qE '^DEEPSEEK_API_KEY=""?$' "$ENV_PROD" 2>/dev/null && warn "DEEPSEEK_API_KEY 为空 —— NL→代码 / Agent 不可用(其余功能正常)。"
 
 DEPLOYMENT_RUN_ID=""
+API_WAS_ACTIVE=0
 
 finish_deployment_gate() {
   local outcome="$1"
@@ -868,12 +890,19 @@ cleanup_deployment_gate() {
   if [[ -n "$DEPLOYMENT_RUN_ID" ]]; then
     finish_deployment_gate error || true
   fi
+  if [[ "$exit_code" -ne 0 && "$API_WAS_ACTIVE" == "1" ]] &&
+    ! systemctl is-active --quiet "$JIXIE_SERVICE" 2>/dev/null; then
+    warn "部署失败,恢复部署前运行的 $JIXIE_SERVICE"
+    sudo systemctl start "$JIXIE_SERVICE" ||
+      warn "$JIXIE_SERVICE 恢复失败,请检查 journalctl -u $JIXIE_SERVICE -e"
+  fi
   exit "$exit_code"
 }
 
 trap cleanup_deployment_gate EXIT
 
 if [[ "$DEPLOY_API" == "1" ]] && systemctl is-active --quiet "$JIXIE_SERVICE" 2>/dev/null; then
+  API_WAS_ACTIVE=1
   MAINTENANCE_TABLE_EXISTS="$(
     sqlite3 "$DB_FILE" \
       "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'MaintenanceRun';" \
@@ -1068,6 +1097,20 @@ if [[ "$EXTERNAL_MARKET_COMPLETE" -ne 4 ]]; then
   [[ "$EXTERNAL_MARKET_COMPLETE" -eq 4 ]] || die "外部市场驱动回填后仍不完整"
 else
   log "外部市场驱动历史覆盖完整,跳过回填"
+fi
+
+CHINA_TREASURY_CURVE_COMPLETE="$(
+  china_treasury_curve_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
+)"
+if [[ "$CHINA_TREASURY_CURVE_COMPLETE" -ne 1 ]]; then
+  log "补全财政部中国国债收益率曲线: 20060301 ~ $EXTERNAL_MARKET_SYNC_END"
+  pnpm --filter api sync:rates 20060301 "$EXTERNAL_MARKET_SYNC_END"
+  CHINA_TREASURY_CURVE_COMPLETE="$(
+    china_treasury_curve_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
+  )"
+  [[ "$CHINA_TREASURY_CURVE_COMPLETE" -eq 1 ]] || die "中国国债收益率曲线回填后仍不完整"
+else
+  log "中国国债收益率曲线历史覆盖完整,跳过回填"
 fi
 
 CROSS_MARKET_BENCHMARK_COMPLETE="$(
