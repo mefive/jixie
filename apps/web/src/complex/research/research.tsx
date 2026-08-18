@@ -410,7 +410,8 @@ const ResearchWorkspace = complex.component(
         {(store.documentMutationLoader.error ||
           store.documentRunLoader.error ||
           store.affectedRunLoader.error ||
-          store.interruptLoader.error) && (
+          store.interruptLoader.error ||
+          store.cellChangeResolutionLoader.error) && (
           <Alert
             className="jx-research-workspaceAlert"
             type="error"
@@ -419,7 +420,8 @@ const ResearchWorkspace = complex.component(
               store.documentMutationLoader.errorObject?.message ??
               store.documentRunLoader.errorObject?.message ??
               store.affectedRunLoader.errorObject?.message ??
-              store.interruptLoader.errorObject?.message
+              store.interruptLoader.errorObject?.message ??
+              store.cellChangeResolutionLoader.errorObject?.message
             }
           />
         )}
@@ -778,7 +780,14 @@ const ResearchAgentPanel = complex.component(() => {
               `jx-research-agentMessage--${message.role}`,
             )}
           >
-            <MessageParts message={message} />
+            <MessageParts
+              message={message}
+              busyResearchCellChangeId={store.resolvingProposalId}
+              onApplyResearchCellChange={(proposalId) => store.applyCellChangeProposal(proposalId)}
+              onRejectResearchCellChange={(proposalId) =>
+                store.rejectCellChangeProposal(proposalId)
+              }
+            />
           </div>
         ))}
         {store.sending && <AgentPending stream={store.turnStream} />}

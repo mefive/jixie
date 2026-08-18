@@ -8,6 +8,7 @@ import { prisma } from '../lib/prisma.js';
 import { researchProfile } from '../agent/profiles/research.js';
 import { enqueueAgentTurn, entityKey } from '../agent/turn-run.js';
 import * as turnBus from '../agent/turn-bus.js';
+import { createProposeResearchCellChangesTool } from '../agent/tools/propose-research-cell-changes.js';
 import { localeFromRequest, m } from '../i18n/index.js';
 import { researchCapabilityCatalog } from '../research/catalog.js';
 import {
@@ -28,6 +29,10 @@ import { universeSpecV1Schema } from '../research/spec.js';
 import { executeUniverseSpec } from '../research/universe.js';
 import { researchPythonLanguageService } from '../research/pyright-language-service.js';
 import { searchResearchDataCatalog } from '../research/data-catalog.js';
+import {
+  applyResearchCellChangeProposal,
+  rejectResearchCellChangeProposal,
+} from '../research/workbench-cell-changes.js';
 import {
   addResearchCell,
   analyzeResearchDocument,
@@ -208,6 +213,20 @@ researchRoute.delete('/cells/:cellId', async (c) => {
   return document ? c.json(document) : apiError(c, 'NOT_FOUND', m(c, 'conversationNotFound'));
 });
 
+researchRoute.post('/cell-change-proposals/:proposalId/apply', async (c) => {
+  const result = await applyResearchCellChangeProposal(c.var.userId, c.req.param('proposalId'));
+  return result
+    ? c.json(result)
+    : apiError(c, 'NOT_FOUND', m(c, 'researchCellChangeProposalNotFound'));
+});
+
+researchRoute.post('/cell-change-proposals/:proposalId/reject', async (c) => {
+  const result = await rejectResearchCellChangeProposal(c.var.userId, c.req.param('proposalId'));
+  return result
+    ? c.json(result)
+    : apiError(c, 'NOT_FOUND', m(c, 'researchCellChangeProposalNotFound'));
+});
+
 researchRoute.post('/cells/:cellId/run', async (c) => {
   try {
     const document = await runResearchCell(c.var.userId, c.req.param('cellId'));
@@ -376,6 +395,8 @@ const agentBody = z.strictObject({
   conversationId: z.string().min(1).optional(),
   message: z.string().trim().min(1).max(2000),
 });
+const MAX_RESEARCH_AGENT_CONTEXT_CELLS = 100;
+const MAX_RESEARCH_AGENT_SOURCE_CHARACTERS = 48_000;
 
 researchRoute.post('/agent', validateJson(agentBody), async (c) => {
   const { message } = c.req.valid('json');
@@ -407,27 +428,39 @@ researchRoute.post('/agent', validateJson(agentBody), async (c) => {
   const document = await prisma.researchDocument.findUnique({
     where: { conversationId },
     select: {
+      id: true,
+      updatedAt: true,
       cells: {
         orderBy: { position: 'asc' },
-        select: { kind: true, source: true, status: true },
+        select: {
+          id: true,
+          position: true,
+          kind: true,
+          source: true,
+          status: true,
+          revision: true,
+          definitions: true,
+          references: true,
+          output: true,
+        },
       },
     },
   });
-  const documentContext = document
-    ? JSON.stringify({
-        runtime: 'research-py-v1',
-        cells: document.cells.map((cell) => ({
-          kind: cell.kind,
-          status: cell.status,
-          source: cell.source.slice(0, 12_000),
-        })),
-      }).slice(0, 40_000)
-    : undefined;
   const turnId = ulid();
+  const agentDocument = document ? researchAgentDocumentContext(document) : undefined;
   enqueueAgentTurn({
     turnId,
     userId,
-    profile: researchProfile(documentContext),
+    profile: researchProfile(
+      agentDocument?.context,
+      document
+        ? createProposeResearchCellChangesTool({
+            userId,
+            documentId: document.id,
+            editableCellIds: agentDocument!.editableCellIds,
+          })
+        : undefined,
+    ),
     entity,
     message,
     currentCode: '',
@@ -435,6 +468,65 @@ researchRoute.post('/agent', validateJson(agentBody), async (c) => {
   });
   return c.json({ conversationId, turnId });
 });
+
+function researchAgentDocumentContext(document: {
+  id: string;
+  updatedAt: Date;
+  cells: Array<{
+    id: string;
+    position: number;
+    kind: string;
+    source: string;
+    status: string;
+    revision: number;
+    definitions: unknown;
+    references: unknown;
+    output: unknown;
+  }>;
+}): { context: string; editableCellIds: Set<string> } {
+  let remainingSourceCharacters = MAX_RESEARCH_AGENT_SOURCE_CHARACTERS;
+  const editableCellIds = new Set<string>();
+  const includedCells = document.cells.slice(0, MAX_RESEARCH_AGENT_CONTEXT_CELLS).map((cell) => {
+    const sourceCharacters = Math.min(remainingSourceCharacters, cell.source.length);
+    const source = cell.source.slice(0, sourceCharacters);
+    const sourceTruncated = source.length !== cell.source.length;
+    remainingSourceCharacters -= sourceCharacters;
+    if (!sourceTruncated) {
+      editableCellIds.add(cell.id);
+    }
+    return {
+      id: cell.id,
+      position: cell.position,
+      kind: cell.kind,
+      status: cell.status,
+      revision: cell.revision,
+      definitions: Array.isArray(cell.definitions) ? cell.definitions : [],
+      references: Array.isArray(cell.references) ? cell.references : [],
+      outputTypes: Array.isArray(cell.output)
+        ? cell.output
+            .map((output) =>
+              output && typeof output === 'object' && 'type' in output
+                ? String(output.type)
+                : 'unknown',
+            )
+            .slice(0, 20)
+        : [],
+      source,
+      sourceTruncated,
+    };
+  });
+  return {
+    context: JSON.stringify({
+      version: 1,
+      documentId: document.id,
+      updatedAt: document.updatedAt.toISOString(),
+      runtime: 'research-py-v1',
+      cells: includedCells,
+      cellsTruncated: document.cells.length > includedCells.length,
+    }),
+    editableCellIds,
+  };
+}
 
 const renameBody = z.strictObject({ title: z.string().trim().min(1).max(120) });
 

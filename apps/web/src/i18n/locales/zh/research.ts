@@ -88,6 +88,32 @@ export const zhResearch = {
     agentEmptyHint: '可以让它解释结果、质疑假设、建议下一步，或调用现有四种协议补充验证。',
     agentPlaceholder: '结合当前文档，下一步应该验证什么？',
     sendAgent: '发送消息',
+    cellChange: {
+      status: {
+        pending: '待审核',
+        applied: '已应用',
+        rejected: '已拒绝',
+        conflicted: '有冲突',
+      },
+      operation: {
+        create: '新建 {{kind}} Cell {{ordinal}}',
+        update: '修改 {{kind}} Cell {{ordinal}}',
+        delete: '删除 {{kind}} Cell {{ordinal}}',
+      },
+      total: '变更行统计',
+      viewDiff: '审查变更',
+      apply: '应用提案',
+      reject: '拒绝提案',
+      diffTitle: '变更审查：{{title}}',
+      cells: '变更的 Cells',
+      conflict: {
+        document_changed: '文档已在提案后发生变化，请让 Agent 基于最新内容重新提案。',
+        document_running: '文档正在运行，停止或等待运行完成后再重新提案。',
+        cell_missing: '目标 Cell 已不存在，该提案无法安全应用。',
+        cell_revision_changed: '目标 Cell 的修订版本已变化，该提案无法安全应用。',
+        cell_source_changed: '目标 Cell 的源码已变化，该提案无法安全应用。',
+      },
+    },
   },
   dataCatalog: {
     title: '数据目录',

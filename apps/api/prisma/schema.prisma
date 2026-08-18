@@ -1237,7 +1237,8 @@ model AgentMessage {
   turn           AgentTurn?        @relation(fields: [turnId], references: [id], onDelete: SetNull)
   createdAt      DateTime          @default(now())
 
-  researchRuns ResearchRun[] @relation("ResearchRunSourceMessage")
+  researchRuns                ResearchRun[]                @relation("ResearchRunSourceMessage")
+  researchCellChangeProposals ResearchCellChangeProposal[]
 
   @@unique([conversationId, sequence])
   @@index([conversationId, createdAt])
@@ -1257,9 +1258,10 @@ model AgentTurn {
   startedAt      DateTime          @default(now())
   finishedAt     DateTime?
 
-  messages         AgentMessage[]
-  researchRuns     ResearchRun[]     @relation("ResearchRunSourceTurn")
-  researchAttempts ResearchAttempt[] @relation("ResearchAttemptSourceTurn")
+  messages                    AgentMessage[]
+  researchRuns                ResearchRun[]                @relation("ResearchRunSourceTurn")
+  researchAttempts            ResearchAttempt[]            @relation("ResearchAttemptSourceTurn")
+  researchCellChangeProposals ResearchCellChangeProposal[]
 
   @@index([conversationId, startedAt])
   @@index([status, startedAt])
@@ -1277,9 +1279,10 @@ model ResearchDocument {
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
 
-  cells      ResearchCell[]
-  executions ResearchCellExecution[]
-  artifacts  ResearchArtifact[]
+  cells               ResearchCell[]
+  executions          ResearchCellExecution[]
+  artifacts           ResearchArtifact[]
+  cellChangeProposals ResearchCellChangeProposal[]
 
   @@index([userId, updatedAt])
 }
@@ -1355,6 +1358,31 @@ model ResearchArtifact {
   @@index([documentId, createdAt])
   @@index([executionId])
   @@index([sha256])
+}
+
+/// One Agent-authored batch of Cell edits awaiting explicit user application. Operations retain
+/// before/after source and optimistic revisions so the proposal remains auditable after resolution.
+model ResearchCellChangeProposal {
+  id                        String           @id // ULID
+  documentId                String
+  document                  ResearchDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  sourceTurnId              String
+  sourceTurn                AgentTurn        @relation(fields: [sourceTurnId], references: [id], onDelete: Cascade)
+  sourceMessageId           String
+  sourceMessage             AgentMessage     @relation(fields: [sourceMessageId], references: [id], onDelete: Cascade)
+  sourcePartIndex           Int
+  title                     String
+  summary                   String
+  expectedDocumentUpdatedAt DateTime
+  operations                Json
+  status                    String           @default("pending") // 'pending' | 'applied' | 'rejected' | 'conflicted'
+  conflict                  Json?
+  createdAt                 DateTime         @default(now())
+  resolvedAt                DateTime?
+
+  @@unique([sourceMessageId, sourcePartIndex])
+  @@index([documentId, status, createdAt])
+  @@index([sourceTurnId])
 }
 
 /// One durable research question. Conversations are the interaction surface; studies own the

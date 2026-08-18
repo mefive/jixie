@@ -183,6 +183,7 @@ import type {
   ResearchConversationMessages,
   ResearchConversationMeta,
   ResearchCellKindV1,
+  ResearchCellChangeResolutionResultV1,
   ResearchDocumentAnalysisV1,
   ResearchDocumentInterruptResultV1,
   ResearchDocumentRunResultV1,
@@ -362,6 +363,24 @@ export function resetResearchDocument(documentId: string): Promise<ResearchDocum
   return request(`/api/app/research/documents/${encodeURIComponent(documentId)}/reset`, {
     method: 'POST',
   });
+}
+
+export function applyResearchCellChangeProposal(
+  proposalId: string,
+): Promise<ResearchCellChangeResolutionResultV1> {
+  return request(
+    `/api/app/research/cell-change-proposals/${encodeURIComponent(proposalId)}/apply`,
+    { method: 'POST' },
+  );
+}
+
+export function rejectResearchCellChangeProposal(
+  proposalId: string,
+): Promise<ResearchCellChangeResolutionResultV1> {
+  return request(
+    `/api/app/research/cell-change-proposals/${encodeURIComponent(proposalId)}/reject`,
+    { method: 'POST' },
+  );
 }
 
 export function requestResearchLanguage(

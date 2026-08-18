@@ -1032,6 +1032,64 @@ export interface ResearchConversationMessages {
 
 export type ResearchCellKindV1 = 'markdown' | 'python' | 'validation';
 export type ResearchCellStatusV1 = 'idle' | 'running' | 'success' | 'error' | 'stale';
+export type ResearchCellChangeProposalStatusV1 = 'pending' | 'applied' | 'rejected' | 'conflicted';
+
+interface ResearchCellChangeOperationBaseV1 {
+  operationId: string;
+  cellId: string;
+  cellKind: ResearchCellKindV1;
+  position: number;
+  addedLines: number;
+  removedLines: number;
+  afterDefinitions: string[];
+  afterReferences: string[];
+}
+
+export type ResearchCellChangeOperationV1 =
+  | (ResearchCellChangeOperationBaseV1 & {
+      kind: 'create';
+      afterCellId?: string;
+      beforeSource: '';
+      afterSource: string;
+    })
+  | (ResearchCellChangeOperationBaseV1 & {
+      kind: 'update';
+      expectedRevision: number;
+      beforeSource: string;
+      afterSource: string;
+    })
+  | (ResearchCellChangeOperationBaseV1 & {
+      kind: 'delete';
+      expectedRevision: number;
+      beforeSource: string;
+      afterSource: '';
+    });
+
+export type ResearchCellChangeConflictReasonV1 =
+  | 'document_changed'
+  | 'document_running'
+  | 'cell_missing'
+  | 'cell_revision_changed'
+  | 'cell_source_changed';
+
+export interface ResearchCellChangeConflictV1 {
+  reason: ResearchCellChangeConflictReasonV1;
+  cellIds: string[];
+}
+
+export interface ResearchCellChangeProposalV1 {
+  version: 1;
+  id: string;
+  documentId: string;
+  title: string;
+  summary: string;
+  status: ResearchCellChangeProposalStatusV1;
+  expectedDocumentUpdatedAt: string;
+  operations: ResearchCellChangeOperationV1[];
+  conflict?: ResearchCellChangeConflictV1;
+  createdAt: string;
+  resolvedAt?: string;
+}
 export type ResearchCellScalarV1 = string | number | boolean | null;
 export type ResearchChartKindV1 = ChartKind | 'boxplot' | 'heatmap' | 'event_path';
 
@@ -1131,6 +1189,13 @@ export interface ResearchDocumentV1 {
   messages: import('./chat.js').ChatMessage[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ResearchCellChangeResolutionResultV1 {
+  version: 1;
+  outcome: 'applied' | 'rejected' | 'conflicted';
+  proposal: ResearchCellChangeProposalV1;
+  document: ResearchDocumentV1;
 }
 
 export interface ResearchDependencyConflictV1 {

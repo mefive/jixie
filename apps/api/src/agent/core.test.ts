@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { agentTurn, type AgentProfile } from './core.js';
+import { agentTurn, turnParts, type AgentProfile } from './core.js';
 import { strategyProfile } from './profiles/strategy.js';
 import { factorProfile } from './profiles/factor.js';
 import { factorQaProfile } from './profiles/qa.js';
@@ -423,6 +423,47 @@ describe('agentTurn tool loop', () => {
     ]);
     const result = await agentTurn(toolProfile([tool], false), [], '筛一下', '', llm);
     expect(result.universes).toEqual([{ title: '全市场快照', spec }]);
+  });
+
+  it('collects Cell change proposals as durable review parts', async () => {
+    const proposal = {
+      version: 1 as const,
+      id: 'proposal-1',
+      documentId: 'document-1',
+      title: 'Add rolling volatility',
+      summary: 'Add one Python cell without running it.',
+      status: 'pending' as const,
+      expectedDocumentUpdatedAt: '2026-08-18T08:00:00.000Z',
+      operations: [
+        {
+          operationId: 'operation-1',
+          cellId: 'cell-new',
+          kind: 'create' as const,
+          cellKind: 'python' as const,
+          position: 1,
+          beforeSource: '' as const,
+          afterSource: 'vol = returns.rolling(20).std()',
+          addedLines: 1,
+          removedLines: 0,
+          afterDefinitions: ['vol'],
+          afterReferences: ['returns'],
+        },
+      ],
+      createdAt: '2026-08-18T08:00:00.000Z',
+    };
+    const tool = fakeTool('proposeResearchCellChanges', async () => ({
+      observation: '{"status":"pending"}',
+      researchCellChange: proposal,
+    }));
+    const llm = scriptedLlm([
+      { toolCalls: [{ id: 'c1', name: tool.name, args: '{}' }] },
+      { text: 'I prepared a change for review.' },
+    ]);
+
+    const result = await agentTurn(toolProfile([tool], false), [], 'Add volatility', '', llm);
+
+    expect(result.researchCellChanges).toEqual([proposal]);
+    expect(turnParts(result)).toContainEqual({ type: 'research_cell_change', proposal });
   });
 
   it('fires streaming hooks: deltas forwarded, tool start/done, repair announced (no repair deltas)', async () => {

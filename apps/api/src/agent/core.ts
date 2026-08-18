@@ -4,6 +4,7 @@ import {
   type ChatMessage as UiMessage,
   type Locale,
   type MessagePart,
+  type ResearchCellChangeProposalV1,
   type ToolTraceItem,
 } from '@jixie/shared';
 import type { AgentLlm, ToolAwareMessage, ToolCall } from '../llm/agent-llm.js';
@@ -59,6 +60,7 @@ export interface AgentTurnResult {
   universes: AgentUniverse[]; // entity universes side-produced by runUniverse tool calls this turn
   charts: AgentChart[]; // chart cards side-produced by renderChart tool calls this turn
   researchRuns: AgentResearchRun[]; // deterministic ResearchPlan results side-produced by tools
+  researchCellChanges: ResearchCellChangeProposalV1[]; // pending, user-applied Cell changes
 }
 
 /** Hard cap on tool-executing rounds per turn; after that the model must answer with what it has. */
@@ -140,6 +142,9 @@ export function turnParts(result: AgentTurnResult): MessagePart[] {
     ...result.researchRuns.map(
       (research): MessagePart => ({ type: 'research', title: research.title, run: research.run }),
     ),
+    ...result.researchCellChanges.map(
+      (proposal): MessagePart => ({ type: 'research_cell_change', proposal }),
+    ),
   ];
 }
 
@@ -206,6 +211,7 @@ async function executeToolCall(
   universe?: AgentUniverse;
   chart?: AgentChart;
   research?: AgentResearchRun;
+  researchCellChange?: ResearchCellChangeProposalV1;
 }> {
   const startedAt = Date.now();
   const argsSummary = (call.args || '{}').slice(0, 200);
@@ -233,6 +239,7 @@ async function executeToolCall(
       universe: result.universe,
       chart: result.chart,
       research: result.research,
+      researchCellChange: result.researchCellChange,
       trace: {
         name: call.name,
         argsSummary,
@@ -287,6 +294,7 @@ export async function agentTurn(
   const universes: AgentUniverse[] = [];
   const charts: AgentChart[] = [];
   const researchRuns: AgentResearchRun[] = [];
+  const researchCellChanges: ResearchCellChangeProposalV1[] = [];
   let attempts = 0;
   let raw = '';
   let toolRounds = 0;
@@ -358,6 +366,9 @@ export async function agentTurn(
         if (executed.research) {
           researchRuns.push(executed.research);
         }
+        if (executed.researchCellChange) {
+          researchCellChanges.push(executed.researchCellChange);
+        }
         messages.push({ role: 'tool', toolCallId: call.id, content: executed.observation });
       }
       if (toolRounds >= MAX_TOOL_ROUNDS) {
@@ -414,6 +425,7 @@ export async function agentTurn(
       universes,
       charts,
       researchRuns,
+      researchCellChanges,
     };
   }
 
@@ -430,6 +442,7 @@ export async function agentTurn(
       universes,
       charts,
       researchRuns,
+      researchCellChanges,
     };
   }
 
@@ -454,7 +467,17 @@ export async function agentTurn(
     try {
       await artifact.validate(code);
       hooks?.onValidation?.(round, true, Date.now() - validationStartedAt);
-      return { reply, code, changed: true, attempts, toolTrace, universes, charts, researchRuns };
+      return {
+        reply,
+        code,
+        changed: true,
+        attempts,
+        toolTrace,
+        universes,
+        charts,
+        researchRuns,
+        researchCellChanges,
+      };
     } catch (e) {
       lastError = e instanceof Error ? e.message : String(e);
       hooks?.onValidation?.(round, false, Date.now() - validationStartedAt, lastError);
@@ -480,5 +503,6 @@ export async function agentTurn(
     universes,
     charts,
     researchRuns,
+    researchCellChanges,
   };
 }
