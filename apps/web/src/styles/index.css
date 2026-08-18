@@ -10,6 +10,17 @@
   --color-primary: #111827; /* brand / accent */
   --color-chip: #eef0f2; /* chip / light fill */
 
+  /* Code review semantics stay separate from market up/down conventions. */
+  --color-review-canvas: #f7f8fa;
+  --color-review-border: #d8dee6;
+  --color-review-border-strong: #b8c2cf;
+  --color-review-accent: #42526e;
+  --color-review-muted: #667085;
+  --color-review-added: #197044;
+  --color-review-added-bg: #eaf5ee;
+  --color-review-removed: #b42318;
+  --color-review-removed-bg: #fcebec;
+
   /* A-share up/down colors: domestic convention is red-up, green-down */
   --color-up: #e8463b; /* up */
   --color-down: #2f9e5b; /* down */

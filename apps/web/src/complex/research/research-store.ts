@@ -4,6 +4,7 @@ import {
   textMessage,
   type ChatMessage,
   type ResearchCellKindV1,
+  type ResearchCellChangeResolutionResultV1,
   type ResearchAssetTypeV1,
   type ResearchDataCatalogResultV1,
   type ResearchCuratorDispositionV1,
@@ -19,6 +20,7 @@ import {
 import { BaseStore, LoaderModel, PollingModel } from '@src/lib';
 import {
   addResearchCell,
+  applyResearchCellChangeProposal,
   createResearchDocument,
   deleteResearchCell,
   deleteResearchConversation,
@@ -28,6 +30,7 @@ import {
   interruptResearchDocument,
   listResearchDocuments,
   renameResearchConversation,
+  rejectResearchCellChangeProposal,
   resetResearchDocument,
   runAffectedResearchCells,
   runResearchCell,
@@ -69,6 +72,11 @@ type ResearchCuratorMutation =
       assessment: ResearchCuratorVerificationAssessmentV1;
     };
 
+type ResearchCellChangeResolution = {
+  kind: 'apply' | 'reject';
+  proposalId: string;
+};
+
 const CURATOR_POLL_INTERVAL_MS = 1_000;
 
 /** Domain state for the reactive research document and its attached Agent conversation. */
@@ -82,6 +90,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
   public documentRunning = false;
   public interrupting = false;
   public runInterrupted = false;
+  public resolvingProposalId: string | null = null;
   public turnStream = new AgentTurnStream();
   public documentsLoader = new LoaderModel<ResearchDocumentSummaryV1[]>();
   public documentLoader = new LoaderModel<ResearchDocumentV1>();
@@ -89,6 +98,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
   public documentRunLoader = new LoaderModel<ResearchDocumentRunResultV1>();
   public affectedRunLoader = new LoaderModel<ResearchDocumentRunResultV1>();
   public interruptLoader = new LoaderModel<ResearchDocumentInterruptResultV1>();
+  public cellChangeResolutionLoader = new LoaderModel<ResearchCellChangeResolutionResultV1>();
   public dataCatalogLoader = new LoaderModel<ResearchDataCatalogResultV1>();
   public curatorLoader = new LoaderModel<ResearchCuratorRunV1 | null>();
   public curatorMutationLoader = new LoaderModel<ResearchCuratorRunV1 | ResearchCuratorFindingV1>();
@@ -106,6 +116,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
       documentRunning: observable.ref,
       interrupting: observable.ref,
       runInterrupted: observable.ref,
+      resolvingProposalId: observable.ref,
       setPrompt: action,
       clearRunInterrupted: action,
     });
@@ -151,6 +162,13 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
       preserveResult: false,
       request: (documentId: string) => interruptResearchDocument(documentId),
     });
+    this.cellChangeResolutionLoader.setup({
+      preserveResult: false,
+      request: (resolution: ResearchCellChangeResolution) =>
+        resolution.kind === 'apply'
+          ? applyResearchCellChangeProposal(resolution.proposalId)
+          : rejectResearchCellChangeProposal(resolution.proposalId),
+    });
     this.dataCatalogLoader.setup({
       request: ({ query, assetType }: ResearchDataCatalogQuery, signal) =>
         searchResearchDataCatalog(query, assetType, signal),
@@ -186,6 +204,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     this.registCleaner(() => this.documentRunLoader.cleanup());
     this.registCleaner(() => this.affectedRunLoader.cleanup());
     this.registCleaner(() => this.interruptLoader.cleanup());
+    this.registCleaner(() => this.cellChangeResolutionLoader.cleanup());
     this.registCleaner(() => this.dataCatalogLoader.cleanup());
     this.registCleaner(() => this.curatorLoader.cleanup());
     this.registCleaner(() => this.curatorMutationLoader.cleanup());
@@ -368,6 +387,14 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     this.acceptDocument(document, false);
   }
 
+  public applyCellChangeProposal(proposalId: string) {
+    return this.resolveCellChangeProposal('apply', proposalId);
+  }
+
+  public rejectCellChangeProposal(proposalId: string) {
+    return this.resolveCellChangeProposal('reject', proposalId);
+  }
+
   public searchDataCatalog(query: string, assetType?: ResearchAssetTypeV1) {
     return this.dataCatalogLoader.run({ query, assetType });
   }
@@ -472,6 +499,29 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
         this.chatMessages = document.messages.map(normalizeChatMessage);
       }
     });
+  }
+
+  private async resolveCellChangeProposal(
+    kind: ResearchCellChangeResolution['kind'],
+    proposalId: string,
+  ) {
+    if (this.resolvingProposalId) {
+      return;
+    }
+    runInAction(() => {
+      this.resolvingProposalId = proposalId;
+    });
+    try {
+      const result = await this.cellChangeResolutionLoader.run({ kind, proposalId });
+      this.acceptDocument(result.document);
+      void this.documentsLoader.run();
+    } catch {
+      // LoaderModel retains the localized API error for the workspace alert.
+    } finally {
+      runInAction(() => {
+        this.resolvingProposalId = null;
+      });
+    }
   }
 
   private turnHandlers(): AgentTurnHandlers {

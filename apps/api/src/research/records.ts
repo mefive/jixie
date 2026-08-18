@@ -18,6 +18,7 @@ import {
 import { ulid } from 'ulid';
 import { prisma } from '../lib/prisma.js';
 import { researchPayloadHash } from './fingerprints.js';
+import { persistResearchCellChangePart } from './research-cell-change-records.js';
 import { researchPlanSpecV1Schema } from './spec.js';
 
 interface PersistResearchMessagePartsArgs {
@@ -36,6 +37,19 @@ export async function persistResearchMessageParts(
   const persistedParts: MessagePart[] = [];
 
   for (const [partIndex, part] of args.parts.entries()) {
+    if (part.type === 'research_cell_change') {
+      persistedParts.push(
+        await persistResearchCellChangePart(transaction, {
+          conversationId: args.conversationId,
+          messageId: args.messageId,
+          turnId: args.turnId,
+          userId: args.userId,
+          partIndex,
+          part,
+        }),
+      );
+      continue;
+    }
     if (part.type !== 'research') {
       persistedParts.push(part);
       continue;

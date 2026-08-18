@@ -111,6 +111,86 @@ describe('research records', () => {
     expect(await database.researchAttempt.count()).toBe(1);
   });
 
+  it('materializes a Cell change proposal only beside its committed assistant message', async () => {
+    await seedResearchMessage(database, sampleRun());
+    const expectedDocumentUpdatedAt = new Date('2026-08-18T08:00:00.000Z');
+    await database.researchDocument.create({
+      data: {
+        id: 'document-a',
+        userId: 'user-a',
+        conversationId: 'conversation-a',
+        updatedAt: expectedDocumentUpdatedAt,
+      },
+    });
+    await database.agentTurn.create({
+      data: {
+        id: 'turn-proposal',
+        conversationId: 'conversation-a',
+        status: 'done',
+        model: 'test',
+        trace: {},
+      },
+    });
+    await database.agentMessage.create({
+      data: {
+        id: 'message-proposal',
+        conversationId: 'conversation-a',
+        role: 'assistant',
+        parts: [],
+        sequence: 1,
+        turnId: 'turn-proposal',
+      },
+    });
+    const proposal = {
+      version: 1 as const,
+      id: 'proposal-a',
+      documentId: 'document-a',
+      title: 'Add one Cell',
+      summary: 'Add a review-only Python Cell.',
+      status: 'pending' as const,
+      expectedDocumentUpdatedAt: expectedDocumentUpdatedAt.toISOString(),
+      operations: [
+        {
+          operationId: 'operation-a',
+          cellId: 'cell-a',
+          kind: 'create' as const,
+          cellKind: 'python' as const,
+          position: 0,
+          beforeSource: '' as const,
+          afterSource: 'result = 1',
+          addedLines: 1,
+          removedLines: 0,
+          afterDefinitions: ['result'],
+          afterReferences: [],
+        },
+      ],
+      createdAt: '2026-08-18T08:01:00.000Z',
+    };
+
+    const persisted = await database.$transaction((transaction) =>
+      persistResearchMessageParts(transaction, {
+        conversationId: 'conversation-a',
+        messageId: 'message-proposal',
+        turnId: 'turn-proposal',
+        userId: 'user-a',
+        parts: [
+          { type: 'text', text: 'Prepared for review.' },
+          { type: 'research_cell_change', proposal },
+        ],
+      }),
+    );
+
+    expect(persisted[1]).toEqual({ type: 'research_cell_change', proposal });
+    expect(
+      await database.researchCellChangeProposal.findUniqueOrThrow({ where: { id: proposal.id } }),
+    ).toMatchObject({
+      sourceTurnId: 'turn-proposal',
+      sourceMessageId: 'message-proposal',
+      sourcePartIndex: 1,
+      status: 'pending',
+    });
+  });
+
   it('stores immutable parameter reruns in one ordered study', async () => {
     await seedResearchMessage(database, sampleRun());
     await migrateResearchRecords(database);
@@ -496,11 +576,15 @@ async function createFixtureSchema(database: PrismaClient) {
     'CREATE TABLE "AgentConversation" ("id" TEXT NOT NULL PRIMARY KEY, "userId" TEXT NOT NULL, "surface" TEXT NOT NULL, "title" TEXT, "strategyId" TEXT, "factorId" TEXT, "archivedAt" DATETIME, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" DATETIME NOT NULL, FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE)',
     'CREATE TABLE "AgentTurn" ("id" TEXT NOT NULL PRIMARY KEY, "conversationId" TEXT NOT NULL, "status" TEXT NOT NULL, "model" TEXT NOT NULL, "trace" JSONB NOT NULL, "error" TEXT, "startedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "finishedAt" DATETIME, FOREIGN KEY ("conversationId") REFERENCES "AgentConversation"("id") ON DELETE CASCADE)',
     'CREATE TABLE "AgentMessage" ("id" TEXT NOT NULL PRIMARY KEY, "conversationId" TEXT NOT NULL, "role" TEXT NOT NULL, "parts" JSONB NOT NULL, "sequence" INTEGER NOT NULL, "turnId" TEXT, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY ("conversationId") REFERENCES "AgentConversation"("id") ON DELETE CASCADE, FOREIGN KEY ("turnId") REFERENCES "AgentTurn"("id") ON DELETE SET NULL)',
+    'CREATE TABLE "ResearchDocument" ("id" TEXT NOT NULL PRIMARY KEY, "userId" TEXT NOT NULL, "conversationId" TEXT NOT NULL, "runtimeVersion" TEXT NOT NULL DEFAULT \'research-py-v1\', "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" DATETIME NOT NULL, FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE, FOREIGN KEY ("conversationId") REFERENCES "AgentConversation"("id") ON DELETE CASCADE)',
+    'CREATE TABLE "ResearchCellChangeProposal" ("id" TEXT NOT NULL PRIMARY KEY, "documentId" TEXT NOT NULL, "sourceTurnId" TEXT NOT NULL, "sourceMessageId" TEXT NOT NULL, "sourcePartIndex" INTEGER NOT NULL, "title" TEXT NOT NULL, "summary" TEXT NOT NULL, "expectedDocumentUpdatedAt" DATETIME NOT NULL, "operations" JSONB NOT NULL, "status" TEXT NOT NULL DEFAULT \'pending\', "conflict" JSONB, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "resolvedAt" DATETIME, FOREIGN KEY ("documentId") REFERENCES "ResearchDocument"("id") ON DELETE CASCADE, FOREIGN KEY ("sourceTurnId") REFERENCES "AgentTurn"("id") ON DELETE CASCADE, FOREIGN KEY ("sourceMessageId") REFERENCES "AgentMessage"("id") ON DELETE CASCADE)',
     'CREATE TABLE "ResearchStudy" ("id" TEXT NOT NULL PRIMARY KEY, "userId" TEXT NOT NULL, "conversationId" TEXT NOT NULL, "title" TEXT NOT NULL, "question" JSONB NOT NULL, "status" TEXT NOT NULL DEFAULT \'active\', "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" DATETIME NOT NULL, FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE, FOREIGN KEY ("conversationId") REFERENCES "AgentConversation"("id") ON DELETE CASCADE)',
     'CREATE TABLE "ResearchRun" ("id" TEXT NOT NULL PRIMARY KEY, "studyId" TEXT NOT NULL, "parentRunId" TEXT, "sourceTurnId" TEXT, "sourceMessageId" TEXT, "sourcePartIndex" INTEGER, "sequence" INTEGER NOT NULL, "origin" TEXT NOT NULL, "protocolId" TEXT NOT NULL, "protocolVersion" INTEGER NOT NULL, "plan" JSONB NOT NULL, "result" JSONB NOT NULL, "planHash" TEXT NOT NULL, "resultHash" TEXT NOT NULL, "protocolFingerprint" TEXT, "dataFingerprint" TEXT, "environmentFingerprint" TEXT, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY ("studyId") REFERENCES "ResearchStudy"("id") ON DELETE CASCADE, FOREIGN KEY ("parentRunId") REFERENCES "ResearchRun"("id") ON DELETE SET NULL, FOREIGN KEY ("sourceTurnId") REFERENCES "AgentTurn"("id") ON DELETE SET NULL, FOREIGN KEY ("sourceMessageId") REFERENCES "AgentMessage"("id") ON DELETE SET NULL)',
     'CREATE TABLE "ResearchAttempt" ("id" TEXT NOT NULL PRIMARY KEY, "userId" TEXT NOT NULL, "conversationId" TEXT NOT NULL, "studyId" TEXT, "parentRunId" TEXT, "sourceTurnId" TEXT, "sourceStepId" TEXT, "origin" TEXT NOT NULL, "plan" JSONB, "planHash" TEXT, "arguments" TEXT NOT NULL, "error" TEXT NOT NULL, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE, FOREIGN KEY ("conversationId") REFERENCES "AgentConversation"("id") ON DELETE CASCADE, FOREIGN KEY ("studyId") REFERENCES "ResearchStudy"("id") ON DELETE CASCADE, FOREIGN KEY ("parentRunId") REFERENCES "ResearchRun"("id") ON DELETE SET NULL, FOREIGN KEY ("sourceTurnId") REFERENCES "AgentTurn"("id") ON DELETE SET NULL)',
     'CREATE UNIQUE INDEX "User_email_key" ON "User"("email")',
     'CREATE UNIQUE INDEX "AgentMessage_conversationId_sequence_key" ON "AgentMessage"("conversationId", "sequence")',
+    'CREATE UNIQUE INDEX "ResearchDocument_conversationId_key" ON "ResearchDocument"("conversationId")',
+    'CREATE UNIQUE INDEX "ResearchCellChangeProposal_sourceMessageId_sourcePartIndex_key" ON "ResearchCellChangeProposal"("sourceMessageId", "sourcePartIndex")',
     'CREATE UNIQUE INDEX "ResearchRun_studyId_sequence_key" ON "ResearchRun"("studyId", "sequence")',
     'CREATE UNIQUE INDEX "ResearchRun_sourceMessageId_sourcePartIndex_key" ON "ResearchRun"("sourceMessageId", "sourcePartIndex")',
     'CREATE UNIQUE INDEX "ResearchAttempt_sourceStepId_key" ON "ResearchAttempt"("sourceStepId")',

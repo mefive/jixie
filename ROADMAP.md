@@ -250,7 +250,9 @@ pandas 表格、Matplotlib 静态图，以及 line / scatter / histogram / boxpl
 全新 session。真实“沪深300 vs 中证500月收益关系”样例已通过浏览器端创建、运行、刷新重开、图表交互、
 依赖失效和正式验证闭环，无限循环中断与恢复也已通过 runtime 和浏览器 E2E。
 
-本项保持进行中：Agent 目前能读取同一文档上下文并协助解释，但尚不能用受审计 diff 增删改/执行 Cell；
+本项保持进行中：Agent 现已能读取同一文档上下文，并以每轮最多一个受审计批量提案增删改 Cell。
+提案保存完整 before/after、Cell revision 和 AgentTurn/Message 来源，通过 Monaco Diff 审查后由用户显式
+应用或拒绝；文档或 Cell 已变化时固化为冲突而不覆盖新内容。Agent 受控执行 Cell、执行结果解释与尝试比较，
 Factor / Strategy 草稿的带血缘交接及完整 `ResearchExecution` 比较仍按 M2–M4 推进。
 它们不阻塞当前个人研究 MVP，但仍属于 1.5 的完整完成定义。
 

@@ -10,14 +10,23 @@ const ChatChart = lazy(() => import('./chat-chart'));
 const ResearchResultCard = lazy(() =>
   import('./research-result-card').then((module) => ({ default: module.ResearchResultCard })),
 );
+const ResearchCellChangeCard = lazy(() => import('./research-cell-change-card'));
 
 interface MessagePartsProps {
   message: ChatMessage;
+  onApplyResearchCellChange?: (proposalId: string) => Promise<void>;
+  onRejectResearchCellChange?: (proposalId: string) => Promise<void>;
+  busyResearchCellChangeId?: string | null;
 }
 
 /** One chat message's typed parts (text / query card / chart card) — the single renderer shared by
  * the lab, factor and screen conversation bubbles, so a new part type is added in one place. */
-export function MessageParts({ message }: MessagePartsProps) {
+export function MessageParts({
+  message,
+  onApplyResearchCellChange,
+  onRejectResearchCellChange,
+  busyResearchCellChangeId,
+}: MessagePartsProps) {
   return (
     <>
       {message.parts.map((part, partIndex) => {
@@ -40,6 +49,18 @@ export function MessageParts({ message }: MessagePartsProps) {
         }
         if (part.type === 'universe') {
           return <UniverseSpecCard key={partIndex} part={part} />;
+        }
+        if (part.type === 'research_cell_change') {
+          return (
+            <Suspense key={`${partIndex}-${part.proposal.id}`} fallback={null}>
+              <ResearchCellChangeCard
+                proposal={part.proposal}
+                busy={busyResearchCellChangeId === part.proposal.id}
+                onApply={onApplyResearchCellChange}
+                onReject={onRejectResearchCellChange}
+              />
+            </Suspense>
+          );
         }
         return message.role === 'assistant' ? (
           <Markdown key={partIndex} text={part.text} />

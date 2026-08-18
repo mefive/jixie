@@ -74,10 +74,45 @@ type ResearchCellExecutionOutcome = 'success' | 'error' | 'interrupted';
 
 const activeResearchRuns = new Map<string, ResearchRunControl>();
 
+export interface ResearchCellChangeDependencySeed {
+  cellId: string;
+  previousDefinitions: string[];
+}
+
 export class ResearchDocumentRunInProgressError extends Error {
   public constructor() {
     super('Research document already has an active run');
     this.name = 'ResearchDocumentRunInProgressError';
+  }
+}
+
+export function isResearchDocumentRunActive(documentId: string): boolean {
+  return activeResearchRuns.has(documentId);
+}
+
+export async function reconcileResearchCellChanges(
+  documentId: string,
+  seeds: ResearchCellChangeDependencySeed[],
+): Promise<void> {
+  const cells = await prisma.researchCell.findMany({
+    where: { documentId, kind: 'python' },
+    orderBy: { position: 'asc' },
+    select: { id: true, definitions: true, references: true },
+  });
+  const analyses: ResearchPythonAnalysis[] = cells.map((cell) => ({
+    cellId: cell.id,
+    definitions: jsonStringArray(cell.definitions),
+    references: jsonStringArray(cell.references),
+  }));
+  const analysisByCellId = new Map(analyses.map((analysis) => [analysis.cellId, analysis]));
+  for (const seed of seeds) {
+    const currentDefinitions = analysisByCellId.get(seed.cellId)?.definitions ?? [];
+    await markDownstreamStale(
+      documentId,
+      seed.cellId,
+      new Set([...seed.previousDefinitions, ...currentDefinitions]),
+      analyses,
+    );
   }
 }
 

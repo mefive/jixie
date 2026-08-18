@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import type { AgentTool } from '../tools/types.js';
 import { researchProfile } from './research.js';
 
 describe('researchProfile', () => {
@@ -44,5 +45,22 @@ describe('researchProfile', () => {
       'Formal research conclusions must still come only from executeResearchPlan',
     );
     expect(system).toContain('Correlation is not causation');
+  });
+
+  it('offers a review-only Cell proposal tool only with a document snapshot', () => {
+    const proposalTool: AgentTool = {
+      name: 'proposeResearchCellChanges',
+      description: 'test',
+      parameters: { type: 'object', properties: {} },
+      run: vi.fn(async () => ({ observation: '{}' })),
+    };
+    const profile = researchProfile('{"documentId":"document-1"}', proposalTool);
+
+    expect(profile.tools?.map((tool) => tool.name)).toContain('proposeResearchCellChanges');
+    expect(profile.system).toContain('only when the user explicitly asks to change this document');
+    expect(profile.system).toContain('pending review artifact');
+    expect(profile.system).toContain(
+      'Never claim that a proposal changed the document or ran code',
+    );
   });
 });

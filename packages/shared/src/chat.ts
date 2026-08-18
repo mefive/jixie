@@ -1,5 +1,10 @@
 import type { ChartSpec } from './chart.js';
-import type { ResearchRunRecordRefV1, ResearchRunResultV1, UniverseSpecV1 } from './research.js';
+import type {
+  ResearchCellChangeProposalV1,
+  ResearchRunRecordRefV1,
+  ResearchRunResultV1,
+  UniverseSpecV1,
+} from './research.js';
 
 /**
  * Agent conversation messages. Typed parts persist the deterministic chart/research/universe spec or
@@ -34,7 +39,18 @@ export interface UniversePart {
   spec: UniverseSpecV1;
 }
 
-export type MessagePart = TextPart | ChartPart | ResearchPart | UniversePart;
+/** A durable Agent-authored Cell change proposal. Applying it remains an explicit user action. */
+export interface ResearchCellChangePart {
+  type: 'research_cell_change';
+  proposal: ResearchCellChangeProposalV1;
+}
+
+export type MessagePart =
+  | TextPart
+  | ChartPart
+  | ResearchPart
+  | UniversePart
+  | ResearchCellChangePart;
 
 export interface ChatMessage {
   id?: string;
@@ -83,16 +99,18 @@ export function normalizeChatMessage(raw: unknown): ChatMessage {
 export function messageText(message: ChatMessage): string {
   return message.parts
     .map((part) => {
-      if (part.type === 'text') {
-        return part.text;
+      switch (part.type) {
+        case 'text':
+          return part.text;
+        case 'chart':
+          return `(chart: ${part.title})`;
+        case 'universe':
+          return `(research universe: ${part.title}, predicates=${part.spec.predicates.length})`;
+        case 'research_cell_change':
+          return `(research cell change proposal: ${part.proposal.title}, status=${part.proposal.status}, operations=${part.proposal.operations.length})`;
+        case 'research':
+          return `(research result: ${part.title}, protocol=${part.run.protocol.id}, observations=${part.run.result.observations})`;
       }
-      if (part.type === 'chart') {
-        return `(chart: ${part.title})`;
-      }
-      if (part.type === 'universe') {
-        return `(research universe: ${part.title}, predicates=${part.spec.predicates.length})`;
-      }
-      return `(research result: ${part.title}, protocol=${part.run.protocol.id}, observations=${part.run.result.observations})`;
     })
     .join('\n')
     .trim();

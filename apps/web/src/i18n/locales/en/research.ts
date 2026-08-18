@@ -94,6 +94,36 @@ export const enResearch: typeof zhResearch = {
       'Ask it to explain results, challenge assumptions, suggest next steps, or add validation using the four existing protocols.',
     agentPlaceholder: 'Given this document, what should I validate next?',
     sendAgent: 'Send message',
+    cellChange: {
+      status: {
+        pending: 'Review',
+        applied: 'Applied',
+        rejected: 'Rejected',
+        conflicted: 'Conflict',
+      },
+      operation: {
+        create: 'Create {{kind}} cell {{ordinal}}',
+        update: 'Update {{kind}} cell {{ordinal}}',
+        delete: 'Delete {{kind}} cell {{ordinal}}',
+      },
+      total: 'Changed line totals',
+      viewDiff: 'Review changes',
+      apply: 'Apply proposal',
+      reject: 'Reject proposal',
+      diffTitle: 'Review changes: {{title}}',
+      cells: 'Changed cells',
+      conflict: {
+        document_changed:
+          'The document changed after this proposal. Ask the Agent to propose again from the latest content.',
+        document_running:
+          'The document is running. Stop it or wait for it to finish, then create a new proposal.',
+        cell_missing: 'A target cell no longer exists, so this proposal cannot be applied safely.',
+        cell_revision_changed:
+          'A target cell has a newer revision, so this proposal cannot be applied safely.',
+        cell_source_changed:
+          'A target cell has different source, so this proposal cannot be applied safely.',
+      },
+    },
   },
   dataCatalog: {
     title: 'Data catalog',

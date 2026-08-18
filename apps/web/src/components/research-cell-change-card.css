@@ -1,0 +1,203 @@
+@reference '../styles/index.css';
+
+.jx-researchCellChange {
+  @apply mt-3 overflow-hidden rounded-lg border border-review-border bg-card text-ink;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 4%);
+}
+
+.jx-researchCellChange-head {
+  @apply flex min-w-0 items-center gap-2 border-b border-review-border bg-card;
+  padding: 10px 11px;
+}
+
+.jx-researchCellChange-icon {
+  @apply flex h-6 w-6 flex-none items-center justify-center rounded bg-review-canvas text-review-accent;
+  font-size: 11px;
+}
+
+.jx-researchCellChange-title {
+  @apply min-w-0 flex-1 truncate font-semibold;
+  font-size: 12px;
+}
+
+.jx-researchCellChange-status {
+  @apply flex-none rounded px-1.5 py-0.5 font-medium;
+  font-size: 10px;
+}
+
+.jx-researchCellChange-status--pending {
+  color: #374151;
+  background: #f2f4f7;
+}
+
+.jx-researchCellChange-status--applied {
+  @apply bg-review-added-bg text-review-added;
+}
+
+.jx-researchCellChange-status--rejected,
+.jx-researchCellChange-status--conflicted {
+  @apply bg-review-removed-bg text-review-removed;
+}
+
+.jx-researchCellChange-summary {
+  @apply m-0 text-review-muted;
+  padding: 10px 11px 5px;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.jx-researchCellChange-operations {
+  @apply flex flex-col gap-1.5;
+  padding: 8px 9px;
+}
+
+.jx-researchCellChange-operation {
+  @apply flex w-full cursor-pointer items-center gap-2 rounded-md border border-review-border bg-card text-left text-ink hover:border-review-border-strong hover:bg-review-canvas focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-review-accent;
+  min-width: 0;
+  padding: 7px 8px;
+  font-size: 11px;
+}
+
+.jx-researchCellChange-operation--active {
+  @apply border-review-accent bg-review-canvas;
+  box-shadow: 0 0 0 1px var(--color-review-accent);
+}
+
+.jx-researchCellChange-operationName {
+  @apply min-w-0 flex-1 truncate;
+}
+
+.jx-researchCellChange-counts,
+.jx-researchCellChange-total {
+  @apply flex flex-none items-center gap-1.5 font-semibold tabular-nums;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.jx-researchCellChange-added {
+  @apply text-review-added;
+}
+
+.jx-researchCellChange-removed {
+  @apply text-review-removed;
+}
+
+.jx-researchCellChange-conflict {
+  @apply mx-2 mb-2 flex items-start gap-2 rounded-md;
+  padding: 7px 8px;
+  color: var(--color-review-removed);
+  background: var(--color-review-removed-bg);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.jx-researchCellChange-footer {
+  @apply flex items-center justify-between border-t border-review-border bg-review-canvas;
+  padding: 6px 8px 6px 11px;
+}
+
+.jx-researchCellChange-actions {
+  @apply flex items-center gap-0.5;
+}
+
+.jx-researchCellChange-actionButton.ant-btn {
+  @apply border-review-border bg-card text-review-accent shadow-none hover:border-review-border-strong hover:bg-review-canvas hover:text-review-accent;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+}
+
+.jx-researchCellChange-actionButton--reject.ant-btn {
+  @apply text-review-removed hover:border-review-removed hover:text-review-removed;
+}
+
+.jx-researchCellChange-actionButton--apply.ant-btn {
+  @apply text-ink hover:border-review-accent hover:text-ink;
+}
+
+.jx-researchCellChange-modalRoot .jx-researchCellChange-modalMask {
+  background: rgb(20 27 38 / 42%);
+  backdrop-filter: blur(1px);
+}
+
+.jx-researchCellChange-modalRoot .jx-researchCellChange-modalContainer {
+  @apply overflow-hidden border border-review-border bg-card;
+  padding: 0;
+  border-radius: 12px;
+  box-shadow: 0 22px 60px rgb(15 23 42 / 20%);
+}
+
+.jx-researchCellChange-modalRoot .jx-researchCellChange-modalHeader {
+  @apply m-0 flex items-center border-b border-review-border bg-card;
+  min-height: 52px;
+  padding: 0 20px;
+}
+
+.jx-researchCellChange-modalRoot .jx-researchCellChange-modalTitle {
+  @apply font-semibold text-ink;
+  padding-right: 48px;
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+.jx-researchCellChange-modalRoot .jx-researchCellChange-modalBody {
+  padding: 16px 20px 20px;
+}
+
+.jx-researchCellChange-modalRoot .jx-researchCellChange-modalClose {
+  @apply flex items-center justify-center rounded-md text-review-muted shadow-none hover:bg-review-canvas hover:text-ink focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-review-accent;
+  top: 10px;
+  inset-inline-end: 14px;
+  width: 32px;
+  height: 32px;
+}
+
+.jx-researchCellChange-diffLayout {
+  @apply flex overflow-hidden rounded-lg border border-review-border;
+  min-height: min(68vh, 640px);
+}
+
+.jx-researchCellChange-diffNav {
+  @apply flex flex-none flex-col gap-2 overflow-auto border-r border-review-border bg-review-canvas;
+  width: 264px;
+  padding: 10px;
+}
+
+.jx-researchCellChange-diffNavItem {
+  @apply flex w-full cursor-pointer flex-col items-stretch gap-2 rounded-md border border-review-border bg-card text-left text-ink hover:border-review-border-strong hover:bg-card focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-review-accent;
+  min-width: 0;
+  padding: 10px 11px;
+  font-size: 11px;
+}
+
+.jx-researchCellChange-diffNavItem--active {
+  @apply border-review-accent bg-card;
+  box-shadow: 0 0 0 1px var(--color-review-accent);
+}
+
+.jx-researchCellChange-diffNavItem .jx-researchCellChange-counts {
+  font-size: 10px;
+}
+
+.jx-researchCellChange-diffEditor {
+  @apply min-w-0 flex-1 bg-card;
+}
+
+.jx-researchCellChange-diffLoading {
+  min-height: min(68vh, 640px);
+  background: var(--color-review-canvas);
+}
+
+@media (max-width: 760px) {
+  .jx-researchCellChange-diffLayout {
+    @apply flex-col;
+  }
+
+  .jx-researchCellChange-diffNav {
+    @apply w-full flex-row border-b border-r-0;
+    max-height: 110px;
+  }
+
+  .jx-researchCellChange-diffNavItem {
+    min-width: 180px;
+  }
+}

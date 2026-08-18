@@ -12,7 +12,8 @@
 > 交互图、受控大表分页/虚拟化与 1 MiB 预览预算、图片 artifact 按权限懒加载、输出硬上限、受影响 Cell
 > 拓扑批量运行、运行中断、干净全文运行和
 > Validation → `ResearchRun`。
-> Agent 受审计修改 Cell、完整执行比较以及 Factor / Strategy 带血缘交接仍是后续里程碑，
+> Agent 受审计增删改 Cell 的第一阶段已完成；Agent 执行 Cell、完整执行比较以及
+> Factor / Strategy 带血缘交接仍是后续里程碑，
 > 因此本文的“首版完成定义”尚未全部关闭。
 
 ## 1. 产品判断
@@ -432,6 +433,13 @@ Research Agent 至少需要：
 Agent 修改 Cell 必须显示 diff 或明确变更摘要，并进入对话 trace；Agent 发起的参数、模型和假设尝试同样进入
 实验台账。Agent 不得自动揭示 Holdout、发布 Factor、部署 Strategy 或代表用户接受投资结论。
 
+第一阶段不把 `createResearchCell` / `updateResearchCell` / `deleteResearchCell` 作为可立即写入的 Agent
+工具，而是收敛为每轮最多一次 `proposeResearchCellChanges` 批量提案。服务端保存每个操作的完整
+before/after 源码、行数、Cell revision、依赖定义与来源 AgentTurn/Message；前端以 Monaco
+DiffEditor 只读审查，用户显式应用或拒绝。应用使用文档时间戳、Cell revision 与原源码三重检查；
+任一条件变化即固化为 `conflicted`，不覆盖用户新内容。一个批次内的新建、修改、删除以同一
+数据库事务原子落地，仅刷新 DAG/stale，不自动执行 Cell。
+
 ## 10. 分阶段实现
 
 ### M0：运行时 PoC 与架构门
@@ -453,7 +461,8 @@ Agent 修改 Cell 必须显示 diff 或明确变更摘要，并进入对话 trac
 - 静态 Research SDK Contract、生成/check、Monaco 参数与直接返回列补全；
 - `charts.line/scatter/histogram/boxplot/heatmap/event_path`；
 - ECharts 富交互、表格分页/虚拟化和 artifact 上限（第二阶段已完成图片产物懒加载、1 MiB 表格预览预算与 2 MiB 内联输出上限）；
-- Agent 增删改、执行和解释 Cell。
+- Agent 增删改、执行和解释 Cell：第一阶段已完成受审计批量提案、Monaco Diff、显式
+  应用/拒绝与修订冲突保护；第二阶段再接入受控执行、结果解释与尝试比较。
 
 ### M3：验证、固化与现有协议接线
 

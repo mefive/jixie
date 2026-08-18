@@ -41,6 +41,10 @@ const MESSAGES = {
   conversationNotFound: { zh: '会话不存在', en: 'Conversation not found' },
   researchStudyNotFound: { zh: '研究记录不存在', en: 'Research study not found' },
   researchArtifactNotFound: { zh: '研究产物不存在', en: 'Research artifact not found' },
+  researchCellChangeProposalNotFound: {
+    zh: '研究 Cell 变更提案不存在',
+    en: 'Research Cell change proposal not found',
+  },
   researchCuratorRunNotFound: { zh: '研究整理记录不存在', en: 'Research curation run not found' },
   researchCuratorFindingNotFound: {
     zh: '研究整理候选不存在',
