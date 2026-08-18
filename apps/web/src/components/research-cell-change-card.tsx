@@ -1,12 +1,20 @@
 import { lazy, Suspense, useMemo, useState } from 'react';
 import { Button, Modal, Tooltip } from 'antd';
 import classNames from 'classnames';
-import type { ResearchCellChangeOperationV1, ResearchCellChangeProposalV1 } from '@jixie/shared';
+import type {
+  ResearchCellChangeAttemptV1,
+  ResearchCellChangeOperationV1,
+  ResearchCellChangeProposalV1,
+} from '@jixie/shared';
 import {
   faCheck,
+  faCircleExclamation,
   faCodeCompare,
+  faCommentDots,
   faFileCirclePlus,
   faPen,
+  faPlay,
+  faRotate,
   faTrash,
   faTriangleExclamation,
   faXmark,
@@ -20,16 +28,28 @@ const ResearchCellChangeDiff = lazy(() => import('./research-cell-change-diff'))
 interface ResearchCellChangeCardProps {
   proposal: ResearchCellChangeProposalV1;
   busy?: boolean;
+  runBusy?: boolean;
+  explanationBusyId?: string | null;
+  attempts?: ResearchCellChangeAttemptV1[];
+  documentContentRevision?: number;
   onApply?: (proposalId: string) => Promise<void>;
   onReject?: (proposalId: string) => Promise<void>;
+  onRun?: (proposalId: string) => Promise<void>;
+  onExplain?: (attempt: ResearchCellChangeAttemptV1) => Promise<void>;
 }
 
 /** Compact, review-first rendering of an Agent-authored Cell change proposal. */
 export default function ResearchCellChangeCard({
   proposal,
   busy = false,
+  runBusy = false,
+  explanationBusyId,
+  attempts = [],
+  documentContentRevision,
   onApply,
   onReject,
+  onRun,
+  onExplain,
 }: ResearchCellChangeCardProps) {
   const { t } = useTranslation('research');
   const [diffOpen, setDiffOpen] = useState(false);
@@ -43,6 +63,16 @@ export default function ResearchCellChangeCard({
     [proposal.operations, selectedOperationId],
   );
   const pending = proposal.status === 'pending';
+  const latestAttempt = attempts[0];
+  const executable = proposal.operations.some(
+    (operation) =>
+      (operation.kind !== 'delete' &&
+        (operation.cellKind === 'python' || operation.cellKind === 'validation')) ||
+      (operation.kind === 'delete' && operation.cellKind === 'python'),
+  );
+  const documentChanged =
+    proposal.status === 'applied' &&
+    proposal.appliedDocumentContentRevision !== documentContentRevision;
   const totals = proposal.operations.reduce(
     (sum, operation) => ({
       added: sum.added + operation.addedLines,
@@ -96,6 +126,10 @@ export default function ResearchCellChangeCard({
         ))}
       </div>
 
+      {latestAttempt && (
+        <CellChangeAttemptSummary attempt={latestAttempt} count={attempts.length} />
+      )}
+
       {proposal.conflict && (
         <div className="jx-researchCellChange-conflict" role="status">
           <FontAwesomeIcon icon={faTriangleExclamation} />
@@ -118,6 +152,46 @@ export default function ResearchCellChangeCard({
               onClick={() => setDiffOpen(true)}
             />
           </Tooltip>
+          {latestAttempt && onExplain && latestAttempt.status !== 'running' && (
+            <Tooltip title={t('workbench.cellChange.explainAttempt')}>
+              <Button
+                className="jx-researchCellChange-actionButton"
+                size="small"
+                loading={explanationBusyId === latestAttempt.id}
+                disabled={runBusy || busy}
+                data-testid="research-cell-change-explain"
+                icon={<FontAwesomeIcon icon={faCommentDots} />}
+                aria-label={t('workbench.cellChange.explainAttempt')}
+                onClick={() => void onExplain(latestAttempt)}
+              />
+            </Tooltip>
+          )}
+          {proposal.status === 'applied' && executable && onRun && (
+            <Tooltip
+              title={
+                documentChanged
+                  ? t('workbench.cellChange.runDocumentChanged')
+                  : latestAttempt
+                    ? t('workbench.cellChange.rerunAffected')
+                    : t('workbench.cellChange.runAffected')
+              }
+            >
+              <Button
+                className="jx-researchCellChange-actionButton jx-researchCellChange-actionButton--run"
+                size="small"
+                loading={runBusy}
+                disabled={busy || documentChanged}
+                data-testid="research-cell-change-run"
+                icon={<FontAwesomeIcon icon={latestAttempt ? faRotate : faPlay} />}
+                aria-label={
+                  latestAttempt
+                    ? t('workbench.cellChange.rerunAffected')
+                    : t('workbench.cellChange.runAffected')
+                }
+                onClick={() => void onRun(proposal.id)}
+              />
+            </Tooltip>
+          )}
           {pending && onReject && (
             <Tooltip title={t('workbench.cellChange.reject')}>
               <Button
@@ -212,6 +286,68 @@ function LineChanges({ operation }: { operation: ResearchCellChangeOperationV1 }
   );
 }
 
+function CellChangeAttemptSummary({
+  attempt,
+  count,
+}: {
+  attempt: ResearchCellChangeAttemptV1;
+  count: number;
+}) {
+  const { t } = useTranslation('research');
+  const comparison = attempt.comparisonToPrevious;
+  return (
+    <div
+      className={`jx-researchCellChange-attempt jx-researchCellChange-attempt--${attempt.status}`}
+      data-testid="research-cell-change-attempt"
+    >
+      <div className="jx-researchCellChange-attemptHead">
+        <span>
+          <FontAwesomeIcon icon={attemptStatusIcon(attempt.status)} />
+          {t('workbench.cellChange.attemptNumber', { count })}
+        </span>
+        <span>{t(`workbench.cellChange.attemptStatus.${attempt.status}`)}</span>
+      </div>
+      <div className="jx-researchCellChange-attemptMeta">
+        <span>{t(`workbench.cellChange.attemptScope.${attempt.scope}`)}</span>
+        <span>
+          {t('workbench.cellChange.executedCells', {
+            executed: attempt.cells.length,
+            planned: attempt.plannedCellIds.length,
+          })}
+        </span>
+      </div>
+      {comparison && (
+        <div className="jx-researchCellChange-comparison">
+          <span>
+            {t('workbench.cellChange.codeChanges', {
+              count: comparison.sourceChangedCellIds.length,
+            })}
+          </span>
+          <span>
+            {t('workbench.cellChange.outputChanges', {
+              count: comparison.outputChangedCellIds.length,
+            })}
+          </span>
+          <span>
+            {comparison.environmentChanged
+              ? t('workbench.cellChange.environmentChanged')
+              : t('workbench.cellChange.environmentUnchanged')}
+          </span>
+        </div>
+      )}
+      {attempt.error && (
+        <div className="jx-researchCellChange-attemptError">
+          {attempt.error === 'upstream_cell_failed'
+            ? t('workbench.cellChange.upstreamCellFailed')
+            : attempt.error === 'document_changed_during_run'
+              ? t('workbench.cellChange.documentChangedDuringRun')
+              : attempt.error}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function operationIcon(kind: ResearchCellChangeOperationV1['kind']) {
   switch (kind) {
     case 'create':
@@ -233,5 +369,18 @@ function statusIcon(status: ResearchCellChangeProposalV1['status']) {
       return faXmark;
     case 'conflicted':
       return faTriangleExclamation;
+  }
+}
+
+function attemptStatusIcon(status: ResearchCellChangeAttemptV1['status']) {
+  switch (status) {
+    case 'success':
+      return faCheck;
+    case 'running':
+      return faPlay;
+    case 'error':
+      return faCircleExclamation;
+    case 'cancelled':
+      return faXmark;
   }
 }

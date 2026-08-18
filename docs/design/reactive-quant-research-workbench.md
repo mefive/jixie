@@ -12,8 +12,8 @@
 > 交互图、受控大表分页/虚拟化与 1 MiB 预览预算、图片 artifact 按权限懒加载、输出硬上限、受影响 Cell
 > 拓扑批量运行、运行中断、干净全文运行和
 > Validation → `ResearchRun`。
-> Agent 受审计增删改 Cell 的第一阶段已完成；Agent 执行 Cell、完整执行比较以及
-> Factor / Strategy 带血缘交接仍是后续里程碑，
+> Agent 受审计增删改 Cell、用户授权的受控执行、精确结果解释和简版尝试比较已经完成；完整
+> `ResearchExecution` 比较以及 Factor / Strategy 带血缘交接仍是后续里程碑，
 > 因此本文的“首版完成定义”尚未全部关闭。
 
 ## 1. 产品判断
@@ -459,6 +459,26 @@ Agent 变更、新增或删除 Cell、切换或新建文档前都先 `flushAll`�
 
 刷新或浏览器崩溃后的本地草稿恢复属于后续 backlog；首版在离开页面时对未保存内容触发浏览器原生警告。
 
+### 9.2 Agent 受控执行、解释与尝试比较
+
+接受 Agent diff 只原子修改文档并标记 stale，不自动运行。提案应用时记录
+`appliedDocumentContentRevision`；用户随后通过提案卡片上的独立图标按钮，显式运行该提案修改的 Python /
+Validation Cell 及其受影响下游。涉及删除 Python Cell 时必须重置 runtime 并干净运行当前全文，避免已删除变量
+残留在解释器内存里。
+
+每次授权运行创建一个 `ResearchCellChangeAttempt`，冻结提案、应用后的 `contentRevision`、根 Cell、计划 Cell、
+实际 `ResearchCellExecution`、成功/失败/中断状态和错误。所有执行快照通过 attempt 外键分组；运行前、每个 Cell
+之间和运行结束后都复查文档内容修订，另一标签页的编辑不能让一次尝试混入不同版本源码。运行失败与被上游阻断
+的分支同样保留，不只记录成功样本。
+
+同一提案重跑后，卡片比较本次和上次尝试的源码 hash、输出 hash、状态与环境指纹，并明确显示计划/实际执行的
+Cell 数量。这是探索层的简版比较，不冒充 M3 的完整 `ResearchExecution`：数据输入指纹、完整 DAG 快照、结构化
+指标差异和正式结论归因仍由后续完整执行模型负责。
+
+用户可对任一已结束尝试显式请求 Agent 解释。请求携带 attempt id，服务端只向模型提供该尝试的不可变源码、
+执行状态、错误、环境指纹和受控输出预览；超出上下文预算的源码或输出显式标记截断。Agent 必须区分失败、跳过、
+截断和正式 Validation 证据，不得把探索输出升级为投资结论，也不会因为解释请求再次运行代码。
+
 ## 10. 分阶段实现
 
 ### M0：运行时 PoC 与架构门
@@ -481,7 +501,8 @@ Agent 变更、新增或删除 Cell、切换或新建文档前都先 `flushAll`�
 - `charts.line/scatter/histogram/boxplot/heatmap/event_path`；
 - ECharts 富交互、表格分页/虚拟化和 artifact 上限（第二阶段已完成图片产物懒加载、1 MiB 表格预览预算与 2 MiB 内联输出上限）；
 - Agent 增删改、执行和解释 Cell：第一阶段已完成受审计批量提案、Monaco Diff、显式
-  应用/拒绝与修订冲突保护；第二阶段再接入受控执行、结果解释与尝试比较。
+  应用/拒绝与修订冲突保护；第二阶段已完成独立用户授权、`ResearchCellChangeAttempt` 审计、精确结果解释与
+  源码/输出/状态/环境的简版尝试比较。
 
 ### M3：验证、固化与现有协议接线
 

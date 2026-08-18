@@ -44,6 +44,22 @@ describe('reactive research dependencies', () => {
     expect(plan.dependenciesByCellId.get('combined')).toEqual(['left', 'right']);
   });
 
+  it('unions multiple changed roots and keeps one topological order', () => {
+    const plan = affectedResearchCellRunPlan(
+      ['left-load', 'right-load'],
+      [
+        { cellId: 'left-load', definitions: ['left'], references: [] },
+        { cellId: 'right-load', definitions: ['right'], references: [] },
+        { cellId: 'left-summary', definitions: ['leftMean'], references: ['left'] },
+        { cellId: 'combined', definitions: [], references: ['leftMean', 'right'] },
+        { cellId: 'independent', definitions: ['other'], references: [] },
+      ],
+    );
+
+    expect(plan.cellIds).toEqual(['left-load', 'right-load', 'left-summary', 'combined']);
+    expect(plan.dependenciesByCellId.get('combined')).toEqual(['left-summary', 'right-load']);
+  });
+
   it('rejects duplicate definitions used by the affected branch', () => {
     expect(() =>
       affectedResearchCellRunPlan('load-a', [

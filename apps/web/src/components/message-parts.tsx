@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import type { ChatMessage } from '@jixie/shared';
+import type { ChatMessage, ResearchCellChangeAttemptV1 } from '@jixie/shared';
 import { Markdown } from './markdown';
 import { UniverseSpecCard } from './universe-spec-card';
 // Imported here (not only by the lazy chunk) so the Suspense fallback below has its height class
@@ -16,7 +16,13 @@ interface MessagePartsProps {
   message: ChatMessage;
   onApplyResearchCellChange?: (proposalId: string) => Promise<void>;
   onRejectResearchCellChange?: (proposalId: string) => Promise<void>;
+  onRunResearchCellChange?: (proposalId: string) => Promise<void>;
+  onExplainResearchCellChangeAttempt?: (attempt: ResearchCellChangeAttemptV1) => Promise<void>;
   busyResearchCellChangeId?: string | null;
+  busyResearchCellChangeRunId?: string | null;
+  busyResearchCellChangeExplanationId?: string | null;
+  researchCellChangeAttempts?: ResearchCellChangeAttemptV1[];
+  researchDocumentContentRevision?: number;
 }
 
 /** One chat message's typed parts (text / query card / chart card) — the single renderer shared by
@@ -25,7 +31,13 @@ export function MessageParts({
   message,
   onApplyResearchCellChange,
   onRejectResearchCellChange,
+  onRunResearchCellChange,
+  onExplainResearchCellChangeAttempt,
   busyResearchCellChangeId,
+  busyResearchCellChangeRunId,
+  busyResearchCellChangeExplanationId,
+  researchCellChangeAttempts = [],
+  researchDocumentContentRevision,
 }: MessagePartsProps) {
   return (
     <>
@@ -56,8 +68,16 @@ export function MessageParts({
               <ResearchCellChangeCard
                 proposal={part.proposal}
                 busy={busyResearchCellChangeId === part.proposal.id}
+                runBusy={busyResearchCellChangeRunId === part.proposal.id}
+                explanationBusyId={busyResearchCellChangeExplanationId}
+                attempts={researchCellChangeAttempts.filter(
+                  (attempt) => attempt.proposalId === part.proposal.id,
+                )}
+                documentContentRevision={researchDocumentContentRevision}
                 onApply={onApplyResearchCellChange}
                 onReject={onRejectResearchCellChange}
+                onRun={onRunResearchCellChange}
+                onExplain={onExplainResearchCellChangeAttempt}
               />
             </Suspense>
           );

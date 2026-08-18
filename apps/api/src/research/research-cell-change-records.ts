@@ -80,6 +80,7 @@ export async function resolveResearchCellChangeProposalRecord(
     proposalId: string;
     status: Exclude<ResearchCellChangeProposalStatusV1, 'pending'>;
     conflict?: ResearchCellChangeConflictV1;
+    appliedDocumentContentRevision?: number;
     resolvedAt: Date;
   },
 ): Promise<ResearchCellChangeProposalV1> {
@@ -88,6 +89,9 @@ export async function resolveResearchCellChangeProposalRecord(
     data: {
       status: args.status,
       conflict: args.conflict ? (args.conflict as unknown as Prisma.InputJsonValue) : Prisma.DbNull,
+      ...(args.appliedDocumentContentRevision !== undefined
+        ? { appliedDocumentContentRevision: args.appliedDocumentContentRevision }
+        : {}),
       resolvedAt: args.resolvedAt,
     },
   });
@@ -126,6 +130,9 @@ export function researchCellChangeProposalView(
     expectedDocumentUpdatedAt: proposal.expectedDocumentUpdatedAt.toISOString(),
     ...(proposal.expectedDocumentContentRevision != null
       ? { expectedDocumentContentRevision: proposal.expectedDocumentContentRevision }
+      : {}),
+    ...(proposal.appliedDocumentContentRevision != null
+      ? { appliedDocumentContentRevision: proposal.appliedDocumentContentRevision }
       : {}),
     operations: proposal.operations as unknown as ResearchCellChangeOperationV1[],
     ...(proposal.conflict

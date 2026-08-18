@@ -68,6 +68,41 @@ try {
     throw new Error('Applied proposal did not atomically update, create, and delete its Cells.');
   }
 
+  await applyCard.getByRole('button', { name: '运行提案影响的 Cells' }).click();
+  const attemptCard = applyCard.getByTestId('research-cell-change-attempt');
+  await attemptCard.getByText('成功', { exact: true }).waitFor({ timeout: 30_000 });
+  let attemptedDocument = await api(page, `/api/app/research/documents/${fixture.documentId}`);
+  const firstAttempt = attemptedDocument.cellChangeAttempts.find(
+    (attempt) => attempt.proposalId === fixture.applyProposalId,
+  );
+  if (
+    firstAttempt?.status !== 'success' ||
+    firstAttempt.contentRevision !== appliedDocument.contentRevision ||
+    firstAttempt.cells.length !== 1 ||
+    firstAttempt.cells[0]?.cellId !== fixture.pythonCellId
+  ) {
+    throw new Error(`Controlled Cell attempt was not audited: ${JSON.stringify(firstAttempt)}`);
+  }
+  await applyCard.getByRole('button', { name: '重新运行提案影响的 Cells' }).click();
+  await attemptCard.getByText('尝试 2', { exact: true }).waitFor({ timeout: 30_000 });
+  await attemptCard.getByText('代码变化 0', { exact: true }).waitFor({ timeout: 30_000 });
+  await attemptCard.getByText('输出变化 0', { exact: true }).waitFor({ timeout: 30_000 });
+  await applyCard.getByRole('button', { name: '让 Agent 解释本次运行' }).waitFor();
+  attemptedDocument = await api(page, `/api/app/research/documents/${fixture.documentId}`);
+  const latestAttempt = attemptedDocument.cellChangeAttempts.find(
+    (attempt) => attempt.proposalId === fixture.applyProposalId,
+  );
+  if (!latestAttempt?.comparisonToPrevious || latestAttempt.cells.length !== 1) {
+    throw new Error(`Controlled attempt comparison is missing: ${JSON.stringify(latestAttempt)}`);
+  }
+  await page.waitForFunction(() => {
+    const button = document.querySelector('[data-testid="research-cell-change-run"]');
+    return button && !button.hasAttribute('disabled');
+  });
+  await applyCard.scrollIntoViewIfNeeded();
+  await page.mouse.move(800, 100);
+  await page.screenshot({ path: `${SHOTS}research-cell-change-attempt.png` });
+
   const rejectCard = page.getByTestId(`research-cell-change-${fixture.rejectProposalId}`);
   await rejectCard.getByRole('button', { name: '拒绝提案' }).click();
   await rejectCard.getByText('已拒绝', { exact: true }).waitFor({ timeout: 30_000 });
@@ -93,7 +128,7 @@ try {
   await page.screenshot({ path: `${SHOTS}research-cell-change-resolved.png` });
 
   console.log(
-    `[research-cell-change-e2e] apply=create/update/delete reject=ok conflict=protected colors=${JSON.stringify(colors)}`,
+    `[research-cell-change-e2e] apply=create/update/delete attempts=audited+compared reject=ok conflict=protected colors=${JSON.stringify(colors)}`,
   );
 } finally {
   await context.close();

@@ -45,6 +45,26 @@ const MESSAGES = {
     zh: '研究 Cell 变更提案不存在',
     en: 'Research Cell change proposal not found',
   },
+  researchCellChangeAttemptNotFound: {
+    zh: '研究 Cell 运行尝试不存在',
+    en: 'Research Cell execution attempt not found',
+  },
+  researchCellChangeAttemptProposalNotApplied: {
+    zh: '只有已应用的 Cell 变更提案才能运行',
+    en: 'Only an applied Cell change proposal can be executed',
+  },
+  researchCellChangeAttemptRevisionUnavailable: {
+    zh: '该历史提案没有可验证的应用修订，无法作为受控尝试运行',
+    en: 'This legacy proposal has no verifiable applied revision and cannot run as a controlled attempt',
+  },
+  researchCellChangeAttemptDocumentChanged: {
+    zh: '文档在应用提案后已经变化，请基于当前内容重新提案或直接运行 Cell',
+    en: 'The document changed after the proposal was applied; create a new proposal or run the current Cells directly',
+  },
+  researchCellChangeAttemptNoExecutableCells: {
+    zh: '该提案只包含说明性变更，没有需要运行的 Python 或 Validation Cell',
+    en: 'This proposal contains only descriptive changes and has no Python or Validation Cell to execute',
+  },
   researchCellRevisionConflict: {
     zh: '该 Cell 已在别处更新，请先处理保存冲突',
     en: 'This Cell changed elsewhere; resolve the save conflict before continuing',

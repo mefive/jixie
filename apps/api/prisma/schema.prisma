@@ -1284,6 +1284,7 @@ model ResearchDocument {
   executions          ResearchCellExecution[]
   artifacts           ResearchArtifact[]
   cellChangeProposals ResearchCellChangeProposal[]
+  cellChangeAttempts  ResearchCellChangeAttempt[]
 
   @@index([userId, updatedAt])
 }
@@ -1317,11 +1318,11 @@ model ResearchCell {
 /// One immutable cell execution snapshot. Clean document runs create the same snapshots after a
 /// fresh interpreter start, while Validation cells additionally create formal ResearchRun evidence.
 model ResearchCellExecution {
-  id                     String           @id // ULID
+  id                     String                     @id // ULID
   documentId             String
-  document               ResearchDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  document               ResearchDocument           @relation(fields: [documentId], references: [id], onDelete: Cascade)
   cellId                 String
-  cell                   ResearchCell     @relation(fields: [cellId], references: [id], onDelete: Cascade)
+  cell                   ResearchCell               @relation(fields: [cellId], references: [id], onDelete: Cascade)
   revision               Int
   source                 String
   status                 String // 'running' | 'success' | 'error' | 'cancelled'
@@ -1330,13 +1331,16 @@ model ResearchCellExecution {
   definitions            Json
   references             Json
   environmentFingerprint String
-  startedAt              DateTime         @default(now())
+  startedAt              DateTime                   @default(now())
   finishedAt             DateTime?
+  cellChangeAttemptId    String?
+  cellChangeAttempt      ResearchCellChangeAttempt? @relation(fields: [cellChangeAttemptId], references: [id], onDelete: SetNull)
 
   artifacts ResearchArtifact[]
 
   @@index([documentId, startedAt])
   @@index([cellId, startedAt])
+  @@index([cellChangeAttemptId, startedAt])
 }
 
 /// One immutable binary output owned by a Research Cell execution. Cell JSON stores only the
@@ -1376,15 +1380,42 @@ model ResearchCellChangeProposal {
   summary                         String
   expectedDocumentUpdatedAt       DateTime
   expectedDocumentContentRevision Int?
+  appliedDocumentContentRevision  Int?
   operations                      Json
   status                          String           @default("pending") // 'pending' | 'applied' | 'rejected' | 'conflicted'
   conflict                        Json?
   createdAt                       DateTime         @default(now())
   resolvedAt                      DateTime?
 
+  attempts ResearchCellChangeAttempt[]
+
   @@unique([sourceMessageId, sourcePartIndex])
   @@index([documentId, status, createdAt])
   @@index([sourceTurnId])
+}
+
+/// One user-authorized execution of an applied Agent Cell-change proposal. It groups immutable
+/// Cell execution snapshots without promoting exploratory work to a formal ResearchExecution.
+model ResearchCellChangeAttempt {
+  id                String                     @id // ULID
+  documentId        String
+  document          ResearchDocument           @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  proposalId        String
+  proposal          ResearchCellChangeProposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  contentRevision   Int
+  scope             String // 'affected' | 'clean_document'
+  rootCellIds       Json
+  plannedCellIds    Json
+  status            String                     @default("running") // 'running' | 'success' | 'error' | 'cancelled'
+  error             String?
+  explanationTurnId String?
+  startedAt         DateTime                   @default(now())
+  finishedAt        DateTime?
+
+  executions ResearchCellExecution[]
+
+  @@index([documentId, startedAt])
+  @@index([proposalId, startedAt])
 }
 
 /// One durable research question. Conversations are the interaction surface; studies own the
