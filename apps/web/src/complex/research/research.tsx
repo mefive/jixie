@@ -39,6 +39,7 @@ import { AgentPending } from '@src/components/agent-pending';
 import { MessageParts } from '@src/components/message-parts';
 import { Markdown } from '@src/components/markdown';
 import { LoadingArea } from '@src/components/loading-area';
+import { researchArtifactUrl } from '@src/api/client';
 import { complex } from './complex';
 import { ResearchCuratorDrawer } from './research-curator-drawer';
 import { ResearchDataCatalogDrawer } from './research-data-catalog-drawer';
@@ -700,12 +701,21 @@ function ResearchOutput({ output }: { output: ResearchCellOutputBlockV1 }) {
           </Suspense>
         </section>
       );
-    case 'image':
-      return (
-        <figure className="jx-research-imageOutput">
-          <img src={output.dataUrl} alt={output.alt ?? t('workbench.pythonFigure')} />
+    case 'image': {
+      const source = output.artifactId ? researchArtifactUrl(output.artifactId) : output.dataUrl;
+      return source ? (
+        <figure className="jx-research-imageOutput" data-testid="research-image-output">
+          <img
+            src={source}
+            alt={output.alt ?? t('workbench.pythonFigure')}
+            loading="lazy"
+            decoding="async"
+            {...(output.width ? { width: output.width } : {})}
+            {...(output.height ? { height: output.height } : {})}
+          />
         </figure>
-      );
+      ) : null;
+    }
     case 'validation':
       return (
         <div className="jx-research-validationOutput" data-testid="research-validation-output">

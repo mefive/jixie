@@ -74,8 +74,11 @@ export const zhResearch = {
     tableColumnsExact: '{{count}} 列',
     tableColumnsPreview: '{{shown}} / {{count}} 列',
     tableCellsTruncated: '超长单元格已截断',
+    tableBytesTruncated: '已达到表格预览体积上限',
     tableBoundedPreview: '受控表格预览',
     tableLimits: '预览上限：{{rows}} 行、{{columns}} 列、每格 {{characters}} 字符',
+    tableLimitsWithBytes:
+      '预览上限：{{rows}} 行、{{columns}} 列、每格 {{characters}} 字符、{{kibibytes}} KiB',
     tablePageRange: '预览第 {{from}}–{{to}} 行，共 {{total}} 行',
     pythonFigure: 'Python 静态图',
     formalEvidence: '已固化为 ResearchRun 正式证据',

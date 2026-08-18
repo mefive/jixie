@@ -78,9 +78,12 @@ export const enResearch: typeof zhResearch = {
     tableColumnsExact: '{{count}} columns',
     tableColumnsPreview: '{{shown}} / {{count}} columns',
     tableCellsTruncated: 'long cells clipped',
+    tableBytesTruncated: 'table preview byte limit reached',
     tableBoundedPreview: 'Bounded table preview',
     tableLimits:
       'Preview limits: {{rows}} rows, {{columns}} columns, {{characters}} characters per cell',
+    tableLimitsWithBytes:
+      'Preview limits: {{rows}} rows, {{columns}} columns, {{characters}} characters per cell, {{kibibytes}} KiB',
     tablePageRange: 'Preview rows {{from}}–{{to}} of {{total}}',
     pythonFigure: 'Python static figure',
     formalEvidence: 'Frozen as formal ResearchRun evidence',

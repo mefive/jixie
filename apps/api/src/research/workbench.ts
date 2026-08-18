@@ -19,6 +19,7 @@ import { executeResearchPlan } from './executor.js';
 import { researchPayloadHash } from './fingerprints.js';
 import { createWorkbenchResearchRun } from './records.js';
 import { researchPlanSpecV1Schema } from './spec.js';
+import { materializeResearchOutputArtifacts } from './workbench-artifacts.js';
 import {
   ResearchPythonExecutionError,
   ResearchPythonInterruptionError,
@@ -447,34 +448,49 @@ async function executeResearchCell(
 
   try {
     const result = await executeCell(cell);
-    await prisma.$transaction([
-      prisma.researchCell.update({
+    let persisted;
+    try {
+      persisted = materializeResearchOutputArtifacts(result.outputs, cell.documentId, executionId);
+    } catch (error) {
+      throw new ResearchPythonExecutionError(
+        error instanceof Error ? error.message : String(error),
+        [],
+        result.definitions,
+        result.references,
+        result.environmentFingerprint,
+      );
+    }
+    await prisma.$transaction(async (transaction) => {
+      for (const artifact of persisted.artifacts) {
+        await transaction.researchArtifact.create({ data: artifact });
+      }
+      await transaction.researchCell.update({
         where: { id: cell.id },
         data: {
           status: 'success',
-          output: result.outputs as unknown as Prisma.InputJsonValue,
+          output: persisted.outputs as unknown as Prisma.InputJsonValue,
           definitions: result.definitions as unknown as Prisma.InputJsonValue,
           references: result.references as unknown as Prisma.InputJsonValue,
           lastExecutedRevision: cell.revision,
           lastExecutedAt: new Date(),
         },
-      }),
-      prisma.researchCellExecution.update({
+      });
+      await transaction.researchCellExecution.update({
         where: { id: executionId },
         data: {
           status: 'success',
-          output: result.outputs as unknown as Prisma.InputJsonValue,
+          output: persisted.outputs as unknown as Prisma.InputJsonValue,
           definitions: result.definitions as unknown as Prisma.InputJsonValue,
           references: result.references as unknown as Prisma.InputJsonValue,
           environmentFingerprint: result.environmentFingerprint,
           finishedAt: new Date(),
         },
-      }),
-      prisma.researchDocument.update({
+      });
+      await transaction.researchDocument.update({
         where: { id: cell.documentId },
         data: { updatedAt: new Date() },
-      }),
-    ]);
+      });
+    });
     return 'success';
   } catch (error) {
     if (error instanceof ResearchPythonInterruptionError) {

@@ -68,6 +68,32 @@ researchRoute.get('/data-catalog', validateQuery(dataCatalogQuery), async (c) =>
   );
 });
 
+researchRoute.get('/artifacts/:artifactId', async (c) => {
+  const artifact = await prisma.researchArtifact.findFirst({
+    where: {
+      id: c.req.param('artifactId'),
+      document: { userId: c.var.userId },
+    },
+    select: { data: true, mimeType: true, byteSize: true, sha256: true },
+  });
+  if (!artifact) {
+    return apiError(c, 'NOT_FOUND', m(c, 'researchArtifactNotFound'));
+  }
+
+  const etag = `"${artifact.sha256}"`;
+  // Revalidate ownership before reuse because one browser profile can switch accounts.
+  c.header('Cache-Control', 'private, no-cache');
+  c.header('ETag', etag);
+  c.header('X-Content-Type-Options', 'nosniff');
+  c.header('Content-Security-Policy', "sandbox; default-src 'none'");
+  if (c.req.header('If-None-Match') === etag) {
+    return c.body(null, 304);
+  }
+  c.header('Content-Type', artifact.mimeType);
+  c.header('Content-Length', String(artifact.byteSize));
+  return c.body(new Uint8Array(artifact.data));
+});
+
 const createDocumentBody = z.strictObject({
   template: z.enum(['blank', 'index_relationship']).default('blank'),
 });

@@ -1045,10 +1045,13 @@ export interface ResearchTableOutputV1 {
   columnCount?: number;
   truncatedColumns?: boolean;
   truncatedCells?: boolean;
+  truncatedBytes?: boolean;
+  previewByteSize?: number;
   limits?: {
     rows: number;
     columns: number;
     cellCharacters: number;
+    bytes?: number;
   };
 }
 
@@ -1064,18 +1067,29 @@ export interface ResearchChartOutputV1 {
   rows: Record<string, ResearchCellScalarV1>[];
 }
 
+export type ResearchImageOutputV1 = {
+  type: 'image';
+  mimeType: 'image/png' | 'image/svg+xml';
+  alt?: string;
+  byteSize?: number;
+  sha256?: string;
+  width?: number;
+  height?: number;
+} & (
+  | { dataUrl: string; artifactId?: never }
+  | {
+      artifactId: string;
+      /** Legacy executions use dataUrl; new executions use an authenticated artifact reference. */
+      dataUrl?: never;
+    }
+);
+
 export type ResearchCellOutputBlockV1 =
   | { type: 'text'; text: string; level?: 'info' | 'warning' | 'error' }
   | { type: 'value'; value: ResearchCellScalarV1 | ResearchCellScalarV1[] }
   | ResearchTableOutputV1
   | ResearchChartOutputV1
-  | {
-      type: 'image';
-      mimeType: 'image/png' | 'image/svg+xml';
-      dataUrl: string;
-      alt?: string;
-      byteSize?: number;
-    }
+  | ResearchImageOutputV1
   | {
       type: 'validation';
       title: string;

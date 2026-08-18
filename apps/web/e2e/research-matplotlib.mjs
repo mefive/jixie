@@ -6,6 +6,7 @@ const SHOTS = new URL('../acceptance/', import.meta.url).pathname;
 mkdirSync(SHOTS, { recursive: true });
 
 const title = 'Python 静态图验收';
+const ownerEmail = `e2e-research-matplotlib-${Date.now()}@test.com`;
 const source = `import matplotlib.pyplot as plt
 
 months = list(range(1, 25))
@@ -34,16 +35,7 @@ page.on('pageerror', (error) => console.log('[pageerror]', error.message));
 let documentId;
 try {
   await page.goto(BASE, { waitUntil: 'networkidle' });
-  const loginStatus = await page.evaluate(async () =>
-    fetch('/api/auth/dev/login', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ email: 'e2e-research-matplotlib@test.com' }),
-    }).then((response) => response.status),
-  );
-  if (loginStatus !== 200) {
-    throw new Error(`dev login failed: ${loginStatus}`);
-  }
+  await devLogin(page, ownerEmail);
 
   let document = await api(page, '/api/app/research/documents', {
     method: 'POST',
@@ -70,12 +62,47 @@ try {
     executedCell?.status !== 'success' ||
     image?.type !== 'image' ||
     image.mimeType !== 'image/png' ||
+    typeof image.artifactId !== 'string' ||
+    'dataUrl' in image ||
     typeof image.byteSize !== 'number' ||
     image.byteSize <= 0 ||
     image.byteSize > 4 * 1024 * 1024
   ) {
     throw new Error(`Matplotlib output mismatch: ${JSON.stringify(executedCell)}`);
   }
+
+  const artifact = await page.evaluate(async (artifactId) => {
+    const response = await fetch(`/api/app/research/artifacts/${encodeURIComponent(artifactId)}`);
+    return {
+      status: response.status,
+      contentType: response.headers.get('content-type'),
+      cacheControl: response.headers.get('cache-control'),
+      etag: response.headers.get('etag'),
+      bytes: (await response.arrayBuffer()).byteLength,
+    };
+  }, image.artifactId);
+  if (
+    artifact.status !== 200 ||
+    artifact.contentType !== 'image/png' ||
+    artifact.cacheControl !== 'private, no-cache' ||
+    !artifact.etag ||
+    artifact.bytes !== image.byteSize
+  ) {
+    throw new Error(`Artifact response mismatch: ${JSON.stringify(artifact)}`);
+  }
+
+  await devLogin(page, 'e2e-research-matplotlib-foreign@test.com');
+  const foreignStatus = await page.evaluate(
+    async (artifactId) =>
+      fetch(`/api/app/research/artifacts/${encodeURIComponent(artifactId)}`).then(
+        (response) => response.status,
+      ),
+    image.artifactId,
+  );
+  if (foreignStatus !== 404) {
+    throw new Error(`Foreign artifact read should return 404, received ${foreignStatus}`);
+  }
+  await devLogin(page, ownerEmail);
 
   await page.goto(`${BASE}/research`, { waitUntil: 'domcontentloaded' });
   await page.getByText(title, { exact: true }).first().click();
@@ -94,10 +121,11 @@ try {
   await cell.screenshot({ path: `${SHOTS}research-matplotlib-cell.png` });
   await page.screenshot({ path: `${SHOTS}research-matplotlib-workbench.png` });
   console.log(
-    `[research-matplotlib-e2e] mime=${image.mimeType} bytes=${image.byteSize} rendered=true`,
+    `[research-matplotlib-e2e] artifact=${image.artifactId} mime=${image.mimeType} bytes=${image.byteSize} rendered=true foreign=404`,
   );
 } finally {
   if (documentId) {
+    await devLogin(page, ownerEmail).catch(() => {});
     await page
       .evaluate(async (id) => {
         await fetch(`/api/app/research/conversations/${encodeURIComponent(id)}`, {
@@ -125,4 +153,18 @@ async function api(page, path, init) {
     },
     { requestPath: path, requestInit: init },
   );
+}
+
+async function devLogin(page, email) {
+  const status = await page.evaluate(async (loginEmail) => {
+    const response = await fetch('/api/auth/dev/login', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: loginEmail }),
+    });
+    return response.status;
+  }, email);
+  if (status !== 200) {
+    throw new Error(`dev login failed for ${email}: ${status}`);
+  }
 }

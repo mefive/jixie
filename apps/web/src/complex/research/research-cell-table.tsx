@@ -11,14 +11,22 @@ export function ResearchCellTable({ output }: { output: ResearchTableOutputV1 })
   const shownRows = output.rows.length;
   const shownColumns = output.columns.length;
   const columnCount = output.columnCount ?? shownColumns;
-  const bounded = output.truncated || output.truncatedColumns || output.truncatedCells;
+  const bounded =
+    output.truncated || output.truncatedColumns || output.truncatedCells || output.truncatedBytes;
   const virtual = shownRows > DEFAULT_PAGE_SIZE;
   const limitDescription = output.limits
-    ? t('workbench.tableLimits', {
-        rows: output.limits.rows,
-        columns: output.limits.columns,
-        characters: output.limits.cellCharacters,
-      })
+    ? output.limits.bytes
+      ? t('workbench.tableLimitsWithBytes', {
+          rows: output.limits.rows,
+          columns: output.limits.columns,
+          characters: output.limits.cellCharacters,
+          kibibytes: Math.round(output.limits.bytes / 1024),
+        })
+      : t('workbench.tableLimits', {
+          rows: output.limits.rows,
+          columns: output.limits.columns,
+          characters: output.limits.cellCharacters,
+        })
     : t('workbench.tableBoundedPreview');
 
   return (
@@ -42,6 +50,11 @@ export function ResearchCellTable({ output }: { output: ResearchTableOutputV1 })
         {output.truncatedCells && (
           <span className="jx-research-outputMetaWarning">
             {t('workbench.tableCellsTruncated')}
+          </span>
+        )}
+        {output.truncatedBytes && (
+          <span className="jx-research-outputMetaWarning">
+            {t('workbench.tableBytesTruncated')}
           </span>
         )}
         {bounded && (

@@ -295,6 +295,10 @@ export function getResearchDocument(documentId: string): Promise<ResearchDocumen
   return request(`/api/app/research/documents/${encodeURIComponent(documentId)}`);
 }
 
+export function researchArtifactUrl(artifactId: string): string {
+  return `/api/app/research/artifacts/${encodeURIComponent(artifactId)}`;
+}
+
 export function addResearchCell(
   documentId: string,
   kind: ResearchCellKindV1,
