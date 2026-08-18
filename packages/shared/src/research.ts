@@ -1121,3 +1121,9 @@ export interface ResearchDocumentRunResultV1 {
   executedCellIds: string[];
   clean: boolean;
 }
+
+export interface ResearchDocumentInterruptResultV1 {
+  version: 1;
+  document: ResearchDocumentV1;
+  interrupted: boolean;
+}

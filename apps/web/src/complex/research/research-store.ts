@@ -10,6 +10,7 @@ import {
   type ResearchCuratorFindingV1,
   type ResearchCuratorRunV1,
   type ResearchCuratorVerificationAssessmentV1,
+  type ResearchDocumentInterruptResultV1,
   type ResearchDocumentRunResultV1,
   type ResearchDocumentSummaryV1,
   type ResearchDocumentTemplateV1,
@@ -24,6 +25,7 @@ import {
   getLatestResearchCuratorRun,
   getResearchCuratorRun,
   getResearchDocument,
+  interruptResearchDocument,
   listResearchDocuments,
   renameResearchConversation,
   resetResearchDocument,
@@ -78,12 +80,15 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
   public busyCellId: string | null = null;
   public affectedRunningCellId: string | null = null;
   public documentRunning = false;
+  public interrupting = false;
+  public runInterrupted = false;
   public turnStream = new AgentTurnStream();
   public documentsLoader = new LoaderModel<ResearchDocumentSummaryV1[]>();
   public documentLoader = new LoaderModel<ResearchDocumentV1>();
   public documentMutationLoader = new LoaderModel<ResearchDocumentV1>();
   public documentRunLoader = new LoaderModel<ResearchDocumentRunResultV1>();
   public affectedRunLoader = new LoaderModel<ResearchDocumentRunResultV1>();
+  public interruptLoader = new LoaderModel<ResearchDocumentInterruptResultV1>();
   public dataCatalogLoader = new LoaderModel<ResearchDataCatalogResultV1>();
   public curatorLoader = new LoaderModel<ResearchCuratorRunV1 | null>();
   public curatorMutationLoader = new LoaderModel<ResearchCuratorRunV1 | ResearchCuratorFindingV1>();
@@ -99,7 +104,10 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
       busyCellId: observable.ref,
       affectedRunningCellId: observable.ref,
       documentRunning: observable.ref,
+      interrupting: observable.ref,
+      runInterrupted: observable.ref,
       setPrompt: action,
+      clearRunInterrupted: action,
     });
   }
 
@@ -139,6 +147,10 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
       preserveResult: false,
       request: (cellId: string) => runAffectedResearchCells(cellId),
     });
+    this.interruptLoader.setup({
+      preserveResult: false,
+      request: (documentId: string) => interruptResearchDocument(documentId),
+    });
     this.dataCatalogLoader.setup({
       request: ({ query, assetType }: ResearchDataCatalogQuery, signal) =>
         searchResearchDataCatalog(query, assetType, signal),
@@ -173,6 +185,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     this.registCleaner(() => this.documentMutationLoader.cleanup());
     this.registCleaner(() => this.documentRunLoader.cleanup());
     this.registCleaner(() => this.affectedRunLoader.cleanup());
+    this.registCleaner(() => this.interruptLoader.cleanup());
     this.registCleaner(() => this.dataCatalogLoader.cleanup());
     this.registCleaner(() => this.curatorLoader.cleanup());
     this.registCleaner(() => this.curatorMutationLoader.cleanup());
@@ -194,8 +207,16 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     return this.document?.title ?? '';
   }
 
+  public get hasActiveRun(): boolean {
+    return this.busyCellId !== null || this.affectedRunningCellId !== null || this.documentRunning;
+  }
+
   public setPrompt(value: string) {
     this.prompt = value;
+  }
+
+  public clearRunInterrupted() {
+    this.runInterrupted = false;
   }
 
   public newDocument() {
@@ -205,6 +226,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
       this.chatMessages = [];
       this.sending = false;
       this.prompt = '';
+      this.runInterrupted = false;
     });
   }
 
@@ -216,6 +238,9 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
 
   public async openDocument(id: string) {
     this.turnStream.detach();
+    runInAction(() => {
+      this.runInterrupted = false;
+    });
     const document = await this.documentLoader.run(id);
     this.acceptDocument(document);
     void this.reattachTurn();
@@ -250,11 +275,15 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
   }
 
   public async runCell(cellId: string, source?: string) {
+    if (this.hasActiveRun) {
+      return;
+    }
     if (source !== undefined) {
       await this.updateCell(cellId, source);
     }
     runInAction(() => {
       this.busyCellId = cellId;
+      this.runInterrupted = false;
     });
     try {
       const document = await this.documentMutationLoader.run({ kind: 'run', cellId });
@@ -267,11 +296,15 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
   }
 
   public async runAffected(cellId: string, source?: string) {
+    if (this.hasActiveRun) {
+      return;
+    }
     if (source !== undefined) {
       await this.updateCell(cellId, source);
     }
     runInAction(() => {
       this.affectedRunningCellId = cellId;
+      this.runInterrupted = false;
     });
     try {
       const result = await this.affectedRunLoader.run(cellId);
@@ -285,11 +318,12 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
   }
 
   public async runAll(clean = true) {
-    if (!this.documentId || this.documentRunning) {
+    if (!this.documentId || this.hasActiveRun) {
       return;
     }
     runInAction(() => {
       this.documentRunning = true;
+      this.runInterrupted = false;
     });
     try {
       const result = await this.documentRunLoader.run({ documentId: this.documentId, clean });
@@ -298,6 +332,27 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     } finally {
       runInAction(() => {
         this.documentRunning = false;
+      });
+    }
+  }
+
+  public async interruptRun() {
+    if (!this.documentId || !this.hasActiveRun || this.interrupting) {
+      return;
+    }
+    runInAction(() => {
+      this.interrupting = true;
+    });
+    try {
+      const result = await this.interruptLoader.run(this.documentId);
+      this.acceptDocument(result.document, false);
+      runInAction(() => {
+        this.runInterrupted = result.interrupted;
+      });
+      void this.documentsLoader.run();
+    } finally {
+      runInAction(() => {
+        this.interrupting = false;
       });
     }
   }

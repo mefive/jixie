@@ -184,6 +184,7 @@ import type {
   ResearchConversationMeta,
   ResearchCellKindV1,
   ResearchDocumentAnalysisV1,
+  ResearchDocumentInterruptResultV1,
   ResearchDocumentRunResultV1,
   ResearchDocumentSummaryV1,
   ResearchDocumentTemplateV1,
@@ -342,6 +343,14 @@ export function runResearchDocument(
   return request(`/api/app/research/documents/${encodeURIComponent(documentId)}/run`, {
     method: 'POST',
     body: JSON.stringify({ clean }),
+  });
+}
+
+export function interruptResearchDocument(
+  documentId: string,
+): Promise<ResearchDocumentInterruptResultV1> {
+  return request(`/api/app/research/documents/${encodeURIComponent(documentId)}/interrupt`, {
+    method: 'POST',
   });
 }
 

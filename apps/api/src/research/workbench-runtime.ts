@@ -28,6 +28,8 @@ interface ResearchRuntimeEntry {
   environment: Record<string, unknown>;
   queue: Promise<void>;
   touchedAt: number;
+  activeCellId?: string;
+  interrupted: boolean;
 }
 
 class ResearchRuntimeManager {
@@ -65,53 +67,79 @@ class ResearchRuntimeManager {
     cell: { id: string; source: string },
   ): Promise<ResearchPythonExecution> {
     return this.withEntry(documentId, async (entry) => {
-      await entry.session.send({
-        type: 'research_execute',
-        cell_id: cell.id,
-        source: cell.source,
-      });
-      const logOutputs: ResearchCellOutputBlockV1[] = [];
+      entry.activeCellId = cell.id;
+      try {
+        await entry.session.send({
+          type: 'research_execute',
+          cell_id: cell.id,
+          source: cell.source,
+        });
+        const logOutputs: ResearchCellOutputBlockV1[] = [];
 
-      while (true) {
-        const frame = await entry.session.read();
-        if (frame.type === 'log') {
-          logOutputs.push({
-            type: 'text',
-            text: String(frame.text ?? ''),
-            level:
-              frame.level === 'error' ? 'error' : frame.level === 'warning' ? 'warning' : 'info',
-          });
-          continue;
+        while (true) {
+          const frame = await entry.session.read();
+          if (frame.type === 'log') {
+            logOutputs.push({
+              type: 'text',
+              text: String(frame.text ?? ''),
+              level:
+                frame.level === 'error' ? 'error' : frame.level === 'warning' ? 'warning' : 'info',
+            });
+            continue;
+          }
+          if (frame.type === 'request') {
+            await answerResearchRequest(entry.session, frame);
+            continue;
+          }
+          if (frame.type === 'research_executed') {
+            return {
+              outputs: [
+                ...logOutputs,
+                ...((Array.isArray(frame.outputs)
+                  ? frame.outputs
+                  : []) as ResearchCellOutputBlockV1[]),
+              ],
+              definitions: stringArray(frame.definitions),
+              references: stringArray(frame.references),
+              environmentFingerprint: researchPayloadHash(entry.environment),
+            };
+          }
+          if (frame.type === 'research_error') {
+            throw new ResearchPythonExecutionError(
+              String(frame.message ?? 'Python research cell failed'),
+              logOutputs,
+              stringArray(frame.definitions),
+              stringArray(frame.references),
+              researchPayloadHash(entry.environment),
+            );
+          }
+          throw runtimeFrameError(frame, 'executing a research cell');
         }
-        if (frame.type === 'request') {
-          await answerResearchRequest(entry.session, frame);
-          continue;
+      } catch (error) {
+        if (entry.interrupted) {
+          throw new ResearchPythonInterruptionError(researchPayloadHash(entry.environment));
         }
-        if (frame.type === 'research_executed') {
-          return {
-            outputs: [
-              ...logOutputs,
-              ...((Array.isArray(frame.outputs)
-                ? frame.outputs
-                : []) as ResearchCellOutputBlockV1[]),
-            ],
-            definitions: stringArray(frame.definitions),
-            references: stringArray(frame.references),
-            environmentFingerprint: researchPayloadHash(entry.environment),
-          };
-        }
-        if (frame.type === 'research_error') {
-          throw new ResearchPythonExecutionError(
-            String(frame.message ?? 'Python research cell failed'),
-            logOutputs,
-            stringArray(frame.definitions),
-            stringArray(frame.references),
-            researchPayloadHash(entry.environment),
-          );
-        }
-        throw runtimeFrameError(frame, 'executing a research cell');
+        throw error;
+      } finally {
+        entry.activeCellId = undefined;
       }
     });
+  }
+
+  interrupt(documentId: string): string | null {
+    const entry = this.entries.get(documentId);
+    if (!entry?.activeCellId) {
+      return null;
+    }
+    const cellId = entry.activeCellId;
+    entry.interrupted = true;
+    this.entries.delete(documentId);
+    entry.session.close();
+    return cellId;
+  }
+
+  activeCellId(documentId: string): string | null {
+    return this.entries.get(documentId)?.activeCellId ?? null;
   }
 
   async reset(documentId: string): Promise<void> {
@@ -152,7 +180,10 @@ class ResearchRuntimeManager {
     try {
       return await result;
     } catch (error) {
-      if (!(error instanceof ResearchPythonExecutionError)) {
+      if (
+        !(error instanceof ResearchPythonExecutionError) &&
+        !(error instanceof ResearchPythonInterruptionError)
+      ) {
         this.close(documentId);
       }
       throw error;
@@ -182,6 +213,7 @@ class ResearchRuntimeManager {
         environment,
         queue: Promise.resolve(),
         touchedAt: Date.now(),
+        interrupted: false,
       };
       this.entries.set(documentId, entry);
       return entry;
@@ -202,6 +234,13 @@ export class ResearchPythonExecutionError extends Error {
   ) {
     super(message);
     this.name = 'ResearchPythonExecutionError';
+  }
+}
+
+export class ResearchPythonInterruptionError extends Error {
+  public constructor(public readonly environmentFingerprint: string) {
+    super('Research cell execution was interrupted');
+    this.name = 'ResearchPythonInterruptionError';
   }
 }
 

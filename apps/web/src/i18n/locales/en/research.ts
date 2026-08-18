@@ -45,6 +45,8 @@ export const enResearch: typeof zhResearch = {
     reset: 'Reset runtime',
     resetHint: 'Clear Python memory; existing outputs become stale',
     cleanRun: 'Clean run all',
+    interruptRun: 'Stop current run',
+    runInterrupted: 'Run stopped; unfinished cells will not continue.',
     hideAgent: 'Hide Agent',
     showAgent: 'Show Agent',
     addCell: 'Add cell',

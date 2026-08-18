@@ -242,8 +242,10 @@ Python 和 Validation Cell；独立 Python runtime 提供文档级共享状态�
 pandas 表格、Matplotlib 静态图与 `charts.*` 结构化 ECharts 输出。修改上游后会沿传递依赖将下游标记为
 `stale` 并保留带警告的旧输出；用户也可以从任意 Python Cell 触发受影响分支，系统排除无关 Cell、按 DAG
 拓扑序运行，并在分支失败时只阻断其后代。干净运行会重建 runtime、按文档顺序执行，并让 Validation Cell
-复用现有协议固化正式 `ResearchRun`。真实“沪深300 vs 中证500月收益关系”样例已通过浏览器端创建、运行、
-刷新重开、图表交互、依赖失效和正式验证闭环。
+复用现有协议固化正式 `ResearchRun`。运行中的 Python Cell 支持服务端真实中断：终止当前文档 session、
+停止调度后续 Cell、把本次执行快照记为 `cancelled`，并保留带 `stale` 警告的上次成功输出；下一次执行使用
+全新 session。真实“沪深300 vs 中证500月收益关系”样例已通过浏览器端创建、运行、刷新重开、图表交互、
+依赖失效和正式验证闭环，无限循环中断与恢复也已通过 runtime 和浏览器 E2E。
 
 本项保持进行中：Agent 目前能读取同一文档上下文并协助解释，但尚不能用受审计 diff 增删改/执行 Cell；
 Factor / Strategy 草稿的带血缘交接、完整 `ResearchExecution` 比较及更完整图表/表格能力仍按 M2–M4 推进。

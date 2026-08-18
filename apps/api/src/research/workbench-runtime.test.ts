@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { RESEARCH_SERIES_SDK_CONTRACT_V1 } from '@jixie/shared';
-import { researchRuntimeManager } from './workbench-runtime.js';
+import { ResearchPythonInterruptionError, researchRuntimeManager } from './workbench-runtime.js';
 
 const DOCUMENT_ID = 'research-runtime-test';
 let previousLocal: string | undefined;
@@ -63,4 +63,31 @@ describe('research workbench Python runtime', () => {
       },
     ]);
   });
+
+  it('interrupts active code and starts the next execution in a fresh session', async () => {
+    const execution = researchRuntimeManager.execute(DOCUMENT_ID, {
+      id: 'infinite',
+      source: 'while True:\n    pass',
+    });
+    await waitForActiveExecution();
+
+    expect(researchRuntimeManager.interrupt(DOCUMENT_ID)).toBe('infinite');
+    await expect(execution).rejects.toBeInstanceOf(ResearchPythonInterruptionError);
+
+    const recovered = await researchRuntimeManager.execute(DOCUMENT_ID, {
+      id: 'recovered',
+      source: '21 * 2',
+    });
+    expect(recovered.outputs).toEqual([{ type: 'value', value: 42 }]);
+  });
 });
+
+async function waitForActiveExecution(): Promise<void> {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    if (researchRuntimeManager.activeCellId(DOCUMENT_ID) === 'infinite') {
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error('Research execution did not start');
+}
