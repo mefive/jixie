@@ -117,12 +117,15 @@ Sharpe 与 Calmar 是结果指标，不是允许反复拟合历史的优化目�
 
 ---
 
-## 当前主线一：自然语言量化研究工作台
+## 当前主线一：响应式量化研究工作台
 
-本主线是当前产品核心：让不了解 Python、TypeScript 或统计学的用户，也能从自然语言问题得到口径明确、
-方法适当、可以复核的统计结果和结论。Agent 负责理解、规划和解释，平台负责数据、计算、约束和复现。
+本主线是当前产品核心：服务愿意学习或已经掌握基础 Python、pandas 和统计学的个人量化研究者。Research
+页面将从“聊天 + 固定协议”演进为 jixie 原生的响应式量化研究文档；Agent 负责协助取数、编码、排错、
+方法选择和解释，用户保留自由研究能力，平台负责数据语义、沙箱、验证、约束和复现。
 
-详细设计与开发里程碑见 [自然语言量化研究工作台](docs/design/natural-language-quant-research.md)。
+当前产品表面与开发里程碑见
+[响应式量化研究工作台](docs/design/reactive-quant-research-workbench.md)。已完成协议、记录与 Curator 的历史
+设计见 [自然语言量化研究工作台](docs/design/natural-language-quant-research.md)。
 
 ### 1.1 通用研究协议与首批垂直切片 ✅
 
@@ -153,6 +156,10 @@ Research 已取代原 Screen 一级页面。筛选直接重建为 PIT-aware 的 
 三类协议已按“核心估计、推断方法、稳健性与效应量”完整登记当前实际计算的主要公式，并在结果中展示双语
 变量解释；公式、Python 示例、概念文档、互动图表和确定性重跑均来自同一版本化协议。1.1 至此封板，后续新增
 问题类型进入 1.4 的协议与语义目录维护，不再回填到首批垂直切片。
+
+**2026-08-17 边界更新：**上述四种协议继续作为版本化 Validation Cell 和正式 `ResearchRun` 存在，
+不再定义 Research 的全部能力。协议是“输入/参数/执行器/诊断/结果/结论/渲染”的端到端验证契约，既不只是
+一段固化代码，也不只是 UI 报告。
 
 ### 1.2 可复现研究记录与 data revision ✅
 
@@ -213,6 +220,41 @@ bootstrap 和每周维护。宏观 loader 以审计后的可用日对齐历史�
 来源又要求外部许可，因此以版本化、带证据和下一步动作的 `blocked_by_source_rights` 状态呈现，不用 USD/CNH、
 广义美元指数或其他波动率代理偷换概念。这代表当前黄金 Playbook 的短期数据切片收工，不改变 1.4 长期维护
 属性。
+
+### 1.5 响应式量化研究文档 🚧
+
+在现有 Research 页面内建设 Markdown / Python / Validation Cell，以 Python AST 的变量定义与引用形成依赖
+DAG。上游变化时将下游标记 `stale`；默认 lazy，不自动触发昂贵数据请求、模型或回测；只有干净 runtime
+完整执行成功后才能固化可复现 `ResearchExecution`。
+
+首版复用 `jixie-sandboxd`、固定 Python 镜像、Research 语义目录、现有 ECharts 与 `ResearchRun`。Python
+自由绘图以 Matplotlib PNG/SVG artifact 保存；平台 `charts.*` 返回受 schema 约束的 ChartSpec，由 ECharts
+提供 tooltip、缩放、图例和区间交互；Validation Cell 的正式图表只使用结构化结果，不依赖截图。
+
+实施前先完成独立 research runner 与限时 marimo 嵌入 PoC，根据数据桥、Agent、持久化、WebSocket 和沙箱
+证据决定是否直接采用 marimo；不引入 Jupyter，不同时维护两套 Research/Notebook 产品。
+
+**完成定义**：基础 Python 用户可以在 jixie 内完成平台取数、任意中等规模分析、静态与交互图表、Agent
+协作、stale 依赖提示、现有协议验证和干净环境固化，并能把合格候选带血缘送往 Factor 或 Strategy。
+
+首个可运行垂直切片已于 2026-08-17 落地：Research 页面已经以持久化研究文档为中心，支持 Markdown、
+Python 和 Validation Cell；独立 Python runtime 提供文档级共享状态、AST 定义/引用分析、平台只读时序取数、
+pandas 表格、Matplotlib 静态图与 `charts.*` 结构化 ECharts 输出。修改上游后会沿传递依赖将下游标记为
+`stale` 并保留带警告的旧输出；干净运行会重建 runtime、按文档顺序执行，并让 Validation Cell 复用现有
+协议固化正式 `ResearchRun`。真实“沪深300 vs 中证500月收益关系”样例已通过浏览器端创建、运行、刷新重开、
+图表交互、依赖失效和正式验证闭环。
+
+本项保持进行中：Agent 目前能读取同一文档上下文并协助解释，但尚不能用受审计 diff 增删改/执行 Cell；
+Factor / Strategy 草稿的带血缘交接、完整 `ResearchExecution` 比较、受影响 Cell 批量运行及更完整图表/表格
+能力仍按 M2–M4 推进。它们不阻塞当前个人研究 MVP，但仍属于 1.5 的完整完成定义。
+
+### 1.6 研究方法模板与验证协议扩展 💤
+
+先完成 1.5 框架，不以一次覆盖统计学目录为阻塞条件。以下进入 backlog，由真实研究问题、方法审计和数据
+准备逐项触发：横截面 IC/分层/衰减/换手/容量、Fama–MacBeth/Panel、平稳性/协整、Walk-forward、Bootstrap、
+参数稳定性、多重检验/FDR、组合与风险归因、情景压力测试、回测成交/成本/容量/实际偏差诊断。
+
+已有 FactorReport、组合风险或回测实现必须复用共同计算内核；不能在 Research 复制一套口径不同的统计代码。
 
 ---
 

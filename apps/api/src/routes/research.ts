@@ -26,11 +26,94 @@ import {
 import { researchPlanSpecV1Schema } from '../research/spec.js';
 import { universeSpecV1Schema } from '../research/spec.js';
 import { executeUniverseSpec } from '../research/universe.js';
+import {
+  addResearchCell,
+  analyzeResearchDocument,
+  closeResearchDocumentRuntime,
+  createResearchDocument,
+  deleteResearchCell,
+  getResearchDocument,
+  listResearchDocuments,
+  resetResearchDocumentRuntime,
+  runResearchCell,
+  runResearchDocument,
+  updateResearchCell,
+} from '../research/workbench.js';
 
 /** Natural-language research workbench actions. Persistence and Agent turns join this route in M1. */
 export const researchRoute = new Hono();
 
 researchRoute.get('/catalog', (c) => c.json(researchCapabilityCatalog));
+
+const createDocumentBody = z.strictObject({
+  template: z.enum(['blank', 'index_relationship']).default('blank'),
+});
+const createCellBody = z.strictObject({
+  kind: z.enum(['markdown', 'python', 'validation']),
+  source: z.string().max(100_000).default(''),
+});
+const updateCellBody = z
+  .strictObject({
+    source: z.string().max(100_000).optional(),
+    config: z.record(z.string(), z.unknown()).optional(),
+  })
+  .refine((value) => value.source !== undefined || value.config !== undefined);
+const runDocumentBody = z.strictObject({ clean: z.boolean().default(true) });
+
+researchRoute.get('/documents', async (c) => c.json(await listResearchDocuments(c.var.userId)));
+
+researchRoute.post('/documents', validateJson(createDocumentBody), async (c) =>
+  c.json(await createResearchDocument(c.var.userId, c.req.valid('json').template)),
+);
+
+researchRoute.get('/documents/:documentId', async (c) => {
+  const document = await getResearchDocument(c.var.userId, c.req.param('documentId'));
+  return document ? c.json(document) : apiError(c, 'NOT_FOUND', m(c, 'conversationNotFound'));
+});
+
+researchRoute.post('/documents/:documentId/cells', validateJson(createCellBody), async (c) => {
+  const { kind, source } = c.req.valid('json');
+  const document = await addResearchCell(c.var.userId, c.req.param('documentId'), kind, source);
+  return document ? c.json(document) : apiError(c, 'NOT_FOUND', m(c, 'conversationNotFound'));
+});
+
+researchRoute.patch('/cells/:cellId', validateJson(updateCellBody), async (c) => {
+  const document = await updateResearchCell(
+    c.var.userId,
+    c.req.param('cellId'),
+    c.req.valid('json'),
+  );
+  return document ? c.json(document) : apiError(c, 'NOT_FOUND', m(c, 'conversationNotFound'));
+});
+
+researchRoute.delete('/cells/:cellId', async (c) => {
+  const document = await deleteResearchCell(c.var.userId, c.req.param('cellId'));
+  return document ? c.json(document) : apiError(c, 'NOT_FOUND', m(c, 'conversationNotFound'));
+});
+
+researchRoute.post('/cells/:cellId/run', async (c) => {
+  const document = await runResearchCell(c.var.userId, c.req.param('cellId'));
+  return document ? c.json(document) : apiError(c, 'NOT_FOUND', m(c, 'conversationNotFound'));
+});
+
+researchRoute.post('/documents/:documentId/analyze', async (c) => {
+  const result = await analyzeResearchDocument(c.var.userId, c.req.param('documentId'));
+  return result ? c.json(result) : apiError(c, 'NOT_FOUND', m(c, 'conversationNotFound'));
+});
+
+researchRoute.post('/documents/:documentId/run', validateJson(runDocumentBody), async (c) => {
+  const result = await runResearchDocument(
+    c.var.userId,
+    c.req.param('documentId'),
+    c.req.valid('json').clean,
+  );
+  return result ? c.json(result) : apiError(c, 'NOT_FOUND', m(c, 'conversationNotFound'));
+});
+
+researchRoute.post('/documents/:documentId/reset', async (c) => {
+  const document = await resetResearchDocumentRuntime(c.var.userId, c.req.param('documentId'));
+  return document ? c.json(document) : apiError(c, 'NOT_FOUND', m(c, 'conversationNotFound'));
+});
 
 researchRoute.post('/curator/runs', async (c) => {
   const userId = c.var.userId;
@@ -161,11 +244,30 @@ researchRoute.post('/agent', validateJson(agentBody), async (c) => {
   if (turnBus.findRunning(entityKey(entity), userId)) {
     return apiError(c, 'VALIDATION_FAILED', m(c, 'conversationTurnInProgress'));
   }
+  const document = await prisma.researchDocument.findUnique({
+    where: { conversationId },
+    select: {
+      cells: {
+        orderBy: { position: 'asc' },
+        select: { kind: true, source: true, status: true },
+      },
+    },
+  });
+  const documentContext = document
+    ? JSON.stringify({
+        runtime: 'research-py-v1',
+        cells: document.cells.map((cell) => ({
+          kind: cell.kind,
+          status: cell.status,
+          source: cell.source.slice(0, 12_000),
+        })),
+      }).slice(0, 40_000)
+    : undefined;
   const turnId = ulid();
   enqueueAgentTurn({
     turnId,
     userId,
-    profile: researchProfile(),
+    profile: researchProfile(documentContext),
     entity,
     message,
     currentCode: '',
@@ -192,9 +294,13 @@ researchRoute.patch('/conversations/:id', validateJson(renameBody), async (c) =>
 });
 
 researchRoute.delete('/conversations/:id', async (c) => {
+  const conversationId = c.req.param('id');
   const deleted = await prisma.agentConversation.deleteMany({
-    where: { id: c.req.param('id'), userId: c.var.userId, surface: 'research' },
+    where: { id: conversationId, userId: c.var.userId, surface: 'research' },
   });
+  if (deleted.count === 1) {
+    closeResearchDocumentRuntime(conversationId);
+  }
   return deleted.count === 1
     ? c.json({ ok: true as const })
     : apiError(c, 'NOT_FOUND', m(c, 'conversationNotFound'));

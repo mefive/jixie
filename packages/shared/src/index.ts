@@ -18,4 +18,5 @@ export * from './market-state.js';
 export * from './signals.js';
 export * from './risk-research.js';
 export * from './research.js';
+export * from './research-sdk-contract.js';
 export * from './library.js';

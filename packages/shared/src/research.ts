@@ -1,4 +1,5 @@
 import type { TradeDate } from './types.js';
+import type { ChartKind, ChartSeriesSpec } from './chart.js';
 
 export type ResearchAssetTypeV1 = 'stock' | 'etf' | 'index' | 'future';
 export type ResearchFrequencyV1 = 'daily' | 'monthly';
@@ -820,7 +821,7 @@ export interface ResearchRunRecordRefV1 {
 export interface ResearchRunRecordV1 {
   ref: ResearchRunRecordRefV1;
   title: string;
-  origin: 'agent' | 'parameter_rerun';
+  origin: 'agent' | 'workbench' | 'parameter_rerun';
   parentRunId?: string;
   planHash: string;
   resultHash: string;
@@ -1004,4 +1005,98 @@ export interface ResearchConversationMeta {
 export interface ResearchConversationMessages {
   messages: import('./chat.js').ChatMessage[];
   nextBefore?: number;
+}
+
+// —— Reactive research workbench ——
+
+export type ResearchCellKindV1 = 'markdown' | 'python' | 'validation';
+export type ResearchCellStatusV1 = 'idle' | 'running' | 'success' | 'error' | 'stale';
+export type ResearchCellScalarV1 = string | number | boolean | null;
+
+export interface ResearchTableOutputV1 {
+  type: 'table';
+  columns: string[];
+  rows: Record<string, ResearchCellScalarV1>[];
+  rowCount: number;
+  truncated: boolean;
+}
+
+/** Inline chart data is an execution artifact, unlike conversation ChartSpec queries which rerun. */
+export interface ResearchChartOutputV1 {
+  type: 'chart';
+  version: 1;
+  title?: string;
+  kind: ChartKind;
+  x: string;
+  series: ChartSeriesSpec[];
+  rows: Record<string, ResearchCellScalarV1>[];
+}
+
+export type ResearchCellOutputBlockV1 =
+  | { type: 'text'; text: string; level?: 'info' | 'warning' | 'error' }
+  | { type: 'value'; value: ResearchCellScalarV1 | ResearchCellScalarV1[] }
+  | ResearchTableOutputV1
+  | ResearchChartOutputV1
+  | { type: 'image'; mimeType: 'image/png' | 'image/svg+xml'; dataUrl: string; alt?: string }
+  | {
+      type: 'validation';
+      title: string;
+      run: ResearchRunResultV1;
+      record: ResearchRunRecordRefV1;
+    };
+
+export interface ResearchCellV1 {
+  version: 1;
+  id: string;
+  documentId: string;
+  position: number;
+  kind: ResearchCellKindV1;
+  source: string;
+  config?: Record<string, unknown>;
+  status: ResearchCellStatusV1;
+  revision: number;
+  definitions: string[];
+  references: string[];
+  outputs: ResearchCellOutputBlockV1[];
+  lastExecutedRevision?: number;
+  lastExecutedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ResearchDocumentSummaryV1 extends ResearchConversationMeta {
+  cellCount: number;
+  staleCount: number;
+}
+
+export interface ResearchDocumentV1 {
+  version: 1;
+  id: string;
+  conversationId: string;
+  title: string;
+  runtimeVersion: 'research-py-v1';
+  cells: ResearchCellV1[];
+  messages: import('./chat.js').ChatMessage[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ResearchDependencyConflictV1 {
+  name: string;
+  cellIds: string[];
+}
+
+export interface ResearchDocumentAnalysisV1 {
+  version: 1;
+  cells: Array<{ cellId: string; definitions: string[]; references: string[] }>;
+  conflicts: ResearchDependencyConflictV1[];
+}
+
+export type ResearchDocumentTemplateV1 = 'blank' | 'index_relationship';
+
+export interface ResearchDocumentRunResultV1 {
+  version: 1;
+  document: ResearchDocumentV1;
+  executedCellIds: string[];
+  clean: boolean;
 }

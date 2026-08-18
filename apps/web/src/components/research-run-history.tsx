@@ -154,7 +154,7 @@ export function ResearchRunComparisonNotice({
       className="jx-researchRunComparison"
       type={comparison.attribution === 'unchanged' ? 'success' : 'info'}
       showIcon
-      message={t(`result.runComparison.attribution.${comparison.attribution}`)}
+      title={t(`result.runComparison.attribution.${comparison.attribution}`)}
       description={details.join(' · ')}
     />
   );
@@ -183,7 +183,7 @@ export function ResearchFailedAttemptNotice({ attempts }: { attempts: ResearchAt
       className="jx-researchAttemptNotice"
       type="warning"
       showIcon
-      message={t('result.failedAttempts.message', { count: attempts.length })}
+      title={t('result.failedAttempts.message', { count: attempts.length })}
       description={details.join(' · ')}
     />
   );

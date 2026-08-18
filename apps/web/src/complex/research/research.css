@@ -1,37 +1,45 @@
 @reference '../../styles/index.css';
 
 .jx-research {
-  @apply relative flex overflow-hidden bg-card;
+  @apply relative flex overflow-hidden bg-bg;
   height: 100%;
 }
 
 .jx-research-sidebar {
   @apply flex flex-col border-r border-line bg-bg;
-  width: 280px;
+  width: 240px;
   flex: none;
 }
 
 .jx-research-sidebarHead {
-  @apply flex flex-col gap-3;
-  padding: 18px 14px 12px;
+  @apply flex flex-col;
+  padding: 17px 14px 13px;
+}
+
+.jx-research-sidebarTitleRow {
+  @apply flex items-center justify-between gap-2;
+}
+
+.jx-research-sidebarActions {
+  @apply flex items-center gap-1;
 }
 
 .jx-research-sidebarTitle {
-  @apply flex items-center gap-2 font-semibold text-ink;
-  margin: 0 4px;
-  font-size: 18px;
+  @apply m-0 flex items-center gap-2 font-semibold text-ink;
+  font-size: 16px;
 }
 
 .jx-research-sidebarScroll {
   @apply flex-1 overflow-auto;
-  padding: 12px 8px 16px;
+  padding: 10px 9px 18px;
 }
 
 .jx-research-sidebarLabel {
   @apply font-medium text-muted;
   margin: 0;
-  padding: 0 8px 6px;
-  font-size: 12px;
+  padding: 0 6px 8px;
+  font-size: 11px;
+  letter-spacing: 0.02em;
 }
 
 .jx-research-sidebarEmpty {
@@ -47,13 +55,21 @@
 }
 
 .jx-research-historyItem {
-  @apply flex cursor-pointer items-center gap-2 rounded-lg text-ink hover:bg-chip;
-  min-height: 48px;
-  padding: 7px 8px;
+  @apply flex cursor-pointer items-center gap-2 border border-transparent text-ink hover:border-line hover:bg-card;
+  min-height: 52px;
+  padding: 8px 9px;
+  border-radius: 6px;
 }
 
 .jx-research-historyItem--active {
-  @apply bg-chip;
+  border-color: #b7c2d0;
+  background: #f1f5f9;
+  box-shadow: none;
+}
+
+.jx-research-historyItem--active:hover {
+  border-color: #aab7c7;
+  background: #eef3f8;
 }
 
 .jx-research-historyText {
@@ -68,17 +84,17 @@
 
 .jx-research-historyTitle {
   font-size: 13px;
+  line-height: 1.35;
 }
 
 .jx-research-historyPreview {
-  @apply text-muted;
+  @apply mt-1 text-muted;
   font-size: 11px;
 }
 
 .jx-research-historyDelete {
-  @apply pointer-events-none cursor-pointer border-0 bg-transparent text-muted opacity-0 hover:text-ink;
-  padding: 4px;
-  font-size: 11px;
+  @apply pointer-events-none opacity-0;
+  flex: none;
 }
 
 .jx-research-historyItem:hover .jx-research-historyDelete,
@@ -86,161 +102,458 @@
   @apply pointer-events-auto opacity-100;
 }
 
+.jx-research-main {
+  @apply flex min-w-0 flex-1 overflow-hidden bg-card;
+}
+
+.jx-research-sidebarBackdrop,
+.jx-research-mobileHistory {
+  @apply hidden;
+}
+
+.jx-research-landing {
+  @apply flex w-full flex-col items-center justify-center overflow-auto;
+  padding: 48px 28px;
+}
+
+.jx-research-landingIntro {
+  @apply flex max-w-3xl flex-col items-center text-center;
+}
+
+.jx-research-heroIcon {
+  @apply mb-3 flex items-center justify-center rounded-2xl bg-chip text-ink;
+  width: 54px;
+  height: 54px;
+  font-size: 22px;
+}
+
+.jx-research-landingTag {
+  @apply mb-3;
+  margin-inline-end: 0;
+}
+
+.jx-research-landingIntro h2 {
+  @apply m-0 font-semibold text-ink;
+  font-size: 30px;
+  letter-spacing: -0.025em;
+}
+
+.jx-research-landingIntro p {
+  @apply mt-3 text-muted;
+  max-width: 680px;
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+.jx-research-templateGrid {
+  @apply mt-8 grid w-full max-w-3xl gap-4;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+}
+
+.jx-research-templateCard {
+  @apply flex cursor-pointer flex-col items-start border border-line bg-card text-left text-ink hover:border-ink;
+  min-height: 190px;
+  padding: 22px;
+  border-radius: 8px;
+  transition: border-color 160ms ease;
+}
+
+.jx-research-templateIcon {
+  @apply mb-5 flex items-center justify-center rounded-lg bg-chip;
+  width: 38px;
+  height: 38px;
+}
+
+.jx-research-templateCard strong {
+  font-size: 16px;
+}
+
+.jx-research-templateCard > span:not(.jx-research-templateIcon) {
+  @apply mt-2 text-muted;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.jx-research-templateCard small {
+  @apply mt-auto pt-4 text-muted;
+  font-size: 11px;
+}
+
 .jx-research-workspace {
-  @apply flex min-w-0 flex-1 flex-col overflow-hidden bg-card;
-  padding: 16px 20px 12px;
+  @apply flex min-w-0 flex-1 flex-col overflow-hidden bg-bg;
 }
 
 .jx-research-header {
-  @apply flex items-center gap-2;
-  min-height: 32px;
+  @apply flex items-center gap-3 border-b border-line bg-card;
+  min-height: 66px;
+  padding: 9px 16px;
 }
 
-.jx-research-mobileHistory,
-.jx-research-sidebarBackdrop {
-  @apply hidden;
+.jx-research-titleBlock {
+  @apply flex min-w-0 flex-1 flex-col;
 }
 
 .jx-research-chatTitle {
   @apply flex items-center gap-1 truncate font-medium text-ink;
-  font-size: 15px;
+  font-size: 16px;
 }
 
 .jx-research-titleEdit {
-  @apply cursor-pointer border-0 bg-transparent text-muted hover:text-ink;
-  padding: 2px 4px;
-  font-size: 12px;
+  @apply text-muted hover:text-ink;
+  font-size: 11px;
 }
 
 .jx-research-titleInput {
   width: min(480px, 100%);
 }
 
-.jx-research-hero {
-  @apply flex flex-1 flex-col items-center justify-center gap-4 text-center;
-  padding: 24px;
+.jx-research-runtimeMeta {
+  @apply mt-1 truncate text-muted;
+  font-size: 11px;
 }
 
-.jx-research-heroIcon {
-  @apply flex items-center justify-center rounded-2xl bg-chip text-primary;
-  width: 52px;
-  height: 52px;
+.jx-research-toolbar {
+  @apply flex items-center gap-1;
+}
+
+.jx-research-sidebarActions .ant-btn,
+.jx-research-toolbar .ant-btn,
+.jx-research-cellActions .ant-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+}
+
+.jx-research-workspaceAlert {
+  margin: 12px 16px 0;
+}
+
+.jx-research-documentScroll {
+  @apply min-h-0 flex-1 overflow-auto;
+  padding: 28px clamp(18px, 2.2vw, 28px) 56px;
+}
+
+.jx-research-document {
+  @apply mx-auto flex w-full flex-col gap-8;
+  max-width: 1040px;
+}
+
+.jx-research-cell {
+  @apply overflow-hidden border border-line bg-card;
+  border-radius: 7px;
+  box-shadow: none;
+}
+
+.jx-research-cell--running {
+  border-color: #94a3b8;
+}
+
+.jx-research-cell--error {
+  border-color: #fecaca;
+}
+
+.jx-research-cell--stale {
+  border-color: #fde68a;
+}
+
+.jx-research-cellHead {
+  @apply flex items-center justify-between gap-3 border-b border-line bg-card;
+  min-height: 42px;
+  padding: 6px 9px 6px 14px;
+}
+
+.jx-research-cellIdentity,
+.jx-research-cellActions {
+  @apply flex items-center;
+}
+
+.jx-research-cellIdentity {
+  gap: 10px;
+}
+
+.jx-research-cellActions {
+  gap: 1px;
+}
+
+.jx-research-cellKind {
+  @apply flex items-center gap-2 font-semibold text-ink;
+  font-size: 12px;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+}
+
+.jx-research-cellKind--markdown {
+  color: #475569;
+}
+
+.jx-research-cellKind--python {
+  color: #1d4ed8;
+}
+
+.jx-research-cellKind--validation {
+  color: #7c3aed;
+}
+
+.jx-research-cellOrdinal {
+  @apply text-muted;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+}
+
+.jx-research-cellStatus {
+  @apply flex items-center gap-1 text-muted;
+  padding: 0;
+  font-size: 11px;
+}
+
+.jx-research-cellStatus--success {
+  color: #15803d;
+}
+
+.jx-research-cellStatus--stale {
+  color: #a16207;
+}
+
+.jx-research-cellStatus--error {
+  color: #b91c1c;
+}
+
+.jx-research-cellStatus--running {
+  color: #1d4ed8;
+}
+
+.jx-research-cellBody {
+  @apply bg-card;
+}
+
+.jx-research-markdownEditor {
+  border: 0;
+  border-radius: 0;
+  padding: 18px 20px;
+  box-shadow: none;
+}
+
+.jx-research-markdownPreview {
+  padding: 22px 28px;
+}
+
+.jx-research-markdownPreview .jx-md > :first-child {
+  margin-top: 0;
+}
+
+.jx-research-markdownPreview .jx-md > :last-child {
+  margin-bottom: 0;
+}
+
+.jx-research-editorPending {
+  height: 160px;
+  background: linear-gradient(100deg, #f8fafc 30%, #f1f5f9 50%, #f8fafc 70%);
+}
+
+.jx-research-staleNotice {
+  @apply flex items-start gap-2 border-t text-sm;
+  padding: 10px 14px;
+  color: #92400e;
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.jx-research-outputs {
+  @apply flex flex-col border-t border-line;
+}
+
+.jx-research-textOutput,
+.jx-research-valueOutput {
+  @apply m-0 overflow-auto whitespace-pre-wrap text-ink;
+  padding: 14px 18px;
+  max-height: 360px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.jx-research-textOutput--error {
+  color: #b91c1c;
+  background: #fef2f2;
+}
+
+.jx-research-textOutput--warning {
+  color: #92400e;
+  background: #fffbeb;
+}
+
+.jx-research-tableOutput {
+  @apply overflow-hidden;
+}
+
+.jx-research-outputMeta {
+  @apply flex items-center gap-2 border-b border-line bg-bg text-muted;
+  padding: 7px 13px;
+  font-size: 11px;
+}
+
+.jx-research-tableOutput .ant-table-wrapper {
+  overflow: auto;
+  max-height: 360px;
+}
+
+.jx-research-chartOutput {
+  padding: 12px;
+}
+
+.jx-research-cellChart,
+.jx-research-chartPending {
+  height: 340px;
+}
+
+.jx-research-chartPending {
+  @apply rounded-lg bg-bg;
+}
+
+.jx-research-imageOutput {
+  @apply m-0 flex justify-center overflow-auto;
+  padding: 16px;
+}
+
+.jx-research-imageOutput img {
+  max-width: 100%;
+}
+
+.jx-research-validationOutput {
+  @apply bg-bg;
+  padding: 12px;
+}
+
+.jx-research-evidenceLabel {
+  @apply mb-2 flex items-center gap-2 font-medium;
+  color: #15803d;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.jx-research-cellDeps {
+  @apply flex flex-wrap gap-x-5 gap-y-1 border-t border-line bg-bg text-muted;
+  padding: 7px 13px;
+  font-size: 10px;
+}
+
+.jx-research-cellDeps code {
+  @apply text-ink;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.jx-research-addCell {
+  @apply self-center;
+}
+
+.jx-research-destructiveAction {
+  @apply text-muted hover:text-red-600;
+}
+
+.jx-research-agentPanel {
+  @apply flex flex-col border-l border-line bg-card;
+  width: 320px;
+  flex: none;
+}
+
+.jx-research-agentHead {
+  @apply flex items-center gap-3 border-b border-line;
+  height: 66px;
+  padding: 9px 14px;
+}
+
+.jx-research-agentAvatar {
+  @apply flex items-center justify-center bg-chip text-ink;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: 7px;
+}
+
+.jx-research-agentHead > div {
+  @apply flex min-w-0 flex-col;
+}
+
+.jx-research-agentHead strong {
+  font-size: 13px;
+}
+
+.jx-research-agentHead span:not(.jx-research-agentAvatar) {
+  @apply truncate text-muted;
+  font-size: 10px;
+}
+
+.jx-research-agentMessages {
+  @apply flex min-h-0 flex-1 flex-col gap-4 overflow-auto;
+  padding: 18px 14px;
+}
+
+.jx-research-agentEmpty {
+  @apply m-auto flex max-w-xs flex-col items-center text-center text-muted;
+}
+
+.jx-research-agentEmpty > svg {
+  @apply mb-3;
   font-size: 22px;
 }
 
-.jx-research-hero h2 {
-  @apply m-0 font-semibold text-ink;
-  font-size: 28px;
+.jx-research-agentEmpty strong {
+  @apply text-ink;
+  font-size: 13px;
 }
 
-.jx-research-hero p {
-  @apply m-0 text-muted;
-  max-width: 620px;
-  font-size: 14px;
+.jx-research-agentEmpty p {
+  @apply mt-2;
+  font-size: 12px;
+  line-height: 1.6;
 }
 
-.jx-research-hero small {
-  @apply text-muted;
-}
-
-.jx-research-examples {
-  @apply flex max-w-3xl flex-wrap items-center justify-center gap-2;
-}
-
-.jx-research-examples > span {
-  @apply text-sm text-muted;
-}
-
-.jx-research-chatLogWrap {
-  @apply relative mt-3 flex min-h-0 flex-1 flex-col;
-}
-
-.jx-research-chatLog {
-  @apply flex flex-1 flex-col overflow-auto;
-}
-
-.jx-research-chatThread {
-  @apply mx-auto flex w-full flex-col;
-  max-width: 920px;
-  gap: 22px;
-  padding: 24px 0 16px;
-}
-
-.jx-research-bubble {
-  font-size: 14px;
-  line-height: 1.7;
+.jx-research-agentMessage {
+  font-size: 12px;
+  line-height: 1.6;
   word-break: break-word;
 }
 
-.jx-research-bubble--user {
-  @apply self-end rounded-2xl bg-primary text-white;
-  max-width: 85%;
-  padding: 8px 14px;
+.jx-research-agentMessage--user {
+  @apply self-end rounded-xl bg-ink text-white;
+  max-width: 88%;
+  padding: 8px 11px;
   white-space: pre-wrap;
-  -webkit-font-smoothing: antialiased;
 }
 
-.jx-research-bubble--assistant {
-  @apply w-full text-ink;
+.jx-research-agentMessage--assistant {
+  @apply text-ink;
 }
 
-.jx-research-composer {
-  @apply mx-auto flex w-full items-end gap-2 rounded-2xl border border-line bg-card;
-  max-width: 920px;
-  margin-bottom: 8px;
-  padding: 8px 8px 8px 14px;
-  box-shadow: 0 6px 24px rgb(17 24 39 / 0.1);
+.jx-research-agentComposer {
+  @apply flex items-end gap-2 border-t border-line;
+  padding: 10px 12px 12px;
 }
 
-.jx-research-composer--hero {
-  width: min(760px, 100%);
-  margin-bottom: 0;
-  text-align: left;
-  box-shadow: 0 4px 18px rgb(17 24 39 / 0.05);
-}
-
-.jx-research-inputWrap {
-  @apply relative flex-1;
-  min-width: 0;
-}
-
-.jx-research-input {
-  @apply w-full bg-card;
-  font-size: 16px;
-}
-
-.jx-research-inputHint {
-  @apply pointer-events-none absolute truncate text-muted;
-  inset: 0;
-  padding: 5px 11px;
-  font-size: 16px;
-  line-height: 1.5714;
-}
-
-.jx-research-scrollDown {
-  @apply absolute flex cursor-pointer items-center justify-center rounded-full border border-line bg-card text-ink hover:bg-chip;
-  bottom: 12px;
-  left: 50%;
-  width: 34px;
-  height: 34px;
-  transform: translateX(-50%);
-  box-shadow: 0 2px 10px rgb(17 24 39 / 0.12);
-}
-
-@media (max-width: 800px) {
-  .jx-research-chatThread {
-    padding-inline: 12px;
+@media (max-width: 1180px) {
+  .jx-research-agentPanel {
+    width: 300px;
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 920px) {
+  .jx-research-agentPanel {
+    @apply absolute inset-y-0 right-0;
+    z-index: 16;
+    width: min(90vw, 380px);
+    box-shadow: -8px 0 24px rgb(15 23 42 / 0.14);
+  }
+}
+
+@media (max-width: 700px) {
   .jx-research-sidebar {
     @apply absolute inset-y-0 left-0;
     z-index: 20;
     width: min(86vw, 320px);
     transform: translateX(-100%);
     transition: transform 160ms ease-out;
-    box-shadow: 8px 0 24px rgb(17 24 39 / 0.14);
+    box-shadow: 8px 0 24px rgb(15 23 42 / 0.14);
   }
 
   .jx-research-sidebar--open {
@@ -250,7 +563,7 @@
   .jx-research-sidebarBackdrop {
     @apply absolute inset-0 block cursor-pointer border-0;
     z-index: 19;
-    background: rgb(17 24 39 / 0.28);
+    background: rgb(15 23 42 / 0.28);
   }
 
   .jx-research-mobileHistory {
@@ -258,20 +571,28 @@
     flex: none;
   }
 
-  .jx-research-workspace {
-    padding: 10px 8px 8px;
+  .jx-research-templateGrid {
+    grid-template-columns: 1fr;
   }
 
-  .jx-research-chatLogWrap {
-    margin-top: 4px;
+  .jx-research-header {
+    min-height: 60px;
+    padding: 8px;
   }
 
-  .jx-research-chatThread {
-    gap: 16px;
-    padding: 12px 0 10px;
+  .jx-research-toolbar > .ant-btn:not(.jx-research-agentToggle) {
+    display: none;
   }
 
-  .jx-research-composer {
-    margin-bottom: 0;
+  .jx-research-documentScroll {
+    padding: 14px 8px 48px;
+  }
+
+  .jx-research-cellHead {
+    @apply items-start;
+  }
+
+  .jx-research-cellActions {
+    @apply flex-wrap justify-end;
   }
 }

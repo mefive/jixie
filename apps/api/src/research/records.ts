@@ -147,6 +147,73 @@ export async function createResearchRerun(
   });
 }
 
+/** Persist a Validation-cell result in the same immutable evidence lineage as Agent research. */
+export async function createWorkbenchResearchRun(
+  args: {
+    userId: string;
+    conversationId: string;
+    title: string;
+    run: ResearchRunResultV1;
+  },
+  database: PrismaClient = prisma,
+): Promise<ResearchPart> {
+  return database.$transaction(async (transaction) => {
+    const studies = await transaction.researchStudy.findMany({
+      where: {
+        userId: args.userId,
+        conversationId: args.conversationId,
+        status: 'active',
+      },
+      select: { id: true, question: true },
+      orderBy: { createdAt: 'asc' },
+    });
+    const questionHash = researchPayloadHash(args.run.plan.question);
+    let study = studies.find(
+      (candidate) => researchPayloadHash(candidate.question) === questionHash,
+    );
+    if (!study) {
+      study = await transaction.researchStudy.create({
+        data: {
+          id: ulid(),
+          userId: args.userId,
+          conversationId: args.conversationId,
+          title: args.title,
+          question: args.run.plan.question as unknown as Prisma.InputJsonValue,
+        },
+        select: { id: true, question: true },
+      });
+    }
+    const parent = await transaction.researchRun.findFirst({
+      where: { studyId: study.id },
+      orderBy: { sequence: 'desc' },
+    });
+    const createdAt = new Date();
+    const stored = await transaction.researchRun.create({
+      data: {
+        id: ulid(),
+        studyId: study.id,
+        parentRunId: parent?.id,
+        sequence: (parent?.sequence ?? 0) + 1,
+        origin: 'workbench',
+        protocolId: args.run.protocol.id,
+        protocolVersion: args.run.protocol.version,
+        plan: args.run.plan as unknown as Prisma.InputJsonValue,
+        result: args.run as unknown as Prisma.InputJsonValue,
+        planHash: researchPayloadHash(args.run.plan),
+        resultHash: researchResultHash(args.run),
+        ...fingerprintColumns(args.run),
+        createdAt,
+      },
+    });
+    await transaction.researchStudy.update({
+      where: { id: study.id },
+      data: { title: args.title, updatedAt: createdAt },
+    });
+
+    return withRecordReference({ type: 'research', title: args.title, run: args.run }, stored);
+  });
+}
+
 export async function createFailedResearchAttempt(
   args: {
     userId: string;
@@ -455,7 +522,12 @@ function researchRunRecord(
       createdAt: run.createdAt.toISOString(),
     },
     title,
-    origin: run.origin === 'parameter_rerun' ? 'parameter_rerun' : 'agent',
+    origin:
+      run.origin === 'parameter_rerun'
+        ? 'parameter_rerun'
+        : run.origin === 'workbench'
+          ? 'workbench'
+          : 'agent',
     ...(run.parentRunId ? { parentRunId: run.parentRunId } : {}),
     planHash: run.planHash,
     resultHash: run.resultHash,
