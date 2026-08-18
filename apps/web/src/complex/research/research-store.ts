@@ -4,6 +4,8 @@ import {
   textMessage,
   type ChatMessage,
   type ResearchCellKindV1,
+  type ResearchAssetTypeV1,
+  type ResearchDataCatalogResultV1,
   type ResearchCuratorDispositionV1,
   type ResearchCuratorFindingV1,
   type ResearchCuratorRunV1,
@@ -28,6 +30,7 @@ import {
   runResearchCell,
   runResearchDocument,
   sendResearchAgent,
+  searchResearchDataCatalog,
   startResearchCurator,
   updateResearchCell,
   updateResearchCuratorFinding,
@@ -36,6 +39,11 @@ import { AgentTurnStream, type AgentTurnHandlers } from '@src/components/agent-t
 import i18n from '@src/i18n';
 
 type ResearchSetupParams = {};
+
+interface ResearchDataCatalogQuery {
+  query: string;
+  assetType?: ResearchAssetTypeV1;
+}
 
 type ResearchDocumentMutation =
   | { kind: 'create'; template: ResearchDocumentTemplateV1 }
@@ -73,6 +81,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
   public documentLoader = new LoaderModel<ResearchDocumentV1>();
   public documentMutationLoader = new LoaderModel<ResearchDocumentV1>();
   public documentRunLoader = new LoaderModel<ResearchDocumentRunResultV1>();
+  public dataCatalogLoader = new LoaderModel<ResearchDataCatalogResultV1>();
   public curatorLoader = new LoaderModel<ResearchCuratorRunV1 | null>();
   public curatorMutationLoader = new LoaderModel<ResearchCuratorRunV1 | ResearchCuratorFindingV1>();
   public curatorPoller = new PollingModel();
@@ -122,6 +131,10 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
       request: ({ documentId, clean }: { documentId: string; clean: boolean }) =>
         runResearchDocument(documentId, clean),
     });
+    this.dataCatalogLoader.setup({
+      request: ({ query, assetType }: ResearchDataCatalogQuery, signal) =>
+        searchResearchDataCatalog(query, assetType, signal),
+    });
     this.curatorLoader.setup({
       request: (runId?: string) =>
         runId ? getResearchCuratorRun(runId) : getLatestResearchCuratorRun(),
@@ -151,6 +164,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     this.registCleaner(() => this.documentLoader.cleanup());
     this.registCleaner(() => this.documentMutationLoader.cleanup());
     this.registCleaner(() => this.documentRunLoader.cleanup());
+    this.registCleaner(() => this.dataCatalogLoader.cleanup());
     this.registCleaner(() => this.curatorLoader.cleanup());
     this.registCleaner(() => this.curatorMutationLoader.cleanup());
     this.registCleaner(() => this.curatorPoller.cleanup());
@@ -270,6 +284,10 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
       documentId: this.documentId,
     });
     this.acceptDocument(document, false);
+  }
+
+  public searchDataCatalog(query: string, assetType?: ResearchAssetTypeV1) {
+    return this.dataCatalogLoader.run({ query, assetType });
   }
 
   public async send(message: string) {

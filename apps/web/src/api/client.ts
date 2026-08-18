@@ -188,6 +188,8 @@ import type {
   ResearchDocumentSummaryV1,
   ResearchDocumentTemplateV1,
   ResearchDocumentV1,
+  ResearchDataCatalogResultV1,
+  ResearchAssetTypeV1,
   ResearchLanguageRequestV1,
   ResearchLanguageResultV1,
   ResearchAttemptRecordV1,
@@ -352,6 +354,18 @@ export function requestResearchLanguage(
     body: JSON.stringify(input),
     signal,
   });
+}
+
+export function searchResearchDataCatalog(
+  query: string,
+  assetType?: ResearchAssetTypeV1,
+  signal?: AbortSignal,
+): Promise<ResearchDataCatalogResultV1> {
+  const parameters = new URLSearchParams({ q: query });
+  if (assetType) {
+    parameters.set('assetType', assetType);
+  }
+  return request(`/api/app/research/data-catalog?${parameters.toString()}`, { signal });
 }
 
 export function sendResearchAgent(
@@ -635,7 +649,6 @@ import type {
   MarketWeatherDimension,
   MarketWeatherFrequency,
   MarketWeatherSeries,
-  ResearchAssetTypeV1,
   ResearchUniverseRunResultV1,
   UniverseSpecV1,
   StockSeries,

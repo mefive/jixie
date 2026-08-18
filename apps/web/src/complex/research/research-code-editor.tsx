@@ -1,6 +1,8 @@
 import Editor, { loader, type Monaco } from '@monaco-editor/react';
 import {
   RESEARCH_SDK_CONTRACT_V1,
+  type ResearchAssetTypeV1,
+  type ResearchDataCatalogResultV1,
   type ResearchLanguageCellV1,
   type ResearchSdkFunctionContractV1,
   type ResearchSdkParameterContractV1,
@@ -10,11 +12,14 @@ import { useRef } from 'react';
 import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
 import jsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker';
 import { localeStore } from '@src/i18n/locale-store';
+import { searchResearchDataCatalog } from '@src/api/client';
 import {
   researchSdkActiveCall,
   researchSdkCompletionContext,
   researchSdkDataFrameBindings,
   researchSdkHoverContract,
+  researchSdkStringArgument,
+  type ResearchSdkCompletionContext,
 } from './research-sdk-language';
 import {
   attachResearchPythonModel,
@@ -30,6 +35,7 @@ self.MonacoEnvironment = {
 loader.config({ monaco });
 
 let researchSdkLanguageInstalled = false;
+const researchDataCatalogRequests = new Map<string, Promise<ResearchDataCatalogResultV1>>();
 
 interface ResearchCodeEditorProps {
   documentId: string;
@@ -120,7 +126,7 @@ function installResearchSdkLanguage(monacoInstance: Monaco): void {
 
   monacoInstance.languages.registerCompletionItemProvider('python', {
     triggerCharacters: ['.', '(', ',', '=', '[', '"', "'"],
-    provideCompletionItems(model: monaco.editor.ITextModel, position: monaco.Position) {
+    async provideCompletionItems(model: monaco.editor.ITextModel, position: monaco.Position) {
       if (!isResearchPythonModel(model)) {
         return { suggestions: [] };
       }
@@ -187,6 +193,11 @@ function installResearchSdkLanguage(monacoInstance: Monaco): void {
               suggestions: researchSdkColumnSuggestions(monacoInstance, frameContract, range),
             };
           }
+          if (parameter?.name === 'identifier' || parameter?.name === 'measure') {
+            return {
+              suggestions: await researchDataCatalogSuggestions(monacoInstance, context, range),
+            };
+          }
           return { suggestions: [] };
         }
         case 'dataframe_column':
@@ -251,6 +262,112 @@ function installResearchSdkLanguage(monacoInstance: Monaco): void {
       return { contents: details.map((value) => ({ value })) };
     },
   });
+}
+
+async function researchDataCatalogSuggestions(
+  monacoInstance: Monaco,
+  context: Extract<ResearchSdkCompletionContext, { kind: 'parameter_value' }>,
+  range: monaco.IRange,
+): Promise<monaco.languages.CompletionItem[]> {
+  const assetType = researchAssetType(
+    researchSdkStringArgument(context.argumentSource, context.contract, 'asset_type'),
+  );
+  const identifier = researchSdkStringArgument(
+    context.argumentSource,
+    context.contract,
+    'identifier',
+  );
+  if (context.parameterName === 'identifier' && context.partial.trim().length === 0) {
+    return [];
+  }
+
+  try {
+    const catalog = await cachedResearchDataCatalog(
+      context.parameterName === 'identifier' ? context.partial : (identifier ?? ''),
+      assetType,
+    );
+    if (context.parameterName === 'identifier') {
+      return catalog.instruments.map((instrument) => ({
+        label: {
+          label: instrument.identifier,
+          description: localizedCatalogName(instrument),
+        },
+        kind: monacoInstance.languages.CompletionItemKind.Reference,
+        detail: [localizedAssetType(instrument.assetType), ...instrument.tags].join(' · '),
+        documentation: instrument.description,
+        insertText: instrument.identifier,
+        range,
+        sortText: `0_${instrument.identifier}`,
+      }));
+    }
+
+    const exactInstrument = catalog.instruments.find(
+      (instrument) => instrument.assetType === assetType && instrument.identifier === identifier,
+    );
+    const compatibleIds = exactInstrument
+      ? new Set(exactInstrument.compatibleMeasureIds)
+      : undefined;
+    const normalizedPartial = context.partial.toLocaleLowerCase();
+    return catalog.measures
+      .filter(
+        (measure) =>
+          (!compatibleIds || compatibleIds.has(measure.id)) &&
+          [measure.id, measure.nameZh, measure.nameEn].some((value) =>
+            value.toLocaleLowerCase().includes(normalizedPartial),
+          ),
+      )
+      .map((measure) => ({
+        label: {
+          label: measure.id,
+          description: localeStore.locale === 'zh' ? measure.nameZh : measure.nameEn,
+        },
+        kind: monacoInstance.languages.CompletionItemKind.Value,
+        detail: `${measure.unit} · v${measure.version}`,
+        documentation: localizedDescription(measure),
+        insertText: measure.id,
+        range,
+        sortText: `0_${measure.id}`,
+      }));
+  } catch {
+    return [];
+  }
+}
+
+function cachedResearchDataCatalog(
+  query: string,
+  assetType?: ResearchAssetTypeV1,
+): Promise<ResearchDataCatalogResultV1> {
+  const key = `${assetType ?? 'all'}:${query.trim().toLocaleLowerCase()}`;
+  const existing = researchDataCatalogRequests.get(key);
+  if (existing) {
+    return existing;
+  }
+  if (researchDataCatalogRequests.size >= 60) {
+    researchDataCatalogRequests.clear();
+  }
+  const request = searchResearchDataCatalog(query, assetType).catch((error) => {
+    researchDataCatalogRequests.delete(key);
+    throw error;
+  });
+  researchDataCatalogRequests.set(key, request);
+  return request;
+}
+
+function researchAssetType(value: string | undefined): ResearchAssetTypeV1 | undefined {
+  return value === 'stock' || value === 'etf' || value === 'index' || value === 'future'
+    ? value
+    : undefined;
+}
+
+function localizedCatalogName(value: { nameZh: string; nameEn?: string }): string {
+  return localeStore.locale === 'zh' ? value.nameZh : (value.nameEn ?? value.nameZh);
+}
+
+function localizedAssetType(assetType: ResearchAssetTypeV1): string {
+  if (localeStore.locale !== 'zh') {
+    return assetType;
+  }
+  return { stock: '股票', etf: 'ETF', index: '指数', future: '期货' }[assetType];
 }
 
 function isResearchPythonModel(model: monaco.editor.ITextModel): boolean {

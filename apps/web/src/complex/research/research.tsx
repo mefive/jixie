@@ -18,6 +18,7 @@ import {
   faClockRotateLeft,
   faCode,
   faCommentDots,
+  faDatabase,
   faEye,
   faEyeSlash,
   faFileLines,
@@ -39,6 +40,7 @@ import { Markdown } from '@src/components/markdown';
 import { LoadingArea } from '@src/components/loading-area';
 import { complex } from './complex';
 import { ResearchCuratorDrawer } from './research-curator-drawer';
+import { ResearchDataCatalogDrawer } from './research-data-catalog-drawer';
 import './research.css';
 
 const ResearchCodeEditor = lazy(() => import('./research-code-editor'));
@@ -49,6 +51,7 @@ export const Research = complex.component(() => {
   const { t } = useTranslation('research');
   const [historyOpen, setHistoryOpen] = useState(false);
   const [curatorOpen, setCuratorOpen] = useState(false);
+  const [dataCatalogOpen, setDataCatalogOpen] = useState(false);
   const [agentOpen, setAgentOpen] = useState(true);
   return (
     <main className="jx-research">
@@ -69,6 +72,7 @@ export const Research = complex.component(() => {
           <ResearchWorkspace
             agentOpen={agentOpen}
             onOpenHistory={() => setHistoryOpen(true)}
+            onOpenDataCatalog={() => setDataCatalogOpen(true)}
             onToggleAgent={() => setAgentOpen((value) => !value)}
           />
         ) : (
@@ -77,6 +81,7 @@ export const Research = complex.component(() => {
       </section>
       {store.document && agentOpen && <ResearchAgentPanel />}
       <ResearchCuratorDrawer open={curatorOpen} onClose={() => setCuratorOpen(false)} />
+      <ResearchDataCatalogDrawer open={dataCatalogOpen} onClose={() => setDataCatalogOpen(false)} />
     </main>
   );
 }, 'Research');
@@ -273,10 +278,12 @@ const ResearchWorkspace = complex.component(
   ({
     agentOpen,
     onOpenHistory,
+    onOpenDataCatalog,
     onToggleAgent,
   }: {
     agentOpen: boolean;
     onOpenHistory: () => void;
+    onOpenDataCatalog: () => void;
     onToggleAgent: () => void;
   }) => {
     const store = complex.useStore();
@@ -345,6 +352,16 @@ const ResearchWorkspace = complex.component(
             </span>
           </div>
           <div className="jx-research-toolbar">
+            <Tooltip title={t('dataCatalog.open')}>
+              <Button
+                type="text"
+                size="small"
+                icon={<FontAwesomeIcon icon={faDatabase} />}
+                aria-label={t('dataCatalog.open')}
+                data-testid="research-open-data-catalog"
+                onClick={onOpenDataCatalog}
+              />
+            </Tooltip>
             <Tooltip title={t('workbench.resetHint')}>
               <Button
                 type="text"

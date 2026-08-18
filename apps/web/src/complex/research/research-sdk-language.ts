@@ -14,6 +14,7 @@ export type ResearchSdkCompletionContext =
       parameterName: string;
       partial: string;
       frameVariable?: string;
+      argumentSource: string;
     }
   | {
       kind: 'dataframe_column';
@@ -57,7 +58,21 @@ export function researchSdkCompletionContext(
         contract: activeCall.contract,
         parameterName: valueMatch[1],
         partial: valueMatch[3],
+        argumentSource: activeCall.argumentSource,
         ...(frameVariable ? { frameVariable } : {}),
+      };
+    }
+
+    const activeArgument = splitTopLevelArguments(activeCall.argumentSource).at(-1)?.trim() ?? '';
+    const positionalValueMatch = activeArgument.match(/^(["'])([^"']*)$/);
+    const positionalParameter = activeCall.contract.parameters[activeCall.activeParameter];
+    if (positionalValueMatch && positionalParameter) {
+      return {
+        kind: 'parameter_value',
+        contract: activeCall.contract,
+        parameterName: positionalParameter.name,
+        partial: positionalValueMatch[2],
+        argumentSource: activeCall.argumentSource,
       };
     }
 
@@ -152,12 +167,70 @@ export function researchSdkHoverContract(
   return null;
 }
 
+/** Read a completed string argument from the active SDK call, whether positional or named. */
+export function researchSdkStringArgument(
+  argumentSource: string,
+  contract: ResearchSdkFunctionContractV1,
+  parameterName: string,
+): string | undefined {
+  const escapedName = parameterName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const named = argumentSource.match(new RegExp(`\\b${escapedName}\\s*=\\s*(["'])([^"']*)\\1`));
+  if (named) {
+    return named[2];
+  }
+
+  const parameterIndex = contract.parameters.findIndex(
+    (parameter) => parameter.name === parameterName,
+  );
+  if (parameterIndex < 0) {
+    return undefined;
+  }
+  const positional = splitTopLevelArguments(argumentSource).filter(
+    (argument) => !argument.includes('='),
+  );
+  const literal = positional[parameterIndex]?.trim().match(/^(["'])([^"']*)\1$/);
+  return literal?.[2];
+}
+
 function researchSdkFrameVariable(argumentSource: string): string | undefined {
   const named = argumentSource.match(/\bframe\s*=\s*([A-Za-z_]\w*)/);
   if (named) {
     return named[1];
   }
   return argumentSource.match(/^\s*([A-Za-z_]\w*)\s*(?:,|$)/)?.[1];
+}
+
+function splitTopLevelArguments(source: string): string[] {
+  const argumentsList: string[] = [];
+  let start = 0;
+  let depth = 0;
+  let quote: string | null = null;
+  let escaped = false;
+  for (let index = 0; index < source.length; index++) {
+    const character = source[index];
+    if (quote) {
+      if (escaped) {
+        escaped = false;
+      } else if (character === '\\') {
+        escaped = true;
+      } else if (character === quote) {
+        quote = null;
+      }
+      continue;
+    }
+    if (character === '"' || character === "'") {
+      quote = character;
+    } else if (character === '(' || character === '[' || character === '{') {
+      depth += 1;
+    } else if (character === ')' || character === ']' || character === '}') {
+      depth -= 1;
+    } else if (character === ',' && depth === 0) {
+      argumentsList.push(source.slice(start, index));
+      start = index + 1;
+    }
+  }
+  argumentsList.push(source.slice(start));
+  return argumentsList;
 }
 
 function callRemainsOpen(prefix: string, openParenthesis: number): boolean {
