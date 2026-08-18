@@ -1041,6 +1041,15 @@ export interface ResearchTableOutputV1 {
   rows: Record<string, ResearchCellScalarV1>[];
   rowCount: number;
   truncated: boolean;
+  /** Optional on persisted V1 outputs created before bounded column previews shipped. */
+  columnCount?: number;
+  truncatedColumns?: boolean;
+  truncatedCells?: boolean;
+  limits?: {
+    rows: number;
+    columns: number;
+    cellCharacters: number;
+  };
 }
 
 /** Inline chart data is an execution artifact, unlike conversation ChartSpec queries which rerun. */
@@ -1060,7 +1069,13 @@ export type ResearchCellOutputBlockV1 =
   | { type: 'value'; value: ResearchCellScalarV1 | ResearchCellScalarV1[] }
   | ResearchTableOutputV1
   | ResearchChartOutputV1
-  | { type: 'image'; mimeType: 'image/png' | 'image/svg+xml'; dataUrl: string; alt?: string }
+  | {
+      type: 'image';
+      mimeType: 'image/png' | 'image/svg+xml';
+      dataUrl: string;
+      alt?: string;
+      byteSize?: number;
+    }
   | {
       type: 'validation';
       title: string;

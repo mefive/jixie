@@ -8,6 +8,7 @@ import {
 } from './workbench-sdk.js';
 
 const MAX_LIVE_RESEARCH_SESSIONS = 8;
+const MAX_PERSISTED_RESEARCH_OUTPUT_BYTES = 8 * 1024 * 1024;
 
 export interface ResearchPythonAnalysis {
   cellId: string;
@@ -92,13 +93,28 @@ class ResearchRuntimeManager {
             continue;
           }
           if (frame.type === 'research_executed') {
+            const outputs = [
+              ...logOutputs,
+              ...((Array.isArray(frame.outputs)
+                ? frame.outputs
+                : []) as ResearchCellOutputBlockV1[]),
+            ];
+            const outputBytes = Buffer.byteLength(JSON.stringify(outputs), 'utf8');
+            if (outputBytes > MAX_PERSISTED_RESEARCH_OUTPUT_BYTES) {
+              const message =
+                `Research Cell outputs require ${outputBytes} bytes; the persisted artifact limit ` +
+                `is ${MAX_PERSISTED_RESEARCH_OUTPUT_BYTES} bytes. Reduce the displayed value, ` +
+                'table slice, chart rows, or figure size and rerun the Cell.';
+              throw new ResearchPythonExecutionError(
+                message,
+                [{ type: 'text', text: message, level: 'warning' }],
+                stringArray(frame.definitions),
+                stringArray(frame.references),
+                researchPayloadHash(entry.environment),
+              );
+            }
             return {
-              outputs: [
-                ...logOutputs,
-                ...((Array.isArray(frame.outputs)
-                  ? frame.outputs
-                  : []) as ResearchCellOutputBlockV1[]),
-              ],
+              outputs,
               definitions: stringArray(frame.definitions),
               references: stringArray(frame.references),
               environmentFingerprint: researchPayloadHash(entry.environment),
