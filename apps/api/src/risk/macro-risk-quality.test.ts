@@ -1,9 +1,15 @@
 import { MACRO_RISK_AXIS_KEYS_V1, type RiskDataLineageV1 } from '@jixie/shared';
 import { describe, expect, it } from 'vitest';
 import type { MacroRiskAxisHistoryV1 } from './macro-risk-axes.js';
-import { summarizeMacroRiskAxisQuality } from './macro-risk-quality.js';
+import { selectMacroRiskAuditStart, summarizeMacroRiskAxisQuality } from './macro-risk-quality.js';
 
 describe('macro-risk axis quality', () => {
+  it('widens a short general audit window for monthly readiness', () => {
+    expect(selectMacroRiskAuditStart('20250819', '20260819')).toBe('20220819');
+    expect(selectMacroRiskAuditStart('20200101', '20260819')).toBe('20200101');
+    expect(selectMacroRiskAuditStart('20100101', '20260819')).toBe('20180326');
+  });
+
   it('warns rather than fabricating strict history when exploratory coverage is ready', () => {
     const exploratory = history(60, false, true);
     const strict = history(60, true, false);

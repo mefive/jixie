@@ -878,6 +878,50 @@ finish_deployment_gate() {
   DEPLOYMENT_RUN_ID=""
 }
 
+retry_blocking_maintenance() {
+  local attempt
+  local maintenance_status
+  local maintenance_active
+  local maintenance_kind
+  local maintenance_stage
+
+  for ((attempt = 1; attempt <= 4; attempt++)); do
+    maintenance_status="$(curl -fsS "localhost:$JIXIE_PORT/api/maintenance/status")" ||
+      die "无法读取 maintenance status"
+    read -r maintenance_active maintenance_kind maintenance_stage < <(
+      STATUS_JSON="$maintenance_status" node -e '
+        const status = JSON.parse(process.env.STATUS_JSON);
+        process.stdout.write(
+          `${status.active ? "1" : "0"} ${status.kind ?? "none"} ${status.stage ?? "none"}`,
+        );
+      '
+    )
+    if [[ "$maintenance_active" == "0" ]]; then
+      return
+    fi
+    [[ "$maintenance_stage" == "error" ]] ||
+      die "maintenance Gate 存在非错误活跃任务,拒绝并发恢复: $maintenance_status"
+
+    case "$maintenance_kind" in
+      daily)
+        log "重试仍在阻塞 App 的 daily maintenance"
+        sudo systemctl reset-failed jixie-maintenance.service
+        sudo systemctl restart jixie-maintenance.service
+        ;;
+      weekly)
+        log "重试仍在阻塞 App 的 weekly maintenance"
+        sudo systemctl reset-failed jixie-maintenance-weekly.service
+        sudo systemctl restart jixie-maintenance-weekly.service
+        ;;
+      *)
+        die "maintenance Gate 需要人工修复,不自动重试 $maintenance_kind: $maintenance_status"
+        ;;
+    esac
+  done
+
+  die "maintenance Gate 自动恢复超过最大重试次数"
+}
+
 cleanup_deployment_gate() {
   local exit_code=$?
   trap - EXIT
@@ -1339,6 +1383,8 @@ systemctl is-active --quiet "$JIXIE_SERVICE" \
 HEALTH="$(curl -fsS "localhost:$JIXIE_PORT/api/health" 2>/dev/null || true)"
 echo "  /api/health: ${HEALTH:-<无响应>}"
 [[ "$HEALTH" == *'"ok":true'* ]] || warn "健康检查未过,查日志: journalctl -u $JIXIE_SERVICE -e"
+
+retry_blocking_maintenance
 
 ROWS="$(sqlite3 "$DB_FILE" 'SELECT count(*) FROM "Daily";' 2>/dev/null || echo 0)"
 WATERMARK="$(sqlite3 "$DB_FILE" 'SELECT dailyPublishedThrough FROM "MaintenanceState" WHERE key = "global";' 2>/dev/null || true)"

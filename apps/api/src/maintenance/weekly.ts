@@ -71,6 +71,10 @@ interface WeeklyReferenceSyncSummary extends ReferenceSyncSummary {
   resumed: number;
 }
 
+// Cross-market holidays remove some SSE sessions from the complete risk-driver sample. Keep a
+// small calendar buffer while still requiring the quality gate's 252 complete observations.
+const WEEKLY_AUDIT_TRADING_DAYS = 270;
+
 export async function runWeeklyMaintenance(
   options: {
     force?: boolean;
@@ -82,9 +86,15 @@ export async function runWeeklyMaintenance(
   const onLog = options.onLog ?? ((line: string) => console.log(`[maintenance:weekly] ${line}`));
   const today = shanghaiToday();
   const trigger = options.trigger ?? (process.env.INVOCATION_ID ? 'timer' : 'manual');
+  const latestWeekly = await prisma.maintenanceRun.findFirst({
+    where: { kind: 'weekly' },
+    orderBy: { startedAt: 'desc' },
+    select: { status: true, targetKey: true },
+  });
+  const targetKey = selectWeeklyTargetKey(today, latestWeekly);
   const run = await beginMaintenanceRun({
     kind: 'weekly',
-    targetKey: isoWeekKey(today),
+    targetKey,
     startDate: today,
     endDate: today,
     trigger,
@@ -106,7 +116,7 @@ export async function runWeeklyMaintenance(
     dataRevision: null,
   };
   if (run.skipped && !options.force) {
-    onLog(`Weekly run ${isoWeekKey(today)} is already complete`);
+    onLog(`Weekly run ${targetKey} is already complete`);
     return summary;
   }
   const stopHeartbeat = startMaintenanceHeartbeat(run.id);
@@ -353,7 +363,7 @@ async function rollingAuditStart(endDate: string): Promise<string> {
   const rows = await prisma.tradeCal.findMany({
     where: { exchange: 'SSE', isOpen: 1, calDate: { lte: endDate } },
     orderBy: { calDate: 'desc' },
-    take: 252,
+    take: WEEKLY_AUDIT_TRADING_DAYS,
     select: { calDate: true },
   });
   return rows.at(-1)?.calDate ?? endDate;
@@ -413,4 +423,11 @@ function isoWeekKey(date: string): string {
   const yearStart = new Date(Date.UTC(parsed.getUTCFullYear(), 0, 1));
   const week = Math.ceil(((parsed.getTime() - yearStart.getTime()) / 86_400_000 + 1) / 7);
   return `${parsed.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
+}
+
+export function selectWeeklyTargetKey(
+  today: string,
+  latestWeekly: { status: string; targetKey: string } | null,
+): string {
+  return latestWeekly?.status === 'error' ? latestWeekly.targetKey : isoWeekKey(today);
 }
