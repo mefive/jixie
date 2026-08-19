@@ -1282,6 +1282,7 @@ model ResearchDocument {
 
   cells               ResearchCell[]
   executions          ResearchCellExecution[]
+  researchExecutions  ResearchExecution[]
   artifacts           ResearchArtifact[]
   cellChangeProposals ResearchCellChangeProposal[]
   cellChangeAttempts  ResearchCellChangeAttempt[]
@@ -1321,8 +1322,11 @@ model ResearchCellExecution {
   id                     String                     @id // ULID
   documentId             String
   document               ResearchDocument           @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  cellId                 String
-  cell                   ResearchCell               @relation(fields: [cellId], references: [id], onDelete: Cascade)
+  cellId                 String?
+  cell                   ResearchCell?              @relation(fields: [cellId], references: [id], onDelete: SetNull)
+  sourceCellId           String?
+  sourcePosition         Int?
+  sourceKind             String?
   revision               Int
   source                 String
   status                 String // 'running' | 'success' | 'error' | 'cancelled'
@@ -1335,12 +1339,47 @@ model ResearchCellExecution {
   finishedAt             DateTime?
   cellChangeAttemptId    String?
   cellChangeAttempt      ResearchCellChangeAttempt? @relation(fields: [cellChangeAttemptId], references: [id], onDelete: SetNull)
+  researchExecutionId    String?
+  researchExecution      ResearchExecution?         @relation(fields: [researchExecutionId], references: [id], onDelete: SetNull)
 
   artifacts ResearchArtifact[]
 
   @@index([documentId, startedAt])
   @@index([cellId, startedAt])
+  @@index([sourceCellId, startedAt])
   @@index([cellChangeAttemptId, startedAt])
+  @@index([researchExecutionId, startedAt])
+}
+
+/// One immutable clean execution of a frozen Research Document revision. Editable promotion
+/// metadata is kept outside the hashed source and DAG snapshots so curation never rewrites evidence.
+model ResearchExecution {
+  id                     String           @id // ULID
+  documentId             String
+  document               ResearchDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  sequence               Int
+  title                  String
+  contentRevision        Int
+  runtimeVersion         String
+  status                 String           @default("running") // 'running' | 'success' | 'error' | 'cancelled'
+  sourceHash             String
+  sourceSnapshot         Json
+  dagSnapshot            Json
+  executedCellIds        Json
+  environmentFingerprint String?
+  error                  String?
+  displayName            String?
+  tags                   Json?
+  userNote               String?
+  promotedAt             DateTime?
+  startedAt              DateTime         @default(now())
+  finishedAt             DateTime?
+
+  cellExecutions ResearchCellExecution[]
+
+  @@unique([documentId, sequence])
+  @@index([documentId, startedAt])
+  @@index([documentId, promotedAt])
 }
 
 /// One immutable binary output owned by a Research Cell execution. Cell JSON stores only the

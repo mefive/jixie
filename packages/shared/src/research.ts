@@ -1296,11 +1296,70 @@ export interface ResearchDocumentAnalysisV1 {
 
 export type ResearchDocumentTemplateV1 = 'blank' | 'index_relationship';
 
+export type ResearchExecutionStatusV1 = 'running' | 'success' | 'error' | 'cancelled';
+
+export interface ResearchExecutionDagNodeV1 {
+  cellId: string;
+  dependsOnCellIds: string[];
+}
+
+export interface ResearchExecutionCellV1 {
+  version: 1;
+  cellId: string;
+  position: number;
+  kind: ResearchCellKindV1;
+  source: string;
+  config?: Record<string, unknown>;
+  revision: number;
+  definitions: string[];
+  references: string[];
+  status: ResearchExecutionStatusV1 | 'not_run';
+  outputs: ResearchCellOutputBlockV1[];
+  error?: string;
+  environmentFingerprint?: string;
+  startedAt?: string;
+  finishedAt?: string;
+}
+
+export interface ResearchExecutionSummaryV1 {
+  version: 1;
+  id: string;
+  documentId: string;
+  sequence: number;
+  title: string;
+  contentRevision: number;
+  runtimeVersion: 'research-py-v1';
+  status: ResearchExecutionStatusV1;
+  sourceHash: string;
+  environmentFingerprint?: string;
+  cellCount: number;
+  executedCellCount: number;
+  error?: string;
+  displayName?: string;
+  tags: string[];
+  userNote?: string;
+  promotedAt?: string;
+  startedAt: string;
+  finishedAt?: string;
+}
+
+export interface ResearchExecutionV1 extends ResearchExecutionSummaryV1 {
+  cells: ResearchExecutionCellV1[];
+  dag: ResearchExecutionDagNodeV1[];
+}
+
+export interface ResearchExecutionPromotionInputV1 {
+  displayName: string;
+  tags: string[];
+  userNote?: string;
+}
+
 export interface ResearchDocumentRunResultV1 {
   version: 1;
   document: ResearchDocumentV1;
   executedCellIds: string[];
   clean: boolean;
+  execution?: ResearchExecutionSummaryV1;
 }
 
 export interface ResearchDocumentInterruptResultV1 {

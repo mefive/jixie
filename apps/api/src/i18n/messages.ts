@@ -41,6 +41,11 @@ const MESSAGES = {
   conversationNotFound: { zh: '会话不存在', en: 'Conversation not found' },
   researchStudyNotFound: { zh: '研究记录不存在', en: 'Research study not found' },
   researchArtifactNotFound: { zh: '研究产物不存在', en: 'Research artifact not found' },
+  researchExecutionNotFound: { zh: '研究运行记录不存在', en: 'Research execution not found' },
+  researchExecutionPromotionUnavailable: {
+    zh: '只有成功的完整运行才能封存为研究版本',
+    en: 'Only a successful complete execution can be promoted to a research version',
+  },
   researchCellChangeProposalNotFound: {
     zh: '研究 Cell 变更提案不存在',
     en: 'Research Cell change proposal not found',

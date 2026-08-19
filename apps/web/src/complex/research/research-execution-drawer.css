@@ -1,0 +1,165 @@
+@reference '../../styles/index.css';
+
+.jx-researchExecution .ant-drawer-body {
+  @apply bg-bg;
+  padding: 20px;
+}
+
+.jx-researchExecution-drawerTitle {
+  @apply flex items-center gap-2;
+}
+
+.jx-researchExecution-drawerTitle .ant-btn,
+.jx-researchExecution-item .ant-btn,
+.jx-researchExecution-summary .ant-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+}
+
+.jx-researchExecution-list {
+  @apply flex flex-col gap-2;
+}
+
+.jx-researchExecution-item {
+  @apply flex cursor-pointer items-start gap-3 border border-line bg-card;
+  padding: 14px;
+  border-radius: 8px;
+}
+
+.jx-researchExecution-item:hover {
+  border-color: #98a2b3;
+}
+
+.jx-researchExecution-itemIcon {
+  @apply flex shrink-0 items-center justify-center text-muted;
+  width: 32px;
+  height: 32px;
+  background: var(--color-bg);
+  border-radius: 7px;
+}
+
+.jx-researchExecution-itemBody {
+  @apply flex min-w-0 flex-1 flex-col gap-1;
+}
+
+.jx-researchExecution-itemTitleRow {
+  @apply flex items-center gap-2;
+}
+
+.jx-researchExecution-itemTitleRow strong {
+  @apply truncate text-ink;
+  font-size: 14px;
+}
+
+.jx-researchExecution-itemMeta {
+  @apply text-muted;
+  font-size: 12px;
+}
+
+.jx-researchExecution-alert {
+  margin-top: 16px;
+}
+
+.jx-researchExecution-detail {
+  @apply flex flex-col gap-5;
+}
+
+.jx-researchExecution-summary {
+  @apply flex flex-col gap-3 border border-line bg-card;
+  padding: 18px;
+  border-radius: 8px;
+}
+
+.jx-researchExecution-summaryTitleRow {
+  @apply flex items-start justify-between gap-4;
+}
+
+.jx-researchExecution-summaryTitleRow h2 {
+  @apply m-0 text-ink;
+  font-size: 18px;
+}
+
+.jx-researchExecution-summaryTitleRow p {
+  @apply mb-0 mt-1 text-muted;
+  font-size: 12px;
+}
+
+.jx-researchExecution-summaryTags {
+  @apply flex flex-wrap gap-1;
+}
+
+.jx-researchExecution-userNote {
+  @apply m-0 whitespace-pre-wrap text-ink;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.jx-researchExecution-fingerprints {
+  @apply m-0 grid grid-cols-2 gap-3;
+}
+
+.jx-researchExecution-fingerprints div {
+  @apply min-w-0;
+}
+
+.jx-researchExecution-fingerprints dt {
+  @apply text-muted;
+  font-size: 11px;
+}
+
+.jx-researchExecution-fingerprints dd {
+  @apply m-0 truncate font-mono text-ink;
+  font-size: 12px;
+}
+
+.jx-researchExecution-cells {
+  @apply flex flex-col gap-4;
+}
+
+.jx-researchExecution-cell {
+  @apply overflow-hidden border border-line bg-card;
+  border-radius: 8px;
+}
+
+.jx-researchExecution-cell > header {
+  @apply flex items-center justify-between border-b border-line text-muted;
+  min-height: 42px;
+  padding: 8px 12px;
+  background: var(--color-bg);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.jx-researchExecution-cell > header span:first-child {
+  @apply flex items-center gap-2;
+}
+
+.jx-researchExecution-cellSource > .jx-md {
+  padding: 18px;
+}
+
+.jx-researchExecution-cell > .ant-alert {
+  margin: 12px;
+}
+
+.jx-researchExecution-cell > .jx-research-outputs {
+  border-top: 1px solid var(--color-line);
+}
+
+.jx-researchExecution-promotionForm {
+  @apply flex flex-col gap-4;
+  padding-top: 8px;
+}
+
+.jx-researchExecution-promotionForm label {
+  @apply flex flex-col gap-2 text-ink;
+  font-size: 13px;
+}
+
+@media (max-width: 760px) {
+  .jx-researchExecution-fingerprints {
+    @apply grid-cols-1;
+  }
+}

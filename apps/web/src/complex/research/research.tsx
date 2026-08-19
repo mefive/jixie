@@ -4,9 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useBlocker } from 'react-router-dom';
 import classNames from 'classnames';
 import type {
-  ChatMessage,
   ResearchCellKindV1,
-  ResearchCellOutputBlockV1,
   ResearchCellStatusV1,
   ResearchCellV1,
   ResearchDocumentSummaryV1,
@@ -42,11 +40,11 @@ import { AgentPending } from '@src/components/agent-pending';
 import { MessageParts } from '@src/components/message-parts';
 import { Markdown } from '@src/components/markdown';
 import { LoadingArea } from '@src/components/loading-area';
-import { researchArtifactUrl } from '@src/api/client';
 import { complex } from './complex';
 import { ResearchCuratorDrawer } from './research-curator-drawer';
 import { ResearchDataCatalogDrawer } from './research-data-catalog-drawer';
-import { ResearchCellTable } from './research-cell-table';
+import { ResearchExecutionDrawer } from './research-execution-drawer';
+import { ResearchOutputs } from './research-outputs';
 import type { ResearchCellSaveStatus } from './research-autosave';
 import './research.css';
 
@@ -56,14 +54,13 @@ const ResearchCodeDiffEditor = lazy(() =>
     default: module.ResearchCodeDiffEditor,
   })),
 );
-const ResearchCellChart = lazy(() => import('./research-cell-chart'));
-
 export const Research = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('research');
   const [historyOpen, setHistoryOpen] = useState(false);
   const [curatorOpen, setCuratorOpen] = useState(false);
   const [dataCatalogOpen, setDataCatalogOpen] = useState(false);
+  const [executionHistoryOpen, setExecutionHistoryOpen] = useState(false);
   const [agentOpen, setAgentOpen] = useState(true);
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) =>
@@ -108,6 +105,7 @@ export const Research = complex.component(() => {
             agentOpen={agentOpen}
             onOpenHistory={() => setHistoryOpen(true)}
             onOpenDataCatalog={() => setDataCatalogOpen(true)}
+            onOpenExecutionHistory={() => setExecutionHistoryOpen(true)}
             onToggleAgent={() => setAgentOpen((value) => !value)}
           />
         ) : (
@@ -117,6 +115,10 @@ export const Research = complex.component(() => {
       {store.document && agentOpen && <ResearchAgentPanel />}
       <ResearchCuratorDrawer open={curatorOpen} onClose={() => setCuratorOpen(false)} />
       <ResearchDataCatalogDrawer open={dataCatalogOpen} onClose={() => setDataCatalogOpen(false)} />
+      <ResearchExecutionDrawer
+        open={executionHistoryOpen}
+        onClose={() => setExecutionHistoryOpen(false)}
+      />
     </main>
   );
 }, 'Research');
@@ -314,11 +316,13 @@ const ResearchWorkspace = complex.component(
     agentOpen,
     onOpenHistory,
     onOpenDataCatalog,
+    onOpenExecutionHistory,
     onToggleAgent,
   }: {
     agentOpen: boolean;
     onOpenHistory: () => void;
     onOpenDataCatalog: () => void;
+    onOpenExecutionHistory: () => void;
     onToggleAgent: () => void;
   }) => {
     const store = complex.useStore();
@@ -326,6 +330,7 @@ const ResearchWorkspace = complex.component(
     const [editingTitle, setEditingTitle] = useState(false);
     const [title, setTitle] = useState('');
     const document = store.document!;
+    const latestExecution = store.executionListLoader.result?.[0];
     const staleCount = document.cells.filter((cell) => cell.status === 'stale').length;
     const commitTitle = () => {
       setEditingTitle(false);
@@ -384,6 +389,11 @@ const ResearchWorkspace = complex.component(
             <span className="jx-research-runtimeMeta">
               {t('workbench.runtime')} · {document.cells.length} {t('workbench.cells')}
               {staleCount > 0 && ` · ${t('workbench.staleSummary', { count: staleCount })}`}
+              {latestExecution &&
+                ` · ${t('workbench.execution.latest', {
+                  sequence: latestExecution.sequence,
+                  status: t(`workbench.execution.status.${latestExecution.status}`),
+                })}`}
             </span>
           </div>
           <div className="jx-research-toolbar">
@@ -395,6 +405,16 @@ const ResearchWorkspace = complex.component(
                 aria-label={t('dataCatalog.open')}
                 data-testid="research-open-data-catalog"
                 onClick={onOpenDataCatalog}
+              />
+            </Tooltip>
+            <Tooltip title={t('workbench.execution.historyTitle')}>
+              <Button
+                type="text"
+                size="small"
+                icon={<FontAwesomeIcon icon={faClockRotateLeft} />}
+                aria-label={t('workbench.execution.historyTitle')}
+                data-testid="research-open-execution-history"
+                onClick={onOpenExecutionHistory}
               />
             </Tooltip>
             <Tooltip title={t('workbench.resetHint')}>
@@ -799,81 +819,6 @@ function CellSaveState({
       )}
     </span>
   );
-}
-
-function ResearchOutputs({ outputs }: { outputs: ResearchCellOutputBlockV1[] }) {
-  if (outputs.length === 0) {
-    return null;
-  }
-  return (
-    <div className="jx-research-outputs">
-      {outputs.map((output, index) => (
-        <ResearchOutput key={index} output={output} />
-      ))}
-    </div>
-  );
-}
-
-function ResearchOutput({ output }: { output: ResearchCellOutputBlockV1 }) {
-  const { t } = useTranslation('research');
-  switch (output.type) {
-    case 'text':
-      return (
-        <pre className={`jx-research-textOutput jx-research-textOutput--${output.level ?? 'info'}`}>
-          {output.text}
-        </pre>
-      );
-    case 'value':
-      return <pre className="jx-research-valueOutput">{JSON.stringify(output.value, null, 2)}</pre>;
-    case 'table':
-      return <ResearchCellTable output={output} />;
-    case 'chart':
-      return (
-        <section className="jx-research-chartOutput" data-testid="research-interactive-chart">
-          <Suspense fallback={<div className="jx-research-chartPending" />}>
-            <ResearchCellChart chart={output} />
-          </Suspense>
-        </section>
-      );
-    case 'image': {
-      const source = output.artifactId ? researchArtifactUrl(output.artifactId) : output.dataUrl;
-      return source ? (
-        <figure className="jx-research-imageOutput" data-testid="research-image-output">
-          <img
-            src={source}
-            alt={output.alt ?? t('workbench.pythonFigure')}
-            loading="lazy"
-            decoding="async"
-            {...(output.width ? { width: output.width } : {})}
-            {...(output.height ? { height: output.height } : {})}
-          />
-        </figure>
-      ) : null;
-    }
-    case 'validation':
-      return (
-        <div className="jx-research-validationOutput" data-testid="research-validation-output">
-          <div className="jx-research-evidenceLabel">
-            <FontAwesomeIcon icon={faCheck} /> {t('workbench.formalEvidence')}
-          </div>
-          <MessageParts
-            message={
-              {
-                role: 'assistant',
-                parts: [
-                  {
-                    type: 'research',
-                    title: output.title,
-                    run: output.run,
-                    record: output.record,
-                  },
-                ],
-              } as ChatMessage
-            }
-          />
-        </div>
-      );
-  }
 }
 
 // —— Agent panel ——

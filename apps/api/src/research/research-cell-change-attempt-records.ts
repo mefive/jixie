@@ -72,9 +72,9 @@ function researchCellChangeAttemptCellView(
   const outputs = Array.isArray(execution.output) ? execution.output : [];
   return {
     executionId: execution.id,
-    cellId: execution.cellId,
-    position: execution.cell.position,
-    kind: execution.cell.kind as ResearchCellKindV1,
+    cellId: execution.sourceCellId ?? execution.cellId ?? '',
+    position: execution.sourcePosition ?? execution.cell?.position ?? 0,
+    kind: (execution.sourceKind ?? execution.cell?.kind ?? 'python') as ResearchCellKindV1,
     revision: execution.revision,
     status: execution.status as ResearchCellChangeAttemptCellV1['status'],
     sourceHash: researchPayloadHash(execution.source),
