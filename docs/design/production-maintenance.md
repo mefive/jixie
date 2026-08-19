@@ -743,6 +743,13 @@ WAL 允许读者和写者较好地并存，但不能支持两个并发写者，�
 失败后不能通过“把状态改成 done”解锁。必须确认数据库处于上述可解释状态，再由同一 pipeline 重试或
 人工修复。
 
+daily / weekly systemd service 使用有界失败重试：`Restart=on-failure`、`RestartSec=30m`，并由
+`StartLimitIntervalSec=6h` / `StartLimitBurst=3` 限制为六小时内最多三次启动尝试。同一目标重试复用
+`MaintenanceRun(kind, targetKey)` 和已完成 checkpoint；即使恢复发生在下一个 ISO week，只要最新 weekly
+仍是 blocking error，也继续复用失败目标，成功后自然覆盖旧 error；不新增第二个调度器，
+也不直接改写终态。bootstrap 在健康检查后读取正式 maintenance status，立即重试仍阻塞 App 的 daily /
+weekly error；repair 和非 error 的活跃任务继续要求人工判断，避免错误扩大修复范围。
+
 ## 11. 可观测性与告警
 
 部署文档必须包含：

@@ -2,9 +2,13 @@
 Description=jixie weekly reference-data maintenance
 After=network-online.target jixie-api.service
 Wants=network-online.target
+StartLimitIntervalSec=6h
+StartLimitBurst=3
 
 [Service]
 Type=oneshot
+Restart=on-failure
+RestartSec=30m
 User=jixie
 Group=jixie
 WorkingDirectory=/opt/jixie/apps/api

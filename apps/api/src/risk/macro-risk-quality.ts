@@ -3,6 +3,9 @@ import { prisma, type Prisma } from '../lib/prisma.js';
 import { loadMacroRiskAxisHistory, type MacroRiskAxisHistoryV1 } from './macro-risk-axes.js';
 import { MACRO_RISK_MINIMUM_OBSERVATIONS } from './macro-risk-model.js';
 
+const MACRO_RISK_AUDIT_HISTORY_MONTHS = MACRO_RISK_MINIMUM_OBSERVATIONS + 12;
+const MACRO_RISK_EARLIEST_DATE = '20180326';
+
 export interface MacroRiskAxisQualityAxis {
   axis: MacroRiskAxisKeyV1;
   exploratoryObservations: number;
@@ -25,7 +28,7 @@ export async function auditMacroRiskAxes(
   options: { startDate: string; endDate: string },
   database: Prisma = prisma,
 ): Promise<MacroRiskAxisQualitySummary> {
-  const eligibleStart = options.startDate > '20180326' ? options.startDate : '20180326';
+  const eligibleStart = selectMacroRiskAuditStart(options.startDate, options.endDate);
   const [exploratory, strict] = await Promise.all([
     loadMacroRiskAxisHistory(
       {
@@ -45,6 +48,24 @@ export async function auditMacroRiskAxes(
     ),
   ]);
   return summarizeMacroRiskAxisQuality(exploratory, strict);
+}
+
+export function selectMacroRiskAuditStart(startDate: string, endDate: string): string {
+  const end = new Date(
+    Date.UTC(
+      Number(endDate.slice(0, 4)),
+      Number(endDate.slice(4, 6)) - 1,
+      Number(endDate.slice(6, 8)),
+    ),
+  );
+  end.setUTCMonth(end.getUTCMonth() - MACRO_RISK_AUDIT_HISTORY_MONTHS);
+  const requiredStart = [
+    end.getUTCFullYear(),
+    String(end.getUTCMonth() + 1).padStart(2, '0'),
+    String(end.getUTCDate()).padStart(2, '0'),
+  ].join('');
+  const requestedStart = startDate < requiredStart ? startDate : requiredStart;
+  return requestedStart > MACRO_RISK_EARLIEST_DATE ? requestedStart : MACRO_RISK_EARLIEST_DATE;
 }
 
 export function summarizeMacroRiskAxisQuality(
