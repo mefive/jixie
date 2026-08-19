@@ -19,6 +19,12 @@ export const enFactor: typeof zhFactor = {
   saved: 'Saved',
   savePending: 'Waiting to save',
   factorStatus: { draft: 'Draft', published: 'Published', archived: 'Archived' },
+  researchHandoff: {
+    title: 'From research version',
+    openSource: 'Open source snapshot',
+    sourceUnavailable: 'Source deleted',
+    unresolved: '{{count}} checks remain',
+  },
 
   unnamedNew: 'New factor (unsaved)',
   noneSelected: 'No factor selected',

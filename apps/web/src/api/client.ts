@@ -195,6 +195,8 @@ import type {
   ResearchExecutionPromotionInputV1,
   ResearchExecutionSummaryV1,
   ResearchExecutionV1,
+  ResearchFactorDraftResultV1,
+  ResearchFactorHandoffV1,
   ResearchDataCatalogResultV1,
   ResearchAssetTypeV1,
   ResearchLanguageRequestV1,
@@ -361,6 +363,14 @@ export function promoteResearchExecution(
   return request(`/api/app/research/executions/${encodeURIComponent(executionId)}/promote`, {
     method: 'POST',
     body: JSON.stringify(input),
+  });
+}
+
+export function createResearchFactorDraft(
+  executionId: string,
+): Promise<ResearchFactorDraftResultV1> {
+  return request(`/api/app/research/executions/${encodeURIComponent(executionId)}/factor-draft`, {
+    method: 'POST',
   });
 }
 
@@ -978,6 +988,15 @@ export function getCustomFactor(id: string): Promise<{
   description?: string;
   code: string;
   messages?: ChatMessage[] | null;
+  researchHandoff?: ResearchFactorHandoffV1 | null;
+  sourceResearchExecution?: {
+    id: string;
+    documentId: string;
+    title: string;
+    displayName: string | null;
+    sequence: number;
+    promotedAt: string | null;
+  } | null;
   builtin?: boolean; // preset rows are readable (readonly) through the same endpoint
   owned?: boolean;
   visibility?: AssetVisibility;

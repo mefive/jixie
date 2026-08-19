@@ -125,6 +125,15 @@ describe('multi-user asset permissions', () => {
       descriptionEn: 'Quality',
       code: 'export default defineFactor({ compute: () => 1 });',
       messages: null,
+      researchHandoff: { version: 1, sourceExecutionId: 'private-execution-a' },
+      sourceResearchExecution: {
+        id: 'private-execution-a',
+        documentId: 'private-document-a',
+        title: 'Private research',
+        displayName: 'Private version',
+        sequence: 1,
+        promotedAt: new Date('2026-07-31T00:00:00Z'),
+      },
       userId: 'user-a',
       visibility: 'public',
     });
@@ -138,6 +147,8 @@ describe('multi-user asset permissions', () => {
       owned: false,
       visibility: 'public',
       messages: null,
+      researchHandoff: null,
+      sourceResearchExecution: null,
     });
     expect(mocks.factorFindFirst.mock.calls[0][0].where.OR).toContainEqual({
       visibility: 'public',

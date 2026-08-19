@@ -24,6 +24,7 @@ import {
   type ResearchExecutionPromotionInputV1,
   type ResearchExecutionSummaryV1,
   type ResearchExecutionV1,
+  type ResearchFactorDraftResultV1,
 } from '@jixie/shared';
 import { BaseStore, LoaderModel, PollingModel } from '@src/lib';
 import {
@@ -33,6 +34,7 @@ import {
   applyResearchCellChangeProposal,
   applyResearchCellChangeProposalForReview,
   createResearchDocument,
+  createResearchFactorDraft,
   deleteResearchCell,
   deleteResearchConversation,
   getLatestResearchCuratorRun,
@@ -67,7 +69,10 @@ import {
   type ResearchCellDraftState,
 } from './research-autosave';
 
-type ResearchSetupParams = {};
+type ResearchSetupParams = {
+  document?: string;
+  execution?: string;
+};
 
 interface ResearchDataCatalogQuery {
   query: string;
@@ -111,6 +116,7 @@ const CURATOR_POLL_INTERVAL_MS = 1_000;
 /** Domain state for the reactive research document and its attached Agent conversation. */
 export class ResearchStore extends BaseStore<ResearchSetupParams> {
   public document: ResearchDocumentV1 | null = null;
+  public requestedExecutionId: string | null = null;
   public chatMessages: ChatMessage[] = [];
   public sending = false;
   public prompt = '';
@@ -131,6 +137,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
   public executionListLoader = new LoaderModel<ResearchExecutionSummaryV1[]>();
   public executionLoader = new LoaderModel<ResearchExecutionV1>();
   public executionPromotionLoader = new LoaderModel<ResearchExecutionSummaryV1>();
+  public researchFactorDraftLoader = new LoaderModel<ResearchFactorDraftResultV1>();
   public affectedRunLoader = new LoaderModel<ResearchDocumentRunResultV1>();
   public interruptLoader = new LoaderModel<ResearchDocumentInterruptResultV1>();
   public cellChangeResolutionLoader = new LoaderModel<ResearchCellChangeResolutionResultV1>();
@@ -149,6 +156,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     super(parentStore);
     makeObservable(this, {
       document: observable.ref,
+      requestedExecutionId: observable.ref,
       chatMessages: observable.ref,
       sending: observable.ref,
       prompt: observable.ref,
@@ -167,6 +175,9 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
 
   public setup(params: ResearchSetupParams) {
     super.setup(params);
+    runInAction(() => {
+      this.requestedExecutionId = params.execution ?? null;
+    });
     this.documentsLoader.setup({ request: () => listResearchDocuments() });
     this.documentLoader.setup({ request: (documentId: string) => getResearchDocument(documentId) });
     this.documentMutationLoader.setup({
@@ -215,6 +226,10 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
         executionId: string;
         input: ResearchExecutionPromotionInputV1;
       }) => promoteResearchExecution(executionId, input),
+    });
+    this.researchFactorDraftLoader.setup({
+      preserveResult: false,
+      request: (executionId: string) => createResearchFactorDraft(executionId),
     });
     this.affectedRunLoader.setup({
       preserveResult: false,
@@ -290,6 +305,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     this.registCleaner(() => this.executionListLoader.cleanup());
     this.registCleaner(() => this.executionLoader.cleanup());
     this.registCleaner(() => this.executionPromotionLoader.cleanup());
+    this.registCleaner(() => this.researchFactorDraftLoader.cleanup());
     this.registCleaner(() => this.affectedRunLoader.cleanup());
     this.registCleaner(() => this.interruptLoader.cleanup());
     this.registCleaner(() => this.cellChangeResolutionLoader.cleanup());
@@ -310,6 +326,9 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     this.registCleaner(() => this.stopAutosaveTimer());
     void this.documentsLoader.run();
     void this.loadCurator().catch(() => {});
+    if (params.document) {
+      void this.openDocument(params.document).catch(() => {});
+    }
   }
 
   public get documentId(): string | null {
@@ -593,6 +612,10 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
       await this.executionLoader.run(executionId);
     }
     return result;
+  }
+
+  public createFactorDraft(executionId: string) {
+    return this.researchFactorDraftLoader.run(executionId);
   }
 
   public async send(message: string, attemptId?: string) {

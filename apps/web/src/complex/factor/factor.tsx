@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent, ReactNode } from 'react';
 import type { TFunction } from 'i18next';
-import { useBlocker, useSearchParams } from 'react-router-dom';
+import { useBlocker, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import classNames from 'classnames';
 import dayjs from 'dayjs';
@@ -61,6 +61,8 @@ import {
   faTriangleExclamation,
   faLayerGroup,
   faPen,
+  faArrowUpRightFromSquare,
+  faFlask,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { LoaderButton } from '@src/components/loader-button';
@@ -342,6 +344,7 @@ const NewFactorModal = complex.component(
 const AgentChat = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('factor');
+  const navigate = useNavigate();
   const qa = store.qaMode;
   const f = store.selected;
   const name = f
@@ -360,6 +363,53 @@ const AgentChat = complex.component(() => {
         </div>
         {store.description && <div className="jx-factor-agentDescription">{store.description}</div>}
       </div>
+      {store.researchHandoff && (
+        <section className="jx-factor-researchHandoff" data-testid="factor-research-handoff">
+          <div className="jx-factor-researchHandoffHead">
+            <FontAwesomeIcon icon={faFlask} />
+            <div className="jx-factor-researchHandoffSource">
+              <span>{t('researchHandoff.title')}</span>
+              <strong>
+                {store.sourceResearchExecution?.displayName ??
+                  store.researchHandoff.sourceDisplayName}
+              </strong>
+            </div>
+            {store.sourceResearchExecution && (
+              <Tooltip title={t('researchHandoff.openSource')}>
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<FontAwesomeIcon icon={faArrowUpRightFromSquare} />}
+                  aria-label={t('researchHandoff.openSource')}
+                  onClick={() =>
+                    navigate(
+                      `/research?document=${encodeURIComponent(store.researchHandoff!.sourceDocumentId)}&execution=${encodeURIComponent(store.researchHandoff!.sourceExecutionId)}`,
+                    )
+                  }
+                />
+              </Tooltip>
+            )}
+            {!store.sourceResearchExecution && (
+              <span className="jx-factor-researchHandoffUnavailable">
+                {t('researchHandoff.sourceUnavailable')}
+              </span>
+            )}
+          </div>
+          <p>{store.researchHandoff.summary}</p>
+          <details>
+            <summary>
+              {t('researchHandoff.unresolved', {
+                count: store.researchHandoff.unresolvedItems.length,
+              })}
+            </summary>
+            <ul>
+              {store.researchHandoff.unresolvedItems.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </details>
+        </section>
+      )}
       <ChatLog
         messages={store.chatMessages}
         sending={store.sending}

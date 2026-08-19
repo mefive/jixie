@@ -1,5 +1,5 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
-import { Alert, Button, Drawer, Empty, Input, Modal, Skeleton, Tag, Tooltip } from 'antd';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { Alert, App, Button, Drawer, Empty, Input, Modal, Skeleton, Tag, Tooltip } from 'antd';
 import type {
   ResearchExecutionCellV1,
   ResearchExecutionStatusV1,
@@ -8,6 +8,7 @@ import type {
 } from '@jixie/shared';
 import {
   faArrowLeft,
+  faArrowRight,
   faBookmark,
   faCheck,
   faCircleExclamation,
@@ -18,6 +19,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { LoadingArea } from '@src/components/loading-area';
 import { Markdown } from '@src/components/markdown';
 import { complex } from './complex';
@@ -26,6 +28,7 @@ import './research-execution-drawer.css';
 
 interface ResearchExecutionDrawerProps {
   open: boolean;
+  initialExecutionId?: string | null;
   onClose: () => void;
 }
 
@@ -36,14 +39,18 @@ const ResearchReadOnlyCodeEditor = lazy(() =>
 );
 
 export const ResearchExecutionDrawer = complex.component(
-  ({ open, onClose }: ResearchExecutionDrawerProps) => {
+  ({ open, initialExecutionId, onClose }: ResearchExecutionDrawerProps) => {
     const store = complex.useStore();
     const { t } = useTranslation('research');
+    const { message } = App.useApp();
+    const navigate = useNavigate();
     const [selectedExecutionId, setSelectedExecutionId] = useState<string | null>(null);
     const [promotionTarget, setPromotionTarget] = useState<ResearchExecutionSummaryV1 | null>(null);
     const [displayName, setDisplayName] = useState('');
     const [tags, setTags] = useState('');
     const [userNote, setUserNote] = useState('');
+    const [factorDraftTargetId, setFactorDraftTargetId] = useState<string | null>(null);
+    const openedInitialExecutionId = useRef<string | null>(null);
     const executions = store.executionListLoader.result ?? [];
     const selectedExecution =
       store.executionLoader.result?.id === selectedExecutionId
@@ -56,7 +63,12 @@ export const ResearchExecutionDrawer = complex.component(
         return;
       }
       void store.loadExecutionHistory().catch(() => {});
-    }, [open, store]);
+      if (initialExecutionId && openedInitialExecutionId.current !== initialExecutionId) {
+        openedInitialExecutionId.current = initialExecutionId;
+        setSelectedExecutionId(initialExecutionId);
+        void store.viewResearchExecution(initialExecutionId).catch(() => {});
+      }
+    }, [initialExecutionId, open, store]);
 
     const openExecution = (executionId: string) => {
       setSelectedExecutionId(executionId);
@@ -82,6 +94,29 @@ export const ResearchExecutionDrawer = complex.component(
         ...(userNote.trim() ? { userNote: userNote.trim() } : {}),
       });
       setPromotionTarget(null);
+    };
+    const createFactorDraft = async (execution: ResearchExecutionSummaryV1) => {
+      if (factorDraftTargetId) {
+        return;
+      }
+      setFactorDraftTargetId(execution.id);
+      try {
+        const result = await store.createFactorDraft(execution.id);
+        message.success(
+          t(
+            result.reused
+              ? 'workbench.execution.factorDraftReused'
+              : 'workbench.execution.factorDraftCreated',
+          ),
+        );
+        navigate(`/factors?factor=${encodeURIComponent(result.factorId)}`);
+      } catch (error) {
+        message.error(
+          error instanceof Error ? error.message : t('workbench.execution.factorDraftFailed'),
+        );
+      } finally {
+        setFactorDraftTargetId(null);
+      }
     };
 
     return (
@@ -121,6 +156,8 @@ export const ResearchExecutionDrawer = complex.component(
                   execution={selectedExecution}
                   currentContentRevision={store.document?.contentRevision}
                   onPromote={() => openPromotion(selectedExecution)}
+                  onCreateFactorDraft={() => void createFactorDraft(selectedExecution)}
+                  creatingFactorDraft={factorDraftTargetId === selectedExecution.id}
                 />
               )}
             </LoadingArea>
@@ -141,6 +178,8 @@ export const ResearchExecutionDrawer = complex.component(
                       currentContentRevision={store.document?.contentRevision}
                       onOpen={() => openExecution(execution.id)}
                       onPromote={() => openPromotion(execution)}
+                      onCreateFactorDraft={() => void createFactorDraft(execution)}
+                      creatingFactorDraft={factorDraftTargetId === execution.id}
                     />
                   ))}
                 </div>
@@ -149,7 +188,8 @@ export const ResearchExecutionDrawer = complex.component(
           )}
           {(store.executionListLoader.error ||
             store.executionLoader.error ||
-            store.executionPromotionLoader.error) && (
+            store.executionPromotionLoader.error ||
+            store.researchFactorDraftLoader.error) && (
             <Alert
               className="jx-researchExecution-alert"
               type="error"
@@ -157,7 +197,8 @@ export const ResearchExecutionDrawer = complex.component(
               title={
                 store.executionListLoader.errorObject?.message ??
                 store.executionLoader.errorObject?.message ??
-                store.executionPromotionLoader.errorObject?.message
+                store.executionPromotionLoader.errorObject?.message ??
+                store.researchFactorDraftLoader.errorObject?.message
               }
             />
           )}
@@ -214,11 +255,15 @@ function ExecutionListItem({
   currentContentRevision,
   onOpen,
   onPromote,
+  onCreateFactorDraft,
+  creatingFactorDraft,
 }: {
   execution: ResearchExecutionSummaryV1;
   currentContentRevision?: number;
   onOpen: () => void;
   onPromote: () => void;
+  onCreateFactorDraft: () => void;
+  creatingFactorDraft: boolean;
 }) {
   const { t } = useTranslation('research');
   const draftChanged = currentContentRevision !== execution.contentRevision;
@@ -255,21 +300,39 @@ function ExecutionListItem({
           {draftChanged && ` · ${t('workbench.execution.draftChanged')}`}
         </span>
       </div>
-      {execution.status === 'success' && !execution.promotedAt && (
-        <Tooltip title={t('workbench.execution.promote')}>
-          <Button
-            type="text"
-            size="small"
-            icon={<FontAwesomeIcon icon={faBookmark} />}
-            aria-label={t('workbench.execution.promote')}
-            data-testid="research-execution-promote"
-            onClick={(event) => {
-              event.stopPropagation();
-              onPromote();
-            }}
-          />
-        </Tooltip>
-      )}
+      <div className="jx-researchExecution-itemActions">
+        {execution.status === 'success' && !execution.promotedAt && (
+          <Tooltip title={t('workbench.execution.promote')}>
+            <Button
+              type="text"
+              size="small"
+              icon={<FontAwesomeIcon icon={faBookmark} />}
+              aria-label={t('workbench.execution.promote')}
+              data-testid="research-execution-promote"
+              onClick={(event) => {
+                event.stopPropagation();
+                onPromote();
+              }}
+            />
+          </Tooltip>
+        )}
+        {execution.status === 'success' && execution.promotedAt && (
+          <Tooltip title={t('workbench.execution.createFactorDraft')}>
+            <Button
+              type="text"
+              size="small"
+              loading={creatingFactorDraft}
+              icon={<FontAwesomeIcon icon={faArrowRight} />}
+              aria-label={t('workbench.execution.createFactorDraft')}
+              data-testid="research-execution-create-factor"
+              onClick={(event) => {
+                event.stopPropagation();
+                onCreateFactorDraft();
+              }}
+            />
+          </Tooltip>
+        )}
+      </div>
     </article>
   );
 }
@@ -278,10 +341,14 @@ function ExecutionDetail({
   execution,
   currentContentRevision,
   onPromote,
+  onCreateFactorDraft,
+  creatingFactorDraft,
 }: {
   execution: ResearchExecutionV1;
   currentContentRevision?: number;
   onPromote: () => void;
+  onCreateFactorDraft: () => void;
+  creatingFactorDraft: boolean;
 }) {
   const { t } = useTranslation('research');
   return (
@@ -296,16 +363,30 @@ function ExecutionDetail({
               {formatExecutionTime(execution.startedAt)}
             </p>
           </div>
-          {execution.status === 'success' && !execution.promotedAt && (
-            <Tooltip title={t('workbench.execution.promote')}>
-              <Button
-                type="text"
-                icon={<FontAwesomeIcon icon={faBookmark} />}
-                aria-label={t('workbench.execution.promote')}
-                onClick={onPromote}
-              />
-            </Tooltip>
-          )}
+          <div className="jx-researchExecution-summaryActions">
+            {execution.status === 'success' && !execution.promotedAt && (
+              <Tooltip title={t('workbench.execution.promote')}>
+                <Button
+                  type="text"
+                  icon={<FontAwesomeIcon icon={faBookmark} />}
+                  aria-label={t('workbench.execution.promote')}
+                  onClick={onPromote}
+                />
+              </Tooltip>
+            )}
+            {execution.status === 'success' && execution.promotedAt && (
+              <Tooltip title={t('workbench.execution.createFactorDraft')}>
+                <Button
+                  type="text"
+                  loading={creatingFactorDraft}
+                  icon={<FontAwesomeIcon icon={faArrowRight} />}
+                  aria-label={t('workbench.execution.createFactorDraft')}
+                  data-testid="research-execution-create-factor"
+                  onClick={onCreateFactorDraft}
+                />
+              </Tooltip>
+            )}
+          </div>
         </div>
         <div className="jx-researchExecution-summaryTags">
           <Tag color={execution.status === 'success' ? 'success' : 'default'}>

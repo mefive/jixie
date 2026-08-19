@@ -59,7 +59,9 @@ export const Research = complex.component(() => {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [curatorOpen, setCuratorOpen] = useState(false);
   const [dataCatalogOpen, setDataCatalogOpen] = useState(false);
-  const [executionHistoryOpen, setExecutionHistoryOpen] = useState(false);
+  const [executionHistoryOpen, setExecutionHistoryOpen] = useState(
+    Boolean(store.requestedExecutionId),
+  );
   const [agentOpen, setAgentOpen] = useState(true);
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) =>
@@ -116,6 +118,7 @@ export const Research = complex.component(() => {
       <ResearchDataCatalogDrawer open={dataCatalogOpen} onClose={() => setDataCatalogOpen(false)} />
       <ResearchExecutionDrawer
         open={executionHistoryOpen}
+        initialExecutionId={store.requestedExecutionId}
         onClose={() => setExecutionHistoryOpen(false)}
       />
     </main>

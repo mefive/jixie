@@ -39,12 +39,15 @@ const MESSAGES = {
   },
   screenNotFound: { zh: '选股不存在', en: 'Screen not found' },
   conversationNotFound: { zh: '会话不存在', en: 'Conversation not found' },
-  researchStudyNotFound: { zh: '研究记录不存在', en: 'Research study not found' },
   researchArtifactNotFound: { zh: '研究产物不存在', en: 'Research artifact not found' },
   researchExecutionNotFound: { zh: '研究运行记录不存在', en: 'Research execution not found' },
   researchExecutionPromotionUnavailable: {
     zh: '只有成功的完整运行才能封存为研究版本',
     en: 'Only a successful complete execution can be promoted to a research version',
+  },
+  researchFactorDraftUnavailable: {
+    zh: '只有已封存且成功的研究版本才能生成 Factor 草稿',
+    en: 'Only a sealed, successful research version can create a Factor draft',
   },
   researchCellChangeProposalNotFound: {
     zh: '研究 Cell 变更提案不存在',

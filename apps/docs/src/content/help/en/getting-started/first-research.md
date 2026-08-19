@@ -13,6 +13,12 @@ Python yourself or ask the Research Agent to generate and explain it; SQL and Ty
 5. Run one cell, its affected branch, or the full document in a clean runtime. A complete run creates an immutable snapshot
    that can be reviewed and promoted later.
 
+When a promoted successful version contains one explicit point-in-time signal supported by platform data, you can create a
+Factor draft from the snapshot. An LLM first checks semantic convertibility, then the Factor compiler validates the generated
+code. If conversion is not possible, the product explains why. The Factor keeps the source snapshot, distilled summary, and
+remaining validation items, with a link back to the exact snapshot. This creates a draft only: it does not prove efficacy, run
+a report, reveal a holdout, or publish the Factor.
+
 The Agent can add methods and formulas, edit Markdown/Python cells, and explain real outputs. It cannot claim that unexecuted
 code has run or replace code and output with prose. When data or methods are unavailable, it reports the exact gap.
 

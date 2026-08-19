@@ -20,6 +20,12 @@ No derivation is needed here. Calculate the reciprocal only when price-to-book i
 
 ## Open a new factor
 
+If Research already has a promoted successful version with one explicit point-in-time signal, you can create the draft from
+that snapshot instead. An LLM rewrites the free-form study into constrained Factor SDK code, and the Factor compiler rejects
+invalid definitions. A source card on the left shows the originating research version, distilled summary, and remaining
+checks; its icon opens the exact source snapshot. You must still review the code and complete FactorReport, holdout, cost, and
+capacity validation.
+
 1. Open **Factor Research**.
 2. Select **New** on the left.
 3. Choose the research method, enter a display name, and choose the unique key that cannot change after creation.

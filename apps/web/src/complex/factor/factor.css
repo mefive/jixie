@@ -81,6 +81,69 @@
   line-height: 1.5;
 }
 
+.jx-factor-researchHandoff {
+  @apply border border-line text-ink;
+  flex: none;
+  margin: 0 2px 8px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: rgb(248 249 250 / 0.78);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.jx-factor-researchHandoffHead {
+  @apply flex items-start gap-2;
+}
+
+.jx-factor-researchHandoffHead > svg {
+  @apply text-muted;
+  margin-top: 3px;
+}
+
+.jx-factor-researchHandoffSource {
+  @apply flex min-w-0 flex-1 flex-col;
+}
+
+.jx-factor-researchHandoffSource > span {
+  @apply text-muted;
+  font-size: 10px;
+}
+
+.jx-factor-researchHandoffSource > strong {
+  @apply truncate;
+  font-size: 12px;
+}
+
+.jx-factor-researchHandoffUnavailable {
+  @apply text-muted;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.jx-factor-researchHandoff > p {
+  @apply text-muted;
+  margin: 7px 0 0;
+}
+
+.jx-factor-researchHandoff details {
+  margin-top: 6px;
+}
+
+.jx-factor-researchHandoff summary {
+  @apply cursor-pointer select-none font-medium;
+}
+
+.jx-factor-researchHandoff ul {
+  @apply text-muted;
+  margin: 5px 0 0;
+  padding-left: 17px;
+}
+
+.jx-factor-researchHandoff li + li {
+  margin-top: 3px;
+}
+
 .jx-factor-agentTabs {
   @apply flex flex-1 flex-col overflow-hidden;
   padding: 0 12px 12px;
