@@ -67,8 +67,8 @@ const MESSAGES = {
     en: 'The document changed after the proposal was applied; create a new proposal or run the current Cells directly',
   },
   researchCellChangeAttemptNoExecutableCells: {
-    zh: '该提案只包含说明性变更，没有需要运行的 Python 或 Validation Cell',
-    en: 'This proposal contains only descriptive changes and has no Python or Validation Cell to execute',
+    zh: '该提案只包含说明性变更，没有需要运行的 Python Cell',
+    en: 'This proposal contains only descriptive changes and has no Python Cell to execute',
   },
   researchCellChangeReviewDeleteRequiresApplication: {
     zh: '删除 Cell 仍需显式审查和应用，不能直接进入可回滚变更会话',

@@ -1,6 +1,7 @@
 FROM python:3.13.5-slim-bookworm
 
 RUN pip install --no-cache-dir numpy==2.3.2 pandas==2.3.1 matplotlib==3.10.5 \
+  scipy==1.18.0 statsmodels==0.14.6 scikit-learn==1.9.0 \
   && useradd --system --uid 65532 --home-dir /nonexistent --shell /usr/sbin/nologin sandbox
 
 COPY python/jixie_runner.py /opt/jixie/jixie_runner.py

@@ -199,20 +199,10 @@ import type {
   ResearchAssetTypeV1,
   ResearchLanguageRequestV1,
   ResearchLanguageResultV1,
-  ResearchAttemptRecordV1,
   ResearchCuratorDispositionV1,
   ResearchCuratorFindingV1,
   ResearchCuratorRunV1,
   ResearchCuratorVerificationAssessmentV1,
-  ResearchPlanSpecV1,
-  ResearchRunRecordV1,
-  ResearchRunResultV1,
-  TimeSeriesRelationshipPlanSpecV1,
-  TimeSeriesRelationshipRunResultV1,
-  DistributionComparisonPlanSpecV1,
-  DistributionComparisonRunResultV1,
-  EventStudyPlanSpecV1,
-  EventStudyRunResultV1,
 } from '@jixie/shared';
 
 // Back-compat alias — the trace item type now lives in shared (agent-stream protocol).
@@ -479,40 +469,6 @@ export function sendResearchAgent(
       ...(conversationId ? { conversationId } : {}),
       ...(attemptId ? { attemptId } : {}),
     }),
-  });
-}
-
-export function runResearchPlan(
-  plan: TimeSeriesRelationshipPlanSpecV1,
-): Promise<TimeSeriesRelationshipRunResultV1>;
-export function runResearchPlan(
-  plan: DistributionComparisonPlanSpecV1,
-): Promise<DistributionComparisonRunResultV1>;
-export function runResearchPlan(plan: EventStudyPlanSpecV1): Promise<EventStudyRunResultV1>;
-export function runResearchPlan(plan: ResearchPlanSpecV1): Promise<ResearchRunResultV1>;
-export function runResearchPlan(plan: ResearchPlanSpecV1): Promise<ResearchRunResultV1> {
-  return request('/api/app/research/run', {
-    method: 'POST',
-    body: JSON.stringify(plan),
-  });
-}
-
-export function listResearchStudyRuns(studyId: string): Promise<ResearchRunRecordV1[]> {
-  return request(`/api/app/research/studies/${encodeURIComponent(studyId)}/runs`);
-}
-
-export function listResearchStudyAttempts(studyId: string): Promise<ResearchAttemptRecordV1[]> {
-  return request(`/api/app/research/studies/${encodeURIComponent(studyId)}/attempts`);
-}
-
-export function rerunResearchStudy(
-  studyId: string,
-  parentRunId: string,
-  plan: ResearchPlanSpecV1,
-): Promise<ResearchRunRecordV1> {
-  return request(`/api/app/research/studies/${encodeURIComponent(studyId)}/runs`, {
-    method: 'POST',
-    body: JSON.stringify({ parentRunId, plan }),
   });
 }
 

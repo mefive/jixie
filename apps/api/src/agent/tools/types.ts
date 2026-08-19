@@ -1,9 +1,4 @@
-import type {
-  ChartSpec,
-  ResearchCellChangeProposalV1,
-  ResearchRunResultV1,
-  UniverseSpecV1,
-} from '@jixie/shared';
+import type { ChartSpec, ResearchCellChangeProposalV1, UniverseSpecV1 } from '@jixie/shared';
 import type { ToolSpec } from '../../llm/agent-llm.js';
 
 /** A re-runnable point-in-time entity universe produced by the deterministic Universe executor. */
@@ -19,18 +14,11 @@ export interface AgentChart {
   chart: ChartSpec;
 }
 
-/** A structured deterministic research result side-produced by executeResearchPlan. */
-export interface AgentResearchRun {
-  title: string;
-  run: ResearchRunResultV1;
-}
-
 export interface ToolRunResult {
   observation: string; // what the model sees (JSON string, row-capped)
   rows?: number; // row count for the toolTrace
   universe?: AgentUniverse; // set when this call should surface a re-runnable entity universe
   chart?: AgentChart; // set when this call should surface a chart card in the reply
-  research?: AgentResearchRun; // set when this call should surface a research result in the reply
   researchCellChange?: ResearchCellChangeProposalV1; // pending proposal surfaced as a durable message part
 }
 

@@ -1,20 +1,18 @@
 # 设计：响应式量化研究工作台
 
-> 2026-08-17 产品决策。本文定义当前“主线一”的新产品表面，取代
-> `natural-language-quant-research.md` 中“聊天 + 四种协议就是完整研究入口”和“不建设自由 Cell”的旧假设。
-> 已完成的 Research 协议、语义目录、`ResearchStudy` / `ResearchRun`、运行指纹、失败尝试和 Curator
-> 不废弃，而是作为新工作台的验证与审计基础继续复用。
+> 2026-08-17 产品决策，2026-08-19 收敛 Cell 边界。本文是当前“主线一”的唯一产品设计依据。Research 只
+> 保留 Markdown / Python 两类 Cell；数据目录、Universe、Python SDK、完整执行快照和 Curator 继续复用。
 
-> **实施状态（2026-08-18）**：jixie-native 的首个垂直切片已经完成并通过真实浏览器验收。当前覆盖持久化
-> 研究文档、三类 Cell、独立 Python runtime、AST 依赖与 stale 传播、平台时序取数、表格、Matplotlib、
+> **实施状态（2026-08-19）**：jixie-native 的首个垂直切片已经完成并通过真实浏览器验收。当前覆盖持久化
+> 研究文档、两类 Cell、独立 Python runtime、AST 依赖与 stale 传播、平台时序取数、表格、Matplotlib、
 > 结构化 ECharts、静态 Research SDK Contract、Monaco 参数与返回列补全、Pyright 跨 Cell 语言服务、可搜索数据目录、
 > 目录驱动的标的/指标补全与代码插入、原生 line / scatter / histogram / boxplot / heatmap / event_path
 > 交互图、受控大表分页/虚拟化与 1 MiB 预览预算、图片 artifact 按权限懒加载、输出硬上限、受影响 Cell
 > 拓扑批量运行、运行中断、干净全文运行和
-> Validation → `ResearchRun`。
-> Agent 受审计增删改 Cell、用户授权的受控执行、精确结果解释和简版尝试比较已经完成；完整
-> `ResearchExecution` 比较以及 Factor / Strategy 带血缘交接仍是后续里程碑，
-> 因此本文的“首版完成定义”尚未全部关闭。
+> 不可变完整运行快照、文档内运行历史、只读回看与显式封存。
+> Agent 受审计增删改 Cell、用户授权的受控执行、精确结果解释和简版尝试比较已经完成；M3 以当前快照能力
+> 收工，不把数据副本、自动执行归因、反向来源关联或全局档案作为首版阻塞项。Factor / Strategy 带血缘交接
+> 仍是 M4 里程碑，因此本文的“首版完成定义”尚未全部关闭。
 
 ## 1. 产品判断
 
@@ -22,7 +20,7 @@ jixie 面向愿意学习或已经掌握基础 Python、pandas 和统计学的个
 排错和方法选择成本，但不能以固定表单或聊天结果代替研究者的表达能力。
 
 工作台不是 Jupyter 的外部 SDK，也不引入 Jupyter 作为产品或运行时。它是在 jixie Research 页面内建设的
-量化研究文档：用户、Agent、平台数据、Python 计算、交互图表、正式验证和研究血缘共处于同一研究对象。
+量化研究文档：用户、Agent、平台数据、Python 计算、交互图表、完整运行快照和研究血缘共处于同一研究对象。
 
 参考 [marimo](https://docs.marimo.io/) 的响应式数据流思想，但首版不直接把 marimo 编辑器或服务嵌入产品：
 
@@ -30,7 +28,7 @@ jixie 面向愿意学习或已经掌握基础 Python、pandas 和统计学的个
 - 上游变化时将下游标为 `stale`，避免旧输出伪装成当前结果；
 - 量化计算默认使用 lazy 模式，不因一次编辑自动触发昂贵数据请求、模型或回测；
 - 正式固化必须在干净运行时中按依赖顺序完整执行；
-- 是否直接采用 marimo 代码，只能在短期 PoC 验证数据桥、Agent、持久化、WebSocket 与沙箱边界后决定。
+- 当前已选择 jixie-native DAG/runtime；marimo 只保留为交互思想参考，不再作为首版嵌入候选。
 
 一句话定义：**Research 负责自由提出、探索和复查问题；Factor 负责把预测规律固化成信号资产；Strategy
 负责把信号、规则和约束变成仓位与交易。**
@@ -71,7 +69,6 @@ Research 页面从“聊天记录”转成“研究文档”，Agent 成为可�
 │ 搜索数据    │ [Markdown：假设与口径]    │ 插入/修改 Cell│
 │ Universe   │ [Python]             ▶   │ 解释与排错    │
 │ 数据覆盖    │ [表格 / 图表输出]         │ 方法审查      │
-│ 已用变量    │ [Validation]         ▶   │ 总结与提升    │
 └────────────┴──────────────────────────┴──────────────┘
 ```
 
@@ -84,11 +81,10 @@ Research 页面从“聊天记录”转成“研究文档”，Agent 成为可�
 
 ### 4.1 首版 Cell
 
-首版只有三种可编辑 Cell：
+首版只有两种可编辑 Cell：
 
 1. `markdown`：假设、口径、过程、结论和限制；
-2. `python`：平台数据、pandas、NumPy、SciPy、statsmodels、scikit-learn 与绘图；
-3. `validation`：调用版本化 Research 协议，产生受审计的结构化结果和 `ResearchRun`。
+2. `python`：平台数据、pandas、NumPy、SciPy、statsmodels、scikit-learn、诊断与绘图。
 
 表格、图表、文本和异常都是 Cell 输出，不再发明独立的“图表 Cell”。后续交互参数若进入产品，应是带稳定
 值和类型的输入控件，并进入执行 spec 与指纹；首版不引入任意 widget 系统。
@@ -103,7 +99,7 @@ Python Cell 保存源码后，由 Python AST 分析其全局变量 definitions /
 - Python 无法可靠感知 `df["x"] = ...`、`list.append(...)` 等对象内部变异，帮助与 Agent 应鼓励
   `raw → clean → returns` 这样的不可变式命名；
 - 页面顺序服务于叙事，执行顺序由依赖图决定；
-- 默认不自动执行昂贵后代，只提供“运行当前”“运行受影响”“完整验证”。
+- 默认不自动执行昂贵后代，只提供“运行当前”“运行受影响”“干净运行全文”。
 
 “运行受影响”以当前 Cell 为起点，执行当前 Cell 与全部传递下游，排除无关分支，并用稳定拓扑序而不是页面顺序
 串行运行。开始前会将已有输出的受影响下游标记 `stale`；某个 Cell 失败后，只跳过依赖该失败结果的后代，其他
@@ -112,9 +108,7 @@ Python Cell 保存源码后，由 Python AST 分析其全局变量 definitions /
 中断是文档级运行控制，不是只取消浏览器请求：当 Python Cell 正在执行时，宿主会终止该文档的 Python
 session，并在下一次执行时创建全新 session，防止被中断代码留下不可知的内存状态。被中断 Cell 如果已有一次
 成功输出，则回到 `stale` 并保留旧输出；从未成功执行过则回到 `idle`。本次不可变执行快照记为
-`cancelled`，受影响运行和全文运行都停止调度后续 Cell。Markdown 是即时原子操作；Validation 首版沿用现有
-协议执行边界，当前协议调用完成后才观察停止标记，因此中断只保证不再启动它之后的 Cell，不承诺杀死正在进行的
-协议内部计算。
+`cancelled`，受影响运行和全文运行都停止调度后续 Cell。Markdown 是即时原子操作。
 
 Cell 状态统一为：
 
@@ -127,8 +121,7 @@ type ResearchCellState =
   | 'error';
 ```
 
-`success` 只表示源码和当前输出一致，不表示统计方法正确；`validation` 成功且所属完整执行已经固化后，才可以
-显示“已验证”徽标。
+`success` 只表示源码和当前输出一致，不表示统计方法正确。完整运行快照冻结“当时运行了什么”，不会替用户判断方法或结论正确。
 
 ## 5. Research Runtime API 与 Factor / Strategy 的交集
 
@@ -233,49 +226,26 @@ ResearchExecution 和未解决限制；进入 Factor 页面后仍须满足定义
 从 Research 创建 Strategy 时带入规则、资产范围、调仓和来源执行，但必须在 Strategy Lab 中补齐仓位、成本、
 成交与风险约束并重新回测。
 
-## 6. Research 协议究竟是什么
+## 6. 统计方法、公式与证据层级
 
-协议既不是“固化的一段研究代码”，也不是“UI 定制出来的一张报告”。它是一个**版本化的端到端验证契约**：
+Research 不再维护固定统计流程或专用报告卡。统计方法直接存在于可读、可编辑、可运行的研究文档中：
 
-```ts
-interface ResearchProtocolDefinition {
-  id: string;
-  version: number;
-  inputSchema: unknown;
-  parameterSchema: unknown;
-  preconditions: unknown[];
-  executor: string;
-  resultSchema: unknown;
-  diagnostics: unknown[];
-  conclusionRules: unknown[];
-  renderers: unknown[];
-  helpSlugs: string[];
-}
-```
+- Markdown 写问题、事前假设、estimand、公式、变量定义、前提、判断标准和限制；
+- Python 使用平台数据与成熟库实现计算、诊断、表格和图表；
+- Agent 可以为初学者生成两者，但不能用自然语言宣称代码没有产生的数值或结论；
+- 用户可以修改 Agent 代码、查看输出、重跑并让 Agent 基于精确输出解释。
 
-它至少包含六层：
+“Agent 给出公式”本身不够。公式负责解释算什么，Python 源码负责证明实际怎么算，执行输出负责展示这次算出
+什么，三者必须一致。高频方法可沉淀为 Markdown + Python 文档模板或经过测试的 Python helper，但模板不是新的
+Cell 类型，也不拥有隐藏执行器或专用结果表。
 
-1. **输入契约**：允许哪些序列、Universe、事件、单位、频率和时间语义；
-2. **参数与前置条件**：样本量、滞后、基准、异常值、显著性和不可静默改变的默认值；
-3. **确定性执行器**：当前可以是经过测试的 TypeScript 实现，未来也可以是冻结 Python 实现；语言不是身份；
-4. **诊断与结论规则**：不能由 UI 或 LLM 临时解释出不存在的证据；
-5. **结果 schema**：点估计、区间、效应量、稳定性、失败方式和数据摘要；
-6. **渲染说明**：同一结构化结果可以在 Validation Cell、详情页、对比页和导出报告中使用。
+Python Cell 输出只有两个证据等级：
 
-因此 UI 只是协议结果的一种投影。时间序列关系协议可以生成散点图、滚动系数图和诊断表，但这些图不是协议
-本体；删除某张图不应改变统计结果，修改执行器或结论规则则必须升级协议或实现指纹。
+- **探索输出**：单 Cell、受影响分支或 Agent 受控尝试的当前结果，适合快速迭代；
+- **完整运行快照**：从干净 runtime 执行全文，冻结当时的源码、DAG、输出、artifact 和环境。
 
-报告 UI 默认由可复用 block 组合，而不是每增加一个协议就手写一整张页面：`metric`、`table`、`chart`、
-`diagnostic`、`formula`、`limitation` 和 `narrative` block 从结构化结果取值。只有事件路径、偏回归等确实具有
-特殊交互语义的结果才增加专用 block；专用 block 仍不得重新计算统计结果。
-
-Python Cell 中的任意研究代码有三个证据等级：
-
-- **探索输出**：当前会话执行结果，允许快速迭代；
-- **可复现输出**：在干净 runtime 完整执行成功，冻结源码、输入和环境；
-- **验证结果**：经过登记协议产生的结构化 `ResearchRun`。
-
-可复现不等于方法正确，验证也不等于具有投资价值。Factor 与 Strategy 仍负责预测和可交易性证据。
+完整运行快照用于回看，不保存底层数据副本，也不等于统计方法正确或具有投资价值。用户需要复查时重新完整运行
+并产生新快照；Factor 与 Strategy 继续负责预测纪律、样本外验证和可交易性证据。
 
 ## 7. 图表与富输出
 
@@ -301,7 +271,7 @@ returns.plot(figsize=(12, 5))
 - Matplotlib 使用无窗口 Agg 后端；
 - Cell 结束时捕获尚未关闭的 figure，输出 PNG；验证 SVG 的字体、体积和安全边界后可同时支持 SVG；
 - 适合任意第三方统计图、论文复现和用户快速表达；
-- 固化时保存图片 artifact、源码、数据指纹和环境，不把图片当作唯一事实来源；
+- 固化时保存图片 artifact、源码和环境，不把图片当作唯一事实来源；
 - 静态图不提供原生 tooltip、缩放和图例联动，这是自由度换来的明确取舍。
 
 #### 轨道 B：jixie 原生交互图
@@ -327,8 +297,7 @@ interface ResearchChartOutput {
 ```
 
 前端继续复用现有 ECharts shell，提供 tooltip、缩放、图例开关、区间选择、数据点日期和多序列联动。Agent
-执行“画图”时优先产生这种交互图；用户直接调用 pandas / Matplotlib 时保留静态图。Validation Cell 的正式
-图表全部使用结构化结果和原生 ChartSpec，不依赖截图。
+执行“画图”时优先产生这种交互图；用户直接调用 pandas / Matplotlib 时保留静态图。完整运行同时冻结图表 spec、数据预览或静态图片 artifact。
 
 首批原生 helper 只覆盖高频且语义稳定的图：
 
@@ -353,7 +322,6 @@ type ResearchCellOutput =
   | { kind: 'table'; schema: unknown; preview: unknown[]; dataRef?: string }
   | { kind: 'image'; mimeType: 'image/png' | 'image/svg+xml'; artifactId: string }
   | ResearchChartOutput
-  | { kind: 'validation'; researchRunId: string }
   | { kind: 'error'; name: string; message: string; traceback?: string };
 ```
 
@@ -398,20 +366,17 @@ jixie-sandboxd
 建议领域对象：
 
 ```text
-ResearchStudy
-├─ ResearchDocument
-│  └─ ResearchCell[]
+ResearchDocument
+├─ ResearchCell[]                 # Markdown / Python
 ├─ ResearchExecution[]
-│  └─ ResearchCellOutput[] / artifacts / fingerprints
-├─ ResearchRun[]                 # Validation Cell 的正式协议运行
+│  └─ ResearchCellExecution[] / artifacts / fingerprints
 └─ AgentConversation
 ```
 
 - `ResearchDocument` 是可编辑当前态；
-- `ResearchExecution` 冻结一次 DAG 源码、依赖、环境、输入和输出；
-- `ResearchRun` 继续保存协议级正式结果，可以关联来源 Cell 与 Execution；
+- `ResearchExecution` 冻结一次 DAG 源码、依赖、环境和输出；
 - 不持久化不可解释的 Python 内存状态；重新打开文档时必须重建 runtime；
-- 只有全新容器完整执行成功且所有必要 Cell 非 stale，才允许固化“可复现执行”；
+- 每次全新环境完整执行都进入运行历史，只有成功执行才允许显式封存为研究版本；
 - 环境以 `research-py-v1` 等不可变版本标识，首版禁用用户运行时 `pip install`。
 
 ## 9. Agent 工具边界
@@ -424,9 +389,8 @@ Research Agent 至少需要：
 - `deleteResearchCell`
 - `executeResearchCell`
 - `executeAffectedResearchCells`
-- `validateResearchDocument`
+- `runResearchDocument`
 - `searchResearchDataCatalog`
-- `compareResearchExecutions`
 - `proposeFactorDraft`
 - `proposeStrategyDraft`
 
@@ -480,8 +444,7 @@ Agent 变更、新增或删除 Cell、切换或新建文档前都先 `flushAll`�
 
 第一、二阶段接受 Agent diff 时才原子修改文档并标记 stale。第三阶段中，非删除提案进入开放 review 时已经修改
 文档并标记 stale，但禁止执行；Accept 只关闭 review，并把全部 step 的 `appliedDocumentContentRevision` 更新为
-用户最终保存版本。用户随后通过最后一个 step 卡片上的独立图标按钮，显式运行整个会话修改的 Python /
-Validation Cell 及其受影响下游。显式应用的删除提案仍沿用原流程；涉及删除 Python Cell 时必须重置 runtime 并
+用户最终保存版本。用户随后通过最后一个 step 卡片上的独立图标按钮，显式运行整个会话修改的 Python Cell 及其受影响下游。显式应用的删除提案仍沿用原流程；涉及删除 Python Cell 时必须重置 runtime 并
 干净运行当前全文，避免已删除变量残留在解释器内存里。
 
 每次授权运行创建一个 `ResearchCellChangeAttempt`，冻结提案、应用后的 `contentRevision`、根 Cell、计划 Cell、
@@ -490,12 +453,11 @@ Validation Cell 及其受影响下游。显式应用的删除提案仍沿用原�
 的分支同样保留，不只记录成功样本。
 
 同一提案重跑后，卡片比较本次和上次尝试的源码 hash、输出 hash、状态与环境指纹，并明确显示计划/实际执行的
-Cell 数量。这是探索层的简版比较，不冒充 M3 的完整 `ResearchExecution`：数据输入指纹、完整 DAG 快照、结构化
-指标差异和正式结论归因仍由后续完整执行模型负责。
+Cell 数量。这是探索层的简版比较；完整运行则保存为彼此独立的只读快照，不在首版自动归因代码、数据、环境或
+结论变化。用户需要复查时重新完整运行，再分别查看两次快照。
 
 用户可对任一已结束尝试显式请求 Agent 解释。请求携带 attempt id，服务端只向模型提供该尝试的不可变源码、
-执行状态、错误、环境指纹和受控输出预览；超出上下文预算的源码或输出显式标记截断。Agent 必须区分失败、跳过、
-截断和正式 Validation 证据，不得把探索输出升级为投资结论，也不会因为解释请求再次运行代码。
+执行状态、错误、环境指纹和受控输出预览；超出上下文预算的源码或输出显式标记截断。Agent 必须区分失败、跳过、截断和完整运行快照，不得把探索输出升级为投资结论，也不会因为解释请求再次运行代码。
 
 ### 9.3 完整执行与研究版本封存
 
@@ -509,8 +471,8 @@ Cell 数量。这是探索层的简版比较，不冒充 M3 的完整 `ResearchE
 
 每次完整运行都进入当前文档的“运行历史”；历史详情以只读方式展示冻结源码和当次输出。用户可将任一成功执行
 显式“封存为研究版本”，再编辑版本名、标签和备注。封存是对已有执行的筛选和命名，不再运行代码，也不改写源码、
-DAG、输出与指纹。全局封存档案与搜索属于第二阶段；LLM 摘要只能作为引用确定性输出的可选注释，不得成为执行成功
-或封存的前置条件。
+DAG、输出与指纹。首版只在当前文档内查看运行历史；全局封存档案、跨快照自动比较、底层数据副本与 LLM 摘要
+等待真实需求再进入 backlog，不作为执行成功、封存或 M3 收工的前置条件。
 
 ## 10. 分阶段实现
 
@@ -538,13 +500,11 @@ DAG、输出与指纹。全局封存档案与搜索属于第二阶段；LLM 摘�
   源码/输出/状态/环境的简版尝试比较；第三阶段采用开放变更会话、Cell 内联可编辑 Diff、连续 Agent step 聚合、
   最终 Accept 与原子 Undo，删除仍保留显式应用。
 
-### M3：验证、固化与现有协议接线
+### M3：完整执行、快照与封存（首版完成）
 
-- Validation Cell 接入现有四协议；
-- 干净容器完整执行、`ResearchExecution`、输出 artifact 与环境指纹（第一阶段已完成：文档内运行历史、只读快照与显式封存；
-  第二阶段：全局封存档案与搜索）；
-- `ResearchRun` 关联来源 Execution / Cell；
-- 新旧运行、代码、数据、环境和结论差异比较。
+- 干净环境完整执行已经形成 `ResearchExecution`，并覆盖输出 artifact、环境指纹、文档内运行历史、只读快照与显式封存；
+- 快照只冻结 Markdown / Python 源码、DAG、当次输出和环境，不增加隐藏计算或专用报告；
+- 用户通过重新完整运行产生新快照。全局档案、数据请求指纹和新旧运行自动归因比较不进入首版完成定义。
 
 ### M4：Factor / Strategy / Backtest 闭环
 
@@ -555,8 +515,7 @@ DAG、输出与指纹。全局封存档案与搜索属于第二阶段；LLM 摘�
 
 ## 11. 方法与模板 backlog
 
-先搭建框架，不用统计学目录阻塞 M0–M3。以下能力按真实研究问题、方法审计和数据准备逐项进入 Validation
-协议或可复用模板：
+先搭建框架，不用统计学目录阻塞 M0–M3。以下能力按真实研究问题、方法审计和数据准备逐项进入可复用 Markdown / Python 模板或经过测试的 helper：
 
 - 横截面 IC、分层、衰减、换手、容量与因子冗余；
 - Fama–MacBeth / Panel 回归；
@@ -590,9 +549,8 @@ DAG、输出与指纹。全局封存档案与搜索属于第二阶段；LLM 摘�
 3. 获得表格、静态 Python 图和 jixie 原生交互图；
 4. 修改上游后准确看到所有受影响结果变为 stale；
 5. 由 Agent 读取、修改和执行同一份文档；
-6. 用现有协议建立至少一个 Validation Cell；
-7. 在干净环境完整执行并固化代码、数据、环境、图表和结果；
-8. 将合格候选显式送往 Factor 或 Strategy，而不是复制粘贴且不丢失血缘。
+6. 在干净环境完整执行并固化当次代码、输出、环境、图表和正式结果；
+7. 将合格候选显式送往 Factor 或 Strategy，而不是复制粘贴且不丢失血缘。
 
-首版成功不以覆盖全部统计方法为条件；成功标准是自由探索、正式验证和下游产品之间的边界清楚、运行可信、
-结果可复现。
+首版成功不以覆盖全部统计方法为条件；成功标准是自由探索、完整运行快照和下游产品之间的边界清楚、运行可信、
+历史结果可回看。

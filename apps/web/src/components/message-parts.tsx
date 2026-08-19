@@ -7,9 +7,6 @@ import { UniverseSpecCard } from './universe-spec-card';
 import './chat-chart.css';
 
 const ChatChart = lazy(() => import('./chat-chart'));
-const ResearchResultCard = lazy(() =>
-  import('./research-result-card').then((module) => ({ default: module.ResearchResultCard })),
-);
 const ResearchCellChangeCard = lazy(() => import('./research-cell-change-card'));
 
 interface MessagePartsProps {
@@ -50,16 +47,6 @@ export function MessageParts({
           return (
             <Suspense key={partIndex} fallback={<div className="jx-chatChart--pending" />}>
               <ChatChart title={part.title} chart={part.chart} />
-            </Suspense>
-          );
-        }
-        if (part.type === 'research') {
-          return (
-            <Suspense
-              key={`${partIndex}-${part.record?.runId ?? part.title}`}
-              fallback={<div className="jx-chatChart--pending" />}
-            >
-              <ResearchResultCard part={part} />
             </Suspense>
           );
         }

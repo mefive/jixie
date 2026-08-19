@@ -1,78 +1,6 @@
 import { z } from 'zod';
-import type { ResearchRunResultV1 } from '@jixie/shared';
 import { chartSpecSchema } from './chart-spec.js';
-import { researchPlanSpecV1Schema, universeSpecV1Schema } from '../research/spec.js';
-
-const researchRunResultSchema = z.custom<ResearchRunResultV1>((value) => {
-  if (!value || typeof value !== 'object') {
-    return false;
-  }
-  const run = value as Partial<ResearchRunResultV1>;
-  const plan = run.plan as unknown as { question?: unknown } | undefined;
-  const currentPlan = researchPlanSpecV1Schema.safeParse(run.plan).success;
-  const legacyPlan =
-    typeof plan?.question === 'string' &&
-    researchPlanSpecV1Schema.safeParse({
-      ...run.plan,
-      question: {
-        version: 1,
-        kind: 'time_series_relationship',
-        text: plan.question,
-        hypothesis: { estimand: 'regression_slope', direction: 'two_sided', nullValue: 0 },
-      },
-      outputs: [
-        ...((run.plan as unknown as { outputs?: unknown[] } | undefined)?.outputs ?? []).filter(
-          (output) =>
-            !(
-              typeof output === 'object' &&
-              output != null &&
-              (output as { kind?: unknown }).kind === 'conclusion'
-            ),
-        ),
-        { kind: 'conclusion' },
-      ],
-    }).success;
-  const conclusion = run.conclusion as unknown as { level?: unknown } | undefined;
-  const currentProtocol = [
-    'time_series_relationship',
-    'multivariate_time_series_relationship',
-    'distribution_comparison',
-    'event_study',
-  ].includes(run.protocol?.id ?? '');
-  const protocolMatchesResult = run.protocol?.id === run.result?.kind;
-  const conclusionIsCurrent = [
-    'supports',
-    'weak_support',
-    'does_not_support',
-    'indeterminate',
-  ].includes(typeof conclusion?.level === 'string' ? conclusion.level : '');
-  return (
-    run.version === 1 &&
-    (currentPlan || legacyPlan) &&
-    (legacyPlan
-      ? run.protocol?.id === 'time_series_relationship' &&
-        run.result?.kind === 'time_series_relationship'
-      : currentProtocol && protocolMatchesResult) &&
-    Array.isArray(run.coverage) &&
-    Array.isArray(run.diagnostics) &&
-    (legacyPlan || conclusionIsCurrent)
-  );
-}, 'invalid research run');
-
-const researchPartSchema = z.strictObject({
-  type: z.literal('research'),
-  title: z.string().max(120),
-  run: researchRunResultSchema,
-  record: z
-    .strictObject({
-      version: z.literal(1),
-      studyId: z.string().min(1),
-      runId: z.string().min(1),
-      sequence: z.number().int().positive(),
-      createdAt: z.string().datetime(),
-    })
-    .optional(),
-});
+import { universeSpecV1Schema } from '../research/spec.js';
 
 const universePartSchema = z.strictObject({
   type: z.literal('universe'),
@@ -85,7 +13,6 @@ const universePartSchema = z.strictObject({
 export const messagePartSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('text'), text: z.string().max(8000) }),
   z.object({ type: z.literal('chart'), title: z.string().max(120), chart: chartSpecSchema }),
-  researchPartSchema,
   universePartSchema,
 ]);
 

@@ -19,7 +19,7 @@ type LoaderButtonProps = Omit<ButtonProps, 'loading' | 'onClick'> & {
   loading?: boolean;
   action?: () => unknown | Promise<unknown>;
   payload?: () => unknown; // arg for the default loader.run, evaluated on click
-  beforeRun?: () => boolean | Promise<boolean>; // gate: return false to abort silently (validation etc.)
+  beforeRun?: () => boolean | Promise<boolean>; // gate: return false to abort silently
   confirm?: string; // show a confirm dialog first; cancel aborts
   successMessage?: string;
   onSuccess?: () => void; // after success (and after the success toast)

@@ -3,16 +3,11 @@ import type { AgentTool } from '../tools/types.js';
 import { researchProfile } from './research.js';
 
 describe('researchProfile', () => {
-  it('exposes only semantic discovery and deterministic research execution', () => {
+  it('exposes semantic discovery and universe resolution without fixed protocol execution', () => {
     const profile = researchProfile();
     const names = (profile.tools ?? []).map((tool) => tool.name);
 
-    expect(names).toEqual([
-      'loadResearchPlaybook',
-      'searchResearchCatalog',
-      'runUniverse',
-      'executeResearchPlan',
-    ]);
+    expect(names).toEqual(['loadResearchPlaybook', 'searchResearchCatalog', 'runUniverse']);
     expect(names).not.toContain('sqlQuery');
     expect(names).not.toContain('analyzeData');
     expect(names).not.toContain('renderChart');
@@ -22,28 +17,19 @@ describe('researchProfile', () => {
     const { system } = researchProfile();
 
     expect(system).toContain('searchResearchCatalog');
-    expect(system).toContain('executeResearchPlan');
     expect(system).toContain('loadResearchPlaybook');
     expect(system).toContain('gold_price_drivers');
-    expect(system).toContain('pass its exact concept ids to searchResearchCatalog');
-    expect(system).toContain('Playbooks contain research strategy, not database entities');
-    expect(system).toContain('never apply one transform to both series merely for symmetry');
-    expect(system).toContain('multivariate_time_series_relationship');
-    expect(system).toContain('exactly one focal predictor');
-    expect(system).toContain('keep all variables regardless of resulting significance');
-    expect(system).toContain('no_registered_binding');
-    expect(system).toContain('registered_binding_no_data');
-    expect(system).toContain('blocked_by_source_rights');
-    expect(system).toContain('sourceDecisions');
-    expect(system).toContain('copy those ids, versions, units, and transforms');
+    expect(system).toContain('Markdown and Python Cells');
+    expect(system).toContain('estimand, null hypothesis, formula');
+    expect(system).toContain('SciPy and statsmodels');
+    expect(system).toContain('data.series');
+    expect(system).toContain('charts.*');
+    expect(system).toContain('one focal predictor');
+    expect(system).toContain('keep controls prespecified');
+    expect(system).toContain('never invent or silently substitute data');
     expect(system).toContain('The current date is');
-    expect(system).toContain('do not approximate it with a different question');
-    expect(system).toContain('why did gold rise');
-    expect(system).toContain('concise fenced Python teaching example');
-    expect(system).toContain('illustrative and not executed');
-    expect(system).toContain(
-      'Formal research conclusions must still come only from executeResearchPlan',
-    );
+    expect(system).toContain('Never claim a Cell ran');
+    expect(system).toContain('ResearchExecution');
     expect(system).toContain('Correlation is not causation');
   });
 
@@ -57,10 +43,10 @@ describe('researchProfile', () => {
     const profile = researchProfile('{"documentId":"document-1"}', proposalTool);
 
     expect(profile.tools?.map((tool) => tool.name)).toContain('proposeResearchCellChanges');
-    expect(profile.system).toContain('only when the user explicitly asks to change this document');
-    expect(profile.system).toContain('non-deleting proposal into an editable review');
-    expect(profile.system).toContain('deleting proposal remains pending for explicit application');
-    expect(profile.system).toContain('Never claim that code ran or that the user accepted');
-    expect(profile.system).toContain('saved edits from any open review');
+    expect(profile.system).toContain('only when the user explicitly asks to change the document');
+    expect(profile.system).toContain('call proposeResearchCellChanges at most once');
+    expect(profile.system).toContain('Markdown for the question, hypothesis');
+    expect(profile.system).toContain('Python for platform data access');
+    expect(profile.system).toContain('never claim that code ran or that the user accepted');
   });
 });

@@ -10,14 +10,14 @@ describe('Research Execution records', () => {
       sourceCell('load', 0, ['monthly'], ['data']),
       sourceCell('summary', 1, ['correlation'], ['monthly']),
       sourceCell('chart', 2, [], ['monthly', 'correlation', 'charts']),
-      sourceCell('validation', 3, [], []),
+      sourceCell('notes', 3, [], [], 'markdown'),
     ];
 
     expect(researchExecutionDag(cells)).toEqual([
       { cellId: 'load', dependsOnCellIds: [] },
       { cellId: 'summary', dependsOnCellIds: ['load'] },
       { cellId: 'chart', dependsOnCellIds: ['load', 'summary'] },
-      { cellId: 'validation', dependsOnCellIds: [] },
+      { cellId: 'notes', dependsOnCellIds: [] },
     ]);
   });
 });
@@ -27,11 +27,12 @@ function sourceCell(
   position: number,
   definitions: string[],
   references: string[],
+  kind: 'markdown' | 'python' = 'python',
 ): ResearchExecutionSourceCellSnapshot {
   return {
     id,
     position,
-    kind: id === 'validation' ? 'validation' : 'python',
+    kind,
     source: `${id} source`,
     revision: 1,
     definitions,

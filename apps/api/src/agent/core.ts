@@ -9,7 +9,7 @@ import {
 } from '@jixie/shared';
 import type { AgentLlm, ToolAwareMessage, ToolCall } from '../llm/agent-llm.js';
 import { t } from '../i18n/index.js';
-import type { AgentChart, AgentResearchRun, AgentTool, AgentUniverse } from './tools/types.js';
+import type { AgentChart, AgentTool, AgentUniverse } from './tools/types.js';
 
 /**
  * Unified agent core (design: docs/design/unified-agent.md). One turn loop shared by every agent
@@ -59,7 +59,6 @@ export interface AgentTurnResult {
   toolTrace: ToolTraceItem[]; // every tool call this turn — display/debug only, never persisted
   universes: AgentUniverse[]; // entity universes side-produced by runUniverse tool calls this turn
   charts: AgentChart[]; // chart cards side-produced by renderChart tool calls this turn
-  researchRuns: AgentResearchRun[]; // deterministic ResearchPlan results side-produced by tools
   researchCellChanges: ResearchCellChangeProposalV1[]; // pending, user-applied Cell changes
 }
 
@@ -139,9 +138,6 @@ export function turnParts(result: AgentTurnResult): MessagePart[] {
     ...result.charts.map(
       (chart): MessagePart => ({ type: 'chart', title: chart.title, chart: chart.chart }),
     ),
-    ...result.researchRuns.map(
-      (research): MessagePart => ({ type: 'research', title: research.title, run: research.run }),
-    ),
     ...result.researchCellChanges.map(
       (proposal): MessagePart => ({ type: 'research_cell_change', proposal }),
     ),
@@ -210,7 +206,6 @@ async function executeToolCall(
   trace: ToolTraceItem;
   universe?: AgentUniverse;
   chart?: AgentChart;
-  research?: AgentResearchRun;
   researchCellChange?: ResearchCellChangeProposalV1;
 }> {
   const startedAt = Date.now();
@@ -238,7 +233,6 @@ async function executeToolCall(
       observation: result.observation,
       universe: result.universe,
       chart: result.chart,
-      research: result.research,
       researchCellChange: result.researchCellChange,
       trace: {
         name: call.name,
@@ -293,7 +287,6 @@ export async function agentTurn(
   const toolTrace: ToolTraceItem[] = [];
   const universes: AgentUniverse[] = [];
   const charts: AgentChart[] = [];
-  const researchRuns: AgentResearchRun[] = [];
   const researchCellChanges: ResearchCellChangeProposalV1[] = [];
   let attempts = 0;
   let raw = '';
@@ -363,9 +356,6 @@ export async function agentTurn(
         if (executed.chart) {
           charts.push(executed.chart);
         }
-        if (executed.research) {
-          researchRuns.push(executed.research);
-        }
         if (executed.researchCellChange) {
           researchCellChanges.push(executed.researchCellChange);
         }
@@ -424,7 +414,6 @@ export async function agentTurn(
       toolTrace,
       universes,
       charts,
-      researchRuns,
       researchCellChanges,
     };
   }
@@ -441,7 +430,6 @@ export async function agentTurn(
       toolTrace,
       universes,
       charts,
-      researchRuns,
       researchCellChanges,
     };
   }
@@ -475,7 +463,6 @@ export async function agentTurn(
         toolTrace,
         universes,
         charts,
-        researchRuns,
         researchCellChanges,
       };
     } catch (e) {
@@ -502,7 +489,6 @@ export async function agentTurn(
     toolTrace,
     universes,
     charts,
-    researchRuns,
     researchCellChanges,
   };
 }

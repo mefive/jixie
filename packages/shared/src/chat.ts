@@ -1,10 +1,5 @@
 import type { ChartSpec } from './chart.js';
-import type {
-  ResearchCellChangeProposalV1,
-  ResearchRunRecordRefV1,
-  ResearchRunResultV1,
-  UniverseSpecV1,
-} from './research.js';
+import type { ResearchCellChangeProposalV1, UniverseSpecV1 } from './research.js';
 
 /**
  * Agent conversation messages. Typed parts persist the deterministic chart/research/universe spec or
@@ -24,14 +19,6 @@ export interface ChartPart {
   chart: ChartSpec;
 }
 
-/** A deterministic ResearchPlan execution. The model writes the adjacent explanation, not this payload. */
-export interface ResearchPart {
-  type: 'research';
-  title: string;
-  run: ResearchRunResultV1;
-  record?: ResearchRunRecordRefV1;
-}
-
 /** A deterministic entity universe. Legacy saved screens migrate to this typed Research artifact. */
 export interface UniversePart {
   type: 'universe';
@@ -45,12 +32,7 @@ export interface ResearchCellChangePart {
   proposal: ResearchCellChangeProposalV1;
 }
 
-export type MessagePart =
-  | TextPart
-  | ChartPart
-  | ResearchPart
-  | UniversePart
-  | ResearchCellChangePart;
+export type MessagePart = TextPart | ChartPart | UniversePart | ResearchCellChangePart;
 
 export interface ChatMessage {
   id?: string;
@@ -85,7 +67,12 @@ export function normalizeChatMessage(raw: unknown): ChatMessage {
     ...(typeof message?.createdAt === 'string' ? { createdAt: message.createdAt } : {}),
   };
   if (Array.isArray(message?.parts)) {
-    return { role, parts: message.parts as MessagePart[], ...metadata };
+    const parts = message.parts.filter(isMessagePart);
+    return {
+      role,
+      parts: parts.length > 0 ? parts : [{ type: 'text', text: '' }],
+      ...metadata,
+    };
   }
   return {
     role,
@@ -108,10 +95,18 @@ export function messageText(message: ChatMessage): string {
           return `(research universe: ${part.title}, predicates=${part.spec.predicates.length})`;
         case 'research_cell_change':
           return `(research cell change proposal: ${part.proposal.title}, status=${part.proposal.status}, operations=${part.proposal.operations.length})`;
-        case 'research':
-          return `(research result: ${part.title}, protocol=${part.run.protocol.id}, observations=${part.run.result.observations})`;
       }
     })
     .join('\n')
     .trim();
+}
+
+function isMessagePart(value: unknown): value is MessagePart {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+  const type = (value as { type?: unknown }).type;
+  return (
+    type === 'text' || type === 'chart' || type === 'universe' || type === 'research_cell_change'
+  );
 }

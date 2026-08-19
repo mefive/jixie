@@ -11,6 +11,7 @@ import signal
 import sys
 import traceback
 from dataclasses import dataclass
+from importlib.metadata import PackageNotFoundError, version
 from typing import Any, Callable
 
 
@@ -532,6 +533,9 @@ def _environment(modules: dict[str, Any]) -> dict[str, Any]:
         "numpy": _module_version(modules["numpy"]),
         "pandas": _module_version(modules["pandas"]),
         "matplotlib": _module_version(modules["matplotlib"]),
+        "scipy": _package_version("scipy"),
+        "statsmodels": _package_version("statsmodels"),
+        "scikit-learn": _package_version("scikit-learn"),
     }
 
 
@@ -540,6 +544,13 @@ def _module_version(module: Any) -> str | None:
         return None
     root = sys.modules.get(module.__name__.split(".", 1)[0], module)
     return str(getattr(root, "__version__", "unknown"))
+
+
+def _package_version(distribution: str) -> str | None:
+    try:
+        return version(distribution)
+    except PackageNotFoundError:
+        return None
 
 
 def _analyze(source: str) -> _Analysis:

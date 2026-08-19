@@ -12,10 +12,10 @@
 
 ### 探索、验证与执行三层
 
-- **探索层**：Research 页面演进为 jixie 原生的响应式量化研究文档，统一承载 Markdown / Python /
-  Validation Cell、Agent、平台数据和图表；复用现有只读 SQL、`analyzeData`、计算图卡片、Python 沙箱与
-  `ResearchRun`，不引入 Jupyter，也不建设一套与 Research 平行的 Notebook 产品。上游变化必须使下游
-  输出显式 stale，正式固化须在干净环境完整执行。
+- **探索层**：Research 页面是 jixie 原生的响应式量化研究文档，只承载 Markdown / Python Cell、Agent、
+  平台数据和图表；复用 Python 沙箱、Research SDK、语义目录与 `ResearchExecution`，不引入 Jupyter，也不
+  建设一套与 Research 平行的 Notebook 产品。统计方法和公式写进可读文档，实际计算写进 Python；上游变化
+  必须使下游输出显式 stale，固化须在干净环境完整执行。
 - **验证层**：FactorReport、代码快照、PIT、holdout、稳健统计、真实成本和数据截止日负责把探索结论变成可复查证据。
 - **执行层**：策略回测、每日信号和账户对账保留窄而稳定；当前不以扩券商、自动下单或实盘运营为建设重点。
 

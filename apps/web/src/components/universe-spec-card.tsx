@@ -14,7 +14,7 @@ interface UniverseSpecCardProps {
   part: UniversePart;
 }
 
-/** Read-only Research artifact used by migrated saved screens and future Universe protocols. */
+/** Read-only Research artifact used by migrated saved screens and point-in-time universe queries. */
 export function UniverseSpecCard({ part }: UniverseSpecCardProps) {
   const { t, i18n } = useTranslation('research');
   const { spec } = part;

@@ -368,7 +368,7 @@ function formatRate(value: number | null): string {
 
 function categoryColor(category: ResearchCuratorFindingCategoryV1): string {
   const colors: Record<ResearchCuratorFindingCategoryV1, string> = {
-    protocol_candidate: 'blue',
+    method_candidate: 'blue',
     supplier_data_gap: 'purple',
     local_capability_gap: 'cyan',
     documentation_gap: 'gold',

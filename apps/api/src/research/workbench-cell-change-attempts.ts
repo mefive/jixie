@@ -157,12 +157,7 @@ function executableRootCellIds(operations: ResearchCellChangeOperationV1[]): str
   return [
     ...new Set(
       operations
-        .filter(
-          (operation) =>
-            (operation.kind !== 'delete' &&
-              (operation.cellKind === 'python' || operation.cellKind === 'validation')) ||
-            (operation.kind === 'delete' && operation.cellKind === 'python'),
-        )
+        .filter((operation) => operation.cellKind === 'python')
         .map((operation) => operation.cellId),
     ),
   ];
@@ -189,10 +184,6 @@ async function cellChangeAttemptPlan(
   const includedCellIds = new Set(pythonPlan.cellIds);
   if (scope === 'clean_document') {
     cells.forEach((cell) => includedCellIds.add(cell.id));
-  } else {
-    operations
-      .filter((operation) => operation.kind !== 'delete' && operation.cellKind === 'validation')
-      .forEach((operation) => includedCellIds.add(operation.cellId));
   }
   const positionByCellId = new Map(cells.map((cell) => [cell.id, cell.position]));
   const cellIds = [...includedCellIds].sort(

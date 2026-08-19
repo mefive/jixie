@@ -1002,8 +1002,8 @@ if [[ "$DEPLOY_API" == "1" ]]; then
   log "复核 Screen 到 Research 数据迁移（schema 升级后，幂等）"
   pnpm --filter api migrate:screen-to-research
 
-  log "补齐正式 ResearchStudy / ResearchRun 记录（幂等）"
-  pnpm --filter api migrate:research-records
+  log "清理已下线的 Research Validation Cell 与固定协议数据（幂等）"
+  pnpm --filter api migrate:remove-research-validation-protocols
 fi
 
 if [[ "$DEPLOY_WEB" == "1" ]]; then

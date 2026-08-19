@@ -2,11 +2,10 @@ import { DiffEditor, loader } from '@monaco-editor/react';
 import type { ResearchCellChangeOperationV1 } from '@jixie/shared';
 import * as monaco from 'monaco-editor';
 import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
-import jsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker';
 
 self.MonacoEnvironment = {
-  getWorker(_workerId, label) {
-    return label === 'json' ? new jsonWorker() : new editorWorker();
+  getWorker() {
+    return new editorWorker();
   },
 };
 loader.config({ monaco });
@@ -23,7 +22,7 @@ export default function ResearchCellChangeDiff({
   proposalId,
   operation,
 }: ResearchCellChangeDiffProps) {
-  const language = operation.cellKind === 'validation' ? 'json' : operation.cellKind;
+  const language = operation.cellKind;
   const modelBase = `file:///research-proposals/${encodeURIComponent(proposalId)}/${encodeURIComponent(operation.operationId)}`;
   return (
     <DiffEditor
@@ -89,7 +88,5 @@ function extension(kind: ResearchCellChangeOperationV1['cellKind']): string {
       return 'md';
     case 'python':
       return 'py';
-    case 'validation':
-      return 'json';
   }
 }

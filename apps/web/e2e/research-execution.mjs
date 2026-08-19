@@ -34,8 +34,8 @@ try {
   });
   if (
     run.execution?.status !== 'success' ||
-    run.execution.cellCount !== 5 ||
-    run.execution.executedCellCount !== 5 ||
+    run.execution.cellCount !== 4 ||
+    run.execution.executedCellCount !== 4 ||
     run.execution.contentRevision !== document.contentRevision
   ) {
     throw new Error(`invalid ResearchExecution summary: ${JSON.stringify(run.execution)}`);
@@ -46,14 +46,10 @@ try {
   const chartCell = frozen.cells.find((cell) =>
     cell.outputs.some((output) => output.type === 'chart'),
   );
-  const validationCell = frozen.cells.find((cell) =>
-    cell.outputs.some((output) => output.type === 'validation'),
-  );
   if (
     frozen.status !== 'success' ||
-    frozen.dag.length !== 5 ||
+    frozen.dag.length !== 4 ||
     !chartCell ||
-    !validationCell ||
     !frozen.sourceHash ||
     !frozen.environmentFingerprint
   ) {
@@ -103,14 +99,10 @@ try {
   await detail.waitFor({ timeout: 30_000 });
   await detail.getByText('这是历史运行的只读快照；当前研究草稿已经发生变化。').waitFor();
   await detail.locator('.monaco-editor').first().waitFor({ timeout: 30_000 });
-  await detail.locator('.jx-research-validationOutput').waitFor({ timeout: 30_000 });
   await detail.locator('.jx-research-chartOutput canvas').waitFor({ timeout: 30_000 });
   await page.screenshot({ path: `${SHOTS}research-execution-readonly-snapshot.png` });
   await detail.locator('.jx-research-chartOutput').scrollIntoViewIfNeeded();
   await page.screenshot({ path: `${SHOTS}research-execution-chart-snapshot.png` });
-  await detail.locator('.jx-research-validationOutput').scrollIntoViewIfNeeded();
-  await page.screenshot({ path: `${SHOTS}research-execution-validation-snapshot.png` });
-
   await detail.getByRole('button', { name: '封存为研究版本' }).click();
   const modal = page.locator('.ant-modal').filter({ hasText: '封存研究版本' });
   await modal.waitFor();
@@ -138,7 +130,7 @@ try {
   await api(page, `/api/app/research/cells/${markdownCell.id}`, { method: 'DELETE' });
   const retainedAfterCellDelete = await api(page, `/api/app/research/executions/${executionId}`);
   if (
-    retainedAfterCellDelete.cells.length !== 5 ||
+    retainedAfterCellDelete.cells.length !== 4 ||
     retainedAfterCellDelete.cells[0].cellId !== markdownCell.id ||
     retainedAfterCellDelete.cells[0].source !== frozen.cells[0].source
   ) {
@@ -146,7 +138,7 @@ try {
   }
 
   console.log(
-    `[research-execution-e2e] execution=${executionId} revision=${frozen.contentRevision} cells=5 chart=true validation=true immutable=true promoted=true delete-retained=true`,
+    `[research-execution-e2e] execution=${executionId} revision=${frozen.contentRevision} cells=4 chart=true immutable=true promoted=true delete-retained=true`,
   );
 } finally {
   if (documentId) {

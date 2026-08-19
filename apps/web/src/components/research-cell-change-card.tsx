@@ -71,12 +71,7 @@ export default function ResearchCellChangeCard({
   const reviewAccepted = proposal.reviewStatus === 'accepted';
   const displayStatus = proposal.reviewStatus ?? proposal.status;
   const latestAttempt = attempts[0];
-  const executable = proposal.operations.some(
-    (operation) =>
-      (operation.kind !== 'delete' &&
-        (operation.cellKind === 'python' || operation.cellKind === 'validation')) ||
-      (operation.kind === 'delete' && operation.cellKind === 'python'),
-  );
+  const executable = proposal.operations.some((operation) => operation.cellKind === 'python');
   const documentChanged =
     proposal.status === 'applied' &&
     proposal.appliedDocumentContentRevision !== documentContentRevision;
