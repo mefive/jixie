@@ -261,6 +261,12 @@ Cell revision 保护单次写入，文档 `contentRevision` 只跟踪内容与�
 指纹、DAG 和结构化指标比较，以及 Factor / Strategy 草稿的带血缘交接仍按 M3–M4 推进。
 它们不阻塞当前个人研究 MVP，但仍属于 1.5 的完整完成定义。
 
+第三阶段进一步采用 Cursor 式开放变更会话：非删除提案在 Agent Turn 完成且用户草稿 flush 后直接写入当前
+文档，Cell 内以 original 只读、modified 可编辑的 Monaco 聚合 Diff 展示；后续 Agent Turn 读取当前最新源码并
+追加不可变 step，不在界面堆叠次生 Diff。用户编辑继续复用文档级单 timer 自动保存，Accept 以最终保存源码关闭
+会话，Undo 原子恢复各 Cell 首次被触碰前的基线。开放会话期间禁止执行和结构编辑，删除操作继续显式应用；
+Accept 后只有最后一个 step 以最终 `contentRevision` 发起整段会话的受控运行，全部历史 step 仍保留来源审计。
+
 ### 1.6 研究方法模板与验证协议扩展 💤
 
 先完成 1.5 框架，不以一次覆盖统计学目录为阻塞条件。以下进入 backlog，由真实研究问题、方法审计和数据

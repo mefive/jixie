@@ -3,8 +3,11 @@ import {
   normalizeChatMessage,
   textMessage,
   type ChatMessage,
+  type MessagePart,
   type ResearchCellKindV1,
   type ResearchCellChangeAttemptV1,
+  type ResearchCellChangeReviewCellV1,
+  type ResearchCellChangeReviewResolutionResultV1,
   type ResearchCellChangeRunResultV1,
   type ResearchCellChangeResolutionResultV1,
   type ResearchAssetTypeV1,
@@ -22,8 +25,10 @@ import {
 import { BaseStore, LoaderModel, PollingModel } from '@src/lib';
 import {
   ApiError,
+  acceptResearchCellChangeReview,
   addResearchCell,
   applyResearchCellChangeProposal,
+  applyResearchCellChangeProposalForReview,
   createResearchDocument,
   deleteResearchCell,
   deleteResearchConversation,
@@ -34,6 +39,7 @@ import {
   listResearchDocuments,
   renameResearchConversation,
   rejectResearchCellChangeProposal,
+  revertResearchCellChangeReview,
   resetResearchDocument,
   runAffectedResearchCells,
   runResearchCellChangeProposal,
@@ -84,8 +90,14 @@ type ResearchCuratorMutation =
     };
 
 type ResearchCellChangeResolution = {
-  kind: 'apply' | 'reject';
+  kind: 'apply' | 'apply_for_review' | 'reject';
   proposalId: string;
+};
+
+type ResearchCellChangeReviewResolution = {
+  kind: 'accept' | 'revert';
+  proposalId: string;
+  expectedContentRevision: number;
 };
 
 const CURATOR_POLL_INTERVAL_MS = 1_000;
@@ -113,6 +125,8 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
   public affectedRunLoader = new LoaderModel<ResearchDocumentRunResultV1>();
   public interruptLoader = new LoaderModel<ResearchDocumentInterruptResultV1>();
   public cellChangeResolutionLoader = new LoaderModel<ResearchCellChangeResolutionResultV1>();
+  public cellChangeReviewResolutionLoader =
+    new LoaderModel<ResearchCellChangeReviewResolutionResultV1>();
   public cellChangeRunLoader = new LoaderModel<ResearchCellChangeRunResultV1>();
   public dataCatalogLoader = new LoaderModel<ResearchDataCatalogResultV1>();
   public curatorLoader = new LoaderModel<ResearchCuratorRunV1 | null>();
@@ -187,10 +201,29 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     });
     this.cellChangeResolutionLoader.setup({
       preserveResult: false,
-      request: (resolution: ResearchCellChangeResolution) =>
-        resolution.kind === 'apply'
-          ? applyResearchCellChangeProposal(resolution.proposalId)
-          : rejectResearchCellChangeProposal(resolution.proposalId),
+      request: (resolution: ResearchCellChangeResolution) => {
+        switch (resolution.kind) {
+          case 'apply':
+            return applyResearchCellChangeProposal(resolution.proposalId);
+          case 'apply_for_review':
+            return applyResearchCellChangeProposalForReview(resolution.proposalId);
+          case 'reject':
+            return rejectResearchCellChangeProposal(resolution.proposalId);
+        }
+      },
+    });
+    this.cellChangeReviewResolutionLoader.setup({
+      preserveResult: false,
+      request: (resolution: ResearchCellChangeReviewResolution) =>
+        resolution.kind === 'accept'
+          ? acceptResearchCellChangeReview(
+              resolution.proposalId,
+              resolution.expectedContentRevision,
+            )
+          : revertResearchCellChangeReview(
+              resolution.proposalId,
+              resolution.expectedContentRevision,
+            ),
     });
     this.cellChangeRunLoader.setup({
       preserveResult: false,
@@ -232,6 +265,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     this.registCleaner(() => this.affectedRunLoader.cleanup());
     this.registCleaner(() => this.interruptLoader.cleanup());
     this.registCleaner(() => this.cellChangeResolutionLoader.cleanup());
+    this.registCleaner(() => this.cellChangeReviewResolutionLoader.cleanup());
     this.registCleaner(() => this.cellChangeRunLoader.cleanup());
     this.registCleaner(() => this.dataCatalogLoader.cleanup());
     this.registCleaner(() => this.curatorLoader.cleanup());
@@ -275,8 +309,16 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     return [...this.cellDrafts.values()].some((draft) => draft.status !== 'saved');
   }
 
+  public get hasOpenCellChangeReview(): boolean {
+    return this.document?.activeCellChangeReview?.status === 'open';
+  }
+
   public cellDraft(cellId: string): ResearchCellDraftState | undefined {
     return this.cellDrafts.get(cellId);
+  }
+
+  public cellChangeReview(cellId: string): ResearchCellChangeReviewCellV1 | undefined {
+    return this.document?.activeCellChangeReview?.cells.find((cell) => cell.cellId === cellId);
   }
 
   public setPrompt(value: string) {
@@ -343,7 +385,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
   }
 
   public async addCell(kind: ResearchCellKindV1) {
-    if (!this.documentId || !(await this.flushAllCellDrafts())) {
+    if (!this.documentId || this.hasOpenCellChangeReview || !(await this.flushAllCellDrafts())) {
       return;
     }
     const document = await this.documentMutationLoader.run({
@@ -355,7 +397,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
   }
 
   public async deleteCell(cellId: string) {
-    if (!(await this.flushAllCellDrafts())) {
+    if (this.hasOpenCellChangeReview || !(await this.flushAllCellDrafts())) {
       return;
     }
     const document = await this.documentMutationLoader.run({ kind: 'delete', cellId });
@@ -364,7 +406,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
   }
 
   public async runCell(cellId: string) {
-    if (this.hasActiveRun || !(await this.flushAllCellDrafts())) {
+    if (this.hasActiveRun || this.hasOpenCellChangeReview || !(await this.flushAllCellDrafts())) {
       return;
     }
     runInAction(() => {
@@ -382,7 +424,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
   }
 
   public async runAffected(cellId: string) {
-    if (this.hasActiveRun || !(await this.flushAllCellDrafts())) {
+    if (this.hasActiveRun || this.hasOpenCellChangeReview || !(await this.flushAllCellDrafts())) {
       return;
     }
     runInAction(() => {
@@ -401,7 +443,12 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
   }
 
   public async runAll(clean = true) {
-    if (!this.documentId || this.hasActiveRun || !(await this.flushAllCellDrafts())) {
+    if (
+      !this.documentId ||
+      this.hasActiveRun ||
+      this.hasOpenCellChangeReview ||
+      !(await this.flushAllCellDrafts())
+    ) {
       return;
     }
     runInAction(() => {
@@ -441,7 +488,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
   }
 
   public async resetRuntime() {
-    if (!this.documentId || !(await this.flushAllCellDrafts())) {
+    if (!this.documentId || this.hasOpenCellChangeReview || !(await this.flushAllCellDrafts())) {
       return;
     }
     const document = await this.documentMutationLoader.run({
@@ -457,6 +504,14 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
 
   public rejectCellChangeProposal(proposalId: string) {
     return this.resolveCellChangeProposal('reject', proposalId);
+  }
+
+  public acceptCellChangeReview(proposalId: string) {
+    return this.resolveCellChangeReview('accept', proposalId);
+  }
+
+  public revertCellChangeReview(proposalId: string) {
+    return this.resolveCellChangeReview('revert', proposalId);
   }
 
   public async runCellChangeProposal(proposalId: string) {
@@ -491,7 +546,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
 
   public async send(message: string, attemptId?: string) {
     const text = message.trim();
-    if (!text || this.sending || !this.conversationId) {
+    if (!text || this.sending || this.resolvingProposalId || !this.conversationId) {
       return;
     }
     if (!(await this.flushAllCellDrafts())) {
@@ -617,13 +672,13 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     if (this.resolvingProposalId) {
       return;
     }
-    if (kind === 'apply' && !(await this.flushAllCellDrafts())) {
-      return;
-    }
     runInAction(() => {
       this.resolvingProposalId = proposalId;
     });
     try {
+      if (kind !== 'reject' && !(await this.flushAllCellDrafts())) {
+        return;
+      }
       const result = await this.cellChangeResolutionLoader.run({ kind, proposalId });
       this.acceptDocument(result.document);
       void this.documentsLoader.run();
@@ -634,6 +689,45 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
         this.resolvingProposalId = null;
       });
     }
+  }
+
+  private async resolveCellChangeReview(
+    kind: ResearchCellChangeReviewResolution['kind'],
+    proposalId: string,
+  ) {
+    if (this.resolvingProposalId || !this.document) {
+      return;
+    }
+    runInAction(() => {
+      this.resolvingProposalId = proposalId;
+    });
+    try {
+      if (!(await this.flushAllCellDrafts())) {
+        return;
+      }
+      const result = await this.cellChangeReviewResolutionLoader.run({
+        kind,
+        proposalId,
+        expectedContentRevision: this.document.contentRevision,
+      });
+      this.acceptDocument(result.document);
+      void this.documentsLoader.run();
+    } finally {
+      runInAction(() => {
+        this.resolvingProposalId = null;
+      });
+    }
+  }
+
+  private autoApplyCellChangeProposal(parts: MessagePart[]): void {
+    const proposal = parts.find(
+      (part): part is Extract<MessagePart, { type: 'research_cell_change' }> =>
+        part.type === 'research_cell_change',
+    )?.proposal;
+    if (!proposal || proposal.operations.some((operation) => operation.kind === 'delete')) {
+      return;
+    }
+    void this.resolveCellChangeProposal('apply_for_review', proposal.id);
   }
 
   private reconcileCellDrafts(
@@ -803,6 +897,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
           ];
           this.sending = false;
         });
+        this.autoApplyCellChangeProposal(done.parts);
       },
       onError: (message) => {
         runInAction(() => {

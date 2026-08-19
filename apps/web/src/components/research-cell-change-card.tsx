@@ -1,5 +1,5 @@
 import { lazy, Suspense, useMemo, useState } from 'react';
-import { Button, Modal, Tooltip } from 'antd';
+import { Button, Modal, Popconfirm, Tooltip } from 'antd';
 import classNames from 'classnames';
 import type {
   ResearchCellChangeAttemptV1,
@@ -34,6 +34,8 @@ interface ResearchCellChangeCardProps {
   documentContentRevision?: number;
   onApply?: (proposalId: string) => Promise<void>;
   onReject?: (proposalId: string) => Promise<void>;
+  onAcceptReview?: (proposalId: string) => Promise<void>;
+  onRevertReview?: (proposalId: string) => Promise<void>;
   onRun?: (proposalId: string) => Promise<void>;
   onExplain?: (attempt: ResearchCellChangeAttemptV1) => Promise<void>;
 }
@@ -48,6 +50,8 @@ export default function ResearchCellChangeCard({
   documentContentRevision,
   onApply,
   onReject,
+  onAcceptReview,
+  onRevertReview,
   onRun,
   onExplain,
 }: ResearchCellChangeCardProps) {
@@ -63,6 +67,9 @@ export default function ResearchCellChangeCard({
     [proposal.operations, selectedOperationId],
   );
   const pending = proposal.status === 'pending';
+  const reviewOpen = proposal.reviewStatus === 'open';
+  const reviewAccepted = proposal.reviewStatus === 'accepted';
+  const displayStatus = proposal.reviewStatus ?? proposal.status;
   const latestAttempt = attempts[0];
   const executable = proposal.operations.some(
     (operation) =>
@@ -73,6 +80,9 @@ export default function ResearchCellChangeCard({
   const documentChanged =
     proposal.status === 'applied' &&
     proposal.appliedDocumentContentRevision !== documentContentRevision;
+  const runAvailable =
+    proposal.status === 'applied' &&
+    (!proposal.reviewSessionId || (reviewAccepted && proposal.reviewIsLatest));
   const totals = proposal.operations.reduce(
     (sum, operation) => ({
       added: sum.added + operation.addedLines,
@@ -83,18 +93,18 @@ export default function ResearchCellChangeCard({
 
   return (
     <section
-      className={classNames('jx-researchCellChange', `jx-researchCellChange--${proposal.status}`)}
+      className={classNames('jx-researchCellChange', `jx-researchCellChange--${displayStatus}`)}
       data-testid={`research-cell-change-${proposal.id}`}
     >
       <header className="jx-researchCellChange-head">
         <span className="jx-researchCellChange-icon" aria-hidden="true">
-          <FontAwesomeIcon icon={statusIcon(proposal.status)} />
+          <FontAwesomeIcon icon={statusIcon(displayStatus)} />
         </span>
         <span className="jx-researchCellChange-title">{proposal.title}</span>
         <span
-          className={`jx-researchCellChange-status jx-researchCellChange-status--${proposal.status}`}
+          className={`jx-researchCellChange-status jx-researchCellChange-status--${displayStatus}`}
         >
-          {t(`workbench.cellChange.status.${proposal.status}`)}
+          {t(`workbench.cellChange.status.${displayStatus}`)}
         </span>
       </header>
 
@@ -166,7 +176,7 @@ export default function ResearchCellChangeCard({
               />
             </Tooltip>
           )}
-          {proposal.status === 'applied' && executable && onRun && (
+          {runAvailable && executable && onRun && (
             <Tooltip
               title={
                 documentChanged
@@ -189,6 +199,40 @@ export default function ResearchCellChangeCard({
                     : t('workbench.cellChange.runAffected')
                 }
                 onClick={() => void onRun(proposal.id)}
+              />
+            </Tooltip>
+          )}
+          {reviewOpen && proposal.reviewIsLatest && onRevertReview && (
+            <Tooltip title={t('workbench.cellChange.revert')}>
+              <Popconfirm
+                title={t('workbench.cellChange.revertConfirm')}
+                description={t('workbench.cellChange.revertConfirmHint')}
+                okText={t('workbench.cellChange.revert')}
+                cancelText={t('workbench.cellChange.cancel')}
+                onConfirm={() => void onRevertReview(proposal.id)}
+              >
+                <Button
+                  className="jx-researchCellChange-actionButton jx-researchCellChange-actionButton--reject"
+                  size="small"
+                  danger
+                  disabled={busy}
+                  data-testid="research-cell-change-revert"
+                  icon={<FontAwesomeIcon icon={faRotate} />}
+                  aria-label={t('workbench.cellChange.revert')}
+                />
+              </Popconfirm>
+            </Tooltip>
+          )}
+          {reviewOpen && proposal.reviewIsLatest && onAcceptReview && (
+            <Tooltip title={t('workbench.cellChange.accept')}>
+              <Button
+                className="jx-researchCellChange-actionButton jx-researchCellChange-actionButton--apply"
+                size="small"
+                loading={busy}
+                data-testid="research-cell-change-accept"
+                icon={<FontAwesomeIcon icon={faCheck} />}
+                aria-label={t('workbench.cellChange.accept')}
+                onClick={() => void onAcceptReview(proposal.id)}
               />
             </Tooltip>
           )}
@@ -359,7 +403,11 @@ function operationIcon(kind: ResearchCellChangeOperationV1['kind']) {
   }
 }
 
-function statusIcon(status: ResearchCellChangeProposalV1['status']) {
+function statusIcon(
+  status:
+    | ResearchCellChangeProposalV1['status']
+    | NonNullable<ResearchCellChangeProposalV1['reviewStatus']>,
+) {
   switch (status) {
     case 'pending':
       return faCodeCompare;
@@ -369,6 +417,12 @@ function statusIcon(status: ResearchCellChangeProposalV1['status']) {
       return faXmark;
     case 'conflicted':
       return faTriangleExclamation;
+    case 'open':
+      return faCodeCompare;
+    case 'accepted':
+      return faCheck;
+    case 'reverted':
+      return faRotate;
   }
 }
 

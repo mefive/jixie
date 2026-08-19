@@ -65,6 +65,26 @@ const MESSAGES = {
     zh: '该提案只包含说明性变更，没有需要运行的 Python 或 Validation Cell',
     en: 'This proposal contains only descriptive changes and has no Python or Validation Cell to execute',
   },
+  researchCellChangeReviewDeleteRequiresApplication: {
+    zh: '删除 Cell 仍需显式审查和应用，不能直接进入可回滚变更会话',
+    en: 'Cell deletions still require explicit review and cannot enter a reversible change session',
+  },
+  researchCellChangeReviewNotOpen: {
+    zh: '该 Agent 变更会话已经结束',
+    en: 'This Agent change review is no longer open',
+  },
+  researchCellChangeReviewAlreadyOpen: {
+    zh: '请先接受或撤销当前 Agent 变更，再应用独立提案',
+    en: 'Accept or revert the current Agent changes before applying a standalone proposal',
+  },
+  researchCellChangeReviewDocumentChanged: {
+    zh: '研究文档已经变化，请刷新后重新处理 Agent 变更',
+    en: 'The research document changed; refresh before resolving the Agent changes',
+  },
+  researchCellChangeReviewMustResolve: {
+    zh: '请先接受或撤销当前 Agent 变更，再运行研究 Cell',
+    en: 'Accept or revert the current Agent changes before running research Cells',
+  },
   researchCellRevisionConflict: {
     zh: '该 Cell 已在别处更新，请先处理保存冲突',
     en: 'This Cell changed elsewhere; resolve the save conflict before continuing',

@@ -110,6 +110,9 @@ export const enResearch: typeof zhResearch = {
         applied: 'Applied',
         rejected: 'Rejected',
         conflicted: 'Conflict',
+        open: 'Editing',
+        accepted: 'Accepted',
+        reverted: 'Reverted',
       },
       operation: {
         create: 'Create {{kind}} cell {{ordinal}}',
@@ -120,6 +123,13 @@ export const enResearch: typeof zhResearch = {
       viewDiff: 'Review changes',
       apply: 'Apply proposal',
       reject: 'Reject proposal',
+      accept: 'Accept current version',
+      revert: 'Revert Agent changes',
+      cancel: 'Cancel',
+      revertConfirm: 'Revert the entire Agent change session?',
+      revertConfirmHint: 'Unaccepted manual edits made during this session will also be reverted.',
+      reviewing: 'Agent changes pending',
+      resolveBeforeRun: 'Accept or revert the current Agent changes before running research.',
       runAffected: 'Run Cells affected by this proposal',
       rerunAffected: 'Rerun Cells affected by this proposal',
       runDocumentChanged:

@@ -18,6 +18,7 @@ import {
   faCircleExclamation,
   faClockRotateLeft,
   faCode,
+  faCodeCompare,
   faCommentDots,
   faDatabase,
   faDiagramProject,
@@ -50,6 +51,11 @@ import type { ResearchCellSaveStatus } from './research-autosave';
 import './research.css';
 
 const ResearchCodeEditor = lazy(() => import('./research-code-editor'));
+const ResearchCodeDiffEditor = lazy(() =>
+  import('./research-code-editor').then((module) => ({
+    default: module.ResearchCodeDiffEditor,
+  })),
+);
 const ResearchCellChart = lazy(() => import('./research-cell-chart'));
 
 export const Research = complex.component(() => {
@@ -395,14 +401,20 @@ const ResearchWorkspace = complex.component(
               <Button
                 type="text"
                 size="small"
-                disabled={store.hasActiveRun}
+                disabled={store.hasActiveRun || store.hasOpenCellChangeReview}
                 icon={<FontAwesomeIcon icon={faRotate} />}
                 aria-label={t('workbench.reset')}
                 onClick={() => void store.resetRuntime()}
               />
             </Tooltip>
             <Tooltip
-              title={store.hasActiveRun ? t('workbench.interruptRun') : t('workbench.cleanRun')}
+              title={
+                store.hasOpenCellChangeReview
+                  ? t('workbench.cellChange.resolveBeforeRun')
+                  : store.hasActiveRun
+                    ? t('workbench.interruptRun')
+                    : t('workbench.cleanRun')
+              }
             >
               <Button
                 type="text"
@@ -411,7 +423,7 @@ const ResearchWorkspace = complex.component(
                   'jx-research-interruptAction': store.hasActiveRun,
                 })}
                 data-testid={store.hasActiveRun ? 'research-interrupt' : 'research-run-all'}
-                disabled={store.interrupting}
+                disabled={store.interrupting || store.hasOpenCellChangeReview}
                 icon={<FontAwesomeIcon icon={store.hasActiveRun ? faStop : faBolt} />}
                 aria-label={
                   store.hasActiveRun ? t('workbench.interruptRun') : t('workbench.cleanRun')
@@ -438,6 +450,7 @@ const ResearchWorkspace = complex.component(
           store.affectedRunLoader.error ||
           store.interruptLoader.error ||
           store.cellChangeResolutionLoader.error ||
+          store.cellChangeReviewResolutionLoader.error ||
           store.cellChangeRunLoader.error) && (
           <Alert
             className="jx-research-workspaceAlert"
@@ -449,6 +462,7 @@ const ResearchWorkspace = complex.component(
               store.affectedRunLoader.errorObject?.message ??
               store.interruptLoader.errorObject?.message ??
               store.cellChangeResolutionLoader.errorObject?.message ??
+              store.cellChangeReviewResolutionLoader.errorObject?.message ??
               store.cellChangeRunLoader.errorObject?.message
             }
           />
@@ -473,7 +487,7 @@ const ResearchWorkspace = complex.component(
                 <Button
                   type="text"
                   className="jx-research-addCell"
-                  disabled={store.hasActiveRun}
+                  disabled={store.hasActiveRun || store.hasOpenCellChangeReview}
                   icon={<FontAwesomeIcon icon={faPlus} />}
                   aria-label={t('workbench.addCell')}
                 />
@@ -496,6 +510,8 @@ const ResearchCell = complex.component(
     const draftState = store.cellDraft(cell.id);
     const draft = draftState?.draft ?? cell.source;
     const saveStatus = draftState?.status ?? 'saved';
+    const changeReview = store.cellChangeReview(cell.id);
+    const activeReview = store.document?.activeCellChangeReview;
     const busy = store.busyCellId === cell.id || cell.status === 'running';
     const cellRunActive = store.busyCellId === cell.id;
     const affectedBusy = store.affectedRunningCellId === cell.id;
@@ -514,7 +530,9 @@ const ResearchCell = complex.component(
     };
     return (
       <article
-        className={classNames('jx-research-cell', `jx-research-cell--${cell.status}`)}
+        className={classNames('jx-research-cell', `jx-research-cell--${cell.status}`, {
+          'jx-research-cell--agentReview': changeReview,
+        })}
         data-testid={`research-cell-${cell.kind}`}
         data-cell-id={cell.id}
       >
@@ -527,9 +545,15 @@ const ResearchCell = complex.component(
             <span className="jx-research-cellOrdinal">{ordinal.toString().padStart(2, '0')}</span>
             <CellStatus status={cell.status} />
             <CellSaveState status={saveStatus} onRetry={() => void store.flushCellDraft(cell.id)} />
+            {changeReview && (
+              <span className="jx-research-cellReview" data-testid="research-cell-agent-review">
+                <FontAwesomeIcon icon={faCodeCompare} />
+                {t('workbench.cellChange.reviewing')}
+              </span>
+            )}
           </div>
           <div className="jx-research-cellActions">
-            {cell.kind === 'markdown' && (
+            {cell.kind === 'markdown' && !changeReview && (
               <Tooltip title={markdownEditing ? t('workbench.preview') : t('workbench.edit')}>
                 <Button
                   type="text"
@@ -540,7 +564,7 @@ const ResearchCell = complex.component(
                 />
               </Tooltip>
             )}
-            {cell.kind === 'validation' && (
+            {cell.kind === 'validation' && !changeReview && (
               <Tooltip
                 title={validationSourceOpen ? t('workbench.hideSpec') : t('workbench.showSpec')}
               >
@@ -557,9 +581,11 @@ const ResearchCell = complex.component(
             )}
             <Tooltip
               title={
-                cell.kind === 'python' && cellRunActive
-                  ? t('workbench.interruptRun')
-                  : t('workbench.runShortcut')
+                store.hasOpenCellChangeReview
+                  ? t('workbench.cellChange.resolveBeforeRun')
+                  : cell.kind === 'python' && cellRunActive
+                    ? t('workbench.interruptRun')
+                    : t('workbench.runShortcut')
               }
             >
               <Button
@@ -570,6 +596,7 @@ const ResearchCell = complex.component(
                 })}
                 loading={busy && !(cell.kind === 'python' && cellRunActive)}
                 disabled={
+                  store.hasOpenCellChangeReview ||
                   store.interrupting ||
                   (!(cell.kind === 'python' && cellRunActive) && (affectedBusy || anotherRunActive))
                 }
@@ -590,7 +617,13 @@ const ResearchCell = complex.component(
             </Tooltip>
             {cell.kind === 'python' && (
               <Tooltip
-                title={affectedBusy ? t('workbench.interruptRun') : t('workbench.runAffected')}
+                title={
+                  store.hasOpenCellChangeReview
+                    ? t('workbench.cellChange.resolveBeforeRun')
+                    : affectedBusy
+                      ? t('workbench.interruptRun')
+                      : t('workbench.runAffected')
+                }
               >
                 <Button
                   type="text"
@@ -598,7 +631,11 @@ const ResearchCell = complex.component(
                   className={classNames({
                     'jx-research-interruptAction': affectedBusy,
                   })}
-                  disabled={store.interrupting || (!affectedBusy && (busy || anotherRunActive))}
+                  disabled={
+                    store.hasOpenCellChangeReview ||
+                    store.interrupting ||
+                    (!affectedBusy && (busy || anotherRunActive))
+                  }
                   data-testid="research-run-affected"
                   icon={<FontAwesomeIcon icon={affectedBusy ? faStop : faDiagramProject} />}
                   aria-label={
@@ -617,7 +654,7 @@ const ResearchCell = complex.component(
                   type="text"
                   size="small"
                   className="jx-research-destructiveAction"
-                  disabled={store.hasActiveRun}
+                  disabled={store.hasActiveRun || store.hasOpenCellChangeReview}
                   icon={<FontAwesomeIcon icon={faTrash} />}
                   aria-label={t('workbench.deleteCell')}
                 />
@@ -626,7 +663,33 @@ const ResearchCell = complex.component(
           </div>
         </header>
         <div className="jx-research-cellBody">
-          {cell.kind === 'markdown' ? (
+          {changeReview && activeReview ? (
+            <Suspense fallback={<div className="jx-research-editorPending" />}>
+              <ResearchCodeDiffEditor
+                documentId={cell.documentId}
+                reviewId={activeReview.id}
+                cellId={cell.id}
+                cells={(store.document?.cells ?? [])
+                  .filter((candidate) => candidate.kind === 'python')
+                  .map((candidate) => ({
+                    id: candidate.id,
+                    source: store.cellDraft(candidate.id)?.draft ?? candidate.source,
+                  }))}
+                original={changeReview.beforeSource}
+                value={draft}
+                language={
+                  cell.kind === 'validation'
+                    ? 'json'
+                    : cell.kind === 'markdown'
+                      ? 'markdown'
+                      : 'python'
+                }
+                onChange={(source) => store.changeCellDraft(cell.id, source)}
+                onBlur={save}
+                onRun={run}
+              />
+            </Suspense>
+          ) : cell.kind === 'markdown' ? (
             markdownEditing ? (
               <Input.TextArea
                 className="jx-research-markdownEditor"
@@ -860,6 +923,12 @@ const ResearchAgentPanel = complex.component(() => {
               onRejectResearchCellChange={(proposalId) =>
                 store.rejectCellChangeProposal(proposalId)
               }
+              onAcceptResearchCellChangeReview={(proposalId) =>
+                store.acceptCellChangeReview(proposalId)
+              }
+              onRevertResearchCellChangeReview={(proposalId) =>
+                store.revertCellChangeReview(proposalId)
+              }
               onRunResearchCellChange={(proposalId) => store.runCellChangeProposal(proposalId)}
               onExplainResearchCellChangeAttempt={(attempt) =>
                 store.explainCellChangeAttempt(attempt)
@@ -887,7 +956,7 @@ const ResearchAgentPanel = complex.component(() => {
           <Button
             type="text"
             loading={store.sending}
-            disabled={!store.prompt.trim()}
+            disabled={!store.prompt.trim() || Boolean(store.resolvingProposalId)}
             icon={<FontAwesomeIcon icon={faPaperPlane} />}
             aria-label={t('workbench.sendAgent')}
             onClick={() => void store.send(store.prompt)}

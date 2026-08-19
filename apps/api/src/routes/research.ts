@@ -1,4 +1,4 @@
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 import { ulid } from 'ulid';
 import { z } from 'zod';
 import { apiError, validateJson, validateQuery } from '../lib/httpError.js';
@@ -30,8 +30,12 @@ import { executeUniverseSpec } from '../research/universe.js';
 import { researchPythonLanguageService } from '../research/pyright-language-service.js';
 import { searchResearchDataCatalog } from '../research/data-catalog.js';
 import {
+  acceptResearchCellChangeReview,
   applyResearchCellChangeProposal,
+  applyResearchCellChangeProposalForReview,
   rejectResearchCellChangeProposal,
+  ResearchCellChangeReviewUnavailableError,
+  revertResearchCellChangeReview,
 } from '../research/workbench-cell-changes.js';
 import {
   ResearchCellChangeAttemptUnavailableError,
@@ -48,6 +52,7 @@ import {
   listResearchDocuments,
   resetResearchDocumentRuntime,
   ResearchAffectedRunError,
+  ResearchCellChangeReviewOpenError,
   ResearchCellRevisionConflictError,
   ResearchDocumentRunInProgressError,
   runAffectedResearchCells,
@@ -119,6 +124,9 @@ const updateCellBody = z
   })
   .refine((value) => value.source !== undefined || value.config !== undefined);
 const runDocumentBody = z.strictObject({ clean: z.boolean().default(true) });
+const cellChangeReviewBody = z.strictObject({
+  expectedContentRevision: z.number().int().positive(),
+});
 const languagePosition = z.strictObject({
   line: z.number().int().min(0).max(100_000),
   character: z.number().int().min(0).max(100_000),
@@ -200,9 +208,16 @@ researchRoute.get('/documents/:documentId', async (c) => {
 });
 
 researchRoute.post('/documents/:documentId/cells', validateJson(createCellBody), async (c) => {
-  const { kind, source } = c.req.valid('json');
-  const document = await addResearchCell(c.var.userId, c.req.param('documentId'), kind, source);
-  return document ? c.json(document) : apiError(c, 'NOT_FOUND', m(c, 'conversationNotFound'));
+  try {
+    const { kind, source } = c.req.valid('json');
+    const document = await addResearchCell(c.var.userId, c.req.param('documentId'), kind, source);
+    return document ? c.json(document) : apiError(c, 'NOT_FOUND', m(c, 'conversationNotFound'));
+  } catch (error) {
+    if (error instanceof ResearchCellChangeReviewOpenError) {
+      return apiError(c, 'CONFLICT', m(c, 'researchCellChangeReviewMustResolve'));
+    }
+    throw error;
+  }
 });
 
 researchRoute.patch('/cells/:cellId', validateJson(updateCellBody), async (c) => {
@@ -225,16 +240,91 @@ researchRoute.patch('/cells/:cellId', validateJson(updateCellBody), async (c) =>
 });
 
 researchRoute.delete('/cells/:cellId', async (c) => {
-  const document = await deleteResearchCell(c.var.userId, c.req.param('cellId'));
-  return document ? c.json(document) : apiError(c, 'NOT_FOUND', m(c, 'conversationNotFound'));
+  try {
+    const document = await deleteResearchCell(c.var.userId, c.req.param('cellId'));
+    return document ? c.json(document) : apiError(c, 'NOT_FOUND', m(c, 'conversationNotFound'));
+  } catch (error) {
+    if (error instanceof ResearchCellChangeReviewOpenError) {
+      return apiError(c, 'CONFLICT', m(c, 'researchCellChangeReviewMustResolve'));
+    }
+    throw error;
+  }
 });
 
 researchRoute.post('/cell-change-proposals/:proposalId/apply', async (c) => {
-  const result = await applyResearchCellChangeProposal(c.var.userId, c.req.param('proposalId'));
-  return result
-    ? c.json(result)
-    : apiError(c, 'NOT_FOUND', m(c, 'researchCellChangeProposalNotFound'));
+  try {
+    const result = await applyResearchCellChangeProposal(c.var.userId, c.req.param('proposalId'));
+    return result
+      ? c.json(result)
+      : apiError(c, 'NOT_FOUND', m(c, 'researchCellChangeProposalNotFound'));
+  } catch (error) {
+    if (error instanceof ResearchCellChangeReviewUnavailableError) {
+      return researchCellChangeReviewError(c, error);
+    }
+    throw error;
+  }
 });
+
+researchRoute.post('/cell-change-proposals/:proposalId/apply-for-review', async (c) => {
+  try {
+    const result = await applyResearchCellChangeProposalForReview(
+      c.var.userId,
+      c.req.param('proposalId'),
+    );
+    return result
+      ? c.json(result)
+      : apiError(c, 'NOT_FOUND', m(c, 'researchCellChangeProposalNotFound'));
+  } catch (error) {
+    if (error instanceof ResearchCellChangeReviewUnavailableError) {
+      return researchCellChangeReviewError(c, error);
+    }
+    throw error;
+  }
+});
+
+researchRoute.post(
+  '/cell-change-proposals/:proposalId/accept-review',
+  validateJson(cellChangeReviewBody),
+  async (c) => {
+    try {
+      const result = await acceptResearchCellChangeReview(
+        c.var.userId,
+        c.req.param('proposalId'),
+        c.req.valid('json').expectedContentRevision,
+      );
+      return result
+        ? c.json(result)
+        : apiError(c, 'NOT_FOUND', m(c, 'researchCellChangeProposalNotFound'));
+    } catch (error) {
+      if (error instanceof ResearchCellChangeReviewUnavailableError) {
+        return researchCellChangeReviewError(c, error);
+      }
+      throw error;
+    }
+  },
+);
+
+researchRoute.post(
+  '/cell-change-proposals/:proposalId/revert-review',
+  validateJson(cellChangeReviewBody),
+  async (c) => {
+    try {
+      const result = await revertResearchCellChangeReview(
+        c.var.userId,
+        c.req.param('proposalId'),
+        c.req.valid('json').expectedContentRevision,
+      );
+      return result
+        ? c.json(result)
+        : apiError(c, 'NOT_FOUND', m(c, 'researchCellChangeProposalNotFound'));
+    } catch (error) {
+      if (error instanceof ResearchCellChangeReviewUnavailableError) {
+        return researchCellChangeReviewError(c, error);
+      }
+      throw error;
+    }
+  },
+);
 
 researchRoute.post('/cell-change-proposals/:proposalId/reject', async (c) => {
   const result = await rejectResearchCellChangeProposal(c.var.userId, c.req.param('proposalId'));
@@ -253,6 +343,9 @@ researchRoute.post('/cell-change-proposals/:proposalId/run-affected', async (c) 
       ? c.json(result)
       : apiError(c, 'NOT_FOUND', m(c, 'researchCellChangeProposalNotFound'));
   } catch (error) {
+    if (error instanceof ResearchCellChangeReviewOpenError) {
+      return apiError(c, 'CONFLICT', m(c, 'researchCellChangeReviewMustResolve'));
+    }
     if (error instanceof ResearchDocumentRunInProgressError) {
       return apiError(c, 'CONFLICT', m(c, 'researchDocumentRunInProgress'));
     }
@@ -279,6 +372,9 @@ researchRoute.post('/cells/:cellId/run', async (c) => {
     const document = await runResearchCell(c.var.userId, c.req.param('cellId'));
     return document ? c.json(document) : apiError(c, 'NOT_FOUND', m(c, 'conversationNotFound'));
   } catch (error) {
+    if (error instanceof ResearchCellChangeReviewOpenError) {
+      return apiError(c, 'CONFLICT', m(c, 'researchCellChangeReviewMustResolve'));
+    }
     if (error instanceof ResearchDocumentRunInProgressError) {
       return apiError(c, 'CONFLICT', m(c, 'researchDocumentRunInProgress'));
     }
@@ -291,6 +387,9 @@ researchRoute.post('/cells/:cellId/run-affected', async (c) => {
     const result = await runAffectedResearchCells(c.var.userId, c.req.param('cellId'));
     return result ? c.json(result) : apiError(c, 'NOT_FOUND', m(c, 'conversationNotFound'));
   } catch (error) {
+    if (error instanceof ResearchCellChangeReviewOpenError) {
+      return apiError(c, 'CONFLICT', m(c, 'researchCellChangeReviewMustResolve'));
+    }
     if (error instanceof ResearchDocumentRunInProgressError) {
       return apiError(c, 'CONFLICT', m(c, 'researchDocumentRunInProgress'));
     }
@@ -324,6 +423,9 @@ researchRoute.post('/documents/:documentId/run', validateJson(runDocumentBody), 
     );
     return result ? c.json(result) : apiError(c, 'NOT_FOUND', m(c, 'conversationNotFound'));
   } catch (error) {
+    if (error instanceof ResearchCellChangeReviewOpenError) {
+      return apiError(c, 'CONFLICT', m(c, 'researchCellChangeReviewMustResolve'));
+    }
     if (error instanceof ResearchDocumentRunInProgressError) {
       return apiError(c, 'CONFLICT', m(c, 'researchDocumentRunInProgress'));
     }
@@ -337,8 +439,15 @@ researchRoute.post('/documents/:documentId/interrupt', async (c) => {
 });
 
 researchRoute.post('/documents/:documentId/reset', async (c) => {
-  const document = await resetResearchDocumentRuntime(c.var.userId, c.req.param('documentId'));
-  return document ? c.json(document) : apiError(c, 'NOT_FOUND', m(c, 'conversationNotFound'));
+  try {
+    const document = await resetResearchDocumentRuntime(c.var.userId, c.req.param('documentId'));
+    return document ? c.json(document) : apiError(c, 'NOT_FOUND', m(c, 'conversationNotFound'));
+  } catch (error) {
+    if (error instanceof ResearchCellChangeReviewOpenError) {
+      return apiError(c, 'CONFLICT', m(c, 'researchCellChangeReviewMustResolve'));
+    }
+    throw error;
+  }
 });
 
 researchRoute.post('/curator/runs', async (c) => {
@@ -794,4 +903,25 @@ function messagePreview(parts: unknown): string {
       typeof (part as { title?: unknown }).title === 'string',
   );
   return artifact?.title.slice(0, 80) ?? '';
+}
+
+function researchCellChangeReviewError(
+  c: Context,
+  error: ResearchCellChangeReviewUnavailableError,
+) {
+  const messageKey = {
+    delete_requires_explicit_application: 'researchCellChangeReviewDeleteRequiresApplication',
+    review_not_open: 'researchCellChangeReviewNotOpen',
+    review_already_open: 'researchCellChangeReviewAlreadyOpen',
+    document_running: 'researchDocumentRunInProgress',
+    document_changed: 'researchCellChangeReviewDocumentChanged',
+  } as const;
+  return apiError(
+    c,
+    error.reason === 'document_changed' || error.reason === 'document_running'
+      ? 'CONFLICT'
+      : 'VALIDATION_FAILED',
+    m(c, messageKey[error.reason]),
+    { reason: error.reason },
+  );
 }

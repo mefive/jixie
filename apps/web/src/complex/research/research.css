@@ -265,6 +265,12 @@
   border-color: #fde68a;
 }
 
+.jx-research-cell--agentReview {
+  border-color: #94a3b8;
+  outline: 1px solid #94a3b8;
+  outline-offset: -1px;
+}
+
 .jx-research-cellHead {
   @apply flex items-center justify-between gap-3 border-b border-line bg-card;
   min-height: 42px;
@@ -307,6 +313,15 @@
   @apply text-muted;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 11px;
+}
+
+.jx-research-cellReview {
+  @apply flex items-center gap-1 rounded border border-slate-300 bg-slate-50 text-slate-600;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
 }
 
 .jx-research-cellStatus {

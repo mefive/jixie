@@ -274,6 +274,119 @@ summary`;
   }
 }
 
+export async function seedResearchCellChangeFollowupProposal({
+  suffix,
+  title,
+  summary,
+  appendedSource,
+  definition,
+  replacementSource,
+  definitions,
+}) {
+  const database = new PrismaClient({ datasourceUrl: databaseUrl });
+  const fixture = RESEARCH_CELL_CHANGE_FIXTURE;
+  try {
+    const document = await database.researchDocument.findUniqueOrThrow({
+      where: { id: fixture.documentId },
+      include: { cells: { where: { id: fixture.pythonCellId } } },
+    });
+    const cell = document.cells[0];
+    if (!cell) {
+      throw new Error('Review fixture Python Cell was not found.');
+    }
+    const lastMessage = await database.agentMessage.findFirst({
+      where: { conversationId: fixture.conversationId },
+      orderBy: { sequence: 'desc' },
+      select: { sequence: true },
+    });
+    const sequence = (lastMessage?.sequence ?? -1) + 1;
+    const turnId = `e2e-research-cell-change-review-turn-${suffix}`;
+    const userMessageId = `e2e-research-cell-change-review-user-${suffix}`;
+    const assistantMessageId = `e2e-research-cell-change-review-assistant-${suffix}`;
+    const proposalId = `e2e-research-cell-change-review-${suffix}`;
+    const afterSource = replacementSource ?? `${cell.source}\n${appendedSource}`;
+    const proposal = {
+      version: 1,
+      id: proposalId,
+      documentId: fixture.documentId,
+      title,
+      summary,
+      status: 'pending',
+      expectedDocumentUpdatedAt: document.updatedAt.toISOString(),
+      expectedDocumentContentRevision: document.contentRevision,
+      operations: [
+        {
+          operationId: `e2e-research-cell-change-review-operation-${suffix}`,
+          cellId: cell.id,
+          kind: 'update',
+          cellKind: 'python',
+          position: cell.position,
+          expectedRevision: cell.revision,
+          beforeSource: cell.source,
+          afterSource,
+          addedLines: replacementSource ? replacementSource.split('\n').length : 1,
+          removedLines: replacementSource ? cell.source.split('\n').length : 0,
+          afterDefinitions: definitions ?? [...new Set([...cell.definitions, definition])],
+          afterReferences: cell.references,
+        },
+      ],
+      createdAt: new Date().toISOString(),
+    };
+    await database.agentTurn.create({
+      data: {
+        id: turnId,
+        conversationId: fixture.conversationId,
+        status: 'done',
+        model: 'e2e-fixture',
+        trace: { version: 1, steps: [], truncated: false },
+        finishedAt: new Date(),
+      },
+    });
+    await database.agentMessage.createMany({
+      data: [
+        {
+          id: userMessageId,
+          conversationId: fixture.conversationId,
+          role: 'user',
+          parts: [{ type: 'text', text: `继续修改当前 Cell：${title}` }],
+          sequence,
+          turnId,
+        },
+        {
+          id: assistantMessageId,
+          conversationId: fixture.conversationId,
+          role: 'assistant',
+          parts: [
+            { type: 'text', text: '已基于当前未接受版本准备追加修改。' },
+            { type: 'research_cell_change', proposal },
+          ],
+          sequence: sequence + 1,
+          turnId,
+        },
+      ],
+    });
+    await database.researchCellChangeProposal.create({
+      data: {
+        id: proposal.id,
+        documentId: fixture.documentId,
+        sourceTurnId: turnId,
+        sourceMessageId: assistantMessageId,
+        sourcePartIndex: 1,
+        title: proposal.title,
+        summary: proposal.summary,
+        expectedDocumentUpdatedAt: document.updatedAt,
+        expectedDocumentContentRevision: document.contentRevision,
+        operations: proposal.operations,
+        status: 'pending',
+        createdAt: new Date(proposal.createdAt),
+      },
+    });
+    return { proposalId, beforeSource: cell.source, afterSource };
+  } finally {
+    await database.$disconnect();
+  }
+}
+
 export async function cleanupResearchCellChangeFixture() {
   const database = new PrismaClient({ datasourceUrl: databaseUrl });
   try {

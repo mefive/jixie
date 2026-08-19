@@ -1,4 +1,4 @@
-import Editor, { loader, type Monaco } from '@monaco-editor/react';
+import Editor, { DiffEditor, loader, type Monaco } from '@monaco-editor/react';
 import {
   RESEARCH_SDK_CONTRACT_V1,
   type ResearchAssetTypeV1,
@@ -43,6 +43,19 @@ interface ResearchCodeEditorProps {
   cells: readonly ResearchLanguageCellV1[];
   value: string;
   language: 'python' | 'json';
+  onChange: (value: string) => void;
+  onRun: () => void;
+  onBlur: () => void;
+}
+
+interface ResearchCodeDiffEditorProps {
+  documentId: string;
+  reviewId: string;
+  cellId: string;
+  cells: readonly ResearchLanguageCellV1[];
+  original: string;
+  value: string;
+  language: 'python' | 'json' | 'markdown';
   onChange: (value: string) => void;
   onRun: () => void;
   onBlur: () => void;
@@ -111,6 +124,118 @@ export default function ResearchCodeEditor({
       }}
     />
   );
+}
+
+/** Cursor-style inline review: the original model is immutable and the current Cell stays editable. */
+export function ResearchCodeDiffEditor({
+  documentId,
+  reviewId,
+  cellId,
+  cells,
+  original,
+  value,
+  language,
+  onChange,
+  onRun,
+  onBlur,
+}: ResearchCodeDiffEditorProps) {
+  const callbacksRef = useRef({ onBlur, onChange, onRun });
+  callbacksRef.current = { onBlur, onChange, onRun };
+  const languageContextRef = useRef({ cells });
+  languageContextRef.current = { cells };
+  const lineCount = Math.max(original.split('\n').length, value.split('\n').length);
+  const height = Math.min(620, Math.max(148, lineCount * 20 + 44));
+  const extension = language === 'markdown' ? 'md' : language === 'json' ? 'json' : 'py';
+  const modifiedModelPath =
+    language === 'python'
+      ? researchPythonModelUri(monaco, documentId, cellId).toString()
+      : `file:///research/${encodeURIComponent(documentId)}/${encodeURIComponent(cellId)}.${extension}`;
+  return (
+    <DiffEditor
+      height={height}
+      original={original}
+      modified={value}
+      originalLanguage={language}
+      modifiedLanguage={language}
+      originalModelPath={`file:///research-reviews/${encodeURIComponent(reviewId)}/${encodeURIComponent(cellId)}.base.${extension}`}
+      modifiedModelPath={modifiedModelPath}
+      beforeMount={(monacoInstance) => {
+        configureResearchInlineDiffTheme(monacoInstance);
+        installResearchSdkLanguage(monacoInstance);
+        installResearchPythonLanguage(monacoInstance);
+      }}
+      theme="jx-research-inline-diff"
+      onMount={(editor) => {
+        const modifiedEditor = editor.getModifiedEditor();
+        const modifiedModel = modifiedEditor.getModel()!;
+        modifiedModel.updateOptions({ tabSize: 4, insertSpaces: true });
+        const changeSubscription = modifiedEditor.onDidChangeModelContent(() => {
+          callbacksRef.current.onChange(modifiedModel.getValue());
+        });
+        if (language === 'python') {
+          const binding = attachResearchPythonModel(monaco, {
+            documentId,
+            cellId,
+            model: modifiedModel,
+            editor: modifiedEditor,
+            getCells: () => languageContextRef.current.cells,
+          });
+          modifiedEditor.onDidDispose(() => binding.dispose());
+        }
+        modifiedEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () =>
+          callbacksRef.current.onRun(),
+        );
+        modifiedEditor.onDidBlurEditorWidget(() => callbacksRef.current.onBlur());
+        modifiedEditor.onDidDispose(() => changeSubscription.dispose());
+      }}
+      options={{
+        readOnly: false,
+        originalEditable: false,
+        renderSideBySide: false,
+        experimental: { useTrueInlineView: true },
+        automaticLayout: true,
+        fontSize: 13,
+        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+        lineHeight: 20,
+        minimap: { enabled: false },
+        overviewRulerLanes: 0,
+        renderOverviewRuler: false,
+        scrollBeyondLastLine: false,
+        padding: { top: 12, bottom: 12 },
+        renderLineHighlight: 'line',
+        renderIndicators: true,
+        renderMarginRevertIcon: false,
+        wordWrap: 'on',
+        diffWordWrap: 'on',
+        fixedOverflowWidgets: true,
+      }}
+    />
+  );
+}
+
+function configureResearchInlineDiffTheme(monacoInstance: Monaco): void {
+  monacoInstance.editor.defineTheme('jx-research-inline-diff', {
+    base: 'vs',
+    inherit: true,
+    rules: [],
+    colors: {
+      'editor.background': '#FFFFFF',
+      'editor.foreground': '#1F2933',
+      'editor.lineHighlightBackground': '#F7F8FA80',
+      'editor.selectionBackground': '#DCE3EB80',
+      'editorGutter.background': '#FFFFFF',
+      'editorLineNumber.foreground': '#98A2B3',
+      'editorLineNumber.activeForeground': '#475467',
+      'diffEditor.insertedLineBackground': '#EAF5EEB3',
+      'diffEditor.insertedTextBackground': '#CDE8D599',
+      'diffEditor.removedLineBackground': '#FCEBECCC',
+      'diffEditor.removedTextBackground': '#F5CCCC99',
+      'diffEditorGutter.insertedLineBackground': '#EAF5EE',
+      'diffEditorGutter.removedLineBackground': '#FCEBEC',
+      'diffEditor.border': '#D8DEE6',
+      'diffEditor.diagonalFill': '#D8DEE633',
+    },
+  });
 }
 
 // —— Research SDK language support ——

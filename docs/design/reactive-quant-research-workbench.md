@@ -440,6 +440,23 @@ DiffEditor 只读审查，用户显式应用或拒绝。应用使用文档 `cont
 任一条件变化即固化为 `conflicted`，不覆盖用户新内容。一个批次内的新建、修改、删除以同一
 数据库事务原子落地，仅刷新 DAG/stale，不自动执行 Cell。
 
+第三阶段把非删除提案演进为 Cursor 式开放变更会话。Agent Turn 完成后，前端先 `flushAll`，再把只含创建和
+修改的提案原子写入当前文档并进入 `open` review；删除仍保留显式应用，避免未确认删除破坏 Cell 执行历史。
+同一文档同一时间只有一个开放会话，后续 Agent Turn 必须读取当前已保存源码，并作为不可变 step 追加到该会话。
+界面不堆叠多层 diff，而是按 Cell 显示“该 Cell 在本会话首次被触碰前的源码 → 当前最新源码”的聚合内联 diff；
+每轮 before/after、AgentTurn/Message 来源仍单独保存，展示折叠不等于审计历史作废。
+
+内联 DiffEditor 的 original model 只读，modified model 就是当前 Cell 草稿。用户修改 modified model 时继续走
+既有文档级自动保存协调器；`dirty` 只表示尚未保存，和 `open / accepted / reverted` review 状态正交。Accept
+先 `flushAll`，把用户最后保存的源码作为最终版本并关闭会话，本身不再写一份 Agent 原始 afterSource；Undo
+则原子恢复各 Cell 第一次进入会话时的基线，并删除本会话创建且尚未运行的 Cell。开放 review 期间禁止运行、
+新增或删除 Cell，但允许继续编辑和追问 Agent；这样回滚不会删除执行证据，也不会让 runtime 混入未确认源码。
+
+Agent 生成期间若用户再次修改目标 Cell，应用前的 revision/contentRevision 校验必须冲突并停止，不能自动三方
+合并 Python 语义。用户继续追问前同样先 `flushAll`，因此下一轮 Agent 获取的是前一轮 Agent 修改与用户调整后的
+当前源码。会话 Accept 后，只有最后一个 step 承担整段会话的受控运行入口；运行基准更新为 Accept 时的最终
+`contentRevision`，但每个 step 仍保留独立来源。
+
 ### 9.1 自动保存与内容修订
 
 研究文档采用文档级自动保存协调器，不让每个 Cell 各自创建 timer：编辑器 `onChange` 立即用源码精确字符串
@@ -461,10 +478,11 @@ Agent 变更、新增或删除 Cell、切换或新建文档前都先 `flushAll`�
 
 ### 9.2 Agent 受控执行、解释与尝试比较
 
-接受 Agent diff 只原子修改文档并标记 stale，不自动运行。提案应用时记录
-`appliedDocumentContentRevision`；用户随后通过提案卡片上的独立图标按钮，显式运行该提案修改的 Python /
-Validation Cell 及其受影响下游。涉及删除 Python Cell 时必须重置 runtime 并干净运行当前全文，避免已删除变量
-残留在解释器内存里。
+第一、二阶段接受 Agent diff 时才原子修改文档并标记 stale。第三阶段中，非删除提案进入开放 review 时已经修改
+文档并标记 stale，但禁止执行；Accept 只关闭 review，并把全部 step 的 `appliedDocumentContentRevision` 更新为
+用户最终保存版本。用户随后通过最后一个 step 卡片上的独立图标按钮，显式运行整个会话修改的 Python /
+Validation Cell 及其受影响下游。显式应用的删除提案仍沿用原流程；涉及删除 Python Cell 时必须重置 runtime 并
+干净运行当前全文，避免已删除变量残留在解释器内存里。
 
 每次授权运行创建一个 `ResearchCellChangeAttempt`，冻结提案、应用后的 `contentRevision`、根 Cell、计划 Cell、
 实际 `ResearchCellExecution`、成功/失败/中断状态和错误。所有执行快照通过 attempt 外键分组；运行前、每个 Cell
@@ -502,7 +520,8 @@ Cell 数量。这是探索层的简版比较，不冒充 M3 的完整 `ResearchE
 - ECharts 富交互、表格分页/虚拟化和 artifact 上限（第二阶段已完成图片产物懒加载、1 MiB 表格预览预算与 2 MiB 内联输出上限）；
 - Agent 增删改、执行和解释 Cell：第一阶段已完成受审计批量提案、Monaco Diff、显式
   应用/拒绝与修订冲突保护；第二阶段已完成独立用户授权、`ResearchCellChangeAttempt` 审计、精确结果解释与
-  源码/输出/状态/环境的简版尝试比较。
+  源码/输出/状态/环境的简版尝试比较；第三阶段采用开放变更会话、Cell 内联可编辑 Diff、连续 Agent step 聚合、
+  最终 Accept 与原子 Undo，删除仍保留显式应用。
 
 ### M3：验证、固化与现有协议接线
 
