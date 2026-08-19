@@ -192,7 +192,6 @@ export function ResearchCodeDiffEditor({
         readOnly: false,
         originalEditable: false,
         renderSideBySide: false,
-        experimental: { useTrueInlineView: true },
         automaticLayout: true,
         fontSize: 13,
         fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
