@@ -17,6 +17,12 @@ export const zhFactor = {
   saved: '已保存',
   savePending: '等待保存',
   factorStatus: { draft: '草稿', published: '已发布', archived: '已归档' },
+  researchHandoff: {
+    title: '来自研究版本',
+    openSource: '打开来源快照',
+    sourceUnavailable: '来源已删除',
+    unresolved: '待验证 {{count}} 项',
+  },
 
   unnamedNew: '新因子（未保存）',
   noneSelected: '未选择因子',

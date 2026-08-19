@@ -24,6 +24,7 @@ import {
   type PublishedFactor,
   type FactorHoldoutPolicyV1,
   type FactorResearchSpecV1,
+  type ResearchFactorHandoffV1,
   type FactorTimeSeriesReportV1,
   type FactorPanelReportV1,
   type FactorMacroRegimeReportV1,
@@ -92,6 +93,15 @@ export const MACRO_REGIME_ASSETS: TimeSeriesAsset[] = [
 ];
 type MacroRevisionPolicy = MacroRegimeFactorResearchSpecV1['dataPolicy']['revisionPolicy'];
 type FactorUniverseChoice = 'cn_a' | FactorEquityIndexCode;
+
+type SourceResearchExecution = {
+  id: string;
+  documentId: string;
+  title: string;
+  displayName: string | null;
+  sequence: number;
+  promotedAt: string | null;
+};
 
 type FactorMethodologyParams = Pick<
   FactorAnalysisSpecV3,
@@ -235,6 +245,8 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   public factorKey = ''; // immutable Factor.key used by strategies
   public factorStatus: FactorStatus = 'draft';
   public description = ''; // localized catalog summary generated from the current context
+  public researchHandoff: ResearchFactorHandoffV1 | null = null;
+  public sourceResearchExecution: SourceResearchExecution | null = null;
 
   public freq: FactorFreq = 'month';
   public neutral: Neutral = 'none'; // cross-sectional neutralization in the draft analysis spec
@@ -281,6 +293,8 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       factorKey: observable.ref,
       factorStatus: observable.ref,
       description: observable.ref,
+      researchHandoff: observable.ref,
+      sourceResearchExecution: observable.ref,
       freq: observable.ref,
       neutral: observable.ref,
       start: observable.ref,
@@ -828,6 +842,8 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       this.factorKey = meta?.factorKey ?? meta?.strategyKey ?? '';
       this.factorStatus = meta?.status ?? 'draft';
       this.description = meta?.description ?? '';
+      this.researchHandoff = null;
+      this.sourceResearchExecution = null;
       this.pendingAgentCode = null;
       if (!isCustom) {
         this.code = '';
@@ -868,6 +884,8 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         this.factorKey = factor.key;
         this.factorStatus = factor.status ?? (factor.builtin ? 'published' : 'draft');
         this.description = factor.description ?? '';
+        this.researchHandoff = isCustom ? (factor.researchHandoff ?? null) : null;
+        this.sourceResearchExecution = isCustom ? (factor.sourceResearchExecution ?? null) : null;
       });
       if (isCustom) {
         void this.reattachTurn(); // a live agent turn for this factor? re-subscribe (snapshot replays)

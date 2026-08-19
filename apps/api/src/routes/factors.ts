@@ -525,6 +525,17 @@ factorsRoute.get('/custom/:id', async (c) => {
       descriptionEn: true,
       code: true,
       messages: true,
+      researchHandoff: true,
+      sourceResearchExecution: {
+        select: {
+          id: true,
+          documentId: true,
+          title: true,
+          displayName: true,
+          sequence: true,
+          promotedAt: true,
+        },
+      },
       userId: true,
       visibility: true,
     },
@@ -536,6 +547,14 @@ factorsRoute.get('/custom/:id', async (c) => {
   return c.json({
     ...rest,
     messages: ownerId === c.var.userId ? row.messages : null,
+    researchHandoff: ownerId === c.var.userId ? row.researchHandoff : null,
+    sourceResearchExecution:
+      ownerId === c.var.userId && row.sourceResearchExecution
+        ? {
+            ...row.sourceResearchExecution,
+            promotedAt: row.sourceResearchExecution.promotedAt?.toISOString() ?? null,
+          }
+        : null,
     description: localeFromRequest(c) === 'en' ? row.descriptionEn : row.descriptionZh,
     strategyKey: strategyKey(row.key, row.status),
     builtin: ownerId === BUILTIN_USER_ID,

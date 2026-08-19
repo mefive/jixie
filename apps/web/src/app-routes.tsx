@@ -52,6 +52,17 @@ function FactorRoute() {
   return <ComplexRoute entry={factorEntry} setupParams={setupParams} />;
 }
 
+// Research workbench: a Factor handoff can deep-link back to the exact frozen execution that produced
+// the draft. Capture the params once so later in-workbench navigation does not recreate the store.
+function ResearchRoute() {
+  const [searchParams] = useSearchParams();
+  const setupParams = useRef({
+    document: searchParams.get('document') || undefined,
+    execution: searchParams.get('execution') || undefined,
+  }).current;
+  return <ComplexRoute entry={researchEntry} setupParams={setupParams} />;
+}
+
 // Backtest workbench: `/lab` = last strategy (or blank if none); `/lab?id=<sid>` = that saved strategy;
 // `/lab?new=1` = force the blank new-strategy hero. The id rides as a query param (a plain parameter, not a REST
 // path). NO `key` here — switching strategies must NOT remount (a remount tears down Monaco/Splitters =
@@ -163,7 +174,7 @@ const router = createBrowserRouter(
           element={<ComplexRoute key="factor-weather" entry={factorWeatherEntry} />}
         />
         <Route path="/lab" element={<LabRoute />} />
-        <Route path="/research" element={<ComplexRoute key="research" entry={researchEntry} />} />
+        <Route path="/research" element={<ResearchRoute />} />
         <Route path="/factors" element={<FactorRoute />} />
         <Route
           path="/valuation"
