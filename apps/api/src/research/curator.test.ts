@@ -34,7 +34,7 @@ describe('research curator', () => {
           id: 'message-a',
           conversationId: 'conversation-a',
           role: 'user',
-          parts: [{ type: 'text', text: 'market.adjusted_close 的月度回归能否做成固定研究协议？' }],
+          parts: [{ type: 'text', text: 'market.adjusted_close 的月度回归能否做成研究方法模板？' }],
           sequence: 0,
           createdAt: new Date('2026-08-14T01:00:00.000Z'),
         },
@@ -72,14 +72,14 @@ describe('research curator', () => {
       JSON.stringify({
         findings: [
           {
-            category: 'protocol_candidate',
-            title: 'Register a monthly adjusted-close relationship protocol',
+            category: 'method_candidate',
+            title: 'Add a monthly adjusted-close relationship method template',
             summary: 'The user repeatedly needs market.adjusted_close regression research.',
             evidenceIds: ['message:message-a'],
             confidence: 0.9,
             expectedValue: 'Make a repeated research workflow deterministic.',
-            changeSurface: ['research catalog', 'protocol registry'],
-            suggestedAction: 'Review a registered monthly relationship protocol.',
+            changeSurface: ['research workbench', 'method templates'],
+            suggestedAction: 'Review a transparent Markdown and Python method template.',
           },
         ],
       }),
@@ -89,7 +89,7 @@ describe('research curator', () => {
     expect(llm).toHaveBeenCalledOnce();
     expect(run).toMatchObject({ status: 'done', evidenceCount: 1, findingsCreated: 1 });
     expect(run.findings[0]).toMatchObject({
-      category: 'protocol_candidate',
+      category: 'method_candidate',
       disposition: 'pending',
       verification: {
         status: 'verified',
@@ -370,9 +370,6 @@ async function createFixtureSchema(database: PrismaClient) {
     'CREATE TABLE "AgentConversation" ("id" TEXT NOT NULL PRIMARY KEY, "userId" TEXT NOT NULL, "surface" TEXT NOT NULL, "title" TEXT, "strategyId" TEXT, "factorId" TEXT, "archivedAt" DATETIME, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" DATETIME NOT NULL, FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE)',
     'CREATE TABLE "AgentMessage" ("id" TEXT NOT NULL PRIMARY KEY, "conversationId" TEXT NOT NULL, "role" TEXT NOT NULL, "parts" JSONB NOT NULL, "sequence" INTEGER NOT NULL, "turnId" TEXT, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY ("conversationId") REFERENCES "AgentConversation"("id") ON DELETE CASCADE)',
     'CREATE TABLE "AgentTurn" ("id" TEXT NOT NULL PRIMARY KEY, "conversationId" TEXT NOT NULL, "status" TEXT NOT NULL, "model" TEXT NOT NULL, "trace" JSONB NOT NULL, "error" TEXT, "startedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "finishedAt" DATETIME, FOREIGN KEY ("conversationId") REFERENCES "AgentConversation"("id") ON DELETE CASCADE)',
-    'CREATE TABLE "ResearchRun" ("id" TEXT NOT NULL PRIMARY KEY)',
-    'CREATE TABLE "ResearchStudy" ("id" TEXT NOT NULL PRIMARY KEY)',
-    'CREATE TABLE "ResearchAttempt" ("id" TEXT NOT NULL PRIMARY KEY, "userId" TEXT NOT NULL, "conversationId" TEXT NOT NULL, "studyId" TEXT, "parentRunId" TEXT, "sourceTurnId" TEXT, "sourceStepId" TEXT, "origin" TEXT NOT NULL, "plan" JSONB, "planHash" TEXT, "arguments" TEXT NOT NULL, "error" TEXT NOT NULL, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE, FOREIGN KEY ("conversationId") REFERENCES "AgentConversation"("id") ON DELETE CASCADE)',
     'CREATE TABLE "ResearchCuratorRun" ("id" TEXT NOT NULL PRIMARY KEY, "userId" TEXT NOT NULL, "status" TEXT NOT NULL DEFAULT \'queued\', "trigger" TEXT NOT NULL DEFAULT \'manual\', "cursorFrom" DATETIME, "cursorTo" DATETIME NOT NULL, "evidenceCount" INTEGER NOT NULL DEFAULT 0, "findingsCreated" INTEGER NOT NULL DEFAULT 0, "duplicatesSkipped" INTEGER NOT NULL DEFAULT 0, "error" TEXT, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" DATETIME NOT NULL, FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE)',
     'CREATE TABLE "ResearchCuratorFinding" ("id" TEXT NOT NULL PRIMARY KEY, "userId" TEXT NOT NULL, "runId" TEXT NOT NULL, "category" TEXT NOT NULL, "title" TEXT NOT NULL, "summary" TEXT NOT NULL, "evidence" JSONB NOT NULL, "verification" JSONB NOT NULL, "confidence" REAL NOT NULL, "expectedValue" TEXT NOT NULL, "changeSurface" JSONB NOT NULL, "suggestedAction" TEXT NOT NULL, "fingerprint" TEXT NOT NULL, "disposition" TEXT NOT NULL DEFAULT \'pending\', "dispositionNote" TEXT, "disposedAt" DATETIME, "verificationAssessment" TEXT, "verificationAssessedAt" DATETIME, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" DATETIME NOT NULL, FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE, FOREIGN KEY ("runId") REFERENCES "ResearchCuratorRun"("id") ON DELETE CASCADE)',
     'CREATE TABLE "TushareCapabilityProbe" ("id" TEXT NOT NULL PRIMARY KEY, "catalogVersion" INTEGER NOT NULL, "apiName" TEXT NOT NULL, "domain" TEXT NOT NULL, "probeDate" TEXT NOT NULL, "status" TEXT NOT NULL, "rowCount" INTEGER NOT NULL, "fields" JSONB NOT NULL, "historyField" TEXT, "historyStart" TEXT, "historyEnd" TEXT, "probeCoverage" TEXT, "errorCode" INTEGER, "errorMessage" TEXT, "probedAt" DATETIME NOT NULL)',

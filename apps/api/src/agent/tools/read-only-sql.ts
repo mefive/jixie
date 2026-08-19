@@ -285,7 +285,7 @@ const argsSchema = z.object({
  * spec can't express the question (aggregation, time series, fundamentals, joins). */
 export const sqlQueryTool: AgentTool = {
   name: 'sqlQuery',
-  description: `Run read-only SQL (SQLite dialect) over the local market/financial database. Good for statistical aggregation (mean / quantile / count), grouping by industry, historical time series, financials and dividends, and multi-table JOINs outside registered Research protocols.
+  description: `Run read-only SQL (SQLite dialect) over the local market/financial database. Good for statistical aggregation (mean / quantile / count), grouping by industry, historical time series, financials and dividends, and multi-table JOINs outside the stable Research data catalog.
 Queryable tables and columns:
 ${Object.entries(SQL_TABLE_DOCS)
   .map(([table, doc]) => `- ${table}: ${doc}`)

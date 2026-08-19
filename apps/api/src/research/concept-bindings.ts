@@ -164,7 +164,7 @@ const macroBindings: ResearchConceptBindingV1[] = [
     proxyKind: 'canonical',
     priority: 10,
     contract: usBlsMacroContract,
-    selectionNoteZh: '原始 CPI 指数；同比由研究协议计算，不代表核心 CPI 或季调月环比。',
+    selectionNoteZh: '原始 CPI 指数；同比由 Python 研究代码计算，不代表核心 CPI 或季调月环比。',
     selectionNoteEn:
       'Raw CPI index; the research protocol computes year-over-year inflation. It is not core CPI or a seasonally adjusted monthly rate.',
   },

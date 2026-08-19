@@ -12,13 +12,10 @@ import type {
   ResearchDocumentTemplateV1,
   ResearchDocumentV1,
   ResearchExecutionSummaryV1,
-  ResearchPlanSpecV1,
 } from '@jixie/shared';
 import { ulid } from 'ulid';
 import { prisma } from '../lib/prisma.js';
-import { executeResearchPlan } from './executor.js';
 import { researchPayloadHash } from './fingerprints.js';
-import { createWorkbenchResearchRun } from './records.js';
 import {
   createResearchExecution,
   finishResearchExecution,
@@ -26,7 +23,6 @@ import {
 } from './research-execution-records.js';
 import { listResearchCellChangeAttempts } from './research-cell-change-attempt-records.js';
 import { researchCellChangeReviewView } from './research-cell-change-records.js';
-import { researchPlanSpecV1Schema } from './spec.js';
 import { materializeResearchOutputArtifacts } from './workbench-artifacts.js';
 import {
   ResearchPythonExecutionError,
@@ -85,7 +81,7 @@ export interface ResearchAffectedRunPlan {
   dependenciesByCellId: Map<string, string[]>;
 }
 
-interface ResearchRunControl {
+interface ResearchDocumentRunControl {
   documentId: string;
   interrupted: boolean;
   settled: Promise<void>;
@@ -94,7 +90,7 @@ interface ResearchRunControl {
 
 type ResearchCellExecutionOutcome = 'success' | 'error' | 'interrupted';
 
-const activeResearchRuns = new Map<string, ResearchRunControl>();
+const activeResearchDocumentRuns = new Map<string, ResearchDocumentRunControl>();
 
 export interface ResearchCellChangeDependencySeed {
   cellId: string;
@@ -130,7 +126,7 @@ export class ResearchDocumentContentRevisionConflictError extends Error {
 }
 
 export function isResearchDocumentRunActive(documentId: string): boolean {
-  return activeResearchRuns.has(documentId);
+  return activeResearchDocumentRuns.has(documentId);
 }
 
 export async function reconcileResearchCellChanges(
@@ -438,12 +434,12 @@ export async function runResearchCell(
     return null;
   }
   await assertNoOpenCellChangeReview(cell.documentId);
-  const control = startResearchRun(cell.documentId);
+  const control = startResearchDocumentRun(cell.documentId);
   try {
     await executeResearchCell(cell, control);
     return getResearchDocument(userId, cell.documentId);
   } finally {
-    finishResearchRun(control);
+    finishResearchDocumentRun(control);
   }
 }
 
@@ -459,7 +455,7 @@ export async function runAffectedResearchCells(
     return null;
   }
   await assertNoOpenCellChangeReview(cell.documentId);
-  const control = startResearchRun(cell.documentId);
+  const control = startResearchDocumentRun(cell.documentId);
   try {
     const analyses = await analyzeAndPersist(cell.documentId);
     const plan = affectedResearchCellRunPlan(cell.id, analyses);
@@ -487,7 +483,7 @@ export async function runAffectedResearchCells(
     );
     return researchDocumentRunResult(userId, cell.documentId, executedCellIds, false);
   } finally {
-    finishResearchRun(control);
+    finishResearchDocumentRun(control);
   }
 }
 
@@ -512,7 +508,7 @@ export async function runResearchCellChangeAttemptPlan(
     return null;
   }
 
-  const control = startResearchRun(documentId);
+  const control = startResearchDocumentRun(documentId);
   try {
     if (args.clean) {
       await researchRuntimeManager.reset(documentId);
@@ -552,7 +548,7 @@ export async function runResearchCellChangeAttemptPlan(
     }
     return researchDocumentRunResult(userId, documentId, executedCellIds, args.clean);
   } finally {
-    finishResearchRun(control);
+    finishResearchDocumentRun(control);
   }
 }
 
@@ -569,7 +565,7 @@ export async function runResearchDocument(
     return null;
   }
   await assertNoOpenCellChangeReview(documentId);
-  const control = startResearchRun(documentId);
+  const control = startResearchDocumentRun(documentId);
   let researchExecutionId: string | undefined;
   try {
     if (clean) {
@@ -669,7 +665,7 @@ export async function runResearchDocument(
     }
     throw error;
   } finally {
-    finishResearchRun(control);
+    finishResearchDocumentRun(control);
   }
 }
 
@@ -685,7 +681,7 @@ export async function interruptResearchDocument(
     return null;
   }
 
-  const control = activeResearchRuns.get(documentId);
+  const control = activeResearchDocumentRuns.get(documentId);
   if (!control) {
     return {
       version: 1,
@@ -707,7 +703,7 @@ export async function interruptResearchDocument(
 async function executeResearchCellById(
   userId: string,
   cellId: string,
-  control: ResearchRunControl,
+  control: ResearchDocumentRunControl,
   cellChangeAttemptId?: string,
   researchExecutionId?: string,
 ): Promise<ResearchCellExecutionOutcome | null> {
@@ -720,7 +716,7 @@ async function executeResearchCellById(
 
 async function executeResearchCell(
   cell: ExecutableResearchCellRow,
-  control: ResearchRunControl,
+  control: ResearchDocumentRunControl,
   cellChangeAttemptId?: string,
   researchExecutionId?: string,
 ): Promise<ResearchCellExecutionOutcome> {
@@ -882,8 +878,8 @@ async function persistInterruptedResearchCell(
   ]);
 }
 
-function startResearchRun(documentId: string): ResearchRunControl {
-  if (activeResearchRuns.has(documentId)) {
+function startResearchDocumentRun(documentId: string): ResearchDocumentRunControl {
+  if (activeResearchDocumentRuns.has(documentId)) {
     throw new ResearchDocumentRunInProgressError();
   }
 
@@ -892,7 +888,7 @@ function startResearchRun(documentId: string): ResearchRunControl {
     settle = resolve;
   });
   const control = { documentId, interrupted: false, settled, settle };
-  activeResearchRuns.set(documentId, control);
+  activeResearchDocumentRuns.set(documentId, control);
   return control;
 }
 
@@ -906,9 +902,9 @@ async function assertNoOpenCellChangeReview(documentId: string): Promise<void> {
   }
 }
 
-function finishResearchRun(control: ResearchRunControl): void {
-  if (activeResearchRuns.get(control.documentId) === control) {
-    activeResearchRuns.delete(control.documentId);
+function finishResearchDocumentRun(control: ResearchDocumentRunControl): void {
+  if (activeResearchDocumentRuns.get(control.documentId) === control) {
+    activeResearchDocumentRuns.delete(control.documentId);
   }
   control.settle();
 }
@@ -1027,38 +1023,6 @@ async function executeCell(cell: {
       };
     case 'python':
       return researchRuntimeManager.execute(cell.documentId, cell);
-    case 'validation': {
-      let value: unknown;
-      try {
-        value = JSON.parse(cell.source);
-      } catch (error) {
-        throw new Error(
-          `Validation Cell JSON is invalid: ${error instanceof Error ? error.message : String(error)}`,
-        );
-      }
-      const plan = researchPlanSpecV1Schema.parse(value) as ResearchPlanSpecV1;
-      const run = await executeResearchPlan(plan);
-      const title = cell.document.conversation.title ?? plan.question.text.slice(0, 120);
-      const part = await createWorkbenchResearchRun({
-        userId: cell.document.conversation.userId,
-        conversationId: cell.document.conversationId,
-        title,
-        run,
-      });
-      if (!part.record) {
-        throw new Error('Validation run was not persisted');
-      }
-      return {
-        outputs: [
-          { type: 'validation', title: part.title, run: part.run, record: part.record },
-        ] as ResearchCellOutputBlockV1[],
-        definitions: [] as string[],
-        references: [] as string[],
-        environmentFingerprint:
-          run.fingerprints?.environment.hash ??
-          researchPayloadHash({ runtime: 'research-protocol' }),
-      };
-    }
     default:
       throw new Error(`unknown research cell kind: ${cell.kind}`);
   }
@@ -1400,69 +1364,20 @@ function legacyDefinition(title: string): { cells: CellSeed[] } {
     cells: [
       {
         kind: 'markdown',
-        source: `# ${title || '历史研究'}\n\n此文档由旧版研究会话升级。右侧保留原有 Agent 对话；可在下方继续添加 Python 或 Validation Cell。`,
+        source: `# ${title || '历史研究'}\n\n此文档由旧版研究会话升级。右侧保留原有 Agent 对话；可在下方继续添加 Markdown 或 Python Cell。`,
       },
     ],
   };
 }
 
 function indexRelationshipTemplate(): { title: string; cells: CellSeed[] } {
-  const plan: ResearchPlanSpecV1 = {
-    version: 1,
-    question: {
-      version: 1,
-      kind: 'time_series_relationship',
-      text: '沪深300和中证500的月收益是否正相关？',
-      hypothesis: { estimand: 'regression_slope', direction: 'positive', nullValue: 0 },
-    },
-    start: '20200101',
-    end: '20251231',
-    inputs: [
-      {
-        type: 'series',
-        id: 'csi300',
-        source: { kind: 'instrument', assetType: 'index', id: '000300.SH' },
-        measure: 'market.adjusted_close',
-        transform: 'simple_return',
-        label: '沪深300',
-      },
-      {
-        type: 'series',
-        id: 'csi500',
-        source: { kind: 'instrument', assetType: 'index', id: '000905.SH' },
-        measure: 'market.adjusted_close',
-        transform: 'simple_return',
-        label: '中证500',
-      },
-    ],
-    alignment: { frequency: 'monthly', join: 'inner', partialPeriod: 'exclude' },
-    protocol: {
-      kind: 'time_series_relationship',
-      version: 1,
-      predictor: 'csi300',
-      outcome: 'csi500',
-      predictorLag: 0,
-      correlations: ['pearson', 'spearman'],
-      inference: { kind: 'newey_west', lag: 'automatic' },
-      rollingWindow: 24,
-    },
-    outputs: [
-      { kind: 'summary_table' },
-      { kind: 'scatter' },
-      { kind: 'rolling_relationship' },
-      { kind: 'conclusion' },
-      { kind: 'formula' },
-      { kind: 'python_example' },
-      { kind: 'documentation' },
-    ],
-  };
   return {
     title: '沪深300 vs 中证500：月收益关系',
     cells: [
       {
         kind: 'markdown',
         source:
-          '# 沪深300 vs 中证500：月收益关系\n\n**事前假设**：2020–2025 年间，两类宽基指数的月收益正相关。先自由探索数据与累计路径，再交给版本化协议做 HAC 推断和滚动稳定性验证。',
+          '# 沪深300 vs 中证500：月收益关系\n\n**事前假设**：2020–2025 年间，两类宽基指数的月收益正相关。\n\n以中证500月收益 $r_{500,t}$ 为因变量、沪深300月收益 $r_{300,t}$ 为自变量，估计 $r_{500,t}=\\alpha+\\beta r_{300,t}+\\epsilon_t$。原假设为 $H_0:\\beta=0$，使用 HAC 标准误处理残差的异方差与有限阶自相关，同时查看 Pearson 相关、效应大小和 24 个月滚动相关。相关关系不代表因果，也未包含交易成本或样本外预测检验。',
       },
       {
         kind: 'python',
@@ -1479,25 +1394,36 @@ monthly.tail(8)`,
       },
       {
         kind: 'python',
-        source: `correlation = monthly[["csi300", "csi500"]].corr().round(3)
-correlation`,
+        source: `import pandas as pd
+import statsmodels.api as sm
+
+model_data = monthly[["csi300", "csi500"]].dropna()
+hac_lag = max(1, int(4 * (len(model_data) / 100) ** (2 / 9)))
+fit = sm.OLS(model_data["csi500"], sm.add_constant(model_data["csi300"])).fit(
+    cov_type="HAC", cov_kwds={"maxlags": hac_lag}
+)
+relationship_summary = pd.DataFrame({
+    "observations": [len(model_data)],
+    "pearson": [model_data["csi300"].corr(model_data["csi500"])],
+    "slope": [fit.params["csi300"]],
+    "hac_se": [fit.bse["csi300"]],
+    "p_value": [fit.pvalues["csi300"]],
+    "ci_lower": [fit.conf_int().loc["csi300", 0]],
+    "ci_upper": [fit.conf_int().loc["csi300", 1]],
+    "r_squared": [fit.rsquared],
+}).round(4)
+relationship_summary`,
       },
       {
         kind: 'python',
-        source: `indexed = monthly.assign(
-    csi300_nav=(1 + monthly["csi300"]).cumprod(),
-    csi500_nav=(1 + monthly["csi500"]).cumprod(),
-)
+        source: `rolling = monthly.assign(
+    rolling_corr=monthly["csi300"].rolling(24).corr(monthly["csi500"])
+).dropna(subset=["rolling_corr"])
 charts.line(
-    indexed, x="date", y=["csi300_nav", "csi500_nav"],
-    labels={"csi300_nav": "沪深300", "csi500_nav": "中证500"},
-    title="月度累计净值（探索输出）"
+    rolling, x="date", y="rolling_corr",
+    labels={"rolling_corr": "24个月滚动相关"},
+    title="沪深300与中证500月收益滚动相关"
 )`,
-      },
-      {
-        kind: 'validation',
-        source: JSON.stringify(plan, null, 2),
-        config: { protocolId: 'time_series_relationship', protocolVersion: 1 },
       },
     ],
   };

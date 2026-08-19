@@ -10,21 +10,12 @@ import { enqueueAgentTurn, entityKey } from '../agent/turn-run.js';
 import * as turnBus from '../agent/turn-bus.js';
 import { createProposeResearchCellChangesTool } from '../agent/tools/propose-research-cell-changes.js';
 import { localeFromRequest, m } from '../i18n/index.js';
-import { researchCapabilityCatalog } from '../research/catalog.js';
 import {
   curatorFindingUpdateSchema,
   getLatestResearchCuratorRun,
   getResearchCuratorRun,
   updateResearchCuratorFindingFeedback,
 } from '../research/curator.js';
-import { executeResearchPlan } from '../research/executor.js';
-import {
-  createFailedResearchAttempt,
-  createResearchRerun,
-  listResearchStudyAttempts,
-  listResearchStudyRuns,
-} from '../research/records.js';
-import { researchPlanSpecV1Schema } from '../research/spec.js';
 import { universeSpecV1Schema } from '../research/spec.js';
 import { executeUniverseSpec } from '../research/universe.js';
 import { researchPythonLanguageService } from '../research/pyright-language-service.js';
@@ -69,8 +60,6 @@ import {
 
 /** Natural-language research workbench actions. Persistence and Agent turns join this route in M1. */
 export const researchRoute = new Hono();
-
-researchRoute.get('/catalog', (c) => c.json(researchCapabilityCatalog));
 
 const dataCatalogQuery = z.strictObject({
   q: z.string().trim().max(120).default(''),
@@ -119,7 +108,7 @@ const createDocumentBody = z.strictObject({
   template: z.enum(['blank', 'index_relationship']).default('blank'),
 });
 const createCellBody = z.strictObject({
-  kind: z.enum(['markdown', 'python', 'validation']),
+  kind: z.enum(['markdown', 'python']),
   source: z.string().max(100_000).default(''),
 });
 const updateCellBody = z
@@ -858,65 +847,6 @@ researchRoute.delete('/conversations/:id', async (c) => {
     : apiError(c, 'NOT_FOUND', m(c, 'conversationNotFound'));
 });
 
-researchRoute.post('/run', validateJson(researchPlanSpecV1Schema), async (c) => {
-  try {
-    return c.json(await executeResearchPlan(c.req.valid('json')));
-  } catch (error) {
-    return apiError(
-      c,
-      'VALIDATION_FAILED',
-      error instanceof Error ? error.message : 'Research plan failed.',
-    );
-  }
-});
-
-const rerunBody = z.strictObject({
-  parentRunId: z.string().min(1),
-  plan: researchPlanSpecV1Schema,
-});
-
-researchRoute.get('/studies/:studyId/runs', async (c) => {
-  const records = await listResearchStudyRuns(c.var.userId, c.req.param('studyId'));
-  return records ? c.json(records) : apiError(c, 'NOT_FOUND', m(c, 'researchStudyNotFound'));
-});
-
-researchRoute.get('/studies/:studyId/attempts', async (c) => {
-  const attempts = await listResearchStudyAttempts(c.var.userId, c.req.param('studyId'));
-  return attempts ? c.json(attempts) : apiError(c, 'NOT_FOUND', m(c, 'researchStudyNotFound'));
-});
-
-researchRoute.post('/studies/:studyId/runs', validateJson(rerunBody), async (c) => {
-  const { parentRunId, plan } = c.req.valid('json');
-  const studyId = c.req.param('studyId');
-  const parent = await prisma.researchRun.findFirst({
-    where: { id: parentRunId, studyId, study: { userId: c.var.userId, status: 'active' } },
-    select: { id: true },
-  });
-  if (!parent) {
-    return apiError(c, 'NOT_FOUND', m(c, 'researchStudyNotFound'));
-  }
-  try {
-    const run = await executeResearchPlan(plan);
-    const record = await createResearchRerun({
-      userId: c.var.userId,
-      studyId,
-      parentRunId,
-      run,
-    });
-    return record ? c.json(record) : apiError(c, 'NOT_FOUND', m(c, 'researchStudyNotFound'));
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Research plan failed.';
-    const attempt = await createFailedResearchAttempt({
-      userId: c.var.userId,
-      studyId,
-      parentRunId,
-      plan,
-      error: message,
-    });
-    return apiError(c, 'VALIDATION_FAILED', message, attempt ? { attempt } : undefined);
-  }
-});
-
 researchRoute.post('/universe/run', validateJson(universeSpecV1Schema), async (c) => {
   try {
     return c.json(await executeUniverseSpec(c.req.valid('json')));
@@ -944,10 +874,10 @@ function messagePreview(parts: unknown): string {
     return text.text.slice(0, 80);
   }
   const artifact = parts.find(
-    (part): part is { type: 'research' | 'universe'; title: string } =>
+    (part): part is { type: 'universe'; title: string } =>
       typeof part === 'object' &&
       part !== null &&
-      ['research', 'universe'].includes((part as { type?: string }).type ?? '') &&
+      (part as { type?: string }).type === 'universe' &&
       typeof (part as { title?: unknown }).title === 'string',
   );
   return artifact?.title.slice(0, 80) ?? '';

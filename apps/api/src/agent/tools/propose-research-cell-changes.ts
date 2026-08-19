@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { prepareResearchCellChangeProposal } from '../../research/workbench-cell-changes.js';
 import type { AgentTool } from './types.js';
 
-const cellKindSchema = z.enum(['markdown', 'python', 'validation']);
+const cellKindSchema = z.enum(['markdown', 'python']);
 const operationSchema = z.discriminatedUnion('kind', [
   z.strictObject({
     kind: z.literal('create'),
@@ -38,7 +38,7 @@ export function createProposeResearchCellChangesTool(args: {
   return {
     name: 'proposeResearchCellChanges',
     description:
-      'Create one user-reviewed batch of Research Cell changes. Call this only when the user explicitly asks to change the current research document. Use exact Cell ids and revisions from the supplied document context. Preserve unrelated Cells and source. Create accepts markdown, python, or validation source and may insert after one existing Cell. Update must send the complete replacement source and expectedRevision. Delete is allowed only when the user explicitly requests removal. The tool validates Python syntax, Validation JSON, duplicate definitions, dependency cycles, source sizes, and current revisions. The product may auto-apply a non-deleting proposal into an editable review after the turn; deletion remains pending for explicit application. It never executes Cells. After success, tell the user that the changes are ready for review; never claim that code ran or that the user accepted them.',
+      'Create one user-reviewed batch of Research Cell changes. Call this only when the user explicitly asks to change the current research document. Use exact Cell ids and revisions from the supplied document context. Preserve unrelated Cells and source. Create accepts markdown or python source and may insert after one existing Cell. Update must send the complete replacement source and expectedRevision. Delete is allowed only when the user explicitly requests removal. The tool validates Python syntax, duplicate definitions, dependency cycles, source sizes, and current revisions. The product may auto-apply a non-deleting proposal into an editable review after the turn; deletion remains pending for explicit application. It never executes Cells. After success, tell the user that the changes are ready for review; never claim that code ran or that the user accepted them.',
     parameters: z.toJSONSchema(argsSchema),
     async run(input) {
       if (proposalCreated) {

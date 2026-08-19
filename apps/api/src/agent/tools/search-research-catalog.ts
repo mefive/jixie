@@ -95,7 +95,7 @@ const CONTINUOUS_FUTURE_NAMES: Record<string, { zh: string; en: string }> = {
 export const searchResearchCatalogTool: AgentTool = {
   name: 'searchResearchCatalog',
   description:
-    'Resolve one structured ConceptQuery against the local research catalog. Use conceptIds supplied by a loaded research playbook for semantic concepts; use text for a named object or exact code; optional filters constrain source kind, asset type, or yield-curve tenor. Concept ids resolve only through audited binding allow-list entries, while lexical database search is limited to explicitly named objects. Results are grouped per concept so an exact-series gap cannot be confused with a missing protocol. Never guess or substitute a different source.',
+    'Resolve one structured ConceptQuery against the local research catalog. Use conceptIds supplied by a loaded research playbook for semantic concepts; use text for a named object or exact code; optional filters constrain source kind, asset type, or yield-curve tenor. Concept ids resolve only through audited binding allow-list entries, while lexical database search is limited to explicitly named objects. Results are grouped per concept so exact-series gaps stay explicit. Never guess or substitute a different source.',
   parameters: z.toJSONSchema(argsSchema),
   async run(args) {
     const parsed = argsSchema.safeParse(args);
@@ -517,22 +517,6 @@ function registeredCapabilityCandidates(terms: string[]): CatalogCandidate[] {
       .map((item) =>
         candidate({ kind: 'universe_measure', ...item }, compactValues(item), 'capability'),
       ),
-    ...researchCapabilityCatalog.protocols
-      .filter((item) => matchesTerms([item.id, item.nameZh, item.nameEn], terms))
-      .map((item) =>
-        candidate(
-          {
-            kind: 'protocol',
-            id: item.id,
-            version: item.version,
-            nameZh: item.nameZh,
-            nameEn: item.nameEn,
-            minimumObservations: item.minimumObservations,
-          },
-          [item.id, item.nameZh, item.nameEn],
-          'capability',
-        ),
-      ),
   ];
 }
 
@@ -552,13 +536,6 @@ function compactCapabilityCatalog() {
       nameZh: measure.nameZh,
       nameEn: measure.nameEn,
       unit: measure.unit,
-    })),
-    protocols: researchCapabilityCatalog.protocols.map((protocol) => ({
-      id: protocol.id,
-      version: protocol.version,
-      nameZh: protocol.nameZh,
-      nameEn: protocol.nameEn,
-      minimumObservations: protocol.minimumObservations,
     })),
   };
 }

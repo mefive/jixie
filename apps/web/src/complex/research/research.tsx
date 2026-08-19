@@ -21,7 +21,6 @@ import {
   faDatabase,
   faDiagramProject,
   faEye,
-  faEyeSlash,
   faFileLines,
   faFlask,
   faListCheck,
@@ -337,7 +336,7 @@ const ResearchWorkspace = complex.component(
       void store.renameConversation(title);
     };
     const addMenu = {
-      items: (['markdown', 'python', 'validation'] as ResearchCellKindV1[]).map((kind) => ({
+      items: (['markdown', 'python'] as ResearchCellKindV1[]).map((kind) => ({
         key: kind,
         label: t(`workbench.cellKind.${kind}`),
         onClick: (): void => {
@@ -526,7 +525,6 @@ const ResearchCell = complex.component(
     const store = complex.useStore();
     const { t } = useTranslation('research');
     const [markdownEditing, setMarkdownEditing] = useState(false);
-    const [validationSourceOpen, setValidationSourceOpen] = useState(cell.status !== 'success');
     const draftState = store.cellDraft(cell.id);
     const draft = draftState?.draft ?? cell.source;
     const saveStatus = draftState?.status ?? 'saved';
@@ -581,21 +579,6 @@ const ResearchCell = complex.component(
                   icon={<FontAwesomeIcon icon={markdownEditing ? faEye : faPen} />}
                   aria-label={markdownEditing ? t('workbench.preview') : t('workbench.edit')}
                   onClick={() => setMarkdownEditing((value) => !value)}
-                />
-              </Tooltip>
-            )}
-            {cell.kind === 'validation' && !changeReview && (
-              <Tooltip
-                title={validationSourceOpen ? t('workbench.hideSpec') : t('workbench.showSpec')}
-              >
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<FontAwesomeIcon icon={validationSourceOpen ? faEyeSlash : faCode} />}
-                  aria-label={
-                    validationSourceOpen ? t('workbench.hideSpec') : t('workbench.showSpec')
-                  }
-                  onClick={() => setValidationSourceOpen((value) => !value)}
                 />
               </Tooltip>
             )}
@@ -697,13 +680,7 @@ const ResearchCell = complex.component(
                   }))}
                 original={changeReview.beforeSource}
                 value={draft}
-                language={
-                  cell.kind === 'validation'
-                    ? 'json'
-                    : cell.kind === 'markdown'
-                      ? 'markdown'
-                      : 'python'
-                }
+                language={cell.kind === 'markdown' ? 'markdown' : 'python'}
                 onChange={(source) => store.changeCellDraft(cell.id, source)}
                 onBlur={save}
                 onRun={run}
@@ -723,7 +700,7 @@ const ResearchCell = complex.component(
                 <Markdown text={draft} />
               </div>
             )
-          ) : cell.kind === 'python' || validationSourceOpen ? (
+          ) : (
             <Suspense fallback={<div className="jx-research-editorPending" />}>
               <ResearchCodeEditor
                 documentId={cell.documentId}
@@ -735,13 +712,13 @@ const ResearchCell = complex.component(
                     source: store.cellDraft(candidate.id)?.draft ?? candidate.source,
                   }))}
                 value={draft}
-                language={cell.kind === 'validation' ? 'json' : 'python'}
+                language="python"
                 onChange={(source) => store.changeCellDraft(cell.id, source)}
                 onBlur={save}
                 onRun={run}
               />
             </Suspense>
-          ) : null}
+          )}
           {cell.status === 'stale' && cell.outputs.length > 0 && (
             <div className="jx-research-staleNotice">
               <FontAwesomeIcon icon={faTriangleExclamation} />
@@ -920,8 +897,6 @@ function cellIcon(kind: ResearchCellKindV1) {
       return faFileLines;
     case 'python':
       return faCode;
-    case 'validation':
-      return faFlask;
   }
 }
 

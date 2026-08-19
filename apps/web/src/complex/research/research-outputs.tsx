@@ -1,10 +1,7 @@
 import { lazy, Suspense } from 'react';
-import type { ChatMessage, ResearchCellOutputBlockV1 } from '@jixie/shared';
-import { faCheck } from '@fortawesome/free-solid-svg-icons';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import type { ResearchCellOutputBlockV1 } from '@jixie/shared';
 import { useTranslation } from 'react-i18next';
 import { researchArtifactUrl } from '@src/api/client';
-import { MessageParts } from '@src/components/message-parts';
 import { ResearchCellTable } from './research-cell-table';
 
 const ResearchCellChart = lazy(() => import('./research-cell-chart'));
@@ -58,28 +55,5 @@ function ResearchOutput({ output }: { output: ResearchCellOutputBlockV1 }) {
         </figure>
       ) : null;
     }
-    case 'validation':
-      return (
-        <div className="jx-research-validationOutput" data-testid="research-validation-output">
-          <div className="jx-research-evidenceLabel">
-            <FontAwesomeIcon icon={faCheck} /> {t('workbench.formalEvidence')}
-          </div>
-          <MessageParts
-            message={
-              {
-                role: 'assistant',
-                parts: [
-                  {
-                    type: 'research',
-                    title: output.title,
-                    run: output.run,
-                    record: output.record,
-                  },
-                ],
-              } as ChatMessage
-            }
-          />
-        </div>
-      );
   }
 }

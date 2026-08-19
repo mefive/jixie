@@ -10,8 +10,8 @@ const finding = {
   version: 1,
   id: 'curator-finding-1',
   runId: 'curator-run-1',
-  category: 'protocol_candidate',
-  title: '沉淀月度复权收益关系研究协议',
+  category: 'method_candidate',
+  title: '沉淀月度复权收益研究方法模板',
   summary: '多次研究都需要月度复权收益、滚动相关和 Newey–West 回归。',
   evidence: [
     {
@@ -26,10 +26,7 @@ const finding = {
   ],
   verification: {
     status: 'verified',
-    matches: [
-      { kind: 'research_measure', id: 'market.adjusted_close' },
-      { kind: 'research_protocol', id: 'time_series_relationship' },
-    ],
+    matches: [{ kind: 'research_measure', id: 'market.adjusted_close' }],
     notes: ['local_capability_match'],
     evidence: [
       {
@@ -50,8 +47,8 @@ const finding = {
   },
   confidence: 0.91,
   expectedValue: '把重复需求变为确定、可测试、可重跑的通用研究流程。',
-  changeSurface: ['研究协议目录', 'Research Agent'],
-  suggestedAction: '人工评审后进入常规研究协议开发流程。',
+  changeSurface: ['研究方法模板', 'Research Agent'],
+  suggestedAction: '人工评审后形成透明的 Markdown 与 Python 研究模板。',
   fingerprint: 'curator-fingerprint-1',
   disposition: 'pending',
   createdAt: now,

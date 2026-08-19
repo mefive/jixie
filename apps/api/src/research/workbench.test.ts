@@ -7,12 +7,12 @@ import {
 } from './workbench.js';
 
 describe('reactive research dependencies', () => {
-  it('marks transitive dependents without invalidating independent validation cells', () => {
+  it('marks transitive dependents without invalidating independent Markdown cells', () => {
     const stale = downstreamResearchCellIds('load', new Set(['monthly']), [
       { cellId: 'load', definitions: ['monthly'], references: [] },
       { cellId: 'summary', definitions: ['correlation'], references: ['monthly'] },
       { cellId: 'chart', definitions: ['figure'], references: ['correlation'] },
-      { cellId: 'validation', definitions: [], references: [] },
+      { cellId: 'notes', definitions: [], references: [] },
     ]);
 
     expect(stale).toEqual(['summary', 'chart']);

@@ -14,7 +14,6 @@ import {
   resolveResearchCellChangeProposalRecord,
   syncResearchCellChangeProposalRecords,
 } from './research-cell-change-records.js';
-import { researchPlanSpecV1Schema } from './spec.js';
 import {
   getResearchDocument,
   isResearchDocumentRunActive,
@@ -917,18 +916,6 @@ function validateCellSource(kind: ResearchCellKindV1, source: string): void {
       `Cell source requires ${source.length} characters; the limit is ${MAX_CELL_SOURCE_CHARACTERS}.`,
     );
   }
-  if (kind !== 'validation') {
-    return;
-  }
-  let value: unknown;
-  try {
-    value = JSON.parse(source);
-  } catch (error) {
-    throw new Error(
-      `Validation Cell JSON is invalid: ${error instanceof Error ? error.message : String(error)}`,
-    );
-  }
-  researchPlanSpecV1Schema.parse(value);
 }
 
 function lineChangeCounts(

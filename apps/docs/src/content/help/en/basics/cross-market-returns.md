@@ -40,7 +40,7 @@ The common information clock is the China close:
   session**.
 - FXCM daily bars use GMT dates and are also gated to the first strictly later SSE session.
 
-Do not join the three closes by the same calendar date. Research protocols align by `availableDate`. A holiday in only one
+Do not join the three closes by the same calendar date. Platform data loaders align by `availableDate`. A holiday in only one
 market remains a real missing observation; no future value or weekend forward-fill creates a new observation.
 
 ## Example questions

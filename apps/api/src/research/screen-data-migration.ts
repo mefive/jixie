@@ -187,7 +187,11 @@ export function migrateScreenMessage(raw: unknown): {
   message: ChatMessage;
   convertedCards: number;
 } {
-  const normalized = normalizeChatMessage(parseJson(raw));
+  const parsed = parseJson(raw) as { parts?: unknown };
+  const base = normalizeChatMessage({ ...parsed, parts: undefined });
+  const normalized = Array.isArray(parsed.parts)
+    ? { ...base, parts: parsed.parts as MessagePart[] }
+    : base;
   let convertedCards = 0;
   const legacyParts = normalized.parts as Array<
     MessagePart | { type: 'card'; title: string; spec: unknown }

@@ -120,59 +120,22 @@ Sharpe 与 Calmar 是结果指标，不是允许反复拟合历史的优化目�
 ## 当前主线一：响应式量化研究工作台
 
 本主线是当前产品核心：服务愿意学习或已经掌握基础 Python、pandas 和统计学的个人量化研究者。Research
-页面将从“聊天 + 固定协议”演进为 jixie 原生的响应式量化研究文档；Agent 负责协助取数、编码、排错、
-方法选择和解释，用户保留自由研究能力，平台负责数据语义、沙箱、验证、约束和复现。
+页面已经演进为 jixie 原生的响应式量化研究文档；Agent 负责协助取数、编码、排错、方法选择和解释，用户保留自由研究能力，平台负责数据语义、沙箱、执行约束和复现。
 
-当前产品表面与开发里程碑见
-[响应式量化研究工作台](docs/design/reactive-quant-research-workbench.md)。已完成协议、记录与 Curator 的历史
-设计见 [自然语言量化研究工作台](docs/design/natural-language-quant-research.md)。
+当前产品表面与开发里程碑以[响应式量化研究工作台](docs/design/reactive-quant-research-workbench.md)为准。
 
-### 1.1 通用研究协议与首批垂直切片 ✅
+### 1.1 固定研究流程（已撤销）
 
-先把自然语言问题形式化为变量、样本、频率、滞后、基准、币种和数据可得时间，再从版本化协议登记表选择
-经过测试的方法。第一批覆盖时间序列变量关系、描述/分布比较和事件研究；优先完成时间序列关系的垂直切片。
+2026-08-19 产品决策：早期四个固定统计流程、专用结果卡和确定性重跑入口无人使用，已经从正式产品表面、
+Agent 工具与共享类型中删除。Research 不再要求用户把问题套入预登记流程，方法与公式写入 Markdown，实际计算
+与诊断写入 Python。PIT-aware `UniverseSpec V1`、Measure Catalog、数据绑定和稳定对象身份继续保留，因为它们
+是通用数据能力而不是固定统计流程。
 
-结果必须同时提供：
+### 1.2 旧固定流程运行记录（已撤销）
 
-- 互动图表、点估计、区间、效应量、诊断、稳定性和结论强度；
-- 统计公式、变量解释、经过测试的 Python 教学示例；
-- 项目内中英文概念文章和必要的权威外部参考；
-- 数据范围、口径、样本、参数、协议版本和限制；
-- 可调整参数的确定性重跑，而不是每次都让模型临时写代码。
-
-通用研究以问题为中心，因子研究以可发布的预测信号为中心。“研究转因子”不再作为 1.1 的完成条件；待通用
-研究协议、记录和真实使用样本更成熟后，再单独评估建议卡与私有草稿衔接，且不能绕过现有因子报告、holdout、
-成本与发布纪律。
-
-Research 已取代原 Screen 一级页面。筛选直接重建为 PIT-aware 的 `UniverseSpec V1`，没有扩展旧
-`ScreenSpec`；旧 SavedScreen 和会话已通过幂等脚本迁移，Screen profile、专属 API/类型与旧表均已删除。
-股票 K 线改为按资产类型渲染的统一对象详情，研究对话和结果通过已核验的结构化对象引用跳转；股票、ETF、
-指数、期货、利率、汇率、宏观与商品数据不能被强行塞入同一种 K 线契约。
-
-**完成定义**：不懂代码的用户可以用自然语言完成至少三类研究，能够理解“算了什么、为什么这样算、结果是否
-稳定、有哪些限制”，并能用相同协议和参数重跑。Research Agent 的所有数据问题都生成结构化 ResearchPlan，
-不暴露 LLM-to-SQL/JS 逃生通道；缺少登记能力时明确报告缺口。
-
-三类协议已按“核心估计、推断方法、稳健性与效应量”完整登记当前实际计算的主要公式，并在结果中展示双语
-变量解释；公式、Python 示例、概念文档、互动图表和确定性重跑均来自同一版本化协议。1.1 至此封板，后续新增
-问题类型进入 1.4 的协议与语义目录维护，不再回填到首批垂直切片。
-
-**2026-08-17 边界更新：**上述四种协议继续作为版本化 Validation Cell 和正式 `ResearchRun` 存在，
-不再定义 Research 的全部能力。协议是“输入/参数/执行器/诊断/结果/结论/渲染”的端到端验证契约，既不只是
-一段固化代码，也不只是 UI 报告。
-
-### 1.2 可复现研究记录与 data revision ✅
-
-对话不是研究结果本身。为正式研究保存问题、假设、协议版本、查询/计算 spec、参数、数据范围、运行环境、
-图表、诊断、失败尝试、限制、结论和关联产物。上游历史修订不能让相同研究静默变化。
-
-**完成定义**：研究可保存、重开、比较和确定性重跑；结果变化时，系统能区分协议/代码、参数、数据水位或
-修订和运行时版本变化。不追求逐行数据血缘，第一版也不要求自由单元格或兼容 `.ipynb`。
-
-已落地不可变 `ResearchStudy` / `ResearchRun` 历史、父子重跑、字段级计划差异、结构化结论变化、协议实现、
-应用 revision、精确输入数据和运行环境指纹。失败的 Agent 协议调用与参数重跑单独保存为 `ResearchAttempt`，
-不会覆盖最后一次成功结果；全部失败的研究会保留无运行 Study，后续修正成功时继续同一记录。旧对话、运行指纹
-和失败 trace 由 bootstrap 中的幂等迁移补齐。
+`ResearchStudy`、`ResearchRun`、`ResearchAttempt` 及父子重跑/专用比较已经删除。现在的可复现边界是
+`ResearchDocument` 当前态与不可变 `ResearchExecution` 完整运行快照；用户需要复查时重新干净运行全文，
+分别查看快照，不建设隐藏的结果层。
 
 ### 1.3 研究整理 Agent（Research Curator） ✅
 
@@ -186,7 +149,7 @@ Research 已取代原 Screen 一级页面。筛选直接重建为 PIT-aware 的 
 **完成定义**：每条发现都给出原始证据、核验结果、重复情况、置信度和建议动作；用户可接受、拒绝、延后或
 标记重复。权限严格限于当前用户，跨用户聚合必须匿名化并由管理员显式开启。
 
-手动闭环已落地：按完成游标增量读取当前用户的研究消息、失败工具 trace 和 `ResearchAttempt`，经严格 JSON
+手动闭环已落地：按完成游标增量读取当前用户的研究消息和失败工具 trace，经严格 JSON
 归纳后，用登记的 Research 能力、只读本地数据目录、版本化 Tushare 能力目录及其持久化探测结果做确定性核验，
 并只读检索代码、帮助、ROADMAP 和设计文档。运行、原始证据、支持/限制核验依据、候选、跨运行指纹去重、人工
 分流和独立的核验正确性反馈均持久化，并复用可恢复后台 Job。界面持续统计接受率、重复率和核验错误率，在至少
@@ -197,12 +160,12 @@ Research 已取代原 Screen 一级页面。筛选直接重建为 PIT-aware 的 
 
 ### 1.4 研究语义目录持续维护（长期 TODO）
 
-数据结构和供应商能力增长时，持续扩充 Research 可以引用的对象、指标、序列、事件、加载器和协议兼容性，
+数据结构和供应商能力增长时，持续扩充 Research 可以引用的对象、指标、序列、事件、加载器和 Python 使用兼容性，
 避免出现“数据已经落库，但只有会写 SQL 的人才能使用”。通常新增语义目录项，不为每张表发明新 Spec 类型；
 只有现有组合原语无法表达新的研究含义时才扩展 Spec，且不得暴露任意表名、字段名、JOIN 或 SQL 表达式。
 
 **持续完成定义**：新增或实质改变一个研究数据域时，同一变更必须判断其公开语义，并补齐稳定 ID、单位、频率、
-PIT/vintage/revision、确定性 loader、适用协议、中英文说明和真实 fixture。纯存储优化不新增语义项；语义变化
+PIT/vintage/revision、确定性 loader、适用对象/变换、中英文说明和真实 fixture。纯存储优化不新增语义项；语义变化
 即使不改表也必须升级版本。Research Curator 持续发现本地已有但目录不可达的数据缺口，人工确认后进入正常
 开发流程。
 
@@ -211,7 +174,7 @@ PIT/vintage/revision、确定性 loader、适用协议、中英文说明和真�
 `ResearchConceptBindingRegistry` 则作为平台内部审计白名单，把 Concept 映射到精确 Source、Measure、数据契约
 和真实覆盖范围。结构化 `ConceptQuery` 只通过 Binding 解析语义概念，数据库字段词法搜索仅用于用户明确给出的
 名称或稳定代码。首个 Playbook 与 Binding 切片覆盖黄金价格驱动，向量召回暂不引入。后续随真实问题持续增加
-Concept、Playbook、Binding、loader 与协议兼容性；上述基础机制完成不代表 1.4 封板，1.4 始终是持续维护项。
+Concept、Playbook、Binding、loader 与 Python 研究示例；上述基础机制完成不代表 1.4 封板，1.4 始终是持续维护项。
 
 本轮短期切片已闭环：美国 headline CPI 通过 BLS 官方公共 API 幂等回填到宏观底座，登记为精确的
 `macro.inflation.us.cpi.headline` Concept/Binding，带保守 `availableDate`、latest-value backfill 披露、质量审计、
@@ -223,57 +186,24 @@ bootstrap 和每周维护。宏观 loader 以审计后的可用日对齐历史�
 
 ### 1.5 响应式量化研究文档 🚧
 
-在现有 Research 页面内建设 Markdown / Python / Validation Cell，以 Python AST 的变量定义与引用形成依赖
-DAG。上游变化时将下游标记 `stale`；默认 lazy，不自动触发昂贵数据请求、模型或回测；只有干净 runtime
-完整执行成功后才能固化可复现 `ResearchExecution`。
+在现有 Research 页面内只提供 Markdown / Python Cell，以 Python AST 的变量定义与引用形成依赖 DAG。上游变化
+将下游标记 `stale`；默认 lazy，不自动触发昂贵请求；只有干净 runtime 完整执行成功后才能显式封存不可变
+`ResearchExecution` 快照。不引入 Jupyter，也不维护与 Research 平行的 Notebook 产品。
 
-首版复用 `jixie-sandboxd`、固定 Python 镜像、Research 语义目录、现有 ECharts 与 `ResearchRun`。Python
-自由绘图以 Matplotlib PNG/SVG artifact 保存；平台 `charts.*` 返回受 schema 约束的 ChartSpec，由 ECharts
-提供 tooltip、缩放、图例和区间交互；Validation Cell 的正式图表只使用结构化结果，不依赖截图。
+**M0–M3 已完成**：持久化文档、文档级自动保存、修订冲突保护、独立 Python runtime、Pyright 跨 Cell 语言
+服务、平台 `data.series`、静态 SDK Contract、受控大表、Matplotlib artifact、原生 ECharts、依赖运行、中断、
+Agent 开放变更会话、受控尝试、精确输出解释、干净全文运行、不可变快照、文档内历史和显式封存均已落地。
+2026-08-19 进一步删除 Validation Cell、四个固定流程、专用报告和旧 Study/Run/Attempt 表；统计方法现在由
+Markdown 公式/假设与 Python 成熟库实现共同表达。
 
-实施前先完成独立 research runner 与限时 marimo 嵌入 PoC，根据数据桥、Agent、持久化、WebSocket 和沙箱
-证据决定是否直接采用 marimo；不引入 Jupyter，不同时维护两套 Research/Notebook 产品。
+**当前完成定义**：基础 Python 用户可以在 jixie 内完成平台取数、中等规模分析、静态与交互图、Agent 协作、
+stale 依赖提示和干净环境固化。完整运行只证明这份源码在该环境产生了这些输出，不自动证明方法正确或结论可投资。
 
-**完成定义**：基础 Python 用户可以在 jixie 内完成平台取数、任意中等规模分析、静态与交互图表、Agent
-协作、stale 依赖提示、现有协议验证和干净环境固化，并能把合格候选带血缘送往 Factor 或 Strategy。
+本项保持进行中仅因为 M4 尚未完成：Factor / Strategy 草稿需要保留来源 `ResearchExecution` 和未解决限制，
+且不能绕过各自的正式报告、Holdout、成本与回测纪律。全局封存档案/搜索、底层数据副本、数据请求指纹和快照
+自动归因等待真实需求，不阻塞 M3 收工。
 
-首个可运行垂直切片已于 2026-08-17 落地：Research 页面已经以持久化研究文档为中心，支持 Markdown、
-Python 和 Validation Cell；独立 Python runtime 提供文档级共享状态、AST 定义/引用分析、平台只读时序取数、
-pandas 表格、Matplotlib 静态图，以及 line / scatter / histogram / boxplot / heatmap / event_path 等
-`charts.*` 结构化 ECharts 输出。大表输出以 200 行、64 列、每格 256 字符且最多 1 MiB 的受控 preview 保存，
-前端提供分页和虚拟滚动并明确展示预览/总量与字节截断状态。Matplotlib PNG 已从 Cell JSON 剥离为不可变、按文档所有者鉴权的
-`ResearchArtifact`，前端按视区懒加载并兼容旧 `dataUrl`；图表、静态图和 Cell 内联持久化输出均有不可静默越过的硬上限。修改上游后会沿传递依赖将下游标记为
-`stale` 并保留带警告的旧输出；用户也可以从任意 Python Cell 触发受影响分支，系统排除无关 Cell、按 DAG
-拓扑序运行，并在分支失败时只阻断其后代。干净运行会重建 runtime、按文档顺序执行，并让 Validation Cell
-复用现有协议固化正式 `ResearchRun`。运行中的 Python Cell 支持服务端真实中断：终止当前文档 session、
-停止调度后续 Cell、把本次执行快照记为 `cancelled`，并保留带 `stale` 警告的上次成功输出；下一次执行使用
-全新 session。真实“沪深300 vs 中证500月收益关系”样例已通过浏览器端创建、运行、刷新重开、图表交互、
-依赖失效和正式验证闭环，无限循环中断与恢复也已通过 runtime 和浏览器 E2E。
-
-本项保持进行中：Agent 现已能读取同一文档上下文，并以每轮最多一个受审计批量提案增删改 Cell。
-提案保存完整 before/after、Cell revision 和 AgentTurn/Message 来源，通过 Monaco Diff 审查后由用户显式
-应用或拒绝；文档或 Cell 已变化时固化为冲突而不覆盖新内容。Cell 编辑采用文档级 timer 自动保存：源码变化
-立即进入 dirty，停止输入 800ms 或持续输入 5s 后串行保存；运行、Agent 发送/应用和文档切换前强制 flush。
-Cell revision 保护单次写入，文档 `contentRevision` 只跟踪内容与结构变化并保护 Agent 批量提案，运行输出不会
-制造伪冲突；Cell 顶部独立呈现保存与执行状态。接受提案不自动执行，用户从提案卡片独立授权后才运行受影响
-分支；每次运行保存 `ResearchCellChangeAttempt` 及其 Cell 执行快照，失败和中断同样进入台账。同一提案可比较
-源码、输出、状态与环境变化，并可让 Agent 基于指定尝试的受控精确结果解释。完整 `ResearchExecution` 的数据
-指纹、DAG 和结构化指标比较，以及 Factor / Strategy 草稿的带血缘交接仍按 M3–M4 推进。
-它们不阻塞当前个人研究 MVP，但仍属于 1.5 的完整完成定义。
-
-第三阶段进一步采用 Cursor 式开放变更会话：非删除提案在 Agent Turn 完成且用户草稿 flush 后直接写入当前
-文档，Cell 内以 original 只读、modified 可编辑的 Monaco 聚合 Diff 展示；后续 Agent Turn 读取当前最新源码并
-追加不可变 step，不在界面堆叠次生 Diff。用户编辑继续复用文档级单 timer 自动保存，Accept 以最终保存源码关闭
-会话，Undo 原子恢复各 Cell 首次被触碰前的基线。开放会话期间禁止执行和结构编辑，删除操作继续显式应用；
-Accept 后只有最后一个 step 以最终 `contentRevision` 发起整段会话的受控运行，全部历史 step 仍保留来源审计。
-
-M3 第二项第一阶段已完成：干净运行在开始时冻结文档 revision、Cell 顺序/源码/配置/修订和完整 DAG，
-每个不可变 Cell execution、输出 artifact 与聚合环境指纹归入同一 `ResearchExecution`。运行期间的新草稿不会混入
-已冻结源码，后续删除 Cell 也不会删除历史执行证据。文档内提供运行历史、只读源码/输出快照，成功执行可显式
-封存为带名称、标签和备注的研究版本。全局封存档案/搜索、通用 Python 数据请求清单与指纹、`ResearchRun` 来源关联和
-新旧完整执行比较仍按 M3 后续项推进。
-
-### 1.6 研究方法模板与验证协议扩展 💤
+### 1.6 研究方法模板与统计能力扩展 💤
 
 先完成 1.5 框架，不以一次覆盖统计学目录为阻塞条件。以下进入 backlog，由真实研究问题、方法审计和数据
 准备逐项触发：横截面 IC/分层/衰减/换手/容量、Fama–MacBeth/Panel、平稳性/协整、Walk-forward、Bootstrap、
@@ -392,17 +322,13 @@ Roll-down、连续合约和季节性等数据；跨区域扩展时保留原始�
 优先候选包括：置换/随机化检验、适合问题的 bootstrap、walk-forward、滚动稳定性、协方差收缩和指标不确定性。
 是否实施由具体学习练习触发，不能用不合适的收益重排制造虚假路径。
 
-本项负责方法正确性和覆盖审计；1.1 负责把通过审计的方法封装为非技术用户可以调用的版本化研究协议。
+本项负责方法正确性和覆盖审计；通过审计且反复使用的方法可以沉淀为透明的 Markdown / Python 模板或经过测试的 helper，不再增加隐藏固定流程。
 
 **完成定义**：形成方法矩阵与测试 fixture；每种正式报告说明为什么使用该估计或检验、假设不满足时怎样失败。
 
-第一项时间序列补全已于 2026-08-14 落地：新增独立的多变量时间序列协议，而不是把双变量报告静默扩成任意
-回归。协议要求预先指定唯一核心变量和至少一个控制变量，禁止按显著性自动增删变量；使用共同完整样本、OLS
-点估计和 Newey–West/HAC 区间，同时报告原始/标准化系数、偏 R²、调整 R²、VIF、解释变量相关矩阵、残差
-一阶自相关、Frisch–Waugh–Lovell 偏回归图和滚动核心系数。固定 fixture 与真实“沪金—美国 10 年实际利率—
-headline CPI”研究均已通过，宏观 latest-value backfill 会把结论明确限制为探索性研究。方法矩阵见
-[统计方法覆盖矩阵](docs/design/statistical-method-coverage.md)。这只是 4.1 的时间序列切片；横截面、Panel、
-宏观状态和策略绩效的审计与补全仍未完成，因此本项保持进行中。
+早期曾以固定双变量/多变量、分布比较和事件研究流程验证统计实现；该产品形态已于 2026-08-19 删除。HAC、
+偏回归、VIF、滚动稳定性等方法仍可由 Research Python 使用 statsmodels / SciPy 实现，待真实重复需求出现后再
+沉淀成透明模板与 fixture。横截面、Panel、宏观状态和策略绩效的审计与补全仍未完成，因此本项保持进行中。
 
 ### 4.2 经典研究复现计划 ⬜
 
@@ -468,10 +394,10 @@ headline CPI”研究均已通过，宏观 latest-value backfill 会把结论明
 
 | 顺序 | 工作 | 状态 | 原因 |
 |---|---|---|---|
-| 1 | 1.1 协议/结果契约 + 时间序列关系垂直切片 | ✅ | 已完成自然语言到可信统计结论的核心产品闭环 |
-| 2 | 1.1 分布比较、事件研究 | ✅ | 三类首批研究协议均已使用统一流程落地 |
-| 3 | 1.2 研究记录、data revision 与环境指纹 | ✅ | 协议运行已成为可比较、可复现的证据 |
-| 4 | 1.3 Research Curator 手动版 | ✅ | 已能发现并核验可沉淀的协议、数据和文档缺口 |
+| 1 | 1.5 M0–M3 响应式研究文档 | ✅ | Markdown / Python、Agent、运行与快照主闭环已完成 |
+| 2 | 1.5 M4 Factor / Strategy 血缘交接 | ⬜ | 完成主线一的最后产品闭环 |
+| 3 | 1.3 Research Curator 手动版 | ✅ | 已能发现并核验可沉淀的方法、数据和文档缺口 |
+| 4 | 1.4 研究语义目录持续维护 | 🚧 | 随真实研究问题补充稳定对象、指标和 loader |
 | 5 | 3.1 跨市场数据契约与数据源矩阵 | ✅ | 中港美股债商扩展的共同前置，先防语义债 |
 | 6 | 2.1 双语学习路径的第一批内容 | ⬜ | 公式、方法和概念解释本身就是产品能力 |
 | 7 | 3.2 跨市场基准与可交易代理 | ✅ | 已用指数基准与境内 ETF 代理形成全球资产研究最小闭环 |

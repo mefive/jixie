@@ -32,7 +32,7 @@ import {
 import { researchPayloadHash } from './fingerprints.js';
 
 const findingCategorySchema = z.enum([
-  'protocol_candidate',
+  'method_candidate',
   'supplier_data_gap',
   'local_capability_gap',
   'documentation_gap',
@@ -90,7 +90,7 @@ export async function extractResearchCuratorEvidence(
   database: PrismaClient = prisma,
 ): Promise<ResearchCuratorEvidenceV1[]> {
   const after = cursorFrom ? { gt: cursorFrom } : undefined;
-  const [messages, turns, attempts] = await Promise.all([
+  const [messages, turns] = await Promise.all([
     database.agentMessage.findMany({
       where: {
         role: 'user',
@@ -108,21 +108,7 @@ export async function extractResearchCuratorEvidence(
       select: { id: true, conversationId: true, trace: true, startedAt: true },
       orderBy: { startedAt: 'asc' },
     }),
-    database.researchAttempt.findMany({
-      where: { userId, createdAt: { ...(after ?? {}), lte: cursorTo } },
-      select: {
-        id: true,
-        conversationId: true,
-        sourceStepId: true,
-        error: true,
-        createdAt: true,
-      },
-      orderBy: { createdAt: 'asc' },
-    }),
   ]);
-  const normalizedStepIds = new Set(
-    attempts.map((attempt) => attempt.sourceStepId).filter((id): id is string => Boolean(id)),
-  );
   const evidence: ResearchCuratorEvidenceV1[] = [];
 
   for (const message of messages) {
@@ -145,7 +131,7 @@ export async function extractResearchCuratorEvidence(
     const trace = turn.trace as unknown as AgentTurnTrace;
     const steps = Array.isArray(trace.steps) ? trace.steps : [];
     for (const step of steps) {
-      if (step.type !== 'tool' || step.ok || normalizedStepIds.has(step.id)) {
+      if (step.type !== 'tool' || step.ok) {
         continue;
       }
       evidence.push({
@@ -158,17 +144,6 @@ export async function extractResearchCuratorEvidence(
         signals: ['tool_failure', step.name],
       });
     }
-  }
-  for (const attempt of attempts) {
-    evidence.push({
-      id: `attempt:${attempt.id}`,
-      sourceType: 'research_attempt',
-      sourceId: attempt.id,
-      conversationId: attempt.conversationId,
-      occurredAt: attempt.createdAt.toISOString(),
-      excerpt: attempt.error.slice(0, 800),
-      signals: ['research_failure'],
-    });
   }
   return evidence.sort((left, right) => {
     const byTime = left.occurredAt.localeCompare(right.occurredAt);
@@ -419,7 +394,7 @@ async function summarizeEvidenceChunk(evidence: ResearchCuratorEvidenceV1[], llm
     {
       role: 'system',
       content:
-        'You are a research-product curator. Group only the supplied evidence into concise candidate findings. Write each title, summary, expectedValue, changeSurface, and suggestedAction in the dominant language of its cited evidence. Never invent a data source, API, local table, feature, frequency, or user intent. A finding must cite evidenceIds exactly. Prefer no finding over weak speculation. Return JSON only with {"findings": [...]}. Categories: protocol_candidate, supplier_data_gap, local_capability_gap, documentation_gap, tool_or_interaction_defect, no_action.',
+        'You are a research-product curator. Group only the supplied evidence into concise candidate findings. Write each title, summary, expectedValue, changeSurface, and suggestedAction in the dominant language of its cited evidence. Never invent a data source, API, local table, feature, frequency, or user intent. A finding must cite evidenceIds exactly. Prefer no finding over weak speculation. Return JSON only with {"findings": [...]}. Categories: method_candidate, supplier_data_gap, local_capability_gap, documentation_gap, tool_or_interaction_defect, no_action.',
     },
     { role: 'user', content: JSON.stringify({ evidence }) },
   ]);
@@ -455,22 +430,6 @@ function verifyDraft(
         reference: `research-measure:${measure.id}`,
         detailZh: `研究能力目录已有“${measure.nameZh}”指标。`,
         detailEn: `The research capability catalog already contains “${measure.nameEn}”.`,
-      });
-    }
-  }
-  for (const protocol of researchCapabilityCatalog.protocols) {
-    if (
-      haystack.includes(protocol.id.toLowerCase()) ||
-      haystack.includes(protocol.nameZh.toLowerCase()) ||
-      haystack.includes(protocol.nameEn.toLowerCase())
-    ) {
-      matches.push({ kind: 'research_protocol', id: protocol.id });
-      verificationEvidence.push({
-        stance: 'supports',
-        kind: 'catalog',
-        reference: `research-protocol:${protocol.id}`,
-        detailZh: `研究能力目录已有“${protocol.nameZh}”协议。`,
-        detailEn: `The research capability catalog already contains “${protocol.nameEn}”.`,
       });
     }
   }
@@ -582,13 +541,9 @@ function verifyDraft(
     ...new Map(matches.map((match) => [`${match.kind}:${match.id}`, match])).values(),
   ];
   const locallyVerified = unique.some((match) =>
-    [
-      'research_measure',
-      'research_protocol',
-      'data_contract',
-      'data_source_decision',
-      'local_data_table',
-    ].includes(match.kind),
+    ['research_measure', 'data_contract', 'data_source_decision', 'local_data_table'].includes(
+      match.kind,
+    ),
   );
   const repositoryMatched = repositoryReferences.length > 0;
   if (locallyVerified) {

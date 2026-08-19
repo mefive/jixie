@@ -789,8 +789,6 @@ model User {
   signalExecutions        SignalExecution[]
   accountSnapshots        StrategyAccountSnapshot[]
   agentConversations      AgentConversation[]
-  researchStudies         ResearchStudy[]
-  researchAttempts        ResearchAttempt[]
   researchDocuments       ResearchDocument[]
   researchCuratorRuns     ResearchCuratorRun[]
   researchCuratorFindings ResearchCuratorFinding[]
@@ -1215,8 +1213,6 @@ model AgentConversation {
 
   messages         AgentMessage[]
   turns            AgentTurn[]
-  researchStudies  ResearchStudy[]
-  researchAttempts ResearchAttempt[]
   researchDocument ResearchDocument?
 
   @@index([userId, updatedAt])
@@ -1237,7 +1233,6 @@ model AgentMessage {
   turn           AgentTurn?        @relation(fields: [turnId], references: [id], onDelete: SetNull)
   createdAt      DateTime          @default(now())
 
-  researchRuns                ResearchRun[]                @relation("ResearchRunSourceMessage")
   researchCellChangeProposals ResearchCellChangeProposal[]
 
   @@unique([conversationId, sequence])
@@ -1259,8 +1254,6 @@ model AgentTurn {
   finishedAt     DateTime?
 
   messages                    AgentMessage[]
-  researchRuns                ResearchRun[]                @relation("ResearchRunSourceTurn")
-  researchAttempts            ResearchAttempt[]            @relation("ResearchAttemptSourceTurn")
   researchCellChangeProposals ResearchCellChangeProposal[]
 
   @@index([conversationId, startedAt])
@@ -1268,7 +1261,6 @@ model AgentTurn {
 }
 
 /// One reactive research document attached to the same conversation used by the Research Agent.
-/// Cells own editable exploration state; immutable protocol evidence remains in ResearchRun.
 model ResearchDocument {
   id              String            @id // ULID; currently identical to conversationId
   userId          String
@@ -1290,14 +1282,14 @@ model ResearchDocument {
   @@index([userId, updatedAt])
 }
 
-/// One ordered Markdown, Python, or Validation cell. Dependency metadata is derived from Python AST
+/// One ordered Markdown or Python cell. Dependency metadata is derived from Python AST
 /// analysis; the latest output is a convenience view backed by immutable execution snapshots.
 model ResearchCell {
   id                   String           @id // ULID
   documentId           String
   document             ResearchDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
   position             Int
-  kind                 String // 'markdown' | 'python' | 'validation'
+  kind                 String // 'markdown' | 'python'
   source               String
   config               Json?
   status               String           @default("idle") // 'idle' | 'running' | 'success' | 'error' | 'stale'
@@ -1317,7 +1309,7 @@ model ResearchCell {
 }
 
 /// One immutable cell execution snapshot. Clean document runs create the same snapshots after a
-/// fresh interpreter start, while Validation cells additionally create formal ResearchRun evidence.
+/// fresh interpreter start.
 model ResearchCellExecution {
   id                     String                     @id // ULID
   documentId             String
@@ -1462,90 +1454,6 @@ model ResearchCellChangeAttempt {
 
   @@index([documentId, startedAt])
   @@index([proposalId, startedAt])
-}
-
-/// One durable research question. Conversations are the interaction surface; studies own the
-/// immutable evidence runs so parameter exploration remains available outside one rendered message.
-model ResearchStudy {
-  id             String            @id // ULID
-  userId         String
-  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  conversationId String
-  conversation   AgentConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  title          String
-  question       Json // ResearchQuestionSpecV1
-  status         String            @default("active") // 'active' | 'archived'
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
-
-  runs     ResearchRun[]
-  attempts ResearchAttempt[]
-
-  @@index([userId, updatedAt])
-  @@index([conversationId, updatedAt])
-}
-
-/// One immutable deterministic protocol execution. Hashes identify plan and result payloads; data
-/// and runtime fingerprints are added separately so rerun differences can be attributed precisely.
-model ResearchRun {
-  id                     String            @id // ULID
-  studyId                String
-  study                  ResearchStudy     @relation(fields: [studyId], references: [id], onDelete: Cascade)
-  parentRunId            String?
-  parentRun              ResearchRun?      @relation("ResearchRunLineage", fields: [parentRunId], references: [id], onDelete: SetNull)
-  childRuns              ResearchRun[]     @relation("ResearchRunLineage")
-  failedAttempts         ResearchAttempt[] @relation("ResearchAttemptParentRun")
-  sourceTurnId           String?
-  sourceTurn             AgentTurn?        @relation("ResearchRunSourceTurn", fields: [sourceTurnId], references: [id], onDelete: SetNull)
-  sourceMessageId        String?
-  sourceMessage          AgentMessage?     @relation("ResearchRunSourceMessage", fields: [sourceMessageId], references: [id], onDelete: SetNull)
-  sourcePartIndex        Int?
-  sequence               Int
-  origin                 String // 'agent' | 'parameter_rerun'
-  protocolId             String
-  protocolVersion        Int
-  plan                   Json // ResearchPlanSpecV1
-  result                 Json // ResearchRunResultV1
-  planHash               String
-  resultHash             String
-  protocolFingerprint    String?
-  dataFingerprint        String?
-  environmentFingerprint String?
-  createdAt              DateTime          @default(now())
-
-  @@unique([studyId, sequence])
-  @@unique([sourceMessageId, sourcePartIndex])
-  @@index([sourceTurnId])
-  @@index([sourceMessageId])
-  @@index([parentRunId])
-}
-
-/// One immutable failed execution attempt. Successful executions remain ResearchRun rows; keeping
-/// failures separate preserves a clean result contract while retaining rejected specifications.
-model ResearchAttempt {
-  id             String            @id // ULID
-  userId         String
-  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  conversationId String
-  conversation   AgentConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  studyId        String?
-  study          ResearchStudy?    @relation(fields: [studyId], references: [id], onDelete: Cascade)
-  parentRunId    String?
-  parentRun      ResearchRun?      @relation("ResearchAttemptParentRun", fields: [parentRunId], references: [id], onDelete: SetNull)
-  sourceTurnId   String?
-  sourceTurn     AgentTurn?        @relation("ResearchAttemptSourceTurn", fields: [sourceTurnId], references: [id], onDelete: SetNull)
-  sourceStepId   String?           @unique
-  origin         String // 'agent' | 'parameter_rerun'
-  plan           Json?
-  planHash       String?
-  arguments      String
-  error          String
-  createdAt      DateTime          @default(now())
-
-  @@index([studyId, createdAt])
-  @@index([conversationId, createdAt])
-  @@index([sourceTurnId])
-  @@index([parentRunId])
 }
 
 /// One manually or periodically triggered, owner-scoped Curator pass. The successful cursor only

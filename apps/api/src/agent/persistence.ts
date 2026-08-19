@@ -7,7 +7,6 @@ import {
 } from '@jixie/shared';
 import { ulid } from 'ulid';
 import { prisma } from '../lib/prisma.js';
-import { persistFailedResearchAttempts, persistResearchMessageParts } from '../research/records.js';
 import type { TurnEntity } from './turn-run.js';
 
 const EMPTY_TRACE: AgentTurnTrace = { version: 1, steps: [], truncated: false };
@@ -152,30 +151,7 @@ export async function finishPersistentTurn(args: {
           turnId: args.turnId,
         },
       });
-      persistedParts =
-        turn.conversation.surface === 'research'
-          ? await persistResearchMessageParts(transaction, {
-              conversationId: turn.conversationId,
-              messageId,
-              turnId: args.turnId,
-              userId: turn.conversation.userId,
-              parts: args.parts,
-            })
-          : args.parts;
-      if (persistedParts !== args.parts) {
-        await transaction.agentMessage.update({
-          where: { id: messageId },
-          data: { parts: persistedParts as unknown as Prisma.InputJsonValue },
-        });
-      }
-    }
-    if (turn.conversation.surface === 'research') {
-      await persistFailedResearchAttempts(transaction, {
-        conversationId: turn.conversationId,
-        turnId: args.turnId,
-        userId: turn.conversation.userId,
-        trace: args.trace,
-      });
+      persistedParts = args.parts;
     }
     await transaction.agentTurn.update({
       where: { id: args.turnId },

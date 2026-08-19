@@ -14,7 +14,6 @@ import {
   faClock,
   faCode,
   faFileLines,
-  faFlask,
   faSpinner,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -369,7 +368,7 @@ function ExecutionCell({
               executionId={executionId}
               cellId={cell.cellId}
               value={cell.source}
-              language={cell.kind === 'validation' ? 'json' : 'python'}
+              language="python"
             />
           </Suspense>
         )}
@@ -401,8 +400,6 @@ function cellKindIcon(kind: ResearchExecutionCellV1['kind']) {
       return faFileLines;
     case 'python':
       return faCode;
-    case 'validation':
-      return faFlask;
   }
 }
 

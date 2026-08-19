@@ -1,15 +1,20 @@
-# Complete your first natural-language study
+# Complete your first quantitative study
 
-Research turns a plain-language question into a versioned, inspectable computation spec. You do not need to write SQL, Python, or TypeScript.
+Research keeps questions, formulas, Python calculations, tables, and charts in one reproducible document. You can write
+Python yourself or ask the Research Agent to generate and explain it; SQL and TypeScript are not required.
 
 ## Start a study
 
 1. Open **Research** from the top navigation.
-2. Ask a question with objects, period, and goal, such as “Are CSI 300 and CSI 500 monthly returns correlated over the past five years?”
-3. The system verifies objects and measures in the local catalog before selecting a registered protocol.
-4. Read the sample size, correlations, regression, rolling chart, diagnostics, and limitations in the result card.
+2. Choose the complete example or create a blank study.
+3. Use a Markdown cell for the question, prespecified hypothesis, formula, variable definitions, and limitations.
+4. Use a Python cell to load platform data through `data.series()`, calculate with pandas / SciPy / statsmodels, and draw
+   with `charts.*` or Matplotlib.
+5. Run one cell, its affected branch, or the full document in a clean runtime. A complete run creates an immutable snapshot
+   that can be reviewed and promoted later.
 
-The model interprets and explains the question. Tables, statistics, formulae, and Python examples come from deterministic protocols. When required data or methods are unavailable, the workbench reports the exact capability gap instead of inventing fields or SQL.
+The Agent can add methods and formulas, edit Markdown/Python cells, and explain real outputs. It cannot claim that unexecuted
+code has run or replace code and output with prose. When data or methods are unavailable, it reports the exact gap.
 
 ## Study an equity universe
 

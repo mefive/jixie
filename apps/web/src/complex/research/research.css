@@ -305,10 +305,6 @@
   color: #1d4ed8;
 }
 
-.jx-research-cellKind--validation {
-  color: #7c3aed;
-}
-
 .jx-research-cellOrdinal {
   @apply text-muted;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -484,19 +480,6 @@
 
 .jx-research-imageOutput img {
   max-width: 100%;
-}
-
-.jx-research-validationOutput {
-  @apply bg-bg;
-  padding: 12px;
-}
-
-.jx-research-evidenceLabel {
-  @apply mb-2 flex items-center gap-2 font-medium;
-  color: #15803d;
-  font-size: 11px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
 }
 
 .jx-research-cellDeps {

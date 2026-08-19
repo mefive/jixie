@@ -1015,7 +1015,5 @@ function defaultCellSource(kind: ResearchCellKindV1): string {
       return '## 新的研究步骤\n\n记录问题、假设或观察。';
     case 'python':
       return '# Write exploratory Python here\n';
-    case 'validation':
-      return '{\n  "version": 1\n}';
   }
 }

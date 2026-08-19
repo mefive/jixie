@@ -24,7 +24,6 @@ export interface ResearchPlaybookDefinitionV1 {
   concepts: ResearchPlaybookConceptV1[];
   workflow: string[];
   rules: string[];
-  suggestedProtocolIds: string[];
 }
 
 const playbooks: Record<ResearchPlaybookId, ResearchPlaybookDefinitionV1> = {
@@ -96,9 +95,9 @@ const playbooks: Record<ResearchPlaybookId, ResearchPlaybookDefinitionV1> = {
     ],
     workflow: [
       'Resolve all listed concept ids through searchResearchCatalog in one structured request.',
-      'Separate registered matches from exact-series gaps; never infer that a protocol is missing merely because one series is absent.',
+      'Separate registered matches from exact-series gaps and state the exact missing data capability.',
       'Ask the user to choose an outcome proxy, one or more drivers, a sample window, alignment frequency, transform, lag, hypothesis direction, and—when using multiple drivers—which single driver is focal.',
-      'For one driver, run one prespecified time_series_relationship. For two or more jointly requested drivers, use multivariate_time_series_relationship with exactly one focal driver and all remaining drivers as prespecified controls; do not add or remove controls after inspecting significance.',
+      'Write the prespecified method and formula in Markdown, then implement the transparent analysis in Python. With multiple drivers, use exactly one focal driver and keep the remaining drivers as prespecified controls; do not add or remove controls after inspecting significance.',
       'Do not describe contemporaneous correlation or a partial regression coefficient as causal or predictive.',
     ],
     rules: [
@@ -109,7 +108,6 @@ const playbooks: Record<ResearchPlaybookId, ResearchPlaybookDefinitionV1> = {
       'Prefer returns or changes for relationship tests unless a level relationship is explicitly justified.',
       'For a gold-yield relationship, use simple_return for the gold outcome and difference for the yield driver. rates.yield_pct does not register simple_return.',
     ],
-    suggestedProtocolIds: ['time_series_relationship', 'multivariate_time_series_relationship'],
   },
 };
 
