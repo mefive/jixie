@@ -19,6 +19,7 @@ import { executeResearchPlan } from './executor.js';
 import { researchPayloadHash } from './fingerprints.js';
 import { createWorkbenchResearchRun } from './records.js';
 import { listResearchCellChangeAttempts } from './research-cell-change-attempt-records.js';
+import { researchCellChangeReviewView } from './research-cell-change-records.js';
 import { researchPlanSpecV1Schema } from './spec.js';
 import { materializeResearchOutputArtifacts } from './workbench-artifacts.js';
 import {
@@ -34,6 +35,7 @@ type ResearchDocumentRow = Prisma.ResearchDocumentGetPayload<{
       include: { messages: true };
     };
     cells: true;
+    cellChangeProposals: true;
   };
 }>;
 
@@ -84,6 +86,13 @@ export class ResearchDocumentRunInProgressError extends Error {
   public constructor() {
     super('Research document already has an active run');
     this.name = 'ResearchDocumentRunInProgressError';
+  }
+}
+
+export class ResearchCellChangeReviewOpenError extends Error {
+  public constructor() {
+    super('Research document has an open Agent change review');
+    this.name = 'ResearchCellChangeReviewOpenError';
   }
 }
 
@@ -230,6 +239,7 @@ export async function addResearchCell(
   if (!document) {
     return null;
   }
+  await assertNoOpenCellChangeReview(documentId);
   await prisma.$transaction([
     prisma.researchCell.create({
       data: {
@@ -369,6 +379,7 @@ export async function deleteResearchCell(
   if (!cell) {
     return null;
   }
+  await assertNoOpenCellChangeReview(cell.documentId);
   await prisma.researchCell.delete({ where: { id: cell.id } });
   const analyses = await analyzeAndPersist(cell.documentId);
   await markDownstreamStale(
@@ -407,6 +418,7 @@ export async function runResearchCell(
   if (!cell) {
     return null;
   }
+  await assertNoOpenCellChangeReview(cell.documentId);
   const control = startResearchRun(cell.documentId);
   try {
     await executeResearchCell(cell, control);
@@ -427,6 +439,7 @@ export async function runAffectedResearchCells(
   if (!cell) {
     return null;
   }
+  await assertNoOpenCellChangeReview(cell.documentId);
   const control = startResearchRun(cell.documentId);
   try {
     const analyses = await analyzeAndPersist(cell.documentId);
@@ -533,6 +546,7 @@ export async function runResearchDocument(
   if (!document) {
     return null;
   }
+  await assertNoOpenCellChangeReview(documentId);
   const control = startResearchRun(documentId);
   try {
     if (clean) {
@@ -775,6 +789,16 @@ function startResearchRun(documentId: string): ResearchRunControl {
   return control;
 }
 
+async function assertNoOpenCellChangeReview(documentId: string): Promise<void> {
+  const review = await prisma.researchCellChangeProposal.findFirst({
+    where: { documentId, reviewStatus: 'open' },
+    select: { id: true },
+  });
+  if (review) {
+    throw new ResearchCellChangeReviewOpenError();
+  }
+}
+
 function finishResearchRun(control: ResearchRunControl): void {
   if (activeResearchRuns.get(control.documentId) === control) {
     activeResearchRuns.delete(control.documentId);
@@ -817,6 +841,7 @@ export async function resetResearchDocumentRuntime(
   if (!owner) {
     return null;
   }
+  await assertNoOpenCellChangeReview(documentId);
   await researchRuntimeManager.reset(documentId);
   await prisma.researchCell.updateMany({
     where: { documentId, kind: 'python', lastExecutedRevision: { not: null } },
@@ -1116,11 +1141,16 @@ async function loadDocumentRow(
         include: { messages: { orderBy: { sequence: 'asc' }, take: 100 } },
       },
       cells: { orderBy: { position: 'asc' } },
+      cellChangeProposals: {
+        where: { reviewStatus: 'open' },
+        orderBy: { reviewSequence: 'asc' },
+      },
     },
   });
 }
 
 function documentView(document: ResearchDocumentRow): ResearchDocumentV1 {
+  const activeCellChangeReview = researchCellChangeReviewView(document.cellChangeProposals);
   return {
     version: 1,
     id: document.id,
@@ -1129,6 +1159,7 @@ function documentView(document: ResearchDocumentRow): ResearchDocumentV1 {
     runtimeVersion: 'research-py-v1',
     contentRevision: document.contentRevision,
     cells: document.cells.map(cellView),
+    ...(activeCellChangeReview ? { activeCellChangeReview } : {}),
     cellChangeAttempts: [],
     messages: document.conversation.messages.map(
       (message): ChatMessage => ({

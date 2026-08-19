@@ -3,6 +3,7 @@ import type {
   ResearchCellChangeConflictV1,
   ResearchCellChangeOperationV1,
   ResearchCellChangeProposalV1,
+  ResearchCellChangeReviewResolutionResultV1,
   ResearchCellChangeResolutionResultV1,
   ResearchCellKindV1,
 } from '@jixie/shared';
@@ -11,6 +12,7 @@ import { prisma } from '../lib/prisma.js';
 import {
   researchCellChangeProposalView,
   resolveResearchCellChangeProposalRecord,
+  syncResearchCellChangeProposalRecords,
 } from './research-cell-change-records.js';
 import { researchPlanSpecV1Schema } from './spec.js';
 import {
@@ -67,6 +69,20 @@ interface ApplyTransactionResult {
   outcome: ResearchCellChangeResolutionResultV1['outcome'];
   proposal: ResearchCellChangeProposalV1;
   seeds: ResearchCellChangeDependencySeed[];
+}
+
+export type ResearchCellChangeReviewUnavailableReason =
+  | 'delete_requires_explicit_application'
+  | 'review_not_open'
+  | 'review_already_open'
+  | 'document_running'
+  | 'document_changed';
+
+export class ResearchCellChangeReviewUnavailableError extends Error {
+  public constructor(readonly reason: ResearchCellChangeReviewUnavailableReason) {
+    super(reason);
+    this.name = 'ResearchCellChangeReviewUnavailableError';
+  }
 }
 
 /** Build a read-only, revision-bound proposal from one Agent tool call. */
@@ -245,9 +261,24 @@ export async function prepareResearchCellChangeProposal(
   };
 }
 
-export async function applyResearchCellChangeProposal(
+export function applyResearchCellChangeProposal(
   userId: string,
   proposalId: string,
+): Promise<ResearchCellChangeResolutionResultV1 | null> {
+  return applyResearchCellChangeProposalInternal(userId, proposalId, false);
+}
+
+export function applyResearchCellChangeProposalForReview(
+  userId: string,
+  proposalId: string,
+): Promise<ResearchCellChangeResolutionResultV1 | null> {
+  return applyResearchCellChangeProposalInternal(userId, proposalId, true);
+}
+
+async function applyResearchCellChangeProposalInternal(
+  userId: string,
+  proposalId: string,
+  openReview: boolean,
 ): Promise<ResearchCellChangeResolutionResultV1 | null> {
   const transactionResult = await prisma.$transaction(
     async (transaction): Promise<ApplyTransactionResult | null> => {
@@ -287,6 +318,18 @@ export async function applyResearchCellChangeProposal(
       }
 
       const operations = proposal.operations as unknown as ResearchCellChangeOperationV1[];
+      if (!openReview) {
+        const activeReview = await transaction.researchCellChangeProposal.findFirst({
+          where: { documentId: proposal.document.id, reviewStatus: 'open' },
+          select: { id: true },
+        });
+        if (activeReview) {
+          throw new ResearchCellChangeReviewUnavailableError('review_already_open');
+        }
+      }
+      if (openReview && operations.some((operation) => operation.kind === 'delete')) {
+        throw new ResearchCellChangeReviewUnavailableError('delete_requires_explicit_application');
+      }
       const conflict = proposalConflict(
         proposal.document.contentRevision,
         proposal.expectedDocumentContentRevision,
@@ -314,6 +357,56 @@ export async function applyResearchCellChangeProposal(
         operations,
         resolvedAt,
       );
+      if (openReview) {
+        const activeReview = await transaction.researchCellChangeProposal.findFirst({
+          where: {
+            documentId: proposal.document.id,
+            reviewStatus: 'open',
+            reviewSessionId: { not: null },
+          },
+          orderBy: [{ reviewSequence: 'desc' }, { createdAt: 'desc' }],
+          select: { reviewSessionId: true, reviewSequence: true },
+        });
+        const reviewSessionId = activeReview?.reviewSessionId ?? ulid();
+        const reviewSequence = (activeReview?.reviewSequence ?? 0) + 1;
+        const previousReviewProposals = activeReview?.reviewSessionId
+          ? await transaction.researchCellChangeProposal.findMany({
+              where: {
+                documentId: proposal.document.id,
+                reviewSessionId: activeReview.reviewSessionId,
+                reviewStatus: 'open',
+              },
+              select: { id: true },
+            })
+          : [];
+        if (previousReviewProposals.length > 0) {
+          await transaction.researchCellChangeProposal.updateMany({
+            where: { id: { in: previousReviewProposals.map((candidate) => candidate.id) } },
+            data: { reviewIsLatest: false },
+          });
+        }
+        await transaction.researchCellChangeProposal.update({
+          where: { id: proposal.id },
+          data: {
+            status: 'applied',
+            appliedDocumentContentRevision: proposal.document.contentRevision + 1,
+            resolvedAt,
+            reviewSessionId,
+            reviewSequence,
+            reviewStatus: 'open',
+            reviewIsLatest: true,
+          },
+        });
+        const synced = await syncResearchCellChangeProposalRecords(transaction, [
+          ...previousReviewProposals.map((candidate) => candidate.id),
+          proposal.id,
+        ]);
+        return {
+          outcome: 'applied',
+          proposal: synced.find((candidate) => candidate.id === proposal.id)!,
+          seeds: result.seeds,
+        };
+      }
       const applied = await resolveResearchCellChangeProposalRecord(transaction, {
         proposalId: proposal.id,
         status: 'applied',
@@ -373,6 +466,207 @@ export async function rejectResearchCellChangeProposal(
   }
   const document = await getResearchDocument(userId, transactionResult.proposal.documentId);
   return document ? { version: 1, ...transactionResult, document } : null;
+}
+
+export async function acceptResearchCellChangeReview(
+  userId: string,
+  proposalId: string,
+  expectedContentRevision: number,
+): Promise<ResearchCellChangeReviewResolutionResultV1 | null> {
+  const documentId = await prisma.$transaction(async (transaction) => {
+    const proposal = await transaction.researchCellChangeProposal.findFirst({
+      where: { id: proposalId, document: { userId } },
+      include: { document: { select: { id: true, contentRevision: true } } },
+    });
+    if (!proposal) {
+      return null;
+    }
+    if (!proposal.reviewSessionId || proposal.reviewStatus !== 'open') {
+      throw new ResearchCellChangeReviewUnavailableError('review_not_open');
+    }
+    if (isResearchDocumentRunActive(proposal.documentId)) {
+      throw new ResearchCellChangeReviewUnavailableError('document_running');
+    }
+    if (proposal.document.contentRevision !== expectedContentRevision) {
+      throw new ResearchCellChangeReviewUnavailableError('document_changed');
+    }
+
+    const reviewProposals = await transaction.researchCellChangeProposal.findMany({
+      where: {
+        documentId: proposal.documentId,
+        reviewSessionId: proposal.reviewSessionId,
+        reviewStatus: 'open',
+      },
+      select: { id: true },
+    });
+    const resolvedAt = new Date();
+    await transaction.researchCellChangeProposal.updateMany({
+      where: { id: { in: reviewProposals.map((candidate) => candidate.id) } },
+      data: {
+        reviewStatus: 'accepted',
+        reviewResolvedAt: resolvedAt,
+        appliedDocumentContentRevision: proposal.document.contentRevision,
+      },
+    });
+    await syncResearchCellChangeProposalRecords(
+      transaction,
+      reviewProposals.map((candidate) => candidate.id),
+    );
+    return proposal.document.id;
+  });
+  if (!documentId) {
+    return null;
+  }
+  const document = await getResearchDocument(userId, documentId);
+  return document ? { version: 1, outcome: 'accepted', document } : null;
+}
+
+export async function revertResearchCellChangeReview(
+  userId: string,
+  proposalId: string,
+  expectedContentRevision: number,
+): Promise<ResearchCellChangeReviewResolutionResultV1 | null> {
+  const transactionResult = await prisma.$transaction(async (transaction) => {
+    const proposal = await transaction.researchCellChangeProposal.findFirst({
+      where: { id: proposalId, document: { userId } },
+      include: {
+        document: {
+          select: {
+            id: true,
+            contentRevision: true,
+            cells: {
+              orderBy: { position: 'asc' },
+              select: {
+                id: true,
+                position: true,
+                kind: true,
+                source: true,
+                revision: true,
+                definitions: true,
+                lastExecutedRevision: true,
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!proposal) {
+      return null;
+    }
+    if (!proposal.reviewSessionId || proposal.reviewStatus !== 'open') {
+      throw new ResearchCellChangeReviewUnavailableError('review_not_open');
+    }
+    if (isResearchDocumentRunActive(proposal.documentId)) {
+      throw new ResearchCellChangeReviewUnavailableError('document_running');
+    }
+    if (proposal.document.contentRevision !== expectedContentRevision) {
+      throw new ResearchCellChangeReviewUnavailableError('document_changed');
+    }
+
+    const reviewProposals = await transaction.researchCellChangeProposal.findMany({
+      where: {
+        documentId: proposal.documentId,
+        reviewSessionId: proposal.reviewSessionId,
+        reviewStatus: 'open',
+      },
+      orderBy: { reviewSequence: 'asc' },
+    });
+    const firstOperationByCellId = new Map<string, ResearchCellChangeOperationV1>();
+    for (const reviewProposal of reviewProposals) {
+      const operations = reviewProposal.operations as unknown as ResearchCellChangeOperationV1[];
+      for (const operation of operations) {
+        if (operation.kind === 'delete') {
+          throw new ResearchCellChangeReviewUnavailableError('review_not_open');
+        }
+        if (!firstOperationByCellId.has(operation.cellId)) {
+          firstOperationByCellId.set(operation.cellId, operation);
+        }
+      }
+    }
+
+    const currentByCellId = new Map(
+      proposal.document.cells.map((cell) => [cell.id, cell] as const),
+    );
+    const reverseOperations: ResearchCellChangeOperationV1[] = [];
+    for (const operation of firstOperationByCellId.values()) {
+      const current = currentByCellId.get(operation.cellId);
+      if (!current) {
+        throw new ResearchCellChangeReviewUnavailableError('document_changed');
+      }
+      if (operation.kind === 'create') {
+        reverseOperations.push({
+          operationId: ulid(),
+          cellId: current.id,
+          kind: 'delete',
+          cellKind: operation.cellKind,
+          position: current.position,
+          expectedRevision: current.revision,
+          beforeSource: current.source,
+          afterSource: '',
+          addedLines: 0,
+          removedLines: sourceLines(current.source).length,
+          afterDefinitions: [],
+          afterReferences: [],
+        });
+        continue;
+      }
+      const lineChanges = lineChangeCounts(current.source, operation.beforeSource);
+      reverseOperations.push({
+        operationId: ulid(),
+        cellId: current.id,
+        kind: 'update',
+        cellKind: operation.cellKind,
+        position: current.position,
+        expectedRevision: current.revision,
+        beforeSource: current.source,
+        afterSource: operation.beforeSource,
+        ...lineChanges,
+        afterDefinitions: [],
+        afterReferences: [],
+      });
+    }
+
+    const analyses = await validateProposedDocument(
+      proposal.document.id,
+      proposal.document.cells,
+      reverseOperations,
+    );
+    const analysisByCellId = new Map(analyses.map((analysis) => [analysis.cellId, analysis]));
+    const analyzedReverseOperations = reverseOperations.map((operation) => {
+      if (operation.kind === 'delete' || operation.cellKind !== 'python') {
+        return operation;
+      }
+      const analysis = analysisByCellId.get(operation.cellId);
+      return {
+        ...operation,
+        afterDefinitions: analysis?.definitions ?? [],
+        afterReferences: analysis?.references ?? [],
+      };
+    });
+    const result = await applyOperations(
+      transaction,
+      proposal.document.id,
+      proposal.document.cells,
+      analyzedReverseOperations,
+      new Date(),
+    );
+    const resolvedAt = new Date();
+    await transaction.researchCellChangeProposal.updateMany({
+      where: { id: { in: reviewProposals.map((candidate) => candidate.id) } },
+      data: { reviewStatus: 'reverted', reviewResolvedAt: resolvedAt },
+    });
+    await syncResearchCellChangeProposalRecords(
+      transaction,
+      reviewProposals.map((candidate) => candidate.id),
+    );
+    return { documentId: proposal.document.id, seeds: result.seeds };
+  });
+  if (!transactionResult) {
+    return null;
+  }
+  await reconcileResearchCellChanges(transactionResult.documentId, transactionResult.seeds);
+  const document = await getResearchDocument(userId, transactionResult.documentId);
+  return document ? { version: 1, outcome: 'reverted', document } : null;
 }
 
 async function applyOperations(

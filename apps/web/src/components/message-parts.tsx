@@ -16,6 +16,8 @@ interface MessagePartsProps {
   message: ChatMessage;
   onApplyResearchCellChange?: (proposalId: string) => Promise<void>;
   onRejectResearchCellChange?: (proposalId: string) => Promise<void>;
+  onAcceptResearchCellChangeReview?: (proposalId: string) => Promise<void>;
+  onRevertResearchCellChangeReview?: (proposalId: string) => Promise<void>;
   onRunResearchCellChange?: (proposalId: string) => Promise<void>;
   onExplainResearchCellChangeAttempt?: (attempt: ResearchCellChangeAttemptV1) => Promise<void>;
   busyResearchCellChangeId?: string | null;
@@ -31,6 +33,8 @@ export function MessageParts({
   message,
   onApplyResearchCellChange,
   onRejectResearchCellChange,
+  onAcceptResearchCellChangeReview,
+  onRevertResearchCellChangeReview,
   onRunResearchCellChange,
   onExplainResearchCellChangeAttempt,
   busyResearchCellChangeId,
@@ -76,6 +80,8 @@ export function MessageParts({
                 documentContentRevision={researchDocumentContentRevision}
                 onApply={onApplyResearchCellChange}
                 onReject={onRejectResearchCellChange}
+                onAcceptReview={onAcceptResearchCellChangeReview}
+                onRevertReview={onRevertResearchCellChangeReview}
                 onRun={onRunResearchCellChange}
                 onExplain={onExplainResearchCellChangeAttempt}
               />

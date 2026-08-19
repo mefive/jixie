@@ -1033,6 +1033,7 @@ export interface ResearchConversationMessages {
 export type ResearchCellKindV1 = 'markdown' | 'python' | 'validation';
 export type ResearchCellStatusV1 = 'idle' | 'running' | 'success' | 'error' | 'stale';
 export type ResearchCellChangeProposalStatusV1 = 'pending' | 'applied' | 'rejected' | 'conflicted';
+export type ResearchCellChangeReviewStatusV1 = 'open' | 'accepted' | 'reverted';
 export type ResearchCellChangeAttemptStatusV1 = 'running' | 'success' | 'error' | 'cancelled';
 export type ResearchCellChangeAttemptScopeV1 = 'affected' | 'clean_document';
 
@@ -1089,10 +1090,34 @@ export interface ResearchCellChangeProposalV1 {
   expectedDocumentUpdatedAt: string;
   expectedDocumentContentRevision?: number;
   appliedDocumentContentRevision?: number;
+  reviewSessionId?: string;
+  reviewSequence?: number;
+  reviewStatus?: ResearchCellChangeReviewStatusV1;
+  reviewIsLatest?: boolean;
+  reviewResolvedAt?: string;
   operations: ResearchCellChangeOperationV1[];
   conflict?: ResearchCellChangeConflictV1;
   createdAt: string;
   resolvedAt?: string;
+}
+
+export interface ResearchCellChangeReviewCellV1 {
+  cellId: string;
+  cellKind: ResearchCellKindV1;
+  position: number;
+  kind: 'create' | 'update';
+  beforeSource: string;
+}
+
+export interface ResearchCellChangeReviewV1 {
+  version: 1;
+  id: string;
+  status: 'open';
+  proposalIds: string[];
+  latestProposalId: string;
+  stepCount: number;
+  cells: ResearchCellChangeReviewCellV1[];
+  createdAt: string;
 }
 
 export interface ResearchCellChangeAttemptCellV1 {
@@ -1232,6 +1257,7 @@ export interface ResearchDocumentV1 {
   runtimeVersion: 'research-py-v1';
   contentRevision: number;
   cells: ResearchCellV1[];
+  activeCellChangeReview?: ResearchCellChangeReviewV1;
   cellChangeAttempts: ResearchCellChangeAttemptV1[];
   messages: import('./chat.js').ChatMessage[];
   createdAt: string;
@@ -1242,6 +1268,12 @@ export interface ResearchCellChangeResolutionResultV1 {
   version: 1;
   outcome: 'applied' | 'rejected' | 'conflicted';
   proposal: ResearchCellChangeProposalV1;
+  document: ResearchDocumentV1;
+}
+
+export interface ResearchCellChangeReviewResolutionResultV1 {
+  version: 1;
+  outcome: 'accepted' | 'reverted' | 'conflicted';
   document: ResearchDocumentV1;
 }
 

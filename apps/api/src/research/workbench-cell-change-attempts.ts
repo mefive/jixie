@@ -50,6 +50,12 @@ export async function runResearchCellChangeProposalAttempt(
   if (proposal.status !== 'applied') {
     throw new ResearchCellChangeAttemptUnavailableError('proposal_not_applied');
   }
+  if (
+    proposal.reviewSessionId &&
+    (proposal.reviewStatus !== 'accepted' || !proposal.reviewIsLatest)
+  ) {
+    throw new ResearchCellChangeAttemptUnavailableError('proposal_not_applied');
+  }
   if (proposal.appliedDocumentContentRevision == null) {
     throw new ResearchCellChangeAttemptUnavailableError('proposal_revision_unavailable');
   }
@@ -60,7 +66,23 @@ export async function runResearchCellChangeProposalAttempt(
     throw new ResearchDocumentRunInProgressError();
   }
 
-  const operations = proposal.operations as unknown as ResearchCellChangeOperationV1[];
+  const reviewProposals = proposal.reviewSessionId
+    ? await prisma.researchCellChangeProposal.findMany({
+        where: {
+          documentId: proposal.documentId,
+          reviewSessionId: proposal.reviewSessionId,
+          reviewStatus: 'accepted',
+        },
+        orderBy: { reviewSequence: 'asc' },
+        select: { operations: true },
+      })
+    : [];
+  const operations =
+    reviewProposals.length > 0
+      ? reviewProposals.flatMap(
+          (candidate) => candidate.operations as unknown as ResearchCellChangeOperationV1[],
+        )
+      : (proposal.operations as unknown as ResearchCellChangeOperationV1[]);
   const rootCellIds = executableRootCellIds(operations);
   if (rootCellIds.length === 0) {
     throw new ResearchCellChangeAttemptUnavailableError('no_executable_cells');
@@ -132,14 +154,18 @@ export async function runResearchCellChangeProposalAttempt(
 }
 
 function executableRootCellIds(operations: ResearchCellChangeOperationV1[]): string[] {
-  return operations
-    .filter(
-      (operation) =>
-        (operation.kind !== 'delete' &&
-          (operation.cellKind === 'python' || operation.cellKind === 'validation')) ||
-        (operation.kind === 'delete' && operation.cellKind === 'python'),
-    )
-    .map((operation) => operation.cellId);
+  return [
+    ...new Set(
+      operations
+        .filter(
+          (operation) =>
+            (operation.kind !== 'delete' &&
+              (operation.cellKind === 'python' || operation.cellKind === 'validation')) ||
+            (operation.kind === 'delete' && operation.cellKind === 'python'),
+        )
+        .map((operation) => operation.cellId),
+    ),
+  ];
 }
 
 async function cellChangeAttemptPlan(

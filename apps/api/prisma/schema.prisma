@@ -1381,6 +1381,11 @@ model ResearchCellChangeProposal {
   expectedDocumentUpdatedAt       DateTime
   expectedDocumentContentRevision Int?
   appliedDocumentContentRevision  Int?
+  reviewSessionId                 String?
+  reviewSequence                  Int?
+  reviewStatus                    String? // 'open' | 'accepted' | 'reverted'
+  reviewIsLatest                  Boolean          @default(false)
+  reviewResolvedAt                DateTime?
   operations                      Json
   status                          String           @default("pending") // 'pending' | 'applied' | 'rejected' | 'conflicted'
   conflict                        Json?
@@ -1391,6 +1396,8 @@ model ResearchCellChangeProposal {
 
   @@unique([sourceMessageId, sourcePartIndex])
   @@index([documentId, status, createdAt])
+  @@index([documentId, reviewStatus, createdAt])
+  @@index([reviewSessionId, reviewSequence])
   @@index([sourceTurnId])
 }
 

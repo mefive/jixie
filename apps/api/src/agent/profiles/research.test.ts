@@ -47,7 +47,7 @@ describe('researchProfile', () => {
     expect(system).toContain('Correlation is not causation');
   });
 
-  it('offers a review-only Cell proposal tool only with a document snapshot', () => {
+  it('offers an editable-review Cell proposal tool only with a document snapshot', () => {
     const proposalTool: AgentTool = {
       name: 'proposeResearchCellChanges',
       description: 'test',
@@ -58,9 +58,9 @@ describe('researchProfile', () => {
 
     expect(profile.tools?.map((tool) => tool.name)).toContain('proposeResearchCellChanges');
     expect(profile.system).toContain('only when the user explicitly asks to change this document');
-    expect(profile.system).toContain('pending review artifact');
-    expect(profile.system).toContain(
-      'Never claim that a proposal changed the document or ran code',
-    );
+    expect(profile.system).toContain('non-deleting proposal into an editable review');
+    expect(profile.system).toContain('deleting proposal remains pending for explicit application');
+    expect(profile.system).toContain('Never claim that code ran or that the user accepted');
+    expect(profile.system).toContain('saved edits from any open review');
   });
 });

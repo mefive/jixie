@@ -185,6 +185,7 @@ import type {
   ResearchCellKindV1,
   ResearchCellChangeRunResultV1,
   ResearchCellChangeResolutionResultV1,
+  ResearchCellChangeReviewResolutionResultV1,
   ResearchDocumentAnalysisV1,
   ResearchDocumentInterruptResultV1,
   ResearchDocumentRunResultV1,
@@ -372,6 +373,35 @@ export function applyResearchCellChangeProposal(
   return request(
     `/api/app/research/cell-change-proposals/${encodeURIComponent(proposalId)}/apply`,
     { method: 'POST' },
+  );
+}
+
+export function applyResearchCellChangeProposalForReview(
+  proposalId: string,
+): Promise<ResearchCellChangeResolutionResultV1> {
+  return request(
+    `/api/app/research/cell-change-proposals/${encodeURIComponent(proposalId)}/apply-for-review`,
+    { method: 'POST' },
+  );
+}
+
+export function acceptResearchCellChangeReview(
+  proposalId: string,
+  expectedContentRevision: number,
+): Promise<ResearchCellChangeReviewResolutionResultV1> {
+  return request(
+    `/api/app/research/cell-change-proposals/${encodeURIComponent(proposalId)}/accept-review`,
+    { method: 'POST', body: JSON.stringify({ expectedContentRevision }) },
+  );
+}
+
+export function revertResearchCellChangeReview(
+  proposalId: string,
+  expectedContentRevision: number,
+): Promise<ResearchCellChangeReviewResolutionResultV1> {
+  return request(
+    `/api/app/research/cell-change-proposals/${encodeURIComponent(proposalId)}/revert-review`,
+    { method: 'POST', body: JSON.stringify({ expectedContentRevision }) },
   );
 }
 

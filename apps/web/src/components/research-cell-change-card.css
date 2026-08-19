@@ -34,9 +34,25 @@
   @apply bg-review-added-bg text-review-added;
 }
 
+.jx-researchCellChange-status--open {
+  color: #334155;
+  background: #eef2f6;
+}
+
+.jx-researchCellChange-status--accepted {
+  @apply bg-review-added-bg text-review-added;
+}
+
 .jx-researchCellChange-status--rejected,
-.jx-researchCellChange-status--conflicted {
+.jx-researchCellChange-status--conflicted,
+.jx-researchCellChange-status--reverted {
   @apply bg-review-removed-bg text-review-removed;
+}
+
+.jx-researchCellChange--open {
+  border-color: #94a3b8;
+  outline: 1px solid #94a3b8;
+  outline-offset: -1px;
 }
 
 .jx-researchCellChange-summary {
