@@ -48,6 +48,7 @@ try {
   await reviewCell.getByTestId('research-cell-agent-review').waitFor({ timeout: 30_000 });
   const modifiedEditor = reviewCell.locator('.monaco-diff-editor .editor.modified .monaco-editor');
   await modifiedEditor.waitFor({ timeout: 30_000 });
+  await assertStandardInlineDiff(page, reviewCell);
   const firstReview = await api(page, `/api/app/research/documents/${fixture.documentId}`);
   if (
     firstReview.activeCellChangeReview?.stepCount !== 1 ||
@@ -167,7 +168,7 @@ try {
   await page.screenshot({ path: `${SHOTS}research-cell-change-review-resolved.png` });
 
   console.log(
-    `[research-cell-change-review-e2e] inline=editable followup=folded steps=${nestedReview.activeCellChangeReview.stepCount} accept=user-final rollback=first-baseline run=blocked`,
+    `[research-cell-change-review-e2e] inline=standard+editable no-strikethrough followup=folded steps=${nestedReview.activeCellChangeReview.stepCount} accept=user-final rollback=first-baseline run=blocked`,
   );
 } finally {
   await context.close();
@@ -209,6 +210,54 @@ async function replaceEditorValue(page, editor, value) {
   );
   if (!changed) {
     throw new Error('The editable review Monaco model was not found.');
+  }
+}
+
+async function assertStandardInlineDiff(page, cell) {
+  const trueInlineFragments = await cell
+    .locator('.monaco-diff-editor .inline-deleted-text')
+    .count();
+  const strikethroughFragments = await cell
+    .locator('.monaco-diff-editor *')
+    .evaluateAll(
+      (nodes) =>
+        nodes.filter((node) => getComputedStyle(node).textDecorationLine.includes('line-through'))
+          .length,
+    );
+  const editorModes = await page.evaluate(
+    ({ documentId, cellId }) => {
+      const monaco = window.__researchMonaco;
+      const editor = monaco?.editor
+        .getDiffEditors()
+        .find((candidate) =>
+          candidate
+            .getModifiedEditor()
+            .getModel()
+            ?.uri.path.includes(`/research/${documentId}/${cellId}`),
+        );
+      if (!editor) {
+        return null;
+      }
+      return {
+        originalReadOnly: editor.getOriginalEditor().getOption(monaco.editor.EditorOption.readOnly),
+        modifiedReadOnly: editor.getModifiedEditor().getOption(monaco.editor.EditorOption.readOnly),
+      };
+    },
+    { documentId: fixture.documentId, cellId: fixture.pythonCellId },
+  );
+  if (
+    trueInlineFragments !== 0 ||
+    strikethroughFragments !== 0 ||
+    editorModes?.originalReadOnly !== true ||
+    editorModes.modifiedReadOnly !== false
+  ) {
+    throw new Error(
+      `Standard inline review mismatch: ${JSON.stringify({
+        trueInlineFragments,
+        strikethroughFragments,
+        editorModes,
+      })}`,
+    );
   }
 }
 
