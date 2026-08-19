@@ -61,6 +61,13 @@ interface ResearchCodeDiffEditorProps {
   onBlur: () => void;
 }
 
+interface ResearchReadOnlyCodeEditorProps {
+  executionId: string;
+  cellId: string;
+  value: string;
+  language: 'python' | 'json';
+}
+
 /** Lightweight Python/JSON editor for research cells; execution remains server-side and isolated. */
 export default function ResearchCodeEditor({
   documentId,
@@ -121,6 +128,41 @@ export default function ResearchCodeEditor({
         overviewRulerLanes: 0,
         fixedOverflowWidgets: true,
         wordWrap: 'on',
+      }}
+    />
+  );
+}
+
+/** Immutable source viewer for one frozen Research Execution snapshot. */
+export function ResearchReadOnlyCodeEditor({
+  executionId,
+  cellId,
+  value,
+  language,
+}: ResearchReadOnlyCodeEditorProps) {
+  const lineCount = value.split('\n').length;
+  const height = Math.min(520, Math.max(96, lineCount * 20 + 32));
+  return (
+    <Editor
+      height={height}
+      language={language}
+      path={`file:///research-executions/${encodeURIComponent(executionId)}/${encodeURIComponent(cellId)}.${language === 'python' ? 'py' : 'json'}`}
+      theme="vs"
+      value={value}
+      options={{
+        readOnly: true,
+        domReadOnly: true,
+        fontSize: 13,
+        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+        lineHeight: 20,
+        minimap: { enabled: false },
+        scrollBeyondLastLine: false,
+        automaticLayout: true,
+        padding: { top: 12, bottom: 12 },
+        renderLineHighlight: 'none',
+        overviewRulerLanes: 0,
+        wordWrap: 'on',
+        folding: false,
       }}
     />
   );

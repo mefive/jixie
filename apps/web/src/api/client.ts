@@ -192,6 +192,9 @@ import type {
   ResearchDocumentSummaryV1,
   ResearchDocumentTemplateV1,
   ResearchDocumentV1,
+  ResearchExecutionPromotionInputV1,
+  ResearchExecutionSummaryV1,
+  ResearchExecutionV1,
   ResearchDataCatalogResultV1,
   ResearchAssetTypeV1,
   ResearchLanguageRequestV1,
@@ -350,6 +353,24 @@ export function runResearchDocument(
   return request(`/api/app/research/documents/${encodeURIComponent(documentId)}/run`, {
     method: 'POST',
     body: JSON.stringify({ clean }),
+  });
+}
+
+export function listResearchExecutions(documentId: string): Promise<ResearchExecutionSummaryV1[]> {
+  return request(`/api/app/research/documents/${encodeURIComponent(documentId)}/executions`);
+}
+
+export function getResearchExecution(executionId: string): Promise<ResearchExecutionV1> {
+  return request(`/api/app/research/executions/${encodeURIComponent(executionId)}`);
+}
+
+export function promoteResearchExecution(
+  executionId: string,
+  input: ResearchExecutionPromotionInputV1,
+): Promise<ResearchExecutionSummaryV1> {
+  return request(`/api/app/research/executions/${encodeURIComponent(executionId)}/promote`, {
+    method: 'POST',
+    body: JSON.stringify(input),
   });
 }
 

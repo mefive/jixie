@@ -30,6 +30,12 @@ import { executeUniverseSpec } from '../research/universe.js';
 import { researchPythonLanguageService } from '../research/pyright-language-service.js';
 import { searchResearchDataCatalog } from '../research/data-catalog.js';
 import {
+  getResearchExecution,
+  listResearchExecutions,
+  promoteResearchExecution,
+  ResearchExecutionPromotionUnavailableError,
+} from '../research/research-execution-records.js';
+import {
   acceptResearchCellChangeReview,
   applyResearchCellChangeProposal,
   applyResearchCellChangeProposalForReview,
@@ -124,6 +130,11 @@ const updateCellBody = z
   })
   .refine((value) => value.source !== undefined || value.config !== undefined);
 const runDocumentBody = z.strictObject({ clean: z.boolean().default(true) });
+const promoteExecutionBody = z.strictObject({
+  displayName: z.string().trim().min(1).max(160),
+  tags: z.array(z.string().trim().min(1).max(40)).max(10).default([]),
+  userNote: z.string().trim().max(2_000).optional(),
+});
 const cellChangeReviewBody = z.strictObject({
   expectedContentRevision: z.number().int().positive(),
 });
@@ -206,6 +217,40 @@ researchRoute.get('/documents/:documentId', async (c) => {
   const document = await getResearchDocument(c.var.userId, c.req.param('documentId'));
   return document ? c.json(document) : apiError(c, 'NOT_FOUND', m(c, 'conversationNotFound'));
 });
+
+researchRoute.get('/documents/:documentId/executions', async (c) => {
+  const executions = await listResearchExecutions(c.var.userId, c.req.param('documentId'));
+  return executions ? c.json(executions) : apiError(c, 'NOT_FOUND', m(c, 'conversationNotFound'));
+});
+
+researchRoute.get('/executions/:executionId', async (c) => {
+  const execution = await getResearchExecution(c.var.userId, c.req.param('executionId'));
+  return execution
+    ? c.json(execution)
+    : apiError(c, 'NOT_FOUND', m(c, 'researchExecutionNotFound'));
+});
+
+researchRoute.post(
+  '/executions/:executionId/promote',
+  validateJson(promoteExecutionBody),
+  async (c) => {
+    try {
+      const execution = await promoteResearchExecution(
+        c.var.userId,
+        c.req.param('executionId'),
+        c.req.valid('json'),
+      );
+      return execution
+        ? c.json(execution)
+        : apiError(c, 'NOT_FOUND', m(c, 'researchExecutionNotFound'));
+    } catch (error) {
+      if (error instanceof ResearchExecutionPromotionUnavailableError) {
+        return apiError(c, 'VALIDATION_FAILED', m(c, 'researchExecutionPromotionUnavailable'));
+      }
+      throw error;
+    }
+  },
+);
 
 researchRoute.post('/documents/:documentId/cells', validateJson(createCellBody), async (c) => {
   try {
@@ -727,14 +772,17 @@ function researchAgentCellChangeAttemptContext(attempt: {
   finishedAt: Date | null;
   executions: Array<{
     id: string;
-    cellId: string;
+    cellId: string | null;
+    sourceCellId: string | null;
+    sourcePosition: number | null;
+    sourceKind: string | null;
     revision: number;
     source: string;
     status: string;
     output: unknown;
     error: string | null;
     environmentFingerprint: string;
-    cell: { kind: string; position: number };
+    cell: { kind: string; position: number } | null;
   }>;
 }): string {
   let remainingCharacters = MAX_RESEARCH_AGENT_ATTEMPT_CHARACTERS;
@@ -749,9 +797,9 @@ function researchAgentCellChangeAttemptContext(attempt: {
     remainingCharacters -= outputCharacters;
     return {
       executionId: execution.id,
-      cellId: execution.cellId,
-      position: execution.cell.position,
-      kind: execution.cell.kind,
+      cellId: execution.sourceCellId ?? execution.cellId,
+      position: execution.sourcePosition ?? execution.cell?.position,
+      kind: execution.sourceKind ?? execution.cell?.kind,
       revision: execution.revision,
       status: execution.status,
       source,

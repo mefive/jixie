@@ -11,6 +11,7 @@ import type {
   ResearchDocumentSummaryV1,
   ResearchDocumentTemplateV1,
   ResearchDocumentV1,
+  ResearchExecutionSummaryV1,
   ResearchPlanSpecV1,
 } from '@jixie/shared';
 import { ulid } from 'ulid';
@@ -18,6 +19,11 @@ import { prisma } from '../lib/prisma.js';
 import { executeResearchPlan } from './executor.js';
 import { researchPayloadHash } from './fingerprints.js';
 import { createWorkbenchResearchRun } from './records.js';
+import {
+  createResearchExecution,
+  finishResearchExecution,
+  type ResearchExecutionSourceCellSnapshot,
+} from './research-execution-records.js';
 import { listResearchCellChangeAttempts } from './research-cell-change-attempt-records.js';
 import { researchCellChangeReviewView } from './research-cell-change-records.js';
 import { researchPlanSpecV1Schema } from './spec.js';
@@ -39,9 +45,22 @@ type ResearchDocumentRow = Prisma.ResearchDocumentGetPayload<{
   };
 }>;
 
-type ExecutableResearchCellRow = Prisma.ResearchCellGetPayload<{
-  include: { document: { include: { conversation: true } } };
-}>;
+interface ExecutableResearchCellRow {
+  id: string;
+  documentId: string;
+  position: number;
+  kind: string;
+  source: string;
+  config: Prisma.JsonValue | null;
+  revision: number;
+  definitions: Prisma.JsonValue;
+  references: Prisma.JsonValue;
+  lastExecutedRevision: number | null;
+  document: {
+    conversationId: string;
+    conversation: { title: string | null; userId: string };
+  };
+}
 
 interface CellSeed {
   kind: ResearchCellKindV1;
@@ -542,14 +561,31 @@ export async function runResearchDocument(
   documentId: string,
   clean: boolean,
 ): Promise<ResearchDocumentRunResultV1 | null> {
-  const document = await getResearchDocument(userId, documentId);
-  if (!document) {
+  const owner = await prisma.researchDocument.findFirst({
+    where: { id: documentId, userId },
+    select: { id: true },
+  });
+  if (!owner) {
     return null;
   }
   await assertNoOpenCellChangeReview(documentId);
   const control = startResearchRun(documentId);
+  let researchExecutionId: string | undefined;
   try {
     if (clean) {
+      await analyzeAndPersist(documentId);
+      const frozen = await loadResearchExecutionSeed(userId, documentId);
+      if (!frozen) {
+        return null;
+      }
+      const researchExecution = await createResearchExecution({
+        documentId,
+        title: frozen.title,
+        contentRevision: frozen.contentRevision,
+        runtimeVersion: frozen.runtimeVersion,
+        cells: frozen.cells.map(researchExecutionSourceCellSnapshot),
+      });
+      researchExecutionId = researchExecution.id;
       await researchRuntimeManager.reset(documentId);
       if (!control.interrupted) {
         await prisma.researchCell.updateMany({
@@ -557,8 +593,40 @@ export async function runResearchDocument(
           data: { status: 'stale' },
         });
       }
+
+      const executedCellIds: string[] = [];
+      let finalOutcome: ResearchCellExecutionOutcome = 'success';
+      for (const cell of frozen.cells) {
+        if (control.interrupted) {
+          finalOutcome = 'interrupted';
+          break;
+        }
+        const outcome = await executeResearchCell(cell, control, undefined, researchExecution.id);
+        if (outcome !== 'interrupted') {
+          executedCellIds.push(cell.id);
+        }
+        if (outcome === 'error' || outcome === 'interrupted') {
+          finalOutcome = outcome;
+          break;
+        }
+      }
+      const execution = await finishResearchExecution({
+        executionId: researchExecution.id,
+        status:
+          finalOutcome === 'success'
+            ? 'success'
+            : finalOutcome === 'interrupted'
+              ? 'cancelled'
+              : 'error',
+        executedCellIds,
+      });
+      return researchDocumentRunResult(userId, documentId, executedCellIds, true, execution);
     }
 
+    const document = await getResearchDocument(userId, documentId);
+    if (!document) {
+      return null;
+    }
     const executedCellIds: string[] = [];
     for (const cell of document.cells) {
       if (control.interrupted) {
@@ -575,7 +643,31 @@ export async function runResearchDocument(
         break;
       }
     }
-    return researchDocumentRunResult(userId, documentId, executedCellIds, clean);
+    return researchDocumentRunResult(userId, documentId, executedCellIds, false);
+  } catch (error) {
+    if (researchExecutionId) {
+      const active = await prisma.researchExecution.findUnique({
+        where: { id: researchExecutionId },
+        select: { status: true },
+      });
+      if (active?.status === 'running') {
+        const completedCells = await prisma.researchCellExecution.findMany({
+          where: { researchExecutionId, status: { not: 'cancelled' } },
+          orderBy: { startedAt: 'asc' },
+          select: { sourceCellId: true, cellId: true },
+        });
+        await finishResearchExecution({
+          executionId: researchExecutionId,
+          status: control.interrupted ? 'cancelled' : 'error',
+          executedCellIds: completedCells.flatMap((cellExecution) => {
+            const cellId = cellExecution.sourceCellId ?? cellExecution.cellId;
+            return cellId ? [cellId] : [];
+          }),
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+    throw error;
   } finally {
     finishResearchRun(control);
   }
@@ -617,18 +709,20 @@ async function executeResearchCellById(
   cellId: string,
   control: ResearchRunControl,
   cellChangeAttemptId?: string,
+  researchExecutionId?: string,
 ): Promise<ResearchCellExecutionOutcome | null> {
   if (control.interrupted) {
     return 'interrupted';
   }
   const cell = await loadExecutableResearchCell(userId, cellId);
-  return cell ? executeResearchCell(cell, control, cellChangeAttemptId) : null;
+  return cell ? executeResearchCell(cell, control, cellChangeAttemptId, researchExecutionId) : null;
 }
 
 async function executeResearchCell(
   cell: ExecutableResearchCellRow,
   control: ResearchRunControl,
   cellChangeAttemptId?: string,
+  researchExecutionId?: string,
 ): Promise<ResearchCellExecutionOutcome> {
   if (control.interrupted) {
     return 'interrupted';
@@ -636,13 +730,25 @@ async function executeResearchCell(
 
   const executionId = ulid();
   const startedAt = new Date();
-  await prisma.$transaction([
-    prisma.researchCell.update({ where: { id: cell.id }, data: { status: 'running' } }),
-    prisma.researchCellExecution.create({
+  await prisma.$transaction(async (transaction) => {
+    const current = await transaction.researchCell.findUnique({
+      where: { id: cell.id },
+      select: { id: true, revision: true, source: true },
+    });
+    if (current?.revision === cell.revision && current.source === cell.source) {
+      await transaction.researchCell.update({
+        where: { id: current.id },
+        data: { status: 'running' },
+      });
+    }
+    await transaction.researchCellExecution.create({
       data: {
         id: executionId,
         documentId: cell.documentId,
-        cellId: cell.id,
+        ...(current ? { cellId: current.id } : {}),
+        sourceCellId: cell.id,
+        sourcePosition: cell.position,
+        sourceKind: cell.kind,
         revision: cell.revision,
         source: cell.source,
         status: 'running',
@@ -651,9 +757,10 @@ async function executeResearchCell(
         environmentFingerprint: 'pending',
         startedAt,
         ...(cellChangeAttemptId ? { cellChangeAttemptId } : {}),
+        ...(researchExecutionId ? { researchExecutionId } : {}),
       },
-    }),
-  ]);
+    });
+  });
 
   if (control.interrupted) {
     await persistInterruptedResearchCell(cell, executionId);
@@ -678,8 +785,8 @@ async function executeResearchCell(
       for (const artifact of persisted.artifacts) {
         await transaction.researchArtifact.create({ data: artifact });
       }
-      await transaction.researchCell.update({
-        where: { id: cell.id },
+      await transaction.researchCell.updateMany({
+        where: { id: cell.id, revision: cell.revision, source: cell.source },
         data: {
           status: 'success',
           output: persisted.outputs as unknown as Prisma.InputJsonValue,
@@ -718,8 +825,8 @@ async function executeResearchCell(
       { type: 'text', text: failure.message, level: 'error' },
     ];
     await prisma.$transaction([
-      prisma.researchCell.update({
-        where: { id: cell.id },
+      prisma.researchCell.updateMany({
+        where: { id: cell.id, revision: cell.revision, source: cell.source },
         data: {
           status: 'error',
           output: outputs as unknown as Prisma.InputJsonValue,
@@ -755,8 +862,8 @@ async function persistInterruptedResearchCell(
   environmentFingerprint = researchPayloadHash({ runtime: 'research-py-v1', interrupted: true }),
 ): Promise<void> {
   await prisma.$transaction([
-    prisma.researchCell.update({
-      where: { id: cell.id },
+    prisma.researchCell.updateMany({
+      where: { id: cell.id, revision: cell.revision, source: cell.source },
       data: { status: cell.lastExecutedRevision == null ? 'idle' : 'stale' },
     }),
     prisma.researchCellExecution.update({
@@ -811,12 +918,61 @@ async function researchDocumentRunResult(
   documentId: string,
   executedCellIds: string[],
   clean: boolean,
+  execution?: ResearchExecutionSummaryV1,
 ): Promise<ResearchDocumentRunResultV1> {
   return {
     version: 1,
     document: (await getResearchDocument(userId, documentId))!,
     executedCellIds,
     clean,
+    ...(execution ? { execution } : {}),
+  };
+}
+
+async function loadResearchExecutionSeed(userId: string, documentId: string) {
+  const document = await prisma.researchDocument.findFirst({
+    where: { id: documentId, userId },
+    select: {
+      id: true,
+      conversationId: true,
+      runtimeVersion: true,
+      contentRevision: true,
+      conversation: { select: { title: true, userId: true } },
+      cells: { orderBy: { position: 'asc' } },
+    },
+  });
+  if (!document) {
+    return null;
+  }
+  const documentContext = {
+    conversationId: document.conversationId,
+    conversation: document.conversation,
+  };
+  return {
+    title: document.conversation.title ?? '',
+    runtimeVersion: document.runtimeVersion,
+    contentRevision: document.contentRevision,
+    cells: document.cells.map(
+      (cell): ExecutableResearchCellRow => ({
+        ...cell,
+        document: documentContext,
+      }),
+    ),
+  };
+}
+
+function researchExecutionSourceCellSnapshot(
+  cell: ExecutableResearchCellRow,
+): ResearchExecutionSourceCellSnapshot {
+  return {
+    id: cell.id,
+    position: cell.position,
+    kind: cell.kind as ResearchCellKindV1,
+    source: cell.source,
+    ...(cell.config ? { config: cell.config as Record<string, unknown> } : {}),
+    revision: cell.revision,
+    definitions: jsonStringArray(cell.definitions),
+    references: jsonStringArray(cell.references),
   };
 }
 

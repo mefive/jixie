@@ -21,6 +21,9 @@ import {
   type ResearchDocumentSummaryV1,
   type ResearchDocumentTemplateV1,
   type ResearchDocumentV1,
+  type ResearchExecutionPromotionInputV1,
+  type ResearchExecutionSummaryV1,
+  type ResearchExecutionV1,
 } from '@jixie/shared';
 import { BaseStore, LoaderModel, PollingModel } from '@src/lib';
 import {
@@ -33,10 +36,13 @@ import {
   deleteResearchCell,
   deleteResearchConversation,
   getLatestResearchCuratorRun,
+  getResearchExecution,
   getResearchCuratorRun,
   getResearchDocument,
   interruptResearchDocument,
   listResearchDocuments,
+  listResearchExecutions,
+  promoteResearchExecution,
   renameResearchConversation,
   rejectResearchCellChangeProposal,
   revertResearchCellChangeReview,
@@ -122,6 +128,9 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
   public documentLoader = new LoaderModel<ResearchDocumentV1>();
   public documentMutationLoader = new LoaderModel<ResearchDocumentV1>();
   public documentRunLoader = new LoaderModel<ResearchDocumentRunResultV1>();
+  public executionListLoader = new LoaderModel<ResearchExecutionSummaryV1[]>();
+  public executionLoader = new LoaderModel<ResearchExecutionV1>();
+  public executionPromotionLoader = new LoaderModel<ResearchExecutionSummaryV1>();
   public affectedRunLoader = new LoaderModel<ResearchDocumentRunResultV1>();
   public interruptLoader = new LoaderModel<ResearchDocumentInterruptResultV1>();
   public cellChangeResolutionLoader = new LoaderModel<ResearchCellChangeResolutionResultV1>();
@@ -190,6 +199,22 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
       preserveResult: false,
       request: ({ documentId, clean }: { documentId: string; clean: boolean }) =>
         runResearchDocument(documentId, clean),
+    });
+    this.executionListLoader.setup({
+      request: (documentId: string) => listResearchExecutions(documentId),
+    });
+    this.executionLoader.setup({
+      request: (executionId: string) => getResearchExecution(executionId),
+    });
+    this.executionPromotionLoader.setup({
+      preserveResult: false,
+      request: ({
+        executionId,
+        input,
+      }: {
+        executionId: string;
+        input: ResearchExecutionPromotionInputV1;
+      }) => promoteResearchExecution(executionId, input),
     });
     this.affectedRunLoader.setup({
       preserveResult: false,
@@ -262,6 +287,9 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     this.registCleaner(() => this.documentLoader.cleanup());
     this.registCleaner(() => this.documentMutationLoader.cleanup());
     this.registCleaner(() => this.documentRunLoader.cleanup());
+    this.registCleaner(() => this.executionListLoader.cleanup());
+    this.registCleaner(() => this.executionLoader.cleanup());
+    this.registCleaner(() => this.executionPromotionLoader.cleanup());
     this.registCleaner(() => this.affectedRunLoader.cleanup());
     this.registCleaner(() => this.interruptLoader.cleanup());
     this.registCleaner(() => this.cellChangeResolutionLoader.cleanup());
@@ -359,6 +387,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     const document = await this.documentMutationLoader.run({ kind: 'create', template });
     runInAction(() => this.cellDrafts.clear());
     this.acceptDocument(document);
+    void this.executionListLoader.run(document.id).catch(() => {});
     void this.documentsLoader.run();
   }
 
@@ -373,6 +402,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     });
     const document = await this.documentLoader.run(id);
     this.acceptDocument(document);
+    void this.executionListLoader.run(id).catch(() => {});
     void this.reattachTurn();
   }
 
@@ -458,6 +488,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     try {
       const result = await this.documentRunLoader.run({ documentId: this.documentId, clean });
       this.acceptDocument(result.document, false);
+      await this.executionListLoader.run(this.documentId);
       void this.documentsLoader.run();
     } finally {
       runInAction(() => {
@@ -479,6 +510,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
       runInAction(() => {
         this.runInterrupted = result.interrupted;
       });
+      await this.executionListLoader.run(this.documentId);
       void this.documentsLoader.run();
     } finally {
       runInAction(() => {
@@ -542,6 +574,25 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
 
   public searchDataCatalog(query: string, assetType?: ResearchAssetTypeV1) {
     return this.dataCatalogLoader.run({ query, assetType });
+  }
+
+  public loadExecutionHistory() {
+    return this.documentId ? this.executionListLoader.run(this.documentId) : Promise.resolve([]);
+  }
+
+  public viewResearchExecution(executionId: string) {
+    return this.executionLoader.run(executionId);
+  }
+
+  public async promoteExecution(executionId: string, input: ResearchExecutionPromotionInputV1) {
+    const result = await this.executionPromotionLoader.run({ executionId, input });
+    if (this.documentId) {
+      await this.executionListLoader.run(this.documentId);
+    }
+    if (this.executionLoader.result?.id === executionId) {
+      await this.executionLoader.run(executionId);
+    }
+    return result;
   }
 
   public async send(message: string, attemptId?: string) {
