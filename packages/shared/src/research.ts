@@ -1,6 +1,11 @@
 import type { TradeDate } from './types.js';
 import type { ChartKind, ChartSeriesSpec } from './chart.js';
-import type { FactorAnalysisKind, FactorLanguage } from './factor.js';
+import type {
+  FactorAnalysisKind,
+  FactorEquityIndexCode,
+  FactorExpectedDirection,
+  FactorLanguage,
+} from './factor.js';
 import type { StrategyLanguage } from './backtest.js';
 
 export type ResearchAssetTypeV1 = 'stock' | 'etf' | 'index' | 'future';
@@ -621,6 +626,22 @@ export type ResearchFactorDraftAnalysisKindV1 = Extract<
   'cross_sectional' | 'time_series' | 'panel'
 >;
 
+/** Supported FactorReport inputs recovered from a frozen Research version. Missing fields retain the
+ * Factor workbench defaults and remain explicit review work; this suggestion never starts a run. */
+export interface ResearchFactorReportSuggestionV1 {
+  version: 1;
+  analysisKind: ResearchFactorDraftAnalysisKindV1;
+  start?: string;
+  end?: string;
+  observationFrequency?: 'daily' | 'weekly' | 'monthly';
+  equityUniverse?: 'cn_a' | FactorEquityIndexCode;
+  minimumListingDays?: number;
+  excludeRiskWarnings?: boolean;
+  assets?: string[];
+  hypothesis?: string;
+  expectedDirection?: FactorExpectedDirection;
+}
+
 /** The durable, human-reviewable handoff from one frozen research version into a Factor draft. */
 export interface ResearchFactorHandoffV1 {
   version: 1;
@@ -634,6 +655,7 @@ export interface ResearchFactorHandoffV1 {
   language?: FactorLanguage;
   summary: string;
   unresolvedItems: string[];
+  suggestedReport?: ResearchFactorReportSuggestionV1;
   generatedAt: string;
   models: {
     classifier: string;

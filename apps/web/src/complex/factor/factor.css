@@ -126,6 +126,33 @@
   margin: 7px 0 0;
 }
 
+.jx-factor-researchHandoffSuggestion {
+  @apply border-t border-line;
+  margin-top: 8px;
+  padding-top: 7px;
+}
+
+.jx-factor-researchHandoffSuggestion > strong,
+.jx-factor-researchHandoffSuggestion > span {
+  @apply block;
+}
+
+.jx-factor-researchHandoffSuggestion > span {
+  @apply text-muted;
+  margin-top: 2px;
+  font-size: 11px;
+}
+
+.jx-factor-researchHandoffTags {
+  @apply flex flex-wrap gap-1;
+  margin-top: 6px;
+}
+
+.jx-factor-researchHandoffTags .ant-tag {
+  margin: 0;
+  font-size: 10px;
+}
+
 .jx-factor-researchHandoff details {
   margin-top: 6px;
 }

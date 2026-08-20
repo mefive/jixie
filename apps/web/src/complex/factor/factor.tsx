@@ -45,6 +45,7 @@ import type {
   FactorTimeSeriesReportV1,
   MacroRegimeFactorResearchSpecV1,
   PanelFactorResearchSpecV1,
+  ResearchFactorReportSuggestionV1,
   TimeSeriesFactorResearchSpecV1,
 } from '@jixie/shared';
 import { factorResearchCriterionPassed } from '@jixie/shared';
@@ -396,6 +397,9 @@ const AgentChat = complex.component(() => {
             )}
           </div>
           <p>{store.researchHandoff.summary}</p>
+          {store.researchHandoff.suggestedReport && (
+            <ResearchReportSuggestion suggestion={store.researchHandoff.suggestedReport} />
+          )}
           <details>
             <summary>
               {t('researchHandoff.unresolved', {
@@ -468,6 +472,64 @@ const AgentChat = complex.component(() => {
     </div>
   );
 }, 'AgentChat');
+
+function ResearchReportSuggestion({
+  suggestion,
+}: {
+  suggestion: ResearchFactorReportSuggestionV1;
+}) {
+  const { t } = useTranslation('factor');
+  const tags: string[] = [];
+  if (suggestion.start || suggestion.end) {
+    tags.push(
+      t('researchHandoff.range', {
+        start: suggestion.start ? dayjs(suggestion.start, 'YYYYMMDD').format('YYYY-MM-DD') : '—',
+        end: suggestion.end ? dayjs(suggestion.end, 'YYYYMMDD').format('YYYY-MM-DD') : '—',
+      }),
+    );
+  }
+  if (suggestion.observationFrequency) {
+    tags.push(t(`researchHandoff.frequency.${suggestion.observationFrequency}`));
+  }
+  if (suggestion.equityUniverse) {
+    tags.push(t(`evaluationUniverse.${suggestion.equityUniverse}`));
+  }
+  if (suggestion.minimumListingDays !== undefined) {
+    tags.push(t('researchHandoff.minimumListingDays', { days: suggestion.minimumListingDays }));
+  }
+  if (suggestion.excludeRiskWarnings !== undefined) {
+    tags.push(
+      t(
+        suggestion.excludeRiskWarnings
+          ? 'researchHandoff.excludeRiskWarnings'
+          : 'researchHandoff.includeRiskWarnings',
+      ),
+    );
+  }
+  if (suggestion.assets?.length) {
+    tags.push(t('researchHandoff.assets', { count: suggestion.assets.length }));
+  }
+  if (suggestion.expectedDirection) {
+    tags.push(t(`researchHandoff.direction.${suggestion.expectedDirection}`));
+  }
+
+  return (
+    <div
+      className="jx-factor-researchHandoffSuggestion"
+      data-testid="factor-research-suggested-report"
+    >
+      <strong>{t('researchHandoff.suggestedReport')}</strong>
+      <span>{t('researchHandoff.confirmReport')}</span>
+      {tags.length > 0 && (
+        <div className="jx-factor-researchHandoffTags">
+          {tags.map((tag) => (
+            <Tag key={tag}>{tag}</Tag>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // Chat bubbles, auto-scrolled to the latest; a thinking row while an Agent turn is in flight.
 function ChatLog({
@@ -2089,14 +2151,17 @@ const ResearchRunButton = complex.component(
     const store = complex.useStore();
     const { t } = useTranslation('factor');
     const previous = store.reportDetail?.researchIntent;
+    const suggestion = previous ? undefined : store.researchHandoff?.suggestedReport;
     const [open, setOpen] = useState(false);
     const [mode, setMode] = useState<'hypothesis' | 'exploratory'>(
       store.isMacroRegime ? 'exploratory' : (previous?.mode ?? 'hypothesis'),
     );
-    const [hypothesis, setHypothesis] = useState(previous?.hypothesis ?? '');
+    const [hypothesis, setHypothesis] = useState(
+      previous?.hypothesis ?? suggestion?.hypothesis ?? '',
+    );
     const [rationale, setRationale] = useState(previous?.rationale ?? '');
     const [direction, setDirection] = useState<'positive' | 'negative' | 'unknown'>(
-      previous?.expectedDirection ?? 'positive',
+      previous?.expectedDirection ?? suggestion?.expectedDirection ?? 'positive',
     );
     const [metric, setMetric] = useState<FactorResearchMetric>(
       previous?.primaryCriterion?.metric ??
@@ -2119,6 +2184,12 @@ const ResearchRunButton = complex.component(
         : store.isTimeSeries
           ? 'time_series'
           : 'cross_sectional';
+    useEffect(() => {
+      setMode(store.isMacroRegime ? 'exploratory' : (previous?.mode ?? 'hypothesis'));
+      setHypothesis(previous?.hypothesis ?? suggestion?.hypothesis ?? '');
+      setRationale(previous?.rationale ?? '');
+      setDirection(previous?.expectedDirection ?? suggestion?.expectedDirection ?? 'positive');
+    }, [previous, store.isMacroRegime, store.selectedKey, suggestion]);
     useEffect(() => {
       if (researchKind === 'macro_regime') {
         setMode('exploratory');

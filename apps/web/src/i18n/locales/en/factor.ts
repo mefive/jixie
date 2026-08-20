@@ -24,6 +24,20 @@ export const enFactor: typeof zhFactor = {
     openSource: 'Open source snapshot',
     sourceUnavailable: 'Source deleted',
     unresolved: '{{count}} checks remain',
+    suggestedReport: 'Suggested evaluation inputs',
+    confirmReport:
+      'Prefilled from the research scope; confirm before running. Other inputs keep Factor defaults.',
+    range: '{{start}} – {{end}}',
+    frequency: { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly' },
+    minimumListingDays: 'Listed ≥ {{days}} days',
+    excludeRiskWarnings: 'Exclude risk warnings',
+    includeRiskWarnings: 'Include risk warnings',
+    assets: '{{count}} assets',
+    direction: {
+      positive: 'Expected positive',
+      negative: 'Expected negative',
+      unknown: 'Direction TBD',
+    },
   },
 
   unnamedNew: 'New factor (unsaved)',

@@ -867,6 +867,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       this.reportLoader.reset();
       return;
     }
+    let loadedResearchHandoff: ResearchFactorHandoffV1 | null = null;
     try {
       // Presets are code rows too (seeded, readonly) — the same endpoint serves both kinds.
       const factor = await getCustomFactor(key);
@@ -888,6 +889,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         this.researchHandoff = isCustom ? (factor.researchHandoff ?? null) : null;
         this.sourceResearchExecution = isCustom ? (factor.sourceResearchExecution ?? null) : null;
       });
+      loadedResearchHandoff = isCustom ? (factor.researchHandoff ?? null) : null;
       if (isCustom) {
         void this.reattachTurn(); // a live agent turn for this factor? re-subscribe (snapshot replays)
       }
@@ -914,7 +916,71 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     } else {
       runInAction(() => (this.selectedReportId = ''));
       this.reportLoader.reset();
+      this.applyResearchReportSuggestion(loadedResearchHandoff);
     }
+  }
+
+  private applyResearchReportSuggestion(handoff: ResearchFactorHandoffV1 | null) {
+    const suggestion = handoff?.suggestedReport;
+    if (!suggestion || suggestion.analysisKind !== this.definitionAnalysisKind) {
+      return;
+    }
+
+    runInAction(() => {
+      if (suggestion.start) {
+        this.start = suggestion.start;
+      }
+      if (suggestion.end) {
+        this.end = suggestion.end;
+      }
+
+      switch (suggestion.analysisKind) {
+        case 'cross_sectional': {
+          this.specVersion = 6;
+          if (suggestion.observationFrequency === 'monthly') {
+            this.freq = 'month';
+          } else if (suggestion.observationFrequency === 'weekly') {
+            this.freq = 'week';
+          }
+          if (suggestion.equityUniverse) {
+            this.evaluationScope = {
+              ...this.evaluationScope,
+              universe:
+                suggestion.equityUniverse === 'cn_a'
+                  ? { kind: 'market', market: 'cn_a' }
+                  : { kind: 'index', indexCode: suggestion.equityUniverse },
+            };
+          }
+          this.methodology = {
+            ...this.methodology,
+            universe: {
+              ...this.methodology.universe,
+              ...(suggestion.minimumListingDays !== undefined
+                ? { minimumListingDays: suggestion.minimumListingDays }
+                : {}),
+              ...(suggestion.excludeRiskWarnings !== undefined
+                ? { excludeRiskWarnings: suggestion.excludeRiskWarnings }
+                : {}),
+            },
+          };
+          break;
+        }
+        case 'time_series': {
+          if (suggestion.assets?.length) {
+            const allowed = new Set(this.timeSeriesAllowedAssets);
+            const assets = suggestion.assets.filter(
+              (asset): asset is TimeSeriesAsset => isTimeSeriesAsset(asset) && allowed.has(asset),
+            );
+            if (assets.length) {
+              this.timeSeriesAssets = [...new Set(assets)];
+            }
+          }
+          break;
+        }
+        case 'panel':
+          break;
+      }
+    });
   }
 
   /** Copy the selected preset or owned Factor into an independent editable draft. */
