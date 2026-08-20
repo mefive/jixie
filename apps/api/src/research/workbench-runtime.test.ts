@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { RESEARCH_SERIES_SDK_CONTRACT_V1 } from '@jixie/shared';
+import {
+  RESEARCH_CROSS_SECTION_SDK_CONTRACT_V1,
+  RESEARCH_PANEL_SDK_CONTRACT_V1,
+  RESEARCH_SERIES_SDK_CONTRACT_V1,
+} from '@jixie/shared';
 import {
   ResearchPythonExecutionError,
   ResearchPythonInterruptionError,
@@ -119,15 +123,20 @@ describe('research workbench Python runtime', () => {
   it('keeps the Python data API signature aligned with the public SDK contract', async () => {
     const result = await researchRuntimeManager.execute(DOCUMENT_ID, {
       id: 'signature',
-      source: 'import inspect\n",".join(inspect.signature(data.series).parameters.keys())',
+      source:
+        'import inspect\n"|".join(",".join(inspect.signature(method).parameters.keys()) for method in [data.series, data.cross_section, data.panel])',
     });
 
     expect(result.outputs).toEqual([
       {
         type: 'value',
-        value: RESEARCH_SERIES_SDK_CONTRACT_V1.parameters
-          .map((parameter) => parameter.name)
-          .join(','),
+        value: [
+          RESEARCH_SERIES_SDK_CONTRACT_V1,
+          RESEARCH_CROSS_SECTION_SDK_CONTRACT_V1,
+          RESEARCH_PANEL_SDK_CONTRACT_V1,
+        ]
+          .map((contract) => contract.parameters.map((parameter) => parameter.name).join(','))
+          .join('|'),
       },
     ]);
   });

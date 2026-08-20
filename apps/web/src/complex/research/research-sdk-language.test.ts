@@ -29,6 +29,30 @@ monthly["val`;
   }
 });
 
+test('infers the fixed panel columns and universe argument without executing code', () => {
+  const source = `equities = data.panel(
+    "index:000300.SH",
+    start="20200101",
+    end="20251231",
+)
+equities["adjusted_`;
+  const context = researchSdkCompletionContext(source, source.length);
+
+  assert.equal(context?.kind, 'dataframe_column');
+  if (context?.kind === 'dataframe_column') {
+    assert.equal(context.contract.qualifiedName, 'data.panel');
+    assert.ok(
+      context.contract.returns.kind === 'dataframe' &&
+        context.contract.returns.columns.some((column) => column.name === 'adjusted_close'),
+    );
+  }
+
+  const universeCall = 'data.cross_section("index:000';
+  const universeContext = researchSdkCompletionContext(universeCall, universeCall.length);
+  assert.equal(universeContext?.kind, 'parameter_value');
+  assert.equal(universeContext?.parameterName, 'universe');
+});
+
 test('provides enum and chart column contexts without executing code', () => {
   const series = `monthly = data.series("index", "000300.SH", start="20200101", end="20251231", frequency="mon`;
   const enumContext = researchSdkCompletionContext(series, series.length);

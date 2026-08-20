@@ -351,6 +351,17 @@ function installResearchSdkLanguage(monacoInstance: Monaco): void {
               })),
             };
           }
+          if (parameter?.suggestedValues?.length) {
+            return {
+              suggestions: parameter.suggestedValues.map((value) => ({
+                label: value,
+                kind: monacoInstance.languages.CompletionItemKind.Value,
+                detail: localizedDescription(parameter),
+                insertText: value,
+                range,
+              })),
+            };
+          }
           if (
             parameter &&
             ['x', 'y', 'column', 'value', 'group'].includes(parameter.name) &&

@@ -23,6 +23,9 @@ describe('researchProfile', () => {
     expect(system).toContain('estimand, null hypothesis, formula');
     expect(system).toContain('SciPy and statsmodels');
     expect(system).toContain('data.series');
+    expect(system).toContain('data.cross_section');
+    expect(system).toContain('data.panel');
+    expect(system).toContain('not a replacement for FactorReport');
     expect(system).toContain('charts.*');
     expect(system).toContain('one focal predictor');
     expect(system).toContain('keep controls prespecified');

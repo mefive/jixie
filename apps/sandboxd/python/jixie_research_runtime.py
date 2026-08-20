@@ -23,6 +23,25 @@ _MAX_CHART_ROWS = 5_000
 _MAX_CHART_SERIES = 20
 _MAX_IMAGE_BYTES = 4 * 1024 * 1024
 _RUNTIME_NAMES = {"charts", "data", "np", "pd"}
+_EQUITY_DATASET_COLUMNS = [
+    "date",
+    "code",
+    "name",
+    "industry",
+    "close",
+    "adjusted_close",
+    "daily_return_pct",
+    "volume_lot",
+    "amount_cny_1k",
+    "pe",
+    "pe_ttm",
+    "pb",
+    "ps",
+    "dividend_yield_pct",
+    "total_market_cap_cny_10k",
+    "float_market_cap_cny_10k",
+    "turnover_rate_pct",
+]
 
 
 @dataclass
@@ -136,6 +155,59 @@ class _DataApi:
         frame = self._pandas.DataFrame(rows, columns=["date", "value"])
         if not frame.empty:
             frame["date"] = self._pandas.to_datetime(frame["date"], format="%Y%m%d")
+        return frame
+
+    def cross_section(
+        self,
+        universe: str,
+        *,
+        date: str,
+        minimum_listed_days: int = 365,
+        risk_warning: str = "exclude",
+    ) -> Any:
+        result = self._host.request(
+            "research_cross_section",
+            {
+                "universe": universe,
+                "date": date,
+                "minimum_listed_days": minimum_listed_days,
+                "risk_warning": risk_warning,
+            },
+        )
+        return self._equity_frame(result)
+
+    def panel(
+        self,
+        universe: str,
+        *,
+        start: str,
+        end: str,
+        frequency: str = "month_end",
+        minimum_listed_days: int = 365,
+        risk_warning: str = "exclude",
+    ) -> Any:
+        result = self._host.request(
+            "research_panel",
+            {
+                "universe": universe,
+                "start": start,
+                "end": end,
+                "frequency": frequency,
+                "minimum_listed_days": minimum_listed_days,
+                "risk_warning": risk_warning,
+            },
+        )
+        return self._equity_frame(result)
+
+    def _equity_frame(self, result: Any) -> Any:
+        rows = result.get("rows", []) if isinstance(result, dict) else []
+        if self._pandas is None:
+            return rows
+        frame = self._pandas.DataFrame(rows, columns=_EQUITY_DATASET_COLUMNS)
+        if not frame.empty:
+            frame["date"] = self._pandas.to_datetime(frame["date"], format="%Y%m%d")
+        if isinstance(result, dict) and isinstance(result.get("metadata"), dict):
+            frame.attrs["jixie"] = result["metadata"]
         return frame
 
 

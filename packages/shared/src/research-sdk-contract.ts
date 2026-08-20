@@ -8,6 +8,14 @@ export const RESEARCH_SERIES_TRANSFORMS_V1 = [
   'year_over_year',
 ] as const;
 export const RESEARCH_PARTIAL_PERIOD_POLICIES_V1 = ['exclude', 'include'] as const;
+export const RESEARCH_EQUITY_UNIVERSE_SUGGESTIONS_V1 = [
+  'cn_a',
+  'index:000300.SH',
+  'index:000905.SH',
+  'index:000852.SH',
+] as const;
+export const RESEARCH_EQUITY_RISK_WARNING_POLICIES_V1 = ['exclude', 'include'] as const;
+export const RESEARCH_PANEL_FREQUENCIES_V1 = ['month_end'] as const;
 
 export type ResearchSdkParameterTypeV1 =
   | 'string'
@@ -25,6 +33,7 @@ export interface ResearchSdkParameterContractV1 {
   keywordOnly: boolean;
   defaultValue?: string | number | null;
   values?: readonly string[];
+  suggestedValues?: readonly string[];
   maximumLength?: number;
   descriptionZh: string;
   descriptionEn: string;
@@ -32,7 +41,7 @@ export interface ResearchSdkParameterContractV1 {
 
 export interface ResearchSdkDataFrameColumnContractV1 {
   name: string;
-  wireType: 'trade_date' | 'number' | 'string' | 'boolean';
+  wireType: 'trade_date' | 'number' | 'nullable_number' | 'string' | 'nullable_string' | 'boolean';
   pythonType: string;
   descriptionZh: string;
   descriptionEn: string;
@@ -98,6 +107,163 @@ const chartLabelsParameter = {
   descriptionZh: '列名到显示名称的可选映射。',
   descriptionEn: 'An optional mapping from column names to display labels.',
 } as const;
+
+const equityUniverseParameter = {
+  name: 'universe',
+  type: 'string',
+  required: true,
+  keywordOnly: false,
+  suggestedValues: RESEARCH_EQUITY_UNIVERSE_SUGGESTIONS_V1,
+  maximumLength: 120,
+  descriptionZh: '股票池：cn_a 或 index:<指数代码>，例如 index:000300.SH。',
+  descriptionEn: 'Equity universe: cn_a or index:<index code>, for example index:000300.SH.',
+} as const;
+
+const minimumListedDaysParameter = {
+  name: 'minimum_listed_days',
+  type: 'integer',
+  required: false,
+  keywordOnly: true,
+  defaultValue: 365,
+  descriptionZh: '在每个截面日要求的最短上市自然日数，允许 0–36500。',
+  descriptionEn: 'Minimum calendar days listed at each cross-section date, from 0 through 36500.',
+} as const;
+
+const riskWarningParameter = {
+  name: 'risk_warning',
+  type: 'enum',
+  required: false,
+  keywordOnly: true,
+  defaultValue: 'exclude',
+  values: RESEARCH_EQUITY_RISK_WARNING_POLICIES_V1,
+  descriptionZh: '是否排除截面日当时处于风险警示或退市整理状态的股票。',
+  descriptionEn:
+    'Whether to exclude stocks under risk warning or pending delisting on the cross-section date.',
+} as const;
+
+export const RESEARCH_EQUITY_DATAFRAME_COLUMNS_V1 = [
+  {
+    name: 'date',
+    wireType: 'trade_date',
+    pythonType: 'datetime64[ns]',
+    descriptionZh: '实际使用的数据交易日。',
+    descriptionEn: 'The actual market-data trading date used.',
+  },
+  {
+    name: 'code',
+    wireType: 'string',
+    pythonType: 'str',
+    descriptionZh: '平台稳定股票代码。',
+    descriptionEn: 'The stable platform equity identifier.',
+  },
+  {
+    name: 'name',
+    wireType: 'string',
+    pythonType: 'str',
+    descriptionZh: '截面日可得的股票名称；历史名称缺失时退化为代码。',
+    descriptionEn:
+      'The equity name available on the cross-section date, falling back to the code when missing.',
+  },
+  {
+    name: 'industry',
+    wireType: 'nullable_string',
+    pythonType: 'str | None',
+    descriptionZh: '截面日的申万一级行业；缺少历史归属时为空。',
+    descriptionEn:
+      'The point-in-time SW level-1 industry, or null when historical membership is unavailable.',
+  },
+  {
+    name: 'close',
+    wireType: 'nullable_number',
+    pythonType: 'float64',
+    descriptionZh: '未复权收盘价，人民币。',
+    descriptionEn: 'Unadjusted close in CNY.',
+  },
+  {
+    name: 'adjusted_close',
+    wireType: 'nullable_number',
+    pythonType: 'float64',
+    descriptionZh: '收盘价乘以当日累计复权因子。',
+    descriptionEn: 'Close multiplied by the cumulative adjustment factor on that date.',
+  },
+  {
+    name: 'daily_return_pct',
+    wireType: 'nullable_number',
+    pythonType: 'float64',
+    descriptionZh: '相对前收盘价的当日涨跌幅，百分比。',
+    descriptionEn: 'Daily percentage change from the previous close.',
+  },
+  {
+    name: 'volume_lot',
+    wireType: 'nullable_number',
+    pythonType: 'float64',
+    descriptionZh: '成交量，单位手。',
+    descriptionEn: 'Trading volume in lots.',
+  },
+  {
+    name: 'amount_cny_1k',
+    wireType: 'nullable_number',
+    pythonType: 'float64',
+    descriptionZh: '成交额，单位千元人民币。',
+    descriptionEn: 'Trading amount in CNY 1,000.',
+  },
+  {
+    name: 'pe',
+    wireType: 'nullable_number',
+    pythonType: 'float64',
+    descriptionZh: '静态市盈率。',
+    descriptionEn: 'Static price-to-earnings ratio.',
+  },
+  {
+    name: 'pe_ttm',
+    wireType: 'nullable_number',
+    pythonType: 'float64',
+    descriptionZh: '滚动十二个月市盈率。',
+    descriptionEn: 'Trailing-twelve-month price-to-earnings ratio.',
+  },
+  {
+    name: 'pb',
+    wireType: 'nullable_number',
+    pythonType: 'float64',
+    descriptionZh: '市净率。',
+    descriptionEn: 'Price-to-book ratio.',
+  },
+  {
+    name: 'ps',
+    wireType: 'nullable_number',
+    pythonType: 'float64',
+    descriptionZh: '静态市销率。',
+    descriptionEn: 'Static price-to-sales ratio.',
+  },
+  {
+    name: 'dividend_yield_pct',
+    wireType: 'nullable_number',
+    pythonType: 'float64',
+    descriptionZh: '供应商口径股息率，百分比。',
+    descriptionEn: 'Provider-defined dividend yield in percent.',
+  },
+  {
+    name: 'total_market_cap_cny_10k',
+    wireType: 'nullable_number',
+    pythonType: 'float64',
+    descriptionZh: '总市值，单位万元人民币。',
+    descriptionEn: 'Total market capitalization in CNY 10,000.',
+  },
+  {
+    name: 'float_market_cap_cny_10k',
+    wireType: 'nullable_number',
+    pythonType: 'float64',
+    descriptionZh: '流通市值，单位万元人民币。',
+    descriptionEn: 'Float market capitalization in CNY 10,000.',
+  },
+  {
+    name: 'turnover_rate_pct',
+    wireType: 'nullable_number',
+    pythonType: 'float64',
+    descriptionZh: '按流通股本计算的换手率，百分比。',
+    descriptionEn: 'Turnover rate based on float shares, in percent.',
+  },
+] as const satisfies readonly ResearchSdkDataFrameColumnContractV1[];
 
 function chartFunction(
   name: 'line' | 'area' | 'bar' | 'scatter' | 'event_path',
@@ -242,6 +408,69 @@ export const RESEARCH_SDK_CONTRACT_V1 = {
         ],
       },
     },
+    {
+      qualifiedName: 'data.cross_section',
+      namespace: 'data',
+      name: 'cross_section',
+      descriptionZh: '读取一个请求日期上实际可得的 A 股 PIT 截面，返回固定列的 pandas DataFrame。',
+      descriptionEn:
+        'Load the actually available point-in-time China A-share cross-section for one requested date as a fixed-schema pandas DataFrame.',
+      parameters: [
+        equityUniverseParameter,
+        {
+          name: 'date',
+          type: 'date',
+          required: true,
+          keywordOnly: true,
+          descriptionZh: '请求日期，格式为 YYYYMMDD；无截面时使用此前最近数据日并披露。',
+          descriptionEn:
+            'Requested date in YYYYMMDD; the latest prior data date is used and disclosed when necessary.',
+        },
+        minimumListedDaysParameter,
+        riskWarningParameter,
+      ],
+      returns: { kind: 'dataframe', columns: RESEARCH_EQUITY_DATAFRAME_COLUMNS_V1 },
+    },
+    {
+      qualifiedName: 'data.panel',
+      namespace: 'data',
+      name: 'panel',
+      descriptionZh: '按历史 PIT 股票池规则读取多个完整月末截面，返回 date × code 固定列长表。',
+      descriptionEn:
+        'Load complete month-end point-in-time equity cross-sections as a fixed-schema date-by-code long DataFrame.',
+      parameters: [
+        equityUniverseParameter,
+        {
+          name: 'start',
+          type: 'date',
+          required: true,
+          keywordOnly: true,
+          descriptionZh: '起始日期，格式为 YYYYMMDD。',
+          descriptionEn: 'Inclusive start date in YYYYMMDD format.',
+        },
+        {
+          name: 'end',
+          type: 'date',
+          required: true,
+          keywordOnly: true,
+          descriptionZh: '结束日期，格式为 YYYYMMDD；未完成月份不会进入结果。',
+          descriptionEn: 'Inclusive end date in YYYYMMDD; an incomplete ending month is excluded.',
+        },
+        {
+          name: 'frequency',
+          type: 'enum',
+          required: false,
+          keywordOnly: true,
+          defaultValue: 'month_end',
+          values: RESEARCH_PANEL_FREQUENCIES_V1,
+          descriptionZh: '截面频率；首版只允许完整月末。',
+          descriptionEn: 'Cross-section frequency; V1 supports completed month ends only.',
+        },
+        minimumListedDaysParameter,
+        riskWarningParameter,
+      ],
+      returns: { kind: 'dataframe', columns: RESEARCH_EQUITY_DATAFRAME_COLUMNS_V1 },
+    },
     chartFunction(
       'line',
       '创建 jixie 原生交互折线图。',
@@ -369,3 +598,5 @@ export const RESEARCH_SDK_CONTRACT_V1 = {
 } as const satisfies ResearchSdkContractV1;
 
 export const RESEARCH_SERIES_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[0];
+export const RESEARCH_CROSS_SECTION_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[1];
+export const RESEARCH_PANEL_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[2];
