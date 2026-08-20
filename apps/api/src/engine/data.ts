@@ -8,7 +8,11 @@ import {
 import { addDays, daysBetween, isoWeekKey } from '../lib/date.js';
 import { t } from '../i18n/messages.js'; // direct import — keeps hono/locale out of the wall bundle
 import { StockNameLookup } from '../market/stock-identity.js';
-import type { EngineDataPort, FutureDailyDataRow } from './data-port.js';
+import type {
+  EngineDataPort,
+  FutureDailyDataRow,
+  PythonFactorComputeRequest,
+} from './data-port.js';
 import type { BarRow, FutureBar, IndexValuationField, OhlcBar, ResamplePeriod } from './types.js';
 
 /** Whole-market cross-section for one trading day. */
@@ -443,6 +447,13 @@ export class EngineData {
         this.factorDates.set(name, [...set].sort());
       }
     }
+  }
+
+  pythonFactorCompute(request: PythonFactorComputeRequest): Promise<(number | null)[]> {
+    if (!this.port.pythonFactorCompute) {
+      throw new Error('Python Factor execution is unavailable on this engine lane');
+    }
+    return this.port.pythonFactorCompute(request);
   }
 
   nextDay(date: string): string {

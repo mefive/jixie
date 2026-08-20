@@ -15,6 +15,11 @@ import { normalizeAnalysisKind } from '../factor/publication.js';
 import { parseAssetFactorAnalysisSourceSnapshot } from '../factor/analysis-job.js';
 import { isResearchOnlyFactorV2Field } from '../factor/factor-v2-fields.js';
 import { factorResearchSpecV1Schema, sha256 } from '../factor/report-spec.js';
+import { compilePythonCrossSectionalFactor } from '../factor/python-cross-sectional-runtime.js';
+import {
+  compilePythonPanelFactor,
+  compilePythonTimeSeriesFactor,
+} from '../factor/python-asset-factor-runtime.js';
 import { t } from '../i18n/messages.js';
 import { extractCustomFactorHistoryFields, type CustomFactorModule } from './custom-factor.js';
 
@@ -25,7 +30,7 @@ export function extractFactorKeys(source: string): string[] {
   const callKeys = [...source.matchAll(/\bctx\s*\.\s*factor\s*\(\s*['"]([^'"]+)['"]/g)].map(
     (match) => match[1],
   );
-  const declarationKeys = [...source.matchAll(/\bfactors\s*:\s*\[([\s\S]*?)\]/g)].flatMap(
+  const declarationKeys = [...source.matchAll(/\bfactors\s*[:=]\s*\[([\s\S]*?)\]/g)].flatMap(
     (declaration) => [...declaration[1].matchAll(/['"]([^'"]+)['"]/g)].map((match) => match[1]),
   );
   const keys = [...callKeys, ...declarationKeys];
@@ -64,6 +69,8 @@ export async function prepareStrategyFactors(
       name: true,
       code: true,
       analysisKind: true,
+      language: true,
+      runtimeVersion: true,
       codeHash: true,
       approvedReportId: true,
       userId: true,
@@ -160,6 +167,10 @@ export async function prepareStrategyFactors(
             ? (item.row.codeHash ?? sha256(item.row.code))
             : item.row.codeHash!,
         approvedReportId: row.approvedReportId,
+        language:
+          item.kind === 'factor' && item.row.language === 'python' ? 'python' : 'typescript',
+        runtimeVersion:
+          item.kind === 'factor' && item.row.runtimeVersion === 'py-v1' ? 'py-v1' : 'ts-v1',
         ...(modules[index]?.assetSeries ? { inputs: [...modules[index].assetSeries.inputs] } : {}),
       };
     }),
@@ -179,9 +190,51 @@ async function prepareFactorModule(
     key: string;
     code: string;
     analysisKind: string;
+    language?: string;
+    runtimeVersion?: string;
   },
   reportSpec?: unknown,
 ): Promise<CustomFactorModule> {
+  if (row.language === 'python') {
+    if (row.runtimeVersion !== 'py-v1') {
+      throw new Error(`factor ${row.key} has an invalid Python runtime version`);
+    }
+    if (row.analysisKind !== 'time_series' && row.analysisKind !== 'panel') {
+      const compiled = await compilePythonCrossSectionalFactor(row.code);
+      try {
+        return {
+          key: row.key,
+          language: 'python',
+          runtimeVersion: 'py-v1',
+          code: row.code,
+          analysisKind: 'cross_sectional',
+          crossSectional: { window: compiled.window },
+          historyFields: extractPythonFactorHistoryFields(row.code),
+        };
+      } finally {
+        compiled.dispose();
+      }
+    }
+    const compiled =
+      row.analysisKind === 'panel'
+        ? await compilePythonPanelFactor(row.code)
+        : await compilePythonTimeSeriesFactor(row.code);
+    try {
+      return {
+        key: row.key,
+        language: 'python',
+        runtimeVersion: 'py-v1',
+        code: row.code,
+        analysisKind: row.analysisKind,
+        assetSeries: { window: compiled.window, inputs: [...compiled.inputs] },
+        ...(row.analysisKind === 'panel' && reportSpec != null
+          ? { assetUniverse: parseApprovedPanelUniverse(row.key, reportSpec) }
+          : {}),
+      };
+    } finally {
+      compiled.dispose();
+    }
+  }
   if (row.analysisKind !== 'time_series' && row.analysisKind !== 'panel') {
     return {
       key: row.key,
@@ -252,6 +305,8 @@ async function preparePanelCompositeModule(
         key: component.factor,
         code: component.code,
         analysisKind: 'panel',
+        language: component.language,
+        runtimeVersion: component.runtimeVersion,
       }),
     })),
   );
@@ -270,6 +325,21 @@ async function preparePanelCompositeModule(
       components,
     },
   };
+}
+
+function extractPythonFactorHistoryFields(source: string) {
+  return [
+    source.includes('"turnover_rate_f"') || source.includes("'turnover_rate_f'")
+      ? ('turnoverRateF' as const)
+      : null,
+    source.includes('"roe"') || source.includes("'roe'") ? ('roe' as const) : null,
+    source.includes('"grossprofit_margin"') || source.includes("'grossprofit_margin'")
+      ? ('grossprofitMargin' as const)
+      : null,
+    source.includes('"market_close"') || source.includes("'market_close'")
+      ? ('marketClose' as const)
+      : null,
+  ].filter((field): field is NonNullable<typeof field> => field != null);
 }
 
 function parseApprovedPanelUniverse(

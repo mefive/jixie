@@ -214,6 +214,22 @@ def broken(ctx):
     }
   });
 
+  it('allows published Factor keys to flow through the shared engine host', async () => {
+    enableTestRuntime();
+    const runtime = await createPythonStrategyRuntime(`
+from jixie import Strategy
+strategy = Strategy(factors=["python_value"])
+@strategy.on_bar
+def handle_bar(ctx):
+    pass
+`);
+    try {
+      expect(runtime.strategy.factors).toEqual(['python_value']);
+    } finally {
+      await runtime.close();
+    }
+  });
+
   it.skipIf(
     Boolean(process.env.JIXIE_SANDBOX_SOCKET) && process.env.JIXIE_TEST_PYTHON_TIMEOUT !== '1',
   )('interrupts user-code loops instead of hanging the worker', async () => {

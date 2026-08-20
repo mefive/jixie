@@ -8,6 +8,7 @@ import { prismaDataPort } from './prisma-port.js';
 import { runStrategy } from './run.js';
 import type { BacktestResult } from './types.js';
 import { runWalledBacktest } from './walled-run.js';
+import { PythonFactorHost, withPythonFactorHost } from './python-factor-host.js';
 
 /** Dispatch a DB-authored strategy to its language runtime while keeping one TypeScript engine. */
 export async function runConfiguredBacktest(
@@ -40,7 +41,9 @@ export async function runConfiguredBacktest(
     return result;
   }
 
+  const prepared = await prepareStrategyFactors(config.code, userId, locale);
   const runtime = await createPythonStrategyRuntime(config.code, onUserLog, paramOverrides, locale);
+  const factorHost = new PythonFactorHost(onUserLog);
   try {
     const result = await runStrategy({
       start: config.start,
@@ -49,12 +52,15 @@ export async function runConfiguredBacktest(
       cost: config.cost,
       locale,
       strategy: runtime.strategy,
-      dataPort: prismaDataPort,
+      dataPort: withPythonFactorHost(prismaDataPort, factorHost),
+      customFactors: prepared.modules,
       onLog: onSystemLog,
     });
+    result.factorDependencies = prepared.factors;
     await attachRiskAnalysis(result, locale, onSystemLog);
     return result;
   } finally {
+    factorHost.close();
     await runtime.close();
   }
 }

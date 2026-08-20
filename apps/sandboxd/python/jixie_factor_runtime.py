@@ -39,6 +39,30 @@ class CrossSectionalFactorContext:
         return values[-periods:]
 
 
+class AssetFactorContext:
+    def __init__(
+        self, fields: dict[str, list[float]], index: int, declared_inputs: set[str]
+    ) -> None:
+        self._fields = fields
+        self._index = index
+        self._declared_inputs = declared_inputs
+
+    def value(self, field: str) -> float | None:
+        return self.lag(field, 0)
+
+    def lag(self, field: str, periods: int) -> float | None:
+        if field not in self._declared_inputs:
+            raise ValueError(f"Factor code accessed undeclared input {field}")
+        if isinstance(periods, bool) or not isinstance(periods, int) or periods < 0:
+            raise ValueError("ctx.lag periods must be a non-negative integer")
+        values = self._fields.get(field)
+        value_index = self._index - periods
+        if values is None or value_index < 0 or value_index >= len(values):
+            return None
+        value = values[value_index]
+        return value if isinstance(value, (int, float)) and math.isfinite(value) else None
+
+
 class _FactorDefinition:
     def __init__(
         self,
@@ -121,6 +145,7 @@ def _install_sdk() -> None:
     module.Factor = Factor
     module.FactorBar = FactorBar
     module.CrossSectionalFactorContext = CrossSectionalFactorContext
+    module.AssetFactorContext = AssetFactorContext
     sys.modules["jixie"] = module
 
 
@@ -139,13 +164,28 @@ def _load_factor(source: str, expected_kind: str) -> _FactorDefinition:
         )
     if not isinstance(factor.name, str) or not factor.name.strip():
         raise ValueError("Factor name must be a non-empty string")
-    if factor.window is not None and (
-        isinstance(factor.window, bool)
-        or not isinstance(factor.window, int)
-        or factor.window <= 0
-        or factor.window > 505
-    ):
-        raise ValueError("cross-sectional Factor window must be an integer between 1 and 505")
+    if expected_kind == "cross_sectional":
+        if factor.window is not None and (
+            isinstance(factor.window, bool)
+            or not isinstance(factor.window, int)
+            or factor.window <= 0
+            or factor.window > 505
+        ):
+            raise ValueError(
+                "cross-sectional Factor window must be an integer between 1 and 505"
+            )
+    else:
+        if (
+            isinstance(factor.window, bool)
+            or not isinstance(factor.window, int)
+            or factor.window < 2
+            or factor.window > 505
+        ):
+            raise ValueError("asset Factor window must be an integer between 2 and 505")
+        if not factor.inputs or len(set(factor.inputs)) != len(factor.inputs):
+            raise ValueError("asset Factor inputs must be a non-empty unique list")
+        if not factor.target_asset_classes:
+            raise ValueError("asset Factor target_asset_classes must not be empty")
     if factor.min_coverage is not None and (
         isinstance(factor.min_coverage, bool)
         or not isinstance(factor.min_coverage, (int, float))
@@ -182,6 +222,31 @@ def _compute_cross_sectional_batch(
     return values, first_error
 
 
+def _compute_asset_series(
+    factor: _FactorDefinition,
+    fields: dict[str, list[float]],
+    indexes: list[int],
+) -> tuple[list[float | int | None], str | None]:
+    values: list[float | int | None] = []
+    first_error: str | None = None
+    declared_inputs = set(factor.inputs)
+    for index in indexes:
+        try:
+            value = factor._callback(AssetFactorContext(fields, index, declared_inputs))
+            values.append(
+                value
+                if isinstance(value, (int, float))
+                and not isinstance(value, bool)
+                and math.isfinite(value)
+                else None
+            )
+        except Exception:
+            if first_error is None:
+                first_error = traceback.format_exc(limit=20)
+            values.append(None)
+    return values, first_error
+
+
 def run_factor(
     start: dict[str, Any],
     read_frame: Callable[[], dict[str, Any]],
@@ -191,8 +256,8 @@ def run_factor(
     if start.get("runtime_version") != "py-v1":
         raise ValueError("factor sandbox requires runtime py-v1")
     expected_kind = start.get("analysis_kind")
-    if expected_kind != "cross_sectional":
-        raise ValueError("this runtime currently supports cross_sectional Python Factors")
+    if expected_kind not in {"cross_sectional", "time_series", "panel"}:
+        raise ValueError("unknown Python Factor analysis kind")
     factor = run_user_code(
         lambda: _load_factor(start["code"], expected_kind), "factor initialization"
     )
@@ -203,6 +268,9 @@ def run_factor(
                 "name": factor.name,
                 "window": factor.window,
                 "min_coverage": factor.min_coverage,
+                "analysis_kind": factor.analysis_kind,
+                "inputs": factor.inputs,
+                "target_asset_classes": factor.target_asset_classes,
             },
         }
     )
@@ -211,12 +279,21 @@ def run_factor(
         message = read_frame()
         if message.get("type") == "close":
             return
-        if message.get("type") != "factor_compute_batch":
-            raise ValueError(f"unexpected factor sandbox message: {message.get('type')}")
-        values, first_error = run_user_code(
-            lambda: _compute_cross_sectional_batch(factor, message["items"]),
-            "factor batch",
-        )
+        message_type = message.get("type")
+        if factor.analysis_kind == "cross_sectional" and message_type == "factor_compute_batch":
+            values, first_error = run_user_code(
+                lambda: _compute_cross_sectional_batch(factor, message["items"]),
+                "factor batch",
+            )
+        elif factor.analysis_kind != "cross_sectional" and message_type == "factor_compute_series":
+            values, first_error = run_user_code(
+                lambda: _compute_asset_series(
+                    factor, message["fields"], message["indexes"]
+                ),
+                "factor series",
+            )
+        else:
+            raise ValueError(f"unexpected factor sandbox message: {message_type}")
         send_frame(
             {
                 "type": "factor_values",

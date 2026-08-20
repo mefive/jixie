@@ -39,8 +39,20 @@ const workerUrl = import.meta.url.endsWith('.ts')
 
 export type FactorAnalysisSource =
   | FactorAnalysisRuntimeSource
-  | { kind: 'time_series'; label: string; code: string }
-  | { kind: 'panel'; label: string; code: string }
+  | {
+      kind: 'time_series';
+      label: string;
+      code: string;
+      language?: FactorLanguage;
+      runtimeVersion?: 'ts-v1' | 'py-v1';
+    }
+  | {
+      kind: 'panel';
+      label: string;
+      code: string;
+      language?: FactorLanguage;
+      runtimeVersion?: 'ts-v1' | 'py-v1';
+    }
   | { kind: 'macro_regime'; label: string; code: string };
 
 const factorAnalysisRuntimeSourceSchema = z.discriminatedUnion('kind', [
@@ -55,11 +67,15 @@ const factorAnalysisRuntimeSourceSchema = z.discriminatedUnion('kind', [
     kind: z.literal('time_series'),
     label: z.string().min(1),
     code: z.string().min(1),
+    language: z.enum(['typescript', 'python']).optional(),
+    runtimeVersion: z.enum(['ts-v1', 'py-v1']).optional(),
   }),
   z.object({
     kind: z.literal('panel'),
     label: z.string().min(1),
     code: z.string().min(1),
+    language: z.enum(['typescript', 'python']).optional(),
+    runtimeVersion: z.enum(['ts-v1', 'py-v1']).optional(),
   }),
   z.object({
     kind: z.literal('macro_regime'),
@@ -117,9 +133,16 @@ export function parseFactorAnalysisSourceSnapshot(
   snapshot: string,
   label: string,
   composite: boolean,
+  language: FactorLanguage = 'typescript',
 ): FactorAnalysisSource {
   if (!composite) {
-    return { kind: 'single', code: snapshot, label };
+    return {
+      kind: 'single',
+      code: snapshot,
+      label,
+      language,
+      runtimeVersion: factorRuntimeVersion(language),
+    };
   }
   return factorAnalysisRuntimeSourceSchema.parse(JSON.parse(snapshot));
 }
@@ -128,6 +151,7 @@ export function parseAssetFactorAnalysisSourceSnapshot(
   snapshot: string,
   label: string,
   analysisKind: 'time_series' | 'panel' | 'macro_regime',
+  language: FactorLanguage = 'typescript',
 ): FactorAnalysisSource {
   if (analysisKind === 'panel') {
     try {
@@ -139,7 +163,15 @@ export function parseAssetFactorAnalysisSourceSnapshot(
       // Plain Factor V2 code is not JSON and remains the compatibility path.
     }
   }
-  return { kind: analysisKind, code: snapshot, label };
+  return analysisKind === 'macro_regime'
+    ? { kind: analysisKind, code: snapshot, label }
+    : {
+        kind: analysisKind,
+        code: snapshot,
+        label,
+        language,
+        runtimeVersion: factorRuntimeVersion(language),
+      };
 }
 
 export async function startFactorAnalysis(options: {
@@ -259,7 +291,7 @@ export function factorAnalysisSourceHash(snapshot: string, language: FactorLangu
 }
 
 function factorAnalysisSourceLanguage(source: FactorAnalysisSource): FactorLanguage {
-  if (source.kind === 'single') {
+  if (source.kind === 'single' || source.kind === 'time_series' || source.kind === 'panel') {
     return source.language === 'python' ? 'python' : 'typescript';
   }
   return 'typescript';

@@ -6,6 +6,7 @@ import type { EngineDataPort } from './data-port.js';
 import type { CustomFactorModule } from './custom-factor.js';
 import type { BacktestResult, CostModel, SignalBacktestOutput } from './types.js';
 import type { UserLogSink } from '../lib/sandbox-console.js';
+import { PythonFactorHost, withPythonFactorHost } from './python-factor-host.js';
 
 /**
  * The walled lane's HOST side (sandbox Phase B2): bundle the engine (wall-entry.ts) once, evaluate
@@ -180,6 +181,8 @@ async function runWalled(
   const userJs = await compileUserSource(cfg.code);
 
   const isolate = new ivm.Isolate({ memoryLimit: WALL_MEMORY_MB });
+  const pythonFactorHost = new PythonFactorHost(onUserLog);
+  const hostedPort = withPythonFactorHost(port, pythonFactorHost);
   try {
     const context = await isolate.createContext();
 
@@ -188,12 +191,14 @@ async function runWalled(
       '__hostFetch',
       new ivm.Reference(async (method: string, argsJson: string) => {
         const portMethod = (
-          port as unknown as Record<string, (...a: unknown[]) => Promise<unknown>>
+          hostedPort as unknown as Record<string, (...a: unknown[]) => Promise<unknown>>
         )[method];
         if (typeof portMethod !== 'function') {
           throw new Error(`unknown DataPort method: ${method}`);
         }
-        return JSON.stringify(await portMethod.apply(port, JSON.parse(argsJson) as unknown[]));
+        return JSON.stringify(
+          await portMethod.apply(hostedPort, JSON.parse(argsJson) as unknown[]),
+        );
       }),
     );
     // Doorway 2: fire-and-forget log lines (system progress / the strategy's console.*).
@@ -235,6 +240,7 @@ async function runWalled(
     }
     return JSON.parse(resultJson) as BacktestResult | SignalBacktestOutput;
   } finally {
+    pythonFactorHost.close();
     isolate.dispose();
   }
 }

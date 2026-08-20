@@ -37,6 +37,8 @@ export async function resolvePanelFactorSource(
       code: source.code,
       label: source.label,
       direction: component.direction,
+      language: source.language,
+      runtimeVersion: source.runtimeVersion,
     });
   }
   return {
@@ -53,7 +55,15 @@ async function resolveCustomPanelSource(
 ): Promise<Extract<FactorAnalysisSource, { kind: 'panel' }> | null> {
   const custom = await prisma.factor.findFirst({
     where: { id: factorId, userId, analysisKind: 'panel' },
-    select: { code: true, name: true },
+    select: { code: true, name: true, language: true, runtimeVersion: true },
   });
-  return custom ? { kind: 'panel', code: custom.code, label: custom.name } : null;
+  return custom
+    ? {
+        kind: 'panel',
+        code: custom.code,
+        label: custom.name,
+        language: custom.language === 'python' ? 'python' : 'typescript',
+        runtimeVersion: custom.runtimeVersion === 'py-v1' ? 'py-v1' : 'ts-v1',
+      }
+    : null;
 }

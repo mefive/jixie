@@ -132,7 +132,14 @@ async function performRefresh(
       end: completedThrough,
       neutral: 'size_industry',
     });
-    const report = await runWeatherWorker(pin.factorId, pin.factorName, pin.factorCode, spec);
+    const report = await runWeatherWorker(
+      pin.factorId,
+      pin.factorName,
+      pin.factorCode,
+      pin.language === 'python' ? 'python' : 'typescript',
+      pin.runtimeVersion,
+      spec,
+    );
     const observations = report.periodObservations ?? [];
     const newObservations = requiresFullRefresh
       ? observations
@@ -251,6 +258,8 @@ function runWeatherWorker(
   factor: string,
   label: string,
   code: string,
+  language: 'typescript' | 'python',
+  runtimeVersion: string,
   spec: ReturnType<typeof createDefaultFactorAnalysisSpecV3>,
 ): Promise<FactorReport> {
   return new Promise((resolve, reject) => {
@@ -258,7 +267,7 @@ function runWeatherWorker(
       workerData: {
         reportId: `weather:${factor}`,
         factor,
-        source: { kind: 'single', code, label },
+        source: { kind: 'single', code, label, language, runtimeVersion },
         spec,
         locale: 'zh',
       },

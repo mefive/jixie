@@ -6,9 +6,14 @@ import {
 } from '@jixie/shared';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
-import { factorResearchSpecV1Schema, sha256 } from './report-spec.js';
+import { factorResearchSpecV1Schema } from './report-spec.js';
 import { compilePanelFactor, compileTimeSeriesFactor } from './compile-time-series-factor.js';
 import { isResearchOnlyFactorV2Field } from './factor-v2-fields.js';
+import { factorAnalysisSourceHash } from './analysis-job.js';
+import {
+  compilePythonPanelFactor,
+  compilePythonTimeSeriesFactor,
+} from './python-asset-factor-runtime.js';
 
 export const publishFactorBodySchema = z.object({
   approvedReportId: z.string().trim().min(1).max(80),
@@ -41,6 +46,7 @@ export async function publishFactor(
       code: true,
       analysisKind: true,
       language: true,
+      runtimeVersion: true,
       status: true,
     },
   });
@@ -60,6 +66,8 @@ export async function publishFactor(
       revealedAt: true,
       factorCodeSnapshot: true,
       factorCodeHash: true,
+      language: true,
+      runtimeVersion: true,
       specJson: true,
       payload: true,
     },
@@ -68,7 +76,9 @@ export async function publishFactor(
     !report?.factorCodeSnapshot ||
     !report.factorCodeHash ||
     (report.phase === 'holdout' && !report.revealedAt) ||
-    normalizeAnalysisKind(report.analysisKind) !== normalizeAnalysisKind(factor.analysisKind)
+    normalizeAnalysisKind(report.analysisKind) !== normalizeAnalysisKind(factor.analysisKind) ||
+    normalizeFactorLanguage(report.language) !== normalizeFactorLanguage(factor.language) ||
+    report.runtimeVersion !== factor.runtimeVersion
   ) {
     throw new FactorPublicationError('report_invalid');
   }
@@ -77,12 +87,17 @@ export async function publishFactor(
   }
   if (
     (factor.analysisKind === 'time_series' || factor.analysisKind === 'panel') &&
-    (await assetFactorCodeUsesResearchOnlyInput(factor.code, factor.analysisKind))
+    (await assetFactorCodeUsesResearchOnlyInput(
+      factor.code,
+      factor.analysisKind,
+      normalizeFactorLanguage(factor.language),
+    ))
   ) {
     throw new FactorPublicationError('report_invalid');
   }
 
-  const currentHash = sha256(factor.code);
+  const language = normalizeFactorLanguage(factor.language);
+  const currentHash = factorAnalysisSourceHash(factor.code, language);
   if (report.factorCodeSnapshot !== factor.code || report.factorCodeHash !== currentHash) {
     throw new FactorPublicationError('report_outdated');
   }
@@ -107,8 +122,8 @@ export async function publishFactor(
     key: factor.key,
     name: factor.name,
     analysisKind: normalizeAnalysisKind(factor.analysisKind),
-    language: normalizeFactorLanguage(factor.language),
-    runtimeVersion: factorRuntimeVersion(normalizeFactorLanguage(factor.language)),
+    language,
+    runtimeVersion: factorRuntimeVersion(language),
     status: 'published',
     codeHash: currentHash,
     approvedReportId: report.id,
@@ -120,12 +135,17 @@ export async function publishFactor(
 async function assetFactorCodeUsesResearchOnlyInput(
   code: string,
   analysisKind: 'time_series' | 'panel',
+  language: FactorLanguage,
 ): Promise<boolean> {
   try {
     const compiled =
-      analysisKind === 'time_series'
-        ? await compileTimeSeriesFactor(code)
-        : await compilePanelFactor(code);
+      language === 'python'
+        ? analysisKind === 'time_series'
+          ? await compilePythonTimeSeriesFactor(code)
+          : await compilePythonPanelFactor(code)
+        : analysisKind === 'time_series'
+          ? await compileTimeSeriesFactor(code)
+          : await compilePanelFactor(code);
     try {
       return compiled.inputs.some(isResearchOnlyFactorV2Field);
     } finally {

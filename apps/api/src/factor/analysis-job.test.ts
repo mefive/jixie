@@ -22,7 +22,11 @@ vi.mock('../lib/prisma.js', () => ({
   },
 }));
 
-import { readFactorAnalysisResult, startFactorAnalysis } from './analysis-job.js';
+import {
+  factorAnalysisSourceHash,
+  readFactorAnalysisResult,
+  startFactorAnalysis,
+} from './analysis-job.js';
 import { factorVariantKey, sha256 } from './report-spec.js';
 
 const spec: FactorAnalysisSpecV3 = {
@@ -121,6 +125,35 @@ describe('startFactorAnalysis', () => {
       source: { kind: 'single', code: 'factor candidate', label: 'Quality' },
       spec: { version: 1, analysisKind: 'cross_sectional', protocol: spec },
     });
+  });
+
+  it('freezes py-v1 identity separately from identical TypeScript source bytes', async () => {
+    mocks.reportFindFirst.mockResolvedValue(null);
+    const source = {
+      kind: 'single' as const,
+      code: 'same source bytes',
+      label: 'Python factor',
+      language: 'python' as const,
+      runtimeVersion: 'py-v1' as const,
+    };
+    await startFactorAnalysis({
+      userId: 'user-1',
+      factor: 'factor-py',
+      source,
+      spec,
+      researchIntent,
+      locale: 'en',
+      failedMessage: 'failed',
+      exitedMessage: (code) => `exit ${code}`,
+      launchWorker: vi.fn(async () => {}),
+    });
+
+    expect(mocks.reportCreate.mock.calls[0][0].data).toMatchObject({
+      language: 'python',
+      runtimeVersion: 'py-v1',
+      factorCodeHash: factorAnalysisSourceHash(source.code, 'python'),
+    });
+    expect(factorAnalysisSourceHash(source.code, 'python')).not.toBe(sha256(source.code));
   });
 
   it('persists a frozen ETF time-series protocol and source', async () => {
