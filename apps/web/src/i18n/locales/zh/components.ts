@@ -6,6 +6,13 @@ export const zhComponents = {
   repairingCode: '代码编译未通过,修复中(第 {{round}} 次)…',
   writingCode: '正在写代码…',
   thinking: '思考中…',
+  agentPhase: {
+    reading_context: '读取研究上下文…',
+    querying_sdk: '查询 Research SDK…',
+    generating_changes: '生成研究内容…',
+    validating_proposal: '校验变更提案…',
+    awaiting_review: '等待审核…',
+  },
   stop: '停止',
 
   // Generic states

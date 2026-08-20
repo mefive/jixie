@@ -8,6 +8,13 @@ export const enComponents: typeof zhComponents = {
   repairingCode: 'Code failed to compile, repairing (attempt {{round}})…',
   writingCode: 'Writing code…',
   thinking: 'Thinking…',
+  agentPhase: {
+    reading_context: 'Reading research context…',
+    querying_sdk: 'Querying the Research SDK…',
+    generating_changes: 'Generating research content…',
+    validating_proposal: 'Validating the change proposal…',
+    awaiting_review: 'Awaiting review…',
+  },
   stop: 'Stop',
 
   // Generic states
