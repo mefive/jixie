@@ -51,6 +51,18 @@ const generated = {
   code: 'from jixie import Factor\nfactor = Factor.cross_sectional(name="Earnings yield")',
   summary: 'Reciprocal of positive trailing P/E.',
   unresolvedItems: ['Run a FactorReport.'],
+  suggestedReport: {
+    version: 1 as const,
+    analysisKind: 'cross_sectional' as const,
+    start: '20200101',
+    end: '20241231',
+    observationFrequency: 'monthly' as const,
+    equityUniverse: '000300.SH' as const,
+    minimumListingDays: 365,
+    excludeRiskWarnings: true,
+    hypothesis: 'Positive earnings yield predicts positive forward returns.',
+    expectedDirection: 'positive' as const,
+  },
   messages: [textMessage('user', 'create'), textMessage('assistant', 'created')],
 };
 
@@ -84,6 +96,7 @@ describe('research Factor drafts', () => {
         sourceExecutionId: execution.id,
         sourceHash: execution.sourceHash,
         language: 'python',
+        suggestedReport: generated.suggestedReport,
       },
     });
     expect(mocks.factorCreate).toHaveBeenCalledWith(

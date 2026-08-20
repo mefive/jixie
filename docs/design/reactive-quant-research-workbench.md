@@ -15,7 +15,9 @@
 > 成功封存的 ResearchExecution 可经 LLM 语义门生成带来源、摘要与未解决项的 Factor / Strategy 草稿；二者
 > 默认延续 Python 心智并使用 `py-v1`。Factor Python 已覆盖静态 SDK、受限运行时、横截面/时序/Panel、
 > FactorReport、发布、Strategy 消费和 Monaco/Pyright；既有 TypeScript Factor 保持兼容。派生报告回流 Research
-> 与不可变 BacktestReport 仍属于独立 backlog，不阻塞本文首版完成定义。
+> 与不可变 BacktestReport 仍属于独立 backlog，不阻塞本文首版完成定义。Research → Factor 还会把快照中明确且
+> 可表达的股票池、日期、频率、过滤条件、标的和事前方向保存为 FactorReport 建议参数；Factor 工作台只在草稿
+> 尚无报告时预填并要求用户确认，不自动运行，也不把 Universe 写进 Factor 公式。
 
 ## 1. 产品判断
 
@@ -225,7 +227,9 @@ Measure Catalog 的 `assetTypes` 过滤，再使用具体标的的 `compatibleMe
 | 持仓与订单 | 不允许 | 不允许 | 允许 |
 
 从 Research 提取 Factor 时，只带入选中 Cell 的候选公式、字段依赖、Universe、预测期限、预期方向、来源
-ResearchExecution 和未解决限制；进入 Factor 页面后仍须满足定义校验、正式报告、Explore / Holdout 与发布纪律。
+ResearchExecution 和未解决限制。其中公式进入可复用的 Factor 定义；Universe、日期、频率、过滤条件与方向进入
+可审查的 FactorReport 建议参数。建议参数只在尚无报告的草稿中预填，用户确认后才运行；不能表达的研究口径列为
+未解决项，不静默退回全 A 股等默认值。进入 Factor 页面后仍须满足定义校验、正式报告、Explore / Holdout 与发布纪律。
 从 Research 创建 Strategy 时带入规则、资产范围、调仓和来源执行，但必须在 Strategy Lab 中补齐仓位、成本、
 成交与风险约束并重新回测。
 
@@ -515,7 +519,9 @@ DAG、输出与指纹。首版只在当前文档内查看运行历史；全局�
   一个可由现有 Factor SDK 表达的时点信号，再重写为 `cross_sectional / time_series / panel` 定义；生成代码必须
   通过现有 Factor 编译器与最多两轮修复。描述性研究、指数间回归、未来信息、数据能力缺口或输出语义不清时明确
   拒绝，不创建空壳。每个快照只生成一个草稿，重复操作直接打开原草稿；Factor 保留来源快照、来源 revision/hash、
-  LLM 摘要和未解决项，并可精确回跳只读快照。交接不会自动运行 FactorReport、揭示 Holdout、发布 Factor 或复制研究数据；
+  LLM 摘要和未解决项，并可精确回跳只读快照。快照中明确且受支持的股票池、日期、频率、过滤条件、标的与事前
+  方向形成版本化 FactorReport 建议参数；Factor 代码保持与评估范围解耦，工作台只在草稿尚无报告时预填建议并
+  要求用户确认，不能表达的范围进入未解决项。交接不会自动运行 FactorReport、揭示 Holdout、发布 Factor 或复制研究数据；
 - **已完成（第 2 项）**：只允许成功且已封存的 `ResearchExecution` 生成唯一、私有的 Strategy 草稿。LLM
   先判断研究是否已经明确资产范围、信号方向、调仓/进出场规则与仓位动作；需先固化信号的研究引导用户生成
   Factor，描述性研究或当前 Python Strategy runtime 无法表达的品种/频率明确拒绝。通过门禁后生成的草稿默认使用

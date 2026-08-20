@@ -51,6 +51,7 @@ export async function createResearchFactorDraft(
     language: generated.language,
     summary: generated.summary,
     unresolvedItems: generated.unresolvedItems,
+    suggestedReport: generated.suggestedReport,
     generatedAt: generatedAt.toISOString(),
     models: {
       classifier: process.env.DEEPSEEK_MODEL ?? 'deepseek-chat',

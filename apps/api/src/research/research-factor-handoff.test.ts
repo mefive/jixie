@@ -68,6 +68,14 @@ def compute(ctx: AssetFactorContext) -> float | None:
     previous = ctx.lag("etf.adjustedClose", 20)
     return current / previous - 1 if current is not None and previous is not None and previous > 0 else None`;
 
+const validCrossSectionalCode = `from jixie import Factor, FactorBar, CrossSectionalFactorContext
+
+factor = Factor.cross_sectional(name="低市净率")
+
+@factor.compute
+def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
+    return 1 / bar.pb if bar.pb is not None and bar.pb > 0 else None`;
+
 describe('research Factor handoff', () => {
   it('classifies a frozen research signal and returns compile-validated Factor code', async () => {
     const classifier = vi.fn(async (_messages: Parameters<AgentLlm>[0]) =>
@@ -78,6 +86,17 @@ describe('research Factor handoff', () => {
         factorKey: 'etf_momentum_20d',
         summary: '使用 ETF 过去 20 个交易日收益形成逐资产时间序列信号。',
         unresolvedItems: ['研究样本仅覆盖一个市场阶段。'],
+        suggestedReport: {
+          start: '20200101',
+          end: '20241231',
+          observationFrequency: 'daily',
+          equityUniverse: null,
+          minimumListingDays: null,
+          excludeRiskWarnings: null,
+          assets: ['510300.SH', '510300.SH'],
+          hypothesis: 'ETF 过去 20 个交易日收益与未来收益正相关。',
+          expectedDirection: 'positive',
+        },
       }),
     );
     const codegen: AgentLlm = vi.fn(async () => ({
@@ -96,6 +115,16 @@ describe('research Factor handoff', () => {
       factorKeyBase: 'etf_momentum_20d',
       code: validTimeSeriesCode,
       summary: '使用 ETF 过去 20 个交易日收益形成逐资产时间序列信号。',
+      suggestedReport: {
+        version: 1,
+        analysisKind: 'time_series',
+        start: '20200101',
+        end: '20241231',
+        observationFrequency: 'daily',
+        assets: ['510300.SH'],
+        hypothesis: 'ETF 过去 20 个交易日收益与未来收益正相关。',
+        expectedDirection: 'positive',
+      },
     });
     expect(result.unresolvedItems).toContain('研究样本仅覆盖一个市场阶段。');
     expect(result.unresolvedItems).toContain(
@@ -118,6 +147,67 @@ describe('research Factor handoff', () => {
       }),
     ).rejects.toThrow(ResearchFactorHandoffRejectedError);
     expect(codegen).not.toHaveBeenCalled();
+  });
+
+  it('keeps the Factor formula universe-neutral and returns CSI 300 as report input', async () => {
+    const scopedExecution: ResearchExecutionV1 = {
+      ...execution,
+      cells: [
+        execution.cells[0]!,
+        {
+          ...execution.cells[1]!,
+          source: [
+            'panel = data.panel(',
+            '    "index:000300.SH",',
+            '    start="20200101",',
+            '    end="20241231",',
+            '    frequency="month_end",',
+            '    minimum_listed_days=365,',
+            '    risk_warning="exclude",',
+            ')',
+            'panel["book_to_price"] = 1 / panel["pb"]',
+          ].join('\n'),
+        },
+      ],
+    };
+    const result = await generateResearchFactorDraft(scopedExecution, 'zh', {
+      classifier: async () =>
+        JSON.stringify({
+          decision: 'convertible',
+          analysisKind: 'cross_sectional',
+          factorName: '低市净率',
+          factorKey: 'low_pb',
+          summary: '使用正市净率倒数形成逐股票横截面信号。',
+          unresolvedItems: [],
+          suggestedReport: {
+            start: '20200101',
+            end: '20241231',
+            observationFrequency: 'monthly',
+            equityUniverse: '000300.SH',
+            minimumListingDays: 365,
+            excludeRiskWarnings: true,
+            assets: [],
+            hypothesis: '较高账面市值比预期对应较高未来收益。',
+            expectedDirection: 'positive',
+          },
+        }),
+      codegen: async () => ({ text: `\`\`\`python\n${validCrossSectionalCode}\n\`\`\`` }),
+    });
+
+    expect(result.code).toBe(validCrossSectionalCode);
+    expect(result.code).not.toContain('000300.SH');
+    expect(result.suggestedReport).toEqual({
+      version: 1,
+      analysisKind: 'cross_sectional',
+      start: '20200101',
+      end: '20241231',
+      observationFrequency: 'monthly',
+      equityUniverse: '000300.SH',
+      minimumListingDays: 365,
+      excludeRiskWarnings: true,
+      hypothesis: '较高账面市值比预期对应较高未来收益。',
+      expectedDirection: 'positive',
+    });
   });
 
   it('turns malformed gatekeeper output into a user-facing rejection', async () => {
@@ -145,6 +235,17 @@ describe('research Factor handoff', () => {
           factorKey: 'etf_momentum_20d',
           summary: '20 日价格动量。',
           unresolvedItems: [],
+          suggestedReport: {
+            start: null,
+            end: null,
+            observationFrequency: null,
+            equityUniverse: null,
+            minimumListingDays: null,
+            excludeRiskWarnings: null,
+            assets: [],
+            hypothesis: null,
+            expectedDirection: null,
+          },
         }),
       codegen,
     });
