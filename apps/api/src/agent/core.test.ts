@@ -15,6 +15,13 @@ const TIME_SERIES_FACTOR2 = TIME_SERIES_FACTOR.replace('window: 21', 'window: 61
   ', 20);',
   ', 60);',
 );
+const PYTHON_FACTOR = `from jixie import Factor, FactorBar, CrossSectionalFactorContext
+
+factor = Factor.cross_sectional(name="盈利收益率")
+
+@factor.compute
+def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
+    return 1 / bar.pe_ttm if bar.pe_ttm is not None and bar.pe_ttm > 0 else None`;
 
 /** A scripted AgentLlm: pops replies in order (repeats the last one if called again). */
 function scriptedLlm(replies: Awaited<ReturnType<AgentLlm>>[]) {
@@ -202,6 +209,30 @@ describe('agentTurn(factorProfile)', () => {
     expect(llm.mock.calls[0][1].map((tool) => tool.name)).not.toContain('runFactorAnalysis');
     expect(llm.mock.calls[0][1].map((tool) => tool.name)).toContain('runTimeSeriesFactorAnalysis');
     expect(llm.mock.calls[0][0][0].content).toContain('Research execution discipline');
+  });
+
+  it('authors and validates Python Factors with a Python conversation contract', async () => {
+    const llm = scriptedLlm([
+      { text: `已改为盈利收益率。\n\`\`\`python\n${PYTHON_FACTOR}\n\`\`\`` },
+    ]);
+    const result = await agentTurn(
+      factorProfile({
+        userId: 'user-1',
+        factorId: 'factor-python',
+        currentCode: PYTHON_FACTOR,
+        locale: 'zh',
+        language: 'python',
+      }),
+      [],
+      '改成盈利收益率',
+      PYTHON_FACTOR.replace('pe_ttm', 'pb'),
+      llm,
+    );
+
+    expect(result.changed).toBe(true);
+    expect(result.code).toBe(PYTHON_FACTOR);
+    expect(llm.mock.calls[0][0][0].content).toContain('```python');
+    expect(llm.mock.calls[0][0][0].content).toContain('Factor.cross_sectional');
   });
 });
 

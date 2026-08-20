@@ -53,23 +53,20 @@ const execution: ResearchExecutionV1 = {
   ],
 };
 
-const validTimeSeriesCode = `export default defineFactorV2({
-  version: 2,
-  name: 'ETF 20日动量',
-  analysisKind: 'time_series',
-  outputScope: 'asset',
-  frequency: 'daily',
-  inputs: ['etf.adjustedClose'],
-  targetAssetClasses: ['equity', 'fixed_income', 'commodity'],
-  window: 21,
-  compute(ctx) {
-    const current = ctx.value('etf.adjustedClose');
-    const previous = ctx.lag('etf.adjustedClose', 20);
-    return current != null && previous != null && previous > 0
-      ? current / previous - 1
-      : null;
-  },
-});`;
+const validTimeSeriesCode = `from jixie import Factor, AssetFactorContext
+
+factor = Factor.time_series(
+    name="ETF 20日动量",
+    inputs=["etf.adjustedClose"],
+    target_asset_classes=["equity", "fixed_income", "commodity"],
+    window=21,
+)
+
+@factor.compute
+def compute(ctx: AssetFactorContext) -> float | None:
+    current = ctx.value("etf.adjustedClose")
+    previous = ctx.lag("etf.adjustedClose", 20)
+    return current / previous - 1 if current is not None and previous is not None and previous > 0 else None`;
 
 describe('research Factor handoff', () => {
   it('classifies a frozen research signal and returns compile-validated Factor code', async () => {
@@ -84,7 +81,7 @@ describe('research Factor handoff', () => {
       }),
     );
     const codegen: AgentLlm = vi.fn(async () => ({
-      text: `已按冻结研究重写为 Factor Definition V2。\n\n\`\`\`ts\n${validTimeSeriesCode}\n\`\`\``,
+      text: `已按冻结研究重写为 Python Factor。\n\n\`\`\`python\n${validTimeSeriesCode}\n\`\`\``,
     }));
 
     const result = await generateResearchFactorDraft(execution, 'zh', {
@@ -94,6 +91,7 @@ describe('research Factor handoff', () => {
 
     expect(result).toMatchObject({
       analysisKind: 'time_series',
+      language: 'python',
       factorName: 'ETF 20日动量',
       factorKeyBase: 'etf_momentum_20d',
       code: validTimeSeriesCode,
@@ -135,7 +133,7 @@ describe('research Factor handoff', () => {
     const codegen: AgentLlm = vi.fn(async () => {
       call += 1;
       return call === 1
-        ? { text: '先生成候选。\n```ts\nexport default defineFactorV2({ nope: true });\n```' }
+        ? { text: '先生成候选。\n```python\nfactor = object()\n```' }
         : { text: validTimeSeriesCode };
     });
     const result = await generateResearchFactorDraft(execution, 'zh', {

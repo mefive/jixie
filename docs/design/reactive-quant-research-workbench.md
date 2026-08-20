@@ -11,11 +11,11 @@
 > 拓扑批量运行、运行中断、干净全文运行和
 > 不可变完整运行快照、文档内运行历史、只读回看与显式封存。
 > Agent 受审计增删改 Cell、用户授权的受控执行、精确结果解释和简版尝试比较已经完成；M3 以当前快照能力
-> 收工，不把数据副本、自动执行归因、反向来源关联或全局档案作为首版阻塞项。M4 已完成首个垂直切片：
-> 成功封存的 ResearchExecution 可经 LLM 语义门和 Factor 编译器生成带来源、摘要与未解决项的 Factor 草稿；
-> Strategy 交接与 Research 复盘加载仍待完成，因此本文的“首版完成定义”尚未全部关闭。Research 产物默认
-> 延续 Python 心智：Strategy 交接默认生成 `py-v1`；Factor 当前只有 TypeScript SDK/runtime，补齐 Python
-> Factor SDK、编译校验、报告执行与编辑器支持后，Research → Factor 也应默认生成 Python，此项进入 backlog。
+> 收工，不把数据副本、自动执行归因、反向来源关联或全局档案作为首版阻塞项。M4 的首版交接闭环也已完成：
+> 成功封存的 ResearchExecution 可经 LLM 语义门生成带来源、摘要与未解决项的 Factor / Strategy 草稿；二者
+> 默认延续 Python 心智并使用 `py-v1`。Factor Python 已覆盖静态 SDK、受限运行时、横截面/时序/Panel、
+> FactorReport、发布、Strategy 消费和 Monaco/Pyright；既有 TypeScript Factor 保持兼容。派生报告回流 Research
+> 与不可变 BacktestReport 仍属于独立 backlog，不阻塞本文首版完成定义。
 
 ## 1. 产品判断
 
@@ -521,9 +521,9 @@ DAG、输出与指纹。首版只在当前文档内查看运行历史；全局�
   Factor，描述性研究或当前 Python Strategy runtime 无法表达的品种/频率明确拒绝。通过门禁后生成的草稿默认使用
   Python `py-v1`，必须通过现有编译与受限运行时校验，并保留来源快照、revision/hash、摘要、待验证项和精确回链；
   交接不会自动运行回测，用户仍需在 Strategy Lab 中确认参数、显式回测并审查交易与结果；
-- **开发中（第 3 项）**：Factor 增加 Python SDK、静态类型、受限运行时和 `py-v1` 代码快照，依次覆盖
+- **已完成（第 3 项）**：Factor 增加 Python SDK、静态类型、受限运行时和 `py-v1` 代码快照，依次覆盖
   `cross_sectional`、`time_series`、`panel`、FactorReport、发布和 Strategy 消费链路；现有 TypeScript Factor
-  保持兼容，新的 Factor 以及 Research → Factor 草稿默认使用 Python。实现拆为四个独立 commit：契约/持久化/
+  保持兼容，新的 Factor 以及 Research → Factor 草稿默认使用 Python。四个实现切片已经完成：契约/持久化/
   stubs，横截面运行时，时序与 Panel 下游闭环，Monaco/Pyright/模板/Research 交接与 E2E；
 - 已发布 Factor 和冻结回测不可被研究文档反向修改。
 

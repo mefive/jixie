@@ -207,9 +207,9 @@ M4 第 2 项已经完成：成功封存的 ResearchExecution 可经 LLM 语义�
 使用 Python `py-v1`；草稿必须通过编译与受限运行时校验，保留来源快照、revision/hash、摘要、待验证项和精确
 回链，但不会自动运行回测，用户仍须在 Strategy Lab 中确认参数并显式回测。
 
-M4 第 3 项正在实施：Factor 增加 Python SDK、`py-v1` 受限运行时、FactorReport / 发布 / Strategy 消费链路和
+M4 第 3 项已经完成：Factor 已增加 Python SDK、`py-v1` 受限运行时、FactorReport / 发布 / Strategy 消费链路和
 Monaco/Pyright 支持；现有 TypeScript Factor 保持兼容，新的 Factor 以及 Research → Factor 草稿默认 Python。
-实现按契约与持久化、横截面运行时、时序/Panel 下游闭环、编辑器与 E2E 四个 commit 推进。
+实现已按契约与持久化、横截面运行时、时序/Panel 下游闭环、编辑器与 E2E 四个切片落地。
 
 Research 对派生结果的二次分析进入 backlog：FactorReport 可作为用户权限内的不可变 `results` 数据集读取；
 Strategy 当前只有会被后续运行覆盖的 `lastResult`，精确历史复盘必须先引入不可变 `BacktestReport`，记录配置/
@@ -409,7 +409,7 @@ Roll-down、连续合约和季节性等数据；跨区域扩展时保留原始�
 | 顺序 | 工作 | 状态 | 原因 |
 |---|---|---|---|
 | 1 | 1.5 M0–M3 响应式研究文档 | ✅ | Markdown / Python、Agent、运行与快照主闭环已完成 |
-| 2 | 1.5 M4 Factor / Strategy 血缘交接 | ⬜ | 完成主线一的最后产品闭环 |
+| 2 | 1.5 M4 Factor / Strategy 血缘交接 | ✅ | Python Factor / Strategy 草稿与来源快照交接已闭环 |
 | 3 | 1.3 Research Curator 手动版 | ✅ | 已能发现并核验可沉淀的方法、数据和文档缺口 |
 | 4 | 1.4 研究语义目录持续维护 | 🚧 | 随真实研究问题补充稳定对象、指标和 loader |
 | 5 | 3.1 跨市场数据契约与数据源矩阵 | ✅ | 中港美股债商扩展的共同前置，先防语义债 |

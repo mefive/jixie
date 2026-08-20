@@ -77,6 +77,29 @@ describe('Research Pyright language service', () => {
     }
   }, 20_000);
 
+  it('provides the generated Python Factor SDK through the same Pyright service', async () => {
+    const factorRequest: ResearchLanguageRequestV1 = {
+      version: 1,
+      documentId: 'factor-1',
+      cells: [
+        {
+          id: 'definition',
+          source:
+            'from jixie import FactorBar\ndef compute(bar: FactorBar) -> float | None:\n    return bar.\n',
+        },
+      ],
+      cellId: 'definition',
+      action: 'completion',
+      position: { line: 2, character: 15 },
+    };
+    const response = await service.request('factor-user', factorRequest);
+
+    expect(response.action).toBe('completion');
+    if (response.action === 'completion') {
+      expect(response.result.items.map((item) => item.label)).toContain('pe_ttm');
+    }
+  }, 20_000);
+
   it('publishes static diagnostics without executing a Cell', async () => {
     const response = await service.request('user-a:document-a', request('diagnostics'));
     expect(response.action).toBe('diagnostics');

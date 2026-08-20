@@ -58,6 +58,16 @@
 - `gen:research-sdk` 只从公开 Contract 生成派生产物，不读取 Prisma。Prisma → SDK 的业务映射需要人工决策；
   Contract → `.pyi`、Monaco 补全和 API 校验必须自动同步并由契约测试约束。
 
+## Factor Python SDK Contract 工作流
+
+- Factor Python 的公开类型和字段以 `packages/shared/src/factor-python-sdk.ts` 为唯一真相源；Prisma 的 Factor
+  存储列只负责语言、运行时和代码血缘，禁止反向推导 Python SDK。
+- 修改 Factor Python 公开字段、上下文方法、输入枚举或构造参数后，运行 `pnpm gen:factor-sdk` 生成
+  `apps/sandboxd/python/jixie_factor_sdk.pyi`，再运行 `pnpm check:factor-sdk`、`pnpm typecheck` 和相关运行时/
+  Pyright 测试。根级 `build` / `typecheck` 已把生成物一致性作为门禁。
+- Monaco/Pyright 直接复用同一 Contract 渲染的 stub，不另维护前端 Python schema；TypeScript Factor 的 ambient
+  类型继续独立兼容，不能用旧 TS 字段名污染 Python 的 snake_case 契约。
+
 ## 目录约定(对齐 fangtu)
 
 - `apps/api` — Hono 后端 + `prisma/schema.prisma` + 领域逻辑(`src/tushare`、`src/store`,未来 `src/factor`、`src/backtest`)+ 研究 / 导入脚本(`scripts/`,wired 成 `smoke` / `sync` / `peek` 等)

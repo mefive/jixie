@@ -1,6 +1,6 @@
 import { buildFactorCodegenPrompt } from '../../factor/factor-codegen-prompt.js';
 import { validateFactorDefinition } from '../../factor/validate-factor-definition.js';
-import type { Locale } from '@jixie/shared';
+import type { FactorLanguage, Locale } from '@jixie/shared';
 import { buildAgentMode, RESEARCH_TOOLS_HINT, TOOLS_HINT, type AgentProfile } from '../core.js';
 import { defaultTools } from '../tools/index.js';
 import { runFactorAnalysisTool } from '../tools/run-factor-analysis.js';
@@ -12,11 +12,13 @@ export function factorProfile(research?: {
   factorId: string;
   currentCode: string;
   locale: Locale;
+  language?: FactorLanguage;
   analysisKind?: 'cross_sectional' | 'time_series' | 'panel';
 }): AgentProfile {
   const analysisKind = research?.analysisKind ?? 'cross_sectional';
+  const language = research?.language ?? 'typescript';
   return {
-    system: `${buildFactorCodegenPrompt(analysisKind)}\n${buildAgentMode('factor')}\n${TOOLS_HINT}${research ? RESEARCH_TOOLS_HINT : ''}`,
+    system: `${buildFactorCodegenPrompt(analysisKind, language)}\n${buildAgentMode('factor', language)}\n${TOOLS_HINT}${research ? RESEARCH_TOOLS_HINT : ''}`,
     tools: [
       ...defaultTools(),
       ...(research && analysisKind !== 'panel'
@@ -29,8 +31,9 @@ export function factorProfile(research?: {
     ],
     artifact: {
       noun: 'factor',
+      language,
       validate: async (code) => {
-        await validateFactorDefinition(code, analysisKind);
+        await validateFactorDefinition(code, analysisKind, language);
       },
     },
   };

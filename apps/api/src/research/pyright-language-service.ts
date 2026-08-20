@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import {
+  renderFactorPythonSdkStub,
   renderResearchSdkPythonStub,
   type ResearchLanguageCompletionItemV1,
   type ResearchLanguageDiagnosticV1,
@@ -182,6 +183,10 @@ export class ResearchPythonLanguageService {
     await writeLanguageStub(
       join(typingsPath, 'jixie_research_sdk.pyi'),
       renderResearchSdkPythonStub(),
+    );
+    await writeLanguageStub(
+      join(typingsPath, 'jixie', '__init__.pyi'),
+      renderFactorPythonSdkStub(),
     );
     await Promise.all(
       Object.entries(RESEARCH_LANGUAGE_LIBRARY_STUBS).map(([path, source]) =>

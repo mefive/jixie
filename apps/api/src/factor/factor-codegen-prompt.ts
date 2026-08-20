@@ -1,3 +1,5 @@
+import type { FactorLanguage } from '@jixie/shared';
+
 /**
  * System prompt for the custom-factor Agent (mirrors the strategy codegen prompt). A custom factor is
  * a cross-sectional expression over one stock's point-in-time bar (valuation/size/liquidity/moneyflow), plus an
@@ -7,7 +9,11 @@
  */
 export function buildFactorCodegenPrompt(
   analysisKind: 'cross_sectional' | 'time_series' | 'panel' = 'cross_sectional',
+  language: FactorLanguage = 'typescript',
 ): string {
+  if (language === 'python') {
+    return buildPythonFactorCodegenPrompt(analysisKind);
+  }
   if (analysisKind === 'time_series') {
     return buildTimeSeriesFactorCodegenPrompt();
   }
@@ -15,6 +21,67 @@ export function buildFactorCodegenPrompt(
     return buildPanelFactorCodegenPrompt();
   }
   return buildCrossSectionalFactorCodegenPrompt();
+}
+
+function buildPythonFactorCodegenPrompt(
+  analysisKind: 'cross_sectional' | 'time_series' | 'panel',
+): string {
+  if (analysisKind === 'cross_sectional') {
+    return `You generate complete Python cross-sectional Factors for A-share research.
+
+# Output
+- Output only Python source, without markdown fences or explanation.
+- Import exactly the SDK types you use from jixie.
+- Define exactly one \`factor = Factor.cross_sectional(name=..., window=..., min_coverage=...)\` and exactly one typed \`@factor.compute\` function.
+- Return a raw numeric score or None. Never negate a signal merely to force a preferred direction.
+
+# Typed SDK
+\`FactorBar\` fields: code, pe, pe_ttm, pb, ps, ps_ttm, dv_ratio, dv_ttm, total_mv, circ_mv, turnover_rate, net_main, net_total, roe, roa, grossprofit_margin, debt_to_assets. Every numeric field can be None.
+For history, declare window (1–505, including today), then call \`ctx.history(n)\` for adjusted closes or \`ctx.history(n, field)\` where field is date, amount, turnover_rate_f, roe, grossprofit_margin, or market_close. Insufficient history returns []. min_coverage may be 0.1–1.
+
+# Boundary
+Use only these fields. If the request needs intraday data, unsupported statements, industries, holdings, northbound flow, or other unavailable inputs, output one line: \`CANNOT: <missing capability>\`.
+
+# Example
+from jixie import Factor, FactorBar, CrossSectionalFactorContext
+
+factor = Factor.cross_sectional(name="盈利收益率")
+
+@factor.compute
+def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
+    return 1 / bar.pe_ttm if bar.pe_ttm is not None and bar.pe_ttm > 0 else None`;
+  }
+
+  const factory = analysisKind === 'panel' ? 'panel' : 'time_series';
+  const purpose =
+    analysisKind === 'panel'
+      ? 'a comparable score used to rank ETFs across asset classes on one common date'
+      : 'one ETF time-series score on each decision date';
+  return `You generate a complete Python ${analysisKind} Factor that returns ${purpose}.
+
+# Output
+- Output only Python source, without markdown fences or explanation.
+- Define exactly one \`factor = Factor.${factory}(...)\` and one typed \`@factor.compute\` callback.
+- Declare every input, target asset class, and a window from 2 to 505.
+- \`ctx.value(field)\` reads the current point-in-time value; \`ctx.lag(field, periods)\` reads an earlier observation.
+- Available fields: etf.adjustedClose and rates.cgb.yield.2y/5y/10y/30y. Yield inputs require target_asset_classes=["fixed_income"]. ${analysisKind === 'panel' ? 'This release supports price-only panel Factors using etf.adjustedClose.' : ''}
+- Return the raw float score or None. If required data is unavailable, output one \`CANNOT: ...\` line and never fabricate a proxy.
+
+# Example
+from jixie import Factor, AssetFactorContext
+
+factor = Factor.${factory}(
+    name="ETF 20日趋势",
+    inputs=["etf.adjustedClose"],
+    target_asset_classes=["equity", "fixed_income", "commodity"],
+    window=21,
+)
+
+@factor.compute
+def compute(ctx: AssetFactorContext) -> float | None:
+    current = ctx.value("etf.adjustedClose")
+    previous = ctx.lag("etf.adjustedClose", 20)
+    return current / previous - 1 if current is not None and previous is not None and previous > 0 else None`;
 }
 
 function buildCrossSectionalFactorCodegenPrompt(): string {

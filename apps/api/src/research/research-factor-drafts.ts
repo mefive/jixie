@@ -20,6 +20,7 @@ export async function createResearchFactorDraft(
       key: true,
       name: true,
       analysisKind: true,
+      language: true,
       researchHandoff: true,
     },
   });
@@ -47,6 +48,7 @@ export async function createResearchFactorDraft(
     sourceHash: execution.sourceHash,
     sourceDisplayName: execution.displayName ?? execution.title,
     analysisKind: generated.analysisKind,
+    language: generated.language,
     summary: generated.summary,
     unresolvedItems: generated.unresolvedItems,
     generatedAt: generatedAt.toISOString(),
@@ -73,6 +75,8 @@ export async function createResearchFactorDraft(
           key,
           name: generated.factorName,
           analysisKind: generated.analysisKind,
+          language: generated.language,
+          runtimeVersion: 'py-v1',
           code: generated.code,
           messages: generated.messages as unknown as Prisma.InputJsonValue,
           sourceResearchExecutionId: execution.id,
@@ -86,6 +90,7 @@ export async function createResearchFactorDraft(
           key: true,
           name: true,
           analysisKind: true,
+          language: true,
           researchHandoff: true,
         },
       });
@@ -101,6 +106,7 @@ export async function createResearchFactorDraft(
           key: true,
           name: true,
           analysisKind: true,
+          language: true,
           researchHandoff: true,
         },
       });
@@ -124,6 +130,7 @@ function factorDraftResult(
     key: string;
     name: string;
     analysisKind: string;
+    language: string;
     researchHandoff: Prisma.JsonValue | null;
   },
   reused: boolean,
@@ -144,6 +151,7 @@ function factorDraftResult(
     factorKey: factor.key,
     factorName: factor.name,
     analysisKind: factor.analysisKind,
+    language: factor.language === 'python' ? 'python' : 'typescript',
     handoff,
     reused,
   };

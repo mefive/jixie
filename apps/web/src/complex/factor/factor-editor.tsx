@@ -1,11 +1,16 @@
 import Editor, { loader, type Monaco } from '@monaco-editor/react';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { observer } from 'mobx-react';
 import * as monaco from 'monaco-editor';
 import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
 import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker';
-import type { Locale } from '@jixie/shared';
+import type { FactorLanguage, Locale } from '@jixie/shared';
 import { localeStore } from '@src/i18n/locale-store';
+import {
+  attachResearchPythonModel,
+  installResearchPythonLanguage,
+  researchPythonModelUri,
+} from '../research/research-python-language';
 
 // Bundle Monaco + its TS worker locally (no CDN) — powers autocomplete on `bar.` (the FactorBar fields).
 self.MonacoEnvironment = {
@@ -210,13 +215,20 @@ function installFactorSdk(m: Monaco) {
 function FactorEditor({
   value,
   onChange,
+  language = 'typescript',
+  documentId = 'factor',
   readOnly = false,
 }: {
   value: string;
   onChange: (v: string) => void;
+  language?: FactorLanguage;
+  documentId?: string;
   readOnly?: boolean; // preset (builtin) factors show their code but reject edits
 }) {
   const locale = localeStore.locale;
+  const sourceRef = useRef(value);
+  const pythonBindingRef = useRef<monaco.IDisposable | null>(null);
+  sourceRef.current = value;
 
   // Re-register the ambient factor .d.ts whenever the UI locale changes so hover docs switch live
   // (monacoRef is set once the editor has mounted via installFactorSdk).
@@ -226,14 +238,47 @@ function FactorEditor({
     }
   }, [locale]);
 
+  useEffect(
+    () => () => {
+      pythonBindingRef.current?.dispose();
+      pythonBindingRef.current = null;
+    },
+    [documentId, language],
+  );
+
+  const modelPath =
+    language === 'python'
+      ? researchPythonModelUri(monaco, `factor:${documentId}`, 'definition').toString()
+      : `file:///factors/${encodeURIComponent(documentId)}.ts`;
+
   return (
     <Editor
+      key={`${language}:${documentId}`}
       height="100%"
-      defaultLanguage="typescript"
-      path="factor.ts"
+      language={language}
+      path={modelPath}
       value={value}
       onChange={(v) => onChange(v ?? '')}
-      beforeMount={installFactorSdk}
+      beforeMount={(monacoInstance) => {
+        if (language === 'python') {
+          installResearchPythonLanguage(monacoInstance);
+        } else {
+          installFactorSdk(monacoInstance);
+        }
+      }}
+      onMount={(editor, monacoInstance) => {
+        pythonBindingRef.current?.dispose();
+        if (language !== 'python') {
+          return;
+        }
+        pythonBindingRef.current = attachResearchPythonModel(monacoInstance, {
+          documentId: `factor:${documentId}`,
+          cellId: 'definition',
+          model: editor.getModel()!,
+          editor,
+          getCells: () => [{ id: 'definition', source: sourceRef.current }],
+        });
+      }}
       options={{
         minimap: { enabled: false },
         fontSize: 13,
