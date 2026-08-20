@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { sha256 } from './report-spec.js';
+import { factorAnalysisSourceHash } from './analysis-job.js';
 
 const mocks = vi.hoisted(() => ({
   factorFindFirst: vi.fn(),
@@ -77,6 +78,38 @@ describe('immutable Factor publication', () => {
       key: 'book_to_market',
       status: 'published',
       approvedReportId: 'report-1',
+    });
+  });
+
+  it('publishes Python lineage only from a matching py-v1 report', async () => {
+    const pythonCode = `from jixie import Factor\nfactor = Factor.cross_sectional(name="value")\n@factor.compute\ndef compute(bar, ctx):\n    return bar.pb\n`;
+    mocks.factorFindFirst.mockResolvedValue({
+      id: 'factor-py',
+      key: 'python_value',
+      name: 'Python value',
+      code: pythonCode,
+      analysisKind: 'cross_sectional',
+      language: 'python',
+      runtimeVersion: 'py-v1',
+      status: 'draft',
+    });
+    mocks.reportFindFirst.mockResolvedValue({
+      id: 'report-py',
+      analysisKind: 'cross_sectional',
+      language: 'python',
+      runtimeVersion: 'py-v1',
+      phase: 'explore',
+      revealedAt: null,
+      factorCodeSnapshot: pythonCode,
+      factorCodeHash: factorAnalysisSourceHash(pythonCode, 'python'),
+    });
+
+    const published = await publishFactor('user-1', 'factor-py', 'report-py');
+
+    expect(published).toMatchObject({
+      language: 'python',
+      runtimeVersion: 'py-v1',
+      codeHash: factorAnalysisSourceHash(pythonCode, 'python'),
     });
   });
 

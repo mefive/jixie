@@ -4,6 +4,7 @@ import { runWalledBacktest } from './walled-run.js';
 import { fixturePort, type FixtureSpec } from './fixture-port.js';
 import { toCommonJs } from '../lib/isolate-run.js';
 import type { Strategy } from './types.js';
+import { PythonFactorHost, withPythonFactorHost } from './python-factor-host.js';
 
 /**
  * ctx.factor() time semantics (factor-to-strategy.md Step 2): a `flow` factor (moneyflow) is an
@@ -257,6 +258,138 @@ describe('custom (defineFactor) factors inside the engine', () => {
     expect(logged).toContain(`${D[1]}=null`);
     expect(logged).toContain(`${D[4]}=${28 / 24 - 1}`);
     expect(logged).toContain(`${D[4]}=stock=null`);
+  });
+
+  it('executes a py-v1 ETF Factor on direct and walled strategy lanes', async () => {
+    if (!process.env.JIXIE_SANDBOX_SOCKET) {
+      process.env.JIXIE_PYTHON_LOCAL = '1';
+    }
+    const factorKey = 'python_etf_trend';
+    const etfCode = '510300.SH';
+    const pythonSpec: FixtureSpec = {
+      dates: D,
+      stocks: [
+        {
+          code: etfCode,
+          assetType: 'etf',
+          bars: D.map((date, index) => ({ date, open: 10 + index, close: 10 + index })),
+        },
+      ],
+    };
+    const code = `
+from jixie import Factor, AssetFactorContext
+factor = Factor.time_series(
+    name="Python ETF trend",
+    inputs=["etf.adjustedClose"],
+    target_asset_classes=["equity"],
+    window=3,
+)
+@factor.compute
+def compute(ctx: AssetFactorContext) -> float | None:
+    current = ctx.value("etf.adjustedClose")
+    previous = ctx.lag("etf.adjustedClose", 2)
+    return None if current is None or previous is None else current / previous - 1
+`;
+    const module = {
+      key: factorKey,
+      language: 'python' as const,
+      runtimeVersion: 'py-v1' as const,
+      code,
+      analysisKind: 'time_series' as const,
+      assetSeries: { window: 3, inputs: ['etf.adjustedClose' as const] },
+    };
+    const seen: Record<string, number | null> = {};
+    const host = new PythonFactorHost();
+    try {
+      await runStrategy({
+        start: D[0],
+        end: D[4],
+        initialCash: 100_000,
+        strategy: {
+          name: 'direct Python Factor',
+          watch: [etfCode],
+          factors: [factorKey],
+          onBar: (ctx) => {
+            seen[ctx.date] = ctx.factor(factorKey, etfCode);
+          },
+        },
+        dataPort: withPythonFactorHost(fixturePort(pythonSpec), host),
+        customFactors: [module],
+      });
+    } finally {
+      host.close();
+    }
+    expect(seen[D[1]]).toBeNull();
+    expect(seen[D[4]]).toBeCloseTo(14 / 12 - 1);
+
+    const logged: string[] = [];
+    await runWalledBacktest(
+      {
+        code: `export default defineStrategy({
+          name: 'walled Python Factor',
+          watch: ['${etfCode}'],
+          factors: ['${factorKey}'],
+          onBar(ctx) {
+            console.log(ctx.date + '=' + String(ctx.factor('${factorKey}', '${etfCode}')));
+          },
+        });`,
+        start: D[0],
+        end: D[4],
+        initialCash: 100_000,
+        customFactors: [module],
+      },
+      fixturePort(pythonSpec),
+      undefined,
+      (_level, text) => logged.push(text),
+    );
+    expect(logged).toContain(`${D[1]}=null`);
+    expect(logged).toContain(`${D[4]}=${14 / 12 - 1}`);
+    delete process.env.JIXIE_PYTHON_LOCAL;
+  });
+
+  it('prepares a py-v1 cross-section before synchronous strategy ranking', async () => {
+    if (!process.env.JIXIE_SANDBOX_SOCKET) {
+      process.env.JIXIE_PYTHON_LOCAL = '1';
+    }
+    const code = `
+from jixie import Factor, FactorBar, CrossSectionalFactorContext
+factor = Factor.cross_sectional(name="Python value")
+@factor.compute
+def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
+    return None if bar.pe_ttm is None else bar.pe_ttm * 2
+`;
+    const module = {
+      key: 'python_value',
+      language: 'python' as const,
+      runtimeVersion: 'py-v1' as const,
+      code,
+      analysisKind: 'cross_sectional' as const,
+      crossSectional: {},
+    };
+    const seen: Record<string, number | null> = {};
+    const host = new PythonFactorHost();
+    try {
+      await runStrategy({
+        start: D[0],
+        end: D[4],
+        initialCash: 100_000,
+        strategy: {
+          name: 'Python cross-section',
+          factors: ['python_value'],
+          async onBar(ctx) {
+            await ctx.loadCrossSection();
+            seen[ctx.date] = ctx.factor('python_value', 'A');
+          },
+        },
+        dataPort: withPythonFactorHost(fixturePort(specWithValuation()), host),
+        customFactors: [module],
+      });
+    } finally {
+      host.close();
+    }
+    expect(seen[D[0]]).toBe(20);
+    expect(seen[D[4]]).toBe(20);
+    delete process.env.JIXIE_PYTHON_LOCAL;
   });
 
   it('standardizes a frozen panel composite across the explicit strategy watch universe', async () => {

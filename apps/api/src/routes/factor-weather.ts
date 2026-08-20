@@ -6,7 +6,7 @@ import { apiError, validateJson } from '../lib/httpError.js';
 import { prisma } from '../lib/prisma.js';
 import { m } from '../i18n/index.js';
 import { BUILTIN_FACTORS, BUILTIN_USER_ID } from '../factor/builtin-factors.js';
-import { sha256 } from '../factor/report-spec.js';
+import { factorAnalysisSourceHash } from '../factor/analysis-job.js';
 import {
   FACTOR_WEATHER_METHODOLOGY_HASH,
   factorWeatherMethodology,
@@ -62,7 +62,16 @@ factorWeatherRoute.post('/pins', validateJson(createPinBody), async (c) => {
   const { factorId, direction: requestedDirection } = c.req.valid('json');
   const factor = await prisma.factor.findFirst({
     where: { id: factorId, userId: { in: [c.var.userId, BUILTIN_USER_ID] } },
-    select: { id: true, userId: true, key: true, name: true, code: true, status: true },
+    select: {
+      id: true,
+      userId: true,
+      key: true,
+      name: true,
+      code: true,
+      language: true,
+      runtimeVersion: true,
+      status: true,
+    },
   });
   if (!factor) {
     return apiError(c, 'NOT_FOUND', m(c, 'factorNotFound'));
@@ -90,7 +99,12 @@ factorWeatherRoute.post('/pins', validateJson(createPinBody), async (c) => {
         builtin,
         direction,
         factorCode: factor.code,
-        factorCodeHash: sha256(factor.code),
+        factorCodeHash: factorAnalysisSourceHash(
+          factor.code,
+          factor.language === 'python' ? 'python' : 'typescript',
+        ),
+        language: factor.language,
+        runtimeVersion: factor.runtimeVersion,
         methodologyHash: FACTOR_WEATHER_METHODOLOGY_HASH,
         status: 'pending',
       },

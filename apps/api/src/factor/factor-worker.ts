@@ -16,6 +16,10 @@ import {
 import { TimeSeriesEvaluator } from './time-series-evaluator.js';
 import { compileTimeSeriesFactor } from './compile-time-series-factor.js';
 import { compilePanelFactor } from './compile-time-series-factor.js';
+import {
+  compilePythonPanelFactor,
+  compilePythonTimeSeriesFactor,
+} from './python-asset-factor-runtime.js';
 import { loadPanelEtfObservations } from './panel-observations.js';
 import {
   loadCommodityCarryPanelObservations,
@@ -75,7 +79,10 @@ try {
       if (source.kind !== 'time_series') {
         throw new Error('Time-series evaluator requires a Factor V2 source.');
       }
-      const compiled = await compileTimeSeriesFactor(source.code, onUserLog);
+      const compiled =
+        source.language === 'python'
+          ? await compilePythonTimeSeriesFactor(source.code, onUserLog)
+          : await compileTimeSeriesFactor(source.code, onUserLog);
       try {
         const usesCommodityCarry = timeSeriesFactorUsesCommodityCarry(compiled);
         const usesCommodityWarehouseReceipts =
@@ -109,7 +116,10 @@ try {
         throw new Error('Panel evaluator requires a panel Factor V2 source.');
       }
       if (source.kind === 'panel') {
-        const compiled = await compilePanelFactor(source.code, onUserLog);
+        const compiled =
+          source.language === 'python'
+            ? await compilePythonPanelFactor(source.code, onUserLog)
+            : await compilePanelFactor(source.code, onUserLog);
         try {
           onSystemLog(t(locale, 'factorPanelLoading', { count: researchSpec.assets.length }));
           const observations = panelFactorUsesCommodityCarry(compiled)
@@ -127,7 +137,11 @@ try {
       const compiledComponents: Array<Awaited<ReturnType<typeof compilePanelFactor>>> = [];
       try {
         for (const component of source.components) {
-          compiledComponents.push(await compilePanelFactor(component.code, onUserLog));
+          compiledComponents.push(
+            component.language === 'python'
+              ? await compilePythonPanelFactor(component.code, onUserLog)
+              : await compilePanelFactor(component.code, onUserLog),
+          );
         }
         onSystemLog(t(locale, 'factorPanelLoading', { count: researchSpec.assets.length }));
         const componentObservations = await Promise.all(

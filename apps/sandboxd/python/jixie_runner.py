@@ -728,8 +728,6 @@ def _run_strategy(start: dict[str, Any]) -> None:
     )
     if strategy.futures:
         raise ValueError("py-v1 currently supports stock and ETF strategies only")
-    if any(factor not in {"mf_net_main", "mf_net_total"} for factor in strategy.factors):
-        raise ValueError("py-v1 does not yet support published TypeScript factors")
     _send_frame({"type": "ready", "metadata": _metadata(strategy)})
     bar_cache: dict[str, list[AttrDict]] = {}
 

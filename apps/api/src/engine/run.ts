@@ -292,6 +292,7 @@ async function runStockStrategyCore(
             factorObservations.set(key, byCode);
           }
         : undefined;
+    await customFactors?.prepare(date, cfg.strategy.watch ?? []);
     await cfg.strategy.onBar(
       buildContext(date, engineData, portfolio, collected, customFactors, observeFactor),
     );
@@ -448,6 +449,7 @@ async function runMultiAssetStrategy(cfg: EngineConfig): Promise<BacktestResult>
       conditionalCommands: [] as ConditionalCommand[],
       futureIntents: null as Map<string, FutureIntent> | null,
     };
+    await customFactors?.prepare(date, cfg.strategy.watch ?? []);
     await cfg.strategy.onBar(
       buildMultiAssetContext(
         date,
@@ -572,6 +574,7 @@ function buildContext(
     },
     async loadCrossSection(indexCode) {
       cross = await engineData.crossSection(date, indexCode);
+      await customFactors?.prepare(date, cross.codes, cross.byCode);
       return cross.codes;
     },
     bar(code) {
@@ -801,6 +804,7 @@ function buildMultiAssetContext(
     },
     async loadCrossSection(indexCode) {
       cross = await engineData.crossSection(date, indexCode);
+      await customFactors?.prepare(date, cross.codes, cross.byCode);
       return cross.codes;
     },
     bar(code) {

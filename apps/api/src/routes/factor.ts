@@ -527,12 +527,14 @@ factorRoute.post('/reports/:reportId/holdout', async (c) => {
           factorCodeSnapshot,
           parent.factor,
           researchSpec.analysisKind,
+          parent.language === 'python' ? 'python' : 'typescript',
         )
       : parseFactorAnalysisSourceSnapshot(
           factorCodeSnapshot,
           parseReportPayload(parent.payload)?.label ?? parent.factor,
           researchSpec.protocol.version === 4 ||
             (researchSpec.protocol.version === 6 && !!researchSpec.protocol.composite),
+          parent.language === 'python' ? 'python' : 'typescript',
         );
   const locale = localeFromRequest(c);
   const reportId = ulid();
@@ -563,6 +565,8 @@ factorRoute.post('/reports/:reportId/holdout', async (c) => {
         variantKey,
         factorCodeSnapshot,
         factorCodeHash,
+        language: parent.language,
+        runtimeVersion: parent.runtimeVersion,
         dataRevision: parent.dataRevision,
         parentReportId: parent.id,
         testKey: parent.testKey,
@@ -989,9 +993,17 @@ async function resolveCustomTimeSeriesFactorSource(
 ): Promise<FactorAnalysisSource | null> {
   const custom = await prisma.factor.findFirst({
     where: { id: factorId, userId, analysisKind: 'time_series' },
-    select: { code: true, name: true },
+    select: { code: true, name: true, language: true, runtimeVersion: true },
   });
-  return custom ? { kind: 'time_series', code: custom.code, label: custom.name } : null;
+  return custom
+    ? {
+        kind: 'time_series',
+        code: custom.code,
+        label: custom.name,
+        language: custom.language === 'python' ? 'python' : 'typescript',
+        runtimeVersion: custom.runtimeVersion === 'py-v1' ? 'py-v1' : 'ts-v1',
+      }
+    : null;
 }
 
 // —— Correlation matrix (3.4): 2–8 factors × a fixed size column, cross-sectional Spearman ——

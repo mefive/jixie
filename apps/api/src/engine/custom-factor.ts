@@ -15,11 +15,15 @@ import type { BarRow } from './types.js';
  */
 export interface CustomFactorModule {
   key: string; // immutable Factor.key
+  language?: 'typescript' | 'python';
+  runtimeVersion?: 'ts-v1' | 'py-v1';
+  code?: string; // frozen Python source; TypeScript modules use transformed js below
   js?: string; // factor module transformed to CJS; omitted for a frozen panel composite bundle
   historyFields?: CustomFactorHistoryField[];
   /** Omitted means the cross-sectional Factor SDK. Asset-scoped Factor V2 definitions carry
    * their compiler-derived execution contract across the engine wall. */
   analysisKind?: 'cross_sectional' | 'time_series' | 'panel';
+  crossSectional?: { window?: number };
   assetSeries?: AssetFactorRuntimeMeta;
   /** Approved Panel research universe. It is metadata for allocation accounting, not factor execution. */
   assetUniverse?: Array<{ assetId: string; assetClass: MultiAssetClass }>;
@@ -63,8 +67,20 @@ interface AssetFactorContext {
 export type EvaluatedCustomFactor =
   | { kind: 'cross_sectional'; factor: CustomFactor }
   | {
+      kind: 'python_cross_sectional';
+      code: string;
+      window?: number;
+      historyFields: CustomFactorHistoryField[];
+    }
+  | {
       kind: 'asset_series';
       factor: AssetFactorDefinition;
+      meta: AssetFactorRuntimeMeta;
+    }
+  | {
+      kind: 'python_asset_series';
+      analysisKind: 'time_series' | 'panel';
+      code: string;
       meta: AssetFactorRuntimeMeta;
     }
   | {
@@ -73,7 +89,7 @@ export type EvaluatedCustomFactor =
       assetUniverse: Array<{ assetId: string; assetClass: MultiAssetClass }>;
       components: Array<{
         direction: 'positive' | 'negative';
-        evaluated: Extract<EvaluatedCustomFactor, { kind: 'asset_series' }>;
+        evaluated: Extract<EvaluatedCustomFactor, { kind: 'asset_series' | 'python_asset_series' }>;
       }>;
     };
 
@@ -103,7 +119,12 @@ export function evaluateCustomFactorModule(mod: CustomFactorModule): EvaluatedCu
     }
     const components = mod.panelComposite.components.map((component) => {
       const evaluated = evaluateCustomFactorModule(component.module);
-      if (evaluated.kind !== 'asset_series' || evaluated.factor.analysisKind !== 'panel') {
+      if (
+        (evaluated.kind !== 'asset_series' && evaluated.kind !== 'python_asset_series') ||
+        (evaluated.kind === 'asset_series'
+          ? evaluated.factor.analysisKind !== 'panel'
+          : evaluated.analysisKind !== 'panel')
+      ) {
         throw new Error(`factor ${mod.key} panel composite components must be panel factors`);
       }
       return { direction: component.direction, evaluated };
@@ -113,6 +134,28 @@ export function evaluateCustomFactorModule(mod: CustomFactorModule): EvaluatedCu
       standardization: mod.panelComposite.standardization,
       assetUniverse: mod.panelComposite.assetUniverse.map((asset) => ({ ...asset })),
       components,
+    };
+  }
+  if (mod.language === 'python') {
+    if (mod.runtimeVersion !== 'py-v1' || !mod.code) {
+      throw new Error(`factor ${mod.key} has an invalid Python execution contract`);
+    }
+    if (mod.analysisKind === 'time_series' || mod.analysisKind === 'panel') {
+      if (!mod.assetSeries) {
+        throw new Error(`factor ${mod.key} is missing its Python asset-series contract`);
+      }
+      return {
+        kind: 'python_asset_series',
+        analysisKind: mod.analysisKind,
+        code: mod.code,
+        meta: mod.assetSeries,
+      };
+    }
+    return {
+      kind: 'python_cross_sectional',
+      code: mod.code,
+      window: mod.crossSectional?.window,
+      historyFields: [...(mod.historyFields ?? [])],
     };
   }
   if (!mod.js) {
@@ -224,6 +267,22 @@ export class CustomFactorRuntime {
     return this.factors.has(key);
   }
 
+  /** Resolve py-v1 values before user code enters its synchronous onBar section. */
+  async prepare(
+    date: string,
+    codes: string[],
+    crossByCode: Map<string, BarRow> | null = null,
+  ): Promise<void> {
+    if (codes.length === 0) {
+      return;
+    }
+    await Promise.all(
+      [...this.factors].map(([key, factor]) =>
+        this.prepareEvaluated(factor, key, date, codes, crossByCode),
+      ),
+    );
+  }
+
   value(key: string, date: string, code: string, crossBar: BarRow | null): number | null {
     const memoKey = `${key}|${date}|${code}`;
     const hit = this.memo.get(memoKey);
@@ -248,6 +307,9 @@ export class CustomFactorRuntime {
   ): number | null {
     if (evaluated.kind === 'panel_composite') {
       return this.computePanelComposite(evaluated, key, date, code);
+    }
+    if (evaluated.kind === 'python_cross_sectional' || evaluated.kind === 'python_asset_series') {
+      return this.memo.get(`${key}|${date}|${code}`) ?? null;
     }
     if (evaluated.kind === 'asset_series') {
       return this.computeAssetSeries(evaluated, key, date, code);
@@ -306,6 +368,125 @@ export class CustomFactorRuntime {
       this.onComputeError(key, e instanceof Error ? e.message : String(e));
       return null;
     }
+  }
+
+  private async prepareEvaluated(
+    evaluated: EvaluatedCustomFactor,
+    key: string,
+    date: string,
+    codes: string[],
+    crossByCode: Map<string, BarRow> | null,
+  ): Promise<void> {
+    if (evaluated.kind === 'panel_composite') {
+      await Promise.all(
+        evaluated.components.map((component, index) =>
+          this.prepareEvaluated(
+            component.evaluated,
+            `${key}:component:${index}`,
+            date,
+            this.assetUniverse,
+            null,
+          ),
+        ),
+      );
+      return;
+    }
+    if (evaluated.kind === 'python_cross_sectional') {
+      const pending = codes.filter((code) => !this.memo.has(`${key}|${date}|${code}`));
+      if (pending.length === 0) {
+        return;
+      }
+      const items = pending.map((code) =>
+        this.pythonCrossSectionalItem(evaluated, date, code, crossByCode?.get(code) ?? null),
+      );
+      const values = await this.engineData.pythonFactorCompute({
+        factorKey: key,
+        code: evaluated.code,
+        analysisKind: 'cross_sectional',
+        crossSectionalItems: items,
+      });
+      pending.forEach((code, index) =>
+        this.memo.set(`${key}|${date}|${code}`, values[index] ?? null),
+      );
+      return;
+    }
+    if (evaluated.kind === 'python_asset_series') {
+      for (const code of codes) {
+        const memoKey = `${key}|${date}|${code}`;
+        if (this.memo.has(memoKey)) {
+          continue;
+        }
+        const request = this.pythonAssetRequest(evaluated, key, date, code);
+        if (!request) {
+          this.memo.set(memoKey, null);
+          continue;
+        }
+        const values = await this.engineData.pythonFactorCompute(request);
+        this.memo.set(memoKey, values[0] ?? null);
+      }
+    }
+  }
+
+  private pythonCrossSectionalItem(
+    factor: Extract<EvaluatedCustomFactor, { kind: 'python_cross_sectional' }>,
+    date: string,
+    code: string,
+    crossBar: BarRow | null,
+  ) {
+    if (!factor.window) {
+      return { bar: this.assembleFactorBar(date, code, crossBar) };
+    }
+    const bars = this.engineData.bars(code, date, factor.window);
+    return {
+      bar: this.assembleFactorBar(date, code, crossBar),
+      closes: bars.map((bar) => bar.adjClose),
+      dates: bars.map((bar) => bar.date),
+      amounts: bars.map((bar) => bar.amount),
+      turnoverRatesF: bars.map((bar) => bar.turnoverRateF),
+      roes: factor.historyFields.includes('roe')
+        ? bars.map((bar) => this.engineData.roeHistoryAt(code, bar.date))
+        : undefined,
+      grossProfitMargins: factor.historyFields.includes('grossprofitMargin')
+        ? bars.map((bar) => this.engineData.grossProfitMarginHistoryAt(code, bar.date))
+        : undefined,
+      marketCloses: factor.historyFields.includes('marketClose')
+        ? bars.map((bar) => this.engineData.indexCloseOn('000985.CSI', bar.date))
+        : undefined,
+    };
+  }
+
+  private pythonAssetRequest(
+    factor: Extract<EvaluatedCustomFactor, { kind: 'python_asset_series' }>,
+    key: string,
+    date: string,
+    code: string,
+  ) {
+    if (this.engineData.assetType(code) !== 'etf') {
+      this.onComputeError(key, `asset-scoped Python Factor requires an ETF code, received ${code}`);
+      return null;
+    }
+    const bars = this.engineData.bars(code, date, factor.meta.window);
+    if (bars.length < factor.meta.window) {
+      return null;
+    }
+    const fields: Record<string, number[]> = {};
+    for (const field of factor.meta.inputs) {
+      const yieldTerm = factorV2YieldTerm(field);
+      fields[field] = bars.map((bar) =>
+        field === 'etf.adjustedClose'
+          ? bar.adjClose
+          : ((yieldTerm == null
+              ? null
+              : this.engineData.governmentYieldAsOf(yieldTerm, bar.date)) ?? Number.NaN),
+      );
+    }
+    return {
+      factorKey: key,
+      code: factor.code,
+      analysisKind: factor.analysisKind,
+      fields,
+      indexes: [bars.length - 1],
+    };
   }
 
   private computePanelComposite(

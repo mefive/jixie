@@ -60,6 +60,8 @@ describe('published factor preparation', () => {
         key: 'book_to_market',
         name: 'Book to market',
         analysisKind: 'cross_sectional',
+        language: 'typescript',
+        runtimeVersion: 'ts-v1',
         codeHash: 'abc123',
         approvedReportId: 'report-1',
       },
@@ -75,6 +77,50 @@ describe('published factor preparation', () => {
         });
       `),
     ).toEqual(['quality_score', 'book_to_market']);
+    expect(extractFactorKeys(`strategy = Strategy(factors=["python_value"])`)).toEqual([
+      'python_value',
+    ]);
+  });
+
+  it('prepares a published py-v1 Factor without transpiling it to JavaScript', async () => {
+    if (!process.env.JIXIE_SANDBOX_SOCKET) {
+      process.env.JIXIE_PYTHON_LOCAL = '1';
+    }
+    const code = `
+from jixie import Factor, FactorBar, CrossSectionalFactorContext
+factor = Factor.cross_sectional(name="Python value")
+@factor.compute
+def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
+    return bar.pb
+`;
+    mocks.factorFindMany.mockResolvedValue([
+      factor({
+        key: 'python_value',
+        code,
+        language: 'python',
+        runtimeVersion: 'py-v1',
+      }),
+    ]);
+
+    const prepared = await prepareStrategyFactors(
+      `strategy = Strategy(factors=["python_value"])`,
+      'user-1',
+      'en',
+    );
+
+    expect(prepared.modules[0]).toMatchObject({
+      key: 'python_value',
+      language: 'python',
+      runtimeVersion: 'py-v1',
+      code,
+      analysisKind: 'cross_sectional',
+    });
+    expect(prepared.modules[0].js).toBeUndefined();
+    expect(prepared.factors[0]).toMatchObject({
+      language: 'python',
+      runtimeVersion: 'py-v1',
+    });
+    delete process.env.JIXIE_PYTHON_LOCAL;
   });
 
   it('compiles the published time-series contract for research backtests', async () => {
