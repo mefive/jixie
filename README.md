@@ -61,9 +61,12 @@ pnpm install
 # 配置 apps/api/.env：DATABASE_URL 已默认，填 TUSHARE_TOKEN
 pnpm --filter api db:migrate
 pnpm import:data                 # 首次完整导入，可续传
-pnpm dev:api                     # terminal 1
-pnpm dev:web                     # terminal 2
+pnpm dev                         # 同时启动 sandboxd、API 和 Web
 ```
+
+`pnpm dev` 使用临时 Unix socket 和本机 Python 启动开发模式 sandboxd；退出时会一起清理三个服务。
+仅调试不涉及 Python 执行的单个进程时，仍可分别运行 `pnpm dev:api` 或 `pnpm dev:web`；需要 Python
+Research、Factor 或 Strategy 时使用完整的 `pnpm dev`。
 
 日常数据补齐统一运行 `pnpm maintenance`；它会按连续发布水位自动判断缺失交易日。底层
 `sync:*`、审计和研究脚本只用于开发与排障，不是生产部署步骤。生产机器无论首次安装还是升级都只运行

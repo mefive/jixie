@@ -7,6 +7,7 @@
     "node": ">=22.13"
   },
   "scripts": {
+    "dev": "node scripts/dev.mjs",
     "dev:api": "pnpm --filter api dev",
     "dev:web": "pnpm --filter web dev",
     "dev:docs": "pnpm --filter docs dev",
