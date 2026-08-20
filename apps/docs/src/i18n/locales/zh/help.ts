@@ -9,6 +9,7 @@ export const zhHelp = {
     gettingStarted: '开始使用',
     basics: '量化交易基础',
     research: '自然语言研究',
+    publicLibrary: '公共资产库',
     stockDetail: '对象详情',
     backtesting: '回测工作台',
     factorResearch: '因子研究',

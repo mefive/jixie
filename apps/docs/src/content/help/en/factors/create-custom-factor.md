@@ -1,6 +1,6 @@
 # Create and edit a custom factor
 
-A custom factor converts each stock's data on each comparison date into a number. You can describe the calculation to the Agent on the left or edit the code directly in the middle.
+A custom Factor converts each stock's data on each comparison date into a number. New drafts default to Python `py-v1`. You can describe the calculation to the Agent on the left or edit code directly. Existing TypeScript Factors remain compatible and are not rewritten automatically.
 
 ## Before you start
 
@@ -39,7 +39,7 @@ The numbered areas are:
 4. Factor code editor.
 5. **Run analysis**.
 
-![The new custom-factor page](/docs/images/help/zh/factors/factor-custom-new-01.png)
+![The new Python custom-Factor page](/docs/images/help/zh/factors/python-factor-01.png)
 
 For an Agent request, describe the actual rule. For example:
 
@@ -49,21 +49,24 @@ Read the generated code line by line. It is code awaiting your review, not evide
 
 ## Edit the code directly
 
-A runnable factor contains at least a name and a `compute` function:
+A runnable stock cross-sectional Factor contains a `Factor.cross_sectional` definition and a `compute` function:
 
-```ts
-export default defineFactor({
-  name: 'Book-to-market (custom)',
-  compute: (bar) => (bar.pb && bar.pb > 0 ? 1 / bar.pb : null),
-});
+```python
+from jixie import Factor, FactorBar, CrossSectionalFactorContext
+
+factor = Factor.cross_sectional(name="Book-to-market (custom)")
+
+@factor.compute
+def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
+    return 1 / bar.pb if bar.pb is not None and bar.pb > 0 else None
 ```
 
 In this code:
 
 - `name` is the label shown in the page.
 - `compute` calculates the value for the current stock and date.
-- `bar.pb` is price-to-book.
-- A missing, zero, or negative price-to-book returns `null`, so that stock has no valid factor value for the period.
+- `bar.pb` is price-to-book, and the editor completes currently available fields.
+- A missing, zero, or negative price-to-book returns `None`, so that stock has no valid Factor value for the period.
 
 The numbered areas are:
 
@@ -72,17 +75,17 @@ The numbered areas are:
 3. Current code.
 4. Run an analysis with the current code.
 
-![Edited book-to-market factor code](/docs/images/help/zh/factors/factor-custom-edited-01.png)
+![Python Factor field completion and run entry](/docs/images/help/zh/factors/python-factor-01.png)
 
-Do not return `0` merely to give every stock a value. Zero is a real number and participates in ranking. `null` means that no usable value exists for that period.
+Do not return `0` merely to give every stock a value. Zero is a real number and participates in ranking. `None` means that no usable value exists for that period.
 
 ## Use financial history fields
 
-Custom factors can read announcement-aligned ROE and gross-profit-margin history. `grossprofitMargin` uses percentage points: `35` means a 35% margin, not `0.35`.
+Custom Factors can read announcement-aligned ROE and gross-profit-margin history. The Python history field `grossprofit_margin` uses percentage points: `35` means a 35% margin, not `0.35`.
 
-Financial history follows point-in-time rules. On date $t$, only the latest report announced on or before $t$ is available. Earlier dates do not see a future report, and dates before the first available report return `null`. The history is a step series that changes on announcement dates, not a newly calculated financial statement every day.
+Financial history follows point-in-time rules. On date $t$, only the latest report announced on or before $t$ is available. Earlier dates do not see a future report, and dates before the first available report return `None`. The history is a step series that changes on announcement dates, not a newly calculated financial statement every day.
 
-For gross-margin stability, state the window and missing-data rule first. For example, calculate dispersion from valid values over the latest 504 trading days and return `null` when coverage is insufficient. Never backfill historical dates with the latest margin visible today.
+For gross-margin stability, state the window and missing-data rule first. For example, calculate dispersion from valid values over the latest 504 trading days and return `None` when coverage is insufficient. Never backfill historical dates with the latest margin visible today.
 
 ## Run an analysis and save the current code
 
@@ -114,7 +117,7 @@ Run a new analysis after changing the code. An older report still describes the 
 Check in this order:
 
 1. The name and formula agree.
-2. Missing and invalid inputs return `null` as intended.
+2. Missing and invalid inputs return `None` as intended.
 3. The meaning of high and low values is clear.
 4. The log contains no calculation errors.
 5. Grouped returns, Rank IC, turnover, and sample size are plausible.
@@ -125,7 +128,7 @@ One historical analysis does not establish causality or guarantee future returns
 
 ### The run reports a code error
 
-Inspect the middle log. Common causes include an incorrect field name, a missing bracket, or a calculation that returns neither a number nor `null`. Correct the code and run again.
+Inspect the middle log. Common causes include an incorrect field name, a missing bracket, or a calculation that returns neither a number nor `None`. Correct the code and run again.
 
 ### Too few stocks have a value
 
@@ -142,6 +145,7 @@ Yes. Verify fields, direction, missing-value treatment, and units, then use a re
 ## Related articles
 
 - [Set the analysis range and sample treatment](/docs/help/factors/analysis-settings)
+- [Write a Factor in Python](/docs/help/factors/python-factor)
 - [Read your first factor analysis result](/docs/help/factors/results-overview)
 - [Set a Factor key](/docs/help/factors/strategy-key)
 - [Ask the factor Agent to run exploratory analysis](/docs/help/factors/agent-explore-analysis)

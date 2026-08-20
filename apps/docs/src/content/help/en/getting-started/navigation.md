@@ -15,6 +15,7 @@ The top navigation contains these entries:
 | Factors | Review grouped factor performance, returns, and saved research reports |
 | Valuation | Review index valuation levels and their historical positions |
 | Signals | Review signals produced by saved strategies for the latest trading day |
+| Public Library | Browse user-shared strategies and published Factors, or copy them into private assets you own |
 | Help | Read product instructions and introductory quantitative-trading material |
 
 For example, to study an equity universe:

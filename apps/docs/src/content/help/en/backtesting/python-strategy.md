@@ -92,6 +92,7 @@ Hidden actions are product limits, not permission errors. Switch to TypeScript a
 
 ## Related articles
 
+- [Use technical indicators in a strategy](/docs/help/backtesting/technical-indicators)
 - [Set backtest parameters](/docs/help/backtesting/run-settings)
 - [Run a backtest and read logs](/docs/help/backtesting/run-and-logs)
 - [Read backtest results](/docs/help/backtesting/results-overview)

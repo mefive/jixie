@@ -11,6 +11,7 @@ export const enHelp: typeof zhHelp = {
     gettingStarted: 'Getting started',
     basics: 'Quantitative trading basics',
     research: 'Natural-language research',
+    publicLibrary: 'Public Library',
     stockDetail: 'Object detail',
     backtesting: 'Backtest workspace',
     factorResearch: 'Factor research',
