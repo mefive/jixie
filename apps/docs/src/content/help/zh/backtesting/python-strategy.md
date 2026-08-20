@@ -92,6 +92,7 @@ Python 报错会标出 `strategy.py` 的行号。先定位第一条错误，不�
 
 ## 相关内容
 
+- [在策略中使用技术指标](/docs/help/backtesting/technical-indicators)
 - [设置回测参数](/docs/help/backtesting/run-settings)
 - [运行回测并查看日志](/docs/help/backtesting/run-and-logs)
 - [查看回测结果](/docs/help/backtesting/results-overview)

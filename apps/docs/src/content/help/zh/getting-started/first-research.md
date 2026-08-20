@@ -52,3 +52,10 @@ Agent 不能把未运行的代码说成已经计算，也不能用文字替代�
 > 统计关系和条件匹配都不是买卖建议。先确认变量定义、时间方向、样本范围、稳健性和可执行限制。
 
 [打开研究工作台](/research)
+
+## 继续学习
+
+- [建立研究文档和 Cell](/docs/help/research/document-cells)
+- [使用研究数据目录](/docs/help/research/data-catalog)
+- [与 Research Agent 协作](/docs/help/research/agent-collaboration)
+- [将研究交给 Factor 或 Strategy](/docs/help/research/handoff)

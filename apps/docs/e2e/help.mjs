@@ -143,8 +143,8 @@ try {
         .evaluateAll((links) => links.map((link) => link.getAttribute('href'))),
     ),
   ].filter(Boolean);
-  if (articleHrefs.length !== 75) {
-    throw new Error(`expected 75 help articles, got ${articleHrefs.length}`);
+  if (articleHrefs.length !== 88) {
+    throw new Error(`expected 88 help articles, got ${articleHrefs.length}`);
   }
   for (const href of articleHrefs) {
     if (new URL(page.url()).pathname !== href) {
@@ -171,6 +171,9 @@ try {
       );
     if (brokenImages.length > 0) {
       throw new Error(`broken help images in ${href}: ${JSON.stringify(brokenImages)}`);
+    }
+    if ((await page.locator('.jx-help-markdown p .jx-help-figure').count()) > 0) {
+      throw new Error(`help image rendered inside a paragraph in ${href}`);
     }
     const unknownLinks = await page
       .locator('.jx-help-markdown a[href^="/docs/help/"]')
@@ -213,6 +216,36 @@ try {
     throw new Error('Python help code did not render syntax-highlight tokens');
   }
   await page.screenshot({ path: `${SHOTS}16b-help-code-python.png` });
+
+  await page.goto(`${BASE}/docs/help/backtesting/technical-indicators`, {
+    waitUntil: 'domcontentloaded',
+  });
+  await page.getByRole('heading', { level: 1, name: '在策略中使用技术指标' }).waitFor();
+  if (
+    (await page.getByTestId('help-code-tabs').count()) !== 1 ||
+    (await page.locator('.jx-help-codeBlock .token').count()) < 10
+  ) {
+    throw new Error('technical-indicator guide did not render highlighted language tabs');
+  }
+
+  await page.goto(`${BASE}/docs/help/factors/robust-inference`, {
+    waitUntil: 'domcontentloaded',
+  });
+  await page.getByRole('heading', { level: 1, name: '阅读稳健截面推断' }).waitFor();
+  if (
+    (await page.locator('.jx-help-markdown .katex').count()) < 2 ||
+    (await page.locator('.jx-help-figure').count()) !== 2
+  ) {
+    throw new Error('robust-inference guide did not render formulas and both E2E screenshots');
+  }
+
+  await page.goto(`${BASE}/docs/help/research/document-cells`, {
+    waitUntil: 'domcontentloaded',
+  });
+  await page.getByRole('heading', { level: 1, name: '建立研究文档和 Cell' }).waitFor();
+  if ((await page.locator('.jx-help-figure').count()) !== 2) {
+    throw new Error('research Cell guide did not render both E2E screenshots');
+  }
 
   await page.goto(`${BASE}/docs/help/getting-started/overview`, { waitUntil: 'domcontentloaded' });
   await page.getByRole('link', { name: '登录', exact: true }).first().click();

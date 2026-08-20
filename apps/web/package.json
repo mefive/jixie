@@ -42,6 +42,7 @@
     "test:e2e:factor-panel-composite": "node e2e/factor-panel-composite.mjs",
     "test:e2e:strategy": "node e2e/strategy-orchestration.mjs",
     "test:e2e:strategy-indicators": "node e2e/technical-indicators.mjs",
+    "test:e2e:public-library": "node e2e/public-library.mjs",
     "test:e2e:strategy-python": "node e2e/python-strategy.mjs",
     "test:e2e:strategy-scan": "node e2e/strategy-parameter-scan.mjs",
     "test:e2e:signals": "node e2e/daily-signals.mjs",
@@ -64,6 +65,7 @@
     "test:e2e:help-content-factor-composite": "node e2e/help-content-factor-composite.mjs",
     "test:e2e:help-content-factor-weather": "node e2e/help-content-factor-weather.mjs",
     "test:e2e:help-content-latest": "node e2e/help-content-latest.mjs",
+    "test:e2e:help-content-stage-l": "node e2e/help-content-stage-l.mjs",
     "test:e2e:help-content-market-valuation": "node e2e/help-content-market-valuation.mjs",
     "test:e2e:help-content-signals": "node e2e/help-content-signals.mjs",
     "test:e2e:help-screen-live": "node e2e/help-screen-live.mjs"

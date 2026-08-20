@@ -43,6 +43,8 @@ import portfolioRiskEn from '@src/content/help/en/backtesting/portfolio-risk.md?
 import portfolioRiskZh from '@src/content/help/zh/backtesting/portfolio-risk.md?raw';
 import pythonStrategyEn from '@src/content/help/en/backtesting/python-strategy.md?raw';
 import pythonStrategyZh from '@src/content/help/zh/backtesting/python-strategy.md?raw';
+import technicalIndicatorsEn from '@src/content/help/en/backtesting/technical-indicators.md?raw';
+import technicalIndicatorsZh from '@src/content/help/zh/backtesting/technical-indicators.md?raw';
 import reconnectFailureEn from '@src/content/help/en/backtesting/reconnect-failure.md?raw';
 import reconnectFailureZh from '@src/content/help/zh/backtesting/reconnect-failure.md?raw';
 import reviseWithChatEn from '@src/content/help/en/backtesting/revise-with-chat.md?raw';
@@ -91,12 +93,16 @@ import panelResearchEn from '@src/content/help/en/factors/panel-research.md?raw'
 import panelResearchZh from '@src/content/help/zh/factors/panel-research.md?raw';
 import publishFactorEn from '@src/content/help/en/factors/publish-factor.md?raw';
 import publishFactorZh from '@src/content/help/zh/factors/publish-factor.md?raw';
+import pythonFactorEn from '@src/content/help/en/factors/python-factor.md?raw';
+import pythonFactorZh from '@src/content/help/zh/factors/python-factor.md?raw';
 import rankIcIcirEn from '@src/content/help/en/factors/rank-ic-icir.md?raw';
 import rankIcIcirZh from '@src/content/help/zh/factors/rank-ic-icir.md?raw';
 import readCompositeReportEn from '@src/content/help/en/factors/read-composite-report.md?raw';
 import readCompositeReportZh from '@src/content/help/zh/factors/read-composite-report.md?raw';
 import reportHistoryEn from '@src/content/help/en/factors/report-history.md?raw';
 import reportHistoryZh from '@src/content/help/zh/factors/report-history.md?raw';
+import robustInferenceEn from '@src/content/help/en/factors/robust-inference.md?raw';
+import robustInferenceZh from '@src/content/help/zh/factors/robust-inference.md?raw';
 import researchCardEn from '@src/content/help/en/factors/research-card.md?raw';
 import researchCardZh from '@src/content/help/zh/factors/research-card.md?raw';
 import strategyKeyEn from '@src/content/help/en/factors/strategy-key.md?raw';
@@ -133,6 +139,22 @@ import researchUniverseEn from '@src/content/help/en/research/universe.md?raw';
 import researchUniverseZh from '@src/content/help/zh/research/universe.md?raw';
 import researchRecordsEn from '@src/content/help/en/research/records.md?raw';
 import researchRecordsZh from '@src/content/help/zh/research/records.md?raw';
+import researchAgentCollaborationEn from '@src/content/help/en/research/agent-collaboration.md?raw';
+import researchAgentCollaborationZh from '@src/content/help/zh/research/agent-collaboration.md?raw';
+import researchCuratorEn from '@src/content/help/en/research/curator.md?raw';
+import researchCuratorZh from '@src/content/help/zh/research/curator.md?raw';
+import researchDataCatalogEn from '@src/content/help/en/research/data-catalog.md?raw';
+import researchDataCatalogZh from '@src/content/help/zh/research/data-catalog.md?raw';
+import researchDocumentCellsEn from '@src/content/help/en/research/document-cells.md?raw';
+import researchDocumentCellsZh from '@src/content/help/zh/research/document-cells.md?raw';
+import researchHandoffEn from '@src/content/help/en/research/handoff.md?raw';
+import researchHandoffZh from '@src/content/help/zh/research/handoff.md?raw';
+import researchOutputsEn from '@src/content/help/en/research/outputs.md?raw';
+import researchOutputsZh from '@src/content/help/zh/research/outputs.md?raw';
+import researchRunControlEn from '@src/content/help/en/research/run-control.md?raw';
+import researchRunControlZh from '@src/content/help/zh/research/run-control.md?raw';
+import libraryShareCopyEn from '@src/content/help/en/library/share-copy.md?raw';
+import libraryShareCopyZh from '@src/content/help/zh/library/share-copy.md?raw';
 import deployStrategyEn from '@src/content/help/en/signals/deploy-strategy.md?raw';
 import deployStrategyZh from '@src/content/help/zh/signals/deploy-strategy.md?raw';
 import generateSignalsEn from '@src/content/help/en/signals/generate-signals.md?raw';
@@ -158,6 +180,7 @@ export const HELP_GROUPS = [
   'gettingStarted',
   'basics',
   'research',
+  'publicLibrary',
   'stockDetail',
   'backtesting',
   'factorResearch',
@@ -417,6 +440,79 @@ export const HELP_ARTICLES: HelpArticle[] = [
     },
   },
   {
+    slug: 'research/document-cells',
+    group: 'research',
+    title: {
+      zh: '建立研究文档和 Cell',
+      en: 'Build a research document with Cells',
+    },
+    summary: {
+      zh: '从模板或空白文档开始，编辑 Markdown／Python Cell，并理解自动保存和依赖。',
+      en: 'Start from a template or blank document, edit Markdown/Python Cells, and understand autosave and dependencies.',
+    },
+    content: { zh: researchDocumentCellsZh, en: researchDocumentCellsEn },
+  },
+  {
+    slug: 'research/data-catalog',
+    group: 'research',
+    title: { zh: '使用研究数据目录', en: 'Use the research data catalog' },
+    summary: {
+      zh: '搜索对象和字段，插入准确调用，并区分时间序列、截面和 Panel。',
+      en: 'Search instruments and fields, insert accurate calls, and distinguish series, cross-sections, and Panels.',
+    },
+    content: { zh: researchDataCatalogZh, en: researchDataCatalogEn },
+  },
+  {
+    slug: 'research/outputs',
+    group: 'research',
+    title: { zh: '查看研究输出', en: 'Read research outputs' },
+    summary: {
+      zh: '阅读文本、分页表格、原生交互图和 Matplotlib 静态图。',
+      en: 'Read text, paginated tables, native interactive charts, and static Matplotlib figures.',
+    },
+    content: { zh: researchOutputsZh, en: researchOutputsEn },
+  },
+  {
+    slug: 'research/run-control',
+    group: 'research',
+    title: { zh: '运行、停止和重置研究', en: 'Run, stop, and reset research' },
+    summary: {
+      zh: '选择单 Cell、受影响分支或干净全文运行，并正确中断和重置。',
+      en: 'Choose a Cell, affected branch, or clean full run, and interrupt or reset safely.',
+    },
+    content: { zh: researchRunControlZh, en: researchRunControlEn },
+  },
+  {
+    slug: 'research/agent-collaboration',
+    group: 'research',
+    title: { zh: '与 Research Agent 协作', en: 'Collaborate with Research Agent' },
+    summary: {
+      zh: '审查可编辑 Cell 差异，接受或撤销变更，并显式运行提案。',
+      en: 'Review editable Cell diffs, accept or undo changes, and explicitly run proposals.',
+    },
+    content: { zh: researchAgentCollaborationZh, en: researchAgentCollaborationEn },
+  },
+  {
+    slug: 'research/handoff',
+    group: 'research',
+    title: { zh: '将研究交给 Factor 或 Strategy', en: 'Hand research to Factor or Strategy' },
+    summary: {
+      zh: '从成功快照封存版本，并生成待验证的 Python Factor 或 Strategy 草稿。',
+      en: 'Promote a successful snapshot and generate a Python Factor or Strategy draft for validation.',
+    },
+    content: { zh: researchHandoffZh, en: researchHandoffEn },
+  },
+  {
+    slug: 'research/curator',
+    group: 'research',
+    title: { zh: '使用研究整理', en: 'Use Research curation' },
+    summary: {
+      zh: '查看重复研究候选、系统能力匹配和人工反馈，不把整理写成自动实施。',
+      en: 'Review recurring candidates, capability matches, and human feedback without treating curation as automatic implementation.',
+    },
+    content: { zh: researchCuratorZh, en: researchCuratorEn },
+  },
+  {
     slug: 'research/universe',
     group: 'research',
     title: {
@@ -447,6 +543,16 @@ export const HELP_ARTICLES: HelpArticle[] = [
       zh: researchRecordsZh,
       en: researchRecordsEn,
     },
+  },
+  {
+    slug: 'library/share-copy',
+    group: 'publicLibrary',
+    title: { zh: '分享和复制公共资产', en: 'Share and copy public assets' },
+    summary: {
+      zh: '公开或设为私有，并把他人的策略或已发布 Factor 复制成独立私有副本。',
+      en: 'Publish or privatize an asset, and copy another strategy or published Factor into an independent private asset.',
+    },
+    content: { zh: libraryShareCopyZh, en: libraryShareCopyEn },
   },
   {
     slug: 'stock-detail/read-chart',
@@ -543,6 +649,16 @@ export const HELP_ARTICLES: HelpArticle[] = [
       zh: pythonStrategyZh,
       en: pythonStrategyEn,
     },
+  },
+  {
+    slug: 'backtesting/technical-indicators',
+    group: 'backtesting',
+    title: { zh: '在策略中使用技术指标', en: 'Use technical indicators in a strategy' },
+    summary: {
+      zh: '在 TypeScript 和 Python 中正确使用 ADX、Bollinger、RSI、MACD 和 KDJ。',
+      en: 'Use ADX, Bollinger Bands, RSI, MACD, and KDJ correctly in TypeScript and Python.',
+    },
+    content: { zh: technicalIndicatorsZh, en: technicalIndicatorsEn },
   },
   {
     slug: 'backtesting/revise-with-chat',
@@ -1119,6 +1235,26 @@ export const HELP_ARTICLES: HelpArticle[] = [
       zh: createCustomFactorZh,
       en: createCustomFactorEn,
     },
+  },
+  {
+    slug: 'factors/python-factor',
+    group: 'factorResearch',
+    title: { zh: '使用 Python 编写 Factor', en: 'Write a Factor in Python' },
+    summary: {
+      zh: '使用 py-v1 编写截面、时间序列和 Panel Factor，并完成分析与发布检查。',
+      en: 'Use py-v1 for cross-sectional, time-series, and Panel Factors, then complete analysis and publication checks.',
+    },
+    content: { zh: pythonFactorZh, en: pythonFactorEn },
+  },
+  {
+    slug: 'factors/robust-inference',
+    group: 'factorResearch',
+    title: { zh: '阅读稳健截面推断', en: 'Read robust cross-sectional inference' },
+    summary: {
+      zh: '理解 Newey–West 区间和固定控制 Fama–MacBeth 回归的用途与限制。',
+      en: 'Understand the purpose and limits of Newey–West intervals and fixed-control Fama–MacBeth regression.',
+    },
+    content: { zh: robustInferenceZh, en: robustInferenceEn },
   },
   {
     slug: 'factors/agent-explore-analysis',

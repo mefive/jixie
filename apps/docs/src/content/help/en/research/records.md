@@ -22,6 +22,21 @@ Every complete run appears in the document's run history. A successful run can b
 tags, and notes. Promotion names an existing snapshot; it does not rerun or rewrite results. A Factor or Strategy created from
 that snapshot retains its provenance and backlink.
 
+Use this sequence:
+
+1. Select the history icon at the top to open **Full run history**.
+2. Verify the status, document revision, Cell count, and completion time.
+3. Open an entry to inspect its read-only source and outputs.
+4. When a successful run should become a downstream baseline, select **Promote as research version**.
+5. Enter a version name, tags, and notes, then confirm.
+
+![Full run history and promotion entry](/docs/images/help/zh/research/records-01.png)
+
 A complete run proves that this source produced these outputs in that environment; it does not prove that the method is correct
 or investable. The snapshot does not copy the underlying market database. If data is revised later, run the document cleanly
 again to create a separate snapshot and review the two records independently.
+
+## Related articles
+
+- [Run, stop, and reset research](/docs/help/research/run-control)
+- [Hand research to Factor or Strategy](/docs/help/research/handoff)

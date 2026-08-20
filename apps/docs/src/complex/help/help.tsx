@@ -192,6 +192,7 @@ function HelpMarkdown({ content }: { content: string }) {
       h2: createHeading(2),
       h3: createHeading(3),
       a: HelpLink,
+      p: HelpParagraph,
       img: HelpImage,
       pre: HelpCodeBlock,
     }),
@@ -220,6 +221,23 @@ function HelpMarkdown({ content }: { content: string }) {
       )}
     </div>
   );
+}
+
+function HelpParagraph({
+  domNode: _domNode,
+  streamStatus: _streamStatus,
+  children,
+  ...props
+}: ComponentProps) {
+  const containsImage = Children.toArray(children).some(
+    (child) => isValidElement(child) && child.type === HelpImage,
+  );
+
+  if (containsImage) {
+    return <div {...(props as HTMLAttributes<HTMLDivElement>)}>{children}</div>;
+  }
+
+  return <p {...(props as HTMLAttributes<HTMLParagraphElement>)}>{children}</p>;
 }
 
 function HelpCodeBlock({

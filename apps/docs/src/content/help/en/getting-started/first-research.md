@@ -58,3 +58,10 @@ upstream revision changes the disclosed data revision.
 > robustness, and implementation constraints.
 
 [Open Research](/research)
+
+## Continue learning
+
+- [Build a research document with Cells](/docs/help/research/document-cells)
+- [Use the research data catalog](/docs/help/research/data-catalog)
+- [Collaborate with Research Agent](/docs/help/research/agent-collaboration)
+- [Hand research to Factor or Strategy](/docs/help/research/handoff)

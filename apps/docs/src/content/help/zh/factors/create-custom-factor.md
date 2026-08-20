@@ -1,6 +1,6 @@
 # 新建和编辑自定义因子
 
-自定义因子把每只股票在每个比较日期的数据转换成一个数值。可以向左侧的 Agent 描述计算方法，也可以直接在中间编辑代码。
+自定义因子把每只股票在每个比较日期的数据转换成一个数值。新建草稿默认使用 Python `py-v1`；可以向左侧的 Agent 描述计算方法，也可以直接在中间编辑代码。已有 TypeScript Factor 继续兼容，不会被自动改写。
 
 ## 开始前
 
@@ -37,7 +37,7 @@ $$
 4. 因子代码编辑器。
 5. “运行分析”按钮。
 
-![自定义因子的新建页面](/docs/images/help/zh/factors/factor-custom-new-01.png)
+![Python 自定义因子的新建页面](/docs/images/help/zh/factors/python-factor-01.png)
 
 使用 Agent 时，应描述实际计算规则。例如：
 
@@ -47,21 +47,24 @@ Agent 写完代码后仍要逐行检查。它生成的是待确认代码，不�
 
 ## 直接编辑代码
 
-一个可以运行的因子至少包含名称和 `compute` 计算函数：
+一个可以运行的股票横截面 Factor 至少包含 `Factor.cross_sectional` 定义和 `compute` 计算函数：
 
-```ts
-export default defineFactor({
-  name: '账面市值比（自定义）',
-  compute: (bar) => (bar.pb && bar.pb > 0 ? 1 / bar.pb : null),
-});
+```python
+from jixie import Factor, FactorBar, CrossSectionalFactorContext
+
+factor = Factor.cross_sectional(name="账面市值比（自定义）")
+
+@factor.compute
+def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
+    return 1 / bar.pb if bar.pb is not None and bar.pb > 0 else None
 ```
 
 这段代码的含义是：
 
 - `name` 是页面上显示的名称，可以使用中文。
 - `compute` 对当前股票和当前日期的数据计算因子值。
-- `bar.pb` 是市净率。
-- 市净率缺失、等于 0 或小于 0 时返回 `null`，该股票在本期没有有效因子值。
+- `bar.pb` 是市净率；编辑器会提供当前可用字段补全。
+- 市净率缺失、等于 0 或小于 0 时返回 `None`，该股票在本期没有有效因子值。
 
 下图中的标记分别是：
 
@@ -70,17 +73,17 @@ export default defineFactor({
 3. 当前代码。
 4. 使用当前代码运行分析。
 
-![编辑完成的账面市值比因子代码](/docs/images/help/zh/factors/factor-custom-edited-01.png)
+![Python Factor 的字段补全和运行入口](/docs/images/help/zh/factors/python-factor-01.png)
 
-不要为了让所有股票都有数值而把不能计算的情况写成 `0`。零是一个真实数值，会参与排序；`null` 才表示本期没有可用值。
+不要为了让所有股票都有数值而把不能计算的情况写成 `0`。零是一个真实数值，会参与排序；`None` 才表示本期没有可用值。
 
 ## 使用财务历史字段
 
-自定义因子可以读取按公告日对齐的 ROE 和毛利率历史。`grossprofitMargin` 的单位是百分比，例如 `35` 表示毛利率 35%，不是 `0.35`。
+自定义因子可以读取按公告日对齐的 ROE 和毛利率历史。Python 历史字段 `grossprofit_margin` 的单位是百分比，例如 `35` 表示毛利率 35%，不是 `0.35`。
 
-历史字段遵守时点规则：在日期 $t$ 只能使用公告日不晚于 $t$ 的最新报告。报告发布前的交易日不会提前看到数据，首份可用报告之前返回 `null`。财务历史表现为公告日发生变化的阶梯序列，不是每天重新计算的新财务报表。
+历史字段遵守时点规则：在日期 $t$ 只能使用公告日不晚于 $t$ 的最新报告。报告发布前的交易日不会提前看到数据，首份可用报告之前返回 `None`。财务历史表现为公告日发生变化的阶梯序列，不是每天重新计算的新财务报表。
 
-需要研究毛利率稳定性时，应先写清窗口和缺失值要求。例如使用最近 504 个交易日的有效毛利率计算波动，并在覆盖不足时返回 `null`。不要把尚未公告的年报或当前网页上看到的最新毛利率回填到历史日期。
+需要研究毛利率稳定性时，应先写清窗口和缺失值要求。例如使用最近 504 个交易日的有效毛利率计算波动，并在覆盖不足时返回 `None`。不要把尚未公告的年报或当前网页上看到的最新毛利率回填到历史日期。
 
 ## 运行分析并保存当前代码
 
@@ -112,7 +115,7 @@ Factor 在新建确认时就已持久化，草稿编辑会自动保存。提交�
 建议按以下顺序检查：
 
 1. 因子名称和公式是否一致。
-2. 缺失值和异常值是否按预期返回 `null`。
+2. 缺失值和异常值是否按预期返回 `None`。
 3. 高因子值和低因子值的含义是否清楚。
 4. 日志中是否有计算错误。
 5. 分组、Rank IC、换手和样本数是否符合预期。
@@ -123,7 +126,7 @@ Factor 在新建确认时就已持久化，草稿编辑会自动保存。提交�
 
 ### 点击运行后显示代码错误
 
-先查看中间日志。常见原因是字段名称错误、括号缺失、没有返回数值或 `null`。修正代码后重新运行。
+先查看中间日志。常见原因是字段名称错误、括号缺失、没有返回数值或 `None`。修正代码后重新运行。
 
 ### 因子值太少
 
@@ -140,6 +143,7 @@ Factor 在新建确认时就已持久化，草稿编辑会自动保存。提交�
 ## 相关内容
 
 - [设置分析范围和样本处理](/docs/help/factors/analysis-settings)
+- [使用 Python 编写 Factor](/docs/help/factors/python-factor)
 - [查看第一份因子分析结果](/docs/help/factors/results-overview)
 - [设置 Factor key](/docs/help/factors/strategy-key)
 - [让因子 Agent 运行探索分析](/docs/help/factors/agent-explore-analysis)

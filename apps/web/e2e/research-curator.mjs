@@ -196,8 +196,10 @@ try {
   await page.waitForFunction(() => {
     const buttons = [...document.querySelectorAll('button')];
     return (
-      buttons.some((button) => button.textContent?.includes('核验正确') && button.disabled) &&
-      buttons.some((button) => button.textContent?.includes('核验有误') && !button.disabled)
+      buttons.some(
+        (button) => button.getAttribute('aria-label') === '核验正确' && button.disabled,
+      ) &&
+      buttons.some((button) => button.getAttribute('aria-label') === '核验有误' && !button.disabled)
     );
   });
   if (!(await card.getByRole('button', { name: '核验正确' }).isDisabled())) {
@@ -207,8 +209,8 @@ try {
   await page.waitForFunction(() => {
     const buttons = [...document.querySelectorAll('button')];
     return (
-      buttons.some((button) => button.textContent?.trim() === '接受' && button.disabled) &&
-      buttons.some((button) => button.textContent?.trim() === '拒绝' && !button.disabled)
+      buttons.some((button) => button.getAttribute('aria-label') === '接受' && button.disabled) &&
+      buttons.some((button) => button.getAttribute('aria-label') === '拒绝' && !button.disabled)
     );
   });
   if (!(await card.getByRole('button', { name: '接受' }).isDisabled())) {
