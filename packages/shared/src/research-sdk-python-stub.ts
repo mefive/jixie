@@ -2,8 +2,11 @@ import {
   RESEARCH_SDK_CONTRACT_V1,
   type ResearchSdkContractV1,
   type ResearchSdkFunctionContractV1,
-  type ResearchSdkParameterContractV1,
 } from './research-sdk-contract.js';
+import {
+  renderResearchSdkPythonParameter,
+  researchSdkPythonReturnType,
+} from './research-sdk-python-signature.js';
 
 /** Render the Python typing surface used by both the sandbox artifact and Pyright workspace. */
 export function renderResearchSdkPythonStub(
@@ -45,6 +48,12 @@ export function renderResearchSdkPythonStub(
 
 function renderFunction(contract: ResearchSdkFunctionContractV1): string[] {
   const lines = [`    # ${contract.descriptionEn}`];
+  for (const note of contract.notesEn) {
+    lines.push(`    # Note: ${note}`);
+  }
+  for (const example of contract.examples) {
+    lines.push(`    # Example: ${example}`);
+  }
   if (contract.returns.kind === 'dataframe') {
     const columns = contract.returns.columns
       .map((column) => `${column.name}: ${column.pythonType}`)
@@ -59,45 +68,10 @@ function renderFunction(contract: ResearchSdkFunctionContractV1): string[] {
       lines.push('        *,');
       keywordOnlyStarted = true;
     }
-    lines.push(`        ${renderParameter(parameter)},`);
+    lines.push(`        ${renderResearchSdkPythonParameter(parameter)},`);
   }
 
-  const returnType = contract.returns.kind === 'dataframe' ? 'pd.DataFrame' : '_ChartResult';
+  const returnType = researchSdkPythonReturnType(contract.returns);
   lines.push(`    ) -> ${returnType}: ...`, '');
   return lines;
-}
-
-function renderParameter(parameter: ResearchSdkParameterContractV1): string {
-  let pythonType: string;
-  switch (parameter.type) {
-    case 'enum':
-      pythonType = `Literal[${parameter.values!.map((value) => JSON.stringify(value)).join(', ')}]`;
-      break;
-    case 'string':
-    case 'date':
-      pythonType = 'str';
-      break;
-    case 'integer':
-      pythonType = 'int';
-      break;
-    case 'dataframe':
-      pythonType = 'pd.DataFrame';
-      break;
-    case 'string_or_string_list':
-      pythonType = 'str | list[str]';
-      break;
-    case 'string_map':
-      pythonType = 'Mapping[str, str]';
-      break;
-  }
-
-  if (parameter.defaultValue === null) {
-    pythonType = `${pythonType} | None`;
-  }
-  if (parameter.defaultValue === undefined) {
-    return `${parameter.name}: ${pythonType}`;
-  }
-  const defaultValue =
-    parameter.defaultValue === null ? 'None' : JSON.stringify(parameter.defaultValue);
-  return `${parameter.name}: ${pythonType} = ${defaultValue}`;
 }

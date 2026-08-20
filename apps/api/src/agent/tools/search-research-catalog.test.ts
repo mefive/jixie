@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   interpretResearchCatalogQuery,
   researchCatalogTenorYears,
+  researchSdkMethodsForCatalogQuery,
 } from './search-research-catalog.js';
 
 describe('research catalog query interpretation', () => {
@@ -50,5 +51,29 @@ describe('research catalog query interpretation', () => {
 
     expect(interpretation.explicitConceptIds).toHaveLength(3);
     expect(interpretation.terms).toEqual([]);
+  });
+
+  it('resolves exact Research SDK method names without guessing a signature', () => {
+    const [method] = researchSdkMethodsForCatalogQuery('Research SDK data.panel');
+
+    expect(method?.qualifiedName).toBe('data.panel');
+    expect(method?.signature).toBe(
+      'data.panel(universe: str, *, start: str, end: str, frequency: Literal["month_end"] = "month_end", minimum_listed_days: int = 365, risk_warning: Literal["exclude", "include"] = "exclude") -> pd.DataFrame',
+    );
+    expect(method?.parameters.find((parameter) => parameter.name === 'frequency')).toMatchObject({
+      defaultValue: 'month_end',
+      values: ['month_end'],
+    });
+    expect(method?.returns).toMatchObject({
+      kind: 'dataframe',
+      columns: expect.arrayContaining([
+        expect.objectContaining({ name: 'date' }),
+        expect.objectContaining({ name: 'code' }),
+        expect.objectContaining({ name: 'pb' }),
+      ]),
+    });
+    expect(method?.examples[0]).toContain('data.panel("index:000300.SH"');
+    expect(method?.notesEn.join(' ')).toContain('point-in-time historical membership');
+    expect(researchSdkMethodsForCatalogQuery('000300.SH')).toEqual([]);
   });
 });

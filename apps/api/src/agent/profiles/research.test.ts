@@ -25,6 +25,9 @@ describe('researchProfile', () => {
     expect(system).toContain('data.series');
     expect(system).toContain('data.cross_section');
     expect(system).toContain('data.panel');
+    expect(system).toContain('exact qualified SDK method name');
+    expect(system).toContain('sdkMethods');
+    expect(system).toContain('never infer an SDK signature or DataFrame column from memory');
     expect(system).toContain('not a replacement for FactorReport');
     expect(system).toContain('charts.*');
     expect(system).toContain('one focal predictor');

@@ -60,6 +60,9 @@ export interface ResearchSdkFunctionContractV1 {
   name: string;
   descriptionZh: string;
   descriptionEn: string;
+  examples: readonly string[];
+  notesZh: readonly string[];
+  notesEn: readonly string[];
   parameters: readonly ResearchSdkParameterContractV1[];
   returns: ResearchSdkReturnContractV1;
 }
@@ -277,6 +280,13 @@ function chartFunction(
     name,
     descriptionZh,
     descriptionEn,
+    examples: [
+      `charts.${name}(frame, x="date", y=${
+        yType === 'string' ? '"value"' : '["value", "benchmark"]'
+      }, title="Research chart")`,
+    ],
+    notesZh: ['frame 必须包含 x、y 和 labels 中引用的 DataFrame 列。'],
+    notesEn: ['The frame must contain every DataFrame column referenced by x, y, and labels.'],
     parameters: [
       chartFrameParameter,
       chartXParameter,
@@ -312,6 +322,17 @@ export const RESEARCH_SDK_CONTRACT_V1 = {
       descriptionZh: '加载平台口径一致的历史时间序列，返回按日期排序的 pandas DataFrame。',
       descriptionEn:
         'Load a platform-governed historical series as a date-sorted pandas DataFrame.',
+      examples: [
+        'data.series("index", "000300.SH", start="20200101", end="20251231", frequency="monthly", transform="simple_return")',
+      ],
+      notesZh: [
+        'identifier 与 measure 必须来自研究目录，不能用相似资产或指标静默替代。',
+        '月频默认排除尚未结束的部分月份；返回列固定为 date 与 value。',
+      ],
+      notesEn: [
+        'Resolve identifier and measure through the research catalog; never silently substitute a similar asset or measure.',
+        'Monthly output excludes an incomplete ending month by default; the fixed columns are date and value.',
+      ],
       parameters: [
         {
           name: 'asset_type',
@@ -415,6 +436,17 @@ export const RESEARCH_SDK_CONTRACT_V1 = {
       descriptionZh: '读取一个请求日期上实际可得的 A 股 PIT 截面，返回固定列的 pandas DataFrame。',
       descriptionEn:
         'Load the actually available point-in-time China A-share cross-section for one requested date as a fixed-schema pandas DataFrame.',
+      examples: [
+        'data.cross_section("index:000300.SH", date="20251231", minimum_listed_days=365, risk_warning="exclude")',
+      ],
+      notesZh: [
+        '指数股票池按请求日当时可得的历史成分解析，不用当前成分回填过去。',
+        '请求日无截面时返回此前最近可用数据日；实际 date 必须从结果列读取。',
+      ],
+      notesEn: [
+        'Index universes resolve historical membership available on the requested date; current membership is never backfilled into the past.',
+        'When the requested date has no snapshot, the latest prior data date is returned and must be read from the date column.',
+      ],
       parameters: [
         equityUniverseParameter,
         {
@@ -438,6 +470,19 @@ export const RESEARCH_SDK_CONTRACT_V1 = {
       descriptionZh: '按历史 PIT 股票池规则读取多个完整月末截面，返回 date × code 固定列长表。',
       descriptionEn:
         'Load complete month-end point-in-time equity cross-sections as a fixed-schema date-by-code long DataFrame.',
+      examples: [
+        'data.panel("index:000300.SH", start="20200101", end="20251231", frequency="month_end", minimum_listed_days=365, risk_warning="exclude")',
+      ],
+      notesZh: [
+        '指数股票池在每个月末分别按当时可得的历史成分解析，不用当前成分回填历史。',
+        'V1 只支持完整月末；未完成的结束月份不会进入结果。',
+        '返回固定 date × code 长表，用于探索；正式因子证据仍由 FactorReport 产生。',
+      ],
+      notesEn: [
+        'Index universes resolve point-in-time historical membership separately at every month end; current membership is never backfilled.',
+        'V1 supports completed month ends only; an incomplete ending month is excluded.',
+        'The fixed date-by-code long frame is exploratory; FactorReport remains the formal factor-evidence surface.',
+      ],
       parameters: [
         equityUniverseParameter,
         {
@@ -508,6 +553,13 @@ export const RESEARCH_SDK_CONTRACT_V1 = {
       descriptionZh: '对数值列确定性分箱，创建 jixie 原生交互直方图。',
       descriptionEn:
         'Deterministically bin a numeric column and create a native interactive histogram.',
+      examples: [
+        'charts.histogram(frame, column="next_month_return", bins=20, title="Return distribution")',
+      ],
+      notesZh: ['frame 必须包含 column 和 labels 中引用的 DataFrame 列；bins 允许 1–100。'],
+      notesEn: [
+        'The frame must contain the DataFrame columns referenced by column and labels; bins accepts 1 through 100.',
+      ],
       parameters: [
         chartFrameParameter,
         {
@@ -539,6 +591,13 @@ export const RESEARCH_SDK_CONTRACT_V1 = {
       descriptionZh: '按数值列及可选分组计算五数概括，创建 jixie 原生交互箱线图。',
       descriptionEn:
         'Compute five-number summaries by numeric column and optional group for a native interactive box plot.',
+      examples: [
+        'charts.boxplot(frame, y="next_month_return", group="quintile", title="Return by quintile")',
+      ],
+      notesZh: ['frame 必须包含 y、group 和 labels 中引用的 DataFrame 列。'],
+      notesEn: [
+        'The frame must contain every DataFrame column referenced by y, group, and labels.',
+      ],
       parameters: [
         chartFrameParameter,
         {
@@ -570,6 +629,13 @@ export const RESEARCH_SDK_CONTRACT_V1 = {
       descriptionZh: '用两个分类轴和一个数值列创建 jixie 原生交互热力图。',
       descriptionEn:
         'Create a native interactive heatmap from two categorical axes and one numeric value column.',
+      examples: [
+        'charts.heatmap(frame, x="year", y="month", value="rank_ic", title="Monthly Rank IC")',
+      ],
+      notesZh: ['frame 必须包含 x、y、value 和 labels 中引用的 DataFrame 列。'],
+      notesEn: [
+        'The frame must contain every DataFrame column referenced by x, y, value, and labels.',
+      ],
       parameters: [
         chartFrameParameter,
         chartXParameter,

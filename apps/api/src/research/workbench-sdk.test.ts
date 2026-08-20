@@ -4,6 +4,7 @@ import {
   RESEARCH_PANEL_SDK_CONTRACT_V1,
   RESEARCH_SDK_CONTRACT_V1,
   RESEARCH_SERIES_SDK_CONTRACT_V1,
+  createResearchSdkAgentCatalog,
 } from '@jixie/shared';
 import {
   parseResearchCrossSectionRuntimeRequest,
@@ -125,5 +126,17 @@ describe('research workbench SDK contract', () => {
         .filter((contract) => contract.namespace === 'charts')
         .map((contract) => contract.name),
     ).toEqual(['line', 'area', 'bar', 'scatter', 'event_path', 'histogram', 'boxplot', 'heatmap']);
+  });
+
+  it('derives the Agent SDK catalog from the same public contract', () => {
+    const sdkCatalog = createResearchSdkAgentCatalog();
+    const panel = sdkCatalog.methods.find((method) => method.qualifiedName === 'data.panel');
+
+    expect(sdkCatalog.runtimeVersion).toBe(RESEARCH_SDK_CONTRACT_V1.runtimeVersion);
+    expect(sdkCatalog.methods).toHaveLength(RESEARCH_SDK_CONTRACT_V1.functions.length);
+    expect(panel?.signature).toContain('frequency: Literal["month_end"] = "month_end"');
+    expect(panel?.returns).toBe(RESEARCH_PANEL_SDK_CONTRACT_V1.returns);
+    expect(panel?.examples).toEqual(RESEARCH_PANEL_SDK_CONTRACT_V1.examples);
+    expect(panel?.notesEn).toEqual(RESEARCH_PANEL_SDK_CONTRACT_V1.notesEn);
   });
 });
