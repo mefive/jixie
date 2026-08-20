@@ -10,6 +10,7 @@ import {
   type FactorReportSummary,
   type FactorAnalysisSpec,
   type FactorAnalysisKind,
+  type FactorLanguage,
   type FactorAnalysisSpecV3,
   type FactorAnalysisSpecV6,
   type FactorEvaluationScopeV1,
@@ -158,52 +159,48 @@ const DEFAULT_CROSS_SECTIONAL_INFERENCE: FactorAnalysisSpecV6['inference'] = {
 };
 
 // Starter skeleton for a brand-new custom factor (what the middle editor shows before the Agent writes).
-export const DEFAULT_FACTOR_CODE = `// 用左侧 Agent 描述你想要的因子，AI 写成代码；也可以直接改。
-export default defineFactor({
-  name: '新因子',
-  // bar = 当天某只股票的横截面数据（估值/规模/流动性），返回因子值或 null
-  compute: (bar) => (bar.peTtm && bar.peTtm > 0 ? 1 / bar.peTtm : null),
-});
+export const DEFAULT_FACTOR_CODE = `# 用左侧 Agent 描述你想要的因子，AI 会生成 Python；也可以直接修改。
+from jixie import Factor, FactorBar, CrossSectionalFactorContext
+
+factor = Factor.cross_sectional(name="新因子")
+
+@factor.compute
+def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
+    return 1 / bar.pe_ttm if bar.pe_ttm is not None and bar.pe_ttm > 0 else None
 `;
 
-export const DEFAULT_TIME_SERIES_FACTOR_CODE = `// 用左侧 Agent 描述你想研究的 ETF 时间序列信号，AI 写成代码；也可以直接改。
-export default defineFactorV2({
-  version: 2,
-  name: 'ETF 20日趋势',
-  analysisKind: 'time_series',
-  outputScope: 'asset',
-  frequency: 'daily',
-  inputs: ['etf.adjustedClose'],
-  targetAssetClasses: ['equity', 'fixed_income', 'commodity'],
-  window: 21,
-  compute(ctx) {
-    const current = ctx.value('etf.adjustedClose');
-    const previous = ctx.lag('etf.adjustedClose', 20);
-    return current != null && previous != null && previous > 0
-      ? current / previous - 1
-      : null;
-  },
-});
+export const DEFAULT_TIME_SERIES_FACTOR_CODE = `# ETF 时间序列信号：默认使用 Python Factor SDK。
+from jixie import Factor, AssetFactorContext
+
+factor = Factor.time_series(
+    name="ETF 20日趋势",
+    inputs=["etf.adjustedClose"],
+    target_asset_classes=["equity", "fixed_income", "commodity"],
+    window=21,
+)
+
+@factor.compute
+def compute(ctx: AssetFactorContext) -> float | None:
+    current = ctx.value("etf.adjustedClose")
+    previous = ctx.lag("etf.adjustedClose", 20)
+    return current / previous - 1 if current is not None and previous is not None and previous > 0 else None
 `;
 
-export const DEFAULT_PANEL_FACTOR_CODE = `// 用左侧 Agent 描述你想横向比较的跨资产信号，AI 写成代码；也可以直接改。
-export default defineFactorV2({
-  version: 2,
-  name: '跨资产120日动量',
-  analysisKind: 'panel',
-  outputScope: 'asset',
-  frequency: 'daily',
-  inputs: ['etf.adjustedClose'],
-  targetAssetClasses: ['equity', 'fixed_income', 'commodity'],
-  window: 121,
-  compute(ctx) {
-    const current = ctx.value('etf.adjustedClose');
-    const previous = ctx.lag('etf.adjustedClose', 120);
-    return current != null && previous != null && previous > 0
-      ? current / previous - 1
-      : null;
-  },
-});
+export const DEFAULT_PANEL_FACTOR_CODE = `# 跨资产 Panel 信号：每个决策日输出一个可横向比较的分数。
+from jixie import Factor, AssetFactorContext
+
+factor = Factor.panel(
+    name="跨资产120日动量",
+    inputs=["etf.adjustedClose"],
+    target_asset_classes=["equity", "fixed_income", "commodity"],
+    window=121,
+)
+
+@factor.compute
+def compute(ctx: AssetFactorContext) -> float | None:
+    current = ctx.value("etf.adjustedClose")
+    previous = ctx.lag("etf.adjustedClose", 120)
+    return current / previous - 1 if current is not None and previous is not None and previous > 0 else None
 `;
 
 type EditableFactorAnalysisKind = Extract<
@@ -234,6 +231,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   public mode: 'preset' | 'custom' | 'composite' | 'time_series' | 'panel' | 'macro_regime' =
     'preset';
   public definitionAnalysisKind: EditableFactorAnalysisKind = 'cross_sectional';
+  public language: FactorLanguage = 'python';
   public compositeDefinition: FactorCompositeDefinition | null = null;
   public code = ''; // the custom factor's defineFactor source (empty for presets)
   public persistedCode = ''; // code as persisted in the DB — baseline for `edited`
@@ -283,6 +281,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       selectedReportId: observable.ref,
       mode: observable.ref,
       definitionAnalysisKind: observable.ref,
+      language: observable.ref,
       compositeDefinition: observable.ref,
       code: observable.ref,
       persistedCode: observable.ref,
@@ -826,6 +825,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         : isPanel
           ? 'panel'
           : 'cross_sectional';
+      this.language = meta?.language === 'python' ? 'python' : 'typescript';
       this.compositeDefinition = isComposite ? structuredClone(meta?.composite ?? null) : null;
       this.specVersion = 6;
       this.evaluationScope = defaultEvaluationScope();
@@ -880,6 +880,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
           factor.analysisKind === 'time_series' || factor.analysisKind === 'panel'
             ? factor.analysisKind
             : 'cross_sectional';
+        this.language = factor.language === 'python' ? 'python' : 'typescript';
         this.chatMessages = isCustom ? (factor.messages ?? []).map(normalizeChatMessage) : [];
         this.factorKey = factor.key;
         this.factorStatus = factor.status ?? (factor.builtin ? 'published' : 'draft');
@@ -938,7 +939,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         : analysisKind === 'panel'
           ? DEFAULT_PANEL_FACTOR_CODE
           : DEFAULT_FACTOR_CODE;
-    const created = await createFactor(key, name, code, analysisKind);
+    const created = await createFactor(key, name, code, analysisKind, undefined, 'python');
     await this.catalogLoader.run();
     await this.selectFactor(created.id);
   }
@@ -1109,6 +1110,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         this.selectedReportId = '';
         this.mode = 'preset';
         this.definitionAnalysisKind = 'cross_sectional';
+        this.language = 'python';
         this.code = '';
         this.persistedCode = '';
         this.chatMessages = [];

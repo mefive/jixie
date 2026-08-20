@@ -13,7 +13,6 @@ import type {
   FactorMacroRegimeReportV1,
   FactorPanelReportV1,
   FactorTimeSeriesReportV1,
-  LogLine,
   ChatMessage,
   RunFactorAnalysisResponse,
 } from '@jixie/shared';
@@ -105,7 +104,7 @@ factorRoute.post('/agent', validateJson(agentBody), async (c) => {
   const userId = c.var.userId;
   const factor = await prisma.factor.findFirst({
     where: { id, userId },
-    select: { id: true, analysisKind: true, status: true },
+    select: { id: true, analysisKind: true, language: true, status: true },
   });
   if (!factor) {
     return apiError(c, 'NOT_FOUND', m(c, 'factorNotFound'));
@@ -128,6 +127,7 @@ factorRoute.post('/agent', validateJson(agentBody), async (c) => {
       factorId: id,
       currentCode: code,
       locale,
+      language: factor.language === 'python' ? 'python' : 'typescript',
       analysisKind:
         factor.analysisKind === 'time_series' || factor.analysisKind === 'panel'
           ? factor.analysisKind

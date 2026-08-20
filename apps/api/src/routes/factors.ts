@@ -433,6 +433,8 @@ factorsRoute.post('/composites/:id/copy', async (c) => {
             name: `${component.name.replace(/\s+v\d+$/i, '')} v${componentVersion}`.slice(0, 40),
             code: component.code,
             analysisKind: component.analysisKind,
+            language: component.language,
+            runtimeVersion: component.runtimeVersion,
             descriptionZh: component.descriptionZh,
             descriptionEn: component.descriptionEn,
           },

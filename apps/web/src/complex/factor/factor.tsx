@@ -1159,6 +1159,8 @@ const MiddleColumn = complex.component(({ guardDiscard }: { guardDiscard: GuardD
               <FactorEditor
                 value={store.code}
                 onChange={(v) => store.setCode(v)}
+                language={store.language}
+                documentId={store.selectedKey || 'factor'}
                 readOnly={preset || store.factorStatus !== 'draft'}
               />
             </Suspense>
@@ -1176,7 +1178,7 @@ const TimeSeriesWorkspace = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('factor');
   const editable = store.mode === 'custom' && store.factorStatus === 'draft';
-  const window = store.code.match(/\bwindow:\s*(\d+)/)?.[1] ?? '—';
+  const window = store.code.match(/\bwindow\s*[:=]\s*(\d+)/)?.[1] ?? '—';
   const inputs = factorV2Inputs(store.code)
     .map((input) => timeSeriesInputLabel(input, t))
     .join(t('timeSeries.inputSeparator'));
@@ -1200,7 +1202,9 @@ const TimeSeriesWorkspace = complex.component(() => {
                     : 'timeSeries.codeReadonly',
               )}
             </span>
-            <Tag color="blue">Factor Definition V2</Tag>
+            <Tag color="blue">
+              {store.language === 'python' ? 'Python · py-v1' : 'Factor Definition V2'}
+            </Tag>
           </div>
           {editable && store.selectedKey && <FactorIdentityBar />}
           {editable && store.pendingAgentCode !== null && (
@@ -1229,6 +1233,8 @@ const TimeSeriesWorkspace = complex.component(() => {
               <FactorEditor
                 value={store.code}
                 onChange={(value) => store.setCode(value)}
+                language={store.language}
+                documentId={store.selectedKey || 'factor'}
                 readOnly={!editable}
               />
             </Suspense>
@@ -1266,7 +1272,13 @@ const MacroRegimeWorkspace = complex.component(() => {
           </div>
           <div className="jx-factor-code">
             <Suspense fallback={<div className="jx-factor-codeEmpty">{t('editorLoading')}</div>}>
-              <FactorEditor value={store.code} onChange={() => {}} readOnly />
+              <FactorEditor
+                value={store.code}
+                onChange={() => {}}
+                language={store.language}
+                documentId={store.selectedKey || 'factor'}
+                readOnly
+              />
             </Suspense>
           </div>
         </section>
@@ -1356,6 +1368,9 @@ const FactorIdentityBar = complex.component(() => {
       </span>
       <Tag color={store.factorStatus === 'published' ? 'green' : undefined}>
         {t(`factorStatus.${store.factorStatus}`)}
+      </Tag>
+      <Tag color={store.language === 'python' ? 'blue' : undefined}>
+        {store.language === 'python' ? 'Python · py-v1' : 'TypeScript · ts-v1'}
       </Tag>
       {store.factorStatus === 'draft' && (
         <span className="jx-factor-keyHint">
@@ -3538,7 +3553,7 @@ const KIND_KEY: Record<FactorKind, string> = {
 };
 
 function factorV2Inputs(source: string): string[] {
-  const declaration = source.match(/\binputs\s*:\s*\[([\s\S]*?)\]/)?.[1] ?? '';
+  const declaration = source.match(/\binputs\s*[:=]\s*\[([\s\S]*?)\]/)?.[1] ?? '';
   return [...declaration.matchAll(/['"]([^'"]+)['"]/g)].map((match) => match[1]);
 }
 
