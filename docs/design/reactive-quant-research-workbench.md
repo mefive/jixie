@@ -533,6 +533,28 @@ Strategy 的最新回测结果用于二次分析；它们是派生结果而不�
 （含配置/代码/结果 hash、完成时间、净值与成交快照）再允许按 report id 读取。完整持仓历史必须由回测引擎真实
 产出后再暴露，不能从成交记录临时猜测。
 
+### M5：Research 多资产数据集
+
+目的不是在 Research 重做 IC、分层或回归报告，而是补齐 Python 自由研究缺失的数据维度：`data.series()`
+继续读取“单个对象 × 一段时间”，M5 让 Python Cell 可以读取“某日 × 多只股票”的截面，以及“多个历史截面”
+组成的长表 Panel。用户或 Agent 可以在普通 pandas / statsmodels 代码里检查分布、缺失、异常值和横截面关系；
+当想法形成正式因子后，仍交给 FactorReport 统一计算 IC、分层、衰减和换手，不在 Research 复制另一套口径。
+
+- **已完成（M5.1 `data.cross_section()`）**：按指定日期读取全 A 股或某指数的 PIT 成分，返回固定公开 Schema
+  的股票截面；单次最多 6000 行，超限时要求缩窄股票池；
+- **已完成（M5.2 `data.panel()`）**：按完整月末重复同一 PIT 规则，返回 `date × code` 长表；单次最多 120 个
+  月末、10 万行，完整月末缺少精确数据快照时失败，不静默向前填充；
+- 两者复用 `UniverseSpec` 的历史指数成分、上市天数、停牌和风险警示规则，公开列来自版本化研究语义目录，
+  不暴露 Prisma 表名、字段名、任意 JOIN 或 SQL；
+- SDK Contract 是参数、固定返回列、Monaco/Pyright 与 Python runtime 的唯一真相源；执行结果同时披露实际数据日、
+  成分股快照日、数据 revision 和诊断，并写入 DataFrame 的 `attrs["jixie"]`，避免把请求日、自然月末或今天的
+  成分误当成历史事实；
+- 首个切片只覆盖中国 A 股日频截面和月末 Panel。财务报表 vintage、事件数据、任意频率与跨市场股票池继续由
+  真实研究问题触发，不提前扩展。
+
+M5 明确不增加统计 helper、固定报告、Validation Cell 或专用 UI；也不读取 FactorReport / BacktestReport。
+Research 中临时计算任何统计量都只是文档内探索代码，正式因子证据仍以不可变 FactorReport 为准。
+
 ## 11. 方法与模板 backlog
 
 先搭建框架，不用统计学目录阻塞 M0–M3。以下能力按真实研究问题、方法审计和数据准备逐项进入可复用 Markdown / Python 模板或经过测试的 helper：

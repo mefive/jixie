@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import {
+  RESEARCH_CROSS_SECTION_SDK_CONTRACT_V1,
+  RESEARCH_PANEL_SDK_CONTRACT_V1,
   RESEARCH_SERIES_SDK_CONTRACT_V1,
   type ResearchAssetTypeV1,
   type ResearchFrequencyV1,
@@ -24,6 +26,22 @@ export interface ResearchSeriesRuntimeRowV1 {
   value: number;
 }
 
+export interface ResearchCrossSectionRuntimeRequestV1 {
+  universe: string;
+  date: string;
+  minimum_listed_days: number;
+  risk_warning: 'exclude' | 'include';
+}
+
+export interface ResearchPanelRuntimeRequestV1 {
+  universe: string;
+  start: string;
+  end: string;
+  frequency: 'month_end';
+  minimum_listed_days: number;
+  risk_warning: 'exclude' | 'include';
+}
+
 const researchSeriesRequestSchema = z.strictObject(
   Object.fromEntries(
     RESEARCH_SERIES_SDK_CONTRACT_V1.parameters.map((parameter) => [
@@ -46,12 +64,53 @@ const researchSeriesRowsSchema = z.array(
   ),
 );
 
+const researchCrossSectionRequestSchema = sdkRequestSchema(
+  RESEARCH_CROSS_SECTION_SDK_CONTRACT_V1.parameters,
+);
+const researchPanelRequestSchema = sdkRequestSchema(RESEARCH_PANEL_SDK_CONTRACT_V1.parameters);
+const researchEquityDatasetRowsSchema = z.array(
+  z.strictObject(
+    Object.fromEntries(
+      RESEARCH_CROSS_SECTION_SDK_CONTRACT_V1.returns.kind === 'dataframe'
+        ? RESEARCH_CROSS_SECTION_SDK_CONTRACT_V1.returns.columns.map((column) => [
+            column.name,
+            sdkWireColumnSchema(column),
+          ])
+        : [],
+    ),
+  ),
+);
+
 export function parseResearchSeriesRuntimeRequest(value: unknown): ResearchSeriesRuntimeRequestV1 {
   return researchSeriesRequestSchema.parse(value) as unknown as ResearchSeriesRuntimeRequestV1;
 }
 
 export function parseResearchSeriesRuntimeRows(value: unknown): ResearchSeriesRuntimeRowV1[] {
   return researchSeriesRowsSchema.parse(value) as unknown as ResearchSeriesRuntimeRowV1[];
+}
+
+export function parseResearchCrossSectionRuntimeRequest(
+  value: unknown,
+): ResearchCrossSectionRuntimeRequestV1 {
+  return researchCrossSectionRequestSchema.parse(
+    value,
+  ) as unknown as ResearchCrossSectionRuntimeRequestV1;
+}
+
+export function parseResearchPanelRuntimeRequest(value: unknown): ResearchPanelRuntimeRequestV1 {
+  return researchPanelRequestSchema.parse(value) as unknown as ResearchPanelRuntimeRequestV1;
+}
+
+export function parseResearchEquityDatasetRuntimeRows(value: unknown): unknown[] {
+  return researchEquityDatasetRowsSchema.parse(value);
+}
+
+function sdkRequestSchema(parameters: readonly ResearchSdkParameterContractV1[]): z.ZodType {
+  return z.strictObject(
+    Object.fromEntries(
+      parameters.map((parameter) => [parameter.name, sdkParameterSchema(parameter)]),
+    ),
+  );
 }
 
 function sdkParameterSchema(parameter: ResearchSdkParameterContractV1): z.ZodType {
@@ -82,8 +141,12 @@ function sdkWireColumnSchema(column: ResearchSdkDataFrameColumnContractV1): z.Zo
       return z.string().regex(/^\d{8}$/);
     case 'number':
       return z.number().finite();
+    case 'nullable_number':
+      return z.number().finite().nullable();
     case 'string':
       return z.string();
+    case 'nullable_string':
+      return z.string().nullable();
     case 'boolean':
       return z.boolean();
   }

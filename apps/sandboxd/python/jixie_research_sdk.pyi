@@ -24,6 +24,30 @@ class _DataApi:
         partial_period: Literal["exclude", "include"] = "exclude",
     ) -> pd.DataFrame: ...
 
+    # Load the actually available point-in-time China A-share cross-section for one requested date as a fixed-schema pandas DataFrame.
+    # DataFrame columns: date: datetime64[ns], code: str, name: str, industry: str | None, close: float64, adjusted_close: float64, daily_return_pct: float64, volume_lot: float64, amount_cny_1k: float64, pe: float64, pe_ttm: float64, pb: float64, ps: float64, dividend_yield_pct: float64, total_market_cap_cny_10k: float64, float_market_cap_cny_10k: float64, turnover_rate_pct: float64
+    def cross_section(
+        self,
+        universe: str,
+        *,
+        date: str,
+        minimum_listed_days: int = 365,
+        risk_warning: Literal["exclude", "include"] = "exclude",
+    ) -> pd.DataFrame: ...
+
+    # Load complete month-end point-in-time equity cross-sections as a fixed-schema date-by-code long DataFrame.
+    # DataFrame columns: date: datetime64[ns], code: str, name: str, industry: str | None, close: float64, adjusted_close: float64, daily_return_pct: float64, volume_lot: float64, amount_cny_1k: float64, pe: float64, pe_ttm: float64, pb: float64, ps: float64, dividend_yield_pct: float64, total_market_cap_cny_10k: float64, float_market_cap_cny_10k: float64, turnover_rate_pct: float64
+    def panel(
+        self,
+        universe: str,
+        *,
+        start: str,
+        end: str,
+        frequency: Literal["month_end"] = "month_end",
+        minimum_listed_days: int = 365,
+        risk_warning: Literal["exclude", "include"] = "exclude",
+    ) -> pd.DataFrame: ...
+
 
 
 class _ChartsApi:

@@ -53,10 +53,14 @@ export async function executeUniverseSpec(
     where: { tradeDate: asOfDate, ...(source.codes ? { tsCode: { in: source.codes } } : {}) },
   });
   const candidateCodes = dailyBasics.map((row) => row.tsCode);
-  const [daily, basics, names, industries, state] = await Promise.all([
+  const [daily, adjustments, basics, names, industries, state] = await Promise.all([
     database.daily.findMany({
       where: { tradeDate: asOfDate, tsCode: { in: candidateCodes } },
-      select: { tsCode: true, close: true, pctChg: true },
+      select: { tsCode: true, close: true, pctChg: true, vol: true, amount: true },
+    }),
+    database.adjFactor.findMany({
+      where: { tradeDate: asOfDate, tsCode: { in: candidateCodes } },
+      select: { tsCode: true, adjFactor: true },
     }),
     database.stockBasic.findMany({
       where: { tsCode: { in: candidateCodes } },
@@ -92,6 +96,7 @@ export async function executeUniverseSpec(
     }),
   ]);
   const dailyByCode = new Map(daily.map((row) => [row.tsCode, row]));
+  const adjustmentByCode = new Map(adjustments.map((row) => [row.tsCode, row.adjFactor]));
   const basicByCode = new Map(basics.map((row) => [row.tsCode, row]));
   const nameByCode = firstByCode(names, (row) => row.tsCode);
   const industryByCode = firstByCode(industries, (row) => row.tsCode);
@@ -123,6 +128,7 @@ export async function executeUniverseSpec(
     .map((row): UniverseValueRow => {
       const basic = basicByCode.get(row.tsCode)!;
       const price = dailyByCode.get(row.tsCode);
+      const adjustmentFactor = adjustmentByCode.get(row.tsCode);
       return {
         entity: { assetType: 'stock', id: row.tsCode },
         name:
@@ -133,7 +139,13 @@ export async function executeUniverseSpec(
           (requiresHistoricalMetadata ? null : basic.industry),
         values: {
           'equity.close': price?.close ?? null,
+          'equity.adjusted_close':
+            price?.close == null || adjustmentFactor == null
+              ? null
+              : price.close * adjustmentFactor,
           'equity.daily_return_pct': price?.pctChg ?? null,
+          'equity.volume_lot': price?.vol ?? null,
+          'equity.amount_cny_1k': price?.amount ?? null,
           'equity.pe': row.pe,
           'equity.pe_ttm': row.peTtm,
           'equity.pb': row.pb,

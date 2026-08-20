@@ -1,8 +1,12 @@
 import type { ResearchCellOutputBlockV1 } from '@jixie/shared';
 import { PythonSession, type PythonFrame } from '../strategy/python/session.js';
+import { loadResearchCrossSection, loadResearchPanel } from './equity-dataset.js';
 import { researchPayloadHash } from './fingerprints.js';
 import { loadResearchSeries, prepareResearchSeries, researchSeriesLoadStart } from './series.js';
 import {
+  parseResearchCrossSectionRuntimeRequest,
+  parseResearchEquityDatasetRuntimeRows,
+  parseResearchPanelRuntimeRequest,
   parseResearchSeriesRuntimeRequest,
   parseResearchSeriesRuntimeRows,
 } from './workbench-sdk.js';
@@ -278,35 +282,63 @@ async function waitForResearchReady(session: PythonSession): Promise<Record<stri
 async function answerResearchRequest(session: PythonSession, frame: PythonFrame): Promise<void> {
   const id = Number(frame.id);
   try {
-    if (frame.method !== 'research_series') {
-      throw new Error(`unknown research runtime request: ${String(frame.method)}`);
+    let result: Record<string, unknown>;
+    switch (frame.method) {
+      case 'research_series': {
+        const request = parseResearchSeriesRuntimeRequest(frame.arguments);
+        const input = {
+          type: 'series' as const,
+          id: `${request.asset_type}:${request.identifier}`,
+          source: {
+            kind: 'instrument' as const,
+            assetType: request.asset_type,
+            id: request.identifier,
+          },
+          measure: request.measure,
+          transform: request.transform,
+        };
+        const loadStart = researchSeriesLoadStart(
+          request.start,
+          request.frequency,
+          request.transform,
+        );
+        const loaded = await loadResearchSeries(input, loadStart, request.end);
+        const points = prepareResearchSeries(loaded.points, request.frequency, request.transform, {
+          start: request.start,
+          end: request.end,
+          partialPeriod: request.partial_period,
+        });
+        result = {
+          rows: parseResearchSeriesRuntimeRows(points),
+          diagnostics: loaded.diagnostics,
+        };
+        break;
+      }
+      case 'research_cross_section': {
+        const request = parseResearchCrossSectionRuntimeRequest(frame.arguments);
+        const loaded = await loadResearchCrossSection(request);
+        result = {
+          rows: parseResearchEquityDatasetRuntimeRows(loaded.rows),
+          metadata: loaded.metadata,
+        };
+        break;
+      }
+      case 'research_panel': {
+        const request = parseResearchPanelRuntimeRequest(frame.arguments);
+        const loaded = await loadResearchPanel(request);
+        result = {
+          rows: parseResearchEquityDatasetRuntimeRows(loaded.rows),
+          metadata: loaded.metadata,
+        };
+        break;
+      }
+      default:
+        throw new Error(`unknown research runtime request: ${String(frame.method)}`);
     }
-    const request = parseResearchSeriesRuntimeRequest(frame.arguments);
-    const input = {
-      type: 'series' as const,
-      id: `${request.asset_type}:${request.identifier}`,
-      source: {
-        kind: 'instrument' as const,
-        assetType: request.asset_type,
-        id: request.identifier,
-      },
-      measure: request.measure,
-      transform: request.transform,
-    };
-    const loadStart = researchSeriesLoadStart(request.start, request.frequency, request.transform);
-    const loaded = await loadResearchSeries(input, loadStart, request.end);
-    const points = prepareResearchSeries(loaded.points, request.frequency, request.transform, {
-      start: request.start,
-      end: request.end,
-      partialPeriod: request.partial_period,
-    });
     await session.send({
       type: 'response',
       id,
-      result: {
-        rows: parseResearchSeriesRuntimeRows(points),
-        diagnostics: loaded.diagnostics,
-      },
+      result,
     });
   } catch (error) {
     await session.send({
