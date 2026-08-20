@@ -7,6 +7,7 @@ import {
 } from '@jixie/shared';
 import { ulid } from 'ulid';
 import { prisma } from '../lib/prisma.js';
+import { persistResearchCellChangePart } from '../research/research-cell-change-records.js';
 import type { TurnEntity } from './turn-run.js';
 
 const EMPTY_TRACE: AgentTurnTrace = { version: 1, steps: [], truncated: false };
@@ -151,7 +152,33 @@ export async function finishPersistentTurn(args: {
           turnId: args.turnId,
         },
       });
-      persistedParts = args.parts;
+      persistedParts = [...args.parts];
+      const researchCellChangePartIndexes = persistedParts.flatMap((part, partIndex) =>
+        part.type === 'research_cell_change' ? [partIndex] : [],
+      );
+      if (researchCellChangePartIndexes.length > 0) {
+        if (turn.conversation.surface !== 'research') {
+          throw new Error('Research Cell change proposals require a Research conversation.');
+        }
+        for (const partIndex of researchCellChangePartIndexes) {
+          const part = persistedParts[partIndex];
+          if (part.type !== 'research_cell_change') {
+            continue;
+          }
+          persistedParts[partIndex] = await persistResearchCellChangePart(transaction, {
+            conversationId: turn.conversationId,
+            messageId,
+            turnId: args.turnId,
+            userId: turn.conversation.userId,
+            partIndex,
+            part,
+          });
+        }
+        await transaction.agentMessage.update({
+          where: { id: messageId },
+          data: { parts: persistedParts as unknown as Prisma.InputJsonValue },
+        });
+      }
     }
     await transaction.agentTurn.update({
       where: { id: args.turnId },
