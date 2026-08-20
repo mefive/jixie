@@ -3,6 +3,7 @@ import {
   DEFAULT_LOCALE,
   normalizeChatMessage,
   textMessage,
+  type AgentTurnPhase,
   type ChatMessage,
   type Locale,
 } from '@jixie/shared';
@@ -58,6 +59,9 @@ export function enqueueAgentTurn(args: EnqueueTurnArgs): void {
     args.userId,
     args.entity ? entityKey(args.entity) : null,
   );
+  if (args.entity?.kind === 'research') {
+    turnBus.publish(args.turnId, { type: 'phase', phase: 'reading_context' });
+  }
   void runTurn(args, signal);
 }
 
@@ -65,7 +69,21 @@ async function runTurn(args: EnqueueTurnArgs, signal: AbortSignal): Promise<void
   const { turnId, userId, entity, message, currentCode, profile } = args;
   const locale = args.locale ?? DEFAULT_LOCALE;
   const model = process.env.DEEPSEEK_AGENT_MODEL ?? process.env.DEEPSEEK_MODEL ?? 'deepseek-chat';
+  let researchPhase: AgentTurnPhase | null = entity?.kind === 'research' ? 'reading_context' : null;
   let traceRecorder: AgentTraceRecorder | null = null;
+
+  const publishResearchPhase = (phase: AgentTurnPhase): void => {
+    if (
+      entity?.kind !== 'research' ||
+      researchPhase === phase ||
+      researchPhase === 'awaiting_review'
+    ) {
+      return;
+    }
+    researchPhase = phase;
+    turnBus.publish(turnId, { type: 'phase', phase });
+  };
+
   try {
     // History + user-message persistence (entity surfaces). The write happens before the LLM runs.
     let history: ChatMessage[] = args.history ?? [];
@@ -81,15 +99,24 @@ async function runTurn(args: EnqueueTurnArgs, signal: AbortSignal): Promise<void
 
     const hooks: AgentTurnHooks = {
       signal,
-      onDelta: (text) => turnBus.publish(turnId, { type: 'delta', text }),
+      onDelta: (text) => {
+        publishResearchPhase('generating_changes');
+        turnBus.publish(turnId, { type: 'delta', text });
+      },
       onReasoningDelta: (modelCall, text) => {
         traceRecorder?.reasoningDelta(modelCall, text);
         turnBus.publish(turnId, { type: 'reasoning_delta', text });
       },
       onModelStart: (modelCall, toolsEnabled) => traceRecorder?.modelStart(modelCall, toolsEnabled),
       onModelDone: (modelCall) => traceRecorder?.modelDone(modelCall),
-      onToolStart: (name, argsSummary) =>
-        turnBus.publish(turnId, { type: 'tool_start', name, argsSummary }),
+      onToolStart: (name, argsSummary) => {
+        turnBus.publish(turnId, { type: 'tool_start', name, argsSummary });
+        if (name === 'searchResearchCatalog') {
+          publishResearchPhase('querying_sdk');
+        } else if (name === 'proposeResearchCellChanges') {
+          publishResearchPhase('validating_proposal');
+        }
+      },
       onToolDone: (item, detail) => {
         traceRecorder?.tool({
           ...detail,
@@ -99,6 +126,11 @@ async function runTurn(args: EnqueueTurnArgs, signal: AbortSignal): Promise<void
           durationMs: item.ms,
         });
         turnBus.publish(turnId, { type: 'tool_done', item });
+        if (item.name === 'proposeResearchCellChanges' && item.ok) {
+          publishResearchPhase('awaiting_review');
+        } else if (entity?.kind === 'research') {
+          publishResearchPhase('generating_changes');
+        }
       },
       onRepair: (round, error) => turnBus.publish(turnId, { type: 'repair', round, error }),
       onValidation: (round, ok, durationMs, error) =>

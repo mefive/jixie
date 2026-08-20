@@ -16,16 +16,44 @@ describe('turnBus', () => {
     turnBus.start('t1', 'u1', 'strategy:s1');
     turnBus.publish('t1', { type: 'delta', text: '你好' });
     turnBus.publish('t1', { type: 'tool_done', item: TRACE });
+    turnBus.publish('t1', { type: 'phase', phase: 'generating_changes' });
     turnBus.publish('t1', { type: 'delta', text: ',世界' });
 
     const { events, send } = collect();
     const result = turnBus.subscribe('t1', 'u1', send);
     expect(result.kind).toBe('live');
-    expect(events[0]).toEqual({ type: 'snapshot', text: '你好,世界', trace: [TRACE] });
+    expect(events[0]).toEqual({
+      type: 'snapshot',
+      text: '你好,世界',
+      trace: [TRACE],
+      phase: 'generating_changes',
+    });
 
     // Live events flow after the snapshot.
     turnBus.publish('t1', { type: 'delta', text: '!' });
     expect(events[1]).toEqual({ type: 'delta', text: '!' });
+  });
+
+  it('broadcasts phase changes and replays only the current phase after reconnect', () => {
+    turnBus.start('t1', 'u1', 'research:c1');
+    const live = collect();
+    turnBus.subscribe('t1', 'u1', live.send);
+
+    turnBus.publish('t1', { type: 'phase', phase: 'reading_context' });
+    turnBus.publish('t1', { type: 'phase', phase: 'querying_sdk' });
+    expect(live.events.slice(1)).toEqual([
+      { type: 'phase', phase: 'reading_context' },
+      { type: 'phase', phase: 'querying_sdk' },
+    ]);
+
+    const reconnected = collect();
+    turnBus.subscribe('t1', 'u1', reconnected.send);
+    expect(reconnected.events[0]).toEqual({
+      type: 'snapshot',
+      text: '',
+      trace: [],
+      phase: 'querying_sdk',
+    });
   });
 
   it('broadcasts the terminal event and serves snapshot+final to post-finish subscribers (TTL window)', () => {

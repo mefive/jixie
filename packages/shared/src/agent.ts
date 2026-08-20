@@ -71,10 +71,24 @@ export interface AgentTurnDetail {
   finishedAt?: string;
 }
 
+export type AgentTurnPhase =
+  | 'reading_context'
+  | 'querying_sdk'
+  | 'generating_changes'
+  | 'validating_proposal'
+  | 'awaiting_review';
+
 export type AgentStreamEvent =
-  | { type: 'snapshot'; text: string; trace: ToolTraceItem[]; reasoning?: string }
+  | {
+      type: 'snapshot';
+      text: string;
+      trace: ToolTraceItem[];
+      reasoning?: string;
+      phase?: AgentTurnPhase;
+    }
   | { type: 'delta'; text: string } // produce-phase text tokens (repair rounds don't stream)
   | { type: 'reasoning_delta'; text: string }
+  | { type: 'phase'; phase: AgentTurnPhase }
   | { type: 'tool_start'; name: string; argsSummary: string }
   | { type: 'tool_done'; item: ToolTraceItem }
   | { type: 'repair'; round: number; error: string } // proposed code failed to compile; retrying

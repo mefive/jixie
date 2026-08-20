@@ -1,4 +1,4 @@
-import type { AgentStreamEvent, ToolTraceItem } from '@jixie/shared';
+import type { AgentStreamEvent, AgentTurnPhase, ToolTraceItem } from '@jixie/shared';
 
 /**
  * In-memory pub/sub for in-flight agent turns — one entry per turnId (pattern borrowed from
@@ -24,6 +24,7 @@ interface TurnEntry {
   accText: string; // produce-phase text so far (snapshot replay)
   accReasoning: string;
   trace: ToolTraceItem[]; // completed tool calls so far (snapshot replay)
+  phase?: AgentTurnPhase; // current semantic phase for refresh replay
   controller: AbortController;
   done: boolean;
   finalEvent: AgentStreamEvent | null;
@@ -53,6 +54,7 @@ export function start(
     accText: '',
     accReasoning: '',
     trace: [],
+    phase: undefined,
     controller,
     done: false,
     finalEvent: null,
@@ -67,7 +69,7 @@ export function publish(
   turnId: string,
   ev: Extract<
     AgentStreamEvent,
-    { type: 'delta' | 'reasoning_delta' | 'tool_start' | 'tool_done' | 'repair' }
+    { type: 'delta' | 'reasoning_delta' | 'phase' | 'tool_start' | 'tool_done' | 'repair' }
   >,
 ): void {
   const turn = turns.get(turnId);
@@ -78,6 +80,8 @@ export function publish(
     turn.accText += ev.text;
   } else if (ev.type === 'reasoning_delta') {
     turn.accReasoning += ev.text;
+  } else if (ev.type === 'phase') {
+    turn.phase = ev.phase;
   } else if (ev.type === 'tool_done') {
     turn.trace.push(ev.item);
   }
@@ -152,6 +156,7 @@ export function subscribe(
     text: turn.accText,
     trace: [...turn.trace],
     ...(turn.accReasoning ? { reasoning: turn.accReasoning } : {}),
+    ...(turn.phase ? { phase: turn.phase } : {}),
   });
 
   if (turn.done) {

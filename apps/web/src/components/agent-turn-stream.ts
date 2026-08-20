@@ -1,5 +1,5 @@
 import { makeObservable, observable, runInAction } from 'mobx';
-import type { AgentStreamEvent, MessagePart, ToolTraceItem } from '@jixie/shared';
+import type { AgentStreamEvent, AgentTurnPhase, MessagePart, ToolTraceItem } from '@jixie/shared';
 import {
   cancelAgentTurn,
   findRunningAgentTurn,
@@ -35,6 +35,7 @@ export class AgentTurnStream {
   public reasoning = '';
   public trace: ToolTraceItem[] = []; // completed tool calls so far
   public statusNote = ''; // transient phase line: querying X… / fixing…
+  public phase: AgentTurnPhase | null = null;
   public turnId: string | null = null;
 
   private abortController: AbortController | null = null;
@@ -46,6 +47,7 @@ export class AgentTurnStream {
       reasoning: observable.ref,
       trace: observable.ref,
       statusNote: observable.ref,
+      phase: observable.ref,
       turnId: observable.ref,
     });
   }
@@ -62,6 +64,7 @@ export class AgentTurnStream {
       this.reasoning = '';
       this.trace = [];
       this.statusNote = '';
+      this.phase = null;
     });
 
     try {
@@ -83,6 +86,7 @@ export class AgentTurnStream {
         runInAction(() => {
           this.streaming = false;
           this.statusNote = '';
+          this.phase = null;
         });
       }
     }
@@ -124,6 +128,8 @@ export class AgentTurnStream {
           this.text = ev.text;
           this.trace = ev.trace;
           this.reasoning = ev.reasoning ?? '';
+          this.phase = ev.phase ?? null;
+          this.statusNote = ev.phase ? phaseNote(ev.phase) : '';
         });
         return false;
       case 'delta':
@@ -136,15 +142,23 @@ export class AgentTurnStream {
           this.reasoning = this.reasoning + ev.text;
         });
         return false;
+      case 'phase':
+        runInAction(() => {
+          this.phase = ev.phase;
+          this.statusNote = phaseNote(ev.phase);
+        });
+        return false;
       case 'tool_start':
         runInAction(() => {
-          this.statusNote = i18n.t('components:queryingTool', { name: ev.name });
+          if (this.phase !== 'awaiting_review') {
+            this.statusNote = i18n.t('components:queryingTool', { name: ev.name });
+          }
         });
         return false;
       case 'tool_done':
         runInAction(() => {
           this.trace = [...this.trace, ev.item];
-          this.statusNote = '';
+          this.statusNote = this.phase ? phaseNote(this.phase) : '';
         });
         return false;
       case 'repair':
@@ -169,4 +183,8 @@ export class AgentTurnStream {
         return true;
     }
   }
+}
+
+function phaseNote(phase: AgentTurnPhase): string {
+  return i18n.t(`components:agentPhase.${phase}`);
 }
