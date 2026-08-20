@@ -764,6 +764,12 @@ def main() -> None:
             lambda callback: _run_user_code(callback, "research cell"),
         )
         return
+    if start.get("type") == "factor_start":
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from jixie_factor_runtime import run_factor
+
+        run_factor(start, _read_frame, _send_frame, _run_user_code)
+        return
     _run_strategy(start)
 
 
