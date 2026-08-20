@@ -1,4 +1,4 @@
-import { DEFAULT_LOCALE, type Locale } from '@jixie/shared';
+import { DEFAULT_LOCALE, type FactorLanguage, type Locale } from '@jixie/shared';
 import type {
   BucketStat,
   FactorAnalysisSpec,
@@ -13,6 +13,7 @@ import type {
 } from '@jixie/shared';
 import { prisma } from '../lib/prisma.js';
 import { compileFactor, type FactorBatchItem } from './compile-factor.js';
+import { compilePythonCrossSectionalFactor } from './python-cross-sectional-runtime.js';
 import type { UserLogSink } from '../lib/sandbox-console.js';
 import { sameMonth, sameWeek, minusDays } from '../lib/date.js';
 import { t } from '../i18n/messages.js';
@@ -330,6 +331,7 @@ export async function computeFactorSeries(
   factorCodeSnapshot?: string,
   minimumWindowCoverage = LEGACY_POLICY.minimumWindowCoverage,
   preloadedFinaIndex?: FinaIndex,
+  factorLanguage?: FactorLanguage,
 ): Promise<FactorSeriesResult> {
   const series: Series = new Map();
   const audit: FactorSeriesAudit = {
@@ -352,8 +354,12 @@ export async function computeFactorSeries(
 
   const currentFactor = factorCodeSnapshot
     ? null
-    : await prisma.factor.findUnique({ where: { id: factorKey }, select: { code: true } });
+    : await prisma.factor.findUnique({
+        where: { id: factorKey },
+        select: { code: true, language: true },
+      });
   const factorCode = factorCodeSnapshot ?? currentFactor?.code;
+  const language = factorLanguage ?? normalizeFactorLanguage(currentFactor?.language);
   if (!factorCode) {
     onLog(t(locale, 'factorMissing', { factor: factorKey }));
     return { series, audit };
@@ -368,17 +374,26 @@ export async function computeFactorSeries(
     }
     onUserLog?.(level, line);
   };
-  const factor = await compileFactor(factorCode, logSink);
+  const factor =
+    language === 'python'
+      ? await compilePythonCrossSectionalFactor(factorCode, logSink)
+      : await compileFactor(factorCode, logSink);
   const effectiveMinimumCoverage = factor.minCoverage ?? minimumWindowCoverage;
   audit.declaredWindowDays = factor.window;
   audit.minimumCoverage = effectiveMinimumCoverage;
-  const needsTurnoverRateFHistory = factorSourceReferencesHistoryField(factorCode, 'turnoverRateF');
+  const needsTurnoverRateFHistory = factorSourceReferencesHistoryField(
+    factorCode,
+    language === 'python' ? 'turnover_rate_f' : 'turnoverRateF',
+  );
   const needsRoeHistory = factorSourceReferencesHistoryField(factorCode, 'roe');
   const needsGrossProfitMarginHistory = factorSourceReferencesHistoryField(
     factorCode,
-    'grossprofitMargin',
+    language === 'python' ? 'grossprofit_margin' : 'grossprofitMargin',
   );
-  const needsMarketCloseHistory = factorSourceReferencesHistoryField(factorCode, 'marketClose');
+  const needsMarketCloseHistory = factorSourceReferencesHistoryField(
+    factorCode,
+    language === 'python' ? 'market_close' : 'marketClose',
+  );
   const marketCloseByDate = needsMarketCloseHistory
     ? new Map(
         (
@@ -639,6 +654,10 @@ export function factorSourceReferencesHistoryField(source: string, field: string
   return [`'${field}'`, `"${field}"`, `\`${field}\``].some((literal) => source.includes(literal));
 }
 
+function normalizeFactorLanguage(value: string | null | undefined): FactorLanguage {
+  return value === 'python' ? 'python' : 'typescript';
+}
+
 function lowerBound(values: string[], target: string): number {
   let low = 0;
   let high = values.length;
@@ -859,6 +878,7 @@ export async function analyzeFactor(
         component.code,
         policy.minimumWindowCoverage,
         preloadedFinaIndex,
+        component.language,
       );
       transformSeriesOutliers(result.series, policy.factorExposure);
       results.push({ factor: component.factor, result });
@@ -881,6 +901,7 @@ export async function analyzeFactor(
       source?.code,
       policy.minimumWindowCoverage,
       preloadedFinaIndex,
+      source?.language,
     );
     transformSeriesOutliers(computed.series, policy.factorExposure);
   } else {

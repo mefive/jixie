@@ -1,9 +1,20 @@
-import type { FactorCompositeDefinitionV1, FactorPanelCompositeDefinitionV2 } from '@jixie/shared';
+import type {
+  FactorCompositeDefinitionV1,
+  FactorLanguage,
+  FactorPanelCompositeDefinitionV2,
+  FactorRuntimeVersion,
+} from '@jixie/shared';
 import type { PanelEvaluationObservation } from './panel-evaluator.js';
 import type { Series } from './analysis.js';
 
 export type FactorAnalysisRuntimeSource =
-  | { kind: 'single'; code: string; label: string }
+  | {
+      kind: 'single';
+      code: string;
+      label: string;
+      language?: FactorLanguage;
+      runtimeVersion?: FactorRuntimeVersion;
+    }
   | {
       kind: 'composite';
       label: string;
@@ -13,6 +24,8 @@ export type FactorAnalysisRuntimeSource =
         code: string;
         label: string;
         direction: 'positive' | 'negative';
+        language?: FactorLanguage;
+        runtimeVersion?: FactorRuntimeVersion;
       }>;
     }
   | {
@@ -24,6 +37,8 @@ export type FactorAnalysisRuntimeSource =
         code: string;
         label: string;
         direction: 'positive' | 'negative';
+        language?: FactorLanguage;
+        runtimeVersion?: FactorRuntimeVersion;
       }>;
     };
 

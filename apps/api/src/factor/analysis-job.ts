@@ -1,5 +1,6 @@
 import { Worker } from 'node:worker_threads';
 import type {
+  FactorLanguage,
   FactorAnalysisSpec,
   FactorReport,
   FactorResearchIntentV1,
@@ -8,6 +9,7 @@ import type {
   LogLine,
   RunFactorAnalysisResponse,
 } from '@jixie/shared';
+import { factorRuntimeVersion } from '@jixie/shared';
 import { ulid } from 'ulid';
 import { z } from 'zod';
 import type { Prisma } from '@prisma/client';
@@ -42,7 +44,13 @@ export type FactorAnalysisSource =
   | { kind: 'macro_regime'; label: string; code: string };
 
 const factorAnalysisRuntimeSourceSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('single'), code: z.string().min(1), label: z.string().min(1) }),
+  z.object({
+    kind: z.literal('single'),
+    code: z.string().min(1),
+    label: z.string().min(1),
+    language: z.enum(['typescript', 'python']).optional(),
+    runtimeVersion: z.enum(['ts-v1', 'py-v1']).optional(),
+  }),
   z.object({
     kind: z.literal('time_series'),
     label: z.string().min(1),
@@ -69,6 +77,8 @@ const factorAnalysisRuntimeSourceSchema = z.discriminatedUnion('kind', [
           code: z.string().min(1),
           label: z.string().min(1),
           direction: z.enum(['positive', 'negative']),
+          language: z.enum(['typescript', 'python']).optional(),
+          runtimeVersion: z.enum(['ts-v1', 'py-v1']).optional(),
         }),
       )
       .min(2)
@@ -85,6 +95,8 @@ const factorAnalysisRuntimeSourceSchema = z.discriminatedUnion('kind', [
           code: z.string().min(1),
           label: z.string().min(1),
           direction: z.enum(['positive', 'negative']),
+          language: z.enum(['typescript', 'python']).optional(),
+          runtimeVersion: z.enum(['ts-v1', 'py-v1']).optional(),
         }),
       )
       .min(2)
@@ -143,7 +155,9 @@ export async function startFactorAnalysis(options: {
   launchWorker?: typeof launchFactorWorker;
 }): Promise<RunFactorAnalysisResponse> {
   const factorCodeSnapshot = factorAnalysisSourceSnapshot(options.source);
-  const factorCodeHash = sha256(factorCodeSnapshot);
+  const language = factorAnalysisSourceLanguage(options.source);
+  const runtimeVersion = factorRuntimeVersion(language);
+  const factorCodeHash = factorAnalysisSourceHash(factorCodeSnapshot, language);
   const dataRevision = null;
   const researchSpec = normalizeFactorResearchSpec(options.spec);
   const identitySpec =
@@ -188,6 +202,8 @@ export async function startFactorAnalysis(options: {
         variantKey,
         factorCodeSnapshot,
         factorCodeHash,
+        language,
+        runtimeVersion,
         dataRevision,
         parentReportId: options.parentReportId ?? null,
         testKey,
@@ -236,6 +252,17 @@ export async function startFactorAnalysis(options: {
     wakeJobQueue();
   }
   return response;
+}
+
+export function factorAnalysisSourceHash(snapshot: string, language: FactorLanguage): string {
+  return sha256(language === 'python' ? `py-v1\0${snapshot}` : snapshot);
+}
+
+function factorAnalysisSourceLanguage(source: FactorAnalysisSource): FactorLanguage {
+  if (source.kind === 'single') {
+    return source.language === 'python' ? 'python' : 'typescript';
+  }
+  return 'typescript';
 }
 
 interface FactorJobPayload {

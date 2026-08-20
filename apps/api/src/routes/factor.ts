@@ -924,15 +924,33 @@ async function resolveFactorSource(
 ): Promise<FactorAnalysisSource | null> {
   const builtin = BUILTIN_FACTORS.find((factor) => factor.key === factorId);
   if (builtin) {
-    return { kind: 'single', code: builtin.code, label: builtin.label };
+    return {
+      kind: 'single',
+      code: builtin.code,
+      label: builtin.label,
+      language: 'typescript',
+      runtimeVersion: 'ts-v1',
+    };
   }
   const custom = await prisma.factor.findFirst({
     where: { id: factorId, userId },
-    select: { code: true, name: true, analysisKind: true },
+    select: {
+      code: true,
+      name: true,
+      analysisKind: true,
+      language: true,
+      runtimeVersion: true,
+    },
   });
 
   if (custom && custom.analysisKind !== 'time_series' && custom.analysisKind !== 'panel') {
-    return { kind: 'single', code: custom.code, label: custom.name };
+    return {
+      kind: 'single',
+      code: custom.code,
+      label: custom.name,
+      language: custom.language === 'python' ? 'python' : 'typescript',
+      runtimeVersion: custom.runtimeVersion === 'py-v1' ? 'py-v1' : 'ts-v1',
+    };
   }
   const composite = await prisma.factorComposite.findFirst({
     where: { id: factorId, userId },
@@ -953,6 +971,8 @@ async function resolveFactorSource(
       code: source.code,
       label: source.label,
       direction: component.direction,
+      language: source.language,
+      runtimeVersion: source.runtimeVersion,
     });
   }
   return {
