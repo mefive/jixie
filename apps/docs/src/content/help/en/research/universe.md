@@ -9,6 +9,9 @@ The card header shows source, as-of policy, missing-value rule, row limit, and p
 - total matches, displayed rows, and data revision;
 - each measure's name, stable id, version, and unit.
 
-**Rerun** uses the same saved UniverseSpec against current local data. A provider revision may change the data revision; a later reproducible-record milestone will compare run-to-run changes explicitly.
+**Rerun** uses the same saved UniverseSpec against current local data. A provider revision may change the data revision. To
+retain one complete study result, run the full document cleanly and create an immutable `ResearchExecution`. A later data
+revision requires another complete snapshot; review the two records independently because the product does not automatically
+attribute their differences.
 
 Names come from the historical name spell where available, and industry prefers point-in-time SW Level-1 membership. Select an object name to open unified object detail.

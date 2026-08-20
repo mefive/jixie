@@ -1,47 +1,60 @@
 # Complete your first quantitative study
 
-Research keeps questions, formulas, Python calculations, tables, and charts in one reproducible document. You can write
-Python yourself or ask the Research Agent to generate and explain it; SQL and TypeScript are not required.
+Research keeps questions, formulas, Python calculations, tables, and charts in one reactive document. You can write Python
+yourself or ask the Research Agent to select data, generate code, and explain real output; SQL and TypeScript are not required.
 
 ## Start a study
 
 1. Open **Research** from the top navigation.
 2. Choose the complete example or create a blank study.
 3. Use a Markdown cell for the question, prespecified hypothesis, formula, variable definitions, and limitations.
-4. Use a Python cell to load platform data through `data.series()`, calculate with pandas / SciPy / statsmodels, and draw
-   with `charts.*` or Matplotlib.
-5. Run one cell, its affected branch, or the full document in a clean runtime. A complete run creates an immutable snapshot
-   that can be reviewed and promoted later.
+4. Use `data.series()` in a Python cell for one object's time series, or `data.cross_section()` / `data.panel()` for PIT equity
+   snapshots and month-end panels. Calculations may use pandas, NumPy, SciPy, and statsmodels.
+5. Use `charts.*` for native interactive charts or Matplotlib for static figures.
+6. Run one cell, its affected branch, or the full document in a clean runtime. A complete run creates an immutable
+   `ResearchExecution` that can be reviewed in the document history and explicitly promoted to a named research version.
 
-When a promoted successful version contains one explicit point-in-time signal supported by platform data, you can create a
-Factor draft from the snapshot. An LLM first checks semantic convertibility, then the Factor compiler validates the generated
-code. If conversion is not possible, the product explains why. The Factor keeps the source snapshot, distilled summary, and
-remaining validation items, with a link back to the exact snapshot. This creates a draft only: it does not prove efficacy, run
-a report, reveal a holdout, or publish the Factor.
+Document-level autosave protects cell source and shows unsaved, saving, or saved state. Editing upstream source marks dependent
+outputs stale; expensive calculations do not rerun silently in the background.
+
+## Work with the Research Agent
+
+The Agent can add statistical methods and formulas, query the exact Research SDK contract, edit Markdown/Python cells, and
+explain real output. Its changes enter inline cell review: previous lines remain read-only while Agent-added or modified content
+can still be edited. Accept keeps the user's final edited version, and Undo restores the pre-review document. A proposal never
+runs a cell by itself.
+
+The Agent cannot claim that unexecuted code has run or replace code and output with prose. If an exact object, dataset, SDK
+method, or analysis capability is unavailable, it must report that gap instead of silently substituting similar data.
+
+## Send research to formal validation
+
+When a promoted successful version contains one explicit point-in-time signal supported by platform data, it can create a
+Python Factor draft. An LLM first checks semantic convertibility, then the Factor compiler and `py-v1` runtime validate the
+code. The Factor retains its exact source snapshot, distilled summary, unresolved items, and backlink. Supported universe,
+date, frequency, filter, and prespecified-direction choices become suggested FactorReport parameters. The user must confirm
+them and run the report explicitly; the handoff does not reveal the holdout, publish the Factor, or turn exploratory findings
+into formal evidence.
 
 When the research also defines instruments or a point-in-time universe, signal direction, rebalance or entry/exit conditions,
-and a sizing rule, the same snapshot can create a Python Strategy draft. The draft defaults to `py-v1` and opens in Strategy
-Lab with its source, summary, and unresolved items. It does not run automatically: review the rule, set the backtest range,
-capital, and costs, then run it explicitly. A study that contains only a predictive relationship is routed to Factor first
-instead of bypassing formal validation through Strategy.
-
-Factor definitions still use the TypeScript SDK/runtime; Python Factor support remains in the backlog. Research → Factor
-therefore generates TypeScript for now, while Research → Strategy defaults to Python.
-
-The Agent can add methods and formulas, edit Markdown/Python cells, and explain real outputs. It cannot claim that unexecuted
-code has run or replace code and output with prose. When data or methods are unavailable, it reports the exact gap.
+and a sizing rule, the same snapshot can create a Python Strategy draft. The draft defaults to `py-v1` and never runs a backtest
+automatically. Review its code, range, capital, and costs in Strategy Lab before running it. Research that contains only a
+predictive relationship is routed to Factor first.
 
 ## Study an equity universe
 
-You can also describe cross-sectional conditions, for example, “Find A-shares with P/E TTM below 20 at the latest available date, sorted by total market cap.” The saved UniverseSpec freezes:
+You can also describe cross-sectional conditions, for example, “Find A-shares with P/E TTM below 20 at the latest available
+date, sorted by total market cap.” The saved UniverseSpec freezes:
 
 - data and historical-membership dates;
 - listing age, suspension, and risk-warning handling;
 - measure versions, units, missing values, filters, and sorting;
 - data revision and eligibility-stage counts.
 
-Select an object in the table to open its unified detail page. Reopen the research record to rerun the same spec deterministically.
+Select an object in the table to open its unified detail page. A rerun uses the same spec and currently available data; an
+upstream revision changes the disclosed data revision.
 
-> Statistical association and matching conditions are not trading advice. Verify definitions, temporal direction, sample, and limitations.
+> Statistical association and matching conditions are not trading advice. Verify definitions, temporal direction, sample,
+> robustness, and implementation constraints.
 
 [Open Research](/research)
