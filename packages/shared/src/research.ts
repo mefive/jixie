@@ -1,6 +1,6 @@
 import type { TradeDate } from './types.js';
 import type { ChartKind, ChartSeriesSpec } from './chart.js';
-import type { FactorAnalysisKind } from './factor.js';
+import type { FactorAnalysisKind, FactorLanguage } from './factor.js';
 import type { StrategyLanguage } from './backtest.js';
 
 export type ResearchAssetTypeV1 = 'stock' | 'etf' | 'index' | 'future';
@@ -630,6 +630,8 @@ export interface ResearchFactorHandoffV1 {
   sourceHash: string;
   sourceDisplayName: string;
   analysisKind: ResearchFactorDraftAnalysisKindV1;
+  /** Absent on TypeScript handoffs created before Factor Python support. */
+  language?: FactorLanguage;
   summary: string;
   unresolvedItems: string[];
   generatedAt: string;
@@ -645,6 +647,7 @@ export interface ResearchFactorDraftResultV1 {
   factorKey: string;
   factorName: string;
   analysisKind: ResearchFactorDraftAnalysisKindV1;
+  language?: FactorLanguage;
   handoff: ResearchFactorHandoffV1;
   reused: boolean;
 }

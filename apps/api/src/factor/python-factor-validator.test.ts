@@ -1,0 +1,46 @@
+import { describe, expect, it } from 'vitest';
+import { validatePythonFactorDefinition } from './python-factor-validator.js';
+
+const crossSectionalFactor = `from jixie import Factor, FactorBar, CrossSectionalFactorContext
+
+factor = Factor.cross_sectional(name="20-day momentum", window=21, min_coverage=0.8)
+
+@factor.compute
+def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
+    closes = ctx.history(21)
+    if len(closes) < 21 or closes[0] <= 0:
+        return None
+    return closes[-1] / closes[0] - 1
+`;
+
+describe('Python Factor static validator', () => {
+  it('accepts a typed cross-sectional Factor without executing it', async () => {
+    await expect(
+      validatePythonFactorDefinition(crossSectionalFactor, 'cross_sectional'),
+    ).resolves.toBeUndefined();
+  }, 20_000);
+
+  it('rejects a source whose factory does not match the immutable analysis kind', async () => {
+    await expect(validatePythonFactorDefinition(crossSectionalFactor, 'panel')).rejects.toThrow(
+      'does not match panel',
+    );
+  });
+
+  it('requires one explicit compute callback', async () => {
+    await expect(
+      validatePythonFactorDefinition(
+        'from jixie import Factor\nfactor = Factor.cross_sectional(name="x")\n',
+        'cross_sectional',
+      ),
+    ).rejects.toThrow('@factor.compute');
+  });
+
+  it('surfaces Pyright type errors against the generated SDK contract', async () => {
+    await expect(
+      validatePythonFactorDefinition(
+        crossSectionalFactor.replace('ctx.history(21)', 'ctx.history("twenty")'),
+        'cross_sectional',
+      ),
+    ).rejects.toThrow('cannot be assigned');
+  }, 20_000);
+});

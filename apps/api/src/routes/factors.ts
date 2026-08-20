@@ -2,7 +2,11 @@ import { Hono } from 'hono';
 import { ulid } from 'ulid';
 import { z } from 'zod';
 import type { Prisma } from '@prisma/client';
-import type { FactorCompositeDefinition } from '@jixie/shared';
+import {
+  factorRuntimeVersion,
+  type FactorCompositeDefinition,
+  type FactorLanguage,
+} from '@jixie/shared';
 import { apiError, validateJson } from '../lib/httpError.js';
 import { prisma } from '../lib/prisma.js';
 import { BUILTIN_KEYS, BUILTIN_USER_ID, builtinCatalog } from '../factor/builtin-factors.js';
@@ -55,6 +59,9 @@ function factorPublicationApiError(
 
 const strategyKey = (key: string, status: string): string | undefined =>
   status === 'published' ? key : undefined;
+
+const factorLanguage = (language: string): FactorLanguage =>
+  language === 'python' ? 'python' : 'typescript';
 
 /**
  * Factor resources (plural, mounted at /api/app/factors):
@@ -158,6 +165,8 @@ factorsRoute.get('/catalog', async (c) => {
       key: true,
       name: true,
       analysisKind: true,
+      language: true,
+      runtimeVersion: true,
       status: true,
       descriptionZh: true,
       descriptionEn: true,
@@ -181,6 +190,8 @@ factorsRoute.get('/catalog', async (c) => {
         : factor.analysisKind === 'panel'
           ? ('panel' as const)
           : ('cross_sectional' as const),
+    language: factorLanguage(factor.language),
+    runtimeVersion: factorRuntimeVersion(factorLanguage(factor.language)),
     targetAssetClasses:
       factor.analysisKind === 'time_series' || factor.analysisKind === 'panel'
         ? (['equity', 'fixed_income', 'commodity'] as const)
@@ -479,6 +490,8 @@ factorsRoute.get('/custom', async (c) => {
       key: true,
       name: true,
       analysisKind: true,
+      language: true,
+      runtimeVersion: true,
       status: true,
       visibility: true,
       updatedAt: true,
@@ -516,6 +529,8 @@ factorsRoute.get('/custom/:id', async (c) => {
       key: true,
       name: true,
       analysisKind: true,
+      language: true,
+      runtimeVersion: true,
       status: true,
       approvedReportId: true,
       codeHash: true,
@@ -569,12 +584,13 @@ const createBody = z.object({
   name: z.string().min(1).max(40),
   code: z.string().min(1),
   analysisKind: z.enum(['cross_sectional', 'time_series', 'panel']).default('cross_sectional'),
+  language: z.enum(['typescript', 'python']).default('typescript'),
   messages: chatMessagesSchema.optional(),
 });
 
 factorsRoute.post('/custom', validateJson(createBody), async (c) => {
   const userId = c.var.userId;
-  const { key, name, code, analysisKind, messages } = c.req.valid('json');
+  const { key, name, code, analysisKind, language, messages } = c.req.valid('json');
   if (
     BUILTIN_KEYS.has(key) ||
     (await prisma.factorComposite.findFirst({
@@ -585,7 +601,7 @@ factorsRoute.post('/custom', validateJson(createBody), async (c) => {
     return apiError(c, 'VALIDATION_FAILED', m(c, 'factorKeyUnavailable'));
   }
   try {
-    await validateFactorDefinition(code, analysisKind);
+    await validateFactorDefinition(code, analysisKind, language);
   } catch (e) {
     return apiError(
       c,
@@ -602,11 +618,21 @@ factorsRoute.post('/custom', validateJson(createBody), async (c) => {
         key,
         name,
         analysisKind,
+        language,
+        runtimeVersion: factorRuntimeVersion(language),
         code,
         ...(messages !== undefined ? { messages: messages as Prisma.InputJsonValue } : {}),
       },
     });
-    return c.json({ id, key, name, status: 'draft' });
+    return c.json({
+      id,
+      key,
+      name,
+      analysisKind,
+      language,
+      runtimeVersion: factorRuntimeVersion(language),
+      status: 'draft',
+    });
   } catch (error) {
     if ((error as { code?: string }).code === 'P2002') {
       return apiError(c, 'VALIDATION_FAILED', m(c, 'factorKeyUnavailable'));
@@ -632,7 +658,13 @@ factorsRoute.post('/custom/:id', validateJson(updateBody), async (c) => {
   }
   const existing = await prisma.factor.findFirst({
     where: { id, userId },
-    select: { name: true, code: true, analysisKind: true, status: true },
+    select: {
+      name: true,
+      code: true,
+      analysisKind: true,
+      language: true,
+      status: true,
+    },
   });
   if (!existing) {
     return apiError(c, 'NOT_FOUND', m(c, 'factorNotFound'));
@@ -644,6 +676,24 @@ factorsRoute.post('/custom/:id', validateJson(updateBody), async (c) => {
     const pinned = await prisma.factorWeatherPin.count({ where: { factorId: id } });
     if (pinned > 0) {
       return apiError(c, 'VALIDATION_FAILED', m(c, 'pinnedFactorReadonlyEdit'));
+    }
+  }
+
+  if (code !== undefined) {
+    try {
+      await validateFactorDefinition(
+        code,
+        existing.analysisKind === 'time_series' || existing.analysisKind === 'panel'
+          ? existing.analysisKind
+          : 'cross_sectional',
+        factorLanguage(existing.language),
+      );
+    } catch (error) {
+      return apiError(
+        c,
+        'VALIDATION_FAILED',
+        error instanceof Error ? error.message : m(c, 'factorCodeInvalid'),
+      );
     }
   }
 
@@ -703,6 +753,8 @@ factorsRoute.post('/custom/:id/copy', async (c) => {
       name: true,
       code: true,
       analysisKind: true,
+      language: true,
+      runtimeVersion: true,
       descriptionZh: true,
       descriptionEn: true,
       messages: true,
@@ -725,6 +777,8 @@ factorsRoute.post('/custom/:id/copy', async (c) => {
       name,
       code: source.code,
       analysisKind: source.analysisKind,
+      language: source.language,
+      runtimeVersion: source.runtimeVersion,
       descriptionZh: source.descriptionZh,
       descriptionEn: source.descriptionEn,
       ...(source.userId === userId && source.messages != null ? { messages: source.messages } : {}),

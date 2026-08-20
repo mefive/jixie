@@ -882,6 +882,8 @@ import type {
   FactorReportDetail,
   FactorReportListResponse,
   FactorFreq,
+  FactorLanguage,
+  FactorRuntimeVersion,
   FactorCorrelation,
   FactorCompositeDefinition,
   FactorCompositeResource,
@@ -980,6 +982,8 @@ export interface CustomFactorMeta {
   id: string;
   name: string;
   key: string;
+  language?: FactorLanguage;
+  runtimeVersion?: FactorRuntimeVersion;
   status?: FactorStatus;
   updatedAt: string;
 }
@@ -987,6 +991,8 @@ export function getCustomFactor(id: string): Promise<{
   id: string;
   name: string;
   analysisKind?: FactorAnalysisKind;
+  language?: FactorLanguage;
+  runtimeVersion?: FactorRuntimeVersion;
   key: string;
   status?: FactorStatus;
   approvedReportId?: string | null;
@@ -1030,10 +1036,18 @@ export function createFactor(
     'cross_sectional' | 'time_series' | 'panel'
   > = 'cross_sectional',
   messages?: ChatMessage[],
-): Promise<{ id: string; key: string; name: string; status: 'draft' }> {
+  language: FactorLanguage = 'typescript',
+): Promise<{
+  id: string;
+  key: string;
+  name: string;
+  language: FactorLanguage;
+  runtimeVersion: FactorRuntimeVersion;
+  status: 'draft';
+}> {
   const body = messages
-    ? { key, name, code, analysisKind, messages }
-    : { key, name, code, analysisKind };
+    ? { key, name, code, analysisKind, language, messages }
+    : { key, name, code, analysisKind, language };
   return request('/api/app/factors/custom', { method: 'POST', body: JSON.stringify(body) });
 }
 

@@ -1,7 +1,8 @@
-import type { FactorAnalysisKind } from '@jixie/shared';
+import type { FactorAnalysisKind, FactorLanguage } from '@jixie/shared';
 import { compileFactor } from './compile-factor.js';
 import { compilePanelFactor, compileTimeSeriesFactor } from './compile-time-series-factor.js';
 import { isResearchOnlyFactorV2Field } from './factor-v2-fields.js';
+import { validatePythonFactorDefinition } from './python-factor-validator.js';
 
 export type EditableFactorAnalysisKind = Extract<
   FactorAnalysisKind,
@@ -12,7 +13,11 @@ export type EditableFactorAnalysisKind = Extract<
 export async function validateFactorDefinition(
   code: string,
   analysisKind: EditableFactorAnalysisKind,
+  language: FactorLanguage = 'typescript',
 ): Promise<void> {
+  if (language === 'python') {
+    return validatePythonFactorDefinition(code, analysisKind);
+  }
   if (analysisKind === 'time_series') {
     const compiled = await compileTimeSeriesFactor(code);
     try {
