@@ -17,6 +17,7 @@ export interface LibraryFactor extends LibraryAssetBase {
   kind: 'factor' | 'composite';
   key: string;
   analysisKind: string;
+  language?: 'typescript' | 'python';
 }
 
 export interface PublicLibrary {

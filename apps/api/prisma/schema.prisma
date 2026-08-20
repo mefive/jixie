@@ -835,6 +835,8 @@ model FactorReport {
   status             String    @default("done") // 'running' | 'done' | 'error' | 'stale'
   phase              String    @default("legacy") // 'legacy' | 'explore' | 'holdout'
   analysisKind       String    @default("cross_sectional") // 'cross_sectional' | 'time_series' | 'panel' | 'macro_regime'
+  language           String    @default("typescript") // 'typescript' | 'python'
+  runtimeVersion     String    @default("ts-v1") // 'ts-v1' | 'py-v1'
   freq               String // 'month' | 'week'
   neutral            String    @default("none") // 'none' | 'size' | 'size_industry'
   start              String // YYYYMMDD
@@ -944,8 +946,8 @@ model Strategy {
   conversations             AgentConversation[]
   scanReports               StrategyScanReport[]
   deployments               StrategyDeployment[]
-  createdAt                 DateTime              @default(now())
-  updatedAt                 DateTime              @updatedAt
+  createdAt                 DateTime             @default(now())
+  updatedAt                 DateTime             @updatedAt
 
   @@unique([userId, name]) // name = identity within a user → enables upsert-by-name
   @@index([userId, updatedAt]) // list a user's strategies, newest first
@@ -1097,8 +1099,8 @@ model StrategyScanReport {
   @@index([userId, status])
 }
 
-/// A factor as code (code-first, mirrors Strategy). `code` is a defineFactor TS module, compiled +
-/// run cross-sectionally in the factor analysis. Two kinds of rows share this table:
+/// A factor as code (code-first, mirrors Strategy). `language` and `runtimeVersion` select the
+/// compiler for the immutable definition protocol. Two kinds of rows share this table:
 ///   - user factors: id = ULID, userId = the owner;
 ///   - built-in presets: id = stable slug (ep/mom/…), userId = 'builtin' sentinel — seeded from
 ///     factor/builtin-factors.ts (git is the source of truth), read-only via the routes.
@@ -1109,9 +1111,11 @@ model Factor {
   key                       String // immutable strategy handle, unique per owner
   name                      String // localized display name; not a program identity
   analysisKind              String              @default("cross_sectional") // immutable definition protocol
+  language                  String              @default("typescript") // 'typescript' | 'python'
+  runtimeVersion            String              @default("ts-v1") // 'ts-v1' | 'py-v1'
   descriptionZh             String              @default("")
   descriptionEn             String              @default("")
-  code                      String // defineFactor TS source
+  code                      String // TypeScript defineFactor source or Python Factor source
   messages                  Json? // ChatMessage[] — the Agent-panel conversation that authored this factor (per-factor)
   status                    String              @default("draft") // 'draft' | 'published' | 'archived'
   visibility                String              @default("private") // 'private' | 'public'; public requires published
@@ -1146,6 +1150,8 @@ model FactorWeatherPin {
   direction       String // 'positive' | 'negative'
   factorCode      String
   factorCodeHash  String
+  language        String               @default("typescript") // frozen Factor language
+  runtimeVersion  String               @default("ts-v1") // frozen Factor runtime
   methodologyHash String
   status          String               @default("pending") // 'pending' | 'running' | 'ready' | 'error'
   error           String?

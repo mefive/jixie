@@ -7,6 +7,7 @@ export * from './backtest.js';
 export * from './instrument-series.js';
 export * from './saved.js';
 export * from './factor.js';
+export * from './factor-python-sdk.js';
 export * from './factor-research.js';
 export * from './factor-dependency.js';
 export * from './factor-weather.js';

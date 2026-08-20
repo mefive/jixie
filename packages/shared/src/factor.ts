@@ -9,6 +9,13 @@ import type { FactorStatus } from './factor-dependency.js';
 
 export type FactorFreq = 'month' | 'week';
 
+export type FactorLanguage = 'typescript' | 'python';
+export type FactorRuntimeVersion = 'ts-v1' | 'py-v1';
+
+export function factorRuntimeVersion(language: FactorLanguage): FactorRuntimeVersion {
+  return language === 'python' ? 'py-v1' : 'ts-v1';
+}
+
 /** Evaluation protocol used by one immutable research run. */
 export type FactorAnalysisKind = 'cross_sectional' | 'time_series' | 'panel' | 'macro_regime';
 
@@ -80,6 +87,8 @@ export interface FactorMeta {
   builtin?: boolean; // true = preset (a read-only code row in the library, can be copied into a custom factor)
   expectedDirection?: Exclude<FactorExpectedDirection, 'unknown'>;
   analysisKind?: FactorAnalysisKind;
+  language?: FactorLanguage;
+  runtimeVersion?: FactorRuntimeVersion;
   targetAssetClasses?: Array<'equity' | 'fixed_income' | 'commodity'>;
   /** Research-template capability, distinct from a strategy's tradable universe. */
   allowedAssets?: string[];
@@ -508,6 +517,8 @@ export interface FactorReportSummary {
   analysisKind: FactorAnalysisKind;
   status: FactorReportStatus;
   phase: FactorReportPhase;
+  language?: FactorLanguage;
+  runtimeVersion?: FactorRuntimeVersion;
   /** Legacy cross-sectional protocol. New analysis kinds use researchSpec only. */
   spec?: FactorAnalysisSpec;
   researchSpec: FactorResearchSpecV1;

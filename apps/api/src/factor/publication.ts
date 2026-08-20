@@ -1,4 +1,9 @@
-import type { FactorAnalysisKind, PublishedFactor } from '@jixie/shared';
+import {
+  factorRuntimeVersion,
+  type FactorAnalysisKind,
+  type FactorLanguage,
+  type PublishedFactor,
+} from '@jixie/shared';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
 import { factorResearchSpecV1Schema, sha256 } from './report-spec.js';
@@ -35,6 +40,7 @@ export async function publishFactor(
       name: true,
       code: true,
       analysisKind: true,
+      language: true,
       status: true,
     },
   });
@@ -101,6 +107,8 @@ export async function publishFactor(
     key: factor.key,
     name: factor.name,
     analysisKind: normalizeAnalysisKind(factor.analysisKind),
+    language: normalizeFactorLanguage(factor.language),
+    runtimeVersion: factorRuntimeVersion(normalizeFactorLanguage(factor.language)),
     status: 'published',
     codeHash: currentHash,
     approvedReportId: report.id,
@@ -180,11 +188,16 @@ export function normalizeAnalysisKind(value: string): FactorAnalysisKind {
   }
 }
 
+export function normalizeFactorLanguage(value: string): FactorLanguage {
+  return value === 'python' ? 'python' : 'typescript';
+}
+
 function publishedFactorResource(row: {
   id: string;
   key: string;
   name: string;
   analysisKind: string;
+  language: string;
   status: string;
   codeHash: string | null;
   approvedReportId: string | null;
@@ -199,6 +212,8 @@ function publishedFactorResource(row: {
     key: row.key,
     name: row.name,
     analysisKind: normalizeAnalysisKind(row.analysisKind),
+    language: normalizeFactorLanguage(row.language),
+    runtimeVersion: factorRuntimeVersion(normalizeFactorLanguage(row.language)),
     status: row.status === 'archived' ? 'archived' : 'published',
     codeHash: row.codeHash,
     approvedReportId: row.approvedReportId,

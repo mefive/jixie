@@ -1,4 +1,4 @@
-import type { FactorAnalysisKind } from './factor.js';
+import type { FactorAnalysisKind, FactorLanguage, FactorRuntimeVersion } from './factor.js';
 
 export type FactorStatus = 'draft' | 'published' | 'archived';
 export type FactorInputDomain = 'price' | 'fundamental' | 'flow' | 'rates' | 'commodity' | 'macro';
@@ -11,6 +11,10 @@ export interface FactorDependency {
   key: string;
   name: string;
   analysisKind: FactorAnalysisKind;
+  /** Absent on frozen dependencies created before Python Factor support. */
+  language?: FactorLanguage;
+  /** Absent on frozen dependencies created before Python Factor support. */
+  runtimeVersion?: FactorRuntimeVersion;
   codeHash: string;
   approvedReportId?: string | null;
   /** Point-in-time data fields consumed by an executable Definition V2 factor. */
@@ -26,6 +30,8 @@ export interface PublishedFactor {
   key: string;
   name: string;
   analysisKind: FactorAnalysisKind;
+  language: FactorLanguage;
+  runtimeVersion: FactorRuntimeVersion;
   status: Extract<FactorStatus, 'published' | 'archived'>;
   codeHash: string;
   approvedReportId?: string | null;

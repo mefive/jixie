@@ -737,6 +737,8 @@ function reportSummary(
     id: row.id,
     factor: row.factor,
     analysisKind: researchSpec.analysisKind,
+    language: row.language === 'python' ? 'python' : 'typescript',
+    runtimeVersion: row.language === 'python' ? 'py-v1' : 'ts-v1',
     status: reportStatus(row.status),
     phase: row.phase === 'explore' || row.phase === 'holdout' ? row.phase : 'legacy',
     spec: researchSpec.analysisKind === 'cross_sectional' ? researchSpec.protocol : undefined,
