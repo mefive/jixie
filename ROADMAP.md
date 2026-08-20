@@ -205,12 +205,16 @@ M4 第 1 项已经完成：成功封存的 `ResearchExecution` 可经 LLM 语义
 
 M4 第 2 项已经完成：成功封存的 ResearchExecution 可经 LLM 语义门生成唯一、可审查的 Strategy 草稿，默认
 使用 Python `py-v1`；草稿必须通过编译与受限运行时校验，保留来源快照、revision/hash、摘要、待验证项和精确
-回链，但不会自动运行回测，用户仍须在 Strategy Lab 中确认参数并显式回测。Factor 当前仍只有 TypeScript
-SDK/runtime；Python Factor SDK、受限运行时、FactorReport 执行和编辑器支持进入 backlog。该能力落地后，
-Research → Factor 同样默认 Python。
+回链，但不会自动运行回测，用户仍须在 Strategy Lab 中确认参数并显式回测。
 
-本项继续进行是因为 M4 仍缺 Research 对 FactorReport / BacktestRun / 持仓 / 交易的只读复盘；这些链路仍不得
-绕过正式报告、Holdout、成本与回测纪律。全局封存档案/搜索、底层数据副本、数据请求指纹和快照
+M4 第 3 项正在实施：Factor 增加 Python SDK、`py-v1` 受限运行时、FactorReport / 发布 / Strategy 消费链路和
+Monaco/Pyright 支持；现有 TypeScript Factor 保持兼容，新的 Factor 以及 Research → Factor 草稿默认 Python。
+实现按契约与持久化、横截面运行时、时序/Panel 下游闭环、编辑器与 E2E 四个 commit 推进。
+
+Research 对派生结果的二次分析进入 backlog：FactorReport 可作为用户权限内的不可变 `results` 数据集读取；
+Strategy 当前只有会被后续运行覆盖的 `lastResult`，精确历史复盘必须先引入不可变 `BacktestReport`，记录配置/
+代码/结果 hash、完成时间、净值和成交快照。两类结果均不和 Research 建关系表，完整持仓历史也必须由引擎真实
+产出后再开放。全局封存档案/搜索、底层数据副本、数据请求指纹和快照
 自动归因等待真实需求，不阻塞 M3 收工。
 
 ### 1.6 研究方法模板与统计能力扩展 💤

@@ -521,12 +521,17 @@ DAG、输出与指纹。首版只在当前文档内查看运行历史；全局�
   Factor，描述性研究或当前 Python Strategy runtime 无法表达的品种/频率明确拒绝。通过门禁后生成的草稿默认使用
   Python `py-v1`，必须通过现有编译与受限运行时校验，并保留来源快照、revision/hash、摘要、待验证项和精确回链；
   交接不会自动运行回测，用户仍需在 Strategy Lab 中确认参数、显式回测并审查交易与结果；
-- Research 只读加载 FactorReport、BacktestRun、持仓和交易用于复盘；
+- **开发中（第 3 项）**：Factor 增加 Python SDK、静态类型、受限运行时和 `py-v1` 代码快照，依次覆盖
+  `cross_sectional`、`time_series`、`panel`、FactorReport、发布和 Strategy 消费链路；现有 TypeScript Factor
+  保持兼容，新的 Factor 以及 Research → Factor 草稿默认使用 Python。实现拆为四个独立 commit：契约/持久化/
+  stubs，横截面运行时，时序与 Panel 下游闭环，Monaco/Pyright/模板/Research 交接与 E2E；
 - 已发布 Factor 和冻结回测不可被研究文档反向修改。
 
-M4 backlog：Factor 目前只支持 TypeScript 定义。补齐 Python Factor SDK/runtime、受限编译执行、FactorReport
-与 Monaco/Pyright 支持后，Research → Factor 应和 Research → Strategy 一样默认生成 Python；在此之前不把
-Research Python 源码伪装成可直接执行的 Factor Python。
+M4 backlog：Research 后续可通过独立的 `results` SDK 读取用户权限内的不可变 FactorReport，或显式读取
+Strategy 的最新回测结果用于二次分析；它们是派生结果而不是 `data` 通用市场数据，也不和 Research 建关系表。
+当前 Strategy 只保存可覆盖的 `lastResult`，若需要精确复盘某一次历史回测，应先增加不可变 `BacktestReport`
+（含配置/代码/结果 hash、完成时间、净值与成交快照）再允许按 report id 读取。完整持仓历史必须由回测引擎真实
+产出后再暴露，不能从成交记录临时猜测。
 
 ## 11. 方法与模板 backlog
 
