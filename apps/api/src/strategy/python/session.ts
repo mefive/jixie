@@ -135,6 +135,17 @@ export class PythonSession {
   }
 }
 
+export async function probePythonRuntime(): Promise<'local' | 'sandboxd'> {
+  if (process.env.JIXIE_PYTHON_LOCAL === '1') {
+    return 'local';
+  }
+
+  const socketPath = process.env.JIXIE_SANDBOX_SOCKET ?? '/var/lib/jixie/sandboxd.sock';
+  const socket = await connectSocket(socketPath);
+  socket.destroy();
+  return 'sandboxd';
+}
+
 function connectSocket(path: string): Promise<Socket> {
   return new Promise((resolveSocket, rejectSocket) => {
     const socket = connect(path);
