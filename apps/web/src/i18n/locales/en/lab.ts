@@ -82,6 +82,12 @@ export const enLab: typeof zhLab = {
   languageSwitchBody: 'Switching replaces the current code with the selected language template.',
   languageSwitchConfirm: 'Switch and replace',
   pythonRuntimeHint: 'Stock / ETF preview',
+  researchHandoff: {
+    title: 'From research version',
+    openSource: 'Open source research snapshot',
+    sourceUnavailable: 'Source deleted',
+    unresolved: '{{count}} items still require validation',
+  },
 
   // Result overview
   runningCalc: 'Running backtest… live logs in the "Logs" panel below',

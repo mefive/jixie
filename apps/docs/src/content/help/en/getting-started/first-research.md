@@ -19,6 +19,15 @@ code. If conversion is not possible, the product explains why. The Factor keeps 
 remaining validation items, with a link back to the exact snapshot. This creates a draft only: it does not prove efficacy, run
 a report, reveal a holdout, or publish the Factor.
 
+When the research also defines instruments or a point-in-time universe, signal direction, rebalance or entry/exit conditions,
+and a sizing rule, the same snapshot can create a Python Strategy draft. The draft defaults to `py-v1` and opens in Strategy
+Lab with its source, summary, and unresolved items. It does not run automatically: review the rule, set the backtest range,
+capital, and costs, then run it explicitly. A study that contains only a predictive relationship is routed to Factor first
+instead of bypassing formal validation through Strategy.
+
+Factor definitions still use the TypeScript SDK/runtime; Python Factor support remains in the backlog. Research → Factor
+therefore generates TypeScript for now, while Research → Strategy defaults to Python.
+
 The Agent can add methods and formulas, edit Markdown/Python cells, and explain real outputs. It cannot claim that unexecuted
 code has run or replace code and output with prose. When data or methods are unavailable, it reports the exact gap.
 

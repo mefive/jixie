@@ -180,18 +180,18 @@ When you use a research runner, freeze the complete candidate and the test inten
 
 /** The fenced artifact block, or null when the reply has none (a pure answer). */
 function extractFenced(text: string): string | null {
-  const fenced = text.match(/```(?:ts|typescript|js|javascript|py|python)?\s*([\s\S]*?)```/i);
+  const fenced = text.match(/```(?:typescript|javascript|python|ts|js|py)?\s*([\s\S]*?)```/i);
   return fenced ? fenced[1].trim() : null;
 }
 
 /** The human-readable part of a reply = the text with the code fence removed. */
 function stripFence(text: string): string {
-  return text.replace(/```(?:ts|typescript|js|javascript|py|python)?\s*[\s\S]*?```/i, '').trim();
+  return text.replace(/```(?:typescript|javascript|python|ts|js|py)?\s*[\s\S]*?```/i, '').trim();
 }
 
 /** Pull the code out of a repair-round reply — tolerates fences / prose, else uses it whole. */
 function extractRepairCode(text: string): string {
-  const fenced = text.match(/```(?:ts|typescript|js|javascript|py|python)?\s*([\s\S]*?)```/i);
+  const fenced = text.match(/```(?:typescript|javascript|python|ts|js|py)?\s*([\s\S]*?)```/i);
   return (fenced ? fenced[1] : text).trim();
 }
 

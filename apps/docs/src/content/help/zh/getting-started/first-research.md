@@ -17,6 +17,14 @@ LLM 判断研究能否转换，再用 Factor 编译器检查生成代码；不�
 提炼摘要和待验证项，并可回跳到原快照。这个操作只创建草稿，不会自动证明因子有效，也不会运行报告、揭示
 Holdout 或发布 Factor。
 
+如果研究已经明确标的或股票池、信号方向、调仓或进出场条件以及仓位规则，也可以从同一快照生成 Python
+Strategy 草稿。草稿默认使用 `py-v1`，打开后会在 Strategy Lab 保留来源、摘要和待验证项。它不会自动运行
+回测；需要先检查生成规则、设置回测区间、资金和成本，再由用户显式运行。只有预测关系而没有组合与交易规则的
+研究会被要求先进入 Factor，而不是让 Strategy 绕过正式验证。
+
+Factor 当前仍使用 TypeScript SDK/runtime；Python Factor 支持尚在 backlog。Research → Factor 暂时会生成
+TypeScript 定义，Research → Strategy 则默认延续 Python。
+
 Agent 可以补充统计方法和公式、修改 Markdown/Python Cell，并基于真实输出解释结果；它不能把未运行的代码说成
 已经计算，也不能用文字替代代码与输出。缺少数据或方法时，系统会明确报告能力缺口。
 

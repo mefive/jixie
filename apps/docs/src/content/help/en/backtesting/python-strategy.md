@@ -77,6 +77,10 @@ Python errors retain the `strategy.py` line number. Start with the first error r
 
 `py-v1` currently supports stocks and ETFs, daily history, common indicators, built-in factors, target weights, share orders, and conditional orders.
 
+A Python Strategy generated from a promoted research version shows **From research version** above the editor. Use it to review
+the distilled summary and unresolved items or return to the exact read-only research snapshot. Provenance does not mean the
+strategy has been backtested, validated out of sample, or made deployable.
+
 Python mode does not currently expose:
 
 - index futures or mixed stock/futures strategies;

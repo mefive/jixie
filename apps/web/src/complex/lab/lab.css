@@ -116,6 +116,73 @@
   height: 100%;
 }
 
+.jx-lab-researchHandoff {
+  @apply border-b border-line bg-card text-ink;
+  flex: none;
+  padding: 9px 12px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.jx-lab-researchHandoffHead {
+  @apply flex items-start gap-2;
+}
+
+.jx-lab-researchHandoffHead > svg {
+  @apply text-muted;
+  margin-top: 3px;
+}
+
+.jx-lab-researchHandoffSource {
+  @apply flex min-w-0 flex-1 flex-col;
+}
+
+.jx-lab-researchHandoffSource > span {
+  @apply text-muted;
+  font-size: 10px;
+}
+
+.jx-lab-researchHandoffSource > strong {
+  @apply truncate;
+  font-size: 12px;
+}
+
+.jx-lab-researchHandoffLanguage,
+.jx-lab-researchHandoffUnavailable {
+  @apply text-muted;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.jx-lab-researchHandoff .ant-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+}
+
+.jx-lab-researchHandoff > p {
+  @apply text-muted;
+  margin: 6px 0 0 20px;
+}
+
+.jx-lab-researchHandoff details {
+  margin: 5px 0 0 20px;
+}
+
+.jx-lab-researchHandoff summary {
+  @apply cursor-pointer select-none font-medium;
+}
+
+.jx-lab-researchHandoff ul {
+  @apply text-muted;
+  margin: 5px 0 0;
+  padding-left: 17px;
+}
+
+.jx-lab-researchHandoff li + li {
+  margin-top: 3px;
+}
+
 /* —— left column: Agent panel (chat + run-config | History) —— */
 .jx-lab-agent {
   @apply flex flex-col overflow-hidden bg-card;

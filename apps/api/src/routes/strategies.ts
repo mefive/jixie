@@ -68,6 +68,18 @@ function snapshotOf(lastResult: unknown): StrategyCard['snapshot'] {
 strategiesRoute.get('/:id', async (c) => {
   const row = await prisma.strategy.findFirst({
     where: { id: c.req.param('id'), userId: c.var.userId },
+    include: {
+      sourceResearchExecution: {
+        select: {
+          id: true,
+          documentId: true,
+          title: true,
+          displayName: true,
+          sequence: true,
+          promotedAt: true,
+        },
+      },
+    },
   });
   if (!row) {
     return apiError(c, 'NOT_FOUND', m(c, 'strategyNotFound'));
@@ -80,6 +92,13 @@ strategiesRoute.get('/:id', async (c) => {
     config: row.config,
     lastResult: row.lastResult,
     messages: row.messages,
+    researchHandoff: row.researchHandoff,
+    sourceResearchExecution: row.sourceResearchExecution
+      ? {
+          ...row.sourceResearchExecution,
+          promotedAt: row.sourceResearchExecution.promotedAt?.toISOString() ?? null,
+        }
+      : null,
     visibility: row.visibility === 'public' ? 'public' : 'private',
   });
 });

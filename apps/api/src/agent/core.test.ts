@@ -27,6 +27,24 @@ function fakeTool(name: string, run: AgentTool['run']): AgentTool {
 }
 
 describe('agentTurn(strategyProfile)', () => {
+  it('extracts a full python fence without leaving the short py alias behind', async () => {
+    const code = 'from jixie import Strategy\nstrategy = Strategy(name="x")';
+    const profile: AgentProfile = {
+      system: 'Return Python code.',
+      artifact: { noun: 'strategy', language: 'python', validate: async () => {} },
+    };
+    const result = await agentTurn(
+      profile,
+      [],
+      '生成 Python',
+      'pass',
+      scriptedLlm([{ text: `完成。\n\`\`\`python\n${code}\n\`\`\`` }]),
+    );
+
+    expect(result.code).toBe(code);
+    expect(result.reply).toBe('完成。');
+  });
+
   it('applies a fenced code change + returns the explanation without the fence', async () => {
     const llm = scriptedLlm([{ text: `把清仓改成买入 100 股。\n\`\`\`ts\n${STRATEGY2}\n\`\`\`` }]);
     const result = await agentTurn(strategyProfile(), [], '改成买入 100 股', STRATEGY, llm);

@@ -49,6 +49,10 @@ const MESSAGES = {
     zh: '只有已封存且成功的研究版本才能生成 Factor 草稿',
     en: 'Only a sealed, successful research version can create a Factor draft',
   },
+  researchStrategyDraftUnavailable: {
+    zh: '只有已封存且成功的研究版本才能生成 Strategy 草稿',
+    en: 'Only a sealed, successful research version can create a Strategy draft',
+  },
   researchCellChangeProposalNotFound: {
     zh: '研究 Cell 变更提案不存在',
     en: 'Research Cell change proposal not found',

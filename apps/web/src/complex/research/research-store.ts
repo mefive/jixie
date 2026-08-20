@@ -25,6 +25,7 @@ import {
   type ResearchExecutionSummaryV1,
   type ResearchExecutionV1,
   type ResearchFactorDraftResultV1,
+  type ResearchStrategyDraftResultV1,
 } from '@jixie/shared';
 import { BaseStore, LoaderModel, PollingModel } from '@src/lib';
 import {
@@ -35,6 +36,7 @@ import {
   applyResearchCellChangeProposalForReview,
   createResearchDocument,
   createResearchFactorDraft,
+  createResearchStrategyDraft,
   deleteResearchCell,
   deleteResearchConversation,
   getLatestResearchCuratorRun,
@@ -138,6 +140,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
   public executionLoader = new LoaderModel<ResearchExecutionV1>();
   public executionPromotionLoader = new LoaderModel<ResearchExecutionSummaryV1>();
   public researchFactorDraftLoader = new LoaderModel<ResearchFactorDraftResultV1>();
+  public researchStrategyDraftLoader = new LoaderModel<ResearchStrategyDraftResultV1>();
   public affectedRunLoader = new LoaderModel<ResearchDocumentRunResultV1>();
   public interruptLoader = new LoaderModel<ResearchDocumentInterruptResultV1>();
   public cellChangeResolutionLoader = new LoaderModel<ResearchCellChangeResolutionResultV1>();
@@ -231,6 +234,10 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
       preserveResult: false,
       request: (executionId: string) => createResearchFactorDraft(executionId),
     });
+    this.researchStrategyDraftLoader.setup({
+      preserveResult: false,
+      request: (executionId: string) => createResearchStrategyDraft(executionId),
+    });
     this.affectedRunLoader.setup({
       preserveResult: false,
       request: (cellId: string) => runAffectedResearchCells(cellId),
@@ -306,6 +313,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     this.registCleaner(() => this.executionLoader.cleanup());
     this.registCleaner(() => this.executionPromotionLoader.cleanup());
     this.registCleaner(() => this.researchFactorDraftLoader.cleanup());
+    this.registCleaner(() => this.researchStrategyDraftLoader.cleanup());
     this.registCleaner(() => this.affectedRunLoader.cleanup());
     this.registCleaner(() => this.interruptLoader.cleanup());
     this.registCleaner(() => this.cellChangeResolutionLoader.cleanup());
@@ -616,6 +624,10 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
 
   public createFactorDraft(executionId: string) {
     return this.researchFactorDraftLoader.run(executionId);
+  }
+
+  public createStrategyDraft(executionId: string) {
+    return this.researchStrategyDraftLoader.run(executionId);
   }
 
   public async send(message: string, attemptId?: string) {

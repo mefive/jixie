@@ -38,6 +38,7 @@ import {
   faPlus,
   faRocket,
   faPause,
+  faFlask,
   faSpinner,
   faTriangleExclamation,
   faUpRightFromSquare,
@@ -814,6 +815,7 @@ const StrategyCode = complex.component(() => {
           <span className="jx-lab-runtimeBadge">py-v1 · {t('pythonRuntimeHint')}</span>
         )}
       </div>
+      <StrategyResearchHandoff />
       <div className="jx-lab-code">
         <Suspense fallback={<div className="jx-lab-placeholder">{t('loadingEditor')}</div>}>
           <CodeEditor
@@ -826,6 +828,63 @@ const StrategyCode = complex.component(() => {
     </div>
   );
 }, 'StrategyCode');
+
+const StrategyResearchHandoff = complex.component(() => {
+  const store = complex.useStore();
+  const { t } = useTranslation('lab');
+  const navigate = useNavigate();
+  if (!store.researchHandoff) {
+    return null;
+  }
+
+  return (
+    <section className="jx-lab-researchHandoff" data-testid="strategy-research-handoff">
+      <div className="jx-lab-researchHandoffHead">
+        <FontAwesomeIcon icon={faFlask} />
+        <div className="jx-lab-researchHandoffSource">
+          <span>{t('researchHandoff.title')}</span>
+          <strong>
+            {store.sourceResearchExecution?.displayName ?? store.researchHandoff.sourceDisplayName}
+          </strong>
+        </div>
+        <span className="jx-lab-researchHandoffLanguage">Python · py-v1</span>
+        {store.sourceResearchExecution && (
+          <Tooltip title={t('researchHandoff.openSource')}>
+            <Button
+              type="text"
+              size="small"
+              icon={<FontAwesomeIcon icon={faUpRightFromSquare} />}
+              aria-label={t('researchHandoff.openSource')}
+              onClick={() =>
+                navigate(
+                  `/research?document=${encodeURIComponent(store.researchHandoff!.sourceDocumentId)}&execution=${encodeURIComponent(store.researchHandoff!.sourceExecutionId)}`,
+                )
+              }
+            />
+          </Tooltip>
+        )}
+        {!store.sourceResearchExecution && (
+          <span className="jx-lab-researchHandoffUnavailable">
+            {t('researchHandoff.sourceUnavailable')}
+          </span>
+        )}
+      </div>
+      <p>{store.researchHandoff.summary}</p>
+      <details>
+        <summary>
+          {t('researchHandoff.unresolved', {
+            count: store.researchHandoff.unresolvedItems.length,
+          })}
+        </summary>
+        <ul>
+          {store.researchHandoff.unresolvedItems.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+      </details>
+    </section>
+  );
+}, 'StrategyResearchHandoff');
 
 // Results overview — metrics + equity curve + monthly returns. Logs and Trade-detail live in the dock below (ResultDock), so this
 // panel no longer swaps to a log view while running; it shows a running placeholder and lets the log

@@ -197,6 +197,7 @@ import type {
   ResearchExecutionV1,
   ResearchFactorDraftResultV1,
   ResearchFactorHandoffV1,
+  ResearchStrategyDraftResultV1,
   ResearchDataCatalogResultV1,
   ResearchAssetTypeV1,
   ResearchLanguageRequestV1,
@@ -370,6 +371,14 @@ export function createResearchFactorDraft(
   executionId: string,
 ): Promise<ResearchFactorDraftResultV1> {
   return request(`/api/app/research/executions/${encodeURIComponent(executionId)}/factor-draft`, {
+    method: 'POST',
+  });
+}
+
+export function createResearchStrategyDraft(
+  executionId: string,
+): Promise<ResearchStrategyDraftResultV1> {
+  return request(`/api/app/research/executions/${encodeURIComponent(executionId)}/strategy-draft`, {
     method: 'POST',
   });
 }
