@@ -36,5 +36,5 @@ ETF 通常跟踪一组股票、债券、商品或指数。买入一只 ETF，相
 
 ## 相关内容
 
-- [第一次完成自然语言研究](/help/getting-started/first-research)
+- [第一次完成量化研究](/help/getting-started/first-research)
 - [策略和回测](/help/basics/strategy-backtest)

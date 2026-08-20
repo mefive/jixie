@@ -224,8 +224,8 @@ try {
   await page.locator('.ant-image-preview-img').waitFor();
   await page.keyboard.press('Escape');
 
-  await page.getByRole('link', { name: '第一次完成自然语言研究', exact: true }).first().click();
-  await page.getByRole('heading', { level: 1, name: '第一次完成自然语言研究' }).waitFor();
+  await page.getByRole('link', { name: '第一次完成量化研究', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '第一次完成量化研究' }).waitFor();
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.waitForTimeout(100);
   await page.screenshot({

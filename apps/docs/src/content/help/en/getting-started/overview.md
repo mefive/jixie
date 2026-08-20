@@ -1,13 +1,15 @@
 # What the product does
 
-Jixie helps you observe market conditions, run statistical research in plain language, research factors, test trading rules, and review current signals. After sign-in, the product opens Market Weather by default. On a first visit, start with the current market, then complete one natural-language study and one backtest.
+Jixie helps you observe market conditions, complete quantitative studies in reactive documents, research factors, test trading
+rules, and review current signals. After sign-in, the product opens Market Weather by default. On a first visit, start with the
+current market, then complete one Markdown/Python study and one backtest.
 
 ## Main areas
 
 | Page | What you can do |
 | --- | --- |
 | Market | View industry, size, board, and style weather by week, month, quarter, or year and replay its history |
-| Research | Study time-series relationships or point-in-time equity universes and inspect typed, rerunnable results |
+| Research | Use Markdown, Python, platform data, and the Agent for free-form studies, charts, immutable snapshots, and downstream handoff |
 | Backtest Lab | Build in plain language, TypeScript, or Python and inspect returns, trades, allocation attribution, and portfolio risk |
 | Factors | Research stock cross-sections, ETF time series, cross-asset Panels, and macro regimes, then publish eligible Factors |
 | Factor Weather | Monitor recent return, IC, coverage, and turnover for published Factors under one monthly method |
@@ -21,7 +23,7 @@ The pages can be used together. For example, use Research to inspect an equity u
 1. [Sign in](/help/getting-started/login).
 2. Read [View the Market Weather map](/help/market-valuation/market-overview).
 3. Read [Page navigation](/help/getting-started/navigation).
-4. [Complete your first natural-language study](/help/getting-started/first-research).
+4. [Complete your first quantitative study](/help/getting-started/first-research).
 5. [Run your first backtest](/help/getting-started/first-backtest).
 6. Read [Why a backtest is not a forecast](/help/basics/backtest-limitations).
 

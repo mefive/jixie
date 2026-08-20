@@ -228,12 +228,12 @@ export const HELP_ARTICLES: HelpArticle[] = [
     slug: 'getting-started/first-research',
     group: 'gettingStarted',
     title: {
-      zh: '第一次完成自然语言研究',
-      en: 'Complete your first natural-language study',
+      zh: '第一次完成量化研究',
+      en: 'Complete your first quantitative study',
     },
     summary: {
-      zh: '用日常语言提出可检验问题，并阅读确定性的统计或 Universe 结果。',
-      en: 'Ask a testable question in plain language and read deterministic statistical or Universe results.',
+      zh: '在响应式文档中完成假设、Python、图表、Agent 协作、快照与正式验证交接。',
+      en: 'Complete hypotheses, Python, charts, Agent review, snapshots, and formal-validation handoff in one reactive document.',
     },
     content: {
       zh: firstResearchZh,
@@ -436,12 +436,12 @@ export const HELP_ARTICLES: HelpArticle[] = [
     slug: 'research/records',
     group: 'research',
     title: {
-      zh: '使用研究记录',
-      en: 'Use research records',
+      zh: '研究文档与运行记录',
+      en: 'Research documents and run history',
     },
     summary: {
-      zh: '恢复、重命名、重跑和删除研究对话及类型化产物。',
-      en: 'Restore, rename, rerun, and delete research conversations and typed artifacts.',
+      zh: '区分可编辑文档、探索运行、不可变完整快照和封存版本。',
+      en: 'Distinguish editable documents, exploratory runs, immutable complete snapshots, and promoted versions.',
     },
     content: {
       zh: researchRecordsZh,
