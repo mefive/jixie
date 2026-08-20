@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { searchResearchSdkAgentCatalog } from '@jixie/shared';
 import { prisma } from '../../lib/prisma.js';
 import { researchCapabilityCatalog } from '../../research/catalog.js';
 import { resolveResearchConceptBindings } from '../../research/concept-binding-resolver.js';
@@ -95,7 +96,7 @@ const CONTINUOUS_FUTURE_NAMES: Record<string, { zh: string; en: string }> = {
 export const searchResearchCatalogTool: AgentTool = {
   name: 'searchResearchCatalog',
   description:
-    'Resolve one structured ConceptQuery against the local research catalog. Use conceptIds supplied by a loaded research playbook for semantic concepts; use text for a named object or exact code; optional filters constrain source kind, asset type, or yield-curve tenor. Concept ids resolve only through audited binding allow-list entries, while lexical database search is limited to explicitly named objects. Results are grouped per concept so exact-series gaps stay explicit. Never guess or substitute a different source.',
+    'Resolve one structured ConceptQuery against the local research catalog. Use conceptIds supplied by a loaded research playbook for semantic concepts; use text for a named object, exact code, or exact Research SDK method such as data.panel or charts.line. SDK method results provide the generated Python signature, parameter defaults, fixed return columns, examples, and PIT or frequency notes. Optional filters constrain source kind, asset type, or yield-curve tenor. Concept ids resolve only through audited binding allow-list entries, while lexical database search is limited to explicitly named objects. Results are grouped per concept so exact-series gaps stay explicit. Never guess or substitute a different source or SDK signature.',
   parameters: z.toJSONSchema(argsSchema),
   async run(args) {
     const parsed = argsSchema.safeParse(args);
@@ -103,6 +104,7 @@ export const searchResearchCatalogTool: AgentTool = {
       throw new Error(parsed.error.issues.map((issue) => issue.message).join('; '));
     }
 
+    const sdkMethods = researchSdkMethodsForCatalogQuery(parsed.data.text);
     const interpretation = interpretResearchCatalogQuery(parsed.data);
     const { terms, tenorYears } = interpretation;
     const bindingFilters = {
@@ -437,14 +439,19 @@ export const searchResearchCatalogTool: AgentTool = {
         conceptRegistryVersion: 1,
         bindingRegistryVersion: 1,
         crossMarketData: compactCrossMarketDataContractRegistry(),
+        sdkMethods,
         conceptMatches,
         matches,
         capabilities,
       }),
-      rows: matches.length,
+      rows: matches.length + sdkMethods.length,
     };
   },
 };
+
+export function researchSdkMethodsForCatalogQuery(text: string | undefined) {
+  return searchResearchSdkAgentCatalog(text);
+}
 
 export function interpretResearchCatalogQuery(input: ResearchCatalogQueryInput): {
   text: string | null;

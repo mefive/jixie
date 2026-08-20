@@ -10,6 +10,9 @@ class _ChartResult:
 
 class _DataApi:
     # Load a platform-governed historical series as a date-sorted pandas DataFrame.
+    # Note: Resolve identifier and measure through the research catalog; never silently substitute a similar asset or measure.
+    # Note: Monthly output excludes an incomplete ending month by default; the fixed columns are date and value.
+    # Example: data.series("index", "000300.SH", start="20200101", end="20251231", frequency="monthly", transform="simple_return")
     # DataFrame columns: date: datetime64[ns], value: float64
     def series(
         self,
@@ -25,6 +28,9 @@ class _DataApi:
     ) -> pd.DataFrame: ...
 
     # Load the actually available point-in-time China A-share cross-section for one requested date as a fixed-schema pandas DataFrame.
+    # Note: Index universes resolve historical membership available on the requested date; current membership is never backfilled into the past.
+    # Note: When the requested date has no snapshot, the latest prior data date is returned and must be read from the date column.
+    # Example: data.cross_section("index:000300.SH", date="20251231", minimum_listed_days=365, risk_warning="exclude")
     # DataFrame columns: date: datetime64[ns], code: str, name: str, industry: str | None, close: float64, adjusted_close: float64, daily_return_pct: float64, volume_lot: float64, amount_cny_1k: float64, pe: float64, pe_ttm: float64, pb: float64, ps: float64, dividend_yield_pct: float64, total_market_cap_cny_10k: float64, float_market_cap_cny_10k: float64, turnover_rate_pct: float64
     def cross_section(
         self,
@@ -36,6 +42,10 @@ class _DataApi:
     ) -> pd.DataFrame: ...
 
     # Load complete month-end point-in-time equity cross-sections as a fixed-schema date-by-code long DataFrame.
+    # Note: Index universes resolve point-in-time historical membership separately at every month end; current membership is never backfilled.
+    # Note: V1 supports completed month ends only; an incomplete ending month is excluded.
+    # Note: The fixed date-by-code long frame is exploratory; FactorReport remains the formal factor-evidence surface.
+    # Example: data.panel("index:000300.SH", start="20200101", end="20251231", frequency="month_end", minimum_listed_days=365, risk_warning="exclude")
     # DataFrame columns: date: datetime64[ns], code: str, name: str, industry: str | None, close: float64, adjusted_close: float64, daily_return_pct: float64, volume_lot: float64, amount_cny_1k: float64, pe: float64, pe_ttm: float64, pb: float64, ps: float64, dividend_yield_pct: float64, total_market_cap_cny_10k: float64, float_market_cap_cny_10k: float64, turnover_rate_pct: float64
     def panel(
         self,
@@ -52,6 +62,8 @@ class _DataApi:
 
 class _ChartsApi:
     # Create a native interactive line chart.
+    # Note: The frame must contain every DataFrame column referenced by x, y, and labels.
+    # Example: charts.line(frame, x="date", y=["value", "benchmark"], title="Research chart")
     def line(
         self,
         frame: pd.DataFrame,
@@ -63,6 +75,8 @@ class _ChartsApi:
     ) -> _ChartResult: ...
 
     # Create a native interactive area chart.
+    # Note: The frame must contain every DataFrame column referenced by x, y, and labels.
+    # Example: charts.area(frame, x="date", y=["value", "benchmark"], title="Research chart")
     def area(
         self,
         frame: pd.DataFrame,
@@ -74,6 +88,8 @@ class _ChartsApi:
     ) -> _ChartResult: ...
 
     # Create a native interactive bar chart.
+    # Note: The frame must contain every DataFrame column referenced by x, y, and labels.
+    # Example: charts.bar(frame, x="date", y=["value", "benchmark"], title="Research chart")
     def bar(
         self,
         frame: pd.DataFrame,
@@ -85,6 +101,8 @@ class _ChartsApi:
     ) -> _ChartResult: ...
 
     # Create a native interactive scatter chart.
+    # Note: The frame must contain every DataFrame column referenced by x, y, and labels.
+    # Example: charts.scatter(frame, x="date", y="value", title="Research chart")
     def scatter(
         self,
         frame: pd.DataFrame,
@@ -96,6 +114,8 @@ class _ChartsApi:
     ) -> _ChartResult: ...
 
     # Create a native interactive event path chart with an event-time marker.
+    # Note: The frame must contain every DataFrame column referenced by x, y, and labels.
+    # Example: charts.event_path(frame, x="date", y=["value", "benchmark"], title="Research chart")
     def event_path(
         self,
         frame: pd.DataFrame,
@@ -107,6 +127,8 @@ class _ChartsApi:
     ) -> _ChartResult: ...
 
     # Deterministically bin a numeric column and create a native interactive histogram.
+    # Note: The frame must contain the DataFrame columns referenced by column and labels; bins accepts 1 through 100.
+    # Example: charts.histogram(frame, column="next_month_return", bins=20, title="Return distribution")
     def histogram(
         self,
         frame: pd.DataFrame,
@@ -118,6 +140,8 @@ class _ChartsApi:
     ) -> _ChartResult: ...
 
     # Compute five-number summaries by numeric column and optional group for a native interactive box plot.
+    # Note: The frame must contain every DataFrame column referenced by y, group, and labels.
+    # Example: charts.boxplot(frame, y="next_month_return", group="quintile", title="Return by quintile")
     def boxplot(
         self,
         frame: pd.DataFrame,
@@ -129,6 +153,8 @@ class _ChartsApi:
     ) -> _ChartResult: ...
 
     # Create a native interactive heatmap from two categorical axes and one numeric value column.
+    # Note: The frame must contain every DataFrame column referenced by x, y, value, and labels.
+    # Example: charts.heatmap(frame, x="year", y="month", value="rank_ic", title="Monthly Rank IC")
     def heatmap(
         self,
         frame: pd.DataFrame,
