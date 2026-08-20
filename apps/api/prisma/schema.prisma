@@ -930,19 +930,22 @@ model EmailLoginChallenge {
 /// A saved backtest strategy (holds a BacktestConfig as JSON). Created before its first Agent turn or
 /// backtest, then its runnable config is committed by id whenever a backtest starts.
 model Strategy {
-  id            String               @id // ULID
-  userId        String
-  user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name          String
-  config        Json // BacktestConfig
-  visibility    String               @default("private") // 'private' | 'public'
-  lastResult    Json? // last BacktestSummary (metrics + nav + tradeLog) — shown on reopen, refreshed each run
-  messages      Json? // ChatMessage[] — the Agent-panel conversation that authored this strategy (per-strategy)
-  conversations AgentConversation[]
-  scanReports   StrategyScanReport[]
-  deployments   StrategyDeployment[]
-  createdAt     DateTime             @default(now())
-  updatedAt     DateTime             @updatedAt
+  id                        String               @id // ULID
+  userId                    String
+  user                      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name                      String
+  config                    Json // BacktestConfig
+  visibility                String               @default("private") // 'private' | 'public'
+  lastResult                Json? // last BacktestSummary (metrics + nav + tradeLog) — shown on reopen, refreshed each run
+  messages                  Json? // ChatMessage[] — the Agent-panel conversation that authored this strategy (per-strategy)
+  sourceResearchExecutionId String?              @unique
+  sourceResearchExecution   ResearchExecution?   @relation("StrategySourceResearchExecution", fields: [sourceResearchExecutionId], references: [id], onDelete: SetNull)
+  researchHandoff           Json? // ResearchStrategyHandoffV1; source meaning and unresolved backtest decisions
+  conversations             AgentConversation[]
+  scanReports               StrategyScanReport[]
+  deployments               StrategyDeployment[]
+  createdAt                 DateTime              @default(now())
+  updatedAt                 DateTime              @updatedAt
 
   @@unique([userId, name]) // name = identity within a user → enables upsert-by-name
   @@index([userId, updatedAt]) // list a user's strategies, newest first
@@ -1370,8 +1373,9 @@ model ResearchExecution {
   startedAt              DateTime         @default(now())
   finishedAt             DateTime?
 
-  cellExecutions    ResearchCellExecution[]
-  sourceFactorDraft Factor?                 @relation("FactorSourceResearchExecution")
+  cellExecutions      ResearchCellExecution[]
+  sourceFactorDraft   Factor?                 @relation("FactorSourceResearchExecution")
+  sourceStrategyDraft Strategy?               @relation("StrategySourceResearchExecution")
 
   @@unique([documentId, sequence])
   @@index([documentId, startedAt])

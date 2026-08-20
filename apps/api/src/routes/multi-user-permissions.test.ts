@@ -69,6 +69,56 @@ describe('multi-user asset permissions', () => {
     );
   });
 
+  it('returns research handoff metadata only through an owner-scoped Strategy read', async () => {
+    mocks.strategyFindFirst.mockResolvedValue({
+      id: 'strategy-b',
+      name: 'Research strategy',
+      createdAt: new Date('2026-08-19T10:00:00Z'),
+      updatedAt: new Date('2026-08-19T10:00:00Z'),
+      config: {
+        name: 'Research strategy',
+        start: '20200101',
+        end: '20241231',
+        initialCash: 1_000_000,
+        language: 'python',
+        runtimeVersion: 'py-v1',
+        code: 'from jixie import Strategy',
+      },
+      lastResult: null,
+      messages: null,
+      researchHandoff: { version: 1, sourceExecutionId: 'execution-b', language: 'python' },
+      sourceResearchExecution: {
+        id: 'execution-b',
+        documentId: 'document-b',
+        title: 'Private research',
+        displayName: 'Private version',
+        sequence: 1,
+        promotedAt: new Date('2026-08-19T09:00:00Z'),
+      },
+      visibility: 'private',
+    });
+
+    const response = await app.request('/strategies/strategy-b');
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body).toMatchObject({
+      id: 'strategy-b',
+      researchHandoff: { sourceExecutionId: 'execution-b', language: 'python' },
+      sourceResearchExecution: {
+        id: 'execution-b',
+        documentId: 'document-b',
+        promotedAt: '2026-08-19T09:00:00.000Z',
+      },
+    });
+    expect(mocks.strategyFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'strategy-b', userId: 'user-b' },
+        include: expect.objectContaining({ sourceResearchExecution: expect.any(Object) }),
+      }),
+    );
+  });
+
   it('copies a public strategy into an independent private asset owned by the reader', async () => {
     mocks.strategyFindFirst.mockResolvedValue({
       name: 'Public strategy',

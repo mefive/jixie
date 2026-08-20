@@ -1,6 +1,7 @@
 import type { TradeDate } from './types.js';
 import type { ChartKind, ChartSeriesSpec } from './chart.js';
 import type { FactorAnalysisKind } from './factor.js';
+import type { StrategyLanguage } from './backtest.js';
 
 export type ResearchAssetTypeV1 = 'stock' | 'etf' | 'index' | 'future';
 export type ResearchFrequencyV1 = 'daily' | 'monthly';
@@ -645,6 +646,33 @@ export interface ResearchFactorDraftResultV1 {
   factorName: string;
   analysisKind: ResearchFactorDraftAnalysisKindV1;
   handoff: ResearchFactorHandoffV1;
+  reused: boolean;
+}
+
+/** The durable, human-reviewable handoff from one frozen research version into a Strategy draft. */
+export interface ResearchStrategyHandoffV1 {
+  version: 1;
+  sourceExecutionId: string;
+  sourceDocumentId: string;
+  sourceContentRevision: number;
+  sourceHash: string;
+  sourceDisplayName: string;
+  language: StrategyLanguage;
+  summary: string;
+  unresolvedItems: string[];
+  generatedAt: string;
+  models: {
+    classifier: string;
+    codegen: string;
+  };
+}
+
+export interface ResearchStrategyDraftResultV1 {
+  version: 1;
+  strategyId: string;
+  strategyName: string;
+  language: StrategyLanguage;
+  handoff: ResearchStrategyHandoffV1;
   reused: boolean;
 }
 

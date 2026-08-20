@@ -2,12 +2,18 @@ import { computed, makeObservable, observable, runInAction } from 'mobx';
 import {
   normalizeChatMessage,
   textMessage,
+  DEFAULT_BACKTEST_COST,
+  DEFAULT_BACKTEST_END,
+  DEFAULT_BACKTEST_INITIAL_CASH,
+  DEFAULT_BACKTEST_START,
   type BacktestConfig,
   type BacktestSummary,
   type ChatMessage,
   type CostConfig,
   type FactorMeta,
   type LogLine,
+  type ResearchStrategyHandoffV1,
+  type SavedStrategy,
   type StrategyCard,
   type StrategyDeployment,
   type StrategyScanReport,
@@ -66,12 +72,14 @@ type DeploymentAction =
  */
 export class LabStore extends BaseStore<LabSetupParams> {
   public name = ''; // LLM-derived name; regenerated from the code on each run (the strategy name, not the code's own)
-  public start = '20200101';
-  public end = '20241231';
-  public initialCash = 1_000_000;
-  public cost: CostConfig = { slippageBps: 2, impactCoef: 0.1 };
+  public start = DEFAULT_BACKTEST_START;
+  public end = DEFAULT_BACKTEST_END;
+  public initialCash = DEFAULT_BACKTEST_INITIAL_CASH;
+  public cost: CostConfig = { ...DEFAULT_BACKTEST_COST };
   public code = DEFAULT_CODE;
   public language: StrategyLanguage = 'typescript';
+  public researchHandoff: ResearchStrategyHandoffV1 | null = null;
+  public sourceResearchExecution: SavedStrategy['sourceResearchExecution'] = null;
 
   public nlText = ''; // the Agent chat draft / hero prompt
 
@@ -120,6 +128,8 @@ export class LabStore extends BaseStore<LabSetupParams> {
       cost: observable.ref,
       code: observable.ref,
       language: observable.ref,
+      researchHandoff: observable.ref,
+      sourceResearchExecution: observable.ref,
       nlText: observable.ref,
       chatMessages: observable.ref,
       sending: observable.ref,
@@ -496,7 +506,9 @@ export class LabStore extends BaseStore<LabSetupParams> {
       this.name = '';
       this.language = language;
       this.code = language === 'python' ? DEFAULT_PYTHON_CODE : DEFAULT_CODE;
-      this.cost = { slippageBps: 2, impactCoef: 0.1 };
+      this.researchHandoff = null;
+      this.sourceResearchExecution = null;
+      this.cost = { ...DEFAULT_BACKTEST_COST };
       this.nlText = '';
       this.chatMessages = [];
       this.result = null;
@@ -618,7 +630,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
       this.start = config.start;
       this.end = config.end;
       this.initialCash = config.initialCash;
-      this.cost = { slippageBps: 2, impactCoef: 0.1, ...config.cost };
+      this.cost = { ...DEFAULT_BACKTEST_COST, ...config.cost };
       this.language = config.language ?? 'typescript';
       this.code = config.code;
     });
@@ -672,6 +684,8 @@ export class LabStore extends BaseStore<LabSetupParams> {
     runInAction(() => {
       this.result = s.lastResult ?? null;
       this.chatMessages = (s.messages ?? []).map(normalizeChatMessage); // restore (upgrades legacy rows)
+      this.researchHandoff = s.researchHandoff ?? null;
+      this.sourceResearchExecution = s.sourceResearchExecution ?? null;
       this.error = null;
       this.savedId = id;
       // A strategy with a result → its config IS the last-run config (not dirty); one never run stays

@@ -12,6 +12,7 @@ import {
   faBookmark,
   faCheck,
   faCircleExclamation,
+  faChartLine,
   faClock,
   faCode,
   faFileLines,
@@ -50,6 +51,7 @@ export const ResearchExecutionDrawer = complex.component(
     const [tags, setTags] = useState('');
     const [userNote, setUserNote] = useState('');
     const [factorDraftTargetId, setFactorDraftTargetId] = useState<string | null>(null);
+    const [strategyDraftTargetId, setStrategyDraftTargetId] = useState<string | null>(null);
     const openedInitialExecutionId = useRef<string | null>(null);
     const executions = store.executionListLoader.result ?? [];
     const selectedExecution =
@@ -96,7 +98,7 @@ export const ResearchExecutionDrawer = complex.component(
       setPromotionTarget(null);
     };
     const createFactorDraft = async (execution: ResearchExecutionSummaryV1) => {
-      if (factorDraftTargetId) {
+      if (factorDraftTargetId || strategyDraftTargetId) {
         return;
       }
       setFactorDraftTargetId(execution.id);
@@ -116,6 +118,29 @@ export const ResearchExecutionDrawer = complex.component(
         );
       } finally {
         setFactorDraftTargetId(null);
+      }
+    };
+    const createStrategyDraft = async (execution: ResearchExecutionSummaryV1) => {
+      if (factorDraftTargetId || strategyDraftTargetId) {
+        return;
+      }
+      setStrategyDraftTargetId(execution.id);
+      try {
+        const result = await store.createStrategyDraft(execution.id);
+        message.success(
+          t(
+            result.reused
+              ? 'workbench.execution.strategyDraftReused'
+              : 'workbench.execution.strategyDraftCreated',
+          ),
+        );
+        navigate(`/lab?id=${encodeURIComponent(result.strategyId)}`);
+      } catch (error) {
+        message.error(
+          error instanceof Error ? error.message : t('workbench.execution.strategyDraftFailed'),
+        );
+      } finally {
+        setStrategyDraftTargetId(null);
       }
     };
 
@@ -158,6 +183,8 @@ export const ResearchExecutionDrawer = complex.component(
                   onPromote={() => openPromotion(selectedExecution)}
                   onCreateFactorDraft={() => void createFactorDraft(selectedExecution)}
                   creatingFactorDraft={factorDraftTargetId === selectedExecution.id}
+                  onCreateStrategyDraft={() => void createStrategyDraft(selectedExecution)}
+                  creatingStrategyDraft={strategyDraftTargetId === selectedExecution.id}
                 />
               )}
             </LoadingArea>
@@ -180,6 +207,8 @@ export const ResearchExecutionDrawer = complex.component(
                       onPromote={() => openPromotion(execution)}
                       onCreateFactorDraft={() => void createFactorDraft(execution)}
                       creatingFactorDraft={factorDraftTargetId === execution.id}
+                      onCreateStrategyDraft={() => void createStrategyDraft(execution)}
+                      creatingStrategyDraft={strategyDraftTargetId === execution.id}
                     />
                   ))}
                 </div>
@@ -189,7 +218,8 @@ export const ResearchExecutionDrawer = complex.component(
           {(store.executionListLoader.error ||
             store.executionLoader.error ||
             store.executionPromotionLoader.error ||
-            store.researchFactorDraftLoader.error) && (
+            store.researchFactorDraftLoader.error ||
+            store.researchStrategyDraftLoader.error) && (
             <Alert
               className="jx-researchExecution-alert"
               type="error"
@@ -198,7 +228,8 @@ export const ResearchExecutionDrawer = complex.component(
                 store.executionListLoader.errorObject?.message ??
                 store.executionLoader.errorObject?.message ??
                 store.executionPromotionLoader.errorObject?.message ??
-                store.researchFactorDraftLoader.errorObject?.message
+                store.researchFactorDraftLoader.errorObject?.message ??
+                store.researchStrategyDraftLoader.errorObject?.message
               }
             />
           )}
@@ -257,6 +288,8 @@ function ExecutionListItem({
   onPromote,
   onCreateFactorDraft,
   creatingFactorDraft,
+  onCreateStrategyDraft,
+  creatingStrategyDraft,
 }: {
   execution: ResearchExecutionSummaryV1;
   currentContentRevision?: number;
@@ -264,6 +297,8 @@ function ExecutionListItem({
   onPromote: () => void;
   onCreateFactorDraft: () => void;
   creatingFactorDraft: boolean;
+  onCreateStrategyDraft: () => void;
+  creatingStrategyDraft: boolean;
 }) {
   const { t } = useTranslation('research');
   const draftChanged = currentContentRevision !== execution.contentRevision;
@@ -317,20 +352,36 @@ function ExecutionListItem({
           </Tooltip>
         )}
         {execution.status === 'success' && execution.promotedAt && (
-          <Tooltip title={t('workbench.execution.createFactorDraft')}>
-            <Button
-              type="text"
-              size="small"
-              loading={creatingFactorDraft}
-              icon={<FontAwesomeIcon icon={faArrowRight} />}
-              aria-label={t('workbench.execution.createFactorDraft')}
-              data-testid="research-execution-create-factor"
-              onClick={(event) => {
-                event.stopPropagation();
-                onCreateFactorDraft();
-              }}
-            />
-          </Tooltip>
+          <>
+            <Tooltip title={t('workbench.execution.createFactorDraft')}>
+              <Button
+                type="text"
+                size="small"
+                loading={creatingFactorDraft}
+                icon={<FontAwesomeIcon icon={faArrowRight} />}
+                aria-label={t('workbench.execution.createFactorDraft')}
+                data-testid="research-execution-create-factor"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onCreateFactorDraft();
+                }}
+              />
+            </Tooltip>
+            <Tooltip title={t('workbench.execution.createStrategyDraft')}>
+              <Button
+                type="text"
+                size="small"
+                loading={creatingStrategyDraft}
+                icon={<FontAwesomeIcon icon={faChartLine} />}
+                aria-label={t('workbench.execution.createStrategyDraft')}
+                data-testid="research-execution-create-strategy"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onCreateStrategyDraft();
+                }}
+              />
+            </Tooltip>
+          </>
         )}
       </div>
     </article>
@@ -343,12 +394,16 @@ function ExecutionDetail({
   onPromote,
   onCreateFactorDraft,
   creatingFactorDraft,
+  onCreateStrategyDraft,
+  creatingStrategyDraft,
 }: {
   execution: ResearchExecutionV1;
   currentContentRevision?: number;
   onPromote: () => void;
   onCreateFactorDraft: () => void;
   creatingFactorDraft: boolean;
+  onCreateStrategyDraft: () => void;
+  creatingStrategyDraft: boolean;
 }) {
   const { t } = useTranslation('research');
   return (
@@ -375,16 +430,28 @@ function ExecutionDetail({
               </Tooltip>
             )}
             {execution.status === 'success' && execution.promotedAt && (
-              <Tooltip title={t('workbench.execution.createFactorDraft')}>
-                <Button
-                  type="text"
-                  loading={creatingFactorDraft}
-                  icon={<FontAwesomeIcon icon={faArrowRight} />}
-                  aria-label={t('workbench.execution.createFactorDraft')}
-                  data-testid="research-execution-create-factor"
-                  onClick={onCreateFactorDraft}
-                />
-              </Tooltip>
+              <>
+                <Tooltip title={t('workbench.execution.createFactorDraft')}>
+                  <Button
+                    type="text"
+                    loading={creatingFactorDraft}
+                    icon={<FontAwesomeIcon icon={faArrowRight} />}
+                    aria-label={t('workbench.execution.createFactorDraft')}
+                    data-testid="research-execution-create-factor"
+                    onClick={onCreateFactorDraft}
+                  />
+                </Tooltip>
+                <Tooltip title={t('workbench.execution.createStrategyDraft')}>
+                  <Button
+                    type="text"
+                    loading={creatingStrategyDraft}
+                    icon={<FontAwesomeIcon icon={faChartLine} />}
+                    aria-label={t('workbench.execution.createStrategyDraft')}
+                    data-testid="research-execution-create-strategy"
+                    onClick={onCreateStrategyDraft}
+                  />
+                </Tooltip>
+              </>
             )}
           </div>
         </div>

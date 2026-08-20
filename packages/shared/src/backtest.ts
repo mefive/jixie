@@ -21,6 +21,15 @@ export interface CostConfig {
   futureMarginRate?: number;
 }
 
+/** Shared defaults for a newly created Strategy Lab draft; generation never asks the LLM to pick them. */
+export const DEFAULT_BACKTEST_START: TradeDate = '20200101';
+export const DEFAULT_BACKTEST_END: TradeDate = '20241231';
+export const DEFAULT_BACKTEST_INITIAL_CASH = 1_000_000;
+export const DEFAULT_BACKTEST_COST: Readonly<CostConfig> = {
+  slippageBps: 2,
+  impactCoef: 0.1,
+};
+
 export type StrategyLanguage = 'typescript' | 'python';
 export type StrategyRuntimeVersion = 'ts-v1' | 'py-v1';
 

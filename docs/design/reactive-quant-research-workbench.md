@@ -13,7 +13,9 @@
 > Agent 受审计增删改 Cell、用户授权的受控执行、精确结果解释和简版尝试比较已经完成；M3 以当前快照能力
 > 收工，不把数据副本、自动执行归因、反向来源关联或全局档案作为首版阻塞项。M4 已完成首个垂直切片：
 > 成功封存的 ResearchExecution 可经 LLM 语义门和 Factor 编译器生成带来源、摘要与未解决项的 Factor 草稿；
-> Strategy 交接与 Research 复盘加载仍待完成，因此本文的“首版完成定义”尚未全部关闭。
+> Strategy 交接与 Research 复盘加载仍待完成，因此本文的“首版完成定义”尚未全部关闭。Research 产物默认
+> 延续 Python 心智：Strategy 交接默认生成 `py-v1`；Factor 当前只有 TypeScript SDK/runtime，补齐 Python
+> Factor SDK、编译校验、报告执行与编辑器支持后，Research → Factor 也应默认生成 Python，此项进入 backlog。
 
 ## 1. 产品判断
 
@@ -514,9 +516,17 @@ DAG、输出与指纹。首版只在当前文档内查看运行历史；全局�
   通过现有 Factor 编译器与最多两轮修复。描述性研究、指数间回归、未来信息、数据能力缺口或输出语义不清时明确
   拒绝，不创建空壳。每个快照只生成一个草稿，重复操作直接打开原草稿；Factor 保留来源快照、来源 revision/hash、
   LLM 摘要和未解决项，并可精确回跳只读快照。交接不会自动运行 FactorReport、揭示 Holdout、发布 Factor 或复制研究数据；
-- 创建 Strategy 草稿，不绕过 Lab 回测；
+- **已完成（第 2 项）**：只允许成功且已封存的 `ResearchExecution` 生成唯一、私有的 Strategy 草稿。LLM
+  先判断研究是否已经明确资产范围、信号方向、调仓/进出场规则与仓位动作；需先固化信号的研究引导用户生成
+  Factor，描述性研究或当前 Python Strategy runtime 无法表达的品种/频率明确拒绝。通过门禁后生成的草稿默认使用
+  Python `py-v1`，必须通过现有编译与受限运行时校验，并保留来源快照、revision/hash、摘要、待验证项和精确回链；
+  交接不会自动运行回测，用户仍需在 Strategy Lab 中确认参数、显式回测并审查交易与结果；
 - Research 只读加载 FactorReport、BacktestRun、持仓和交易用于复盘；
 - 已发布 Factor 和冻结回测不可被研究文档反向修改。
+
+M4 backlog：Factor 目前只支持 TypeScript 定义。补齐 Python Factor SDK/runtime、受限编译执行、FactorReport
+与 Monaco/Pyright 支持后，Research → Factor 应和 Research → Strategy 一样默认生成 Python；在此之前不把
+Research Python 源码伪装成可直接执行的 Factor Python。
 
 ## 11. 方法与模板 backlog
 

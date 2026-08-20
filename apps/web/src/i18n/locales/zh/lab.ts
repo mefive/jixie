@@ -75,6 +75,12 @@ export const zhLab = {
   languageSwitchBody: '切换语言会用对应语言的空白模板替换当前代码。',
   languageSwitchConfirm: '切换并替换',
   pythonRuntimeHint: '股票 / ETF 回测预览',
+  researchHandoff: {
+    title: '来自研究版本',
+    openSource: '打开来源研究快照',
+    sourceUnavailable: '来源已删除',
+    unresolved: '{{count}} 项仍待验证',
+  },
 
   // Result overview
   runningCalc: '回测计算中…… 实时日志见下方「日志」',

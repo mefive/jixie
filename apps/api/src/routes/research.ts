@@ -32,6 +32,11 @@ import {
 } from '../research/research-factor-drafts.js';
 import { ResearchFactorHandoffRejectedError } from '../research/research-factor-handoff.js';
 import {
+  createResearchStrategyDraft,
+  ResearchStrategyDraftUnavailableError,
+} from '../research/research-strategy-drafts.js';
+import { ResearchStrategyHandoffRejectedError } from '../research/research-strategy-handoff.js';
+import {
   acceptResearchCellChangeReview,
   applyResearchCellChangeProposal,
   applyResearchCellChangeProposalForReview,
@@ -259,6 +264,25 @@ researchRoute.post('/executions/:executionId/factor-draft', async (c) => {
       return apiError(c, 'VALIDATION_FAILED', m(c, 'researchFactorDraftUnavailable'));
     }
     if (error instanceof ResearchFactorHandoffRejectedError) {
+      return apiError(c, 'VALIDATION_FAILED', error.message);
+    }
+    throw error;
+  }
+});
+
+researchRoute.post('/executions/:executionId/strategy-draft', async (c) => {
+  try {
+    const draft = await createResearchStrategyDraft(
+      c.var.userId,
+      c.req.param('executionId'),
+      localeFromRequest(c),
+    );
+    return draft ? c.json(draft) : apiError(c, 'NOT_FOUND', m(c, 'researchExecutionNotFound'));
+  } catch (error) {
+    if (error instanceof ResearchStrategyDraftUnavailableError) {
+      return apiError(c, 'VALIDATION_FAILED', m(c, 'researchStrategyDraftUnavailable'));
+    }
+    if (error instanceof ResearchStrategyHandoffRejectedError) {
       return apiError(c, 'VALIDATION_FAILED', error.message);
     }
     throw error;
