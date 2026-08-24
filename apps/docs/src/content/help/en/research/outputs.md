@@ -38,6 +38,8 @@ A chart only presents the supplied data. Binning, axis range, missing values, an
 
 Use Matplotlib when you need a custom figure not covered by native charts. Static figures do not provide native tooltips or zooming. Keep their dimensions, label count, and resolution bounded.
 
+The current Matplotlib environment includes DejaVu Sans but no CJK font. Keep Matplotlib titles, axes, legends, and annotations in concise English. Markdown explanations and console text may still use Chinese. See [Use the Research Python runtime](/docs/help/research/python-runtime) for available statistical packages, import limits, and chart choices.
+
 ## Outputs and snapshots
 
 - A single-Cell or affected-branch run updates exploratory output in the current document.
@@ -58,5 +60,5 @@ That is the preview bound. Page through it, or use Python to filter and aggregat
 ## Related articles
 
 - [Use the research data catalog](/docs/help/research/data-catalog)
+- [Use the Research Python runtime](/docs/help/research/python-runtime)
 - [Research documents and run history](/docs/help/research/records)
-

@@ -13,7 +13,7 @@ The **Data catalog** shows the instruments, measures, and calls supported by the
 
 After insertion, verify that the instrument, dates, and variable name match your research question.
 
-## Three data shapes
+## Four data shapes
 
 ### One instrument over time
 
@@ -36,6 +36,10 @@ Use `data.cross_section()` for China A-share fields available at a historical tr
 ### Completed month-end stock Panels
 
 Use `data.panel()` for point-in-time cross-sections over completed month-ends. It supports exploratory multi-period sorting, regression, and stability checks. Specify dates, universe, fields, and missing-value rules. Never backfill today's latest financial value into past dates.
+
+### US Treasury yield curves
+
+Use `data.yield_curve()` for governed US Treasury nominal- or real-yield tenor series. Curves, tenors, and transforms have a separate allowlist; do not guess a yield table or field through `data.series()`. See [Load US Treasury yield curves](/docs/help/research/yield-curves) for parameters, percentage-point units, and US/China time-zone boundaries.
 
 ## Point-in-time and revision boundaries
 
@@ -63,5 +67,6 @@ Check the instrument code, dates, frequency, and the field's first available dat
 ## Related articles
 
 - [Read and rerun a Universe result](/docs/help/research/universe)
+- [Load US Treasury yield curves](/docs/help/research/yield-curves)
+- [Use the Research Python runtime](/docs/help/research/python-runtime)
 - [Read research outputs](/docs/help/research/outputs)
-

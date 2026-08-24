@@ -10,6 +10,10 @@
 4. 在左侧“研究文档”中切换已有文档。
 5. 点击标题旁的编辑图标可以改名。
 
+下图中的标记分别是问题输入框、“开始研究”和已有研究文档。输入问题并发送后，系统会建立文档并开始处理；不需要先选择模板。
+
+![从问题开始建立研究文档](/docs/images/help/zh/research/new-research-01.png)
+
 ## 添加和编辑 Cell
 
 1. 点击两个 Cell 之间或文档底部的“+”。
@@ -51,4 +55,5 @@ Markdown 不会执行代码。只有 Python 源码或其依赖发生变化时，
 ## 相关内容
 
 - [运行、停止和重置研究](/docs/help/research/run-control)
+- [回答研究口径确认](/docs/help/research/clarifications)
 - [研究文档与运行记录](/docs/help/research/records)

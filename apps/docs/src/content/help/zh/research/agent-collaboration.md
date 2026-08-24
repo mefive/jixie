@@ -11,6 +11,8 @@ Research Agent 可以阅读当前文档和 Cell 状态，帮助补充研究问�
 
 Agent 不知道精确对象、数据字段或 SDK 时，应先查询当前目录或说明缺口。不要接受把缺失数据静默换成相似指标的结果。
 
+如果原问题没有精确可执行的数据，但存在有明确差异的代理，Agent 会先显示“待确认”卡。回答前普通输入和 Cell 提案会暂停；先比较差异并确认、选择“不使用代理”或填写具体口径，再继续研究。
+
 ## 审查 Cell 变更
 
 Agent 提出修改后，右侧会出现变更卡片，目标 Cell 显示内联差异：
@@ -49,5 +51,5 @@ Agent 提出修改后，右侧会出现变更卡片，目标 Cell 显示内联�
 ## 相关内容
 
 - [使用研究数据目录](/docs/help/research/data-catalog)
+- [回答研究口径确认](/docs/help/research/clarifications)
 - [将研究交给 Factor 或 Strategy](/docs/help/research/handoff)
-
