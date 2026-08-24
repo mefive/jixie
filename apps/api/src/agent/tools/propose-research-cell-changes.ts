@@ -1,5 +1,7 @@
 import { z } from 'zod';
+import { prisma } from '../../lib/prisma.js';
 import { prepareResearchCellChangeProposal } from '../../research/workbench-cell-changes.js';
+import type { ResearchCatalogTurnEvidence } from './search-research-catalog.js';
 import type { AgentTool } from './types.js';
 
 const cellKindSchema = z.enum(['markdown', 'python']);
@@ -33,6 +35,7 @@ export function createProposeResearchCellChangesTool(args: {
   userId: string;
   documentId: string;
   editableCellIds: Set<string>;
+  catalogEvidence: ResearchCatalogTurnEvidence;
 }): AgentTool {
   let proposalCreated = false;
   return {
@@ -59,6 +62,27 @@ export function createProposeResearchCellChangesTool(args: {
       if (unavailableCellIds.length > 0) {
         throw new Error(
           `Complete source was not included for Cells ${unavailableCellIds.join(', ')}; do not propose replacing truncated source.`,
+        );
+      }
+      const pendingClarification = await prisma.researchClarification.findFirst({
+        where: { documentId: args.documentId, status: 'pending' },
+        select: { id: true },
+      });
+      if (pendingClarification) {
+        throw new Error('Answer the pending Research clarification before proposing Cell changes.');
+      }
+      const proposedPython = parsed.data.operations.flatMap((operation) =>
+        'source' in operation &&
+        (operation.kind === 'create' ? operation.cellKind === 'python' : true)
+          ? [operation.source]
+          : [],
+      );
+      if (
+        proposedPython.some((source) => /\bdata\.series\s*\(/.test(source)) &&
+        !args.catalogEvidence.sdkMethodNames.has('data.series')
+      ) {
+        throw new Error(
+          'Query the exact data.series Research SDK contract before proposing Python that calls it.',
         );
       }
       const proposal = await prepareResearchCellChangeProposal(

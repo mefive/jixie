@@ -871,6 +871,10 @@ const ResearchAgentPanel = complex.component(() => {
               busyResearchCellChangeExplanationId={store.explainingAttemptId}
               researchCellChangeAttempts={store.document?.cellChangeAttempts}
               researchDocumentContentRevision={store.document?.contentRevision}
+              busyResearchClarificationId={store.answeringClarificationId}
+              onAnswerResearchClarification={(clarification, selections) =>
+                store.answerClarification(clarification, selections)
+              }
               onApplyResearchCellChange={(proposalId) => store.applyCellChangeProposal(proposalId)}
               onRejectResearchCellChange={(proposalId) =>
                 store.rejectCellChangeProposal(proposalId)
@@ -894,8 +898,13 @@ const ResearchAgentPanel = complex.component(() => {
         <ResearchPromptBox
           className="jx-research-agentPrompt"
           value={store.prompt}
-          placeholder={t('workbench.agentPlaceholder')}
+          placeholder={
+            store.hasPendingClarification
+              ? t('workbench.clarification.answerBeforeContinuing')
+              : t('workbench.agentPlaceholder')
+          }
           autoSize={{ minRows: 3, maxRows: 10 }}
+          disabled={store.hasPendingClarification || agentBusy}
           onChange={(value) => store.setPrompt(value)}
           onSubmit={() => void store.send(store.prompt)}
         />

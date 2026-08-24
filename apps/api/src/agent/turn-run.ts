@@ -126,7 +126,11 @@ async function runTurn(args: EnqueueTurnArgs, signal: AbortSignal): Promise<void
           durationMs: item.ms,
         });
         turnBus.publish(turnId, { type: 'tool_done', item });
-        if (item.name === 'proposeResearchCellChanges' && item.ok) {
+        if (
+          (item.name === 'proposeResearchCellChanges' ||
+            item.name === 'requestResearchClarification') &&
+          item.ok
+        ) {
           publishResearchPhase('awaiting_review');
         } else if (entity?.kind === 'research') {
           publishResearchPhase('generating_changes');

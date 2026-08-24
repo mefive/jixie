@@ -3,13 +3,20 @@ import { searchResearchSdkAgentCatalog } from '@jixie/shared';
 import { prisma } from '../../lib/prisma.js';
 import { researchCapabilityCatalog } from '../../research/catalog.js';
 import { resolveResearchConceptBindings } from '../../research/concept-binding-resolver.js';
-import { researchConceptBindings } from '../../research/concept-bindings.js';
 import {
+  researchConceptBindingSdkCall,
+  researchConceptBindings,
+} from '../../research/concept-bindings.js';
+import {
+  RESEARCH_CONCEPT_INSTRUMENT_FORMS,
   RESEARCH_CONCEPT_IDS,
+  RESEARCH_CONCEPT_MARKETS,
+  RESEARCH_CONCEPT_QUOTE_CURRENCIES,
   inferResearchConceptIds,
   researchConceptById,
   type ResearchCatalogAssetType,
   type ResearchCatalogSourceKind,
+  type ResearchConceptDimensionsV1,
   type ResearchConceptId,
 } from '../../research/concepts.js';
 import type { AgentTool } from './types.js';
@@ -30,19 +37,49 @@ const filtersSchema = z.strictObject({
     .optional(),
   termYears: z.number().positive().max(100).optional(),
 });
+const conceptDimensionsSchema = z.strictObject({
+  instrumentForm: z.enum(RESEARCH_CONCEPT_INSTRUMENT_FORMS).optional(),
+  quoteCurrency: z.enum(RESEARCH_CONCEPT_QUOTE_CURRENCIES).optional(),
+  market: z.enum(RESEARCH_CONCEPT_MARKETS).optional(),
+  termYears: z.number().positive().max(100).optional(),
+});
+const conceptRequestSchema = z.strictObject({
+  originalText: z.string().trim().min(1).max(160),
+  conceptId: z.enum(RESEARCH_CONCEPT_IDS),
+  dimensions: conceptDimensionsSchema.default({}),
+});
 const argsSchema = z
   .strictObject({
     text: z.string().trim().min(1).max(120).optional(),
     conceptIds: z.array(z.enum(RESEARCH_CONCEPT_IDS)).max(8).default([]),
+    conceptRequests: z.array(conceptRequestSchema).max(8).default([]),
     filters: filtersSchema.optional(),
   })
-  .refine((value) => Boolean(value.text) || value.conceptIds.length > 0, {
-    message: 'Provide text, at least one conceptId, or both.',
+  .superRefine((value, context) => {
+    if (!value.text && value.conceptIds.length === 0 && value.conceptRequests.length === 0) {
+      context.addIssue({
+        code: 'custom',
+        message: 'Provide text, at least one conceptId, one conceptRequest, or a combination.',
+      });
+    }
+    const requestIds = value.conceptRequests.map((request) => request.conceptId);
+    if (new Set(requestIds).size !== requestIds.length) {
+      context.addIssue({
+        code: 'custom',
+        path: ['conceptRequests'],
+        message: 'Provide at most one structured request per conceptId.',
+      });
+    }
   });
 
 export interface ResearchCatalogQueryInput {
   text?: string;
   conceptIds?: ResearchConceptId[];
+  conceptRequests?: Array<{
+    originalText: string;
+    conceptId: ResearchConceptId;
+    dimensions?: ResearchConceptDimensionsV1;
+  }>;
   filters?: {
     sourceKinds?: ResearchCatalogSourceKind[];
     assetTypes?: ResearchCatalogAssetType[];
@@ -60,6 +97,16 @@ interface CatalogCandidate {
 
 const RESULT_CAP = 40;
 const CONCEPT_RESULT_CAP = 12;
+
+export interface ResearchCatalogTurnEvidence {
+  sdkReadyBindingIds: Set<string>;
+  sdkMethodNames: Set<string>;
+}
+
+export function createResearchCatalogTurnEvidence(): ResearchCatalogTurnEvidence {
+  return { sdkReadyBindingIds: new Set(), sdkMethodNames: new Set() };
+}
+
 const QUERY_STOP_WORDS = new Set([
   'and',
   'data',
@@ -93,361 +140,422 @@ const CONTINUOUS_FUTURE_NAMES: Record<string, { zh: string; en: string }> = {
 };
 
 /** Resolve structured concepts and named objects to exact stable local research references. */
-export const searchResearchCatalogTool: AgentTool = {
-  name: 'searchResearchCatalog',
-  description:
-    'Resolve one structured ConceptQuery against the local research catalog. Use conceptIds supplied by a loaded research playbook for semantic concepts; use text for a named object, exact code, or exact Research SDK method such as data.panel or charts.line. SDK method results provide the generated Python signature, parameter defaults, fixed return columns, examples, and PIT or frequency notes. Optional filters constrain source kind, asset type, or yield-curve tenor. Concept ids resolve only through audited binding allow-list entries, while lexical database search is limited to explicitly named objects. Results are grouped per concept so exact-series gaps stay explicit. Never guess or substitute a different source or SDK signature.',
-  parameters: z.toJSONSchema(argsSchema),
-  async run(args) {
-    const parsed = argsSchema.safeParse(args);
-    if (!parsed.success) {
-      throw new Error(parsed.error.issues.map((issue) => issue.message).join('; '));
-    }
+export function createSearchResearchCatalogTool(evidence?: ResearchCatalogTurnEvidence): AgentTool {
+  return {
+    name: 'searchResearchCatalog',
+    description:
+      'Resolve one structured ConceptQuery against the local research catalog. For each semantic variable interpreted from the user, prefer conceptRequests with the verbatim originalText, one canonical conceptId from the supplied manifest, and explicit dimensions such as instrumentForm, quoteCurrency, market, or termYears. Use conceptIds supplied by a loaded playbook only when the user has not specified dimensions; use text for a named object, exact code, or exact Research SDK method such as data.panel or charts.line. SDK method results provide the generated Python signature, parameter defaults, fixed return columns, examples, and PIT or frequency notes. Concept ids resolve only through audited binding allow-list entries, while lexical database search is limited to explicitly named objects. Per-concept results distinguish exact matches, choice-required results, governed alternatives, unavailable capabilities, and sdkAccess; only sdkAccess.status=ready is executable from a Python Cell. Never guess or silently substitute a different source or SDK signature.',
+    parameters: z.toJSONSchema(argsSchema),
+    async run(args) {
+      const parsed = argsSchema.safeParse(args);
+      if (!parsed.success) {
+        throw new Error(parsed.error.issues.map((issue) => issue.message).join('; '));
+      }
 
-    const sdkMethods = researchSdkMethodsForCatalogQuery(parsed.data.text);
-    const interpretation = interpretResearchCatalogQuery(parsed.data);
-    const { terms, tenorYears } = interpretation;
-    const bindingFilters = {
-      ...parsed.data.filters,
-      ...(tenorYears == null ? {} : { termYears: tenorYears }),
-    };
-    const registeredBindings = interpretation.conceptIds.flatMap((conceptId) =>
-      researchConceptBindings(conceptId),
-    );
-    const [
-      stocks,
-      etfs,
-      indexes,
-      marketBenchmarks,
-      indexCodes,
-      continuousFutures,
-      futures,
-      macro,
-      curves,
-      fx,
-      resolvedBindings,
-    ] = await Promise.all([
-      terms.length === 0
-        ? Promise.resolve([])
-        : prisma.stockBasic.findMany({
-            where: { OR: terms.flatMap((term) => textSearch(term, ['tsCode', 'name'])) },
-            select: { tsCode: true, name: true, industry: true },
-            take: 30,
-          }),
-      terms.length === 0
-        ? Promise.resolve([])
-        : prisma.etfBasic.findMany({
-            where: {
-              OR: terms.flatMap((term) =>
-                textSearch(term, ['tsCode', 'name', 'fundType', 'indexName']),
-              ),
-            },
-            select: { tsCode: true, name: true, fundType: true, indexName: true },
-            take: 30,
-          }),
-      terms.length === 0
-        ? Promise.resolve([])
-        : prisma.indexBenchmark.findMany({
-            where: {
-              OR: terms.flatMap((term) => textSearch(term, ['tsCode', 'name', 'fullName'])),
-            },
-            select: { tsCode: true, name: true, indexType: true },
-            take: 30,
-          }),
-      terms.length === 0
-        ? Promise.resolve([])
-        : prisma.marketBenchmark.findMany({
-            where: {
-              OR: terms.flatMap((term) =>
-                textSearch(term, ['id', 'providerCode', 'nameZh', 'nameEn']),
-              ),
-            },
-            select: {
-              id: true,
-              providerCode: true,
-              nameZh: true,
-              nameEn: true,
-              market: true,
-              currency: true,
-              timeZone: true,
-              returnType: true,
-              tradableProxyTsCode: true,
-              tradableProxyKind: true,
-            },
-            take: 30,
-          }),
-      terms.length === 0
-        ? Promise.resolve([])
-        : prisma.indexDaily.findMany({
-            where: { OR: terms.map((term) => ({ tsCode: { contains: term } })) },
-            select: { tsCode: true },
-            distinct: ['tsCode'],
-            take: 30,
-          }),
-      terms.length === 0
-        ? Promise.resolve([])
-        : prisma.futureMapping.findMany({
-            where: { OR: terms.map((term) => ({ continuousCode: { contains: term } })) },
-            select: { continuousCode: true },
-            distinct: ['continuousCode'],
-            take: 30,
-          }),
-      terms.length === 0
-        ? Promise.resolve([])
-        : prisma.futureContract.findMany({
-            where: {
-              OR: terms.flatMap((term) =>
-                textSearch(term, ['tsCode', 'name', 'productCode', 'exchange']),
-              ),
-            },
-            select: { tsCode: true, name: true, productCode: true, exchange: true },
-            take: 30,
-          }),
-      terms.length === 0
-        ? Promise.resolve([])
-        : prisma.macroSeries.findMany({
-            where: {
-              OR: terms.flatMap((term) => textSearch(term, ['seriesKey', 'nameZh', 'nameEn'])),
-            },
-            select: {
-              seriesKey: true,
-              nameZh: true,
-              nameEn: true,
-              frequency: true,
-              unit: true,
-              revisionPolicy: true,
-            },
-            take: 30,
-          }),
-      terms.length === 0
-        ? Promise.resolve([])
-        : prisma.yieldCurvePoint.findMany({
-            where: {
-              AND: [
-                { OR: terms.flatMap((term) => textSearch(term, ['curveCode', 'curveName'])) },
-                ...(tenorYears === null ? [] : [{ termYears: tenorYears }]),
-              ],
-            },
-            select: { curveCode: true, curveName: true, curveType: true, termYears: true },
-            distinct: ['curveCode', 'curveType', 'termYears'],
-            take: 30,
-          }),
-      terms.length === 0
-        ? Promise.resolve([])
-        : prisma.fxDaily.findMany({
-            where: { OR: terms.map((term) => ({ tsCode: { contains: term } })) },
-            select: { tsCode: true, exchange: true },
-            distinct: ['tsCode'],
-            take: 30,
-          }),
-      resolveResearchConceptBindings(registeredBindings, bindingFilters),
-    ]);
+      const sdkMethods = researchSdkMethodsForCatalogQuery(parsed.data.text);
+      const interpretation = interpretResearchCatalogQuery(parsed.data);
+      const { terms, tenorYears } = interpretation;
+      const bindingFilters = {
+        ...parsed.data.filters,
+        ...(tenorYears == null ? {} : { termYears: tenorYears }),
+      };
+      const registeredBindings = interpretation.conceptIds.flatMap((conceptId) =>
+        researchConceptBindings(conceptId),
+      );
+      const [
+        stocks,
+        etfs,
+        indexes,
+        marketBenchmarks,
+        indexCodes,
+        continuousFutures,
+        futures,
+        macro,
+        curves,
+        fx,
+        resolvedBindings,
+      ] = await Promise.all([
+        terms.length === 0
+          ? Promise.resolve([])
+          : prisma.stockBasic.findMany({
+              where: { OR: terms.flatMap((term) => textSearch(term, ['tsCode', 'name'])) },
+              select: { tsCode: true, name: true, industry: true },
+              take: 30,
+            }),
+        terms.length === 0
+          ? Promise.resolve([])
+          : prisma.etfBasic.findMany({
+              where: {
+                OR: terms.flatMap((term) =>
+                  textSearch(term, ['tsCode', 'name', 'fundType', 'indexName']),
+                ),
+              },
+              select: { tsCode: true, name: true, fundType: true, indexName: true },
+              take: 30,
+            }),
+        terms.length === 0
+          ? Promise.resolve([])
+          : prisma.indexBenchmark.findMany({
+              where: {
+                OR: terms.flatMap((term) => textSearch(term, ['tsCode', 'name', 'fullName'])),
+              },
+              select: { tsCode: true, name: true, indexType: true },
+              take: 30,
+            }),
+        terms.length === 0
+          ? Promise.resolve([])
+          : prisma.marketBenchmark.findMany({
+              where: {
+                OR: terms.flatMap((term) =>
+                  textSearch(term, ['id', 'providerCode', 'nameZh', 'nameEn']),
+                ),
+              },
+              select: {
+                id: true,
+                providerCode: true,
+                nameZh: true,
+                nameEn: true,
+                market: true,
+                currency: true,
+                timeZone: true,
+                returnType: true,
+                tradableProxyTsCode: true,
+                tradableProxyKind: true,
+              },
+              take: 30,
+            }),
+        terms.length === 0
+          ? Promise.resolve([])
+          : prisma.indexDaily.findMany({
+              where: { OR: terms.map((term) => ({ tsCode: { contains: term } })) },
+              select: { tsCode: true },
+              distinct: ['tsCode'],
+              take: 30,
+            }),
+        terms.length === 0
+          ? Promise.resolve([])
+          : prisma.futureMapping.findMany({
+              where: { OR: terms.map((term) => ({ continuousCode: { contains: term } })) },
+              select: { continuousCode: true },
+              distinct: ['continuousCode'],
+              take: 30,
+            }),
+        terms.length === 0
+          ? Promise.resolve([])
+          : prisma.futureContract.findMany({
+              where: {
+                OR: terms.flatMap((term) =>
+                  textSearch(term, ['tsCode', 'name', 'productCode', 'exchange']),
+                ),
+              },
+              select: { tsCode: true, name: true, productCode: true, exchange: true },
+              take: 30,
+            }),
+        terms.length === 0
+          ? Promise.resolve([])
+          : prisma.macroSeries.findMany({
+              where: {
+                OR: terms.flatMap((term) => textSearch(term, ['seriesKey', 'nameZh', 'nameEn'])),
+              },
+              select: {
+                seriesKey: true,
+                nameZh: true,
+                nameEn: true,
+                frequency: true,
+                unit: true,
+                revisionPolicy: true,
+              },
+              take: 30,
+            }),
+        terms.length === 0
+          ? Promise.resolve([])
+          : prisma.yieldCurvePoint.findMany({
+              where: {
+                AND: [
+                  { OR: terms.flatMap((term) => textSearch(term, ['curveCode', 'curveName'])) },
+                  ...(tenorYears === null ? [] : [{ termYears: tenorYears }]),
+                ],
+              },
+              select: { curveCode: true, curveName: true, curveType: true, termYears: true },
+              distinct: ['curveCode', 'curveType', 'termYears'],
+              take: 30,
+            }),
+        terms.length === 0
+          ? Promise.resolve([])
+          : prisma.fxDaily.findMany({
+              where: { OR: terms.map((term) => ({ tsCode: { contains: term } })) },
+              select: { tsCode: true, exchange: true },
+              distinct: ['tsCode'],
+              take: 30,
+            }),
+        resolveResearchConceptBindings(registeredBindings, bindingFilters),
+      ]);
 
-    const knownIndexCodes = new Set(indexes.map((item) => item.tsCode));
-    const candidates: CatalogCandidate[] = [
-      ...rankByTerms(continuousFutures, terms, (item) => [item.continuousCode]).map((item) => {
-        const names = CONTINUOUS_FUTURE_NAMES[item.continuousCode] ?? {
-          zh: `${item.continuousCode} 主力连续`,
-          en: `${item.continuousCode} continuous future`,
-        };
-        return candidate(
-          instrumentMatch('future', item.continuousCode, names.zh, {
-            nameEn: names.en,
-            continuous: true,
-          }),
-          [item.continuousCode, names.zh, names.en],
-          'instrument',
-          'future',
-          true,
-        );
-      }),
-      ...rankByTerms(etfs, terms, (item) => compactValues(item)).map((item) =>
-        candidate(
-          instrumentMatch('etf', item.tsCode, item.name, item),
-          compactValues(item),
-          'instrument',
-          'etf',
-        ),
-      ),
-      ...rankByTerms(indexes, terms, (item) => compactValues(item)).map((item) =>
-        candidate(
-          instrumentMatch('index', item.tsCode, item.name, item),
-          compactValues(item),
-          'instrument',
-          'index',
-        ),
-      ),
-      ...rankByTerms(marketBenchmarks, terms, (item) => compactValues(item)).map((item) =>
-        candidate(
-          {
-            ...instrumentMatch('index', item.id, item.nameZh, item),
-            providerCode: item.providerCode,
-            compatibleMeasures: [
-              measureReference('market.adjusted_close'),
-              measureReference('market.cny_close'),
-            ],
-          },
-          compactValues(item),
-          'instrument',
-          'index',
-        ),
-      ),
-      ...rankByTerms(indexCodes, terms, (item) => [item.tsCode])
-        .filter((item) => !knownIndexCodes.has(item.tsCode))
-        .map((item) =>
+      const knownIndexCodes = new Set(indexes.map((item) => item.tsCode));
+      const candidates: CatalogCandidate[] = [
+        ...rankByTerms(continuousFutures, terms, (item) => [item.continuousCode]).map((item) => {
+          const names = CONTINUOUS_FUTURE_NAMES[item.continuousCode] ?? {
+            zh: `${item.continuousCode} 主力连续`,
+            en: `${item.continuousCode} continuous future`,
+          };
+          return candidate(
+            instrumentMatch('future', item.continuousCode, names.zh, {
+              nameEn: names.en,
+              continuous: true,
+            }),
+            [item.continuousCode, names.zh, names.en],
+            'instrument',
+            'future',
+            true,
+          );
+        }),
+        ...rankByTerms(etfs, terms, (item) => compactValues(item)).map((item) =>
           candidate(
-            instrumentMatch('index', item.tsCode, item.tsCode, item),
-            [item.tsCode],
+            instrumentMatch('etf', item.tsCode, item.name, item),
+            compactValues(item),
+            'instrument',
+            'etf',
+          ),
+        ),
+        ...rankByTerms(indexes, terms, (item) => compactValues(item)).map((item) =>
+          candidate(
+            instrumentMatch('index', item.tsCode, item.name, item),
+            compactValues(item),
             'instrument',
             'index',
           ),
         ),
-      ...rankByTerms(stocks, terms, (item) => compactValues(item)).map((item) =>
-        candidate(
-          instrumentMatch('stock', item.tsCode, item.name, item),
-          compactValues(item),
-          'instrument',
-          'stock',
-        ),
-      ),
-      ...rankByTerms(futures, terms, (item) => compactValues(item)).map((item) =>
-        candidate(
-          instrumentMatch('future', item.tsCode, item.name, item),
-          compactValues(item),
-          'instrument',
-          'future',
-        ),
-      ),
-      ...rankByTerms(macro, terms, (item) => compactValues(item)).map((item) =>
-        candidate(
-          {
-            kind: 'macro',
-            ...item,
-            source: { kind: 'macro', seriesKey: item.seriesKey },
-            compatibleMeasure: measureReference('macro.observation'),
-          },
-          compactValues(item),
-          'macro',
-        ),
-      ),
-      ...rankByTerms(curves, terms, (item) => compactValues(item)).map((item) =>
-        candidate(
-          {
-            kind: 'yield_curve',
-            ...item,
-            source: {
-              kind: 'yield_curve',
-              curveCode: item.curveCode,
-              curveType: item.curveType,
-              termYears: item.termYears,
+        ...rankByTerms(marketBenchmarks, terms, (item) => compactValues(item)).map((item) =>
+          candidate(
+            {
+              ...instrumentMatch('index', item.id, item.nameZh, item),
+              providerCode: item.providerCode,
+              compatibleMeasures: [
+                measureReference('market.adjusted_close'),
+                measureReference('market.cny_close'),
+              ],
             },
-            compatibleMeasure: measureReference('rates.yield_pct'),
-          },
-          compactValues(item),
-          'yield_curve',
+            compactValues(item),
+            'instrument',
+            'index',
+          ),
         ),
-      ),
-      ...rankByTerms(fx, terms, (item) => compactValues(item)).map((item) =>
-        candidate(
-          {
-            kind: 'fx',
-            id: item.tsCode,
-            exchange: item.exchange,
-            source: { kind: 'fx', id: item.tsCode },
-            compatibleMeasure: measureReference('fx.mid_close'),
-          },
-          compactValues(item),
-          'fx',
-        ),
-      ),
-      ...(matchesTerms(
-        ['港币人民币', '港币汇率', 'hkd/cnh', 'hkd/cny', 'hkdcnh', HKD_CNH_DERIVED_CODE],
-        terms,
-      )
-        ? [
+        ...rankByTerms(indexCodes, terms, (item) => [item.tsCode])
+          .filter((item) => !knownIndexCodes.has(item.tsCode))
+          .map((item) =>
             candidate(
-              {
-                kind: 'fx',
-                id: HKD_CNH_DERIVED_CODE,
-                exchange: 'derived_from_fxcm',
-                derivation: 'USDCNH.FXCM / USDHKD.FXCM',
-                source: { kind: 'fx', id: HKD_CNH_DERIVED_CODE },
-                compatibleMeasure: measureReference('fx.mid_close'),
-              },
-              ['港币人民币', '港币汇率', 'hkd/cnh', 'hkd/cny', 'hkdcnh', HKD_CNH_DERIVED_CODE],
-              'fx',
+              instrumentMatch('index', item.tsCode, item.tsCode, item),
+              [item.tsCode],
+              'instrument',
+              'index',
             ),
-          ]
-        : []),
-      ...registeredCapabilityCandidates(terms),
-    ].filter((item) => candidateAllowed(item, parsed.data.filters));
-    const conceptMatches = interpretation.conceptIds.map((conceptId) => {
-      const concept = researchConceptById.get(conceptId)!;
-      const allRegistered = researchConceptBindings(conceptId);
-      const sourceDecisions = researchSourceDecisions(conceptId);
-      const resolved = resolvedBindings.filter((item) => item.binding.conceptId === conceptId);
-      const matches = resolved
-        .filter((item) => item.available && item.match)
-        .slice(0, CONCEPT_RESULT_CAP)
-        .map((item) => item.match!);
-      const unavailableBindings = resolved
-        .filter((item) => !item.available)
-        .map((item) => ({
-          id: item.binding.id,
-          version: item.binding.version,
-          source: item.binding.source,
-          reason: item.unavailableReason,
-        }));
-      const availability =
-        matches.length > 0
-          ? 'registered_matches'
-          : allRegistered.length === 0
-            ? sourceDecisions.some((decision) => decision.status === 'blocked_external_license')
-              ? 'blocked_by_source_rights'
-              : 'no_registered_binding'
-            : resolved.length === 0
-              ? 'no_binding_matches_filters'
-              : 'registered_binding_no_data';
-      return {
-        id: concept.id,
-        version: concept.version,
-        nameZh: concept.nameZh,
-        nameEn: concept.nameEn,
-        descriptionZh: concept.descriptionZh,
-        descriptionEn: concept.descriptionEn,
-        requestedBy: interpretation.explicitConceptIds.includes(concept.id)
-          ? 'explicit_concept_id'
-          : 'lexical_inference',
-        availability,
-        doNotSubstitute: concept.doNotSubstitute ?? [],
-        registeredBindingCount: allRegistered.length,
-        sourceDecisions,
-        unavailableBindings,
-        matches,
-      };
-    });
-    const matches = uniqueCatalogMatches([
-      ...resolvedBindings.flatMap((item) => (item.available && item.match ? [item.match] : [])),
-      ...candidates.map((item) => item.match),
-    ]).slice(0, RESULT_CAP);
-    const capabilities = compactCapabilityCatalog();
+          ),
+        ...rankByTerms(stocks, terms, (item) => compactValues(item)).map((item) =>
+          candidate(
+            instrumentMatch('stock', item.tsCode, item.name, item),
+            compactValues(item),
+            'instrument',
+            'stock',
+          ),
+        ),
+        ...rankByTerms(futures, terms, (item) => compactValues(item)).map((item) =>
+          candidate(
+            instrumentMatch('future', item.tsCode, item.name, item),
+            compactValues(item),
+            'instrument',
+            'future',
+          ),
+        ),
+        ...rankByTerms(macro, terms, (item) => compactValues(item)).map((item) =>
+          candidate(
+            {
+              kind: 'macro',
+              ...item,
+              source: { kind: 'macro', seriesKey: item.seriesKey },
+              compatibleMeasure: measureReference('macro.observation'),
+              sdkAccess: researchSdkNotExposed(),
+            },
+            compactValues(item),
+            'macro',
+          ),
+        ),
+        ...rankByTerms(curves, terms, (item) => compactValues(item)).map((item) =>
+          candidate(
+            {
+              kind: 'yield_curve',
+              ...item,
+              source: {
+                kind: 'yield_curve',
+                curveCode: item.curveCode,
+                curveType: item.curveType,
+                termYears: item.termYears,
+              },
+              compatibleMeasure: measureReference('rates.yield_pct'),
+              sdkAccess: researchSdkNotExposed(),
+            },
+            compactValues(item),
+            'yield_curve',
+          ),
+        ),
+        ...rankByTerms(fx, terms, (item) => compactValues(item)).map((item) =>
+          candidate(
+            {
+              kind: 'fx',
+              id: item.tsCode,
+              exchange: item.exchange,
+              source: { kind: 'fx', id: item.tsCode },
+              compatibleMeasure: measureReference('fx.mid_close'),
+              sdkAccess: researchSdkNotExposed(),
+            },
+            compactValues(item),
+            'fx',
+          ),
+        ),
+        ...(matchesTerms(
+          ['港币人民币', '港币汇率', 'hkd/cnh', 'hkd/cny', 'hkdcnh', HKD_CNH_DERIVED_CODE],
+          terms,
+        )
+          ? [
+              candidate(
+                {
+                  kind: 'fx',
+                  id: HKD_CNH_DERIVED_CODE,
+                  exchange: 'derived_from_fxcm',
+                  derivation: 'USDCNH.FXCM / USDHKD.FXCM',
+                  source: { kind: 'fx', id: HKD_CNH_DERIVED_CODE },
+                  compatibleMeasure: measureReference('fx.mid_close'),
+                  sdkAccess: researchSdkNotExposed(),
+                },
+                ['港币人民币', '港币汇率', 'hkd/cnh', 'hkd/cny', 'hkdcnh', HKD_CNH_DERIVED_CODE],
+                'fx',
+              ),
+            ]
+          : []),
+        ...registeredCapabilityCandidates(terms),
+      ].filter((item) => candidateAllowed(item, parsed.data.filters));
+      const conceptMatches = interpretation.conceptIds.map((conceptId) => {
+        const concept = researchConceptById.get(conceptId)!;
+        const structuredRequest = parsed.data.conceptRequests.find(
+          (request) => request.conceptId === conceptId,
+        );
+        const requestedDimensions: ResearchConceptDimensionsV1 = {
+          ...(structuredRequest?.dimensions ?? {}),
+          ...(structuredRequest?.dimensions.termYears == null && bindingFilters.termYears != null
+            ? { termYears: bindingFilters.termYears }
+            : {}),
+        };
+        const allRegistered = researchConceptBindings(conceptId);
+        const sourceDecisions = researchSourceDecisions(conceptId);
+        const resolved = resolvedBindings.filter((item) => item.binding.conceptId === conceptId);
+        const sourceAvailable = resolved.filter((item) => item.available && item.match);
+        const executable = sourceAvailable.filter((item) =>
+          researchConceptBindingSdkCall(item.binding),
+        );
+        const exact = executable.filter(
+          (item) =>
+            researchConceptDimensionMismatches(requestedDimensions, item.binding.dimensions)
+              .length === 0,
+        );
+        const exactMatches = exact.slice(0, CONCEPT_RESULT_CAP).map((item) => item.match!);
+        const alternatives = executable
+          .filter((item) => !exact.includes(item))
+          .slice(0, CONCEPT_RESULT_CAP)
+          .map((item) => ({
+            ...item.match!,
+            mismatches: researchConceptDimensionMismatches(
+              requestedDimensions,
+              item.binding.dimensions,
+            ),
+            requiresUserConfirmation: true,
+          }));
+        const matches = executable.slice(0, CONCEPT_RESULT_CAP).map((item) => item.match!);
+        const unavailableBindings = resolved
+          .filter((item) => !item.available || !researchConceptBindingSdkCall(item.binding))
+          .map((item) => ({
+            id: item.binding.id,
+            version: item.binding.version,
+            source: item.binding.source,
+            reason: item.unavailableReason ?? 'source_available_but_not_exposed_in_research_sdk',
+          }));
+        const availability =
+          matches.length > 0
+            ? 'registered_matches'
+            : allRegistered.length === 0
+              ? sourceDecisions.some((decision) => decision.status === 'blocked_external_license')
+                ? 'blocked_by_source_rights'
+                : 'no_registered_binding'
+              : resolved.length === 0
+                ? 'no_binding_matches_filters'
+                : sourceAvailable.length > 0
+                  ? 'registered_binding_not_exposed_in_sdk'
+                  : 'registered_binding_no_data';
+        const resolutionStatus = researchConceptResolutionStatus({
+          selectionDimensions: concept.selectionDimensions,
+          requestedDimensions,
+          exactMatchCount: exactMatches.length,
+          alternativeCount: alternatives.length,
+          availability,
+        });
+        return {
+          id: concept.id,
+          version: concept.version,
+          nameZh: concept.nameZh,
+          nameEn: concept.nameEn,
+          descriptionZh: concept.descriptionZh,
+          descriptionEn: concept.descriptionEn,
+          requestedBy: interpretation.explicitConceptIds.includes(concept.id)
+            ? 'explicit_concept_id'
+            : 'lexical_inference',
+          ...(structuredRequest ? { originalText: structuredRequest.originalText } : {}),
+          selectionDimensions: concept.selectionDimensions,
+          requestedDimensions,
+          resolutionStatus,
+          requiresUserConfirmation:
+            resolutionStatus === 'choice_required' || resolutionStatus === 'no_exact_match',
+          availability,
+          doNotSubstitute: concept.doNotSubstitute ?? [],
+          registeredBindingCount: allRegistered.length,
+          sourceDecisions,
+          unavailableBindings,
+          exactMatches,
+          alternatives,
+          matches,
+        };
+      });
+      const matches = uniqueCatalogMatches([
+        ...resolvedBindings.flatMap((item) => (item.available && item.match ? [item.match] : [])),
+        ...candidates.map((item) => item.match),
+      ]).slice(0, RESULT_CAP);
+      const capabilities = compactCapabilityCatalog();
 
-    return {
-      observation: JSON.stringify({
-        request: parsed.data,
-        interpretation,
-        conceptRegistryVersion: 1,
-        bindingRegistryVersion: 1,
-        crossMarketData: compactCrossMarketDataContractRegistry(),
-        sdkMethods,
-        conceptMatches,
-        matches,
-        capabilities,
-      }),
-      rows: matches.length + sdkMethods.length,
-    };
-  },
-};
+      for (const method of sdkMethods) {
+        evidence?.sdkMethodNames.add(method.qualifiedName);
+      }
+      for (const item of resolvedBindings) {
+        if (item.available && item.match && researchConceptBindingSdkCall(item.binding)) {
+          evidence?.sdkReadyBindingIds.add(item.binding.id);
+        }
+      }
+
+      return {
+        observation: JSON.stringify({
+          request: parsed.data,
+          interpretation,
+          conceptRegistryVersion: 1,
+          bindingRegistryVersion: 1,
+          crossMarketData: compactCrossMarketDataContractRegistry(),
+          sdkMethods,
+          conceptMatches,
+          matches,
+          capabilities,
+        }),
+        rows: matches.length + sdkMethods.length,
+      };
+    },
+  };
+}
+
+export const searchResearchCatalogTool = createSearchResearchCatalogTool();
 
 export function researchSdkMethodsForCatalogQuery(text: string | undefined) {
   return searchResearchSdkAgentCatalog(text);
@@ -462,7 +570,12 @@ export function interpretResearchCatalogQuery(input: ResearchCatalogQueryInput):
   tenorYears: number | null;
 } {
   const text = input.text?.trim() || null;
-  const explicitConceptIds = [...new Set(input.conceptIds ?? [])];
+  const explicitConceptIds = [
+    ...new Set([
+      ...(input.conceptIds ?? []),
+      ...(input.conceptRequests ?? []).map((request) => request.conceptId),
+    ]),
+  ];
   const inferredConceptIds = text ? inferResearchConceptIds(text) : [];
   const conceptIds = [...new Set([...explicitConceptIds, ...inferredConceptIds])];
   const lexicalTerms = conceptIds.length === 0 && text ? tokenizeCatalogText(text) : [];
@@ -496,6 +609,54 @@ export function researchCatalogTenorYears(query: string): number | null {
     [/一年/, 1],
   ];
   return chineseTenors.find(([pattern]) => pattern.test(query))?.[1] ?? null;
+}
+
+export interface ResearchConceptDimensionMismatch {
+  dimension: keyof ResearchConceptDimensionsV1;
+  requested: string | number;
+  available: string | number | null;
+}
+
+/** Compare a user-confirmable semantic request with one audited executable binding. */
+export function researchConceptDimensionMismatches(
+  requested: ResearchConceptDimensionsV1,
+  available: ResearchConceptDimensionsV1,
+): ResearchConceptDimensionMismatch[] {
+  const dimensions: Array<keyof ResearchConceptDimensionsV1> = [
+    'instrumentForm',
+    'quoteCurrency',
+    'market',
+    'termYears',
+  ];
+  return dimensions.flatMap((dimension) => {
+    const requestedValue = requested[dimension];
+    if (requestedValue === undefined) {
+      return [];
+    }
+    const availableValue = available[dimension] ?? null;
+    return availableValue === requestedValue
+      ? []
+      : [{ dimension, requested: requestedValue, available: availableValue }];
+  });
+}
+
+function researchConceptResolutionStatus(args: {
+  selectionDimensions: string[];
+  requestedDimensions: ResearchConceptDimensionsV1;
+  exactMatchCount: number;
+  alternativeCount: number;
+  availability: string;
+}): 'exact_match' | 'choice_required' | 'no_exact_match' | 'unavailable' {
+  if (args.exactMatchCount === 1) {
+    return 'exact_match';
+  }
+  if (args.exactMatchCount > 1) {
+    return 'choice_required';
+  }
+  if (args.alternativeCount > 0) {
+    return 'no_exact_match';
+  }
+  return 'unavailable';
 }
 
 function tokenizeCatalogText(text: string): string[] {
@@ -630,7 +791,23 @@ function instrumentMatch(
     ...metadata,
     source: { kind: 'instrument', assetType, id },
     compatibleMeasure: measureReference('market.adjusted_close'),
+    sdkAccess: {
+      status: 'ready',
+      call: {
+        method: 'data.series',
+        assetType,
+        identifier: id,
+        measure: 'market.adjusted_close',
+      },
+    },
   };
+}
+
+function researchSdkNotExposed() {
+  return {
+    status: 'not_exposed',
+    reason: 'source_available_but_not_exposed_in_research_sdk',
+  } as const;
 }
 
 function measureReference(id: string) {

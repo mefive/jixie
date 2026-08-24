@@ -48,6 +48,7 @@ _EQUITY_DATASET_COLUMNS = [
 class _Analysis:
     definitions: list[str]
     references: list[str]
+    series_requests: list[dict[str, Any]]
     error: str | None = None
 
 
@@ -55,6 +56,7 @@ class _NameAnalysis(ast.NodeVisitor):
     def __init__(self) -> None:
         self.definitions: set[str] = set()
         self.references: set[str] = set()
+        self.series_requests: list[dict[str, Any]] = []
 
     def visit_Name(self, node: ast.Name) -> None:
         if isinstance(node.ctx, (ast.Store, ast.Del)):
@@ -82,6 +84,30 @@ class _NameAnalysis(ast.NodeVisitor):
         for alias in node.names:
             if alias.name != "*":
                 self.definitions.add(alias.asname or alias.name)
+
+    def visit_Call(self, node: ast.Call) -> None:
+        if (
+            isinstance(node.func, ast.Attribute)
+            and node.func.attr == "series"
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "data"
+        ):
+            keywords = {item.arg: item.value for item in node.keywords if item.arg is not None}
+            self.series_requests.append(
+                {
+                    "line": node.lineno,
+                    "asset_type": _literal_string(
+                        node.args[0] if len(node.args) > 0 else keywords.get("asset_type")
+                    ),
+                    "identifier": _literal_string(
+                        node.args[1] if len(node.args) > 1 else keywords.get("identifier")
+                    ),
+                    "measure": _literal_string(keywords.get("measure"))
+                    if "measure" in keywords
+                    else "market.adjusted_close",
+                }
+            )
+        self.generic_visit(node)
 
 
 class _HostBridge:
@@ -507,6 +533,7 @@ def run_research(
                         "cell_id": cell.get("id"),
                         "definitions": analysis.definitions,
                         "references": analysis.references,
+                        "series_requests": analysis.series_requests,
                         **({"error": analysis.error} if analysis.error else {}),
                     }
                 )
@@ -630,14 +657,19 @@ def _analyze(source: str) -> _Analysis:
         tree = ast.parse(source or "pass", filename="research_cell.py", mode="exec")
     except SyntaxError as error:
         message = f"{error.msg} (line {error.lineno}, column {error.offset})"
-        return _Analysis([], [], message)
+        return _Analysis([], [], [], message)
     visitor = _NameAnalysis()
     visitor.visit(tree)
     ignored = set(dir(builtins)) | _RUNTIME_NAMES
     return _Analysis(
         sorted(name for name in visitor.definitions if not name.startswith("_")),
         sorted(name for name in visitor.references if name not in ignored and not name.startswith("_")),
+        visitor.series_requests,
     )
+
+
+def _literal_string(node: ast.AST | None) -> str | None:
+    return node.value if isinstance(node, ast.Constant) and isinstance(node.value, str) else None
 
 
 def _execute(source: str, namespace: dict[str, Any]) -> Any:

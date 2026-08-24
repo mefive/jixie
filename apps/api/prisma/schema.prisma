@@ -1246,6 +1246,7 @@ model AgentMessage {
   createdAt      DateTime          @default(now())
 
   researchCellChangeProposals ResearchCellChangeProposal[]
+  researchClarifications      ResearchClarification[]
 
   @@unique([conversationId, sequence])
   @@index([conversationId, createdAt])
@@ -1267,6 +1268,7 @@ model AgentTurn {
 
   messages                    AgentMessage[]
   researchCellChangeProposals ResearchCellChangeProposal[]
+  researchClarifications      ResearchClarification[]
 
   @@index([conversationId, startedAt])
   @@index([status, startedAt])
@@ -1290,6 +1292,7 @@ model ResearchDocument {
   artifacts           ResearchArtifact[]
   cellChangeProposals ResearchCellChangeProposal[]
   cellChangeAttempts  ResearchCellChangeAttempt[]
+  clarifications      ResearchClarification[]
 
   @@index([userId, updatedAt])
 }
@@ -1443,6 +1446,29 @@ model ResearchCellChangeProposal {
   @@index([documentId, status, createdAt])
   @@index([documentId, reviewStatus, createdAt])
   @@index([reviewSessionId, reviewSequence])
+  @@index([sourceTurnId])
+}
+
+/// One structured Agent question that records semantic choices independently from message JSON.
+/// The source message part mirrors this row so refreshes preserve pending and answered state.
+model ResearchClarification {
+  id              String           @id // ULID
+  documentId      String
+  document        ResearchDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  sourceTurnId    String
+  sourceTurn      AgentTurn        @relation(fields: [sourceTurnId], references: [id], onDelete: Cascade)
+  sourceMessageId String
+  sourceMessage   AgentMessage     @relation(fields: [sourceMessageId], references: [id], onDelete: Cascade)
+  sourcePartIndex Int
+  title           String
+  questions       Json
+  status          String           @default("pending") // 'pending' | 'answered' | 'superseded'
+  answer          Json?
+  createdAt       DateTime         @default(now())
+  answeredAt      DateTime?
+
+  @@unique([sourceMessageId, sourcePartIndex])
+  @@index([documentId, status, createdAt])
   @@index([sourceTurnId])
 }
 

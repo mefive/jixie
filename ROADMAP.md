@@ -184,6 +184,11 @@ bootstrap 和每周维护。宏观 loader 以审计后的可用日对齐历史�
 广义美元指数或其他波动率代理偷换概念。这代表当前黄金 Playbook 的短期数据切片收工，不改变 1.4 长期维护
 属性。
 
+2026-08-24 补充执行可达性边界：Catalog 对每个 Binding 同时报告本地数据覆盖和公开 Research Python SDK
+可达性。数据库已有记录但尚无公开 loader 的对象标记为 `not_exposed`，不能被 Agent 当作可执行 Python 数据；
+只有 `sdkAccess.status=ready` 的 Binding 才能进入代理选择或 Cell 提案。Concept 的长期扩充仍由 1.4 维护，
+不以模糊关键词或模型记忆绕过 Binding 白名单。
+
 当前 Research 多资产数据集切片已经完成：在不增加统计协议的前提下，把已有 `UniverseSpec` 的 A 股 PIT 股票池
 规则开放为 Python `data.cross_section()`，并按月末重复同一规则形成 `data.panel()` 长表。两者必须使用固定公开
 Schema、历史指数成分、上市/停牌/风险警示处理、数据 revision、明确资源上限和同一 SDK Contract 生成链；
@@ -229,6 +234,11 @@ Strategy 当前只有会被后续运行覆盖的 `lastResult`，精确历史复�
 封存，以及向 Python Factor / Strategy 草稿的受控交接。验收暴露的提案持久化、Agent SDK 契约、FactorReport
 建议范围、流式阶段恢复和本地 Python runtime 启动问题均已整改并完成针对性回归。当前完成定义已经满足，后续
 新增数据域继续按 1.4 的长期语义目录约束维护，方法模板和派生结果回流按各自触发条件另行立项。
+
+2026-08-24 完成 Agent 语义确认封板校正：完整精简 Concept Manifest 供模型选择并提交结构化维度，Catalog 返回
+精确、可执行的 Binding 与代理差异；无精确口径时以持久化选择卡让用户二次确认，回答可跨刷新恢复并开启新 turn。
+待确认期间暂停自由输入和 Diff；后端在 Diff 前以 Python AST 和 Catalog 确定性核对 `data.series` 品种、measure
+及 SDK Contract 查询证据，同一 turn 的选择卡确定性优先于提案。浏览器验收已贯通待确认、选择、落库和刷新恢复。
 
 ### 1.6 研究方法模板与统计能力扩展 💤
 

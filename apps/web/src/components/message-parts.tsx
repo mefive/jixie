@@ -1,5 +1,10 @@
 import { lazy, Suspense } from 'react';
-import type { ChatMessage, ResearchCellChangeAttemptV1 } from '@jixie/shared';
+import type {
+  ChatMessage,
+  ResearchCellChangeAttemptV1,
+  ResearchClarificationSelectionV1,
+  ResearchClarificationV1,
+} from '@jixie/shared';
 import { Markdown } from './markdown';
 import { UniverseSpecCard } from './universe-spec-card';
 // Imported here (not only by the lazy chunk) so the Suspense fallback below has its height class
@@ -8,6 +13,7 @@ import './chat-chart.css';
 
 const ChatChart = lazy(() => import('./chat-chart'));
 const ResearchCellChangeCard = lazy(() => import('./research-cell-change-card'));
+const ResearchClarificationCard = lazy(() => import('./research-clarification-card'));
 
 interface MessagePartsProps {
   message: ChatMessage;
@@ -22,6 +28,11 @@ interface MessagePartsProps {
   busyResearchCellChangeExplanationId?: string | null;
   researchCellChangeAttempts?: ResearchCellChangeAttemptV1[];
   researchDocumentContentRevision?: number;
+  onAnswerResearchClarification?: (
+    clarification: ResearchClarificationV1,
+    selections: ResearchClarificationSelectionV1[],
+  ) => Promise<void>;
+  busyResearchClarificationId?: string | null;
 }
 
 /** One chat message's typed parts (text / query card / chart card) — the single renderer shared by
@@ -39,6 +50,8 @@ export function MessageParts({
   busyResearchCellChangeExplanationId,
   researchCellChangeAttempts = [],
   researchDocumentContentRevision,
+  onAnswerResearchClarification,
+  busyResearchClarificationId,
 }: MessagePartsProps) {
   return (
     <>
@@ -71,6 +84,17 @@ export function MessageParts({
                 onRevertReview={onRevertResearchCellChangeReview}
                 onRun={onRunResearchCellChange}
                 onExplain={onExplainResearchCellChangeAttempt}
+              />
+            </Suspense>
+          );
+        }
+        if (part.type === 'research_clarification') {
+          return (
+            <Suspense key={`${partIndex}-${part.clarification.id}`} fallback={null}>
+              <ResearchClarificationCard
+                clarification={part.clarification}
+                busy={busyResearchClarificationId === part.clarification.id}
+                onAnswer={onAnswerResearchClarification}
               />
             </Suspense>
           );

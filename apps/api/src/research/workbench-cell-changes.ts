@@ -22,6 +22,7 @@ import {
 } from './workbench.js';
 import { researchRuntimeManager } from './workbench-runtime.js';
 import type { ResearchPythonAnalysis } from './workbench-runtime.js';
+import { validateResearchSeriesProposal } from './research-series-proposal-validation.js';
 
 const MAX_PROPOSAL_OPERATIONS = 8;
 const MAX_CELL_SOURCE_CHARACTERS = 100_000;
@@ -775,6 +776,15 @@ async function validateProposedDocument(
   if (syntaxError) {
     throw new Error(`Cell ${syntaxError.cellId} is invalid Python: ${syntaxError.error}`);
   }
+
+  const changedPythonCellIds = new Set(
+    operations.flatMap((operation) =>
+      operation.kind !== 'delete' && operation.cellKind === 'python' ? [operation.cellId] : [],
+    ),
+  );
+  await validateResearchSeriesProposal(
+    analyses.filter((analysis) => changedPythonCellIds.has(analysis.cellId)),
+  );
 
   const definitionsByName = new Map<string, string[]>();
   for (const analysis of analyses) {

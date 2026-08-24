@@ -2,13 +2,26 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   prepare: vi.fn(),
+  pendingClarification: vi.fn(),
 }));
 
 vi.mock('../../research/workbench-cell-changes.js', () => ({
   prepareResearchCellChangeProposal: mocks.prepare,
 }));
+vi.mock('../../lib/prisma.js', () => ({
+  prisma: {
+    researchClarification: { findFirst: mocks.pendingClarification },
+  },
+}));
 
 import { createProposeResearchCellChangesTool } from './propose-research-cell-changes.js';
+
+function catalogEvidence() {
+  return {
+    sdkReadyBindingIds: new Set<string>(),
+    sdkMethodNames: new Set(['data.series']),
+  };
+}
 
 const proposal = {
   version: 1 as const,
@@ -42,6 +55,8 @@ describe('proposeResearchCellChanges tool', () => {
   beforeEach(() => {
     mocks.prepare.mockReset();
     mocks.prepare.mockResolvedValue(proposal);
+    mocks.pendingClarification.mockReset();
+    mocks.pendingClarification.mockResolvedValue(null);
   });
 
   it('creates a pending review artifact without applying or running it', async () => {
@@ -49,6 +64,7 @@ describe('proposeResearchCellChanges tool', () => {
       userId: 'user-1',
       documentId: 'document-1',
       editableCellIds: new Set(['cell-1']),
+      catalogEvidence: catalogEvidence(),
     });
     const request = {
       title: 'Update hypothesis',
@@ -76,6 +92,7 @@ describe('proposeResearchCellChanges tool', () => {
       userId: 'user-1',
       documentId: 'document-1',
       editableCellIds: new Set(),
+      catalogEvidence: catalogEvidence(),
     });
 
     await expect(
@@ -87,6 +104,52 @@ describe('proposeResearchCellChanges tool', () => {
         ],
       }),
     ).rejects.toThrow('Complete source was not included');
+    expect(mocks.prepare).not.toHaveBeenCalled();
+  });
+
+  it('waits for an earlier semantic clarification before drafting changes', async () => {
+    mocks.pendingClarification.mockResolvedValue({ id: 'clarification-1' });
+    const tool = createProposeResearchCellChangesTool({
+      userId: 'user-1',
+      documentId: 'document-1',
+      editableCellIds: new Set(['cell-1']),
+      catalogEvidence: catalogEvidence(),
+    });
+
+    await expect(
+      tool.run({
+        title: 'Update hypothesis',
+        summary: 'Clarify the prior hypothesis before analysis.',
+        operations: [
+          { kind: 'update', cellId: 'cell-1', expectedRevision: 2, source: '# Revised' },
+        ],
+      }),
+    ).rejects.toThrow('Answer the pending Research clarification');
+    expect(mocks.prepare).not.toHaveBeenCalled();
+  });
+
+  it('requires the exact SDK contract query before drafting data.series code', async () => {
+    const tool = createProposeResearchCellChangesTool({
+      userId: 'user-1',
+      documentId: 'document-1',
+      editableCellIds: new Set(['cell-1']),
+      catalogEvidence: { sdkReadyBindingIds: new Set(), sdkMethodNames: new Set() },
+    });
+
+    await expect(
+      tool.run({
+        title: 'Load data',
+        summary: 'Load the exact index series.',
+        operations: [
+          {
+            kind: 'update',
+            cellId: 'cell-1',
+            expectedRevision: 2,
+            source: 'prices = data.series("index", "000300.SH", start="20200101", end="20251231")',
+          },
+        ],
+      }),
+    ).rejects.toThrow('Query the exact data.series Research SDK contract');
     expect(mocks.prepare).not.toHaveBeenCalled();
   });
 });

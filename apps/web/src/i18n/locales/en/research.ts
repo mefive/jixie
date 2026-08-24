@@ -132,6 +132,17 @@ export const enResearch: typeof zhResearch = {
       'Ask it to explain results, challenge assumptions, add statistical methods and formulas, or edit Markdown and Python cells directly.',
     agentPlaceholder: 'Given this document, what should I analyze next?',
     sendAgent: 'Send message',
+    clarification: {
+      status: {
+        pending: 'Needs confirmation',
+        answered: 'Confirmed',
+        superseded: 'Superseded',
+      },
+      customPlaceholder: 'Or enter your specific choice…',
+      submit: 'Confirm choices',
+      answerMessage: 'Confirmed research choices: {{answerLabel}}',
+      answerBeforeContinuing: 'Answer the research clarification above to continue',
+    },
     cellChange: {
       status: {
         pending: 'Review',

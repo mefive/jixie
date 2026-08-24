@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   interpretResearchCatalogQuery,
+  researchConceptDimensionMismatches,
   researchCatalogTenorYears,
   researchSdkMethodsForCatalogQuery,
 } from './search-research-catalog.js';
@@ -51,6 +52,30 @@ describe('research catalog query interpretation', () => {
 
     expect(interpretation.explicitConceptIds).toHaveLength(3);
     expect(interpretation.terms).toEqual([]);
+  });
+
+  it('keeps LLM-selected concepts structured and compares requested proxy dimensions exactly', () => {
+    const interpretation = interpretResearchCatalogQuery({
+      conceptRequests: [
+        {
+          originalText: '美元现货黄金',
+          conceptId: 'commodity.gold.price',
+          dimensions: { instrumentForm: 'spot', quoteCurrency: 'USD' },
+        },
+      ],
+    });
+
+    expect(interpretation.explicitConceptIds).toEqual(['commodity.gold.price']);
+    expect(interpretation.terms).toEqual([]);
+    expect(
+      researchConceptDimensionMismatches(
+        { instrumentForm: 'spot', quoteCurrency: 'USD' },
+        { instrumentForm: 'continuous_future', quoteCurrency: 'CNY', market: 'CN' },
+      ),
+    ).toEqual([
+      { dimension: 'instrumentForm', requested: 'spot', available: 'continuous_future' },
+      { dimension: 'quoteCurrency', requested: 'USD', available: 'CNY' },
+    ]);
   });
 
   it('resolves exact Research SDK method names without guessing a signature', () => {
