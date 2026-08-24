@@ -1,13 +1,16 @@
 #!/usr/bin/env node
 
 import { spawn } from 'node:child_process';
-import { stat } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const projectDirectory = join(dirname(fileURLToPath(import.meta.url)), '..');
 const socketPath = join(tmpdir(), `jixie-sandboxd-dev-${process.pid}.sock`);
+const pythonExecutable =
+  process.env.JIXIE_PYTHON_EXECUTABLE ??
+  join(projectDirectory, '.venv', 'research-py-v1', 'bin', 'python3');
 const children = new Map();
 const environment = {
   ...process.env,
@@ -15,6 +18,7 @@ const environment = {
   JIXIE_SANDBOX_SOCKET: socketPath,
   JIXIE_SANDBOXD_MODE: 'local',
   JIXIE_PYTHON_LOCAL: '0',
+  JIXIE_PYTHON_EXECUTABLE: pythonExecutable,
 };
 
 let stopping = false;
@@ -119,6 +123,7 @@ process.once('SIGINT', () => void shutdown(0));
 process.once('SIGTERM', () => void shutdown(0));
 
 try {
+  await verifyResearchPythonRuntime();
   console.log(`[dev] starting sandboxd at ${socketPath}`);
   const sandboxd = startService('sandboxd', 'sandboxd');
   await waitForSocket(sandboxd);
@@ -131,3 +136,73 @@ try {
 }
 
 await developmentFinished;
+
+async function verifyResearchPythonRuntime() {
+  const requirementsPath = join(
+    projectDirectory,
+    'apps',
+    'sandboxd',
+    'python',
+    'requirements-research-runtime.txt',
+  );
+  const requirements = Object.fromEntries(
+    (await readFile(requirementsPath, 'utf8'))
+      .split(/\r?\n/)
+      .filter((line) => line && !line.startsWith('#'))
+      .map((line) => line.split('==')),
+  );
+  const importNames = {
+    numpy: 'numpy',
+    pandas: 'pandas',
+    scipy: 'scipy',
+    statsmodels: 'statsmodels',
+    matplotlib: 'matplotlib',
+    'scikit-learn': 'sklearn',
+  };
+  const validationScript = [
+    'import sys',
+    'from importlib import import_module',
+    'from importlib.metadata import version',
+    'if sys.version_info[:2] != (3, 13):',
+    '    raise RuntimeError(f"CPython {sys.version_info.major}.{sys.version_info.minor}; expected 3.13")',
+    `requirements = ${JSON.stringify(requirements)}`,
+    `imports = ${JSON.stringify(importNames)}`,
+    'for distribution, expected in requirements.items():',
+    '    import_module(imports[distribution])',
+    '    actual = version(distribution)',
+    '    if actual != expected:',
+    '        raise RuntimeError(f"{distribution}=={actual}; expected {expected}")',
+  ].join('\n');
+
+  await new Promise((resolveReady, rejectReady) => {
+    const child = spawn(pythonExecutable, ['-I', '-c', validationScript], {
+      cwd: projectDirectory,
+      env: process.env,
+      stdio: ['ignore', 'ignore', 'pipe'],
+    });
+    let stderr = '';
+    child.stderr.setEncoding('utf8');
+    child.stderr.on('data', (chunk) => {
+      stderr = `${stderr}${chunk}`.slice(-4_000);
+    });
+    child.once('error', () => {
+      rejectReady(
+        new Error(
+          `research-py-v1 is not installed at ${pythonExecutable}. Run pnpm setup:research-python.`,
+        ),
+      );
+    });
+    child.once('exit', (code) => {
+      if (code === 0) {
+        console.log(`[dev] verified research-py-v1 packages at ${pythonExecutable}`);
+        resolveReady();
+        return;
+      }
+      rejectReady(
+        new Error(
+          `research-py-v1 package verification failed at ${pythonExecutable}: ${stderr.trim() || `exit code ${code ?? 1}`}. Run pnpm setup:research-python.`,
+        ),
+      );
+    });
+  });
+}

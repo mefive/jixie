@@ -77,6 +77,11 @@ export function createProposeResearchCellChangesTool(args: {
           ? [operation.source]
           : [],
       );
+      if (proposedPython.length > 0 && !args.catalogEvidence.pythonRuntimeInspected) {
+        throw new Error(
+          'Query the exact runtime.python Research capability contract before proposing any Python Cell change.',
+        );
+      }
       if (
         proposedPython.some((source) => /\bdata\.series\s*\(/.test(source)) &&
         !args.catalogEvidence.sdkMethodNames.has('data.series')

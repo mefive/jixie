@@ -117,7 +117,8 @@ function spawnRuntime(): ChildProcessWithoutNullStreams {
     if (process.env.NODE_ENV === 'production') {
       throw new Error('local sandbox mode is forbidden in production');
     }
-    return spawn('python3', ['-I', '-u', runnerPath], { stdio: ['pipe', 'pipe', 'pipe'] });
+    const executable = process.env.JIXIE_PYTHON_EXECUTABLE ?? 'python3';
+    return spawn(executable, ['-I', '-u', runnerPath], { stdio: ['pipe', 'pipe', 'pipe'] });
   }
   if (mode !== 'podman') {
     if (mode === 'docker') {

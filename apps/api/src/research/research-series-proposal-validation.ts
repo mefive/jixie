@@ -1,4 +1,8 @@
-import type { ResearchAssetTypeV1, ResearchDataCatalogResultV1 } from '@jixie/shared';
+import {
+  researchPythonAllowedImportRoots,
+  type ResearchAssetTypeV1,
+  type ResearchDataCatalogResultV1,
+} from '@jixie/shared';
 import { researchYieldCurveBindingForSdkCall } from './concept-bindings.js';
 import { searchResearchDataCatalog } from './data-catalog.js';
 import type { ResearchPythonAnalysis } from './workbench-runtime.js';
@@ -14,7 +18,15 @@ export async function validateResearchSeriesProposal(
   analyses: ResearchPythonAnalysis[],
   searchCatalog: ResearchDataCatalogSearch = searchResearchDataCatalog,
 ): Promise<void> {
+  const allowedImports = researchPythonAllowedImportRoots();
   for (const analysis of analyses) {
+    for (const imported of analysis.imports ?? []) {
+      if (!allowedImports.has(imported)) {
+        throw new Error(
+          `Cell ${analysis.cellId} imports unsupported module ${imported}. Agent-authored Python may import only modules declared by the runtime.python Research capability contract.`,
+        );
+      }
+    }
     for (const request of analysis.seriesRequests ?? []) {
       if (!request.assetType || !request.identifier || !request.measure) {
         throw new Error(

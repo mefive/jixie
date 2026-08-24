@@ -36,14 +36,33 @@ describe('research workbench Python runtime', () => {
     ]);
 
     expect(analysis).toEqual([
-      { cellId: 'load', definitions: ['monthly'], references: [], seriesRequests: [] },
+      {
+        cellId: 'load',
+        definitions: ['monthly'],
+        references: [],
+        imports: [],
+        seriesRequests: [],
+      },
       {
         cellId: 'summary',
         definitions: ['average'],
         references: ['average', 'monthly'],
+        imports: [],
         seriesRequests: [],
       },
     ]);
+  });
+
+  it('extracts imported package roots for Agent proposal policy checks', async () => {
+    const [analysis] = await researchRuntimeManager.analyze(DOCUMENT_ID, [
+      {
+        id: 'statistics',
+        source:
+          'from scipy import stats\nimport statsmodels.api as sm\nimport matplotlib.pyplot as plt\nimport math',
+      },
+    ]);
+
+    expect(analysis?.imports).toEqual(['math', 'matplotlib', 'scipy', 'statsmodels']);
   });
 
   it('extracts literal Research SDK series identities for proposal preflight', async () => {

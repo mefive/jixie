@@ -194,8 +194,8 @@ Research SDK Contract（唯一公开真相源）
 - 跨 Cell go to definition、references 和 rename；
 - `data.series()` 直接返回列的 Contract 精确补全。
 
-Pyright workspace 使用生成的 `jixie_research_sdk.pyi`，并随 `research-py-v1` 提供 pandas、NumPy 与 Matplotlib
-常用研究接口的静态 stub。SDK stub 和沙箱生成物复用同一 renderer，避免两套签名漂移。DataFrame 任意
+Pyright workspace 使用生成的 `jixie_research_sdk.pyi`，并随 `research-py-v1` 提供 pandas、NumPy、SciPy、
+statsmodels 与 Matplotlib 常用研究接口的静态 stub。SDK stub 和沙箱生成物复用同一 renderer，避免两套签名漂移。DataFrame 任意
 `rename` / `merge` 之后的列名仍不做虚假推断；这是静态类型边界，不通过“先执行一次再观察对象”改变。
 
 首阶段不包含 debugger、终端、文件树、运行时 `pip install`、Jupyter 扩展协议或第三方包的无限类型覆盖。这些
@@ -647,6 +647,25 @@ Panel 完成数据整理、统计计算与静态/交互图，Agent 查询 SDK �
 - 美国收盘数据用于中国市场时不会自动猜测对齐方式，研究代码必须显式滞后或披露时区口径。
 
 该切片只把已经落库、已有数据契约的美国主权收益率开放给自由研究；宏观和外汇 loader 仍待真实问题触发。
+
+### 2026-08-24 固定统计运行时收口
+
+真实研究曾暴露本地 Python 能运行 pandas、却缺少 SciPy / statsmodels 的环境漂移。`research-py-v1` 因此把
+CPython 3.13、NumPy、pandas、SciPy、statsmodels、Matplotlib 和 scikit-learn 固化为一个机器可读 Contract：
+
+- Contract 生成生产镜像的精确 requirements；本地通过 `pnpm setup:research-python` 建立同版本虚拟环境，
+  `pnpm dev` 在启动前校验解释器和每个发行包的精确版本，缺失时直接失败并给出修复命令；
+- Agent 在提出任何 Python Cell 前必须精确查询 `runtime.python`，Catalog 返回每个包的版本、用途、导入名和
+  使用政策；SciPy 用于分布、检验和数值算法，statsmodels 用于回归、HAC、时间序列与诊断，Matplotlib 只用于
+  原生 `charts.*` 无法表达的自定义静态图。当前固定运行时只提供 DejaVu Sans、不提供 CJK 字体，因此 Agent
+  必须让 Matplotlib 图内标题、坐标轴、图例和标注使用简洁英文；Markdown 与控制台仍可使用中文，且不得猜测
+  或加载宿主系统字体；
+- prompt 明确禁止清单外包、运行时安装和重复实现已有统计算法；后端 AST 同时提取 import，清单外模块会在
+  Diff 展示前被拒绝，因此约束不依赖 LLM 自觉；
+- Monaco / Pyright 增加 SciPy 与 statsmodels 常用接口的静态补全。具体运行结果与环境指纹仍由 Python 执行产生，
+  静态 stub 不承诺推断任意第三方对象的动态结构。
+
+这项只固定已批准的中等规模研究能力，不开放用户 `pip install`、任意包、网络访问或隐藏的统计报告。
 
 至此本节第 1–7 项均已闭环。方法模板、FactorReport / BacktestReport 回流、全局快照搜索、底层数据副本和自动
 运行差异归因继续留在 backlog，不属于首版完成条件。

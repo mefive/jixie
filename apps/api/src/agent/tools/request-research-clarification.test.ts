@@ -13,6 +13,7 @@ function catalogEvidence(bindingIds: string[]) {
   return {
     sdkReadyBindingIds: new Set(bindingIds),
     sdkMethodNames: new Set<string>(),
+    pythonRuntimeInspected: false,
   };
 }
 

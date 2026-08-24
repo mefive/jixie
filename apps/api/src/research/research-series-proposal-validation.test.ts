@@ -19,6 +19,30 @@ const catalog: ResearchDataCatalogResultV1 = {
 };
 
 describe('Research Agent series proposal validation', () => {
+  it('accepts only imports declared by the fixed Python runtime contract', async () => {
+    await expect(
+      validateResearchSeriesProposal([
+        {
+          cellId: 'supported',
+          definitions: [],
+          references: [],
+          imports: ['scipy', 'statsmodels', 'matplotlib', 'math'],
+        },
+      ]),
+    ).resolves.toBeUndefined();
+
+    await expect(
+      validateResearchSeriesProposal([
+        {
+          cellId: 'unsupported',
+          definitions: [],
+          references: [],
+          imports: ['seaborn'],
+        },
+      ]),
+    ).rejects.toThrow('runtime.python');
+  });
+
   it('accepts an exact literal instrument and compatible measure', async () => {
     const search = vi.fn().mockResolvedValue(catalog);
 

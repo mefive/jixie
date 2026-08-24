@@ -48,6 +48,7 @@ _EQUITY_DATASET_COLUMNS = [
 class _Analysis:
     definitions: list[str]
     references: list[str]
+    imports: list[str]
     series_requests: list[dict[str, Any]]
     yield_curve_requests: list[dict[str, Any]]
     error: str | None = None
@@ -57,6 +58,7 @@ class _NameAnalysis(ast.NodeVisitor):
     def __init__(self) -> None:
         self.definitions: set[str] = set()
         self.references: set[str] = set()
+        self.imports: set[str] = set()
         self.series_requests: list[dict[str, Any]] = []
         self.yield_curve_requests: list[dict[str, Any]] = []
 
@@ -80,9 +82,13 @@ class _NameAnalysis(ast.NodeVisitor):
 
     def visit_Import(self, node: ast.Import) -> None:
         for alias in node.names:
-            self.definitions.add(alias.asname or alias.name.split(".", 1)[0])
+            import_root = alias.name.split(".", 1)[0]
+            self.imports.add(import_root)
+            self.definitions.add(alias.asname or import_root)
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
+        if node.module:
+            self.imports.add(node.module.split(".", 1)[0])
         for alias in node.names:
             if alias.name != "*":
                 self.definitions.add(alias.asname or alias.name)
@@ -584,6 +590,7 @@ def run_research(
                         "cell_id": cell.get("id"),
                         "definitions": analysis.definitions,
                         "references": analysis.references,
+                        "imports": analysis.imports,
                         "series_requests": analysis.series_requests,
                         "yield_curve_requests": analysis.yield_curve_requests,
                         **({"error": analysis.error} if analysis.error else {}),
@@ -709,13 +716,14 @@ def _analyze(source: str) -> _Analysis:
         tree = ast.parse(source or "pass", filename="research_cell.py", mode="exec")
     except SyntaxError as error:
         message = f"{error.msg} (line {error.lineno}, column {error.offset})"
-        return _Analysis([], [], [], [], message)
+        return _Analysis([], [], [], [], [], message)
     visitor = _NameAnalysis()
     visitor.visit(tree)
     ignored = set(dir(builtins)) | _RUNTIME_NAMES
     return _Analysis(
         sorted(name for name in visitor.definitions if not name.startswith("_")),
         sorted(name for name in visitor.references if name not in ignored and not name.startswith("_")),
+        sorted(visitor.imports),
         visitor.series_requests,
         visitor.yield_curve_requests,
     )

@@ -56,6 +56,36 @@ describe('Research Pyright language service', () => {
     }
   }, 20_000);
 
+  it('provides SciPy and statsmodels completion from the fixed runtime stubs', async () => {
+    const statisticsRequest: ResearchLanguageRequestV1 = {
+      version: 1,
+      documentId: 'statistics-1',
+      cells: [
+        {
+          id: 'analysis',
+          source: 'from scipy import stats\nimport statsmodels.api as sm\nstats.\nsm.',
+        },
+      ],
+      cellId: 'analysis',
+      action: 'completion',
+      position: { line: 2, character: 6 },
+    };
+    const scipyResponse = await service.request('statistics-user:scipy', statisticsRequest);
+    expect(scipyResponse.action).toBe('completion');
+    if (scipyResponse.action === 'completion') {
+      expect(scipyResponse.result.items.map((item) => item.label)).toContain('pearsonr');
+    }
+
+    const statsmodelsResponse = await service.request('statistics-user:statsmodels', {
+      ...statisticsRequest,
+      position: { line: 3, character: 3 },
+    });
+    expect(statsmodelsResponse.action).toBe('completion');
+    if (statsmodelsResponse.action === 'completion') {
+      expect(statsmodelsResponse.result.items.map((item) => item.label)).toContain('OLS');
+    }
+  }, 20_000);
+
   it('maps cross-Cell definitions and renames back to their source Cells', async () => {
     const definition = await service.request(
       'user-a:document-a',

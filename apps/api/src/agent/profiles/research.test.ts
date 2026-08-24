@@ -21,7 +21,16 @@ describe('researchProfile', () => {
     expect(system).toContain('gold_price_drivers');
     expect(system).toContain('Markdown and Python Cells');
     expect(system).toContain('estimand, null hypothesis, formula');
-    expect(system).toContain('SciPy and statsmodels');
+    expect(system).toContain('SciPy for distributions');
+    expect(system).toContain('runtime.python');
+    expect(system).toContain('"scipy","version":"1.18.0"');
+    expect(system).toContain('"statsmodels","version":"0.14.6"');
+    expect(system).toContain('Import no package outside that contract');
+    expect(system).toContain('Never implement an estimator');
+    expect(system).toContain('Use statsmodels for regression');
+    expect(system).toContain('use Matplotlib only for custom static figures');
+    expect(system).toContain('keep all text rendered inside Matplotlib figures in concise English');
+    expect(system).toContain('Never guess or load a host-system font');
     expect(system).toContain('data.series');
     expect(system).toContain('data.cross_section');
     expect(system).toContain('data.panel');
