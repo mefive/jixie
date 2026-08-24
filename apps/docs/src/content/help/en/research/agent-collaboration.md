@@ -11,6 +11,8 @@ Research Agent can read the current document and Cell state, refine a research q
 
 When an exact instrument, dataset, or SDK method is unavailable, the Agent should inspect the current catalog or state the gap. Do not accept a silent substitution with a merely similar measure.
 
+When the original question has no exact executable data but an explicitly different proxy exists, the Agent first shows a **Needs confirmation** card. Ordinary input and Cell proposals pause until you compare the differences and confirm a choice, select **Do not substitute**, or enter a precise requirement.
+
 ## Review Cell changes
 
 A proposed edit appears as a change card and an inline diff in its target Cell:
@@ -49,5 +51,5 @@ You still decide the research question, prespecified direction, sample, whether 
 ## Related articles
 
 - [Use the research data catalog](/docs/help/research/data-catalog)
+- [Answer a research-definition clarification](/docs/help/research/clarifications)
 - [Hand research to Factor or Strategy](/docs/help/research/handoff)
-

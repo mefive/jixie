@@ -26,6 +26,9 @@ Agent 可以补充统计方法和公式、查询准确的 Research SDK、修改 
 Agent 不能把未运行的代码说成已经计算，也不能用文字替代代码和输出。缺少精确对象、数据、SDK 或方法时，它必须
 说明能力缺口，不能静默换成相似数据。
 
+存在有明确差异的可执行代理时，Agent 会先要求确认研究口径。选择前普通输入和 Cell 提案会暂停；确认记录会在刷新
+后保留，但它不会让代理自动变成原对象的等价物。
+
 ## 将研究送往正式验证
 
 如果成功封存的版本包含一个明确、由平台数据能力支持的时点信号，可以从快照创建 Python Factor 草稿。LLM 先判断
@@ -58,4 +61,6 @@ Agent 不能把未运行的代码说成已经计算，也不能用文字替代�
 - [建立研究文档和 Cell](/docs/help/research/document-cells)
 - [使用研究数据目录](/docs/help/research/data-catalog)
 - [与 Research Agent 协作](/docs/help/research/agent-collaboration)
+- [回答研究口径确认](/docs/help/research/clarifications)
+- [读取美国国债收益率曲线](/docs/help/research/yield-curves)
 - [将研究交给 Factor 或 Strategy](/docs/help/research/handoff)

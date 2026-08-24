@@ -141,6 +141,8 @@ import researchRecordsEn from '@src/content/help/en/research/records.md?raw';
 import researchRecordsZh from '@src/content/help/zh/research/records.md?raw';
 import researchAgentCollaborationEn from '@src/content/help/en/research/agent-collaboration.md?raw';
 import researchAgentCollaborationZh from '@src/content/help/zh/research/agent-collaboration.md?raw';
+import researchClarificationsEn from '@src/content/help/en/research/clarifications.md?raw';
+import researchClarificationsZh from '@src/content/help/zh/research/clarifications.md?raw';
 import researchCuratorEn from '@src/content/help/en/research/curator.md?raw';
 import researchCuratorZh from '@src/content/help/zh/research/curator.md?raw';
 import researchDataCatalogEn from '@src/content/help/en/research/data-catalog.md?raw';
@@ -151,8 +153,12 @@ import researchHandoffEn from '@src/content/help/en/research/handoff.md?raw';
 import researchHandoffZh from '@src/content/help/zh/research/handoff.md?raw';
 import researchOutputsEn from '@src/content/help/en/research/outputs.md?raw';
 import researchOutputsZh from '@src/content/help/zh/research/outputs.md?raw';
+import researchPythonRuntimeEn from '@src/content/help/en/research/python-runtime.md?raw';
+import researchPythonRuntimeZh from '@src/content/help/zh/research/python-runtime.md?raw';
 import researchRunControlEn from '@src/content/help/en/research/run-control.md?raw';
 import researchRunControlZh from '@src/content/help/zh/research/run-control.md?raw';
+import researchYieldCurvesEn from '@src/content/help/en/research/yield-curves.md?raw';
+import researchYieldCurvesZh from '@src/content/help/zh/research/yield-curves.md?raw';
 import libraryShareCopyEn from '@src/content/help/en/library/share-copy.md?raw';
 import libraryShareCopyZh from '@src/content/help/zh/library/share-copy.md?raw';
 import deployStrategyEn from '@src/content/help/en/signals/deploy-strategy.md?raw';
@@ -447,8 +453,8 @@ export const HELP_ARTICLES: HelpArticle[] = [
       en: 'Build a research document with Cells',
     },
     summary: {
-      zh: '从模板或空白文档开始，编辑 Markdown／Python Cell，并理解自动保存和依赖。',
-      en: 'Start from a template or blank document, edit Markdown/Python Cells, and understand autosave and dependencies.',
+      zh: '从研究问题建立文档，编辑 Markdown／Python Cell，并理解自动保存和依赖。',
+      en: 'Create a document from a research question, edit Markdown/Python Cells, and understand autosave and dependencies.',
     },
     content: { zh: researchDocumentCellsZh, en: researchDocumentCellsEn },
   },
@@ -491,6 +497,36 @@ export const HELP_ARTICLES: HelpArticle[] = [
       en: 'Review editable Cell diffs, accept or undo changes, and explicitly run proposals.',
     },
     content: { zh: researchAgentCollaborationZh, en: researchAgentCollaborationEn },
+  },
+  {
+    slug: 'research/clarifications',
+    group: 'research',
+    title: { zh: '回答研究口径确认', en: 'Answer a research-definition clarification' },
+    summary: {
+      zh: '比较可执行代理与原定义的差异，确认选择、保留缺口或填写具体口径。',
+      en: 'Compare executable proxies with the original definition, confirm a choice, keep the gap, or provide a precise requirement.',
+    },
+    content: { zh: researchClarificationsZh, en: researchClarificationsEn },
+  },
+  {
+    slug: 'research/yield-curves',
+    group: 'research',
+    title: { zh: '读取美国国债收益率曲线', en: 'Load US Treasury yield curves' },
+    summary: {
+      zh: '选择名义或实际曲线、期限和变换，并正确解释百分比、百分点与时区。',
+      en: 'Choose a nominal or real curve, tenor, and transform, and interpret percent, percentage points, and time zones correctly.',
+    },
+    content: { zh: researchYieldCurvesZh, en: researchYieldCurvesEn },
+  },
+  {
+    slug: 'research/python-runtime',
+    group: 'research',
+    title: { zh: '使用 Python 研究运行环境', en: 'Use the Research Python runtime' },
+    summary: {
+      zh: '了解固定统计包、导入限制、图表选择和缺失能力的处理方式。',
+      en: 'Understand the fixed statistical packages, import limits, chart choices, and capability gaps.',
+    },
+    content: { zh: researchPythonRuntimeZh, en: researchPythonRuntimeEn },
   },
   {
     slug: 'research/handoff',

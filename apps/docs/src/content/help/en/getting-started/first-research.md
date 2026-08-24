@@ -27,6 +27,10 @@ runs a cell by itself.
 The Agent cannot claim that unexecuted code has run or replace code and output with prose. If an exact object, dataset, SDK
 method, or analysis capability is unavailable, it must report that gap instead of silently substituting similar data.
 
+When an explicitly different executable proxy exists, the Agent first asks you to confirm the research definition. Ordinary
+input and Cell proposals pause until you answer. The answer persists across refresh, but confirmation does not make a proxy
+equivalent to the original object.
+
 ## Send research to formal validation
 
 When a promoted successful version contains one explicit point-in-time signal supported by platform data, it can create a
@@ -64,4 +68,6 @@ upstream revision changes the disclosed data revision.
 - [Build a research document with Cells](/docs/help/research/document-cells)
 - [Use the research data catalog](/docs/help/research/data-catalog)
 - [Collaborate with Research Agent](/docs/help/research/agent-collaboration)
+- [Answer a research-definition clarification](/docs/help/research/clarifications)
+- [Load US Treasury yield curves](/docs/help/research/yield-curves)
 - [Hand research to Factor or Strategy](/docs/help/research/handoff)

@@ -20,6 +20,7 @@
     "test:e2e:research-cell-changes": "node e2e/research-cell-change-proposal.mjs",
     "test:e2e:research-cell-change-review": "node e2e/research-cell-change-review.mjs",
     "test:e2e:research-clarification": "node e2e/research-clarification.mjs",
+    "test:e2e:research-yield-runtime": "node e2e/research-yield-runtime.mjs",
     "test:e2e:research-autosave": "node e2e/research-autosave.mjs",
     "test:e2e:research-executions": "node e2e/research-execution.mjs",
     "test:e2e:factor-history": "node e2e/factor-report-history.mjs",
@@ -67,6 +68,7 @@
     "test:e2e:help-content-factor-weather": "node e2e/help-content-factor-weather.mjs",
     "test:e2e:help-content-latest": "node e2e/help-content-latest.mjs",
     "test:e2e:help-content-stage-l": "node e2e/help-content-stage-l.mjs",
+    "test:e2e:help-content-stage-m": "node e2e/help-content-stage-m.mjs",
     "test:e2e:help-content-market-valuation": "node e2e/help-content-market-valuation.mjs",
     "test:e2e:help-content-signals": "node e2e/help-content-signals.mjs",
     "test:e2e:help-screen-live": "node e2e/help-screen-live.mjs"

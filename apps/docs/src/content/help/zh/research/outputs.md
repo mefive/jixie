@@ -38,6 +38,8 @@ charts.histogram(
 
 需要产品图表尚未覆盖的自定义画法时，可以使用 Matplotlib。静态图不提供产品原生悬停和缩放；同时要控制尺寸、标签数量和分辨率，避免生成过大的图片。
 
+当前 Matplotlib 环境提供 DejaVu Sans，不提供中文字体。Matplotlib 图内标题、坐标轴、图例和标注应使用简洁英文；Markdown 说明和控制台文字仍然可以使用中文。可用统计包、导入限制和图表选择见[使用 Python 研究运行环境](/docs/help/research/python-runtime)。
+
 ## 输出与快照
 
 - 单 Cell 或受影响分支运行更新当前文档输出，适合探索。
@@ -58,5 +60,5 @@ charts.histogram(
 ## 相关内容
 
 - [使用研究数据目录](/docs/help/research/data-catalog)
+- [使用 Python 研究运行环境](/docs/help/research/python-runtime)
 - [研究文档与运行记录](/docs/help/research/records)
-

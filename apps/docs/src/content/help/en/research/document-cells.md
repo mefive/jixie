@@ -10,6 +10,10 @@ A research document contains Markdown Cells and Python Cells. Use Markdown for t
 4. Switch existing documents under **Research documents**.
 5. Use the edit icon beside the title to rename it.
 
+The markers below identify the question input, **Start research**, and existing research documents. Sending the question creates the document and starts processing; there is no template-selection step.
+
+![Create a research document from a question](/docs/images/help/zh/research/new-research-01.png)
+
 ## Add and edit Cells
 
 1. Select the plus sign between two Cells or at the end of the document.
@@ -51,4 +55,5 @@ It removes that Cell and its output from the editable document. Earlier successf
 ## Related articles
 
 - [Run, stop, and reset research](/docs/help/research/run-control)
+- [Answer a research-definition clarification](/docs/help/research/clarifications)
 - [Research documents and run history](/docs/help/research/records)

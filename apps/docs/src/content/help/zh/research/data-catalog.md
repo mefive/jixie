@@ -13,7 +13,7 @@
 
 插入后仍要检查对象、起止日期和变量名是否符合研究问题。
 
-## 三种数据读取方式
+## 四种数据读取方式
 
 ### 单个对象的时间序列
 
@@ -36,6 +36,10 @@ monthly = data.series(
 ### 连续月末的股票 Panel
 
 使用 `data.panel()` 读取一段时间内已完成月末的 PIT 截面。它适合探索多期排序、回归和稳定性。必须明确日期、股票池、字段和缺失值处理；不能把今天看到的最新财务值回填到历史日期。
+
+### 美国国债收益率曲线
+
+使用 `data.yield_curve()` 读取平台审核过的美国国债名义或实际收益率期限序列。曲线、期限和变换有独立白名单，不使用 `data.series()` 猜测收益率表或字段。具体参数、百分点单位和中美市场时区边界见[读取美国国债收益率曲线](/docs/help/research/yield-curves)。
 
 ## 时点和修订边界
 
@@ -63,5 +67,6 @@ monthly = data.series(
 ## 相关内容
 
 - [阅读和重跑 Universe 结果](/docs/help/research/universe)
+- [读取美国国债收益率曲线](/docs/help/research/yield-curves)
+- [使用 Python 研究运行环境](/docs/help/research/python-runtime)
 - [查看研究输出](/docs/help/research/outputs)
-

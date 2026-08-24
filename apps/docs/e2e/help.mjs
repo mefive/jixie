@@ -143,8 +143,8 @@ try {
         .evaluateAll((links) => links.map((link) => link.getAttribute('href'))),
     ),
   ].filter(Boolean);
-  if (articleHrefs.length !== 88) {
-    throw new Error(`expected 88 help articles, got ${articleHrefs.length}`);
+  if (articleHrefs.length !== 91) {
+    throw new Error(`expected 91 help articles, got ${articleHrefs.length}`);
   }
   for (const href of articleHrefs) {
     if (new URL(page.url()).pathname !== href) {
@@ -245,6 +245,39 @@ try {
   await page.getByRole('heading', { level: 1, name: '建立研究文档和 Cell' }).waitFor();
   if ((await page.locator('.jx-help-figure').count()) !== 2) {
     throw new Error('research Cell guide did not render both E2E screenshots');
+  }
+
+  await page.goto(`${BASE}/docs/help/research/clarifications`, {
+    waitUntil: 'domcontentloaded',
+  });
+  await page.getByRole('heading', { level: 1, name: '回答研究口径确认' }).waitFor();
+  if ((await page.locator('.jx-help-figure').count()) !== 2) {
+    throw new Error('research clarification guide did not render both E2E screenshots');
+  }
+
+  await page.goto(`${BASE}/docs/help/research/yield-curves`, {
+    waitUntil: 'domcontentloaded',
+  });
+  await page.getByRole('heading', { level: 1, name: '读取美国国债收益率曲线' }).waitFor();
+  if (
+    (await page.locator('.jx-help-figure').count()) !== 2 ||
+    (await page.locator('.jx-help-codeBlock .token').count()) < 10
+  ) {
+    throw new Error('yield-curve guide did not render screenshots and highlighted Python code');
+  }
+
+  await page.goto(`${BASE}/docs/help/research/python-runtime`, {
+    waitUntil: 'domcontentloaded',
+  });
+  await page.getByRole('heading', { level: 1, name: '使用 Python 研究运行环境' }).waitFor();
+  if (
+    (await page.locator('.jx-help-figure').count()) !== 1 ||
+    (await page.locator('.jx-help-markdown table').count()) !== 1 ||
+    (await page.locator('.jx-help-codeBlock .token').count()) < 10
+  ) {
+    throw new Error(
+      'Python runtime guide did not render its table, screenshot, and code highlight',
+    );
   }
 
   await page.goto(`${BASE}/docs/help/getting-started/overview`, { waitUntil: 'domcontentloaded' });
