@@ -630,7 +630,23 @@ Panel 完成数据整理、统计计算与静态/交互图，Agent 查询 SDK �
   精确核对。动态或不存在的品种身份、未查询的 SDK Contract 和不兼容 measure 均会被拒绝。
 
 浏览器验收已覆盖“待确认卡 → 选择沪金代理 → 回答落库 → 刷新后仍为已确认”，并验证待确认期间普通 Agent
-输入被禁用。该校正没有扩大数据覆盖面；新的收益率、宏观或外汇 Python loader 仍按数据语义目录单独建设。
+输入被禁用。该次语义校正本身没有扩大数据覆盖面；新的收益率、宏观或外汇 Python loader 仍按数据语义目录
+单独建设。
+
+### 2026-08-24 美国国债收益率 Python 切片
+
+为执行“黄金代理与美债收益率关系”这一真实研究，首个收益率公开 loader 已按第 2、5、6 项的边界落地：
+
+- `data.yield_curve(curve, *, tenor, start, end, frequency, transform, partial_period)` 只接受静态 Contract 中的
+  美国国债名义/实际曲线和期限；返回固定 `date / value` DataFrame，不暴露 Prisma、表名或任意 SQL；
+- 曲线与期限组合仍由 `ResearchConceptBindingRegistry` 审计。Catalog 只有在本地存在数据且组合存在精确 Binding
+  时才返回 `sdkAccess.status=ready`，名义、实际和期限不得静默互换；
+- 水平单位为百分比，首版变换只开放 `level / difference`；`difference` 是百分点变化，不冒充债券收益率；
+- 同一 SDK Contract 生成 Agent Catalog、Monaco/Pyright Stub 与 Runtime 请求校验；Python AST 在 Diff 展示前
+  提取 literal `curve / tenor`，动态值或未登记组合直接拒绝；
+- 美国收盘数据用于中国市场时不会自动猜测对齐方式，研究代码必须显式滞后或披露时区口径。
+
+该切片只把已经落库、已有数据契约的美国主权收益率开放给自由研究；宏观和外汇 loader 仍待真实问题触发。
 
 至此本节第 1–7 项均已闭环。方法模板、FactorReport / BacktestReport 回流、全局快照搜索、底层数据副本和自动
 运行差异归因继续留在 backlog，不属于首版完成条件。

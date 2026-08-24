@@ -7,6 +7,25 @@ export const RESEARCH_SERIES_TRANSFORMS_V1 = [
   'percent_change',
   'year_over_year',
 ] as const;
+export const RESEARCH_YIELD_CURVE_CODES_V1 = ['us_treasury_nominal', 'us_treasury_real'] as const;
+export const RESEARCH_YIELD_TENORS_V1 = [
+  '1M',
+  '2M',
+  '3M',
+  '6M',
+  '1Y',
+  '2Y',
+  '3Y',
+  '5Y',
+  '7Y',
+  '10Y',
+  '20Y',
+  '30Y',
+] as const;
+export const RESEARCH_YIELD_TRANSFORMS_V1 = ['level', 'difference'] as const;
+export type ResearchYieldCurveCodeV1 = (typeof RESEARCH_YIELD_CURVE_CODES_V1)[number];
+export type ResearchYieldTenorV1 = (typeof RESEARCH_YIELD_TENORS_V1)[number];
+export type ResearchYieldTransformV1 = (typeof RESEARCH_YIELD_TRANSFORMS_V1)[number];
 export const RESEARCH_PARTIAL_PERIOD_POLICIES_V1 = ['exclude', 'include'] as const;
 export const RESEARCH_EQUITY_UNIVERSE_SUGGESTIONS_V1 = [
   'cn_a',
@@ -516,6 +535,112 @@ export const RESEARCH_SDK_CONTRACT_V1 = {
       ],
       returns: { kind: 'dataframe', columns: RESEARCH_EQUITY_DATAFRAME_COLUMNS_V1 },
     },
+    {
+      qualifiedName: 'data.yield_curve',
+      namespace: 'data',
+      name: 'yield_curve',
+      descriptionZh: '读取平台审核过的主权收益率曲线期限序列，返回固定列的 pandas DataFrame。',
+      descriptionEn:
+        'Load one governed sovereign-yield curve tenor as a fixed-schema pandas DataFrame.',
+      examples: [
+        'data.yield_curve("us_treasury_real", tenor="10Y", start="20150101", end="20251231", transform="difference")',
+      ],
+      notesZh: [
+        'curve 与 tenor 的组合必须来自研究目录；名义收益率和实际收益率不能互换。',
+        'value 的水平单位是百分比；difference 表示百分点变化，而不是债券收益率。',
+        '美国收盘数据用于中国市场研究时，研究代码必须显式滞后或说明时区口径。',
+      ],
+      notesEn: [
+        'Resolve the curve and tenor pair through the research catalog; nominal and real yields are not interchangeable.',
+        'Level values are percentages; difference means percentage-point change, not a bond return.',
+        'China-market research must explicitly lag US-close observations or disclose its time-zone convention.',
+      ],
+      parameters: [
+        {
+          name: 'curve',
+          type: 'enum',
+          required: true,
+          keywordOnly: false,
+          values: RESEARCH_YIELD_CURVE_CODES_V1,
+          descriptionZh: '平台审核过的收益率曲线代码。',
+          descriptionEn: 'A governed yield-curve code.',
+        },
+        {
+          name: 'tenor',
+          type: 'enum',
+          required: true,
+          keywordOnly: true,
+          values: RESEARCH_YIELD_TENORS_V1,
+          descriptionZh: '曲线期限，例如 10Y。',
+          descriptionEn: 'The curve tenor, for example 10Y.',
+        },
+        {
+          name: 'start',
+          type: 'date',
+          required: true,
+          keywordOnly: true,
+          descriptionZh: '起始日期，格式为 YYYYMMDD。',
+          descriptionEn: 'The inclusive start date in YYYYMMDD format.',
+        },
+        {
+          name: 'end',
+          type: 'date',
+          required: true,
+          keywordOnly: true,
+          descriptionZh: '结束日期，格式为 YYYYMMDD。',
+          descriptionEn: 'The inclusive end date in YYYYMMDD format.',
+        },
+        {
+          name: 'frequency',
+          type: 'enum',
+          required: false,
+          keywordOnly: true,
+          defaultValue: 'daily',
+          values: RESEARCH_SERIES_FREQUENCIES_V1,
+          descriptionZh: '输出频率。',
+          descriptionEn: 'The output frequency.',
+        },
+        {
+          name: 'transform',
+          type: 'enum',
+          required: false,
+          keywordOnly: true,
+          defaultValue: 'level',
+          values: RESEARCH_YIELD_TRANSFORMS_V1,
+          descriptionZh: '输出收益率水平或百分点变化。',
+          descriptionEn: 'Return yield levels or percentage-point differences.',
+        },
+        {
+          name: 'partial_period',
+          type: 'enum',
+          required: false,
+          keywordOnly: true,
+          defaultValue: 'exclude',
+          values: RESEARCH_PARTIAL_PERIOD_POLICIES_V1,
+          descriptionZh: '是否包含尚未结束的聚合周期。',
+          descriptionEn: 'Whether to include an incomplete aggregate period.',
+        },
+      ],
+      returns: {
+        kind: 'dataframe',
+        columns: [
+          {
+            name: 'date',
+            wireType: 'trade_date',
+            pythonType: 'datetime64[ns]',
+            descriptionZh: '观测可得日；进入 Python 后转换为 pandas datetime。',
+            descriptionEn: 'Observation availability date, converted to pandas datetime in Python.',
+          },
+          {
+            name: 'value',
+            wireType: 'number',
+            pythonType: 'float64',
+            descriptionZh: '收益率百分比水平或所选变换后的值。',
+            descriptionEn: 'The yield percentage level or selected transformed value.',
+          },
+        ],
+      },
+    },
     chartFunction(
       'line',
       '创建 jixie 原生交互折线图。',
@@ -666,3 +791,4 @@ export const RESEARCH_SDK_CONTRACT_V1 = {
 export const RESEARCH_SERIES_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[0];
 export const RESEARCH_CROSS_SECTION_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[1];
 export const RESEARCH_PANEL_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[2];
+export const RESEARCH_YIELD_CURVE_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[3];

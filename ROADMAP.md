@@ -189,6 +189,11 @@ bootstrap 和每周维护。宏观 loader 以审计后的可用日对齐历史�
 只有 `sdkAccess.status=ready` 的 Binding 才能进入代理选择或 Cell 提案。Concept 的长期扩充仍由 1.4 维护，
 不以模糊关键词或模型记忆绕过 Binding 白名单。
 
+同日由真实“黄金代理与美债收益率关系”研究触发首个收益率执行切片：美国国债名义/实际曲线通过
+`data.yield_curve()` 暴露固定 `date / value` Schema，只允许 Binding 登记的 curve/tenor 组合和 `level / difference`
+变换。Contract 同时生成 Agent API Catalog、Monaco/Pyright Stub 与 Runtime 校验，Python AST 在 Diff 前核对
+literal curve/tenor；这不开放任意收益率表、SQL、宏观或外汇数据。
+
 当前 Research 多资产数据集切片已经完成：在不增加统计协议的前提下，把已有 `UniverseSpec` 的 A 股 PIT 股票池
 规则开放为 Python `data.cross_section()`，并按月末重复同一规则形成 `data.panel()` 长表。两者必须使用固定公开
 Schema、历史指数成分、上市/停牌/风险警示处理、数据 revision、明确资源上限和同一 SDK Contract 生成链；

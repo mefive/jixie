@@ -3,6 +3,7 @@ import {
   RESEARCH_CROSS_SECTION_SDK_CONTRACT_V1,
   RESEARCH_PANEL_SDK_CONTRACT_V1,
   RESEARCH_SERIES_SDK_CONTRACT_V1,
+  RESEARCH_YIELD_CURVE_SDK_CONTRACT_V1,
 } from '@jixie/shared';
 import {
   ResearchPythonExecutionError,
@@ -61,6 +62,20 @@ describe('research workbench Python runtime', () => {
         identifier: '000300.SH',
         measure: 'market.adjusted_close',
       },
+    ]);
+  });
+
+  it('extracts literal governed yield-curve identities for proposal preflight', async () => {
+    const [analysis] = await researchRuntimeManager.analyze(DOCUMENT_ID, [
+      {
+        id: 'yield',
+        source:
+          'real_yield = data.yield_curve("us_treasury_real", tenor="10Y", start="20200101", end="20251231")',
+      },
+    ]);
+
+    expect(analysis?.yieldCurveRequests).toEqual([
+      { line: 1, curve: 'us_treasury_real', tenor: '10Y' },
     ]);
   });
 
@@ -148,7 +163,7 @@ describe('research workbench Python runtime', () => {
     const result = await researchRuntimeManager.execute(DOCUMENT_ID, {
       id: 'signature',
       source:
-        'import inspect\n"|".join(",".join(inspect.signature(method).parameters.keys()) for method in [data.series, data.cross_section, data.panel])',
+        'import inspect\n"|".join(",".join(inspect.signature(method).parameters.keys()) for method in [data.series, data.cross_section, data.panel, data.yield_curve])',
     });
 
     expect(result.outputs).toEqual([
@@ -158,6 +173,7 @@ describe('research workbench Python runtime', () => {
           RESEARCH_SERIES_SDK_CONTRACT_V1,
           RESEARCH_CROSS_SECTION_SDK_CONTRACT_V1,
           RESEARCH_PANEL_SDK_CONTRACT_V1,
+          RESEARCH_YIELD_CURVE_SDK_CONTRACT_V1,
         ]
           .map((contract) => contract.parameters.map((parameter) => parameter.name).join(','))
           .join('|'),

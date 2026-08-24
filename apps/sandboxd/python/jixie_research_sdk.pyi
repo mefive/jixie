@@ -58,6 +58,24 @@ class _DataApi:
         risk_warning: Literal["exclude", "include"] = "exclude",
     ) -> pd.DataFrame: ...
 
+    # Load one governed sovereign-yield curve tenor as a fixed-schema pandas DataFrame.
+    # Note: Resolve the curve and tenor pair through the research catalog; nominal and real yields are not interchangeable.
+    # Note: Level values are percentages; difference means percentage-point change, not a bond return.
+    # Note: China-market research must explicitly lag US-close observations or disclose its time-zone convention.
+    # Example: data.yield_curve("us_treasury_real", tenor="10Y", start="20150101", end="20251231", transform="difference")
+    # DataFrame columns: date: datetime64[ns], value: float64
+    def yield_curve(
+        self,
+        curve: Literal["us_treasury_nominal", "us_treasury_real"],
+        *,
+        tenor: Literal["1M", "2M", "3M", "6M", "1Y", "2Y", "3Y", "5Y", "7Y", "10Y", "20Y", "30Y"],
+        start: str,
+        end: str,
+        frequency: Literal["daily", "monthly"] = "daily",
+        transform: Literal["level", "difference"] = "level",
+        partial_period: Literal["exclude", "include"] = "exclude",
+    ) -> pd.DataFrame: ...
+
 
 
 class _ChartsApi:

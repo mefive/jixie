@@ -96,9 +96,7 @@ describe('requestResearchClarification tool', () => {
   });
 
   it('rejects locally available bindings that the public Research SDK cannot load', async () => {
-    const binding = researchConceptBindings('rates.us_treasury.real').find(
-      (candidate) => candidate.source.kind === 'yield_curve' && candidate.source.termYears === 10,
-    )!;
+    const binding = researchConceptBindings('macro.inflation.us.cpi.headline')[0]!;
     mocks.resolve.mockResolvedValue([
       { binding, available: true, match: { source: binding.source }, unavailableReason: null },
     ]);
@@ -109,7 +107,7 @@ describe('requestResearchClarification tool', () => {
 
     await expect(
       tool.run({
-        title: '确认利率序列',
+        title: '确认通胀序列',
         questions: [
           {
             prompt: '请选择',
