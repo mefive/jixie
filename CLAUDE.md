@@ -68,6 +68,18 @@
 - Monaco/Pyright 直接复用同一 Contract 渲染的 stub，不另维护前端 Python schema；TypeScript Factor 的 ambient
   类型继续独立兼容，不能用旧 TS 字段名污染 Python 的 snake_case 契约。
 
+## Research Python Runtime Contract 工作流
+
+- `packages/shared/src/research-python-runtime.ts` 是 `research-py-v1` 可用 Python 版本、第三方包、导入名和 Agent
+  使用政策的唯一事实源。不得只在 Dockerfile、开发机或 Agent prompt 中单独增删包。
+- 修改运行时包或版本后运行 `pnpm gen:research-runtime`，提交生成的
+  `apps/sandboxd/python/requirements-research-runtime.txt`，再运行 `pnpm check:research-runtime`、`pnpm typecheck`
+  和相关 runtime / Agent / Pyright 测试。
+- 本地首次运行或 Contract 变化后执行 `pnpm setup:research-python`。`pnpm dev` 会在启动 Web、API 和 sandboxd
+  前校验 CPython 3.13 及所有固定包的精确版本；校验失败不得静默退化到系统 Python。
+- Agent 生成 Python 前必须查询 `searchResearchCatalog("runtime.python")`。prompt、Catalog、提案导入白名单、
+  Docker requirements 和本地运行时必须复用同一 Contract；清单外能力应明确报缺口，不得猜测安装状态或手写替代。
+
 ## 目录约定(对齐 fangtu)
 
 - `apps/api` — Hono 后端 + `prisma/schema.prisma` + 领域逻辑(`src/tushare`、`src/store`,未来 `src/factor`、`src/backtest`)+ 研究 / 导入脚本(`scripts/`,wired 成 `smoke` / `sync` / `peek` 等)

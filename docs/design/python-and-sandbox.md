@@ -68,8 +68,12 @@ def handle_bar(ctx):
 - 最多 4 个并发会话、单会话最多 1 小时；
 - 策略模块初始化和每次 `on_bar` 最多连续执行 10 秒，等待 Engine 数据的时间不计入。
 
-镜像只含 CPython、py-v1 runner、固定版本 NumPy/pandas，不挂载代码库、数据库、宿主目录或密钥。
-本地开发/测试可显式使用 `JIXIE_PYTHON_LOCAL=1`，但 production 会拒绝该逃生口。
+镜像只含 CPython、py-v1 runner，以及由统一 `research-py-v1` Contract 生成并精确锁定版本的 NumPy、pandas、
+SciPy、statsmodels、Matplotlib 和 scikit-learn，不挂载代码库、数据库、宿主目录或密钥。Docker requirements、
+Agent 能力目录、提案导入白名单与本地运行时均从同一 Contract 派生。开发者先运行
+`pnpm setup:research-python` 建立工作区虚拟环境；`pnpm dev` 在启动服务前验证 CPython 3.13 和每个包的精确
+版本，不再静默使用能力残缺的系统 Python。本地测试仍可显式使用 `JIXIE_PYTHON_LOCAL=1`，但 production 会拒绝
+该逃生口。
 
 ### macOS 验证路径
 

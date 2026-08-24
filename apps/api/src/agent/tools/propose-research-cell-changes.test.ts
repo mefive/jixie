@@ -20,6 +20,7 @@ function catalogEvidence() {
   return {
     sdkReadyBindingIds: new Set<string>(),
     sdkMethodNames: new Set(['data.series']),
+    pythonRuntimeInspected: true,
   };
 }
 
@@ -133,7 +134,11 @@ describe('proposeResearchCellChanges tool', () => {
       userId: 'user-1',
       documentId: 'document-1',
       editableCellIds: new Set(['cell-1']),
-      catalogEvidence: { sdkReadyBindingIds: new Set(), sdkMethodNames: new Set() },
+      catalogEvidence: {
+        sdkReadyBindingIds: new Set(),
+        sdkMethodNames: new Set(),
+        pythonRuntimeInspected: true,
+      },
     });
 
     await expect(
@@ -158,7 +163,11 @@ describe('proposeResearchCellChanges tool', () => {
       userId: 'user-1',
       documentId: 'document-1',
       editableCellIds: new Set(['cell-1']),
-      catalogEvidence: { sdkReadyBindingIds: new Set(), sdkMethodNames: new Set() },
+      catalogEvidence: {
+        sdkReadyBindingIds: new Set(),
+        sdkMethodNames: new Set(),
+        pythonRuntimeInspected: true,
+      },
     });
 
     await expect(
@@ -176,6 +185,35 @@ describe('proposeResearchCellChanges tool', () => {
         ],
       }),
     ).rejects.toThrow('Query the exact data.yield_curve Research SDK contract');
+    expect(mocks.prepare).not.toHaveBeenCalled();
+  });
+
+  it('requires the exact Python runtime capability query before drafting Python', async () => {
+    const tool = createProposeResearchCellChangesTool({
+      userId: 'user-1',
+      documentId: 'document-1',
+      editableCellIds: new Set(['cell-1']),
+      catalogEvidence: {
+        sdkReadyBindingIds: new Set(),
+        sdkMethodNames: new Set(),
+        pythonRuntimeInspected: false,
+      },
+    });
+
+    await expect(
+      tool.run({
+        title: 'Run a hypothesis test',
+        summary: 'Use the governed Python runtime.',
+        operations: [
+          {
+            kind: 'update',
+            cellId: 'cell-1',
+            expectedRevision: 2,
+            source: 'from scipy import stats\nstatistic, p_value = stats.ttest_1samp(returns, 0)',
+          },
+        ],
+      }),
+    ).rejects.toThrow('runtime.python');
     expect(mocks.prepare).not.toHaveBeenCalled();
   });
 });

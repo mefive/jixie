@@ -1,0 +1,8 @@
+# Generated from packages/shared/src/research-python-runtime.ts.
+# Run pnpm gen:research-runtime after changing the capability contract.
+numpy==2.3.2
+pandas==2.3.1
+scipy==1.18.0
+statsmodels==0.14.6
+matplotlib==3.10.5
+scikit-learn==1.9.0

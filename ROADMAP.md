@@ -372,6 +372,11 @@ Roll-down、连续合约和季节性等数据；跨区域扩展时保留原始�
 偏回归、VIF、滚动稳定性等方法仍可由 Research Python 使用 statsmodels / SciPy 实现，待真实重复需求出现后再
 沉淀成透明模板与 fixture。横截面、Panel、宏观状态和策略绩效的审计与补全仍未完成，因此本项保持进行中。
 
+2026-08-24 已完成统计运行时的工程门禁：`research-py-v1` 以统一 Contract 固定 CPython、NumPy、pandas、
+SciPy、statsmodels、Matplotlib 与 scikit-learn 的版本和职责；生产 requirements、本地环境校验、Agent Catalog、
+导入白名单和 Monaco / Pyright 静态能力共用该事实源。它保证已有方法可用且 Agent 不臆造依赖，但不代表本项的
+方法覆盖审计完成。
+
 ### 4.2 经典研究复现计划 ⬜
 
 按主题精选代表性研究，不批量复制 factor zoo：

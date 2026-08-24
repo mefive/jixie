@@ -20,6 +20,7 @@ export interface ResearchPythonAnalysis {
   cellId: string;
   definitions: string[];
   references: string[];
+  imports?: string[];
   seriesRequests?: ResearchPythonSeriesRequest[];
   yieldCurveRequests?: ResearchPythonYieldCurveRequest[];
   error?: string;
@@ -78,6 +79,7 @@ class ResearchRuntimeManager {
               cellId: String(cell.cell_id),
               definitions: stringArray(cell.definitions),
               references: stringArray(cell.references),
+              imports: stringArray(cell.imports),
               seriesRequests: researchPythonSeriesRequests(cell.series_requests),
               ...(yieldCurveRequests.length > 0 ? { yieldCurveRequests } : {}),
               ...(typeof cell.error === 'string' ? { error: cell.error } : {}),

@@ -1,5 +1,9 @@
 import { z } from 'zod';
-import { searchResearchSdkAgentCatalog } from '@jixie/shared';
+import {
+  RESEARCH_PYTHON_RUNTIME_CAPABILITIES_V1,
+  RESEARCH_PYTHON_RUNTIME_CATALOG_QUERY_V1,
+  searchResearchSdkAgentCatalog,
+} from '@jixie/shared';
 import { prisma } from '../../lib/prisma.js';
 import { researchCapabilityCatalog } from '../../research/catalog.js';
 import { resolveResearchConceptBindings } from '../../research/concept-binding-resolver.js';
@@ -101,10 +105,15 @@ const CONCEPT_RESULT_CAP = 12;
 export interface ResearchCatalogTurnEvidence {
   sdkReadyBindingIds: Set<string>;
   sdkMethodNames: Set<string>;
+  pythonRuntimeInspected: boolean;
 }
 
 export function createResearchCatalogTurnEvidence(): ResearchCatalogTurnEvidence {
-  return { sdkReadyBindingIds: new Set(), sdkMethodNames: new Set() };
+  return {
+    sdkReadyBindingIds: new Set(),
+    sdkMethodNames: new Set(),
+    pythonRuntimeInspected: false,
+  };
 }
 
 const QUERY_STOP_WORDS = new Set([
@@ -143,8 +152,7 @@ const CONTINUOUS_FUTURE_NAMES: Record<string, { zh: string; en: string }> = {
 export function createSearchResearchCatalogTool(evidence?: ResearchCatalogTurnEvidence): AgentTool {
   return {
     name: 'searchResearchCatalog',
-    description:
-      'Resolve one structured ConceptQuery against the local research catalog. For each semantic variable interpreted from the user, prefer conceptRequests with the verbatim originalText, one canonical conceptId from the supplied manifest, and explicit dimensions such as instrumentForm, quoteCurrency, market, or termYears. Use conceptIds supplied by a loaded playbook only when the user has not specified dimensions; use text for a named object, exact code, or exact Research SDK method such as data.panel or charts.line. SDK method results provide the generated Python signature, parameter defaults, fixed return columns, examples, and PIT or frequency notes. Concept ids resolve only through audited binding allow-list entries, while lexical database search is limited to explicitly named objects. Per-concept results distinguish exact matches, choice-required results, governed alternatives, unavailable capabilities, and sdkAccess; only sdkAccess.status=ready is executable from a Python Cell. Never guess or silently substitute a different source or SDK signature.',
+    description: `Resolve one structured ConceptQuery against the local research catalog. Before proposing any Python Cell, query the exact text ${RESEARCH_PYTHON_RUNTIME_CATALOG_QUERY_V1} and follow the returned fixed-package capability contract; never guess an installed package or reimplement a supplied statistical routine. For each semantic variable interpreted from the user, prefer conceptRequests with the verbatim originalText, one canonical conceptId from the supplied manifest, and explicit dimensions such as instrumentForm, quoteCurrency, market, or termYears. Use conceptIds supplied by a loaded playbook only when the user has not specified dimensions; use text for a named object, exact code, or exact Research SDK method such as data.panel or charts.line. SDK method results provide the generated Python signature, parameter defaults, fixed return columns, examples, and PIT or frequency notes. Concept ids resolve only through audited binding allow-list entries, while lexical database search is limited to explicitly named objects. Per-concept results distinguish exact matches, choice-required results, governed alternatives, unavailable capabilities, and sdkAccess; only sdkAccess.status=ready is executable from a Python Cell. Never guess or silently substitute a different source or SDK signature.`,
     parameters: z.toJSONSchema(argsSchema),
     async run(args) {
       const parsed = argsSchema.safeParse(args);
@@ -153,6 +161,7 @@ export function createSearchResearchCatalogTool(evidence?: ResearchCatalogTurnEv
       }
 
       const sdkMethods = researchSdkMethodsForCatalogQuery(parsed.data.text);
+      const pythonRuntimeRequested = isResearchPythonRuntimeCatalogQuery(parsed.data.text);
       const interpretation = interpretResearchCatalogQuery(parsed.data);
       const { terms, tenorYears } = interpretation;
       const bindingFilters = {
@@ -531,6 +540,9 @@ export function createSearchResearchCatalogTool(evidence?: ResearchCatalogTurnEv
       for (const method of sdkMethods) {
         evidence?.sdkMethodNames.add(method.qualifiedName);
       }
+      if (pythonRuntimeRequested && evidence) {
+        evidence.pythonRuntimeInspected = true;
+      }
       for (const item of resolvedBindings) {
         if (item.available && item.match && researchConceptBindingSdkCall(item.binding)) {
           evidence?.sdkReadyBindingIds.add(item.binding.id);
@@ -544,12 +556,15 @@ export function createSearchResearchCatalogTool(evidence?: ResearchCatalogTurnEv
           conceptRegistryVersion: 1,
           bindingRegistryVersion: 1,
           crossMarketData: compactCrossMarketDataContractRegistry(),
+          ...(pythonRuntimeRequested
+            ? { pythonRuntime: RESEARCH_PYTHON_RUNTIME_CAPABILITIES_V1 }
+            : {}),
           sdkMethods,
           conceptMatches,
           matches,
           capabilities,
         }),
-        rows: matches.length + sdkMethods.length,
+        rows: matches.length + sdkMethods.length + (pythonRuntimeRequested ? 1 : 0),
       };
     },
   };
@@ -561,6 +576,10 @@ export function researchSdkMethodsForCatalogQuery(text: string | undefined) {
   return searchResearchSdkAgentCatalog(text);
 }
 
+export function isResearchPythonRuntimeCatalogQuery(text: string | undefined): boolean {
+  return text?.trim().toLowerCase() === RESEARCH_PYTHON_RUNTIME_CATALOG_QUERY_V1;
+}
+
 export function interpretResearchCatalogQuery(input: ResearchCatalogQueryInput): {
   text: string | null;
   explicitConceptIds: ResearchConceptId[];
@@ -570,6 +589,7 @@ export function interpretResearchCatalogQuery(input: ResearchCatalogQueryInput):
   tenorYears: number | null;
 } {
   const text = input.text?.trim() || null;
+  const pythonRuntimeRequested = isResearchPythonRuntimeCatalogQuery(text ?? undefined);
   const explicitConceptIds = [
     ...new Set([
       ...(input.conceptIds ?? []),
@@ -578,8 +598,9 @@ export function interpretResearchCatalogQuery(input: ResearchCatalogQueryInput):
   ];
   const inferredConceptIds = text ? inferResearchConceptIds(text) : [];
   const conceptIds = [...new Set([...explicitConceptIds, ...inferredConceptIds])];
-  const lexicalTerms = conceptIds.length === 0 && text ? tokenizeCatalogText(text) : [];
-  const stableIdentifiers = text ? stableIdentifiersFromText(text) : [];
+  const lexicalTerms =
+    !pythonRuntimeRequested && conceptIds.length === 0 && text ? tokenizeCatalogText(text) : [];
+  const stableIdentifiers = !pythonRuntimeRequested && text ? stableIdentifiersFromText(text) : [];
   const terms = [...new Set([...lexicalTerms, ...stableIdentifiers])].slice(0, 40);
 
   return {
@@ -587,7 +608,12 @@ export function interpretResearchCatalogQuery(input: ResearchCatalogQueryInput):
     explicitConceptIds,
     inferredConceptIds,
     conceptIds,
-    terms: terms.length > 0 ? terms : conceptIds.length === 0 && text ? [text] : [],
+    terms:
+      terms.length > 0
+        ? terms
+        : !pythonRuntimeRequested && conceptIds.length === 0 && text
+          ? [text]
+          : [],
     tenorYears: input.filters?.termYears ?? (text ? researchCatalogTenorYears(text) : null),
   };
 }

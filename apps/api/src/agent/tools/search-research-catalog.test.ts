@@ -1,12 +1,46 @@
 import { describe, expect, it } from 'vitest';
 import {
+  RESEARCH_PYTHON_RUNTIME_CAPABILITIES_V1,
+  RESEARCH_PYTHON_RUNTIME_CATALOG_QUERY_V1,
+} from '@jixie/shared';
+import {
+  createResearchCatalogTurnEvidence,
+  createSearchResearchCatalogTool,
   interpretResearchCatalogQuery,
+  isResearchPythonRuntimeCatalogQuery,
   researchConceptDimensionMismatches,
   researchCatalogTenorYears,
   researchSdkMethodsForCatalogQuery,
 } from './search-research-catalog.js';
 
 describe('research catalog query interpretation', () => {
+  it('reserves the exact runtime.python query for the fixed Python capability contract', () => {
+    expect(isResearchPythonRuntimeCatalogQuery('runtime.python')).toBe(true);
+    expect(isResearchPythonRuntimeCatalogQuery('scipy')).toBe(false);
+    expect(interpretResearchCatalogQuery({ text: 'runtime.python' })).toMatchObject({
+      text: 'runtime.python',
+      terms: [],
+      conceptIds: [],
+    });
+  });
+
+  it('returns the exact fixed runtime contract and records turn evidence', async () => {
+    const evidence = createResearchCatalogTurnEvidence();
+    const tool = createSearchResearchCatalogTool(evidence);
+
+    const result = await tool.run({ text: RESEARCH_PYTHON_RUNTIME_CATALOG_QUERY_V1 });
+    const observation = JSON.parse(result.observation);
+
+    expect(observation.pythonRuntime).toEqual(RESEARCH_PYTHON_RUNTIME_CAPABILITIES_V1);
+    expect(
+      observation.pythonRuntime.packages.map((item: { distribution: string }) => item.distribution),
+    ).toEqual(['numpy', 'pandas', 'scipy', 'statsmodels', 'matplotlib', 'scikit-learn']);
+    expect(observation.pythonRuntime.outputPolicy.static).toContain('no CJK font');
+    expect(observation.pythonRuntime.outputPolicy.static).toContain('concise English');
+    expect(evidence.pythonRuntimeInspected).toBe(true);
+    expect(result.rows).toBeGreaterThanOrEqual(1);
+  });
+
   it('uses the concept registry for gold and limits lexical lookup to stable named identifiers', () => {
     const interpretation = interpretResearchCatalogQuery({ text: '沪金 AU gold ETF 518880' });
 

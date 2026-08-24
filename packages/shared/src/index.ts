@@ -24,4 +24,5 @@ export * from './research-sdk-agent-catalog.js';
 export * from './research-sdk-python-signature.js';
 export * from './research-sdk-python-stub.js';
 export * from './research-language.js';
+export * from './research-python-runtime.js';
 export * from './library.js';
