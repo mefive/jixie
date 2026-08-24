@@ -18,7 +18,15 @@ export interface ResearchPythonAnalysis {
   cellId: string;
   definitions: string[];
   references: string[];
+  seriesRequests?: ResearchPythonSeriesRequest[];
   error?: string;
+}
+
+export interface ResearchPythonSeriesRequest {
+  line: number;
+  assetType: string | null;
+  identifier: string | null;
+  measure: string | null;
 }
 
 export interface ResearchPythonExecution {
@@ -59,6 +67,7 @@ class ResearchRuntimeManager {
             cellId: String(cell.cell_id),
             definitions: stringArray(cell.definitions),
             references: stringArray(cell.references),
+            seriesRequests: researchPythonSeriesRequests(cell.series_requests),
             ...(typeof cell.error === 'string' ? { error: cell.error } : {}),
           }));
         }
@@ -360,4 +369,24 @@ function stringArray(value: unknown): string[] {
   return Array.isArray(value)
     ? value.filter((item): item is string => typeof item === 'string')
     : [];
+}
+
+function researchPythonSeriesRequests(value: unknown): ResearchPythonSeriesRequest[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.flatMap((item) => {
+    if (!item || typeof item !== 'object') {
+      return [];
+    }
+    const request = item as Record<string, unknown>;
+    return [
+      {
+        line: typeof request.line === 'number' ? request.line : 0,
+        assetType: typeof request.asset_type === 'string' ? request.asset_type : null,
+        identifier: typeof request.identifier === 'string' ? request.identifier : null,
+        measure: typeof request.measure === 'string' ? request.measure : null,
+      },
+    ];
+  });
 }

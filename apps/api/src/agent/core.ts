@@ -5,6 +5,7 @@ import {
   type Locale,
   type MessagePart,
   type ResearchCellChangeProposalV1,
+  type ResearchClarificationV1,
   type ToolTraceItem,
 } from '@jixie/shared';
 import type { AgentLlm, ToolAwareMessage, ToolCall } from '../llm/agent-llm.js';
@@ -60,6 +61,7 @@ export interface AgentTurnResult {
   universes: AgentUniverse[]; // entity universes side-produced by runUniverse tool calls this turn
   charts: AgentChart[]; // chart cards side-produced by renderChart tool calls this turn
   researchCellChanges: ResearchCellChangeProposalV1[]; // pending, user-applied Cell changes
+  researchClarifications: ResearchClarificationV1[]; // pending, user-answerable semantic choices
 }
 
 /** Hard cap on tool-executing rounds per turn; after that the model must answer with what it has. */
@@ -141,6 +143,9 @@ export function turnParts(result: AgentTurnResult): MessagePart[] {
     ...result.researchCellChanges.map(
       (proposal): MessagePart => ({ type: 'research_cell_change', proposal }),
     ),
+    ...result.researchClarifications.map(
+      (clarification): MessagePart => ({ type: 'research_clarification', clarification }),
+    ),
   ];
 }
 
@@ -201,12 +206,14 @@ async function executeToolCall(
   tools: AgentTool[],
   call: ToolCall,
   signal?: AbortSignal,
+  blockedReason?: string,
 ): Promise<{
   observation: string;
   trace: ToolTraceItem;
   universe?: AgentUniverse;
   chart?: AgentChart;
   researchCellChange?: ResearchCellChangeProposalV1;
+  researchClarification?: ResearchClarificationV1;
 }> {
   const startedAt = Date.now();
   const argsSummary = (call.args || '{}').slice(0, 200);
@@ -214,6 +221,10 @@ async function executeToolCall(
     observation,
     trace: { name: call.name, argsSummary, ok: false, ms: Date.now() - startedAt },
   });
+
+  if (blockedReason) {
+    return fail(blockedReason);
+  }
 
   const tool = tools.find((candidate) => candidate.name === call.name);
   if (!tool) {
@@ -234,6 +245,7 @@ async function executeToolCall(
       universe: result.universe,
       chart: result.chart,
       researchCellChange: result.researchCellChange,
+      researchClarification: result.researchClarification,
       trace: {
         name: call.name,
         argsSummary,
@@ -288,6 +300,7 @@ export async function agentTurn(
   const universes: AgentUniverse[] = [];
   const charts: AgentChart[] = [];
   const researchCellChanges: ResearchCellChangeProposalV1[] = [];
+  const researchClarifications: ResearchClarificationV1[] = [];
   let attempts = 0;
   let raw = '';
   let toolRounds = 0;
@@ -342,7 +355,11 @@ export async function agentTurn(
       for (const call of requestedToolCalls) {
         throwIfAborted();
         hooks?.onToolStart?.(call.name, (call.args || '{}').slice(0, 200));
-        const executed = await executeToolCall(tools, call, hooks?.signal);
+        const blockedReason =
+          call.name === 'proposeResearchCellChanges' && researchClarifications.length > 0
+            ? 'A Research clarification was already created in this turn. Wait for the user answer before proposing Cell changes.'
+            : undefined;
+        const executed = await executeToolCall(tools, call, hooks?.signal, blockedReason);
         toolTrace.push(executed.trace);
         hooks?.onToolDone?.(executed.trace, {
           modelCall,
@@ -358,6 +375,12 @@ export async function agentTurn(
         }
         if (executed.researchCellChange) {
           researchCellChanges.push(executed.researchCellChange);
+        }
+        if (executed.researchClarification) {
+          // Clarification wins over a draft generated earlier in the same uncommitted turn. This
+          // keeps the durable outcome deterministic even when a provider issues tools out of order.
+          researchCellChanges.length = 0;
+          researchClarifications.push(executed.researchClarification);
         }
         messages.push({ role: 'tool', toolCallId: call.id, content: executed.observation });
       }
@@ -415,6 +438,7 @@ export async function agentTurn(
       universes,
       charts,
       researchCellChanges,
+      researchClarifications,
     };
   }
 
@@ -431,6 +455,7 @@ export async function agentTurn(
       universes,
       charts,
       researchCellChanges,
+      researchClarifications,
     };
   }
 
@@ -464,6 +489,7 @@ export async function agentTurn(
         universes,
         charts,
         researchCellChanges,
+        researchClarifications,
       };
     } catch (e) {
       lastError = e instanceof Error ? e.message : String(e);
@@ -490,5 +516,6 @@ export async function agentTurn(
     universes,
     charts,
     researchCellChanges,
+    researchClarifications,
   };
 }

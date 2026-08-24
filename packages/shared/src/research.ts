@@ -305,10 +305,53 @@ export interface ResearchConversationMessages {
 
 export type ResearchCellKindV1 = 'markdown' | 'python';
 export type ResearchCellStatusV1 = 'idle' | 'running' | 'success' | 'error' | 'stale';
+export type ResearchClarificationStatusV1 = 'pending' | 'answered' | 'superseded';
+export type ResearchClarificationSelectionModeV1 = 'single' | 'multiple';
+export type ResearchClarificationOptionKindV1 = 'concept' | 'binding' | 'keep_gap';
 export type ResearchCellChangeProposalStatusV1 = 'pending' | 'applied' | 'rejected' | 'conflicted';
 export type ResearchCellChangeReviewStatusV1 = 'open' | 'accepted' | 'reverted';
 export type ResearchCellChangeAttemptStatusV1 = 'running' | 'success' | 'error' | 'cancelled';
 export type ResearchCellChangeAttemptScopeV1 = 'affected' | 'clean_document';
+
+export interface ResearchClarificationOptionV1 {
+  id: string;
+  kind: ResearchClarificationOptionKindV1;
+  referenceId?: string;
+  labelZh: string;
+  labelEn: string;
+  descriptionZh: string;
+  descriptionEn: string;
+}
+
+export interface ResearchClarificationQuestionV1 {
+  id: string;
+  prompt: string;
+  selectionMode: ResearchClarificationSelectionModeV1;
+  options: ResearchClarificationOptionV1[];
+  allowCustom: boolean;
+}
+
+export interface ResearchClarificationSelectionV1 {
+  questionId: string;
+  selectedOptionIds: string[];
+  customText?: string;
+}
+
+export interface ResearchClarificationAnswerV1 {
+  selections: ResearchClarificationSelectionV1[];
+  answeredAt: string;
+}
+
+export interface ResearchClarificationV1 {
+  version: 1;
+  id: string;
+  documentId: string;
+  title: string;
+  status: ResearchClarificationStatusV1;
+  questions: ResearchClarificationQuestionV1[];
+  answer?: ResearchClarificationAnswerV1;
+  createdAt: string;
+}
 
 interface ResearchCellChangeOperationBaseV1 {
   operationId: string;

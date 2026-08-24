@@ -186,6 +186,7 @@ import type {
   ResearchCellChangeRunResultV1,
   ResearchCellChangeResolutionResultV1,
   ResearchCellChangeReviewResolutionResultV1,
+  ResearchClarificationSelectionV1,
   ResearchDocumentAnalysisV1,
   ResearchDocumentInterruptResultV1,
   ResearchDocumentRunResultV1,
@@ -487,6 +488,20 @@ export function sendResearchAgent(
       message,
       ...(conversationId ? { conversationId } : {}),
       ...(attemptId ? { attemptId } : {}),
+    }),
+  });
+}
+
+export function answerResearchClarification(
+  conversationId: string,
+  clarificationId: string,
+  selections: ResearchClarificationSelectionV1[],
+): Promise<{ conversationId: string; turnId: string }> {
+  return request('/api/app/research/agent', {
+    method: 'POST',
+    body: JSON.stringify({
+      conversationId,
+      clarificationAnswer: { clarificationId, selections },
     }),
   });
 }

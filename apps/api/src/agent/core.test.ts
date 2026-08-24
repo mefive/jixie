@@ -516,6 +516,81 @@ describe('agentTurn tool loop', () => {
     expect(turnParts(result)).toContainEqual({ type: 'research_cell_change', proposal });
   });
 
+  it('keeps clarification as the only durable outcome when a provider also drafts changes', async () => {
+    const proposal = {
+      version: 1 as const,
+      id: 'proposal-1',
+      documentId: 'document-1',
+      title: 'Draft',
+      summary: 'Draft before the data identity was confirmed.',
+      status: 'pending' as const,
+      expectedDocumentUpdatedAt: '2026-08-18T08:00:00.000Z',
+      expectedDocumentContentRevision: 1,
+      operations: [],
+      createdAt: '2026-08-18T08:00:00.000Z',
+    };
+    const clarification = {
+      version: 1 as const,
+      id: 'clarification-1',
+      documentId: 'document-1',
+      title: 'Choose the data identity',
+      status: 'pending' as const,
+      questions: [
+        {
+          id: 'question-1',
+          prompt: 'Which proxy?',
+          selectionMode: 'single' as const,
+          allowCustom: true,
+          options: [
+            {
+              id: 'keep_gap',
+              kind: 'keep_gap' as const,
+              labelZh: '不使用代理',
+              labelEn: 'Do not substitute',
+              descriptionZh: '保留缺口',
+              descriptionEn: 'Keep the gap',
+            },
+          ],
+        },
+      ],
+      createdAt: '2026-08-18T08:00:00.000Z',
+    };
+    const proposalTool = fakeTool('proposeResearchCellChanges', async () => ({
+      observation: '{"status":"pending"}',
+      researchCellChange: proposal,
+    }));
+    const clarificationTool = fakeTool('requestResearchClarification', async () => ({
+      observation: '{"status":"pending"}',
+      researchClarification: clarification,
+    }));
+    const llm = scriptedLlm([
+      {
+        toolCalls: [
+          { id: 'p1', name: proposalTool.name, args: '{}' },
+          { id: 'q1', name: clarificationTool.name, args: '{}' },
+          { id: 'p2', name: proposalTool.name, args: '{}' },
+        ],
+      },
+      { text: 'Please confirm the data identity.' },
+    ]);
+
+    const result = await agentTurn(
+      toolProfile([proposalTool, clarificationTool], false),
+      [],
+      'Analyze it',
+      '',
+      llm,
+    );
+
+    expect(result.researchCellChanges).toEqual([]);
+    expect(result.researchClarifications).toEqual([clarification]);
+    expect(result.toolTrace).toEqual([
+      expect.objectContaining({ name: 'proposeResearchCellChanges', ok: true }),
+      expect.objectContaining({ name: 'requestResearchClarification', ok: true }),
+      expect.objectContaining({ name: 'proposeResearchCellChanges', ok: false }),
+    ]);
+  });
+
   it('fires streaming hooks: deltas forwarded, tool start/done, repair announced (no repair deltas)', async () => {
     const tool = fakeTool('echo', async () => ({ observation: '{}', rows: 2 }));
     const validate = vi

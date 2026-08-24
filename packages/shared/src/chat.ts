@@ -1,5 +1,9 @@
 import type { ChartSpec } from './chart.js';
-import type { ResearchCellChangeProposalV1, UniverseSpecV1 } from './research.js';
+import type {
+  ResearchCellChangeProposalV1,
+  ResearchClarificationV1,
+  UniverseSpecV1,
+} from './research.js';
 
 /**
  * Agent conversation messages. Typed parts persist the deterministic chart/research/universe spec or
@@ -32,7 +36,18 @@ export interface ResearchCellChangePart {
   proposal: ResearchCellChangeProposalV1;
 }
 
-export type MessagePart = TextPart | ChartPart | UniversePart | ResearchCellChangePart;
+/** A durable, document-bound question that pauses semantic substitution until the user answers. */
+export interface ResearchClarificationPart {
+  type: 'research_clarification';
+  clarification: ResearchClarificationV1;
+}
+
+export type MessagePart =
+  | TextPart
+  | ChartPart
+  | UniversePart
+  | ResearchCellChangePart
+  | ResearchClarificationPart;
 
 export interface ChatMessage {
   id?: string;
@@ -95,6 +110,21 @@ export function messageText(message: ChatMessage): string {
           return `(research universe: ${part.title}, predicates=${part.spec.predicates.length})`;
         case 'research_cell_change':
           return `(research cell change proposal: ${part.proposal.title}, status=${part.proposal.status}, operations=${part.proposal.operations.length})`;
+        case 'research_clarification': {
+          const selections = part.clarification.answer?.selections
+            .map((selection) => {
+              const question = part.clarification.questions.find(
+                (candidate) => candidate.id === selection.questionId,
+              );
+              const references = selection.selectedOptionIds.flatMap((optionId) => {
+                const option = question?.options.find((candidate) => candidate.id === optionId);
+                return option?.referenceId ? [`${option.kind}:${option.referenceId}`] : [optionId];
+              });
+              return `${selection.questionId}=${references.join(',')}${selection.customText ? `;custom=${selection.customText}` : ''}`;
+            })
+            .join(' | ');
+          return `(research clarification: ${part.clarification.title}, status=${part.clarification.status}${selections ? `, answer=${selections}` : ''})`;
+        }
       }
     })
     .join('\n')
@@ -107,6 +137,10 @@ function isMessagePart(value: unknown): value is MessagePart {
   }
   const type = (value as { type?: unknown }).type;
   return (
-    type === 'text' || type === 'chart' || type === 'universe' || type === 'research_cell_change'
+    type === 'text' ||
+    type === 'chart' ||
+    type === 'universe' ||
+    type === 'research_cell_change' ||
+    type === 'research_clarification'
   );
 }

@@ -1,5 +1,5 @@
 import type { ResearchSeriesSourceV1 } from '@jixie/shared';
-import type { ResearchConceptId } from './concepts.js';
+import type { ResearchConceptDimensionsV1, ResearchConceptId } from './concepts.js';
 import {
   researchBindingDataContract,
   type ResearchBindingDataContractProjectionV1,
@@ -19,6 +19,7 @@ export interface ResearchConceptBindingV1 {
   measureVersion: 1;
   proxyKind: 'canonical' | 'approved_proxy';
   priority: number;
+  dimensions: ResearchConceptDimensionsV1;
   contract: ResearchBindingDataContractV1;
   selectionNoteZh: string;
   selectionNoteEn: string;
@@ -42,6 +43,8 @@ const marketBenchmarkBindings: ResearchConceptBindingV1[] = [
     sourceId: 'equity.cn.csi300.price',
     nameZh: '沪深 300 价格指数',
     nameEn: 'CSI 300 Price Index',
+    market: 'CN',
+    quoteCurrency: 'CNY',
     contract: cnBenchmarkContract,
     noteZh: '中国本币价格指数，不含股息再投资；可交易代理为 510300.SH。',
     noteEn:
@@ -53,6 +56,8 @@ const marketBenchmarkBindings: ResearchConceptBindingV1[] = [
     sourceId: 'equity.hk.hsi.price',
     nameZh: '恒生价格指数',
     nameEn: 'Hang Seng Price Index',
+    market: 'HK',
+    quoteCurrency: 'HKD',
     contract: hkBenchmarkContract,
     noteZh:
       '港币价格指数，不含股息再投资；中国收盘研究使用下一上交所交易日，可交易代理为 159920.SZ。',
@@ -65,6 +70,8 @@ const marketBenchmarkBindings: ResearchConceptBindingV1[] = [
     sourceId: 'equity.us.spx.price',
     nameZh: '标普 500 价格指数',
     nameEn: 'S&P 500 Price Index',
+    market: 'US',
+    quoteCurrency: 'USD',
     contract: usBenchmarkContract,
     noteZh:
       '美元价格指数，不含股息再投资；中国收盘研究使用下一上交所交易日，可交易代理为 513500.SH。',
@@ -81,7 +88,7 @@ const goldInstrumentBindings: ResearchConceptBindingV1[] = [
     sourceId: 'AU.SHF',
     nameZh: '沪金主力连续',
     nameEn: 'SHFE gold continuous future',
-    proxyKind: 'canonical',
+    proxyKind: 'approved_proxy',
     priority: 10,
     noteZh: '人民币计价的连续期货代理，不等同于美元现货黄金。',
     noteEn: 'A CNY continuous-future proxy; it is not USD spot gold.',
@@ -119,7 +126,7 @@ const silverInstrumentBindings: ResearchConceptBindingV1[] = [
     sourceId: 'AG.SHF',
     nameZh: '沪银主力连续',
     nameEn: 'SHFE silver continuous future',
-    proxyKind: 'canonical',
+    proxyKind: 'approved_proxy',
     priority: 10,
     noteZh: '人民币计价的连续期货代理，不等同于美元现货白银。',
     noteEn: 'A CNY continuous-future proxy; it is not USD spot silver.',
@@ -163,6 +170,7 @@ const macroBindings: ResearchConceptBindingV1[] = [
     measureVersion: 1,
     proxyKind: 'canonical',
     priority: 10,
+    dimensions: { instrumentForm: 'macro_series', market: 'US' },
     contract: usBlsMacroContract,
     selectionNoteZh: '原始 CPI 指数；同比由 Python 研究代码计算，不代表核心 CPI 或季调月环比。',
     selectionNoteEn:
@@ -179,6 +187,7 @@ const macroBindings: ResearchConceptBindingV1[] = [
     measureVersion: 1,
     proxyKind: 'canonical',
     priority: 10,
+    dimensions: { instrumentForm: 'macro_series', market: 'CN' },
     contract: chinaMacroContract,
     selectionNoteZh: '居民消费价格同比序列，不代表美国通胀。',
     selectionNoteEn:
@@ -206,6 +215,28 @@ export function researchConceptBindings(conceptId: ResearchConceptId): ResearchC
     .sort((left, right) => left.priority - right.priority || left.id.localeCompare(right.id));
 }
 
+export interface ResearchConceptBindingSdkCallV1 {
+  method: 'data.series';
+  assetType: 'stock' | 'etf' | 'index' | 'future';
+  identifier: string;
+  measure: string;
+}
+
+/** Return the exact public Research SDK call for a binding, or null when it is not exposed yet. */
+export function researchConceptBindingSdkCall(
+  binding: ResearchConceptBindingV1,
+): ResearchConceptBindingSdkCallV1 | null {
+  if (binding.source.kind !== 'instrument') {
+    return null;
+  }
+  return {
+    method: 'data.series',
+    assetType: binding.source.assetType,
+    identifier: binding.source.id,
+    measure: binding.measure,
+  };
+}
+
 function instrumentBinding(input: {
   id: string;
   conceptId: ResearchConceptId;
@@ -231,6 +262,11 @@ function instrumentBinding(input: {
     measureVersion: 1,
     proxyKind: input.proxyKind,
     priority: input.priority,
+    dimensions: {
+      instrumentForm: input.assetType === 'future' ? 'continuous_future' : 'etf',
+      quoteCurrency: 'CNY',
+      market: 'CN',
+    },
     contract,
     selectionNoteZh: input.noteZh,
     selectionNoteEn: input.noteEn,
@@ -246,6 +282,8 @@ function benchmarkBinding(input: {
   sourceId: string;
   nameZh: string;
   nameEn: string;
+  market: 'CN' | 'HK' | 'US';
+  quoteCurrency: 'CNY' | 'HKD' | 'USD';
   contract: ResearchBindingDataContractV1;
   noteZh: string;
   noteEn: string;
@@ -261,6 +299,11 @@ function benchmarkBinding(input: {
     measureVersion: 1,
     proxyKind: 'canonical',
     priority: 10,
+    dimensions: {
+      instrumentForm: 'price_index',
+      market: input.market,
+      quoteCurrency: input.quoteCurrency,
+    },
     contract: input.contract,
     selectionNoteZh: input.noteZh,
     selectionNoteEn: input.noteEn,
@@ -292,6 +335,7 @@ function yieldBinding(input: {
     measureVersion: 1,
     proxyKind: 'canonical',
     priority: input.priority,
+    dimensions: { instrumentForm: 'yield_curve', market: 'US', termYears: input.termYears },
     contract: usYieldContract,
     selectionNoteZh: '必须明确期限；名义收益率与实际收益率不能互换。',
     selectionNoteEn: 'Tenor must be explicit; nominal and real yields are not interchangeable.',

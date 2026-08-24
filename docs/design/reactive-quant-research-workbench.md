@@ -612,6 +612,26 @@ Panel 完成数据整理、统计计算与静态/交互图，Agent 查询 SDK �
 阶段状态的流式/刷新恢复，以及本地 Web、API、sandboxd 一键启动和缺失提示。整改分别经过集成测试、类型检查、
 生产构建和针对性浏览器验证，不再重新制造一套重复的大型验收流程。
 
+### 2026-08-24 Agent 语义确认校正
+
+本次校正收口第 5、6 项中“Agent 修改同一文档”和“代码可执行后再固化”的前置语义门：
+
+- Agent prompt 直接获得精简但完整的版本化 Concept Manifest，只能从受控 Concept id 中解释用户原话，并且只能
+  提取该 Concept 声明的 `instrumentForm`、市场、计价货币和期限等维度；关键词检索不再承担用户意图到 Concept
+  的主映射。
+- `searchResearchCatalog` 仍是 Concept 到 Binding 的唯一事实源，同时明确区分“数据库存在”与“公开 Research
+  Python SDK 可执行”。只有 `sdkAccess.status=ready` 的 Binding 才能进入 Python 或成为代理选项；例如收益率数据
+  已落库但尚无公开 Python loader 时，必须显示 `not_exposed`，不能臆造 `data.series` 调用。
+- 当精确口径不存在但存在可执行代理，Agent 必须生成持久化选择卡，展示代理差异、`不使用代理` 和可选自定义
+  回答。卡片与独立 `ResearchClarification` 记录原子保存；待确认期间暂停自由输入和 Cell Diff，用户回答后以精确
+  Concept/Binding reference 开启新 Agent turn，刷新仍可恢复待确认或已确认状态。
+- 后端不只依赖 prompt：同一 turn 内确认卡优先于 Cell Diff，未回答确认会拒绝新提案；Agent 提交的
+  `data.series` 由 Python AST 提取品种类型、identifier 和 measure，并在 Diff 展示前与 Research SDK Catalog
+  精确核对。动态或不存在的品种身份、未查询的 SDK Contract 和不兼容 measure 均会被拒绝。
+
+浏览器验收已覆盖“待确认卡 → 选择沪金代理 → 回答落库 → 刷新后仍为已确认”，并验证待确认期间普通 Agent
+输入被禁用。该校正没有扩大数据覆盖面；新的收益率、宏观或外汇 Python loader 仍按数据语义目录单独建设。
+
 至此本节第 1–7 项均已闭环。方法模板、FactorReport / BacktestReport 回流、全局快照搜索、底层数据副本和自动
 运行差异归因继续留在 backlog，不属于首版完成条件。
 

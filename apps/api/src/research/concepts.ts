@@ -17,6 +17,30 @@ export const RESEARCH_CONCEPT_IDS = [
 export type ResearchConceptId = (typeof RESEARCH_CONCEPT_IDS)[number];
 export type ResearchCatalogSourceKind = 'instrument' | 'macro' | 'yield_curve' | 'fx';
 export type ResearchCatalogAssetType = 'stock' | 'etf' | 'index' | 'future';
+export const RESEARCH_CONCEPT_INSTRUMENT_FORMS = [
+  'spot',
+  'continuous_future',
+  'etf',
+  'price_index',
+  'yield_curve',
+  'macro_series',
+  'fx_rate',
+] as const;
+export const RESEARCH_CONCEPT_MARKETS = ['CN', 'HK', 'US', 'GLOBAL'] as const;
+export const RESEARCH_CONCEPT_QUOTE_CURRENCIES = ['CNY', 'HKD', 'USD'] as const;
+export const RESEARCH_CONCEPT_SELECTION_DIMENSIONS = [
+  'instrumentForm',
+  'quoteCurrency',
+  'market',
+  'termYears',
+] as const;
+
+export interface ResearchConceptDimensionsV1 {
+  instrumentForm?: (typeof RESEARCH_CONCEPT_INSTRUMENT_FORMS)[number];
+  quoteCurrency?: (typeof RESEARCH_CONCEPT_QUOTE_CURRENCIES)[number];
+  market?: (typeof RESEARCH_CONCEPT_MARKETS)[number];
+  termYears?: number;
+}
 
 export interface ResearchConceptDefinitionV1 {
   id: ResearchConceptId;
@@ -27,6 +51,7 @@ export interface ResearchConceptDefinitionV1 {
   descriptionZh: string;
   descriptionEn: string;
   aliases: string[];
+  selectionDimensions: (typeof RESEARCH_CONCEPT_SELECTION_DIMENSIONS)[number][];
   doNotSubstitute?: ResearchConceptId[];
 }
 
@@ -41,6 +66,7 @@ const concepts: Record<ResearchConceptId, ResearchConceptDefinitionV1> = {
     descriptionEn:
       'Registered broad China equity price index; its price return excludes dividend reinvestment.',
     aliases: ['中国股市', 'A股市场', '中国股票市场', '沪深300', 'csi 300', 'china equity'],
+    selectionDimensions: [],
     doNotSubstitute: ['equity.market.hk.benchmark', 'equity.market.us.benchmark'],
   },
   'equity.market.hk.benchmark': {
@@ -53,6 +79,7 @@ const concepts: Record<ResearchConceptId, ResearchConceptDefinitionV1> = {
     descriptionEn:
       'Registered broad Hong Kong equity price index; local-currency and CNY returns must remain explicit.',
     aliases: ['香港股市', '港股市场', '香港股票市场', '恒生指数', 'hsi', 'hang seng'],
+    selectionDimensions: [],
     doNotSubstitute: ['equity.market.cn.benchmark', 'equity.market.us.benchmark'],
   },
   'equity.market.us.benchmark': {
@@ -65,6 +92,7 @@ const concepts: Record<ResearchConceptId, ResearchConceptDefinitionV1> = {
     descriptionEn:
       'Registered broad US equity price index; local-currency and CNY returns must remain explicit.',
     aliases: ['美国股市', '美股市场', '美国股票市场', '标普500', 's&p 500', 'spx', 'us equity'],
+    selectionDimensions: [],
     doNotSubstitute: ['equity.market.cn.benchmark', 'equity.market.hk.benchmark'],
   },
   'commodity.gold.price': {
@@ -77,6 +105,7 @@ const concepts: Record<ResearchConceptId, ResearchConceptDefinitionV1> = {
     descriptionEn:
       'Gold-price proxies such as spot, continuous futures, or gold ETFs; currency and product type must remain explicit.',
     aliases: ['黄金', '沪金', 'gold', 'gold price', 'gold future', 'xau', 'comex gold'],
+    selectionDimensions: ['instrumentForm', 'quoteCurrency', 'market'],
   },
   'commodity.silver.price': {
     id: 'commodity.silver.price',
@@ -87,6 +116,7 @@ const concepts: Record<ResearchConceptId, ResearchConceptDefinitionV1> = {
     descriptionZh: '白银价格代理，包括现货、连续期货或白银 ETF。',
     descriptionEn: 'Silver-price proxies such as spot, continuous futures, or silver ETFs.',
     aliases: ['白银', '沪银', 'silver', 'silver price', 'xag'],
+    selectionDimensions: ['instrumentForm', 'quoteCurrency', 'market'],
   },
   'rates.us_treasury.nominal': {
     id: 'rates.us_treasury.nominal',
@@ -104,6 +134,7 @@ const concepts: Record<ResearchConceptId, ResearchConceptDefinitionV1> = {
       'treasury yield',
       'nominal treasury yield',
     ],
+    selectionDimensions: ['termYears'],
   },
   'rates.us_treasury.real': {
     id: 'rates.us_treasury.real',
@@ -125,6 +156,7 @@ const concepts: Record<ResearchConceptId, ResearchConceptDefinitionV1> = {
       'us real yield',
       'tips yield',
     ],
+    selectionDimensions: ['termYears'],
   },
   'fx.usd_strength.dxy': {
     id: 'fx.usd_strength.dxy',
@@ -136,6 +168,7 @@ const concepts: Record<ResearchConceptId, ResearchConceptDefinitionV1> = {
     descriptionEn:
       'The US dollar against a basket of major currencies, not a substitute for any bilateral USD pair.',
     aliases: ['美元指数', '美元强弱', 'dxy', 'dollar index', 'usd index', 'us dollar index'],
+    selectionDimensions: [],
   },
   'macro.inflation.us': {
     id: 'macro.inflation.us',
@@ -146,6 +179,7 @@ const concepts: Record<ResearchConceptId, ResearchConceptDefinitionV1> = {
     descriptionZh: '美国消费者价格或其他显式登记的美国通胀序列。',
     descriptionEn: 'US consumer-price or another explicitly registered US inflation series.',
     aliases: ['美国通胀', 'us inflation', 'american inflation'],
+    selectionDimensions: [],
     doNotSubstitute: ['macro.inflation.cn'],
   },
   'macro.inflation.us.cpi.headline': {
@@ -167,6 +201,7 @@ const concepts: Record<ResearchConceptId, ResearchConceptDefinitionV1> = {
       'headline cpi',
       'cpi-u all items',
     ],
+    selectionDimensions: [],
     doNotSubstitute: ['macro.inflation.cn'],
   },
   'macro.inflation.cn': {
@@ -178,6 +213,7 @@ const concepts: Record<ResearchConceptId, ResearchConceptDefinitionV1> = {
     descriptionZh: '中国消费者价格或其他显式登记的中国通胀序列。',
     descriptionEn: 'China consumer-price or another explicitly registered China inflation series.',
     aliases: ['中国通胀', '中国cpi', '居民消费价格', 'china inflation', 'china cpi', 'cn cpi'],
+    selectionDimensions: [],
     doNotSubstitute: ['macro.inflation.us'],
   },
   'risk.market_stress.vix': {
@@ -189,6 +225,7 @@ const concepts: Record<ResearchConceptId, ResearchConceptDefinitionV1> = {
     descriptionZh: '以 VIX 为代表的期权隐含市场压力指标。',
     descriptionEn: 'Option-implied market stress represented by the VIX index.',
     aliases: ['市场压力', '恐慌指数', '避险情绪', 'vix', 'market stress', 'risk aversion'],
+    selectionDimensions: [],
   },
   'flows.central_bank.gold_reserves': {
     id: 'flows.central_bank.gold_reserves',
@@ -205,6 +242,7 @@ const concepts: Record<ResearchConceptId, ResearchConceptDefinitionV1> = {
       'central bank gold buying',
       'central bank gold reserves',
     ],
+    selectionDimensions: [],
   },
 };
 
@@ -215,6 +253,18 @@ export const researchConceptRegistry = {
 
 export const researchConceptById: ReadonlyMap<ResearchConceptId, ResearchConceptDefinitionV1> =
   new Map(researchConceptRegistry.concepts.map((concept) => [concept.id, concept]));
+
+/** Compact controlled vocabulary supplied to the LLM. Instrument rows remain dynamic catalog data. */
+export function compactResearchConceptManifest() {
+  return researchConceptRegistry.concepts.map((concept) => ({
+    id: concept.id,
+    nameZh: concept.nameZh,
+    nameEn: concept.nameEn,
+    descriptionEn: concept.descriptionEn,
+    selectionDimensions: concept.selectionDimensions,
+    doNotSubstitute: concept.doNotSubstitute ?? [],
+  }));
+}
 
 export function inferResearchConceptIds(text: string): ResearchConceptId[] {
   const normalizedText = normalizeConceptText(text);

@@ -1,6 +1,7 @@
 import { Hono, type Context } from 'hono';
 import { ulid } from 'ulid';
 import { z } from 'zod';
+import type { ResearchClarificationV1 } from '@jixie/shared';
 import { apiError, validateJson, validateQuery } from '../lib/httpError.js';
 import { initializeJobLogs } from '../lib/jobs.js';
 import { wakeJobQueue } from '../lib/job-queue.js';
@@ -9,6 +10,11 @@ import { researchProfile } from '../agent/profiles/research.js';
 import { enqueueAgentTurn, entityKey } from '../agent/turn-run.js';
 import * as turnBus from '../agent/turn-bus.js';
 import { createProposeResearchCellChangesTool } from '../agent/tools/propose-research-cell-changes.js';
+import { createRequestResearchClarificationTool } from '../agent/tools/request-research-clarification.js';
+import {
+  createResearchCatalogTurnEvidence,
+  createSearchResearchCatalogTool,
+} from '../agent/tools/search-research-catalog.js';
 import { localeFromRequest, m } from '../i18n/index.js';
 import {
   curatorFindingUpdateSchema,
@@ -26,6 +32,10 @@ import {
   promoteResearchExecution,
   ResearchExecutionPromotionUnavailableError,
 } from '../research/research-execution-records.js';
+import {
+  ResearchClarificationAnswerError,
+  resolveResearchClarificationAnswer,
+} from '../research/research-clarification-records.js';
 import {
   createResearchFactorDraft,
   ResearchFactorDraftUnavailableError,
@@ -629,19 +639,48 @@ researchRoute.get('/conversations', async (c) => {
   );
 });
 
-const agentBody = z.strictObject({
-  conversationId: z.string().min(1).optional(),
-  message: z.string().trim().min(1).max(2000),
-  attemptId: z.string().min(1).max(80).optional(),
+const clarificationSelectionSchema = z.strictObject({
+  questionId: z.string().min(1).max(80),
+  selectedOptionIds: z.array(z.string().min(1).max(200)).max(4).default([]),
+  customText: z.string().trim().min(1).max(500).optional(),
 });
+const agentBody = z
+  .strictObject({
+    conversationId: z.string().min(1).optional(),
+    message: z.string().trim().min(1).max(2000).optional(),
+    attemptId: z.string().min(1).max(80).optional(),
+    clarificationAnswer: z
+      .strictObject({
+        clarificationId: z.string().min(1).max(80),
+        selections: z.array(clarificationSelectionSchema).min(1).max(3),
+      })
+      .optional(),
+  })
+  .superRefine((value, context) => {
+    if (Boolean(value.message) === Boolean(value.clarificationAnswer)) {
+      context.addIssue({
+        code: 'custom',
+        message: 'Provide exactly one of message or clarificationAnswer.',
+      });
+    }
+    if (value.clarificationAnswer && (!value.conversationId || value.attemptId)) {
+      context.addIssue({
+        code: 'custom',
+        path: ['clarificationAnswer'],
+        message:
+          'A clarification answer requires its conversationId and cannot explain an attempt.',
+      });
+    }
+  });
 const MAX_RESEARCH_AGENT_CONTEXT_CELLS = 100;
 const MAX_RESEARCH_AGENT_SOURCE_CHARACTERS = 48_000;
 const MAX_RESEARCH_AGENT_ATTEMPT_CHARACTERS = 32_000;
 
 researchRoute.post('/agent', validateJson(agentBody), async (c) => {
-  const { message, attemptId } = c.req.valid('json');
+  const input = c.req.valid('json');
+  const { attemptId, clarificationAnswer } = input;
   const userId = c.var.userId;
-  let conversationId = c.req.valid('json').conversationId;
+  let conversationId = input.conversationId;
   if (conversationId) {
     const existing = await prisma.agentConversation.findFirst({
       where: { id: conversationId, userId, surface: 'research', archivedAt: null },
@@ -657,13 +696,37 @@ researchRoute.post('/agent', validateJson(agentBody), async (c) => {
         id: conversationId,
         userId,
         surface: 'research',
-        title: message.slice(0, 60),
+        title: input.message!.slice(0, 60),
       },
     });
   }
   const entity = { kind: 'research' as const, id: conversationId };
   if (turnBus.findRunning(entityKey(entity), userId)) {
     return apiError(c, 'VALIDATION_FAILED', m(c, 'conversationTurnInProgress'));
+  }
+  let message = input.message ?? '';
+  if (clarificationAnswer) {
+    try {
+      const clarification = await resolveResearchClarificationAnswer(
+        userId,
+        conversationId,
+        clarificationAnswer.clarificationId,
+        clarificationAnswer.selections,
+      );
+      message = researchClarificationAnswerMessage(c, clarification);
+    } catch (error) {
+      if (error instanceof ResearchClarificationAnswerError) {
+        switch (error.reason) {
+          case 'not_found':
+            return apiError(c, 'NOT_FOUND', m(c, 'researchClarificationNotFound'));
+          case 'already_resolved':
+            return apiError(c, 'VALIDATION_FAILED', m(c, 'researchClarificationAlreadyResolved'));
+          case 'invalid_answer':
+            return apiError(c, 'VALIDATION_FAILED', m(c, 'researchClarificationInvalidAnswer'));
+        }
+      }
+      throw error;
+    }
   }
   const document = await prisma.researchDocument.findUnique({
     where: { conversationId },
@@ -685,8 +748,16 @@ researchRoute.post('/agent', validateJson(agentBody), async (c) => {
           output: true,
         },
       },
+      clarifications: {
+        where: { status: 'pending' },
+        select: { id: true },
+        take: 1,
+      },
     },
   });
+  if (!clarificationAnswer && document?.clarifications.length) {
+    return apiError(c, 'VALIDATION_FAILED', m(c, 'researchClarificationPending'));
+  }
   const attempt = attemptId
     ? await prisma.researchCellChangeAttempt.findFirst({
         where: {
@@ -707,6 +778,8 @@ researchRoute.post('/agent', validateJson(agentBody), async (c) => {
   }
   const turnId = ulid();
   const agentDocument = document ? researchAgentDocumentContext(document) : undefined;
+  const catalogEvidence = createResearchCatalogTurnEvidence();
+  const catalogTool = createSearchResearchCatalogTool(catalogEvidence);
   if (attempt) {
     await prisma.researchCellChangeAttempt.update({
       where: { id: attempt.id },
@@ -723,9 +796,14 @@ researchRoute.post('/agent', validateJson(agentBody), async (c) => {
             userId,
             documentId: document.id,
             editableCellIds: agentDocument!.editableCellIds,
+            catalogEvidence,
           })
         : undefined,
       attempt ? researchAgentCellChangeAttemptContext(attempt) : undefined,
+      document
+        ? createRequestResearchClarificationTool({ documentId: document.id, catalogEvidence })
+        : undefined,
+      catalogTool,
     ),
     entity,
     message,
@@ -929,6 +1007,32 @@ function messagePreview(parts: unknown): string {
       typeof (part as { title?: unknown }).title === 'string',
   );
   return artifact?.title.slice(0, 80) ?? '';
+}
+
+function researchClarificationAnswerMessage(
+  c: Context,
+  clarification: ResearchClarificationV1,
+): string {
+  const locale = localeFromRequest(c);
+  const selections = clarification.answer?.selections.flatMap((selection) => {
+    const question = clarification.questions.find(
+      (candidate) => candidate.id === selection.questionId,
+    );
+    if (!question) {
+      return [];
+    }
+    const labels = selection.selectedOptionIds.flatMap((optionId) => {
+      const option = question.options.find((candidate) => candidate.id === optionId);
+      return option ? [locale === 'zh' ? option.labelZh : option.labelEn] : [];
+    });
+    if (selection.customText) {
+      labels.push(selection.customText);
+    }
+    return labels;
+  });
+  return m(c, 'researchClarificationAnswerMessage', {
+    selections: selections?.join(locale === 'zh' ? '；' : '; ') || '-',
+  });
 }
 
 function researchCellChangeReviewError(

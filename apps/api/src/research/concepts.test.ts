@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { inferResearchConceptIds, researchConceptRegistry } from './concepts.js';
+import {
+  compactResearchConceptManifest,
+  inferResearchConceptIds,
+  researchConceptRegistry,
+} from './concepts.js';
 import { researchPlaybookRegistry } from './playbooks.js';
 
 describe('research concept registry', () => {
@@ -23,5 +27,19 @@ describe('research concept registry', () => {
 
     expect(new Set(conceptIds).size).toBe(researchConceptRegistry.concepts.length);
     expect(referenced.every((conceptId) => conceptIds.has(conceptId))).toBe(true);
+  });
+
+  it('exposes the complete compact vocabulary and material selection dimensions', () => {
+    const manifest = compactResearchConceptManifest();
+
+    expect(manifest).toHaveLength(researchConceptRegistry.concepts.length);
+    expect(manifest.find((concept) => concept.id === 'commodity.gold.price')).toMatchObject({
+      selectionDimensions: ['instrumentForm', 'quoteCurrency', 'market'],
+    });
+    expect(manifest.find((concept) => concept.id === 'rates.us_treasury.real')).toMatchObject({
+      selectionDimensions: ['termYears'],
+      doNotSubstitute: [],
+    });
+    expect(manifest.every((concept) => !('aliases' in concept))).toBe(true);
   });
 });

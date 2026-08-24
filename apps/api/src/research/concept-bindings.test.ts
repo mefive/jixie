@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { researchCapabilityCatalog } from './catalog.js';
-import { researchConceptBindingRegistry, researchConceptBindings } from './concept-bindings.js';
+import {
+  researchConceptBindingRegistry,
+  researchConceptBindingSdkCall,
+  researchConceptBindings,
+} from './concept-bindings.js';
 import { researchConceptById } from './concepts.js';
 
 describe('researchConceptBindingRegistry', () => {
@@ -79,5 +83,41 @@ describe('researchConceptBindingRegistry', () => {
           binding.source.kind === 'yield_curve' && binding.source.curveCode === 'us_treasury_real',
       ),
     ).toBe(true);
+  });
+
+  it('describes material proxy dimensions instead of treating broad concepts as exact identity', () => {
+    expect(researchConceptBindings('commodity.gold.price')).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          source: { kind: 'instrument', assetType: 'future', id: 'AU.SHF' },
+          proxyKind: 'approved_proxy',
+          dimensions: {
+            instrumentForm: 'continuous_future',
+            quoteCurrency: 'CNY',
+            market: 'CN',
+          },
+        }),
+      ]),
+    );
+    expect(researchConceptBindings('rates.us_treasury.real')).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          dimensions: { instrumentForm: 'yield_curve', market: 'US', termYears: 10 },
+        }),
+      ]),
+    );
+  });
+
+  it('distinguishes local bindings from bindings executable through the public Research SDK', () => {
+    const goldFuture = researchConceptBindings('commodity.gold.price')[0]!;
+    const realYield = researchConceptBindings('rates.us_treasury.real')[0]!;
+
+    expect(researchConceptBindingSdkCall(goldFuture)).toEqual({
+      method: 'data.series',
+      assetType: 'future',
+      identifier: 'AU.SHF',
+      measure: 'market.adjusted_close',
+    });
+    expect(researchConceptBindingSdkCall(realYield)).toBeNull();
   });
 });

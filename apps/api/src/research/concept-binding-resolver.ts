@@ -1,6 +1,9 @@
 import { prisma } from '../lib/prisma.js';
 import { researchCapabilityCatalog } from './catalog.js';
-import type { ResearchConceptBindingV1 } from './concept-bindings.js';
+import {
+  researchConceptBindingSdkCall,
+  type ResearchConceptBindingV1,
+} from './concept-bindings.js';
 import type { ResearchCatalogAssetType, ResearchCatalogSourceKind } from './concepts.js';
 
 export interface ResearchBindingFilters {
@@ -347,6 +350,7 @@ function bindingResult(
       unavailableReason: 'binding_registered_no_local_data',
     };
   }
+  const sdkCall = researchConceptBindingSdkCall(binding);
   return {
     binding,
     available: true,
@@ -359,12 +363,19 @@ function bindingResult(
         proxyKind: binding.proxyKind,
         nameZh: binding.nameZh,
         nameEn: binding.nameEn,
+        dimensions: binding.dimensions,
         contract: binding.contract,
         selectionNoteZh: binding.selectionNoteZh,
         selectionNoteEn: binding.selectionNoteEn,
       },
       source: binding.source,
       compatibleMeasure: measureReference(binding.measure),
+      sdkAccess: sdkCall
+        ? { status: 'ready', call: sdkCall }
+        : {
+            status: 'not_exposed',
+            reason: 'source_available_but_not_exposed_in_research_sdk',
+          },
       dataCoverage,
     },
   };

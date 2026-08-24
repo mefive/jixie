@@ -35,8 +35,32 @@ describe('research workbench Python runtime', () => {
     ]);
 
     expect(analysis).toEqual([
-      { cellId: 'load', definitions: ['monthly'], references: [] },
-      { cellId: 'summary', definitions: ['average'], references: ['average', 'monthly'] },
+      { cellId: 'load', definitions: ['monthly'], references: [], seriesRequests: [] },
+      {
+        cellId: 'summary',
+        definitions: ['average'],
+        references: ['average', 'monthly'],
+        seriesRequests: [],
+      },
+    ]);
+  });
+
+  it('extracts literal Research SDK series identities for proposal preflight', async () => {
+    const [analysis] = await researchRuntimeManager.analyze(DOCUMENT_ID, [
+      {
+        id: 'series',
+        source:
+          'asset = data.series("index", "000300.SH", start="20200101", end="20251231", measure="market.adjusted_close")',
+      },
+    ]);
+
+    expect(analysis?.seriesRequests).toEqual([
+      {
+        line: 1,
+        assetType: 'index',
+        identifier: '000300.SH',
+        measure: 'market.adjusted_close',
+      },
     ]);
   });
 

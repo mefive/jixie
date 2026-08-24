@@ -10,6 +10,8 @@ import {
   type ResearchCellChangeReviewResolutionResultV1,
   type ResearchCellChangeRunResultV1,
   type ResearchCellChangeResolutionResultV1,
+  type ResearchClarificationSelectionV1,
+  type ResearchClarificationV1,
   type ResearchAssetTypeV1,
   type ResearchDataCatalogResultV1,
   type ResearchCuratorDispositionV1,
@@ -30,6 +32,7 @@ import {
 import { BaseStore, LoaderModel, PollingModel } from '@src/lib';
 import {
   ApiError,
+  answerResearchClarification,
   acceptResearchCellChangeReview,
   addResearchCell,
   applyResearchCellChangeProposal,
@@ -128,6 +131,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
   public interrupting = false;
   public runInterrupted = false;
   public resolvingProposalId: string | null = null;
+  public answeringClarificationId: string | null = null;
   public runningProposalId: string | null = null;
   public explainingAttemptId: string | null = null;
   public cellDrafts = observable.map<string, ResearchCellDraftState>();
@@ -170,6 +174,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
       interrupting: observable.ref,
       runInterrupted: observable.ref,
       resolvingProposalId: observable.ref,
+      answeringClarificationId: observable.ref,
       runningProposalId: observable.ref,
       explainingAttemptId: observable.ref,
       setPrompt: action,
@@ -367,6 +372,14 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
 
   public get hasOpenCellChangeReview(): boolean {
     return this.document?.activeCellChangeReview?.status === 'open';
+  }
+
+  public get hasPendingClarification(): boolean {
+    return this.chatMessages.some((message) =>
+      message.parts.some(
+        (part) => part.type === 'research_clarification' && part.clarification.status === 'pending',
+      ),
+    );
   }
 
   public cellDraft(cellId: string): ResearchCellDraftState | undefined {
@@ -666,7 +679,13 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
 
   public async send(message: string, attemptId?: string) {
     const text = message.trim();
-    if (!text || this.sending || this.resolvingProposalId || !this.conversationId) {
+    if (
+      !text ||
+      this.sending ||
+      this.resolvingProposalId ||
+      this.hasPendingClarification ||
+      !this.conversationId
+    ) {
       return;
     }
     if (!(await this.flushAllCellDrafts())) {
@@ -680,6 +699,70 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
       this.prompt = '';
     });
     await this.runAgentTurn(text, conversationId, attemptId);
+  }
+
+  public async answerClarification(
+    clarification: ResearchClarificationV1,
+    selections: ResearchClarificationSelectionV1[],
+  ) {
+    if (
+      clarification.status !== 'pending' ||
+      this.sending ||
+      this.answeringClarificationId ||
+      !this.conversationId
+    ) {
+      return;
+    }
+    if (!(await this.flushAllCellDrafts())) {
+      return;
+    }
+
+    const previousMessages = this.chatMessages;
+    const answeredAt = new Date().toISOString();
+    const answeredClarification: ResearchClarificationV1 = {
+      ...clarification,
+      status: 'answered',
+      answer: { selections, answeredAt },
+    };
+    const answerLabel = clarificationAnswerLabel(answeredClarification);
+    runInAction(() => {
+      this.chatMessages = [
+        ...replaceResearchClarification(this.chatMessages, clarification.id, answeredClarification),
+        textMessage(
+          'user',
+          i18n.t('research:workbench.clarification.answerMessage', { answerLabel }),
+        ),
+      ];
+      this.sending = true;
+      this.answeringClarificationId = clarification.id;
+    });
+    try {
+      const started = await answerResearchClarification(
+        this.conversationId,
+        clarification.id,
+        selections,
+      );
+      await this.turnStream.attach(started.turnId, this.turnHandlers());
+    } catch (error) {
+      runInAction(() => {
+        this.chatMessages = [
+          ...previousMessages,
+          textMessage(
+            'assistant',
+            i18n.t('research:error.withDetail', {
+              detail:
+                error instanceof Error ? error.message : i18n.t('research:error.requestFailed'),
+            }),
+          ),
+        ];
+      });
+    } finally {
+      runInAction(() => {
+        this.sending = false;
+        this.answeringClarificationId = null;
+      });
+      void this.documentsLoader.run();
+    }
   }
 
   private async runAgentTurn(text: string, conversationId: string, attemptId?: string) {
@@ -1065,6 +1148,39 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
       return false;
     }
   }
+}
+
+function replaceResearchClarification(
+  messages: ChatMessage[],
+  clarificationId: string,
+  clarification: ResearchClarificationV1,
+): ChatMessage[] {
+  return messages.map((message) => ({
+    ...message,
+    parts: message.parts.map((part) =>
+      part.type === 'research_clarification' && part.clarification.id === clarificationId
+        ? { type: 'research_clarification' as const, clarification }
+        : part,
+    ),
+  }));
+}
+
+function clarificationAnswerLabel(clarification: ResearchClarificationV1): string {
+  const useChinese = i18n.resolvedLanguage?.startsWith('zh') ?? true;
+  return (
+    clarification.answer?.selections
+      .flatMap((selection) => {
+        const question = clarification.questions.find(
+          (candidate) => candidate.id === selection.questionId,
+        );
+        const labels = selection.selectedOptionIds.flatMap((optionId) => {
+          const option = question?.options.find((candidate) => candidate.id === optionId);
+          return option ? [useChinese ? option.labelZh : option.labelEn] : [];
+        });
+        return selection.customText ? [...labels, selection.customText] : labels;
+      })
+      .join(useChinese ? '；' : '; ') ?? ''
+  );
 }
 
 function isCuratorActive(run: ResearchCuratorRunV1 | null): boolean {

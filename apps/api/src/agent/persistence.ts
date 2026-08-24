@@ -8,6 +8,7 @@ import {
 import { ulid } from 'ulid';
 import { prisma } from '../lib/prisma.js';
 import { persistResearchCellChangePart } from '../research/research-cell-change-records.js';
+import { persistResearchClarificationPart } from '../research/research-clarification-records.js';
 import type { TurnEntity } from './turn-run.js';
 
 const EMPTY_TRACE: AgentTurnTrace = { version: 1, steps: [], truncated: false };
@@ -156,9 +157,12 @@ export async function finishPersistentTurn(args: {
       const researchCellChangePartIndexes = persistedParts.flatMap((part, partIndex) =>
         part.type === 'research_cell_change' ? [partIndex] : [],
       );
-      if (researchCellChangePartIndexes.length > 0) {
+      const researchClarificationPartIndexes = persistedParts.flatMap((part, partIndex) =>
+        part.type === 'research_clarification' ? [partIndex] : [],
+      );
+      if (researchCellChangePartIndexes.length > 0 || researchClarificationPartIndexes.length > 0) {
         if (turn.conversation.surface !== 'research') {
-          throw new Error('Research Cell change proposals require a Research conversation.');
+          throw new Error('Research artifacts require a Research conversation.');
         }
         for (const partIndex of researchCellChangePartIndexes) {
           const part = persistedParts[partIndex];
@@ -166,6 +170,20 @@ export async function finishPersistentTurn(args: {
             continue;
           }
           persistedParts[partIndex] = await persistResearchCellChangePart(transaction, {
+            conversationId: turn.conversationId,
+            messageId,
+            turnId: args.turnId,
+            userId: turn.conversation.userId,
+            partIndex,
+            part,
+          });
+        }
+        for (const partIndex of researchClarificationPartIndexes) {
+          const part = persistedParts[partIndex];
+          if (part.type !== 'research_clarification') {
+            continue;
+          }
+          persistedParts[partIndex] = await persistResearchClarificationPart(transaction, {
             conversationId: turn.conversationId,
             messageId,
             turnId: args.turnId,

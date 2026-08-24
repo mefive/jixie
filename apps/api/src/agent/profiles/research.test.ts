@@ -33,6 +33,10 @@ describe('researchProfile', () => {
     expect(system).toContain('one focal predictor');
     expect(system).toContain('keep controls prespecified');
     expect(system).toContain('never invent or silently substitute data');
+    expect(system).toContain('complete, controlled Research Concept vocabulary');
+    expect(system).toContain('commodity.gold.price');
+    expect(system).toContain('searchResearchCatalog.conceptRequests');
+    expect(system).toContain('wait for explicit user confirmation');
     expect(system).toContain('The current date is');
     expect(system).toContain('Never claim a Cell ran');
     expect(system).toContain('ResearchExecution');

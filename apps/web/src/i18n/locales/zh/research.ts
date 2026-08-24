@@ -126,6 +126,17 @@ export const zhResearch = {
       '可以让它解释结果、质疑假设、补充统计方法与公式，或直接修改 Markdown 和 Python Cell。',
     agentPlaceholder: '结合当前文档，下一步应该分析什么？',
     sendAgent: '发送消息',
+    clarification: {
+      status: {
+        pending: '待确认',
+        answered: '已确认',
+        superseded: '已失效',
+      },
+      customPlaceholder: '或者输入你的具体选择…',
+      submit: '确认选择',
+      answerMessage: '已确认研究选项：{{answerLabel}}',
+      answerBeforeContinuing: '请先回答上方研究确认问题',
+    },
     cellChange: {
       status: {
         pending: '待审核',

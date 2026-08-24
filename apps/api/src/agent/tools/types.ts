@@ -1,4 +1,9 @@
-import type { ChartSpec, ResearchCellChangeProposalV1, UniverseSpecV1 } from '@jixie/shared';
+import type {
+  ChartSpec,
+  ResearchCellChangeProposalV1,
+  ResearchClarificationV1,
+  UniverseSpecV1,
+} from '@jixie/shared';
 import type { ToolSpec } from '../../llm/agent-llm.js';
 
 /** A re-runnable point-in-time entity universe produced by the deterministic Universe executor. */
@@ -20,6 +25,7 @@ export interface ToolRunResult {
   universe?: AgentUniverse; // set when this call should surface a re-runnable entity universe
   chart?: AgentChart; // set when this call should surface a chart card in the reply
   researchCellChange?: ResearchCellChangeProposalV1; // pending proposal surfaced as a durable message part
+  researchClarification?: ResearchClarificationV1; // durable semantic choice surfaced as a message part
 }
 
 export interface AgentToolRunContext {

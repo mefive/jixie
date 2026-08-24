@@ -57,6 +57,26 @@ const MESSAGES = {
     zh: '研究 Cell 变更提案不存在',
     en: 'Research Cell change proposal not found',
   },
+  researchClarificationNotFound: {
+    zh: '研究确认问题不存在',
+    en: 'Research clarification not found',
+  },
+  researchClarificationAlreadyResolved: {
+    zh: '这个研究确认问题已经回答或失效',
+    en: 'This research clarification has already been answered or superseded',
+  },
+  researchClarificationInvalidAnswer: {
+    zh: '请选择每个问题的有效选项，或填写允许的自定义回答',
+    en: 'Choose a valid option for every question or provide an allowed custom answer',
+  },
+  researchClarificationPending: {
+    zh: '请先回答当前研究确认问题，再继续发送消息',
+    en: 'Answer the pending research clarification before sending another message',
+  },
+  researchClarificationAnswerMessage: {
+    zh: '已确认研究选项：{selections}',
+    en: 'Confirmed research choices: {selections}',
+  },
   researchCellChangeAttemptNotFound: {
     zh: '研究 Cell 运行尝试不存在',
     en: 'Research Cell execution attempt not found',
