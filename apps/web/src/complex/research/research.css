@@ -102,8 +102,24 @@
   @apply pointer-events-auto opacity-100;
 }
 
+.jx-research-content {
+  @apply relative min-w-0 flex-1 overflow-hidden;
+}
+
+.jx-research-content .ant-splitter-bar-dragger::before,
+.jx-research-content .ant-splitter-bar-dragger::after {
+  background: var(--color-line);
+}
+
+.jx-research-mainPane,
+.jx-research-agentPane {
+  @apply overflow-hidden;
+}
+
 .jx-research-main {
-  @apply flex min-w-0 flex-1 overflow-hidden bg-card;
+  @apply flex min-w-0 overflow-hidden bg-card;
+  width: 100%;
+  height: 100%;
 }
 
 .jx-research-sidebarBackdrop,
@@ -117,19 +133,8 @@
 }
 
 .jx-research-landingIntro {
-  @apply flex max-w-3xl flex-col items-center text-center;
-}
-
-.jx-research-heroIcon {
-  @apply mb-3 flex items-center justify-center rounded-2xl bg-chip text-ink;
-  width: 54px;
-  height: 54px;
-  font-size: 22px;
-}
-
-.jx-research-landingTag {
-  @apply mb-3;
-  margin-inline-end: 0;
+  @apply flex w-full flex-col items-center text-center;
+  max-width: 720px;
 }
 
 .jx-research-landingIntro h2 {
@@ -145,38 +150,30 @@
   line-height: 1.75;
 }
 
-.jx-research-templateGrid {
-  @apply mt-8 grid w-full max-w-3xl gap-4;
-  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+.jx-research-startBox {
+  @apply mt-8 flex items-end gap-2 rounded-2xl border border-line bg-card;
+  width: min(720px, 100%);
+  padding: 10px 10px 10px 16px;
+  box-shadow: 0 4px 18px rgb(17 24 39 / 0.05);
+  transition: border-color 0.15s;
 }
 
-.jx-research-templateCard {
-  @apply flex cursor-pointer flex-col items-start border border-line bg-card text-left text-ink hover:border-ink;
-  min-height: 190px;
-  padding: 22px;
-  border-radius: 8px;
-  transition: border-color 160ms ease;
+.jx-research-startBox:focus-within {
+  border-color: var(--color-ink);
 }
 
-.jx-research-templateIcon {
-  @apply mb-5 flex items-center justify-center rounded-lg bg-chip;
-  width: 38px;
-  height: 38px;
+.jx-research-startInput {
+  @apply flex-1;
+  font-size: 15px;
 }
 
-.jx-research-templateCard strong {
-  font-size: 16px;
+.jx-research-startSend {
+  flex: none;
 }
 
-.jx-research-templateCard > span:not(.jx-research-templateIcon) {
-  @apply mt-2 text-muted;
-  font-size: 13px;
-  line-height: 1.6;
-}
-
-.jx-research-templateCard small {
-  @apply mt-auto pt-4 text-muted;
-  font-size: 11px;
+.jx-research-landingAlert {
+  width: min(720px, 100%);
+  margin-top: 16px;
 }
 
 .jx-research-workspace {
@@ -502,9 +499,7 @@
 }
 
 .jx-research-agentPanel {
-  @apply flex flex-col border-l border-line bg-card;
-  width: 320px;
-  flex: none;
+  @apply flex h-full w-full flex-col bg-card;
 }
 
 .jx-research-agentHead {
@@ -577,21 +572,37 @@
 }
 
 .jx-research-agentComposer {
-  @apply flex items-end gap-2 border-t border-line;
-  padding: 10px 12px 12px;
+  @apply rounded-lg border border-line bg-bg;
+  margin: 8px 12px 12px;
+  padding: 4px 8px;
+  transition: border-color 0.15s;
 }
 
-@media (max-width: 1180px) {
-  .jx-research-agentPanel {
-    width: 300px;
-  }
+.jx-research-agentComposer:focus-within {
+  border-color: var(--color-ink);
+}
+
+.jx-research-agentPrompt {
+  @apply w-full;
 }
 
 @media (max-width: 920px) {
-  .jx-research-agentPanel {
-    @apply absolute inset-y-0 right-0;
+  .jx-research-content > .ant-splitter-bar {
+    display: none;
+  }
+
+  .jx-research-mainPane {
+    width: 100% !important;
+    max-width: none !important;
+    flex-basis: 100% !important;
+  }
+
+  .jx-research-agentPane {
+    @apply absolute inset-y-0 right-0 border-l border-line;
     z-index: 16;
-    width: min(90vw, 380px);
+    width: min(90vw, 380px) !important;
+    max-width: none !important;
+    flex-basis: auto !important;
     box-shadow: -8px 0 24px rgb(15 23 42 / 0.14);
   }
 }
@@ -619,10 +630,6 @@
   .jx-research-mobileHistory {
     @apply inline-flex;
     flex: none;
-  }
-
-  .jx-research-templateGrid {
-    grid-template-columns: 1fr;
   }
 
   .jx-research-header {

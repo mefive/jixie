@@ -154,6 +154,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
   private autosaveTimer: number | null = null;
   private saveChain: Promise<void> = Promise.resolve();
   private queuedCellSaves = new Map<string, Promise<boolean>>();
+  private documentSwitchGeneration = 0;
 
   public constructor(parentStore?: any) {
     super(parentStore);
@@ -399,6 +400,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     if (!(await this.flushAllCellDrafts())) {
       return;
     }
+    this.documentSwitchGeneration += 1;
     this.turnStream.detach();
     runInAction(() => {
       this.document = null;
@@ -410,27 +412,59 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     });
   }
 
-  public async createDocument(template: ResearchDocumentTemplateV1) {
-    const document = await this.documentMutationLoader.run({ kind: 'create', template });
-    runInAction(() => this.cellDrafts.clear());
-    this.acceptDocument(document);
+  public async createDocumentFromPrompt(message: string) {
+    const text = message.trim();
+    if (!text || this.documentMutationLoader.loading || this.sending) {
+      return;
+    }
+    let document: ResearchDocumentV1;
+    try {
+      document = await this.documentMutationLoader.run({ kind: 'create', template: 'blank' });
+    } catch {
+      return;
+    }
+    this.documentSwitchGeneration += 1;
+    this.turnStream.detach();
+    runInAction(() => {
+      this.document = document;
+      this.cellDrafts.clear();
+      this.reconcileCellDrafts(document);
+      this.chatMessages = [
+        ...document.messages.map(normalizeChatMessage),
+        textMessage('user', text),
+      ];
+      this.sending = true;
+      this.prompt = '';
+      this.runInterrupted = false;
+      this.explainingAttemptId = null;
+    });
     void this.executionListLoader.run(document.id).catch(() => {});
     void this.documentsLoader.run();
+    await this.runAgentTurn(text, document.conversationId);
   }
 
   public async openDocument(id: string) {
     if (id === this.documentId || !(await this.flushAllCellDrafts())) {
       return;
     }
+    const switchGeneration = ++this.documentSwitchGeneration;
+    const document = await this.documentLoader.run(id);
+    const runningTurnId = await this.turnStream.findRunning(`research:${document.conversationId}`);
+    if (switchGeneration !== this.documentSwitchGeneration) {
+      return;
+    }
     this.turnStream.detach();
     runInAction(() => {
       this.runInterrupted = false;
       this.cellDrafts.clear();
+      this.document = document;
+      this.reconcileCellDrafts(document);
+      this.chatMessages = document.messages.map(normalizeChatMessage);
     });
-    const document = await this.documentLoader.run(id);
-    this.acceptDocument(document);
+    if (runningTurnId) {
+      void this.turnStream.attach(runningTurnId, this.turnHandlers());
+    }
     void this.executionListLoader.run(id).catch(() => {});
-    void this.reattachTurn();
   }
 
   public flushCellDraft(cellId: string): Promise<boolean> {
@@ -638,14 +672,19 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     if (!(await this.flushAllCellDrafts())) {
       return;
     }
+    const conversationId = this.conversationId;
     runInAction(() => {
       this.chatMessages = [...this.chatMessages, textMessage('user', text)];
       this.sending = true;
       this.explainingAttemptId = attemptId ?? null;
       this.prompt = '';
     });
+    await this.runAgentTurn(text, conversationId, attemptId);
+  }
+
+  private async runAgentTurn(text: string, conversationId: string, attemptId?: string) {
     try {
-      const started = await sendResearchAgent(text, this.conversationId, attemptId);
+      const started = await sendResearchAgent(text, conversationId, attemptId);
       await this.turnStream.attach(started.turnId, this.turnHandlers());
     } catch (error) {
       runInAction(() => {
@@ -692,6 +731,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     await deleteResearchConversation(id);
     void this.documentsLoader.run();
     if (this.documentId === id) {
+      this.documentSwitchGeneration += 1;
       this.turnStream.detach();
       runInAction(() => {
         this.document = null;
@@ -1004,19 +1044,6 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
         });
       },
     };
-  }
-
-  private async reattachTurn() {
-    if (!this.conversationId) {
-      return;
-    }
-    runInAction(() => {
-      this.sending = true;
-    });
-    await this.turnStream.attachRunning(`research:${this.conversationId}`, this.turnHandlers());
-    runInAction(() => {
-      this.sending = false;
-    });
   }
 
   private async loadCurator() {

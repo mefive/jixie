@@ -5,14 +5,10 @@ A research document contains Markdown Cells and Python Cells. Use Markdown for t
 ## Create a study
 
 1. Open **Research** in the top navigation.
-2. Select **New research** on the left.
-3. Choose **CSI 300 vs CSI 500** for a complete runnable example, or **Blank research** when you already have a specific question.
-4. Open the new document under **Research documents**.
+2. Enter the question you want to test and submit it. Research creates a document with Markdown and Python Cells.
+3. When a document is open, select **New research** on the left to return to the question input.
+4. Switch existing documents under **Research documents**.
 5. Use the edit icon beside the title to rename it.
-
-The markers below identify New research, the complete example, and Blank research.
-
-![Research templates and the New research entry](/docs/images/help/zh/research/document-cells-01.png)
 
 ## Add and edit Cells
 
@@ -56,4 +52,3 @@ It removes that Cell and its output from the editable document. Earlier successf
 
 - [Run, stop, and reset research](/docs/help/research/run-control)
 - [Research documents and run history](/docs/help/research/records)
-

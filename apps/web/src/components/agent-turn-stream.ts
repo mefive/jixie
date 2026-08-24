@@ -95,15 +95,21 @@ export class AgentTurnStream {
   /** Refresh reattach: look up the entity's live turn and attach if there is one. Like attach(),
    * resolves only after the terminal event — callers gate their `sending` flag on it. */
   public async attachRunning(entityKey: string, handlers: AgentTurnHandlers): Promise<boolean> {
+    const turnId = await this.findRunning(entityKey);
+    if (!turnId) {
+      return false;
+    }
+    await this.attach(turnId, handlers);
+    return true;
+  }
+
+  /** Resolve the live turn without changing rendered stream state. */
+  public async findRunning(entityKey: string): Promise<string | null> {
     try {
       const { turnId } = await findRunningAgentTurn(entityKey);
-      if (!turnId) {
-        return false;
-      }
-      await this.attach(turnId, handlers);
-      return true;
+      return turnId;
     } catch {
-      return false; // discovery is best-effort — the persisted conversation is already shown
+      return null; // discovery is best-effort — the persisted conversation is already shown
     }
   }
 
@@ -118,6 +124,15 @@ export class AgentTurnStream {
   public detach(): void {
     this.abortController?.abort();
     this.abortController = null;
+    runInAction(() => {
+      this.streaming = false;
+      this.turnId = null;
+      this.text = '';
+      this.reasoning = '';
+      this.trace = [];
+      this.statusNote = '';
+      this.phase = null;
+    });
   }
 
   /** Mirror one event into the observables; true = terminal (stop pumping). */

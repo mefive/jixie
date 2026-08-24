@@ -6,8 +6,8 @@ Research Agent 帮你选择数据、生成代码和解释真实输出；不需�
 ## 开始研究
 
 1. 打开顶部“研究”。
-2. 选择完整示例，或新建空白研究。
-3. 在 Markdown Cell 写下问题、事前假设、公式、变量定义和限制。
+2. 在输入框写下要验证的问题并提交。研究工作台会创建文档，并把问题交给 Research Agent。
+3. 在 Markdown Cell 检查和补充问题、事前假设、公式、变量定义和限制。
 4. 在 Python Cell 使用 `data.series()` 读取单个对象的时间序列，或使用 `data.cross_section()` / `data.panel()`
    读取 PIT 股票截面和月末 Panel；计算可以使用 pandas、NumPy、SciPy 和 statsmodels。
 5. 使用 `charts.*` 生成 jixie 原生交互图，或使用 Matplotlib 生成静态图。

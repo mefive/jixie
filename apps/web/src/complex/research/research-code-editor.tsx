@@ -8,7 +8,7 @@ import {
   type ResearchSdkParameterContractV1,
 } from '@jixie/shared';
 import * as monaco from 'monaco-editor';
-import { useRef } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
 import jsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker';
 import { localeStore } from '@src/i18n/locale-store';
@@ -81,39 +81,70 @@ export default function ResearchCodeEditor({
 }: ResearchCodeEditorProps) {
   const callbacksRef = useRef({ onBlur, onRun });
   callbacksRef.current = { onBlur, onRun };
-  const languageContextRef = useRef({ cells });
-  languageContextRef.current = { cells };
+  const languageContextRef = useRef({ documentId, cellId, cells });
+  languageContextRef.current = { documentId, cellId, cells };
+  const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const lineCount = value.split('\n').length;
   const height = Math.min(520, Math.max(128, lineCount * 20 + 32));
+  const modelPath =
+    language === 'python'
+      ? researchPythonModelUri(monaco, documentId, cellId).toString()
+      : `file:///research/${encodeURIComponent(documentId)}/${encodeURIComponent(cellId)}.json`;
+  useLayoutEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) {
+      return;
+    }
+    const uri = monaco.Uri.parse(modelPath);
+    const model = monaco.editor.getModel(uri) ?? monaco.editor.createModel(value, language, uri);
+    if (model.getValue() !== value) {
+      model.setValue(value);
+    }
+    if (editor.getModel() !== model) {
+      editor.setModel(model);
+    }
+    editor.render(true);
+  }, [language, modelPath, value]);
   return (
     <Editor
       height={height}
       language={language}
-      path={
-        language === 'python'
-          ? researchPythonModelUri(monaco, documentId, cellId).toString()
-          : `file:///research/${encodeURIComponent(documentId)}/${encodeURIComponent(cellId)}.json`
-      }
+      path={modelPath}
       theme="vs"
       value={value}
       onChange={(next) => onChange(next ?? '')}
       onMount={(editor, monacoInstance) => {
+        editorRef.current = editor;
         installResearchSdkLanguage(monacoInstance);
         installResearchPythonLanguage(monacoInstance);
-        if (language === 'python') {
-          const binding = attachResearchPythonModel(monacoInstance, {
-            documentId,
-            cellId,
-            model: editor.getModel()!,
-            editor,
-            getCells: () => languageContextRef.current.cells,
-          });
-          editor.onDidDispose(() => binding.dispose());
-        }
+        let binding: ReturnType<typeof attachResearchPythonModel> | null = null;
+        const attachCurrentModel = () => {
+          binding?.dispose();
+          binding = null;
+          const model = editor.getModel();
+          const context = languageContextRef.current;
+          if (language === 'python' && model) {
+            binding = attachResearchPythonModel(monacoInstance, {
+              documentId: context.documentId,
+              cellId: context.cellId,
+              model,
+              editor,
+              getCells: () => languageContextRef.current.cells,
+            });
+          }
+          editor.render(true);
+        };
+        attachCurrentModel();
+        const modelSubscription = editor.onDidChangeModel(attachCurrentModel);
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () =>
           callbacksRef.current.onRun(),
         );
         editor.onDidBlurEditorWidget(() => callbacksRef.current.onBlur());
+        editor.onDidDispose(() => {
+          editorRef.current = null;
+          modelSubscription.dispose();
+          binding?.dispose();
+        });
       }}
       options={{
         fontSize: 13,

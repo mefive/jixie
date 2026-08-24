@@ -6,8 +6,8 @@ yourself or ask the Research Agent to select data, generate code, and explain re
 ## Start a study
 
 1. Open **Research** from the top navigation.
-2. Choose the complete example or create a blank study.
-3. Use a Markdown cell for the question, prespecified hypothesis, formula, variable definitions, and limitations.
+2. Enter the question you want to test and submit it. Research creates a document and passes the question to the Research Agent.
+3. Review and refine the question, prespecified hypothesis, formula, variable definitions, and limitations in the Markdown cell.
 4. Use `data.series()` in a Python cell for one object's time series, or `data.cross_section()` / `data.panel()` for PIT equity
    snapshots and month-end panels. Calculations may use pandas, NumPy, SciPy, and statsmodels.
 5. Use `charts.*` for native interactive charts or Matplotlib for static figures.
