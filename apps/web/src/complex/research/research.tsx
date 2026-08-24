@@ -1,5 +1,6 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
-import { Alert, Button, Dropdown, Input, Popconfirm, Skeleton, Tag, Tooltip } from 'antd';
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import type { KeyboardEvent } from 'react';
+import { Alert, Button, Dropdown, Input, Popconfirm, Skeleton, Splitter, Tooltip } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { useBlocker } from 'react-router-dom';
 import classNames from 'classnames';
@@ -11,7 +12,6 @@ import type {
 } from '@jixie/shared';
 import {
   faBolt,
-  faChartLine,
   faCheck,
   faCircleExclamation,
   faClockRotateLeft,
@@ -47,9 +47,10 @@ import { ResearchOutputs } from './research-outputs';
 import type { ResearchCellSaveStatus } from './research-autosave';
 import './research.css';
 
-const ResearchCodeEditor = lazy(() => import('./research-code-editor'));
+const researchCodeEditorModule = import('./research-code-editor');
+const ResearchCodeEditor = lazy(() => researchCodeEditorModule);
 const ResearchCodeDiffEditor = lazy(() =>
-  import('./research-code-editor').then((module) => ({
+  researchCodeEditorModule.then((module) => ({
     default: module.ResearchCodeDiffEditor,
   })),
 );
@@ -63,6 +64,7 @@ export const Research = complex.component(() => {
     Boolean(store.requestedExecutionId),
   );
   const [agentOpen, setAgentOpen] = useState(true);
+  const [panelDefaults] = useState(() => researchSplitterDefaults(320));
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) =>
       store.hasUnsavedDrafts && currentLocation.pathname !== nextLocation.pathname,
@@ -100,20 +102,33 @@ export const Research = complex.component(() => {
           aria-label={t('closeHistory')}
         />
       )}
-      <section className="jx-research-main">
-        {store.document ? (
-          <ResearchWorkspace
-            agentOpen={agentOpen}
-            onOpenHistory={() => setHistoryOpen(true)}
-            onOpenDataCatalog={() => setDataCatalogOpen(true)}
-            onOpenExecutionHistory={() => setExecutionHistoryOpen(true)}
-            onToggleAgent={() => setAgentOpen((value) => !value)}
-          />
-        ) : (
-          <ResearchLanding onOpenHistory={() => setHistoryOpen(true)} />
+      <Splitter className="jx-research-content">
+        <Splitter.Panel className="jx-research-mainPane" defaultSize={panelDefaults.main} min="42%">
+          <section className="jx-research-main">
+            {store.document ? (
+              <ResearchWorkspace
+                agentOpen={agentOpen}
+                onOpenHistory={() => setHistoryOpen(true)}
+                onOpenDataCatalog={() => setDataCatalogOpen(true)}
+                onOpenExecutionHistory={() => setExecutionHistoryOpen(true)}
+                onToggleAgent={() => setAgentOpen((value) => !value)}
+              />
+            ) : (
+              <ResearchLanding onOpenHistory={() => setHistoryOpen(true)} />
+            )}
+          </section>
+        </Splitter.Panel>
+        {store.document && agentOpen && (
+          <Splitter.Panel
+            className="jx-research-agentPane"
+            defaultSize={panelDefaults.agent}
+            min={280}
+            max={620}
+          >
+            <ResearchAgentPanel />
+          </Splitter.Panel>
         )}
-      </section>
-      {store.document && agentOpen && <ResearchAgentPanel />}
+      </Splitter>
       <ResearchCuratorDrawer open={curatorOpen} onClose={() => setCuratorOpen(false)} />
       <ResearchDataCatalogDrawer open={dataCatalogOpen} onClose={() => setDataCatalogOpen(false)} />
       <ResearchExecutionDrawer
@@ -258,6 +273,14 @@ const DocumentItem = complex.component(
 const ResearchLanding = complex.component(({ onOpenHistory }: { onOpenHistory: () => void }) => {
   const store = complex.useStore();
   const { t } = useTranslation('research');
+  const [prompt, setPrompt] = useState('');
+  const starting = store.documentMutationLoader.loading || store.sending;
+  const submit = () => {
+    const text = prompt.trim();
+    if (text && !starting) {
+      void store.createDocumentFromPrompt(text);
+    }
+  };
   return (
     <div className="jx-research-landing">
       <Tooltip title={t('history')}>
@@ -271,41 +294,38 @@ const ResearchLanding = complex.component(({ onOpenHistory }: { onOpenHistory: (
         />
       </Tooltip>
       <div className="jx-research-landingIntro">
-        <div className="jx-research-heroIcon">
-          <FontAwesomeIcon icon={faFlask} />
-        </div>
-        <Tag className="jx-research-landingTag">{t('workbench.reactive')}</Tag>
-        <h2>{t('workbench.heroTitle')}</h2>
-        <p>{t('workbench.heroHint')}</p>
+        <h2>{t('heroTitle')}</h2>
+        <p>{t('heroHint')}</p>
       </div>
-      <div className="jx-research-templateGrid">
-        <button
-          className="jx-research-templateCard jx-research-templateCard--featured"
-          data-testid="research-template-index_relationship"
-          onClick={() => void store.createDocument('index_relationship')}
-        >
-          <span className="jx-research-templateIcon">
-            <FontAwesomeIcon icon={faChartLine} />
-          </span>
-          <strong>{t('workbench.template.relationshipTitle')}</strong>
-          <span>{t('workbench.template.relationshipDescription')}</span>
-          <small>{t('workbench.template.relationshipMeta')}</small>
-        </button>
-        <button
-          className="jx-research-templateCard"
-          data-testid="research-template-blank"
-          onClick={() => void store.createDocument('blank')}
-        >
-          <span className="jx-research-templateIcon">
-            <FontAwesomeIcon icon={faFileLines} />
-          </span>
-          <strong>{t('workbench.template.blankTitle')}</strong>
-          <span>{t('workbench.template.blankDescription')}</span>
-          <small>{t('workbench.template.blankMeta')}</small>
-        </button>
+      <div className="jx-research-startBox">
+        <ResearchPromptBox
+          className="jx-research-startInput"
+          value={prompt}
+          placeholder={t('composerPlaceholder')}
+          autoFocus
+          autoSize={{ minRows: 2, maxRows: 6 }}
+          disabled={starting}
+          onChange={setPrompt}
+          onSubmit={submit}
+        />
+        <Button
+          type="primary"
+          shape="circle"
+          className="jx-research-startSend"
+          loading={starting}
+          disabled={!prompt.trim()}
+          icon={<FontAwesomeIcon icon={faPaperPlane} />}
+          aria-label={t('workbench.startResearch')}
+          onClick={submit}
+        />
       </div>
       {store.documentMutationLoader.error && (
-        <Alert type="error" showIcon title={store.documentMutationLoader.errorObject?.message} />
+        <Alert
+          className="jx-research-landingAlert"
+          type="error"
+          showIcon
+          title={store.documentMutationLoader.errorObject?.message}
+        />
       )}
     </div>
   );
@@ -502,7 +522,7 @@ const ResearchWorkspace = complex.component(
         <div className="jx-research-documentScroll">
           <div className="jx-research-document" data-testid="research-document">
             {document.cells.map((cell, index) => (
-              <ResearchCell key={cell.id} cell={cell} ordinal={index + 1} />
+              <ResearchCell key={`${index}:${cell.kind}`} cell={cell} ordinal={index + 1} />
             ))}
             <Tooltip title={t('workbench.addCell')}>
               <Dropdown menu={addMenu} trigger={['click']}>
@@ -549,6 +569,9 @@ const ResearchCell = complex.component(
     const runAffected = (): void => {
       void store.runAffected(cell.id);
     };
+    useEffect(() => {
+      setMarkdownEditing(false);
+    }, [cell.documentId, cell.id]);
     return (
       <article
         className={classNames('jx-research-cell', `jx-research-cell--${cell.status}`, {
@@ -806,10 +829,14 @@ function CellSaveState({
 const ResearchAgentPanel = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('research');
-  const endRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    endRef.current?.scrollIntoView({ block: 'end' });
-  }, [store.chatMessages.length]);
+  const messagesRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const messages = messagesRef.current;
+    if (messages) {
+      messages.scrollTop = messages.scrollHeight;
+    }
+  }, [store.documentId, store.chatMessages.length]);
+  const agentBusy = store.sending || store.turnStream.streaming;
   return (
     <aside className="jx-research-agentPanel">
       <header className="jx-research-agentHead">
@@ -821,8 +848,8 @@ const ResearchAgentPanel = complex.component(() => {
           <span>{t('workbench.agentContext')}</span>
         </div>
       </header>
-      <div className="jx-research-agentMessages">
-        {store.chatMessages.length === 0 && (
+      <div ref={messagesRef} className="jx-research-agentMessages">
+        {store.chatMessages.length === 0 && !agentBusy && (
           <div className="jx-research-agentEmpty">
             <FontAwesomeIcon icon={faFlask} />
             <strong>{t('workbench.agentEmptyTitle')}</strong>
@@ -861,36 +888,65 @@ const ResearchAgentPanel = complex.component(() => {
             />
           </div>
         ))}
-        {store.sending && <AgentPending stream={store.turnStream} />}
-        <div ref={endRef} />
+        {agentBusy && <AgentPending stream={store.turnStream} />}
       </div>
       <div className="jx-research-agentComposer">
-        <Input.TextArea
+        <ResearchPromptBox
+          className="jx-research-agentPrompt"
           value={store.prompt}
-          autoSize={{ minRows: 2, maxRows: 6 }}
           placeholder={t('workbench.agentPlaceholder')}
-          onChange={(event) => store.setPrompt(event.target.value)}
-          onPressEnter={(event) => {
-            if (!event.shiftKey) {
-              event.preventDefault();
-              void store.send(store.prompt);
-            }
-          }}
+          autoSize={{ minRows: 3, maxRows: 10 }}
+          onChange={(value) => store.setPrompt(value)}
+          onSubmit={() => void store.send(store.prompt)}
         />
-        <Tooltip title={t('workbench.sendAgent')}>
-          <Button
-            type="text"
-            loading={store.sending}
-            disabled={!store.prompt.trim() || Boolean(store.resolvingProposalId)}
-            icon={<FontAwesomeIcon icon={faPaperPlane} />}
-            aria-label={t('workbench.sendAgent')}
-            onClick={() => void store.send(store.prompt)}
-          />
-        </Tooltip>
       </div>
     </aside>
   );
 }, 'ResearchAgentPanel');
+
+function ResearchPromptBox({
+  className,
+  value,
+  onChange,
+  onSubmit,
+  placeholder,
+  autoFocus,
+  autoSize,
+  disabled,
+}: {
+  className: string;
+  value: string;
+  onChange: (value: string) => void;
+  onSubmit: () => void;
+  placeholder: string;
+  autoFocus?: boolean;
+  autoSize: { minRows: number; maxRows: number };
+  disabled?: boolean;
+}) {
+  const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.nativeEvent.isComposing) {
+      return;
+    }
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      onSubmit();
+    }
+  };
+
+  return (
+    <Input.TextArea
+      className={className}
+      value={value}
+      autoFocus={autoFocus}
+      autoSize={autoSize}
+      disabled={disabled}
+      variant="borderless"
+      placeholder={placeholder}
+      onChange={(event) => onChange(event.target.value)}
+      onKeyDown={onKeyDown}
+    />
+  );
+}
 
 // —— Helpers ——
 
@@ -916,4 +972,15 @@ function statusIcon(status: ResearchCellStatusV1) {
     case 'idle':
       return faClockRotateLeft;
   }
+}
+
+function researchSplitterDefaults(agentWidth: number): { main: string; agent: string } {
+  const viewportWidth = document.documentElement.clientWidth || 1440;
+  const contentWidth = Math.max(viewportWidth - 240, agentWidth);
+  const agentFraction = Math.min(agentWidth / contentWidth, 0.45);
+
+  return {
+    main: `${((1 - agentFraction) * 100).toFixed(4)}%`,
+    agent: `${(agentFraction * 100).toFixed(4)}%`,
+  };
 }

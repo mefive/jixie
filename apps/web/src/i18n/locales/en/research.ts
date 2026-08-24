@@ -7,12 +7,11 @@ export const enResearch: typeof zhResearch = {
   closeHistory: 'Close research history',
   emptyHistory: 'No research yet',
   chatTitleFallback: 'Untitled research',
-  heroTitle: 'What do you want to investigate?',
-  heroHint:
-    'Ask in plain language. The system selects data and methods and returns auditable results.',
+  heroTitle: 'New research',
+  heroHint: 'State the question you want to test. Keep the data, code, and conclusions together.',
   heroKbd: 'Enter to send, Shift + Enter for a new line',
   examplesLabel: 'Try one',
-  composerPlaceholder: 'For example: Are CSI 300 and CSI 500 monthly returns correlated?',
+  composerPlaceholder: 'For example: Were CSI 300 and CSI 500 monthly returns correlated?',
   deleteChat: 'Delete this research record?',
   error: {
     withDetail: 'Research failed: {{detail}}',
@@ -20,25 +19,12 @@ export const enResearch: typeof zhResearch = {
     cancelled: 'Research stopped',
   },
   workbench: {
-    reactive: 'Reactive quantitative research document',
-    heroTitle: 'Keep questions, exploration, and evidence together',
-    heroHint:
-      'Write questions, formulas, and hypotheses in Markdown; run reproducible calculations and diagnostics in Python; then review evidence through interactive charts and complete-run snapshots.',
+    startResearch: 'Start research',
     newDocument: 'New research',
     documents: 'Research documents',
     emptyDocuments: 'No research documents yet',
     cellSummary: '{{count}} cells',
     staleSummary: '{{count}} need rerun',
-    template: {
-      relationshipTitle: 'CSI 300 vs CSI 500',
-      relationshipDescription:
-        'A complete example with platform data, HAC regression, rolling correlation, and a native interactive chart.',
-      relationshipMeta: '4 cells · ready for a clean run',
-      blankTitle: 'Blank research',
-      blankDescription:
-        'Start with a research question and one Python cell, then build step by step.',
-      blankMeta: 'Markdown + Python',
-    },
     runtime: 'research-py-v1',
     cells: 'Cells',
     rename: 'Rename research document',
