@@ -84,4 +84,42 @@ describe('Research Agent series proposal validation', () => {
       ),
     ).rejects.toThrow('not in the Research SDK instrument catalog');
   });
+
+  it('accepts only literal yield-curve pairs in the governed binding registry', async () => {
+    await expect(
+      validateResearchSeriesProposal([
+        {
+          cellId: 'yield',
+          definitions: [],
+          references: [],
+          yieldCurveRequests: [
+            { line: 2, curve: 'us_treasury_real', tenor: '10Y' },
+            { line: 3, curve: 'us_treasury_nominal', tenor: '10Y' },
+          ],
+        },
+      ]),
+    ).resolves.toBeUndefined();
+
+    await expect(
+      validateResearchSeriesProposal([
+        {
+          cellId: 'dynamic-yield',
+          definitions: [],
+          references: [],
+          yieldCurveRequests: [{ line: 4, curve: null, tenor: '10Y' }],
+        },
+      ]),
+    ).rejects.toThrow('must use literal curve and tenor');
+
+    await expect(
+      validateResearchSeriesProposal([
+        {
+          cellId: 'unsupported-yield',
+          definitions: [],
+          references: [],
+          yieldCurveRequests: [{ line: 5, curve: 'us_treasury_real', tenor: '1Y' }],
+        },
+      ]),
+    ).rejects.toThrow('unsupported curve/tenor pair');
+  });
 });

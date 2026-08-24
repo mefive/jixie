@@ -118,6 +118,10 @@ describe('researchConceptBindingRegistry', () => {
       identifier: 'AU.SHF',
       measure: 'market.adjusted_close',
     });
-    expect(researchConceptBindingSdkCall(realYield)).toBeNull();
+    expect(researchConceptBindingSdkCall(realYield)).toEqual({
+      method: 'data.yield_curve',
+      curve: 'us_treasury_real',
+      tenor: '5Y',
+    });
   });
 });

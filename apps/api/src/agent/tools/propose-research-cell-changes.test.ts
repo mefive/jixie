@@ -152,4 +152,30 @@ describe('proposeResearchCellChanges tool', () => {
     ).rejects.toThrow('Query the exact data.series Research SDK contract');
     expect(mocks.prepare).not.toHaveBeenCalled();
   });
+
+  it('requires the exact SDK contract query before drafting data.yield_curve code', async () => {
+    const tool = createProposeResearchCellChangesTool({
+      userId: 'user-1',
+      documentId: 'document-1',
+      editableCellIds: new Set(['cell-1']),
+      catalogEvidence: { sdkReadyBindingIds: new Set(), sdkMethodNames: new Set() },
+    });
+
+    await expect(
+      tool.run({
+        title: 'Load yields',
+        summary: 'Load the governed real-yield series.',
+        operations: [
+          {
+            kind: 'update',
+            cellId: 'cell-1',
+            expectedRevision: 2,
+            source:
+              'real_yield = data.yield_curve("us_treasury_real", tenor="10Y", start="20200101", end="20251231")',
+          },
+        ],
+      }),
+    ).rejects.toThrow('Query the exact data.yield_curve Research SDK contract');
+    expect(mocks.prepare).not.toHaveBeenCalled();
+  });
 });

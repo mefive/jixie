@@ -1,4 +1,8 @@
-import type { ResearchSeriesSourceV1 } from '@jixie/shared';
+import type {
+  ResearchSeriesSourceV1,
+  ResearchYieldCurveCodeV1,
+  ResearchYieldTenorV1,
+} from '@jixie/shared';
 import type { ResearchConceptDimensionsV1, ResearchConceptId } from './concepts.js';
 import {
   researchBindingDataContract,
@@ -215,26 +219,56 @@ export function researchConceptBindings(conceptId: ResearchConceptId): ResearchC
     .sort((left, right) => left.priority - right.priority || left.id.localeCompare(right.id));
 }
 
-export interface ResearchConceptBindingSdkCallV1 {
-  method: 'data.series';
-  assetType: 'stock' | 'etf' | 'index' | 'future';
-  identifier: string;
-  measure: string;
-}
+export type ResearchConceptBindingSdkCallV1 =
+  | {
+      method: 'data.series';
+      assetType: 'stock' | 'etf' | 'index' | 'future';
+      identifier: string;
+      measure: string;
+    }
+  | {
+      method: 'data.yield_curve';
+      curve: ResearchYieldCurveCodeV1;
+      tenor: ResearchYieldTenorV1;
+    };
 
 /** Return the exact public Research SDK call for a binding, or null when it is not exposed yet. */
 export function researchConceptBindingSdkCall(
   binding: ResearchConceptBindingV1,
 ): ResearchConceptBindingSdkCallV1 | null {
-  if (binding.source.kind !== 'instrument') {
-    return null;
+  if (binding.source.kind === 'instrument') {
+    return {
+      method: 'data.series',
+      assetType: binding.source.assetType,
+      identifier: binding.source.id,
+      measure: binding.measure,
+    };
   }
-  return {
-    method: 'data.series',
-    assetType: binding.source.assetType,
-    identifier: binding.source.id,
-    measure: binding.measure,
-  };
+  if (
+    binding.source.kind === 'yield_curve' &&
+    (binding.source.curveCode === 'us_treasury_nominal' ||
+      binding.source.curveCode === 'us_treasury_real')
+  ) {
+    return {
+      method: 'data.yield_curve',
+      curve: binding.source.curveCode,
+      tenor: tenorLabel(binding.source.termYears) as ResearchYieldTenorV1,
+    };
+  }
+  return null;
+}
+
+/** Resolve one exact public yield-curve SDK identity through the audited binding registry. */
+export function researchYieldCurveBindingForSdkCall(
+  curve: string,
+  tenor: string,
+): ResearchConceptBindingV1 | null {
+  return (
+    researchConceptBindingRegistry.bindings.find((binding) => {
+      const call = researchConceptBindingSdkCall(binding);
+      return call?.method === 'data.yield_curve' && call.curve === curve && call.tenor === tenor;
+    }) ?? null
+  );
 }
 
 function instrumentBinding(input: {

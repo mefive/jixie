@@ -1,4 +1,5 @@
 import type { ResearchAssetTypeV1, ResearchDataCatalogResultV1 } from '@jixie/shared';
+import { researchYieldCurveBindingForSdkCall } from './concept-bindings.js';
 import { searchResearchDataCatalog } from './data-catalog.js';
 import type { ResearchPythonAnalysis } from './workbench-runtime.js';
 
@@ -8,7 +9,7 @@ type ResearchDataCatalogSearch = (input: {
   limit: number;
 }) => Promise<ResearchDataCatalogResultV1>;
 
-/** Validate every Agent-authored data.series identity before a Diff can reach the user. */
+/** Validate every Agent-authored governed time-series identity before a Diff can reach the user. */
 export async function validateResearchSeriesProposal(
   analyses: ResearchPythonAnalysis[],
   searchCatalog: ResearchDataCatalogSearch = searchResearchDataCatalog,
@@ -42,6 +43,18 @@ export async function validateResearchSeriesProposal(
       if (!instrument.compatibleMeasureIds.includes(request.measure)) {
         throw new Error(
           `Cell ${analysis.cellId} data.series call on line ${request.line} uses measure ${request.measure}, which is not supported for ${request.assetType}:${request.identifier}.`,
+        );
+      }
+    }
+    for (const request of analysis.yieldCurveRequests ?? []) {
+      if (!request.curve || !request.tenor) {
+        throw new Error(
+          `Cell ${analysis.cellId} data.yield_curve call on line ${request.line} must use literal curve and tenor values so the Research catalog can validate it.`,
+        );
+      }
+      if (!researchYieldCurveBindingForSdkCall(request.curve, request.tenor)) {
+        throw new Error(
+          `Cell ${analysis.cellId} data.yield_curve call on line ${request.line} references unsupported curve/tenor pair ${request.curve}:${request.tenor}.`,
         );
       }
     }

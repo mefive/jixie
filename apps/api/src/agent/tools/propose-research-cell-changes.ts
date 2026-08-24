@@ -85,6 +85,14 @@ export function createProposeResearchCellChangesTool(args: {
           'Query the exact data.series Research SDK contract before proposing Python that calls it.',
         );
       }
+      if (
+        proposedPython.some((source) => /\bdata\.yield_curve\s*\(/.test(source)) &&
+        !args.catalogEvidence.sdkMethodNames.has('data.yield_curve')
+      ) {
+        throw new Error(
+          'Query the exact data.yield_curve Research SDK contract before proposing Python that calls it.',
+        );
+      }
       const proposal = await prepareResearchCellChangeProposal(
         args.userId,
         args.documentId,

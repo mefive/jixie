@@ -2,6 +2,7 @@ import type { ResearchCellOutputBlockV1 } from '@jixie/shared';
 import { PythonSession, type PythonFrame } from '../strategy/python/session.js';
 import { loadResearchCrossSection, loadResearchPanel } from './equity-dataset.js';
 import { researchPayloadHash } from './fingerprints.js';
+import { researchYieldCurveBindingForSdkCall } from './concept-bindings.js';
 import { loadResearchSeries, prepareResearchSeries, researchSeriesLoadStart } from './series.js';
 import {
   parseResearchCrossSectionRuntimeRequest,
@@ -9,6 +10,7 @@ import {
   parseResearchPanelRuntimeRequest,
   parseResearchSeriesRuntimeRequest,
   parseResearchSeriesRuntimeRows,
+  parseResearchYieldCurveRuntimeRequest,
 } from './workbench-sdk.js';
 
 const MAX_LIVE_RESEARCH_SESSIONS = 8;
@@ -19,6 +21,7 @@ export interface ResearchPythonAnalysis {
   definitions: string[];
   references: string[];
   seriesRequests?: ResearchPythonSeriesRequest[];
+  yieldCurveRequests?: ResearchPythonYieldCurveRequest[];
   error?: string;
 }
 
@@ -27,6 +30,12 @@ export interface ResearchPythonSeriesRequest {
   assetType: string | null;
   identifier: string | null;
   measure: string | null;
+}
+
+export interface ResearchPythonYieldCurveRequest {
+  line: number;
+  curve: string | null;
+  tenor: string | null;
 }
 
 export interface ResearchPythonExecution {
@@ -63,13 +72,17 @@ class ResearchRuntimeManager {
           continue;
         }
         if (frame.type === 'research_analyzed') {
-          return (frame.cells as Array<Record<string, unknown>>).map((cell) => ({
-            cellId: String(cell.cell_id),
-            definitions: stringArray(cell.definitions),
-            references: stringArray(cell.references),
-            seriesRequests: researchPythonSeriesRequests(cell.series_requests),
-            ...(typeof cell.error === 'string' ? { error: cell.error } : {}),
-          }));
+          return (frame.cells as Array<Record<string, unknown>>).map((cell) => {
+            const yieldCurveRequests = researchPythonYieldCurveRequests(cell.yield_curve_requests);
+            return {
+              cellId: String(cell.cell_id),
+              definitions: stringArray(cell.definitions),
+              references: stringArray(cell.references),
+              seriesRequests: researchPythonSeriesRequests(cell.series_requests),
+              ...(yieldCurveRequests.length > 0 ? { yieldCurveRequests } : {}),
+              ...(typeof cell.error === 'string' ? { error: cell.error } : {}),
+            };
+          });
         }
         throw runtimeFrameError(frame, 'analyzing research cells');
       }
@@ -323,6 +336,38 @@ async function answerResearchRequest(session: PythonSession, frame: PythonFrame)
         };
         break;
       }
+      case 'research_yield_curve': {
+        const request = parseResearchYieldCurveRuntimeRequest(frame.arguments);
+        const binding = researchYieldCurveBindingForSdkCall(request.curve, request.tenor);
+        if (!binding || binding.source.kind !== 'yield_curve') {
+          throw new Error(
+            `yield curve ${request.curve}:${request.tenor} is not in the governed Research SDK catalog`,
+          );
+        }
+        const input = {
+          type: 'series' as const,
+          id: `${request.curve}:${request.tenor}`,
+          source: binding.source,
+          measure: binding.measure,
+          transform: request.transform,
+        };
+        const loadStart = researchSeriesLoadStart(
+          request.start,
+          request.frequency,
+          request.transform,
+        );
+        const loaded = await loadResearchSeries(input, loadStart, request.end);
+        const points = prepareResearchSeries(loaded.points, request.frequency, request.transform, {
+          start: request.start,
+          end: request.end,
+          partialPeriod: request.partial_period,
+        });
+        result = {
+          rows: parseResearchSeriesRuntimeRows(points),
+          diagnostics: loaded.diagnostics,
+        };
+        break;
+      }
       case 'research_cross_section': {
         const request = parseResearchCrossSectionRuntimeRequest(frame.arguments);
         const loaded = await loadResearchCrossSection(request);
@@ -386,6 +431,25 @@ function researchPythonSeriesRequests(value: unknown): ResearchPythonSeriesReque
         assetType: typeof request.asset_type === 'string' ? request.asset_type : null,
         identifier: typeof request.identifier === 'string' ? request.identifier : null,
         measure: typeof request.measure === 'string' ? request.measure : null,
+      },
+    ];
+  });
+}
+
+function researchPythonYieldCurveRequests(value: unknown): ResearchPythonYieldCurveRequest[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.flatMap((item) => {
+    if (!item || typeof item !== 'object') {
+      return [];
+    }
+    const request = item as Record<string, unknown>;
+    return [
+      {
+        line: typeof request.line === 'number' ? request.line : 0,
+        curve: typeof request.curve === 'string' ? request.curve : null,
+        tenor: typeof request.tenor === 'string' ? request.tenor : null,
       },
     ];
   });

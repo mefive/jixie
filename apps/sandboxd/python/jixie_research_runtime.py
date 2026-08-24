@@ -49,6 +49,7 @@ class _Analysis:
     definitions: list[str]
     references: list[str]
     series_requests: list[dict[str, Any]]
+    yield_curve_requests: list[dict[str, Any]]
     error: str | None = None
 
 
@@ -57,6 +58,7 @@ class _NameAnalysis(ast.NodeVisitor):
         self.definitions: set[str] = set()
         self.references: set[str] = set()
         self.series_requests: list[dict[str, Any]] = []
+        self.yield_curve_requests: list[dict[str, Any]] = []
 
     def visit_Name(self, node: ast.Name) -> None:
         if isinstance(node.ctx, (ast.Store, ast.Del)):
@@ -105,6 +107,22 @@ class _NameAnalysis(ast.NodeVisitor):
                     "measure": _literal_string(keywords.get("measure"))
                     if "measure" in keywords
                     else "market.adjusted_close",
+                }
+            )
+        if (
+            isinstance(node.func, ast.Attribute)
+            and node.func.attr == "yield_curve"
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "data"
+        ):
+            keywords = {item.arg: item.value for item in node.keywords if item.arg is not None}
+            self.yield_curve_requests.append(
+                {
+                    "line": node.lineno,
+                    "curve": _literal_string(
+                        node.args[0] if len(node.args) > 0 else keywords.get("curve")
+                    ),
+                    "tenor": _literal_string(keywords.get("tenor")),
                 }
             )
         self.generic_visit(node)
@@ -201,6 +219,39 @@ class _DataApi:
             },
         )
         return self._equity_frame(result)
+
+    def yield_curve(
+        self,
+        curve: str,
+        *,
+        tenor: str,
+        start: str,
+        end: str,
+        frequency: str = "daily",
+        transform: str = "level",
+        partial_period: str = "exclude",
+    ) -> Any:
+        result = self._host.request(
+            "research_yield_curve",
+            {
+                "curve": curve,
+                "tenor": tenor,
+                "start": start,
+                "end": end,
+                "frequency": frequency,
+                "transform": transform,
+                "partial_period": partial_period,
+            },
+        )
+        rows = result.get("rows", []) if isinstance(result, dict) else []
+        if self._pandas is None:
+            return rows
+        frame = self._pandas.DataFrame(rows, columns=["date", "value"])
+        if not frame.empty:
+            frame["date"] = self._pandas.to_datetime(frame["date"], format="%Y%m%d")
+        if isinstance(result, dict) and isinstance(result.get("diagnostics"), list):
+            frame.attrs["jixie"] = {"diagnostics": result["diagnostics"]}
+        return frame
 
     def panel(
         self,
@@ -534,6 +585,7 @@ def run_research(
                         "definitions": analysis.definitions,
                         "references": analysis.references,
                         "series_requests": analysis.series_requests,
+                        "yield_curve_requests": analysis.yield_curve_requests,
                         **({"error": analysis.error} if analysis.error else {}),
                     }
                 )
@@ -657,7 +709,7 @@ def _analyze(source: str) -> _Analysis:
         tree = ast.parse(source or "pass", filename="research_cell.py", mode="exec")
     except SyntaxError as error:
         message = f"{error.msg} (line {error.lineno}, column {error.offset})"
-        return _Analysis([], [], [], message)
+        return _Analysis([], [], [], [], message)
     visitor = _NameAnalysis()
     visitor.visit(tree)
     ignored = set(dir(builtins)) | _RUNTIME_NAMES
@@ -665,6 +717,7 @@ def _analyze(source: str) -> _Analysis:
         sorted(name for name in visitor.definitions if not name.startswith("_")),
         sorted(name for name in visitor.references if name not in ignored and not name.startswith("_")),
         visitor.series_requests,
+        visitor.yield_curve_requests,
     )
 
 

@@ -3,11 +3,15 @@ import {
   RESEARCH_CROSS_SECTION_SDK_CONTRACT_V1,
   RESEARCH_PANEL_SDK_CONTRACT_V1,
   RESEARCH_SERIES_SDK_CONTRACT_V1,
+  RESEARCH_YIELD_CURVE_SDK_CONTRACT_V1,
   type ResearchAssetTypeV1,
   type ResearchFrequencyV1,
   type ResearchSdkDataFrameColumnContractV1,
   type ResearchSdkParameterContractV1,
   type ResearchTransformV1,
+  type ResearchYieldCurveCodeV1,
+  type ResearchYieldTenorV1,
+  type ResearchYieldTransformV1,
 } from '@jixie/shared';
 
 export interface ResearchSeriesRuntimeRequestV1 {
@@ -24,6 +28,16 @@ export interface ResearchSeriesRuntimeRequestV1 {
 export interface ResearchSeriesRuntimeRowV1 {
   date: string;
   value: number;
+}
+
+export interface ResearchYieldCurveRuntimeRequestV1 {
+  curve: ResearchYieldCurveCodeV1;
+  tenor: ResearchYieldTenorV1;
+  start: string;
+  end: string;
+  frequency: ResearchFrequencyV1;
+  transform: ResearchYieldTransformV1;
+  partial_period: 'exclude' | 'include';
 }
 
 export interface ResearchCrossSectionRuntimeRequestV1 {
@@ -68,6 +82,9 @@ const researchCrossSectionRequestSchema = sdkRequestSchema(
   RESEARCH_CROSS_SECTION_SDK_CONTRACT_V1.parameters,
 );
 const researchPanelRequestSchema = sdkRequestSchema(RESEARCH_PANEL_SDK_CONTRACT_V1.parameters);
+const researchYieldCurveRequestSchema = sdkRequestSchema(
+  RESEARCH_YIELD_CURVE_SDK_CONTRACT_V1.parameters,
+);
 const researchEquityDatasetRowsSchema = z.array(
   z.strictObject(
     Object.fromEntries(
@@ -99,6 +116,14 @@ export function parseResearchCrossSectionRuntimeRequest(
 
 export function parseResearchPanelRuntimeRequest(value: unknown): ResearchPanelRuntimeRequestV1 {
   return researchPanelRequestSchema.parse(value) as unknown as ResearchPanelRuntimeRequestV1;
+}
+
+export function parseResearchYieldCurveRuntimeRequest(
+  value: unknown,
+): ResearchYieldCurveRuntimeRequestV1 {
+  return researchYieldCurveRequestSchema.parse(
+    value,
+  ) as unknown as ResearchYieldCurveRuntimeRequestV1;
 }
 
 export function parseResearchEquityDatasetRuntimeRows(value: unknown): unknown[] {
