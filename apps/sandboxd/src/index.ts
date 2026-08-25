@@ -22,6 +22,8 @@ await unlink(socketPath).catch((error: NodeJS.ErrnoException) => {
 });
 
 const server = createServer((client) => serveSession(client));
+const clients = new Set<Socket>();
+let shuttingDown = false;
 server.listen(socketPath, async () => {
   await chmod(socketPath, 0o660);
   process.stdout.write(`[sandboxd] listening on ${socketPath} (${mode})\n`);
@@ -30,6 +32,9 @@ server.listen(socketPath, async () => {
 let activeSessions = 0;
 
 function serveSession(client: Socket): void {
+  clients.add(client);
+  client.once('close', () => clients.delete(client));
+
   if (activeSessions >= maxSessions) {
     client.end(
       encodeFrame({
@@ -177,9 +182,31 @@ function spawnRuntime(): ChildProcessWithoutNullStreams {
 }
 
 function shutdown(): void {
-  server.close(() => {
-    void unlink(socketPath).finally(() => process.exit(0));
-  });
+  if (shuttingDown) {
+    return;
+  }
+
+  shuttingDown = true;
+  const exit = (): void => {
+    void unlink(socketPath)
+      .catch((error: NodeJS.ErrnoException) => {
+        if (error.code !== 'ENOENT') {
+          process.stderr.write(`[sandboxd] failed to remove socket: ${error.message}\n`);
+          process.exitCode = 1;
+        }
+      })
+      .finally(() => process.exit());
+  };
+
+  if (server.listening) {
+    server.close(exit);
+  } else {
+    exit();
+  }
+
+  for (const client of clients) {
+    client.destroy();
+  }
 }
 
 process.once('SIGINT', shutdown);
