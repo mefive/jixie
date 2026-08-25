@@ -331,11 +331,50 @@ describe('research workbench Python runtime', () => {
     });
     expect(recovered.outputs).toEqual([{ type: 'value', value: 42 }]);
   });
+
+  it('does not evict active Research sessions when the four-slot sandbox is full', async () => {
+    const documentIds = Array.from({ length: 4 }, (_, index) => `research-capacity-${index}`);
+    const executions = documentIds.map((documentId, index) =>
+      researchRuntimeManager.execute(documentId, {
+        id: `infinite-${index}`,
+        source: 'while True:\n    pass',
+      }),
+    );
+    const settledExecutions = Promise.allSettled(executions);
+
+    try {
+      await Promise.all(
+        documentIds.map((documentId, index) =>
+          waitForActiveExecution(documentId, `infinite-${index}`),
+        ),
+      );
+
+      await expect(
+        researchRuntimeManager.execute('research-capacity-overflow', {
+          id: 'overflow',
+          source: '42',
+        }),
+      ).rejects.toThrow('Python sandbox is busy (4/4 Research sessions)');
+    } finally {
+      for (const documentId of documentIds) {
+        if (researchRuntimeManager.interrupt(documentId) === null) {
+          researchRuntimeManager.close(documentId);
+        }
+      }
+      await settledExecutions;
+      for (const documentId of [...documentIds, 'research-capacity-overflow']) {
+        researchRuntimeManager.close(documentId);
+      }
+    }
+  });
 });
 
-async function waitForActiveExecution(): Promise<void> {
-  for (let attempt = 0; attempt < 100; attempt += 1) {
-    if (researchRuntimeManager.activeCellId(DOCUMENT_ID) === 'infinite') {
+async function waitForActiveExecution(
+  documentId = DOCUMENT_ID,
+  expectedCellId = 'infinite',
+): Promise<void> {
+  for (let attempt = 0; attempt < 500; attempt += 1) {
+    if (researchRuntimeManager.activeCellId(documentId) === expectedCellId) {
       return;
     }
     await new Promise((resolve) => setTimeout(resolve, 10));

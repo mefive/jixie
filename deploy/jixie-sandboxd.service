@@ -13,6 +13,7 @@ Environment=JIXIE_SANDBOXD_MODE=podman
 Environment=JIXIE_PYTHON_IMAGE=jixie-python-runtime:py-v1
 Environment=JIXIE_SANDBOX_MAX_SESSIONS=4
 Environment=JIXIE_SANDBOX_SESSION_TIMEOUT_MS=3600000
+Environment=JIXIE_SANDBOX_GRACEFUL_STOP_MS=500
 Environment=JIXIE_PYTHON_CODE_TIMEOUT_SECONDS=10
 ExecStart=/usr/bin/node /opt/jixie/apps/sandboxd/dist/src/index.js
 Restart=always

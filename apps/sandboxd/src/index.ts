@@ -1,14 +1,15 @@
 import { chmod, mkdir, unlink } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
 import { createServer, type Socket } from 'node:net';
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
+import { dirname, resolve } from 'node:path';
 import { encodeFrame } from './frame.js';
+import { spawnSandboxRuntime, type RuntimeStopReason, type SandboxRuntime } from './runtime.js';
 
 const socketPath = process.env.JIXIE_SANDBOX_SOCKET ?? '/var/lib/jixie/sandboxd.sock';
 const mode = process.env.JIXIE_SANDBOXD_MODE ?? 'podman';
 const runtimeImage = process.env.JIXIE_PYTHON_IMAGE ?? 'jixie-python-runtime:py-v1';
 const maxSessions = positiveInteger(process.env.JIXIE_SANDBOX_MAX_SESSIONS, 4);
 const sessionTimeoutMs = positiveInteger(process.env.JIXIE_SANDBOX_SESSION_TIMEOUT_MS, 3_600_000);
+const gracefulStopMs = positiveInteger(process.env.JIXIE_SANDBOX_GRACEFUL_STOP_MS, 500);
 const codeTimeoutSeconds = positiveNumber(process.env.JIXIE_PYTHON_CODE_TIMEOUT_SECONDS, 10);
 const runnerPath = resolve(
   process.env.JIXIE_PYTHON_RUNNER ?? resolve(process.cwd(), 'python/jixie_runner.py'),
@@ -23,18 +24,23 @@ await unlink(socketPath).catch((error: NodeJS.ErrnoException) => {
 
 const server = createServer((client) => serveSession(client));
 const clients = new Set<Socket>();
+const sessionCompletions = new Set<Promise<void>>();
+let activeSessions = 0;
 let shuttingDown = false;
+
 server.listen(socketPath, async () => {
   await chmod(socketPath, 0o660);
   process.stdout.write(`[sandboxd] listening on ${socketPath} (${mode})\n`);
 });
 
-let activeSessions = 0;
-
 function serveSession(client: Socket): void {
   clients.add(client);
   client.once('close', () => clients.delete(client));
 
+  if (shuttingDown) {
+    client.destroy();
+    return;
+  }
   if (activeSessions >= maxSessions) {
     client.end(
       encodeFrame({
@@ -44,169 +50,153 @@ function serveSession(client: Socket): void {
     );
     return;
   }
-  activeSessions += 1;
 
-  let runtime: ChildProcessWithoutNullStreams;
-  try {
-    runtime = spawnRuntime();
-  } catch (error) {
-    activeSessions -= 1;
-    client.end(
-      encodeFrame({
-        type: 'fatal',
-        message: error instanceof Error ? error.message : String(error),
-      }),
-    );
+  activeSessions += 1;
+  const completion = runSession(client)
+    .catch((error: unknown) => {
+      sendFatal(client, error instanceof Error ? error.message : String(error));
+    })
+    .finally(() => {
+      activeSessions -= 1;
+      sessionCompletions.delete(completion);
+    });
+  sessionCompletions.add(completion);
+}
+
+async function runSession(client: Socket): Promise<void> {
+  const runtime = await spawnSandboxRuntime({
+    mode,
+    nodeEnvironment: process.env.NODE_ENV,
+    runtimeImage,
+    runnerPath,
+    pythonExecutable: process.env.JIXIE_PYTHON_EXECUTABLE ?? 'python3',
+    codeTimeoutSeconds,
+    sessionTimeoutMs,
+    gracefulStopMs,
+    onWarning: (message) => process.stderr.write(`[sandboxd] ${message}\n`),
+  });
+
+  if (client.destroyed || shuttingDown) {
+    await runtime.stop('graceful');
     return;
   }
 
-  let stderr = '';
-  let runtimeProducedOutput = false;
-  let timedOut = false;
-  let finished = false;
-  const finishSession = () => {
-    if (!finished) {
+  await bridgeSession(client, runtime);
+}
+
+function bridgeSession(client: Socket, runtime: SandboxRuntime): Promise<void> {
+  return new Promise((resolveSession) => {
+    let stderr = '';
+    let runtimeProducedOutput = false;
+    let finished = false;
+    const timeout = setTimeout(() => {
+      void finishSession('force', {
+        fatalMessage: `Python sandbox session exceeded ${sessionTimeoutMs}ms`,
+      });
+    }, sessionTimeoutMs);
+    timeout.unref();
+
+    runtime.child.stderr.setEncoding('utf8');
+    runtime.child.stderr.on('data', (chunk: string) => {
+      stderr = `${stderr}${chunk}`.slice(-8_000);
+    });
+    runtime.child.stdout.on('data', () => {
+      runtimeProducedOutput = true;
+    });
+
+    client.pipe(runtime.child.stdin);
+    runtime.child.stdout.pipe(client, { end: false });
+
+    const handleClientClose = (): void => {
+      void finishSession('graceful');
+    };
+    const handleClientError = (): void => {
+      void finishSession('graceful');
+    };
+    const handleRuntimeError = (error: Error): void => {
+      void finishSession('exited', { fatalMessage: error.message });
+    };
+    const handleRuntimeExit = (code: number | null, signal: NodeJS.Signals | null): void => {
+      const abnormalExit = code !== 0 || signal !== null;
+      const fatalMessage =
+        abnormalExit && !runtimeProducedOutput
+          ? stderr.trim() || `runtime exited with ${signal ?? `code ${code}`}`
+          : undefined;
+      void finishSession('exited', { fatalMessage });
+    };
+
+    client.once('close', handleClientClose);
+    client.once('error', handleClientError);
+    runtime.child.once('error', handleRuntimeError);
+    runtime.child.once('exit', handleRuntimeExit);
+
+    async function finishSession(
+      reason: RuntimeStopReason,
+      result: { fatalMessage?: string } = {},
+    ): Promise<void> {
+      if (finished) {
+        return;
+      }
       finished = true;
-      activeSessions -= 1;
-    }
-  };
-  const timeout = setTimeout(() => {
-    timedOut = true;
-    runtime.kill('SIGKILL');
-  }, sessionTimeoutMs);
-  timeout.unref();
-  runtime.stderr.setEncoding('utf8');
-  runtime.stderr.on('data', (chunk: string) => {
-    stderr = `${stderr}${chunk}`.slice(-8_000);
-  });
-  runtime.stdout.on('data', () => {
-    runtimeProducedOutput = true;
-  });
+      clearTimeout(timeout);
+      client.off('close', handleClientClose);
+      client.off('error', handleClientError);
+      runtime.child.off('error', handleRuntimeError);
+      runtime.child.off('exit', handleRuntimeExit);
 
-  client.pipe(runtime.stdin);
-  runtime.stdout.pipe(client, { end: false });
-
-  const stop = () => {
-    if (!runtime.killed) {
-      runtime.kill('SIGKILL');
-    }
-  };
-  client.once('close', stop);
-  client.once('error', stop);
-  runtime.once('error', (error) => {
-    clearTimeout(timeout);
-    finishSession();
-    if (!client.destroyed) {
-      client.end(encodeFrame({ type: 'fatal', message: error.message }));
-    }
-  });
-  runtime.once('exit', (code, signal) => {
-    clearTimeout(timeout);
-    finishSession();
-    client.off('close', stop);
-    client.off('error', stop);
-    if (!client.destroyed && (code !== 0 || signal)) {
-      const detail = timedOut
-        ? `Python sandbox session exceeded ${sessionTimeoutMs}ms`
-        : stderr.trim() || `runtime exited with ${signal ?? `code ${code}`}`;
-      if (timedOut || !runtimeProducedOutput) {
-        client.write(encodeFrame({ type: 'fatal', message: detail }));
+      try {
+        await runtime.stop(reason);
+        if (result.fatalMessage) {
+          sendFatal(client, result.fatalMessage);
+        }
+        if (!client.destroyed) {
+          client.end();
+        }
+      } finally {
+        resolveSession();
       }
     }
-    client.end();
   });
 }
 
-function spawnRuntime(): ChildProcessWithoutNullStreams {
-  if (mode === 'local') {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('local sandbox mode is forbidden in production');
-    }
-    const executable = process.env.JIXIE_PYTHON_EXECUTABLE ?? 'python3';
-    return spawn(executable, ['-I', '-u', runnerPath], { stdio: ['pipe', 'pipe', 'pipe'] });
+function sendFatal(client: Socket, message: string): void {
+  if (!client.destroyed && client.writable) {
+    client.end(encodeFrame({ type: 'fatal', message }));
   }
-  if (mode !== 'podman') {
-    if (mode === 'docker') {
-      if (process.env.NODE_ENV === 'production') {
-        throw new Error('Docker sandbox mode is for local verification only');
-      }
-      return spawn(
-        'docker',
-        [
-          'run',
-          '--rm',
-          '--interactive',
-          '--pull=never',
-          '--network=none',
-          '--read-only',
-          '--tmpfs=/tmp:rw,noexec,nosuid,nodev,size=64m',
-          '--cap-drop=ALL',
-          '--security-opt=no-new-privileges=true',
-          '--pids-limit=64',
-          '--memory=768m',
-          '--memory-swap=1024m',
-          '--cpus=1',
-          '--user=65532:65532',
-          `--env=JIXIE_PYTHON_CODE_TIMEOUT_SECONDS=${codeTimeoutSeconds}`,
-          runtimeImage,
-        ],
-        { stdio: ['pipe', 'pipe', 'pipe'] },
-      );
-    }
-    throw new Error(`unknown JIXIE_SANDBOXD_MODE: ${mode}`);
-  }
-
-  return spawn(
-    'podman',
-    [
-      'run',
-      '--rm',
-      '--interactive',
-      '--pull=never',
-      '--network=none',
-      '--read-only',
-      '--tmpfs=/tmp:rw,noexec,nosuid,nodev,size=64m',
-      '--cap-drop=all',
-      '--security-opt=no-new-privileges',
-      '--pids-limit=64',
-      '--memory=768m',
-      '--memory-swap=1024m',
-      '--cpus=1',
-      `--timeout=${Math.ceil(sessionTimeoutMs / 1_000)}`,
-      '--user=65532:65532',
-      `--env=JIXIE_PYTHON_CODE_TIMEOUT_SECONDS=${codeTimeoutSeconds}`,
-      runtimeImage,
-    ],
-    { stdio: ['pipe', 'pipe', 'pipe'] },
-  );
 }
 
 function shutdown(): void {
   if (shuttingDown) {
     return;
   }
-
   shuttingDown = true;
-  const exit = (): void => {
-    void unlink(socketPath)
-      .catch((error: NodeJS.ErrnoException) => {
-        if (error.code !== 'ENOENT') {
-          process.stderr.write(`[sandboxd] failed to remove socket: ${error.message}\n`);
-          process.exitCode = 1;
-        }
-      })
-      .finally(() => process.exit());
-  };
+  void shutdownDaemon();
+}
 
-  if (server.listening) {
-    server.close(exit);
-  } else {
-    exit();
-  }
-
+async function shutdownDaemon(): Promise<void> {
+  const serverClosed = closeServer();
   for (const client of clients) {
     client.destroy();
   }
+
+  await serverClosed;
+  while (sessionCompletions.size > 0) {
+    await Promise.allSettled([...sessionCompletions]);
+  }
+  await unlink(socketPath).catch((error: NodeJS.ErrnoException) => {
+    if (error.code !== 'ENOENT') {
+      process.stderr.write(`[sandboxd] failed to remove socket: ${error.message}\n`);
+      process.exitCode = 1;
+    }
+  });
+  process.exit();
+}
+
+function closeServer(): Promise<void> {
+  if (!server.listening) {
+    return Promise.resolve();
+  }
+  return new Promise((resolveClose) => server.close(() => resolveClose()));
 }
 
 process.once('SIGINT', shutdown);
