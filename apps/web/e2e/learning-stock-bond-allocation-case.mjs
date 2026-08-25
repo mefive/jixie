@@ -8,6 +8,14 @@ mkdirSync(OUTPUT, { recursive: true });
 const START = '20180101';
 const END = '20260730';
 const COST = { slippageBps: 2, impactCoef: 0.1 };
+const ZERO_COST = {
+  commission: 0,
+  minCommission: 0,
+  stampDuty: 0,
+  transferFee: 0,
+  slippageBps: 0,
+  impactCoef: 0,
+};
 const FACTOR_KEY = 'stock_bond_momentum_120';
 const FACTOR_NAME = '学习案例：股债120日动量 Panel';
 const FACTOR_CODE = `# 只在股票与固收 ETF 之间比较120日动量；不纳入黄金或商品。
@@ -44,6 +52,8 @@ const FACTOR_ASSETS = [
   { assetId: '511090.SH', assetClass: 'fixed_income' },
 ];
 const BASELINE_NAME = '学习案例：沪深300 ETF 买入持有基线';
+const STATIC_ALLOCATION_NAME = '学习案例：静态股债诊断对照';
+const ZERO_COST_ALLOCATION_NAME = '学习案例：股债动量零成本对照';
 const ALLOCATION_NAME = '学习案例：股债120日动量月度轮动';
 const baselineCode = `const equity = '510300.SH';
 
@@ -56,14 +66,33 @@ export default defineStrategy({
     }
   },
 });`;
-const allocationCode = `const equity = '510300.SH';
+const staticAllocationCode = `const equity = '510300.SH';
+const bond5y = '511010.SH';
+const bond10y = '511260.SH';
+let lastMonth = '';
+
+export default defineStrategy({
+  name: '${STATIC_ALLOCATION_NAME}',
+  watch: [equity, bond5y, bond10y],
+  onBar(ctx) {
+    const month = ctx.period('monthly');
+    if (month === lastMonth) return;
+    lastMonth = month;
+    ctx.orderTargetPercent(equity, 0.245);
+    ctx.orderTargetPercent(bond5y, 0.3419);
+    ctx.orderTargetPercent(bond10y, 0.3419);
+  },
+});`;
+
+function allocationCode(name) {
+  return `const equity = '510300.SH';
 const bond5y = '511010.SH';
 const bond10y = '511260.SH';
 const assets = [equity, bond5y, bond10y];
 let lastMonth = '';
 
 export default defineStrategy({
-  name: '${ALLOCATION_NAME}',
+  name: '${name}',
   watch: assets,
   factors: ['${FACTOR_KEY}'],
   onBar(ctx) {
@@ -80,12 +109,15 @@ export default defineStrategy({
     else ctx.setHoldings({});
   },
 });`;
+}
 
 const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext({ viewport: { width: 1440, height: 1400 } });
 const page = await context.newPage();
 const browserErrors = [];
 let baselineId;
+let staticAllocationId;
+let zeroCostAllocationId;
 let allocationId;
 let factorId;
 let panelReport;
@@ -216,15 +248,48 @@ try {
     path: `${OUTPUT}stock-bond-panel-factor-result.png`,
   });
 
+  const zeroCostAllocationCode = allocationCode(ZERO_COST_ALLOCATION_NAME);
+  const costedAllocationCode = allocationCode(ALLOCATION_NAME);
   baselineId = await createStrategy(page, BASELINE_NAME, baselineCode);
-  allocationId = await createStrategy(page, ALLOCATION_NAME, allocationCode);
+  staticAllocationId = await createStrategy(page, STATIC_ALLOCATION_NAME, staticAllocationCode);
+  zeroCostAllocationId = await createStrategy(
+    page,
+    ZERO_COST_ALLOCATION_NAME,
+    zeroCostAllocationCode,
+    ZERO_COST,
+  );
+  allocationId = await createStrategy(page, ALLOCATION_NAME, costedAllocationCode);
   const baseline = await runBacktest(page, baselineId, config(BASELINE_NAME, baselineCode));
-  const allocation = await runBacktest(page, allocationId, config(ALLOCATION_NAME, allocationCode));
+  const staticAllocation = await runBacktest(
+    page,
+    staticAllocationId,
+    config(STATIC_ALLOCATION_NAME, staticAllocationCode),
+  );
+  const zeroCostAllocation = await runBacktest(
+    page,
+    zeroCostAllocationId,
+    config(ZERO_COST_ALLOCATION_NAME, zeroCostAllocationCode, ZERO_COST),
+  );
+  const allocation = await runBacktest(
+    page,
+    allocationId,
+    config(ALLOCATION_NAME, costedAllocationCode),
+  );
   assertBacktest('baseline', baseline, 1);
+  assertBacktest('static allocation', staticAllocation, 24);
+  assertBacktest('zero-cost allocation', zeroCostAllocation, 24);
   assertBacktest('allocation', allocation, 24);
+  if (zeroCostAllocation.totalFees !== 0 || zeroCostAllocation.totalSlippage !== 0) {
+    throw new Error(`zero-cost control incurred costs: ${JSON.stringify(zeroCostAllocation)}`);
+  }
   assertAllocationAnalysis(allocation, factorId, publishedFactor.codeHash);
 
   await captureLabResult(baselineId, `${OUTPUT}stock-bond-baseline-result.png`);
+  await captureLabResult(staticAllocationId, `${OUTPUT}stock-bond-static-allocation-result.png`);
+  await captureLabResult(
+    zeroCostAllocationId,
+    `${OUTPUT}stock-bond-zero-cost-allocation-result.png`,
+  );
   await captureLabResult(allocationId, `${OUTPUT}stock-bond-allocation-result.png`);
 
   const allocationPanel = page.getByTestId('allocation-analysis');
@@ -268,10 +333,12 @@ try {
   console.log(
     `[learning-stock-bond-allocation] PASS factor=${factorSummary(panelReport)} ` +
       `baseline=${backtestSummary(baseline)} ` +
+      `static=${backtestSummary(staticAllocation)} ` +
+      `zeroCost=${backtestSummary(zeroCostAllocation)} ` +
       `allocation=${backtestSummary(allocation)} analysis=${analysisSummary(allocation)}`,
   );
 } finally {
-  for (const strategyId of [baselineId, allocationId]) {
+  for (const strategyId of [baselineId, staticAllocationId, zeroCostAllocationId, allocationId]) {
     if (strategyId) {
       await api(page, `/api/app/strategies/${strategyId}`, { method: 'DELETE' }).catch(() => {});
     }
@@ -290,7 +357,7 @@ try {
   await browser.close();
 }
 
-function config(name, code) {
+function config(name, code, cost = COST) {
   return {
     name,
     language: 'typescript',
@@ -298,14 +365,14 @@ function config(name, code) {
     end: END,
     initialCash: 1_000_000,
     code,
-    cost: COST,
+    cost,
   };
 }
 
-async function createStrategy(page, name, code) {
+async function createStrategy(page, name, code, cost = COST) {
   const strategy = await api(page, '/api/app/strategies', {
     method: 'POST',
-    body: JSON.stringify(config(name, code)),
+    body: JSON.stringify(config(name, code, cost)),
   });
   if (!strategy.id) {
     throw new Error(`strategy creation failed for ${name}: ${JSON.stringify(strategy)}`);

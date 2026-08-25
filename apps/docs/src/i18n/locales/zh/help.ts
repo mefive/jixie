@@ -142,7 +142,7 @@ export const zhHelp = {
         eyebrow: '第五条 · 配置归因',
         title: '股债配置与风险归因',
         description:
-          '用不含黄金和商品的股债 Panel Factor 运行月度轮动，对照股票基线，核对收益贡献、风险集中、相关性、利率环境和压力情景。',
+          '用不含黄金和商品的股债 Panel Factor 运行月度轮动，通过股票、静态股债、零成本与真实成本四组实跑拆分配置、择时和成本。',
         start: '开始配置归因',
         stepsTitle: '这条路径怎样推进',
         steps: {
@@ -151,8 +151,8 @@ export const zhHelp = {
             description: '区分 Factor 资产域、Panel 研究池和策略交易池。',
           },
           baseline: {
-            title: '建立股票基线',
-            description: '用相同日期、资金和成本运行沪深 300 买入持有。',
+            title: '建立诊断对照',
+            description: '实跑股票、静态股债、动态零成本和动态真实成本。',
           },
           attribution: {
             title: '对账收益与风险',
@@ -164,7 +164,7 @@ export const zhHelp = {
           },
           stress: {
             title: '压力测试并裁决',
-            description: '区分线性情景、历史复现和预测，保留收益落后的结果。',
+            description: '区分资产配置、择时与成本，保留证据不支持生产的结果。',
           },
         },
       },

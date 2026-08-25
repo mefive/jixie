@@ -276,8 +276,10 @@ try {
   if (
     (await page.locator('.jx-help-codeBlock').count()) < 3 ||
     (await page.locator('.jx-help-markdown table').count()) < 4 ||
-    (await page.locator('.jx-help-figure').count()) !== 8 ||
+    (await page.locator('.jx-help-figure').count()) !== 10 ||
     (await page.getByText('-8.25%', { exact: true }).count()) < 1 ||
+    (await page.getByText('36.35%', { exact: true }).count()) < 1 ||
+    (await page.getByText('12.41%', { exact: true }).count()) < 1 ||
     (await page.getByText('93.11%', { exact: true }).count()) < 1 ||
     (await page.getByRole('heading', { level: 2, name: '完成检查' }).count()) !== 1 ||
     (await page.locator('.jx-help-nav .jx-help-navLink--active').textContent()) !==

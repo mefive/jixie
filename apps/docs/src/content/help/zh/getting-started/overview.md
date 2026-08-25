@@ -30,7 +30,7 @@
 8. 按照[第一次运行预设因子分析](/help/factors/first-preset-analysis)熟悉 Factor 报告。
 9. 按照[沪深 300 价值因子学习路径](/help/learning/csi300-value-factor)，预注册横截面假设并揭示一次正式保留段。
 10. 按照[国债曲线到每日信号学习路径](/help/learning/cgb-curve-daily-signal)，核对 Factor 证据、费后回测、部署快照和指定日期信号。
-11. 按照[股债配置与风险归因学习路径](/help/learning/stock-bond-allocation-risk)，对账多资产收益、风险、相关性和压力情景。
+11. 按照[股债配置与风险归因学习路径](/help/learning/stock-bond-allocation-risk)，通过四组实跑拆分资产配置、择时和成本，再对账完整风险。
 12. 阅读[为什么回测不等于未来收益](/help/basics/backtest-limitations)。
 
 ## 产品不能替你完成什么
