@@ -150,7 +150,7 @@ export const enHelp: typeof zhHelp = {
         eyebrow: 'Path five · Allocation attribution',
         title: 'Stock-bond allocation and risk attribution',
         description:
-          'Run a monthly stock-bond rotation with a Panel Factor that excludes gold and commodities, compare it with an equity baseline, and audit return, concentrated risk, correlation, rate regimes, and stress scenarios.',
+          'Run a monthly stock-bond rotation with a Panel Factor that excludes gold and commodities, then separate allocation, timing, and costs with four actual equity, static, zero-cost, and realistic-cost controls.',
         start: 'Start allocation attribution',
         stepsTitle: 'How the path progresses',
         steps: {
@@ -160,8 +160,9 @@ export const enHelp: typeof zhHelp = {
               'Separate the Factor domain, Panel research universe, and strategy watchlist.',
           },
           baseline: {
-            title: 'Build the equity baseline',
-            description: 'Run CSI 300 buy-and-hold with identical dates, capital, and costs.',
+            title: 'Build diagnostic controls',
+            description:
+              'Run equity, static stock-bond, zero-cost dynamic, and realistic-cost dynamic cases.',
           },
           attribution: {
             title: 'Reconcile return and risk',
@@ -176,7 +177,7 @@ export const enHelp: typeof zhHelp = {
           stress: {
             title: 'Stress and adjudicate',
             description:
-              'Separate linear scenarios, historical replays, and forecasts while retaining inferior returns.',
+              'Separate allocation, timing, and costs while retaining evidence that rejects production.',
           },
         },
       },

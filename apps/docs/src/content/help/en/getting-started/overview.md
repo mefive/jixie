@@ -31,7 +31,7 @@ The pages can be used together. For example, use Research to inspect an equity u
 8. [Run your first preset Factor analysis](/help/factors/first-preset-analysis) to learn the report surface.
 9. Follow [CSI 300 value factor](/help/learning/csi300-value-factor) to preregister a cross-sectional hypothesis and reveal one formal holdout.
 10. Follow [From the CGB curve to a daily signal](/help/learning/cgb-curve-daily-signal) to audit Factor evidence, a costed backtest, deployment lineage, and a specified-date signal.
-11. Follow [Stock-bond allocation and risk attribution](/help/learning/stock-bond-allocation-risk) to reconcile multi-asset return, risk, correlation, and stress scenarios.
+11. Follow [Stock-bond allocation and risk attribution](/help/learning/stock-bond-allocation-risk) to separate asset allocation, timing, and costs with four actual runs before reconciling complete risk.
 12. Read [Why a backtest is not a forecast](/help/basics/backtest-limitations).
 
 ## What the product cannot decide for you
