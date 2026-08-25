@@ -27,7 +27,9 @@
 5. 按照[可信跨市场研究学习路径](/help/learning/trusted-cross-market-research)，从事前假设做到可复查结论。
 6. 按照[第一次运行回测](/help/getting-started/first-backtest)完成一次历史检验。
 7. 按照[沪深 300 趋势策略学习路径](/help/learning/csi300-trend-strategy)，审查参数、成本和样本外结果。
-8. 阅读[为什么回测不等于未来收益](/help/basics/backtest-limitations)。
+8. 按照[第一次运行预设因子分析](/help/factors/first-preset-analysis)熟悉 Factor 报告。
+9. 按照[沪深 300 价值因子学习路径](/help/learning/csi300-value-factor)，预注册横截面假设并揭示一次正式保留段。
+10. 阅读[为什么回测不等于未来收益](/help/basics/backtest-limitations)。
 
 ## 产品不能替你完成什么
 
@@ -50,6 +52,7 @@
 
 - [可信跨市场研究：收益、汇率与相关性](/help/learning/trusted-cross-market-research)
 - [沪深 300 趋势策略：参数、成本与样本外](/help/learning/csi300-trend-strategy)
+- [沪深 300 价值因子：排序、IC、分层与样本外](/help/learning/csi300-value-factor)
 - [股票、ETF 和指数](/help/basics/stocks-etfs-indices)
 - [策略和回测](/help/basics/strategy-backtest)
 - [收益和风险指标](/help/basics/performance-risk)

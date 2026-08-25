@@ -10,8 +10,9 @@ export const zhHelp = {
     title: '从学习路径开始，也可以按页面查找',
     intro:
       '学习路径把概念、项目内真实例子、可复现练习和完成检查串在一起；页面手册继续提供所有功能的操作说明。',
-    guidedTitle: '沿两条学习路径实践',
-    guidedDescription: '先建立可信研究证据，再把假设变成可执行且经得起审查的策略规则。',
+    guidedTitle: '沿三条学习路径实践',
+    guidedDescription:
+      '先建立可信研究证据，再分别练习可执行策略和带正式保留段的股票横截面 Factor 研究。',
     guidedAction: '从描述性研究开始',
     manualTitle: '按页面查使用方法',
     manualDescription: '适合已经知道要使用哪项功能，直接查看当前控件、口径和限制。',
@@ -74,6 +75,36 @@ export const zhHelp = {
           verdict: {
             title: '阅读样本外',
             description: '保留失败结果，不把一次回测写成可部署策略。',
+          },
+        },
+      },
+      factor: {
+        eyebrow: '第三条 · 因子研究',
+        title: '沪深 300 价值因子',
+        description:
+          '用盈利收益率预设冻结沪深 300 股票横截面问题，结合 Rank IC、十组收益、中性化和一次正式保留段揭示裁决证据。',
+        start: '开始因子研究',
+        stepsTitle: '这条路径怎样推进',
+        steps: {
+          hypothesis: {
+            title: '预注册假设',
+            description: '固定正向预期、主要标准和唯一诊断。',
+          },
+          scope: {
+            title: '冻结范围',
+            description: '使用沪深 300 历史时点成分与月频全局排序。',
+          },
+          rank: {
+            title: '阅读排序证据',
+            description: '区分 Rank IC、十组收益和多空研究构造。',
+          },
+          holdout: {
+            title: '揭示保留段',
+            description: '核对冻结协议，只进行一次不可逆揭示。',
+          },
+          verdict: {
+            title: '裁决证据',
+            description: '保留冲突和失败，不自动发布或转成策略。',
           },
         },
       },

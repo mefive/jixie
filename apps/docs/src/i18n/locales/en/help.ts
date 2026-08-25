@@ -12,9 +12,9 @@ export const enHelp: typeof zhHelp = {
     title: 'Follow a learning path or look up a product page',
     intro:
       'Learning paths connect concepts, real examples, reproducible exercises, and completion checks. The page manual still documents every product workflow.',
-    guidedTitle: 'Practice along two learning paths',
+    guidedTitle: 'Practice along three learning paths',
     guidedDescription:
-      'Build trustworthy evidence first, then turn a hypothesis into an executable strategy that can withstand scrutiny.',
+      'Build trustworthy evidence first, then practice executable strategy research and formal-holdout stock Factor research.',
     guidedAction: 'Start with descriptive research',
     manualTitle: 'Look up a product page',
     manualDescription:
@@ -82,6 +82,36 @@ export const enHelp: typeof zhHelp = {
           verdict: {
             title: 'Read out of sample',
             description: 'Keep failures and do not rebrand one backtest as a deployable strategy.',
+          },
+        },
+      },
+      factor: {
+        eyebrow: 'Path three · Factor research',
+        title: 'CSI 300 value factor',
+        description:
+          'Freeze a CSI 300 stock-cross-section question with the earnings-yield preset, then adjudicate Rank IC, deciles, neutralization, and one formal holdout reveal.',
+        start: 'Start Factor research',
+        stepsTitle: 'How the path progresses',
+        steps: {
+          hypothesis: {
+            title: 'Preregister the hypothesis',
+            description: 'Freeze the positive prior, primary criterion, and sole diagnostic.',
+          },
+          scope: {
+            title: 'Freeze the scope',
+            description: 'Use point-in-time CSI 300 members and monthly global ranking.',
+          },
+          rank: {
+            title: 'Read ranking evidence',
+            description: 'Separate Rank IC, decile returns, and the long-short construction.',
+          },
+          holdout: {
+            title: 'Reveal the holdout',
+            description: 'Verify the frozen protocol and make one irreversible reveal.',
+          },
+          verdict: {
+            title: 'Adjudicate evidence',
+            description: 'Keep conflicts and failures without automatic publication or conversion.',
           },
         },
       },

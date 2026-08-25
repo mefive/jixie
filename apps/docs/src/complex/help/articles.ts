@@ -183,6 +183,8 @@ import readChartEn from '@src/content/help/en/stock-detail/read-chart.md?raw';
 import readChartZh from '@src/content/help/zh/stock-detail/read-chart.md?raw';
 import csi300TrendStrategyEn from '@src/content/help/en/learning/csi300-trend-strategy.md?raw';
 import csi300TrendStrategyZh from '@src/content/help/zh/learning/csi300-trend-strategy.md?raw';
+import csi300ValueFactorEn from '@src/content/help/en/learning/csi300-value-factor.md?raw';
+import csi300ValueFactorZh from '@src/content/help/zh/learning/csi300-value-factor.md?raw';
 import trustedCrossMarketResearchEn from '@src/content/help/en/learning/trusted-cross-market-research.md?raw';
 import trustedCrossMarketResearchZh from '@src/content/help/zh/learning/trusted-cross-market-research.md?raw';
 
@@ -240,6 +242,22 @@ export const HELP_ARTICLES: HelpArticle[] = [
     content: {
       zh: csi300TrendStrategyZh,
       en: csi300TrendStrategyEn,
+    },
+  },
+  {
+    slug: 'learning/csi300-value-factor',
+    group: 'learningPaths',
+    title: {
+      zh: '沪深 300 价值因子：排序、IC、分层与样本外',
+      en: 'CSI 300 value factor: ranking, IC, portfolios, and holdout',
+    },
+    summary: {
+      zh: '用盈利收益率预设冻结沪深 300 横截面研究，结合 Rank IC、十组收益、中性化与一次正式保留段揭示裁决证据。',
+      en: 'Freeze a CSI 300 cross-sectional study with the earnings-yield preset, then adjudicate Rank IC, deciles, neutralization, and one formal holdout reveal.',
+    },
+    content: {
+      zh: csi300ValueFactorZh,
+      en: csi300ValueFactorEn,
     },
   },
   {
