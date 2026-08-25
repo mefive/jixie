@@ -299,6 +299,7 @@ has positive returns after costs.
 
 ## Next steps
 
+- [CSI 300 trend strategy: parameters, costs, and out-of-sample evidence](/help/learning/csi300-trend-strategy)
 - [Research documents and run records](/docs/help/research/records)
 - [Read research outputs](/docs/help/research/outputs)
 - [How to read a time-series relationship study](/docs/help/basics/time-series-relationships)

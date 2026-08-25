@@ -181,6 +181,8 @@ import peVolumeDataEn from '@src/content/help/en/stock-detail/pe-volume-data.md?
 import peVolumeDataZh from '@src/content/help/zh/stock-detail/pe-volume-data.md?raw';
 import readChartEn from '@src/content/help/en/stock-detail/read-chart.md?raw';
 import readChartZh from '@src/content/help/zh/stock-detail/read-chart.md?raw';
+import csi300TrendStrategyEn from '@src/content/help/en/learning/csi300-trend-strategy.md?raw';
+import csi300TrendStrategyZh from '@src/content/help/zh/learning/csi300-trend-strategy.md?raw';
 import trustedCrossMarketResearchEn from '@src/content/help/en/learning/trusted-cross-market-research.md?raw';
 import trustedCrossMarketResearchZh from '@src/content/help/zh/learning/trusted-cross-market-research.md?raw';
 
@@ -222,6 +224,22 @@ export const HELP_ARTICLES: HelpArticle[] = [
     content: {
       zh: trustedCrossMarketResearchZh,
       en: trustedCrossMarketResearchEn,
+    },
+  },
+  {
+    slug: 'learning/csi300-trend-strategy',
+    group: 'learningPaths',
+    title: {
+      zh: '沪深 300 趋势策略：参数、成本与样本外',
+      en: 'CSI 300 trend strategy: parameters, costs, and out-of-sample evidence',
+    },
+    summary: {
+      zh: '用沪深 300 ETF 写出可执行趋势规则，固定主参数与样本切分，并用成本、成交和样本外证据审查结果。',
+      en: 'Turn a CSI 300 ETF trend rule into executable code, freeze its primary parameter and sample split, then audit costs, trades, and out-of-sample evidence.',
+    },
+    content: {
+      zh: csi300TrendStrategyZh,
+      en: csi300TrendStrategyEn,
     },
   },
   {

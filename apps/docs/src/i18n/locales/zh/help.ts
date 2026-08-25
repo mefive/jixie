@@ -10,38 +10,72 @@ export const zhHelp = {
     title: '从学习路径开始，也可以按页面查找',
     intro:
       '学习路径把概念、项目内真实例子、可复现练习和完成检查串在一起；页面手册继续提供所有功能的操作说明。',
-    guidedTitle: '沿学习路径实践',
-    guidedDescription: '适合系统建立研究能力，从明确问题一路做到可复查结论。',
-    guidedAction: '查看可信研究基础',
+    guidedTitle: '沿两条学习路径实践',
+    guidedDescription: '先建立可信研究证据，再把假设变成可执行且经得起审查的策略规则。',
+    guidedAction: '从描述性研究开始',
     manualTitle: '按页面查使用方法',
     manualDescription: '适合已经知道要使用哪项功能，直接查看当前控件、口径和限制。',
     manualAction: '打开产品与页面导航',
-    pathEyebrow: '首条学习路径',
-    pathTitle: '可信跨市场研究',
-    pathDescription:
-      '用沪深 300、恒生和标普 500 的月度价格指数，学习币种口径、日期对齐、滚动相关、区块 bootstrap 和诚实结论。',
-    pathStart: '开始这条学习路径',
-    pathStepsTitle: '这条路径怎样推进',
-    pathSteps: {
-      question: {
-        title: '冻结问题',
-        description: '在看结果前写下样本、预期和反证条件。',
+    paths: {
+      research: {
+        eyebrow: '第一条 · 描述性研究',
+        title: '可信跨市场研究',
+        description:
+          '用沪深 300、恒生和标普 500 的月度价格指数，学习币种口径、日期对齐、滚动相关、区块 bootstrap 和诚实结论。',
+        start: '开始描述性研究',
+        stepsTitle: '这条路径怎样推进',
+        steps: {
+          question: {
+            title: '冻结问题',
+            description: '在看结果前写下样本、预期和反证条件。',
+          },
+          semantics: {
+            title: '核对语义',
+            description: '区分价格指数、ETF、本币收益和人民币收益。',
+          },
+          compute: {
+            title: '可复现计算',
+            description: '用稳定 ID 和完整月份生成共同样本。',
+          },
+          uncertainty: {
+            title: '表达不确定性',
+            description: '同时检查全样本、滚动窗口和区块 bootstrap。',
+          },
+          conclusion: {
+            title: '限制结论',
+            description: '保留冲突证据，不把历史相关写成配置建议。',
+          },
+        },
       },
-      semantics: {
-        title: '核对语义',
-        description: '区分价格指数、ETF、本币收益和人民币收益。',
-      },
-      compute: {
-        title: '可复现计算',
-        description: '用稳定 ID 和完整月份生成共同样本。',
-      },
-      uncertainty: {
-        title: '表达不确定性',
-        description: '同时检查全样本、滚动窗口和区块 bootstrap。',
-      },
-      conclusion: {
-        title: '限制结论',
-        description: '保留冲突证据，不把历史相关写成配置建议。',
+      strategy: {
+        eyebrow: '第二条 · 策略研究',
+        title: '沪深 300 趋势策略',
+        description:
+          '把均线趋势写成可执行 ETF 规则，用买入持有基线、参数邻域、交易成本和样本外结果检查它是否站得住。',
+        start: '开始策略研究',
+        stepsTitle: '这条路径怎样推进',
+        steps: {
+          rules: {
+            title: '冻结规则',
+            description: '固定 ETF、信号、仓位、样本与反证条件。',
+          },
+          baseline: {
+            title: '建立基线',
+            description: '先运行同一 ETF 的买入持有，避免只看策略曲线。',
+          },
+          scan: {
+            title: '审查参数',
+            description: '预先指定主参数，再比较 20／60／120 日敏感性。',
+          },
+          costs: {
+            title: '核对成本',
+            description: '检查成交、换手、费用、滑点和压力成本。',
+          },
+          verdict: {
+            title: '阅读样本外',
+            description: '保留失败结果，不把一次回测写成可部署策略。',
+          },
+        },
       },
     },
     manualSectionTitle: '页面手册',

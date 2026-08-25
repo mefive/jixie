@@ -109,12 +109,17 @@ export const Help = complex.component(() => {
 
 // —— Subcomponents / helpers ——
 
-const LEARNING_PATH_STEP_KEYS = [
-  'question',
-  'semantics',
-  'compute',
-  'uncertainty',
-  'conclusion',
+const LEARNING_PATHS = [
+  {
+    key: 'research',
+    slug: 'learning/trusted-cross-market-research',
+    steps: ['question', 'semantics', 'compute', 'uncertainty', 'conclusion'],
+  },
+  {
+    key: 'strategy',
+    slug: 'learning/csi300-trend-strategy',
+    steps: ['rules', 'baseline', 'scan', 'costs', 'verdict'],
+  },
 ] as const;
 
 function HelpLanding() {
@@ -148,34 +153,39 @@ function HelpLanding() {
           </div>
         </section>
 
-        <section className="jx-help-homePath" aria-labelledby="help-learning-path-title">
-          <div className="jx-help-homePathHeader">
-            <div>
-              <div className="jx-help-homeSectionEyebrow">{t('home.pathEyebrow')}</div>
-              <h2 id="help-learning-path-title">{t('home.pathTitle')}</h2>
-              <p>{t('home.pathDescription')}</p>
-            </div>
-            <Link
-              className="jx-help-homePathAction"
-              to="/help/learning/trusted-cross-market-research"
-            >
-              {t('home.pathStart')}
-            </Link>
-          </div>
-
-          <h3>{t('home.pathStepsTitle')}</h3>
-          <ol className="jx-help-homeSteps">
-            {LEARNING_PATH_STEP_KEYS.map((step, index) => (
-              <li className="jx-help-homeStep" key={step}>
-                <span className="jx-help-homeStepNumber">{index + 1}</span>
-                <div>
-                  <strong>{t(`home.pathSteps.${step}.title`)}</strong>
-                  <p>{t(`home.pathSteps.${step}.description`)}</p>
+        {LEARNING_PATHS.map((path) => (
+          <section
+            className="jx-help-homePath"
+            aria-labelledby={`help-learning-path-${path.key}`}
+            key={path.key}
+          >
+            <div className="jx-help-homePathHeader">
+              <div>
+                <div className="jx-help-homeSectionEyebrow">
+                  {t(`home.paths.${path.key}.eyebrow`)}
                 </div>
-              </li>
-            ))}
-          </ol>
-        </section>
+                <h2 id={`help-learning-path-${path.key}`}>{t(`home.paths.${path.key}.title`)}</h2>
+                <p>{t(`home.paths.${path.key}.description`)}</p>
+              </div>
+              <Link className="jx-help-homePathAction" to={`/help/${path.slug}`}>
+                {t(`home.paths.${path.key}.start`)}
+              </Link>
+            </div>
+
+            <h3>{t(`home.paths.${path.key}.stepsTitle`)}</h3>
+            <ol className="jx-help-homeSteps">
+              {path.steps.map((step, index) => (
+                <li className="jx-help-homeStep" key={step}>
+                  <span className="jx-help-homeStepNumber">{index + 1}</span>
+                  <div>
+                    <strong>{t(`home.paths.${path.key}.steps.${step}.title`)}</strong>
+                    <p>{t(`home.paths.${path.key}.steps.${step}.description`)}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </section>
+        ))}
 
         <section className="jx-help-homeManual" aria-labelledby="help-manual-title">
           <div className="jx-help-homeSectionEyebrow">{t('home.manualSectionTitle')}</div>

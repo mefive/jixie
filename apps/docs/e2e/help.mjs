@@ -140,14 +140,17 @@ try {
   await page.getByRole('heading', { level: 1, name: '从学习路径开始，也可以按页面查找' }).waitFor();
   if (
     (await page.locator('.jx-help-homeChoice').count()) !== 2 ||
-    (await page.locator('.jx-help-homeStep').count()) !== 5 ||
+    (await page.locator('.jx-help-homePath').count()) !== 2 ||
+    (await page.locator('.jx-help-homeStep').count()) !== 10 ||
     (await page.locator('.jx-help-homeManualCard').count()) !== 10
   ) {
-    throw new Error('help landing does not render both entry modes, five steps, and page groups');
+    throw new Error(
+      'help landing does not render both entry modes, learning paths, and page groups',
+    );
   }
   await page.screenshot({ path: `${SHOTS}17a-help-learning-home.png`, fullPage: true });
 
-  await page.getByRole('link', { name: '开始这条学习路径', exact: true }).click();
+  await page.getByRole('link', { name: '开始描述性研究', exact: true }).click();
   await page
     .getByRole('heading', { level: 1, name: '可信跨市场研究：收益、汇率与相关性' })
     .waitFor();
@@ -172,6 +175,31 @@ try {
     .waitFor();
   await page.getByText('中文', { exact: true }).last().click();
 
+  await page.goto(`${BASE}/docs/help/learning/csi300-trend-strategy`, {
+    waitUntil: 'domcontentloaded',
+  });
+  await page
+    .getByRole('heading', { level: 1, name: '沪深 300 趋势策略：参数、成本与样本外' })
+    .waitFor();
+  if (
+    (await page.locator('.jx-help-codeBlock').count()) < 2 ||
+    (await page.getByRole('heading', { level: 2, name: '完成检查' }).count()) !== 1 ||
+    (await page.locator('.jx-help-nav .jx-help-navLink--active').textContent()) !==
+      '沪深 300 趋势策略：参数、成本与样本外'
+  ) {
+    throw new Error('CSI 300 strategy learning path is missing code, completion, or navigation');
+  }
+  await page.screenshot({ path: `${SHOTS}17c-help-strategy-learning-path.png`, fullPage: true });
+
+  await page.getByText('EN', { exact: true }).last().click();
+  await page
+    .getByRole('heading', {
+      level: 1,
+      name: 'CSI 300 trend strategy: parameters, costs, and out-of-sample evidence',
+    })
+    .waitFor();
+  await page.getByText('中文', { exact: true }).last().click();
+
   await page.goto(`${BASE}/docs/help/getting-started/overview`, { waitUntil: 'domcontentloaded' });
   await page.getByRole('heading', { level: 1, name: '产品可以做什么' }).waitFor();
 
@@ -182,8 +210,8 @@ try {
         .evaluateAll((links) => links.map((link) => link.getAttribute('href'))),
     ),
   ].filter(Boolean);
-  if (articleHrefs.length !== 92) {
-    throw new Error(`expected 92 help articles, got ${articleHrefs.length}`);
+  if (articleHrefs.length !== 93) {
+    throw new Error(`expected 93 help articles, got ${articleHrefs.length}`);
   }
   for (const href of articleHrefs) {
     if (new URL(page.url()).pathname !== href) {

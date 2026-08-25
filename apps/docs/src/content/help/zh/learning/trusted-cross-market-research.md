@@ -290,6 +290,7 @@ correlation_intervals.round(3)
 
 ## 下一步
 
+- [沪深 300 趋势策略：参数、成本与样本外](/help/learning/csi300-trend-strategy)
 - [研究文档与运行记录](/docs/help/research/records)
 - [查看研究输出](/docs/help/research/outputs)
 - [怎样阅读时间序列关系研究](/docs/help/basics/time-series-relationships)
