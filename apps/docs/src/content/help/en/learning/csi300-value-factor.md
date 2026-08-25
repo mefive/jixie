@@ -9,6 +9,34 @@ higher earnings yield tend to rank higher by next-month return, and does that re
 The earnings-yield preset has key `ep` and is the reciprocal of positive `PE_TTM`. It converts “which stocks are relatively cheaper
 at the same time” into a sortable value. It does not create positions or prove that cheap stocks will rise.
 
+## The fixed case has been run for real
+
+The first real run corrected a date that made the original tutorial impossible to execute. The local CSI 300 point-in-time membership
+history begins with a 2016-01-29 snapshot, and the system correctly refuses to backfill 2015 with today’s constituents. The fixed
+explore window therefore starts on **2016-02-01**; the date was not moved to improve the result.
+
+On 2026-08-25 a new account ran the non-neutralized primary report, the predeclared size-plus-industry-neutralized diagnostic, and the
+primary report’s one formal holdout. Explore data were cut off at 2025-01-27 and produced 107 valid months. Holdout ran from
+2025-02-05 through 2026-07-30 and produced 17 valid months. Every report froze point-in-time CSI 300 membership, monthly frequency,
+global ranking, 1% winsorization, nonzero costs, and `mean Rank IC > 0.02`.
+
+| Report | Rank IC | Newey–West 95% interval | Annualized ICIR | IC>0 | Net L/S annualized | D10 turnover |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Primary explore | 0.0521 | [0.0099, 0.0943] | 0.744 | 56.1% | -4.53% | 17.5% |
+| Size + industry diagnostic | 0.0448 | [0.0180, 0.0717] | 1.160 | 60.7% | 5.01% | 29.4% |
+| Formal holdout | 0.0734 | [-0.0801, 0.2269] | 0.699 | 52.9% | -19.07% | 17.7% |
+
+![Actual primary earnings-yield report for point-in-time CSI 300 constituents](/docs/images/help/zh/learning/csi300-value-factor-explore-result.png)
+
+![Actual size-plus-industry-neutralized diagnostic](/docs/images/help/zh/learning/csi300-value-factor-neutralized-result.png)
+
+![Actual first reveal of the formal holdout](/docs/images/help/zh/learning/csi300-value-factor-holdout-result.png)
+
+Holdout exceeded the precommitted Rank IC threshold, but its 95% interval includes zero, only 52.9% of months were positive, and net
+long-short annualized return was -19.07%. Passing one threshold is not success; the fixed adjudication is **insufficient evidence**.
+The report also states that historical negative-equity and long-suspension states cannot be reliably backfilled, and the system did
+not substitute current status for history. The screenshots retain these warnings and conflicting evidence.
+
 ## What you will learn
 
 You should be able to:
@@ -61,7 +89,7 @@ dates, costs, and data cutoff shown on your page:
 | Research universe  | CSI 300                                                                           | Use index membership as it stood on each historical date            |
 | Ranking scope      | Global                                                                            | Compare the CSI 300 constituents with one another                   |
 | Frequency          | Monthly                                                                           | Relate the Factor value to next-month return                        |
-| Range              | `2015-01-01` through the current explore-period end shown by the page             | Do not cross the holdout or move dates after viewing results        |
+| Range              | `2016-02-01` through the current explore-period end shown by the page             | First membership snapshot is 2016-01-29; do not cross the holdout   |
 | Neutralization     | None                                                                              | This is the precommitted primary report                             |
 | Sample handling    | Keep the current default risk, liquidity, coverage, and 1% winsorization settings | Avoid changing filters after viewing results                        |
 | Costs              | Keep the current nonzero defaults and record their exact values                   | Do not interpret the net long-short result as frictionless          |
@@ -235,7 +263,7 @@ Finish with one of three verdicts:
 Use this structure for the final record:
 
 ```text
-This exercise precommitted ep, point-in-time CSI 300 constituents, monthly frequency, global ranking,
+This exercise precommitted ep, point-in-time CSI 300 constituents from 2016-02-01, monthly frequency, global ranking,
 no neutralization, and Mean Rank IC > 0.02. It allowed one predeclared size-plus-industry diagnostic.
 
 The primary explore report's Rank IC / Newey–West 95% interval was […] / […]. Deciles, equal versus

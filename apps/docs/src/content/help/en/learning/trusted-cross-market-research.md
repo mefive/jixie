@@ -6,6 +6,34 @@ This exercise asks one limited question: **How strongly were the monthly CNY ret
 correlated from 2015 through 2025, and did that relationship vary over time?** The goal is falsifiable, reproducible evidence—not
 selecting the market with the highest historical return or prescribing portfolio weights.
 
+## The fixed case has been run for real
+
+This page is not code alone. On 2026-08-25 we ran the complete case below in a new Research document. A dedicated browser acceptance
+test checked the immutable execution, output types, and key values. The common sample contains 132 complete months from 2015-01-31
+through 2025-12-31. The maximum reconstruction error for local return × FX return = CNY return was zero for both the Hang Seng and
+S&P 500 series.
+
+![Common sample and FX-identity audit from the fixed run](/docs/images/help/zh/learning/cross-market-sample-audit.png)
+
+The 12-month block bootstrap used 5,000 resamples and the fixed seed `20260825` exactly as shown later:
+
+| Pair | Full-sample correlation | Block-bootstrap 95% interval | 36-month rolling range |
+| --- | ---: | ---: | ---: |
+| CSI 300 / Hang Seng | 0.6865 | [0.5957, 0.7838] | [0.5955, 0.8500] |
+| CSI 300 / S&P 500 | 0.2429 | [-0.0339, 0.4812] | [-0.2778, 0.6247] |
+| Hang Seng / S&P 500 | 0.2311 | [-0.0967, 0.5413] | [-0.3288, 0.7419] |
+
+![Full-sample correlations, bootstrap intervals, and rolling ranges](/docs/images/help/zh/learning/cross-market-case-result.png)
+
+![The actual 36-month rolling-correlation output](/docs/images/help/zh/learning/cross-market-rolling-correlation.png)
+
+The run supports “CSI 300 and Hang Seng CNY monthly returns were meaningfully below perfectly correlated, but still highly
+correlated, in this sample.” Both relationships involving the S&P 500 have bootstrap intervals that include zero, and their rolling
+correlations became negative. A low full-sample number therefore cannot be presented as a permanently stable diversification
+relationship. These screenshots document one frozen run; they do not promise identical numbers after data revisions or sample
+changes. The dedicated acceptance test continues to verify that the sample audit, identities, three intervals, and chart are genuinely
+produced.
+
 ## What you will learn
 
 You should be able to:
