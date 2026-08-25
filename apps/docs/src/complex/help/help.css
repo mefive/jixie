@@ -15,6 +15,222 @@
   -webkit-font-smoothing: antialiased;
 }
 
+.jx-help-home {
+  width: min(1120px, 100%);
+  margin: 0 auto;
+  padding: 72px 32px 120px;
+}
+
+.jx-help-homeHero {
+  max-width: 920px;
+}
+
+.jx-help-homeEyebrow,
+.jx-help-homeSectionEyebrow {
+  @apply font-semibold uppercase;
+  color: var(--help-tertiary);
+  font-size: 12px;
+  letter-spacing: 0.8px;
+}
+
+.jx-help-homeHero h1 {
+  @apply font-semibold;
+  max-width: 820px;
+  margin: 14px 0 18px;
+  color: var(--help-text);
+  font-size: 48px;
+  line-height: 1.12;
+  letter-spacing: -0.035em;
+}
+
+.jx-help-homeHero > p {
+  max-width: 760px;
+  margin: 0;
+  color: var(--help-secondary);
+  font-size: 18px;
+  line-height: 1.7;
+}
+
+.jx-help-homeChoices {
+  @apply grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 38px;
+}
+
+.jx-help-homeChoice {
+  @apply flex flex-col;
+  min-height: 190px;
+  padding: 26px 28px;
+  border: 1px solid var(--help-line);
+  border-radius: 18px;
+  background: #fff;
+  color: var(--help-text);
+  box-shadow: 0 10px 32px rgb(0 0 0 / 0.05);
+}
+
+.jx-help-homeChoice:hover {
+  border-color: #b8b8c0;
+  box-shadow: 0 14px 38px rgb(0 0 0 / 0.08);
+}
+
+.jx-help-homeChoice--guided {
+  border-color: #c9d5e5;
+  background: linear-gradient(145deg, #f6f9fd 0%, #edf3fa 100%);
+}
+
+.jx-help-homeChoice strong {
+  @apply font-semibold;
+  font-size: 21px;
+}
+
+.jx-help-homeChoice span {
+  margin-top: 12px;
+  color: var(--help-secondary);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.jx-help-homeChoice em {
+  @apply font-semibold not-italic;
+  margin-top: auto;
+  padding-top: 20px;
+  color: #2457a6;
+  font-size: 14px;
+}
+
+.jx-help-homePath,
+.jx-help-homeManual {
+  margin-top: 76px;
+  padding-top: 48px;
+  border-top: 1px solid var(--help-line);
+}
+
+.jx-help-homePathHeader {
+  @apply flex items-end justify-between;
+  gap: 36px;
+}
+
+.jx-help-homePathHeader h2,
+.jx-help-homeManual h2 {
+  @apply font-semibold;
+  margin: 10px 0 12px;
+  color: var(--help-text);
+  font-size: 32px;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.jx-help-homePathHeader p,
+.jx-help-homeManual > p {
+  max-width: 740px;
+  margin: 0;
+  color: var(--help-secondary);
+  font-size: 16px;
+  line-height: 1.65;
+}
+
+.jx-help-homePathAction {
+  @apply shrink-0 font-semibold;
+  padding: 11px 16px;
+  border-radius: 9px;
+  background: var(--help-text);
+  color: #fff;
+  font-size: 14px;
+}
+
+.jx-help-homePathAction:hover {
+  background: #3a3a3c;
+}
+
+.jx-help-homePath > h3 {
+  @apply font-semibold;
+  margin: 34px 0 15px;
+  color: var(--help-secondary);
+  font-size: 13px;
+}
+
+.jx-help-homeSteps {
+  @apply grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.jx-help-homeStep {
+  min-width: 0;
+  padding: 18px 16px;
+  border: 1px solid var(--help-line);
+  border-radius: 12px;
+  background: var(--help-soft);
+}
+
+.jx-help-homeStepNumber {
+  @apply inline-flex items-center justify-center font-semibold;
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  background: var(--help-text);
+  color: #fff;
+  font-size: 12px;
+}
+
+.jx-help-homeStep strong {
+  @apply block font-semibold;
+  margin-top: 14px;
+  color: var(--help-text);
+  font-size: 14px;
+}
+
+.jx-help-homeStep p {
+  margin: 7px 0 0;
+  color: var(--help-secondary);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.jx-help-homeManualGrid {
+  @apply grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.jx-help-homeManualCard {
+  @apply flex flex-col;
+  min-height: 148px;
+  padding: 20px;
+  border: 1px solid var(--help-line);
+  border-radius: 12px;
+  color: var(--help-text);
+}
+
+.jx-help-homeManualCard:hover {
+  background: var(--help-soft);
+}
+
+.jx-help-homeManualCard strong {
+  @apply font-semibold;
+  font-size: 16px;
+}
+
+.jx-help-homeManualCard span {
+  margin-top: 9px;
+  color: var(--help-secondary);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.jx-help-homeManualCard em {
+  @apply not-italic;
+  margin-top: auto;
+  padding-top: 15px;
+  color: var(--help-tertiary);
+  font-size: 12px;
+}
+
 .jx-help-layout {
   @apply grid;
   grid-template-columns: 220px minmax(0, 760px) 190px;
@@ -439,6 +655,10 @@
 }
 
 @media (max-width: 1100px) {
+  .jx-help-homeSteps {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .jx-help-layout {
     grid-template-columns: 210px minmax(0, 760px);
     gap: 34px;
@@ -450,6 +670,69 @@
 }
 
 @media (max-width: 720px) {
+  .jx-help-home {
+    padding: 40px 18px 72px;
+  }
+
+  .jx-help-homeHero h1 {
+    font-size: 36px;
+  }
+
+  .jx-help-homeHero > p {
+    font-size: 16px;
+  }
+
+  .jx-help-homeChoices,
+  .jx-help-homeSteps,
+  .jx-help-homeManualGrid {
+    @apply block;
+  }
+
+  .jx-help-homeChoice {
+    min-height: 172px;
+    padding: 22px;
+  }
+
+  .jx-help-homeChoice + .jx-help-homeChoice,
+  .jx-help-homeStep + .jx-help-homeStep,
+  .jx-help-homeManualCard + .jx-help-homeManualCard {
+    margin-top: 12px;
+  }
+
+  .jx-help-homePath,
+  .jx-help-homeManual {
+    margin-top: 54px;
+    padding-top: 36px;
+  }
+
+  .jx-help-homePathHeader {
+    @apply block;
+  }
+
+  .jx-help-homePathHeader h2,
+  .jx-help-homeManual h2 {
+    font-size: 27px;
+  }
+
+  .jx-help-homePathAction {
+    @apply inline-block;
+    margin-top: 20px;
+  }
+
+  .jx-help-homeStep {
+    @apply flex items-start;
+    gap: 14px;
+    padding: 16px;
+  }
+
+  .jx-help-homeStep strong {
+    margin-top: 0;
+  }
+
+  .jx-help-homeManualCard {
+    min-height: 128px;
+  }
+
   .jx-help-layout {
     @apply block;
     padding: 0 18px;

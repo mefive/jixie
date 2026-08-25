@@ -87,13 +87,14 @@ try {
     throw new Error('SDK page still renders a tutorial link');
   }
   await sdkHeader.getByRole('link', { name: '使用帮助', exact: true }).click();
-  await page.waitForURL('**/docs/help/getting-started/overview');
+  await page.waitForURL('**/docs/help');
+  await page.getByRole('heading', { level: 1, name: '从学习路径开始，也可以按页面查找' }).waitFor();
   if ((await page.evaluate(() => window.__publicDocsSpaMarker)) !== 'same-document') {
     throw new Error('SDK to help navigation performed a full-page reload');
   }
 
   await page.goto(`${BASE}/learn`, { waitUntil: 'domcontentloaded' });
-  await page.waitForURL('**/docs/help/getting-started/overview');
+  await page.waitForURL('**/docs/help');
 
   await page.goto(`${BASE}/help/getting-started/navigation?legacy=1#切换显示语言`, {
     waitUntil: 'domcontentloaded',
@@ -129,9 +130,47 @@ try {
   }
 
   const [openedHelp] = await Promise.all([context.waitForEvent('page'), helpEntry.click()]);
-  await openedHelp.waitForURL('**/docs/help/getting-started/overview');
-  await openedHelp.getByRole('heading', { level: 1, name: '产品可以做什么' }).waitFor();
+  await openedHelp.waitForURL('**/docs/help');
+  await openedHelp
+    .getByRole('heading', { level: 1, name: '从学习路径开始，也可以按页面查找' })
+    .waitFor();
   await openedHelp.close();
+
+  await page.goto(`${BASE}/docs/help`, { waitUntil: 'domcontentloaded' });
+  await page.getByRole('heading', { level: 1, name: '从学习路径开始，也可以按页面查找' }).waitFor();
+  if (
+    (await page.locator('.jx-help-homeChoice').count()) !== 2 ||
+    (await page.locator('.jx-help-homeStep').count()) !== 5 ||
+    (await page.locator('.jx-help-homeManualCard').count()) !== 10
+  ) {
+    throw new Error('help landing does not render both entry modes, five steps, and page groups');
+  }
+  await page.screenshot({ path: `${SHOTS}17a-help-learning-home.png`, fullPage: true });
+
+  await page.getByRole('link', { name: '开始这条学习路径', exact: true }).click();
+  await page
+    .getByRole('heading', { level: 1, name: '可信跨市场研究：收益、汇率与相关性' })
+    .waitFor();
+  if (
+    (await page.locator('.jx-help-codeBlock').count()) < 6 ||
+    (await page.getByRole('heading', { level: 2, name: '完成检查' }).count()) !== 1 ||
+    (await page.locator('.jx-help-nav .jx-help-navLink--active').textContent()) !==
+      '可信跨市场研究：收益、汇率与相关性'
+  ) {
+    throw new Error(
+      'trusted cross-market learning path is missing code, completion, or navigation',
+    );
+  }
+  await page.screenshot({ path: `${SHOTS}17b-help-learning-path.png`, fullPage: true });
+
+  await page.getByText('EN', { exact: true }).last().click();
+  await page
+    .getByRole('heading', {
+      level: 1,
+      name: 'Trustworthy cross-market research: returns, FX, and correlation',
+    })
+    .waitFor();
+  await page.getByText('中文', { exact: true }).last().click();
 
   await page.goto(`${BASE}/docs/help/getting-started/overview`, { waitUntil: 'domcontentloaded' });
   await page.getByRole('heading', { level: 1, name: '产品可以做什么' }).waitFor();
@@ -143,8 +182,8 @@ try {
         .evaluateAll((links) => links.map((link) => link.getAttribute('href'))),
     ),
   ].filter(Boolean);
-  if (articleHrefs.length !== 91) {
-    throw new Error(`expected 91 help articles, got ${articleHrefs.length}`);
+  if (articleHrefs.length !== 92) {
+    throw new Error(`expected 92 help articles, got ${articleHrefs.length}`);
   }
   for (const href of articleHrefs) {
     if (new URL(page.url()).pathname !== href) {
@@ -739,10 +778,25 @@ try {
   await page.getByRole('link', { name: 'Open Research' }).click();
   await page.waitForURL('**/research');
 
+  await page.goto(`${BASE}/docs/help`, { waitUntil: 'domcontentloaded' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page
+    .getByRole('heading', { level: 1, name: 'Follow a learning path or look up a product page' })
+    .waitFor();
+  const learningHomeOverflow = await page.evaluate(
+    () => document.documentElement.scrollWidth > window.innerWidth + 1,
+  );
+  if (learningHomeOverflow) {
+    throw new Error('learning home has horizontal overflow at 390px');
+  }
+  await page.screenshot({
+    path: `${SHOTS}17c-help-learning-home-mobile.png`,
+    fullPage: true,
+  });
+
   await page.goto(`${BASE}/docs/help/getting-started/first-backtest`, {
     waitUntil: 'domcontentloaded',
   });
-  await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole('heading', { level: 1, name: 'Run your first backtest' }).waitFor();
   await page.locator('.jx-help-mobileNav').waitFor();
 
