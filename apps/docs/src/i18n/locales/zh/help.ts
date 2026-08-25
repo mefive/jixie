@@ -10,9 +10,9 @@ export const zhHelp = {
     title: '从学习路径开始，也可以按页面查找',
     intro:
       '学习路径把概念、项目内真实例子、可复现练习和完成检查串在一起；页面手册继续提供所有功能的操作说明。',
-    guidedTitle: '沿三条学习路径实践',
+    guidedTitle: '沿四条学习路径实践',
     guidedDescription:
-      '先建立可信研究证据，再分别练习可执行策略和带正式保留段的股票横截面 Factor 研究。',
+      '从可信研究、策略和 Factor 证据，继续练习可追溯的回测、部署与每日信号，并保留失败案例。',
     guidedAction: '从描述性研究开始',
     manualTitle: '按页面查使用方法',
     manualDescription: '适合已经知道要使用哪项功能，直接查看当前控件、口径和限制。',
@@ -105,6 +105,36 @@ export const zhHelp = {
           verdict: {
             title: '裁决证据',
             description: '保留冲突和失败，不自动发布或转成策略。',
+          },
+        },
+      },
+      signal: {
+        eyebrow: '第四条 · 信号治理',
+        title: '国债曲线到每日信号',
+        description:
+          '用国债收益率曲线 Factor 串联正式保留段、费后回测、部署和指定日期信号，区分系统运行正确与策略证据合格。',
+        start: '开始信号治理',
+        stepsTitle: '这条路径怎样推进',
+        steps: {
+          evidence: {
+            title: '设置证据门槛',
+            description: '先冻结国债曲线假设和稳健 t 值标准。',
+          },
+          lineage: {
+            title: '保留失败证据',
+            description: '一次揭示正式 Holdout，并接受方向反转。',
+          },
+          backtest: {
+            title: '核对费后回测',
+            description: '追踪 Factor key、代码 hash、费用与实际成交。',
+          },
+          deploy: {
+            title: '冻结部署快照',
+            description: '确认策略和曲线输入进入不可变运行版本。',
+          },
+          audit: {
+            title: '审计每日信号',
+            description: '区分指令、模拟成交和实际执行，并暂停失败候选。',
           },
         },
       },

@@ -185,6 +185,8 @@ import csi300TrendStrategyEn from '@src/content/help/en/learning/csi300-trend-st
 import csi300TrendStrategyZh from '@src/content/help/zh/learning/csi300-trend-strategy.md?raw';
 import csi300ValueFactorEn from '@src/content/help/en/learning/csi300-value-factor.md?raw';
 import csi300ValueFactorZh from '@src/content/help/zh/learning/csi300-value-factor.md?raw';
+import cgbCurveDailySignalEn from '@src/content/help/en/learning/cgb-curve-daily-signal.md?raw';
+import cgbCurveDailySignalZh from '@src/content/help/zh/learning/cgb-curve-daily-signal.md?raw';
 import trustedCrossMarketResearchEn from '@src/content/help/en/learning/trusted-cross-market-research.md?raw';
 import trustedCrossMarketResearchZh from '@src/content/help/zh/learning/trusted-cross-market-research.md?raw';
 
@@ -258,6 +260,22 @@ export const HELP_ARTICLES: HelpArticle[] = [
     content: {
       zh: csi300ValueFactorZh,
       en: csi300ValueFactorEn,
+    },
+  },
+  {
+    slug: 'learning/cgb-curve-daily-signal',
+    group: 'learningPaths',
+    title: {
+      zh: '国债曲线到每日信号：证据、回测与部署',
+      en: 'From the CGB curve to a daily signal: evidence, backtest, and deployment',
+    },
+    summary: {
+      zh: '用国债收益率曲线 Factor 串联正式保留段、费后回测、部署和指定日期信号，并区分工程通过与证据失败。',
+      en: 'Connect a CGB-yield Factor to a formal holdout, costed backtest, deployment, and specified-date signal while separating operational success from evidence failure.',
+    },
+    content: {
+      zh: cgbCurveDailySignalZh,
+      en: cgbCurveDailySignalEn,
     },
   },
   {

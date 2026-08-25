@@ -125,6 +125,11 @@ const LEARNING_PATHS = [
     slug: 'learning/csi300-value-factor',
     steps: ['hypothesis', 'scope', 'rank', 'holdout', 'verdict'],
   },
+  {
+    key: 'signal',
+    slug: 'learning/cgb-curve-daily-signal',
+    steps: ['evidence', 'lineage', 'backtest', 'deploy', 'audit'],
+  },
 ] as const;
 
 function HelpLanding() {

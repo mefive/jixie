@@ -12,9 +12,9 @@ export const enHelp: typeof zhHelp = {
     title: 'Follow a learning path or look up a product page',
     intro:
       'Learning paths connect concepts, real examples, reproducible exercises, and completion checks. The page manual still documents every product workflow.',
-    guidedTitle: 'Practice along three learning paths',
+    guidedTitle: 'Practice along four learning paths',
     guidedDescription:
-      'Build trustworthy evidence first, then practice executable strategy research and formal-holdout stock Factor research.',
+      'Move from trustworthy research, strategy, and Factor evidence into auditable backtests, deployment, and daily signals while retaining failures.',
     guidedAction: 'Start with descriptive research',
     manualTitle: 'Look up a product page',
     manualDescription:
@@ -112,6 +112,37 @@ export const enHelp: typeof zhHelp = {
           verdict: {
             title: 'Adjudicate evidence',
             description: 'Keep conflicts and failures without automatic publication or conversion.',
+          },
+        },
+      },
+      signal: {
+        eyebrow: 'Path four · Signal governance',
+        title: 'From the CGB curve to a daily signal',
+        description:
+          'Connect a government-yield Factor to a formal holdout, costed backtest, deployment, and specified-date signal while separating correct execution from admissible evidence.',
+        start: 'Start signal governance',
+        stepsTitle: 'How the path progresses',
+        steps: {
+          evidence: {
+            title: 'Set an evidence gate',
+            description: 'Freeze the curve hypothesis and robust-t criterion first.',
+          },
+          lineage: {
+            title: 'Retain failed evidence',
+            description: 'Reveal one formal holdout and accept its sign reversal.',
+          },
+          backtest: {
+            title: 'Audit the costed backtest',
+            description: 'Trace Factor key, code hash, costs, and actual simulated fills.',
+          },
+          deploy: {
+            title: 'Freeze the deployment',
+            description: 'Verify that strategy and curve input enter an immutable run version.',
+          },
+          audit: {
+            title: 'Audit the daily signal',
+            description:
+              'Separate instructions, model fills, and actual execution, then pause a failed candidate.',
           },
         },
       },
