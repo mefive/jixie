@@ -8,6 +8,7 @@ RUN pip install --no-cache-dir --requirement /tmp/requirements-research-runtime.
 
 COPY python/jixie_runner.py /opt/jixie/jixie_runner.py
 COPY python/jixie_research_runtime.py /opt/jixie/jixie_research_runtime.py
+COPY python/jixie_factor_runtime.py /opt/jixie/jixie_factor_runtime.py
 
 USER 65532:65532
 ENTRYPOINT ["python3", "-I", "-u", "/opt/jixie/jixie_runner.py"]

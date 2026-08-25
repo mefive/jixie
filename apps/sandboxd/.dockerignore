@@ -1,4 +1,7 @@
 *
 !Dockerfile.python
 !python/
+!python/requirements-research-runtime.txt
 !python/jixie_runner.py
+!python/jixie_research_runtime.py
+!python/jixie_factor_runtime.py
