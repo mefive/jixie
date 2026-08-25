@@ -49,6 +49,10 @@ export const Help = complex.component(() => {
     }
   }, [article, locale, location.hash]);
 
+  if (!slug) {
+    return <HelpLanding />;
+  }
+
   if (!article) {
     return <Navigate to={`/help/${DEFAULT_HELP_SLUG}`} replace />;
   }
@@ -104,6 +108,106 @@ export const Help = complex.component(() => {
 }, 'Help');
 
 // —— Subcomponents / helpers ——
+
+const LEARNING_PATH_STEP_KEYS = [
+  'question',
+  'semantics',
+  'compute',
+  'uncertainty',
+  'conclusion',
+] as const;
+
+function HelpLanding() {
+  const { t } = useTranslation('help');
+  const manualGroups = HELP_GROUPS.filter((group) => group !== 'learningPaths');
+
+  return (
+    <div className="jx-help">
+      <PublicDocsHeader current="help" />
+
+      <main className="jx-help-home">
+        <section className="jx-help-homeHero">
+          <div className="jx-help-homeEyebrow">{t('home.eyebrow')}</div>
+          <h1>{t('home.title')}</h1>
+          <p>{t('home.intro')}</p>
+
+          <div className="jx-help-homeChoices">
+            <Link
+              className="jx-help-homeChoice jx-help-homeChoice--guided"
+              to="/help/learning/trusted-cross-market-research"
+            >
+              <strong>{t('home.guidedTitle')}</strong>
+              <span>{t('home.guidedDescription')}</span>
+              <em>{t('home.guidedAction')}</em>
+            </Link>
+            <Link className="jx-help-homeChoice" to="/help/getting-started/navigation">
+              <strong>{t('home.manualTitle')}</strong>
+              <span>{t('home.manualDescription')}</span>
+              <em>{t('home.manualAction')}</em>
+            </Link>
+          </div>
+        </section>
+
+        <section className="jx-help-homePath" aria-labelledby="help-learning-path-title">
+          <div className="jx-help-homePathHeader">
+            <div>
+              <div className="jx-help-homeSectionEyebrow">{t('home.pathEyebrow')}</div>
+              <h2 id="help-learning-path-title">{t('home.pathTitle')}</h2>
+              <p>{t('home.pathDescription')}</p>
+            </div>
+            <Link
+              className="jx-help-homePathAction"
+              to="/help/learning/trusted-cross-market-research"
+            >
+              {t('home.pathStart')}
+            </Link>
+          </div>
+
+          <h3>{t('home.pathStepsTitle')}</h3>
+          <ol className="jx-help-homeSteps">
+            {LEARNING_PATH_STEP_KEYS.map((step, index) => (
+              <li className="jx-help-homeStep" key={step}>
+                <span className="jx-help-homeStepNumber">{index + 1}</span>
+                <div>
+                  <strong>{t(`home.pathSteps.${step}.title`)}</strong>
+                  <p>{t(`home.pathSteps.${step}.description`)}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        <section className="jx-help-homeManual" aria-labelledby="help-manual-title">
+          <div className="jx-help-homeSectionEyebrow">{t('home.manualSectionTitle')}</div>
+          <h2 id="help-manual-title">{t('home.manualTitle')}</h2>
+          <p>{t('home.manualSectionDescription')}</p>
+
+          <div className="jx-help-homeManualGrid">
+            {manualGroups.flatMap((group) => {
+              const articles = HELP_ARTICLES.filter((article) => article.group === group);
+              const firstArticle = articles[0];
+              if (!firstArticle) {
+                return [];
+              }
+
+              return [
+                <Link
+                  className="jx-help-homeManualCard"
+                  to={`/help/${firstArticle.slug}`}
+                  key={group}
+                >
+                  <strong>{t(`groups.${group}`)}</strong>
+                  <span>{t(`home.manualGroups.${group}`)}</span>
+                  <em>{t('home.articleCount', { count: articles.length })}</em>
+                </Link>,
+              ];
+            })}
+          </div>
+        </section>
+      </main>
+    </div>
+  );
+}
 
 type Heading = {
   depth: 2 | 3;

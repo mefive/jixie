@@ -24,9 +24,10 @@ The pages can be used together. For example, use Research to inspect an equity u
 1. [Sign in](/help/getting-started/login).
 2. Read [View the Market Weather map](/help/market-valuation/market-overview).
 3. Read [Page navigation](/help/getting-started/navigation).
-4. [Complete your first quantitative study](/help/getting-started/first-research).
-5. [Run your first backtest](/help/getting-started/first-backtest).
-6. Read [Why a backtest is not a forecast](/help/basics/backtest-limitations).
+4. Follow [Trustworthy cross-market research](/help/learning/trusted-cross-market-research) from a prior hypothesis to an auditable conclusion.
+5. [Complete your first quantitative study](/help/getting-started/first-research) to learn documents, Python, and full-run snapshots.
+6. [Run your first backtest](/help/getting-started/first-backtest).
+7. Read [Why a backtest is not a forecast](/help/basics/backtest-limitations).
 
 ## What the product cannot decide for you
 
@@ -45,6 +46,7 @@ Before making a trade, check the data date, trading costs, whether an order coul
 
 ## Related articles
 
+- [Trustworthy cross-market research: returns, FX, and correlation](/help/learning/trusted-cross-market-research)
 - [Stocks, ETFs, and indices](/help/basics/stocks-etfs-indices)
 - [Strategies and backtests](/help/basics/strategy-backtest)
 - [Return and risk metrics](/help/basics/performance-risk)

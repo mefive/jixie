@@ -181,8 +181,11 @@ import peVolumeDataEn from '@src/content/help/en/stock-detail/pe-volume-data.md?
 import peVolumeDataZh from '@src/content/help/zh/stock-detail/pe-volume-data.md?raw';
 import readChartEn from '@src/content/help/en/stock-detail/read-chart.md?raw';
 import readChartZh from '@src/content/help/zh/stock-detail/read-chart.md?raw';
+import trustedCrossMarketResearchEn from '@src/content/help/en/learning/trusted-cross-market-research.md?raw';
+import trustedCrossMarketResearchZh from '@src/content/help/zh/learning/trusted-cross-market-research.md?raw';
 
 export const HELP_GROUPS = [
+  'learningPaths',
   'gettingStarted',
   'basics',
   'research',
@@ -205,6 +208,22 @@ export type HelpArticle = {
 };
 
 export const HELP_ARTICLES: HelpArticle[] = [
+  {
+    slug: 'learning/trusted-cross-market-research',
+    group: 'learningPaths',
+    title: {
+      zh: '可信跨市场研究：收益、汇率与相关性',
+      en: 'Trustworthy cross-market research: returns, FX, and correlation',
+    },
+    summary: {
+      zh: '用中港美价格指数完成一份可复现练习，区分本币与人民币收益，并检查相关性的不确定性。',
+      en: 'Complete a reproducible study with China, Hong Kong, and US price indices, separating local and CNY returns and testing correlation uncertainty.',
+    },
+    content: {
+      zh: trustedCrossMarketResearchZh,
+      en: trustedCrossMarketResearchEn,
+    },
+  },
   {
     slug: 'getting-started/overview',
     group: 'gettingStarted',
