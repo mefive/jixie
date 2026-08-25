@@ -10,6 +10,38 @@ sample split?**
 The goal is not to discover the moving average with the highest historical return. It is to express an intuition as an unambiguous
 rule, then actively look for weaknesses with a tradable baseline, nearby parameters, costs, fills, and out-of-sample results.
 
+## The fixed case has been run for real
+
+On 2026-08-25 we ran the buy-and-hold baseline, the primary 120-day rule, a 10 bp slippage stress, and the 20/60/120-day in-sample and
+out-of-sample scan exactly as specified below. Data were cut off at 2025-12-31; initial capital was CNY 1 million; base slippage was
+2 bp with impact coefficient 0.1; and the split date was 2020-12-31. The dedicated browser acceptance test asserts every backtest,
+cost change, scan cell, and persisted report rather than merely waiting for a page to appear.
+
+| Full-sample version | Annualized return | Max drawdown | Sharpe | Annual turnover | Trades |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 95% buy and hold | 4.01% | -43.88% | 0.290 | 0.04× | 1 |
+| 120-day trend, 2 bp | 0.96% | -38.04% | 0.139 | 4.57× | 103 |
+| 120-day trend, 10 bp | 0.22% | -40.23% | 0.081 | 4.57× | 103 |
+
+![Actual backtest result for the tradable ETF baseline](/docs/images/help/zh/learning/csi300-trend-baseline-result.png)
+
+![Actual backtest result for the primary 120-day trend rule](/docs/images/help/zh/learning/csi300-trend-primary-result.png)
+
+The annualized-return scan produced:
+
+| `lookback` | In sample, 2015–2020 | Out of sample, 2021–2025 | OOS max drawdown | OOS Sharpe | OOS trades |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 20 | 2.59% | -3.64% | -33.71% | -0.259 | 155 |
+| 60 | -0.87% | 0.85% | -23.24% | 0.130 | 75 |
+| 120 | 3.94% | 1.01% | -19.69% | 0.147 | 39 |
+
+![Actual in-sample and out-of-sample scan for 20, 60, and 120 days](/docs/images/help/zh/learning/csi300-trend-scan-result.png)
+
+The precommitted rule reduced full-sample drawdown, but its annualized return was far below the same-ETF baseline. Raising slippage to
+10 bp reduced annualized return from 0.96% to 0.22%. The 20-day rule turned negative out of sample, while 60 and 120 days retained only
+thin positive returns. The fixed adjudication is therefore **insufficient evidence**, not “a robust trend strategy was discovered.”
+The exercise below preserves the complete workflow so you can audit an honest, imperfect result.
+
 ## What you will learn
 
 You should be able to:

@@ -156,6 +156,8 @@ try {
     .waitFor();
   if (
     (await page.locator('.jx-help-codeBlock').count()) < 6 ||
+    (await page.locator('.jx-help-figure').count()) < 3 ||
+    (await page.getByText('0.6865', { exact: true }).count()) !== 1 ||
     (await page.getByRole('heading', { level: 2, name: '完成检查' }).count()) !== 1 ||
     (await page.locator('.jx-help-nav .jx-help-navLink--active').textContent()) !==
       '可信跨市场研究：收益、汇率与相关性'
@@ -183,6 +185,8 @@ try {
     .waitFor();
   if (
     (await page.locator('.jx-help-codeBlock').count()) < 2 ||
+    (await page.locator('.jx-help-figure').count()) < 3 ||
+    (await page.getByText('证据不足', { exact: true }).count()) < 1 ||
     (await page.getByRole('heading', { level: 2, name: '完成检查' }).count()) !== 1 ||
     (await page.locator('.jx-help-nav .jx-help-navLink--active').textContent()) !==
       '沪深 300 趋势策略：参数、成本与样本外'
@@ -209,6 +213,8 @@ try {
   if (
     (await page.locator('.jx-help-markdown .katex').count()) < 2 ||
     (await page.locator('.jx-help-markdown table').count()) < 5 ||
+    (await page.locator('.jx-help-figure').count()) < 3 ||
+    (await page.getByText('2016-02-01', { exact: true }).count()) < 1 ||
     (await page.getByRole('heading', { level: 2, name: '完成检查' }).count()) !== 1 ||
     (await page.locator('.jx-help-nav .jx-help-navLink--active').textContent()) !==
       '沪深 300 价值因子：排序、IC、分层与样本外'
