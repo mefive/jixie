@@ -120,6 +120,11 @@ const LEARNING_PATHS = [
     slug: 'learning/csi300-trend-strategy',
     steps: ['rules', 'baseline', 'scan', 'costs', 'verdict'],
   },
+  {
+    key: 'factor',
+    slug: 'learning/csi300-value-factor',
+    steps: ['hypothesis', 'scope', 'rank', 'holdout', 'verdict'],
+  },
 ] as const;
 
 function HelpLanding() {

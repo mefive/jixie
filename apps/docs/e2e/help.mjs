@@ -140,8 +140,8 @@ try {
   await page.getByRole('heading', { level: 1, name: '从学习路径开始，也可以按页面查找' }).waitFor();
   if (
     (await page.locator('.jx-help-homeChoice').count()) !== 2 ||
-    (await page.locator('.jx-help-homePath').count()) !== 2 ||
-    (await page.locator('.jx-help-homeStep').count()) !== 10 ||
+    (await page.locator('.jx-help-homePath').count()) !== 3 ||
+    (await page.locator('.jx-help-homeStep').count()) !== 15 ||
     (await page.locator('.jx-help-homeManualCard').count()) !== 10
   ) {
     throw new Error(
@@ -200,6 +200,34 @@ try {
     .waitFor();
   await page.getByText('中文', { exact: true }).last().click();
 
+  await page.goto(`${BASE}/docs/help/learning/csi300-value-factor`, {
+    waitUntil: 'domcontentloaded',
+  });
+  await page
+    .getByRole('heading', { level: 1, name: '沪深 300 价值因子：排序、IC、分层与样本外' })
+    .waitFor();
+  if (
+    (await page.locator('.jx-help-markdown .katex').count()) < 2 ||
+    (await page.locator('.jx-help-markdown table').count()) < 5 ||
+    (await page.getByRole('heading', { level: 2, name: '完成检查' }).count()) !== 1 ||
+    (await page.locator('.jx-help-nav .jx-help-navLink--active').textContent()) !==
+      '沪深 300 价值因子：排序、IC、分层与样本外'
+  ) {
+    throw new Error(
+      'CSI 300 Factor learning path is missing formulas, tables, completion, or navigation',
+    );
+  }
+  await page.screenshot({ path: `${SHOTS}17d-help-factor-learning-path.png`, fullPage: true });
+
+  await page.getByText('EN', { exact: true }).last().click();
+  await page
+    .getByRole('heading', {
+      level: 1,
+      name: 'CSI 300 value factor: ranking, IC, portfolios, and holdout',
+    })
+    .waitFor();
+  await page.getByText('中文', { exact: true }).last().click();
+
   await page.goto(`${BASE}/docs/help/getting-started/overview`, { waitUntil: 'domcontentloaded' });
   await page.getByRole('heading', { level: 1, name: '产品可以做什么' }).waitFor();
 
@@ -210,8 +238,8 @@ try {
         .evaluateAll((links) => links.map((link) => link.getAttribute('href'))),
     ),
   ].filter(Boolean);
-  if (articleHrefs.length !== 93) {
-    throw new Error(`expected 93 help articles, got ${articleHrefs.length}`);
+  if (articleHrefs.length !== 94) {
+    throw new Error(`expected 94 help articles, got ${articleHrefs.length}`);
   }
   for (const href of articleHrefs) {
     if (new URL(page.url()).pathname !== href) {
