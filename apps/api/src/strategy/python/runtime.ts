@@ -1,7 +1,13 @@
 import { DEFAULT_LOCALE, type Locale, type StrategyParamValue } from '@jixie/shared';
 import type { BarContext, BarRow, OhlcBar, Strategy } from '../../engine/types.js';
 import { makeSandboxConsole, type UserLogSink } from '../../lib/sandbox-console.js';
-import { PythonSession, type PythonFrame } from './session.js';
+import {
+  strategyExecutionFrameSchema,
+  strategyStartupFrameSchema,
+  type StrategyCommand,
+  type StrategyRequestFrame,
+} from './protocol.js';
+import { PythonSession } from './session.js';
 
 interface PythonMetadata {
   name: string;
@@ -10,11 +16,6 @@ interface PythonMetadata {
   watch: string[];
   futures: string[];
   accounts?: Strategy['accounts'];
-}
-
-interface PythonCommand {
-  operation: string;
-  arguments: Record<string, unknown>;
 }
 
 export interface PythonStrategyRuntime {
@@ -68,12 +69,18 @@ async function waitForReady(
   onUserLog?: UserLogSink,
 ): Promise<PythonMetadata> {
   while (true) {
-    const frame = await session.read();
+    const frame = await session.readValidated(
+      strategyStartupFrameSchema,
+      'starting a Python strategy',
+    );
     if (forwardLog(frame, onUserLog)) {
       continue;
     }
     if (frame.type === 'ready') {
-      return frame.metadata as PythonMetadata;
+      return {
+        ...frame.metadata,
+        accounts: frame.metadata.accounts ?? undefined,
+      };
     }
     if (frame.type === 'fatal' || frame.type === 'error') {
       throw new Error(String(frame.message ?? 'Python strategy initialization failed'));
@@ -91,7 +98,10 @@ async function runPythonBar(
 ): Promise<void> {
   await session.send({ type: 'bar', snapshot: contextSnapshot(context, watch) });
   while (true) {
-    const frame = await session.read();
+    const frame = await session.readValidated(
+      strategyExecutionFrameSchema,
+      'executing a Python strategy bar',
+    );
     if (forwardLog(frame, onUserLog)) {
       continue;
     }
@@ -100,7 +110,7 @@ async function runPythonBar(
       continue;
     }
     if (frame.type === 'done') {
-      replayCommands(context, frame.commands as PythonCommand[]);
+      replayCommands(context, frame.commands);
       return;
     }
     if (frame.type === 'error' || frame.type === 'fatal') {
@@ -139,17 +149,16 @@ function contextSnapshot(context: BarContext, watch: string[]): Record<string, u
 
 async function answerRequest(
   session: PythonSession,
-  frame: PythonFrame,
+  frame: StrategyRequestFrame,
   context: BarContext,
   factors: string[],
 ): Promise<void> {
-  const id = frame.id as number;
+  const id = frame.id;
   try {
-    const arguments_ = frame.arguments as Record<string, unknown>;
     let result: unknown;
     switch (frame.method) {
       case 'cross_section': {
-        const indexCode = arguments_.index_code as string | null;
+        const indexCode = frame.arguments.index_code;
         const codes = await context.loadCrossSection(indexCode ?? undefined);
         result = {
           codes,
@@ -161,7 +170,7 @@ async function answerRequest(
         break;
       }
       case 'bars': {
-        const codes = arguments_.codes as string[];
+        const codes = frame.arguments.codes;
         await context.ensureBars(codes);
         result = {
           bars: Object.fromEntries(
@@ -173,8 +182,6 @@ async function answerRequest(
         };
         break;
       }
-      default:
-        throw new Error(`unknown Python context request: ${String(frame.method)}`);
     }
     await session.send({ type: 'response', id, result });
   } catch (error) {
@@ -242,54 +249,47 @@ function pythonOhlc(row: OhlcBar): Record<string, unknown> {
   };
 }
 
-function replayCommands(context: BarContext, commands: PythonCommand[]): void {
+function replayCommands(context: BarContext, commands: StrategyCommand[]): void {
   for (const command of commands) {
-    const arguments_ = command.arguments;
     switch (command.operation) {
       case 'order_target_percent':
-        context.orderTargetPercent(arguments_.code as string, arguments_.weight as number);
+        context.orderTargetPercent(command.arguments.code, command.arguments.weight);
         break;
       case 'set_holdings':
-        context.setHoldings(arguments_.weights as Record<string, number>);
+        context.setHoldings(command.arguments.weights);
         break;
       case 'order':
-        context.order(arguments_.code as string, arguments_.shares as number);
+        context.order(command.arguments.code, command.arguments.shares);
         break;
       case 'order_lots':
-        context.orderLots(arguments_.code as string, arguments_.lots as number);
+        context.orderLots(command.arguments.code, command.arguments.lots);
         break;
       case 'exit':
-        context.exit(arguments_.code as string);
+        context.exit(command.arguments.code);
         break;
       case 'stop_loss':
-        context.stopLoss(arguments_.code as string, arguments_.price as number);
+        context.stopLoss(command.arguments.code, command.arguments.price);
         break;
       case 'trailing_stop':
-        context.trailingStop(arguments_.code as string, arguments_.percentage as number);
+        context.trailingStop(command.arguments.code, command.arguments.percentage);
         break;
       case 'limit_buy':
-        context.limitBuy(
-          arguments_.code as string,
-          arguments_.price as number,
-          arguments_.shares as number,
-        );
+        context.limitBuy(command.arguments.code, command.arguments.price, command.arguments.shares);
         break;
       case 'take_profit':
-        context.takeProfit(arguments_.code as string, arguments_.percentage as number);
+        context.takeProfit(command.arguments.code, command.arguments.percentage);
         break;
       case 'cancel_conditional':
-        context.cancelConditional(
-          arguments_.code as string,
-          arguments_.kind as Parameters<BarContext['cancelConditional']>[1],
-        );
+        context.cancelConditional(command.arguments.code, command.arguments.kind ?? undefined);
         break;
-      default:
-        throw new Error(`unknown Python strategy command: ${command.operation}`);
     }
   }
 }
 
-function forwardLog(frame: PythonFrame, onUserLog?: UserLogSink): boolean {
+function forwardLog(
+  frame: { type: string; level?: unknown; text?: unknown },
+  onUserLog?: UserLogSink,
+): boolean {
   if (frame.type !== 'log') {
     return false;
   }

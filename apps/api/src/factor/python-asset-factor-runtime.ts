@@ -1,5 +1,9 @@
 import type { UserLogSink } from '../lib/sandbox-console.js';
-import { PythonSession, type PythonFrame } from '../strategy/python/session.js';
+import {
+  factorExecutionFrameSchema,
+  factorStartupFrameSchema,
+} from '../strategy/python/protocol.js';
+import { PythonSession } from '../strategy/python/session.js';
 import type {
   CompiledPanelFactor,
   CompiledTimeSeriesFactor,
@@ -60,7 +64,10 @@ async function compilePythonAssetFactor<T extends AssetAnalysisKind>(
       async computeSeries(fields, indexes) {
         await session.send({ type: 'factor_compute_series', fields, indexes });
         while (true) {
-          const frame = await session.read();
+          const frame = await session.readValidated(
+            factorExecutionFrameSchema,
+            `computing a ${analysisKind} Python Factor`,
+          );
           if (forwardLog(frame, onUserLog)) {
             continue;
           }
@@ -70,7 +77,14 @@ async function compilePythonAssetFactor<T extends AssetAnalysisKind>(
               reportedComputeError = true;
               onUserLog?.('error', `[factor-error] ${firstError}`);
             }
-            return frame.values as (number | null)[];
+            if (frame.values.length !== indexes.length) {
+              const error = new Error(
+                `invalid Python Factor result length: expected ${indexes.length}, received ${frame.values.length}`,
+              );
+              session.abort(error);
+              throw error;
+            }
+            return frame.values;
           }
           if (frame.type === 'fatal' || frame.type === 'error') {
             throw new Error(String(frame.message ?? 'Python Factor execution failed'));
@@ -93,12 +107,20 @@ async function waitForMetadata(
   onUserLog?: UserLogSink,
 ): Promise<PythonAssetMetadata> {
   while (true) {
-    const frame = await session.read();
+    const frame = await session.readValidated(
+      factorStartupFrameSchema,
+      'starting an asset Python Factor',
+    );
     if (forwardLog(frame, onUserLog)) {
       continue;
     }
     if (frame.type === 'factor_ready') {
-      return frame.metadata as PythonAssetMetadata;
+      if (frame.metadata.analysis_kind === 'cross_sectional') {
+        throw new Error(
+          'Python Factor runtime returned cross-sectional metadata for an asset Factor',
+        );
+      }
+      return frame.metadata;
     }
     if (frame.type === 'fatal' || frame.type === 'error') {
       throw new Error(String(frame.message ?? 'Python Factor initialization failed'));
@@ -142,7 +164,10 @@ function validateMetadata(metadata: PythonAssetMetadata, analysisKind: AssetAnal
   }
 }
 
-function forwardLog(frame: PythonFrame, onUserLog?: UserLogSink): boolean {
+function forwardLog(
+  frame: { type: string; level?: unknown; text?: unknown },
+  onUserLog?: UserLogSink,
+): boolean {
   if (frame.type !== 'log') {
     return false;
   }

@@ -34,19 +34,27 @@ describe('sandboxd container lifecycle', () => {
         await waitForInvocationCount(harness.invocationLogPath, 'run', 1);
         firstClient.destroy();
         await waitForInvocationCount(harness.invocationLogPath, 'rm', 1);
+        await waitForInvocationCount(harness.invocationLogPath, 'inspect', 2);
+        await delay(25);
 
         secondClient = await connectClient(harness.socketPath);
         await waitForInvocationCount(harness.invocationLogPath, 'run', 2);
         secondClient.destroy();
-        const invocations = await waitForInvocationCount(harness.invocationLogPath, 'rm', 2);
+        await waitForInvocationCount(harness.invocationLogPath, 'rm', 2);
+        const invocations = await waitForInvocationCount(harness.invocationLogPath, 'inspect', 4);
 
         expect(invocations.map((invocation) => invocation.command)).toEqual([
+          'ps',
           'run',
+          'inspect',
           'kill',
           'rm',
+          'inspect',
           'run',
+          'inspect',
           'kill',
           'rm',
+          'inspect',
         ]);
         expect(invocations.filter((invocation) => invocation.command === 'rm')).toEqual([
           expect.objectContaining({ args: ['--force', expect.stringMatching(/^fake-/)] }),
@@ -79,7 +87,14 @@ describe('sandboxd container lifecycle', () => {
       const invocations = await waitForInvocationCount(harness.invocationLogPath, 'rm', 1);
 
       expect(output).toContain('Python sandbox session exceeded 100ms');
-      expect(invocations.map((invocation) => invocation.command)).toEqual(['run', 'kill', 'rm']);
+      expect(invocations.map((invocation) => invocation.command)).toEqual([
+        'ps',
+        'run',
+        'inspect',
+        'kill',
+        'rm',
+        'inspect',
+      ]);
     } finally {
       client?.destroy();
       await disposeHarness(harness);
@@ -103,7 +118,14 @@ describe('sandboxd container lifecycle', () => {
       const invocations = await waitForInvocationCount(harness.invocationLogPath, 'rm', 1);
 
       expect(output).toContain('runtime exited with code 17');
-      expect(invocations.map((invocation) => invocation.command)).toEqual(['run', 'kill', 'rm']);
+      expect(invocations.map((invocation) => invocation.command)).toEqual([
+        'ps',
+        'run',
+        'inspect',
+        'kill',
+        'rm',
+        'inspect',
+      ]);
     } finally {
       client?.destroy();
       await disposeHarness(harness);
@@ -122,8 +144,81 @@ describe('sandboxd container lifecycle', () => {
       expect(await waitForExit(harness.sandboxd, 5_000)).toBe(0);
       const invocations = await readInvocations(harness.invocationLogPath);
 
-      expect(invocations.map((invocation) => invocation.command)).toEqual(['run', 'kill', 'rm']);
+      expect(invocations.map((invocation) => invocation.command)).toEqual([
+        'ps',
+        'run',
+        'inspect',
+        'kill',
+        'rm',
+        'inspect',
+      ]);
       await expect(access(harness.socketPath)).rejects.toMatchObject({ code: 'ENOENT' });
+    } finally {
+      client?.destroy();
+      await disposeHarness(harness);
+    }
+  }, 15_000);
+
+  it('removes labeled stale containers before accepting connections', async () => {
+    const harness = await startSandboxd({ staleContainerId: 'stale-container' });
+
+    try {
+      const invocations = await waitForInvocationCount(harness.invocationLogPath, 'rm', 1);
+
+      expect(invocations.map((invocation) => invocation.command)).toEqual([
+        'ps',
+        'inspect',
+        'kill',
+        'rm',
+        'inspect',
+      ]);
+      expect(harness.readStderr()).toContain(
+        'removed 1 stale docker sandbox container(s) during startup',
+      );
+    } finally {
+      await disposeHarness(harness);
+    }
+  }, 15_000);
+
+  it('retries removal until inspection confirms the container is absent', async () => {
+    const harness = await startSandboxd({ removeFailures: 2 });
+    let client: Socket | undefined;
+
+    try {
+      client = await connectClient(harness.socketPath);
+      await waitForInvocationCount(harness.invocationLogPath, 'run', 1);
+      client.destroy();
+      await waitForInvocationCount(harness.invocationLogPath, 'rm', 3);
+      const invocations = await waitForInvocationCount(harness.invocationLogPath, 'inspect', 4);
+
+      expect(invocations.filter((invocation) => invocation.command === 'rm')).toHaveLength(3);
+      expect(invocations.at(-1)?.command).toBe('inspect');
+    } finally {
+      client?.destroy();
+      await disposeHarness(harness);
+    }
+  }, 15_000);
+
+  it('reports a cleanup failure when removal cannot be verified', async () => {
+    const harness = await startSandboxd({ removeFailures: 99, sessionTimeoutMs: 100 });
+    let client: Socket | undefined;
+    let output = '';
+
+    try {
+      client = await connectClient(harness.socketPath);
+      client.setEncoding('utf8');
+      client.on('data', (chunk: string) => {
+        output += chunk;
+      });
+      const clientClosed = waitForSocketClose(client, 5_000);
+
+      await waitForInvocationCount(harness.invocationLogPath, 'run', 1);
+      await clientClosed;
+      const invocations = await waitForInvocationCount(harness.invocationLogPath, 'rm', 3);
+
+      expect(invocations.filter((invocation) => invocation.command === 'rm')).toHaveLength(3);
+      expect(harness.readStderr()).toContain('failed to verify removal of docker sandbox');
+      expect(output).toContain('Python sandbox cleanup failed');
     } finally {
       client?.destroy();
       await disposeHarness(harness);
@@ -134,16 +229,23 @@ describe('sandboxd container lifecycle', () => {
 async function startSandboxd(
   options: {
     mode?: 'docker' | 'podman';
+    removeFailures?: number;
     runtimeExitCode?: number;
     sessionTimeoutMs?: number;
+    staleContainerId?: string;
   } = {},
 ): Promise<SandboxdHarness> {
   const temporaryDirectory = await mkdtemp(join(tmpdir(), 'jixie-sandboxd-lifecycle-'));
   const socketPath = join(temporaryDirectory, 'sandboxd.sock');
   const invocationLogPath = join(temporaryDirectory, 'container-invocations.jsonl');
+  const containerStatePath = join(temporaryDirectory, 'container-state.txt');
+  const removeAttemptPath = join(temporaryDirectory, 'remove-attempts.txt');
   const mode = options.mode ?? 'docker';
   const runtimePath = join(temporaryDirectory, mode);
   await writeFile(runtimePath, fakeContainerRuntimeSource(), { mode: 0o755 });
+  if (options.staleContainerId) {
+    await writeFile(containerStatePath, `${options.staleContainerId}\n`);
+  }
 
   const sandboxd = spawn(
     process.execPath,
@@ -160,6 +262,9 @@ async function startSandboxd(
         JIXIE_SANDBOX_GRACEFUL_STOP_MS: '25',
         JIXIE_SANDBOX_SESSION_TIMEOUT_MS: String(options.sessionTimeoutMs ?? 5_000),
         JIXIE_TEST_CONTAINER_LOG: invocationLogPath,
+        JIXIE_TEST_CONTAINER_STATE: containerStatePath,
+        JIXIE_TEST_REMOVE_ATTEMPTS: removeAttemptPath,
+        JIXIE_TEST_REMOVE_FAILURES: String(options.removeFailures ?? 0),
         ...(options.runtimeExitCode === undefined
           ? {}
           : { JIXIE_TEST_CONTAINER_EXIT_CODE: String(options.runtimeExitCode) }),
@@ -192,13 +297,39 @@ async function startSandboxd(
 function fakeContainerRuntimeSource(): string {
   return [
     '#!/usr/bin/env node',
-    "const { appendFileSync, writeFileSync } = require('node:fs');",
+    "const { appendFileSync, existsSync, readFileSync, unlinkSync, writeFileSync } = require('node:fs');",
     'const [command, ...args] = process.argv.slice(2);',
     'appendFileSync(process.env.JIXIE_TEST_CONTAINER_LOG, JSON.stringify({ command, args }) + "\\n");',
-    "if (command !== 'run') process.exit(0);",
+    'const statePath = process.env.JIXIE_TEST_CONTAINER_STATE;',
+    'const currentId = () => existsSync(statePath) ? readFileSync(statePath, "utf8").trim() : "";',
+    'const missing = () => { process.stderr.write("No such container\\n"); process.exit(1); };',
+    'if (command === "ps") { const id = currentId(); if (id) process.stdout.write(id + "\\n"); process.exit(0); }',
+    'if (command === "inspect") { if (currentId() === args[0]) process.exit(0); missing(); }',
+    'if (command === "kill") {',
+    '  if (currentId() !== args[0]) missing();',
+    '  const pid = Number(args[0].replace(/^fake-/, ""));',
+    '  if (Number.isInteger(pid)) { try { process.kill(pid, "SIGKILL"); } catch {} }',
+    '  process.exit(0);',
+    '}',
+    'if (command === "rm") {',
+    '  const target = args.at(-1);',
+    '  if (currentId() !== target) missing();',
+    '  const attemptPath = process.env.JIXIE_TEST_REMOVE_ATTEMPTS;',
+    '  const attempts = existsSync(attemptPath) ? Number(readFileSync(attemptPath, "utf8")) : 0;',
+    '  writeFileSync(attemptPath, String(attempts + 1));',
+    '  if (attempts < Number(process.env.JIXIE_TEST_REMOVE_FAILURES)) {',
+    '    process.stderr.write("simulated removal failure\\n");',
+    '    process.exit(1);',
+    '  }',
+    '  unlinkSync(statePath);',
+    '  process.exit(0);',
+    '}',
+    "if (command !== 'run') process.exit(2);",
     "const cidfile = args.find((argument) => argument.startsWith('--cidfile='));",
     'if (!cidfile) process.exit(2);',
-    'writeFileSync(cidfile.slice(cidfile.indexOf("=") + 1), "fake-" + process.pid + "\\n");',
+    'const containerId = "fake-" + process.pid;',
+    'writeFileSync(cidfile.slice(cidfile.indexOf("=") + 1), containerId + "\\n");',
+    'writeFileSync(statePath, containerId + "\\n");',
     'const exitCode = Number(process.env.JIXIE_TEST_CONTAINER_EXIT_CODE);',
     'if (Number.isInteger(exitCode) && exitCode > 0) setTimeout(() => process.exit(exitCode), 25);',
     'const parentPid = process.ppid;',

@@ -68,13 +68,15 @@ def handle_bar(ctx):
 - 最多 4 个并发会话、单会话最多 1 小时；
 - 策略模块初始化和每次 `on_bar` 最多连续执行 10 秒，等待 Engine 数据的时间不计入。
 
-每个容器通过独立 `--cidfile` 跟踪。正常关闭或客户端断连时，sandboxd 先关闭 runner 的标准输入并等待
-500ms；runner 未退出、会话超时或 runtime 异常退出时，再按容器 ID 执行 `kill` 和 `rm --force`。
-并发名额只在这套清理完成后释放。sandboxd 收到 `SIGINT` / `SIGTERM` 时会停止接收连接、关闭所有客户端，
-等待活动容器完成同一套清理，再删除 Unix socket 并退出。Docker 验证 backend 与生产 Podman backend
-共用该生命周期实现。
+每个容器都有独立名称、`--cidfile` 和 sandboxd 实例归属标签。正常关闭或客户端断连时，sandboxd 先关闭
+runner 的标准输入并等待 500ms；容器仍存在时，再执行 `kill` 和 `rm --force`。清理命令会检查退出状态、失败
+重试，并通过 `inspect` 确认容器已经不存在；无法确认时记录 cleanup failure，不再静默视为成功。并发名额只在
+这套清理结束后释放。sandboxd 启动时先按归属标签回收同一 Unix socket 实例因崩溃或断电留下的容器，再开始
+接受连接。收到 `SIGINT` / `SIGTERM` 时会停止接收连接、关闭所有客户端，等待活动容器完成同一套清理，再
+删除 Unix socket 并退出。Docker 验证 backend 与生产 Podman backend 共用该生命周期实现。
 
-镜像只含 CPython、py-v1 runner，以及由统一 `research-py-v1` Contract 生成并精确锁定版本的 NumPy、pandas、
+镜像基础层固定为 CPython 3.13.15 slim-bookworm 的多架构 digest，只含 py-v1 runner，以及由统一
+`research-py-v1` Contract 生成并精确锁定版本的 NumPy、pandas、
 SciPy、statsmodels、Matplotlib 和 scikit-learn，不挂载代码库、数据库、宿主目录或密钥。Docker requirements、
 Agent 能力目录、提案导入白名单与本地运行时均从同一 Contract 派生。开发者先运行
 `pnpm setup:research-python` 建立工作区虚拟环境；`pnpm dev` 在启动服务前验证 CPython 3.13 和每个包的精确
