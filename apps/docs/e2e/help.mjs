@@ -140,8 +140,8 @@ try {
   await page.getByRole('heading', { level: 1, name: '从学习路径开始，也可以按页面查找' }).waitFor();
   if (
     (await page.locator('.jx-help-homeChoice').count()) !== 2 ||
-    (await page.locator('.jx-help-homePath').count()) !== 3 ||
-    (await page.locator('.jx-help-homeStep').count()) !== 15 ||
+    (await page.locator('.jx-help-homePath').count()) !== 4 ||
+    (await page.locator('.jx-help-homeStep').count()) !== 20 ||
     (await page.locator('.jx-help-homeManualCard').count()) !== 10
   ) {
     throw new Error(
@@ -234,6 +234,36 @@ try {
     .waitFor();
   await page.getByText('中文', { exact: true }).last().click();
 
+  await page.goto(`${BASE}/docs/help/learning/cgb-curve-daily-signal`, {
+    waitUntil: 'domcontentloaded',
+  });
+  await page
+    .getByRole('heading', { level: 1, name: '国债曲线到每日信号：证据、回测与部署' })
+    .waitFor();
+  if (
+    (await page.locator('.jx-help-codeBlock').count()) < 3 ||
+    (await page.locator('.jx-help-markdown table').count()) < 3 ||
+    (await page.locator('.jx-help-figure').count()) !== 4 ||
+    (await page.getByText('-1.918', { exact: true }).count()) < 1 ||
+    (await page.getByRole('heading', { level: 2, name: '完成检查' }).count()) !== 1 ||
+    (await page.locator('.jx-help-nav .jx-help-navLink--active').textContent()) !==
+      '国债曲线到每日信号：证据、回测与部署'
+  ) {
+    throw new Error(
+      'CGB daily-signal learning path is missing evidence, screenshots, completion, or navigation',
+    );
+  }
+  await page.screenshot({ path: `${SHOTS}17e-help-signal-learning-path.png`, fullPage: true });
+
+  await page.getByText('EN', { exact: true }).last().click();
+  await page
+    .getByRole('heading', {
+      level: 1,
+      name: 'From the CGB curve to a daily signal: evidence, backtest, and deployment',
+    })
+    .waitFor();
+  await page.getByText('中文', { exact: true }).last().click();
+
   await page.goto(`${BASE}/docs/help/getting-started/overview`, { waitUntil: 'domcontentloaded' });
   await page.getByRole('heading', { level: 1, name: '产品可以做什么' }).waitFor();
 
@@ -244,8 +274,8 @@ try {
         .evaluateAll((links) => links.map((link) => link.getAttribute('href'))),
     ),
   ].filter(Boolean);
-  if (articleHrefs.length !== 94) {
-    throw new Error(`expected 94 help articles, got ${articleHrefs.length}`);
+  if (articleHrefs.length !== 95) {
+    throw new Error(`expected 95 help articles, got ${articleHrefs.length}`);
   }
   for (const href of articleHrefs) {
     if (new URL(page.url()).pathname !== href) {

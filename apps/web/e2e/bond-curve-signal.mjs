@@ -36,7 +36,7 @@ const waitForJob = async (path, jobId) =>
       while (Date.now() < deadline) {
         const response = await fetch(`${path}/${jobId}?since=0`, { cache: 'no-store' });
         const job = await response.json();
-        if (job.status !== 'running') {
+        if (job.status === 'done' || job.status === 'error' || job.status === 'stale') {
           return job;
         }
         await new Promise((resolve) => setTimeout(resolve, 500));
