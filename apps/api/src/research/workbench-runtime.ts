@@ -1,5 +1,12 @@
 import type { ResearchCellOutputBlockV1 } from '@jixie/shared';
-import { PythonSession, type PythonFrame } from '../strategy/python/session.js';
+import {
+  researchAnalysisFrameSchema,
+  researchExecutionFrameSchema,
+  researchResetFrameSchema,
+  researchStartupFrameSchema,
+  type ResearchRequestFrame,
+} from '../strategy/python/protocol.js';
+import { PythonSession } from '../strategy/python/session.js';
 import { loadResearchCrossSection, loadResearchPanel } from './equity-dataset.js';
 import { researchPayloadHash } from './fingerprints.js';
 import { researchYieldCurveBindingForSdkCall } from './concept-bindings.js';
@@ -11,6 +18,10 @@ import {
   parseResearchSeriesRuntimeRequest,
   parseResearchSeriesRuntimeRows,
   parseResearchYieldCurveRuntimeRequest,
+  type ResearchCrossSectionRuntimeRequestV1,
+  type ResearchPanelRuntimeRequestV1,
+  type ResearchSeriesRuntimeRequestV1,
+  type ResearchYieldCurveRuntimeRequestV1,
 } from './workbench-sdk.js';
 
 const MAX_LIVE_RESEARCH_SESSIONS = 4;
@@ -70,19 +81,31 @@ class ResearchRuntimeManager {
         cells: cells.map((cell) => ({ id: cell.id, source: cell.source })),
       });
       while (true) {
-        const frame = await entry.session.read();
+        const frame = await entry.session.readValidated(
+          researchAnalysisFrameSchema,
+          'analyzing research cells',
+        );
         if (frame.type === 'log') {
           continue;
         }
         if (frame.type === 'research_analyzed') {
-          return (frame.cells as Array<Record<string, unknown>>).map((cell) => {
-            const yieldCurveRequests = researchPythonYieldCurveRequests(cell.yield_curve_requests);
+          return frame.cells.map((cell) => {
+            const yieldCurveRequests = cell.yield_curve_requests.map((request) => ({
+              line: request.line,
+              curve: request.curve,
+              tenor: request.tenor,
+            }));
             return {
-              cellId: String(cell.cell_id),
-              definitions: stringArray(cell.definitions),
-              references: stringArray(cell.references),
-              imports: stringArray(cell.imports),
-              seriesRequests: researchPythonSeriesRequests(cell.series_requests),
+              cellId: cell.cell_id,
+              definitions: cell.definitions,
+              references: cell.references,
+              imports: cell.imports,
+              seriesRequests: cell.series_requests.map((request) => ({
+                line: request.line,
+                assetType: request.asset_type,
+                identifier: request.identifier,
+                measure: request.measure,
+              })),
               ...(yieldCurveRequests.length > 0 ? { yieldCurveRequests } : {}),
               ...(typeof cell.error === 'string' ? { error: cell.error } : {}),
             };
@@ -108,7 +131,10 @@ class ResearchRuntimeManager {
         const logOutputs: ResearchCellOutputBlockV1[] = [];
 
         while (true) {
-          const frame = await entry.session.read();
+          const frame = await entry.session.readValidated(
+            researchExecutionFrameSchema,
+            'executing a research cell',
+          );
           if (frame.type === 'log') {
             logOutputs.push({
               type: 'text',
@@ -119,16 +145,12 @@ class ResearchRuntimeManager {
             continue;
           }
           if (frame.type === 'request') {
-            await answerResearchRequest(entry.session, frame);
+            const request = parseResearchRequestFrame(frame);
+            await answerResearchRequest(entry.session, request);
             continue;
           }
           if (frame.type === 'research_executed') {
-            const outputs = [
-              ...logOutputs,
-              ...((Array.isArray(frame.outputs)
-                ? frame.outputs
-                : []) as ResearchCellOutputBlockV1[]),
-            ];
+            const outputs: ResearchCellOutputBlockV1[] = [...logOutputs, ...frame.outputs];
             const outputBytes = Buffer.byteLength(JSON.stringify(outputs), 'utf8');
             if (outputBytes > MAX_RESEARCH_RUNTIME_OUTPUT_BYTES) {
               const message =
@@ -138,15 +160,15 @@ class ResearchRuntimeManager {
               throw new ResearchPythonExecutionError(
                 message,
                 [{ type: 'text', text: message, level: 'warning' }],
-                stringArray(frame.definitions),
-                stringArray(frame.references),
+                frame.definitions,
+                frame.references,
                 researchPayloadHash(entry.environment),
               );
             }
             return {
               outputs,
-              definitions: stringArray(frame.definitions),
-              references: stringArray(frame.references),
+              definitions: frame.definitions,
+              references: frame.references,
               environmentFingerprint: researchPayloadHash(entry.environment),
             };
           }
@@ -154,8 +176,8 @@ class ResearchRuntimeManager {
             throw new ResearchPythonExecutionError(
               String(frame.message ?? 'Python research cell failed'),
               logOutputs,
-              stringArray(frame.definitions),
-              stringArray(frame.references),
+              frame.definitions,
+              frame.references,
               researchPayloadHash(entry.environment),
             );
           }
@@ -195,7 +217,10 @@ class ResearchRuntimeManager {
     }
     await this.withEntry(documentId, async (active) => {
       await active.session.send({ type: 'research_reset' });
-      const frame = await active.session.read();
+      const frame = await active.session.readValidated(
+        researchResetFrameSchema,
+        'resetting the research runtime',
+      );
       if (frame.type !== 'research_reset_done') {
         throw runtimeFrameError(frame, 'resetting the research runtime');
       }
@@ -314,24 +339,81 @@ export const researchRuntimeManager = new ResearchRuntimeManager();
 
 async function waitForResearchReady(session: PythonSession): Promise<Record<string, unknown>> {
   while (true) {
-    const frame = await session.read();
+    const frame = await session.readValidated(
+      researchStartupFrameSchema,
+      'starting the research runtime',
+    );
     if (frame.type === 'log') {
       continue;
     }
     if (frame.type === 'research_ready') {
-      return (frame.environment as Record<string, unknown>) ?? {};
+      return frame.environment;
     }
     throw runtimeFrameError(frame, 'starting the research runtime');
   }
 }
 
-async function answerResearchRequest(session: PythonSession, frame: PythonFrame): Promise<void> {
-  const id = Number(frame.id);
+type ParsedResearchRequest =
+  | (Omit<ResearchRequestFrame, 'method' | 'arguments'> & {
+      method: 'research_series';
+      arguments: ResearchSeriesRuntimeRequestV1;
+    })
+  | (Omit<ResearchRequestFrame, 'method' | 'arguments'> & {
+      method: 'research_yield_curve';
+      arguments: ResearchYieldCurveRuntimeRequestV1;
+    })
+  | (Omit<ResearchRequestFrame, 'method' | 'arguments'> & {
+      method: 'research_cross_section';
+      arguments: ResearchCrossSectionRuntimeRequestV1;
+    })
+  | (Omit<ResearchRequestFrame, 'method' | 'arguments'> & {
+      method: 'research_panel';
+      arguments: ResearchPanelRuntimeRequestV1;
+    });
+
+function parseResearchRequestFrame(frame: ResearchRequestFrame): ParsedResearchRequest {
+  switch (frame.method) {
+    case 'research_series':
+      return {
+        type: frame.type,
+        id: frame.id,
+        method: 'research_series',
+        arguments: parseResearchSeriesRuntimeRequest(frame.arguments),
+      };
+    case 'research_yield_curve':
+      return {
+        type: frame.type,
+        id: frame.id,
+        method: 'research_yield_curve',
+        arguments: parseResearchYieldCurveRuntimeRequest(frame.arguments),
+      };
+    case 'research_cross_section':
+      return {
+        type: frame.type,
+        id: frame.id,
+        method: 'research_cross_section',
+        arguments: parseResearchCrossSectionRuntimeRequest(frame.arguments),
+      };
+    case 'research_panel':
+      return {
+        type: frame.type,
+        id: frame.id,
+        method: 'research_panel',
+        arguments: parseResearchPanelRuntimeRequest(frame.arguments),
+      };
+  }
+}
+
+async function answerResearchRequest(
+  session: PythonSession,
+  frame: ParsedResearchRequest,
+): Promise<void> {
+  const id = frame.id;
   try {
     let result: Record<string, unknown>;
     switch (frame.method) {
       case 'research_series': {
-        const request = parseResearchSeriesRuntimeRequest(frame.arguments);
+        const request = frame.arguments;
         const input = {
           type: 'series' as const,
           id: `${request.asset_type}:${request.identifier}`,
@@ -361,7 +443,7 @@ async function answerResearchRequest(session: PythonSession, frame: PythonFrame)
         break;
       }
       case 'research_yield_curve': {
-        const request = parseResearchYieldCurveRuntimeRequest(frame.arguments);
+        const request = frame.arguments;
         const binding = researchYieldCurveBindingForSdkCall(request.curve, request.tenor);
         if (!binding || binding.source.kind !== 'yield_curve') {
           throw new Error(
@@ -393,7 +475,7 @@ async function answerResearchRequest(session: PythonSession, frame: PythonFrame)
         break;
       }
       case 'research_cross_section': {
-        const request = parseResearchCrossSectionRuntimeRequest(frame.arguments);
+        const request = frame.arguments;
         const loaded = await loadResearchCrossSection(request);
         result = {
           rows: parseResearchEquityDatasetRuntimeRows(loaded.rows),
@@ -402,7 +484,7 @@ async function answerResearchRequest(session: PythonSession, frame: PythonFrame)
         break;
       }
       case 'research_panel': {
-        const request = parseResearchPanelRuntimeRequest(frame.arguments);
+        const request = frame.arguments;
         const loaded = await loadResearchPanel(request);
         result = {
           rows: parseResearchEquityDatasetRuntimeRows(loaded.rows),
@@ -410,8 +492,6 @@ async function answerResearchRequest(session: PythonSession, frame: PythonFrame)
         };
         break;
       }
-      default:
-        throw new Error(`unknown research runtime request: ${String(frame.method)}`);
     }
     await session.send({
       type: 'response',
@@ -427,54 +507,9 @@ async function answerResearchRequest(session: PythonSession, frame: PythonFrame)
   }
 }
 
-function runtimeFrameError(frame: PythonFrame, operation: string): Error {
+function runtimeFrameError(frame: { type: string; message?: unknown }, operation: string): Error {
   if (frame.type === 'fatal' || frame.type === 'error' || frame.type === 'research_error') {
     return new Error(String(frame.message ?? `Python runtime failed while ${operation}`));
   }
   return new Error(`unexpected Python sandbox frame while ${operation}: ${frame.type}`);
-}
-
-function stringArray(value: unknown): string[] {
-  return Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === 'string')
-    : [];
-}
-
-function researchPythonSeriesRequests(value: unknown): ResearchPythonSeriesRequest[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-  return value.flatMap((item) => {
-    if (!item || typeof item !== 'object') {
-      return [];
-    }
-    const request = item as Record<string, unknown>;
-    return [
-      {
-        line: typeof request.line === 'number' ? request.line : 0,
-        assetType: typeof request.asset_type === 'string' ? request.asset_type : null,
-        identifier: typeof request.identifier === 'string' ? request.identifier : null,
-        measure: typeof request.measure === 'string' ? request.measure : null,
-      },
-    ];
-  });
-}
-
-function researchPythonYieldCurveRequests(value: unknown): ResearchPythonYieldCurveRequest[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-  return value.flatMap((item) => {
-    if (!item || typeof item !== 'object') {
-      return [];
-    }
-    const request = item as Record<string, unknown>;
-    return [
-      {
-        line: typeof request.line === 'number' ? request.line : 0,
-        curve: typeof request.curve === 'string' ? request.curve : null,
-        tenor: typeof request.tenor === 'string' ? request.tenor : null,
-      },
-    ];
-  });
 }

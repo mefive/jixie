@@ -2,6 +2,7 @@ import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { resolve } from 'node:path';
 import { connect, type Socket } from 'node:net';
 import type { Readable, Writable } from 'node:stream';
+import { z } from 'zod';
 
 const MAX_FRAME_BYTES = 64 * 1024 * 1024;
 
@@ -9,6 +10,10 @@ export interface PythonFrame {
   type: string;
   [key: string]: unknown;
 }
+
+const pythonFrameEnvelopeSchema = z
+  .object({ type: z.string().min(1).max(64) })
+  .catchall(z.unknown());
 
 export class PythonSession {
   private buffer = Buffer.alloc(0);
@@ -86,9 +91,29 @@ export class PythonSession {
     });
   }
 
+  async readValidated<Frame>(schema: z.ZodType<Frame>, operation: string): Promise<Frame> {
+    const frame = await this.read();
+    const result = schema.safeParse(frame);
+    if (result.success) {
+      return result.data;
+    }
+
+    const details = result.error.issues
+      .slice(0, 5)
+      .map((issue) => `${issue.path.join('.') || '<frame>'}: ${issue.message}`)
+      .join('; ');
+    const error = new Error(`invalid Python sandbox protocol while ${operation}: ${details}`);
+    this.abort(error);
+    throw error;
+  }
+
   close(): void {
+    this.abort(new Error('Python sandbox session closed'));
+  }
+
+  abort(error: Error): void {
     this.stop();
-    this.end(new Error('Python sandbox session closed'));
+    this.end(error);
   }
 
   private accept(chunk: Buffer): void {
@@ -96,7 +121,7 @@ export class PythonSession {
     while (this.buffer.length >= 4) {
       const size = this.buffer.readUInt32BE(0);
       if (size > MAX_FRAME_BYTES) {
-        this.end(new Error(`Python sandbox frame exceeds ${MAX_FRAME_BYTES} bytes`));
+        this.abort(new Error(`Python sandbox frame exceeds ${MAX_FRAME_BYTES} bytes`));
         return;
       }
       if (this.buffer.length < size + 4) {
@@ -104,17 +129,23 @@ export class PythonSession {
       }
       const payload = this.buffer.subarray(4, size + 4);
       this.buffer = this.buffer.subarray(size + 4);
-      let frame: PythonFrame;
+      let parsed: unknown;
       try {
-        frame = JSON.parse(payload.toString()) as PythonFrame;
+        parsed = JSON.parse(payload.toString()) as unknown;
       } catch (error) {
-        this.end(
+        this.abort(
           new Error(
             `Python sandbox returned invalid JSON: ${error instanceof Error ? error.message : String(error)}`,
           ),
         );
         return;
       }
+      const frameResult = pythonFrameEnvelopeSchema.safeParse(parsed);
+      if (!frameResult.success) {
+        this.abort(new Error('Python sandbox frame must be an object with a string type'));
+        return;
+      }
+      const frame = frameResult.data as PythonFrame;
       const reader = this.readers.shift();
       if (reader) {
         reader.resolve(frame);

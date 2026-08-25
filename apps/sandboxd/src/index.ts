@@ -1,8 +1,14 @@
+import { createHash } from 'node:crypto';
 import { chmod, mkdir, unlink } from 'node:fs/promises';
 import { createServer, type Socket } from 'node:net';
 import { dirname, resolve } from 'node:path';
 import { encodeFrame } from './frame.js';
-import { spawnSandboxRuntime, type RuntimeStopReason, type SandboxRuntime } from './runtime.js';
+import {
+  cleanupStaleSandboxRuntimes,
+  spawnSandboxRuntime,
+  type RuntimeStopReason,
+  type SandboxRuntime,
+} from './runtime.js';
 
 const socketPath = process.env.JIXIE_SANDBOX_SOCKET ?? '/var/lib/jixie/sandboxd.sock';
 const mode = process.env.JIXIE_SANDBOXD_MODE ?? 'podman';
@@ -14,7 +20,17 @@ const codeTimeoutSeconds = positiveNumber(process.env.JIXIE_PYTHON_CODE_TIMEOUT_
 const runnerPath = resolve(
   process.env.JIXIE_PYTHON_RUNNER ?? resolve(process.cwd(), 'python/jixie_runner.py'),
 );
+const runtimeOwnerId = createHash('sha256').update(socketPath).digest('hex').slice(0, 32);
+const writeWarning = (message: string): void => {
+  process.stderr.write(`[sandboxd] ${message}\n`);
+};
 
+await cleanupStaleSandboxRuntimes({
+  mode,
+  nodeEnvironment: process.env.NODE_ENV,
+  ownerId: runtimeOwnerId,
+  onWarning: writeWarning,
+});
 await mkdir(dirname(socketPath), { recursive: true });
 await unlink(socketPath).catch((error: NodeJS.ErrnoException) => {
   if (error.code !== 'ENOENT') {
@@ -73,7 +89,8 @@ async function runSession(client: Socket): Promise<void> {
     codeTimeoutSeconds,
     sessionTimeoutMs,
     gracefulStopMs,
-    onWarning: (message) => process.stderr.write(`[sandboxd] ${message}\n`),
+    ownerId: runtimeOwnerId,
+    onWarning: writeWarning,
   });
 
   if (client.destroyed || shuttingDown) {
@@ -152,6 +169,10 @@ function bridgeSession(client: Socket, runtime: SandboxRuntime): Promise<void> {
         if (!client.destroyed) {
           client.end();
         }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        writeWarning(message);
+        sendFatal(client, `Python sandbox cleanup failed: ${message}`);
       } finally {
         resolveSession();
       }

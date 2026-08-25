@@ -1,6 +1,10 @@
 import type { FactorBar } from '@jixie/shared';
 import type { UserLogSink } from '../lib/sandbox-console.js';
-import { PythonSession, type PythonFrame } from '../strategy/python/session.js';
+import {
+  factorExecutionFrameSchema,
+  factorStartupFrameSchema,
+} from '../strategy/python/protocol.js';
+import { PythonSession } from '../strategy/python/session.js';
 import type { CompiledFactor, FactorBatchItem } from './compile-factor.js';
 
 interface PythonFactorMetadata {
@@ -34,7 +38,10 @@ export async function compilePythonCrossSectionalFactor(
           items: items.map(pythonFactorBatchItem),
         });
         while (true) {
-          const frame = await session.read();
+          const frame = await session.readValidated(
+            factorExecutionFrameSchema,
+            'computing a cross-sectional Python Factor',
+          );
           if (forwardLog(frame, onUserLog)) {
             continue;
           }
@@ -44,7 +51,14 @@ export async function compilePythonCrossSectionalFactor(
               reportedComputeError = true;
               onUserLog?.('error', `[factor-error] ${firstError}`);
             }
-            return frame.values as (number | null)[];
+            if (frame.values.length !== items.length) {
+              const error = new Error(
+                `invalid Python Factor result length: expected ${items.length}, received ${frame.values.length}`,
+              );
+              session.abort(error);
+              throw error;
+            }
+            return frame.values;
           }
           if (frame.type === 'fatal' || frame.type === 'error') {
             throw new Error(String(frame.message ?? 'Python Factor execution failed'));
@@ -67,12 +81,20 @@ async function waitForMetadata(
   onUserLog?: UserLogSink,
 ): Promise<PythonFactorMetadata> {
   while (true) {
-    const frame = await session.read();
+    const frame = await session.readValidated(
+      factorStartupFrameSchema,
+      'starting a cross-sectional Python Factor',
+    );
     if (forwardLog(frame, onUserLog)) {
       continue;
     }
     if (frame.type === 'factor_ready') {
-      return frame.metadata as PythonFactorMetadata;
+      if (frame.metadata.analysis_kind !== 'cross_sectional') {
+        throw new Error(
+          `Python Factor runtime returned ${frame.metadata.analysis_kind} metadata for a cross-sectional Factor`,
+        );
+      }
+      return frame.metadata;
     }
     if (frame.type === 'fatal' || frame.type === 'error') {
       throw new Error(String(frame.message ?? 'Python Factor initialization failed'));
@@ -81,7 +103,10 @@ async function waitForMetadata(
   }
 }
 
-function forwardLog(frame: PythonFrame, onUserLog?: UserLogSink): boolean {
+function forwardLog(
+  frame: { type: string; level?: unknown; text?: unknown },
+  onUserLog?: UserLogSink,
+): boolean {
   if (frame.type !== 'log') {
     return false;
   }

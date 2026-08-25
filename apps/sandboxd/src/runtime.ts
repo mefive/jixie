@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -6,6 +7,10 @@ import { join } from 'node:path';
 const CONTAINER_ID_WAIT_MS = 2_000;
 const CLEANUP_COMMAND_TIMEOUT_MS = 5_000;
 const CHILD_EXIT_WAIT_MS = 1_000;
+const CLEANUP_RETRY_DELAYS_MS = [0, 100, 250] as const;
+const MANAGED_LABEL = 'io.jixie.sandboxd.managed=true';
+const OWNER_LABEL_KEY = 'io.jixie.sandboxd.owner';
+const MAX_COMMAND_OUTPUT_CHARACTERS = 16_000;
 
 export type SandboxMode = 'local' | 'docker' | 'podman';
 export type RuntimeStopReason = 'graceful' | 'force' | 'exited';
@@ -24,7 +29,24 @@ export interface SpawnSandboxRuntimeOptions {
   codeTimeoutSeconds: number;
   sessionTimeoutMs: number;
   gracefulStopMs: number;
+  ownerId: string;
   onWarning?: (message: string) => void;
+}
+
+export interface CleanupStaleSandboxRuntimesOptions {
+  mode: string;
+  nodeEnvironment?: string;
+  ownerId: string;
+  onWarning?: (message: string) => void;
+}
+
+interface RuntimeCommandResult {
+  exitCode: number | null;
+  signal: NodeJS.Signals | null;
+  stdout: string;
+  stderr: string;
+  error?: string;
+  timedOut: boolean;
 }
 
 export async function spawnSandboxRuntime(
@@ -45,6 +67,38 @@ export async function spawnSandboxRuntime(
       return containerRuntime('podman', options);
     default:
       throw new Error(`unknown JIXIE_SANDBOXD_MODE: ${options.mode}`);
+  }
+}
+
+export async function cleanupStaleSandboxRuntimes(
+  options: CleanupStaleSandboxRuntimesOptions,
+): Promise<void> {
+  const executable = containerExecutable(options.mode, options.nodeEnvironment);
+  if (!executable) {
+    return;
+  }
+
+  const listResult = await runRuntimeCommand(executable, [
+    'ps',
+    '--all',
+    '--quiet',
+    '--filter',
+    `label=${MANAGED_LABEL}`,
+    '--filter',
+    `label=${OWNER_LABEL_KEY}=${options.ownerId}`,
+  ]);
+  if (!commandSucceeded(listResult)) {
+    throw new Error(`failed to list stale ${executable} sandboxes: ${commandFailure(listResult)}`);
+  }
+
+  const containerIds = [...new Set(listResult.stdout.split(/\s+/).filter(Boolean))];
+  for (const containerId of containerIds) {
+    await removeContainer(executable, containerId, options.onWarning);
+  }
+  if (containerIds.length > 0) {
+    options.onWarning?.(
+      `removed ${containerIds.length} stale ${executable} sandbox container(s) during startup`,
+    );
   }
 }
 
@@ -71,7 +125,8 @@ async function containerRuntime(
 ): Promise<SandboxRuntime> {
   const stateDirectory = await mkdtemp(join(tmpdir(), 'jixie-sandbox-runtime-'));
   const containerIdPath = join(stateDirectory, 'container.cid');
-  const args = containerRunArgs(executable, options, containerIdPath);
+  const containerName = `jixie-sandbox-${options.ownerId.slice(0, 12)}-${randomUUID()}`;
+  const args = containerRunArgs(executable, options, containerIdPath, containerName);
   const child = spawn(executable, args, { stdio: ['pipe', 'pipe', 'pipe'] });
   child.on('error', () => {});
   child.stdin.on('error', () => {});
@@ -84,6 +139,7 @@ async function containerRuntime(
         child,
         executable,
         containerIdPath,
+        containerName,
         stateDirectory,
         reason,
         gracefulStopMs: options.gracefulStopMs,
@@ -98,6 +154,7 @@ function containerRunArgs(
   executable: Extract<SandboxMode, 'docker' | 'podman'>,
   options: SpawnSandboxRuntimeOptions,
   containerIdPath: string,
+  containerName: string,
 ): string[] {
   return [
     'run',
@@ -105,6 +162,9 @@ function containerRunArgs(
     '--interactive',
     '--pull=never',
     `--cidfile=${containerIdPath}`,
+    `--name=${containerName}`,
+    `--label=${MANAGED_LABEL}`,
+    `--label=${OWNER_LABEL_KEY}=${options.ownerId}`,
     '--network=none',
     '--read-only',
     '--tmpfs=/tmp:rw,noexec,nosuid,nodev,size=64m',
@@ -146,12 +206,14 @@ async function stopContainerRuntime(args: {
   child: ChildProcessWithoutNullStreams;
   executable: Extract<SandboxMode, 'docker' | 'podman'>;
   containerIdPath: string;
+  containerName: string;
   stateDirectory: string;
   reason: RuntimeStopReason;
   gracefulStopMs: number;
   onWarning?: (message: string) => void;
 }): Promise<void> {
   try {
+    let cleanupError: unknown;
     if (args.reason !== 'exited') {
       args.child.stdin.end();
     }
@@ -159,22 +221,19 @@ async function stopContainerRuntime(args: {
       await waitForChildExit(args.child, args.gracefulStopMs);
     }
 
-    const cleanExit = args.child.exitCode === 0 && args.child.signalCode === null;
-    if (!cleanExit) {
-      const containerId = await waitForContainerId(args.containerIdPath, args.child);
-      if (containerId) {
-        await runCleanupCommand(args.executable, ['kill', containerId]);
-        await runCleanupCommand(args.executable, ['rm', '--force', containerId]);
-      } else if (args.reason !== 'exited') {
-        args.onWarning?.(
-          `could not resolve container id from ${args.containerIdPath}; terminating the attached ${args.executable} client`,
-        );
-      }
+    const containerId = await waitForContainerId(args.containerIdPath, args.child);
+    try {
+      await removeContainer(args.executable, containerId ?? args.containerName, args.onWarning);
+    } catch (error) {
+      cleanupError = error;
     }
 
     if (!childHasExited(args.child)) {
       args.child.kill('SIGKILL');
       await waitForChildExit(args.child, CHILD_EXIT_WAIT_MS);
+    }
+    if (cleanupError) {
+      throw cleanupError;
     }
   } finally {
     await rm(args.stateDirectory, { recursive: true, force: true }).catch((error: Error) => {
@@ -203,20 +262,152 @@ async function waitForContainerId(
   return null;
 }
 
-function runCleanupCommand(executable: string, args: string[]): Promise<void> {
+async function removeContainer(
+  executable: Extract<SandboxMode, 'docker' | 'podman'>,
+  containerId: string,
+  onWarning?: (message: string) => void,
+): Promise<void> {
+  const initialStatus = await inspectContainer(executable, containerId);
+  if (initialStatus === 'absent') {
+    return;
+  }
+  if (initialStatus === 'unknown') {
+    onWarning?.(`could not inspect ${executable} sandbox ${containerId}; attempting removal`);
+  }
+
+  const killResult = await runRuntimeCommand(executable, ['kill', containerId]);
+  if (!commandSucceeded(killResult) && !commandReportsMissingContainer(killResult)) {
+    onWarning?.(
+      `${executable} kill failed for sandbox ${containerId}: ${commandFailure(killResult)}`,
+    );
+  }
+
+  let lastRemoveResult: RuntimeCommandResult | undefined;
+  let lastInspectStatus: ContainerStatus = initialStatus;
+  for (const retryDelayMs of CLEANUP_RETRY_DELAYS_MS) {
+    if (retryDelayMs > 0) {
+      await delay(retryDelayMs);
+    }
+    lastRemoveResult = await runRuntimeCommand(executable, ['rm', '--force', containerId]);
+    lastInspectStatus = await inspectContainer(executable, containerId);
+    if (lastInspectStatus === 'absent') {
+      return;
+    }
+  }
+
+  throw new Error(
+    `failed to verify removal of ${executable} sandbox ${containerId}; ` +
+      `last rm: ${lastRemoveResult ? commandFailure(lastRemoveResult) : 'not attempted'}; ` +
+      `inspect status: ${lastInspectStatus}`,
+  );
+}
+
+type ContainerStatus = 'present' | 'absent' | 'unknown';
+
+async function inspectContainer(
+  executable: Extract<SandboxMode, 'docker' | 'podman'>,
+  containerId: string,
+): Promise<ContainerStatus> {
+  const result = await runRuntimeCommand(executable, ['inspect', containerId]);
+  if (commandSucceeded(result)) {
+    return 'present';
+  }
+  return commandReportsMissingContainer(result) ? 'absent' : 'unknown';
+}
+
+function runRuntimeCommand(executable: string, args: string[]): Promise<RuntimeCommandResult> {
   return new Promise((resolveCommand) => {
-    const command = spawn(executable, args, { stdio: 'ignore' });
-    const timeout = setTimeout(() => command.kill('SIGKILL'), CLEANUP_COMMAND_TIMEOUT_MS);
-    timeout.unref();
-    command.once('error', () => {
-      clearTimeout(timeout);
-      resolveCommand();
+    const command = spawn(executable, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    let stdout = '';
+    let stderr = '';
+    let settled = false;
+
+    command.stdout.setEncoding('utf8');
+    command.stderr.setEncoding('utf8');
+    command.stdout.on('data', (chunk: string) => {
+      stdout = `${stdout}${chunk}`.slice(-MAX_COMMAND_OUTPUT_CHARACTERS);
     });
-    command.once('close', () => {
+    command.stderr.on('data', (chunk: string) => {
+      stderr = `${stderr}${chunk}`.slice(-MAX_COMMAND_OUTPUT_CHARACTERS);
+    });
+
+    const finish = (result: RuntimeCommandResult): void => {
+      if (settled) {
+        return;
+      }
+      settled = true;
       clearTimeout(timeout);
-      resolveCommand();
+      resolveCommand(result);
+    };
+    const timeout = setTimeout(() => {
+      command.kill('SIGKILL');
+      finish({
+        exitCode: null,
+        signal: 'SIGKILL',
+        stdout,
+        stderr,
+        timedOut: true,
+      });
+    }, CLEANUP_COMMAND_TIMEOUT_MS);
+    timeout.unref();
+
+    command.once('error', (error) => {
+      finish({
+        exitCode: null,
+        signal: null,
+        stdout,
+        stderr,
+        error: error.message,
+        timedOut: false,
+      });
+    });
+    command.once('close', (exitCode, signal) => {
+      finish({ exitCode, signal, stdout, stderr, timedOut: false });
     });
   });
+}
+
+function commandSucceeded(result: RuntimeCommandResult): boolean {
+  return result.exitCode === 0 && result.signal === null && !result.error && !result.timedOut;
+}
+
+function commandReportsMissingContainer(result: RuntimeCommandResult): boolean {
+  return /no such (?:object|container)|container .* not found|does not exist/i.test(
+    `${result.stderr}\n${result.stdout}`,
+  );
+}
+
+function commandFailure(result: RuntimeCommandResult): string {
+  if (result.timedOut) {
+    return `timed out after ${CLEANUP_COMMAND_TIMEOUT_MS}ms`;
+  }
+  if (result.error) {
+    return result.error;
+  }
+  const detail = result.stderr.trim() || result.stdout.trim();
+  return `${result.signal ?? `exit code ${result.exitCode}`}${detail ? `: ${detail}` : ''}`;
+}
+
+function containerExecutable(
+  mode: string,
+  nodeEnvironment?: string,
+): Extract<SandboxMode, 'docker' | 'podman'> | null {
+  switch (mode) {
+    case 'local':
+      if (nodeEnvironment === 'production') {
+        throw new Error('local sandbox mode is forbidden in production');
+      }
+      return null;
+    case 'docker':
+      if (nodeEnvironment === 'production') {
+        throw new Error('Docker sandbox mode is for local verification only');
+      }
+      return 'docker';
+    case 'podman':
+      return 'podman';
+    default:
+      throw new Error(`unknown JIXIE_SANDBOXD_MODE: ${mode}`);
+  }
 }
 
 function waitForChildExit(
