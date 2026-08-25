@@ -23,10 +23,11 @@
 1. 按照[登录](/help/getting-started/login)完成登录。
 2. 阅读[查看市场气象图](/help/market-valuation/market-overview)，认识默认首页。
 3. 阅读[页面导航](/help/getting-started/navigation)，认识顶部入口。
-4. 按照[可信跨市场研究学习路径](/help/learning/trusted-cross-market-research)，从事前假设做到可复查结论。
-5. 按照[第一次完成量化研究](/help/getting-started/first-research)熟悉文档、Python 和完整快照。
+4. 按照[第一次完成量化研究](/help/getting-started/first-research)熟悉文档、Python 和完整快照。
+5. 按照[可信跨市场研究学习路径](/help/learning/trusted-cross-market-research)，从事前假设做到可复查结论。
 6. 按照[第一次运行回测](/help/getting-started/first-backtest)完成一次历史检验。
-7. 阅读[为什么回测不等于未来收益](/help/basics/backtest-limitations)。
+7. 按照[沪深 300 趋势策略学习路径](/help/learning/csi300-trend-strategy)，审查参数、成本和样本外结果。
+8. 阅读[为什么回测不等于未来收益](/help/basics/backtest-limitations)。
 
 ## 产品不能替你完成什么
 
@@ -48,6 +49,7 @@
 ## 相关内容
 
 - [可信跨市场研究：收益、汇率与相关性](/help/learning/trusted-cross-market-research)
+- [沪深 300 趋势策略：参数、成本与样本外](/help/learning/csi300-trend-strategy)
 - [股票、ETF 和指数](/help/basics/stocks-etfs-indices)
 - [策略和回测](/help/basics/strategy-backtest)
 - [收益和风险指标](/help/basics/performance-risk)
