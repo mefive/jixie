@@ -11,6 +11,11 @@ import { apiError, validateJson } from '../lib/httpError.js';
 import { prisma } from '../lib/prisma.js';
 import { BUILTIN_KEYS, BUILTIN_USER_ID, builtinCatalog } from '../factor/builtin-factors.js';
 import { validateFactorDefinition } from '../factor/validate-factor-definition.js';
+import {
+  compilePanelFactor,
+  compileTimeSeriesFactor,
+} from '../factor/compile-time-series-factor.js';
+import { pythonFactorTargetAssetClasses } from '../factor/python-factor-validator.js';
 import { chatMessagesSchema } from '../lib/chat-schema.js';
 import { m } from '../i18n/index.js';
 import { localeFromRequest } from '../i18n/index.js';
@@ -62,6 +67,28 @@ const strategyKey = (key: string, status: string): string | undefined =>
 
 const factorLanguage = (language: string): FactorLanguage =>
   language === 'python' ? 'python' : 'typescript';
+
+async function customFactorTargetAssetClasses(input: {
+  analysisKind: string;
+  language: string;
+  code: string;
+}) {
+  if (input.analysisKind !== 'time_series' && input.analysisKind !== 'panel') {
+    return ['equity'] as const;
+  }
+  if (input.language === 'python') {
+    return pythonFactorTargetAssetClasses(input.code);
+  }
+  const compiled =
+    input.analysisKind === 'time_series'
+      ? await compileTimeSeriesFactor(input.code)
+      : await compilePanelFactor(input.code);
+  try {
+    return [...compiled.targetAssetClasses];
+  } finally {
+    compiled.dispose();
+  }
+}
 
 /**
  * Factor resources (plural, mounted at /api/app/factors):
@@ -561,8 +588,10 @@ factorsRoute.get('/custom/:id', async (c) => {
     return apiError(c, 'NOT_FOUND', m(c, 'factorNotFound'));
   }
   const { userId: ownerId, ...rest } = row;
+  const targetAssetClasses = await customFactorTargetAssetClasses(rest);
   return c.json({
     ...rest,
+    targetAssetClasses,
     messages: ownerId === c.var.userId ? row.messages : null,
     researchHandoff: ownerId === c.var.userId ? row.researchHandoff : null,
     sourceResearchExecution:

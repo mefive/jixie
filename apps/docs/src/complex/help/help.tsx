@@ -130,6 +130,11 @@ const LEARNING_PATHS = [
     slug: 'learning/cgb-curve-daily-signal',
     steps: ['evidence', 'lineage', 'backtest', 'deploy', 'audit'],
   },
+  {
+    key: 'allocation',
+    slug: 'learning/stock-bond-allocation-risk',
+    steps: ['universe', 'baseline', 'attribution', 'correlation', 'stress'],
+  },
 ] as const;
 
 function HelpLanding() {

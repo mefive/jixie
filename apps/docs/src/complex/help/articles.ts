@@ -187,6 +187,8 @@ import csi300ValueFactorEn from '@src/content/help/en/learning/csi300-value-fact
 import csi300ValueFactorZh from '@src/content/help/zh/learning/csi300-value-factor.md?raw';
 import cgbCurveDailySignalEn from '@src/content/help/en/learning/cgb-curve-daily-signal.md?raw';
 import cgbCurveDailySignalZh from '@src/content/help/zh/learning/cgb-curve-daily-signal.md?raw';
+import stockBondAllocationRiskEn from '@src/content/help/en/learning/stock-bond-allocation-risk.md?raw';
+import stockBondAllocationRiskZh from '@src/content/help/zh/learning/stock-bond-allocation-risk.md?raw';
 import trustedCrossMarketResearchEn from '@src/content/help/en/learning/trusted-cross-market-research.md?raw';
 import trustedCrossMarketResearchZh from '@src/content/help/zh/learning/trusted-cross-market-research.md?raw';
 
@@ -276,6 +278,22 @@ export const HELP_ARTICLES: HelpArticle[] = [
     content: {
       zh: cgbCurveDailySignalZh,
       en: cgbCurveDailySignalEn,
+    },
+  },
+  {
+    slug: 'learning/stock-bond-allocation-risk',
+    group: 'learningPaths',
+    title: {
+      zh: '股债配置与风险归因：贡献、相关性与压力情景',
+      en: 'Stock-bond allocation and risk attribution: contributions, correlation, and stress scenarios',
+    },
+    summary: {
+      zh: '用不含黄金或商品的股债 Panel Factor 运行真实轮动与基线，核对收益、风险、相关性、利率环境和压力情景，并保留回撤改善但收益落后的失败结果。',
+      en: 'Run a real stock-bond Panel rotation with no gold or commodity ETF, compare it with a baseline, and audit return, risk, correlation, rate regimes, and stress scenarios while retaining an inferior-return result.',
+    },
+    content: {
+      zh: stockBondAllocationRiskZh,
+      en: stockBondAllocationRiskEn,
     },
   },
   {

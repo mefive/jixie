@@ -1006,6 +1006,7 @@ export function getCustomFactor(id: string): Promise<{
   id: string;
   name: string;
   analysisKind?: FactorAnalysisKind;
+  targetAssetClasses?: Array<'equity' | 'fixed_income' | 'commodity'>;
   language?: FactorLanguage;
   runtimeVersion?: FactorRuntimeVersion;
   key: string;

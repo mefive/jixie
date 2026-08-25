@@ -31,7 +31,8 @@ The pages can be used together. For example, use Research to inspect an equity u
 8. [Run your first preset Factor analysis](/help/factors/first-preset-analysis) to learn the report surface.
 9. Follow [CSI 300 value factor](/help/learning/csi300-value-factor) to preregister a cross-sectional hypothesis and reveal one formal holdout.
 10. Follow [From the CGB curve to a daily signal](/help/learning/cgb-curve-daily-signal) to audit Factor evidence, a costed backtest, deployment lineage, and a specified-date signal.
-11. Read [Why a backtest is not a forecast](/help/basics/backtest-limitations).
+11. Follow [Stock-bond allocation and risk attribution](/help/learning/stock-bond-allocation-risk) to reconcile multi-asset return, risk, correlation, and stress scenarios.
+12. Read [Why a backtest is not a forecast](/help/basics/backtest-limitations).
 
 ## What the product cannot decide for you
 
@@ -54,6 +55,7 @@ Before making a trade, check the data date, trading costs, whether an order coul
 - [CSI 300 trend strategy: parameters, costs, and out-of-sample evidence](/help/learning/csi300-trend-strategy)
 - [CSI 300 value factor: ranking, IC, portfolios, and holdout](/help/learning/csi300-value-factor)
 - [From the CGB curve to a daily signal: evidence, backtest, and deployment](/help/learning/cgb-curve-daily-signal)
+- [Stock-bond allocation and risk attribution: contributions, correlation, and stress scenarios](/help/learning/stock-bond-allocation-risk)
 - [Stocks, ETFs, and indices](/help/basics/stocks-etfs-indices)
 - [Strategies and backtests](/help/basics/strategy-backtest)
 - [Return and risk metrics](/help/basics/performance-risk)

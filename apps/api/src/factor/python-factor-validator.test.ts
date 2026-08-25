@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { validatePythonFactorDefinition } from './python-factor-validator.js';
+import {
+  pythonFactorTargetAssetClasses,
+  validatePythonFactorDefinition,
+} from './python-factor-validator.js';
 
 const crossSectionalFactor = `from jixie import Factor, FactorBar, CrossSectionalFactorContext
 
@@ -11,6 +14,19 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
     if len(closes) < 21 or closes[0] <= 0:
         return None
     return closes[-1] / closes[0] - 1
+`;
+const panelFactor = `from jixie import Factor, AssetFactorContext
+
+factor = Factor.panel(
+    name="stock-bond momentum",
+    inputs=["etf.adjustedClose"],
+    target_asset_classes=["equity", "fixed_income"],
+    window=121,
+)
+
+@factor.compute
+def compute(ctx: AssetFactorContext) -> float | None:
+    return ctx.value("etf.adjustedClose")
 `;
 
 describe('Python Factor static validator', () => {
@@ -33,6 +49,24 @@ describe('Python Factor static validator', () => {
         'cross_sectional',
       ),
     ).rejects.toThrow('@factor.compute');
+  });
+
+  it('reads an asset Factor domain statically without executing Python', () => {
+    expect(pythonFactorTargetAssetClasses(panelFactor)).toEqual(['equity', 'fixed_income']);
+    expect(() =>
+      pythonFactorTargetAssetClasses(
+        panelFactor.replace('["equity", "fixed_income"]', 'ASSET_CLASSES'),
+      ),
+    ).toThrow('literal target_asset_classes');
+  });
+
+  it('rejects non-literal and duplicate asset-domain declarations', async () => {
+    await expect(
+      validatePythonFactorDefinition(
+        panelFactor.replace('["equity", "fixed_income"]', '["equity", "equity"]'),
+        'panel',
+      ),
+    ).rejects.toThrow('unique supported classes');
   });
 
   it('surfaces Pyright type errors against the generated SDK contract', async () => {
