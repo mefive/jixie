@@ -28,7 +28,14 @@ describe('ETF time-series templates', () => {
       builtin: true,
       analysisKind: 'time_series',
       targetAssetClasses: ['equity', 'fixed_income', 'commodity'],
-      allowedAssets: expect.arrayContaining(['510300.SH', '511010.SH', '518880.SH']),
+      allowedAssets: expect.arrayContaining([
+        '510050.SH',
+        '510300.SH',
+        '159920.SZ',
+        '513500.SH',
+        '511010.SH',
+        '518880.SH',
+      ]),
       defaultAssets: expect.arrayContaining(['510300.SH', '511010.SH', '518880.SH']),
     });
     expect(timeSeriesTemplateResource('etf_trend_20', 'zh')).toMatchObject({

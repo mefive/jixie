@@ -6,8 +6,18 @@ import type { PanelFactorResearchSpecV1 } from '@jixie/shared';
  * instead of silently backfilling history or presenting a different universe.
  */
 export const PANEL_ASSETS: PanelFactorResearchSpecV1['assets'] = [
+  { assetId: '510050.SH', assetClass: 'cn_equity' },
   { assetId: '510300.SH', assetClass: 'cn_equity' },
+  { assetId: '563360.SH', assetClass: 'cn_equity' },
+  { assetId: '510500.SH', assetClass: 'cn_equity' },
+  { assetId: '512100.SH', assetClass: 'cn_equity' },
+  { assetId: '563300.SH', assetClass: 'cn_equity' },
+  { assetId: '159915.SZ', assetClass: 'cn_equity' },
+  { assetId: '588000.SH', assetClass: 'cn_equity' },
+  { assetId: '510880.SH', assetClass: 'cn_equity' },
   { assetId: '513100.SH', assetClass: 'overseas_equity' },
+  { assetId: '159920.SZ', assetClass: 'overseas_equity' },
+  { assetId: '513500.SH', assetClass: 'overseas_equity' },
   { assetId: '511010.SH', assetClass: 'fixed_income' },
   { assetId: '511260.SH', assetClass: 'fixed_income' },
   { assetId: '511090.SH', assetClass: 'fixed_income' },

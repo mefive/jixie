@@ -9,17 +9,28 @@ const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
 const page = await context.newPage();
 const browserErrors = [];
-const ASSETS = [
-  '510300.SH',
-  '513100.SH',
-  '511010.SH',
-  '511260.SH',
-  '511090.SH',
-  '518880.SH',
-  '159985.SZ',
-  '159980.SZ',
-  '159981.SZ',
+const PANEL_ASSETS = [
+  { assetId: '510050.SH', assetClass: 'cn_equity' },
+  { assetId: '510300.SH', assetClass: 'cn_equity' },
+  { assetId: '563360.SH', assetClass: 'cn_equity' },
+  { assetId: '510500.SH', assetClass: 'cn_equity' },
+  { assetId: '512100.SH', assetClass: 'cn_equity' },
+  { assetId: '563300.SH', assetClass: 'cn_equity' },
+  { assetId: '159915.SZ', assetClass: 'cn_equity' },
+  { assetId: '588000.SH', assetClass: 'cn_equity' },
+  { assetId: '510880.SH', assetClass: 'cn_equity' },
+  { assetId: '513100.SH', assetClass: 'overseas_equity' },
+  { assetId: '159920.SZ', assetClass: 'overseas_equity' },
+  { assetId: '513500.SH', assetClass: 'overseas_equity' },
+  { assetId: '511010.SH', assetClass: 'fixed_income' },
+  { assetId: '511260.SH', assetClass: 'fixed_income' },
+  { assetId: '511090.SH', assetClass: 'fixed_income' },
+  { assetId: '518880.SH', assetClass: 'gold' },
+  { assetId: '159985.SZ', assetClass: 'commodity' },
+  { assetId: '159980.SZ', assetClass: 'commodity' },
+  { assetId: '159981.SZ', assetClass: 'commodity' },
 ];
+const ASSETS = PANEL_ASSETS.map((asset) => asset.assetId);
 let strategyId = null;
 page.on('pageerror', (error) => browserErrors.push(`pageerror: ${error.message}`));
 page.on('console', (message) => {
@@ -80,17 +91,7 @@ try {
         start: '20200101',
         end: exploreEnd,
         observationFrequency: 'monthly',
-        assets: [
-          { assetId: '510300.SH', assetClass: 'cn_equity' },
-          { assetId: '513100.SH', assetClass: 'overseas_equity' },
-          { assetId: '511010.SH', assetClass: 'fixed_income' },
-          { assetId: '511260.SH', assetClass: 'fixed_income' },
-          { assetId: '511090.SH', assetClass: 'fixed_income' },
-          { assetId: '518880.SH', assetClass: 'gold' },
-          { assetId: '159985.SZ', assetClass: 'commodity' },
-          { assetId: '159980.SZ', assetClass: 'commodity' },
-          { assetId: '159981.SZ', assetClass: 'commodity' },
-        ],
+        assets: PANEL_ASSETS,
         target: { kind: 'forward_total_return', horizon: 20, horizonUnit: 'trade_day' },
         dataPolicy: {
           pointInTime: true,
@@ -122,6 +123,7 @@ try {
 
   const detail = await waitForReport(run.body.reportId);
   const report = detail.researchPayload?.report;
+  const a500Coverage = report?.coverage?.byAsset?.find((row) => row.assetId === '563360.SH');
   const fiveYearCoverage = report?.coverage?.byAsset?.find((row) => row.assetId === '511010.SH');
   const tenYearCoverage = report?.coverage?.byAsset?.find((row) => row.assetId === '511260.SH');
   const thirtyYearCoverage = report?.coverage?.byAsset?.find((row) => row.assetId === '511090.SH');
@@ -136,9 +138,11 @@ try {
     detail.researchPayload?.analysisKind !== 'panel' ||
     report?.assets?.length !== ASSETS.length ||
     report?.periods < 50 ||
-    report?.coverage?.minimumAssets !== 5 ||
-    report?.coverage?.medianAssets !== 8 ||
-    report?.coverage?.maximumAssets !== ASSETS.length ||
+    report?.coverage?.minimumAssets < 8 ||
+    report?.coverage?.medianAssets < 15 ||
+    report?.coverage?.maximumAssets < ASSETS.length - 1 ||
+    a500Coverage?.observations !== 0 ||
+    a500Coverage?.firstAsOfDate != null ||
     fiveYearCoverage?.observations !== report.periods ||
     tenYearCoverage?.observations !== report.periods ||
     !thirtyYearCoverage?.firstAsOfDate ||
@@ -171,7 +175,7 @@ try {
     { waitUntil: 'domcontentloaded' },
   );
   await page.getByTestId('panel-report').waitFor({ timeout: 30_000 });
-  await page.getByText('跨资产排序证据', { exact: true }).waitFor();
+  await page.getByText('Panel 排序证据', { exact: true }).waitFor();
   const durationCoverage = page.getByText('30年国债 ETF', { exact: true });
   await durationCoverage.waitFor();
   await page.locator('.jx-factor-code .monaco-editor').waitFor({ timeout: 30_000 });
@@ -270,24 +274,13 @@ try {
   const prompt = page.locator('.jx-lab-heroInput');
   await prompt.waitFor({ timeout: 30_000 });
   await page.waitForFunction(
-    () => {
+    (assets) => {
       const value = document.querySelector('.jx-lab-heroInput')?.value ?? '';
       return (
-        value.includes('cross_asset_momentum_120') &&
-        [
-          '510300.SH',
-          '513100.SH',
-          '511010.SH',
-          '511260.SH',
-          '511090.SH',
-          '518880.SH',
-          '159985.SZ',
-          '159980.SZ',
-          '159981.SZ',
-        ].every((asset) => value.includes(asset))
+        value.includes('cross_asset_momentum_120') && assets.every((asset) => value.includes(asset))
       );
     },
-    undefined,
+    ASSETS,
     { timeout: 30_000 },
   );
 

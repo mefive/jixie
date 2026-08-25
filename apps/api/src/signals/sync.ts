@@ -1,3 +1,4 @@
+import type { TradeDate } from '@jixie/shared';
 import { loadTushareConfig } from '../config.js';
 import { inspectWalledStrategyMetadata } from '../engine/walled-run.js';
 import { prisma } from '../lib/prisma.js';
@@ -9,13 +10,13 @@ import { governmentYieldTermsFromDependencies } from '../rates/signal-readiness.
 import {
   syncDaily,
   syncDailyBasic,
-  syncEtfBasic,
-  syncEtfDaily,
   syncMoneyflow,
   syncStkLimit,
   syncTopList,
   syncTradeCal,
 } from '../store/sync.js';
+import { syncEtfMarketDate } from '../store/etf-market-sync.js';
+import { ETF_RESEARCH_CODES } from '../store/etf-research-registry.js';
 import { TushareClient } from '../tushare/client.js';
 import { factorDependenciesFromJson } from './factor-dependency-lineage.js';
 
@@ -97,22 +98,15 @@ export async function syncSignalMarketData(
   }
 
   const watchedCodes = [...new Set(definitions.flatMap((definition) => definition.watch))];
-  if (watchedCodes.length > 0) {
-    await syncEtfBasic(client);
-    const etfs = await prisma.etfBasic.findMany({
-      where: { tsCode: { in: watchedCodes } },
-      select: { tsCode: true },
-    });
-    if (etfs.length > 0) {
-      await syncEtfDaily(
-        client,
-        etfs.map((etf) => etf.tsCode),
-        tradeDate,
-        tradeDate,
-        { refresh: true },
-      );
-    }
-  }
+  const watchedEtfs = await prisma.etfBasic.findMany({
+    where: { tsCode: { in: watchedCodes } },
+    select: { tsCode: true },
+  });
+  const etfCodes = [...new Set([...ETF_RESEARCH_CODES, ...watchedEtfs.map((etf) => etf.tsCode)])];
+  onLog(
+    `Syncing ${ETF_RESEARCH_CODES.length} registry ETF products plus ${watchedEtfs.length} deployment reference(s)`,
+  );
+  await syncEtfMarketDate(client, tradeDate as TradeDate, etfCodes);
   onLog(`Signal data sync complete for ${tradeDate}`);
 }
 

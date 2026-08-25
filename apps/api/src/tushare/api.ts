@@ -235,6 +235,36 @@ export async function fundAdj(
   return rows as unknown as FundAdjRow[];
 }
 
+export interface EtfShareSizeRow {
+  ts_code: TsCode;
+  trade_date: TradeDate;
+  etf_name: string;
+  total_share: number;
+  total_size: number | null;
+  nav: number | null;
+  close: number | null;
+  exchange: string;
+}
+
+/** ETF units, fund size, NAV, and exchange close as published after the source trade date. */
+export async function etfShareSize(
+  client: TushareClient,
+  params: {
+    ts_code?: TsCode;
+    trade_date?: TradeDate;
+    start_date?: TradeDate;
+    end_date?: TradeDate;
+    exchange?: string;
+  } = {},
+): Promise<EtfShareSizeRow[]> {
+  const rows = await client.call(
+    'etf_share_size',
+    params,
+    'trade_date,ts_code,etf_name,total_share,total_size,nav,close,exchange',
+  );
+  return rows as unknown as EtfShareSizeRow[];
+}
+
 export interface IndexDailyRow {
   ts_code: TsCode;
   trade_date: TradeDate;

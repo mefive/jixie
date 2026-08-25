@@ -29,6 +29,8 @@ monthly = data.series(
 
 The result includes `date` and `value`. Treat the current catalog signature as authoritative for parameters and columns.
 
+ETFs use the same entry point. For example, `data.series("etf", "510300.SH", ...)` returns adjusted closes inside that product's local coverage. The catalog also shows registry exposure, primary or backup role, coverage dates, and proxy limitations. A product from the full ETF directory is marked available only when local daily history actually exists; the runtime does not silently substitute another ETF for the same index.
+
 ### One point-in-time stock cross-section
 
 Use `data.cross_section()` for China A-share fields available at a historical trading date. It is suitable for exploratory distributions, relationships, and universes, but does not replace a formal FactorReport.
@@ -63,6 +65,7 @@ Search by instrument code or a common measure name. If it is still absent, the c
 ### The result is empty
 
 Check the instrument code, dates, frequency, and the field's first available date. For a cross-section, also verify that the requested date resolves to a supported trading day.
+For an ETF, also check its listing date and local coverage start in the catalog. Do not automatically replace it with another ETF that tracks the same index.
 
 ## Related articles
 

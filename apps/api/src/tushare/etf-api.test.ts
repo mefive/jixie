@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { etfBasic, fundAdj, fundBasic, fundDaily } from './api.js';
+import { etfBasic, etfShareSize, fundAdj, fundBasic, fundDaily } from './api.js';
 import type { TushareClient } from './client.js';
 
 function fakeClient() {
@@ -54,5 +54,20 @@ describe('Tushare ETF APIs', () => {
     await fundAdj(client, params);
 
     expect(call).toHaveBeenCalledWith('fund_adj', params, 'ts_code,trade_date,adj_factor');
+  });
+
+  it('requests ETF share and size data with explicit units inputs', async () => {
+    const { call, client } = fakeClient();
+    const params = { trade_date: '20260821' };
+
+    await etfShareSize(client, params);
+
+    expect(call).toHaveBeenCalledWith(
+      'etf_share_size',
+      params,
+      expect.stringContaining('total_share'),
+    );
+    expect(call.mock.calls[0][2]).toContain('total_size');
+    expect(call.mock.calls[0][2]).toContain('nav');
   });
 });

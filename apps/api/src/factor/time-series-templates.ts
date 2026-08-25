@@ -1,4 +1,5 @@
 import type { FactorKind, FactorMeta, Locale } from '@jixie/shared';
+import { MAJOR_ETF_CODES } from '../store/etf-presets.js';
 import type { FactorAnalysisSource } from './analysis-job.js';
 
 export interface TimeSeriesTemplate {
@@ -22,6 +23,7 @@ const ALL_TIME_SERIES_ETF_ASSETS = [
   ...COMMODITY_ETF_ASSETS,
   '510300.SH',
 ];
+const PRICE_TIME_SERIES_ETF_ASSETS = [...MAJOR_ETF_CODES];
 
 function etfTrendCode(lookback: 20 | 60 | 120, name: string): string {
   return `export default defineFactorV2({
@@ -139,7 +141,7 @@ export const TIME_SERIES_TEMPLATES: TimeSeriesTemplate[] = [
     key: 'etf_trend_20',
     kind: 'price',
     targetAssetClasses: ['equity', 'fixed_income', 'commodity'],
-    allowedAssets: ALL_TIME_SERIES_ETF_ASSETS,
+    allowedAssets: PRICE_TIME_SERIES_ETF_ASSETS,
     defaultAssets: ALL_TIME_SERIES_ETF_ASSETS,
     label: { zh: 'ETF 20日趋势', en: 'ETF 20-day trend' },
     description: {
@@ -153,7 +155,7 @@ export const TIME_SERIES_TEMPLATES: TimeSeriesTemplate[] = [
     key: 'etf_trend_60',
     kind: 'price',
     targetAssetClasses: ['equity', 'fixed_income', 'commodity'],
-    allowedAssets: ALL_TIME_SERIES_ETF_ASSETS,
+    allowedAssets: PRICE_TIME_SERIES_ETF_ASSETS,
     defaultAssets: ALL_TIME_SERIES_ETF_ASSETS,
     label: { zh: 'ETF 60日趋势', en: 'ETF 60-day trend' },
     description: {
@@ -167,7 +169,7 @@ export const TIME_SERIES_TEMPLATES: TimeSeriesTemplate[] = [
     key: 'etf_trend_120',
     kind: 'price',
     targetAssetClasses: ['equity', 'fixed_income', 'commodity'],
-    allowedAssets: ALL_TIME_SERIES_ETF_ASSETS,
+    allowedAssets: PRICE_TIME_SERIES_ETF_ASSETS,
     defaultAssets: ALL_TIME_SERIES_ETF_ASSETS,
     label: { zh: 'ETF 120日趋势', en: 'ETF 120-day trend' },
     description: {

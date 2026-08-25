@@ -189,6 +189,12 @@ bootstrap 和每周维护。宏观 loader 以审计后的可用日对齐历史�
 只有 `sdkAccess.status=ready` 的 Binding 才能进入代理选择或 Cell 提案。Concept 的长期扩充仍由 1.4 维护，
 不以模糊关键词或模型记忆绕过 Binding 白名单。
 
+2026-08-25 完成 ETF 代表池执行切片：registry v1 冻结 71 个经济暴露、82 只主/备产品，并完成日线、复权与
+份额规模历史回填。ETF Catalog 和搜索现在读取真实本地覆盖，只有元数据而没有日线时以
+`source_available_but_local_data_missing` fail closed；已有 `data.series("etf", ...)` 继续提供固定复权收盘
+Schema。份额规模暂只服务选择与容量审计，未因落库而扩公开 SDK。QDII、债券、商品和货币 ETF 的代理限制
+进入双语帮助；这是一轮语义目录增量，不改变 1.4 的长期维护状态。
+
 同日由真实“黄金代理与美债收益率关系”研究触发首个收益率执行切片：美国国债名义/实际曲线通过
 `data.yield_curve()` 暴露固定 `date / value` Schema，只允许 Binding 登记的 curve/tenor 组合和 `level / difference`
 变换。Contract 同时生成 Agent API Catalog、Monaco/Pyright Stub 与 Runtime 校验，Python AST 在 Diff 前核对
@@ -444,7 +450,7 @@ SciPy、statsmodels、Matplotlib 与 scikit-learn 的版本和职责；生产 re
 | 1 | 1.5 M0–M3 响应式研究文档 | ✅ | Markdown / Python、Agent、运行与快照主闭环已完成 |
 | 2 | 1.5 M4 Factor / Strategy 血缘交接 | ✅ | Python Factor / Strategy 草稿与来源快照交接已闭环 |
 | 3 | 1.3 Research Curator 手动版 | ✅ | 已能发现并核验可沉淀的方法、数据和文档缺口 |
-| 4 | 1.4 研究语义目录持续维护 | 🚧 | A 股截面与月末 Panel 已完成，后续仍由真实研究问题触发 |
+| 4 | 1.4 研究语义目录持续维护 | 🚧 | A 股截面、月末 Panel 与 ETF 代表池已完成，后续仍由真实研究问题触发 |
 | 5 | 3.1 跨市场数据契约与数据源矩阵 | ✅ | 中港美股债商扩展的共同前置，先防语义债 |
 | 6 | 2.1 双语学习路径的第一批内容 | ⬜ | 公式、方法和概念解释本身就是产品能力 |
 | 7 | 3.2 跨市场基准与可交易代理 | ✅ | 已用指数基准与境内 ETF 代理形成全球资产研究最小闭环 |
