@@ -68,6 +68,12 @@ def handle_bar(ctx):
 - 最多 4 个并发会话、单会话最多 1 小时；
 - 策略模块初始化和每次 `on_bar` 最多连续执行 10 秒，等待 Engine 数据的时间不计入。
 
+每个容器通过独立 `--cidfile` 跟踪。正常关闭或客户端断连时，sandboxd 先关闭 runner 的标准输入并等待
+500ms；runner 未退出、会话超时或 runtime 异常退出时，再按容器 ID 执行 `kill` 和 `rm --force`。
+并发名额只在这套清理完成后释放。sandboxd 收到 `SIGINT` / `SIGTERM` 时会停止接收连接、关闭所有客户端，
+等待活动容器完成同一套清理，再删除 Unix socket 并退出。Docker 验证 backend 与生产 Podman backend
+共用该生命周期实现。
+
 镜像只含 CPython、py-v1 runner，以及由统一 `research-py-v1` Contract 生成并精确锁定版本的 NumPy、pandas、
 SciPy、statsmodels、Matplotlib 和 scikit-learn，不挂载代码库、数据库、宿主目录或密钥。Docker requirements、
 Agent 能力目录、提案导入白名单与本地运行时均从同一 Contract 派生。开发者先运行

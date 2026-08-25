@@ -13,7 +13,7 @@ import {
   parseResearchYieldCurveRuntimeRequest,
 } from './workbench-sdk.js';
 
-const MAX_LIVE_RESEARCH_SESSIONS = 8;
+const MAX_LIVE_RESEARCH_SESSIONS = 4;
 const MAX_RESEARCH_RUNTIME_OUTPUT_BYTES = 8 * 1024 * 1024;
 
 export interface ResearchPythonAnalysis {
@@ -51,12 +51,14 @@ interface ResearchRuntimeEntry {
   environment: Record<string, unknown>;
   queue: Promise<void>;
   touchedAt: number;
+  pendingOperations: number;
   activeCellId?: string;
   interrupted: boolean;
 }
 
 class ResearchRuntimeManager {
   private readonly entries = new Map<string, ResearchRuntimeEntry>();
+  private entryAcquisitionQueue: Promise<void> = Promise.resolve();
 
   async analyze(
     documentId: string,
@@ -214,13 +216,12 @@ class ResearchRuntimeManager {
     documentId: string,
     operation: (entry: ResearchRuntimeEntry) => Promise<T>,
   ): Promise<T> {
-    const entry = await this.getOrCreate(documentId);
+    const entry = await this.acquireEntry(documentId);
     const result = entry.queue.then(() => operation(entry));
     entry.queue = result.then(
       () => undefined,
       () => undefined,
     );
-    entry.touchedAt = Date.now();
     try {
       return await result;
     } catch (error) {
@@ -231,7 +232,23 @@ class ResearchRuntimeManager {
         this.close(documentId);
       }
       throw error;
+    } finally {
+      entry.pendingOperations -= 1;
+      entry.touchedAt = Date.now();
     }
+  }
+
+  private async acquireEntry(documentId: string): Promise<ResearchRuntimeEntry> {
+    const acquisition = this.entryAcquisitionQueue.then(async () => {
+      const entry = await this.getOrCreate(documentId);
+      entry.pendingOperations += 1;
+      return entry;
+    });
+    this.entryAcquisitionQueue = acquisition.then(
+      () => undefined,
+      () => undefined,
+    );
+    return acquisition;
   }
 
   private async getOrCreate(documentId: string): Promise<ResearchRuntimeEntry> {
@@ -240,11 +257,15 @@ class ResearchRuntimeManager {
       return existing;
     }
     if (this.entries.size >= MAX_LIVE_RESEARCH_SESSIONS) {
-      const oldest = [...this.entries.entries()].sort(
-        (left, right) => left[1].touchedAt - right[1].touchedAt,
-      )[0];
+      const oldest = [...this.entries.entries()]
+        .filter(([, entry]) => entry.pendingOperations === 0)
+        .sort((left, right) => left[1].touchedAt - right[1].touchedAt)[0];
       if (oldest) {
         this.close(oldest[0]);
+      } else {
+        throw new Error(
+          `Python sandbox is busy (${this.entries.size}/${MAX_LIVE_RESEARCH_SESSIONS} Research sessions)`,
+        );
       }
     }
 
@@ -257,6 +278,7 @@ class ResearchRuntimeManager {
         environment,
         queue: Promise.resolve(),
         touchedAt: Date.now(),
+        pendingOperations: 0,
         interrupted: false,
       };
       this.entries.set(documentId, entry);
