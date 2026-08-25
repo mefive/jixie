@@ -11,6 +11,7 @@
     "dev:api": "pnpm --filter api dev",
     "dev:web": "pnpm --filter web dev",
     "dev:docs": "pnpm --filter docs dev",
+    "test:dev-shutdown": "node --test scripts/process-group.test.mjs",
     "build": "pnpm check:research-runtime && pnpm check:research-sdk && pnpm check:factor-sdk && pnpm -r build",
     "typecheck": "pnpm check:research-runtime && pnpm check:research-sdk && pnpm check:factor-sdk && pnpm -r typecheck",
     "gen:research-runtime": "node --import tsx scripts/gen-research-python-runtime.ts",

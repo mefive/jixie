@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 
 import { spawn } from 'node:child_process';
-import { readFile, stat } from 'node:fs/promises';
+import { readFile, stat, unlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { signalProcessGroup, waitForServiceExit } from './process-group.mjs';
 
 const projectDirectory = join(dirname(fileURLToPath(import.meta.url)), '..');
 const socketPath = join(tmpdir(), `jixie-sandboxd-dev-${process.pid}.sock`);
@@ -72,34 +73,12 @@ async function waitForSocket(child) {
   throw new Error(`sandboxd did not create ${socketPath} within 10 seconds`);
 }
 
-function signalProcessGroup(child, signal) {
-  if (!child.pid || child.exitCode !== null || child.signalCode !== null) {
-    return;
-  }
+function stopService(child, signal) {
   try {
-    if (process.platform === 'win32') {
-      child.kill(signal);
-    } else {
-      process.kill(-child.pid, signal);
-    }
+    signalProcessGroup(child, signal);
   } catch (error) {
-    if (error?.code !== 'ESRCH') {
-      console.error(`[dev] failed to stop process ${child.pid}: ${error.message}`);
-    }
+    console.error(`[dev] failed to stop process ${child.pid}: ${error.message}`);
   }
-}
-
-async function waitForExit(child, timeoutMs) {
-  if (child.exitCode !== null || child.signalCode !== null) {
-    return;
-  }
-  await new Promise((resolve) => {
-    const timeout = setTimeout(resolve, timeoutMs);
-    child.once('exit', () => {
-      clearTimeout(timeout);
-      resolve();
-    });
-  });
 }
 
 async function shutdown(exitCode) {
@@ -109,12 +88,18 @@ async function shutdown(exitCode) {
   stopping = true;
   const gracefulSignal = exitCode === 0 ? 'SIGINT' : 'SIGTERM';
   for (const child of children.values()) {
-    signalProcessGroup(child, gracefulSignal);
+    stopService(child, gracefulSignal);
   }
-  await Promise.all([...children.values()].map((child) => waitForExit(child, 3_000)));
+  await Promise.all([...children.values()].map((child) => waitForServiceExit(child, 3_000)));
   for (const child of children.values()) {
-    signalProcessGroup(child, 'SIGKILL');
+    stopService(child, 'SIGKILL');
   }
+  await Promise.all([...children.values()].map((child) => waitForServiceExit(child, 1_000)));
+  await unlink(socketPath).catch((error) => {
+    if (error?.code !== 'ENOENT') {
+      console.error(`[dev] failed to remove socket ${socketPath}: ${error.message}`);
+    }
+  });
   process.exitCode = exitCode;
   finishDevelopment();
 }
