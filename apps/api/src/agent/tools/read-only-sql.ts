@@ -36,6 +36,8 @@ export const SQL_TABLE_DOCS: Record<string, string> = {
     'tsCode, tradeDate, open, high, low, close, preClose, pctChg(%), vol(lots), amount(thousand CNY) — ETF daily bars, unadjusted',
   EtfAdjFactor:
     'tsCode, tradeDate, adjFactor — ETF adjustment factor (after-adjustment price = close×adjFactor)',
+  EtfShareSize:
+    'tsCode, tradeDate(source exchange date), availableDate(first strictly later SSE session; mandatory PIT gate), totalShare(10,000 fund units), totalSize(CNY 10,000, nullable), nav(CNY per fund unit, nullable), close(CNY per traded unit, nullable), exchange, retrievedAt — latest-value ETF share/size history from Tushare; QDII rows can omit totalSize and nav, strict PIT research must filter availableDate<=decision date, and backfilled rows are not historical real-time vintages',
   YieldCurvePoint:
     'source, curveCode, curveName, curveType, tradeDate(source-market curve date), availableDate(first eligible SSE research date; mandatory PIT gate), termYears(years), yieldPct(%), retrievedAt — normalized sovereign and credit yield curves including mof_cgb_ytm, us_treasury_nominal, us_treasury_real, chinabond_cgb_ytm, chinabond_bank_aaa_ytm, and chinabond_cp_note_aaa_ytm; research must filter availableDate<=decision date; ChinaBond and US curves are first usable on the strictly later SSE session; a 10Y−2Y slope is (yieldPct10−yieldPct2)×100 bp, while a credit spread must subtract chinabond_cgb_ytm from the chosen AAA curve on the exact same tradeDate and termYears without interpolation',
   FxDaily:

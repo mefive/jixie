@@ -12,6 +12,8 @@ import {
 } from '../rates/china-treasury-curve.js';
 import { refreshAllFactorWeatherPins } from '../factor/weather.js';
 import { MARKET_WEATHER_INDICATOR_INDEX_CODES } from '../store/index-presets.js';
+import { refreshEtfRegistryRevisions } from '../store/etf-market-sync.js';
+import { ETF_RESEARCH_CODES } from '../store/etf-research-registry.js';
 import {
   syncEtfBasic,
   syncFutureContracts,
@@ -63,6 +65,8 @@ export interface WeeklyMaintenanceSummary {
   dividends: WeeklyReferenceSyncSummary | null;
   chinaTreasuryCurve: number | null;
   factorWeatherPoints: number;
+  etfRevisionDates: number;
+  earliestEtfChange: string | null;
   dataRevision: number | null;
 }
 
@@ -113,6 +117,8 @@ export async function runWeeklyMaintenance(
     dividends: null,
     chinaTreasuryCurve: null,
     factorWeatherPoints: 0,
+    etfRevisionDates: 0,
+    earliestEtfChange: null,
     dataRevision: null,
   };
   if (run.skipped && !options.force) {
@@ -236,6 +242,25 @@ export async function runWeeklyMaintenance(
       today,
       onLog,
     );
+
+    if (state.dailyPublishedThrough) {
+      const etfLookback = positiveInteger(
+        process.env.MAINTENANCE_WEEKLY_ETF_REVISION_LOOKBACK_DAYS,
+        252,
+      );
+      const etfRevisionDates = await recentPublishedTradingDates(
+        state.dailyPublishedThrough,
+        etfLookback,
+      );
+      await updateMaintenanceRun(run.id, 'etf_revisions', summary);
+      const etfRevisions = await refreshEtfRegistryRevisions(
+        standardClient,
+        etfRevisionDates as TradeDate[],
+        ETF_RESEARCH_CODES,
+      );
+      summary.etfRevisionDates = etfRevisions.dates;
+      summary.earliestEtfChange = etfRevisions.earliestChangedDate;
+    }
 
     await updateMaintenanceRun(run.id, 'canonicalizing_codes', summary);
     const canonicalization = await canonicalizeStockCodes();

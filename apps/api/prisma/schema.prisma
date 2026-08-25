@@ -156,6 +156,25 @@ model EtfAdjFactor {
   @@index([tradeDate])
 }
 
+/// ETF units, fund size, NAV, and exchange close. Tushare publishes this dataset after the source
+/// trade date, so `availableDate` is the first strictly later SSE session and is the mandatory PIT
+/// gate. `totalShare` is measured in 10,000 fund units and nullable `totalSize` in CNY 10,000.
+model EtfShareSize {
+  tsCode        String
+  tradeDate     String
+  availableDate String
+  totalShare    Float
+  totalSize     Float?
+  nav           Float?
+  close         Float?
+  exchange      String
+  retrievedAt   DateTime @default(now())
+
+  @@id([tsCode, tradeDate])
+  @@index([tradeDate])
+  @@index([availableDate])
+}
+
 /// Completion marker for an atomically refreshed ETF code/year slice. This makes long backfills
 /// resumable without guessing completeness from sparse trading rows.
 model EtfSyncSlice {

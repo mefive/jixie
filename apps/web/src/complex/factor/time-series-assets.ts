@@ -1,6 +1,18 @@
 import type { FactorMeta } from '@jixie/shared';
 
 export const TIME_SERIES_ASSET_OPTIONS = [
+  { code: '510050.SH', assetClass: 'equity' },
+  { code: '510300.SH', assetClass: 'equity' },
+  { code: '563360.SH', assetClass: 'equity' },
+  { code: '510500.SH', assetClass: 'equity' },
+  { code: '512100.SH', assetClass: 'equity' },
+  { code: '563300.SH', assetClass: 'equity' },
+  { code: '159915.SZ', assetClass: 'equity' },
+  { code: '588000.SH', assetClass: 'equity' },
+  { code: '510880.SH', assetClass: 'equity' },
+  { code: '159920.SZ', assetClass: 'equity' },
+  { code: '513500.SH', assetClass: 'equity' },
+  { code: '513100.SH', assetClass: 'equity' },
   { code: '511010.SH', assetClass: 'fixed_income' },
   { code: '511260.SH', assetClass: 'fixed_income' },
   { code: '511090.SH', assetClass: 'fixed_income' },
@@ -8,7 +20,6 @@ export const TIME_SERIES_ASSET_OPTIONS = [
   { code: '159985.SZ', assetClass: 'commodity' },
   { code: '159980.SZ', assetClass: 'commodity' },
   { code: '159981.SZ', assetClass: 'commodity' },
-  { code: '510300.SH', assetClass: 'equity' },
 ] as const;
 
 export const TIME_SERIES_ASSETS = TIME_SERIES_ASSET_OPTIONS.map((asset) => asset.code);

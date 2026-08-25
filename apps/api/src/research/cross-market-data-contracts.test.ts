@@ -91,6 +91,11 @@ describe('crossMarketDataContractRegistry', () => {
           expected: expect.objectContaining({ assetClass: 'bond' }),
         }),
         expect.objectContaining({
+          id: 'cn-etf-csi300-share-size',
+          providerId: '510300.SH',
+          expected: expect.objectContaining({ market: 'CN', quoteCurrency: 'CNY' }),
+        }),
+        expect.objectContaining({
           id: 'cn-commodity-au-continuous',
           providerId: 'AU.SHF',
           expected: expect.objectContaining({ assetClass: 'commodity' }),
@@ -127,6 +132,20 @@ describe('crossMarketDataContractRegistry', () => {
     expect(researchDataContractById.get('us.equity.adjusted_close.daily')).toMatchObject({
       status: 'planned',
       instrumentType: 'stock',
+    });
+  });
+
+  it('gates ETF share and size observations to the next SSE session', () => {
+    expect(researchDataContractById.get('cn.etf.share_size.daily')).toMatchObject({
+      status: 'integrated',
+      instrumentType: 'exchange_traded_fund_reference_observation',
+      pointInTime: {
+        availableDatePolicy: expect.stringContaining('strictly later SSE session'),
+        macroVintagePolicy: expect.stringContaining('latest-value backfills'),
+      },
+      binding: {
+        unit: 'totalShare=10k_fund_units;totalSize=10k_CNY',
+      },
     });
   });
 });

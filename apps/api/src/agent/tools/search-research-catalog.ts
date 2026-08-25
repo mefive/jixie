@@ -27,6 +27,7 @@ import type { AgentTool } from './types.js';
 import { researchSourceDecisions } from '../../research/source-decisions.js';
 import { compactCrossMarketDataContractRegistry } from '../../research/cross-market-data-contracts.js';
 import { HKD_CNH_DERIVED_CODE } from '../../market/cross-market-benchmarks.js';
+import { etfResearchMembership } from '../../store/etf-research-registry.js';
 
 const filtersSchema = z.strictObject({
   sourceKinds: z
@@ -299,6 +300,17 @@ export function createSearchResearchCatalogTool(evidence?: ResearchCatalogTurnEv
             }),
         resolveResearchConceptBindings(registeredBindings, bindingFilters),
       ]);
+      const etfCoverage =
+        etfs.length === 0
+          ? []
+          : await prisma.etfDaily.groupBy({
+              by: ['tsCode'],
+              where: { tsCode: { in: etfs.map((item) => item.tsCode) } },
+              _count: { _all: true },
+              _min: { tradeDate: true },
+              _max: { tradeDate: true },
+            });
+      const etfCoverageByCode = new Map(etfCoverage.map((item) => [item.tsCode, item]));
 
       const knownIndexCodes = new Set(indexes.map((item) => item.tsCode));
       const candidates: CatalogCandidate[] = [
@@ -320,7 +332,7 @@ export function createSearchResearchCatalogTool(evidence?: ResearchCatalogTurnEv
         }),
         ...rankByTerms(etfs, terms, (item) => compactValues(item)).map((item) =>
           candidate(
-            instrumentMatch('etf', item.tsCode, item.name, item),
+            etfInstrumentMatch(item, etfCoverageByCode.get(item.tsCode)),
             compactValues(item),
             'instrument',
             'etf',
@@ -826,6 +838,41 @@ function instrumentMatch(
         measure: 'market.adjusted_close',
       },
     },
+  };
+}
+
+export function etfInstrumentMatch(
+  item: { tsCode: string; name: string; fundType: string | null; indexName: string | null },
+  coverage:
+    | {
+        _count: { _all: number };
+        _min: { tradeDate: string | null };
+        _max: { tradeDate: string | null };
+      }
+    | undefined,
+) {
+  const base = instrumentMatch('etf', item.tsCode, item.name, item);
+  const hasDailyData = coverage != null && coverage._count._all > 0;
+  return {
+    ...base,
+    researchRegistry: etfResearchMembership(item.tsCode),
+    localDataCoverage: hasDailyData
+      ? {
+          status: 'ready',
+          observations: coverage._count._all,
+          startDate: coverage._min.tradeDate,
+          endDate: coverage._max.tradeDate,
+        }
+      : {
+          status: 'missing',
+          reason: 'source_available_but_local_data_missing',
+        },
+    sdkAccess: hasDailyData
+      ? base.sdkAccess
+      : {
+          status: 'not_ready',
+          reason: 'source_available_but_local_data_missing',
+        },
   };
 }
 

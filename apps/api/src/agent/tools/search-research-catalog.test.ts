@@ -6,6 +6,7 @@ import {
 import {
   createResearchCatalogTurnEvidence,
   createSearchResearchCatalogTool,
+  etfInstrumentMatch,
   interpretResearchCatalogQuery,
   isResearchPythonRuntimeCatalogQuery,
   researchConceptDimensionMismatches,
@@ -14,6 +15,37 @@ import {
 } from './search-research-catalog.js';
 
 describe('research catalog query interpretation', () => {
+  it('fails closed when ETF metadata exists without local daily history', () => {
+    const missing = etfInstrumentMatch(
+      { tsCode: '510300.SH', name: '沪深300ETF', fundType: '股票型', indexName: '沪深300' },
+      undefined,
+    );
+    const ready = etfInstrumentMatch(
+      { tsCode: '510300.SH', name: '沪深300ETF', fundType: '股票型', indexName: '沪深300' },
+      {
+        _count: { _all: 2_000 },
+        _min: { tradeDate: '20120528' },
+        _max: { tradeDate: '20260821' },
+      },
+    );
+
+    expect(missing).toMatchObject({
+      researchRegistry: { exposureId: 'cn.csi_300', role: 'primary' },
+      localDataCoverage: {
+        status: 'missing',
+        reason: 'source_available_but_local_data_missing',
+      },
+      sdkAccess: {
+        status: 'not_ready',
+        reason: 'source_available_but_local_data_missing',
+      },
+    });
+    expect(ready).toMatchObject({
+      localDataCoverage: { status: 'ready', observations: 2_000 },
+      sdkAccess: { status: 'ready' },
+    });
+  });
+
   it('reserves the exact runtime.python query for the fixed Python capability contract', () => {
     expect(isResearchPythonRuntimeCatalogQuery('runtime.python')).toBe(true);
     expect(isResearchPythonRuntimeCatalogQuery('scipy')).toBe(false);
