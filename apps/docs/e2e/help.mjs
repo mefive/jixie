@@ -140,8 +140,8 @@ try {
   await page.getByRole('heading', { level: 1, name: '从学习路径开始，也可以按页面查找' }).waitFor();
   if (
     (await page.locator('.jx-help-homeChoice').count()) !== 2 ||
-    (await page.locator('.jx-help-homePath').count()) !== 4 ||
-    (await page.locator('.jx-help-homeStep').count()) !== 20 ||
+    (await page.locator('.jx-help-homePath').count()) !== 5 ||
+    (await page.locator('.jx-help-homeStep').count()) !== 25 ||
     (await page.locator('.jx-help-homeManualCard').count()) !== 10
   ) {
     throw new Error(
@@ -264,6 +264,40 @@ try {
     .waitFor();
   await page.getByText('中文', { exact: true }).last().click();
 
+  await page.goto(`${BASE}/docs/help/learning/stock-bond-allocation-risk`, {
+    waitUntil: 'domcontentloaded',
+  });
+  await page
+    .getByRole('heading', {
+      level: 1,
+      name: '股债配置与风险归因：贡献、相关性与压力情景',
+    })
+    .waitFor();
+  if (
+    (await page.locator('.jx-help-codeBlock').count()) < 3 ||
+    (await page.locator('.jx-help-markdown table').count()) < 4 ||
+    (await page.locator('.jx-help-figure').count()) !== 8 ||
+    (await page.getByText('-8.25%', { exact: true }).count()) < 1 ||
+    (await page.getByText('93.11%', { exact: true }).count()) < 1 ||
+    (await page.getByRole('heading', { level: 2, name: '完成检查' }).count()) !== 1 ||
+    (await page.locator('.jx-help-nav .jx-help-navLink--active').textContent()) !==
+      '股债配置与风险归因：贡献、相关性与压力情景'
+  ) {
+    throw new Error(
+      'stock-bond allocation learning path is missing evidence, screenshots, completion, or navigation',
+    );
+  }
+  await page.screenshot({ path: `${SHOTS}17f-help-allocation-learning-path.png`, fullPage: true });
+
+  await page.getByText('EN', { exact: true }).last().click();
+  await page
+    .getByRole('heading', {
+      level: 1,
+      name: 'Stock-bond allocation and risk attribution: contributions, correlation, and stress scenarios',
+    })
+    .waitFor();
+  await page.getByText('中文', { exact: true }).last().click();
+
   await page.goto(`${BASE}/docs/help/getting-started/overview`, { waitUntil: 'domcontentloaded' });
   await page.getByRole('heading', { level: 1, name: '产品可以做什么' }).waitFor();
 
@@ -274,8 +308,8 @@ try {
         .evaluateAll((links) => links.map((link) => link.getAttribute('href'))),
     ),
   ].filter(Boolean);
-  if (articleHrefs.length !== 95) {
-    throw new Error(`expected 95 help articles, got ${articleHrefs.length}`);
+  if (articleHrefs.length !== 96) {
+    throw new Error(`expected 96 help articles, got ${articleHrefs.length}`);
   }
   for (const href of articleHrefs) {
     if (new URL(page.url()).pathname !== href) {

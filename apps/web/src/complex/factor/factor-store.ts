@@ -231,6 +231,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   public mode: 'preset' | 'custom' | 'composite' | 'time_series' | 'panel' | 'macro_regime' =
     'preset';
   public definitionAnalysisKind: EditableFactorAnalysisKind = 'cross_sectional';
+  public targetAssetClasses: FactorMeta['targetAssetClasses'] = undefined;
   public language: FactorLanguage = 'python';
   public compositeDefinition: FactorCompositeDefinition | null = null;
   public code = ''; // the custom factor's defineFactor source (empty for presets)
@@ -281,6 +282,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       selectedReportId: observable.ref,
       mode: observable.ref,
       definitionAnalysisKind: observable.ref,
+      targetAssetClasses: observable.ref,
       language: observable.ref,
       compositeDefinition: observable.ref,
       code: observable.ref,
@@ -461,11 +463,19 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   }
 
   public get timeSeriesAllowedAssets(): TimeSeriesAsset[] {
-    return allowedTimeSeriesAssetsFor(this.selected ?? undefined);
+    const selected = this.selected;
+    return allowedTimeSeriesAssetsFor(
+      selected
+        ? {
+            ...selected,
+            targetAssetClasses: this.targetAssetClasses ?? selected.targetAssetClasses,
+          }
+        : undefined,
+    );
   }
 
   public get panelAssets(): PanelFactorResearchSpecV1['assets'] {
-    return panelAssetsFor(this.selected?.targetAssetClasses);
+    return panelAssetsFor(this.targetAssetClasses ?? this.selected?.targetAssetClasses);
   }
 
   public get reportDetail(): FactorReportDetail | null {
@@ -825,6 +835,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         : isPanel
           ? 'panel'
           : 'cross_sectional';
+      this.targetAssetClasses = meta?.targetAssetClasses;
       this.language = meta?.language === 'python' ? 'python' : 'typescript';
       this.compositeDefinition = isComposite ? structuredClone(meta?.composite ?? null) : null;
       this.specVersion = 6;
@@ -881,6 +892,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
           factor.analysisKind === 'time_series' || factor.analysisKind === 'panel'
             ? factor.analysisKind
             : 'cross_sectional';
+        this.targetAssetClasses = factor.targetAssetClasses ?? meta?.targetAssetClasses;
         this.language = factor.language === 'python' ? 'python' : 'typescript';
         this.chatMessages = isCustom ? (factor.messages ?? []).map(normalizeChatMessage) : [];
         this.factorKey = factor.key;
@@ -1376,6 +1388,30 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
           return;
         }
       }
+      if (
+        this.definitionAnalysisKind === 'time_series' ||
+        this.definitionAnalysisKind === 'panel'
+      ) {
+        try {
+          const factor = await getCustomFactor(this.selectedKey);
+          const targetAssetClasses = factor.targetAssetClasses ?? this.targetAssetClasses;
+          runInAction(() => {
+            this.targetAssetClasses = targetAssetClasses;
+            if (this.definitionAnalysisKind === 'time_series' && this.selected) {
+              const allowed = new Set(
+                allowedTimeSeriesAssetsFor({
+                  ...this.selected,
+                  targetAssetClasses,
+                }),
+              );
+              this.timeSeriesAssets = this.timeSeriesAssets.filter((asset) => allowed.has(asset));
+            }
+          });
+        } catch (e) {
+          await this.reportLoader.run(Promise.reject(e)).catch(() => {});
+          return;
+        }
+      }
     }
     runInAction(() => {
       this.logs = [];
@@ -1487,6 +1523,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         this.factorKey = factor.key;
         this.factorStatus = factor.status ?? 'draft';
         this.description = factor.description ?? '';
+        this.targetAssetClasses = factor.targetAssetClasses ?? this.targetAssetClasses;
       });
       await this.catalogLoader.run();
     } catch {

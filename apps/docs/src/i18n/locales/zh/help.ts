@@ -10,9 +10,9 @@ export const zhHelp = {
     title: '从学习路径开始，也可以按页面查找',
     intro:
       '学习路径把概念、项目内真实例子、可复现练习和完成检查串在一起；页面手册继续提供所有功能的操作说明。',
-    guidedTitle: '沿四条学习路径实践',
+    guidedTitle: '沿五条学习路径实践',
     guidedDescription:
-      '从可信研究、策略和 Factor 证据，继续练习可追溯的回测、部署与每日信号，并保留失败案例。',
+      '从可信研究、策略和 Factor 证据，继续练习可追溯的回测、信号治理、多资产归因与压力情景，并保留失败案例。',
     guidedAction: '从描述性研究开始',
     manualTitle: '按页面查使用方法',
     manualDescription: '适合已经知道要使用哪项功能，直接查看当前控件、口径和限制。',
@@ -135,6 +135,36 @@ export const zhHelp = {
           audit: {
             title: '审计每日信号',
             description: '区分指令、模拟成交和实际执行，并暂停失败候选。',
+          },
+        },
+      },
+      allocation: {
+        eyebrow: '第五条 · 配置归因',
+        title: '股债配置与风险归因',
+        description:
+          '用不含黄金和商品的股债 Panel Factor 运行月度轮动，对照股票基线，核对收益贡献、风险集中、相关性、利率环境和压力情景。',
+        start: '开始配置归因',
+        stepsTitle: '这条路径怎样推进',
+        steps: {
+          universe: {
+            title: '冻结股债范围',
+            description: '区分 Factor 资产域、Panel 研究池和策略交易池。',
+          },
+          baseline: {
+            title: '建立股票基线',
+            description: '用相同日期、资金和成本运行沪深 300 买入持有。',
+          },
+          attribution: {
+            title: '对账收益与风险',
+            description: '比较平均权重、收益贡献、风险贡献和真实成本。',
+          },
+          correlation: {
+            title: '阅读条件关系',
+            description: '核对滚动股债相关和不同利率环境下的历史表现。',
+          },
+          stress: {
+            title: '压力测试并裁决',
+            description: '区分线性情景、历史复现和预测，保留收益落后的结果。',
           },
         },
       },

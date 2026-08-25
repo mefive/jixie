@@ -12,9 +12,9 @@ export const enHelp: typeof zhHelp = {
     title: 'Follow a learning path or look up a product page',
     intro:
       'Learning paths connect concepts, real examples, reproducible exercises, and completion checks. The page manual still documents every product workflow.',
-    guidedTitle: 'Practice along four learning paths',
+    guidedTitle: 'Practice along five learning paths',
     guidedDescription:
-      'Move from trustworthy research, strategy, and Factor evidence into auditable backtests, deployment, and daily signals while retaining failures.',
+      'Move from trustworthy research, strategy, and Factor evidence into auditable backtests, signal governance, multi-asset attribution, and stress scenarios while retaining failures.',
     guidedAction: 'Start with descriptive research',
     manualTitle: 'Look up a product page',
     manualDescription:
@@ -143,6 +143,40 @@ export const enHelp: typeof zhHelp = {
             title: 'Audit the daily signal',
             description:
               'Separate instructions, model fills, and actual execution, then pause a failed candidate.',
+          },
+        },
+      },
+      allocation: {
+        eyebrow: 'Path five · Allocation attribution',
+        title: 'Stock-bond allocation and risk attribution',
+        description:
+          'Run a monthly stock-bond rotation with a Panel Factor that excludes gold and commodities, compare it with an equity baseline, and audit return, concentrated risk, correlation, rate regimes, and stress scenarios.',
+        start: 'Start allocation attribution',
+        stepsTitle: 'How the path progresses',
+        steps: {
+          universe: {
+            title: 'Freeze the stock-bond scope',
+            description:
+              'Separate the Factor domain, Panel research universe, and strategy watchlist.',
+          },
+          baseline: {
+            title: 'Build the equity baseline',
+            description: 'Run CSI 300 buy-and-hold with identical dates, capital, and costs.',
+          },
+          attribution: {
+            title: 'Reconcile return and risk',
+            description:
+              'Compare average weight, return contribution, risk contribution, and actual costs.',
+          },
+          correlation: {
+            title: 'Read conditional relationships',
+            description:
+              'Audit rolling stock-bond correlation and historical performance across rate regimes.',
+          },
+          stress: {
+            title: 'Stress and adjudicate',
+            description:
+              'Separate linear scenarios, historical replays, and forecasts while retaining inferior returns.',
           },
         },
       },

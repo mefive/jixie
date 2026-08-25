@@ -10,7 +10,9 @@ const FACTOR_FACTORY_PATTERN =
   /(?:^|\n)\s*factor\s*=\s*Factor\.(cross_sectional|time_series|panel)\s*\(/;
 const FACTOR_COMPUTE_PATTERN = /(?:^|\n)\s*@factor\.compute\s*(?:\n|$)/;
 const FACTOR_IMPORT_PATTERN = /(?:^|\n)\s*from\s+jixie\s+import\s+[^\n]*\bFactor\b[^\n]*(?:\n|$)/;
+const TARGET_ASSET_CLASSES_PATTERN = /\btarget_asset_classes\s*=\s*\[([^\]]*)\]/m;
 const MAX_DIAGNOSTICS = 4;
+type PythonAssetClass = 'equity' | 'fixed_income' | 'commodity';
 
 interface PyrightOutput {
   generalDiagnostics?: Array<{
@@ -34,6 +36,9 @@ export async function validatePythonFactorDefinition(
   }
   if (factory !== analysisKind) {
     throw new Error(`Python Factor factory ${factory} does not match ${analysisKind}.`);
+  }
+  if (analysisKind === 'time_series' || analysisKind === 'panel') {
+    pythonFactorTargetAssetClasses(source);
   }
   if (!FACTOR_COMPUTE_PATTERN.test(source)) {
     throw new Error('Python Factor code must decorate one function with `@factor.compute`.');
@@ -80,6 +85,25 @@ export async function validatePythonFactorDefinition(
   } finally {
     await rm(workspacePath, { recursive: true, force: true });
   }
+}
+
+/** Read the literal asset-domain declaration without starting the Python execution sandbox. */
+export function pythonFactorTargetAssetClasses(source: string): PythonAssetClass[] {
+  const declaration = source.match(TARGET_ASSET_CLASSES_PATTERN)?.[1];
+  if (declaration === undefined) {
+    throw new Error('Python asset Factor requires a literal target_asset_classes list.');
+  }
+  const quotedClassPattern = /(['"])(equity|fixed_income|commodity)\1/g;
+  const values = [...declaration.matchAll(quotedClassPattern)].map(
+    (match) => match[2] as PythonAssetClass,
+  );
+  const remainder = declaration.replace(quotedClassPattern, '').replace(/[\s,]/g, '');
+  if (values.length === 0 || remainder || new Set(values).size !== values.length) {
+    throw new Error(
+      'Python target_asset_classes must be a non-empty literal list of unique supported classes.',
+    );
+  }
+  return values;
 }
 
 function runPyright(workspacePath: string): Promise<PyrightOutput> {
