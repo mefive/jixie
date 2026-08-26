@@ -135,6 +135,11 @@ const LEARNING_PATHS = [
     slug: 'learning/stock-bond-allocation-risk',
     steps: ['universe', 'baseline', 'attribution', 'correlation', 'stress'],
   },
+  {
+    key: 'commodity',
+    slug: 'learning/commodity-carry-holdout',
+    steps: ['semantics', 'proxies', 'preregister', 'holdout', 'verdict'],
+  },
 ] as const;
 
 function HelpLanding() {

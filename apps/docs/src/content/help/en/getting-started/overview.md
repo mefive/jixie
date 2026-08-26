@@ -32,7 +32,8 @@ The pages can be used together. For example, use Research to inspect an equity u
 9. Follow [CSI 300 value factor](/help/learning/csi300-value-factor) to preregister a cross-sectional hypothesis and reveal one formal holdout.
 10. Follow [From the CGB curve to a daily signal](/help/learning/cgb-curve-daily-signal) to audit Factor evidence, a costed backtest, deployment lineage, and a specified-date signal.
 11. Follow [Stock-bond allocation and risk attribution](/help/learning/stock-bond-allocation-risk) to separate asset allocation, timing, and costs with four actual runs before reconciling complete risk.
-12. Read [Why a backtest is not a forecast](/help/basics/backtest-limitations).
+12. Follow [Commodity carry](/help/learning/commodity-carry-holdout) to audit term structure, proxy error, and formal holdouts with two preregistered tests.
+13. Read [Why a backtest is not a forecast](/help/basics/backtest-limitations).
 
 ## What the product cannot decide for you
 
@@ -56,6 +57,7 @@ Before making a trade, check the data date, trading costs, whether an order coul
 - [CSI 300 value factor: ranking, IC, portfolios, and holdout](/help/learning/csi300-value-factor)
 - [From the CGB curve to a daily signal: evidence, backtest, and deployment](/help/learning/cgb-curve-daily-signal)
 - [Stock-bond allocation and risk attribution: contributions, correlation, and stress scenarios](/help/learning/stock-bond-allocation-risk)
+- [Commodity carry: term structure, proxy error, and holdout evidence](/help/learning/commodity-carry-holdout)
 - [Stocks, ETFs, and indices](/help/basics/stocks-etfs-indices)
 - [Strategies and backtests](/help/basics/strategy-backtest)
 - [Return and risk metrics](/help/basics/performance-risk)

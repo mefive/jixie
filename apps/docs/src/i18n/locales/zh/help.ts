@@ -10,9 +10,9 @@ export const zhHelp = {
     title: '从学习路径开始，也可以按页面查找',
     intro:
       '学习路径把概念、项目内真实例子、可复现练习和完成检查串在一起；页面手册继续提供所有功能的操作说明。',
-    guidedTitle: '沿五条学习路径实践',
+    guidedTitle: '沿六条学习路径实践',
     guidedDescription:
-      '从可信研究、策略和 Factor 证据，继续练习可追溯的回测、信号治理、多资产归因与压力情景，并保留失败案例。',
+      '从可信研究、策略和 Factor 证据，继续练习信号治理、多资产归因、商品期限结构与样本外裁决，并保留失败案例。',
     guidedAction: '从描述性研究开始',
     manualTitle: '按页面查使用方法',
     manualDescription: '适合已经知道要使用哪项功能，直接查看当前控件、口径和限制。',
@@ -165,6 +165,36 @@ export const zhHelp = {
           stress: {
             title: '压力测试并裁决',
             description: '区分资产配置、择时与成本，保留证据不支持生产的结果。',
+          },
+        },
+      },
+      commodity: {
+        eyebrow: '第六条 · 商品研究',
+        title: '商品 Carry 与样本外',
+        description:
+          '用黄金、铜、原油和豆粕真实月合约冻结 Panel 与时间序列检验，核对期限结构、代理误差、多重检验和两份失败 Holdout。',
+        start: '开始商品研究',
+        stepsTitle: '这条路径怎样推进',
+        steps: {
+          semantics: {
+            title: '定义期限结构',
+            description: '区分 Carry、连续收益、换月价差和真实盈亏。',
+          },
+          proxies: {
+            title: '审计代理误差',
+            description: '核对实际期货品种与四只映射 ETF 的差异。',
+          },
+          preregister: {
+            title: '冻结两项测试',
+            description: '分别登记横截面排序和逐商品时间序列标准。',
+          },
+          holdout: {
+            title: '先密封再揭示',
+            description: '两份报告同时密封后才查看首次保留段。',
+          },
+          verdict: {
+            title: '保留失败裁决',
+            description: '不在 Rank IC、收益和单品种 t 值间事后挑选。',
           },
         },
       },
