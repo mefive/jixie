@@ -15,14 +15,19 @@ export class Portfolio {
     this.cash = initialCash;
   }
 
-  /** Max whole shares buyable at `price` given current cash and buy-side fees (never goes negative). */
-  affordableShares(price: number, assetType: CashAssetType): number {
-    if (price <= 0) {
+  /** Max adjusted shares buyable as whole real-share lots, including minimum commission. */
+  affordableShares(price: number, assetType: CashAssetType, adj: number): number {
+    return this.affordableRealShares(price, assetType, adj) / adj;
+  }
+
+  /** Shares currently available to sell; only the most recent T+1 purchase layer is frozen. */
+  sellableShares(code: string, date: string): number {
+    const position = this.positions.get(code);
+    if (!position) {
       return 0;
     }
-    const transferFee = assetType === 'stock' ? this.cost.transferFee : 0;
-    const n = Math.floor(this.cash / (price * (1 + this.cost.commission + transferFee)));
-    return Math.max(0, n);
+    const frozen = position.frozenUntil > date ? (position.frozenShares ?? position.shares) : 0;
+    return Math.max(0, position.shares - Math.min(position.shares, frozen));
   }
 
   /** Total equity given a price lookup (suspended → its position is held at the carried price). */
@@ -56,6 +61,25 @@ export class Portfolio {
     );
   }
 
+  private affordableRealShares(price: number, assetType: CashAssetType, adj: number): number {
+    if (!Number.isFinite(price) || !Number.isFinite(adj) || price <= 0 || adj <= 0) {
+      return 0;
+    }
+    const realPrice = price / adj;
+    let low = 0;
+    let high = Math.max(0, Math.floor(this.cash / (realPrice * 100)));
+    while (low < high) {
+      const middle = Math.ceil((low + high) / 2);
+      const value = middle * 100 * realPrice;
+      if (value + this.buyFee(value, assetType) <= this.cash + 1e-9) {
+        low = middle;
+      } else {
+        high = middle - 1;
+      }
+    }
+    return low * 100;
+  }
+
   /** Execute a fill of `delta` hfq shares (+buy / -sell) at hfq `price` on `date`. `adj` is the day's
    * adj_factor, used to enforce A-share whole-lot (100-share) sizing in REAL shares and to record the real
    * (unadjusted) price/shares the user sees. Buys floor to whole lots (deploy ≤ budget); sells clear the
@@ -70,19 +94,31 @@ export class Portfolio {
     assetType: CashAssetType = 'stock',
     preSlippagePrice = price,
   ): void {
+    if (![delta, price, adj].every(Number.isFinite)) {
+      throw new Error(`Fill inputs for ${code} must be finite numbers`);
+    }
     if (Math.abs(delta) < 1e-9 || price <= 0 || adj <= 0) {
       return;
     }
 
     let realShares: number;
     if (delta > 0) {
-      const realLots = Math.floor((delta * adj) / 100) * 100; // real shares, floored to whole lots
+      const requestedRealLots = Math.floor((delta * adj) / 100) * 100;
+      const realLots = Math.min(
+        requestedRealLots,
+        this.affordableRealShares(price, assetType, adj),
+      );
       if (realLots < 100) {
         return;
       } // can't afford even one lot
       delta = realLots / adj; // back to hfq for the ledger (marking stays hfq)
       realShares = realLots; // exact whole lots
     } else {
+      const sellable = this.sellableShares(code, date);
+      delta = -Math.min(-delta, sellable);
+      if (Math.abs(delta) < 1e-9) {
+        return;
+      }
       realShares = Math.abs(delta) * adj; // sell: real count (drifts off lot boundary by reinvested dividends)
     }
 
@@ -94,10 +130,17 @@ export class Portfolio {
     if (delta > 0) {
       fee = this.buyFee(value, assetType);
       this.cash -= value + fee;
-      const pos = this.positions.get(code) ?? { shares: 0, avgCost: 0, frozenUntil: sellableFrom };
+      const pos = this.positions.get(code) ?? {
+        shares: 0,
+        avgCost: 0,
+        frozenUntil: sellableFrom,
+        frozenShares: 0,
+      };
+      const existingFrozen = pos.frozenUntil > date ? (pos.frozenShares ?? pos.shares) : 0;
       pos.avgCost = (pos.avgCost * pos.shares + value + fee) / (pos.shares + delta);
       pos.shares += delta;
-      pos.frozenUntil = sellableFrom; // T+1: freshly bought shares sellable next day
+      pos.frozenUntil = sellableFrom;
+      pos.frozenShares = sellableFrom > date ? existingFrozen + delta : 0;
       this.positions.set(code, pos);
     } else {
       const pos = this.positions.get(code);
@@ -107,6 +150,9 @@ export class Portfolio {
       fee = this.sellFee(value, assetType);
       this.cash += value - fee;
       pos.shares += delta; // delta < 0
+      if (pos.frozenUntil <= date) {
+        pos.frozenShares = 0;
+      }
       if (pos.shares < 1e-6) {
         this.positions.delete(code);
       }

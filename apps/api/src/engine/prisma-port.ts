@@ -22,7 +22,19 @@ export const prismaDataPort: EngineDataPort = {
 
   async stockBasics() {
     return prisma.stockBasic.findMany({
-      select: { tsCode: true, listDate: true, industry: true },
+      select: {
+        tsCode: true,
+        listDate: true,
+        delistDate: true,
+        listStatus: true,
+      },
+    });
+  },
+
+  async industryMemberships() {
+    return prisma.swIndustryMember.findMany({
+      select: { tsCode: true, l1Name: true, inDate: true, outDate: true },
+      orderBy: [{ tsCode: 'asc' }, { inDate: 'asc' }],
     });
   },
 
@@ -35,7 +47,13 @@ export const prismaDataPort: EngineDataPort = {
 
   async etfBasics() {
     return prisma.etfBasic.findMany({
-      select: { tsCode: true, listDate: true, sameDayTurnover: true },
+      select: {
+        tsCode: true,
+        listDate: true,
+        delistDate: true,
+        listStatus: true,
+        sameDayTurnover: true,
+      },
     });
   },
 

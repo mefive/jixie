@@ -714,8 +714,8 @@ model FutureMapping {
   @@index([mappedTsCode])
 }
 
-/// Historical exchange settlement parameters. Broker margin add-ons are account-specific and must be
-/// layered on top later; these rows preserve the source values instead of hard-coding today's rates.
+/// Historical exchange settlement parameters. Margin rates are stored exactly as Tushare percentage
+/// points (for example, 12 means 12%). Broker add-ons are account-specific and layer on top later.
 model FutureSettlement {
   tsCode              String
   tradeDate           String

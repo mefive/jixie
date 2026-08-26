@@ -12,11 +12,12 @@ import type { AllocationAnalysis, FactorDependency, Locale } from '@jixie/shared
 import type { EngineDataPort } from './data-port.js';
 import type { CustomFactorModule } from './custom-factor.js';
 
-/** A held position. frozenUntil = first date the shares may be sold (T+1). */
+/** A held position. Only frozenShares remain unavailable until frozenUntil (T+1). */
 export interface Position {
   shares: number;
   avgCost: number;
   frozenUntil: string;
+  frozenShares?: number;
 }
 
 /** One executed fill — the trade log unit (returned with the result; plotted + listed in the UI). */
@@ -177,8 +178,8 @@ export interface BarContext {
   ensureBars(codes: string[]): Promise<void>;
   /** Calendar days since listing as of today (point-in-time stock age); null if unknown. */
   listDays(code: string): number | null;
-  /** Industry label for `code` (current classification, not point-in-time); null if unknown. For
-   * sector-neutral / rotation / single-industry logic. */
+  /** Point-in-time SW level-1 industry label for `code` as of today; null if unknown. For
+   * sector-neutral / rotation / single-industry logic without classification lookahead. */
   industry(code: string): string | null;
   /** Today's Dragon-Tiger List net buy amount (yuan); null on days not on the list (not carried forward) — attention / hot-money extreme signal. */
   lhbNet(code: string): number | null;
@@ -345,6 +346,7 @@ export interface PendingModelPosition {
   shares: number;
   markPrice: number;
   sellableFrom: string;
+  frozenShares: number;
 }
 
 export interface PendingFactorObservation {

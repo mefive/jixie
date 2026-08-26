@@ -279,7 +279,7 @@ export const zhLab = {
   benchmarkCompare: '对比指数',
   benchmarkFilter: '筛选对比指数',
   benchmarkRebasedHint: '指数按策略起始净值归一',
-  benchmarkCsi300: '沪深300',
+  benchmarkCsi300: '沪深300全收益',
   benchmarkCsi500: '中证500',
   benchmarkCsi1000: '中证1000',
   benchmarkChiNext: '创业板指',

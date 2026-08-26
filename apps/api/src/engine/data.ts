@@ -74,7 +74,11 @@ export class EngineData {
   timeline: string[] = [];
   private nextDayOf = new Map<string, string>();
   private listDateOf = new Map<string, string>();
-  private industryOf = new Map<string, string>(); // code -> industry label (current, not point-in-time)
+  private delistDateOf = new Map<string, string>();
+  private industrySpellsByCode = new Map<
+    string,
+    { l1Name: string; inDate: string; outDate: string | null }[]
+  >();
   private stockNames = new StockNameLookup([]);
   private etfCodes = new Set<string>();
   private sameDayTurnoverEtfCodes = new Set<string>();
@@ -289,30 +293,43 @@ export class EngineData {
       this.nextDayOf.set(calendar[i], calendar[i + 1]);
     }
 
-    // List dates: used for the point-in-time "stock age" primitive (exclude recently-listed).
-    // Industry: a current label per stock (Tushare's classification) — for sector-neutral / rotation logic.
-    const [sb, etfs, stockNameHistory] = await Promise.all([
+    // Listing boundaries, point-in-time industry spells, and historical names are all metadata-only
+    // preloads. They prevent survivorship, classification, and delisting lookahead in daily reads.
+    const [sb, etfs, stockNameHistory, industryMemberships] = await Promise.all([
       this.port.stockBasics(),
       this.port.etfBasics(),
       this.port.stockNameHistory(),
+      this.port.industryMemberships(),
     ]);
     this.stockNames = new StockNameLookup(stockNameHistory);
     for (const s of sb) {
       if (s.listDate) {
         this.listDateOf.set(s.tsCode, s.listDate);
       }
-      if (s.industry) {
-        this.industryOf.set(s.tsCode, s.industry);
+      if (s.delistDate) {
+        this.delistDateOf.set(s.tsCode, s.delistDate);
       }
     }
     for (const etf of etfs) {
       if (etf.listDate) {
         this.listDateOf.set(etf.tsCode, etf.listDate);
       }
+      if (etf.delistDate) {
+        this.delistDateOf.set(etf.tsCode, etf.delistDate);
+      }
       this.etfCodes.add(etf.tsCode);
       if (etf.sameDayTurnover) {
         this.sameDayTurnoverEtfCodes.add(etf.tsCode);
       }
+    }
+    for (const membership of industryMemberships) {
+      const spells = this.industrySpellsByCode.get(membership.tsCode) ?? [];
+      spells.push({
+        l1Name: membership.l1Name,
+        inDate: membership.inDate,
+        outDate: membership.outDate,
+      });
+      this.industrySpellsByCode.set(membership.tsCode, spells);
     }
 
     // Dragon-Tiger List: sparse event data (~tens/day) — preload the range into date->code->net buy amount for exact-day lookup
@@ -587,9 +604,25 @@ export class EngineData {
     return ld ? daysBetween(ld, date) : null;
   }
 
-  /** Industry label for `code` (current classification, not point-in-time), or null if unknown. */
-  industry(code: string): string | null {
-    return this.industryOf.get(code) ?? null;
+  /** Point-in-time SW level-1 industry label covering `date`, or null if no spell covers it. */
+  industry(code: string, date: string): string | null {
+    const spells = this.industrySpellsByCode.get(code);
+    if (!spells) {
+      return null;
+    }
+    for (let index = spells.length - 1; index >= 0; index--) {
+      const spell = spells[index];
+      if (spell.inDate <= date && (spell.outDate == null || date < spell.outDate)) {
+        return spell.l1Name;
+      }
+    }
+    return null;
+  }
+
+  /** A position cannot be carried beyond the instrument's official final listing date. */
+  delistedBefore(code: string, date: string): string | null {
+    const delistDate = this.delistDateOf.get(code);
+    return delistDate != null && date > delistDate ? delistDate : null;
   }
 
   /** Today's Dragon-Tiger List net buy amount (yuan) for `code`, or null if it wasn't on the Dragon-Tiger List that exact day (not carried forward). */

@@ -19,7 +19,7 @@ type ChartView = 'equity' | 'drawdown';
 export default function NavChart({ nav, up, benchmarks, benchmarksLoading }: Props) {
   const { t } = useTranslation('lab');
   const [view, setView] = useState<ChartView>('equity');
-  const [selectedBenchmarks, setSelectedBenchmarks] = useState<BenchmarkCode[]>(['000300.SH']);
+  const [selectedBenchmarks, setSelectedBenchmarks] = useState<BenchmarkCode[]>(['H00300.CSI']);
   const benchmarkFilterActive = selectedBenchmarks.length > 0;
   const drawdown = useMemo(() => drawdownSeries(nav), [nav]);
   const option = useMemo<ECOption>(

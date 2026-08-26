@@ -291,7 +291,7 @@ export const enLab: typeof zhLab = {
   benchmarkCompare: 'Compare indices',
   benchmarkFilter: 'Filter comparison indices',
   benchmarkRebasedHint: 'Indices are rebased to the strategy starting equity',
-  benchmarkCsi300: 'CSI 300',
+  benchmarkCsi300: 'CSI 300 Total Return',
   benchmarkCsi500: 'CSI 500',
   benchmarkCsi1000: 'CSI 1000',
   benchmarkChiNext: 'ChiNext',

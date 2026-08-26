@@ -11,12 +11,14 @@ import type {
   IndexDailyBasicDataRow,
   IndexDailyRow,
   IndexWeightRow,
+  IndustryMembershipRow,
   MoneyflowRow,
   StockBasicRow,
   StockNameHistoryRow,
   TopListRow,
   YieldCurvePointDataRow,
 } from './data-port.js';
+import { CSI_300_TOTAL_RETURN_INDEX_CODE } from '../store/index-presets.js';
 
 /**
  * In-memory EngineDataPort built from a hand-written world — the direct-lane test double
@@ -42,6 +44,8 @@ export interface FixtureStock {
   code: string;
   assetType?: 'stock' | 'etf';
   listDate?: string; // default long ago (never "recently listed")
+  delistDate?: string;
+  listStatus?: string;
   industry?: string;
   nameHistory?: Omit<StockNameHistoryRow, 'tsCode'>[];
   bars: FixtureBar[];
@@ -56,6 +60,7 @@ export interface FixtureSpec {
   indexDaily?: IndexDailyRow[];
   indexDailyBasic?: IndexDailyBasicDataRow[];
   indexWeights?: Record<string, IndexWeightRow[]>;
+  industryMemberships?: IndustryMembershipRow[];
   finaIndicators?: FinaIndicatorRow[];
   topList?: TopListRow[];
   moneyflow?: MoneyflowRow[];
@@ -86,8 +91,20 @@ export function fixturePort(spec: FixtureSpec): EngineDataPort {
         .map((stock) => ({
           tsCode: stock.code,
           listDate: stock.listDate ?? '20000101',
-          industry: stock.industry ?? null,
+          delistDate: stock.delistDate ?? null,
+          listStatus: stock.listStatus ?? (stock.delistDate ? 'D' : 'L'),
         }));
+    },
+
+    async industryMemberships(): Promise<IndustryMembershipRow[]> {
+      return (
+        spec.industryMemberships ??
+        spec.stocks.flatMap((stock) =>
+          stock.industry
+            ? [{ tsCode: stock.code, l1Name: stock.industry, inDate: '19000101', outDate: null }]
+            : [],
+        )
+      );
     },
 
     async stockNameHistory(): Promise<StockNameHistoryRow[]> {
@@ -102,6 +119,8 @@ export function fixturePort(spec: FixtureSpec): EngineDataPort {
         .map((stock) => ({
           tsCode: stock.code,
           listDate: stock.listDate ?? '20000101',
+          delistDate: stock.delistDate ?? null,
+          listStatus: stock.listStatus ?? (stock.delistDate ? 'D' : 'L'),
           sameDayTurnover: false,
         }));
     },
@@ -111,7 +130,17 @@ export function fixturePort(spec: FixtureSpec): EngineDataPort {
     },
 
     async indexDailyAll() {
-      return spec.indexDaily ?? [];
+      const rows = [...(spec.indexDaily ?? [])];
+      if (!rows.some((row) => row.tsCode === CSI_300_TOTAL_RETURN_INDEX_CODE)) {
+        rows.push(
+          ...spec.dates.map((tradeDate) => ({
+            tsCode: CSI_300_TOTAL_RETURN_INDEX_CODE,
+            tradeDate,
+            close: 1,
+          })),
+        );
+      }
+      return rows;
     },
 
     async indexDailyBasicAll() {

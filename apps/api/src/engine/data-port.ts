@@ -13,7 +13,15 @@ import type { FactorBar } from '@jixie/shared';
 export interface StockBasicRow {
   tsCode: string;
   listDate: string | null;
-  industry: string | null;
+  delistDate: string | null;
+  listStatus: string;
+}
+
+export interface IndustryMembershipRow {
+  tsCode: string;
+  l1Name: string;
+  inDate: string;
+  outDate: string | null;
 }
 
 export interface StockNameHistoryRow {
@@ -26,6 +34,8 @@ export interface StockNameHistoryRow {
 export interface EtfBasicDataRow {
   tsCode: string;
   listDate: string | null;
+  delistDate: string | null;
+  listStatus: string;
   sameDayTurnover: boolean;
 }
 
@@ -188,8 +198,10 @@ export interface PythonFactorComputeRequest {
 export interface EngineDataPort {
   /** Open trading days (SSE) within [start, end], ascending. */
   openDates(start: string, end: string): Promise<string[]>;
-  /** The full stock list (list dates + current industry labels). */
+  /** The full stock list, including historical delisting boundaries. */
   stockBasics(): Promise<StockBasicRow[]>;
+  /** Point-in-time SW level-1 industry membership spells. */
+  industryMemberships(): Promise<IndustryMembershipRow[]>;
   /** Point-in-time stock-name spells used to derive historical risk-warning states. */
   stockNameHistory(): Promise<StockNameHistoryRow[]>;
   /** ETF metadata needed by the daily execution lane. */

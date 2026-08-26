@@ -91,6 +91,54 @@ describe('A 股规则:成交与 T+1', () => {
       'sell@20240103',
     ]);
   });
+
+  it('目标仓位始终受现金和最低佣金约束,卖出受阻时不会形成隐含杠杆', async () => {
+    const stocks = [
+      flatStock(),
+      {
+        code: 'B',
+        bars: D.map((date) => ({
+          date,
+          open: 10,
+          close: date >= '20240104' ? 11 : 10,
+          up: 12,
+          down: 8,
+        })),
+      },
+    ];
+    // A is suspended exactly when the rotation should execute, so no sale proceeds exist for B.
+    stocks[0].bars = stocks[0].bars.filter((bar) => bar.date !== '20240103');
+    const result = await run(
+      { dates: D, stocks },
+      scripted(
+        {
+          '20240101': (ctx) => ctx.setHoldings({ A: 1 }),
+          '20240102': (ctx) => ctx.setHoldings({ B: 1 }),
+        },
+        ['A', 'B'],
+      ),
+    );
+
+    expect(result.tradeLog).toHaveLength(1);
+    expect(result.tradeLog[0]).toMatchObject({ code: 'A', side: 'buy', realShares: 9_900 });
+    expect(result.finalValue).toBeCloseTo(99_974.26, 8);
+  });
+
+  it('拒绝非有限或总和超过 100% 的目标权重', async () => {
+    await expect(
+      run(
+        { dates: D, stocks: [flatStock()] },
+        scripted({ '20240101': (ctx) => ctx.orderTargetPercent('A', Infinity) }),
+      ),
+    ).rejects.toThrow('must be a finite number between 0 and 1');
+
+    await expect(
+      run(
+        { dates: D, stocks: [flatStock(), { ...flatStock(), code: 'B' }] },
+        scripted({ '20240101': (ctx) => ctx.setHoldings({ A: 0.6, B: 0.6 }) }, ['A', 'B']),
+      ),
+    ).rejects.toThrow('must sum to at most 1');
+  });
 });
 
 describe('A 股规则:涨跌停', () => {
@@ -185,5 +233,90 @@ describe('A 股规则:停牌与滑点', () => {
     expect(result.totalSlippage).toBeCloseTo(4, 10);
     expect(result.totalFees).toBeCloseTo(buy.fee + sell.fee, 10);
     expect(result.cost.slippageBps).toBe(20);
+  });
+});
+
+describe('回测数据与统计口径', () => {
+  it('持仓跨过官方退市日时明确失败,不永久沿用最后收盘价', async () => {
+    await expect(
+      run(
+        {
+          dates: D,
+          stocks: [{ ...flatStock(), delistDate: '20240102', listStatus: 'D' }],
+        },
+        scripted({ '20240101': (ctx) => ctx.order('A', 100) }),
+      ),
+    ).rejects.toThrow('Cannot value delisted position A on 20240103');
+  });
+
+  it('复权因子变化后按调整股数核算已实现盈亏', async () => {
+    const result = await run(
+      {
+        dates: D,
+        stocks: [
+          {
+            code: 'A',
+            bars: D.map((date) => ({
+              date,
+              open: date >= '20240103' ? 5.1 : 10,
+              close: date >= '20240103' ? 5.1 : 10,
+              adj: date >= '20240103' ? 2 : 1,
+            })),
+          },
+        ],
+      },
+      scripted({
+        '20240101': (ctx) => ctx.order('A', 100),
+        '20240102': (ctx) => ctx.exit('A'),
+      }),
+    );
+
+    expect(result.tradeLog.map((trade) => trade.realShares)).toEqual([100, 200]);
+    expect(result.winRate).toBe(1);
+    expect(result.profitFactor).toBe(99);
+  });
+
+  it('业绩指标使用沪深 300 全收益指数而不是价格指数', async () => {
+    const result = await run(
+      {
+        dates: D,
+        stocks: [],
+        indexDaily: [
+          { tsCode: '000300.SH', tradeDate: D[0], close: 100 },
+          { tsCode: '000300.SH', tradeDate: D.at(-1)!, close: 200 },
+          ...D.map((tradeDate, index) => ({
+            tsCode: 'H00300.CSI',
+            tradeDate,
+            close: 100 + index * 2.5,
+          })),
+        ],
+      },
+      scripted({}, []),
+    );
+
+    expect(result.benchReturn).toBeCloseTo(0.1, 10);
+    expect(result.excessReturn).toBeCloseTo(-0.1, 10);
+  });
+
+  it('ctx.industry 只返回决策日覆盖的申万行业区间', async () => {
+    const observed = new Map<string, string | null>();
+    await run(
+      {
+        dates: D,
+        stocks: [flatStock()],
+        industryMemberships: [
+          { tsCode: 'A', l1Name: '食品饮料', inDate: '20200101', outDate: '20240103' },
+          { tsCode: 'A', l1Name: '银行', inDate: '20240103', outDate: null },
+        ],
+      },
+      scripted(
+        Object.fromEntries(
+          D.map((date) => [date, (ctx: BarContext) => observed.set(date, ctx.industry('A'))]),
+        ),
+      ),
+    );
+
+    expect(observed.get('20240102')).toBe('食品饮料');
+    expect(observed.get('20240103')).toBe('银行');
   });
 });

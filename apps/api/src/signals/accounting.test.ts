@@ -142,6 +142,58 @@ describe('strategy execution accounting replay', () => {
     expect(result.state.positions[0].shares).toBe(100);
   });
 
+  it('allows the older T+1 layer to sell while retaining newly frozen shares', () => {
+    const result = replayAccountDay(
+      {
+        cash: 97_000,
+        positions: [
+          {
+            code: '000001.SZ',
+            name: 'Ping An Bank',
+            assetType: 'stock',
+            shares: 300,
+            avgCost: 10,
+            markPrice: 10,
+            sellableFrom: '20240103',
+            frozenShares: 100,
+          },
+        ],
+      },
+      [order({ action: 'sell', requestedShares: 300 })],
+      new Map([['000001.SZ', quote()]]),
+      '20240102',
+      '20240103',
+      cost,
+      'simulation',
+    );
+
+    expect(result.simulationUpdates[0]).toMatchObject({
+      status: 'filled',
+      shares: 200,
+      reason: 'partial',
+    });
+    expect(result.state.positions[0]).toMatchObject({ shares: 100, frozenShares: 100 });
+  });
+
+  it('includes minimum commission before accepting a whole-lot simulated buy', () => {
+    const result = replayAccountDay(
+      { cash: 1_004, positions: [] },
+      [order()],
+      new Map([['000001.SZ', quote({ close: 10 })]]),
+      '20240102',
+      '20240103',
+      { ...cost, slippageBps: 0 },
+      'simulation',
+    );
+
+    expect(result.simulationUpdates[0]).toMatchObject({
+      status: 'blocked',
+      reason: 'insufficient_cash',
+    });
+    expect(result.state.cash).toBe(1_004);
+    expect(result.state.positions).toHaveLength(0);
+  });
+
   it('replays only user-confirmed actual fills at the entered price and fee', () => {
     const result = replayAccountDay(
       { cash: 100_000, positions: [] },

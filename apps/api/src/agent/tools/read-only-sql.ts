@@ -91,7 +91,7 @@ export const SQL_TABLE_DOCS: Record<string, string> = {
   FutureMapping:
     'continuousCode(e.g. IF.CFX or AU.SHF), tradeDate, mappedTsCode(actual delivery contract) — point-in-time vendor main/continuous mapping; only stock-index mappings are trading-enabled and their fills must use mappedTsCode; commodity mappings are research-only and are audited through CommodityContinuousReturn',
   FutureSettlement:
-    'tsCode, tradeDate, settle, tradingFeeRate, tradingFee, deliveryFee, buyHedgeMarginRate, sellHedgeMarginRate, longMarginRate, shortMarginRate, closeTodayFee, exchange — historical exchange settlement parameters; broker margin add-ons are not included',
+    'tsCode, tradeDate, settle, tradingFeeRate, tradingFee, deliveryFee, buyHedgeMarginRate, sellHedgeMarginRate, longMarginRate, shortMarginRate, closeTodayFee, exchange — historical exchange settlement parameters; margin rates are source percentage points (12 means 12%); broker margin add-ons are not included',
   SwIndustryMember:
     'tsCode, l1Code, l1Name(Shenwan SW2021 level-1 industry, e.g. 食品饮料), inDate, outDate(null = current) — point-in-time industry membership; a stock belongs to l1Name from inDate up to (excluding) outDate, and may have several spells (it moved industries). For a date D pick the spell where inDate<=D and (outDate is null or D<outDate)',
 };
