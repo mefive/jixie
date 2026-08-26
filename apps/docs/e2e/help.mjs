@@ -140,8 +140,8 @@ try {
   await page.getByRole('heading', { level: 1, name: '从学习路径开始，也可以按页面查找' }).waitFor();
   if (
     (await page.locator('.jx-help-homeChoice').count()) !== 2 ||
-    (await page.locator('.jx-help-homePath').count()) !== 6 ||
-    (await page.locator('.jx-help-homeStep').count()) !== 30 ||
+    (await page.locator('.jx-help-homePath').count()) !== 7 ||
+    (await page.locator('.jx-help-homeStep').count()) !== 35 ||
     (await page.locator('.jx-help-homeManualCard').count()) !== 10
   ) {
     throw new Error(
@@ -338,6 +338,49 @@ try {
     .waitFor();
   await page.getByText('中文', { exact: true }).last().click();
 
+  await page.goto(`${BASE}/docs/help/learning/sales-yield-positive`, {
+    waitUntil: 'domcontentloaded',
+  });
+  await page
+    .getByRole('heading', {
+      level: 1,
+      name: '销售收益率：从正面 Holdout 到因子准入',
+    })
+    .waitFor();
+  if (
+    (await page.locator('.jx-help-codeBlock').count()) < 3 ||
+    (await page.locator('.jx-help-markdown table').count()) < 4 ||
+    (await page.locator('.jx-help-figure').count()) !== 2 ||
+    (await page.getByText('0.03469', { exact: true }).count()) < 1 ||
+    (await page.getByText('0.66%', { exact: true }).count()) < 1 ||
+    (await page.getByText('-2.78%', { exact: true }).count()) < 1 ||
+    (await page
+      .getByText('abd0b11b68739b08a71e9348012aff14764fe688310575b9f93e3ce0cf81acca', {
+        exact: true,
+      })
+      .count()) < 1 ||
+    (await page.getByRole('heading', { level: 2, name: '完成检查' }).count()) !== 1 ||
+    (await page.locator('.jx-help-nav .jx-help-navLink--active').textContent()) !==
+      '销售收益率：从正面 Holdout 到因子准入'
+  ) {
+    throw new Error(
+      'sales-yield learning path is missing positive evidence, limitations, lineage, completion, or navigation',
+    );
+  }
+  await page.screenshot({
+    path: `${SHOTS}17h-help-sales-yield-positive-learning-path.png`,
+    fullPage: true,
+  });
+
+  await page.getByText('EN', { exact: true }).last().click();
+  await page
+    .getByRole('heading', {
+      level: 1,
+      name: 'Sales yield: from a positive holdout to Factor admission',
+    })
+    .waitFor();
+  await page.getByText('中文', { exact: true }).last().click();
+
   await page.goto(`${BASE}/docs/help/getting-started/overview`, { waitUntil: 'domcontentloaded' });
   await page.getByRole('heading', { level: 1, name: '产品可以做什么' }).waitFor();
 
@@ -348,8 +391,8 @@ try {
         .evaluateAll((links) => links.map((link) => link.getAttribute('href'))),
     ),
   ].filter(Boolean);
-  if (articleHrefs.length !== 97) {
-    throw new Error(`expected 97 help articles, got ${articleHrefs.length}`);
+  if (articleHrefs.length !== 98) {
+    throw new Error(`expected 98 help articles, got ${articleHrefs.length}`);
   }
   for (const href of articleHrefs) {
     if (new URL(page.url()).pathname !== href) {

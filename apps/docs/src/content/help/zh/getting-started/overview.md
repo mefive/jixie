@@ -32,7 +32,8 @@
 10. 按照[国债曲线到每日信号学习路径](/help/learning/cgb-curve-daily-signal)，核对 Factor 证据、费后回测、部署快照和指定日期信号。
 11. 按照[股债配置与风险归因学习路径](/help/learning/stock-bond-allocation-risk)，通过四组实跑拆分资产配置、择时和成本，再对账完整风险。
 12. 按照[商品 Carry 学习路径](/help/learning/commodity-carry-holdout)，用两项事前测试核对期限结构、代理误差与正式 Holdout。
-13. 阅读[为什么回测不等于未来收益](/help/basics/backtest-limitations)。
+13. 按照[销售收益率学习路径](/help/learning/sales-yield-positive)，核对第一个通过探索、去冗余和正式 Holdout 的正面因子准入案例。
+14. 阅读[为什么回测不等于未来收益](/help/basics/backtest-limitations)。
 
 ## 产品不能替你完成什么
 
@@ -59,6 +60,7 @@
 - [国债曲线到每日信号：证据、回测与部署](/help/learning/cgb-curve-daily-signal)
 - [股债配置与风险归因：贡献、相关性与压力情景](/help/learning/stock-bond-allocation-risk)
 - [商品 Carry：期限结构、代理误差与样本外](/help/learning/commodity-carry-holdout)
+- [销售收益率：从正面 Holdout 到因子准入](/help/learning/sales-yield-positive)
 - [股票、ETF 和指数](/help/basics/stocks-etfs-indices)
 - [策略和回测](/help/basics/strategy-backtest)
 - [收益和风险指标](/help/basics/performance-risk)

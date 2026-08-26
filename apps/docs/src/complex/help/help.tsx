@@ -140,6 +140,11 @@ const LEARNING_PATHS = [
     slug: 'learning/commodity-carry-holdout',
     steps: ['semantics', 'proxies', 'preregister', 'holdout', 'verdict'],
   },
+  {
+    key: 'positiveFactor',
+    slug: 'learning/sales-yield-positive',
+    steps: ['definition', 'gates', 'explore', 'holdout', 'advance'],
+  },
 ] as const;
 
 function HelpLanding() {
