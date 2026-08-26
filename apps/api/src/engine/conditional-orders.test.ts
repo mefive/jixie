@@ -89,6 +89,26 @@ describe('persistent conditional orders', () => {
     ]);
   });
 
+  it('只冻结当天新增层,条件退出先卖旧股并在下一日卖完新股', async () => {
+    const result = await run(
+      {
+        '20240101': (ctx) => ctx.order('A', 200),
+        '20240102': (ctx) => {
+          ctx.order('A', 100);
+          ctx.stopLoss('A', 9.5);
+        },
+      },
+      {
+        '20240103': { low: 9.4 },
+        '20240104': { low: 9.4 },
+      },
+    );
+
+    expect(
+      result.tradeLog.map((trade) => `${trade.side}:${trade.realShares}@${trade.date}`),
+    ).toEqual(['buy:200@20240102', 'buy:100@20240103', 'sell:200@20240103', 'sell:100@20240104']);
+  });
+
   it('uses only the prior high-water mark, then trails on the following day', async () => {
     const result = await run(
       {

@@ -23,6 +23,7 @@ interface AccountPosition {
   avgCost: number;
   markPrice: number;
   sellableFrom: string;
+  frozenShares?: number;
 }
 
 interface AccountState {
@@ -536,15 +537,19 @@ export function replayAccountDay(
     }
 
     const position = positions.get(order.code);
+    if (position && position.sellableFrom <= tradeDate) {
+      position.frozenShares = 0;
+    }
     let shares = requestedShares;
     if (order.action === 'sell') {
-      if (!position || position.sellableFrom > tradeDate || position.shares <= 0) {
+      const sellable = position ? accountSellableShares(position, tradeDate) : 0;
+      if (!position || sellable <= 0) {
         if (kind === 'simulation') {
           simulationUpdates.push(blockedUpdate(order.id, 'position_unavailable'));
         }
         continue;
       }
-      shares = Math.min(shares, position.shares);
+      shares = Math.min(shares, sellable);
     }
     const fillPrice =
       kind === 'actual'
@@ -552,7 +557,6 @@ export function replayAccountDay(
         : simulatedPrice(order.action, marketPrice!, shares * marketPrice!, quote?.amount, cost);
     if (order.action === 'buy' && kind === 'simulation') {
       shares = Math.min(shares, affordableShares(state.cash, fillPrice, order.assetType, cost));
-      shares = Math.floor(shares / 100) * 100;
     }
     if (shares <= 0 || fillPrice <= 0) {
       if (kind === 'simulation') {
@@ -576,12 +580,18 @@ export function replayAccountDay(
         avgCost: 0,
         markPrice: fillPrice,
         sellableFrom: nextDate,
+        frozenShares: 0,
       };
+      const existingFrozen =
+        nextPosition.sellableFrom > tradeDate
+          ? (nextPosition.frozenShares ?? nextPosition.shares)
+          : 0;
       nextPosition.avgCost =
         (nextPosition.avgCost * nextPosition.shares + value + fee) / (nextPosition.shares + shares);
       nextPosition.shares += shares;
       nextPosition.markPrice = fillPrice;
       nextPosition.sellableFrom = nextDate;
+      nextPosition.frozenShares = nextDate > tradeDate ? existingFrozen + shares : 0;
       positions.set(order.code, nextPosition);
     } else {
       state.cash += value - fee;
@@ -648,8 +658,26 @@ function affordableShares(
   assetType: CashAssetType,
   cost: CostModel,
 ): number {
-  const transferFee = assetType === 'stock' ? cost.transferFee : 0;
-  return Math.max(0, Math.floor(cash / (price * (1 + cost.commission + transferFee))));
+  if (!Number.isFinite(cash) || !Number.isFinite(price) || cash <= 0 || price <= 0) {
+    return 0;
+  }
+  let low = 0;
+  let high = Math.max(0, Math.floor(cash / (price * 100)));
+  while (low < high) {
+    const middle = Math.ceil((low + high) / 2);
+    const value = middle * 100 * price;
+    if (value + executionFee('buy', value, assetType, cost) <= cash + 1e-9) {
+      low = middle;
+    } else {
+      high = middle - 1;
+    }
+  }
+  return low * 100;
+}
+
+function accountSellableShares(position: AccountPosition, tradeDate: string): number {
+  const frozen = position.sellableFrom > tradeDate ? (position.frozenShares ?? position.shares) : 0;
+  return Math.max(0, position.shares - Math.min(position.shares, frozen));
 }
 
 function limitBlocked(

@@ -169,6 +169,26 @@ describe('股指期货规则', () => {
     expect(result.finalValue).toBe(10_000);
   });
 
+  it('把历史保证金百分数转换为小数后校验资金', async () => {
+    const spec = futureSpec(Object.fromEntries(DATES.map((date) => [date, 'IF2401.CFX'])));
+    spec.futureSettlements = [
+      {
+        tsCode: 'IF2401.CFX',
+        tradeDate: '20240103',
+        longMarginRate: 40,
+        shortMarginRate: 40,
+      },
+    ];
+    const result = await run(
+      spec,
+      strategy({ '20240102': (context) => context.orderFuture('IF.CFX', 1) }),
+      5_000,
+    );
+
+    expect(result.trades).toBe(0);
+    expect(result.finalValue).toBe(5_000);
+  });
+
   it('主力映射变化时平旧开新并计入两段盈亏', async () => {
     const result = await run(
       futureSpec({
@@ -184,6 +204,25 @@ describe('股指期货规则', () => {
       result.tradeLog.map((trade) => `${trade.side}:${trade.actualCode}@${trade.date}`),
     ).toEqual(['buy:IF2401.CFX@20240103', 'sell:IF2401.CFX@20240104', 'buy:IF2402.CFX@20240104']);
     expect(result.nav.find((point) => point.date === '20240104')?.value).toBe(103_600);
+  });
+
+  it('换月日已有退出意图时只平旧合约,不先开新再平新', async () => {
+    const result = await run(
+      futureSpec({
+        '20240102': 'IF2401.CFX',
+        '20240103': 'IF2402.CFX',
+        '20240104': 'IF2402.CFX',
+        '20240105': 'IF2402.CFX',
+      }),
+      strategy({
+        '20240102': (context) => context.orderFuture('IF.CFX', 1),
+        '20240103': (context) => context.exitFuture('IF.CFX'),
+      }),
+    );
+
+    expect(
+      result.tradeLog.map((trade) => `${trade.side}:${trade.actualCode}@${trade.date}`),
+    ).toEqual(['buy:IF2401.CFX@20240103', 'sell:IF2401.CFX@20240104']);
   });
 
   it('连续合约历史按换月价差后调整,不把换月跳空当收益', async () => {

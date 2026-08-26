@@ -38,6 +38,8 @@ export interface ModelPositionSnapshot {
   shares: number;
   markPrice: number;
   sellableFrom: TradeDate;
+  /** Real shares still under T+1 freeze; absent legacy snapshots conservatively mean all shares. */
+  frozenShares?: number;
 }
 
 export type SimulatedExecutionStatus = 'pending' | 'filled' | 'blocked';

@@ -16,7 +16,7 @@ In the image, **1** is the drawdown chart and **2** is the monthly-return table.
 ## Read the equity chart
 
 - **Strategy equity** is account value over time.
-- The default benchmark is CSI 300, rebased to the strategy's starting value.
+- The default performance benchmark is the CSI 300 total-return index, rebased to the strategy's starting value.
 - Lines are comparable only when they share the same dates and starting basis.
 - A high ending value does not mean the path avoided large losses.
 
@@ -57,4 +57,3 @@ Check whether most of the result came from only one or two months. If so, inspec
 - [Inspect backtest results](/help/backtesting/results-overview)
 - [Return and risk metrics](/help/basics/performance-risk)
 - [Why a backtest is not a forecast](/help/basics/backtest-limitations)
-

@@ -1,9 +1,12 @@
 /** Major broad-market indices whose close series are useful as research benchmarks.
  * This preset is intentionally broader than index_dailybasic, which supports fewer indices. */
+export const CSI_300_TOTAL_RETURN_INDEX_CODE = 'H00300.CSI';
+
 export const MAJOR_INDEX_DAILY_CODES = [
   '000001.SH', // SSE Composite
   '000016.SH', // SSE 50
   '000300.SH', // CSI 300
+  CSI_300_TOTAL_RETURN_INDEX_CODE, // CSI 300 total return — backtest performance benchmark
   '000905.SH', // CSI 500
   '000852.SH', // CSI 1000
   '000985.CSI', // CSI All Share — market-residual-volatility benchmark

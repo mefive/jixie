@@ -66,8 +66,16 @@ export class FuturesPortfolio {
   /** Roll positions at today's open using a mapping known on `mappingDate` (normally the previous
    * trading day). Both legs pay commission and slippage; the old leg realizes P&L from its latest
    * settlement reference before the new contract is opened. */
-  roll(engineData: EngineData, date: string, mappingDate: string): void {
+  roll(
+    engineData: EngineData,
+    date: string,
+    mappingDate: string,
+    skipCodes: ReadonlySet<string> = new Set(),
+  ): void {
     for (const position of [...this.positions.values()]) {
+      if (skipCodes.has(position.code)) {
+        continue;
+      }
       const desiredActualCode = engineData.futureExecutionCode(position.code, mappingDate, date);
       if (!desiredActualCode || desiredActualCode === position.actualCode) {
         continue;
@@ -142,6 +150,9 @@ export class FuturesPortfolio {
     date: string,
     mappingDate: string,
   ): boolean {
+    if (!Number.isFinite(delta)) {
+      throw new Error(`Futures order for ${code} must be finite`);
+    }
     delta = Math.trunc(delta);
     if (delta === 0) {
       return false;
@@ -300,7 +311,11 @@ function marginRate(
     date,
     contracts >= 0 ? 'long' : 'short',
   );
-  return sourceRate != null && sourceRate > 0 && sourceRate <= 1
-    ? sourceRate
-    : cost.futureMarginRate;
+  if (sourceRate != null && sourceRate > 0 && sourceRate <= 1) {
+    return sourceRate;
+  }
+  if (sourceRate != null && sourceRate > 1 && sourceRate <= 100) {
+    return sourceRate / 100;
+  }
+  return cost.futureMarginRate;
 }

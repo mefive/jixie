@@ -29,8 +29,10 @@ When there are no trades, the displayed return normally cannot be used to judge 
 
 - **Total return**: account return from the start to the end.
 - **Annualized return**: period return expressed on an annual basis for comparing periods of different lengths.
-- **Excess return**: the difference between the strategy and selected benchmark.
+- **Excess return**: the difference between the strategy and the built-in performance benchmark.
 - **Final value**: total account value at the end of the backtest.
+
+The built-in excess-return and information-ratio calculations use the CSI 300 **total-return** index. This matches the dividend-adjusted strategy equity convention; comparing it with the CSI 300 price index would otherwise give the strategy an artificial dividend advantage.
 
 Annualized return is not a forecast. Annualizing a short period can produce an especially misleading number.
 

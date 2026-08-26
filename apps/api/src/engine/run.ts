@@ -1,6 +1,7 @@
 import { DEFAULT_LOCALE, isComputedFactorKey, type Locale } from '@jixie/shared';
 import * as st from '../lib/stats.js';
 import { t } from '../i18n/messages.js'; // direct import — keeps hono/locale out of the wall bundle
+import { CSI_300_TOTAL_RETURN_INDEX_CODE } from '../store/index-presets.js';
 import { EngineData, type CrossSection } from './data.js';
 import { CustomFactorRuntime, evaluateCustomFactorModule } from './custom-factor.js';
 import { prismaDataPort } from './prisma-port.js';
@@ -78,7 +79,7 @@ type CollectedStockOrders = {
 };
 
 const PERIODS_PER_YEAR = 252; // trading days
-const BENCHMARK = '000300.SH'; // CSI 300 — the excess/IR benchmark
+const BENCHMARK = CSI_300_TOTAL_RETURN_INDEX_CODE; // matches adjusted strategy NAV
 const MAX_SLIP = 0.1; // cap slippage at 10% so a huge order in an illiquid name can't produce absurd fills
 
 function needsTurnoverRateFHistory(cfg: EngineConfig): boolean {
@@ -117,6 +118,7 @@ function needsFundamentalHistory(cfg: EngineConfig): boolean {
  * (condition-based exits re-fire daily until fillable). ST filtering is left to the strategy.
  */
 export async function runStrategy(cfg: EngineConfig): Promise<BacktestResult> {
+  validateEngineConfig(cfg);
   if (cfg.strategy.futures?.length) {
     return runMultiAssetStrategy(cfg);
   }
@@ -125,6 +127,7 @@ export async function runStrategy(cfg: EngineConfig): Promise<BacktestResult> {
 
 /** Run a stock/ETF strategy and retain its final next-open intent for daily signal generation. */
 export async function runStrategyWithSignals(cfg: EngineConfig): Promise<SignalBacktestOutput> {
+  validateEngineConfig(cfg);
   if (cfg.strategy.futures?.length) {
     throw new Error('Daily signals currently support stock and ETF strategies only');
   }
@@ -193,6 +196,7 @@ async function runStockStrategyCore(
 
   for (let i = 0; i < total; i++) {
     const date = engineData.timeline[i];
+    assertNoDelistedPositions(portfolio, engineData, date);
     const heldBeforeOpen = new Set(portfolio.positions.keys());
     // 1. Execute what was queued yesterday, at today's open (declarative rebalance OR share orders).
     if (pendingTargets) {
@@ -296,6 +300,7 @@ async function runStockStrategyCore(
     await cfg.strategy.onBar(
       buildContext(date, engineData, portfolio, collected, customFactors, observeFactor),
     );
+    validateTargetBook(collected.targets);
     if (collected.targets) {
       pendingTargets = collected.targets;
       pendingTargetDecisionDate = date;
@@ -321,7 +326,7 @@ async function runStockStrategyCore(
         nav.at(-1)?.date,
       )
     : null;
-  const bench = engineData.indexCloses(BENCHMARK); // CSI 300 for excess-return/IR (preloaded)
+  const bench = engineData.indexCloses(BENCHMARK);
   const result = summarize(cfg, nav, portfolio.trades, bench, cost);
   if (allocationTracker) {
     result.allocationAnalysis = allocationTracker.finish(result.finalValue);
@@ -374,10 +379,16 @@ async function runMultiAssetStrategy(cfg: EngineConfig): Promise<BacktestResult>
 
   for (let index = 0; index < engineData.timeline.length; index++) {
     const date = engineData.timeline[index];
+    assertNoDelistedPositions(stockPortfolio, engineData, date);
     const previousDate = engineData.timeline[index - 1];
     if (previousDate) {
       const heldBeforeOpen = new Set(stockPortfolio.positions.keys());
-      futurePortfolio.roll(engineData, date, previousDate);
+      futurePortfolio.roll(
+        engineData,
+        date,
+        previousDate,
+        new Set(pendingFutureIntents?.keys() ?? []),
+      );
       if (pendingTargets) {
         const codes = new Set<string>([
           ...pendingTargets.keys(),
@@ -461,6 +472,7 @@ async function runMultiAssetStrategy(cfg: EngineConfig): Promise<BacktestResult>
         allocation.stock > 0,
       ),
     );
+    validateTargetBook(collected.targets);
     pendingTargets = collected.targets;
     pendingOrders = collected.orders;
     pendingLotOrders = collected.lotOrders;
@@ -487,6 +499,64 @@ function accountAllocation(cfg: EngineConfig): { stock: number; futures: number 
     throw new Error('Stock and futures account cash weights must sum to 1');
   }
   return { stock, futures };
+}
+
+function validateEngineConfig(cfg: EngineConfig): void {
+  if (!/^\d{8}$/.test(cfg.start) || !/^\d{8}$/.test(cfg.end) || cfg.start > cfg.end) {
+    throw new Error('Backtest dates must be valid YYYYMMDD values with start no later than end');
+  }
+  if (!Number.isFinite(cfg.initialCash) || cfg.initialCash <= 0) {
+    throw new Error('Initial cash must be a positive finite number');
+  }
+  for (const [key, value] of Object.entries(cfg.strategy.params ?? {})) {
+    if (typeof value === 'number' && !Number.isFinite(value)) {
+      throw new Error(`Strategy parameter ${key} must be finite`);
+    }
+  }
+  const cost = { ...DEFAULT_COST, ...cfg.cost };
+  for (const [key, value] of Object.entries(cost)) {
+    if (!Number.isFinite(value) || value < 0) {
+      throw new Error(`Cost setting ${key} must be a finite non-negative number`);
+    }
+  }
+  if (cost.futureMarginRate <= 0 || cost.futureMarginRate > 1) {
+    throw new Error('Cost setting futureMarginRate must be between 0 and 1');
+  }
+}
+
+function validateTargetWeight(code: string, weight: number): void {
+  if (!Number.isFinite(weight) || weight < 0 || weight > 1) {
+    throw new Error(`Target weight for ${code} must be a finite number between 0 and 1`);
+  }
+}
+
+function validateTargetBook(targets: Map<string, number> | null): void {
+  if (!targets) {
+    return;
+  }
+  let total = 0;
+  for (const [code, weight] of targets) {
+    validateTargetWeight(code, weight);
+    total += weight;
+  }
+  if (total > 1 + 1e-9) {
+    throw new Error(`Target weights must sum to at most 1; received ${total}`);
+  }
+}
+
+function assertNoDelistedPositions(
+  portfolio: Portfolio,
+  engineData: EngineData,
+  date: string,
+): void {
+  for (const code of portfolio.positions.keys()) {
+    const delistDate = engineData.delistedBefore(code, date);
+    if (delistDate) {
+      throw new Error(
+        `Cannot value delisted position ${code} on ${date}; final listing date was ${delistDate}`,
+      );
+    }
+  }
 }
 
 // —— helpers ——
@@ -593,7 +663,7 @@ function buildContext(
       return engineData.listDays(code, date);
     },
     industry(code) {
-      return engineData.industry(code);
+      return engineData.industry(code, date);
     },
     lhbNet(code) {
       return engineData.lhbNet(code, date);
@@ -650,6 +720,7 @@ function buildContext(
       return portfolio.positions.get(code)?.shares ?? 0;
     },
     orderTargetPercent(code, weight) {
+      validateTargetWeight(code, weight);
       if (collected.targets == null) {
         collected.targets = new Map();
       }
@@ -660,11 +731,14 @@ function buildContext(
       const targetWeights = new Map<string, number>();
       const weightEntries = weights instanceof Map ? weights : Object.entries(weights);
       for (const [code, weight] of weightEntries) {
+        validateTargetWeight(code, weight);
         targetWeights.set(code, weight);
       }
+      validateTargetBook(targetWeights);
       collected.targets = targetWeights;
     },
     order(code, shares) {
+      assertFiniteOrderValue(shares, 'Order shares');
       if (!shares) {
         return;
       }
@@ -674,6 +748,7 @@ function buildContext(
       collected.orders.set(code, (collected.orders.get(code) ?? 0) + shares);
     },
     orderLots(code, lots) {
+      assertFiniteOrderValue(lots, 'Order lots');
       const wholeLots = Math.trunc(lots);
       if (!wholeLots) {
         return;
@@ -823,7 +898,7 @@ function buildMultiAssetContext(
       return engineData.listDays(code, date);
     },
     industry(code) {
-      return engineData.industry(code);
+      return engineData.industry(code, date);
     },
     lhbNet(code) {
       return engineData.lhbNet(code, date);
@@ -876,15 +951,19 @@ function buildMultiAssetContext(
     },
     orderTargetPercent(code, weight) {
       assertStockOrdersEnabled(stockOrdersEnabled);
+      validateTargetWeight(code, weight);
       collected.targets ??= new Map();
       collected.targets.set(code, weight);
     },
     setHoldings(weights) {
       assertStockOrdersEnabled(stockOrdersEnabled);
-      collected.targets = new Map(weights instanceof Map ? weights : Object.entries(weights));
+      const targetWeights = new Map(weights instanceof Map ? weights : Object.entries(weights));
+      validateTargetBook(targetWeights);
+      collected.targets = targetWeights;
     },
     order(code, shares) {
       assertStockOrdersEnabled(stockOrdersEnabled);
+      assertFiniteOrderValue(shares, 'Order shares');
       if (!shares) {
         return;
       }
@@ -893,6 +972,7 @@ function buildMultiAssetContext(
     },
     orderLots(code, lots) {
       assertStockOrdersEnabled(stockOrdersEnabled);
+      assertFiniteOrderValue(lots, 'Order lots');
       const wholeLots = Math.trunc(lots);
       if (!wholeLots) {
         return;
@@ -962,6 +1042,7 @@ function buildMultiAssetContext(
       return stockPortfolio.positions.get(code)?.shares ?? 0;
     },
     orderFuture(code, contracts) {
+      assertFiniteOrderValue(contracts, 'Futures contracts');
       const roundedContracts = Math.trunc(contracts);
       if (!roundedContracts) {
         return;
@@ -972,14 +1053,19 @@ function buildMultiAssetContext(
       collected.futureIntents.set(code, { kind: 'delta', value });
     },
     setFutureTargetContracts(code, contracts) {
+      assertFiniteOrderValue(contracts, 'Futures target contracts');
       collected.futureIntents ??= new Map();
       collected.futureIntents.set(code, { kind: 'contracts', value: Math.trunc(contracts) });
     },
     setFutureTargetNotional(code, notional) {
+      assertFiniteOrderValue(notional, 'Futures target notional');
       collected.futureIntents ??= new Map();
       collected.futureIntents.set(code, { kind: 'notional', value: notional });
     },
     hedgeFuture(code, beta = 1) {
+      if (!Number.isFinite(beta) || beta < 0) {
+        throw new Error('Futures hedge beta must be a finite non-negative number');
+      }
       collected.futureIntents ??= new Map();
       collected.futureIntents.set(code, { kind: 'hedge', value: beta });
     },
@@ -999,6 +1085,12 @@ function assertStockOrdersEnabled(enabled: boolean): void {
 function assertPositiveOrderValue(value: number, label: string): void {
   if (!Number.isFinite(value) || value <= 0) {
     throw new Error(`${label} must be a positive finite number`);
+  }
+}
+
+function assertFiniteOrderValue(value: number, label: string): void {
+  if (!Number.isFinite(value)) {
+    throw new Error(`${label} must be finite`);
   }
 }
 
@@ -1090,7 +1182,7 @@ function executeConditionalOrders(
     }
 
     const position = portfolio.positions.get(code);
-    const sellable = position != null && position.frozenUntil <= date;
+    const sellableShares = portfolio.sellableShares(code, date);
     const stopCandidates: Array<{
       order: Extract<ConditionalOrder, { kind: 'stop_loss' | 'trailing_stop' }>;
       triggerPrice: number;
@@ -1121,7 +1213,7 @@ function executeConditionalOrders(
           : null;
 
     if (
-      sellable &&
+      sellableShares > 0 &&
       position &&
       exitCandidate &&
       !conditionalLimitBlocked(engineData, code, date, 'sell', bar)
@@ -1140,7 +1232,7 @@ function executeConditionalOrders(
         date,
         'sell',
         basePrice,
-        position.shares * basePrice,
+        sellableShares * basePrice,
         cost,
       );
       const fillPrice = isProfit
@@ -1148,17 +1240,19 @@ function executeConditionalOrders(
         : slippedPrice;
       portfolio.fill(
         code,
-        -position.shares,
+        -sellableShares,
         fillPrice,
         date,
-        engineData.nextDay(date),
+        sellableFromFor(engineData, code, date),
         engineData.adjAt(code, date)!,
         engineData.assetType(code),
         basePrice,
       );
-      for (const order of orders) {
-        if (order.kind !== 'limit_buy') {
-          book.delete(conditionalOrderKey(order.kind, code));
+      if (!portfolio.positions.has(code)) {
+        for (const order of orders) {
+          if (order.kind !== 'limit_buy') {
+            book.delete(conditionalOrderKey(order.kind, code));
+          }
         }
       }
     }
@@ -1181,9 +1275,10 @@ function executeConditionalOrders(
         cost,
       );
       const fillPrice = Math.min(order.triggerPrice, slippedPrice);
+      const adjustmentFactor = engineData.adjAt(code, date)!;
       const buy = Math.min(
         order.shares,
-        portfolio.affordableShares(fillPrice, engineData.assetType(code)),
+        portfolio.affordableShares(fillPrice, engineData.assetType(code), adjustmentFactor),
       );
       if (buy <= 0) {
         continue;
@@ -1193,8 +1288,8 @@ function executeConditionalOrders(
         buy,
         fillPrice,
         date,
-        engineData.nextDay(date),
-        engineData.adjAt(code, date)!,
+        sellableFromFor(engineData, code, date),
+        adjustmentFactor,
         engineData.assetType(code),
         basePrice,
       );
@@ -1264,6 +1359,10 @@ async function capturePendingCashSignals(
         shares: position.shares * adjustmentFactor,
         markPrice,
         sellableFrom: position.frozenUntil,
+        frozenShares:
+          position.frozenUntil > tradeDate
+            ? (position.frozenShares ?? position.shares) * adjustmentFactor
+            : 0,
       },
     ];
   });
@@ -1443,18 +1542,25 @@ function executeFutureIntents(
     (code) => engineData.openAt(code, date) ?? engineData.closeAt(code, date),
   );
   for (const [code, intent] of intents) {
-    const current = futurePortfolio.position(code)?.contracts ?? 0;
-    if (intent.kind === 'delta') {
-      futurePortfolio.order(engineData, code, intent.value, date, mappingDate);
-      continue;
-    }
-    let target = intent.value;
+    const currentPosition = futurePortfolio.position(code);
+    const current = currentPosition?.contracts ?? 0;
+    let target = intent.kind === 'delta' ? current + intent.value : intent.value;
     if (intent.kind === 'notional' || intent.kind === 'hedge') {
       const desiredNotional =
         intent.kind === 'hedge' ? -intent.value * stockExposure : intent.value;
       target = futureContractsForNotional(engineData, code, desiredNotional, date, mappingDate);
     }
-    const delta = Math.trunc(target) - current;
+    target = Math.trunc(target);
+    const desiredActualCode = engineData.futureExecutionCode(code, mappingDate, date);
+    if (currentPosition && desiredActualCode && desiredActualCode !== currentPosition.actualCode) {
+      const closed = futurePortfolio.order(engineData, code, -current, date, mappingDate);
+      if (!closed || target === 0) {
+        continue;
+      }
+      futurePortfolio.order(engineData, code, target, date, mappingDate);
+      continue;
+    }
+    const delta = target - current;
     if (delta !== 0) {
       futurePortfolio.order(engineData, code, delta, date, mappingDate);
     }
@@ -1489,7 +1595,7 @@ function rebalance(
   targets: Map<string, number>,
   cost: CostModel,
 ): void {
-  const sellableFrom = engineData.nextDay(date);
+  validateTargetBook(targets);
   const openOf = (c: string) => engineData.openAt(c, date);
 
   // Equity valued at today's open, consistent with fill prices.
@@ -1503,25 +1609,25 @@ function rebalance(
     }
   }
 
-  // Sells first (free up cash). Skip suspended (no open) and T+1-frozen shares.
+  // Sells first (free up cash). Suspended and newly bought T+1 layers remain held.
   for (const [code, pos] of [...portfolio.positions]) {
     const px = openOf(code);
     if (px == null) {
       continue;
     }
-    if (pos.frozenUntil > date) {
-      continue;
-    }
     const tgt = targetShares.get(code) ?? 0;
     if (tgt < pos.shares && !limitBlocked(engineData, code, date, 'sell', px)) {
-      const delta = tgt - pos.shares;
-      const fillPx = execPrice(engineData, code, date, 'sell', px, -delta * px, cost);
+      const sell = Math.min(pos.shares - tgt, portfolio.sellableShares(code, date));
+      if (sell <= 0) {
+        continue;
+      }
+      const fillPx = execPrice(engineData, code, date, 'sell', px, sell * px, cost);
       portfolio.fill(
         code,
-        delta,
+        -sell,
         fillPx,
         date,
-        sellableFrom,
+        sellableFromFor(engineData, code, date),
         engineData.adjAt(code, date)!,
         engineData.assetType(code),
         px,
@@ -1536,13 +1642,18 @@ function rebalance(
     if (tgt > cur && !limitBlocked(engineData, code, date, 'buy', px)) {
       const delta = tgt - cur;
       const fillPx = execPrice(engineData, code, date, 'buy', px, delta * px, cost);
+      const adjustmentFactor = engineData.adjAt(code, date)!;
+      const buy = Math.min(
+        delta,
+        portfolio.affordableShares(fillPx, engineData.assetType(code), adjustmentFactor),
+      );
       portfolio.fill(
         code,
-        delta,
+        buy,
         fillPx,
         date,
-        sellableFrom,
-        engineData.adjAt(code, date)!,
+        sellableFromFor(engineData, code, date),
+        adjustmentFactor,
         engineData.assetType(code),
         px,
       );
@@ -1580,18 +1691,16 @@ function executeOrders(
   orders: Map<string, number>,
   cost: CostModel,
 ): void {
-  const sellableFrom = engineData.nextDay(date);
-
   for (const [code, delta] of orders) {
     if (delta >= 0) {
       continue;
     }
     const px = engineData.openAt(code, date);
     const pos = portfolio.positions.get(code);
-    if (px == null || !pos || pos.frozenUntil > date) {
+    if (px == null || !pos) {
       continue;
-    } // suspended or T+1-frozen
-    const sell = Math.min(-delta, pos.shares);
+    } // suspended or no position
+    const sell = Math.min(-delta, portfolio.sellableShares(code, date));
     if (sell > 0 && !limitBlocked(engineData, code, date, 'sell', px)) {
       const fillPx = execPrice(engineData, code, date, 'sell', px, sell * px, cost);
       portfolio.fill(
@@ -1599,7 +1708,7 @@ function executeOrders(
         -sell,
         fillPx,
         date,
-        sellableFrom,
+        sellableFromFor(engineData, code, date),
         engineData.adjAt(code, date)!,
         engineData.assetType(code),
         px,
@@ -1621,20 +1730,25 @@ function executeOrders(
     // Slippage lifts the buy price → size affordability on the slipped price so we don't overspend.
     const fillPx = execPrice(engineData, code, date, 'buy', px, delta * px, cost);
     const assetType = engineData.assetType(code);
-    const buy = Math.min(delta, portfolio.affordableShares(fillPx, assetType));
+    const adjustmentFactor = engineData.adjAt(code, date)!;
+    const buy = Math.min(delta, portfolio.affordableShares(fillPx, assetType, adjustmentFactor));
     if (buy > 0) {
       portfolio.fill(
         code,
         buy,
         fillPx,
         date,
-        sellableFrom,
-        engineData.adjAt(code, date)!,
+        sellableFromFor(engineData, code, date),
+        adjustmentFactor,
         assetType,
         px,
       );
     }
   }
+}
+
+function sellableFromFor(engineData: EngineData, code: string, date: string): string {
+  return engineData.supportsSameDayTurnover(code) ? date : engineData.nextDay(date);
 }
 
 /** Execution price = the open worsened by slippage: a base half-spread (every fill pays it) plus a linear
@@ -1700,8 +1814,14 @@ function summarize(
   const annReturn = st.annualizedReturn(dailyReturns, PERIODS_PER_YEAR);
   const maxDrawdown = st.maxDrawdown(values); // ≤ 0
 
-  // —— Benchmark comparison (CSI 300): excess return + annualized information ratio ——
+  // —— Total-return benchmark comparison: excess return + annualized information ratio ——
   const benchByDate = new Map(bench.map((b) => [b.date, b.close]));
+  const missingBenchmarkDate = nav.find((point) => !benchByDate.has(point.date))?.date;
+  if (missingBenchmarkDate) {
+    throw new Error(
+      `Benchmark ${BENCHMARK} has no close for ${missingBenchmarkDate}; performance comparison cannot be computed`,
+    );
+  }
   const benchInRange = nav
     .map((n) => benchByDate.get(n.date))
     .filter((v): v is number => v != null);
@@ -1783,13 +1903,13 @@ function stockTradePnl(tradeLog: BacktestResult['tradeLog']): number[] {
   for (const trade of tradeLog) {
     const position = book.get(trade.code) ?? { shares: 0, cost: 0 };
     if (trade.side === 'buy') {
-      position.shares += trade.realShares;
+      position.shares += trade.shares;
       position.cost += trade.amount + trade.fee;
     } else {
       const averageCost = position.shares > 0 ? position.cost / position.shares : 0;
-      const costOut = averageCost * trade.realShares;
+      const costOut = averageCost * trade.shares;
       realized.push(trade.amount - trade.fee - costOut);
-      position.shares -= trade.realShares;
+      position.shares -= trade.shares;
       position.cost -= costOut;
       if (position.shares <= 1e-6) {
         position.shares = 0;
