@@ -187,6 +187,8 @@ import csi300ValueFactorEn from '@src/content/help/en/learning/csi300-value-fact
 import csi300ValueFactorZh from '@src/content/help/zh/learning/csi300-value-factor.md?raw';
 import cgbCurveDailySignalEn from '@src/content/help/en/learning/cgb-curve-daily-signal.md?raw';
 import cgbCurveDailySignalZh from '@src/content/help/zh/learning/cgb-curve-daily-signal.md?raw';
+import commodityCarryHoldoutEn from '@src/content/help/en/learning/commodity-carry-holdout.md?raw';
+import commodityCarryHoldoutZh from '@src/content/help/zh/learning/commodity-carry-holdout.md?raw';
 import stockBondAllocationRiskEn from '@src/content/help/en/learning/stock-bond-allocation-risk.md?raw';
 import stockBondAllocationRiskZh from '@src/content/help/zh/learning/stock-bond-allocation-risk.md?raw';
 import trustedCrossMarketResearchEn from '@src/content/help/en/learning/trusted-cross-market-research.md?raw';
@@ -294,6 +296,22 @@ export const HELP_ARTICLES: HelpArticle[] = [
     content: {
       zh: stockBondAllocationRiskZh,
       en: stockBondAllocationRiskEn,
+    },
+  },
+  {
+    slug: 'learning/commodity-carry-holdout',
+    group: 'learningPaths',
+    title: {
+      zh: '商品 Carry：期限结构、代理误差与样本外',
+      en: 'Commodity carry: term structure, proxy error, and holdout evidence',
+    },
+    summary: {
+      zh: '用真实月合约 Carry 同时冻结 Panel 与时间序列检验，揭示两份正式 Holdout，并在排序、收益和单品种证据冲突时保留失败裁决。',
+      en: 'Freeze Panel and time-series tests on actual-contract carry, reveal both formal holdouts, and retain the failed verdict when rankings, returns, and product-level evidence conflict.',
+    },
+    content: {
+      zh: commodityCarryHoldoutZh,
+      en: commodityCarryHoldoutEn,
     },
   },
   {

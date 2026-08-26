@@ -140,8 +140,8 @@ try {
   await page.getByRole('heading', { level: 1, name: '从学习路径开始，也可以按页面查找' }).waitFor();
   if (
     (await page.locator('.jx-help-homeChoice').count()) !== 2 ||
-    (await page.locator('.jx-help-homePath').count()) !== 5 ||
-    (await page.locator('.jx-help-homeStep').count()) !== 25 ||
+    (await page.locator('.jx-help-homePath').count()) !== 6 ||
+    (await page.locator('.jx-help-homeStep').count()) !== 30 ||
     (await page.locator('.jx-help-homeManualCard').count()) !== 10
   ) {
     throw new Error(
@@ -300,6 +300,44 @@ try {
     .waitFor();
   await page.getByText('中文', { exact: true }).last().click();
 
+  await page.goto(`${BASE}/docs/help/learning/commodity-carry-holdout`, {
+    waitUntil: 'domcontentloaded',
+  });
+  await page
+    .getByRole('heading', {
+      level: 1,
+      name: '商品 Carry：期限结构、代理误差与样本外',
+    })
+    .waitFor();
+  if (
+    (await page.locator('.jx-help-codeBlock').count()) < 3 ||
+    (await page.locator('.jx-help-markdown table').count()) < 5 ||
+    (await page.locator('.jx-help-figure').count()) !== 4 ||
+    (await page.getByText('-0.0471', { exact: true }).count()) < 1 ||
+    (await page.getByText('0.520', { exact: true }).count()) < 1 ||
+    (await page.getByText('25.43%', { exact: true }).count()) < 1 ||
+    (await page.getByRole('heading', { level: 2, name: '完成检查' }).count()) !== 1 ||
+    (await page.locator('.jx-help-nav .jx-help-navLink--active').textContent()) !==
+      '商品 Carry：期限结构、代理误差与样本外'
+  ) {
+    throw new Error(
+      'commodity-carry learning path is missing evidence, screenshots, completion, or navigation',
+    );
+  }
+  await page.screenshot({
+    path: `${SHOTS}17g-help-commodity-carry-learning-path.png`,
+    fullPage: true,
+  });
+
+  await page.getByText('EN', { exact: true }).last().click();
+  await page
+    .getByRole('heading', {
+      level: 1,
+      name: 'Commodity carry: term structure, proxy error, and holdout evidence',
+    })
+    .waitFor();
+  await page.getByText('中文', { exact: true }).last().click();
+
   await page.goto(`${BASE}/docs/help/getting-started/overview`, { waitUntil: 'domcontentloaded' });
   await page.getByRole('heading', { level: 1, name: '产品可以做什么' }).waitFor();
 
@@ -310,8 +348,8 @@ try {
         .evaluateAll((links) => links.map((link) => link.getAttribute('href'))),
     ),
   ].filter(Boolean);
-  if (articleHrefs.length !== 96) {
-    throw new Error(`expected 96 help articles, got ${articleHrefs.length}`);
+  if (articleHrefs.length !== 97) {
+    throw new Error(`expected 97 help articles, got ${articleHrefs.length}`);
   }
   for (const href of articleHrefs) {
     if (new URL(page.url()).pathname !== href) {

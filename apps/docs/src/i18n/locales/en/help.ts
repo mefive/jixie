@@ -12,9 +12,9 @@ export const enHelp: typeof zhHelp = {
     title: 'Follow a learning path or look up a product page',
     intro:
       'Learning paths connect concepts, real examples, reproducible exercises, and completion checks. The page manual still documents every product workflow.',
-    guidedTitle: 'Practice along five learning paths',
+    guidedTitle: 'Practice along six learning paths',
     guidedDescription:
-      'Move from trustworthy research, strategy, and Factor evidence into auditable backtests, signal governance, multi-asset attribution, and stress scenarios while retaining failures.',
+      'Move from trustworthy research, strategy, and Factor evidence into signal governance, multi-asset attribution, commodity term structure, and holdout adjudication while retaining failures.',
     guidedAction: 'Start with descriptive research',
     manualTitle: 'Look up a product page',
     manualDescription:
@@ -178,6 +178,36 @@ export const enHelp: typeof zhHelp = {
             title: 'Stress and adjudicate',
             description:
               'Separate allocation, timing, and costs while retaining evidence that rejects production.',
+          },
+        },
+      },
+      commodity: {
+        eyebrow: 'Path six · Commodity research',
+        title: 'Commodity carry and holdout evidence',
+        description:
+          'Freeze Panel and time-series tests on actual gold, copper, crude-oil, and soybean-meal contracts, then audit term structure, proxy error, multiple testing, and two failed holdouts.',
+        start: 'Start commodity research',
+        stepsTitle: 'How the path progresses',
+        steps: {
+          semantics: {
+            title: 'Define term structure',
+            description: 'Separate carry, continuous return, roll gap, and realized P&L.',
+          },
+          proxies: {
+            title: 'Audit proxy error',
+            description: 'Verify differences between actual futures and four mapped ETFs.',
+          },
+          preregister: {
+            title: 'Freeze two tests',
+            description: 'Register cross-sectional ranking and per-product time-series criteria.',
+          },
+          holdout: {
+            title: 'Seal before reveal',
+            description: 'Read the first holdout only after both reports are sealed.',
+          },
+          verdict: {
+            title: 'Retain the failure',
+            description: 'Do not select after the fact among Rank IC, return, and product t-stats.',
           },
         },
       },
