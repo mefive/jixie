@@ -12,7 +12,7 @@ export const enHelp: typeof zhHelp = {
     title: 'Follow a learning path or look up a product page',
     intro:
       'Learning paths connect concepts, real examples, reproducible exercises, and completion checks. The page manual still documents every product workflow.',
-    guidedTitle: 'Practice along six learning paths',
+    guidedTitle: 'Practice along seven learning paths',
     guidedDescription:
       'Move from trustworthy research, strategy, and Factor evidence into signal governance, multi-asset attribution, commodity term structure, and holdout adjudication while retaining failures.',
     guidedAction: 'Start with descriptive research',
@@ -208,6 +208,37 @@ export const enHelp: typeof zhHelp = {
           verdict: {
             title: 'Retain the failure',
             description: 'Do not select after the fact among Rank IC, return, and product t-stats.',
+          },
+        },
+      },
+      positiveFactor: {
+        eyebrow: 'Path seven · Positive admission',
+        title: 'Sales yield and Factor admission',
+        description:
+          'Read the original sales-yield exploration, redundancy gate, and sole formal holdout, reconcile frozen code lineage, and learn to make a limited but genuinely positive advancement decision.',
+        start: 'Start positive Factor research',
+        stepsTitle: 'How the path progresses',
+        steps: {
+          definition: {
+            title: 'Freeze sales yield',
+            description: 'Define 1/PS_TTM, direction, missing values, and the data boundary.',
+          },
+          gates: {
+            title: 'Set three admission gates',
+            description: 'Freeze Rank IC, redundancy, costs, and supporting evidence.',
+          },
+          explore: {
+            title: 'Read exploration and redundancy',
+            description: 'Confirm direction, then reject an EP, BP, or size relabeling.',
+          },
+          holdout: {
+            title: 'Audit the original holdout',
+            description: 'Read the first reveal without rebranding inspection as new evidence.',
+          },
+          advance: {
+            title: 'Advance without skipping stages',
+            description:
+              'Admit to research while retaining weighting and terminal-month sensitivity.',
           },
         },
       },

@@ -189,6 +189,8 @@ import cgbCurveDailySignalEn from '@src/content/help/en/learning/cgb-curve-daily
 import cgbCurveDailySignalZh from '@src/content/help/zh/learning/cgb-curve-daily-signal.md?raw';
 import commodityCarryHoldoutEn from '@src/content/help/en/learning/commodity-carry-holdout.md?raw';
 import commodityCarryHoldoutZh from '@src/content/help/zh/learning/commodity-carry-holdout.md?raw';
+import salesYieldPositiveEn from '@src/content/help/en/learning/sales-yield-positive.md?raw';
+import salesYieldPositiveZh from '@src/content/help/zh/learning/sales-yield-positive.md?raw';
 import stockBondAllocationRiskEn from '@src/content/help/en/learning/stock-bond-allocation-risk.md?raw';
 import stockBondAllocationRiskZh from '@src/content/help/zh/learning/stock-bond-allocation-risk.md?raw';
 import trustedCrossMarketResearchEn from '@src/content/help/en/learning/trusted-cross-market-research.md?raw';
@@ -312,6 +314,22 @@ export const HELP_ARTICLES: HelpArticle[] = [
     content: {
       zh: commodityCarryHoldoutZh,
       en: commodityCarryHoldoutEn,
+    },
+  },
+  {
+    slug: 'learning/sales-yield-positive',
+    group: 'learningPaths',
+    title: {
+      zh: '销售收益率：从正面 Holdout 到因子准入',
+      en: 'Sales yield: from a positive holdout to Factor admission',
+    },
+    summary: {
+      zh: '读取销售收益率候选的原始探索、去冗余和正式 Holdout，核对代码哈希与温和正收益，并在准入研究菜单时保留组合限制。',
+      en: 'Read the original sales-yield exploration, redundancy, and formal holdout evidence, reconcile its code hash and modest positive return, and retain portfolio limits when admitting it to research.',
+    },
+    content: {
+      zh: salesYieldPositiveZh,
+      en: salesYieldPositiveEn,
     },
   },
   {

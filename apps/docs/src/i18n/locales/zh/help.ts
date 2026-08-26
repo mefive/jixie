@@ -10,7 +10,7 @@ export const zhHelp = {
     title: '从学习路径开始，也可以按页面查找',
     intro:
       '学习路径把概念、项目内真实例子、可复现练习和完成检查串在一起；页面手册继续提供所有功能的操作说明。',
-    guidedTitle: '沿六条学习路径实践',
+    guidedTitle: '沿七条学习路径实践',
     guidedDescription:
       '从可信研究、策略和 Factor 证据，继续练习信号治理、多资产归因、商品期限结构与样本外裁决，并保留失败案例。',
     guidedAction: '从描述性研究开始',
@@ -195,6 +195,36 @@ export const zhHelp = {
           verdict: {
             title: '保留失败裁决',
             description: '不在 Rank IC、收益和单品种 t 值间事后挑选。',
+          },
+        },
+      },
+      positiveFactor: {
+        eyebrow: '第七条 · 正面准入',
+        title: '销售收益率与因子准入',
+        description:
+          '读取销售收益率原始探索、去冗余和唯一正式 Holdout，核对冻结代码血缘，并学习如何给出有限但真正正面的晋级裁决。',
+        start: '开始正面因子研究',
+        stepsTitle: '这条路径怎样推进',
+        steps: {
+          definition: {
+            title: '冻结销售收益率',
+            description: '定义 1/PS_TTM、方向、缺失规则和数据边界。',
+          },
+          gates: {
+            title: '设置三道准入门',
+            description: '固定 Rank IC、去冗余、成本和辅助证据。',
+          },
+          explore: {
+            title: '读取探索与冗余',
+            description: '先确认方向，再排除 EP、BP 和规模换皮。',
+          },
+          holdout: {
+            title: '核对原始 Holdout',
+            description: '只读取首次揭示，不把复查冒充新样本外。',
+          },
+          advance: {
+            title: '晋级但不跳级',
+            description: '准入研究菜单，同时保留权重与末月敏感性。',
           },
         },
       },
