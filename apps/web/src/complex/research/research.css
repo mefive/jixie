@@ -12,7 +12,7 @@
 }
 
 .jx-research-sidebarHead {
-  @apply flex flex-col;
+  @apply flex flex-col gap-2;
   padding: 17px 14px 13px;
 }
 
@@ -27,6 +27,18 @@
 .jx-research-sidebarTitle {
   @apply m-0 flex items-center gap-2 font-semibold text-ink;
   font-size: 16px;
+}
+
+.jx-research-documentState {
+  margin-top: 4px;
+}
+
+.jx-research-documentState .ant-segmented-item-label {
+  font-size: 11px;
+}
+
+.jx-research-documentSearch {
+  width: 100%;
 }
 
 .jx-research-sidebarScroll {
@@ -72,6 +84,10 @@
   background: #eef3f8;
 }
 
+.jx-research-historyItem--archived {
+  cursor: default;
+}
+
 .jx-research-historyText {
   min-width: 0;
   flex: 1;
@@ -92,14 +108,12 @@
   font-size: 11px;
 }
 
-.jx-research-historyDelete {
-  @apply pointer-events-none opacity-0;
+.jx-research-historyMenu {
+  @apply text-muted opacity-70 hover:text-ink hover:opacity-100;
+  width: 30px;
+  height: 30px;
+  padding: 0;
   flex: none;
-}
-
-.jx-research-historyItem:hover .jx-research-historyDelete,
-.jx-research-historyItem:focus-within .jx-research-historyDelete {
-  @apply pointer-events-auto opacity-100;
 }
 
 .jx-research-content {
@@ -626,6 +640,11 @@
 
   .jx-research-sidebar--open {
     transform: translateX(0);
+  }
+
+  .jx-research-historyMenu {
+    width: 40px;
+    height: 40px;
   }
 
   .jx-research-sidebarBackdrop {

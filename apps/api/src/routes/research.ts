@@ -61,13 +61,16 @@ import {
 import {
   addResearchCell,
   analyzeResearchDocument,
+  archiveResearchDocument,
   closeResearchDocumentRuntime,
   createResearchDocument,
   deleteResearchCell,
   getResearchDocument,
   interruptResearchDocument,
+  isResearchDocumentRunActive,
   listResearchDocuments,
   resetResearchDocumentRuntime,
+  restoreResearchDocument,
   ResearchAffectedRunError,
   ResearchCellChangeReviewOpenError,
   ResearchCellRevisionConflictError,
@@ -85,6 +88,10 @@ const dataCatalogQuery = z.strictObject({
   q: z.string().trim().max(120).default(''),
   assetType: z.enum(['stock', 'etf', 'index', 'future']).optional(),
   limit: z.coerce.number().int().min(1).max(50).default(24),
+});
+
+const documentListQuery = z.strictObject({
+  state: z.enum(['active', 'archived']).default('active'),
 });
 
 researchRoute.get('/data-catalog', validateQuery(dataCatalogQuery), async (c) => {
@@ -204,7 +211,9 @@ const languageRequestBody = z
     }
   });
 
-researchRoute.get('/documents', async (c) => c.json(await listResearchDocuments(c.var.userId)));
+researchRoute.get('/documents', validateQuery(documentListQuery), async (c) =>
+  c.json(await listResearchDocuments(c.var.userId, c.req.valid('query').state)),
+);
 
 researchRoute.post('/language', validateJson(languageRequestBody), async (c) => {
   const request = c.req.valid('json');
@@ -225,6 +234,34 @@ researchRoute.post('/documents', validateJson(createDocumentBody), async (c) =>
 researchRoute.get('/documents/:documentId', async (c) => {
   const document = await getResearchDocument(c.var.userId, c.req.param('documentId'));
   return document ? c.json(document) : apiError(c, 'NOT_FOUND', m(c, 'conversationNotFound'));
+});
+
+researchRoute.post('/documents/:documentId/archive', async (c) => {
+  const documentId = c.req.param('documentId');
+  const owner = await prisma.agentConversation.findFirst({
+    where: { id: documentId, userId: c.var.userId, surface: 'research' },
+    select: { id: true },
+  });
+  if (!owner) {
+    return apiError(c, 'NOT_FOUND', m(c, 'conversationNotFound'));
+  }
+  if (
+    isResearchDocumentRunActive(documentId) ||
+    turnBus.findRunning(entityKey({ kind: 'research', id: documentId }), c.var.userId)
+  ) {
+    return apiError(c, 'VALIDATION_FAILED', m(c, 'researchDocumentRunInProgress'));
+  }
+  const archived = await archiveResearchDocument(c.var.userId, documentId);
+  return archived
+    ? c.json({ ok: true as const })
+    : apiError(c, 'NOT_FOUND', m(c, 'conversationNotFound'));
+});
+
+researchRoute.post('/documents/:documentId/restore', async (c) => {
+  const restored = await restoreResearchDocument(c.var.userId, c.req.param('documentId'));
+  return restored
+    ? c.json({ ok: true as const })
+    : apiError(c, 'NOT_FOUND', m(c, 'conversationNotFound'));
 });
 
 researchRoute.get('/documents/:documentId/executions', async (c) => {

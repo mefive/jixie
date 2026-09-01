@@ -37,6 +37,7 @@ import {
   addResearchCell,
   applyResearchCellChangeProposal,
   applyResearchCellChangeProposalForReview,
+  archiveResearchDocument,
   createResearchDocument,
   createResearchFactorDraft,
   createResearchStrategyDraft,
@@ -54,6 +55,7 @@ import {
   rejectResearchCellChangeProposal,
   revertResearchCellChangeReview,
   resetResearchDocument,
+  restoreResearchDocument,
   runAffectedResearchCells,
   runResearchCellChangeProposal,
   runResearchCell,
@@ -91,6 +93,11 @@ type ResearchDocumentMutation =
   | { kind: 'delete'; cellId: string }
   | { kind: 'run'; cellId: string }
   | { kind: 'reset'; documentId: string };
+
+type ResearchDocumentManagementMutation =
+  | { kind: 'archive'; documentId: string }
+  | { kind: 'restore'; documentId: string }
+  | { kind: 'delete'; documentId: string };
 
 type ResearchCuratorMutation =
   | { kind: 'start' }
@@ -137,8 +144,10 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
   public cellDrafts = observable.map<string, ResearchCellDraftState>();
   public turnStream = new AgentTurnStream();
   public documentsLoader = new LoaderModel<ResearchDocumentSummaryV1[]>();
+  public archivedDocumentsLoader = new LoaderModel<ResearchDocumentSummaryV1[]>();
   public documentLoader = new LoaderModel<ResearchDocumentV1>();
   public documentMutationLoader = new LoaderModel<ResearchDocumentV1>();
+  public documentManagementLoader = new LoaderModel<{ ok: true }>();
   public documentRunLoader = new LoaderModel<ResearchDocumentRunResultV1>();
   public executionListLoader = new LoaderModel<ResearchExecutionSummaryV1[]>();
   public executionLoader = new LoaderModel<ResearchExecutionV1>();
@@ -187,7 +196,8 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     runInAction(() => {
       this.requestedExecutionId = params.execution ?? null;
     });
-    this.documentsLoader.setup({ request: () => listResearchDocuments() });
+    this.documentsLoader.setup({ request: () => listResearchDocuments('active') });
+    this.archivedDocumentsLoader.setup({ request: () => listResearchDocuments('archived') });
     this.documentLoader.setup({ request: (documentId: string) => getResearchDocument(documentId) });
     this.documentMutationLoader.setup({
       preserveResult: false,
@@ -212,6 +222,19 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
             return runResearchCell(mutation.cellId);
           case 'reset':
             return resetResearchDocument(mutation.documentId);
+        }
+      },
+    });
+    this.documentManagementLoader.setup({
+      preserveResult: false,
+      request: (mutation: ResearchDocumentManagementMutation) => {
+        switch (mutation.kind) {
+          case 'archive':
+            return archiveResearchDocument(mutation.documentId);
+          case 'restore':
+            return restoreResearchDocument(mutation.documentId);
+          case 'delete':
+            return deleteResearchConversation(mutation.documentId);
         }
       },
     });
@@ -312,8 +335,10 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
       request: () => this.pollCurator(),
     });
     this.registCleaner(() => this.documentsLoader.cleanup());
+    this.registCleaner(() => this.archivedDocumentsLoader.cleanup());
     this.registCleaner(() => this.documentLoader.cleanup());
     this.registCleaner(() => this.documentMutationLoader.cleanup());
+    this.registCleaner(() => this.documentManagementLoader.cleanup());
     this.registCleaner(() => this.documentRunLoader.cleanup());
     this.registCleaner(() => this.executionListLoader.cleanup());
     this.registCleaner(() => this.executionLoader.cleanup());
@@ -810,21 +835,37 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     }
   }
 
-  public async removeConversation(id: string) {
-    await deleteResearchConversation(id);
-    void this.documentsLoader.run();
-    if (this.documentId === id) {
-      this.documentSwitchGeneration += 1;
-      this.turnStream.detach();
-      runInAction(() => {
-        this.document = null;
-        this.cellDrafts.clear();
-        this.chatMessages = [];
-        this.sending = false;
-        this.prompt = '';
-        this.runInterrupted = false;
-      });
+  public loadArchivedDocuments() {
+    if (!this.archivedDocumentsLoader.loading) {
+      void this.archivedDocumentsLoader.run();
     }
+  }
+
+  public async archiveDocument(documentId: string): Promise<boolean> {
+    const isCurrentDocument = this.documentId === documentId;
+    if (
+      this.documentManagementLoader.loading ||
+      (isCurrentDocument && (this.hasActiveRun || this.sending)) ||
+      (isCurrentDocument && !(await this.flushAllCellDrafts()))
+    ) {
+      return false;
+    }
+    await this.documentManagementLoader.run({ kind: 'archive', documentId });
+    if (isCurrentDocument) {
+      this.clearCurrentDocument();
+    }
+    await Promise.all([this.documentsLoader.run(), this.archivedDocumentsLoader.run()]);
+    return true;
+  }
+
+  public async restoreDocument(documentId: string) {
+    await this.documentManagementLoader.run({ kind: 'restore', documentId });
+    await Promise.all([this.documentsLoader.run(), this.archivedDocumentsLoader.run()]);
+  }
+
+  public async permanentlyDeleteDocument(documentId: string) {
+    await this.documentManagementLoader.run({ kind: 'delete', documentId });
+    await this.archivedDocumentsLoader.run();
   }
 
   public async startCurator() {
@@ -858,6 +899,19 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     if (runId) {
       await this.curatorLoader.run(runId);
     }
+  }
+
+  private clearCurrentDocument() {
+    this.documentSwitchGeneration += 1;
+    this.turnStream.detach();
+    runInAction(() => {
+      this.document = null;
+      this.cellDrafts.clear();
+      this.chatMessages = [];
+      this.sending = false;
+      this.prompt = '';
+      this.runInterrupted = false;
+    });
   }
 
   private acceptDocument(

@@ -189,6 +189,7 @@ import type {
   ResearchClarificationSelectionV1,
   ResearchDocumentAnalysisV1,
   ResearchDocumentInterruptResultV1,
+  ResearchDocumentListStateV1,
   ResearchDocumentRunResultV1,
   ResearchDocumentSummaryV1,
   ResearchDocumentTemplateV1,
@@ -278,8 +279,10 @@ export function listResearchConversations(): Promise<ResearchConversationMeta[]>
   return request('/api/app/research/conversations');
 }
 
-export function listResearchDocuments(): Promise<ResearchDocumentSummaryV1[]> {
-  return request('/api/app/research/documents');
+export function listResearchDocuments(
+  state: ResearchDocumentListStateV1 = 'active',
+): Promise<ResearchDocumentSummaryV1[]> {
+  return request(`/api/app/research/documents?state=${encodeURIComponent(state)}`);
 }
 
 export function createResearchDocument(
@@ -293,6 +296,18 @@ export function createResearchDocument(
 
 export function getResearchDocument(documentId: string): Promise<ResearchDocumentV1> {
   return request(`/api/app/research/documents/${encodeURIComponent(documentId)}`);
+}
+
+export function archiveResearchDocument(documentId: string): Promise<{ ok: true }> {
+  return request(`/api/app/research/documents/${encodeURIComponent(documentId)}/archive`, {
+    method: 'POST',
+  });
+}
+
+export function restoreResearchDocument(documentId: string): Promise<{ ok: true }> {
+  return request(`/api/app/research/documents/${encodeURIComponent(documentId)}/restore`, {
+    method: 'POST',
+  });
 }
 
 export function researchArtifactUrl(artifactId: string): string {
