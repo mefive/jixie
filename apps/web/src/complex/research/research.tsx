@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import { Alert, Button, Dropdown, Input, Popconfirm, Skeleton, Splitter, Tooltip } from 'antd';
+import type { MenuProps } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { useBlocker } from 'react-router-dom';
 import classNames from 'classnames';
@@ -12,6 +13,7 @@ import type {
 } from '@jixie/shared';
 import {
   faBolt,
+  faArrowLeft,
   faCheck,
   faCircleExclamation,
   faClockRotateLeft,
@@ -24,6 +26,7 @@ import {
   faFileLines,
   faFlask,
   faListCheck,
+  faEllipsisVertical,
   faPaperPlane,
   faPen,
   faPlay,
@@ -63,7 +66,7 @@ export const Research = complex.component(() => {
   const [executionHistoryOpen, setExecutionHistoryOpen] = useState(
     Boolean(store.requestedExecutionId),
   );
-  const [agentOpen, setAgentOpen] = useState(true);
+  const [agentOpen, setAgentOpen] = useState(defaultAgentOpen);
   const [panelDefaults] = useState(() => researchSplitterDefaults(320));
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) =>
@@ -88,6 +91,21 @@ export const Research = complex.component(() => {
       active = false;
     };
   }, [blocker, store]);
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(max-width: 920px)');
+    const closeAgentOnNarrowViewport = (event: MediaQueryListEvent) => {
+      if (event.matches) {
+        setAgentOpen(false);
+      }
+    };
+
+    mediaQuery.addEventListener('change', closeAgentOnNarrowViewport);
+    return () => mediaQuery.removeEventListener('change', closeAgentOnNarrowViewport);
+  }, []);
+  const openHistory = () => {
+    setAgentOpen(false);
+    setHistoryOpen(true);
+  };
   return (
     <main className="jx-research">
       <ResearchSidebar
@@ -108,13 +126,13 @@ export const Research = complex.component(() => {
             {store.document ? (
               <ResearchWorkspace
                 agentOpen={agentOpen}
-                onOpenHistory={() => setHistoryOpen(true)}
+                onOpenHistory={openHistory}
                 onOpenDataCatalog={() => setDataCatalogOpen(true)}
                 onOpenExecutionHistory={() => setExecutionHistoryOpen(true)}
                 onToggleAgent={() => setAgentOpen((value) => !value)}
               />
             ) : (
-              <ResearchLanding onOpenHistory={() => setHistoryOpen(true)} />
+              <ResearchLanding onOpenHistory={openHistory} />
             )}
           </section>
         </Splitter.Panel>
@@ -125,7 +143,7 @@ export const Research = complex.component(() => {
             min={280}
             max={620}
           >
-            <ResearchAgentPanel />
+            <ResearchAgentPanel onClose={() => setAgentOpen(false)} />
           </Splitter.Panel>
         )}
       </Splitter>
@@ -367,6 +385,49 @@ const ResearchWorkspace = complex.component(
         },
       })),
     };
+    const mobileActionsMenu: MenuProps = {
+      items: [
+        {
+          key: 'data_catalog',
+          icon: <FontAwesomeIcon icon={faDatabase} />,
+          label: t('dataCatalog.open'),
+        },
+        {
+          key: 'execution_history',
+          icon: <FontAwesomeIcon icon={faClockRotateLeft} />,
+          label: t('workbench.execution.historyTitle'),
+        },
+        {
+          key: 'reset_runtime',
+          icon: <FontAwesomeIcon icon={faRotate} />,
+          label: t('workbench.reset'),
+          disabled: store.hasActiveRun || store.hasOpenCellChangeReview,
+        },
+        {
+          key: 'run_document',
+          icon: <FontAwesomeIcon icon={store.hasActiveRun ? faStop : faBolt} />,
+          label: store.hasActiveRun ? t('workbench.interruptRun') : t('workbench.cleanRun'),
+          danger: store.hasActiveRun,
+          disabled: store.interrupting || store.hasOpenCellChangeReview,
+        },
+      ],
+      onClick: ({ key }) => {
+        switch (key) {
+          case 'data_catalog':
+            onOpenDataCatalog();
+            break;
+          case 'execution_history':
+            onOpenExecutionHistory();
+            break;
+          case 'reset_runtime':
+            void store.resetRuntime();
+            break;
+          case 'run_document':
+            void (store.hasActiveRun ? store.interruptRun() : store.runAll(true));
+            break;
+        }
+      },
+    };
     return (
       <div className="jx-research-workspace">
         <header className="jx-research-header">
@@ -419,6 +480,16 @@ const ResearchWorkspace = complex.component(
             </span>
           </div>
           <div className="jx-research-toolbar">
+            <Dropdown menu={mobileActionsMenu} trigger={['click']}>
+              <Button
+                type="text"
+                size="small"
+                className="jx-research-mobileActions"
+                icon={<FontAwesomeIcon icon={faEllipsisVertical} />}
+                aria-label={t('workbench.moreActions')}
+                data-testid="research-mobile-actions"
+              />
+            </Dropdown>
             <Tooltip title={t('dataCatalog.open')}>
               <Button
                 type="text"
@@ -826,7 +897,7 @@ function CellSaveState({
 
 // —— Agent panel ——
 
-const ResearchAgentPanel = complex.component(() => {
+const ResearchAgentPanel = complex.component(({ onClose }: { onClose: () => void }) => {
   const store = complex.useStore();
   const { t } = useTranslation('research');
   const messagesRef = useRef<HTMLDivElement>(null);
@@ -840,6 +911,15 @@ const ResearchAgentPanel = complex.component(() => {
   return (
     <aside className="jx-research-agentPanel">
       <header className="jx-research-agentHead">
+        <Button
+          type="text"
+          size="small"
+          className="jx-research-agentClose"
+          icon={<FontAwesomeIcon icon={faArrowLeft} />}
+          aria-label={t('workbench.backToDocument')}
+          data-testid="research-mobile-agent-close"
+          onClick={onClose}
+        />
         <span className="jx-research-agentAvatar">
           <FontAwesomeIcon icon={faCommentDots} />
         </span>
@@ -992,4 +1072,8 @@ function researchSplitterDefaults(agentWidth: number): { main: string; agent: st
     main: `${((1 - agentFraction) * 100).toFixed(4)}%`,
     agent: `${(agentFraction * 100).toFixed(4)}%`,
   };
+}
+
+function defaultAgentOpen(): boolean {
+  return !window.matchMedia('(max-width: 920px)').matches;
 }

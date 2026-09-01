@@ -23,6 +23,7 @@
     "test:e2e:research-yield-runtime": "node e2e/research-yield-runtime.mjs",
     "test:e2e:research-autosave": "node e2e/research-autosave.mjs",
     "test:e2e:research-executions": "node e2e/research-execution.mjs",
+    "test:e2e:research-mobile": "node e2e/research-mobile.mjs",
     "test:e2e:learning-cross-market": "node e2e/learning-cross-market-case.mjs",
     "test:e2e:learning-trend-strategy": "node e2e/learning-trend-strategy-case.mjs",
     "test:e2e:learning-value-factor": "node e2e/learning-value-factor-case.mjs",

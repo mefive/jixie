@@ -123,7 +123,9 @@
 }
 
 .jx-research-sidebarBackdrop,
-.jx-research-mobileHistory {
+.jx-research-mobileHistory,
+.jx-research-mobileActions,
+.jx-research-agentClose {
   @apply hidden;
 }
 
@@ -605,6 +607,11 @@
     flex-basis: auto !important;
     box-shadow: -8px 0 24px rgb(15 23 42 / 0.14);
   }
+
+  .jx-research-agentClose {
+    @apply inline-flex;
+    flex: none;
+  }
 }
 
 @media (max-width: 700px) {
@@ -637,7 +644,17 @@
     padding: 8px;
   }
 
-  .jx-research-toolbar > .ant-btn:not(.jx-research-agentToggle) {
+  .jx-research-agentPane {
+    width: 100% !important;
+    border-left: 0;
+    box-shadow: none;
+  }
+
+  .jx-research-mobileActions {
+    @apply inline-flex;
+  }
+
+  .jx-research-toolbar > .ant-btn:not(.jx-research-agentToggle):not(.jx-research-mobileActions) {
     display: none;
   }
 
