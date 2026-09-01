@@ -14,6 +14,8 @@ const mocks = vi.hoisted(() => ({
   marketBenchmarkDailyGroupBy: vi.fn(),
   futureMappingGroupBy: vi.fn(),
   futureDailyGroupBy: vi.fn(),
+  factorFindMany: vi.fn(),
+  factorReportFindMany: vi.fn(),
 }));
 
 vi.mock('../lib/prisma.js', () => ({
@@ -32,6 +34,8 @@ vi.mock('../lib/prisma.js', () => ({
     },
     futureContract: { findMany: mocks.futureFindMany },
     futureDaily: { groupBy: mocks.futureDailyGroupBy },
+    factor: { findMany: mocks.factorFindMany },
+    factorReport: { findMany: mocks.factorReportFindMany },
   },
 }));
 
@@ -46,6 +50,7 @@ describe('research data catalog', () => {
     const result = await searchResearchDataCatalog({ assetType: 'index' });
 
     expect(result.instruments).toEqual([]);
+    expect(result.factorReports).toEqual([]);
     expect(result.measures.map((measure) => measure.id)).toEqual([
       'market.adjusted_close',
       'market.cny_close',
@@ -186,5 +191,70 @@ describe('research data catalog', () => {
     const result = await searchResearchDataCatalog({ query: '沪深300' });
 
     expect(result.instruments.map((item) => item.identifier)).toEqual(['000300.SH', '510300.SH']);
+  });
+
+  it('searches completed user FactorReports by factor name and keeps holdout reports sealed', async () => {
+    mocks.factorFindMany.mockResolvedValue([
+      { key: 'value_quality', name: '价值质量' },
+      { key: 'momentum', name: '动量' },
+    ]);
+    mocks.factorReportFindMany.mockResolvedValue([
+      {
+        id: 'report-explore',
+        factor: 'value_quality',
+        analysisKind: 'cross_sectional',
+        phase: 'explore',
+        revealedAt: null,
+        createdAt: new Date('2026-08-20T08:00:00.000Z'),
+        computedAt: new Date('2026-08-20T08:01:00.000Z'),
+      },
+      {
+        id: 'report-holdout',
+        factor: 'value_quality',
+        analysisKind: 'panel',
+        phase: 'holdout',
+        revealedAt: null,
+        createdAt: new Date('2026-08-19T08:00:00.000Z'),
+        computedAt: null,
+      },
+    ]);
+
+    const result = await searchResearchDataCatalog({
+      query: '价值',
+      scope: 'factor_reports',
+      userId: 'user-a',
+    });
+
+    expect(mocks.factorReportFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          userId: 'user-a',
+          status: 'done',
+          payload: { not: null },
+          OR: expect.arrayContaining([{ factor: { in: ['value_quality'] } }]),
+        }),
+      }),
+    );
+    expect(result.sdkMethods.map((method) => method.qualifiedName)).toEqual([
+      'results.factor_report',
+    ]);
+    expect(result.instruments).toEqual([]);
+    expect(result.measures).toEqual([]);
+    expect(result.factorReports).toEqual([
+      expect.objectContaining({
+        id: 'report-explore',
+        factorName: '价值质量',
+        phase: 'explore',
+        sealed: false,
+      }),
+      expect.objectContaining({
+        id: 'report-holdout',
+        factorName: '价值质量',
+        analysisKind: 'panel',
+        sealed: true,
+      }),
+    ]);
+    expect(mocks.stockFindMany).not.toHaveBeenCalled();
+    expect(mocks.indexFindMany).not.toHaveBeenCalled();
   });
 });

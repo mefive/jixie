@@ -1,4 +1,5 @@
 import type {
+  ResearchDataCatalogFactorReportV1,
   ResearchDataCatalogInstrumentV1,
   ResearchFrequencyV1,
   ResearchTransformV1,
@@ -11,6 +12,21 @@ export interface ResearchSeriesSnippetOptions {
   end: string;
   frequency: ResearchFrequencyV1;
   transform: ResearchTransformV1;
+}
+
+/** Build the immutable report lookup inserted by the catalog. */
+export function researchFactorReportSnippet(
+  report: Pick<ResearchDataCatalogFactorReportV1, 'id' | 'factor'>,
+): string {
+  return `${researchFactorReportVariableName(report.factor)} = results.factor_report(${JSON.stringify(report.id)})`;
+}
+
+function researchFactorReportVariableName(factor: string): string {
+  const identifier = factor
+    .toLocaleLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  return `${identifier || 'factor'}_report`;
 }
 
 /** Build the exact SDK call inserted by the catalog, without creating a second execution path. */

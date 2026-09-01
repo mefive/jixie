@@ -9,6 +9,7 @@ import type {
 import type { StrategyLanguage } from './backtest.js';
 
 export type ResearchAssetTypeV1 = 'stock' | 'etf' | 'index' | 'future';
+export type ResearchDataCatalogScopeV1 = 'instruments' | 'factor_reports';
 export type ResearchFrequencyV1 = 'daily' | 'monthly';
 export type ResearchTransformV1 =
   | 'level'
@@ -190,12 +191,26 @@ export interface ResearchDataCatalogSdkMethodV1 {
   returnColumns: string[];
 }
 
+/** A completed FactorReport owned by the current user and discoverable from Research. */
+export interface ResearchDataCatalogFactorReportV1 {
+  kind: 'factor_report';
+  id: string;
+  factor: string;
+  factorName: string;
+  analysisKind: FactorAnalysisKind;
+  phase: 'legacy' | 'explore' | 'holdout';
+  sealed: boolean;
+  createdAt: string;
+  computedAt: string | null;
+}
+
 /** One response powers the catalog UI and Monaco's identifier/measure completion. */
 export interface ResearchDataCatalogResultV1 {
   version: 1;
   query: string;
   sdkMethods: ResearchDataCatalogSdkMethodV1[];
   instruments: ResearchDataCatalogInstrumentV1[];
+  factorReports: ResearchDataCatalogFactorReportV1[];
   measures: ResearchMeasureDefinitionV1[];
 }
 

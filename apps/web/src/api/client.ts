@@ -201,6 +201,7 @@ import type {
   ResearchFactorHandoffV1,
   ResearchStrategyDraftResultV1,
   ResearchDataCatalogResultV1,
+  ResearchDataCatalogScopeV1,
   ResearchAssetTypeV1,
   ResearchLanguageRequestV1,
   ResearchLanguageResultV1,
@@ -484,8 +485,10 @@ export function searchResearchDataCatalog(
   query: string,
   assetType?: ResearchAssetTypeV1,
   signal?: AbortSignal,
+  scope: ResearchDataCatalogScopeV1 = 'instruments',
 ): Promise<ResearchDataCatalogResultV1> {
   const parameters = new URLSearchParams({ q: query });
+  parameters.set('scope', scope);
   if (assetType) {
     parameters.set('assetType', assetType);
   }

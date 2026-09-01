@@ -18,8 +18,10 @@ import { useTranslation } from 'react-i18next';
 import classNames from 'classnames';
 import type {
   ResearchAssetTypeV1,
+  ResearchDataCatalogFactorReportV1,
   ResearchDataCatalogInstrumentV1,
   ResearchDataCatalogSdkMethodV1,
+  ResearchDataCatalogScopeV1,
   ResearchFrequencyV1,
   ResearchTransformV1,
 } from '@jixie/shared';
@@ -29,7 +31,9 @@ import {
   faCircleCheck,
   faCircleExclamation,
   faDatabase,
+  faFileLines,
   faLayerGroup,
+  faLock,
   faMagnifyingGlass,
   faPercent,
   faTableColumns,
@@ -37,7 +41,7 @@ import {
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { LoadingArea } from '@src/components/loading-area';
 import { complex } from './complex';
-import { researchSeriesSnippet } from './research-data-catalog';
+import { researchFactorReportSnippet, researchSeriesSnippet } from './research-data-catalog';
 import { insertResearchPythonSnippet } from './research-python-language';
 import './research-data-catalog-drawer.css';
 
@@ -47,15 +51,20 @@ interface ResearchDataCatalogDrawerProps {
 }
 
 type AssetFilter = 'all' | ResearchAssetTypeV1;
+type CatalogView = ResearchDataCatalogScopeV1;
 
 export const ResearchDataCatalogDrawer = complex.component(
   ({ open, onClose }: ResearchDataCatalogDrawerProps) => {
     const store = complex.useStore();
     const { message } = App.useApp();
     const { t, i18n } = useTranslation('research');
+    const [view, setView] = useState<CatalogView>('instruments');
     const [query, setQuery] = useState('');
     const [assetFilter, setAssetFilter] = useState<AssetFilter>('all');
     const [selected, setSelected] = useState<ResearchDataCatalogInstrumentV1 | null>(null);
+    const [selectedReport, setSelectedReport] = useState<ResearchDataCatalogFactorReportV1 | null>(
+      null,
+    );
     const [selectedMethodName, setSelectedMethodName] = useState<string | null>(null);
     const [measureId, setMeasureId] = useState('market.adjusted_close');
     const [frequency, setFrequency] = useState<ResearchFrequencyV1>('daily');
@@ -68,12 +77,16 @@ export const ResearchDataCatalogDrawer = complex.component(
       }
       const timer = window.setTimeout(
         () => {
-          void store.searchDataCatalog(query, assetFilter === 'all' ? undefined : assetFilter);
+          void store.searchDataCatalog(
+            query,
+            view === 'instruments' && assetFilter !== 'all' ? assetFilter : undefined,
+            view,
+          );
         },
         query ? 180 : 0,
       );
       return () => window.clearTimeout(timer);
-    }, [assetFilter, open, query, store]);
+    }, [assetFilter, open, query, store, view]);
 
     const catalog = store.dataCatalogLoader.result;
     const selectedMethod = catalog?.sdkMethods.find(
@@ -97,16 +110,20 @@ export const ResearchDataCatalogDrawer = complex.component(
       }
     }, [selectedMeasure, transform]);
     const snippet =
-      selected && measureId && selected.sdkAccess?.status !== 'not_ready'
-        ? researchSeriesSnippet({
-            instrument: selected,
-            measure: measureId,
-            start: dates[0].format('YYYYMMDD'),
-            end: dates[1].format('YYYYMMDD'),
-            frequency,
-            transform,
-          })
-        : '';
+      view === 'factor_reports'
+        ? selectedReport && !selectedReport.sealed
+          ? researchFactorReportSnippet(selectedReport)
+          : ''
+        : selected && measureId && selected.sdkAccess?.status !== 'not_ready'
+          ? researchSeriesSnippet({
+              instrument: selected,
+              measure: measureId,
+              start: dates[0].format('YYYYMMDD'),
+              end: dates[1].format('YYYYMMDD'),
+              frequency,
+              transform,
+            })
+          : '';
 
     const chooseInstrument = (instrument: ResearchDataCatalogInstrumentV1) => {
       setSelected(instrument);
@@ -164,6 +181,22 @@ export const ResearchDataCatalogDrawer = complex.component(
         }
       >
         <p className="jx-researchDataCatalog-intro">{t('dataCatalog.intro')}</p>
+        <Segmented<CatalogView>
+          block
+          className="jx-researchDataCatalog-views"
+          value={view}
+          options={(['instruments', 'factor_reports'] as const).map((value) => ({
+            value,
+            label: t(`dataCatalog.view.${value}`),
+          }))}
+          onChange={(value) => {
+            setView(value);
+            setQuery('');
+            setSelected(null);
+            setSelectedReport(null);
+            setSelectedMethodName(null);
+          }}
+        />
         <section
           className="jx-researchDataCatalog-capabilities"
           data-testid="research-data-catalog-capabilities"
@@ -210,14 +243,16 @@ export const ResearchDataCatalogDrawer = complex.component(
                 </span>
                 <code>{selectedMethod.signature}</code>
               </div>
-              <div className="jx-researchDataCatalog-methodMeta">
-                <span>{t('dataCatalog.returns')}</span>
-                <div>
-                  {selectedMethod.returnColumns.map((column) => (
-                    <Tag key={column}>{column}</Tag>
-                  ))}
+              {selectedMethod.returnColumns.length > 0 && (
+                <div className="jx-researchDataCatalog-methodMeta">
+                  <span>{t('dataCatalog.returns')}</span>
+                  <div>
+                    {selectedMethod.returnColumns.map((column) => (
+                      <Tag key={column}>{column}</Tag>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
               <div className="jx-researchDataCatalog-methodExample">
                 <span>{t('dataCatalog.example')}</span>
                 <pre>{selectedMethod.example}</pre>
@@ -231,181 +266,303 @@ export const ResearchDataCatalogDrawer = complex.component(
           autoFocus
           value={query}
           prefix={<FontAwesomeIcon icon={faMagnifyingGlass} />}
-          placeholder={t('dataCatalog.searchPlaceholder')}
-          aria-label={t('dataCatalog.searchPlaceholder')}
-          onChange={(event) => setQuery(event.target.value)}
+          placeholder={t(
+            view === 'factor_reports'
+              ? 'dataCatalog.reportSearchPlaceholder'
+              : 'dataCatalog.searchPlaceholder',
+          )}
+          aria-label={t(
+            view === 'factor_reports'
+              ? 'dataCatalog.reportSearchPlaceholder'
+              : 'dataCatalog.searchPlaceholder',
+          )}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            setSelected(null);
+            setSelectedReport(null);
+          }}
         />
-        <Segmented<AssetFilter>
-          block
-          className="jx-researchDataCatalog-assets"
-          value={assetFilter}
-          options={(['all', 'stock', 'etf', 'index', 'future'] as const).map((value) => ({
-            value,
-            label: t(`dataCatalog.assetType.${value}`),
-          }))}
-          onChange={(value) => setAssetFilter(value)}
-        />
+        {view === 'instruments' && (
+          <Segmented<AssetFilter>
+            block
+            className="jx-researchDataCatalog-assets"
+            value={assetFilter}
+            options={(['all', 'stock', 'etf', 'index', 'future'] as const).map((value) => ({
+              value,
+              label: t(`dataCatalog.assetType.${value}`),
+            }))}
+            onChange={(value) => setAssetFilter(value)}
+          />
+        )}
 
-        <section className="jx-researchDataCatalog-section">
-          <div className="jx-researchDataCatalog-sectionHead">
-            <strong>{t('dataCatalog.instruments')}</strong>
-            {catalog && query && (
-              <span>{t('dataCatalog.matches', { count: visibleInstruments.length })}</span>
-            )}
-          </div>
-          <LoadingArea
-            loader={store.dataCatalogLoader}
-            showDelay={120}
-            loading={() => (
-              <div className="jx-researchDataCatalog-skeleton">
-                <Skeleton active paragraph={{ rows: 2 }} title={false} />
-                <Skeleton active paragraph={{ rows: 2 }} title={false} />
-              </div>
-            )}
-          >
-            {!query ? (
-              <Empty
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                description={t('dataCatalog.searchHint')}
-              />
-            ) : visibleInstruments.length ? (
-              <div className="jx-researchDataCatalog-results">
-                {visibleInstruments.map((instrument) => (
-                  <button
-                    key={`${instrument.assetType}:${instrument.identifier}`}
-                    type="button"
-                    className={classNames('jx-researchDataCatalog-result', {
-                      'jx-researchDataCatalog-result--active':
-                        selected?.assetType === instrument.assetType &&
-                        selected.identifier === instrument.identifier,
-                    })}
-                    data-testid={`research-data-catalog-result-${instrument.identifier}`}
-                    onClick={() => chooseInstrument(instrument)}
-                  >
-                    <span className="jx-researchDataCatalog-resultIcon">
-                      <FontAwesomeIcon icon={faChartLine} />
-                    </span>
-                    <span className="jx-researchDataCatalog-resultText">
-                      <strong>{localizedInstrumentName(instrument, i18n.language)}</strong>
-                      <code>{instrument.identifier}</code>
-                      <span
-                        className={classNames('jx-researchDataCatalog-coverage', {
-                          'jx-researchDataCatalog-coverage--missing':
-                            instrument.localDataCoverage?.status === 'missing',
-                        })}
-                        data-testid={`research-data-catalog-coverage-${instrument.identifier}`}
-                      >
-                        <FontAwesomeIcon
-                          icon={
-                            instrument.localDataCoverage?.status === 'ready'
-                              ? faCircleCheck
-                              : faCircleExclamation
-                          }
-                        />
-                        {localizedCoverage(instrument, i18n.language, t)}
-                      </span>
-                    </span>
-                    <span className="jx-researchDataCatalog-resultTags">
-                      <Tag>{t(`dataCatalog.assetType.${instrument.assetType}`)}</Tag>
-                      {instrument.researchRegistry && (
-                        <Tag>
-                          {t(`dataCatalog.registryRole.${instrument.researchRegistry.role}`)}
-                        </Tag>
-                      )}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <Empty
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                description={t('dataCatalog.noMatches')}
-              />
-            )}
-          </LoadingArea>
-        </section>
-
-        {selected && (
-          <section
-            className="jx-researchDataCatalog-config"
-            data-testid="research-data-catalog-config"
-          >
-            <div className="jx-researchDataCatalog-sectionHead">
-              <strong>{t('dataCatalog.seriesConfig')}</strong>
-              <code>{selected.identifier}</code>
-            </div>
-            <div className="jx-researchDataCatalog-selectedMeta">
-              <div>
-                <span>{t('dataCatalog.localCoverage')}</span>
-                <strong>{localizedCoverage(selected, i18n.language, t)}</strong>
-              </div>
-              {selected.researchRegistry && (
-                <div>
-                  <span>{t('dataCatalog.registryExposure')}</span>
-                  <strong>
-                    {selected.researchRegistry.exposureId} ·{' '}
-                    {t(`dataCatalog.registryRole.${selected.researchRegistry.role}`)}
-                  </strong>
-                </div>
-              )}
-              {selected.researchRegistry &&
-                selected.researchRegistry.knownLimitations.length > 0 && (
-                  <p>
-                    {t('dataCatalog.registryLimitations', {
-                      count: selected.researchRegistry.knownLimitations.length,
-                    })}
-                  </p>
+        {view === 'instruments' ? (
+          <>
+            <section className="jx-researchDataCatalog-section">
+              <div className="jx-researchDataCatalog-sectionHead">
+                <strong>{t('dataCatalog.instruments')}</strong>
+                {catalog && query && (
+                  <span>{t('dataCatalog.matches', { count: visibleInstruments.length })}</span>
                 )}
-            </div>
-            <label>
-              <span>{t('dataCatalog.measure')}</span>
-              <Select
-                value={measureId}
-                options={compatibleMeasures.map((measure) => ({
-                  value: measure.id,
-                  label: `${i18n.language.startsWith('zh') ? measure.nameZh : measure.nameEn} · ${measure.id}`,
-                }))}
-                onChange={setMeasureId}
-              />
-            </label>
-            <label>
-              <span>{t('dataCatalog.period')}</span>
-              <DatePicker.RangePicker
-                allowClear={false}
-                value={dates}
-                onChange={(value) => {
-                  if (value?.[0] && value[1]) {
-                    setDates([value[0], value[1]]);
-                  }
-                }}
-              />
-            </label>
-            <div className="jx-researchDataCatalog-configRow">
-              <label>
-                <span>{t('dataCatalog.frequency')}</span>
-                <Select
-                  value={frequency}
-                  options={(['daily', 'monthly'] as const).map((value) => ({
-                    value,
-                    label: t(`frequency.${value}`),
-                  }))}
-                  onChange={setFrequency}
-                />
-              </label>
-              <label>
-                <span>{t('dataCatalog.transform')}</span>
-                <Select
-                  value={transform}
-                  options={(selectedMeasure?.transforms ?? ['level']).map((value) => ({
-                    value,
-                    label: t(`transform.${value}`),
-                  }))}
-                  onChange={setTransform}
-                />
-              </label>
-            </div>
-            <pre className="jx-researchDataCatalog-preview">{snippet}</pre>
-          </section>
+              </div>
+              <LoadingArea
+                loader={store.dataCatalogLoader}
+                showDelay={120}
+                loading={() => (
+                  <div className="jx-researchDataCatalog-skeleton">
+                    <Skeleton active paragraph={{ rows: 2 }} title={false} />
+                    <Skeleton active paragraph={{ rows: 2 }} title={false} />
+                  </div>
+                )}
+              >
+                {!query ? (
+                  <Empty
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                    description={t('dataCatalog.searchHint')}
+                  />
+                ) : visibleInstruments.length ? (
+                  <div className="jx-researchDataCatalog-results">
+                    {visibleInstruments.map((instrument) => (
+                      <button
+                        key={`${instrument.assetType}:${instrument.identifier}`}
+                        type="button"
+                        className={classNames('jx-researchDataCatalog-result', {
+                          'jx-researchDataCatalog-result--active':
+                            selected?.assetType === instrument.assetType &&
+                            selected.identifier === instrument.identifier,
+                        })}
+                        data-testid={`research-data-catalog-result-${instrument.identifier}`}
+                        onClick={() => chooseInstrument(instrument)}
+                      >
+                        <span className="jx-researchDataCatalog-resultIcon">
+                          <FontAwesomeIcon icon={faChartLine} />
+                        </span>
+                        <span className="jx-researchDataCatalog-resultText">
+                          <strong>{localizedInstrumentName(instrument, i18n.language)}</strong>
+                          <code>{instrument.identifier}</code>
+                          <span
+                            className={classNames('jx-researchDataCatalog-coverage', {
+                              'jx-researchDataCatalog-coverage--missing':
+                                instrument.localDataCoverage?.status === 'missing',
+                            })}
+                            data-testid={`research-data-catalog-coverage-${instrument.identifier}`}
+                          >
+                            <FontAwesomeIcon
+                              icon={
+                                instrument.localDataCoverage?.status === 'ready'
+                                  ? faCircleCheck
+                                  : faCircleExclamation
+                              }
+                            />
+                            {localizedCoverage(instrument, i18n.language, t)}
+                          </span>
+                        </span>
+                        <span className="jx-researchDataCatalog-resultTags">
+                          <Tag>{t(`dataCatalog.assetType.${instrument.assetType}`)}</Tag>
+                          {instrument.researchRegistry && (
+                            <Tag>
+                              {t(`dataCatalog.registryRole.${instrument.researchRegistry.role}`)}
+                            </Tag>
+                          )}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <Empty
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                    description={t('dataCatalog.noMatches')}
+                  />
+                )}
+              </LoadingArea>
+            </section>
+
+            {selected && (
+              <section
+                className="jx-researchDataCatalog-config"
+                data-testid="research-data-catalog-config"
+              >
+                <div className="jx-researchDataCatalog-sectionHead">
+                  <strong>{t('dataCatalog.seriesConfig')}</strong>
+                  <code>{selected.identifier}</code>
+                </div>
+                <div className="jx-researchDataCatalog-selectedMeta">
+                  <div>
+                    <span>{t('dataCatalog.localCoverage')}</span>
+                    <strong>{localizedCoverage(selected, i18n.language, t)}</strong>
+                  </div>
+                  {selected.researchRegistry && (
+                    <div>
+                      <span>{t('dataCatalog.registryExposure')}</span>
+                      <strong>
+                        {selected.researchRegistry.exposureId} ·{' '}
+                        {t(`dataCatalog.registryRole.${selected.researchRegistry.role}`)}
+                      </strong>
+                    </div>
+                  )}
+                  {selected.researchRegistry &&
+                    selected.researchRegistry.knownLimitations.length > 0 && (
+                      <p>
+                        {t('dataCatalog.registryLimitations', {
+                          count: selected.researchRegistry.knownLimitations.length,
+                        })}
+                      </p>
+                    )}
+                </div>
+                <label>
+                  <span>{t('dataCatalog.measure')}</span>
+                  <Select
+                    value={measureId}
+                    options={compatibleMeasures.map((measure) => ({
+                      value: measure.id,
+                      label: `${i18n.language.startsWith('zh') ? measure.nameZh : measure.nameEn} · ${measure.id}`,
+                    }))}
+                    onChange={setMeasureId}
+                  />
+                </label>
+                <label>
+                  <span>{t('dataCatalog.period')}</span>
+                  <DatePicker.RangePicker
+                    allowClear={false}
+                    value={dates}
+                    onChange={(value) => {
+                      if (value?.[0] && value[1]) {
+                        setDates([value[0], value[1]]);
+                      }
+                    }}
+                  />
+                </label>
+                <div className="jx-researchDataCatalog-configRow">
+                  <label>
+                    <span>{t('dataCatalog.frequency')}</span>
+                    <Select
+                      value={frequency}
+                      options={(['daily', 'monthly'] as const).map((value) => ({
+                        value,
+                        label: t(`frequency.${value}`),
+                      }))}
+                      onChange={setFrequency}
+                    />
+                  </label>
+                  <label>
+                    <span>{t('dataCatalog.transform')}</span>
+                    <Select
+                      value={transform}
+                      options={(selectedMeasure?.transforms ?? ['level']).map((value) => ({
+                        value,
+                        label: t(`transform.${value}`),
+                      }))}
+                      onChange={setTransform}
+                    />
+                  </label>
+                </div>
+                <pre className="jx-researchDataCatalog-preview">{snippet}</pre>
+              </section>
+            )}
+          </>
+        ) : (
+          <>
+            <section className="jx-researchDataCatalog-section">
+              <div className="jx-researchDataCatalog-sectionHead">
+                <strong>{t('dataCatalog.factorReports')}</strong>
+                {catalog && (
+                  <span>{t('dataCatalog.matches', { count: catalog.factorReports.length })}</span>
+                )}
+              </div>
+              <LoadingArea
+                loader={store.dataCatalogLoader}
+                showDelay={120}
+                loading={() => (
+                  <div className="jx-researchDataCatalog-skeleton">
+                    <Skeleton active paragraph={{ rows: 2 }} title={false} />
+                    <Skeleton active paragraph={{ rows: 2 }} title={false} />
+                  </div>
+                )}
+              >
+                {(catalog?.factorReports ?? []).length ? (
+                  <div className="jx-researchDataCatalog-results">
+                    {(catalog?.factorReports ?? []).map((report) => (
+                      <button
+                        key={report.id}
+                        type="button"
+                        className={classNames('jx-researchDataCatalog-result', {
+                          'jx-researchDataCatalog-result--active': selectedReport?.id === report.id,
+                          'jx-researchDataCatalog-result--sealed': report.sealed,
+                        })}
+                        data-testid={`research-data-catalog-report-${report.id}`}
+                        onClick={() => setSelectedReport(report)}
+                      >
+                        <span className="jx-researchDataCatalog-resultIcon">
+                          <FontAwesomeIcon icon={report.sealed ? faLock : faFileLines} />
+                        </span>
+                        <span className="jx-researchDataCatalog-resultText">
+                          <strong>{report.factorName}</strong>
+                          <code>{report.factor}</code>
+                          <span className="jx-researchDataCatalog-reportDate">
+                            {dayjs(report.computedAt ?? report.createdAt).format('YYYY-MM-DD')}
+                          </span>
+                        </span>
+                        <span className="jx-researchDataCatalog-resultTags">
+                          <Tag>{t(`dataCatalog.reportPhase.${report.phase}`)}</Tag>
+                          <Tag>{t(`dataCatalog.analysisKind.${report.analysisKind}`)}</Tag>
+                          {report.sealed && <Tag color="gold">{t('dataCatalog.sealed')}</Tag>}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <Empty
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                    description={t(
+                      query ? 'dataCatalog.noReportMatches' : 'dataCatalog.noFactorReports',
+                    )}
+                  />
+                )}
+              </LoadingArea>
+            </section>
+
+            {selectedReport && (
+              <section
+                className="jx-researchDataCatalog-config"
+                data-testid="research-data-catalog-report-config"
+              >
+                <div className="jx-researchDataCatalog-sectionHead">
+                  <strong>{t('dataCatalog.reportConfig')}</strong>
+                  <code>{selectedReport.id}</code>
+                </div>
+                <div className="jx-researchDataCatalog-selectedMeta">
+                  <div>
+                    <span>{t('dataCatalog.factor')}</span>
+                    <strong>
+                      {selectedReport.factorName} · {selectedReport.factor}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>{t('dataCatalog.analysis')}</span>
+                    <strong>
+                      {t(`dataCatalog.analysisKind.${selectedReport.analysisKind}`)} ·{' '}
+                      {t(`dataCatalog.reportPhase.${selectedReport.phase}`)}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>{t('dataCatalog.reportDate')}</span>
+                    <strong>
+                      {dayjs(selectedReport.computedAt ?? selectedReport.createdAt).format(
+                        'YYYY-MM-DD HH:mm',
+                      )}
+                    </strong>
+                  </div>
+                  {selectedReport.sealed && (
+                    <p className="jx-researchDataCatalog-sealedNotice">
+                      <FontAwesomeIcon icon={faLock} /> {t('dataCatalog.sealedHint')}
+                    </p>
+                  )}
+                </div>
+                {!selectedReport.sealed && (
+                  <pre className="jx-researchDataCatalog-preview">{snippet}</pre>
+                )}
+              </section>
+            )}
+          </>
         )}
       </Drawer>
     );
@@ -429,6 +586,8 @@ function localizedMethodDescription(
 
 function researchDataMethodIcon(qualifiedName: string) {
   switch (qualifiedName) {
+    case 'results.factor_report':
+      return faFileLines;
     case 'data.cross_section':
       return faTableColumns;
     case 'data.panel':

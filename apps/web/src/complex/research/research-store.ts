@@ -14,6 +14,7 @@ import {
   type ResearchClarificationV1,
   type ResearchAssetTypeV1,
   type ResearchDataCatalogResultV1,
+  type ResearchDataCatalogScopeV1,
   type ResearchCuratorDispositionV1,
   type ResearchCuratorFindingV1,
   type ResearchCuratorRunV1,
@@ -84,6 +85,7 @@ type ResearchSetupParams = {
 interface ResearchDataCatalogQuery {
   query: string;
   assetType?: ResearchAssetTypeV1;
+  scope: ResearchDataCatalogScopeV1;
 }
 
 type ResearchDocumentMutation =
@@ -306,8 +308,8 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
       request: (proposalId: string) => runResearchCellChangeProposal(proposalId),
     });
     this.dataCatalogLoader.setup({
-      request: ({ query, assetType }: ResearchDataCatalogQuery, signal) =>
-        searchResearchDataCatalog(query, assetType, signal),
+      request: ({ query, assetType, scope }: ResearchDataCatalogQuery, signal) =>
+        searchResearchDataCatalog(query, assetType, signal, scope),
     });
     this.curatorLoader.setup({
       request: (runId?: string) =>
@@ -671,8 +673,12 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     );
   }
 
-  public searchDataCatalog(query: string, assetType?: ResearchAssetTypeV1) {
-    return this.dataCatalogLoader.run({ query, assetType });
+  public searchDataCatalog(
+    query: string,
+    assetType?: ResearchAssetTypeV1,
+    scope: ResearchDataCatalogScopeV1 = 'instruments',
+  ) {
+    return this.dataCatalogLoader.run({ query, assetType, scope });
   }
 
   public loadExecutionHistory() {

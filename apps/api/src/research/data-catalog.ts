@@ -1,10 +1,13 @@
 import {
   RESEARCH_SDK_AGENT_CATALOG_V1,
+  type FactorAnalysisKind,
   type ResearchAssetTypeV1,
   type ResearchDataCatalogCoverageV1,
+  type ResearchDataCatalogFactorReportV1,
   type ResearchDataCatalogInstrumentV1,
   type ResearchDataCatalogRegistryV1,
   type ResearchDataCatalogResultV1,
+  type ResearchDataCatalogScopeV1,
   type ResearchMeasureDefinitionV1,
 } from '@jixie/shared';
 import { prisma } from '../lib/prisma.js';
@@ -17,6 +20,8 @@ import { researchCapabilityCatalog } from './catalog.js';
 export interface ResearchDataCatalogQuery {
   query?: string;
   assetType?: ResearchAssetTypeV1;
+  scope?: ResearchDataCatalogScopeV1;
+  userId?: string;
   limit?: number;
 }
 
@@ -28,6 +33,7 @@ export async function searchResearchDataCatalog(
 ): Promise<ResearchDataCatalogResultV1> {
   const query = input.query?.trim() ?? '';
   const limit = Math.min(50, Math.max(1, input.limit ?? DEFAULT_LIMIT));
+  const scope = input.scope ?? 'instruments';
   const assetTypes = input.assetType
     ? ([input.assetType] as const)
     : (['stock', 'etf', 'index', 'future'] as const);
@@ -37,7 +43,7 @@ export async function searchResearchDataCatalog(
       (!input.assetType || measure.assetTypes?.includes(input.assetType)),
   );
   const sdkMethods = RESEARCH_SDK_AGENT_CATALOG_V1.methods
-    .filter((method) => method.namespace === 'data')
+    .filter((method) => method.namespace === (scope === 'factor_reports' ? 'results' : 'data'))
     .map((method) => ({
       qualifiedName: method.qualifiedName,
       name: method.name,
@@ -51,8 +57,19 @@ export async function searchResearchDataCatalog(
           : [],
     }));
 
+  if (scope === 'factor_reports') {
+    return {
+      version: 1,
+      query,
+      sdkMethods,
+      instruments: [],
+      factorReports: input.userId ? await searchFactorReports(input.userId, query, limit) : [],
+      measures: [],
+    };
+  }
+
   if (!query) {
-    return { version: 1, query, sdkMethods, instruments: [], measures };
+    return { version: 1, query, sdkMethods, instruments: [], factorReports: [], measures };
   }
 
   const [stocks, etfs, indexes, marketBenchmarks, indexCodes, futureMappings, futures] =
@@ -226,8 +243,86 @@ export async function searchResearchDataCatalog(
     query,
     sdkMethods,
     instruments: await attachLocalDataCoverage(instruments),
+    factorReports: [],
     measures,
   };
+}
+
+async function searchFactorReports(
+  userId: string,
+  query: string,
+  limit: number,
+): Promise<ResearchDataCatalogFactorReportV1[]> {
+  const factors = await prisma.factor.findMany({
+    where: { userId: { in: ['builtin', userId] } },
+    select: { key: true, name: true },
+  });
+  const normalizedQuery = query.toLocaleLowerCase();
+  const factorNames = new Map(factors.map((factor) => [factor.key, factor.name]));
+  const matchingFactorKeys = normalizedQuery
+    ? factors
+        .filter((factor) =>
+          `${factor.key}\n${factor.name}`.toLocaleLowerCase().includes(normalizedQuery),
+        )
+        .map((factor) => factor.key)
+    : [];
+  const reports = await prisma.factorReport.findMany({
+    where: {
+      userId,
+      status: 'done',
+      payload: { not: null },
+      ...(query
+        ? {
+            OR: [
+              { id: { contains: query } },
+              { factor: { contains: query } },
+              ...(matchingFactorKeys.length ? [{ factor: { in: matchingFactorKeys } }] : []),
+            ],
+          }
+        : {}),
+    },
+    select: {
+      id: true,
+      factor: true,
+      analysisKind: true,
+      phase: true,
+      revealedAt: true,
+      createdAt: true,
+      computedAt: true,
+    },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: limit,
+  });
+
+  return reports.map((report) => {
+    const phase = factorReportPhase(report.phase);
+    return {
+      kind: 'factor_report',
+      id: report.id,
+      factor: report.factor,
+      factorName: factorNames.get(report.factor) ?? report.factor,
+      analysisKind: factorAnalysisKind(report.analysisKind),
+      phase,
+      sealed: phase === 'holdout' && report.revealedAt === null,
+      createdAt: report.createdAt.toISOString(),
+      computedAt: report.computedAt?.toISOString() ?? null,
+    };
+  });
+}
+
+function factorReportPhase(value: string): ResearchDataCatalogFactorReportV1['phase'] {
+  return value === 'explore' || value === 'holdout' ? value : 'legacy';
+}
+
+function factorAnalysisKind(value: string): FactorAnalysisKind {
+  switch (value) {
+    case 'time_series':
+    case 'panel':
+    case 'macro_regime':
+      return value;
+    default:
+      return 'cross_sectional';
+  }
 }
 
 async function attachLocalDataCoverage(

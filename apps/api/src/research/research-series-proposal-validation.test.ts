@@ -16,6 +16,7 @@ const catalog: ResearchDataCatalogResultV1 = {
       compatibleMeasureIds: ['market.adjusted_close'],
     },
   ],
+  factorReports: [],
   measures: [],
 };
 

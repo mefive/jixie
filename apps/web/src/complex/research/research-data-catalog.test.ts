@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { researchSeriesSnippet, researchSeriesVariableName } from './research-data-catalog';
+import {
+  researchFactorReportSnippet,
+  researchSeriesSnippet,
+  researchSeriesVariableName,
+} from './research-data-catalog';
 
 const instrument = {
   kind: 'instrument' as const,
@@ -34,5 +38,12 @@ test('inserts the platform SDK call with explicit research semantics', () => {
     frequency="monthly",
     transform="simple_return",
 )`,
+  );
+});
+
+test('inserts an immutable FactorReport lookup by stable report id', () => {
+  assert.equal(
+    researchFactorReportSnippet({ id: 'report-01', factor: 'value-quality' }),
+    'value_quality_report = results.factor_report("report-01")',
   );
 });
