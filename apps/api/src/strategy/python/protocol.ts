@@ -353,6 +353,7 @@ export const researchExecutionFrameSchema = z.union([
       'research_yield_curve',
       'research_cross_section',
       'research_panel',
+      'research_factor_report',
     ]),
     arguments: z.unknown(),
   }),

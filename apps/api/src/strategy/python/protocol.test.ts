@@ -85,5 +85,13 @@ describe('Python host protocol schemas', () => {
         arguments: { path: '/etc/passwd' },
       }),
     ).toThrow();
+    expect(
+      researchExecutionFrameSchema.parse({
+        type: 'request',
+        id: 2,
+        method: 'research_factor_report',
+        arguments: { report_id: 'report-1' },
+      }),
+    ).toMatchObject({ method: 'research_factor_report' });
   });
 });

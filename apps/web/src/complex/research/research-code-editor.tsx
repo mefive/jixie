@@ -632,10 +632,18 @@ function researchSdkSignature(contract: ResearchSdkFunctionContractV1): string {
         : ` = ${parameter.defaultValue === null ? 'None' : JSON.stringify(parameter.defaultValue)}`;
     parameters.push(`${parameter.name}: ${researchSdkParameterType(parameter)}${defaultValue}`);
   }
-  const returnType =
-    contract.returns.kind === 'dataframe'
-      ? `DataFrame[${contract.returns.columns.map((column) => column.name).join(', ')}]`
-      : 'ResearchChart';
+  let returnType: string;
+  switch (contract.returns.kind) {
+    case 'dataframe':
+      returnType = `DataFrame[${contract.returns.columns.map((column) => column.name).join(', ')}]`;
+      break;
+    case 'mapping':
+      returnType = contract.returns.pythonType;
+      break;
+    case 'chart':
+      returnType = 'ResearchChart';
+      break;
+  }
   return `${contract.qualifiedName}(${parameters.join(', ')}) -> ${returnType}`;
 }
 

@@ -84,6 +84,18 @@ test('provides a catalog context for the positional identifier', () => {
   assert.equal(context?.partial, '0003');
 });
 
+test('provides the results namespace and FactorReport argument context', () => {
+  const member = 'results.factor_';
+  const memberContext = researchSdkCompletionContext(member, member.length);
+  assert.equal(memberContext?.kind, 'namespace_member');
+  assert.equal(memberContext?.namespace, 'results');
+
+  const call = 'results.factor_report("01K5';
+  const callContext = researchSdkCompletionContext(call, call.length);
+  assert.equal(callContext?.kind, 'parameter_value');
+  assert.equal(callContext?.parameterName, 'report_id');
+});
+
 test('does not claim an SDK return schema after a pandas method chain', () => {
   const source = `renamed = data.series(
     "index",

@@ -22,7 +22,7 @@ _MAX_TABLE_PREVIEW_BYTES = 1 * 1024 * 1024
 _MAX_CHART_ROWS = 5_000
 _MAX_CHART_SERIES = 20
 _MAX_IMAGE_BYTES = 4 * 1024 * 1024
-_RUNTIME_NAMES = {"charts", "data", "np", "pd"}
+_RUNTIME_NAMES = {"charts", "data", "np", "pd", "results"}
 _EQUITY_DATASET_COLUMNS = [
     "date",
     "code",
@@ -292,6 +292,20 @@ class _DataApi:
         if isinstance(result, dict) and isinstance(result.get("metadata"), dict):
             frame.attrs["jixie"] = result["metadata"]
         return frame
+
+
+class _ResultsApi:
+    def __init__(self, host: _HostBridge) -> None:
+        self._host = host
+
+    def factor_report(self, report_id: str) -> dict[str, Any]:
+        result = self._host.request(
+            "research_factor_report",
+            {"report_id": report_id},
+        )
+        if not isinstance(result, dict):
+            raise RuntimeError("Factor report response must be an object")
+        return result
 
 
 class _ChartResult:
@@ -676,6 +690,7 @@ def _new_namespace(host: _HostBridge, modules: dict[str, Any]) -> dict[str, Any]
         "__name__": "__research__",
         "data": _DataApi(host, modules["pandas"]),
         "charts": _ChartsApi(),
+        "results": _ResultsApi(host),
     }
     if modules["numpy"] is not None:
         namespace["np"] = modules["numpy"]

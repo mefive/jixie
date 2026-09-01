@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   RESEARCH_CROSS_SECTION_SDK_CONTRACT_V1,
+  RESEARCH_FACTOR_REPORT_SDK_CONTRACT_V1,
   RESEARCH_PANEL_SDK_CONTRACT_V1,
   RESEARCH_SDK_CONTRACT_V1,
   RESEARCH_SERIES_SDK_CONTRACT_V1,
@@ -9,6 +10,7 @@ import {
 import {
   parseResearchCrossSectionRuntimeRequest,
   parseResearchEquityDatasetRuntimeRows,
+  parseResearchFactorReportRuntimeRequest,
   parseResearchPanelRuntimeRequest,
   parseResearchSeriesRuntimeRequest,
   parseResearchSeriesRuntimeRows,
@@ -126,6 +128,17 @@ describe('research workbench SDK contract', () => {
         .filter((contract) => contract.namespace === 'charts')
         .map((contract) => contract.name),
     ).toEqual(['line', 'area', 'bar', 'scatter', 'event_path', 'histogram', 'boxplot', 'heatmap']);
+  });
+
+  it('publishes the owner-scoped FactorReport result bridge', () => {
+    expect(parseResearchFactorReportRuntimeRequest({ report_id: 'report-1' })).toEqual({
+      report_id: 'report-1',
+    });
+    expect(() => parseResearchFactorReportRuntimeRequest({ report_id: '' })).toThrow();
+    expect(RESEARCH_FACTOR_REPORT_SDK_CONTRACT_V1).toMatchObject({
+      qualifiedName: 'results.factor_report',
+      returns: { kind: 'mapping', pythonType: 'Mapping[str, Any]' },
+    });
   });
 
   it('derives the Agent SDK catalog from the same public contract', () => {

@@ -71,6 +71,7 @@ export type ResearchSdkReturnContractV1 =
       kind: 'dataframe';
       columns: readonly ResearchSdkDataFrameColumnContractV1[];
     }
+  | { kind: 'mapping'; pythonType: 'Mapping[str, Any]' }
   | { kind: 'chart' };
 
 export interface ResearchSdkFunctionContractV1 {
@@ -641,6 +642,40 @@ export const RESEARCH_SDK_CONTRACT_V1 = {
         ],
       },
     },
+    {
+      qualifiedName: 'results.factor_report',
+      namespace: 'results',
+      name: 'factor_report',
+      descriptionZh: '按报告 ID 读取当前用户已完成且可见的不可变 FactorReport 结果。',
+      descriptionEn:
+        'Load one completed, visible, immutable FactorReport result owned by the current user.',
+      examples: [
+        'report = results.factor_report("01K5EXAMPLEFACTORREPORT")',
+        'rank_ic_mean = report["report"]["ic_mean"]',
+      ],
+      notesZh: [
+        '返回顶层字段包括 report_id、factor、analysis_kind、phase、research_spec、research_intent、lineage 与 report。',
+        'report 与 research_spec 的字段使用 snake_case；原报告快照不会被修改或重新运行。',
+        '未揭示的 holdout 报告保持封存，其他用户的报告不可见。',
+      ],
+      notesEn: [
+        'Top-level keys include report_id, factor, analysis_kind, phase, research_spec, research_intent, lineage, and report.',
+        'The report and research_spec fields use snake_case; the frozen report is neither mutated nor rerun.',
+        'Unrevealed holdout reports remain sealed, and reports owned by other users are not visible.',
+      ],
+      parameters: [
+        {
+          name: 'report_id',
+          type: 'string',
+          required: true,
+          keywordOnly: false,
+          maximumLength: 512,
+          descriptionZh: 'Factor 页面报告历史或报告链接中的稳定报告 ID。',
+          descriptionEn: 'The stable report ID from Factor history or a Factor report link.',
+        },
+      ],
+      returns: { kind: 'mapping', pythonType: 'Mapping[str, Any]' },
+    },
     chartFunction(
       'line',
       '创建 jixie 原生交互折线图。',
@@ -792,3 +827,4 @@ export const RESEARCH_SERIES_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.function
 export const RESEARCH_CROSS_SECTION_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[1];
 export const RESEARCH_PANEL_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[2];
 export const RESEARCH_YIELD_CURVE_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[3];
+export const RESEARCH_FACTOR_REPORT_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[4];
