@@ -1,5 +1,6 @@
+import { createHash } from 'node:crypto';
 import { ulid } from 'ulid';
-import type { LogLine } from '@jixie/shared';
+import type { BacktestSummary, LogLine } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
 import { prisma } from './prisma.js';
 
@@ -11,7 +12,8 @@ import { prisma } from './prisma.js';
  *    shows its run log. Only a hard-crashed run (finishJob never ran) loses its logs — those were already
  *    streamed live, and boot marks the job stale.
  *  - Each line is a tagged LogLine (system vs user), tagged at the worker boundary.
- *  - The result is NOT stored on the job; it lands on the entity (FactorReport.payload / Strategy.lastResult).
+ *  - The result is NOT stored on the job; it lands on a report entity. Strategy.lastResult remains a
+ *    compatibility cache for the latest ordinary backtest.
  * A job's `key` ties it to what it computes (factor: variantKey, backtest: strategyId). Factor pages
  * restore through the report relation; legacy findRunningJob remains for backtests and correlation.
  */
@@ -64,6 +66,56 @@ export async function finishJob(
       },
     })
     .catch(() => {});
+  setTimeout(() => logsByJob.delete(jobId), LOG_TTL_MS).unref?.();
+}
+
+/** Finish an ordinary backtest, its immutable report, and the latest Strategy cache atomically. */
+export async function finishBacktestReportJob(
+  jobId: string,
+  reportId: string,
+  strategyId: string,
+  userId: string,
+  status: 'done' | 'error',
+  payload?: BacktestSummary,
+  error?: string,
+): Promise<void> {
+  const logs = logsByJob.get(jobId);
+  const result = payload
+    ? (JSON.parse(JSON.stringify(payload)) as Prisma.InputJsonValue)
+    : undefined;
+  const resultHash = result
+    ? createHash('sha256').update(JSON.stringify(result)).digest('hex')
+    : undefined;
+  const operations: Prisma.PrismaPromise<unknown>[] = [
+    prisma.backtestReport.update({
+      where: { id: reportId },
+      data: {
+        status,
+        payload: status === 'done' ? result : undefined,
+        resultHash: status === 'done' ? resultHash : undefined,
+        computedAt: status === 'done' ? new Date() : null,
+        error: status === 'error' ? (error ?? null) : null,
+      },
+    }),
+    prisma.job.update({
+      where: { id: jobId },
+      data: {
+        status,
+        error: error ?? null,
+        logs: logs ? JSON.stringify(logs) : undefined,
+        finishedAt: new Date(),
+      },
+    }),
+  ];
+  if (status === 'done' && result) {
+    operations.push(
+      prisma.strategy.updateMany({
+        where: { id: strategyId, userId },
+        data: { lastResult: result },
+      }),
+    );
+  }
+  await prisma.$transaction(operations);
   setTimeout(() => logsByJob.delete(jobId), LOG_TTL_MS).unref?.();
 }
 
@@ -198,6 +250,7 @@ export async function getJob(userId: string, jobId: string, since = 0) {
   return {
     status: job.status as JobStatus,
     factorReportId: job.factorReportId,
+    backtestReportId: job.backtestReportId,
     error: job.error,
     logs: logs.slice(since),
     nextSince: logs.length,
@@ -238,6 +291,7 @@ export async function markRunningJobsStale(): Promise<number> {
       where: { status: 'running' },
       select: {
         factorReportId: true,
+        backtestReportId: true,
         strategyScanReportId: true,
         signalRunId: true,
         researchCuratorRunId: true,
@@ -250,6 +304,15 @@ export async function markRunningJobsStale(): Promise<number> {
     if (reportIds.length > 0) {
       await transaction.factorReport.updateMany({
         where: { id: { in: reportIds }, status: 'running' },
+        data: { status: 'stale', error: null },
+      });
+    }
+    const backtestReportIds = running
+      .map((job) => job.backtestReportId)
+      .filter((reportId): reportId is string => !!reportId);
+    if (backtestReportIds.length > 0) {
+      await transaction.backtestReport.updateMany({
+        where: { id: { in: backtestReportIds }, status: 'running' },
         data: { status: 'stale', error: null },
       });
     }
@@ -304,6 +367,7 @@ export async function failJobAndEntity(jobId: string, error: string): Promise<vo
     where: { id: jobId },
     select: {
       factorReportId: true,
+      backtestReportId: true,
       strategyScanReportId: true,
       signalRunId: true,
       researchCuratorRunId: true,
@@ -322,6 +386,14 @@ export async function failJobAndEntity(jobId: string, error: string): Promise<vo
     operations.push(
       prisma.factorReport.update({
         where: { id: job.factorReportId },
+        data: { status: 'error', error },
+      }),
+    );
+  }
+  if (job.backtestReportId) {
+    operations.push(
+      prisma.backtestReport.update({
+        where: { id: job.backtestReportId },
         data: { status: 'error', error },
       }),
     );

@@ -808,7 +808,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
         this.since = job.nextSince;
       }
       if (job.status === 'done') {
-        // Result lives on the strategy now (worker wrote lastResult) — fetch it.
+        // The immutable report is complete; Strategy.lastResult mirrors it for the existing Lab UI.
         let result: BacktestSummary | null = null;
         let name = this.name;
         if (this.savedId) {

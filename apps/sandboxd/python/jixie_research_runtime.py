@@ -307,6 +307,15 @@ class _ResultsApi:
             raise RuntimeError("Factor report response must be an object")
         return result
 
+    def backtest_report(self, report_id: str) -> dict[str, Any]:
+        result = self._host.request(
+            "research_backtest_report",
+            {"report_id": report_id},
+        )
+        if not isinstance(result, dict):
+            raise RuntimeError("Backtest report response must be an object")
+        return result
+
 
 class _ChartResult:
     def __init__(self, spec: dict[str, Any]) -> None:

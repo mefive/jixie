@@ -9,7 +9,7 @@ import type {
 import type { StrategyLanguage } from './backtest.js';
 
 export type ResearchAssetTypeV1 = 'stock' | 'etf' | 'index' | 'future';
-export type ResearchDataCatalogScopeV1 = 'instruments' | 'factor_reports';
+export type ResearchDataCatalogScopeV1 = 'instruments' | 'factor_reports' | 'backtest_reports';
 export type ResearchFrequencyV1 = 'daily' | 'monthly';
 export type ResearchTransformV1 =
   | 'level'
@@ -204,6 +204,19 @@ export interface ResearchDataCatalogFactorReportV1 {
   computedAt: string | null;
 }
 
+/** A completed BacktestReport owned by the current user and discoverable from Research. */
+export interface ResearchDataCatalogBacktestReportV1 {
+  kind: 'backtest_report';
+  id: string;
+  strategyId: string;
+  strategyName: string;
+  start: string;
+  end: string;
+  language: StrategyLanguage;
+  createdAt: string;
+  computedAt: string | null;
+}
+
 /** One response powers the catalog UI and Monaco's identifier/measure completion. */
 export interface ResearchDataCatalogResultV1 {
   version: 1;
@@ -211,6 +224,7 @@ export interface ResearchDataCatalogResultV1 {
   sdkMethods: ResearchDataCatalogSdkMethodV1[];
   instruments: ResearchDataCatalogInstrumentV1[];
   factorReports: ResearchDataCatalogFactorReportV1[];
+  backtestReports: ResearchDataCatalogBacktestReportV1[];
   measures: ResearchMeasureDefinitionV1[];
 }
 

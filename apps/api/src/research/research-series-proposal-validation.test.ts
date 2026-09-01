@@ -17,6 +17,7 @@ const catalog: ResearchDataCatalogResultV1 = {
     },
   ],
   factorReports: [],
+  backtestReports: [],
   measures: [],
 };
 

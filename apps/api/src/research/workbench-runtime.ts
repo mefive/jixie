@@ -10,10 +10,12 @@ import { PythonSession } from '../strategy/python/session.js';
 import { loadResearchCrossSection, loadResearchPanel } from './equity-dataset.js';
 import { researchPayloadHash } from './fingerprints.js';
 import { researchYieldCurveBindingForSdkCall } from './concept-bindings.js';
+import { loadResearchBacktestReportResult } from './backtest-report-result.js';
 import { loadResearchFactorReportResult } from './factor-report-result.js';
 import { loadResearchSeries, prepareResearchSeries, researchSeriesLoadStart } from './series.js';
 import {
   parseResearchCrossSectionRuntimeRequest,
+  parseResearchBacktestReportRuntimeRequest,
   parseResearchEquityDatasetRuntimeRows,
   parseResearchFactorReportRuntimeRequest,
   parseResearchPanelRuntimeRequest,
@@ -21,6 +23,7 @@ import {
   parseResearchSeriesRuntimeRows,
   parseResearchYieldCurveRuntimeRequest,
   type ResearchCrossSectionRuntimeRequestV1,
+  type ResearchBacktestReportRuntimeRequestV1,
   type ResearchFactorReportRuntimeRequestV1,
   type ResearchPanelRuntimeRequestV1,
   type ResearchSeriesRuntimeRequestV1,
@@ -376,6 +379,10 @@ type ParsedResearchRequest =
   | (Omit<ResearchRequestFrame, 'method' | 'arguments'> & {
       method: 'research_factor_report';
       arguments: ResearchFactorReportRuntimeRequestV1;
+    })
+  | (Omit<ResearchRequestFrame, 'method' | 'arguments'> & {
+      method: 'research_backtest_report';
+      arguments: ResearchBacktestReportRuntimeRequestV1;
     });
 
 function parseResearchRequestFrame(frame: ResearchRequestFrame): ParsedResearchRequest {
@@ -414,6 +421,13 @@ function parseResearchRequestFrame(frame: ResearchRequestFrame): ParsedResearchR
         id: frame.id,
         method: 'research_factor_report',
         arguments: parseResearchFactorReportRuntimeRequest(frame.arguments),
+      };
+    case 'research_backtest_report':
+      return {
+        type: frame.type,
+        id: frame.id,
+        method: 'research_backtest_report',
+        arguments: parseResearchBacktestReportRuntimeRequest(frame.arguments),
       };
   }
 }
@@ -509,6 +523,10 @@ async function answerResearchRequest(
       }
       case 'research_factor_report': {
         result = await loadResearchFactorReportResult(documentId, frame.arguments.report_id);
+        break;
+      }
+      case 'research_backtest_report': {
+        result = await loadResearchBacktestReportResult(documentId, frame.arguments.report_id);
         break;
       }
     }

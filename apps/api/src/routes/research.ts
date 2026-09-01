@@ -87,7 +87,7 @@ export const researchRoute = new Hono();
 const dataCatalogQuery = z.strictObject({
   q: z.string().trim().max(120).default(''),
   assetType: z.enum(['stock', 'etf', 'index', 'future']).optional(),
-  scope: z.enum(['instruments', 'factor_reports']).default('instruments'),
+  scope: z.enum(['instruments', 'factor_reports', 'backtest_reports']).default('instruments'),
   limit: z.coerce.number().int().min(1).max(50).default(24),
 });
 
