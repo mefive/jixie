@@ -81,6 +81,8 @@ export const enResearch: typeof zhResearch = {
     runInterrupted: 'Run stopped; unfinished cells will not continue.',
     hideAgent: 'Hide Agent',
     showAgent: 'Show Agent',
+    backToDocument: 'Back to research document',
+    moreActions: 'More research actions',
     addCell: 'Add cell',
     cellKind: {
       markdown: 'Markdown',

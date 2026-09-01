@@ -77,6 +77,8 @@ export const zhResearch = {
     runInterrupted: '运行已停止；未完成的 Cell 不会继续执行。',
     hideAgent: '隐藏 Agent',
     showAgent: '显示 Agent',
+    backToDocument: '返回研究文档',
+    moreActions: '更多研究操作',
     addCell: '添加 Cell',
     cellKind: {
       markdown: 'Markdown',
