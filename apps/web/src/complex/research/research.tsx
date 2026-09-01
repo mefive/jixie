@@ -1,6 +1,17 @@
 import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
-import { Alert, Button, Dropdown, Input, Popconfirm, Skeleton, Splitter, Tooltip } from 'antd';
+import {
+  Alert,
+  App,
+  Button,
+  Dropdown,
+  Input,
+  Popconfirm,
+  Segmented,
+  Skeleton,
+  Splitter,
+  Tooltip,
+} from 'antd';
 import type { MenuProps } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { useBlocker } from 'react-router-dom';
@@ -9,9 +20,12 @@ import type {
   ResearchCellKindV1,
   ResearchCellStatusV1,
   ResearchCellV1,
+  ResearchDocumentListStateV1,
   ResearchDocumentSummaryV1,
 } from '@jixie/shared';
 import {
+  faBoxArchive,
+  faBoxOpen,
   faBolt,
   faArrowLeft,
   faCheck,
@@ -27,6 +41,7 @@ import {
   faFlask,
   faListCheck,
   faEllipsisVertical,
+  faMagnifyingGlass,
   faPaperPlane,
   faPen,
   faPlay,
@@ -172,7 +187,20 @@ const ResearchSidebar = complex.component(
   }) => {
     const store = complex.useStore();
     const { t } = useTranslation('research');
-    const documents = store.documentsLoader.result ?? [];
+    const [listState, setListState] = useState<ResearchDocumentListStateV1>('active');
+    const [query, setQuery] = useState('');
+    const loader = listState === 'active' ? store.documentsLoader : store.archivedDocumentsLoader;
+    const documents = loader.result ?? [];
+    const visibleDocuments = documents.filter((document) =>
+      researchDocumentMatchesQuery(document, query),
+    );
+    const changeListState = (value: string | number) => {
+      const nextState = value as ResearchDocumentListStateV1;
+      setListState(nextState);
+      if (nextState === 'archived') {
+        store.loadArchivedDocuments();
+      }
+    };
     return (
       <aside
         className={classNames('jx-research-sidebar', {
@@ -211,11 +239,35 @@ const ResearchSidebar = complex.component(
               </Tooltip>
             </div>
           </div>
+          <Segmented
+            block
+            className="jx-research-documentState"
+            value={listState}
+            options={[
+              { label: t('workbench.activeDocuments'), value: 'active' },
+              { label: t('workbench.archivedDocuments'), value: 'archived' },
+            ]}
+            onChange={changeListState}
+            data-testid="research-document-state"
+          />
+          <Input
+            allowClear
+            className="jx-research-documentSearch"
+            value={query}
+            prefix={<FontAwesomeIcon icon={faMagnifyingGlass} />}
+            placeholder={t('workbench.searchDocuments')}
+            onChange={(event) => setQuery(event.target.value)}
+            data-testid="research-document-search"
+          />
         </div>
         <div className="jx-research-sidebarScroll">
-          <h2 className="jx-research-sidebarLabel">{t('workbench.documents')}</h2>
+          <h2 className="jx-research-sidebarLabel">
+            {listState === 'active'
+              ? t('workbench.activeDocuments')
+              : t('workbench.archivedDocuments')}
+          </h2>
           <LoadingArea
-            loader={store.documentsLoader}
+            loader={loader}
             isEmpty={documents.length === 0}
             showDelay={0}
             minimumVisibleDuration={200}
@@ -228,10 +280,22 @@ const ResearchSidebar = complex.component(
             )}
           >
             {documents.length === 0 ? (
-              <p className="jx-research-sidebarEmpty">{t('workbench.emptyDocuments')}</p>
+              <p className="jx-research-sidebarEmpty">
+                {listState === 'active'
+                  ? t('workbench.emptyDocuments')
+                  : t('workbench.emptyArchivedDocuments')}
+              </p>
+            ) : visibleDocuments.length === 0 ? (
+              <p className="jx-research-sidebarEmpty">{t('workbench.noDocumentMatches')}</p>
             ) : (
-              documents.map((document) => (
-                <DocumentItem key={document.id} document={document} onSelect={onClose} />
+              visibleDocuments.map((document) => (
+                <DocumentItem
+                  key={document.id}
+                  document={document}
+                  listState={listState}
+                  query={query}
+                  onSelect={onClose}
+                />
               ))
             )}
           </LoadingArea>
@@ -243,48 +307,168 @@ const ResearchSidebar = complex.component(
 );
 
 const DocumentItem = complex.component(
-  ({ document, onSelect }: { document: ResearchDocumentSummaryV1; onSelect: () => void }) => {
+  ({
+    document,
+    listState,
+    query,
+    onSelect,
+  }: {
+    document: ResearchDocumentSummaryV1;
+    listState: ResearchDocumentListStateV1;
+    query: string;
+    onSelect: () => void;
+  }) => {
     const store = complex.useStore();
-    const { t } = useTranslation('research');
+    const { message, modal } = App.useApp();
+    const { t, i18n } = useTranslation('research');
+    const isCurrentDocument = store.documentId === document.id;
+    const archiveBlocked =
+      store.documentManagementLoader.loading ||
+      (isCurrentDocument && (store.hasActiveRun || store.sending));
+    const normalizedQuery = normalizeDocumentQuery(query);
+    const previewMatches =
+      normalizedQuery.length > 0 &&
+      !document.title.toLocaleLowerCase().includes(normalizedQuery) &&
+      document.preview.toLocaleLowerCase().includes(normalizedQuery);
+    const statusSummary =
+      document.staleCount > 0
+        ? t('workbench.staleSummary', { count: document.staleCount })
+        : t('workbench.cellSummary', { count: document.cellCount });
+    const secondaryText = previewMatches
+      ? document.preview
+      : listState === 'archived' && document.archivedAt
+        ? t('workbench.archivedSummary', {
+            date: formatResearchDocumentDate(document.archivedAt, i18n.language),
+            summary: statusSummary,
+          })
+        : statusSummary;
+    const archive = async () => {
+      try {
+        const archived = await store.archiveDocument(document.id);
+        if (archived) {
+          void message.success(t('workbench.archiveSuccess'));
+        } else {
+          void message.warning(t('workbench.archiveBlocked'));
+        }
+      } catch {
+        void message.error(t('workbench.documentActionFailed'));
+      }
+    };
+    const restore = async () => {
+      try {
+        await store.restoreDocument(document.id);
+        void message.success(t('workbench.restoreSuccess'));
+      } catch {
+        void message.error(t('workbench.documentActionFailed'));
+      }
+    };
+    const permanentlyDelete = () => {
+      modal.confirm({
+        title: t('workbench.permanentDeleteTitle'),
+        content: t('workbench.permanentDeleteDescription'),
+        okText: t('workbench.permanentDeleteConfirm'),
+        okButtonProps: { danger: true },
+        cancelText: t('workbench.cancel'),
+        onOk: async () => {
+          await store.permanentlyDeleteDocument(document.id);
+          void message.success(t('workbench.permanentDeleteSuccess'));
+        },
+      });
+    };
+    const menu: MenuProps = {
+      onClick: ({ key, domEvent }) => {
+        domEvent.stopPropagation();
+        switch (key) {
+          case 'archive':
+            void archive();
+            break;
+          case 'restore':
+            void restore();
+            break;
+          case 'delete':
+            permanentlyDelete();
+            break;
+        }
+      },
+      items:
+        listState === 'active'
+          ? [
+              {
+                key: 'archive',
+                icon: <FontAwesomeIcon icon={faBoxArchive} />,
+                label: t('workbench.archiveDocument'),
+                disabled: archiveBlocked,
+              },
+            ]
+          : [
+              {
+                key: 'restore',
+                icon: <FontAwesomeIcon icon={faBoxOpen} />,
+                label: t('workbench.restoreDocument'),
+              },
+              { type: 'divider' },
+              {
+                key: 'delete',
+                danger: true,
+                icon: <FontAwesomeIcon icon={faTrash} />,
+                label: t('workbench.permanentlyDeleteDocument'),
+              },
+            ],
+    };
     return (
       <div
         className={classNames('jx-research-historyItem', {
-          'jx-research-historyItem--active': store.documentId === document.id,
+          'jx-research-historyItem--active': isCurrentDocument,
+          'jx-research-historyItem--archived': listState === 'archived',
         })}
         onClick={() => {
+          if (listState === 'archived') {
+            return;
+          }
           void store.openDocument(document.id);
           onSelect();
         }}
+        data-testid={`research-document-item-${document.id}`}
       >
         <div className="jx-research-historyText">
           <div className="jx-research-historyTitle">{document.title}</div>
-          <div className="jx-research-historyPreview">
-            {document.staleCount > 0
-              ? t('workbench.staleSummary', { count: document.staleCount })
-              : t('workbench.cellSummary', { count: document.cellCount })}
-          </div>
+          <div className="jx-research-historyPreview">{secondaryText}</div>
         </div>
-        <Tooltip title={t('deleteChat')}>
-          <Popconfirm
-            title={t('deleteChat')}
-            onConfirm={() => void store.removeConversation(document.id)}
-            onPopupClick={(event) => event.stopPropagation()}
-          >
-            <Button
-              type="text"
-              size="small"
-              className="jx-research-historyDelete jx-research-destructiveAction"
-              icon={<FontAwesomeIcon icon={faTrash} />}
-              onClick={(event) => event.stopPropagation()}
-              aria-label={t('deleteChat')}
-            />
-          </Popconfirm>
-        </Tooltip>
+        <Dropdown menu={menu} trigger={['click']}>
+          <Button
+            type="text"
+            size="small"
+            className="jx-research-historyMenu"
+            icon={<FontAwesomeIcon icon={faEllipsisVertical} />}
+            aria-label={t('workbench.documentActions', { title: document.title })}
+            onClick={(event) => event.stopPropagation()}
+            data-testid={`research-document-menu-${document.id}`}
+          />
+        </Dropdown>
       </div>
     );
   },
   'DocumentItem',
 );
+
+function normalizeDocumentQuery(query: string): string {
+  return query.trim().toLocaleLowerCase();
+}
+
+function researchDocumentMatchesQuery(document: ResearchDocumentSummaryV1, query: string): boolean {
+  const normalizedQuery = normalizeDocumentQuery(query);
+  return (
+    normalizedQuery.length === 0 ||
+    document.title.toLocaleLowerCase().includes(normalizedQuery) ||
+    document.preview.toLocaleLowerCase().includes(normalizedQuery)
+  );
+}
+
+function formatResearchDocumentDate(value: string, language: string): string {
+  return new Intl.DateTimeFormat(language, { month: 'short', day: 'numeric' }).format(
+    new Date(value),
+  );
+}
 
 // —— Landing ——
 

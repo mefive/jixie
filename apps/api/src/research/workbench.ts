@@ -7,6 +7,7 @@ import type {
   ResearchDependencyConflictV1,
   ResearchDocumentAnalysisV1,
   ResearchDocumentInterruptResultV1,
+  ResearchDocumentListStateV1,
   ResearchDocumentRunResultV1,
   ResearchDocumentSummaryV1,
   ResearchDocumentTemplateV1,
@@ -155,9 +156,16 @@ export async function reconcileResearchCellChanges(
   }
 }
 
-export async function listResearchDocuments(userId: string): Promise<ResearchDocumentSummaryV1[]> {
+export async function listResearchDocuments(
+  userId: string,
+  state: ResearchDocumentListStateV1 = 'active',
+): Promise<ResearchDocumentSummaryV1[]> {
   const conversations = await prisma.agentConversation.findMany({
-    where: { userId, surface: 'research', archivedAt: null },
+    where: {
+      userId,
+      surface: 'research',
+      archivedAt: state === 'archived' ? { not: null } : null,
+    },
     include: {
       researchDocument: {
         select: { cells: { select: { status: true } } },
@@ -168,7 +176,7 @@ export async function listResearchDocuments(userId: string): Promise<ResearchDoc
         select: { parts: true },
       },
     },
-    orderBy: { updatedAt: 'desc' },
+    orderBy: state === 'archived' ? { archivedAt: 'desc' } : { updatedAt: 'desc' },
   });
   return conversations.map((conversation) => ({
     id: conversation.id,
@@ -177,9 +185,51 @@ export async function listResearchDocuments(userId: string): Promise<ResearchDoc
     cellCount: conversation.researchDocument?.cells.length ?? 0,
     staleCount:
       conversation.researchDocument?.cells.filter((cell) => cell.status === 'stale').length ?? 0,
+    archivedAt: conversation.archivedAt?.toISOString() ?? null,
     createdAt: conversation.createdAt.toISOString(),
     updatedAt: conversation.updatedAt.toISOString(),
   }));
+}
+
+export async function archiveResearchDocument(
+  userId: string,
+  documentId: string,
+): Promise<boolean> {
+  const conversation = await prisma.agentConversation.findFirst({
+    where: { id: documentId, userId, surface: 'research' },
+    select: { id: true, archivedAt: true },
+  });
+  if (!conversation) {
+    return false;
+  }
+  if (!conversation.archivedAt) {
+    await prisma.agentConversation.update({
+      where: { id: conversation.id },
+      data: { archivedAt: new Date() },
+    });
+  }
+  closeResearchDocumentRuntime(documentId);
+  return true;
+}
+
+export async function restoreResearchDocument(
+  userId: string,
+  documentId: string,
+): Promise<boolean> {
+  const conversation = await prisma.agentConversation.findFirst({
+    where: { id: documentId, userId, surface: 'research' },
+    select: { id: true, archivedAt: true },
+  });
+  if (!conversation) {
+    return false;
+  }
+  if (conversation.archivedAt) {
+    await prisma.agentConversation.update({
+      where: { id: conversation.id },
+      data: { archivedAt: null },
+    });
+  }
+  return true;
 }
 
 export async function createResearchDocument(

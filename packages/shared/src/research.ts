@@ -600,7 +600,10 @@ export interface ResearchCellV1 {
 export interface ResearchDocumentSummaryV1 extends ResearchConversationMeta {
   cellCount: number;
   staleCount: number;
+  archivedAt: string | null;
 }
+
+export type ResearchDocumentListStateV1 = 'active' | 'archived';
 
 export interface ResearchDocumentV1 {
   version: 1;
