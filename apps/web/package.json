@@ -26,6 +26,7 @@
     "test:e2e:research-mobile": "node e2e/research-mobile.mjs",
     "test:e2e:research-data-catalog": "node e2e/research-data-catalog.mjs",
     "test:e2e:research-documents": "node e2e/research-document-management.mjs",
+    "test:e2e:research-factor-report": "node e2e/research-factor-report-sdk.mjs",
     "test:e2e:learning-cross-market": "node e2e/learning-cross-market-case.mjs",
     "test:e2e:learning-trend-strategy": "node e2e/learning-trend-strategy-case.mjs",
     "test:e2e:learning-value-factor": "node e2e/learning-value-factor-case.mjs",

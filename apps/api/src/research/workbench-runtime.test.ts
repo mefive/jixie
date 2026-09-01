@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   RESEARCH_CROSS_SECTION_SDK_CONTRACT_V1,
+  RESEARCH_FACTOR_REPORT_SDK_CONTRACT_V1,
   RESEARCH_PANEL_SDK_CONTRACT_V1,
   RESEARCH_SERIES_SDK_CONTRACT_V1,
   RESEARCH_YIELD_CURVE_SDK_CONTRACT_V1,
@@ -182,7 +183,7 @@ describe('research workbench Python runtime', () => {
     const result = await researchRuntimeManager.execute(DOCUMENT_ID, {
       id: 'signature',
       source:
-        'import inspect\n"|".join(",".join(inspect.signature(method).parameters.keys()) for method in [data.series, data.cross_section, data.panel, data.yield_curve])',
+        'import inspect\n"|".join(",".join(inspect.signature(method).parameters.keys()) for method in [data.series, data.cross_section, data.panel, data.yield_curve, results.factor_report])',
     });
 
     expect(result.outputs).toEqual([
@@ -193,6 +194,7 @@ describe('research workbench Python runtime', () => {
           RESEARCH_CROSS_SECTION_SDK_CONTRACT_V1,
           RESEARCH_PANEL_SDK_CONTRACT_V1,
           RESEARCH_YIELD_CURVE_SDK_CONTRACT_V1,
+          RESEARCH_FACTOR_REPORT_SDK_CONTRACT_V1,
         ]
           .map((contract) => contract.parameters.map((parameter) => parameter.name).join(','))
           .join('|'),

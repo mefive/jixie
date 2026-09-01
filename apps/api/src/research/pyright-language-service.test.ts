@@ -130,6 +130,25 @@ describe('Research Pyright language service', () => {
     }
   }, 20_000);
 
+  it('types nested FactorReport result access through the generated Research SDK', async () => {
+    const factorReportRequest: ResearchLanguageRequestV1 = {
+      version: 1,
+      documentId: 'factor-report-1',
+      cells: [
+        {
+          id: 'analysis',
+          source:
+            'factor_report = results.factor_report("report-a")\nrank_ic = factor_report["report"]["ic_mean"]',
+        },
+      ],
+      cellId: 'analysis',
+      action: 'diagnostics',
+    };
+    const response = await service.request('factor-report-user', factorReportRequest);
+
+    expect(response).toMatchObject({ action: 'diagnostics', result: [] });
+  }, 20_000);
+
   it('publishes static diagnostics without executing a Cell', async () => {
     const response = await service.request('user-a:document-a', request('diagnostics'));
     expect(response.action).toBe('diagnostics');

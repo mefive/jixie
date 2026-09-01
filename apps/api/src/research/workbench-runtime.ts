@@ -10,15 +10,18 @@ import { PythonSession } from '../strategy/python/session.js';
 import { loadResearchCrossSection, loadResearchPanel } from './equity-dataset.js';
 import { researchPayloadHash } from './fingerprints.js';
 import { researchYieldCurveBindingForSdkCall } from './concept-bindings.js';
+import { loadResearchFactorReportResult } from './factor-report-result.js';
 import { loadResearchSeries, prepareResearchSeries, researchSeriesLoadStart } from './series.js';
 import {
   parseResearchCrossSectionRuntimeRequest,
   parseResearchEquityDatasetRuntimeRows,
+  parseResearchFactorReportRuntimeRequest,
   parseResearchPanelRuntimeRequest,
   parseResearchSeriesRuntimeRequest,
   parseResearchSeriesRuntimeRows,
   parseResearchYieldCurveRuntimeRequest,
   type ResearchCrossSectionRuntimeRequestV1,
+  type ResearchFactorReportRuntimeRequestV1,
   type ResearchPanelRuntimeRequestV1,
   type ResearchSeriesRuntimeRequestV1,
   type ResearchYieldCurveRuntimeRequestV1,
@@ -146,7 +149,7 @@ class ResearchRuntimeManager {
           }
           if (frame.type === 'request') {
             const request = parseResearchRequestFrame(frame);
-            await answerResearchRequest(entry.session, request);
+            await answerResearchRequest(documentId, entry.session, request);
             continue;
           }
           if (frame.type === 'research_executed') {
@@ -369,6 +372,10 @@ type ParsedResearchRequest =
   | (Omit<ResearchRequestFrame, 'method' | 'arguments'> & {
       method: 'research_panel';
       arguments: ResearchPanelRuntimeRequestV1;
+    })
+  | (Omit<ResearchRequestFrame, 'method' | 'arguments'> & {
+      method: 'research_factor_report';
+      arguments: ResearchFactorReportRuntimeRequestV1;
     });
 
 function parseResearchRequestFrame(frame: ResearchRequestFrame): ParsedResearchRequest {
@@ -401,10 +408,18 @@ function parseResearchRequestFrame(frame: ResearchRequestFrame): ParsedResearchR
         method: 'research_panel',
         arguments: parseResearchPanelRuntimeRequest(frame.arguments),
       };
+    case 'research_factor_report':
+      return {
+        type: frame.type,
+        id: frame.id,
+        method: 'research_factor_report',
+        arguments: parseResearchFactorReportRuntimeRequest(frame.arguments),
+      };
   }
 }
 
 async function answerResearchRequest(
+  documentId: string,
   session: PythonSession,
   frame: ParsedResearchRequest,
 ): Promise<void> {
@@ -490,6 +505,10 @@ async function answerResearchRequest(
           rows: parseResearchEquityDatasetRuntimeRows(loaded.rows),
           metadata: loaded.metadata,
         };
+        break;
+      }
+      case 'research_factor_report': {
+        result = await loadResearchFactorReportResult(documentId, frame.arguments.report_id);
         break;
       }
     }

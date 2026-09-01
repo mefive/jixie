@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import {
   RESEARCH_CROSS_SECTION_SDK_CONTRACT_V1,
+  RESEARCH_FACTOR_REPORT_SDK_CONTRACT_V1,
   RESEARCH_PANEL_SDK_CONTRACT_V1,
   RESEARCH_SERIES_SDK_CONTRACT_V1,
   RESEARCH_YIELD_CURVE_SDK_CONTRACT_V1,
@@ -56,6 +57,10 @@ export interface ResearchPanelRuntimeRequestV1 {
   risk_warning: 'exclude' | 'include';
 }
 
+export interface ResearchFactorReportRuntimeRequestV1 {
+  report_id: string;
+}
+
 const researchSeriesRequestSchema = z.strictObject(
   Object.fromEntries(
     RESEARCH_SERIES_SDK_CONTRACT_V1.parameters.map((parameter) => [
@@ -84,6 +89,9 @@ const researchCrossSectionRequestSchema = sdkRequestSchema(
 const researchPanelRequestSchema = sdkRequestSchema(RESEARCH_PANEL_SDK_CONTRACT_V1.parameters);
 const researchYieldCurveRequestSchema = sdkRequestSchema(
   RESEARCH_YIELD_CURVE_SDK_CONTRACT_V1.parameters,
+);
+const researchFactorReportRequestSchema = sdkRequestSchema(
+  RESEARCH_FACTOR_REPORT_SDK_CONTRACT_V1.parameters,
 );
 const researchEquityDatasetRowsSchema = z.array(
   z.strictObject(
@@ -124,6 +132,14 @@ export function parseResearchYieldCurveRuntimeRequest(
   return researchYieldCurveRequestSchema.parse(
     value,
   ) as unknown as ResearchYieldCurveRuntimeRequestV1;
+}
+
+export function parseResearchFactorReportRuntimeRequest(
+  value: unknown,
+): ResearchFactorReportRuntimeRequestV1 {
+  return researchFactorReportRequestSchema.parse(
+    value,
+  ) as unknown as ResearchFactorReportRuntimeRequestV1;
 }
 
 export function parseResearchEquityDatasetRuntimeRows(value: unknown): unknown[] {

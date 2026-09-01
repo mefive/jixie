@@ -17,6 +17,18 @@ Research Agent 帮你选择数据、生成代码和解释真实输出；不需�
 Cell 源码由文档级自动保存保护；状态会显示未保存、保存中或已保存。修改上游源码后，依赖它的下游结果会变成
 stale，不会在后台自动执行昂贵计算。
 
+## 读取已有 FactorReport
+
+从 Factor 报告历史或报告链接复制报告 ID 后，可以在 Python Cell 只读加载其不可变结果：
+
+```python
+factor_report = results.factor_report("报告 ID")
+rank_ic_mean = factor_report["report"]["ic_mean"]
+```
+
+返回的报告与参数字段使用 snake_case。该方法不会修改或重新运行报告；其他用户的报告不可见，未显式揭示的
+Holdout 报告仍保持封存。
+
 ## 与 Research Agent 协作
 
 Agent 可以补充统计方法和公式、查询准确的 Research SDK、修改 Markdown/Python Cell，并基于真实输出解释结果。
@@ -63,4 +75,5 @@ Agent 不能把未运行的代码说成已经计算，也不能用文字替代�
 - [与 Research Agent 协作](/docs/help/research/agent-collaboration)
 - [回答研究口径确认](/docs/help/research/clarifications)
 - [读取美国国债收益率曲线](/docs/help/research/yield-curves)
+- [理解 Factor 报告历史](/docs/help/factors/report-history)
 - [将研究交给 Factor 或 Strategy](/docs/help/research/handoff)

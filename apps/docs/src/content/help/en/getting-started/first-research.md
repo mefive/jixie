@@ -17,6 +17,18 @@ yourself or ask the Research Agent to select data, generate code, and explain re
 Document-level autosave protects cell source and shows unsaved, saving, or saved state. Editing upstream source marks dependent
 outputs stale; expensive calculations do not rerun silently in the background.
 
+## Read an existing FactorReport
+
+Copy a report ID from Factor report history or a report link, then load its immutable result read-only in a Python cell:
+
+```python
+factor_report = results.factor_report("report ID")
+rank_ic_mean = factor_report["report"]["ic_mean"]
+```
+
+Report and parameter fields use snake_case. This method neither changes nor reruns a report. Reports owned by other users are
+not visible, and an unrevealed holdout report remains sealed.
+
 ## Work with the Research Agent
 
 The Agent can add statistical methods and formulas, query the exact Research SDK contract, edit Markdown/Python cells, and
@@ -70,4 +82,5 @@ upstream revision changes the disclosed data revision.
 - [Collaborate with Research Agent](/docs/help/research/agent-collaboration)
 - [Answer a research-definition clarification](/docs/help/research/clarifications)
 - [Load US Treasury yield curves](/docs/help/research/yield-curves)
+- [Understand Factor report history](/docs/help/factors/report-history)
 - [Hand research to Factor or Strategy](/docs/help/research/handoff)

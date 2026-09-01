@@ -6,7 +6,7 @@ import type {
 
 const VIRTUAL_PRELUDE = [
   '# Generated Research document prelude. It is not persisted or executed.',
-  'from jixie_research_sdk import charts, data',
+  'from jixie_research_sdk import charts, data, results',
   'import pandas as pd',
   'import numpy as np',
   '',

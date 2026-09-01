@@ -1,5 +1,9 @@
 import { RESEARCH_SDK_CONTRACT_V1, type ResearchSdkFunctionContractV1 } from '@jixie/shared';
 
+const researchSdkNamespacePattern = [
+  ...new Set(RESEARCH_SDK_CONTRACT_V1.functions.map((item) => item.namespace)),
+].join('|');
+
 export type ResearchSdkCompletionContext =
   | { kind: 'namespace_member'; namespace: string; partial: string }
   | {
@@ -89,7 +93,9 @@ export function researchSdkCompletionContext(
     }
   }
 
-  const memberMatch = prefix.match(/\b(data|charts)\.([A-Za-z_]\w*)?$/);
+  const memberMatch = prefix.match(
+    new RegExp(`\\b(${researchSdkNamespacePattern})\\.([A-Za-z_]\\w*)?$`),
+  );
   if (memberMatch) {
     return {
       kind: 'namespace_member',

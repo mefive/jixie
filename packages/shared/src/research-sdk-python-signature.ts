@@ -53,5 +53,12 @@ export function researchSdkPythonParameterType(parameter: ResearchSdkParameterCo
 }
 
 export function researchSdkPythonReturnType(contract: ResearchSdkReturnContractV1): string {
-  return contract.kind === 'dataframe' ? 'pd.DataFrame' : '_ChartResult';
+  switch (contract.kind) {
+    case 'dataframe':
+      return 'pd.DataFrame';
+    case 'mapping':
+      return contract.pythonType;
+    case 'chart':
+      return '_ChartResult';
+  }
 }
