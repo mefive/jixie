@@ -146,12 +146,55 @@ export interface ResearchDataCatalogInstrumentV1 {
   tags: string[];
   continuous?: boolean;
   compatibleMeasureIds: string[];
+  localDataCoverage?: ResearchDataCatalogCoverageV1;
+  sdkAccess?: ResearchDataCatalogSdkAccessV1;
+  researchRegistry?: ResearchDataCatalogRegistryV1 | null;
+}
+
+export type ResearchDataCatalogCoverageV1 =
+  | {
+      status: 'ready';
+      observationCount: number;
+      startDate: string;
+      endDate: string;
+      dateBasis: 'tradeDate' | 'availableDate';
+    }
+  | {
+      status: 'missing';
+      reason: 'source_available_but_local_data_missing';
+    };
+
+export type ResearchDataCatalogSdkAccessV1 =
+  | { status: 'ready'; method: 'data.series' }
+  | {
+      status: 'not_ready';
+      reason: 'source_available_but_local_data_missing';
+    };
+
+export interface ResearchDataCatalogRegistryV1 {
+  exposureId: string;
+  role: 'primary' | 'backup';
+  region: string;
+  currencyExposure: string;
+  selectionAsOf: string;
+  knownLimitations: readonly string[];
+}
+
+export interface ResearchDataCatalogSdkMethodV1 {
+  qualifiedName: string;
+  name: string;
+  descriptionZh: string;
+  descriptionEn: string;
+  signature: string;
+  example: string;
+  returnColumns: string[];
 }
 
 /** One response powers the catalog UI and Monaco's identifier/measure completion. */
 export interface ResearchDataCatalogResultV1 {
   version: 1;
   query: string;
+  sdkMethods: ResearchDataCatalogSdkMethodV1[];
   instruments: ResearchDataCatalogInstrumentV1[];
   measures: ResearchMeasureDefinitionV1[];
 }

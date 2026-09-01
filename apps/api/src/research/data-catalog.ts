@@ -1,10 +1,17 @@
-import type {
-  ResearchAssetTypeV1,
-  ResearchDataCatalogInstrumentV1,
-  ResearchDataCatalogResultV1,
-  ResearchMeasureDefinitionV1,
+import {
+  RESEARCH_SDK_AGENT_CATALOG_V1,
+  type ResearchAssetTypeV1,
+  type ResearchDataCatalogCoverageV1,
+  type ResearchDataCatalogInstrumentV1,
+  type ResearchDataCatalogRegistryV1,
+  type ResearchDataCatalogResultV1,
+  type ResearchMeasureDefinitionV1,
 } from '@jixie/shared';
 import { prisma } from '../lib/prisma.js';
+import {
+  etfResearchMembership,
+  type EtfResearchMembership,
+} from '../store/etf-research-registry.js';
 import { researchCapabilityCatalog } from './catalog.js';
 
 export interface ResearchDataCatalogQuery {
@@ -29,9 +36,23 @@ export async function searchResearchDataCatalog(
       measure.sourceKinds.includes('instrument') &&
       (!input.assetType || measure.assetTypes?.includes(input.assetType)),
   );
+  const sdkMethods = RESEARCH_SDK_AGENT_CATALOG_V1.methods
+    .filter((method) => method.namespace === 'data')
+    .map((method) => ({
+      qualifiedName: method.qualifiedName,
+      name: method.name,
+      descriptionZh: method.descriptionZh,
+      descriptionEn: method.descriptionEn,
+      signature: method.signature,
+      example: method.examples[0] ?? '',
+      returnColumns:
+        method.returns.kind === 'dataframe'
+          ? method.returns.columns.map((column) => column.name)
+          : [],
+    }));
 
   if (!query) {
-    return { version: 1, query, instruments: [], measures };
+    return { version: 1, query, sdkMethods, instruments: [], measures };
   }
 
   const [stocks, etfs, indexes, marketBenchmarks, indexCodes, futureMappings, futures] =
@@ -198,11 +219,181 @@ export async function searchResearchDataCatalog(
     ),
   ];
 
+  const instruments = uniqueRankedInstruments(candidates, query).slice(0, limit);
+
   return {
     version: 1,
     query,
-    instruments: uniqueRankedInstruments(candidates, query).slice(0, limit),
+    sdkMethods,
+    instruments: await attachLocalDataCoverage(instruments),
     measures,
+  };
+}
+
+async function attachLocalDataCoverage(
+  instruments: ResearchDataCatalogInstrumentV1[],
+): Promise<ResearchDataCatalogInstrumentV1[]> {
+  const stockCodes = instrumentCodes(instruments, 'stock');
+  const etfCodes = instrumentCodes(instruments, 'etf');
+  const benchmarkIds = instruments
+    .filter(
+      (instrument) =>
+        instrument.assetType === 'index' &&
+        instrument.compatibleMeasureIds.includes('market.cny_close'),
+    )
+    .map((instrument) => instrument.identifier);
+  const indexCodes = instruments
+    .filter(
+      (instrument) =>
+        instrument.assetType === 'index' &&
+        !instrument.compatibleMeasureIds.includes('market.cny_close'),
+    )
+    .map((instrument) => instrument.identifier);
+  const continuousFutureCodes = instruments
+    .filter((instrument) => instrument.assetType === 'future' && instrument.continuous)
+    .map((instrument) => instrument.identifier);
+  const futureCodes = instruments
+    .filter((instrument) => instrument.assetType === 'future' && !instrument.continuous)
+    .map((instrument) => instrument.identifier);
+  const [stocks, etfs, indexes, benchmarks, continuousFutures, futures] = await Promise.all([
+    prisma.daily.groupBy({
+      by: ['tsCode'],
+      where: { tsCode: { in: stockCodes } },
+      _count: { _all: true },
+      _min: { tradeDate: true },
+      _max: { tradeDate: true },
+    }),
+    prisma.etfDaily.groupBy({
+      by: ['tsCode'],
+      where: { tsCode: { in: etfCodes } },
+      _count: { _all: true },
+      _min: { tradeDate: true },
+      _max: { tradeDate: true },
+    }),
+    prisma.indexDaily.groupBy({
+      by: ['tsCode'],
+      where: { tsCode: { in: indexCodes } },
+      _count: { _all: true },
+      _min: { tradeDate: true },
+      _max: { tradeDate: true },
+    }),
+    prisma.marketBenchmarkDaily.groupBy({
+      by: ['benchmarkId'],
+      where: { benchmarkId: { in: benchmarkIds } },
+      _count: { _all: true },
+      _min: { availableDate: true },
+      _max: { availableDate: true },
+    }),
+    prisma.futureMapping.groupBy({
+      by: ['continuousCode'],
+      where: { continuousCode: { in: continuousFutureCodes } },
+      _count: { _all: true },
+      _min: { tradeDate: true },
+      _max: { tradeDate: true },
+    }),
+    prisma.futureDaily.groupBy({
+      by: ['tsCode'],
+      where: { tsCode: { in: futureCodes } },
+      _count: { _all: true },
+      _min: { tradeDate: true },
+      _max: { tradeDate: true },
+    }),
+  ]);
+  const coverageByInstrument = new Map<string, ResearchDataCatalogCoverageV1>();
+  for (const row of stocks) {
+    setTradeDateCoverage(coverageByInstrument, `stock:${row.tsCode}`, row);
+  }
+  for (const row of etfs) {
+    setTradeDateCoverage(coverageByInstrument, `etf:${row.tsCode}`, row);
+  }
+  for (const row of indexes) {
+    setTradeDateCoverage(coverageByInstrument, `index:${row.tsCode}`, row);
+  }
+  for (const row of benchmarks) {
+    if (row._min.availableDate && row._max.availableDate) {
+      coverageByInstrument.set(`index:${row.benchmarkId}`, {
+        status: 'ready',
+        observationCount: row._count._all,
+        startDate: row._min.availableDate,
+        endDate: row._max.availableDate,
+        dateBasis: 'availableDate',
+      });
+    }
+  }
+  for (const row of continuousFutures) {
+    setTradeDateCoverage(coverageByInstrument, `future:${row.continuousCode}`, row);
+  }
+  for (const row of futures) {
+    setTradeDateCoverage(coverageByInstrument, `future:${row.tsCode}`, row);
+  }
+
+  return instruments.map((instrument) => {
+    const localDataCoverage =
+      coverageByInstrument.get(`${instrument.assetType}:${instrument.identifier}`) ??
+      missingCoverage();
+    const membership =
+      instrument.assetType === 'etf' ? etfResearchMembership(instrument.identifier) : null;
+    return {
+      ...instrument,
+      localDataCoverage,
+      sdkAccess:
+        localDataCoverage.status === 'ready'
+          ? { status: 'ready', method: 'data.series' }
+          : {
+              status: 'not_ready',
+              reason: 'source_available_but_local_data_missing',
+            },
+      ...(instrument.assetType === 'etf'
+        ? { researchRegistry: membership ? dataCatalogRegistry(membership) : null }
+        : {}),
+    };
+  });
+}
+
+function instrumentCodes(
+  instruments: ResearchDataCatalogInstrumentV1[],
+  assetType: ResearchAssetTypeV1,
+): string[] {
+  return instruments
+    .filter((instrument) => instrument.assetType === assetType)
+    .map((instrument) => instrument.identifier);
+}
+
+function setTradeDateCoverage(
+  coverageByInstrument: Map<string, ResearchDataCatalogCoverageV1>,
+  key: string,
+  row: {
+    _count: { _all: number };
+    _min: { tradeDate: string | null };
+    _max: { tradeDate: string | null };
+  },
+) {
+  if (row._min.tradeDate && row._max.tradeDate) {
+    coverageByInstrument.set(key, {
+      status: 'ready',
+      observationCount: row._count._all,
+      startDate: row._min.tradeDate,
+      endDate: row._max.tradeDate,
+      dateBasis: 'tradeDate',
+    });
+  }
+}
+
+function missingCoverage(): ResearchDataCatalogCoverageV1 {
+  return {
+    status: 'missing',
+    reason: 'source_available_but_local_data_missing',
+  };
+}
+
+function dataCatalogRegistry(membership: EtfResearchMembership): ResearchDataCatalogRegistryV1 {
+  return {
+    exposureId: membership.exposureId,
+    role: membership.role,
+    region: membership.region,
+    currencyExposure: membership.currencyExposure,
+    selectionAsOf: membership.selectionAsOf,
+    knownLimitations: membership.knownLimitations,
   };
 }
 

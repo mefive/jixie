@@ -5,6 +5,7 @@ import { validateResearchSeriesProposal } from './research-series-proposal-valid
 const catalog: ResearchDataCatalogResultV1 = {
   version: 1,
   query: '000300.SH',
+  sdkMethods: [],
   instruments: [
     {
       kind: 'instrument',
