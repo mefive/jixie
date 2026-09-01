@@ -802,6 +802,7 @@ model User {
 
   sessions                Session[]
   strategies              Strategy[]
+  backtestReports         BacktestReport[]
   strategyScanReports     StrategyScanReport[]
   strategyDeployments     StrategyDeployment[]
   signalRuns              SignalRun[]
@@ -899,7 +900,7 @@ model FactorCorrelation {
 /// resume via a query); progress logs stream in-memory while live and are flushed to `logs` once on
 /// finish (so a reopened finished job still shows them). A key ties the job to what it computes
 /// (factor: variantKey, backtest: strategyId). Factor jobs are restored through factorReportId; on boot,
-/// running jobs and their reports become stale. Results live on FactorReport / Strategy, not Job.
+/// running jobs and their reports become stale. Results live on FactorReport / BacktestReport, not Job.
 model Job {
   id                   String              @id // ULID
   userId               String
@@ -911,6 +912,8 @@ model Job {
   logs                 String? // JSON(LogLine[]) — flushed once on finish; live logs stream from memory (see lib/jobs.ts)
   factorReportId       String?             @unique
   factorReport         FactorReport?       @relation(fields: [factorReportId], references: [id], onDelete: Cascade)
+  backtestReportId     String?             @unique
+  backtestReport       BacktestReport?     @relation(fields: [backtestReportId], references: [id], onDelete: Cascade)
   strategyScanReportId String?             @unique
   strategyScanReport   StrategyScanReport? @relation(fields: [strategyScanReportId], references: [id], onDelete: Cascade)
   signalRunId          String?
@@ -963,6 +966,7 @@ model Strategy {
   sourceResearchExecution   ResearchExecution?   @relation("StrategySourceResearchExecution", fields: [sourceResearchExecutionId], references: [id], onDelete: SetNull)
   researchHandoff           Json? // ResearchStrategyHandoffV1; source meaning and unresolved backtest decisions
   conversations             AgentConversation[]
+  backtestReports           BacktestReport[]
   scanReports               StrategyScanReport[]
   deployments               StrategyDeployment[]
   createdAt                 DateTime             @default(now())
@@ -971,6 +975,29 @@ model Strategy {
   @@unique([userId, name]) // name = identity within a user → enables upsert-by-name
   @@index([userId, updatedAt]) // list a user's strategies, newest first
   @@index([visibility, updatedAt])
+}
+
+/// One immutable ordinary backtest run. Strategy.lastResult remains the latest-result cache used by
+/// Strategy Lab, while this row preserves every frozen config and result for later Research access.
+model BacktestReport {
+  id           String    @id // ULID; migrated latest-result snapshots use a stable legacy: prefix
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  strategyId   String
+  strategy     Strategy  @relation(fields: [strategyId], references: [id], onDelete: Cascade)
+  strategyName String
+  status       String // 'running' | 'done' | 'error' | 'stale'
+  config       Json // frozen BacktestConfig
+  codeHash     String?
+  resultHash   String?
+  payload      Json? // frozen BacktestSummary
+  error        String?
+  job          Job?
+  createdAt    DateTime  @default(now())
+  computedAt   DateTime?
+
+  @@index([userId, strategyId, createdAt])
+  @@index([userId, status, createdAt])
 }
 
 /// One immutable strategy version promoted from research into daily operation. Editing Strategy.config

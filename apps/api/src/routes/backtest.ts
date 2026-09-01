@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { ulid } from 'ulid';
@@ -20,8 +21,8 @@ import { extractFactorKeys } from '../engine/prepare-custom-factors.js';
  *                                      worker when a bounded slot is available
  *   GET  /running?strategyId=X         an active Job's id (queued or running; re-attach after refresh)
  *   GET  /:jobId?since=N               poll the Job: { status, logs, nextSince, error }
- * Status lives in the Job table (durable, cross-client resume); logs stay in-memory; the result lives
- * on the Strategy (not the Job).
+ * Status lives in the Job table (durable, cross-client resume); logs stay in-memory; each result lives
+ * on an immutable BacktestReport while Strategy.lastResult caches the latest successful run.
  */
 export const backtestRoute = new Hono();
 
@@ -64,26 +65,39 @@ backtestRoute.post('/', validateQuery(strategyQuery), validateJson(codeConfigSch
       },
     );
     const committedConfig = { ...config, name: committed!.name };
+    const reportId = ulid();
     const jobId = ulid();
-    await transaction.job.create({
+    await transaction.backtestReport.create({
       data: {
-        id: jobId,
+        id: reportId,
         userId,
-        kind: 'backtest',
-        key: strategyId,
-        status: 'queued',
-        payload: JSON.parse(
-          JSON.stringify({
-            task: 'backtest',
-            strategyId,
+        strategyId,
+        strategyName: committedConfig.name,
+        status: 'running',
+        config: JSON.parse(JSON.stringify(committedConfig)) as Prisma.InputJsonValue,
+        codeHash: createHash('sha256').update(committedConfig.code).digest('hex'),
+        job: {
+          create: {
+            id: jobId,
             userId,
-            locale,
-            config: committedConfig,
-          }),
-        ) as Prisma.InputJsonValue,
+            kind: 'backtest',
+            key: strategyId,
+            status: 'queued',
+            payload: JSON.parse(
+              JSON.stringify({
+                task: 'backtest',
+                reportId,
+                strategyId,
+                userId,
+                locale,
+                config: committedConfig,
+              }),
+            ) as Prisma.InputJsonValue,
+          },
+        },
       },
     });
-    return { kind: 'ready' as const, jobId };
+    return { kind: 'ready' as const, jobId, reportId };
   });
   if (start.kind === 'not_found') {
     return apiError(c, 'NOT_FOUND', m(c, 'strategyNotFound'));
@@ -95,7 +109,7 @@ backtestRoute.post('/', validateQuery(strategyQuery), validateJson(codeConfigSch
   const jobId = start.jobId;
   initializeJobLogs(jobId);
   wakeJobQueue();
-  return c.json({ jobId });
+  return c.json({ jobId, reportId: start.reportId });
 });
 
 // /running must be registered before /:jobId (else it matches the param route).

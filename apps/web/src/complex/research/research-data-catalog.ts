@@ -1,4 +1,5 @@
 import type {
+  ResearchDataCatalogBacktestReportV1,
   ResearchDataCatalogFactorReportV1,
   ResearchDataCatalogInstrumentV1,
   ResearchFrequencyV1,
@@ -12,6 +13,24 @@ export interface ResearchSeriesSnippetOptions {
   end: string;
   frequency: ResearchFrequencyV1;
   transform: ResearchTransformV1;
+}
+
+/** Build the immutable backtest lookup inserted by the catalog. */
+export function researchBacktestReportSnippet(
+  report: Pick<ResearchDataCatalogBacktestReportV1, 'id' | 'strategyName'>,
+): string {
+  return `${researchBacktestReportVariableName(report.strategyName)} = results.backtest_report(${JSON.stringify(report.id)})`;
+}
+
+function researchBacktestReportVariableName(strategyName: string): string {
+  let identifier = strategyName
+    .toLocaleLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  if (/^[0-9]/.test(identifier)) {
+    identifier = `backtest_${identifier}`;
+  }
+  return `${identifier || 'backtest'}_report`;
 }
 
 /** Build the immutable report lookup inserted by the catalog. */

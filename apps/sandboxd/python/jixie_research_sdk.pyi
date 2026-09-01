@@ -90,6 +90,17 @@ class _ResultsApi:
         report_id: str,
     ) -> Mapping[str, Any]: ...
 
+    # Load one completed, immutable BacktestReport result owned by the current user.
+    # Note: Top-level keys include report_id, strategy_id, strategy_name, backtest_spec, lineage, and report.
+    # Note: The report and backtest_spec fields use snake_case; the frozen report is neither mutated nor rerun.
+    # Note: Only completed reports with results owned by the current user can be loaded.
+    # Example: report = results.backtest_report("01K5EXAMPLEBACKTESTREPORT")
+    # Example: sharpe = report["report"]["sharpe"]
+    def backtest_report(
+        self,
+        report_id: str,
+    ) -> Mapping[str, Any]: ...
+
 
 
 class _ChartsApi:

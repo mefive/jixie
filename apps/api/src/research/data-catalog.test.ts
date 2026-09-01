@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   futureDailyGroupBy: vi.fn(),
   factorFindMany: vi.fn(),
   factorReportFindMany: vi.fn(),
+  backtestReportFindMany: vi.fn(),
 }));
 
 vi.mock('../lib/prisma.js', () => ({
@@ -36,6 +37,7 @@ vi.mock('../lib/prisma.js', () => ({
     futureDaily: { groupBy: mocks.futureDailyGroupBy },
     factor: { findMany: mocks.factorFindMany },
     factorReport: { findMany: mocks.factorReportFindMany },
+    backtestReport: { findMany: mocks.backtestReportFindMany },
   },
 }));
 
@@ -51,6 +53,7 @@ describe('research data catalog', () => {
 
     expect(result.instruments).toEqual([]);
     expect(result.factorReports).toEqual([]);
+    expect(result.backtestReports).toEqual([]);
     expect(result.measures.map((measure) => measure.id)).toEqual([
       'market.adjusted_close',
       'market.cny_close',
@@ -230,7 +233,6 @@ describe('research data catalog', () => {
         where: expect.objectContaining({
           userId: 'user-a',
           status: 'done',
-          payload: { not: null },
           OR: expect.arrayContaining([{ factor: { in: ['value_quality'] } }]),
         }),
       }),
@@ -256,5 +258,52 @@ describe('research data catalog', () => {
     ]);
     expect(mocks.stockFindMany).not.toHaveBeenCalled();
     expect(mocks.indexFindMany).not.toHaveBeenCalled();
+  });
+
+  it('searches completed user BacktestReports and maps their frozen config', async () => {
+    mocks.backtestReportFindMany.mockResolvedValue([
+      {
+        id: 'backtest-report-a',
+        strategyId: 'strategy-a',
+        strategyName: '价值轮动',
+        config: {
+          start: '20200101',
+          end: '20251231',
+          language: 'python',
+        },
+        createdAt: new Date('2026-08-21T08:00:00.000Z'),
+        computedAt: new Date('2026-08-21T08:05:00.000Z'),
+      },
+    ]);
+
+    const result = await searchResearchDataCatalog({
+      query: '价值',
+      scope: 'backtest_reports',
+      userId: 'user-a',
+    });
+
+    expect(mocks.backtestReportFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          userId: 'user-a',
+          status: 'done',
+          OR: expect.arrayContaining([{ strategyName: { contains: '价值' } }]),
+        }),
+      }),
+    );
+    expect(result.sdkMethods.map((method) => method.qualifiedName)).toEqual([
+      'results.backtest_report',
+    ]);
+    expect(result.factorReports).toEqual([]);
+    expect(result.backtestReports).toEqual([
+      expect.objectContaining({
+        id: 'backtest-report-a',
+        strategyName: '价值轮动',
+        start: '20200101',
+        end: '20251231',
+        language: 'python',
+      }),
+    ]);
+    expect(mocks.stockFindMany).not.toHaveBeenCalled();
   });
 });

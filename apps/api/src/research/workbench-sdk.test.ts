@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   RESEARCH_CROSS_SECTION_SDK_CONTRACT_V1,
+  RESEARCH_BACKTEST_REPORT_SDK_CONTRACT_V1,
   RESEARCH_FACTOR_REPORT_SDK_CONTRACT_V1,
   RESEARCH_PANEL_SDK_CONTRACT_V1,
   RESEARCH_SDK_CONTRACT_V1,
@@ -9,6 +10,7 @@ import {
 } from '@jixie/shared';
 import {
   parseResearchCrossSectionRuntimeRequest,
+  parseResearchBacktestReportRuntimeRequest,
   parseResearchEquityDatasetRuntimeRows,
   parseResearchFactorReportRuntimeRequest,
   parseResearchPanelRuntimeRequest,
@@ -137,6 +139,17 @@ describe('research workbench SDK contract', () => {
     expect(() => parseResearchFactorReportRuntimeRequest({ report_id: '' })).toThrow();
     expect(RESEARCH_FACTOR_REPORT_SDK_CONTRACT_V1).toMatchObject({
       qualifiedName: 'results.factor_report',
+      returns: { kind: 'mapping', pythonType: 'Mapping[str, Any]' },
+    });
+  });
+
+  it('publishes the owner-scoped BacktestReport result bridge', () => {
+    expect(parseResearchBacktestReportRuntimeRequest({ report_id: 'backtest-report-1' })).toEqual({
+      report_id: 'backtest-report-1',
+    });
+    expect(() => parseResearchBacktestReportRuntimeRequest({ report_id: '' })).toThrow();
+    expect(RESEARCH_BACKTEST_REPORT_SDK_CONTRACT_V1).toMatchObject({
+      qualifiedName: 'results.backtest_report',
       returns: { kind: 'mapping', pythonType: 'Mapping[str, Any]' },
     });
   });

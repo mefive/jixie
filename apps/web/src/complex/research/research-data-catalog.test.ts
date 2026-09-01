@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  researchBacktestReportSnippet,
   researchFactorReportSnippet,
   researchSeriesSnippet,
   researchSeriesVariableName,
@@ -45,5 +46,19 @@ test('inserts an immutable FactorReport lookup by stable report id', () => {
   assert.equal(
     researchFactorReportSnippet({ id: 'report-01', factor: 'value-quality' }),
     'value_quality_report = results.factor_report("report-01")',
+  );
+});
+
+test('inserts an immutable BacktestReport lookup by stable report id', () => {
+  assert.equal(
+    researchBacktestReportSnippet({ id: 'backtest-report-01', strategyName: 'Value Rotation' }),
+    'value_rotation_report = results.backtest_report("backtest-report-01")',
+  );
+});
+
+test('keeps a BacktestReport variable valid for a Chinese name ending in digits', () => {
+  assert.equal(
+    researchBacktestReportSnippet({ id: 'backtest-report-02', strategyName: '价值轮动 2026' }),
+    'backtest_2026_report = results.backtest_report("backtest-report-02")',
   );
 });

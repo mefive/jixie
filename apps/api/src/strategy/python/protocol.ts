@@ -354,6 +354,7 @@ export const researchExecutionFrameSchema = z.union([
       'research_cross_section',
       'research_panel',
       'research_factor_report',
+      'research_backtest_report',
     ]),
     arguments: z.unknown(),
   }),

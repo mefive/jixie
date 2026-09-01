@@ -18,6 +18,7 @@ import { useTranslation } from 'react-i18next';
 import classNames from 'classnames';
 import type {
   ResearchAssetTypeV1,
+  ResearchDataCatalogBacktestReportV1,
   ResearchDataCatalogFactorReportV1,
   ResearchDataCatalogInstrumentV1,
   ResearchDataCatalogSdkMethodV1,
@@ -32,6 +33,7 @@ import {
   faCircleExclamation,
   faDatabase,
   faFileLines,
+  faGaugeHigh,
   faLayerGroup,
   faLock,
   faMagnifyingGlass,
@@ -41,7 +43,11 @@ import {
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { LoadingArea } from '@src/components/loading-area';
 import { complex } from './complex';
-import { researchFactorReportSnippet, researchSeriesSnippet } from './research-data-catalog';
+import {
+  researchBacktestReportSnippet,
+  researchFactorReportSnippet,
+  researchSeriesSnippet,
+} from './research-data-catalog';
 import { insertResearchPythonSnippet } from './research-python-language';
 import './research-data-catalog-drawer.css';
 
@@ -65,6 +71,8 @@ export const ResearchDataCatalogDrawer = complex.component(
     const [selectedReport, setSelectedReport] = useState<ResearchDataCatalogFactorReportV1 | null>(
       null,
     );
+    const [selectedBacktestReport, setSelectedBacktestReport] =
+      useState<ResearchDataCatalogBacktestReportV1 | null>(null);
     const [selectedMethodName, setSelectedMethodName] = useState<string | null>(null);
     const [measureId, setMeasureId] = useState('market.adjusted_close');
     const [frequency, setFrequency] = useState<ResearchFrequencyV1>('daily');
@@ -110,20 +118,24 @@ export const ResearchDataCatalogDrawer = complex.component(
       }
     }, [selectedMeasure, transform]);
     const snippet =
-      view === 'factor_reports'
-        ? selectedReport && !selectedReport.sealed
-          ? researchFactorReportSnippet(selectedReport)
+      view === 'backtest_reports'
+        ? selectedBacktestReport
+          ? researchBacktestReportSnippet(selectedBacktestReport)
           : ''
-        : selected && measureId && selected.sdkAccess?.status !== 'not_ready'
-          ? researchSeriesSnippet({
-              instrument: selected,
-              measure: measureId,
-              start: dates[0].format('YYYYMMDD'),
-              end: dates[1].format('YYYYMMDD'),
-              frequency,
-              transform,
-            })
-          : '';
+        : view === 'factor_reports'
+          ? selectedReport && !selectedReport.sealed
+            ? researchFactorReportSnippet(selectedReport)
+            : ''
+          : selected && measureId && selected.sdkAccess?.status !== 'not_ready'
+            ? researchSeriesSnippet({
+                instrument: selected,
+                measure: measureId,
+                start: dates[0].format('YYYYMMDD'),
+                end: dates[1].format('YYYYMMDD'),
+                frequency,
+                transform,
+              })
+            : '';
 
     const chooseInstrument = (instrument: ResearchDataCatalogInstrumentV1) => {
       setSelected(instrument);
@@ -185,15 +197,18 @@ export const ResearchDataCatalogDrawer = complex.component(
           block
           className="jx-researchDataCatalog-views"
           value={view}
-          options={(['instruments', 'factor_reports'] as const).map((value) => ({
-            value,
-            label: t(`dataCatalog.view.${value}`),
-          }))}
+          options={(['instruments', 'factor_reports', 'backtest_reports'] as const).map(
+            (value) => ({
+              value,
+              label: t(`dataCatalog.view.${value}`),
+            }),
+          )}
           onChange={(value) => {
             setView(value);
             setQuery('');
             setSelected(null);
             setSelectedReport(null);
+            setSelectedBacktestReport(null);
             setSelectedMethodName(null);
           }}
         />
@@ -266,20 +281,13 @@ export const ResearchDataCatalogDrawer = complex.component(
           autoFocus
           value={query}
           prefix={<FontAwesomeIcon icon={faMagnifyingGlass} />}
-          placeholder={t(
-            view === 'factor_reports'
-              ? 'dataCatalog.reportSearchPlaceholder'
-              : 'dataCatalog.searchPlaceholder',
-          )}
-          aria-label={t(
-            view === 'factor_reports'
-              ? 'dataCatalog.reportSearchPlaceholder'
-              : 'dataCatalog.searchPlaceholder',
-          )}
+          placeholder={t(dataCatalogSearchPlaceholder(view))}
+          aria-label={t(dataCatalogSearchPlaceholder(view))}
           onChange={(event) => {
             setQuery(event.target.value);
             setSelected(null);
             setSelectedReport(null);
+            setSelectedBacktestReport(null);
           }}
         />
         {view === 'instruments' && (
@@ -459,7 +467,7 @@ export const ResearchDataCatalogDrawer = complex.component(
               </section>
             )}
           </>
-        ) : (
+        ) : view === 'factor_reports' ? (
           <>
             <section className="jx-researchDataCatalog-section">
               <div className="jx-researchDataCatalog-sectionHead">
@@ -563,6 +571,109 @@ export const ResearchDataCatalogDrawer = complex.component(
               </section>
             )}
           </>
+        ) : (
+          <>
+            <section className="jx-researchDataCatalog-section">
+              <div className="jx-researchDataCatalog-sectionHead">
+                <strong>{t('dataCatalog.backtestReports')}</strong>
+                {catalog && (
+                  <span>{t('dataCatalog.matches', { count: catalog.backtestReports.length })}</span>
+                )}
+              </div>
+              <LoadingArea
+                loader={store.dataCatalogLoader}
+                showDelay={120}
+                loading={() => (
+                  <div className="jx-researchDataCatalog-skeleton">
+                    <Skeleton active paragraph={{ rows: 2 }} title={false} />
+                    <Skeleton active paragraph={{ rows: 2 }} title={false} />
+                  </div>
+                )}
+              >
+                {(catalog?.backtestReports ?? []).length ? (
+                  <div className="jx-researchDataCatalog-results">
+                    {(catalog?.backtestReports ?? []).map((report) => (
+                      <button
+                        key={report.id}
+                        type="button"
+                        className={classNames('jx-researchDataCatalog-result', {
+                          'jx-researchDataCatalog-result--active':
+                            selectedBacktestReport?.id === report.id,
+                        })}
+                        data-testid={`research-data-catalog-backtest-report-${report.id}`}
+                        onClick={() => setSelectedBacktestReport(report)}
+                      >
+                        <span className="jx-researchDataCatalog-resultIcon">
+                          <FontAwesomeIcon icon={faGaugeHigh} />
+                        </span>
+                        <span className="jx-researchDataCatalog-resultText">
+                          <strong>{report.strategyName}</strong>
+                          <code>{report.id}</code>
+                          <span className="jx-researchDataCatalog-reportDate">
+                            {formatCatalogRange(report.start, report.end)}
+                          </span>
+                        </span>
+                        <span className="jx-researchDataCatalog-resultTags">
+                          <Tag>{t(`dataCatalog.strategyLanguage.${report.language}`)}</Tag>
+                          <Tag>
+                            {dayjs(report.computedAt ?? report.createdAt).format('YYYY-MM-DD')}
+                          </Tag>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <Empty
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                    description={t(
+                      query
+                        ? 'dataCatalog.noBacktestReportMatches'
+                        : 'dataCatalog.noBacktestReports',
+                    )}
+                  />
+                )}
+              </LoadingArea>
+            </section>
+
+            {selectedBacktestReport && (
+              <section
+                className="jx-researchDataCatalog-config"
+                data-testid="research-data-catalog-backtest-report-config"
+              >
+                <div className="jx-researchDataCatalog-sectionHead">
+                  <strong>{t('dataCatalog.backtestReportConfig')}</strong>
+                  <code>{selectedBacktestReport.id}</code>
+                </div>
+                <div className="jx-researchDataCatalog-selectedMeta">
+                  <div>
+                    <span>{t('dataCatalog.strategy')}</span>
+                    <strong>{selectedBacktestReport.strategyName}</strong>
+                  </div>
+                  <div>
+                    <span>{t('dataCatalog.period')}</span>
+                    <strong>
+                      {formatCatalogRange(selectedBacktestReport.start, selectedBacktestReport.end)}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>{t('dataCatalog.runtimeLanguage')}</span>
+                    <strong>
+                      {t(`dataCatalog.strategyLanguage.${selectedBacktestReport.language}`)}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>{t('dataCatalog.reportDate')}</span>
+                    <strong>
+                      {dayjs(
+                        selectedBacktestReport.computedAt ?? selectedBacktestReport.createdAt,
+                      ).format('YYYY-MM-DD HH:mm')}
+                    </strong>
+                  </div>
+                </div>
+                <pre className="jx-researchDataCatalog-preview">{snippet}</pre>
+              </section>
+            )}
+          </>
         )}
       </Drawer>
     );
@@ -586,6 +697,8 @@ function localizedMethodDescription(
 
 function researchDataMethodIcon(qualifiedName: string) {
   switch (qualifiedName) {
+    case 'results.backtest_report':
+      return faGaugeHigh;
     case 'results.factor_report':
       return faFileLines;
     case 'data.cross_section':
@@ -597,6 +710,20 @@ function researchDataMethodIcon(qualifiedName: string) {
     default:
       return faChartLine;
   }
+}
+
+function dataCatalogSearchPlaceholder(
+  view: CatalogView,
+):
+  | 'dataCatalog.searchPlaceholder'
+  | 'dataCatalog.reportSearchPlaceholder'
+  | 'dataCatalog.backtestReportSearchPlaceholder' {
+  if (view === 'factor_reports') {
+    return 'dataCatalog.reportSearchPlaceholder';
+  }
+  return view === 'backtest_reports'
+    ? 'dataCatalog.backtestReportSearchPlaceholder'
+    : 'dataCatalog.searchPlaceholder';
 }
 
 function localizedCoverage(
@@ -619,6 +746,10 @@ function formatCatalogDate(value: string): string {
   return /^\d{8}$/.test(value)
     ? `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}`
     : value;
+}
+
+function formatCatalogRange(start: string, end: string): string {
+  return `${formatCatalogDate(start)} – ${formatCatalogDate(end)}`;
 }
 
 function catalogDate(value: string): Dayjs {

@@ -623,17 +623,17 @@ export async function* readSSE(res: Response): AsyncGenerator<AgentStreamEvent> 
 export interface BacktestJob {
   status: 'queued' | 'running' | 'done' | 'error' | 'stale';
   queuePosition?: number;
+  backtestReportId?: string | null;
   logs: LogLine[];
   nextSince: number;
   error?: string | null;
 }
 
-// Commit a saved strategy's runnable config and start its backtest atomically; returns a jobId to poll.
-// The result is written to the strategy's lastResult by the worker on completion.
+// Commit a saved strategy's runnable config and start its immutable report atomically.
 export function submitBacktest(
   config: BacktestConfig,
   strategyId: string,
-): Promise<{ jobId: string }> {
+): Promise<{ jobId: string; reportId: string }> {
   return request(`/api/app/strategy/backtest?strategyId=${encodeURIComponent(strategyId)}`, {
     method: 'POST',
     body: JSON.stringify(config),

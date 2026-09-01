@@ -2,6 +2,7 @@ import {
   RESEARCH_SDK_AGENT_CATALOG_V1,
   type FactorAnalysisKind,
   type ResearchAssetTypeV1,
+  type ResearchDataCatalogBacktestReportV1,
   type ResearchDataCatalogCoverageV1,
   type ResearchDataCatalogFactorReportV1,
   type ResearchDataCatalogInstrumentV1,
@@ -10,6 +11,7 @@ import {
   type ResearchDataCatalogScopeV1,
   type ResearchMeasureDefinitionV1,
 } from '@jixie/shared';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import {
   etfResearchMembership,
@@ -43,7 +45,12 @@ export async function searchResearchDataCatalog(
       (!input.assetType || measure.assetTypes?.includes(input.assetType)),
   );
   const sdkMethods = RESEARCH_SDK_AGENT_CATALOG_V1.methods
-    .filter((method) => method.namespace === (scope === 'factor_reports' ? 'results' : 'data'))
+    .filter((method) =>
+      scope === 'instruments'
+        ? method.namespace === 'data'
+        : method.qualifiedName ===
+          (scope === 'factor_reports' ? 'results.factor_report' : 'results.backtest_report'),
+    )
     .map((method) => ({
       qualifiedName: method.qualifiedName,
       name: method.name,
@@ -64,12 +71,33 @@ export async function searchResearchDataCatalog(
       sdkMethods,
       instruments: [],
       factorReports: input.userId ? await searchFactorReports(input.userId, query, limit) : [],
+      backtestReports: [],
+      measures: [],
+    };
+  }
+
+  if (scope === 'backtest_reports') {
+    return {
+      version: 1,
+      query,
+      sdkMethods,
+      instruments: [],
+      factorReports: [],
+      backtestReports: input.userId ? await searchBacktestReports(input.userId, query, limit) : [],
       measures: [],
     };
   }
 
   if (!query) {
-    return { version: 1, query, sdkMethods, instruments: [], factorReports: [], measures };
+    return {
+      version: 1,
+      query,
+      sdkMethods,
+      instruments: [],
+      factorReports: [],
+      backtestReports: [],
+      measures,
+    };
   }
 
   const [stocks, etfs, indexes, marketBenchmarks, indexCodes, futureMappings, futures] =
@@ -244,8 +272,60 @@ export async function searchResearchDataCatalog(
     sdkMethods,
     instruments: await attachLocalDataCoverage(instruments),
     factorReports: [],
+    backtestReports: [],
     measures,
   };
+}
+
+async function searchBacktestReports(
+  userId: string,
+  query: string,
+  limit: number,
+): Promise<ResearchDataCatalogBacktestReportV1[]> {
+  const reports = await prisma.backtestReport.findMany({
+    where: {
+      userId,
+      status: 'done',
+      payload: { not: Prisma.DbNull },
+      ...(query
+        ? {
+            OR: [
+              { id: { contains: query } },
+              { strategyId: { contains: query } },
+              { strategyName: { contains: query } },
+            ],
+          }
+        : {}),
+    },
+    select: {
+      id: true,
+      strategyId: true,
+      strategyName: true,
+      config: true,
+      createdAt: true,
+      computedAt: true,
+    },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: limit,
+  });
+
+  return reports.map((report) => {
+    const config =
+      report.config && typeof report.config === 'object' && !Array.isArray(report.config)
+        ? (report.config as Record<string, unknown>)
+        : {};
+    return {
+      kind: 'backtest_report',
+      id: report.id,
+      strategyId: report.strategyId,
+      strategyName: report.strategyName,
+      start: typeof config.start === 'string' ? config.start : '',
+      end: typeof config.end === 'string' ? config.end : '',
+      language: config.language === 'python' ? 'python' : 'typescript',
+      createdAt: report.createdAt.toISOString(),
+      computedAt: report.computedAt?.toISOString() ?? null,
+    };
+  });
 }
 
 async function searchFactorReports(

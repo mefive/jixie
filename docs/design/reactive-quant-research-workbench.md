@@ -533,11 +533,10 @@ DAG、输出与指纹。首版只在当前文档内查看运行历史；全局�
   stubs，横截面运行时，时序与 Panel 下游闭环，Monaco/Pyright/模板/Research 交接与 E2E；
 - 已发布 Factor 和冻结回测不可被研究文档反向修改。
 
-M4 backlog：Research 后续可通过独立的 `results` SDK 读取用户权限内的不可变 FactorReport，或显式读取
-Strategy 的最新回测结果用于二次分析；它们是派生结果而不是 `data` 通用市场数据，也不和 Research 建关系表。
-当前 Strategy 只保存可覆盖的 `lastResult`，若需要精确复盘某一次历史回测，应先增加不可变 `BacktestReport`
-（含配置/代码/结果 hash、完成时间、净值与成交快照）再允许按 report id 读取。完整持仓历史必须由回测引擎真实
-产出后再暴露，不能从成交记录临时猜测。
+**已完成（M4）**：Research 通过独立的 `results.factor_report()` 与 `results.backtest_report()`，按报告 ID
+只读当前用户已完成的不可变派生结果；两类报告都进入数据目录，可搜索并插入 Python Cell。普通回测现在每次创建
+`BacktestReport`，冻结配置、代码 hash、结果 hash、完成时间、净值与成交快照；`Strategy.lastResult` 仅保留为现有
+Lab 的最新结果缓存。完整持仓历史仍必须由回测引擎真实产出后再暴露，不能从成交记录临时猜测。
 
 ### M5：Research 多资产数据集
 
@@ -667,8 +666,8 @@ CPython 3.13、NumPy、pandas、SciPy、statsmodels、Matplotlib 和 scikit-lear
 
 这项只固定已批准的中等规模研究能力，不开放用户 `pip install`、任意包、网络访问或隐藏的统计报告。
 
-至此本节第 1–7 项均已闭环。方法模板、FactorReport / BacktestReport 回流、全局快照搜索、底层数据副本和自动
-运行差异归因继续留在 backlog，不属于首版完成条件。
+至此本节第 1–7 项均已闭环。方法模板、全局快照搜索、底层数据副本和自动运行差异归因继续留在 backlog，
+不属于首版完成条件。
 
 首版成功不以覆盖全部统计方法为条件；成功标准是自由探索、完整运行快照和下游产品之间的边界清楚、运行可信、
 历史结果可回看。

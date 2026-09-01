@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   jobFindMany: vi.fn(),
   jobUpdateMany: vi.fn(),
   factorReportUpdateMany: vi.fn(),
+  backtestReportUpdateMany: vi.fn(),
   strategyScanReportUpdateMany: vi.fn(),
   signalRunUpdateMany: vi.fn(),
   researchCuratorRunUpdateMany: vi.fn(),
@@ -25,6 +26,7 @@ describe('job restart recovery', () => {
       callback({
         job: { findMany: mocks.jobFindMany, updateMany: mocks.jobUpdateMany },
         factorReport: { updateMany: mocks.factorReportUpdateMany },
+        backtestReport: { updateMany: mocks.backtestReportUpdateMany },
         strategyScanReport: { updateMany: mocks.strategyScanReportUpdateMany },
         signalRun: { updateMany: mocks.signalRunUpdateMany },
         researchCuratorRun: { updateMany: mocks.researchCuratorRunUpdateMany },
@@ -36,18 +38,21 @@ describe('job restart recovery', () => {
     mocks.jobFindMany.mockResolvedValue([
       {
         factorReportId: 'factor-report',
+        backtestReportId: null,
         strategyScanReportId: null,
         signalRunId: null,
         researchCuratorRunId: null,
       },
       {
         factorReportId: null,
+        backtestReportId: 'backtest-report',
         strategyScanReportId: 'scan-report',
         signalRunId: 'signal-run',
         researchCuratorRunId: 'curator-run',
       },
     ]);
     mocks.factorReportUpdateMany.mockResolvedValue({ count: 1 });
+    mocks.backtestReportUpdateMany.mockResolvedValue({ count: 1 });
     mocks.strategyScanReportUpdateMany.mockResolvedValue({ count: 1 });
     mocks.signalRunUpdateMany.mockResolvedValue({ count: 1 });
     mocks.researchCuratorRunUpdateMany.mockResolvedValue({ count: 1 });
@@ -64,6 +69,11 @@ describe('job restart recovery', () => {
     });
     expect(mocks.factorReportUpdateMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: { in: ['factor-report'] }, status: 'running' } }),
+    );
+    expect(mocks.backtestReportUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: { in: ['backtest-report'] }, status: 'running' },
+      }),
     );
     expect(mocks.strategyScanReportUpdateMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: { in: ['scan-report'] }, status: 'running' } }),

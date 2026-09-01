@@ -1,7 +1,7 @@
 import { Worker } from 'node:worker_threads';
-import type { BacktestConfig, Locale, LogLine } from '@jixie/shared';
+import type { BacktestConfig, BacktestSummary, Locale, LogLine } from '@jixie/shared';
 import { z } from 'zod';
-import { appendLog, finishJob } from '../lib/jobs.js';
+import { appendLog, finishBacktestReportJob } from '../lib/jobs.js';
 import { t } from '../i18n/messages.js';
 import { codeConfigSchema } from './code/schema.js';
 import { refreshStrategyName, strategyRunKey } from '../services/strategy-service.js';
@@ -12,6 +12,7 @@ const workerUrl = import.meta.url.endsWith('.ts')
 
 const backtestJobPayloadSchema = z.object({
   task: z.literal('backtest'),
+  reportId: z.string().min(1),
   strategyId: z.string().min(1),
   userId: z.string().min(1),
   locale: z.enum(['zh', 'en']),
@@ -42,17 +43,24 @@ export async function runBacktestJob(
         },
       });
     } catch (error) {
-      void finishJob(
+      void finishBacktestReportJob(
         jobId,
+        payload.reportId,
+        payload.strategyId,
+        payload.userId,
         'error',
+        undefined,
         error instanceof Error ? error.message : String(error),
       ).finally(resolve);
       return;
     }
 
     let finalized = false;
-    let terminalMessage: { status: 'done' } | { status: 'error'; error?: string } | null = null;
-    const finalize = async (status: 'done' | 'error', error?: string) => {
+    let terminalMessage:
+      | { status: 'done'; payload: BacktestSummary }
+      | { status: 'error'; error?: string }
+      | null = null;
+    const finalize = async (status: 'done' | 'error', result?: BacktestSummary, error?: string) => {
       if (finalized) {
         return;
       }
@@ -70,34 +78,47 @@ export async function runBacktestJob(
           return false;
         });
       }
-      await finishJob(jobId, status, error);
+      await finishBacktestReportJob(
+        jobId,
+        payload.reportId,
+        payload.strategyId,
+        payload.userId,
+        status,
+        result,
+        error,
+      );
       resolve();
     };
 
-    worker.on('message', (message: { type: string; entry?: LogLine; message?: string }) => {
-      switch (message.type) {
-        case 'log':
-          appendLog(jobId, message.entry!);
-          break;
-        case 'done':
-          terminalMessage = { status: 'done' };
-          break;
-        case 'error':
-          terminalMessage = { status: 'error', error: message.message };
-          break;
-      }
-    });
-    worker.on('error', (error) => void finalize('error', error.message));
+    worker.on(
+      'message',
+      (message: { type: string; entry?: LogLine; payload?: BacktestSummary; message?: string }) => {
+        switch (message.type) {
+          case 'log':
+            appendLog(jobId, message.entry!);
+            break;
+          case 'done':
+            if (message.payload) {
+              terminalMessage = { status: 'done', payload: message.payload };
+            }
+            break;
+          case 'error':
+            terminalMessage = { status: 'error', error: message.message };
+            break;
+        }
+      },
+    );
+    worker.on('error', (error) => void finalize('error', undefined, error.message));
     worker.on('exit', (code) => {
       if (finalized) {
         return;
       }
       if (code !== 0 || !terminalMessage) {
-        void finalize('error', t(payload.locale, 'backtestProcExited', { code }));
+        void finalize('error', undefined, t(payload.locale, 'backtestProcExited', { code }));
       } else if (terminalMessage.status === 'error') {
-        void finalize('error', terminalMessage.error);
+        void finalize('error', undefined, terminalMessage.error);
       } else {
-        void finalize('done');
+        void finalize('done', terminalMessage.payload);
       }
     });
   });
