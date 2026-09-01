@@ -8,6 +8,12 @@ const mocks = vi.hoisted(() => ({
   indexDailyFindMany: vi.fn(),
   futureMappingFindMany: vi.fn(),
   futureFindMany: vi.fn(),
+  dailyGroupBy: vi.fn(),
+  etfDailyGroupBy: vi.fn(),
+  indexDailyGroupBy: vi.fn(),
+  marketBenchmarkDailyGroupBy: vi.fn(),
+  futureMappingGroupBy: vi.fn(),
+  futureDailyGroupBy: vi.fn(),
 }));
 
 vi.mock('../lib/prisma.js', () => ({
@@ -16,9 +22,16 @@ vi.mock('../lib/prisma.js', () => ({
     etfBasic: { findMany: mocks.etfFindMany },
     indexBenchmark: { findMany: mocks.indexFindMany },
     marketBenchmark: { findMany: mocks.marketBenchmarkFindMany },
-    indexDaily: { findMany: mocks.indexDailyFindMany },
-    futureMapping: { findMany: mocks.futureMappingFindMany },
+    daily: { groupBy: mocks.dailyGroupBy },
+    etfDaily: { groupBy: mocks.etfDailyGroupBy },
+    indexDaily: { findMany: mocks.indexDailyFindMany, groupBy: mocks.indexDailyGroupBy },
+    marketBenchmarkDaily: { groupBy: mocks.marketBenchmarkDailyGroupBy },
+    futureMapping: {
+      findMany: mocks.futureMappingFindMany,
+      groupBy: mocks.futureMappingGroupBy,
+    },
     futureContract: { findMany: mocks.futureFindMany },
+    futureDaily: { groupBy: mocks.futureDailyGroupBy },
   },
 }));
 
@@ -37,7 +50,21 @@ describe('research data catalog', () => {
       'market.adjusted_close',
       'market.cny_close',
     ]);
+    expect(result.sdkMethods.map((method) => method.qualifiedName)).toEqual([
+      'data.series',
+      'data.cross_section',
+      'data.panel',
+      'data.yield_curve',
+    ]);
+    expect(result.sdkMethods.find((method) => method.qualifiedName === 'data.panel')).toMatchObject(
+      {
+        signature: expect.stringContaining('data.panel('),
+        example: expect.stringContaining('data.panel("index:000300.SH"'),
+        returnColumns: expect.arrayContaining(['date', 'code', 'pe_ttm']),
+      },
+    );
     expect(mocks.indexFindMany).not.toHaveBeenCalled();
+    expect(mocks.indexDailyGroupBy).not.toHaveBeenCalled();
   });
 
   it('ranks exact stable identifiers and exposes measure compatibility', async () => {
@@ -56,6 +83,14 @@ describe('research data catalog', () => {
       },
     ]);
     mocks.indexDailyFindMany.mockResolvedValue([{ tsCode: '000300.SH' }]);
+    mocks.indexDailyGroupBy.mockResolvedValue([
+      {
+        tsCode: '000300.SH',
+        _count: { _all: 1234 },
+        _min: { tradeDate: '20200102' },
+        _max: { tradeDate: '20251231' },
+      },
+    ]);
 
     const result = await searchResearchDataCatalog({
       query: '000300.SH',
@@ -68,6 +103,13 @@ describe('research data catalog', () => {
       identifier: '000300.SH',
       nameZh: '沪深300',
       compatibleMeasureIds: ['market.adjusted_close'],
+      localDataCoverage: {
+        status: 'ready',
+        observationCount: 1234,
+        startDate: '20200102',
+        endDate: '20251231',
+      },
+      sdkAccess: { status: 'ready', method: 'data.series' },
     });
   });
 
@@ -83,6 +125,42 @@ describe('research data catalog', () => {
       identifier: 'AU.SHF',
       assetType: 'future',
       continuous: true,
+      localDataCoverage: { status: 'missing' },
+      sdkAccess: { status: 'not_ready' },
+    });
+  });
+
+  it('reports ETF registry membership separately from local executable coverage', async () => {
+    mocks.etfFindMany.mockResolvedValue([
+      {
+        tsCode: '510300.SH',
+        name: '华泰柏瑞沪深300ETF',
+        fundType: '股票型',
+        indexName: '沪深300',
+        exchange: 'SSE',
+      },
+    ]);
+    mocks.etfDailyGroupBy.mockResolvedValue([
+      {
+        tsCode: '510300.SH',
+        _count: { _all: 2500 },
+        _min: { tradeDate: '20120528' },
+        _max: { tradeDate: '20260824' },
+      },
+    ]);
+
+    const result = await searchResearchDataCatalog({ query: '510300.SH', assetType: 'etf' });
+
+    expect(result.instruments[0]).toMatchObject({
+      researchRegistry: {
+        role: 'primary',
+        selectionAsOf: '20260824',
+      },
+      localDataCoverage: {
+        status: 'ready',
+        observationCount: 2500,
+      },
+      sdkAccess: { status: 'ready' },
     });
   });
 

@@ -7,6 +7,7 @@
 
 .jx-researchDataCatalog .ant-drawer-body {
   padding: 18px;
+  overflow-anchor: none;
 }
 
 .jx-researchDataCatalog-title {
@@ -19,6 +20,98 @@
   margin-bottom: 14px;
   font-size: 12px;
   line-height: 1.65;
+}
+
+.jx-researchDataCatalog-capabilities {
+  margin-bottom: 18px;
+}
+
+.jx-researchDataCatalog-methods {
+  @apply grid gap-2;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.jx-researchDataCatalog-method {
+  @apply flex cursor-pointer items-center gap-2 border border-line bg-card text-left text-ink hover:border-slate-400 hover:bg-bg;
+  min-width: 0;
+  min-height: 62px;
+  padding: 9px;
+  border-radius: 7px;
+}
+
+.jx-researchDataCatalog-method--active,
+.jx-researchDataCatalog-method--active:hover {
+  border-color: #64748b;
+  background: #f8fafc;
+  box-shadow: 0 0 0 1px #64748b;
+}
+
+.jx-researchDataCatalog-methodIcon {
+  @apply flex items-center justify-center rounded-md bg-chip text-muted;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  font-size: 11px;
+}
+
+.jx-researchDataCatalog-methodText {
+  @apply flex min-w-0 flex-1 flex-col gap-1;
+}
+
+.jx-researchDataCatalog-methodText code {
+  @apply truncate font-semibold text-ink;
+  font-size: 11px;
+}
+
+.jx-researchDataCatalog-methodText > span {
+  @apply line-clamp-2 text-muted;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.jx-researchDataCatalog-methodDetail {
+  @apply mt-2 border border-line bg-bg;
+  padding: 10px;
+  border-radius: 7px;
+}
+
+.jx-researchDataCatalog-methodStatus {
+  @apply flex flex-col gap-2;
+}
+
+.jx-researchDataCatalog-methodStatus > span {
+  @apply flex items-center gap-1 font-medium text-ink;
+  font-size: 10px;
+}
+
+.jx-researchDataCatalog-methodStatus > code,
+.jx-researchDataCatalog-methodExample pre {
+  @apply m-0 overflow-auto text-ink;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 9px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.jx-researchDataCatalog-methodMeta,
+.jx-researchDataCatalog-methodExample {
+  @apply mt-3 flex flex-col gap-1;
+}
+
+.jx-researchDataCatalog-methodMeta > span,
+.jx-researchDataCatalog-methodExample > span {
+  @apply text-muted;
+  font-size: 9px;
+}
+
+.jx-researchDataCatalog-methodMeta > div {
+  @apply flex flex-wrap gap-1;
+}
+
+.jx-researchDataCatalog-methodMeta .ant-tag {
+  margin-inline-end: 0;
+  font-size: 9px;
 }
 
 .jx-researchDataCatalog-assets {
@@ -55,7 +148,7 @@
 
 .jx-researchDataCatalog-result {
   @apply flex w-full cursor-pointer items-center gap-2 border border-line bg-card text-left text-ink hover:border-slate-400 hover:bg-bg;
-  min-height: 58px;
+  min-height: 72px;
   padding: 9px 10px;
   border-radius: 7px;
   transition:
@@ -93,7 +186,22 @@
   font-size: 10px;
 }
 
-.jx-researchDataCatalog-result .ant-tag {
+.jx-researchDataCatalog-coverage {
+  @apply flex items-center gap-1 text-muted;
+  font-size: 9px;
+  line-height: 1.35;
+}
+
+.jx-researchDataCatalog-coverage--missing {
+  color: #b45309;
+}
+
+.jx-researchDataCatalog-resultTags {
+  @apply flex flex-col items-end gap-1;
+  flex: none;
+}
+
+.jx-researchDataCatalog-resultTags .ant-tag {
   margin-inline-end: 0;
   flex: none;
   font-size: 10px;
@@ -102,6 +210,31 @@
 .jx-researchDataCatalog-config {
   @apply mt-6 border-t border-line;
   padding-top: 18px;
+}
+
+.jx-researchDataCatalog-selectedMeta {
+  @apply flex flex-col gap-2 border border-line bg-bg;
+  padding: 10px;
+  border-radius: 6px;
+}
+
+.jx-researchDataCatalog-selectedMeta > div {
+  @apply flex items-start justify-between gap-3;
+  font-size: 10px;
+}
+
+.jx-researchDataCatalog-selectedMeta span {
+  @apply text-muted;
+}
+
+.jx-researchDataCatalog-selectedMeta strong {
+  @apply text-right font-medium text-ink;
+}
+
+.jx-researchDataCatalog-selectedMeta p {
+  @apply m-0 text-muted;
+  font-size: 9px;
+  line-height: 1.5;
 }
 
 .jx-researchDataCatalog-config > label,
@@ -134,6 +267,10 @@
 }
 
 @media (max-width: 520px) {
+  .jx-researchDataCatalog-methods {
+    grid-template-columns: 1fr;
+  }
+
   .jx-researchDataCatalog-configRow {
     grid-template-columns: 1fr;
   }

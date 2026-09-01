@@ -13,18 +13,26 @@ import {
   Tooltip,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
+import classNames from 'classnames';
 import type {
   ResearchAssetTypeV1,
   ResearchDataCatalogInstrumentV1,
+  ResearchDataCatalogSdkMethodV1,
   ResearchFrequencyV1,
   ResearchTransformV1,
 } from '@jixie/shared';
 import {
   faArrowRightToBracket,
   faChartLine,
+  faCircleCheck,
+  faCircleExclamation,
   faDatabase,
+  faLayerGroup,
   faMagnifyingGlass,
+  faPercent,
+  faTableColumns,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { LoadingArea } from '@src/components/loading-area';
@@ -48,6 +56,7 @@ export const ResearchDataCatalogDrawer = complex.component(
     const [query, setQuery] = useState('');
     const [assetFilter, setAssetFilter] = useState<AssetFilter>('all');
     const [selected, setSelected] = useState<ResearchDataCatalogInstrumentV1 | null>(null);
+    const [selectedMethodName, setSelectedMethodName] = useState<string | null>(null);
     const [measureId, setMeasureId] = useState('market.adjusted_close');
     const [frequency, setFrequency] = useState<ResearchFrequencyV1>('daily');
     const [transform, setTransform] = useState<ResearchTransformV1>('level');
@@ -67,6 +76,9 @@ export const ResearchDataCatalogDrawer = complex.component(
     }, [assetFilter, open, query, store]);
 
     const catalog = store.dataCatalogLoader.result;
+    const selectedMethod = catalog?.sdkMethods.find(
+      (method) => method.qualifiedName === selectedMethodName,
+    );
     const visibleInstruments = useMemo(
       () => rankCatalogInstruments(catalog?.instruments ?? [], query),
       [catalog?.instruments, query],
@@ -85,7 +97,7 @@ export const ResearchDataCatalogDrawer = complex.component(
       }
     }, [selectedMeasure, transform]);
     const snippet =
-      selected && measureId
+      selected && measureId && selected.sdkAccess?.status !== 'not_ready'
         ? researchSeriesSnippet({
             instrument: selected,
             measure: measureId,
@@ -100,6 +112,15 @@ export const ResearchDataCatalogDrawer = complex.component(
       setSelected(instrument);
       if (!instrument.compatibleMeasureIds.includes(measureId)) {
         setMeasureId(instrument.compatibleMeasureIds[0] ?? 'market.adjusted_close');
+      }
+      if (instrument.localDataCoverage?.status === 'ready') {
+        const coverageStart = catalogDate(instrument.localDataCoverage.startDate);
+        const coverageEnd = catalogDate(instrument.localDataCoverage.endDate);
+        const preferredStart = coverageEnd.subtract(5, 'year');
+        setDates([
+          preferredStart.isBefore(coverageStart) ? coverageStart : preferredStart,
+          coverageEnd,
+        ]);
       }
     };
     const insert = () => {
@@ -143,6 +164,68 @@ export const ResearchDataCatalogDrawer = complex.component(
         }
       >
         <p className="jx-researchDataCatalog-intro">{t('dataCatalog.intro')}</p>
+        <section
+          className="jx-researchDataCatalog-capabilities"
+          data-testid="research-data-catalog-capabilities"
+        >
+          <div className="jx-researchDataCatalog-sectionHead">
+            <strong>{t('dataCatalog.capabilities')}</strong>
+            <span>{t('dataCatalog.runtime', { version: 'research-py-v1' })}</span>
+          </div>
+          <div className="jx-researchDataCatalog-methods">
+            {(catalog?.sdkMethods ?? []).map((method) => (
+              <button
+                key={method.qualifiedName}
+                type="button"
+                className={classNames('jx-researchDataCatalog-method', {
+                  'jx-researchDataCatalog-method--active':
+                    selectedMethod?.qualifiedName === method.qualifiedName,
+                })}
+                aria-expanded={selectedMethod?.qualifiedName === method.qualifiedName}
+                data-testid={`research-data-catalog-method-${method.name}`}
+                onClick={() =>
+                  setSelectedMethodName((value) =>
+                    value === method.qualifiedName ? null : method.qualifiedName,
+                  )
+                }
+              >
+                <span className="jx-researchDataCatalog-methodIcon">
+                  <FontAwesomeIcon icon={researchDataMethodIcon(method.qualifiedName)} />
+                </span>
+                <span className="jx-researchDataCatalog-methodText">
+                  <code>{method.qualifiedName}</code>
+                  <span>{localizedMethodDescription(method, i18n.language)}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+          {selectedMethod && (
+            <div
+              className="jx-researchDataCatalog-methodDetail"
+              data-testid="research-data-catalog-method-detail"
+            >
+              <div className="jx-researchDataCatalog-methodStatus">
+                <span>
+                  <FontAwesomeIcon icon={faCircleCheck} /> {t('dataCatalog.sdkReady')}
+                </span>
+                <code>{selectedMethod.signature}</code>
+              </div>
+              <div className="jx-researchDataCatalog-methodMeta">
+                <span>{t('dataCatalog.returns')}</span>
+                <div>
+                  {selectedMethod.returnColumns.map((column) => (
+                    <Tag key={column}>{column}</Tag>
+                  ))}
+                </div>
+              </div>
+              <div className="jx-researchDataCatalog-methodExample">
+                <span>{t('dataCatalog.example')}</span>
+                <pre>{selectedMethod.example}</pre>
+              </div>
+            </div>
+          )}
+        </section>
+
         <Input
           allowClear
           autoFocus
@@ -191,12 +274,11 @@ export const ResearchDataCatalogDrawer = complex.component(
                   <button
                     key={`${instrument.assetType}:${instrument.identifier}`}
                     type="button"
-                    className={`jx-researchDataCatalog-result${
-                      selected?.assetType === instrument.assetType &&
-                      selected.identifier === instrument.identifier
-                        ? ' jx-researchDataCatalog-result--active'
-                        : ''
-                    }`}
+                    className={classNames('jx-researchDataCatalog-result', {
+                      'jx-researchDataCatalog-result--active':
+                        selected?.assetType === instrument.assetType &&
+                        selected.identifier === instrument.identifier,
+                    })}
                     data-testid={`research-data-catalog-result-${instrument.identifier}`}
                     onClick={() => chooseInstrument(instrument)}
                   >
@@ -206,8 +288,31 @@ export const ResearchDataCatalogDrawer = complex.component(
                     <span className="jx-researchDataCatalog-resultText">
                       <strong>{localizedInstrumentName(instrument, i18n.language)}</strong>
                       <code>{instrument.identifier}</code>
+                      <span
+                        className={classNames('jx-researchDataCatalog-coverage', {
+                          'jx-researchDataCatalog-coverage--missing':
+                            instrument.localDataCoverage?.status === 'missing',
+                        })}
+                        data-testid={`research-data-catalog-coverage-${instrument.identifier}`}
+                      >
+                        <FontAwesomeIcon
+                          icon={
+                            instrument.localDataCoverage?.status === 'ready'
+                              ? faCircleCheck
+                              : faCircleExclamation
+                          }
+                        />
+                        {localizedCoverage(instrument, i18n.language, t)}
+                      </span>
                     </span>
-                    <Tag>{t(`dataCatalog.assetType.${instrument.assetType}`)}</Tag>
+                    <span className="jx-researchDataCatalog-resultTags">
+                      <Tag>{t(`dataCatalog.assetType.${instrument.assetType}`)}</Tag>
+                      {instrument.researchRegistry && (
+                        <Tag>
+                          {t(`dataCatalog.registryRole.${instrument.researchRegistry.role}`)}
+                        </Tag>
+                      )}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -228,6 +333,29 @@ export const ResearchDataCatalogDrawer = complex.component(
             <div className="jx-researchDataCatalog-sectionHead">
               <strong>{t('dataCatalog.seriesConfig')}</strong>
               <code>{selected.identifier}</code>
+            </div>
+            <div className="jx-researchDataCatalog-selectedMeta">
+              <div>
+                <span>{t('dataCatalog.localCoverage')}</span>
+                <strong>{localizedCoverage(selected, i18n.language, t)}</strong>
+              </div>
+              {selected.researchRegistry && (
+                <div>
+                  <span>{t('dataCatalog.registryExposure')}</span>
+                  <strong>
+                    {selected.researchRegistry.exposureId} ·{' '}
+                    {t(`dataCatalog.registryRole.${selected.researchRegistry.role}`)}
+                  </strong>
+                </div>
+              )}
+              {selected.researchRegistry &&
+                selected.researchRegistry.knownLimitations.length > 0 && (
+                  <p>
+                    {t('dataCatalog.registryLimitations', {
+                      count: selected.researchRegistry.knownLimitations.length,
+                    })}
+                  </p>
+                )}
             </div>
             <label>
               <span>{t('dataCatalog.measure')}</span>
@@ -290,6 +418,52 @@ function localizedInstrumentName(
   language: string,
 ): string {
   return language.startsWith('zh') ? instrument.nameZh : (instrument.nameEn ?? instrument.nameZh);
+}
+
+function localizedMethodDescription(
+  method: ResearchDataCatalogSdkMethodV1,
+  language: string,
+): string {
+  return language.startsWith('zh') ? method.descriptionZh : method.descriptionEn;
+}
+
+function researchDataMethodIcon(qualifiedName: string) {
+  switch (qualifiedName) {
+    case 'data.cross_section':
+      return faTableColumns;
+    case 'data.panel':
+      return faLayerGroup;
+    case 'data.yield_curve':
+      return faPercent;
+    default:
+      return faChartLine;
+  }
+}
+
+function localizedCoverage(
+  instrument: ResearchDataCatalogInstrumentV1,
+  language: string,
+  translate: TFunction<'research'>,
+): string {
+  const coverage = instrument.localDataCoverage;
+  if (coverage?.status !== 'ready') {
+    return translate('dataCatalog.coverageMissing');
+  }
+  return translate('dataCatalog.coverageReady', {
+    start: formatCatalogDate(coverage.startDate),
+    end: formatCatalogDate(coverage.endDate),
+    count: coverage.observationCount.toLocaleString(language),
+  });
+}
+
+function formatCatalogDate(value: string): string {
+  return /^\d{8}$/.test(value)
+    ? `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}`
+    : value;
+}
+
+function catalogDate(value: string): Dayjs {
+  return dayjs(formatCatalogDate(value));
 }
 
 function rankCatalogInstruments(
