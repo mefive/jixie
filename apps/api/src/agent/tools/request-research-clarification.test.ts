@@ -96,7 +96,7 @@ describe('requestResearchClarification tool', () => {
     ).rejects.toThrow('not executable through the public Research SDK');
   });
 
-  it('rejects locally available bindings that the public Research SDK cannot load', async () => {
+  it('accepts locally available macro bindings exposed by the public Research SDK', async () => {
     const binding = researchConceptBindings('macro.inflation.us.cpi.headline')[0]!;
     mocks.resolve.mockResolvedValue([
       { binding, available: true, match: { source: binding.source }, unavailableReason: null },
@@ -116,7 +116,7 @@ describe('requestResearchClarification tool', () => {
           },
         ],
       }),
-    ).rejects.toThrow('not executable through the public Research SDK');
+    ).resolves.toMatchObject({ rows: 1 });
   });
 
   it('rejects a binding that was not returned by the current turn catalog query', async () => {
