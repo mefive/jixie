@@ -55,6 +55,12 @@ A strong value in one metric does not make a strategy reliable. Always consider 
 
 Low costs may mean few trades or unrealistically low assumptions. Check the run parameters before drawing a conclusion.
 
+## Compare two reports temporarily
+
+After saving at least two backtests, choose report A at the top of the results area, click **Compare**, and then choose report B. The page temporarily shows total return, Sharpe, maximum drawdown, trades, each B − A difference, and both equity curves rebased independently to 100.
+
+The comparison exists only on the current page. It creates no saved record and ends when you exit comparison or leave the page; the underlying reports remain immutable.
+
 ## Run again after a change
 
 After changing code, dates, capital, or costs, **Run backtest** becomes available again. Only the next completed result reflects those changes.

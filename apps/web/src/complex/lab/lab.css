@@ -386,9 +386,25 @@
 }
 
 .jx-lab-reportPicker {
-  @apply flex items-center gap-2 border-b border-line text-muted;
+  @apply flex flex-col gap-1 border-b border-line text-muted;
   flex: none;
   padding: 6px 12px;
+}
+
+.jx-lab-reportRow {
+  @apply flex items-center gap-2;
+  min-width: 0;
+}
+
+.jx-lab-reportBadge {
+  @apply flex shrink-0 items-center justify-center rounded bg-ink font-semibold text-white;
+  width: 20px;
+  height: 20px;
+  font-size: 10px;
+}
+
+.jx-lab-reportBadge--secondary {
+  background: #2563eb;
 }
 
 .jx-lab-reportSelect {
@@ -426,6 +442,52 @@
 .jx-lab-metrics {
   @apply grid gap-3;
   grid-template-columns: repeat(3, 1fr);
+}
+
+.jx-lab-comparison {
+  @apply flex flex-col gap-3;
+}
+
+.jx-lab-comparisonHead {
+  @apply flex items-center justify-between gap-3;
+}
+
+.jx-lab-comparisonHead > span {
+  @apply text-xs text-muted;
+}
+
+.jx-lab-comparisonMetrics {
+  @apply grid gap-3;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.jx-lab-comparisonMetric {
+  @apply flex flex-col gap-2 rounded-lg border border-line bg-bg;
+  padding: 12px 14px;
+}
+
+.jx-lab-comparisonMetricLabel {
+  @apply text-xs text-muted;
+}
+
+.jx-lab-comparisonMetricValue {
+  @apply flex items-center justify-between gap-3 text-sm;
+}
+
+.jx-lab-comparisonMetricValue > span {
+  @apply text-xs font-semibold text-muted;
+}
+
+.jx-lab-comparisonMetricDifference {
+  @apply border-t border-line pt-2 text-right text-xs font-semibold text-muted;
+}
+
+.jx-lab-comparisonMetricDifference--up {
+  color: var(--color-up);
+}
+
+.jx-lab-comparisonMetricDifference--down {
+  color: var(--color-down);
 }
 
 .jx-lab-allocation {

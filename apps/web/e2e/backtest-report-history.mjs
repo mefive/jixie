@@ -39,12 +39,25 @@ try {
 
   await history.click();
   const historicalOption = page
-    .locator('.ant-select-item-option')
+    .locator('.ant-select-dropdown:visible .ant-select-item-option')
     .filter({ hasText: '历史 · 2026-08-01 18:05 · 8.00%' });
   await historicalOption.click();
   await page.getByText('8.00%', { exact: true }).first().waitFor({ timeout: 15_000 });
+
+  await page.getByTestId('backtest-report-compare-toggle').click();
+  const comparisonSelect = page.getByTestId('backtest-report-comparison-select');
+  await comparisonSelect.click();
+  await page
+    .locator('.jx-lab-comparisonReportPopup:visible')
+    .locator('.ant-select-item-option')
+    .filter({ hasText: '最新 · 2026-09-01 18:05 · 26.00%' })
+    .click();
+  await comparisonSelect.getByText('最新 · 2026-09-01 18:05 · 26.00%', { exact: true }).waitFor();
+  const comparison = page.getByTestId('backtest-report-comparison');
+  await comparison.waitFor({ timeout: 15_000 });
+  await comparison.getByText('+18.00 个百分点', { exact: true }).waitFor();
   await page.locator('.jx-lab-resultTabs').screenshot({
-    path: `${SHOTS}backtest-report-history.png`,
+    path: `${SHOTS}backtest-report-comparison.png`,
   });
 
   const popupPromise = page.waitForEvent('popup');
@@ -72,7 +85,9 @@ try {
     fullPage: true,
   });
 
-  console.log('[backtest-report-history-e2e] history=pass research-handoff=pass screenshots=2');
+  console.log(
+    '[backtest-report-history-e2e] history=pass comparison=pass research-handoff=pass screenshots=2',
+  );
 } finally {
   await context.close();
   await browser.close();

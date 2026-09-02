@@ -4,6 +4,7 @@ import type {
   AllocationAnalysis,
   AllocationCorrelationAnalysis,
   AllocationRateRegimeAnalysis,
+  BacktestSummary,
   ChatMessage,
   MacroRiskAxisKeyV1,
   MarketRiskFactorKeyV1,
@@ -33,6 +34,7 @@ import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 import {
   faClockRotateLeft,
+  faCodeCompare,
   faPaperPlane,
   faPen,
   faPlay,
@@ -43,6 +45,7 @@ import {
   faSpinner,
   faTriangleExclamation,
   faUpRightFromSquare,
+  faXmark,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { LoaderButton } from '@src/components/loader-button';
@@ -59,6 +62,27 @@ import { ParameterScanButton, ParameterScanPanel } from './parameter-scan';
 import { StrategyCardView } from './strategy-card';
 import { readRecents } from './recents';
 import './lab.css';
+
+interface BacktestHistoryPickerProps {
+  comparing: boolean;
+  comparisonReportId: string | null;
+  onStartComparison: () => void;
+  onStopComparison: () => void;
+  onSelectComparison: (reportId: string) => void;
+}
+
+interface BacktestComparisonPanelProps {
+  primary: BacktestSummary;
+  secondary: BacktestSummary;
+}
+
+interface BacktestComparisonMetric {
+  label: string;
+  primary: string;
+  secondary: string;
+  difference: string;
+  tone?: 'up' | 'down';
+}
 
 // Our dates are 'YYYYMMDD' strings; enable dayjs to parse that format for the DatePicker.
 dayjs.extend(customParseFormat);
@@ -926,6 +950,22 @@ const ResultPanel = complex.component(() => {
     }
     return <div className="jx-lab-placeholder">{t('resultEmpty')}</div>;
   }
+  if (store.backtestComparisonLoader.loading) {
+    return (
+      <div className="jx-lab-placeholder">
+        <FontAwesomeIcon icon={faSpinner} spin />
+        {t('backtestHistory.comparisonLoading')}
+      </div>
+    );
+  }
+  if (store.backtestComparisonLoader.result) {
+    return (
+      <BacktestComparisonPanel
+        primary={r}
+        secondary={store.backtestComparisonLoader.result.result}
+      />
+    );
+  }
 
   const up = r.totalReturn >= 0;
   const optPct = (v?: number) => (v == null ? '—' : pct(v));
@@ -1058,6 +1098,87 @@ const ResultPanel = complex.component(() => {
     </>
   );
 }, 'ResultPanel');
+
+const BacktestComparisonPanel = ({ primary, secondary }: BacktestComparisonPanelProps) => {
+  const { t } = useTranslation('lab');
+  const signed = (value: number, digits = 2) => `${value > 0 ? '+' : ''}${value.toFixed(digits)}`;
+  const percentagePointDifference = (value: number) =>
+    t('backtestHistory.percentagePointDifference', { value: signed(value * 100) });
+  const tone = (value: number): BacktestComparisonMetric['tone'] =>
+    value > 0 ? 'up' : value < 0 ? 'down' : undefined;
+  const metrics: BacktestComparisonMetric[] = [
+    {
+      label: t('metricTotalReturn'),
+      primary: pct(primary.totalReturn),
+      secondary: pct(secondary.totalReturn),
+      difference: percentagePointDifference(secondary.totalReturn - primary.totalReturn),
+      tone: tone(secondary.totalReturn - primary.totalReturn),
+    },
+    {
+      label: 'Sharpe',
+      primary: primary.sharpe.toFixed(2),
+      secondary: secondary.sharpe.toFixed(2),
+      difference: signed(secondary.sharpe - primary.sharpe),
+      tone: tone(secondary.sharpe - primary.sharpe),
+    },
+    {
+      label: t('metricMaxDrawdown'),
+      primary: pct(primary.maxDrawdown),
+      secondary: pct(secondary.maxDrawdown),
+      difference: percentagePointDifference(secondary.maxDrawdown - primary.maxDrawdown),
+      tone: tone(secondary.maxDrawdown - primary.maxDrawdown),
+    },
+    {
+      label: t('metricTrades'),
+      primary: primary.trades.toLocaleString(),
+      secondary: secondary.trades.toLocaleString(),
+      difference: signed(secondary.trades - primary.trades, 0),
+    },
+  ];
+
+  return (
+    <>
+      <section className="jx-lab-comparison" data-testid="backtest-report-comparison">
+        <div className="jx-lab-comparisonHead">
+          <strong>{t('backtestHistory.comparisonTitle')}</strong>
+          <span>{t('backtestHistory.comparisonDifference')}</span>
+        </div>
+        <div className="jx-lab-comparisonMetrics">
+          {metrics.map((metric) => (
+            <div className="jx-lab-comparisonMetric" key={metric.label}>
+              <span className="jx-lab-comparisonMetricLabel">{metric.label}</span>
+              <div className="jx-lab-comparisonMetricValue">
+                <span>{t('backtestHistory.reportA')}</span>
+                <b>{metric.primary}</b>
+              </div>
+              <div className="jx-lab-comparisonMetricValue">
+                <span>{t('backtestHistory.reportB')}</span>
+                <b>{metric.secondary}</b>
+              </div>
+              <div
+                className={classNames('jx-lab-comparisonMetricDifference', {
+                  'jx-lab-comparisonMetricDifference--up': metric.tone === 'up',
+                  'jx-lab-comparisonMetricDifference--down': metric.tone === 'down',
+                })}
+              >
+                {metric.difference}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+      <Suspense fallback={<div className="jx-lab-placeholder">{t('loadingChart')}</div>}>
+        <NavChart
+          nav={primary.nav}
+          up={primary.totalReturn >= 0}
+          comparisonNav={secondary.nav}
+          benchmarks={{}}
+          benchmarksLoading={false}
+        />
+      </Suspense>
+    </>
+  );
+};
 
 const AllocationAnalysisPanel = ({ analysis }: { analysis: AllocationAnalysis }) => {
   const { t } = useTranslation('lab');
@@ -1841,8 +1962,40 @@ const ResultTabs = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('lab');
   const [active, setActive] = useState('overview');
+  const [comparing, setComparing] = useState(false);
+  const [comparisonReportId, setComparisonReportId] = useState<string | null>(null);
   const result = store.result;
   const hasTrades = (result?.tradeLog?.length ?? 0) > 0;
+
+  useEffect(() => {
+    setComparing(false);
+    setComparisonReportId(null);
+    store.resetBacktestComparison();
+  }, [store, store.savedId]);
+
+  useEffect(() => {
+    if (comparisonReportId && comparisonReportId === store.activeBacktestReportId) {
+      setComparisonReportId(null);
+      store.resetBacktestComparison();
+    }
+  }, [comparisonReportId, store, store.activeBacktestReportId]);
+
+  const stopComparison = () => {
+    setComparing(false);
+    setComparisonReportId(null);
+    store.resetBacktestComparison();
+  };
+
+  const selectComparison = (reportId: string) => {
+    void store
+      .loadBacktestComparison(reportId)
+      .then((report) => {
+        if (report) {
+          setComparisonReportId(report.id);
+        }
+      })
+      .catch(() => {});
+  };
 
   const items = [
     {
@@ -1885,7 +2038,15 @@ const ResultTabs = complex.component(() => {
   return (
     <div className="jx-lab-resultTabs">
       <RunConfig />
-      {store.savedId ? <BacktestHistoryPicker /> : null}
+      {store.savedId ? (
+        <BacktestHistoryPicker
+          comparing={comparing}
+          comparisonReportId={comparisonReportId}
+          onStartComparison={() => setComparing(true)}
+          onStopComparison={stopComparison}
+          onSelectComparison={selectComparison}
+        />
+      ) : null}
       <Tabs
         className="jx-lab-resultTabsInner"
         size="small"
@@ -1909,50 +2070,111 @@ const ResultTabs = complex.component(() => {
   );
 }, 'ResultTabs');
 
-const BacktestHistoryPicker = complex.component(() => {
-  const store = complex.useStore();
-  const { t } = useTranslation('lab');
-  const reports = store.backtestHistoryLoader.result ?? [];
-  const activeReportId = reports.some((report) => report.id === store.activeBacktestReportId)
-    ? store.activeBacktestReportId
-    : undefined;
-  return (
-    <div className="jx-lab-reportPicker">
-      <FontAwesomeIcon icon={faClockRotateLeft} />
-      <Select
-        size="small"
-        className="jx-lab-reportSelect"
-        data-testid="backtest-report-history"
-        aria-label={t('backtestHistory.label')}
-        value={activeReportId}
-        loading={store.backtestHistoryLoader.loading || store.backtestReportLoader.loading}
-        disabled={reports.length === 0 || store.running}
-        placeholder={t('backtestHistory.empty')}
-        options={reports.map((report, index) => ({
-          value: report.id,
-          label: `${index === 0 ? t('backtestHistory.latest') : t('backtestHistory.historical')} · ${dayjs(report.computedAt ?? report.createdAt).format('YYYY-MM-DD HH:mm')} · ${pct(report.totalReturn)}`,
-        }))}
-        onChange={(reportId) => void store.viewBacktestReport(reportId).catch(() => {})}
-      />
-      <Tooltip title={t('backtestHistory.openResearch')}>
-        <Button
-          type="text"
-          size="small"
-          data-testid="backtest-report-open-research"
-          aria-label={t('backtestHistory.openResearch')}
-          disabled={!store.activeBacktestReportId || store.running}
-          icon={<FontAwesomeIcon icon={faFlask} />}
-          onClick={() =>
-            window.open(
-              `/research?backtestReport=${encodeURIComponent(store.activeBacktestReportId!)}`,
-              '_blank',
-            )
-          }
-        />
-      </Tooltip>
-    </div>
-  );
-}, 'BacktestHistoryPicker');
+const BacktestHistoryPicker = complex.component(
+  ({
+    comparing,
+    comparisonReportId,
+    onStartComparison,
+    onStopComparison,
+    onSelectComparison,
+  }: BacktestHistoryPickerProps) => {
+    const store = complex.useStore();
+    const { t } = useTranslation('lab');
+    const reports = store.backtestHistoryLoader.result ?? [];
+    const activeReportId = reports.some((report) => report.id === store.activeBacktestReportId)
+      ? store.activeBacktestReportId
+      : undefined;
+    const options = reports.map((report, index) => ({
+      value: report.id,
+      label: `${index === 0 ? t('backtestHistory.latest') : t('backtestHistory.historical')} · ${dayjs(report.computedAt ?? report.createdAt).format('YYYY-MM-DD HH:mm')} · ${pct(report.totalReturn)}`,
+    }));
+
+    return (
+      <div className="jx-lab-reportPicker">
+        <div className="jx-lab-reportRow">
+          {comparing ? (
+            <span className="jx-lab-reportBadge">{t('backtestHistory.reportA')}</span>
+          ) : (
+            <FontAwesomeIcon icon={faClockRotateLeft} />
+          )}
+          <Select
+            size="small"
+            className="jx-lab-reportSelect"
+            data-testid="backtest-report-history"
+            aria-label={t('backtestHistory.label')}
+            value={activeReportId}
+            loading={store.backtestHistoryLoader.loading || store.backtestReportLoader.loading}
+            disabled={
+              reports.length === 0 || store.running || store.backtestComparisonLoader.loading
+            }
+            placeholder={t('backtestHistory.empty')}
+            options={options}
+            onChange={(reportId) => void store.viewBacktestReport(reportId).catch(() => {})}
+          />
+          {!comparing ? (
+            <Button
+              type="text"
+              size="small"
+              data-testid="backtest-report-compare-toggle"
+              disabled={reports.length < 2 || store.running}
+              icon={<FontAwesomeIcon icon={faCodeCompare} />}
+              onClick={onStartComparison}
+            >
+              {t('backtestHistory.compare')}
+            </Button>
+          ) : null}
+          <Tooltip title={t('backtestHistory.openResearch')}>
+            <Button
+              type="text"
+              size="small"
+              data-testid="backtest-report-open-research"
+              aria-label={t('backtestHistory.openResearch')}
+              disabled={!store.activeBacktestReportId || store.running}
+              icon={<FontAwesomeIcon icon={faFlask} />}
+              onClick={() =>
+                window.open(
+                  `/research?backtestReport=${encodeURIComponent(store.activeBacktestReportId!)}`,
+                  '_blank',
+                )
+              }
+            />
+          </Tooltip>
+        </div>
+        {comparing ? (
+          <div className="jx-lab-reportRow">
+            <span className="jx-lab-reportBadge jx-lab-reportBadge--secondary">
+              {t('backtestHistory.reportB')}
+            </span>
+            <Select
+              size="small"
+              className="jx-lab-reportSelect"
+              data-testid="backtest-report-comparison-select"
+              aria-label={t('backtestHistory.chooseComparison')}
+              value={comparisonReportId ?? undefined}
+              loading={store.backtestComparisonLoader.loading}
+              disabled={store.running}
+              classNames={{ popup: { root: 'jx-lab-comparisonReportPopup' } }}
+              placeholder={t('backtestHistory.chooseComparison')}
+              options={options.filter((option) => option.value !== activeReportId)}
+              onChange={onSelectComparison}
+            />
+            <Tooltip title={t('backtestHistory.exitComparison')}>
+              <Button
+                type="text"
+                size="small"
+                data-testid="backtest-report-compare-exit"
+                aria-label={t('backtestHistory.exitComparison')}
+                icon={<FontAwesomeIcon icon={faXmark} />}
+                onClick={onStopComparison}
+              />
+            </Tooltip>
+          </div>
+        ) : null}
+      </div>
+    );
+  },
+  'BacktestHistoryPicker',
+);
 
 // —— Helpers / config ——
 
