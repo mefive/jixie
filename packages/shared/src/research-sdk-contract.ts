@@ -722,6 +722,196 @@ const factorWeatherColumns = [
   })),
 ] satisfies readonly ResearchSdkDataFrameColumnContractV1[];
 
+const etfShareColumns = [
+  {
+    name: 'date',
+    wireType: 'trade_date',
+    pythonType: 'datetime64[ns]',
+    descriptionZh: '该条 ETF 份额记录首次可用于中国市场研究的日期。',
+    descriptionEn:
+      'The first China-market research date on which the ETF share record is available.',
+  },
+  {
+    name: 'trade_date',
+    wireType: 'trade_date',
+    pythonType: 'datetime64[ns]',
+    descriptionZh: '来源交易日。',
+    descriptionEn: 'Source trading date.',
+  },
+  ...[
+    ['total_share_10k', 'ETF 总份额，单位万份。', 'Total ETF shares in 10,000 fund units.'],
+    ['total_size_cny_10k', 'ETF 总规模，单位万元。', 'Total ETF size in CNY 10,000.'],
+    ['nav', '单位净值。', 'Net asset value per fund unit.'],
+    ['close', '交易所收盘价。', 'Exchange close price.'],
+  ].map(([name, descriptionZh, descriptionEn]) => ({
+    name,
+    wireType: name === 'total_share_10k' ? ('number' as const) : ('nullable_number' as const),
+    pythonType: 'float64',
+    descriptionZh,
+    descriptionEn,
+  })),
+  {
+    name: 'exchange',
+    wireType: 'string',
+    pythonType: 'string',
+    descriptionZh: '交易所代码。',
+    descriptionEn: 'Exchange code.',
+  },
+] satisfies readonly ResearchSdkDataFrameColumnContractV1[];
+
+const indexValuationColumns = [
+  {
+    name: 'date',
+    wireType: 'trade_date',
+    pythonType: 'datetime64[ns]',
+    descriptionZh: '指数估值交易日。',
+    descriptionEn: 'Index valuation trading date.',
+  },
+  ...[
+    ['total_mv_cny', '指数总市值，单位人民币元。', 'Index total market value in CNY.'],
+    ['float_mv_cny', '指数流通市值，单位人民币元。', 'Index float market value in CNY.'],
+    ['total_share', '指数口径总股本。', 'Provider index total-share measure.'],
+    ['float_share', '指数口径流通股本。', 'Provider index float-share measure.'],
+    ['free_share', '指数口径自由流通股本。', 'Provider index free-float share measure.'],
+    ['turnover_rate_pct', '换手率，百分比。', 'Turnover rate in percentage points.'],
+    [
+      'turnover_rate_free_float_pct',
+      '自由流通口径换手率，百分比。',
+      'Free-float turnover rate in percentage points.',
+    ],
+    ['pe', '指数静态市盈率。', 'Provider index price-to-earnings ratio.'],
+    ['pe_ttm', '指数滚动市盈率。', 'Provider index trailing price-to-earnings ratio.'],
+    ['pb', '指数市净率。', 'Provider index price-to-book ratio.'],
+  ].map(([name, descriptionZh, descriptionEn]) => ({
+    name,
+    wireType: 'nullable_number' as const,
+    pythonType: 'float64',
+    descriptionZh,
+    descriptionEn,
+  })),
+] satisfies readonly ResearchSdkDataFrameColumnContractV1[];
+
+const industryStateColumns = [
+  {
+    name: 'date',
+    wireType: 'trade_date',
+    pythonType: 'datetime64[ns]',
+    descriptionZh: '申万一级行业状态交易日。',
+    descriptionEn: 'Shenwan level-1 industry state trading date.',
+  },
+  {
+    name: 'industry_code',
+    wireType: 'string',
+    pythonType: 'string',
+    descriptionZh: '申万一级行业代码。',
+    descriptionEn: 'Shenwan level-1 industry code.',
+  },
+  {
+    name: 'industry_name',
+    wireType: 'string',
+    pythonType: 'string',
+    descriptionZh: '申万一级行业名称。',
+    descriptionEn: 'Shenwan level-1 industry name.',
+  },
+  {
+    name: 'traded_count',
+    wireType: 'number',
+    pythonType: 'int64',
+    descriptionZh: '纳入统计的股票数。',
+    descriptionEn: 'Number of stocks included in the observation.',
+  },
+  ...[
+    ['return_20d', '行业 20 日收益率。', 'Industry 20-day return.'],
+    [
+      'excess_return_20d',
+      '相对全市场等权口径的 20 日超额收益。',
+      '20-day excess return versus the equal-weight market.',
+    ],
+    [
+      'positive_return_20d_ratio',
+      '20 日收益为正的股票占比。',
+      'Share of stocks with a positive 20-day return.',
+    ],
+    [
+      'above_ma20_ratio',
+      '收盘价高于 20 日均线的股票占比。',
+      'Share of stocks above their 20-day moving average.',
+    ],
+    [
+      'above_ma60_ratio',
+      '收盘价高于 60 日均线的股票占比。',
+      'Share of stocks above their 60-day moving average.',
+    ],
+    [
+      'float_weighted_turnover_rate_pct',
+      '流通市值加权换手率，百分比。',
+      'Float-market-cap weighted turnover rate in percentage points.',
+    ],
+    ['amount_share', '行业成交额占全市场比例。', 'Industry share of whole-market trading amount.'],
+    [
+      'top_five_amount_share',
+      '行业内成交额前 5% 股票的成交额占比。',
+      'Trading-amount share of the top 5% most active stocks in the industry.',
+    ],
+  ].map(([name, descriptionZh, descriptionEn]) => ({
+    name,
+    wireType: 'nullable_number' as const,
+    pythonType: 'float64',
+    descriptionZh,
+    descriptionEn,
+  })),
+] satisfies readonly ResearchSdkDataFrameColumnContractV1[];
+
+const futuresSettlementColumns = [
+  {
+    name: 'date',
+    wireType: 'trade_date',
+    pythonType: 'datetime64[ns]',
+    descriptionZh: '结算参数交易日。',
+    descriptionEn: 'Settlement-parameter trading date.',
+  },
+  ...[
+    ['settle', '交易所结算价。', 'Exchange settlement price.'],
+    ['trading_fee_rate', '交易手续费率。', 'Trading fee rate.'],
+    ['trading_fee', '每手交易手续费。', 'Trading fee per contract.'],
+    ['delivery_fee', '每手交割手续费。', 'Delivery fee per contract.'],
+    [
+      'buy_hedge_margin_rate_pct',
+      '买套保保证金率，来源百分比点。',
+      'Buy-hedge margin rate in provider percentage points.',
+    ],
+    [
+      'sell_hedge_margin_rate_pct',
+      '卖套保保证金率，来源百分比点。',
+      'Sell-hedge margin rate in provider percentage points.',
+    ],
+    [
+      'long_margin_rate_pct',
+      '多头保证金率，来源百分比点。',
+      'Long margin rate in provider percentage points.',
+    ],
+    [
+      'short_margin_rate_pct',
+      '空头保证金率，来源百分比点。',
+      'Short margin rate in provider percentage points.',
+    ],
+    ['close_today_fee', '每手平今手续费。', 'Same-day close fee per contract.'],
+  ].map(([name, descriptionZh, descriptionEn]) => ({
+    name,
+    wireType: 'nullable_number' as const,
+    pythonType: 'float64',
+    descriptionZh,
+    descriptionEn,
+  })),
+  {
+    name: 'exchange',
+    wireType: 'nullable_string',
+    pythonType: 'string',
+    descriptionZh: '交易所代码。',
+    descriptionEn: 'Exchange code.',
+  },
+] satisfies readonly ResearchSdkDataFrameColumnContractV1[];
+
 function datedIdentifierDatasetFunction(
   name: 'equity_fundamentals' | 'equity_flows' | 'equity_dividends',
   descriptionZh: string,
@@ -762,6 +952,57 @@ function datedIdentifierDatasetFunction(
         keywordOnly: true,
         descriptionZh: '研究可得日结束日期，格式 YYYYMMDD。',
         descriptionEn: 'Inclusive availability end date in YYYYMMDD format.',
+      },
+    ],
+    returns: { kind: 'dataframe', columns },
+  };
+}
+
+function referenceDatasetFunction(
+  name: 'etf_shares' | 'index_valuation' | 'industry_state' | 'futures_settlement',
+  descriptionZh: string,
+  descriptionEn: string,
+  exampleIdentifier: string,
+  identifierDescriptionZh: string,
+  identifierDescriptionEn: string,
+  dateBasisZh: string,
+  dateBasisEn: string,
+  columns: readonly ResearchSdkDataFrameColumnContractV1[],
+): ResearchSdkFunctionContractV1 {
+  return {
+    qualifiedName: `data.${name}`,
+    namespace: 'data',
+    name,
+    descriptionZh,
+    descriptionEn,
+    examples: [`data.${name}("${exampleIdentifier}", start="20200101", end="20251231")`],
+    notesZh: [`identifier ${identifierDescriptionZh}；start/end 约束${dateBasisZh}。`],
+    notesEn: [`identifier ${identifierDescriptionEn}; start/end constrain ${dateBasisEn}.`],
+    parameters: [
+      {
+        name: 'identifier',
+        type: 'string',
+        required: true,
+        keywordOnly: false,
+        maximumLength: 80,
+        descriptionZh: identifierDescriptionZh,
+        descriptionEn: identifierDescriptionEn,
+      },
+      {
+        name: 'start',
+        type: 'date',
+        required: true,
+        keywordOnly: true,
+        descriptionZh: `起始${dateBasisZh}，格式 YYYYMMDD。`,
+        descriptionEn: `Inclusive ${dateBasisEn} start in YYYYMMDD format.`,
+      },
+      {
+        name: 'end',
+        type: 'date',
+        required: true,
+        keywordOnly: true,
+        descriptionZh: `结束${dateBasisZh}，格式 YYYYMMDD。`,
+        descriptionEn: `Inclusive ${dateBasisEn} end in YYYYMMDD format.`,
       },
     ],
     returns: { kind: 'dataframe', columns },
@@ -1517,6 +1758,50 @@ export const RESEARCH_SDK_CONTRACT_V1 = {
       ],
       returns: { kind: 'dataframe', columns: factorWeatherColumns },
     },
+    referenceDatasetFunction(
+      'etf_shares',
+      '按研究可得日读取 ETF 份额、规模、净值与收盘价。',
+      'Load ETF shares, size, NAV, and close by research availability date.',
+      '510300.SH',
+      '使用平台 ETF 代码',
+      'uses a platform ETF code',
+      '研究可得日',
+      'research availability date',
+      etfShareColumns,
+    ),
+    referenceDatasetFunction(
+      'index_valuation',
+      '读取供应商直接计算的指数估值、市值与换手指标。',
+      'Load provider-computed index valuation, market value, and turnover measures.',
+      '000300.SH',
+      '使用平台指数代码',
+      'uses a platform index code',
+      '交易日',
+      'trading date',
+      indexValuationColumns,
+    ),
+    referenceDatasetFunction(
+      'industry_state',
+      '读取申万一级行业的趋势、广度与交易活跃度。',
+      'Load trend, breadth, and trading activity for a Shenwan level-1 industry.',
+      '801120.SI',
+      '使用申万一级行业代码或名称',
+      'uses a Shenwan level-1 industry code or name',
+      '交易日',
+      'trading date',
+      industryStateColumns,
+    ),
+    referenceDatasetFunction(
+      'futures_settlement',
+      '读取实际交割合约的历史结算价、手续费与交易所保证金参数。',
+      'Load historical settlement prices, fees, and exchange margin parameters for an actual futures contract.',
+      'IF2609.CFX',
+      '使用实际交割合约代码，不接受连续合约',
+      'uses an actual delivery-contract code; continuous symbols are not accepted',
+      '交易日',
+      'trading date',
+      futuresSettlementColumns,
+    ),
     chartFunction(
       'line',
       '创建 jixie 原生交互折线图。',
@@ -1682,3 +1967,7 @@ export const RESEARCH_EQUITY_FLOWS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.fu
 export const RESEARCH_EQUITY_DIVIDENDS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[14];
 export const RESEARCH_STRATEGY_SCAN_REPORT_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[15];
 export const RESEARCH_FACTOR_WEATHER_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[16];
+export const RESEARCH_ETF_SHARES_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[17];
+export const RESEARCH_INDEX_VALUATION_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[18];
+export const RESEARCH_INDUSTRY_STATE_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[19];
+export const RESEARCH_FUTURES_SETTLEMENT_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[20];

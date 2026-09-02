@@ -21,6 +21,12 @@ import {
   loadResearchFactorWeatherResult,
   loadResearchStrategyScanReportResult,
 } from './result-dataset.js';
+import {
+  loadResearchEtfShares,
+  loadResearchFuturesSettlement,
+  loadResearchIndexValuation,
+  loadResearchIndustryState,
+} from './market-reference-dataset.js';
 import { loadResearchSeries, prepareResearchSeries, researchSeriesLoadStart } from './series.js';
 import {
   loadResearchEquityDividends,
@@ -44,10 +50,18 @@ import {
   parseResearchEquityFlowsRuntimeRows,
   parseResearchEquityFundamentalsRuntimeRequest,
   parseResearchEquityFundamentalsRuntimeRows,
+  parseResearchEtfSharesRuntimeRequest,
+  parseResearchEtfSharesRuntimeRows,
   parseResearchFactorReportRuntimeRequest,
   parseResearchFactorWeatherRuntimeRequest,
   parseResearchFactorWeatherRuntimeRows,
   parseResearchFxRuntimeRequest,
+  parseResearchFuturesSettlementRuntimeRequest,
+  parseResearchFuturesSettlementRuntimeRows,
+  parseResearchIndexValuationRuntimeRequest,
+  parseResearchIndexValuationRuntimeRows,
+  parseResearchIndustryStateRuntimeRequest,
+  parseResearchIndustryStateRuntimeRows,
   parseResearchMacroRuntimeRequest,
   parseResearchMarketStateRuntimeRequest,
   parseResearchMarketStateRuntimeRows,
@@ -120,7 +134,14 @@ export interface ResearchPythonCommodityRequest {
 
 export interface ResearchPythonEquityRequest {
   line: number;
-  method: 'equity_fundamentals' | 'equity_flows' | 'equity_dividends';
+  method:
+    | 'equity_fundamentals'
+    | 'equity_flows'
+    | 'equity_dividends'
+    | 'etf_shares'
+    | 'index_valuation'
+    | 'industry_state'
+    | 'futures_settlement';
   identifier: string | null;
 }
 
@@ -486,6 +507,14 @@ type ParsedResearchRequest =
       arguments: ResearchDatedIdentifierRuntimeRequestV1;
     })
   | (Omit<ResearchRequestFrame, 'method' | 'arguments'> & {
+      method:
+        | 'research_etf_shares'
+        | 'research_index_valuation'
+        | 'research_industry_state'
+        | 'research_futures_settlement';
+      arguments: ResearchDatedIdentifierRuntimeRequestV1;
+    })
+  | (Omit<ResearchRequestFrame, 'method' | 'arguments'> & {
       method: 'research_cross_section';
       arguments: ResearchCrossSectionRuntimeRequestV1;
     })
@@ -588,6 +617,34 @@ function parseResearchRequestFrame(frame: ResearchRequestFrame): ParsedResearchR
         id: frame.id,
         method: 'research_equity_dividends',
         arguments: parseResearchEquityDividendsRuntimeRequest(frame.arguments),
+      };
+    case 'research_etf_shares':
+      return {
+        type: frame.type,
+        id: frame.id,
+        method: 'research_etf_shares',
+        arguments: parseResearchEtfSharesRuntimeRequest(frame.arguments),
+      };
+    case 'research_index_valuation':
+      return {
+        type: frame.type,
+        id: frame.id,
+        method: 'research_index_valuation',
+        arguments: parseResearchIndexValuationRuntimeRequest(frame.arguments),
+      };
+    case 'research_industry_state':
+      return {
+        type: frame.type,
+        id: frame.id,
+        method: 'research_industry_state',
+        arguments: parseResearchIndustryStateRuntimeRequest(frame.arguments),
+      };
+    case 'research_futures_settlement':
+      return {
+        type: frame.type,
+        id: frame.id,
+        method: 'research_futures_settlement',
+        arguments: parseResearchFuturesSettlementRuntimeRequest(frame.arguments),
       };
     case 'research_cross_section':
       return {
@@ -781,6 +838,36 @@ async function answerResearchRequest(
         result = {
           rows: parseResearchEquityDividendsRuntimeRows(
             await loadResearchEquityDividends(frame.arguments),
+          ),
+        };
+        break;
+      }
+      case 'research_etf_shares': {
+        result = {
+          rows: parseResearchEtfSharesRuntimeRows(await loadResearchEtfShares(frame.arguments)),
+        };
+        break;
+      }
+      case 'research_index_valuation': {
+        result = {
+          rows: parseResearchIndexValuationRuntimeRows(
+            await loadResearchIndexValuation(frame.arguments),
+          ),
+        };
+        break;
+      }
+      case 'research_industry_state': {
+        result = {
+          rows: parseResearchIndustryStateRuntimeRows(
+            await loadResearchIndustryState(frame.arguments),
+          ),
+        };
+        break;
+      }
+      case 'research_futures_settlement': {
+        result = {
+          rows: parseResearchFuturesSettlementRuntimeRows(
+            await loadResearchFuturesSettlement(frame.arguments),
           ),
         };
         break;

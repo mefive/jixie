@@ -21,6 +21,10 @@ const mocks = vi.hoisted(() => ({
   commodityHoldingPositionGroupBy: vi.fn(),
   marketIndicatorAggregate: vi.fn(),
   indexIndicatorGroupBy: vi.fn(),
+  etfShareSizeGroupBy: vi.fn(),
+  indexDailyBasicGroupBy: vi.fn(),
+  industryIndicatorGroupBy: vi.fn(),
+  futureSettlementGroupBy: vi.fn(),
   etfDailyGroupBy: vi.fn(),
   indexDailyGroupBy: vi.fn(),
   marketBenchmarkDailyGroupBy: vi.fn(),
@@ -51,6 +55,10 @@ vi.mock('../lib/prisma.js', () => ({
     commodityHoldingPosition: { groupBy: mocks.commodityHoldingPositionGroupBy },
     marketIndicator: { aggregate: mocks.marketIndicatorAggregate },
     indexIndicator: { groupBy: mocks.indexIndicatorGroupBy },
+    etfShareSize: { groupBy: mocks.etfShareSizeGroupBy },
+    indexDailyBasic: { groupBy: mocks.indexDailyBasicGroupBy },
+    industryIndicator: { groupBy: mocks.industryIndicatorGroupBy },
+    futureSettlement: { groupBy: mocks.futureSettlementGroupBy },
     etfDaily: { groupBy: mocks.etfDailyGroupBy },
     indexDaily: { findMany: mocks.indexDailyFindMany, groupBy: mocks.indexDailyGroupBy },
     marketBenchmarkDaily: { groupBy: mocks.marketBenchmarkDailyGroupBy },
@@ -138,6 +146,10 @@ describe('research data catalog', () => {
       'data.equity_fundamentals',
       'data.equity_flows',
       'data.equity_dividends',
+      'data.etf_shares',
+      'data.index_valuation',
+      'data.industry_state',
+      'data.futures_settlement',
     ]);
     expect(result.instruments).toEqual([]);
     expect(result.datasets).toEqual([
@@ -247,6 +259,60 @@ describe('research data catalog', () => {
         }),
       ]),
     );
+  });
+
+  it('discovers remaining ETF, index, industry, and futures reference datasets', async () => {
+    mocks.etfFindMany.mockResolvedValue([
+      { tsCode: '510300.SH', name: '沪深300ETF', fundType: '股票型', indexName: '沪深300' },
+    ]);
+    mocks.etfShareSizeGroupBy.mockResolvedValue([
+      {
+        tsCode: '510300.SH',
+        _min: { availableDate: '20150106' },
+        _max: { availableDate: '20260803' },
+      },
+    ]);
+    mocks.indexDailyBasicGroupBy.mockResolvedValue([
+      {
+        tsCode: '000300.SH',
+        _min: { tradeDate: '20150105' },
+        _max: { tradeDate: '20260731' },
+      },
+    ]);
+    mocks.industryIndicatorGroupBy.mockResolvedValue([
+      {
+        l1Code: '801120.SI',
+        l1Name: '食品饮料',
+        _min: { tradeDate: '20150105' },
+        _max: { tradeDate: '20260731' },
+      },
+    ]);
+    mocks.futureSettlementGroupBy.mockResolvedValue([
+      {
+        tsCode: 'IF2609.CFX',
+        _min: { tradeDate: '20260420' },
+        _max: { tradeDate: '20260727' },
+      },
+    ]);
+
+    const cases = [
+      ['510300.SH', 'data.etf_shares', '510300.SH', 'availableDate'],
+      ['000300.SH', 'data.index_valuation', '000300.SH', 'tradeDate'],
+      ['食品饮料', 'data.industry_state', '801120.SI', 'tradeDate'],
+      ['IF2609.CFX', 'data.futures_settlement', 'IF2609.CFX', 'tradeDate'],
+    ] as const;
+    for (const [query, method, identifier, dateBasis] of cases) {
+      const result = await searchResearchDataCatalog({ query, scope: 'datasets' });
+      expect(result.datasets).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            method,
+            identifier,
+            localDataCoverage: expect.objectContaining({ status: 'ready', dateBasis }),
+          }),
+        ]),
+      );
+    }
   });
 
   it('ranks exact stable identifiers and exposes measure compatibility', async () => {

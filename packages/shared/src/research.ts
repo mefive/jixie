@@ -257,6 +257,14 @@ export type ResearchDataCatalogDatasetV1 =
   | (ResearchDataCatalogDatasetBaseV1 & {
       method: 'data.market_state';
       scope: ResearchMarketStateScopeV1;
+    })
+  | (ResearchDataCatalogDatasetBaseV1 & {
+      method:
+        | 'data.etf_shares'
+        | 'data.index_valuation'
+        | 'data.industry_state'
+        | 'data.futures_settlement';
+      identifier: string;
     });
 
 /** A completed FactorReport owned by the current user and discoverable from Research. */

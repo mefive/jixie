@@ -133,6 +133,15 @@ export function researchDatasetSnippet(options: ResearchDatasetSnippetOptions): 
     start=${JSON.stringify(start)},
     end=${JSON.stringify(end)},
 )`;
+    case 'data.etf_shares':
+    case 'data.index_valuation':
+    case 'data.industry_state':
+    case 'data.futures_settlement':
+      return `${variable} = ${dataset.method}(
+    ${JSON.stringify(dataset.identifier)},
+    start=${JSON.stringify(start)},
+    end=${JSON.stringify(end)},
+)`;
   }
 }
 
@@ -151,6 +160,11 @@ function researchDatasetVariableName(dataset: ResearchDataCatalogDatasetV1): str
         return `${dataset.product}_${dataset.method.replace('data.commodity_', '')}`;
       case 'data.market_state':
         return `market_state_${dataset.scope}`;
+      case 'data.etf_shares':
+      case 'data.index_valuation':
+      case 'data.industry_state':
+      case 'data.futures_settlement':
+        return `${dataset.identifier}_${dataset.method.replace('data.', '')}`;
       default:
         return `${dataset.universe}_${dataset.method === 'data.panel' ? 'panel' : 'cross_section'}`;
     }

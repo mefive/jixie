@@ -6,6 +6,7 @@ import {
   researchPythonAllowedImportRoots,
   type ResearchAssetTypeV1,
   type ResearchDataCatalogResultV1,
+  type ResearchDataCatalogScopeV1,
 } from '@jixie/shared';
 import { researchYieldCurveSourceForSdkCall } from './concept-bindings.js';
 import { searchResearchDataCatalog } from './data-catalog.js';
@@ -13,7 +14,8 @@ import type { ResearchPythonAnalysis } from './workbench-runtime.js';
 
 type ResearchDataCatalogSearch = (input: {
   query: string;
-  assetType: ResearchAssetTypeV1;
+  assetType?: ResearchAssetTypeV1;
+  scope?: ResearchDataCatalogScopeV1;
   limit: number;
 }) => Promise<ResearchDataCatalogResultV1>;
 
@@ -120,22 +122,54 @@ export async function validateResearchSeriesProposal(
           `Cell ${analysis.cellId} data.${request.method} call on line ${request.line} must use a literal identifier value so the Research catalog can validate it.`,
         );
       }
-      const catalog = await searchCatalog({
-        query: request.identifier,
-        assetType: 'stock',
-        limit: 50,
-      });
+      if (request.method === 'industry_state') {
+        const catalog = await searchCatalog({
+          query: request.identifier,
+          scope: 'datasets',
+          limit: 50,
+        });
+        if (
+          catalog.datasets.some(
+            (candidate) =>
+              candidate.method === 'data.industry_state' &&
+              (candidate.identifier === request.identifier ||
+                candidate.tags.includes(request.identifier!)),
+          )
+        ) {
+          continue;
+        }
+        throw new Error(
+          `Cell ${analysis.cellId} data.${request.method} call on line ${request.line} references industry ${request.identifier}, which is not in the Research catalog.`,
+        );
+      }
+      const assetType = identifierRequestAssetType(request.method);
+      const catalog = await searchCatalog({ query: request.identifier, assetType, limit: 50 });
       if (
         !catalog.instruments.some(
           (candidate) =>
-            candidate.assetType === 'stock' && candidate.identifier === request.identifier,
+            candidate.assetType === assetType && candidate.identifier === request.identifier,
         )
       ) {
         throw new Error(
-          `Cell ${analysis.cellId} data.${request.method} call on line ${request.line} references stock ${request.identifier}, which is not in the Research catalog.`,
+          `Cell ${analysis.cellId} data.${request.method} call on line ${request.line} references ${assetType} ${request.identifier}, which is not in the Research catalog.`,
         );
       }
     }
+  }
+}
+
+function identifierRequestAssetType(
+  method: NonNullable<ResearchPythonAnalysis['equityRequests']>[number]['method'],
+): ResearchAssetTypeV1 {
+  switch (method) {
+    case 'etf_shares':
+      return 'etf';
+    case 'index_valuation':
+      return 'index';
+    case 'futures_settlement':
+      return 'future';
+    default:
+      return 'stock';
   }
 }
 

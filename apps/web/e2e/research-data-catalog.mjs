@@ -57,6 +57,10 @@ try {
     'equity_fundamentals',
     'equity_flows',
     'equity_dividends',
+    'etf_shares',
+    'index_valuation',
+    'industry_state',
+    'futures_settlement',
   ]) {
     await page.getByTestId(`research-data-catalog-method-${method}`).waitFor();
   }
@@ -128,6 +132,26 @@ try {
   }
   await drawer.screenshot({ path: `${SHOTS}research-data-catalog-market-state.png` });
 
+  for (const { query, method, identifier } of [
+    { query: '510300.SH', method: 'etf_shares', identifier: '510300.SH' },
+    { query: '000300.SH', method: 'index_valuation', identifier: '000300.SH' },
+    { query: '食品饮料', method: 'industry_state', identifier: '801120.SI' },
+    { query: 'IF2609.CFX', method: 'futures_settlement', identifier: 'IF2609.CFX' },
+  ]) {
+    await drawer.getByRole('textbox', { name: '搜索市场、指数、期限或数据读取方式' }).fill(query);
+    const referenceResult = page.getByTestId(
+      `research-data-catalog-dataset-data.${method}:${identifier}`,
+    );
+    await referenceResult.waitFor({ timeout: 30_000 });
+    await referenceResult.click();
+    await config.waitFor();
+    await config.scrollIntoViewIfNeeded();
+    if (!(await config.innerText()).includes(`data.${method}(`)) {
+      throw new Error(`The selected ${method} dataset did not generate an SDK call preview.`);
+    }
+  }
+  await drawer.screenshot({ path: `${SHOTS}research-data-catalog-reference-datasets.png` });
+
   const insert = page.getByTestId('research-data-catalog-insert');
   if (!(await insert.isEnabled())) {
     throw new Error('A locally covered dataset must be insertable into Research.');
@@ -136,7 +160,7 @@ try {
   await page.getByText('已插入当前 Python Cell', { exact: true }).waitFor({ timeout: 10_000 });
 
   console.log(
-    `[research-data-catalog-e2e] datasetMethods=12 coverage=${coverageText} inserted=true screenshots=6`,
+    `[research-data-catalog-e2e] datasetMethods=16 coverage=${coverageText} inserted=true screenshots=7`,
   );
 } finally {
   if (documentId) {

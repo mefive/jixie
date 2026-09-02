@@ -266,4 +266,55 @@ describe('Research Agent series proposal validation', () => {
       ),
     ).rejects.toThrow('not in the Research catalog');
   });
+
+  it('validates ETF, index, industry, and actual-futures identifiers against the catalog', async () => {
+    const referenceCatalog: ResearchDataCatalogResultV1 = {
+      ...catalog,
+      instruments: [
+        { ...catalog.instruments[0]!, assetType: 'etf', identifier: '510300.SH' },
+        { ...catalog.instruments[0]!, assetType: 'index', identifier: '000300.SH' },
+        { ...catalog.instruments[0]!, assetType: 'future', identifier: 'IF2609.CFX' },
+      ],
+      datasets: [
+        {
+          kind: 'dataset',
+          id: 'data.industry_state:801120.SI',
+          method: 'data.industry_state',
+          identifier: '801120.SI',
+          nameZh: '食品饮料行业状态',
+          nameEn: 'Food and beverage industry state',
+          descriptionZh: '',
+          descriptionEn: '',
+          tags: ['食品饮料'],
+          localDataCoverage: {
+            status: 'ready',
+            startDate: '20150105',
+            endDate: '20260731',
+            dateBasis: 'tradeDate',
+          },
+        },
+      ],
+    };
+    const search = vi.fn().mockResolvedValue(referenceCatalog);
+
+    await expect(
+      validateResearchSeriesProposal(
+        [
+          {
+            cellId: 'reference-data',
+            definitions: [],
+            references: [],
+            equityRequests: [
+              { line: 1, method: 'etf_shares', identifier: '510300.SH' },
+              { line: 2, method: 'index_valuation', identifier: '000300.SH' },
+              { line: 3, method: 'industry_state', identifier: '食品饮料' },
+              { line: 4, method: 'futures_settlement', identifier: 'IF2609.CFX' },
+            ],
+          },
+        ],
+        search,
+      ),
+    ).resolves.toBeUndefined();
+    expect(search).toHaveBeenCalledTimes(4);
+  });
 });

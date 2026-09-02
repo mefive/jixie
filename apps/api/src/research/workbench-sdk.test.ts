@@ -10,7 +10,11 @@ import {
   RESEARCH_BACKTEST_REPORT_SDK_CONTRACT_V1,
   RESEARCH_FACTOR_REPORT_SDK_CONTRACT_V1,
   RESEARCH_FACTOR_WEATHER_SDK_CONTRACT_V1,
+  RESEARCH_ETF_SHARES_SDK_CONTRACT_V1,
   RESEARCH_FX_SDK_CONTRACT_V1,
+  RESEARCH_FUTURES_SETTLEMENT_SDK_CONTRACT_V1,
+  RESEARCH_INDEX_VALUATION_SDK_CONTRACT_V1,
+  RESEARCH_INDUSTRY_STATE_SDK_CONTRACT_V1,
   RESEARCH_MACRO_SDK_CONTRACT_V1,
   RESEARCH_MARKET_STATE_SDK_CONTRACT_V1,
   RESEARCH_PANEL_SDK_CONTRACT_V1,
@@ -27,11 +31,15 @@ import {
   parseResearchEquityDividendsRuntimeRequest,
   parseResearchEquityFlowsRuntimeRequest,
   parseResearchEquityFundamentalsRuntimeRequest,
+  parseResearchEtfSharesRuntimeRequest,
   parseResearchBacktestReportRuntimeRequest,
   parseResearchEquityDatasetRuntimeRows,
   parseResearchFactorReportRuntimeRequest,
   parseResearchFactorWeatherRuntimeRequest,
   parseResearchFxRuntimeRequest,
+  parseResearchFuturesSettlementRuntimeRequest,
+  parseResearchIndexValuationRuntimeRequest,
+  parseResearchIndustryStateRuntimeRequest,
   parseResearchMacroRuntimeRequest,
   parseResearchMarketStateRuntimeRequest,
   parseResearchPanelRuntimeRequest,
@@ -153,6 +161,20 @@ describe('research workbench SDK contract', () => {
     );
     expect(RESEARCH_EQUITY_FLOWS_SDK_CONTRACT_V1.qualifiedName).toBe('data.equity_flows');
     expect(RESEARCH_EQUITY_DIVIDENDS_SDK_CONTRACT_V1.qualifiedName).toBe('data.equity_dividends');
+  });
+
+  it('drives ETF, index, industry, and futures reference dataset bridges', () => {
+    const request = { identifier: 'TEST', start: '20200101', end: '20251231' };
+    expect(parseResearchEtfSharesRuntimeRequest(request)).toEqual(request);
+    expect(parseResearchIndexValuationRuntimeRequest(request)).toEqual(request);
+    expect(parseResearchIndustryStateRuntimeRequest(request)).toEqual(request);
+    expect(parseResearchFuturesSettlementRuntimeRequest(request)).toEqual(request);
+    expect(RESEARCH_ETF_SHARES_SDK_CONTRACT_V1.qualifiedName).toBe('data.etf_shares');
+    expect(RESEARCH_INDEX_VALUATION_SDK_CONTRACT_V1.qualifiedName).toBe('data.index_valuation');
+    expect(RESEARCH_INDUSTRY_STATE_SDK_CONTRACT_V1.qualifiedName).toBe('data.industry_state');
+    expect(RESEARCH_FUTURES_SETTLEMENT_SDK_CONTRACT_V1.qualifiedName).toBe(
+      'data.futures_settlement',
+    );
   });
 
   it('drives both fixed-schema equity dataset bridge requests', () => {

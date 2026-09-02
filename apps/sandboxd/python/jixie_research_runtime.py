@@ -125,6 +125,55 @@ _EQUITY_DIVIDEND_COLUMNS = [
     "cash_dividend_pre_tax",
     "cash_dividend_tax_basis",
 ]
+_ETF_SHARE_COLUMNS = [
+    "date",
+    "trade_date",
+    "total_share_10k",
+    "total_size_cny_10k",
+    "nav",
+    "close",
+    "exchange",
+]
+_INDEX_VALUATION_COLUMNS = [
+    "date",
+    "total_mv_cny",
+    "float_mv_cny",
+    "total_share",
+    "float_share",
+    "free_share",
+    "turnover_rate_pct",
+    "turnover_rate_free_float_pct",
+    "pe",
+    "pe_ttm",
+    "pb",
+]
+_INDUSTRY_STATE_COLUMNS = [
+    "date",
+    "industry_code",
+    "industry_name",
+    "traded_count",
+    "return_20d",
+    "excess_return_20d",
+    "positive_return_20d_ratio",
+    "above_ma20_ratio",
+    "above_ma60_ratio",
+    "float_weighted_turnover_rate_pct",
+    "amount_share",
+    "top_five_amount_share",
+]
+_FUTURES_SETTLEMENT_COLUMNS = [
+    "date",
+    "settle",
+    "trading_fee_rate",
+    "trading_fee",
+    "delivery_fee",
+    "buy_hedge_margin_rate_pct",
+    "sell_hedge_margin_rate_pct",
+    "long_margin_rate_pct",
+    "short_margin_rate_pct",
+    "close_today_fee",
+    "exchange",
+]
 _FACTOR_WEATHER_COLUMNS = [
     "formation_date",
     "period_end_date",
@@ -283,7 +332,16 @@ class _NameAnalysis(ast.NodeVisitor):
             )
         if (
             isinstance(node.func, ast.Attribute)
-            and node.func.attr in {"equity_fundamentals", "equity_flows", "equity_dividends"}
+            and node.func.attr
+            in {
+                "equity_fundamentals",
+                "equity_flows",
+                "equity_dividends",
+                "etf_shares",
+                "index_valuation",
+                "industry_state",
+                "futures_settlement",
+            }
             and isinstance(node.func.value, ast.Name)
             and node.func.value.id == "data"
         ):
@@ -532,6 +590,34 @@ class _DataApi:
         return self._dataset_frame(
             result, _EQUITY_DIVIDEND_COLUMNS, ["date", "report_period"]
         )
+
+    def etf_shares(self, identifier: str, *, start: str, end: str) -> Any:
+        result = self._host.request(
+            "research_etf_shares",
+            {"identifier": identifier, "start": start, "end": end},
+        )
+        return self._dataset_frame(result, _ETF_SHARE_COLUMNS, ["date", "trade_date"])
+
+    def index_valuation(self, identifier: str, *, start: str, end: str) -> Any:
+        result = self._host.request(
+            "research_index_valuation",
+            {"identifier": identifier, "start": start, "end": end},
+        )
+        return self._dataset_frame(result, _INDEX_VALUATION_COLUMNS, ["date"])
+
+    def industry_state(self, identifier: str, *, start: str, end: str) -> Any:
+        result = self._host.request(
+            "research_industry_state",
+            {"identifier": identifier, "start": start, "end": end},
+        )
+        return self._dataset_frame(result, _INDUSTRY_STATE_COLUMNS, ["date"])
+
+    def futures_settlement(self, identifier: str, *, start: str, end: str) -> Any:
+        result = self._host.request(
+            "research_futures_settlement",
+            {"identifier": identifier, "start": start, "end": end},
+        )
+        return self._dataset_frame(result, _FUTURES_SETTLEMENT_COLUMNS, ["date"])
 
     def _equity_frame(self, result: Any) -> Any:
         rows = result.get("rows", []) if isinstance(result, dict) else []

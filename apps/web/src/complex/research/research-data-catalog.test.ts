@@ -183,6 +183,33 @@ test('inserts a governed market-state dataset call', () => {
   );
 });
 
+test('inserts a governed identifier-based reference dataset call', () => {
+  assert.match(
+    researchDatasetSnippet({
+      dataset: {
+        kind: 'dataset',
+        id: 'data.industry_state:801120.SI',
+        method: 'data.industry_state',
+        identifier: '801120.SI',
+        nameZh: '食品饮料行业状态',
+        nameEn: 'Food and beverage industry state',
+        descriptionZh: '',
+        descriptionEn: '',
+        tags: [],
+        localDataCoverage: {
+          status: 'ready',
+          startDate: '20150105',
+          endDate: '20260731',
+          dateBasis: 'tradeDate',
+        },
+      },
+      start: '20210101',
+      end: '20260701',
+    }),
+    /801120_si_industry_state = data\.industry_state\([\s\S]*"801120.SI"/,
+  );
+});
+
 test('inserts an immutable BacktestReport lookup by stable report id', () => {
   assert.equal(
     researchBacktestReportSnippet({ id: 'backtest-report-01', strategyName: 'Value Rotation' }),

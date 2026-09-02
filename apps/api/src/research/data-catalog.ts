@@ -345,6 +345,10 @@ function catalogMethodNames(scope: ResearchDataCatalogScopeV1): string[] {
         'data.equity_fundamentals',
         'data.equity_flows',
         'data.equity_dividends',
+        'data.etf_shares',
+        'data.index_valuation',
+        'data.industry_state',
+        'data.futures_settlement',
       ];
     case 'factor_reports':
       return ['results.factor_report', 'results.factor_weather'];
@@ -377,6 +381,13 @@ async function searchDatasets(
     commodityHoldingCoverageRows,
     marketStateCoverage,
     indexStateCoverageRows,
+    etfShareCoverageRows,
+    etfMetadataRows,
+    indexValuationCoverageRows,
+    indexMetadataRows,
+    industryStateCoverageRows,
+    futuresSettlementCoverageRows,
+    futuresMetadataRows,
   ] = await Promise.all([
     prisma.daily.findFirst({ orderBy: { tradeDate: 'asc' }, select: { tradeDate: true } }),
     prisma.daily.findFirst({ orderBy: { tradeDate: 'desc' }, select: { tradeDate: true } }),
@@ -448,6 +459,35 @@ async function searchDatasets(
       },
       _min: { tradeDate: true },
       _max: { tradeDate: true },
+    }),
+    prisma.etfShareSize.groupBy({
+      by: ['tsCode'],
+      _min: { availableDate: true },
+      _max: { availableDate: true },
+    }),
+    prisma.etfBasic.findMany({
+      select: { tsCode: true, name: true, fundType: true, indexName: true },
+    }),
+    prisma.indexDailyBasic.groupBy({
+      by: ['tsCode'],
+      _min: { tradeDate: true },
+      _max: { tradeDate: true },
+    }),
+    prisma.indexBenchmark.findMany({
+      select: { tsCode: true, name: true, indexType: true },
+    }),
+    prisma.industryIndicator.groupBy({
+      by: ['l1Code', 'l1Name'],
+      _min: { tradeDate: true },
+      _max: { tradeDate: true },
+    }),
+    prisma.futureSettlement.groupBy({
+      by: ['tsCode'],
+      _min: { tradeDate: true },
+      _max: { tradeDate: true },
+    }),
+    prisma.futureContract.findMany({
+      select: { tsCode: true, name: true, productCode: true, exchange: true },
     }),
   ]);
 
@@ -668,6 +708,102 @@ async function searchDatasets(
           : missingDatasetCoverage(),
     };
   });
+  const etfMetadata = new Map(etfMetadataRows.map((row) => [row.tsCode, row]));
+  const etfShareDatasets: ResearchDataCatalogDatasetV1[] = etfShareCoverageRows.flatMap((row) => {
+    const start = row._min.availableDate;
+    const end = row._max.availableDate;
+    if (!start || !end) {
+      return [];
+    }
+    const meta = etfMetadata.get(row.tsCode);
+    return [
+      {
+        kind: 'dataset',
+        id: `data.etf_shares:${row.tsCode}`,
+        method: 'data.etf_shares',
+        identifier: row.tsCode,
+        nameZh: `${meta?.name ?? row.tsCode} ETF 份额`,
+        nameEn: `${meta?.name ?? row.tsCode} ETF shares`,
+        descriptionZh: '按研究可得日治理的 ETF 份额、规模、净值与收盘价。',
+        descriptionEn: 'ETF shares, size, NAV, and close governed by research availability date.',
+        tags: compact([row.tsCode, meta?.fundType, meta?.indexName, 'ETF', 'PIT']),
+        localDataCoverage: readyDatasetCoverage(start, end, 'availableDate'),
+      },
+    ];
+  });
+  const indexMetadata = new Map(indexMetadataRows.map((row) => [row.tsCode, row]));
+  const indexValuationDatasets: ResearchDataCatalogDatasetV1[] = indexValuationCoverageRows.flatMap(
+    (row) => {
+      const start = row._min.tradeDate;
+      const end = row._max.tradeDate;
+      if (!start || !end) {
+        return [];
+      }
+      const meta = indexMetadata.get(row.tsCode);
+      return [
+        {
+          kind: 'dataset',
+          id: `data.index_valuation:${row.tsCode}`,
+          method: 'data.index_valuation',
+          identifier: row.tsCode,
+          nameZh: `${meta?.name ?? row.tsCode}指数估值`,
+          nameEn: `${meta?.name ?? row.tsCode} index valuation`,
+          descriptionZh: '供应商直接计算的指数市值、换手率与估值指标。',
+          descriptionEn: 'Provider-computed index market value, turnover, and valuation measures.',
+          tags: compact([row.tsCode, meta?.indexType, 'index', 'valuation']),
+          localDataCoverage: readyDatasetCoverage(start, end, 'tradeDate'),
+        },
+      ];
+    },
+  );
+  const industryStateDatasets: ResearchDataCatalogDatasetV1[] = industryStateCoverageRows.flatMap(
+    (row) => {
+      const start = row._min.tradeDate;
+      const end = row._max.tradeDate;
+      return start && end
+        ? [
+            {
+              kind: 'dataset',
+              id: `data.industry_state:${row.l1Code}`,
+              method: 'data.industry_state',
+              identifier: row.l1Code,
+              nameZh: `${row.l1Name}行业状态`,
+              nameEn: `${row.l1Name} industry state`,
+              descriptionZh: '申万一级行业的趋势、超额收益、广度与交易活跃度。',
+              descriptionEn:
+                'Trend, excess return, breadth, and trading activity for a Shenwan level-1 industry.',
+              tags: [row.l1Code, row.l1Name, '申万一级', 'industry', 'PIT'],
+              localDataCoverage: readyDatasetCoverage(start, end, 'tradeDate'),
+            },
+          ]
+        : [];
+    },
+  );
+  const futuresMetadata = new Map(futuresMetadataRows.map((row) => [row.tsCode, row]));
+  const futuresSettlementDatasets: ResearchDataCatalogDatasetV1[] =
+    futuresSettlementCoverageRows.flatMap((row) => {
+      const start = row._min.tradeDate;
+      const end = row._max.tradeDate;
+      if (!start || !end) {
+        return [];
+      }
+      const meta = futuresMetadata.get(row.tsCode);
+      return [
+        {
+          kind: 'dataset',
+          id: `data.futures_settlement:${row.tsCode}`,
+          method: 'data.futures_settlement',
+          identifier: row.tsCode,
+          nameZh: `${meta?.name ?? row.tsCode}期货结算参数`,
+          nameEn: `${meta?.name ?? row.tsCode} futures settlement parameters`,
+          descriptionZh: '实际交割合约的结算价、交易所手续费与保证金参数。',
+          descriptionEn:
+            'Settlement prices, exchange fees, and margin parameters for an actual delivery contract.',
+          tags: compact([row.tsCode, meta?.productCode, meta?.exchange, 'futures', 'settlement']),
+          localDataCoverage: readyDatasetCoverage(start, end, 'tradeDate'),
+        },
+      ];
+    });
   const datasets = [
     ...equityDatasets,
     ...macroDatasets,
@@ -675,6 +811,10 @@ async function searchDatasets(
     ...commodityDatasets,
     ...marketStateDatasets,
     ...yieldDatasets,
+    ...etfShareDatasets,
+    ...indexValuationDatasets,
+    ...industryStateDatasets,
+    ...futuresSettlementDatasets,
   ];
   const normalizedQuery = query.toLocaleLowerCase();
   return datasets
@@ -882,6 +1022,11 @@ function datasetIdentifiers(dataset: ResearchDataCatalogDatasetV1): string[] {
       return [dataset.product];
     case 'data.market_state':
       return [dataset.scope];
+    case 'data.etf_shares':
+    case 'data.index_valuation':
+    case 'data.industry_state':
+    case 'data.futures_settlement':
+      return [dataset.identifier];
     default:
       return [dataset.universe];
   }
