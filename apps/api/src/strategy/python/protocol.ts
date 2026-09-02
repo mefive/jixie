@@ -218,6 +218,16 @@ const researchYieldCurveAnalysisRequestSchema = z.strictObject({
   tenor: z.string().max(MAX_IDENTIFIER_CHARACTERS).nullable(),
 });
 
+const researchMacroAnalysisRequestSchema = z.strictObject({
+  line: z.number().int().positive(),
+  series: z.string().max(MAX_IDENTIFIER_CHARACTERS).nullable(),
+});
+
+const researchFxAnalysisRequestSchema = z.strictObject({
+  line: z.number().int().positive(),
+  pair: z.string().max(MAX_IDENTIFIER_CHARACTERS).nullable(),
+});
+
 const researchAnalyzedFrameSchema = z.strictObject({
   type: z.literal('research_analyzed'),
   cells: z
@@ -229,6 +239,8 @@ const researchAnalyzedFrameSchema = z.strictObject({
         imports: stringListSchema,
         series_requests: z.array(researchAnalysisRequestSchema).max(MAX_LIST_ITEMS),
         yield_curve_requests: z.array(researchYieldCurveAnalysisRequestSchema).max(MAX_LIST_ITEMS),
+        macro_requests: z.array(researchMacroAnalysisRequestSchema).max(MAX_LIST_ITEMS),
+        fx_requests: z.array(researchFxAnalysisRequestSchema).max(MAX_LIST_ITEMS),
         error: z.string().max(MAX_ERROR_CHARACTERS).optional(),
       }),
     )
@@ -351,6 +363,8 @@ export const researchExecutionFrameSchema = z.union([
     method: z.enum([
       'research_series',
       'research_yield_curve',
+      'research_macro',
+      'research_fx',
       'research_cross_section',
       'research_panel',
       'research_factor_report',

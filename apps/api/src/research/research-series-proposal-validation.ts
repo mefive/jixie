@@ -1,9 +1,11 @@
 import {
+  RESEARCH_FX_SERIES_IDS_V1,
+  RESEARCH_MACRO_SERIES_KEYS_V1,
   researchPythonAllowedImportRoots,
   type ResearchAssetTypeV1,
   type ResearchDataCatalogResultV1,
 } from '@jixie/shared';
-import { researchYieldCurveBindingForSdkCall } from './concept-bindings.js';
+import { researchYieldCurveSourceForSdkCall } from './concept-bindings.js';
 import { searchResearchDataCatalog } from './data-catalog.js';
 import type { ResearchPythonAnalysis } from './workbench-runtime.js';
 
@@ -64,9 +66,33 @@ export async function validateResearchSeriesProposal(
           `Cell ${analysis.cellId} data.yield_curve call on line ${request.line} must use literal curve and tenor values so the Research catalog can validate it.`,
         );
       }
-      if (!researchYieldCurveBindingForSdkCall(request.curve, request.tenor)) {
+      if (!researchYieldCurveSourceForSdkCall(request.curve, request.tenor)) {
         throw new Error(
           `Cell ${analysis.cellId} data.yield_curve call on line ${request.line} references unsupported curve/tenor pair ${request.curve}:${request.tenor}.`,
+        );
+      }
+    }
+    for (const request of analysis.macroRequests ?? []) {
+      if (!request.series) {
+        throw new Error(
+          `Cell ${analysis.cellId} data.macro call on line ${request.line} must use a literal series value so the Research catalog can validate it.`,
+        );
+      }
+      if (!RESEARCH_MACRO_SERIES_KEYS_V1.includes(request.series as never)) {
+        throw new Error(
+          `Cell ${analysis.cellId} data.macro call on line ${request.line} references unsupported series ${request.series}.`,
+        );
+      }
+    }
+    for (const request of analysis.fxRequests ?? []) {
+      if (!request.pair) {
+        throw new Error(
+          `Cell ${analysis.cellId} data.fx call on line ${request.line} must use a literal pair value so the Research catalog can validate it.`,
+        );
+      }
+      if (!RESEARCH_FX_SERIES_IDS_V1.includes(request.pair as never)) {
+        throw new Error(
+          `Cell ${analysis.cellId} data.fx call on line ${request.line} references unsupported pair ${request.pair}.`,
         );
       }
     }

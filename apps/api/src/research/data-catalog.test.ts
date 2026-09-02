@@ -13,6 +13,9 @@ const mocks = vi.hoisted(() => ({
   dailyBasicFindFirst: vi.fn(),
   indexWeightGroupBy: vi.fn(),
   yieldCurveGroupBy: vi.fn(),
+  macroSeriesFindMany: vi.fn(),
+  macroObservationGroupBy: vi.fn(),
+  fxDailyGroupBy: vi.fn(),
   etfDailyGroupBy: vi.fn(),
   indexDailyGroupBy: vi.fn(),
   marketBenchmarkDailyGroupBy: vi.fn(),
@@ -33,6 +36,9 @@ vi.mock('../lib/prisma.js', () => ({
     dailyBasic: { findFirst: mocks.dailyBasicFindFirst },
     indexWeight: { groupBy: mocks.indexWeightGroupBy },
     yieldCurvePoint: { groupBy: mocks.yieldCurveGroupBy },
+    macroSeries: { findMany: mocks.macroSeriesFindMany },
+    macroObservation: { groupBy: mocks.macroObservationGroupBy },
+    fxDaily: { groupBy: mocks.fxDailyGroupBy },
     etfDaily: { groupBy: mocks.etfDailyGroupBy },
     indexDaily: { findMany: mocks.indexDailyFindMany, groupBy: mocks.indexDailyGroupBy },
     marketBenchmarkDaily: { groupBy: mocks.marketBenchmarkDailyGroupBy },
@@ -105,6 +111,8 @@ describe('research data catalog', () => {
       'data.cross_section',
       'data.panel',
       'data.yield_curve',
+      'data.macro',
+      'data.fx',
     ]);
     expect(result.instruments).toEqual([]);
     expect(result.datasets).toEqual([
@@ -122,6 +130,52 @@ describe('research data catalog', () => {
       }),
     ]);
     expect(mocks.dailyGroupBy).not.toHaveBeenCalled();
+  });
+
+  it('discovers governed macro and FX datasets with availability-date coverage', async () => {
+    mocks.macroSeriesFindMany.mockResolvedValue([
+      {
+        seriesKey: 'cn_cpi_yoy',
+        nameZh: '中国 CPI 同比',
+        nameEn: 'China CPI YoY',
+        domain: 'inflation',
+        frequency: 'monthly',
+        unit: '%',
+      },
+    ]);
+    mocks.macroObservationGroupBy.mockResolvedValue([
+      {
+        seriesKey: 'cn_cpi_yoy',
+        _min: { availableDate: '20100112' },
+        _max: { availableDate: '20260810' },
+      },
+    ]);
+    mocks.fxDailyGroupBy.mockResolvedValue([
+      {
+        tsCode: 'USDCNH.FXCM',
+        _min: { availableDate: '20120221' },
+        _max: { availableDate: '20260805' },
+      },
+      {
+        tsCode: 'USDHKD.FXCM',
+        _min: { availableDate: '20120105' },
+        _max: { availableDate: '20260805' },
+      },
+    ]);
+
+    const macro = await searchResearchDataCatalog({ query: 'CPI', scope: 'datasets' });
+    const fx = await searchResearchDataCatalog({ query: 'HKD/CNH', scope: 'datasets' });
+
+    expect(macro.datasets).toEqual([
+      expect.objectContaining({ method: 'data.macro', series: 'cn_cpi_yoy' }),
+    ]);
+    expect(fx.datasets).toEqual([
+      expect.objectContaining({
+        method: 'data.fx',
+        pair: 'HKDCNH.DERIVED',
+        localDataCoverage: expect.objectContaining({ status: 'ready' }),
+      }),
+    ]);
   });
 
   it('ranks exact stable identifiers and exposes measure compatibility', async () => {

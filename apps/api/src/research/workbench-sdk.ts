@@ -3,11 +3,15 @@ import {
   RESEARCH_CROSS_SECTION_SDK_CONTRACT_V1,
   RESEARCH_BACKTEST_REPORT_SDK_CONTRACT_V1,
   RESEARCH_FACTOR_REPORT_SDK_CONTRACT_V1,
+  RESEARCH_FX_SDK_CONTRACT_V1,
+  RESEARCH_MACRO_SDK_CONTRACT_V1,
   RESEARCH_PANEL_SDK_CONTRACT_V1,
   RESEARCH_SERIES_SDK_CONTRACT_V1,
   RESEARCH_YIELD_CURVE_SDK_CONTRACT_V1,
   type ResearchAssetTypeV1,
   type ResearchFrequencyV1,
+  type ResearchFxSeriesIdV1,
+  type ResearchMacroSeriesKeyV1,
   type ResearchSdkDataFrameColumnContractV1,
   type ResearchSdkParameterContractV1,
   type ResearchTransformV1,
@@ -39,6 +43,24 @@ export interface ResearchYieldCurveRuntimeRequestV1 {
   end: string;
   frequency: ResearchFrequencyV1;
   transform: ResearchYieldTransformV1;
+  partial_period: 'exclude' | 'include';
+}
+
+export interface ResearchMacroRuntimeRequestV1 {
+  series: ResearchMacroSeriesKeyV1;
+  start: string;
+  end: string;
+  frequency: ResearchFrequencyV1;
+  transform: ResearchTransformV1;
+  partial_period: 'exclude' | 'include';
+}
+
+export interface ResearchFxRuntimeRequestV1 {
+  pair: ResearchFxSeriesIdV1;
+  start: string;
+  end: string;
+  frequency: ResearchFrequencyV1;
+  transform: ResearchTransformV1;
   partial_period: 'exclude' | 'include';
 }
 
@@ -95,6 +117,8 @@ const researchPanelRequestSchema = sdkRequestSchema(RESEARCH_PANEL_SDK_CONTRACT_
 const researchYieldCurveRequestSchema = sdkRequestSchema(
   RESEARCH_YIELD_CURVE_SDK_CONTRACT_V1.parameters,
 );
+const researchMacroRequestSchema = sdkRequestSchema(RESEARCH_MACRO_SDK_CONTRACT_V1.parameters);
+const researchFxRequestSchema = sdkRequestSchema(RESEARCH_FX_SDK_CONTRACT_V1.parameters);
 const researchFactorReportRequestSchema = sdkRequestSchema(
   RESEARCH_FACTOR_REPORT_SDK_CONTRACT_V1.parameters,
 );
@@ -140,6 +164,14 @@ export function parseResearchYieldCurveRuntimeRequest(
   return researchYieldCurveRequestSchema.parse(
     value,
   ) as unknown as ResearchYieldCurveRuntimeRequestV1;
+}
+
+export function parseResearchMacroRuntimeRequest(value: unknown): ResearchMacroRuntimeRequestV1 {
+  return researchMacroRequestSchema.parse(value) as unknown as ResearchMacroRuntimeRequestV1;
+}
+
+export function parseResearchFxRuntimeRequest(value: unknown): ResearchFxRuntimeRequestV1 {
+  return researchFxRequestSchema.parse(value) as unknown as ResearchFxRuntimeRequestV1;
 }
 
 export function parseResearchFactorReportRuntimeRequest(

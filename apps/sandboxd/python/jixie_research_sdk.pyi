@@ -66,13 +66,45 @@ class _DataApi:
     # DataFrame columns: date: datetime64[ns], value: float64
     def yield_curve(
         self,
-        curve: Literal["us_treasury_nominal", "us_treasury_real"],
+        curve: Literal["us_treasury_nominal", "us_treasury_real", "mof_cgb_ytm", "chinabond_cgb_ytm", "chinabond_bank_aaa_ytm", "chinabond_cp_note_aaa_ytm"],
         *,
         tenor: Literal["1M", "2M", "3M", "6M", "1Y", "2Y", "3Y", "5Y", "7Y", "10Y", "20Y", "30Y"],
         start: str,
         end: str,
         frequency: Literal["daily", "monthly"] = "daily",
         transform: Literal["level", "difference"] = "level",
+        partial_period: Literal["exclude", "include"] = "exclude",
+    ) -> pd.DataFrame: ...
+
+    # Load a macroeconomic or money-market series governed by release, availability, and vintage dates.
+    # Note: Resolve series through the public macro catalog; date is the research availability date, not the observation-period label.
+    # Note: Historical latest-value backfills are disclosed through DataFrame diagnostics and are not real-time historical vintages.
+    # Example: data.macro("cn_cpi_yoy", start="20150101", end="20251231", transform="level")
+    # DataFrame columns: date: datetime64[ns], value: float64
+    def macro(
+        self,
+        series: Literal["cn_cpi_yoy", "cn_ppi_yoy", "cn_pmi_manufacturing", "cn_social_financing_increment", "cn_social_financing_stock", "cn_m1_balance", "cn_m1_yoy", "cn_m2_balance", "cn_m2_yoy", "cn_shibor_overnight", "cn_shibor_1w", "cn_shibor_1m", "cn_shibor_3m", "us_cpi_u_all_items_nsa"],
+        *,
+        start: str,
+        end: str,
+        frequency: Literal["daily", "monthly"] = "daily",
+        transform: Literal["level", "difference", "simple_return", "percent_change", "year_over_year"] = "level",
+        partial_period: Literal["exclude", "include"] = "exclude",
+    ) -> pd.DataFrame: ...
+
+    # Load an FX mid-close series governed by cross-market availability dates.
+    # Note: Direct series use the bid/ask close midpoint; HKDCNH.DERIVED divides USDCNH by USDHKD on the same availability date.
+    # Note: date is the first date on which the FX observation is safe for China-close research.
+    # Example: data.fx("USDCNH.FXCM", start="20150101", end="20251231", transform="simple_return")
+    # DataFrame columns: date: datetime64[ns], value: float64
+    def fx(
+        self,
+        pair: Literal["USDCNH.FXCM", "USDHKD.FXCM", "HKDCNH.DERIVED"],
+        *,
+        start: str,
+        end: str,
+        frequency: Literal["daily", "monthly"] = "daily",
+        transform: Literal["level", "difference", "simple_return", "percent_change", "year_over_year"] = "level",
         partial_period: Literal["exclude", "include"] = "exclude",
     ) -> pd.DataFrame: ...
 

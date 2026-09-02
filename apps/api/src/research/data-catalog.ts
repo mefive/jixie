@@ -1,5 +1,7 @@
 import {
   RESEARCH_EQUITY_UNIVERSE_SUGGESTIONS_V1,
+  RESEARCH_FX_SERIES_IDS_V1,
+  RESEARCH_MACRO_SERIES_KEYS_V1,
   RESEARCH_SDK_AGENT_CATALOG_V1,
   RESEARCH_YIELD_CURVE_CODES_V1,
   RESEARCH_YIELD_TENORS_V1,
@@ -14,6 +16,8 @@ import {
   type ResearchDataCatalogRegistryV1,
   type ResearchDataCatalogResultV1,
   type ResearchDataCatalogScopeV1,
+  type ResearchFxSeriesIdV1,
+  type ResearchMacroSeriesKeyV1,
   type ResearchMeasureDefinitionV1,
 } from '@jixie/shared';
 import { Prisma } from '@prisma/client';
@@ -33,14 +37,18 @@ export interface ResearchDataCatalogQuery {
 }
 
 const DEFAULT_LIMIT = 24;
+const DEFAULT_DATASET_LIMIT = 100;
 
 /** Search platform-governed instruments and return the measures valid for the requested asset type. */
 export async function searchResearchDataCatalog(
   input: ResearchDataCatalogQuery = {},
 ): Promise<ResearchDataCatalogResultV1> {
   const query = input.query?.trim() ?? '';
-  const limit = Math.min(50, Math.max(1, input.limit ?? DEFAULT_LIMIT));
   const scope = input.scope ?? 'instruments';
+  const limit = Math.min(
+    scope === 'datasets' ? 100 : 50,
+    Math.max(1, input.limit ?? (scope === 'datasets' ? DEFAULT_DATASET_LIMIT : DEFAULT_LIMIT)),
+  );
   const assetTypes = input.assetType
     ? ([input.assetType] as const)
     : (['stock', 'etf', 'index', 'future'] as const);
@@ -297,7 +305,7 @@ export async function searchResearchDataCatalog(
 function catalogMethodNames(scope: ResearchDataCatalogScopeV1): string[] {
   switch (scope) {
     case 'datasets':
-      return ['data.cross_section', 'data.panel', 'data.yield_curve'];
+      return ['data.cross_section', 'data.panel', 'data.yield_curve', 'data.macro', 'data.fx'];
     case 'factor_reports':
       return ['results.factor_report'];
     case 'backtest_reports':
@@ -314,25 +322,57 @@ async function searchDatasets(
   const indexCodes = RESEARCH_EQUITY_UNIVERSE_SUGGESTIONS_V1.filter((value) =>
     value.startsWith('index:'),
   ).map((value) => value.slice('index:'.length));
-  const [dailyStart, dailyEnd, dailyBasicStart, dailyBasicEnd, indexWeights, yieldCurves] =
-    await Promise.all([
-      prisma.daily.findFirst({ orderBy: { tradeDate: 'asc' }, select: { tradeDate: true } }),
-      prisma.daily.findFirst({ orderBy: { tradeDate: 'desc' }, select: { tradeDate: true } }),
-      prisma.dailyBasic.findFirst({ orderBy: { tradeDate: 'asc' }, select: { tradeDate: true } }),
-      prisma.dailyBasic.findFirst({ orderBy: { tradeDate: 'desc' }, select: { tradeDate: true } }),
-      prisma.indexWeight.groupBy({
-        by: ['indexCode'],
-        where: { indexCode: { in: indexCodes } },
-        _min: { tradeDate: true },
-        _max: { tradeDate: true },
-      }),
-      prisma.yieldCurvePoint.groupBy({
-        by: ['curveCode', 'termYears'],
-        where: { curveCode: { in: [...RESEARCH_YIELD_CURVE_CODES_V1] } },
-        _min: { availableDate: true },
-        _max: { availableDate: true },
-      }),
-    ]);
+  const [
+    dailyStart,
+    dailyEnd,
+    dailyBasicStart,
+    dailyBasicEnd,
+    indexWeights,
+    yieldCurves,
+    macroSeries,
+    macroCoverageRows,
+    fxCoverageRows,
+  ] = await Promise.all([
+    prisma.daily.findFirst({ orderBy: { tradeDate: 'asc' }, select: { tradeDate: true } }),
+    prisma.daily.findFirst({ orderBy: { tradeDate: 'desc' }, select: { tradeDate: true } }),
+    prisma.dailyBasic.findFirst({ orderBy: { tradeDate: 'asc' }, select: { tradeDate: true } }),
+    prisma.dailyBasic.findFirst({ orderBy: { tradeDate: 'desc' }, select: { tradeDate: true } }),
+    prisma.indexWeight.groupBy({
+      by: ['indexCode'],
+      where: { indexCode: { in: indexCodes } },
+      _min: { tradeDate: true },
+      _max: { tradeDate: true },
+    }),
+    prisma.yieldCurvePoint.groupBy({
+      by: ['curveCode', 'termYears'],
+      where: { curveCode: { in: [...RESEARCH_YIELD_CURVE_CODES_V1] } },
+      _min: { availableDate: true },
+      _max: { availableDate: true },
+    }),
+    prisma.macroSeries.findMany({
+      where: { seriesKey: { in: [...RESEARCH_MACRO_SERIES_KEYS_V1] } },
+      select: {
+        seriesKey: true,
+        nameZh: true,
+        nameEn: true,
+        domain: true,
+        frequency: true,
+        unit: true,
+      },
+    }),
+    prisma.macroObservation.groupBy({
+      by: ['seriesKey'],
+      where: { seriesKey: { in: [...RESEARCH_MACRO_SERIES_KEYS_V1] } },
+      _min: { availableDate: true },
+      _max: { availableDate: true },
+    }),
+    prisma.fxDaily.groupBy({
+      by: ['tsCode'],
+      where: { tsCode: { in: ['USDCNH.FXCM', 'USDHKD.FXCM'] } },
+      _min: { availableDate: true },
+      _max: { availableDate: true },
+    }),
+  ]);
 
   const equityCoverage = intersectDatasetCoverage([
     [dailyStart?.tradeDate, dailyEnd?.tradeDate],
@@ -394,7 +434,7 @@ async function searchDatasets(
       if (!range?.[0] || !range[1]) {
         return [];
       }
-      const nominal = curve === 'us_treasury_nominal';
+      const meta = yieldCurveMeta(curve);
       return [
         {
           kind: 'dataset' as const,
@@ -402,17 +442,75 @@ async function searchDatasets(
           method: 'data.yield_curve' as const,
           curve,
           tenor,
-          nameZh: `美国国债${nominal ? '名义' : '实际'}收益率 ${tenor}`,
-          nameEn: `US Treasury ${nominal ? 'nominal' : 'real'} yield ${tenor}`,
-          descriptionZh: `按可得日期治理的美国国债${nominal ? '名义' : '实际'}收益率。`,
-          descriptionEn: `Availability-date governed US Treasury ${nominal ? 'nominal' : 'real'} yield.`,
-          tags: ['US Treasury', nominal ? 'nominal' : 'real', tenor, 'yield'],
+          nameZh: `${meta.nameZh} ${tenor}`,
+          nameEn: `${meta.nameEn} ${tenor}`,
+          descriptionZh: `按可得日期治理的${meta.nameZh}。`,
+          descriptionEn: `Availability-date governed ${meta.nameEn}.`,
+          tags: [...meta.tags, tenor, 'yield'],
           localDataCoverage: readyDatasetCoverage(range[0], range[1], 'availableDate'),
         },
       ];
     }),
   );
-  const datasets = [...equityDatasets, ...yieldDatasets];
+  const macroCoverage = new Map(
+    macroCoverageRows.map((row) => [
+      row.seriesKey,
+      [row._min.availableDate, row._max.availableDate] as const,
+    ]),
+  );
+  const macroDatasets = macroSeries.flatMap((series) => {
+    const range = macroCoverage.get(series.seriesKey);
+    if (!range?.[0] || !range[1]) {
+      return [];
+    }
+    return [
+      {
+        kind: 'dataset' as const,
+        id: `data.macro:${series.seriesKey}`,
+        method: 'data.macro' as const,
+        series: series.seriesKey as ResearchMacroSeriesKeyV1,
+        nameZh: series.nameZh,
+        nameEn: series.nameEn,
+        descriptionZh: `${series.frequency}频率，单位 ${series.unit}；按研究可得日治理。`,
+        descriptionEn: `${series.frequency} frequency in ${series.unit}, governed by research availability date.`,
+        tags: [series.domain, series.frequency, series.unit, 'PIT'],
+        localDataCoverage: readyDatasetCoverage(range[0], range[1], 'availableDate'),
+      },
+    ];
+  });
+  const fxCoverage = new Map(
+    fxCoverageRows.map((row) => [
+      row.tsCode,
+      [row._min.availableDate, row._max.availableDate] as const,
+    ]),
+  );
+  const derivedFxCoverage = intersectDatasetCoverage([
+    fxCoverage.get('USDCNH.FXCM') ?? [undefined, undefined],
+    fxCoverage.get('USDHKD.FXCM') ?? [undefined, undefined],
+  ]);
+  const fxDatasets = RESEARCH_FX_SERIES_IDS_V1.map((pair) => {
+    const meta = fxSeriesMeta(pair);
+    const range = fxCoverage.get(pair);
+    const localDataCoverage =
+      pair === 'HKDCNH.DERIVED'
+        ? derivedFxCoverage
+        : range?.[0] && range[1]
+          ? readyDatasetCoverage(range[0], range[1], 'availableDate')
+          : missingDatasetCoverage();
+    return {
+      kind: 'dataset' as const,
+      id: `data.fx:${pair}`,
+      method: 'data.fx' as const,
+      pair,
+      nameZh: meta.nameZh,
+      nameEn: meta.nameEn,
+      descriptionZh: meta.descriptionZh,
+      descriptionEn: meta.descriptionEn,
+      tags: [...meta.tags, 'FX', 'PIT'],
+      localDataCoverage,
+    };
+  });
+  const datasets = [...equityDatasets, ...macroDatasets, ...fxDatasets, ...yieldDatasets];
   const normalizedQuery = query.toLocaleLowerCase();
   return datasets
     .filter((dataset) => !normalizedQuery || datasetSearchText(dataset).includes(normalizedQuery))
@@ -429,6 +527,86 @@ function equityUniverseMeta(universe: string): { nameZh: string; nameEn: string;
       return { nameZh: '中证 1000', nameEn: 'CSI 1000', tags: ['中证1000', 'CSI 1000'] };
     default:
       return { nameZh: '全 A 股', nameEn: 'China A-shares', tags: ['全A', 'China A'] };
+  }
+}
+
+function yieldCurveMeta(curve: (typeof RESEARCH_YIELD_CURVE_CODES_V1)[number]): {
+  nameZh: string;
+  nameEn: string;
+  tags: string[];
+} {
+  switch (curve) {
+    case 'us_treasury_nominal':
+      return {
+        nameZh: '美国国债名义收益率',
+        nameEn: 'US Treasury nominal yield',
+        tags: ['US Treasury', 'nominal'],
+      };
+    case 'us_treasury_real':
+      return {
+        nameZh: '美国国债实际收益率',
+        nameEn: 'US Treasury real yield',
+        tags: ['US Treasury', 'real'],
+      };
+    case 'mof_cgb_ytm':
+      return {
+        nameZh: '财政部中国国债收益率',
+        nameEn: 'MOF China government bond yield',
+        tags: ['中国国债', 'CGB', 'MOF'],
+      };
+    case 'chinabond_cgb_ytm':
+      return {
+        nameZh: '中债中国国债收益率',
+        nameEn: 'ChinaBond government bond yield',
+        tags: ['中国国债', 'CGB', 'ChinaBond'],
+      };
+    case 'chinabond_bank_aaa_ytm':
+      return {
+        nameZh: '中债 AAA 银行债收益率',
+        nameEn: 'ChinaBond AAA bank bond yield',
+        tags: ['银行债', 'AAA', 'ChinaBond'],
+      };
+    case 'chinabond_cp_note_aaa_ytm':
+      return {
+        nameZh: '中债 AAA 短融收益率',
+        nameEn: 'ChinaBond AAA commercial paper yield',
+        tags: ['短融', 'AAA', 'ChinaBond'],
+      };
+  }
+}
+
+function fxSeriesMeta(pair: ResearchFxSeriesIdV1): {
+  nameZh: string;
+  nameEn: string;
+  descriptionZh: string;
+  descriptionEn: string;
+  tags: string[];
+} {
+  switch (pair) {
+    case 'USDCNH.FXCM':
+      return {
+        nameZh: '美元/离岸人民币',
+        nameEn: 'USD/CNH',
+        descriptionZh: 'FXCM 美元兑离岸人民币中间收盘价，按中国市场可得日治理。',
+        descriptionEn: 'FXCM USD/CNH mid close governed by China-market availability date.',
+        tags: ['USD', 'CNH'],
+      };
+    case 'USDHKD.FXCM':
+      return {
+        nameZh: '美元/港币',
+        nameEn: 'USD/HKD',
+        descriptionZh: 'FXCM 美元兑港币中间收盘价，按中国市场可得日治理。',
+        descriptionEn: 'FXCM USD/HKD mid close governed by China-market availability date.',
+        tags: ['USD', 'HKD'],
+      };
+    case 'HKDCNH.DERIVED':
+      return {
+        nameZh: '港币/离岸人民币（推导）',
+        nameEn: 'HKD/CNH (derived)',
+        descriptionZh: '由同一可得日的 USDCNH ÷ USDHKD 中间收盘价推导。',
+        descriptionEn: 'Derived from same-availability-date USDCNH divided by USDHKD mid closes.',
+        tags: ['HKD', 'CNH', 'derived'],
+      };
   }
 }
 
@@ -458,7 +636,11 @@ function datasetSearchText(dataset: ResearchDataCatalogDatasetV1): string {
     ...dataset.tags,
     ...(dataset.method === 'data.yield_curve'
       ? [dataset.curve, dataset.tenor]
-      : [dataset.universe]),
+      : dataset.method === 'data.macro'
+        ? [dataset.series]
+        : dataset.method === 'data.fx'
+          ? [dataset.pair]
+          : [dataset.universe]),
   ]
     .join('\n')
     .toLocaleLowerCase();

@@ -44,7 +44,7 @@ try {
   await drawer.screenshot({ path: `${SHOTS}research-data-catalog-capabilities.png` });
 
   await drawer.getByText('数据集', { exact: true }).click();
-  for (const method of ['cross_section', 'panel', 'yield_curve']) {
+  for (const method of ['cross_section', 'panel', 'yield_curve', 'macro', 'fx']) {
     await page.getByTestId(`research-data-catalog-method-${method}`).waitFor();
   }
   await page.getByTestId('research-data-catalog-method-panel').click();
@@ -76,18 +76,26 @@ try {
   await page.mouse.move(0, 999);
   await drawer.screenshot({ path: `${SHOTS}research-data-catalog-datasets.png` });
 
+  await drawer.getByRole('textbox', { name: '搜索市场、指数、期限或数据读取方式' }).fill('CPI');
+  const macroResult = page.getByTestId('research-data-catalog-dataset-data.macro:cn_cpi_yoy');
+  await macroResult.waitFor({ timeout: 30_000 });
+  await macroResult.click();
+  await config.waitFor();
+  await config.scrollIntoViewIfNeeded();
+  if (!(await config.innerText()).includes('data.macro(')) {
+    throw new Error('The selected macro dataset did not generate an SDK call preview.');
+  }
+  await drawer.screenshot({ path: `${SHOTS}research-data-catalog-macro.png` });
+
   const insert = page.getByTestId('research-data-catalog-insert');
   if (!(await insert.isEnabled())) {
     throw new Error('A locally covered dataset must be insertable into Research.');
-  }
-  if (!(await config.innerText()).includes('data.yield_curve(')) {
-    throw new Error('The selected local dataset did not generate an SDK call preview.');
   }
   await insert.click();
   await page.getByText('已插入当前 Python Cell', { exact: true }).waitFor({ timeout: 10_000 });
 
   console.log(
-    `[research-data-catalog-e2e] datasetMethods=3 coverage=${coverageText} inserted=true screenshots=3`,
+    `[research-data-catalog-e2e] datasetMethods=5 coverage=${coverageText} inserted=true screenshots=4`,
   );
 } finally {
   if (documentId) {

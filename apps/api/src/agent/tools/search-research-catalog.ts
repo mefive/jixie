@@ -10,6 +10,9 @@ import { resolveResearchConceptBindings } from '../../research/concept-binding-r
 import {
   researchConceptBindingSdkCall,
   researchConceptBindings,
+  researchFxSdkCall,
+  researchMacroSdkCall,
+  researchYieldCurveSdkCall,
 } from '../../research/concept-bindings.js';
 import {
   RESEARCH_CONCEPT_INSTRUMENT_FORMS,
@@ -394,7 +397,7 @@ export function createSearchResearchCatalogTool(evidence?: ResearchCatalogTurnEv
               ...item,
               source: { kind: 'macro', seriesKey: item.seriesKey },
               compatibleMeasure: measureReference('macro.observation'),
-              sdkAccess: researchSdkNotExposed(),
+              sdkAccess: researchSdkAccess(researchMacroSdkCall(item.seriesKey)),
             },
             compactValues(item),
             'macro',
@@ -412,7 +415,9 @@ export function createSearchResearchCatalogTool(evidence?: ResearchCatalogTurnEv
                 termYears: item.termYears,
               },
               compatibleMeasure: measureReference('rates.yield_pct'),
-              sdkAccess: researchSdkNotExposed(),
+              sdkAccess: researchSdkAccess(
+                researchYieldCurveSdkCall(item.curveCode, item.curveType, item.termYears),
+              ),
             },
             compactValues(item),
             'yield_curve',
@@ -426,7 +431,7 @@ export function createSearchResearchCatalogTool(evidence?: ResearchCatalogTurnEv
               exchange: item.exchange,
               source: { kind: 'fx', id: item.tsCode },
               compatibleMeasure: measureReference('fx.mid_close'),
-              sdkAccess: researchSdkNotExposed(),
+              sdkAccess: researchSdkAccess(researchFxSdkCall(item.tsCode)),
             },
             compactValues(item),
             'fx',
@@ -445,7 +450,7 @@ export function createSearchResearchCatalogTool(evidence?: ResearchCatalogTurnEv
                   derivation: 'USDCNH.FXCM / USDHKD.FXCM',
                   source: { kind: 'fx', id: HKD_CNH_DERIVED_CODE },
                   compatibleMeasure: measureReference('fx.mid_close'),
-                  sdkAccess: researchSdkNotExposed(),
+                  sdkAccess: researchSdkAccess(researchFxSdkCall(HKD_CNH_DERIVED_CODE)),
                 },
                 ['港币人民币', '港币汇率', 'hkd/cnh', 'hkd/cny', 'hkdcnh', HKD_CNH_DERIVED_CODE],
                 'fx',
@@ -881,6 +886,10 @@ function researchSdkNotExposed() {
     status: 'not_exposed',
     reason: 'source_available_but_not_exposed_in_research_sdk',
   } as const;
+}
+
+function researchSdkAccess(call: ReturnType<typeof researchConceptBindingSdkCall>) {
+  return call ? { status: 'ready' as const, call } : researchSdkNotExposed();
 }
 
 function measureReference(id: string) {

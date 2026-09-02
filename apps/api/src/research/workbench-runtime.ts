@@ -1,4 +1,4 @@
-import type { ResearchCellOutputBlockV1 } from '@jixie/shared';
+import type { ResearchCellOutputBlockV1, ResearchSeriesInputSpecV1 } from '@jixie/shared';
 import {
   researchAnalysisFrameSchema,
   researchExecutionFrameSchema,
@@ -9,7 +9,7 @@ import {
 import { PythonSession } from '../strategy/python/session.js';
 import { loadResearchCrossSection, loadResearchPanel } from './equity-dataset.js';
 import { researchPayloadHash } from './fingerprints.js';
-import { researchYieldCurveBindingForSdkCall } from './concept-bindings.js';
+import { researchYieldCurveSourceForSdkCall } from './concept-bindings.js';
 import { loadResearchBacktestReportResult } from './backtest-report-result.js';
 import { loadResearchFactorReportResult } from './factor-report-result.js';
 import { loadResearchSeries, prepareResearchSeries, researchSeriesLoadStart } from './series.js';
@@ -18,6 +18,8 @@ import {
   parseResearchBacktestReportRuntimeRequest,
   parseResearchEquityDatasetRuntimeRows,
   parseResearchFactorReportRuntimeRequest,
+  parseResearchFxRuntimeRequest,
+  parseResearchMacroRuntimeRequest,
   parseResearchPanelRuntimeRequest,
   parseResearchSeriesRuntimeRequest,
   parseResearchSeriesRuntimeRows,
@@ -25,6 +27,8 @@ import {
   type ResearchCrossSectionRuntimeRequestV1,
   type ResearchBacktestReportRuntimeRequestV1,
   type ResearchFactorReportRuntimeRequestV1,
+  type ResearchFxRuntimeRequestV1,
+  type ResearchMacroRuntimeRequestV1,
   type ResearchPanelRuntimeRequestV1,
   type ResearchSeriesRuntimeRequestV1,
   type ResearchYieldCurveRuntimeRequestV1,
@@ -40,6 +44,8 @@ export interface ResearchPythonAnalysis {
   imports?: string[];
   seriesRequests?: ResearchPythonSeriesRequest[];
   yieldCurveRequests?: ResearchPythonYieldCurveRequest[];
+  macroRequests?: ResearchPythonMacroRequest[];
+  fxRequests?: ResearchPythonFxRequest[];
   error?: string;
 }
 
@@ -54,6 +60,16 @@ export interface ResearchPythonYieldCurveRequest {
   line: number;
   curve: string | null;
   tenor: string | null;
+}
+
+export interface ResearchPythonMacroRequest {
+  line: number;
+  series: string | null;
+}
+
+export interface ResearchPythonFxRequest {
+  line: number;
+  pair: string | null;
 }
 
 export interface ResearchPythonExecution {
@@ -101,6 +117,14 @@ class ResearchRuntimeManager {
               curve: request.curve,
               tenor: request.tenor,
             }));
+            const macroRequests = cell.macro_requests.map((request) => ({
+              line: request.line,
+              series: request.series,
+            }));
+            const fxRequests = cell.fx_requests.map((request) => ({
+              line: request.line,
+              pair: request.pair,
+            }));
             return {
               cellId: cell.cell_id,
               definitions: cell.definitions,
@@ -113,6 +137,8 @@ class ResearchRuntimeManager {
                 measure: request.measure,
               })),
               ...(yieldCurveRequests.length > 0 ? { yieldCurveRequests } : {}),
+              ...(macroRequests.length > 0 ? { macroRequests } : {}),
+              ...(fxRequests.length > 0 ? { fxRequests } : {}),
               ...(typeof cell.error === 'string' ? { error: cell.error } : {}),
             };
           });
@@ -369,6 +395,14 @@ type ParsedResearchRequest =
       arguments: ResearchYieldCurveRuntimeRequestV1;
     })
   | (Omit<ResearchRequestFrame, 'method' | 'arguments'> & {
+      method: 'research_macro';
+      arguments: ResearchMacroRuntimeRequestV1;
+    })
+  | (Omit<ResearchRequestFrame, 'method' | 'arguments'> & {
+      method: 'research_fx';
+      arguments: ResearchFxRuntimeRequestV1;
+    })
+  | (Omit<ResearchRequestFrame, 'method' | 'arguments'> & {
       method: 'research_cross_section';
       arguments: ResearchCrossSectionRuntimeRequestV1;
     })
@@ -400,6 +434,20 @@ function parseResearchRequestFrame(frame: ResearchRequestFrame): ParsedResearchR
         id: frame.id,
         method: 'research_yield_curve',
         arguments: parseResearchYieldCurveRuntimeRequest(frame.arguments),
+      };
+    case 'research_macro':
+      return {
+        type: frame.type,
+        id: frame.id,
+        method: 'research_macro',
+        arguments: parseResearchMacroRuntimeRequest(frame.arguments),
+      };
+    case 'research_fx':
+      return {
+        type: frame.type,
+        id: frame.id,
+        method: 'research_fx',
+        arguments: parseResearchFxRuntimeRequest(frame.arguments),
       };
     case 'research_cross_section':
       return {
@@ -473,8 +521,8 @@ async function answerResearchRequest(
       }
       case 'research_yield_curve': {
         const request = frame.arguments;
-        const binding = researchYieldCurveBindingForSdkCall(request.curve, request.tenor);
-        if (!binding || binding.source.kind !== 'yield_curve') {
+        const binding = researchYieldCurveSourceForSdkCall(request.curve, request.tenor);
+        if (!binding) {
           throw new Error(
             `yield curve ${request.curve}:${request.tenor} is not in the governed Research SDK catalog`,
           );
@@ -501,6 +549,34 @@ async function answerResearchRequest(
           rows: parseResearchSeriesRuntimeRows(points),
           diagnostics: loaded.diagnostics,
         };
+        break;
+      }
+      case 'research_macro': {
+        const request = frame.arguments;
+        result = await loadAndPrepareResearchSeries({
+          request,
+          input: {
+            type: 'series',
+            id: request.series,
+            source: { kind: 'macro', seriesKey: request.series },
+            measure: 'macro.observation',
+            transform: request.transform,
+          },
+        });
+        break;
+      }
+      case 'research_fx': {
+        const request = frame.arguments;
+        result = await loadAndPrepareResearchSeries({
+          request,
+          input: {
+            type: 'series',
+            id: request.pair,
+            source: { kind: 'fx', id: request.pair },
+            measure: 'fx.mid_close',
+            transform: request.transform,
+          },
+        });
         break;
       }
       case 'research_cross_section': {
@@ -542,6 +618,38 @@ async function answerResearchRequest(
       error: error instanceof Error ? error.message : String(error),
     });
   }
+}
+
+async function loadAndPrepareResearchSeries(input: {
+  request: {
+    start: string;
+    end: string;
+    frequency: ResearchSeriesRuntimeRequestV1['frequency'];
+    transform: ResearchSeriesRuntimeRequestV1['transform'];
+    partial_period: ResearchSeriesRuntimeRequestV1['partial_period'];
+  };
+  input: ResearchSeriesInputSpecV1;
+}): Promise<Record<string, unknown>> {
+  const loadStart = researchSeriesLoadStart(
+    input.request.start,
+    input.request.frequency,
+    input.request.transform,
+  );
+  const loaded = await loadResearchSeries(input.input, loadStart, input.request.end);
+  const points = prepareResearchSeries(
+    loaded.points,
+    input.request.frequency,
+    input.request.transform,
+    {
+      start: input.request.start,
+      end: input.request.end,
+      partialPeriod: input.request.partial_period,
+    },
+  );
+  return {
+    rows: parseResearchSeriesRuntimeRows(points),
+    diagnostics: loaded.diagnostics,
+  };
 }
 
 function runtimeFrameError(frame: { type: string; message?: unknown }, operation: string): Error {
