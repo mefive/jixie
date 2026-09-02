@@ -8,6 +8,11 @@ import {
 } from '../strategy/python/protocol.js';
 import { PythonSession } from '../strategy/python/session.js';
 import { loadResearchCrossSection, loadResearchPanel } from './equity-dataset.js';
+import {
+  loadResearchCommodityHoldings,
+  loadResearchCommodityReturns,
+  loadResearchCommodityWarehouseReceipts,
+} from './commodity-dataset.js';
 import { researchPayloadHash } from './fingerprints.js';
 import { researchYieldCurveSourceForSdkCall } from './concept-bindings.js';
 import { loadResearchBacktestReportResult } from './backtest-report-result.js';
@@ -15,6 +20,12 @@ import { loadResearchFactorReportResult } from './factor-report-result.js';
 import { loadResearchSeries, prepareResearchSeries, researchSeriesLoadStart } from './series.js';
 import {
   parseResearchCrossSectionRuntimeRequest,
+  parseResearchCommodityHoldingsRuntimeRequest,
+  parseResearchCommodityHoldingsRuntimeRows,
+  parseResearchCommodityReturnsRuntimeRequest,
+  parseResearchCommodityReturnsRuntimeRows,
+  parseResearchCommodityWarehouseReceiptsRuntimeRequest,
+  parseResearchCommodityWarehouseReceiptsRuntimeRows,
   parseResearchBacktestReportRuntimeRequest,
   parseResearchEquityDatasetRuntimeRows,
   parseResearchFactorReportRuntimeRequest,
@@ -25,6 +36,8 @@ import {
   parseResearchSeriesRuntimeRows,
   parseResearchYieldCurveRuntimeRequest,
   type ResearchCrossSectionRuntimeRequestV1,
+  type ResearchCommodityHoldingRuntimeRequestV1,
+  type ResearchCommodityRuntimeRequestV1,
   type ResearchBacktestReportRuntimeRequestV1,
   type ResearchFactorReportRuntimeRequestV1,
   type ResearchFxRuntimeRequestV1,
@@ -46,6 +59,7 @@ export interface ResearchPythonAnalysis {
   yieldCurveRequests?: ResearchPythonYieldCurveRequest[];
   macroRequests?: ResearchPythonMacroRequest[];
   fxRequests?: ResearchPythonFxRequest[];
+  commodityRequests?: ResearchPythonCommodityRequest[];
   error?: string;
 }
 
@@ -70,6 +84,12 @@ export interface ResearchPythonMacroRequest {
 export interface ResearchPythonFxRequest {
   line: number;
   pair: string | null;
+}
+
+export interface ResearchPythonCommodityRequest {
+  line: number;
+  method: 'commodity_returns' | 'commodity_warehouse_receipts' | 'commodity_holdings';
+  product: string | null;
 }
 
 export interface ResearchPythonExecution {
@@ -125,6 +145,11 @@ class ResearchRuntimeManager {
               line: request.line,
               pair: request.pair,
             }));
+            const commodityRequests = cell.commodity_requests.map((request) => ({
+              line: request.line,
+              method: request.method,
+              product: request.product,
+            }));
             return {
               cellId: cell.cell_id,
               definitions: cell.definitions,
@@ -139,6 +164,7 @@ class ResearchRuntimeManager {
               ...(yieldCurveRequests.length > 0 ? { yieldCurveRequests } : {}),
               ...(macroRequests.length > 0 ? { macroRequests } : {}),
               ...(fxRequests.length > 0 ? { fxRequests } : {}),
+              ...(commodityRequests.length > 0 ? { commodityRequests } : {}),
               ...(typeof cell.error === 'string' ? { error: cell.error } : {}),
             };
           });
@@ -403,6 +429,14 @@ type ParsedResearchRequest =
       arguments: ResearchFxRuntimeRequestV1;
     })
   | (Omit<ResearchRequestFrame, 'method' | 'arguments'> & {
+      method: 'research_commodity_returns' | 'research_commodity_warehouse_receipts';
+      arguments: ResearchCommodityRuntimeRequestV1;
+    })
+  | (Omit<ResearchRequestFrame, 'method' | 'arguments'> & {
+      method: 'research_commodity_holdings';
+      arguments: ResearchCommodityHoldingRuntimeRequestV1;
+    })
+  | (Omit<ResearchRequestFrame, 'method' | 'arguments'> & {
       method: 'research_cross_section';
       arguments: ResearchCrossSectionRuntimeRequestV1;
     })
@@ -448,6 +482,27 @@ function parseResearchRequestFrame(frame: ResearchRequestFrame): ParsedResearchR
         id: frame.id,
         method: 'research_fx',
         arguments: parseResearchFxRuntimeRequest(frame.arguments),
+      };
+    case 'research_commodity_returns':
+      return {
+        type: frame.type,
+        id: frame.id,
+        method: 'research_commodity_returns',
+        arguments: parseResearchCommodityReturnsRuntimeRequest(frame.arguments),
+      };
+    case 'research_commodity_warehouse_receipts':
+      return {
+        type: frame.type,
+        id: frame.id,
+        method: 'research_commodity_warehouse_receipts',
+        arguments: parseResearchCommodityWarehouseReceiptsRuntimeRequest(frame.arguments),
+      };
+    case 'research_commodity_holdings':
+      return {
+        type: frame.type,
+        id: frame.id,
+        method: 'research_commodity_holdings',
+        arguments: parseResearchCommodityHoldingsRuntimeRequest(frame.arguments),
       };
     case 'research_cross_section':
       return {
@@ -577,6 +632,30 @@ async function answerResearchRequest(
             transform: request.transform,
           },
         });
+        break;
+      }
+      case 'research_commodity_returns': {
+        result = {
+          rows: parseResearchCommodityReturnsRuntimeRows(
+            await loadResearchCommodityReturns(frame.arguments),
+          ),
+        };
+        break;
+      }
+      case 'research_commodity_warehouse_receipts': {
+        result = {
+          rows: parseResearchCommodityWarehouseReceiptsRuntimeRows(
+            await loadResearchCommodityWarehouseReceipts(frame.arguments),
+          ),
+        };
+        break;
+      }
+      case 'research_commodity_holdings': {
+        result = {
+          rows: parseResearchCommodityHoldingsRuntimeRows(
+            await loadResearchCommodityHoldings(frame.arguments),
+          ),
+        };
         break;
       }
       case 'research_cross_section': {

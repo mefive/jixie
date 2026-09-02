@@ -549,7 +549,7 @@ export const ResearchDataCatalogDrawer = complex.component(
                           </span>
                         </span>
                         <span className="jx-researchDataCatalog-resultTags">
-                          <Tag>{dataset.method.replace('data.', '')}</Tag>
+                          <Tag>{datasetMethodTag(dataset.method)}</Tag>
                         </span>
                       </button>
                     ))}
@@ -834,6 +834,19 @@ function localizedInstrumentName(
 
 function localizedDatasetName(dataset: ResearchDataCatalogDatasetV1, language: string): string {
   return language.startsWith('zh') ? dataset.nameZh : dataset.nameEn;
+}
+
+function datasetMethodTag(method: ResearchDataCatalogDatasetV1['method']): string {
+  switch (method) {
+    case 'data.commodity_returns':
+      return 'returns';
+    case 'data.commodity_warehouse_receipts':
+      return 'receipts';
+    case 'data.commodity_holdings':
+      return 'holdings';
+    default:
+      return method.replace('data.', '');
+  }
 }
 
 function localizedDatasetDescription(

@@ -108,6 +108,45 @@ class _DataApi:
         partial_period: Literal["exclude", "include"] = "exclude",
     ) -> pd.DataFrame: ...
 
+    # Load audited commodity main-contract continuous returns and roll decomposition.
+    # Note: date is the research availability date and trade_date is the source-market date; queries are gated by date to prevent look-ahead.
+    # Note: These data are research-only and do not imply trading support for the commodity.
+    # Example: data.commodity_returns("AU", start="20200101", end="20251231")
+    # DataFrame columns: date: datetime64[ns], trade_date: datetime64[ns], product: str, continuous_code: str, mapped_contract: str, continuous_return: float64, continuous_log_return: float64, mapped_log_return: float64, roll_gap_log_return: float64, roll_yield_proxy: float64, mapping_changed: bool
+    def commodity_returns(
+        self,
+        product: Literal["AU", "CU", "SC", "M"],
+        *,
+        start: str,
+        end: str,
+    ) -> pd.DataFrame: ...
+
+    # Load exchange commodity warehouse-receipt totals and changes.
+    # Note: date is the research availability date and trade_date is the source-market date; queries are gated by date to prevent look-ahead.
+    # Note: These data are research-only and do not imply trading support for the commodity.
+    # Example: data.commodity_warehouse_receipts("AU", start="20200101", end="20251231")
+    # DataFrame columns: date: datetime64[ns], trade_date: datetime64[ns], product: str, unit: str, volume: float64, volume_change: float64, unit_correction_applied: bool
+    def commodity_warehouse_receipts(
+        self,
+        product: Literal["AU", "CU", "SC", "M"],
+        *,
+        start: str,
+        end: str,
+    ) -> pd.DataFrame: ...
+
+    # Load ranked-member holding aggregates for the actual representative contract.
+    # Note: date is the research availability date and trade_date is the source-market date; queries are gated by date to prevent look-ahead.
+    # Note: These data are research-only and do not imply trading support for the commodity.
+    # Example: data.commodity_holdings("AU", start="20200101", end="20251231")
+    # DataFrame columns: date: datetime64[ns], trade_date: datetime64[ns], product: str, reference_contract: str, contract_open_interest: float64, contract_volume: float64, ranked_volume: float64, ranked_volume_change: float64, ranked_long_holding: float64, ranked_long_change: float64, ranked_short_holding: float64, ranked_short_change: float64, top_five_long_holding: float64, top_five_short_holding: float64, volume_member_count: float64, long_member_count: float64, short_member_count: float64, source_correction_applied: bool
+    def commodity_holdings(
+        self,
+        product: Literal["AU", "CU", "M"],
+        *,
+        start: str,
+        end: str,
+    ) -> pd.DataFrame: ...
+
 
 
 class _ResultsApi:

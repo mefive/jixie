@@ -44,7 +44,16 @@ try {
   await drawer.screenshot({ path: `${SHOTS}research-data-catalog-capabilities.png` });
 
   await drawer.getByText('数据集', { exact: true }).click();
-  for (const method of ['cross_section', 'panel', 'yield_curve', 'macro', 'fx']) {
+  for (const method of [
+    'cross_section',
+    'panel',
+    'yield_curve',
+    'macro',
+    'fx',
+    'commodity_returns',
+    'commodity_warehouse_receipts',
+    'commodity_holdings',
+  ]) {
     await page.getByTestId(`research-data-catalog-method-${method}`).waitFor();
   }
   await page.getByTestId('research-data-catalog-method-panel').click();
@@ -87,6 +96,19 @@ try {
   }
   await drawer.screenshot({ path: `${SHOTS}research-data-catalog-macro.png` });
 
+  await drawer.getByRole('textbox', { name: '搜索市场、指数、期限或数据读取方式' }).fill('黄金');
+  const commodityResult = page.getByTestId(
+    'research-data-catalog-dataset-data.commodity_returns:AU',
+  );
+  await commodityResult.waitFor({ timeout: 30_000 });
+  await commodityResult.click();
+  await config.waitFor();
+  await config.scrollIntoViewIfNeeded();
+  if (!(await config.innerText()).includes('data.commodity_returns(')) {
+    throw new Error('The selected commodity dataset did not generate an SDK call preview.');
+  }
+  await drawer.screenshot({ path: `${SHOTS}research-data-catalog-commodity.png` });
+
   const insert = page.getByTestId('research-data-catalog-insert');
   if (!(await insert.isEnabled())) {
     throw new Error('A locally covered dataset must be insertable into Research.');
@@ -95,7 +117,7 @@ try {
   await page.getByText('已插入当前 Python Cell', { exact: true }).waitFor({ timeout: 10_000 });
 
   console.log(
-    `[research-data-catalog-e2e] datasetMethods=5 coverage=${coverageText} inserted=true screenshots=4`,
+    `[research-data-catalog-e2e] datasetMethods=8 coverage=${coverageText} inserted=true screenshots=5`,
   );
 } finally {
   if (documentId) {

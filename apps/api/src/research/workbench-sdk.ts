@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import {
   RESEARCH_CROSS_SECTION_SDK_CONTRACT_V1,
+  RESEARCH_COMMODITY_HOLDINGS_SDK_CONTRACT_V1,
+  RESEARCH_COMMODITY_RETURNS_SDK_CONTRACT_V1,
+  RESEARCH_COMMODITY_WAREHOUSE_RECEIPTS_SDK_CONTRACT_V1,
   RESEARCH_BACKTEST_REPORT_SDK_CONTRACT_V1,
   RESEARCH_FACTOR_REPORT_SDK_CONTRACT_V1,
   RESEARCH_FX_SDK_CONTRACT_V1,
@@ -9,6 +12,8 @@ import {
   RESEARCH_SERIES_SDK_CONTRACT_V1,
   RESEARCH_YIELD_CURVE_SDK_CONTRACT_V1,
   type ResearchAssetTypeV1,
+  type ResearchCommodityHoldingProductCodeV1,
+  type ResearchCommodityProductCodeV1,
   type ResearchFrequencyV1,
   type ResearchFxSeriesIdV1,
   type ResearchMacroSeriesKeyV1,
@@ -62,6 +67,18 @@ export interface ResearchFxRuntimeRequestV1 {
   frequency: ResearchFrequencyV1;
   transform: ResearchTransformV1;
   partial_period: 'exclude' | 'include';
+}
+
+export interface ResearchCommodityRuntimeRequestV1 {
+  product: ResearchCommodityProductCodeV1;
+  start: string;
+  end: string;
+}
+
+export interface ResearchCommodityHoldingRuntimeRequestV1 {
+  product: ResearchCommodityHoldingProductCodeV1;
+  start: string;
+  end: string;
 }
 
 export interface ResearchCrossSectionRuntimeRequestV1 {
@@ -124,6 +141,24 @@ const researchFactorReportRequestSchema = sdkRequestSchema(
 );
 const researchBacktestReportRequestSchema = sdkRequestSchema(
   RESEARCH_BACKTEST_REPORT_SDK_CONTRACT_V1.parameters,
+);
+const researchCommodityReturnsRequestSchema = sdkRequestSchema(
+  RESEARCH_COMMODITY_RETURNS_SDK_CONTRACT_V1.parameters,
+);
+const researchCommodityWarehouseReceiptsRequestSchema = sdkRequestSchema(
+  RESEARCH_COMMODITY_WAREHOUSE_RECEIPTS_SDK_CONTRACT_V1.parameters,
+);
+const researchCommodityHoldingsRequestSchema = sdkRequestSchema(
+  RESEARCH_COMMODITY_HOLDINGS_SDK_CONTRACT_V1.parameters,
+);
+const researchCommodityReturnsRowsSchema = sdkDataFrameRowsSchema(
+  RESEARCH_COMMODITY_RETURNS_SDK_CONTRACT_V1.returns,
+);
+const researchCommodityWarehouseReceiptsRowsSchema = sdkDataFrameRowsSchema(
+  RESEARCH_COMMODITY_WAREHOUSE_RECEIPTS_SDK_CONTRACT_V1.returns,
+);
+const researchCommodityHoldingsRowsSchema = sdkDataFrameRowsSchema(
+  RESEARCH_COMMODITY_HOLDINGS_SDK_CONTRACT_V1.returns,
 );
 const researchEquityDatasetRowsSchema = z.array(
   z.strictObject(
@@ -190,6 +225,42 @@ export function parseResearchBacktestReportRuntimeRequest(
   ) as unknown as ResearchBacktestReportRuntimeRequestV1;
 }
 
+export function parseResearchCommodityReturnsRuntimeRequest(
+  value: unknown,
+): ResearchCommodityRuntimeRequestV1 {
+  return researchCommodityReturnsRequestSchema.parse(
+    value,
+  ) as unknown as ResearchCommodityRuntimeRequestV1;
+}
+
+export function parseResearchCommodityWarehouseReceiptsRuntimeRequest(
+  value: unknown,
+): ResearchCommodityRuntimeRequestV1 {
+  return researchCommodityWarehouseReceiptsRequestSchema.parse(
+    value,
+  ) as unknown as ResearchCommodityRuntimeRequestV1;
+}
+
+export function parseResearchCommodityHoldingsRuntimeRequest(
+  value: unknown,
+): ResearchCommodityHoldingRuntimeRequestV1 {
+  return researchCommodityHoldingsRequestSchema.parse(
+    value,
+  ) as unknown as ResearchCommodityHoldingRuntimeRequestV1;
+}
+
+export function parseResearchCommodityReturnsRuntimeRows(value: unknown): unknown[] {
+  return researchCommodityReturnsRowsSchema.parse(value);
+}
+
+export function parseResearchCommodityWarehouseReceiptsRuntimeRows(value: unknown): unknown[] {
+  return researchCommodityWarehouseReceiptsRowsSchema.parse(value);
+}
+
+export function parseResearchCommodityHoldingsRuntimeRows(value: unknown): unknown[] {
+  return researchCommodityHoldingsRowsSchema.parse(value);
+}
+
 export function parseResearchEquityDatasetRuntimeRows(value: unknown): unknown[] {
   return researchEquityDatasetRowsSchema.parse(value);
 }
@@ -198,6 +269,21 @@ function sdkRequestSchema(parameters: readonly ResearchSdkParameterContractV1[])
   return z.strictObject(
     Object.fromEntries(
       parameters.map((parameter) => [parameter.name, sdkParameterSchema(parameter)]),
+    ),
+  );
+}
+
+function sdkDataFrameRowsSchema(
+  returns: (typeof RESEARCH_COMMODITY_RETURNS_SDK_CONTRACT_V1)['returns'],
+): z.ZodType<unknown[]> {
+  if (returns.kind !== 'dataframe') {
+    throw new Error('Research SDK dataset contract must return a DataFrame');
+  }
+  return z.array(
+    z.strictObject(
+      Object.fromEntries(
+        returns.columns.map((column) => [column.name, sdkWireColumnSchema(column)]),
+      ),
     ),
   );
 }

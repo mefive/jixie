@@ -1,6 +1,8 @@
 import {
   RESEARCH_FX_SERIES_IDS_V1,
   RESEARCH_MACRO_SERIES_KEYS_V1,
+  RESEARCH_COMMODITY_HOLDING_PRODUCT_CODES_V1,
+  RESEARCH_COMMODITY_PRODUCT_CODES_V1,
   researchPythonAllowedImportRoots,
   type ResearchAssetTypeV1,
   type ResearchDataCatalogResultV1,
@@ -93,6 +95,22 @@ export async function validateResearchSeriesProposal(
       if (!RESEARCH_FX_SERIES_IDS_V1.includes(request.pair as never)) {
         throw new Error(
           `Cell ${analysis.cellId} data.fx call on line ${request.line} references unsupported pair ${request.pair}.`,
+        );
+      }
+    }
+    for (const request of analysis.commodityRequests ?? []) {
+      if (!request.product) {
+        throw new Error(
+          `Cell ${analysis.cellId} data.${request.method} call on line ${request.line} must use a literal product value so the Research catalog can validate it.`,
+        );
+      }
+      const products =
+        request.method === 'commodity_holdings'
+          ? RESEARCH_COMMODITY_HOLDING_PRODUCT_CODES_V1
+          : RESEARCH_COMMODITY_PRODUCT_CODES_V1;
+      if (!(products as readonly string[]).includes(request.product)) {
+        throw new Error(
+          `Cell ${analysis.cellId} data.${request.method} call on line ${request.line} references unsupported product ${request.product}.`,
         );
       }
     }

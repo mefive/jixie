@@ -127,6 +127,33 @@ test('inserts a governed yield-curve dataset call', () => {
   );
 });
 
+test('inserts an audited commodity dataset call', () => {
+  assert.match(
+    researchDatasetSnippet({
+      dataset: {
+        kind: 'dataset',
+        id: 'data.commodity_warehouse_receipts:AU',
+        method: 'data.commodity_warehouse_receipts',
+        product: 'AU',
+        nameZh: '黄金仓单',
+        nameEn: 'Gold warehouse receipts',
+        descriptionZh: '',
+        descriptionEn: '',
+        tags: [],
+        localDataCoverage: {
+          status: 'ready',
+          startDate: '20150106',
+          endDate: '20260803',
+          dateBasis: 'availableDate',
+        },
+      },
+      start: '20210101',
+      end: '20260701',
+    }),
+    /au_warehouse_receipts = data\.commodity_warehouse_receipts\([\s\S]*"AU"/,
+  );
+});
+
 test('inserts an immutable BacktestReport lookup by stable report id', () => {
   assert.equal(
     researchBacktestReportSnippet({ id: 'backtest-report-01', strategyName: 'Value Rotation' }),
