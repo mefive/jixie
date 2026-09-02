@@ -178,9 +178,8 @@ describe('research catalog query interpretation', () => {
         ],
       },
     });
-    expect(yieldCurve?.signature).toContain(
-      'curve: Literal["us_treasury_nominal", "us_treasury_real"]',
-    );
+    expect(yieldCurve?.signature).toContain('"us_treasury_nominal", "us_treasury_real"');
+    expect(yieldCurve?.signature).toContain('"chinabond_cgb_ytm"');
     expect(yieldCurve?.signature).toContain('tenor: Literal[');
     expect(yieldCurve?.notesEn.join(' ')).toContain('percentage-point change');
   });
