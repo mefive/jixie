@@ -117,6 +117,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
   public savedLoader = new LoaderModel<StrategyCard[]>(); // My strategies / History cards
   public backtestHistoryLoader = new LoaderModel<BacktestReportSummary[]>();
   public backtestReportLoader = new LoaderModel<BacktestReportDetail>();
+  public backtestComparisonLoader = new LoaderModel<BacktestReportDetail>();
   public benchmarkLoader = new LoaderModel<BenchmarkSeries>();
   public scanParametersLoader = new LoaderModel<Record<string, StrategyParamValue>>();
   public scanHistoryLoader = new LoaderModel<StrategyScanReportSummary[]>();
@@ -174,6 +175,9 @@ export class LabStore extends BaseStore<LabSetupParams> {
     });
     this.backtestReportLoader.setup({
       preserveResult: false,
+      request: (reportId: string) => getBacktestReport(reportId),
+    });
+    this.backtestComparisonLoader.setup({
       request: (reportId: string) => getBacktestReport(reportId),
     });
     this.benchmarkLoader.setup({
@@ -235,6 +239,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
     this.registCleaner(() => this.savedLoader.cleanup());
     this.registCleaner(() => this.backtestHistoryLoader.cleanup());
     this.registCleaner(() => this.backtestReportLoader.cleanup());
+    this.registCleaner(() => this.backtestComparisonLoader.cleanup());
     this.registCleaner(() => this.benchmarkLoader.cleanup());
     this.registCleaner(() => this.scanParametersLoader.cleanup());
     this.registCleaner(() => this.scanHistoryLoader.cleanup());
@@ -553,6 +558,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
     this.scanParametersLoader.reset();
     this.backtestHistoryLoader.reset();
     this.backtestReportLoader.reset();
+    this.backtestComparisonLoader.reset();
     this.scanHistoryLoader.reset();
     this.scanReportLoader.reset();
     this.deploymentLoader.reset();
@@ -706,6 +712,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
     this.backtestHistoryLoader.abort();
     this.backtestHistoryLoader.reset();
     this.backtestReportLoader.reset();
+    this.backtestComparisonLoader.reset();
     let s;
     try {
       s = await getStrategy(id);
@@ -912,6 +919,25 @@ export class LabStore extends BaseStore<LabSetupParams> {
       this.error = null;
     });
     this.loadBenchmarks(detail.result);
+  }
+
+  public async loadBacktestComparison(reportId: string) {
+    if (!this.savedId || reportId === this.activeBacktestReportId) {
+      return null;
+    }
+    const strategyId = this.savedId;
+    const detail = await this.backtestComparisonLoader.run(reportId);
+    if (detail.strategyId !== strategyId || this.savedId !== strategyId) {
+      this.resetBacktestComparison();
+      return null;
+    }
+
+    return detail;
+  }
+
+  public resetBacktestComparison() {
+    this.backtestComparisonLoader.abort();
+    this.backtestComparisonLoader.reset();
   }
 
   private resetBenchmarks() {

@@ -9,6 +9,7 @@ import { BENCHMARKS, type BenchmarkCode, type BenchmarkSeries } from './benchmar
 interface Props {
   nav: { date: string; value: number }[];
   up: boolean;
+  comparisonNav?: { date: string; value: number }[];
   benchmarks: BenchmarkSeries;
   benchmarksLoading: boolean;
 }
@@ -16,7 +17,7 @@ interface Props {
 type ChartView = 'equity' | 'drawdown';
 
 // Lazy-loaded so echarts lands in its own chunk (see apps/web/CLAUDE.md §3).
-export default function NavChart({ nav, up, benchmarks, benchmarksLoading }: Props) {
+export default function NavChart({ nav, up, comparisonNav, benchmarks, benchmarksLoading }: Props) {
   const { t } = useTranslation('lab');
   const [view, setView] = useState<ChartView>('equity');
   const [selectedBenchmarks, setSelectedBenchmarks] = useState<BenchmarkCode[]>(['H00300.CSI']);
@@ -24,25 +25,33 @@ export default function NavChart({ nav, up, benchmarks, benchmarksLoading }: Pro
   const drawdown = useMemo(() => drawdownSeries(nav), [nav]);
   const option = useMemo<ECOption>(
     () =>
-      view === 'equity'
-        ? equityOption(nav, up, benchmarks, selectedBenchmarks, t)
-        : drawdownOption(drawdown.points, drawdown, t),
-    [nav, up, view, drawdown, benchmarks, selectedBenchmarks, t],
+      comparisonNav
+        ? comparisonEquityOption(nav, comparisonNav, t)
+        : view === 'equity'
+          ? equityOption(nav, up, benchmarks, selectedBenchmarks, t)
+          : drawdownOption(drawdown.points, drawdown, t),
+    [nav, up, comparisonNav, view, drawdown, benchmarks, selectedBenchmarks, t],
   );
 
   return (
     <section className="jx-lab-performance">
       <div className="jx-lab-performanceHead">
-        <Segmented
-          size="small"
-          value={view}
-          onChange={(value) => setView(value as ChartView)}
-          options={[
-            { label: t('chartEquity'), value: 'equity' },
-            { label: t('chartDrawdown'), value: 'drawdown' },
-          ]}
-        />
-        {view === 'equity' ? (
+        {comparisonNav ? (
+          <span className="jx-lab-performanceMeta">
+            {t('backtestHistory.normalizedComparison')}
+          </span>
+        ) : (
+          <Segmented
+            size="small"
+            value={view}
+            onChange={(value) => setView(value as ChartView)}
+            options={[
+              { label: t('chartEquity'), value: 'equity' },
+              { label: t('chartDrawdown'), value: 'drawdown' },
+            ]}
+          />
+        )}
+        {!comparisonNav && view === 'equity' ? (
           <Popover
             placement="bottomRight"
             trigger="click"
@@ -72,7 +81,7 @@ export default function NavChart({ nav, up, benchmarks, benchmarksLoading }: Pro
               title={t('benchmarkFilter')}
             />
           </Popover>
-        ) : drawdown.trough ? (
+        ) : !comparisonNav && drawdown.trough ? (
           <span className="jx-lab-performanceMeta">
             {t('drawdownPeriod', {
               peak: formatDate(drawdown.peak?.date),
@@ -87,6 +96,82 @@ export default function NavChart({ nav, up, benchmarks, benchmarksLoading }: Pro
       <EChart option={option} className="jx-lab-chart" />
     </section>
   );
+}
+
+function comparisonEquityOption(
+  primary: Props['nav'],
+  secondary: Props['nav'],
+  t: (key: string) => string,
+): ECOption {
+  const dates = [...new Set([...primary, ...secondary].map((point) => point.date))].sort();
+  const primaryValues = normalizeNav(primary, dates);
+  const secondaryValues = normalizeNav(secondary, dates);
+
+  return {
+    animation: false,
+    legend: {
+      top: 0,
+      left: 0,
+      itemWidth: 14,
+      itemHeight: 3,
+      textStyle: { color: '#5f6670', fontSize: 11 },
+    },
+    grid: { left: 48, right: 16, top: 34, bottom: 28 },
+    tooltip: {
+      trigger: 'axis',
+      formatter: (params: any) => {
+        const points = Array.isArray(params) ? params : [params];
+        const rows = points
+          .filter((point: any) => point.data != null)
+          .map((point: any) => `${point.marker}${point.seriesName} ${point.data.toFixed(2)}`);
+        return `${formatDate(String(points[0]?.axisValue ?? ''))}<br/>${rows.join('<br/>')}`;
+      },
+    },
+    xAxis: {
+      type: 'category',
+      data: dates,
+      axisLabel: { formatter: (date: string) => date.slice(0, 4), color: '#8a9099' },
+      axisLine: { lineStyle: { color: '#e8eaed' } },
+    },
+    yAxis: {
+      type: 'value',
+      scale: true,
+      axisLabel: { formatter: (value: number) => value.toFixed(0), color: '#8a9099' },
+      splitLine: { lineStyle: { color: '#f0f1f3' } },
+    },
+    series: [
+      {
+        name: t('backtestHistory.reportA'),
+        type: 'line',
+        data: primaryValues,
+        showSymbol: false,
+        connectNulls: true,
+        lineStyle: { color: '#111827', width: 1.75 },
+        itemStyle: { color: '#111827' },
+      },
+      {
+        name: t('backtestHistory.reportB'),
+        type: 'line',
+        data: secondaryValues,
+        showSymbol: false,
+        connectNulls: true,
+        lineStyle: { color: '#2563eb', width: 1.75 },
+        itemStyle: { color: '#2563eb' },
+      },
+    ],
+  };
+}
+
+function normalizeNav(nav: Props['nav'], dates: string[]): (number | null)[] {
+  const base = nav.find((point) => point.value > 0)?.value;
+  if (!base) {
+    return dates.map((): null => null);
+  }
+  const values = new Map(nav.map((point) => [point.date, point.value]));
+  return dates.map((date) => {
+    const value = values.get(date);
+    return value == null ? null : (value / base) * 100;
+  });
 }
 
 function equityOption(
