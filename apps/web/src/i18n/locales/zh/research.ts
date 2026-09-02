@@ -145,6 +145,14 @@ export const zhResearch = {
       '可以让它解释结果、质疑假设、补充统计方法与公式，或直接修改 Markdown 和 Python Cell。',
     agentPlaceholder: '结合当前文档，下一步应该分析什么？',
     sendAgent: '发送消息',
+    agentCellContext: {
+      attach: '添加到 Agent 上下文',
+      detach: '从 Agent 上下文移除',
+      drag: '拖到 Agent 输入框',
+      remove: '移除 Cell {{ordinal}}',
+      label: 'Cell {{ordinal}} · {{kind}}',
+      attachedCount: '已附加 {{count}} 个 Cell',
+    },
     clarification: {
       status: {
         pending: '待确认',

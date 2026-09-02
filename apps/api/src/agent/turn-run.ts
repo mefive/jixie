@@ -6,6 +6,7 @@ import {
   type AgentTurnPhase,
   type ChatMessage,
   type Locale,
+  type MessagePart,
 } from '@jixie/shared';
 import { prisma } from '../lib/prisma.js';
 import { chatTools } from '../llm/deepseek.js';
@@ -47,6 +48,7 @@ export interface EnqueueTurnArgs {
   entity: TurnEntity | null;
   history?: ChatMessage[]; // entity=null (QA) only; entity turns read history from the DB row
   message: string;
+  userParts?: MessagePart[];
   currentCode: string;
   locale?: Locale; // the requester's locale — localizes code-generated reply chrome (default zh)
   afterTurn?(result: AgentTurnResult, messages: ChatMessage[]): Promise<void>;
@@ -91,9 +93,18 @@ async function runTurn(args: EnqueueTurnArgs, signal: AbortSignal): Promise<void
     if (entity) {
       const stored = await readMessages(entity, userId, locale);
       history = stored.map(normalizeChatMessage);
-      await startPersistentTurn({ turnId, userId, entity, history, message, model });
+      const userParts = args.userParts ?? textMessage('user', message).parts;
+      await startPersistentTurn({
+        turnId,
+        userId,
+        entity,
+        history,
+        message,
+        model,
+        userParts,
+      });
       traceRecorder = new AgentTraceRecorder(turnId, model);
-      persisted = [...history, { ...textMessage('user', message), turnId }];
+      persisted = [...history, { role: 'user', parts: userParts, turnId }];
       await writeMessages(entity, persisted);
     }
 

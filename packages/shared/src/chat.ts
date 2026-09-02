@@ -42,12 +42,23 @@ export interface ResearchClarificationPart {
   clarification: ResearchClarificationV1;
 }
 
+/** Explicit Cell attachments on a Research user message. Source remains in the document snapshot. */
+export interface ResearchCellContextPart {
+  type: 'research_cell_context';
+  cells: Array<{
+    cellId: string;
+    position: number;
+    kind: 'markdown' | 'python';
+  }>;
+}
+
 export type MessagePart =
   | TextPart
   | ChartPart
   | UniversePart
   | ResearchCellChangePart
-  | ResearchClarificationPart;
+  | ResearchClarificationPart
+  | ResearchCellContextPart;
 
 export interface ChatMessage {
   id?: string;
@@ -125,6 +136,13 @@ export function messageText(message: ChatMessage): string {
             .join(' | ');
           return `(research clarification: ${part.clarification.title}, status=${part.clarification.status}${selections ? `, answer=${selections}` : ''})`;
         }
+        case 'research_cell_context':
+          return `(attached research cells: ${part.cells
+            .map(
+              (cell) =>
+                `${cell.kind} Cell ${String(cell.position + 1).padStart(2, '0')} [${cell.cellId}]`,
+            )
+            .join(', ')})`;
       }
     })
     .join('\n')
@@ -141,6 +159,7 @@ function isMessagePart(value: unknown): value is MessagePart {
     type === 'chart' ||
     type === 'universe' ||
     type === 'research_cell_change' ||
-    type === 'research_clarification'
+    type === 'research_clarification' ||
+    type === 'research_cell_context'
   );
 }

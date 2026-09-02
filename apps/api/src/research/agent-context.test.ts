@@ -74,6 +74,25 @@ describe('compactResearchAgentHistory', () => {
 
     expect(compactResearchAgentHistory(history)).toEqual(history);
   });
+
+  it('retains attached Cell references as compact conversation context', () => {
+    const history: ChatMessage[] = [
+      {
+        role: 'user',
+        parts: [
+          {
+            type: 'research_cell_context',
+            cells: [{ cellId: 'cell-2', position: 1, kind: 'python' }],
+          },
+          { type: 'text', text: 'Explain this calculation.' },
+        ],
+      },
+    ];
+
+    expect(messageText(compactResearchAgentHistory(history)[0])).toContain(
+      'python Cell 02 [cell-2]',
+    );
+  });
 });
 
 describe('researchAgentDocumentContext', () => {
@@ -166,4 +185,70 @@ describe('researchAgentDocumentContext', () => {
     expect(context.cells[0].sourceTruncated).toBe(true);
     expect(result.editableCellIds).not.toContain('large-cell');
   });
+
+  it('loads attached Cells and their upstream dependencies while leaving other Cells as outlines', () => {
+    const result = researchAgentDocumentContext(
+      {
+        id: 'document-1',
+        updatedAt: new Date('2026-09-01T12:00:00.000Z'),
+        contentRevision: 3,
+        cells: [
+          contextCell('load', 0, 'prices = data.series("index", "000300.SH")', ['prices'], []),
+          contextCell('independent', 1, 'other = 1', ['other'], []),
+          contextCell('transform', 2, 'returns = prices.pct_change()', ['returns'], ['prices']),
+          contextCell('summary', 3, 'average = returns.mean()', ['average'], ['returns']),
+        ],
+      },
+      ['summary'],
+    );
+    const context = JSON.parse(result.context) as {
+      attachedCellIds: string[];
+      dependencyCellIds: string[];
+      cells: Array<{
+        id: string;
+        contextRole: string;
+        source: string;
+        sourceOmitted: boolean;
+      }>;
+    };
+
+    expect(context.attachedCellIds).toEqual(['summary']);
+    expect(context.dependencyCellIds).toEqual(['transform', 'load']);
+    expect(context.cells.find((cell) => cell.id === 'summary')).toMatchObject({
+      contextRole: 'attached',
+      sourceOmitted: false,
+    });
+    expect(context.cells.find((cell) => cell.id === 'load')).toMatchObject({
+      contextRole: 'dependency',
+      sourceOmitted: false,
+    });
+    expect(context.cells.find((cell) => cell.id === 'independent')).toMatchObject({
+      contextRole: 'outline',
+      source: '',
+      sourceOmitted: true,
+    });
+    expect(result.editableCellIds).toEqual(new Set(['summary', 'transform', 'load']));
+  });
 });
+
+function contextCell(
+  id: string,
+  position: number,
+  source: string,
+  definitions: string[],
+  references: string[],
+) {
+  return {
+    id,
+    position,
+    kind: 'python',
+    source,
+    status: 'idle',
+    revision: 1,
+    definitions,
+    references,
+    output: null,
+    lastExecutedRevision: null,
+    lastExecutedAt: null,
+  };
+}

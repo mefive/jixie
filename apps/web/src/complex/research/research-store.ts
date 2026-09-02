@@ -128,6 +128,7 @@ type ResearchCellChangeReviewResolution = {
 };
 
 const CURATOR_POLL_INTERVAL_MS = 1_000;
+const MAX_RESEARCH_AGENT_CONTEXT_CELLS = 8;
 
 /** Domain state for the reactive research document and its attached Agent conversation. */
 export class ResearchStore extends BaseStore<ResearchSetupParams> {
@@ -137,6 +138,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
   public chatMessages: ChatMessage[] = [];
   public sending = false;
   public prompt = '';
+  public agentContextCellIds: string[] = [];
   public busyCellId: string | null = null;
   public affectedRunningCellId: string | null = null;
   public documentRunning = false;
@@ -184,6 +186,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
       chatMessages: observable.ref,
       sending: observable.ref,
       prompt: observable.ref,
+      agentContextCellIds: observable.ref,
       busyCellId: observable.ref,
       affectedRunningCellId: observable.ref,
       documentRunning: observable.ref,
@@ -194,6 +197,8 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
       runningProposalId: observable.ref,
       explainingAttemptId: observable.ref,
       setPrompt: action,
+      attachAgentContextCell: action,
+      detachAgentContextCell: action,
       clearRunInterrupted: action,
       clearRequestedBacktestReport: action,
     });
@@ -423,6 +428,14 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     );
   }
 
+  public get agentContextCells() {
+    const cellById = new Map(this.document?.cells.map((cell) => [cell.id, cell]) ?? []);
+    return this.agentContextCellIds.flatMap((cellId) => {
+      const cell = cellById.get(cellId);
+      return cell ? [cell] : [];
+    });
+  }
+
   public cellDraft(cellId: string): ResearchCellDraftState | undefined {
     return this.cellDrafts.get(cellId);
   }
@@ -433,6 +446,21 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
 
   public setPrompt(value: string) {
     this.prompt = value;
+  }
+
+  public attachAgentContextCell(cellId: string) {
+    if (
+      this.agentContextCellIds.includes(cellId) ||
+      this.agentContextCellIds.length >= MAX_RESEARCH_AGENT_CONTEXT_CELLS ||
+      !this.document?.cells.some((cell) => cell.id === cellId)
+    ) {
+      return;
+    }
+    this.agentContextCellIds = [...this.agentContextCellIds, cellId];
+  }
+
+  public detachAgentContextCell(cellId: string) {
+    this.agentContextCellIds = this.agentContextCellIds.filter((candidate) => candidate !== cellId);
   }
 
   public clearRunInterrupted() {
@@ -466,6 +494,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
       this.chatMessages = [];
       this.sending = false;
       this.prompt = '';
+      this.agentContextCellIds = [];
       this.runInterrupted = false;
     });
   }
@@ -493,6 +522,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
       ];
       this.sending = true;
       this.prompt = '';
+      this.agentContextCellIds = [];
       this.runInterrupted = false;
       this.explainingAttemptId = null;
     });
@@ -512,6 +542,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
       this.chatMessages = document.messages.map(normalizeChatMessage);
       this.sending = false;
       this.prompt = '';
+      this.agentContextCellIds = [];
       this.runInterrupted = false;
     });
     void this.executionListLoader.run(document.id).catch(() => {});
@@ -535,6 +566,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
       this.document = document;
       this.reconcileCellDrafts(document);
       this.chatMessages = document.messages.map(normalizeChatMessage);
+      this.agentContextCellIds = [];
     });
     if (runningTurnId) {
       void this.turnStream.attach(runningTurnId, this.turnHandlers());
@@ -758,13 +790,33 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
       return;
     }
     const conversationId = this.conversationId;
+    const contextCells = attemptId ? [] : this.agentContextCells;
+    const contextCellIds = contextCells.map((cell) => cell.id);
+    const userParts: MessagePart[] = [
+      ...(contextCells.length > 0
+        ? [
+            {
+              type: 'research_cell_context' as const,
+              cells: contextCells.map((cell) => ({
+                cellId: cell.id,
+                position: cell.position,
+                kind: cell.kind,
+              })),
+            },
+          ]
+        : []),
+      { type: 'text', text },
+    ];
     runInAction(() => {
-      this.chatMessages = [...this.chatMessages, textMessage('user', text)];
+      this.chatMessages = [...this.chatMessages, { role: 'user', parts: userParts }];
       this.sending = true;
       this.explainingAttemptId = attemptId ?? null;
       this.prompt = '';
+      if (!attemptId) {
+        this.agentContextCellIds = [];
+      }
     });
-    await this.runAgentTurn(text, conversationId, attemptId);
+    await this.runAgentTurn(text, conversationId, attemptId, contextCellIds);
   }
 
   public async answerClarification(
@@ -831,9 +883,14 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     }
   }
 
-  private async runAgentTurn(text: string, conversationId: string, attemptId?: string) {
+  private async runAgentTurn(
+    text: string,
+    conversationId: string,
+    attemptId?: string,
+    contextCellIds: string[] = [],
+  ) {
     try {
-      const started = await sendResearchAgent(text, conversationId, attemptId);
+      const started = await sendResearchAgent(text, conversationId, attemptId, contextCellIds);
       await this.turnStream.attach(started.turnId, this.turnHandlers());
     } catch (error) {
       runInAction(() => {
@@ -951,6 +1008,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
       this.chatMessages = [];
       this.sending = false;
       this.prompt = '';
+      this.agentContextCellIds = [];
       this.runInterrupted = false;
     });
   }
@@ -963,6 +1021,10 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     runInAction(() => {
       this.document = document;
       this.reconcileCellDrafts(document, savedCell);
+      const serverCellIds = new Set(document.cells.map((cell) => cell.id));
+      this.agentContextCellIds = this.agentContextCellIds.filter((cellId) =>
+        serverCellIds.has(cellId),
+      );
       if (replaceMessages) {
         this.chatMessages = document.messages.map(normalizeChatMessage);
       }

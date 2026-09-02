@@ -25,6 +25,7 @@ export async function startPersistentTurn(args: {
   history: ChatMessage[];
   message: string;
   model: string;
+  userParts?: MessagePart[];
 }): Promise<PersistentTurn> {
   const conversation = await findOrCreateConversation(args);
 
@@ -49,7 +50,7 @@ export async function startPersistentTurn(args: {
         id: inputMessageId,
         conversationId: conversation.id,
         role: 'user',
-        parts: [{ type: 'text', text: args.message }] as Prisma.InputJsonValue,
+        parts: (args.userParts ?? [{ type: 'text', text: args.message }]) as Prisma.InputJsonValue,
         sequence: (last?.sequence ?? -1) + 1,
         turnId: args.turnId,
       },

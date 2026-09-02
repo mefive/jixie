@@ -299,8 +299,17 @@
   gap: 10px;
 }
 
+.jx-research-cellDragHandle {
+  @apply flex cursor-grab items-center text-muted active:cursor-grabbing;
+  font-size: 11px;
+}
+
 .jx-research-cellActions {
   gap: 1px;
+}
+
+.jx-research-cellAgentContext--attached.ant-btn {
+  @apply bg-chip text-ink;
 }
 
 .jx-research-cellKind {
@@ -594,12 +603,37 @@
   transition: border-color 0.15s;
 }
 
+.jx-research-agentComposer--dragActive {
+  border-color: var(--color-ink);
+  background: var(--color-chip);
+}
+
 .jx-research-agentComposer:focus-within {
   border-color: var(--color-ink);
 }
 
 .jx-research-agentPrompt {
   @apply w-full;
+}
+
+.jx-research-agentContext {
+  @apply flex flex-wrap gap-1.5;
+  padding: 4px 2px 2px;
+}
+
+.jx-research-agentContextChip {
+  @apply flex items-center gap-1 rounded border border-line bg-card text-ink;
+  padding: 2px 3px 2px 7px;
+  font-size: 10px;
+}
+
+.jx-research-agentContextChip > svg {
+  @apply text-muted;
+}
+
+.jx-research-agentContextChip .ant-btn {
+  @apply h-5 w-5 p-0 text-muted;
+  min-width: 20px;
 }
 
 @media (max-width: 920px) {

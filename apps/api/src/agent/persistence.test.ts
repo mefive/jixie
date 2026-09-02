@@ -3,13 +3,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   transaction: vi.fn(),
+  findConversation: vi.fn(),
 }));
 
 vi.mock('../lib/prisma.js', () => ({
-  prisma: { $transaction: mocks.transaction },
+  prisma: {
+    $transaction: mocks.transaction,
+    agentConversation: { findFirst: mocks.findConversation },
+  },
 }));
 
-import { finishPersistentTurn } from './persistence.js';
+import { finishPersistentTurn, startPersistentTurn } from './persistence.js';
 import { resolveResearchClarificationAnswer } from '../research/research-clarification-records.js';
 
 const TRACE: AgentTurnTrace = { version: 1, steps: [], truncated: false };
@@ -17,6 +21,47 @@ const TRACE: AgentTurnTrace = { version: 1, steps: [], truncated: false };
 describe('finishPersistentTurn', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it('persists explicit Research Cell context on the user message', async () => {
+    const createdMessages: Array<{ data: Record<string, unknown> }> = [];
+    const transaction = {
+      agentTurn: { create: vi.fn().mockResolvedValue({}) },
+      agentMessage: {
+        findFirst: vi.fn().mockResolvedValue({ sequence: 2 }),
+        create: vi.fn().mockImplementation(async (args) => {
+          createdMessages.push(args);
+          return {};
+        }),
+      },
+    };
+    mocks.findConversation.mockResolvedValue({ id: 'conversation-1' });
+    mocks.transaction.mockImplementation(async (callback) => callback(transaction));
+    const userParts: MessagePart[] = [
+      {
+        type: 'research_cell_context',
+        cells: [{ cellId: 'cell-2', position: 1, kind: 'python' }],
+      },
+      { type: 'text', text: 'Explain this Cell.' },
+    ];
+
+    await startPersistentTurn({
+      turnId: 'turn-1',
+      userId: 'user-1',
+      entity: { kind: 'research', id: 'conversation-1' },
+      history: [],
+      message: 'Explain this Cell.',
+      model: 'test-model',
+      userParts,
+    });
+
+    expect(createdMessages[0]?.data).toMatchObject({
+      conversationId: 'conversation-1',
+      role: 'user',
+      parts: userParts,
+      sequence: 3,
+      turnId: 'turn-1',
+    });
   });
 
   it('materializes a Research Cell change part with its assistant message', async () => {

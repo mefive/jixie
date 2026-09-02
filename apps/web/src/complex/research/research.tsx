@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import type { KeyboardEvent } from 'react';
+import type { DragEvent, KeyboardEvent } from 'react';
 import {
   Alert,
   App,
@@ -39,10 +39,12 @@ import {
   faEye,
   faFileLines,
   faFlask,
+  faGripVertical,
   faListCheck,
   faEllipsisVertical,
   faMagnifyingGlass,
   faPaperPlane,
+  faPaperclip,
   faPen,
   faPlay,
   faPlus,
@@ -51,6 +53,7 @@ import {
   faStop,
   faTrash,
   faTriangleExclamation,
+  faXmark,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { AgentPending } from '@src/components/agent-pending';
@@ -151,6 +154,7 @@ export const Research = complex.component(() => {
                 onOpenHistory={openHistory}
                 onOpenDataCatalog={() => setDataCatalogOpen(true)}
                 onOpenExecutionHistory={() => setExecutionHistoryOpen(true)}
+                onOpenAgent={() => setAgentOpen(true)}
                 onToggleAgent={() => setAgentOpen((value) => !value)}
               />
             ) : (
@@ -548,12 +552,14 @@ const ResearchWorkspace = complex.component(
     onOpenHistory,
     onOpenDataCatalog,
     onOpenExecutionHistory,
+    onOpenAgent,
     onToggleAgent,
   }: {
     agentOpen: boolean;
     onOpenHistory: () => void;
     onOpenDataCatalog: () => void;
     onOpenExecutionHistory: () => void;
+    onOpenAgent: () => void;
     onToggleAgent: () => void;
   }) => {
     const store = complex.useStore();
@@ -784,7 +790,12 @@ const ResearchWorkspace = complex.component(
         <div className="jx-research-documentScroll">
           <div className="jx-research-document" data-testid="research-document">
             {document.cells.map((cell, index) => (
-              <ResearchCell key={`${index}:${cell.kind}`} cell={cell} ordinal={index + 1} />
+              <ResearchCell
+                key={`${index}:${cell.kind}`}
+                cell={cell}
+                ordinal={index + 1}
+                onOpenAgent={onOpenAgent}
+              />
             ))}
             <Tooltip title={t('workbench.addCell')}>
               <Dropdown menu={addMenu} trigger={['click']}>
@@ -806,7 +817,15 @@ const ResearchWorkspace = complex.component(
 );
 
 const ResearchCell = complex.component(
-  ({ cell, ordinal }: { cell: ResearchCellV1; ordinal: number }) => {
+  ({
+    cell,
+    ordinal,
+    onOpenAgent,
+  }: {
+    cell: ResearchCellV1;
+    ordinal: number;
+    onOpenAgent: () => void;
+  }) => {
     const store = complex.useStore();
     const { t } = useTranslation('research');
     const [markdownEditing, setMarkdownEditing] = useState(false);
@@ -818,6 +837,7 @@ const ResearchCell = complex.component(
     const busy = store.busyCellId === cell.id || cell.status === 'running';
     const cellRunActive = store.busyCellId === cell.id;
     const affectedBusy = store.affectedRunningCellId === cell.id;
+    const attachedToAgent = store.agentContextCellIds.includes(cell.id);
     const anotherRunActive =
       store.documentRunning ||
       (store.busyCellId !== null && store.busyCellId !== cell.id) ||
@@ -830,6 +850,19 @@ const ResearchCell = complex.component(
     };
     const runAffected = (): void => {
       void store.runAffected(cell.id);
+    };
+    const toggleAgentContext = (): void => {
+      if (attachedToAgent) {
+        store.detachAgentContextCell(cell.id);
+      } else {
+        store.attachAgentContextCell(cell.id);
+      }
+      onOpenAgent();
+    };
+    const dragToAgent = (event: DragEvent<HTMLSpanElement>): void => {
+      event.dataTransfer.effectAllowed = 'copy';
+      event.dataTransfer.setData(RESEARCH_CELL_DRAG_TYPE, cell.id);
+      onOpenAgent();
     };
     useEffect(() => {
       setMarkdownEditing(false);
@@ -844,6 +877,17 @@ const ResearchCell = complex.component(
       >
         <header className="jx-research-cellHead">
           <div className="jx-research-cellIdentity">
+            <Tooltip title={t('workbench.agentCellContext.drag')}>
+              <span
+                className="jx-research-cellDragHandle"
+                draggable
+                data-testid="research-cell-drag-source"
+                aria-label={t('workbench.agentCellContext.drag')}
+                onDragStart={dragToAgent}
+              >
+                <FontAwesomeIcon icon={faGripVertical} />
+              </span>
+            </Tooltip>
             <span className={`jx-research-cellKind jx-research-cellKind--${cell.kind}`}>
               <FontAwesomeIcon icon={cellIcon(cell.kind)} />
               {t(`workbench.cellKind.${cell.kind}`)}
@@ -859,6 +903,29 @@ const ResearchCell = complex.component(
             )}
           </div>
           <div className="jx-research-cellActions">
+            <Tooltip
+              title={
+                attachedToAgent
+                  ? t('workbench.agentCellContext.detach')
+                  : t('workbench.agentCellContext.attach')
+              }
+            >
+              <Button
+                type="text"
+                size="small"
+                className={classNames('jx-research-cellAgentContext', {
+                  'jx-research-cellAgentContext--attached': attachedToAgent,
+                })}
+                data-testid="research-cell-attach-agent"
+                icon={<FontAwesomeIcon icon={faPaperclip} />}
+                aria-label={
+                  attachedToAgent
+                    ? t('workbench.agentCellContext.detach')
+                    : t('workbench.agentCellContext.attach')
+                }
+                onClick={toggleAgentContext}
+              />
+            </Tooltip>
             {cell.kind === 'markdown' && !changeReview && (
               <Tooltip title={markdownEditing ? t('workbench.preview') : t('workbench.edit')}>
                 <Button
@@ -1092,6 +1159,7 @@ const ResearchAgentPanel = complex.component(({ onClose }: { onClose: () => void
   const store = complex.useStore();
   const { t } = useTranslation('research');
   const messagesRef = useRef<HTMLDivElement>(null);
+  const [contextDragActive, setContextDragActive] = useState(false);
   useLayoutEffect(() => {
     const messages = messagesRef.current;
     if (messages) {
@@ -1099,6 +1167,9 @@ const ResearchAgentPanel = complex.component(({ onClose }: { onClose: () => void
     }
   }, [store.documentId, store.chatMessages.length]);
   const agentBusy = store.sending || store.turnStream.streaming;
+  const contextCells = store.agentContextCells;
+  const acceptsCellDrag = (event: DragEvent<HTMLElement>): boolean =>
+    Array.from(event.dataTransfer.types).includes(RESEARCH_CELL_DRAG_TYPE);
   return (
     <aside className="jx-research-agentPanel">
       <header className="jx-research-agentHead">
@@ -1116,7 +1187,11 @@ const ResearchAgentPanel = complex.component(({ onClose }: { onClose: () => void
         </span>
         <div>
           <strong>{t('workbench.agentTitle')}</strong>
-          <span>{t('workbench.agentContext')}</span>
+          <span>
+            {contextCells.length > 0
+              ? t('workbench.agentCellContext.attachedCount', { count: contextCells.length })
+              : t('workbench.agentContext')}
+          </span>
         </div>
       </header>
       <div ref={messagesRef} className="jx-research-agentMessages">
@@ -1165,7 +1240,62 @@ const ResearchAgentPanel = complex.component(({ onClose }: { onClose: () => void
         ))}
         {agentBusy && <AgentPending stream={store.turnStream} />}
       </div>
-      <div className="jx-research-agentComposer">
+      <div
+        className={classNames('jx-research-agentComposer', {
+          'jx-research-agentComposer--dragActive': contextDragActive,
+        })}
+        onDragOver={(event) => {
+          if (!acceptsCellDrag(event)) {
+            return;
+          }
+          event.preventDefault();
+          event.dataTransfer.dropEffect = 'copy';
+          setContextDragActive(true);
+        }}
+        onDragLeave={(event) => {
+          if (event.relatedTarget && event.currentTarget.contains(event.relatedTarget as Node)) {
+            return;
+          }
+          setContextDragActive(false);
+        }}
+        onDrop={(event) => {
+          if (!acceptsCellDrag(event)) {
+            return;
+          }
+          event.preventDefault();
+          const cellId = event.dataTransfer.getData(RESEARCH_CELL_DRAG_TYPE);
+          if (cellId) {
+            store.attachAgentContextCell(cellId);
+          }
+          setContextDragActive(false);
+        }}
+      >
+        {contextCells.length > 0 && (
+          <div className="jx-research-agentContext" data-testid="research-agent-cell-context">
+            {contextCells.map((cell) => (
+              <span
+                key={cell.id}
+                className="jx-research-agentContextChip"
+                data-testid={`research-agent-context-${cell.id}`}
+              >
+                <FontAwesomeIcon icon={faPaperclip} />
+                {t('workbench.agentCellContext.label', {
+                  ordinal: String(cell.position + 1).padStart(2, '0'),
+                  kind: t(`workbench.cellKind.${cell.kind}`),
+                })}
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<FontAwesomeIcon icon={faXmark} />}
+                  aria-label={t('workbench.agentCellContext.remove', {
+                    ordinal: String(cell.position + 1).padStart(2, '0'),
+                  })}
+                  onClick={() => store.detachAgentContextCell(cell.id)}
+                />
+              </span>
+            ))}
+          </div>
+        )}
         <ResearchPromptBox
           className="jx-research-agentPrompt"
           value={store.prompt}
@@ -1253,6 +1383,8 @@ function statusIcon(status: ResearchCellStatusV1) {
       return faClockRotateLeft;
   }
 }
+
+const RESEARCH_CELL_DRAG_TYPE = 'application/x-jixie-research-cell';
 
 function researchSplitterDefaults(agentWidth: number): { main: string; agent: string } {
   const viewportWidth = document.documentElement.clientWidth || 1440;

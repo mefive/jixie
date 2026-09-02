@@ -5,11 +5,15 @@ import type {
   ResearchClarificationSelectionV1,
   ResearchClarificationV1,
 } from '@jixie/shared';
+import { faPaperclip } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { useTranslation } from 'react-i18next';
 import { Markdown } from './markdown';
 import { UniverseSpecCard } from './universe-spec-card';
 // Imported here (not only by the lazy chunk) so the Suspense fallback below has its height class
 // available before chat-chart.tsx lands — the placeholder must match the card's footprint.
 import './chat-chart.css';
+import './message-parts.css';
 
 const ChatChart = lazy(() => import('./chat-chart'));
 const ResearchCellChangeCard = lazy(() => import('./research-cell-change-card'));
@@ -53,6 +57,7 @@ export function MessageParts({
   onAnswerResearchClarification,
   busyResearchClarificationId,
 }: MessagePartsProps) {
+  const { t } = useTranslation('research');
   return (
     <>
       {message.parts.map((part, partIndex) => {
@@ -97,6 +102,21 @@ export function MessageParts({
                 onAnswer={onAnswerResearchClarification}
               />
             </Suspense>
+          );
+        }
+        if (part.type === 'research_cell_context') {
+          return (
+            <div key={partIndex} className="jx-messageParts-cellContext">
+              <FontAwesomeIcon icon={faPaperclip} />
+              {part.cells.map((cell) => (
+                <span key={cell.cellId}>
+                  {t('workbench.agentCellContext.label', {
+                    ordinal: String(cell.position + 1).padStart(2, '0'),
+                    kind: t(`workbench.cellKind.${cell.kind}`),
+                  })}
+                </span>
+              ))}
+            </div>
           );
         }
         return message.role === 'assistant' ? (
