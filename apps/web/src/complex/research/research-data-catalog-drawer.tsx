@@ -21,8 +21,10 @@ import type {
   ResearchDataCatalogBacktestReportV1,
   ResearchDataCatalogDatasetV1,
   ResearchDataCatalogFactorReportV1,
+  ResearchDataCatalogFactorWeatherV1,
   ResearchDataCatalogInstrumentV1,
   ResearchDataCatalogSdkMethodV1,
+  ResearchDataCatalogStrategyScanReportV1,
   ResearchDataCatalogScopeV1,
   ResearchFrequencyV1,
   ResearchTransformV1,
@@ -48,7 +50,9 @@ import {
   researchBacktestReportSnippet,
   researchDatasetSnippet,
   researchFactorReportSnippet,
+  researchFactorWeatherSnippet,
   researchSeriesSnippet,
+  researchStrategyScanReportSnippet,
 } from './research-data-catalog';
 import { insertResearchPythonSnippet } from './research-python-language';
 import './research-data-catalog-drawer.css';
@@ -78,6 +82,10 @@ export const ResearchDataCatalogDrawer = complex.component(
     );
     const [selectedBacktestReport, setSelectedBacktestReport] =
       useState<ResearchDataCatalogBacktestReportV1 | null>(null);
+    const [selectedFactorWeather, setSelectedFactorWeather] =
+      useState<ResearchDataCatalogFactorWeatherV1 | null>(null);
+    const [selectedStrategyScan, setSelectedStrategyScan] =
+      useState<ResearchDataCatalogStrategyScanReportV1 | null>(null);
     const [selectedMethodName, setSelectedMethodName] = useState<string | null>(null);
     const [measureId, setMeasureId] = useState('market.adjusted_close');
     const [frequency, setFrequency] = useState<ResearchFrequencyV1>('daily');
@@ -124,13 +132,17 @@ export const ResearchDataCatalogDrawer = complex.component(
     }, [selectedMeasure, transform]);
     const snippet =
       view === 'backtest_reports'
-        ? selectedBacktestReport
-          ? researchBacktestReportSnippet(selectedBacktestReport)
-          : ''
-        : view === 'factor_reports'
-          ? selectedReport && !selectedReport.sealed
-            ? researchFactorReportSnippet(selectedReport)
+        ? selectedStrategyScan
+          ? researchStrategyScanReportSnippet(selectedStrategyScan)
+          : selectedBacktestReport
+            ? researchBacktestReportSnippet(selectedBacktestReport)
             : ''
+        : view === 'factor_reports'
+          ? selectedFactorWeather
+            ? researchFactorWeatherSnippet(selectedFactorWeather)
+            : selectedReport && !selectedReport.sealed
+              ? researchFactorReportSnippet(selectedReport)
+              : ''
           : view === 'datasets'
             ? selectedDataset && selectedDataset.localDataCoverage.status === 'ready'
               ? researchDatasetSnippet({
@@ -183,8 +195,9 @@ export const ResearchDataCatalogDrawer = complex.component(
       }
       const documentId = store.documentId;
       onClose();
-      window.setTimeout(() => {
+      window.setTimeout(async () => {
         if (insertResearchPythonSnippet(documentId, snippet)) {
+          await store.flushPendingChanges();
           void message.success(t('dataCatalog.inserted'));
         } else {
           void message.warning(t('dataCatalog.noPythonCell'));
@@ -235,6 +248,8 @@ export const ResearchDataCatalogDrawer = complex.component(
             setSelectedDataset(null);
             setSelectedReport(null);
             setSelectedBacktestReport(null);
+            setSelectedFactorWeather(null);
+            setSelectedStrategyScan(null);
             setSelectedMethodName(null);
           }}
         />
@@ -315,6 +330,8 @@ export const ResearchDataCatalogDrawer = complex.component(
             setSelectedDataset(null);
             setSelectedReport(null);
             setSelectedBacktestReport(null);
+            setSelectedFactorWeather(null);
+            setSelectedStrategyScan(null);
           }}
         />
         {view === 'instruments' && (
@@ -641,7 +658,10 @@ export const ResearchDataCatalogDrawer = complex.component(
                           'jx-researchDataCatalog-result--sealed': report.sealed,
                         })}
                         data-testid={`research-data-catalog-report-${report.id}`}
-                        onClick={() => setSelectedReport(report)}
+                        onClick={() => {
+                          setSelectedReport(report);
+                          setSelectedFactorWeather(null);
+                        }}
                       >
                         <span className="jx-researchDataCatalog-resultIcon">
                           <FontAwesomeIcon icon={report.sealed ? faLock : faFileLines} />
@@ -714,6 +734,62 @@ export const ResearchDataCatalogDrawer = complex.component(
                 )}
               </section>
             )}
+
+            {(catalog?.factorWeather ?? []).length > 0 && (
+              <section className="jx-researchDataCatalog-section">
+                <div className="jx-researchDataCatalog-sectionHead">
+                  <strong>{t('dataCatalog.factorWeather')}</strong>
+                  <span>{t('dataCatalog.matches', { count: catalog?.factorWeather.length })}</span>
+                </div>
+                <div className="jx-researchDataCatalog-results">
+                  {(catalog?.factorWeather ?? []).map((weather) => (
+                    <button
+                      key={weather.factorId}
+                      type="button"
+                      className={classNames('jx-researchDataCatalog-result', {
+                        'jx-researchDataCatalog-result--active':
+                          selectedFactorWeather?.factorId === weather.factorId,
+                      })}
+                      data-testid={`research-data-catalog-factor-weather-${weather.factorId}`}
+                      onClick={() => {
+                        setSelectedFactorWeather(weather);
+                        setSelectedReport(null);
+                      }}
+                    >
+                      <span className="jx-researchDataCatalog-resultIcon">
+                        <FontAwesomeIcon icon={faChartLine} />
+                      </span>
+                      <span className="jx-researchDataCatalog-resultText">
+                        <strong>{weather.factorName}</strong>
+                        <code>{weather.factorId}</code>
+                        <span className="jx-researchDataCatalog-reportDate">
+                          {weather.computedThrough
+                            ? formatCatalogDate(weather.computedThrough)
+                            : t('dataCatalog.noComputedThrough')}
+                        </span>
+                      </span>
+                      <span className="jx-researchDataCatalog-resultTags">
+                        <Tag>{weather.direction}</Tag>
+                        <Tag>{t('dataCatalog.weatherPoints', { count: weather.pointCount })}</Tag>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {selectedFactorWeather && (
+              <section
+                className="jx-researchDataCatalog-config"
+                data-testid="research-data-catalog-factor-weather-config"
+              >
+                <div className="jx-researchDataCatalog-sectionHead">
+                  <strong>{t('dataCatalog.factorWeather')}</strong>
+                  <code>{selectedFactorWeather.factorId}</code>
+                </div>
+                <pre className="jx-researchDataCatalog-preview">{snippet}</pre>
+              </section>
+            )}
           </>
         ) : (
           <>
@@ -745,7 +821,10 @@ export const ResearchDataCatalogDrawer = complex.component(
                             selectedBacktestReport?.id === report.id,
                         })}
                         data-testid={`research-data-catalog-backtest-report-${report.id}`}
-                        onClick={() => setSelectedBacktestReport(report)}
+                        onClick={() => {
+                          setSelectedBacktestReport(report);
+                          setSelectedStrategyScan(null);
+                        }}
                       >
                         <span className="jx-researchDataCatalog-resultIcon">
                           <FontAwesomeIcon icon={faGaugeHigh} />
@@ -813,6 +892,63 @@ export const ResearchDataCatalogDrawer = complex.component(
                       ).format('YYYY-MM-DD HH:mm')}
                     </strong>
                   </div>
+                </div>
+                <pre className="jx-researchDataCatalog-preview">{snippet}</pre>
+              </section>
+            )}
+
+            {(catalog?.strategyScanReports ?? []).length > 0 && (
+              <section className="jx-researchDataCatalog-section">
+                <div className="jx-researchDataCatalog-sectionHead">
+                  <strong>{t('dataCatalog.strategyScans')}</strong>
+                  <span>
+                    {t('dataCatalog.matches', { count: catalog?.strategyScanReports.length })}
+                  </span>
+                </div>
+                <div className="jx-researchDataCatalog-results">
+                  {(catalog?.strategyScanReports ?? []).map((report) => (
+                    <button
+                      key={report.id}
+                      type="button"
+                      className={classNames('jx-researchDataCatalog-result', {
+                        'jx-researchDataCatalog-result--active':
+                          selectedStrategyScan?.id === report.id,
+                      })}
+                      data-testid={`research-data-catalog-strategy-scan-${report.id}`}
+                      onClick={() => {
+                        setSelectedStrategyScan(report);
+                        setSelectedBacktestReport(null);
+                      }}
+                    >
+                      <span className="jx-researchDataCatalog-resultIcon">
+                        <FontAwesomeIcon icon={faGaugeHigh} />
+                      </span>
+                      <span className="jx-researchDataCatalog-resultText">
+                        <strong>{report.strategyName}</strong>
+                        <code>{report.id}</code>
+                        <span className="jx-researchDataCatalog-reportDate">
+                          {dayjs(report.updatedAt).format('YYYY-MM-DD')}
+                        </span>
+                      </span>
+                      <span className="jx-researchDataCatalog-resultTags">
+                        {report.parameterNames.map((parameter) => (
+                          <Tag key={parameter}>{parameter}</Tag>
+                        ))}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {selectedStrategyScan && (
+              <section
+                className="jx-researchDataCatalog-config"
+                data-testid="research-data-catalog-strategy-scan-config"
+              >
+                <div className="jx-researchDataCatalog-sectionHead">
+                  <strong>{t('dataCatalog.strategyScans')}</strong>
+                  <code>{selectedStrategyScan.id}</code>
                 </div>
                 <pre className="jx-researchDataCatalog-preview">{snippet}</pre>
               </section>

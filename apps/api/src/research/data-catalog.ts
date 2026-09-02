@@ -15,10 +15,12 @@ import {
   type ResearchDataCatalogDatasetCoverageV1,
   type ResearchDataCatalogDatasetV1,
   type ResearchDataCatalogFactorReportV1,
+  type ResearchDataCatalogFactorWeatherV1,
   type ResearchDataCatalogInstrumentV1,
   type ResearchDataCatalogRegistryV1,
   type ResearchDataCatalogResultV1,
   type ResearchDataCatalogScopeV1,
+  type ResearchDataCatalogStrategyScanReportV1,
   type ResearchFxSeriesIdV1,
   type ResearchMacroSeriesKeyV1,
   type ResearchMeasureDefinitionV1,
@@ -76,19 +78,33 @@ export async function searchResearchDataCatalog(
     }));
 
   if (scope === 'factor_reports') {
+    const [factorReports, factorWeather] = input.userId
+      ? await Promise.all([
+          searchFactorReports(input.userId, query, limit),
+          searchFactorWeather(input.userId, query, limit),
+        ])
+      : [[], []];
     return {
       version: 1,
       query,
       sdkMethods,
       instruments: [],
       datasets: [],
-      factorReports: input.userId ? await searchFactorReports(input.userId, query, limit) : [],
+      factorReports,
+      factorWeather,
       backtestReports: [],
+      strategyScanReports: [],
       measures: [],
     };
   }
 
   if (scope === 'backtest_reports') {
+    const [backtestReports, strategyScanReports] = input.userId
+      ? await Promise.all([
+          searchBacktestReports(input.userId, query, limit),
+          searchStrategyScanReports(input.userId, query, limit),
+        ])
+      : [[], []];
     return {
       version: 1,
       query,
@@ -96,7 +112,9 @@ export async function searchResearchDataCatalog(
       instruments: [],
       datasets: [],
       factorReports: [],
-      backtestReports: input.userId ? await searchBacktestReports(input.userId, query, limit) : [],
+      factorWeather: [],
+      backtestReports,
+      strategyScanReports,
       measures: [],
     };
   }
@@ -109,7 +127,9 @@ export async function searchResearchDataCatalog(
       instruments: [],
       datasets: await searchDatasets(query, limit),
       factorReports: [],
+      factorWeather: [],
       backtestReports: [],
+      strategyScanReports: [],
       measures: [],
     };
   }
@@ -122,7 +142,9 @@ export async function searchResearchDataCatalog(
       instruments: [],
       datasets: [],
       factorReports: [],
+      factorWeather: [],
       backtestReports: [],
+      strategyScanReports: [],
       measures,
     };
   }
@@ -300,7 +322,9 @@ export async function searchResearchDataCatalog(
     instruments: await attachLocalDataCoverage(instruments),
     datasets: [],
     factorReports: [],
+    factorWeather: [],
     backtestReports: [],
+    strategyScanReports: [],
     measures,
   };
 }
@@ -323,9 +347,9 @@ function catalogMethodNames(scope: ResearchDataCatalogScopeV1): string[] {
         'data.equity_dividends',
       ];
     case 'factor_reports':
-      return ['results.factor_report'];
+      return ['results.factor_report', 'results.factor_weather'];
     case 'backtest_reports':
-      return ['results.backtest_report'];
+      return ['results.backtest_report', 'results.strategy_scan_report'];
     default:
       return ['data.series'];
   }
@@ -941,6 +965,63 @@ async function searchBacktestReports(
   });
 }
 
+async function searchStrategyScanReports(
+  userId: string,
+  query: string,
+  limit: number,
+): Promise<ResearchDataCatalogStrategyScanReportV1[]> {
+  const reports = await prisma.strategyScanReport.findMany({
+    where: {
+      userId,
+      status: 'done',
+      payload: { not: Prisma.DbNull },
+      ...(query
+        ? {
+            OR: [
+              { id: { contains: query } },
+              { strategyId: { contains: query } },
+              { strategyName: { contains: query } },
+            ],
+          }
+        : {}),
+    },
+    select: {
+      id: true,
+      strategyId: true,
+      strategyName: true,
+      dataCutoff: true,
+      spec: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: limit,
+  });
+  return reports.map((report) => {
+    const spec =
+      report.spec && typeof report.spec === 'object' && !Array.isArray(report.spec)
+        ? (report.spec as Record<string, unknown>)
+        : {};
+    const dimensions = Array.isArray(spec.dimensions) ? spec.dimensions : [];
+    return {
+      kind: 'strategy_scan_report',
+      id: report.id,
+      strategyId: report.strategyId,
+      strategyName: report.strategyName,
+      dataCutoff: report.dataCutoff,
+      parameterNames: dimensions.flatMap((dimension) => {
+        if (!dimension || typeof dimension !== 'object' || Array.isArray(dimension)) {
+          return [];
+        }
+        const key = (dimension as Record<string, unknown>).key;
+        return typeof key === 'string' ? [key] : [];
+      }),
+      createdAt: report.createdAt.toISOString(),
+      updatedAt: report.updatedAt.toISOString(),
+    };
+  });
+}
+
 async function searchFactorReports(
   userId: string,
   query: string,
@@ -1001,6 +1082,43 @@ async function searchFactorReports(
       computedAt: report.computedAt?.toISOString() ?? null,
     };
   });
+}
+
+async function searchFactorWeather(
+  userId: string,
+  query: string,
+  limit: number,
+): Promise<ResearchDataCatalogFactorWeatherV1[]> {
+  const pins = await prisma.factorWeatherPin.findMany({
+    where: {
+      userId,
+      status: 'ready',
+      ...(query
+        ? {
+            OR: [{ factorId: { contains: query } }, { factorName: { contains: query } }],
+          }
+        : {}),
+    },
+    select: {
+      factorId: true,
+      factorName: true,
+      direction: true,
+      computedThrough: true,
+      createdAt: true,
+      _count: { select: { points: true } },
+    },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: limit,
+  });
+  return pins.map((pin) => ({
+    kind: 'factor_weather',
+    factorId: pin.factorId,
+    factorName: pin.factorName,
+    direction: pin.direction === 'negative' ? 'negative' : 'positive',
+    computedThrough: pin.computedThrough,
+    pointCount: pin._count.points,
+    createdAt: pin.createdAt.toISOString(),
+  }));
 }
 
 function factorReportPhase(value: string): ResearchDataCatalogFactorReportV1['phase'] {

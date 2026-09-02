@@ -277,6 +277,7 @@ function FactorEditor({
           model: editor.getModel()!,
           editor,
           getCells: () => [{ id: 'definition', source: sourceRef.current }],
+          onChange,
         });
       }}
       options={{

@@ -4,8 +4,10 @@ import {
   researchBacktestReportSnippet,
   researchDatasetSnippet,
   researchFactorReportSnippet,
+  researchFactorWeatherSnippet,
   researchSeriesSnippet,
   researchSeriesVariableName,
+  researchStrategyScanReportSnippet,
 } from './research-data-catalog';
 
 const instrument = {
@@ -192,5 +194,16 @@ test('keeps a BacktestReport variable valid for a Chinese name ending in digits'
   assert.equal(
     researchBacktestReportSnippet({ id: 'backtest-report-02', strategyName: '价值轮动 2026' }),
     'backtest_2026_report = results.backtest_report("backtest-report-02")',
+  );
+});
+
+test('inserts immutable strategy-scan and stored Factor Weather lookups', () => {
+  assert.equal(
+    researchStrategyScanReportSnippet({ id: 'scan-01', strategyName: 'Value Rotation' }),
+    'value_rotation_scan = results.strategy_scan_report("scan-01")',
+  );
+  assert.equal(
+    researchFactorWeatherSnippet({ factorId: 'factor-01', factorName: 'Momentum' }),
+    'momentum_weather = results.factor_weather("factor-01")',
   );
 });

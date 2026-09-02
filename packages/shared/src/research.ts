@@ -285,6 +285,29 @@ export interface ResearchDataCatalogBacktestReportV1 {
   computedAt: string | null;
 }
 
+/** A completed immutable strategy parameter scan owned by the current user. */
+export interface ResearchDataCatalogStrategyScanReportV1 {
+  kind: 'strategy_scan_report';
+  id: string;
+  strategyId: string;
+  strategyName: string;
+  dataCutoff: string | null;
+  parameterNames: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** A ready Factor Weather pin owned by the current user. */
+export interface ResearchDataCatalogFactorWeatherV1 {
+  kind: 'factor_weather';
+  factorId: string;
+  factorName: string;
+  direction: 'positive' | 'negative';
+  computedThrough: string | null;
+  pointCount: number;
+  createdAt: string;
+}
+
 /** One response powers the catalog UI and Monaco's identifier/measure completion. */
 export interface ResearchDataCatalogResultV1 {
   version: 1;
@@ -293,7 +316,9 @@ export interface ResearchDataCatalogResultV1 {
   instruments: ResearchDataCatalogInstrumentV1[];
   datasets: ResearchDataCatalogDatasetV1[];
   factorReports: ResearchDataCatalogFactorReportV1[];
+  factorWeather: ResearchDataCatalogFactorWeatherV1[];
   backtestReports: ResearchDataCatalogBacktestReportV1[];
+  strategyScanReports: ResearchDataCatalogStrategyScanReportV1[];
   measures: ResearchMeasureDefinitionV1[];
 }
 

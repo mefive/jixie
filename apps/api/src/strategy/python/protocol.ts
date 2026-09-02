@@ -386,6 +386,8 @@ export const researchExecutionFrameSchema = z.union([
       'research_equity_fundamentals',
       'research_equity_flows',
       'research_equity_dividends',
+      'research_strategy_scan_report',
+      'research_factor_weather',
       'research_cross_section',
       'research_panel',
       'research_factor_report',

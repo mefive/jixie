@@ -16,6 +16,7 @@ const ownerEmail = `e2e-research-backtest-catalog-${suffix}@test.com`;
 const title = '回测报告目录验收';
 const strategyId = `e2e-backtest-catalog-strategy-${suffix}`;
 const reportId = `e2e-backtest-catalog-report-${suffix}`;
+const scanReportId = `e2e-backtest-catalog-scan-${suffix}`;
 const strategyName = `价值轮动验收 ${suffix}`;
 const database = new PrismaClient({ datasourceUrl: databaseUrl });
 const browser = await chromium.launch({ headless: true });
@@ -56,6 +57,9 @@ try {
   await drawer.waitFor();
   await drawer.getByText('回测报告', { exact: true }).click();
   await drawer.getByText('results.backtest_report', { exact: true }).waitFor({ timeout: 15_000 });
+  await drawer
+    .getByText('results.strategy_scan_report', { exact: true })
+    .waitFor({ timeout: 15_000 });
 
   const reportSearch = drawer.getByRole('textbox', { name: '搜索策略名称或报告 ID' });
   await reportSearch.fill('价值轮动验收');
@@ -80,8 +84,23 @@ try {
   await page.waitForTimeout(200);
   await drawer.screenshot({ path: `${SHOTS}research-backtest-report-catalog.png` });
 
+  const scan = page.getByTestId(`research-data-catalog-strategy-scan-${scanReportId}`);
+  await scan.waitFor({ timeout: 15_000 });
+  await scan.click();
+  const scanConfig = page.getByTestId('research-data-catalog-strategy-scan-config');
+  await scanConfig.waitFor();
+  if (!(await scanConfig.innerText()).includes(`results.strategy_scan_report("${scanReportId}")`)) {
+    throw new Error('The strategy scan did not generate an SDK call preview.');
+  }
+  await scanConfig.scrollIntoViewIfNeeded();
+  await drawer.screenshot({ path: `${SHOTS}research-strategy-scan-catalog.png` });
+
+  await report.click();
+  await reportConfig.waitFor();
+
   await insert.click();
   await drawer.waitFor({ state: 'detached' });
+  await page.getByTestId('research-document').click({ position: { x: 8, y: 8 } });
   const insertedCall = `results.backtest_report("${reportId}")`;
   let savedPythonCell;
   for (let attempt = 0; attempt < 10; attempt += 1) {
@@ -95,7 +114,9 @@ try {
     throw new Error('The backtest report lookup was not inserted and autosaved.');
   }
 
-  console.log('[research-backtest-report-catalog-e2e] search=pass insert=pass screenshot=1');
+  console.log(
+    '[research-backtest-report-catalog-e2e] search=pass scan=pass insert=pass screenshots=2',
+  );
 } finally {
   if (documentId) {
     await devLogin(page, ownerEmail).catch(() => {});
@@ -108,6 +129,7 @@ try {
       .catch(() => {});
   }
   await database.backtestReport.deleteMany({ where: { id: reportId } });
+  await database.strategyScanReport.deleteMany({ where: { id: scanReportId } });
   await database.strategy.deleteMany({ where: { id: strategyId } });
   if (userId) {
     await database.session.deleteMany({ where: { userId } });
@@ -153,6 +175,28 @@ async function seedBacktestReport(ownerId) {
       },
       createdAt: now,
       computedAt: now,
+    },
+  });
+  await database.strategyScanReport.create({
+    data: {
+      id: scanReportId,
+      userId: ownerId,
+      strategyId,
+      strategyName,
+      status: 'done',
+      config,
+      spec: {
+        dimensions: [{ key: 'window', values: [10, 20, 30] }],
+        splitDate: '20240101',
+      },
+      codeHash: 'e2e-code-hash',
+      dataCutoff: '20251231',
+      payload: {
+        parameters: { window: 20 },
+        cells: [{ params: { window: 20 }, full: { sharpe: 1.2 } }],
+      },
+      createdAt: now,
+      updatedAt: now,
     },
   });
 }

@@ -18,6 +18,7 @@ interface ResearchPythonModelContext {
   model: MonacoTypes.editor.ITextModel;
   editor: MonacoTypes.editor.IStandaloneCodeEditor;
   getCells: () => readonly ResearchLanguageCellV1[];
+  onChange: (value: string) => void;
 }
 
 interface DiagnosticState {
@@ -351,6 +352,7 @@ export function insertResearchPythonSnippet(documentId: string, snippet: string)
   if (!applied) {
     return false;
   }
+  context.onChange(model.getValue());
   const cursor = model.getPositionAt(startOffset + prefix.length + snippet.length);
   context.editor.setPosition(cursor);
   context.editor.revealPositionInCenterIfOutsideViewport(cursor);

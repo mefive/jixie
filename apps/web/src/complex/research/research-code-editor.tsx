@@ -79,8 +79,8 @@ export default function ResearchCodeEditor({
   onRun,
   onBlur,
 }: ResearchCodeEditorProps) {
-  const callbacksRef = useRef({ onBlur, onRun });
-  callbacksRef.current = { onBlur, onRun };
+  const callbacksRef = useRef({ onBlur, onChange, onRun });
+  callbacksRef.current = { onBlur, onChange, onRun };
   const languageContextRef = useRef({ documentId, cellId, cells });
   languageContextRef.current = { documentId, cellId, cells };
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
@@ -130,6 +130,7 @@ export default function ResearchCodeEditor({
               model,
               editor,
               getCells: () => languageContextRef.current.cells,
+              onChange: (next) => callbacksRef.current.onChange(next),
             });
           }
           editor.render(true);
@@ -252,6 +253,7 @@ export function ResearchCodeDiffEditor({
             model: modifiedModel,
             editor: modifiedEditor,
             getCells: () => languageContextRef.current.cells,
+            onChange: (next) => callbacksRef.current.onChange(next),
           });
           modifiedEditor.onDidDispose(() => binding.dispose());
         }
