@@ -236,7 +236,15 @@ const researchCommodityAnalysisRequestSchema = z.strictObject({
 
 const researchEquityAnalysisRequestSchema = z.strictObject({
   line: z.number().int().positive(),
-  method: z.enum(['equity_fundamentals', 'equity_flows', 'equity_dividends']),
+  method: z.enum([
+    'equity_fundamentals',
+    'equity_flows',
+    'equity_dividends',
+    'etf_shares',
+    'index_valuation',
+    'industry_state',
+    'futures_settlement',
+  ]),
   identifier: z.string().max(MAX_IDENTIFIER_CHARACTERS).nullable(),
 });
 
@@ -386,6 +394,10 @@ export const researchExecutionFrameSchema = z.union([
       'research_equity_fundamentals',
       'research_equity_flows',
       'research_equity_dividends',
+      'research_etf_shares',
+      'research_index_valuation',
+      'research_industry_state',
+      'research_futures_settlement',
       'research_strategy_scan_report',
       'research_factor_weather',
       'research_cross_section',

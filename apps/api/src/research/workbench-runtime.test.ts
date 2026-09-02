@@ -10,7 +10,11 @@ import {
   RESEARCH_EQUITY_FUNDAMENTALS_SDK_CONTRACT_V1,
   RESEARCH_FACTOR_REPORT_SDK_CONTRACT_V1,
   RESEARCH_FACTOR_WEATHER_SDK_CONTRACT_V1,
+  RESEARCH_ETF_SHARES_SDK_CONTRACT_V1,
   RESEARCH_FX_SDK_CONTRACT_V1,
+  RESEARCH_FUTURES_SETTLEMENT_SDK_CONTRACT_V1,
+  RESEARCH_INDEX_VALUATION_SDK_CONTRACT_V1,
+  RESEARCH_INDUSTRY_STATE_SDK_CONTRACT_V1,
   RESEARCH_MACRO_SDK_CONTRACT_V1,
   RESEARCH_MARKET_STATE_SDK_CONTRACT_V1,
   RESEARCH_PANEL_SDK_CONTRACT_V1,
@@ -126,6 +130,22 @@ describe('research workbench Python runtime', () => {
     ]);
   });
 
+  it('extracts literal market-reference identities for proposal preflight', async () => {
+    const [analysis] = await researchRuntimeManager.analyze(DOCUMENT_ID, [
+      {
+        id: 'references',
+        source:
+          'shares = data.etf_shares("510300.SH", start="20200101", end="20251231")\nindustry = data.industry_state(identifier="食品饮料", start="20200101", end="20251231")\nsettlement = data.futures_settlement("IF2609.CFX", start="20260101", end="20261231")',
+      },
+    ]);
+
+    expect(analysis?.equityRequests).toEqual([
+      { line: 1, method: 'etf_shares', identifier: '510300.SH' },
+      { line: 2, method: 'industry_state', identifier: '食品饮料' },
+      { line: 3, method: 'futures_settlement', identifier: 'IF2609.CFX' },
+    ]);
+  });
+
   it('keeps document-level state and returns typed outputs', async () => {
     await researchRuntimeManager.execute(DOCUMENT_ID, {
       id: 'upstream',
@@ -210,7 +230,7 @@ describe('research workbench Python runtime', () => {
     const result = await researchRuntimeManager.execute(DOCUMENT_ID, {
       id: 'signature',
       source:
-        'import inspect\n"|".join(",".join(inspect.signature(method).parameters.keys()) for method in [data.series, data.cross_section, data.panel, data.yield_curve, data.macro, data.fx, data.commodity_returns, data.commodity_warehouse_receipts, data.commodity_holdings, data.market_state, data.equity_fundamentals, data.equity_flows, data.equity_dividends, results.factor_report, results.backtest_report, results.strategy_scan_report, results.factor_weather])',
+        'import inspect\n"|".join(",".join(inspect.signature(method).parameters.keys()) for method in [data.series, data.cross_section, data.panel, data.yield_curve, data.macro, data.fx, data.commodity_returns, data.commodity_warehouse_receipts, data.commodity_holdings, data.market_state, data.equity_fundamentals, data.equity_flows, data.equity_dividends, results.factor_report, results.backtest_report, results.strategy_scan_report, results.factor_weather, data.etf_shares, data.index_valuation, data.industry_state, data.futures_settlement])',
     });
 
     expect(result.outputs).toEqual([
@@ -234,6 +254,10 @@ describe('research workbench Python runtime', () => {
           RESEARCH_BACKTEST_REPORT_SDK_CONTRACT_V1,
           RESEARCH_STRATEGY_SCAN_REPORT_SDK_CONTRACT_V1,
           RESEARCH_FACTOR_WEATHER_SDK_CONTRACT_V1,
+          RESEARCH_ETF_SHARES_SDK_CONTRACT_V1,
+          RESEARCH_INDEX_VALUATION_SDK_CONTRACT_V1,
+          RESEARCH_INDUSTRY_STATE_SDK_CONTRACT_V1,
+          RESEARCH_FUTURES_SETTLEMENT_SDK_CONTRACT_V1,
         ]
           .map((contract) => contract.parameters.map((parameter) => parameter.name).join(','))
           .join('|'),

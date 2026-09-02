@@ -197,6 +197,54 @@ class _DataApi:
         end: str,
     ) -> pd.DataFrame: ...
 
+    # Load ETF shares, size, NAV, and close by research availability date.
+    # Note: identifier uses a platform ETF code; start/end constrain research availability date.
+    # Example: data.etf_shares("510300.SH", start="20200101", end="20251231")
+    # DataFrame columns: date: datetime64[ns], trade_date: datetime64[ns], total_share_10k: float64, total_size_cny_10k: float64, nav: float64, close: float64, exchange: string
+    def etf_shares(
+        self,
+        identifier: str,
+        *,
+        start: str,
+        end: str,
+    ) -> pd.DataFrame: ...
+
+    # Load provider-computed index valuation, market value, and turnover measures.
+    # Note: identifier uses a platform index code; start/end constrain trading date.
+    # Example: data.index_valuation("000300.SH", start="20200101", end="20251231")
+    # DataFrame columns: date: datetime64[ns], total_mv_cny: float64, float_mv_cny: float64, total_share: float64, float_share: float64, free_share: float64, turnover_rate_pct: float64, turnover_rate_free_float_pct: float64, pe: float64, pe_ttm: float64, pb: float64
+    def index_valuation(
+        self,
+        identifier: str,
+        *,
+        start: str,
+        end: str,
+    ) -> pd.DataFrame: ...
+
+    # Load trend, breadth, and trading activity for a Shenwan level-1 industry.
+    # Note: identifier uses a Shenwan level-1 industry code or name; start/end constrain trading date.
+    # Example: data.industry_state("801120.SI", start="20200101", end="20251231")
+    # DataFrame columns: date: datetime64[ns], industry_code: string, industry_name: string, traded_count: int64, return_20d: float64, excess_return_20d: float64, positive_return_20d_ratio: float64, above_ma20_ratio: float64, above_ma60_ratio: float64, float_weighted_turnover_rate_pct: float64, amount_share: float64, top_five_amount_share: float64
+    def industry_state(
+        self,
+        identifier: str,
+        *,
+        start: str,
+        end: str,
+    ) -> pd.DataFrame: ...
+
+    # Load historical settlement prices, fees, and exchange margin parameters for an actual futures contract.
+    # Note: identifier uses an actual delivery-contract code; continuous symbols are not accepted; start/end constrain trading date.
+    # Example: data.futures_settlement("IF2609.CFX", start="20200101", end="20251231")
+    # DataFrame columns: date: datetime64[ns], settle: float64, trading_fee_rate: float64, trading_fee: float64, delivery_fee: float64, buy_hedge_margin_rate_pct: float64, sell_hedge_margin_rate_pct: float64, long_margin_rate_pct: float64, short_margin_rate_pct: float64, close_today_fee: float64, exchange: string
+    def futures_settlement(
+        self,
+        identifier: str,
+        *,
+        start: str,
+        end: str,
+    ) -> pd.DataFrame: ...
+
 
 
 class _ResultsApi:
