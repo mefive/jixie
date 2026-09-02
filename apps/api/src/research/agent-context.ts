@@ -84,40 +84,87 @@ export function compactResearchAgentHistory(history: ChatMessage[]): ChatMessage
 }
 
 /** Build a bounded document snapshot and identify Cells whose complete source is safe to edit. */
-export function researchAgentDocumentContext(document: ResearchAgentDocument): {
+export function researchAgentDocumentContext(
+  document: ResearchAgentDocument,
+  requestedCellIds: string[] = [],
+): {
   context: string;
   editableCellIds: Set<string>;
 } {
   let remainingSourceCharacters = MAX_RESEARCH_AGENT_SOURCE_CHARACTERS;
   const editableCellIds = new Set<string>();
-  const contextCells = document.cells.slice(0, MAX_RESEARCH_AGENT_CONTEXT_CELLS);
-  const latestOutputCellIds = new Set(
-    contextCells
+  const cellById = new Map(document.cells.map((cell) => [cell.id, cell]));
+  const attachedCellIds = [...new Set(requestedCellIds.filter((cellId) => cellById.has(cellId)))];
+  const dependencyCellIds = upstreamDependencyCellIds(document.cells, attachedCellIds).filter(
+    (cellId) => !attachedCellIds.includes(cellId),
+  );
+  const sourcePriorityCellIds =
+    attachedCellIds.length > 0
+      ? [...attachedCellIds, ...dependencyCellIds]
+      : document.cells.map((cell) => cell.id);
+  const requiredCellIds = sourcePriorityCellIds.slice(0, MAX_RESEARCH_AGENT_CONTEXT_CELLS);
+  const contextCellIdSet = new Set(requiredCellIds);
+  for (const cell of document.cells) {
+    if (contextCellIdSet.size >= MAX_RESEARCH_AGENT_CONTEXT_CELLS) {
+      break;
+    }
+    contextCellIdSet.add(cell.id);
+  }
+  const contextCells = document.cells.filter((cell) => contextCellIdSet.has(cell.id));
+  const sourceByCellId = new Map<string, { source: string; truncated: boolean }>();
+  for (const cellId of sourcePriorityCellIds) {
+    if (!contextCellIdSet.has(cellId)) {
+      continue;
+    }
+    const cell = cellById.get(cellId)!;
+    const sourceCharacters = Math.min(remainingSourceCharacters, cell.source.length);
+    const source = cell.source.slice(0, sourceCharacters);
+    const truncated = source.length !== cell.source.length;
+    sourceByCellId.set(cellId, { source, truncated });
+    remainingSourceCharacters -= sourceCharacters;
+    if (!truncated) {
+      editableCellIds.add(cellId);
+    }
+  }
+  const attachedCellIdSet = new Set(attachedCellIds);
+  const dependencyCellIdSet = new Set(dependencyCellIds);
+  const outputSummaryCandidates =
+    attachedCellIds.length > 0
+      ? sourcePriorityCellIds.flatMap((cellId) => {
+          const cell = cellById.get(cellId);
+          return cell && contextCellIdSet.has(cellId) ? [cell] : [];
+        })
+      : [...contextCells].sort(
+          (left, right) =>
+            (right.lastExecutedAt?.getTime() ?? 0) - (left.lastExecutedAt?.getTime() ?? 0),
+        );
+  const summarizedOutputCellIds = new Set(
+    outputSummaryCandidates
       .filter((cell) => cell.lastExecutedAt && Array.isArray(cell.output))
-      .sort((left, right) => right.lastExecutedAt!.getTime() - left.lastExecutedAt!.getTime())
       .slice(0, MAX_RESEARCH_AGENT_OUTPUT_CELLS)
       .map((cell) => cell.id),
   );
   const includedCells = contextCells.map((cell) => {
-    const sourceCharacters = Math.min(remainingSourceCharacters, cell.source.length);
-    const source = cell.source.slice(0, sourceCharacters);
-    const sourceTruncated = source.length !== cell.source.length;
-    remainingSourceCharacters -= sourceCharacters;
-    if (!sourceTruncated) {
-      editableCellIds.add(cell.id);
-    }
-
+    const sourceSnapshot = sourceByCellId.get(cell.id);
     const output = Array.isArray(cell.output) ? cell.output : [];
     return {
       id: cell.id,
       position: cell.position,
       kind: cell.kind,
+      contextRole:
+        attachedCellIds.length === 0
+          ? 'document'
+          : attachedCellIdSet.has(cell.id)
+            ? 'attached'
+            : dependencyCellIdSet.has(cell.id)
+              ? 'dependency'
+              : 'outline',
       status: cell.status,
       revision: cell.revision,
       definitions: stringArray(cell.definitions),
       references: stringArray(cell.references),
       outputTypes: output.slice(0, 20).map(outputType),
-      ...(latestOutputCellIds.has(cell.id)
+      ...(summarizedOutputCellIds.has(cell.id)
         ? {
             latestOutputSummary: output
               .slice(0, MAX_RESEARCH_AGENT_OUTPUT_BLOCKS)
@@ -127,8 +174,9 @@ export function researchAgentDocumentContext(document: ResearchAgentDocument): {
         : {}),
       lastExecutedRevision: cell.lastExecutedRevision,
       lastExecutedAt: cell.lastExecutedAt?.toISOString() ?? null,
-      source,
-      sourceTruncated,
+      source: sourceSnapshot?.source ?? '',
+      sourceOmitted: !sourceSnapshot,
+      sourceTruncated: sourceSnapshot?.truncated ?? false,
     };
   });
 
@@ -141,10 +189,49 @@ export function researchAgentDocumentContext(document: ResearchAgentDocument): {
       runtime: 'research-py-v1',
       cells: includedCells,
       cellsTruncated: document.cells.length > includedCells.length,
+      attachedCellIds,
+      dependencyCellIds: dependencyCellIds.filter((cellId) => contextCellIdSet.has(cellId)),
       outputSummaryCellLimit: MAX_RESEARCH_AGENT_OUTPUT_CELLS,
     }),
     editableCellIds,
   };
+}
+
+function upstreamDependencyCellIds(
+  cells: ResearchAgentDocumentCell[],
+  rootCellIds: string[],
+): string[] {
+  const cellById = new Map(cells.map((cell) => [cell.id, cell]));
+  const providerCellIdsByDefinition = new Map<string, string[]>();
+  for (const cell of cells) {
+    for (const definition of stringArray(cell.definitions)) {
+      providerCellIdsByDefinition.set(definition, [
+        ...(providerCellIdsByDefinition.get(definition) ?? []),
+        cell.id,
+      ]);
+    }
+  }
+
+  const visited = new Set(rootCellIds);
+  const pending = [...rootCellIds];
+  const dependencies: string[] = [];
+  while (pending.length > 0) {
+    const cell = cellById.get(pending.shift()!);
+    if (!cell) {
+      continue;
+    }
+    for (const reference of stringArray(cell.references)) {
+      for (const providerCellId of providerCellIdsByDefinition.get(reference) ?? []) {
+        if (visited.has(providerCellId)) {
+          continue;
+        }
+        visited.add(providerCellId);
+        dependencies.push(providerCellId);
+        pending.push(providerCellId);
+      }
+    }
+  }
+  return dependencies;
 }
 
 function boundedTextMessage(message: ChatMessage, limit: number): ChatMessage {

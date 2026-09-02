@@ -46,8 +46,10 @@ try {
   await page.getByTestId('research-mobile-actions').waitFor();
   await page.screenshot({ path: `${SHOTS}research-mobile-document.png` });
 
-  await page.getByRole('button', { name: '显示 Agent' }).click();
+  await page.getByTestId('research-cell-attach-agent').first().click();
   await agentPane.waitFor();
+  await page.getByTestId('research-agent-cell-context').waitFor();
+  await page.getByText('Cell 01 · Markdown', { exact: true }).waitFor();
   const closeAgent = page.getByTestId('research-mobile-agent-close');
   await closeAgent.waitFor();
   const agentBox = await agentPane.boundingBox();

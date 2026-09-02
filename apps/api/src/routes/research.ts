@@ -1,7 +1,7 @@
 import { Hono, type Context } from 'hono';
 import { ulid } from 'ulid';
 import { z } from 'zod';
-import type { ResearchClarificationV1 } from '@jixie/shared';
+import type { MessagePart, ResearchCellContextPart, ResearchClarificationV1 } from '@jixie/shared';
 import { apiError, validateJson, validateQuery } from '../lib/httpError.js';
 import { initializeJobLogs } from '../lib/jobs.js';
 import { wakeJobQueue } from '../lib/job-queue.js';
@@ -700,6 +700,7 @@ const agentBody = z
   .strictObject({
     conversationId: z.string().min(1).optional(),
     message: z.string().trim().min(1).max(2000).optional(),
+    contextCellIds: z.array(z.string().min(1).max(80)).max(8).default([]),
     attemptId: z.string().min(1).max(80).optional(),
     clarificationAnswer: z
       .strictObject({
@@ -721,6 +722,20 @@ const agentBody = z
         path: ['clarificationAnswer'],
         message:
           'A clarification answer requires its conversationId and cannot explain an attempt.',
+      });
+    }
+    if (value.clarificationAnswer && value.contextCellIds.length > 0) {
+      context.addIssue({
+        code: 'custom',
+        path: ['contextCellIds'],
+        message: 'A clarification answer cannot attach Research Cells.',
+      });
+    }
+    if (value.attemptId && value.contextCellIds.length > 0) {
+      context.addIssue({
+        code: 'custom',
+        path: ['contextCellIds'],
+        message: 'A Cell execution explanation cannot attach additional Research Cells.',
       });
     }
   });
@@ -829,7 +844,24 @@ researchRoute.post('/agent', validateJson(agentBody), async (c) => {
     return apiError(c, 'NOT_FOUND', m(c, 'researchCellChangeAttemptNotFound'));
   }
   const turnId = ulid();
-  const agentDocument = document ? researchAgentDocumentContext(document) : undefined;
+  const contextCellIds = [...new Set(input.contextCellIds)];
+  const agentDocument = document
+    ? researchAgentDocumentContext(document, contextCellIds)
+    : undefined;
+  const cellById = new Map(document?.cells.map((cell) => [cell.id, cell]));
+  const attachedCells: ResearchCellContextPart['cells'] = contextCellIds.flatMap((cellId) => {
+    const cell = cellById.get(cellId);
+    if (!cell || (cell.kind !== 'markdown' && cell.kind !== 'python')) {
+      return [];
+    }
+    return [{ cellId: cell.id, position: cell.position, kind: cell.kind }];
+  });
+  const userParts: MessagePart[] = [
+    ...(attachedCells.length > 0
+      ? [{ type: 'research_cell_context' as const, cells: attachedCells }]
+      : []),
+    { type: 'text', text: message },
+  ];
   const catalogEvidence = createResearchCatalogTurnEvidence();
   const catalogTool = createSearchResearchCatalogTool(catalogEvidence);
   if (attempt) {
@@ -859,6 +891,7 @@ researchRoute.post('/agent', validateJson(agentBody), async (c) => {
     ),
     entity,
     message,
+    userParts,
     currentCode: '',
     locale: localeFromRequest(c),
   });

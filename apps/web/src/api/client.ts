@@ -510,6 +510,7 @@ export function sendResearchAgent(
   message: string,
   conversationId?: string,
   attemptId?: string,
+  contextCellIds: string[] = [],
 ): Promise<{ conversationId: string; turnId: string }> {
   return request('/api/app/research/agent', {
     method: 'POST',
@@ -517,6 +518,7 @@ export function sendResearchAgent(
       message,
       ...(conversationId ? { conversationId } : {}),
       ...(attemptId ? { attemptId } : {}),
+      ...(contextCellIds.length > 0 ? { contextCellIds } : {}),
     }),
   });
 }

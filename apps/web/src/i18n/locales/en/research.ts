@@ -152,6 +152,14 @@ export const enResearch: typeof zhResearch = {
       'Ask it to explain results, challenge assumptions, add statistical methods and formulas, or edit Markdown and Python cells directly.',
     agentPlaceholder: 'Given this document, what should I analyze next?',
     sendAgent: 'Send message',
+    agentCellContext: {
+      attach: 'Attach to Agent context',
+      detach: 'Remove from Agent context',
+      drag: 'Drag to the Agent composer',
+      remove: 'Remove Cell {{ordinal}}',
+      label: 'Cell {{ordinal}} · {{kind}}',
+      attachedCount: '{{count}} Cells attached',
+    },
     clarification: {
       status: {
         pending: 'Needs confirmation',
