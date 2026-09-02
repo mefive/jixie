@@ -24,6 +24,7 @@ import {
 } from '../research/curator.js';
 import { universeSpecV1Schema } from '../research/spec.js';
 import { executeUniverseSpec } from '../research/universe.js';
+import { researchAgentDocumentContext } from '../research/agent-context.js';
 import { researchPythonLanguageService } from '../research/pyright-language-service.js';
 import { searchResearchDataCatalog } from '../research/data-catalog.js';
 import {
@@ -723,8 +724,6 @@ const agentBody = z
       });
     }
   });
-const MAX_RESEARCH_AGENT_CONTEXT_CELLS = 100;
-const MAX_RESEARCH_AGENT_SOURCE_CHARACTERS = 48_000;
 const MAX_RESEARCH_AGENT_ATTEMPT_CHARACTERS = 32_000;
 
 researchRoute.post('/agent', validateJson(agentBody), async (c) => {
@@ -797,6 +796,8 @@ researchRoute.post('/agent', validateJson(agentBody), async (c) => {
           definitions: true,
           references: true,
           output: true,
+          lastExecutedRevision: true,
+          lastExecutedAt: true,
         },
       },
       clarifications: {
@@ -863,67 +864,6 @@ researchRoute.post('/agent', validateJson(agentBody), async (c) => {
   });
   return c.json({ conversationId, turnId });
 });
-
-function researchAgentDocumentContext(document: {
-  id: string;
-  updatedAt: Date;
-  contentRevision: number;
-  cells: Array<{
-    id: string;
-    position: number;
-    kind: string;
-    source: string;
-    status: string;
-    revision: number;
-    definitions: unknown;
-    references: unknown;
-    output: unknown;
-  }>;
-}): { context: string; editableCellIds: Set<string> } {
-  let remainingSourceCharacters = MAX_RESEARCH_AGENT_SOURCE_CHARACTERS;
-  const editableCellIds = new Set<string>();
-  const includedCells = document.cells.slice(0, MAX_RESEARCH_AGENT_CONTEXT_CELLS).map((cell) => {
-    const sourceCharacters = Math.min(remainingSourceCharacters, cell.source.length);
-    const source = cell.source.slice(0, sourceCharacters);
-    const sourceTruncated = source.length !== cell.source.length;
-    remainingSourceCharacters -= sourceCharacters;
-    if (!sourceTruncated) {
-      editableCellIds.add(cell.id);
-    }
-    return {
-      id: cell.id,
-      position: cell.position,
-      kind: cell.kind,
-      status: cell.status,
-      revision: cell.revision,
-      definitions: Array.isArray(cell.definitions) ? cell.definitions : [],
-      references: Array.isArray(cell.references) ? cell.references : [],
-      outputTypes: Array.isArray(cell.output)
-        ? cell.output
-            .map((output) =>
-              output && typeof output === 'object' && 'type' in output
-                ? String(output.type)
-                : 'unknown',
-            )
-            .slice(0, 20)
-        : [],
-      source,
-      sourceTruncated,
-    };
-  });
-  return {
-    context: JSON.stringify({
-      version: 1,
-      documentId: document.id,
-      updatedAt: document.updatedAt.toISOString(),
-      contentRevision: document.contentRevision,
-      runtime: 'research-py-v1',
-      cells: includedCells,
-      cellsTruncated: document.cells.length > includedCells.length,
-    }),
-    editableCellIds,
-  };
-}
 
 function researchAgentCellChangeAttemptContext(attempt: {
   id: string;
