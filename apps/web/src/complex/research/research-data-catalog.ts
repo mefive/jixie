@@ -1,10 +1,17 @@
 import type {
   ResearchDataCatalogBacktestReportV1,
+  ResearchDataCatalogDatasetV1,
   ResearchDataCatalogFactorReportV1,
   ResearchDataCatalogInstrumentV1,
   ResearchFrequencyV1,
   ResearchTransformV1,
 } from '@jixie/shared';
+
+export interface ResearchDatasetSnippetOptions {
+  dataset: ResearchDataCatalogDatasetV1;
+  start: string;
+  end: string;
+}
 
 export interface ResearchSeriesSnippetOptions {
   instrument: ResearchDataCatalogInstrumentV1;
@@ -46,6 +53,51 @@ function researchFactorReportVariableName(factor: string): string {
     .replace(/[^a-z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '');
   return `${identifier || 'factor'}_report`;
+}
+
+/** Build an exact governed dataset call inserted by the catalog. */
+export function researchDatasetSnippet(options: ResearchDatasetSnippetOptions): string {
+  const { dataset, start, end } = options;
+  const variable = researchDatasetVariableName(dataset);
+  switch (dataset.method) {
+    case 'data.cross_section':
+      return `${variable} = data.cross_section(
+    ${JSON.stringify(dataset.universe)},
+    date=${JSON.stringify(end)},
+    minimum_listed_days=365,
+    risk_warning="exclude",
+)`;
+    case 'data.panel':
+      return `${variable} = data.panel(
+    ${JSON.stringify(dataset.universe)},
+    start=${JSON.stringify(start)},
+    end=${JSON.stringify(end)},
+    frequency="month_end",
+    minimum_listed_days=365,
+    risk_warning="exclude",
+)`;
+    case 'data.yield_curve':
+      return `${variable} = data.yield_curve(
+    ${JSON.stringify(dataset.curve)},
+    tenor=${JSON.stringify(dataset.tenor)},
+    start=${JSON.stringify(start)},
+    end=${JSON.stringify(end)},
+    frequency="daily",
+    transform="level",
+)`;
+  }
+}
+
+function researchDatasetVariableName(dataset: ResearchDataCatalogDatasetV1): string {
+  const source =
+    dataset.method === 'data.yield_curve'
+      ? `${dataset.curve}_${dataset.tenor}`
+      : `${dataset.universe}_${dataset.method === 'data.panel' ? 'panel' : 'cross_section'}`;
+  const identifier = source
+    .toLocaleLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  return identifier || 'dataset';
 }
 
 /** Build the exact SDK call inserted by the catalog, without creating a second execution path. */

@@ -8,7 +8,11 @@ const mocks = vi.hoisted(() => ({
   indexDailyFindMany: vi.fn(),
   futureMappingFindMany: vi.fn(),
   futureFindMany: vi.fn(),
+  dailyFindFirst: vi.fn(),
   dailyGroupBy: vi.fn(),
+  dailyBasicFindFirst: vi.fn(),
+  indexWeightGroupBy: vi.fn(),
+  yieldCurveGroupBy: vi.fn(),
   etfDailyGroupBy: vi.fn(),
   indexDailyGroupBy: vi.fn(),
   marketBenchmarkDailyGroupBy: vi.fn(),
@@ -25,7 +29,10 @@ vi.mock('../lib/prisma.js', () => ({
     etfBasic: { findMany: mocks.etfFindMany },
     indexBenchmark: { findMany: mocks.indexFindMany },
     marketBenchmark: { findMany: mocks.marketBenchmarkFindMany },
-    daily: { groupBy: mocks.dailyGroupBy },
+    daily: { findFirst: mocks.dailyFindFirst, groupBy: mocks.dailyGroupBy },
+    dailyBasic: { findFirst: mocks.dailyBasicFindFirst },
+    indexWeight: { groupBy: mocks.indexWeightGroupBy },
+    yieldCurvePoint: { groupBy: mocks.yieldCurveGroupBy },
     etfDaily: { groupBy: mocks.etfDailyGroupBy },
     indexDaily: { findMany: mocks.indexDailyFindMany, groupBy: mocks.indexDailyGroupBy },
     marketBenchmarkDaily: { groupBy: mocks.marketBenchmarkDailyGroupBy },
@@ -58,21 +65,63 @@ describe('research data catalog', () => {
       'market.adjusted_close',
       'market.cny_close',
     ]);
+    expect(result.sdkMethods.map((method) => method.qualifiedName)).toEqual(['data.series']);
+    expect(mocks.indexFindMany).not.toHaveBeenCalled();
+    expect(mocks.indexDailyGroupBy).not.toHaveBeenCalled();
+  });
+
+  it('discovers locally available governed datasets without scanning observation counts', async () => {
+    mocks.dailyFindFirst
+      .mockResolvedValueOnce({ tradeDate: '20150105' })
+      .mockResolvedValueOnce({ tradeDate: '20260730' });
+    mocks.dailyBasicFindFirst
+      .mockResolvedValueOnce({ tradeDate: '20150105' })
+      .mockResolvedValueOnce({ tradeDate: '20260730' });
+    mocks.indexWeightGroupBy.mockResolvedValue([
+      {
+        indexCode: '000300.SH',
+        _min: { tradeDate: '20150130' },
+        _max: { tradeDate: '20260701' },
+      },
+    ]);
+    mocks.yieldCurveGroupBy.mockResolvedValue([
+      {
+        curveCode: 'us_treasury_nominal',
+        termYears: 10,
+        _min: { availableDate: '20050103' },
+        _max: { availableDate: '20260804' },
+      },
+      {
+        curveCode: 'us_treasury_real',
+        termYears: 5,
+        _min: { availableDate: '20050103' },
+        _max: { availableDate: '20260804' },
+      },
+    ]);
+
+    const result = await searchResearchDataCatalog({ query: '10Y', scope: 'datasets' });
+
     expect(result.sdkMethods.map((method) => method.qualifiedName)).toEqual([
-      'data.series',
       'data.cross_section',
       'data.panel',
       'data.yield_curve',
     ]);
-    expect(result.sdkMethods.find((method) => method.qualifiedName === 'data.panel')).toMatchObject(
-      {
-        signature: expect.stringContaining('data.panel('),
-        example: expect.stringContaining('data.panel("index:000300.SH"'),
-        returnColumns: expect.arrayContaining(['date', 'code', 'pe_ttm']),
-      },
-    );
-    expect(mocks.indexFindMany).not.toHaveBeenCalled();
-    expect(mocks.indexDailyGroupBy).not.toHaveBeenCalled();
+    expect(result.instruments).toEqual([]);
+    expect(result.datasets).toEqual([
+      expect.objectContaining({
+        id: 'data.yield_curve:us_treasury_nominal:10Y',
+        method: 'data.yield_curve',
+        curve: 'us_treasury_nominal',
+        tenor: '10Y',
+        localDataCoverage: {
+          status: 'ready',
+          startDate: '20050103',
+          endDate: '20260804',
+          dateBasis: 'availableDate',
+        },
+      }),
+    ]);
+    expect(mocks.dailyGroupBy).not.toHaveBeenCalled();
   });
 
   it('ranks exact stable identifiers and exposes measure compatibility', async () => {

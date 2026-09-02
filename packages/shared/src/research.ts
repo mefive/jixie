@@ -7,9 +7,14 @@ import type {
   FactorLanguage,
 } from './factor.js';
 import type { StrategyLanguage } from './backtest.js';
+import type { ResearchYieldCurveCodeV1, ResearchYieldTenorV1 } from './research-sdk-contract.js';
 
 export type ResearchAssetTypeV1 = 'stock' | 'etf' | 'index' | 'future';
-export type ResearchDataCatalogScopeV1 = 'instruments' | 'factor_reports' | 'backtest_reports';
+export type ResearchDataCatalogScopeV1 =
+  | 'instruments'
+  | 'datasets'
+  | 'factor_reports'
+  | 'backtest_reports';
 export type ResearchFrequencyV1 = 'daily' | 'monthly';
 export type ResearchTransformV1 =
   | 'level'
@@ -191,6 +196,41 @@ export interface ResearchDataCatalogSdkMethodV1 {
   returnColumns: string[];
 }
 
+export type ResearchDataCatalogDatasetCoverageV1 =
+  | {
+      status: 'ready';
+      startDate: string;
+      endDate: string;
+      dateBasis: 'tradeDate' | 'availableDate';
+    }
+  | {
+      status: 'missing';
+      reason: 'source_available_but_local_data_missing';
+    };
+
+interface ResearchDataCatalogDatasetBaseV1 {
+  kind: 'dataset';
+  id: string;
+  nameZh: string;
+  nameEn: string;
+  descriptionZh: string;
+  descriptionEn: string;
+  tags: string[];
+  localDataCoverage: ResearchDataCatalogDatasetCoverageV1;
+}
+
+/** A governed, locally available dataset that can be inserted as an exact SDK call. */
+export type ResearchDataCatalogDatasetV1 =
+  | (ResearchDataCatalogDatasetBaseV1 & {
+      method: 'data.cross_section' | 'data.panel';
+      universe: string;
+    })
+  | (ResearchDataCatalogDatasetBaseV1 & {
+      method: 'data.yield_curve';
+      curve: ResearchYieldCurveCodeV1;
+      tenor: ResearchYieldTenorV1;
+    });
+
 /** A completed FactorReport owned by the current user and discoverable from Research. */
 export interface ResearchDataCatalogFactorReportV1 {
   kind: 'factor_report';
@@ -223,6 +263,7 @@ export interface ResearchDataCatalogResultV1 {
   query: string;
   sdkMethods: ResearchDataCatalogSdkMethodV1[];
   instruments: ResearchDataCatalogInstrumentV1[];
+  datasets: ResearchDataCatalogDatasetV1[];
   factorReports: ResearchDataCatalogFactorReportV1[];
   backtestReports: ResearchDataCatalogBacktestReportV1[];
   measures: ResearchMeasureDefinitionV1[];

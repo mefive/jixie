@@ -6,9 +6,9 @@ The **Data catalog** shows the instruments, measures, and calls supported by the
 
 1. Open a research document.
 2. Select the data icon in the upper-right corner to open **Data catalog**.
-3. Search by instrument name, code, or measure, such as CSI 300, `000300.SH`, or close.
-4. Select a data item and check its description, unit, frequency, and returned columns.
-5. Set any date, frequency, or transform controls offered by the page.
+3. Use **Market data** for one instrument; **Datasets** lists runnable equity cross-sections, month-end Panels, and yield tenors.
+4. Search by name, code, or keyword, such as CSI 300, `000300.SH`, or `10Y`.
+5. Select an item and check its local coverage, dates, and returned columns.
 6. Insert the call into the current Python Cell.
 
 After insertion, verify that the instrument, dates, and variable name match your research question.
@@ -34,14 +34,17 @@ ETFs use the same entry point. For example, `data.series("etf", "510300.SH", ...
 ### One point-in-time stock cross-section
 
 Use `data.cross_section()` for China A-share fields available at a historical trading date. It is suitable for exploratory distributions, relationships, and universes, but does not replace a formal FactorReport.
+In **Datasets**, select China A-shares, CSI 300, CSI 500, or CSI 1000 and choose the cross-section date to insert a complete call.
 
 ### Completed month-end stock Panels
 
 Use `data.panel()` for point-in-time cross-sections over completed month-ends. It supports exploratory multi-period sorting, regression, and stability checks. Specify dates, universe, fields, and missing-value rules. Never backfill today's latest financial value into past dates.
+The catalog shows only the date range jointly supported by local price, valuation, and historical membership data.
 
 ### US Treasury yield curves
 
 Use `data.yield_curve()` for governed US Treasury nominal- or real-yield tenor series. Curves, tenors, and transforms have a separate allowlist; do not guess a yield table or field through `data.series()`. See [Load US Treasury yield curves](/docs/help/research/yield-curves) for parameters, percentage-point units, and US/China time-zone boundaries.
+**Datasets** lists only curve and tenor combinations that actually exist locally.
 
 ## Point-in-time and revision boundaries
 
