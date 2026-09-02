@@ -9,11 +9,13 @@ import {
   RESEARCH_EQUITY_FUNDAMENTALS_SDK_CONTRACT_V1,
   RESEARCH_BACKTEST_REPORT_SDK_CONTRACT_V1,
   RESEARCH_FACTOR_REPORT_SDK_CONTRACT_V1,
+  RESEARCH_FACTOR_WEATHER_SDK_CONTRACT_V1,
   RESEARCH_FX_SDK_CONTRACT_V1,
   RESEARCH_MACRO_SDK_CONTRACT_V1,
   RESEARCH_MARKET_STATE_SDK_CONTRACT_V1,
   RESEARCH_PANEL_SDK_CONTRACT_V1,
   RESEARCH_SERIES_SDK_CONTRACT_V1,
+  RESEARCH_STRATEGY_SCAN_REPORT_SDK_CONTRACT_V1,
   RESEARCH_YIELD_CURVE_SDK_CONTRACT_V1,
   type ResearchAssetTypeV1,
   type ResearchCommodityHoldingProductCodeV1,
@@ -122,6 +124,14 @@ export interface ResearchBacktestReportRuntimeRequestV1 {
   report_id: string;
 }
 
+export interface ResearchStrategyScanReportRuntimeRequestV1 {
+  report_id: string;
+}
+
+export interface ResearchFactorWeatherRuntimeRequestV1 {
+  factor_id: string;
+}
+
 const researchSeriesRequestSchema = z.strictObject(
   Object.fromEntries(
     RESEARCH_SERIES_SDK_CONTRACT_V1.parameters.map((parameter) => [
@@ -158,6 +168,15 @@ const researchFactorReportRequestSchema = sdkRequestSchema(
 );
 const researchBacktestReportRequestSchema = sdkRequestSchema(
   RESEARCH_BACKTEST_REPORT_SDK_CONTRACT_V1.parameters,
+);
+const researchStrategyScanReportRequestSchema = sdkRequestSchema(
+  RESEARCH_STRATEGY_SCAN_REPORT_SDK_CONTRACT_V1.parameters,
+);
+const researchFactorWeatherRequestSchema = sdkRequestSchema(
+  RESEARCH_FACTOR_WEATHER_SDK_CONTRACT_V1.parameters,
+);
+const researchFactorWeatherRowsSchema = sdkDataFrameRowsSchema(
+  RESEARCH_FACTOR_WEATHER_SDK_CONTRACT_V1.returns,
 );
 const researchCommodityReturnsRequestSchema = sdkRequestSchema(
   RESEARCH_COMMODITY_RETURNS_SDK_CONTRACT_V1.parameters,
@@ -264,6 +283,26 @@ export function parseResearchBacktestReportRuntimeRequest(
   return researchBacktestReportRequestSchema.parse(
     value,
   ) as unknown as ResearchBacktestReportRuntimeRequestV1;
+}
+
+export function parseResearchStrategyScanReportRuntimeRequest(
+  value: unknown,
+): ResearchStrategyScanReportRuntimeRequestV1 {
+  return researchStrategyScanReportRequestSchema.parse(
+    value,
+  ) as unknown as ResearchStrategyScanReportRuntimeRequestV1;
+}
+
+export function parseResearchFactorWeatherRuntimeRequest(
+  value: unknown,
+): ResearchFactorWeatherRuntimeRequestV1 {
+  return researchFactorWeatherRequestSchema.parse(
+    value,
+  ) as unknown as ResearchFactorWeatherRuntimeRequestV1;
+}
+
+export function parseResearchFactorWeatherRuntimeRows(value: unknown): unknown[] {
+  return researchFactorWeatherRowsSchema.parse(value);
 }
 
 export function parseResearchCommodityReturnsRuntimeRequest(

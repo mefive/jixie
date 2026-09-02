@@ -17,6 +17,10 @@ import { researchPayloadHash } from './fingerprints.js';
 import { researchYieldCurveSourceForSdkCall } from './concept-bindings.js';
 import { loadResearchBacktestReportResult } from './backtest-report-result.js';
 import { loadResearchFactorReportResult } from './factor-report-result.js';
+import {
+  loadResearchFactorWeatherResult,
+  loadResearchStrategyScanReportResult,
+} from './result-dataset.js';
 import { loadResearchSeries, prepareResearchSeries, researchSeriesLoadStart } from './series.js';
 import {
   loadResearchEquityDividends,
@@ -41,6 +45,8 @@ import {
   parseResearchEquityFundamentalsRuntimeRequest,
   parseResearchEquityFundamentalsRuntimeRows,
   parseResearchFactorReportRuntimeRequest,
+  parseResearchFactorWeatherRuntimeRequest,
+  parseResearchFactorWeatherRuntimeRows,
   parseResearchFxRuntimeRequest,
   parseResearchMacroRuntimeRequest,
   parseResearchMarketStateRuntimeRequest,
@@ -48,18 +54,21 @@ import {
   parseResearchPanelRuntimeRequest,
   parseResearchSeriesRuntimeRequest,
   parseResearchSeriesRuntimeRows,
+  parseResearchStrategyScanReportRuntimeRequest,
   parseResearchYieldCurveRuntimeRequest,
   type ResearchCrossSectionRuntimeRequestV1,
   type ResearchCommodityHoldingRuntimeRequestV1,
   type ResearchCommodityRuntimeRequestV1,
   type ResearchBacktestReportRuntimeRequestV1,
   type ResearchFactorReportRuntimeRequestV1,
+  type ResearchFactorWeatherRuntimeRequestV1,
   type ResearchDatedIdentifierRuntimeRequestV1,
   type ResearchFxRuntimeRequestV1,
   type ResearchMacroRuntimeRequestV1,
   type ResearchMarketStateRuntimeRequestV1,
   type ResearchPanelRuntimeRequestV1,
   type ResearchSeriesRuntimeRequestV1,
+  type ResearchStrategyScanReportRuntimeRequestV1,
   type ResearchYieldCurveRuntimeRequestV1,
 } from './workbench-sdk.js';
 
@@ -491,6 +500,14 @@ type ParsedResearchRequest =
   | (Omit<ResearchRequestFrame, 'method' | 'arguments'> & {
       method: 'research_backtest_report';
       arguments: ResearchBacktestReportRuntimeRequestV1;
+    })
+  | (Omit<ResearchRequestFrame, 'method' | 'arguments'> & {
+      method: 'research_strategy_scan_report';
+      arguments: ResearchStrategyScanReportRuntimeRequestV1;
+    })
+  | (Omit<ResearchRequestFrame, 'method' | 'arguments'> & {
+      method: 'research_factor_weather';
+      arguments: ResearchFactorWeatherRuntimeRequestV1;
     });
 
 function parseResearchRequestFrame(frame: ResearchRequestFrame): ParsedResearchRequest {
@@ -599,6 +616,20 @@ function parseResearchRequestFrame(frame: ResearchRequestFrame): ParsedResearchR
         id: frame.id,
         method: 'research_backtest_report',
         arguments: parseResearchBacktestReportRuntimeRequest(frame.arguments),
+      };
+    case 'research_strategy_scan_report':
+      return {
+        type: frame.type,
+        id: frame.id,
+        method: 'research_strategy_scan_report',
+        arguments: parseResearchStrategyScanReportRuntimeRequest(frame.arguments),
+      };
+    case 'research_factor_weather':
+      return {
+        type: frame.type,
+        id: frame.id,
+        method: 'research_factor_weather',
+        arguments: parseResearchFactorWeatherRuntimeRequest(frame.arguments),
       };
   }
 }
@@ -778,6 +809,18 @@ async function answerResearchRequest(
       }
       case 'research_backtest_report': {
         result = await loadResearchBacktestReportResult(documentId, frame.arguments.report_id);
+        break;
+      }
+      case 'research_strategy_scan_report': {
+        result = await loadResearchStrategyScanReportResult(documentId, frame.arguments.report_id);
+        break;
+      }
+      case 'research_factor_weather': {
+        const loaded = await loadResearchFactorWeatherResult(documentId, frame.arguments.factor_id);
+        result = {
+          rows: parseResearchFactorWeatherRuntimeRows(loaded.rows),
+          metadata: loaded.metadata,
+        };
         break;
       }
     }

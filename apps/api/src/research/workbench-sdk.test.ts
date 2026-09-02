@@ -9,12 +9,14 @@ import {
   RESEARCH_EQUITY_FUNDAMENTALS_SDK_CONTRACT_V1,
   RESEARCH_BACKTEST_REPORT_SDK_CONTRACT_V1,
   RESEARCH_FACTOR_REPORT_SDK_CONTRACT_V1,
+  RESEARCH_FACTOR_WEATHER_SDK_CONTRACT_V1,
   RESEARCH_FX_SDK_CONTRACT_V1,
   RESEARCH_MACRO_SDK_CONTRACT_V1,
   RESEARCH_MARKET_STATE_SDK_CONTRACT_V1,
   RESEARCH_PANEL_SDK_CONTRACT_V1,
   RESEARCH_SDK_CONTRACT_V1,
   RESEARCH_SERIES_SDK_CONTRACT_V1,
+  RESEARCH_STRATEGY_SCAN_REPORT_SDK_CONTRACT_V1,
   createResearchSdkAgentCatalog,
 } from '@jixie/shared';
 import {
@@ -28,11 +30,13 @@ import {
   parseResearchBacktestReportRuntimeRequest,
   parseResearchEquityDatasetRuntimeRows,
   parseResearchFactorReportRuntimeRequest,
+  parseResearchFactorWeatherRuntimeRequest,
   parseResearchFxRuntimeRequest,
   parseResearchMacroRuntimeRequest,
   parseResearchMarketStateRuntimeRequest,
   parseResearchPanelRuntimeRequest,
   parseResearchSeriesRuntimeRequest,
+  parseResearchStrategyScanReportRuntimeRequest,
   parseResearchSeriesRuntimeRows,
 } from './workbench-sdk.js';
 
@@ -232,6 +236,19 @@ describe('research workbench SDK contract', () => {
       qualifiedName: 'results.backtest_report',
       returns: { kind: 'mapping', pythonType: 'Mapping[str, Any]' },
     });
+  });
+
+  it('publishes owner-scoped strategy-scan and Factor Weather result bridges', () => {
+    expect(parseResearchStrategyScanReportRuntimeRequest({ report_id: 'scan-1' })).toEqual({
+      report_id: 'scan-1',
+    });
+    expect(parseResearchFactorWeatherRuntimeRequest({ factor_id: 'factor-1' })).toEqual({
+      factor_id: 'factor-1',
+    });
+    expect(RESEARCH_STRATEGY_SCAN_REPORT_SDK_CONTRACT_V1.qualifiedName).toBe(
+      'results.strategy_scan_report',
+    );
+    expect(RESEARCH_FACTOR_WEATHER_SDK_CONTRACT_V1.qualifiedName).toBe('results.factor_weather');
   });
 
   it('derives the Agent SDK catalog from the same public contract', () => {

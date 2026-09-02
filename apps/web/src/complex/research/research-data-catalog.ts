@@ -2,7 +2,9 @@ import type {
   ResearchDataCatalogBacktestReportV1,
   ResearchDataCatalogDatasetV1,
   ResearchDataCatalogFactorReportV1,
+  ResearchDataCatalogFactorWeatherV1,
   ResearchDataCatalogInstrumentV1,
+  ResearchDataCatalogStrategyScanReportV1,
   ResearchFrequencyV1,
   ResearchTransformV1,
 } from '@jixie/shared';
@@ -29,6 +31,12 @@ export function researchBacktestReportSnippet(
   return `${researchBacktestReportVariableName(report.strategyName)} = results.backtest_report(${JSON.stringify(report.id)})`;
 }
 
+export function researchStrategyScanReportSnippet(
+  report: Pick<ResearchDataCatalogStrategyScanReportV1, 'id' | 'strategyName'>,
+): string {
+  return `${researchBacktestReportVariableName(report.strategyName).replace(/_report$/, '_scan')} = results.strategy_scan_report(${JSON.stringify(report.id)})`;
+}
+
 function researchBacktestReportVariableName(strategyName: string): string {
   let identifier = strategyName
     .toLocaleLowerCase()
@@ -45,6 +53,16 @@ export function researchFactorReportSnippet(
   report: Pick<ResearchDataCatalogFactorReportV1, 'id' | 'factor'>,
 ): string {
   return `${researchFactorReportVariableName(report.factor)} = results.factor_report(${JSON.stringify(report.id)})`;
+}
+
+export function researchFactorWeatherSnippet(
+  weather: Pick<ResearchDataCatalogFactorWeatherV1, 'factorId' | 'factorName'>,
+): string {
+  const identifier = weather.factorName
+    .toLocaleLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  return `${identifier || 'factor'}_weather = results.factor_weather(${JSON.stringify(weather.factorId)})`;
 }
 
 function researchFactorReportVariableName(factor: string): string {

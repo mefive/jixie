@@ -222,6 +222,23 @@ class _ResultsApi:
         report_id: str,
     ) -> Mapping[str, Any]: ...
 
+    # Load one completed immutable strategy parameter-scan result owned by the current user.
+    # Note: Returns the frozen config, spec, per-combination metrics, and data cutoff without rerunning the scan.
+    # Example: scan = results.strategy_scan_report("01K5EXAMPLESCANREPORT")
+    def strategy_scan_report(
+        self,
+        report_id: str,
+    ) -> Mapping[str, Any]: ...
+
+    # Load monthly weather observations for a factor pinned by the current user.
+    # Note: Returns only stored observations without triggering a refresh; methodology and factor code hash are in DataFrame attrs["jixie"].
+    # Example: weather = results.factor_weather("momentum-factor-id")
+    # DataFrame columns: formation_date: datetime64[ns], period_end_date: datetime64[ns], rank_ic: float64, top_return: float64, bottom_return: float64, long_short_gross_return: float64, long_short_net_return: float64, top_turnover: float64, sample_size: float64, sample_coverage: float64
+    def factor_weather(
+        self,
+        factor_id: str,
+    ) -> pd.DataFrame: ...
+
 
 
 class _ChartsApi:

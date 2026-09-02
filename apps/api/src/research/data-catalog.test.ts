@@ -28,7 +28,9 @@ const mocks = vi.hoisted(() => ({
   futureDailyGroupBy: vi.fn(),
   factorFindMany: vi.fn(),
   factorReportFindMany: vi.fn(),
+  factorWeatherFindMany: vi.fn(),
   backtestReportFindMany: vi.fn(),
+  strategyScanReportFindMany: vi.fn(),
 }));
 
 vi.mock('../lib/prisma.js', () => ({
@@ -60,7 +62,9 @@ vi.mock('../lib/prisma.js', () => ({
     futureDaily: { groupBy: mocks.futureDailyGroupBy },
     factor: { findMany: mocks.factorFindMany },
     factorReport: { findMany: mocks.factorReportFindMany },
+    factorWeatherPin: { findMany: mocks.factorWeatherFindMany },
     backtestReport: { findMany: mocks.backtestReportFindMany },
+    strategyScanReport: { findMany: mocks.strategyScanReportFindMany },
   },
 }));
 
@@ -409,6 +413,7 @@ describe('research data catalog', () => {
     );
     expect(result.sdkMethods.map((method) => method.qualifiedName)).toEqual([
       'results.factor_report',
+      'results.factor_weather',
     ]);
     expect(result.instruments).toEqual([]);
     expect(result.measures).toEqual([]);
@@ -463,6 +468,7 @@ describe('research data catalog', () => {
     );
     expect(result.sdkMethods.map((method) => method.qualifiedName)).toEqual([
       'results.backtest_report',
+      'results.strategy_scan_report',
     ]);
     expect(result.factorReports).toEqual([]);
     expect(result.backtestReports).toEqual([
@@ -475,5 +481,45 @@ describe('research data catalog', () => {
       }),
     ]);
     expect(mocks.stockFindMany).not.toHaveBeenCalled();
+  });
+
+  it('discovers ready Factor Weather pins and completed parameter scans', async () => {
+    mocks.factorWeatherFindMany.mockResolvedValue([
+      {
+        factorId: 'factor-a',
+        factorName: '动量',
+        direction: 'positive',
+        computedThrough: '20260731',
+        createdAt: new Date('2026-08-01T00:00:00Z'),
+        _count: { points: 24 },
+      },
+    ]);
+    mocks.strategyScanReportFindMany.mockResolvedValue([
+      {
+        id: 'scan-a',
+        strategyId: 'strategy-a',
+        strategyName: '轮动',
+        dataCutoff: '20260731',
+        spec: { dimensions: [{ key: 'window', values: [10, 20] }] },
+        createdAt: new Date('2026-08-01T00:00:00Z'),
+        updatedAt: new Date('2026-08-01T01:00:00Z'),
+      },
+    ]);
+
+    const factor = await searchResearchDataCatalog({
+      scope: 'factor_reports',
+      userId: 'user-a',
+    });
+    const strategy = await searchResearchDataCatalog({
+      scope: 'backtest_reports',
+      userId: 'user-a',
+    });
+
+    expect(factor.factorWeather).toEqual([
+      expect.objectContaining({ factorId: 'factor-a', pointCount: 24 }),
+    ]);
+    expect(strategy.strategyScanReports).toEqual([
+      expect.objectContaining({ id: 'scan-a', parameterNames: ['window'] }),
+    ]);
   });
 });

@@ -246,6 +246,10 @@ export const zhResearch = {
     datasets: '可用数据集',
     factorReports: '最近报告',
     backtestReports: '最近回测',
+    factorWeather: '因子气象',
+    strategyScans: '参数扫描',
+    weatherPoints: '{{count}} 个月',
+    noComputedThrough: '尚无截止日',
     matches: '{{count}} 项',
     assetType: {
       all: '全部',
