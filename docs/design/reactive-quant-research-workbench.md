@@ -14,8 +14,8 @@
 > 收工，不把数据副本、自动执行归因、反向来源关联或全局档案作为首版阻塞项。M4 的首版交接闭环也已完成：
 > 成功封存的 ResearchExecution 可经 LLM 语义门生成带来源、摘要与未解决项的 Factor / Strategy 草稿；二者
 > 默认延续 Python 心智并使用 `py-v1`。Factor Python 已覆盖静态 SDK、受限运行时、横截面/时序/Panel、
-> FactorReport、发布、Strategy 消费和 Monaco/Pyright；既有 TypeScript Factor 保持兼容。派生报告回流 Research
-> 与不可变 BacktestReport 仍属于独立 backlog，不阻塞本文首版完成定义。Research → Factor 还会把快照中明确且
+> FactorReport、发布、Strategy 消费和 Monaco/Pyright；既有 TypeScript Factor 保持兼容。FactorReport 与
+> BacktestReport 已可回流 Research，普通回测也已改为不可变报告历史。Research → Factor 还会把快照中明确且
 > 可表达的股票池、日期、频率、过滤条件、标的和事前方向保存为 FactorReport 建议参数；Factor 工作台只在草稿
 > 尚无报告时预填并要求用户确认，不自动运行，也不把 Universe 写进 Factor 公式。
 
@@ -536,7 +536,9 @@ DAG、输出与指纹。首版只在当前文档内查看运行历史；全局�
 **已完成（M4）**：Research 通过独立的 `results.factor_report()` 与 `results.backtest_report()`，按报告 ID
 只读当前用户已完成的不可变派生结果；两类报告都进入数据目录，可搜索并插入 Python Cell。普通回测现在每次创建
 `BacktestReport`，冻结配置、代码 hash、结果 hash、完成时间、净值与成交快照；`Strategy.lastResult` 仅保留为现有
-Lab 的最新结果缓存。完整持仓历史仍必须由回测引擎真实产出后再暴露，不能从成交记录临时猜测。
+Lab 的最新结果缓存。Strategy Lab 可切换查看同一策略的历史报告，并从选中的报告新建带精确
+`results.backtest_report()` 引用的 Research 文档；历史快照不会替换当前编辑配置，也不能被误用于部署。完整持仓
+历史仍必须由回测引擎真实产出后再暴露，不能从成交记录临时猜测。
 
 ### M5：Research 多资产数据集
 

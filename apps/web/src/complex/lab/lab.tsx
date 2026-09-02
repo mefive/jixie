@@ -32,6 +32,7 @@ import {
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 import {
+  faClockRotateLeft,
   faPaperPlane,
   faPen,
   faPlay,
@@ -548,18 +549,26 @@ const RunConfig = complex.component(() => {
         ) : (
           <Tooltip
             title={
-              store.dirty
-                ? `${t('deploymentAction')} · ${t('deploymentRunFirst')}`
-                : !store.result
-                  ? `${t('deploymentAction')} · ${t('deploymentNeedsResult')}`
-                  : t('deploymentAction')
+              !store.viewingLatestBacktest
+                ? `${t('deploymentAction')} · ${t('backtestHistory.latestRequired')}`
+                : store.dirty
+                  ? `${t('deploymentAction')} · ${t('deploymentRunFirst')}`
+                  : !store.result
+                    ? `${t('deploymentAction')} · ${t('deploymentNeedsResult')}`
+                    : t('deploymentAction')
             }
           >
             <Button
               type="text"
               size="small"
               loading={store.deploymentActionLoader.loading}
-              disabled={!store.savedId || !store.result || store.dirty || store.running}
+              disabled={
+                !store.savedId ||
+                !store.result ||
+                store.dirty ||
+                store.running ||
+                !store.viewingLatestBacktest
+              }
               icon={<FontAwesomeIcon icon={faRocket} />}
               onClick={() => void store.deploy()}
               aria-label={t('deploymentAction')}
@@ -1876,6 +1885,7 @@ const ResultTabs = complex.component(() => {
   return (
     <div className="jx-lab-resultTabs">
       <RunConfig />
+      {store.savedId ? <BacktestHistoryPicker /> : null}
       <Tabs
         className="jx-lab-resultTabsInner"
         size="small"
@@ -1883,7 +1893,7 @@ const ResultTabs = complex.component(() => {
         onChange={setActive}
         items={items}
         tabBarExtraContent={
-          hasTrades && store.savedId ? (
+          hasTrades && store.savedId && store.viewingLatestBacktest ? (
             <Button
               size="small"
               type="text"
@@ -1898,6 +1908,51 @@ const ResultTabs = complex.component(() => {
     </div>
   );
 }, 'ResultTabs');
+
+const BacktestHistoryPicker = complex.component(() => {
+  const store = complex.useStore();
+  const { t } = useTranslation('lab');
+  const reports = store.backtestHistoryLoader.result ?? [];
+  const activeReportId = reports.some((report) => report.id === store.activeBacktestReportId)
+    ? store.activeBacktestReportId
+    : undefined;
+  return (
+    <div className="jx-lab-reportPicker">
+      <FontAwesomeIcon icon={faClockRotateLeft} />
+      <Select
+        size="small"
+        className="jx-lab-reportSelect"
+        data-testid="backtest-report-history"
+        aria-label={t('backtestHistory.label')}
+        value={activeReportId}
+        loading={store.backtestHistoryLoader.loading || store.backtestReportLoader.loading}
+        disabled={reports.length === 0 || store.running}
+        placeholder={t('backtestHistory.empty')}
+        options={reports.map((report, index) => ({
+          value: report.id,
+          label: `${index === 0 ? t('backtestHistory.latest') : t('backtestHistory.historical')} · ${dayjs(report.computedAt ?? report.createdAt).format('YYYY-MM-DD HH:mm')} · ${pct(report.totalReturn)}`,
+        }))}
+        onChange={(reportId) => void store.viewBacktestReport(reportId).catch(() => {})}
+      />
+      <Tooltip title={t('backtestHistory.openResearch')}>
+        <Button
+          type="text"
+          size="small"
+          data-testid="backtest-report-open-research"
+          aria-label={t('backtestHistory.openResearch')}
+          disabled={!store.activeBacktestReportId || store.running}
+          icon={<FontAwesomeIcon icon={faFlask} />}
+          onClick={() =>
+            window.open(
+              `/research?backtestReport=${encodeURIComponent(store.activeBacktestReportId!)}`,
+              '_blank',
+            )
+          }
+        />
+      </Tooltip>
+    </div>
+  );
+}, 'BacktestHistoryPicker');
 
 // —— Helpers / config ——
 

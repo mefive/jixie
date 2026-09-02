@@ -46,6 +46,7 @@ import {
   ResearchStrategyDraftUnavailableError,
 } from '../research/research-strategy-drafts.js';
 import { ResearchStrategyHandoffRejectedError } from '../research/research-strategy-handoff.js';
+import { createResearchDocumentFromBacktestReport } from '../research/backtest-report-document.js';
 import {
   acceptResearchCellChangeReview,
   applyResearchCellChangeProposal,
@@ -233,6 +234,14 @@ researchRoute.post('/language', validateJson(languageRequestBody), async (c) => 
 researchRoute.post('/documents', validateJson(createDocumentBody), async (c) =>
   c.json(await createResearchDocument(c.var.userId, c.req.valid('json').template)),
 );
+
+researchRoute.post('/documents/from-backtest-report/:reportId', async (c) => {
+  const document = await createResearchDocumentFromBacktestReport(
+    c.var.userId,
+    c.req.param('reportId'),
+  );
+  return document ? c.json(document) : apiError(c, 'NOT_FOUND', m(c, 'backtestReportNotFound'));
+});
 
 researchRoute.get('/documents/:documentId', async (c) => {
   const document = await getResearchDocument(c.var.userId, c.req.param('documentId'));

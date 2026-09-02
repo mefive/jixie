@@ -2,8 +2,13 @@ import { createHash } from 'node:crypto';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { ulid } from 'ulid';
-import type { BacktestConfig } from '@jixie/shared';
-import type { Prisma } from '@prisma/client';
+import type {
+  BacktestConfig,
+  BacktestReportDetail,
+  BacktestReportSummary,
+  BacktestSummary,
+} from '@jixie/shared';
+import { Prisma } from '@prisma/client';
 import { apiError, validateJson, validateQuery } from '../lib/httpError.js';
 import { codeConfigSchema } from '../strategy/code/schema.js';
 import { ACTIVE_JOB_STATUSES, getJob, findRunningJob, initializeJobLogs } from '../lib/jobs.js';
@@ -17,9 +22,11 @@ import { extractFactorKeys } from '../engine/prepare-custom-factors.js';
  * Backtest API (mounted under /api/app/strategy/backtest via strategy.ts — symmetric with
  * /factor/analysis). A backtest is CPU-heavy and would block the HTTP event loop, so it runs in a
  * worker (engine/backtest-worker.ts) as a Job (shared lib/jobs.ts):
- *   POST /?strategyId=X { config }     enqueue a durable Job → { jobId }; the scheduler starts its
+ *   POST /?strategyId=X { config }     enqueue a durable Job + report → { jobId, reportId }; the scheduler starts its
  *                                      worker when a bounded slot is available
  *   GET  /running?strategyId=X         an active Job's id (queued or running; re-attach after refresh)
+ *   GET  /reports?strategyId=X         completed immutable report history, newest first
+ *   GET  /reports/:reportId            one full owned report
  *   GET  /:jobId?since=N               poll the Job: { status, logs, nextSince, error }
  * Status lives in the Job table (durable, cross-client resume); logs stay in-memory; each result lives
  * on an immutable BacktestReport while Strategy.lastResult caches the latest successful run.
@@ -118,6 +125,64 @@ backtestRoute.get('/running', validateQuery(strategyQuery), async (c) => {
   return c.json({ jobId });
 });
 
+// Completed immutable reports for one saved strategy, newest first. The list carries only headline
+// metrics; the full NAV and trade log are loaded by report id when selected.
+backtestRoute.get('/reports', validateQuery(strategyQuery), async (c) => {
+  const reports = await prisma.backtestReport.findMany({
+    where: {
+      userId: c.var.userId,
+      strategyId: c.req.valid('query').strategyId,
+      status: 'done',
+      payload: { not: Prisma.DbNull },
+    },
+    select: {
+      id: true,
+      strategyId: true,
+      strategyName: true,
+      config: true,
+      payload: true,
+      createdAt: true,
+      computedAt: true,
+    },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+  });
+  return c.json(reports.map(backtestReportSummary));
+});
+
+backtestRoute.get('/reports/:reportId', async (c) => {
+  const report = await prisma.backtestReport.findFirst({
+    where: {
+      id: c.req.param('reportId'),
+      userId: c.var.userId,
+      status: 'done',
+      payload: { not: Prisma.DbNull },
+    },
+    select: {
+      id: true,
+      strategyId: true,
+      strategyName: true,
+      config: true,
+      codeHash: true,
+      resultHash: true,
+      payload: true,
+      createdAt: true,
+      computedAt: true,
+    },
+  });
+  if (!report) {
+    return apiError(c, 'NOT_FOUND', m(c, 'backtestReportNotFound'));
+  }
+  const summary = backtestReportSummary(report);
+  const detail: BacktestReportDetail = {
+    ...summary,
+    config: report.config as unknown as BacktestConfig,
+    result: report.payload as unknown as BacktestSummary,
+    codeHash: report.codeHash,
+    resultHash: report.resultHash,
+  };
+  return c.json(detail);
+});
+
 backtestRoute.get('/:jobId', validateQuery(sinceQuery), async (c) => {
   const job = await getJob(
     c.var.userId,
@@ -129,3 +194,32 @@ backtestRoute.get('/:jobId', validateQuery(sinceQuery), async (c) => {
   }
   return c.json(job);
 });
+
+function backtestReportSummary(report: {
+  id: string;
+  strategyId: string;
+  strategyName: string;
+  config: unknown;
+  payload: unknown;
+  createdAt: Date;
+  computedAt: Date | null;
+}): BacktestReportSummary {
+  const config = report.config as BacktestConfig;
+  const result = report.payload as BacktestSummary;
+  return {
+    id: report.id,
+    strategyId: report.strategyId,
+    strategyName: report.strategyName,
+    status: 'done',
+    start: config.start,
+    end: config.end,
+    language: config.language ?? 'typescript',
+    totalReturn: result.totalReturn,
+    annReturn: result.annReturn,
+    sharpe: result.sharpe,
+    maxDrawdown: result.maxDrawdown,
+    trades: result.trades,
+    createdAt: report.createdAt.toISOString(),
+    computedAt: report.computedAt?.toISOString() ?? null,
+  };
+}

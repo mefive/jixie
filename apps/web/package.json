@@ -57,6 +57,7 @@
     "test:e2e:commodity-warehouse-receipt": "node e2e/commodity-warehouse-receipt-time-series.mjs",
     "test:e2e:factor-panel-composite": "node e2e/factor-panel-composite.mjs",
     "test:e2e:strategy": "node e2e/strategy-orchestration.mjs",
+    "test:e2e:backtest-report-history": "node e2e/backtest-report-history.mjs",
     "test:e2e:strategy-indicators": "node e2e/technical-indicators.mjs",
     "test:e2e:public-library": "node e2e/public-library.mjs",
     "test:e2e:strategy-python": "node e2e/python-strategy.mjs",
