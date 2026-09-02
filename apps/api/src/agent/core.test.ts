@@ -98,6 +98,27 @@ describe('agentTurn(strategyProfile)', () => {
     expect(messages[2].content).toContain('第二条');
   });
 
+  it('lets a profile bound model history without changing the caller history', async () => {
+    const history = [
+      { role: 'user' as const, parts: [{ type: 'text' as const, text: 'older' }] },
+      { role: 'assistant' as const, parts: [{ type: 'text' as const, text: 'recent' }] },
+    ];
+    const profile: AgentProfile = {
+      system: 'test',
+      prepareHistory: (messages) => messages.slice(-1),
+    };
+    const llm = scriptedLlm([{ text: 'done' }]);
+
+    await agentTurn(profile, history, 'current', '', llm);
+
+    expect(llm.mock.calls[0][0]).toEqual([
+      { role: 'system', content: 'test' },
+      { role: 'assistant', content: 'recent' },
+      { role: 'user', content: 'current' },
+    ]);
+    expect(history).toHaveLength(2);
+  });
+
   it('offers the read-only tools to the model', async () => {
     const llm = scriptedLlm([{ text: '好的。' }]);
     await agentTurn(strategyProfile(), [], '你好', STRATEGY, llm);

@@ -23,6 +23,7 @@ import type { AgentChart, AgentTool, AgentUniverse } from './tools/types.js';
 export interface AgentProfile {
   system: string; // full system prompt (codegen prompt + conversation-mode addendum, or a Q&A brief)
   tools?: AgentTool[]; // whitelisted tools (empty/absent = plain chat)
+  prepareHistory?(history: UiMessage[]): UiMessage[]; // profile-specific LLM context; persistence stays complete
   artifact?: {
     noun: string; // 'strategy' | 'factor' — used in the current-code wrapper and repair messages
     language?: 'typescript' | 'python';
@@ -289,9 +290,12 @@ export async function agentTurn(
   const userContent = artifact
     ? `Current ${artifact.noun} code:\n\`\`\`${artifactFence}\n${currentCode}\n\`\`\`\n\nUser: ${message}`
     : message;
+  const modelHistory = profile.prepareHistory?.(history) ?? history;
   const messages: ToolAwareMessage[] = [
     { role: 'system', content: profile.system },
-    ...history.map((turn): ToolAwareMessage => ({ role: turn.role, content: messageText(turn) })),
+    ...modelHistory.map(
+      (turn): ToolAwareMessage => ({ role: turn.role, content: messageText(turn) }),
+    ),
     { role: 'user', content: userContent },
   ];
 
