@@ -7,6 +7,8 @@ import {
   DEFAULT_BACKTEST_INITIAL_CASH,
   DEFAULT_BACKTEST_START,
   type BacktestConfig,
+  type BacktestReportDetail,
+  type BacktestReportSummary,
   type BacktestSummary,
   type ChatMessage,
   type CostConfig,
@@ -32,6 +34,7 @@ import {
   findBacktestRunningJob,
   findRunningStrategyScan,
   getFactorComposite,
+  getBacktestReport,
   getStrategy,
   getCurrentStrategyDeployment,
   getStrategyScanReport,
@@ -41,6 +44,7 @@ import {
   getFactorCatalog,
   getFactorReport,
   listStrategyScans,
+  listBacktestReports,
   listStrategies,
   pollBacktest,
   pollStrategyScan,
@@ -89,6 +93,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
 
   public logLines: LogLine[] = []; // live backtest progress (streamed via polling), tagged system/user
   public result: BacktestSummary | null = null; // a finished run OR the saved last-result on reopen
+  public activeBacktestReportId: string | null = null;
   public error: string | null = null; // backtest failure message
   public queuePosition: number | null = null;
   public savedId: string | null = null; // this strategy's DB id (for the URL)
@@ -110,6 +115,8 @@ export class LabStore extends BaseStore<LabSetupParams> {
   public backtestPoller = new PollingModel();
   public scanPoller = new PollingModel();
   public savedLoader = new LoaderModel<StrategyCard[]>(); // My strategies / History cards
+  public backtestHistoryLoader = new LoaderModel<BacktestReportSummary[]>();
+  public backtestReportLoader = new LoaderModel<BacktestReportDetail>();
   public benchmarkLoader = new LoaderModel<BenchmarkSeries>();
   public scanParametersLoader = new LoaderModel<Record<string, StrategyParamValue>>();
   public scanHistoryLoader = new LoaderModel<StrategyScanReportSummary[]>();
@@ -135,6 +142,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
       sending: observable.ref,
       logLines: observable.ref,
       result: observable.ref,
+      activeBacktestReportId: observable.ref,
       error: observable.ref,
       queuePosition: observable.ref,
       savedId: observable.ref,
@@ -152,6 +160,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
       edited: computed,
       isFresh: computed,
       deploymentCurrent: computed,
+      viewingLatestBacktest: computed,
     });
   }
 
@@ -160,6 +169,13 @@ export class LabStore extends BaseStore<LabSetupParams> {
     this.backtestPoller.setup({ interval: POLL_INTERVAL_MS, request: () => this.pollOnce() });
     this.scanPoller.setup({ interval: POLL_INTERVAL_MS, request: () => this.pollScanOnce() });
     this.savedLoader.setup({ request: () => listStrategies() });
+    this.backtestHistoryLoader.setup({
+      request: (strategyId: string) => listBacktestReports(strategyId),
+    });
+    this.backtestReportLoader.setup({
+      preserveResult: false,
+      request: (reportId: string) => getBacktestReport(reportId),
+    });
     this.benchmarkLoader.setup({
       request: async ({ start, end }: { start: string; end: string }) => {
         const series = await Promise.all(
@@ -217,6 +233,8 @@ export class LabStore extends BaseStore<LabSetupParams> {
     this.registCleaner(() => this.backtestPoller.cleanup());
     this.registCleaner(() => this.scanPoller.cleanup());
     this.registCleaner(() => this.savedLoader.cleanup());
+    this.registCleaner(() => this.backtestHistoryLoader.cleanup());
+    this.registCleaner(() => this.backtestReportLoader.cleanup());
     this.registCleaner(() => this.benchmarkLoader.cleanup());
     this.registCleaner(() => this.scanParametersLoader.cleanup());
     this.registCleaner(() => this.scanHistoryLoader.cleanup());
@@ -311,6 +329,12 @@ export class LabStore extends BaseStore<LabSetupParams> {
         runtimeVersion: config.runtimeVersion ?? 'ts-v1',
       }) === this.configKey()
     );
+  }
+
+  /** Historical results are read-only; deployment and the standalone trade page stay tied to the latest run. */
+  public get viewingLatestBacktest(): boolean {
+    const latestReportId = this.backtestHistoryLoader.result?.[0]?.id;
+    return !latestReportId || this.activeBacktestReportId === latestReportId;
   }
 
   /** Range/capital + the strategy code → a runnable BacktestConfig. */
@@ -512,6 +536,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
       this.nlText = '';
       this.chatMessages = [];
       this.result = null;
+      this.activeBacktestReportId = null;
       this.error = null;
       this.logLines = [];
       this.scanReport = null;
@@ -526,6 +551,8 @@ export class LabStore extends BaseStore<LabSetupParams> {
     this.resetBenchmarks();
     this.scanPoller.stop();
     this.scanParametersLoader.reset();
+    this.backtestHistoryLoader.reset();
+    this.backtestReportLoader.reset();
     this.scanHistoryLoader.reset();
     this.scanReportLoader.reset();
     this.deploymentLoader.reset();
@@ -533,7 +560,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
   }
 
   public async deploy() {
-    if (!this.savedId || !this.result || this.dirty) {
+    if (!this.savedId || !this.result || this.dirty || !this.viewingLatestBacktest) {
       return;
     }
     try {
@@ -583,8 +610,9 @@ export class LabStore extends BaseStore<LabSetupParams> {
       return;
     }
     let jobId: string;
+    let reportId: string;
     try {
-      ({ jobId } = await submitBacktest(this.config, this.savedId));
+      ({ jobId, reportId } = await submitBacktest(this.config, this.savedId));
     } catch (e) {
       runInAction(
         () => (this.error = e instanceof Error ? e.message : i18n.t('lab:storeSubmitFailed')),
@@ -595,6 +623,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
     this.markSaved();
     runInAction(() => {
       this.result = null;
+      this.activeBacktestReportId = reportId;
       this.logLines = [];
       this.error = null;
       this.queuePosition = null;
@@ -674,6 +703,9 @@ export class LabStore extends BaseStore<LabSetupParams> {
    * is still in flight for it (so a refresh continues streaming logs instead of losing the run). */
   public async openSaved(id: string) {
     this.deploymentActionLoader.reset();
+    this.backtestHistoryLoader.abort();
+    this.backtestHistoryLoader.reset();
+    this.backtestReportLoader.reset();
     let s;
     try {
       s = await getStrategy(id);
@@ -683,6 +715,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
     this.applyConfig(s.config);
     runInAction(() => {
       this.result = s.lastResult ?? null;
+      this.activeBacktestReportId = null;
       this.chatMessages = (s.messages ?? []).map(normalizeChatMessage); // restore (upgrades legacy rows)
       this.researchHandoff = s.researchHandoff ?? null;
       this.sourceResearchExecution = s.sourceResearchExecution ?? null;
@@ -703,6 +736,13 @@ export class LabStore extends BaseStore<LabSetupParams> {
     this.loadBenchmarks(this.result);
     pushRecent(id); // record the visit → hero Recent-visits + auto-open on next entry
     void this.reattachTurn(); // a live agent turn for this strategy? re-subscribe (snapshot replays)
+    void this.backtestHistoryLoader.run(id).then((reports) => {
+      if (this.savedId === id) {
+        runInAction(() => {
+          this.activeBacktestReportId = reports[0]?.id ?? null;
+        });
+      }
+    });
     void this.scanHistoryLoader.run(id).then((reports) => {
       if (reports[0] && !this.scanReport) {
         void this.loadScanReport(reports[0].id);
@@ -823,9 +863,13 @@ export class LabStore extends BaseStore<LabSetupParams> {
         runInAction(() => {
           this.result = result;
           this.name = name;
+          this.activeBacktestReportId = job.backtestReportId ?? this.activeBacktestReportId;
         });
         this.loadBenchmarks(result);
         void this.savedLoader.run();
+        if (this.savedId) {
+          void this.backtestHistoryLoader.run(this.savedId);
+        }
         return false;
       }
       if (job.status === 'error' || job.status === 'stale') {
@@ -852,6 +896,22 @@ export class LabStore extends BaseStore<LabSetupParams> {
     }
 
     void this.benchmarkLoader.run({ start, end }).catch(() => {});
+  }
+
+  public async viewBacktestReport(reportId: string) {
+    if (reportId === this.activeBacktestReportId || !this.savedId) {
+      return;
+    }
+    const detail = await this.backtestReportLoader.run(reportId);
+    if (detail.strategyId !== this.savedId) {
+      return;
+    }
+    runInAction(() => {
+      this.activeBacktestReportId = detail.id;
+      this.result = detail.result;
+      this.error = null;
+    });
+    this.loadBenchmarks(detail.result);
   }
 
   private resetBenchmarks() {

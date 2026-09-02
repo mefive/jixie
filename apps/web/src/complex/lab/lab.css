@@ -385,6 +385,17 @@
   height: 100%;
 }
 
+.jx-lab-reportPicker {
+  @apply flex items-center gap-2 border-b border-line text-muted;
+  flex: none;
+  padding: 6px 12px;
+}
+
+.jx-lab-reportSelect {
+  @apply flex-1;
+  min-width: 0;
+}
+
 /* the Tabs root fills; the active tabpane stretches so ResultPanel scrolls / TradeDetail fills (§8
    exception). Only the ACTIVE pane fills — styling every tabpane would override antd's display:none on
    hidden panes and stack them. */

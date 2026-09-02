@@ -14,7 +14,7 @@ import {
 } from 'antd';
 import type { MenuProps } from 'antd';
 import { useTranslation } from 'react-i18next';
-import { useBlocker } from 'react-router-dom';
+import { useBlocker, useNavigate } from 'react-router-dom';
 import classNames from 'classnames';
 import type {
   ResearchCellKindV1,
@@ -75,6 +75,7 @@ const ResearchCodeDiffEditor = lazy(() =>
 export const Research = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('research');
+  const navigate = useNavigate();
   const [historyOpen, setHistoryOpen] = useState(false);
   const [curatorOpen, setCuratorOpen] = useState(false);
   const [dataCatalogOpen, setDataCatalogOpen] = useState(false);
@@ -83,6 +84,12 @@ export const Research = complex.component(() => {
   );
   const [agentOpen, setAgentOpen] = useState(defaultAgentOpen);
   const [panelDefaults] = useState(() => researchSplitterDefaults(320));
+  useEffect(() => {
+    if (store.requestedBacktestReportId && store.documentId) {
+      navigate(`/research?document=${encodeURIComponent(store.documentId)}`, { replace: true });
+      store.clearRequestedBacktestReport();
+    }
+  }, [navigate, store, store.documentId, store.requestedBacktestReportId]);
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) =>
       store.hasUnsavedDrafts && currentLocation.pathname !== nextLocation.pathname,

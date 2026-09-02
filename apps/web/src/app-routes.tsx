@@ -59,6 +59,7 @@ function ResearchRoute() {
   const setupParams = useRef({
     document: searchParams.get('document') || undefined,
     execution: searchParams.get('execution') || undefined,
+    backtestReport: searchParams.get('backtestReport') || undefined,
   }).current;
   return <ComplexRoute entry={researchEntry} setupParams={setupParams} />;
 }

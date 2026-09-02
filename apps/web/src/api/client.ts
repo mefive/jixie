@@ -165,6 +165,8 @@ import type {
   AgentTurnDetail,
   ActualExecutionUpdate,
   BacktestConfig,
+  BacktestReportDetail,
+  BacktestReportSummary,
   ChatMessage,
   ComputeChartSpec,
   LogLine,
@@ -293,6 +295,15 @@ export function createResearchDocument(
     method: 'POST',
     body: JSON.stringify({ template }),
   });
+}
+
+export function createResearchDocumentFromBacktestReport(
+  reportId: string,
+): Promise<ResearchDocumentV1> {
+  return request(
+    `/api/app/research/documents/from-backtest-report/${encodeURIComponent(reportId)}`,
+    { method: 'POST' },
+  );
 }
 
 export function getResearchDocument(documentId: string): Promise<ResearchDocumentV1> {
@@ -618,7 +629,8 @@ export async function* readSSE(res: Response): AsyncGenerator<AgentStreamEvent> 
 }
 
 // A backtest Job (runs in a worker). Poll carries the log lines after `since` + `nextSince`. Status
-// only — the result lands on Strategy.lastResult (fetch it on done). 'stale' = the run's process died.
+// only — the result lands on BacktestReport and mirrors to Strategy.lastResult as the latest cache.
+// 'stale' = the run's process died.
 // Logs are tagged LogLine (system progress vs the strategy's own console.*).
 export interface BacktestJob {
   status: 'queued' | 'running' | 'done' | 'error' | 'stale';
@@ -648,6 +660,14 @@ export function pollBacktest(jobId: string, since = 0): Promise<BacktestJob> {
 // A still-running backtest job for a strategy — to re-attach after a refresh (DB-backed, no localStorage).
 export function findBacktestRunningJob(strategyId: string): Promise<{ jobId: string | null }> {
   return request(`/api/app/strategy/backtest/running?strategyId=${encodeURIComponent(strategyId)}`);
+}
+
+export function listBacktestReports(strategyId: string): Promise<BacktestReportSummary[]> {
+  return request(`/api/app/strategy/backtest/reports?strategyId=${encodeURIComponent(strategyId)}`);
+}
+
+export function getBacktestReport(reportId: string): Promise<BacktestReportDetail> {
+  return request(`/api/app/strategy/backtest/reports/${encodeURIComponent(reportId)}`);
 }
 
 export function inspectStrategyParameters(

@@ -64,6 +64,14 @@ export const zhLab = {
   deploymentNeedsResult: '策略必须先完成一次回测',
   deploymentFailed: '策略部署失败',
   deploymentPauseFailed: '暂停部署失败',
+  backtestHistory: {
+    label: '历史回测报告',
+    empty: '暂无历史报告',
+    latest: '最新',
+    historical: '历史',
+    openResearch: '在 Research 中复核',
+    latestRequired: '切回最新报告后才能部署',
+  },
 
   // Code editor
   loadingEditor: '加载编辑器…',

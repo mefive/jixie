@@ -5,6 +5,8 @@ const mocks = vi.hoisted(() => ({
   strategyFindFirst: vi.fn(),
   jobFindFirst: vi.fn(),
   backtestReportCreate: vi.fn(),
+  backtestReportFindMany: vi.fn(),
+  backtestReportFindFirst: vi.fn(),
   transaction: vi.fn(),
   commitStrategyConfig: vi.fn(),
   extractFactorKeys: vi.fn(),
@@ -13,7 +15,13 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('../lib/prisma.js', () => ({
-  prisma: { $transaction: mocks.transaction },
+  prisma: {
+    $transaction: mocks.transaction,
+    backtestReport: {
+      findMany: mocks.backtestReportFindMany,
+      findFirst: mocks.backtestReportFindFirst,
+    },
+  },
 }));
 vi.mock('../services/strategy-service.js', () => ({
   commitStrategyConfig: mocks.commitStrategyConfig,
@@ -103,4 +111,85 @@ describe('backtest report route', () => {
     expect(mocks.initializeJobLogs).toHaveBeenCalledWith(body.jobId);
     expect(mocks.wakeJobQueue).toHaveBeenCalledOnce();
   });
+
+  it('lists compact completed report history within the strategy owner scope', async () => {
+    mocks.backtestReportFindMany.mockResolvedValue([reportRow()]);
+
+    const response = await app.request('/backtest/reports?strategyId=strategy-a');
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(mocks.backtestReportFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ userId: 'user-a', strategyId: 'strategy-a' }),
+      }),
+    );
+    expect(body).toEqual([
+      expect.objectContaining({
+        id: 'report-a',
+        language: 'python',
+        totalReturn: 0.2,
+        sharpe: 1.1,
+      }),
+    ]);
+  });
+
+  it('loads one full immutable report without using Strategy.lastResult', async () => {
+    mocks.backtestReportFindFirst.mockResolvedValue({
+      ...reportRow(),
+      codeHash: 'code-hash',
+      resultHash: 'result-hash',
+    });
+
+    const response = await app.request('/backtest/reports/report-a');
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(mocks.backtestReportFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: 'report-a', userId: 'user-a' }),
+      }),
+    );
+    expect(body).toMatchObject({
+      id: 'report-a',
+      config: { start: '20200101', end: '20251231' },
+      result: { totalReturn: 0.2, sharpe: 1.1 },
+      codeHash: 'code-hash',
+      resultHash: 'result-hash',
+    });
+  });
 });
+
+function reportRow() {
+  return {
+    id: 'report-a',
+    strategyId: 'strategy-a',
+    strategyName: '价值轮动',
+    config: {
+      name: '价值轮动',
+      start: '20200101',
+      end: '20251231',
+      initialCash: 1_000_000,
+      language: 'python',
+      runtimeVersion: 'py-v1',
+      code: 'def strategy(context):\n    pass',
+    },
+    payload: {
+      name: '价值轮动',
+      start: '20200101',
+      end: '20251231',
+      days: 100,
+      initialCash: 1_000_000,
+      finalValue: 1_200_000,
+      totalReturn: 0.2,
+      annReturn: 0.1,
+      sharpe: 1.1,
+      maxDrawdown: -0.08,
+      trades: 4,
+      tradeLog: [],
+      nav: [],
+    },
+    createdAt: new Date('2026-09-01T08:00:00.000Z'),
+    computedAt: new Date('2026-09-01T08:05:00.000Z'),
+  };
+}

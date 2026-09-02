@@ -253,6 +253,32 @@ export interface BacktestSummary {
   allocationAnalysis?: AllocationAnalysis;
 }
 
+/** Compact immutable-run metadata for the Strategy Lab history picker. */
+export interface BacktestReportSummary {
+  id: string;
+  strategyId: string;
+  strategyName: string;
+  status: 'done';
+  start: TradeDate;
+  end: TradeDate;
+  language: StrategyLanguage;
+  totalReturn: number;
+  annReturn: number;
+  sharpe: number;
+  maxDrawdown: number;
+  trades: number;
+  createdAt: string;
+  computedAt: string | null;
+}
+
+/** Full immutable run loaded only after the user selects one history item. */
+export interface BacktestReportDetail extends BacktestReportSummary {
+  config: BacktestConfig;
+  result: BacktestSummary;
+  codeHash: string | null;
+  resultHash: string | null;
+}
+
 export type StrategyParamValue = number | string;
 
 export interface StrategyParameterDimension {

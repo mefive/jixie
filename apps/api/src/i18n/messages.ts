@@ -308,6 +308,10 @@ const MESSAGES = {
     zh: '回测任务不存在或已过期',
     en: 'Backtest job not found or expired',
   },
+  backtestReportNotFound: {
+    zh: '回测报告不存在或无权访问',
+    en: 'Backtest report not found or access denied',
+  },
   strategyBacktestInProgress: {
     zh: '该策略已有正在进行的回测,请等它结束后再试',
     en: 'This strategy already has a backtest in progress; wait for it to finish',

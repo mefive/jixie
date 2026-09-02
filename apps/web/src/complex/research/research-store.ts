@@ -40,6 +40,7 @@ import {
   applyResearchCellChangeProposalForReview,
   archiveResearchDocument,
   createResearchDocument,
+  createResearchDocumentFromBacktestReport,
   createResearchFactorDraft,
   createResearchStrategyDraft,
   deleteResearchCell,
@@ -80,6 +81,7 @@ import {
 type ResearchSetupParams = {
   document?: string;
   execution?: string;
+  backtestReport?: string;
 };
 
 interface ResearchDataCatalogQuery {
@@ -131,6 +133,7 @@ const CURATOR_POLL_INTERVAL_MS = 1_000;
 export class ResearchStore extends BaseStore<ResearchSetupParams> {
   public document: ResearchDocumentV1 | null = null;
   public requestedExecutionId: string | null = null;
+  public requestedBacktestReportId: string | null = null;
   public chatMessages: ChatMessage[] = [];
   public sending = false;
   public prompt = '';
@@ -149,6 +152,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
   public archivedDocumentsLoader = new LoaderModel<ResearchDocumentSummaryV1[]>();
   public documentLoader = new LoaderModel<ResearchDocumentV1>();
   public documentMutationLoader = new LoaderModel<ResearchDocumentV1>();
+  public backtestDocumentLoader = new LoaderModel<ResearchDocumentV1>();
   public documentManagementLoader = new LoaderModel<{ ok: true }>();
   public documentRunLoader = new LoaderModel<ResearchDocumentRunResultV1>();
   public executionListLoader = new LoaderModel<ResearchExecutionSummaryV1[]>();
@@ -176,6 +180,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     makeObservable(this, {
       document: observable.ref,
       requestedExecutionId: observable.ref,
+      requestedBacktestReportId: observable.ref,
       chatMessages: observable.ref,
       sending: observable.ref,
       prompt: observable.ref,
@@ -190,6 +195,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
       explainingAttemptId: observable.ref,
       setPrompt: action,
       clearRunInterrupted: action,
+      clearRequestedBacktestReport: action,
     });
   }
 
@@ -197,6 +203,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     super.setup(params);
     runInAction(() => {
       this.requestedExecutionId = params.execution ?? null;
+      this.requestedBacktestReportId = params.backtestReport ?? null;
     });
     this.documentsLoader.setup({ request: () => listResearchDocuments('active') });
     this.archivedDocumentsLoader.setup({ request: () => listResearchDocuments('archived') });
@@ -226,6 +233,10 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
             return resetResearchDocument(mutation.documentId);
         }
       },
+    });
+    this.backtestDocumentLoader.setup({
+      preserveResult: false,
+      request: (reportId: string) => createResearchDocumentFromBacktestReport(reportId),
     });
     this.documentManagementLoader.setup({
       preserveResult: false,
@@ -340,6 +351,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     this.registCleaner(() => this.archivedDocumentsLoader.cleanup());
     this.registCleaner(() => this.documentLoader.cleanup());
     this.registCleaner(() => this.documentMutationLoader.cleanup());
+    this.registCleaner(() => this.backtestDocumentLoader.cleanup());
     this.registCleaner(() => this.documentManagementLoader.cleanup());
     this.registCleaner(() => this.documentRunLoader.cleanup());
     this.registCleaner(() => this.executionListLoader.cleanup());
@@ -369,6 +381,8 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     void this.loadCurator().catch(() => {});
     if (params.document) {
       void this.openDocument(params.document).catch(() => {});
+    } else if (params.backtestReport) {
+      void this.openBacktestReportDocument(params.backtestReport).catch(() => {});
     }
   }
 
@@ -423,6 +437,10 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
 
   public clearRunInterrupted() {
     this.runInterrupted = false;
+  }
+
+  public clearRequestedBacktestReport() {
+    this.requestedBacktestReportId = null;
   }
 
   public changeCellDraft(cellId: string, source: string) {
@@ -481,6 +499,23 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     void this.executionListLoader.run(document.id).catch(() => {});
     void this.documentsLoader.run();
     await this.runAgentTurn(text, document.conversationId);
+  }
+
+  private async openBacktestReportDocument(reportId: string) {
+    const document = await this.backtestDocumentLoader.run(reportId);
+    this.documentSwitchGeneration += 1;
+    this.turnStream.detach();
+    runInAction(() => {
+      this.document = document;
+      this.cellDrafts.clear();
+      this.reconcileCellDrafts(document);
+      this.chatMessages = document.messages.map(normalizeChatMessage);
+      this.sending = false;
+      this.prompt = '';
+      this.runInterrupted = false;
+    });
+    void this.executionListLoader.run(document.id).catch(() => {});
+    void this.documentsLoader.run();
   }
 
   public async openDocument(id: string) {

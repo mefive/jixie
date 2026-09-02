@@ -71,6 +71,14 @@ export const enLab: typeof zhLab = {
   deploymentNeedsResult: 'Run the strategy successfully before deploying',
   deploymentFailed: 'Failed to deploy the strategy',
   deploymentPauseFailed: 'Failed to pause the deployment',
+  backtestHistory: {
+    label: 'Backtest report history',
+    empty: 'No report history',
+    latest: 'Latest',
+    historical: 'History',
+    openResearch: 'Review in Research',
+    latestRequired: 'Switch back to the latest report before deployment',
+  },
 
   // Code editor
   loadingEditor: 'Loading editor…',
