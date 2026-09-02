@@ -1,9 +1,14 @@
 import {
+  RESEARCH_EQUITY_UNIVERSE_SUGGESTIONS_V1,
   RESEARCH_SDK_AGENT_CATALOG_V1,
+  RESEARCH_YIELD_CURVE_CODES_V1,
+  RESEARCH_YIELD_TENORS_V1,
   type FactorAnalysisKind,
   type ResearchAssetTypeV1,
   type ResearchDataCatalogBacktestReportV1,
   type ResearchDataCatalogCoverageV1,
+  type ResearchDataCatalogDatasetCoverageV1,
+  type ResearchDataCatalogDatasetV1,
   type ResearchDataCatalogFactorReportV1,
   type ResearchDataCatalogInstrumentV1,
   type ResearchDataCatalogRegistryV1,
@@ -45,12 +50,7 @@ export async function searchResearchDataCatalog(
       (!input.assetType || measure.assetTypes?.includes(input.assetType)),
   );
   const sdkMethods = RESEARCH_SDK_AGENT_CATALOG_V1.methods
-    .filter((method) =>
-      scope === 'instruments'
-        ? method.namespace === 'data'
-        : method.qualifiedName ===
-          (scope === 'factor_reports' ? 'results.factor_report' : 'results.backtest_report'),
-    )
+    .filter((method) => catalogMethodNames(scope).includes(method.qualifiedName))
     .map((method) => ({
       qualifiedName: method.qualifiedName,
       name: method.name,
@@ -70,6 +70,7 @@ export async function searchResearchDataCatalog(
       query,
       sdkMethods,
       instruments: [],
+      datasets: [],
       factorReports: input.userId ? await searchFactorReports(input.userId, query, limit) : [],
       backtestReports: [],
       measures: [],
@@ -82,8 +83,22 @@ export async function searchResearchDataCatalog(
       query,
       sdkMethods,
       instruments: [],
+      datasets: [],
       factorReports: [],
       backtestReports: input.userId ? await searchBacktestReports(input.userId, query, limit) : [],
+      measures: [],
+    };
+  }
+
+  if (scope === 'datasets') {
+    return {
+      version: 1,
+      query,
+      sdkMethods,
+      instruments: [],
+      datasets: await searchDatasets(query, limit),
+      factorReports: [],
+      backtestReports: [],
       measures: [],
     };
   }
@@ -94,6 +109,7 @@ export async function searchResearchDataCatalog(
       query,
       sdkMethods,
       instruments: [],
+      datasets: [],
       factorReports: [],
       backtestReports: [],
       measures,
@@ -271,10 +287,208 @@ export async function searchResearchDataCatalog(
     query,
     sdkMethods,
     instruments: await attachLocalDataCoverage(instruments),
+    datasets: [],
     factorReports: [],
     backtestReports: [],
     measures,
   };
+}
+
+function catalogMethodNames(scope: ResearchDataCatalogScopeV1): string[] {
+  switch (scope) {
+    case 'datasets':
+      return ['data.cross_section', 'data.panel', 'data.yield_curve'];
+    case 'factor_reports':
+      return ['results.factor_report'];
+    case 'backtest_reports':
+      return ['results.backtest_report'];
+    default:
+      return ['data.series'];
+  }
+}
+
+async function searchDatasets(
+  query: string,
+  limit: number,
+): Promise<ResearchDataCatalogDatasetV1[]> {
+  const indexCodes = RESEARCH_EQUITY_UNIVERSE_SUGGESTIONS_V1.filter((value) =>
+    value.startsWith('index:'),
+  ).map((value) => value.slice('index:'.length));
+  const [dailyStart, dailyEnd, dailyBasicStart, dailyBasicEnd, indexWeights, yieldCurves] =
+    await Promise.all([
+      prisma.daily.findFirst({ orderBy: { tradeDate: 'asc' }, select: { tradeDate: true } }),
+      prisma.daily.findFirst({ orderBy: { tradeDate: 'desc' }, select: { tradeDate: true } }),
+      prisma.dailyBasic.findFirst({ orderBy: { tradeDate: 'asc' }, select: { tradeDate: true } }),
+      prisma.dailyBasic.findFirst({ orderBy: { tradeDate: 'desc' }, select: { tradeDate: true } }),
+      prisma.indexWeight.groupBy({
+        by: ['indexCode'],
+        where: { indexCode: { in: indexCodes } },
+        _min: { tradeDate: true },
+        _max: { tradeDate: true },
+      }),
+      prisma.yieldCurvePoint.groupBy({
+        by: ['curveCode', 'termYears'],
+        where: { curveCode: { in: [...RESEARCH_YIELD_CURVE_CODES_V1] } },
+        _min: { availableDate: true },
+        _max: { availableDate: true },
+      }),
+    ]);
+
+  const equityCoverage = intersectDatasetCoverage([
+    [dailyStart?.tradeDate, dailyEnd?.tradeDate],
+    [dailyBasicStart?.tradeDate, dailyBasicEnd?.tradeDate],
+  ]);
+  const weightCoverage = new Map(
+    indexWeights.map((row) => [row.indexCode, [row._min.tradeDate, row._max.tradeDate] as const]),
+  );
+  const equityDatasets = RESEARCH_EQUITY_UNIVERSE_SUGGESTIONS_V1.flatMap((universe) => {
+    const meta = equityUniverseMeta(universe);
+    const indexCoverage = universe.startsWith('index:')
+      ? weightCoverage.get(universe.slice('index:'.length))
+      : undefined;
+    const coverage = indexCoverage
+      ? intersectDatasetCoverage([
+          equityCoverage.status === 'ready'
+            ? [equityCoverage.startDate, equityCoverage.endDate]
+            : [undefined, undefined],
+          indexCoverage,
+        ])
+      : equityCoverage;
+    return [
+      {
+        kind: 'dataset' as const,
+        id: `data.cross_section:${universe}`,
+        method: 'data.cross_section' as const,
+        universe,
+        nameZh: `${meta.nameZh} PIT 截面`,
+        nameEn: `${meta.nameEn} PIT cross-section`,
+        descriptionZh: '按指定交易日读取点时可得的估值与交易指标。',
+        descriptionEn: 'Point-in-time valuation and trading measures on one trading date.',
+        tags: [...meta.tags, 'PIT', 'cross-section'],
+        localDataCoverage: coverage,
+      },
+      {
+        kind: 'dataset' as const,
+        id: `data.panel:${universe}`,
+        method: 'data.panel' as const,
+        universe,
+        nameZh: `${meta.nameZh}月末面板`,
+        nameEn: `${meta.nameEn} month-end panel`,
+        descriptionZh: '按月末快照读取点时成分、估值与交易指标。',
+        descriptionEn: 'Month-end point-in-time membership, valuation, and trading measures.',
+        tags: [...meta.tags, 'PIT', 'panel', 'month-end'],
+        localDataCoverage: coverage,
+      },
+    ];
+  });
+
+  const yieldCoverage = new Map(
+    yieldCurves.map((row) => [
+      `${row.curveCode}:${row.termYears}`,
+      [row._min.availableDate, row._max.availableDate] as const,
+    ]),
+  );
+  const yieldDatasets = RESEARCH_YIELD_CURVE_CODES_V1.flatMap((curve) =>
+    RESEARCH_YIELD_TENORS_V1.flatMap((tenor) => {
+      const range = yieldCoverage.get(`${curve}:${yieldTenorYears(tenor)}`);
+      if (!range?.[0] || !range[1]) {
+        return [];
+      }
+      const nominal = curve === 'us_treasury_nominal';
+      return [
+        {
+          kind: 'dataset' as const,
+          id: `data.yield_curve:${curve}:${tenor}`,
+          method: 'data.yield_curve' as const,
+          curve,
+          tenor,
+          nameZh: `美国国债${nominal ? '名义' : '实际'}收益率 ${tenor}`,
+          nameEn: `US Treasury ${nominal ? 'nominal' : 'real'} yield ${tenor}`,
+          descriptionZh: `按可得日期治理的美国国债${nominal ? '名义' : '实际'}收益率。`,
+          descriptionEn: `Availability-date governed US Treasury ${nominal ? 'nominal' : 'real'} yield.`,
+          tags: ['US Treasury', nominal ? 'nominal' : 'real', tenor, 'yield'],
+          localDataCoverage: readyDatasetCoverage(range[0], range[1], 'availableDate'),
+        },
+      ];
+    }),
+  );
+  const datasets = [...equityDatasets, ...yieldDatasets];
+  const normalizedQuery = query.toLocaleLowerCase();
+  return datasets
+    .filter((dataset) => !normalizedQuery || datasetSearchText(dataset).includes(normalizedQuery))
+    .slice(0, limit);
+}
+
+function equityUniverseMeta(universe: string): { nameZh: string; nameEn: string; tags: string[] } {
+  switch (universe) {
+    case 'index:000300.SH':
+      return { nameZh: '沪深 300', nameEn: 'CSI 300', tags: ['沪深300', 'CSI 300'] };
+    case 'index:000905.SH':
+      return { nameZh: '中证 500', nameEn: 'CSI 500', tags: ['中证500', 'CSI 500'] };
+    case 'index:000852.SH':
+      return { nameZh: '中证 1000', nameEn: 'CSI 1000', tags: ['中证1000', 'CSI 1000'] };
+    default:
+      return { nameZh: '全 A 股', nameEn: 'China A-shares', tags: ['全A', 'China A'] };
+  }
+}
+
+function yieldTenorYears(tenor: (typeof RESEARCH_YIELD_TENORS_V1)[number]): number {
+  switch (tenor) {
+    case '1M':
+      return 1 / 12;
+    case '2M':
+      return 1 / 6;
+    case '3M':
+      return 1 / 4;
+    case '6M':
+      return 1 / 2;
+    default:
+      return Number.parseInt(tenor, 10);
+  }
+}
+
+function datasetSearchText(dataset: ResearchDataCatalogDatasetV1): string {
+  return [
+    dataset.id,
+    dataset.method,
+    dataset.nameZh,
+    dataset.nameEn,
+    dataset.descriptionZh,
+    dataset.descriptionEn,
+    ...dataset.tags,
+    ...(dataset.method === 'data.yield_curve'
+      ? [dataset.curve, dataset.tenor]
+      : [dataset.universe]),
+  ]
+    .join('\n')
+    .toLocaleLowerCase();
+}
+
+function intersectDatasetCoverage(
+  ranges: ReadonlyArray<readonly [string | null | undefined, string | null | undefined]>,
+): ResearchDataCatalogDatasetCoverageV1 {
+  if (ranges.some(([start, end]) => !start || !end)) {
+    return missingDatasetCoverage();
+  }
+  const starts = ranges.map(([start]) => start as string);
+  const ends = ranges.map(([, end]) => end as string);
+  const start = starts.sort().at(-1);
+  const end = ends.sort()[0];
+  return start && end && start <= end
+    ? readyDatasetCoverage(start, end, 'tradeDate')
+    : missingDatasetCoverage();
+}
+
+function readyDatasetCoverage(
+  startDate: string,
+  endDate: string,
+  dateBasis: 'tradeDate' | 'availableDate',
+): ResearchDataCatalogDatasetCoverageV1 {
+  return { status: 'ready', startDate, endDate, dateBasis };
+}
+
+function missingDatasetCoverage(): ResearchDataCatalogDatasetCoverageV1 {
+  return { status: 'missing', reason: 'source_available_but_local_data_missing' };
 }
 
 async function searchBacktestReports(

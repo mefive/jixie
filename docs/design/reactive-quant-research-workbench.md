@@ -205,7 +205,9 @@ statsmodels 与 Matplotlib 常用研究接口的静态 stub。SDK stub 和沙箱
 
 数据目录不是 Prisma 表浏览器。API 从相同的证券主数据、跨市场 benchmark 登记和 Research Measure Catalog
 构造稳定的 `asset_type + identifier + measure` 组合：用户搜索中文名、英文名或代码，选择研究区间、频率和变换，
-平台只生成现有 `data.series()` 调用并插入当前或最近聚焦的 Python Cell，不创造另一条取数路径。
+平台生成现有 SDK 调用并插入当前或最近聚焦的 Python Cell，不创造另一条取数路径。目录的“数据集”视图还会把
+已有本地覆盖映射为可选择的 `data.cross_section()`、`data.panel()` 与 `data.yield_curve()` 调用；未进入公开 SDK
+Contract 的本地表不会被伪装成可运行能力。
 
 Monaco 的 `identifier="..."` 与 `measure="..."` 补全调用同一个目录接口。标的候选按资产类别过滤；指标候选先按
 Measure Catalog 的 `assetTypes` 过滤，再使用具体标的的 `compatibleMeasureIds` 收窄。例如普通境内指数不能误选
@@ -559,6 +561,8 @@ Lab 的最新结果缓存。Strategy Lab 可切换查看同一策略的历史报
   成分误当成历史事实；
 - 首个切片只覆盖中国 A 股日频截面和月末 Panel。财务报表 vintage、事件数据、任意频率与跨市场股票池继续由
   真实研究问题触发，不提前扩展。
+- **已完成（M5.3 数据集可发现性）**：数据目录按本地价格、估值、指数成分和收益率曲线覆盖，列出可运行的股票池
+  截面、月末 Panel 与美债曲线期限，并生成可直接插入 Python Cell 的公开 SDK 调用。
 
 M5 明确不增加统计 helper、固定报告、Validation Cell 或专用 UI；也不读取 FactorReport / BacktestReport。
 Research 中临时计算任何统计量都只是文档内探索代码，正式因子证据仍以不可变 FactorReport 为准。

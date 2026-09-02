@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   researchBacktestReportSnippet,
+  researchDatasetSnippet,
   researchFactorReportSnippet,
   researchSeriesSnippet,
   researchSeriesVariableName,
@@ -46,6 +47,83 @@ test('inserts an immutable FactorReport lookup by stable report id', () => {
   assert.equal(
     researchFactorReportSnippet({ id: 'report-01', factor: 'value-quality' }),
     'value_quality_report = results.factor_report("report-01")',
+  );
+});
+
+test('inserts a point-in-time cross-section dataset call', () => {
+  assert.equal(
+    researchDatasetSnippet({
+      dataset: {
+        kind: 'dataset',
+        id: 'data.cross_section:index:000300.SH',
+        method: 'data.cross_section',
+        universe: 'index:000300.SH',
+        nameZh: '沪深 300 PIT 截面',
+        nameEn: 'CSI 300 PIT cross-section',
+        descriptionZh: '',
+        descriptionEn: '',
+        tags: [],
+        localDataCoverage: {
+          status: 'ready',
+          startDate: '20150130',
+          endDate: '20260701',
+          dateBasis: 'tradeDate',
+        },
+      },
+      start: '20210101',
+      end: '20260701',
+    }),
+    `index_000300_sh_cross_section = data.cross_section(
+    "index:000300.SH",
+    date="20260701",
+    minimum_listed_days=365,
+    risk_warning="exclude",
+)`,
+  );
+});
+
+test('inserts a month-end panel dataset call', () => {
+  assert.match(
+    researchDatasetSnippet({
+      dataset: {
+        kind: 'dataset',
+        id: 'data.panel:cn_a',
+        method: 'data.panel',
+        universe: 'cn_a',
+        nameZh: '全 A 股月末面板',
+        nameEn: 'China A-shares month-end panel',
+        descriptionZh: '',
+        descriptionEn: '',
+        tags: [],
+        localDataCoverage: { status: 'missing', reason: 'source_available_but_local_data_missing' },
+      },
+      start: '20210101',
+      end: '20260701',
+    }),
+    /cn_a_panel = data\.panel\([\s\S]*frequency="month_end"/,
+  );
+});
+
+test('inserts a governed yield-curve dataset call', () => {
+  assert.match(
+    researchDatasetSnippet({
+      dataset: {
+        kind: 'dataset',
+        id: 'data.yield_curve:us_treasury_nominal:10Y',
+        method: 'data.yield_curve',
+        curve: 'us_treasury_nominal',
+        tenor: '10Y',
+        nameZh: '美国国债名义收益率 10Y',
+        nameEn: 'US Treasury nominal yield 10Y',
+        descriptionZh: '',
+        descriptionEn: '',
+        tags: [],
+        localDataCoverage: { status: 'missing', reason: 'source_available_but_local_data_missing' },
+      },
+      start: '20210101',
+      end: '20260701',
+    }),
+    /us_treasury_nominal_10y = data\.yield_curve\([\s\S]*tenor="10Y"/,
   );
 });
 

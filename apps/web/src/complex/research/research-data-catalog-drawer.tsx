@@ -19,6 +19,7 @@ import classNames from 'classnames';
 import type {
   ResearchAssetTypeV1,
   ResearchDataCatalogBacktestReportV1,
+  ResearchDataCatalogDatasetV1,
   ResearchDataCatalogFactorReportV1,
   ResearchDataCatalogInstrumentV1,
   ResearchDataCatalogSdkMethodV1,
@@ -45,6 +46,7 @@ import { LoadingArea } from '@src/components/loading-area';
 import { complex } from './complex';
 import {
   researchBacktestReportSnippet,
+  researchDatasetSnippet,
   researchFactorReportSnippet,
   researchSeriesSnippet,
 } from './research-data-catalog';
@@ -68,6 +70,9 @@ export const ResearchDataCatalogDrawer = complex.component(
     const [query, setQuery] = useState('');
     const [assetFilter, setAssetFilter] = useState<AssetFilter>('all');
     const [selected, setSelected] = useState<ResearchDataCatalogInstrumentV1 | null>(null);
+    const [selectedDataset, setSelectedDataset] = useState<ResearchDataCatalogDatasetV1 | null>(
+      null,
+    );
     const [selectedReport, setSelectedReport] = useState<ResearchDataCatalogFactorReportV1 | null>(
       null,
     );
@@ -126,16 +131,24 @@ export const ResearchDataCatalogDrawer = complex.component(
           ? selectedReport && !selectedReport.sealed
             ? researchFactorReportSnippet(selectedReport)
             : ''
-          : selected && measureId && selected.sdkAccess?.status !== 'not_ready'
-            ? researchSeriesSnippet({
-                instrument: selected,
-                measure: measureId,
-                start: dates[0].format('YYYYMMDD'),
-                end: dates[1].format('YYYYMMDD'),
-                frequency,
-                transform,
-              })
-            : '';
+          : view === 'datasets'
+            ? selectedDataset && selectedDataset.localDataCoverage.status === 'ready'
+              ? researchDatasetSnippet({
+                  dataset: selectedDataset,
+                  start: dates[0].format('YYYYMMDD'),
+                  end: dates[1].format('YYYYMMDD'),
+                })
+              : ''
+            : selected && measureId && selected.sdkAccess?.status !== 'not_ready'
+              ? researchSeriesSnippet({
+                  instrument: selected,
+                  measure: measureId,
+                  start: dates[0].format('YYYYMMDD'),
+                  end: dates[1].format('YYYYMMDD'),
+                  frequency,
+                  transform,
+                })
+              : '';
 
     const chooseInstrument = (instrument: ResearchDataCatalogInstrumentV1) => {
       setSelected(instrument);
@@ -145,6 +158,18 @@ export const ResearchDataCatalogDrawer = complex.component(
       if (instrument.localDataCoverage?.status === 'ready') {
         const coverageStart = catalogDate(instrument.localDataCoverage.startDate);
         const coverageEnd = catalogDate(instrument.localDataCoverage.endDate);
+        const preferredStart = coverageEnd.subtract(5, 'year');
+        setDates([
+          preferredStart.isBefore(coverageStart) ? coverageStart : preferredStart,
+          coverageEnd,
+        ]);
+      }
+    };
+    const chooseDataset = (dataset: ResearchDataCatalogDatasetV1) => {
+      setSelectedDataset(dataset);
+      if (dataset.localDataCoverage.status === 'ready') {
+        const coverageStart = catalogDate(dataset.localDataCoverage.startDate);
+        const coverageEnd = catalogDate(dataset.localDataCoverage.endDate);
         const preferredStart = coverageEnd.subtract(5, 'year');
         setDates([
           preferredStart.isBefore(coverageStart) ? coverageStart : preferredStart,
@@ -197,7 +222,7 @@ export const ResearchDataCatalogDrawer = complex.component(
           block
           className="jx-researchDataCatalog-views"
           value={view}
-          options={(['instruments', 'factor_reports', 'backtest_reports'] as const).map(
+          options={(['instruments', 'datasets', 'factor_reports', 'backtest_reports'] as const).map(
             (value) => ({
               value,
               label: t(`dataCatalog.view.${value}`),
@@ -207,6 +232,7 @@ export const ResearchDataCatalogDrawer = complex.component(
             setView(value);
             setQuery('');
             setSelected(null);
+            setSelectedDataset(null);
             setSelectedReport(null);
             setSelectedBacktestReport(null);
             setSelectedMethodName(null);
@@ -286,6 +312,7 @@ export const ResearchDataCatalogDrawer = complex.component(
           onChange={(event) => {
             setQuery(event.target.value);
             setSelected(null);
+            setSelectedDataset(null);
             setSelectedReport(null);
             setSelectedBacktestReport(null);
           }}
@@ -463,6 +490,123 @@ export const ResearchDataCatalogDrawer = complex.component(
                     />
                   </label>
                 </div>
+                <pre className="jx-researchDataCatalog-preview">{snippet}</pre>
+              </section>
+            )}
+          </>
+        ) : view === 'datasets' ? (
+          <>
+            <section className="jx-researchDataCatalog-section">
+              <div className="jx-researchDataCatalog-sectionHead">
+                <strong>{t('dataCatalog.datasets')}</strong>
+                {catalog && (
+                  <span>{t('dataCatalog.matches', { count: catalog.datasets.length })}</span>
+                )}
+              </div>
+              <LoadingArea
+                loader={store.dataCatalogLoader}
+                showDelay={120}
+                loading={() => (
+                  <div className="jx-researchDataCatalog-skeleton">
+                    <Skeleton active paragraph={{ rows: 2 }} title={false} />
+                    <Skeleton active paragraph={{ rows: 2 }} title={false} />
+                  </div>
+                )}
+              >
+                {(catalog?.datasets ?? []).length ? (
+                  <div className="jx-researchDataCatalog-results">
+                    {(catalog?.datasets ?? []).map((dataset) => (
+                      <button
+                        key={dataset.id}
+                        type="button"
+                        className={classNames('jx-researchDataCatalog-result', {
+                          'jx-researchDataCatalog-result--active':
+                            selectedDataset?.id === dataset.id,
+                        })}
+                        data-testid={`research-data-catalog-dataset-${dataset.id}`}
+                        onClick={() => chooseDataset(dataset)}
+                      >
+                        <span className="jx-researchDataCatalog-resultIcon">
+                          <FontAwesomeIcon icon={researchDataMethodIcon(dataset.method)} />
+                        </span>
+                        <span className="jx-researchDataCatalog-resultText">
+                          <strong>{localizedDatasetName(dataset, i18n.language)}</strong>
+                          <code>{dataset.method}</code>
+                          <span
+                            className={classNames('jx-researchDataCatalog-coverage', {
+                              'jx-researchDataCatalog-coverage--missing':
+                                dataset.localDataCoverage.status === 'missing',
+                            })}
+                          >
+                            <FontAwesomeIcon
+                              icon={
+                                dataset.localDataCoverage.status === 'ready'
+                                  ? faCircleCheck
+                                  : faCircleExclamation
+                              }
+                            />
+                            {localizedDatasetCoverage(dataset, t)}
+                          </span>
+                        </span>
+                        <span className="jx-researchDataCatalog-resultTags">
+                          <Tag>{dataset.method.replace('data.', '')}</Tag>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <Empty
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                    description={t('dataCatalog.noDatasetMatches')}
+                  />
+                )}
+              </LoadingArea>
+            </section>
+
+            {selectedDataset && (
+              <section
+                className="jx-researchDataCatalog-config"
+                data-testid="research-data-catalog-dataset-config"
+              >
+                <div className="jx-researchDataCatalog-sectionHead">
+                  <strong>{t('dataCatalog.datasetConfig')}</strong>
+                  <code>{selectedDataset.method}</code>
+                </div>
+                <div className="jx-researchDataCatalog-selectedMeta">
+                  <div>
+                    <span>{t('dataCatalog.dataset')}</span>
+                    <strong>{localizedDatasetName(selectedDataset, i18n.language)}</strong>
+                  </div>
+                  <div>
+                    <span>{t('dataCatalog.localCoverage')}</span>
+                    <strong>{localizedDatasetCoverage(selectedDataset, t)}</strong>
+                  </div>
+                  <p>{localizedDatasetDescription(selectedDataset, i18n.language)}</p>
+                </div>
+                <label>
+                  <span>
+                    {selectedDataset.method === 'data.cross_section'
+                      ? t('dataCatalog.asOfDate')
+                      : t('dataCatalog.period')}
+                  </span>
+                  {selectedDataset.method === 'data.cross_section' ? (
+                    <DatePicker
+                      allowClear={false}
+                      value={dates[1]}
+                      onChange={(value) => value && setDates([dates[0], value])}
+                    />
+                  ) : (
+                    <DatePicker.RangePicker
+                      allowClear={false}
+                      value={dates}
+                      onChange={(value) => {
+                        if (value?.[0] && value[1]) {
+                          setDates([value[0], value[1]]);
+                        }
+                      }}
+                    />
+                  )}
+                </label>
                 <pre className="jx-researchDataCatalog-preview">{snippet}</pre>
               </section>
             )}
@@ -688,6 +832,17 @@ function localizedInstrumentName(
   return language.startsWith('zh') ? instrument.nameZh : (instrument.nameEn ?? instrument.nameZh);
 }
 
+function localizedDatasetName(dataset: ResearchDataCatalogDatasetV1, language: string): string {
+  return language.startsWith('zh') ? dataset.nameZh : dataset.nameEn;
+}
+
+function localizedDatasetDescription(
+  dataset: ResearchDataCatalogDatasetV1,
+  language: string,
+): string {
+  return language.startsWith('zh') ? dataset.descriptionZh : dataset.descriptionEn;
+}
+
 function localizedMethodDescription(
   method: ResearchDataCatalogSdkMethodV1,
   language: string,
@@ -716,14 +871,32 @@ function dataCatalogSearchPlaceholder(
   view: CatalogView,
 ):
   | 'dataCatalog.searchPlaceholder'
+  | 'dataCatalog.datasetSearchPlaceholder'
   | 'dataCatalog.reportSearchPlaceholder'
   | 'dataCatalog.backtestReportSearchPlaceholder' {
   if (view === 'factor_reports') {
     return 'dataCatalog.reportSearchPlaceholder';
   }
+  if (view === 'datasets') {
+    return 'dataCatalog.datasetSearchPlaceholder';
+  }
   return view === 'backtest_reports'
     ? 'dataCatalog.backtestReportSearchPlaceholder'
     : 'dataCatalog.searchPlaceholder';
+}
+
+function localizedDatasetCoverage(
+  dataset: ResearchDataCatalogDatasetV1,
+  translate: TFunction<'research'>,
+): string {
+  const coverage = dataset.localDataCoverage;
+  if (coverage.status !== 'ready') {
+    return translate('dataCatalog.datasetCoverageMissing');
+  }
+  return translate('dataCatalog.datasetCoverageReady', {
+    start: formatCatalogDate(coverage.startDate),
+    end: formatCatalogDate(coverage.endDate),
+  });
 }
 
 function localizedCoverage(

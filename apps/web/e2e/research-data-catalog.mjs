@@ -37,14 +37,16 @@ try {
   const drawer = page.getByRole('dialog', { name: '数据目录' });
   await drawer.waitFor();
   await page.getByTestId('research-data-catalog-capabilities').waitFor();
-  for (const method of ['data.series', 'data.cross_section', 'data.panel', 'data.yield_curve']) {
-    await drawer.getByText(method, { exact: true }).waitFor();
-  }
+  await drawer.getByText('data.series', { exact: true }).waitFor();
   await drawer.locator('.ant-drawer-body').evaluate((element) => element.scrollTo(0, 0));
   await page.waitForTimeout(300);
   await page.mouse.move(0, 999);
   await drawer.screenshot({ path: `${SHOTS}research-data-catalog-capabilities.png` });
 
+  await drawer.getByText('数据集', { exact: true }).click();
+  for (const method of ['cross_section', 'panel', 'yield_curve']) {
+    await page.getByTestId(`research-data-catalog-method-${method}`).waitFor();
+  }
   await page.getByTestId('research-data-catalog-method-panel').click();
   const methodDetail = page.getByTestId('research-data-catalog-method-detail');
   await methodDetail.waitFor();
@@ -57,33 +59,35 @@ try {
   await page.getByTestId('research-data-catalog-method-panel').click();
   await methodDetail.waitFor({ state: 'detached' });
 
-  await drawer.getByText('指数', { exact: true }).click();
-  await drawer.getByRole('textbox', { name: '输入证券代码、指数名称或关键词' }).fill('000300.SH');
-  const result = page.getByTestId('research-data-catalog-result-000300.SH');
+  await drawer.getByRole('textbox', { name: '搜索市场、指数、期限或数据读取方式' }).fill('10Y');
+  const result = page.getByTestId(
+    'research-data-catalog-dataset-data.yield_curve:us_treasury_nominal:10Y',
+  );
   await result.waitFor({ timeout: 30_000 });
-  const coverage = page.getByTestId('research-data-catalog-coverage-000300.SH');
-  const coverageText = await coverage.innerText();
-  if (!/\d{4}-\d{2}-\d{2}.*\d{4}-\d{2}-\d{2}.*条/.test(coverageText)) {
-    throw new Error(`Index coverage was not exposed: ${coverageText}`);
+  const coverageText = await result.locator('.jx-researchDataCatalog-coverage').innerText();
+  if (!/\d{4}-\d{2}-\d{2}.*\d{4}-\d{2}-\d{2}/.test(coverageText)) {
+    throw new Error(`Dataset coverage was not exposed: ${coverageText}`);
   }
   await result.click();
-  const config = page.getByTestId('research-data-catalog-config');
+  const config = page.getByTestId('research-data-catalog-dataset-config');
   await config.waitFor();
   await config.scrollIntoViewIfNeeded();
   await page.waitForTimeout(250);
   await page.mouse.move(0, 999);
-  await drawer.screenshot({ path: `${SHOTS}research-data-catalog-coverage.png` });
+  await drawer.screenshot({ path: `${SHOTS}research-data-catalog-datasets.png` });
 
   const insert = page.getByTestId('research-data-catalog-insert');
   if (!(await insert.isEnabled())) {
-    throw new Error('A locally covered index must be insertable into Research.');
+    throw new Error('A locally covered dataset must be insertable into Research.');
   }
-  if (!(await config.innerText()).includes('data.series(')) {
-    throw new Error('The selected local series did not generate an SDK call preview.');
+  if (!(await config.innerText()).includes('data.yield_curve(')) {
+    throw new Error('The selected local dataset did not generate an SDK call preview.');
   }
+  await insert.click();
+  await page.getByText('已插入当前 Python Cell', { exact: true }).waitFor({ timeout: 10_000 });
 
   console.log(
-    `[research-data-catalog-e2e] methods=4 coverage=${coverageText} insertable=true screenshots=3`,
+    `[research-data-catalog-e2e] datasetMethods=3 coverage=${coverageText} inserted=true screenshots=3`,
   );
 } finally {
   if (documentId) {
