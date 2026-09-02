@@ -53,6 +53,10 @@ try {
     'commodity_returns',
     'commodity_warehouse_receipts',
     'commodity_holdings',
+    'market_state',
+    'equity_fundamentals',
+    'equity_flows',
+    'equity_dividends',
   ]) {
     await page.getByTestId(`research-data-catalog-method-${method}`).waitFor();
   }
@@ -109,6 +113,21 @@ try {
   }
   await drawer.screenshot({ path: `${SHOTS}research-data-catalog-commodity.png` });
 
+  await drawer
+    .getByRole('textbox', { name: '搜索市场、指数、期限或数据读取方式' })
+    .fill('沪深 300');
+  const marketStateResult = page.getByTestId(
+    'research-data-catalog-dataset-data.market_state:000300.SH',
+  );
+  await marketStateResult.waitFor({ timeout: 30_000 });
+  await marketStateResult.click();
+  await config.waitFor();
+  await config.scrollIntoViewIfNeeded();
+  if (!(await config.innerText()).includes('data.market_state(')) {
+    throw new Error('The selected market-state dataset did not generate an SDK call preview.');
+  }
+  await drawer.screenshot({ path: `${SHOTS}research-data-catalog-market-state.png` });
+
   const insert = page.getByTestId('research-data-catalog-insert');
   if (!(await insert.isEnabled())) {
     throw new Error('A locally covered dataset must be insertable into Research.');
@@ -117,7 +136,7 @@ try {
   await page.getByText('已插入当前 Python Cell', { exact: true }).waitFor({ timeout: 10_000 });
 
   console.log(
-    `[research-data-catalog-e2e] datasetMethods=8 coverage=${coverageText} inserted=true screenshots=5`,
+    `[research-data-catalog-e2e] datasetMethods=12 coverage=${coverageText} inserted=true screenshots=6`,
   );
 } finally {
   if (documentId) {

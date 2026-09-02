@@ -109,6 +109,12 @@ export function researchDatasetSnippet(options: ResearchDatasetSnippetOptions): 
     start=${JSON.stringify(start)},
     end=${JSON.stringify(end)},
 )`;
+    case 'data.market_state':
+      return `${variable} = data.market_state(
+    ${JSON.stringify(dataset.scope)},
+    start=${JSON.stringify(start)},
+    end=${JSON.stringify(end)},
+)`;
   }
 }
 
@@ -125,6 +131,8 @@ function researchDatasetVariableName(dataset: ResearchDataCatalogDatasetV1): str
       case 'data.commodity_warehouse_receipts':
       case 'data.commodity_holdings':
         return `${dataset.product}_${dataset.method.replace('data.commodity_', '')}`;
+      case 'data.market_state':
+        return `market_state_${dataset.scope}`;
       default:
         return `${dataset.universe}_${dataset.method === 'data.panel' ? 'panel' : 'cross_section'}`;
     }

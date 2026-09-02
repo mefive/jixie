@@ -114,6 +114,28 @@ export async function validateResearchSeriesProposal(
         );
       }
     }
+    for (const request of analysis.equityRequests ?? []) {
+      if (!request.identifier) {
+        throw new Error(
+          `Cell ${analysis.cellId} data.${request.method} call on line ${request.line} must use a literal identifier value so the Research catalog can validate it.`,
+        );
+      }
+      const catalog = await searchCatalog({
+        query: request.identifier,
+        assetType: 'stock',
+        limit: 50,
+      });
+      if (
+        !catalog.instruments.some(
+          (candidate) =>
+            candidate.assetType === 'stock' && candidate.identifier === request.identifier,
+        )
+      ) {
+        throw new Error(
+          `Cell ${analysis.cellId} data.${request.method} call on line ${request.line} references stock ${request.identifier}, which is not in the Research catalog.`,
+        );
+      }
+    }
   }
 }
 

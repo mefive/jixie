@@ -19,6 +19,8 @@ const mocks = vi.hoisted(() => ({
   commodityContinuousReturnGroupBy: vi.fn(),
   commodityWarehouseReceiptGroupBy: vi.fn(),
   commodityHoldingPositionGroupBy: vi.fn(),
+  marketIndicatorAggregate: vi.fn(),
+  indexIndicatorGroupBy: vi.fn(),
   etfDailyGroupBy: vi.fn(),
   indexDailyGroupBy: vi.fn(),
   marketBenchmarkDailyGroupBy: vi.fn(),
@@ -45,6 +47,8 @@ vi.mock('../lib/prisma.js', () => ({
     commodityContinuousReturn: { groupBy: mocks.commodityContinuousReturnGroupBy },
     commodityWarehouseReceipt: { groupBy: mocks.commodityWarehouseReceiptGroupBy },
     commodityHoldingPosition: { groupBy: mocks.commodityHoldingPositionGroupBy },
+    marketIndicator: { aggregate: mocks.marketIndicatorAggregate },
+    indexIndicator: { groupBy: mocks.indexIndicatorGroupBy },
     etfDaily: { groupBy: mocks.etfDailyGroupBy },
     indexDaily: { findMany: mocks.indexDailyFindMany, groupBy: mocks.indexDailyGroupBy },
     marketBenchmarkDaily: { groupBy: mocks.marketBenchmarkDailyGroupBy },
@@ -65,6 +69,10 @@ import { searchResearchDataCatalog } from './data-catalog.js';
 describe('research data catalog', () => {
   beforeEach(() => {
     Object.values(mocks).forEach((mock) => mock.mockReset().mockResolvedValue([]));
+    mocks.marketIndicatorAggregate.mockResolvedValue({
+      _min: { tradeDate: null },
+      _max: { tradeDate: null },
+    });
   });
 
   it('returns only series-compatible measures before a user enters a query', async () => {
@@ -122,6 +130,10 @@ describe('research data catalog', () => {
       'data.commodity_returns',
       'data.commodity_warehouse_receipts',
       'data.commodity_holdings',
+      'data.market_state',
+      'data.equity_fundamentals',
+      'data.equity_flows',
+      'data.equity_dividends',
     ]);
     expect(result.instruments).toEqual([]);
     expect(result.datasets).toEqual([
@@ -203,6 +215,32 @@ describe('research data catalog', () => {
         expect.objectContaining({ method: 'data.commodity_returns', product: 'AU' }),
         expect.objectContaining({ method: 'data.commodity_warehouse_receipts', product: 'AU' }),
         expect.objectContaining({ method: 'data.commodity_holdings', product: 'AU' }),
+      ]),
+    );
+  });
+
+  it('discovers whole-market and PIT index market-state datasets', async () => {
+    mocks.marketIndicatorAggregate.mockResolvedValue({
+      _min: { tradeDate: '20150105' },
+      _max: { tradeDate: '20260731' },
+    });
+    mocks.indexIndicatorGroupBy.mockResolvedValue([
+      {
+        indexCode: '000300.SH',
+        _min: { tradeDate: '20150130' },
+        _max: { tradeDate: '20260731' },
+      },
+    ]);
+
+    const result = await searchResearchDataCatalog({ query: '沪深 300', scope: 'datasets' });
+
+    expect(result.datasets).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          method: 'data.market_state',
+          scope: '000300.SH',
+          localDataCoverage: expect.objectContaining({ status: 'ready' }),
+        }),
       ]),
     );
   });

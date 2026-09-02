@@ -119,9 +119,7 @@ export function buildMarketStateSnapshot(
     return null;
   }
 
-  const rollingPoints = marketRows.map((row, index) =>
-    toPoint(row, rollingAverage(marketRows, index, 'floatWeightedTurnoverRate', ACTIVITY_WINDOW)),
-  );
+  const rollingPoints = buildMarketStatePoints(marketRows);
   const asOf = rollingPoints.at(-1)!.date;
   const historyStart = subtractCalendarYears(asOf, 3);
   const points = rollingPoints.filter((point) => point.date >= historyStart);
@@ -159,6 +157,13 @@ export function buildMarketStateSnapshot(
     stylePairs: context.stylePairs ?? [],
     industries,
   };
+}
+
+/** Build the full descriptive point series without the UI snapshot's three-year display trim. */
+export function buildMarketStatePoints(marketRows: MarketIndicatorRow[]): MarketStatePoint[] {
+  return marketRows.map((row, index) =>
+    toPoint(row, rollingAverage(marketRows, index, 'floatWeightedTurnoverRate', ACTIVITY_WINDOW)),
+  );
 }
 
 function toPoint(row: MarketIndicatorRow, activity: number | null): MarketStatePoint {

@@ -4,6 +4,7 @@ import {
   RESEARCH_COMMODITY_PRODUCT_CODES_V1,
   RESEARCH_FX_SERIES_IDS_V1,
   RESEARCH_MACRO_SERIES_KEYS_V1,
+  RESEARCH_MARKET_STATE_SCOPES_V1,
   RESEARCH_SDK_AGENT_CATALOG_V1,
   RESEARCH_YIELD_CURVE_CODES_V1,
   RESEARCH_YIELD_TENORS_V1,
@@ -316,6 +317,10 @@ function catalogMethodNames(scope: ResearchDataCatalogScopeV1): string[] {
         'data.commodity_returns',
         'data.commodity_warehouse_receipts',
         'data.commodity_holdings',
+        'data.market_state',
+        'data.equity_fundamentals',
+        'data.equity_flows',
+        'data.equity_dividends',
       ];
     case 'factor_reports':
       return ['results.factor_report'];
@@ -346,6 +351,8 @@ async function searchDatasets(
     commodityReturnCoverageRows,
     commodityWarehouseReceiptCoverageRows,
     commodityHoldingCoverageRows,
+    marketStateCoverage,
+    indexStateCoverageRows,
   ] = await Promise.all([
     prisma.daily.findFirst({ orderBy: { tradeDate: 'asc' }, select: { tradeDate: true } }),
     prisma.daily.findFirst({ orderBy: { tradeDate: 'desc' }, select: { tradeDate: true } }),
@@ -403,6 +410,20 @@ async function searchDatasets(
       where: { productCode: { in: [...RESEARCH_COMMODITY_HOLDING_PRODUCT_CODES_V1] } },
       _min: { availableDate: true },
       _max: { availableDate: true },
+    }),
+    prisma.marketIndicator.aggregate({
+      _min: { tradeDate: true },
+      _max: { tradeDate: true },
+    }),
+    prisma.indexIndicator.groupBy({
+      by: ['indexCode'],
+      where: {
+        indexCode: {
+          in: RESEARCH_MARKET_STATE_SCOPES_V1.filter((scope) => scope !== 'all'),
+        },
+      },
+      _min: { tradeDate: true },
+      _max: { tradeDate: true },
     }),
   ]);
 
@@ -595,11 +616,40 @@ async function searchDatasets(
     }
     return rows;
   });
+  const indexStateCoverage = new Map(
+    indexStateCoverageRows.map((row) => [
+      row.indexCode,
+      [row._min.tradeDate, row._max.tradeDate] as const,
+    ]),
+  );
+  const marketStateDatasets = RESEARCH_MARKET_STATE_SCOPES_V1.map((scope) => {
+    const meta = marketStateScopeMeta(scope);
+    const range =
+      scope === 'all'
+        ? [marketStateCoverage._min.tradeDate, marketStateCoverage._max.tradeDate]
+        : (indexStateCoverage.get(scope) ?? [null, null]);
+    return {
+      kind: 'dataset' as const,
+      id: `data.market_state:${scope}`,
+      method: 'data.market_state' as const,
+      scope,
+      nameZh: `${meta.nameZh}市场状态`,
+      nameEn: `${meta.nameEn} market state`,
+      descriptionZh: '活动度、广度、趋势、拥挤度及其可解释底层指标。',
+      descriptionEn: 'Activity, breadth, trend, crowding, and their interpretable components.',
+      tags: [...meta.tags, 'market state', 'PIT'],
+      localDataCoverage:
+        range[0] && range[1]
+          ? readyDatasetCoverage(range[0], range[1], 'tradeDate')
+          : missingDatasetCoverage(),
+    };
+  });
   const datasets = [
     ...equityDatasets,
     ...macroDatasets,
     ...fxDatasets,
     ...commodityDatasets,
+    ...marketStateDatasets,
     ...yieldDatasets,
   ];
   const normalizedQuery = query.toLocaleLowerCase();
@@ -735,6 +785,35 @@ function commodityProductMeta(product: (typeof RESEARCH_COMMODITY_PRODUCT_CODES_
   }
 }
 
+function marketStateScopeMeta(scope: (typeof RESEARCH_MARKET_STATE_SCOPES_V1)[number]): {
+  nameZh: string;
+  nameEn: string;
+  tags: string[];
+} {
+  switch (scope) {
+    case 'all':
+      return { nameZh: '全 A 股', nameEn: 'China A-shares', tags: ['全A'] };
+    case '000016.SH':
+      return { nameZh: '上证 50', nameEn: 'SSE 50', tags: ['SSE 50'] };
+    case '000300.SH':
+      return { nameZh: '沪深 300', nameEn: 'CSI 300', tags: ['CSI 300'] };
+    case '000905.SH':
+      return { nameZh: '中证 500', nameEn: 'CSI 500', tags: ['CSI 500'] };
+    case '000852.SH':
+      return { nameZh: '中证 1000', nameEn: 'CSI 1000', tags: ['CSI 1000'] };
+    case '932000.CSI':
+      return { nameZh: '中证 2000', nameEn: 'CSI 2000', tags: ['CSI 2000'] };
+    case '000510.SH':
+      return { nameZh: '中证 A500', nameEn: 'CSI A500', tags: ['CSI A500'] };
+    case '399006.SZ':
+      return { nameZh: '创业板指', nameEn: 'ChiNext', tags: ['ChiNext'] };
+    case '000688.SH':
+      return { nameZh: '科创 50', nameEn: 'STAR 50', tags: ['STAR 50'] };
+    case '000922.CSI':
+      return { nameZh: '中证红利', nameEn: 'CSI Dividend', tags: ['CSI Dividend'] };
+  }
+}
+
 function yieldTenorYears(tenor: (typeof RESEARCH_YIELD_TENORS_V1)[number]): number {
   switch (tenor) {
     case '1M':
@@ -777,6 +856,8 @@ function datasetIdentifiers(dataset: ResearchDataCatalogDatasetV1): string[] {
     case 'data.commodity_warehouse_receipts':
     case 'data.commodity_holdings':
       return [dataset.product];
+    case 'data.market_state':
+      return [dataset.scope];
     default:
       return [dataset.universe];
   }

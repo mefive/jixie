@@ -5,9 +5,13 @@ import {
   RESEARCH_COMMODITY_HOLDINGS_SDK_CONTRACT_V1,
   RESEARCH_COMMODITY_RETURNS_SDK_CONTRACT_V1,
   RESEARCH_COMMODITY_WAREHOUSE_RECEIPTS_SDK_CONTRACT_V1,
+  RESEARCH_EQUITY_DIVIDENDS_SDK_CONTRACT_V1,
+  RESEARCH_EQUITY_FLOWS_SDK_CONTRACT_V1,
+  RESEARCH_EQUITY_FUNDAMENTALS_SDK_CONTRACT_V1,
   RESEARCH_FACTOR_REPORT_SDK_CONTRACT_V1,
   RESEARCH_FX_SDK_CONTRACT_V1,
   RESEARCH_MACRO_SDK_CONTRACT_V1,
+  RESEARCH_MARKET_STATE_SDK_CONTRACT_V1,
   RESEARCH_PANEL_SDK_CONTRACT_V1,
   RESEARCH_SERIES_SDK_CONTRACT_V1,
   RESEARCH_YIELD_CURVE_SDK_CONTRACT_V1,
@@ -105,6 +109,21 @@ describe('research workbench Python runtime', () => {
     ]);
   });
 
+  it('extracts literal supplemental equity identities for proposal preflight', async () => {
+    const [analysis] = await researchRuntimeManager.analyze(DOCUMENT_ID, [
+      {
+        id: 'supplemental',
+        source:
+          'fundamentals = data.equity_fundamentals("600519.SH", start="20200101", end="20251231")\nflows = data.equity_flows(identifier="600519.SH", start="20200101", end="20251231")',
+      },
+    ]);
+
+    expect(analysis?.equityRequests).toEqual([
+      { line: 1, method: 'equity_fundamentals', identifier: '600519.SH' },
+      { line: 2, method: 'equity_flows', identifier: '600519.SH' },
+    ]);
+  });
+
   it('keeps document-level state and returns typed outputs', async () => {
     await researchRuntimeManager.execute(DOCUMENT_ID, {
       id: 'upstream',
@@ -189,7 +208,7 @@ describe('research workbench Python runtime', () => {
     const result = await researchRuntimeManager.execute(DOCUMENT_ID, {
       id: 'signature',
       source:
-        'import inspect\n"|".join(",".join(inspect.signature(method).parameters.keys()) for method in [data.series, data.cross_section, data.panel, data.yield_curve, data.macro, data.fx, data.commodity_returns, data.commodity_warehouse_receipts, data.commodity_holdings, results.factor_report, results.backtest_report])',
+        'import inspect\n"|".join(",".join(inspect.signature(method).parameters.keys()) for method in [data.series, data.cross_section, data.panel, data.yield_curve, data.macro, data.fx, data.commodity_returns, data.commodity_warehouse_receipts, data.commodity_holdings, data.market_state, data.equity_fundamentals, data.equity_flows, data.equity_dividends, results.factor_report, results.backtest_report])',
     });
 
     expect(result.outputs).toEqual([
@@ -205,6 +224,10 @@ describe('research workbench Python runtime', () => {
           RESEARCH_COMMODITY_RETURNS_SDK_CONTRACT_V1,
           RESEARCH_COMMODITY_WAREHOUSE_RECEIPTS_SDK_CONTRACT_V1,
           RESEARCH_COMMODITY_HOLDINGS_SDK_CONTRACT_V1,
+          RESEARCH_MARKET_STATE_SDK_CONTRACT_V1,
+          RESEARCH_EQUITY_FUNDAMENTALS_SDK_CONTRACT_V1,
+          RESEARCH_EQUITY_FLOWS_SDK_CONTRACT_V1,
+          RESEARCH_EQUITY_DIVIDENDS_SDK_CONTRACT_V1,
           RESEARCH_FACTOR_REPORT_SDK_CONTRACT_V1,
           RESEARCH_BACKTEST_REPORT_SDK_CONTRACT_V1,
         ]

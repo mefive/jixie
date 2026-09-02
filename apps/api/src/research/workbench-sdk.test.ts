@@ -4,10 +4,14 @@ import {
   RESEARCH_COMMODITY_HOLDINGS_SDK_CONTRACT_V1,
   RESEARCH_COMMODITY_RETURNS_SDK_CONTRACT_V1,
   RESEARCH_COMMODITY_WAREHOUSE_RECEIPTS_SDK_CONTRACT_V1,
+  RESEARCH_EQUITY_DIVIDENDS_SDK_CONTRACT_V1,
+  RESEARCH_EQUITY_FLOWS_SDK_CONTRACT_V1,
+  RESEARCH_EQUITY_FUNDAMENTALS_SDK_CONTRACT_V1,
   RESEARCH_BACKTEST_REPORT_SDK_CONTRACT_V1,
   RESEARCH_FACTOR_REPORT_SDK_CONTRACT_V1,
   RESEARCH_FX_SDK_CONTRACT_V1,
   RESEARCH_MACRO_SDK_CONTRACT_V1,
+  RESEARCH_MARKET_STATE_SDK_CONTRACT_V1,
   RESEARCH_PANEL_SDK_CONTRACT_V1,
   RESEARCH_SDK_CONTRACT_V1,
   RESEARCH_SERIES_SDK_CONTRACT_V1,
@@ -18,11 +22,15 @@ import {
   parseResearchCommodityHoldingsRuntimeRequest,
   parseResearchCommodityReturnsRuntimeRequest,
   parseResearchCommodityWarehouseReceiptsRuntimeRequest,
+  parseResearchEquityDividendsRuntimeRequest,
+  parseResearchEquityFlowsRuntimeRequest,
+  parseResearchEquityFundamentalsRuntimeRequest,
   parseResearchBacktestReportRuntimeRequest,
   parseResearchEquityDatasetRuntimeRows,
   parseResearchFactorReportRuntimeRequest,
   parseResearchFxRuntimeRequest,
   parseResearchMacroRuntimeRequest,
+  parseResearchMarketStateRuntimeRequest,
   parseResearchPanelRuntimeRequest,
   parseResearchSeriesRuntimeRequest,
   parseResearchSeriesRuntimeRows,
@@ -121,6 +129,26 @@ describe('research workbench SDK contract', () => {
     expect(RESEARCH_COMMODITY_HOLDINGS_SDK_CONTRACT_V1.qualifiedName).toBe(
       'data.commodity_holdings',
     );
+  });
+
+  it('drives market-state and stock supplemental dataset bridges', () => {
+    expect(
+      parseResearchMarketStateRuntimeRequest({
+        scope: '000300.SH',
+        start: '20200101',
+        end: '20251231',
+      }),
+    ).toMatchObject({ scope: '000300.SH' });
+    const stockRequest = { identifier: '600519.SH', start: '20200101', end: '20251231' };
+    expect(parseResearchEquityFundamentalsRuntimeRequest(stockRequest)).toEqual(stockRequest);
+    expect(parseResearchEquityFlowsRuntimeRequest(stockRequest)).toEqual(stockRequest);
+    expect(parseResearchEquityDividendsRuntimeRequest(stockRequest)).toEqual(stockRequest);
+    expect(RESEARCH_MARKET_STATE_SDK_CONTRACT_V1.qualifiedName).toBe('data.market_state');
+    expect(RESEARCH_EQUITY_FUNDAMENTALS_SDK_CONTRACT_V1.qualifiedName).toBe(
+      'data.equity_fundamentals',
+    );
+    expect(RESEARCH_EQUITY_FLOWS_SDK_CONTRACT_V1.qualifiedName).toBe('data.equity_flows');
+    expect(RESEARCH_EQUITY_DIVIDENDS_SDK_CONTRACT_V1.qualifiedName).toBe('data.equity_dividends');
   });
 
   it('drives both fixed-schema equity dataset bridge requests', () => {

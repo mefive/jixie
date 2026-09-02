@@ -147,6 +147,56 @@ class _DataApi:
         end: str,
     ) -> pd.DataFrame: ...
 
+    # Load descriptive market-state time series for the whole market or a point-in-time index universe.
+    # Note: Metrics are descriptive rather than forecasts; index scopes use the latest constituent snapshot available on each date.
+    # Note: date is the same China-market trading date; activity requires a 20-observation warm-up.
+    # Example: data.market_state("all", start="20200101", end="20251231")
+    # Example: data.market_state("000300.SH", start="20200101", end="20251231")
+    # DataFrame columns: date: datetime64[ns], activity: float64, breadth: float64, trend: float64, crowding: float64, advance_ratio: float64, above_ma20_ratio: float64, above_ma60_ratio: float64, total_amount_cny_1k: float64, extreme_move_ratio: float64, limit_up_count: float64, limit_down_count: float64, traded_count: float64
+    def market_state(
+        self,
+        scope: Literal["all", "000016.SH", "000300.SH", "000905.SH", "000852.SH", "932000.CSI", "000510.SH", "399006.SZ", "000688.SH", "000922.CSI"],
+        *,
+        start: str,
+        end: str,
+    ) -> pd.DataFrame: ...
+
+    # Load one stock financial-indicator history by announcement date.
+    # Note: identifier uses the platform stock code; start/end always constrain availability.
+    # Example: data.equity_fundamentals("600519.SH", start="20200101", end="20251231")
+    # DataFrame columns: date: datetime64[ns], report_period: datetime64[ns], roe_pct: float64, roe_waa_pct: float64, roa_pct: float64, gross_profit_margin_pct: float64, net_profit_margin_pct: float64, debt_to_assets_pct: float64, revenue_yoy_pct: float64, net_profit_yoy_pct: float64, operating_cash_flow_to_profit: float64
+    def equity_fundamentals(
+        self,
+        identifier: str,
+        *,
+        start: str,
+        end: str,
+    ) -> pd.DataFrame: ...
+
+    # Load exact-date money flow and Dragon-Tiger List net buying for one stock.
+    # Note: identifier uses the platform stock code; start/end always constrain availability.
+    # Example: data.equity_flows("600519.SH", start="20200101", end="20251231")
+    # DataFrame columns: date: datetime64[ns], net_main_cny_10k: float64, net_total_cny_10k: float64, dragon_tiger_net_cny: float64
+    def equity_flows(
+        self,
+        identifier: str,
+        *,
+        start: str,
+        end: str,
+    ) -> pd.DataFrame: ...
+
+    # Load implemented cash dividends for one stock by ex-dividend date.
+    # Note: identifier uses the platform stock code; start/end always constrain availability.
+    # Example: data.equity_dividends("600519.SH", start="20200101", end="20251231")
+    # DataFrame columns: date: datetime64[ns], report_period: datetime64[ns], announcement_date: str | None, cash_dividend_pre_tax: float64, cash_dividend_tax_basis: float64
+    def equity_dividends(
+        self,
+        identifier: str,
+        *,
+        start: str,
+        end: str,
+    ) -> pd.DataFrame: ...
+
 
 
 class _ResultsApi:

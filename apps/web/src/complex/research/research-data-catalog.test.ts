@@ -154,6 +154,33 @@ test('inserts an audited commodity dataset call', () => {
   );
 });
 
+test('inserts a governed market-state dataset call', () => {
+  assert.match(
+    researchDatasetSnippet({
+      dataset: {
+        kind: 'dataset',
+        id: 'data.market_state:000300.SH',
+        method: 'data.market_state',
+        scope: '000300.SH',
+        nameZh: '沪深 300 市场状态',
+        nameEn: 'CSI 300 market state',
+        descriptionZh: '',
+        descriptionEn: '',
+        tags: [],
+        localDataCoverage: {
+          status: 'ready',
+          startDate: '20150130',
+          endDate: '20260731',
+          dateBasis: 'tradeDate',
+        },
+      },
+      start: '20210101',
+      end: '20260701',
+    }),
+    /market_state_000300_sh = data\.market_state\([\s\S]*"000300.SH"/,
+  );
+});
+
 test('inserts an immutable BacktestReport lookup by stable report id', () => {
   assert.equal(
     researchBacktestReportSnippet({ id: 'backtest-report-01', strategyName: 'Value Rotation' }),
