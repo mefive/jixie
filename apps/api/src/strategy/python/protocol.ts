@@ -234,6 +234,12 @@ const researchCommodityAnalysisRequestSchema = z.strictObject({
   product: z.string().max(MAX_IDENTIFIER_CHARACTERS).nullable(),
 });
 
+const researchEquityAnalysisRequestSchema = z.strictObject({
+  line: z.number().int().positive(),
+  method: z.enum(['equity_fundamentals', 'equity_flows', 'equity_dividends']),
+  identifier: z.string().max(MAX_IDENTIFIER_CHARACTERS).nullable(),
+});
+
 const researchAnalyzedFrameSchema = z.strictObject({
   type: z.literal('research_analyzed'),
   cells: z
@@ -248,6 +254,7 @@ const researchAnalyzedFrameSchema = z.strictObject({
         macro_requests: z.array(researchMacroAnalysisRequestSchema).max(MAX_LIST_ITEMS),
         fx_requests: z.array(researchFxAnalysisRequestSchema).max(MAX_LIST_ITEMS),
         commodity_requests: z.array(researchCommodityAnalysisRequestSchema).max(MAX_LIST_ITEMS),
+        equity_requests: z.array(researchEquityAnalysisRequestSchema).max(MAX_LIST_ITEMS),
         error: z.string().max(MAX_ERROR_CHARACTERS).optional(),
       }),
     )
@@ -375,6 +382,10 @@ export const researchExecutionFrameSchema = z.union([
       'research_commodity_returns',
       'research_commodity_warehouse_receipts',
       'research_commodity_holdings',
+      'research_market_state',
+      'research_equity_fundamentals',
+      'research_equity_flows',
+      'research_equity_dividends',
       'research_cross_section',
       'research_panel',
       'research_factor_report',

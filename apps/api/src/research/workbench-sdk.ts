@@ -4,10 +4,14 @@ import {
   RESEARCH_COMMODITY_HOLDINGS_SDK_CONTRACT_V1,
   RESEARCH_COMMODITY_RETURNS_SDK_CONTRACT_V1,
   RESEARCH_COMMODITY_WAREHOUSE_RECEIPTS_SDK_CONTRACT_V1,
+  RESEARCH_EQUITY_DIVIDENDS_SDK_CONTRACT_V1,
+  RESEARCH_EQUITY_FLOWS_SDK_CONTRACT_V1,
+  RESEARCH_EQUITY_FUNDAMENTALS_SDK_CONTRACT_V1,
   RESEARCH_BACKTEST_REPORT_SDK_CONTRACT_V1,
   RESEARCH_FACTOR_REPORT_SDK_CONTRACT_V1,
   RESEARCH_FX_SDK_CONTRACT_V1,
   RESEARCH_MACRO_SDK_CONTRACT_V1,
+  RESEARCH_MARKET_STATE_SDK_CONTRACT_V1,
   RESEARCH_PANEL_SDK_CONTRACT_V1,
   RESEARCH_SERIES_SDK_CONTRACT_V1,
   RESEARCH_YIELD_CURVE_SDK_CONTRACT_V1,
@@ -17,6 +21,7 @@ import {
   type ResearchFrequencyV1,
   type ResearchFxSeriesIdV1,
   type ResearchMacroSeriesKeyV1,
+  type ResearchMarketStateScopeV1,
   type ResearchSdkDataFrameColumnContractV1,
   type ResearchSdkParameterContractV1,
   type ResearchTransformV1,
@@ -77,6 +82,18 @@ export interface ResearchCommodityRuntimeRequestV1 {
 
 export interface ResearchCommodityHoldingRuntimeRequestV1 {
   product: ResearchCommodityHoldingProductCodeV1;
+  start: string;
+  end: string;
+}
+
+export interface ResearchMarketStateRuntimeRequestV1 {
+  scope: ResearchMarketStateScopeV1;
+  start: string;
+  end: string;
+}
+
+export interface ResearchDatedIdentifierRuntimeRequestV1 {
+  identifier: string;
   start: string;
   end: string;
 }
@@ -159,6 +176,30 @@ const researchCommodityWarehouseReceiptsRowsSchema = sdkDataFrameRowsSchema(
 );
 const researchCommodityHoldingsRowsSchema = sdkDataFrameRowsSchema(
   RESEARCH_COMMODITY_HOLDINGS_SDK_CONTRACT_V1.returns,
+);
+const researchMarketStateRequestSchema = sdkRequestSchema(
+  RESEARCH_MARKET_STATE_SDK_CONTRACT_V1.parameters,
+);
+const researchEquityFundamentalsRequestSchema = sdkRequestSchema(
+  RESEARCH_EQUITY_FUNDAMENTALS_SDK_CONTRACT_V1.parameters,
+);
+const researchEquityFlowsRequestSchema = sdkRequestSchema(
+  RESEARCH_EQUITY_FLOWS_SDK_CONTRACT_V1.parameters,
+);
+const researchEquityDividendsRequestSchema = sdkRequestSchema(
+  RESEARCH_EQUITY_DIVIDENDS_SDK_CONTRACT_V1.parameters,
+);
+const researchMarketStateRowsSchema = sdkDataFrameRowsSchema(
+  RESEARCH_MARKET_STATE_SDK_CONTRACT_V1.returns,
+);
+const researchEquityFundamentalsRowsSchema = sdkDataFrameRowsSchema(
+  RESEARCH_EQUITY_FUNDAMENTALS_SDK_CONTRACT_V1.returns,
+);
+const researchEquityFlowsRowsSchema = sdkDataFrameRowsSchema(
+  RESEARCH_EQUITY_FLOWS_SDK_CONTRACT_V1.returns,
+);
+const researchEquityDividendsRowsSchema = sdkDataFrameRowsSchema(
+  RESEARCH_EQUITY_DIVIDENDS_SDK_CONTRACT_V1.returns,
 );
 const researchEquityDatasetRowsSchema = z.array(
   z.strictObject(
@@ -259,6 +300,54 @@ export function parseResearchCommodityWarehouseReceiptsRuntimeRows(value: unknow
 
 export function parseResearchCommodityHoldingsRuntimeRows(value: unknown): unknown[] {
   return researchCommodityHoldingsRowsSchema.parse(value);
+}
+
+export function parseResearchMarketStateRuntimeRequest(
+  value: unknown,
+): ResearchMarketStateRuntimeRequestV1 {
+  return researchMarketStateRequestSchema.parse(
+    value,
+  ) as unknown as ResearchMarketStateRuntimeRequestV1;
+}
+
+export function parseResearchEquityFundamentalsRuntimeRequest(
+  value: unknown,
+): ResearchDatedIdentifierRuntimeRequestV1 {
+  return researchEquityFundamentalsRequestSchema.parse(
+    value,
+  ) as unknown as ResearchDatedIdentifierRuntimeRequestV1;
+}
+
+export function parseResearchEquityFlowsRuntimeRequest(
+  value: unknown,
+): ResearchDatedIdentifierRuntimeRequestV1 {
+  return researchEquityFlowsRequestSchema.parse(
+    value,
+  ) as unknown as ResearchDatedIdentifierRuntimeRequestV1;
+}
+
+export function parseResearchEquityDividendsRuntimeRequest(
+  value: unknown,
+): ResearchDatedIdentifierRuntimeRequestV1 {
+  return researchEquityDividendsRequestSchema.parse(
+    value,
+  ) as unknown as ResearchDatedIdentifierRuntimeRequestV1;
+}
+
+export function parseResearchMarketStateRuntimeRows(value: unknown): unknown[] {
+  return researchMarketStateRowsSchema.parse(value);
+}
+
+export function parseResearchEquityFundamentalsRuntimeRows(value: unknown): unknown[] {
+  return researchEquityFundamentalsRowsSchema.parse(value);
+}
+
+export function parseResearchEquityFlowsRuntimeRows(value: unknown): unknown[] {
+  return researchEquityFlowsRowsSchema.parse(value);
+}
+
+export function parseResearchEquityDividendsRuntimeRows(value: unknown): unknown[] {
+  return researchEquityDividendsRowsSchema.parse(value);
 }
 
 export function parseResearchEquityDatasetRuntimeRows(value: unknown): unknown[] {

@@ -19,6 +19,12 @@ import { loadResearchBacktestReportResult } from './backtest-report-result.js';
 import { loadResearchFactorReportResult } from './factor-report-result.js';
 import { loadResearchSeries, prepareResearchSeries, researchSeriesLoadStart } from './series.js';
 import {
+  loadResearchEquityDividends,
+  loadResearchEquityFlows,
+  loadResearchEquityFundamentals,
+  loadResearchMarketState,
+} from './supplemental-dataset.js';
+import {
   parseResearchCrossSectionRuntimeRequest,
   parseResearchCommodityHoldingsRuntimeRequest,
   parseResearchCommodityHoldingsRuntimeRows,
@@ -28,9 +34,17 @@ import {
   parseResearchCommodityWarehouseReceiptsRuntimeRows,
   parseResearchBacktestReportRuntimeRequest,
   parseResearchEquityDatasetRuntimeRows,
+  parseResearchEquityDividendsRuntimeRequest,
+  parseResearchEquityDividendsRuntimeRows,
+  parseResearchEquityFlowsRuntimeRequest,
+  parseResearchEquityFlowsRuntimeRows,
+  parseResearchEquityFundamentalsRuntimeRequest,
+  parseResearchEquityFundamentalsRuntimeRows,
   parseResearchFactorReportRuntimeRequest,
   parseResearchFxRuntimeRequest,
   parseResearchMacroRuntimeRequest,
+  parseResearchMarketStateRuntimeRequest,
+  parseResearchMarketStateRuntimeRows,
   parseResearchPanelRuntimeRequest,
   parseResearchSeriesRuntimeRequest,
   parseResearchSeriesRuntimeRows,
@@ -40,8 +54,10 @@ import {
   type ResearchCommodityRuntimeRequestV1,
   type ResearchBacktestReportRuntimeRequestV1,
   type ResearchFactorReportRuntimeRequestV1,
+  type ResearchDatedIdentifierRuntimeRequestV1,
   type ResearchFxRuntimeRequestV1,
   type ResearchMacroRuntimeRequestV1,
+  type ResearchMarketStateRuntimeRequestV1,
   type ResearchPanelRuntimeRequestV1,
   type ResearchSeriesRuntimeRequestV1,
   type ResearchYieldCurveRuntimeRequestV1,
@@ -60,6 +76,7 @@ export interface ResearchPythonAnalysis {
   macroRequests?: ResearchPythonMacroRequest[];
   fxRequests?: ResearchPythonFxRequest[];
   commodityRequests?: ResearchPythonCommodityRequest[];
+  equityRequests?: ResearchPythonEquityRequest[];
   error?: string;
 }
 
@@ -90,6 +107,12 @@ export interface ResearchPythonCommodityRequest {
   line: number;
   method: 'commodity_returns' | 'commodity_warehouse_receipts' | 'commodity_holdings';
   product: string | null;
+}
+
+export interface ResearchPythonEquityRequest {
+  line: number;
+  method: 'equity_fundamentals' | 'equity_flows' | 'equity_dividends';
+  identifier: string | null;
 }
 
 export interface ResearchPythonExecution {
@@ -150,6 +173,11 @@ class ResearchRuntimeManager {
               method: request.method,
               product: request.product,
             }));
+            const equityRequests = cell.equity_requests.map((request) => ({
+              line: request.line,
+              method: request.method,
+              identifier: request.identifier,
+            }));
             return {
               cellId: cell.cell_id,
               definitions: cell.definitions,
@@ -165,6 +193,7 @@ class ResearchRuntimeManager {
               ...(macroRequests.length > 0 ? { macroRequests } : {}),
               ...(fxRequests.length > 0 ? { fxRequests } : {}),
               ...(commodityRequests.length > 0 ? { commodityRequests } : {}),
+              ...(equityRequests.length > 0 ? { equityRequests } : {}),
               ...(typeof cell.error === 'string' ? { error: cell.error } : {}),
             };
           });
@@ -437,6 +466,17 @@ type ParsedResearchRequest =
       arguments: ResearchCommodityHoldingRuntimeRequestV1;
     })
   | (Omit<ResearchRequestFrame, 'method' | 'arguments'> & {
+      method: 'research_market_state';
+      arguments: ResearchMarketStateRuntimeRequestV1;
+    })
+  | (Omit<ResearchRequestFrame, 'method' | 'arguments'> & {
+      method:
+        | 'research_equity_fundamentals'
+        | 'research_equity_flows'
+        | 'research_equity_dividends';
+      arguments: ResearchDatedIdentifierRuntimeRequestV1;
+    })
+  | (Omit<ResearchRequestFrame, 'method' | 'arguments'> & {
       method: 'research_cross_section';
       arguments: ResearchCrossSectionRuntimeRequestV1;
     })
@@ -503,6 +543,34 @@ function parseResearchRequestFrame(frame: ResearchRequestFrame): ParsedResearchR
         id: frame.id,
         method: 'research_commodity_holdings',
         arguments: parseResearchCommodityHoldingsRuntimeRequest(frame.arguments),
+      };
+    case 'research_market_state':
+      return {
+        type: frame.type,
+        id: frame.id,
+        method: 'research_market_state',
+        arguments: parseResearchMarketStateRuntimeRequest(frame.arguments),
+      };
+    case 'research_equity_fundamentals':
+      return {
+        type: frame.type,
+        id: frame.id,
+        method: 'research_equity_fundamentals',
+        arguments: parseResearchEquityFundamentalsRuntimeRequest(frame.arguments),
+      };
+    case 'research_equity_flows':
+      return {
+        type: frame.type,
+        id: frame.id,
+        method: 'research_equity_flows',
+        arguments: parseResearchEquityFlowsRuntimeRequest(frame.arguments),
+      };
+    case 'research_equity_dividends':
+      return {
+        type: frame.type,
+        id: frame.id,
+        method: 'research_equity_dividends',
+        arguments: parseResearchEquityDividendsRuntimeRequest(frame.arguments),
       };
     case 'research_cross_section':
       return {
@@ -654,6 +722,34 @@ async function answerResearchRequest(
         result = {
           rows: parseResearchCommodityHoldingsRuntimeRows(
             await loadResearchCommodityHoldings(frame.arguments),
+          ),
+        };
+        break;
+      }
+      case 'research_market_state': {
+        result = {
+          rows: parseResearchMarketStateRuntimeRows(await loadResearchMarketState(frame.arguments)),
+        };
+        break;
+      }
+      case 'research_equity_fundamentals': {
+        result = {
+          rows: parseResearchEquityFundamentalsRuntimeRows(
+            await loadResearchEquityFundamentals(frame.arguments),
+          ),
+        };
+        break;
+      }
+      case 'research_equity_flows': {
+        result = {
+          rows: parseResearchEquityFlowsRuntimeRows(await loadResearchEquityFlows(frame.arguments)),
+        };
+        break;
+      }
+      case 'research_equity_dividends': {
+        result = {
+          rows: parseResearchEquityDividendsRuntimeRows(
+            await loadResearchEquityDividends(frame.arguments),
           ),
         };
         break;

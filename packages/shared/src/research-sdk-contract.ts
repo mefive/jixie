@@ -57,6 +57,19 @@ export const RESEARCH_COMMODITY_HOLDING_PRODUCT_CODES_V1 = ['AU', 'CU', 'M'] as 
 export type ResearchCommodityProductCodeV1 = (typeof RESEARCH_COMMODITY_PRODUCT_CODES_V1)[number];
 export type ResearchCommodityHoldingProductCodeV1 =
   (typeof RESEARCH_COMMODITY_HOLDING_PRODUCT_CODES_V1)[number];
+export const RESEARCH_MARKET_STATE_SCOPES_V1 = [
+  'all',
+  '000016.SH',
+  '000300.SH',
+  '000905.SH',
+  '000852.SH',
+  '932000.CSI',
+  '000510.SH',
+  '399006.SZ',
+  '000688.SH',
+  '000922.CSI',
+] as const;
+export type ResearchMarketStateScopeV1 = (typeof RESEARCH_MARKET_STATE_SCOPES_V1)[number];
 export const RESEARCH_PARTIAL_PERIOD_POLICIES_V1 = ['exclude', 'include'] as const;
 export const RESEARCH_EQUITY_UNIVERSE_SUGGESTIONS_V1 = [
   'cn_a',
@@ -511,6 +524,207 @@ function commodityDatasetFunction(
         keywordOnly: true,
         descriptionZh: '研究可得日结束日期，格式 YYYYMMDD。',
         descriptionEn: 'Inclusive research-availability end date in YYYYMMDD format.',
+      },
+    ],
+    returns: { kind: 'dataframe', columns },
+  };
+}
+
+const marketStateColumns = [
+  {
+    name: 'date',
+    wireType: 'trade_date',
+    pythonType: 'datetime64[ns]',
+    descriptionZh: '市场交易日。',
+    descriptionEn: 'The market trading date.',
+  },
+  ...[
+    ['activity', '20 日流通市值加权换手率均值。', '20-day average float-weighted turnover rate.'],
+    [
+      'breadth',
+      '站上 20 日和 60 日均线比例的均值。',
+      'Mean share above the 20-day and 60-day moving averages.',
+    ],
+    ['trend', '20 日市场或指数收益率。', '20-day market or index return.'],
+    [
+      'crowding',
+      '成交额最高 5% 股票的成交额占比。',
+      'Amount share of the top 5% most-traded stocks.',
+    ],
+    ['advance_ratio', '上涨股票占比。', 'Share of advancing stocks.'],
+    [
+      'above_ma20_ratio',
+      '站上 20 日均线的股票占比。',
+      'Share of stocks above the 20-day moving average.',
+    ],
+    [
+      'above_ma60_ratio',
+      '站上 60 日均线的股票占比。',
+      'Share of stocks above the 60-day moving average.',
+    ],
+    ['total_amount_cny_1k', '总成交额，千元人民币。', 'Total trading amount in CNY 1,000.'],
+    ['extreme_move_ratio', '极端涨跌股票占比。', 'Share of stocks with extreme price moves.'],
+    ['limit_up_count', '涨停股票数量。', 'Number of limit-up stocks.'],
+    ['limit_down_count', '跌停股票数量。', 'Number of limit-down stocks.'],
+    ['traded_count', '纳入计算的交易股票数量。', 'Number of traded stocks included.'],
+  ].map(([name, descriptionZh, descriptionEn]) => ({
+    name,
+    wireType: name.endsWith('_count') ? ('number' as const) : ('nullable_number' as const),
+    pythonType: 'float64',
+    descriptionZh,
+    descriptionEn,
+  })),
+] satisfies readonly ResearchSdkDataFrameColumnContractV1[];
+
+const equityFundamentalColumns = [
+  {
+    name: 'date',
+    wireType: 'trade_date',
+    pythonType: 'datetime64[ns]',
+    descriptionZh: '财务指标公告日，即研究可得日。',
+    descriptionEn: 'The financial-indicator announcement date and research availability date.',
+  },
+  {
+    name: 'report_period',
+    wireType: 'trade_date',
+    pythonType: 'datetime64[ns]',
+    descriptionZh: '财务报告期末。',
+    descriptionEn: 'The financial reporting-period end.',
+  },
+  ...[
+    ['roe_pct', '净资产收益率，百分比。', 'Return on equity in percent.'],
+    [
+      'roe_waa_pct',
+      '加权平均净资产收益率，百分比。',
+      'Weighted-average return on equity in percent.',
+    ],
+    ['roa_pct', '总资产收益率，百分比。', 'Return on assets in percent.'],
+    ['gross_profit_margin_pct', '毛利率，百分比。', 'Gross profit margin in percent.'],
+    ['net_profit_margin_pct', '净利率，百分比。', 'Net profit margin in percent.'],
+    ['debt_to_assets_pct', '资产负债率，百分比。', 'Debt-to-assets ratio in percent.'],
+    [
+      'revenue_yoy_pct',
+      '营业收入同比增速，百分比。',
+      'Operating-revenue year-over-year growth in percent.',
+    ],
+    [
+      'net_profit_yoy_pct',
+      '归母净利润同比增速，百分比。',
+      'Parent-attributable net-profit YoY growth in percent.',
+    ],
+    [
+      'operating_cash_flow_to_profit',
+      '经营现金流与营业利润比。',
+      'Operating cash flow to operating profit.',
+    ],
+  ].map(([name, descriptionZh, descriptionEn]) => ({
+    name,
+    wireType: 'nullable_number' as const,
+    pythonType: 'float64',
+    descriptionZh,
+    descriptionEn,
+  })),
+] satisfies readonly ResearchSdkDataFrameColumnContractV1[];
+
+const equityFlowColumns = [
+  {
+    name: 'date',
+    wireType: 'trade_date',
+    pythonType: 'datetime64[ns]',
+    descriptionZh: '精确交易日；数据不会向前填充。',
+    descriptionEn: 'The exact trading date; values are never carried forward.',
+  },
+  ...[
+    ['net_main_cny_10k', '主力净流入，万元人民币。', 'Main-force net inflow in CNY 10,000.'],
+    ['net_total_cny_10k', '全口径净流入，万元人民币。', 'All-order-size net inflow in CNY 10,000.'],
+    ['dragon_tiger_net_cny', '龙虎榜当日净买入，元人民币。', 'Dragon-Tiger List net buy in CNY.'],
+  ].map(([name, descriptionZh, descriptionEn]) => ({
+    name,
+    wireType: 'nullable_number' as const,
+    pythonType: 'float64',
+    descriptionZh,
+    descriptionEn,
+  })),
+] satisfies readonly ResearchSdkDataFrameColumnContractV1[];
+
+const equityDividendColumns = [
+  {
+    name: 'date',
+    wireType: 'trade_date',
+    pythonType: 'datetime64[ns]',
+    descriptionZh: '实施分红的除权除息日。',
+    descriptionEn: 'The ex-dividend date of the implemented distribution.',
+  },
+  {
+    name: 'report_period',
+    wireType: 'trade_date',
+    pythonType: 'datetime64[ns]',
+    descriptionZh: '分红所属报告期。',
+    descriptionEn: 'The reporting period to which the distribution belongs.',
+  },
+  {
+    name: 'announcement_date',
+    wireType: 'nullable_string',
+    pythonType: 'str | None',
+    descriptionZh: '来源公告日。',
+    descriptionEn: 'The source announcement date.',
+  },
+  {
+    name: 'cash_dividend_pre_tax',
+    wireType: 'nullable_number',
+    pythonType: 'float64',
+    descriptionZh: '每股税前现金分红。',
+    descriptionEn: 'Pre-tax cash dividend per share.',
+  },
+  {
+    name: 'cash_dividend_tax_basis',
+    wireType: 'nullable_number',
+    pythonType: 'float64',
+    descriptionZh: '来源含税口径每股现金分红。',
+    descriptionEn: 'Provider tax-basis cash dividend per share.',
+  },
+] as const satisfies readonly ResearchSdkDataFrameColumnContractV1[];
+
+function datedIdentifierDatasetFunction(
+  name: 'equity_fundamentals' | 'equity_flows' | 'equity_dividends',
+  descriptionZh: string,
+  descriptionEn: string,
+  columns: readonly ResearchSdkDataFrameColumnContractV1[],
+): ResearchSdkFunctionContractV1 {
+  return {
+    qualifiedName: `data.${name}`,
+    namespace: 'data',
+    name,
+    descriptionZh,
+    descriptionEn,
+    examples: [`data.${name}("600519.SH", start="20200101", end="20251231")`],
+    notesZh: ['identifier 使用平台股票代码；start/end 始终约束研究可得日。'],
+    notesEn: ['identifier uses the platform stock code; start/end always constrain availability.'],
+    parameters: [
+      {
+        name: 'identifier',
+        type: 'string',
+        required: true,
+        keywordOnly: false,
+        maximumLength: 80,
+        descriptionZh: '平台股票代码。',
+        descriptionEn: 'The platform stock identifier.',
+      },
+      {
+        name: 'start',
+        type: 'date',
+        required: true,
+        keywordOnly: true,
+        descriptionZh: '研究可得日起始日期，格式 YYYYMMDD。',
+        descriptionEn: 'Inclusive availability start date in YYYYMMDD format.',
+      },
+      {
+        name: 'end',
+        type: 'date',
+        required: true,
+        keywordOnly: true,
+        descriptionZh: '研究可得日结束日期，格式 YYYYMMDD。',
+        descriptionEn: 'Inclusive availability end date in YYYYMMDD format.',
       },
     ],
     returns: { kind: 'dataframe', columns },
@@ -1149,6 +1363,72 @@ export const RESEARCH_SDK_CONTRACT_V1 = {
       RESEARCH_COMMODITY_HOLDING_PRODUCT_CODES_V1,
       RESEARCH_COMMODITY_HOLDING_COLUMNS_V1,
     ),
+    {
+      qualifiedName: 'data.market_state',
+      namespace: 'data',
+      name: 'market_state',
+      descriptionZh: '读取全市场或 PIT 指数成分范围的描述性市场状态时间序列。',
+      descriptionEn:
+        'Load descriptive market-state time series for the whole market or a point-in-time index universe.',
+      examples: [
+        'data.market_state("all", start="20200101", end="20251231")',
+        'data.market_state("000300.SH", start="20200101", end="20251231")',
+      ],
+      notesZh: [
+        '指标是描述性测量而非预测；指数范围使用当日可得的最近成分股快照。',
+        'date 是同一中国市场交易日；activity 需要 20 个观测的预热期。',
+      ],
+      notesEn: [
+        'Metrics are descriptive rather than forecasts; index scopes use the latest constituent snapshot available on each date.',
+        'date is the same China-market trading date; activity requires a 20-observation warm-up.',
+      ],
+      parameters: [
+        {
+          name: 'scope',
+          type: 'enum',
+          required: true,
+          keywordOnly: false,
+          values: RESEARCH_MARKET_STATE_SCOPES_V1,
+          descriptionZh: 'all 或平台支持的指数代码。',
+          descriptionEn: 'all or a supported index code.',
+        },
+        {
+          name: 'start',
+          type: 'date',
+          required: true,
+          keywordOnly: true,
+          descriptionZh: '起始交易日，格式 YYYYMMDD。',
+          descriptionEn: 'Inclusive trading-date start in YYYYMMDD format.',
+        },
+        {
+          name: 'end',
+          type: 'date',
+          required: true,
+          keywordOnly: true,
+          descriptionZh: '结束交易日，格式 YYYYMMDD。',
+          descriptionEn: 'Inclusive trading-date end in YYYYMMDD format.',
+        },
+      ],
+      returns: { kind: 'dataframe', columns: marketStateColumns },
+    },
+    datedIdentifierDatasetFunction(
+      'equity_fundamentals',
+      '按公告日读取单只股票的财务指标历史。',
+      'Load one stock financial-indicator history by announcement date.',
+      equityFundamentalColumns,
+    ),
+    datedIdentifierDatasetFunction(
+      'equity_flows',
+      '读取单只股票的精确日资金流与龙虎榜净买入。',
+      'Load exact-date money flow and Dragon-Tiger List net buying for one stock.',
+      equityFlowColumns,
+    ),
+    datedIdentifierDatasetFunction(
+      'equity_dividends',
+      '按除权除息日读取单只股票已实施的现金分红。',
+      'Load implemented cash dividends for one stock by ex-dividend date.',
+      equityDividendColumns,
+    ),
     chartFunction(
       'line',
       '创建 jixie 原生交互折线图。',
@@ -1308,3 +1588,7 @@ export const RESEARCH_COMMODITY_RETURNS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_
 export const RESEARCH_COMMODITY_WAREHOUSE_RECEIPTS_SDK_CONTRACT_V1 =
   RESEARCH_SDK_CONTRACT_V1.functions[9];
 export const RESEARCH_COMMODITY_HOLDINGS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[10];
+export const RESEARCH_MARKET_STATE_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[11];
+export const RESEARCH_EQUITY_FUNDAMENTALS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[12];
+export const RESEARCH_EQUITY_FLOWS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[13];
+export const RESEARCH_EQUITY_DIVIDENDS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[14];

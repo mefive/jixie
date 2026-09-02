@@ -84,6 +84,47 @@ _COMMODITY_HOLDING_COLUMNS = [
     "short_member_count",
     "source_correction_applied",
 ]
+_MARKET_STATE_COLUMNS = [
+    "date",
+    "activity",
+    "breadth",
+    "trend",
+    "crowding",
+    "advance_ratio",
+    "above_ma20_ratio",
+    "above_ma60_ratio",
+    "total_amount_cny_1k",
+    "extreme_move_ratio",
+    "limit_up_count",
+    "limit_down_count",
+    "traded_count",
+]
+_EQUITY_FUNDAMENTAL_COLUMNS = [
+    "date",
+    "report_period",
+    "roe_pct",
+    "roe_waa_pct",
+    "roa_pct",
+    "gross_profit_margin_pct",
+    "net_profit_margin_pct",
+    "debt_to_assets_pct",
+    "revenue_yoy_pct",
+    "net_profit_yoy_pct",
+    "operating_cash_flow_to_profit",
+]
+_EQUITY_FLOW_COLUMNS = [
+    "date",
+    "net_main_cny_10k",
+    "net_total_cny_10k",
+    "dragon_tiger_net_cny",
+]
+_EQUITY_DIVIDEND_COLUMNS = [
+    "date",
+    "report_period",
+    "announcement_date",
+    "cash_dividend_pre_tax",
+    "cash_dividend_tax_basis",
+]
 
 
 @dataclass
@@ -96,6 +137,7 @@ class _Analysis:
     macro_requests: list[dict[str, Any]]
     fx_requests: list[dict[str, Any]]
     commodity_requests: list[dict[str, Any]]
+    equity_requests: list[dict[str, Any]]
     error: str | None = None
 
 
@@ -109,6 +151,7 @@ class _NameAnalysis(ast.NodeVisitor):
         self.macro_requests: list[dict[str, Any]] = []
         self.fx_requests: list[dict[str, Any]] = []
         self.commodity_requests: list[dict[str, Any]] = []
+        self.equity_requests: list[dict[str, Any]] = []
 
     def visit_Name(self, node: ast.Name) -> None:
         if isinstance(node.ctx, (ast.Store, ast.Del)):
@@ -223,6 +266,22 @@ class _NameAnalysis(ast.NodeVisitor):
                     "method": node.func.attr,
                     "product": _literal_string(
                         node.args[0] if len(node.args) > 0 else keywords.get("product")
+                    ),
+                }
+            )
+        if (
+            isinstance(node.func, ast.Attribute)
+            and node.func.attr in {"equity_fundamentals", "equity_flows", "equity_dividends"}
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "data"
+        ):
+            keywords = {item.arg: item.value for item in node.keywords if item.arg is not None}
+            self.equity_requests.append(
+                {
+                    "line": node.lineno,
+                    "method": node.func.attr,
+                    "identifier": _literal_string(
+                        node.args[0] if len(node.args) > 0 else keywords.get("identifier")
                     ),
                 }
             )
@@ -430,6 +489,38 @@ class _DataApi:
         )
         return self._dataset_frame(result, _COMMODITY_HOLDING_COLUMNS)
 
+    def market_state(self, scope: str, *, start: str, end: str) -> Any:
+        result = self._host.request(
+            "research_market_state",
+            {"scope": scope, "start": start, "end": end},
+        )
+        return self._dataset_frame(result, _MARKET_STATE_COLUMNS, ["date"])
+
+    def equity_fundamentals(self, identifier: str, *, start: str, end: str) -> Any:
+        result = self._host.request(
+            "research_equity_fundamentals",
+            {"identifier": identifier, "start": start, "end": end},
+        )
+        return self._dataset_frame(
+            result, _EQUITY_FUNDAMENTAL_COLUMNS, ["date", "report_period"]
+        )
+
+    def equity_flows(self, identifier: str, *, start: str, end: str) -> Any:
+        result = self._host.request(
+            "research_equity_flows",
+            {"identifier": identifier, "start": start, "end": end},
+        )
+        return self._dataset_frame(result, _EQUITY_FLOW_COLUMNS, ["date"])
+
+    def equity_dividends(self, identifier: str, *, start: str, end: str) -> Any:
+        result = self._host.request(
+            "research_equity_dividends",
+            {"identifier": identifier, "start": start, "end": end},
+        )
+        return self._dataset_frame(
+            result, _EQUITY_DIVIDEND_COLUMNS, ["date", "report_period"]
+        )
+
     def _equity_frame(self, result: Any) -> Any:
         rows = result.get("rows", []) if isinstance(result, dict) else []
         if self._pandas is None:
@@ -452,12 +543,14 @@ class _DataApi:
             frame.attrs["jixie"] = {"diagnostics": result["diagnostics"]}
         return frame
 
-    def _dataset_frame(self, result: Any, columns: list[str]) -> Any:
+    def _dataset_frame(
+        self, result: Any, columns: list[str], date_columns: list[str] | None = None
+    ) -> Any:
         rows = result.get("rows", []) if isinstance(result, dict) else []
         if self._pandas is None:
             return rows
         frame = self._pandas.DataFrame(rows, columns=columns)
-        for column in ("date", "trade_date"):
+        for column in date_columns or ["date", "trade_date"]:
             if not frame.empty:
                 frame[column] = self._pandas.to_datetime(frame[column], format="%Y%m%d")
         return frame
@@ -788,6 +881,7 @@ def run_research(
                         "macro_requests": analysis.macro_requests,
                         "fx_requests": analysis.fx_requests,
                         "commodity_requests": analysis.commodity_requests,
+                        "equity_requests": analysis.equity_requests,
                         **({"error": analysis.error} if analysis.error else {}),
                     }
                 )
@@ -912,7 +1006,7 @@ def _analyze(source: str) -> _Analysis:
         tree = ast.parse(source or "pass", filename="research_cell.py", mode="exec")
     except SyntaxError as error:
         message = f"{error.msg} (line {error.lineno}, column {error.offset})"
-        return _Analysis([], [], [], [], [], [], [], [], message)
+        return _Analysis([], [], [], [], [], [], [], [], [], message)
     visitor = _NameAnalysis()
     visitor.visit(tree)
     ignored = set(dir(builtins)) | _RUNTIME_NAMES
@@ -925,6 +1019,7 @@ def _analyze(source: str) -> _Analysis:
         visitor.macro_requests,
         visitor.fx_requests,
         visitor.commodity_requests,
+        visitor.equity_requests,
     )
 
 

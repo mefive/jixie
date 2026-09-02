@@ -10,6 +10,7 @@ import type { StrategyLanguage } from './backtest.js';
 import type {
   ResearchFxSeriesIdV1,
   ResearchMacroSeriesKeyV1,
+  ResearchMarketStateScopeV1,
   ResearchCommodityHoldingProductCodeV1,
   ResearchCommodityProductCodeV1,
   ResearchYieldCurveCodeV1,
@@ -252,6 +253,10 @@ export type ResearchDataCatalogDatasetV1 =
   | (ResearchDataCatalogDatasetBaseV1 & {
       method: 'data.commodity_holdings';
       product: ResearchCommodityHoldingProductCodeV1;
+    })
+  | (ResearchDataCatalogDatasetBaseV1 & {
+      method: 'data.market_state';
+      scope: ResearchMarketStateScopeV1;
     });
 
 /** A completed FactorReport owned by the current user and discoverable from Research. */

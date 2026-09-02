@@ -214,4 +214,54 @@ describe('Research Agent series proposal validation', () => {
       ]),
     ).rejects.toThrow('unsupported product SC');
   });
+
+  it('validates supplemental equity identifiers against the stock catalog', async () => {
+    const stockCatalog: ResearchDataCatalogResultV1 = {
+      ...catalog,
+      instruments: [
+        {
+          kind: 'instrument',
+          assetType: 'stock',
+          identifier: '600519.SH',
+          nameZh: '贵州茅台',
+          tags: [],
+          compatibleMeasureIds: ['market.adjusted_close'],
+        },
+      ],
+    };
+    const search = vi.fn().mockResolvedValue(stockCatalog);
+
+    await expect(
+      validateResearchSeriesProposal(
+        [
+          {
+            cellId: 'stock-data',
+            definitions: [],
+            references: [],
+            equityRequests: [
+              { line: 1, method: 'equity_fundamentals', identifier: '600519.SH' },
+              { line: 2, method: 'equity_flows', identifier: '600519.SH' },
+              { line: 3, method: 'equity_dividends', identifier: '600519.SH' },
+            ],
+          },
+        ],
+        search,
+      ),
+    ).resolves.toBeUndefined();
+    expect(search).toHaveBeenCalledTimes(3);
+
+    await expect(
+      validateResearchSeriesProposal(
+        [
+          {
+            cellId: 'invented-stock',
+            definitions: [],
+            references: [],
+            equityRequests: [{ line: 1, method: 'equity_flows', identifier: 'FAKE.SH' }],
+          },
+        ],
+        vi.fn().mockResolvedValue({ ...stockCatalog, instruments: [] }),
+      ),
+    ).rejects.toThrow('not in the Research catalog');
+  });
 });
