@@ -73,11 +73,13 @@ try {
   await page.getByText('Cell 02 · Python', { exact: true }).waitFor();
   await cells.nth(0).getByTestId('research-cell-attach-agent').click();
   await page.getByText('Cell 01 · Markdown', { exact: true }).waitFor();
-  await page.screenshot({ path: `${SHOTS}research-agent-cell-context-composer.png` });
 
   const prompt = page.locator('.jx-research-agentPrompt');
   await prompt.fill('比较这两个 Cell 的研究设计');
-  await prompt.press('Enter');
+  const sendButton = composer.getByRole('button', { name: '发送消息' });
+  await sendButton.waitFor();
+  await page.screenshot({ path: `${SHOTS}research-agent-cell-context-composer.png` });
+  await sendButton.click();
   await page.getByText('已收到 Cell 上下文。', { exact: true }).waitFor();
 
   const expectedCellIds = [document.cells[1].id, document.cells[0].id];
@@ -93,7 +95,7 @@ try {
   await page.screenshot({ path: `${SHOTS}research-agent-cell-context-message.png` });
 
   console.log(
-    '[research-agent-cell-context-e2e] button=toggle drag=attach request=explicit message=durable',
+    '[research-agent-cell-context-e2e] button=toggle drag=attach composer=unified request=explicit message=durable',
   );
 } finally {
   if (documentId) {
