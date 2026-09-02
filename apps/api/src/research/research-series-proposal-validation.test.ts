@@ -186,4 +186,32 @@ describe('Research Agent series proposal validation', () => {
       ]),
     ).rejects.toThrow('must use a literal pair');
   });
+
+  it('validates literal commodity products against each dataset contract', async () => {
+    await expect(
+      validateResearchSeriesProposal([
+        {
+          cellId: 'commodity',
+          definitions: [],
+          references: [],
+          commodityRequests: [
+            { line: 1, method: 'commodity_returns', product: 'SC' },
+            { line: 2, method: 'commodity_warehouse_receipts', product: 'SC' },
+            { line: 3, method: 'commodity_holdings', product: 'AU' },
+          ],
+        },
+      ]),
+    ).resolves.toBeUndefined();
+
+    await expect(
+      validateResearchSeriesProposal([
+        {
+          cellId: 'unsupported-holdings',
+          definitions: [],
+          references: [],
+          commodityRequests: [{ line: 1, method: 'commodity_holdings', product: 'SC' }],
+        },
+      ]),
+    ).rejects.toThrow('unsupported product SC');
+  });
 });

@@ -101,6 +101,14 @@ export function researchDatasetSnippet(options: ResearchDatasetSnippetOptions): 
     frequency="daily",
     transform="level",
 )`;
+    case 'data.commodity_returns':
+    case 'data.commodity_warehouse_receipts':
+    case 'data.commodity_holdings':
+      return `${variable} = ${dataset.method}(
+    ${JSON.stringify(dataset.product)},
+    start=${JSON.stringify(start)},
+    end=${JSON.stringify(end)},
+)`;
   }
 }
 
@@ -113,6 +121,10 @@ function researchDatasetVariableName(dataset: ResearchDataCatalogDatasetV1): str
         return dataset.series;
       case 'data.fx':
         return dataset.pair;
+      case 'data.commodity_returns':
+      case 'data.commodity_warehouse_receipts':
+      case 'data.commodity_holdings':
+        return `${dataset.product}_${dataset.method.replace('data.commodity_', '')}`;
       default:
         return `${dataset.universe}_${dataset.method === 'data.panel' ? 'panel' : 'cross_section'}`;
     }

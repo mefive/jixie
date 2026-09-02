@@ -10,6 +10,8 @@ import type { StrategyLanguage } from './backtest.js';
 import type {
   ResearchFxSeriesIdV1,
   ResearchMacroSeriesKeyV1,
+  ResearchCommodityHoldingProductCodeV1,
+  ResearchCommodityProductCodeV1,
   ResearchYieldCurveCodeV1,
   ResearchYieldTenorV1,
 } from './research-sdk-contract.js';
@@ -242,6 +244,14 @@ export type ResearchDataCatalogDatasetV1 =
   | (ResearchDataCatalogDatasetBaseV1 & {
       method: 'data.fx';
       pair: ResearchFxSeriesIdV1;
+    })
+  | (ResearchDataCatalogDatasetBaseV1 & {
+      method: 'data.commodity_returns' | 'data.commodity_warehouse_receipts';
+      product: ResearchCommodityProductCodeV1;
+    })
+  | (ResearchDataCatalogDatasetBaseV1 & {
+      method: 'data.commodity_holdings';
+      product: ResearchCommodityHoldingProductCodeV1;
     });
 
 /** A completed FactorReport owned by the current user and discoverable from Research. */

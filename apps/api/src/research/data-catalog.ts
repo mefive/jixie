@@ -1,5 +1,7 @@
 import {
   RESEARCH_EQUITY_UNIVERSE_SUGGESTIONS_V1,
+  RESEARCH_COMMODITY_HOLDING_PRODUCT_CODES_V1,
+  RESEARCH_COMMODITY_PRODUCT_CODES_V1,
   RESEARCH_FX_SERIES_IDS_V1,
   RESEARCH_MACRO_SERIES_KEYS_V1,
   RESEARCH_SDK_AGENT_CATALOG_V1,
@@ -305,7 +307,16 @@ export async function searchResearchDataCatalog(
 function catalogMethodNames(scope: ResearchDataCatalogScopeV1): string[] {
   switch (scope) {
     case 'datasets':
-      return ['data.cross_section', 'data.panel', 'data.yield_curve', 'data.macro', 'data.fx'];
+      return [
+        'data.cross_section',
+        'data.panel',
+        'data.yield_curve',
+        'data.macro',
+        'data.fx',
+        'data.commodity_returns',
+        'data.commodity_warehouse_receipts',
+        'data.commodity_holdings',
+      ];
     case 'factor_reports':
       return ['results.factor_report'];
     case 'backtest_reports':
@@ -332,6 +343,9 @@ async function searchDatasets(
     macroSeries,
     macroCoverageRows,
     fxCoverageRows,
+    commodityReturnCoverageRows,
+    commodityWarehouseReceiptCoverageRows,
+    commodityHoldingCoverageRows,
   ] = await Promise.all([
     prisma.daily.findFirst({ orderBy: { tradeDate: 'asc' }, select: { tradeDate: true } }),
     prisma.daily.findFirst({ orderBy: { tradeDate: 'desc' }, select: { tradeDate: true } }),
@@ -369,6 +383,24 @@ async function searchDatasets(
     prisma.fxDaily.groupBy({
       by: ['tsCode'],
       where: { tsCode: { in: ['USDCNH.FXCM', 'USDHKD.FXCM'] } },
+      _min: { availableDate: true },
+      _max: { availableDate: true },
+    }),
+    prisma.commodityContinuousReturn.groupBy({
+      by: ['productCode'],
+      where: { productCode: { in: [...RESEARCH_COMMODITY_PRODUCT_CODES_V1] } },
+      _min: { availableDate: true },
+      _max: { availableDate: true },
+    }),
+    prisma.commodityWarehouseReceipt.groupBy({
+      by: ['productCode'],
+      where: { productCode: { in: [...RESEARCH_COMMODITY_PRODUCT_CODES_V1] } },
+      _min: { availableDate: true },
+      _max: { availableDate: true },
+    }),
+    prisma.commodityHoldingPosition.groupBy({
+      by: ['productCode'],
+      where: { productCode: { in: [...RESEARCH_COMMODITY_HOLDING_PRODUCT_CODES_V1] } },
       _min: { availableDate: true },
       _max: { availableDate: true },
     }),
@@ -510,7 +542,66 @@ async function searchDatasets(
       localDataCoverage,
     };
   });
-  const datasets = [...equityDatasets, ...macroDatasets, ...fxDatasets, ...yieldDatasets];
+  const commodityReturnCoverage = datasetCoverageByProduct(commodityReturnCoverageRows);
+  const commodityWarehouseReceiptCoverage = datasetCoverageByProduct(
+    commodityWarehouseReceiptCoverageRows,
+  );
+  const commodityHoldingCoverage = datasetCoverageByProduct(commodityHoldingCoverageRows);
+  const commodityDatasets = RESEARCH_COMMODITY_PRODUCT_CODES_V1.flatMap((product) => {
+    const meta = commodityProductMeta(product);
+    const shared = {
+      kind: 'dataset' as const,
+      product,
+      nameZh: meta.nameZh,
+      nameEn: meta.nameEn,
+      tags: [...meta.tags, product, 'PIT'],
+    };
+    const rows: ResearchDataCatalogDatasetV1[] = [
+      {
+        ...shared,
+        id: `data.commodity_returns:${product}`,
+        method: 'data.commodity_returns',
+        nameZh: `${meta.nameZh}连续收益`,
+        nameEn: `${meta.nameEn} continuous returns`,
+        descriptionZh: '审计过的主力合约连续收益、映射合约与换月分解。',
+        descriptionEn: 'Audited main-contract continuous returns, mapping, and roll decomposition.',
+        localDataCoverage: commodityReturnCoverage.get(product) ?? missingDatasetCoverage(),
+      },
+      {
+        ...shared,
+        id: `data.commodity_warehouse_receipts:${product}`,
+        method: 'data.commodity_warehouse_receipts',
+        nameZh: `${meta.nameZh}仓单`,
+        nameEn: `${meta.nameEn} warehouse receipts`,
+        descriptionZh: '交易所仓单总量、变化与原始单位。',
+        descriptionEn: 'Exchange warehouse-receipt totals, changes, and source units.',
+        localDataCoverage:
+          commodityWarehouseReceiptCoverage.get(product) ?? missingDatasetCoverage(),
+      },
+    ];
+    if (RESEARCH_COMMODITY_HOLDING_PRODUCT_CODES_V1.includes(product as never)) {
+      rows.push({
+        ...shared,
+        product: product as (typeof RESEARCH_COMMODITY_HOLDING_PRODUCT_CODES_V1)[number],
+        id: `data.commodity_holdings:${product}`,
+        method: 'data.commodity_holdings',
+        nameZh: `${meta.nameZh}会员持仓`,
+        nameEn: `${meta.nameEn} member holdings`,
+        descriptionZh: '实际代表合约的排名会员多空持仓聚合。',
+        descriptionEn:
+          'Ranked-member long and short aggregates for the actual representative contract.',
+        localDataCoverage: commodityHoldingCoverage.get(product) ?? missingDatasetCoverage(),
+      });
+    }
+    return rows;
+  });
+  const datasets = [
+    ...equityDatasets,
+    ...macroDatasets,
+    ...fxDatasets,
+    ...commodityDatasets,
+    ...yieldDatasets,
+  ];
   const normalizedQuery = query.toLocaleLowerCase();
   return datasets
     .filter((dataset) => !normalizedQuery || datasetSearchText(dataset).includes(normalizedQuery))
@@ -610,6 +701,40 @@ function fxSeriesMeta(pair: ResearchFxSeriesIdV1): {
   }
 }
 
+function datasetCoverageByProduct(
+  rows: Array<{
+    productCode: string;
+    _min: { availableDate: string | null };
+    _max: { availableDate: string | null };
+  }>,
+): Map<string, ResearchDataCatalogDatasetCoverageV1> {
+  return new Map(
+    rows.map((row) => [
+      row.productCode,
+      row._min.availableDate && row._max.availableDate
+        ? readyDatasetCoverage(row._min.availableDate, row._max.availableDate, 'availableDate')
+        : missingDatasetCoverage(),
+    ]),
+  );
+}
+
+function commodityProductMeta(product: (typeof RESEARCH_COMMODITY_PRODUCT_CODES_V1)[number]): {
+  nameZh: string;
+  nameEn: string;
+  tags: string[];
+} {
+  switch (product) {
+    case 'AU':
+      return { nameZh: '黄金', nameEn: 'Gold', tags: ['贵金属', 'precious metal'] };
+    case 'CU':
+      return { nameZh: '铜', nameEn: 'Copper', tags: ['有色金属', 'base metal'] };
+    case 'SC':
+      return { nameZh: '原油', nameEn: 'Crude oil', tags: ['能源', 'energy'] };
+    case 'M':
+      return { nameZh: '豆粕', nameEn: 'Soybean meal', tags: ['农产品', 'agriculture'] };
+  }
+}
+
 function yieldTenorYears(tenor: (typeof RESEARCH_YIELD_TENORS_V1)[number]): number {
   switch (tenor) {
     case '1M':
@@ -634,16 +759,27 @@ function datasetSearchText(dataset: ResearchDataCatalogDatasetV1): string {
     dataset.descriptionZh,
     dataset.descriptionEn,
     ...dataset.tags,
-    ...(dataset.method === 'data.yield_curve'
-      ? [dataset.curve, dataset.tenor]
-      : dataset.method === 'data.macro'
-        ? [dataset.series]
-        : dataset.method === 'data.fx'
-          ? [dataset.pair]
-          : [dataset.universe]),
+    ...datasetIdentifiers(dataset),
   ]
     .join('\n')
     .toLocaleLowerCase();
+}
+
+function datasetIdentifiers(dataset: ResearchDataCatalogDatasetV1): string[] {
+  switch (dataset.method) {
+    case 'data.yield_curve':
+      return [dataset.curve, dataset.tenor];
+    case 'data.macro':
+      return [dataset.series];
+    case 'data.fx':
+      return [dataset.pair];
+    case 'data.commodity_returns':
+    case 'data.commodity_warehouse_receipts':
+    case 'data.commodity_holdings':
+      return [dataset.product];
+    default:
+      return [dataset.universe];
+  }
 }
 
 function intersectDatasetCoverage(

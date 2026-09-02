@@ -42,6 +42,48 @@ _EQUITY_DATASET_COLUMNS = [
     "float_market_cap_cny_10k",
     "turnover_rate_pct",
 ]
+_COMMODITY_RETURN_COLUMNS = [
+    "date",
+    "trade_date",
+    "product",
+    "continuous_code",
+    "mapped_contract",
+    "continuous_return",
+    "continuous_log_return",
+    "mapped_log_return",
+    "roll_gap_log_return",
+    "roll_yield_proxy",
+    "mapping_changed",
+]
+_COMMODITY_WAREHOUSE_RECEIPT_COLUMNS = [
+    "date",
+    "trade_date",
+    "product",
+    "unit",
+    "volume",
+    "volume_change",
+    "unit_correction_applied",
+]
+_COMMODITY_HOLDING_COLUMNS = [
+    "date",
+    "trade_date",
+    "product",
+    "reference_contract",
+    "contract_open_interest",
+    "contract_volume",
+    "ranked_volume",
+    "ranked_volume_change",
+    "ranked_long_holding",
+    "ranked_long_change",
+    "ranked_short_holding",
+    "ranked_short_change",
+    "top_five_long_holding",
+    "top_five_short_holding",
+    "volume_member_count",
+    "long_member_count",
+    "short_member_count",
+    "source_correction_applied",
+]
 
 
 @dataclass
@@ -53,6 +95,7 @@ class _Analysis:
     yield_curve_requests: list[dict[str, Any]]
     macro_requests: list[dict[str, Any]]
     fx_requests: list[dict[str, Any]]
+    commodity_requests: list[dict[str, Any]]
     error: str | None = None
 
 
@@ -65,6 +108,7 @@ class _NameAnalysis(ast.NodeVisitor):
         self.yield_curve_requests: list[dict[str, Any]] = []
         self.macro_requests: list[dict[str, Any]] = []
         self.fx_requests: list[dict[str, Any]] = []
+        self.commodity_requests: list[dict[str, Any]] = []
 
     def visit_Name(self, node: ast.Name) -> None:
         if isinstance(node.ctx, (ast.Store, ast.Del)):
@@ -162,6 +206,23 @@ class _NameAnalysis(ast.NodeVisitor):
                     "line": node.lineno,
                     "pair": _literal_string(
                         node.args[0] if len(node.args) > 0 else keywords.get("pair")
+                    ),
+                }
+            )
+        if (
+            isinstance(node.func, ast.Attribute)
+            and node.func.attr
+            in {"commodity_returns", "commodity_warehouse_receipts", "commodity_holdings"}
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "data"
+        ):
+            keywords = {item.arg: item.value for item in node.keywords if item.arg is not None}
+            self.commodity_requests.append(
+                {
+                    "line": node.lineno,
+                    "method": node.func.attr,
+                    "product": _literal_string(
+                        node.args[0] if len(node.args) > 0 else keywords.get("product")
                     ),
                 }
             )
@@ -348,6 +409,27 @@ class _DataApi:
         )
         return self._equity_frame(result)
 
+    def commodity_returns(self, product: str, *, start: str, end: str) -> Any:
+        result = self._host.request(
+            "research_commodity_returns",
+            {"product": product, "start": start, "end": end},
+        )
+        return self._dataset_frame(result, _COMMODITY_RETURN_COLUMNS)
+
+    def commodity_warehouse_receipts(self, product: str, *, start: str, end: str) -> Any:
+        result = self._host.request(
+            "research_commodity_warehouse_receipts",
+            {"product": product, "start": start, "end": end},
+        )
+        return self._dataset_frame(result, _COMMODITY_WAREHOUSE_RECEIPT_COLUMNS)
+
+    def commodity_holdings(self, product: str, *, start: str, end: str) -> Any:
+        result = self._host.request(
+            "research_commodity_holdings",
+            {"product": product, "start": start, "end": end},
+        )
+        return self._dataset_frame(result, _COMMODITY_HOLDING_COLUMNS)
+
     def _equity_frame(self, result: Any) -> Any:
         rows = result.get("rows", []) if isinstance(result, dict) else []
         if self._pandas is None:
@@ -368,6 +450,16 @@ class _DataApi:
             frame["date"] = self._pandas.to_datetime(frame["date"], format="%Y%m%d")
         if isinstance(result, dict) and isinstance(result.get("diagnostics"), list):
             frame.attrs["jixie"] = {"diagnostics": result["diagnostics"]}
+        return frame
+
+    def _dataset_frame(self, result: Any, columns: list[str]) -> Any:
+        rows = result.get("rows", []) if isinstance(result, dict) else []
+        if self._pandas is None:
+            return rows
+        frame = self._pandas.DataFrame(rows, columns=columns)
+        for column in ("date", "trade_date"):
+            if not frame.empty:
+                frame[column] = self._pandas.to_datetime(frame[column], format="%Y%m%d")
         return frame
 
 
@@ -695,6 +787,7 @@ def run_research(
                         "yield_curve_requests": analysis.yield_curve_requests,
                         "macro_requests": analysis.macro_requests,
                         "fx_requests": analysis.fx_requests,
+                        "commodity_requests": analysis.commodity_requests,
                         **({"error": analysis.error} if analysis.error else {}),
                     }
                 )
@@ -819,7 +912,7 @@ def _analyze(source: str) -> _Analysis:
         tree = ast.parse(source or "pass", filename="research_cell.py", mode="exec")
     except SyntaxError as error:
         message = f"{error.msg} (line {error.lineno}, column {error.offset})"
-        return _Analysis([], [], [], [], [], [], [], message)
+        return _Analysis([], [], [], [], [], [], [], [], message)
     visitor = _NameAnalysis()
     visitor.visit(tree)
     ignored = set(dir(builtins)) | _RUNTIME_NAMES
@@ -831,6 +924,7 @@ def _analyze(source: str) -> _Analysis:
         visitor.yield_curve_requests,
         visitor.macro_requests,
         visitor.fx_requests,
+        visitor.commodity_requests,
     )
 
 

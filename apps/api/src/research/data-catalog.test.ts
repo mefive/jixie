@@ -16,6 +16,9 @@ const mocks = vi.hoisted(() => ({
   macroSeriesFindMany: vi.fn(),
   macroObservationGroupBy: vi.fn(),
   fxDailyGroupBy: vi.fn(),
+  commodityContinuousReturnGroupBy: vi.fn(),
+  commodityWarehouseReceiptGroupBy: vi.fn(),
+  commodityHoldingPositionGroupBy: vi.fn(),
   etfDailyGroupBy: vi.fn(),
   indexDailyGroupBy: vi.fn(),
   marketBenchmarkDailyGroupBy: vi.fn(),
@@ -39,6 +42,9 @@ vi.mock('../lib/prisma.js', () => ({
     macroSeries: { findMany: mocks.macroSeriesFindMany },
     macroObservation: { groupBy: mocks.macroObservationGroupBy },
     fxDaily: { groupBy: mocks.fxDailyGroupBy },
+    commodityContinuousReturn: { groupBy: mocks.commodityContinuousReturnGroupBy },
+    commodityWarehouseReceipt: { groupBy: mocks.commodityWarehouseReceiptGroupBy },
+    commodityHoldingPosition: { groupBy: mocks.commodityHoldingPositionGroupBy },
     etfDaily: { groupBy: mocks.etfDailyGroupBy },
     indexDaily: { findMany: mocks.indexDailyFindMany, groupBy: mocks.indexDailyGroupBy },
     marketBenchmarkDaily: { groupBy: mocks.marketBenchmarkDailyGroupBy },
@@ -113,6 +119,9 @@ describe('research data catalog', () => {
       'data.yield_curve',
       'data.macro',
       'data.fx',
+      'data.commodity_returns',
+      'data.commodity_warehouse_receipts',
+      'data.commodity_holdings',
     ]);
     expect(result.instruments).toEqual([]);
     expect(result.datasets).toEqual([
@@ -176,6 +185,26 @@ describe('research data catalog', () => {
         localDataCoverage: expect.objectContaining({ status: 'ready' }),
       }),
     ]);
+  });
+
+  it('discovers audited commodity datasets by product and available date', async () => {
+    const range = {
+      _min: { availableDate: '20150106' },
+      _max: { availableDate: '20260803' },
+    };
+    mocks.commodityContinuousReturnGroupBy.mockResolvedValue([{ productCode: 'AU', ...range }]);
+    mocks.commodityWarehouseReceiptGroupBy.mockResolvedValue([{ productCode: 'AU', ...range }]);
+    mocks.commodityHoldingPositionGroupBy.mockResolvedValue([{ productCode: 'AU', ...range }]);
+
+    const result = await searchResearchDataCatalog({ query: '黄金', scope: 'datasets' });
+
+    expect(result.datasets).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ method: 'data.commodity_returns', product: 'AU' }),
+        expect.objectContaining({ method: 'data.commodity_warehouse_receipts', product: 'AU' }),
+        expect.objectContaining({ method: 'data.commodity_holdings', product: 'AU' }),
+      ]),
+    );
   });
 
   it('ranks exact stable identifiers and exposes measure compatibility', async () => {

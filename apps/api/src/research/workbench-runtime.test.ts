@@ -2,6 +2,9 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   RESEARCH_BACKTEST_REPORT_SDK_CONTRACT_V1,
   RESEARCH_CROSS_SECTION_SDK_CONTRACT_V1,
+  RESEARCH_COMMODITY_HOLDINGS_SDK_CONTRACT_V1,
+  RESEARCH_COMMODITY_RETURNS_SDK_CONTRACT_V1,
+  RESEARCH_COMMODITY_WAREHOUSE_RECEIPTS_SDK_CONTRACT_V1,
   RESEARCH_FACTOR_REPORT_SDK_CONTRACT_V1,
   RESEARCH_FX_SDK_CONTRACT_V1,
   RESEARCH_MACRO_SDK_CONTRACT_V1,
@@ -186,7 +189,7 @@ describe('research workbench Python runtime', () => {
     const result = await researchRuntimeManager.execute(DOCUMENT_ID, {
       id: 'signature',
       source:
-        'import inspect\n"|".join(",".join(inspect.signature(method).parameters.keys()) for method in [data.series, data.cross_section, data.panel, data.yield_curve, data.macro, data.fx, results.factor_report, results.backtest_report])',
+        'import inspect\n"|".join(",".join(inspect.signature(method).parameters.keys()) for method in [data.series, data.cross_section, data.panel, data.yield_curve, data.macro, data.fx, data.commodity_returns, data.commodity_warehouse_receipts, data.commodity_holdings, results.factor_report, results.backtest_report])',
     });
 
     expect(result.outputs).toEqual([
@@ -199,6 +202,9 @@ describe('research workbench Python runtime', () => {
           RESEARCH_YIELD_CURVE_SDK_CONTRACT_V1,
           RESEARCH_MACRO_SDK_CONTRACT_V1,
           RESEARCH_FX_SDK_CONTRACT_V1,
+          RESEARCH_COMMODITY_RETURNS_SDK_CONTRACT_V1,
+          RESEARCH_COMMODITY_WAREHOUSE_RECEIPTS_SDK_CONTRACT_V1,
+          RESEARCH_COMMODITY_HOLDINGS_SDK_CONTRACT_V1,
           RESEARCH_FACTOR_REPORT_SDK_CONTRACT_V1,
           RESEARCH_BACKTEST_REPORT_SDK_CONTRACT_V1,
         ]

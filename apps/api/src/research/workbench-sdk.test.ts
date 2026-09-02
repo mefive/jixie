@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   RESEARCH_CROSS_SECTION_SDK_CONTRACT_V1,
+  RESEARCH_COMMODITY_HOLDINGS_SDK_CONTRACT_V1,
+  RESEARCH_COMMODITY_RETURNS_SDK_CONTRACT_V1,
+  RESEARCH_COMMODITY_WAREHOUSE_RECEIPTS_SDK_CONTRACT_V1,
   RESEARCH_BACKTEST_REPORT_SDK_CONTRACT_V1,
   RESEARCH_FACTOR_REPORT_SDK_CONTRACT_V1,
   RESEARCH_FX_SDK_CONTRACT_V1,
@@ -12,6 +15,9 @@ import {
 } from '@jixie/shared';
 import {
   parseResearchCrossSectionRuntimeRequest,
+  parseResearchCommodityHoldingsRuntimeRequest,
+  parseResearchCommodityReturnsRuntimeRequest,
+  parseResearchCommodityWarehouseReceiptsRuntimeRequest,
   parseResearchBacktestReportRuntimeRequest,
   parseResearchEquityDatasetRuntimeRows,
   parseResearchFactorReportRuntimeRequest,
@@ -98,6 +104,23 @@ describe('research workbench SDK contract', () => {
     ).toMatchObject({ pair: 'HKDCNH.DERIVED', transform: 'percent_change' });
     expect(RESEARCH_MACRO_SDK_CONTRACT_V1.qualifiedName).toBe('data.macro');
     expect(RESEARCH_FX_SDK_CONTRACT_V1.qualifiedName).toBe('data.fx');
+  });
+
+  it('drives the three governed commodity dataset bridges', () => {
+    const request = { product: 'AU', start: '20200101', end: '20251231' };
+    expect(parseResearchCommodityReturnsRuntimeRequest(request)).toEqual(request);
+    expect(parseResearchCommodityWarehouseReceiptsRuntimeRequest(request)).toEqual(request);
+    expect(parseResearchCommodityHoldingsRuntimeRequest(request)).toEqual(request);
+    expect(() =>
+      parseResearchCommodityHoldingsRuntimeRequest({ ...request, product: 'SC' }),
+    ).toThrow();
+    expect(RESEARCH_COMMODITY_RETURNS_SDK_CONTRACT_V1.qualifiedName).toBe('data.commodity_returns');
+    expect(RESEARCH_COMMODITY_WAREHOUSE_RECEIPTS_SDK_CONTRACT_V1.qualifiedName).toBe(
+      'data.commodity_warehouse_receipts',
+    );
+    expect(RESEARCH_COMMODITY_HOLDINGS_SDK_CONTRACT_V1.qualifiedName).toBe(
+      'data.commodity_holdings',
+    );
   });
 
   it('drives both fixed-schema equity dataset bridge requests', () => {

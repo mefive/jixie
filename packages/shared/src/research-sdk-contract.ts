@@ -52,6 +52,11 @@ export const RESEARCH_MACRO_SERIES_KEYS_V1 = [
 export const RESEARCH_FX_SERIES_IDS_V1 = ['USDCNH.FXCM', 'USDHKD.FXCM', 'HKDCNH.DERIVED'] as const;
 export type ResearchMacroSeriesKeyV1 = (typeof RESEARCH_MACRO_SERIES_KEYS_V1)[number];
 export type ResearchFxSeriesIdV1 = (typeof RESEARCH_FX_SERIES_IDS_V1)[number];
+export const RESEARCH_COMMODITY_PRODUCT_CODES_V1 = ['AU', 'CU', 'SC', 'M'] as const;
+export const RESEARCH_COMMODITY_HOLDING_PRODUCT_CODES_V1 = ['AU', 'CU', 'M'] as const;
+export type ResearchCommodityProductCodeV1 = (typeof RESEARCH_COMMODITY_PRODUCT_CODES_V1)[number];
+export type ResearchCommodityHoldingProductCodeV1 =
+  (typeof RESEARCH_COMMODITY_HOLDING_PRODUCT_CODES_V1)[number];
 export const RESEARCH_PARTIAL_PERIOD_POLICIES_V1 = ['exclude', 'include'] as const;
 export const RESEARCH_EQUITY_UNIVERSE_SUGGESTIONS_V1 = [
   'cn_a',
@@ -313,6 +318,204 @@ export const RESEARCH_EQUITY_DATAFRAME_COLUMNS_V1 = [
     descriptionEn: 'Turnover rate based on float shares, in percent.',
   },
 ] as const satisfies readonly ResearchSdkDataFrameColumnContractV1[];
+
+const commodityIdentityColumns = [
+  {
+    name: 'date',
+    wireType: 'trade_date',
+    pythonType: 'datetime64[ns]',
+    descriptionZh: '该观测首次可用于研究的日期。',
+    descriptionEn: 'The first date on which the observation is available to research.',
+  },
+  {
+    name: 'trade_date',
+    wireType: 'trade_date',
+    pythonType: 'datetime64[ns]',
+    descriptionZh: '来源市场交易日。',
+    descriptionEn: 'The source-market trading date.',
+  },
+  {
+    name: 'product',
+    wireType: 'string',
+    pythonType: 'str',
+    descriptionZh: '商品品种代码。',
+    descriptionEn: 'The commodity product code.',
+  },
+] as const satisfies readonly ResearchSdkDataFrameColumnContractV1[];
+
+export const RESEARCH_COMMODITY_RETURN_COLUMNS_V1 = [
+  ...commodityIdentityColumns,
+  {
+    name: 'continuous_code',
+    wireType: 'string',
+    pythonType: 'str',
+    descriptionZh: '研究用连续合约代码。',
+    descriptionEn: 'The research-only continuous contract code.',
+  },
+  {
+    name: 'mapped_contract',
+    wireType: 'string',
+    pythonType: 'str',
+    descriptionZh: '当日确定性映射的实际合约。',
+    descriptionEn: 'The actual contract selected by the deterministic mapping.',
+  },
+  ...[
+    ['continuous_return', '连续结算收益率。', 'Continuous settlement return.'],
+    ['continuous_log_return', '连续结算对数收益率。', 'Continuous settlement log return.'],
+    [
+      'mapped_log_return',
+      '映射合约切换前后的对数收益。',
+      'Mapped-contract log return across the interval.',
+    ],
+    [
+      'roll_gap_log_return',
+      '换月代码切换带来的对数价差。',
+      'Log price gap caused by a contract-code change.',
+    ],
+    [
+      'roll_yield_proxy',
+      '与换月价差反号的期限结构代理。',
+      'Opposite-signed roll-gap term-structure proxy.',
+    ],
+  ].map(([name, descriptionZh, descriptionEn]) => ({
+    name,
+    wireType: 'number' as const,
+    pythonType: 'float64',
+    descriptionZh,
+    descriptionEn,
+  })),
+  {
+    name: 'mapping_changed',
+    wireType: 'boolean',
+    pythonType: 'bool',
+    descriptionZh: '当日是否发生映射合约切换。',
+    descriptionEn: 'Whether the mapped contract changed on that date.',
+  },
+] satisfies readonly ResearchSdkDataFrameColumnContractV1[];
+
+export const RESEARCH_COMMODITY_WAREHOUSE_RECEIPT_COLUMNS_V1 = [
+  ...commodityIdentityColumns,
+  {
+    name: 'unit',
+    wireType: 'string',
+    pythonType: 'str',
+    descriptionZh: '交易所报告单位。',
+    descriptionEn: 'The exchange-reported unit.',
+  },
+  {
+    name: 'volume',
+    wireType: 'number',
+    pythonType: 'float64',
+    descriptionZh: '仓单总量。',
+    descriptionEn: 'Total warehouse-receipt volume.',
+  },
+  {
+    name: 'volume_change',
+    wireType: 'nullable_number',
+    pythonType: 'float64',
+    descriptionZh: '相对上次报告的仓单变化量。',
+    descriptionEn: 'Warehouse-receipt change from the previous report.',
+  },
+  {
+    name: 'unit_correction_applied',
+    wireType: 'boolean',
+    pythonType: 'bool',
+    descriptionZh: '是否应用过审计确认的单位修正。',
+    descriptionEn: 'Whether an audited unit correction was applied.',
+  },
+] as const satisfies readonly ResearchSdkDataFrameColumnContractV1[];
+
+export const RESEARCH_COMMODITY_HOLDING_COLUMNS_V1 = [
+  ...commodityIdentityColumns,
+  {
+    name: 'reference_contract',
+    wireType: 'string',
+    pythonType: 'str',
+    descriptionZh: '当日持仓排名对应的实际代表合约。',
+    descriptionEn: 'The actual representative contract for the ranked-member report.',
+  },
+  ...[
+    ['contract_open_interest', '代表合约总持仓量。', 'Representative-contract open interest.'],
+    ['contract_volume', '代表合约成交量。', 'Representative-contract volume.'],
+    ['ranked_volume', '排名会员成交量合计。', 'Aggregate volume of ranked members.'],
+    ['ranked_volume_change', '排名会员成交量变化。', 'Change in ranked-member volume.'],
+    ['ranked_long_holding', '排名会员多头持仓合计。', 'Aggregate ranked-member long holdings.'],
+    ['ranked_long_change', '排名会员多头持仓变化。', 'Change in ranked-member long holdings.'],
+    ['ranked_short_holding', '排名会员空头持仓合计。', 'Aggregate ranked-member short holdings.'],
+    ['ranked_short_change', '排名会员空头持仓变化。', 'Change in ranked-member short holdings.'],
+    ['top_five_long_holding', '前五名会员多头持仓合计。', 'Top-five member long holdings.'],
+    ['top_five_short_holding', '前五名会员空头持仓合计。', 'Top-five member short holdings.'],
+    ['volume_member_count', '成交量排名会员数。', 'Number of ranked volume members.'],
+    ['long_member_count', '多头排名会员数。', 'Number of ranked long members.'],
+    ['short_member_count', '空头排名会员数。', 'Number of ranked short members.'],
+  ].map(([name, descriptionZh, descriptionEn]) => ({
+    name,
+    wireType: name.endsWith('_change') ? ('nullable_number' as const) : ('number' as const),
+    pythonType: 'float64',
+    descriptionZh,
+    descriptionEn,
+  })),
+  {
+    name: 'source_correction_applied',
+    wireType: 'boolean',
+    pythonType: 'bool',
+    descriptionZh: '是否应用过审计确认的来源修正。',
+    descriptionEn: 'Whether an audited source correction was applied.',
+  },
+] satisfies readonly ResearchSdkDataFrameColumnContractV1[];
+
+function commodityDatasetFunction(
+  name: 'commodity_returns' | 'commodity_warehouse_receipts' | 'commodity_holdings',
+  descriptionZh: string,
+  descriptionEn: string,
+  productValues: readonly string[],
+  columns: readonly ResearchSdkDataFrameColumnContractV1[],
+): ResearchSdkFunctionContractV1 {
+  return {
+    qualifiedName: `data.${name}`,
+    namespace: 'data',
+    name,
+    descriptionZh,
+    descriptionEn,
+    examples: [`data.${name}("${productValues[0]}", start="20200101", end="20251231")`],
+    notesZh: [
+      'date 是研究可得日，trade_date 是来源交易日；查询严格按 date 防止未来数据泄漏。',
+      '该数据只用于研究，不表示平台支持相应商品的交易执行。',
+    ],
+    notesEn: [
+      'date is the research availability date and trade_date is the source-market date; queries are gated by date to prevent look-ahead.',
+      'These data are research-only and do not imply trading support for the commodity.',
+    ],
+    parameters: [
+      {
+        name: 'product',
+        type: 'enum',
+        required: true,
+        keywordOnly: false,
+        values: productValues,
+        descriptionZh: '平台审核过的商品品种代码。',
+        descriptionEn: 'A governed commodity product code.',
+      },
+      {
+        name: 'start',
+        type: 'date',
+        required: true,
+        keywordOnly: true,
+        descriptionZh: '研究可得日起始日期，格式 YYYYMMDD。',
+        descriptionEn: 'Inclusive research-availability start date in YYYYMMDD format.',
+      },
+      {
+        name: 'end',
+        type: 'date',
+        required: true,
+        keywordOnly: true,
+        descriptionZh: '研究可得日结束日期，格式 YYYYMMDD。',
+        descriptionEn: 'Inclusive research-availability end date in YYYYMMDD format.',
+      },
+    ],
+    returns: { kind: 'dataframe', columns },
+  };
+}
 
 function chartFunction(
   name: 'line' | 'area' | 'bar' | 'scatter' | 'event_path',
@@ -925,6 +1128,27 @@ export const RESEARCH_SDK_CONTRACT_V1 = {
       ],
       returns: { kind: 'mapping', pythonType: 'Mapping[str, Any]' },
     },
+    commodityDatasetFunction(
+      'commodity_returns',
+      '读取审计过的商品主力合约连续收益与换月分解。',
+      'Load audited commodity main-contract continuous returns and roll decomposition.',
+      RESEARCH_COMMODITY_PRODUCT_CODES_V1,
+      RESEARCH_COMMODITY_RETURN_COLUMNS_V1,
+    ),
+    commodityDatasetFunction(
+      'commodity_warehouse_receipts',
+      '读取交易所商品仓单总量与变化。',
+      'Load exchange commodity warehouse-receipt totals and changes.',
+      RESEARCH_COMMODITY_PRODUCT_CODES_V1,
+      RESEARCH_COMMODITY_WAREHOUSE_RECEIPT_COLUMNS_V1,
+    ),
+    commodityDatasetFunction(
+      'commodity_holdings',
+      '读取实际代表合约的排名会员持仓聚合。',
+      'Load ranked-member holding aggregates for the actual representative contract.',
+      RESEARCH_COMMODITY_HOLDING_PRODUCT_CODES_V1,
+      RESEARCH_COMMODITY_HOLDING_COLUMNS_V1,
+    ),
     chartFunction(
       'line',
       '创建 jixie 原生交互折线图。',
@@ -1080,3 +1304,7 @@ export const RESEARCH_MACRO_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions
 export const RESEARCH_FX_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[5];
 export const RESEARCH_FACTOR_REPORT_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[6];
 export const RESEARCH_BACKTEST_REPORT_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[7];
+export const RESEARCH_COMMODITY_RETURNS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[8];
+export const RESEARCH_COMMODITY_WAREHOUSE_RECEIPTS_SDK_CONTRACT_V1 =
+  RESEARCH_SDK_CONTRACT_V1.functions[9];
+export const RESEARCH_COMMODITY_HOLDINGS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[10];
