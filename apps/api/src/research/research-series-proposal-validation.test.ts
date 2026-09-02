@@ -113,7 +113,7 @@ describe('Research Agent series proposal validation', () => {
     ).rejects.toThrow('not in the Research SDK instrument catalog');
   });
 
-  it('accepts only literal yield-curve pairs in the governed binding registry', async () => {
+  it('accepts only literal yield-curve pairs in the governed SDK contract', async () => {
     await expect(
       validateResearchSeriesProposal([
         {
@@ -145,9 +145,45 @@ describe('Research Agent series proposal validation', () => {
           cellId: 'unsupported-yield',
           definitions: [],
           references: [],
-          yieldCurveRequests: [{ line: 5, curve: 'us_treasury_real', tenor: '1Y' }],
+          yieldCurveRequests: [{ line: 5, curve: 'us_treasury_real', tenor: '1D' }],
         },
       ]),
     ).rejects.toThrow('unsupported curve/tenor pair');
+  });
+
+  it('accepts only literal governed macro and FX identities', async () => {
+    await expect(
+      validateResearchSeriesProposal([
+        {
+          cellId: 'macro-fx',
+          definitions: [],
+          references: [],
+          macroRequests: [{ line: 1, series: 'cn_cpi_yoy' }],
+          fxRequests: [{ line: 2, pair: 'HKDCNH.DERIVED' }],
+        },
+      ]),
+    ).resolves.toBeUndefined();
+
+    await expect(
+      validateResearchSeriesProposal([
+        {
+          cellId: 'invented-macro',
+          definitions: [],
+          references: [],
+          macroRequests: [{ line: 1, series: 'cn_invented' }],
+        },
+      ]),
+    ).rejects.toThrow('unsupported series');
+
+    await expect(
+      validateResearchSeriesProposal([
+        {
+          cellId: 'dynamic-fx',
+          definitions: [],
+          references: [],
+          fxRequests: [{ line: 1, pair: null }],
+        },
+      ]),
+    ).rejects.toThrow('must use a literal pair');
   });
 });

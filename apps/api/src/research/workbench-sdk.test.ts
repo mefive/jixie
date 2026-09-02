@@ -3,6 +3,8 @@ import {
   RESEARCH_CROSS_SECTION_SDK_CONTRACT_V1,
   RESEARCH_BACKTEST_REPORT_SDK_CONTRACT_V1,
   RESEARCH_FACTOR_REPORT_SDK_CONTRACT_V1,
+  RESEARCH_FX_SDK_CONTRACT_V1,
+  RESEARCH_MACRO_SDK_CONTRACT_V1,
   RESEARCH_PANEL_SDK_CONTRACT_V1,
   RESEARCH_SDK_CONTRACT_V1,
   RESEARCH_SERIES_SDK_CONTRACT_V1,
@@ -13,6 +15,8 @@ import {
   parseResearchBacktestReportRuntimeRequest,
   parseResearchEquityDatasetRuntimeRows,
   parseResearchFactorReportRuntimeRequest,
+  parseResearchFxRuntimeRequest,
+  parseResearchMacroRuntimeRequest,
   parseResearchPanelRuntimeRequest,
   parseResearchSeriesRuntimeRequest,
   parseResearchSeriesRuntimeRows,
@@ -69,6 +73,31 @@ describe('research workbench SDK contract', () => {
       kind: 'dataframe',
       columns: [{ name: 'date' }, { name: 'value' }],
     });
+  });
+
+  it('drives the governed macro and FX bridge requests', () => {
+    expect(
+      parseResearchMacroRuntimeRequest({
+        series: 'cn_cpi_yoy',
+        start: '20200101',
+        end: '20251231',
+        frequency: 'monthly',
+        transform: 'year_over_year',
+        partial_period: 'exclude',
+      }),
+    ).toMatchObject({ series: 'cn_cpi_yoy', transform: 'year_over_year' });
+    expect(
+      parseResearchFxRuntimeRequest({
+        pair: 'HKDCNH.DERIVED',
+        start: '20200101',
+        end: '20251231',
+        frequency: 'daily',
+        transform: 'percent_change',
+        partial_period: 'exclude',
+      }),
+    ).toMatchObject({ pair: 'HKDCNH.DERIVED', transform: 'percent_change' });
+    expect(RESEARCH_MACRO_SDK_CONTRACT_V1.qualifiedName).toBe('data.macro');
+    expect(RESEARCH_FX_SDK_CONTRACT_V1.qualifiedName).toBe('data.fx');
   });
 
   it('drives both fixed-schema equity dataset bridge requests', () => {

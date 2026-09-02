@@ -1,7 +1,15 @@
 import type {
+  ResearchFxSeriesIdV1,
+  ResearchMacroSeriesKeyV1,
   ResearchSeriesSourceV1,
   ResearchYieldCurveCodeV1,
   ResearchYieldTenorV1,
+} from '@jixie/shared';
+import {
+  RESEARCH_FX_SERIES_IDS_V1,
+  RESEARCH_MACRO_SERIES_KEYS_V1,
+  RESEARCH_YIELD_CURVE_CODES_V1,
+  RESEARCH_YIELD_TENORS_V1,
 } from '@jixie/shared';
 import type { ResearchConceptDimensionsV1, ResearchConceptId } from './concepts.js';
 import {
@@ -230,6 +238,14 @@ export type ResearchConceptBindingSdkCallV1 =
       method: 'data.yield_curve';
       curve: ResearchYieldCurveCodeV1;
       tenor: ResearchYieldTenorV1;
+    }
+  | {
+      method: 'data.macro';
+      series: ResearchMacroSeriesKeyV1;
+    }
+  | {
+      method: 'data.fx';
+      pair: ResearchFxSeriesIdV1;
     };
 
 /** Return the exact public Research SDK call for a binding, or null when it is not exposed yet. */
@@ -244,18 +260,76 @@ export function researchConceptBindingSdkCall(
       measure: binding.measure,
     };
   }
-  if (
-    binding.source.kind === 'yield_curve' &&
-    (binding.source.curveCode === 'us_treasury_nominal' ||
-      binding.source.curveCode === 'us_treasury_real')
-  ) {
-    return {
-      method: 'data.yield_curve',
-      curve: binding.source.curveCode,
-      tenor: tenorLabel(binding.source.termYears) as ResearchYieldTenorV1,
-    };
+  if (binding.source.kind === 'yield_curve') {
+    return researchYieldCurveSdkCall(
+      binding.source.curveCode,
+      binding.source.curveType,
+      binding.source.termYears,
+    );
+  }
+  if (binding.source.kind === 'macro') {
+    return researchMacroSdkCall(binding.source.seriesKey);
+  }
+  if (binding.source.kind === 'fx') {
+    return researchFxSdkCall(binding.source.id);
   }
   return null;
+}
+
+export function researchMacroSdkCall(
+  seriesKey: string,
+): Extract<ResearchConceptBindingSdkCallV1, { method: 'data.macro' }> | null {
+  return RESEARCH_MACRO_SERIES_KEYS_V1.includes(seriesKey as ResearchMacroSeriesKeyV1)
+    ? { method: 'data.macro', series: seriesKey as ResearchMacroSeriesKeyV1 }
+    : null;
+}
+
+export function researchFxSdkCall(
+  pair: string,
+): Extract<ResearchConceptBindingSdkCallV1, { method: 'data.fx' }> | null {
+  return RESEARCH_FX_SERIES_IDS_V1.includes(pair as ResearchFxSeriesIdV1)
+    ? { method: 'data.fx', pair: pair as ResearchFxSeriesIdV1 }
+    : null;
+}
+
+export function researchYieldCurveSdkCall(
+  curveCode: string,
+  curveType: string,
+  termYears: number,
+): Extract<ResearchConceptBindingSdkCallV1, { method: 'data.yield_curve' }> | null {
+  const curve = curveCode as ResearchYieldCurveCodeV1;
+  const tenor = tenorLabel(termYears) as ResearchYieldTenorV1;
+  return RESEARCH_YIELD_CURVE_CODES_V1.includes(curve) &&
+    RESEARCH_YIELD_TENORS_V1.includes(tenor) &&
+    curveType === researchYieldCurveType(curve)
+    ? { method: 'data.yield_curve', curve, tenor }
+    : null;
+}
+
+export function researchYieldCurveSourceForSdkCall(
+  curveCode: string,
+  tenor: string,
+): {
+  source: Extract<ResearchSeriesSourceV1, { kind: 'yield_curve' }>;
+  measure: 'rates.yield_pct';
+} | null {
+  const curve = curveCode as ResearchYieldCurveCodeV1;
+  const parsedTenor = tenor as ResearchYieldTenorV1;
+  if (
+    !RESEARCH_YIELD_CURVE_CODES_V1.includes(curve) ||
+    !RESEARCH_YIELD_TENORS_V1.includes(parsedTenor)
+  ) {
+    return null;
+  }
+  return {
+    source: {
+      kind: 'yield_curve',
+      curveCode: curve,
+      curveType: researchYieldCurveType(curve),
+      termYears: tenorYears(parsedTenor),
+    },
+    measure: 'rates.yield_pct',
+  };
 }
 
 /** Resolve one exact public yield-curve SDK identity through the audited binding registry. */
@@ -269,6 +343,25 @@ export function researchYieldCurveBindingForSdkCall(
       return call?.method === 'data.yield_curve' && call.curve === curve && call.tenor === tenor;
     }) ?? null
   );
+}
+
+function researchYieldCurveType(curve: ResearchYieldCurveCodeV1): 'par' | 'ytm' {
+  return curve.startsWith('us_treasury_') ? 'par' : 'ytm';
+}
+
+function tenorYears(tenor: ResearchYieldTenorV1): number {
+  switch (tenor) {
+    case '1M':
+      return 1 / 12;
+    case '2M':
+      return 1 / 6;
+    case '3M':
+      return 1 / 4;
+    case '6M':
+      return 1 / 2;
+    default:
+      return Number.parseInt(tenor, 10);
+  }
 }
 
 function instrumentBinding(input: {

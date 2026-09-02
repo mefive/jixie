@@ -85,14 +85,38 @@ export function researchDatasetSnippet(options: ResearchDatasetSnippetOptions): 
     frequency="daily",
     transform="level",
 )`;
+    case 'data.macro':
+      return `${variable} = data.macro(
+    ${JSON.stringify(dataset.series)},
+    start=${JSON.stringify(start)},
+    end=${JSON.stringify(end)},
+    frequency="daily",
+    transform="level",
+)`;
+    case 'data.fx':
+      return `${variable} = data.fx(
+    ${JSON.stringify(dataset.pair)},
+    start=${JSON.stringify(start)},
+    end=${JSON.stringify(end)},
+    frequency="daily",
+    transform="level",
+)`;
   }
 }
 
 function researchDatasetVariableName(dataset: ResearchDataCatalogDatasetV1): string {
-  const source =
-    dataset.method === 'data.yield_curve'
-      ? `${dataset.curve}_${dataset.tenor}`
-      : `${dataset.universe}_${dataset.method === 'data.panel' ? 'panel' : 'cross_section'}`;
+  const source = (() => {
+    switch (dataset.method) {
+      case 'data.yield_curve':
+        return `${dataset.curve}_${dataset.tenor}`;
+      case 'data.macro':
+        return dataset.series;
+      case 'data.fx':
+        return dataset.pair;
+      default:
+        return `${dataset.universe}_${dataset.method === 'data.panel' ? 'panel' : 'cross_section'}`;
+    }
+  })();
   const identifier = source
     .toLocaleLowerCase()
     .replace(/[^a-z0-9]+/g, '_')

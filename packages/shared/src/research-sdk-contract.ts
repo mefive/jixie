@@ -7,7 +7,14 @@ export const RESEARCH_SERIES_TRANSFORMS_V1 = [
   'percent_change',
   'year_over_year',
 ] as const;
-export const RESEARCH_YIELD_CURVE_CODES_V1 = ['us_treasury_nominal', 'us_treasury_real'] as const;
+export const RESEARCH_YIELD_CURVE_CODES_V1 = [
+  'us_treasury_nominal',
+  'us_treasury_real',
+  'mof_cgb_ytm',
+  'chinabond_cgb_ytm',
+  'chinabond_bank_aaa_ytm',
+  'chinabond_cp_note_aaa_ytm',
+] as const;
 export const RESEARCH_YIELD_TENORS_V1 = [
   '1M',
   '2M',
@@ -26,6 +33,25 @@ export const RESEARCH_YIELD_TRANSFORMS_V1 = ['level', 'difference'] as const;
 export type ResearchYieldCurveCodeV1 = (typeof RESEARCH_YIELD_CURVE_CODES_V1)[number];
 export type ResearchYieldTenorV1 = (typeof RESEARCH_YIELD_TENORS_V1)[number];
 export type ResearchYieldTransformV1 = (typeof RESEARCH_YIELD_TRANSFORMS_V1)[number];
+export const RESEARCH_MACRO_SERIES_KEYS_V1 = [
+  'cn_cpi_yoy',
+  'cn_ppi_yoy',
+  'cn_pmi_manufacturing',
+  'cn_social_financing_increment',
+  'cn_social_financing_stock',
+  'cn_m1_balance',
+  'cn_m1_yoy',
+  'cn_m2_balance',
+  'cn_m2_yoy',
+  'cn_shibor_overnight',
+  'cn_shibor_1w',
+  'cn_shibor_1m',
+  'cn_shibor_3m',
+  'us_cpi_u_all_items_nsa',
+] as const;
+export const RESEARCH_FX_SERIES_IDS_V1 = ['USDCNH.FXCM', 'USDHKD.FXCM', 'HKDCNH.DERIVED'] as const;
+export type ResearchMacroSeriesKeyV1 = (typeof RESEARCH_MACRO_SERIES_KEYS_V1)[number];
+export type ResearchFxSeriesIdV1 = (typeof RESEARCH_FX_SERIES_IDS_V1)[number];
 export const RESEARCH_PARTIAL_PERIOD_POLICIES_V1 = ['exclude', 'include'] as const;
 export const RESEARCH_EQUITY_UNIVERSE_SUGGESTIONS_V1 = [
   'cn_a',
@@ -643,6 +669,195 @@ export const RESEARCH_SDK_CONTRACT_V1 = {
       },
     },
     {
+      qualifiedName: 'data.macro',
+      namespace: 'data',
+      name: 'macro',
+      descriptionZh: '读取按发布日期、可得日和版本治理的宏观或货币市场序列。',
+      descriptionEn:
+        'Load a macroeconomic or money-market series governed by release, availability, and vintage dates.',
+      examples: ['data.macro("cn_cpi_yoy", start="20150101", end="20251231", transform="level")'],
+      notesZh: [
+        'series 必须来自公开宏观目录；返回 date 是研究时真正可用的日期，不是统计期标签。',
+        '历史 latest-value 回填会通过 DataFrame attrs 中的诊断披露，不能描述为历史实时版本。',
+      ],
+      notesEn: [
+        'Resolve series through the public macro catalog; date is the research availability date, not the observation-period label.',
+        'Historical latest-value backfills are disclosed through DataFrame diagnostics and are not real-time historical vintages.',
+      ],
+      parameters: [
+        {
+          name: 'series',
+          type: 'enum',
+          required: true,
+          keywordOnly: false,
+          values: RESEARCH_MACRO_SERIES_KEYS_V1,
+          descriptionZh: '平台审核过的宏观序列标识。',
+          descriptionEn: 'A governed macro series identifier.',
+        },
+        {
+          name: 'start',
+          type: 'date',
+          required: true,
+          keywordOnly: true,
+          descriptionZh: '研究可得日的起始日期，格式为 YYYYMMDD。',
+          descriptionEn: 'Inclusive research-availability start date in YYYYMMDD format.',
+        },
+        {
+          name: 'end',
+          type: 'date',
+          required: true,
+          keywordOnly: true,
+          descriptionZh: '研究可得日的结束日期，格式为 YYYYMMDD。',
+          descriptionEn: 'Inclusive research-availability end date in YYYYMMDD format.',
+        },
+        {
+          name: 'frequency',
+          type: 'enum',
+          required: false,
+          keywordOnly: true,
+          defaultValue: 'daily',
+          values: RESEARCH_SERIES_FREQUENCIES_V1,
+          descriptionZh: '输出频率；daily 保留真实可得日。',
+          descriptionEn: 'Output frequency; daily preserves the actual availability date.',
+        },
+        {
+          name: 'transform',
+          type: 'enum',
+          required: false,
+          keywordOnly: true,
+          defaultValue: 'level',
+          values: RESEARCH_SERIES_TRANSFORMS_V1,
+          descriptionZh: '应用于序列的确定性变换。',
+          descriptionEn: 'The deterministic transform applied to the series.',
+        },
+        {
+          name: 'partial_period',
+          type: 'enum',
+          required: false,
+          keywordOnly: true,
+          defaultValue: 'exclude',
+          values: RESEARCH_PARTIAL_PERIOD_POLICIES_V1,
+          descriptionZh: '是否包含尚未结束的聚合周期。',
+          descriptionEn: 'Whether to include an incomplete aggregate period.',
+        },
+      ],
+      returns: {
+        kind: 'dataframe',
+        columns: [
+          {
+            name: 'date',
+            wireType: 'trade_date',
+            pythonType: 'datetime64[ns]',
+            descriptionZh: '该观测进入研究的可得日期。',
+            descriptionEn: 'The date on which the observation became available to research.',
+          },
+          {
+            name: 'value',
+            wireType: 'number',
+            pythonType: 'float64',
+            descriptionZh: '按序列声明单位表示的值或所选变换结果。',
+            descriptionEn: 'The value in the series-declared unit or selected transformed value.',
+          },
+        ],
+      },
+    },
+    {
+      qualifiedName: 'data.fx',
+      namespace: 'data',
+      name: 'fx',
+      descriptionZh: '读取按跨市场可得日治理的外汇中间收盘价序列。',
+      descriptionEn: 'Load an FX mid-close series governed by cross-market availability dates.',
+      examples: [
+        'data.fx("USDCNH.FXCM", start="20150101", end="20251231", transform="simple_return")',
+      ],
+      notesZh: [
+        '直接序列取 bid/ask 收盘均值；HKDCNH.DERIVED 按同一可得日 USDCNH ÷ USDHKD 推导。',
+        'date 是中国收盘研究可安全使用该外汇数据的首个日期。',
+      ],
+      notesEn: [
+        'Direct series use the bid/ask close midpoint; HKDCNH.DERIVED divides USDCNH by USDHKD on the same availability date.',
+        'date is the first date on which the FX observation is safe for China-close research.',
+      ],
+      parameters: [
+        {
+          name: 'pair',
+          type: 'enum',
+          required: true,
+          keywordOnly: false,
+          values: RESEARCH_FX_SERIES_IDS_V1,
+          descriptionZh: '平台审核过的外汇序列标识。',
+          descriptionEn: 'A governed FX series identifier.',
+        },
+        {
+          name: 'start',
+          type: 'date',
+          required: true,
+          keywordOnly: true,
+          descriptionZh: '起始可得日，格式为 YYYYMMDD。',
+          descriptionEn: 'Inclusive availability start date in YYYYMMDD format.',
+        },
+        {
+          name: 'end',
+          type: 'date',
+          required: true,
+          keywordOnly: true,
+          descriptionZh: '结束可得日，格式为 YYYYMMDD。',
+          descriptionEn: 'Inclusive availability end date in YYYYMMDD format.',
+        },
+        {
+          name: 'frequency',
+          type: 'enum',
+          required: false,
+          keywordOnly: true,
+          defaultValue: 'daily',
+          values: RESEARCH_SERIES_FREQUENCIES_V1,
+          descriptionZh: '输出频率。',
+          descriptionEn: 'Output frequency.',
+        },
+        {
+          name: 'transform',
+          type: 'enum',
+          required: false,
+          keywordOnly: true,
+          defaultValue: 'level',
+          values: RESEARCH_SERIES_TRANSFORMS_V1,
+          descriptionZh: '应用于汇率序列的确定性变换。',
+          descriptionEn: 'The deterministic transform applied to the FX series.',
+        },
+        {
+          name: 'partial_period',
+          type: 'enum',
+          required: false,
+          keywordOnly: true,
+          defaultValue: 'exclude',
+          values: RESEARCH_PARTIAL_PERIOD_POLICIES_V1,
+          descriptionZh: '是否包含尚未结束的聚合周期。',
+          descriptionEn: 'Whether to include an incomplete aggregate period.',
+        },
+      ],
+      returns: {
+        kind: 'dataframe',
+        columns: [
+          {
+            name: 'date',
+            wireType: 'trade_date',
+            pythonType: 'datetime64[ns]',
+            descriptionZh: '该外汇观测进入中国收盘研究的可得日期。',
+            descriptionEn:
+              'The date on which the FX observation became available to China-close research.',
+          },
+          {
+            name: 'value',
+            wireType: 'number',
+            pythonType: 'float64',
+            descriptionZh: '每单位基础货币对应的报价货币中间收盘价或所选变换结果。',
+            descriptionEn:
+              'Quote currency per base currency at the mid close, or the selected transformed value.',
+          },
+        ],
+      },
+    },
+    {
       qualifiedName: 'results.factor_report',
       namespace: 'results',
       name: 'factor_report',
@@ -861,5 +1076,7 @@ export const RESEARCH_SERIES_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.function
 export const RESEARCH_CROSS_SECTION_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[1];
 export const RESEARCH_PANEL_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[2];
 export const RESEARCH_YIELD_CURVE_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[3];
-export const RESEARCH_FACTOR_REPORT_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[4];
-export const RESEARCH_BACKTEST_REPORT_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[5];
+export const RESEARCH_MACRO_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[4];
+export const RESEARCH_FX_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[5];
+export const RESEARCH_FACTOR_REPORT_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[6];
+export const RESEARCH_BACKTEST_REPORT_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[7];

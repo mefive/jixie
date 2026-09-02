@@ -7,7 +7,12 @@ import type {
   FactorLanguage,
 } from './factor.js';
 import type { StrategyLanguage } from './backtest.js';
-import type { ResearchYieldCurveCodeV1, ResearchYieldTenorV1 } from './research-sdk-contract.js';
+import type {
+  ResearchFxSeriesIdV1,
+  ResearchMacroSeriesKeyV1,
+  ResearchYieldCurveCodeV1,
+  ResearchYieldTenorV1,
+} from './research-sdk-contract.js';
 
 export type ResearchAssetTypeV1 = 'stock' | 'etf' | 'index' | 'future';
 export type ResearchDataCatalogScopeV1 =
@@ -229,6 +234,14 @@ export type ResearchDataCatalogDatasetV1 =
       method: 'data.yield_curve';
       curve: ResearchYieldCurveCodeV1;
       tenor: ResearchYieldTenorV1;
+    })
+  | (ResearchDataCatalogDatasetBaseV1 & {
+      method: 'data.macro';
+      series: ResearchMacroSeriesKeyV1;
+    })
+  | (ResearchDataCatalogDatasetBaseV1 & {
+      method: 'data.fx';
+      pair: ResearchFxSeriesIdV1;
     });
 
 /** A completed FactorReport owned by the current user and discoverable from Research. */
