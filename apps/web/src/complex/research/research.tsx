@@ -1168,6 +1168,7 @@ const ResearchAgentPanel = complex.component(({ onClose }: { onClose: () => void
   }, [store.documentId, store.chatMessages.length]);
   const agentBusy = store.sending || store.turnStream.streaming;
   const contextCells = store.agentContextCells;
+  const canSubmit = Boolean(store.prompt.trim()) && !store.hasPendingClarification && !agentBusy;
   const acceptsCellDrag = (event: DragEvent<HTMLElement>): boolean =>
     Array.from(event.dataTransfer.types).includes(RESEARCH_CELL_DRAG_TYPE);
   return (
@@ -1269,6 +1270,12 @@ const ResearchAgentPanel = complex.component(({ onClose }: { onClose: () => void
           }
           setContextDragActive(false);
         }}
+        onMouseDown={(event) => {
+          const target = event.target as HTMLElement;
+          if (!target.closest('button, textarea')) {
+            event.currentTarget.querySelector('textarea')?.focus();
+          }
+        }}
       >
         {contextCells.length > 0 && (
           <div className="jx-research-agentContext" data-testid="research-agent-cell-context">
@@ -1296,19 +1303,31 @@ const ResearchAgentPanel = complex.component(({ onClose }: { onClose: () => void
             ))}
           </div>
         )}
-        <ResearchPromptBox
-          className="jx-research-agentPrompt"
-          value={store.prompt}
-          placeholder={
-            store.hasPendingClarification
-              ? t('workbench.clarification.answerBeforeContinuing')
-              : t('workbench.agentPlaceholder')
-          }
-          autoSize={{ minRows: 3, maxRows: 10 }}
-          disabled={store.hasPendingClarification || agentBusy}
-          onChange={(value) => store.setPrompt(value)}
-          onSubmit={() => void store.send(store.prompt)}
-        />
+        <div className="jx-research-agentInputRow">
+          <ResearchPromptBox
+            className="jx-research-agentPrompt"
+            value={store.prompt}
+            placeholder={
+              store.hasPendingClarification
+                ? t('workbench.clarification.answerBeforeContinuing')
+                : t('workbench.agentPlaceholder')
+            }
+            autoSize={{ minRows: 3, maxRows: 10 }}
+            disabled={store.hasPendingClarification || agentBusy}
+            onChange={(value) => store.setPrompt(value)}
+            onSubmit={() => void store.send(store.prompt)}
+          />
+          <Button
+            type="primary"
+            shape="circle"
+            className="jx-research-agentSend"
+            loading={agentBusy}
+            disabled={!canSubmit}
+            icon={<FontAwesomeIcon icon={faPaperPlane} />}
+            aria-label={t('workbench.sendAgent')}
+            onClick={() => void store.send(store.prompt)}
+          />
+        </div>
       </div>
     </aside>
   );

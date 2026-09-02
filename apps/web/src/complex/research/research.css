@@ -597,7 +597,7 @@
 }
 
 .jx-research-agentComposer {
-  @apply rounded-lg border border-line bg-bg;
+  @apply flex flex-col rounded-lg border border-line bg-bg;
   margin: 8px 12px 12px;
   padding: 4px 8px;
   transition: border-color 0.15s;
@@ -613,7 +613,15 @@
 }
 
 .jx-research-agentPrompt {
-  @apply w-full;
+  @apply min-w-0 flex-1;
+}
+
+.jx-research-agentInputRow {
+  @apply flex items-end gap-2;
+}
+
+.jx-research-agentSend {
+  @apply mb-1 flex-none;
 }
 
 .jx-research-agentContext {
