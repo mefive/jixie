@@ -5,12 +5,29 @@
   font-size: 10px;
 }
 
-.jx-messageParts-cellContext > svg {
+.jx-messageParts-cellContextChip.ant-btn {
+  @apply h-auto rounded border text-white;
+  padding: 1px 6px;
+  border-color: rgb(255 255 255 / 0.24);
+  background: rgb(255 255 255 / 0.1);
+  font-size: 10px;
+}
+
+.jx-messageParts-cellContextChip.ant-btn:hover {
+  color: white;
+  border-color: rgb(255 255 255 / 0.5);
+  background: rgb(255 255 255 / 0.18);
+}
+
+.jx-messageParts-cellContextChip--updated.ant-btn {
+  border-color: rgb(251 191 36 / 0.7);
+}
+
+.jx-messageParts-cellContextChip--deleted.ant-btn {
   opacity: 0.72;
 }
 
-.jx-messageParts-cellContext > span {
-  @apply rounded border px-1.5 py-0.5;
-  border-color: rgb(255 255 255 / 0.24);
-  background: rgb(255 255 255 / 0.1);
+.jx-messageParts-cellContextState {
+  @apply ml-1;
+  opacity: 0.78;
 }

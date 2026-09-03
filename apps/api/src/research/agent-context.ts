@@ -1,4 +1,11 @@
-import { messageText, textMessage, type ChatMessage } from '@jixie/shared';
+import {
+  messageText,
+  researchUpstreamDependencyCellIds,
+  textMessage,
+  type ChatMessage,
+  type ResearchCellContextPart,
+} from '@jixie/shared';
+import { researchPayloadHash } from './fingerprints.js';
 
 const MAX_RESEARCH_AGENT_CONTEXT_CELLS = 100;
 const MAX_RESEARCH_AGENT_SOURCE_CHARACTERS = 48_000;
@@ -90,14 +97,22 @@ export function researchAgentDocumentContext(
 ): {
   context: string;
   editableCellIds: Set<string>;
+  attachedCellIds: string[];
+  dependencyCellIds: string[];
+  snapshotCells: ResearchCellContextPart['cells'];
 } {
   let remainingSourceCharacters = MAX_RESEARCH_AGENT_SOURCE_CHARACTERS;
   const editableCellIds = new Set<string>();
   const cellById = new Map(document.cells.map((cell) => [cell.id, cell]));
   const attachedCellIds = [...new Set(requestedCellIds.filter((cellId) => cellById.has(cellId)))];
-  const dependencyCellIds = upstreamDependencyCellIds(document.cells, attachedCellIds).filter(
-    (cellId) => !attachedCellIds.includes(cellId),
-  );
+  const dependencyCellIds = researchUpstreamDependencyCellIds(
+    document.cells.map((cell) => ({
+      id: cell.id,
+      definitions: stringArray(cell.definitions),
+      references: stringArray(cell.references),
+    })),
+    attachedCellIds,
+  ).filter((cellId) => !attachedCellIds.includes(cellId));
   const sourcePriorityCellIds =
     attachedCellIds.length > 0
       ? [...attachedCellIds, ...dependencyCellIds]
@@ -180,6 +195,29 @@ export function researchAgentDocumentContext(
     };
   });
 
+  const includedDependencyCellIds = dependencyCellIds.filter((cellId) =>
+    contextCellIdSet.has(cellId),
+  );
+  const snapshotCells: ResearchCellContextPart['cells'] = [
+    ...attachedCellIds,
+    ...includedDependencyCellIds,
+  ].flatMap((cellId) => {
+    const cell = cellById.get(cellId);
+    if (!cell || (cell.kind !== 'markdown' && cell.kind !== 'python')) {
+      return [];
+    }
+    return [
+      {
+        cellId: cell.id,
+        position: cell.position,
+        kind: cell.kind,
+        revision: cell.revision,
+        role: attachedCellIdSet.has(cell.id) ? ('attached' as const) : ('dependency' as const),
+        source: cell.source,
+        sourceHash: researchPayloadHash(cell.source),
+      },
+    ];
+  });
   return {
     context: JSON.stringify({
       version: 2,
@@ -190,48 +228,14 @@ export function researchAgentDocumentContext(
       cells: includedCells,
       cellsTruncated: document.cells.length > includedCells.length,
       attachedCellIds,
-      dependencyCellIds: dependencyCellIds.filter((cellId) => contextCellIdSet.has(cellId)),
+      dependencyCellIds: includedDependencyCellIds,
       outputSummaryCellLimit: MAX_RESEARCH_AGENT_OUTPUT_CELLS,
     }),
     editableCellIds,
+    attachedCellIds,
+    dependencyCellIds: includedDependencyCellIds,
+    snapshotCells,
   };
-}
-
-function upstreamDependencyCellIds(
-  cells: ResearchAgentDocumentCell[],
-  rootCellIds: string[],
-): string[] {
-  const cellById = new Map(cells.map((cell) => [cell.id, cell]));
-  const providerCellIdsByDefinition = new Map<string, string[]>();
-  for (const cell of cells) {
-    for (const definition of stringArray(cell.definitions)) {
-      providerCellIdsByDefinition.set(definition, [
-        ...(providerCellIdsByDefinition.get(definition) ?? []),
-        cell.id,
-      ]);
-    }
-  }
-
-  const visited = new Set(rootCellIds);
-  const pending = [...rootCellIds];
-  const dependencies: string[] = [];
-  while (pending.length > 0) {
-    const cell = cellById.get(pending.shift()!);
-    if (!cell) {
-      continue;
-    }
-    for (const reference of stringArray(cell.references)) {
-      for (const providerCellId of providerCellIdsByDefinition.get(reference) ?? []) {
-        if (visited.has(providerCellId)) {
-          continue;
-        }
-        visited.add(providerCellId);
-        dependencies.push(providerCellId);
-        pending.push(providerCellId);
-      }
-    }
-  }
-  return dependencies;
 }
 
 function boundedTextMessage(message: ChatMessage, limit: number): ChatMessage {

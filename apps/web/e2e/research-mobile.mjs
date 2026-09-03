@@ -58,8 +58,16 @@ try {
   }
   await page.screenshot({ path: `${SHOTS}research-mobile-agent.png` });
 
-  await closeAgent.click();
+  await page.getByRole('button', { name: '定位 Cell 01' }).click();
   await agentPane.waitFor({ state: 'detached' });
+  const firstCell = page.locator('[data-cell-id]').first();
+  await firstCell.evaluate((element) => {
+    if (!element.classList.contains('jx-research-cell--contextTarget')) {
+      throw new Error('Cell context navigation did not highlight the mobile target');
+    }
+  });
+  await page.screenshot({ path: `${SHOTS}research-mobile-context-navigation.png` });
+
   await page.getByTestId('research-mobile-actions').click();
   const actionMenu = page.locator('.ant-dropdown-menu');
   await actionMenu.getByText('打开数据目录', { exact: true }).waitFor();
@@ -78,7 +86,7 @@ try {
   await page.getByTestId('research-execution-drawer').waitFor();
 
   console.log(
-    '[research-mobile-e2e] default=document agent=full-width actions=accessible screenshots=3',
+    '[research-mobile-e2e] default=document agent=full-width context=navigable actions=accessible screenshots=4',
   );
 } finally {
   if (documentId) {

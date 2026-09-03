@@ -82,16 +82,27 @@ describe('compactResearchAgentHistory', () => {
         parts: [
           {
             type: 'research_cell_context',
-            cells: [{ cellId: 'cell-2', position: 1, kind: 'python' }],
+            snapshotVersion: 1,
+            cells: [
+              {
+                cellId: 'cell-2',
+                position: 1,
+                kind: 'python',
+                revision: 3,
+                role: 'attached',
+                source: 'value = 42',
+              },
+            ],
           },
           { type: 'text', text: 'Explain this calculation.' },
         ],
       },
     ];
 
-    expect(messageText(compactResearchAgentHistory(history)[0])).toContain(
-      'python Cell 02 [cell-2]',
-    );
+    const compacted = messageText(compactResearchAgentHistory(history)[0]);
+
+    expect(compacted).toContain('python Cell 02 [cell-2]');
+    expect(compacted).not.toContain('value = 42');
   });
 });
 
@@ -214,6 +225,29 @@ describe('researchAgentDocumentContext', () => {
 
     expect(context.attachedCellIds).toEqual(['summary']);
     expect(context.dependencyCellIds).toEqual(['transform', 'load']);
+    expect(result.attachedCellIds).toEqual(['summary']);
+    expect(result.dependencyCellIds).toEqual(['transform', 'load']);
+    expect(result.snapshotCells).toEqual([
+      expect.objectContaining({
+        cellId: 'summary',
+        revision: 1,
+        role: 'attached',
+        source: 'average = returns.mean()',
+        sourceHash: expect.any(String),
+      }),
+      expect.objectContaining({
+        cellId: 'transform',
+        role: 'dependency',
+        source: 'returns = prices.pct_change()',
+        sourceHash: expect.any(String),
+      }),
+      expect.objectContaining({
+        cellId: 'load',
+        role: 'dependency',
+        source: 'prices = data.series("index", "000300.SH")',
+        sourceHash: expect.any(String),
+      }),
+    ]);
     expect(context.cells.find((cell) => cell.id === 'summary')).toMatchObject({
       contextRole: 'attached',
       sourceOmitted: false,

@@ -19,7 +19,7 @@ try {
   await page.goto(BASE, { waitUntil: 'networkidle' });
   await devLogin(page, ownerEmail);
 
-  const document = await api(page, '/api/app/research/documents', {
+  let document = await api(page, '/api/app/research/documents', {
     method: 'POST',
     body: JSON.stringify({ template: 'blank' }),
   });
@@ -28,6 +28,29 @@ try {
     method: 'PATCH',
     body: JSON.stringify({ title }),
   });
+  const markdownCell = document.cells.find((cell) => cell.kind === 'markdown');
+  const initialPythonCell = document.cells.find((cell) => cell.kind === 'python');
+  if (!markdownCell || !initialPythonCell) {
+    throw new Error('blank Research document is missing its initial Cells');
+  }
+  const upstreamSource = 'base_value = 41';
+  const downstreamSource = 'derived_value = base_value + 1';
+  document = await api(page, `/api/app/research/cells/${initialPythonCell.id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      source: upstreamSource,
+      expectedRevision: initialPythonCell.revision,
+    }),
+  });
+  document = await api(page, `/api/app/research/documents/${documentId}/cells`, {
+    method: 'POST',
+    body: JSON.stringify({ kind: 'python', source: downstreamSource }),
+  });
+  const upstreamCell = document.cells.find((cell) => cell.id === initialPythonCell.id);
+  const downstreamCell = document.cells.at(-1);
+  if (!upstreamCell || !downstreamCell || downstreamCell.kind !== 'python') {
+    throw new Error('dependent Python Cells were not created');
+  }
 
   await page.route('**/api/app/research/agent', async (route) => {
     submittedBody = route.request().postDataJSON();
@@ -60,7 +83,7 @@ try {
     waitUntil: 'domcontentloaded',
   });
   const cells = page.locator('[data-cell-id]');
-  await cells.nth(1).waitFor({ timeout: 30_000 });
+  await cells.nth(2).waitFor({ timeout: 30_000 });
   const composer = page.locator('.jx-research-agentComposer');
   await composer.waitFor();
 
@@ -69,8 +92,10 @@ try {
   await cells.nth(0).getByTestId('research-cell-attach-agent').click();
   await page.getByText('Cell 01 · Markdown', { exact: true }).waitFor({ state: 'detached' });
 
-  await cells.nth(1).getByTestId('research-cell-drag-source').dragTo(composer);
-  await page.getByText('Cell 02 · Python', { exact: true }).waitFor();
+  await cells.nth(2).getByTestId('research-cell-drag-source').dragTo(composer);
+  await page.getByText('Cell 03 · Python', { exact: true }).waitFor();
+  await page.getByText('依赖 Cell 02 · Python', { exact: true }).waitFor();
+  await page.getByText('已附加 1 个 Cell · 自动依赖 1 个', { exact: true }).waitFor();
   await cells.nth(0).getByTestId('research-cell-attach-agent').click();
   await page.getByText('Cell 01 · Markdown', { exact: true }).waitFor();
 
@@ -82,7 +107,7 @@ try {
   await sendButton.click();
   await page.getByText('已收到 Cell 上下文。', { exact: true }).waitFor();
 
-  const expectedCellIds = [document.cells[1].id, document.cells[0].id];
+  const expectedCellIds = [downstreamCell.id, markdownCell.id];
   if (
     submittedBody?.message !== '比较这两个 Cell 的研究设计' ||
     JSON.stringify(submittedBody.contextCellIds) !== JSON.stringify(expectedCellIds)
@@ -90,12 +115,58 @@ try {
     throw new Error(`Agent request omitted Cell context: ${JSON.stringify(submittedBody)}`);
   }
   const persistedContext = page.locator('.jx-messageParts-cellContext');
-  await persistedContext.getByText('Cell 02 · Python', { exact: true }).waitFor();
+  await persistedContext.getByText('Cell 03 · Python', { exact: true }).waitFor();
   await persistedContext.getByText('Cell 01 · Markdown', { exact: true }).waitFor();
+  await persistedContext.getByText('依赖 Cell 02 · Python', { exact: true }).waitFor();
   await page.screenshot({ path: `${SHOTS}research-agent-cell-context-message.png` });
 
+  const historicalDependency = page.getByTestId(`research-message-context-${upstreamCell.id}`);
+  await historicalDependency.click();
+  const currentUpstreamCell = page.locator(`[data-cell-id="${upstreamCell.id}"]`);
+  await currentUpstreamCell.waitFor();
+  await currentUpstreamCell.evaluate((element) =>
+    element.scrollIntoView({ behavior: 'instant', block: 'center' }),
+  );
+  await currentUpstreamCell.evaluate((element) => {
+    if (!element.classList.contains('jx-research-cell--contextTarget')) {
+      throw new Error('Current dependency Cell was not highlighted');
+    }
+  });
+  await page.screenshot({ path: `${SHOTS}research-agent-cell-context-navigation.png` });
+
+  const upstreamEditor = currentUpstreamCell.locator('.monaco-editor');
+  await upstreamEditor.waitFor({ timeout: 30_000 });
+  await replaceEditorValue(page, upstreamEditor, 'base_value = 40');
+  await currentUpstreamCell.locator('[data-save-status="dirty"]').waitFor({ timeout: 5_000 });
+  await currentUpstreamCell.locator('[data-save-status="saved"]').waitFor({ timeout: 15_000 });
+  await historicalDependency.getByText('已更新', { exact: true }).waitFor();
+  await historicalDependency.click();
+  const updatedSnapshot = page.getByRole('dialog', { name: '发送时的 Cell 上下文' });
+  await updatedSnapshot.waitFor();
+  await updatedSnapshot.getByText('当前 Cell 已更新', { exact: true }).waitFor();
+  await updatedSnapshot.getByText(upstreamSource, { exact: true }).waitFor();
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${SHOTS}research-agent-cell-context-updated.png` });
+  await updatedSnapshot.locator('.ant-modal-footer .ant-btn').first().click();
+
+  const currentDownstreamCell = page.locator(`[data-cell-id="${downstreamCell.id}"]`);
+  await currentDownstreamCell.getByRole('button', { name: '删除这个 Cell？' }).click();
+  const deletionConfirmation = page.locator('.ant-popconfirm:visible');
+  await deletionConfirmation.waitFor();
+  await deletionConfirmation.locator('.ant-btn-primary').click();
+  await currentDownstreamCell.waitFor({ state: 'detached' });
+  const historicalDownstream = page.getByTestId(`research-message-context-${downstreamCell.id}`);
+  await historicalDownstream.getByText('已删除', { exact: true }).waitFor();
+  await historicalDownstream.click();
+  const deletedSnapshot = page.getByRole('dialog', { name: '发送时的 Cell 上下文' });
+  await deletedSnapshot.waitFor();
+  await deletedSnapshot.getByText('当前 Cell 已删除', { exact: true }).waitFor();
+  await deletedSnapshot.getByText(downstreamSource, { exact: true }).waitFor();
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${SHOTS}research-agent-cell-context-deleted.png` });
+
   console.log(
-    '[research-agent-cell-context-e2e] button=toggle drag=attach composer=unified request=explicit message=durable',
+    '[research-agent-cell-context-e2e] attach=explicit dependency=automatic navigate=highlight updated=snapshot deleted=snapshot',
   );
 } finally {
   if (documentId) {
@@ -141,4 +212,10 @@ async function devLogin(page, email) {
   if (status !== 200) {
     throw new Error(`dev login failed for ${email}: ${status}`);
   }
+}
+
+async function replaceEditorValue(page, editor, value) {
+  await editor.click();
+  await page.keyboard.press(process.platform === 'darwin' ? 'Meta+A' : 'Control+A');
+  await page.keyboard.insertText(value);
 }

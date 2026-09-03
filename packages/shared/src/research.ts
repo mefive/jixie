@@ -728,6 +728,44 @@ export interface ResearchCellV1 {
   updatedAt: string;
 }
 
+/** Resolve transitive upstream Cell providers in breadth-first order. */
+export function researchUpstreamDependencyCellIds(
+  cells: Array<{ id: string; definitions: string[]; references: string[] }>,
+  rootCellIds: string[],
+): string[] {
+  const cellById = new Map(cells.map((cell) => [cell.id, cell]));
+  const providerCellIdsByDefinition = new Map<string, string[]>();
+  for (const cell of cells) {
+    for (const definition of cell.definitions) {
+      providerCellIdsByDefinition.set(definition, [
+        ...(providerCellIdsByDefinition.get(definition) ?? []),
+        cell.id,
+      ]);
+    }
+  }
+
+  const visited = new Set(rootCellIds);
+  const pending = [...rootCellIds];
+  const dependencies: string[] = [];
+  while (pending.length > 0) {
+    const cell = cellById.get(pending.shift()!);
+    if (!cell) {
+      continue;
+    }
+    for (const reference of cell.references) {
+      for (const providerCellId of providerCellIdsByDefinition.get(reference) ?? []) {
+        if (visited.has(providerCellId)) {
+          continue;
+        }
+        visited.add(providerCellId);
+        dependencies.push(providerCellId);
+        pending.push(providerCellId);
+      }
+    }
+  }
+  return dependencies;
+}
+
 export interface ResearchDocumentSummaryV1 extends ResearchConversationMeta {
   cellCount: number;
   staleCount: number;

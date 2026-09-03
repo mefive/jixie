@@ -6,6 +6,7 @@ import {
   Button,
   Dropdown,
   Input,
+  Modal,
   Popconfirm,
   Segmented,
   Skeleton,
@@ -17,12 +18,14 @@ import { useTranslation } from 'react-i18next';
 import { useBlocker, useNavigate } from 'react-router-dom';
 import classNames from 'classnames';
 import type {
+  ResearchCellContextCellV1,
   ResearchCellKindV1,
   ResearchCellStatusV1,
   ResearchCellV1,
   ResearchDocumentListStateV1,
   ResearchDocumentSummaryV1,
 } from '@jixie/shared';
+import { researchCellContextSnapshotState } from '@jixie/shared';
 import {
   faBoxArchive,
   faBoxOpen,
@@ -86,6 +89,11 @@ export const Research = complex.component(() => {
     Boolean(store.requestedExecutionId),
   );
   const [agentOpen, setAgentOpen] = useState(defaultAgentOpen);
+  const [highlightedCellId, setHighlightedCellId] = useState<string | null>(null);
+  const [contextSnapshotCell, setContextSnapshotCell] = useState<ResearchCellContextCellV1 | null>(
+    null,
+  );
+  const highlightTimeoutRef = useRef<number | null>(null);
   const [panelDefaults] = useState(() => researchSplitterDefaults(320));
   useEffect(() => {
     if (store.requestedBacktestReportId && store.documentId) {
@@ -127,6 +135,43 @@ export const Research = complex.component(() => {
     mediaQuery.addEventListener('change', closeAgentOnNarrowViewport);
     return () => mediaQuery.removeEventListener('change', closeAgentOnNarrowViewport);
   }, []);
+  useEffect(() => {
+    setHighlightedCellId(null);
+    setContextSnapshotCell(null);
+  }, [store.documentId]);
+  useEffect(
+    () => () => {
+      if (highlightTimeoutRef.current !== null) {
+        window.clearTimeout(highlightTimeoutRef.current);
+      }
+    },
+    [],
+  );
+  const navigateToCell = (cellId: string) => {
+    if (!store.document?.cells.some((cell) => cell.id === cellId)) {
+      return;
+    }
+    if (window.matchMedia('(max-width: 920px)').matches) {
+      setAgentOpen(false);
+    }
+    setContextSnapshotCell(null);
+    setHighlightedCellId(cellId);
+    if (highlightTimeoutRef.current !== null) {
+      window.clearTimeout(highlightTimeoutRef.current);
+    }
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        const cellElement = [...document.querySelectorAll<HTMLElement>('[data-cell-id]')].find(
+          (element) => element.dataset.cellId === cellId,
+        );
+        cellElement?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    });
+    highlightTimeoutRef.current = window.setTimeout(() => {
+      setHighlightedCellId((current) => (current === cellId ? null : current));
+      highlightTimeoutRef.current = null;
+    }, 2_000);
+  };
   const openHistory = () => {
     setAgentOpen(false);
     setHistoryOpen(true);
@@ -151,6 +196,7 @@ export const Research = complex.component(() => {
             {store.document ? (
               <ResearchWorkspace
                 agentOpen={agentOpen}
+                highlightedCellId={highlightedCellId}
                 onOpenHistory={openHistory}
                 onOpenDataCatalog={() => setDataCatalogOpen(true)}
                 onOpenExecutionHistory={() => setExecutionHistoryOpen(true)}
@@ -169,7 +215,11 @@ export const Research = complex.component(() => {
             min={280}
             max={620}
           >
-            <ResearchAgentPanel onClose={() => setAgentOpen(false)} />
+            <ResearchAgentPanel
+              onClose={() => setAgentOpen(false)}
+              onNavigateToCell={navigateToCell}
+              onOpenContextSnapshot={setContextSnapshotCell}
+            />
           </Splitter.Panel>
         )}
       </Splitter>
@@ -179,6 +229,12 @@ export const Research = complex.component(() => {
         open={executionHistoryOpen}
         initialExecutionId={store.requestedExecutionId}
         onClose={() => setExecutionHistoryOpen(false)}
+      />
+      <ResearchCellContextSnapshotModal
+        cell={contextSnapshotCell}
+        currentCell={store.document?.cells.find((cell) => cell.id === contextSnapshotCell?.cellId)}
+        onClose={() => setContextSnapshotCell(null)}
+        onNavigateToCell={navigateToCell}
       />
     </main>
   );
@@ -549,6 +605,7 @@ const ResearchLanding = complex.component(({ onOpenHistory }: { onOpenHistory: (
 const ResearchWorkspace = complex.component(
   ({
     agentOpen,
+    highlightedCellId,
     onOpenHistory,
     onOpenDataCatalog,
     onOpenExecutionHistory,
@@ -556,6 +613,7 @@ const ResearchWorkspace = complex.component(
     onToggleAgent,
   }: {
     agentOpen: boolean;
+    highlightedCellId: string | null;
     onOpenHistory: () => void;
     onOpenDataCatalog: () => void;
     onOpenExecutionHistory: () => void;
@@ -794,6 +852,7 @@ const ResearchWorkspace = complex.component(
                 key={`${index}:${cell.kind}`}
                 cell={cell}
                 ordinal={index + 1}
+                highlighted={highlightedCellId === cell.id}
                 onOpenAgent={onOpenAgent}
               />
             ))}
@@ -820,10 +879,12 @@ const ResearchCell = complex.component(
   ({
     cell,
     ordinal,
+    highlighted,
     onOpenAgent,
   }: {
     cell: ResearchCellV1;
     ordinal: number;
+    highlighted: boolean;
     onOpenAgent: () => void;
   }) => {
     const store = complex.useStore();
@@ -871,6 +932,7 @@ const ResearchCell = complex.component(
       <article
         className={classNames('jx-research-cell', `jx-research-cell--${cell.status}`, {
           'jx-research-cell--agentReview': changeReview,
+          'jx-research-cell--contextTarget': highlighted,
         })}
         data-testid={`research-cell-${cell.kind}`}
         data-cell-id={cell.id}
@@ -1155,183 +1217,305 @@ function CellSaveState({
 
 // —— Agent panel ——
 
-const ResearchAgentPanel = complex.component(({ onClose }: { onClose: () => void }) => {
-  const store = complex.useStore();
-  const { t } = useTranslation('research');
-  const messagesRef = useRef<HTMLDivElement>(null);
-  const [contextDragActive, setContextDragActive] = useState(false);
-  useLayoutEffect(() => {
-    const messages = messagesRef.current;
-    if (messages) {
-      messages.scrollTop = messages.scrollHeight;
-    }
-  }, [store.documentId, store.chatMessages.length]);
-  const agentBusy = store.sending || store.turnStream.streaming;
-  const contextCells = store.agentContextCells;
-  const canSubmit = Boolean(store.prompt.trim()) && !store.hasPendingClarification && !agentBusy;
-  const acceptsCellDrag = (event: DragEvent<HTMLElement>): boolean =>
-    Array.from(event.dataTransfer.types).includes(RESEARCH_CELL_DRAG_TYPE);
-  return (
-    <aside className="jx-research-agentPanel">
-      <header className="jx-research-agentHead">
-        <Button
-          type="text"
-          size="small"
-          className="jx-research-agentClose"
-          icon={<FontAwesomeIcon icon={faArrowLeft} />}
-          aria-label={t('workbench.backToDocument')}
-          data-testid="research-mobile-agent-close"
-          onClick={onClose}
-        />
-        <span className="jx-research-agentAvatar">
-          <FontAwesomeIcon icon={faCommentDots} />
-        </span>
-        <div>
-          <strong>{t('workbench.agentTitle')}</strong>
-          <span>
-            {contextCells.length > 0
-              ? t('workbench.agentCellContext.attachedCount', { count: contextCells.length })
-              : t('workbench.agentContext')}
+const ResearchAgentPanel = complex.component(
+  ({
+    onClose,
+    onNavigateToCell,
+    onOpenContextSnapshot,
+  }: {
+    onClose: () => void;
+    onNavigateToCell: (cellId: string) => void;
+    onOpenContextSnapshot: (cell: ResearchCellContextCellV1) => void;
+  }) => {
+    const store = complex.useStore();
+    const { t } = useTranslation('research');
+    const messagesRef = useRef<HTMLDivElement>(null);
+    const [contextDragActive, setContextDragActive] = useState(false);
+    useLayoutEffect(() => {
+      const messages = messagesRef.current;
+      if (messages) {
+        messages.scrollTop = messages.scrollHeight;
+      }
+    }, [store.documentId, store.chatMessages.length]);
+    const agentBusy = store.sending || store.turnStream.streaming;
+    const contextCells = store.agentContextCells;
+    const dependencyCells = store.agentContextDependencyCells;
+    const canSubmit = Boolean(store.prompt.trim()) && !store.hasPendingClarification && !agentBusy;
+    const acceptsCellDrag = (event: DragEvent<HTMLElement>): boolean =>
+      Array.from(event.dataTransfer.types).includes(RESEARCH_CELL_DRAG_TYPE);
+    return (
+      <aside className="jx-research-agentPanel">
+        <header className="jx-research-agentHead">
+          <Button
+            type="text"
+            size="small"
+            className="jx-research-agentClose"
+            icon={<FontAwesomeIcon icon={faArrowLeft} />}
+            aria-label={t('workbench.backToDocument')}
+            data-testid="research-mobile-agent-close"
+            onClick={onClose}
+          />
+          <span className="jx-research-agentAvatar">
+            <FontAwesomeIcon icon={faCommentDots} />
           </span>
+          <div>
+            <strong>{t('workbench.agentTitle')}</strong>
+            <span>
+              {contextCells.length > 0
+                ? dependencyCells.length > 0
+                  ? t('workbench.agentCellContext.attachedDependencyCount', {
+                      attached: contextCells.length,
+                      dependencies: dependencyCells.length,
+                    })
+                  : t('workbench.agentCellContext.attachedCount', { count: contextCells.length })
+                : t('workbench.agentContext')}
+            </span>
+          </div>
+        </header>
+        <div ref={messagesRef} className="jx-research-agentMessages">
+          {store.chatMessages.length === 0 && !agentBusy && (
+            <div className="jx-research-agentEmpty">
+              <FontAwesomeIcon icon={faFlask} />
+              <strong>{t('workbench.agentEmptyTitle')}</strong>
+              <p>{t('workbench.agentEmptyHint')}</p>
+            </div>
+          )}
+          {store.chatMessages.map((message, index) => (
+            <div
+              key={message.id ?? index}
+              className={classNames(
+                'jx-research-agentMessage',
+                `jx-research-agentMessage--${message.role}`,
+              )}
+            >
+              <MessageParts
+                message={message}
+                busyResearchCellChangeId={store.resolvingProposalId}
+                busyResearchCellChangeRunId={store.runningProposalId}
+                busyResearchCellChangeExplanationId={store.explainingAttemptId}
+                researchCellChangeAttempts={store.document?.cellChangeAttempts}
+                researchDocumentContentRevision={store.document?.contentRevision}
+                busyResearchClarificationId={store.answeringClarificationId}
+                researchCells={store.document?.cells}
+                onNavigateResearchCellContext={onNavigateToCell}
+                onOpenResearchCellContextSnapshot={onOpenContextSnapshot}
+                onAnswerResearchClarification={(clarification, selections) =>
+                  store.answerClarification(clarification, selections)
+                }
+                onApplyResearchCellChange={(proposalId) =>
+                  store.applyCellChangeProposal(proposalId)
+                }
+                onRejectResearchCellChange={(proposalId) =>
+                  store.rejectCellChangeProposal(proposalId)
+                }
+                onAcceptResearchCellChangeReview={(proposalId) =>
+                  store.acceptCellChangeReview(proposalId)
+                }
+                onRevertResearchCellChangeReview={(proposalId) =>
+                  store.revertCellChangeReview(proposalId)
+                }
+                onRunResearchCellChange={(proposalId) => store.runCellChangeProposal(proposalId)}
+                onExplainResearchCellChangeAttempt={(attempt) =>
+                  store.explainCellChangeAttempt(attempt)
+                }
+              />
+            </div>
+          ))}
+          {agentBusy && <AgentPending stream={store.turnStream} />}
         </div>
-      </header>
-      <div ref={messagesRef} className="jx-research-agentMessages">
-        {store.chatMessages.length === 0 && !agentBusy && (
-          <div className="jx-research-agentEmpty">
-            <FontAwesomeIcon icon={faFlask} />
-            <strong>{t('workbench.agentEmptyTitle')}</strong>
-            <p>{t('workbench.agentEmptyHint')}</p>
-          </div>
-        )}
-        {store.chatMessages.map((message, index) => (
-          <div
-            key={message.id ?? index}
-            className={classNames(
-              'jx-research-agentMessage',
-              `jx-research-agentMessage--${message.role}`,
-            )}
-          >
-            <MessageParts
-              message={message}
-              busyResearchCellChangeId={store.resolvingProposalId}
-              busyResearchCellChangeRunId={store.runningProposalId}
-              busyResearchCellChangeExplanationId={store.explainingAttemptId}
-              researchCellChangeAttempts={store.document?.cellChangeAttempts}
-              researchDocumentContentRevision={store.document?.contentRevision}
-              busyResearchClarificationId={store.answeringClarificationId}
-              onAnswerResearchClarification={(clarification, selections) =>
-                store.answerClarification(clarification, selections)
-              }
-              onApplyResearchCellChange={(proposalId) => store.applyCellChangeProposal(proposalId)}
-              onRejectResearchCellChange={(proposalId) =>
-                store.rejectCellChangeProposal(proposalId)
-              }
-              onAcceptResearchCellChangeReview={(proposalId) =>
-                store.acceptCellChangeReview(proposalId)
-              }
-              onRevertResearchCellChangeReview={(proposalId) =>
-                store.revertCellChangeReview(proposalId)
-              }
-              onRunResearchCellChange={(proposalId) => store.runCellChangeProposal(proposalId)}
-              onExplainResearchCellChangeAttempt={(attempt) =>
-                store.explainCellChangeAttempt(attempt)
-              }
-            />
-          </div>
-        ))}
-        {agentBusy && <AgentPending stream={store.turnStream} />}
-      </div>
-      <div
-        className={classNames('jx-research-agentComposer', {
-          'jx-research-agentComposer--dragActive': contextDragActive,
-        })}
-        onDragOver={(event) => {
-          if (!acceptsCellDrag(event)) {
-            return;
-          }
-          event.preventDefault();
-          event.dataTransfer.dropEffect = 'copy';
-          setContextDragActive(true);
-        }}
-        onDragLeave={(event) => {
-          if (event.relatedTarget && event.currentTarget.contains(event.relatedTarget as Node)) {
-            return;
-          }
-          setContextDragActive(false);
-        }}
-        onDrop={(event) => {
-          if (!acceptsCellDrag(event)) {
-            return;
-          }
-          event.preventDefault();
-          const cellId = event.dataTransfer.getData(RESEARCH_CELL_DRAG_TYPE);
-          if (cellId) {
-            store.attachAgentContextCell(cellId);
-          }
-          setContextDragActive(false);
-        }}
-        onMouseDown={(event) => {
-          const target = event.target as HTMLElement;
-          if (!target.closest('button, textarea')) {
-            event.currentTarget.querySelector('textarea')?.focus();
-          }
-        }}
-      >
-        {contextCells.length > 0 && (
-          <div className="jx-research-agentContext" data-testid="research-agent-cell-context">
-            {contextCells.map((cell) => (
-              <span
-                key={cell.id}
-                className="jx-research-agentContextChip"
-                data-testid={`research-agent-context-${cell.id}`}
-              >
-                <FontAwesomeIcon icon={faPaperclip} />
-                {t('workbench.agentCellContext.label', {
-                  ordinal: String(cell.position + 1).padStart(2, '0'),
-                  kind: t(`workbench.cellKind.${cell.kind}`),
-                })}
+        <div
+          className={classNames('jx-research-agentComposer', {
+            'jx-research-agentComposer--dragActive': contextDragActive,
+          })}
+          onDragOver={(event) => {
+            if (!acceptsCellDrag(event)) {
+              return;
+            }
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'copy';
+            setContextDragActive(true);
+          }}
+          onDragLeave={(event) => {
+            if (event.relatedTarget && event.currentTarget.contains(event.relatedTarget as Node)) {
+              return;
+            }
+            setContextDragActive(false);
+          }}
+          onDrop={(event) => {
+            if (!acceptsCellDrag(event)) {
+              return;
+            }
+            event.preventDefault();
+            const cellId = event.dataTransfer.getData(RESEARCH_CELL_DRAG_TYPE);
+            if (cellId) {
+              store.attachAgentContextCell(cellId);
+            }
+            setContextDragActive(false);
+          }}
+          onMouseDown={(event) => {
+            const target = event.target as HTMLElement;
+            if (!target.closest('button, textarea')) {
+              event.currentTarget.querySelector('textarea')?.focus();
+            }
+          }}
+        >
+          {contextCells.length > 0 && (
+            <div className="jx-research-agentContext" data-testid="research-agent-cell-context">
+              {contextCells.map((cell) => (
+                <span
+                  key={cell.id}
+                  className="jx-research-agentContextChip"
+                  data-testid={`research-agent-context-${cell.id}`}
+                >
+                  <Button
+                    type="text"
+                    size="small"
+                    className="jx-research-agentContextLink"
+                    icon={<FontAwesomeIcon icon={faPaperclip} />}
+                    aria-label={t('workbench.agentCellContext.navigate', {
+                      ordinal: String(cell.position + 1).padStart(2, '0'),
+                    })}
+                    onClick={() => onNavigateToCell(cell.id)}
+                  >
+                    {t('workbench.agentCellContext.label', {
+                      ordinal: String(cell.position + 1).padStart(2, '0'),
+                      kind: t(`workbench.cellKind.${cell.kind}`),
+                    })}
+                  </Button>
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<FontAwesomeIcon icon={faXmark} />}
+                    aria-label={t('workbench.agentCellContext.remove', {
+                      ordinal: String(cell.position + 1).padStart(2, '0'),
+                    })}
+                    onClick={() => store.detachAgentContextCell(cell.id)}
+                  />
+                </span>
+              ))}
+              {dependencyCells.map((cell) => (
                 <Button
+                  key={cell.id}
                   type="text"
                   size="small"
-                  icon={<FontAwesomeIcon icon={faXmark} />}
-                  aria-label={t('workbench.agentCellContext.remove', {
+                  className="jx-research-agentContextChip jx-research-agentContextChip--dependency"
+                  data-testid={`research-agent-dependency-${cell.id}`}
+                  icon={<FontAwesomeIcon icon={faDiagramProject} />}
+                  aria-label={t('workbench.agentCellContext.navigateDependency', {
                     ordinal: String(cell.position + 1).padStart(2, '0'),
                   })}
-                  onClick={() => store.detachAgentContextCell(cell.id)}
-                />
-              </span>
-            ))}
+                  onClick={() => onNavigateToCell(cell.id)}
+                >
+                  {t('workbench.agentCellContext.dependencyLabel', {
+                    ordinal: String(cell.position + 1).padStart(2, '0'),
+                    kind: t(`workbench.cellKind.${cell.kind}`),
+                  })}
+                </Button>
+              ))}
+            </div>
+          )}
+          <div className="jx-research-agentInputRow">
+            <ResearchPromptBox
+              className="jx-research-agentPrompt"
+              value={store.prompt}
+              placeholder={
+                store.hasPendingClarification
+                  ? t('workbench.clarification.answerBeforeContinuing')
+                  : t('workbench.agentPlaceholder')
+              }
+              autoSize={{ minRows: 3, maxRows: 10 }}
+              disabled={store.hasPendingClarification || agentBusy}
+              onChange={(value) => store.setPrompt(value)}
+              onSubmit={() => void store.send(store.prompt)}
+            />
+            <Button
+              type="primary"
+              shape="circle"
+              className="jx-research-agentSend"
+              loading={agentBusy}
+              disabled={!canSubmit}
+              icon={<FontAwesomeIcon icon={faPaperPlane} />}
+              aria-label={t('workbench.sendAgent')}
+              onClick={() => void store.send(store.prompt)}
+            />
           </div>
-        )}
-        <div className="jx-research-agentInputRow">
-          <ResearchPromptBox
-            className="jx-research-agentPrompt"
-            value={store.prompt}
-            placeholder={
-              store.hasPendingClarification
-                ? t('workbench.clarification.answerBeforeContinuing')
-                : t('workbench.agentPlaceholder')
-            }
-            autoSize={{ minRows: 3, maxRows: 10 }}
-            disabled={store.hasPendingClarification || agentBusy}
-            onChange={(value) => store.setPrompt(value)}
-            onSubmit={() => void store.send(store.prompt)}
-          />
-          <Button
-            type="primary"
-            shape="circle"
-            className="jx-research-agentSend"
-            loading={agentBusy}
-            disabled={!canSubmit}
-            icon={<FontAwesomeIcon icon={faPaperPlane} />}
-            aria-label={t('workbench.sendAgent')}
-            onClick={() => void store.send(store.prompt)}
-          />
         </div>
-      </div>
-    </aside>
+      </aside>
+    );
+  },
+  'ResearchAgentPanel',
+);
+
+function ResearchCellContextSnapshotModal({
+  cell,
+  currentCell,
+  onClose,
+  onNavigateToCell,
+}: {
+  cell: ResearchCellContextCellV1 | null;
+  currentCell?: ResearchCellV1;
+  onClose: () => void;
+  onNavigateToCell: (cellId: string) => void;
+}) {
+  const { t } = useTranslation('research');
+  const state = cell ? researchCellContextSnapshotState(cell, currentCell) : 'deleted';
+  return (
+    <Modal
+      open={Boolean(cell)}
+      className="jx-research-contextSnapshotModal"
+      title={t('workbench.agentCellContext.snapshot.title')}
+      width={760}
+      footer={[
+        <Button key="close" onClick={onClose}>
+          {t('workbench.agentCellContext.snapshot.close')}
+        </Button>,
+        ...(cell && currentCell
+          ? [
+              <Button key="navigate" type="primary" onClick={() => onNavigateToCell(cell.cellId)}>
+                {t('workbench.agentCellContext.snapshot.navigateCurrent')}
+              </Button>,
+            ]
+          : []),
+      ]}
+      onCancel={onClose}
+    >
+      {cell && (
+        <div className="jx-research-contextSnapshot" data-testid="research-context-snapshot">
+          <div className="jx-research-contextSnapshotMeta">
+            <strong>
+              {t(
+                (cell.role ?? 'attached') === 'dependency'
+                  ? 'workbench.agentCellContext.dependencyLabel'
+                  : 'workbench.agentCellContext.label',
+                {
+                  ordinal: String(cell.position + 1).padStart(2, '0'),
+                  kind: t(`workbench.cellKind.${cell.kind}`),
+                },
+              )}
+            </strong>
+            <span>{t(`workbench.agentCellContext.snapshot.state.${state}`)}</span>
+            <span>
+              {t('workbench.agentCellContext.snapshot.revision', {
+                revision: cell.revision ?? t('workbench.agentCellContext.snapshot.unknownRevision'),
+              })}
+            </span>
+            {cell.sourceHash && <code>{cell.sourceHash}</code>}
+          </div>
+          <strong>{t('workbench.agentCellContext.snapshot.source')}</strong>
+          {typeof cell.source === 'string' ? (
+            <pre>{cell.source}</pre>
+          ) : (
+            <Alert
+              type="info"
+              showIcon
+              title={t('workbench.agentCellContext.snapshot.legacyUnavailable')}
+            />
+          )}
+        </div>
+      )}
+    </Modal>
   );
-}, 'ResearchAgentPanel');
+}
 
 function ResearchPromptBox({
   className,

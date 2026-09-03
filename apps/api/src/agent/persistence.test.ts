@@ -40,7 +40,18 @@ describe('finishPersistentTurn', () => {
     const userParts: MessagePart[] = [
       {
         type: 'research_cell_context',
-        cells: [{ cellId: 'cell-2', position: 1, kind: 'python' }],
+        snapshotVersion: 1,
+        cells: [
+          {
+            cellId: 'cell-2',
+            position: 1,
+            kind: 'python',
+            revision: 3,
+            role: 'attached',
+            source: 'value = 42',
+            sourceHash: 'hash-1',
+          },
+        ],
       },
       { type: 'text', text: 'Explain this Cell.' },
     ];

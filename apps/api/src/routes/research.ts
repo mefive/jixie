@@ -1,7 +1,7 @@
 import { Hono, type Context } from 'hono';
 import { ulid } from 'ulid';
 import { z } from 'zod';
-import type { MessagePart, ResearchCellContextPart, ResearchClarificationV1 } from '@jixie/shared';
+import type { MessagePart, ResearchClarificationV1 } from '@jixie/shared';
 import { apiError, validateJson, validateQuery } from '../lib/httpError.js';
 import { initializeJobLogs } from '../lib/jobs.js';
 import { wakeJobQueue } from '../lib/job-queue.js';
@@ -848,17 +848,16 @@ researchRoute.post('/agent', validateJson(agentBody), async (c) => {
   const agentDocument = document
     ? researchAgentDocumentContext(document, contextCellIds)
     : undefined;
-  const cellById = new Map(document?.cells.map((cell) => [cell.id, cell]));
-  const attachedCells: ResearchCellContextPart['cells'] = contextCellIds.flatMap((cellId) => {
-    const cell = cellById.get(cellId);
-    if (!cell || (cell.kind !== 'markdown' && cell.kind !== 'python')) {
-      return [];
-    }
-    return [{ cellId: cell.id, position: cell.position, kind: cell.kind }];
-  });
+  const attachedCellIdSet = new Set(agentDocument?.attachedCellIds ?? []);
   const userParts: MessagePart[] = [
-    ...(attachedCells.length > 0
-      ? [{ type: 'research_cell_context' as const, cells: attachedCells }]
+    ...(attachedCellIdSet.size > 0
+      ? [
+          {
+            type: 'research_cell_context' as const,
+            snapshotVersion: 1 as const,
+            cells: agentDocument!.snapshotCells,
+          },
+        ]
       : []),
     { type: 'text', text: message },
   ];
