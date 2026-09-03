@@ -157,8 +157,36 @@ export const enResearch: typeof zhResearch = {
       detach: 'Remove from Agent context',
       drag: 'Drag to the Agent composer',
       remove: 'Remove Cell {{ordinal}}',
+      navigate: 'Go to Cell {{ordinal}}',
+      navigateDependency: 'Go to dependency Cell {{ordinal}}',
       label: 'Cell {{ordinal}} · {{kind}}',
+      dependencyLabel: 'Dependency Cell {{ordinal}} · {{kind}}',
       attachedCount: '{{count}} Cells attached',
+      attachedDependencyCount:
+        '{{attached}} Cells attached · {{dependencies}} automatic dependencies',
+      state: {
+        updated: 'Updated',
+        deleted: 'Deleted',
+      },
+      action: {
+        current: 'Go to the current Cell',
+        updated: 'This Cell has changed; view the sent snapshot',
+        deleted: 'This Cell was deleted; view the sent snapshot',
+      },
+      snapshot: {
+        title: 'Cell context when sent',
+        source: 'Source when sent',
+        revision: 'Revision {{revision}}',
+        unknownRevision: 'unknown',
+        state: {
+          current: 'The current version is unchanged',
+          updated: 'The current Cell has changed',
+          deleted: 'The current Cell was deleted',
+        },
+        legacyUnavailable: 'This older message did not retain a Cell source snapshot.',
+        navigateCurrent: 'Go to current Cell',
+        close: 'Close',
+      },
     },
     clarification: {
       status: {

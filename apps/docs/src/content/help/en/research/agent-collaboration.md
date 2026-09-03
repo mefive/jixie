@@ -13,6 +13,12 @@ When an exact instrument, dataset, or SDK method is unavailable, the Agent shoul
 
 When the original question has no exact executable data but an explicitly different proxy exists, the Agent first shows a **Needs confirmation** card. Ordinary input and Cell proposals pause until you compare the differences and confirm a choice, select **Do not substitute**, or enter a precise requirement.
 
+## Specify Cell context
+
+Select the paperclip on a Cell, or drag the Cell into the Agent composer, to make it explicit context for that turn. Upstream Cells it depends on are included automatically and shown separately from explicit attachments. After sending, the source and dependency set are retained as an immutable snapshot for that turn and are not automatically reused on the next turn.
+
+Cell labels in the conversation navigate to the current Cell. A changed current version is marked **Updated**, while a removed Cell is marked **Deleted**. Select either state to inspect the source snapshot from when the message was sent; when the current Cell still exists, you can also navigate to that version. On mobile, navigation closes the Agent panel and returns to the document.
+
 ## Review Cell changes
 
 A proposed edit appears as a change card and an inline diff in its target Cell:

@@ -264,6 +264,10 @@
   @apply overflow-hidden border border-line bg-card;
   border-radius: 7px;
   box-shadow: none;
+  scroll-margin-block: 80px;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
 }
 
 .jx-research-cell--running {
@@ -282,6 +286,11 @@
   border-color: #94a3b8;
   outline: 1px solid #94a3b8;
   outline-offset: -1px;
+}
+
+.jx-research-cell--contextTarget {
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 3px rgb(245 158 11 / 0.2);
 }
 
 .jx-research-cellHead {
@@ -631,17 +640,54 @@
 
 .jx-research-agentContextChip {
   @apply flex items-center gap-1 rounded border border-line bg-card text-ink;
-  padding: 2px 3px 2px 7px;
+  padding: 1px 2px;
   font-size: 10px;
 }
 
-.jx-research-agentContextChip > svg {
-  @apply text-muted;
+.jx-research-agentContextLink.ant-btn {
+  @apply h-5 w-auto px-1.5 text-ink;
+  min-width: 0;
+  font-size: 10px;
 }
 
-.jx-research-agentContextChip .ant-btn {
+.jx-research-agentContextChip > .ant-btn:not(.jx-research-agentContextLink) {
   @apply h-5 w-5 p-0 text-muted;
   min-width: 20px;
+}
+
+.jx-research-agentContextChip--dependency.ant-btn {
+  @apply h-6 w-auto gap-1 px-2 text-muted;
+  min-width: 0;
+  border-style: dashed;
+  font-size: 10px;
+}
+
+.jx-research-contextSnapshot {
+  @apply flex flex-col gap-3;
+}
+
+.jx-research-contextSnapshotMeta {
+  @apply flex flex-wrap items-center gap-x-3 gap-y-1 text-muted;
+  font-size: 12px;
+}
+
+.jx-research-contextSnapshotMeta strong {
+  @apply text-ink;
+}
+
+.jx-research-contextSnapshotMeta code {
+  @apply w-full break-all rounded bg-bg px-2 py-1;
+  font-size: 10px;
+}
+
+.jx-research-contextSnapshot pre {
+  @apply m-0 overflow-auto rounded-lg border border-line bg-bg text-ink;
+  max-height: 55vh;
+  padding: 14px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
 }
 
 @media (max-width: 920px) {

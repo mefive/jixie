@@ -1,10 +1,13 @@
 import { action, makeObservable, observable, runInAction } from 'mobx';
 import {
   normalizeChatMessage,
+  researchUpstreamDependencyCellIds,
   textMessage,
   type ChatMessage,
   type MessagePart,
+  type ResearchCellContextRoleV1,
   type ResearchCellKindV1,
+  type ResearchCellV1,
   type ResearchCellChangeAttemptV1,
   type ResearchCellChangeReviewCellV1,
   type ResearchCellChangeReviewResolutionResultV1,
@@ -436,6 +439,17 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     });
   }
 
+  public get agentContextDependencyCells() {
+    const cells = this.document?.cells ?? [];
+    const attachedCellIdSet = new Set(this.agentContextCellIds);
+    const dependencyCellIds = researchUpstreamDependencyCellIds(cells, this.agentContextCellIds);
+    const cellById = new Map(cells.map((cell) => [cell.id, cell]));
+    return dependencyCellIds.flatMap((cellId) => {
+      const cell = cellById.get(cellId);
+      return cell && !attachedCellIdSet.has(cellId) ? [cell] : [];
+    });
+  }
+
   public cellDraft(cellId: string): ResearchCellDraftState | undefined {
     return this.cellDrafts.get(cellId);
   }
@@ -791,17 +805,18 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     }
     const conversationId = this.conversationId;
     const contextCells = attemptId ? [] : this.agentContextCells;
+    const dependencyCells = attemptId ? [] : this.agentContextDependencyCells;
     const contextCellIds = contextCells.map((cell) => cell.id);
     const userParts: MessagePart[] = [
       ...(contextCells.length > 0
         ? [
             {
               type: 'research_cell_context' as const,
-              cells: contextCells.map((cell) => ({
-                cellId: cell.id,
-                position: cell.position,
-                kind: cell.kind,
-              })),
+              snapshotVersion: 1 as const,
+              cells: [
+                ...contextCells.map((cell) => researchContextCellSnapshot(cell, 'attached')),
+                ...dependencyCells.map((cell) => researchContextCellSnapshot(cell, 'dependency')),
+              ],
             },
           ]
         : []),
@@ -1320,6 +1335,17 @@ function replaceResearchClarification(
         : part,
     ),
   }));
+}
+
+function researchContextCellSnapshot(cell: ResearchCellV1, role: ResearchCellContextRoleV1) {
+  return {
+    cellId: cell.id,
+    position: cell.position,
+    kind: cell.kind,
+    revision: cell.revision,
+    role,
+    source: cell.source,
+  };
 }
 
 function clarificationAnswerLabel(clarification: ResearchClarificationV1): string {

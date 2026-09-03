@@ -150,8 +150,35 @@ export const zhResearch = {
       detach: '从 Agent 上下文移除',
       drag: '拖到 Agent 输入框',
       remove: '移除 Cell {{ordinal}}',
+      navigate: '定位 Cell {{ordinal}}',
+      navigateDependency: '定位依赖 Cell {{ordinal}}',
       label: 'Cell {{ordinal}} · {{kind}}',
+      dependencyLabel: '依赖 Cell {{ordinal}} · {{kind}}',
       attachedCount: '已附加 {{count}} 个 Cell',
+      attachedDependencyCount: '已附加 {{attached}} 个 Cell · 自动依赖 {{dependencies}} 个',
+      state: {
+        updated: '已更新',
+        deleted: '已删除',
+      },
+      action: {
+        current: '定位当前 Cell',
+        updated: '当前 Cell 已更新；查看发送时快照',
+        deleted: 'Cell 已删除；查看发送时快照',
+      },
+      snapshot: {
+        title: '发送时的 Cell 上下文',
+        source: '发送时源码',
+        revision: 'Revision {{revision}}',
+        unknownRevision: '未知',
+        state: {
+          current: '当前版本未变化',
+          updated: '当前 Cell 已更新',
+          deleted: '当前 Cell 已删除',
+        },
+        legacyUnavailable: '这条旧消息没有保存 Cell 源码快照。',
+        navigateCurrent: '定位当前 Cell',
+        close: '关闭',
+      },
     },
     clarification: {
       status: {

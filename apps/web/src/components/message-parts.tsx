@@ -2,11 +2,20 @@ import { lazy, Suspense } from 'react';
 import type {
   ChatMessage,
   ResearchCellChangeAttemptV1,
+  ResearchCellContextCellV1,
+  ResearchCellV1,
   ResearchClarificationSelectionV1,
   ResearchClarificationV1,
 } from '@jixie/shared';
-import { faPaperclip } from '@fortawesome/free-solid-svg-icons';
+import { researchCellContextSnapshotState } from '@jixie/shared';
+import {
+  faClockRotateLeft,
+  faDiagramProject,
+  faPaperclip,
+  faTrash,
+} from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Button, Tooltip } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { Markdown } from './markdown';
 import { UniverseSpecCard } from './universe-spec-card';
@@ -37,6 +46,9 @@ interface MessagePartsProps {
     selections: ResearchClarificationSelectionV1[],
   ) => Promise<void>;
   busyResearchClarificationId?: string | null;
+  researchCells?: ResearchCellV1[];
+  onNavigateResearchCellContext?: (cellId: string) => void;
+  onOpenResearchCellContextSnapshot?: (cell: ResearchCellContextCellV1) => void;
 }
 
 /** One chat message's typed parts (text / query card / chart card) — the single renderer shared by
@@ -56,8 +68,10 @@ export function MessageParts({
   researchDocumentContentRevision,
   onAnswerResearchClarification,
   busyResearchClarificationId,
+  researchCells = [],
+  onNavigateResearchCellContext,
+  onOpenResearchCellContextSnapshot,
 }: MessagePartsProps) {
-  const { t } = useTranslation('research');
   return (
     <>
       {message.parts.map((part, partIndex) => {
@@ -106,17 +120,13 @@ export function MessageParts({
         }
         if (part.type === 'research_cell_context') {
           return (
-            <div key={partIndex} className="jx-messageParts-cellContext">
-              <FontAwesomeIcon icon={faPaperclip} />
-              {part.cells.map((cell) => (
-                <span key={cell.cellId}>
-                  {t('workbench.agentCellContext.label', {
-                    ordinal: String(cell.position + 1).padStart(2, '0'),
-                    kind: t(`workbench.cellKind.${cell.kind}`),
-                  })}
-                </span>
-              ))}
-            </div>
+            <ResearchCellContextChips
+              key={partIndex}
+              cells={part.cells}
+              researchCells={researchCells}
+              onNavigate={onNavigateResearchCellContext}
+              onOpenSnapshot={onOpenResearchCellContextSnapshot}
+            />
           );
         }
         return message.role === 'assistant' ? (
@@ -126,5 +136,82 @@ export function MessageParts({
         );
       })}
     </>
+  );
+}
+
+function ResearchCellContextChips({
+  cells,
+  researchCells,
+  onNavigate,
+  onOpenSnapshot,
+}: {
+  cells: ResearchCellContextCellV1[];
+  researchCells: ResearchCellV1[];
+  onNavigate?: (cellId: string) => void;
+  onOpenSnapshot?: (cell: ResearchCellContextCellV1) => void;
+}) {
+  const { t } = useTranslation('research');
+  const currentCellById = new Map(researchCells.map((cell) => [cell.id, cell]));
+  return (
+    <div className="jx-messageParts-cellContext">
+      {cells.map((cell) => {
+        const currentCell = currentCellById.get(cell.cellId);
+        const state = researchCellContextSnapshotState(cell, currentCell);
+        const hasSnapshot = typeof cell.source === 'string';
+        const canNavigate = Boolean(currentCell && onNavigate);
+        const canOpenSnapshot = Boolean(hasSnapshot && onOpenSnapshot);
+        const action = () => {
+          if (state === 'current' && canNavigate) {
+            onNavigate?.(cell.cellId);
+          } else if (canOpenSnapshot) {
+            onOpenSnapshot?.(cell);
+          } else if (canNavigate) {
+            onNavigate?.(cell.cellId);
+          }
+        };
+        const labelKey =
+          (cell.role ?? 'attached') === 'dependency'
+            ? 'workbench.agentCellContext.dependencyLabel'
+            : 'workbench.agentCellContext.label';
+        return (
+          <Tooltip
+            key={`${cell.role ?? 'attached'}:${cell.cellId}`}
+            title={t(`workbench.agentCellContext.action.${state}`)}
+          >
+            <Button
+              type="text"
+              size="small"
+              className={`jx-messageParts-cellContextChip jx-messageParts-cellContextChip--${state}`}
+              data-testid={`research-message-context-${cell.cellId}`}
+              disabled={!canNavigate && !canOpenSnapshot}
+              icon={
+                <FontAwesomeIcon
+                  icon={
+                    state === 'deleted'
+                      ? faTrash
+                      : state === 'updated'
+                        ? faClockRotateLeft
+                        : (cell.role ?? 'attached') === 'dependency'
+                          ? faDiagramProject
+                          : faPaperclip
+                  }
+                />
+              }
+              onClick={action}
+            >
+              {t(labelKey, {
+                ordinal: String(cell.position + 1).padStart(2, '0'),
+                kind: t(`workbench.cellKind.${cell.kind}`),
+              })}
+              {state !== 'current' && (
+                <span className="jx-messageParts-cellContextState">
+                  {t(`workbench.agentCellContext.state.${state}`)}
+                </span>
+              )}
+            </Button>
+          </Tooltip>
+        );
+      })}
+    </div>
   );
 }

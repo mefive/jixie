@@ -1,6 +1,7 @@
 import type { ChartSpec } from './chart.js';
 import type {
   ResearchCellChangeProposalV1,
+  ResearchCellV1,
   ResearchClarificationV1,
   UniverseSpecV1,
 } from './research.js';
@@ -42,14 +43,43 @@ export interface ResearchClarificationPart {
   clarification: ResearchClarificationV1;
 }
 
-/** Explicit Cell attachments on a Research user message. Source remains in the document snapshot. */
+export type ResearchCellContextRoleV1 = 'attached' | 'dependency';
+
+export interface ResearchCellContextCellV1 {
+  cellId: string;
+  position: number;
+  kind: 'markdown' | 'python';
+  revision: number;
+  role: ResearchCellContextRoleV1;
+  /** Immutable source from the turn's document state, retained even if the live Cell changes. */
+  source: string;
+  sourceHash?: string;
+}
+
+/** Immutable Cell and dependency snapshots attached to one Research user message. */
 export interface ResearchCellContextPart {
   type: 'research_cell_context';
-  cells: Array<{
-    cellId: string;
-    position: number;
-    kind: 'markdown' | 'python';
-  }>;
+  snapshotVersion: 1;
+  cells: ResearchCellContextCellV1[];
+}
+
+export type ResearchCellContextSnapshotStateV1 = 'current' | 'updated' | 'deleted';
+
+export function researchCellContextSnapshotState(
+  snapshot: ResearchCellContextCellV1,
+  current: ResearchCellV1 | undefined,
+): ResearchCellContextSnapshotStateV1 {
+  if (!current) {
+    return 'deleted';
+  }
+  if (typeof snapshot.revision !== 'number') {
+    return 'current';
+  }
+  return current.revision === snapshot.revision &&
+    current.position === snapshot.position &&
+    current.kind === snapshot.kind
+    ? 'current'
+    : 'updated';
 }
 
 export type MessagePart =
@@ -136,13 +166,24 @@ export function messageText(message: ChatMessage): string {
             .join(' | ');
           return `(research clarification: ${part.clarification.title}, status=${part.clarification.status}${selections ? `, answer=${selections}` : ''})`;
         }
-        case 'research_cell_context':
-          return `(attached research cells: ${part.cells
-            .map(
-              (cell) =>
-                `${cell.kind} Cell ${String(cell.position + 1).padStart(2, '0')} [${cell.cellId}]`,
-            )
-            .join(', ')})`;
+        case 'research_cell_context': {
+          const labels = (role: ResearchCellContextRoleV1) =>
+            part.cells
+              .filter((cell) => (cell.role ?? 'attached') === role)
+              .map(
+                (cell) =>
+                  `${cell.kind} Cell ${String(cell.position + 1).padStart(2, '0')} [${cell.cellId}] revision ${cell.revision ?? 'unknown'}`,
+              )
+              .join(', ');
+          const attached = labels('attached');
+          const dependencies = labels('dependency');
+          return [
+            attached ? `(attached research cells: ${attached})` : '',
+            dependencies ? `(upstream dependency cells: ${dependencies})` : '',
+          ]
+            .filter(Boolean)
+            .join('\n');
+        }
       }
     })
     .join('\n')
