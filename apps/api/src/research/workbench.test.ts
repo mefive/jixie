@@ -27,6 +27,16 @@ describe('reactive research dependencies', () => {
     expect(stale).toEqual(['consumer']);
   });
 
+  it('keeps transitive dependents in document order', () => {
+    const stale = downstreamResearchCellIds('load', new Set(['late', 'early']), [
+      { cellId: 'load', definitions: ['late', 'early'], references: [] },
+      { cellId: 'first', definitions: [], references: ['early'] },
+      { cellId: 'second', definitions: [], references: ['late'] },
+    ]);
+
+    expect(stale).toEqual(['first', 'second']);
+  });
+
   it('orders an affected diamond while excluding independent cells', () => {
     const plan = affectedResearchCellRunPlan('load', [
       {

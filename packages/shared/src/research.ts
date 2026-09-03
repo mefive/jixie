@@ -478,7 +478,15 @@ export interface ResearchConversationMessages {
 // —— Reactive research workbench ——
 
 export type ResearchCellKindV1 = 'markdown' | 'python';
-export type ResearchCellStatusV1 = 'idle' | 'running' | 'success' | 'error' | 'stale';
+export type ResearchCellStatusV1 = 'idle' | 'running' | 'success' | 'error' | 'stale' | 'blocked';
+export interface ResearchCellDependencyIssueV1 {
+  version: 1;
+  reason: 'deleted_upstream_cell';
+  sourceCellId: string;
+  sourceCellPosition: number;
+  sourceCellKind: ResearchCellKindV1;
+  missingDefinitions: string[];
+}
 export type ResearchClarificationStatusV1 = 'pending' | 'answered' | 'superseded';
 export type ResearchClarificationSelectionModeV1 = 'single' | 'multiple';
 export type ResearchClarificationOptionKindV1 = 'concept' | 'binding' | 'keep_gap';
@@ -721,6 +729,7 @@ export interface ResearchCellV1 {
   revision: number;
   definitions: string[];
   references: string[];
+  dependencyIssues: ResearchCellDependencyIssueV1[];
   outputs: ResearchCellOutputBlockV1[];
   lastExecutedRevision?: number;
   lastExecutedAt?: string;
@@ -766,9 +775,47 @@ export function researchUpstreamDependencyCellIds(
   return dependencies;
 }
 
+/** Resolve transitive downstream consumers in document order. */
+export function researchDownstreamDependencyCellIds(
+  cells: Array<{ id: string; definitions: string[]; references: string[] }>,
+  rootCellIds: string[],
+  seedDefinitions?: string[],
+): string[] {
+  const rootCellIdSet = new Set(rootCellIds);
+  const pendingDefinitions = [
+    ...(seedDefinitions ??
+      cells.filter((cell) => rootCellIdSet.has(cell.id)).flatMap((cell) => cell.definitions)),
+  ];
+  const visitedDefinitions = new Set<string>();
+  const downstreamCellIds = new Set<string>();
+
+  while (pendingDefinitions.length > 0) {
+    const definition = pendingDefinitions.shift()!;
+    if (visitedDefinitions.has(definition)) {
+      continue;
+    }
+    visitedDefinitions.add(definition);
+
+    for (const cell of cells) {
+      if (
+        rootCellIdSet.has(cell.id) ||
+        downstreamCellIds.has(cell.id) ||
+        !cell.references.includes(definition)
+      ) {
+        continue;
+      }
+      downstreamCellIds.add(cell.id);
+      pendingDefinitions.push(...cell.definitions);
+    }
+  }
+
+  return cells.filter((cell) => downstreamCellIds.has(cell.id)).map((cell) => cell.id);
+}
+
 export interface ResearchDocumentSummaryV1 extends ResearchConversationMeta {
   cellCount: number;
   staleCount: number;
+  blockedCount: number;
   archivedAt: string | null;
 }
 

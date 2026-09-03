@@ -138,6 +138,10 @@ const MESSAGES = {
     zh: '受影响分支存在循环依赖，请先拆解循环再运行',
     en: 'The affected branch has a dependency cycle; break the cycle before running',
   },
+  researchCellDependencyBlocked: {
+    zh: '部分 Cell 依赖已删除的上游 Cell，请先修复依赖再运行',
+    en: 'Some Cells depend on deleted upstream Cells; repair the dependencies before running',
+  },
   researchDocumentRunInProgress: {
     zh: '该研究文档已有正在进行的运行，请先等待或停止当前运行',
     en: 'This research document already has an active run; wait for it or stop it first',

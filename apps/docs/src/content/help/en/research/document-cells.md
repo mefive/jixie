@@ -20,7 +20,7 @@ The markers below identify the question input, **Start research**, and existing 
 2. Choose **Markdown** or **Python**.
 3. For a Markdown Cell, select its edit icon, enter the content, and confirm the edit.
 4. Type directly in a Python Cell. The editor provides Python and current Research SDK assistance.
-5. Use the delete icon in a Cell header to remove it. First check that downstream calculations do not depend on it.
+5. Use the delete icon in a Cell header to remove it. When downstream Cells depend on it, the confirmation lists the affected scope.
 
 A useful order is to write the Markdown first, then its Python. For example, state that you will compare monthly CSI 300 and CSI 500 returns from 2020 through 2025 before loading and analyzing those series.
 
@@ -41,6 +41,8 @@ Wait for Saved before leaving. If the same document changed elsewhere, review th
 The footer of a Python Cell lists the variables it defines and depends on. These names form the upstream and downstream dependency graph.
 
 After upstream source changes, downstream Cells become **stale**. Their old outputs remain visible for comparison but no longer represent the current source. Expensive calculations do not run automatically; you choose whether to run one Cell, the affected downstream branch, or the full document.
+
+After deleting an upstream Cell that is still referenced, every affected downstream Cell becomes **needs repair** and cannot run. The notice lists the missing variables. Remove the dependency from downstream source or restore the same definition in another upstream Cell; saving the repair clears the state automatically.
 
 ## Common questions
 

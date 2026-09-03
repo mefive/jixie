@@ -282,6 +282,10 @@
   border-color: #fde68a;
 }
 
+.jx-research-cell--blocked {
+  border-color: #fdba74;
+}
+
 .jx-research-cell--agentReview {
   border-color: #94a3b8;
   outline: 1px solid #94a3b8;
@@ -365,6 +369,10 @@
   color: #a16207;
 }
 
+.jx-research-cellStatus--blocked {
+  color: #c2410c;
+}
+
 .jx-research-cellStatus--error {
   color: #b91c1c;
 }
@@ -435,6 +443,40 @@
   color: #92400e;
   border-color: #fde68a;
   background: #fffbeb;
+}
+
+.jx-research-blockedNotice {
+  @apply flex items-start gap-2 border-t text-sm;
+  padding: 12px 14px;
+  color: #9a3412;
+  border-color: #fed7aa;
+  background: #fff7ed;
+}
+
+.jx-research-blockedNoticeBody {
+  @apply flex min-w-0 flex-col gap-1;
+}
+
+.jx-research-blockedNoticeBody code {
+  @apply break-all rounded bg-orange-100 px-2 py-1;
+  color: #7c2d12;
+  font-size: 11px;
+}
+
+.jx-research-deleteImpact {
+  @apply flex max-w-xs flex-col gap-2;
+}
+
+.jx-research-deleteImpactTitle {
+  @apply text-ink;
+}
+
+.jx-research-deleteImpactList {
+  @apply m-0 list-disc pl-5 text-ink;
+}
+
+.jx-research-deleteImpactHint {
+  @apply text-muted;
 }
 
 .jx-research-outputs {
