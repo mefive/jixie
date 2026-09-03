@@ -79,6 +79,7 @@ describe('research document management', () => {
         preview: 'Latest research note',
         cellCount: 2,
         staleCount: 1,
+        blockedCount: 0,
         archivedAt: '2026-09-01T08:00:00.000Z',
         createdAt: '2026-08-01T08:00:00.000Z',
         updatedAt: '2026-08-30T08:00:00.000Z',

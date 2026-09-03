@@ -1,6 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import type {
   ChatMessage,
+  ResearchCellDependencyIssueV1,
   ResearchCellKindV1,
   ResearchCellOutputBlockV1,
   ResearchCellV1,
@@ -14,6 +15,7 @@ import type {
   ResearchDocumentV1,
   ResearchExecutionSummaryV1,
 } from '@jixie/shared';
+import { researchDownstreamDependencyCellIds } from '@jixie/shared';
 import { ulid } from 'ulid';
 import { prisma } from '../lib/prisma.js';
 import { researchPayloadHash } from './fingerprints.js';
@@ -49,9 +51,11 @@ interface ExecutableResearchCellRow {
   kind: string;
   source: string;
   config: Prisma.JsonValue | null;
+  status: string;
   revision: number;
   definitions: Prisma.JsonValue;
   references: Prisma.JsonValue;
+  dependencyIssues: Prisma.JsonValue;
   lastExecutedRevision: number | null;
   document: {
     conversationId: string;
@@ -112,6 +116,13 @@ export class ResearchCellChangeReviewOpenError extends Error {
   }
 }
 
+export class ResearchCellDependencyBlockedError extends Error {
+  public constructor(readonly cellIds: string[]) {
+    super('Research Cells have unresolved deleted dependencies');
+    this.name = 'ResearchCellDependencyBlockedError';
+  }
+}
+
 export class ResearchCellRevisionConflictError extends Error {
   public constructor(readonly currentCell: { id: string; source: string; revision: number }) {
     super('Research Cell revision changed');
@@ -154,6 +165,7 @@ export async function reconcileResearchCellChanges(
       analyses,
     );
   }
+  await reconcileResearchCellDependencyIssues(documentId, analyses);
 }
 
 export async function listResearchDocuments(
@@ -185,6 +197,8 @@ export async function listResearchDocuments(
     cellCount: conversation.researchDocument?.cells.length ?? 0,
     staleCount:
       conversation.researchDocument?.cells.filter((cell) => cell.status === 'stale').length ?? 0,
+    blockedCount:
+      conversation.researchDocument?.cells.filter((cell) => cell.status === 'blocked').length ?? 0,
     archivedAt: conversation.archivedAt?.toISOString() ?? null,
     createdAt: conversation.createdAt.toISOString(),
     updatedAt: conversation.updatedAt.toISOString(),
@@ -335,6 +349,7 @@ export async function updateResearchCell(
       config: true,
       revision: true,
       definitions: true,
+      dependencyIssues: true,
       lastExecutedRevision: true,
     },
   });
@@ -392,7 +407,12 @@ export async function updateResearchCell(
           ? { config: patch.config as unknown as Prisma.InputJsonValue }
           : {}),
         revision: { increment: 1 },
-        status: cell.lastExecutedRevision == null ? 'idle' : 'stale',
+        status:
+          researchCellDependencyIssues(cell.dependencyIssues).length > 0
+            ? 'blocked'
+            : cell.lastExecutedRevision == null
+              ? 'idle'
+              : 'stale',
       },
     });
     if (result.count === 0) {
@@ -429,6 +449,7 @@ export async function updateResearchCell(
     const current = analyses.find((analysis) => analysis.cellId === cell.id);
     const seedNames = new Set([...oldDefinitions, ...(current?.definitions ?? [])]);
     await markDownstreamStale(cell.documentId, cell.id, seedNames, analyses);
+    await reconcileResearchCellDependencyIssues(cell.documentId, analyses);
   }
   return getResearchDocument(userId, cell.documentId);
 }
@@ -439,20 +460,46 @@ export async function deleteResearchCell(
 ): Promise<ResearchDocumentV1 | null> {
   const cell = await prisma.researchCell.findFirst({
     where: { id: cellId, document: { userId } },
-    select: { id: true, documentId: true, definitions: true },
+    select: {
+      id: true,
+      documentId: true,
+      position: true,
+      kind: true,
+      definitions: true,
+    },
   });
   if (!cell) {
     return null;
   }
   await assertNoOpenCellChangeReview(cell.documentId);
+  const beforeAnalyses = await analyzeAndPersist(cell.documentId);
+  const currentDefinitions = beforeAnalyses.find(
+    (analysis) => analysis.cellId === cell.id,
+  )?.definitions;
+  const deletedDefinitions = [
+    ...new Set([...(currentDefinitions ?? []), ...jsonStringArray(cell.definitions)]),
+  ];
+  const missingDefinitionsByCellId = deletedDependencyDefinitionsByCellId(
+    cell.id,
+    deletedDefinitions,
+    beforeAnalyses,
+  );
+
   await prisma.researchCell.delete({ where: { id: cell.id } });
   const analyses = await analyzeAndPersist(cell.documentId);
-  await markDownstreamStale(
+  await appendDeletedResearchCellDependencyIssues(
     cell.documentId,
-    cell.id,
-    new Set(jsonStringArray(cell.definitions)),
-    analyses,
+    {
+      version: 1,
+      reason: 'deleted_upstream_cell',
+      sourceCellId: cell.id,
+      sourceCellPosition: cell.position,
+      sourceCellKind: cell.kind as ResearchCellKindV1,
+      missingDefinitions: deletedDefinitions,
+    },
+    missingDefinitionsByCellId,
   );
+  await reconcileResearchCellDependencyIssues(cell.documentId, analyses);
   await prisma.researchDocument.update({
     where: { id: cell.documentId },
     data: { updatedAt: new Date(), contentRevision: { increment: 1 } },
@@ -484,6 +531,7 @@ export async function runResearchCell(
     return null;
   }
   await assertNoOpenCellChangeReview(cell.documentId);
+  assertResearchCellsRunnable([cell]);
   const control = startResearchDocumentRun(cell.documentId);
   try {
     await executeResearchCell(cell, control);
@@ -509,6 +557,7 @@ export async function runAffectedResearchCells(
   try {
     const analyses = await analyzeAndPersist(cell.documentId);
     const plan = affectedResearchCellRunPlan(cell.id, analyses);
+    await assertResearchCellIdsRunnable(cell.documentId, plan.cellIds);
     if (control.interrupted) {
       return researchDocumentRunResult(userId, cell.documentId, [], false);
     }
@@ -519,6 +568,7 @@ export async function runAffectedResearchCells(
         where: {
           documentId: cell.documentId,
           id: { in: downstreamCellIds },
+          status: { not: 'blocked' },
           lastExecutedRevision: { not: null },
         },
         data: { status: 'stale' },
@@ -560,11 +610,17 @@ export async function runResearchCellChangeAttemptPlan(
 
   const control = startResearchDocumentRun(documentId);
   try {
+    await assertResearchCellIdsRunnable(documentId, plan.cellIds);
     if (args.clean) {
       await researchRuntimeManager.reset(documentId);
       if (!control.interrupted) {
         await prisma.researchCell.updateMany({
-          where: { documentId, kind: 'python', lastExecutedRevision: { not: null } },
+          where: {
+            documentId,
+            kind: 'python',
+            status: { not: 'blocked' },
+            lastExecutedRevision: { not: null },
+          },
           data: { status: 'stale' },
         });
       }
@@ -624,6 +680,7 @@ export async function runResearchDocument(
       if (!frozen) {
         return null;
       }
+      assertResearchCellsRunnable(frozen.cells);
       const researchExecution = await createResearchExecution({
         documentId,
         title: frozen.title,
@@ -635,7 +692,12 @@ export async function runResearchDocument(
       await researchRuntimeManager.reset(documentId);
       if (!control.interrupted) {
         await prisma.researchCell.updateMany({
-          where: { documentId, kind: 'python', lastExecutedRevision: { not: null } },
+          where: {
+            documentId,
+            kind: 'python',
+            status: { not: 'blocked' },
+            lastExecutedRevision: { not: null },
+          },
           data: { status: 'stale' },
         });
       }
@@ -673,6 +735,7 @@ export async function runResearchDocument(
     if (!document) {
       return null;
     }
+    assertResearchCellsRunnable(document.cells);
     const executedCellIds: string[] = [];
     for (const cell of document.cells) {
       if (control.interrupted) {
@@ -1032,6 +1095,25 @@ async function loadExecutableResearchCell(
   });
 }
 
+async function assertResearchCellIdsRunnable(documentId: string, cellIds: string[]): Promise<void> {
+  const cells = await prisma.researchCell.findMany({
+    where: { documentId, id: { in: cellIds } },
+    select: { id: true, dependencyIssues: true },
+  });
+  assertResearchCellsRunnable(cells);
+}
+
+function assertResearchCellsRunnable(
+  cells: Array<{ id: string; dependencyIssues: unknown }>,
+): void {
+  const blockedCellIds = cells
+    .filter((cell) => researchCellDependencyIssues(cell.dependencyIssues).length > 0)
+    .map((cell) => cell.id);
+  if (blockedCellIds.length > 0) {
+    throw new ResearchCellDependencyBlockedError(blockedCellIds);
+  }
+}
+
 export async function resetResearchDocumentRuntime(
   userId: string,
   documentId: string,
@@ -1046,7 +1128,12 @@ export async function resetResearchDocumentRuntime(
   await assertNoOpenCellChangeReview(documentId);
   await researchRuntimeManager.reset(documentId);
   await prisma.researchCell.updateMany({
-    where: { documentId, kind: 'python', lastExecutedRevision: { not: null } },
+    where: {
+      documentId,
+      kind: 'python',
+      status: { not: 'blocked' },
+      lastExecutedRevision: { not: null },
+    },
     data: { status: 'stale' },
   });
   return getResearchDocument(userId, documentId);
@@ -1096,7 +1183,152 @@ async function analyzeAndPersist(documentId: string): Promise<ResearchPythonAnal
       }),
     ),
   );
+  await reconcileResearchCellDependencyIssues(documentId, analyses);
   return analyses;
+}
+
+function deletedDependencyDefinitionsByCellId(
+  deletedCellId: string,
+  deletedDefinitions: string[],
+  analyses: ResearchPythonAnalysis[],
+): Map<string, string[]> {
+  const definitionsByCellId = new Map<string, string[]>();
+  for (const definition of deletedDefinitions) {
+    const downstreamCellIds = researchDownstreamDependencyCellIds(
+      analyses.map(researchDependencyCell),
+      [deletedCellId],
+      [definition],
+    );
+    for (const downstreamCellId of downstreamCellIds) {
+      definitionsByCellId.set(downstreamCellId, [
+        ...(definitionsByCellId.get(downstreamCellId) ?? []),
+        definition,
+      ]);
+    }
+  }
+  return definitionsByCellId;
+}
+
+async function appendDeletedResearchCellDependencyIssues(
+  documentId: string,
+  issue: ResearchCellDependencyIssueV1,
+  missingDefinitionsByCellId: Map<string, string[]>,
+): Promise<void> {
+  if (missingDefinitionsByCellId.size === 0) {
+    return;
+  }
+  const cells = await prisma.researchCell.findMany({
+    where: { documentId, id: { in: [...missingDefinitionsByCellId.keys()] } },
+    select: { id: true, dependencyIssues: true },
+  });
+  const updates = cells.flatMap((cell) => {
+    const missingDefinitions = missingDefinitionsByCellId.get(cell.id) ?? [];
+    if (missingDefinitions.length === 0) {
+      return [];
+    }
+    const dependencyIssues = [
+      ...researchCellDependencyIssues(cell.dependencyIssues).filter(
+        (candidate) => candidate.sourceCellId !== issue.sourceCellId,
+      ),
+      { ...issue, missingDefinitions },
+    ];
+    return [
+      prisma.researchCell.update({
+        where: { id: cell.id },
+        data: {
+          status: 'blocked',
+          dependencyIssues: dependencyIssues as unknown as Prisma.InputJsonValue,
+        },
+      }),
+    ];
+  });
+  if (updates.length > 0) {
+    await prisma.$transaction(updates);
+  }
+}
+
+async function reconcileResearchCellDependencyIssues(
+  documentId: string,
+  analyses: ResearchPythonAnalysis[],
+): Promise<void> {
+  const cells = await prisma.researchCell.findMany({
+    where: { documentId },
+    select: {
+      id: true,
+      status: true,
+      dependencyIssues: true,
+      lastExecutedRevision: true,
+    },
+  });
+  const dependencyCells = analyses.map(researchDependencyCell);
+  const issueFreeCellIds = new Set(
+    cells
+      .filter((cell) => researchCellDependencyIssues(cell.dependencyIssues).length === 0)
+      .map((cell) => cell.id),
+  );
+  const availableDefinitions = new Set(
+    analyses
+      .filter((analysis) => issueFreeCellIds.has(analysis.cellId))
+      .flatMap((analysis) => analysis.definitions),
+  );
+  const downstreamCellIdsByIssueDefinition = new Map<string, Set<string>>();
+  const downstreamFor = (sourceCellId: string, definition: string): Set<string> => {
+    const key = `${sourceCellId}\u0000${definition}`;
+    const cached = downstreamCellIdsByIssueDefinition.get(key);
+    if (cached) {
+      return cached;
+    }
+    const downstream = new Set(
+      researchDownstreamDependencyCellIds(dependencyCells, [sourceCellId], [definition]),
+    );
+    downstreamCellIdsByIssueDefinition.set(key, downstream);
+    return downstream;
+  };
+  const updates = cells.flatMap((cell) => {
+    const currentIssues = researchCellDependencyIssues(cell.dependencyIssues);
+    const dependencyIssues = currentIssues.flatMap((issue) => {
+      const missingDefinitions = issue.missingDefinitions.filter(
+        (definition) =>
+          !availableDefinitions.has(definition) &&
+          downstreamFor(issue.sourceCellId, definition).has(cell.id),
+      );
+      return missingDefinitions.length > 0 ? [{ ...issue, missingDefinitions }] : [];
+    });
+    const status =
+      dependencyIssues.length > 0
+        ? 'blocked'
+        : cell.status === 'blocked'
+          ? cell.lastExecutedRevision == null
+            ? 'idle'
+            : 'stale'
+          : cell.status;
+    if (
+      status === cell.status &&
+      JSON.stringify(dependencyIssues) === JSON.stringify(currentIssues)
+    ) {
+      return [];
+    }
+    return [
+      prisma.researchCell.update({
+        where: { id: cell.id },
+        data: {
+          status,
+          dependencyIssues: dependencyIssues as unknown as Prisma.InputJsonValue,
+        },
+      }),
+    ];
+  });
+  if (updates.length > 0) {
+    await prisma.$transaction(updates);
+  }
+}
+
+function researchDependencyCell(analysis: ResearchPythonAnalysis) {
+  return {
+    id: analysis.cellId,
+    definitions: analysis.definitions,
+    references: analysis.references,
+  };
 }
 
 async function analyzeResearchCellSources(
@@ -1128,6 +1360,7 @@ async function markDownstreamStale(
     where: {
       documentId,
       id: { in: stale },
+      status: { not: 'blocked' },
       lastExecutedRevision: { not: null },
     },
     data: { status: 'stale' },
@@ -1139,27 +1372,11 @@ export function downstreamResearchCellIds(
   seedNames: Set<string>,
   analyses: ResearchPythonAnalysis[],
 ): string[] {
-  const stale = new Set<string>();
-  const pendingNames = [...seedNames];
-  const visitedNames = new Set<string>();
-  while (pendingNames.length > 0) {
-    const name = pendingNames.shift()!;
-    if (visitedNames.has(name)) {
-      continue;
-    }
-    visitedNames.add(name);
-    for (const analysis of analyses) {
-      if (
-        analysis.cellId !== changedCellId &&
-        !stale.has(analysis.cellId) &&
-        analysis.references.includes(name)
-      ) {
-        stale.add(analysis.cellId);
-        pendingNames.push(...analysis.definitions);
-      }
-    }
-  }
-  return [...stale];
+  return researchDownstreamDependencyCellIds(
+    analyses.map(researchDependencyCell),
+    [changedCellId],
+    [...seedNames],
+  );
 }
 
 export function affectedResearchCellRunPlan(
@@ -1359,6 +1576,7 @@ function cellView(cell: ResearchDocumentRow['cells'][number]): ResearchCellV1 {
     revision: cell.revision,
     definitions: jsonStringArray(cell.definitions),
     references: jsonStringArray(cell.references),
+    dependencyIssues: researchCellDependencyIssues(cell.dependencyIssues),
     outputs: Array.isArray(cell.output)
       ? (cell.output as unknown as ResearchCellOutputBlockV1[])
       : [],
@@ -1502,6 +1720,45 @@ function jsonStringArray(value: Prisma.JsonValue): string[] {
   return Array.isArray(value)
     ? value.filter((item): item is string => typeof item === 'string')
     : [];
+}
+
+function researchCellDependencyIssues(value: unknown): ResearchCellDependencyIssueV1[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.flatMap((candidate) => {
+    if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) {
+      return [];
+    }
+    const issue = candidate as Record<string, unknown>;
+    const sourceCellKind = issue.sourceCellKind;
+    if (
+      issue.version !== 1 ||
+      issue.reason !== 'deleted_upstream_cell' ||
+      typeof issue.sourceCellId !== 'string' ||
+      typeof issue.sourceCellPosition !== 'number' ||
+      (sourceCellKind !== 'markdown' && sourceCellKind !== 'python') ||
+      !Array.isArray(issue.missingDefinitions)
+    ) {
+      return [];
+    }
+    const missingDefinitions = issue.missingDefinitions.filter(
+      (definition): definition is string => typeof definition === 'string',
+    );
+    if (missingDefinitions.length === 0) {
+      return [];
+    }
+    return [
+      {
+        version: 1 as const,
+        reason: 'deleted_upstream_cell' as const,
+        sourceCellId: issue.sourceCellId,
+        sourceCellPosition: issue.sourceCellPosition,
+        sourceCellKind,
+        missingDefinitions,
+      },
+    ];
+  });
 }
 
 function messagePreview(parts: Prisma.JsonValue | undefined): string {

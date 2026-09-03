@@ -75,6 +75,7 @@ import {
   restoreResearchDocument,
   ResearchAffectedRunError,
   ResearchCellChangeReviewOpenError,
+  ResearchCellDependencyBlockedError,
   ResearchCellRevisionConflictError,
   ResearchDocumentRunInProgressError,
   runAffectedResearchCells,
@@ -493,6 +494,11 @@ researchRoute.post('/cell-change-proposals/:proposalId/run-affected', async (c) 
     if (error instanceof ResearchDocumentRunInProgressError) {
       return apiError(c, 'CONFLICT', m(c, 'researchDocumentRunInProgress'));
     }
+    if (error instanceof ResearchCellDependencyBlockedError) {
+      return apiError(c, 'VALIDATION_FAILED', m(c, 'researchCellDependencyBlocked'), {
+        cellIds: error.cellIds,
+      });
+    }
     if (error instanceof ResearchCellChangeAttemptUnavailableError) {
       const messageKey = {
         proposal_not_applied: 'researchCellChangeAttemptProposalNotApplied',
@@ -522,6 +528,11 @@ researchRoute.post('/cells/:cellId/run', async (c) => {
     if (error instanceof ResearchDocumentRunInProgressError) {
       return apiError(c, 'CONFLICT', m(c, 'researchDocumentRunInProgress'));
     }
+    if (error instanceof ResearchCellDependencyBlockedError) {
+      return apiError(c, 'VALIDATION_FAILED', m(c, 'researchCellDependencyBlocked'), {
+        cellIds: error.cellIds,
+      });
+    }
     throw error;
   }
 });
@@ -536,6 +547,11 @@ researchRoute.post('/cells/:cellId/run-affected', async (c) => {
     }
     if (error instanceof ResearchDocumentRunInProgressError) {
       return apiError(c, 'CONFLICT', m(c, 'researchDocumentRunInProgress'));
+    }
+    if (error instanceof ResearchCellDependencyBlockedError) {
+      return apiError(c, 'VALIDATION_FAILED', m(c, 'researchCellDependencyBlocked'), {
+        cellIds: error.cellIds,
+      });
     }
     if (error instanceof ResearchAffectedRunError) {
       const messageKey =
@@ -572,6 +588,11 @@ researchRoute.post('/documents/:documentId/run', validateJson(runDocumentBody), 
     }
     if (error instanceof ResearchDocumentRunInProgressError) {
       return apiError(c, 'CONFLICT', m(c, 'researchDocumentRunInProgress'));
+    }
+    if (error instanceof ResearchCellDependencyBlockedError) {
+      return apiError(c, 'VALIDATION_FAILED', m(c, 'researchCellDependencyBlocked'), {
+        cellIds: error.cellIds,
+      });
     }
     throw error;
   }

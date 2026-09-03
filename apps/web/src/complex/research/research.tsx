@@ -25,7 +25,10 @@ import type {
   ResearchDocumentListStateV1,
   ResearchDocumentSummaryV1,
 } from '@jixie/shared';
-import { researchCellContextSnapshotState } from '@jixie/shared';
+import {
+  researchCellContextSnapshotState,
+  researchDownstreamDependencyCellIds,
+} from '@jixie/shared';
 import {
   faBoxArchive,
   faBoxOpen,
@@ -398,9 +401,11 @@ const DocumentItem = complex.component(
       !document.title.toLocaleLowerCase().includes(normalizedQuery) &&
       document.preview.toLocaleLowerCase().includes(normalizedQuery);
     const statusSummary =
-      document.staleCount > 0
-        ? t('workbench.staleSummary', { count: document.staleCount })
-        : t('workbench.cellSummary', { count: document.cellCount });
+      document.blockedCount > 0
+        ? t('workbench.blockedSummary', { count: document.blockedCount })
+        : document.staleCount > 0
+          ? t('workbench.staleSummary', { count: document.staleCount })
+          : t('workbench.cellSummary', { count: document.cellCount });
     const secondaryText = previewMatches
       ? document.preview
       : listState === 'archived' && document.archivedAt
@@ -627,6 +632,7 @@ const ResearchWorkspace = complex.component(
     const document = store.document!;
     const latestExecution = store.executionListLoader.result?.[0];
     const staleCount = document.cells.filter((cell) => cell.status === 'stale').length;
+    const blockedCount = document.cells.filter((cell) => cell.status === 'blocked').length;
     const commitTitle = () => {
       setEditingTitle(false);
       void store.renameConversation(title);
@@ -663,7 +669,10 @@ const ResearchWorkspace = complex.component(
           icon: <FontAwesomeIcon icon={store.hasActiveRun ? faStop : faBolt} />,
           label: store.hasActiveRun ? t('workbench.interruptRun') : t('workbench.cleanRun'),
           danger: store.hasActiveRun,
-          disabled: store.interrupting || store.hasOpenCellChangeReview,
+          disabled:
+            store.interrupting ||
+            store.hasOpenCellChangeReview ||
+            (!store.hasActiveRun && blockedCount > 0),
         },
       ],
       onClick: ({ key }) => {
@@ -727,6 +736,7 @@ const ResearchWorkspace = complex.component(
             <span className="jx-research-runtimeMeta">
               {t('workbench.runtime')} · {document.cells.length} {t('workbench.cells')}
               {staleCount > 0 && ` · ${t('workbench.staleSummary', { count: staleCount })}`}
+              {blockedCount > 0 && ` · ${t('workbench.blockedSummary', { count: blockedCount })}`}
               {latestExecution &&
                 ` · ${t('workbench.execution.latest', {
                   sequence: latestExecution.sequence,
@@ -781,7 +791,9 @@ const ResearchWorkspace = complex.component(
                   ? t('workbench.cellChange.resolveBeforeRun')
                   : store.hasActiveRun
                     ? t('workbench.interruptRun')
-                    : t('workbench.cleanRun')
+                    : blockedCount > 0
+                      ? t('workbench.blockedRunHint')
+                      : t('workbench.cleanRun')
               }
             >
               <Button
@@ -791,7 +803,11 @@ const ResearchWorkspace = complex.component(
                   'jx-research-interruptAction': store.hasActiveRun,
                 })}
                 data-testid={store.hasActiveRun ? 'research-interrupt' : 'research-run-all'}
-                disabled={store.interrupting || store.hasOpenCellChangeReview}
+                disabled={
+                  store.interrupting ||
+                  store.hasOpenCellChangeReview ||
+                  (!store.hasActiveRun && blockedCount > 0)
+                }
                 icon={<FontAwesomeIcon icon={store.hasActiveRun ? faStop : faBolt} />}
                 aria-label={
                   store.hasActiveRun ? t('workbench.interruptRun') : t('workbench.cleanRun')
@@ -899,6 +915,23 @@ const ResearchCell = complex.component(
     const cellRunActive = store.busyCellId === cell.id;
     const affectedBusy = store.affectedRunningCellId === cell.id;
     const attachedToAgent = store.agentContextCellIds.includes(cell.id);
+    const documentCells = store.document?.cells ?? [];
+    const downstreamCellIdSet = new Set(
+      researchDownstreamDependencyCellIds(documentCells, [cell.id]),
+    );
+    const downstreamCells = documentCells.filter((candidate) =>
+      downstreamCellIdSet.has(candidate.id),
+    );
+    const affectedBranchBlocked = [cell, ...downstreamCells].some(
+      (candidate) => candidate.status === 'blocked',
+    );
+    const ordinalByCellId = new Map(
+      documentCells.map((candidate, index) => [candidate.id, index + 1]),
+    );
+    const hasUnsavedCells = documentCells.some((candidate) => {
+      const status = store.cellDraft(candidate.id)?.status;
+      return status !== undefined && status !== 'saved';
+    });
     const anotherRunActive =
       store.documentRunning ||
       (store.busyCellId !== null && store.busyCellId !== cell.id) ||
@@ -1003,9 +1036,11 @@ const ResearchCell = complex.component(
               title={
                 store.hasOpenCellChangeReview
                   ? t('workbench.cellChange.resolveBeforeRun')
-                  : cell.kind === 'python' && cellRunActive
-                    ? t('workbench.interruptRun')
-                    : t('workbench.runShortcut')
+                  : cell.status === 'blocked'
+                    ? t('workbench.blockedRunHint')
+                    : cell.kind === 'python' && cellRunActive
+                      ? t('workbench.interruptRun')
+                      : t('workbench.runShortcut')
               }
             >
               <Button
@@ -1018,6 +1053,7 @@ const ResearchCell = complex.component(
                 disabled={
                   store.hasOpenCellChangeReview ||
                   store.interrupting ||
+                  cell.status === 'blocked' ||
                   (!(cell.kind === 'python' && cellRunActive) && (affectedBusy || anotherRunActive))
                 }
                 icon={
@@ -1040,9 +1076,11 @@ const ResearchCell = complex.component(
                 title={
                   store.hasOpenCellChangeReview
                     ? t('workbench.cellChange.resolveBeforeRun')
-                    : affectedBusy
-                      ? t('workbench.interruptRun')
-                      : t('workbench.runAffected')
+                    : affectedBranchBlocked
+                      ? t('workbench.blockedAffectedRunHint')
+                      : affectedBusy
+                        ? t('workbench.interruptRun')
+                        : t('workbench.runAffected')
                 }
               >
                 <Button
@@ -1054,6 +1092,7 @@ const ResearchCell = complex.component(
                   disabled={
                     store.hasOpenCellChangeReview ||
                     store.interrupting ||
+                    affectedBranchBlocked ||
                     (!affectedBusy && (busy || anotherRunActive))
                   }
                   data-testid="research-run-affected"
@@ -1065,16 +1104,54 @@ const ResearchCell = complex.component(
                 />
               </Tooltip>
             )}
-            <Tooltip title={t('workbench.deleteCell')}>
+            <Tooltip
+              title={hasUnsavedCells ? t('workbench.saveBeforeDelete') : t('workbench.deleteCell')}
+            >
               <Popconfirm
-                title={t('workbench.deleteCell')}
-                onConfirm={() => void store.deleteCell(cell.id)}
+                title={t('workbench.deleteCellTitle', {
+                  ordinal: String(ordinal).padStart(2, '0'),
+                })}
+                description={
+                  downstreamCells.length > 0 ? (
+                    <div
+                      className="jx-research-deleteImpact"
+                      data-testid="research-cell-delete-impact"
+                    >
+                      <strong className="jx-research-deleteImpactTitle">
+                        {t('workbench.deleteCellImpact', { count: downstreamCells.length })}
+                      </strong>
+                      <ul className="jx-research-deleteImpactList">
+                        {downstreamCells.map((downstreamCell) => (
+                          <li key={downstreamCell.id}>
+                            {t('workbench.agentCellContext.label', {
+                              ordinal: String(
+                                ordinalByCellId.get(downstreamCell.id) ??
+                                  downstreamCell.position + 1,
+                              ).padStart(2, '0'),
+                              kind: t(`workbench.cellKind.${downstreamCell.kind}`),
+                            })}
+                          </li>
+                        ))}
+                      </ul>
+                      <span className="jx-research-deleteImpactHint">
+                        {t('workbench.deleteCellImpactHint')}
+                      </span>
+                    </div>
+                  ) : undefined
+                }
+                okText={
+                  downstreamCells.length > 0
+                    ? t('workbench.deleteCellConfirmImpacted')
+                    : t('workbench.deleteCellConfirm')
+                }
+                cancelText={t('workbench.cancel')}
+                onConfirm={() => store.deleteCell(cell.id)}
               >
                 <Button
                   type="text"
                   size="small"
                   className="jx-research-destructiveAction"
-                  disabled={store.hasActiveRun || store.hasOpenCellChangeReview}
+                  disabled={store.hasActiveRun || store.hasOpenCellChangeReview || hasUnsavedCells}
                   icon={<FontAwesomeIcon icon={faTrash} />}
                   aria-label={t('workbench.deleteCell')}
                 />
@@ -1140,6 +1217,23 @@ const ResearchCell = complex.component(
             <div className="jx-research-staleNotice">
               <FontAwesomeIcon icon={faTriangleExclamation} />
               <span>{t('workbench.staleNotice')}</span>
+            </div>
+          )}
+          {cell.status === 'blocked' && (
+            <div className="jx-research-blockedNotice" data-testid="research-cell-blocked-notice">
+              <FontAwesomeIcon icon={faTriangleExclamation} />
+              <div className="jx-research-blockedNoticeBody">
+                <strong>{t('workbench.blockedNoticeTitle')}</strong>
+                <span>{t('workbench.blockedNoticeHint')}</span>
+                {cell.dependencyIssues.map((issue) => (
+                  <code key={issue.sourceCellId}>
+                    {t('workbench.blockedNoticeIssue', {
+                      ordinal: String(issue.sourceCellPosition + 1).padStart(2, '0'),
+                      definitions: issue.missingDefinitions.join(', '),
+                    })}
+                  </code>
+                ))}
+              </div>
             </div>
           )}
           <ResearchOutputs outputs={cell.outputs} />

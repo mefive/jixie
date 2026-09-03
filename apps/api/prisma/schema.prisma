@@ -1353,10 +1353,11 @@ model ResearchCell {
   kind                 String // 'markdown' | 'python'
   source               String
   config               Json?
-  status               String           @default("idle") // 'idle' | 'running' | 'success' | 'error' | 'stale'
+  status               String           @default("idle") // 'idle' | 'running' | 'success' | 'error' | 'stale' | 'blocked'
   revision             Int              @default(1)
   definitions          Json
   references           Json
+  dependencyIssues     Json             @default("[]")
   output               Json?
   lastExecutedRevision Int?
   lastExecutedAt       DateTime?
