@@ -92,6 +92,21 @@ interface FinancialPitRow {
   announcementBeforePeriodEnd: bigint | number;
 }
 
+export interface FinancialStatementVersionAuditRow {
+  total: bigint | number;
+  invalidAnnouncementDate: bigint | number;
+  invalidAvailableDate: bigint | number;
+  invalidQuality: bigint | number;
+  invalidReportScope: bigint | number;
+}
+
+export interface FinancialStatementReconciliationRow {
+  indicatorPeriods: bigint | number;
+  incomeMatches: bigint | number;
+  balanceMatches: bigint | number;
+  cashFlowMatches: bigint | number;
+}
+
 interface WindowCoverageRow {
   tsCode: string;
   observedDays: bigint | number;
@@ -231,6 +246,7 @@ export async function runDataQualityAudit(
     await auditEtfRegistry(database, openDates.at(-1)!),
     await auditWindowCoverage(database, openDates, windowTradingDays, evaluationPoints),
     await auditFinancialPit(database),
+    await auditFinancialStatementVersions(database),
     await auditMacroPit(database),
     await auditExternalMarketPit(database, endDate),
     await auditCrossMarketBenchmarkPit(database, endDate),
@@ -980,6 +996,84 @@ async function auditFinancialPit(database: Prisma): Promise<AuditFinding> {
     details: [
       `${formatNumber(total)} FinaIndicator rows checked.`,
       'The required invariant is annDate >= endDate; analysis must gate availability on annDate.',
+    ],
+  };
+}
+
+async function auditFinancialStatementVersions(database: Prisma): Promise<AuditFinding> {
+  const [versionRows, reconciliationRows] = await Promise.all([
+    database.$queryRaw<FinancialStatementVersionAuditRow[]>`
+      SELECT
+        COUNT(*) AS total,
+        SUM(CASE WHEN announcementDate < endDate THEN 1 ELSE 0 END) AS invalidAnnouncementDate,
+        SUM(CASE WHEN availableDate <= announcementDate THEN 1 ELSE 0 END) AS invalidAvailableDate,
+        SUM(CASE WHEN availabilityQuality NOT IN ('exact', 'conservative', 'reconstructed') THEN 1 ELSE 0 END) AS invalidQuality,
+        SUM(CASE WHEN reportType NOT IN ('1', '4', '5') OR compType <> '1' THEN 1 ELSE 0 END) AS invalidReportScope
+      FROM (
+        SELECT announcementDate, availableDate, availabilityQuality, reportType, compType
+        FROM FinancialIncomeStatement
+        UNION ALL
+        SELECT announcementDate, availableDate, availabilityQuality, reportType, compType
+        FROM FinancialBalanceSheet
+        UNION ALL
+        SELECT announcementDate, availableDate, availabilityQuality, reportType, compType
+        FROM FinancialCashFlowStatement
+      )
+    `,
+    database.$queryRaw<FinancialStatementReconciliationRow[]>`
+      SELECT
+        COUNT(*) AS indicatorPeriods,
+        SUM(CASE WHEN EXISTS (
+          SELECT 1 FROM FinancialIncomeStatement statement
+          WHERE statement.tsCode = indicator.tsCode AND statement.endDate = indicator.endDate
+        ) THEN 1 ELSE 0 END) AS incomeMatches,
+        SUM(CASE WHEN EXISTS (
+          SELECT 1 FROM FinancialBalanceSheet statement
+          WHERE statement.tsCode = indicator.tsCode AND statement.endDate = indicator.endDate
+        ) THEN 1 ELSE 0 END) AS balanceMatches,
+        SUM(CASE WHEN EXISTS (
+          SELECT 1 FROM FinancialCashFlowStatement statement
+          WHERE statement.tsCode = indicator.tsCode AND statement.endDate = indicator.endDate
+        ) THEN 1 ELSE 0 END) AS cashFlowMatches
+      FROM FinaIndicator indicator
+    `,
+  ]);
+  return summarizeFinancialStatementVersions(versionRows[0], reconciliationRows[0]);
+}
+
+export function summarizeFinancialStatementVersions(
+  versions: FinancialStatementVersionAuditRow | undefined,
+  reconciliation: FinancialStatementReconciliationRow | undefined,
+): AuditFinding {
+  const total = toNumber(versions?.total);
+  const invalidAnnouncementDate = toNumber(versions?.invalidAnnouncementDate);
+  const invalidAvailableDate = toNumber(versions?.invalidAvailableDate);
+  const invalidQuality = toNumber(versions?.invalidQuality);
+  const invalidReportScope = toNumber(versions?.invalidReportScope);
+  const invalidRows =
+    invalidAnnouncementDate + invalidAvailableDate + invalidQuality + invalidReportScope;
+  const indicatorPeriods = toNumber(reconciliation?.indicatorPeriods);
+  const matches = {
+    income: toNumber(reconciliation?.incomeMatches),
+    balance: toNumber(reconciliation?.balanceMatches),
+    cashFlow: toNumber(reconciliation?.cashFlowMatches),
+  };
+  const minimumCoverage =
+    indicatorPeriods > 0
+      ? Math.min(matches.income, matches.balance, matches.cashFlow) / indicatorPeriods
+      : 1;
+  const status: AuditStatus =
+    invalidRows > 0 ? 'error' : total === 0 || minimumCoverage < 0.8 ? 'warn' : 'pass';
+
+  return {
+    id: 'financial-statement-versions',
+    title: 'Financial statements: append-only PIT versions',
+    status,
+    summary: `${formatNumber(total)} statement versions; ${formatNumber(invalidRows)} invalid PIT or scope fields; minimum legacy-period coverage ${formatPercent(minimumCoverage)}`,
+    details: [
+      `Invalid fields: announcement=${invalidAnnouncementDate}, availability=${invalidAvailableDate}, quality=${invalidQuality}, scope=${invalidReportScope}.`,
+      `FinaIndicator reconciliation (${formatNumber(indicatorPeriods)} periods): income=${formatNumber(matches.income)}, balance=${formatNumber(matches.balance)}, cash flow=${formatNumber(matches.cashFlow)}.`,
+      'FinaIndicator remains a compatibility source; these coverage counts do not overwrite either data path.',
     ],
   };
 }

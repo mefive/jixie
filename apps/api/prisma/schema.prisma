@@ -359,6 +359,169 @@ model FinaIndicator {
   @@index([annDate])
 }
 
+/// Append-only Tushare income-statement versions for consolidated industrial companies. Flow
+/// values are cumulative year-to-date CNY. `availableDate` is the first strictly later SSE session.
+model FinancialIncomeStatement {
+  id                   String   @id // ULID
+  source               String
+  contractVersion      Int
+  tsCode               String
+  annDate              String?
+  fAnnDate             String?
+  endDate              String
+  reportType           String
+  compType             String
+  updateFlag           String?
+  observedAt           DateTime
+  sourceRowFingerprint String   @unique
+  announcementDate     String
+  availableDate        String
+  availabilityQuality  String // 'exact' | 'conservative' | 'reconstructed'
+  evidenceSource       String // 'tushare_statement' | 'cninfo_announcement'
+  evidenceId           String?
+  totalRevenue         Float?
+  revenue              Float?
+  operCost             Float?
+  operateProfit        Float?
+  totalProfit          Float?
+  incomeTax            Float?
+  nIncome              Float?
+  nIncomeAttrP         Float?
+  ebit                 Float?
+  rdExp                Float?
+  finExpIntExp         Float?
+
+  @@index([tsCode, endDate, availableDate])
+  @@index([endDate, reportType, compType])
+  @@index([availableDate])
+}
+
+/// Append-only Tushare balance-sheet versions for consolidated industrial companies. Stock values
+/// are CNY at the reporting date, except `totalShare`, which is the issued-share count.
+model FinancialBalanceSheet {
+  id                    String   @id // ULID
+  source                String
+  contractVersion       Int
+  tsCode                String
+  annDate               String?
+  fAnnDate              String?
+  endDate               String
+  reportType            String
+  compType              String
+  updateFlag            String?
+  observedAt            DateTime
+  sourceRowFingerprint  String   @unique
+  announcementDate      String
+  availableDate         String
+  availabilityQuality   String // 'exact' | 'conservative' | 'reconstructed'
+  evidenceSource        String // 'tushare_statement' | 'cninfo_announcement'
+  evidenceId            String?
+  moneyCap              Float?
+  tradAsset             Float?
+  notesReceiv           Float?
+  accountsReceiv        Float?
+  accountsReceivBill    Float?
+  othReceiv             Float?
+  othRcvTotal           Float?
+  inventories           Float?
+  prepayment            Float?
+  contractAssets        Float?
+  othCurAssets          Float?
+  totalCurAssets        Float?
+  fixAssets             Float?
+  fixAssetsTotal        Float?
+  cip                   Float?
+  cipTotal              Float?
+  intanAssets           Float?
+  goodwill              Float?
+  deferTaxAssets        Float?
+  othNca                Float?
+  totalNca              Float?
+  totalAssets           Float?
+  notesPayable          Float?
+  acctPayable           Float?
+  accountsPay           Float?
+  advReceipts           Float?
+  contractLiab          Float?
+  payrollPayable        Float?
+  taxesPayable          Float?
+  othPayable            Float?
+  othPayTotal           Float?
+  stBorr                Float?
+  nonCurLiabDue1y       Float?
+  ltBorr                Float?
+  bondPayable           Float?
+  othCurLiab            Float?
+  totalCurLiab          Float?
+  othNcl                Float?
+  totalNcl              Float?
+  totalLiab             Float?
+  minorityInt           Float?
+  totalHldrEqyExcMinInt Float?
+  totalShare            Float?
+
+  @@index([tsCode, endDate, availableDate])
+  @@index([endDate, reportType, compType])
+  @@index([availableDate])
+}
+
+/// Append-only Tushare cash-flow-statement versions for consolidated industrial companies. Flow
+/// values are cumulative year-to-date CNY.
+model FinancialCashFlowStatement {
+  id                   String   @id // ULID
+  source               String
+  contractVersion      Int
+  tsCode               String
+  annDate              String?
+  fAnnDate             String?
+  endDate              String
+  reportType           String
+  compType             String
+  updateFlag           String?
+  observedAt           DateTime
+  sourceRowFingerprint String   @unique
+  announcementDate     String
+  availableDate        String
+  availabilityQuality  String // 'exact' | 'conservative' | 'reconstructed'
+  evidenceSource       String // 'tushare_statement' | 'cninfo_announcement'
+  evidenceId           String?
+  nCashflowAct         Float?
+  cPayAcqConstFiolta   Float?
+  nCashflowInvAct      Float?
+  nCashFlowsFncAct     Float?
+  cPayDistDpcpIntExp   Float?
+  nIncrCashCashEqu     Float?
+  cCashEquBegPeriod    Float?
+  cCashEquEndPeriod    Float?
+  netProfit            Float?
+  deprFaCogaDpba       Float?
+  amortIntangAssets    Float?
+  freeCashflow         Float?
+
+  @@index([tsCode, endDate, availableDate])
+  @@index([endDate, reportType, compType])
+  @@index([availableDate])
+}
+
+/// Official public evidence that dates a financial correction. A single announcement may cover
+/// several report periods; the verified period list is stored as JSON.
+model FinancialCorrectionEvidence {
+  id                String   @id // ULID
+  source            String
+  sourceId          String
+  tsCode            String
+  publishedAt       DateTime
+  publishedDate     String
+  title             String
+  documentUrl       String
+  affectedPeriods   Json
+  sourceFingerprint String   @unique
+  observedAt        DateTime
+
+  @@unique([source, sourceId])
+  @@index([tsCode, publishedDate])
+}
+
 /// Dividend distributions (raw; a period yields several rows across proposal→execution stages).
 /// Only divProc '实施' (the "implemented" stage) is an actually-paid dividend; exDate is the PIT gate for when it took effect.
 model Dividend {

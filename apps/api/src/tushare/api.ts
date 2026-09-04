@@ -1,4 +1,8 @@
 import type { TsCode, TradeDate } from '@jixie/shared';
+import {
+  financialStatementSourceFields,
+  type FinancialStatementKind,
+} from '../fundamentals/source-contract.js';
 import type { TushareClient } from './client.js';
 
 export interface StockBasicRow {
@@ -675,6 +679,181 @@ export async function finaIndicatorVip(
       'ts_code,ann_date,end_date,roe,roe_waa,roa,grossprofit_margin,netprofit_margin,debt_to_assets,or_yoy,netprofit_yoy,ocf_to_profit,update_flag',
     );
     rows.push(...(page as unknown as FinaIndicatorRow[]));
+    if (page.length < pageSize) {
+      return rows;
+    }
+  }
+}
+
+export type FinancialStatementReportType = '1' | '4' | '5';
+
+export interface FinancialStatementBaseRow {
+  ts_code: TsCode;
+  ann_date: TradeDate | null;
+  f_ann_date: TradeDate | null;
+  end_date: TradeDate;
+  report_type: string;
+  comp_type: string;
+  update_flag: string | null;
+}
+
+export interface IncomeStatementRow extends FinancialStatementBaseRow {
+  total_revenue: number | null;
+  revenue: number | null;
+  oper_cost: number | null;
+  operate_profit: number | null;
+  total_profit: number | null;
+  income_tax: number | null;
+  n_income: number | null;
+  n_income_attr_p: number | null;
+  ebit: number | null;
+  rd_exp: number | null;
+  fin_exp_int_exp: number | null;
+}
+
+export interface BalanceSheetRow extends FinancialStatementBaseRow {
+  money_cap: number | null;
+  trad_asset: number | null;
+  notes_receiv: number | null;
+  accounts_receiv: number | null;
+  accounts_receiv_bill: number | null;
+  oth_receiv: number | null;
+  oth_rcv_total: number | null;
+  inventories: number | null;
+  prepayment: number | null;
+  contract_assets: number | null;
+  oth_cur_assets: number | null;
+  total_cur_assets: number | null;
+  fix_assets: number | null;
+  fix_assets_total: number | null;
+  cip: number | null;
+  cip_total: number | null;
+  intan_assets: number | null;
+  goodwill: number | null;
+  defer_tax_assets: number | null;
+  oth_nca: number | null;
+  total_nca: number | null;
+  total_assets: number | null;
+  notes_payable: number | null;
+  acct_payable: number | null;
+  accounts_pay: number | null;
+  adv_receipts: number | null;
+  contract_liab: number | null;
+  payroll_payable: number | null;
+  taxes_payable: number | null;
+  oth_payable: number | null;
+  oth_pay_total: number | null;
+  st_borr: number | null;
+  non_cur_liab_due_1y: number | null;
+  lt_borr: number | null;
+  bond_payable: number | null;
+  oth_cur_liab: number | null;
+  total_cur_liab: number | null;
+  oth_ncl: number | null;
+  total_ncl: number | null;
+  total_liab: number | null;
+  minority_int: number | null;
+  total_hldr_eqy_exc_min_int: number | null;
+  total_share: number | null;
+}
+
+export interface CashFlowStatementRow extends FinancialStatementBaseRow {
+  n_cashflow_act: number | null;
+  c_pay_acq_const_fiolta: number | null;
+  n_cashflow_inv_act: number | null;
+  n_cash_flows_fnc_act: number | null;
+  c_pay_dist_dpcp_int_exp: number | null;
+  n_incr_cash_cash_equ: number | null;
+  c_cash_equ_beg_period: number | null;
+  c_cash_equ_end_period: number | null;
+  net_profit: number | null;
+  depr_fa_coga_dpba: number | null;
+  amort_intang_assets: number | null;
+  free_cashflow: number | null;
+}
+
+export function incomeStatement(
+  client: TushareClient,
+  params: FinancialStatementStockParams,
+): Promise<IncomeStatementRow[]> {
+  return financialStatementByStock(client, 'income', 'income', params);
+}
+
+export function balanceSheet(
+  client: TushareClient,
+  params: FinancialStatementStockParams,
+): Promise<BalanceSheetRow[]> {
+  return financialStatementByStock(client, 'balancesheet', 'balance_sheet', params);
+}
+
+export function cashFlowStatement(
+  client: TushareClient,
+  params: FinancialStatementStockParams,
+): Promise<CashFlowStatementRow[]> {
+  return financialStatementByStock(client, 'cashflow', 'cash_flow', params);
+}
+
+export function incomeStatementVip(
+  client: TushareClient,
+  period: TradeDate,
+  reportType: FinancialStatementReportType,
+): Promise<IncomeStatementRow[]> {
+  return financialStatementVip(client, 'income_vip', 'income', period, reportType);
+}
+
+export function balanceSheetVip(
+  client: TushareClient,
+  period: TradeDate,
+  reportType: FinancialStatementReportType,
+): Promise<BalanceSheetRow[]> {
+  return financialStatementVip(client, 'balancesheet_vip', 'balance_sheet', period, reportType);
+}
+
+export function cashFlowStatementVip(
+  client: TushareClient,
+  period: TradeDate,
+  reportType: FinancialStatementReportType,
+): Promise<CashFlowStatementRow[]> {
+  return financialStatementVip(client, 'cashflow_vip', 'cash_flow', period, reportType);
+}
+
+interface FinancialStatementStockParams {
+  ts_code: TsCode;
+  start_date: TradeDate;
+  end_date: TradeDate;
+  report_type: FinancialStatementReportType;
+}
+
+async function financialStatementByStock<Row extends FinancialStatementBaseRow>(
+  client: TushareClient,
+  apiName: 'income' | 'balancesheet' | 'cashflow',
+  statementKind: FinancialStatementKind,
+  params: FinancialStatementStockParams,
+): Promise<Row[]> {
+  const rows = await client.call(
+    apiName,
+    { ...params },
+    financialStatementSourceFields(statementKind).join(','),
+  );
+  return rows as unknown as Row[];
+}
+
+async function financialStatementVip<Row extends FinancialStatementBaseRow>(
+  client: TushareClient,
+  apiName: 'income_vip' | 'balancesheet_vip' | 'cashflow_vip',
+  statementKind: FinancialStatementKind,
+  period: TradeDate,
+  reportType: FinancialStatementReportType,
+): Promise<Row[]> {
+  const pageSize = 5_000;
+  const rows: Row[] = [];
+  for (let offset = 0; ; offset += pageSize) {
+    const page = await client.call(
+      apiName,
+      { period, report_type: reportType, limit: pageSize, offset },
+      financialStatementSourceFields(statementKind).join(','),
+    );
+    rows.push(...(page as unknown as Row[]));
     if (page.length < pageSize) {
       return rows;
     }

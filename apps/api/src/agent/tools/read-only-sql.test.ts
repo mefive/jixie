@@ -42,6 +42,14 @@ describe('prepareReadOnlySql', () => {
     expect(prepareReadOnlySql(sql)).toContain('CommodityContinuousReturn');
   });
 
+  it('accepts public statement versions with an explicit availability gate', () => {
+    const sql = `SELECT tsCode, endDate, revenue
+      FROM FinancialIncomeStatement
+      WHERE availableDate <= '20260730' AND availabilityQuality <> 'reconstructed'`;
+
+    expect(prepareReadOnlySql(sql)).toContain('FinancialIncomeStatement');
+  });
+
   it('rejects an oversized LIMIT', () => {
     expect(() => prepareReadOnlySql('SELECT * FROM Daily LIMIT 100000')).toThrow(/LIMIT max/);
   });

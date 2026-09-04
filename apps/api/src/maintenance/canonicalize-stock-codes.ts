@@ -225,6 +225,28 @@ export async function canonicalizeStockCodes(): Promise<StockCodeCanonicalizatio
           deleteOld: () => transaction.finaIndicator.deleteMany({ where: { tsCode: oldTsCode } }),
         });
 
+        const incomeVersions = await transaction.financialIncomeStatement.updateMany({
+          where: { tsCode: oldTsCode },
+          data: { tsCode: newTsCode },
+        });
+        const balanceVersions = await transaction.financialBalanceSheet.updateMany({
+          where: { tsCode: oldTsCode },
+          data: { tsCode: newTsCode },
+        });
+        const cashFlowVersions = await transaction.financialCashFlowStatement.updateMany({
+          where: { tsCode: oldTsCode },
+          data: { tsCode: newTsCode },
+        });
+        const correctionEvidence = await transaction.financialCorrectionEvidence.updateMany({
+          where: { tsCode: oldTsCode },
+          data: { tsCode: newTsCode },
+        });
+        count +=
+          incomeVersions.count +
+          balanceVersions.count +
+          cashFlowVersions.count +
+          correctionEvidence.count;
+
         const dividendOld = await transaction.dividend.findMany({ where: { tsCode: oldTsCode } });
         const dividendNew = await transaction.dividend.findMany({ where: { tsCode: newTsCode } });
         count += await mergeRows({

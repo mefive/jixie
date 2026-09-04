@@ -61,6 +61,7 @@ export interface WeeklyMaintenanceSummary {
   canonicalizedRows: number;
   earliestMarketChange: string | null;
   selfHealing: SelfHealSummary | null;
+  financialStatements: WeeklyReferenceSyncSummary | null;
   financials: WeeklyReferenceSyncSummary | null;
   dividends: WeeklyReferenceSyncSummary | null;
   chinaTreasuryCurve: number | null;
@@ -113,6 +114,7 @@ export async function runWeeklyMaintenance(
     canonicalizedRows: 0,
     earliestMarketChange: null,
     selfHealing: null,
+    financialStatements: null,
     financials: null,
     dividends: null,
     chinaTreasuryCurve: null,
@@ -151,8 +153,18 @@ export async function runWeeklyMaintenance(
       today,
     );
     onLog(
-      `Full reference reconciliation: ${financialPeriods.length} financial periods via VIP, ${allCodes.length} dividend stocks`,
+      `Full reference reconciliation: ${financialPeriods.length} statement and indicator periods via VIP, ${allCodes.length} dividend stocks`,
     );
+
+    await updateMaintenanceRun(run.id, 'financial_statements', summary);
+    summary.financialStatements = await runReferenceStage(
+      run.id,
+      'financial_statements',
+      financialPeriods,
+      positiveInteger(process.env.MAINTENANCE_WEEKLY_FINANCIAL_STATEMENT_PERIODS_PER_PROCESS, 1),
+      onLog,
+    );
+    await checkpointSqliteWal();
 
     await updateMaintenanceRun(run.id, 'financials', summary);
     summary.financials = await runReferenceStage(

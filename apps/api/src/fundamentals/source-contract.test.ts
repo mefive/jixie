@@ -5,6 +5,7 @@ import {
   FINANCIAL_STATEMENT_FIELDS,
   appendFinancialStatementSourceRows,
   financialSourceRowFingerprint,
+  financialStatementSourceFields,
   isV1IndustrialConsolidatedStatement,
   normalizeFinancialStatementSourceRow,
   resolveFinancialAvailability,
@@ -82,6 +83,24 @@ describe('financial source contract', () => {
     });
   });
 
+  it('does not let a dated announcement bless ambiguous same-date provider values', () => {
+    const sessions = ['20230428', '20230504'];
+    const nextOpen = (date: string) => sessions.find((session) => session > date);
+    const evidence = {
+      ...(fixture.officialCorrection.evidence as FinancialCorrectionEvidence),
+      tsCode: '000333.SZ',
+      publishedDate: '20230429',
+      affectedPeriods: ['20221231'],
+    };
+
+    expect(resolveFinancialAvailability(vendorRows[1]!, vendorRows, nextOpen, [evidence])).toEqual({
+      announcementDate: '20230429',
+      availableDate: '20230504',
+      quality: 'reconstructed',
+      evidenceSource: 'tushare_statement',
+    });
+  });
+
   it('accepts only consolidated industrial statements for the V1 calculation path', () => {
     expect(isV1IndustrialConsolidatedStatement(vendorRows[0]!)).toBe(true);
     expect(
@@ -122,5 +141,9 @@ describe('financial source contract', () => {
         (field) => field.periodSemantics === 'flow_ytd',
       ),
     ).toBe(true);
+    expect(financialStatementSourceFields('income')).toEqual(
+      expect.arrayContaining(['ts_code', 'f_ann_date', 'report_type', 'revenue', 'oper_cost']),
+    );
+    expect(financialStatementSourceFields('income')).not.toContain('total_assets');
   });
 });
