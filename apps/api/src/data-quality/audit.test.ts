@@ -5,6 +5,7 @@ import {
   selectEvaluationDates,
   summarizeCrossMarketBenchmarkPit,
   summarizeExternalMarketPit,
+  summarizeFinancialStatementAccounting,
   summarizeFinancialStatementVersions,
   summarizeCreditCurvePit,
   summarizeMacroPit,
@@ -166,6 +167,35 @@ describe('data quality audit helpers', () => {
         },
       ).status,
     ).toBe('pass');
+  });
+
+  it('separates accounting mismatches, impossible values, and three-table coverage', () => {
+    expect(
+      summarizeFinancialStatementAccounting(
+        { comparable: 100, mismatches: 0, anomalies: 0 },
+        { comparable: 80, mismatches: 1, anomalies: 0 },
+        { comparable: 60, mismatches: 0, anomalies: 0 },
+        { totalPeriods: 100, completePeriods: 95 },
+      ),
+    ).toMatchObject({ id: 'financial-statement-accounting', status: 'pass' });
+
+    expect(
+      summarizeFinancialStatementAccounting(
+        { comparable: 100, mismatches: 0, anomalies: 1 },
+        { comparable: 80, mismatches: 0, anomalies: 0 },
+        { comparable: 60, mismatches: 0, anomalies: 0 },
+        { totalPeriods: 100, completePeriods: 95 },
+      ).status,
+    ).toBe('error');
+
+    expect(
+      summarizeFinancialStatementAccounting(
+        { comparable: 100, mismatches: 0, anomalies: 0 },
+        { comparable: 80, mismatches: 0, anomalies: 0 },
+        { comparable: 60, mismatches: 0, anomalies: 0 },
+        { totalPeriods: 100, completePeriods: 70 },
+      ).status,
+    ).toBe('warn');
   });
 
   it('audits external drivers against the next China market session', () => {
