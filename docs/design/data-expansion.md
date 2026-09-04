@@ -5,7 +5,9 @@
 > 同步实现照抄现有范式(`tushare/api.ts` 加接口 → `store/sync.ts` 加幂等 sync → `scripts/` 加脚本 →
 > schema 加 model + migrate),每个波次一个会话认领。
 >
-> **适用范围更新**：本文是境内 Tushare 数据的历史盘点，不再承担中港美股债商扩展的总设计。跨市场身份、
+> **适用范围更新**：本文是境内 Tushare 数据的历史盘点，不再承担中港美股债商扩展的总设计。三张财务报表
+> 已由 [`valuation-driven-fundamental-research.md`](./valuation-driven-fundamental-research.md) 正式立项，版本、
+> PIT、标准化、估值和 Research 契约以该文为准。跨市场身份、
 > 日历、时区、币种、公司行动、许可和 data revision 必须先按 `roadmaps/05-数据战略.md` 与根
 > `ROADMAP.md` 3.1 重新设计，不能把下述“照抄现有范式”直接推广到境外数据。
 
@@ -29,7 +31,7 @@ PIT 宏观数据的目标、边界及实施波次见 [`asset-allocation-data.md`
 | Tushare 接口 | 内容 | 状态 |
 |---|---|---|
 | `fina_indicator`(扩列) | 毛利率 grossprofit_margin、净利率 netprofit_margin、资产负债率 debt_to_assets、营收/净利同比 or_yoy/netprofit_yoy、ROA、经营现金流/营业利润 ocf_to_profit | ✅ **2026-07-07 完成**:7 列入库(迁移 20260707200000)、sync 支持 `refresh` 断点续传回填、SQL 白名单文档同步;全量回填 `pnpm --filter api sync:fina refresh`(限频 ~72 分钟,已启动) |
-| `income` / `balancesheet` / `cashflow` | 三大报表原始项 | 第二优先:fina_indicator 的衍生指标够用前不上;应计因子(3.5)需要时再上 |
+| `income` / `balancesheet` / `cashflow` | 三大报表原始项 | 已由估值驱动的基本面研究立项；先完成来源与版本探针，再按独立计划实施 |
 | `forecast` / `express` | 业绩预告/快报 | 事件类,等信号/事件研究需求 |
 
 ### 需求② 3.5 预置因子候选的数据依赖(设计文档因子菜单)
@@ -66,7 +68,7 @@ PIT 宏观数据的目标、边界及实施波次见 [`asset-allocation-data.md`
 
 1. **波次一(最划算)**:fina_indicator 扩列(~8 个核心指标)+ 全量重同步 + SQL 白名单文档更新。一张表满足需求①大半 + 3.5 的 ROE/毛利率因子数据面。
 2. **波次二**:index_dailybasic ✅；剩余 stk_holdernumber(小表、接口简单)。
-3. **波次三(等应计因子立项)**:三大报表。
+3. **三张财务报表**：不再作为“等应计因子触发”的本清单波次，按估值驱动的基本面研究计划单独实施。
 4. 观望:hk_hold(数据断点)、forecast/express(等事件研究)。
 
 > 未列入 = 本境内数据波次不做:分钟线/tick(当前产品以日频和中低频为主)、新闻舆情(数据基建重)、
