@@ -10,6 +10,11 @@ export const zhResearch = {
   heroKbd: 'Enter 发送，Shift + Enter 换行',
   examplesLabel: '可以试试',
   composerPlaceholder: '例如：沪深300与中证500过去五年的月收益是否相关？',
+  valuationTemplate: {
+    title: 'FCFF 公司估值模板',
+    description: '从五粮液示例开始，检查情景、敏感性、市场隐含假设和下一期财报。',
+    open: '打开模板',
+  },
   error: {
     withDetail: '研究失败：{{detail}}',
     requestFailed: '请求失败',

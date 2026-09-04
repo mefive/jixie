@@ -140,7 +140,7 @@ researchRoute.get('/artifacts/:artifactId', async (c) => {
 });
 
 const createDocumentBody = z.strictObject({
-  template: z.enum(['blank', 'index_relationship']).default('blank'),
+  template: z.enum(['blank', 'index_relationship', 'equity_fcff_valuation']).default('blank'),
 });
 const createCellBody = z.strictObject({
   kind: z.enum(['markdown', 'python']),

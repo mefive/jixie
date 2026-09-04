@@ -35,6 +35,7 @@ import {
   faBolt,
   faArrowLeft,
   faCheck,
+  faChartLine,
   faCircleExclamation,
   faClockRotateLeft,
   faCode,
@@ -592,6 +593,24 @@ const ResearchLanding = complex.component(({ onOpenHistory }: { onOpenHistory: (
           aria-label={t('workbench.startResearch')}
           onClick={submit}
         />
+      </div>
+      <div className="jx-research-templateStarter">
+        <span className="jx-research-templateIcon">
+          <FontAwesomeIcon icon={faChartLine} />
+        </span>
+        <span className="jx-research-templateText">
+          <strong>{t('valuationTemplate.title')}</strong>
+          <span>{t('valuationTemplate.description')}</span>
+        </span>
+        <Button
+          size="small"
+          loading={store.documentMutationLoader.loading}
+          disabled={starting}
+          data-testid="research-create-fcff-valuation"
+          onClick={() => void store.createDocumentFromTemplate('equity_fcff_valuation')}
+        >
+          {t('valuationTemplate.open')}
+        </Button>
       </div>
       {store.documentMutationLoader.error && (
         <Alert

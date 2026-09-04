@@ -27,6 +27,7 @@ import {
 import { listResearchCellChangeAttempts } from './research-cell-change-attempt-records.js';
 import { researchCellChangeReviewView } from './research-cell-change-records.js';
 import { materializeResearchOutputArtifacts } from './workbench-artifacts.js';
+import { equityFcffValuationTemplate } from './equity-fcff-valuation-template.js';
 import {
   ResearchPythonExecutionError,
   ResearchPythonInterruptionError,
@@ -1624,6 +1625,8 @@ function templateDefinition(template: ResearchDocumentTemplateV1): {
       };
     case 'index_relationship':
       return indexRelationshipTemplate();
+    case 'equity_fcff_valuation':
+      return equityFcffValuationTemplate();
   }
 }
 

@@ -28,6 +28,7 @@
     "test:e2e:research-cell-deletion": "node e2e/research-cell-deletion.mjs",
     "test:e2e:research-data-catalog": "node e2e/research-data-catalog.mjs",
     "test:e2e:research-financial-data": "node e2e/research-financial-data.mjs",
+    "test:e2e:research-fcff-valuation": "node e2e/research-fcff-valuation.mjs",
     "test:e2e:research-documents": "node e2e/research-document-management.mjs",
     "test:e2e:research-factor-report": "node e2e/research-factor-report-sdk.mjs",
     "test:e2e:research-factor-report-catalog": "node e2e/research-factor-report-catalog.mjs",

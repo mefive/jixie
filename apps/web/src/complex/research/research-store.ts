@@ -545,6 +545,33 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     await this.runAgentTurn(text, document.conversationId);
   }
 
+  public async createDocumentFromTemplate(template: ResearchDocumentTemplateV1) {
+    if (this.documentMutationLoader.loading || this.sending) {
+      return;
+    }
+    let document: ResearchDocumentV1;
+    try {
+      document = await this.documentMutationLoader.run({ kind: 'create', template });
+    } catch {
+      return;
+    }
+    this.documentSwitchGeneration += 1;
+    this.turnStream.detach();
+    runInAction(() => {
+      this.document = document;
+      this.cellDrafts.clear();
+      this.reconcileCellDrafts(document);
+      this.chatMessages = document.messages.map(normalizeChatMessage);
+      this.sending = false;
+      this.prompt = '';
+      this.agentContextCellIds = [];
+      this.runInterrupted = false;
+      this.explainingAttemptId = null;
+    });
+    void this.executionListLoader.run(document.id).catch(() => {});
+    void this.documentsLoader.run();
+  }
+
   private async openBacktestReportDocument(reportId: string) {
     const document = await this.backtestDocumentLoader.run(reportId);
     this.documentSwitchGeneration += 1;

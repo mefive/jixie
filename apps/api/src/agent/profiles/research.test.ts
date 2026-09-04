@@ -19,6 +19,9 @@ describe('researchProfile', () => {
     expect(system).toContain('searchResearchCatalog');
     expect(system).toContain('loadResearchPlaybook');
     expect(system).toContain('gold_price_drivers');
+    expect(system).toContain('For FCFF valuation');
+    expect(system).toContain('solve only one unknown at a time');
+    expect(system).toContain('never turn a scenario value into a target-price recommendation');
     expect(system).toContain('Markdown and Python Cells');
     expect(system).toContain('estimand, null hypothesis, formula');
     expect(system).toContain('SciPy for distributions');
