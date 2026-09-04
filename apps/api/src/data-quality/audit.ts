@@ -107,6 +107,17 @@ export interface FinancialStatementReconciliationRow {
   cashFlowMatches: bigint | number;
 }
 
+export interface FinancialAccountingIdentityAuditRow {
+  comparable: bigint | number;
+  mismatches: bigint | number;
+  anomalies: bigint | number;
+}
+
+export interface FinancialMetricCoverageAuditRow {
+  totalPeriods: bigint | number;
+  completePeriods: bigint | number;
+}
+
 interface WindowCoverageRow {
   tsCode: string;
   observedDays: bigint | number;
@@ -247,6 +258,7 @@ export async function runDataQualityAudit(
     await auditWindowCoverage(database, openDates, windowTradingDays, evaluationPoints),
     await auditFinancialPit(database),
     await auditFinancialStatementVersions(database),
+    await auditFinancialStatementAccounting(database),
     await auditMacroPit(database),
     await auditExternalMarketPit(database, endDate),
     await auditCrossMarketBenchmarkPit(database, endDate),
@@ -1041,6 +1053,86 @@ async function auditFinancialStatementVersions(database: Prisma): Promise<AuditF
   return summarizeFinancialStatementVersions(versionRows[0], reconciliationRows[0]);
 }
 
+export async function auditFinancialStatementAccounting(database: Prisma): Promise<AuditFinding> {
+  const [balanceRows, cashRows, crossRows, coverageRows] = await Promise.all([
+    database.$queryRaw<FinancialAccountingIdentityAuditRow[]>`
+      SELECT
+        SUM(CASE WHEN totalAssets IS NOT NULL AND totalLiab IS NOT NULL
+          AND totalHldrEqyExcMinInt IS NOT NULL THEN 1 ELSE 0 END) AS comparable,
+        SUM(CASE WHEN totalAssets IS NOT NULL AND totalLiab IS NOT NULL
+          AND totalHldrEqyExcMinInt IS NOT NULL
+          AND ABS(totalAssets - totalLiab - totalHldrEqyExcMinInt - COALESCE(minorityInt, 0))
+            > MAX(1.0, ABS(totalAssets) * 0.000001) THEN 1 ELSE 0 END) AS mismatches,
+        SUM(CASE WHEN totalAssets <= 0 OR totalLiab < 0 OR totalShare <= 0
+          OR totalCurAssets > totalAssets OR totalCurLiab > totalLiab THEN 1 ELSE 0 END) AS anomalies
+      FROM FinancialBalanceSheet
+    `,
+    database.$queryRaw<FinancialAccountingIdentityAuditRow[]>`
+      SELECT
+        SUM(CASE WHEN cCashEquBegPeriod IS NOT NULL AND nIncrCashCashEqu IS NOT NULL
+          AND cCashEquEndPeriod IS NOT NULL THEN 1 ELSE 0 END) AS comparable,
+        SUM(CASE WHEN cCashEquBegPeriod IS NOT NULL AND nIncrCashCashEqu IS NOT NULL
+          AND cCashEquEndPeriod IS NOT NULL
+          AND ABS(cCashEquBegPeriod + nIncrCashCashEqu - cCashEquEndPeriod)
+            > MAX(1.0, ABS(cCashEquEndPeriod) * 0.000001) THEN 1 ELSE 0 END) AS mismatches,
+        SUM(CASE WHEN cPayAcqConstFiolta < 0 THEN 1 ELSE 0 END) AS anomalies
+      FROM FinancialCashFlowStatement
+    `,
+    database.$queryRaw<FinancialAccountingIdentityAuditRow[]>`
+      SELECT
+        COUNT(*) AS comparable,
+        SUM(CASE WHEN ABS(income.nIncome - cash.netProfit)
+          > MAX(1.0, MAX(ABS(income.nIncome), ABS(cash.netProfit)) * 0.000001)
+          THEN 1 ELSE 0 END) AS mismatches,
+        0 AS anomalies
+      FROM FinancialIncomeStatement income
+      JOIN FinancialCashFlowStatement cash
+        ON cash.tsCode = income.tsCode
+        AND cash.endDate = income.endDate
+        AND cash.reportType = income.reportType
+        AND cash.availableDate = income.availableDate
+      WHERE income.availabilityQuality <> 'reconstructed'
+        AND cash.availabilityQuality <> 'reconstructed'
+        AND income.nIncome IS NOT NULL
+        AND cash.netProfit IS NOT NULL
+    `,
+    database.$queryRaw<FinancialMetricCoverageAuditRow[]>`
+      WITH periods AS (
+        SELECT tsCode, endDate FROM FinancialIncomeStatement
+        WHERE availabilityQuality <> 'reconstructed'
+        UNION
+        SELECT tsCode, endDate FROM FinancialBalanceSheet
+        WHERE availabilityQuality <> 'reconstructed'
+        UNION
+        SELECT tsCode, endDate FROM FinancialCashFlowStatement
+        WHERE availabilityQuality <> 'reconstructed'
+      )
+      SELECT
+        COUNT(*) AS totalPeriods,
+        SUM(CASE WHEN EXISTS (
+          SELECT 1 FROM FinancialIncomeStatement income
+          WHERE income.tsCode = periods.tsCode AND income.endDate = periods.endDate
+            AND income.availabilityQuality <> 'reconstructed'
+        ) AND EXISTS (
+          SELECT 1 FROM FinancialBalanceSheet balance
+          WHERE balance.tsCode = periods.tsCode AND balance.endDate = periods.endDate
+            AND balance.availabilityQuality <> 'reconstructed'
+        ) AND EXISTS (
+          SELECT 1 FROM FinancialCashFlowStatement cash
+          WHERE cash.tsCode = periods.tsCode AND cash.endDate = periods.endDate
+            AND cash.availabilityQuality <> 'reconstructed'
+        ) THEN 1 ELSE 0 END) AS completePeriods
+      FROM periods
+    `,
+  ]);
+  return summarizeFinancialStatementAccounting(
+    balanceRows[0],
+    cashRows[0],
+    crossRows[0],
+    coverageRows[0],
+  );
+}
+
 export function summarizeFinancialStatementVersions(
   versions: FinancialStatementVersionAuditRow | undefined,
   reconciliation: FinancialStatementReconciliationRow | undefined,
@@ -1074,6 +1166,48 @@ export function summarizeFinancialStatementVersions(
       `Invalid fields: announcement=${invalidAnnouncementDate}, availability=${invalidAvailableDate}, quality=${invalidQuality}, scope=${invalidReportScope}.`,
       `FinaIndicator reconciliation (${formatNumber(indicatorPeriods)} periods): income=${formatNumber(matches.income)}, balance=${formatNumber(matches.balance)}, cash flow=${formatNumber(matches.cashFlow)}.`,
       'FinaIndicator remains a compatibility source; these coverage counts do not overwrite either data path.',
+    ],
+  };
+}
+
+export function summarizeFinancialStatementAccounting(
+  balance: FinancialAccountingIdentityAuditRow | undefined,
+  cash: FinancialAccountingIdentityAuditRow | undefined,
+  crossStatement: FinancialAccountingIdentityAuditRow | undefined,
+  coverage: FinancialMetricCoverageAuditRow | undefined,
+): AuditFinding {
+  const comparable =
+    toNumber(balance?.comparable) +
+    toNumber(cash?.comparable) +
+    toNumber(crossStatement?.comparable);
+  const mismatches =
+    toNumber(balance?.mismatches) +
+    toNumber(cash?.mismatches) +
+    toNumber(crossStatement?.mismatches);
+  const anomalies =
+    toNumber(balance?.anomalies) + toNumber(cash?.anomalies) + toNumber(crossStatement?.anomalies);
+  const totalPeriods = toNumber(coverage?.totalPeriods);
+  const completePeriods = toNumber(coverage?.completePeriods);
+  const coverageRatio = totalPeriods > 0 ? completePeriods / totalPeriods : 0;
+  const mismatchRatio = comparable > 0 ? mismatches / comparable : 0;
+  const status: AuditStatus =
+    anomalies > 0
+      ? 'error'
+      : totalPeriods === 0 || coverageRatio < 0.8 || mismatchRatio > 0.01
+        ? 'warn'
+        : 'pass';
+
+  return {
+    id: 'financial-statement-accounting',
+    title: 'Financial statements: accounting consistency and metric coverage',
+    status,
+    summary: `${formatNumber(mismatches)} of ${formatNumber(comparable)} comparable identities mismatch; ${formatPercent(coverageRatio)} three-statement coverage`,
+    details: [
+      `Balance identity: ${formatNumber(toNumber(balance?.mismatches))}/${formatNumber(toNumber(balance?.comparable))} mismatches.`,
+      `Cash identity: ${formatNumber(toNumber(cash?.mismatches))}/${formatNumber(toNumber(cash?.comparable))} mismatches.`,
+      `Cross-statement net income: ${formatNumber(toNumber(crossStatement?.mismatches))}/${formatNumber(toNumber(crossStatement?.comparable))} mismatches.`,
+      `${formatNumber(anomalies)} impossible sign or subtotal relationships; ${formatNumber(completePeriods)}/${formatNumber(totalPeriods)} strict-PIT periods have all three statements.`,
+      'Derived metrics still return explicit missing or invalid reasons when required quarters or fields are unavailable.',
     ],
   };
 }
