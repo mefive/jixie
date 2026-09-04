@@ -17,6 +17,7 @@
     "audit:data": "tsx --env-file=.env scripts/audit-data.ts",
     "audit:etf": "tsx --env-file=.env scripts/audit-etf-registry.ts",
     "probe:asset-allocation": "tsx --env-file=.env scripts/probe-asset-allocation.ts",
+    "probe:fundamentals": "tsx --env-file=.env scripts/probe-fundamentals.ts",
     "gen:stats-doc": "tsx scripts/gen-stats-doc.ts",
     "gen:invite": "tsx --env-file=.env scripts/gen-invite.ts",
     "migrate:agent-conversations": "tsx --env-file=.env scripts/migrate-agent-conversations.ts",
