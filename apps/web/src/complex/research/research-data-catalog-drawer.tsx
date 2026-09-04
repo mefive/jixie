@@ -16,6 +16,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import classNames from 'classnames';
+import { RESEARCH_FINANCIAL_METRICS_V1 } from '@jixie/shared';
 import type {
   ResearchAssetTypeV1,
   ResearchDataCatalogBacktestReportV1,
@@ -26,6 +27,7 @@ import type {
   ResearchDataCatalogSdkMethodV1,
   ResearchDataCatalogStrategyScanReportV1,
   ResearchDataCatalogScopeV1,
+  ResearchFinancialMetricV1,
   ResearchFrequencyV1,
   ResearchTransformV1,
 } from '@jixie/shared';
@@ -90,6 +92,13 @@ export const ResearchDataCatalogDrawer = complex.component(
     const [measureId, setMeasureId] = useState('market.adjusted_close');
     const [frequency, setFrequency] = useState<ResearchFrequencyV1>('daily');
     const [transform, setTransform] = useState<ResearchTransformV1>('level');
+    const [financialIdentifier, setFinancialIdentifier] = useState('000858.SZ');
+    const [financialMetrics, setFinancialMetrics] = useState<ResearchFinancialMetricV1[]>([
+      'revenueGrowthYoY',
+      'returnOnInvestedCapital',
+      'freeCashFlowToFirm',
+      'enterpriseValue',
+    ]);
     const [dates, setDates] = useState<[Dayjs, Dayjs]>([dayjs().subtract(5, 'year'), dayjs()]);
 
     useEffect(() => {
@@ -144,11 +153,16 @@ export const ResearchDataCatalogDrawer = complex.component(
               ? researchFactorReportSnippet(selectedReport)
               : ''
           : view === 'datasets'
-            ? selectedDataset && selectedDataset.localDataCoverage.status === 'ready'
+            ? selectedDataset &&
+              selectedDataset.localDataCoverage.status === 'ready' &&
+              (!isSingleStockFinancialDataset(selectedDataset) || financialIdentifier) &&
+              (!isFinancialUniverseDataset(selectedDataset) || financialMetrics.length > 0)
               ? researchDatasetSnippet({
                   dataset: selectedDataset,
                   start: dates[0].format('YYYYMMDD'),
                   end: dates[1].format('YYYYMMDD'),
+                  identifier: financialIdentifier,
+                  metrics: financialMetrics,
                 })
               : ''
             : selected && measureId && selected.sdkAccess?.status !== 'not_ready'
@@ -179,6 +193,9 @@ export const ResearchDataCatalogDrawer = complex.component(
     };
     const chooseDataset = (dataset: ResearchDataCatalogDatasetV1) => {
       setSelectedDataset(dataset);
+      if (isSingleStockFinancialDataset(dataset)) {
+        setFinancialIdentifier(dataset.identifier);
+      }
       if (dataset.localDataCoverage.status === 'ready') {
         const coverageStart = catalogDate(dataset.localDataCoverage.startDate);
         const coverageEnd = catalogDate(dataset.localDataCoverage.endDate);
@@ -303,8 +320,13 @@ export const ResearchDataCatalogDrawer = complex.component(
                 <div className="jx-researchDataCatalog-methodMeta">
                   <span>{t('dataCatalog.returns')}</span>
                   <div>
-                    {selectedMethod.returnColumns.map((column) => (
-                      <Tag key={column}>{column}</Tag>
+                    {selectedMethod.returnColumnDetails.map((column) => (
+                      <Tooltip
+                        key={column.name}
+                        title={localizedColumnDescription(column, i18n.language)}
+                      >
+                        <Tag>{column.name}</Tag>
+                      </Tooltip>
                     ))}
                   </div>
                 </div>
@@ -600,13 +622,39 @@ export const ResearchDataCatalogDrawer = complex.component(
                   </div>
                   <p>{localizedDatasetDescription(selectedDataset, i18n.language)}</p>
                 </div>
+                {isSingleStockFinancialDataset(selectedDataset) && (
+                  <label>
+                    <span>{t('dataCatalog.stockCode')}</span>
+                    <Input
+                      value={financialIdentifier}
+                      maxLength={20}
+                      onChange={(event) => setFinancialIdentifier(event.target.value.trim())}
+                    />
+                  </label>
+                )}
+                {isFinancialUniverseDataset(selectedDataset) && (
+                  <label>
+                    <span>{t('dataCatalog.financialMetrics')}</span>
+                    <Select<ResearchFinancialMetricV1[]>
+                      mode="multiple"
+                      className="jx-researchDataCatalog-fullControl"
+                      maxCount={8}
+                      value={financialMetrics}
+                      options={RESEARCH_FINANCIAL_METRICS_V1.map((metric) => ({
+                        value: metric,
+                        label: metric,
+                      }))}
+                      onChange={setFinancialMetrics}
+                    />
+                  </label>
+                )}
                 <label>
                   <span>
-                    {selectedDataset.method === 'data.cross_section'
+                    {isSingleDateDataset(selectedDataset)
                       ? t('dataCatalog.asOfDate')
                       : t('dataCatalog.period')}
                   </span>
-                  {selectedDataset.method === 'data.cross_section' ? (
+                  {isSingleDateDataset(selectedDataset) ? (
                     <DatePicker
                       allowClear={false}
                       value={dates[1]}
@@ -961,6 +1009,43 @@ export const ResearchDataCatalogDrawer = complex.component(
   'ResearchDataCatalogDrawer',
 );
 
+type SingleStockFinancialDataset = ResearchDataCatalogDatasetV1 & {
+  method: 'data.equity_financial_statements' | 'data.equity_financial_metrics';
+  identifier: string;
+};
+
+type FinancialUniverseDataset = ResearchDataCatalogDatasetV1 & {
+  method: 'data.equity_financial_cross_section' | 'data.equity_financial_panel';
+  universe: string;
+};
+
+function isSingleStockFinancialDataset(
+  dataset: ResearchDataCatalogDatasetV1,
+): dataset is SingleStockFinancialDataset {
+  return (
+    dataset.method === 'data.equity_financial_statements' ||
+    dataset.method === 'data.equity_financial_metrics'
+  );
+}
+
+function isFinancialUniverseDataset(
+  dataset: ResearchDataCatalogDatasetV1,
+): dataset is FinancialUniverseDataset {
+  return (
+    dataset.method === 'data.equity_financial_cross_section' ||
+    dataset.method === 'data.equity_financial_panel'
+  );
+}
+
+function isSingleDateDataset(dataset: ResearchDataCatalogDatasetV1): boolean {
+  return (
+    dataset.method === 'data.cross_section' ||
+    dataset.method === 'data.equity_financial_statements' ||
+    dataset.method === 'data.equity_financial_metrics' ||
+    dataset.method === 'data.equity_financial_cross_section'
+  );
+}
+
 function localizedInstrumentName(
   instrument: ResearchDataCatalogInstrumentV1,
   language: string,
@@ -999,6 +1084,13 @@ function localizedMethodDescription(
   return language.startsWith('zh') ? method.descriptionZh : method.descriptionEn;
 }
 
+function localizedColumnDescription(
+  column: ResearchDataCatalogSdkMethodV1['returnColumnDetails'][number],
+  language: string,
+): string {
+  return language.startsWith('zh') ? column.descriptionZh : column.descriptionEn;
+}
+
 function researchDataMethodIcon(qualifiedName: string) {
   switch (qualifiedName) {
     case 'results.backtest_report':
@@ -1006,8 +1098,10 @@ function researchDataMethodIcon(qualifiedName: string) {
     case 'results.factor_report':
       return faFileLines;
     case 'data.cross_section':
+    case 'data.equity_financial_cross_section':
       return faTableColumns;
     case 'data.panel':
+    case 'data.equity_financial_panel':
       return faLayerGroup;
     case 'data.yield_curve':
       return faPercent;

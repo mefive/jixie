@@ -75,6 +75,14 @@ export async function searchResearchDataCatalog(
         method.returns.kind === 'dataframe'
           ? method.returns.columns.map((column) => column.name)
           : [],
+      returnColumnDetails:
+        method.returns.kind === 'dataframe'
+          ? method.returns.columns.map((column) => ({
+              name: column.name,
+              descriptionZh: column.descriptionZh,
+              descriptionEn: column.descriptionEn,
+            }))
+          : [],
     }));
 
   if (scope === 'factor_reports') {
@@ -343,6 +351,10 @@ function catalogMethodNames(scope: ResearchDataCatalogScopeV1): string[] {
         'data.commodity_holdings',
         'data.market_state',
         'data.equity_fundamentals',
+        'data.equity_financial_statements',
+        'data.equity_financial_metrics',
+        'data.equity_financial_cross_section',
+        'data.equity_financial_panel',
         'data.equity_flows',
         'data.equity_dividends',
         'data.etf_shares',
@@ -388,6 +400,9 @@ async function searchDatasets(
     industryStateCoverageRows,
     futuresSettlementCoverageRows,
     futuresMetadataRows,
+    financialIncomeCoverage,
+    financialBalanceCoverage,
+    financialCashFlowCoverage,
   ] = await Promise.all([
     prisma.daily.findFirst({ orderBy: { tradeDate: 'asc' }, select: { tradeDate: true } }),
     prisma.daily.findFirst({ orderBy: { tradeDate: 'desc' }, select: { tradeDate: true } }),
@@ -488,6 +503,21 @@ async function searchDatasets(
     }),
     prisma.futureContract.findMany({
       select: { tsCode: true, name: true, productCode: true, exchange: true },
+    }),
+    prisma.financialIncomeStatement.aggregate({
+      where: { availabilityQuality: { not: 'reconstructed' } },
+      _min: { availableDate: true },
+      _max: { availableDate: true },
+    }),
+    prisma.financialBalanceSheet.aggregate({
+      where: { availabilityQuality: { not: 'reconstructed' } },
+      _min: { availableDate: true },
+      _max: { availableDate: true },
+    }),
+    prisma.financialCashFlowStatement.aggregate({
+      where: { availabilityQuality: { not: 'reconstructed' } },
+      _min: { availableDate: true },
+      _max: { availableDate: true },
     }),
   ]);
 
@@ -804,8 +834,97 @@ async function searchDatasets(
         },
       ];
     });
+  const financialCoverage = intersectDatasetCoverage(
+    [
+      [financialIncomeCoverage._min.availableDate, financialIncomeCoverage._max.availableDate],
+      [financialBalanceCoverage._min.availableDate, financialBalanceCoverage._max.availableDate],
+      [financialCashFlowCoverage._min.availableDate, financialCashFlowCoverage._max.availableDate],
+    ],
+    'availableDate',
+  );
+  const financialSingleStockDatasets: ResearchDataCatalogDatasetV1[] = [
+    {
+      kind: 'dataset',
+      id: 'data.equity_financial_statements',
+      method: 'data.equity_financial_statements',
+      identifier: '000858.SZ',
+      nameZh: '单股版本化三张财报',
+      nameEn: 'Single-equity versioned statements',
+      descriptionZh: '按历史估值日读取严格 PIT 的利润表、资产负债表和现金流量表长表。',
+      descriptionEn:
+        'Strict-PIT income, balance-sheet, and cash-flow long table on a historical as-of date.',
+      tags: ['财报', 'fundamentals', 'PIT', 'versioned', 'industrial'],
+      localDataCoverage: financialCoverage,
+    },
+    {
+      kind: 'dataset',
+      id: 'data.equity_financial_metrics',
+      method: 'data.equity_financial_metrics',
+      identifier: '000858.SZ',
+      nameZh: '单股标准化财务指标',
+      nameEn: 'Single-equity standardized financial metrics',
+      descriptionZh: '按历史估值日计算带单位、公式版本、输入版本和失败原因的 M2 指标。',
+      descriptionEn:
+        'M2 metrics with units, formula version, input versions, and failure reasons on a historical as-of date.',
+      tags: ['财务指标', 'ROIC', 'FCFF', 'PIT', 'industrial'],
+      localDataCoverage: financialCoverage,
+    },
+  ];
+  const financialUniverseDatasets: ResearchDataCatalogDatasetV1[] =
+    RESEARCH_EQUITY_UNIVERSE_SUGGESTIONS_V1.flatMap((universe) => {
+      const meta = equityUniverseMeta(universe);
+      const indexCoverage = universe.startsWith('index:')
+        ? weightCoverage.get(universe.slice('index:'.length))
+        : undefined;
+      const marketCoverage = indexCoverage
+        ? intersectDatasetCoverage([
+            equityCoverage.status === 'ready'
+              ? [equityCoverage.startDate, equityCoverage.endDate]
+              : [undefined, undefined],
+            indexCoverage,
+          ])
+        : equityCoverage;
+      const coverage = intersectDatasetCoverage([
+        financialCoverage.status === 'ready'
+          ? [financialCoverage.startDate, financialCoverage.endDate]
+          : [undefined, undefined],
+        marketCoverage.status === 'ready'
+          ? [marketCoverage.startDate, marketCoverage.endDate]
+          : [undefined, undefined],
+      ]);
+      return [
+        {
+          kind: 'dataset' as const,
+          id: `data.equity_financial_cross_section:${universe}`,
+          method: 'data.equity_financial_cross_section' as const,
+          universe,
+          nameZh: `${meta.nameZh}财务指标截面`,
+          nameEn: `${meta.nameEn} financial cross-section`,
+          descriptionZh: '按一个历史截面日批量计算最新可用财务指标，最多八个指标。',
+          descriptionEn:
+            'Batch-calculate up to eight latest-available financial metrics on one historical date.',
+          tags: [...meta.tags, '财务指标', 'PIT', 'cross-section'],
+          localDataCoverage: coverage,
+        },
+        {
+          kind: 'dataset' as const,
+          id: `data.equity_financial_panel:${universe}`,
+          method: 'data.equity_financial_panel' as const,
+          universe,
+          nameZh: `${meta.nameZh}财务指标月末面板`,
+          nameEn: `${meta.nameEn} financial month-end panel`,
+          descriptionZh: '逐月末批量计算当时股票池的最新可用财务指标，最多八个指标。',
+          descriptionEn:
+            'Batch-calculate up to eight latest-available metrics for each point-in-time month-end universe.',
+          tags: [...meta.tags, '财务指标', 'PIT', 'panel', 'month-end'],
+          localDataCoverage: coverage,
+        },
+      ];
+    });
   const datasets = [
     ...equityDatasets,
+    ...financialSingleStockDatasets,
+    ...financialUniverseDatasets,
     ...macroDatasets,
     ...fxDatasets,
     ...commodityDatasets,
@@ -1026,6 +1145,8 @@ function datasetIdentifiers(dataset: ResearchDataCatalogDatasetV1): string[] {
     case 'data.index_valuation':
     case 'data.industry_state':
     case 'data.futures_settlement':
+    case 'data.equity_financial_statements':
+    case 'data.equity_financial_metrics':
       return [dataset.identifier];
     default:
       return [dataset.universe];
@@ -1034,6 +1155,7 @@ function datasetIdentifiers(dataset: ResearchDataCatalogDatasetV1): string[] {
 
 function intersectDatasetCoverage(
   ranges: ReadonlyArray<readonly [string | null | undefined, string | null | undefined]>,
+  dateBasis: 'tradeDate' | 'availableDate' = 'tradeDate',
 ): ResearchDataCatalogDatasetCoverageV1 {
   if (ranges.some(([start, end]) => !start || !end)) {
     return missingDatasetCoverage();
@@ -1043,7 +1165,7 @@ function intersectDatasetCoverage(
   const start = starts.sort().at(-1);
   const end = ends.sort()[0];
   return start && end && start <= end
-    ? readyDatasetCoverage(start, end, 'tradeDate')
+    ? readyDatasetCoverage(start, end, dateBasis)
     : missingDatasetCoverage();
 }
 

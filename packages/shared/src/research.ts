@@ -202,6 +202,11 @@ export interface ResearchDataCatalogSdkMethodV1 {
   signature: string;
   example: string;
   returnColumns: string[];
+  returnColumnDetails: Array<{
+    name: string;
+    descriptionZh: string;
+    descriptionEn: string;
+  }>;
 }
 
 export type ResearchDataCatalogDatasetCoverageV1 =
@@ -234,6 +239,10 @@ export type ResearchDataCatalogDatasetV1 =
       universe: string;
     })
   | (ResearchDataCatalogDatasetBaseV1 & {
+      method: 'data.equity_financial_cross_section' | 'data.equity_financial_panel';
+      universe: string;
+    })
+  | (ResearchDataCatalogDatasetBaseV1 & {
       method: 'data.yield_curve';
       curve: ResearchYieldCurveCodeV1;
       tenor: ResearchYieldTenorV1;
@@ -263,7 +272,9 @@ export type ResearchDataCatalogDatasetV1 =
         | 'data.etf_shares'
         | 'data.index_valuation'
         | 'data.industry_state'
-        | 'data.futures_settlement';
+        | 'data.futures_settlement'
+        | 'data.equity_financial_statements'
+        | 'data.equity_financial_metrics';
       identifier: string;
     });
 

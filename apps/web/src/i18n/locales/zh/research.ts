@@ -345,6 +345,8 @@ export const zhResearch = {
     },
     registryLimitations: '该代理有 {{count}} 项口径限制，正式研究前请查看帮助说明。',
     measure: '数据口径',
+    stockCode: '股票代码',
+    financialMetrics: '财务指标（最多 8 个）',
     period: '研究区间',
     asOfDate: '截面日期',
     frequency: '频率',

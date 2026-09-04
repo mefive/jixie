@@ -46,6 +46,12 @@ export function researchSdkPythonParameterType(parameter: ResearchSdkParameterCo
     case 'dataframe':
       return 'pd.DataFrame';
     case 'string_or_string_list':
+      if (parameter.values) {
+        const literal = `Literal[${parameter.values
+          .map((value) => JSON.stringify(value))
+          .join(', ')}]`;
+        return `${literal} | list[${literal}]`;
+      }
       return 'str | list[str]';
     case 'string_map':
       return 'Mapping[str, str]';

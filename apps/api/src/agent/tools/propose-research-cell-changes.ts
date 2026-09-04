@@ -82,21 +82,12 @@ export function createProposeResearchCellChangesTool(args: {
           'Query the exact runtime.python Research capability contract before proposing any Python Cell change.',
         );
       }
-      if (
-        proposedPython.some((source) => /\bdata\.series\s*\(/.test(source)) &&
-        !args.catalogEvidence.sdkMethodNames.has('data.series')
-      ) {
-        throw new Error(
-          'Query the exact data.series Research SDK contract before proposing Python that calls it.',
-        );
-      }
-      if (
-        proposedPython.some((source) => /\bdata\.yield_curve\s*\(/.test(source)) &&
-        !args.catalogEvidence.sdkMethodNames.has('data.yield_curve')
-      ) {
-        throw new Error(
-          'Query the exact data.yield_curve Research SDK contract before proposing Python that calls it.',
-        );
+      for (const method of researchDataSdkMethodCalls(proposedPython)) {
+        if (!args.catalogEvidence.sdkMethodNames.has(method)) {
+          throw new Error(
+            `Query the exact ${method} Research SDK contract before proposing Python that calls it.`,
+          );
+        }
       }
       const proposal = await prepareResearchCellChangeProposal(
         args.userId,
@@ -126,4 +117,14 @@ export function createProposeResearchCellChangesTool(args: {
       };
     },
   };
+}
+
+function researchDataSdkMethodCalls(sources: string[]): string[] {
+  const methods = new Set<string>();
+  for (const source of sources) {
+    for (const match of source.matchAll(/\bdata\.([a-z_][a-z0-9_]*)\s*\(/g)) {
+      methods.add(`data.${match[1]}`);
+    }
+  }
+  return [...methods].sort();
 }

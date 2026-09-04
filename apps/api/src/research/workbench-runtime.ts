@@ -15,6 +15,12 @@ import {
 } from './commodity-dataset.js';
 import { researchPayloadHash } from './fingerprints.js';
 import { researchYieldCurveSourceForSdkCall } from './concept-bindings.js';
+import {
+  loadResearchFinancialCrossSection,
+  loadResearchFinancialMetrics,
+  loadResearchFinancialPanel,
+  loadResearchFinancialStatements,
+} from './financial-dataset.js';
 import { loadResearchBacktestReportResult } from './backtest-report-result.js';
 import { loadResearchFactorReportResult } from './factor-report-result.js';
 import {
@@ -55,6 +61,12 @@ import {
   parseResearchFactorReportRuntimeRequest,
   parseResearchFactorWeatherRuntimeRequest,
   parseResearchFactorWeatherRuntimeRows,
+  parseResearchFinancialCrossSectionRuntimeRequest,
+  parseResearchFinancialMetricsRuntimeRequest,
+  parseResearchFinancialMetricsRuntimeRows,
+  parseResearchFinancialPanelRuntimeRequest,
+  parseResearchFinancialStatementsRuntimeRequest,
+  parseResearchFinancialStatementsRuntimeRows,
   parseResearchFxRuntimeRequest,
   parseResearchFuturesSettlementRuntimeRequest,
   parseResearchFuturesSettlementRuntimeRows,
@@ -76,11 +88,14 @@ import {
   type ResearchBacktestReportRuntimeRequestV1,
   type ResearchFactorReportRuntimeRequestV1,
   type ResearchFactorWeatherRuntimeRequestV1,
+  type ResearchFinancialCrossSectionRuntimeRequestV1,
+  type ResearchFinancialPanelRuntimeRequestV1,
   type ResearchDatedIdentifierRuntimeRequestV1,
   type ResearchFxRuntimeRequestV1,
   type ResearchMacroRuntimeRequestV1,
   type ResearchMarketStateRuntimeRequestV1,
   type ResearchPanelRuntimeRequestV1,
+  type ResearchSingleFinancialRuntimeRequestV1,
   type ResearchSeriesRuntimeRequestV1,
   type ResearchStrategyScanReportRuntimeRequestV1,
   type ResearchYieldCurveRuntimeRequestV1,
@@ -141,7 +156,11 @@ export interface ResearchPythonEquityRequest {
     | 'etf_shares'
     | 'index_valuation'
     | 'industry_state'
-    | 'futures_settlement';
+    | 'futures_settlement'
+    | 'equity_financial_statements'
+    | 'equity_financial_metrics'
+    | 'equity_financial_cross_section'
+    | 'equity_financial_panel';
   identifier: string | null;
 }
 
@@ -515,6 +534,18 @@ type ParsedResearchRequest =
       arguments: ResearchDatedIdentifierRuntimeRequestV1;
     })
   | (Omit<ResearchRequestFrame, 'method' | 'arguments'> & {
+      method: 'research_equity_financial_statements' | 'research_equity_financial_metrics';
+      arguments: ResearchSingleFinancialRuntimeRequestV1;
+    })
+  | (Omit<ResearchRequestFrame, 'method' | 'arguments'> & {
+      method: 'research_equity_financial_cross_section';
+      arguments: ResearchFinancialCrossSectionRuntimeRequestV1;
+    })
+  | (Omit<ResearchRequestFrame, 'method' | 'arguments'> & {
+      method: 'research_equity_financial_panel';
+      arguments: ResearchFinancialPanelRuntimeRequestV1;
+    })
+  | (Omit<ResearchRequestFrame, 'method' | 'arguments'> & {
       method: 'research_cross_section';
       arguments: ResearchCrossSectionRuntimeRequestV1;
     })
@@ -645,6 +676,34 @@ function parseResearchRequestFrame(frame: ResearchRequestFrame): ParsedResearchR
         id: frame.id,
         method: 'research_futures_settlement',
         arguments: parseResearchFuturesSettlementRuntimeRequest(frame.arguments),
+      };
+    case 'research_equity_financial_statements':
+      return {
+        type: frame.type,
+        id: frame.id,
+        method: 'research_equity_financial_statements',
+        arguments: parseResearchFinancialStatementsRuntimeRequest(frame.arguments),
+      };
+    case 'research_equity_financial_metrics':
+      return {
+        type: frame.type,
+        id: frame.id,
+        method: 'research_equity_financial_metrics',
+        arguments: parseResearchFinancialMetricsRuntimeRequest(frame.arguments),
+      };
+    case 'research_equity_financial_cross_section':
+      return {
+        type: frame.type,
+        id: frame.id,
+        method: 'research_equity_financial_cross_section',
+        arguments: parseResearchFinancialCrossSectionRuntimeRequest(frame.arguments),
+      };
+    case 'research_equity_financial_panel':
+      return {
+        type: frame.type,
+        id: frame.id,
+        method: 'research_equity_financial_panel',
+        arguments: parseResearchFinancialPanelRuntimeRequest(frame.arguments),
       };
     case 'research_cross_section':
       return {
@@ -868,6 +927,38 @@ async function answerResearchRequest(
         result = {
           rows: parseResearchFuturesSettlementRuntimeRows(
             await loadResearchFuturesSettlement(frame.arguments),
+          ),
+        };
+        break;
+      }
+      case 'research_equity_financial_statements': {
+        result = {
+          rows: parseResearchFinancialStatementsRuntimeRows(
+            await loadResearchFinancialStatements(frame.arguments),
+          ),
+        };
+        break;
+      }
+      case 'research_equity_financial_metrics': {
+        result = {
+          rows: parseResearchFinancialMetricsRuntimeRows(
+            await loadResearchFinancialMetrics(frame.arguments),
+          ),
+        };
+        break;
+      }
+      case 'research_equity_financial_cross_section': {
+        result = {
+          rows: parseResearchFinancialMetricsRuntimeRows(
+            await loadResearchFinancialCrossSection(frame.arguments),
+          ),
+        };
+        break;
+      }
+      case 'research_equity_financial_panel': {
+        result = {
+          rows: parseResearchFinancialMetricsRuntimeRows(
+            await loadResearchFinancialPanel(frame.arguments),
           ),
         };
         break;

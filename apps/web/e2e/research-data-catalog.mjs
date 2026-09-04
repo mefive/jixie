@@ -61,6 +61,10 @@ try {
     'index_valuation',
     'industry_state',
     'futures_settlement',
+    'equity_financial_statements',
+    'equity_financial_metrics',
+    'equity_financial_cross_section',
+    'equity_financial_panel',
   ]) {
     await page.getByTestId(`research-data-catalog-method-${method}`).waitFor();
   }
@@ -74,6 +78,16 @@ try {
   }
   await drawer.screenshot({ path: `${SHOTS}research-data-catalog-method-detail.png` });
   await page.getByTestId('research-data-catalog-method-panel').click();
+  await methodDetail.waitFor({ state: 'detached' });
+
+  await page.getByTestId('research-data-catalog-method-equity_financial_metrics').click();
+  await methodDetail.waitFor();
+  if (!(await methodDetail.innerText()).includes('formula_version')) {
+    throw new Error('The catalog did not expose auditable financial metric columns.');
+  }
+  await methodDetail.getByText('missing_reason', { exact: true }).hover();
+  await page.getByText('缺失或无效时的机器可读原因。', { exact: true }).waitFor();
+  await page.getByTestId('research-data-catalog-method-equity_financial_metrics').click();
   await methodDetail.waitFor({ state: 'detached' });
 
   await drawer.getByRole('textbox', { name: '搜索市场、指数、期限或数据读取方式' }).fill('10Y');
@@ -152,6 +166,27 @@ try {
   }
   await drawer.screenshot({ path: `${SHOTS}research-data-catalog-reference-datasets.png` });
 
+  await drawer
+    .getByRole('textbox', { name: '搜索市场、指数、期限或数据读取方式' })
+    .fill('标准化财务指标');
+  const financialResult = page.getByTestId(
+    'research-data-catalog-dataset-data.equity_financial_metrics',
+  );
+  await financialResult.waitFor({ timeout: 30_000 });
+  await financialResult.click();
+  await config.waitFor();
+  const financialPreview = await config.innerText();
+  if (
+    !financialPreview.includes('data.equity_financial_metrics(') ||
+    !financialPreview.includes('000858.SZ')
+  ) {
+    throw new Error(
+      `Financial dataset did not generate the expected SDK call: ${financialPreview}`,
+    );
+  }
+  await config.scrollIntoViewIfNeeded();
+  await drawer.screenshot({ path: `${SHOTS}research-data-catalog-financial-metrics.png` });
+
   const insert = page.getByTestId('research-data-catalog-insert');
   if (!(await insert.isEnabled())) {
     throw new Error('A locally covered dataset must be insertable into Research.');
@@ -160,7 +195,7 @@ try {
   await page.getByText('已插入当前 Python Cell', { exact: true }).waitFor({ timeout: 10_000 });
 
   console.log(
-    `[research-data-catalog-e2e] datasetMethods=16 coverage=${coverageText} inserted=true screenshots=7`,
+    `[research-data-catalog-e2e] datasetMethods=20 coverage=${coverageText} financial=true inserted=true screenshots=8`,
   );
 } finally {
   if (documentId) {

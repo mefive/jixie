@@ -98,6 +98,23 @@ describe('Research equity datasets', () => {
       ],
     });
   });
+
+  it('stops loading a panel as soon as a caller-specific row budget is exceeded', async () => {
+    await expect(
+      loadResearchPanel(
+        {
+          universe: 'index:000300.SH',
+          start: '20240101',
+          end: '20240315',
+          frequency: 'month_end',
+          minimum_listed_days: 0,
+          risk_warning: 'include',
+        },
+        database,
+        { maxPanelRows: 3 },
+      ),
+    ).rejects.toThrow('exceeds the 3-row limit');
+  });
 });
 
 async function createFixtureSchema(database: PrismaClient): Promise<void> {

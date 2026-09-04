@@ -5,6 +5,7 @@ import type {
   ResearchDataCatalogFactorWeatherV1,
   ResearchDataCatalogInstrumentV1,
   ResearchDataCatalogStrategyScanReportV1,
+  ResearchFinancialMetricV1,
   ResearchFrequencyV1,
   ResearchTransformV1,
 } from '@jixie/shared';
@@ -13,6 +14,8 @@ export interface ResearchDatasetSnippetOptions {
   dataset: ResearchDataCatalogDatasetV1;
   start: string;
   end: string;
+  identifier?: string;
+  metrics?: ResearchFinancialMetricV1[];
 }
 
 export interface ResearchSeriesSnippetOptions {
@@ -76,7 +79,7 @@ function researchFactorReportVariableName(factor: string): string {
 /** Build an exact governed dataset call inserted by the catalog. */
 export function researchDatasetSnippet(options: ResearchDatasetSnippetOptions): string {
   const { dataset, start, end } = options;
-  const variable = researchDatasetVariableName(dataset);
+  const variable = researchDatasetVariableName(dataset, options.identifier);
   switch (dataset.method) {
     case 'data.cross_section':
       return `${variable} = data.cross_section(
@@ -91,6 +94,30 @@ export function researchDatasetSnippet(options: ResearchDatasetSnippetOptions): 
     start=${JSON.stringify(start)},
     end=${JSON.stringify(end)},
     frequency="month_end",
+    minimum_listed_days=365,
+    risk_warning="exclude",
+)`;
+    case 'data.equity_financial_statements':
+    case 'data.equity_financial_metrics':
+      return `${variable} = ${dataset.method}(
+    ${JSON.stringify(options.identifier ?? dataset.identifier)},
+    as_of=${JSON.stringify(end)},
+)`;
+    case 'data.equity_financial_cross_section':
+      return `${variable} = data.equity_financial_cross_section(
+    ${JSON.stringify(dataset.universe)},
+    date=${JSON.stringify(end)},
+    metrics=${JSON.stringify(options.metrics ?? ['returnOnInvestedCapital'])},
+    minimum_listed_days=365,
+    risk_warning="exclude",
+)`;
+    case 'data.equity_financial_panel':
+      return `${variable} = data.equity_financial_panel(
+    ${JSON.stringify(dataset.universe)},
+    start=${JSON.stringify(start)},
+    end=${JSON.stringify(end)},
+    frequency="month_end",
+    metrics=${JSON.stringify(options.metrics ?? ['returnOnInvestedCapital'])},
     minimum_listed_days=365,
     risk_warning="exclude",
 )`;
@@ -145,7 +172,10 @@ export function researchDatasetSnippet(options: ResearchDatasetSnippetOptions): 
   }
 }
 
-function researchDatasetVariableName(dataset: ResearchDataCatalogDatasetV1): string {
+function researchDatasetVariableName(
+  dataset: ResearchDataCatalogDatasetV1,
+  configuredIdentifier?: string,
+): string {
   const source = (() => {
     switch (dataset.method) {
       case 'data.yield_curve':
@@ -164,7 +194,12 @@ function researchDatasetVariableName(dataset: ResearchDataCatalogDatasetV1): str
       case 'data.index_valuation':
       case 'data.industry_state':
       case 'data.futures_settlement':
-        return `${dataset.identifier}_${dataset.method.replace('data.', '')}`;
+      case 'data.equity_financial_statements':
+      case 'data.equity_financial_metrics':
+        return `${configuredIdentifier ?? dataset.identifier}_${dataset.method.replace('data.', '')}`;
+      case 'data.equity_financial_cross_section':
+      case 'data.equity_financial_panel':
+        return `${dataset.universe}_${dataset.method.replace('data.equity_', '')}`;
       default:
         return `${dataset.universe}_${dataset.method === 'data.panel' ? 'panel' : 'cross_section'}`;
     }

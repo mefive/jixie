@@ -13,7 +13,7 @@
 
 插入后仍要检查对象、起止日期和变量名是否符合研究问题。
 
-## 四种数据读取方式
+## 五类核心数据读取方式
 
 ### 单个对象的时间序列
 
@@ -41,6 +41,35 @@ ETF 也使用这一入口，例如 `data.series("etf", "510300.SH", ...)` 返回
 使用 `data.panel()` 读取一段时间内已完成月末的 PIT 截面。它适合探索多期排序、回归和稳定性。必须明确日期、股票池、字段和缺失值处理；不能把今天看到的最新财务值回填到历史日期。
 目录只展示本地价格、估值和历史成分覆盖能够共同支持的日期区间。
 
+### 版本化财报与标准化财务指标
+
+基本面研究有四个专用入口，不需要写 SQL：
+
+```python
+statements = data.equity_financial_statements("000858.SZ", as_of="20240429")
+metrics = data.equity_financial_metrics("000858.SZ", as_of="20240429")
+cross_section = data.equity_financial_cross_section(
+    "index:000300.SH",
+    date="20240429",
+    metrics=["revenue", "returnOnInvestedCapital"],
+)
+panel = data.equity_financial_panel(
+    "index:000300.SH",
+    start="20200101",
+    end="20241231",
+    frequency="month_end",
+    metrics=["revenueGrowthYoY", "returnOnInvestedCapital"],
+)
+```
+
+单股财报返回 `报告期 × 报表 × 科目` 长表，并保留公告日、研究可得日、版本质量和来源指纹。单股指标返回
+M2 的全部标准化指标。截面和 Panel 一次最多选择 8 个指标，分别最多返回 50,000 和 100,000 行；它们使用
+批量查询，不会逐只股票请求数据库。
+
+指标表必须结合 `value`、`unit`、`status` 和 `missing_reason` 解读，并保留 `formula_version` 与
+`input_versions_json`。`ratio=1` 表示 100%。缺季度、缺科目和无效分母不会被补成零；银行和非银金融在工业企业
+指标中保留为 `not_applicable`，单股工业企业财报入口会明确拒绝这类公司。
+
 ### 美国国债收益率曲线
 
 使用 `data.yield_curve()` 读取平台审核过的美国国债名义或实际收益率期限序列。曲线、期限和变换有独立白名单，不使用 `data.series()` 猜测收益率表或字段。具体参数、百分点单位和中美市场时区边界见[读取美国国债收益率曲线](/docs/help/research/yield-curves)。
@@ -48,7 +77,8 @@ ETF 也使用这一入口，例如 `data.series("etf", "510300.SH", ...)` 返回
 
 ## 时点和修订边界
 
-- 截面和 Panel 使用当时可得数据，财务字段按公告时点对齐。
+- 截面和 Panel 使用当时可得数据；专用财务入口按 `available_date` 选择版本，并排除无法证明历史可得时间的
+  `reconstructed` 版本。
 - 历史指数成分、名称和行业尽量使用对应历史时点的记录。
 - 重新运行可能读到后续修订的数据；需要保留结果时，使用“干净运行全文”生成不可变快照。
 - 探索代码中的 IC、排序或回归不是已审批的正式因子证据。候选信号应交给 FactorReport 重新验证。

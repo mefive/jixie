@@ -106,6 +106,84 @@ test('inserts a month-end panel dataset call', () => {
   );
 });
 
+test('inserts the four governed financial dataset calls', () => {
+  const coverage = {
+    status: 'ready' as const,
+    startDate: '20230428',
+    endDate: '20250430',
+    dateBasis: 'availableDate' as const,
+  };
+  const shared = {
+    kind: 'dataset' as const,
+    nameZh: '财务数据',
+    nameEn: 'Financial data',
+    descriptionZh: '',
+    descriptionEn: '',
+    tags: [] as string[],
+    localDataCoverage: coverage,
+  };
+
+  assert.equal(
+    researchDatasetSnippet({
+      dataset: {
+        ...shared,
+        id: 'data.equity_financial_statements',
+        method: 'data.equity_financial_statements',
+        identifier: '000858.SZ',
+      },
+      identifier: '600519.SH',
+      start: '20200101',
+      end: '20240429',
+    }),
+    `600519_sh_equity_financial_statements = data.equity_financial_statements(
+    "600519.SH",
+    as_of="20240429",
+)`,
+  );
+  assert.match(
+    researchDatasetSnippet({
+      dataset: {
+        ...shared,
+        id: 'data.equity_financial_metrics',
+        method: 'data.equity_financial_metrics',
+        identifier: '000858.SZ',
+      },
+      identifier: '000858.SZ',
+      start: '20200101',
+      end: '20240429',
+    }),
+    /000858_sz_equity_financial_metrics = data\.equity_financial_metrics\([\s\S]*as_of="20240429"/,
+  );
+  assert.match(
+    researchDatasetSnippet({
+      dataset: {
+        ...shared,
+        id: 'data.equity_financial_cross_section:index:000300.SH',
+        method: 'data.equity_financial_cross_section',
+        universe: 'index:000300.SH',
+      },
+      metrics: ['revenue', 'returnOnInvestedCapital'],
+      start: '20200101',
+      end: '20240429',
+    }),
+    /equity_financial_cross_section\([\s\S]*metrics=\["revenue","returnOnInvestedCapital"\]/,
+  );
+  assert.match(
+    researchDatasetSnippet({
+      dataset: {
+        ...shared,
+        id: 'data.equity_financial_panel:cn_a',
+        method: 'data.equity_financial_panel',
+        universe: 'cn_a',
+      },
+      metrics: ['revenueGrowthYoY'],
+      start: '20200101',
+      end: '20241231',
+    }),
+    /equity_financial_panel\([\s\S]*frequency="month_end"[\s\S]*metrics=\["revenueGrowthYoY"\]/,
+  );
+});
+
 test('inserts a governed yield-curve dataset call', () => {
   assert.match(
     researchDatasetSnippet({

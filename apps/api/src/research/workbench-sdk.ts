@@ -7,6 +7,10 @@ import {
   RESEARCH_EQUITY_DIVIDENDS_SDK_CONTRACT_V1,
   RESEARCH_EQUITY_FLOWS_SDK_CONTRACT_V1,
   RESEARCH_EQUITY_FUNDAMENTALS_SDK_CONTRACT_V1,
+  RESEARCH_FINANCIAL_CROSS_SECTION_SDK_CONTRACT_V1,
+  RESEARCH_FINANCIAL_METRICS_SDK_CONTRACT_V1,
+  RESEARCH_FINANCIAL_PANEL_SDK_CONTRACT_V1,
+  RESEARCH_FINANCIAL_STATEMENTS_SDK_CONTRACT_V1,
   RESEARCH_BACKTEST_REPORT_SDK_CONTRACT_V1,
   RESEARCH_FACTOR_REPORT_SDK_CONTRACT_V1,
   RESEARCH_FACTOR_WEATHER_SDK_CONTRACT_V1,
@@ -26,6 +30,7 @@ import {
   type ResearchCommodityProductCodeV1,
   type ResearchFrequencyV1,
   type ResearchFxSeriesIdV1,
+  type ResearchFinancialMetricV1,
   type ResearchMacroSeriesKeyV1,
   type ResearchMarketStateScopeV1,
   type ResearchSdkDataFrameColumnContractV1,
@@ -118,6 +123,19 @@ export interface ResearchPanelRuntimeRequestV1 {
   frequency: 'month_end';
   minimum_listed_days: number;
   risk_warning: 'exclude' | 'include';
+}
+
+export interface ResearchSingleFinancialRuntimeRequestV1 {
+  identifier: string;
+  as_of: string;
+}
+
+export interface ResearchFinancialCrossSectionRuntimeRequestV1 extends ResearchCrossSectionRuntimeRequestV1 {
+  metrics: ResearchFinancialMetricV1 | ResearchFinancialMetricV1[];
+}
+
+export interface ResearchFinancialPanelRuntimeRequestV1 extends ResearchPanelRuntimeRequestV1 {
+  metrics: ResearchFinancialMetricV1 | ResearchFinancialMetricV1[];
 }
 
 export interface ResearchFactorReportRuntimeRequestV1 {
@@ -224,6 +242,18 @@ const researchIndustryStateRequestSchema = sdkRequestSchema(
 const researchFuturesSettlementRequestSchema = sdkRequestSchema(
   RESEARCH_FUTURES_SETTLEMENT_SDK_CONTRACT_V1.parameters,
 );
+const researchFinancialStatementsRequestSchema = sdkRequestSchema(
+  RESEARCH_FINANCIAL_STATEMENTS_SDK_CONTRACT_V1.parameters,
+);
+const researchFinancialMetricsRequestSchema = sdkRequestSchema(
+  RESEARCH_FINANCIAL_METRICS_SDK_CONTRACT_V1.parameters,
+);
+const researchFinancialCrossSectionRequestSchema = sdkRequestSchema(
+  RESEARCH_FINANCIAL_CROSS_SECTION_SDK_CONTRACT_V1.parameters,
+);
+const researchFinancialPanelRequestSchema = sdkRequestSchema(
+  RESEARCH_FINANCIAL_PANEL_SDK_CONTRACT_V1.parameters,
+);
 const researchMarketStateRowsSchema = sdkDataFrameRowsSchema(
   RESEARCH_MARKET_STATE_SDK_CONTRACT_V1.returns,
 );
@@ -247,6 +277,12 @@ const researchIndustryStateRowsSchema = sdkDataFrameRowsSchema(
 );
 const researchFuturesSettlementRowsSchema = sdkDataFrameRowsSchema(
   RESEARCH_FUTURES_SETTLEMENT_SDK_CONTRACT_V1.returns,
+);
+const researchFinancialStatementsRowsSchema = sdkDataFrameRowsSchema(
+  RESEARCH_FINANCIAL_STATEMENTS_SDK_CONTRACT_V1.returns,
+);
+const researchFinancialMetricsRowsSchema = sdkDataFrameRowsSchema(
+  RESEARCH_FINANCIAL_METRICS_SDK_CONTRACT_V1.returns,
 );
 const researchEquityDatasetRowsSchema = z.array(
   z.strictObject(
@@ -279,6 +315,38 @@ export function parseResearchCrossSectionRuntimeRequest(
 
 export function parseResearchPanelRuntimeRequest(value: unknown): ResearchPanelRuntimeRequestV1 {
   return researchPanelRequestSchema.parse(value) as unknown as ResearchPanelRuntimeRequestV1;
+}
+
+export function parseResearchFinancialStatementsRuntimeRequest(
+  value: unknown,
+): ResearchSingleFinancialRuntimeRequestV1 {
+  return researchFinancialStatementsRequestSchema.parse(
+    value,
+  ) as unknown as ResearchSingleFinancialRuntimeRequestV1;
+}
+
+export function parseResearchFinancialMetricsRuntimeRequest(
+  value: unknown,
+): ResearchSingleFinancialRuntimeRequestV1 {
+  return researchFinancialMetricsRequestSchema.parse(
+    value,
+  ) as unknown as ResearchSingleFinancialRuntimeRequestV1;
+}
+
+export function parseResearchFinancialCrossSectionRuntimeRequest(
+  value: unknown,
+): ResearchFinancialCrossSectionRuntimeRequestV1 {
+  return researchFinancialCrossSectionRequestSchema.parse(
+    value,
+  ) as unknown as ResearchFinancialCrossSectionRuntimeRequestV1;
+}
+
+export function parseResearchFinancialPanelRuntimeRequest(
+  value: unknown,
+): ResearchFinancialPanelRuntimeRequestV1 {
+  return researchFinancialPanelRequestSchema.parse(
+    value,
+  ) as unknown as ResearchFinancialPanelRuntimeRequestV1;
 }
 
 export function parseResearchYieldCurveRuntimeRequest(
@@ -465,6 +533,14 @@ export function parseResearchFuturesSettlementRuntimeRows(value: unknown): unkno
   return researchFuturesSettlementRowsSchema.parse(value);
 }
 
+export function parseResearchFinancialStatementsRuntimeRows(value: unknown): unknown[] {
+  return researchFinancialStatementsRowsSchema.parse(value);
+}
+
+export function parseResearchFinancialMetricsRuntimeRows(value: unknown): unknown[] {
+  return researchFinancialMetricsRowsSchema.parse(value);
+}
+
 export function parseResearchEquityDatasetRuntimeRows(value: unknown): unknown[] {
   return researchEquityDatasetRowsSchema.parse(value);
 }
@@ -509,8 +585,18 @@ function sdkParameterSchema(parameter: ResearchSdkParameterContractV1): z.ZodTyp
     }
     case 'dataframe':
     case 'string_map':
-    case 'string_or_string_list':
       throw new Error(`SDK parameter ${parameter.name} cannot cross the research data bridge`);
+    case 'string_or_string_list': {
+      const item = parameter.values?.length
+        ? z.enum(parameter.values as [string, ...string[]])
+        : z.string().trim().min(1);
+      const list = z
+        .array(item)
+        .min(1)
+        .max(parameter.maximumItems ?? 100)
+        .refine((values) => new Set(values).size === values.length, 'items must be unique');
+      return z.union([item, list]);
+    }
   }
 }
 
@@ -518,6 +604,11 @@ function sdkWireColumnSchema(column: ResearchSdkDataFrameColumnContractV1): z.Zo
   switch (column.wireType) {
     case 'trade_date':
       return z.string().regex(/^\d{8}$/);
+    case 'nullable_trade_date':
+      return z
+        .string()
+        .regex(/^\d{8}$/)
+        .nullable();
     case 'number':
       return z.number().finite();
     case 'nullable_number':

@@ -362,6 +362,8 @@ export const enResearch: typeof zhResearch = {
     registryLimitations:
       'This proxy has {{count}} documented limitation(s); review the help guidance before formal research.',
     measure: 'Measure',
+    stockCode: 'Equity code',
+    financialMetrics: 'Financial metrics (up to 8)',
     period: 'Research period',
     asOfDate: 'Cross-section date',
     frequency: 'Frequency',

@@ -188,6 +188,36 @@ describe('proposeResearchCellChanges tool', () => {
     expect(mocks.prepare).not.toHaveBeenCalled();
   });
 
+  it('requires the exact financial SDK contract before drafting a financial panel', async () => {
+    const tool = createProposeResearchCellChangesTool({
+      userId: 'user-1',
+      documentId: 'document-1',
+      editableCellIds: new Set(['cell-1']),
+      catalogEvidence: {
+        sdkReadyBindingIds: new Set(),
+        sdkMethodNames: new Set(['data.panel']),
+        pythonRuntimeInspected: true,
+      },
+    });
+
+    await expect(
+      tool.run({
+        title: 'Load financial panel',
+        summary: 'Load point-in-time ROIC observations.',
+        operations: [
+          {
+            kind: 'update',
+            cellId: 'cell-1',
+            expectedRevision: 2,
+            source:
+              'financials = data.equity_financial_panel("index:000300.SH", start="20200101", end="20241231", metrics=["returnOnInvestedCapital"])',
+          },
+        ],
+      }),
+    ).rejects.toThrow('Query the exact data.equity_financial_panel Research SDK contract');
+    expect(mocks.prepare).not.toHaveBeenCalled();
+  });
+
   it('requires the exact Python runtime capability query before drafting Python', async () => {
     const tool = createProposeResearchCellChangesTool({
       userId: 'user-1',
