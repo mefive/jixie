@@ -79,6 +79,41 @@ export const RESEARCH_EQUITY_UNIVERSE_SUGGESTIONS_V1 = [
 ] as const;
 export const RESEARCH_EQUITY_RISK_WARNING_POLICIES_V1 = ['exclude', 'include'] as const;
 export const RESEARCH_PANEL_FREQUENCIES_V1 = ['month_end'] as const;
+export const RESEARCH_FINANCIAL_METRICS_V1 = [
+  'revenue',
+  'revenueGrowthYoY',
+  'revenueCagr3y',
+  'grossMargin',
+  'operatingProfit',
+  'ebitProxy',
+  'operatingMargin',
+  'effectiveTaxRate',
+  'nopat',
+  'nopatMargin',
+  'returnOnAssets',
+  'returnOnEquity',
+  'workingCapital',
+  'investedCapital',
+  'capitalTurnover',
+  'returnOnInvestedCapital',
+  'netCapitalExpenditure',
+  'changeInWorkingCapital',
+  'reinvestment',
+  'reinvestmentRate',
+  'operatingCashFlow',
+  'freeCashFlowToFirm',
+  'cashFreeCashFlow',
+  'operatingCashFlowToNetIncome',
+  'accrualRatio',
+  'cashAndEquivalents',
+  'interestBearingDebt',
+  'netDebt',
+  'debtToInvestedCapital',
+  'marketCapitalization',
+  'enterpriseValue',
+  'issuedShares',
+] as const;
+export type ResearchFinancialMetricV1 = (typeof RESEARCH_FINANCIAL_METRICS_V1)[number];
 
 export type ResearchSdkParameterTypeV1 =
   | 'string'
@@ -98,13 +133,21 @@ export interface ResearchSdkParameterContractV1 {
   values?: readonly string[];
   suggestedValues?: readonly string[];
   maximumLength?: number;
+  maximumItems?: number;
   descriptionZh: string;
   descriptionEn: string;
 }
 
 export interface ResearchSdkDataFrameColumnContractV1 {
   name: string;
-  wireType: 'trade_date' | 'number' | 'nullable_number' | 'string' | 'nullable_string' | 'boolean';
+  wireType:
+    | 'trade_date'
+    | 'nullable_trade_date'
+    | 'number'
+    | 'nullable_number'
+    | 'string'
+    | 'nullable_string'
+    | 'boolean';
   pythonType: string;
   descriptionZh: string;
   descriptionEn: string;
@@ -206,6 +249,26 @@ const riskWarningParameter = {
   descriptionZh: '是否排除截面日当时处于风险警示或退市整理状态的股票。',
   descriptionEn:
     'Whether to exclude stocks under risk warning or pending delisting on the cross-section date.',
+} as const;
+
+const financialMetricSelectionParameter = {
+  name: 'metrics',
+  type: 'string_or_string_list',
+  required: true,
+  keywordOnly: true,
+  values: RESEARCH_FINANCIAL_METRICS_V1,
+  suggestedValues: [
+    'revenueGrowthYoY',
+    'grossMargin',
+    'returnOnInvestedCapital',
+    'freeCashFlowToFirm',
+    'netDebt',
+    'enterpriseValue',
+  ],
+  maximumItems: 8,
+  descriptionZh: '一个或至多八个固定财务指标；不接受任意数据库字段名。',
+  descriptionEn:
+    'One or up to eight governed financial metrics; arbitrary database field names are rejected.',
 } as const;
 
 export const RESEARCH_EQUITY_DATAFRAME_COLUMNS_V1 = [
@@ -625,6 +688,208 @@ const equityFundamentalColumns = [
     descriptionEn,
   })),
 ] satisfies readonly ResearchSdkDataFrameColumnContractV1[];
+
+export const RESEARCH_FINANCIAL_STATEMENT_COLUMNS_V1 = [
+  {
+    name: 'as_of_date',
+    wireType: 'trade_date',
+    pythonType: 'datetime64[ns]',
+    descriptionZh: '研究估值日；所有来源版本必须在该日或此前可得。',
+    descriptionEn: 'Research as-of date; every source version was available on or before it.',
+  },
+  {
+    name: 'code',
+    wireType: 'string',
+    pythonType: 'str',
+    descriptionZh: '平台稳定股票代码。',
+    descriptionEn: 'Stable platform equity identifier.',
+  },
+  {
+    name: 'industry',
+    wireType: 'nullable_string',
+    pythonType: 'str | None',
+    descriptionZh: '估值日申万一级行业。',
+    descriptionEn: 'Point-in-time SW level-1 industry on the as-of date.',
+  },
+  {
+    name: 'applicability',
+    wireType: 'string',
+    pythonType: 'str',
+    descriptionZh: 'industrial、unsupported_financial 或 unknown。',
+    descriptionEn: 'industrial, unsupported_financial, or unknown.',
+  },
+  {
+    name: 'report_period',
+    wireType: 'trade_date',
+    pythonType: 'datetime64[ns]',
+    descriptionZh: '财务报告期末。',
+    descriptionEn: 'Financial reporting-period end.',
+  },
+  {
+    name: 'statement_kind',
+    wireType: 'string',
+    pythonType: 'str',
+    descriptionZh: 'income、balance_sheet 或 cash_flow。',
+    descriptionEn: 'income, balance_sheet, or cash_flow.',
+  },
+  {
+    name: 'field',
+    wireType: 'string',
+    pythonType: 'str',
+    descriptionZh: 'M2 类型化财报科目名。',
+    descriptionEn: 'The typed M2 statement field name.',
+  },
+  {
+    name: 'value',
+    wireType: 'nullable_number',
+    pythonType: 'float64',
+    descriptionZh: '科目值；缺失保持为空。',
+    descriptionEn: 'Statement value; missing source values remain null.',
+  },
+  {
+    name: 'unit',
+    wireType: 'string',
+    pythonType: 'str',
+    descriptionZh: 'CNY 或 shares。',
+    descriptionEn: 'CNY or shares.',
+  },
+  {
+    name: 'announcement_date',
+    wireType: 'trade_date',
+    pythonType: 'datetime64[ns]',
+    descriptionZh: '来源记录的实际公告日。',
+    descriptionEn: 'Actual announcement date recorded for the source row.',
+  },
+  {
+    name: 'available_date',
+    wireType: 'trade_date',
+    pythonType: 'datetime64[ns]',
+    descriptionZh: '该版本首次允许进入研究的日期。',
+    descriptionEn: 'First date on which this version may enter research.',
+  },
+  {
+    name: 'availability_quality',
+    wireType: 'string',
+    pythonType: 'str',
+    descriptionZh: 'exact 或 conservative；严格 PIT 不返回 reconstructed。',
+    descriptionEn: 'exact or conservative; strict PIT never returns reconstructed rows.',
+  },
+  {
+    name: 'report_type',
+    wireType: 'string',
+    pythonType: 'str',
+    descriptionZh: '供应商报表类型；调整后口径优先级高于同日正式口径。',
+    descriptionEn: 'Provider report type; adjusted values outrank same-day formal values.',
+  },
+  {
+    name: 'source_row_fingerprint',
+    wireType: 'string',
+    pythonType: 'str',
+    descriptionZh: '不可变来源行指纹。',
+    descriptionEn: 'Immutable source-row fingerprint.',
+  },
+] as const satisfies readonly ResearchSdkDataFrameColumnContractV1[];
+
+export const RESEARCH_FINANCIAL_METRIC_COLUMNS_V1 = [
+  {
+    name: 'date',
+    wireType: 'trade_date',
+    pythonType: 'datetime64[ns]',
+    descriptionZh: '计算所使用的研究估值日或面板截面日。',
+    descriptionEn: 'Research as-of date or panel cross-section date used for calculation.',
+  },
+  {
+    name: 'code',
+    wireType: 'string',
+    pythonType: 'str',
+    descriptionZh: '平台稳定股票代码。',
+    descriptionEn: 'Stable platform equity identifier.',
+  },
+  {
+    name: 'name',
+    wireType: 'string',
+    pythonType: 'str',
+    descriptionZh: '截面日可得名称；单股读取缺少历史名称时退化为代码。',
+    descriptionEn: 'Name available on the date, falling back to the code when unavailable.',
+  },
+  {
+    name: 'industry',
+    wireType: 'nullable_string',
+    pythonType: 'str | None',
+    descriptionZh: '截面日申万一级行业。',
+    descriptionEn: 'Point-in-time SW level-1 industry.',
+  },
+  {
+    name: 'applicability',
+    wireType: 'string',
+    pythonType: 'str',
+    descriptionZh: 'industrial、unsupported_financial 或 unknown。',
+    descriptionEn: 'industrial, unsupported_financial, or unknown.',
+  },
+  {
+    name: 'report_period',
+    wireType: 'nullable_trade_date',
+    pythonType: 'datetime64[ns]',
+    descriptionZh: '指标对应的财务报告期末。',
+    descriptionEn: 'Financial reporting-period end used by the metric.',
+  },
+  {
+    name: 'metric',
+    wireType: 'string',
+    pythonType: 'str',
+    descriptionZh: '固定的 M2 财务指标标识。',
+    descriptionEn: 'Stable M2 financial metric identifier.',
+  },
+  {
+    name: 'value',
+    wireType: 'nullable_number',
+    pythonType: 'float64',
+    descriptionZh: '指标值；必须结合 unit 和 status 解读。',
+    descriptionEn: 'Metric value; interpret together with unit and status.',
+  },
+  {
+    name: 'unit',
+    wireType: 'string',
+    pythonType: 'str',
+    descriptionZh: 'CNY、shares 或 ratio；ratio 的 1 表示 100%。',
+    descriptionEn: 'CNY, shares, or ratio; ratio 1 means 100%.',
+  },
+  {
+    name: 'status',
+    wireType: 'string',
+    pythonType: 'str',
+    descriptionZh: 'ok、missing、invalid 或 not_applicable。',
+    descriptionEn: 'ok, missing, invalid, or not_applicable.',
+  },
+  {
+    name: 'missing_reason',
+    wireType: 'nullable_string',
+    pythonType: 'str | None',
+    descriptionZh: '缺失或无效时的机器可读原因。',
+    descriptionEn: 'Machine-readable reason when the metric is missing or invalid.',
+  },
+  {
+    name: 'formula',
+    wireType: 'string',
+    pythonType: 'str',
+    descriptionZh: '本次计算采用的明文公式。',
+    descriptionEn: 'Human-readable formula used for this calculation.',
+  },
+  {
+    name: 'formula_version',
+    wireType: 'string',
+    pythonType: 'str',
+    descriptionZh: '确定性的财务公式版本。',
+    descriptionEn: 'Deterministic financial formula version.',
+  },
+  {
+    name: 'input_versions_json',
+    wireType: 'string',
+    pythonType: 'str',
+    descriptionZh: '参与计算的来源行指纹 JSON 数组。',
+    descriptionEn: 'JSON array of source-row fingerprints used by the calculation.',
+  },
+] as const satisfies readonly ResearchSdkDataFrameColumnContractV1[];
 
 const equityFlowColumns = [
   {
@@ -1802,6 +2067,166 @@ export const RESEARCH_SDK_CONTRACT_V1 = {
       'trading date',
       futuresSettlementColumns,
     ),
+    {
+      qualifiedName: 'data.equity_financial_statements',
+      namespace: 'data',
+      name: 'equity_financial_statements',
+      descriptionZh: '按一个历史估值日读取单只股票当时可用的版本化三张财报。',
+      descriptionEn:
+        'Load the versioned three-statement state actually available for one equity on a historical as-of date.',
+      examples: ['data.equity_financial_statements("000858.SZ", as_of="20240429")'],
+      notesZh: [
+        '返回 report_period × statement_kind × field 长表；严格 PIT 排除 reconstructed 版本。',
+        'V1 工业企业口径不适用于银行和非银金融，遇到金融行业会明确拒绝。',
+      ],
+      notesEn: [
+        'Returns a report_period-by-statement_kind-by-field long frame; strict PIT excludes reconstructed versions.',
+        'The V1 industrial-company model explicitly rejects banks and non-bank financial companies.',
+      ],
+      parameters: [
+        {
+          name: 'identifier',
+          type: 'string',
+          required: true,
+          keywordOnly: false,
+          maximumLength: 80,
+          descriptionZh: '平台 A 股代码。',
+          descriptionEn: 'Platform A-share identifier.',
+        },
+        {
+          name: 'as_of',
+          type: 'date',
+          required: true,
+          keywordOnly: true,
+          descriptionZh: '历史估值日，格式 YYYYMMDD。',
+          descriptionEn: 'Historical research as-of date in YYYYMMDD format.',
+        },
+      ],
+      returns: { kind: 'dataframe', columns: RESEARCH_FINANCIAL_STATEMENT_COLUMNS_V1 },
+    },
+    {
+      qualifiedName: 'data.equity_financial_metrics',
+      namespace: 'data',
+      name: 'equity_financial_metrics',
+      descriptionZh: '按一个历史估值日计算单只股票所有已知报告期的标准化财务指标。',
+      descriptionEn:
+        'Calculate governed financial metrics for every reporting period known for one equity on a historical as-of date.',
+      examples: ['data.equity_financial_metrics("000858.SZ", as_of="20240429")'],
+      notesZh: [
+        '每行保留公式、公式版本、输入版本和缺失原因；ratio 的 1 表示 100%。',
+        '缺季度或必需科目时返回 missing/invalid，不使用未来修订或快捷式补值。',
+      ],
+      notesEn: [
+        'Every row preserves formula, formula version, input versions, and missing reason; ratio 1 means 100%.',
+        'Missing quarters or required fields remain missing/invalid without future revisions or shortcut substitutes.',
+      ],
+      parameters: [
+        {
+          name: 'identifier',
+          type: 'string',
+          required: true,
+          keywordOnly: false,
+          maximumLength: 80,
+          descriptionZh: '平台 A 股代码。',
+          descriptionEn: 'Platform A-share identifier.',
+        },
+        {
+          name: 'as_of',
+          type: 'date',
+          required: true,
+          keywordOnly: true,
+          descriptionZh: '历史估值日，格式 YYYYMMDD。',
+          descriptionEn: 'Historical research as-of date in YYYYMMDD format.',
+        },
+      ],
+      returns: { kind: 'dataframe', columns: RESEARCH_FINANCIAL_METRIC_COLUMNS_V1 },
+    },
+    {
+      qualifiedName: 'data.equity_financial_cross_section',
+      namespace: 'data',
+      name: 'equity_financial_cross_section',
+      descriptionZh: '批量计算一个历史 A 股截面上每只股票的最新可用财务指标。',
+      descriptionEn:
+        'Batch-calculate the latest available financial metrics for every equity in one historical China A-share cross-section.',
+      examples: [
+        'data.equity_financial_cross_section("index:000300.SH", date="20240429", metrics=["revenue", "returnOnInvestedCapital"])',
+      ],
+      notesZh: [
+        '股票池、行业、市场数据和财报均按截面日 PIT 解析；返回 date × code × metric 长表。',
+        '最多选择八个指标且最多返回 50000 行；金融企业保留为 not_applicable 行。',
+      ],
+      notesEn: [
+        'Universe, industry, market data, and statements all resolve point-in-time on the cross-section date; returns a date-by-code-by-metric long frame.',
+        'At most eight metrics and 50,000 rows are allowed; financial companies remain as not_applicable rows.',
+      ],
+      parameters: [
+        equityUniverseParameter,
+        {
+          name: 'date',
+          type: 'date',
+          required: true,
+          keywordOnly: true,
+          descriptionZh: '请求截面日，格式 YYYYMMDD。',
+          descriptionEn: 'Requested cross-section date in YYYYMMDD format.',
+        },
+        financialMetricSelectionParameter,
+        minimumListedDaysParameter,
+        riskWarningParameter,
+      ],
+      returns: { kind: 'dataframe', columns: RESEARCH_FINANCIAL_METRIC_COLUMNS_V1 },
+    },
+    {
+      qualifiedName: 'data.equity_financial_panel',
+      namespace: 'data',
+      name: 'equity_financial_panel',
+      descriptionZh: '批量计算多个历史月末股票池的最新可用财务指标。',
+      descriptionEn:
+        'Batch-calculate the latest available financial metrics across historical month-end equity universes.',
+      examples: [
+        'data.equity_financial_panel("index:000300.SH", start="20200101", end="20241231", frequency="month_end", metrics=["revenueGrowthYoY", "returnOnInvestedCapital"])',
+      ],
+      notesZh: [
+        '每个月末独立解析当时股票池和财报版本，不用当前成分或最新财报回填历史。',
+        '最多选择八个指标且最多返回 100000 行；超限必须缩小股票池、时间或指标。',
+      ],
+      notesEn: [
+        'Every month end independently resolves its historical universe and statement versions; current constituents and latest statements never backfill history.',
+        'At most eight metrics and 100,000 rows are allowed; narrow the universe, range, or metrics when exceeded.',
+      ],
+      parameters: [
+        equityUniverseParameter,
+        {
+          name: 'start',
+          type: 'date',
+          required: true,
+          keywordOnly: true,
+          descriptionZh: '起始日期，格式 YYYYMMDD。',
+          descriptionEn: 'Inclusive start date in YYYYMMDD format.',
+        },
+        {
+          name: 'end',
+          type: 'date',
+          required: true,
+          keywordOnly: true,
+          descriptionZh: '结束日期，格式 YYYYMMDD；未完成月份不会进入。',
+          descriptionEn: 'Inclusive end date in YYYYMMDD; incomplete ending months are excluded.',
+        },
+        {
+          name: 'frequency',
+          type: 'enum',
+          required: false,
+          keywordOnly: true,
+          defaultValue: 'month_end',
+          values: RESEARCH_PANEL_FREQUENCIES_V1,
+          descriptionZh: '截面频率；V1 只支持完整月末。',
+          descriptionEn: 'Cross-section frequency; V1 supports completed month ends only.',
+        },
+        financialMetricSelectionParameter,
+        minimumListedDaysParameter,
+        riskWarningParameter,
+      ],
+      returns: { kind: 'dataframe', columns: RESEARCH_FINANCIAL_METRIC_COLUMNS_V1 },
+    },
     chartFunction(
       'line',
       '创建 jixie 原生交互折线图。',
@@ -1971,3 +2396,8 @@ export const RESEARCH_ETF_SHARES_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.func
 export const RESEARCH_INDEX_VALUATION_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[18];
 export const RESEARCH_INDUSTRY_STATE_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[19];
 export const RESEARCH_FUTURES_SETTLEMENT_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[20];
+export const RESEARCH_FINANCIAL_STATEMENTS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[21];
+export const RESEARCH_FINANCIAL_METRICS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[22];
+export const RESEARCH_FINANCIAL_CROSS_SECTION_SDK_CONTRACT_V1 =
+  RESEARCH_SDK_CONTRACT_V1.functions[23];
+export const RESEARCH_FINANCIAL_PANEL_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[24];

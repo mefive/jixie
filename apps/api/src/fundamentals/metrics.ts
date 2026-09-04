@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import type { ResearchFinancialMetricV1 } from '@jixie/shared';
 
 import {
   normalizeCashFlows,
@@ -16,39 +17,7 @@ import type {
 
 export const FINANCIAL_FORMULA_VERSION = 'financial-metrics-v1';
 
-export type FinancialMetricConcept =
-  | 'revenue'
-  | 'revenueGrowthYoY'
-  | 'revenueCagr3y'
-  | 'grossMargin'
-  | 'operatingProfit'
-  | 'ebitProxy'
-  | 'operatingMargin'
-  | 'effectiveTaxRate'
-  | 'nopat'
-  | 'nopatMargin'
-  | 'returnOnAssets'
-  | 'returnOnEquity'
-  | 'workingCapital'
-  | 'investedCapital'
-  | 'capitalTurnover'
-  | 'returnOnInvestedCapital'
-  | 'netCapitalExpenditure'
-  | 'changeInWorkingCapital'
-  | 'reinvestment'
-  | 'reinvestmentRate'
-  | 'operatingCashFlow'
-  | 'freeCashFlowToFirm'
-  | 'cashFreeCashFlow'
-  | 'operatingCashFlowToNetIncome'
-  | 'accrualRatio'
-  | 'cashAndEquivalents'
-  | 'interestBearingDebt'
-  | 'netDebt'
-  | 'debtToInvestedCapital'
-  | 'marketCapitalization'
-  | 'enterpriseValue'
-  | 'issuedShares';
+export type FinancialMetricConcept = ResearchFinancialMetricV1;
 
 export type FinancialMetricUnit = 'CNY' | 'shares' | 'ratio';
 export type FinancialMetricStatus = 'ok' | 'missing' | 'invalid' | 'not_applicable';
@@ -86,7 +55,7 @@ interface Operand {
   invalidReason?: string;
 }
 
-const METRIC_DEFINITIONS: Record<
+export const FINANCIAL_METRIC_DEFINITIONS: Record<
   FinancialMetricConcept,
   { unit: FinancialMetricUnit; formula: string }
 > = {
@@ -445,7 +414,7 @@ function calculatePeriodMetrics(
 }
 
 function metric(concept: FinancialMetricConcept, operand: Operand): FinancialMetricResult {
-  const definition = METRIC_DEFINITIONS[concept];
+  const definition = FINANCIAL_METRIC_DEFINITIONS[concept];
   const status: FinancialMetricStatus = operand.invalidReason
     ? 'invalid'
     : operand.value == null
@@ -469,7 +438,7 @@ function missingPeriodMetrics(
   reason: string,
 ): Record<FinancialMetricConcept, FinancialMetricResult> {
   return Object.fromEntries(
-    (Object.keys(METRIC_DEFINITIONS) as FinancialMetricConcept[]).map((concept) => [
+    (Object.keys(FINANCIAL_METRIC_DEFINITIONS) as FinancialMetricConcept[]).map((concept) => [
       concept,
       metric(concept, missing(reason)),
     ]),

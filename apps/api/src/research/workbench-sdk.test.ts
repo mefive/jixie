@@ -10,6 +10,10 @@ import {
   RESEARCH_BACKTEST_REPORT_SDK_CONTRACT_V1,
   RESEARCH_FACTOR_REPORT_SDK_CONTRACT_V1,
   RESEARCH_FACTOR_WEATHER_SDK_CONTRACT_V1,
+  RESEARCH_FINANCIAL_CROSS_SECTION_SDK_CONTRACT_V1,
+  RESEARCH_FINANCIAL_METRICS_SDK_CONTRACT_V1,
+  RESEARCH_FINANCIAL_PANEL_SDK_CONTRACT_V1,
+  RESEARCH_FINANCIAL_STATEMENTS_SDK_CONTRACT_V1,
   RESEARCH_ETF_SHARES_SDK_CONTRACT_V1,
   RESEARCH_FX_SDK_CONTRACT_V1,
   RESEARCH_FUTURES_SETTLEMENT_SDK_CONTRACT_V1,
@@ -36,6 +40,11 @@ import {
   parseResearchEquityDatasetRuntimeRows,
   parseResearchFactorReportRuntimeRequest,
   parseResearchFactorWeatherRuntimeRequest,
+  parseResearchFinancialCrossSectionRuntimeRequest,
+  parseResearchFinancialMetricsRuntimeRequest,
+  parseResearchFinancialMetricsRuntimeRows,
+  parseResearchFinancialPanelRuntimeRequest,
+  parseResearchFinancialStatementsRuntimeRequest,
   parseResearchFxRuntimeRequest,
   parseResearchFuturesSettlementRuntimeRequest,
   parseResearchIndexValuationRuntimeRequest,
@@ -228,6 +237,83 @@ describe('research workbench SDK contract', () => {
     expect(RESEARCH_CROSS_SECTION_SDK_CONTRACT_V1.returns).toEqual(
       RESEARCH_PANEL_SDK_CONTRACT_V1.returns,
     );
+  });
+
+  it('drives the four strict-PIT financial dataset bridges from one contract', () => {
+    const single = { identifier: '000858.SZ', as_of: '20240429' };
+    expect(parseResearchFinancialStatementsRuntimeRequest(single)).toEqual(single);
+    expect(parseResearchFinancialMetricsRuntimeRequest(single)).toEqual(single);
+
+    const crossSection = {
+      universe: 'index:000300.SH',
+      date: '20240429',
+      metrics: ['revenue', 'returnOnInvestedCapital'],
+      minimum_listed_days: 365,
+      risk_warning: 'exclude',
+    };
+    expect(parseResearchFinancialCrossSectionRuntimeRequest(crossSection)).toEqual(crossSection);
+    expect(
+      parseResearchFinancialPanelRuntimeRequest({
+        universe: 'index:000300.SH',
+        start: '20200101',
+        end: '20240429',
+        frequency: 'month_end',
+        metrics: 'freeCashFlowToFirm',
+        minimum_listed_days: 365,
+        risk_warning: 'exclude',
+      }),
+    ).toMatchObject({ metrics: 'freeCashFlowToFirm' });
+    expect(() =>
+      parseResearchFinancialCrossSectionRuntimeRequest({
+        ...crossSection,
+        metrics: 'provider_magic_metric',
+      }),
+    ).toThrow();
+    expect(() =>
+      parseResearchFinancialCrossSectionRuntimeRequest({
+        ...crossSection,
+        metrics: [
+          'revenue',
+          'grossMargin',
+          'operatingMargin',
+          'nopat',
+          'returnOnAssets',
+          'returnOnEquity',
+          'returnOnInvestedCapital',
+          'freeCashFlowToFirm',
+          'enterpriseValue',
+        ],
+      }),
+    ).toThrow();
+
+    const metricRow = {
+      date: '20240429',
+      code: '000001.SZ',
+      name: '平安银行',
+      industry: '银行',
+      applicability: 'unsupported_financial',
+      report_period: null,
+      metric: 'returnOnInvestedCapital',
+      value: null,
+      unit: 'ratio',
+      status: 'not_applicable',
+      missing_reason: 'unsupported_financial_company',
+      formula: 'NOPAT / average invested capital',
+      formula_version: 'financial-metrics-v1',
+      input_versions_json: '[]',
+    };
+    expect(parseResearchFinancialMetricsRuntimeRows([metricRow])).toEqual([metricRow]);
+    expect([
+      RESEARCH_FINANCIAL_STATEMENTS_SDK_CONTRACT_V1.qualifiedName,
+      RESEARCH_FINANCIAL_METRICS_SDK_CONTRACT_V1.qualifiedName,
+      RESEARCH_FINANCIAL_CROSS_SECTION_SDK_CONTRACT_V1.qualifiedName,
+      RESEARCH_FINANCIAL_PANEL_SDK_CONTRACT_V1.qualifiedName,
+    ]).toEqual([
+      'data.equity_financial_statements',
+      'data.equity_financial_metrics',
+      'data.equity_financial_cross_section',
+      'data.equity_financial_panel',
+    ]);
   });
 
   it('publishes every M2 native chart through the same SDK contract', () => {

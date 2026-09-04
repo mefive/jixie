@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   resolveFinancialState,
+  resolveFinancialStates,
   selectLatestStatementVersions,
   type FinancialDiagnostic,
   type ResolvedIncomeStatement,
@@ -147,6 +148,53 @@ describe('financial statement resolver', () => {
       expect.arrayContaining([expect.objectContaining({ code: 'unsupported_financial_company' })]),
     );
   });
+
+  it('resolves a stock set with one query per statement table plus one industry query', async () => {
+    const database = resolverDatabase({
+      income: [
+        databaseStatement({ tsCode: '000858.SZ', sourceRowFingerprint: 'wly' }),
+        databaseStatement({ tsCode: '000001.SZ', sourceRowFingerprint: 'bank' }),
+      ],
+      industries: [
+        { tsCode: '000858.SZ', l1Code: '801120.SI', l1Name: '食品饮料' },
+        { tsCode: '000001.SZ', l1Code: '801780.SI', l1Name: '银行' },
+      ],
+    });
+
+    const states = await resolveFinancialStates(
+      {
+        tsCodes: ['000858.SZ', '000001.SZ'],
+        asOfDate: '20240501',
+        markets: [
+          {
+            tsCode: '000858.SZ',
+            tradeDate: '20240430',
+            marketCapitalization: 100,
+            sourceIdentity: 'daily_basic:000858.SZ:20240430',
+          },
+        ],
+      },
+      database as never,
+    );
+
+    expect(states.find((state) => state.tsCode === '000858.SZ')).toMatchObject({
+      applicability: 'industrial',
+      market: { marketCapitalization: 100 },
+    });
+    expect(states.find((state) => state.tsCode === '000001.SZ')).toMatchObject({
+      applicability: 'unsupported_financial',
+      periods: [],
+    });
+    expect(database.financialIncomeStatement.findMany).toHaveBeenCalledTimes(1);
+    expect(database.financialBalanceSheet.findMany).toHaveBeenCalledTimes(1);
+    expect(database.financialCashFlowStatement.findMany).toHaveBeenCalledTimes(1);
+    expect(database.swIndustryMember.findMany).toHaveBeenCalledTimes(1);
+    expect(database.financialIncomeStatement.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ endDate: { gte: '20190501' } }),
+      }),
+    );
+  });
 });
 
 function incomeVersion(
@@ -213,6 +261,7 @@ function databaseStatement(overrides: Record<string, unknown>) {
 function resolverDatabase(options: {
   income?: Array<Record<string, unknown>>;
   industry?: { l1Code: string; l1Name: string } | null;
+  industries?: Array<{ tsCode: string; l1Code: string; l1Name: string }>;
   marketCapitalizationWan?: number | null;
 }) {
   const delegate = (rows: Array<Record<string, unknown>>) => ({
@@ -226,6 +275,7 @@ function resolverDatabase(options: {
     financialCashFlowStatement: delegate([]),
     swIndustryMember: {
       findFirst: vi.fn().mockResolvedValue(options.industry ?? null),
+      findMany: vi.fn().mockResolvedValue(options.industries ?? []),
     },
     dailyBasic: {
       findFirst: vi

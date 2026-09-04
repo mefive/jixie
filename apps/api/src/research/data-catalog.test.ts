@@ -30,6 +30,9 @@ const mocks = vi.hoisted(() => ({
   marketBenchmarkDailyGroupBy: vi.fn(),
   futureMappingGroupBy: vi.fn(),
   futureDailyGroupBy: vi.fn(),
+  financialIncomeAggregate: vi.fn(),
+  financialBalanceAggregate: vi.fn(),
+  financialCashFlowAggregate: vi.fn(),
   factorFindMany: vi.fn(),
   factorReportFindMany: vi.fn(),
   factorWeatherFindMany: vi.fn(),
@@ -68,6 +71,9 @@ vi.mock('../lib/prisma.js', () => ({
     },
     futureContract: { findMany: mocks.futureFindMany },
     futureDaily: { groupBy: mocks.futureDailyGroupBy },
+    financialIncomeStatement: { aggregate: mocks.financialIncomeAggregate },
+    financialBalanceSheet: { aggregate: mocks.financialBalanceAggregate },
+    financialCashFlowStatement: { aggregate: mocks.financialCashFlowAggregate },
     factor: { findMany: mocks.factorFindMany },
     factorReport: { findMany: mocks.factorReportFindMany },
     factorWeatherPin: { findMany: mocks.factorWeatherFindMany },
@@ -85,6 +91,16 @@ describe('research data catalog', () => {
       _min: { tradeDate: null },
       _max: { tradeDate: null },
     });
+    for (const aggregate of [
+      mocks.financialIncomeAggregate,
+      mocks.financialBalanceAggregate,
+      mocks.financialCashFlowAggregate,
+    ]) {
+      aggregate.mockResolvedValue({
+        _min: { availableDate: null },
+        _max: { availableDate: null },
+      });
+    }
   });
 
   it('returns only series-compatible measures before a user enters a query', async () => {
@@ -150,6 +166,10 @@ describe('research data catalog', () => {
       'data.index_valuation',
       'data.industry_state',
       'data.futures_settlement',
+      'data.equity_financial_statements',
+      'data.equity_financial_metrics',
+      'data.equity_financial_cross_section',
+      'data.equity_financial_panel',
     ]);
     expect(result.instruments).toEqual([]);
     expect(result.datasets).toEqual([
@@ -167,6 +187,44 @@ describe('research data catalog', () => {
       }),
     ]);
     expect(mocks.dailyGroupBy).not.toHaveBeenCalled();
+  });
+
+  it('discovers PIT financial datasets and exposes documented return columns', async () => {
+    const coverage = {
+      _min: { availableDate: '20230428' },
+      _max: { availableDate: '20250430' },
+    };
+    mocks.financialIncomeAggregate.mockResolvedValue(coverage);
+    mocks.financialBalanceAggregate.mockResolvedValue(coverage);
+    mocks.financialCashFlowAggregate.mockResolvedValue(coverage);
+
+    const result = await searchResearchDataCatalog({ query: '财务指标', scope: 'datasets' });
+
+    expect(result.datasets).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          method: 'data.equity_financial_metrics',
+          localDataCoverage: {
+            status: 'ready',
+            startDate: '20230428',
+            endDate: '20250430',
+            dateBasis: 'availableDate',
+          },
+        }),
+      ]),
+    );
+    const method = result.sdkMethods.find(
+      (candidate) => candidate.qualifiedName === 'data.equity_financial_metrics',
+    );
+    expect(method?.returnColumns).toContain('formula_version');
+    expect(method?.returnColumnDetails).toContainEqual(
+      expect.objectContaining({ name: 'missing_reason' }),
+    );
+    expect(mocks.financialIncomeAggregate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { availabilityQuality: { not: 'reconstructed' } },
+      }),
+    );
   });
 
   it('discovers governed macro and FX datasets with availability-date coverage', async () => {

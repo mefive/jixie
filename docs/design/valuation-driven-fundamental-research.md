@@ -453,12 +453,15 @@ Factor 是估值研究的可选下游，不是 V1 主入口：
 
 ### M3：Research 数据能力
 
-- [ ] 扩展 Research SDK Contract、Runtime、数据桥和生成 stub；
-- [ ] 提供单股财报/指标与受控 PIT 横截面/Panel；
-- [ ] 数据目录展示单位、覆盖、版本、可得日、行业适用性和代码插入；
-- [ ] Agent 在生成代码前查询精确 SDK 与数据能力；
-- [ ] 对全市场批量 loader 做资源和性能测试；
-- [ ] 更新中英文 SDK 参考和帮助边界。
+- [x] 扩展 Research SDK Contract、Runtime、数据桥和生成 stub；
+- [x] 提供单股财报/指标与受控 PIT 横截面/Panel；
+- [x] 数据目录展示单位、覆盖、版本、可得日、行业适用性和代码插入；
+- [x] Agent 在生成代码前查询精确 SDK 与数据能力；
+- [x] 对全市场批量 loader 做资源和性能测试；
+- [x] 更新中英文 SDK 参考和帮助边界。
+
+公开方法、批量读取、真实数据性能和产品验收见
+[M3 Research 数据能力报告](../reports/valuation-fundamental-m3-research-data.md)。
 
 **完成定义**：Research 用户不写 SQL 即可重建一个历史时点的财务状态；Python 返回列、Runtime、Monaco 和
 Agent Catalog 使用同一 Contract。

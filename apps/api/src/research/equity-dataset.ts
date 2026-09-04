@@ -13,6 +13,11 @@ const MAX_CROSS_SECTION_ROWS = 6_000;
 const MAX_PANEL_PERIODS = 120;
 const MAX_PANEL_ROWS = 100_000;
 
+interface ResearchEquityDatasetLimits {
+  maxCrossSectionRows?: number;
+  maxPanelRows?: number;
+}
+
 export interface ResearchEquityDatasetRequestBaseV1 {
   universe: string;
   minimum_listed_days: number;
@@ -77,12 +82,14 @@ export interface ResearchEquityDatasetResultV1 {
 export async function loadResearchCrossSection(
   request: ResearchCrossSectionRequestV1,
   database: PrismaClient = prisma,
+  limits: ResearchEquityDatasetLimits = {},
 ): Promise<ResearchEquityDatasetResultV1> {
   validateDatasetRequest(request);
   const result = await executeDatasetPeriod(request, request.date, database);
-  if (result.rows.length > MAX_CROSS_SECTION_ROWS) {
+  const maxRows = limits.maxCrossSectionRows ?? MAX_CROSS_SECTION_ROWS;
+  if (result.rows.length > maxRows) {
     throw new Error(
-      `Research cross-section contains ${result.rows.length} rows; the limit is ${MAX_CROSS_SECTION_ROWS}. Use a narrower index universe.`,
+      `Research cross-section contains ${result.rows.length} rows; the limit is ${maxRows}. Use a narrower index universe.`,
     );
   }
 
@@ -93,6 +100,7 @@ export async function loadResearchCrossSection(
 export async function loadResearchPanel(
   request: ResearchPanelRequestV1,
   database: PrismaClient = prisma,
+  limits: ResearchEquityDatasetLimits = {},
 ): Promise<ResearchEquityDatasetResultV1> {
   validateDatasetRequest(request);
   if (request.frequency !== 'month_end') {
@@ -114,15 +122,16 @@ export async function loadResearchPanel(
 
   const periods: DatasetPeriod[] = [];
   let rowCount = 0;
+  const maxRows = limits.maxPanelRows ?? MAX_PANEL_ROWS;
   for (const date of dates) {
     const period = await executeDatasetPeriod(request, date, database);
     if (period.result.asOfDate !== date) {
       throw new Error(`Research panel has no market-data snapshot on month end ${date}`);
     }
     rowCount += period.rows.length;
-    if (rowCount > MAX_PANEL_ROWS) {
+    if (rowCount > maxRows) {
       throw new Error(
-        `Research panel exceeds the ${MAX_PANEL_ROWS}-row limit at ${date}. Use a narrower universe or shorter date range.`,
+        `Research panel exceeds the ${maxRows}-row limit at ${date}. Use a narrower universe or shorter date range.`,
       );
     }
     periods.push(period);

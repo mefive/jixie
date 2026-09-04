@@ -245,6 +245,62 @@ class _DataApi:
         end: str,
     ) -> pd.DataFrame: ...
 
+    # Load the versioned three-statement state actually available for one equity on a historical as-of date.
+    # Note: Returns a report_period-by-statement_kind-by-field long frame; strict PIT excludes reconstructed versions.
+    # Note: The V1 industrial-company model explicitly rejects banks and non-bank financial companies.
+    # Example: data.equity_financial_statements("000858.SZ", as_of="20240429")
+    # DataFrame columns: as_of_date: datetime64[ns], code: str, industry: str | None, applicability: str, report_period: datetime64[ns], statement_kind: str, field: str, value: float64, unit: str, announcement_date: datetime64[ns], available_date: datetime64[ns], availability_quality: str, report_type: str, source_row_fingerprint: str
+    def equity_financial_statements(
+        self,
+        identifier: str,
+        *,
+        as_of: str,
+    ) -> pd.DataFrame: ...
+
+    # Calculate governed financial metrics for every reporting period known for one equity on a historical as-of date.
+    # Note: Every row preserves formula, formula version, input versions, and missing reason; ratio 1 means 100%.
+    # Note: Missing quarters or required fields remain missing/invalid without future revisions or shortcut substitutes.
+    # Example: data.equity_financial_metrics("000858.SZ", as_of="20240429")
+    # DataFrame columns: date: datetime64[ns], code: str, name: str, industry: str | None, applicability: str, report_period: datetime64[ns], metric: str, value: float64, unit: str, status: str, missing_reason: str | None, formula: str, formula_version: str, input_versions_json: str
+    def equity_financial_metrics(
+        self,
+        identifier: str,
+        *,
+        as_of: str,
+    ) -> pd.DataFrame: ...
+
+    # Batch-calculate the latest available financial metrics for every equity in one historical China A-share cross-section.
+    # Note: Universe, industry, market data, and statements all resolve point-in-time on the cross-section date; returns a date-by-code-by-metric long frame.
+    # Note: At most eight metrics and 50,000 rows are allowed; financial companies remain as not_applicable rows.
+    # Example: data.equity_financial_cross_section("index:000300.SH", date="20240429", metrics=["revenue", "returnOnInvestedCapital"])
+    # DataFrame columns: date: datetime64[ns], code: str, name: str, industry: str | None, applicability: str, report_period: datetime64[ns], metric: str, value: float64, unit: str, status: str, missing_reason: str | None, formula: str, formula_version: str, input_versions_json: str
+    def equity_financial_cross_section(
+        self,
+        universe: str,
+        *,
+        date: str,
+        metrics: Literal["revenue", "revenueGrowthYoY", "revenueCagr3y", "grossMargin", "operatingProfit", "ebitProxy", "operatingMargin", "effectiveTaxRate", "nopat", "nopatMargin", "returnOnAssets", "returnOnEquity", "workingCapital", "investedCapital", "capitalTurnover", "returnOnInvestedCapital", "netCapitalExpenditure", "changeInWorkingCapital", "reinvestment", "reinvestmentRate", "operatingCashFlow", "freeCashFlowToFirm", "cashFreeCashFlow", "operatingCashFlowToNetIncome", "accrualRatio", "cashAndEquivalents", "interestBearingDebt", "netDebt", "debtToInvestedCapital", "marketCapitalization", "enterpriseValue", "issuedShares"] | list[Literal["revenue", "revenueGrowthYoY", "revenueCagr3y", "grossMargin", "operatingProfit", "ebitProxy", "operatingMargin", "effectiveTaxRate", "nopat", "nopatMargin", "returnOnAssets", "returnOnEquity", "workingCapital", "investedCapital", "capitalTurnover", "returnOnInvestedCapital", "netCapitalExpenditure", "changeInWorkingCapital", "reinvestment", "reinvestmentRate", "operatingCashFlow", "freeCashFlowToFirm", "cashFreeCashFlow", "operatingCashFlowToNetIncome", "accrualRatio", "cashAndEquivalents", "interestBearingDebt", "netDebt", "debtToInvestedCapital", "marketCapitalization", "enterpriseValue", "issuedShares"]],
+        minimum_listed_days: int = 365,
+        risk_warning: Literal["exclude", "include"] = "exclude",
+    ) -> pd.DataFrame: ...
+
+    # Batch-calculate the latest available financial metrics across historical month-end equity universes.
+    # Note: Every month end independently resolves its historical universe and statement versions; current constituents and latest statements never backfill history.
+    # Note: At most eight metrics and 100,000 rows are allowed; narrow the universe, range, or metrics when exceeded.
+    # Example: data.equity_financial_panel("index:000300.SH", start="20200101", end="20241231", frequency="month_end", metrics=["revenueGrowthYoY", "returnOnInvestedCapital"])
+    # DataFrame columns: date: datetime64[ns], code: str, name: str, industry: str | None, applicability: str, report_period: datetime64[ns], metric: str, value: float64, unit: str, status: str, missing_reason: str | None, formula: str, formula_version: str, input_versions_json: str
+    def equity_financial_panel(
+        self,
+        universe: str,
+        *,
+        start: str,
+        end: str,
+        frequency: Literal["month_end"] = "month_end",
+        metrics: Literal["revenue", "revenueGrowthYoY", "revenueCagr3y", "grossMargin", "operatingProfit", "ebitProxy", "operatingMargin", "effectiveTaxRate", "nopat", "nopatMargin", "returnOnAssets", "returnOnEquity", "workingCapital", "investedCapital", "capitalTurnover", "returnOnInvestedCapital", "netCapitalExpenditure", "changeInWorkingCapital", "reinvestment", "reinvestmentRate", "operatingCashFlow", "freeCashFlowToFirm", "cashFreeCashFlow", "operatingCashFlowToNetIncome", "accrualRatio", "cashAndEquivalents", "interestBearingDebt", "netDebt", "debtToInvestedCapital", "marketCapitalization", "enterpriseValue", "issuedShares"] | list[Literal["revenue", "revenueGrowthYoY", "revenueCagr3y", "grossMargin", "operatingProfit", "ebitProxy", "operatingMargin", "effectiveTaxRate", "nopat", "nopatMargin", "returnOnAssets", "returnOnEquity", "workingCapital", "investedCapital", "capitalTurnover", "returnOnInvestedCapital", "netCapitalExpenditure", "changeInWorkingCapital", "reinvestment", "reinvestmentRate", "operatingCashFlow", "freeCashFlowToFirm", "cashFreeCashFlow", "operatingCashFlowToNetIncome", "accrualRatio", "cashAndEquivalents", "interestBearingDebt", "netDebt", "debtToInvestedCapital", "marketCapitalization", "enterpriseValue", "issuedShares"]],
+        minimum_listed_days: int = 365,
+        risk_warning: Literal["exclude", "include"] = "exclude",
+    ) -> pd.DataFrame: ...
+
 
 
 class _ResultsApi:

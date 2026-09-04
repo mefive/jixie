@@ -149,6 +149,47 @@ describe('Research Pyright language service', () => {
     expect(response).toMatchObject({ action: 'diagnostics', result: [] });
   }, 20_000);
 
+  it('publishes the generated financial SDK methods and rejects unknown metric names', async () => {
+    const financialRequest: ResearchLanguageRequestV1 = {
+      version: 1,
+      documentId: 'financial-sdk-1',
+      cells: [
+        {
+          id: 'analysis',
+          source: [
+            'data.',
+            'frame = data.equity_financial_cross_section(',
+            '    "index:000300.SH", date="20240429", metrics=["not_a_metric"]',
+            ')',
+          ].join('\n'),
+        },
+      ],
+      cellId: 'analysis',
+      action: 'completion',
+      position: { line: 0, character: 5 },
+    };
+    const completion = await service.request('financial-user:completion', financialRequest);
+    expect(completion.action).toBe('completion');
+    if (completion.action === 'completion') {
+      expect(completion.result.items.map((item) => item.label)).toContain(
+        'equity_financial_cross_section',
+      );
+    }
+
+    const diagnostics = await service.request('financial-user:diagnostics', {
+      ...financialRequest,
+      action: 'diagnostics',
+    });
+    expect(diagnostics.action).toBe('diagnostics');
+    if (diagnostics.action === 'diagnostics') {
+      expect(diagnostics.result).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ message: expect.stringContaining('not_a_metric') }),
+        ]),
+      );
+    }
+  }, 20_000);
+
   it('publishes static diagnostics without executing a Cell', async () => {
     const response = await service.request('user-a:document-a', request('diagnostics'));
     expect(response.action).toBe('diagnostics');

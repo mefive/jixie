@@ -112,6 +112,38 @@ _EQUITY_FUNDAMENTAL_COLUMNS = [
     "net_profit_yoy_pct",
     "operating_cash_flow_to_profit",
 ]
+_FINANCIAL_STATEMENT_COLUMNS = [
+    "as_of_date",
+    "code",
+    "industry",
+    "applicability",
+    "report_period",
+    "statement_kind",
+    "field",
+    "value",
+    "unit",
+    "announcement_date",
+    "available_date",
+    "availability_quality",
+    "report_type",
+    "source_row_fingerprint",
+]
+_FINANCIAL_METRIC_COLUMNS = [
+    "date",
+    "code",
+    "name",
+    "industry",
+    "applicability",
+    "report_period",
+    "metric",
+    "value",
+    "unit",
+    "status",
+    "missing_reason",
+    "formula",
+    "formula_version",
+    "input_versions_json",
+]
 _EQUITY_FLOW_COLUMNS = [
     "date",
     "net_main_cny_10k",
@@ -341,6 +373,10 @@ class _NameAnalysis(ast.NodeVisitor):
                 "index_valuation",
                 "industry_state",
                 "futures_settlement",
+                "equity_financial_statements",
+                "equity_financial_metrics",
+                "equity_financial_cross_section",
+                "equity_financial_panel",
             }
             and isinstance(node.func.value, ast.Name)
             and node.func.value.id == "data"
@@ -573,6 +609,76 @@ class _DataApi:
         )
         return self._dataset_frame(
             result, _EQUITY_FUNDAMENTAL_COLUMNS, ["date", "report_period"]
+        )
+
+    def equity_financial_statements(self, identifier: str, *, as_of: str) -> Any:
+        result = self._host.request(
+            "research_equity_financial_statements",
+            {"identifier": identifier, "as_of": as_of},
+        )
+        return self._dataset_frame(
+            result,
+            _FINANCIAL_STATEMENT_COLUMNS,
+            ["as_of_date", "report_period", "announcement_date", "available_date"],
+        )
+
+    def equity_financial_metrics(self, identifier: str, *, as_of: str) -> Any:
+        result = self._host.request(
+            "research_equity_financial_metrics",
+            {"identifier": identifier, "as_of": as_of},
+        )
+        return self._dataset_frame(
+            result, _FINANCIAL_METRIC_COLUMNS, ["date", "report_period"]
+        )
+
+    def equity_financial_cross_section(
+        self,
+        universe: str,
+        *,
+        date: str,
+        metrics: str | list[str],
+        minimum_listed_days: int = 365,
+        risk_warning: str = "exclude",
+    ) -> Any:
+        result = self._host.request(
+            "research_equity_financial_cross_section",
+            {
+                "universe": universe,
+                "date": date,
+                "metrics": metrics,
+                "minimum_listed_days": minimum_listed_days,
+                "risk_warning": risk_warning,
+            },
+        )
+        return self._dataset_frame(
+            result, _FINANCIAL_METRIC_COLUMNS, ["date", "report_period"]
+        )
+
+    def equity_financial_panel(
+        self,
+        universe: str,
+        *,
+        start: str,
+        end: str,
+        frequency: str = "month_end",
+        metrics: str | list[str],
+        minimum_listed_days: int = 365,
+        risk_warning: str = "exclude",
+    ) -> Any:
+        result = self._host.request(
+            "research_equity_financial_panel",
+            {
+                "universe": universe,
+                "start": start,
+                "end": end,
+                "frequency": frequency,
+                "metrics": metrics,
+                "minimum_listed_days": minimum_listed_days,
+                "risk_warning": risk_warning,
+            },
+        )
+        return self._dataset_frame(
+            result, _FINANCIAL_METRIC_COLUMNS, ["date", "report_period"]
         )
 
     def equity_flows(self, identifier: str, *, start: str, end: str) -> Any:

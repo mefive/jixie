@@ -13,7 +13,7 @@ The **Data catalog** shows the instruments, measures, and calls supported by the
 
 After insertion, verify that the instrument, dates, and variable name match your research question.
 
-## Four data shapes
+## Five core data shapes
 
 ### One instrument over time
 
@@ -41,6 +41,37 @@ In **Datasets**, select China A-shares, CSI 300, CSI 500, or CSI 1000 and choose
 Use `data.panel()` for point-in-time cross-sections over completed month-ends. It supports exploratory multi-period sorting, regression, and stability checks. Specify dates, universe, fields, and missing-value rules. Never backfill today's latest financial value into past dates.
 The catalog shows only the date range jointly supported by local price, valuation, and historical membership data.
 
+### Versioned statements and standardized financial metrics
+
+Fundamental research has four dedicated methods, with no SQL required:
+
+```python
+statements = data.equity_financial_statements("000858.SZ", as_of="20240429")
+metrics = data.equity_financial_metrics("000858.SZ", as_of="20240429")
+cross_section = data.equity_financial_cross_section(
+    "index:000300.SH",
+    date="20240429",
+    metrics=["revenue", "returnOnInvestedCapital"],
+)
+panel = data.equity_financial_panel(
+    "index:000300.SH",
+    start="20200101",
+    end="20241231",
+    frequency="month_end",
+    metrics=["revenueGrowthYoY", "returnOnInvestedCapital"],
+)
+```
+
+The single-equity statement method returns a `period × statement × field` long table with announcement date, research
+availability date, version quality, and source fingerprint. The single-equity metric method returns all standardized M2
+metrics. Cross-sections and Panels accept at most eight metrics and return at most 50,000 and 100,000 rows respectively;
+they use batch database reads instead of per-equity queries.
+
+Interpret metric rows through `value`, `unit`, `status`, and `missing_reason`, while retaining `formula_version` and
+`input_versions_json`. A ratio of 1 means 100%. Missing quarters, fields, and invalid denominators never become zero.
+Banks and non-bank financial companies remain explicit `not_applicable` rows for industrial metrics, and the single-equity
+industrial statement method rejects them.
+
 ### US Treasury yield curves
 
 Use `data.yield_curve()` for governed US Treasury nominal- or real-yield tenor series. Curves, tenors, and transforms have a separate allowlist; do not guess a yield table or field through `data.series()`. See [Load US Treasury yield curves](/docs/help/research/yield-curves) for parameters, percentage-point units, and US/China time-zone boundaries.
@@ -48,7 +79,8 @@ Use `data.yield_curve()` for governed US Treasury nominal- or real-yield tenor s
 
 ## Point-in-time and revision boundaries
 
-- Cross-sections and Panels use information available at the time; financial fields align to announcement dates.
+- Cross-sections and Panels use information available at the time. Dedicated financial methods select versions by
+  `available_date` and exclude `reconstructed` versions whose historical availability cannot be proven.
 - Historical membership, names, and industries use historical records where supported.
 - A rerun may read later data revisions. Use a clean full run to preserve an immutable result.
 - Ad hoc IC, sorts, or regressions are exploratory. Validate a candidate signal again through FactorReport.

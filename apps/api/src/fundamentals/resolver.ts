@@ -147,6 +147,10 @@ export interface ResolvedFinancialState {
   diagnostics: FinancialDiagnostic[];
 }
 
+export interface BatchFinancialMarketSnapshot extends ResolvedFinancialMarketSnapshot {
+  tsCode: string;
+}
+
 type FinancialResolverDatabase = Pick<
   Prisma,
   | 'financialIncomeStatement'
@@ -202,6 +206,100 @@ export async function resolveFinancialState(
     }),
   ]);
 
+  return buildFinancialState({
+    tsCode,
+    asOfDate: input.asOfDate,
+    incomeRows: incomeRows.map(mapIncome),
+    balanceRows: balanceRows.map(mapBalance),
+    cashFlowRows: cashFlowRows.map(mapCashFlow),
+    industry,
+    market: market
+      ? {
+          tradeDate: market.tradeDate,
+          marketCapitalization: market.totalMv == null ? null : market.totalMv * 10_000,
+          sourceIdentity: `daily_basic:${tsCode}:${market.tradeDate}`,
+        }
+      : null,
+  });
+}
+
+/** Resolve a bounded stock set with four database queries instead of one query sequence per stock. */
+export async function resolveFinancialStates(
+  input: {
+    tsCodes: readonly string[];
+    asOfDate: string;
+    markets?: readonly BatchFinancialMarketSnapshot[];
+  },
+  database: FinancialResolverDatabase = prisma,
+): Promise<ResolvedFinancialState[]> {
+  assertDate(input.asOfDate, 'asOfDate');
+  const tsCodes = sortedUnique(
+    input.tsCodes.map((tsCode) => {
+      assertTsCode(tsCode);
+      return canonicalStockCode(tsCode);
+    }),
+  );
+  if (tsCodes.length === 0) {
+    return [];
+  }
+  const commonWhere = {
+    tsCode: { in: tsCodes },
+    availableDate: { lte: input.asOfDate },
+    endDate: { gte: financialBatchLookbackStart(input.asOfDate) },
+    compType: '1',
+    reportType: { in: ['1', '4', '5'] },
+  };
+  const [incomeRows, balanceRows, cashFlowRows, industries] = await Promise.all([
+    database.financialIncomeStatement.findMany({ where: commonWhere }),
+    database.financialBalanceSheet.findMany({ where: commonWhere }),
+    database.financialCashFlowStatement.findMany({ where: commonWhere }),
+    database.swIndustryMember.findMany({
+      where: {
+        tsCode: { in: tsCodes },
+        inDate: { lte: input.asOfDate },
+        OR: [{ outDate: null }, { outDate: { gt: input.asOfDate } }],
+      },
+      orderBy: { inDate: 'desc' },
+      select: { tsCode: true, l1Code: true, l1Name: true },
+    }),
+  ]);
+  const incomeByCode = groupByCode(incomeRows.map(mapIncome));
+  const balanceByCode = groupByCode(balanceRows.map(mapBalance));
+  const cashFlowByCode = groupByCode(cashFlowRows.map(mapCashFlow));
+  const industryByCode = new Map<string, { l1Code: string; l1Name: string }>();
+  for (const industry of industries) {
+    if (!industryByCode.has(industry.tsCode)) {
+      industryByCode.set(industry.tsCode, industry);
+    }
+  }
+  const marketByCode = new Map(
+    (input.markets ?? []).map(({ tsCode, ...market }) => [canonicalStockCode(tsCode), market]),
+  );
+
+  return tsCodes.map((tsCode) =>
+    buildFinancialState({
+      tsCode,
+      asOfDate: input.asOfDate,
+      incomeRows: incomeByCode.get(tsCode) ?? [],
+      balanceRows: balanceByCode.get(tsCode) ?? [],
+      cashFlowRows: cashFlowByCode.get(tsCode) ?? [],
+      industry: industryByCode.get(tsCode) ?? null,
+      market: marketByCode.get(tsCode) ?? null,
+    }),
+  );
+}
+
+function buildFinancialState(input: {
+  tsCode: string;
+  asOfDate: string;
+  incomeRows: ResolvedIncomeStatement[];
+  balanceRows: ResolvedBalanceSheet[];
+  cashFlowRows: ResolvedCashFlowStatement[];
+  industry: { l1Code: string; l1Name: string } | null;
+  market: ResolvedFinancialMarketSnapshot | null;
+}): ResolvedFinancialState {
+  const { tsCode, asOfDate, incomeRows, balanceRows, cashFlowRows, industry, market } = input;
+
   const diagnostics: FinancialDiagnostic[] = [];
   const applicability = industry
     ? FINANCIAL_INDUSTRY_CODES.has(industry.l1Code)
@@ -218,33 +316,27 @@ export async function resolveFinancialState(
     });
   }
 
-  const income = selectLatestStatementVersions(incomeRows.map(mapIncome), diagnostics);
-  const balanceSheets = selectLatestStatementVersions(balanceRows.map(mapBalance), diagnostics);
-  const cashFlows = selectLatestStatementVersions(cashFlowRows.map(mapCashFlow), diagnostics);
+  const income = selectLatestStatementVersions(incomeRows, diagnostics);
+  const balanceSheets = selectLatestStatementVersions(balanceRows, diagnostics);
+  const cashFlows = selectLatestStatementVersions(cashFlowRows, diagnostics);
   const periods = combinePeriods(income, balanceSheets, cashFlows);
   if (periods.length === 0 && applicability !== 'unsupported_financial') {
     diagnostics.push({
       code: 'no_financial_statements_available',
       severity: 'warning',
-      message: `No strict-PIT industrial statements are available by ${input.asOfDate}.`,
+      message: `No strict-PIT industrial statements are available by ${asOfDate}.`,
     });
   }
 
   return {
     resolverVersion: FINANCIAL_RESOLVER_VERSION,
     tsCode,
-    asOfDate: input.asOfDate,
+    asOfDate,
     strictPit: true,
     industry,
     applicability,
     periods: applicability === 'unsupported_financial' ? [] : periods,
-    market: market
-      ? {
-          tradeDate: market.tradeDate,
-          marketCapitalization: market.totalMv == null ? null : market.totalMv * 10_000,
-          sourceIdentity: `daily_basic:${tsCode}:${market.tradeDate}`,
-        }
-      : null,
+    market,
     diagnostics,
   };
 }
@@ -511,6 +603,24 @@ function isAvailabilityQuality(value: string): value is FinancialAvailabilityQua
 
 function isReportType(value: string): value is FinancialStatementReportType {
   return value === '1' || value === '4' || value === '5';
+}
+
+function groupByCode<Row extends { tsCode: string }>(rows: Row[]): Map<string, Row[]> {
+  const grouped = new Map<string, Row[]>();
+  for (const row of rows) {
+    const group = grouped.get(row.tsCode) ?? [];
+    group.push(row);
+    grouped.set(row.tsCode, group);
+  }
+  return grouped;
+}
+
+function sortedUnique(values: string[]): string[] {
+  return [...new Set(values)].sort();
+}
+
+function financialBatchLookbackStart(asOfDate: string): string {
+  return `${String(Number(asOfDate.slice(0, 4)) - 5).padStart(4, '0')}${asOfDate.slice(4)}`;
 }
 
 function assertDate(value: string, field: string): void {
