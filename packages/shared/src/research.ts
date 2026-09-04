@@ -877,7 +877,7 @@ export interface ResearchDocumentAnalysisV1 {
   conflicts: ResearchDependencyConflictV1[];
 }
 
-export type ResearchDocumentTemplateV1 = 'blank' | 'index_relationship';
+export type ResearchDocumentTemplateV1 = 'blank' | 'index_relationship' | 'equity_fcff_valuation';
 
 export type ResearchExecutionStatusV1 = 'running' | 'success' | 'error' | 'cancelled';
 

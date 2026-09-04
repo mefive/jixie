@@ -6,6 +6,8 @@ A research document contains Markdown Cells and Python Cells. Use Markdown for t
 
 1. Open **Research** in the top navigation.
 2. Enter the question you want to test and submit it. Research creates a document with Markdown and Python Cells.
+   For an industrial-company FCFF study, you can instead open the **FCFF company valuation template**
+   from the landing page.
 3. When a document is open, select **New research** on the left to return to the question input.
 4. Switch existing documents under **Research documents**.
 5. Use the edit icon beside the title to rename it.
@@ -57,5 +59,6 @@ It removes that Cell and its output from the editable document. Earlier successf
 ## Related articles
 
 - [Run, stop, and reset research](/docs/help/research/run-control)
+- [Research company valuation with the FCFF template](/docs/help/research/fcff-valuation)
 - [Answer a research-definition clarification](/docs/help/research/clarifications)
 - [Research documents and run history](/docs/help/research/records)

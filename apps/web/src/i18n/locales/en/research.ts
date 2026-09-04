@@ -12,6 +12,12 @@ export const enResearch: typeof zhResearch = {
   heroKbd: 'Enter to send, Shift + Enter for a new line',
   examplesLabel: 'Try one',
   composerPlaceholder: 'For example: Were CSI 300 and CSI 500 monthly returns correlated?',
+  valuationTemplate: {
+    title: 'FCFF company valuation template',
+    description:
+      'Start from the Wuliangye example and inspect scenarios, sensitivity, market-implied assumptions, and the next report.',
+    open: 'Open template',
+  },
   error: {
     withDetail: 'Research failed: {{detail}}',
     requestFailed: 'Request failed',
