@@ -136,6 +136,25 @@ export const FINANCIAL_STATEMENT_FIELDS: readonly FinancialSourceFieldDefinition
   ]),
 ] as const;
 
+export const FINANCIAL_STATEMENT_IDENTITY_FIELDS = [
+  'ts_code',
+  'ann_date',
+  'f_ann_date',
+  'end_date',
+  'report_type',
+  'comp_type',
+  'update_flag',
+] as const;
+
+export function financialStatementSourceFields(statementKind: FinancialStatementKind): string[] {
+  return [
+    ...FINANCIAL_STATEMENT_IDENTITY_FIELDS,
+    ...FINANCIAL_STATEMENT_FIELDS.filter(
+      (definition) => definition.statementKind === statementKind,
+    ).map((definition) => definition.sourceField),
+  ];
+}
+
 /** Tushare report_type 1/4/5 and comp_type=1 are consolidated industrial statement versions. */
 export function isV1IndustrialConsolidatedStatement(row: FinancialStatementSourceRow): boolean {
   return ['1', '4', '5'].includes(row.reportType) && row.compType === '1';
@@ -260,7 +279,7 @@ export function resolveFinancialAvailability(
   if (!availableDate || availableDate <= announcementDate) {
     throw new Error(`No strictly later trading session is available after ${announcementDate}`);
   }
-  const exactEvidence = correctionEvidence.find(
+  const matchingEvidence = correctionEvidence.find(
     (evidence) =>
       evidence.tsCode === row.tsCode &&
       evidence.publishedDate === announcementDate &&
@@ -272,6 +291,9 @@ export function resolveFinancialAvailability(
       financialStatementAnnouncementIdentity(row),
   );
   const materialVariants = new Set(sameAnnouncement.map(financialStatementValuesFingerprint)).size;
+  // An announcement proves timing, but cannot disambiguate several provider value variants dated
+  // to that same announcement. Keep those variants conservative/reconstructed until reconciled.
+  const exactEvidence = materialVariants <= 1 ? matchingEvidence : undefined;
   const unresolvedProviderChange = !exactEvidence && materialVariants > 1 && row.updateFlag !== '0';
   return {
     announcementDate,

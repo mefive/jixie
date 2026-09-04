@@ -5,6 +5,7 @@ import {
   selectEvaluationDates,
   summarizeCrossMarketBenchmarkPit,
   summarizeExternalMarketPit,
+  summarizeFinancialStatementVersions,
   summarizeCreditCurvePit,
   summarizeMacroPit,
   summarizeWindowCoverage,
@@ -123,6 +124,48 @@ describe('data quality audit helpers', () => {
       latestValueBackfillRows: 1,
       capturedAsAvailableRows: 2,
     });
+  });
+
+  it('reports statement PIT violations separately from legacy indicator coverage', () => {
+    expect(
+      summarizeFinancialStatementVersions(
+        {
+          total: 300,
+          invalidAnnouncementDate: 0,
+          invalidAvailableDate: 1,
+          invalidQuality: 0,
+          invalidReportScope: 0,
+        },
+        {
+          indicatorPeriods: 100,
+          incomeMatches: 98,
+          balanceMatches: 96,
+          cashFlowMatches: 95,
+        },
+      ),
+    ).toMatchObject({
+      id: 'financial-statement-versions',
+      status: 'error',
+      summary: expect.stringContaining('1 invalid PIT or scope fields'),
+    });
+
+    expect(
+      summarizeFinancialStatementVersions(
+        {
+          total: 300,
+          invalidAnnouncementDate: 0,
+          invalidAvailableDate: 0,
+          invalidQuality: 0,
+          invalidReportScope: 0,
+        },
+        {
+          indicatorPeriods: 100,
+          incomeMatches: 98,
+          balanceMatches: 96,
+          cashFlowMatches: 95,
+        },
+      ).status,
+    ).toBe('pass');
   });
 
   it('audits external drivers against the next China market session', () => {

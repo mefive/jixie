@@ -222,21 +222,21 @@ describe('maintenance status gate', () => {
   });
 
   it('persists resumable per-item checkpoints', async () => {
-    checkpointFindMany.mockResolvedValue([{ itemKey: '000001.SZ' }, { itemKey: '000002.SZ' }]);
+    checkpointFindMany.mockResolvedValue([{ itemKey: '20251231' }, { itemKey: '20260331' }]);
     checkpointUpsert.mockResolvedValue({});
 
-    await expect(completedMaintenanceItems('weekly-1', 'financials')).resolves.toEqual(
-      new Set(['000001.SZ', '000002.SZ']),
+    await expect(completedMaintenanceItems('weekly-1', 'financial_statements')).resolves.toEqual(
+      new Set(['20251231', '20260331']),
     );
-    await completeMaintenanceItem('weekly-1', 'financials', '000003.SZ');
+    await completeMaintenanceItem('weekly-1', 'financial_statements', '20260630');
 
     expect(checkpointUpsert).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
           runId_stage_itemKey: {
             runId: 'weekly-1',
-            stage: 'financials',
-            itemKey: '000003.SZ',
+            stage: 'financial_statements',
+            itemKey: '20260630',
           },
         },
       }),

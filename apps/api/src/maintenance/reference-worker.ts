@@ -1,11 +1,12 @@
 import { pathToFileURL } from 'node:url';
 import { loadTushareConfig } from '../config.js';
+import { syncFinancialStatementsVip } from '../fundamentals/sync.js';
 import { prisma } from '../lib/prisma.js';
 import { syncDividend, syncFinaIndicatorVip, type ReferenceSyncSummary } from '../store/sync.js';
 import { TushareClient } from '../tushare/client.js';
 import { completeMaintenanceItem } from './state.js';
 
-export type ReferenceWorkerStage = 'financials' | 'dividends';
+export type ReferenceWorkerStage = 'financial_statements' | 'financials' | 'dividends';
 
 export interface ReferenceWorkerMessage {
   type: 'reference-worker-summary';
@@ -28,6 +29,8 @@ export async function runReferenceWorker(
     : undefined;
 
   switch (stage) {
+    case 'financial_statements':
+      return syncFinancialStatementsVip(client, codes, { onPeriodComplete: onCodeComplete });
     case 'financials':
       return syncFinaIndicatorVip(client, codes, { onPeriodComplete: onCodeComplete });
     case 'dividends':
@@ -37,8 +40,14 @@ export async function runReferenceWorker(
 
 async function main(): Promise<void> {
   const [stageArgument, checkpointArgument, ...items] = process.argv.slice(2);
-  if (stageArgument !== 'financials' && stageArgument !== 'dividends') {
-    throw new Error('Reference worker stage must be financials or dividends');
+  if (
+    stageArgument !== 'financial_statements' &&
+    stageArgument !== 'financials' &&
+    stageArgument !== 'dividends'
+  ) {
+    throw new Error(
+      'Reference worker stage must be financial_statements, financials, or dividends',
+    );
   }
   if (!checkpointArgument || items.length === 0) {
     throw new Error('Reference worker requires a checkpoint argument and at least one item');
