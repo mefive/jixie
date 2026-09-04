@@ -1,0 +1,92 @@
+{
+  "fixtureVersion": 1,
+  "vendorEnrichment": {
+    "statementKind": "income",
+    "rows": [
+      {
+        "ts_code": "000333.SZ",
+        "ann_date": "20230429",
+        "f_ann_date": "20230429",
+        "end_date": "20221231",
+        "report_type": "1",
+        "comp_type": "1",
+        "update_flag": "0",
+        "total_revenue": 345708706000,
+        "revenue": 343917531000,
+        "oper_cost": 260538701000,
+        "operate_profit": 34763272000,
+        "income_tax": 5145700000,
+        "n_income_attr_p": 29553507000,
+        "ebit": null
+      },
+      {
+        "ts_code": "000333.SZ",
+        "ann_date": "20230429",
+        "f_ann_date": "20230429",
+        "end_date": "20221231",
+        "report_type": "1",
+        "comp_type": "1",
+        "update_flag": "1",
+        "total_revenue": 345708706000,
+        "revenue": 343917531000,
+        "oper_cost": 260538701000,
+        "operate_profit": 34763272000,
+        "income_tax": 5145700000,
+        "n_income_attr_p": 29553507000,
+        "ebit": 31563524000
+      }
+    ]
+  },
+  "officialCorrection": {
+    "statementKind": "income",
+    "rows": [
+      {
+        "ts_code": "300266.SZ",
+        "ann_date": "20231028",
+        "f_ann_date": "20231028",
+        "end_date": "20230930",
+        "report_type": "1",
+        "comp_type": "1",
+        "update_flag": "0",
+        "revenue": 693419558.27,
+        "oper_cost": 769683060.02,
+        "operate_profit": -388036761.94,
+        "n_income_attr_p": -330467129.31
+      },
+      {
+        "ts_code": "300266.SZ",
+        "ann_date": "20231028",
+        "f_ann_date": "20240103",
+        "end_date": "20230930",
+        "report_type": "1",
+        "comp_type": "1",
+        "update_flag": "1",
+        "revenue": 693419558.27,
+        "oper_cost": 686727655.94,
+        "operate_profit": -305081357.86,
+        "n_income_attr_p": -259955035.84
+      }
+    ],
+    "evidence": {
+      "source": "cninfo",
+      "sourceId": "1218790667",
+      "tsCode": "300266.SZ",
+      "publishedAt": "2024-01-02T16:00:00.000Z",
+      "publishedDate": "20240103",
+      "title": "兴源环境：关于前期会计差错更正及追溯调整的公告",
+      "documentUrl": "https://static.cninfo.com.cn/finalpage/2024-01-03/1218790667.PDF",
+      "affectedPeriods": [
+        "20161231",
+        "20171231",
+        "20181231",
+        "20191231",
+        "20201231",
+        "20211231",
+        "20221231",
+        "20230630",
+        "20230930"
+      ],
+      "sourceFingerprint": "fixture-cninfo-1218790667"
+    }
+  }
+}
