@@ -95,12 +95,43 @@ describe('research financial datasets', () => {
       missing_reason: 'unsupported_financial_company',
     });
   });
+
+  it('exposes quarantined metric status while preserving the selected raw statement value', async () => {
+    const database = financialDatabase({
+      income: [incomeRow({})],
+      cash: [
+        {
+          ...incomeRow({}),
+          sourceRowFingerprint: 'cash-negative',
+          nCashflowAct: 50,
+          cPayAcqConstFiolta: -10,
+        },
+      ],
+    });
+    const parameters = { identifier: '000858.SZ', as_of: '20240501' };
+    const metrics = await loadResearchFinancialMetrics(parameters, database as never);
+    expect(metrics.find((row) => row.metric === 'cashFreeCashFlow')).toMatchObject({
+      value: null,
+      status: 'invalid',
+      formula_version: FINANCIAL_FORMULA_VERSION,
+      missing_reason: 'accounting_review_required:negative_cash_capex_requires_review',
+    });
+    expect(metrics.find((row) => row.metric === 'revenue')).toMatchObject({
+      value: 100,
+      status: 'ok',
+    });
+    const statements = await loadResearchFinancialStatements(parameters, database as never);
+    expect(statements.find((row) => row.field === 'cPayAcqConstFiolta')).toMatchObject({
+      value: -10,
+    });
+  });
 });
 
 function financialDatabase(options: {
   code?: string;
   name?: string;
   income?: Array<Record<string, unknown>>;
+  cash?: Array<Record<string, unknown>>;
   industry?: { l1Code: string; l1Name: string } | null;
 }) {
   const code = options.code ?? '000858.SZ';
@@ -114,7 +145,7 @@ function financialDatabase(options: {
   return {
     financialIncomeStatement: delegate(options.income ?? []),
     financialBalanceSheet: delegate([]),
-    financialCashFlowStatement: delegate([]),
+    financialCashFlowStatement: delegate(options.cash ?? []),
     swIndustryMember: {
       findFirst: vi
         .fn()

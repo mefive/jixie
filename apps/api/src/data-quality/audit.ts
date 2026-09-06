@@ -111,6 +111,7 @@ export interface FinancialAccountingIdentityAuditRow {
   comparable: bigint | number;
   mismatches: bigint | number;
   anomalies: bigint | number;
+  reviewFlags?: bigint | number;
 }
 
 export interface FinancialMetricCoverageAuditRow {
@@ -1063,8 +1064,9 @@ export async function auditFinancialStatementAccounting(database: Prisma): Promi
           AND totalHldrEqyExcMinInt IS NOT NULL
           AND ABS(totalAssets - totalLiab - totalHldrEqyExcMinInt - COALESCE(minorityInt, 0))
             > MAX(1.0, ABS(totalAssets) * 0.000001) THEN 1 ELSE 0 END) AS mismatches,
-        SUM(CASE WHEN totalAssets <= 0 OR totalLiab < 0 OR totalShare <= 0
-          OR totalCurAssets > totalAssets OR totalCurLiab > totalLiab THEN 1 ELSE 0 END) AS anomalies
+        SUM(CASE WHEN totalAssets <= 0 OR totalShare <= 0 THEN 1 ELSE 0 END) AS anomalies,
+        SUM(CASE WHEN totalLiab < 0 OR totalCurAssets > totalAssets
+          OR totalCurLiab > totalLiab THEN 1 ELSE 0 END) AS reviewFlags
       FROM FinancialBalanceSheet
     `,
     database.$queryRaw<FinancialAccountingIdentityAuditRow[]>`
@@ -1075,7 +1077,8 @@ export async function auditFinancialStatementAccounting(database: Prisma): Promi
           AND cCashEquEndPeriod IS NOT NULL
           AND ABS(cCashEquBegPeriod + nIncrCashCashEqu - cCashEquEndPeriod)
             > MAX(1.0, ABS(cCashEquEndPeriod) * 0.000001) THEN 1 ELSE 0 END) AS mismatches,
-        SUM(CASE WHEN cPayAcqConstFiolta < 0 THEN 1 ELSE 0 END) AS anomalies
+        0 AS anomalies,
+        SUM(CASE WHEN cPayAcqConstFiolta < 0 THEN 1 ELSE 0 END) AS reviewFlags
       FROM FinancialCashFlowStatement
     `,
     database.$queryRaw<FinancialAccountingIdentityAuditRow[]>`
@@ -1186,6 +1189,7 @@ export function summarizeFinancialStatementAccounting(
     toNumber(crossStatement?.mismatches);
   const anomalies =
     toNumber(balance?.anomalies) + toNumber(cash?.anomalies) + toNumber(crossStatement?.anomalies);
+  const reviewFlags = toNumber(balance?.reviewFlags) + toNumber(cash?.reviewFlags);
   const totalPeriods = toNumber(coverage?.totalPeriods);
   const completePeriods = toNumber(coverage?.completePeriods);
   const coverageRatio = totalPeriods > 0 ? completePeriods / totalPeriods : 0;
@@ -1193,20 +1197,22 @@ export function summarizeFinancialStatementAccounting(
   const status: AuditStatus =
     anomalies > 0
       ? 'error'
-      : totalPeriods === 0 || coverageRatio < 0.8 || mismatchRatio > 0.01
+      : reviewFlags > 0 || totalPeriods === 0 || coverageRatio < 0.8 || mismatchRatio > 0.01
         ? 'warn'
         : 'pass';
 
   return {
     id: 'financial-statement-accounting',
-    title: 'Financial statements: accounting consistency and metric coverage',
+    title: 'Financial statements: source-row accounting checks and table coverage',
     status,
     summary: `${formatNumber(mismatches)} of ${formatNumber(comparable)} comparable identities mismatch; ${formatPercent(coverageRatio)} three-statement coverage`,
     details: [
       `Balance identity: ${formatNumber(toNumber(balance?.mismatches))}/${formatNumber(toNumber(balance?.comparable))} mismatches.`,
       `Cash identity: ${formatNumber(toNumber(cash?.mismatches))}/${formatNumber(toNumber(cash?.comparable))} mismatches.`,
       `Cross-statement net income: ${formatNumber(toNumber(crossStatement?.mismatches))}/${formatNumber(toNumber(crossStatement?.comparable))} mismatches.`,
-      `${formatNumber(anomalies)} impossible sign or subtotal relationships; ${formatNumber(completePeriods)}/${formatNumber(totalPeriods)} strict-PIT periods have all three statements.`,
+      `${formatNumber(anomalies)} non-positive asset/share records; ${formatNumber(reviewFlags)} sign/subtotal review flags (not confirmed source errors).`,
+      `${formatNumber(completePeriods)}/${formatNumber(totalPeriods)} non-reconstructed company-periods have all three statements.`,
+      'These are raw source rows and join pairs, including duplicate or superseded versions, not SDK-selected company-periods. Use audit:financial-selected with an explicit as-of date for selected-version impact.',
       'Derived metrics still return explicit missing or invalid reasons when required quarters or fields are unavailable.',
     ],
   };

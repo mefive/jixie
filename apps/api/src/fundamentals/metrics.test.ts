@@ -122,6 +122,98 @@ describe('financial metrics kernel', () => {
     expect(result.periods).toEqual([]);
     expect(result.diagnostics[0].code).toBe('unsupported_financial_company');
   });
+
+  it('quarantines negative capex dependencies without changing source data or unrelated metrics', () => {
+    const input = state();
+    input.periods.at(-1)!.cashFlow!.values.cPayAcqConstFiolta = -10;
+    const before = structuredClone(input);
+    const result = calculateFinancialMetrics(input);
+    const metrics = result.periods.at(-1)!.metrics;
+    expect(metrics.cashFreeCashFlow).toMatchObject({
+      value: null,
+      status: 'invalid',
+      missingReason: 'accounting_review_required:negative_cash_capex_requires_review',
+    });
+    expect(metrics.freeCashFlowToFirm.value).toBeNull();
+    expect(metrics.operatingCashFlow.value).toBe(180);
+    expect(metrics.revenue.value).toBe(700);
+    expect(input).toEqual(before);
+  });
+
+  it('propagates a quarantined historical cash quarter through TTM lineage', () => {
+    const input = state();
+    input.periods.find(
+      (period) => period.endDate === '20240331',
+    )!.cashFlow!.values.cPayAcqConstFiolta = -5;
+    const result = calculateFinancialMetrics(input);
+    const metrics = result.periods.find((period) => period.endDate === '20240930')!.metrics;
+    expect(metrics.cashFreeCashFlow.status).toBe('invalid');
+    expect(metrics.operatingCashFlow.status).toBe('ok');
+    expect(
+      result.periods.find((period) => period.endDate === '20231231')!.metrics.cashFreeCashFlow
+        .status,
+    ).toBe('ok');
+  });
+
+  it('propagates a prior balance problem into dependent metrics but not revenue', () => {
+    const input = state();
+    input.periods.find(
+      (period) => period.endDate === '20231231',
+    )!.balanceSheet!.values.totalAssets = 999;
+    const metrics = calculateFinancialMetrics(input).periods.at(-1)!.metrics;
+    expect(metrics.returnOnInvestedCapital.status).toBe('invalid');
+    expect(metrics.revenue.status).toBe('ok');
+  });
+
+  it('does not call a reconciling negative non-current liability subtotal an arithmetic error', () => {
+    const input = state();
+    const values = input.periods.at(-1)!.balanceSheet!.values;
+    values.totalCurLiab = 600;
+    values.totalNcl = -100;
+    const result = calculateFinancialMetrics(input);
+    expect(
+      result.diagnostics.some(
+        (issue) => issue.code === 'negative_non_current_liabilities_disclosed',
+      ),
+    ).toBe(true);
+    expect(result.periods.at(-1)!.metrics.workingCapital.status).toBe('ok');
+  });
+
+  it('quarantines unexplained liability subtotals only along working-capital dependencies', () => {
+    const input = state();
+    input.periods.at(-1)!.balanceSheet!.values.totalCurLiab = 600;
+    const metrics = calculateFinancialMetrics(input).periods.at(-1)!.metrics;
+    expect(metrics.workingCapital.status).toBe('invalid');
+    expect(metrics.freeCashFlowToFirm.status).toBe('invalid');
+    expect(metrics.nopat.status).toBe('ok');
+    expect(metrics.cashFreeCashFlow.status).toBe('ok');
+  });
+
+  it('compares selected cross-statement profits and blocks profit-ratio consumers only', () => {
+    const input = state();
+    input.periods.at(-1)!.cashFlow!.values.netProfit = 999;
+    const result = calculateFinancialMetrics(input);
+    const metrics = result.periods.at(-1)!.metrics;
+    expect(metrics.returnOnAssets.status).toBe('invalid');
+    expect(metrics.accrualRatio.status).toBe('invalid');
+    expect(metrics.operatingCashFlowToNetIncome.status).toBe('invalid');
+    expect(metrics.nopat.status).toBe('ok');
+    expect(metrics.returnOnEquity.status).toBe('ok');
+  });
+
+  it('warns on cash reconciliation without blocking unrelated operating cash flow', () => {
+    const input = state();
+    Object.assign(input.periods.at(-1)!.cashFlow!.values, {
+      cCashEquBegPeriod: 10,
+      nIncrCashCashEqu: 5,
+      cCashEquEndPeriod: 99,
+    });
+    const result = calculateFinancialMetrics(input);
+    expect(result.diagnostics.some((issue) => issue.code === 'cash_flow_identity_mismatch')).toBe(
+      true,
+    );
+    expect(result.periods.at(-1)!.metrics.operatingCashFlow.status).toBe('ok');
+  });
 });
 
 function state(): ResolvedFinancialState {

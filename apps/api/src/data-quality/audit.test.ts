@@ -198,6 +198,20 @@ describe('data quality audit helpers', () => {
     ).toBe('warn');
   });
 
+  it('treats negative disclosure flags as review warnings rather than confirmed source errors', () => {
+    const result = summarizeFinancialStatementAccounting(
+      { comparable: 100, mismatches: 0, anomalies: 0, reviewFlags: 1 },
+      { comparable: 80, mismatches: 0, anomalies: 0, reviewFlags: 2 },
+      { comparable: 60, mismatches: 0, anomalies: 0 },
+      { totalPeriods: 100, completePeriods: 95 },
+    );
+    expect(result.status).toBe('warn');
+    expect(result.details.some((detail) => detail.includes('3 sign/subtotal review flags'))).toBe(
+      true,
+    );
+    expect(result.details.some((detail) => detail.includes('not SDK-selected'))).toBe(true);
+  });
+
   it('audits external drivers against the next China market session', () => {
     expect(
       summarizeExternalMarketPit(

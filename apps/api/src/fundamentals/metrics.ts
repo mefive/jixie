@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { ResearchFinancialMetricV1 } from '@jixie/shared';
+import { inspectFinancialAccounting } from './accounting-quality.js';
 
 import {
   normalizeCashFlows,
@@ -15,7 +16,7 @@ import type {
   ResolvedFinancialState,
 } from './resolver.js';
 
-export const FINANCIAL_FORMULA_VERSION = 'financial-metrics-v1';
+export const FINANCIAL_FORMULA_VERSION = 'financial-metrics-v2';
 
 export type FinancialMetricConcept = ResearchFinancialMetricV1;
 
@@ -144,6 +145,8 @@ export function calculateFinancialMetrics(state: ResolvedFinancialState): Financ
     return { ...result, resultFingerprint: fingerprintResult(result) };
   }
 
+  const accountingIssues = state.periods.flatMap(inspectFinancialAccounting);
+  diagnostics.push(...accountingIssues.map((issue) => issue.diagnostic));
   const incomeRows = state.periods.flatMap((period) => (period.income ? [period.income] : []));
   const cashFlowRows = state.periods.flatMap((period) =>
     period.cashFlow ? [period.cashFlow] : [],
@@ -160,7 +163,6 @@ export function calculateFinancialMetrics(state: ResolvedFinancialState): Financ
   const periodsByDate = new Map(state.periods.map((period) => [period.endDate, period]));
   const latestPeriod = state.periods.at(-1)?.endDate;
   const periods = state.periods.map((period) => {
-    diagnostics.push(...accountingDiagnostics(period));
     if (!isStandardFinancialPeriod(period.endDate)) {
       return {
         endDate: period.endDate,
@@ -186,6 +188,22 @@ export function calculateFinancialMetrics(state: ResolvedFinancialState): Financ
       }),
     };
   });
+  // Follow the actual input lineage, including prior-year balances and TTM quarters.
+  // Unrelated concepts and periods remain usable; source values are never mutated.
+  for (const period of periods) {
+    for (const metric of Object.values(period.metrics)) {
+      const issue = accountingIssues.find(
+        (candidate) =>
+          candidate.affectedMetrics.includes(metric.concept) &&
+          candidate.inputVersions.some((version) => metric.inputVersions.includes(version)),
+      );
+      if (issue) {
+        metric.value = null;
+        metric.status = 'invalid';
+        metric.missingReason = `accounting_review_required:${issue.diagnostic.code}`;
+      }
+    }
+  }
   appendMetricDiagnostics(periods, diagnostics);
 
   const result = baseResult(state, periods, diagnostics);
@@ -643,63 +661,6 @@ function combinedVersions(operands: Operand[]): string[] {
   return sortedUnique(operands.flatMap((operand) => operand.inputVersions));
 }
 
-function accountingDiagnostics(period: ResolvedFinancialPeriod): FinancialDiagnostic[] {
-  const diagnostics: FinancialDiagnostic[] = [];
-  const balance = period.balanceSheet?.values;
-  if (
-    balance?.totalAssets != null &&
-    balance.totalLiab != null &&
-    balance.totalHldrEqyExcMinInt != null
-  ) {
-    const represented =
-      balance.totalLiab + balance.totalHldrEqyExcMinInt + (balance.minorityInt ?? 0);
-    if (!withinTolerance(balance.totalAssets, represented)) {
-      diagnostics.push({
-        code: 'balance_sheet_identity_mismatch',
-        severity: 'warning',
-        message: `Assets differ from liabilities plus equity by ${balance.totalAssets - represented}.`,
-        endDate: period.endDate,
-        statementKind: 'balance_sheet',
-      });
-    }
-  }
-
-  const cashFlow = period.cashFlow?.values;
-  if (
-    cashFlow?.cCashEquBegPeriod != null &&
-    cashFlow.nIncrCashCashEqu != null &&
-    cashFlow.cCashEquEndPeriod != null &&
-    !withinTolerance(
-      cashFlow.cCashEquBegPeriod + cashFlow.nIncrCashCashEqu,
-      cashFlow.cCashEquEndPeriod,
-    )
-  ) {
-    diagnostics.push({
-      code: 'cash_flow_identity_mismatch',
-      severity: 'warning',
-      message: 'Beginning cash plus net increase does not reconcile to ending cash.',
-      endDate: period.endDate,
-      statementKind: 'cash_flow',
-    });
-  }
-
-  const incomeNetProfit = period.income?.values.nIncome;
-  const cashFlowNetProfit = period.cashFlow?.values.netProfit;
-  if (
-    incomeNetProfit != null &&
-    cashFlowNetProfit != null &&
-    !withinTolerance(incomeNetProfit, cashFlowNetProfit)
-  ) {
-    diagnostics.push({
-      code: 'cross_statement_net_income_mismatch',
-      severity: 'warning',
-      message: 'Income-statement net income does not match cash-flow reconciliation net profit.',
-      endDate: period.endDate,
-    });
-  }
-  return diagnostics;
-}
-
 function appendMetricDiagnostics(
   periods: FinancialPeriodMetrics[],
   diagnostics: FinancialDiagnostic[],
@@ -749,10 +710,6 @@ function baseResult(
 
 function fingerprintResult(result: Omit<FinancialMetricsResult, 'resultFingerprint'>): string {
   return createHash('sha256').update(JSON.stringify(result)).digest('hex');
-}
-
-function withinTolerance(left: number, right: number): boolean {
-  return Math.abs(left - right) <= Math.max(1, Math.max(Math.abs(left), Math.abs(right)) * 1e-6);
 }
 
 function sortedUnique(values: string[]): string[] {

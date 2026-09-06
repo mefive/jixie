@@ -78,7 +78,22 @@ available on `2026-05-06`. The review keeps:
 The initial and review datasets use separate `as_of` dates, so the later annual report is not leaked
 back into the initial valuation.
 
+## Accounting flags and unavailable metrics
+
+Source statement versions are never rewritten to fix an anomaly. Calculations inspect the versions
+actually selected at the historical date. Metrics depending on unexplained negative cash capital
+expenditure, an unreconciled balance sheet, or inconsistent cross-statement net income return null,
+`status=invalid`, and `missing_reason=accounting_review_required:…`. This means the current model
+cannot safely use them; it does not assert that the company's disclosure is wrong.
+
+The restriction follows actual input versions, including TTM quarters and prior-year balances.
+Unrelated metrics remain available. A negative non-current liability subtotal that reconciles to total
+liabilities produces a warning only. Beginning/ending cash discrepancies do not automatically invalidate
+operating cash flow, which does not depend on those balances. Do not fill unavailable values with zero,
+ignore their status, or silently switch to an older report to produce a valuation.
+
 ## Related pages
+
 
 - [Research data catalog](/docs/help/research/data-catalog)
 - [Build a research document with Cells](/docs/help/research/document-cells)

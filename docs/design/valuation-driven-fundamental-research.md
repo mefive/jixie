@@ -492,6 +492,9 @@ Agent Catalog 使用同一 Contract。
 
 **触发条件**：不足三个真实案例时，不建设独立估值页面和通用行业模板系统。
 
+全市场补齐后的异常分类、官方公告抽查和指标隔离规则见
+[M5 财报验收复核](../reports/valuation-fundamental-m5-full-market-audit.md)。此报告不代表 M5 全部收尾完成。
+
 ### M6：量化验证与 Factor 下游
 
 - [ ] 从已审计概念中选择少量候选，而不是批量生成 factor zoo；

@@ -333,7 +333,34 @@ pd.DataFrame([{
     expect(output.rows[0]).toEqual({
       index: 0,
       financial_company: 'unsupported_financial_company',
-      missing_bridge: 'no_complete_any_period:marketCapitalization,enterpriseValue,issuedShares',
+      missing_bridge:
+        'metric_unavailable:enterpriseValue:2024-12-31 00:00:00:daily_basic_unavailable',
     });
+  });
+
+  it('does not silently fall back to an older annual report when the latest one is quarantined', async () => {
+    await researchRuntimeManager.execute(DOCUMENT_ID, {
+      id: 'selection',
+      source: EQUITY_FCFF_SELECTION_SOURCE,
+    });
+    const result = await researchRuntimeManager.execute(DOCUMENT_ID, {
+      id: 'quarantined-latest',
+      source: `candidate_metrics = pd.DataFrame([
+    {"report_period": pd.Timestamp("2023-12-31"), "metric": "revenue", "value": 100.0, "status": "ok", "missing_reason": None},
+    {"report_period": pd.Timestamp("2024-12-31"), "metric": "revenue", "value": np.nan, "status": "invalid", "missing_reason": "accounting_review_required:test"},
+])
+try:
+    latest_complete_period(candidate_metrics, ["revenue"], annual_only=True)
+    rejection = "not_rejected"
+except ValueError as error:
+    rejection = str(error)
+pd.DataFrame([{"rejection": rejection}])`,
+    });
+    const output = result.outputs[0];
+    expect(output?.type).toBe('table');
+    if (output?.type !== 'table') {
+      throw new Error('Expected table');
+    }
+    expect(output.rows[0]?.rejection).toContain('accounting_review_required:test');
   });
 });

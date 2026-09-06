@@ -109,14 +109,9 @@ def latest_complete_period(frame, required_metrics, annual_only=False):
         timestamp = pd.Timestamp(period)
         if annual_only and (timestamp.month != 12 or timestamp.day != 31):
             continue
-        complete = True
         for metric in required_metrics:
-            rows = frame[(frame["report_period"] == timestamp) & (frame["metric"] == metric)]
-            if len(rows) != 1 or rows.iloc[0]["status"] != "ok" or pd.isna(rows.iloc[0]["value"]):
-                complete = False
-                break
-        if complete:
-            return timestamp
+            metric_value(frame, timestamp, metric)
+        return timestamp
     scope = "annual" if annual_only else "any"
     raise ValueError(f"no_complete_{scope}_period:{','.join(required_metrics)}")
 
