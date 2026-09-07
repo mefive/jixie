@@ -20,6 +20,8 @@ describe('researchProfile', () => {
     expect(system).toContain('loadResearchPlaybook');
     expect(system).toContain('gold_price_drivers');
     expect(system).toContain('For FCFF valuation');
+    expect(system).toContain('valuation.fcff_scenarios');
+    expect(system).toContain('valuation.implied_revenue_growth');
     expect(system).toContain('solve only one unknown at a time');
     expect(system).toContain('never turn a scenario value into a target-price recommendation');
     expect(system).toContain('Markdown and Python Cells');

@@ -89,6 +89,7 @@ export const RESEARCH_PYTHON_RUNTIME_CAPABILITIES_V1 = {
     'Import only packages and safe standard-library modules listed in this capability contract.',
     'Do not install packages at runtime.',
     'Do not reimplement an estimator, statistical distribution, hypothesis test, covariance estimator, optimizer, or plotting primitive already supplied by the fixed runtime.',
+    'Use valuation.* for governed FCFF scenario and reverse-valuation calculations while keeping every assumption explicit in the document.',
     'State a capability gap instead of inventing a substitute for an unavailable package.',
   ],
 } as const;

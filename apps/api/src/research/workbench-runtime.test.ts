@@ -10,6 +10,7 @@ import {
   RESEARCH_FINANCIAL_METRICS_SDK_CONTRACT_V1,
   RESEARCH_FINANCIAL_PANEL_SDK_CONTRACT_V1,
   RESEARCH_FINANCIAL_STATEMENTS_SDK_CONTRACT_V1,
+  RESEARCH_FCFF_SCENARIOS_SDK_CONTRACT_V1,
   RESEARCH_EQUITY_FLOWS_SDK_CONTRACT_V1,
   RESEARCH_EQUITY_FUNDAMENTALS_SDK_CONTRACT_V1,
   RESEARCH_FACTOR_REPORT_SDK_CONTRACT_V1,
@@ -21,6 +22,7 @@ import {
   RESEARCH_INDUSTRY_STATE_SDK_CONTRACT_V1,
   RESEARCH_MACRO_SDK_CONTRACT_V1,
   RESEARCH_MARKET_STATE_SDK_CONTRACT_V1,
+  RESEARCH_IMPLIED_REVENUE_GROWTH_SDK_CONTRACT_V1,
   RESEARCH_PANEL_SDK_CONTRACT_V1,
   RESEARCH_SERIES_SDK_CONTRACT_V1,
   RESEARCH_STRATEGY_SCAN_REPORT_SDK_CONTRACT_V1,
@@ -249,7 +251,7 @@ describe('research workbench Python runtime', () => {
     const result = await researchRuntimeManager.execute(DOCUMENT_ID, {
       id: 'signature',
       source:
-        'import inspect\n"|".join(",".join(inspect.signature(method).parameters.keys()) for method in [data.series, data.cross_section, data.panel, data.yield_curve, data.macro, data.fx, data.commodity_returns, data.commodity_warehouse_receipts, data.commodity_holdings, data.market_state, data.equity_fundamentals, data.equity_flows, data.equity_dividends, results.factor_report, results.backtest_report, results.strategy_scan_report, results.factor_weather, data.etf_shares, data.index_valuation, data.industry_state, data.futures_settlement, data.equity_financial_statements, data.equity_financial_metrics, data.equity_financial_cross_section, data.equity_financial_panel])',
+        'import inspect\n"|".join(",".join(inspect.signature(method).parameters.keys()) for method in [data.series, data.cross_section, data.panel, data.yield_curve, data.macro, data.fx, data.commodity_returns, data.commodity_warehouse_receipts, data.commodity_holdings, data.market_state, data.equity_fundamentals, data.equity_flows, data.equity_dividends, results.factor_report, results.backtest_report, results.strategy_scan_report, results.factor_weather, data.etf_shares, data.index_valuation, data.industry_state, data.futures_settlement, data.equity_financial_statements, data.equity_financial_metrics, data.equity_financial_cross_section, data.equity_financial_panel, valuation.fcff_scenarios, valuation.implied_revenue_growth])',
     });
 
     expect(result.outputs).toEqual([
@@ -281,6 +283,8 @@ describe('research workbench Python runtime', () => {
           RESEARCH_FINANCIAL_METRICS_SDK_CONTRACT_V1,
           RESEARCH_FINANCIAL_CROSS_SECTION_SDK_CONTRACT_V1,
           RESEARCH_FINANCIAL_PANEL_SDK_CONTRACT_V1,
+          RESEARCH_FCFF_SCENARIOS_SDK_CONTRACT_V1,
+          RESEARCH_IMPLIED_REVENUE_GROWTH_SDK_CONTRACT_V1,
         ]
           .map((contract) => contract.parameters.map((parameter) => parameter.name).join(','))
           .join('|'),

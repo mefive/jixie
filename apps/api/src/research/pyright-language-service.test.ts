@@ -190,6 +190,47 @@ describe('Research Pyright language service', () => {
     }
   }, 20_000);
 
+  it('publishes typed valuation helpers and validates numeric parameters', async () => {
+    const valuationRequest: ResearchLanguageRequestV1 = {
+      version: 1,
+      documentId: 'valuation-sdk-1',
+      cells: [
+        {
+          id: 'analysis',
+          source: [
+            'valuation.',
+            'result = valuation.fcff_scenarios(',
+            '    pd.DataFrame(), pd.DataFrame(), pd.DataFrame(),',
+            '    terminal_value_warning_threshold="high",',
+            ')',
+          ].join('\n'),
+        },
+      ],
+      cellId: 'analysis',
+      action: 'completion',
+      position: { line: 0, character: 10 },
+    };
+    const completion = await service.request('valuation-user:completion', valuationRequest);
+    expect(completion.action).toBe('completion');
+    if (completion.action === 'completion') {
+      expect(completion.result.items.map((item) => item.label)).toContain('fcff_scenarios');
+      expect(completion.result.items.map((item) => item.label)).toContain('implied_revenue_growth');
+    }
+
+    const diagnostics = await service.request('valuation-user:diagnostics', {
+      ...valuationRequest,
+      action: 'diagnostics',
+    });
+    expect(diagnostics.action).toBe('diagnostics');
+    if (diagnostics.action === 'diagnostics') {
+      expect(diagnostics.result).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ message: expect.stringContaining('float') }),
+        ]),
+      );
+    }
+  }, 20_000);
+
   it('publishes static diagnostics without executing a Cell', async () => {
     const response = await service.request('user-a:document-a', request('diagnostics'));
     expect(response.action).toBe('diagnostics');

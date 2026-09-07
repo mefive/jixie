@@ -11,7 +11,8 @@ Research 首页的“FCFF 公司估值模板”会建立一份可以查看、修
 - 用户假设：收入增长、NOPAT Margin、增量资本周转率、WACC、永续增长、终值 ROIC 和股权桥接调整；
 - 市场隐含假设：固定其余基准参数后，从当前企业价值反解的一个收入增长率。
 
-公式保留在普通 Python Cell 中，不通过隐藏估值引擎计算。修改参数 Cell 后，依赖这些参数的结果会标记为“待重跑”。
+公式在文档中公开，重复计算由 `valuation.fcff_scenarios` 和 `valuation.implied_revenue_growth` 完成。
+所有输入、桥接调整和敏感性仍可在 Python Cell 中查看和修改；helper 不生成预测。修改参数后，下游结果会标记为“待重跑”。
 
 ## 操作顺序
 
@@ -47,8 +48,35 @@ ROIC 无法支撑增长或股本非正数时，该情景会被拒绝。终值占
 基准、乐观、悲观三套结果形成的是“情景区间”，不是统计置信区间。敏感性图逐格重新运行同一个 DCF，用来检查
 WACC 和永续增长变化对结果的影响。
 
-反向估值先扫描用户声明的收入增长区间。只有发现唯一根时才返回隐含增长率；无解、多解、非有限值或估值对该参数
+反向估值按估值函数的驻点划分用户声明的收入增长区间，再逐段求根，检查近邻多解和相切解。只有发现唯一根时才返回隐含增长率；无解、多解、非有限值或估值对该参数
 变化过小都会返回诊断。这个结果只是“在其余假设不变时”的一种价格解释，不代表市场只有这一种叙事。
+
+## 复用计算与适用边界
+
+在 Research Python Cell 中可直接调用以下方法，完整参数和返回列见 [Research SDK 参考](/docs/sdk)：
+
+```python
+forecasts = valuation.fcff_scenarios(base, scenarios, bridge, forecast_years=5)
+implied = valuation.implied_revenue_growth(
+    base, scenarios[scenarios["scenario"] == "base"], bridge,
+    target_enterprise_value=market_enterprise_value,
+)
+```
+
+`base` 为一行，包含 `revenue`、`nopat_margin`；`scenarios` 包含情景名称、收入增长率、目标 NOPAT 利润率、
+增量资本周转率、WACC、永续增长率和终值 ROIC。`bridge` 为一行，包含 `bridge_adjustment`、`issued_shares`、
+`operating_cash_required`。金额用人民币元、股本用股、比率用小数（8% 写作 `0.08`）。
+
+桥接调整已经包含经营必需现金；helper 只从企业价值扣除 `bridge_adjustment`，不会再次加入现金调整。
+预测收入按固定增长率变化，利润率线性过渡；收入下降时模型假设能释放资本，这对重资产企业未必成立，需要用户复核。
+最多支持 20 个情景、20 个预测年。结果每情景每年一行，汇总估值在各年重复，不能把企业价值列按年求和。
+输出保留 `formula_version`；企业价值为零时终值占比为空。
+
+同一流程已用五粮液、美的集团和宁德时代的不同经营形态演练；它们共享计算规则，不共享增长或折现率假设。
+历史 FCFF 或再投资不可用时，复查保留缺失原因，不填零；必要经营输入或桥接缺失则停止运行。
+
+主营业务构成目前未接入公开 SDK：样本缺少公告和版本时间，分类层级、改名和部分成本/利润缺失也需要核对。
+不能直接加总全部分部行，也不能把收入变化自动解释成销量或价格变化。当前没有独立行业驱动模板或公司目标价页面。
 
 ## 下一期财报复查
 

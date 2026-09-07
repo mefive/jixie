@@ -1,53 +1,11 @@
+import { EQUITY_FCFF_REPLAY_CASES, equityFcffParameterSource } from './equity-fcff-replay-cases.js';
+
 export interface ResearchTemplateCellSeed {
   kind: 'markdown' | 'python';
   source: string;
 }
 
-export const EQUITY_FCFF_PARAMETER_SOURCE = `valuation_identifier = "000858.SZ"
-valuation_date = "20250428"
-review_date = "20260506"
-forecast_years = 5
-
-# These are explicit teaching assumptions, not platform forecasts or recommendations.
-operating_cash_required_cny = 0.0
-other_non_operating_assets_cny = 0.0
-other_senior_claims_cny = 0.0
-terminal_value_warning_threshold = 0.75
-reverse_growth_lower = -0.20
-reverse_growth_upper = 0.30
-reverse_growth_tolerance = 1e-8
-reverse_minimum_value_span_fraction = 0.05
-
-valuation_scenarios = pd.DataFrame([
-    {
-        "scenario": "downside",
-        "revenue_growth": 0.00,
-        "target_nopat_margin": 0.33,
-        "incremental_capital_turnover": 1.25,
-        "wacc": 0.085,
-        "terminal_growth": 0.010,
-        "terminal_roic": 0.14,
-    },
-    {
-        "scenario": "base",
-        "revenue_growth": 0.04,
-        "target_nopat_margin": 0.36,
-        "incremental_capital_turnover": 1.50,
-        "wacc": 0.075,
-        "terminal_growth": 0.015,
-        "terminal_roic": 0.18,
-    },
-    {
-        "scenario": "upside",
-        "revenue_growth": 0.08,
-        "target_nopat_margin": 0.38,
-        "incremental_capital_turnover": 1.75,
-        "wacc": 0.065,
-        "terminal_growth": 0.020,
-        "terminal_roic": 0.22,
-    },
-])
-valuation_scenarios`;
+export const EQUITY_FCFF_PARAMETER_SOURCE = equityFcffParameterSource(EQUITY_FCFF_REPLAY_CASES[0]);
 
 export const EQUITY_FCFF_DATA_SOURCE = `valuation_metrics = data.equity_financial_metrics(
     valuation_identifier, as_of=valuation_date
@@ -98,6 +56,14 @@ def metric_value(frame, report_period, metric):
     return float(row["value"])
 
 
+def metric_optional_value(frame, report_period, metric):
+    row = metric_record(frame, report_period, metric)
+    if row["status"] != "ok" or pd.isna(row["value"]):
+        reason = row["missing_reason"] if pd.notna(row["missing_reason"]) else row["status"]
+        return np.nan, f"unavailable:{reason}"
+    return float(row["value"]), "ok"
+
+
 def latest_complete_period(frame, required_metrics, annual_only=False):
     if (
         "missing_reason" in frame.columns
@@ -139,7 +105,6 @@ historical_financials.tail(5)`;
 
 export const EQUITY_FCFF_ASSUMPTION_SOURCE = `operating_required_metrics = [
     "revenue", "nopat", "nopatMargin", "returnOnInvestedCapital",
-    "reinvestment", "freeCashFlowToFirm",
 ]
 bridge_required_metrics = ["marketCapitalization", "enterpriseValue", "issuedShares"]
 valuation_base_period = latest_complete_period(
@@ -157,12 +122,18 @@ valuation_base = {
     "roic": metric_value(
         valuation_metrics, valuation_base_period, "returnOnInvestedCapital"
     ),
-    "reinvestment": metric_value(
+    "reinvestment": metric_optional_value(
         valuation_metrics, valuation_base_period, "reinvestment"
-    ),
-    "fcff": metric_value(
+    )[0],
+    "reinvestment_status": metric_optional_value(
+        valuation_metrics, valuation_base_period, "reinvestment"
+    )[1],
+    "fcff": metric_optional_value(
         valuation_metrics, valuation_base_period, "freeCashFlowToFirm"
-    ),
+    )[0],
+    "fcff_status": metric_optional_value(
+        valuation_metrics, valuation_base_period, "freeCashFlowToFirm"
+    )[1],
     "market_capitalization": metric_value(
         valuation_metrics, valuation_bridge_period, "marketCapitalization"
     ),
@@ -240,217 +211,50 @@ for scenario in valuation_scenarios.to_dict("records"):
 valuation_assumptions = pd.DataFrame(assumption_rows)
 valuation_assumptions`;
 
-export const EQUITY_FCFF_MODEL_SOURCE = `def require_finite(name, value):
-    number = float(value)
-    if not np.isfinite(number):
-        raise ValueError(f"non_finite_input:{name}")
-    return number
+export const EQUITY_FCFF_MODEL_SOURCE = `valuation_base_inputs = pd.DataFrame([{
+    "revenue": valuation_base["revenue"],
+    "nopat_margin": valuation_base["nopat_margin"],
+}])
+valuation_bridge_inputs = pd.DataFrame([{
+    "bridge_adjustment": valuation_bridge["bridge_adjustment"],
+    "issued_shares": valuation_bridge["issued_shares"],
+    "operating_cash_required": valuation_bridge["operating_cash_required"],
+}])
 
+valuation_helper_contract = pd.DataFrame([
+    {
+        "input": "base",
+        "columns": "revenue, nopat_margin",
+        "source_kind": "historical_fact",
+    },
+    {
+        "input": "scenarios",
+        "columns": "scenario, revenue_growth, target_nopat_margin, incremental_capital_turnover, wacc, terminal_growth, terminal_roic",
+        "source_kind": "user_assumption",
+    },
+    {
+        "input": "bridge",
+        "columns": "bridge_adjustment, issued_shares, operating_cash_required",
+        "source_kind": "historical_fact_and_user_assumption",
+    },
+])
+valuation_helper_contract`;
 
-def validate_dcf_inputs(base, scenario, bridge, years):
-    if int(years) != years or years < 1 or years > 20:
-        raise ValueError("forecast_years_must_be_between_1_and_20")
-    revenue = require_finite("base_revenue", base["revenue"])
-    base_margin = require_finite("base_nopat_margin", base["nopat_margin"])
-    growth = require_finite("revenue_growth", scenario["revenue_growth"])
-    target_margin = require_finite("target_nopat_margin", scenario["target_nopat_margin"])
-    capital_turnover = require_finite(
-        "incremental_capital_turnover", scenario["incremental_capital_turnover"]
-    )
-    wacc = require_finite("wacc", scenario["wacc"])
-    terminal_growth = require_finite("terminal_growth", scenario["terminal_growth"])
-    terminal_roic = require_finite("terminal_roic", scenario["terminal_roic"])
-    issued_shares = require_finite("issued_shares", bridge["issued_shares"])
-    require_finite("bridge_adjustment", bridge["bridge_adjustment"])
-    if revenue <= 0:
-        raise ValueError("base_revenue_must_be_positive")
-    if growth <= -1:
-        raise ValueError("revenue_growth_must_be_greater_than_minus_one")
-    if not -1 < base_margin < 1 or not -1 < target_margin < 1:
-        raise ValueError("nopat_margin_must_be_between_minus_one_and_one")
-    if capital_turnover <= 0:
-        raise ValueError("incremental_capital_turnover_must_be_positive")
-    if wacc <= -1:
-        raise ValueError("wacc_must_be_greater_than_minus_one")
-    if terminal_growth < 0:
-        raise ValueError("terminal_growth_must_be_non_negative")
-    if terminal_growth >= wacc:
-        raise ValueError("terminal_growth_must_be_less_than_wacc")
-    if terminal_roic <= terminal_growth:
-        raise ValueError("terminal_roic_must_exceed_terminal_growth")
-    if issued_shares <= 0:
-        raise ValueError("issued_shares_must_be_positive")
-
-
-def value_fcff_scenario(base, scenario, bridge, years, terminal_share_threshold=0.75):
-    validate_dcf_inputs(base, scenario, bridge, years)
-    scenario_name = str(scenario.get("scenario", "scenario"))
-    revenue_growth = float(scenario["revenue_growth"])
-    target_margin = float(scenario["target_nopat_margin"])
-    capital_turnover = float(scenario["incremental_capital_turnover"])
-    wacc = float(scenario["wacc"])
-    terminal_growth = float(scenario["terminal_growth"])
-    terminal_roic = float(scenario["terminal_roic"])
-
-    previous_revenue = float(base["revenue"])
-    rows = []
-    for year in range(1, int(years) + 1):
-        revenue = previous_revenue * (1 + revenue_growth)
-        nopat_margin = float(base["nopat_margin"]) + (
-            target_margin - float(base["nopat_margin"])
-        ) * year / int(years)
-        nopat = revenue * nopat_margin
-        reinvestment = (revenue - previous_revenue) / capital_turnover
-        fcff = nopat - reinvestment
-        discount_factor = (1 + wacc) ** year
-        rows.append({
-            "scenario": scenario_name,
-            "year": year,
-            "revenue": revenue,
-            "nopat_margin": nopat_margin,
-            "nopat": nopat,
-            "reinvestment": reinvestment,
-            "fcff": fcff,
-            "present_value_fcff": fcff / discount_factor,
-        })
-        previous_revenue = revenue
-
-    terminal_revenue = previous_revenue * (1 + terminal_growth)
-    terminal_nopat = terminal_revenue * target_margin
-    terminal_reinvestment_rate = terminal_growth / terminal_roic
-    terminal_fcff = terminal_nopat * (1 - terminal_reinvestment_rate)
-    terminal_value = terminal_fcff / (wacc - terminal_growth)
-    present_value_terminal = terminal_value / ((1 + wacc) ** int(years))
-    enterprise_value = sum(row["present_value_fcff"] for row in rows) + present_value_terminal
-    equity_value = enterprise_value - float(bridge["bridge_adjustment"])
-    per_share_value = equity_value / float(bridge["issued_shares"])
-    terminal_value_share = (
-        present_value_terminal / enterprise_value if enterprise_value != 0 else np.nan
-    )
-    diagnostics = []
-    if np.isfinite(terminal_value_share) and terminal_value_share > terminal_share_threshold:
-        diagnostics.append("high_terminal_value_share")
-    if equity_value <= 0:
-        diagnostics.append("non_positive_equity_value")
-    if float(bridge.get("operating_cash_required", 0.0)) == 0:
-        diagnostics.append("operating_cash_assumption_requires_review")
-
-    summary = {
-        "scenario": scenario_name,
-        "enterprise_value": enterprise_value,
-        "bridge_adjustment": float(bridge["bridge_adjustment"]),
-        "equity_value": equity_value,
-        "issued_shares": float(bridge["issued_shares"]),
-        "per_share_value_cny": per_share_value,
-        "terminal_value_share": terminal_value_share,
-        "terminal_reinvestment_rate": terminal_reinvestment_rate,
-        "diagnostics": "ok" if not diagnostics else ";".join(diagnostics),
-    }
-    return pd.DataFrame(rows), summary
-
-
-def solve_single_parameter(
-    target_value,
-    value_function,
-    lower,
-    upper,
-    tolerance=1e-8,
-    minimum_value_span_fraction=0.05,
-    grid_points=401,
-):
-    target = require_finite("target_value", target_value)
-    lower_bound = require_finite("lower_bound", lower)
-    upper_bound = require_finite("upper_bound", upper)
-    if lower_bound >= upper_bound:
-        raise ValueError("reverse_bounds_must_be_in_ascending_order")
-    grid = np.linspace(lower_bound, upper_bound, int(grid_points))
-    values = np.array([float(value_function(point)) for point in grid], dtype=float)
-    if not np.isfinite(values).all():
-        return {
-            "status": "non_finite_scan",
-            "solution": np.nan,
-            "diagnostic": "valuation_function_returned_non_finite_values",
-        }
-    value_span_fraction = (values.max() - values.min()) / max(abs(target), 1.0)
-    if value_span_fraction < minimum_value_span_fraction:
-        return {
-            "status": "weakly_identified",
-            "solution": np.nan,
-            "diagnostic": "valuation_changes_too_little_across_search_bounds",
-        }
-
-    residuals = values - target
-    exact_roots = [float(grid[index]) for index in np.where(np.abs(residuals) <= tolerance)[0]]
-    brackets = []
-    for index in range(len(grid) - 1):
-        if residuals[index] * residuals[index + 1] < 0:
-            brackets.append((float(grid[index]), float(grid[index + 1])))
-
-    roots = list(exact_roots)
-    for bracket_lower, bracket_upper in brackets:
-        left = bracket_lower
-        right = bracket_upper
-        left_residual = float(value_function(left)) - target
-        for _ in range(200):
-            midpoint = (left + right) / 2
-            midpoint_residual = float(value_function(midpoint)) - target
-            if abs(midpoint_residual) <= tolerance or right - left <= tolerance:
-                break
-            if left_residual * midpoint_residual <= 0:
-                right = midpoint
-            else:
-                left = midpoint
-                left_residual = midpoint_residual
-        roots.append(float(midpoint))
-
-    unique_roots = []
-    for root in sorted(roots):
-        if not unique_roots or abs(root - unique_roots[-1]) > max(tolerance * 10, 1e-7):
-            unique_roots.append(root)
-    if len(unique_roots) == 0:
-        return {
-            "status": "no_solution",
-            "solution": np.nan,
-            "diagnostic": "target_value_not_bracketed",
-        }
-    if len(unique_roots) > 1:
-        return {
-            "status": "multiple_solutions",
-            "solution": np.nan,
-            "diagnostic": f"found_{len(unique_roots)}_solutions",
-        }
-    return {
-        "status": "solved",
-        "solution": unique_roots[0],
-        "diagnostic": "unique_solution_within_declared_bounds",
-    }`;
-
-export const EQUITY_FCFF_SCENARIO_SOURCE = `scenario_forecast_frames = []
-scenario_valuation_rows = []
-scenario_diagnostic_rows = []
-for scenario in valuation_scenarios.to_dict("records"):
-    try:
-        forecast_frame, valuation_summary = value_fcff_scenario(
-            valuation_base,
-            scenario,
-            valuation_bridge,
-            forecast_years,
-            terminal_value_warning_threshold,
-        )
-        scenario_forecast_frames.append(forecast_frame)
-        scenario_valuation_rows.append(valuation_summary)
-    except ValueError as error:
-        scenario_diagnostic_rows.append({
-            "scenario": scenario["scenario"],
-            "status": "invalid",
-            "diagnostic": str(error),
-        })
-
-if not scenario_forecast_frames:
-    raise ValueError("all_valuation_scenarios_are_invalid")
-scenario_forecasts = pd.concat(scenario_forecast_frames, ignore_index=True)
-scenario_valuation = pd.DataFrame(scenario_valuation_rows)
-scenario_diagnostics = pd.DataFrame(scenario_diagnostic_rows)
+export const EQUITY_FCFF_SCENARIO_SOURCE = `scenario_forecasts = valuation.fcff_scenarios(
+    valuation_base_inputs,
+    valuation_scenarios,
+    valuation_bridge_inputs,
+    forecast_years=forecast_years,
+    terminal_value_warning_threshold=terminal_value_warning_threshold,
+)
+scenario_summary_columns = [
+    "scenario", "enterprise_value", "bridge_adjustment", "equity_value",
+    "issued_shares", "per_share_value_cny", "terminal_value_share",
+    "terminal_reinvestment_rate", "diagnostics",
+]
+scenario_valuation = scenario_forecasts[
+    scenario_summary_columns
+].drop_duplicates().reset_index(drop=True)
 market_price_per_share_cny = (
     valuation_base["market_capitalization"] / valuation_base["issued_shares"]
 )
@@ -476,17 +280,19 @@ for sensitivity_wacc in wacc_values:
         sensitivity_scenario["wacc"] = float(sensitivity_wacc)
         sensitivity_scenario["terminal_growth"] = float(sensitivity_growth)
         try:
-            _, sensitivity_summary = value_fcff_scenario(
-                valuation_base,
-                sensitivity_scenario,
-                valuation_bridge,
-                forecast_years,
-                terminal_value_warning_threshold,
+            sensitivity_forecast = valuation.fcff_scenarios(
+                valuation_base_inputs,
+                pd.DataFrame([sensitivity_scenario]),
+                valuation_bridge_inputs,
+                forecast_years=forecast_years,
+                terminal_value_warning_threshold=terminal_value_warning_threshold,
             )
             sensitivity_rows.append({
                 "wacc_pct": round(float(sensitivity_wacc) * 100, 2),
                 "terminal_growth_pct": round(float(sensitivity_growth) * 100, 2),
-                "per_share_value_cny": sensitivity_summary["per_share_value_cny"],
+                "per_share_value_cny": float(
+                    sensitivity_forecast.iloc[0]["per_share_value_cny"]
+                ),
                 "status": "ok",
             })
         except ValueError as error:
@@ -519,40 +325,20 @@ sensitivity_chart`;
 export const EQUITY_FCFF_REVERSE_SOURCE = `market_operating_enterprise_value = (
     valuation_base["market_capitalization"] + valuation_bridge["bridge_adjustment"]
 )
-
-def enterprise_value_for_revenue_growth(revenue_growth):
-    reverse_scenario = dict(base_scenario)
-    reverse_scenario["scenario"] = "reverse"
-    reverse_scenario["revenue_growth"] = float(revenue_growth)
-    _, reverse_summary = value_fcff_scenario(
-        valuation_base,
-        reverse_scenario,
-        valuation_bridge,
-        forecast_years,
-        terminal_value_warning_threshold,
-    )
-    return reverse_summary["enterprise_value"]
-
-
-reverse_growth_result = solve_single_parameter(
-    market_operating_enterprise_value,
-    enterprise_value_for_revenue_growth,
-    reverse_growth_lower,
-    reverse_growth_upper,
-    reverse_growth_tolerance,
-    reverse_minimum_value_span_fraction,
+reverse_valuation = valuation.implied_revenue_growth(
+    valuation_base_inputs,
+    pd.DataFrame([base_scenario]),
+    valuation_bridge_inputs,
+    target_enterprise_value=market_operating_enterprise_value,
+    forecast_years=forecast_years,
+    lower=reverse_growth_lower,
+    upper=reverse_growth_upper,
+    tolerance=reverse_growth_tolerance,
+    minimum_value_span_fraction=reverse_minimum_value_span_fraction,
 )
-reverse_valuation = pd.DataFrame([{
-    "parameter": "revenue_growth",
-    "status": reverse_growth_result["status"],
-    "implied_value": reverse_growth_result["solution"],
-    "unit": "ratio",
-    "lower_bound": reverse_growth_lower,
-    "upper_bound": reverse_growth_upper,
-    "target_operating_enterprise_value_cny": market_operating_enterprise_value,
-    "market_price_per_share_cny": market_price_per_share_cny,
-    "diagnostic": reverse_growth_result["diagnostic"],
-}])
+reverse_growth_result = reverse_valuation.iloc[0].to_dict()
+reverse_growth_result["solution"] = reverse_growth_result["implied_value"]
+reverse_valuation["market_price_per_share_cny"] = market_price_per_share_cny
 reverse_valuation`;
 
 export const EQUITY_FCFF_COMPARISON_SOURCE = `base_revenue_growth_fact = metric_value(
@@ -602,8 +388,18 @@ review_base = {
     "nopat": metric_value(review_metrics, review_base_period, "nopat"),
     "nopat_margin": metric_value(review_metrics, review_base_period, "nopatMargin"),
     "roic": metric_value(review_metrics, review_base_period, "returnOnInvestedCapital"),
-    "reinvestment": metric_value(review_metrics, review_base_period, "reinvestment"),
-    "fcff": metric_value(review_metrics, review_base_period, "freeCashFlowToFirm"),
+    "reinvestment": metric_optional_value(
+        review_metrics, review_base_period, "reinvestment"
+    )[0],
+    "reinvestment_status": metric_optional_value(
+        review_metrics, review_base_period, "reinvestment"
+    )[1],
+    "fcff": metric_optional_value(
+        review_metrics, review_base_period, "freeCashFlowToFirm"
+    )[0],
+    "fcff_status": metric_optional_value(
+        review_metrics, review_base_period, "freeCashFlowToFirm"
+    )[1],
     "market_capitalization": metric_value(
         review_metrics, review_bridge_period, "marketCapitalization"
     ),
@@ -627,32 +423,31 @@ review_bridge["bridge_adjustment"] = (
     + review_bridge["other_senior_claims"]
     - review_bridge["other_non_operating_assets"]
 )
-
-def review_enterprise_value_for_growth(revenue_growth):
-    review_scenario = dict(base_scenario)
-    review_scenario["scenario"] = "review_reverse"
-    review_scenario["revenue_growth"] = float(revenue_growth)
-    _, review_summary = value_fcff_scenario(
-        review_base,
-        review_scenario,
-        review_bridge,
-        forecast_years,
-        terminal_value_warning_threshold,
-    )
-    return review_summary["enterprise_value"]
-
-
 review_market_operating_enterprise_value = (
     review_base["market_capitalization"] + review_bridge["bridge_adjustment"]
 )
-review_reverse_growth_result = solve_single_parameter(
-    review_market_operating_enterprise_value,
-    review_enterprise_value_for_growth,
-    reverse_growth_lower,
-    reverse_growth_upper,
-    reverse_growth_tolerance,
-    reverse_minimum_value_span_fraction,
+review_base_inputs = pd.DataFrame([{
+    "revenue": review_base["revenue"],
+    "nopat_margin": review_base["nopat_margin"],
+}])
+review_bridge_inputs = pd.DataFrame([{
+    "bridge_adjustment": review_bridge["bridge_adjustment"],
+    "issued_shares": review_bridge["issued_shares"],
+    "operating_cash_required": review_bridge["operating_cash_required"],
+}])
+review_reverse_valuation = valuation.implied_revenue_growth(
+    review_base_inputs,
+    pd.DataFrame([base_scenario]),
+    review_bridge_inputs,
+    target_enterprise_value=review_market_operating_enterprise_value,
+    forecast_years=forecast_years,
+    lower=reverse_growth_lower,
+    upper=reverse_growth_upper,
+    tolerance=reverse_growth_tolerance,
+    minimum_value_span_fraction=reverse_minimum_value_span_fraction,
 )
+review_reverse_growth_result = review_reverse_valuation.iloc[0].to_dict()
+review_reverse_growth_result["solution"] = review_reverse_growth_result["implied_value"]
 
 first_year_by_scenario = scenario_forecasts[
     scenario_forecasts["year"] == 1
@@ -661,7 +456,9 @@ actual_growth = metric_value(review_metrics, review_base_period, "revenueGrowthY
 actual_margin = review_base["nopat_margin"]
 actual_fcff = review_base["fcff"]
 
-def range_assessment(actual, metric):
+def range_assessment(actual, metric, availability="ok"):
+    if availability != "ok" or pd.isna(actual):
+        return availability
     lower = float(first_year_by_scenario.loc["downside", metric])
     upper = float(first_year_by_scenario.loc["upside", metric])
     minimum = min(lower, upper)
@@ -698,7 +495,7 @@ review_rows = [
         "actual": actual_fcff,
         "new_market_implied": np.nan,
         "unit": "CNY",
-        "assessment": range_assessment(actual_fcff, "fcff"),
+        "assessment": range_assessment(actual_fcff, "fcff", review_base["fcff_status"]),
     },
     {
         "assumption": "revenue_growth",

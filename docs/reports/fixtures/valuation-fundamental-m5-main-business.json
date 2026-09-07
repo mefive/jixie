@@ -1,0 +1,1475 @@
+{
+  "probedAt": "2026-09-07T02:45:04.900Z",
+  "observations": [
+    {
+      "tsCode": "000858.SZ",
+      "period": "20241231",
+      "type": "P",
+      "rowCount": 8,
+      "fields": [
+        "bz_code",
+        "bz_cost",
+        "bz_item",
+        "bz_profit",
+        "bz_sales",
+        "curr_type",
+        "end_date",
+        "ts_code"
+      ],
+      "itemNames": [
+        "产品",
+        "其他",
+        "印刷",
+        "塑料制品",
+        "玻瓶",
+        "酒类",
+        "酒类：五粮液产品",
+        "酒类：其他酒产品"
+      ],
+      "currencies": ["CNY"],
+      "missingCurrencyRows": 0,
+      "nullSalesRows": 0,
+      "nullProfitRows": 0,
+      "nullCostRows": 0,
+      "duplicateRows": 0,
+      "conflictingItemRows": 0,
+      "announcementDatesPresent": false,
+      "versionIdentifiersPresent": false,
+      "responseFingerprint": "d6b59747683a45cc4044e1347913a3e1e19dfcb938dccc0812fcc5d8aa6ebf57",
+      "sourceRows": [
+        {
+          "ts_code": "000858.SZ",
+          "end_date": "20241231",
+          "bz_item": "产品",
+          "bz_code": "P",
+          "bz_sales": 89175178322.7,
+          "bz_profit": 68713755238.96,
+          "bz_cost": 20461423083.74,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000858.SZ",
+          "end_date": "20241231",
+          "bz_item": "其他",
+          "bz_code": "P",
+          "bz_sales": 2773862288.61,
+          "bz_profit": 249498887.48,
+          "bz_cost": 2524363401.13,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000858.SZ",
+          "end_date": "20241231",
+          "bz_item": "印刷",
+          "bz_code": "P",
+          "bz_sales": 85618282.66,
+          "bz_profit": 10843428,
+          "bz_cost": 74774854.66,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000858.SZ",
+          "end_date": "20241231",
+          "bz_item": "塑料制品",
+          "bz_code": "P",
+          "bz_sales": 3126114223.67,
+          "bz_profit": 110905005.14,
+          "bz_cost": 3015209218.53,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000858.SZ",
+          "end_date": "20241231",
+          "bz_item": "玻瓶",
+          "bz_code": "P",
+          "bz_sales": 62749411.71,
+          "bz_profit": 3055791.37,
+          "bz_cost": 59693620.34,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000858.SZ",
+          "end_date": "20241231",
+          "bz_item": "酒类",
+          "bz_code": "P",
+          "bz_sales": 83126834116.05,
+          "bz_profit": 68339452126.97,
+          "bz_cost": 14787381989.08,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000858.SZ",
+          "end_date": "20241231",
+          "bz_item": "酒类：五粮液产品",
+          "bz_code": "P",
+          "bz_sales": 67875345534.24,
+          "bz_profit": 59064272928.53,
+          "bz_cost": 8811072605.71,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000858.SZ",
+          "end_date": "20241231",
+          "bz_item": "酒类：其他酒产品",
+          "bz_code": "P",
+          "bz_sales": 15251488581.81,
+          "bz_profit": 9275179198.44,
+          "bz_cost": 5976309383.37,
+          "curr_type": "CNY"
+        }
+      ]
+    },
+    {
+      "tsCode": "000858.SZ",
+      "period": "20241231",
+      "type": "D",
+      "rowCount": 5,
+      "fields": [
+        "bz_code",
+        "bz_cost",
+        "bz_item",
+        "bz_profit",
+        "bz_sales",
+        "curr_type",
+        "end_date",
+        "ts_code"
+      ],
+      "itemNames": ["东部片区", "北部片区", "南部片区", "地区", "非酒类产品"],
+      "currencies": ["CNY"],
+      "missingCurrencyRows": 0,
+      "nullSalesRows": 0,
+      "nullProfitRows": 0,
+      "nullCostRows": 0,
+      "duplicateRows": 0,
+      "conflictingItemRows": 0,
+      "announcementDatesPresent": false,
+      "versionIdentifiersPresent": false,
+      "responseFingerprint": "ba1ed06b7e541bfb6751a28110f0f1efa89b936635616ea2dce50f97b8b0f772",
+      "sourceRows": [
+        {
+          "ts_code": "000858.SZ",
+          "end_date": "20241231",
+          "bz_item": "东部片区",
+          "bz_code": "D",
+          "bz_sales": 31290019510.12,
+          "bz_profit": 26956737963.42,
+          "bz_cost": 4333281546.7,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000858.SZ",
+          "end_date": "20241231",
+          "bz_item": "北部片区",
+          "bz_code": "D",
+          "bz_sales": 12500980362.78,
+          "bz_profit": 10638832623.8,
+          "bz_cost": 1862147738.98,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000858.SZ",
+          "end_date": "20241231",
+          "bz_item": "南部片区",
+          "bz_code": "D",
+          "bz_sales": 39335834243.15,
+          "bz_profit": 30743881539.75,
+          "bz_cost": 8591952703.4,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000858.SZ",
+          "end_date": "20241231",
+          "bz_item": "地区",
+          "bz_code": "D",
+          "bz_sales": 89175178322.7,
+          "bz_profit": 68713755238.96,
+          "bz_cost": 20461423083.74,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000858.SZ",
+          "end_date": "20241231",
+          "bz_item": "非酒类产品",
+          "bz_code": "D",
+          "bz_sales": 6048344206.65,
+          "bz_profit": 374303111.99,
+          "bz_cost": 5674041094.66,
+          "curr_type": "CNY"
+        }
+      ]
+    },
+    {
+      "tsCode": "000858.SZ",
+      "period": "20241231",
+      "type": "I",
+      "rowCount": 2,
+      "fields": [
+        "bz_code",
+        "bz_cost",
+        "bz_item",
+        "bz_profit",
+        "bz_sales",
+        "curr_type",
+        "end_date",
+        "ts_code"
+      ],
+      "itemNames": ["制造业", "行业"],
+      "currencies": ["CNY"],
+      "missingCurrencyRows": 0,
+      "nullSalesRows": 0,
+      "nullProfitRows": 0,
+      "nullCostRows": 0,
+      "duplicateRows": 0,
+      "conflictingItemRows": 0,
+      "announcementDatesPresent": false,
+      "versionIdentifiersPresent": false,
+      "responseFingerprint": "703314c6520f60283cc477ab65b9b078738cadde6bc6cfbba59c32b08fb04f7b",
+      "sourceRows": [
+        {
+          "ts_code": "000858.SZ",
+          "end_date": "20241231",
+          "bz_item": "制造业",
+          "bz_code": "I",
+          "bz_sales": 89175178322.7,
+          "bz_profit": 68713755238.96,
+          "bz_cost": 20461423083.74,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000858.SZ",
+          "end_date": "20241231",
+          "bz_item": "行业",
+          "bz_code": "I",
+          "bz_sales": 89175178322.7,
+          "bz_profit": 68713755238.96,
+          "bz_cost": 20461423083.74,
+          "curr_type": "CNY"
+        }
+      ]
+    },
+    {
+      "tsCode": "000858.SZ",
+      "period": "20251231",
+      "type": "P",
+      "rowCount": 5,
+      "fields": [
+        "bz_code",
+        "bz_cost",
+        "bz_item",
+        "bz_profit",
+        "bz_sales",
+        "curr_type",
+        "end_date",
+        "ts_code"
+      ],
+      "itemNames": [
+        "产品",
+        "酒类产品",
+        "酒类产品：五粮液产品",
+        "酒类产品：其他酒产品",
+        "非酒类产品"
+      ],
+      "currencies": ["CNY"],
+      "missingCurrencyRows": 0,
+      "nullSalesRows": 0,
+      "nullProfitRows": 0,
+      "nullCostRows": 0,
+      "duplicateRows": 0,
+      "conflictingItemRows": 0,
+      "announcementDatesPresent": false,
+      "versionIdentifiersPresent": false,
+      "responseFingerprint": "9ad6d29221437ae793fa073bb691f7290d0fdeea6edbdf3167f19b8ec1d4a45e",
+      "sourceRows": [
+        {
+          "ts_code": "000858.SZ",
+          "end_date": "20251231",
+          "bz_item": "产品",
+          "bz_code": "P",
+          "bz_sales": 40528509770.23,
+          "bz_profit": 31426552816.64,
+          "bz_cost": 9101956953.59,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000858.SZ",
+          "end_date": "20251231",
+          "bz_item": "酒类产品",
+          "bz_code": "P",
+          "bz_sales": 37103992232.59,
+          "bz_profit": 31076184107.04,
+          "bz_cost": 6027808125.55,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000858.SZ",
+          "end_date": "20251231",
+          "bz_item": "酒类产品：五粮液产品",
+          "bz_code": "P",
+          "bz_sales": 27936099726.56,
+          "bz_profit": 25016496745.37,
+          "bz_cost": 2919602981.19,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000858.SZ",
+          "end_date": "20251231",
+          "bz_item": "酒类产品：其他酒产品",
+          "bz_code": "P",
+          "bz_sales": 9167892506.03,
+          "bz_profit": 6059687361.67,
+          "bz_cost": 3108205144.36,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000858.SZ",
+          "end_date": "20251231",
+          "bz_item": "非酒类产品",
+          "bz_code": "P",
+          "bz_sales": 3424517537.64,
+          "bz_profit": 350368709.6,
+          "bz_cost": 3074148828.04,
+          "curr_type": "CNY"
+        }
+      ]
+    },
+    {
+      "tsCode": "000858.SZ",
+      "period": "20251231",
+      "type": "D",
+      "rowCount": 6,
+      "fields": [
+        "bz_code",
+        "bz_cost",
+        "bz_item",
+        "bz_profit",
+        "bz_sales",
+        "curr_type",
+        "end_date",
+        "ts_code"
+      ],
+      "itemNames": [
+        "地区",
+        "酒类产品",
+        "酒类产品：东部片区",
+        "酒类产品：北部片区",
+        "酒类产品：南部片区",
+        "非酒类产品"
+      ],
+      "currencies": ["CNY"],
+      "missingCurrencyRows": 0,
+      "nullSalesRows": 0,
+      "nullProfitRows": 0,
+      "nullCostRows": 0,
+      "duplicateRows": 0,
+      "conflictingItemRows": 0,
+      "announcementDatesPresent": false,
+      "versionIdentifiersPresent": false,
+      "responseFingerprint": "88c3fd770ddc686c3c1d0a65db0921fad68d430a355be33157ef412582818b1f",
+      "sourceRows": [
+        {
+          "ts_code": "000858.SZ",
+          "end_date": "20251231",
+          "bz_item": "地区",
+          "bz_code": "D",
+          "bz_sales": 40528509770.23,
+          "bz_profit": 31426552816.64,
+          "bz_cost": 9101956953.59,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000858.SZ",
+          "end_date": "20251231",
+          "bz_item": "酒类产品",
+          "bz_code": "D",
+          "bz_sales": 37103992232.59,
+          "bz_profit": 31076184107.04,
+          "bz_cost": 6027808125.55,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000858.SZ",
+          "end_date": "20251231",
+          "bz_item": "酒类产品：东部片区",
+          "bz_code": "D",
+          "bz_sales": 12831595450.04,
+          "bz_profit": 11352302663.49,
+          "bz_cost": 1479292786.55,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000858.SZ",
+          "end_date": "20251231",
+          "bz_item": "酒类产品：北部片区",
+          "bz_code": "D",
+          "bz_sales": 6447448102.11,
+          "bz_profit": 5593366155.74,
+          "bz_cost": 854081946.37,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000858.SZ",
+          "end_date": "20251231",
+          "bz_item": "酒类产品：南部片区",
+          "bz_code": "D",
+          "bz_sales": 17824948680.44,
+          "bz_profit": 14130515287.81,
+          "bz_cost": 3694433392.63,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000858.SZ",
+          "end_date": "20251231",
+          "bz_item": "非酒类产品",
+          "bz_code": "D",
+          "bz_sales": 3424517537.64,
+          "bz_profit": 350368709.6,
+          "bz_cost": 3074148828.04,
+          "curr_type": "CNY"
+        }
+      ]
+    },
+    {
+      "tsCode": "000858.SZ",
+      "period": "20251231",
+      "type": "I",
+      "rowCount": 2,
+      "fields": [
+        "bz_code",
+        "bz_cost",
+        "bz_item",
+        "bz_profit",
+        "bz_sales",
+        "curr_type",
+        "end_date",
+        "ts_code"
+      ],
+      "itemNames": ["制造业", "行业"],
+      "currencies": ["CNY"],
+      "missingCurrencyRows": 0,
+      "nullSalesRows": 0,
+      "nullProfitRows": 0,
+      "nullCostRows": 0,
+      "duplicateRows": 0,
+      "conflictingItemRows": 0,
+      "announcementDatesPresent": false,
+      "versionIdentifiersPresent": false,
+      "responseFingerprint": "1a4cdf3e58720ab3f661fd9574e197021dae42030c0e4a358fe6d039909c3deb",
+      "sourceRows": [
+        {
+          "ts_code": "000858.SZ",
+          "end_date": "20251231",
+          "bz_item": "制造业",
+          "bz_code": "I",
+          "bz_sales": 40528509770.23,
+          "bz_profit": 31426552816.64,
+          "bz_cost": 9101956953.59,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000858.SZ",
+          "end_date": "20251231",
+          "bz_item": "行业",
+          "bz_code": "I",
+          "bz_sales": 40528509770.23,
+          "bz_profit": 31426552816.64,
+          "bz_cost": 9101956953.59,
+          "curr_type": "CNY"
+        }
+      ]
+    },
+    {
+      "tsCode": "000333.SZ",
+      "period": "20241231",
+      "type": "P",
+      "rowCount": 9,
+      "fields": [
+        "bz_code",
+        "bz_cost",
+        "bz_item",
+        "bz_profit",
+        "bz_sales",
+        "curr_type",
+        "end_date",
+        "ts_code"
+      ],
+      "itemNames": [
+        "产品",
+        "其他",
+        "合计特别调整",
+        "商业及工业解决方案",
+        "商业及工业解决方案：其他业务",
+        "商业及工业解决方案：新能源与工业技术",
+        "商业及工业解决方案：智能建筑科技",
+        "商业及工业解决方案：机器人与自动化",
+        "智能家居业务"
+      ],
+      "currencies": ["CNY"],
+      "missingCurrencyRows": 0,
+      "nullSalesRows": 0,
+      "nullProfitRows": 1,
+      "nullCostRows": 1,
+      "duplicateRows": 0,
+      "conflictingItemRows": 0,
+      "announcementDatesPresent": false,
+      "versionIdentifiersPresent": false,
+      "responseFingerprint": "1a078eedfeb7e51b791f8977baecdf150c3e6ce9ab21aea9250d2b458ccedc29",
+      "sourceRows": [
+        {
+          "ts_code": "000333.SZ",
+          "end_date": "20241231",
+          "bz_item": "产品",
+          "bz_code": "P",
+          "bz_sales": 409084266000,
+          "bz_profit": 109499331000,
+          "bz_cost": 299584935000,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000333.SZ",
+          "end_date": "20241231",
+          "bz_item": "其他",
+          "bz_code": "P",
+          "bz_sales": 33120994000,
+          "bz_profit": 4423351000,
+          "bz_cost": 28697643000,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000333.SZ",
+          "end_date": "20241231",
+          "bz_item": "合计特别调整",
+          "bz_code": "P",
+          "bz_sales": 1934666000,
+          "bz_profit": null,
+          "bz_cost": null,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000333.SZ",
+          "end_date": "20241231",
+          "bz_item": "商业及工业解决方案",
+          "bz_code": "P",
+          "bz_sales": 104496253000,
+          "bz_profit": 22350068000,
+          "bz_cost": 82146185000,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000333.SZ",
+          "end_date": "20241231",
+          "bz_item": "商业及工业解决方案：其他业务",
+          "bz_code": "P",
+          "bz_sales": 13715540000,
+          "bz_profit": 1485364000,
+          "bz_cost": 12230176000,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000333.SZ",
+          "end_date": "20241231",
+          "bz_item": "商业及工业解决方案：新能源与工业技术",
+          "bz_code": "P",
+          "bz_sales": 33610438000,
+          "bz_profit": 5961696000,
+          "bz_cost": 27648742000,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000333.SZ",
+          "end_date": "20241231",
+          "bz_item": "商业及工业解决方案：智能建筑科技",
+          "bz_code": "P",
+          "bz_sales": 28469710000,
+          "bz_profit": 8589965000,
+          "bz_cost": 19879745000,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000333.SZ",
+          "end_date": "20241231",
+          "bz_item": "商业及工业解决方案：机器人与自动化",
+          "bz_code": "P",
+          "bz_sales": 28700565000,
+          "bz_profit": 6313043000,
+          "bz_cost": 22387522000,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000333.SZ",
+          "end_date": "20241231",
+          "bz_item": "智能家居业务",
+          "bz_code": "P",
+          "bz_sales": 269532353000,
+          "bz_profit": 80791246000,
+          "bz_cost": 188741107000,
+          "curr_type": "CNY"
+        }
+      ]
+    },
+    {
+      "tsCode": "000333.SZ",
+      "period": "20241231",
+      "type": "D",
+      "rowCount": 4,
+      "fields": [
+        "bz_code",
+        "bz_cost",
+        "bz_item",
+        "bz_profit",
+        "bz_sales",
+        "curr_type",
+        "end_date",
+        "ts_code"
+      ],
+      "itemNames": ["合计特别调整", "国内", "地区", "海外"],
+      "currencies": ["CNY"],
+      "missingCurrencyRows": 0,
+      "nullSalesRows": 0,
+      "nullProfitRows": 1,
+      "nullCostRows": 1,
+      "duplicateRows": 0,
+      "conflictingItemRows": 0,
+      "announcementDatesPresent": false,
+      "versionIdentifiersPresent": false,
+      "responseFingerprint": "4b1e0ee8733066fca04217c6d5d8408b928016baf762c718dc711e51348cdcbe",
+      "sourceRows": [
+        {
+          "ts_code": "000333.SZ",
+          "end_date": "20241231",
+          "bz_item": "合计特别调整",
+          "bz_code": "D",
+          "bz_sales": 1934666000,
+          "bz_profit": null,
+          "bz_cost": null,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000333.SZ",
+          "end_date": "20241231",
+          "bz_item": "国内",
+          "bz_code": "D",
+          "bz_sales": 238115217000,
+          "bz_profit": 62232437000,
+          "bz_cost": 175882780000,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000333.SZ",
+          "end_date": "20241231",
+          "bz_item": "地区",
+          "bz_code": "D",
+          "bz_sales": 409084266000,
+          "bz_profit": 109499331000,
+          "bz_cost": 299584935000,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000333.SZ",
+          "end_date": "20241231",
+          "bz_item": "海外",
+          "bz_code": "D",
+          "bz_sales": 169034383000,
+          "bz_profit": 45332228000,
+          "bz_cost": 123702155000,
+          "curr_type": "CNY"
+        }
+      ]
+    },
+    {
+      "tsCode": "000333.SZ",
+      "period": "20241231",
+      "type": "I",
+      "rowCount": 4,
+      "fields": [
+        "bz_code",
+        "bz_cost",
+        "bz_item",
+        "bz_profit",
+        "bz_sales",
+        "curr_type",
+        "end_date",
+        "ts_code"
+      ],
+      "itemNames": ["其他业务", "制造业", "合计特别调整", "行业"],
+      "currencies": ["CNY"],
+      "missingCurrencyRows": 0,
+      "nullSalesRows": 0,
+      "nullProfitRows": 1,
+      "nullCostRows": 1,
+      "duplicateRows": 0,
+      "conflictingItemRows": 0,
+      "announcementDatesPresent": false,
+      "versionIdentifiersPresent": false,
+      "responseFingerprint": "4b925641a93153a24473f45de6541a08d351fe3a08b92321a11c496726cbb7fc",
+      "sourceRows": [
+        {
+          "ts_code": "000333.SZ",
+          "end_date": "20241231",
+          "bz_item": "其他业务",
+          "bz_code": "I",
+          "bz_sales": 44494711000,
+          "bz_profit": 5156197000,
+          "bz_cost": 39338514000,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000333.SZ",
+          "end_date": "20241231",
+          "bz_item": "制造业",
+          "bz_code": "I",
+          "bz_sales": 362654889000,
+          "bz_profit": 102408468000,
+          "bz_cost": 260246421000,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000333.SZ",
+          "end_date": "20241231",
+          "bz_item": "合计特别调整",
+          "bz_code": "I",
+          "bz_sales": 1934666000,
+          "bz_profit": null,
+          "bz_cost": null,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000333.SZ",
+          "end_date": "20241231",
+          "bz_item": "行业",
+          "bz_code": "I",
+          "bz_sales": 409084266000,
+          "bz_profit": 109499331000,
+          "bz_cost": 299584935000,
+          "curr_type": "CNY"
+        }
+      ]
+    },
+    {
+      "tsCode": "000333.SZ",
+      "period": "20251231",
+      "type": "P",
+      "rowCount": 9,
+      "fields": [
+        "bz_code",
+        "bz_cost",
+        "bz_item",
+        "bz_profit",
+        "bz_sales",
+        "curr_type",
+        "end_date",
+        "ts_code"
+      ],
+      "itemNames": [
+        "产品",
+        "其他",
+        "合计特别调整",
+        "商业及工业解决方案",
+        "商业及工业解决方案：其他业务",
+        "商业及工业解决方案：工业技术",
+        "商业及工业解决方案：机器人与自动化",
+        "商业及工业解决方案：楼宇科技",
+        "智能家居业务"
+      ],
+      "currencies": ["CNY"],
+      "missingCurrencyRows": 0,
+      "nullSalesRows": 0,
+      "nullProfitRows": 1,
+      "nullCostRows": 1,
+      "duplicateRows": 0,
+      "conflictingItemRows": 0,
+      "announcementDatesPresent": false,
+      "versionIdentifiersPresent": false,
+      "responseFingerprint": "504043aaec1f1fb925ed9097a7cc669b00b6eab073a11e7018b4bc60e433332a",
+      "sourceRows": [
+        {
+          "ts_code": "000333.SZ",
+          "end_date": "20251231",
+          "bz_item": "产品",
+          "bz_code": "P",
+          "bz_sales": 458502407000,
+          "bz_profit": 122512879000,
+          "bz_cost": 335989528000,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000333.SZ",
+          "end_date": "20251231",
+          "bz_item": "其他",
+          "bz_code": "P",
+          "bz_sales": 33771534000,
+          "bz_profit": 5245583000,
+          "bz_cost": 28525951000,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000333.SZ",
+          "end_date": "20251231",
+          "bz_item": "合计特别调整",
+          "bz_code": "P",
+          "bz_sales": 2050676000,
+          "bz_profit": null,
+          "bz_cost": null,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000333.SZ",
+          "end_date": "20251231",
+          "bz_item": "商业及工业解决方案",
+          "bz_code": "P",
+          "bz_sales": 122752958000,
+          "bz_profit": 25548921000,
+          "bz_cost": 97204037000,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000333.SZ",
+          "end_date": "20251231",
+          "bz_item": "商业及工业解决方案：其他业务",
+          "bz_code": "P",
+          "bz_sales": 28718768000,
+          "bz_profit": 3233435000,
+          "bz_cost": 25485333000,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000333.SZ",
+          "end_date": "20251231",
+          "bz_item": "商业及工业解决方案：工业技术",
+          "bz_code": "P",
+          "bz_sales": 27232432000,
+          "bz_profit": 4764377000,
+          "bz_cost": 22468055000,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000333.SZ",
+          "end_date": "20251231",
+          "bz_item": "商业及工业解决方案：机器人与自动化",
+          "bz_code": "P",
+          "bz_sales": 31010933000,
+          "bz_profit": 6607219000,
+          "bz_cost": 24403714000,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000333.SZ",
+          "end_date": "20251231",
+          "bz_item": "商业及工业解决方案：楼宇科技",
+          "bz_code": "P",
+          "bz_sales": 35790825000,
+          "bz_profit": 10943890000,
+          "bz_cost": 24846935000,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000333.SZ",
+          "end_date": "20251231",
+          "bz_item": "智能家居业务",
+          "bz_code": "P",
+          "bz_sales": 299927239000,
+          "bz_profit": 89667699000,
+          "bz_cost": 210259540000,
+          "curr_type": "CNY"
+        }
+      ]
+    },
+    {
+      "tsCode": "000333.SZ",
+      "period": "20251231",
+      "type": "D",
+      "rowCount": 4,
+      "fields": [
+        "bz_code",
+        "bz_cost",
+        "bz_item",
+        "bz_profit",
+        "bz_sales",
+        "curr_type",
+        "end_date",
+        "ts_code"
+      ],
+      "itemNames": ["合计特别调整", "国内", "地区", "海外"],
+      "currencies": ["CNY"],
+      "missingCurrencyRows": 0,
+      "nullSalesRows": 0,
+      "nullProfitRows": 1,
+      "nullCostRows": 1,
+      "duplicateRows": 0,
+      "conflictingItemRows": 0,
+      "announcementDatesPresent": false,
+      "versionIdentifiersPresent": false,
+      "responseFingerprint": "99d2c5adb9d9cbe247e84664d9a8c9958640d77a121bffb5ea6ac0f0815ba087",
+      "sourceRows": [
+        {
+          "ts_code": "000333.SZ",
+          "end_date": "20251231",
+          "bz_item": "合计特别调整",
+          "bz_code": "D",
+          "bz_sales": 2050676000,
+          "bz_profit": null,
+          "bz_cost": null,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000333.SZ",
+          "end_date": "20251231",
+          "bz_item": "国内",
+          "bz_code": "D",
+          "bz_sales": 260504038000,
+          "bz_profit": 68346433000,
+          "bz_cost": 192157605000,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000333.SZ",
+          "end_date": "20251231",
+          "bz_item": "地区",
+          "bz_code": "D",
+          "bz_sales": 458502407000,
+          "bz_profit": 122512879000,
+          "bz_cost": 335989528000,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000333.SZ",
+          "end_date": "20251231",
+          "bz_item": "海外",
+          "bz_code": "D",
+          "bz_sales": 195947693000,
+          "bz_profit": 52115770000,
+          "bz_cost": 143831923000,
+          "curr_type": "CNY"
+        }
+      ]
+    },
+    {
+      "tsCode": "000333.SZ",
+      "period": "20251231",
+      "type": "I",
+      "rowCount": 4,
+      "fields": [
+        "bz_code",
+        "bz_cost",
+        "bz_item",
+        "bz_profit",
+        "bz_sales",
+        "curr_type",
+        "end_date",
+        "ts_code"
+      ],
+      "itemNames": ["其他业务", "制造业", "合计特别调整", "行业"],
+      "currencies": ["CNY"],
+      "missingCurrencyRows": 0,
+      "nullSalesRows": 0,
+      "nullProfitRows": 1,
+      "nullCostRows": 1,
+      "duplicateRows": 0,
+      "conflictingItemRows": 0,
+      "announcementDatesPresent": false,
+      "versionIdentifiersPresent": false,
+      "responseFingerprint": "2d1f481562af8fd680dc1c15fa01587cd53cb9fb71d2a4735c999dd67df4653d",
+      "sourceRows": [
+        {
+          "ts_code": "000333.SZ",
+          "end_date": "20251231",
+          "bz_item": "其他业务",
+          "bz_code": "I",
+          "bz_sales": 47179307000,
+          "bz_profit": 6144017000,
+          "bz_cost": 41035290000,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000333.SZ",
+          "end_date": "20251231",
+          "bz_item": "制造业",
+          "bz_code": "I",
+          "bz_sales": 409272424000,
+          "bz_profit": 114318186000,
+          "bz_cost": 294954238000,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000333.SZ",
+          "end_date": "20251231",
+          "bz_item": "合计特别调整",
+          "bz_code": "I",
+          "bz_sales": 2050676000,
+          "bz_profit": null,
+          "bz_cost": null,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "000333.SZ",
+          "end_date": "20251231",
+          "bz_item": "行业",
+          "bz_code": "I",
+          "bz_sales": 458502407000,
+          "bz_profit": 122512879000,
+          "bz_cost": 335989528000,
+          "curr_type": "CNY"
+        }
+      ]
+    },
+    {
+      "tsCode": "300750.SZ",
+      "period": "20241231",
+      "type": "P",
+      "rowCount": 7,
+      "fields": [
+        "bz_code",
+        "bz_cost",
+        "bz_item",
+        "bz_profit",
+        "bz_sales",
+        "curr_type",
+        "end_date",
+        "ts_code"
+      ],
+      "itemNames": [
+        "产品",
+        "储能电池系统",
+        "其他业务",
+        "动力电池系统",
+        "合计特别调整",
+        "电池材料及回收",
+        "电池矿产资源"
+      ],
+      "currencies": ["CNY"],
+      "missingCurrencyRows": 0,
+      "nullSalesRows": 0,
+      "nullProfitRows": 0,
+      "nullCostRows": 0,
+      "duplicateRows": 0,
+      "conflictingItemRows": 0,
+      "announcementDatesPresent": false,
+      "versionIdentifiersPresent": false,
+      "responseFingerprint": "8f3d58d38137bfc98819e12e6d414868f215cd680daaab7eb25ce771368b7fa2",
+      "sourceRows": [
+        {
+          "ts_code": "300750.SZ",
+          "end_date": "20241231",
+          "bz_item": "产品",
+          "bz_code": "P",
+          "bz_sales": 362012554000,
+          "bz_profit": 88493595000,
+          "bz_cost": 273518959000,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "300750.SZ",
+          "end_date": "20241231",
+          "bz_item": "储能电池系统",
+          "bz_code": "P",
+          "bz_sales": 57290460000,
+          "bz_profit": 15376457000,
+          "bz_cost": 41914003000,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "300750.SZ",
+          "end_date": "20241231",
+          "bz_item": "其他业务",
+          "bz_code": "P",
+          "bz_sales": 17487818000,
+          "bz_profit": 9051672000,
+          "bz_cost": 8436146000,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "300750.SZ",
+          "end_date": "20241231",
+          "bz_item": "动力电池系统",
+          "bz_code": "P",
+          "bz_sales": 253041337000,
+          "bz_profit": 60580055000,
+          "bz_cost": 192461282000,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "300750.SZ",
+          "end_date": "20241231",
+          "bz_item": "合计特别调整",
+          "bz_code": "P",
+          "bz_sales": 1000,
+          "bz_profit": 0,
+          "bz_cost": 1000,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "300750.SZ",
+          "end_date": "20241231",
+          "bz_item": "电池材料及回收",
+          "bz_code": "P",
+          "bz_sales": 28699935000,
+          "bz_profit": 3017019000,
+          "bz_cost": 25682916000,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "300750.SZ",
+          "end_date": "20241231",
+          "bz_item": "电池矿产资源",
+          "bz_code": "P",
+          "bz_sales": 5493003000,
+          "bz_profit": 468392000,
+          "bz_cost": 5024611000,
+          "curr_type": "CNY"
+        }
+      ]
+    },
+    {
+      "tsCode": "300750.SZ",
+      "period": "20241231",
+      "type": "D",
+      "rowCount": 3,
+      "fields": [
+        "bz_code",
+        "bz_cost",
+        "bz_item",
+        "bz_profit",
+        "bz_sales",
+        "curr_type",
+        "end_date",
+        "ts_code"
+      ],
+      "itemNames": ["地区", "境内", "境外"],
+      "currencies": ["CNY"],
+      "missingCurrencyRows": 0,
+      "nullSalesRows": 0,
+      "nullProfitRows": 0,
+      "nullCostRows": 0,
+      "duplicateRows": 0,
+      "conflictingItemRows": 0,
+      "announcementDatesPresent": false,
+      "versionIdentifiersPresent": false,
+      "responseFingerprint": "742c91951028b18b54fb9b2b3dae283b2e5e119013af185ce7062968df304c48",
+      "sourceRows": [
+        {
+          "ts_code": "300750.SZ",
+          "end_date": "20241231",
+          "bz_item": "地区",
+          "bz_code": "D",
+          "bz_sales": 362012554000,
+          "bz_profit": 88493595000,
+          "bz_cost": 273518959000,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "300750.SZ",
+          "end_date": "20241231",
+          "bz_item": "境内",
+          "bz_code": "D",
+          "bz_sales": 251677045000,
+          "bz_profit": 55998857000,
+          "bz_cost": 195678188000,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "300750.SZ",
+          "end_date": "20241231",
+          "bz_item": "境外",
+          "bz_code": "D",
+          "bz_sales": 110335509000,
+          "bz_profit": 32494738000,
+          "bz_cost": 77840771000,
+          "curr_type": "CNY"
+        }
+      ]
+    },
+    {
+      "tsCode": "300750.SZ",
+      "period": "20241231",
+      "type": "I",
+      "rowCount": 3,
+      "fields": [
+        "bz_code",
+        "bz_cost",
+        "bz_item",
+        "bz_profit",
+        "bz_sales",
+        "curr_type",
+        "end_date",
+        "ts_code"
+      ],
+      "itemNames": ["电气机械及器材制造业", "行业", "采选冶炼行业"],
+      "currencies": ["CNY"],
+      "missingCurrencyRows": 0,
+      "nullSalesRows": 0,
+      "nullProfitRows": 0,
+      "nullCostRows": 0,
+      "duplicateRows": 0,
+      "conflictingItemRows": 0,
+      "announcementDatesPresent": false,
+      "versionIdentifiersPresent": false,
+      "responseFingerprint": "15cd7a18f3f266f9aba0b60c049db3aa0fed0664425298c2e824f2fed61b28dd",
+      "sourceRows": [
+        {
+          "ts_code": "300750.SZ",
+          "end_date": "20241231",
+          "bz_item": "电气机械及器材制造业",
+          "bz_code": "I",
+          "bz_sales": 356519551000,
+          "bz_profit": 88025203000,
+          "bz_cost": 268494348000,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "300750.SZ",
+          "end_date": "20241231",
+          "bz_item": "行业",
+          "bz_code": "I",
+          "bz_sales": 362012554000,
+          "bz_profit": 88493595000,
+          "bz_cost": 273518959000,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "300750.SZ",
+          "end_date": "20241231",
+          "bz_item": "采选冶炼行业",
+          "bz_code": "I",
+          "bz_sales": 5493003000,
+          "bz_profit": 468392000,
+          "bz_cost": 5024611000,
+          "curr_type": "CNY"
+        }
+      ]
+    },
+    {
+      "tsCode": "300750.SZ",
+      "period": "20251231",
+      "type": "P",
+      "rowCount": 7,
+      "fields": [
+        "bz_code",
+        "bz_cost",
+        "bz_item",
+        "bz_profit",
+        "bz_sales",
+        "curr_type",
+        "end_date",
+        "ts_code"
+      ],
+      "itemNames": [
+        "产品",
+        "储能电池系统",
+        "其他业务",
+        "动力电池系统",
+        "合计特别调整",
+        "电池材料及回收",
+        "电池矿产资源"
+      ],
+      "currencies": ["CNY"],
+      "missingCurrencyRows": 0,
+      "nullSalesRows": 0,
+      "nullProfitRows": 1,
+      "nullCostRows": 1,
+      "duplicateRows": 0,
+      "conflictingItemRows": 0,
+      "announcementDatesPresent": false,
+      "versionIdentifiersPresent": false,
+      "responseFingerprint": "e7eb48630a9d9cfa7b99af1656b715ffc2f1cb186b57dbe0bb831658a5368135",
+      "sourceRows": [
+        {
+          "ts_code": "300750.SZ",
+          "end_date": "20251231",
+          "bz_item": "产品",
+          "bz_code": "P",
+          "bz_sales": 423701834000,
+          "bz_profit": 111318537000,
+          "bz_cost": 312383297000,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "300750.SZ",
+          "end_date": "20251231",
+          "bz_item": "储能电池系统",
+          "bz_code": "P",
+          "bz_sales": 62439820000,
+          "bz_profit": 16676131000,
+          "bz_cost": 45763689000,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "300750.SZ",
+          "end_date": "20251231",
+          "bz_item": "其他业务",
+          "bz_code": "P",
+          "bz_sales": 16916612000,
+          "bz_profit": 12566813000,
+          "bz_cost": 4349799000,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "300750.SZ",
+          "end_date": "20251231",
+          "bz_item": "动力电池系统",
+          "bz_code": "P",
+          "bz_sales": 316506369000,
+          "bz_profit": 75441972000,
+          "bz_cost": 241064397000,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "300750.SZ",
+          "end_date": "20251231",
+          "bz_item": "合计特别调整",
+          "bz_code": "P",
+          "bz_sales": 1000,
+          "bz_profit": null,
+          "bz_cost": null,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "300750.SZ",
+          "end_date": "20251231",
+          "bz_item": "电池材料及回收",
+          "bz_code": "P",
+          "bz_sales": 21860936000,
+          "bz_profit": 5961123000,
+          "bz_cost": 15899813000,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "300750.SZ",
+          "end_date": "20251231",
+          "bz_item": "电池矿产资源",
+          "bz_code": "P",
+          "bz_sales": 5978096000,
+          "bz_profit": 672497000,
+          "bz_cost": 5305599000,
+          "curr_type": "CNY"
+        }
+      ]
+    },
+    {
+      "tsCode": "300750.SZ",
+      "period": "20251231",
+      "type": "D",
+      "rowCount": 3,
+      "fields": [
+        "bz_code",
+        "bz_cost",
+        "bz_item",
+        "bz_profit",
+        "bz_sales",
+        "curr_type",
+        "end_date",
+        "ts_code"
+      ],
+      "itemNames": ["地区", "境内", "境外"],
+      "currencies": ["CNY"],
+      "missingCurrencyRows": 0,
+      "nullSalesRows": 0,
+      "nullProfitRows": 0,
+      "nullCostRows": 0,
+      "duplicateRows": 0,
+      "conflictingItemRows": 0,
+      "announcementDatesPresent": false,
+      "versionIdentifiersPresent": false,
+      "responseFingerprint": "cf81298abb2d7b8a116b6a18d92f1a1f6b5c102aafe986820d130d5150cd63f2",
+      "sourceRows": [
+        {
+          "ts_code": "300750.SZ",
+          "end_date": "20251231",
+          "bz_item": "地区",
+          "bz_code": "D",
+          "bz_sales": 423701834000,
+          "bz_profit": 111318537000,
+          "bz_cost": 312383297000,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "300750.SZ",
+          "end_date": "20251231",
+          "bz_item": "境内",
+          "bz_code": "D",
+          "bz_sales": 294060576000,
+          "bz_profit": 70562691000,
+          "bz_cost": 223497885000,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "300750.SZ",
+          "end_date": "20251231",
+          "bz_item": "境外",
+          "bz_code": "D",
+          "bz_sales": 129641258000,
+          "bz_profit": 40755846000,
+          "bz_cost": 88885412000,
+          "curr_type": "CNY"
+        }
+      ]
+    },
+    {
+      "tsCode": "300750.SZ",
+      "period": "20251231",
+      "type": "I",
+      "rowCount": 3,
+      "fields": [
+        "bz_code",
+        "bz_cost",
+        "bz_item",
+        "bz_profit",
+        "bz_sales",
+        "curr_type",
+        "end_date",
+        "ts_code"
+      ],
+      "itemNames": ["电气机械及器材制造业", "行业", "采选冶炼行业"],
+      "currencies": ["CNY"],
+      "missingCurrencyRows": 0,
+      "nullSalesRows": 0,
+      "nullProfitRows": 0,
+      "nullCostRows": 0,
+      "duplicateRows": 0,
+      "conflictingItemRows": 0,
+      "announcementDatesPresent": false,
+      "versionIdentifiersPresent": false,
+      "responseFingerprint": "71ad30cf26183e1132c75bfa3efede8457d92a2f02fda833a34c645abdc82a3a",
+      "sourceRows": [
+        {
+          "ts_code": "300750.SZ",
+          "end_date": "20251231",
+          "bz_item": "电气机械及器材制造业",
+          "bz_code": "I",
+          "bz_sales": 417723738000,
+          "bz_profit": 110646040000,
+          "bz_cost": 307077698000,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "300750.SZ",
+          "end_date": "20251231",
+          "bz_item": "行业",
+          "bz_code": "I",
+          "bz_sales": 423701834000,
+          "bz_profit": 111318537000,
+          "bz_cost": 312383297000,
+          "curr_type": "CNY"
+        },
+        {
+          "ts_code": "300750.SZ",
+          "end_date": "20251231",
+          "bz_item": "采选冶炼行业",
+          "bz_code": "I",
+          "bz_sales": 5978096000,
+          "bz_profit": 672497000,
+          "bz_cost": 5305599000,
+          "curr_type": "CNY"
+        }
+      ]
+    }
+  ],
+  "itemNamesUnchangedAcrossPeriods": false,
+  "publicDecision": "reject_pit_sdk",
+  "blockingReasons": [
+    "historical_revision_availability_unverified",
+    "segment_hierarchy_and_units_require_source_reconciliation",
+    "missing_announcement_dates",
+    "missing_version_identifiers",
+    "item_names_changed_or_history_insufficient",
+    "incomplete_financial_fields"
+  ]
+}

@@ -119,6 +119,7 @@ export type ResearchSdkParameterTypeV1 =
   | 'string'
   | 'date'
   | 'integer'
+  | 'number'
   | 'enum'
   | 'dataframe'
   | 'string_or_string_list'
@@ -179,6 +180,128 @@ export interface ResearchSdkContractV1 {
   runtimeVersion: 'research-py-v1';
   functions: readonly ResearchSdkFunctionContractV1[];
 }
+
+export const RESEARCH_FCFF_SCENARIO_COLUMNS_V1 = [
+  {
+    name: 'formula_version',
+    wireType: 'string',
+    pythonType: 'str',
+    descriptionZh: '计算公式版本，当前为 fcff-scenarios-v1。',
+    descriptionEn: 'Calculation formula version, currently fcff-scenarios-v1.',
+  },
+  {
+    name: 'scenario',
+    wireType: 'string',
+    pythonType: 'str',
+    descriptionZh: '用户声明的情景名称。',
+    descriptionEn: 'The user-declared scenario name.',
+  },
+  {
+    name: 'year',
+    wireType: 'number',
+    pythonType: 'int64',
+    descriptionZh: '从一开始的预测年序号。',
+    descriptionEn: 'The one-based forecast-year number.',
+  },
+  ...[
+    ['revenue', '预测收入。', 'Forecast revenue.'],
+    ['nopat_margin', '预测 NOPAT 利润率。', 'Forecast NOPAT margin.'],
+    ['nopat', '预测税后经营利润。', 'Forecast net operating profit after tax.'],
+    [
+      'reinvestment',
+      '由收入增量和增量资本周转率推导的再投资。',
+      'Reinvestment derived from incremental revenue and capital turnover.',
+    ],
+    ['fcff', '预测企业自由现金流。', 'Forecast free cash flow to the firm.'],
+    ['present_value_fcff', '预测期 FCFF 的折现值。', 'Present value of forecast-period FCFF.'],
+    ['present_value_terminal', '终值的折现值。', 'Present value of the terminal value.'],
+    [
+      'enterprise_value',
+      '预测期和终值折现后的企业价值。',
+      'Enterprise value from discounted forecast and terminal cash flows.',
+    ],
+    [
+      'bridge_adjustment',
+      '从企业价值到股权价值的显式桥接调整。',
+      'Explicit bridge adjustment from enterprise to equity value.',
+    ],
+    [
+      'equity_value',
+      '企业价值扣除桥接调整后的股权价值。',
+      'Equity value after the bridge adjustment.',
+    ],
+    ['issued_shares', '估值日发行在外股份数。', 'Issued shares on the valuation date.'],
+    ['per_share_value_cny', '每股估值，人民币。', 'Per-share value in CNY.'],
+    [
+      'terminal_value_share',
+      '折现终值占企业价值的比例。',
+      'Share of enterprise value contributed by the discounted terminal value.',
+    ],
+    [
+      'terminal_reinvestment_rate',
+      '永续增长率除以终值 ROIC。',
+      'Terminal growth divided by terminal ROIC.',
+    ],
+  ].map(([name, descriptionZh, descriptionEn]) => ({
+    name,
+    wireType: name === 'terminal_value_share' ? ('nullable_number' as const) : ('number' as const),
+    pythonType: 'float64',
+    descriptionZh,
+    descriptionEn,
+  })),
+  {
+    name: 'diagnostics',
+    wireType: 'string',
+    pythonType: 'str',
+    descriptionZh: '以分号分隔的模型诊断；无诊断时为 ok。',
+    descriptionEn: 'Semicolon-delimited model diagnostics, or ok when none apply.',
+  },
+] as const satisfies readonly ResearchSdkDataFrameColumnContractV1[];
+
+export const RESEARCH_IMPLIED_REVENUE_GROWTH_COLUMNS_V1 = [
+  {
+    name: 'formula_version',
+    wireType: 'string',
+    pythonType: 'str',
+    descriptionZh: '计算公式版本，当前为 fcff-scenarios-v1。',
+    descriptionEn: 'Calculation formula version, currently fcff-scenarios-v1.',
+  },
+  {
+    name: 'parameter',
+    wireType: 'string',
+    pythonType: 'str',
+    descriptionZh: '被反解的参数，固定为 revenue_growth。',
+    descriptionEn: 'The solved parameter, fixed to revenue_growth.',
+  },
+  {
+    name: 'status',
+    wireType: 'string',
+    pythonType: 'str',
+    descriptionZh: '求解状态。',
+    descriptionEn: 'The solver status.',
+  },
+  ...['implied_value', 'lower_bound', 'upper_bound', 'target_enterprise_value'].map((name) => ({
+    name,
+    wireType: 'nullable_number' as const,
+    pythonType: 'float64',
+    descriptionZh: `${name} 数值。`,
+    descriptionEn: `${name} value.`,
+  })),
+  {
+    name: 'unit',
+    wireType: 'string',
+    pythonType: 'str',
+    descriptionZh: '隐含参数单位，固定为 ratio。',
+    descriptionEn: 'The implied-parameter unit, fixed to ratio.',
+  },
+  {
+    name: 'diagnostic',
+    wireType: 'string',
+    pythonType: 'str',
+    descriptionZh: '求解结果的明确诊断。',
+    descriptionEn: 'An explicit diagnostic for the solver result.',
+  },
+] as const satisfies readonly ResearchSdkDataFrameColumnContractV1[];
 
 const chartFrameParameter = {
   name: 'frame',
@@ -2227,6 +2350,160 @@ export const RESEARCH_SDK_CONTRACT_V1 = {
       ],
       returns: { kind: 'dataframe', columns: RESEARCH_FINANCIAL_METRIC_COLUMNS_V1 },
     },
+    {
+      qualifiedName: 'valuation.fcff_scenarios',
+      namespace: 'valuation',
+      name: 'fcff_scenarios',
+      descriptionZh: '用显式基期、情景和桥接输入计算可审计的 FCFF 情景估值。',
+      descriptionEn:
+        'Calculate auditable FCFF scenario valuations from explicit base, scenario, and bridge inputs.',
+      examples: ['valuation.fcff_scenarios(base, scenarios, bridge, forecast_years=5)'],
+      notesZh: [
+        '该方法只计算，不预测；所有主观假设必须保留在输入 DataFrame 中。',
+        '金额均为人民币元、股本为股；收入按固定增长率变化，NOPAT 利润率线性过渡，再投资为收入增量除以增量资本周转率；收入下降假设可释放资本。',
+        'bridge_adjustment 为从企业价值扣除的净索偿，已包含 operating_cash_required；helper 不会再次加入经营必需现金。经营必需现金必须非负。',
+        '输出每情景每预测年一行；汇总估值列在各年重复，不可按年求和。企业价值为零时 terminal_value_share 为空。',
+        '最多 20 个情景和 20 个预测年；永续增长率必须小于 WACC，终值 ROIC 必须高于永续增长率。',
+      ],
+      notesEn: [
+        'This method calculates but does not forecast; every subjective assumption must remain visible in the input DataFrames.',
+        'Amounts use CNY and issued shares use shares. Revenue compounds at constant growth, NOPAT margin converges linearly, and reinvestment equals incremental revenue divided by capital turnover; declining revenue assumes capital can be released.',
+        'bridge_adjustment is the net claim deducted from enterprise value and already includes operating_cash_required. The helper does not add operating cash again; operating cash must be non-negative.',
+        'Each scenario returns one row per forecast year. Summary valuation columns repeat across years and must not be summed. terminal_value_share is null when enterprise value is zero.',
+        'At most 20 scenarios and 20 forecast years are allowed; terminal growth must be below WACC and terminal ROIC must exceed terminal growth.',
+      ],
+      parameters: [
+        {
+          name: 'base',
+          type: 'dataframe',
+          required: true,
+          keywordOnly: false,
+          descriptionZh: '恰好一行，列为 revenue、nopat_margin。',
+          descriptionEn: 'Exactly one row with revenue and nopat_margin columns.',
+        },
+        {
+          name: 'scenarios',
+          type: 'dataframe',
+          required: true,
+          keywordOnly: false,
+          descriptionZh:
+            '一至二十行，列为 scenario（唯一非空名称）、revenue_growth、target_nopat_margin、incremental_capital_turnover、wacc、terminal_growth、terminal_roic；数值均用比率。',
+          descriptionEn:
+            'One through twenty rows with scenario (unique non-empty name), revenue_growth, target_nopat_margin, incremental_capital_turnover, wacc, terminal_growth, and terminal_roic; all numeric inputs use ratios.',
+        },
+        {
+          name: 'bridge',
+          type: 'dataframe',
+          required: true,
+          keywordOnly: false,
+          descriptionZh:
+            '恰好一行，列为 bridge_adjustment、issued_shares、operating_cash_required。',
+          descriptionEn:
+            'Exactly one row with bridge_adjustment, issued_shares, and operating_cash_required columns.',
+        },
+        {
+          name: 'forecast_years',
+          type: 'integer',
+          required: false,
+          keywordOnly: true,
+          defaultValue: 5,
+          descriptionZh: '预测年数，允许 1–20。',
+          descriptionEn: 'Forecast horizon from 1 through 20 years.',
+        },
+        {
+          name: 'terminal_value_warning_threshold',
+          type: 'number',
+          required: false,
+          keywordOnly: true,
+          defaultValue: 0.75,
+          descriptionZh: '触发终值占比过高诊断的比例阈值。',
+          descriptionEn: 'The ratio threshold for the high-terminal-value-share diagnostic.',
+        },
+      ],
+      returns: { kind: 'dataframe', columns: RESEARCH_FCFF_SCENARIO_COLUMNS_V1 },
+    },
+    {
+      qualifiedName: 'valuation.implied_revenue_growth',
+      namespace: 'valuation',
+      name: 'implied_revenue_growth',
+      descriptionZh: '固定其他 FCFF 假设，只反解与目标企业价值一致的收入增长率。',
+      descriptionEn:
+        'Hold all other FCFF assumptions fixed and solve only the revenue growth consistent with a target enterprise value.',
+      examples: [
+        'valuation.implied_revenue_growth(base, scenario, bridge, target_enterprise_value=market_ev)',
+      ],
+      notesZh: [
+        '一次只反解一个未知量；利用估值多项式驻点分区并求根，结果可能为无解、多解、弱识别或非有限扫描。tolerance 为收入增长率的绝对容差。',
+        '反解是给定其余假设后的等价解释，不是市场唯一叙事。',
+      ],
+      notesEn: [
+        'Only one unknown is solved at a time. Stationary points of the valuation polynomial partition the root search. Results may be unsolved, multiple, weakly identified, or non-finite; tolerance is absolute revenue-growth tolerance.',
+        'The solution is an equivalent explanation conditional on the other assumptions, not the market’s unique narrative.',
+      ],
+      parameters: [
+        {
+          name: 'base',
+          type: 'dataframe',
+          required: true,
+          keywordOnly: false,
+          descriptionZh: '与 fcff_scenarios 相同的单行基期输入。',
+          descriptionEn: 'The same one-row base input accepted by fcff_scenarios.',
+        },
+        {
+          name: 'scenario',
+          type: 'dataframe',
+          required: true,
+          keywordOnly: false,
+          descriptionZh: '恰好一行；revenue_growth 会被反解值替换。',
+          descriptionEn: 'Exactly one row; revenue_growth is replaced by each trial value.',
+        },
+        {
+          name: 'bridge',
+          type: 'dataframe',
+          required: true,
+          keywordOnly: false,
+          descriptionZh: '与 fcff_scenarios 相同的单行桥接输入。',
+          descriptionEn: 'The same one-row bridge input accepted by fcff_scenarios.',
+        },
+        {
+          name: 'target_enterprise_value',
+          type: 'number',
+          required: true,
+          keywordOnly: true,
+          descriptionZh: '需要匹配的企业价值。',
+          descriptionEn: 'The enterprise value to match.',
+        },
+        {
+          name: 'forecast_years',
+          type: 'integer',
+          required: false,
+          keywordOnly: true,
+          defaultValue: 5,
+          descriptionZh: '预测年数，允许 1–20。',
+          descriptionEn: 'Forecast horizon from 1 through 20 years.',
+        },
+        ...[
+          ['lower', -0.2, '反解区间下界。', 'Lower search bound.'],
+          ['upper', 0.3, '反解区间上界。', 'Upper search bound.'],
+          ['tolerance', 1e-8, '根求解容差。', 'Root-solving tolerance.'],
+          [
+            'minimum_value_span_fraction',
+            0.05,
+            '判断弱识别的最小价值跨度比例。',
+            'Minimum value-span fraction used to diagnose weak identification.',
+          ],
+        ].map(([name, defaultValue, descriptionZh, descriptionEn]) => ({
+          name: name as string,
+          type: 'number' as const,
+          required: false,
+          keywordOnly: true,
+          defaultValue: defaultValue as number,
+          descriptionZh: descriptionZh as string,
+          descriptionEn: descriptionEn as string,
+        })),
+      ],
+      returns: { kind: 'dataframe', columns: RESEARCH_IMPLIED_REVENUE_GROWTH_COLUMNS_V1 },
+    },
     chartFunction(
       'line',
       '创建 jixie 原生交互折线图。',
@@ -2401,3 +2678,6 @@ export const RESEARCH_FINANCIAL_METRICS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_
 export const RESEARCH_FINANCIAL_CROSS_SECTION_SDK_CONTRACT_V1 =
   RESEARCH_SDK_CONTRACT_V1.functions[23];
 export const RESEARCH_FINANCIAL_PANEL_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[24];
+export const RESEARCH_FCFF_SCENARIOS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[25];
+export const RESEARCH_IMPLIED_REVENUE_GROWTH_SDK_CONTRACT_V1 =
+  RESEARCH_SDK_CONTRACT_V1.functions[26];

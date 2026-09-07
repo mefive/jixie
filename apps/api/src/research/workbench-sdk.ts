@@ -579,6 +579,8 @@ function sdkParameterSchema(parameter: ResearchSdkParameterContractV1): z.ZodTyp
       return z.enum(parameter.values as [string, ...string[]]);
     case 'integer':
       return z.number().int();
+    case 'number':
+      return z.number().finite();
     case 'string': {
       const schema = z.string().trim().min(1);
       return parameter.maximumLength ? schema.max(parameter.maximumLength) : schema;

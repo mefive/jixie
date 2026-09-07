@@ -345,6 +345,46 @@ class _ResultsApi:
 
 
 
+class _ValuationApi:
+    # Calculate auditable FCFF scenario valuations from explicit base, scenario, and bridge inputs.
+    # Note: This method calculates but does not forecast; every subjective assumption must remain visible in the input DataFrames.
+    # Note: Amounts use CNY and issued shares use shares. Revenue compounds at constant growth, NOPAT margin converges linearly, and reinvestment equals incremental revenue divided by capital turnover; declining revenue assumes capital can be released.
+    # Note: bridge_adjustment is the net claim deducted from enterprise value and already includes operating_cash_required. The helper does not add operating cash again; operating cash must be non-negative.
+    # Note: Each scenario returns one row per forecast year. Summary valuation columns repeat across years and must not be summed. terminal_value_share is null when enterprise value is zero.
+    # Note: At most 20 scenarios and 20 forecast years are allowed; terminal growth must be below WACC and terminal ROIC must exceed terminal growth.
+    # Example: valuation.fcff_scenarios(base, scenarios, bridge, forecast_years=5)
+    # DataFrame columns: formula_version: str, scenario: str, year: int64, revenue: float64, nopat_margin: float64, nopat: float64, reinvestment: float64, fcff: float64, present_value_fcff: float64, present_value_terminal: float64, enterprise_value: float64, bridge_adjustment: float64, equity_value: float64, issued_shares: float64, per_share_value_cny: float64, terminal_value_share: float64, terminal_reinvestment_rate: float64, diagnostics: str
+    def fcff_scenarios(
+        self,
+        base: pd.DataFrame,
+        scenarios: pd.DataFrame,
+        bridge: pd.DataFrame,
+        *,
+        forecast_years: int = 5,
+        terminal_value_warning_threshold: float = 0.75,
+    ) -> pd.DataFrame: ...
+
+    # Hold all other FCFF assumptions fixed and solve only the revenue growth consistent with a target enterprise value.
+    # Note: Only one unknown is solved at a time. Stationary points of the valuation polynomial partition the root search. Results may be unsolved, multiple, weakly identified, or non-finite; tolerance is absolute revenue-growth tolerance.
+    # Note: The solution is an equivalent explanation conditional on the other assumptions, not the market’s unique narrative.
+    # Example: valuation.implied_revenue_growth(base, scenario, bridge, target_enterprise_value=market_ev)
+    # DataFrame columns: formula_version: str, parameter: str, status: str, implied_value: float64, lower_bound: float64, upper_bound: float64, target_enterprise_value: float64, unit: str, diagnostic: str
+    def implied_revenue_growth(
+        self,
+        base: pd.DataFrame,
+        scenario: pd.DataFrame,
+        bridge: pd.DataFrame,
+        *,
+        target_enterprise_value: float,
+        forecast_years: int = 5,
+        lower: float = -0.2,
+        upper: float = 0.3,
+        tolerance: float = 1e-8,
+        minimum_value_span_fraction: float = 0.05,
+    ) -> pd.DataFrame: ...
+
+
+
 class _ChartsApi:
     # Create a native interactive line chart.
     # Note: The frame must contain every DataFrame column referenced by x, y, and labels.
@@ -455,4 +495,5 @@ class _ChartsApi:
 
 data: _DataApi
 results: _ResultsApi
+valuation: _ValuationApi
 charts: _ChartsApi

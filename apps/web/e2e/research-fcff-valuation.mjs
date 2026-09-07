@@ -58,7 +58,7 @@ try {
 
   const scenarioCell = findCell(run.document.cells, 'scenario_valuation["scenario_range_low_cny"]');
   const sensitivityCell = findCell(run.document.cells, 'sensitivity_chart = charts.heatmap');
-  const reverseCell = findCell(run.document.cells, 'reverse_valuation = pd.DataFrame');
+  const reverseCell = findCell(run.document.cells, 'reverse_valuation = valuation.implied');
   const reviewCell = findCell(run.document.cells, 'narrative_review = pd.DataFrame');
   const scenarioOutput = tableOutput(scenarioCell);
   const reverseOutput = tableOutput(reverseCell);
@@ -161,6 +161,7 @@ try {
   await refreshedDrawer.getByTestId('research-execution-item').first().click();
   const refreshedDetail = page.getByTestId('research-execution-detail');
   await refreshedDetail.getByText('这是历史运行的只读快照；当前研究草稿已经发生变化。').waitFor();
+  await refreshedDetail.locator('.monaco-editor .view-lines').first().waitFor({ state: 'visible' });
   await page.screenshot({ path: `${SHOTS}research-fcff-promoted-snapshot.png` });
 
   console.log(

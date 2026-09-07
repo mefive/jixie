@@ -43,6 +43,8 @@ export function researchSdkPythonParameterType(parameter: ResearchSdkParameterCo
       return 'str';
     case 'integer':
       return 'int';
+    case 'number':
+      return 'float';
     case 'dataframe':
       return 'pd.DataFrame';
     case 'string_or_string_list':

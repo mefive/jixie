@@ -1,6 +1,6 @@
 # 设计：估值驱动的基本面研究体系
 
-> 2026-09-03 制定。状态：待实施。本文是 jixie 基本面研究完善的主设计文档；历史数据盘点见
+> 2026-09-03 制定，2026-09-07 更新。状态：M0–M5 已完成；M6 未开始。本文是 jixie 基本面研究完善的主设计文档；历史数据盘点见
 > [`data-expansion.md`](./data-expansion.md)，因子研究纪律见
 > [`factor-research-discipline.md`](./factor-research-discipline.md)，Research 产品边界见
 > [`reactive-quant-research-workbench.md`](./reactive-quant-research-workbench.md)。
@@ -484,16 +484,17 @@ Agent Catalog 使用同一 Contract。
 
 ### M5：复用与行业驱动
 
-- [ ] 复盘至少三个真实非金融案例，识别重复公式与重复失败；
-- [ ] 将稳定重复计算下沉为经过测试的 helper，不隐藏假设；
-- [ ] 评估 `fina_mainbz` 的分部收入、成本、利润、币种和修订质量；
-- [ ] 只为有真实数据与案例的行业增加价格/销量/产能等驱动模板；
-- [ ] 评估是否需要结构化估值研究实体或股票详情入口。
+- [x] 复盘五粮液、美的集团、宁德时代三个真实非金融案例，识别重复公式与重复失败；
+- [x] 将稳定重复计算下沉为经过测试的 `valuation.fcff_scenarios` 与 `valuation.implied_revenue_growth`，不隐藏假设；
+- [x] 评估 `fina_mainbz` 的分部收入、成本、利润、币种和修订质量：当前不接入严格 PIT SDK；
+- [x] 完成行业驱动模板准入评估：现有数据未满足价格/销量/产能与历史修订契约，本轮暂缓新增；
+- [x] 评估结构化估值研究实体或股票详情入口：三个案例可由现有 Research 文档承载，本轮不新增。
 
 **触发条件**：不足三个真实案例时，不建设独立估值页面和通用行业模板系统。
 
 全市场补齐后的异常分类、官方公告抽查和指标隔离规则见
-[M5 财报验收复核](../reports/valuation-fundamental-m5-full-market-audit.md)。此报告不代表 M5 全部收尾完成。
+[M5 财报验收复核](../reports/valuation-fundamental-m5-full-market-audit.md)。此报告仅覆盖异常处理；完整 M5 复用、行业数据决策与验收见
+[M5 复用与行业驱动评估](../reports/valuation-fundamental-m5-reuse-and-drivers.md)。
 
 ### M6：量化验证与 Factor 下游
 
