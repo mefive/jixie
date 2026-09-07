@@ -7,6 +7,8 @@
 > 方法论主线参考邹佩轩《穿透财报》《穿透估值》《穿透叙事》三部曲，但本文件记录的是 jixie 的数据、
 > 研究和工程契约，不把书中案例或经验参数直接当成产品默认值。
 
+2026-09-07 补充研究已完成实施与验收：三公司29 Cell市场复核、年度附注局部调整、样本覆盖、书籍指导与双语帮助已交付，三份用户Research已封存。原始数据与财务内核未改；未审计科目与不完整PIT继续标识，M6仍未启动。见[交付报告](../reports/valuation-fundamental-market-validation.md)及[原口径评审记录](../reports/valuation-fundamental-market-review-checkpoint.md)。
+
 ## 1. 产品决策
 
 jixie 的基本面研究不以继续扩充财务比率和预置因子为主线，而以估值体系组织演绎推理：

@@ -48,8 +48,8 @@ describe('equity FCFF valuation Research template', { timeout: 30_000 }, () => {
     const source = template.cells.map((cell) => cell.source).join('\n');
 
     expect(template.title).toContain('FCFF');
-    expect(template.cells).toHaveLength(16);
-    expect(template.cells.filter((cell) => cell.kind === 'python')).toHaveLength(12);
+    expect(template.cells).toHaveLength(29);
+    expect(template.cells.filter((cell) => cell.kind === 'python')).toHaveLength(24);
     expect(source).toContain('data.equity_financial_metrics');
     expect(source).toContain('data.equity_financial_statements');
     expect(source).toContain('data.yield_curve');

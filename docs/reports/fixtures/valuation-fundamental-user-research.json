@@ -1,0 +1,23 @@
+[
+  {
+    "company": "五粮液",
+    "identifier": "000858.SZ",
+    "documentId": "01M1XCH9MVY2JCHS55DP6H455N",
+    "status": "success_sealed",
+    "executionId": "01M1XCHHK0DD2AHWMJN25R4YDS"
+  },
+  {
+    "company": "美的集团",
+    "identifier": "000333.SZ",
+    "documentId": "01M1XCHKZNMJ8R90SWDX50FSCG",
+    "status": "success_sealed",
+    "executionId": "01M1XCHWM34Q60GMWS8W8619XA"
+  },
+  {
+    "company": "宁德时代",
+    "identifier": "300750.SZ",
+    "documentId": "01M1XCHZBXZF1J124GKT9VVXZ1",
+    "status": "success_sealed",
+    "executionId": "01M1XCJ6SH27AVSQG166PJWRFG"
+  }
+]

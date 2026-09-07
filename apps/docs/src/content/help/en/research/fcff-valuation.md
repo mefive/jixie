@@ -129,6 +129,28 @@ liabilities produces a warning only. Beginning/ending cash discrepancies do not 
 operating cash flow, which does not depend on those balances. Do not fill unavailable values with zero,
 ignore their status, or silently switch to an older report to produce a valuation.
 
+## Duration, cash flow and market review
+
+The template has 29 Cells, including 24 Python Cells. It adds 3/5/10-year duration comparisons at a fixed historical margin; zero-growth, return-equals-cost and persistent-excess-return terminal cases; profit-to-cash reconciliation; and the remaining enterprise value after rolling the unchanged forecast forward one model year. The roll is an enterprise-value identity, not a realized shareholder return.
+
+The 3/6/12-month retrospective windows compare the stock with the CSI 300 ETF (510300.SH), including adjusted return, return difference and maximum drawdown. Both use close times adjustment factor, without adding dividends again. Missing paired dates, duplicates or missing endpoints fail explicitly. An unfinished window stays unobserved. Raw close and provider market capitalization divided by reported shares are separate; share changes and A/H scope can make them differ.
+
+A common market cutoff updates the available financial inputs and displays next-year revenue, margin and FCFF thresholds. The three selected companies and overlapping windows are retrospective examples, not independent holdout evidence.
+
+## Partial classification from annual notes
+
+Raw data and the shared financial kernel retain their original scope. Additional Cells show annual-note sources, PDF pages, source units, conservative availability dates, file fingerprints and before/after comparisons. The editable `classification_notes` in the parameter Cell must match the company, annual period and as-of date; missing evidence stops the adjustment.
+
+Identified financial investments are removed from operating capital and their identified earnings are removed from profit. Cash and trading financial assets already handled by the kernel are not added twice. Long-term product totals include the portion maturing within one year. Only noncurrent lease liabilities are added because current leases are already included in kernel debt.
+
+Both variants use the same annual balance sheet and reported shares. A cutoff row anchored to annual balances is not a current quarterly valuation. All original target margins are reduced by the initial year's after-tax financial-income-to-revenue ratio, with that conversion frozen for later reviews. This is an explicit research assumption, not issuer guidance.
+
+A separate stress retains one month of revenue as cash and applies a 10% haircut to newly identified nonoperating assets. This is not a statistical interval. Tax allocation, required operating cash, financial subsidiaries, other claims and lease-funded reinvestment remain incomplete. Partially adjusted FCFF and valuation are not audited fair values.
+
+## Coverage is not validation
+
+Having all three statements, having required valuation inputs, having annual FCFF and having latest-quarter TTM FCFF are different tests. An input audit across companies is not a valuation of every company or a source audit of every value. Always state the audit date, denominator, missing reasons and market cutoff.
+
 ## Related pages
 
 

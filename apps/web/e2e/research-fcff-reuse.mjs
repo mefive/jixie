@@ -1,4 +1,4 @@
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { chromium } from 'playwright';
 import {
   EQUITY_FCFF_REPLAY_CASES,
@@ -63,7 +63,7 @@ try {
       method: 'POST',
       body: JSON.stringify({ clean: true }),
     });
-    if (run.execution?.status !== 'success' || run.execution.executedCellCount !== 16) {
+    if (run.execution?.status !== 'success' || run.execution.executedCellCount !== 29) {
       throw new Error(
         `${replayCase.companyName} clean run failed: ${JSON.stringify(run.execution)}`,
       );
@@ -84,7 +84,51 @@ try {
     ) {
       throw new Error(`${replayCase.companyName} next-report review is invalid`);
     }
+    const evidence = Object.fromEntries(
+      [
+        ['marketAudit', 'market_data_audit = pd.DataFrame'],
+        ['duration', 'growth_duration_comparison = pd.DataFrame'],
+        ['terminal', 'terminal_stress_comparison = pd.DataFrame'],
+        ['cash', 'cash_reconciliation = cash_rows.pivot'],
+        ['rollForward', 'roll_forward_comparison = pd.DataFrame'],
+        ['marketWindows', 'market_window_review = pd.DataFrame'],
+        ['cutoff', 'cutoff_valuation = valuation.fcff_scenarios'],
+        ['classification', 'classification_valuation_rows = []'],
+        ['classificationReconciliation', 'classification_reconciliation = pd.DataFrame'],
+        ['classificationSources', 'classification_source_rows = []'],
+      ].map(([name, fragment]) => [name, tableOutput(findCell(run.document.cells, fragment))]),
+    );
+    if (
+      evidence.duration.rowCount !== 3 ||
+      evidence.terminal.rowCount !== 3 ||
+      evidence.rollForward.rowCount !== 3 ||
+      evidence.cutoff.rowCount !== 3 ||
+      evidence.classification.rowCount !== 27 ||
+      evidence.classificationReconciliation.rowCount !== 2
+    ) {
+      throw new Error('Evidence comparison row counts are invalid');
+    }
+    if (!evidence.marketWindows.rows.every((row) => row.status === 'observed_retrospective')) {
+      throw new Error('Retrospective market windows are incomplete');
+    }
+    const frozenReturn = evidence.rollForward.rows[0].frozen_path_model_year_return;
+    if (
+      Math.abs(frozenReturn - replayCase.scenarios.find((item) => item.scenario === 'base').wacc) >
+      1e-10
+    ) {
+      throw new Error('Frozen enterprise-value roll does not reconcile');
+    }
     results.push({
+      evidence,
+      evidenceCellIds: Object.fromEntries(
+        [
+          ['classification', 'classification_valuation_rows = []'],
+          ['classificationReconciliation', 'classification_reconciliation = pd.DataFrame'],
+          ['marketWindows', 'market_window_review = pd.DataFrame'],
+          ['duration', 'growth_duration_comparison = pd.DataFrame'],
+          ['cutoff', 'cutoff_valuation = valuation.fcff_scenarios'],
+        ].map(([name, fragment]) => [name, findCell(run.document.cells, fragment).id]),
+      ),
       ...replayCase,
       documentId: document.id,
       executionId: run.execution.id,
@@ -118,6 +162,25 @@ try {
     .scrollIntoViewIfNeeded();
   await reviewTable.screenshot({ path: `${SHOTS}research-fcff-reuse-midea-assessments.png` });
 
+  for (const [name, cellId] of Object.entries(midea.evidenceCellIds)) {
+    const element = page.locator(`[data-cell-id="${cellId}"]`);
+    await element.scrollIntoViewIfNeeded();
+    await element.screenshot({ path: `${SHOTS}research-fcff-evidence-${name}.png` });
+  }
+  if (process.env.FCFF_EVIDENCE_PATH) {
+    writeFileSync(
+      process.env.FCFF_EVIDENCE_PATH,
+      JSON.stringify(
+        {
+          capturedAt: new Date().toISOString(),
+          researchScope: 'Retrospective teaching scenarios; not holdout',
+          results,
+        },
+        null,
+        2,
+      ) + '\n',
+    );
+  }
   console.log(
     `[research-fcff-reuse-e2e] ${JSON.stringify(
       results.map((result) => ({

@@ -1,3 +1,5 @@
+import { equityFcffClassificationSource } from './equity-fcff-classification-evidence.js';
+
 export interface EquityFcffReplayScenario {
   scenario: 'downside' | 'base' | 'upside';
   revenueGrowth: number;
@@ -75,6 +77,8 @@ export function equityFcffParameterSource(replayCase: EquityFcffReplayCase): str
 valuation_date = ${JSON.stringify(replayCase.valuationDate)}
 review_date = ${JSON.stringify(replayCase.reviewDate)}
 forecast_years = 5
+market_cutoff_date = "20260730"
+benchmark_identifier = "510300.SH"
 
 # These are explicit teaching assumptions, not platform forecasts or recommendations.
 operating_cash_required_cny = 0.0
@@ -89,6 +93,7 @@ reverse_minimum_value_span_fraction = 0.05
 valuation_scenarios = pd.DataFrame([
 ${rows},
 ])
+${equityFcffClassificationSource(replayCase.identifier)}
 valuation_scenarios`;
 }
 

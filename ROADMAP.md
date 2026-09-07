@@ -462,6 +462,8 @@ fixture，不代表横截面、Panel、宏观状态和策略绩效的方法矩�
 不新增独立实体或股票详情入口。M6 量化验证尚未启动。验收与边界见
 [M5 复用与行业驱动评估](docs/reports/valuation-fundamental-m5-reuse-and-drivers.md)。
 
+2026-09-07 补充研究已完成实施与验收：三公司29 Cell市场复核、带年报出处的局部分类调整及全市场输入覆盖审计已交付，三份用户Research已封存。经营分类仍有显式缺口，不能将三例事后对照记为M6通过。见[交付报告](docs/reports/valuation-fundamental-market-validation.md)。
+
 完整范围、PIT 契约、数据模型方向、实施门禁和验收见
 [估值驱动的基本面研究体系](docs/design/valuation-driven-fundamental-research.md)。
 

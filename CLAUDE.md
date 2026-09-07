@@ -27,6 +27,8 @@
 - 已结合 jixie 现状提炼为 `docs/books/因子投资方法与实践-项目指导.md`。修改因子数据口径、分析报告、因子准入、多因子合成、风险模型或组合构造前,先读该指导及对应设计文档。
 - 书中方法用于指导研究纪律,不是逐字需求。具体市场制度、费率和项目已拍板设计以当前代码、`ROADMAP.md`、`docs/design/` 为准;不要把书中截至 2019 年的 A 股规则、固定涨跌幅或零交易成本设定照搬到其他时期和市场。
 
+- 公司估值研究参考 `docs/books/穿透估值：读懂估值中的共识与博弈 - full.epub` 及 `docs/books/穿透估值-项目指导.md`；书中案例不替代当期公告、模型适用性和样本外验证。
+
 ## 技术栈(变更前先讨论 trade-off)
 
 - pnpm workspaces monorepo(Node 20+,纯 ESM),结构参照 `~/Projects/marginalia`、`~/Tools/fangtu`

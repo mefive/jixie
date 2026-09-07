@@ -1,3 +1,19 @@
+import {
+  EQUITY_FCFF_CLASSIFICATION_METHODS_SOURCE,
+  EQUITY_FCFF_CLASSIFICATION_RECONCILIATION_SOURCE,
+  EQUITY_FCFF_CLASSIFICATION_VALUATION_SOURCE,
+  EQUITY_FCFF_CLASSIFICATION_SOURCES_SOURCE,
+} from './equity-fcff-classification-template.js';
+import {
+  EQUITY_FCFF_MARKET_DATA_SOURCE,
+  EQUITY_FCFF_DURATION_SOURCE,
+  EQUITY_FCFF_TERMINAL_SOURCE,
+  EQUITY_FCFF_CASH_RECONCILIATION_SOURCE,
+  EQUITY_FCFF_ROLL_FORWARD_SOURCE,
+  EQUITY_FCFF_MARKET_REVIEW_SOURCE,
+  EQUITY_FCFF_MARKET_CHART_SOURCE,
+  EQUITY_FCFF_CUTOFF_SOURCE,
+} from './equity-fcff-evidence-template.js';
 import { EQUITY_FCFF_REPLAY_CASES, equityFcffParameterSource } from './equity-fcff-replay-cases.js';
 
 export interface ResearchTemplateCellSeed {
@@ -255,10 +271,9 @@ scenario_summary_columns = [
 scenario_valuation = scenario_forecasts[
     scenario_summary_columns
 ].drop_duplicates().reset_index(drop=True)
-market_price_per_share_cny = (
-    valuation_base["market_capitalization"] / valuation_base["issued_shares"]
-)
+market_price_per_share_cny = float(initial_quote["close"])
 scenario_valuation["market_price_per_share_cny"] = market_price_per_share_cny
+scenario_valuation["market_cap_per_reported_share_cny"] = valuation_base["market_capitalization"] / valuation_base["issued_shares"]
 scenario_valuation["scenario_range_low_cny"] = scenario_valuation["per_share_value_cny"].min()
 scenario_valuation["scenario_range_high_cny"] = scenario_valuation["per_share_value_cny"].max()
 scenario_valuation`;
@@ -523,6 +538,7 @@ narrative_review["initial_as_of"] = valuation_date
 narrative_review["review_as_of"] = review_date
 narrative_review["review_report_period"] = review_base_period.strftime("%Y-%m-%d")
 narrative_review["new_reverse_status"] = review_reverse_growth_result["status"]
+narrative_review["accounting_scope"] = "original_kernel_proxy; financial income and asset classifications require note review"
 narrative_review`;
 
 export function equityFcffValuationTemplate(): {
@@ -538,7 +554,7 @@ export function equityFcffValuationTemplate(): {
 
 这是一份可编辑、可完整运行并可封存的教学模板。它把历史财报事实、用户假设和市场价格隐含假设分开记录，不代表平台目标价或买卖建议。
 
-默认研究日为 2025-04-28，复查日为 2026-05-06。更换股票时先修改下一 Cell 的代码、日期和全部主观假设；一般工商业 FCFF 模型不适用于银行、保险和券商。`,
+默认研究日为 2025-04-28，复查日为 2026-05-06，市场数据截止日为 2026-07-30。市场窗口为回顾性对照，基准为沪深300ETF（510300.SH）的复权收益。更换股票时先修改下一 Cell 的代码、日期和全部主观假设；一般工商业 FCFF 模型不适用于银行、保险和券商。`,
       },
       { kind: 'python', source: EQUITY_FCFF_PARAMETER_SOURCE },
       {
@@ -559,12 +575,15 @@ WACC、经营必需现金和未来经营参数都由用户负责，不会从历�
       { kind: 'python', source: EQUITY_FCFF_SELECTION_SOURCE },
       { kind: 'python', source: EQUITY_FCFF_HISTORY_SOURCE },
       { kind: 'python', source: EQUITY_FCFF_ASSUMPTION_SOURCE },
+      { kind: 'python', source: EQUITY_FCFF_MARKET_DATA_SOURCE },
       { kind: 'python', source: EQUITY_FCFF_MODEL_SOURCE },
       { kind: 'python', source: EQUITY_FCFF_SCENARIO_SOURCE },
       { kind: 'python', source: EQUITY_FCFF_SENSITIVITY_TABLE_SOURCE },
       { kind: 'python', source: EQUITY_FCFF_SENSITIVITY_CHART_SOURCE },
       { kind: 'python', source: EQUITY_FCFF_REVERSE_SOURCE },
       { kind: 'python', source: EQUITY_FCFF_COMPARISON_SOURCE },
+      { kind: 'python', source: EQUITY_FCFF_DURATION_SOURCE },
+      { kind: 'python', source: EQUITY_FCFF_TERMINAL_SOURCE },
       {
         kind: 'markdown',
         source: `## 下一期财报复查
@@ -572,11 +591,37 @@ WACC、经营必需现金和未来经营参数都由用户负责，不会从历�
 下面把原来的第一年情景与下一年报实际结果并排比较，并在其余基准假设不变时重新反解市场隐含收入增长。复查不是把旧判断改写成“当时就知道”，而是保留原假设、实际结果和新价格含义三套记录。`,
       },
       { kind: 'python', source: EQUITY_FCFF_REVIEW_SOURCE },
+      { kind: 'python', source: EQUITY_FCFF_CASH_RECONCILIATION_SOURCE },
+      { kind: 'python', source: EQUITY_FCFF_ROLL_FORWARD_SOURCE },
+      { kind: 'python', source: EQUITY_FCFF_MARKET_REVIEW_SOURCE },
+      { kind: 'python', source: EQUITY_FCFF_MARKET_CHART_SOURCE },
+      { kind: 'python', source: EQUITY_FCFF_CUTOFF_SOURCE },
+      {
+        kind: 'markdown',
+        source: `## 年报附注调整：保留原结果，单独对照
+
+以下为有出处的**局部分类调整**，不是全部会计口径审计。原表与上方结果保留。原口径 FCFF 的“超出区间”不能直接归因于经营恶化。
+
+从利润中剔除已识别资金收益，同时在营运资本、投入资本与股权桥接中处理对应资产；现金和交易性金融资产已在内核桥接，不重复加回。仅补入内核遗漏的非流动租赁负债。利息税负暂按集团有效税率分摊。
+
+对照统一使用年报资产负债表和年报股本，不将年度附注套入最新季度；截止日行也是年报锚点敏感性，不是当前合理价。初始金融收益占收入的税后比例从所有目标利润率扣除，之后冻结这项换算，属于显式研究假设。另列“留存一个月收入现金＋新增金融资产折价10%”压力情景；受限现金只扣已识别最低额，剩余缺口见表。
+
+更换标的时必须同步替换参数 Cell 中 classification_notes 的公司、年报、出处及可得日；缺少匹配附注时停止调整计算。`,
+      },
+      { kind: 'python', source: EQUITY_FCFF_CLASSIFICATION_METHODS_SOURCE },
+      { kind: 'python', source: EQUITY_FCFF_CLASSIFICATION_RECONCILIATION_SOURCE },
+      { kind: 'python', source: EQUITY_FCFF_CLASSIFICATION_VALUATION_SOURCE },
+      { kind: 'python', source: EQUITY_FCFF_CLASSIFICATION_SOURCES_SOURCE },
       {
         kind: 'markdown',
         source: `## 阅读结论前
 
-- 场景区间不是统计置信区间；
+- 场景区间不是统计置信区间；三家公司不是独立样本外验证；
+- 实际收盘价与“供应商总市值 / 财报股本”分列，后者可能受股本变动和 A/H 股口径影响；
+- 期限敏感性固定历史利润率，避免变更预测年数时同时改变利润率过渡速度；
+- 原路径滚动是企业现金流模型的一年恒等式，不等于股东实际一年收益；
+- 现金流差额不自动解释为维护性或扩张性投入，仍需年报附注；
+- 更新估值仅替换可得财报，沿用原教学参数，原假设被推翻后应单独修订并保留旧快照；
 - 终值占比过高说明答案主要依赖远期假设；
 - 当前价格的反向解只是给定其余假设后的一个等价解释，不是市场唯一叙事；
 - 若数据版本、经营假设或桥接项目变化，应让下游 Cell 进入待重跑并重新完成一次干净全文运行；

@@ -34,8 +34,8 @@ try {
   documentId = documentSummary.id;
 
   const created = await api(page, `/api/app/research/documents/${documentId}`);
-  if (created.cells.length !== 16) {
-    throw new Error(`FCFF template created ${created.cells.length} Cells instead of 16`);
+  if (created.cells.length !== 29) {
+    throw new Error(`FCFF template created ${created.cells.length} Cells instead of 29`);
   }
   const parameterCell = created.cells.find(
     (cell) => cell.kind === 'python' && cell.source.includes('valuation_identifier = "000858.SZ"'),
@@ -50,8 +50,8 @@ try {
   });
   if (
     run.execution?.status !== 'success' ||
-    run.execution.cellCount !== 16 ||
-    run.execution.executedCellCount !== 16
+    run.execution.cellCount !== 29 ||
+    run.execution.executedCellCount !== 29
   ) {
     throw new Error(`FCFF clean run failed: ${JSON.stringify(run.execution)}`);
   }
@@ -137,7 +137,13 @@ try {
       expectedRevision: parameterCell.revision,
     }),
   });
-  for (const outputCell of [scenarioCell, sensitivityCell, reverseCell, reviewCell]) {
+  for (const outputCell of [
+    scenarioCell,
+    sensitivityCell,
+    reverseCell,
+    reviewCell,
+    run.document.cells.find((cell) => cell.source.includes('classification_valuation_rows = []')),
+  ]) {
     const current = updated.cells.find((cell) => cell.id === outputCell.id);
     if (current?.status !== 'stale') {
       throw new Error(`parameter change did not stale ${outputCell.id}: ${current?.status}`);
@@ -165,7 +171,7 @@ try {
   await page.screenshot({ path: `${SHOTS}research-fcff-promoted-snapshot.png` });
 
   console.log(
-    `[research-fcff-valuation-e2e] execution=${run.execution.id} cells=16 scenarios=3 reverse=solved review=4 stale=true promoted=true screenshots=5`,
+    `[research-fcff-valuation-e2e] execution=${run.execution.id} cells=29 scenarios=3 reverse=solved review=4 stale=true promoted=true screenshots=5`,
   );
   console.log(
     `[research-fcff-valuation-e2e] result=${JSON.stringify({
