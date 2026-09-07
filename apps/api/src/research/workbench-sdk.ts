@@ -1,3 +1,4 @@
+import type { ResearchFinancialValuesRequestV1 } from './financial-values.js';
 import { z } from 'zod';
 import {
   RESEARCH_CROSS_SECTION_SDK_CONTRACT_V1,
@@ -11,6 +12,7 @@ import {
   RESEARCH_FINANCIAL_METRICS_SDK_CONTRACT_V1,
   RESEARCH_FINANCIAL_PANEL_SDK_CONTRACT_V1,
   RESEARCH_FINANCIAL_STATEMENTS_SDK_CONTRACT_V1,
+  RESEARCH_FINANCIAL_VALUES_SDK_CONTRACT_V1,
   RESEARCH_BACKTEST_REPORT_SDK_CONTRACT_V1,
   RESEARCH_FACTOR_REPORT_SDK_CONTRACT_V1,
   RESEARCH_FACTOR_WEATHER_SDK_CONTRACT_V1,
@@ -128,6 +130,9 @@ export interface ResearchPanelRuntimeRequestV1 {
 export interface ResearchSingleFinancialRuntimeRequestV1 {
   identifier: string;
   as_of: string;
+  fields?: string | string[];
+  report_start?: string;
+  report_end?: string;
 }
 
 export interface ResearchFinancialCrossSectionRuntimeRequestV1 extends ResearchCrossSectionRuntimeRequestV1 {
@@ -242,6 +247,20 @@ const researchIndustryStateRequestSchema = sdkRequestSchema(
 const researchFuturesSettlementRequestSchema = sdkRequestSchema(
   RESEARCH_FUTURES_SETTLEMENT_SDK_CONTRACT_V1.parameters,
 );
+const researchFinancialValuesRequestSchema = sdkRequestSchema(
+  RESEARCH_FINANCIAL_VALUES_SDK_CONTRACT_V1.parameters,
+);
+const researchFinancialValuesRowsSchema = sdkDataFrameRowsSchema(
+  RESEARCH_FINANCIAL_VALUES_SDK_CONTRACT_V1.returns,
+);
+export function parseResearchFinancialValuesRuntimeRequest(
+  value: unknown,
+): ResearchFinancialValuesRequestV1 {
+  return researchFinancialValuesRequestSchema.parse(value) as ResearchFinancialValuesRequestV1;
+}
+export function parseResearchFinancialValuesRuntimeRows(value: unknown): unknown[] {
+  return researchFinancialValuesRowsSchema.parse(value);
+}
 const researchFinancialStatementsRequestSchema = sdkRequestSchema(
   RESEARCH_FINANCIAL_STATEMENTS_SDK_CONTRACT_V1.parameters,
 );
@@ -548,7 +567,17 @@ export function parseResearchEquityDatasetRuntimeRows(value: unknown): unknown[]
 function sdkRequestSchema(parameters: readonly ResearchSdkParameterContractV1[]): z.ZodType {
   return z.strictObject(
     Object.fromEntries(
-      parameters.map((parameter) => [parameter.name, sdkParameterSchema(parameter)]),
+      parameters.map((parameter) => {
+        const schema = sdkParameterSchema(parameter);
+        return [
+          parameter.name,
+          parameter.required
+            ? schema
+            : parameter.defaultValue == null
+              ? schema.optional()
+              : schema.default(parameter.defaultValue),
+        ];
+      }),
     ),
   );
 }

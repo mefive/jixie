@@ -312,3 +312,36 @@ test('inserts immutable strategy-scan and stored Factor Weather lookups', () => 
     'momentum_weather = results.factor_weather("factor-01")',
   );
 });
+
+test('inserts a batch field query with separate report and availability dates', () => {
+  const source = researchDatasetSnippet({
+    dataset: {
+      kind: 'dataset',
+      id: 'data.equity_financial_values',
+      method: 'data.equity_financial_values',
+      identifier: '000858.SZ',
+      nameZh: '财报',
+      nameEn: 'Statements',
+      descriptionZh: '',
+      descriptionEn: '',
+      tags: [],
+      localDataCoverage: {
+        status: 'ready',
+        startDate: '20200101',
+        endDate: '20260506',
+        dateBasis: 'availableDate',
+      },
+    },
+    start: '20230101',
+    end: '20260506',
+    identifier: '000858.SZ,600519.SH',
+    fields: ['income.revenue'],
+    period: 'ttm',
+    reportStart: '20240101',
+    reportEnd: '20241231',
+  });
+  assert.ok(source.includes('["000858.SZ","600519.SH"]'));
+  assert.match(source, /as_of="20260506"/);
+  assert.match(source, /report_end="20241231"/);
+  assert.match(source, /period="ttm"/);
+});

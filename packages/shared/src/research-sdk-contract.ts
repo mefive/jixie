@@ -1,3 +1,472 @@
+// Explicit public financial-field mapping; no storage schema is inferred.
+export const RESEARCH_FINANCIAL_FIELDS_V1 = [
+  {
+    key: 'income.totalRevenue',
+    statementKind: 'income',
+    field: 'totalRevenue',
+    unit: 'CNY',
+    semantics: 'flow_ytd',
+  },
+  {
+    key: 'income.revenue',
+    statementKind: 'income',
+    field: 'revenue',
+    unit: 'CNY',
+    semantics: 'flow_ytd',
+  },
+  {
+    key: 'income.operCost',
+    statementKind: 'income',
+    field: 'operCost',
+    unit: 'CNY',
+    semantics: 'flow_ytd',
+  },
+  {
+    key: 'income.operateProfit',
+    statementKind: 'income',
+    field: 'operateProfit',
+    unit: 'CNY',
+    semantics: 'flow_ytd',
+  },
+  {
+    key: 'income.totalProfit',
+    statementKind: 'income',
+    field: 'totalProfit',
+    unit: 'CNY',
+    semantics: 'flow_ytd',
+  },
+  {
+    key: 'income.incomeTax',
+    statementKind: 'income',
+    field: 'incomeTax',
+    unit: 'CNY',
+    semantics: 'flow_ytd',
+  },
+  {
+    key: 'income.nIncome',
+    statementKind: 'income',
+    field: 'nIncome',
+    unit: 'CNY',
+    semantics: 'flow_ytd',
+  },
+  {
+    key: 'income.nIncomeAttrP',
+    statementKind: 'income',
+    field: 'nIncomeAttrP',
+    unit: 'CNY',
+    semantics: 'flow_ytd',
+  },
+  {
+    key: 'income.ebit',
+    statementKind: 'income',
+    field: 'ebit',
+    unit: 'CNY',
+    semantics: 'flow_ytd',
+  },
+  {
+    key: 'income.rdExp',
+    statementKind: 'income',
+    field: 'rdExp',
+    unit: 'CNY',
+    semantics: 'flow_ytd',
+  },
+  {
+    key: 'income.finExpIntExp',
+    statementKind: 'income',
+    field: 'finExpIntExp',
+    unit: 'CNY',
+    semantics: 'flow_ytd',
+  },
+  {
+    key: 'balance_sheet.moneyCap',
+    statementKind: 'balance_sheet',
+    field: 'moneyCap',
+    unit: 'CNY',
+    semantics: 'stock',
+  },
+  {
+    key: 'balance_sheet.tradAsset',
+    statementKind: 'balance_sheet',
+    field: 'tradAsset',
+    unit: 'CNY',
+    semantics: 'stock',
+  },
+  {
+    key: 'balance_sheet.notesReceiv',
+    statementKind: 'balance_sheet',
+    field: 'notesReceiv',
+    unit: 'CNY',
+    semantics: 'stock',
+  },
+  {
+    key: 'balance_sheet.accountsReceiv',
+    statementKind: 'balance_sheet',
+    field: 'accountsReceiv',
+    unit: 'CNY',
+    semantics: 'stock',
+  },
+  {
+    key: 'balance_sheet.accountsReceivBill',
+    statementKind: 'balance_sheet',
+    field: 'accountsReceivBill',
+    unit: 'CNY',
+    semantics: 'stock',
+  },
+  {
+    key: 'balance_sheet.othReceiv',
+    statementKind: 'balance_sheet',
+    field: 'othReceiv',
+    unit: 'CNY',
+    semantics: 'stock',
+  },
+  {
+    key: 'balance_sheet.othRcvTotal',
+    statementKind: 'balance_sheet',
+    field: 'othRcvTotal',
+    unit: 'CNY',
+    semantics: 'stock',
+  },
+  {
+    key: 'balance_sheet.inventories',
+    statementKind: 'balance_sheet',
+    field: 'inventories',
+    unit: 'CNY',
+    semantics: 'stock',
+  },
+  {
+    key: 'balance_sheet.prepayment',
+    statementKind: 'balance_sheet',
+    field: 'prepayment',
+    unit: 'CNY',
+    semantics: 'stock',
+  },
+  {
+    key: 'balance_sheet.contractAssets',
+    statementKind: 'balance_sheet',
+    field: 'contractAssets',
+    unit: 'CNY',
+    semantics: 'stock',
+  },
+  {
+    key: 'balance_sheet.othCurAssets',
+    statementKind: 'balance_sheet',
+    field: 'othCurAssets',
+    unit: 'CNY',
+    semantics: 'stock',
+  },
+  {
+    key: 'balance_sheet.totalCurAssets',
+    statementKind: 'balance_sheet',
+    field: 'totalCurAssets',
+    unit: 'CNY',
+    semantics: 'stock',
+  },
+  {
+    key: 'balance_sheet.fixAssets',
+    statementKind: 'balance_sheet',
+    field: 'fixAssets',
+    unit: 'CNY',
+    semantics: 'stock',
+  },
+  {
+    key: 'balance_sheet.fixAssetsTotal',
+    statementKind: 'balance_sheet',
+    field: 'fixAssetsTotal',
+    unit: 'CNY',
+    semantics: 'stock',
+  },
+  {
+    key: 'balance_sheet.cip',
+    statementKind: 'balance_sheet',
+    field: 'cip',
+    unit: 'CNY',
+    semantics: 'stock',
+  },
+  {
+    key: 'balance_sheet.cipTotal',
+    statementKind: 'balance_sheet',
+    field: 'cipTotal',
+    unit: 'CNY',
+    semantics: 'stock',
+  },
+  {
+    key: 'balance_sheet.intanAssets',
+    statementKind: 'balance_sheet',
+    field: 'intanAssets',
+    unit: 'CNY',
+    semantics: 'stock',
+  },
+  {
+    key: 'balance_sheet.goodwill',
+    statementKind: 'balance_sheet',
+    field: 'goodwill',
+    unit: 'CNY',
+    semantics: 'stock',
+  },
+  {
+    key: 'balance_sheet.deferTaxAssets',
+    statementKind: 'balance_sheet',
+    field: 'deferTaxAssets',
+    unit: 'CNY',
+    semantics: 'stock',
+  },
+  {
+    key: 'balance_sheet.othNca',
+    statementKind: 'balance_sheet',
+    field: 'othNca',
+    unit: 'CNY',
+    semantics: 'stock',
+  },
+  {
+    key: 'balance_sheet.totalNca',
+    statementKind: 'balance_sheet',
+    field: 'totalNca',
+    unit: 'CNY',
+    semantics: 'stock',
+  },
+  {
+    key: 'balance_sheet.totalAssets',
+    statementKind: 'balance_sheet',
+    field: 'totalAssets',
+    unit: 'CNY',
+    semantics: 'stock',
+  },
+  {
+    key: 'balance_sheet.notesPayable',
+    statementKind: 'balance_sheet',
+    field: 'notesPayable',
+    unit: 'CNY',
+    semantics: 'stock',
+  },
+  {
+    key: 'balance_sheet.acctPayable',
+    statementKind: 'balance_sheet',
+    field: 'acctPayable',
+    unit: 'CNY',
+    semantics: 'stock',
+  },
+  {
+    key: 'balance_sheet.accountsPay',
+    statementKind: 'balance_sheet',
+    field: 'accountsPay',
+    unit: 'CNY',
+    semantics: 'stock',
+  },
+  {
+    key: 'balance_sheet.advReceipts',
+    statementKind: 'balance_sheet',
+    field: 'advReceipts',
+    unit: 'CNY',
+    semantics: 'stock',
+  },
+  {
+    key: 'balance_sheet.contractLiab',
+    statementKind: 'balance_sheet',
+    field: 'contractLiab',
+    unit: 'CNY',
+    semantics: 'stock',
+  },
+  {
+    key: 'balance_sheet.payrollPayable',
+    statementKind: 'balance_sheet',
+    field: 'payrollPayable',
+    unit: 'CNY',
+    semantics: 'stock',
+  },
+  {
+    key: 'balance_sheet.taxesPayable',
+    statementKind: 'balance_sheet',
+    field: 'taxesPayable',
+    unit: 'CNY',
+    semantics: 'stock',
+  },
+  {
+    key: 'balance_sheet.othPayable',
+    statementKind: 'balance_sheet',
+    field: 'othPayable',
+    unit: 'CNY',
+    semantics: 'stock',
+  },
+  {
+    key: 'balance_sheet.othPayTotal',
+    statementKind: 'balance_sheet',
+    field: 'othPayTotal',
+    unit: 'CNY',
+    semantics: 'stock',
+  },
+  {
+    key: 'balance_sheet.stBorr',
+    statementKind: 'balance_sheet',
+    field: 'stBorr',
+    unit: 'CNY',
+    semantics: 'stock',
+  },
+  {
+    key: 'balance_sheet.nonCurLiabDue1y',
+    statementKind: 'balance_sheet',
+    field: 'nonCurLiabDue1y',
+    unit: 'CNY',
+    semantics: 'stock',
+  },
+  {
+    key: 'balance_sheet.ltBorr',
+    statementKind: 'balance_sheet',
+    field: 'ltBorr',
+    unit: 'CNY',
+    semantics: 'stock',
+  },
+  {
+    key: 'balance_sheet.bondPayable',
+    statementKind: 'balance_sheet',
+    field: 'bondPayable',
+    unit: 'CNY',
+    semantics: 'stock',
+  },
+  {
+    key: 'balance_sheet.othCurLiab',
+    statementKind: 'balance_sheet',
+    field: 'othCurLiab',
+    unit: 'CNY',
+    semantics: 'stock',
+  },
+  {
+    key: 'balance_sheet.totalCurLiab',
+    statementKind: 'balance_sheet',
+    field: 'totalCurLiab',
+    unit: 'CNY',
+    semantics: 'stock',
+  },
+  {
+    key: 'balance_sheet.othNcl',
+    statementKind: 'balance_sheet',
+    field: 'othNcl',
+    unit: 'CNY',
+    semantics: 'stock',
+  },
+  {
+    key: 'balance_sheet.totalNcl',
+    statementKind: 'balance_sheet',
+    field: 'totalNcl',
+    unit: 'CNY',
+    semantics: 'stock',
+  },
+  {
+    key: 'balance_sheet.totalLiab',
+    statementKind: 'balance_sheet',
+    field: 'totalLiab',
+    unit: 'CNY',
+    semantics: 'stock',
+  },
+  {
+    key: 'balance_sheet.minorityInt',
+    statementKind: 'balance_sheet',
+    field: 'minorityInt',
+    unit: 'CNY',
+    semantics: 'stock',
+  },
+  {
+    key: 'balance_sheet.totalHldrEqyExcMinInt',
+    statementKind: 'balance_sheet',
+    field: 'totalHldrEqyExcMinInt',
+    unit: 'CNY',
+    semantics: 'stock',
+  },
+  {
+    key: 'balance_sheet.totalShare',
+    statementKind: 'balance_sheet',
+    field: 'totalShare',
+    unit: 'shares',
+    semantics: 'stock',
+  },
+  {
+    key: 'cash_flow.nCashflowAct',
+    statementKind: 'cash_flow',
+    field: 'nCashflowAct',
+    unit: 'CNY',
+    semantics: 'flow_ytd',
+  },
+  {
+    key: 'cash_flow.cPayAcqConstFiolta',
+    statementKind: 'cash_flow',
+    field: 'cPayAcqConstFiolta',
+    unit: 'CNY',
+    semantics: 'flow_ytd',
+  },
+  {
+    key: 'cash_flow.nCashflowInvAct',
+    statementKind: 'cash_flow',
+    field: 'nCashflowInvAct',
+    unit: 'CNY',
+    semantics: 'flow_ytd',
+  },
+  {
+    key: 'cash_flow.nCashFlowsFncAct',
+    statementKind: 'cash_flow',
+    field: 'nCashFlowsFncAct',
+    unit: 'CNY',
+    semantics: 'flow_ytd',
+  },
+  {
+    key: 'cash_flow.cPayDistDpcpIntExp',
+    statementKind: 'cash_flow',
+    field: 'cPayDistDpcpIntExp',
+    unit: 'CNY',
+    semantics: 'flow_ytd',
+  },
+  {
+    key: 'cash_flow.nIncrCashCashEqu',
+    statementKind: 'cash_flow',
+    field: 'nIncrCashCashEqu',
+    unit: 'CNY',
+    semantics: 'flow_ytd',
+  },
+  {
+    key: 'cash_flow.cCashEquBegPeriod',
+    statementKind: 'cash_flow',
+    field: 'cCashEquBegPeriod',
+    unit: 'CNY',
+    semantics: 'stock',
+  },
+  {
+    key: 'cash_flow.cCashEquEndPeriod',
+    statementKind: 'cash_flow',
+    field: 'cCashEquEndPeriod',
+    unit: 'CNY',
+    semantics: 'stock',
+  },
+  {
+    key: 'cash_flow.netProfit',
+    statementKind: 'cash_flow',
+    field: 'netProfit',
+    unit: 'CNY',
+    semantics: 'flow_ytd',
+  },
+  {
+    key: 'cash_flow.deprFaCogaDpba',
+    statementKind: 'cash_flow',
+    field: 'deprFaCogaDpba',
+    unit: 'CNY',
+    semantics: 'flow_ytd',
+  },
+  {
+    key: 'cash_flow.amortIntangAssets',
+    statementKind: 'cash_flow',
+    field: 'amortIntangAssets',
+    unit: 'CNY',
+    semantics: 'flow_ytd',
+  },
+  {
+    key: 'cash_flow.freeCashflow',
+    statementKind: 'cash_flow',
+    field: 'freeCashflow',
+    unit: 'CNY',
+    semantics: 'flow_ytd',
+  },
+] as const;
+export type ResearchFinancialFieldV1 = (typeof RESEARCH_FINANCIAL_FIELDS_V1)[number]['key'];
+export const RESEARCH_FINANCIAL_PERIODS_V1 = ['reported', 'annual', 'quarterly', 'ttm'] as const;
+export type ResearchFinancialPeriodV1 = (typeof RESEARCH_FINANCIAL_PERIODS_V1)[number];
+
 export const RESEARCH_SERIES_ASSET_TYPES_V1 = ['stock', 'etf', 'index', 'future'] as const;
 export const RESEARCH_SERIES_FREQUENCIES_V1 = ['daily', 'monthly'] as const;
 export const RESEARCH_SERIES_TRANSFORMS_V1 = [
@@ -373,6 +842,28 @@ const riskWarningParameter = {
   descriptionEn:
     'Whether to exclude stocks under risk warning or pending delisting on the cross-section date.',
 } as const;
+
+const financialFieldsParameter = {
+  name: 'fields',
+  type: 'string_or_string_list',
+  required: true,
+  keywordOnly: true,
+  values: RESEARCH_FINANCIAL_FIELDS_V1.map((field) => field.key),
+  maximumItems: 16,
+  descriptionZh: '一个或最多16个明确映射的科目，使用表名.字段名，例如 income.revenue。',
+  descriptionEn:
+    'One to 16 explicitly mapped fields, qualified by statement kind, such as income.revenue.',
+} as const;
+const financialReportRangeParameters = ['report_start', 'report_end'].map((name) => ({
+  name,
+  type: 'date' as const,
+  required: false,
+  keywordOnly: true,
+  defaultValue: null,
+  descriptionZh: '可选报告期末边界（含），YYYYMMDD；不改变 as_of 可得时间。',
+  descriptionEn:
+    'Optional inclusive reporting-period boundary, YYYYMMDD; does not change as_of availability.',
+}));
 
 const financialMetricSelectionParameter = {
   name: 'metrics',
@@ -859,8 +1350,8 @@ export const RESEARCH_FINANCIAL_STATEMENT_COLUMNS_V1 = [
     name: 'field',
     wireType: 'string',
     pythonType: 'str',
-    descriptionZh: 'M2 类型化财报科目名。',
-    descriptionEn: 'The typed M2 statement field name.',
+    descriptionZh: '明确映射的财报科目名。',
+    descriptionEn: 'Explicitly mapped statement field name.',
   },
   {
     name: 'value',
@@ -912,6 +1403,56 @@ export const RESEARCH_FINANCIAL_STATEMENT_COLUMNS_V1 = [
     descriptionEn: 'Immutable source-row fingerprint.',
   },
 ] as const satisfies readonly ResearchSdkDataFrameColumnContractV1[];
+
+export const RESEARCH_FINANCIAL_VALUE_COLUMNS_V1 = [
+  ...RESEARCH_FINANCIAL_STATEMENT_COLUMNS_V1.filter(
+    (column) =>
+      ![
+        'report_period',
+        'announcement_date',
+        'available_date',
+        'availability_quality',
+        'report_type',
+        'source_row_fingerprint',
+      ].includes(column.name),
+  ),
+  ...['report_period', 'available_date'].map((name) => ({
+    name,
+    wireType: 'nullable_trade_date' as const,
+    pythonType: 'datetime64[ns]',
+    descriptionZh: '报告期末或全部计算输入最晚可得日；缺失时为空。',
+    descriptionEn:
+      'Reporting-period end or latest availability of all calculation inputs; nullable when missing.',
+  })),
+  ...[
+    [
+      'period_basis',
+      'reported、annual、quarterly、ttm或point_in_time。',
+      'reported, annual, quarterly, ttm, or point_in_time.',
+    ],
+    ['status', 'ok或missing；保留失败行。', 'ok or missing; failed observations remain visible.'],
+    ['formula', '公开的口径转换公式。', 'Explicit period-conversion formula.'],
+    [
+      'formula_version',
+      '口径转换版本financial-values-v1。',
+      'Period-conversion version financial-values-v1.',
+    ],
+    ['input_versions_json', '输入来源指纹的JSON数组。', 'JSON array of input source fingerprints.'],
+  ].map(([name, descriptionZh, descriptionEn]) => ({
+    name,
+    wireType: 'string' as const,
+    pythonType: 'str',
+    descriptionZh,
+    descriptionEn,
+  })),
+  {
+    name: 'missing_reason',
+    wireType: 'nullable_string',
+    pythonType: 'str | None',
+    descriptionZh: '缺失、版本歧义或来源未接入的原因。',
+    descriptionEn: 'Reason for missing data, ambiguous versions, or an unintegrated source.',
+  },
+] satisfies readonly ResearchSdkDataFrameColumnContractV1[];
 
 export const RESEARCH_FINANCIAL_METRIC_COLUMNS_V1 = [
   {
@@ -2200,11 +2741,13 @@ export const RESEARCH_SDK_CONTRACT_V1 = {
       examples: ['data.equity_financial_statements("000858.SZ", as_of="20240429")'],
       notesZh: [
         '返回 report_period × statement_kind × field 长表；严格 PIT 排除 reconstructed 版本。',
-        'V1 工业企业口径不适用于银行和非银金融，遇到金融行业会明确拒绝。',
+        '数据读取不以 FCFF 模型适用性为门槛；金融企业来源映射尚未接入，无已接入报表时返回空表。',
+        'fields 使用表名.字段名，返回 field 列保留原字段名；省略筛选参数时保持原调用语义。',
       ],
       notesEn: [
         'Returns a report_period-by-statement_kind-by-field long frame; strict PIT excludes reconstructed versions.',
-        'The V1 industrial-company model explicitly rejects banks and non-bank financial companies.',
+        'Reading statements does not require FCFF applicability; financial-sector source mappings are not integrated and return an empty frame when no integrated statements exist.',
+        'fields uses statement_kind.field; the returned field column keeps the unqualified field name. Omitted filters preserve existing calls.',
       ],
       parameters: [
         {
@@ -2224,6 +2767,8 @@ export const RESEARCH_SDK_CONTRACT_V1 = {
           descriptionZh: '历史估值日，格式 YYYYMMDD。',
           descriptionEn: 'Historical research as-of date in YYYYMMDD format.',
         },
+        { ...financialFieldsParameter, required: false, defaultValue: null },
+        ...financialReportRangeParameters,
       ],
       returns: { kind: 'dataframe', columns: RESEARCH_FINANCIAL_STATEMENT_COLUMNS_V1 },
     },
@@ -2648,6 +3193,70 @@ export const RESEARCH_SDK_CONTRACT_V1 = {
       ],
       returns: { kind: 'chart' },
     },
+    {
+      qualifiedName: 'data.equity_financial_values',
+      namespace: 'data',
+      name: 'equity_financial_values',
+      descriptionZh: '按同一历史可用日批量读取自选财报科目，并选择原报表、年度、单季度或TTM口径。',
+      descriptionEn:
+        'Read selected financial fields for a bounded stock list at one historical as-of date, with reported, annual, quarterly, or TTM values.',
+      examples: [
+        'data.equity_financial_values(["000858.SZ", "600519.SH"], as_of="20260506", fields=["income.revenue", "balance_sheet.totalAssets"], report_start="20230101", report_end="20251231", period="annual")',
+      ],
+      notesZh: [
+        '最多100只股票、16个科目、20年报告期及100000行；股票列表由用户选择，不自动构成历史股票池。',
+        'annual只选12月年报；quarterly对累计流量做季度差分，ttm复用连续季度内核；缺数不填零。',
+        '资产负债表及现金期初/期末余额始终保留原报表时点，不做差分、求和或自动平均，period_basis为point_in_time。',
+        '所有输入版本都须在as_of当时可得；这是固定时点的报告期序列，不是各历史月末当时可得的面板。',
+        '返回状态、原因、公式、来源版本及可得日；金融企业数据未接入与工业模型不适用是两回事。',
+      ],
+      notesEn: [
+        'At most 100 identifiers, 16 fields, 20 reporting years, and 100000 rows. A user-supplied list is not a historical universe.',
+        'annual selects December annual reports; quarterly differences YTD flows; ttm reuses the continuous-quarter kernel. Missing values are never zero-filled.',
+        'Balance-sheet and beginning/ending cash stocks retain their reported observation, without differencing, summing, or averaging; period_basis is point_in_time.',
+        'Every input must be available by as_of. Reporting-period history at one fixed cutoff is not a historical month-end PIT panel.',
+        'Preserves status, reasons, formulas, source versions, and availability. Unintegrated financial-sector data is distinct from industrial-model applicability.',
+      ],
+      parameters: [
+        {
+          name: 'identifiers',
+          type: 'string_or_string_list',
+          required: true,
+          keywordOnly: false,
+          maximumItems: 100,
+          maximumLength: 80,
+          descriptionZh: '一只或最多100只A股代码。',
+          descriptionEn: 'One or at most 100 A-share identifiers.',
+        },
+        {
+          name: 'as_of',
+          type: 'date',
+          required: true,
+          keywordOnly: true,
+          descriptionZh: '历史可用日，YYYYMMDD。',
+          descriptionEn: 'Historical availability cutoff, YYYYMMDD.',
+        },
+        financialFieldsParameter,
+        ...financialReportRangeParameters.map((parameter) => ({
+          ...parameter,
+          required: true,
+          defaultValue: undefined,
+          descriptionZh: '报告期末边界（含），YYYYMMDD。',
+          descriptionEn: 'Inclusive reporting-period boundary, YYYYMMDD.',
+        })),
+        {
+          name: 'period',
+          type: 'enum',
+          required: false,
+          keywordOnly: true,
+          defaultValue: 'reported',
+          values: RESEARCH_FINANCIAL_PERIODS_V1,
+          descriptionZh: '流量计算口径；annual同时仅选择12月年报。',
+          descriptionEn: 'Flow basis; annual also selects only December annual reports.',
+        },
+      ],
+      returns: { kind: 'dataframe', columns: RESEARCH_FINANCIAL_VALUE_COLUMNS_V1 },
+    },
   ],
 } as const satisfies ResearchSdkContractV1;
 
@@ -2681,3 +3290,7 @@ export const RESEARCH_FINANCIAL_PANEL_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1
 export const RESEARCH_FCFF_SCENARIOS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[25];
 export const RESEARCH_IMPLIED_REVENUE_GROWTH_SDK_CONTRACT_V1 =
   RESEARCH_SDK_CONTRACT_V1.functions[26];
+
+export const RESEARCH_FINANCIAL_VALUES_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions.find(
+  (method) => method.qualifiedName === 'data.equity_financial_values',
+)!;

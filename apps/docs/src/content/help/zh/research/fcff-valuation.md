@@ -1,5 +1,7 @@
 # 用 FCFF 模板研究公司估值
 
+FCFF 是可选研究模板。你也可以直接查询财报、比较指标或自写计算；平台负责数据处理和公式实现，方法、假设和结论由你决定。市场是否兑现估值不是使用本工具的前提。参见[自主分析财报数据](/docs/help/research/financial-data)。
+
 Research 首页的“FCFF 公司估值模板”会建立一份可以查看、修改、完整运行和封存的 Markdown/Python 文档。
 模板默认使用五粮液作为真实示例，但示例参数不是平台预测、目标价或买卖建议。
 
@@ -53,7 +55,7 @@ WACC 和永续增长变化对结果的影响。
 
 ## 复用计算与适用边界
 
-在 Research Python Cell 中可直接调用以下方法，完整参数和返回列见 [Research SDK 参考](/docs/sdk)：
+在 Research Python Cell 中可直接调用以下方法，完整参数和返回列见 [Research SDK 参考](/docs/sdk?runtime=research)：
 
 ```python
 forecasts = valuation.fcff_scenarios(base, scenarios, bridge, forecast_years=5)

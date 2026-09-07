@@ -1,4 +1,8 @@
-import { RESEARCH_FINANCIAL_METRICS_V1, type ResearchFinancialMetricV1 } from '@jixie/shared';
+import {
+  RESEARCH_FINANCIAL_FIELDS_V1,
+  RESEARCH_FINANCIAL_METRICS_V1,
+  type ResearchFinancialMetricV1,
+} from '@jixie/shared';
 import type { PrismaClient } from '@prisma/client';
 
 import {
@@ -32,6 +36,12 @@ const FINANCIAL_METRIC_SET = new Set<string>(RESEARCH_FINANCIAL_METRICS_V1);
 export interface ResearchSingleFinancialRequestV1 {
   identifier: string;
   as_of: string;
+}
+
+export interface ResearchFinancialStatementRequestV1 extends ResearchSingleFinancialRequestV1 {
+  fields?: string | string[];
+  report_start?: string;
+  report_end?: string;
 }
 
 export interface ResearchFinancialCrossSectionRequestV1 extends ResearchCrossSectionRequestV1 {
@@ -78,21 +88,31 @@ export interface ResearchFinancialMetricRowV1 {
 
 /** Return the strict-PIT statement state as one stable, typed long table. */
 export async function loadResearchFinancialStatements(
-  request: ResearchSingleFinancialRequestV1,
+  request: ResearchFinancialStatementRequestV1,
   database: PrismaClient = prisma,
 ): Promise<ResearchFinancialStatementRowV1[]> {
+  const selectedFields = normalizeFinancialFields(request.fields);
+  validateFinancialReportRange(request.as_of);
+  validateFinancialReportRange(request.report_start, request.report_end);
   const state = await resolveFinancialState(
-    { tsCode: request.identifier, asOfDate: request.as_of },
+    { tsCode: request.identifier, asOfDate: request.as_of, purpose: 'statements' },
     database,
   );
-  if (state.applicability === 'unsupported_financial') {
-    throw new Error('Industrial-company financial statements do not apply to financial companies');
-  }
-  const rows = state.periods.flatMap((period) =>
-    [period.income, period.balanceSheet, period.cashFlow].flatMap((statement) =>
-      statement ? statementRows(state, statement) : [],
-    ),
-  );
+  const rows = state.periods
+    .filter(
+      (period) =>
+        (!request.report_start || period.endDate >= request.report_start) &&
+        (!request.report_end || period.endDate <= request.report_end),
+    )
+    .flatMap((period) =>
+      [period.income, period.balanceSheet, period.cashFlow].flatMap((statement) =>
+        statement
+          ? statementRows(state, statement).filter(
+              (row) => !selectedFields || selectedFields.has(`${row.statement_kind}.${row.field}`),
+            )
+          : [],
+      ),
+    );
   assertRowLimit(rows.length, MAX_FINANCIAL_STATEMENT_ROWS, 'financial statement');
   return rows;
 }
@@ -290,5 +310,42 @@ function normalizeSelectedMetrics(
 function assertRowLimit(rows: number, limit: number, label: string): void {
   if (rows > limit) {
     throw new Error(`${label} contains ${rows} rows; the limit is ${limit}`);
+  }
+}
+
+export function normalizeFinancialFields(input?: string | string[]): Set<string> | undefined {
+  if (input === undefined) {
+    return undefined;
+  }
+  const fields = typeof input === 'string' ? [input] : input;
+  const allowed = new Set<string>(RESEARCH_FINANCIAL_FIELDS_V1.map((field) => field.key));
+  if (
+    fields.length < 1 ||
+    fields.length > 16 ||
+    new Set(fields).size !== fields.length ||
+    fields.some((field) => !allowed.has(field))
+  ) {
+    throw new Error('Select 1-16 unique mapped financial fields using statement_kind.field.');
+  }
+  return new Set(fields);
+}
+
+export function validateFinancialReportRange(start?: string, end?: string): void {
+  for (const date of [start, end]) {
+    if (date !== undefined) {
+      const parsed = new Date(
+        date.slice(0, 4) + '-' + date.slice(4, 6) + '-' + date.slice(6, 8) + 'T00:00:00Z',
+      );
+      if (
+        !/^\d{8}$/.test(date) ||
+        !Number.isFinite(parsed.getTime()) ||
+        parsed.toISOString().slice(0, 10).replaceAll('-', '') !== date
+      ) {
+        throw new Error('Financial dates must be valid YYYYMMDD dates.');
+      }
+    }
+  }
+  if (start && end && start > end) {
+    throw new Error('report_start must not exceed report_end.');
   }
 }

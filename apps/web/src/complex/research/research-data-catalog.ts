@@ -6,6 +6,8 @@ import type {
   ResearchDataCatalogInstrumentV1,
   ResearchDataCatalogStrategyScanReportV1,
   ResearchFinancialMetricV1,
+  ResearchFinancialFieldV1,
+  ResearchFinancialPeriodV1,
   ResearchFrequencyV1,
   ResearchTransformV1,
 } from '@jixie/shared';
@@ -16,6 +18,10 @@ export interface ResearchDatasetSnippetOptions {
   end: string;
   identifier?: string;
   metrics?: ResearchFinancialMetricV1[];
+  fields?: ResearchFinancialFieldV1[];
+  period?: ResearchFinancialPeriodV1;
+  reportStart?: string;
+  reportEnd?: string;
 }
 
 export interface ResearchSeriesSnippetOptions {
@@ -97,7 +103,20 @@ export function researchDatasetSnippet(options: ResearchDatasetSnippetOptions): 
     minimum_listed_days=365,
     risk_warning="exclude",
 )`;
+    case 'data.equity_financial_values':
+      return `${variable} = data.equity_financial_values(
+    ${JSON.stringify((options.identifier ?? dataset.identifier).split(/[,，\s]+/).filter(Boolean))},
+    as_of=${JSON.stringify(end)},
+    fields=${JSON.stringify(options.fields ?? ['income.revenue', 'balance_sheet.totalAssets'])},
+    report_start=${JSON.stringify(options.reportStart ?? start)},
+    report_end=${JSON.stringify(options.reportEnd ?? end)},
+    period=${JSON.stringify(options.period ?? 'annual')},
+)`;
     case 'data.equity_financial_statements':
+      return `${variable} = data.equity_financial_statements(
+    ${JSON.stringify(options.identifier ?? dataset.identifier)},
+    as_of=${JSON.stringify(end)},${options.fields?.length ? '\n    fields=' + JSON.stringify(options.fields) + ',' : ''}${options.reportStart ? '\n    report_start=' + JSON.stringify(options.reportStart) + ',' : ''}${options.reportEnd ? '\n    report_end=' + JSON.stringify(options.reportEnd) + ',' : ''}
+)`;
     case 'data.equity_financial_metrics':
       return `${variable} = ${dataset.method}(
     ${JSON.stringify(options.identifier ?? dataset.identifier)},
@@ -190,6 +209,8 @@ function researchDatasetVariableName(
         return `${dataset.product}_${dataset.method.replace('data.commodity_', '')}`;
       case 'data.market_state':
         return `market_state_${dataset.scope}`;
+      case 'data.equity_financial_values':
+        return 'financial_values';
       case 'data.etf_shares':
       case 'data.index_valuation':
       case 'data.industry_state':

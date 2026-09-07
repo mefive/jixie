@@ -65,6 +65,7 @@ try {
     'equity_financial_metrics',
     'equity_financial_cross_section',
     'equity_financial_panel',
+    'equity_financial_values',
   ]) {
     await page.getByTestId(`research-data-catalog-method-${method}`).waitFor();
   }
@@ -187,6 +188,29 @@ try {
   await config.scrollIntoViewIfNeeded();
   await drawer.screenshot({ path: `${SHOTS}research-data-catalog-financial-metrics.png` });
 
+  await drawer
+    .getByRole('textbox', { name: '搜索市场、指数、期限或数据读取方式' })
+    .fill('自选财报科目');
+  await page.getByTestId('research-data-catalog-dataset-data.equity_financial_values').click();
+  await config.waitFor();
+  await config.getByRole('textbox').first().fill('000858.SZ,600519.SH');
+  const valuesPreview = await config.locator('pre').innerText();
+  for (const expected of [
+    'data.equity_financial_values(',
+    '["000858.SZ","600519.SH"]',
+    'report_start=',
+    'report_end=',
+    'as_of=',
+    'period="annual"',
+    'balance_sheet.totalAssets',
+  ]) {
+    if (!valuesPreview.includes(expected)) {
+      throw new Error(`Missing financial query option: ${expected}`);
+    }
+  }
+  await config.scrollIntoViewIfNeeded();
+  await config.screenshot({ path: `${SHOTS}research-data-catalog-financial-values.png` });
+
   const insert = page.getByTestId('research-data-catalog-insert');
   if (!(await insert.isEnabled())) {
     throw new Error('A locally covered dataset must be insertable into Research.');
@@ -195,7 +219,7 @@ try {
   await page.getByText('已插入当前 Python Cell', { exact: true }).waitFor({ timeout: 10_000 });
 
   console.log(
-    `[research-data-catalog-e2e] datasetMethods=20 coverage=${coverageText} financial=true inserted=true screenshots=8`,
+    `[research-data-catalog-e2e] datasetMethods=21 coverage=${coverageText} financial=true inserted=true screenshots=9`,
   );
 } finally {
   if (documentId) {

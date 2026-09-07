@@ -1,3 +1,7 @@
+import {
+  loadResearchFinancialValues,
+  type ResearchFinancialValuesRequestV1,
+} from './financial-values.js';
 import type { ResearchCellOutputBlockV1, ResearchSeriesInputSpecV1 } from '@jixie/shared';
 import {
   researchAnalysisFrameSchema,
@@ -66,6 +70,8 @@ import {
   parseResearchFinancialMetricsRuntimeRows,
   parseResearchFinancialPanelRuntimeRequest,
   parseResearchFinancialStatementsRuntimeRequest,
+  parseResearchFinancialValuesRuntimeRequest,
+  parseResearchFinancialValuesRuntimeRows,
   parseResearchFinancialStatementsRuntimeRows,
   parseResearchFxRuntimeRequest,
   parseResearchFuturesSettlementRuntimeRequest,
@@ -157,6 +163,7 @@ export interface ResearchPythonEquityRequest {
     | 'index_valuation'
     | 'industry_state'
     | 'futures_settlement'
+    | 'equity_financial_values'
     | 'equity_financial_statements'
     | 'equity_financial_metrics'
     | 'equity_financial_cross_section'
@@ -534,6 +541,10 @@ type ParsedResearchRequest =
       arguments: ResearchDatedIdentifierRuntimeRequestV1;
     })
   | (Omit<ResearchRequestFrame, 'method' | 'arguments'> & {
+      method: 'research_equity_financial_values';
+      arguments: ResearchFinancialValuesRequestV1;
+    })
+  | (Omit<ResearchRequestFrame, 'method' | 'arguments'> & {
       method: 'research_equity_financial_statements' | 'research_equity_financial_metrics';
       arguments: ResearchSingleFinancialRuntimeRequestV1;
     })
@@ -676,6 +687,13 @@ function parseResearchRequestFrame(frame: ResearchRequestFrame): ParsedResearchR
         id: frame.id,
         method: 'research_futures_settlement',
         arguments: parseResearchFuturesSettlementRuntimeRequest(frame.arguments),
+      };
+    case 'research_equity_financial_values':
+      return {
+        type: frame.type,
+        id: frame.id,
+        method: 'research_equity_financial_values',
+        arguments: parseResearchFinancialValuesRuntimeRequest(frame.arguments),
       };
     case 'research_equity_financial_statements':
       return {
@@ -927,6 +945,14 @@ async function answerResearchRequest(
         result = {
           rows: parseResearchFuturesSettlementRuntimeRows(
             await loadResearchFuturesSettlement(frame.arguments),
+          ),
+        };
+        break;
+      }
+      case 'research_equity_financial_values': {
+        result = {
+          rows: parseResearchFinancialValuesRuntimeRows(
+            await loadResearchFinancialValues(frame.arguments),
           ),
         };
         break;

@@ -43,7 +43,7 @@ ETF 也使用这一入口，例如 `data.series("etf", "510300.SH", ...)` 返回
 
 ### 版本化财报与标准化财务指标
 
-基本面研究有四个专用入口，不需要写 SQL：
+基本面研究提供原始财报、批量自选科目、指标、截面和Panel入口，不需要写SQL。自选字段和年度/单季/TTM操作见[自主分析财报数据](/docs/help/research/financial-data)。以下是原有四个入口：
 
 ```python
 statements = data.equity_financial_statements("000858.SZ", as_of="20240429")
@@ -68,7 +68,7 @@ M2 的全部标准化指标。截面和 Panel 一次最多选择 8 个指标，�
 
 指标表必须结合 `value`、`unit`、`status` 和 `missing_reason` 解读，并保留 `formula_version` 与
 `input_versions_json`。`ratio=1` 表示 100%。缺季度、缺科目和无效分母不会被补成零；银行和非银金融在工业企业
-指标中保留为 `not_applicable`，单股工业企业财报入口会明确拒绝这类公司。
+指标中保留为 `not_applicable`。原始财报查询与模型适用性分开；金融企业来源尚未接入，没有已接入报表时返回空表。批量自选科目接口会明确返回来源未接入的原因。
 
 ### 美国国债收益率曲线
 

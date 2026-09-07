@@ -1,3 +1,9 @@
+import {
+  RESEARCH_FINANCIAL_FIELDS_V1,
+  RESEARCH_FINANCIAL_PERIODS_V1,
+  type ResearchFinancialFieldV1,
+  type ResearchFinancialPeriodV1,
+} from '@jixie/shared';
 import { useEffect, useMemo, useState } from 'react';
 import {
   App,
@@ -93,6 +99,15 @@ export const ResearchDataCatalogDrawer = complex.component(
     const [frequency, setFrequency] = useState<ResearchFrequencyV1>('daily');
     const [transform, setTransform] = useState<ResearchTransformV1>('level');
     const [financialIdentifier, setFinancialIdentifier] = useState('000858.SZ');
+    const [financialFields, setFinancialFields] = useState<ResearchFinancialFieldV1[]>([
+      'income.revenue',
+      'balance_sheet.totalAssets',
+    ]);
+    const [financialPeriod, setFinancialPeriod] = useState<ResearchFinancialPeriodV1>('annual');
+    const [reportDates, setReportDates] = useState<[Dayjs, Dayjs]>([
+      dayjs().subtract(5, 'year').startOf('year'),
+      dayjs().subtract(1, 'year').endOf('year'),
+    ]);
     const [financialMetrics, setFinancialMetrics] = useState<ResearchFinancialMetricV1[]>([
       'revenueGrowthYoY',
       'returnOnInvestedCapital',
@@ -156,13 +171,19 @@ export const ResearchDataCatalogDrawer = complex.component(
             ? selectedDataset &&
               selectedDataset.localDataCoverage.status === 'ready' &&
               (!isSingleStockFinancialDataset(selectedDataset) || financialIdentifier) &&
-              (!isFinancialUniverseDataset(selectedDataset) || financialMetrics.length > 0)
+              (!isFinancialUniverseDataset(selectedDataset) || financialMetrics.length > 0) &&
+              (selectedDataset.method !== 'data.equity_financial_values' ||
+                financialFields.length > 0)
               ? researchDatasetSnippet({
                   dataset: selectedDataset,
                   start: dates[0].format('YYYYMMDD'),
                   end: dates[1].format('YYYYMMDD'),
                   identifier: financialIdentifier,
                   metrics: financialMetrics,
+                  fields: financialFields,
+                  period: financialPeriod,
+                  reportStart: reportDates[0].format('YYYYMMDD'),
+                  reportEnd: reportDates[1].format('YYYYMMDD'),
                 })
               : ''
             : selected && measureId && selected.sdkAccess?.status !== 'not_ready'
@@ -193,6 +214,12 @@ export const ResearchDataCatalogDrawer = complex.component(
     };
     const chooseDataset = (dataset: ResearchDataCatalogDatasetV1) => {
       setSelectedDataset(dataset);
+      if (dataset.method === 'data.equity_financial_statements') {
+        setFinancialFields([]);
+      }
+      if (dataset.method === 'data.equity_financial_values') {
+        setFinancialFields(['income.revenue', 'balance_sheet.totalAssets']);
+      }
       if (isSingleStockFinancialDataset(dataset)) {
         setFinancialIdentifier(dataset.identifier);
       }
@@ -624,13 +651,66 @@ export const ResearchDataCatalogDrawer = complex.component(
                 </div>
                 {isSingleStockFinancialDataset(selectedDataset) && (
                   <label>
-                    <span>{t('dataCatalog.stockCode')}</span>
+                    <span>
+                      {t(
+                        selectedDataset.method === 'data.equity_financial_values'
+                          ? 'dataCatalog.stockCodes'
+                          : 'dataCatalog.stockCode',
+                      )}
+                    </span>
                     <Input
                       value={financialIdentifier}
-                      maxLength={20}
+                      maxLength={
+                        selectedDataset.method === 'data.equity_financial_values' ? 1600 : 20
+                      }
                       onChange={(event) => setFinancialIdentifier(event.target.value.trim())}
                     />
                   </label>
+                )}
+                {(selectedDataset.method === 'data.equity_financial_values' ||
+                  selectedDataset.method === 'data.equity_financial_statements') && (
+                  <>
+                    <label>
+                      <span>{t('dataCatalog.financialFields')}</span>
+                      <Select<ResearchFinancialFieldV1[]>
+                        mode="multiple"
+                        className="jx-researchDataCatalog-fullControl"
+                        maxCount={16}
+                        value={financialFields}
+                        options={RESEARCH_FINANCIAL_FIELDS_V1.map((field) => ({
+                          value: field.key,
+                          label: field.key,
+                        }))}
+                        onChange={setFinancialFields}
+                      />
+                    </label>
+                    <label>
+                      <span>{t('dataCatalog.reportPeriod')}</span>
+                      <DatePicker.RangePicker
+                        allowClear={false}
+                        value={reportDates}
+                        onChange={(value) => {
+                          if (value?.[0] && value[1]) {
+                            setReportDates([value[0], value[1]]);
+                          }
+                        }}
+                      />
+                    </label>
+                    {selectedDataset.method === 'data.equity_financial_values' && (
+                      <label>
+                        <span>{t('dataCatalog.financialPeriod')}</span>
+                        <Select
+                          value={financialPeriod}
+                          options={RESEARCH_FINANCIAL_PERIODS_V1.map((value) => ({
+                            value,
+                            label: t(`dataCatalog.periodBasis.${value}`),
+                          }))}
+                          onChange={setFinancialPeriod}
+                        />
+                      </label>
+                    )}
+                    <p>{t('dataCatalog.financialTimeHint')}</p>
+                  </>
                 )}
                 {isFinancialUniverseDataset(selectedDataset) && (
                   <label>
@@ -1010,7 +1090,10 @@ export const ResearchDataCatalogDrawer = complex.component(
 );
 
 type SingleStockFinancialDataset = ResearchDataCatalogDatasetV1 & {
-  method: 'data.equity_financial_statements' | 'data.equity_financial_metrics';
+  method:
+    | 'data.equity_financial_values'
+    | 'data.equity_financial_statements'
+    | 'data.equity_financial_metrics';
   identifier: string;
 };
 
@@ -1023,6 +1106,7 @@ function isSingleStockFinancialDataset(
   dataset: ResearchDataCatalogDatasetV1,
 ): dataset is SingleStockFinancialDataset {
   return (
+    dataset.method === 'data.equity_financial_values' ||
     dataset.method === 'data.equity_financial_statements' ||
     dataset.method === 'data.equity_financial_metrics'
   );
@@ -1040,6 +1124,7 @@ function isFinancialUniverseDataset(
 function isSingleDateDataset(dataset: ResearchDataCatalogDatasetV1): boolean {
   return (
     dataset.method === 'data.cross_section' ||
+    dataset.method === 'data.equity_financial_values' ||
     dataset.method === 'data.equity_financial_statements' ||
     dataset.method === 'data.equity_financial_metrics' ||
     dataset.method === 'data.equity_financial_cross_section'

@@ -273,6 +273,7 @@ export type ResearchDataCatalogDatasetV1 =
         | 'data.index_valuation'
         | 'data.industry_state'
         | 'data.futures_settlement'
+        | 'data.equity_financial_values'
         | 'data.equity_financial_statements'
         | 'data.equity_financial_metrics';
       identifier: string;

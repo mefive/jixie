@@ -8,8 +8,10 @@ import './public-docs-header.css';
 
 export const PublicDocsHeader = observer(function PublicDocsHeader({
   current,
+  sdkKind,
 }: {
   current: 'help' | 'sdk';
+  sdkKind?: 'research';
 }) {
   const locale = localeStore.locale;
   const t = (zh: string, en: string) => (locale === 'zh' ? zh : en);
@@ -23,7 +25,11 @@ export const PublicDocsHeader = observer(function PublicDocsHeader({
       >
         <img className="jx-publicDocsHeader-banner" src={banner} alt={t('机械交易系', 'Jixie')} />
         <span className="jx-publicDocsHeader-brandSub">
-          {current === 'help' ? t('· 使用帮助', '· Help') : t('· 策略 SDK', '· Strategy SDK')}
+          {current === 'help'
+            ? t('· 使用帮助', '· Help')
+            : sdkKind === 'research'
+              ? t('· 研究 SDK', '· Research SDK')
+              : t('· 策略 SDK', '· Strategy SDK')}
         </span>
       </a>
 

@@ -127,8 +127,12 @@ export const FINANCIAL_STATEMENT_FIELDS: readonly FinancialSourceFieldDefinition
     ['n_cash_flows_fnc_act', 'net_cash_flow_from_financing_activities'],
     ['c_pay_dist_dpcp_int_exp', 'cash_paid_for_distributions_and_interest'],
     ['n_incr_cash_cash_equ', 'net_increase_in_cash_and_cash_equivalents'],
+  ]),
+  ...fields('cash_flow', 'stock', 'CNY', [
     ['c_cash_equ_beg_period', 'cash_and_cash_equivalents_at_period_start'],
     ['c_cash_equ_end_period', 'cash_and_cash_equivalents_at_period_end'],
+  ]),
+  ...fields('cash_flow', 'flow_ytd', 'CNY', [
     ['net_profit', 'net_profit_cash_flow_reconciliation'],
     ['depr_fa_coga_dpba', 'depreciation_of_fixed_and_biological_assets'],
     ['amort_intang_assets', 'amortization_of_intangible_assets'],

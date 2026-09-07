@@ -174,7 +174,7 @@ const QUALITY_PRIORITY: Record<FinancialAvailabilityQuality, number> = {
 
 /** Resolve the independently versioned statements that were usable on a historical date. */
 export async function resolveFinancialState(
-  input: { tsCode: string; asOfDate: string },
+  input: { tsCode: string; asOfDate: string; purpose?: 'metrics' | 'statements' },
   database: FinancialResolverDatabase = prisma,
 ): Promise<ResolvedFinancialState> {
   assertTsCode(input.tsCode);
@@ -209,6 +209,7 @@ export async function resolveFinancialState(
   return buildFinancialState({
     tsCode,
     asOfDate: input.asOfDate,
+    purpose: input.purpose,
     incomeRows: incomeRows.map(mapIncome),
     balanceRows: balanceRows.map(mapBalance),
     cashFlowRows: cashFlowRows.map(mapCashFlow),
@@ -229,6 +230,9 @@ export async function resolveFinancialStates(
     tsCodes: readonly string[];
     asOfDate: string;
     markets?: readonly BatchFinancialMarketSnapshot[];
+    purpose?: 'metrics' | 'statements';
+    reportStart?: string;
+    reportEnd?: string;
   },
   database: FinancialResolverDatabase = prisma,
 ): Promise<ResolvedFinancialState[]> {
@@ -245,7 +249,10 @@ export async function resolveFinancialStates(
   const commonWhere = {
     tsCode: { in: tsCodes },
     availableDate: { lte: input.asOfDate },
-    endDate: { gte: financialBatchLookbackStart(input.asOfDate) },
+    endDate: {
+      gte: input.reportStart ?? financialBatchLookbackStart(input.asOfDate),
+      ...(input.reportEnd ? { lte: input.reportEnd } : {}),
+    },
     compType: '1',
     reportType: { in: ['1', '4', '5'] },
   };
@@ -280,6 +287,7 @@ export async function resolveFinancialStates(
     buildFinancialState({
       tsCode,
       asOfDate: input.asOfDate,
+      purpose: input.purpose,
       incomeRows: incomeByCode.get(tsCode) ?? [],
       balanceRows: balanceByCode.get(tsCode) ?? [],
       cashFlowRows: cashFlowByCode.get(tsCode) ?? [],
@@ -290,6 +298,7 @@ export async function resolveFinancialStates(
 }
 
 function buildFinancialState(input: {
+  purpose?: 'metrics' | 'statements';
   tsCode: string;
   asOfDate: string;
   incomeRows: ResolvedIncomeStatement[];
@@ -335,7 +344,8 @@ function buildFinancialState(input: {
     strictPit: true,
     industry,
     applicability,
-    periods: applicability === 'unsupported_financial' ? [] : periods,
+    periods:
+      applicability === 'unsupported_financial' && input.purpose !== 'statements' ? [] : periods,
     market,
     diagnostics,
   };

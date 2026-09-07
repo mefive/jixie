@@ -2,6 +2,8 @@
 
 The **Data catalog** shows the instruments, measures, and calls supported by the current research runtime. Do not guess field names from memory. Confirm them in the catalog, then insert the generated code into a Python Cell.
 
+Use [selected financial fields](/docs/help/research/financial-data) for batch queries with annual, quarterly, TTM, or reported values.
+
 ## Search and insert
 
 1. Open a research document.
@@ -43,7 +45,7 @@ The catalog shows only the date range jointly supported by local price, valuatio
 
 ### Versioned statements and standardized financial metrics
 
-Fundamental research has four dedicated methods, with no SQL required:
+Fundamental research provides original statements, selected fields, metrics, cross-sections, and Panels without SQL. See [Analyze financial data](/docs/help/research/financial-data) for batch field queries and period bases. The original four entry points remain available:
 
 ```python
 statements = data.equity_financial_statements("000858.SZ", as_of="20240429")
@@ -69,8 +71,7 @@ they use batch database reads instead of per-equity queries.
 
 Interpret metric rows through `value`, `unit`, `status`, and `missing_reason`, while retaining `formula_version` and
 `input_versions_json`. A ratio of 1 means 100%. Missing quarters, fields, and invalid denominators never become zero.
-Banks and non-bank financial companies remain explicit `not_applicable` rows for industrial metrics, and the single-equity
-industrial statement method rejects them.
+Banks and non-bank financial companies remain `not_applicable` for industrial metrics. Statement access is separate: financial-sector sources are not integrated, so statements return an empty frame when no integrated records exist. The selected-field batch method returns an explicit source-not-integrated reason.
 
 ### US Treasury yield curves
 

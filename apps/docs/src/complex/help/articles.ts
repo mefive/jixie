@@ -1,3 +1,7 @@
+import financialDataZh from '@src/content/help/zh/research/financial-data.md?raw';
+import financialDataEn from '@src/content/help/en/research/financial-data.md?raw';
+import fcffValuationZh from '@src/content/help/zh/research/fcff-valuation.md?raw';
+import fcffValuationEn from '@src/content/help/en/research/fcff-valuation.md?raw';
 import type { Locale } from '@jixie/shared';
 import backtestLimitationsEn from '@src/content/help/en/basics/backtest-limitations.md?raw';
 import backtestLimitationsZh from '@src/content/help/zh/basics/backtest-limitations.md?raw';
@@ -594,6 +598,26 @@ export const HELP_ARTICLES: HelpArticle[] = [
       en: 'Search instruments and fields, insert accurate calls, and distinguish series, cross-sections, and Panels.',
     },
     content: { zh: researchDataCatalogZh, en: researchDataCatalogEn },
+  },
+  {
+    slug: 'research/financial-data',
+    group: 'research',
+    title: { zh: '自主分析财报数据', en: 'Analyze financial data' },
+    summary: {
+      zh: '选择财报字段、报告期、历史可用日和计算口径，编写自己的分析。',
+      en: 'Select statement fields, reporting periods, availability, and period basis to write your own analysis.',
+    },
+    content: { zh: financialDataZh, en: financialDataEn },
+  },
+  {
+    slug: 'research/fcff-valuation',
+    group: 'research',
+    title: { zh: '用 FCFF 模板研究公司估值', en: 'Research company valuation with FCFF' },
+    summary: {
+      zh: '使用可编辑的情景和假设进行正向与反向估值。',
+      en: 'Use editable scenarios and assumptions for forward and reverse valuation.',
+    },
+    content: { zh: fcffValuationZh, en: fcffValuationEn },
   },
   {
     slug: 'research/outputs',

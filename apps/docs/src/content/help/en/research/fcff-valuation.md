@@ -1,5 +1,7 @@
 # Research company valuation with the FCFF template
 
+FCFF is an optional research template. You can query statements, compare fields, or write your own calculations. The platform is responsible for data handling and formula implementation; you choose methods, assumptions, and conclusions. Market confirmation is not a prerequisite for using the tools. See [Analyze financial data](/docs/help/research/financial-data).
+
 The “FCFF company valuation template” on the Research landing page creates a Markdown/Python
 document that can be inspected, edited, clean-run, and promoted. It starts with Wuliangye as a real
 example, but its example inputs are not platform forecasts, price targets, or trading advice.
@@ -69,7 +71,7 @@ fixed assumptions, not the market's unique narrative.
 
 ## Reusing calculations and checking applicability
 
-Use these methods directly in Research Python Cells. See the [Research SDK reference](/docs/sdk) for
+Use these methods directly in Research Python Cells. See the [Research SDK reference](/docs/sdk?runtime=research) for
 all parameters and return columns:
 
 ```python

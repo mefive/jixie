@@ -351,6 +351,7 @@ function catalogMethodNames(scope: ResearchDataCatalogScopeV1): string[] {
         'data.commodity_holdings',
         'data.market_state',
         'data.equity_fundamentals',
+        'data.equity_financial_values',
         'data.equity_financial_statements',
         'data.equity_financial_metrics',
         'data.equity_financial_cross_section',
@@ -845,6 +846,20 @@ async function searchDatasets(
   const financialSingleStockDatasets: ResearchDataCatalogDatasetV1[] = [
     {
       kind: 'dataset',
+      id: 'data.equity_financial_values',
+      method: 'data.equity_financial_values',
+      identifier: '000858.SZ',
+      nameZh: '自选财报科目与计算口径',
+      nameEn: 'Selected financial fields and period basis',
+      descriptionZh:
+        '按同一历史可用日批量读取财报科目，选择年度、单季、TTM或原报表口径。保留缺失原因与输入版本；金融企业来源尚未接入。',
+      descriptionEn:
+        'Batch financial fields at one availability cutoff, with annual, quarterly, TTM, or reported values. Preserves missing reasons and input versions; financial-sector sources are not integrated.',
+      tags: ['财报', 'fundamentals', 'PIT', 'quarterly', 'annual', 'TTM', 'fields'],
+      localDataCoverage: financialCoverage,
+    },
+    {
+      kind: 'dataset',
       id: 'data.equity_financial_statements',
       method: 'data.equity_financial_statements',
       identifier: '000858.SZ',
@@ -863,9 +878,9 @@ async function searchDatasets(
       identifier: '000858.SZ',
       nameZh: '单股标准化财务指标',
       nameEn: 'Single-equity standardized financial metrics',
-      descriptionZh: '按历史估值日计算带单位、公式版本、输入版本和失败原因的 M2 指标。',
+      descriptionZh: '按历史估值日计算带单位、公式版本、输入版本和失败原因的预定义指标。',
       descriptionEn:
-        'M2 metrics with units, formula version, input versions, and failure reasons on a historical as-of date.',
+        'Predefined metrics with units, formula version, input versions, and failure reasons on a historical as-of date.',
       tags: ['财务指标', 'ROIC', 'FCFF', 'PIT', 'industrial'],
       localDataCoverage: financialCoverage,
     },
@@ -1145,6 +1160,7 @@ function datasetIdentifiers(dataset: ResearchDataCatalogDatasetV1): string[] {
     case 'data.index_valuation':
     case 'data.industry_state':
     case 'data.futures_settlement':
+    case 'data.equity_financial_values':
     case 'data.equity_financial_statements':
     case 'data.equity_financial_metrics':
       return [dataset.identifier];

@@ -170,6 +170,7 @@ describe('research data catalog', () => {
       'data.equity_financial_metrics',
       'data.equity_financial_cross_section',
       'data.equity_financial_panel',
+      'data.equity_financial_values',
     ]);
     expect(result.instruments).toEqual([]);
     expect(result.datasets).toEqual([

@@ -19,7 +19,10 @@ describe('researchProfile', () => {
     expect(system).toContain('searchResearchCatalog');
     expect(system).toContain('loadResearchPlaybook');
     expect(system).toContain('gold_price_drivers');
-    expect(system).toContain('For FCFF valuation');
+    expect(system).toContain('FCFF is an optional model');
+    expect(system).toContain('data.equity_financial_values');
+    expect(system).toContain('users choose research methods, assumptions, and conclusions');
+    expect(system).toContain('financial_sector_source_not_integrated');
     expect(system).toContain('valuation.fcff_scenarios');
     expect(system).toContain('valuation.implied_revenue_growth');
     expect(system).toContain('solve only one unknown at a time');

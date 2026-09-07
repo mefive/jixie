@@ -128,6 +128,11 @@ _FINANCIAL_STATEMENT_COLUMNS = [
     "report_type",
     "source_row_fingerprint",
 ]
+_FINANCIAL_VALUE_COLUMNS = [
+    "as_of_date", "code", "industry", "applicability", "statement_kind", "field", "value", "unit",
+    "report_period", "available_date", "period_basis", "status", "formula", "formula_version",
+    "input_versions_json", "missing_reason",
+]
 _FINANCIAL_METRIC_COLUMNS = [
     "date",
     "code",
@@ -373,6 +378,7 @@ class _NameAnalysis(ast.NodeVisitor):
                 "index_valuation",
                 "industry_state",
                 "futures_settlement",
+                "equity_financial_values",
                 "equity_financial_statements",
                 "equity_financial_metrics",
                 "equity_financial_cross_section",
@@ -382,15 +388,14 @@ class _NameAnalysis(ast.NodeVisitor):
             and node.func.value.id == "data"
         ):
             keywords = {item.arg: item.value for item in node.keywords if item.arg is not None}
-            self.equity_requests.append(
-                {
+            argument = node.args[0] if node.args else keywords.get("identifiers" if node.func.attr == "equity_financial_values" else "identifier")
+            arguments = argument.elts if node.func.attr == "equity_financial_values" and isinstance(argument, (ast.List, ast.Tuple)) else [argument]
+            for identifier in arguments:
+                self.equity_requests.append({
                     "line": node.lineno,
                     "method": node.func.attr,
-                    "identifier": _literal_string(
-                        node.args[0] if len(node.args) > 0 else keywords.get("identifier")
-                    ),
-                }
-            )
+                    "identifier": _literal_string(identifier),
+                })
         self.generic_visit(node)
 
 
@@ -611,10 +616,26 @@ class _DataApi:
             result, _EQUITY_FUNDAMENTAL_COLUMNS, ["date", "report_period"]
         )
 
-    def equity_financial_statements(self, identifier: str, *, as_of: str) -> Any:
+    def equity_financial_values(
+        self, identifiers: str | list[str], *, as_of: str, fields: str | list[str],
+        report_start: str, report_end: str, period: str = "reported",
+    ) -> Any:
+        result = self._host.request("research_equity_financial_values", {
+            "identifiers": identifiers, "as_of": as_of, "fields": fields,
+            "report_start": report_start, "report_end": report_end, "period": period,
+        })
+        return self._dataset_frame(result, _FINANCIAL_VALUE_COLUMNS, ["as_of_date", "report_period", "available_date"])
+
+    def equity_financial_statements(
+        self, identifier: str, *, as_of: str, fields: str | list[str] | None = None,
+        report_start: str | None = None, report_end: str | None = None,
+    ) -> Any:
+        filters = {key: value for key, value in {
+            "fields": fields, "report_start": report_start, "report_end": report_end,
+        }.items() if value is not None}
         result = self._host.request(
             "research_equity_financial_statements",
-            {"identifier": identifier, "as_of": as_of},
+            {"identifier": identifier, "as_of": as_of, **filters},
         )
         return self._dataset_frame(
             result,

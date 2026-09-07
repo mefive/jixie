@@ -138,7 +138,11 @@ describe('financial source contract', () => {
     });
     expect(
       FINANCIAL_STATEMENT_FIELDS.filter((field) => field.statementKind === 'cash_flow').every(
-        (field) => field.periodSemantics === 'flow_ytd',
+        (field) =>
+          field.periodSemantics ===
+          (['c_cash_equ_beg_period', 'c_cash_equ_end_period'].includes(field.sourceField)
+            ? 'stock'
+            : 'flow_ytd'),
       ),
     ).toBe(true);
     expect(financialStatementSourceFields('income')).toEqual(

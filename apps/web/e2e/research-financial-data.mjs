@@ -59,6 +59,13 @@ financial_panel[financial_panel["code"] == "000858.SZ"][[
     "date", "code", "name", "report_period", "metric", "value", "unit", "status",
 ]]`;
 
+const valuesSource = `financial_values = data.equity_financial_values(
+    ["000858.SZ", "000333.SZ", "300750.SZ", "000001.SZ"],
+    as_of="20260506", fields=["income.revenue", "balance_sheet.totalAssets", "cash_flow.nCashflowAct"],
+    report_start="20230101", report_end="20251231", period="annual",
+)
+financial_values[["code", "report_period", "field", "value", "period_basis", "status", "missing_reason"]]`;
+
 const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext({ viewport: { width: 1600, height: 1600 } });
 const page = await context.newPage();
@@ -92,7 +99,7 @@ try {
   );
   const statementCellId = initialPythonCell.id;
 
-  const sources = [metricSource, crossSectionSource, panelSource];
+  const sources = [metricSource, crossSectionSource, panelSource, valuesSource];
   const cellIds = [statementCellId];
   for (const source of sources) {
     document = await api(page, `/api/app/research/documents/${documentId}/cells`, {
@@ -106,15 +113,27 @@ try {
     method: 'POST',
     body: JSON.stringify({ clean: true }),
   });
-  if (run.execution?.status !== 'success' || run.execution.executedCellCount !== 5) {
+  if (run.execution?.status !== 'success' || run.execution.executedCellCount !== 6) {
     throw new Error(`Financial Research clean run failed: ${JSON.stringify(run.execution)}`);
   }
   const rowCounts = cellIds.map((cellId) => {
     const cell = run.document.cells.find((candidate) => candidate.id === cellId);
     return cell?.outputs.find((output) => output.type === 'table')?.rowCount;
   });
-  if (rowCounts.join(',') !== '1,3,2,2') {
+  if (rowCounts.join(',') !== '1,3,2,2,36') {
     throw new Error(`Unexpected financial Research output rows: ${rowCounts.join(',')}`);
+  }
+
+  const valuesOutput = run.document.cells
+    .find((cell) => cell.id === cellIds[4])
+    .outputs.find((output) => output.type === 'table');
+  if (
+    !valuesOutput.rows.some(
+      (row) => row.missing_reason === 'financial_sector_source_not_integrated',
+    ) ||
+    !valuesOutput.rows.some((row) => row.period_basis === 'point_in_time')
+  ) {
+    throw new Error('Selected financial values lost missing-sector or stock semantics.');
   }
 
   await page.goto(`${BASE}/research`, { waitUntil: 'domcontentloaded' });
@@ -132,8 +151,12 @@ try {
   await panelCell.scrollIntoViewIfNeeded();
   await panelCell.screenshot({ path: `${SHOTS}research-financial-panel.png` });
 
+  const valuesCell = page.locator(`[data-cell-id="${cellIds[4]}"]`);
+  await valuesCell.scrollIntoViewIfNeeded();
+  await valuesCell.screenshot({ path: `${SHOTS}research-financial-values.png` });
+
   console.log(
-    `[research-financial-data-e2e] clean=true rows=${rowCounts.join('/')} methods=4 screenshots=2`,
+    `[research-financial-data-e2e] clean=true rows=${rowCounts.join('/')} methods=5 screenshots=3`,
   );
 } finally {
   if (documentId) {

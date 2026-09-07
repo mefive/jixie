@@ -1,3 +1,5 @@
+import { useSearchParams } from 'react-router-dom';
+import { ResearchSdk } from './research-sdk';
 import { useEffect, useState, type ReactNode } from 'react';
 import classNames from 'classnames';
 import { localeStore } from '@src/i18n/locale-store';
@@ -15,6 +17,7 @@ import './sdk-doc.css';
  */
 export const Sdk = complex.component(() => {
   const store = complex.useStore();
+  const [searchParameters] = useSearchParams();
   const lang = localeStore.locale;
   const t = (zh: string, en: string) => (lang === 'zh' ? zh : en);
 
@@ -34,12 +37,19 @@ export const Sdk = complex.component(() => {
     }
   }, []);
 
+  if (searchParameters.get('runtime') === 'research') {
+    return <ResearchSdk />;
+  }
+
   return (
     <div className="jx-docs">
       <PublicDocsHeader current="sdk" />
 
       <div className="jx-docs-layout">
         <nav className="jx-docs-nav">
+          <a className="jx-docs-navLink" href="?runtime=research">
+            Research Python SDK
+          </a>
           <a className={navCls('overview', active)} href="#overview">
             {t('概览', 'Overview')}
           </a>
