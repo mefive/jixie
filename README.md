@@ -49,12 +49,16 @@ Calmar 表现的策略组合，而不是在样本内直接优化漂亮指标。
 ```
 apps/api/                          # Hono + Prisma 后端
   prisma/schema.prisma             # 行情、研究与用户数据
+  src/index.ts                     # 进程入口；调用启动装配
+  src/bootstrap.ts                 # 连接任务处理函数、启动恢复、队列与 HTTP
+  src/server.ts                    # 构建 Hono 应用与挂载路由
   src/auth/                        # 登录、Session、邀请码；http/ 处理请求与 Cookie
   src/infra/database/prisma.ts     # 每进程/线程 Prisma client
   src/infra/http/                  # HTTP 错误、校验与请求语言
   src/infra/llm/                   # 模型供应商适配
   src/infra/email/                 # 邮件传输；登录邮件模板在 auth/
   src/infra/runtime/               # 公共 Python 通信、TS isolate 与沙盒日志
+  src/infra/jobs/                  # 任务契约、执行器、记录、日志与调度队列
   src/math/                        # 共用统计、推断与技术指标
   src/i18n/                        # 纯消息目录和翻译函数
   src/date.ts                      # 日期辅助

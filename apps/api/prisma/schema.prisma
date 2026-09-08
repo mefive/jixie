@@ -1072,7 +1072,7 @@ model Job {
   status               String // 'queued' | 'running' | 'done' | 'error' | 'stale'
   payload              Json? // Frozen runner input; required for queued jobs to survive an API restart
   error                String?
-  logs                 String? // JSON(LogLine[]) — flushed once on finish; live logs stream from memory (see lib/jobs.ts)
+  logs                 String? // JSON(LogLine[]) — flushed once on finish; live logs stream from memory (see infra/jobs/logs.ts)
   factorReportId       String?             @unique
   factorReport         FactorReport?       @relation(fields: [factorReportId], references: [id], onDelete: Cascade)
   backtestReportId     String?             @unique

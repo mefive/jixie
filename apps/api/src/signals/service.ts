@@ -1,12 +1,9 @@
 import { createHash } from 'node:crypto';
-import { fork, type ChildProcess } from 'node:child_process';
 import { ulid } from 'ulid';
-import { z } from 'zod';
 import type {
   BacktestConfig,
   FactorInputSummary,
   Locale,
-  LogLine,
   ModelPositionSnapshot,
   SignalItem,
   SignalRun,
@@ -16,18 +13,12 @@ import type { Prisma } from '@prisma/client';
 import { codeConfigSchema } from '../strategy/code/schema.js';
 import { inspectWalledStrategyMetadata } from '../engine/walled-run.js';
 import { prepareStrategyFactors } from '../engine/prepare-custom-factors.js';
-import { appendLog, finishSignalRunJob, initializeJobLogs } from '../lib/jobs.js';
-import { waitForJobCompletion, wakeJobQueue } from '../lib/job-queue.js';
+import { initializeJobLogs } from '../infra/jobs/logs.js';
+import { waitForJobCompletion, wakeJobQueue } from '../infra/jobs/queue.js';
 import { prisma } from '../infra/database/prisma.js';
-import { t } from '../i18n/messages.js';
 import { governmentYieldCurveReady } from '../rates/signal-readiness.js';
-import { notifySignalRun } from './notifier.js';
-import { executionWire, initializeSignalAccounting } from './accounting.js';
+import { executionWire } from './accounting.js';
 import { factorDependenciesFromJson } from './factor-dependency-lineage.js';
-
-const workerUrl = import.meta.url.endsWith('.ts')
-  ? new URL('../engine/signal-worker.boot.mjs', import.meta.url)
-  : new URL('../engine/signal-worker.js', import.meta.url);
 
 export type DeployStrategyResult =
   | { kind: 'ready'; deployment: StrategyDeployment }
@@ -331,99 +322,6 @@ export async function enqueueSignalRun(
   };
 }
 
-const signalJobPayloadSchema = z.object({
-  task: z.literal('signal'),
-  runId: z.string().min(1),
-  locale: z.enum(['zh', 'en']),
-});
-
-/** Reconstruct and execute a daily-signal Job claimed by the shared scheduler. */
-export async function runSignalJob(
-  jobId: string,
-  rawPayload: Record<string, unknown>,
-): Promise<void> {
-  const payload = signalJobPayloadSchema.parse(rawPayload);
-  await startSignalWorker({ jobId, runId: payload.runId, locale: payload.locale });
-}
-
-async function startSignalWorker(input: {
-  runId: string;
-  jobId: string;
-  locale: Locale;
-}): Promise<'done' | 'error'> {
-  let worker: ChildProcess;
-  try {
-    worker = fork(workerUrl, [input.runId], {
-      stdio: ['ignore', 'inherit', 'inherit', 'ipc'],
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    await finishSignalRunJob(input.jobId, input.runId, 'error', undefined, message);
-    await notifySignalRun(input.runId);
-    return 'error';
-  }
-
-  return new Promise((resolve) => {
-    let finished = false;
-    let terminalMessage:
-      | { status: 'done'; output: SignalWorkerOutput }
-      | { status: 'error'; error?: string }
-      | null = null;
-    const finish = async (
-      status: 'done' | 'error',
-      output?: SignalWorkerOutput,
-      error?: string,
-    ) => {
-      if (finished) {
-        return;
-      }
-      finished = true;
-      if (status === 'done' && output) {
-        await finishSignalRunJob(input.jobId, input.runId, 'done', {
-          dataCutoff: output.dataCutoff,
-          modelEquity: output.modelEquity,
-          modelCash: output.modelCash,
-          modelPositions: output.modelPositions as unknown as Prisma.InputJsonValue,
-          signals: output.signals as unknown as Prisma.InputJsonValue,
-          factorInputs: output.factorInputs as unknown as Prisma.InputJsonValue,
-        });
-        await initializeSignalAccounting(input.runId);
-      } else {
-        await finishSignalRunJob(input.jobId, input.runId, 'error', undefined, error);
-      }
-      await notifySignalRun(input.runId);
-      resolve(status);
-    };
-
-    worker.on('message', (message: SignalWorkerMessage) => {
-      if (message.type === 'log') {
-        appendLog(input.jobId, message.entry);
-      } else if (message.type === 'done') {
-        terminalMessage = { status: 'done', output: message.output };
-      } else if (message.type === 'error') {
-        terminalMessage = { status: 'error', error: message.message };
-      }
-    });
-    worker.on('error', (error) => void finish('error', undefined, error.message));
-    worker.on('exit', (code) => {
-      if (finished) {
-        return;
-      }
-      if (code !== 0 || !terminalMessage) {
-        const error =
-          code === 0
-            ? 'Signal process exited before returning a result'
-            : t(input.locale, 'signalProcExited', { code: code ?? 'unknown' });
-        void finish('error', undefined, error);
-      } else if (terminalMessage.status === 'error') {
-        void finish('error', undefined, terminalMessage.error);
-      } else {
-        void finish('done', terminalMessage.output);
-      }
-    });
-  });
-}
-
 export async function latestCompletedTradeDate(): Promise<string | null> {
   const { today, hour } = shanghaiClock();
   const upperBound = hour >= 16 ? today : previousCalendarDate(today);
@@ -594,17 +492,3 @@ function signalRunWire(
     updatedAt: row.updatedAt.toISOString(),
   };
 }
-
-interface SignalWorkerOutput {
-  dataCutoff: string;
-  modelEquity: number;
-  modelCash: number;
-  modelPositions: ModelPositionSnapshot[];
-  signals: SignalItem[];
-  factorInputs: FactorInputSummary[];
-}
-
-type SignalWorkerMessage =
-  | { type: 'log'; entry: LogLine }
-  | { type: 'done'; output: SignalWorkerOutput }
-  | { type: 'error'; message: string };

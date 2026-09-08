@@ -1,4 +1,3 @@
-import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
 import { logger } from 'hono/logger';
 import { authRoute } from './auth/http/auth.js';
@@ -13,42 +12,7 @@ import { agentRoute } from './routes/agent.js';
 import { signalsRoute } from './routes/signals.js';
 import { libraryRoute } from './routes/library.js';
 import { requireAuth } from './auth/http/session.js';
-import { markRunningJobsStale } from './lib/jobs.js';
-import { startJobQueue } from './lib/job-queue.js';
-import { seedBuiltinFactors } from './factor/builtin-factors.js';
-import { resetInterruptedFactorWeatherRefreshes } from './factor/weather.js';
-import { markRunningAgentTurnsInterrupted } from './agent/persistence.js';
 import { maintenanceGate, maintenanceRoute } from './maintenance/http.js';
-
-/**
- * Start the backend.
- *   /api/health   public liveness check
- *   /api/auth/*   public (login / logout / me) — see auth/http/auth.ts
- *   /api/app/*    protected example prefix — gated uniformly by requireAuth
- */
-export async function startServer(port: number) {
-  const app = buildApp();
-  // Any job left 'running' from a previous process is a zombie (its worker died) → mark stale.
-  const [staleJobs, interruptedTurns, interruptedWeather] = await Promise.all([
-    markRunningJobsStale(),
-    markRunningAgentTurnsInterrupted(),
-    resetInterruptedFactorWeatherRefreshes(),
-  ]);
-  if (staleJobs) {
-    console.log(`[jixie] marked ${staleJobs} orphaned job(s) as stale`);
-  }
-  if (interruptedTurns) {
-    console.log(`[jixie] marked ${interruptedTurns} orphaned Agent turn(s) as interrupted`);
-  }
-  if (interruptedWeather) {
-    console.log(`[jixie] reset ${interruptedWeather} interrupted factor weather run(s) to pending`);
-  }
-  // Materialize the built-in preset factors (idempotent; repo is the source of truth).
-  void seedBuiltinFactors().catch((e) => console.error('[jixie] preset factor seed failed', e));
-  startJobQueue();
-  serve({ fetch: app.fetch, port });
-  return app;
-}
 
 export function buildApp() {
   const app = new Hono();

@@ -6,15 +6,15 @@ import { prisma } from '../infra/database/prisma.js';
 /**
  * Factor-correlation worker thread. Mirrors factor-worker: computeFactorCorrelation loads whole-market
  * panels + per-factor cross-sectional loops (one per selected factor), which would block the HTTP event
- * loop, so it runs here. Streams progress as { type:'log' }; on success upserts the FactorCorrelation
- * cache and posts { type:'done' }; on failure posts { type:'error' }. Dev (tsx) loads via .boot.mjs.
+ * loop, so it runs here. Streams progress as { type:'log' }; on success posts { type:'done', payload }
+ * for the API to commit with its Job; on failure posts { type:'error' }. Dev (tsx) loads via .boot.mjs.
  */
 const port = parentPort;
 if (!port) {
   throw new Error('correlation-worker must be spawned as a worker thread');
 }
 
-const { id, userId, keys, freq, start, end, locale } = workerData as {
+const { keys, freq, start, end, locale } = workerData as {
   id: string;
   userId: string;
   keys: string[];
@@ -39,12 +39,7 @@ try {
     locale,
   );
   const payload = JSON.stringify(report);
-  await prisma.factorCorrelation.upsert({
-    where: { id },
-    create: { id, userId, payload, computedAt: new Date() },
-    update: { payload, computedAt: new Date() },
-  });
-  port.postMessage({ type: 'done' });
+  port.postMessage({ type: 'done', payload });
 } catch (e) {
   port.postMessage({ type: 'error', message: e instanceof Error ? e.message : String(e) });
 } finally {

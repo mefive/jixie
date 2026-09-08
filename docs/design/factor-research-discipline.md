@@ -530,7 +530,7 @@ revealedAt = now → 可反复查看，但不再是未观察数据
 - `apps/api/prisma/schema.prisma`
 - `apps/api/src/factor/report-spec.ts`
 - `apps/api/src/routes/factor.ts`
-- `apps/api/src/lib/jobs.ts`
+- `apps/api/src/factor/analysis-job.ts`
 - `packages/shared/src/factor.ts`
 - `apps/web/src/api/client.ts`
 - `apps/web/src/complex/factor/factor-store.ts`

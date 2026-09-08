@@ -29,13 +29,13 @@ vi.mock('../services/strategy-service.js', () => ({
 vi.mock('../engine/prepare-custom-factors.js', () => ({
   extractFactorKeys: mocks.extractFactorKeys,
 }));
-vi.mock('../lib/jobs.js', () => ({
+vi.mock('../infra/jobs/records.js', () => ({
   ACTIVE_JOB_STATUSES: ['queued', 'running'],
   findRunningJob: vi.fn(),
   getJob: vi.fn(),
-  initializeJobLogs: mocks.initializeJobLogs,
 }));
-vi.mock('../lib/job-queue.js', () => ({
+vi.mock('../infra/jobs/logs.js', () => ({ initializeJobLogs: mocks.initializeJobLogs }));
+vi.mock('../infra/jobs/queue.js', () => ({
   wakeJobQueue: mocks.wakeJobQueue,
 }));
 

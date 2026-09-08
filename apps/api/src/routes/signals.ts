@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { apiError, validateJson, validateQuery } from '../infra/http/errors.js';
-import { getJob } from '../lib/jobs.js';
+import { getJob } from '../infra/jobs/records.js';
 import { localeFromRequest, m } from '../infra/http/locale.js';
 import {
   currentDeployment,

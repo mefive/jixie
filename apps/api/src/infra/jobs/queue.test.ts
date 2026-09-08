@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { loadJobQueueConfig, selectFairQueuedJobs } from './job-queue.js';
+import { loadJobQueueConfig, selectFairQueuedJobs } from './queue.js';
 
 describe('job queue fairness', () => {
   it('skips a saturated user instead of starving later users', () => {

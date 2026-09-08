@@ -1,6 +1,8 @@
-import type { JobStatus } from './jobs.js';
-import { claimQueuedJob, failJobAndEntity, initializeJobLogs } from './jobs.js';
-import { prisma } from '../infra/database/prisma.js';
+import type { JobStatus } from './records.js';
+import type { JobExecutor } from './executor.js';
+import { claimQueuedJob } from './records.js';
+import { initializeJobLogs } from './logs.js';
+import { prisma } from '../database/prisma.js';
 
 export interface QueueCandidate {
   id: string;
@@ -19,6 +21,8 @@ let draining = false;
 let wakePending = false;
 let rerunRequested = false;
 let started = false;
+
+let executor: Pick<JobExecutor, 'execute'>;
 
 export function loadJobQueueConfig(env: NodeJS.ProcessEnv = process.env): JobQueueConfig {
   return {
@@ -54,7 +58,8 @@ export function selectFairQueuedJobs(
 }
 
 /** Start scheduling queued jobs, including durable jobs left queued by a previous API process. */
-export function startJobQueue(): void {
+export function startJobQueue(jobExecutor: Pick<JobExecutor, 'execute'>): void {
+  executor = jobExecutor;
   started = true;
   wakeJobQueue();
 }
@@ -143,53 +148,9 @@ async function drainQueue(): Promise<void> {
 
 async function executeClaimedJob(jobId: string): Promise<void> {
   try {
-    const job = await prisma.job.findUnique({
-      where: { id: jobId },
-      select: { id: true, kind: true, payload: true },
-    });
-    if (!job?.payload || typeof job.payload !== 'object' || Array.isArray(job.payload)) {
-      throw new Error('Queued job payload is missing or invalid');
-    }
-    const payload = job.payload as Record<string, unknown>;
-    switch (job.kind) {
-      case 'backtest': {
-        const { runBacktestJob } = await import('../strategy/backtest-job.js');
-        await runBacktestJob(job.id, payload);
-        break;
-      }
-      case 'factor': {
-        if (payload.task === 'correlation') {
-          const { runFactorCorrelationJob } = await import('../factor/correlation-job.js');
-          await runFactorCorrelationJob(job.id, payload);
-        } else {
-          const { runFactorAnalysisJob } = await import('../factor/analysis-job.js');
-          await runFactorAnalysisJob(job.id, payload);
-        }
-        break;
-      }
-      case 'strategy-scan': {
-        const { runStrategyScanJob } = await import('../strategy/scan-job.js');
-        await runStrategyScanJob(job.id, payload);
-        break;
-      }
-      case 'signal': {
-        const { runSignalJob } = await import('../signals/service.js');
-        await runSignalJob(job.id, payload);
-        break;
-      }
-      case 'research-curator': {
-        const { runResearchCuratorJob } = await import('../research/curator-job.js');
-        await runResearchCuratorJob(job.id, payload);
-        break;
-      }
-      default:
-        throw new Error(`Unsupported queued job kind: ${job.kind}`);
-    }
+    await executor.execute(jobId);
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    await failJobAndEntity(jobId, message).catch((finishError) => {
-      console.error('[jixie] failed to mark queued job error', finishError);
-    });
+    console.error('[jixie] failed to execute or finalize queued job', { jobId, error });
   }
 }
 

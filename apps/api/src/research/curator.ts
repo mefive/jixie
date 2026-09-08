@@ -151,15 +151,23 @@ export async function extractResearchCuratorEvidence(
   });
 }
 
-export async function executeResearchCuratorRun(
+export interface PreparedResearchCuratorRun {
+  runId: string;
+  userId: string;
+  evidenceCount: number;
+  findings: Prisma.ResearchCuratorFindingCreateManyInput[];
+}
+
+// Prepare candidates outside the completion transaction; publish none until the Job commits.
+export async function prepareResearchCuratorRun(
   runId: string,
   options: { database?: PrismaClient; llm?: LlmCall } = {},
-): Promise<ResearchCuratorRunV1> {
+): Promise<PreparedResearchCuratorRun> {
   const database = options.database ?? prisma;
   const llm = options.llm ?? chatJson;
   const run = await database.researchCuratorRun.findUniqueOrThrow({ where: { id: runId } });
   await database.researchCuratorRun.update({
-    where: { id: run.id },
+    where: { id: run.id, status: { in: ['queued', 'running'] } },
     data: { status: 'running', error: null },
   });
   const evidence = await extractResearchCuratorEvidence(
@@ -174,8 +182,7 @@ export async function executeResearchCuratorRun(
     TUSHARE_CAPABILITIES.map((capability) => capability.apiName),
     database,
   );
-  let findingsCreated = 0;
-  let duplicatesSkipped = 0;
+  const findings: PreparedResearchCuratorRun['findings'] = [];
 
   for (const draft of drafts) {
     const cited = draft.evidenceIds
@@ -196,43 +203,23 @@ export async function executeResearchCuratorRun(
       referenceMatches,
     );
     const fingerprint = findingFingerprint(draft.category, draft.title, draft.suggestedAction);
-    const existing = await database.researchCuratorFinding.findUnique({
-      where: { userId_fingerprint: { userId: run.userId, fingerprint } },
-      select: { id: true },
+    findings.push({
+      id: ulid(),
+      userId: run.userId,
+      runId: run.id,
+      category: draft.category,
+      title: draft.title,
+      summary: draft.summary,
+      evidence: cited as unknown as Prisma.InputJsonValue,
+      verification: verification as unknown as Prisma.InputJsonValue,
+      confidence: draft.confidence,
+      expectedValue: draft.expectedValue,
+      changeSurface: draft.changeSurface,
+      suggestedAction: draft.suggestedAction,
+      fingerprint,
     });
-    if (existing) {
-      duplicatesSkipped++;
-      continue;
-    }
-    await database.researchCuratorFinding.create({
-      data: {
-        id: ulid(),
-        userId: run.userId,
-        runId: run.id,
-        category: draft.category,
-        title: draft.title,
-        summary: draft.summary,
-        evidence: cited as unknown as Prisma.InputJsonValue,
-        verification: verification as unknown as Prisma.InputJsonValue,
-        confidence: draft.confidence,
-        expectedValue: draft.expectedValue,
-        changeSurface: draft.changeSurface,
-        suggestedAction: draft.suggestedAction,
-        fingerprint,
-      },
-    });
-    findingsCreated++;
   }
-  await database.researchCuratorRun.update({
-    where: { id: run.id },
-    data: {
-      status: 'done',
-      evidenceCount: evidence.length,
-      findingsCreated,
-      duplicatesSkipped,
-    },
-  });
-  return (await getResearchCuratorRun(run.userId, run.id, database))!;
+  return { runId: run.id, userId: run.userId, evidenceCount: evidence.length, findings };
 }
 
 export async function getLatestResearchCuratorRun(

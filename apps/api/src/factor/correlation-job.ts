@@ -1,8 +1,9 @@
 import { Worker } from 'node:worker_threads';
-import type { FactorFreq, Locale, LogLine } from '@jixie/shared';
+import type { FactorFreq, Locale } from '@jixie/shared';
 import { z } from 'zod';
 import { t } from '../i18n/messages.js';
-import { appendLog, finishJob } from '../lib/jobs.js';
+import { defineJob } from '../infra/jobs/definition.js';
+import { runJobWorker, type JobWorkerMessage } from '../infra/jobs/worker-result.js';
 
 const workerUrl = import.meta.url.endsWith('.ts')
   ? new URL('./correlation-worker.boot.mjs', import.meta.url)
@@ -19,62 +20,38 @@ const payloadSchema = z.object({
   locale: z.enum(['zh', 'en']),
 });
 
-/** Execute one factor-correlation job inside the shared bounded scheduler. */
-export async function runFactorCorrelationJob(
-  jobId: string,
-  rawPayload: Record<string, unknown>,
-): Promise<void> {
-  const payload = payloadSchema.parse(rawPayload) as z.infer<typeof payloadSchema> & {
-    freq: FactorFreq;
-    locale: Locale;
-  };
-  await new Promise<void>((resolve) => {
-    let worker: Worker;
-    try {
-      worker = new Worker(workerUrl, { workerData: payload });
-    } catch (error) {
-      void finishJob(
-        jobId,
-        'error',
-        error instanceof Error ? error.message : String(error),
-      ).finally(resolve);
-      return;
-    }
-    let finalized = false;
-    let terminal: 'done' | { error?: string } | null = null;
-    const finalize = async (status: 'done' | 'error', error?: string) => {
-      if (finalized) {
-        return;
-      }
-      finalized = true;
-      await finishJob(jobId, status, error);
-      resolve();
+export const factorCorrelationJob = defineJob({
+  parse(raw, job) {
+    const input = payloadSchema.parse(raw) as z.infer<typeof payloadSchema> & {
+      freq: FactorFreq;
+      locale: Locale;
     };
-    worker.on('message', (message: { type: string; entry?: LogLine; message?: string }) => {
-      switch (message.type) {
-        case 'log':
-          appendLog(jobId, message.entry!);
-          break;
-        case 'done':
-          terminal = 'done';
-          break;
-        case 'error':
-          terminal = { error: message.message };
-          break;
-      }
+    if (input.userId !== job.userId) {
+      throw new Error('Factor correlation payload does not match its persisted owner');
+    }
+    return input;
+  },
+  async execute(context, input): Promise<string> {
+    const output = await runJobWorker<string>({
+      context,
+      start: () => new Worker(workerUrl, { workerData: input }),
+      readMessage: (message) => message as JobWorkerMessage<string>,
+      exitedMessage: (code) => t(input.locale, 'factorProcExited', { code: code ?? 'unknown' }),
     });
-    worker.on('error', (error) => void finalize('error', error.message));
-    worker.on('exit', (code) => {
-      if (finalized) {
-        return;
-      }
-      if (code !== 0 || terminal == null) {
-        void finalize('error', t(payload.locale, 'factorProcExited', { code }));
-      } else if (terminal === 'done') {
-        void finalize('done');
-      } else {
-        void finalize('error', terminal.error);
-      }
+    return z.string().parse(output);
+  },
+  async complete(transaction, job, input, output) {
+    const computedAt = new Date();
+    await transaction.factorCorrelation.upsert({
+      where: { id: input.id },
+      create: { id: input.id, userId: job.userId, payload: output, computedAt },
+      update: { payload: output, computedAt },
     });
-  });
-}
+  },
+  async fail() {
+    // No running report is associated with this cache task.
+  },
+  async recover() {
+    // Preserve any last successful cache; only the Job becomes stale.
+  },
+});

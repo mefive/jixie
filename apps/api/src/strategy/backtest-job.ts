@@ -1,7 +1,10 @@
 import { Worker } from 'node:worker_threads';
-import type { BacktestConfig, BacktestSummary, Locale, LogLine } from '@jixie/shared';
+import type { BacktestConfig, BacktestSummary, Locale } from '@jixie/shared';
 import { z } from 'zod';
-import { appendLog, finishBacktestReportJob } from '../lib/jobs.js';
+import { defineJob } from '../infra/jobs/definition.js';
+import { runJobWorker, type JobWorkerMessage } from '../infra/jobs/worker-result.js';
+import { createHash } from 'node:crypto';
+import type { Prisma } from '@prisma/client';
 import { t } from '../i18n/messages.js';
 import { codeConfigSchema } from './code/schema.js';
 import { refreshStrategyName, strategyRunKey } from '../services/strategy-service.js';
@@ -21,105 +24,75 @@ const backtestJobPayloadSchema = z.object({
 
 export type BacktestJobPayload = z.infer<typeof backtestJobPayloadSchema>;
 
-/** Execute one claimed backtest Job and resolve only after its worker and durable finalization finish. */
-export async function runBacktestJob(
-  jobId: string,
-  rawPayload: Record<string, unknown>,
-): Promise<void> {
-  const payload = backtestJobPayloadSchema.parse(rawPayload) as BacktestJobPayload & {
-    config: BacktestConfig;
-    locale: Locale;
-  };
-
-  await new Promise<void>((resolve) => {
-    let worker: Worker;
-    try {
-      worker = new Worker(workerUrl, {
-        workerData: {
-          config: payload.config,
-          userId: payload.userId,
-          strategyId: payload.strategyId,
-          locale: payload.locale,
-        },
-      });
-    } catch (error) {
-      void finishBacktestReportJob(
-        jobId,
-        payload.reportId,
-        payload.strategyId,
-        payload.userId,
-        'error',
-        undefined,
-        error instanceof Error ? error.message : String(error),
-      ).finally(resolve);
-      return;
-    }
-
-    let finalized = false;
-    let terminalMessage:
-      | { status: 'done'; payload: BacktestSummary }
-      | { status: 'error'; error?: string }
-      | null = null;
-    const finalize = async (status: 'done' | 'error', result?: BacktestSummary, error?: string) => {
-      if (finalized) {
-        return;
-      }
-      finalized = true;
-      if (status === 'done') {
-        await refreshStrategyName({
-          id: payload.strategyId,
-          userId: payload.userId,
-          code: payload.config.code,
-          currentName: payload.config.name,
-          expectedRunKey: strategyRunKey(payload.config),
-          locale: payload.locale,
-        }).catch((renameError) => {
-          console.error('[jixie] strategy rename failed', renameError);
-          return false;
-        });
-      }
-      await finishBacktestReportJob(
-        jobId,
-        payload.reportId,
-        payload.strategyId,
-        payload.userId,
-        status,
-        result,
-        error,
-      );
-      resolve();
+export const backtestJob = defineJob({
+  parse(raw, job) {
+    const input = backtestJobPayloadSchema.parse(raw) as BacktestJobPayload & {
+      config: BacktestConfig;
+      locale: Locale;
     };
-
-    worker.on(
-      'message',
-      (message: { type: string; entry?: LogLine; payload?: BacktestSummary; message?: string }) => {
-        switch (message.type) {
-          case 'log':
-            appendLog(jobId, message.entry!);
-            break;
-          case 'done':
-            if (message.payload) {
-              terminalMessage = { status: 'done', payload: message.payload };
-            }
-            break;
-          case 'error':
-            terminalMessage = { status: 'error', error: message.message };
-            break;
-        }
-      },
-    );
-    worker.on('error', (error) => void finalize('error', undefined, error.message));
-    worker.on('exit', (code) => {
-      if (finalized) {
-        return;
-      }
-      if (code !== 0 || !terminalMessage) {
-        void finalize('error', undefined, t(payload.locale, 'backtestProcExited', { code }));
-      } else if (terminalMessage.status === 'error') {
-        void finalize('error', undefined, terminalMessage.error);
-      } else {
-        void finalize('done', terminalMessage.payload);
-      }
+    if (input.reportId !== job.backtestReportId || input.userId !== job.userId) {
+      throw new Error('Backtest job payload does not match its persisted owner or report');
+    }
+    return input;
+  },
+  async execute(context, input): Promise<{ payload: Prisma.InputJsonValue; resultHash: string }> {
+    const result = await runJobWorker<BacktestSummary>({
+      context,
+      start: () =>
+        new Worker(workerUrl, {
+          workerData: {
+            config: input.config,
+            userId: input.userId,
+            strategyId: input.strategyId,
+            locale: input.locale,
+          },
+        }),
+      readMessage: (message) => message as JobWorkerMessage<BacktestSummary>,
+      exitedMessage: (code) => t(input.locale, 'backtestProcExited', { code: code ?? 'unknown' }),
     });
-  });
-}
+    // Preserve the existing best-effort rename before finalizing the report.
+    await refreshStrategyName({
+      id: input.strategyId,
+      userId: input.userId,
+      code: input.config.code,
+      currentName: input.config.name,
+      expectedRunKey: strategyRunKey(input.config),
+      locale: input.locale,
+    }).catch((error) => console.error('[jixie] strategy rename failed', error));
+    const payload = JSON.parse(JSON.stringify(result)) as Prisma.InputJsonValue;
+    const resultHash = createHash('sha256').update(JSON.stringify(payload)).digest('hex');
+    return { payload, resultHash };
+  },
+  async complete(transaction, job, input, output) {
+    const { payload, resultHash } = output;
+    await transaction.backtestReport.update({
+      where: { id: input.reportId, userId: job.userId, status: 'running' },
+      data: { status: 'done', payload, resultHash, computedAt: new Date(), error: null },
+    });
+    await transaction.strategy.updateMany({
+      where: { id: input.strategyId, userId: job.userId },
+      data: { lastResult: payload },
+    });
+  },
+  async fail(transaction, jobs, failure) {
+    for (const job of jobs) {
+      const id = job.backtestReportId;
+      if (!id) {
+        continue;
+      }
+      await transaction.backtestReport.updateMany({
+        where: { id, status: { in: ['queued', 'running'] } },
+        data: { status: 'error', error: failure.message, computedAt: null },
+      });
+    }
+  },
+  async recover(transaction, jobs) {
+    const ids = jobs.map((job) => job.backtestReportId).filter((id): id is string => !!id);
+    if (ids.length > 0) {
+      await transaction.backtestReport.updateMany({
+        where: { id: { in: ids }, status: 'running' },
+        data: { status: 'stale', error: null },
+      });
+    }
+  },
+});

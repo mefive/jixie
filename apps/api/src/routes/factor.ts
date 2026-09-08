@@ -25,8 +25,9 @@ import { factorQaProfile } from '../agent/profiles/qa.js';
 import { enqueueAgentTurn, entityKey } from '../agent/turn-run.js';
 import * as turnBus from '../agent/turn-bus.js';
 import { chatMessagesSchema } from '../lib/chat-schema.js';
-import { createJob, getJob, findRunningJob, initializeJobLogs } from '../lib/jobs.js';
-import { wakeJobQueue } from '../lib/job-queue.js';
+import { createJob, getJob, findRunningJob } from '../infra/jobs/records.js';
+import { initializeJobLogs } from '../infra/jobs/logs.js';
+import { wakeJobQueue } from '../infra/jobs/queue.js';
 import { localeFromRequest, m } from '../infra/http/locale.js';
 import { refreshFactorMetadata } from '../factor/metadata.js';
 import {

@@ -11,8 +11,9 @@ import type {
 import { Prisma } from '@prisma/client';
 import { apiError, validateJson, validateQuery } from '../infra/http/errors.js';
 import { codeConfigSchema } from '../strategy/code/schema.js';
-import { ACTIVE_JOB_STATUSES, getJob, findRunningJob, initializeJobLogs } from '../lib/jobs.js';
-import { wakeJobQueue } from '../lib/job-queue.js';
+import { ACTIVE_JOB_STATUSES, getJob, findRunningJob } from '../infra/jobs/records.js';
+import { initializeJobLogs } from '../infra/jobs/logs.js';
+import { wakeJobQueue } from '../infra/jobs/queue.js';
 import { localeFromRequest, m } from '../infra/http/locale.js';
 import { prisma } from '../infra/database/prisma.js';
 import { commitStrategyConfig } from '../services/strategy-service.js';
@@ -21,7 +22,7 @@ import { extractFactorKeys } from '../engine/prepare-custom-factors.js';
 /**
  * Backtest API (mounted under /api/app/strategy/backtest via strategy.ts — symmetric with
  * /factor/analysis). A backtest is CPU-heavy and would block the HTTP event loop, so it runs in a
- * worker (engine/backtest-worker.ts) as a Job (shared lib/jobs.ts):
+ * worker (engine/backtest-worker.ts) as a Job (infra/jobs/records.ts):
  *   POST /?strategyId=X { config }     enqueue a durable Job + report → { jobId, reportId }; the scheduler starts its
  *                                      worker when a bounded slot is available
  *   GET  /running?strategyId=X         an active Job's id (queued or running; re-attach after refresh)

@@ -521,7 +521,7 @@ Content-Type: application/json
 - `apps/api/src/routes/factors.ts`
 - `apps/api/src/factor/factor-worker.ts`
 - `apps/api/src/factor/builtin-factors.ts`
-- `apps/api/src/lib/jobs.ts`
+- `apps/api/src/factor/analysis-job.ts`
 - `packages/shared/src/factor.ts`
 - `apps/web/src/complex/factor/factor-store.ts`
 - `apps/web/src/complex/factor/factor.tsx`

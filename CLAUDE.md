@@ -89,6 +89,7 @@
 - `apps/api/src/auth` — 登录与会话业务；`auth/http` 负责 Cookie、鉴权中间件与登录 HTTP。
 - `apps/api/src/infra` — 数据库、HTTP 辅助、LLM 与邮件传输；`math` 为共用数值计算，`date.ts` 为日期辅助，`i18n` 保留纯翻译。
 - `apps/api/src/infra/runtime` — 公共 Python 通信、TS isolate 与沙盒日志；业务协议归 Strategy/Factor 的 runtime 和 Research 的 sdk，公共运行设施不导入业务模块。
+- `apps/api/src/infra/jobs` — 通用任务记录、日志、队列、任务契约与执行器；业务 `*-job.ts` 集中声明 parse/execute/complete/fail/recover，执行器控制事务及恢复。根级 `bootstrap.ts` 注册任务、创建执行器并按顺序启动 API；`server.ts` 的 `buildApp()` 只构建 HTTP 应用。
 - `apps/api` — Hono 后端 + `prisma/schema.prisma` + 领域逻辑(`src/tushare`、`src/store`,未来 `src/factor`、`src/backtest`)+ 研究 / 导入脚本(`scripts/`,wired 成 `smoke` / `sync` / `peek` 等)
 - `apps/web` — 登录与工作台前端
 - `apps/docs` — 独立公开文档前端，挂载 `/docs/help/*` 与 `/docs/sdk`

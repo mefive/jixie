@@ -1,10 +1,12 @@
 # 后端业务边界与目录重整开发计划
 
-> 状态：方案已确认；Commit 1 已提交（`177f63ab`），Commit 2 已提交（`00a0e83a`）；Commit 3（公共运行设施与领域协议）已完成并通过提交前评审，随本提交交付。
+> 状态：Commit 1～3 已提交（`177f63ab`、`00a0e83a`、`bc4a1651`）；Commit 4（本提交：任务契约、原子结果提交与启动装配）已通过人工 review、静态检查、完整 API 测试、构建与启动验证。
 > 编制日期：2026-09-07；核对代码基线：`12ce9092`。
 > 目标：让不熟悉项目的开发者从目录识别业务能力，沿一个入口读懂完整流程，并找到状态与数据的责任方。
-> 本文只规划后端结构调整，不改变研究方法、金融口径或产品行为。
-> 开发授权：2026-09-08 用户确认按评审工作流开始开发；Commit 1、2 已提交，Commit 3 的具体范围已获确认。后续提交逐项说明具体范围，经确认后实施。
+> 本文规划后端结构调整；研究方法与金融口径不变，任务生命周期的已批准行为调整见 5.3。
+> 开发授权：2026-09-08 用户确认按评审工作流开始开发；Commit 1～3 已提交，Commit 4 的具体范围、JobDefinition + executor 调整以及 Curator/相关性结果原子提交均已获确认。后续提交逐项说明具体范围，经确认后实施。
+> 工作流：开工前明确本次 commit message 与范围并获确认 → 编写代码与测试 → 运行并修复 lint/typecheck 等静态检查 → 停下人工代码 review → review 通过后运行测试、构建及运行验证 → 全部通过后直接按预告 message 提交，不再单独请求 commit 确认。验证中需要修改代码或测试时，修复并通过静态检查后重新交人工 review；仅环境问题可直接重试。此流程已同步到 review-gated-development SKILL。
+> 当前 Commit 4 预定 message：`统一任务生命周期与结果事务并集中启动装配`。后续每轮须在该 commit 任务开工前预告 message。
 
 ## 1. 判断与取舍
 
@@ -113,14 +115,18 @@ apps/api/src/
     language/                   Pyright、文档映射与生成 stub 的消费
     templates/                  FCFF 等具体研究模板
     handoff/                    因子/策略草稿生成与来源关联
-    curator/                    研究整理任务与结果
+    curator/                    研究整理规则与结果
+    curator-job.ts               研究整理任务定义与生命周期
     agent-context.ts            研究上下文构造
   factor/
     http/
     definitions/                定义、预置因子与元数据
-    analysis/                   评估器、分析任务、worker 和统计检验
+    analysis/                   评估器、worker 和统计检验
+    analysis-job.ts              因子分析任务定义与生命周期
+    correlation-job.ts           因子相关性任务定义与生命周期
+    factor-job.ts                保留 factor kind 的 analysis/correlation 分派
     observations/               不同资产与分析形态的观察数据
-    reports/                    报告定义、读取、holdout 纪律与完成事务
+    reports/                    报告定义、读取与 holdout 纪律
     publication/                发布、归档与准入
     composition/                因子组合与来源解析
     runtime/                    因子 TS/Python 编译、SDK 与运行适配
@@ -128,8 +134,8 @@ apps/api/src/
   strategy/
     http/
     definitions/                策略保存、命名、读取与复制
-    backtest/                   提交、任务、报告、worker
-    scans/                      参数扫描与子任务执行
+    backtest-job.ts              回测任务定义与生命周期
+    scan-job.ts                  参数扫描任务定义与生命周期
     execution/                  语言分派、因子准备、风险分析编排
     analysis/
       risk/                     回测报告的风险暴露、宏观敏感度与压力情景
@@ -145,7 +151,8 @@ apps/api/src/
   signals/
     http/
     deployments/                配置冻结、激活与暂停
-    runs/                       每日任务、worker、记录与完成事务
+    runs/                       每日运行记录与查询
+    signal-job.ts                每日信号任务定义与生命周期
     accounting/                 成交与账户对账
     factor-inputs/              因子依赖、数据截止与血缘
     scheduler.ts
@@ -178,7 +185,7 @@ apps/api/src/
   infra/
     database/                   Prisma 初始化与连接释放
     http/                       HTTP 校验与错误响应辅助
-    jobs/                       通用 Job 记录、日志、领取与队列
+    jobs/                       任务契约、执行器、记录、日志与队列
     runtime/
       python/                   会话连接、分帧与公共启动协议
       typescript/               通用 isolate 执行辅助
@@ -231,11 +238,11 @@ apps/api/src/
 
 当前根级 `config.ts` 只定义 Tushare 配置，归 `market/providers/tushare/config.ts`。不预设全局配置中心；以后配置也按其使用者归属。Agent 的图表规格与 SQL 工具归 `agent/tools/charts`、`agent/tools/sql`，不由此建立系统级 charts 模块，也不搬动 Research 的图表输出与产物职责。
 
-保留 auth、library、research、factor、strategy、engine、signals、agent、market、maintenance 的业务边界。当前 risk 归入策略报告分析，不单列顶层模块。不建立 `application/` 模块：启动装配由根级 `bootstrap.ts` 组织，业务恢复规则留在各业务模块，整体数据审计归 `maintenance/data-audit.ts`。目录归并不要求新增共同父类、通用接口或框架。
+保留 auth、library、research、factor、strategy、engine、signals、agent、market、maintenance 的业务边界。当前 risk 归入策略报告分析，不单列顶层模块。不建立 `application/` 模块：启动装配由根级 `bootstrap.ts` 组织，业务恢复规则留在各业务模块，整体数据审计归 `maintenance/data-audit.ts`。目录归并本身不要求新增共同父类或框架；有实际共同生命周期的后台任务使用 5.3 的统一接口与执行器。
 
 ### 4.3 启动入口与资源生命周期
 
-已确认：采用普通 `bootstrap.ts` 文件集中组织启动，不建立独立的 application 业务层。职责类似 Spring Boot 启动中的资源创建、依赖装配、启动任务与关闭协调；本项目用显式函数调用表达，不引入 DI 容器、自动扫描、统一模块基类或通用生命周期框架。
+已确认：采用普通 `bootstrap.ts` 文件集中组织启动，不建立独立的 application 业务层。职责类似 Spring Boot 启动中的资源创建、依赖装配、启动任务与关闭协调；本项目用显式函数调用表达，不引入 DI 容器、自动扫描、统一模块基类或全应用生命周期框架。Job 的生命周期由 5.3 的局部任务契约约束。
 
 | 位置 | 负责什么 | 边界 |
 | --- | --- | --- |
@@ -246,11 +253,11 @@ apps/api/src/
 | 各业务模块 | 提供任务处理、业务恢复以及自身会话的生命周期操作 | 启动入口调用这些操作，业务不反向依赖启动入口 |
 | `maintenance/data-audit.ts` | 组合市场基础质量检查与策略模型就绪检查，形成现有整体审计报告 | 由维护任务/CLI 显式调用，不放进每次 HTTP 启动流程 |
 
-装配的典型例子是把策略回测处理函数交给 Job 队列：策略实现回测，队列实现领取和并发，bootstrap 连接两者。普通计算函数与稳定的模块调用继续直接 import；有生命周期的资源、任务处理函数、需替换的外部客户端才按实际需要显式传入，不创建包含所有业务服务的全局容器。
+装配的典型例子是注册策略回测任务定义、创建 Job executor，再将 executor 交给队列：策略定义业务行为，执行器控制任务生命周期与事务，队列实现领取和并发，bootstrap 只连接这些组件。普通计算函数与稳定的模块调用继续直接 import；有生命周期的资源、任务处理函数、需替换的外部客户端才按实际需要显式传入，不创建包含所有业务服务的全局容器。
 
 启动按依赖组织：读取并校验相关配置 → 创建必要资源 → 连接处理函数和构建 HTTP 应用 → 完成必须先执行的恢复 → 启动调度与对外服务。数据库须先于恢复可用，残留 running 的恢复须先于领取新任务。沿用当前预置数据初始化、可选运行时探测等步骤的阻塞/异步语义，不因重排代码让可选能力变成启动硬依赖。配置仍由使用者定义，bootstrap 不成为第二份配置真相源。
 
-业务恢复函数留在所属模块；跨报告恢复仍由启动入口在同一数据库事务中协调，向各恢复操作传入同一个 transaction client。函数拆分不得把一次原子恢复变成多次独立提交。Agent turn 与 Research 会话继续保留自己的生命周期，不套用 Job 恢复规则。
+业务恢复方法留在所属模块；启动入口调用 executor，由 executor 在同一数据库事务中协调跨报告恢复，向各恢复操作传入同一个 transaction client。函数拆分不得把一次原子恢复变成多次独立提交。Agent turn 与 Research 会话继续保留自己的生命周期，不套用 Job 恢复规则。
 
 资源生命周期规划需要同时说明正常启动、启动失败与退出：
 
@@ -304,32 +311,51 @@ apps/api/src/
 
 验收重点：移动后本地 runner 的解析路径仍正确；Research、Python 因子、Python 策略都通过同一连接设施；生产不能启用本地 Python 逃生分支。
 
-### 5.3 Job 设施、业务完成与恢复
+### 5.3 Job 契约、执行器与业务生命周期
 
-这是有状态拆分，不按全文替换一次完成。
+经人工评审，任务重构从单纯搬迁升级为统一生命周期设计：使用组合式 `JobDefinition<Input, Output>`，不要求业务继承 Job 基类，不建立 DI 容器或自动扫描。Job 数据行与任务定义是不同概念。
 
-| 原职责 | 目标责任方 |
+| 职责 | 责任方 |
 | --- | --- |
-| `createJob`、查询、原子领取、通用状态类型 | `infra/jobs/records.ts` |
-| 内存日志、增量读取、完成后写库和 TTL 清理 | `infra/jobs/logs.ts`，通过明确函数配合领域完成事务 |
-| FIFO、每用户并发限制、唤醒、运行名额释放 | `infra/jobs/queue.ts` |
-| 任务 kind 与业务处理函数的连接 | `bootstrap.ts` 显式装配；payload 解析与任务执行留在对应业务入口 |
-| `finishBacktestReportJob` | `strategy/backtest/complete.ts` |
-| `finishFactorReportJob` | `factor/reports/complete.ts` |
-| `finishStrategyScanJob` | `strategy/scans/complete.ts` |
-| `finishSignalRunJob` | `signals/runs/complete.ts` |
-| Curator 完成操作 | `research/curator/` |
-| `markRunningJobsStale` 的启动调用与跨实体事务 | `bootstrap.ts` 协调一次恢复事务，调用各领域恢复操作与 `infra/jobs` 的事务内状态更新辅助 |
-| 报告恢复规则、未知/损坏 payload 的实体失败处理 | 对应业务任务目录中的恢复/失败操作；由装配的处理函数连接到队列 |
+| 创建/查询、原子领取、状态类型 | `infra/jobs/records.ts` |
+| 内存日志、增量读取、完成后 TTL 清理 | `infra/jobs/logs.ts`；执行器在提交终态时写入日志 |
+| FIFO、全局/用户并发、唤醒和名额释放 | `infra/jobs/queue.ts`；只向 executor 传递已领取的 jobId |
+| 必需的 parse/execute/complete/fail/recover 契约与类型适配 | `infra/jobs/definition.ts` |
+| 执行、完成/失败事务、启动恢复、提交后操作的错误边界 | `infra/jobs/executor.ts` |
+| Worker/子进程的事件到 Promise 转换 | `infra/jobs/worker-result.ts`；不接触数据库 |
+| 回测、参数扫描任务定义 | `strategy/backtest-job.ts`、`strategy/scan-job.ts` |
+| 因子分析、相关性任务定义与旧 task 分派 | `factor/analysis-job.ts`、`factor/correlation-job.ts`、`factor/factor-job.ts` |
+| 每日信号任务定义 | `signals/signal-job.ts` |
+| 研究整理任务定义 | `research/curator-job.ts` |
+| 任务注册、恢复先于调度/HTTP 的启动顺序 | `bootstrap.ts` |
 
-实施要求：
+每个业务任务文件集中声明 `parse / execute / complete / fail / recover`；只有实际复杂度需要时才拆内部实现。不能仅为 complete/recover 创建子目录。已有报告、研究整理或统计分析目录如有独立业务职责，仍按真实内容组织。
 
-- 调度器通过启动时传入的普通处理函数调用领域任务；使用现有 TS 能力，不引入插件注册框架。`bootstrap.ts` 是装配点，业务与 `infra/jobs` 不反向导入启动入口；API/CLI 的入口差异按 4.3 处理。
-- 保留 Job 与报告终态更新的同一数据库事务，不能改成“先 finishJob，再更新报告”。恢复当前使用的跨报告事务也须保持原子性。
-- 领域完成函数可以接收 Prisma transaction client；通用 Job 模块提供事务内更新辅助，不接管业务实体规则。
-- queued payload 是持久化协议，不能因移动文件重命名 `kind/task` 或改字段。旧 queued 数据仍能执行，损坏 payload 仍能将相关实体一并标记失败。
-- 日志完成前在内存、完成后持久化的语义保持不变；不能通过提取日志模块引入每行写库。
-- 核对所有实际执行队列的 API/CLI 入口及只入队等待的调用方；只在原本执行队列的进程装配处理函数，不让维护脚本意外多启动一个调度器。
+`defineJob()` 将业务的强类型输入和输出保存在闭包里，转换为异构注册表可调用的 `prepare()`：校验输入并绑定 Job → `execute()` 返回结果的完成操作 → executor 在事务内调用该操作。业务不用自行擦除类型或调用 Job 终态更新。接口强制方法齐全，执行器强制流程顺序，事务测试验证原子性；接口本身不能禁止业务误用全局 Prisma，仍需代码评审和依赖约束。
+
+正常链路：queue 原子领取 → executor 读取持久化输入并解析 → execute 在事务外计算/等待 Worker → 短事务中 complete 写业务结果、executor 写 Job 终态及日志 → 提交后 afterCommit → queue 释放名额。报告序列化和回测结果哈希在进入完成事务前准备。Worker 回调只收集结果和日志，异步数据库失败由 executor 的 await/catch 接住。
+
+异常边界：
+
+- 输入损坏：不运行业务、不执行依赖有效输入的提交后操作；仍用数据库中的全部关联 ID 处理失败。
+- 执行异常：Job 与仍活跃的关联业务实体在同一事务中进入 error；因子分析保留报告错误文案与 Job 原始异常的区别。
+- 完成异常：先回滚完成事务，再尝试失败事务；失败事务也失败时向队列抛出并记录，不假装成功。任务保持可在重启时识别的 running 状态。
+- afterCommit 异常：仅记录错误，不回写已完成结果。信号保持原有的完成 → 记账初始化 → 通知顺序；记账失败后不继续通知，没有引入自动重试或 outbox。
+- 完成/失败都检查 Job 仍为 running；领域失败仅修改 queued/running 实体，避免迟到失败覆盖已提交结果。输入中的报告/run/owner 标识须与持久化 Job 关联一致。
+
+启动恢复由 executor 调用所有注册定义的 recover，再更新本批 Job，整个过程共享一个 Prisma transaction client。每个业务按自身关联 ID 批量更新仍为 running 的实体。不能仅凭 kind/payload 选择恢复对象；损坏 kind 或存在多种关联也不能漏掉修复。queued 保持排队，running 转为 stale，不表示自动重试、断点续跑或补造结果。
+
+Curator 与相关性也使用原子结果提交，不保留空 complete 适配器：
+
+- 相关性 Worker 计算并返回序列化 payload，不写缓存；correlation-job.complete 在 executor 的事务内 upsert 缓存。Job 完成失败时，新增缓存回滚，已有缓存保持原 payload 与 computedAt。
+- Curator 的 prepareResearchCuratorRun 保留初始 running 状态更新，在事务外读取证据、调用 LLM、检索文件并核验，返回候选 findings，不保存 findings 或完成状态。
+- curator-job.complete 在事务内按 owner/fingerprint 重新查询已有结果，连同本批内重复项一起去重，createMany 保存新 findings，更新 evidenceCount/findingsCreated/duplicatesSkipped 和 run=done；executor 随后在同一事务中更新 Job。
+- 中途准备失败不发布本批候选结果；findings、run 终态或 Job 写入失败时，本次结果和统计整体回滚，再由失败事务更新 error。这是经用户确认的行为变化：不再保留本次逐条写入的部分 findings，不回滚此前其他任务已提交的结果。
+- 初始 running 状态和提交后的通知不属于结果完成事务；计算、LLM 和文件检索均不持有该事务。
+
+本次批准的行为调整超出目录搬迁：移除 finishJob 的静默吞错；统一完成异常处理；保护已完成状态；因子分析改为收到结果并等待 Worker 正常退出后再提交；Curator 的整批 findings/统计/run 终态、相关性缓存分别与 Job 原子完成，活跃 Curator 失败与 Job 也使用同一事务。HTTP、Prisma 模型、kind/task、queued payload、SDK 和报告数值口径不变。
+
+只有原本消费队列的 API 装配 executor；buildApp、普通模块导入和只入队的 CLI 不会自动启动恢复或调度。启动恢复仍基于当前单 API 调度进程假设，不新增租约、多实例执行、取消、重试或完整优雅退出协议。
 
 ### 5.4 Research：按对象和生命周期拆分
 
@@ -351,7 +377,7 @@ apps/api/src/
 | `equity-fcff-*.ts` | `templates/fcff/` | 模板、分类证据与回放案例，不放入通用财务解析 |
 | `research-factor-drafts.ts`、`research-strategy-drafts.ts`、`research-factor-handoff.ts`、`research-strategy-handoff.ts`、`research-handoff-context.ts` | `handoff/` | 从冻结执行生成草稿、校验并关联来源 |
 | `backtest-report-document.ts` | `documents/from-backtest-report.ts` | 将报告变为研究文档的业务操作 |
-| `curator.ts`、`curator-job.ts`、`curator-reference-search.ts` | `curator/` | 整理任务 |
+| `curator.ts`、`curator-reference-search.ts` | `curator/`；任务定义保留 `research/curator-job.ts` | 整理规则与检索归组，生命周期入口具名 |
 | `screen-data-migration.ts` | `apps/api/scripts/migrations/screen-to-research.ts` | 历史迁移实现；先确认调用方，再迁移并保留 CLI 行为 |
 
 拆分 `workbench.ts` 时先按函数责任分组，再处理依赖：
@@ -366,7 +392,7 @@ apps/api/src/
 ### 5.5 Factor：分清定义、观察数据、检验和发布
 
 - `builtin-factors.ts`、`metadata.ts`、`factor-v2-fields.ts` → `definitions/`。
-- `analysis.ts`、各 evaluator、`cross-sectional-inference.ts`、`evaluation-scope.ts`、分析/相关任务与 worker → `analysis/`；横截面、时间序列、Panel、宏观状态保持不同实现。
+- `analysis.ts`、各 evaluator、`cross-sectional-inference.ts`、`evaluation-scope.ts` 与分析/相关 worker → `analysis/`；任务定义保留 `factor/analysis-job.ts`、`correlation-job.ts`；横截面、时间序列、Panel、宏观状态保持不同实现。
 - `*-observations.ts`、`*-data-cutoff.ts` → `observations/`；资产/可得性口径随文件一起迁移。
 - `report-spec.ts`、当前 `research.ts` 中 holdout 纪律及计数 → `reports/`，将后者命名为 `research-policy.ts`，避免和 Research 产品混淆。
 - `publication.ts`、`panel-composite-publication.ts` → `publication/`；`composite.ts`、`panel-composite-source.ts` → `composition/`。
@@ -382,7 +408,7 @@ apps/api/src/
 | --- | --- | --- |
 | `services/strategy-service.ts` | `strategy/definitions/` | 按保存配置、命名等具体职责提取；命名竞争检查和 runKey 语义保留 |
 | 回测路由中的事务 | `strategy/backtest/submit.ts` | 归属检查、重复任务检查、配置/报告/Job 创建是一个操作 |
-| `strategy/backtest-job.ts`、`engine/backtest-worker.*` | `strategy/backtest/` | 任务启动和执行入口靠近报告业务 |
+| `strategy/backtest-job.ts`、`engine/backtest-worker.*` | 任务定义保留 `strategy/backtest-job.ts`；计算 Worker 归 Engine | 任务生命周期与计算职责分开，不为 Job 建目录 |
 | `strategy/scan*.ts`、`engine/strategy-scan*-worker.*` | `strategy/scans/` | 保留父 worker 和 cell 子进程结构、超时与资源释放 |
 | `engine/configured-run.ts` | `strategy/execution/run-configured.ts` | 策略语言分派与风险结果附加 |
 | `engine/prepare-custom-factors.ts` | `strategy/execution/prepare-factors.ts` | 已发布因子选择、权限与依赖血缘 |
@@ -545,8 +571,8 @@ Jobs queue → 启动时传入的任务处理函数
 | --- | --- | --- | --- | --- |
 | 1 | A | 固化方案、文件归属、路由/运行入口、依赖与测试基线 | 类型检查、SDK 一致性、后端测试与环境限制 | 已提交 `177f63ab` |
 | 2 | B | 公共辅助、infra/database/http/llm/email、math/date/i18n 与认证归位 | 初始化行为、相关测试与类型检查 | 已提交 `00a0e83a` |
-| 3 | B | 公共 Python 通信、领域协议、TS isolate 辅助及引用 | Research/Factor/Strategy 运行链路 | 已完成（本提交） |
-| 4 | C | Job 通用设施、领域完成/恢复事务、bootstrap 启动装配 | 排队/失败/恢复、事务回滚、API/CLI 入口 | 待开始 |
+| 3 | B | 公共 Python 通信、领域协议、TS isolate 辅助及引用 | Research/Factor/Strategy 运行链路 | 已提交 `bc4a1651` |
+| 4 | C | Job 通用设施、领域完成/恢复事务、bootstrap 启动装配 | 排队/失败/恢复、事务回滚、API/CLI 入口 | 已通过 review 与验证（本提交） |
 | 5 | D | Research 文档、依赖、执行、证据、提案 | 编辑→失效→执行→取消/冻结→提案 | 待开始 |
 | 6 | D | Research 数据、SDK、目录、语言服务、模板、交接、整理及 HTTP | 公开列映射、契约、语言服务与交接 | 待开始 |
 | 7 | E | Factor 定义、观察、分析、报告、发布、组合、运行与 HTTP | 发布纪律、历史报告、分析 Worker | 待开始 |
@@ -556,7 +582,7 @@ Jobs queue → 启动时传入的任务处理函数
 | 11 | F | Market 子领域及其余市场职责、Maintenance 与 CLI | 数据口径、幂等同步、质量门禁、审计 | 待开始 |
 | 12 | G | 边界门禁、架构阅读地图与剩余旧路径清理 | 完整构建、相关测试、受影响 E2E、运行入口 smoke | 待开始 |
 
-Commit 8 将风险模型、市场风险数据与整体审计调用的边界一起调整，避免保留 market → strategy 的反向依赖；Commit 11 整理剩余市场和维护职责。Commit 4 提取的领域完成/恢复操作直接落在目标目录，后续领域整理复用这些入口，不再重复搬迁。其余跨提交的路径变化按调用方同步原则处理。
+Commit 8 将风险模型、市场风险数据与整体审计调用的边界一起调整，避免保留 market → strategy 的反向依赖；Commit 11 整理剩余市场和维护职责。Commit 4 的业务生命周期集中在各领域明确命名的任务文件，后续领域整理复用这些入口，不为 complete/recover 单独建目录。其余跨提交的路径变化按调用方同步原则处理。
 
 Commit 1 的开发者交付为本文和 [重构基线](backend-architecture-refactor-baseline.md)，不改变产品功能、HTTP、Prisma schema 或公开 SDK。基线记录实际 HEAD、455 个 API 源目录文件的逐文件归属、HTTP 注册顺序、API/CLI/Worker 入口、现有依赖问题和验证结果；后续以具体 commit hash 与测试结果更新进度，不把已确认方案误标为已实现架构。
 
@@ -590,7 +616,7 @@ Commit 1 的开发者交付为本文和 [重构基线](backend-architecture-refa
 
 全套测试显式使用仓库 `research-py-v1` 的 Python 3.13.3，并为现有 Agent 测试提供确定性证券 fixture。邮件传输使用测试替代实现，没有真实邮件、LLM 调用或行情同步，没有写开发数据库。本次没有 UI 改动，因此未运行浏览器 E2E 或生成截图；本机 Python 回归不代表生产容器隔离验收。认证 HTTP 测试已入库文件，其他临时审计日志和 smoke 脚本留在本次 `/tmp` 工作目录，不作为产品代码。
 
-### 7.3 Commit 3 实现与验证记录（2026-09-08，提交前评审通过）
+### 7.3 Commit 3 实现与验证记录（2026-09-08，已提交 `bc4a1651`）
 
 本次交付供 Research、Factor、Strategy 和 Agent 宿主使用的内部运行模块，不增加用户入口：
 
@@ -617,6 +643,49 @@ Commit 1 的开发者交付为本文和 [重构基线](backend-architecture-refa
 环境记录：改动前，受限执行中的 Research 测试出现默认 5 秒超时；仅提高测试等待上限到 20 秒后，仍有依赖及时启动的取消/并发测试失败。正常本机执行下，原 5 秒测试限制无需修改，Research 16 项及最终全套回归全部通过。Unix socket 测试在受限环境返回 `EPERM`，获得执行环境放行后通过；没有为通过测试调整产品超时或禁用断言。
 
 运行时固定为仓库 Python 3.13.3，数据库使用全新临时 SQLite 与确定性证券 fixture；无真实邮件、LLM、行情同步或开发数据库写入。编译后 socket smoke 的对端是测试程序启动的真实 runner，不是生产容器，因此不将其记为容器隔离验收。本次没有 UI 改动，未运行浏览器 E2E 或生成截图；临时 smoke 和等价性核查日志留在本轮临时目录。
+
+### 7.4 Commit 4 实现与验证记录（2026-09-08，本提交）
+
+当前交付是内部任务设施，不新增产品入口。第一版完成/恢复函数按目录拆分后，用户要求用统一任务契约固化职责，并采用业务 `*-job.ts` 文件；该调整已获实施授权，具体设计以 5.3 为准。
+
+当前实现：
+
+- 新增 `infra/jobs/definition.ts`、`executor.ts`、`worker-result.ts`。队列只负责调度，执行器统一掌握事务和错误边界。
+- `bootstrap.ts` 用 `jobRegistry` 显式注册五种 kind，创建 executor，等待 Job/Agent/天气恢复后启动队列和 HTTP；不再列出业务关联字段或协调领域数据库操作。
+- 回测、扫描、因子分析、相关性、信号、Curator 的任务入口统一为具名任务定义。信号执行从 service.ts 移入 signal-job.ts；第一版 complete/recovery 文件及 Factor 的 analysis/dispatch.ts 已合并移除。
+- 回测、因子报告、扫描、信号、Curator、相关性任务的最终结果均与 Job 共用完成事务。Curator 候选准备不发布 findings，提交时重新去重；相关性 Worker 不写缓存。
+- 所有 Worker 完成通过 Promise 返回；因子分析现在等待正常退出后完成。执行器区分输入、执行、完成和提交后操作的错误。
+- 原 index.ts 的端口、日志与开发 Python 探测保留；server.ts 的 buildApp 不负责资源启动。
+
+人工 review 建议顺序：`definition.ts` 的业务契约 → `strategy/backtest-job.ts` 的完整示例 → `executor.ts` 的事务与恢复 → `bootstrap.ts` 的装配 → curator-job.ts 的批量去重与事务、correlation-job.ts 的缓存提交、signal-job.ts 的提交后动作。
+
+当前测试覆盖：
+
+- `job-lifecycle.integration.test.ts`：隔离 SQLite + 实际任务定义与 executor；模拟计算和外部副作用，覆盖四类完成、事务回滚、执行/完成异常、恢复、损坏输入/未知 kind、多关联收尾、重复调用、Curator 批量回滚/提交时去重、相关性缓存新增和覆盖回滚、提交后异常、归属与日志。
+- `research/curator.test.ts`：保留证据、核验、去重与人工反馈测试，通过真实任务 complete 保存 fixture；新增后续候选准备失败时不发布部分 findings 的测试。
+- `infra/jobs/worker-result.test.ts`：事件重复、正常退出前不完成、异常退出、缺失结果、启动异常。
+- `bootstrap.test.ts` 与 `infra/jobs/queue.execution.test.ts`：装配与调度边界；第一版只测恢复/完成函数的 mock 测试已由执行器集成覆盖取代。
+
+**当前状态：人工 review 已通过，全部必需验证通过；按用户授权直接提交。**
+
+提交信息：`统一任务生命周期与结果事务并集中启动装配`。
+
+| 检查 | 结果 |
+| --- | --- |
+| 根级 typecheck（含 SDK/runtime 一致性） | 全部通过 |
+| 32 个变更 TS 文件 lint | 通过，零错误、零警告 |
+| 完整 API 测试 | 191 个文件、1020 项全部通过，含生命周期集成 33 项和 Curator 领域 7 项 |
+| API 编译到全新临时目录 | 通过 |
+| 源码与编译产物真实启动 smoke | 两者均通过 health、running→stale、queued 损坏任务及关联实体→error；buildApp/CLI 导入不启动队列 |
+| HTTP 与依赖边界 | 132 项路由方法、路径与顺序不变；infra/jobs 不反向导入业务/启动入口 |
+| 模型、SDK、CLI、部署 | Prisma 仅日志注释路径变化，无模型迁移；SDK、sandboxd、CLI 脚本和部署关系未修改 |
+| 清理与差异检查 | 临时 API 已退出，端口 57167/57178 已释放，三个临时数据库无打开连接；测试/Python 进程及测试 fixture 已清理；git diff --check 通过 |
+
+首轮相关测试 8 文件/66 项通过，随后类型检查发现三处测试 fixture 字段不全及一个未使用 import；修复经静态检查、人工 review 后完成上述最终验证。上一版的 192 文件/1003 测试记录仅为历史基线；文件数变化来自旧完成/恢复 mock 测试的归并，当前以真实执行器集成和 Worker 事件测试覆盖。
+
+验证使用隔离 SQLite、确定性证券 fixture、固定 Python 3.13.3 和 ACCOUNTING_INTEGRATION=1；无开发数据库写入、真实邮件、LLM 或行情同步。启动 smoke 只执行预设损坏任务，成功结果与回滚由集成测试覆盖；未将模拟 Worker 测试声明为真实业务 Worker 全链路验收。没有 UI 变更，未运行浏览器 E2E 或生成截图；未做生产容器与完整优雅退出验收。
+
+已知边界：没有新增完整 stop/drain、启动失败资源回收或 SIGINT/SIGTERM 协议；afterCommit 没有持久化重试，崩溃前内存日志可能丢失；接口不替代数据库事务及人工审查。没有模型迁移、公开 SDK 或 UI 变化，不需要新增产品文案或浏览器截图。
 
 ## 8. 测试与验收计划
 
@@ -650,7 +719,7 @@ Commit 1 的开发者交付为本文和 [重构基线](backend-architecture-refa
 
 ### 8.3 检查命令与时机
 
-每包运行受影响测试和类型检查；整体收尾运行：
+每包在人工代码 review 前通过 lint、typecheck 等静态检查；review 通过后运行受影响测试、构建及运行验证。整体收尾按上述时机分别运行：
 
 ```bash
 pnpm check:research-runtime

@@ -6,7 +6,6 @@ import prismaPackage from '@prisma/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { tushareCapabilityProbesAreFresh } from '../tushare/capability-probe-store.js';
 import {
-  executeResearchCuratorRun,
   extractResearchCuratorEvidence,
   getResearchCuratorRun,
   researchCuratorQuality,
@@ -14,6 +13,12 @@ import {
   updateResearchCuratorFindingFeedback,
 } from './curator.js';
 
+import * as curator from './curator.js';
+import * as referenceSearch from './curator-reference-search.js';
+import { researchCuratorJob } from './curator-job.js';
+import type { JobSnapshot } from '../infra/jobs/definition.js';
+
+const originalPrepare = curator.prepareResearchCuratorRun;
 const { PrismaClient: RuntimePrismaClient } = prismaPackage;
 
 describe('research curator', () => {
@@ -85,7 +90,7 @@ describe('research curator', () => {
       }),
     );
 
-    const run = await executeResearchCuratorRun('run-a', { database, llm });
+    const run = await prepareAndCompleteCuratorRun('run-a', { database, llm });
     expect(llm).toHaveBeenCalledOnce();
     expect(run).toMatchObject({ status: 'done', evidenceCount: 1, findingsCreated: 1 });
     expect(run.findings[0]).toMatchObject({
@@ -124,7 +129,7 @@ describe('research curator', () => {
     });
     for (const runId of ['run-a', 'run-b']) {
       await database.researchCuratorRun.create({ data: { id: runId, userId: 'user-a', cursorTo } });
-      await executeResearchCuratorRun(runId, { database, llm: async () => response });
+      await prepareAndCompleteCuratorRun(runId, { database, llm: async () => response });
     }
     const repeated = await getResearchCuratorRun('user-a', 'run-b', database);
     expect(repeated).toMatchObject({ findingsCreated: 0, duplicatesSkipped: 1, findings: [] });
@@ -164,7 +169,7 @@ describe('research curator', () => {
       ],
     });
 
-    const run = await executeResearchCuratorRun('run-supplier', {
+    const run = await prepareAndCompleteCuratorRun('run-supplier', {
       database,
       llm: async () => response,
     });
@@ -197,7 +202,7 @@ describe('research curator', () => {
     await database.researchCuratorRun.create({
       data: { id: 'run-us-source', userId: 'user-b', cursorTo },
     });
-    const run = await executeResearchCuratorRun('run-us-source', {
+    const run = await prepareAndCompleteCuratorRun('run-us-source', {
       database,
       llm: async () =>
         JSON.stringify({
@@ -275,7 +280,7 @@ describe('research curator', () => {
         cursorTo: new Date('2026-08-14T03:00:00.000Z'),
       },
     });
-    const run = await executeResearchCuratorRun('run-probed-supplier', {
+    const run = await prepareAndCompleteCuratorRun('run-probed-supplier', {
       database,
       llm: async () =>
         JSON.stringify({
@@ -327,6 +332,45 @@ describe('research curator', () => {
     });
   });
 
+  it('publishes no partial findings if preparing a later candidate fails', async () => {
+    await database.researchCuratorRun.create({
+      data: {
+        id: 'run-prepare-failure',
+        userId: 'user-a',
+        cursorTo: new Date('2026-08-14T02:00:00.000Z'),
+      },
+    });
+    const findings = ['first', 'second'].map((name) => ({
+      category: 'documentation_gap',
+      title: `Explain adjusted close ${name}`,
+      summary: 'Explain this concept.',
+      evidenceIds: ['message:message-a'],
+      confidence: 0.8,
+      expectedValue: 'Clarify research.',
+      changeSurface: ['help'],
+      suggestedAction: `Review ${name}.`,
+    }));
+    const search = vi
+      .spyOn(referenceSearch, 'searchCuratorRepositoryReferences')
+      .mockResolvedValueOnce([])
+      .mockRejectedValueOnce(new Error('reference search failed'));
+    try {
+      await expect(
+        originalPrepare('run-prepare-failure', {
+          database,
+          llm: async () => JSON.stringify({ findings }),
+        }),
+      ).rejects.toThrow('reference search failed');
+      expect(search).toHaveBeenCalledTimes(2);
+      expect(await database.researchCuratorFinding.count()).toBe(0);
+      expect(
+        await database.researchCuratorRun.findUnique({ where: { id: 'run-prepare-failure' } }),
+      ).toMatchObject({ status: 'running', findingsCreated: 0 });
+    } finally {
+      search.mockRestore();
+    }
+  });
+
   it('does not truncate large evidence windows and summarizes them in bounded chunks', async () => {
     await database.agentMessage.createMany({
       data: Array.from({ length: 501 }, (_, index) => ({
@@ -344,12 +388,57 @@ describe('research curator', () => {
     });
     const llm = vi.fn(async () => JSON.stringify({ findings: [] }));
 
-    const run = await executeResearchCuratorRun('run-large-window', { database, llm });
+    const run = await prepareAndCompleteCuratorRun('run-large-window', { database, llm });
 
     expect(run.evidenceCount).toBe(502);
     expect(llm).toHaveBeenCalledTimes(7);
   });
 });
+
+// Domain tests use the real task completion method with the fixture transaction.
+// The executor's additional Job update and rollback are covered by lifecycle integration tests.
+async function prepareAndCompleteCuratorRun(
+  runId: string,
+  options: {
+    database: PrismaClient;
+    llm: NonNullable<Parameters<typeof originalPrepare>[1]>['llm'];
+  },
+) {
+  const run = await options.database.researchCuratorRun.findUniqueOrThrow({ where: { id: runId } });
+  const prepare = vi
+    .spyOn(curator, 'prepareResearchCuratorRun')
+    .mockImplementation((id) => originalPrepare(id, options));
+  try {
+    const prepared = researchCuratorJob.prepare({
+      job: {
+        id: `job-${runId}`,
+        userId: run.userId,
+        researchCuratorRunId: runId,
+        payload: { runId },
+        kind: 'research-curator',
+        key: runId,
+        status: 'running',
+        error: null,
+        logs: null,
+        factorReportId: null,
+        backtestReportId: null,
+        strategyScanReportId: null,
+        signalRunId: null,
+        queuedAt: new Date(0),
+        startedAt: new Date(0),
+        finishedAt: null,
+        createdAt: new Date(0),
+        updatedAt: new Date(0),
+      } satisfies JobSnapshot,
+      log: () => {},
+    });
+    const result = await prepared.execute();
+    await options.database.$transaction((transaction) => result.complete(transaction));
+    return (await getResearchCuratorRun(run.userId, runId, options.database))!;
+  } finally {
+    prepare.mockRestore();
+  }
+}
 
 async function seedUserConversation(
   database: PrismaClient,

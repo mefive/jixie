@@ -14,7 +14,7 @@ import {
   proposeStrategyName,
   uniqueStrategyName,
 } from '../services/strategy-service.js';
-import { ACTIVE_JOB_STATUSES } from '../lib/jobs.js';
+import { ACTIVE_JOB_STATUSES } from '../infra/jobs/records.js';
 import { extractFactorKeys } from '../engine/prepare-custom-factors.js';
 
 /**
