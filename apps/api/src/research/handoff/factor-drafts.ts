@@ -1,7 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import type { Locale, ResearchFactorDraftResultV1, ResearchFactorHandoffV1 } from '@jixie/shared';
 import { ulid } from 'ulid';
-import { BUILTIN_KEYS } from '../../factor/builtin-factors.js';
+import { BUILTIN_KEYS } from '../../factor/definitions/builtin-factors.js';
 import { prisma } from '../../infra/database/prisma.js';
 import { getResearchExecution } from '../evidence/execution-records.js';
 import { generateResearchFactorDraft } from './factor-handoff.js';

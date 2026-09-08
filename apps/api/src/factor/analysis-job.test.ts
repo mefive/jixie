@@ -27,7 +27,7 @@ import {
   readFactorAnalysisResult,
   startFactorAnalysis,
 } from './analysis-job.js';
-import { factorVariantKey, sha256 } from './report-spec.js';
+import { factorVariantKey, sha256 } from './reports/spec.js';
 
 const spec: FactorAnalysisSpecV3 = {
   version: 3,

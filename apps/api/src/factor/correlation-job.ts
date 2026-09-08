@@ -6,8 +6,8 @@ import { defineJob } from '../infra/jobs/definition.js';
 import { runJobWorker, type JobWorkerMessage } from '../infra/jobs/worker-result.js';
 
 const workerUrl = import.meta.url.endsWith('.ts')
-  ? new URL('./correlation-worker.boot.mjs', import.meta.url)
-  : new URL('./correlation-worker.js', import.meta.url);
+  ? new URL('./analysis/correlation-worker.boot.mjs', import.meta.url)
+  : new URL('./analysis/correlation-worker.js', import.meta.url);
 
 const payloadSchema = z.object({
   task: z.literal('correlation'),

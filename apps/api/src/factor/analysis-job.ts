@@ -27,12 +27,12 @@ import {
   factorVariantKey,
   normalizeFactorResearchSpec,
   sha256,
-} from './report-spec.js';
-import type { FactorAnalysisRuntimeSource } from './composite.js';
+} from './reports/spec.js';
+import type { FactorAnalysisRuntimeSource } from './composition/composite.js';
 
 const workerUrl = import.meta.url.endsWith('.ts')
-  ? new URL('./factor-worker.boot.mjs', import.meta.url)
-  : new URL('./factor-worker.js', import.meta.url);
+  ? new URL('./analysis/factor-worker.boot.mjs', import.meta.url)
+  : new URL('./analysis/factor-worker.js', import.meta.url);
 
 export type FactorAnalysisSource =
   | FactorAnalysisRuntimeSource

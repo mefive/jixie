@@ -23,10 +23,10 @@ vi.mock('./infra/jobs/queue.js', () => ({ startJobQueue: mocks.startQueue }));
 vi.mock('./agent/persistence.js', () => ({
   markRunningAgentTurnsInterrupted: mocks.agentRecovery,
 }));
-vi.mock('./factor/weather.js', () => ({
+vi.mock('./factor/weather/refresh.js', () => ({
   resetInterruptedFactorWeatherRefreshes: mocks.weatherRecovery,
 }));
-vi.mock('./factor/builtin-factors.js', () => ({ seedBuiltinFactors: mocks.seed }));
+vi.mock('./factor/definitions/builtin-factors.js', () => ({ seedBuiltinFactors: mocks.seed }));
 vi.mock('./strategy/backtest-job.js', () => ({ backtestJob: mocks.backtest }));
 vi.mock('./factor/factor-job.js', () => ({ factorJob: mocks.factor }));
 vi.mock('./strategy/scan-job.js', () => ({ strategyScanJob: mocks.scan }));

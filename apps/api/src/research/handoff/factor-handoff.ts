@@ -8,8 +8,8 @@ import {
   type ResearchFactorReportSuggestionV1,
 } from '@jixie/shared';
 import { agentTurn, buildAgentMode, type AgentProfile } from '../../agent/core.js';
-import { buildFactorCodegenPrompt } from '../../factor/factor-codegen-prompt.js';
-import { validateFactorDefinition } from '../../factor/validate-factor-definition.js';
+import { buildFactorCodegenPrompt } from '../../factor/runtime/codegen-prompt.js';
+import { validateFactorDefinition } from '../../factor/runtime/validate-definition.js';
 import { chatJson, chatTools, type LlmCall } from '../../infra/llm/deepseek.js';
 import type { AgentLlm } from '../../infra/llm/agent-llm.js';
 import { researchHandoffContext } from './context.js';

@@ -10,7 +10,7 @@ import {
   MinistryOfFinanceCurveClient,
   syncChinaTreasuryYieldCurve,
 } from '../rates/china-treasury-curve.js';
-import { refreshAllFactorWeatherPins } from '../factor/weather.js';
+import { refreshAllFactorWeatherPins } from '../factor/weather/refresh.js';
 import { MARKET_WEATHER_INDICATOR_INDEX_CODES } from '../store/index-presets.js';
 import { refreshEtfRegistryRevisions } from '../store/etf-market-sync.js';
 import { ETF_RESEARCH_CODES } from '../store/etf-research-registry.js';

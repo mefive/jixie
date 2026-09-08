@@ -1,6 +1,6 @@
 # 后端业务边界与目录重整开发计划
 
-> 状态：Commit 1～5 已提交（`177f63ab`、`00a0e83a`、`bc4a1651`、`ed8c4aae`、`a034c611`）；Commit 6（本提交）已通过人工 review、静态检查、全量 API 测试、编译和 Python / Pyright 运行验证。
+> 状态：Commit 1～6 已提交（`177f63ab`、`00a0e83a`、`bc4a1651`、`ed8c4aae`、`a034c611`、`1bba29cd`）；Commit 7（本提交）已通过人工 review、静态检查、全量 API 测试、编译和 Factor Worker 源码/编译运行验证。
 > 编制日期：2026-09-07；核对代码基线：`12ce9092`。
 > 目标：让不熟悉项目的开发者从目录识别业务能力，沿一个入口读懂完整流程，并找到状态与数据的责任方。
 > 本文规划后端结构调整；研究方法与金融口径不变，任务生命周期的已批准行为调整见 5.3。
@@ -124,6 +124,7 @@ apps/api/src/
     routes.ts                   因子列表与定义入口
     research-routes.ts          因子研究、报告与辅助对话入口
     weather-routes.ts           因子天气入口
+    agent-turn.ts               因子编辑与预置因子问答的启动入口
     definitions/                定义、预置因子与元数据
     analysis/                   评估器、worker 和统计检验
     analysis-job.ts              因子分析任务定义与生命周期
@@ -585,8 +586,8 @@ Jobs queue → 启动时传入的任务处理函数
 | 3 | B | 公共 Python 通信、领域协议、TS isolate 辅助及引用 | Research/Factor/Strategy 运行链路 | 已提交 `bc4a1651` |
 | 4 | C | Job 通用设施、领域完成/恢复事务、bootstrap 启动装配 | 排队/失败/恢复、事务回滚、API/CLI 入口 | 已提交 `ed8c4aae` |
 | 5 | D | Research 文档、依赖、执行、证据、提案 | 编辑→失效→执行→取消/冻结→提案 | 已提交 `a034c611` |
-| 6 | D | Research 数据、SDK、目录、语言服务、模板、交接、整理及 HTTP | 公开列映射、契约、语言服务与交接 | 已通过 review 与验证（本提交） |
-| 7 | E | Factor 定义、观察、分析、报告、发布、组合、运行与 HTTP | 发布纪律、历史报告、分析 Worker | 待开始 |
+| 6 | D | Research 数据、SDK、目录、语言服务、模板、交接、整理及 HTTP | 公开列映射、契约、语言服务与交接 | 已提交 `1bba29cd` |
+| 7 | E | Factor 定义、观察、分析、报告、发布、组合、运行与 HTTP | 发布纪律、历史报告、分析 Worker | 已通过 review 与验证（本提交） |
 | 8 | E | Strategy 与 Engine 分离，风险分析及风险数据/审计边界 | TS/Python 回测、参数扫描、风险结果、引擎一致性 | 待开始 |
 | 9 | F | Signals 部署、运行、对账、因子输入、Worker 与 HTTP | 冻结配置、幂等运行、失败收尾、对账 | 待开始 |
 | 10 | F | Agent turns/conversations/tools/Worker、Library 操作与 HTTP | SSE、取消、工具权限、公开库复制 | 待开始 |
@@ -730,7 +731,7 @@ Commit 1 的开发者交付为本文和 [重构基线](backend-architecture-refa
 
 验证日志留在 `/tmp/jixie-c5-verification`。测试采用固定 Python 3.13.3、隔离数据库与确定性行情 fixture，没有开发数据库写入、真实市场请求或 LLM 调用。真实 Python smoke 使用业务函数和 Hono 内存健康请求，未启动对外 HTTP 监听，也未执行浏览器 E2E；生产连接分支的测试对端不代表生产容器隔离验收。数据库 schema、公开 SDK、生成物、金融口径及前端产品行为未变，不需要数据迁移、帮助页面或双语文案调整；静态检查通过不代表运行验证已完成。
 
-### 7.6 Commit 6 实现与验证记录（2026-09-08，本提交）
+### 7.6 Commit 6 实现与验证记录（2026-09-08，`1bba29cd`）
 
 事前确认的提交信息：`整理 Research 数据能力与业务入口`。实际阅读地图同步在 `apps/api/src/research/README.md`。
 
@@ -771,6 +772,45 @@ Commit 1 的开发者交付为本文和 [重构基线](backend-architecture-refa
 首轮受限沙箱验证有 191 个文件通过、4 个文件失败：9 项 Unix socket 测试报 EPERM，另 11 项 Python 测试超时。编译产物 socket smoke 同样被权限拒绝。获准在允许本地 socket/子进程的环境中运行后，使用全新隔离数据库重跑全量测试，195/195 文件、1042/1042 测试通过，socket smoke 通过。未修改产品代码、测试代码或超时设置，属于执行环境修正。
 
 日志位于 `/tmp/jixie-c6-verification`（首轮保留为 `api-test-sandbox.*`，通过结果为 `api-test.*`）。本轮不访问开发数据库、真实市场或 LLM 服务；没有 UI 改动，未运行浏览器 E2E。生产连接分支使用本地测试 runner，不代表生产容器隔离验收。验证期间代码与 review 快照一致，只在验证结束后补记文档，按事前确定的信息提交。
+
+### 7.7 Commit 7 实现与验证记录（2026-09-08，本提交）
+
+事前确认的提交信息：`按职责整理 Factor 定义分析与发布流程`。本轮实现地图见 [Factor README](../../apps/api/src/factor/README.md)。
+
+- 76 个原文件（含测试和三组 HTTP）归位。定义/模板归 `definitions`，观察数据/截止日归 `observations`，评估器/Worker/相关性归 `analysis`，报告 spec/研究纪律归 `reports`，发布归 `publication`，组合归 `composition`，编译/SDK/语言适配归 `runtime`，天气计算归 `weather/refresh.ts`。根级三个 Job 文件保留，所有调用方及开发/编译 Worker URL 同步更新，旧路径移除，无转发层。
+- 三组根级 routes 保留 36 个路由的 URL、注册顺序和 schema。32 个原 handler 中的业务操作提取至草稿、目录/详情、组合、可见性、分析提交/来源、报告/holdout、相关性、Agent、元数据和天气入口；4 个原发布/归档 handler 继续调用既有业务函数。
+- 业务入口显式接收 userId、输入和所需 locale，不依赖 Hono。操作失败在 `operation-errors.ts` 表达，在 `route-errors.ts` 映射为原 HTTP 错误；发布沿用原 `FactorPublicationError`。参数 schema 由业务拥有，HTTP 复用。
+- 权限、状态、错误和副作用顺序保持：holdout 使用父报告冻结输入，报告与 Job 在同一事务创建，提交后唤醒；公开 Panel 复制的组件和组合在同一事务创建；公开复制不泄露原作者上下文；列表/详情/日志维持 holdout 封存；天气保留查询触发的后台刷新和固定快照。
+- 数学算法、数据口径、HTTP/SDK、schema、生成物和 UI 不变；没有新部署包或跨包构建依赖。现行文档中的文件引用更新，历史架构基线不改写。
+
+新增 9 项正式 SQLite + Hono 集成测试场景，文件为 `factor/routes.integration.test.ts`：固定/发布只读与报告历史保留、公开读取/复制隐私、公开 Panel 组件独立复制及事务回滚、holdout 三处封存与幂等揭示、冻结输入与任务复用、Job 插入失败回滚、Agent 启动保护、天气固定/刷新/忙碌错误。外部执行替换为测试端口；人工 review 前仅编写并静态检查，review 后已在隔离 SQLite 中全部通过。
+
+静态检查记录位于 `/tmp/jixie-c7-review`：
+
+| 检查 | 范围与结果 |
+| --- | --- |
+| 格式、ESLint、全仓 typecheck | 本轮 120 个 TS/MJS 文件格式与 ESLint 通过，无 warning；全仓 typecheck 与 Research/Factor SDK、runtime 生成物一致性通过 |
+| 非 HTTP 文件内容核对 | 73 个迁移文件与 23 个原调用方按模块路径归一化后等价；算法、模板和既有测试实现保持 |
+| 路由和提取核对 | 36 个路由顺序/URL/schema 保持；4 个原 handler 保持；32 个业务体除 Context→显式参数、响应→返回值、错误→业务异常外等价；38 个 helper/schema 保持 |
+| 模块与运行入口路径 | 相对静态/动态导入、源码/编译 Worker URL 无缺失；静态运行时 import 图无涉及 Factor 的循环 |
+| HTTP/业务边界 | 路由不直接操作 Prisma、Agent 执行器或 Job 队列；业务实现不依赖 Hono/HTTP 辅助 |
+| `git diff --check` | 通过 |
+
+上述核对仅解析源码，不导入执行产品模块。人工 review 通过后，完成以下行为验证：
+
+| 检查 | 结果 |
+| --- | --- |
+| 全量 API 测试，隔离 SQLite、ACCOUNTING_INTEGRATION=1 | 196 个文件、1051 项测试全部通过，含新增 9 项及全部迁移的 Factor 测试 |
+| API `tsc` 编译到干净临时目录 | 通过 |
+| 源码 Factor 任务入口 → 真实 Worker → 主线程提交 | TS 与真实 Python 时间序列分析均得到 4 条观察，报告与 Job 完成；60 只 fixture 证券的相关性计算、缓存与 Job 提交通过 |
+| 编译 Factor 任务入口及生产 socket 连接分支 | 同一链路通过，对端为本地测试启动的真实 Python runner；TS/Python 报告相同，源码/编译结果文件完全一致 |
+| 失败与重启恢复 | 源码/编译均验证无效代码使 Report 与 Job 同步失败，领取后中断的任务与报告同步恢复为 stale |
+| review 快照 | 验证期间产品和测试代码未改变；结束后仅补记本文及 Factor README |
+| 清理 | 无 Vitest、Worker smoke、Python runner 残留，测试 socket 目录已删除，四个临时数据库无打开连接 |
+
+前两轮全量运行有环境初始化问题，均未修改代码或断言：第一轮 1049/1051 通过，旧 Agent 两项用例需要的 `600519.SH` 基础证券 fixture 未预置；第二轮补齐后 Agent 通过，但复用同一数据库导致旧记账集成测试残留账户的邮箱重复，1050/1051 通过。最终使用全新且预置同一证券 fixture 的数据库，196/196 文件、1051/1051 测试通过。
+
+日志与临时 Worker 检查脚本在 `/tmp/jixie-c7-verification`。首两轮日志分别保留为 `api-test-unseeded.*`、`api-test-reused-db.*`，通过结果为 `api-test.*`。`worker-smoke.mjs` 是本轮额外运行入口检查，独立于仓库正式 `.test.ts`；验证确定性输入与迁移入口，不访问开发数据库、真实市场或 LLM。临时数据库文件保留供排查，连接已关闭；生产 socket 分支使用本地 runner，不代表生产容器隔离验收。无 UI 改动，未执行浏览器 E2E。全部必需验证通过，按事前确定的提交信息直接提交。
 
 ## 8. 测试与验收计划
 

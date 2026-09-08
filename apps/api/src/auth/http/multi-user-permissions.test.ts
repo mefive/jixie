@@ -39,7 +39,7 @@ vi.mock('../../infra/database/prisma.js', () => ({
   },
 }));
 
-import { factorsRoute } from '../../routes/factors.js';
+import { factorsRoute } from '../../factor/routes.js';
 import { libraryRoute } from '../../routes/library.js';
 import { strategiesRoute } from '../../routes/strategies.js';
 

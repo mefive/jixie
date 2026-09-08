@@ -528,8 +528,8 @@ revealedAt = now → 可反复查看，但不再是未观察数据
 实施 agent 开始前应重新用 `rg` 定位依赖，至少检查：
 
 - `apps/api/prisma/schema.prisma`
-- `apps/api/src/factor/report-spec.ts`
-- `apps/api/src/routes/factor.ts`
+- `apps/api/src/factor/reports/spec.ts`
+- `apps/api/src/factor/research-routes.ts`
 - `apps/api/src/factor/analysis-job.ts`
 - `packages/shared/src/factor.ts`
 - `apps/web/src/api/client.ts`

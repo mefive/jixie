@@ -1,5 +1,5 @@
 import type { FactorAnalysisSpecV1, FactorResearchIntentV1 } from '@jixie/shared';
-import { factorTestKey } from '../src/factor/report-spec.js';
+import { factorTestKey } from '../src/factor/reports/spec.js';
 import { prisma } from '../src/infra/database/prisma.js';
 
 const exploratoryIntent: FactorResearchIntentV1 = {

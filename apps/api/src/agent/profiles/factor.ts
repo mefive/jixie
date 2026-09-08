@@ -1,5 +1,5 @@
-import { buildFactorCodegenPrompt } from '../../factor/factor-codegen-prompt.js';
-import { validateFactorDefinition } from '../../factor/validate-factor-definition.js';
+import { buildFactorCodegenPrompt } from '../../factor/runtime/codegen-prompt.js';
+import { validateFactorDefinition } from '../../factor/runtime/validate-definition.js';
 import type { FactorLanguage, Locale } from '@jixie/shared';
 import { buildAgentMode, RESEARCH_TOOLS_HINT, TOOLS_HINT, type AgentProfile } from '../core.js';
 import { defaultTools } from '../tools/index.js';

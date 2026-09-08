@@ -6,20 +6,20 @@ import {
 } from '@jixie/shared';
 import { prisma } from '../infra/database/prisma.js';
 import { toCommonJs } from '../infra/runtime/typescript/isolate-run.js';
-import { BUILTIN_USER_ID } from '../factor/builtin-factors.js';
+import { BUILTIN_USER_ID } from '../factor/definitions/builtin-factors.js';
 import {
   compilePanelFactor,
   compileTimeSeriesFactor,
-} from '../factor/compile-time-series-factor.js';
-import { normalizeAnalysisKind } from '../factor/publication.js';
+} from '../factor/runtime/typescript/compile-asset-factor.js';
+import { normalizeAnalysisKind } from '../factor/publication/factor.js';
 import { parseAssetFactorAnalysisSourceSnapshot } from '../factor/analysis-job.js';
-import { isResearchOnlyFactorV2Field } from '../factor/factor-v2-fields.js';
-import { factorResearchSpecV1Schema, sha256 } from '../factor/report-spec.js';
-import { compilePythonCrossSectionalFactor } from '../factor/python-cross-sectional-runtime.js';
+import { isResearchOnlyFactorV2Field } from '../factor/definitions/fields.js';
+import { factorResearchSpecV1Schema, sha256 } from '../factor/reports/spec.js';
+import { compilePythonCrossSectionalFactor } from '../factor/runtime/python/cross-sectional.js';
 import {
   compilePythonPanelFactor,
   compilePythonTimeSeriesFactor,
-} from '../factor/python-asset-factor-runtime.js';
+} from '../factor/runtime/python/asset-factor.js';
 import { t } from '../i18n/messages.js';
 import { extractCustomFactorHistoryFields, type CustomFactorModule } from './custom-factor.js';
 

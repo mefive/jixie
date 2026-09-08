@@ -93,6 +93,7 @@
 - `apps/api/src/infra/runtime` — 公共 Python 通信、TS isolate 与沙盒日志；业务协议归 Strategy/Factor 的 runtime 和 Research 的 sdk，公共运行设施不导入业务模块。
 - `apps/api/src/infra/jobs` — 通用任务记录、日志、队列、任务契约与执行器；业务 `*-job.ts` 集中声明 parse/execute/complete/fail/recover，执行器控制事务及恢复。根级 `bootstrap.ts` 注册任务、创建执行器并按顺序启动 API；`server.ts` 的 `buildApp()` 只构建 HTTP 应用。
 - `apps/api/src/research` — 文档/Cell 编辑归 documents，依赖与失效归 dependencies，执行/会话归 execution，快照与产物归 evidence，Agent 修改/审阅/尝试归 proposals；研究数据归 datasets，语义检索归 catalog，SDK 校验/分派归 sdk，语言服务归 language，模板归 templates，因子/策略交接归 handoff，整理归 curator。`routes.ts` 只适配请求，`agent-turn.ts` 编排 Research 对话启动；入口与调用链见 `src/research/README.md`。
+- `apps/api/src/factor` — 定义与草稿归 definitions，观察数据与截止日归 observations，评估器/Worker/提交归 analysis，报告与 holdout 归 reports，发布/归档归 publication，组合归 composition，语言适配归 runtime，天气固定/刷新归 weather；根级三组 routes 只适配请求，analysis-job/correlation-job 保留具名任务生命周期。入口与调用链见 `src/factor/README.md`。
 - `apps/api` — Hono 后端 + `prisma/schema.prisma` + 领域逻辑(`src/tushare`、`src/store`,未来 `src/factor`、`src/backtest`)+ 研究 / 导入脚本(`scripts/`,wired 成 `smoke` / `sync` / `peek` 等)
 - `apps/web` — 登录与工作台前端
 - `apps/docs` — 独立公开文档前端，挂载 `/docs/help/*` 与 `/docs/sdk`

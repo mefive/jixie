@@ -3,8 +3,8 @@ import { buildApp } from './server.js';
 import { startJobQueue } from './infra/jobs/queue.js';
 import { createJobExecutor } from './infra/jobs/executor.js';
 import type { JobRegistry } from './infra/jobs/definition.js';
-import { seedBuiltinFactors } from './factor/builtin-factors.js';
-import { resetInterruptedFactorWeatherRefreshes } from './factor/weather.js';
+import { seedBuiltinFactors } from './factor/definitions/builtin-factors.js';
+import { resetInterruptedFactorWeatherRefreshes } from './factor/weather/refresh.js';
 import { markRunningAgentTurnsInterrupted } from './agent/persistence.js';
 
 export const jobRegistry: JobRegistry = {
