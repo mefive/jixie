@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { apiError, validateJson, validateQuery } from '../lib/httpError.js';
+import { apiError, validateJson, validateQuery } from '../infra/http/errors.js';
 import { getJob } from '../lib/jobs.js';
-import { localeFromRequest, m } from '../i18n/index.js';
+import { localeFromRequest, m } from '../infra/http/locale.js';
 import {
   currentDeployment,
   deployStrategy,

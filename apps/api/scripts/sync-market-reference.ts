@@ -1,5 +1,5 @@
 import { loadTushareConfig } from '../src/config.js';
-import { prisma } from '../src/lib/prisma.js';
+import { prisma } from '../src/infra/database/prisma.js';
 import { MARKET_WEATHER_INDEX_CODES } from '../src/store/index-presets.js';
 import { syncIndexBenchmarks, syncIndexDaily, syncSwIndexDaily } from '../src/store/sync.js';
 import { TushareClient } from '../src/tushare/client.js';

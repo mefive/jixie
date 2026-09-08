@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
   transaction: vi.fn(),
 }));
 
-vi.mock('./prisma.js', () => ({
+vi.mock('../infra/database/prisma.js', () => ({
   prisma: {
     $transaction: mocks.transaction,
   },

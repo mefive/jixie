@@ -3,7 +3,7 @@ import {
   commodityFutureProductCodesForEtfs,
   commodityWarehouseReceiptProductCodesForEtfs,
 } from '../commodity/commodity-futures.js';
-import { prisma, type Prisma } from '../lib/prisma.js';
+import { prisma, type Prisma } from '../infra/database/prisma.js';
 
 export interface AssetFactorDataRequirements {
   commodityCarry?: boolean;

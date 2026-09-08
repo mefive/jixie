@@ -1,4 +1,4 @@
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../infra/database/prisma.js';
 import { enqueueSignalRun } from './service.js';
 import { syncSignalMarketData } from './sync.js';
 import { settleStrategyAccounts } from './accounting.js';

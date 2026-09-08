@@ -1,13 +1,13 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { apiError, validateJson } from '../lib/httpError.js';
-import { prisma } from '../lib/prisma.js';
+import { apiError, validateJson } from '../infra/http/errors.js';
+import { prisma } from '../infra/database/prisma.js';
 import { ulid } from 'ulid';
 import { strategyProfile } from '../agent/profiles/strategy.js';
 import { enqueueAgentTurn, entityKey } from '../agent/turn-run.js';
 import * as turnBus from '../agent/turn-bus.js';
 import { KNOWN_INDICES } from '../strategy/code/codegen-prompt.js';
-import { localeFromRequest, m } from '../i18n/index.js';
+import { localeFromRequest, m } from '../infra/http/locale.js';
 import { backtestRoute } from './backtest.js';
 import { strategyScansRoute } from './strategy-scans.js';
 import { proposeStrategyName } from '../services/strategy-service.js';

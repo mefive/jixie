@@ -1,6 +1,6 @@
 import type { TimeSeriesFactorResearchSpecV1 } from '@jixie/shared';
 import { describe, expect, it } from 'vitest';
-import { addDays } from '../lib/date.js';
+import { addDays } from '../date.js';
 import { compileTimeSeriesFactor } from './compile-time-series-factor.js';
 import {
   buildCommodityWarehouseReceiptTimeSeriesObservations,

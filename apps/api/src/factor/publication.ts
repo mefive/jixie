@@ -5,7 +5,7 @@ import {
   type PublishedFactor,
 } from '@jixie/shared';
 import { z } from 'zod';
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../infra/database/prisma.js';
 import { factorResearchSpecV1Schema } from './report-spec.js';
 import { compilePanelFactor, compileTimeSeriesFactor } from './compile-time-series-factor.js';
 import { isResearchOnlyFactorV2Field } from './factor-v2-fields.js';

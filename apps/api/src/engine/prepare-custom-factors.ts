@@ -4,7 +4,7 @@ import {
   type FactorDependency,
   type Locale,
 } from '@jixie/shared';
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../infra/database/prisma.js';
 import { toCommonJs } from '../lib/isolate-run.js';
 import { BUILTIN_USER_ID } from '../factor/builtin-factors.js';
 import {

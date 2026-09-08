@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   holdingsFindMany: vi.fn(),
 }));
 
-vi.mock('../lib/prisma.js', () => ({
+vi.mock('../infra/database/prisma.js', () => ({
   prisma: {
     commodityContinuousReturn: { findMany: mocks.returnsFindMany },
     commodityWarehouseReceipt: { findMany: mocks.receiptsFindMany },

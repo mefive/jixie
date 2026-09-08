@@ -1,6 +1,6 @@
 import type { Locale, SignalItem } from '@jixie/shared';
-import { isEmailConfigured, sendEmail } from '../lib/email.js';
-import { prisma } from '../lib/prisma.js';
+import { isEmailConfigured, sendEmail } from '../infra/email/email.js';
+import { prisma } from '../infra/database/prisma.js';
 import { t } from '../i18n/messages.js';
 
 export interface Notifier {

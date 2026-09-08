@@ -6,7 +6,7 @@ import {
   type MessagePart,
 } from '@jixie/shared';
 import { ulid } from 'ulid';
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../infra/database/prisma.js';
 import { persistResearchCellChangePart } from '../research/research-cell-change-records.js';
 import { persistResearchClarificationPart } from '../research/research-clarification-records.js';
 import type { TurnEntity } from './turn-run.js';

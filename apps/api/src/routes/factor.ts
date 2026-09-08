@@ -17,8 +17,8 @@ import type {
   RunFactorAnalysisResponse,
 } from '@jixie/shared';
 import { timeSeriesAggregateMetrics } from '@jixie/shared';
-import { apiError, validateJson, validateQuery } from '../lib/httpError.js';
-import { prisma } from '../lib/prisma.js';
+import { apiError, validateJson, validateQuery } from '../infra/http/errors.js';
+import { prisma } from '../infra/database/prisma.js';
 import { BUILTIN_FACTORS, BUILTIN_KEYS } from '../factor/builtin-factors.js';
 import { factorProfile } from '../agent/profiles/factor.js';
 import { factorQaProfile } from '../agent/profiles/qa.js';
@@ -27,7 +27,7 @@ import * as turnBus from '../agent/turn-bus.js';
 import { chatMessagesSchema } from '../lib/chat-schema.js';
 import { createJob, getJob, findRunningJob, initializeJobLogs } from '../lib/jobs.js';
 import { wakeJobQueue } from '../lib/job-queue.js';
-import { localeFromRequest, m } from '../i18n/index.js';
+import { localeFromRequest, m } from '../infra/http/locale.js';
 import { refreshFactorMetadata } from '../factor/metadata.js';
 import {
   factorAnalysisSpecSchema,

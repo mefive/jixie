@@ -1,6 +1,6 @@
 import type { TimeSeriesFactorResearchSpecV1 } from '@jixie/shared';
-import { addDays } from '../lib/date.js';
-import { prisma } from '../lib/prisma.js';
+import { addDays } from '../date.js';
+import { prisma } from '../infra/database/prisma.js';
 import type { CompiledTimeSeriesFactor } from './compile-time-series-factor.js';
 import { factorV2YieldTerm, type FactorV2FieldKey } from './factor-v2-fields.js';
 import type { TimeSeriesEvaluationObservation } from './time-series-evaluator.js';

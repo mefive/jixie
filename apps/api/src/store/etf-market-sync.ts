@@ -1,5 +1,5 @@
 import type { TradeDate } from '@jixie/shared';
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../infra/database/prisma.js';
 import {
   etfShareSize,
   fundAdj,
@@ -9,7 +9,7 @@ import {
   type FundDailyRow,
 } from '../tushare/api.js';
 import type { TushareClient } from '../tushare/client.js';
-import { log } from '../util/log.js';
+import { log } from '../infra/logging.js';
 
 const FUND_ADJ_PAGE_SIZE = 2_000;
 

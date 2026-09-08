@@ -20,7 +20,7 @@ vi.mock('../tushare/api.js', () => ({
   dividend: mocks.dividendApi,
 }));
 
-vi.mock('../lib/prisma.js', () => {
+vi.mock('../infra/database/prisma.js', () => {
   const transactionClient = {
     finaIndicator: {
       createMany: mocks.finaCreateMany,

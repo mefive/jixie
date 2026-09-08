@@ -1,5 +1,5 @@
 import type { FactorResearchSpecV1 } from '@jixie/shared';
-import { prisma, type Prisma } from '../lib/prisma.js';
+import { prisma, type Prisma } from '../infra/database/prisma.js';
 
 export async function resolveMacroRegimeDataCutoff(
   researchSpec: Extract<FactorResearchSpecV1, { analysisKind: 'macro_regime' }>,

@@ -1,6 +1,6 @@
 import { ulid } from 'ulid';
 import type { Prisma } from '@prisma/client';
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../infra/database/prisma.js';
 
 export type MaintenanceKind = 'daily' | 'weekly' | 'repair' | 'deploy';
 export type MaintenanceTrigger = 'timer' | 'manual';

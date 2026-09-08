@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { prisma } from '../../lib/prisma.js';
+import { prisma } from '../../infra/database/prisma.js';
 import { resolveInstruments } from '../../market/instrument-resolver.js';
 import { etfResearchMembership } from '../../store/etf-research-registry.js';
 import type { AgentTool } from './types.js';

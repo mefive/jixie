@@ -1,5 +1,5 @@
 import { MARKET_RISK_FACTOR_KEYS_V1, type MarketRiskFactorKeyV1 } from '@jixie/shared';
-import { prisma, type Prisma } from '../lib/prisma.js';
+import { prisma, type Prisma } from '../infra/database/prisma.js';
 import {
   loadMarketRiskDriverHistory,
   type MarketRiskDriverHistoryV1,

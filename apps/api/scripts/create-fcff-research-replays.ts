@@ -1,5 +1,5 @@
 import { writeFileSync } from 'node:fs';
-import { prisma } from '../src/lib/prisma.js';
+import { prisma } from '../src/infra/database/prisma.js';
 import {
   EQUITY_FCFF_REPLAY_CASES,
   equityFcffParameterSource,

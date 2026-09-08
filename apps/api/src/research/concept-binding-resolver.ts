@@ -1,4 +1,4 @@
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../infra/database/prisma.js';
 import { researchCapabilityCatalog } from './catalog.js';
 import {
   researchConceptBindingSdkCall,

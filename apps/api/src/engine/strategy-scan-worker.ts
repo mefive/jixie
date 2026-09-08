@@ -9,7 +9,7 @@ import type {
   StrategyScanSpec,
 } from '@jixie/shared';
 import { t } from '../i18n/index.js';
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../infra/database/prisma.js';
 import { executeStrategyScan, scanCellOverrides } from '../strategy/scan.js';
 import { prepareCustomFactors } from './prepare-custom-factors.js';
 import type { BacktestResult } from './types.js';

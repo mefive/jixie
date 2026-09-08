@@ -14,7 +14,7 @@ const mocks = vi.hoisted(() => ({
   wakeJobQueue: vi.fn(),
 }));
 
-vi.mock('../lib/prisma.js', () => ({
+vi.mock('../infra/database/prisma.js', () => ({
   prisma: {
     $transaction: mocks.transaction,
     backtestReport: {

@@ -1,4 +1,4 @@
-import { prisma } from '../src/lib/prisma.js';
+import { prisma } from '../src/infra/database/prisma.js';
 import { resolveFinancialState } from '../src/fundamentals/resolver.js';
 import { calculateFinancialMetrics } from '../src/fundamentals/metrics.js';
 import { inspectFinancialAccounting } from '../src/fundamentals/accounting-quality.js';

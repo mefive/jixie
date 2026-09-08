@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
   runtimeClose: vi.fn(),
 }));
 
-vi.mock('../lib/prisma.js', () => ({
+vi.mock('../infra/database/prisma.js', () => ({
   prisma: {
     agentConversation: {
       findMany: mocks.conversationFindMany,

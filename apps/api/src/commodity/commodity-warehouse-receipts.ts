@@ -1,6 +1,6 @@
 import type { TradeDate } from '@jixie/shared';
-import { addDays, day } from '../lib/date.js';
-import { prisma, type Prisma } from '../lib/prisma.js';
+import { addDays, day } from '../date.js';
+import { prisma, type Prisma } from '../infra/database/prisma.js';
 import { futureWarehouseReceipts, type FutureWarehouseReceiptRow } from '../tushare/api.js';
 import type { TushareClient } from '../tushare/client.js';
 import { COMMODITY_FUTURE_SPECS, type CommodityFutureProductCode } from './commodity-futures.js';

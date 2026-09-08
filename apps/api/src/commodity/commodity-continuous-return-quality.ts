@@ -1,4 +1,4 @@
-import { prisma, type Prisma } from '../lib/prisma.js';
+import { prisma, type Prisma } from '../infra/database/prisma.js';
 import {
   COMMODITY_CONTINUOUS_RETURN_METHOD,
   COMMODITY_CONTINUOUS_RETURN_SOURCE,

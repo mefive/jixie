@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
   getResearchDocument: vi.fn(),
 }));
 
-vi.mock('../lib/prisma.js', () => ({
+vi.mock('../infra/database/prisma.js', () => ({
   prisma: {
     backtestReport: { findFirst: mocks.backtestReportFindFirst },
     $transaction: mocks.transaction,

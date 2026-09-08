@@ -2,14 +2,14 @@ import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { z } from 'zod';
 import type { AgentStreamEvent, AgentTurnDetail, ChatMessage } from '@jixie/shared';
-import { apiError, validateJson, validateQuery } from '../lib/httpError.js';
+import { apiError, validateJson, validateQuery } from '../infra/http/errors.js';
 import * as turnBus from '../agent/turn-bus.js';
 import { runReadOnlySql, jsonSafe } from '../agent/tools/read-only-sql.js';
 import { CHART_ROW_CAP } from '../agent/tools/render-chart.js';
 import { runComputeChartRows } from '../agent/tools/render-computed-chart.js';
 import { computeChartSpecSchema } from '../lib/chart-spec.js';
-import { m } from '../i18n/index.js';
-import { prisma } from '../lib/prisma.js';
+import { m } from '../infra/http/locale.js';
+import { prisma } from '../infra/database/prisma.js';
 
 /**
  * Shared agent-turn endpoints (all surfaces). A turn is started by the surface route (strategy /

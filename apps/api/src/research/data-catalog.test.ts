@@ -40,7 +40,7 @@ const mocks = vi.hoisted(() => ({
   strategyScanReportFindMany: vi.fn(),
 }));
 
-vi.mock('../lib/prisma.js', () => ({
+vi.mock('../infra/database/prisma.js', () => ({
   prisma: {
     stockBasic: { findMany: mocks.stockFindMany },
     etfBasic: { findMany: mocks.etfFindMany },

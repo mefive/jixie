@@ -1,8 +1,8 @@
 import type { TradeDate, TsCode } from '@jixie/shared';
 import { ulid } from 'ulid';
 
-import { addDays } from '../lib/date.js';
-import { prisma, type Prisma } from '../lib/prisma.js';
+import { addDays } from '../date.js';
+import { prisma, type Prisma } from '../infra/database/prisma.js';
 import { canonicalStockCode } from '../market/stock-identity.js';
 import {
   balanceSheet,
@@ -17,7 +17,7 @@ import {
   type IncomeStatementRow,
 } from '../tushare/api.js';
 import type { TushareClient, TushareRow, TushareValue } from '../tushare/client.js';
-import { log } from '../util/log.js';
+import { log } from '../infra/logging.js';
 import {
   FINANCIAL_SOURCE_CONTRACT_VERSION,
   isV1IndustrialConsolidatedStatement,

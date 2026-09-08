@@ -4,7 +4,7 @@ import type {
   ResearchSeriesInputSpecV1,
   ResearchTransformV1,
 } from '@jixie/shared';
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../infra/database/prisma.js';
 import {
   CROSS_MARKET_BENCHMARK_BY_ID,
   deriveBenchmarkCnyCloses,

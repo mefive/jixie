@@ -4,7 +4,7 @@ import {
   RESEARCH_PYTHON_RUNTIME_CATALOG_QUERY_V1,
   searchResearchSdkAgentCatalog,
 } from '@jixie/shared';
-import { prisma } from '../../lib/prisma.js';
+import { prisma } from '../../infra/database/prisma.js';
 import { researchCapabilityCatalog } from '../../research/catalog.js';
 import { resolveResearchConceptBindings } from '../../research/concept-binding-resolver.js';
 import {

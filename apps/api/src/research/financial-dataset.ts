@@ -17,7 +17,7 @@ import {
   type ResolvedFinancialState,
   type ResolvedFinancialStatement,
 } from '../fundamentals/resolver.js';
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../infra/database/prisma.js';
 import {
   loadResearchCrossSection,
   loadResearchPanel,

@@ -15,7 +15,7 @@ const mocks = vi.hoisted(() => ({
   rootReportFindFirst: vi.fn(),
 }));
 
-vi.mock('../lib/prisma.js', () => ({
+vi.mock('../infra/database/prisma.js', () => ({
   prisma: {
     $transaction: mocks.transaction,
     factorReport: { findFirst: mocks.rootReportFindFirst },

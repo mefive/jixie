@@ -21,7 +21,7 @@ vi.mock('../tushare/api.js', () => ({
   fundDaily: mocks.fundDaily,
 }));
 
-vi.mock('../lib/prisma.js', () => {
+vi.mock('../infra/database/prisma.js', () => {
   const database = {
     etfBasic: { findMany: mocks.etfBasicFindMany },
     tradeCal: { findFirst: mocks.tradeCalFindFirst },

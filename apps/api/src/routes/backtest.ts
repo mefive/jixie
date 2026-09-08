@@ -9,12 +9,12 @@ import type {
   BacktestSummary,
 } from '@jixie/shared';
 import { Prisma } from '@prisma/client';
-import { apiError, validateJson, validateQuery } from '../lib/httpError.js';
+import { apiError, validateJson, validateQuery } from '../infra/http/errors.js';
 import { codeConfigSchema } from '../strategy/code/schema.js';
 import { ACTIVE_JOB_STATUSES, getJob, findRunningJob, initializeJobLogs } from '../lib/jobs.js';
 import { wakeJobQueue } from '../lib/job-queue.js';
-import { localeFromRequest, m } from '../i18n/index.js';
-import { prisma } from '../lib/prisma.js';
+import { localeFromRequest, m } from '../infra/http/locale.js';
+import { prisma } from '../infra/database/prisma.js';
 import { commitStrategyConfig } from '../services/strategy-service.js';
 import { extractFactorKeys } from '../engine/prepare-custom-factors.js';
 

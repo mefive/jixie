@@ -8,8 +8,8 @@ import {
   type Locale,
   type MessagePart,
 } from '@jixie/shared';
-import { prisma } from '../lib/prisma.js';
-import { chatTools } from '../llm/deepseek.js';
+import { prisma } from '../infra/database/prisma.js';
+import { chatTools } from '../infra/llm/deepseek.js';
 import { t } from '../i18n/index.js';
 import {
   agentTurn,

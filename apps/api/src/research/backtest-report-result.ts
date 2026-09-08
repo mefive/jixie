@@ -1,5 +1,5 @@
 import type { BacktestConfig } from '@jixie/shared';
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../infra/database/prisma.js';
 
 const MAX_BACKTEST_REPORT_PAYLOAD_BYTES = 8 * 1024 * 1024;
 

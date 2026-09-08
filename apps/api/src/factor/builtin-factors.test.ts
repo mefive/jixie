@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { FactorBar } from '@jixie/shared';
 import { BUILTIN_FACTORS } from './builtin-factors.js';
 import { compileFactor, type CompiledFactor, type FactorBatchItem } from './compile-factor.js';
-import { daysBetween } from '../lib/date.js';
+import { daysBetween } from '../date.js';
 import { sha256 } from './report-spec.js';
 
 /**

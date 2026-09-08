@@ -4,11 +4,11 @@ import { ulid } from 'ulid';
 import type { Prisma } from '@prisma/client';
 import type { BacktestSummary, StrategyCard } from '@jixie/shared';
 
-import { apiError, validateJson } from '../lib/httpError.js';
+import { apiError, validateJson } from '../infra/http/errors.js';
 import { chatMessagesSchema } from '../lib/chat-schema.js';
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../infra/database/prisma.js';
 import { codeConfigSchema } from '../strategy/code/schema.js';
-import { localeFromRequest, m } from '../i18n/index.js';
+import { localeFromRequest, m } from '../infra/http/locale.js';
 import {
   commitStrategyConfig,
   proposeStrategyName,

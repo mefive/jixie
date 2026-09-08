@@ -1,6 +1,6 @@
 import type { TimeSeriesFactorResearchSpecV1 } from '@jixie/shared';
 import { describe, expect, it, vi } from 'vitest';
-import type { Prisma } from '../lib/prisma.js';
+import type { Prisma } from '../infra/database/prisma.js';
 import { resolveAssetFactorDataCutoff } from './asset-factor-data-cutoff.js';
 
 const researchSpec: TimeSeriesFactorResearchSpecV1 = {

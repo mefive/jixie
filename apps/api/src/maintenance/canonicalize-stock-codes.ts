@@ -1,5 +1,5 @@
 import { ulid } from 'ulid';
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../infra/database/prisma.js';
 import { STOCK_CODE_CHANGES } from '../market/stock-identity.js';
 import { seedStockCodeChanges } from '../store/sync.js';
 

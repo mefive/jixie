@@ -1,4 +1,4 @@
-import { prisma } from '../src/lib/prisma.js';
+import { prisma } from '../src/infra/database/prisma.js';
 import { runDailySignalCycle } from '../src/signals/scheduler.js';
 
 async function main(): Promise<void> {

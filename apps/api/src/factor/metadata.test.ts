@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { generateFactorMetadata } from './metadata.js';
-import type { LlmCall } from '../llm/deepseek.js';
+import type { LlmCall } from '../infra/llm/deepseek.js';
 
 describe('factor metadata', () => {
   it('parses structured bilingual metadata and includes recent context', async () => {

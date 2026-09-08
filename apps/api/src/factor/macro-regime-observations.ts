@@ -1,6 +1,6 @@
 import type { MacroRegimeFactorResearchSpecV1 } from '@jixie/shared';
-import { addDays } from '../lib/date.js';
-import { prisma, type Prisma } from '../lib/prisma.js';
+import { addDays } from '../date.js';
+import { prisma, type Prisma } from '../infra/database/prisma.js';
 import {
   loadMacroRegimeScoreHistory,
   type MacroRegimeHistoryV1,

@@ -1,5 +1,5 @@
 import type { Neutral } from '@jixie/shared';
-import { prisma } from '../src/lib/prisma.js';
+import { prisma } from '../src/infra/database/prisma.js';
 import { analyzeFactor } from '../src/factor/analysis.js';
 import { BUILTIN_FACTORS, seedBuiltinFactors } from '../src/factor/builtin-factors.js';
 

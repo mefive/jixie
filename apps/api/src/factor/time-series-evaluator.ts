@@ -3,8 +3,8 @@ import type {
   FactorTimeSeriesReportV1,
   TimeSeriesFactorResearchSpecV1,
 } from '@jixie/shared';
-import { linearRegression, mean, pearson } from '../lib/stats.js';
-import { automaticNeweyWestLag, neweyWestRegression } from '../lib/inference.js';
+import { linearRegression, mean, pearson } from '../math/stats.js';
+import { automaticNeweyWestLag, neweyWestRegression } from '../math/inference.js';
 
 export interface TimeSeriesEvaluationObservation {
   assetId: string;

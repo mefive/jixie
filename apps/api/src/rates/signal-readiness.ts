@@ -1,6 +1,6 @@
 import type { FactorDependency } from '@jixie/shared';
 import { factorV2YieldTerm, isFactorV2FieldKey } from '../factor/factor-v2-fields.js';
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../infra/database/prisma.js';
 import {
   CHINA_TREASURY_CURVE_CODE,
   CHINA_TREASURY_CURVE_SOURCE,

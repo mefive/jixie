@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
   generateResearchStrategyDraft: vi.fn(),
 }));
 
-vi.mock('../lib/prisma.js', () => ({
+vi.mock('../infra/database/prisma.js', () => ({
   prisma: {
     strategy: {
       findFirst: mocks.strategyFindFirst,

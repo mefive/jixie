@@ -1,6 +1,6 @@
 import type { JobStatus } from './jobs.js';
 import { claimQueuedJob, failJobAndEntity, initializeJobLogs } from './jobs.js';
-import { prisma } from './prisma.js';
+import { prisma } from '../infra/database/prisma.js';
 
 export interface QueueCandidate {
   id: string;

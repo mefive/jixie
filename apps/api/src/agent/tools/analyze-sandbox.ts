@@ -3,7 +3,7 @@ import { loadIsolatedModule, toCommonJs } from '../../lib/isolate-run.js';
 /**
  * Compile + run one analyzeData code module inside an isolated-vm isolate (hard sandbox: no Node
  * APIs in-wall, own memory limit, per-run CPU timeout — a prototype escape lands in an empty
- * global). The module must `export default ({ data, stats }) => result`; stats (lib/stats.ts) is
+ * global). The module must `export default ({ data, stats }) => result`; stats (math/stats.ts) is
  * evaluated in-wall so its calls never cross; data goes in / result comes out as one JSON string
  * each way.
  */

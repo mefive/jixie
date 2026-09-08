@@ -2,9 +2,9 @@ import { Hono } from 'hono';
 import { ulid } from 'ulid';
 import { z } from 'zod';
 import type { FactorWeatherDirection, FactorWeatherPinStatus } from '@jixie/shared';
-import { apiError, validateJson } from '../lib/httpError.js';
-import { prisma } from '../lib/prisma.js';
-import { m } from '../i18n/index.js';
+import { apiError, validateJson } from '../infra/http/errors.js';
+import { prisma } from '../infra/database/prisma.js';
+import { m } from '../infra/http/locale.js';
 import { BUILTIN_FACTORS, BUILTIN_USER_ID } from '../factor/builtin-factors.js';
 import { factorAnalysisSourceHash } from '../factor/analysis-job.js';
 import {

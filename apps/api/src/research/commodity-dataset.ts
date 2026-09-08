@@ -2,7 +2,7 @@ import type {
   ResearchCommodityHoldingProductCodeV1,
   ResearchCommodityProductCodeV1,
 } from '@jixie/shared';
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../infra/database/prisma.js';
 
 export interface ResearchCommodityDatasetRequestV1<TProduct extends string> {
   product: TProduct;

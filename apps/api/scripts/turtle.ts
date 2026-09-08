@@ -1,4 +1,4 @@
-import { prisma } from '../src/lib/prisma.js';
+import { prisma } from '../src/infra/database/prisma.js';
 import { runStrategy } from '../src/engine/run.js';
 import { turtleStrategy } from '../src/engine/strategies.js';
 

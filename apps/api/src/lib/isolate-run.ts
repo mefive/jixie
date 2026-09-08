@@ -18,13 +18,13 @@ import { transform } from 'esbuild';
 
 const DEFAULT_MEMORY_MB = 256;
 
-/** lib/stats.ts compiled to CJS once, evaluated INSIDE isolates that ask for stats — the functions
+/** math/stats.ts compiled to CJS once, evaluated INSIDE isolates that ask for stats — the functions
  * live in-wall, so stats calls don't cross. Source resolves to .ts in dev, compiled .js in prod. */
 let statsJsPromise: Promise<string> | null = null;
 function statsJs(): Promise<string> {
   statsJsPromise ??= (async () => {
     const url = new URL(
-      import.meta.url.endsWith('.ts') ? './stats.ts' : './stats.js',
+      import.meta.url.endsWith('.ts') ? '../math/stats.ts' : '../math/stats.js',
       import.meta.url,
     );
     const source = readFileSync(url, 'utf8');

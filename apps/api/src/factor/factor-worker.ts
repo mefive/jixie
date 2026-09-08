@@ -1,7 +1,7 @@
 import { parentPort, workerData } from 'node:worker_threads';
 import type { FactorResearchSpecV1, Locale, LogLine, LogLevel } from '@jixie/shared';
 import type { FactorAnalysisSource } from './analysis-job.js';
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../infra/database/prisma.js';
 import { factorEvaluatorFor } from './evaluator.js';
 import { normalizeFactorResearchSpec } from './report-spec.js';
 import { loadEtfTimeSeriesObservations } from './etf-trend-observations.js';

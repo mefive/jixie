@@ -1,6 +1,6 @@
-import { prisma } from '../lib/prisma.js';
-import { minusDays } from '../lib/date.js';
-import { kdj } from '../lib/indicators.js';
+import { prisma } from '../infra/database/prisma.js';
+import { minusDays } from '../date.js';
+import { kdj } from '../math/indicators.js';
 import type { Strategy } from '../engine/types.js';
 
 /**

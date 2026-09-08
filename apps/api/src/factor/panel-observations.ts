@@ -1,6 +1,6 @@
 import type { MultiAssetClass, PanelFactorResearchSpecV1 } from '@jixie/shared';
-import { addDays } from '../lib/date.js';
-import { prisma } from '../lib/prisma.js';
+import { addDays } from '../date.js';
+import { prisma } from '../infra/database/prisma.js';
 import type { CompiledPanelFactor } from './compile-time-series-factor.js';
 import type { PanelEvaluationObservation } from './panel-evaluator.js';
 

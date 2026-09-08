@@ -1,4 +1,4 @@
-import { prisma } from '../src/lib/prisma.js';
+import { prisma } from '../src/infra/database/prisma.js';
 import { migrateScreenDataToResearch } from '../src/research/screen-data-migration.js';
 
 const dryRun = process.argv.includes('--dry-run');

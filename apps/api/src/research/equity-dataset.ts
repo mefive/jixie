@@ -5,7 +5,7 @@ import type {
   ResearchUniverseRunResultV1,
   UniverseSpecV1,
 } from '@jixie/shared';
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../infra/database/prisma.js';
 import { researchUniverseMeasures } from './catalog.js';
 import { executeUniverseSpec } from './universe.js';
 

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { STATS_DOC } from '../../lib/stats-doc.js';
+import { STATS_DOC } from '../../math/stats-doc.js';
 import { runAnalysisCode } from './analyze-sandbox.js';
 import { jsonSafe, runReadOnlySql } from './read-only-sql.js';
 import type { AgentTool } from './types.js';

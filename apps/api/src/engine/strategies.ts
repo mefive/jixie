@@ -1,5 +1,5 @@
 import type { BarContext, BarRow, OhlcBar, Strategy } from './types.js';
-import { daysBetween } from '../lib/date.js';
+import { daysBetween } from '../date.js';
 
 /** Identity helper — gives a strategy object its type + a place to hang a name. */
 export function defineStrategy(s: Strategy): Strategy {

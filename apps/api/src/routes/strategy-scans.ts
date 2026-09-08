@@ -12,11 +12,11 @@ import { Hono } from 'hono';
 import { ulid } from 'ulid';
 import { z } from 'zod';
 import { inspectWalledStrategyParameters } from '../engine/walled-run.js';
-import { localeFromRequest, m } from '../i18n/index.js';
+import { localeFromRequest, m } from '../infra/http/locale.js';
 import { ACTIVE_JOB_STATUSES, getJob, initializeJobLogs } from '../lib/jobs.js';
 import { wakeJobQueue } from '../lib/job-queue.js';
-import { apiError, validateJson, validateQuery } from '../lib/httpError.js';
-import { prisma } from '../lib/prisma.js';
+import { apiError, validateJson, validateQuery } from '../infra/http/errors.js';
+import { prisma } from '../infra/database/prisma.js';
 import { normalizeScanSpec } from '../strategy/scan.js';
 import { codeConfigSchema } from '../strategy/code/schema.js';
 

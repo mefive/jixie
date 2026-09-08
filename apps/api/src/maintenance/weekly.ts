@@ -1,8 +1,8 @@
 import type { TradeDate } from '@jixie/shared';
 import { loadTushareConfig } from '../config.js';
 import { runDataQualityAudit } from '../data-quality/audit.js';
-import { addDays } from '../lib/date.js';
-import { prisma } from '../lib/prisma.js';
+import { addDays } from '../date.js';
+import { prisma } from '../infra/database/prisma.js';
 import { syncChinaMacroData } from '../macro/china-macro.js';
 import { BlsPublicDataClient, syncUsHeadlineCpiData } from '../macro/us-headline-cpi.js';
 import { syncMarketIndicators } from '../market/sync-market-indicators.js';

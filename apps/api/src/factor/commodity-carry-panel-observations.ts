@@ -6,8 +6,8 @@ import {
   type CommodityCarryPointV1,
 } from '../commodity/commodity-carry.js';
 import { COMMODITY_FUTURE_SPECS } from '../commodity/commodity-futures.js';
-import { addDays, daysBetween } from '../lib/date.js';
-import { prisma } from '../lib/prisma.js';
+import { addDays, daysBetween } from '../date.js';
+import { prisma } from '../infra/database/prisma.js';
 import type { CompiledPanelFactor } from './compile-time-series-factor.js';
 import { COMMODITY_CARRY_FIELD } from './factor-v2-fields.js';
 import type { PanelEvaluationObservation } from './panel-evaluator.js';

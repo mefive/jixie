@@ -1,8 +1,8 @@
 import type { TimeSeriesFactorResearchSpecV1 } from '@jixie/shared';
 import { COMMODITY_FUTURE_SPECS } from '../commodity/commodity-futures.js';
 import { isAuditedAuKilogramMislabelDate } from '../commodity/commodity-warehouse-receipts.js';
-import { addDays, daysBetween } from '../lib/date.js';
-import { prisma } from '../lib/prisma.js';
+import { addDays, daysBetween } from '../date.js';
+import { prisma } from '../infra/database/prisma.js';
 import type { CompiledTimeSeriesFactor } from './compile-time-series-factor.js';
 import type { EtfTrendDailyRow } from './etf-trend-observations.js';
 import { COMMODITY_WAREHOUSE_RECEIPT_VOLUME_FIELD } from './factor-v2-fields.js';

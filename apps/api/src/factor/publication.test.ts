@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
   factorUpdateMany: vi.fn(),
 }));
 
-vi.mock('../lib/prisma.js', () => ({
+vi.mock('../infra/database/prisma.js', () => ({
   prisma: {
     factor: {
       findFirst: mocks.factorFindFirst,

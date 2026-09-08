@@ -1,9 +1,9 @@
 import { DEFAULT_LOCALE, type Locale } from '@jixie/shared';
 import type { FactorCorrelation, FactorFreq } from '@jixie/shared';
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../infra/database/prisma.js';
 import type { UserLogSink } from '../lib/sandbox-console.js';
 import { t } from '../i18n/messages.js';
-import * as st from '../lib/stats.js';
+import * as st from '../math/stats.js';
 import {
   getRebalanceDates,
   loadSnapshots,

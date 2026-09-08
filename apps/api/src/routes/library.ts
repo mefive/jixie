@@ -2,9 +2,9 @@ import { Hono } from 'hono';
 import { ulid } from 'ulid';
 import type { BacktestConfig, PublicLibrary } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
-import { apiError } from '../lib/httpError.js';
-import { prisma } from '../lib/prisma.js';
-import { m } from '../i18n/index.js';
+import { apiError } from '../infra/http/errors.js';
+import { prisma } from '../infra/database/prisma.js';
+import { m } from '../infra/http/locale.js';
 import { uniqueStrategyName } from '../services/strategy-service.js';
 import { extractFactorKeys } from '../engine/prepare-custom-factors.js';
 

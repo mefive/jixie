@@ -188,7 +188,7 @@ fina_indicator 七列已落库(2026-07-07 波次一),因子 `compute` 的 bar �
 ## 3.4 分析深化:中性化 + 相关性 + 费后
 
 > 详设拍定 2026-07-08。三件事共享一个原则:**都是 `computeFactorSeries` 产出的截面序列之后的
-> 纯函数变换/统计**,不碰因子计算路径(isolate 墙内不变),数学都进 `lib/stats.ts` + vitest。
+> 纯函数变换/统计**,不碰因子计算路径(isolate 墙内不变),数学都进 `math/stats.ts` + vitest。
 
 ### 市值/行业中性化
 

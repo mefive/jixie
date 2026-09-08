@@ -62,7 +62,7 @@ ctx.volTargetWeights(codes, lookback?): Map<string, number>
 ### 实现要点
 
 - 纯统计,引擎零改动:输入 = 现有 `BacktestSummary` 的 nav + tradeLog。
-- 块状 bootstrap(block bootstrap,块长 ~20 交易日)优先于逐日独立抽样——日收益有自相关,独立抽样会低估回撤。实现是几十行纯函数,进 `lib/stats.ts`,vitest 单测。
+- 块状 bootstrap(block bootstrap,块长 ~20 交易日)优先于逐日独立抽样——日收益有自相关,独立抽样会低估回撤。实现是几十行纯函数,进 `math/stats.ts`,vitest 单测。
 - 呈现两处:
   1. 回测结果面板加「回撤画像」折叠区(直方图 + 关键分位数);
   2. **预承诺卡**:策略「上线」(live 开关,主线五)时弹确认页——「该系统历史上:最深回撤 X%,95% 置信最深 W%;最长水下 Y 个月;每年正常连亏 Z 笔。确认上线即表示接受以上为正常波动。」文案中性陈述,不劝进不劝退。

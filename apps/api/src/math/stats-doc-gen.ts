@@ -1,5 +1,5 @@
 /**
- * Extract the agent-facing manual of lib/stats.ts from its JSDoc — single source of truth: the
+ * Extract the agent-facing manual of math/stats.ts from its JSDoc — single source of truth: the
  * function's own doc comment. `scripts/gen-stats-doc.ts` materializes the result into stats-doc.ts
  * (checked in, imported by the analyzeData tool description); stats-doc.test.ts re-runs this
  * extraction against the source and fails on drift, so the manual can't silently fall behind.

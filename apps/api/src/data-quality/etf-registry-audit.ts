@@ -1,5 +1,5 @@
-import { median } from '../lib/stats.js';
-import type { Prisma } from '../lib/prisma.js';
+import { median } from '../math/stats.js';
+import type { Prisma } from '../infra/database/prisma.js';
 import {
   ETF_RESEARCH_CODES,
   ETF_RESEARCH_REGISTRY,

@@ -9,7 +9,7 @@ import type {
   AllocationWeightPoint,
   MultiAssetClass,
 } from '@jixie/shared';
-import { daysBetween } from '../lib/date.js';
+import { daysBetween } from '../date.js';
 import type { CustomFactorModule } from './custom-factor.js';
 import type { GovernmentYieldObservation } from './data.js';
 import type { Position, TradeRecord } from './types.js';

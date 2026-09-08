@@ -11,7 +11,7 @@ import {
   type ResolvedFinancialStatement,
 } from '../fundamentals/resolver.js';
 import { canonicalStockCode } from '../market/stock-identity.js';
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../infra/database/prisma.js';
 import { normalizeFinancialFields, validateFinancialReportRange } from './financial-dataset.js';
 
 export interface ResearchFinancialValuesRequestV1 {

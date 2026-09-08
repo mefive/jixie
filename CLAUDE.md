@@ -86,6 +86,8 @@
 
 ## 目录约定(对齐 fangtu)
 
+- `apps/api/src/auth` — 登录与会话业务；`auth/http` 负责 Cookie、鉴权中间件与登录 HTTP。
+- `apps/api/src/infra` — 数据库、HTTP 辅助、LLM 与邮件传输；`math` 为共用数值计算，`date.ts` 为日期辅助，`i18n` 保留纯翻译。
 - `apps/api` — Hono 后端 + `prisma/schema.prisma` + 领域逻辑(`src/tushare`、`src/store`,未来 `src/factor`、`src/backtest`)+ 研究 / 导入脚本(`scripts/`,wired 成 `smoke` / `sync` / `peek` 等)
 - `apps/web` — 登录与工作台前端
 - `apps/docs` — 独立公开文档前端，挂载 `/docs/help/*` 与 `/docs/sdk`
@@ -95,7 +97,7 @@
 ## 代码约定
 
 - **ESM 相对导入必须带 `.js` 后缀**(即使源是 `.ts`)
-- 跨包用包名 `@jixie/shared`;`@prisma/client` 是 CJS,用 `import pkg from '@prisma/client'; const { PrismaClient } = pkg;`(见 `src/lib/prisma.ts`)
+- 跨包用包名 `@jixie/shared`;`@prisma/client` 是 CJS,用 `import pkg from '@prisma/client'; const { PrismaClient } = pkg;`(见 `src/infra/database/prisma.ts`)
 - ID 用 ULID,应用层生成;zod 做入参校验
 - **代码注释一律用英文**(inline `//`、块注释、JSDoc、Prisma `///`、CSS `/* */`)——维护者可能不识中文,注释不留中文括注,用标准英文财经术语。例外(仍/可中文):**i18n 资源里的 zh 值**、**CLAUDE.md / README 文档**、**commit message**。**LLM prompt / 工具 description / few-shot 也一律英文**(见下「多语言」条)。**面向用户的 UI/报错文案走 i18n**(英文 key,zh+en 值),不再硬编码——详见 `docs/design/i18n.md` 与下「多语言」条
 - 格式化:prettier(`semi`、`singleQuote`、`printWidth 100`、`trailingComma all`)+ eslint `curly: all`(控制语句强制大括号,`if (x) return;` 会被拆成带 `{}` 的多行)。**pre-commit hook**(simple-git-hooks + lint-staged)提交时自动对暂存文件跑 `eslint --fix` + `prettier --write`,机械格式无需手动维护;`.prettierignore` 里 `*.md` 等文档不受 prettier 摆布
@@ -108,7 +110,7 @@
 
 产品支持中文 / 英文,**详设与执行计划见 `docs/design/i18n.md`**。几条不能违背的红线:
 
-- **面向用户的字符串走 i18n,不硬编码**:前端过 react-i18next(`apps/web/src/i18n`,一页一命名空间,zh 是形状真相源、en 用 `typeof` 约束);后端过消息目录(`apps/api/src/i18n`,`t(localeFromRequest(c), key)`)。
+- **面向用户的字符串走 i18n,不硬编码**:前端过 react-i18next(`apps/web/src/i18n`,一页一命名空间,zh 是形状真相源、en 用 `typeof` 约束);后端过消息目录(`apps/api/src/i18n` 的 `t`；`localeFromRequest` / `m` 从 `apps/api/src/infra/http/locale.ts` 导入)。
 - **LLM prompt / 工具 description / few-shot 示例一律英文,绝不抽成 i18n key**(和「代码全英文」一致;A 股专有名词用标准英文财经术语)。这是需求 1(UI i18n,值可切换)与需求 2(prompt 是静态英文串)的边界,别搞混。
 - **LLM 回复跟随用户提问语言**(英文提问→英文回答),靠 prompt 里一句英文指令 `REPLY_LANGUAGE` 实现,不给模型传 locale;唯一按 locale 变的是命名助手生成的名称语言。
 - `Locale = 'zh' | 'en'` 在 `@jixie/shared`;前端 `localeStore` 单例是唯一切换入口,api client 每请求带 `Accept-Language`。

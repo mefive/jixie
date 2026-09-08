@@ -1,9 +1,9 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { apiError, validateQuery } from '../lib/httpError.js';
-import { prisma } from '../lib/prisma.js';
+import { apiError, validateQuery } from '../infra/http/errors.js';
+import { prisma } from '../infra/database/prisma.js';
 import { instrumentSeries } from '../market/instrument-series.js';
-import { m } from '../i18n/index.js';
+import { m } from '../infra/http/locale.js';
 import { buildIndexValuationSeries } from '../market/index-valuation.js';
 import {
   buildIndustryWeatherSeries,

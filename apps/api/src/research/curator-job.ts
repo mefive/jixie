@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { appendLog, finishJob } from '../lib/jobs.js';
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../infra/database/prisma.js';
 import { executeResearchCuratorRun } from './curator.js';
 
 const payloadSchema = z.strictObject({ runId: z.string().min(1) });

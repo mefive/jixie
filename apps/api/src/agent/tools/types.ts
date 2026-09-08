@@ -4,7 +4,7 @@ import type {
   ResearchClarificationV1,
   UniverseSpecV1,
 } from '@jixie/shared';
-import type { ToolSpec } from '../../llm/agent-llm.js';
+import type { ToolSpec } from '../../infra/llm/agent-llm.js';
 
 /** A re-runnable point-in-time entity universe produced by the deterministic Universe executor. */
 export interface AgentUniverse {

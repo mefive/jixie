@@ -5,7 +5,7 @@ import {
   DAILY_MAINTAINED_INDEX_CODES,
   MARKET_WEATHER_INDEX_CODES,
 } from '../store/index-presets.js';
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../infra/database/prisma.js';
 
 export interface RawDateQuality {
   tradeDate: string;

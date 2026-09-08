@@ -5,7 +5,7 @@ import {
 } from '../commodity/commodity-warehouse-receipt-maintenance.js';
 import { loadTushareConfig } from '../config.js';
 import { runDataQualityAudit } from '../data-quality/audit.js';
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../infra/database/prisma.js';
 import { syncTradeCal } from '../store/sync.js';
 import { TushareClient } from '../tushare/client.js';
 import { assertProductionLock, runDailyMaintenance } from './daily.js';

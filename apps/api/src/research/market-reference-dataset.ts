@@ -1,4 +1,4 @@
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../infra/database/prisma.js';
 
 export interface ResearchReferenceDatasetRequestV1 {
   identifier: string;

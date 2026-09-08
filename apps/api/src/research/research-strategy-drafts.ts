@@ -10,7 +10,7 @@ import {
   type ResearchStrategyHandoffV1,
 } from '@jixie/shared';
 import { ulid } from 'ulid';
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../infra/database/prisma.js';
 import { uniqueStrategyName } from '../services/strategy-service.js';
 import { getResearchExecution } from './research-execution-records.js';
 import { generateResearchStrategyDraft } from './research-strategy-handoff.js';

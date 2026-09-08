@@ -1,6 +1,6 @@
 import { type PrismaClient } from '@prisma/client';
 import { ulid } from 'ulid';
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../infra/database/prisma.js';
 import type { AssetAllocationProbeResult } from './asset-allocation-probe.js';
 
 export interface StoredTushareCapabilityProbe {

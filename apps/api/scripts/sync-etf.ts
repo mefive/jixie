@@ -1,5 +1,5 @@
 import { loadTushareConfig } from '../src/config.js';
-import { prisma } from '../src/lib/prisma.js';
+import { prisma } from '../src/infra/database/prisma.js';
 import { syncEtfShareSizeRange } from '../src/store/etf-market-sync.js';
 import { MAJOR_ETF_CODES } from '../src/store/etf-presets.js';
 import { ETF_RESEARCH_CODES } from '../src/store/etf-research-registry.js';

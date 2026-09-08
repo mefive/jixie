@@ -4,7 +4,7 @@ import type {
   FactorResearchCounts,
   FactorResearchIntentV1,
 } from '@jixie/shared';
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../infra/database/prisma.js';
 
 export function parseResearchIntent(value: string | null): FactorResearchIntentV1 | undefined {
   if (!value) {

@@ -1,7 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import { normalizeChatMessage } from '@jixie/shared';
 import { ulid } from 'ulid';
-import { prisma } from '../src/lib/prisma.js';
+import { prisma } from '../src/infra/database/prisma.js';
 
 async function main(): Promise<void> {
   let created = 0;

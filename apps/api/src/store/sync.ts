@@ -36,8 +36,8 @@ import {
   type NameChangeRow,
   type StkLimitRow,
 } from '../tushare/api.js';
-import { prisma } from '../lib/prisma.js';
-import { day, daysBetween } from '../lib/date.js';
+import { prisma } from '../infra/database/prisma.js';
+import { day, daysBetween } from '../date.js';
 import {
   COMMODITY_FUTURE_EXCHANGES,
   COMMODITY_FUTURE_PRODUCT_CODES,
@@ -48,7 +48,7 @@ import {
   canonicalStockCode,
   normalizeStockNameSpells,
 } from '../market/stock-identity.js';
-import { log } from '../util/log.js';
+import { log } from '../infra/logging.js';
 
 const STOCK_LIST_STATUSES = ['L', 'D', 'P', 'G'] as const;
 const TUSHARE_NAME_CHANGE_ROW_LIMIT = 10_000;

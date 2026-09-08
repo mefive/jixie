@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   weatherFindFirst: vi.fn(),
 }));
 
-vi.mock('../lib/prisma.js', () => ({
+vi.mock('../infra/database/prisma.js', () => ({
   prisma: {
     agentConversation: { findFirst: mocks.conversationFindFirst },
     strategyScanReport: { findFirst: mocks.scanFindFirst },

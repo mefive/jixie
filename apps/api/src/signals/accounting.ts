@@ -10,7 +10,7 @@ import type {
 } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
 import { DEFAULT_COST, type CostModel } from '../engine/types.js';
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../infra/database/prisma.js';
 
 type AccountKind = 'simulation' | 'actual';
 type CashAssetType = 'stock' | 'etf';

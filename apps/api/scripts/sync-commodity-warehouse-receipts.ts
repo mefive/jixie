@@ -1,7 +1,7 @@
 import { syncCommodityWarehouseReceipts } from '../src/commodity/commodity-warehouse-receipts.js';
 import { COMMODITY_FUTURE_PRODUCT_CODES } from '../src/commodity/commodity-futures.js';
 import { loadTushareConfig } from '../src/config.js';
-import { prisma } from '../src/lib/prisma.js';
+import { prisma } from '../src/infra/database/prisma.js';
 import { TushareClient } from '../src/tushare/client.js';
 
 /**

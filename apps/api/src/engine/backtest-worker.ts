@@ -1,7 +1,7 @@
 import { parentPort, workerData } from 'node:worker_threads';
 import type { BacktestConfig, Locale, LogLine, LogLevel } from '@jixie/shared';
 import { runConfiguredBacktest } from './configured-run.js';
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../infra/database/prisma.js';
 
 /**
  * Backtest worker thread. A backtest is CPU-heavy (loads whole-market panels + ranks them), so it

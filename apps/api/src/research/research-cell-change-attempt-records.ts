@@ -7,7 +7,7 @@ import type {
   ResearchCellChangeAttemptV1,
   ResearchCellKindV1,
 } from '@jixie/shared';
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../infra/database/prisma.js';
 import { researchPayloadHash } from './fingerprints.js';
 
 export const researchCellChangeAttemptInclude = {

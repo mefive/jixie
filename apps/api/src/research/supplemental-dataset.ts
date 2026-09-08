@@ -1,7 +1,7 @@
 import type { ResearchMarketStateScopeV1 } from '@jixie/shared';
 import { buildMarketStatePoints } from '../market/market-state.js';
-import { addDays } from '../lib/date.js';
-import { prisma } from '../lib/prisma.js';
+import { addDays } from '../date.js';
+import { prisma } from '../infra/database/prisma.js';
 
 export interface ResearchDatedIdentifierRequestV1 {
   identifier: string;

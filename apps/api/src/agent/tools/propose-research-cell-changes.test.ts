@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('../../research/workbench-cell-changes.js', () => ({
   prepareResearchCellChangeProposal: mocks.prepare,
 }));
-vi.mock('../../lib/prisma.js', () => ({
+vi.mock('../../infra/database/prisma.js', () => ({
   prisma: {
     researchClarification: { findFirst: mocks.pendingClarification },
   },

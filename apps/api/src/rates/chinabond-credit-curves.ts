@@ -1,5 +1,5 @@
 import { strFromU8, unzipSync } from 'fflate';
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../infra/database/prisma.js';
 import { assignCurveAvailableDates } from './china-treasury-curve.js';
 
 export const CHINABOND_PUBLIC_CURVE_SOURCE = 'chinabond_pbc_public';

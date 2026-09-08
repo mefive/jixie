@@ -6,7 +6,7 @@ import type {
   ResearchUniverseStageV1,
   UniverseSpecV1,
 } from '@jixie/shared';
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../infra/database/prisma.js';
 import { researchUniverseMeasureById } from './catalog.js';
 import { parseUniverseSpec } from './spec.js';
 

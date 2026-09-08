@@ -11,7 +11,7 @@ import { startFactorAnalysis, readFactorAnalysisResult } from '../../factor/anal
 import { getHoldoutPolicy } from '../../factor/research.js';
 import { factorResearchIntentV1Schema } from '../../factor/report-spec.js';
 import { t } from '../../i18n/index.js';
-import { prisma } from '../../lib/prisma.js';
+import { prisma } from '../../infra/database/prisma.js';
 import type { AgentTool } from './types.js';
 
 const REPORT_WAIT_TIMEOUT_MS = 15 * 60_000;

@@ -20,7 +20,7 @@ import {
   initializeJobLogs,
 } from '../lib/jobs.js';
 import { wakeJobQueue } from '../lib/job-queue.js';
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../infra/database/prisma.js';
 import { t } from '../i18n/messages.js';
 import {
   canonicalJson,

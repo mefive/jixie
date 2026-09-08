@@ -1,5 +1,5 @@
 import type { FactorResearchSpecV1 } from '@jixie/shared';
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../infra/database/prisma.js';
 import { parseResearchIntent } from '../factor/research.js';
 import { normalizeFactorResearchSpec } from '../factor/report-spec.js';
 

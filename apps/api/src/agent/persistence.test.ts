@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   findConversation: vi.fn(),
 }));
 
-vi.mock('../lib/prisma.js', () => ({
+vi.mock('../infra/database/prisma.js', () => ({
   prisma: {
     $transaction: mocks.transaction,
     agentConversation: { findFirst: mocks.findConversation },

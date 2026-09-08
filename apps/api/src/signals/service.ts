@@ -18,7 +18,7 @@ import { inspectWalledStrategyMetadata } from '../engine/walled-run.js';
 import { prepareStrategyFactors } from '../engine/prepare-custom-factors.js';
 import { appendLog, finishSignalRunJob, initializeJobLogs } from '../lib/jobs.js';
 import { waitForJobCompletion, wakeJobQueue } from '../lib/job-queue.js';
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../infra/database/prisma.js';
 import { t } from '../i18n/messages.js';
 import { governmentYieldCurveReady } from '../rates/signal-readiness.js';
 import { notifySignalRun } from './notifier.js';

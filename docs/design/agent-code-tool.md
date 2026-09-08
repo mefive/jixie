@@ -48,7 +48,7 @@ analyzeData({
 
 | 层 | 内容 | 决定 |
 |---|---|---|
-| 第一层(v1,零新依赖) | **自家 `lib/stats.ts`**:mean/std/pearson/spearman/winsorize/quantileBuckets/sharpe/annualizedReturn/maxDrawdown/navFromReturns——因子分析线在用、有单测、量化语义对口 | 注入为 `stats.*`,v1 只给这个 |
+| 第一层(v1,零新依赖) | **自家 `math/stats.ts`**:mean/std/pearson/spearman/winsorize/quantileBuckets/sharpe/annualizedReturn/maxDrawdown/navFromReturns——因子分析线在用、有单测、量化语义对口 | 注入为 `stats.*`,v1 只给这个 |
 | 第二层(需求拉动) | **simple-statistics**(纯 JS 零依赖,社区标准):线性回归、分位数、t 检验、直方分箱等描述统计全家桶 | 撞到 stats.ts 不够的真实用例再加,加时并入 `stats.*` 命名空间 |
 | 不引 | mathjs(太重)、jstat(年久)、danfojs(JS 版 pandas,重且不成熟——关系变换本就归 SQL,不需要 DataFrame) | — |
 

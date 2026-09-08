@@ -1,7 +1,7 @@
 import type { TradeDate } from '@jixie/shared';
 import { loadTushareConfig } from '../config.js';
 import { inspectWalledStrategyMetadata } from '../engine/walled-run.js';
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../infra/database/prisma.js';
 import {
   MinistryOfFinanceCurveClient,
   syncChinaTreasuryYieldCurve,

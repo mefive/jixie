@@ -1,8 +1,8 @@
 import { syncCommodityHoldingPositions } from '../src/commodity/commodity-holding-positions.js';
 import { COMMODITY_HOLDING_SPECS } from '../src/commodity/commodity-futures.js';
 import { loadTushareConfig } from '../src/config.js';
-import { addDays } from '../src/lib/date.js';
-import { prisma } from '../src/lib/prisma.js';
+import { addDays } from '../src/date.js';
+import { prisma } from '../src/infra/database/prisma.js';
 import { syncTradeCal } from '../src/store/sync.js';
 import { TushareClient } from '../src/tushare/client.js';
 

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { AgentLlm } from '../llm/agent-llm.js';
+import type { AgentLlm } from '../infra/llm/agent-llm.js';
 import type { ResearchExecutionV1 } from '@jixie/shared';
 import {
   generateResearchFactorDraft,

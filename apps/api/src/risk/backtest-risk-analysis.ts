@@ -3,8 +3,8 @@ import type {
   FactorResearchReportPayloadV1,
   PortfolioRiskAnalysisV1,
 } from '@jixie/shared';
-import { addDays } from '../lib/date.js';
-import { prisma, type Prisma } from '../lib/prisma.js';
+import { addDays } from '../date.js';
+import { prisma, type Prisma } from '../infra/database/prisma.js';
 import type { BacktestResult } from '../engine/types.js';
 import {
   alignAlphaPeriodReturnsToRiskAvailability,

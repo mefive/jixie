@@ -1,4 +1,4 @@
-import { addDays } from '../lib/date.js';
+import { addDays } from '../date.js';
 
 export type TushareCapabilityDomain = 'equity' | 'etf' | 'rates' | 'commodity' | 'macro';
 export type TushareCapabilityFrequency = 'reference' | 'event' | 'daily' | 'monthly' | 'quarterly';

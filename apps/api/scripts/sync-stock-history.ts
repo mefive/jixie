@@ -2,7 +2,7 @@ import dayjs from 'dayjs';
 import type { TradeDate } from '@jixie/shared';
 import { loadTushareConfig } from '../src/config.js';
 import { TushareClient } from '../src/tushare/client.js';
-import { prisma } from '../src/lib/prisma.js';
+import { prisma } from '../src/infra/database/prisma.js';
 import { seedStockCodeChanges, syncStockBasic, syncStockNameHistory } from '../src/store/sync.js';
 
 /**

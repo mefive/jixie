@@ -15,8 +15,8 @@ import type {
 } from '@jixie/shared';
 import { z } from 'zod';
 import { ulid } from 'ulid';
-import { prisma } from '../lib/prisma.js';
-import { chatJson, type LlmCall } from '../llm/deepseek.js';
+import { prisma } from '../infra/database/prisma.js';
+import { chatJson, type LlmCall } from '../infra/llm/deepseek.js';
 import { SQL_TABLE_DOCS } from '../agent/tools/read-only-sql.js';
 import { TUSHARE_CAPABILITIES } from '../tushare/capability-catalog.js';
 import {

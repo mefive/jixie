@@ -1,5 +1,5 @@
 import { writeFile } from 'node:fs/promises';
-import { prisma } from '../src/lib/prisma.js';
+import { prisma } from '../src/infra/database/prisma.js';
 import { resolveFinancialState, resolveFinancialStates } from '../src/fundamentals/resolver.js';
 import { calculateFinancialMetrics } from '../src/fundamentals/metrics.js';
 import {

@@ -7,8 +7,8 @@ import {
 } from '@jixie/shared';
 import { agentTurn, type AgentProfile } from '../agent/core.js';
 import { strategyProfile } from '../agent/profiles/strategy.js';
-import { chatJson, chatTools, type LlmCall } from '../llm/deepseek.js';
-import type { AgentLlm } from '../llm/agent-llm.js';
+import { chatJson, chatTools, type LlmCall } from '../infra/llm/deepseek.js';
+import type { AgentLlm } from '../infra/llm/agent-llm.js';
 import { researchHandoffContext } from './research-handoff-context.js';
 
 const classificationSchema = z.discriminatedUnion('decision', [

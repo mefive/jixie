@@ -1,7 +1,7 @@
 import { pathToFileURL } from 'node:url';
 import { loadTushareConfig } from '../config.js';
 import { syncFinancialStatementsVip } from '../fundamentals/sync.js';
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../infra/database/prisma.js';
 import { syncDividend, syncFinaIndicatorVip, type ReferenceSyncSummary } from '../store/sync.js';
 import { TushareClient } from '../tushare/client.js';
 import { completeMaintenanceItem } from './state.js';

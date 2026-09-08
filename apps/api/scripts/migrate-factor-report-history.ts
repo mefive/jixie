@@ -1,5 +1,5 @@
 import type { FactorAnalysisSpecV1 } from '@jixie/shared';
-import { prisma } from '../src/lib/prisma.js';
+import { prisma } from '../src/infra/database/prisma.js';
 import { factorVariantKey, sha256 } from '../src/factor/report-spec.js';
 
 const BATCH_SIZE = 100;

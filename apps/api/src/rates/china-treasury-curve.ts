@@ -1,4 +1,4 @@
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../infra/database/prisma.js';
 
 export const CHINA_TREASURY_CURVE_SOURCE = 'mof_chinabond';
 export const CHINA_TREASURY_CURVE_CODE = 'mof_cgb_ytm';

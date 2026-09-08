@@ -10,7 +10,7 @@ import type {
   ResearchExecutionV1,
 } from '@jixie/shared';
 import { ulid } from 'ulid';
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../infra/database/prisma.js';
 import { researchPayloadHash } from './fingerprints.js';
 
 export interface ResearchExecutionSourceCellSnapshot {

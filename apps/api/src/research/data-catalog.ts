@@ -26,7 +26,7 @@ import {
   type ResearchMeasureDefinitionV1,
 } from '@jixie/shared';
 import { Prisma } from '@prisma/client';
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../infra/database/prisma.js';
 import {
   etfResearchMembership,
   type EtfResearchMembership,

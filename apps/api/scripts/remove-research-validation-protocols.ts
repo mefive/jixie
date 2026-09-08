@@ -1,4 +1,4 @@
-import { prisma } from '../src/lib/prisma.js';
+import { prisma } from '../src/infra/database/prisma.js';
 
 const result = await prisma.$transaction(async (transaction) => {
   const messages = await transaction.$executeRaw`

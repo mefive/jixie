@@ -1,5 +1,5 @@
 import type { TradeDate } from '@jixie/shared';
-import { prisma, type Prisma } from '../lib/prisma.js';
+import { prisma, type Prisma } from '../infra/database/prisma.js';
 import type { TushareClient } from '../tushare/client.js';
 import {
   auditCommodityWarehouseReceipts,

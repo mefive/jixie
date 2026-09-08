@@ -1,7 +1,7 @@
 import { Worker } from 'node:worker_threads';
 import type { BacktestConfig, BacktestMetricSummary, Locale } from '@jixie/shared';
 import { z } from 'zod';
-import { prisma } from '../../lib/prisma.js';
+import { prisma } from '../../infra/database/prisma.js';
 import { codeConfigSchema } from '../../strategy/code/schema.js';
 import type { AgentTool } from './types.js';
 

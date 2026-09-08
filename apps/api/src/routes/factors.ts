@@ -7,8 +7,8 @@ import {
   type FactorCompositeDefinition,
   type FactorLanguage,
 } from '@jixie/shared';
-import { apiError, validateJson } from '../lib/httpError.js';
-import { prisma } from '../lib/prisma.js';
+import { apiError, validateJson } from '../infra/http/errors.js';
+import { prisma } from '../infra/database/prisma.js';
 import { BUILTIN_KEYS, BUILTIN_USER_ID, builtinCatalog } from '../factor/builtin-factors.js';
 import { validateFactorDefinition } from '../factor/validate-factor-definition.js';
 import {
@@ -17,8 +17,8 @@ import {
 } from '../factor/compile-time-series-factor.js';
 import { pythonFactorTargetAssetClasses } from '../factor/python-factor-validator.js';
 import { chatMessagesSchema } from '../lib/chat-schema.js';
-import { m } from '../i18n/index.js';
-import { localeFromRequest } from '../i18n/index.js';
+import { m } from '../infra/http/locale.js';
+import { localeFromRequest } from '../infra/http/locale.js';
 import {
   factorCompositeDefinitionSchema,
   factorPanelCompositeDefinitionV2Schema,

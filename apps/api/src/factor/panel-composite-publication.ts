@@ -1,5 +1,5 @@
 import type { PublishedFactor } from '@jixie/shared';
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../infra/database/prisma.js';
 import { factorAnalysisSourceSnapshot } from './analysis-job.js';
 import { BUILTIN_USER_ID } from './builtin-factors.js';
 import { FactorPublicationError } from './publication.js';

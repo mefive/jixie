@@ -5,7 +5,7 @@ import {
   type RiskDataLineageV1,
 } from '@jixie/shared';
 import { describe, expect, it } from 'vitest';
-import { addDays } from '../lib/date.js';
+import { addDays } from '../date.js';
 import type { MarketRiskDriverHistoryV1 } from './market-risk-drivers.js';
 import {
   alignAlphaPeriodReturnsToRiskAvailability,

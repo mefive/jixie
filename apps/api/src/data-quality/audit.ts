@@ -1,7 +1,7 @@
-import { median, quantile } from '../lib/stats.js';
+import { median, quantile } from '../math/stats.js';
 import { CHINA_MACRO_SERIES } from '../macro/china-macro.js';
 import { US_HEADLINE_CPI_SERIES_KEY } from '../macro/us-headline-cpi.js';
-import type { Prisma } from '../lib/prisma.js';
+import type { Prisma } from '../infra/database/prisma.js';
 import { auditCommodityWarehouseReceipts } from '../commodity/commodity-warehouse-receipt-quality.js';
 import { auditCommodityHoldingPositions } from '../commodity/commodity-holding-quality.js';
 import { auditCommodityContinuousReturns } from '../commodity/commodity-continuous-return-quality.js';

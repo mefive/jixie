@@ -17,7 +17,7 @@ import type {
 } from '@jixie/shared';
 import { researchDownstreamDependencyCellIds } from '@jixie/shared';
 import { ulid } from 'ulid';
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../infra/database/prisma.js';
 import { researchPayloadHash } from './fingerprints.js';
 import {
   createResearchExecution,

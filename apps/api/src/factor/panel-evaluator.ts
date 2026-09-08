@@ -5,7 +5,7 @@ import type {
   MultiAssetClass,
   PanelFactorResearchSpecV1,
 } from '@jixie/shared';
-import { annualizedReturn, mean, median, spearman, std } from '../lib/stats.js';
+import { annualizedReturn, mean, median, spearman, std } from '../math/stats.js';
 
 export interface PanelEvaluationObservation {
   assetId: string;

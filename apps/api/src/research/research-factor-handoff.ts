@@ -10,8 +10,8 @@ import {
 import { agentTurn, buildAgentMode, type AgentProfile } from '../agent/core.js';
 import { buildFactorCodegenPrompt } from '../factor/factor-codegen-prompt.js';
 import { validateFactorDefinition } from '../factor/validate-factor-definition.js';
-import { chatJson, chatTools, type LlmCall } from '../llm/deepseek.js';
-import type { AgentLlm } from '../llm/agent-llm.js';
+import { chatJson, chatTools, type LlmCall } from '../infra/llm/deepseek.js';
+import type { AgentLlm } from '../infra/llm/agent-llm.js';
 import { researchHandoffContext } from './research-handoff-context.js';
 
 const reportSuggestionSchema = z.strictObject({

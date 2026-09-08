@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   reportFindMany: vi.fn(),
 }));
 
-vi.mock('../lib/prisma.js', () => ({
+vi.mock('../infra/database/prisma.js', () => ({
   prisma: {
     factor: { findMany: mocks.factorFindMany },
     factorComposite: { findMany: mocks.compositeFindMany },

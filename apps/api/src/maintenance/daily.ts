@@ -12,7 +12,7 @@ import {
   type CommodityWarehouseReceiptMaintenanceSummary,
 } from '../commodity/commodity-warehouse-receipt-maintenance.js';
 import { loadTushareConfig } from '../config.js';
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../infra/database/prisma.js';
 import {
   syncCrossMarketBenchmarks,
   type CrossMarketBenchmarkSyncSummary,

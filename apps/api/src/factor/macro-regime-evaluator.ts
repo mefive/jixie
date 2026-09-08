@@ -4,8 +4,8 @@ import type {
   FactorMacroRegimeStateKeyV1,
   MacroRegimeFactorResearchSpecV1,
 } from '@jixie/shared';
-import { mean, median, quantile, std } from '../lib/stats.js';
-import { neweyWestMeanInference } from '../lib/inference.js';
+import { mean, median, quantile, std } from '../math/stats.js';
+import { neweyWestMeanInference } from '../math/inference.js';
 import type {
   MacroRegimeEvaluationData,
   MacroRegimeEvaluationObservation,

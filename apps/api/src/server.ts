@@ -1,7 +1,7 @@
 import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
 import { logger } from 'hono/logger';
-import { authRoute } from './routes/auth.js';
+import { authRoute } from './auth/http/auth.js';
 import { strategyRoute } from './routes/strategy.js';
 import { strategiesRoute } from './routes/strategies.js';
 import { marketRoute } from './routes/market.js';
@@ -12,7 +12,7 @@ import { factorWeatherRoute } from './routes/factor-weather.js';
 import { agentRoute } from './routes/agent.js';
 import { signalsRoute } from './routes/signals.js';
 import { libraryRoute } from './routes/library.js';
-import { requireAuth } from './lib/session.js';
+import { requireAuth } from './auth/http/session.js';
 import { markRunningJobsStale } from './lib/jobs.js';
 import { startJobQueue } from './lib/job-queue.js';
 import { seedBuiltinFactors } from './factor/builtin-factors.js';
@@ -23,7 +23,7 @@ import { maintenanceGate, maintenanceRoute } from './maintenance/http.js';
 /**
  * Start the backend.
  *   /api/health   public liveness check
- *   /api/auth/*   public (login / logout / me) — see routes/auth.ts
+ *   /api/auth/*   public (login / logout / me) — see auth/http/auth.ts
  *   /api/app/*    protected example prefix — gated uniformly by requireAuth
  */
 export async function startServer(port: number) {

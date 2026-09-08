@@ -2,10 +2,10 @@ import { Hono, type Context } from 'hono';
 import { ulid } from 'ulid';
 import { z } from 'zod';
 import type { MessagePart, ResearchClarificationV1 } from '@jixie/shared';
-import { apiError, validateJson, validateQuery } from '../lib/httpError.js';
+import { apiError, validateJson, validateQuery } from '../infra/http/errors.js';
 import { initializeJobLogs } from '../lib/jobs.js';
 import { wakeJobQueue } from '../lib/job-queue.js';
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../infra/database/prisma.js';
 import { researchProfile } from '../agent/profiles/research.js';
 import { enqueueAgentTurn, entityKey } from '../agent/turn-run.js';
 import * as turnBus from '../agent/turn-bus.js';
@@ -15,7 +15,7 @@ import {
   createResearchCatalogTurnEvidence,
   createSearchResearchCatalogTool,
 } from '../agent/tools/search-research-catalog.js';
-import { localeFromRequest, m } from '../i18n/index.js';
+import { localeFromRequest, m } from '../infra/http/locale.js';
 import {
   curatorFindingUpdateSchema,
   getLatestResearchCuratorRun,

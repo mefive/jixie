@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { ulid } from 'ulid';
 import type { BacktestSummary, LogLine } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
-import { prisma } from './prisma.js';
+import { prisma } from '../infra/database/prisma.js';
 
 /**
  * Shared background-job registry for backtests, factor analysis, strategy scans, and daily signals.

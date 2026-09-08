@@ -10,7 +10,7 @@ import { codeConfigSchema } from '../strategy/code/schema.js';
 import { prepareStrategyFactors } from './prepare-custom-factors.js';
 import { runWalledSignalCapture } from './walled-run.js';
 import { prismaDataPort } from './prisma-port.js';
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../infra/database/prisma.js';
 import { t } from '../i18n/messages.js';
 import {
   assertFactorDependencies,

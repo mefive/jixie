@@ -47,14 +47,23 @@ Calmar 表现的策略组合，而不是在样本内直接优化漂亮指标。
 ## 目录
 
 ```
-apps/api/                # Hono + Prisma 后端
-  prisma/schema.prisma   # 股票 / 指数 / 期货 / ETF 行情与研究数据
-  src/tushare/           # Tushare client + 接口封装
-  src/store/             # 同步落库
-  src/lib/prisma.ts      # Prisma client 单例
-  scripts/               # smoke / sync / peek
-packages/shared/         # 共享类型(TsCode、TradeDate)
+apps/api/                          # Hono + Prisma 后端
+  prisma/schema.prisma             # 行情、研究与用户数据
+  src/auth/                        # 登录、Session、邀请码；http/ 处理请求与 Cookie
+  src/infra/database/prisma.ts     # 每进程/线程 Prisma client
+  src/infra/http/                  # HTTP 错误、校验与请求语言
+  src/infra/llm/                   # 模型供应商适配
+  src/infra/email/                 # 邮件传输；登录邮件模板在 auth/
+  src/math/                        # 共用统计、推断与技术指标
+  src/i18n/                        # 纯消息目录和翻译函数
+  src/date.ts                      # 日期辅助
+  src/tushare/                     # Tushare client + 接口封装
+  src/store/                       # 同步落库
+  scripts/                         # smoke / sync / peek
+packages/shared/                   # 共享类型(TsCode、TradeDate)
 ```
+
+当前架构重整进度见 [开发计划](docs/design/backend-architecture-refactor.md)；目标目录不代表全部已实施。
 
 ## 快速开始
 
