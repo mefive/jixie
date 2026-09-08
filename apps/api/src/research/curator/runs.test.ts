@@ -1,0 +1,473 @@
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import type { PrismaClient } from '@prisma/client';
+import prismaPackage from '@prisma/client';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { tushareCapabilityProbesAreFresh } from '../../tushare/capability-probe-store.js';
+import {
+  extractResearchCuratorEvidence,
+  getResearchCuratorRun,
+  researchCuratorQuality,
+  setResearchCuratorFindingDisposition,
+  updateResearchCuratorFindingFeedback,
+} from './runs.js';
+
+import * as curator from './runs.js';
+import * as referenceSearch from './reference-search.js';
+import { researchCuratorJob } from '../curator-job.js';
+import type { JobSnapshot } from '../../infra/jobs/definition.js';
+
+const originalPrepare = curator.prepareResearchCuratorRun;
+const { PrismaClient: RuntimePrismaClient } = prismaPackage;
+
+describe('research curator', () => {
+  let temporaryDirectory: string;
+  let database: PrismaClient;
+
+  beforeEach(async () => {
+    temporaryDirectory = await mkdtemp(join(tmpdir(), 'jixie-research-curator-'));
+    database = new RuntimePrismaClient({
+      datasourceUrl: `file:${join(temporaryDirectory, 'curator.db')}`,
+    });
+    await createFixtureSchema(database);
+    await seedUserConversation(database, 'user-a', 'a@example.com', 'conversation-a');
+    await seedUserConversation(database, 'user-b', 'b@example.com', 'conversation-b');
+    await database.agentMessage.createMany({
+      data: [
+        {
+          id: 'message-a',
+          conversationId: 'conversation-a',
+          role: 'user',
+          parts: [{ type: 'text', text: 'market.adjusted_close 的月度回归能否做成研究方法模板？' }],
+          sequence: 0,
+          createdAt: new Date('2026-08-14T01:00:00.000Z'),
+        },
+        {
+          id: 'message-b',
+          conversationId: 'conversation-b',
+          role: 'user',
+          parts: [{ type: 'text', text: 'Tushare cn_cpi 数据应该落到本地库。' }],
+          sequence: 0,
+          createdAt: new Date('2026-08-14T01:00:00.000Z'),
+        },
+      ],
+    });
+  });
+
+  afterEach(async () => {
+    await database.$disconnect();
+    await rm(temporaryDirectory, { recursive: true, force: true });
+  });
+
+  it('extracts only the current user evidence and verifies model drafts deterministically', async () => {
+    const cursorTo = new Date('2026-08-14T02:00:00.000Z');
+    await database.researchCuratorRun.create({
+      data: { id: 'run-a', userId: 'user-a', cursorTo },
+    });
+    const evidence = await extractResearchCuratorEvidence('user-a', null, cursorTo, database);
+    expect(evidence).toEqual([
+      expect.objectContaining({
+        id: 'message:message-a',
+        conversationId: 'conversation-a',
+        signals: expect.arrayContaining(['method']),
+      }),
+    ]);
+    const llm = vi.fn(async () =>
+      JSON.stringify({
+        findings: [
+          {
+            category: 'method_candidate',
+            title: 'Add a monthly adjusted-close relationship method template',
+            summary: 'The user repeatedly needs market.adjusted_close regression research.',
+            evidenceIds: ['message:message-a'],
+            confidence: 0.9,
+            expectedValue: 'Make a repeated research workflow deterministic.',
+            changeSurface: ['research workbench', 'method templates'],
+            suggestedAction: 'Review a transparent Markdown and Python method template.',
+          },
+        ],
+      }),
+    );
+
+    const run = await prepareAndCompleteCuratorRun('run-a', { database, llm });
+    expect(llm).toHaveBeenCalledOnce();
+    expect(run).toMatchObject({ status: 'done', evidenceCount: 1, findingsCreated: 1 });
+    expect(run.findings[0]).toMatchObject({
+      category: 'method_candidate',
+      disposition: 'pending',
+      verification: {
+        status: 'verified',
+        matches: expect.arrayContaining([
+          { kind: 'research_measure', id: 'market.adjusted_close' },
+        ]),
+        evidence: expect.arrayContaining([
+          expect.objectContaining({
+            kind: 'catalog',
+            reference: 'research-measure:market.adjusted_close',
+          }),
+        ]),
+      },
+    });
+  });
+
+  it('suppresses repeated findings and scopes human disposition by owner', async () => {
+    const cursorTo = new Date('2026-08-14T02:00:00.000Z');
+    const response = JSON.stringify({
+      findings: [
+        {
+          category: 'documentation_gap',
+          title: 'Explain adjusted close',
+          summary: 'The concept needs a clearer explanation.',
+          evidenceIds: ['message:message-a'],
+          confidence: 0.8,
+          expectedValue: 'Reduce repeated questions.',
+          changeSurface: ['help center'],
+          suggestedAction: 'Review a concept article.',
+        },
+      ],
+    });
+    for (const runId of ['run-a', 'run-b']) {
+      await database.researchCuratorRun.create({ data: { id: runId, userId: 'user-a', cursorTo } });
+      await prepareAndCompleteCuratorRun(runId, { database, llm: async () => response });
+    }
+    const repeated = await getResearchCuratorRun('user-a', 'run-b', database);
+    expect(repeated).toMatchObject({ findingsCreated: 0, duplicatesSkipped: 1, findings: [] });
+    const finding = await database.researchCuratorFinding.findFirstOrThrow();
+    await expect(
+      setResearchCuratorFindingDisposition('user-b', finding.id, 'accepted', undefined, database),
+    ).resolves.toBeNull();
+    await expect(
+      setResearchCuratorFindingDisposition(
+        'user-a',
+        finding.id,
+        'accepted',
+        'Add to the normal planning flow.',
+        database,
+      ),
+    ).resolves.toMatchObject({ disposition: 'accepted' });
+  });
+
+  it('treats a Tushare catalog match as partial until a live capability check is run', async () => {
+    const cursorTo = new Date('2026-08-14T02:00:00.000Z');
+    await database.researchCuratorRun.create({
+      data: { id: 'run-supplier', userId: 'user-b', cursorTo },
+    });
+    const response = JSON.stringify({
+      findings: [
+        {
+          category: 'supplier_data_gap',
+          title: 'Check Tushare cn_cpi availability',
+          summary: 'The requested cn_cpi series may need to be synchronized locally.',
+          evidenceIds: ['message:message-b'],
+          confidence: 0.85,
+          expectedValue: 'Support inflation research without ad-hoc searches.',
+          changeSurface: ['data capability catalog'],
+          suggestedAction:
+            'Run a read-only permission and field smoke check before planning ingestion.',
+        },
+      ],
+    });
+
+    const run = await prepareAndCompleteCuratorRun('run-supplier', {
+      database,
+      llm: async () => response,
+    });
+
+    expect(run.findings[0]).toMatchObject({
+      verification: {
+        status: 'partial',
+        matches: expect.arrayContaining([{ kind: 'tushare_api', id: 'cn_cpi' }]),
+      },
+    });
+  });
+
+  it('verifies planned cross-market contracts without claiming the candidate source is integrated', async () => {
+    const cursorTo = new Date('2026-08-14T02:00:00.000Z');
+    await database.agentMessage.create({
+      data: {
+        id: 'message-us-source',
+        conversationId: 'conversation-b',
+        role: 'user',
+        parts: [
+          {
+            type: 'text',
+            text: '请评估 us.equity.adjusted_close.daily 与 tushare.us_equity。',
+          },
+        ],
+        sequence: 1,
+        createdAt: new Date('2026-08-14T01:30:00.000Z'),
+      },
+    });
+    await database.researchCuratorRun.create({
+      data: { id: 'run-us-source', userId: 'user-b', cursorTo },
+    });
+    const run = await prepareAndCompleteCuratorRun('run-us-source', {
+      database,
+      llm: async () =>
+        JSON.stringify({
+          findings: [
+            {
+              category: 'supplier_data_gap',
+              title: 'Review the Tushare US equity candidate',
+              summary: 'US equity research needs us_daily_adj and an audited local contract.',
+              evidenceIds: ['message:message-us-source'],
+              confidence: 0.85,
+              expectedValue: 'Avoid treating a documented API as integrated local data.',
+              changeSurface: ['cross-market data'],
+              suggestedAction: 'Run the registered permission and coverage checks.',
+            },
+          ],
+        }),
+    });
+
+    expect(run.findings[0]).toMatchObject({
+      verification: {
+        status: 'verified',
+        matches: expect.arrayContaining([
+          { kind: 'data_contract', id: 'us.equity.adjusted_close.daily' },
+          { kind: 'data_source_decision', id: 'tushare.us_equity' },
+        ]),
+        notes: expect.arrayContaining(['cross_market_contract_match', 'source_decision_match']),
+        evidence: expect.arrayContaining([
+          expect.objectContaining({
+            stance: 'limits',
+            reference: 'source-decision:v1:tushare.us_equity',
+          }),
+        ]),
+      },
+    });
+  });
+
+  it('uses the latest persisted supplier probe and records independent verification feedback', async () => {
+    await database.tushareCapabilityProbe.create({
+      data: {
+        id: 'probe-cpi',
+        catalogVersion: 1,
+        apiName: 'cn_cpi',
+        domain: 'macro',
+        probeDate: '20260807',
+        status: 'ok',
+        rowCount: 511,
+        fields: ['month', 'nt_yoy'],
+        historyField: 'month',
+        historyStart: '195112',
+        historyEnd: '202607',
+        probeCoverage: 'full_response',
+        probedAt: new Date('2026-08-14T02:00:00.000Z'),
+      },
+    });
+    await expect(
+      tushareCapabilityProbesAreFresh(
+        ['cn_cpi'],
+        7,
+        new Date('2026-08-14T03:00:00.000Z'),
+        database,
+      ),
+    ).resolves.toBe(true);
+    await expect(
+      tushareCapabilityProbesAreFresh(
+        ['cn_cpi', 'shibor'],
+        7,
+        new Date('2026-08-14T03:00:00.000Z'),
+        database,
+      ),
+    ).resolves.toBe(false);
+    await database.researchCuratorRun.create({
+      data: {
+        id: 'run-probed-supplier',
+        userId: 'user-b',
+        cursorTo: new Date('2026-08-14T03:00:00.000Z'),
+      },
+    });
+    const run = await prepareAndCompleteCuratorRun('run-probed-supplier', {
+      database,
+      llm: async () =>
+        JSON.stringify({
+          findings: [
+            {
+              category: 'supplier_data_gap',
+              title: 'Synchronize Tushare cn_cpi',
+              summary: 'cn_cpi is requested for local inflation research.',
+              evidenceIds: ['message:message-b'],
+              confidence: 0.9,
+              expectedValue: 'Make CPI research reproducible.',
+              changeSurface: ['macro data'],
+              suggestedAction: 'Review a bounded cn_cpi ingestion plan.',
+            },
+          ],
+        }),
+    });
+    expect(run.findings[0]).toMatchObject({
+      verification: {
+        status: 'verified',
+        notes: expect.arrayContaining(['tushare_probe_available']),
+        evidence: expect.arrayContaining([
+          expect.objectContaining({ kind: 'probe', stance: 'supports' }),
+        ]),
+      },
+    });
+
+    const assessed = await updateResearchCuratorFindingFeedback(
+      'user-b',
+      run.findings[0]!.id,
+      { verificationAssessment: 'incorrect' },
+      database,
+    );
+    expect(assessed).toMatchObject({ verificationAssessment: 'incorrect' });
+    await updateResearchCuratorFindingFeedback(
+      'user-b',
+      run.findings[0]!.id,
+      { disposition: 'accepted', note: 'Plan this.' },
+      database,
+    );
+    await expect(researchCuratorQuality('user-b', database)).resolves.toMatchObject({
+      reviewed: 1,
+      accepted: 1,
+      acceptanceRate: 1,
+      verificationAssessments: 1,
+      verificationErrors: 1,
+      verificationErrorRate: 1,
+      evaluationReady: false,
+    });
+  });
+
+  it('publishes no partial findings if preparing a later candidate fails', async () => {
+    await database.researchCuratorRun.create({
+      data: {
+        id: 'run-prepare-failure',
+        userId: 'user-a',
+        cursorTo: new Date('2026-08-14T02:00:00.000Z'),
+      },
+    });
+    const findings = ['first', 'second'].map((name) => ({
+      category: 'documentation_gap',
+      title: `Explain adjusted close ${name}`,
+      summary: 'Explain this concept.',
+      evidenceIds: ['message:message-a'],
+      confidence: 0.8,
+      expectedValue: 'Clarify research.',
+      changeSurface: ['help'],
+      suggestedAction: `Review ${name}.`,
+    }));
+    const search = vi
+      .spyOn(referenceSearch, 'searchCuratorRepositoryReferences')
+      .mockResolvedValueOnce([])
+      .mockRejectedValueOnce(new Error('reference search failed'));
+    try {
+      await expect(
+        originalPrepare('run-prepare-failure', {
+          database,
+          llm: async () => JSON.stringify({ findings }),
+        }),
+      ).rejects.toThrow('reference search failed');
+      expect(search).toHaveBeenCalledTimes(2);
+      expect(await database.researchCuratorFinding.count()).toBe(0);
+      expect(
+        await database.researchCuratorRun.findUnique({ where: { id: 'run-prepare-failure' } }),
+      ).toMatchObject({ status: 'running', findingsCreated: 0 });
+    } finally {
+      search.mockRestore();
+    }
+  });
+
+  it('does not truncate large evidence windows and summarizes them in bounded chunks', async () => {
+    await database.agentMessage.createMany({
+      data: Array.from({ length: 501 }, (_, index) => ({
+        id: `bulk-message-${index}`,
+        conversationId: 'conversation-a',
+        role: 'user',
+        parts: [{ type: 'text', text: `统计回归研究需求 ${index}` }],
+        sequence: index + 1,
+        createdAt: new Date(Date.parse('2026-08-14T01:10:00.000Z') + index),
+      })),
+    });
+    const cursorTo = new Date('2026-08-14T02:00:00.000Z');
+    await database.researchCuratorRun.create({
+      data: { id: 'run-large-window', userId: 'user-a', cursorTo },
+    });
+    const llm = vi.fn(async () => JSON.stringify({ findings: [] }));
+
+    const run = await prepareAndCompleteCuratorRun('run-large-window', { database, llm });
+
+    expect(run.evidenceCount).toBe(502);
+    expect(llm).toHaveBeenCalledTimes(7);
+  });
+});
+
+// Domain tests use the real task completion method with the fixture transaction.
+// The executor's additional Job update and rollback are covered by lifecycle integration tests.
+async function prepareAndCompleteCuratorRun(
+  runId: string,
+  options: {
+    database: PrismaClient;
+    llm: NonNullable<Parameters<typeof originalPrepare>[1]>['llm'];
+  },
+) {
+  const run = await options.database.researchCuratorRun.findUniqueOrThrow({ where: { id: runId } });
+  const prepare = vi
+    .spyOn(curator, 'prepareResearchCuratorRun')
+    .mockImplementation((id) => originalPrepare(id, options));
+  try {
+    const prepared = researchCuratorJob.prepare({
+      job: {
+        id: `job-${runId}`,
+        userId: run.userId,
+        researchCuratorRunId: runId,
+        payload: { runId },
+        kind: 'research-curator',
+        key: runId,
+        status: 'running',
+        error: null,
+        logs: null,
+        factorReportId: null,
+        backtestReportId: null,
+        strategyScanReportId: null,
+        signalRunId: null,
+        queuedAt: new Date(0),
+        startedAt: new Date(0),
+        finishedAt: null,
+        createdAt: new Date(0),
+        updatedAt: new Date(0),
+      } satisfies JobSnapshot,
+      log: () => {},
+    });
+    const result = await prepared.execute();
+    await options.database.$transaction((transaction) => result.complete(transaction));
+    return (await getResearchCuratorRun(run.userId, runId, options.database))!;
+  } finally {
+    prepare.mockRestore();
+  }
+}
+
+async function seedUserConversation(
+  database: PrismaClient,
+  userId: string,
+  email: string,
+  conversationId: string,
+) {
+  await database.user.create({ data: { id: userId, email } });
+  await database.agentConversation.create({
+    data: { id: conversationId, userId, surface: 'research', title: 'Research' },
+  });
+}
+
+async function createFixtureSchema(database: PrismaClient) {
+  const statements = [
+    'PRAGMA foreign_keys=ON',
+    'CREATE TABLE "User" ("id" TEXT NOT NULL PRIMARY KEY, "email" TEXT NOT NULL, "name" TEXT, "status" TEXT NOT NULL DEFAULT \'active\', "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP)',
+    'CREATE TABLE "AgentConversation" ("id" TEXT NOT NULL PRIMARY KEY, "userId" TEXT NOT NULL, "surface" TEXT NOT NULL, "title" TEXT, "strategyId" TEXT, "factorId" TEXT, "archivedAt" DATETIME, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" DATETIME NOT NULL, FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE)',
+    'CREATE TABLE "AgentMessage" ("id" TEXT NOT NULL PRIMARY KEY, "conversationId" TEXT NOT NULL, "role" TEXT NOT NULL, "parts" JSONB NOT NULL, "sequence" INTEGER NOT NULL, "turnId" TEXT, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY ("conversationId") REFERENCES "AgentConversation"("id") ON DELETE CASCADE)',
+    'CREATE TABLE "AgentTurn" ("id" TEXT NOT NULL PRIMARY KEY, "conversationId" TEXT NOT NULL, "status" TEXT NOT NULL, "model" TEXT NOT NULL, "trace" JSONB NOT NULL, "error" TEXT, "startedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "finishedAt" DATETIME, FOREIGN KEY ("conversationId") REFERENCES "AgentConversation"("id") ON DELETE CASCADE)',
+    'CREATE TABLE "ResearchCuratorRun" ("id" TEXT NOT NULL PRIMARY KEY, "userId" TEXT NOT NULL, "status" TEXT NOT NULL DEFAULT \'queued\', "trigger" TEXT NOT NULL DEFAULT \'manual\', "cursorFrom" DATETIME, "cursorTo" DATETIME NOT NULL, "evidenceCount" INTEGER NOT NULL DEFAULT 0, "findingsCreated" INTEGER NOT NULL DEFAULT 0, "duplicatesSkipped" INTEGER NOT NULL DEFAULT 0, "error" TEXT, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" DATETIME NOT NULL, FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE)',
+    'CREATE TABLE "ResearchCuratorFinding" ("id" TEXT NOT NULL PRIMARY KEY, "userId" TEXT NOT NULL, "runId" TEXT NOT NULL, "category" TEXT NOT NULL, "title" TEXT NOT NULL, "summary" TEXT NOT NULL, "evidence" JSONB NOT NULL, "verification" JSONB NOT NULL, "confidence" REAL NOT NULL, "expectedValue" TEXT NOT NULL, "changeSurface" JSONB NOT NULL, "suggestedAction" TEXT NOT NULL, "fingerprint" TEXT NOT NULL, "disposition" TEXT NOT NULL DEFAULT \'pending\', "dispositionNote" TEXT, "disposedAt" DATETIME, "verificationAssessment" TEXT, "verificationAssessedAt" DATETIME, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" DATETIME NOT NULL, FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE, FOREIGN KEY ("runId") REFERENCES "ResearchCuratorRun"("id") ON DELETE CASCADE)',
+    'CREATE TABLE "TushareCapabilityProbe" ("id" TEXT NOT NULL PRIMARY KEY, "catalogVersion" INTEGER NOT NULL, "apiName" TEXT NOT NULL, "domain" TEXT NOT NULL, "probeDate" TEXT NOT NULL, "status" TEXT NOT NULL, "rowCount" INTEGER NOT NULL, "fields" JSONB NOT NULL, "historyField" TEXT, "historyStart" TEXT, "historyEnd" TEXT, "probeCoverage" TEXT, "errorCode" INTEGER, "errorMessage" TEXT, "probedAt" DATETIME NOT NULL)',
+    'CREATE TABLE "Job" ("id" TEXT NOT NULL PRIMARY KEY, "userId" TEXT NOT NULL, "kind" TEXT NOT NULL, "key" TEXT NOT NULL, "status" TEXT NOT NULL, "payload" JSONB, "error" TEXT, "logs" TEXT, "factorReportId" TEXT, "strategyScanReportId" TEXT, "signalRunId" TEXT, "researchCuratorRunId" TEXT, "queuedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "startedAt" DATETIME, "finishedAt" DATETIME, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" DATETIME NOT NULL, FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE, FOREIGN KEY ("researchCuratorRunId") REFERENCES "ResearchCuratorRun"("id") ON DELETE CASCADE)',
+    'CREATE UNIQUE INDEX "User_email_key" ON "User"("email")',
+    'CREATE UNIQUE INDEX "ResearchCuratorFinding_userId_fingerprint_key" ON "ResearchCuratorFinding"("userId", "fingerprint")',
+    'CREATE UNIQUE INDEX "Job_researchCuratorRunId_key" ON "Job"("researchCuratorRunId")',
+  ];
+  for (const statement of statements) {
+    await database.$executeRawUnsafe(statement);
+  }
+}

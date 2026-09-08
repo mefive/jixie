@@ -5,7 +5,7 @@ import { strategyRoute } from './routes/strategy.js';
 import { strategiesRoute } from './routes/strategies.js';
 import { marketRoute } from './routes/market.js';
 import { factorRoute } from './routes/factor.js';
-import { researchRoute } from './routes/research.js';
+import { researchRoute } from './research/routes.js';
 import { factorsRoute } from './routes/factors.js';
 import { factorWeatherRoute } from './routes/factor-weather.js';
 import { agentRoute } from './routes/agent.js';

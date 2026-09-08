@@ -3,7 +3,7 @@ import { chromium } from 'playwright';
 import {
   EQUITY_FCFF_REPLAY_CASES,
   equityFcffParameterSource,
-} from '../../api/src/research/equity-fcff-replay-cases.ts';
+} from '../../api/src/research/templates/fcff/replay-cases.ts';
 
 const BASE = process.env.E2E_BASE ?? 'http://localhost:5173';
 const SHOTS = new URL('../acceptance/', import.meta.url).pathname;

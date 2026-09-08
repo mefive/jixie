@@ -4,7 +4,7 @@ const mocks = vi.hoisted(() => ({
   loadBacktestReport: vi.fn(),
 }));
 
-vi.mock('../backtest-report-result.js', () => ({
+vi.mock('../datasets/results/backtest-report.js', () => ({
   loadResearchBacktestReportResult: mocks.loadBacktestReport,
 }));
 

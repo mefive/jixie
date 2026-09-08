@@ -8,8 +8,8 @@ import {
   type ResearchDataCatalogResultV1,
   type ResearchDataCatalogScopeV1,
 } from '@jixie/shared';
-import { researchYieldCurveSourceForSdkCall } from '../concept-bindings.js';
-import { searchResearchDataCatalog } from '../data-catalog.js';
+import { researchYieldCurveSourceForSdkCall } from '../catalog/concept-bindings.js';
+import { searchResearchDataCatalog } from '../catalog/data-catalog.js';
 import type { ResearchPythonAnalysis } from '../sdk/analysis-types.js';
 
 type ResearchDataCatalogSearch = (input: {

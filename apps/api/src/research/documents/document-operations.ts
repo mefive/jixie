@@ -7,7 +7,7 @@ import type {
 import { prisma } from '../../infra/database/prisma.js';
 import { closeResearchDocumentRuntime } from '../execution/python-session.js';
 import { ulid } from 'ulid';
-import { templateDefinition } from './templates.js';
+import { templateDefinition } from '../templates/document-templates.js';
 import { cellCreate } from './cell-seed.js';
 import { getResearchDocument } from './read.js';
 import type { Prisma } from '@prisma/client';

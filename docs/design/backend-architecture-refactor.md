@@ -1,6 +1,6 @@
 # 后端业务边界与目录重整开发计划
 
-> 状态：Commit 1～3 已提交（`177f63ab`、`00a0e83a`、`bc4a1651`）；Commit 4（本提交：任务契约、原子结果提交与启动装配）已通过人工 review、静态检查、完整 API 测试、构建与启动验证。
+> 状态：Commit 1～5 已提交（`177f63ab`、`00a0e83a`、`bc4a1651`、`ed8c4aae`、`a034c611`）；Commit 6（本提交）已通过人工 review、静态检查、全量 API 测试、编译和 Python / Pyright 运行验证。
 > 编制日期：2026-09-07；核对代码基线：`12ce9092`。
 > 目标：让不熟悉项目的开发者从目录识别业务能力，沿一个入口读懂完整流程，并找到状态与数据的责任方。
 > 本文规划后端结构调整；研究方法与金融口径不变，任务生命周期的已批准行为调整见 5.3。
@@ -102,8 +102,9 @@ apps/api/src/
   date.ts                       跨业务使用的日期辅助
   auth/                         登录、Session、邀请码、HTTP 鉴权
   library/                      公开库查询与复制业务
+    routes.ts                   公开库 HTTP 入口
   research/
-    http/                       保持原 URL 的 HTTP 适配
+    routes.ts                   保持原 URL 的 HTTP 适配
     documents/                  文档与 Cell 编辑、查询、版本控制
     dependencies/               依赖分析、过期判断与受影响运行计划
     execution/                  Cell/文档运行、取消、会话生命周期
@@ -117,9 +118,12 @@ apps/api/src/
     handoff/                    因子/策略草稿生成与来源关联
     curator/                    研究整理规则与结果
     curator-job.ts               研究整理任务定义与生命周期
+    agent-turn.ts               Research Agent 业务启动入口
     agent-context.ts            研究上下文构造
   factor/
-    http/
+    routes.ts                   因子列表与定义入口
+    research-routes.ts          因子研究、报告与辅助对话入口
+    weather-routes.ts           因子天气入口
     definitions/                定义、预置因子与元数据
     analysis/                   评估器、worker 和统计检验
     analysis-job.ts              因子分析任务定义与生命周期
@@ -132,7 +136,10 @@ apps/api/src/
     runtime/                    因子 TS/Python 编译、SDK 与运行适配
     weather/                    因子天气计算与查询
   strategy/
-    http/
+    routes.ts                   策略列表与定义入口
+    chat-routes.ts              策略对话与命名入口
+    scan-routes.ts              参数扫描入口
+    backtest-routes.ts          回测与报告入口
     definitions/                策略保存、命名、读取与复制
     backtest-job.ts              回测任务定义与生命周期
     scan-job.ts                  参数扫描任务定义与生命周期
@@ -149,7 +156,7 @@ apps/api/src/
     testing/                    fixture DataPort
     types.ts
   signals/
-    http/
+    routes.ts                   信号部署、运行与对账入口
     deployments/                配置冻结、激活与暂停
     runs/                       每日运行记录与查询
     signal-job.ts                每日信号任务定义与生命周期
@@ -159,7 +166,7 @@ apps/api/src/
     sync.ts
     notifier.ts
   agent/
-    http/
+    routes.ts                   Agent 事件流与取消入口
     core.ts                     统一模型/工具循环
     turns/                      后台运行、事件流与轨迹
     conversations/              对话记录与实体关联
@@ -168,7 +175,7 @@ apps/api/src/
       charts/                   Agent 图表工具与规格校验
       sql/                      只读 SQL 工具、worker 与 Node SQLite 类型补充
   market/                       行情获取、证券身份、查询与市场分析
-    http/                       行情与市场状态接口
+    routes.ts                   行情与市场状态接口
     providers/tushare/          Tushare 通道与能力探测
     sync/                       基础行情同步
     instruments/                证券身份与股票代码变更
@@ -276,6 +283,10 @@ apps/api/src/
 
 ### 5.1 公共设施与 HTTP 入口
 
+**不为业务模块统一预设 `http/`。** 当前单个路由文件连同参数校验、错误映射和测试直接放模块根目录；只有实际形成多项需要共同组织的 HTTP 职责时才归组。`auth/http/` 已集中 Cookie、鉴权中间件和登录路由，`infra/http/` 提供跨业务的请求校验、错误响应和 locale 辅助，两者保留。Research、Factor、Strategy、Signals、Agent、Library、Market 均按下面的根目录路由文件规划。
+
+目录位置不改变依赖边界：HTTP 文件只适配请求/响应并调用明确业务入口；业务不导入路由或 Hono Context。文件多时先按实际路由职责具名，不为将来可能拆分而建立空目录。
+
 | 当前文件/目录 | 目标 | 修改内容 |
 | --- | --- | --- |
 | `index.ts`、`server.ts` 中的启动流程 | `index.ts` + `bootstrap.ts` + `server.ts` | 进程入口、资源装配与 HTTP 构建分开；依照 4.3 保留运行行为 |
@@ -291,13 +302,13 @@ apps/api/src/
 | `config.ts` | `market/providers/tushare/config.ts` | 仅 Tushare 配置；更新 API、CLI 和测试调用方 |
 | `lib/chat-schema.ts` | `agent/conversations/schema.ts` | 对话入参/消息校验由 Agent 拥有 |
 | `lib/sandbox-console.ts`、`lib/isolate-run.ts` | `infra/runtime/console.ts`、`infra/runtime/typescript/isolate-run.ts` | 仅通用执行机制；不搬入领域 SDK |
-| `routes/strategy*.ts`、`routes/backtest.ts` | `strategy/http/` | 保留单复数文件与挂载语义，复杂操作转入对应业务入口 |
-| `routes/factor*.ts`、`routes/factors.ts` | `factor/http/` | 保留所有 URL 和字面量/参数路由顺序 |
-| `routes/research.ts` | `research/http/` | 按 documents、execution、proposals、catalog、agent、curator 划分内部路由文件 |
-| `routes/signals.ts`、`routes/agent.ts`、`routes/market.ts` | 对应业务 `http/` | HTTP 与业务操作分离，注册仍集中在 server |
-| `routes/library.ts` | `library/http/library.ts` + `library/catalog.ts`、`library/copy.ts` | 抽出聚合查询与复制操作；因子/策略复制约束由其业务入口负责 |
+| `routes/strategies.ts`、`routes/strategy.ts`、`routes/strategy-scans.ts`、`routes/backtest.ts` | `strategy/routes.ts`、`chat-routes.ts`、`scan-routes.ts`、`backtest-routes.ts` | 按现有路由职责具名，保留 URL 与挂载语义，复杂操作转入对应业务入口 |
+| `routes/factors.ts`、`routes/factor.ts`、`routes/factor-weather.ts` | `factor/routes.ts`、`research-routes.ts`、`weather-routes.ts` | 按列表/定义、因子研究/报告/辅助对话、天气区分，保留所有 URL 和字面量/参数路由顺序 |
+| `routes/research.ts` | `research/routes.ts` | 参数校验、响应与错误映射留在路由；文档、执行、提案、Agent、Curator 等业务调用具体入口，不预拆路由文件 |
+| `routes/signals.ts`、`routes/agent.ts`、`routes/market.ts` | `signals/routes.ts`、`agent/routes.ts`、`market/routes.ts` | HTTP 与业务操作分离，注册仍集中在 server |
+| `routes/library.ts` | `library/routes.ts` + `library/catalog.ts`、`library/copy.ts` | 抽出聚合查询与复制操作；因子/策略复制约束由其业务入口负责 |
 
-`server.ts` 保留 `buildApp` 作为路由总索引，构建应用本身不启动队列或监听端口；监听与资源启动由 `bootstrap.ts` 显式调用。模块内部 `http/index.ts` 只负责局部挂载，不导出整个业务模块。全部调用方迁移后删除空的顶层 `routes`、`services`、`lib`、`util`、`llm` 目录；不保留长期转发层。
+`server.ts` 保留 `buildApp` 作为路由总索引，构建应用本身不启动队列或监听端口；监听与资源启动由 `bootstrap.ts` 显式调用。业务模块默认直接放 `routes.ts`，对应测试同目录；已有多组独立路由时使用 `chat-routes.ts`、`backtest-routes.ts` 等职责明确的文件名，由 server 按原挂载方式注册，不增加局部 `http/index.ts` 转发层。全部调用方迁移后删除空的顶层 `routes`、`services`、`lib`、`util`、`llm` 目录；不保留长期转发层。
 
 当前 `i18n/index.ts` 同时导出纯消息函数 `t` 和依赖 Hono Context 的 `m`，`locale.ts` 也读取请求。将 `m` 与请求 locale 解析归 `infra/http/locale.ts`；`i18n/messages.ts` 保持纯消息目录。领域与隔离 bundle 直接消费纯消息入口，HTTP 适配消费请求辅助，避免通过 re-export 将 Hono 带入领域依赖。
 
@@ -573,8 +584,8 @@ Jobs queue → 启动时传入的任务处理函数
 | 2 | B | 公共辅助、infra/database/http/llm/email、math/date/i18n 与认证归位 | 初始化行为、相关测试与类型检查 | 已提交 `00a0e83a` |
 | 3 | B | 公共 Python 通信、领域协议、TS isolate 辅助及引用 | Research/Factor/Strategy 运行链路 | 已提交 `bc4a1651` |
 | 4 | C | Job 通用设施、领域完成/恢复事务、bootstrap 启动装配 | 排队/失败/恢复、事务回滚、API/CLI 入口 | 已提交 `ed8c4aae` |
-| 5 | D | Research 文档、依赖、执行、证据、提案 | 编辑→失效→执行→取消/冻结→提案 | 已通过 review 与验证（本提交） |
-| 6 | D | Research 数据、SDK、目录、语言服务、模板、交接、整理及 HTTP | 公开列映射、契约、语言服务与交接 | 待开始 |
+| 5 | D | Research 文档、依赖、执行、证据、提案 | 编辑→失效→执行→取消/冻结→提案 | 已提交 `a034c611` |
+| 6 | D | Research 数据、SDK、目录、语言服务、模板、交接、整理及 HTTP | 公开列映射、契约、语言服务与交接 | 已通过 review 与验证（本提交） |
 | 7 | E | Factor 定义、观察、分析、报告、发布、组合、运行与 HTTP | 发布纪律、历史报告、分析 Worker | 待开始 |
 | 8 | E | Strategy 与 Engine 分离，风险分析及风险数据/审计边界 | TS/Python 回测、参数扫描、风险结果、引擎一致性 | 待开始 |
 | 9 | F | Signals 部署、运行、对账、因子输入、Worker 与 HTTP | 冻结配置、幂等运行、失败收尾、对账 | 待开始 |
@@ -687,7 +698,7 @@ Commit 1 的开发者交付为本文和 [重构基线](backend-architecture-refa
 
 已知边界：没有新增完整 stop/drain、启动失败资源回收或 SIGINT/SIGTERM 协议；afterCommit 没有持久化重试，崩溃前内存日志可能丢失；接口不替代数据库事务及人工审查。没有模型迁移、公开 SDK 或 UI 变化，不需要新增产品文案或浏览器截图。
 
-### 7.5 Commit 5 实现与验证记录（2026-09-08，本提交）
+### 7.5 Commit 5 实现与验证记录（2026-09-08，`a034c611`）
 
 事前确认的提交信息：`按职责拆分 Research 文档执行与提案流程`。阅读入口是 `apps/api/src/research/README.md`。
 
@@ -718,6 +729,48 @@ Commit 1 的开发者交付为本文和 [重构基线](backend-architecture-refa
 | 资源清理 | Vitest、Python runner 已退出；测试 socket 目录已移除，三个临时数据库无打开连接 |
 
 验证日志留在 `/tmp/jixie-c5-verification`。测试采用固定 Python 3.13.3、隔离数据库与确定性行情 fixture，没有开发数据库写入、真实市场请求或 LLM 调用。真实 Python smoke 使用业务函数和 Hono 内存健康请求，未启动对外 HTTP 监听，也未执行浏览器 E2E；生产连接分支的测试对端不代表生产容器隔离验收。数据库 schema、公开 SDK、生成物、金融口径及前端产品行为未变，不需要数据迁移、帮助页面或双语文案调整；静态检查通过不代表运行验证已完成。
+
+### 7.6 Commit 6 实现与验证记录（2026-09-08，本提交）
+
+事前确认的提交信息：`整理 Research 数据能力与业务入口`。实际阅读地图同步在 `apps/api/src/research/README.md`。
+
+- 69 个原文件（含测试与 HTTP）归位：数据切片归 `datasets`，结果映射归 `datasets/results`；概念、绑定、来源决策与方法归 `catalog`；SDK 校验归 `sdk/validation.ts`；语言服务归 `language`；FCFF 源代码/证据/案例归 `templates/fcff`，模板选择归 `templates/document-templates.ts`；交接归 `handoff`；整理规则/检索归 `curator`，根级 `curator-job.ts` 保留具名生命周期入口。
+- `routes/research.ts` 迁到 `research/routes.ts`，38 个路由的 URL、注册顺序、参数规则保持。7 个 handler 原有业务分别移入 `agent-turn.ts`、`curator/submit.ts`、`documents/conversation-operations.ts`、`documents/archive-idle-document.ts`、`evidence/read-artifact.ts`。尝试上下文和澄清答案文案归 `proposals/attempt-context.ts`、`clarification-message.ts`。HTTP 不直接调用 Prisma、任务队列或 Agent 执行器；业务不依赖 Hono Context，locale 显式传入。
+- Agent 的新会话创建、运行状态检查、澄清解析、文档读取、尝试关联与入队顺序保持。Curator 保留原 Run + Job 事务、成功 cursor 和提交后唤醒；本轮不扩大事务或并发保护。归档保留先归属后忙碌检查，产物保留归属校验后才可返回 304。
+- Screen → Research 历史迁移及测试迁至 `apps/api/scripts/migrations/screen-to-research.ts` / `.test.ts`；唯一运行调用方是保留的原 CLI，参数和数据库操作不变。API / Agent / 脚本 / E2E 导入及现行文档链接同步。Pyright 包路径仍使用 `createRequire(import.meta.url)`，仓库检索和 Python 模板测试仍保持原工作目录约定。
+- 公开 HTTP/SDK、schema、生成物、数据口径、公式与 UI 行为不变；没有新部署包或构建依赖，不需要数据迁移、公开帮助或双语资源调整。历史架构基线不改写。
+
+新增 10 个真实 SQLite + Hono 内存请求场景：Agent 入参/归属/归档保护、新会话标题与 locale、Cell 附件去重与忙碌、待回答澄清及各错误、成功尝试关联、归档顺序、旧会话读写/删除、产物条件缓存、Curator 成功 cursor/活动复用、Job 插入失败时 Run 回滚且不唤醒队列。外部 Agent 执行与队列/Python 资源替换为测试端口，不调用 LLM 或开发数据库。
+
+静态检查已通过：
+
+| 检查 | 结果 |
+| --- | --- |
+| 本轮 97 个 TS / MJS 文件格式、ESLint | 通过，无 warning；移除原 spec 中从未使用的私有 idSchema 声明 |
+| 全仓 typecheck 与 Research / Factor SDK、runtime 生成物一致性；收尾后 API typecheck | 通过 |
+| 68 个非 HTTP 迁移文件的静态内容核对 | 除已列出的无用声明删除，只有模块引用/格式变化，数据、模板、迁移实现保持 |
+| HTTP 静态核对 | 38 个路由顺序及路径保持，31 个 handler 保持原实现，7 个 handler 改为调用上述业务入口 |
+| 相对模块路径与静态运行时 import 图 | 无缺失路径、无 Research 循环，HTTP/业务与既有 execution/proposals 边界符合约定 |
+| `git diff --check` | 通过 |
+
+检查记录保留在 `/tmp/jixie-c6-review`；静态解析未导入执行产品模块。
+
+人工 review 反馈调整：Research 路由与集成测试直接位于模块根目录，移除仅包装这两个文件的 `http/`，server 与相对导入/mock 路径同步更新。其他待开发业务模块的目录树与迁移目标同步采用根目录路由文件；保留 auth/http 与 infra/http 的既有职责。本次只调整路径与文档，路由及测试逻辑保持；补充检查已通过：3 个受影响代码文件格式/ESLint、API typecheck、两个迁移文件的路径归一化内容核对、模块路径/路由顺序/依赖边界检查及 diff 检查。记录位于 `/tmp/jixie-c6-http-review`，未运行测试或构建。
+
+人工 review 通过后完成验证：
+
+| 检查 | 结果 |
+| --- | --- |
+| 全量 API 测试，隔离 SQLite、ACCOUNTING_INTEGRATION=1 | 195 个文件、1042 项测试全部通过；含新增 10 项、FCFF、交接、Curator、SDK、Pyright 与历史迁移 |
+| API `tsc` 干净编译到临时目录 | 通过 |
+| 源码 + 本地真实 Python runner | 健康请求、文档编辑、SDK 指数查询、冻结证据、下游失效/受影响重跑、reset、取消通过 |
+| 编译产物 + 生产 Unix socket 连接分支 | 同一 Research 链路通过，对端为测试启动的真实 Python runner |
+| 源码 / 编译产物的 Pyright | 两者均启动真实语言服务，迁移后 document/stubs 加载与 pandas 补全通过 |
+| 资源清理 | Vitest、Python runner、Pyright 无残留进程，测试 socket 目录已删除，四个临时数据库无打开连接 |
+
+首轮受限沙箱验证有 191 个文件通过、4 个文件失败：9 项 Unix socket 测试报 EPERM，另 11 项 Python 测试超时。编译产物 socket smoke 同样被权限拒绝。获准在允许本地 socket/子进程的环境中运行后，使用全新隔离数据库重跑全量测试，195/195 文件、1042/1042 测试通过，socket smoke 通过。未修改产品代码、测试代码或超时设置，属于执行环境修正。
+
+日志位于 `/tmp/jixie-c6-verification`（首轮保留为 `api-test-sandbox.*`，通过结果为 `api-test.*`）。本轮不访问开发数据库、真实市场或 LLM 服务；没有 UI 改动，未运行浏览器 E2E。生产连接分支使用本地测试 runner，不代表生产容器隔离验收。验证期间代码与 review 快照一致，只在验证结束后补记文档，按事前确定的信息提交。
 
 ## 8. 测试与验收计划
 

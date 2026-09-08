@@ -28,12 +28,12 @@ vi.mock('./services/strategy-service.js', () => ({
   refreshStrategyName: vi.fn(async () => false),
   strategyRunKey: () => 'fixture',
 }));
-vi.mock('./research/curator.js', () => ({ prepareResearchCuratorRun: execution.curator }));
+vi.mock('./research/curator/runs.js', () => ({ prepareResearchCuratorRun: execution.curator }));
 vi.mock('./signals/notifier.js', () => ({ notifySignalRun: execution.notify }));
 vi.mock('./signals/accounting.js', () => ({ initializeSignalAccounting: execution.accounting }));
 
 import { prisma } from './infra/database/prisma.js';
-import type { PreparedResearchCuratorRun } from './research/curator.js';
+import type { PreparedResearchCuratorRun } from './research/curator/runs.js';
 import { jobRegistry } from './bootstrap.js';
 import { createJobExecutor } from './infra/jobs/executor.js';
 import { appendLog, initializeJobLogs, getLiveJobLogs } from './infra/jobs/logs.js';

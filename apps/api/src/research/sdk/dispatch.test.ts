@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const loadReport = vi.hoisted(() => vi.fn());
-vi.mock('../factor-report-result.js', () => ({ loadResearchFactorReportResult: loadReport }));
+vi.mock('../datasets/results/factor-report.js', () => ({
+  loadResearchFactorReportResult: loadReport,
+}));
 import { dispatchResearchRequest } from './dispatch.js';
 
 describe('Research SDK request dispatch boundary', () => {

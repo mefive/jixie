@@ -7,7 +7,7 @@ import type {
   ResearchCellOutputBlockV1,
 } from '@jixie/shared';
 import { prisma } from '../../infra/database/prisma.js';
-import { legacyDefinition } from './templates.js';
+import { legacyDefinition } from '../templates/document-templates.js';
 import { cellCreate } from './cell-seed.js';
 import { listResearchCellChangeAttempts } from '../proposals/attempt-records.js';
 import { researchCellChangeReviewView } from '../proposals/change-records.js';

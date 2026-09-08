@@ -3,7 +3,7 @@ import { prisma } from '../src/infra/database/prisma.js';
 import {
   EQUITY_FCFF_REPLAY_CASES,
   equityFcffParameterSource,
-} from '../src/research/equity-fcff-replay-cases.js';
+} from '../src/research/templates/fcff/replay-cases.js';
 import { createResearchDocument } from '../src/research/documents/document-operations.js';
 import { updateResearchCell } from '../src/research/documents/cell-operations.js';
 import { runResearchDocument } from '../src/research/execution/run-document.js';

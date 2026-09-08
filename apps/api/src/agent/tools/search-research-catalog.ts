@@ -5,15 +5,15 @@ import {
   searchResearchSdkAgentCatalog,
 } from '@jixie/shared';
 import { prisma } from '../../infra/database/prisma.js';
-import { researchCapabilityCatalog } from '../../research/catalog.js';
-import { resolveResearchConceptBindings } from '../../research/concept-binding-resolver.js';
+import { researchCapabilityCatalog } from '../../research/catalog/capabilities.js';
+import { resolveResearchConceptBindings } from '../../research/catalog/concept-binding-resolver.js';
 import {
   researchConceptBindingSdkCall,
   researchConceptBindings,
   researchFxSdkCall,
   researchMacroSdkCall,
   researchYieldCurveSdkCall,
-} from '../../research/concept-bindings.js';
+} from '../../research/catalog/concept-bindings.js';
 import {
   RESEARCH_CONCEPT_INSTRUMENT_FORMS,
   RESEARCH_CONCEPT_IDS,
@@ -25,10 +25,10 @@ import {
   type ResearchCatalogSourceKind,
   type ResearchConceptDimensionsV1,
   type ResearchConceptId,
-} from '../../research/concepts.js';
+} from '../../research/catalog/concepts.js';
 import type { AgentTool } from './types.js';
-import { researchSourceDecisions } from '../../research/source-decisions.js';
-import { compactCrossMarketDataContractRegistry } from '../../research/cross-market-data-contracts.js';
+import { researchSourceDecisions } from '../../research/catalog/source-decisions.js';
+import { compactCrossMarketDataContractRegistry } from '../../research/datasets/cross-market-data-contracts.js';
 import { HKD_CNH_DERIVED_CODE } from '../../market/cross-market-benchmarks.js';
 import { etfResearchMembership } from '../../store/etf-research-registry.js';
 

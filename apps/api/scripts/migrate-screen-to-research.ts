@@ -1,5 +1,5 @@
 import { prisma } from '../src/infra/database/prisma.js';
-import { migrateScreenDataToResearch } from '../src/research/screen-data-migration.js';
+import { migrateScreenDataToResearch } from './migrations/screen-to-research.js';
 
 const dryRun = process.argv.includes('--dry-run');
 const finalize = process.argv.includes('--finalize');

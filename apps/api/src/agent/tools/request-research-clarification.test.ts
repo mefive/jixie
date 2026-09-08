@@ -2,11 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({ resolve: vi.fn() }));
 
-vi.mock('../../research/concept-binding-resolver.js', () => ({
+vi.mock('../../research/catalog/concept-binding-resolver.js', () => ({
   resolveResearchConceptBindings: mocks.resolve,
 }));
 
-import { researchConceptBindings } from '../../research/concept-bindings.js';
+import { researchConceptBindings } from '../../research/catalog/concept-bindings.js';
 import { createRequestResearchClarificationTool } from './request-research-clarification.js';
 
 function catalogEvidence(bindingIds: string[]) {
