@@ -1,7 +1,7 @@
 import { DEFAULT_LOCALE, type Locale } from '@jixie/shared';
 import type { FactorCorrelation, FactorFreq } from '@jixie/shared';
 import { prisma } from '../infra/database/prisma.js';
-import type { UserLogSink } from '../lib/sandbox-console.js';
+import type { UserLogSink } from '../infra/runtime/console.js';
 import { t } from '../i18n/messages.js';
 import * as st from '../math/stats.js';
 import {

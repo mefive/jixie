@@ -1,8 +1,8 @@
 import type { BacktestConfig, Locale, StrategyParamValue } from '@jixie/shared';
-import type { UserLogSink } from '../lib/sandbox-console.js';
+import type { UserLogSink } from '../infra/runtime/console.js';
 import { t } from '../i18n/messages.js';
 import { attachBacktestRiskAnalysis } from '../risk/backtest-risk-analysis.js';
-import { createPythonStrategyRuntime } from '../strategy/python/runtime.js';
+import { createPythonStrategyRuntime } from '../strategy/runtime/python/runtime.js';
 import { prepareStrategyFactors } from './prepare-custom-factors.js';
 import { prismaDataPort } from './prisma-port.js';
 import { runStrategy } from './run.js';

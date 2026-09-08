@@ -6,7 +6,7 @@ import {
   noopSandboxConsole,
   type SandboxConsole,
   type UserLogSink,
-} from '../../lib/sandbox-console.js';
+} from '../../infra/runtime/console.js';
 import { applyStrategyParamOverrides, defineStrategy } from './sdk.js';
 
 /**

@@ -1,10 +1,10 @@
 # 后端业务边界与目录重整开发计划
 
-> 状态：方案已确认；Commit 1 已提交（`177f63ab`）；Commit 2（公共设施与认证）已完成并通过提交前评审，随本提交交付。
+> 状态：方案已确认；Commit 1 已提交（`177f63ab`），Commit 2 已提交（`00a0e83a`）；Commit 3（公共运行设施与领域协议）已完成并通过提交前评审，随本提交交付。
 > 编制日期：2026-09-07；核对代码基线：`12ce9092`。
 > 目标：让不熟悉项目的开发者从目录识别业务能力，沿一个入口读懂完整流程，并找到状态与数据的责任方。
 > 本文只规划后端结构调整，不改变研究方法、金融口径或产品行为。
-> 开发授权：2026-09-08 用户确认按评审工作流开始开发；Commit 1 已提交，Commit 2 的具体范围已获确认。后续提交逐项说明具体范围，经确认后实施。
+> 开发授权：2026-09-08 用户确认按评审工作流开始开发；Commit 1、2 已提交，Commit 3 的具体范围已获确认。后续提交逐项说明具体范围，经确认后实施。
 
 ## 1. 判断与取舍
 
@@ -297,7 +297,7 @@ apps/api/src/
 ### 5.2 Python 通信与领域运行时
 
 1. `strategy/python/session.ts` → `infra/runtime/python/session.ts`。保留 `PythonSession.connect`、Unix socket、分帧、超时/断连和仅开发可用的本地运行分支。
-2. 拆开 `strategy/python/protocol.ts`：公共帧包络/握手属于 `infra/runtime/python/protocol.ts`；策略交互帧属于 `strategy/runtime/python/protocol.ts`；Research 帧属于 `research/sdk/protocol.ts`。现有 Factor 特有帧按实际声明归 `factor/runtime/python/`，不复制一份 schema。
+2. 拆开 `strategy/python/protocol.ts`：公共帧包络、日志/错误帧及共用字段校验属于 `infra/runtime/python/protocol.ts`；策略握手与交互帧属于 `strategy/runtime/python/protocol.ts`；Research 握手与交互帧属于 `research/sdk/protocol.ts`。现有 Factor 特有帧按实际声明归 `factor/runtime/python/protocol.ts`，不复制一份 schema。
 3. `strategy/python/runtime.ts`、`codegen-prompt.ts` → `strategy/runtime/python/`。策略 SDK 的语义适配留在这里。
 4. Research 会话 manager 放 `research/execution/python-session.ts`；`answerResearchRequest` 及其数据请求处理放 `research/sdk/dispatch.ts`，调用 `datasets` 中的 loader。
 5. 通用 session 不能导入 Research、Factor、Strategy；领域适配可以导入通用 session。保持现有帧类型、字段、错误和运行时版本不变。
@@ -544,8 +544,8 @@ Jobs queue → 启动时传入的任务处理函数
 | Commit | 工作包 | 提交范围 | 主要验证 | 状态 |
 | --- | --- | --- | --- | --- |
 | 1 | A | 固化方案、文件归属、路由/运行入口、依赖与测试基线 | 类型检查、SDK 一致性、后端测试与环境限制 | 已提交 `177f63ab` |
-| 2 | B | 公共辅助、infra/database/http/llm/email、math/date/i18n 与认证归位 | 初始化行为、相关测试与类型检查 | 已完成（本提交） |
-| 3 | B | 公共 Python 通信、领域协议、TS isolate 辅助及引用 | Research/Factor/Strategy 运行链路 | 待开始 |
+| 2 | B | 公共辅助、infra/database/http/llm/email、math/date/i18n 与认证归位 | 初始化行为、相关测试与类型检查 | 已提交 `00a0e83a` |
+| 3 | B | 公共 Python 通信、领域协议、TS isolate 辅助及引用 | Research/Factor/Strategy 运行链路 | 已完成（本提交） |
 | 4 | C | Job 通用设施、领域完成/恢复事务、bootstrap 启动装配 | 排队/失败/恢复、事务回滚、API/CLI 入口 | 待开始 |
 | 5 | D | Research 文档、依赖、执行、证据、提案 | 编辑→失效→执行→取消/冻结→提案 | 待开始 |
 | 6 | D | Research 数据、SDK、目录、语言服务、模板、交接、整理及 HTTP | 公开列映射、契约、语言服务与交接 | 待开始 |
@@ -560,7 +560,7 @@ Commit 8 将风险模型、市场风险数据与整体审计调用的边界一�
 
 Commit 1 的开发者交付为本文和 [重构基线](backend-architecture-refactor-baseline.md)，不改变产品功能、HTTP、Prisma schema 或公开 SDK。基线记录实际 HEAD、455 个 API 源目录文件的逐文件归属、HTTP 注册顺序、API/CLI/Worker 入口、现有依赖问题和验证结果；后续以具体 commit hash 与测试结果更新进度，不把已确认方案误标为已实现架构。
 
-### 7.2 Commit 2 实现与验证记录（2026-09-08，提交前评审通过）
+### 7.2 Commit 2 实现与验证记录（2026-09-08，已提交 `00a0e83a`）
 
 本次交付是供后端 HTTP、业务模块、Worker 和 CLI 使用的内部模块边界，不新增产品入口。当前可从以下位置阅读：
 
@@ -589,6 +589,34 @@ Commit 1 的开发者交付为本文和 [重构基线](backend-architecture-refa
 | 工作区与资源检查 | `git diff --check` 通过；基线文档和公开契约未改；测试进程已退出，临时数据库无打开连接 |
 
 全套测试显式使用仓库 `research-py-v1` 的 Python 3.13.3，并为现有 Agent 测试提供确定性证券 fixture。邮件传输使用测试替代实现，没有真实邮件、LLM 调用或行情同步，没有写开发数据库。本次没有 UI 改动，因此未运行浏览器 E2E 或生成截图；本机 Python 回归不代表生产容器隔离验收。认证 HTTP 测试已入库文件，其他临时审计日志和 smoke 脚本留在本次 `/tmp` 工作目录，不作为产品代码。
+
+### 7.3 Commit 3 实现与验证记录（2026-09-08，提交前评审通过）
+
+本次交付供 Research、Factor、Strategy 和 Agent 宿主使用的内部运行模块，不增加用户入口：
+
+- `infra/runtime/python/session.ts` 保留 `PythonSession.connect`、`probePythonRuntime` 与原通信实现；帧包络、通用日志/错误及共用字段校验在 `infra/runtime/python/protocol.ts`。公共设施不导入业务模块。
+- `strategy/runtime/python/protocol.ts`、`factor/runtime/python/protocol.ts`、`research/sdk/protocol.ts` 分别拥有本业务握手和交互协议；原协议测试随其验证的业务拆为三个文件。
+- 策略 `runtime.ts`、`codegen-prompt.ts` 及测试移入 `strategy/runtime/python/`。Research 的 `workbench-runtime.ts` 与 Factor 的现有 runtime 仅更新引用；会话管理和 SDK 分派仍在 Commit 5 拆分，Factor 其余文件仍在 Commit 7 整理。
+- 通用 `loadIsolatedModule` / `toCommonJs` 移入 `infra/runtime/typescript/isolate-run.ts`；沙盒日志移入 `infra/runtime/console.ts`。调用方、开发/编译后的 stats 路径和相关文档已同步；旧 `strategy/python/` 及本次迁移的旧 lib 文件已删除。
+- `infra/runtime/README.md` 说明调用入口、责任边界、API 工作目录要求与资源释放责任。
+
+保留协议字段、校验限制、校验错误、超时、取消和关闭语义。公共 session 没有新增读超时；现有超时仍由调用方、runner 和 sandboxd 控制。生产环境继续禁止 `JIXIE_PYTHON_LOCAL=1` 的连接分支。数据库 schema、公开 SDK、Python runner、依赖和跨包构建关系未变。
+
+| 检查 | 结果 |
+| --- | --- |
+| 根级 `pnpm typecheck`（含 SDK/runtime 一致性门禁） | 通过 |
+| 本次变更的 36 个 TS 文件 ESLint | 通过 |
+| API `tsc` 输出到全新临时目录 | 通过 |
+| 全套 API 测试，隔离 SQLite，`ACCOUNTING_INTEGRATION=1` | 189 个文件、977 项测试全部通过 |
+| 新增 PythonSession 传输测试 | 9 项通过：碎片/合并帧、发送线格式、非法 JSON、非法包络、超大帧、业务 schema 拒绝、断连、主动关闭及生产本地分支禁用 |
+| 开发源码 smoke | Strategy 两日模拟、Factor 序列计算、Research Cell 输出、带 stats 的 TS isolate 与生产本地连接禁用均通过 |
+| 编译后生产连接分支 smoke | 同样三类业务通过临时 Unix socket 与真实 Python runner 交互；TS isolate 的 `.js` stats 加载及本地连接禁用通过 |
+| 声明等价性核对 | 原协议 59 项声明保留同样语法内容；仅归属、导出及共用名称 `strategyNameSchema` → `runtimeNameSchema` 调整；session 的类与三个函数实现不变 |
+| 依赖与资源检查 | 公共 runtime 无业务模块导入；`git diff --check` 通过；测试子进程、临时 socket 与数据库连接均已释放 |
+
+环境记录：改动前，受限执行中的 Research 测试出现默认 5 秒超时；仅提高测试等待上限到 20 秒后，仍有依赖及时启动的取消/并发测试失败。正常本机执行下，原 5 秒测试限制无需修改，Research 16 项及最终全套回归全部通过。Unix socket 测试在受限环境返回 `EPERM`，获得执行环境放行后通过；没有为通过测试调整产品超时或禁用断言。
+
+运行时固定为仓库 Python 3.13.3，数据库使用全新临时 SQLite 与确定性证券 fixture；无真实邮件、LLM、行情同步或开发数据库写入。编译后 socket smoke 的对端是测试程序启动的真实 runner，不是生产容器，因此不将其记为容器隔离验收。本次没有 UI 改动，未运行浏览器 E2E 或生成截图；临时 smoke 和等价性核查日志留在本轮临时目录。
 
 ## 8. 测试与验收计划
 

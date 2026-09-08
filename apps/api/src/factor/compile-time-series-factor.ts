@@ -1,5 +1,9 @@
-import { loadIsolatedModule, toCommonJs, type IsolatedModule } from '../lib/isolate-run.js';
-import type { UserLogSink } from '../lib/sandbox-console.js';
+import {
+  loadIsolatedModule,
+  toCommonJs,
+  type IsolatedModule,
+} from '../infra/runtime/typescript/isolate-run.js';
+import type { UserLogSink } from '../infra/runtime/console.js';
 import { FACTOR_V2_FIELDS, isFactorV2FieldKey, type FactorV2FieldKey } from './factor-v2-fields.js';
 
 type AssetFactorAnalysisKind = 'time_series' | 'panel';

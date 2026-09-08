@@ -9,8 +9,8 @@ import {
   researchResetFrameSchema,
   researchStartupFrameSchema,
   type ResearchRequestFrame,
-} from '../strategy/python/protocol.js';
-import { PythonSession } from '../strategy/python/session.js';
+} from './sdk/protocol.js';
+import { PythonSession } from '../infra/runtime/python/session.js';
 import { loadResearchCrossSection, loadResearchPanel } from './equity-dataset.js';
 import {
   loadResearchCommodityHoldings,

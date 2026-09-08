@@ -14,7 +14,7 @@ import type {
 import { prisma } from '../infra/database/prisma.js';
 import { compileFactor, type FactorBatchItem } from './compile-factor.js';
 import { compilePythonCrossSectionalFactor } from './python-cross-sectional-runtime.js';
-import type { UserLogSink } from '../lib/sandbox-console.js';
+import type { UserLogSink } from '../infra/runtime/console.js';
 import { sameMonth, sameWeek, minusDays } from '../date.js';
 import { t } from '../i18n/messages.js';
 import { StockNameLookup } from '../market/stock-identity.js';

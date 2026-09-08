@@ -1,193 +1,21 @@
 import { z } from 'zod';
+import {
+  MAX_IDENTIFIER_CHARACTERS,
+  MAX_LIST_ITEMS,
+  finiteNumberSchema,
+  identifierSchema,
+  MAX_ERROR_CHARACTERS,
+  runtimeLogFrameSchema,
+  runtimeErrorFrameSchema,
+} from '../../infra/runtime/python/protocol.js';
 
-const MAX_ERROR_CHARACTERS = 256 * 1024;
-const MAX_IDENTIFIER_CHARACTERS = 256;
-const MAX_LIST_ITEMS = 10_000;
-const MAX_LOG_CHARACTERS = 20_000;
 const MAX_OUTPUT_CHARACTERS = 8 * 1024 * 1024;
-const MAX_FACTOR_VALUES = 1_000_000;
 
-const finiteNumberSchema = z.number().finite();
-const identifierSchema = z.string().min(1).max(MAX_IDENTIFIER_CHARACTERS);
-const identifierListSchema = z.array(identifierSchema).max(MAX_LIST_ITEMS);
-const uniqueIdentifierListSchema = identifierListSchema.refine(
-  (values) => new Set(values).size === values.length,
-  'identifiers must be unique',
-);
 const stringListSchema = z.array(z.string().max(MAX_IDENTIFIER_CHARACTERS)).max(MAX_LIST_ITEMS);
+
 const scalarSchema = z.union([z.string(), finiteNumberSchema, z.boolean(), z.null()]);
+
 const tableScalarSchema = z.union([z.string().max(256), finiteNumberSchema, z.boolean(), z.null()]);
-const strategyNameSchema = z
-  .string()
-  .max(200)
-  .refine((value) => value.trim().length > 0, 'name must not be blank');
-const strategyParameterStringSchema = z
-  .string()
-  .max(100)
-  .refine((value) => value.trim().length > 0, 'parameter must not be blank');
-
-const runtimeLogFrameSchema = z.strictObject({
-  type: z.literal('log'),
-  level: z.enum(['info', 'warning', 'error']),
-  text: z.string().max(MAX_LOG_CHARACTERS),
-});
-
-const runtimeErrorFrameSchema = z.union([
-  z.strictObject({
-    type: z.literal('error'),
-    message: z.string().max(MAX_ERROR_CHARACTERS),
-  }),
-  z.strictObject({
-    type: z.literal('fatal'),
-    message: z.string().max(MAX_ERROR_CHARACTERS),
-  }),
-]);
-
-const strategyAccountsSchema = z
-  .strictObject({
-    stock: z.strictObject({ cashWeight: finiteNumberSchema.min(0).max(1) }),
-    futures: z.strictObject({ cashWeight: finiteNumberSchema.min(0).max(1) }),
-  })
-  .refine(
-    (accounts) => Math.abs(accounts.stock.cashWeight + accounts.futures.cashWeight - 1) <= 1e-9,
-    'account cash weights must sum to 1',
-  );
-
-const strategyMetadataSchema = z.strictObject({
-  name: strategyNameSchema,
-  params: boundedRecord(z.union([finiteNumberSchema, strategyParameterStringSchema]), 256),
-  factors: uniqueIdentifierListSchema,
-  watch: uniqueIdentifierListSchema,
-  futures: uniqueIdentifierListSchema,
-  accounts: strategyAccountsSchema.nullable(),
-});
-
-const strategyReadyFrameSchema = z.strictObject({
-  type: z.literal('ready'),
-  metadata: strategyMetadataSchema,
-});
-
-const strategyRequestFrameSchema = z.union([
-  z.strictObject({
-    type: z.literal('request'),
-    id: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
-    method: z.literal('cross_section'),
-    arguments: z.strictObject({
-      index_code: identifierSchema.nullable(),
-    }),
-  }),
-  z.strictObject({
-    type: z.literal('request'),
-    id: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
-    method: z.literal('bars'),
-    arguments: z.strictObject({
-      codes: uniqueIdentifierListSchema,
-    }),
-  }),
-]);
-
-const strategyCommandSchema = z.discriminatedUnion('operation', [
-  commandSchema('order_target_percent', {
-    code: identifierSchema,
-    weight: finiteNumberSchema,
-  }),
-  commandSchema('set_holdings', {
-    weights: boundedRecord(finiteNumberSchema, MAX_LIST_ITEMS),
-  }),
-  commandSchema('order', {
-    code: identifierSchema,
-    shares: finiteNumberSchema,
-  }),
-  commandSchema('order_lots', {
-    code: identifierSchema,
-    lots: finiteNumberSchema,
-  }),
-  commandSchema('exit', { code: identifierSchema }),
-  commandSchema('stop_loss', {
-    code: identifierSchema,
-    price: finiteNumberSchema,
-  }),
-  commandSchema('trailing_stop', {
-    code: identifierSchema,
-    percentage: finiteNumberSchema,
-  }),
-  commandSchema('limit_buy', {
-    code: identifierSchema,
-    price: finiteNumberSchema,
-    shares: finiteNumberSchema,
-  }),
-  commandSchema('take_profit', {
-    code: identifierSchema,
-    percentage: finiteNumberSchema,
-  }),
-  commandSchema('cancel_conditional', {
-    code: identifierSchema,
-    kind: z.enum(['stop_loss', 'trailing_stop', 'limit_buy', 'take_profit']).nullable(),
-  }),
-]);
-
-const strategyDoneFrameSchema = z.strictObject({
-  type: z.literal('done'),
-  commands: z.array(strategyCommandSchema).max(MAX_LIST_ITEMS),
-});
-
-export const strategyStartupFrameSchema = z.union([
-  runtimeLogFrameSchema,
-  strategyReadyFrameSchema,
-  runtimeErrorFrameSchema,
-]);
-
-export const strategyExecutionFrameSchema = z.union([
-  runtimeLogFrameSchema,
-  strategyRequestFrameSchema,
-  strategyDoneFrameSchema,
-  runtimeErrorFrameSchema,
-]);
-
-const crossSectionalFactorMetadataSchema = z.strictObject({
-  name: strategyNameSchema,
-  window: z.number().int().min(1).max(505).nullable(),
-  min_coverage: finiteNumberSchema.min(0.1).max(1).nullable(),
-  analysis_kind: z.literal('cross_sectional'),
-  inputs: z.array(z.never()).max(0),
-  target_asset_classes: z.array(z.never()).max(0),
-});
-
-const assetFactorMetadataSchema = z.strictObject({
-  name: strategyNameSchema,
-  window: z.number().int().min(2).max(505),
-  min_coverage: z.null(),
-  analysis_kind: z.enum(['time_series', 'panel']),
-  inputs: uniqueIdentifierListSchema.min(1).max(256),
-  target_asset_classes: z
-    .array(z.enum(['equity', 'fixed_income', 'commodity']))
-    .min(1)
-    .max(3)
-    .refine((values) => new Set(values).size === values.length, 'asset classes must be unique'),
-});
-
-const factorReadyFrameSchema = z.strictObject({
-  type: z.literal('factor_ready'),
-  metadata: z.union([crossSectionalFactorMetadataSchema, assetFactorMetadataSchema]),
-});
-
-const factorValuesFrameSchema = z.strictObject({
-  type: z.literal('factor_values'),
-  values: z.array(finiteNumberSchema.nullable()).max(MAX_FACTOR_VALUES),
-  first_error: z.string().max(MAX_ERROR_CHARACTERS).nullable(),
-});
-
-export const factorStartupFrameSchema = z.union([
-  runtimeLogFrameSchema,
-  factorReadyFrameSchema,
-  runtimeErrorFrameSchema,
-]);
-
-export const factorExecutionFrameSchema = z.union([
-  runtimeLogFrameSchema,
-  factorValuesFrameSchema,
-  runtimeErrorFrameSchema,
-]);
 
 const researchEnvironmentSchema = z.strictObject({
   runtime: z.literal('research-py-v1'),
@@ -424,34 +252,10 @@ export const researchResetFrameSchema = z.union([
   runtimeErrorFrameSchema,
 ]);
 
-export type StrategyCommand = z.infer<typeof strategyCommandSchema>;
-export type StrategyRequestFrame = z.infer<typeof strategyRequestFrameSchema>;
 export type ResearchRequestFrame = Extract<
   z.infer<typeof researchExecutionFrameSchema>,
   { type: 'request' }
 >;
-
-function commandSchema<Operation extends string, Shape extends z.ZodRawShape>(
-  operation: Operation,
-  argumentsShape: Shape,
-) {
-  return z.strictObject({
-    operation: z.literal(operation),
-    arguments: z.strictObject(argumentsShape),
-  });
-}
-
-function boundedRecord<Value extends z.ZodType>(
-  valueSchema: Value,
-  maximumEntries: number,
-): z.ZodType<Record<string, z.output<Value>>> {
-  return z
-    .record(z.string().min(1).max(MAX_IDENTIFIER_CHARACTERS), valueSchema)
-    .refine(
-      (value) => Object.keys(value).length <= maximumEntries,
-      `record must contain at most ${maximumEntries} entries`,
-    );
-}
 
 function boundedWireRecord<Value extends z.ZodType>(
   valueSchema: Value,

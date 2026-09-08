@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { LogLevel } from '@jixie/shared';
-import { makeSandboxConsole } from './sandbox-console.js';
+import { makeSandboxConsole } from './console.js';
 
 // Collect what the shim forwards, so we can assert level mapping, formatting, and the line cap.
 function sink() {

@@ -1,5 +1,5 @@
 import { startServer } from './server.js';
-import { probePythonRuntime } from './strategy/python/session.js';
+import { probePythonRuntime } from './infra/runtime/python/session.js';
 
 const port = Number(process.env.PORT ?? 3001);
 await startServer(port);

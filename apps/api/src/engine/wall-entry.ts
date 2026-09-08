@@ -1,7 +1,7 @@
 import { runStrategy, runStrategyWithSignals } from './run.js';
 import { applyStrategyParamOverrides, defineStrategy } from '../strategy/code/sdk.js';
-import { makeSandboxConsole, noopSandboxConsole } from '../lib/sandbox-console.js';
-import type { SandboxConsole } from '../lib/sandbox-console.js';
+import { makeSandboxConsole, noopSandboxConsole } from '../infra/runtime/console.js';
+import type { SandboxConsole } from '../infra/runtime/console.js';
 import type { EngineDataPort } from './data-port.js';
 import type { CustomFactorModule } from './custom-factor.js';
 import type { Strategy } from './types.js';

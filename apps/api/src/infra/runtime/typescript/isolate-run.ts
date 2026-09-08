@@ -24,7 +24,7 @@ let statsJsPromise: Promise<string> | null = null;
 function statsJs(): Promise<string> {
   statsJsPromise ??= (async () => {
     const url = new URL(
-      import.meta.url.endsWith('.ts') ? '../math/stats.ts' : '../math/stats.js',
+      import.meta.url.endsWith('.ts') ? '../../../math/stats.ts' : '../../../math/stats.js',
       import.meta.url,
     );
     const source = readFileSync(url, 'utf8');

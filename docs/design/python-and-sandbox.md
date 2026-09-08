@@ -100,7 +100,7 @@ JIXIE_SANDBOXD_MODE=docker NODE_ENV=test \
 node apps/sandboxd/dist/src/index.js
 
 JIXIE_SANDBOX_SOCKET=/tmp/jixie-sandboxd.sock \
-pnpm --filter api exec vitest run src/strategy/python/runtime.test.ts
+pnpm --filter api exec vitest run src/strategy/runtime/python/runtime.test.ts
 ```
 
 这能验收镜像、依赖、协议和绝大多数容器限制；不能替代 VPS 上的 rootless Podman、systemd unit、
@@ -175,7 +175,7 @@ fixture 回测。
 
 - [x] 问题一:**采纳「TS 唯一编写语言 + Python 研究 sidecar(3.7 时落地)」**。
 - [x] 问题二:**用户拍板「现在就上 isolated-vm」**,分两阶段:
-  - **Phase A(当日完成)**:因子 compute + analyzeData 迁入 isolated-vm(`lib/isolate-run.ts`)。
+  - **Phase A(当日完成)**:因子 compute + analyzeData 迁入 isolated-vm(`infra/runtime/typescript/isolate-run.ts`)。
     要点:数据进出 = JSON 字符串;跨墙**批量化**(因子快路径一天一跨、窗口路径一股一跨,
     analyzeData 一次调用一跨);stats 库在墙内求值(调用不跨墙);isolate 自带内存上限(256MB)
     + CPU 超时;逃逸测试证明墙内 process/require 均为 undefined;ivm 在 worker_threads 内

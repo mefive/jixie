@@ -4,7 +4,7 @@ import type {
   FactorResearchSpecV1,
   Locale,
 } from '@jixie/shared';
-import type { UserLogSink } from '../lib/sandbox-console.js';
+import type { UserLogSink } from '../infra/runtime/console.js';
 import { analyzeFactor } from './analysis.js';
 import type { FactorAnalysisRuntimeSource } from './composite.js';
 

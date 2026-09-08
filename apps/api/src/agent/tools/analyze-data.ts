@@ -11,7 +11,7 @@ import type { AgentTool } from './types.js';
  *   - data NEVER passes through the model: queries run server-side, rows flow straight into the
  *     sandbox, only the (size-capped) RESULT goes back as the observation;
  *   - the code runs inside an isolated-vm isolate (no Node APIs in-wall, own memory limit,
- *     CPU timeout) — see lib/isolate-run.ts for the layering.
+ *     CPU timeout) — see infra/runtime/typescript/isolate-run.ts for the layering.
  */
 const ANALYZE_ROW_CAP = 10_000; // per query — larger than sqlQuery's cap; rows don't hit the model
 const RESULT_CHAR_CAP = 8_000;

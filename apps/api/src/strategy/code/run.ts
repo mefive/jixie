@@ -2,7 +2,7 @@ import type { Locale, StrategyParamValue } from '@jixie/shared';
 import { runStrategy } from '../../engine/run.js';
 import type { CustomFactorModule } from '../../engine/custom-factor.js';
 import type { BacktestResult, CostModel } from '../../engine/types.js';
-import type { UserLogSink } from '../../lib/sandbox-console.js';
+import type { UserLogSink } from '../../infra/runtime/console.js';
 import { compileStrategy } from './compile.js';
 
 export interface CodeBacktestConfig {

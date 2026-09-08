@@ -5,7 +5,7 @@ import type { Locale, StrategyParamValue, StrategySignalMetadata } from '@jixie/
 import type { EngineDataPort } from './data-port.js';
 import type { CustomFactorModule } from './custom-factor.js';
 import type { BacktestResult, CostModel, SignalBacktestOutput } from './types.js';
-import type { UserLogSink } from '../lib/sandbox-console.js';
+import type { UserLogSink } from '../infra/runtime/console.js';
 import { PythonFactorHost, withPythonFactorHost } from './python-factor-host.js';
 
 /**

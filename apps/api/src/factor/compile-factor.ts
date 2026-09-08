@@ -1,6 +1,10 @@
 import type { FactorBar } from '@jixie/shared';
-import { loadIsolatedModule, toCommonJs, type IsolatedModule } from '../lib/isolate-run.js';
-import type { UserLogSink } from '../lib/sandbox-console.js';
+import {
+  loadIsolatedModule,
+  toCommonJs,
+  type IsolatedModule,
+} from '../infra/runtime/typescript/isolate-run.js';
+import type { UserLogSink } from '../infra/runtime/console.js';
 
 /**
  * Compile a factor (defineFactor TS source) into an isolated-vm-backed handle — the hard sandbox

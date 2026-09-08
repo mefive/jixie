@@ -1,7 +1,7 @@
 import { buildCodegenPrompt, KNOWN_INDICES } from '../../strategy/code/codegen-prompt.js';
 import { compileStrategy } from '../../strategy/code/compile.js';
-import { buildPythonCodegenPrompt } from '../../strategy/python/codegen-prompt.js';
-import { createPythonStrategyRuntime } from '../../strategy/python/runtime.js';
+import { buildPythonCodegenPrompt } from '../../strategy/runtime/python/codegen-prompt.js';
+import { createPythonStrategyRuntime } from '../../strategy/runtime/python/runtime.js';
 import { prisma } from '../../infra/database/prisma.js';
 import { buildAgentMode, RESEARCH_TOOLS_HINT, TOOLS_HINT, type AgentProfile } from '../core.js';
 import { defaultTools } from '../tools/index.js';

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { runStrategy, runStrategyWithSignals } from './run.js';
 import { runWalledBacktest } from './walled-run.js';
 import { fixturePort, type FixtureSpec } from './fixture-port.js';
-import { toCommonJs } from '../lib/isolate-run.js';
+import { toCommonJs } from '../infra/runtime/typescript/isolate-run.js';
 import type { Strategy } from './types.js';
 import { PythonFactorHost, withPythonFactorHost } from './python-factor-host.js';
 

@@ -5,7 +5,7 @@ import {
   type Locale,
 } from '@jixie/shared';
 import { prisma } from '../infra/database/prisma.js';
-import { toCommonJs } from '../lib/isolate-run.js';
+import { toCommonJs } from '../infra/runtime/typescript/isolate-run.js';
 import { BUILTIN_USER_ID } from '../factor/builtin-factors.js';
 import {
   compilePanelFactor,

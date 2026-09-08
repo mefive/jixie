@@ -1,4 +1,4 @@
-import type { UserLogSink } from '../lib/sandbox-console.js';
+import type { UserLogSink } from '../infra/runtime/console.js';
 import { compilePythonCrossSectionalFactor } from '../factor/python-cross-sectional-runtime.js';
 import {
   compilePythonPanelFactor,

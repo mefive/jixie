@@ -1,9 +1,6 @@
-import type { UserLogSink } from '../lib/sandbox-console.js';
-import {
-  factorExecutionFrameSchema,
-  factorStartupFrameSchema,
-} from '../strategy/python/protocol.js';
-import { PythonSession } from '../strategy/python/session.js';
+import type { UserLogSink } from '../infra/runtime/console.js';
+import { factorExecutionFrameSchema, factorStartupFrameSchema } from './runtime/python/protocol.js';
+import { PythonSession } from '../infra/runtime/python/session.js';
 import type {
   CompiledPanelFactor,
   CompiledTimeSeriesFactor,
