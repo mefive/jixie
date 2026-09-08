@@ -1,8 +1,8 @@
 import { ulid } from 'ulid';
 import { Prisma } from '@prisma/client';
 import type { ResearchDocumentV1 } from '@jixie/shared';
-import { prisma } from '../infra/database/prisma.js';
-import { getResearchDocument } from './workbench.js';
+import { prisma } from '../../infra/database/prisma.js';
+import { getResearchDocument } from './read.js';
 
 /** Create a Research document that starts from one owned immutable BacktestReport. */
 export async function createResearchDocumentFromBacktestReport(

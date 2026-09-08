@@ -8,9 +8,9 @@ import {
   type ResearchDataCatalogResultV1,
   type ResearchDataCatalogScopeV1,
 } from '@jixie/shared';
-import { researchYieldCurveSourceForSdkCall } from './concept-bindings.js';
-import { searchResearchDataCatalog } from './data-catalog.js';
-import type { ResearchPythonAnalysis } from './workbench-runtime.js';
+import { researchYieldCurveSourceForSdkCall } from '../concept-bindings.js';
+import { searchResearchDataCatalog } from '../data-catalog.js';
+import type { ResearchPythonAnalysis } from '../sdk/analysis-types.js';
 
 type ResearchDataCatalogSearch = (input: {
   query: string;

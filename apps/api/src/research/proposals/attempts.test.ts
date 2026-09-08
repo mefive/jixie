@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   researchCellChangeAttemptView,
   type ResearchCellChangeAttemptRow,
-} from './research-cell-change-attempt-records.js';
+} from './attempt-records.js';
 
 describe('Research Cell change attempts', () => {
   it('attributes source, output, status, and environment changes to the previous attempt', () => {

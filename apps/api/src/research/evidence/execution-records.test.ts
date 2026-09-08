@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   researchExecutionDag,
   type ResearchExecutionSourceCellSnapshot,
-} from './research-execution-records.js';
+} from './execution-records.js';
 
 describe('Research Execution records', () => {
   it('freezes the complete dependency graph without treating external SDK names as Cell edges', () => {

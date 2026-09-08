@@ -3,7 +3,7 @@ import type { Locale, ResearchFactorDraftResultV1, ResearchFactorHandoffV1 } fro
 import { ulid } from 'ulid';
 import { BUILTIN_KEYS } from '../factor/builtin-factors.js';
 import { prisma } from '../infra/database/prisma.js';
-import { getResearchExecution } from './research-execution-records.js';
+import { getResearchExecution } from './evidence/execution-records.js';
 import { generateResearchFactorDraft } from './research-factor-handoff.js';
 
 export class ResearchFactorDraftUnavailableError extends Error {}

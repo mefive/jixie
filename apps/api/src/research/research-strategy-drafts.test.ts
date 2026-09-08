@@ -19,7 +19,7 @@ vi.mock('../infra/database/prisma.js', () => ({
   },
 }));
 
-vi.mock('./research-execution-records.js', () => ({
+vi.mock('./evidence/execution-records.js', () => ({
   getResearchExecution: mocks.getResearchExecution,
 }));
 

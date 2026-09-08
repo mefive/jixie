@@ -32,11 +32,11 @@ import {
   listResearchExecutions,
   promoteResearchExecution,
   ResearchExecutionPromotionUnavailableError,
-} from '../research/research-execution-records.js';
+} from '../research/evidence/execution-records.js';
 import {
   ResearchClarificationAnswerError,
   resolveResearchClarificationAnswer,
-} from '../research/research-clarification-records.js';
+} from '../research/proposals/clarification-records.js';
 import {
   createResearchFactorDraft,
   ResearchFactorDraftUnavailableError,
@@ -47,7 +47,7 @@ import {
   ResearchStrategyDraftUnavailableError,
 } from '../research/research-strategy-drafts.js';
 import { ResearchStrategyHandoffRejectedError } from '../research/research-strategy-handoff.js';
-import { createResearchDocumentFromBacktestReport } from '../research/backtest-report-document.js';
+import { createResearchDocumentFromBacktestReport } from '../research/documents/from-backtest-report.js';
 import {
   acceptResearchCellChangeReview,
   applyResearchCellChangeProposal,
@@ -55,34 +55,40 @@ import {
   rejectResearchCellChangeProposal,
   ResearchCellChangeReviewUnavailableError,
   revertResearchCellChangeReview,
-} from '../research/workbench-cell-changes.js';
+} from '../research/proposals/cell-changes.js';
 import {
   ResearchCellChangeAttemptUnavailableError,
   runResearchCellChangeProposalAttempt,
-} from '../research/workbench-cell-change-attempts.js';
+} from '../research/proposals/attempts.js';
 import {
   addResearchCell,
-  analyzeResearchDocument,
-  archiveResearchDocument,
-  closeResearchDocumentRuntime,
-  createResearchDocument,
   deleteResearchCell,
-  getResearchDocument,
-  interruptResearchDocument,
-  isResearchDocumentRunActive,
-  listResearchDocuments,
-  resetResearchDocumentRuntime,
-  restoreResearchDocument,
-  ResearchAffectedRunError,
-  ResearchCellChangeReviewOpenError,
-  ResearchCellDependencyBlockedError,
-  ResearchCellRevisionConflictError,
-  ResearchDocumentRunInProgressError,
-  runAffectedResearchCells,
-  runResearchCell,
-  runResearchDocument,
   updateResearchCell,
-} from '../research/workbench.js';
+} from '../research/documents/cell-operations.js';
+import { analyzeResearchDocument } from '../research/dependencies/analyze.js';
+import {
+  archiveResearchDocument,
+  createResearchDocument,
+  listResearchDocuments,
+  restoreResearchDocument,
+} from '../research/documents/document-operations.js';
+import { closeResearchDocumentRuntime } from '../research/execution/python-session.js';
+import { getResearchDocument } from '../research/documents/read.js';
+import {
+  interruptResearchDocument,
+  resetResearchDocumentRuntime,
+} from '../research/execution/control.js';
+import {
+  isResearchDocumentRunActive,
+  ResearchDocumentRunInProgressError,
+} from '../research/execution/run-state.js';
+import { ResearchAffectedRunError } from '../research/dependencies/run-plan.js';
+import { ResearchCellChangeReviewOpenError } from '../research/proposals/review-state.js';
+import { ResearchCellDependencyBlockedError } from '../research/dependencies/runnable.js';
+import { ResearchCellRevisionConflictError } from '../research/documents/revision-errors.js';
+import { runAffectedResearchCells } from '../research/execution/run-affected.js';
+import { runResearchCell } from '../research/execution/run-cell.js';
+import { runResearchDocument } from '../research/execution/run-document.js';
 
 /** Natural-language research workbench actions. Persistence and Agent turns join this route in M1. */
 export const researchRoute = new Hono();

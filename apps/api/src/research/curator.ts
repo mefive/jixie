@@ -29,7 +29,7 @@ import {
   searchCuratorRepositoryReferences,
   type CuratorRepositoryReference,
 } from './curator-reference-search.js';
-import { researchPayloadHash } from './fingerprints.js';
+import { researchPayloadHash } from './evidence/fingerprints.js';
 
 const findingCategorySchema = z.enum([
   'method_candidate',

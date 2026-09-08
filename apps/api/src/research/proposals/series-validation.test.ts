@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ResearchDataCatalogResultV1 } from '@jixie/shared';
-import { validateResearchSeriesProposal } from './research-series-proposal-validation.js';
+import { validateResearchSeriesProposal } from './series-validation.js';
 
 const catalog: ResearchDataCatalogResultV1 = {
   version: 1,

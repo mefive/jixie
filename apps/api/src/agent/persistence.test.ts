@@ -14,7 +14,7 @@ vi.mock('../infra/database/prisma.js', () => ({
 }));
 
 import { finishPersistentTurn, startPersistentTurn } from './persistence.js';
-import { resolveResearchClarificationAnswer } from '../research/research-clarification-records.js';
+import { resolveResearchClarificationAnswer } from '../research/proposals/clarification-records.js';
 
 const TRACE: AgentTurnTrace = { version: 1, steps: [], truncated: false };
 

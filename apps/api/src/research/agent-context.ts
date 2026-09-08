@@ -5,7 +5,7 @@ import {
   type ChatMessage,
   type ResearchCellContextPart,
 } from '@jixie/shared';
-import { researchPayloadHash } from './fingerprints.js';
+import { researchPayloadHash } from './evidence/fingerprints.js';
 
 const MAX_RESEARCH_AGENT_CONTEXT_CELLS = 100;
 const MAX_RESEARCH_AGENT_SOURCE_CHARACTERS = 48_000;

@@ -12,7 +12,7 @@ import {
 import { ulid } from 'ulid';
 import { prisma } from '../infra/database/prisma.js';
 import { uniqueStrategyName } from '../services/strategy-service.js';
-import { getResearchExecution } from './research-execution-records.js';
+import { getResearchExecution } from './evidence/execution-records.js';
 import { generateResearchStrategyDraft } from './research-strategy-handoff.js';
 
 export class ResearchStrategyDraftUnavailableError extends Error {}

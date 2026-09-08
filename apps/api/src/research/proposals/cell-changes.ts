@@ -8,21 +8,21 @@ import type {
   ResearchCellKindV1,
 } from '@jixie/shared';
 import { ulid } from 'ulid';
-import { prisma } from '../infra/database/prisma.js';
+import { prisma } from '../../infra/database/prisma.js';
 import {
   researchCellChangeProposalView,
   resolveResearchCellChangeProposalRecord,
   syncResearchCellChangeProposalRecords,
-} from './research-cell-change-records.js';
+} from './change-records.js';
+import { getResearchDocument } from '../documents/read.js';
+import { isResearchDocumentRunActive } from '../execution/run-state.js';
 import {
-  getResearchDocument,
-  isResearchDocumentRunActive,
   reconcileResearchCellChanges,
   type ResearchCellChangeDependencySeed,
-} from './workbench.js';
-import { researchRuntimeManager } from './workbench-runtime.js';
-import type { ResearchPythonAnalysis } from './workbench-runtime.js';
-import { validateResearchSeriesProposal } from './research-series-proposal-validation.js';
+} from '../dependencies/invalidation.js';
+import { researchRuntimeManager } from '../execution/python-session.js';
+import type { ResearchPythonAnalysis } from '../sdk/analysis-types.js';
+import { validateResearchSeriesProposal } from './series-validation.js';
 
 const MAX_PROPOSAL_OPERATIONS = 8;
 const MAX_CELL_SOURCE_CHARACTERS = 100_000;

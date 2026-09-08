@@ -549,7 +549,7 @@ Jobs queue → 启动时传入的任务处理函数
 
 ## 7. 实施工作包与顺序
 
-以下工作包是同一重整目标的依赖顺序和验证单元，提交可按实际职责拆分，不改变整体交付范围。整体目标仍为完成全部范围；2026-09-08 用户确认采用分提交评审工作流，具体执行顺序见 7.1。每个提交先说明范围并确认，再实施与验证，完成后等待提交授权；push 由用户手动执行。
+以下工作包是同一重整目标的依赖顺序和验证单元，提交可按实际职责拆分，不改变整体交付范围。整体目标仍为完成全部范围；2026-09-08 用户确认采用分提交评审工作流，具体执行顺序见 7.1。每个提交先说明范围及准确提交信息并确认，再实施并运行静态检查；人工 review 通过后执行测试/构建/运行验证，全部通过即按已告知的信息直接提交，不再另设提交确认；push 由用户手动执行。
 
 | 工作包 | 依赖 | 开发事项 | 完成标准 |
 | --- | --- | --- | --- |
@@ -572,8 +572,8 @@ Jobs queue → 启动时传入的任务处理函数
 | 1 | A | 固化方案、文件归属、路由/运行入口、依赖与测试基线 | 类型检查、SDK 一致性、后端测试与环境限制 | 已提交 `177f63ab` |
 | 2 | B | 公共辅助、infra/database/http/llm/email、math/date/i18n 与认证归位 | 初始化行为、相关测试与类型检查 | 已提交 `00a0e83a` |
 | 3 | B | 公共 Python 通信、领域协议、TS isolate 辅助及引用 | Research/Factor/Strategy 运行链路 | 已提交 `bc4a1651` |
-| 4 | C | Job 通用设施、领域完成/恢复事务、bootstrap 启动装配 | 排队/失败/恢复、事务回滚、API/CLI 入口 | 已通过 review 与验证（本提交） |
-| 5 | D | Research 文档、依赖、执行、证据、提案 | 编辑→失效→执行→取消/冻结→提案 | 待开始 |
+| 4 | C | Job 通用设施、领域完成/恢复事务、bootstrap 启动装配 | 排队/失败/恢复、事务回滚、API/CLI 入口 | 已提交 `ed8c4aae` |
+| 5 | D | Research 文档、依赖、执行、证据、提案 | 编辑→失效→执行→取消/冻结→提案 | 已通过 review 与验证（本提交） |
 | 6 | D | Research 数据、SDK、目录、语言服务、模板、交接、整理及 HTTP | 公开列映射、契约、语言服务与交接 | 待开始 |
 | 7 | E | Factor 定义、观察、分析、报告、发布、组合、运行与 HTTP | 发布纪律、历史报告、分析 Worker | 待开始 |
 | 8 | E | Strategy 与 Engine 分离，风险分析及风险数据/审计边界 | TS/Python 回测、参数扫描、风险结果、引擎一致性 | 待开始 |
@@ -644,7 +644,7 @@ Commit 1 的开发者交付为本文和 [重构基线](backend-architecture-refa
 
 运行时固定为仓库 Python 3.13.3，数据库使用全新临时 SQLite 与确定性证券 fixture；无真实邮件、LLM、行情同步或开发数据库写入。编译后 socket smoke 的对端是测试程序启动的真实 runner，不是生产容器，因此不将其记为容器隔离验收。本次没有 UI 改动，未运行浏览器 E2E 或生成截图；临时 smoke 和等价性核查日志留在本轮临时目录。
 
-### 7.4 Commit 4 实现与验证记录（2026-09-08，本提交）
+### 7.4 Commit 4 实现与验证记录（2026-09-08，已提交 `ed8c4aae`）
 
 当前交付是内部任务设施，不新增产品入口。第一版完成/恢复函数按目录拆分后，用户要求用统一任务契约固化职责，并采用业务 `*-job.ts` 文件；该调整已获实施授权，具体设计以 5.3 为准。
 
@@ -687,6 +687,38 @@ Commit 1 的开发者交付为本文和 [重构基线](backend-architecture-refa
 
 已知边界：没有新增完整 stop/drain、启动失败资源回收或 SIGINT/SIGTERM 协议；afterCommit 没有持久化重试，崩溃前内存日志可能丢失；接口不替代数据库事务及人工审查。没有模型迁移、公开 SDK 或 UI 变化，不需要新增产品文案或浏览器截图。
 
+### 7.5 Commit 5 实现与验证记录（2026-09-08，本提交）
+
+事前确认的提交信息：`按职责拆分 Research 文档执行与提案流程`。阅读入口是 `apps/api/src/research/README.md`。
+
+- 原 `workbench.ts` 的 68 项顶层声明按 documents、dependencies、execution 和 proposals 职责拆开。`documents/read.ts` 提供现有文档视图入口，保留旧会话首次读取补建文档；`documents/execution-source.ts` 提供带归属检查的运行源读取。文档列表/创建/归档/恢复与 Cell 编辑分别有明确入口。
+- 依赖分析、失效/删除阻塞与纯运行计划分离。分析仍通过同一 Python 会话获取 AST，保持原调用顺序；失效规则不执行 Cell。文档归档仍关闭对应会话，未改为取消全文运行。允许这两处调用 `execution/python-session.ts` 的资源能力，不允许导入 `run-*` 编排。
+- 单 Cell、全文、受影响分支和提案尝试分别有执行入口，共用 `execution/run-state.ts` 的一份私有 Map。通过窄查询取得活动控制记录，中断仍等待 settled；没有增加锁范围或重新安排事务。
+- 原 `workbench-runtime.ts` 的会话管理归 `execution/python-session.ts`，请求类型归 `sdk/analysis-types.ts`，请求解析/数据调用/response 归 `sdk/dispatch.ts`。新 dispatcher 仅要求 session.send；解析仍在数据错误响应的 catch 之外，保留非法参数与数据读取失败的区别。
+- 执行记录、产物、指纹归 evidence；修改提案、尝试、记录、澄清和 series-validation 归 proposals。执行只调用 `proposals/review-state.ts`，不反向导入提案应用/尝试流程。报告生成文档入口归 `documents/from-backtest-report.ts`。
+- HTTP、Agent 持久化/工具、草稿生成、FCFF 回放脚本及测试引用同步切换。旧两个 workbench 总文件及本轮迁移的平铺入口删除，无兼容转发。SDK 校验、datasets、catalog、language、模板、handoff、curator 与 HTTP 其余整理继续在 Commit 6。
+
+静态检查结果：本轮 TS 文件格式与 ESLint 通过；全仓 typecheck（含 Research/Factor SDK 与 runtime 生成物一致性）通过；源码 AST 核对 Research 路由处理代码不变、所有相对模块引用存在、涉及 Research 的运行时静态 import/re-export 图无循环，evidence 与运行编排、提案与执行的上述边界符合约定。检查脚本只解析源码，未导入执行产品模块。
+
+新增 9 个隔离 SQLite 生命周期场景：归属、编辑修订/失效、删除阻塞、运行中编辑与冻结快照、互斥/取消、失败分支、提案接受后运行、撤销、尝试运行中修订变化；另新增 3 个 SDK dispatch 场景，验证请求关联与文档上下文、数据失败响应、非法参数上抛。既有测试随职责迁移，依赖图与计划执行测试分别归位。
+
+首次人工 review 通过后的验证：新增生命周期集成测试 9/9 通过，SDK dispatch 测试 2/3 通过，API 干净 `tsc` 构建通过。失败项定位到测试自身：`beforeEach(() => loadReport.mockReset())` 返回 mock 函数，Vitest 将返回值登记为清理回调；在预设 reject 的场景中，测试收尾再次调用该 mock 而报错。改为块状函数，只重置 mock、不返回值；生产代码未修改。
+
+修复后格式、lint 与 API typecheck 通过，并再次获得人工 review 确认。最终验证：
+
+| 检查 | 结果 |
+| --- | --- |
+| 全仓 typecheck 与 SDK/runtime 一致性，修复后 API typecheck | 通过 |
+| 本轮 62 个 TS 文件 ESLint 与格式检查；修复文件单独复查 | 通过 |
+| 全量 API 测试，隔离 SQLite、ACCOUNTING_INTEGRATION=1 | 194 个文件、1032 项测试全部通过，含新增 12 项 |
+| API `tsc` 编译到全新临时目录 | 通过；后续只修正测试 hook，生产代码未变 |
+| 源码 + 真实本地 Python runner | 健康请求、文档编辑、SDK 指数数据读取、干净全文执行、冻结证据、下游 stale/重跑、reset、真实取消均通过 |
+| 编译产物 + 生产 Unix socket 连接分支 | 同一 Research 链路通过；对端为测试程序启动的真实 Python runner |
+| 静态迁移/依赖核对与 `git diff --check` | 通过，Research 路由处理代码不变，无新增 Research 静态运行时导入循环 |
+| 资源清理 | Vitest、Python runner 已退出；测试 socket 目录已移除，三个临时数据库无打开连接 |
+
+验证日志留在 `/tmp/jixie-c5-verification`。测试采用固定 Python 3.13.3、隔离数据库与确定性行情 fixture，没有开发数据库写入、真实市场请求或 LLM 调用。真实 Python smoke 使用业务函数和 Hono 内存健康请求，未启动对外 HTTP 监听，也未执行浏览器 E2E；生产连接分支的测试对端不代表生产容器隔离验收。数据库 schema、公开 SDK、生成物、金融口径及前端产品行为未变，不需要数据迁移、帮助页面或双语文案调整；静态检查通过不代表运行验证已完成。
+
 ## 8. 测试与验收计划
 
 ### 8.1 当前行为基线
@@ -702,9 +734,9 @@ Commit 1 的开发者交付为本文和 [重构基线](backend-architecture-refa
 | 启动装配 | buildApp 不启动运行资源；恢复先于领取任务；API/CLI 不重复启动队列；已有失败/退出清理行为保持 | 启动入口相关测试、隔离数据库 smoke 与现有开发进程清理测试；缺失行为单列记录 |
 | API 权限与资源 | 未登录、跨用户读写、资源不存在、错误结构、路由顺序 | `routes/multi-user-permissions.test.ts`、`routes/backtest-report-route.test.ts` |
 | Job | FIFO/用户并发、旧 queued payload、运行恢复、损坏 payload、报告与 Job 原子终态 | `lib/job-queue.test.ts`、`lib/jobs.test.ts`、`lib/jobs-backtest-report.test.ts` |
-| Research 文档 | 自动保存、版本冲突、删除依赖、stale/blocked、运行互斥、取消与 reset | `research/workbench*.test.ts`；E2E `research-autosave`、`research-cell-deletion`、`research-affected-run`、`research-interrupt` |
+| Research 文档 | 自动保存、版本冲突、删除依赖、stale/blocked、运行互斥、取消与 reset | `research/documents/*test.ts`、`dependencies/*test.ts`、`execution/*test.ts`；E2E `research-autosave`、`research-cell-deletion`、`research-affected-run`、`research-interrupt` |
 | Research 证据与提案 | 干净执行、历史快照、产物归属、审阅与执行、交接来源 | execution-records、cell-change、handoff 测试；E2E `research-execution`、`research-cell-change-review` |
-| Research 数据与 SDK | 财务值、PIT、序列/Panel、报告结果数据集、SDK 请求校验 | financial-values/dataset、series、workbench-sdk/runtime 测试；E2E `research-financial-data`、`research-factor-report-sdk` |
+| Research 数据与 SDK | 财务值、PIT、序列/Panel、报告结果数据集、SDK 请求校验 | financial-values/dataset、series、workbench-sdk、execution/python-session 与 sdk/*runtime 测试；E2E `research-financial-data`、`research-factor-report-sdk` |
 | Factor | 报告历史、holdout、发布哈希、组合与各 evaluator | publication、analysis、evaluator、report-spec 测试；E2E `factor-publication`、`factor-report-history`、`python-factor` |
 | Strategy/Engine | TS/Python、direct/walled 一致性、交易规则、扫描与报告历史 | engine/strategy 现有测试；E2E `python-strategy`、`strategy-parameter-scan`、`backtest-report-history` |
 | 策略风险分析 | 市场暴露、宏观敏感度、重合与情景结果；数据不足/失败；报告序列化和面板显示条件 | 原 `risk/*.test.ts` 及数据审计测试；在回测 E2E 中补齐确定性风险报告 fixture 与面板断言 |

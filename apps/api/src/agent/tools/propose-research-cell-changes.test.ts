@@ -5,7 +5,7 @@ const mocks = vi.hoisted(() => ({
   pendingClarification: vi.fn(),
 }));
 
-vi.mock('../../research/workbench-cell-changes.js', () => ({
+vi.mock('../../research/proposals/cell-changes.js', () => ({
   prepareResearchCellChangeProposal: mocks.prepare,
 }));
 vi.mock('../../infra/database/prisma.js', () => ({

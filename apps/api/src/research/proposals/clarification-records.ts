@@ -8,7 +8,7 @@ import type {
   ResearchClarificationStatusV1,
   ResearchClarificationV1,
 } from '@jixie/shared';
-import { prisma } from '../infra/database/prisma.js';
+import { prisma } from '../../infra/database/prisma.js';
 
 interface PersistResearchClarificationPartArgs {
   conversationId: string;

@@ -59,6 +59,7 @@ apps/api/                          # Hono + Prisma 后端
   src/infra/email/                 # 邮件传输；登录邮件模板在 auth/
   src/infra/runtime/               # 公共 Python 通信、TS isolate 与沙盒日志
   src/infra/jobs/                  # 任务契约、执行器、记录、日志与调度队列
+  src/research/                    # 文档、依赖、执行、证据与 Agent 提案
   src/math/                        # 共用统计、推断与技术指标
   src/i18n/                        # 纯消息目录和翻译函数
   src/date.ts                      # 日期辅助
@@ -69,6 +70,8 @@ packages/shared/                   # 共享类型(TsCode、TradeDate)
 ```
 
 当前架构重整进度见 [开发计划](docs/design/backend-architecture-refactor.md)；目标目录不代表全部已实施。
+
+后端 Research 的文档、依赖、执行、证据与提案入口见 [Research 后端阅读入口](apps/api/src/research/README.md)。
 
 ## 快速开始
 

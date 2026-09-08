@@ -33,7 +33,7 @@ import {
   ResearchPythonExecutionError,
   ResearchPythonInterruptionError,
   researchRuntimeManager,
-} from './workbench-runtime.js';
+} from './python-session.js';
 
 const DOCUMENT_ID = 'research-runtime-test';
 let previousLocal: string | undefined;

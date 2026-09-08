@@ -5,18 +5,20 @@ import type {
   ResearchCellChangeRunResultV1,
 } from '@jixie/shared';
 import { ulid } from 'ulid';
-import { prisma } from '../infra/database/prisma.js';
+import { prisma } from '../../infra/database/prisma.js';
 import {
   affectedResearchCellRunPlan,
-  analyzeResearchDocument,
-  getResearchDocument,
-  isResearchDocumentRunActive,
   ResearchAffectedRunError,
-  ResearchDocumentContentRevisionConflictError,
-  ResearchDocumentRunInProgressError,
-  runResearchCellChangeAttemptPlan,
   type ResearchAffectedRunPlan,
-} from './workbench.js';
+} from '../dependencies/run-plan.js';
+import { analyzeResearchDocument } from '../dependencies/analyze.js';
+import { getResearchDocument } from '../documents/read.js';
+import {
+  isResearchDocumentRunActive,
+  ResearchDocumentRunInProgressError,
+} from '../execution/run-state.js';
+import { ResearchDocumentContentRevisionConflictError } from '../documents/revision-errors.js';
+import { runResearchCellChangeAttemptPlan } from '../execution/run-attempt.js';
 
 export type ResearchCellChangeAttemptUnavailableReason =
   | 'proposal_not_applied'

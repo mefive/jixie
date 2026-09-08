@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
   runtimeClose: vi.fn(),
 }));
 
-vi.mock('../infra/database/prisma.js', () => ({
+vi.mock('../../infra/database/prisma.js', () => ({
   prisma: {
     agentConversation: {
       findMany: mocks.conversationFindMany,
@@ -17,17 +17,15 @@ vi.mock('../infra/database/prisma.js', () => ({
   },
 }));
 
-vi.mock('./workbench-runtime.js', () => ({
-  ResearchPythonExecutionError: class ResearchPythonExecutionError extends Error {},
-  ResearchPythonInterruptionError: class ResearchPythonInterruptionError extends Error {},
-  researchRuntimeManager: { close: mocks.runtimeClose },
+vi.mock('../execution/python-session.js', () => ({
+  closeResearchDocumentRuntime: mocks.runtimeClose,
 }));
 
 import {
   archiveResearchDocument,
   listResearchDocuments,
   restoreResearchDocument,
-} from './workbench.js';
+} from './document-operations.js';
 
 describe('research document management', () => {
   beforeEach(() => {

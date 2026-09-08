@@ -8,17 +8,17 @@ const mocks = vi.hoisted(() => ({
   getResearchDocument: vi.fn(),
 }));
 
-vi.mock('../infra/database/prisma.js', () => ({
+vi.mock('../../infra/database/prisma.js', () => ({
   prisma: {
     backtestReport: { findFirst: mocks.backtestReportFindFirst },
     $transaction: mocks.transaction,
   },
 }));
-vi.mock('./workbench.js', () => ({
+vi.mock('./read.js', () => ({
   getResearchDocument: mocks.getResearchDocument,
 }));
 
-import { createResearchDocumentFromBacktestReport } from './backtest-report-document.js';
+import { createResearchDocumentFromBacktestReport } from './from-backtest-report.js';
 
 describe('BacktestReport to Research document handoff', () => {
   beforeEach(() => {

@@ -12,7 +12,7 @@ import {
   EQUITY_FCFF_SENSITIVITY_TABLE_SOURCE,
   equityFcffValuationTemplate,
 } from './equity-fcff-valuation-template.js';
-import { researchRuntimeManager } from './workbench-runtime.js';
+import { researchRuntimeManager } from './execution/python-session.js';
 
 const DOCUMENT_ID = 'equity-fcff-valuation-template-test';
 let previousLocal: string | undefined;

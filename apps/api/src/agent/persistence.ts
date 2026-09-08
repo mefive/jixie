@@ -7,8 +7,8 @@ import {
 } from '@jixie/shared';
 import { ulid } from 'ulid';
 import { prisma } from '../infra/database/prisma.js';
-import { persistResearchCellChangePart } from '../research/research-cell-change-records.js';
-import { persistResearchClarificationPart } from '../research/research-clarification-records.js';
+import { persistResearchCellChangePart } from '../research/proposals/change-records.js';
+import { persistResearchClarificationPart } from '../research/proposals/clarification-records.js';
 import type { TurnEntity } from './turn-run.js';
 
 const EMPTY_TRACE: AgentTurnTrace = { version: 1, steps: [], truncated: false };

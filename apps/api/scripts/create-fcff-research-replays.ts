@@ -4,13 +4,11 @@ import {
   EQUITY_FCFF_REPLAY_CASES,
   equityFcffParameterSource,
 } from '../src/research/equity-fcff-replay-cases.js';
-import {
-  createResearchDocument,
-  updateResearchCell,
-  runResearchDocument,
-  closeResearchDocumentRuntime,
-} from '../src/research/workbench.js';
-import { promoteResearchExecution } from '../src/research/research-execution-records.js';
+import { createResearchDocument } from '../src/research/documents/document-operations.js';
+import { updateResearchCell } from '../src/research/documents/cell-operations.js';
+import { runResearchDocument } from '../src/research/execution/run-document.js';
+import { closeResearchDocumentRuntime } from '../src/research/execution/python-session.js';
+import { promoteResearchExecution } from '../src/research/evidence/execution-records.js';
 
 // Explicit owner and output arguments keep this separate from disposable E2E fixtures.
 const [email, outputPath] = process.argv.slice(2);

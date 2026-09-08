@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   materializeResearchOutputArtifacts,
   MAX_PERSISTED_INLINE_RESEARCH_OUTPUT_BYTES,
-} from './workbench-artifacts.js';
+} from './artifacts.js';
 
 const PNG_BASE64 =
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwAF/gL+XxR9WQAAAABJRU5ErkJggg==';
