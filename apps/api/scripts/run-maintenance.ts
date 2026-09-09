@@ -7,7 +7,7 @@ import { runRepairMaintenance } from '../src/maintenance/repair.js';
 import { recentPublishedTradingDates, selfHealMarketDates } from '../src/maintenance/self-heal.js';
 import { recoverInterruptedMaintenanceRuns } from '../src/maintenance/state.js';
 import { runWeeklyMaintenance } from '../src/maintenance/weekly.js';
-import { latestCompletedTradeDate } from '../src/signals/service.js';
+import { latestCompletedTradeDate } from '../src/signals/runs/readiness.js';
 import { TushareClient } from '../src/tushare/client.js';
 
 type MaintenanceCommand = 'daily' | 'weekly' | 'repair' | 'baseline';

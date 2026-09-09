@@ -1,7 +1,7 @@
 import { prisma } from '../infra/database/prisma.js';
-import { enqueueSignalRun } from './service.js';
+import { enqueueSignalRun } from './runs/enqueue.js';
 import { syncSignalMarketData } from './sync.js';
-import { settleStrategyAccounts } from './accounting.js';
+import { settleStrategyAccounts } from './accounting/settlement.js';
 
 /** Run one complete daily cycle: synchronize data once, then compute active deployments serially. */
 export async function runDailySignalCycle(

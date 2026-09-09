@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_COST } from '../engine/types.js';
-import { replayAccountDay } from './accounting.js';
+import { DEFAULT_COST } from '../../engine/types.js';
+import { replayAccountDay } from './replay.js';
 
 const cost = { ...DEFAULT_COST, slippageBps: 20, impactCoef: 0 };
 

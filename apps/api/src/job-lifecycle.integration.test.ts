@@ -33,7 +33,9 @@ vi.mock('./strategy/definitions/naming.js', () => ({
 }));
 vi.mock('./research/curator/runs.js', () => ({ prepareResearchCuratorRun: execution.curator }));
 vi.mock('./signals/notifier.js', () => ({ notifySignalRun: execution.notify }));
-vi.mock('./signals/accounting.js', () => ({ initializeSignalAccounting: execution.accounting }));
+vi.mock('./signals/accounting/initialize.js', () => ({
+  initializeSignalAccounting: execution.accounting,
+}));
 
 import { prisma } from './infra/database/prisma.js';
 import type { PreparedResearchCuratorRun } from './research/curator/runs.js';

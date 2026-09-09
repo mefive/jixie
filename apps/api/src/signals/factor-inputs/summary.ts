@@ -1,5 +1,5 @@
 import type { FactorDependency, FactorInputSummary } from '@jixie/shared';
-import type { PendingFactorObservation } from '../engine/types.js';
+import type { PendingFactorObservation } from '../../engine/types.js';
 
 /** Reduce final-bar factor reads to statistics plus values for assets affected by the run. */
 export function summarizeFactorInputs(

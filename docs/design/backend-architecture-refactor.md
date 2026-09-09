@@ -1,12 +1,12 @@
 # 后端业务边界与目录重整开发计划
 
-> 状态：Commit 1～7 已提交（`177f63ab`、`00a0e83a`、`bc4a1651`、`ed8c4aae`、`a034c611`、`1bba29cd`、`014899ba`）；Commit 8 已完成并通过人工 review、全量 API 测试、编译与真实 Worker 验证，随本次提交交付。
+> 状态：Commit 1～8 已提交（`177f63ab`、`00a0e83a`、`bc4a1651`、`ed8c4aae`、`a034c611`、`1bba29cd`、`014899ba`、`a52cfec1`）；Commit 9 已通过人工 review、静态检查及全部行为验证，按事前确认的信息提交；Commit 10 待范围确认。
 > 编制日期：2026-09-07；核对代码基线：`12ce9092`。
 > 目标：让不熟悉项目的开发者从目录识别业务能力，沿一个入口读懂完整流程，并找到状态与数据的责任方。
 > 本文规划后端结构调整；研究方法与金融口径不变，任务生命周期的已批准行为调整见 5.3。
 > 开发授权：2026-09-08 用户确认按评审工作流开始开发；Commit 1～3 已提交，Commit 4 的具体范围、JobDefinition + executor 调整以及 Curator/相关性结果原子提交均已获确认。后续提交逐项说明具体范围，经确认后实施。
-> 工作流：开工前明确本次 commit message 与范围并获确认 → 编写代码与测试 → 运行并修复 lint/typecheck 等静态检查 → 停下人工代码 review → review 通过后运行测试、构建及运行验证 → 全部通过后直接按预告 message 提交，不再单独请求 commit 确认。验证中需要修改代码或测试时，修复并通过静态检查后重新交人工 review；仅环境问题可直接重试。此流程已同步到 review-gated-development SKILL。
-> Commit 8 事前确认的 message：`整理 Strategy 执行、Engine 模拟与风险分析边界`。后续每轮须在该 commit 任务开工前预告 message。
+> 工作流（2026-09-09 更新）：开工前明确本次 commit message 与范围并获确认 → 编写产品代码与测试 → 运行并修复 lint/typecheck 等静态检查 → 产品代码交人工 review → review 通过后运行测试、构建及运行验证 → 全部通过后直接按预告 message 提交，不再单独请求 commit 确认。已确认范围内的测试用例、fixture、mock 和验证脚本改动无需人工审批；自行修正到符合既定契约，静态检查后复跑必要验证，全部通过即提交。不能通过削弱断言或跳过失败掩盖产品问题；若修复涉及产品实现，仍需静态检查后重新交人工 review。在产品代码尚待首次或再次 review 时，测试修正不提前放行行为验证。环境问题可直接重试。此流程已同步到 review-gated-development SKILL；下文历史 review 记录保留当时的实际过程。
+> Commit 9 事前确认的 message：`按职责整理 Signals 部署、运行与账户对账`。后续每轮须在该 commit 任务开工前预告 message。
 
 ## 1. 判断与取舍
 
@@ -163,9 +163,9 @@ apps/api/src/
   signals/
     routes.ts                   信号部署、运行与对账入口
     deployments/                配置冻结、激活与暂停
-    runs/                       每日运行记录与查询
+    runs/                       每日提交、入队、就绪、查询及 IPC Worker
     signal-job.ts                每日信号任务定义与生命周期
-    accounting/                 成交与账户对账
+    accounting/                 初始化、成交录入、结算、纯重放与查询
     factor-inputs/              因子依赖、数据截止与血缘
     scheduler.ts
     sync.ts
@@ -487,7 +487,7 @@ GET /api/app/strategy/backtest/reports/:reportId
 
 ### 5.7 Signals、Agent 与 Library
 
-**Signals**：拆 `service.ts` 中的部署、运行记录、入队、子进程管理与结果转换，分别归 deployments/runs；`engine/signal-worker.*` 移至 `signals/runs/`。accounting 与 factor inputs 各自归位，保留 scheduler/sync/notifier 的具体名称。每日信号的 TS/资产支持限制、配置冻结、人工成交和结算幂等保持不变。
+**Signals**：原 `service.ts` 拆为 deployments/manage/read 与 runs/enqueue/read/readiness，手动运行的日期解析、结算后入队由 runs/submit 编排；`engine/signal-worker.*` 移至 `signals/runs/`，根级 `signal-job.ts` 继续拥有任务契约与子进程启动。accounting 按 initialize、executions、settlement、replay、quotes、read 拆分，纯重放不导入数据库；factor-inputs 内分别放 lineage 与 summary。根级 routes 统一导出 `routes`，保留 scheduler/sync/notifier 的具体名称。每日信号的 TS/资产支持限制、配置冻结、人工成交和结算幂等保持不变；会计初始化和通知仍在结果事务提交后执行。
 
 **Agent**：保留 core/profiles/tools 结构；`turn-run.ts`、`turn-bus.ts` 归 turns。`persistence.ts` 按实际函数拆出对话记录与 turn 轨迹，不能为了迁移改消息内容或持久化顺序。`engine/agent-backtest-worker.*` 归 `agent/tools/quick-backtest/`，其调用的策略执行能力由 strategy 提供。
 
@@ -565,7 +565,7 @@ Jobs queue → 启动时传入的任务处理函数
 
 ## 7. 实施工作包与顺序
 
-以下工作包是同一重整目标的依赖顺序和验证单元，提交可按实际职责拆分，不改变整体交付范围。整体目标仍为完成全部范围；2026-09-08 用户确认采用分提交评审工作流，具体执行顺序见 7.1。每个提交先说明范围及准确提交信息并确认，再实施并运行静态检查；人工 review 通过后执行测试/构建/运行验证，全部通过即按已告知的信息直接提交，不再另设提交确认；push 由用户手动执行。
+以下工作包是同一重整目标的依赖顺序和验证单元，提交可按实际职责拆分，不改变整体交付范围。整体目标仍为完成全部范围；2026-09-08 用户确认采用分提交评审工作流，具体执行顺序见 7.1。每个提交先说明范围及准确提交信息并确认，再实施并运行静态检查；产品代码经人工 review 后执行测试/构建/运行验证。2026-09-09 起，已确认范围内的测试相关修正不再交人工审批，自行静态检查并复跑；涉及产品实现的修正仍重新 review。全部通过即按已告知的信息直接提交，不再另设提交确认；push 由用户手动执行。
 
 | 工作包 | 依赖 | 开发事项 | 完成标准 |
 | --- | --- | --- | --- |
@@ -592,8 +592,8 @@ Jobs queue → 启动时传入的任务处理函数
 | 5 | D | Research 文档、依赖、执行、证据、提案 | 编辑→失效→执行→取消/冻结→提案 | 已提交 `a034c611` |
 | 6 | D | Research 数据、SDK、目录、语言服务、模板、交接、整理及 HTTP | 公开列映射、契约、语言服务与交接 | 已提交 `1bba29cd` |
 | 7 | E | Factor 定义、观察、分析、报告、发布、组合、运行与 HTTP | 发布纪律、历史报告、分析 Worker | 已提交 `014899ba` |
-| 8 | E | Strategy 与 Engine 分离，风险分析及风险数据/审计边界 | TS/Python 回测、参数扫描、风险结果、引擎一致性 | 完成（本提交） |
-| 9 | F | Signals 部署、运行、对账、因子输入、Worker 与 HTTP | 冻结配置、幂等运行、失败收尾、对账 | 待开始 |
+| 8 | E | Strategy 与 Engine 分离，风险分析及风险数据/审计边界 | TS/Python 回测、参数扫描、风险结果、引擎一致性 | 已提交 `a52cfec1` |
+| 9 | F | Signals 部署、运行、对账、因子输入、Worker 与 HTTP | 冻结配置、幂等运行、失败收尾、对账 | 已通过 review、1073 项测试、编译及源码/编译 IPC 验证 |
 | 10 | F | Agent turns/conversations/tools/Worker、Library 操作与 HTTP | SSE、取消、工具权限、公开库复制 | 待开始 |
 | 11 | F | Market 子领域及其余市场职责、Maintenance 与 CLI | 数据口径、幂等同步、质量门禁、审计 | 待开始 |
 | 12 | G | 边界门禁、架构阅读地图与剩余旧路径清理 | 完整构建、相关测试、受影响 E2E、运行入口 smoke | 待开始 |
@@ -860,6 +860,45 @@ Review 修正（2026-09-09）：路由文件统一导出 `routes`。`strategy/ro
 日志与可复查脚本位于 `/tmp/jixie-c8-verification`：`api-test-reviewed.log/json`、`build.log`、`worker-smoke.mjs`、`source-worker.log`、`compiled-worker.log` 及两份 `*-worker-result.json`。临时 Worker 脚本独立于仓库 `.test.ts`，补充验证迁移后的真实入口和主线程持久化；初次准备时补齐基准指数 fixture，并修正从 Prisma 读回 JSON 后重新序列化的顺序假设，仓库代码未因此改动。
 
 编译 Python 检查设置 `NODE_ENV=production`，通过本地 Unix socket 转发到真实 Python runner，覆盖生产连接分支及计算协议；未运行 Podman 容器隔离验收。无 UI 改动，未运行浏览器 E2E；HTTP/报告契约、风险模型/血缘断言与真实后端执行链路承担本轮验证。已清理源码下迁移后空目录。所有必需验证通过，按事前确定的信息提交；不推送。
+
+### 7.9 Commit 9 实现记录（2026-09-09）
+
+事前确认的提交信息：`按职责整理 Signals 部署、运行与账户对账`。以 `a52cfec1` 为基线，阅读地图见 [Signals README](../../apps/api/src/signals/README.md)。本轮同时纳入用户已要求的工作流文档更新：测试相关修正不再单独交人工审批，产品实现修正仍需 review；个人 SKILL 已在前一轮同步。
+
+- 原 `signals/service.ts` 的部署管理与投影、运行读写/入队、交易日/数据就绪分别归 deployments/runs；删除旧聚合入口，调用方直接导入负责该业务的文件。根级 `signal-job.ts` 保留完整任务契约，IPC Worker 和源码 bootstrap 移至 runs。
+- 原 `accounting.ts` 的初始化、人工成交、账户结算、纯重放、行情读取和概览投影分别归位。纯 replay 只有类型导入，无数据库依赖；模拟规则、费用/滑点、T+1、账户更新与原事务边界保持。
+- `factor-inputs/lineage.ts` 与 `summary.ts` 分别负责冻结依赖校验与实际输入摘要；scheduler/sync/notifier 名称及执行顺序保持。SignalRun 与 Job 原子终态、完成后会计初始化/通知、失败和重启恢复保持。
+- HTTP 移至 `signals/routes.ts` 并导出 `routes`，server 的 `/api/app/signals` 挂载位置不变。10 个 endpoint 的 URL/顺序/schema 保持；原 `/run` 的“日期解析 → 结算 → 入队”移至 `runs/submit.ts`，其他 9 个 handler 保持。仍先结算再检查目标部署，未借重整修改原执行次序。
+- 原账户重放与数据库流、因子输入/血缘测试整体迁移；Job 生命周期 mock 路径随初始化入口更新。新增 `signals/routes.integration.test.ts` 8 个隔离 SQLite + Hono 场景，覆盖部署限制/冻结/回滚、日历和数据门槛、运行幂等与错误重试、Job 创建失败回滚、上海收盘时点与所有者读写、会计幂等与人工成交编辑/重置。
+- 更新 Maintenance/CLI、server、Signals 调用方、根级 CLAUDE 与 Engine 阅读地图。HTTP、数据库 schema、SDK、金融口径、前端/帮助双语和部署组件无变化，不需要迁移或 deployment impact 更新。
+
+静态检查记录位于 `/tmp/jixie-c9-review`：
+
+| 检查 | 范围与结果 |
+| --- | --- |
+| 格式、ESLint | 29 个 TS/MJS 文件通过 |
+| 全仓 typecheck | 通过，包含 Research/Factor SDK 和 Python runtime 生成物一致性 |
+| 原声明完整性 | 43 个函数/类型/常量声明完整提取；除新增必要 export 外，原业务内容一致 |
+| 路由核对 | 10 个 endpoint 路径/顺序/middleware 与 4 组具名 schema 一致；9 个未提取 handler 内容一致；单独核对手动提交流程的顺序与错误映射 |
+| 搬迁与调用方 | 14 个迁移文件/调用方去除 import 并归一化资源路径后内容一致；Job 生命周期测试除 mock 路径和格式外不变 |
+| 路径与依赖 | 相对 import、字面量动态 import、Worker URL 无缺失；没有涉及 Signals 的静态运行时导入循环；accounting/replay 无本地运行时依赖 |
+| `git diff --check` | 通过 |
+
+人工 review 通过后的最终验证（2026-09-09）：
+
+| 检查 | 结果 |
+| --- | --- |
+| 全量 API `.test.ts` | **199 个文件、1073 项全部通过**；使用全新隔离 SQLite，启用 `ACCOUNTING_INTEGRATION=1`，包含新增 8 项 Signals HTTP 场景及既有账户、因子血缘、通知、Job 生命周期测试 |
+| API 编译 | `tsc --outDir /tmp/jixie-c9-verification/compiled` 通过；产物来自干净临时目录 |
+| 源码/编译 IPC | 分别运行 `.boot.mjs`/`.ts` 和实际编译 `.js` 子进程；真实部署、入队、执行器、Factor 准备、墙内计算、主线程提交与 afterCommit 初始化均通过，编译入口不依赖 tsx |
+| 冻结与因子输入 | 修改策略草稿不影响部署；已归档因子仍可供既有部署使用；读取确定性历史价格并验证因子输入摘要；修改依赖哈希使任务和运行共同失败，恢复哈希后复用 runId、创建新 Job 成功 |
+| 幂等与恢复 | 同部署/日期成功运行重复提交不创建新任务；重复会计初始化不新增成交或基线；重建执行器将中断任务和运行置为 stale，重复恢复返回 0，随后重试成功；每种入口最终 3 个 done、1 个 error、1 个 stale Job |
+| 账户与结果一致性 | 真实结算生成模拟成交，录入人工成交后重建实际账户，概览拒绝跨用户读取；源码/编译的信号、因子输入、模型资金/持仓、账户概览及 Job 终态完全一致 |
+| 清理与范围 | 所有 completion 轮询结束、IPC 子进程退出、Prisma 连接关闭；进程及文件句柄检查没有残留测试运行器或测试库连接；未访问开发库、真实行情、LLM 或发送邮件 |
+
+日志与可复查脚本位于 `/tmp/jixie-c9-verification`：`api-test.log/json`、`run-tests.cjs`、`build.log`、`worker-smoke.mjs`、`source-worker.log`、`compiled-worker.log` 和两份 `*-worker-result.json`。临时 Worker 脚本补充验证真实入口，不属于仓库 `.test.ts`。准备脚本时修正了 watch-only 场景对横截面 `pb` 输入的假设，改为读取确定性历史价格，并按 fixture 的两位小数口径构造预期值，避免二进制浮点表示差异；静态语法检查后重新完整运行两种入口，全部通过，仓库产品与测试代码未因此改动。
+
+提交前核对 44 个 review 路径的内容哈希，均与人工 review 时一致；随后仅补本文和 Signals README 的验证记录。无 UI、SDK 或 schema 变化，未运行浏览器 E2E；本轮 HTTP 契约由隔离 Hono 集成测试验证。静态检查和所有必需行为验证均通过，按事前 message 直接提交，不推送。
 
 ## 8. 测试与验收计划
 

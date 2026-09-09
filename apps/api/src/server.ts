@@ -9,7 +9,7 @@ import { researchRoute } from './research/routes.js';
 import { factorsRoute } from './factor/routes.js';
 import { factorWeatherRoute } from './factor/weather-routes.js';
 import { agentRoute } from './routes/agent.js';
-import { signalsRoute } from './routes/signals.js';
+import { routes as signalRoutes } from './signals/routes.js';
 import { libraryRoute } from './routes/library.js';
 import { requireAuth } from './auth/http/session.js';
 import { maintenanceGate, maintenanceRoute } from './maintenance/http.js';
@@ -40,7 +40,7 @@ export function buildApp() {
   app.route('/api/app/strategies', strategyDefinitionRoutes);
   app.route('/api/app/factors', factorsRoute);
   app.route('/api/app/factor-weather', factorWeatherRoute);
-  app.route('/api/app/signals', signalsRoute);
+  app.route('/api/app/signals', signalRoutes);
   app.route('/api/app/library', libraryRoute);
   app.route('/api/app/strategy', strategyRoutes);
   app.route('/api/app/factor', factorRoute);

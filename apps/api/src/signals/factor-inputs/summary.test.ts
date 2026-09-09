@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { summarizeFactorInputs } from './factor-inputs.js';
+import { summarizeFactorInputs } from './summary.js';
 
 const factor = {
   factorId: 'factor-1',

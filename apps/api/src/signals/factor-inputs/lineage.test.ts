@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  assertFactorDependencies,
-  factorDependenciesFromJson,
-} from './factor-dependency-lineage.js';
+import { assertFactorDependencies, factorDependenciesFromJson } from './lineage.js';
 
 const dependency = {
   factorId: 'factor-1',

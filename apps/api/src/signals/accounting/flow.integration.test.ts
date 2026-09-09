@@ -1,11 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { prisma } from '../infra/database/prisma.js';
-import {
-  getStrategyExecutionOverview,
-  initializeSignalAccounting,
-  settleStrategyAccounts,
-  updateActualExecution,
-} from './accounting.js';
+import { prisma } from '../../infra/database/prisma.js';
+import { getStrategyExecutionOverview } from './read.js';
+import { initializeSignalAccounting } from './initialize.js';
+import { settleStrategyAccounts } from './settlement.js';
+import { updateActualExecution } from './executions.js';
 
 const integration = describe.runIf(process.env.ACCOUNTING_INTEGRATION === '1');
 

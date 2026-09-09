@@ -6,11 +6,11 @@ import { defineJob } from '../infra/jobs/definition.js';
 import { runJobWorker } from '../infra/jobs/worker-result.js';
 import { t } from '../i18n/messages.js';
 import { notifySignalRun } from './notifier.js';
-import { initializeSignalAccounting } from './accounting.js';
+import { initializeSignalAccounting } from './accounting/initialize.js';
 
 const workerUrl = import.meta.url.endsWith('.ts')
-  ? new URL('../engine/signal-worker.boot.mjs', import.meta.url)
-  : new URL('../engine/signal-worker.js', import.meta.url);
+  ? new URL('./runs/signal-worker.boot.mjs', import.meta.url)
+  : new URL('./runs/signal-worker.js', import.meta.url);
 const signalJobPayloadSchema = z.object({
   task: z.literal('signal'),
   runId: z.string().min(1),
