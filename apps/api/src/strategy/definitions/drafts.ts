@@ -108,10 +108,17 @@ export async function updateStrategy(
 
 export async function deleteStrategy(userId: string, strategyId: string, locale: Locale) {
   const r = await prisma.strategy.deleteMany({
-    where: { id: strategyId, userId: userId },
+    where: { id: strategyId, userId, deployments: { none: {} } },
   });
 
   if (r.count === 0) {
+    const retained = await prisma.strategy.findFirst({
+      where: { id: strategyId, userId },
+      select: { id: true },
+    });
+    if (retained) {
+      return failStrategyOperation('invalid', t(locale, 'strategyHasDeployments'));
+    }
     return failStrategyOperation('missing', t(locale, 'strategyNotFound'));
   }
 

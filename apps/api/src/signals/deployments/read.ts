@@ -2,19 +2,20 @@ import type { BacktestConfig, StrategyDeployment } from '@jixie/shared';
 import { prisma } from '../../infra/database/prisma.js';
 import { factorDependenciesFromJson } from '../factor-inputs/lineage.js';
 
-export async function currentDeployment(
+export async function listStrategyDeployments(
   userId: string,
   strategyId: string,
-): Promise<StrategyDeployment | null> {
-  const row = await prisma.strategyDeployment.findFirst({
-    where: { userId, strategyId, status: 'active' },
-    orderBy: { deployedAt: 'desc' },
+): Promise<StrategyDeployment[]> {
+  const rows = await prisma.strategyDeployment.findMany({
+    where: { userId, strategyId },
+    orderBy: [{ deployedAt: 'desc' }, { id: 'desc' }],
   });
-  return row ? deploymentWire(row) : null;
+  return rows.map(deploymentWire);
 }
 
 export function deploymentWire(row: {
   id: string;
+  backtestReportId: string | null;
   strategyId: string;
   strategyName: string;
   status: string;
@@ -29,6 +30,7 @@ export function deploymentWire(row: {
 }): StrategyDeployment {
   return {
     id: row.id,
+    backtestReportId: row.backtestReportId,
     strategyId: row.strategyId,
     strategyName: row.strategyName,
     status: row.status === 'active' ? 'active' : 'paused',

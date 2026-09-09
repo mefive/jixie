@@ -1,4 +1,5 @@
-import Editor, { DiffEditor, loader, type Monaco } from '@monaco-editor/react';
+import '@src/components/monaco-setup';
+import Editor, { DiffEditor, type Monaco } from '@monaco-editor/react';
 import {
   RESEARCH_SDK_CONTRACT_V1,
   type ResearchAssetTypeV1,
@@ -9,8 +10,6 @@ import {
 } from '@jixie/shared';
 import * as monaco from 'monaco-editor';
 import { useLayoutEffect, useRef } from 'react';
-import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
-import jsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker';
 import { localeStore } from '@src/i18n/locale-store';
 import { searchResearchDataCatalog } from '@src/api/client';
 import {
@@ -26,13 +25,6 @@ import {
   installResearchPythonLanguage,
   researchPythonModelUri,
 } from './research-python-language';
-
-self.MonacoEnvironment = {
-  getWorker(_workerId, label) {
-    return label === 'json' ? new jsonWorker() : new editorWorker();
-  },
-};
-loader.config({ monaco });
 
 let researchSdkLanguageInstalled = false;
 const researchDataCatalogRequests = new Map<string, Promise<ResearchDataCatalogResultV1>>();

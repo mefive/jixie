@@ -37,22 +37,25 @@ P0 在 V1 上增加：
 日内高频、tick 和股票日内回转仍永久排除。期货需要实际合约映射、换月、保证金和对冲意图，不能把
 股票的 `buy | sell + shares` 契约硬套过去，因此 V1 部署时明确拒绝，而不是静默漏单。
 
-## 核心模型：部署版本，不是 `Strategy.live`
+## 核心模型：按回测报告独立部署（2026-09-09 修订）
 
 `Strategy.config` 是研究工作台的可变当前版本。给它加一个布尔 `live` 会让代码、参数或成本在下一次
 保存后悄悄改变线上行为，无法回答某条真实信号由什么产生。
 
-新增不可变 `StrategyDeployment`：
+`Strategy` 是可变草稿；`BacktestReport` 是一次成功回测的冻结证据；`StrategyDeployment` 是这份报告的一次运行实例。部署不创建另一个策略版本号，报告 ID 标识来源，部署 ID 标识独立运行和账户历史。
 
-- 冻结完整 `BacktestConfig`、策略名、代码 hash、通知语言和上线时间；
-- 冻结策略实际引用的 `FactorDependency[]`；每日 `SignalRun` 创建时复制该快照，worker 执行前校验
-  Factor ID、key、代码 hash 和批准报告没有漂移；
-- 只允许已成功回测且没有未运行编辑的策略上线；
-- 同策略重新部署时暂停旧部署，新建快照；旧信号继续指向旧部署；
-- 编辑研究策略不影响已上线版本，必须显式重新部署；
-- 暂停只改变部署状态，不删除版本和历史。
+- 创建部署只接受 `reportId`，检查报告归属、成功状态和结果；冻结报告的配置、名称与 Factor 血缘，以及部署时的语言和时间。
+- 历史成功报告也可部署；编辑器草稿、`Strategy.lastResult` 和后来的回测不参与部署判断。
+- 即使配置完全相同，两份报告也可以各自部署并同时运行；不按策略 ID 或代码 hash 去重。
+- 同一报告最多一个 active 部署。`activeReportId String? @unique` 在 active 时等于来源报告 ID，暂停时原子清空；SQLite 唯一索引阻止重复创建，重复请求返回已有部署。
+- `backtestReportId` 一直保留来源关系。暂停后再次部署同一报告，创建新部署、新账户基线，旧历史仍可查询。暂停不取消已经入队的任务，也不停止已有账户的结算和人工回填。
+- 不同部署的 SignalRun、成交与账户按 `deploymentId` 隔离，暂停其中一个不会影响另一个。调度只遍历 active 部署。
+- 旧部署的两个新增字段均为 null，保留状态和原快照，界面显示“未关联报告”。不根据代码相同或当前报告推断旧来源。
+- Factor 仍须已发布且满足现有部署准入条件；新解析的依赖必须与报告血缘一致。报告缺血缘但实际依赖非空、或依赖已漂移时拒绝部署，要求产生新报告。无 Factor 的旧报告可以部署。
+- 冻结的是策略配置和因子身份/代码 hash/批准报告等血缘，并未复制整套历史行情与 Factor 可执行文件；每日运行继续校验依赖，遇到漂移明确失败。
+- 已有部署记录的策略（包括已暂停和旧部署）不可删除，数据库外键同时保护来源报告，防止级联丢失信号与账户；用户级数据清理仍遵循原有用户归属级联规则。
 
-这与 `StrategyScanReport` 的冻结配置、代码 hash、数据截止日纪律保持一致。
+数据库变更仅涉及内部部署关系，不改变公开 Research SDK 或市场 SQL 白名单。迁移由 Prisma 生成：review 前用 schema-to-schema diff 产出 SQL，不连接业务数据库；review 后在临时库执行 `migrate dev --create-only` 核对生成结果，再验证历史迁移升级、旧快照保留及约束。禁止手工修改迁移 SQL。
 
 ## 信号捕获
 
@@ -167,9 +170,9 @@ interface SignalItem {
 
 资源路由挂 `/api/app/signals`：
 
-- `GET /today`：活跃部署及其最新 SignalRun；
-- `GET /deployments/current?strategyId=`：Lab 恢复上线状态；
-- `POST /deployments`：冻结当前已回测版本；
+- `GET /today`：全部部署及其最新 SignalRun，active 优先，暂停历史也可查看；
+- `GET /deployments?strategyId=`：列出该策略的全部部署，Lab 按所选报告寻找 active 部署；
+- `POST /deployments`，body `{ reportId }`：部署该成功报告，重复请求返回同一 active 部署；
 - `POST /deployments/:id/pause`：暂停；
 - `GET /runs?deploymentId=&limit=` / `GET /runs/:id`：历史；
 - `POST /run`：手动生成；
@@ -177,14 +180,9 @@ interface SignalItem {
 - `GET /deployments/:id/execution-overview`：模型 / 模拟 / 实际曲线与执行统计；
 - `PATCH /executions/:id`：回填成交、未执行原因或恢复待回填。
 
-Lab 的部署按钮：
+Lab 的部署按钮以所选报告为准：成功的 TypeScript 报告可部署，已有 active 部署则显示暂停；未运行草稿不会使旧报告的部署失效。资产类型和 Factor 准入仍由 API 校验。历史报告可直接部署，修改后的策略必须先形成新报告才能部署新内容。
 
-- 没有成功回测或存在未运行改动时禁用；
-- 当前部署与当前回测版本一致时显示暂停；
-- 线上仍是旧版本时明确提示先暂停再重新部署。
-
-“今日信号”页按部署展示最新状态、执行日、模型权益、邮件状态、买卖清单、运行日志和历史。空信号使用
-明确成功态，不与“尚未运行”混淆。
+“今日信号”页按部署展示报告来源、部署编号、状态、执行日、模型权益、邮件状态、指令与账户。点击报告来源可回到 Lab 查看该报告。暂停部署仍可查看运行历史、结算和回填，生成按钮禁用；可在 Signals 或 Lab 暂停。空信号使用明确成功态，不与“尚未运行”混淆。
 
 ## 邮件
 
@@ -229,3 +227,25 @@ isolated-vm 双车道一致。真库 E2E 在次日模型持仓上生成贵州茅
 
 - 累积 6 个月后：回测重放 / 模拟 / 真实账户三线对比，实测执行成本反哺滑点；
 - 多策略：每部署资金硬隔离，合并清单保留来源；资金仲裁和组合回测另行设计。
+
+## 报告部署改动的 review 与验证记录
+
+提交信息：`按回测报告独立部署策略`。本轮是新增业务语义，不计作 C12 的目录整理。产品代码与 Monaco 补充修复均经过人工 review，随后完成验证。
+
+2026-09-09 验证结果：
+
+- 全工作区 typecheck（含后端依赖边界、三个 SDK/runtime 生成物一致性检查）、变更源码 ESLint/Prettier、Prisma schema validate 与 diff 检查通过。
+- API 全量 204 个文件、1108 项用例通过，覆盖报告归属与成功状态、相同配置报告独立部署、同报告并发幂等、暂停再部署、冻结配置、Factor 血缘、来源删除保护、信号与账户隔离。
+- 迁移升级用例通过，旧 active/paused 部署快照及 SignalRun/账户子记录保留，报告字段保持 null，不推断历史关联；外键和 schema drift 检查通过。Prisma `migrate dev --create-only` 生成 SQL 与审阅 SQL 逐字一致。
+- Shared/API/Web/Docs/sandboxd 构建通过；Monaco 修复后再次完成 Web 构建。Web/Docs 存在大 chunk 提示。
+- 源码和编译后的真实 Signals Worker 验证通过，覆盖报告绑定、冻结配置与血缘、账户初始化/结算/回填、失败重试和启动恢复；源码及编译 API 的 bootstrap 恢复验证通过。
+- 7 个浏览器用例全部通过：`report-deployments`、`daily-signals`、`strategy-factor-dependency`、`backtest-report-history`、`factor-report-history`、`research-execution`、`research-cell-change-review`。覆盖中英文、窄屏、来源报告跳转及 Lab/Factor/Research 编辑器和差异预览；报告部署用例的严格页面错误检查通过。
+- 已检查 `apps/web/acceptance/report-deployments-zh.png`、`report-deployments-en.png` 和 `report-deployments-mobile.png`，部署状态、报告来源和暂停后的历史账户展示正常。
+
+验证中修正了两个测试环境问题：迁移 fixture 显式创建空 SQLite 文件，浏览器隔离 fixture 补齐指数成分。首次 API 全量测试因受限环境禁止 Unix socket 失败，允许本地 socket 后全量复跑通过。
+
+浏览器验收还发现原有多个编辑器覆盖全局 MonacoEnvironment 的问题，会令 TypeScript 使用错误 worker。现由 `apps/web/src/components/monaco-setup.ts` 统一按语言注册，Lab、Factor、Research 编辑器及 Research diff 共用；经补充人工 review 后构建和上述浏览器回归通过，没有屏蔽页面错误。
+
+所有测试使用隔离数据库，开发数据库未改动；临时服务、监听端口和数据库句柄已清理。验证日志保留于 `/tmp/jixie-report-deployment-verification`。
+
+HTTP 契约同步变化：旧的 `{ strategyId }` 部署请求改为 `{ reportId }`，`GET /deployments/current` 改为部署列表。API、Web 与 Shared 应一并发布并应用迁移，旧页面需要刷新。

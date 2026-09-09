@@ -1,5 +1,7 @@
 # Read signal instructions
 
+A strategy may have several independent deployments. Check the source report and deployment ID. Paused instances remain visible for history, with Generate now disabled.
+
 After generation completes, verify the dates and model equity before reading the instruction, simulated fill, and actual execution. The simulation settles after execution-day close data is published; the user records the actual result.
 
 ## The result

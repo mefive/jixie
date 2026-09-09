@@ -106,6 +106,8 @@ export type StrategyDeploymentStatus = 'active' | 'paused';
 /** Immutable runnable strategy version used by the daily signal scheduler. */
 export interface StrategyDeployment {
   id: string;
+  /** Null only for legacy deployments whose source report is unknown. */
+  backtestReportId: string | null;
   strategyId: string;
   strategyName: string;
   status: StrategyDeploymentStatus;
@@ -146,7 +148,7 @@ export interface SignalRun {
   updatedAt: string;
 }
 
-/** Active deployment plus its most recent run, used by the Today page. */
+/** Active or paused deployment plus its most recent run, used by the Today page. */
 export interface SignalTodayEntry {
   deployment: StrategyDeployment;
   run: SignalRun | null;

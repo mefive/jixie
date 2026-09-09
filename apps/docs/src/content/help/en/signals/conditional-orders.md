@@ -52,7 +52,7 @@ These are auditable historical assumptions, not a guarantee of tick-level broker
 
 ## Modify or cancel
 
-A condition remains in the model until triggered, cancelled, or made irrelevant by holdings. Editing strategy code does not alter the currently deployed frozen version; run a formal backtest and redeploy first.
+A condition remains in the model until triggered, cancelled, or made irrelevant by holdings. Editing strategy code does not alter the currently deployed frozen version; run a new backtest and deploy its report. Other deployments remain active until individually paused.
 
 When a condition disappears from a new signal page, also verify whether an old broker-side order still exists. The system cannot cancel it for the user.
 

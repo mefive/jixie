@@ -1143,11 +1143,11 @@ model Strategy {
 /// One immutable ordinary backtest run. Strategy.lastResult remains the latest-result cache used by
 /// Strategy Lab, while this row preserves every frozen config and result for later Research access.
 model BacktestReport {
-  id           String    @id // ULID; migrated latest-result snapshots use a stable legacy: prefix
+  id           String               @id // ULID; migrated latest-result snapshots use a stable legacy: prefix
   userId       String
-  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   strategyId   String
-  strategy     Strategy  @relation(fields: [strategyId], references: [id], onDelete: Cascade)
+  strategy     Strategy             @relation(fields: [strategyId], references: [id], onDelete: Cascade)
   strategyName String
   status       String // 'running' | 'done' | 'error' | 'stale'
   config       Json // frozen BacktestConfig
@@ -1156,21 +1156,25 @@ model BacktestReport {
   payload      Json? // frozen BacktestSummary
   error        String?
   job          Job?
-  createdAt    DateTime  @default(now())
+  deployments  StrategyDeployment[]
+  createdAt    DateTime             @default(now())
   computedAt   DateTime?
 
   @@index([userId, strategyId, createdAt])
   @@index([userId, status, createdAt])
 }
 
-/// One immutable strategy version promoted from research into daily operation. Editing Strategy.config
-/// never mutates an active deployment; a changed code/config/cost snapshot requires an explicit redeploy.
+/// One deployment of an immutable successful backtest report. Different reports operate independently.
+/// Legacy deployments retain their original snapshots without an inferred report association.
 model StrategyDeployment {
   id                 String                    @id // ULID
   userId             String
   user               User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
   strategyId         String
-  strategy           Strategy                  @relation(fields: [strategyId], references: [id], onDelete: Cascade)
+  strategy           Strategy                  @relation(fields: [strategyId], references: [id], onDelete: NoAction)
+  backtestReportId   String?
+  backtestReport     BacktestReport?           @relation(fields: [backtestReportId], references: [id], onDelete: NoAction)
+  activeReportId     String?                   @unique // Same as backtestReportId while active; null after pause and for legacy rows.
   strategyName       String
   status             String // 'active' | 'paused'
   config             Json // frozen BacktestConfig
@@ -1186,6 +1190,7 @@ model StrategyDeployment {
 
   @@index([userId, status])
   @@index([strategyId, status])
+  @@index([backtestReportId])
 }
 
 /// One durable next-open signal set generated from a deployment and one market close. Retries reuse

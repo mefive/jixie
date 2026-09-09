@@ -14,8 +14,8 @@ export async function listTodaySignals(
   userId: string,
 ): Promise<Array<{ deployment: StrategyDeployment; run: SignalRun | null }>> {
   const rows = await prisma.strategyDeployment.findMany({
-    where: { userId, status: 'active' },
-    orderBy: { deployedAt: 'desc' },
+    where: { userId },
+    orderBy: [{ status: 'asc' }, { deployedAt: 'desc' }, { id: 'desc' }],
     include: {
       signalRuns: {
         orderBy: { tradeDate: 'desc' },

@@ -75,6 +75,7 @@ function LabRoute() {
     id: searchParams.get('id') || undefined,
     isNew: searchParams.has('new'),
     factorKey: searchParams.get('factorKey') || undefined,
+    report: searchParams.get('report') || undefined,
   }).current;
   return <ComplexRoute entry={labEntry} setupParams={setupParams} />;
 }

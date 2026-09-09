@@ -1,9 +1,8 @@
-import Editor, { loader, type Monaco } from '@monaco-editor/react';
+import '@src/components/monaco-setup';
+import Editor, { type Monaco } from '@monaco-editor/react';
 import { useEffect, useRef } from 'react';
 import { observer } from 'mobx-react';
 import * as monaco from 'monaco-editor';
-import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
-import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker';
 import type { FactorLanguage, Locale } from '@jixie/shared';
 import { localeStore } from '@src/i18n/locale-store';
 import {
@@ -11,14 +10,6 @@ import {
   installResearchPythonLanguage,
   researchPythonModelUri,
 } from '../research/research-python-language';
-
-// Bundle Monaco + its TS worker locally (no CDN) — powers autocomplete on `bar.` (the FactorBar fields).
-self.MonacoEnvironment = {
-  getWorker(_id, label) {
-    return label === 'typescript' || label === 'javascript' ? new tsWorker() : new editorWorker();
-  },
-};
-loader.config({ monaco });
 
 // Bilingual doc comments for the factor SDK ambient types. The TS signatures never vary by locale — only
 // this copy does — so re-registering on a language switch keeps type-checking identical.

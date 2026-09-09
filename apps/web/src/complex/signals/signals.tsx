@@ -30,6 +30,7 @@ import type {
   SignalTodayEntry,
   StrategyExecutionOverview,
 } from '@jixie/shared';
+import { Link } from 'react-router-dom';
 import { lazy, Suspense, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import classNames from 'classnames';
@@ -92,28 +93,41 @@ export const Signals = complex.component(() => {
                   icon={<FontAwesomeIcon icon={faArrowsRotate} />}
                   loading={store.runningDeploymentId === selected.deployment.id}
                   disabled={
-                    !!store.runningDeploymentId &&
-                    store.runningDeploymentId !== selected.deployment.id
+                    selected.deployment.status !== 'active' ||
+                    (!!store.runningDeploymentId &&
+                      store.runningDeploymentId !== selected.deployment.id)
                   }
                   onClick={() => void store.generate(selected.deployment.id)}
                 >
                   {t('generate')}
                 </Button>
-                <span className="jx-signals-actionHint">{t('generateHint')}</span>
+                {selected.deployment.status === 'active' && (
+                  <Button
+                    danger
+                    loading={store.pauseLoader.loading}
+                    onClick={() => void store.pauseDeployment()}
+                  >
+                    {t('pause')}
+                  </Button>
+                )}
+                <span className="jx-signals-actionHint">
+                  {t(selected.deployment.status === 'active' ? 'generateHint' : 'pausedHint')}
+                </span>
               </div>
 
-              {store.logLines.length > 0 && (
-                <div className="jx-signals-log">
-                  <LogView
-                    lines={store.logLines}
-                    emptyText={
-                      store.queuePosition
-                        ? t('queuePosition', { position: store.queuePosition })
-                        : t('logEmpty')
-                    }
-                  />
-                </div>
-              )}
+              {store.runningDeploymentId === selected.deployment.id &&
+                store.logLines.length > 0 && (
+                  <div className="jx-signals-log">
+                    <LogView
+                      lines={store.logLines}
+                      emptyText={
+                        store.queuePosition
+                          ? t('queuePosition', { position: store.queuePosition })
+                          : t('logEmpty')
+                      }
+                    />
+                  </div>
+                )}
 
               <ExecutionOverview
                 overview={store.overviewLoader.result}
@@ -159,8 +173,22 @@ function DeploymentCard({
         'jx-signals-deploymentCard--active': active,
       })}
       onClick={onClick}
+      data-deployment-id={entry.deployment.id}
     >
       <span className="jx-signals-deploymentName">{entry.deployment.strategyName}</span>
+      <span
+        className="jx-signals-deploymentMeta"
+        title={entry.deployment.backtestReportId ?? undefined}
+      >
+        {entry.deployment.backtestReportId
+          ? t('reportSource', { id: entry.deployment.backtestReportId.slice(-8) })
+          : t('legacySource')}
+        {' · '}
+        {t(entry.deployment.status === 'active' ? 'active' : 'paused')}
+      </span>
+      <span className="jx-signals-deploymentMeta" title={entry.deployment.id}>
+        {t('deploymentId', { id: entry.deployment.id.slice(-8) })}
+      </span>
       <span className="jx-signals-deploymentMeta">
         {run ? `${formatDate(run.tradeDate)} · ${t(`status.${run.status}`)}` : t('neverRun')}
       </span>
@@ -180,8 +208,23 @@ function SignalHeader({ entry }: { entry: SignalTodayEntry }) {
             date: formatDate(entry.deployment.deployedAt.slice(0, 10).replaceAll('-', '')),
           })}
         </p>
+        <p className="jx-signals-version">
+          {entry.deployment.backtestReportId ? (
+            <Link
+              to={`/lab?id=${encodeURIComponent(entry.deployment.strategyId)}&report=${encodeURIComponent(entry.deployment.backtestReportId)}`}
+            >
+              {t('reportSource', { id: entry.deployment.backtestReportId })}
+            </Link>
+          ) : (
+            t('legacySource')
+          )}
+          {' · '}
+          {t('deploymentId', { id: entry.deployment.id })}
+        </p>
       </div>
-      <Tag color="green">{t('active')}</Tag>
+      <Tag color={entry.deployment.status === 'active' ? 'green' : undefined}>
+        {t(entry.deployment.status === 'active' ? 'active' : 'paused')}
+      </Tag>
     </div>
   );
 }

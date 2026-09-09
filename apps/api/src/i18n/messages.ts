@@ -378,9 +378,17 @@ const MESSAGES = {
   },
 
   // —— Daily strategy deployment and signals ——
-  strategyNeedsBacktestBeforeDeploy: {
-    zh: '策略必须先完成一次回测才能上线',
-    en: 'Run the strategy successfully before deploying it',
+  deploymentReportNotReady: {
+    zh: '只能部署已成功完成且有结果的回测报告',
+    en: 'Only successful backtest reports with results can be deployed',
+  },
+  deploymentReportDependenciesChanged: {
+    zh: '报告的因子血缘缺失或已变化，请重新回测后部署新报告',
+    en: 'The report factor lineage is missing or has changed; run a new backtest before deployment',
+  },
+  strategyHasDeployments: {
+    zh: '该策略已有部署记录，需要保留来源报告、信号与账户，不能删除',
+    en: 'This strategy has deployment history; its source reports, signals and accounts must be retained',
   },
   strategyFutureSignalsUnsupported: {
     zh: '每日信号当前只支持股票和 ETF 策略，期货策略暂不能上线',

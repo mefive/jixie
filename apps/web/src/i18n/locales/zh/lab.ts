@@ -55,13 +55,11 @@ export const zhLab = {
   runBacktest: '运行回测',
   runDisabledHint: '改动策略后可重新运行',
   deploymentAction: '部署上线',
-  deploymentActionHint: '冻结当前回测版本并生成每日收盘信号',
-  deploymentActive: '当前回测版本已部署',
+  deploymentActionHint: '部署所选回测报告；后续编辑不会改变此部署',
+  deploymentActive: '所选报告已部署',
+  deploymentPauseHint: '暂停所选报告的部署，保留历史信号与账户',
   deploymentPause: '暂停上线',
-  deploymentOutdated: '线上仍运行旧版本；暂停后可重新部署当前版本',
-  deploymentRedeployNeeded: '暂停旧版本',
-  deploymentRunFirst: '请先运行当前改动，再部署上线',
-  deploymentNeedsResult: '策略必须先完成一次回测',
+  deploymentNeedsResult: '请选择一份成功的 TypeScript 回测报告',
   deploymentFailed: '策略部署失败',
   deploymentPauseFailed: '暂停部署失败',
   backtestHistory: {
@@ -80,7 +78,6 @@ export const zhLab = {
     percentagePointDifference: '{{value}} 个百分点',
     normalizedComparison: '净值对比（各自起点归一为 100）',
     openResearch: '在 Research 中复核',
-    latestRequired: '切回最新报告后才能部署',
   },
 
   // Code editor

@@ -1,105 +1,33 @@
 # View history and pause a deployment
 
-Run history shows whether each day completed and how many instructions it produced. Pausing stops that deployment from generating future signals without deleting its existing history.
+Daily signals stores history per deployment. The same strategy name may represent different reports or repeated deployments of one report; use the source report and deployment ID to distinguish them.
 
-## View run history
+## View history
 
-1. Open **Today**.
-2. Select the strategy on the left.
-3. Scroll to **Run history**.
-4. Check the signal date, status, and instruction count.
+1. Select an instance on the left. Both active and paused deployments are listed.
+2. Choose a signal date in **Run history** and inspect its status, instructions, and Factor inputs.
+3. Review that deployment’s model, simulation, and actual account curves. Recording fills affects only this deployment.
 
-The numbered areas are:
+A completed run with zero instructions can be valid. Running, Failed, and Interrupted describe unfinished, failed, and interrupted attempts. Refreshing does not erase history.
 
-1. Current deployment and latest date.
-2. Current run summary.
-3. History for two signal dates.
+## Pause a deployment
 
-![History containing an action and a no-action day](/docs/images/help/zh/signals/signal-history-01.png)
+Select the intended instance in **Daily signals** and choose **Pause deployment**. Alternatively, follow its source report to the Lab and choose **Pause** for that report.
 
-Possible states are:
+Pausing blocks new signals for this deployment and does not affect other instances. Queued jobs may finish, existing accounts continue to settle, and historical fills can still be recorded. A pause does not cancel broker orders or reverse actual fills. **Generate now** is disabled for paused deployments.
 
-- Done: strategy and signal calculation completed.
-- Generating: the task has not finished.
-- Failed: the task ended without a valid result.
-- Interrupted: a restart or another interruption prevented normal completion.
+## Deploy again
 
-Zero instructions can be a normal completed result. Read it together with the status and No action today.
+Select a successful report in the Lab and choose **Deploy**. Deploying a previously paused report creates a new deployment and account baseline; earlier signals and accounts remain available. Deploying a new report also leaves other active instances running.
 
-## Refresh and retry
-
-### Generating
-
-Select **Refresh** first. If it still shows generating, inspect the log and do not click Generate now repeatedly.
-
-### Interrupted
-
-The page asks you to generate again. Confirm that market data is ready, then retry.
-
-### Failed
-
-Read the page error and log. Correct the market-data, strategy-runtime, or deployment-state problem before retrying.
-
-A successful result for a deployment and signal date is stored durably. Refreshing or signing in again does not remove it.
-
-## Pause the deployment
-
-1. Return to the Backtest workspace.
-2. Open the strategy.
-3. Select **Pause live**.
-4. Wait for the action to become **Deploy live** again.
-
-After pausing:
-
-1. Current run parameters.
-2. Deployment is available again.
-3. The backtest result remains.
-
-![A strategy after pausing its deployment](/docs/images/help/zh/signals/signal-pause-01.png)
-
-After a pause:
-
-- The deployment no longer participates in future daily signal runs.
-- Existing signals and backtest results do not become real fills.
-- History remains available for checking past runs.
-- To deploy a revision, run the new version first and then create a new deployment.
-
-## When to pause
-
-- The strategy is no longer being used.
-- Its code, parameters, or data definition needs correction.
-- The live account cannot follow the model assumptions.
-- A newly backtested version must replace it.
-- Signals appear abnormal and future runs should stop during investigation.
-
-Pausing is not deletion and does not reverse any action already taken in a live account. The user must handle live-account changes separately.
+Legacy instances without a linked report can be paused directly in **Daily signals**. Select a successful report to create a new report-bound deployment.
 
 ## Notification state
 
-Each result also records email status:
-
-- Sent: delivery completed.
-- Failed: signal calculation may have succeeded, but email delivery failed.
-- Skipped in development: local or test environments deliberately did not send.
-
-Do not rely on email alone. Open Today regularly and check page status and history.
-
-## Common questions
-
-### Is history still visible after pausing?
-
-Yes. A pause changes future run state and does not delete existing run records.
-
-### How do I resume after a pause?
-
-Open the strategy, confirm that the current code and parameters have a completed result, and deploy again. This creates a new frozen deployment.
-
-### Why can a modified strategy not resume immediately?
-
-Deployment must correspond to a completed backtest. Run the revision, inspect its result, and then deploy.
+Each run records email delivery as sent, failed, or skipped in development. A delivery failure does not imply a calculation failure; check the run status and logs.
 
 ## Related articles
 
-- [Deploy a backtested strategy](/docs/help/signals/deploy-strategy)
-- [Generate today's signals](/docs/help/signals/generate-signals)
+- [Deploy a backtest report](/docs/help/signals/deploy-strategy)
+- [Generate today’s signals](/docs/help/signals/generate-signals)
 - [Read signal instructions](/docs/help/signals/read-signals)

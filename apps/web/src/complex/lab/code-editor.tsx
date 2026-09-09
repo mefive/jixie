@@ -1,9 +1,8 @@
-import Editor, { loader, type Monaco } from '@monaco-editor/react';
+import '@src/components/monaco-setup';
+import Editor, { type Monaco } from '@monaco-editor/react';
 import { useEffect } from 'react';
 import { observer } from 'mobx-react';
 import * as monaco from 'monaco-editor';
-import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
-import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker';
 import type { DtsFactorOption, Locale, StrategyLanguage } from '@jixie/shared';
 import i18n from '@src/i18n';
 import { localeStore } from '@src/i18n/locale-store';
@@ -14,14 +13,6 @@ import { SDK_ENTRIES, LINKABLE_TYPES } from '@jixie/shared';
 // Every SDK member name (ctx.* methods + BarRow fields) and the business-type names — the tokens the
 // editor turns into clickable links → the doc page.
 const MEMBER_NAMES = [...new Set(SDK_ENTRIES.map((e) => e.name))];
-
-// Bundle Monaco + its TS worker locally (no CDN) — the TS worker is what powers autocomplete/diagnostics.
-self.MonacoEnvironment = {
-  getWorker(_id, label) {
-    return label === 'typescript' || label === 'javascript' ? new tsWorker() : new editorWorker();
-  },
-};
-loader.config({ monaco });
 
 // Retained so a locale switch can dispose the previous ambient lib before re-adding the new-locale one.
 let monacoRef: Monaco | null = null;

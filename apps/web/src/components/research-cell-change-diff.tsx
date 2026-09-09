@@ -1,14 +1,7 @@
-import { DiffEditor, loader } from '@monaco-editor/react';
+import '@src/components/monaco-setup';
+import { DiffEditor } from '@monaco-editor/react';
 import type { ResearchCellChangeOperationV1 } from '@jixie/shared';
 import * as monaco from 'monaco-editor';
-import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
-
-self.MonacoEnvironment = {
-  getWorker() {
-    return new editorWorker();
-  },
-};
-loader.config({ monaco });
 
 const RESEARCH_DIFF_THEME = 'jixie-research-diff';
 

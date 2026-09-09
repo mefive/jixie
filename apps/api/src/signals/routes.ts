@@ -3,8 +3,8 @@ import { z } from 'zod';
 import { apiError, validateJson, validateQuery } from '../infra/http/errors.js';
 import { getJob } from '../infra/jobs/records.js';
 import { localeFromRequest, m } from '../infra/http/locale.js';
-import { currentDeployment } from './deployments/read.js';
-import { deployStrategy, pauseDeployment } from './deployments/manage.js';
+import { listStrategyDeployments } from './deployments/read.js';
+import { deployBacktestReport, pauseDeployment } from './deployments/manage.js';
 import { submitSignalRun } from './runs/submit.js';
 import { getSignalRun, listSignalRuns, listTodaySignals } from './runs/read.js';
 import { getStrategyExecutionOverview } from './accounting/read.js';
@@ -37,9 +37,9 @@ const actualExecutionSchema = z.discriminatedUnion('status', [
 
 routes.get('/today', async (c) => c.json(await listTodaySignals(c.var.userId)));
 
-routes.get('/deployments/current', validateQuery(strategyQuery), async (c) => {
-  const deployment = await currentDeployment(c.var.userId, c.req.valid('query').strategyId);
-  return c.json({ deployment });
+routes.get('/deployments', validateQuery(strategyQuery), async (c) => {
+  const deployments = await listStrategyDeployments(c.var.userId, c.req.valid('query').strategyId);
+  return c.json(deployments);
 });
 
 routes.get('/deployments/:id/execution-overview', async (c) => {
@@ -47,35 +47,33 @@ routes.get('/deployments/:id/execution-overview', async (c) => {
   return overview ? c.json(overview) : apiError(c, 'NOT_FOUND', m(c, 'strategyDeploymentNotFound'));
 });
 
-routes.post(
-  '/deployments',
-  validateJson(z.object({ strategyId: z.string().min(1) })),
-  async (c) => {
-    const result = await deployStrategy(
-      c.var.userId,
-      c.req.valid('json').strategyId,
-      localeFromRequest(c),
-    ).catch((error) => ({ kind: 'invalid' as const, error }));
-    switch (result.kind) {
-      case 'ready':
-        return c.json(result.deployment);
-      case 'not_found':
-        return apiError(c, 'NOT_FOUND', m(c, 'strategyNotFound'));
-      case 'no_backtest':
-        return apiError(c, 'VALIDATION_FAILED', m(c, 'strategyNeedsBacktestBeforeDeploy'));
-      case 'language_unsupported':
-        return apiError(c, 'VALIDATION_FAILED', m(c, 'strategyPythonSignalsUnsupported'));
-      case 'futures_unsupported':
-        return apiError(c, 'VALIDATION_FAILED', m(c, 'strategyFutureSignalsUnsupported'));
-      case 'invalid':
-        return apiError(
-          c,
-          'VALIDATION_FAILED',
-          result.error instanceof Error ? result.error.message : m(c, 'invalidInput'),
-        );
-    }
-  },
-);
+routes.post('/deployments', validateJson(z.object({ reportId: z.string().min(1) })), async (c) => {
+  const result = await deployBacktestReport(
+    c.var.userId,
+    c.req.valid('json').reportId,
+    localeFromRequest(c),
+  ).catch((error) => ({ kind: 'invalid' as const, error }));
+  switch (result.kind) {
+    case 'ready':
+      return c.json(result.deployment);
+    case 'not_found':
+      return apiError(c, 'NOT_FOUND', m(c, 'backtestReportNotFound'));
+    case 'report_not_ready':
+      return apiError(c, 'VALIDATION_FAILED', m(c, 'deploymentReportNotReady'));
+    case 'dependencies_changed':
+      return apiError(c, 'VALIDATION_FAILED', m(c, 'deploymentReportDependenciesChanged'));
+    case 'language_unsupported':
+      return apiError(c, 'VALIDATION_FAILED', m(c, 'strategyPythonSignalsUnsupported'));
+    case 'futures_unsupported':
+      return apiError(c, 'VALIDATION_FAILED', m(c, 'strategyFutureSignalsUnsupported'));
+    case 'invalid':
+      return apiError(
+        c,
+        'VALIDATION_FAILED',
+        result.error instanceof Error ? result.error.message : m(c, 'invalidInput'),
+      );
+  }
+});
 
 routes.post('/deployments/:id/pause', async (c) => {
   const deployment = await pauseDeployment(c.var.userId, c.req.param('id'));

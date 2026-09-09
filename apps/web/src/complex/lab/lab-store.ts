@@ -29,14 +29,14 @@ import i18n from '@src/i18n';
 import { AgentTurnStream, type AgentTurnHandlers } from '@src/components/agent-turn-stream';
 import {
   createStrategy,
-  deployStrategy,
+  deployBacktestReport,
   deleteStrategy,
   findBacktestRunningJob,
   findRunningStrategyScan,
   getFactorComposite,
   getBacktestReport,
   getStrategy,
-  getCurrentStrategyDeployment,
+  listStrategyDeployments,
   getStrategyScanReport,
   fetchIndexSeries,
   inspectStrategyParameters,
@@ -58,9 +58,9 @@ import { BENCHMARKS, type BenchmarkSeries } from './benchmarks';
 import { pushRecent, readRecents, removeRecent } from './recents';
 import { PANEL_ASSET_IDS } from '../factor/panel-universe';
 
-type LabSetupParams = { id?: string; isNew?: boolean; factorKey?: string };
+type LabSetupParams = { id?: string; report?: string; isNew?: boolean; factorKey?: string };
 type DeploymentAction =
-  | { type: 'deploy'; strategyId: string }
+  | { type: 'deploy'; reportId: string }
   | { type: 'pause'; deploymentId: string };
 
 /**
@@ -104,7 +104,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
   public scanLogLines: LogLine[] = [];
   public scanError: string | null = null;
   public scanQueuePosition: number | null = null;
-  public deployment: StrategyDeployment | null = null;
+  public deployments: StrategyDeployment[] = [];
   public deploymentError: string | null = null;
 
   private jobId: string | null = null; // polling cursor for the current backtest
@@ -122,7 +122,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
   public scanParametersLoader = new LoaderModel<Record<string, StrategyParamValue>>();
   public scanHistoryLoader = new LoaderModel<StrategyScanReportSummary[]>();
   public scanReportLoader = new LoaderModel<StrategyScanReport>();
-  public deploymentLoader = new LoaderModel<StrategyDeployment | null>();
+  public deploymentLoader = new LoaderModel<StrategyDeployment[]>();
   public deploymentActionLoader = new LoaderModel<StrategyDeployment>();
   public factorLoader = new LoaderModel<{ factor: FactorMeta; assets: string[] } | null>();
 
@@ -154,13 +154,14 @@ export class LabStore extends BaseStore<LabSetupParams> {
       scanLogLines: observable.ref,
       scanError: observable.ref,
       scanQueuePosition: observable.ref,
-      deployment: observable.ref,
+      deployments: observable.ref,
+      deployment: computed,
+      canDeployReport: computed,
       deploymentError: observable.ref,
       config: computed,
       dirty: computed,
       edited: computed,
       isFresh: computed,
-      deploymentCurrent: computed,
       viewingLatestBacktest: computed,
     });
   }
@@ -199,13 +200,12 @@ export class LabStore extends BaseStore<LabSetupParams> {
     });
     this.scanReportLoader.setup({ request: (reportId: string) => getStrategyScanReport(reportId) });
     this.deploymentLoader.setup({
-      request: async (strategyId: string) =>
-        (await getCurrentStrategyDeployment(strategyId)).deployment,
+      request: (strategyId: string) => listStrategyDeployments(strategyId),
     });
     this.deploymentActionLoader.setup({
       request: (action: DeploymentAction) =>
         action.type === 'deploy'
-          ? deployStrategy(action.strategyId)
+          ? deployBacktestReport(action.reportId)
           : pauseStrategyDeployment(action.deploymentId),
     });
     this.factorLoader.setup({
@@ -265,7 +265,9 @@ export class LabStore extends BaseStore<LabSetupParams> {
     const initialId = params.isNew ? '' : params.id || readRecents()[0];
     if (initialId) {
       this.initializing = true;
-      void this.openSaved(initialId).finally(() => runInAction(() => (this.initializing = false)));
+      void this.openSaved(initialId, params.report).finally(() =>
+        runInAction(() => (this.initializing = false)),
+      );
     }
   }
 
@@ -317,26 +319,26 @@ export class LabStore extends BaseStore<LabSetupParams> {
     return this.configKey() !== this.persistedConfig;
   }
 
-  /** The active deployment freezes exactly the currently committed run configuration. */
-  public get deploymentCurrent(): boolean {
-    if (!this.deployment) {
-      return false;
-    }
-    const config = this.deployment.config;
+  /** Report identity governs deployment; mutable editor state is irrelevant. */
+  public get deployment(): StrategyDeployment | null {
     return (
-      JSON.stringify({
-        start: config.start,
-        end: config.end,
-        initialCash: config.initialCash,
-        cost: config.cost,
-        code: config.code,
-        language: config.language ?? 'typescript',
-        runtimeVersion: config.runtimeVersion ?? 'ts-v1',
-      }) === this.configKey()
+      this.deployments.find(
+        (deployment) =>
+          deployment.backtestReportId === this.activeBacktestReportId &&
+          deployment.backtestReportId !== null &&
+          deployment.status === 'active',
+      ) ?? null
     );
   }
 
-  /** Historical results are read-only; deployment and the standalone trade page stay tied to the latest run. */
+  public get canDeployReport(): boolean {
+    const report = this.backtestHistoryLoader.result?.find(
+      (candidate) => candidate.id === this.activeBacktestReportId,
+    );
+    return !!report && report.language === 'typescript';
+  }
+
+  /** The standalone trade page remains tied to the latest run. */
   public get viewingLatestBacktest(): boolean {
     const latestReportId = this.backtestHistoryLoader.result?.[0]?.id;
     return !latestReportId || this.activeBacktestReportId === latestReportId;
@@ -547,7 +549,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
       this.scanReport = null;
       this.scanLogLines = [];
       this.scanError = null;
-      this.deployment = null;
+      this.deployments = [];
       this.deploymentError = null;
       this.savedId = null;
       this.savedConfig = ''; // never run → dirty (runnable)
@@ -566,19 +568,34 @@ export class LabStore extends BaseStore<LabSetupParams> {
   }
 
   public async deploy() {
-    if (!this.savedId || !this.result || this.dirty || !this.viewingLatestBacktest) {
+    if (
+      !this.savedId ||
+      !this.activeBacktestReportId ||
+      !this.canDeployReport ||
+      this.deploymentActionLoader.loading
+    ) {
       return;
     }
+    const strategyId = this.savedId;
     try {
       const deployment = await this.deploymentActionLoader.run({
         type: 'deploy',
-        strategyId: this.savedId,
+        reportId: this.activeBacktestReportId,
       });
+      if (this.savedId !== strategyId) {
+        return;
+      }
       runInAction(() => {
-        this.deployment = deployment;
+        this.deployments = [
+          deployment,
+          ...this.deployments.filter((candidate) => candidate.id !== deployment.id),
+        ];
         this.deploymentError = null;
       });
     } catch (error) {
+      if (this.savedId !== strategyId) {
+        return;
+      }
       runInAction(() => {
         this.deploymentError =
           error instanceof Error ? error.message : i18n.t('lab:deploymentFailed');
@@ -587,19 +604,28 @@ export class LabStore extends BaseStore<LabSetupParams> {
   }
 
   public async pauseDeployment() {
-    if (!this.deployment) {
+    if (!this.deployment || this.deploymentActionLoader.loading) {
       return;
     }
+    const strategyId = this.savedId;
     try {
-      await this.deploymentActionLoader.run({
+      const paused = await this.deploymentActionLoader.run({
         type: 'pause',
         deploymentId: this.deployment.id,
       });
+      if (this.savedId !== strategyId) {
+        return;
+      }
       runInAction(() => {
-        this.deployment = null;
+        this.deployments = this.deployments.map((deployment) =>
+          deployment.id === paused.id ? paused : deployment,
+        );
         this.deploymentError = null;
       });
     } catch (error) {
+      if (this.savedId !== strategyId) {
+        return;
+      }
       runInAction(() => {
         this.deploymentError =
           error instanceof Error ? error.message : i18n.t('lab:deploymentPauseFailed');
@@ -707,7 +733,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
 
   /** Reopen a saved strategy: load its config + last result, and re-attach to a running backtest if one
    * is still in flight for it (so a refresh continues streaming logs instead of losing the run). */
-  public async openSaved(id: string) {
+  public async openSaved(id: string, reportId?: string) {
     this.deploymentActionLoader.reset();
     this.backtestHistoryLoader.abort();
     this.backtestHistoryLoader.reset();
@@ -737,7 +763,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
       this.scanLogLines = [];
       this.scanError = null;
       this.scanQueuePosition = null;
-      this.deployment = null;
+      this.deployments = [];
       this.deploymentError = null;
     });
     this.loadBenchmarks(this.result);
@@ -748,6 +774,15 @@ export class LabStore extends BaseStore<LabSetupParams> {
         runInAction(() => {
           this.activeBacktestReportId = reports[0]?.id ?? null;
         });
+        const selectedReportId =
+          reports.find((report) => report.id === reportId)?.id ?? reports[0]?.id;
+        if (selectedReportId && (reportId || !this.result)) {
+          // Draft saves may clear lastResult, but their historical reports remain deployable.
+          runInAction(() => {
+            this.activeBacktestReportId = null;
+          });
+          void this.viewBacktestReport(selectedReportId);
+        }
       }
     });
     void this.scanHistoryLoader.run(id).then((reports) => {
@@ -755,10 +790,10 @@ export class LabStore extends BaseStore<LabSetupParams> {
         void this.loadScanReport(reports[0].id);
       }
     });
-    void this.deploymentLoader.run(id).then((deployment) => {
+    void this.deploymentLoader.run(id).then((deployments) => {
       if (this.savedId === id) {
         runInAction(() => {
-          this.deployment = deployment;
+          this.deployments = deployments;
           this.deploymentError = null;
         });
       }
@@ -915,6 +950,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
     }
     runInAction(() => {
       this.activeBacktestReportId = detail.id;
+      this.deploymentError = null;
       this.result = detail.result;
       this.error = null;
     });

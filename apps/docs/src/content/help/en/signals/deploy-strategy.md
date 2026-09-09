@@ -1,90 +1,46 @@
-# Deploy a backtested strategy
+# Deploy a backtest report
 
-Deployment freezes the strategy version that has already been run so the Today page can generate close-based signals. Unrun editor drafts do not go live automatically.
+Deployment turns a successful backtest report into an independent operating instance. Later strategy edits and backtests do not change an existing deployment.
 
-## Before you start
+## Select and deploy a report
 
-The strategy must:
+1. Open the strategy in the Lab and select the intended report from backtest history. Historical reports can also be deployed.
+2. Inspect that report’s results and report information. The current editor draft may differ from a historical report.
+3. Select **Deploy**. After success, the action becomes **Pause**.
+4. Open **Daily signals** and check the source report, deployment ID, date, and status. Follow the report link to return to that report.
 
-- Have completed a backtest successfully.
-- Have no unrun code or parameter changes.
-- Have no backtest currently running.
-- Use supported stocks or ETFs. Index-futures daily signals are not currently supported.
+Deployment supports successful TypeScript stock/ETF reports with results. Python and futures are not supported. Referenced Factors must meet publication requirements and match the report’s lineage. Missing or changed evidence requires a new backtest report.
 
-**Deploy live** remains unavailable before the first result or after an unrun edit.
+## Reports, drafts, and deployments
 
-## Deploy the current result
-
-1. Open the strategy in the Backtest workspace.
-2. Confirm that the displayed result is the version you intend to deploy.
-3. Check the dates, initial cash, and code.
-4. Select **Deploy live**.
-5. Wait for the action to change to **Pause live**.
-
-The numbered areas are:
-
-1. Current strategy.
-2. Run-parameter summary.
-3. **Deploy live**.
-4. Current backtest result.
-
-![A backtested strategy ready for deployment](/docs/images/help/zh/signals/signal-deploy-ready-01.png)
-
-After deployment:
-
-1. The top still shows the frozen run parameters.
-2. The action changes to **Pause live**.
-3. The result remains visible.
-
-![A strategy after deployment](/docs/images/help/zh/signals/signal-deploy-active-01.png)
-
-Deployment freezes the code, start and end dates, initial cash, and trading-cost settings. Today signals use this version and do not read subsequent unrun text from the editor.
-
-## Edit after deployment
-
-When the editor contains an unrun change:
-
-1. **Run backtest** becomes available again.
-2. The old frozen version remains active.
-3. The deployment action identifies the old version that must be paused.
-
-![An unrun edit after deployment](/docs/images/help/zh/signals/signal-deploy-outdated-01.png)
-
-To deploy the revision:
-
-1. Pause the old version.
-2. Run a backtest with the current code.
-3. Inspect the new result.
-4. Deploy again.
-
-Do not assume that an editor change has altered the live version. The page keeps drafts, results, and deployments separate.
-
-## Where to go next
-
-Select **Today** in the top navigation. The deployed strategy appears on the left; its deployment date, code version, and **Generate now** action appear on the right.
-
-Deployment does not send orders to a broker and does not guarantee an instruction every day. It establishes a fixed strategy version that can run on close data.
+- Editing a draft does not change its reports or deployments and does not label a deployed report as outdated.
+- Two reports with identical code and settings can operate simultaneously, with separate signals and accounts.
+- A report has at most one active deployment. Repeated requests return that deployment.
+- Deploying another report does not pause any other deployment. Select the intended instance in **Daily signals** and choose **Pause deployment**, or select its source report in the Lab and choose **Pause**.
+- Deploying a paused report again creates a new deployment and account baseline; previous signals and accounts remain available.
 
 ## Common questions
 
-### Deploy live is disabled
+### Can I deploy while the draft has unrun edits?
 
-Complete a backtest first. After changing code, dates, cash, or costs, run again so the displayed result matches the current settings.
+Yes. You can deploy a successful report using its frozen settings. To deploy the edited content, run a new backtest and select the new report.
 
-### Why does the page identify an old live version after editing?
+### Why is Deploy disabled?
 
-The deployed version is frozen. The old version remains active until it is paused and a completed revision is deployed.
+Select a successful TypeScript report and wait for it to load. The API also checks supported assets and Factor publication requirements.
 
-### Can I delete a deployed strategy?
+### Why does a legacy deployment have no linked report?
 
-Pause it first and confirm that its signal history is no longer needed. Do not remove a strategy that still has an active deployment.
+Older data did not reliably record its source report. The system retains the frozen configuration and status without guessing from matching code. Legacy instances can still be viewed, run, and paused.
 
-### Why can an index-futures strategy not be deployed?
+### Can I delete the strategy after deploying it?
 
-Today signals currently support stock and ETF instructions, not index futures. Futures results remain available in the Backtest workspace.
+Strategies with deployment history cannot be deleted, including paused deployments. This preserves source reports, signals, and accounts.
+
+Deployment does not connect to a broker, place orders, or guarantee daily trading instructions.
 
 ## Related articles
 
-- [Generate today's signals](/docs/help/signals/generate-signals)
+- [Generate today’s signals](/docs/help/signals/generate-signals)
+- [View history and pause a deployment](/docs/help/signals/history-pause)
 - [Read signal instructions](/docs/help/signals/read-signals)
-- [Set backtest run parameters](/docs/help/backtesting/run-settings)

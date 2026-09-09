@@ -1623,12 +1623,12 @@ export const HELP_ARTICLES: HelpArticle[] = [
     slug: 'signals/deploy-strategy',
     group: 'signals',
     title: {
-      zh: '部署回测策略',
-      en: 'Deploy a backtested strategy',
+      zh: '部署回测报告',
+      en: 'Deploy a backtest report',
     },
     summary: {
-      zh: '冻结已经完成回测的版本，并区分编辑器草稿、回测结果和线上版本。',
-      en: 'Freeze a completed backtest version and distinguish drafts, results, and deployments.',
+      zh: '按成功回测报告独立部署，区分报告来源、编辑草稿与各自的运行账户。',
+      en: 'Deploy successful reports independently with traceable sources and separate accounts.',
     },
     content: {
       zh: deployStrategyZh,

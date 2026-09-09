@@ -36,6 +36,21 @@ describe('factor signal lineage', () => {
     expect(() => assertFactorDependencies(null, [dependency])).not.toThrow();
   });
 
+  it('normalizes legacy TypeScript metadata but rejects language or runtime drift', () => {
+    expect(() =>
+      assertFactorDependencies(
+        [dependency],
+        [{ ...dependency, language: 'typescript', runtimeVersion: 'ts-v1' }],
+      ),
+    ).not.toThrow();
+    expect(() =>
+      assertFactorDependencies(
+        [dependency],
+        [{ ...dependency, language: 'python', runtimeVersion: 'py-v1' }],
+      ),
+    ).toThrow('Factor dependency snapshot mismatch');
+  });
+
   it('freezes Definition V2 inputs independent of declaration order', () => {
     const expected = {
       ...dependency,

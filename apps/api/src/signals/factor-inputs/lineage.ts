@@ -47,6 +47,9 @@ function canonicalJson(dependencies: FactorDependency[]): string {
         key: dependency.key,
         name: dependency.name,
         analysisKind: dependency.analysisKind,
+        language: dependency.language ?? 'typescript',
+        runtimeVersion:
+          dependency.runtimeVersion ?? (dependency.language === 'python' ? 'py-v1' : 'ts-v1'),
         codeHash: dependency.codeHash,
         approvedReportId: dependency.approvedReportId ?? null,
         inputs: dependency.inputs ? [...dependency.inputs].sort() : null,

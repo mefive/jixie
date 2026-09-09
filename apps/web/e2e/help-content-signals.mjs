@@ -3,7 +3,7 @@ import { chromium } from 'playwright';
 
 const BASE = process.env.E2E_BASE ?? 'http://localhost:5173';
 const OUTPUT = new URL('../../docs/public/images/help/zh/signals/', import.meta.url).pathname;
-const EMAIL = 'e2e-help-signals@test.com';
+const EMAIL = `e2e-help-signals-${Date.now()}@test.com`;
 const STRATEGY_NAME = '每日信号帮助示例';
 const STRATEGY_CODE = [
   'export default defineStrategy({',
@@ -125,12 +125,12 @@ async function captureDeploymentFlow() {
   await editor.click();
   await page.keyboard.press('Meta+End');
   await page.keyboard.insertText('\n// 尚未运行的修改');
-  const outdated = page.getByRole('button', { name: '暂停旧版本' });
-  await outdated.waitFor();
-  await annotatedScreenshot(page, `${OUTPUT}signal-deploy-outdated-01.png`, [
+  const unchangedDeployment = page.getByRole('button', { name: '暂停上线' });
+  await unchangedDeployment.waitFor();
+  await annotatedScreenshot(page, `${OUTPUT}signal-deploy-draft-01.png`, [
     { locator: page.locator('.jx-lab-code'), number: 1 },
     { locator: page.getByRole('button', { name: '运行回测' }), number: 2 },
-    { locator: outdated, number: 3 },
+    { locator: unchangedDeployment, number: 3 },
   ]);
 
   await page.reload({ waitUntil: 'domcontentloaded' });
@@ -350,7 +350,13 @@ async function json(path, init) {
 async function cleanupDedicatedAccount() {
   const strategies = await json('/api/app/strategies');
   for (const strategy of strategies) {
-    await json(`/api/app/strategies/${strategy.id}`, { method: 'DELETE' });
+    const deployments = await json(`/api/app/signals/deployments?strategyId=${strategy.id}`);
+    for (const deployment of deployments) {
+      await json(`/api/app/signals/deployments/${deployment.id}/pause`, { method: 'POST' });
+    }
+    if (deployments.length === 0) {
+      await json(`/api/app/strategies/${strategy.id}`, { method: 'DELETE' });
+    }
   }
   strategyId = '';
 }

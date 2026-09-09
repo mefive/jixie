@@ -163,7 +163,9 @@ export const Lab = complex.component(() => {
     }
     if (id) {
       if (id !== savedId) {
-        void store.openSaved(id);
+        void store.openSaved(id, searchParams.get('report') || undefined);
+      } else if (searchParams.get('report')) {
+        void store.viewBacktestReport(searchParams.get('report')!);
       }
       return;
     }
@@ -549,56 +551,39 @@ const RunConfig = complex.component(() => {
         />
       </Tooltip>
       {store.language === 'typescript' && <ParameterScanButton />}
-      {store.language === 'typescript' &&
-        (store.deployment ? (
-          <Tooltip
-            title={
-              store.deploymentCurrent
-                ? t('deploymentPause')
-                : `${t('deploymentRedeployNeeded')} · ${t('deploymentOutdated')}`
+      {store.deployment ? (
+        <Tooltip title={t('deploymentPauseHint')}>
+          <Button
+            type="text"
+            size="small"
+            danger
+            loading={store.deploymentActionLoader.loading}
+            disabled={store.backtestReportLoader.loading}
+            icon={<FontAwesomeIcon icon={faPause} />}
+            onClick={() => void store.pauseDeployment()}
+            aria-label={t('deploymentPause')}
+          />
+        </Tooltip>
+      ) : (
+        <Tooltip
+          title={store.canDeployReport ? t('deploymentActionHint') : t('deploymentNeedsResult')}
+        >
+          <Button
+            type="text"
+            size="small"
+            loading={store.deploymentActionLoader.loading}
+            disabled={
+              !store.canDeployReport ||
+              store.deploymentLoader.loading ||
+              store.backtestReportLoader.loading
             }
-          >
-            <Button
-              type="text"
-              size="small"
-              danger
-              loading={store.deploymentActionLoader.loading}
-              icon={<FontAwesomeIcon icon={faPause} />}
-              onClick={() => void store.pauseDeployment()}
-              aria-label={
-                store.deploymentCurrent ? t('deploymentPause') : t('deploymentRedeployNeeded')
-              }
-            />
-          </Tooltip>
-        ) : (
-          <Tooltip
-            title={
-              !store.viewingLatestBacktest
-                ? `${t('deploymentAction')} · ${t('backtestHistory.latestRequired')}`
-                : store.dirty
-                  ? `${t('deploymentAction')} · ${t('deploymentRunFirst')}`
-                  : !store.result
-                    ? `${t('deploymentAction')} · ${t('deploymentNeedsResult')}`
-                    : t('deploymentAction')
-            }
-          >
-            <Button
-              type="text"
-              size="small"
-              loading={store.deploymentActionLoader.loading}
-              disabled={
-                !store.savedId ||
-                !store.result ||
-                store.dirty ||
-                store.running ||
-                !store.viewingLatestBacktest
-              }
-              icon={<FontAwesomeIcon icon={faRocket} />}
-              onClick={() => void store.deploy()}
-              aria-label={t('deploymentAction')}
-            />
-          </Tooltip>
-        ))}
+            icon={<FontAwesomeIcon icon={faRocket} />}
+            onClick={() => void store.deploy()}
+            aria-label={t('deploymentAction')}
+            data-report-id={store.activeBacktestReportId}
+          />
+        </Tooltip>
+      )}
       {store.deploymentError && (
         <span className="jx-lab-deploymentError" title={store.deploymentError}>
           <FontAwesomeIcon icon={faTriangleExclamation} />

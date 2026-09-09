@@ -23,7 +23,7 @@ try {
     const response = await fetch('/api/auth/dev/login', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ email: 'e2e-signals@test.com' }),
+      body: JSON.stringify({ email: `e2e-signals-${Date.now()}@test.com` }),
     });
     return response.status;
   });
@@ -89,7 +89,7 @@ try {
       }
       for (let attempt = 0; attempt < 120; attempt++) {
         const job = await (await fetch(`/api/app/strategy/backtest/${body.jobId}`)).json();
-        if (job.status !== 'running') {
+        if (job.status !== 'running' && job.status !== 'queued') {
           return { status: 200, body: job };
         }
         await new Promise((resolve) => setTimeout(resolve, 500));
@@ -194,7 +194,7 @@ try {
     }
     for (let attempt = 0; attempt < 120; attempt++) {
       const job = await (await fetch(`/api/app/signals/jobs/${body.jobId}`)).json();
-      if (job.status !== 'running') {
+      if (job.status !== 'running' && job.status !== 'queued') {
         return { status: 200, body: job };
       }
       await new Promise((resolve) => setTimeout(resolve, 500));
@@ -297,7 +297,15 @@ try {
   if (strategyId) {
     await page
       .evaluate(async (id) => {
-        await fetch(`/api/app/strategies/${id}`, { method: 'DELETE' });
+        const deployments = await (
+          await fetch(`/api/app/signals/deployments?strategyId=${id}`)
+        ).json();
+        for (const deployment of deployments) {
+          await fetch(`/api/app/signals/deployments/${deployment.id}/pause`, { method: 'POST' });
+        }
+        if (deployments.length === 0) {
+          await fetch(`/api/app/strategies/${id}`, { method: 'DELETE' });
+        }
       }, strategyId)
       .catch(() => {});
   }

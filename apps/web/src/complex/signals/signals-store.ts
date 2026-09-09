@@ -4,6 +4,7 @@ import type {
   LogLine,
   SignalRun,
   SignalTodayEntry,
+  StrategyDeployment,
   StrategyExecutionOverview,
 } from '@jixie/shared';
 import { BaseStore, LoaderModel, PollingModel } from '@src/lib';
@@ -12,6 +13,7 @@ import {
   listSignalRuns,
   listTodaySignals,
   pollSignalJob,
+  pauseStrategyDeployment,
   submitSignalRun,
   updateSignalExecution,
 } from '@src/api/client';
@@ -29,6 +31,7 @@ export class SignalsStore extends BaseStore {
   public todayLoader = new LoaderModel<SignalTodayEntry[]>();
   public historyLoader = new LoaderModel<SignalRun[]>();
   public overviewLoader = new LoaderModel<StrategyExecutionOverview>();
+  public pauseLoader = new LoaderModel<StrategyDeployment>();
   public poller = new PollingModel();
 
   private jobId = '';
@@ -59,6 +62,10 @@ export class SignalsStore extends BaseStore {
     this.overviewLoader.setup({
       request: (deploymentId: string) => getStrategyExecutionOverview(deploymentId),
     });
+    this.pauseLoader.setup({
+      request: (deploymentId: string) => pauseStrategyDeployment(deploymentId),
+    });
+    this.registCleaner(() => this.pauseLoader.cleanup());
     this.poller.setup({ interval: 1500, request: () => this.pollOnce() });
     this.registCleaner(() => this.todayLoader.cleanup());
     this.registCleaner(() => this.historyLoader.cleanup());
@@ -97,6 +104,8 @@ export class SignalsStore extends BaseStore {
         this.selectedDeploymentId = selected?.deployment.id ?? '';
         if (deploymentChanged) {
           this.selectedRunId = '';
+          this.historyLoader.reset();
+          this.overviewLoader.reset();
         }
         this.error = null;
       });
@@ -121,6 +130,8 @@ export class SignalsStore extends BaseStore {
     runInAction(() => {
       this.selectedDeploymentId = deploymentId;
       this.selectedRunId = '';
+      this.historyLoader.reset();
+      this.overviewLoader.reset();
       this.logLines = [];
       this.error = null;
     });
@@ -143,6 +154,9 @@ export class SignalsStore extends BaseStore {
     });
     try {
       const run = await updateSignalExecution(executionId, input);
+      if (this.selectedDeploymentId !== run.deploymentId) {
+        return;
+      }
       runInAction(() => {
         this.selectedRunId = run.id;
       });
@@ -158,8 +172,30 @@ export class SignalsStore extends BaseStore {
     }
   }
 
+  public async pauseDeployment() {
+    if (
+      !this.selected ||
+      this.selected.deployment.status !== 'active' ||
+      this.pauseLoader.loading
+    ) {
+      return;
+    }
+    try {
+      await this.pauseLoader.run(this.selected.deployment.id);
+      await this.refresh();
+    } catch (error) {
+      runInAction(() => {
+        this.error = error instanceof Error ? error.message : i18n.t('signals:pauseFailed');
+      });
+    }
+  }
+
   public async generate(deploymentId: string) {
-    if (this.runningDeploymentId) {
+    if (
+      this.runningDeploymentId ||
+      this.entries.find((entry) => entry.deployment.id === deploymentId)?.deployment.status !==
+        'active'
+    ) {
       return;
     }
     runInAction(() => {
@@ -197,10 +233,18 @@ export class SignalsStore extends BaseStore {
   }
 
   private async loadDeployment(deploymentId: string) {
-    await Promise.all([
-      this.historyLoader.run(deploymentId),
-      this.overviewLoader.run(deploymentId),
-    ]);
+    try {
+      await Promise.all([
+        this.historyLoader.run(deploymentId),
+        this.overviewLoader.run(deploymentId),
+      ]);
+    } catch (error) {
+      if (this.selectedDeploymentId === deploymentId) {
+        runInAction(() => {
+          this.error = error instanceof Error ? error.message : i18n.t('signals:loadFailed');
+        });
+      }
+    }
   }
 
   private async pollOnce(): Promise<false | void> {

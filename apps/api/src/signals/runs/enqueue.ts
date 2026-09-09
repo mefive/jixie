@@ -50,6 +50,14 @@ export async function enqueueSignalRun(
   }
 
   const start = await prisma.$transaction(async (transaction) => {
+    // Recheck after readiness work so a completed pause cannot admit a new run.
+    const currentDeployment = await transaction.strategyDeployment.findUnique({
+      where: { id: deploymentId },
+      select: { status: true },
+    });
+    if (!currentDeployment || currentDeployment.status !== 'active') {
+      return { kind: 'paused' as const };
+    }
     const existing = await transaction.signalRun.findUnique({
       where: { deploymentId_tradeDate: { deploymentId, tradeDate } },
       include: { jobs: { orderBy: { createdAt: 'desc' }, take: 1 } },
@@ -125,6 +133,10 @@ export async function enqueueSignalRun(
     });
     return { kind: 'start' as const, runId, jobId };
   });
+
+  if (start.kind === 'paused') {
+    return start;
+  }
 
   if (start.kind === 'existing') {
     const completion = start.jobId

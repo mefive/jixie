@@ -1,5 +1,7 @@
 # Generate today's signals
 
+A strategy may have several independent deployments. Check the source report and deployment ID. Paused instances remain visible for history, with Generate now disabled.
+
 After deployment, the Today page can use the latest completed trading-day close to generate instructions for the next trading day.
 
 ## Open a deployed strategy

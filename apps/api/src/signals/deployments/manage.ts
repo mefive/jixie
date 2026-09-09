@@ -6,32 +6,45 @@ import { codeConfigSchema } from '../../strategy/runtime/typescript/schema.js';
 import { inspectWalledStrategyMetadata } from '../../strategy/runtime/typescript/walled-run.js';
 import { prepareStrategyFactors } from '../../strategy/execution/prepare-factors.js';
 import { prisma } from '../../infra/database/prisma.js';
+import { assertFactorDependencies, factorDependenciesFromJson } from '../factor-inputs/lineage.js';
 import { deploymentWire } from './read.js';
 
-export type DeployStrategyResult =
+export type DeployBacktestReportResult =
   | { kind: 'ready'; deployment: StrategyDeployment }
   | { kind: 'not_found' }
-  | { kind: 'no_backtest' }
+  | { kind: 'report_not_ready' }
+  | { kind: 'dependencies_changed' }
   | { kind: 'language_unsupported' }
   | { kind: 'futures_unsupported' };
 
-export async function deployStrategy(
+export async function deployBacktestReport(
   userId: string,
-  strategyId: string,
+  reportId: string,
   locale: Locale,
-): Promise<DeployStrategyResult> {
-  const strategy = await prisma.strategy.findFirst({
-    where: { id: strategyId, userId },
-    select: { id: true, name: true, config: true, lastResult: true },
+): Promise<DeployBacktestReportResult> {
+  const report = await prisma.backtestReport.findFirst({
+    where: { id: reportId, userId },
   });
-  if (!strategy) {
+  if (!report) {
     return { kind: 'not_found' };
   }
-  if (strategy.lastResult == null) {
-    return { kind: 'no_backtest' };
+  if (
+    report.status !== 'done' ||
+    !report.payload ||
+    typeof report.payload !== 'object' ||
+    Array.isArray(report.payload)
+  ) {
+    return { kind: 'report_not_ready' };
   }
 
-  const config = codeConfigSchema.parse(strategy.config) as BacktestConfig;
+  const existing = await prisma.strategyDeployment.findFirst({
+    where: { activeReportId: reportId, userId },
+  });
+  if (existing) {
+    return { kind: 'ready', deployment: deploymentWire(existing) };
+  }
+
+  const config = codeConfigSchema.parse(report.config) as BacktestConfig;
   if ((config.language ?? 'typescript') === 'python') {
     return { kind: 'language_unsupported' };
   }
@@ -39,31 +52,59 @@ export async function deployStrategy(
   if (metadata.futures.length > 0) {
     return { kind: 'futures_unsupported' };
   }
-  // The UI pre-disables this path, but deployment safety is an API invariant: research-only or
-  // archived factors must never become a new daily-signal dependency through a direct request.
+  // Research-only or archived factors cannot become a new daily-signal dependency.
   const prepared = await prepareStrategyFactors(config.code, userId, locale, 'deployment');
 
-  const frozenConfig = { ...config, name: strategy.name };
+  // Deployment must use exactly the factor lineage validated by this report.
+  let dependencies;
+  try {
+    dependencies = factorDependenciesFromJson(report.payload.factorDependencies);
+    if (dependencies == null && prepared.factors.length > 0) {
+      return { kind: 'dependencies_changed' };
+    }
+    assertFactorDependencies(dependencies, prepared.factors);
+  } catch {
+    return { kind: 'dependencies_changed' };
+  }
+
+  const frozenConfig = { ...config, name: report.strategyName };
   const codeHash = createHash('sha256').update(frozenConfig.code).digest('hex');
-  const row = await prisma.$transaction(async (transaction) => {
-    await transaction.strategyDeployment.updateMany({
-      where: { strategyId, userId, status: 'active' },
-      data: { status: 'paused', stoppedAt: new Date() },
+  const create = {
+    id: ulid(),
+    userId,
+    strategyId: report.strategyId,
+    backtestReportId: report.id,
+    activeReportId: report.id,
+    strategyName: report.strategyName,
+    status: 'active',
+    config: frozenConfig as unknown as Prisma.InputJsonValue,
+    factorDependencies: (dependencies ?? []) as unknown as Prisma.InputJsonValue,
+    codeHash,
+    locale,
+  };
+  // A unique nullable key makes concurrent requests idempotent without pausing other reports.
+  const row = await prisma.strategyDeployment
+    .upsert({
+      where: { activeReportId: report.id },
+      create,
+      update: {},
+    })
+    .catch(async (error: unknown) => {
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        error.code === 'P2002'
+      ) {
+        const winner = await prisma.strategyDeployment.findFirst({
+          where: { activeReportId: report.id, userId },
+        });
+        if (winner) {
+          return winner;
+        }
+      }
+      throw error;
     });
-    return transaction.strategyDeployment.create({
-      data: {
-        id: ulid(),
-        userId,
-        strategyId,
-        strategyName: strategy.name,
-        status: 'active',
-        config: frozenConfig as unknown as Prisma.InputJsonValue,
-        factorDependencies: prepared.factors as unknown as Prisma.InputJsonValue,
-        codeHash,
-        locale,
-      },
-    });
-  });
 
   return { kind: 'ready', deployment: deploymentWire(row) };
 }
@@ -83,7 +124,7 @@ export async function pauseDeployment(
   }
   const updated = await prisma.strategyDeployment.update({
     where: { id: deployment.id },
-    data: { status: 'paused', stoppedAt: new Date() },
+    data: { status: 'paused', activeReportId: null, stoppedAt: new Date() },
   });
   return deploymentWire(updated);
 }

@@ -185,7 +185,7 @@ try {
   const deployment = await api('/api/app/signals/deployments', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ strategyId }),
+    body: JSON.stringify({ reportId: backtest.body.reportId }),
   });
   if (!deployment.ok || deployment.body.factorDependencies?.[0]?.factorId !== factor.body.id) {
     throw new Error(`deployment did not freeze Factor lineage: ${JSON.stringify(deployment)}`);

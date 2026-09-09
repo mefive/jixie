@@ -40,8 +40,9 @@ vi.mock('../infra/jobs/queue.js', () => ({
 
 import { prisma } from '../infra/database/prisma.js';
 import { t } from '../i18n/index.js';
+import { deleteStrategy } from '../strategy/definitions/drafts.js';
 import { routes } from './routes.js';
-import { deployStrategy } from './deployments/manage.js';
+import { deployBacktestReport } from './deployments/manage.js';
 import { enqueueSignalRun } from './runs/enqueue.js';
 import { initializeSignalAccounting } from './accounting/initialize.js';
 import { settleStrategyAccounts } from './accounting/settlement.js';
@@ -82,12 +83,25 @@ function request(path: string, body?: unknown, userId = 'owner', method = 'POST'
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
 }
-async function deploy() {
-  const result = await deployStrategy('owner', 'strategy', 'en');
+async function deploy(reportId = 'report') {
+  const result = await deployBacktestReport('owner', reportId, 'en');
   if (result.kind !== 'ready') {
     throw new Error(`Unexpected deployment result: ${result.kind}`);
   }
   return result.deployment;
+}
+async function createReport(id: string, reportConfig = config) {
+  return prisma.backtestReport.create({
+    data: {
+      id,
+      userId: 'owner',
+      strategyId: 'strategy',
+      strategyName: reportConfig.name,
+      status: 'done',
+      config: reportConfig,
+      payload: { factorDependencies: dependencies },
+    },
+  });
 }
 async function enqueue(deploymentId: string) {
   const result = await enqueueSignalRun('owner', deploymentId, '20240103');
@@ -137,6 +151,7 @@ describe('Signals HTTP and persistence boundaries', () => {
         lastResult: { marker: 'backtest' },
       },
     });
+    await createReport('report');
     const dates = ['20240102', '20240103', '20240104', '20240105'];
     await prisma.tradeCal.createMany({
       data: dates.map((calDate) => ({ exchange: 'SSE', calDate, isOpen: 1 })),
@@ -179,67 +194,257 @@ describe('Signals HTTP and persistence boundaries', () => {
     await rm(fixture.directory, { recursive: true, force: true });
   });
 
-  it('enforces deployment ownership, backtest evidence, language and asset restrictions', async () => {
-    expect((await request('/deployments', { strategyId: 'strategy' }, 'other')).status).toBe(404);
-    await prisma.strategy.create({ data: { id: 'unrun', userId: 'owner', name: 'Unrun', config } });
-    const unrun = await request('/deployments', { strategyId: 'unrun' });
-    expect(unrun.status).toBe(400);
-    expect(await unrun.json()).toMatchObject({
-      error: { message: t('en', 'strategyNeedsBacktestBeforeDeploy') },
-    });
-    await prisma.strategy.update({
-      where: { id: 'strategy' },
-      data: { config: { ...config, language: 'python', runtimeVersion: 'py-v1' } },
-    });
+  it('enforces report ownership, completed evidence, language and asset restrictions', async () => {
+    expect((await request('/deployments', { reportId: 'report' }, 'other')).status).toBe(404);
     expect((await request('/deployments', { strategyId: 'strategy' })).status).toBe(400);
+    expect((await request('/deployments', { reportId: 'missing' })).status).toBe(404);
+    await prisma.backtestReport.create({
+      data: {
+        id: 'empty-report',
+        userId: 'owner',
+        strategyId: 'strategy',
+        strategyName: config.name,
+        status: 'done',
+        config,
+      },
+    });
+    expect((await request('/deployments', { reportId: 'empty-report' })).status).toBe(400);
+    for (const status of ['running', 'error', 'stale']) {
+      await prisma.backtestReport.update({ where: { id: 'report' }, data: { status } });
+      const response = await request('/deployments', { reportId: 'report' });
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({
+        error: { message: t('en', 'deploymentReportNotReady') },
+      });
+    }
+    await prisma.backtestReport.update({
+      where: { id: 'report' },
+      data: {
+        status: 'done',
+        config: { ...config, language: 'python', runtimeVersion: 'py-v1' },
+      },
+    });
+    expect((await request('/deployments', { reportId: 'report' })).status).toBe(400);
     expect(resources.metadata).not.toHaveBeenCalled();
-    await prisma.strategy.update({ where: { id: 'strategy' }, data: { config } });
+    await prisma.backtestReport.update({ where: { id: 'report' }, data: { config } });
     resources.metadata.mockResolvedValue({ watch: [], futures: ['IF.CFX'], factors: [] });
-    expect((await request('/deployments', { strategyId: 'strategy' })).status).toBe(400);
+    expect((await request('/deployments', { reportId: 'report' })).status).toBe(400);
     expect(resources.factors).not.toHaveBeenCalled();
     expect(await prisma.strategyDeployment.count()).toBe(0);
   });
 
-  it('freezes each deployment and atomically replaces the active version', async () => {
-    const first = await deploy();
-    const changed = { ...config, initialCash: 200_000 };
+  it('freezes the report despite later draft edits and independently deploys identical reports', async () => {
     await prisma.strategy.update({
       where: { id: 'strategy' },
-      data: { name: 'Revised', config: changed },
+      data: {
+        name: 'Revised',
+        config: { ...config, code: 'changed draft', initialCash: 200_000 },
+      },
     });
-    const response = await request('/deployments', { strategyId: 'strategy' });
-    expect(response.status).toBe(200);
-    const second = await response.json();
-    expect(second).toMatchObject({
-      strategyName: 'Revised',
-      config: { ...changed, name: 'Revised' },
+    const first = await deploy();
+    expect(first).toMatchObject({
+      backtestReportId: 'report',
+      strategyName: config.name,
+      config,
       factorDependencies: dependencies,
     });
-    expect(second.codeHash).toBe(createHash('sha256').update(config.code).digest('hex'));
+    expect(first.codeHash).toBe(createHash('sha256').update(config.code).digest('hex'));
+    await createReport('same-config-report');
+    const second = await deploy('same-config-report');
+    expect(second.id).not.toBe(first.id);
+    expect(second.config).toEqual(first.config);
+    expect(await prisma.strategyDeployment.count({ where: { status: 'active' } })).toBe(2);
+    expect(resources.factors).toHaveBeenLastCalledWith(config.code, 'owner', 'en', 'deployment');
+    const listed = await (
+      await request('/deployments?strategyId=strategy', undefined, 'owner', 'GET')
+    ).json();
+    expect(listed).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: first.id }),
+        expect.objectContaining({ id: second.id }),
+      ]),
+    );
+    expect(
+      await (await request('/deployments?strategyId=strategy', undefined, 'other', 'GET')).json(),
+    ).toEqual([]);
+    expect((await request(`/deployments/${first.id}/pause`, undefined, 'other')).status).toBe(404);
+    expect((await request(`/deployments/${first.id}/pause`)).status).toBe(200);
+    expect((await request(`/deployments/${first.id}/pause`)).status).toBe(200);
+    expect(
+      await prisma.strategyDeployment.findUniqueOrThrow({ where: { id: second.id } }),
+    ).toMatchObject({ status: 'active' });
+    const restarted = await deploy();
+    expect(restarted.id).not.toBe(first.id);
     expect(
       await prisma.strategyDeployment.findUniqueOrThrow({ where: { id: first.id } }),
-    ).toMatchObject({ status: 'paused', config, factorDependencies: dependencies });
-    expect(resources.factors).toHaveBeenLastCalledWith(config.code, 'owner', 'en', 'deployment');
-    expect(
-      await (
-        await request('/deployments/current?strategyId=strategy', undefined, 'owner', 'GET')
-      ).json(),
-    ).toMatchObject({ deployment: { id: second.id } });
-    expect((await request(`/deployments/${second.id}/pause`, undefined, 'other')).status).toBe(404);
-    expect((await request(`/deployments/${second.id}/pause`)).status).toBe(200);
-    expect((await request(`/deployments/${second.id}/pause`)).status).toBe(200);
+    ).toMatchObject({ status: 'paused', activeReportId: null, backtestReportId: 'report' });
+    expect(await (await request('/today', undefined, 'owner', 'GET')).json()).toHaveLength(3);
+    expect(await enqueueSignalRun('owner', first.id, '20240103')).toEqual({ kind: 'paused' });
   });
 
-  it('rolls back pausing the old deployment when creating its replacement fails', async () => {
+  it('deduplicates concurrent deployment requests for one report with a database constraint', async () => {
+    const results = await Promise.all(Array.from({ length: 4 }, () => deploy()));
+    expect(new Set(results.map((deployment) => deployment.id)).size).toBe(1);
+    expect((await deploy()).id).toBe(results[0].id);
+    expect(await prisma.strategyDeployment.count()).toBe(1);
+    const row = await prisma.strategyDeployment.findFirstOrThrow();
+    await expect(
+      prisma.strategyDeployment.create({
+        data: { ...row, id: 'duplicate', config, factorDependencies: dependencies },
+      }),
+    ).rejects.toMatchObject({ code: 'P2002' });
+  });
+
+  it('does not pause any deployment when creating another report deployment fails', async () => {
     const first = await deploy();
+    await createReport('another-report');
     resources.id.mockReturnValueOnce(first.id);
-    await expect(deployStrategy('owner', 'strategy', 'en')).rejects.toMatchObject({
-      code: 'P2002',
-    });
+    await expect(deploy('another-report')).rejects.toMatchObject({ code: 'P2002' });
     expect(await prisma.strategyDeployment.count()).toBe(1);
     expect(
       await prisma.strategyDeployment.findUniqueOrThrow({ where: { id: first.id } }),
     ).toMatchObject({ status: 'active', stoppedAt: null });
+  });
+
+  it('rejects missing or changed factor evidence rather than silently deploying current dependencies', async () => {
+    resources.factors.mockResolvedValueOnce({
+      modules: [],
+      factors: [{ ...dependencies[0], codeHash: 'changed' }],
+    });
+    expect(await deployBacktestReport('owner', 'report', 'en')).toEqual({
+      kind: 'dependencies_changed',
+    });
+    await prisma.backtestReport.update({ where: { id: 'report' }, data: { payload: {} } });
+    expect(await deployBacktestReport('owner', 'report', 'en')).toEqual({
+      kind: 'dependencies_changed',
+    });
+    expect(await prisma.strategyDeployment.count()).toBe(0);
+    resources.factors.mockResolvedValue({ modules: [], factors: [] });
+    expect((await deploy()).factorDependencies).toEqual([]);
+  });
+
+  it('preserves legacy deployments without guessing their report and protects deployed source history', async () => {
+    const deployment = await deploy();
+    await prisma.strategyDeployment.update({
+      where: { id: deployment.id },
+      data: { backtestReportId: null, activeReportId: null },
+    });
+    await expect(deleteStrategy('owner', 'strategy', 'en')).rejects.toMatchObject({
+      category: 'invalid',
+      message: t('en', 'strategyHasDeployments'),
+    });
+    await expect(deleteStrategy('other', 'strategy', 'en')).rejects.toMatchObject({
+      category: 'missing',
+    });
+    const fresh = await deploy();
+    expect(fresh.id).not.toBe(deployment.id);
+    const listed = await (await request('/today', undefined, 'owner', 'GET')).json();
+    expect(listed).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          deployment: expect.objectContaining({
+            id: deployment.id,
+            backtestReportId: null,
+            status: 'active',
+          }),
+        }),
+      ]),
+    );
+    await expect(prisma.backtestReport.delete({ where: { id: 'report' } })).rejects.toMatchObject({
+      code: 'P2003',
+    });
+    await expect(prisma.strategy.delete({ where: { id: 'strategy' } })).rejects.toMatchObject({
+      code: 'P2003',
+    });
+    expect((await request(`/deployments/${deployment.id}/pause`)).status).toBe(200);
+  });
+
+  it('isolates same-date jobs and accounts for reports with identical configurations', async () => {
+    const first = await deploy();
+    await createReport('second-report');
+    const second = await deploy('second-report');
+    const firstRun = await enqueue(first.id);
+    const secondRun = await enqueue(second.id);
+    expect(firstRun.runId).not.toBe(secondRun.runId);
+    expect(firstRun.jobId).not.toBe(secondRun.jobId);
+    expect(await prisma.signalRun.count()).toBe(2);
+    expect(
+      await (await request(`/runs?deploymentId=${first.id}`, undefined, 'owner', 'GET')).json(),
+    ).toEqual([expect.objectContaining({ id: firstRun.runId, deploymentId: first.id })]);
+    expect(
+      await (await request(`/runs?deploymentId=${second.id}`, undefined, 'owner', 'GET')).json(),
+    ).toEqual([expect.objectContaining({ id: secondRun.runId, deploymentId: second.id })]);
+    for (const run of [firstRun, secondRun]) {
+      await prisma.signalRun.update({
+        where: { id: run.runId },
+        data: {
+          status: 'done',
+          modelCash: 100_000,
+          modelEquity: 100_000,
+          modelPositions: [],
+          signals: [
+            {
+              code: '000001.SZ',
+              name: 'Fixture',
+              assetType: 'stock',
+              action: 'buy',
+              shares: 100,
+              refPrice: 10,
+              refAmount: 1000,
+              source: 'order',
+            },
+          ],
+        },
+      });
+      await initializeSignalAccounting(run.runId);
+    }
+    await settleStrategyAccounts('20240104', () => {});
+    const otherBefore = await prisma.strategyAccountSnapshot.findMany({
+      where: { deploymentId: second.id },
+      orderBy: { id: 'asc' },
+    });
+    const execution = await prisma.signalExecution.findFirstOrThrow({
+      where: { signalRunId: firstRun.runId },
+    });
+    expect(
+      (
+        await request(
+          `/executions/${execution.id}`,
+          { status: 'filled', shares: 100, price: 10.08, fee: 6 },
+          'owner',
+          'PATCH',
+        )
+      ).status,
+    ).toBe(200);
+    expect(
+      await prisma.strategyAccountSnapshot.findMany({
+        where: { deploymentId: second.id },
+        orderBy: { id: 'asc' },
+      }),
+    ).toEqual(otherBefore);
+    expect(
+      await prisma.signalExecution.findFirstOrThrow({ where: { signalRunId: secondRun.runId } }),
+    ).toMatchObject({ actualStatus: 'pending' });
+    const restartedBefore = await request(`/deployments/${first.id}/pause`);
+    expect(restartedBefore.status).toBe(200);
+    const restarted = await deploy();
+    expect(
+      await prisma.strategyAccountSnapshot.count({ where: { deploymentId: restarted.id } }),
+    ).toBe(0);
+    expect(await prisma.strategyAccountSnapshot.count({ where: { deploymentId: first.id } })).toBe(
+      4,
+    );
+  });
+
+  it('does not enqueue a run if the deployment is paused during readiness checks', async () => {
+    const deployment = await deploy();
+    resources.yieldReady.mockImplementationOnce(async () => {
+      await request(`/deployments/${deployment.id}/pause`);
+      return true;
+    });
+    expect(await enqueueSignalRun('owner', deployment.id, '20240103')).toEqual({ kind: 'paused' });
+    expect(await prisma.signalRun.count()).toBe(0);
+    expect(resources.wake).not.toHaveBeenCalled();
   });
 
   it('rejects unavailable calendars and data before creating a run or waking the queue', async () => {

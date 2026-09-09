@@ -712,10 +712,10 @@ export function pollStrategyScan(reportId: string, since = 0): Promise<BacktestJ
 
 // —— Daily signals ——
 
-export function deployStrategy(strategyId: string): Promise<StrategyDeployment> {
+export function deployBacktestReport(reportId: string): Promise<StrategyDeployment> {
   return request('/api/app/signals/deployments', {
     method: 'POST',
-    body: JSON.stringify({ strategyId }),
+    body: JSON.stringify({ reportId }),
   });
 }
 
@@ -723,12 +723,8 @@ export function pauseStrategyDeployment(deploymentId: string): Promise<StrategyD
   return request(`/api/app/signals/deployments/${deploymentId}/pause`, { method: 'POST' });
 }
 
-export function getCurrentStrategyDeployment(
-  strategyId: string,
-): Promise<{ deployment: StrategyDeployment | null }> {
-  return request(
-    `/api/app/signals/deployments/current?strategyId=${encodeURIComponent(strategyId)}`,
-  );
+export function listStrategyDeployments(strategyId: string): Promise<StrategyDeployment[]> {
+  return request(`/api/app/signals/deployments?strategyId=${encodeURIComponent(strategyId)}`);
 }
 
 export function listTodaySignals(): Promise<SignalTodayEntry[]> {
