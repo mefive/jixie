@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { AgentStreamEvent } from '@jixie/shared';
-import * as turnBus from './turn-bus.js';
+import * as turnBus from './bus.js';
 
 const TRACE = { name: 'runUniverse', argsSummary: '{}', ok: true, rows: 3, ms: 5 };
 

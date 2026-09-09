@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { chatMessagesSchema } from '../../lib/chat-schema.js';
+import { chatMessagesSchema } from '../../agent/conversations/schema.js';
 
 export const FACTOR_KEY_PATTERN = /^[a-z][a-z0-9_]{0,31}$/;
 

@@ -1,13 +1,13 @@
 import { Worker } from 'node:worker_threads';
 import type { BacktestConfig, BacktestMetricSummary, Locale } from '@jixie/shared';
 import { z } from 'zod';
-import { prisma } from '../../infra/database/prisma.js';
-import { codeConfigSchema } from '../../strategy/runtime/typescript/schema.js';
-import type { AgentTool } from './types.js';
+import { prisma } from '../../../infra/database/prisma.js';
+import { codeConfigSchema } from '../../../strategy/runtime/typescript/schema.js';
+import type { AgentTool } from '../types.js';
 
 const workerUrl = import.meta.url.endsWith('.ts')
-  ? new URL('../../engine/agent-backtest-worker.boot.mjs', import.meta.url)
-  : new URL('../../engine/agent-backtest-worker.js', import.meta.url);
+  ? new URL('./agent-backtest-worker.boot.mjs', import.meta.url)
+  : new URL('./agent-backtest-worker.js', import.meta.url);
 
 const argsSchema = codeConfigSchema
   .pick({ start: true, end: true, initialCash: true, cost: true, code: true })

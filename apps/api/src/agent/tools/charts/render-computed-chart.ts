@@ -1,10 +1,10 @@
 import type { ChartSpec } from '@jixie/shared';
 import { z } from 'zod';
-import { computeChartSpecSchema } from '../../lib/chart-spec.js';
-import { runAnalysisCode } from './analyze-sandbox.js';
-import { jsonSafe, runReadOnlySql } from './read-only-sql.js';
+import { computeChartSpecSchema } from './spec.js';
+import { runAnalysisCode } from '../analyze-sandbox.js';
+import { jsonSafe, runReadOnlySql } from '../sql/read-only-sql.js';
 import { assertChartColumns, CHART_ROW_CAP, OBSERVATION_SAMPLE_ROWS } from './render-chart.js';
-import type { AgentTool } from './types.js';
+import type { AgentTool } from '../types.js';
 
 /**
  * renderComputedChart — SQL fetch + sandboxed JS transform + chart card, in one call (design:

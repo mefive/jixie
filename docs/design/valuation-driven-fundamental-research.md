@@ -569,7 +569,7 @@ M6是否启动或获得正面收益，均不决定M0–M5及数据查询能力�
 - `apps/api/src/store/sync.ts`、基本面同步脚本、bootstrap 与 maintenance；
 - `apps/api/src/data-quality/` 财务版本、覆盖和勾稽审计；
 - `apps/api/src/research/` 财务 resolver、loader、Runtime 与 Catalog；
-- `apps/api/src/agent/tools/read-only-sql.ts`；
+- `apps/api/src/agent/tools/sql/read-only-sql.ts`；
 - `packages/shared/src/research-sdk-contract.ts` 及生成的 Python stub；
 - 后续 M6 才涉及 `packages/shared/src/factor-python-sdk.ts`、Factor loader 和报告；
 - `apps/docs` 的中英文 Research/估值帮助与学习案例。

@@ -1,17 +1,11 @@
-import { Hono } from 'hono';
-import { ulid } from 'ulid';
-import type { BacktestConfig, PublicLibrary } from '@jixie/shared';
-import type { Prisma } from '@prisma/client';
-import { apiError } from '../infra/http/errors.js';
+import type { BacktestConfig, SharingCatalog } from '@jixie/shared';
 import { prisma } from '../infra/database/prisma.js';
-import { m } from '../infra/http/locale.js';
-import { uniqueStrategyName } from '../strategy/definitions/naming.js';
 import { extractFactorKeys } from '../strategy/execution/prepare-factors.js';
 
-export const libraryRoute = new Hono();
-
-libraryRoute.get('/', async (c) => {
-  const userId = c.var.userId;
+export async function listSharingCatalog(
+  userId: string,
+  user: { name: string | null; email: string },
+): Promise<SharingCatalog> {
   const [
     publicStrategies,
     publicFactors,
@@ -94,9 +88,9 @@ libraryRoute.get('/', async (c) => {
     select: { id: true, name: true, email: true },
   });
   const ownerById = new Map(owners.map((owner) => [owner.id, authorLabel(owner)]));
-  const currentAuthor = authorLabel(c.var.user);
+  const currentAuthor = authorLabel(user);
 
-  const response: PublicLibrary = {
+  const response: SharingCatalog = {
     strategies: publicStrategies.map((asset) => ({
       id: asset.id,
       kind: 'strategy',
@@ -175,12 +169,12 @@ libraryRoute.get('/', async (c) => {
       ].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
     },
   };
-  return c.json(response);
-});
+  return response;
+}
 
-libraryRoute.get('/strategies/:id', async (c) => {
+export async function getPublicStrategy(strategyId: string) {
   const strategy = await prisma.strategy.findFirst({
-    where: { id: c.req.param('id'), visibility: 'public' },
+    where: { id: strategyId, visibility: 'public' },
     select: {
       id: true,
       name: true,
@@ -189,33 +183,8 @@ libraryRoute.get('/strategies/:id', async (c) => {
       user: { select: { name: true, email: true } },
     },
   });
-  return strategy
-    ? c.json({ ...strategy, author: authorLabel(strategy.user) })
-    : apiError(c, 'NOT_FOUND', m(c, 'strategyNotFound'));
-});
-
-libraryRoute.post('/strategies/:id/copy', async (c) => {
-  const source = await prisma.strategy.findFirst({
-    where: { id: c.req.param('id'), visibility: 'public' },
-    select: { name: true, config: true },
-  });
-  if (!source) {
-    return apiError(c, 'NOT_FOUND', m(c, 'strategyNotFound'));
-  }
-  const name = await uniqueStrategyName(prisma, c.var.userId, source.name);
-  const config = { ...(source.config as unknown as BacktestConfig), name };
-  const copied = await prisma.strategy.create({
-    data: {
-      id: ulid(),
-      userId: c.var.userId,
-      name,
-      visibility: 'private',
-      config: config as unknown as Prisma.InputJsonValue,
-    },
-    select: { id: true, name: true },
-  });
-  return c.json(copied);
-});
+  return strategy ? { ...strategy, author: authorLabel(strategy.user) } : null;
+}
 
 function authorLabel(user: { name: string | null; email: string }): string {
   if (user.name?.trim()) {

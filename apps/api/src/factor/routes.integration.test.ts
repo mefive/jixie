@@ -25,12 +25,12 @@ vi.mock('../infra/database/prisma.js', async () => {
   writeFileSync(database, '');
   return { prisma: new exports.PrismaClient({ datasourceUrl: `file:${database}` }) };
 });
-vi.mock('../agent/turn-run.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../agent/turn-run.js')>()),
+vi.mock('../agent/turns/run.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../agent/turns/run.js')>()),
   enqueueAgentTurn: resources.enqueue,
 }));
-vi.mock('../agent/turn-bus.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../agent/turn-bus.js')>()),
+vi.mock('../agent/turns/bus.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../agent/turns/bus.js')>()),
   findRunning: resources.running,
 }));
 vi.mock('../infra/jobs/queue.js', () => ({ wakeJobQueue: resources.wake }));

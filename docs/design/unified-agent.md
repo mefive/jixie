@@ -124,14 +124,14 @@ interface ChatMessage {
 > 的 streamBus/streamRun 模式),旧契约作废。
 
 - **两步式**:surface POST(strategy/factor 带 `{id, message, code}`,screen 带 `{conversationId, message}`,
-  qa 带 `{history, message}`)只做鉴权 + 注册,**立即返回 `{turnId}`**;turn 在服务端后台跑(`agent/turn-run.ts`),
+  qa 带 `{history, message}`)只做鉴权 + 注册,**立即返回 `{turnId}`**;turn 在服务端后台跑(`agent/turns/run.ts`),
   与 HTTP 请求解耦。同一实体同时只允许一个 turn(启动端点 409 语义拒绝)。
 - **SSE 订阅** `GET /api/app/agent/turns/:turnId/stream`:事件协议见 `packages/shared/src/agent.ts`
   (`AgentStreamEvent`)——`snapshot`(**首帧永远是它**,服务端累计的文本+trace,重订阅者用它覆盖本地)
   → `delta` / `tool_start` / `tool_done` / `repair` → 终态 `done | error | cancelled`。`done` 携带
   parts/code/changed/toolTrace,且**保证在 assistant 消息落库之后**才发出。
 - **刷新续接**:`GET /agent/turns/running?entity=strategy:ID|factor:ID|screen:ID` 发现活 turn →
-  重新订阅,snapshot 补齐错过的部分。载体是单进程内存注册表(`agent/turn-bus.ts`,done 后留 60s TTL);
+  重新订阅,snapshot 补齐错过的部分。载体是单进程内存注册表(`agent/turns/bus.ts`,done 后留 60s TTL);
   **不需要 heartbeat/sweeper**——进程重启 = 注册表清空 = 发现接口返回空,以已持久化内容为准。
 - **持久化职责改为服务端(turn 期间)**:runner 在 LLM 跑之前先把 user 消息 append 到宿主实体
   (刷新时必须能看到),done 前 append assistant 消息。前端不再在 turn 后回存 messages(实体创建

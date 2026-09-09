@@ -8,7 +8,7 @@ import {
 } from '@jixie/shared';
 import { ulid } from 'ulid';
 import { z } from 'zod';
-import { chatMessageSchema } from '../../src/lib/chat-schema.js';
+import { chatMessageSchema } from '../../src/agent/conversations/schema.js';
 import { universeSpecV1Schema } from '../../src/research/datasets/spec.js';
 
 const legacyScreenFieldSchema = z.enum([

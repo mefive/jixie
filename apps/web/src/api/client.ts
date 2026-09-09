@@ -180,7 +180,7 @@ import type {
   StrategyExecutionOverview,
   StrategyDeployment,
   ToolTraceItem,
-  PublicLibrary,
+  SharingCatalog,
   AssetVisibility,
   ResearchConversationMessages,
   ResearchConversationMeta,
@@ -836,7 +836,7 @@ export function deleteStrategy(id: string): Promise<{ ok: true }> {
   return request(`/api/app/strategies/${id}`, { method: 'DELETE' });
 }
 
-export function fetchPublicLibrary(signal?: AbortSignal): Promise<PublicLibrary> {
+export function fetchSharingCatalog(signal?: AbortSignal): Promise<SharingCatalog> {
   return request('/api/app/library', { signal });
 }
 

@@ -1,7 +1,7 @@
 import { App, Alert, Button, Card, Empty, Skeleton, Tabs, Tag } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import type { LibraryFactor, LibraryStrategy } from '@jixie/shared';
+import type { SharingFactor, SharingStrategy } from '@jixie/shared';
 import { complex } from './complex';
 import './library.css';
 
@@ -214,7 +214,7 @@ function AssetCard({
   );
 }
 
-function OwnedStrategyCard({ asset, onToggle }: { asset: LibraryStrategy; onToggle: () => void }) {
+function OwnedStrategyCard({ asset, onToggle }: { asset: SharingStrategy; onToggle: () => void }) {
   const { t } = useTranslation('library');
   return (
     <AssetCard
@@ -230,7 +230,7 @@ function OwnedStrategyCard({ asset, onToggle }: { asset: LibraryStrategy; onTogg
   );
 }
 
-function OwnedFactorCard({ asset, onToggle }: { asset: LibraryFactor; onToggle: () => void }) {
+function OwnedFactorCard({ asset, onToggle }: { asset: SharingFactor; onToggle: () => void }) {
   const { t } = useTranslation('library');
   return (
     <AssetCard

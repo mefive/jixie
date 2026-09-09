@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { chatMessagesSchema } from '../../lib/chat-schema.js';
+import { chatMessagesSchema } from '../../agent/conversations/schema.js';
 import { codeConfigSchema } from '../runtime/typescript/schema.js';
 
 export const createStrategySchema = codeConfigSchema.extend({

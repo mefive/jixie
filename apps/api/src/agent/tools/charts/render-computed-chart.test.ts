@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { runAnalysisCode } from './analyze-sandbox.js';
+import { runAnalysisCode } from '../analyze-sandbox.js';
 import { normalizeComputeChartRows } from './render-computed-chart.js';
 
 const SPEC = { x: 'date', series: [{ column: 'value' }] };

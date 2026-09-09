@@ -343,7 +343,7 @@ EtfShareSize
 - 供应商技术因子表：禁止落库，可由复权 OHLC 确定性计算。
 
 任何新增 Prisma 表都必须由 Prisma 生成 migration，并同步
-`apps/api/src/agent/tools/read-only-sql.ts` 的 `SQL_TABLE_DOCS`、数据审计、真实 fixture 和单位说明。
+`apps/api/src/agent/tools/sql/read-only-sql.ts` 的 `SQL_TABLE_DOCS`、数据审计、真实 fixture 和单位说明。
 
 ## 8. 同步与维护架构
 

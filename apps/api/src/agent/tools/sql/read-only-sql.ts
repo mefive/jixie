@@ -1,6 +1,6 @@
 import { Worker } from 'node:worker_threads';
 import { z } from 'zod';
-import type { AgentTool } from './types.js';
+import type { AgentTool } from '../types.js';
 
 /**
  * Read-only SQL over the market-data tables (design: docs/design/unified-agent.md, an explicit
@@ -191,7 +191,7 @@ const workerUrl = import.meta.url.endsWith('.ts')
 /** Prisma resolves a relative sqlite DATABASE_URL against the schema directory — mirror that. */
 function databasePath(): string {
   const raw = (process.env.DATABASE_URL ?? 'file:./dev.db').replace(/^file:/, '');
-  return raw.startsWith('/') ? raw : new URL(`../../../prisma/${raw}`, import.meta.url).pathname;
+  return raw.startsWith('/') ? raw : new URL(`../../../../prisma/${raw}`, import.meta.url).pathname;
 }
 
 interface PendingQuery {

@@ -20,7 +20,7 @@ vi.mock('./server.js', () => ({ buildApp: mocks.buildApp }));
 vi.mock('@hono/node-server', () => ({ serve: mocks.serve }));
 vi.mock('./infra/jobs/executor.js', () => ({ createJobExecutor: mocks.createExecutor }));
 vi.mock('./infra/jobs/queue.js', () => ({ startJobQueue: mocks.startQueue }));
-vi.mock('./agent/persistence.js', () => ({
+vi.mock('./agent/turns/records.js', () => ({
   markRunningAgentTurnsInterrupted: mocks.agentRecovery,
 }));
 vi.mock('./factor/weather/refresh.js', () => ({

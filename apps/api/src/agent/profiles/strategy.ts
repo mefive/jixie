@@ -8,7 +8,7 @@ import { createPythonStrategyRuntime } from '../../strategy/runtime/python/runti
 import { prisma } from '../../infra/database/prisma.js';
 import { buildAgentMode, RESEARCH_TOOLS_HINT, TOOLS_HINT, type AgentProfile } from '../core.js';
 import { defaultTools } from '../tools/index.js';
-import { runQuickBacktestTool } from '../tools/run-quick-backtest.js';
+import { runQuickBacktestTool } from '../tools/quick-backtest/run-quick-backtest.js';
 import type { Locale } from '@jixie/shared';
 
 /** ts_code-shaped literals in the strategy code (6 digits + exchange suffix), deduped. Comments are

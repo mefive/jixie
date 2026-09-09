@@ -1,25 +1,25 @@
-import type { AssetVisibility, LibraryFactor, PublicLibrary } from '@jixie/shared';
+import type { AssetVisibility, SharingFactor, SharingCatalog } from '@jixie/shared';
 import { BaseStore, LoaderModel } from '@src/lib';
 import {
   copyFactor,
   copyFactorComposite,
   copyPublicStrategy,
-  fetchPublicLibrary,
+  fetchSharingCatalog,
   setFactorVisibility,
   setStrategyVisibility,
 } from '@src/api/client';
 
 export class LibraryStore extends BaseStore<Record<string, never>> {
-  public loader = new LoaderModel<PublicLibrary>();
+  public loader = new LoaderModel<SharingCatalog>();
 
   public setup(params: Record<string, never> = {}) {
     super.setup(params);
-    this.loader.setup({ request: (_data, signal) => fetchPublicLibrary(signal) });
+    this.loader.setup({ request: (_data, signal) => fetchSharingCatalog(signal) });
     this.registCleaner(() => this.loader.cleanup());
     void this.reload();
   }
 
-  public async reload(): Promise<PublicLibrary> {
+  public async reload(): Promise<SharingCatalog> {
     return this.loader.run();
   }
 
@@ -29,7 +29,7 @@ export class LibraryStore extends BaseStore<Record<string, never>> {
   }
 
   public async setFactorVisibility(
-    asset: LibraryFactor,
+    asset: SharingFactor,
     visibility: AssetVisibility,
   ): Promise<void> {
     await setFactorVisibility(asset.id, asset.kind, visibility);
@@ -40,7 +40,7 @@ export class LibraryStore extends BaseStore<Record<string, never>> {
     return copyPublicStrategy(id);
   }
 
-  public copyFactor(asset: LibraryFactor) {
+  public copyFactor(asset: SharingFactor) {
     return asset.kind === 'composite' ? copyFactorComposite(asset.id) : copyFactor(asset.id);
   }
 }

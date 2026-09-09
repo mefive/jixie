@@ -1,6 +1,6 @@
 export type AssetVisibility = 'private' | 'public';
 
-export interface LibraryAssetBase {
+export interface SharingAssetBase {
   id: string;
   name: string;
   author: string;
@@ -9,22 +9,22 @@ export interface LibraryAssetBase {
   updatedAt: string;
 }
 
-export interface LibraryStrategy extends LibraryAssetBase {
+export interface SharingStrategy extends SharingAssetBase {
   kind: 'strategy';
 }
 
-export interface LibraryFactor extends LibraryAssetBase {
+export interface SharingFactor extends SharingAssetBase {
   kind: 'factor' | 'composite';
   key: string;
   analysisKind: string;
   language?: 'typescript' | 'python';
 }
 
-export interface PublicLibrary {
-  strategies: LibraryStrategy[];
-  factors: LibraryFactor[];
+export interface SharingCatalog {
+  strategies: SharingStrategy[];
+  factors: SharingFactor[];
   mine: {
-    strategies: LibraryStrategy[];
-    factors: LibraryFactor[];
+    strategies: SharingStrategy[];
+    factors: SharingFactor[];
   };
 }

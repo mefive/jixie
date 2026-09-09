@@ -25,12 +25,12 @@ vi.mock('../infra/database/prisma.js', async () => {
   writeFileSync(databasePath, '');
   return { prisma: new packageExports.PrismaClient({ datasourceUrl: `file:${databasePath}` }) };
 });
-vi.mock('../agent/turn-run.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../agent/turn-run.js')>()),
+vi.mock('../agent/turns/run.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../agent/turns/run.js')>()),
   enqueueAgentTurn: resources.enqueue,
 }));
-vi.mock('../agent/turn-bus.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../agent/turn-bus.js')>()),
+vi.mock('../agent/turns/bus.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../agent/turns/bus.js')>()),
   findRunning: resources.running,
 }));
 vi.mock('./execution/python-session.js', async (importOriginal) => ({

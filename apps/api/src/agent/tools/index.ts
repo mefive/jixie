@@ -2,9 +2,9 @@ import type { AgentTool } from './types.js';
 import { searchInstruments } from './search-instruments.js';
 import { dataCoverage } from './data-coverage.js';
 import { runUniverseTool } from './run-universe.js';
-import { sqlQueryTool } from './read-only-sql.js';
-import { renderChartTool } from './render-chart.js';
-import { renderComputedChartTool } from './render-computed-chart.js';
+import { sqlQueryTool } from './sql/read-only-sql.js';
+import { renderChartTool } from './charts/render-chart.js';
+import { renderComputedChartTool } from './charts/render-computed-chart.js';
 import { analyzeDataTool } from './analyze-data.js';
 
 /** The read-only tool set shared by every agent profile (strategy / factor / screen / Q&A) —

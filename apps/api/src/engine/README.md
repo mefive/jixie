@@ -17,7 +17,7 @@ Engine 提供交易模拟能力：推进交易日、读取当时可得的数据�
 | 确定性测试数据源 | [testing/fixture-port.ts](testing/fixture-port.ts) |
 | 引擎输入、策略接口与结果类型 | [types.ts](types.ts) |
 
-`backtest-worker.ts` 是回测计算线程入口，调用 Strategy 的配置执行编排；它属于宿主入口，不属于纯模拟核心。`signal-worker.*` 已归入 [signals/runs](../signals/runs/signal-worker.ts)，由 Signals 任务启动；`agent-backtest-worker.*` 暂留根级，按 Commit 10 归回 Agent。
+`backtest-worker.ts` 是回测计算线程入口，调用 Strategy 的配置执行编排；它属于宿主入口，不属于纯模拟核心。`signal-worker.*` 已归入 [signals/runs](../signals/runs/signal-worker.ts)，由 Signals 任务启动；`agent-backtest-worker.*` 已归入 [agent/tools/quick-backtest](../agent/tools/quick-backtest/agent-backtest-worker.ts)，由 Agent 工具启动。
 
 ## DataPort 与沙盒如何协作
 

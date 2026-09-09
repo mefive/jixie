@@ -1,8 +1,8 @@
 import type { ChartSpec } from '@jixie/shared';
 import { z } from 'zod';
-import { sqlChartSpecSchema } from '../../lib/chart-spec.js';
-import { jsonSafe, runReadOnlySql } from './read-only-sql.js';
-import type { AgentTool } from './types.js';
+import { sqlChartSpecSchema } from './spec.js';
+import { jsonSafe, runReadOnlySql } from '../sql/read-only-sql.js';
+import type { AgentTool } from '../types.js';
 
 /** Charts may carry more points than a tabular observation (a 2-year daily series ≈ 490 rows). */
 export const CHART_ROW_CAP = 500;

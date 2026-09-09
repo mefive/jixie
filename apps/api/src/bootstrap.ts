@@ -5,7 +5,7 @@ import { createJobExecutor } from './infra/jobs/executor.js';
 import type { JobRegistry } from './infra/jobs/definition.js';
 import { seedBuiltinFactors } from './factor/definitions/builtin-factors.js';
 import { resetInterruptedFactorWeatherRefreshes } from './factor/weather/refresh.js';
-import { markRunningAgentTurnsInterrupted } from './agent/persistence.js';
+import { markRunningAgentTurnsInterrupted } from './agent/turns/records.js';
 
 export const jobRegistry: JobRegistry = {
   backtest: async () => (await import('./strategy/backtest-job.js')).backtestJob,

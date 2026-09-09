@@ -48,7 +48,7 @@ proposals/cell-changes（应用 → 人工接受）
       → proposals/attempt-records（尝试结果读取）
 
 HTTP /agent → agent-turn → agent-context + proposals（澄清/尝试上下文）
-  → agent/profiles + agent/tools → agent/turn-run（共享对话执行与事件）
+  → agent/profiles + agent/tools → agent/turns/run（共享对话执行与事件）
 HTTP /curator/runs → curator/submit → 创建 CuratorRun + Job 的同一事务
   → 日志初始化、唤醒队列 → curator-job → curator/runs
 HTTP 数据检索 / Agent catalog 工具 → catalog → datasets / 市场业务

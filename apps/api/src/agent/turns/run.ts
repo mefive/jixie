@@ -1,4 +1,3 @@
-import type { Prisma } from '@prisma/client';
 import {
   DEFAULT_LOCALE,
   normalizeChatMessage,
@@ -8,18 +7,18 @@ import {
   type Locale,
   type MessagePart,
 } from '@jixie/shared';
-import { prisma } from '../infra/database/prisma.js';
-import { chatTools } from '../infra/llm/deepseek.js';
-import { t } from '../i18n/index.js';
+import { chatTools } from '../../infra/llm/deepseek.js';
 import {
   agentTurn,
   turnParts,
   type AgentProfile,
   type AgentTurnHooks,
   type AgentTurnResult,
-} from './core.js';
-import * as turnBus from './turn-bus.js';
-import { AgentTraceRecorder, finishPersistentTurn, startPersistentTurn } from './persistence.js';
+} from '../core.js';
+import * as turnBus from './bus.js';
+import { finishPersistentTurn, startPersistentTurn } from './records.js';
+import { AgentTraceRecorder } from './trace.js';
+import { readMessages, writeMessages } from '../conversations/entity-messages.js';
 
 /**
  * Background agent-turn runner (marginalia's streamRun pattern). The start route registers the turn
@@ -221,87 +220,5 @@ async function runTurn(args: EnqueueTurnArgs, signal: AbortSignal): Promise<void
         ? { type: 'cancelled' }
         : { type: 'error', message: error instanceof Error ? error.message : String(error) },
     );
-  }
-}
-
-// —— entity messages IO ——
-
-async function readMessages(
-  entity: TurnEntity,
-  userId: string,
-  locale: Locale,
-): Promise<unknown[]> {
-  if (entity.kind === 'research') {
-    const conversation = await prisma.agentConversation.findFirst({
-      where: { id: entity.id, userId, surface: 'research', archivedAt: null },
-      select: {
-        messages: {
-          orderBy: { sequence: 'asc' },
-          select: {
-            id: true,
-            role: true,
-            parts: true,
-            turnId: true,
-            sequence: true,
-            createdAt: true,
-          },
-        },
-      },
-    });
-    if (!conversation) {
-      throw new Error(t(locale, 'turnHostGone'));
-    }
-    return conversation.messages.map((message) => ({
-      id: message.id,
-      role: message.role,
-      parts: message.parts,
-      turnId: message.turnId ?? undefined,
-      sequence: message.sequence,
-      createdAt: message.createdAt.toISOString(),
-    }));
-  }
-  const where = { id: entity.id, userId };
-
-  // Exhaustive switch: a new entity kind leaves `row` unassigned and fails the build.
-  let row: { messages: Prisma.JsonValue } | null;
-  switch (entity.kind) {
-    case 'strategy':
-      row = await prisma.strategy.findFirst({ where, select: { messages: true } });
-      break;
-    case 'factor':
-      row = await prisma.factor.findFirst({ where, select: { messages: true } });
-      break;
-  }
-
-  if (!row) {
-    throw new Error(t(locale, 'turnHostGone'));
-  }
-  return Array.isArray(row.messages) ? (row.messages as unknown[]) : [];
-}
-
-async function writeMessages(entity: TurnEntity, messages: ChatMessage[]): Promise<void> {
-  if (entity.kind === 'research') {
-    return;
-  }
-  const data = { messages: messages as unknown as Prisma.InputJsonValue };
-
-  switch (entity.kind) {
-    case 'strategy':
-      await prisma.strategy.update({ where: { id: entity.id }, data });
-      break;
-    case 'factor':
-      if (
-        (
-          await prisma.factor.updateMany({
-            where: { id: entity.id, status: 'draft' },
-            data,
-          })
-        ).count !== 1
-      ) {
-        throw new Error('Published factor conversation is immutable');
-      }
-      break;
-    default:
-      entity.kind satisfies never; // compile error when a new kind is added but unhandled
   }
 }

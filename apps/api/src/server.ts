@@ -8,9 +8,9 @@ import { factorRoute } from './factor/research-routes.js';
 import { researchRoute } from './research/routes.js';
 import { factorsRoute } from './factor/routes.js';
 import { factorWeatherRoute } from './factor/weather-routes.js';
-import { agentRoute } from './routes/agent.js';
+import { routes as agentRoute } from './agent/routes.js';
 import { routes as signalRoutes } from './signals/routes.js';
-import { libraryRoute } from './routes/library.js';
+import { routes as sharingRoutes } from './sharing/routes.js';
 import { requireAuth } from './auth/http/session.js';
 import { maintenanceGate, maintenanceRoute } from './maintenance/http.js';
 
@@ -41,7 +41,7 @@ export function buildApp() {
   app.route('/api/app/factors', factorsRoute);
   app.route('/api/app/factor-weather', factorWeatherRoute);
   app.route('/api/app/signals', signalRoutes);
-  app.route('/api/app/library', libraryRoute);
+  app.route('/api/app/library', sharingRoutes);
   app.route('/api/app/strategy', strategyRoutes);
   app.route('/api/app/factor', factorRoute);
   app.route('/api/app/research', researchRoute);

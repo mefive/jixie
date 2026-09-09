@@ -1,12 +1,12 @@
 # 后端业务边界与目录重整开发计划
 
-> 状态：Commit 1～8 已提交（`177f63ab`、`00a0e83a`、`bc4a1651`、`ed8c4aae`、`a034c611`、`1bba29cd`、`014899ba`、`a52cfec1`）；Commit 9 已通过人工 review、静态检查及全部行为验证，按事前确认的信息提交；Commit 10 待范围确认。
+> 状态：Commit 1～9 已提交（`177f63ab`、`00a0e83a`、`bc4a1651`、`ed8c4aae`、`a034c611`、`1bba29cd`、`014899ba`、`a52cfec1`、`82a1ff4b`）；Commit 10 已通过人工 review、静态检查及全部行为验证，按事前确认的信息提交；Commit 11 待范围确认。
 > 编制日期：2026-09-07；核对代码基线：`12ce9092`。
 > 目标：让不熟悉项目的开发者从目录识别业务能力，沿一个入口读懂完整流程，并找到状态与数据的责任方。
 > 本文规划后端结构调整；研究方法与金融口径不变，任务生命周期的已批准行为调整见 5.3。
 > 开发授权：2026-09-08 用户确认按评审工作流开始开发；Commit 1～3 已提交，Commit 4 的具体范围、JobDefinition + executor 调整以及 Curator/相关性结果原子提交均已获确认。后续提交逐项说明具体范围，经确认后实施。
 > 工作流（2026-09-09 更新）：开工前明确本次 commit message 与范围并获确认 → 编写产品代码与测试 → 运行并修复 lint/typecheck 等静态检查 → 产品代码交人工 review → review 通过后运行测试、构建及运行验证 → 全部通过后直接按预告 message 提交，不再单独请求 commit 确认。已确认范围内的测试用例、fixture、mock 和验证脚本改动无需人工审批；自行修正到符合既定契约，静态检查后复跑必要验证，全部通过即提交。不能通过削弱断言或跳过失败掩盖产品问题；若修复涉及产品实现，仍需静态检查后重新交人工 review。在产品代码尚待首次或再次 review 时，测试修正不提前放行行为验证。环境问题可直接重试。此流程已同步到 review-gated-development SKILL；下文历史 review 记录保留当时的实际过程。
-> Commit 9 事前确认的 message：`按职责整理 Signals 部署、运行与账户对账`。后续每轮须在该 commit 任务开工前预告 message。
+> Commit 10 事前确认的 message：`整理 Agent 对话、工具执行与公开库业务边界`。后续每轮须在该 commit 任务开工前预告 message。
 
 ## 1. 判断与取舍
 
@@ -80,7 +80,7 @@
 | StrategyDeployment、SignalRun、成交与账户快照 | `signals` | 部署、暂停、每日运行、通知、人工成交与对账 | 调用策略执行能力，不把模拟账户逻辑塞入 engine |
 | AgentConversation、AgentMessage、AgentTurn | `agent` | 对话记录、流式 turn、取消、中断与轨迹 | Profile/工具调用业务入口；不直接改业务持久化表 |
 | Job | `infra/jobs` + 业务任务完成入口 | queued/running/done/error/stale、日志 | 队列拥有领取和并发；领域拥有报告与 Job 的完成事务 |
-| 公开库展示与复制操作 | `library` | 聚合展示、复制到当前用户 | 调用因子/策略读取与复制入口，不绕过业务约束 |
+| 公开库展示与复制操作 | `sharing` | 聚合展示、复制到当前用户 | 调用因子/策略读取与复制入口，不绕过业务约束 |
 
 ### 3.1 必须保留的三条生命周期区别
 
@@ -101,7 +101,7 @@ apps/api/src/
   server.ts                     构建 Hono 应用、挂载中间件和路由
   date.ts                       跨业务使用的日期辅助
   auth/                         登录、Session、邀请码、HTTP 鉴权
-  library/                      公开库查询与复制业务
+  sharing/                      公开库查询与复制业务
     routes.ts                   公开库 HTTP 入口
   research/
     routes.ts                   保持原 URL 的 HTTP 适配
@@ -177,6 +177,7 @@ apps/api/src/
     conversations/              对话记录与实体关联
     profiles/
     tools/
+      quick-backtest/           快速回测工具、线程入口与源码 bootstrap
       charts/                   Agent 图表工具与规格校验
       sql/                      只读 SQL 工具、worker 与 Node SQLite 类型补充
   market/                       行情获取、证券身份、查询与市场分析
@@ -250,7 +251,7 @@ apps/api/src/
 
 当前根级 `config.ts` 只定义 Tushare 配置，归 `market/providers/tushare/config.ts`。不预设全局配置中心；以后配置也按其使用者归属。Agent 的图表规格与 SQL 工具归 `agent/tools/charts`、`agent/tools/sql`，不由此建立系统级 charts 模块，也不搬动 Research 的图表输出与产物职责。
 
-保留 auth、library、research、factor、strategy、engine、signals、agent、market、maintenance 的业务边界。当前 risk 归入策略报告分析，不单列顶层模块。不建立 `application/` 模块：启动装配由根级 `bootstrap.ts` 组织，业务恢复规则留在各业务模块，整体数据审计归 `maintenance/data-audit.ts`。目录归并本身不要求新增共同父类或框架；有实际共同生命周期的后台任务使用 5.3 的统一接口与执行器。
+保留 auth、sharing、research、factor、strategy、engine、signals、agent、market、maintenance 的业务边界。当前 risk 归入策略报告分析，不单列顶层模块。不建立 `application/` 模块：启动装配由根级 `bootstrap.ts` 组织，业务恢复规则留在各业务模块，整体数据审计归 `maintenance/data-audit.ts`。目录归并本身不要求新增共同父类或框架；有实际共同生命周期的后台任务使用 5.3 的统一接口与执行器。
 
 ### 4.3 启动入口与资源生命周期
 
@@ -288,7 +289,7 @@ apps/api/src/
 
 ### 5.1 公共设施与 HTTP 入口
 
-**不为业务模块统一预设 `http/`。** 当前单个路由文件连同参数校验、错误映射和测试直接放模块根目录；只有实际形成多项需要共同组织的 HTTP 职责时才归组。`auth/http/` 已集中 Cookie、鉴权中间件和登录路由，`infra/http/` 提供跨业务的请求校验、错误响应和 locale 辅助，两者保留。Research、Factor、Strategy、Signals、Agent、Library、Market 均按下面的根目录路由文件规划。
+**不为业务模块统一预设 `http/`。** 当前单个路由文件连同参数校验、错误映射和测试直接放模块根目录；只有实际形成多项需要共同组织的 HTTP 职责时才归组。`auth/http/` 已集中 Cookie、鉴权中间件和登录路由，`infra/http/` 提供跨业务的请求校验、错误响应和 locale 辅助，两者保留。Research、Factor、Strategy、Signals、Agent、Sharing、Market 均按下面的根目录路由文件规划。
 
 目录位置不改变依赖边界：HTTP 文件只适配请求/响应并调用明确业务入口；业务不导入路由或 Hono Context。文件多时先按实际路由职责具名，不为将来可能拆分而建立空目录。
 
@@ -311,7 +312,7 @@ apps/api/src/
 | `routes/factors.ts`、`routes/factor.ts`、`routes/factor-weather.ts` | `factor/routes.ts`、`research-routes.ts`、`weather-routes.ts` | 按列表/定义、因子研究/报告/辅助对话、天气区分，保留所有 URL 和字面量/参数路由顺序 |
 | `routes/research.ts` | `research/routes.ts` | 参数校验、响应与错误映射留在路由；文档、执行、提案、Agent、Curator 等业务调用具体入口，不预拆路由文件 |
 | `routes/signals.ts`、`routes/agent.ts`、`routes/market.ts` | `signals/routes.ts`、`agent/routes.ts`、`market/routes.ts` | HTTP 与业务操作分离，注册仍集中在 server |
-| `routes/library.ts` | `library/routes.ts` + `library/catalog.ts`、`library/copy.ts` | 抽出聚合查询与复制操作；因子/策略复制约束由其业务入口负责 |
+| `routes/library.ts` | `sharing/routes.ts` + `sharing/catalog.ts`、`strategy/definitions/copy-public.ts` | 抽出聚合查询与复制操作；因子/策略复制约束由其业务入口负责 |
 
 `server.ts` 保留 `buildApp` 作为路由总索引，构建应用本身不启动队列或监听端口；监听与资源启动由 `bootstrap.ts` 显式调用。业务模块默认直接放 `routes.ts`，对应测试同目录；已有多组独立路由时使用 `backtest-routes.ts`、`scan-routes.ts` 等职责明确的文件名，由模块根级 `routes.ts` 组合需要共享前缀的子路由，server 只挂模块公开入口，不增加局部 `http/index.ts` 包装层。全部调用方迁移后删除空的顶层 `routes`、`services`、`lib`、`util`、`llm` 目录；不保留长期转发层。
 
@@ -485,17 +486,17 @@ GET /api/app/strategy/backtest/reports/:reportId
 
 验收增加：风险计算结果及报告 JSON 等价；相同数据条件下“风险研究”面板的显示条件与内容不变；风险缺失/失败不影响主结果；Agent 快速回测摘要不意外新增风险字段；市场审计无需导入策略实现。
 
-### 5.7 Signals、Agent 与 Library
+### 5.7 Signals、Agent 与 Sharing
 
 **Signals**：原 `service.ts` 拆为 deployments/manage/read 与 runs/enqueue/read/readiness，手动运行的日期解析、结算后入队由 runs/submit 编排；`engine/signal-worker.*` 移至 `signals/runs/`，根级 `signal-job.ts` 继续拥有任务契约与子进程启动。accounting 按 initialize、executions、settlement、replay、quotes、read 拆分，纯重放不导入数据库；factor-inputs 内分别放 lineage 与 summary。根级 routes 统一导出 `routes`，保留 scheduler/sync/notifier 的具体名称。每日信号的 TS/资产支持限制、配置冻结、人工成交和结算幂等保持不变；会计初始化和通知仍在结果事务提交后执行。
 
-**Agent**：保留 core/profiles/tools 结构；`turn-run.ts`、`turn-bus.ts` 归 turns。`persistence.ts` 按实际函数拆出对话记录与 turn 轨迹，不能为了迁移改消息内容或持久化顺序。`engine/agent-backtest-worker.*` 归 `agent/tools/quick-backtest/`，其调用的策略执行能力由 strategy 提供。
+**Agent**：保留 core/profiles/tools 结构；`turn-run.ts`、`turn-bus.ts` 分别归 turns/run、bus；持久化 turn 归 turns/records，轨迹 recorder 归 turns/trace，查询投影归 turns/read。对话查找/创建归 conversations/manage，历史与实体 messages 镜像归 entity-messages，对话列表/分页归 read，消息校验归 schema。拆分保持消息内容、持久化顺序和原事务边界。`engine/agent-backtest-worker.*` 与快速回测工具共同归 `agent/tools/quick-backtest/`，其调用的策略执行能力由 strategy 提供。
 
 `render-chart.ts`、`render-computed-chart.ts` 及相关校验归 `agent/tools/charts/`；`read-only-sql.ts`、`sql-worker.ts`、对应 `.boot.mjs` 和 Node SQLite 类型补充归 `agent/tools/sql/`。同步工具注册、测试 mock、worker URL、SQL 白名单文档引用；函数名、工具名和权限规则保持不变。
 
 Research handoff 当前调用 `agent/core`，Agent profile 又消费 Research 能力。允许上层 profile/tool/handoff 有定向组合关系，但 core 只依赖工具协议与模型接口，不能导入 profiles 或领域实现。不要求各业务顶层目录形成完全无环图；约束应落实到这些实际子模块。
 
-**Library**：保留跨领域聚合职责。策略/因子只读入口输出库需要的投影，复制入口完成用户归属和默认状态设置。没有复用价值的单次聚合查询可以留在 library，但不得直接修改他域生命周期状态。
+**Sharing**：保留跨领域聚合职责，根级 routes 只适配 HTTP，catalog 聚合列表与公开策略详情。当前唯一复制操作为策略复制，由 `strategy/definitions/copy-public.ts` 完成公开源检查、名称去重、用户归属和 private 默认状态设置；Sharing 路由直接调用，不增加纯转发的 copy.ts，也不预设不存在的因子/组合复制 endpoint。没有复用价值的单次聚合查询可以留在 sharing，但不得直接修改他域生命周期状态。
 
 ### 5.8 行情、领域数据与运维
 
@@ -574,7 +575,7 @@ Jobs queue → 启动时传入的任务处理函数
 | C：任务责任拆分 | B | infra/jobs 记录/日志/队列、bootstrap 启动与资源装配、领域完成事务与恢复 | 五类 Job 正常/失败/恢复行为保持，事务与日志语义通过验证；启动/关闭资源归属及 API/CLI 入口核对完成 |
 | D：Research 内聚整理 | B、C | documents/dependencies/execution/evidence/proposals/datasets/catalog/sdk/language/templates/handoff/curator | 编辑→失效→运行→冻结→提案→交接链路通过 |
 | E：Factor、Strategy 与 Engine | B、C | 因子报告/发布边界；策略操作与风险报告分析；风险输入数据/审计归位；engine 纯计算与适配；worker 路径迁移 | 因子发布与报告历史、TS/Python 回测、风险面板与数据审计、参数扫描及引擎一致性通过 |
-| F：Signals、Agent、Library 与数据同步 | D、E | 运行入口归业务；对话持久化；公开库；市场业务及 fundamentals/rates/macro/commodity 四个子领域统一归入 market，Tushare 配置随 provider 归位，同步调用方与 CLI | 信号/对账、SSE、研究数据、数据维护链路通过 |
+| F：Signals、Agent、Sharing 与数据同步 | D、E | 运行入口归业务；对话持久化；公开库；市场业务及 fundamentals/rates/macro/commodity 四个子领域统一归入 market，Tushare 配置随 provider 归位，同步调用方与 CLI | 信号/对账、SSE、研究数据、数据维护链路通过 |
 | G：边界门禁与整体收尾 | B–F | 收紧依赖规则、移除转发文件、更新路径文档、完整构建/E2E | 所有目标目录与业务说明一致，无旧路径，完整验收通过 |
 
 每个工作包内部遵循：先等价迁移与更新引用，再提取函数责任，最后删除旧入口。每一步保持可构建，避免先移动全仓、最后集中修错。临时转发文件只能服务于当前实施过程，最终交付前移除；不保留双路由或两套业务实现。
@@ -593,8 +594,8 @@ Jobs queue → 启动时传入的任务处理函数
 | 6 | D | Research 数据、SDK、目录、语言服务、模板、交接、整理及 HTTP | 公开列映射、契约、语言服务与交接 | 已提交 `1bba29cd` |
 | 7 | E | Factor 定义、观察、分析、报告、发布、组合、运行与 HTTP | 发布纪律、历史报告、分析 Worker | 已提交 `014899ba` |
 | 8 | E | Strategy 与 Engine 分离，风险分析及风险数据/审计边界 | TS/Python 回测、参数扫描、风险结果、引擎一致性 | 已提交 `a52cfec1` |
-| 9 | F | Signals 部署、运行、对账、因子输入、Worker 与 HTTP | 冻结配置、幂等运行、失败收尾、对账 | 已通过 review、1073 项测试、编译及源码/编译 IPC 验证 |
-| 10 | F | Agent turns/conversations/tools/Worker、Library 操作与 HTTP | SSE、取消、工具权限、公开库复制 | 待开始 |
+| 9 | F | Signals 部署、运行、对账、因子输入、Worker 与 HTTP | 冻结配置、幂等运行、失败收尾、对账 | 已提交 `82a1ff4b`；1073 项测试及源码/编译 IPC 通过 |
+| 10 | F | Agent turns/conversations/tools/Worker、Sharing 操作与 HTTP | SSE、取消、工具权限、公开库复制 | review 与验证通过；201 个文件/1083 项测试、源码/编译 Worker 通过 |
 | 11 | F | Market 子领域及其余市场职责、Maintenance 与 CLI | 数据口径、幂等同步、质量门禁、审计 | 待开始 |
 | 12 | G | 边界门禁、架构阅读地图与剩余旧路径清理 | 完整构建、相关测试、受影响 E2E、运行入口 smoke | 待开始 |
 
@@ -899,6 +900,57 @@ Review 修正（2026-09-09）：路由文件统一导出 `routes`。`strategy/ro
 日志与可复查脚本位于 `/tmp/jixie-c9-verification`：`api-test.log/json`、`run-tests.cjs`、`build.log`、`worker-smoke.mjs`、`source-worker.log`、`compiled-worker.log` 和两份 `*-worker-result.json`。临时 Worker 脚本补充验证真实入口，不属于仓库 `.test.ts`。准备脚本时修正了 watch-only 场景对横截面 `pb` 输入的假设，改为读取确定性历史价格，并按 fixture 的两位小数口径构造预期值，避免二进制浮点表示差异；静态语法检查后重新完整运行两种入口，全部通过，仓库产品与测试代码未因此改动。
 
 提交前核对 44 个 review 路径的内容哈希，均与人工 review 时一致；随后仅补本文和 Signals README 的验证记录。无 UI、SDK 或 schema 变化，未运行浏览器 E2E；本轮 HTTP 契约由隔离 Hono 集成测试验证。静态检查和所有必需行为验证均通过，按事前 message 直接提交，不推送。
+
+### 7.10 Commit 10 实现记录（2026-09-09）
+
+事前确认的提交信息：`整理 Agent 对话、工具执行与公开库业务边界`。以 `82a1ff4b` 为基线，阅读入口见 [Agent README](../../apps/api/src/agent/README.md) 与 [Sharing README](../../apps/api/src/sharing/README.md)。本轮范围及 Sharing 命名修正已获人工 review 确认，全部验证通过。
+
+- Agent 的后台 runner、bus、turn 记录/恢复、trace recorder 和详情读取归 turns；对话查找/创建、实体历史/mirror、分页与消息校验归 conversations。删除旧 persistence 聚合文件，按调用职责直接导入；原完成事务保留 Research 提案/澄清与回复消息的原子提交。
+- 快速回测工具与 engine 的 Agent Worker 一起归 tools/quick-backtest；SQL 工具、Worker、源码 bootstrap 和 Node SQLite 声明归 tools/sql；图表工具与规格归 tools/charts。工具名、模型提示词、SQL 白名单、超时/取消与计算规则不变。SQL 相对数据库路径同步上移一层，仍相对 apps/api/prisma；tsconfig 继续收录移动后的声明。
+- Agent/Sharing 的根级 routes.ts 统一导出 routes，server 保持原挂载位置。Agent 三个数据库查询 handler 提取到 conversations/read 与 turns/read；SSE 传输/取消及 SQL/图表响应适配保持。Sharing 列表/详情归 catalog，唯一策略复制操作归 strategy/definitions/copy-public，保持既有配置、归属、唯一名称及 private 默认值。
+- 同步 Research/Factor/Strategy 的 Agent 启动入口、忙碌检查、消息校验、工具注册、Curator SQL 目录引用、bootstrap 恢复、迁移脚本和测试 mock；更新 CLAUDE、阅读地图与现有文档的运行路径。原 lib/types 迁移后空目录已清理；历史基线文档保留原路径。
+- HTTP URL/响应/权限、SSE 协议、消息与 trace 数据、Prisma schema、Research/Factor SDK、业务规则和运行方式不变，无 migration、部署组件或跨包构建依赖变化。没有 UI 或公开帮助文案变化。
+
+重点 review：用户消息在模型前保存；回复和 trace 完成后才发布 done；afterTurn 继续在 done 后异步运行；实体 messages 镜像与 conversation 的分开写入保持；取消与订阅断开保持区别；AgentTurn 恢复只标 interrupted，不重放模型。SQL 路径调整必须同时支持源码和编译入口。公开库详情保持原字段，复制不带源对话、报告或部署。
+
+新增两个正式测试文件，共 10 项场景，已随全量 API 测试通过：
+
+- Agent HTTP + 独立 SQLite 的 7 项：对话归属/筛选/分页、SSE snapshot 与取消权限、真实 runner 的持久化/模型/终态顺序、模型取消、失败/启动恢复、Research 产物跨 surface 时的完成事务回滚、SQL/计算图表响应与错误映射。仅模型和图表查询执行使用替身；runner、bus、core、持久化与 HTTP 使用实际实现。
+- Sharing HTTP + 独立 SQLite 的 3 项：公开/私有与发布状态筛选、详情字段和非公开源拒绝、重复复制名称/配置/所有权及源记录不变。原多用户权限与各工具/产物持久化测试保留并同步路径。
+
+静态检查记录位于 `/tmp/jixie-c10-review`：
+
+| 检查 | 范围与结果 |
+| --- | --- |
+| ESLint 与格式 | 共 54 个 TS/TSX/MJS 文件通过；命名修正涉及的 11 个文件重新检查通过 |
+| 全仓 typecheck | 初版通过，包含 Research/Factor SDK 与 Python runtime 生成物一致性；Sharing 命名修正后 Shared、API、Web 静态类型检查通过，未构建 |
+| 移动与调用方 | 命名修正后 18 个迁移文件、22 个调用方的 AST 在归一化名称/导入/资源路径后内容一致 |
+| 声明提取 | 原 persistence 与 turn-run 的 15 个声明完整归位，除必要 export 外内容一致 |
+| HTTP | 12 条路由注册（含非 GET stream 保护）的顺序、路径及校验保持；6 个未提取 handler 内容一致；另核对 6 个提取操作的查询、响应投影及错误映射 |
+| 资源与边界 | 2038 处静态/字面量动态导入及资源路径可解析；没有涉及 Agent 的静态运行时循环，core 不导入 profile 或业务实现；SQL schema 相对路径保持 |
+| git diff --check | 通过 |
+
+Review 命名修正：用户确认后端模块由 library 改为 sharing。同步 listSharingCatalog、sharingRoutes、共享文件 sharing.ts 与 SharingCatalog/SharingAssetBase/SharingStrategy/SharingFactor，以及前端 fetchSharingCatalog 和类型引用；响应 JSON、既有 /api/app/library URL 和前端页面/UI 名称保持。catalog、getPublicStrategy、copyPublicStrategy 已准确表达目录与公开源约束，保留。扫描 Prisma schema 与历史 migration，没有 Library/Sharing 模型或表；数据来自 Strategy/Factor/FactorComposite 的既有 visibility 字段，无需表/字段重命名或 migration。 Shared 使用正常 noEmit 检查；API 临时配置直接引用 Shared 源码，Web 临时类型入口组合当前 Sharing 源类型与未变更的既有声明，保留各工作区原有严格性配置。所有临时配置位于 /tmp/jixie-c10-review，未修改仓库 tsconfig，未生成 JS 或声明产物。
+
+人工 review 确认后开始验证。Shared 构建、API 临时目录编译和前端正常配置 typecheck 均通过。首次全量测试为 200 个文件通过、1 个文件失败（1082 项通过、1 项失败）：新 Sharing 测试请求 `/library/`，而既有 Hono 挂载路径为 `/library`，返回 404。仅修正测试路径并增加 200 状态断言，ESLint/格式与 API typecheck 通过后，使用全新隔离 SQLite 复跑，**201 个文件、1083 项全部通过**。产品路由和行为未改动。
+
+Worker 验证使用确定性市场 fixture 和独立 SQLite，真实执行 SQL/快速回测线程及图表 isolate。初版慢 SQL fixture 递归量过大，超时错误返回后原生 SQLite 查询仍占用线程；主动终止两个独立验证进程，缩小 fixture 后复查。此为既有实现的限制：Node Worker 的 terminate 在原生 SQLite 调用中可能延迟，10 秒是调用方超时门槛，不能解释为 CPU/线程的严格回收时限。原 SQL 实现除目录与数据库相对路径外保持一致，本轮不混入这一行为修复。
+
+最终验证结果：
+
+| 检查 | 结果 |
+| --- | --- |
+| 全量 API | 201 个文件、1083 项全部通过，独立 SQLite，启用 ACCOUNTING_INTEGRATION=1；新增 Agent/Sharing 10 项及既有工具/profile/Job/权限用例通过 |
+| 构建与类型 | Shared build、API 临时目录 tsc、Web 正常配置 typecheck 通过；测试地址修正后 API typecheck 再次通过 |
+| SQL Worker | 源码通过实际 boot.mjs，编译入口不使用 tsx；相对数据库路径、查询行数上限、用户表/写入拒绝、直接请求 Worker 时 SQLite 只读连接拒写均通过 |
+| 图表 | 实际 SQL 查询与计算 isolate、图表工具生成结果通过；源码与编译的行数据一致 |
+| 快速回测 Worker | 源码/编译均通过成功、策略抛错、取消与所有者拒绝；原策略配置/消息/结果保持，未生成正式报告、Job 或部署；两种入口指标一致 |
+| SQL 超时与重建 | 受控慢查询触发错误，等待原线程退出后下一条查询成功重建 Worker；覆盖首次相对路径与重建时绝对路径；原生查询的退出延迟限制见上文 |
+| 清理 | 每种运行方式创建的 6 个真实 Worker 均确认退出；Prisma 断开；进程列表和 lsof 检查无残留验证进程或测试库句柄 |
+
+记录位于 `/tmp/jixie-c10-verification`：首次与复跑的 api-test*.log/json、shared-build.log、api-build.log、web-typecheck.log、api-typecheck-reviewed.log，以及 worker-smoke.mjs、两种入口的 Worker 日志和结果 JSON。Worker 脚本只在临时目录，数据库和市场 fixture 独立；未调用真实模型/外部行情。取消测试启动真实线程后发出 AbortSignal；SQL 只读检查直接访问实际 Worker，未用 guard 替身代替数据库拒写。
+
+本轮无 UI 行为、schema 或公开 Research/Factor SDK 变化，未运行浏览器 E2E；实际 Hono/SSE 与持久化由正式集成用例验证。review 后产品代码哈希保持，唯一测试修正为 Sharing 根路径及状态断言。文档补齐验证结果后按事前 message 提交，不推送。
 
 ## 8. 测试与验收计划
 

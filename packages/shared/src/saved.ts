@@ -1,6 +1,6 @@
 import type { BacktestConfig, BacktestSummary } from './backtest.js';
 import type { ChatMessage } from './chat.js';
-import type { AssetVisibility } from './library.js';
+import type { AssetVisibility } from './sharing.js';
 import type { ResearchStrategyHandoffV1 } from './research.js';
 
 /**

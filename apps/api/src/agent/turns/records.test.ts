@@ -6,15 +6,15 @@ const mocks = vi.hoisted(() => ({
   findConversation: vi.fn(),
 }));
 
-vi.mock('../infra/database/prisma.js', () => ({
+vi.mock('../../infra/database/prisma.js', () => ({
   prisma: {
     $transaction: mocks.transaction,
     agentConversation: { findFirst: mocks.findConversation },
   },
 }));
 
-import { finishPersistentTurn, startPersistentTurn } from './persistence.js';
-import { resolveResearchClarificationAnswer } from '../research/proposals/clarification-records.js';
+import { finishPersistentTurn, startPersistentTurn } from './records.js';
+import { resolveResearchClarificationAnswer } from '../../research/proposals/clarification-records.js';
 
 const TRACE: AgentTurnTrace = { version: 1, steps: [], truncated: false };
 

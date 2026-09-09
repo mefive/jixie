@@ -1,15 +1,16 @@
 import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { z } from 'zod';
-import type { AgentStreamEvent, AgentTurnDetail, ChatMessage } from '@jixie/shared';
+import type { AgentStreamEvent } from '@jixie/shared';
 import { apiError, validateJson, validateQuery } from '../infra/http/errors.js';
-import * as turnBus from '../agent/turn-bus.js';
-import { runReadOnlySql, jsonSafe } from '../agent/tools/read-only-sql.js';
-import { CHART_ROW_CAP } from '../agent/tools/render-chart.js';
-import { runComputeChartRows } from '../agent/tools/render-computed-chart.js';
-import { computeChartSpecSchema } from '../lib/chart-spec.js';
+import * as turnBus from './turns/bus.js';
+import { runReadOnlySql, jsonSafe } from './tools/sql/read-only-sql.js';
+import { CHART_ROW_CAP } from './tools/charts/render-chart.js';
+import { runComputeChartRows } from './tools/charts/render-computed-chart.js';
+import { computeChartSpecSchema } from './tools/charts/spec.js';
 import { m } from '../infra/http/locale.js';
-import { prisma } from '../infra/database/prisma.js';
+import { listConversations, listConversationMessages } from './conversations/read.js';
+import { getTurnDetail } from './turns/read.js';
 
 /**
  * Shared agent-turn endpoints (all surfaces). A turn is started by the surface route (strategy /
@@ -18,27 +19,15 @@ import { prisma } from '../infra/database/prisma.js';
  *   GET  /turns/running?entity=  the live turn for an entity (refresh-reattach discovery)
  *   POST /turns/:turnId/cancel   abort the upstream LLM (idempotent)
  */
-export const agentRoute = new Hono();
+export const routes = new Hono();
 
 const conversationQuery = z.object({
   surface: z.enum(['strategy', 'factor', 'screen', 'research']).optional(),
   entityId: z.string().optional(),
 });
 
-agentRoute.get('/conversations', validateQuery(conversationQuery), async (c) => {
-  const { surface, entityId } = c.req.valid('query');
-  const rows = await prisma.agentConversation.findMany({
-    where: {
-      userId: c.var.userId,
-      archivedAt: null,
-      ...(surface ? { surface } : {}),
-      ...(surface === 'strategy' && entityId ? { strategyId: entityId } : {}),
-      ...(surface === 'factor' && entityId ? { factorId: entityId } : {}),
-    },
-    select: { id: true, surface: true, title: true, createdAt: true, updatedAt: true },
-    orderBy: { updatedAt: 'desc' },
-  });
-  return c.json(rows);
+routes.get('/conversations', validateQuery(conversationQuery), async (c) => {
+  return c.json(await listConversations(c.var.userId, c.req.valid('query')));
 });
 
 const messagesQuery = z.object({
@@ -46,55 +35,21 @@ const messagesQuery = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(40),
 });
 
-agentRoute.get(
-  '/conversations/:conversationId/messages',
-  validateQuery(messagesQuery),
-  async (c) => {
-    const conversationId = c.req.param('conversationId');
-    const owner = await prisma.agentConversation.findFirst({
-      where: { id: conversationId, userId: c.var.userId },
-      select: { id: true },
-    });
-    if (!owner) {
-      return apiError(c, 'NOT_FOUND', m(c, 'turnNotFound'));
-    }
-    const { before, limit } = c.req.valid('query');
-    const rows = await prisma.agentMessage.findMany({
-      where: { conversationId, ...(before !== undefined ? { sequence: { lt: before } } : {}) },
-      orderBy: { sequence: 'desc' },
-      take: limit,
-    });
-    const messages: ChatMessage[] = rows.reverse().map((row) => ({
-      id: row.id,
-      role: row.role === 'assistant' ? 'assistant' : 'user',
-      parts: row.parts as unknown as ChatMessage['parts'],
-      turnId: row.turnId ?? undefined,
-      sequence: row.sequence,
-      createdAt: row.createdAt.toISOString(),
-    }));
-    return c.json({ messages, nextBefore: messages[0]?.sequence });
-  },
-);
-
-agentRoute.get('/turns/:turnId/detail', async (c) => {
-  const row = await prisma.agentTurn.findFirst({
-    where: { id: c.req.param('turnId'), conversation: { userId: c.var.userId } },
-  });
-  if (!row) {
-    return apiError(c, 'NOT_FOUND', m(c, 'turnNotFound'));
-  }
-  return c.json({
-    id: row.id,
-    status: row.status as AgentTurnDetail['status'],
-    model: row.model,
-    trace: row.trace as unknown as AgentTurnDetail['trace'],
-    error: row.error ?? undefined,
-    startedAt: row.startedAt.toISOString(),
-    finishedAt: row.finishedAt?.toISOString(),
-  } satisfies AgentTurnDetail);
+routes.get('/conversations/:conversationId/messages', validateQuery(messagesQuery), async (c) => {
+  const result = await listConversationMessages(
+    c.var.userId,
+    c.req.param('conversationId'),
+    c.req.valid('query'),
+  );
+  return result ? c.json(result) : apiError(c, 'NOT_FOUND', m(c, 'turnNotFound'));
 });
 
-agentRoute.get('/turns/:turnId/stream', (c) => {
+routes.get('/turns/:turnId/detail', async (c) => {
+  const result = await getTurnDetail(c.var.userId, c.req.param('turnId'));
+  return result ? c.json(result) : apiError(c, 'NOT_FOUND', m(c, 'turnNotFound'));
+});
+
+routes.get('/turns/:turnId/stream', (c) => {
   const turnId = c.req.param('turnId');
   const userId = c.var.userId;
   return streamSSE(c, async (stream) => {
@@ -134,13 +89,13 @@ const runningQuery = z.object({
   entity: z.string().regex(/^(strategy|factor|screen|research):[A-Za-z0-9]+$/),
 });
 
-agentRoute.get('/turns/running', validateQuery(runningQuery), (c) => {
+routes.get('/turns/running', validateQuery(runningQuery), (c) => {
   const { entity } = c.req.valid('query');
   return c.json({ turnId: turnBus.findRunning(entity, c.var.userId) });
 });
 
 // Idempotent: already finished / unknown turn → { ok: true, cancelled: false }.
-agentRoute.post('/turns/:turnId/cancel', (c) => {
+routes.post('/turns/:turnId/cancel', (c) => {
   const cancelled = turnBus.cancel(c.req.param('turnId'), c.var.userId);
   return c.json({ ok: true, cancelled });
 });
@@ -149,7 +104,7 @@ const sqlBody = z.object({ sql: z.string().min(8).max(4000) });
 
 // Read-only SQL over the market-table whitelist (same guard as the agent's sqlQuery/renderChart
 // tools). Consumed by chart cards, which persist the query and re-run it on render.
-agentRoute.post('/sql', validateJson(sqlBody), async (c) => {
+routes.post('/sql', validateJson(sqlBody), async (c) => {
   const { sql } = c.req.valid('json');
   try {
     const rows = await runReadOnlySql(sql, CHART_ROW_CAP);
@@ -163,7 +118,7 @@ agentRoute.post('/sql', validateJson(sqlBody), async (c) => {
 // Re-run a compute-source chart card (computed-chart.md Phase A): the persisted queries + code run
 // through the same whitelist guard and analysis isolate as the renderComputedChart tool, and the
 // validated row table comes back for the frontend to draw. Data never touches the LLM.
-agentRoute.post('/chart/compute', validateJson(computeChartSpecSchema), async (c) => {
+routes.post('/chart/compute', validateJson(computeChartSpecSchema), async (c) => {
   try {
     const rows = await runComputeChartRows(c.req.valid('json'));
     return c.json(JSON.parse(JSON.stringify({ rows }, jsonSafe)));
@@ -173,6 +128,6 @@ agentRoute.post('/chart/compute', validateJson(computeChartSpecSchema), async (c
 });
 
 // Guard against accidental non-GET on the stream path (avoids a confusing 404 from Hono).
-agentRoute.all('/turns/:turnId/stream', (c) =>
+routes.all('/turns/:turnId/stream', (c) =>
   apiError(c, 'VALIDATION_FAILED', m(c, 'onlyGetSubscribe')),
 );
