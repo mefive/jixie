@@ -1,5 +1,7 @@
 # Python 策略运行时与沙箱（决策文档）
 
+> 2026-09-09 目录重整更新（Commit 8，验证通过）：配置执行入口归 `strategy/execution/run-configured.ts`，TS 的宿主/墙内入口归 `strategy/runtime/typescript/`；模拟核心显式接收 `engine/data/data-port.ts` 的必填端口，Prisma 适配器归 `engine/adapters/`，移除了打包时的 Prisma 替身。下文保留早期决策记录；现行职责见 [Engine 阅读地图](../../apps/api/src/engine/README.md)。
+
 > **2026-08-05 决策更新：下文 2026-07-07 的“不支持 Python 策略”结论已被新需求取代。**
 > 当前采用“单一 TypeScript Engine + Python 策略进程 + 独立 `jixie-sandboxd` + rootless
 > Podman”，不复制一份 Python Engine。旧分析保留在后半部分，作为决策演进记录。

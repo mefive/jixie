@@ -1,6 +1,7 @@
+import { prismaDataPort } from '../src/engine/adapters/prisma-port.js';
 import { prisma } from '../src/infra/database/prisma.js';
-import { runStrategy } from '../src/engine/run.js';
-import { computeBuyDates, makeZengStrategy } from '../src/strategy/zeng.js';
+import { runStrategy } from '../src/engine/simulation/run.js';
+import { computeBuyDates, makeZengStrategy } from '../src/strategy/examples/zeng.js';
 
 const pct = (x: number) => (x * 100).toFixed(2) + '%';
 
@@ -32,7 +33,13 @@ async function main(): Promise<void> {
 
   console.log('\nPhase 2: preloading financials + running backtest…');
   const strategy = await makeZengStrategy({ start, end, buyDates });
-  const r = await runStrategy({ start, end, initialCash: 2_000_000, strategy });
+  const r = await runStrategy({
+    dataPort: prismaDataPort,
+    start,
+    end,
+    initialCash: 2_000_000,
+    strategy,
+  });
 
   console.log(
     `\nStrategy ${r.name} (breadth timing + quality/high-dividend selection, MA death-cross exit)`,

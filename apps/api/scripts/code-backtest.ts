@@ -1,7 +1,8 @@
+import { prismaDataPort } from '../src/engine/adapters/prisma-port.js';
 import { prisma } from '../src/infra/database/prisma.js';
-import { runStrategy } from '../src/engine/run.js';
-import { crossSectionStrategy } from '../src/engine/strategies.js';
-import { runCodeBacktest } from '../src/strategy/code/run.js';
+import { runStrategy } from '../src/engine/simulation/run.js';
+import { crossSectionStrategy } from '../src/strategy/examples/strategies.js';
+import { runCodeBacktest } from '../src/strategy/runtime/typescript/run.js';
 import type { BacktestResult } from '../src/engine/types.js';
 
 const pct = (x: number) => (x * 100).toFixed(2) + '%';
@@ -44,6 +45,7 @@ function line(label: string, r: BacktestResult): string {
 
 async function main(): Promise<void> {
   const ir = await runStrategy({
+    dataPort: prismaDataPort,
     start: START,
     end: END,
     initialCash: CASH,

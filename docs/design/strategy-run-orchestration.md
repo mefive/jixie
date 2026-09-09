@@ -1,5 +1,7 @@
 # 设计:策略 Run / 建行编排收归后端
 
+> 2026-09-09 目录重整更新（Commit 8，验证通过）：本文保留原用例决策；当前保存/命名实现在 `strategy/definitions/`，回测提交事务在 `strategy/backtest/submit.ts`，任务生命周期在根级 `strategy/backtest-job.ts`。现行入口和报告快照链路见 [Strategy 阅读地图](../../apps/api/src/strategy/README.md)。
+
 > 2026-07-10 起草。
 > 动机:Lab 点 Run / 首次 Agent 时,前端串了 `name → create → update config → backtest → poll → getStrategy`,以及 Run 后异步 `refreshName`。命名与「Run 时 commit config」都是自动副作用,却由客户端编排——漏调一步会留下「结果在、存档代码不对齐」的脏状态;别的客户端也难复用。
 > 本文是执行计划真相源;与 `api-route-naming.md` 正交(路径已对齐,本文改**用例边界与副作用归属**)。

@@ -3,7 +3,7 @@ import {
   runDataQualityAudit,
   type AuditFinding,
   type DataQualityAuditOptions,
-} from '../src/data-quality/audit.js';
+} from '../src/maintenance/data-audit.js';
 
 interface CliOptions extends DataQualityAuditOptions {
   json: boolean;

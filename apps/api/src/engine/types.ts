@@ -9,8 +9,8 @@
 // signals (mom/rev/vol) compute on the fly from the bar series; moneyflow opts into a preloaded column.
 
 import type { AllocationAnalysis, FactorDependency, Locale } from '@jixie/shared';
-import type { EngineDataPort } from './data-port.js';
-import type { CustomFactorModule } from './custom-factor.js';
+import type { EngineDataPort } from './data/data-port.js';
+import type { CustomFactorModule } from './factors/custom-factor.js';
 
 /** A held position. Only frozenShares remain unavailable until frozenUntil (T+1). */
 export interface Position {
@@ -277,9 +277,8 @@ export interface EngineConfig {
   /** Locale for the engine's user-facing progress logs / warnings; defaults to DEFAULT_LOCALE at the
    * use site (scripts and tests omit it). */
   locale?: Locale;
-  /** Storage doorway (Phase B1). Defaults to prismaDataPort (the direct lane); tests inject fixture
-   * ports; the Phase B2 walled lane injects the isolate bridge. */
-  dataPort?: EngineDataPort;
+  /** Required storage doorway: the host supplies Prisma, tests a fixture, and the wall a bridge. */
+  dataPort: EngineDataPort;
   /** Published defineFactor modules referenced through immutable Factor.key values —
    * host-prepared (ownership-checked, TS→CJS); evaluated in the engine's own world (see
    * custom-factor.ts). A declared custom key with no module here fails the run explicitly. */

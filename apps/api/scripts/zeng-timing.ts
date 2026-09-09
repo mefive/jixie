@@ -1,5 +1,5 @@
 import { prisma } from '../src/infra/database/prisma.js';
-import { computeBreadthSeries, selectBuyDates } from '../src/strategy/zeng.js';
+import { computeBreadthSeries, selectBuyDates } from '../src/strategy/examples/zeng.js';
 
 /**
  * Zeng Qinghui Phase 1 inspection. Usage: pnpm --filter api zeng:timing [codes] [gate]

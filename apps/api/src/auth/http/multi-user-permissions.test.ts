@@ -41,7 +41,7 @@ vi.mock('../../infra/database/prisma.js', () => ({
 
 import { factorsRoute } from '../../factor/routes.js';
 import { libraryRoute } from '../../routes/library.js';
-import { strategiesRoute } from '../../routes/strategies.js';
+import { routes as strategyDefinitionRoutes } from '../../strategy/definition-routes.js';
 
 const app = new Hono();
 app.use('*', async (c, next) => {
@@ -49,7 +49,7 @@ app.use('*', async (c, next) => {
   c.set('user', { id: 'user-b', email: 'reader@example.com', name: 'Reader' });
   await next();
 });
-app.route('/strategies', strategiesRoute);
+app.route('/strategies', strategyDefinitionRoutes);
 app.route('/factors', factorsRoute);
 app.route('/library', libraryRoute);
 

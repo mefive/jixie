@@ -2,7 +2,7 @@ import { Worker } from 'node:worker_threads';
 import type { BacktestConfig, BacktestMetricSummary, Locale } from '@jixie/shared';
 import { z } from 'zod';
 import { prisma } from '../../infra/database/prisma.js';
-import { codeConfigSchema } from '../../strategy/code/schema.js';
+import { codeConfigSchema } from '../../strategy/runtime/typescript/schema.js';
 import type { AgentTool } from './types.js';
 
 const workerUrl = import.meta.url.endsWith('.ts')

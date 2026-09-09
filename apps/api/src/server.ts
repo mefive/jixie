@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
 import { logger } from 'hono/logger';
 import { authRoute } from './auth/http/auth.js';
-import { strategyRoute } from './routes/strategy.js';
-import { strategiesRoute } from './routes/strategies.js';
+import { routes as strategyRoutes } from './strategy/routes.js';
+import { routes as strategyDefinitionRoutes } from './strategy/definition-routes.js';
 import { marketRoute } from './routes/market.js';
 import { factorRoute } from './factor/research-routes.js';
 import { researchRoute } from './research/routes.js';
@@ -37,12 +37,12 @@ export function buildApp() {
   //   base     = truly cross-domain infra   (/agent turn bus, /market read-only helpers)
   app.route('/api/app/agent', agentRoute);
   app.route('/api/app/market', marketRoute);
-  app.route('/api/app/strategies', strategiesRoute);
+  app.route('/api/app/strategies', strategyDefinitionRoutes);
   app.route('/api/app/factors', factorsRoute);
   app.route('/api/app/factor-weather', factorWeatherRoute);
   app.route('/api/app/signals', signalsRoute);
   app.route('/api/app/library', libraryRoute);
-  app.route('/api/app/strategy', strategyRoute);
+  app.route('/api/app/strategy', strategyRoutes);
   app.route('/api/app/factor', factorRoute);
   app.route('/api/app/research', researchRoute);
 

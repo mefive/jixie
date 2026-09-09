@@ -38,7 +38,7 @@ app.route('/api/app', screenRoute);                  // 挂在 app 根 → /scre
 2. **工作台动作(单数域前缀)**:agent 一轮、起名、跑一次查询/回测/分析。例:`POST /strategy/agent`、`POST /strategy/backtest`、`POST /factor/analysis/run`、`POST /screen/run`。
 3. **跨实体基础设施**:只挂真正跨域的 —— `/agent`(turn SSE)、`/market`(行情只读辅助)。**重计算 Job 跟所属产品线走**,不因「共用 Job 表」就抬到顶层。
 4. **市场只读辅助**(股票名、K 线、指数序列):从 screen 文件拆出,挂 `/market/*`,避免「选股路由文件」变成杂物间。
-5. **文件名跟挂载点对齐**:`routes/strategies.ts`(CRUD)、`routes/strategy.ts`(动作,含 backtest);screen / factor 同理。现有 `saved-*.ts` / `backtest.ts` 可在迁完后改名、合并或保留 re-export 一版。
+5. **文件按所属业务与职责命名**（2026-09-08 目录重整更新）：Strategy 使用根级 `strategy/routes.ts` 处理 Agent/命名并组合子路由，`definition-routes.ts` 处理 CRUD，`backtest-routes.ts` 与 `scan-routes.ts` 分别处理回测、扫描；其他业务同样优先根级 `routes.ts` 或具名路由。不建立 `http/` 空包装或旧路径 re-export，HTTP 挂载点保持原契约。
 
 ### 为何回测进 `/strategy`,而不是继续顶层(方案 A)
 

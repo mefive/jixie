@@ -11,11 +11,11 @@ import { z } from 'zod';
 import { t } from '../i18n/messages.js';
 import { defineJob } from '../infra/jobs/definition.js';
 import { runJobWorker, type JobWorkerMessage } from '../infra/jobs/worker-result.js';
-import { codeConfigSchema } from './code/schema.js';
+import { codeConfigSchema } from './runtime/typescript/schema.js';
 
 const workerUrl = import.meta.url.endsWith('.ts')
-  ? new URL('../engine/strategy-scan-worker.boot.mjs', import.meta.url)
-  : new URL('../engine/strategy-scan-worker.js', import.meta.url);
+  ? new URL('./scans/strategy-scan-worker.boot.mjs', import.meta.url)
+  : new URL('./scans/strategy-scan-worker.js', import.meta.url);
 
 const payloadSchema = z.object({
   task: z.literal('strategy-scan'),

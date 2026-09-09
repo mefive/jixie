@@ -54,4 +54,4 @@ Factor 负责因子从定义、分析到发布与持续观察的完整业务。R
 
 新增 [routes.integration.test.ts](routes.integration.test.ts) 使用临时 SQLite 和 Hono 内存请求，覆盖上述权限、复制回滚、封存/揭示、holdout 事务、Agent 与天气操作；外部 Agent、队列和天气计算通过测试替身隔离。既有评估器、runtime、observations、publication、spec 测试随业务文件迁移，`analysis-job.test.ts` 保留在任务入口旁。
 
-Commit 7 已通过人工 review、静态检查、全量 API 测试（196 个文件、1051 项）和 API 编译。额外 Worker 检查覆盖源码与编译入口、真实 TS/Python 计算、相关性缓存与 Job 提交、失败收尾和重启恢复；具体结果见 [开发记录](../../../../docs/design/backend-architecture-refactor.md#77-commit-7-实现与验证记录2026-09-08本提交)。
+Commit 7 已通过人工 review、静态检查、全量 API 测试（196 个文件、1051 项）和 API 编译。额外 Worker 检查覆盖源码与编译入口、真实 TS/Python 计算、相关性缓存与 Job 提交、失败收尾和重启恢复；具体结果见 [开发记录](../../../../docs/design/backend-architecture-refactor.md#77-commit-7-实现与验证记录2026-09-08014899ba)。

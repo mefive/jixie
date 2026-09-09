@@ -1,0 +1,131 @@
+import { runStrategy, runStrategyWithSignals } from '../../../engine/simulation/run.js';
+import { applyStrategyParamOverrides, defineStrategy } from './sdk.js';
+import { makeSandboxConsole, noopSandboxConsole } from '../../../infra/runtime/console.js';
+import type { SandboxConsole } from '../../../infra/runtime/console.js';
+import type { EngineDataPort } from '../../../engine/data/data-port.js';
+import type { CustomFactorModule } from '../../../engine/factors/custom-factor.js';
+import type { Strategy } from '../../../engine/types.js';
+import type { Locale, StrategyParamValue } from '@jixie/shared';
+
+/**
+ * The walled lane's IN-WALL entry (sandbox Phase B2). This file is esbuild-BUNDLED (engine + SDK +
+ * stats + i18n messages — all pure ECMAScript; the host data port is injected) and evaluated inside an
+ * isolated-vm isolate by walled-run.ts. Everything here executes with NO Node world around it.
+ *
+ * The wall's two doorways, both host-provided References:
+ *   - __hostFetch: the DataPort bridge. Each engine data load becomes ONE crossing —
+ *     Reference.apply proxies the host's async Prisma promise back into the isolate. Crossings ≈ DB
+ *     queries, already minimized by
+ *     EngineData's caching, so no per-ctx-call chatter.
+ *   - __hostLog: fire-and-forget log lines (system progress + the strategy's console.*).
+ * The user strategy module (host-compiled TS→CJS) is evaluated in here too — same JS world as the
+ * engine, which is exactly the direct lane's semantics, just inside the wall.
+ */
+
+interface HostFn {
+  apply(
+    receiver: undefined,
+    args: unknown[],
+    options: {
+      arguments: { copy: true };
+      result: { promise: true; copy: true };
+    },
+  ): Promise<unknown>;
+  applyIgnored(receiver: undefined, args: unknown[]): void;
+}
+declare const __hostFetch: HostFn;
+declare const __hostLog: HostFn;
+
+const bridgePort: EngineDataPort = new Proxy({} as EngineDataPort, {
+  get(_target, method: string) {
+    return async (...args: unknown[]) =>
+      JSON.parse(
+        (await __hostFetch.apply(undefined, [method, JSON.stringify(args)], {
+          arguments: { copy: true },
+          result: { promise: true, copy: true },
+        })) as string,
+      );
+  },
+});
+
+interface WalledConfig {
+  userJs: string; // the strategy module, host-compiled to CJS
+  start: string;
+  end: string;
+  initialCash: number;
+  cost?: Record<string, number>;
+  locale?: Locale;
+  customFactors?: CustomFactorModule[]; // host-prepared factor modules, evaluated in-wall by run.ts
+  paramOverrides?: Record<string, StrategyParamValue>;
+  captureUserLogs: boolean;
+  captureSignals: boolean;
+}
+
+function loadStrategy(userJs: string, sandboxConsole: SandboxConsole): Strategy {
+  const mod: { exports: Record<string, unknown> } = { exports: {} };
+  try {
+    const run = new Function('module', 'exports', 'defineStrategy', 'console', 'require', userJs);
+    run(mod, mod.exports, defineStrategy, sandboxConsole, (id: string) => {
+      throw new Error(
+        `strategy code cannot import external modules (${id}) — all capabilities are on ctx`,
+      );
+    });
+  } catch (error) {
+    throw new Error(
+      `strategy code execution error: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+
+  const strategy = (mod.exports.default ?? mod.exports) as Partial<Strategy>;
+  if (!strategy || typeof strategy.onBar !== 'function') {
+    throw new Error('strategy must `export default defineStrategy({ onBar(ctx) { … } })`');
+  }
+  if (!strategy.name) {
+    strategy.name = 'Untitled strategy';
+  }
+  return strategy as Strategy;
+}
+
+(globalThis as Record<string, unknown>).__inspectStrategyParameters = (userJs: string) =>
+  JSON.stringify(loadStrategy(userJs, noopSandboxConsole).params ?? {});
+
+(globalThis as Record<string, unknown>).__inspectStrategyMetadata = (userJs: string) => {
+  const strategy = loadStrategy(userJs, noopSandboxConsole);
+  return JSON.stringify({
+    watch: strategy.watch ?? [],
+    futures: strategy.futures ?? [],
+    factors: strategy.factors ?? [],
+  });
+};
+
+(globalThis as Record<string, unknown>).__runBacktest = async (cfgJson: string) => {
+  const cfg = JSON.parse(cfgJson) as WalledConfig;
+
+  // Evaluate the user strategy module — mirrors compileStrategy's evaluation half (the TS→CJS
+  // transform already happened host-side; error message shapes must stay identical).
+  const sandboxConsole = cfg.captureUserLogs
+    ? makeSandboxConsole(
+        (level, text) => __hostLog.applyIgnored(undefined, ['user', level, text]),
+        2000,
+        cfg.locale,
+      )
+    : noopSandboxConsole;
+  const strategy = loadStrategy(cfg.userJs, sandboxConsole);
+  applyStrategyParamOverrides(strategy, cfg.paramOverrides);
+
+  const engineConfig = {
+    start: cfg.start,
+    end: cfg.end,
+    initialCash: cfg.initialCash,
+    cost: cfg.cost,
+    locale: cfg.locale,
+    strategy,
+    dataPort: bridgePort,
+    customFactors: cfg.customFactors,
+    onLog: (line: string) => __hostLog.applyIgnored(undefined, ['system', 'info', line]),
+  };
+  const result = cfg.captureSignals
+    ? await runStrategyWithSignals(engineConfig)
+    : await runStrategy(engineConfig);
+  return JSON.stringify(result);
+};

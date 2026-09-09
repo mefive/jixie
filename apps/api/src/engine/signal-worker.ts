@@ -6,10 +6,10 @@ import type {
   ModelPositionSnapshot,
   SignalItem,
 } from '@jixie/shared';
-import { codeConfigSchema } from '../strategy/code/schema.js';
-import { prepareStrategyFactors } from './prepare-custom-factors.js';
-import { runWalledSignalCapture } from './walled-run.js';
-import { prismaDataPort } from './prisma-port.js';
+import { codeConfigSchema } from '../strategy/runtime/typescript/schema.js';
+import { prepareStrategyFactors } from '../strategy/execution/prepare-factors.js';
+import { runWalledSignalCapture } from '../strategy/runtime/typescript/walled-run.js';
+import { prismaDataPort } from './adapters/prisma-port.js';
 import { prisma } from '../infra/database/prisma.js';
 import { t } from '../i18n/messages.js';
 import {

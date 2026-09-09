@@ -1,6 +1,6 @@
 import { parentPort, workerData } from 'node:worker_threads';
 import type { BacktestConfig, Locale, LogLine, LogLevel } from '@jixie/shared';
-import { runConfiguredBacktest } from './configured-run.js';
+import { runConfiguredBacktest } from '../strategy/execution/run-configured.js';
 import { prisma } from '../infra/database/prisma.js';
 
 /**

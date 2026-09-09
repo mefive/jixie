@@ -18,15 +18,18 @@ vi.mock('./infra/database/prisma.js', async () => {
 });
 const execution = vi.hoisted(() => ({
   worker: vi.fn(),
+  rename: vi.fn(),
   curator: vi.fn(),
   notify: vi.fn(),
   accounting: vi.fn(),
 }));
 vi.mock('./server.js', () => ({ buildApp: vi.fn() }));
 vi.mock('./infra/jobs/worker-result.js', () => ({ runJobWorker: execution.worker }));
-vi.mock('./services/strategy-service.js', () => ({
-  refreshStrategyName: vi.fn(async () => false),
+vi.mock('./strategy/definitions/config.js', () => ({
   strategyRunKey: () => 'fixture',
+}));
+vi.mock('./strategy/definitions/naming.js', () => ({
+  refreshStrategyName: execution.rename,
 }));
 vi.mock('./research/curator/runs.js', () => ({ prepareResearchCuratorRun: execution.curator }));
 vi.mock('./signals/notifier.js', () => ({ notifySignalRun: execution.notify }));
@@ -207,6 +210,7 @@ describe('durable job and business lifecycle transactions', () => {
           };
       }
     });
+    execution.rename.mockReset().mockResolvedValue(false);
     execution.curator.mockReset().mockImplementation(async (runId) => preparedCuratorRun(runId));
     execution.notify.mockReset().mockResolvedValue(undefined);
     execution.accounting.mockReset().mockResolvedValue(undefined);
@@ -332,6 +336,9 @@ describe('durable job and business lifecycle transactions', () => {
         { source: 'system', level: 'info', text: 'fixture log' },
       ]);
       if (kind === 'backtest') {
+        expect(execution.rename).toHaveBeenCalledWith(
+          expect.objectContaining({ id: 'strategy', userId: 'owner', expectedRunKey: 'fixture' }),
+        );
         expect(
           (await prisma.strategy.findUniqueOrThrow({ where: { id: 'strategy' } })).lastResult,
         ).toEqual(summary);

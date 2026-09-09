@@ -6,8 +6,9 @@ import { runJobWorker, type JobWorkerMessage } from '../infra/jobs/worker-result
 import { createHash } from 'node:crypto';
 import type { Prisma } from '@prisma/client';
 import { t } from '../i18n/messages.js';
-import { codeConfigSchema } from './code/schema.js';
-import { refreshStrategyName, strategyRunKey } from '../services/strategy-service.js';
+import { codeConfigSchema } from './runtime/typescript/schema.js';
+import { strategyRunKey } from './definitions/config.js';
+import { refreshStrategyName } from './definitions/naming.js';
 
 const workerUrl = import.meta.url.endsWith('.ts')
   ? new URL('../engine/backtest-worker.boot.mjs', import.meta.url)

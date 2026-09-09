@@ -1,12 +1,12 @@
 # 后端业务边界与目录重整开发计划
 
-> 状态：Commit 1～6 已提交（`177f63ab`、`00a0e83a`、`bc4a1651`、`ed8c4aae`、`a034c611`、`1bba29cd`）；Commit 7（本提交）已通过人工 review、静态检查、全量 API 测试、编译和 Factor Worker 源码/编译运行验证。
+> 状态：Commit 1～7 已提交（`177f63ab`、`00a0e83a`、`bc4a1651`、`ed8c4aae`、`a034c611`、`1bba29cd`、`014899ba`）；Commit 8 已完成并通过人工 review、全量 API 测试、编译与真实 Worker 验证，随本次提交交付。
 > 编制日期：2026-09-07；核对代码基线：`12ce9092`。
 > 目标：让不熟悉项目的开发者从目录识别业务能力，沿一个入口读懂完整流程，并找到状态与数据的责任方。
 > 本文规划后端结构调整；研究方法与金融口径不变，任务生命周期的已批准行为调整见 5.3。
 > 开发授权：2026-09-08 用户确认按评审工作流开始开发；Commit 1～3 已提交，Commit 4 的具体范围、JobDefinition + executor 调整以及 Curator/相关性结果原子提交均已获确认。后续提交逐项说明具体范围，经确认后实施。
 > 工作流：开工前明确本次 commit message 与范围并获确认 → 编写代码与测试 → 运行并修复 lint/typecheck 等静态检查 → 停下人工代码 review → review 通过后运行测试、构建及运行验证 → 全部通过后直接按预告 message 提交，不再单独请求 commit 确认。验证中需要修改代码或测试时，修复并通过静态检查后重新交人工 review；仅环境问题可直接重试。此流程已同步到 review-gated-development SKILL。
-> 当前 Commit 4 预定 message：`统一任务生命周期与结果事务并集中启动装配`。后续每轮须在该 commit 任务开工前预告 message。
+> Commit 8 事前确认的 message：`整理 Strategy 执行、Engine 模拟与风险分析边界`。后续每轮须在该 commit 任务开工前预告 message。
 
 ## 1. 判断与取舍
 
@@ -137,11 +137,15 @@ apps/api/src/
     runtime/                    因子 TS/Python 编译、SDK 与运行适配
     weather/                    因子天气计算与查询
   strategy/
-    routes.ts                   策略列表与定义入口
-    chat-routes.ts              策略对话与命名入口
+    routes.ts                   策略动作总入口，Agent/命名及回测/扫描挂载
+    definition-routes.ts        策略列表与定义入口
     scan-routes.ts              参数扫描入口
     backtest-routes.ts          回测与报告入口
-    definitions/                策略保存、命名、读取与复制
+    definitions/                策略保存、命名、读取与公开范围
+    backtest/                   冻结提交、报告与任务进度
+    scans/                      参数/规格、冻结提交、报告与扫描 Worker
+    agent-turn.ts               策略对话业务启动入口
+    agent-context.ts            可用指数与已发布因子上下文
     backtest-job.ts              回测任务定义与生命周期
     scan-job.ts                  参数扫描任务定义与生命周期
     execution/                  语言分派、因子准备、风险分析编排
@@ -303,13 +307,13 @@ apps/api/src/
 | `config.ts` | `market/providers/tushare/config.ts` | 仅 Tushare 配置；更新 API、CLI 和测试调用方 |
 | `lib/chat-schema.ts` | `agent/conversations/schema.ts` | 对话入参/消息校验由 Agent 拥有 |
 | `lib/sandbox-console.ts`、`lib/isolate-run.ts` | `infra/runtime/console.ts`、`infra/runtime/typescript/isolate-run.ts` | 仅通用执行机制；不搬入领域 SDK |
-| `routes/strategies.ts`、`routes/strategy.ts`、`routes/strategy-scans.ts`、`routes/backtest.ts` | `strategy/routes.ts`、`chat-routes.ts`、`scan-routes.ts`、`backtest-routes.ts` | 按现有路由职责具名，保留 URL 与挂载语义，复杂操作转入对应业务入口 |
+| `routes/strategies.ts`、`routes/strategy.ts`、`routes/strategy-scans.ts`、`routes/backtest.ts` | `strategy/definition-routes.ts`、`routes.ts`、`scan-routes.ts`、`backtest-routes.ts` | 总入口组合动作子路由，按职责具名，保留 URL 与挂载语义，复杂操作转入对应业务入口 |
 | `routes/factors.ts`、`routes/factor.ts`、`routes/factor-weather.ts` | `factor/routes.ts`、`research-routes.ts`、`weather-routes.ts` | 按列表/定义、因子研究/报告/辅助对话、天气区分，保留所有 URL 和字面量/参数路由顺序 |
 | `routes/research.ts` | `research/routes.ts` | 参数校验、响应与错误映射留在路由；文档、执行、提案、Agent、Curator 等业务调用具体入口，不预拆路由文件 |
 | `routes/signals.ts`、`routes/agent.ts`、`routes/market.ts` | `signals/routes.ts`、`agent/routes.ts`、`market/routes.ts` | HTTP 与业务操作分离，注册仍集中在 server |
 | `routes/library.ts` | `library/routes.ts` + `library/catalog.ts`、`library/copy.ts` | 抽出聚合查询与复制操作；因子/策略复制约束由其业务入口负责 |
 
-`server.ts` 保留 `buildApp` 作为路由总索引，构建应用本身不启动队列或监听端口；监听与资源启动由 `bootstrap.ts` 显式调用。业务模块默认直接放 `routes.ts`，对应测试同目录；已有多组独立路由时使用 `chat-routes.ts`、`backtest-routes.ts` 等职责明确的文件名，由 server 按原挂载方式注册，不增加局部 `http/index.ts` 转发层。全部调用方迁移后删除空的顶层 `routes`、`services`、`lib`、`util`、`llm` 目录；不保留长期转发层。
+`server.ts` 保留 `buildApp` 作为路由总索引，构建应用本身不启动队列或监听端口；监听与资源启动由 `bootstrap.ts` 显式调用。业务模块默认直接放 `routes.ts`，对应测试同目录；已有多组独立路由时使用 `backtest-routes.ts`、`scan-routes.ts` 等职责明确的文件名，由模块根级 `routes.ts` 组合需要共享前缀的子路由，server 只挂模块公开入口，不增加局部 `http/index.ts` 包装层。全部调用方迁移后删除空的顶层 `routes`、`services`、`lib`、`util`、`llm` 目录；不保留长期转发层。
 
 当前 `i18n/index.ts` 同时导出纯消息函数 `t` 和依赖 Hono Context 的 `m`，`locale.ts` 也读取请求。将 `m` 与请求 locale 解析归 `infra/http/locale.ts`；`i18n/messages.ts` 保持纯消息目录。领域与隔离 bundle 直接消费纯消息入口，HTTP 适配消费请求辅助，避免通过 re-export 将 Hono 带入领域依赖。
 
@@ -587,8 +591,8 @@ Jobs queue → 启动时传入的任务处理函数
 | 4 | C | Job 通用设施、领域完成/恢复事务、bootstrap 启动装配 | 排队/失败/恢复、事务回滚、API/CLI 入口 | 已提交 `ed8c4aae` |
 | 5 | D | Research 文档、依赖、执行、证据、提案 | 编辑→失效→执行→取消/冻结→提案 | 已提交 `a034c611` |
 | 6 | D | Research 数据、SDK、目录、语言服务、模板、交接、整理及 HTTP | 公开列映射、契约、语言服务与交接 | 已提交 `1bba29cd` |
-| 7 | E | Factor 定义、观察、分析、报告、发布、组合、运行与 HTTP | 发布纪律、历史报告、分析 Worker | 已通过 review 与验证（本提交） |
-| 8 | E | Strategy 与 Engine 分离，风险分析及风险数据/审计边界 | TS/Python 回测、参数扫描、风险结果、引擎一致性 | 待开始 |
+| 7 | E | Factor 定义、观察、分析、报告、发布、组合、运行与 HTTP | 发布纪律、历史报告、分析 Worker | 已提交 `014899ba` |
+| 8 | E | Strategy 与 Engine 分离，风险分析及风险数据/审计边界 | TS/Python 回测、参数扫描、风险结果、引擎一致性 | 完成（本提交） |
 | 9 | F | Signals 部署、运行、对账、因子输入、Worker 与 HTTP | 冻结配置、幂等运行、失败收尾、对账 | 待开始 |
 | 10 | F | Agent turns/conversations/tools/Worker、Library 操作与 HTTP | SSE、取消、工具权限、公开库复制 | 待开始 |
 | 11 | F | Market 子领域及其余市场职责、Maintenance 与 CLI | 数据口径、幂等同步、质量门禁、审计 | 待开始 |
@@ -773,7 +777,7 @@ Commit 1 的开发者交付为本文和 [重构基线](backend-architecture-refa
 
 日志位于 `/tmp/jixie-c6-verification`（首轮保留为 `api-test-sandbox.*`，通过结果为 `api-test.*`）。本轮不访问开发数据库、真实市场或 LLM 服务；没有 UI 改动，未运行浏览器 E2E。生产连接分支使用本地测试 runner，不代表生产容器隔离验收。验证期间代码与 review 快照一致，只在验证结束后补记文档，按事前确定的信息提交。
 
-### 7.7 Commit 7 实现与验证记录（2026-09-08，本提交）
+### 7.7 Commit 7 实现与验证记录（2026-09-08，014899ba）
 
 事前确认的提交信息：`按职责整理 Factor 定义分析与发布流程`。本轮实现地图见 [Factor README](../../apps/api/src/factor/README.md)。
 
@@ -812,6 +816,51 @@ Commit 1 的开发者交付为本文和 [重构基线](backend-architecture-refa
 
 日志与临时 Worker 检查脚本在 `/tmp/jixie-c7-verification`。首两轮日志分别保留为 `api-test-unseeded.*`、`api-test-reused-db.*`，通过结果为 `api-test.*`。`worker-smoke.mjs` 是本轮额外运行入口检查，独立于仓库正式 `.test.ts`；验证确定性输入与迁移入口，不访问开发数据库、真实市场或 LLM。临时数据库文件保留供排查，连接已关闭；生产 socket 分支使用本地 runner，不代表生产容器隔离验收。无 UI 改动，未执行浏览器 E2E。全部必需验证通过，按事前确定的提交信息直接提交。
 
+### 7.8 Commit 8 实现记录（2026-09-09，完成）
+
+事前确认的提交信息：`整理 Strategy 执行、Engine 模拟与风险分析边界`。实现地图见 [Strategy README](../../apps/api/src/strategy/README.md) 和 [Engine README](../../apps/api/src/engine/README.md)。本轮以 `014899ba` 为实现基线。
+
+- 73 个原文件（含测试和四组 HTTP）归位。Strategy 定义/命名、执行编排、因子准备、TS runtime、扫描 Worker 与示例按职责归属；Engine 按 simulation/data/factors/adapters/testing 整理；风险模型归 Strategy，输入序列与基础质量归 Market，整体审计归 Maintenance。旧路径移除，没有转发层。Engine 根级信号/Agent 快速回测 Worker 继续按 Commit 9/10 迁移。
+- 四组根级 routes 的 19 个 endpoint 保持 URL/schema/顺序，由 `routes.ts` 聚合动作子路由，`server.ts` 仅挂载动作总入口与定义入口。19 个业务操作提取到定义、Agent、回测、扫描入口，显式接收 userId、输入及 locale，不依赖 Hono。业务拒绝在 `operation-errors.ts` 表达，在 `route-errors.ts` 转为原 HTTP 错误。
+- 策略保存保留命名冲突与 runKey 缓存语义。回测在同一事务中保存配置、创建冻结报告与 Job；扫描冻结参数/范围/截止日且不改草稿。检查顺序、错误、事务边界、提交后初始化日志与队列唤醒保持。两个根级 Job 保留原生命周期契约。
+- `EngineConfig.dataPort` 改为必填，模拟核心移除默认 Prisma 导入与 fallback；宿主直接执行入口、脚本显式传入端口。`wall-bundle.ts` 抽出原打包配置并返回实际依赖清单，宿主缓存文本；移除旧 Prisma stub 插件。交易算法和 DataPort 方法不变，实际 bundle/direct-walled 验证已在人工 review 后通过。
+- 风险基础检查保留覆盖、缺失、PIT/vintage 信息；`strategy/analysis/risk/data-readiness.ts` 引用模型常量判断完整市场历史 252 条与宏观 36 条，保留宏观取数窗口。`maintenance/risk-data-audit.ts` 合并质量与模型要求供 `data-audit.ts` 消费，保持状态、错误顺序、阈值及输出结构。市场完整审计窗口未错误替换为模型最低拟合样本数。
+- 所有直接调用、脚本、mock、动态导入和 Worker/子进程开发/编译 URL 同步更新。`.gitignore` 对 `engine/data/` 增加源码例外，防止已有全局 `data` 忽略规则漏掉新源文件。HTTP、共享 SDK、数据库 schema、公开帮助/双语内容、UI、可部署组件与跨包构建依赖均无变化；历史基线文档保留。
+
+新增 14 项正式测试场景：`strategy/routes.integration.test.ts` 10 项覆盖所有者权限、命名、配置缓存/忙碌保护、冻结回测/扫描报告、两类事务回滚、因子依赖私有规则、Agent 启动；`runtime/typescript/wall-bundle.test.ts` 1 项检查实际 bundle 不依赖宿主适配器；两个 Maintenance 风险审计测试增加 3 项覆盖基础质量与模型门槛分离、252/36 边界与错误顺序。现有模拟、runtime、扫描、因子依赖、风险模型/血缘、报告与任务生命周期测试随文件迁移，保留原断言。新增 HTTP 测试使用自己的临时 SQLite，已在人工 review 后通过。
+
+人工 review 前的静态检查记录位于 `/tmp/jixie-c8-review`：
+
+| 检查 | 范围与结果 |
+| --- | --- |
+| 格式、ESLint、typecheck | 本轮 119 个 TS/MJS 文件格式和 ESLint 通过，无 warning；全仓 typecheck 与 Research/Factor SDK、runtime 生成物一致性通过 |
+| 非 HTTP 内容核对 | 60 个迁移文件、16 个原调用方在移除 import 并归一化相对资源路径后业务内容等价；单独核对 6 个显式 DataPort 改动文件与原 Strategy service 的 5 个函数 |
+| 路由与提取核对 | 19 个 endpoint 的最终 URL、顺序与校验 middleware 保持；19 个业务体除 Context→显式参数、响应→返回值、错误→业务异常外等价；20 个 helper/schema 保持 |
+| 路径与依赖 | 相对静态/动态导入、Worker 资源路径无缺失；静态 import 图无涉及 Strategy/Engine 的循环；Market 不反向导入 Strategy |
+| 墙内源码依赖 | 17 个 API 源模块的静态运行时依赖闭包没有宿主适配器/数据库；外部依赖限于纯 shared 与 dayjs。此为源码检查，尚未执行 esbuild |
+| `git diff --check` | 通过 |
+
+Review 修正（2026-09-09）：路由文件统一导出 `routes`。`strategy/routes.ts` 直接处理 `/agent`、`/name`，并在模块内部挂载 `/backtest`、`/scans` 子路由；删除缺乏独立路由分组的 `chat-routes.ts`；原 CRUD 移到 `definition-routes.ts`。`server.ts` 仅挂 `/api/app/strategy` 总入口与 `/api/app/strategies` 定义入口，不直接装配子路由。测试装配和文档同步，展开后的 19 个 endpoint 路径和顺序保持。修正后仅运行格式、ESLint 和 API typecheck，仍未运行行为验证。
+
+验证准备检查（2026-09-09）：发现 `job-lifecycle.integration.test.ts` 的命名替身仍挂在已拆分的 config 模块。已将 `refreshStrategyName` 替身移到 naming 模块，并在原回测成功场景断言命名替身确实收到调用，避免实际命名服务被误调用而被 best-effort catch 掩盖。仅修改测试并完成静态检查；尚未启动行为测试、构建或测试数据库。按工作流重新交人工 review 后继续原验证计划。
+
+首次行为验证（2026-09-09，review 确认后）：API 编译到临时目录通过；全量 API 测试使用独立 SQLite，并启用已有记账集成用例，结果为 197 个文件通过、1 个文件失败，1064 项通过、1 项失败。失败源于本轮新增的 Strategy HTTP 测试误用旧 `{ role, content }` 消息格式；既有接口要求 `{ role, parts }`，400 响应符合原有契约。已改用共享 `textMessage` 构造消息，并断言消息落库且结果缓存保留；产品代码及校验规则不变。日志与报告位于 `/tmp/jixie-c8-verification/api-test.log`、`api-test.json`，编译日志为同目录 `build.log`。
+
+最终验证（2026-09-09，测试修正经人工 review 后）：
+
+| 检查 | 结果 |
+| --- | --- |
+| 全量 API `.test.ts` | **198 个文件、1065 项全部通过**；使用新建隔离 SQLite，启用 `ACCOUNTING_INTEGRATION=1`，包含新增 HTTP/bundle、既有模拟/direct-walled、TS/Python runtime、风险模型/血缘/审计与 Job 生命周期用例 |
+| API 编译 | `tsc --outDir /tmp/jixie-c8-verification/compiled` 通过；测试 fixture 修正不影响产品编译结果，沿用此次产物执行编译入口验证 |
+| 源码 Worker | 真实回测线程执行 TS/Python，真实扫描父线程 fork cell 子进程；两种语言净值与成交记录一致，扫描完成两组参数且得到不同指标 |
+| 编译 Worker | 不使用 tsx，运行实际 `.js` Worker/cell 入口与 wall bundle；相同检查通过，净值、成交、扫描指标及报告结果哈希与源码执行一致 |
+| 主线程任务持久化 | 每种运行方式经真实业务提交入口创建 7 个 Job：TS/Python 回测与扫描共 3 个 done，故意抛错的回测与扫描共 2 个 error，模拟中断后重建执行器恢复 2 个 stale；报告、缓存、日志和 Job 终态断言通过，重复恢复返回 0 |
+| 清理与范围 | 临时命名 HTTP 替身、Python socket 对端、Python 子进程和数据库连接均关闭；无开发库、真实行情接口或外部 LLM 调用，无产品代码修正 |
+
+日志与可复查脚本位于 `/tmp/jixie-c8-verification`：`api-test-reviewed.log/json`、`build.log`、`worker-smoke.mjs`、`source-worker.log`、`compiled-worker.log` 及两份 `*-worker-result.json`。临时 Worker 脚本独立于仓库 `.test.ts`，补充验证迁移后的真实入口和主线程持久化；初次准备时补齐基准指数 fixture，并修正从 Prisma 读回 JSON 后重新序列化的顺序假设，仓库代码未因此改动。
+
+编译 Python 检查设置 `NODE_ENV=production`，通过本地 Unix socket 转发到真实 Python runner，覆盖生产连接分支及计算协议；未运行 Podman 容器隔离验收。无 UI 改动，未运行浏览器 E2E；HTTP/报告契约、风险模型/血缘断言与真实后端执行链路承担本轮验证。已清理源码下迁移后空目录。所有必需验证通过，按事前确定的信息提交；不推送。
+
 ## 8. 测试与验收计划
 
 ### 8.1 当前行为基线
@@ -825,14 +874,14 @@ Commit 1 的开发者交付为本文和 [重构基线](backend-architecture-refa
 | 范围 | 重点断言 | 现有验证入口示例 |
 | --- | --- | --- |
 | 启动装配 | buildApp 不启动运行资源；恢复先于领取任务；API/CLI 不重复启动队列；已有失败/退出清理行为保持 | 启动入口相关测试、隔离数据库 smoke 与现有开发进程清理测试；缺失行为单列记录 |
-| API 权限与资源 | 未登录、跨用户读写、资源不存在、错误结构、路由顺序 | `routes/multi-user-permissions.test.ts`、`routes/backtest-report-route.test.ts` |
+| API 权限与资源 | 未登录、跨用户读写、资源不存在、错误结构、路由顺序 | `auth/http/multi-user-permissions.test.ts`、`strategy/backtest-routes.test.ts`、`strategy/routes.integration.test.ts` |
 | Job | FIFO/用户并发、旧 queued payload、运行恢复、损坏 payload、报告与 Job 原子终态 | `lib/job-queue.test.ts`、`lib/jobs.test.ts`、`lib/jobs-backtest-report.test.ts` |
 | Research 文档 | 自动保存、版本冲突、删除依赖、stale/blocked、运行互斥、取消与 reset | `research/documents/*test.ts`、`dependencies/*test.ts`、`execution/*test.ts`；E2E `research-autosave`、`research-cell-deletion`、`research-affected-run`、`research-interrupt` |
 | Research 证据与提案 | 干净执行、历史快照、产物归属、审阅与执行、交接来源 | execution-records、cell-change、handoff 测试；E2E `research-execution`、`research-cell-change-review` |
 | Research 数据与 SDK | 财务值、PIT、序列/Panel、报告结果数据集、SDK 请求校验 | financial-values/dataset、series、workbench-sdk、execution/python-session 与 sdk/*runtime 测试；E2E `research-financial-data`、`research-factor-report-sdk` |
 | Factor | 报告历史、holdout、发布哈希、组合与各 evaluator | publication、analysis、evaluator、report-spec 测试；E2E `factor-publication`、`factor-report-history`、`python-factor` |
 | Strategy/Engine | TS/Python、direct/walled 一致性、交易规则、扫描与报告历史 | engine/strategy 现有测试；E2E `python-strategy`、`strategy-parameter-scan`、`backtest-report-history` |
-| 策略风险分析 | 市场暴露、宏观敏感度、重合与情景结果；数据不足/失败；报告序列化和面板显示条件 | 原 `risk/*.test.ts` 及数据审计测试；在回测 E2E 中补齐确定性风险报告 fixture 与面板断言 |
+| 策略风险分析 | 市场暴露、宏观敏感度、重合与情景结果；数据不足/失败；报告序列化和面板显示条件 | `strategy/analysis/risk/*.test.ts`、Market 血缘及 Maintenance 审计测试；在回测 E2E 中补齐确定性风险报告 fixture 与面板断言 |
 | Signals | 冻结配置、依赖、幂等运行、失败、人工成交与账户结算 | signals/accounting 测试；E2E `daily-signals`、`strategy-factor-dependency` |
 | Agent | SSE 重连、取消、消息写入顺序、工具权限、校验修复 | core/persistence/turn-bus 测试；E2E `research-agent-cell-context` |
 | 数据维护 | 幂等同步、来源/日期、质量失败不发布、锁与恢复 | store、maintenance、fundamentals、commodity、macro、rates 的 fixture 测试 |

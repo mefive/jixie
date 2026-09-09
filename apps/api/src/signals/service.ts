@@ -10,9 +10,9 @@ import type {
   StrategyDeployment,
 } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
-import { codeConfigSchema } from '../strategy/code/schema.js';
-import { inspectWalledStrategyMetadata } from '../engine/walled-run.js';
-import { prepareStrategyFactors } from '../engine/prepare-custom-factors.js';
+import { codeConfigSchema } from '../strategy/runtime/typescript/schema.js';
+import { inspectWalledStrategyMetadata } from '../strategy/runtime/typescript/walled-run.js';
+import { prepareStrategyFactors } from '../strategy/execution/prepare-factors.js';
 import { initializeJobLogs } from '../infra/jobs/logs.js';
 import { waitForJobCompletion, wakeJobQueue } from '../infra/jobs/queue.js';
 import { prisma } from '../infra/database/prisma.js';

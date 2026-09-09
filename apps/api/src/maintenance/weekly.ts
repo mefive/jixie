@@ -1,6 +1,6 @@
 import type { TradeDate } from '@jixie/shared';
 import { loadTushareConfig } from '../config.js';
-import { runDataQualityAudit } from '../data-quality/audit.js';
+import { runDataQualityAudit } from './data-audit.js';
 import { addDays } from '../date.js';
 import { prisma } from '../infra/database/prisma.js';
 import { syncChinaMacroData } from '../macro/china-macro.js';

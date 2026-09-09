@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { fixturePort, type FixtureSpec } from '../../../engine/fixture-port.js';
-import { runStrategy } from '../../../engine/run.js';
-import { defineStrategy } from '../../code/sdk.js';
+import { fixturePort, type FixtureSpec } from '../../../engine/testing/fixture-port.js';
+import { runStrategy } from '../../../engine/simulation/run.js';
+import { defineStrategy } from '../typescript/sdk.js';
 import { createPythonStrategyRuntime } from './runtime.js';
 
 const dates = ['20240101', '20240102', '20240103', '20240104', '20240105', '20240108'];

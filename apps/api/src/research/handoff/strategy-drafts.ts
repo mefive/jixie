@@ -11,7 +11,7 @@ import {
 } from '@jixie/shared';
 import { ulid } from 'ulid';
 import { prisma } from '../../infra/database/prisma.js';
-import { uniqueStrategyName } from '../../services/strategy-service.js';
+import { uniqueStrategyName } from '../../strategy/definitions/naming.js';
 import { getResearchExecution } from '../evidence/execution-records.js';
 import { generateResearchStrategyDraft } from './strategy-handoff.js';
 

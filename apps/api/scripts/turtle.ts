@@ -1,6 +1,7 @@
+import { prismaDataPort } from '../src/engine/adapters/prisma-port.js';
 import { prisma } from '../src/infra/database/prisma.js';
-import { runStrategy } from '../src/engine/run.js';
-import { turtleStrategy } from '../src/engine/strategies.js';
+import { runStrategy } from '../src/engine/simulation/run.js';
+import { turtleStrategy } from '../src/strategy/examples/strategies.js';
 
 const pct = (x: number) => (x * 100).toFixed(2) + '%';
 
@@ -40,6 +41,7 @@ async function main(): Promise<void> {
   const strategy = turtleStrategy({ codes });
 
   const r = await runStrategy({
+    dataPort: prismaDataPort,
     start: '20150101',
     end: '20241231',
     initialCash: 1_000_000,

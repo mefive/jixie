@@ -86,7 +86,7 @@
 
 ## 目录约定(对齐 fangtu)
 
-- 业务模块的 HTTP 入口默认直接使用根目录 `routes.ts`，测试同目录；已有多组路由按职责使用 `chat-routes.ts`、`backtest-routes.ts` 等名称，不统一预设 `http/` 或局部转发入口。`auth/http` 与 `infra/http` 已有明确的一组职责，保留。路由只负责请求/响应，资源归属、状态与事务由业务入口负责。
+- 业务模块的 HTTP 入口默认直接使用根目录 `routes.ts`，测试同目录；已有多组路由按职责使用 `backtest-routes.ts`、`scan-routes.ts` 等名称，不统一预设 `http/` 包装层；需要组合子路由时由模块根级 `routes.ts` 负责。`auth/http` 与 `infra/http` 已有明确的一组职责，保留。路由只负责请求/响应，资源归属、状态与事务由业务入口负责。
 
 - `apps/api/src/auth` — 登录与会话业务；`auth/http` 负责 Cookie、鉴权中间件与登录 HTTP。
 - `apps/api/src/infra` — 数据库、HTTP 辅助、LLM 与邮件传输；`math` 为共用数值计算，`date.ts` 为日期辅助，`i18n` 保留纯翻译。
@@ -94,7 +94,10 @@
 - `apps/api/src/infra/jobs` — 通用任务记录、日志、队列、任务契约与执行器；业务 `*-job.ts` 集中声明 parse/execute/complete/fail/recover，执行器控制事务及恢复。根级 `bootstrap.ts` 注册任务、创建执行器并按顺序启动 API；`server.ts` 的 `buildApp()` 只构建 HTTP 应用。
 - `apps/api/src/research` — 文档/Cell 编辑归 documents，依赖与失效归 dependencies，执行/会话归 execution，快照与产物归 evidence，Agent 修改/审阅/尝试归 proposals；研究数据归 datasets，语义检索归 catalog，SDK 校验/分派归 sdk，语言服务归 language，模板归 templates，因子/策略交接归 handoff，整理归 curator。`routes.ts` 只适配请求，`agent-turn.ts` 编排 Research 对话启动；入口与调用链见 `src/research/README.md`。
 - `apps/api/src/factor` — 定义与草稿归 definitions，观察数据与截止日归 observations，评估器/Worker/提交归 analysis，报告与 holdout 归 reports，发布/归档归 publication，组合归 composition，语言适配归 runtime，天气固定/刷新归 weather；根级三组 routes 只适配请求，analysis-job/correlation-job 保留具名任务生命周期。入口与调用链见 `src/factor/README.md`。
-- `apps/api` — Hono 后端 + `prisma/schema.prisma` + 领域逻辑(`src/tushare`、`src/store`,未来 `src/factor`、`src/backtest`)+ 研究 / 导入脚本(`scripts/`,wired 成 `smoke` / `sync` / `peek` 等)
+- `apps/api/src/strategy` — 定义/命名/配置归 definitions，回测提交与报告归 backtest，参数扫描及父 Worker/cell 子进程归 scans，语言分派/因子准备归 execution，TS/Python 适配归 runtime，报告风险分析归 analysis/risk。根级 routes.ts 处理 Agent/命名并挂载回测/扫描子路由，definition-routes.ts 处理列表和增删改；backtest-job/scan-job 保留具名入口；调用链见 `src/strategy/README.md`。
+- `apps/api/src/engine` — simulation 为交易循环与账户，data 为必填 DataPort/EngineData，factors 为引擎内因子求值；adapters 为宿主 Prisma/Python 桥，testing 为 fixture。模拟核心不导入宿主适配器；Strategy 的墙内 bundle 使用真实核心，不用 Prisma stub。见 `src/engine/README.md`。
+- `apps/api/src/market/state`、`market/macro`、`market/quality` — 风险输入序列、宏观轴与基础质量；模型历史要求归 Strategy，`maintenance/risk-data-audit.ts` 组合两者，`maintenance/data-audit.ts` 汇总审计。Market 不反向导入 Strategy。其他市场同步/质量职责按后续计划归位。
+- `apps/api` — Hono 后端 + `prisma/schema.prisma` + 领域逻辑(`src/research`、`src/factor`、`src/strategy` 等)+ 研究 / 导入脚本(`scripts/`,wired 成 `smoke` / `sync` / `peek` 等)
 - `apps/web` — 登录与工作台前端
 - `apps/docs` — 独立公开文档前端，挂载 `/docs/help/*` 与 `/docs/sdk`
 - `packages/shared` — 共享类型;依赖方向 `apps/* → packages/*`,反向禁止

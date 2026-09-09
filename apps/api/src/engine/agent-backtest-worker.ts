@@ -1,7 +1,7 @@
 import { parentPort, workerData } from 'node:worker_threads';
 import type { BacktestConfig, Locale } from '@jixie/shared';
-import { runConfiguredBacktest } from './configured-run.js';
-import { metricSummary } from '../strategy/scan.js';
+import { runConfiguredBacktest } from '../strategy/execution/run-configured.js';
+import { metricSummary } from '../strategy/scans/scan.js';
 import { prisma } from '../infra/database/prisma.js';
 
 const port = parentPort;
