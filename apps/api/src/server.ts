@@ -26,15 +26,14 @@ export function buildApp() {
   app.route('/api/maintenance', maintenanceRoute);
 
   // Protected prefix: apply requireAuth uniformly to this prefix before mounting business routes.
-  // In phase two, mount backtest and other routes here; handlers use c.var.userId / c.var.user
-  // directly.
+  // Handlers pass c.var.userId / c.var.user to business operations for resource authorization.
   app.use('/api/app/*', maintenanceGate);
   app.use('/api/app/*', requireAuth);
 
   // Mount-point naming rules (docs/design/api-route-naming.md):
   //   plural   = persistable resource CRUD  (/strategies /factors)
   //   singular = workbench actions          (/strategy /factor /research — incl. analysis jobs)
-  //   base     = truly cross-domain infra   (/agent turn bus, /market read-only helpers)
+  //   base     = shared product capabilities (/agent turns, /market data reads)
   app.route('/api/app/agent', agentRoute);
   app.route('/api/app/market', marketRoute);
   app.route('/api/app/strategies', strategyDefinitionRoutes);

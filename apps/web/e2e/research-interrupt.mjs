@@ -80,23 +80,28 @@ try {
     throw new Error(`dev login failed: ${loginStatus}`);
   }
 
-  await page.route('**/api/app/research/documents', (route) =>
-    route.fulfill({
-      json: [
-        {
-          id: currentDocument.id,
-          title: currentDocument.title,
-          preview: '',
-          cellCount: currentDocument.cells.length,
-          staleCount: currentDocument.cells.filter((item) => item.status === 'stale').length,
-          createdAt: currentDocument.createdAt,
-          updatedAt: currentDocument.updatedAt,
-        },
-      ],
-    }),
+  await page.route(
+    (url) => url.pathname === '/api/app/research/documents',
+    (route) =>
+      route.fulfill({
+        json: [
+          {
+            id: currentDocument.id,
+            title: currentDocument.title,
+            preview: '',
+            cellCount: currentDocument.cells.length,
+            staleCount: currentDocument.cells.filter((item) => item.status === 'stale').length,
+            createdAt: currentDocument.createdAt,
+            updatedAt: currentDocument.updatedAt,
+          },
+        ],
+      }),
   );
   await page.route('**/api/app/research/documents/e2e-interrupt', (route) =>
     route.fulfill({ json: currentDocument }),
+  );
+  await page.route('**/api/app/research/documents/e2e-interrupt/executions', (route) =>
+    route.fulfill({ json: [] }),
   );
   await page.route('**/api/app/research/curator/runs/latest', (route) =>
     route.fulfill({ json: null }),

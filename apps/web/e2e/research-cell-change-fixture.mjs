@@ -19,7 +19,9 @@ export const RESEARCH_CELL_CHANGE_FIXTURE = {
   conflictProposalId: 'e2e-research-cell-change-conflict',
 };
 
-const databaseUrl = `file:${fileURLToPath(new URL('../../api/prisma/dev.db', import.meta.url))}`;
+const databaseUrl =
+  process.env.DATABASE_URL ??
+  `file:${fileURLToPath(new URL('../../api/prisma/dev.db', import.meta.url))}`;
 
 export async function seedResearchCellChangeFixture() {
   const database = new PrismaClient({ datasourceUrl: databaseUrl });

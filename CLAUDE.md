@@ -107,6 +107,12 @@
 - `packages/shared` — 共享类型;依赖方向 `apps/* → packages/*`,反向禁止
 - `packages/shared` 编译到 `dist`(后端/前端依赖其类型),改完类型需 `pnpm --filter @jixie/shared build`(install 时 `prepare` 也会自动构建)
 
+## 架构阅读与边界门禁
+
+当前后端地图见 `docs/backend-architecture.md`，模块依赖规则见 `docs/backend-boundaries.md`。`pnpm check:backend-boundaries` 使用 TypeScript AST 与 API tsconfig 解析 import/re-export/字面量动态 import，区分类型边和运行时边；根级 typecheck/build 已包含此静态门禁。具体纯依赖例外在 `scripts/backend-boundaries.json`，不按目录整体放行。
+
+修改检查器后，在人工 review 通过的行为验证阶段执行 `pnpm test:backend-boundaries`。静态扫描不执行应用模块；Worker、Python、Prisma 和 Pyright 资源路径须按 `docs/backend-runtime-entries.md` 做实际验证。
+
 ## 代码约定
 
 - **ESM 相对导入必须带 `.js` 后缀**(即使源是 `.ts`)
@@ -149,9 +155,9 @@ A 股回测必须内置以下规则(写回测时别漏):
 - 停牌 / ST:停牌日不可成交;ST 按策略决定是否剔除
 - 成本:佣金(双边约万 2.5,最低 5 元)+ 印花税(**仅卖出**千 0.5)+ 过户费
 
-## 回测 CPU 密集(二期注意)
+## 回测与后台计算
 
-回测是纯计算,会阻塞 Node 事件循环。二期多用户时,回测放 worker 线程 / 进程(指向 `apps/api/src/backtest`),HTTP 主线程只派活收结果。长任务用「同步写库 → 返 jobId → 后台跑 → 订阅进度」模式(参照 marginalia)。
+回测已由 `strategy/backtest-job.ts` 派发到 `engine/backtest-worker`，参数扫描位于 `strategy/scans`，Factor 与 Signals 也有各自的线程/子进程入口。HTTP 主线程负责提交与结果事务，Engine 负责模拟；长任务沿用「同步写库 → 返 jobId → 后台计算 → 查询/订阅进度」。具体入口和资源收尾见 `docs/backend-runtime-entries.md`。
 
 ## 协作风格
 

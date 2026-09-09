@@ -8,7 +8,9 @@ const { PrismaClient } = require('@prisma/client');
 
 const BASE = process.env.E2E_BASE ?? 'http://localhost:5173';
 const SHOTS = new URL('../acceptance/', import.meta.url).pathname;
-const databaseUrl = `file:${fileURLToPath(new URL('../../api/prisma/dev.db', import.meta.url))}`;
+const databaseUrl =
+  process.env.DATABASE_URL ??
+  `file:${fileURLToPath(new URL('../../api/prisma/dev.db', import.meta.url))}`;
 mkdirSync(SHOTS, { recursive: true });
 
 const suffix = Date.now();

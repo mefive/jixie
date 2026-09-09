@@ -12,8 +12,8 @@
     "dev:web": "pnpm --filter web dev",
     "dev:docs": "pnpm --filter docs dev",
     "test:dev-shutdown": "node --test scripts/process-group.test.mjs",
-    "build": "pnpm check:research-runtime && pnpm check:research-sdk && pnpm check:factor-sdk && pnpm -r build",
-    "typecheck": "pnpm check:research-runtime && pnpm check:research-sdk && pnpm check:factor-sdk && pnpm -r typecheck",
+    "build": "pnpm check:backend-boundaries && pnpm check:research-runtime && pnpm check:research-sdk && pnpm check:factor-sdk && pnpm -r build",
+    "typecheck": "pnpm check:backend-boundaries && pnpm check:research-runtime && pnpm check:research-sdk && pnpm check:factor-sdk && pnpm -r typecheck",
     "gen:research-runtime": "node --import tsx scripts/gen-research-python-runtime.ts",
     "check:research-runtime": "node --import tsx scripts/gen-research-python-runtime.ts --check",
     "setup:research-python": "node scripts/setup-research-python.mjs",
@@ -33,7 +33,9 @@
     "peek": "pnpm --filter api peek",
     "signals:run": "pnpm --filter api signals:run",
     "loc": "node scripts/loc.mjs",
-    "prepare": "simple-git-hooks"
+    "prepare": "simple-git-hooks",
+    "check:backend-boundaries": "node scripts/check-backend-boundaries.mjs",
+    "test:backend-boundaries": "node --test scripts/check-backend-boundaries.test.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.13.0",

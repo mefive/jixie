@@ -1,12 +1,12 @@
 # 后端业务边界与目录重整开发计划
 
-> 状态：Commit 1～10 已提交（`177f63ab`、`00a0e83a`、`bc4a1651`、`ed8c4aae`、`a034c611`、`1bba29cd`、`014899ba`、`a52cfec1`、`82a1ff4b`、`d064503c`）；Commit 11 已通过人工 review、静态检查及本轮全部行为验证，按事前确认的信息提交；Commit 12 待范围确认。
+> 状态：Commit 1～11 已提交，Commit 12 已通过人工 review 与全部必需验收，后端目录重整目标完成。验收中新增的报告独立部署业务已另行提交 `3c55fd2f`；C12 按事前信息提交，验证记录见 §7.12。
 > 编制日期：2026-09-07；核对代码基线：`12ce9092`。
 > 目标：让不熟悉项目的开发者从目录识别业务能力，沿一个入口读懂完整流程，并找到状态与数据的责任方。
 > 本文规划后端结构调整；研究方法与金融口径不变，任务生命周期的已批准行为调整见 5.3。
 > 开发授权：2026-09-08 用户确认按评审工作流开始开发；Commit 1～3 已提交，Commit 4 的具体范围、JobDefinition + executor 调整以及 Curator/相关性结果原子提交均已获确认。后续提交逐项说明具体范围，经确认后实施。
 > 工作流（2026-09-09 更新）：开工前明确本次 commit message 与范围并获确认 → 编写产品代码与测试 → 运行并修复 lint/typecheck 等静态检查 → 产品代码交人工 review → review 通过后运行测试、构建及运行验证 → 全部通过后直接按预告 message 提交，不再单独请求 commit 确认。已确认范围内的测试用例、fixture、mock 和验证脚本改动无需人工审批；自行修正到符合既定契约，静态检查后复跑必要验证，全部通过即提交。不能通过削弱断言或跳过失败掩盖产品问题；若修复涉及产品实现，仍需静态检查后重新交人工 review。在产品代码尚待首次或再次 review 时，测试修正不提前放行行为验证。环境问题可直接重试。此流程已同步到 review-gated-development SKILL；下文历史 review 记录保留当时的实际过程。
-> Commit 11 事前确认的 message：`整理 Market 数据领域、同步与维护入口`。后续每轮须在该 commit 任务开工前预告 message。
+> Commit 12 事前确认的 message：`固化后端依赖边界并完善架构阅读地图`。后续每轮须在该 commit 任务开工前预告 message。
 
 ## 1. 判断与取舍
 
@@ -596,8 +596,8 @@ Jobs queue → 启动时传入的任务处理函数
 | 8 | E | Strategy 与 Engine 分离，风险分析及风险数据/审计边界 | TS/Python 回测、参数扫描、风险结果、引擎一致性 | 已提交 `a52cfec1` |
 | 9 | F | Signals 部署、运行、对账、因子输入、Worker 与 HTTP | 冻结配置、幂等运行、失败收尾、对账 | 已提交 `82a1ff4b`；1073 项测试及源码/编译 IPC 通过 |
 | 10 | F | Agent turns/conversations/tools/Worker、Sharing 操作与 HTTP | SSE、取消、工具权限、公开库复制 | 已提交 `d064503c`；201 个文件/1083 项测试、源码/编译 Worker 通过 |
-| 11 | F | Market 子领域及其余市场职责、Maintenance 与 CLI | 数据口径、幂等同步、质量门禁、审计 | review 与验证通过；203 个文件/1101 项测试、源码/编译数据与进程入口通过 |
-| 12 | G | 边界门禁、架构阅读地图与剩余旧路径清理 | 完整构建、相关测试、受影响 E2E、运行入口 smoke | 待开始 |
+| 11 | F | Market 子领域及其余市场职责、Maintenance 与 CLI | 数据口径、幂等同步、质量门禁、审计 | 已提交 `51e90e13`；203 个文件/1101 项测试、源码/编译数据与进程入口通过 |
+| 12 | G | 边界门禁、架构阅读地图与剩余旧路径清理 | 完整构建、相关测试、受影响 E2E、运行入口 smoke | 实现、人工 review 与整体验收完成；按事前 message 提交 |
 
 Commit 8 将风险模型、市场风险数据与整体审计调用的边界一起调整，避免保留 market → strategy 的反向依赖；Commit 11 整理剩余市场和维护职责。Commit 4 的业务生命周期集中在各领域明确命名的任务文件，后续领域整理复用这些入口，不为 complete/recover 单独建目录。其余跨提交的路径变化按调用方同步原则处理。
 
@@ -1008,6 +1008,73 @@ Worker 验证使用确定性市场 fixture 和独立 SQLite，真实执行 SQL/�
 
 静态核对脚本与日志在 `/tmp/jixie-c11-review`。验证通过后按事前 message 直接提交，不推送。
 
+### 7.12 Commit 12 实现记录（2026-09-09）
+
+事前确认的 message：`固化后端依赖边界并完善架构阅读地图`。本轮完成静态门禁和当前架构阅读文档，人工 review 与全部必需验证已通过。Signals 初次验收发现的产品问题已由独立提交 `3c55fd2f` 解决并通过复跑，现按事前信息提交 C12。
+
+#### 交付
+
+- `scripts/check-backend-boundaries.mjs` 使用已有 TypeScript AST 与 API tsconfig 解析静态/类型导入、重导出、字面量动态 import、import 类型查询和 require；检查 Hono/HTTP/Prisma、Infra、Engine、Market、纯辅助/注册表、启动方向、旧目录、生产引用测试和根级 barrel。
+- 除直接边外，检查 runtime/jobs 与 Market 经基础设施中转的间接业务依赖。运行时边通过强连通分量检查跨业务循环，类型边不计入运行时环。类型边仍受所有权约束。
+- `scripts/backend-boundaries.json` 仅登记 4 条 Engine 到纯规则/契约的具名依赖，含准确路径、依赖类型和原因；对应目标也不能引入宿主/业务流程。既有跨业务循环基线为空，不为不存在的遗留问题建豁免。
+- 新增 `pnpm check:backend-boundaries` 和 `pnpm test:backend-boundaries`；根级 typecheck/build 前置静态门禁，不把行为测试混入 typecheck。
+- `scripts/check-backend-boundaries.test.mjs` 准备临时源码项目，覆盖正确业务/HTTP划分、类型边、动态边、alias/shared workspace 解析、直接/间接违规、过时/变脏例外、循环新增/消除、启动方向、测试引用和解析失败。14 项检查器测试已通过。
+- 新建 [当前架构地图](../backend-architecture.md)、[运行入口清单](../backend-runtime-entries.md)、[边界门禁说明](../backend-boundaries.md)。地图包含对象、HTTP 挂载、Agent 协作、3 条调用链、启动与资源收尾、事务/状态及修改定位。根 README/CLAUDE 同步阅读入口与检查约定，server 仅纠正旧阶段/目录性质注释。
+
+当前代码没有旧顶层运行目录。历史迁移基线仍保留原路径以便追溯，不把历史表格替换成失真的“当时目录”；各业务 README 和本轮地图指向实际实现。
+
+#### 静态结果与重点 review
+
+| 项目 | 结果 |
+| --- | --- |
+| 当前仓库 AST 扫描 | 最终扫描 650 个文件、2313 条运行时边、576 条类型边，0 违规，0 跨业务运行时循环 |
+| 精确例外 | 4 条，均为 Engine 使用的证券身份、Factor SDK 类型、字段纯函数或指数常量；无目录级放行 |
+| 无法静态推断的导入 | 8 条，均是开发 `.boot.mjs` 的 URL 导入；已列入运行入口清单，未冒称 import 检查覆盖所有运行路径 |
+| 格式、ESLint、Node 语法检查 | 通过 |
+| 根级 typecheck | 包含新边界门禁、三个 SDK/runtime 一致性及所有 workspace，通过 |
+| 文档链接 / diff | 新增地图链接可解析，diff 检查通过 |
+| 行为与构建 | 正式测试、全量干净构建、入口 smoke 和浏览器验收均通过；初次失败及复跑见下文 |
+
+review 优先看规则是否准确表达业务边界、4 条例外是否足够窄，以及架构地图对 bootstrap/Agent/Python 两条执行路径和事务归属的说明。API 尚无完整 stop/drain、统一退出事务或 afterCommit 持久重试；本轮如实记录，没有把关闭机制扩展混入目录收尾。
+
+没有新 deployable workspace 或跨包依赖变化，未加依赖。根 package.json 与 scripts 已由现有 deployment manifest 判定为完整部署范围，保持现有组件影响规则；8 项 plan-deployment 测试已通过。HTTP/schema/SDK/金融算法与运行逻辑无改动，唯一 API 源码变更为 server 的两处注释。
+
+#### Review 后首次整体验收结果
+
+| 项目 | 本轮结果 |
+| --- | --- |
+| 边界/部署/进程组 | Node test 23/23，其中边界 14、部署 8、进程组 1 |
+| API 全量测试 | 203 个文件、1101 个用例通过，独立 SQLite，开启 accounting integration；真实 Python/Pyright 相关用例也在本次集合内 |
+| sandboxd | 8/8，通过；容器命令为测试替身 |
+| 完整构建 | 干净临时工作区从零构建 Shared、API、sandboxd、Web、Docs，根级 preflight 同时通过；仅 Vite 既有大 chunk 提示 |
+| 源码/编译入口 | 启动恢复、TS/Python 回测、扫描父线程/cell、Factor 分析/相关性、Signals IPC、Agent SQL/图表/快速回测、Market provider/参考子进程/CLI、Pyright 均通过 |
+| Research E2E | 执行封存、受影响分支、运行中断、提案审阅、Cell Agent 上下文通过；后两类交互使用受控提案/HTTP/SSE fixture，Python 文档执行为真实 runner |
+| Factor E2E | 发布与历史报告全部通过：运行复用、刷新恢复、历史切换、方法审计、参数/源码过期提示、窄屏、未保存保护、holdout 封存/幂等揭示、删除后证据保留 |
+| Strategy / Sharing / Market E2E | 回测历史、参数/仓位/容量三种扫描、公开复制、Market 四种维度/历史/移动布局通过 |
+| Signals E2E | 部署 HTTP 成功，但 UI 将当前部署显示为“暂停旧版本”；预期“暂停上线”的断言失败，后续页面生成/对账步骤未执行完成 |
+
+本轮测试修正（均未改产品行为）：两个直接写数据库的 E2E 接受 `DATABASE_URL`；受影响分支/中断 mock 按 pathname 匹配带 state 参数的文档列表，并提供空执行历史；因子历史脚本显式创建初始报告，避免依赖开发库已有记录，并缩小中性化下拉框的选择器；按当前“新建→因子类型”菜单触发保护，令真实 POST 自动保存响应受控等待，保证测试时草稿确实未保存，并为新建 holdout 因子提供必填 key。以上修正后的对应 E2E 均复跑通过。
+
+临时 harness 修正：干净工作区构建显式使用项目 pnpm 9/Node 22；Agent 编译 SQL 的相对路径根据符号链接 realpath 计算；合成行情字段按当前 Prisma 模型填写；进程清理同时检查 exitCode/signalCode，避免重复等待已被信号结束的进程。修正后相关入口复跑通过。
+
+#### 产品问题处理与最终收尾
+
+初次 Signals 浏览器验收发现，`deploymentCurrent` 与 `configKey()` 使用不同属性顺序进行 `JSON.stringify`，相同配置也被判为旧版本。该实现早于 C12；当时保留失败，没有放宽断言。用户随后明确业务语义为按成功回测报告独立部署，该需求及 Monaco worker 注册修复已单独完成并提交 `3c55fd2f`（`按回测报告独立部署策略`）。设计、迁移和验证详见 [每日信号设计](daily-signals.md)。
+
+业务改动经人工 review 后完成 API 全量 204 文件/1108 用例、迁移升级、源码/编译 Signals Worker 和 bootstrap、Shared/API/Web/Docs/sandboxd 构建。Monaco 修复后再次构建 Web，7 组浏览器回归全部通过：报告独立部署、每日信号、策略因子依赖、回测历史、因子历史、Research 执行、提案审阅。报告部署用例的严格页面错误检查通过，截图已核对。
+
+C12 最终收尾仅补验证与记录，没有再次修改产品逻辑：
+
+- 原 review 快照中的检查器、规则、package.json 和 server 内容保持一致，新增测试修正已按现行工作流自主验证。
+- 当前 AST 扫描 650 文件/2313 运行时边/576 类型边，0 违规、0 跨业务运行时循环；4 条精确例外与 8 条开发 boot 非字面量导入保持。
+- 全工作区 typecheck（含边界及 SDK/runtime 一致性）复跑通过；根级边界 14、部署 8、进程组 1，共 23 项测试复跑通过。
+- Research 受影响执行、中断和 Cell Agent 上下文 3 组浏览器用例复跑通过；源码/编译 bootstrap 恢复通过；本次受影响执行和中断后的截图展示正常。
+- 原定 12 组浏览器验收全部通过，结果来自首次运行与针对性复跑。未受产品修复影响的源码/编译入口、sandboxd 和干净构建沿用本轮已通过记录，没有将首次失败冒充成功，也未无差别重复执行全部验证。
+
+日志按阶段保留：`/tmp/jixie-c12-verification` 为首次整体及针对性复跑，`/tmp/jixie-report-deployment-verification` 为独立业务改动验证，`/tmp/jixie-c12-final` 为最后门禁与 3 组 Research 回归。临时 API/Web、Worker、Python/Pyright、模型替身、监听端口和测试数据库句柄已核对清理。整个过程未改开发数据库、访问真实行情/付费模型或发送邮件。
+
+真实本地 Python/socket smoke 和使用容器命令替身的 sandboxd 测试不代表生产 Docker 隔离验收；完整外部行情维护日批不在本次 fixture 验证结论内。API 完整 stop/drain、多实例租约及 afterCommit 持久重试仍是文档明确的既有限制，不属于本次目录重整交付。
+
 ## 8. 测试与验收计划
 
 ### 8.1 当前行为基线
@@ -1107,22 +1174,26 @@ node --test scripts/plan-deployment.test.mjs
 
 ## 11. 完成定义
 
-- [ ] 所有当前后端源文件有明确迁移或保留归属，本文映射与最终结构一致。
-- [ ] 不熟悉项目的人能从模块 README 找到对象、状态、业务入口与关键测试。
-- [ ] Research 编辑/执行/证据/提案分开，复杂度没有转移到新命名的巨型文件。
-- [ ] Factor 定义、报告和发布职责清晰；Strategy 执行与 Engine 模拟核心分开。
-- [ ] 公共 Python 通信不再藏在 strategy；三种领域 SDK 语义仍各有归属。
-- [ ] Job 调度不直接拥有业务报告，领域完成和恢复仍保持原有事务。
-- [ ] 启动统一由 index/bootstrap/server 分工，不建立 application 模块；业务恢复规则留在所属模块，整体数据审计归 maintenance。
-- [ ] 资源创建、装配、启动与关闭的责任明确；不因导入模块意外启动队列或监听端口，不改变独立 sandboxd 的进程归属；已有生命周期行为保持，缺口独立记录。
-- [ ] 所有 worker 随所属业务归位，开发与生产的线程/子进程路径均验证。
-- [ ] 顶层旧 routes/services/lib/store/tushare/data-quality/types 等迁移来源目录无残留运行实现或转发层；原 Tushare 专用 config.ts 已随 provider 归位。
-- [ ] 公共运行设施统一归 infra，共用计算归 math，i18n 保留顶层，日期辅助为 date.ts；不创建 common/utils 或单文件占位模块。
-- [ ] 市场获取、同步、查询和分析统一归入 market；fundamentals/rates/macro/commodity 已作为其子领域归位，旧顶层入口无残留实现或转发层。
-- [ ] 子领域自身的同步、查询与质量规则保持内聚；跨子领域辅助、maintenance 编排、Research 模板、Factor 检验和 Strategy 风险分析的边界明确。
-- [ ] 风险分析归 strategy/analysis/risk，旧顶层 risk 无残留实现或转发层；报告接口和产品展示保持不变，市场数据与基础审计不反向依赖策略模型。
-- [ ] HTTP、数据库、公开 SDK、金融口径、调度与资源限制保持等价。
-- [ ] 依赖检查、类型检查、相关测试、完整构建和受影响 E2E 完成，失败和环境限制有明确记录。
-- [ ] 开发说明与实际路径一致，临时进程和数据库连接已清理。
+- [x] 所有当前后端源文件有明确迁移或保留归属，本文映射与最终结构一致。
+- [x] 不熟悉项目的人能从模块 README 找到对象、状态、业务入口与关键测试。
+- [x] Research 编辑/执行/证据/提案分开，复杂度没有转移到新命名的巨型文件。
+- [x] Factor 定义、报告和发布职责清晰；Strategy 执行与 Engine 模拟核心分开。
+- [x] 公共 Python 通信不再藏在 strategy；三种领域 SDK 语义仍各有归属。
+- [x] Job 调度不直接拥有业务报告，领域完成和恢复仍保持原有事务。
+- [x] 启动统一由 index/bootstrap/server 分工，不建立 application 模块；业务恢复规则留在所属模块，整体数据审计归 maintenance。
+- [x] 资源创建、装配、启动与关闭的责任明确；不因导入模块意外启动队列或监听端口，不改变独立 sandboxd 的进程归属；已有生命周期行为保持，缺口独立记录。
+- [x] 所有 worker 随所属业务归位，开发与生产的线程/子进程路径均验证。
+- [x] 顶层旧 routes/services/lib/store/tushare/data-quality/types 等迁移来源目录无残留运行实现或转发层；原 Tushare 专用 config.ts 已随 provider 归位。
+- [x] 公共运行设施统一归 infra，共用计算归 math，i18n 保留顶层，日期辅助为 date.ts；不创建 common/utils 或单文件占位模块。
+- [x] 市场获取、同步、查询和分析统一归入 market；fundamentals/rates/macro/commodity 已作为其子领域归位，旧顶层入口无残留实现或转发层。
+- [x] 子领域自身的同步、查询与质量规则保持内聚；跨子领域辅助、maintenance 编排、Research 模板、Factor 检验和 Strategy 风险分析的边界明确。
+- [x] 风险分析归 strategy/analysis/risk，旧顶层 risk 无残留实现或转发层；报告接口和产品展示保持不变，市场数据与基础审计不反向依赖策略模型。
+- [x] 目录重整保持 HTTP、数据库、公开 SDK、金融口径、调度与资源限制等价；已批准的 Job 事务调整及独立报告部署变更分别按 §5.3 和 `3c55fd2f` 验证，不归为等价迁移。
+- [x] 依赖检查、类型检查、相关测试、完整构建和受影响 E2E 完成，失败和环境限制有明确记录。
+- [x] 开发说明与实际路径一致，临时进程和数据库连接已清理。
 
 最终评审用五个定位问题检查可读性：修改 Cell 过期规则去哪里、因子发布检查去哪里、回测报告何时冻结、每日信号失败由谁收尾、Python 请求财报数据经过哪些入口。另核对进程从哪里启动、资源由谁关闭，确认入口代码足以解释运行顺序。评审者应能依靠目录和短说明定位，不必先读完整项目历史。
+
+### C12 验证后新增业务决策：报告独立部署
+
+用户确认将部署来源从可变策略改为成功回测报告；不同报告即使配置相同也独立部署，同报告最多一个 active 实例。已独立提交 `3c55fd2f`（`按回测报告独立部署策略`），替代仅修正 `deploymentCurrent` 字符串比较的方案。实现、数据迁移与完整验证结果详见 [每日信号设计](daily-signals.md)。业务实现及 Monaco 补充修复均经人工 review，API 全量、迁移、源码/编译 Worker、构建及 7 个浏览器回归用例通过。C12 已完成后续门禁与 Research 回归，按原定独立提交收尾。

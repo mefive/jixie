@@ -23,6 +23,37 @@ try {
     throw new Error(`dev login failed: ${loginStatus}`);
   }
 
+  // Build a baseline report instead of relying on a developer's existing research history.
+  await page.evaluate(async () => {
+    const response = await fetch('/api/app/factor/analysis/run', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        factor: 'ep',
+        spec: { version: 1, freq: 'month', start: '20240101', end: '20241231', neutral: 'none' },
+        researchIntent: { version: 1, mode: 'exploratory', expectedDirection: 'unknown' },
+      }),
+    });
+    const submitted = await response.json();
+    if (!response.ok || !submitted.reportId) {
+      throw new Error(`baseline report submission failed: ${JSON.stringify(submitted)}`);
+    }
+    const deadline = Date.now() + 180_000;
+    while (Date.now() < deadline) {
+      const detail = await fetch(`/api/app/factor/reports/${submitted.reportId}`).then(
+        (reportResponse) => reportResponse.json(),
+      );
+      if (detail.status === 'done') {
+        return;
+      }
+      if (detail.status === 'error' || detail.status === 'stale') {
+        throw new Error(`baseline report failed: ${JSON.stringify(detail)}`);
+      }
+      await new Promise((resolve) => setTimeout(resolve, 400));
+    }
+    throw new Error('baseline report timed out');
+  });
+
   await page.goto(`${BASE}/factors`, { waitUntil: 'domcontentloaded' });
   await page.locator('.jx-factor-agent').getByRole('tab', { name: '因子库' }).click();
   await page.locator('.jx-factor-libItem', { hasText: '盈利收益率' }).click();
@@ -173,7 +204,10 @@ try {
   await page.locator('.jx-factor-historyTrigger').waitFor({ timeout: 15000 });
 
   await page.locator('.jx-factor-paramActions button').last().click();
-  await page.locator('.jx-factor-paramPopover:visible .jx-factor-neutralSelect').click();
+  await page
+    .locator('.jx-factor-paramPopover:visible .jx-factor-neutralSelect')
+    .filter({ hasText: /^无$/ })
+    .click();
   await page
     .locator('.ant-select-dropdown:visible .ant-select-item-option', { hasText: '市值' })
     .first()
@@ -233,15 +267,23 @@ try {
       json: [{ key: 'e2e-factor', label: 'E2E 因子', kind: 'custom' }],
     }),
   );
-  await guardPage.route('**/api/app/factors/custom/e2e-factor', (route) =>
-    route.fulfill({
-      json: {
-        id: 'e2e-factor',
-        name: 'E2E 因子',
-        code: fixtureCode,
-        messages: [],
-      },
-    }),
+  const pendingDraftSaves = [];
+  const fixtureFactor = {
+    id: 'e2e-factor',
+    name: 'E2E 因子',
+    code: fixtureCode,
+    messages: [],
+  };
+  await guardPage.route('**/api/app/factors/custom/e2e-factor', (route) => {
+    // Keep autosave pending so both leave guards really see an unsaved draft.
+    if (route.request().method() === 'POST') {
+      pendingDraftSaves.push(route);
+      return;
+    }
+    return route.fulfill({ json: fixtureFactor });
+  });
+  await guardPage.route('**/api/app/agent/turns/running**', (route) =>
+    route.fulfill({ json: { turnId: null } }),
   );
   await guardPage.route('**/api/app/factor/reports/e2e-report', (route) =>
     route.fulfill({ json: { ...fixtureSummary, factorCodeSnapshot: fixtureCode } }),
@@ -260,12 +302,18 @@ try {
   await guardPage.locator('.jx-factor-researchModal .ant-modal-close').click();
   await editor.click();
   await guardPage.keyboard.press('Meta+ArrowDown');
+  const draftSaveRequest = guardPage.waitForRequest(
+    (request) =>
+      request.method() === 'POST' && request.url().endsWith('/factors/custom/e2e-factor'),
+  );
   await guardPage.keyboard.type('// local edit');
+  await draftSaveRequest;
   await guardPage.locator('.jx-factor-reportWarning').waitFor();
   await guardPage.screenshot({ path: `${SHOTS}7k-factor-code-outdated.png` });
 
   // New/switch/route-leave paths must not silently discard the edited source.
   await guardPage.getByRole('button', { name: '新建' }).click();
+  await guardPage.getByRole('menuitem', { name: '股票横截面因子' }).click();
   const discardGuard = guardPage.locator('.ant-modal-confirm');
   await discardGuard.waitFor();
   const discardGuardButtons = discardGuard.locator('.ant-modal-confirm-btns button');
@@ -281,6 +329,9 @@ try {
   await guardPage.locator('.ant-modal-confirm-btns button').first().click();
   if (new URL(guardPage.url()).pathname !== '/factors') {
     throw new Error('canceling the route guard still left the factor workbench');
+  }
+  for (const route of pendingDraftSaves) {
+    await route.fulfill({ json: { ...fixtureFactor, ...route.request().postDataJSON() } });
   }
   await guardPage.close();
 
@@ -317,7 +368,7 @@ try {
     const factor = await json('/api/app/factors/custom', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ name: `E2E holdout ${nonce}`, code }),
+      body: JSON.stringify({ key: `e2e_holdout_${nonce}`, name: `E2E holdout ${nonce}`, code }),
     });
     const explore = await json('/api/app/factor/analysis/run', {
       method: 'POST',

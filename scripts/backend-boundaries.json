@@ -1,0 +1,33 @@
+{
+  "edges": [
+    {
+      "rule": "engine-core",
+      "from": "apps/api/src/engine/data/engine-data.ts",
+      "to": "apps/api/src/market/instruments/stock-identity.ts",
+      "kind": "runtime",
+      "reason": "证券历史身份纯规则：引擎按交易日解释代码变更；该文件无数据库或网络依赖。"
+    },
+    {
+      "rule": "engine-core",
+      "from": "apps/api/src/engine/factors/custom-factor.ts",
+      "to": "apps/api/src/factor/runtime/typescript/sdk.ts",
+      "kind": "type",
+      "reason": "纯类型依赖 Factor 编写契约，编译后擦除；不导入 Factor 执行器。"
+    },
+    {
+      "rule": "engine-core",
+      "from": "apps/api/src/engine/factors/custom-factor.ts",
+      "to": "apps/api/src/factor/definitions/fields.ts",
+      "kind": "runtime",
+      "reason": "复用 Factor V2 字段常量和期限解析纯函数；不经过定义读写与发布流程。"
+    },
+    {
+      "rule": "engine-core",
+      "from": "apps/api/src/engine/simulation/run.ts",
+      "to": "apps/api/src/market/registry/index-presets.ts",
+      "kind": "runtime",
+      "reason": "复用纯静态全收益基准代码，避免另一份市场清单；注册表本身受纯依赖检查。"
+    }
+  ],
+  "cycles": []
+}
