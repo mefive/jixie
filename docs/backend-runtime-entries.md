@@ -33,7 +33,7 @@
 | API Prisma | `DATABASE_URL` 的相对 file 路径按 `apps/api/prisma/schema.prisma` 所在目录解析 |
 | Agent SQL databasePath | `agent/tools/sql/read-only-sql.ts` 将相对数据库 URL 按上述 Prisma 目录转换；与工具目录深度绑定，不能按 cwd 猜测 |
 | Curator 仓库检索 | `research/curator/reference-search.ts` 仍使用约定的 API 工作目录定位项目资料；不是外部任意文件读取服务 |
-| API CLI | `apps/api/scripts` 的同步/审计/维护/迁移入口；源码 tsx，生产编译 `.js`，各自负责 Prisma 收尾 |
+| API CLI | 入口按 `apps/api/scripts/{sync,audit,probes,maintenance,research,generators}` 分组，见 [脚本索引](../apps/api/scripts/README.md)；TS 入口源码 tsx，生产编译 `.js`，各自负责 Prisma 收尾。备份直接执行 `scripts/maintenance/backup-db.mjs`，默认数据库路径仍锚定 API 的 `prisma/dev.db`；systemd 维护入口为 `dist/scripts/maintenance/run-maintenance.js` |
 
 ## Commit 12 本轮验证（2026-09-09）
 

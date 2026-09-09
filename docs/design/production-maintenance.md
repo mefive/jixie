@@ -152,7 +152,7 @@ systemd service 通过同一个入口取得锁：
 ```ini
 ExecStart=/usr/bin/flock -n -E 75 \
   /var/lib/jixie/maintenance.lock \
-  /usr/bin/node /opt/jixie/apps/api/dist/scripts/run-maintenance.js daily
+  /usr/bin/node /opt/jixie/apps/api/dist/scripts/maintenance/run-maintenance.js daily
 ```
 
 退出码 `75` 解释为 `already_running`。生产人工补跑优先使用 `systemctl start`；根目录的

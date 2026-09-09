@@ -9,7 +9,7 @@ Group=jixie
 Environment=JIXIE_DB_PATH=/var/lib/jixie/prod.db
 Environment=JIXIE_BACKUP_DIR=/var/backups/jixie
 Environment=JIXIE_BACKUP_KEEP=2
-ExecStart=/usr/bin/node /opt/jixie/apps/api/scripts/backup-db.mjs
+ExecStart=/usr/bin/node /opt/jixie/apps/api/scripts/maintenance/backup-db.mjs
 TimeoutStartSec=6h
 Nice=10
 NoNewPrivileges=true

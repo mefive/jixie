@@ -676,7 +676,7 @@ have curl    || PKGS+=(curl)
 have rsync   || PKGS+=(rsync)
 have flock   || PKGS+=(util-linux)
 have nginx   || PKGS+=(nginx)
-have sqlite3 || PKGS+=(sqlite3)     # backup 脚本(scripts/backup-db.mjs)依赖 sqlite3 CLI
+have sqlite3 || PKGS+=(sqlite3)     # scripts/maintenance/backup-db.mjs requires the sqlite3 CLI
 have podman  || PKGS+=(podman)      # rootless runtime for untrusted Python strategy containers
 # isolated-vm(硬沙箱)是原生模块,pnpm install 时需要 C++ 工具链编译
 if [[ "$PKG" == apt ]]; then

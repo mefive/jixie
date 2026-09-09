@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import fixture from '../../../scripts/fundamentals/fixtures/financial-source-versions.json';
+import fixture from '../../../scripts/probes/fundamentals/fixtures/financial-source-versions.json';
 import {
   FINANCIAL_STATEMENT_FIELDS,
   appendFinancialStatementSourceRows,

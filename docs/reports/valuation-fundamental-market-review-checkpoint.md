@@ -99,7 +99,7 @@ pnpm --filter api audit:valuation-samples 20260907 /private/tmp/jixie-valuation-
 
 - `apps/api/src/research/templates/fcff/evidence-template.ts`：透明研究Cell，无新公共SDK或隐式预测器。
 - `apps/api/src/research/templates/fcff/valuation-template.ts`：既有入口扩为24 Cell。
-- `apps/api/src/market/fundamentals/valuation-sample-audit.ts`、`apps/api/scripts/audit-valuation-samples.ts`：内部审计模块与只读CLI，含覆盖、身份、历史切片、原因明细。
+- `apps/api/src/market/fundamentals/valuation-sample-audit.ts`、`apps/api/scripts/audit/audit-valuation-samples.ts`：内部审计模块与只读CLI，含覆盖、身份、历史切片、原因明细。
 - 原情景参数保留；期限敏感性固定历史利润率以隔离持续期，终值比较显式计再投资；原预测滚动只验证企业价值一个模型年的恒等式，未将WACC称为股东实际收益。
 
 尚待口径批准后完成：三公司经营/非经营调整、最终研究结论、参考书项目指导、中英文帮助、完整回归与最终提交前评审。没有把本停点包装为本轮交付完成。

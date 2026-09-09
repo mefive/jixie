@@ -22,4 +22,4 @@ Maintenance 编排整轮数据维护：获取运行权、补齐数据、检查�
 
 日维护的普通发布链路是：原始同步 → `validateRawMarketDate` → 派生指标重算 → `validateDerivedMarketRange` → `advanceDailyWatermark` 或 `bumpDataRevision`。数据替换事务由各同步函数控制；发布水位由 Maintenance 控制，不把整轮网络同步包进一个数据库事务。初始化、无缺口信号重试及历史修复保留各自分支。
 
-CLI 入口为 [scripts/run-maintenance.ts](../../scripts/run-maintenance.ts)；根级 `pnpm maintenance` 经 [with-maintenance-lock.sh](../../../../scripts/with-maintenance-lock.sh) 执行。单项数据同步 CLI 直接调用 Market 的具体文件；维护进程启动与中断恢复仍由现有启动/部署入口负责，本轮不改变锁、时间、水位和进程协议。
+CLI 入口为 [scripts/maintenance/run-maintenance.ts](../../scripts/maintenance/run-maintenance.ts)；根级 `pnpm maintenance` 经 [with-maintenance-lock.sh](../../../../scripts/with-maintenance-lock.sh) 执行。单项数据同步 CLI 直接调用 Market 的具体文件；维护进程启动与中断恢复仍由现有启动/部署入口负责，本轮不改变锁、时间、水位和进程协议。

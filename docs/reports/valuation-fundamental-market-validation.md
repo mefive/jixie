@@ -127,7 +127,7 @@
 ```sh
 pnpm --filter api audit:valuation-samples 20260907 /private/tmp/jixie-valuation-samples-20260907.json
 # From apps/api; explicit existing owner and output path; refuses duplicate document titles.
-node --env-file=.env --import tsx scripts/create-fcff-research-replays.ts <existing-owner-email> <manifest.json>
+node --env-file=.env --import tsx scripts/research/create-fcff-research-replays.ts <existing-owner-email> <manifest.json>
 ```
 
 创建CLI复用Research现有创建、编辑、干净执行和封存服务，需要可用Research Python运行时；失败会在manifest保留已创建文档状态，不会删除用户文档或盲目重试创建。

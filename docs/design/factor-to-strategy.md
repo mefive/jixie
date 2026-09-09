@@ -197,7 +197,7 @@ fina_indicator 七列已落库(2026-07-07 波次一),因子 `compute` 的 bar �
 - **数学实现(FWL,免矩阵求逆)**:「市值+行业」= 因子值与 log 市值**各自行业内去均值**,再做一元回归取残差(Frisch–Waugh–Lovell 定理保证与完整多元 OLS 残差相同)——只需 `groupDemean` + 现有 `linearRegression`,不引矩阵库。「仅市值」= 直接一元回归取残差。
 - **行业分类:申万一级(SW2021,31 个),以此为准**。前置需一次数据同步(2026-07-08 拍定):
   - 新表 `SwIndustryMember`(市场数据表,进 SQL 白名单):`tsCode / l1Code / l1Name / inDate / outDate(可空)`,主键 `tsCode|l1Code|inDate`。**只存申万一级层**(二/三级此需求用不上,不同步)。
-  - 同步脚本 `scripts/sync-sw-industry.ts`:`index_member_all` 按 31 个 `l1_code` 逐个拉全成分(不加 `is_new` 过滤,要**全历史**含 `out_date`),幂等 `deleteMany`+`createMany`。数据量 ~1 万行,一次拉完。
+  - 同步脚本 `scripts/sync/sync-sw-industry.ts`:`index_member_all` 按 31 个 `l1_code` 逐个拉全成分(不加 `is_new` 过滤,要**全历史**含 `out_date`),幂等 `deleteMany`+`createMany`。数据量 ~1 万行,一次拉完。
   - **PIT 归属**:每个调仓日 D,某股行业 = 满足 `inDate ≤ D < (outDate || 今天)` 的那条 `l1Name`(股票换行业罕见但 in/out_date 让历史归属精确,非快照套历史)。实现为一次全表预载 + 逐股按 D 二分/线性选段(参照 `EngineData.roeAsOf` 的 as-of 手法)。
 - **缺失处理**:缺 totalMv 或 totalMv≤0 的股票在中性化模式下**当期剔除**;查不到申万归属的股票(未上市成分/新股)归入 `unknown` 桶,该桶 <5 只时并入最大桶再去均值。
 - **接口/报告**:参数 `neutral: 'none' | 'size' | 'size_industry'`(默认 none),进入版本化 spec、
