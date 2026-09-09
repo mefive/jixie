@@ -1,5 +1,5 @@
 import type { ResearchMarketStateScopeV1 } from '@jixie/shared';
-import { buildMarketStatePoints } from '../../market/market-state.js';
+import { buildMarketStatePoints } from '../../market/state/compute.js';
 import { addDays } from '../../date.js';
 import { prisma } from '../../infra/database/prisma.js';
 

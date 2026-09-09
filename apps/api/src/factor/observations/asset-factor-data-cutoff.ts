@@ -2,7 +2,7 @@ import type { FactorResearchSpecV1 } from '@jixie/shared';
 import {
   commodityFutureProductCodesForEtfs,
   commodityWarehouseReceiptProductCodesForEtfs,
-} from '../../commodity/commodity-futures.js';
+} from '../../market/commodity/commodity-futures.js';
 import { prisma, type Prisma } from '../../infra/database/prisma.js';
 
 export interface AssetFactorDataRequirements {

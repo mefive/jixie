@@ -3,7 +3,7 @@ import { logger } from 'hono/logger';
 import { authRoute } from './auth/http/auth.js';
 import { routes as strategyRoutes } from './strategy/routes.js';
 import { routes as strategyDefinitionRoutes } from './strategy/definition-routes.js';
-import { marketRoute } from './routes/market.js';
+import { routes as marketRoute } from './market/routes.js';
 import { factorRoute } from './factor/research-routes.js';
 import { researchRoute } from './research/routes.js';
 import { factorsRoute } from './factor/routes.js';

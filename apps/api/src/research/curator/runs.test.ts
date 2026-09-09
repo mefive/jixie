@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import type { PrismaClient } from '@prisma/client';
 import prismaPackage from '@prisma/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { tushareCapabilityProbesAreFresh } from '../../tushare/capability-probe-store.js';
+import { tushareCapabilityProbesAreFresh } from '../../market/providers/tushare/capability-probe-store.js';
 import {
   extractResearchCuratorEvidence,
   getResearchCuratorRun,

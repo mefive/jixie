@@ -30,7 +30,7 @@
 真实回填水位为 139,862 条日线、139,897 条复权因子和 138,284 条份额规模记录。专项
 审计逐只核对元数据、跟踪基准、上市日、数据起止日、最近 252 日成交额和最新规模；当前
 结果为 0 个错误、28 个上游历史缺口告警。完整成员、主备角色和限制以
-`apps/api/src/store/etf-research-registry.ts` 为唯一真相源，旧的 `MAJOR_ETF_CODES` 只保留为
+`apps/api/src/market/registry/etf-research-registry.ts` 为唯一真相源，旧的 `MAJOR_ETF_CODES` 只保留为
 兼容预设。
 
 ## 同步

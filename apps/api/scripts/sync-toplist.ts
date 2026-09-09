@@ -1,7 +1,7 @@
-import { loadTushareConfig } from '../src/config.js';
-import { TushareClient } from '../src/tushare/client.js';
+import { loadTushareConfig } from '../src/market/providers/tushare/config.js';
+import { TushareClient } from '../src/market/providers/tushare/client.js';
 import { prisma } from '../src/infra/database/prisma.js';
-import { syncTopList } from '../src/store/sync.js';
+import { syncTopList } from '../src/market/sync/stock-flows.js';
 
 /**
  * Sync Dragon-Tiger List (LHB) net buy per day into TopList — read exact-date via ctx.lhbNet(code).

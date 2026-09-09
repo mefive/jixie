@@ -1,19 +1,19 @@
 import { median, quantile } from '../math/stats.js';
-import { CHINA_MACRO_SERIES } from '../macro/china-macro.js';
-import { US_HEADLINE_CPI_SERIES_KEY } from '../macro/us-headline-cpi.js';
+import { CHINA_MACRO_SERIES } from '../market/macro/china-macro.js';
+import { US_HEADLINE_CPI_SERIES_KEY } from '../market/macro/us-headline-cpi.js';
 import type { Prisma } from '../infra/database/prisma.js';
-import { auditCommodityWarehouseReceipts } from '../commodity/commodity-warehouse-receipt-quality.js';
-import { auditCommodityHoldingPositions } from '../commodity/commodity-holding-quality.js';
-import { auditCommodityContinuousReturns } from '../commodity/commodity-continuous-return-quality.js';
+import { auditCommodityWarehouseReceipts } from '../market/commodity/commodity-warehouse-receipt-quality.js';
+import { auditCommodityHoldingPositions } from '../market/commodity/commodity-holding-quality.js';
+import { auditCommodityContinuousReturns } from '../market/commodity/commodity-continuous-return-quality.js';
 import { auditMacroRiskAxes, auditMarketRiskDrivers } from './risk-data-audit.js';
-import { CROSS_MARKET_BENCHMARKS } from '../market/cross-market-benchmarks.js';
-import { auditEtfResearchRegistry } from '../data-quality/etf-registry-audit.js';
-import { CHINABOND_PUBLIC_CURVES } from '../rates/chinabond-credit-curves.js';
+import { CROSS_MARKET_BENCHMARKS } from '../market/registry/cross-market-benchmarks.js';
+import { auditEtfResearchRegistry } from '../market/quality/etf-registry-audit.js';
+import { CHINABOND_PUBLIC_CURVES } from '../market/rates/chinabond-credit-curves.js';
 import {
   EXTERNAL_FX_CODES,
   US_NOMINAL_CURVE_CODE,
   US_REAL_CURVE_CODE,
-} from '../rates/external-market-drivers.js';
+} from '../market/rates/external-market-drivers.js';
 
 export type AuditStatus = 'pass' | 'warn' | 'error';
 

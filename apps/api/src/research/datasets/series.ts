@@ -7,12 +7,14 @@ import type {
 import { prisma } from '../../infra/database/prisma.js';
 import {
   CROSS_MARKET_BENCHMARK_BY_ID,
-  deriveBenchmarkCnyCloses,
-  deriveHkdCnhMidCloses,
   HKD_CNH_DERIVED_CODE,
   type CrossMarketBenchmarkDefinition,
-} from '../../market/cross-market-benchmarks.js';
-import { EXTERNAL_FX_CODES } from '../../rates/external-market-drivers.js';
+} from '../../market/registry/cross-market-benchmarks.js';
+import {
+  deriveBenchmarkCnyCloses,
+  deriveHkdCnhMidCloses,
+} from '../../market/queries/cross-market-benchmarks.js';
+import { EXTERNAL_FX_CODES } from '../../market/rates/external-market-drivers.js';
 
 export interface ResearchSeriesPoint {
   date: string;

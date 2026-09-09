@@ -35,7 +35,7 @@
 
 - pnpm workspaces monorepo(Node 20+,纯 ESM),结构参照 `~/Projects/marginalia`、`~/Tools/fangtu`
 - 后端 `apps/api`:**Hono + Prisma 6(不升 7)+ SQLite**;dev `tsx watch`,prod `tsc` + `node`
-- 当前主要数据源:Tushare HTTP API(`http://api.tushare.pro`,POST + token),client 见 `apps/api/src/tushare`；扩展香港、美国或新资产时按数据许可、PIT 能力和可审计性单独选源，不假设 Tushare 能覆盖全部目标
+- 当前主要数据源:Tushare HTTP API(`http://api.tushare.pro`,POST + token),client 见 `apps/api/src/market/providers/tushare`；扩展香港、美国或新资产时按数据许可、PIT 能力和可审计性单独选源，不假设 Tushare 能覆盖全部目标
 - 前端 `apps/web`(登录与工作台)和 `apps/docs`(公开文档):React + Vite + Tailwind v4 + MobX「complex」架构(一页一 store)。**两个应用都遵循 `apps/web/CLAUDE.md` 的前端硬约定**(具名 BEM class + `.css` 里 `@apply`、classnames、FontAwesome、echarts)
 - 共享类型 `packages/shared`
 
@@ -99,7 +99,8 @@
 - `apps/api/src/agent` — core 负责统一模型/工具循环，profiles 选择业务能力；turns 负责后台执行、事件、轨迹和持久化状态，conversations 负责对话关联/历史/实体镜像及消息校验，tools/charts、tools/sql、tools/quick-backtest 归组具体工具和 Worker；根级 routes.ts 适配 HTTP/SSE。入口和消息顺序见 `src/agent/README.md`。
 - `apps/api/src/sharing` — 根级 routes.ts 适配公开库 HTTP，catalog.ts 聚合列表与公开详情；策略复制调用 `strategy/definitions/copy-public.ts`，不直接修改他域生命周期。见 `src/sharing/README.md`。
 - `apps/api/src/engine` — simulation 为交易循环与账户，data 为必填 DataPort/EngineData，factors 为引擎内因子求值；adapters 为宿主 Prisma/Python 桥，testing 为 fixture。模拟核心不导入宿主适配器；Strategy 的墙内 bundle 使用真实核心，不用 Prisma stub。见 `src/engine/README.md`。
-- `apps/api/src/market/state`、`market/macro`、`market/quality` — 风险输入序列、宏观轴与基础质量；模型历史要求归 Strategy，`maintenance/risk-data-audit.ts` 组合两者，`maintenance/data-audit.ts` 汇总审计。Market 不反向导入 Strategy。其他市场同步/质量职责按后续计划归位。
+- `apps/api/src/market` — providers/tushare 负责行情通道与配置，registry 是纯静态清单，instruments 负责证券身份，sync 负责行情同步，queries 负责序列查询，state/valuation 分开计算与读取；fundamentals/rates/macro/commodity 承接财报、利率、宏观和商品子领域，quality 负责基础审计。根级 routes.ts 适配 HTTP，入口见 `src/market/README.md`。Market 不反向导入 Strategy、Research 执行或 Agent。
+- `apps/api/src/maintenance` — 调度、锁、发布水位、自愈、参考数据子进程与运维 HTTP；risk-data-audit.ts 组合市场数据和策略模型要求，data-audit.ts 汇总审计。调用 Market 同步入口，流程见 `src/maintenance/README.md`。
 - `apps/api` — Hono 后端 + `prisma/schema.prisma` + 领域逻辑(`src/research`、`src/factor`、`src/strategy` 等)+ 研究 / 导入脚本(`scripts/`,wired 成 `smoke` / `sync` / `peek` 等)
 - `apps/web` — 登录与工作台前端
 - `apps/docs` — 独立公开文档前端，挂载 `/docs/help/*` 与 `/docs/sdk`

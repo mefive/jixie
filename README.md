@@ -63,15 +63,15 @@ apps/api/                          # Hono + Prisma 后端
   src/math/                        # 共用统计、推断与技术指标
   src/i18n/                        # 纯消息目录和翻译函数
   src/date.ts                      # 日期辅助
-  src/tushare/                     # Tushare client + 接口封装
-  src/store/                       # 同步落库
+  src/market/providers/tushare/     # Tushare client + 接口封装
+  src/market/sync/                  # 同步落库
   scripts/                         # smoke / sync / peek
 packages/shared/                   # 共享类型(TsCode、TradeDate)
 ```
 
 当前架构重整进度见 [开发计划](docs/design/backend-architecture-refactor.md)；目标目录不代表全部已实施。
 
-后端 Research 的文档、依赖、执行、证据与提案入口见 [Research 后端阅读入口](apps/api/src/research/README.md)。
+后端 Research 的文档、依赖、执行、证据与提案入口见 [Research 后端阅读入口](apps/api/src/research/README.md)。行情、领域数据与同步见 [Market](apps/api/src/market/README.md)，维护编排与发布水位见 [Maintenance](apps/api/src/maintenance/README.md)。
 
 ## 快速开始
 

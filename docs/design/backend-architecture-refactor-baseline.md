@@ -761,15 +761,15 @@ API package scripts 中的命令名和参数保持；下表逐文件登记 `apps
 | --- | --- | --- | --- |
 | `market/cross-market-benchmarks.test.ts` | market/sync/ + market/queries/ | 11 | 拆分基准同步和读取；测试覆盖两者 |
 | `market/cross-market-benchmarks.ts` | market/sync/ + market/queries/ | 11 | 拆分基准同步和读取；测试覆盖两者 |
-| `market/index-valuation.test.ts` | market/valuation/index-valuation.test.ts | 11 | 迁移；按已有职责提取 |
-| `market/index-valuation.ts` | market/valuation/index-valuation.ts | 11 | 迁移；按已有职责提取 |
+| `market/index-valuation.test.ts` | market/valuation/compute.test.ts | 11 | 迁移；按已有职责提取 |
+| `market/index-valuation.ts` | market/valuation/compute.ts | 11 | 迁移；按已有职责提取 |
 | `market/instrument-resolver.ts` | market/instruments/instrument-resolver.ts | 11 | 迁移；按已有职责提取 |
 | `market/instrument-series.ts` | market/queries/instrument-series.ts | 11 | 迁移；按已有职责提取 |
-| `market/market-state.test.ts` | market/state/market-state.test.ts | 11 | 迁移；按已有职责提取 |
-| `market/market-state.ts` | market/state/market-state.ts | 11 | 迁移；按已有职责提取 |
+| `market/market-state.test.ts` | market/state/compute.test.ts | 11 | 迁移；按已有职责提取 |
+| `market/market-state.ts` | market/state/compute.ts | 11 | 迁移；按已有职责提取 |
 | `market/stock-identity.test.ts` | market/instruments/stock-identity.test.ts | 11 | 迁移；按已有职责提取 |
 | `market/stock-identity.ts` | market/instruments/stock-identity.ts | 11 | 迁移；按已有职责提取 |
-| `market/sync-market-indicators.ts` | market/sync/sync-market-indicators.ts | 11 | 迁移；按已有职责提取 |
+| `market/sync-market-indicators.ts` | market/sync/market-indicators.ts | 11 | 迁移；按已有职责提取 |
 
 ### 8.14 rates
 

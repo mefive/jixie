@@ -100,7 +100,7 @@ pnpm --filter api audit:financial-selected 20260906
 
 ### 3. 实际代码产出及用户入口
 
-- 内部模块 `apps/api/src/fundamentals/accounting-quality.ts`：对已选版本分类、指出相关指标。
+- 内部模块 `apps/api/src/market/fundamentals/accounting-quality.ts`：对已选版本分类、指出相关指标。
 - `calculateFinancialMetrics`：根据输入版本血缘传播限制，包括 TTM 所用季度、上年资产负债表；原始 state 和数据库不变。
 - 公开 `data.equity_financial_metrics(...)` 沿用现有列返回 `value=null`、`status=invalid`、`missing_reason=accounting_review_required:…`，普通用户无需运行审计脚本即可看到结果。
 - `data.equity_financial_statements(...)` 仍返回原始选中值，用于调查；不是经过清洗的可直接回测指标。

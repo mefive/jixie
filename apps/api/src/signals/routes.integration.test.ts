@@ -30,7 +30,7 @@ vi.mock('../strategy/runtime/typescript/walled-run.js', () => ({
 vi.mock('../strategy/execution/prepare-factors.js', () => ({
   prepareStrategyFactors: resources.factors,
 }));
-vi.mock('../rates/signal-readiness.js', () => ({
+vi.mock('../market/rates/signal-readiness.js', () => ({
   governmentYieldCurveReady: resources.yieldReady,
 }));
 vi.mock('../infra/jobs/queue.js', () => ({

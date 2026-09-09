@@ -1,5 +1,5 @@
-import { loadTushareConfig } from '../src/config.js';
-import { TushareClient } from '../src/tushare/client.js';
+import { loadTushareConfig } from '../src/market/providers/tushare/config.js';
+import { TushareClient } from '../src/market/providers/tushare/client.js';
 import { probeMainBusinessSegments } from './fundamentals/main-business-probe.js';
 
 async function main(): Promise<void> {

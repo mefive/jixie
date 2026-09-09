@@ -10,12 +10,12 @@ import {
   selectMacroObservationsAsOf,
   type MacroObservationVintageRow,
   type MacroRevisionPolicy,
-} from '../../macro/as-of.js';
+} from './as-of.js';
 import {
   US_NOMINAL_CURVE_CODE,
   US_REAL_CURVE_CODE,
   USD_CNH_CODE,
-} from '../../rates/external-market-drivers.js';
+} from '../rates/external-market-drivers.js';
 
 export const MACRO_RISK_STANDARDIZATION_MONTHS = 60;
 export const MACRO_RISK_MINIMUM_MONTHS = 24;

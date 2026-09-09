@@ -1,6 +1,6 @@
 import { fork } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import type { ReferenceSyncSummary } from '../store/sync.js';
+import type { ReferenceSyncSummary } from '../market/fundamentals/reference-sync.js';
 import type { ReferenceWorkerMessage, ReferenceWorkerStage } from './reference-worker.js';
 
 export async function runReferenceWorkerProcess(

@@ -1,6 +1,6 @@
 import { MACRO_RISK_AXIS_KEYS_V1 } from '@jixie/shared';
 import { describe, expect, it } from 'vitest';
-import type { MacroObservationVintageRow } from '../../macro/as-of.js';
+import type { MacroObservationVintageRow } from './as-of.js';
 import {
   MACRO_RISK_AXIS_DEFINITIONS_V1,
   buildMacroRiskAxisHistory,

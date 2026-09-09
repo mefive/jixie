@@ -55,7 +55,7 @@
 | 其他 | 17 | 4 |
 
 投资通道分布为 1,554 只纯境内 ETF 和 86 只 QDII；当前日线只覆盖 16 只纯境内 ETF 和 3 只 QDII。
-现有 19 只清单见 `apps/api/src/store/etf-presets.ts`，其中境内宽基、三种国债久期、黄金和三类商品
+现有 19 只清单见 `apps/api/src/market/registry/etf-presets.ts`，其中境内宽基、三种国债久期、黄金和三类商品
 期货 ETF 已形成第一版大类资产代理，明显缺口是海外市场、固收细分类、权益风格/行业和现金代理。
 
 ### 2.2 与 Tushare 当前名录的差异
@@ -141,8 +141,8 @@ registry v1 已按 `selectionAsOf=20260824` 冻结，实际包含 71 个经济�
 
 实现入口：
 
-- registry：`apps/api/src/store/etf-research-registry.ts`；
-- 市场级日同步与历史规模回填：`apps/api/src/store/etf-market-sync.ts`；
+- registry：`apps/api/src/market/registry/etf-research-registry.ts`；
+- 市场级日同步与历史规模回填：`apps/api/src/market/sync/etf.ts`；
 - 专项审计：`pnpm --filter api audit:etf 20150101 20260824 --strict`；
 - bootstrap：`pnpm --filter api sync:etf 20150101 20260824 registry`；
 - 通用数据审计：`audit:data` 已包含 `etf-research-registry` finding。

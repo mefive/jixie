@@ -4,7 +4,7 @@ import {
   MAJOR_INDEX_DAILY_CODES,
   DAILY_MAINTAINED_INDEX_CODES,
   MARKET_WEATHER_INDEX_CODES,
-} from '../store/index-presets.js';
+} from '../market/registry/index-presets.js';
 import { prisma } from '../infra/database/prisma.js';
 
 export interface RawDateQuality {

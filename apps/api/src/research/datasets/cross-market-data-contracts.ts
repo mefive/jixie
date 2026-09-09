@@ -326,7 +326,7 @@ const sourceDecisions: ResearchSourceDecisionMatrixEntryV1[] = [
       },
       {
         kind: 'implementation',
-        url: 'apps/api/src/rates/chinabond-credit-curves.ts',
+        url: 'apps/api/src/market/rates/chinabond-credit-curves.ts',
         finding:
           'The connector validates workbook identity, terms, date bounds, duplicates, and availability dates.',
       },
@@ -375,7 +375,7 @@ const sourceDecisions: ResearchSourceDecisionMatrixEntryV1[] = [
       },
       {
         kind: 'implementation',
-        url: 'apps/api/src/commodity/commodity-continuous-returns.ts',
+        url: 'apps/api/src/market/commodity/commodity-continuous-returns.ts',
         finding:
           'Local continuous returns preserve mapped-contract changes separately from roll gaps.',
       },
@@ -432,7 +432,7 @@ const sourceDecisions: ResearchSourceDecisionMatrixEntryV1[] = [
       },
       {
         kind: 'implementation',
-        url: 'apps/api/src/store/etf-market-sync.ts',
+        url: 'apps/api/src/market/sync/etf.ts',
         finding:
           'Local synchronization publishes price, adjustment, and share-size slices atomically and gates share-size observations to the next SSE session.',
       },
@@ -480,7 +480,7 @@ const sourceDecisions: ResearchSourceDecisionMatrixEntryV1[] = [
       },
       {
         kind: 'implementation',
-        url: 'apps/api/src/rates/external-market-drivers.ts',
+        url: 'apps/api/src/market/rates/external-market-drivers.ts',
         finding:
           'Local normalization stores explicit curve type, tenor, source date, and available date.',
       },
@@ -523,7 +523,7 @@ const sourceDecisions: ResearchSourceDecisionMatrixEntryV1[] = [
       TUSHARE_PERSONAL_USE_EVIDENCE,
       {
         kind: 'implementation',
-        url: 'apps/api/src/macro/china-macro.ts',
+        url: 'apps/api/src/market/macro/china-macro.ts',
         finding:
           'Local ingestion stores series identity, release and available dates, availability quality, and vintage kind.',
       },
@@ -575,7 +575,7 @@ const sourceDecisions: ResearchSourceDecisionMatrixEntryV1[] = [
       },
       {
         kind: 'implementation',
-        url: 'apps/api/src/macro/us-headline-cpi.ts',
+        url: 'apps/api/src/market/macro/us-headline-cpi.ts',
         finding:
           'The connector validates exact series identity, dimensions, basis conversion, continuity, and freshness.',
       },
@@ -626,7 +626,7 @@ const sourceDecisions: ResearchSourceDecisionMatrixEntryV1[] = [
       },
       {
         kind: 'implementation',
-        url: 'apps/api/src/market/cross-market-benchmarks.ts',
+        url: 'apps/api/src/market/registry/cross-market-benchmarks.ts',
         finding:
           'The local connector validates identities and bars, persists source and available dates, and binds each benchmark to a separate tradable proxy.',
       },
@@ -677,7 +677,7 @@ const sourceDecisions: ResearchSourceDecisionMatrixEntryV1[] = [
       },
       {
         kind: 'implementation',
-        url: 'apps/api/src/market/cross-market-benchmarks.ts',
+        url: 'apps/api/src/market/registry/cross-market-benchmarks.ts',
         finding:
           'A bounded live probe confirmed USDHKD rows and no HKDCNH rows; local conversion therefore preserves the USDCNH/USDHKD cross-rate formula.',
       },

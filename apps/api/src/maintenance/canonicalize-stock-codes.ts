@@ -1,7 +1,7 @@
 import { ulid } from 'ulid';
 import { prisma } from '../infra/database/prisma.js';
-import { STOCK_CODE_CHANGES } from '../market/stock-identity.js';
-import { seedStockCodeChanges } from '../store/sync.js';
+import { STOCK_CODE_CHANGES } from '../market/instruments/stock-identity.js';
+import { seedStockCodeChanges } from '../market/sync/stocks.js';
 
 type PlainRow = Record<string, unknown>;
 

@@ -1,6 +1,6 @@
-import { loadTushareConfig } from '../src/config.js';
-import { TushareClient } from '../src/tushare/client.js';
-import { stockBasic, tradeCal } from '../src/tushare/api.js';
+import { loadTushareConfig } from '../src/market/providers/tushare/config.js';
+import { TushareClient } from '../src/market/providers/tushare/client.js';
+import { stockBasic, tradeCal } from '../src/market/providers/tushare/api.js';
 
 /** Connectivity self-test: verify TUSHARE_TOKEN is valid and the HTTP channel works. Run: `pnpm smoke`. */
 async function main(): Promise<void> {

@@ -1,11 +1,14 @@
-import { loadTushareConfig } from '../src/config.js';
+import { loadTushareConfig } from '../src/market/providers/tushare/config.js';
 import { prisma } from '../src/infra/database/prisma.js';
 import {
   COMMODITY_FUTURE_PRODUCT_CODES,
   COMMODITY_FUTURE_SPECS,
-} from '../src/commodity/commodity-futures.js';
-import { syncCommodityFutureContracts, syncCommodityFutureDaily } from '../src/store/sync.js';
-import { TushareClient } from '../src/tushare/client.js';
+} from '../src/market/commodity/commodity-futures.js';
+import {
+  syncCommodityFutureContracts,
+  syncCommodityFutureDaily,
+} from '../src/market/sync/futures.js';
+import { TushareClient } from '../src/market/providers/tushare/client.js';
 
 /**
  * Sync research-only AU/CU/SC/M actual contracts and raw settlements.

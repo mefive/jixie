@@ -1,10 +1,10 @@
-import { syncCommodityHoldingPositions } from '../src/commodity/commodity-holding-positions.js';
-import { COMMODITY_HOLDING_SPECS } from '../src/commodity/commodity-futures.js';
-import { loadTushareConfig } from '../src/config.js';
+import { syncCommodityHoldingPositions } from '../src/market/commodity/commodity-holding-positions.js';
+import { COMMODITY_HOLDING_SPECS } from '../src/market/commodity/commodity-futures.js';
+import { loadTushareConfig } from '../src/market/providers/tushare/config.js';
 import { addDays } from '../src/date.js';
 import { prisma } from '../src/infra/database/prisma.js';
-import { syncTradeCal } from '../src/store/sync.js';
-import { TushareClient } from '../src/tushare/client.js';
+import { syncTradeCal } from '../src/market/sync/calendar.js';
+import { TushareClient } from '../src/market/providers/tushare/client.js';
 
 /**
  * Sync research-only ranked-member aggregates for representative AU/CU/M contracts.

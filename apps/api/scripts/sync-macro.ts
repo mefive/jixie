@@ -1,10 +1,10 @@
-import { syncChinaMacroData } from '../src/macro/china-macro.js';
-import { BlsPublicDataClient, syncUsHeadlineCpiData } from '../src/macro/us-headline-cpi.js';
-import { loadTushareConfig } from '../src/config.js';
+import { syncChinaMacroData } from '../src/market/macro/china-macro.js';
+import { BlsPublicDataClient, syncUsHeadlineCpiData } from '../src/market/macro/us-headline-cpi.js';
+import { loadTushareConfig } from '../src/market/providers/tushare/config.js';
 import { addDays } from '../src/date.js';
 import { prisma } from '../src/infra/database/prisma.js';
-import { syncTradeCal } from '../src/store/sync.js';
-import { TushareClient } from '../src/tushare/client.js';
+import { syncTradeCal } from '../src/market/sync/calendar.js';
+import { TushareClient } from '../src/market/providers/tushare/client.js';
 
 const CHINA_MONTH_FORMATTER = new Intl.DateTimeFormat('en-US', {
   timeZone: 'Asia/Shanghai',

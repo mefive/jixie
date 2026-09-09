@@ -3,7 +3,7 @@ import {
   DAILY_MAINTAINED_INDEX_CODES,
   MAJOR_INDEX_DAILY_BASIC_CODES,
   MAJOR_INDEX_DAILY_CODES,
-} from '../store/index-presets.js';
+} from '../market/registry/index-presets.js';
 import { buildMarketDateRepairPlan, type MarketDateCounts } from './self-heal.js';
 
 function complete(overrides: Partial<MarketDateCounts> = {}): MarketDateCounts {

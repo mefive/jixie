@@ -1,11 +1,11 @@
-import { loadTushareConfig } from '../src/config.js';
+import { loadTushareConfig } from '../src/market/providers/tushare/config.js';
 import { prisma } from '../src/infra/database/prisma.js';
 import {
   MinistryOfFinanceCurveClient,
   syncChinaTreasuryYieldCurve,
-} from '../src/rates/china-treasury-curve.js';
-import { syncTradeCal } from '../src/store/sync.js';
-import { TushareClient } from '../src/tushare/client.js';
+} from '../src/market/rates/china-treasury-curve.js';
+import { syncTradeCal } from '../src/market/sync/calendar.js';
+import { TushareClient } from '../src/market/providers/tushare/client.js';
 
 function currentDate(): string {
   return new Date().toISOString().slice(0, 10).replaceAll('-', '');

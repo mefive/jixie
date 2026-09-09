@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { prisma } from '../../infra/database/prisma.js';
-import { resolveInstruments } from '../../market/instrument-resolver.js';
-import { etfResearchMembership } from '../../store/etf-research-registry.js';
+import { resolveInstruments } from '../../market/instruments/instrument-resolver.js';
+import { etfResearchMembership } from '../../market/registry/etf-research-registry.js';
 import type { AgentTool } from './types.js';
 
 const argsSchema = z.object({

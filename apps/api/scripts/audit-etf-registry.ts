@@ -1,4 +1,4 @@
-import { auditEtfResearchRegistry } from '../src/data-quality/etf-registry-audit.js';
+import { auditEtfResearchRegistry } from '../src/market/quality/etf-registry-audit.js';
 import { prisma } from '../src/infra/database/prisma.js';
 
 async function main(): Promise<void> {

@@ -1,6 +1,6 @@
 import type { TimeSeriesFactorResearchSpecV1 } from '@jixie/shared';
-import { COMMODITY_FUTURE_SPECS } from '../../commodity/commodity-futures.js';
-import { isAuditedAuKilogramMislabelDate } from '../../commodity/commodity-warehouse-receipts.js';
+import { COMMODITY_FUTURE_SPECS } from '../../market/commodity/commodity-futures.js';
+import { isAuditedAuKilogramMislabelDate } from '../../market/commodity/commodity-warehouse-receipts.js';
 import { addDays, daysBetween } from '../../date.js';
 import { prisma } from '../../infra/database/prisma.js';
 import type { CompiledTimeSeriesFactor } from '../runtime/typescript/compile-asset-factor.js';

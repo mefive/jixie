@@ -5,12 +5,12 @@ import {
 } from '@jixie/shared';
 import type { PrismaClient } from '@prisma/client';
 
-import { normalizeCumulativeFlows } from '../../fundamentals/normalize.js';
+import { normalizeCumulativeFlows } from '../../market/fundamentals/normalize.js';
 import {
   resolveFinancialStates,
   type ResolvedFinancialStatement,
-} from '../../fundamentals/resolver.js';
-import { canonicalStockCode } from '../../market/stock-identity.js';
+} from '../../market/fundamentals/resolver.js';
+import { canonicalStockCode } from '../../market/instruments/stock-identity.js';
 import { prisma } from '../../infra/database/prisma.js';
 import { normalizeFinancialFields, validateFinancialReportRange } from './financial.js';
 

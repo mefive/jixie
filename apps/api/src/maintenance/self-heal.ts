@@ -5,16 +5,11 @@ import {
   MAJOR_INDEX_DAILY_CODES,
   DAILY_MAINTAINED_INDEX_CODES,
   MARKET_WEATHER_INDEX_CODES,
-} from '../store/index-presets.js';
-import {
-  syncDailyCoreDate,
-  syncIndexDaily,
-  syncIndexDailyBasic,
-  syncMoneyflow,
-  syncSwIndexDaily,
-  syncTopList,
-} from '../store/sync.js';
-import type { TushareClient } from '../tushare/client.js';
+} from '../market/registry/index-presets.js';
+import { syncDailyCoreDate } from '../market/sync/stock-daily.js';
+import { syncIndexDaily, syncIndexDailyBasic, syncSwIndexDaily } from '../market/sync/indices.js';
+import { syncMoneyflow, syncTopList } from '../market/sync/stock-flows.js';
+import type { TushareClient } from '../market/providers/tushare/client.js';
 import { validateRawMarketDate } from './quality.js';
 
 export interface MarketDateCounts {

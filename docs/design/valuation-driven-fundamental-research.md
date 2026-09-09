@@ -565,9 +565,9 @@ M6是否启动或获得正面收益，均不决定M0–M5及数据查询能力�
 ## 13. 预计涉及范围
 
 - `apps/api/prisma/schema.prisma` 与新的 Prisma migration；
-- `apps/api/src/tushare/api.ts`、来源类型和接口测试；
-- `apps/api/src/store/sync.ts`、基本面同步脚本、bootstrap 与 maintenance；
-- `apps/api/src/data-quality/` 财务版本、覆盖和勾稽审计；
+- `apps/api/src/market/providers/tushare/api.ts`、来源类型和接口测试；
+- `apps/api/src/market/sync/`、`apps/api/src/market/fundamentals/reference-sync.ts`、基本面同步脚本、bootstrap 与 maintenance；
+- `apps/api/src/market/fundamentals/` 财务版本、覆盖和勾稽审计；
 - `apps/api/src/research/` 财务 resolver、loader、Runtime 与 Catalog；
 - `apps/api/src/agent/tools/sql/read-only-sql.ts`；
 - `packages/shared/src/research-sdk-contract.ts` 及生成的 Python stub；

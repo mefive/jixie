@@ -17,7 +17,7 @@ import { compilePythonCrossSectionalFactor } from '../runtime/python/cross-secti
 import type { UserLogSink } from '../../infra/runtime/console.js';
 import { sameMonth, sameWeek, minusDays } from '../../date.js';
 import { t } from '../../i18n/messages.js';
-import { StockNameLookup } from '../../market/stock-identity.js';
+import { StockNameLookup } from '../../market/instruments/stock-identity.js';
 import * as st from '../../math/stats.js';
 import { combineFactorSeries, type FactorAnalysisRuntimeSource } from '../composition/composite.js';
 import {

@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { TushareRow } from '../../src/tushare/client.js';
+import type { TushareRow } from '../../src/market/providers/tushare/client.js';
 
 export type MainBusinessDimension = 'P' | 'D' | 'I';
 

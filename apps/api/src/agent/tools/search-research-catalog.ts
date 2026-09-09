@@ -29,8 +29,8 @@ import {
 import type { AgentTool } from './types.js';
 import { researchSourceDecisions } from '../../research/catalog/source-decisions.js';
 import { compactCrossMarketDataContractRegistry } from '../../research/datasets/cross-market-data-contracts.js';
-import { HKD_CNH_DERIVED_CODE } from '../../market/cross-market-benchmarks.js';
-import { etfResearchMembership } from '../../store/etf-research-registry.js';
+import { HKD_CNH_DERIVED_CODE } from '../../market/registry/cross-market-benchmarks.js';
+import { etfResearchMembership } from '../../market/registry/etf-research-registry.js';
 
 const filtersSchema = z.strictObject({
   sourceKinds: z

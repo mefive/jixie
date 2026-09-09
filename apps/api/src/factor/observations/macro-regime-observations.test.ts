@@ -1,6 +1,6 @@
 import type { MacroRegimeFactorResearchSpecV1 } from '@jixie/shared';
 import { describe, expect, it } from 'vitest';
-import type { MacroRegimeHistoryV1, MacroRegimeScoreV1 } from '../../macro/regime-score.js';
+import type { MacroRegimeHistoryV1, MacroRegimeScoreV1 } from '../../market/macro/regime-score.js';
 import {
   buildMacroRegimeEvaluationData,
   macroRegimeDecisionTargets,

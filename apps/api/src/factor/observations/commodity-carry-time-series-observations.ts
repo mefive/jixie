@@ -4,8 +4,8 @@ import {
   COMMODITY_CARRY_MINIMUM_DAYS_TO_DELIVERY,
   loadCommodityCarryHistory,
   type CommodityCarryPointV1,
-} from '../../commodity/commodity-carry.js';
-import { COMMODITY_FUTURE_SPECS } from '../../commodity/commodity-futures.js';
+} from '../../market/commodity/commodity-carry.js';
+import { COMMODITY_FUTURE_SPECS } from '../../market/commodity/commodity-futures.js';
 import { addDays, daysBetween } from '../../date.js';
 import { prisma } from '../../infra/database/prisma.js';
 import type { CompiledTimeSeriesFactor } from '../runtime/typescript/compile-asset-factor.js';

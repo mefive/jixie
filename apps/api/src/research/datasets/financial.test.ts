@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   FINANCIAL_FORMULA_VERSION,
   FINANCIAL_METRIC_DEFINITIONS,
-} from '../../fundamentals/metrics.js';
+} from '../../market/fundamentals/metrics.js';
 import { loadResearchFinancialMetrics, loadResearchFinancialStatements } from './financial.js';
 
 describe('research financial datasets', () => {

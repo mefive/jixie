@@ -1,7 +1,7 @@
 import { DEFAULT_LOCALE, isComputedFactorKey, type Locale } from '@jixie/shared';
 import * as st from '../../math/stats.js';
 import { t } from '../../i18n/messages.js'; // direct import — keeps hono/locale out of the wall bundle
-import { CSI_300_TOTAL_RETURN_INDEX_CODE } from '../../store/index-presets.js';
+import { CSI_300_TOTAL_RETURN_INDEX_CODE } from '../../market/registry/index-presets.js';
 import { EngineData, type CrossSection } from '../data/engine-data.js';
 import { CustomFactorRuntime, evaluateCustomFactorModule } from '../factors/custom-factor.js';
 import { Portfolio } from './portfolio.js';

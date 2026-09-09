@@ -1,12 +1,12 @@
 # 后端业务边界与目录重整开发计划
 
-> 状态：Commit 1～9 已提交（`177f63ab`、`00a0e83a`、`bc4a1651`、`ed8c4aae`、`a034c611`、`1bba29cd`、`014899ba`、`a52cfec1`、`82a1ff4b`）；Commit 10 已通过人工 review、静态检查及全部行为验证，按事前确认的信息提交；Commit 11 待范围确认。
+> 状态：Commit 1～10 已提交（`177f63ab`、`00a0e83a`、`bc4a1651`、`ed8c4aae`、`a034c611`、`1bba29cd`、`014899ba`、`a52cfec1`、`82a1ff4b`、`d064503c`）；Commit 11 已通过人工 review、静态检查及本轮全部行为验证，按事前确认的信息提交；Commit 12 待范围确认。
 > 编制日期：2026-09-07；核对代码基线：`12ce9092`。
 > 目标：让不熟悉项目的开发者从目录识别业务能力，沿一个入口读懂完整流程，并找到状态与数据的责任方。
 > 本文规划后端结构调整；研究方法与金融口径不变，任务生命周期的已批准行为调整见 5.3。
 > 开发授权：2026-09-08 用户确认按评审工作流开始开发；Commit 1～3 已提交，Commit 4 的具体范围、JobDefinition + executor 调整以及 Curator/相关性结果原子提交均已获确认。后续提交逐项说明具体范围，经确认后实施。
 > 工作流（2026-09-09 更新）：开工前明确本次 commit message 与范围并获确认 → 编写产品代码与测试 → 运行并修复 lint/typecheck 等静态检查 → 产品代码交人工 review → review 通过后运行测试、构建及运行验证 → 全部通过后直接按预告 message 提交，不再单独请求 commit 确认。已确认范围内的测试用例、fixture、mock 和验证脚本改动无需人工审批；自行修正到符合既定契约，静态检查后复跑必要验证，全部通过即提交。不能通过削弱断言或跳过失败掩盖产品问题；若修复涉及产品实现，仍需静态检查后重新交人工 review。在产品代码尚待首次或再次 review 时，测试修正不提前放行行为验证。环境问题可直接重试。此流程已同步到 review-gated-development SKILL；下文历史 review 记录保留当时的实际过程。
-> Commit 10 事前确认的 message：`整理 Agent 对话、工具执行与公开库业务边界`。后续每轮须在该 commit 任务开工前预告 message。
+> Commit 11 事前确认的 message：`整理 Market 数据领域、同步与维护入口`。后续每轮须在该 commit 任务开工前预告 message。
 
 ## 1. 判断与取舍
 
@@ -192,8 +192,8 @@ apps/api/src/
     commodity/                  商品期货、连续收益、持仓与仓单
     quality/                    跨子领域数据审计
     queries/                    跨子领域行情、序列与基准查询
-    state/                      跨子领域的市场与行业状态计算
-    valuation/                  指数估值
+    state/                      市场/行业纯计算、状态读取与天气缓存
+    valuation/                  指数估值计算与读取
   maintenance/                  同步编排、整体数据审计、质量门禁、水位、修复与运维 HTTP
   infra/
     database/                   Prisma 初始化与连接释放
@@ -595,8 +595,8 @@ Jobs queue → 启动时传入的任务处理函数
 | 7 | E | Factor 定义、观察、分析、报告、发布、组合、运行与 HTTP | 发布纪律、历史报告、分析 Worker | 已提交 `014899ba` |
 | 8 | E | Strategy 与 Engine 分离，风险分析及风险数据/审计边界 | TS/Python 回测、参数扫描、风险结果、引擎一致性 | 已提交 `a52cfec1` |
 | 9 | F | Signals 部署、运行、对账、因子输入、Worker 与 HTTP | 冻结配置、幂等运行、失败收尾、对账 | 已提交 `82a1ff4b`；1073 项测试及源码/编译 IPC 通过 |
-| 10 | F | Agent turns/conversations/tools/Worker、Sharing 操作与 HTTP | SSE、取消、工具权限、公开库复制 | review 与验证通过；201 个文件/1083 项测试、源码/编译 Worker 通过 |
-| 11 | F | Market 子领域及其余市场职责、Maintenance 与 CLI | 数据口径、幂等同步、质量门禁、审计 | 待开始 |
+| 10 | F | Agent turns/conversations/tools/Worker、Sharing 操作与 HTTP | SSE、取消、工具权限、公开库复制 | 已提交 `d064503c`；201 个文件/1083 项测试、源码/编译 Worker 通过 |
+| 11 | F | Market 子领域及其余市场职责、Maintenance 与 CLI | 数据口径、幂等同步、质量门禁、审计 | review 与验证通过；203 个文件/1101 项测试、源码/编译数据与进程入口通过 |
 | 12 | G | 边界门禁、架构阅读地图与剩余旧路径清理 | 完整构建、相关测试、受影响 E2E、运行入口 smoke | 待开始 |
 
 Commit 8 将风险模型、市场风险数据与整体审计调用的边界一起调整，避免保留 market → strategy 的反向依赖；Commit 11 整理剩余市场和维护职责。Commit 4 的业务生命周期集中在各领域明确命名的任务文件，后续领域整理复用这些入口，不为 complete/recover 单独建目录。其余跨提交的路径变化按调用方同步原则处理。
@@ -951,6 +951,62 @@ Worker 验证使用确定性市场 fixture 和独立 SQLite，真实执行 SQL/�
 记录位于 `/tmp/jixie-c10-verification`：首次与复跑的 api-test*.log/json、shared-build.log、api-build.log、web-typecheck.log、api-typecheck-reviewed.log，以及 worker-smoke.mjs、两种入口的 Worker 日志和结果 JSON。Worker 脚本只在临时目录，数据库和市场 fixture 独立；未调用真实模型/外部行情。取消测试启动真实线程后发出 AbortSignal；SQL 只读检查直接访问实际 Worker，未用 guard 替身代替数据库拒写。
 
 本轮无 UI 行为、schema 或公开 Research/Factor SDK 变化，未运行浏览器 E2E；实际 Hono/SSE 与持久化由正式集成用例验证。review 后产品代码哈希保持，唯一测试修正为 Sharing 根路径及状态断言。文档补齐验证结果后按事前 message 提交，不推送。
+
+### 7.11 Commit 11 实现记录（2026-09-09）
+
+事前确认的 message：`整理 Market 数据领域、同步与维护入口`。本轮代码已通过人工 review；静态检查、203 个文件/1101 项后端测试、API 干净编译和源码/编译两种入口的真实 SQLite/HTTP/子进程验证均通过。按事前 message 提交。
+
+#### 交付与职责
+
+- fundamentals/rates/macro/commodity 整体进入 Market，默认保留内部文件组织；Tushare 与原根级 `config.ts` 归 `market/providers/tushare/`，ETF 审计归 `market/quality/`。没有表名、schema、migration、HTTP 地址、数据口径或 SDK 字段变化。
+- 原 `store/sync.ts` 按函数组拆为 `sync/stocks.ts`、`calendar.ts`、`stock-daily.ts`、`stock-flows.ts`、`etf-history.ts`、`indices.ts`、`futures.ts`。财务指标和分红同步归 `fundamentals/reference-sync.ts`；已有行情证券查询归 `queries/stock-codes.ts`；资金流字段清单归 `registry/moneyflow.ts`。原 ETF 市场级同步迁至 `sync/etf.ts`，保留与历史回填不同的覆盖/续传规则。
+- ETF/指数/跨市场基准等静态定义归 `registry/`；跨市场基准的注册写库、来源解析、分段同步在 `sync/cross-market-benchmarks.ts`，CNY 换算与派生汇率序列在 `queries/cross-market-benchmarks.ts`。仅导入注册表不会拉入 Prisma。
+- 股票代码/身份/名称归 `instruments/`，行情序列归 `queries/`。`market/routes.ts` 导出 `routes`，由 server 单点挂载；7 个处理器中的数据操作移入查询函数，其余 2 个处理器原已委托序列/天气业务。请求校验、9 条地址及注册顺序保持。
+- `state/compute.ts` 保留状态、行业/指数天气等纯计算，`state/read.ts` 查询并组装市场状态，`state/weather.ts` 管理天气读取与缓存；指数估值同样分 `valuation/compute.ts` / `read.ts`。派生指标原 SQL 批处理归 `sync/market-indicators.ts`，没有为复用展示计算而重写 SQL。
+- Maintenance 保留调度、锁、质量门禁、水位、自愈、心跳、参考数据子进程和 HTTP；所有导入改为具体 Market 入口。同步更新 Signals、Research、Factor、Agent、Engine、Strategy 和 CLI 调用方、动态导入/测试 mock、财报 JSON fixture 路径、研究数据来源链接与当前文档。原目录/转发入口不保留。
+
+阅读地图：[Market](../../apps/api/src/market/README.md)、[Maintenance](../../apps/api/src/maintenance/README.md)。下次找同步函数应从业务数据类型进入；维护入口与单项数据同步分别在 Maintenance 和 Market，不必先找通用 store。
+
+#### 重点 review
+
+1. `sync/stock-daily.ts` 的 `syncDailyCoreDate` 保持“全部候选通过 → 四表单事务替换”；`etf.ts` 的覆盖/可得日期门禁以及 financial reference 的差异协调保持。Maintenance 自身的控制流仅变导入。
+2. `state/weather.ts` 保留缓存键、覆盖日期失效、官方估值优先和 0.8 成分覆盖阈值；同日修订不会自动更换原缓存键，这是已有策略，本轮未扩展缓存行为。
+3. `queries/future-series.ts` 仍按每个交易日的映射选择合约，不跨日回填；跨市场基准保留来源、交易日/availableDate、时区、币种与换汇可得时间。
+4. 模型历史要求留在 Strategy，审计组合留在 Maintenance；Market 不反向导入它们。注册表保持纯静态。API 根挂载、研究数据来源链接、CLI 和参考数据子进程需在 review 后通过真实入口验证。
+
+#### 静态检查与后续验证
+
+| 项目 | 当前结果 |
+| --- | --- |
+| 本轮 TS/MJS 格式与 ESLint | 通过 |
+| 根级 `pnpm typecheck` | 全 workspace 通过；含 Research Runtime、Research SDK、Factor SDK 生成物一致性 |
+| AST 声明/函数体核对 | 87 个拆分声明、79 个整文件迁移和 81 个修改调用方的非导入内容一致；路径字符串按实际新位置归一化 |
+| HTTP 提取核对 | 7 个提取处理器的数据体在返回值适配后等价，9 个缓存/状态辅助声明一致；请求 schema、9 条地址/中间件/顺序及另 2 个处理器保持 |
+| 资源和依赖扫描 | 2003 个相对导入/字面量资源解析通过；65 个 Market 产品源文件无反向业务依赖；5 个注册表不依赖数据库/同步/通道 |
+| 行为测试/构建 | 203 个文件/1101 项测试通过；API 在全新临时目录编译通过 |
+
+补充正式测试 `market/routes.test.ts`，覆盖名称聚合/500 项上限、校验、估值目录/代码处理、空序列、期货逐日映射；`market/sync/stock-daily.test.ts` 覆盖四表发布、缺失复权覆盖、截断行情和错误日期不触碰发布数据。已有 ETF 覆盖、财报差异协调、各子领域数据口径与 Maintenance 审计用例随迁移更新。
+
+#### 人工 review 后验证结果
+
+| 验证 | 实际结果 |
+| --- | --- |
+| 后端正式测试 | 203 个文件、1101 项全通过，0 失败；启用 ACCOUNTING_INTEGRATION，独立 SQLite，固定市场 fixture |
+| API 构建 | `tsc --outDir /tmp/jixie-c11-verification/compiled` 通过，输出目录为本轮新建，无旧 dist 残留依赖 |
+| 日历/股票基础/股票日数据 | 真实本地 Tushare HTTP 协议、真实 Prisma/SQLite；重复同步无重复行且数据值相同；缺失复权候选拒绝发布；用临时库 trigger 在最后一张表插入时强制失败，确认前面三张表及原行全部回滚 |
+| ETF | 行情/复权/规模重复同步数据值一致；抓取时间按原契约刷新；availableDate 为下一开市日；规模覆盖失败和规模插入 trigger 失败均保持三张表完整原快照 |
+| 跨市场基准 | 两次同步保留 3 条注册与 3 条行情；CN 使用交易日，HK/US 使用下一中国开市日；来源身份与数值一致 |
+| 参考数据进程 | 每种入口真实 fork 两次 financials 子进程，首次新增 1 条、重复同步变更数 0；IPC summary 与退出码均通过 |
+| CLI | 每种入口真实运行两次 `sync-index-basic`，单条指数估值无重复，脚本退出且释放 Prisma |
+| 维护质量与派生指标 | 原始质量通过；真实 SQL 派生 1 个市场日、34 个指数日、20 个行业日，重算数据一致；缺失复权/越界市场比例均被质量函数拒绝，水位不变；重复水位初始化无变化，未发布失败记录使维护 HTTP gate 状态保持 active |
+| Market HTTP | 两种入口分别实际请求全部 9 个 GET 地址；包含有数据和无数据响应，状态/估值正常返回；所有响应体及其他业务结果跨源码/编译逐项一致 |
+| 清理 | 两种入口共 8 个真实子进程退出码均为 0；本地 HTTP fixture 关闭，Prisma 断开；ps/lsof 核对无本轮验证进程或测试库句柄残留 |
+
+运行记录：`/tmp/jixie-c11-verification` 下的 api-test.log/json、api-build.log、market-smoke.mjs、source/compiled-market.log、结果 JSON 和子进程记录。每种入口访问 52 次本地 provider；没有真实行情、开发数据库写入或通知。维护验证覆盖实际质量函数、水位/失败门禁与派生 SQL；未执行需要完整外部来源的整轮生产日维护。
+
+临时 harness 首轮修正了未指定 fields 时的默认列处理，随后将 ETF 重复同步断言区分“数据值不变”和“retrievedAt 刷新”；失败回滚仍比较包含抓取时间的完整原快照。均只修正临时脚本，换新 SQLite 复跑成功，产品与正式测试代码在 review 后没有变化。没有前端行为变更，本轮未运行浏览器 E2E；完整架构收尾的 E2E 仍在 Commit 12。
+
+静态核对脚本与日志在 `/tmp/jixie-c11-review`。验证通过后按事前 message 直接提交，不推送。
 
 ## 8. 测试与验收计划
 

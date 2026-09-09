@@ -1,6 +1,6 @@
-import { loadTushareConfig } from '../src/config.js';
+import { loadTushareConfig } from '../src/market/providers/tushare/config.js';
 import { prisma } from '../src/infra/database/prisma.js';
-import { syncMarketIndicators } from '../src/market/sync-market-indicators.js';
+import { syncMarketIndicators } from '../src/market/sync/market-indicators.js';
 import { assertProductionLock, runDailyMaintenance } from '../src/maintenance/daily.js';
 import { validateDerivedMarketRange } from '../src/maintenance/quality.js';
 import { runRepairMaintenance } from '../src/maintenance/repair.js';
@@ -8,7 +8,7 @@ import { recentPublishedTradingDates, selfHealMarketDates } from '../src/mainten
 import { recoverInterruptedMaintenanceRuns } from '../src/maintenance/state.js';
 import { runWeeklyMaintenance } from '../src/maintenance/weekly.js';
 import { latestCompletedTradeDate } from '../src/signals/runs/readiness.js';
-import { TushareClient } from '../src/tushare/client.js';
+import { TushareClient } from '../src/market/providers/tushare/client.js';
 
 type MaintenanceCommand = 'daily' | 'weekly' | 'repair' | 'baseline';
 

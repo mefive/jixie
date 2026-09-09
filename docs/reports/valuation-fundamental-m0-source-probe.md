@@ -71,7 +71,7 @@ Tushare 默认只返回 `report_type=1`。另行指定后，三个接口都能�
    历史版本选择，不能覆盖原始版本。
 
 首批金额字段单位统一为人民币元，`total_share` 为股；明确建列清单以
-`apps/api/src/fundamentals/source-contract.ts` 的 `FINANCIAL_STATEMENT_FIELDS` 为准。
+`apps/api/src/market/fundamentals/source-contract.ts` 的 `FINANCIAL_STATEMENT_FIELDS` 为准。
 
 ## 5. M1 输入
 

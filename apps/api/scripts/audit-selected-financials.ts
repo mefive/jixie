@@ -1,8 +1,8 @@
 import { prisma } from '../src/infra/database/prisma.js';
-import { resolveFinancialState } from '../src/fundamentals/resolver.js';
-import { calculateFinancialMetrics } from '../src/fundamentals/metrics.js';
-import { inspectFinancialAccounting } from '../src/fundamentals/accounting-quality.js';
-import { canonicalStockCode } from '../src/market/stock-identity.js';
+import { resolveFinancialState } from '../src/market/fundamentals/resolver.js';
+import { calculateFinancialMetrics } from '../src/market/fundamentals/metrics.js';
+import { inspectFinancialAccounting } from '../src/market/fundamentals/accounting-quality.js';
+import { canonicalStockCode } from '../src/market/instruments/stock-identity.js';
 
 /** Read-only, bounded-memory audit of exactly the versions selected by the SDK. */
 async function main(): Promise<void> {

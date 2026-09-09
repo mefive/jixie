@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { RESEARCH_FINANCIAL_FIELDS_V1 } from '@jixie/shared';
 
-import { FINANCIAL_STATEMENT_FIELDS } from '../../fundamentals/source-contract.js';
+import { FINANCIAL_STATEMENT_FIELDS } from '../../market/fundamentals/source-contract.js';
 import { loadResearchFinancialValues } from './financial-values.js';
 import { loadResearchFinancialMetrics, loadResearchFinancialStatements } from './financial.js';
 import {

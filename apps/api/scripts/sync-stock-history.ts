@@ -1,9 +1,13 @@
 import dayjs from 'dayjs';
 import type { TradeDate } from '@jixie/shared';
-import { loadTushareConfig } from '../src/config.js';
-import { TushareClient } from '../src/tushare/client.js';
+import { loadTushareConfig } from '../src/market/providers/tushare/config.js';
+import { TushareClient } from '../src/market/providers/tushare/client.js';
 import { prisma } from '../src/infra/database/prisma.js';
-import { seedStockCodeChanges, syncStockBasic, syncStockNameHistory } from '../src/store/sync.js';
+import {
+  seedStockCodeChanges,
+  syncStockBasic,
+  syncStockNameHistory,
+} from '../src/market/sync/stocks.js';
 
 /**
  * Refresh the complete stock master and point-in-time historical names.

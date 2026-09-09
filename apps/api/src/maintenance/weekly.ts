@@ -1,31 +1,26 @@
 import type { TradeDate } from '@jixie/shared';
-import { loadTushareConfig } from '../config.js';
+import { loadTushareConfig } from '../market/providers/tushare/config.js';
 import { runDataQualityAudit } from './data-audit.js';
 import { addDays } from '../date.js';
 import { prisma } from '../infra/database/prisma.js';
-import { syncChinaMacroData } from '../macro/china-macro.js';
-import { BlsPublicDataClient, syncUsHeadlineCpiData } from '../macro/us-headline-cpi.js';
-import { syncMarketIndicators } from '../market/sync-market-indicators.js';
+import { syncChinaMacroData } from '../market/macro/china-macro.js';
+import { BlsPublicDataClient, syncUsHeadlineCpiData } from '../market/macro/us-headline-cpi.js';
+import { syncMarketIndicators } from '../market/sync/market-indicators.js';
 import {
   MinistryOfFinanceCurveClient,
   syncChinaTreasuryYieldCurve,
-} from '../rates/china-treasury-curve.js';
+} from '../market/rates/china-treasury-curve.js';
 import { refreshAllFactorWeatherPins } from '../factor/weather/refresh.js';
-import { MARKET_WEATHER_INDICATOR_INDEX_CODES } from '../store/index-presets.js';
-import { refreshEtfRegistryRevisions } from '../store/etf-market-sync.js';
-import { ETF_RESEARCH_CODES } from '../store/etf-research-registry.js';
-import {
-  syncEtfBasic,
-  syncFutureContracts,
-  syncIndexWeight,
-  syncIndexBenchmarks,
-  syncStockBasic,
-  syncStockNameHistory,
-  syncSwIndustry,
-  stockCodesWithDailyData,
-  type ReferenceSyncSummary,
-} from '../store/sync.js';
-import { TushareClient } from '../tushare/client.js';
+import { MARKET_WEATHER_INDICATOR_INDEX_CODES } from '../market/registry/index-presets.js';
+import { refreshEtfRegistryRevisions } from '../market/sync/etf.js';
+import { ETF_RESEARCH_CODES } from '../market/registry/etf-research-registry.js';
+import { syncEtfBasic } from '../market/sync/etf-history.js';
+import { syncFutureContracts } from '../market/sync/futures.js';
+import { syncIndexWeight, syncIndexBenchmarks, syncSwIndustry } from '../market/sync/indices.js';
+import { syncStockBasic, syncStockNameHistory } from '../market/sync/stocks.js';
+import { stockCodesWithDailyData } from '../market/queries/stock-codes.js';
+import type { ReferenceSyncSummary } from '../market/fundamentals/reference-sync.js';
+import { TushareClient } from '../market/providers/tushare/client.js';
 import { canonicalizeStockCodes } from './canonicalize-stock-codes.js';
 import { assertProductionLock, waitForRunningWork } from './daily.js';
 import { validateDerivedMarketRange } from './quality.js';

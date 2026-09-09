@@ -1,12 +1,15 @@
 import { writeFile } from 'node:fs/promises';
 import { prisma } from '../src/infra/database/prisma.js';
-import { resolveFinancialState, resolveFinancialStates } from '../src/fundamentals/resolver.js';
-import { calculateFinancialMetrics } from '../src/fundamentals/metrics.js';
+import {
+  resolveFinancialState,
+  resolveFinancialStates,
+} from '../src/market/fundamentals/resolver.js';
+import { calculateFinancialMetrics } from '../src/market/fundamentals/metrics.js';
 import {
   auditValuationState,
   VALUATION_AUDIT_METRICS,
-} from '../src/fundamentals/valuation-sample-audit.js';
-import { canonicalStockCode } from '../src/market/stock-identity.js';
+} from '../src/market/fundamentals/valuation-sample-audit.js';
+import { canonicalStockCode } from '../src/market/instruments/stock-identity.js';
 
 /** Read-only source, selected-period, and historical-slice audit. Output contains no user data. */
 async function main(): Promise<void> {

@@ -10,13 +10,13 @@ import {
   FINANCIAL_METRIC_DEFINITIONS,
   calculateFinancialMetrics,
   type FinancialMetricResult,
-} from '../../fundamentals/metrics.js';
+} from '../../market/fundamentals/metrics.js';
 import {
   resolveFinancialState,
   resolveFinancialStates,
   type ResolvedFinancialState,
   type ResolvedFinancialStatement,
-} from '../../fundamentals/resolver.js';
+} from '../../market/fundamentals/resolver.js';
 import { prisma } from '../../infra/database/prisma.js';
 import {
   loadResearchCrossSection,

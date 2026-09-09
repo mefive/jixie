@@ -1,7 +1,7 @@
-import { loadTushareConfig } from '../src/config.js';
-import { TushareClient } from '../src/tushare/client.js';
+import { loadTushareConfig } from '../src/market/providers/tushare/config.js';
+import { TushareClient } from '../src/market/providers/tushare/client.js';
 import { prisma } from '../src/infra/database/prisma.js';
-import { syncStkLimit } from '../src/store/sync.js';
+import { syncStkLimit } from '../src/market/sync/stock-daily.js';
 
 /**
  * Sync daily price limits (limit-up / limit-down prices) into the local store — what the engine reads

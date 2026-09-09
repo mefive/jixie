@@ -1,7 +1,7 @@
-import { loadTushareConfig } from '../src/config.js';
-import { TushareClient } from '../src/tushare/client.js';
+import { loadTushareConfig } from '../src/market/providers/tushare/config.js';
+import { TushareClient } from '../src/market/providers/tushare/client.js';
 import { prisma } from '../src/infra/database/prisma.js';
-import { syncMoneyflow } from '../src/store/sync.js';
+import { syncMoneyflow } from '../src/market/sync/stock-flows.js';
 
 /**
  * Sync per-stock daily moneyflow into the Moneyflow table (netMain = main-force net / netTotal = total

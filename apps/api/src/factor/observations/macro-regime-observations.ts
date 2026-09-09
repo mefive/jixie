@@ -5,7 +5,7 @@ import {
   loadMacroRegimeScoreHistory,
   type MacroRegimeHistoryV1,
   type MacroRegimeScoreV1,
-} from '../../macro/regime-score.js';
+} from '../../market/macro/regime-score.js';
 
 export interface MacroRegimeEtfDailyRow {
   assetId: string;

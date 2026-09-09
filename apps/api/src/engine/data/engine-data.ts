@@ -7,7 +7,7 @@ import {
 } from '@jixie/shared';
 import { addDays, daysBetween, isoWeekKey } from '../../date.js';
 import { t } from '../../i18n/messages.js'; // direct import — keeps hono/locale out of the wall bundle
-import { StockNameLookup } from '../../market/stock-identity.js';
+import { StockNameLookup } from '../../market/instruments/stock-identity.js';
 import type {
   EngineDataPort,
   FutureDailyDataRow,

@@ -6,10 +6,10 @@ import {
 } from '@jixie/shared';
 import { addDays } from '../../date.js';
 import { prisma, type Prisma } from '../../infra/database/prisma.js';
-import { COMMODITY_MAIN_CONTRACT_SPECS } from '../../commodity/commodity-futures.js';
-import { CHINA_TREASURY_CURVE_CODE } from '../../rates/china-treasury-curve.js';
-import { CHINABOND_PUBLIC_CURVES } from '../../rates/chinabond-credit-curves.js';
-import { USD_CNH_CODE, US_REAL_CURVE_CODE } from '../../rates/external-market-drivers.js';
+import { COMMODITY_MAIN_CONTRACT_SPECS } from '../commodity/commodity-futures.js';
+import { CHINA_TREASURY_CURVE_CODE } from '../rates/china-treasury-curve.js';
+import { CHINABOND_PUBLIC_CURVES } from '../rates/chinabond-credit-curves.js';
+import { USD_CNH_CODE, US_REAL_CURVE_CODE } from '../rates/external-market-drivers.js';
 
 export const MARKET_RISK_EQUITY_INDEX = '000300.SH';
 export const MARKET_RISK_GOLD_PRODUCT = 'AU';
