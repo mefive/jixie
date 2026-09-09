@@ -70,7 +70,7 @@ HTTP 草稿交接 → handoff → 已冻结 evidence + Factor / Strategy
 
 ## 历史迁移与路径
 
-历史 Screen → Research 实现和测试位于 `apps/api/scripts/migrations/screen-to-research.ts` / `.test.ts`。原 `scripts/migrate-screen-to-research.ts` CLI 保留，参数、dry-run 和 finalize 行为不变；运行期业务不导入迁移实现。
+历史 Screen → Research 一次性迁移实现、专用测试及 CLI 已于 2026-09-09 退役，bootstrap 不再调用。运行期业务原本不依赖迁移实现；历史架构设计与审计报告保留当时的路径记录。
 
 旧 Research 平铺入口已移除，不保留兼容转发或总 barrel。数据模块去掉重复的 `-dataset` 后缀；catalog 的能力清单为 `capabilities.ts`；FCFF 文件位于 `templates/fcff` 后不再重复 `equity-fcff-` 前缀。Pyright 仍从 API 的依赖解析包路径；Curator 仓库根目录仍按 API 工作目录解析。迁移后的 E2E 脚本源文件导入保留 `.ts`。
 
@@ -86,3 +86,11 @@ HTTP 草稿交接 → handoff → 已冻结 evidence + Factor / Strategy
 人工 review 后验证通过：全量 API 195 个文件、1042 项测试全部通过，包含上述 10 个新增场景；API 干净编译通过。源码与编译产物均通过真实 Python SDK 查询、文档执行/冻结、下游重跑、reset、取消及 Pyright 补全验证。编译产物覆盖生产 Unix socket 连接分支，对端使用本地真实 runner。
 
 格式、lint、全仓 typecheck/契约一致性及迁移/路径/依赖/路由静态检查通过。首轮沙箱中的 socket EPERM 与 Python 超时在允许本地 socket/子进程的环境下重跑全部通过，未修改代码或放宽超时。临时进程、socket 和数据库连接已清理，没有开发数据库写入、真实市场/LLM 调用或浏览器 E2E。提交信息为 `整理 Research 数据能力与业务入口`；完整记录见架构计划 §7.6。
+
+## 一次性数据迁移退役（2026-09-09）
+
+维护者确认唯一生产系统已重新执行 bootstrap，并不再需要旧聊天、因子报告或研究计数的历史补全。移除 `migrate:agent-conversations`、`migrate:factor-report-history`、`migrate:factor-research`、`migrate:factor-identity`、`migrate:screen-to-research`、`migrate:remove-research-validation-protocols` 六个命令及脚本、Screen 迁移的专用实现和测试，以及 bootstrap 的四处调用和对应日志、注释。
+
+Prisma 迁移历史及 bootstrap 中的 `prisma migrate deploy` 保留；本次不修改 schema、存量数据或运行期兼容读取逻辑。迁移前的旧备份不再支持直接通过当前 bootstrap 升级，若需恢复，须从 Git 历史取回对应迁移工具并按旧升级流程处理。
+
+验证记录：API typecheck、后端架构边界检查（0 violations）、`bash -n scripts/bootstrap.sh`、package.json Prettier 检查及 `git diff --check` 全部通过；代码、配置和运维脚本中无已退役迁移的残留引用。人工代码审查已通过；按批准范围，本次未运行行为测试、bootstrap 或数据库迁移。提交信息为 `chore(api): 移除已退役的一次性数据迁移`。

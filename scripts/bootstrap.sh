@@ -988,22 +988,8 @@ if [[ "$DEPLOY_API" == "1" ]]; then
   log "构建 API"
   NODE_OPTIONS="$NODE_HEAP_OPTIONS" pnpm --filter api build
 
-  log "迁移 Screen 数据到 Research 并清理旧 Agent 副本（schema 升级前，幂等）"
-  pnpm --filter api migrate:screen-to-research -- --finalize
-
-  log "补齐 Factor 唯一 key（幂等）"
-  pnpm --filter api migrate:factor-identity
-
   log "prisma migrate deploy (建库/升级 schema 于 $DB_FILE)"
   pnpm --filter api exec prisma migrate deploy
-
-  # An empty database older than AgentConversation defers the pre-schema migration. Run it again
-  # after schema deployment; databases with legacy rows fail before migration instead of losing data.
-  log "复核 Screen 到 Research 数据迁移（schema 升级后，幂等）"
-  pnpm --filter api migrate:screen-to-research
-
-  log "清理已下线的 Research Validation Cell 与固定协议数据（幂等）"
-  pnpm --filter api migrate:remove-research-validation-protocols
 fi
 
 if [[ "$DEPLOY_WEB" == "1" ]]; then
