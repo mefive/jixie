@@ -30,7 +30,6 @@ Strategy 拥有策略定义、对话启动、回测与参数扫描，以及回�
 | `runtime/typescript` | SDK、编译、提示词、参数检查、isolate 宿主与墙内入口；配置 schema 沿用既有位置与双语言兼容行为 |
 | `runtime/python` | Python 策略协议与宿主桥接，实际交易模拟仍由 TS Engine 执行 |
 | `analysis/risk` | 回测后的市场暴露、宏观敏感度、Alpha/Risk 重合与压力情景；`data-readiness` 拥有这些模型的历史长度要求 |
-| `examples` | 仓库维护的示例策略，供开发脚本直接运行 |
 
 `backtest-job.ts`、`scan-job.ts` 保留根级具名任务定义，集中声明 parse/execute/complete/fail/recover。bootstrap 注册定义，通用执行器负责领取、事务和重启恢复；Worker 计算结果由主线程通过任务契约提交。
 
@@ -59,3 +58,11 @@ Strategy 拥有策略定义、对话启动、回测与参数扫描，以及回�
 新增 [runtime/typescript/wall-bundle.test.ts](runtime/typescript/wall-bundle.test.ts) 使用生产 bundle 配置检查真实 Engine 无宿主适配器及外部导入；Maintenance 审计测试新增 3 项场景覆盖基础质量/模型门槛分离、252/36 边界和错误顺序。现有测试随对应模块迁移。
 
 Commit 8 已通过人工 review、全量 API 198 文件/1065 项测试与 API 编译。真实源码和编译 Worker 均覆盖 TS/Python 回测、扫描 cell 子进程及 Job 成功/失败/重启恢复；净值、成交、扫描指标和结果哈希在两种运行方式下一致。完整记录及验证限制见 [开发计划](../../../../docs/design/backend-architecture-refactor.md#78-commit-8-实现记录2026-09-09完成)。
+
+## 旧策略演示清理（2026-09-09）
+
+移除仅供开发者手动运行的 `backtest`、`code:backtest`、`turtle`、`zeng:timing`、`zeng:backtest` 命令及对应脚本，同时删除专用的 `examples/strategies.ts`、`examples/zeng.ts`。原横截面选股信号、EP 代码对照、海龟和曾庆辉策略实验不再作为 API app 的维护入口。历史架构设计与基线中的示例目录记录保留为当时状态。
+
+正式策略 HTTP API、回测引擎、SDK 示例、自动化测试与数据库中的用户策略不变。本次不涉及 schema 或数据迁移。
+
+验证记录：API typecheck、后端架构边界检查（0 violations）、package.json Prettier 检查及 `git diff --check` 均通过；代码与运维脚本中未发现已删除入口的残留引用。人工代码审查通过后，`src/engine/simulation/rules.test.ts` 的 15 项测试全部通过。本次仅删除无正式调用方的演示文件，未改动生产打包入口或配置，经审查调整验证范围，不运行 bundle 测试。
