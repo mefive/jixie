@@ -123,7 +123,8 @@ apps/api/src/
     agent-turn.ts               Research Agent 业务启动入口
     agent-context.ts            研究上下文构造
   factor/
-    routes.ts                   因子列表与定义入口
+    routes.ts                   因子路由统一具名出口
+    definition-routes.ts        因子目录、定义、发布与组合实现
     research-routes.ts          因子研究、报告与辅助对话入口
     weather-routes.ts           因子天气入口
     agent-turn.ts               因子编辑与预置因子问答的启动入口
@@ -139,7 +140,8 @@ apps/api/src/
     runtime/                    因子 TS/Python 编译、SDK 与运行适配
     weather/                    因子天气计算与查询
   strategy/
-    routes.ts                   策略动作总入口，Agent/命名及回测/扫描挂载
+    routes.ts                   策略路由统一具名出口
+    workbench-routes.ts         Agent、命名与回测/扫描子路由组合
     definition-routes.ts        策略列表与定义入口
     scan-routes.ts              参数扫描入口
     backtest-routes.ts          回测与报告入口
@@ -293,7 +295,7 @@ apps/api/src/
 
 **不为业务模块统一预设 `http/`。** 当前单个路由文件连同参数校验、错误映射和测试直接放模块根目录；只有实际形成多项需要共同组织的 HTTP 职责时才归组。Auth 也采用根级 `routes.ts`，Cookie 与鉴权中间件分别位于根级 `cookies.ts` 和 `middleware.ts`；`infra/http/` 保留跨业务的请求校验、错误响应和 locale 辅助。Research、Factor、Strategy、Signals、Agent、Sharing、Market 均按下面的根目录路由文件规划。
 
-目录位置不改变依赖边界：HTTP 文件只适配请求/响应并调用明确业务入口；业务不导入路由或 Hono Context。文件多时先按实际路由职责具名，不为将来可能拆分而建立空目录。
+模块统一以根级 `routes.ts` 导出路由：单组可以直接实现，多组可以从具名实现文件显式 re-export。外部消费者只使用统一出口；组合子路由的实现文件直接导入子路由实现，避免循环。Maintenance 在 `routes.ts` 实现并导出状态路由，维护门禁从 `middleware.ts` 单独导出。中间件不经路由出口转导出。目录位置不改变依赖边界：HTTP 文件只适配请求/响应并调用明确业务入口；业务不导入路由或 Hono Context。文件多时先按实际路由职责具名，不为将来可能拆分而建立空目录。
 
 | 当前文件/目录 | 目标 | 修改内容 |
 | --- | --- | --- |
@@ -310,13 +312,13 @@ apps/api/src/
 | `config.ts` | `market/providers/tushare/config.ts` | 仅 Tushare 配置；更新 API、CLI 和测试调用方 |
 | `lib/chat-schema.ts` | `agent/conversations/schema.ts` | 对话入参/消息校验由 Agent 拥有 |
 | `lib/sandbox-console.ts`、`lib/isolate-run.ts` | `infra/runtime/console.ts`、`infra/runtime/typescript/isolate-run.ts` | 仅通用执行机制；不搬入领域 SDK |
-| `routes/strategies.ts`、`routes/strategy.ts`、`routes/strategy-scans.ts`、`routes/backtest.ts` | `strategy/definition-routes.ts`、`routes.ts`、`scan-routes.ts`、`backtest-routes.ts` | 总入口组合动作子路由，按职责具名，保留 URL 与挂载语义，复杂操作转入对应业务入口 |
-| `routes/factors.ts`、`routes/factor.ts`、`routes/factor-weather.ts` | `factor/routes.ts`、`research-routes.ts`、`weather-routes.ts` | 按列表/定义、因子研究/报告/辅助对话、天气区分，保留所有 URL 和字面量/参数路由顺序 |
+| `routes/strategies.ts`、`routes/strategy.ts`、`routes/strategy-scans.ts`、`routes/backtest.ts` | `strategy/definition-routes.ts`、`workbench-routes.ts`、`scan-routes.ts`、`backtest-routes.ts`；由 `routes.ts` 统一导出 | 工作台实现组合动作子路由，按职责具名，保留 URL 与挂载语义，复杂操作转入对应业务入口 |
+| `routes/factors.ts`、`routes/factor.ts`、`routes/factor-weather.ts` | `factor/definition-routes.ts`、`research-routes.ts`、`weather-routes.ts`；由 `routes.ts` 统一导出 | 按列表/定义、因子研究/报告/辅助对话、天气区分，保留所有 URL 和字面量/参数路由顺序 |
 | `routes/research.ts` | `research/routes.ts` | 参数校验、响应与错误映射留在路由；文档、执行、提案、Agent、Curator 等业务调用具体入口，不预拆路由文件 |
 | `routes/signals.ts`、`routes/agent.ts`、`routes/market.ts` | `signals/routes.ts`、`agent/routes.ts`、`market/routes.ts` | HTTP 与业务操作分离，注册仍集中在 server |
 | `routes/library.ts` | `sharing/routes.ts` + `sharing/catalog.ts`、`strategy/definitions/copy-public.ts` | 抽出聚合查询与复制操作；因子/策略复制约束由其业务入口负责 |
 
-`server.ts` 保留 `buildApp` 作为路由总索引，构建应用本身不启动队列或监听端口；监听与资源启动由 `bootstrap.ts` 显式调用。业务模块默认直接放 `routes.ts`，对应测试同目录；已有多组独立路由时使用 `backtest-routes.ts`、`scan-routes.ts` 等职责明确的文件名，由模块根级 `routes.ts` 组合需要共享前缀的子路由，server 只挂模块公开入口，不增加局部 `http/index.ts` 包装层。全部调用方迁移后删除空的顶层 `routes`、`services`、`lib`、`util`、`llm` 目录；不保留长期转发层。
+`server.ts` 保留 `buildApp` 作为路由总索引，构建应用本身不启动队列或监听端口；监听与资源启动由 `bootstrap.ts` 显式调用。业务模块统一从根级 `routes.ts` 具名导出，对应测试同目录；多组独立路由在 `backtest-routes.ts`、`scan-routes.ts` 等文件实现，由工作台实现组合需要共享前缀的子路由，再从根级 `routes.ts` 显式转导出。server 只从模块统一出口导入，不增加局部 `http/index.ts` 包装层。全部调用方迁移后删除空的顶层 `routes`、`services`、`lib`、`util`、`llm` 目录；不保留长期转发层。
 
 当前 `i18n/index.ts` 同时导出纯消息函数 `t` 和依赖 Hono Context 的 `m`，`locale.ts` 也读取请求。将 `m` 与请求 locale 解析归 `infra/http/locale.ts`；`i18n/messages.ts` 保持纯消息目录。领域与隔离 bundle 直接消费纯消息入口，HTTP 适配消费请求辅助，避免通过 re-export 将 Hono 带入领域依赖。
 
@@ -490,7 +492,7 @@ GET /api/app/strategy/backtest/reports/:reportId
 
 ### 5.7 Signals、Agent 与 Sharing
 
-**Signals**：原 `service.ts` 拆为 deployments/manage/read 与 runs/enqueue/read/readiness，手动运行的日期解析、结算后入队由 runs/submit 编排；`engine/signal-worker.*` 移至 `signals/runs/`，根级 `signal-job.ts` 继续拥有任务契约与子进程启动。accounting 按 initialize、executions、settlement、replay、quotes、read 拆分，纯重放不导入数据库；factor-inputs 内分别放 lineage 与 summary。根级 routes 统一导出 `routes`，保留 scheduler/sync/notifier 的具体名称。每日信号的 TS/资产支持限制、配置冻结、人工成交和结算幂等保持不变；会计初始化和通知仍在结果事务提交后执行。
+**Signals**：原 `service.ts` 拆为 deployments/manage/read 与 runs/enqueue/read/readiness，手动运行的日期解析、结算后入队由 runs/submit 编排；`engine/signal-worker.*` 移至 `signals/runs/`，根级 `signal-job.ts` 继续拥有任务契约与子进程启动。accounting 按 initialize、executions、settlement、replay、quotes、read 拆分，纯重放不导入数据库；factor-inputs 内分别放 lineage 与 summary。根级 `routes.ts` 具名导出 `signalsRoute`，保留 scheduler/sync/notifier 的具体名称。每日信号的 TS/资产支持限制、配置冻结、人工成交和结算幂等保持不变；会计初始化和通知仍在结果事务提交后执行。
 
 **Agent**：保留 core/profiles/tools 结构；`turn-run.ts`、`turn-bus.ts` 分别归 turns/run、bus；持久化 turn 归 turns/records，轨迹 recorder 归 turns/trace，查询投影归 turns/read。对话查找/创建归 conversations/manage，历史与实体 messages 镜像归 entity-messages，对话列表/分页归 read，消息校验归 schema。拆分保持消息内容、持久化顺序和原事务边界。`engine/agent-backtest-worker.*` 与快速回测工具共同归 `agent/tools/quick-backtest/`，其调用的策略执行能力由 strategy 提供。
 
@@ -1219,3 +1221,23 @@ node --test scripts/plan-deployment.test.mjs
 - `pnpm --filter api build`
 
 实际结果：8 份路由测试共 70 个用例全部通过；边界检查器 21 个用例全部通过；API 编译成功。Agent 失败恢复用例打印预期的 `Fixture model failure` 日志，用例通过。测试使用 Hono 内存请求及独立 SQLite，未启动监听服务；测试进程已正常退出，数据库断连和临时目录清理钩子执行完成。
+
+### 模块路由统一出口（2026-09-10）
+
+在路由具名导出基础上，统一各模块的对外导入位置。Strategy 的原 `routes.ts` 实现原样迁至 `workbench-routes.ts`，根级 `routes.ts` 显式转导出工作台、定义、回测、扫描路由；工作台仍直接导入子路由实现并在注册完成后挂载。Factor 的原 `routes.ts` 实现原样迁至 `definition-routes.ts`，根级 `routes.ts` 显式转导出定义、研究和天气路由。Maintenance 的原 `http.ts` 按职责拆分：状态路由放入 `routes.ts`，维护门禁放入 `middleware.ts`，server 分别导入。单组路由模块继续在 `routes.ts` 直接实现。
+
+server 与相关测试统一从模块 `routes.ts` 导入，URL、响应、子路由组合顺序、业务调用、数据库和 SDK 均保持不变。既有边界检查器支持模块内具名转导出；Maintenance HTTP 适配的精确路径从 `http.ts` 更新为 `middleware.ts`，不放宽业务目录规则。补充回归用例验证路由出口和独立中间件的 HTTP 边界。维护路由测试覆盖公开状态读取、维护期间拦截与 Retry-After、非维护期间放行。模块 README、根目录约定和当前架构说明同步更新；历史验证记录保留当时路径。
+
+计划提交：`refactor(api): 统一各业务模块的 routes 入口`。
+
+Review 修正：`maintenanceGate` 属于中间件，从 `maintenance/middleware.ts` 单独导出，`routes.ts` 只导出路由。维护门禁与状态路由的实现保持原逻辑，测试按独立入口导入；架构约定与边界识别同步更新。
+
+静态检查：本轮受影响代码的 Prettier、ESLint、API `tsc --noEmit`、后端边界扫描和 `git diff --check` 全部通过。扫描 637 个文件、2268 条运行时边、566 条类型边，0 违规。静态源码比对确认维护状态路由与门禁实现未改变；此前 Strategy 工作台与 Factor 定义路由实现也已确认原样迁移。
+
+验证状态：修正已通过人工 review，下列行为验证全部完成：
+
+- `pnpm --filter api test src/strategy/routes.integration.test.ts src/strategy/backtest-routes.test.ts src/factor/routes.integration.test.ts src/auth/multi-user-permissions.test.ts src/maintenance/routes.test.ts`
+- `pnpm test:backend-boundaries`
+- `pnpm --filter api build`
+
+实际结果：5 份测试共 33 个用例全部通过；边界检查器 23 个用例全部通过；API 编译成功。测试覆盖统一路由出口、回测/扫描装配、Factor 三组路由、跨用户权限和独立维护中间件。测试采用 Hono 内存请求、替代外部服务和临时 SQLite，未启动监听服务；测试进程已正常退出，数据库断连和目录清理钩子完成，未发现残留的 Strategy/Factor HTTP 测试目录。

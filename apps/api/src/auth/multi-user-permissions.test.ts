@@ -41,7 +41,7 @@ vi.mock('#infra/database/prisma.js', () => ({
 
 import { factorsRoute } from '#factor/routes.js';
 import { sharingRoute } from '#sharing/routes.js';
-import { strategyDefinitionRoute } from '#strategy/definition-routes.js';
+import { strategyDefinitionRoute } from '#strategy/routes.js';
 
 const app = new Hono();
 app.use('*', async (c, next) => {

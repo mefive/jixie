@@ -38,7 +38,7 @@ app.route('/api/app', screenRoute);                  // 挂在 app 根 → /scre
 2. **工作台动作(单数域前缀)**:agent 一轮、起名、跑一次查询/回测/分析。例:`POST /strategy/agent`、`POST /strategy/backtest`、`POST /factor/analysis/run`、`POST /screen/run`。
 3. **跨实体基础设施**:只挂真正跨域的 —— `/agent`(turn SSE)、`/market`(行情只读辅助)。**重计算 Job 跟所属产品线走**,不因「共用 Job 表」就抬到顶层。
 4. **市场只读辅助**(股票名、K 线、指数序列):从 screen 文件拆出,挂 `/market/*`,避免「选股路由文件」变成杂物间。
-5. **文件按所属业务与职责命名**（2026-09-08 目录重整更新）：Strategy 使用根级 `strategy/routes.ts` 处理 Agent/命名并组合子路由，`definition-routes.ts` 处理 CRUD，`backtest-routes.ts` 与 `scan-routes.ts` 分别处理回测、扫描；其他业务同样优先根级 `routes.ts` 或具名路由。不建立 `http/` 空包装或旧路径 re-export，HTTP 挂载点保持原契约。
+5. **统一出口，按职责实现**（2026-09-10 更新）：每个业务模块以根级 `routes.ts` 作为路由统一出口。单组路由可以直接实现；多组路由使用显式具名 re-export，分别在 `definition-routes.ts`、`workbench-routes.ts`、`backtest-routes.ts` 等文件实现。Strategy 在 `workbench-routes.ts` 组合回测、扫描子路由；Factor 分别实现定义、研究、天气路由；Maintenance 的 `routes.ts` 直接实现并导出状态路由。外部调用方只从模块 `routes.ts` 导入路由；鉴权和维护门禁等中间件从各模块 `middleware.ts` 单独导出、导入，不经路由出口转导出；实现文件直接引用子路由实现以避免循环，HTTP 挂载点保持原契约。
 
 6. **路由对象具名导出**（2026-09-10 统一）：使用「业务/职责名 + `Route`」，如 `authRoute`、`strategyRoute`、`strategyDefinitionRoute`、`strategyBacktestRoute`、`strategyScanRoute`、`marketRoute`、`agentRoute`、`signalsRoute`、`sharingRoute`。定义与调用方同名，不导出通用 `routes` 再由调用方使用 `as` 命名；文件名仍沿用 `routes.ts` 或具名路由文件。
 

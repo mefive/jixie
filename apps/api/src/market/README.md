@@ -40,7 +40,7 @@ Market 负责行情和领域数据的获取、身份、同步、查询与市场�
 
 ## 读取与发布的边界
 
-- HTTP 由 `server.ts` 挂载根级 `routes`。请求进入查询函数，查询函数返回数据或 `null`，路由再映射 HTTP 响应。查询不依赖 Hono、用户会话或 Agent。
+- HTTP 由 `server.ts` 从根级 `routes.ts` 导入并挂载 `marketRoute`。请求进入查询函数，查询函数返回数据或 `null`，路由再映射 HTTP 响应。查询不依赖 Hono、用户会话或 Agent。
 - `state/compute.ts` 和 `valuation/compute.ts` 不查询数据库。`weather.ts` 的缓存仍按原覆盖日期和频率/维度键失效；这次不改变同日数据修订的缓存策略。
 - `sync/market-indicators.ts` 原有 SQL 批计算及临时表事务保持；它与读取侧 `state/compute.ts` 分别处理落库指标和展示投影，不为目录重整重写 SQL 算法。
 - 同步中的候选校验和数据库替换属于 Market；运行锁、心跳、进度、质量发布水位和恢复属于 [Maintenance](../maintenance/README.md)。一个同步函数成功不等于整轮维护已发布。

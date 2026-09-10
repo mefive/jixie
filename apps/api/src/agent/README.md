@@ -10,7 +10,7 @@ Agent 为 Research、Factor 和 Strategy 提供模型/工具循环、后台对�
 - 查看执行详情：`routes.ts` → [turns/read.ts](turns/read.ts)，读取持久化状态和轨迹，检查对话所有者。
 - 重绘回复中的图表：`POST /sql`、`POST /chart/compute` → SQL/图表工具，与 Agent 工具共用校验和执行能力。
 
-根级 `routes.ts` 统一导出 `routes`，由 server 挂到 `/api/app/agent`。HTTP 路由保留响应与 SSE 传输；查询函数负责资源归属和投影。Agent turn 不进入通用 Job 队列，仍使用进程内注册表和独立的 AgentTurn 记录。
+根级 `routes.ts` 具名导出 `agentRoute`，由 server 挂到 `/api/app/agent`。HTTP 路由保留响应与 SSE 传输；查询函数负责资源归属和投影。Agent turn 不进入通用 Job 队列，仍使用进程内注册表和独立的 AgentTurn 记录。
 
 Strategy profile 只提供数据查询/分析工具和代码产物校验；生成代码后由用户在策略工作台显式发起回测。Research profile 保留语义查询与文档提案，统计计算在可见 Cell 中执行；完整交易规则通过封存研究生成 Strategy 草稿，不在对话背后回测。Factor profile 的探索分析工具保持独立边界。
 

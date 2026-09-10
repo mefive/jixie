@@ -1,18 +1,16 @@
 import { Hono } from 'hono';
 import { logger } from 'hono/logger';
 import { authRoute } from '#auth/routes.js';
-import { strategyRoute } from '#strategy/routes.js';
-import { strategyDefinitionRoute } from '#strategy/definition-routes.js';
+import { strategyRoute, strategyDefinitionRoute } from '#strategy/routes.js';
 import { marketRoute } from '#market/routes.js';
-import { factorRoute } from '#factor/research-routes.js';
+import { factorRoute, factorsRoute, factorWeatherRoute } from '#factor/routes.js';
 import { researchRoute } from '#research/routes.js';
-import { factorsRoute } from '#factor/routes.js';
-import { factorWeatherRoute } from '#factor/weather-routes.js';
 import { agentRoute } from '#agent/routes.js';
 import { signalsRoute } from '#signals/routes.js';
 import { sharingRoute } from '#sharing/routes.js';
 import { requireAuth } from '#auth/middleware.js';
-import { maintenanceGate, maintenanceRoute } from '#maintenance/http.js';
+import { maintenanceGate } from '#maintenance/middleware.js';
+import { maintenanceRoute } from '#maintenance/routes.js';
 
 export function buildApp() {
   const app = new Hono();

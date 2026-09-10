@@ -339,6 +339,44 @@ test('rejects a new application-wide barrel without prohibiting named business e
   assert.ok(rules(checkBackendBoundaries(root, emptyPolicy)).includes('root-barrel'));
 });
 
+test('permits module route exports while retaining the HTTP boundary for consumers', (context) => {
+  const root = fixture(context, {
+    [src + 'server.ts']: "import { strategyDefinitionRoute } from './strategy/routes.js';",
+    [src + 'strategy/routes.ts']:
+      "export { strategyDefinitionRoute } from './definition-routes.js';",
+    [src + 'strategy/definition-routes.ts']:
+      "import { Hono } from 'hono'; export const strategyDefinitionRoute = new Hono();",
+  });
+  assert.deepEqual(checkBackendBoundaries(root, emptyPolicy).diagnostics, []);
+
+  fs.writeFileSync(
+    path.join(root, src + 'strategy/operation.ts'),
+    "import { strategyDefinitionRoute } from './routes.js';",
+  );
+  assert.deepEqual(rules(checkBackendBoundaries(root, emptyPolicy)), ['http-direction']);
+});
+
+test('treats maintenance middleware as HTTP without widening the business boundary', (context) => {
+  const root = fixture(context, {
+    [src + 'server.ts']: "import './maintenance/middleware.js';",
+    [src + 'maintenance/middleware.ts']:
+      "import type { MiddlewareHandler } from 'hono'; import './state.js';",
+    [src + 'maintenance/state.ts']: "import { prisma } from '../infra/database/prisma.js';",
+    [src + 'infra/database/prisma.ts']: 'export const prisma = {};',
+  });
+  assert.deepEqual(checkBackendBoundaries(root, emptyPolicy).diagnostics, []);
+
+  fs.writeFileSync(path.join(root, src + 'maintenance/state.ts'), "import './middleware.js';");
+  fs.appendFileSync(
+    path.join(root, src + 'maintenance/middleware.ts'),
+    "import { prisma } from '../infra/database/prisma.js';",
+  );
+  assert.deepEqual(rules(checkBackendBoundaries(root, emptyPolicy)).sort(), [
+    'http-direction',
+    'http-storage',
+  ]);
+});
+
 test('permits shared workspace contracts when resolution points inside the repository', (context) => {
   const root = fixture(
     context,

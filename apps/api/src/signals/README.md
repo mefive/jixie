@@ -4,7 +4,7 @@ Signals 将成功回测报告冻结为独立部署，按收盘数据生成下一
 
 ## 从产品操作找入口
 
-HTTP 总入口为 [routes.ts](routes.ts)，统一导出 `routes`，由 `server.ts` 挂到 `/api/app/signals`。部署创建接受 reportId，列表返回全部部署。根级路由只适配参数、状态和响应，业务操作自己检查归属并控制数据库写入。
+HTTP 总入口为 [routes.ts](routes.ts)，具名导出 `signalsRoute`，由 `server.ts` 挂到 `/api/app/signals`。部署创建接受 reportId，列表返回全部部署。根级路由只适配参数、状态和响应，业务操作自己检查归属并控制数据库写入。
 
 | 操作 | HTTP 路径 | 业务入口 |
 | --- | --- | --- |

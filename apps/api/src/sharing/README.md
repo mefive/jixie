@@ -4,7 +4,7 @@ Sharing 服务于公开库页面：聚合公开策略、已发布因子/组合�
 
 | 入口 | 职责 |
 | --- | --- |
-| [routes.ts](routes.ts) | 根级 HTTP 入口，统一导出 `routes`，server 使用 `sharingRoutes` 挂载原 `/api/app/library`；保持三个既有端点 |
+| [routes.ts](routes.ts) | 根级 HTTP 入口，具名导出 `sharingRoute`，server 使用同名导入 挂载原 `/api/app/library`；保持三个既有端点 |
 | [catalog.ts](catalog.ts) 的 `listSharingCatalog` | 聚合公开资源与自己的资源、作者显示及响应投影 |
 | [catalog.ts](catalog.ts) 的 `getPublicStrategy` | 只读取公开策略详情，保持原响应字段 |
 | [Strategy copy-public.ts](../strategy/definitions/copy-public.ts) 的 `copyPublicStrategy` | 检查公开源、生成当前用户唯一名称，复制配置并默认设为 private；由 Sharing HTTP 调用 |

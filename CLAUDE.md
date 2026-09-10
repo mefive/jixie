@@ -88,21 +88,21 @@
 
 - 测试按职责归属：模块测试与源码同目录，不要求存在同名源码文件；API 包级配置及跨模块应用契约测试放在 `apps/api/tests`。具有明确模块归属的 integration 测试仍留在模块内，不按文件后缀统一搬迁。`tests` 仅供测试使用，生产代码不能导入；该目录仍纳入 TypeScript 与后端边界检查。
 
-- 业务模块的 HTTP 入口默认直接使用根目录 `routes.ts`，测试同目录；已有多组路由按职责使用 `backtest-routes.ts`、`scan-routes.ts` 等名称，不统一预设 `http/` 包装层；需要组合子路由时由模块根级 `routes.ts` 负责。`infra/http` 保留跨业务 HTTP 辅助。路由对象统一使用「业务/职责名 + `Route`」具名导出（如 `authRoute`、`strategyBacktestRoute`），调用方直接使用同名导入，不导出通用 `routes` 再用 `as` 命名。路由只负责请求/响应，资源归属、状态与事务由业务入口负责。
+- 业务模块的 HTTP 路由统一从根目录 `routes.ts` 具名导出，外部调用方只从该入口导入路由，测试同目录。鉴权、维护门禁等中间件从模块 `middleware.ts` 单独具名导出，不经 `routes.ts` 转导出。只有一组路由时可以直接在 `routes.ts` 实现；多组路由按职责拆到 `definition-routes.ts`、`workbench-routes.ts`、`backtest-routes.ts` 等文件，入口使用显式 `export { name } from ...` 汇总。子路由组合由对应实现文件负责，并直接导入子路由实现，避免反向导入统一入口形成循环。模块路由出口允许具名 re-export，不建立应用级总 barrel，也不统一预设 `http/` 包装层。`infra/http` 保留跨业务 HTTP 辅助。路由对象统一使用「业务/职责名 + `Route`」具名导出（如 `authRoute`、`strategyBacktestRoute`），调用方直接使用同名导入，不导出通用 `routes` 再用 `as` 命名。路由只负责请求/响应，资源归属、状态与事务由业务入口负责。
 
 - `apps/api/src/auth` — 登录与会话业务；根级 `routes.ts` 负责登录 HTTP，`cookies.ts` 负责 Cookie，`middleware.ts` 负责鉴权中间件与 Hono 用户上下文；`session.ts` 保留会话业务。
 - `apps/api/src/infra` — 数据库、HTTP 辅助、LLM 与邮件传输；`math` 为共用数值计算，`date.ts` 为日期辅助，`i18n` 保留纯翻译。
 - `apps/api/src/infra/runtime` — 公共 Python 通信、TS isolate 与沙盒日志；业务协议归 Strategy/Factor 的 runtime 和 Research 的 sdk，公共运行设施不导入业务模块。
 - `apps/api/src/infra/jobs` — 通用任务记录、日志、队列、任务契约与执行器；业务 `*-job.ts` 集中声明 parse/execute/complete/fail/recover，执行器控制事务及恢复。根级 `bootstrap.ts` 注册任务、创建执行器并按顺序启动 API；`server.ts` 的 `buildApp()` 只构建 HTTP 应用。
 - `apps/api/src/research` — 文档/Cell 编辑归 documents，依赖与失效归 dependencies，执行/会话归 execution，快照与产物归 evidence，Agent 修改/审阅/尝试归 proposals；研究数据归 datasets，语义检索归 catalog，SDK 校验/分派归 sdk，语言服务归 language，模板归 templates，因子/策略交接归 handoff，整理归 curator。`routes.ts` 只适配请求，`agent-turn.ts` 编排 Research 对话启动；入口与调用链见 `src/research/README.md`。
-- `apps/api/src/factor` — 定义与草稿归 definitions，观察数据与截止日归 observations，评估器/Worker/提交归 analysis，报告与 holdout 归 reports，发布/归档归 publication，组合归 composition，语言适配归 runtime，天气固定/刷新归 weather；根级三组 routes 只适配请求，analysis-job/correlation-job 保留具名任务生命周期。入口与调用链见 `src/factor/README.md`。
-- `apps/api/src/strategy` — 定义/命名/配置归 definitions，回测提交与报告归 backtest，参数扫描及父 Worker/cell 子进程归 scans，语言分派/因子准备归 execution，TS/Python 适配归 runtime，报告风险分析归 analysis/risk。根级 routes.ts 处理 Agent/命名并挂载回测/扫描子路由，definition-routes.ts 处理列表和增删改；backtest-job/scan-job 保留具名入口；调用链见 `src/strategy/README.md`。
+- `apps/api/src/factor` — 定义与草稿归 definitions，观察数据与截止日归 observations，评估器/Worker/提交归 analysis，报告与 holdout 归 reports，发布/归档归 publication，组合归 composition，语言适配归 runtime，天气固定/刷新归 weather；根级 `routes.ts` 统一导出定义、研究和天气三组路由，分别由 `definition-routes.ts`、`research-routes.ts`、`weather-routes.ts` 适配请求，analysis-job/correlation-job 保留具名任务生命周期。入口与调用链见 `src/factor/README.md`。
+- `apps/api/src/strategy` — 定义/命名/配置归 definitions，回测提交与报告归 backtest，参数扫描及父 Worker/cell 子进程归 scans，语言分派/因子准备归 execution，TS/Python 适配归 runtime，报告风险分析归 analysis/risk。根级 `routes.ts` 统一具名导出；`workbench-routes.ts` 处理 Agent/命名并挂载回测/扫描子路由，`definition-routes.ts` 处理列表和增删改；backtest-job/scan-job 保留具名入口；调用链见 `src/strategy/README.md`。
 - `apps/api/src/signals` — 部署冻结/暂停归 deployments，运行入队/查询/就绪检查与 IPC Worker 归 runs，成交录入/初始化/结算/纯重放归 accounting，因子依赖血缘与输入摘要归 factor-inputs；根级 routes.ts 适配 HTTP，signal-job.ts 保留任务生命周期，scheduler/sync/notifier 保留具体职责。入口与事务边界见 `src/signals/README.md`。
 - `apps/api/src/agent` — core 负责统一模型/工具循环，profiles 选择业务能力；turns 负责后台执行、事件、轨迹和持久化状态，conversations 负责对话关联/历史/实体镜像及消息校验，tools/charts、tools/sql 归组具体工具和 Worker。Strategy Agent 负责依据 SDK 和上下文生成代码及必要校验，回测由用户在工作台显式发起；Research 通过封存研究生成 Strategy 草稿，不提供后台回测工具。根级 routes.ts 适配 HTTP/SSE。入口和消息顺序见 `src/agent/README.md`。
 - `apps/api/src/sharing` — 根级 routes.ts 适配公开库 HTTP，catalog.ts 聚合列表与公开详情；策略复制调用 `strategy/definitions/copy-public.ts`，不直接修改他域生命周期。见 `src/sharing/README.md`。
 - `apps/api/src/engine` — simulation 为交易循环与账户，data 为必填 DataPort/EngineData，factors 为引擎内因子求值；adapters 为宿主 Prisma/Python 桥，testing 为 fixture。模拟核心不导入宿主适配器；Strategy 的墙内 bundle 使用真实核心，不用 Prisma stub。见 `src/engine/README.md`。
 - `apps/api/src/market` — providers/tushare 负责行情通道与配置，registry 是纯静态清单，instruments 负责证券身份，sync 负责行情同步，queries 负责序列查询，state/valuation 分开计算与读取；fundamentals/rates/macro/commodity 承接财报、利率、宏观和商品子领域，quality 负责基础审计。根级 routes.ts 适配 HTTP，入口见 `src/market/README.md`。Market 不反向导入 Strategy、Research 执行或 Agent。
-- `apps/api/src/maintenance` — 调度、锁、发布水位、自愈、参考数据子进程与运维 HTTP；risk-data-audit.ts 组合市场数据和策略模型要求，data-audit.ts 汇总审计。调用 Market 同步入口，流程见 `src/maintenance/README.md`。
+- `apps/api/src/maintenance` — 调度、锁、发布水位、自愈、参考数据子进程与运维 HTTP；`routes.ts` 实现并导出状态路由，`middleware.ts` 单独导出维护门禁；risk-data-audit.ts 组合市场数据和策略模型要求，data-audit.ts 汇总审计。调用 Market 同步入口，流程见 `src/maintenance/README.md`。
 - `apps/api` — Hono 后端 + `prisma/schema.prisma` + 领域逻辑(`src/research`、`src/factor`、`src/strategy` 等)+ 研究 / 导入脚本(`scripts/`,wired 成 `smoke` / `sync` / `peek` 等)
 - `apps/web` — 登录与工作台前端
 - `apps/docs` — 独立公开文档前端，挂载 `/docs/help/*` 与 `/docs/sdk`

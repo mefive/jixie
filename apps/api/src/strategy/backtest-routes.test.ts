@@ -39,7 +39,7 @@ vi.mock('#infra/jobs/queue.js', () => ({
   wakeJobQueue: mocks.wakeJobQueue,
 }));
 
-import { strategyBacktestRoute } from './backtest-routes.js';
+import { strategyBacktestRoute } from './routes.js';
 
 const app = new Hono();
 app.use('*', async (context, next) => {

@@ -6,7 +6,7 @@ Factor 负责因子从定义、分析到发布与持续观察的完整业务。R
 
 | 要理解或修改的行为 | HTTP 入口 | 业务入口 |
 | --- | --- | --- |
-| 因子目录、自定义因子详情 | [routes.ts](routes.ts) | [definitions/catalog.ts](definitions/catalog.ts)、[definitions/read.ts](definitions/read.ts) |
+| 因子目录、自定义因子详情 | [definition-routes.ts](definition-routes.ts) | [definitions/catalog.ts](definitions/catalog.ts)、[definitions/read.ts](definitions/read.ts) |
 | 创建、编辑、删除、复制草稿 | 同上 | [definitions/drafts.ts](definitions/drafts.ts)；输入定义在 [definitions/inputs.ts](definitions/inputs.ts) |
 | 发布、归档、公开范围 | 同上 | [publication/factor.ts](publication/factor.ts)、[publication/panel-composite.ts](publication/panel-composite.ts)、[publication/visibility.ts](publication/visibility.ts) |
 | 创建、编辑、复制因子组合 | 同上 | [composition/operations.ts](composition/operations.ts) |
@@ -17,7 +17,7 @@ Factor 负责因子从定义、分析到发布与持续观察的完整业务。R
 | 相关性缓存、提交与进度查询 | 同上 | [analysis/correlation-operations.ts](analysis/correlation-operations.ts) → [correlation-job.ts](correlation-job.ts) |
 | 因子天气固定、刷新与取消固定 | [weather-routes.ts](weather-routes.ts) | [weather/pins.ts](weather/pins.ts) → [weather/refresh.ts](weather/refresh.ts) |
 
-三个路由分别继续挂载在 `/api/app/factors`、`/api/app/factor` 和 `/api/app/factor-weather`。路由只处理输入校验、身份与 locale 传入、响应和错误映射；业务入口不接收 Hono Context。参数 schema 随业务入口归属，HTTP 使用同一 schema 校验，不维护第二份规则。
+根级 [routes.ts](routes.ts) 是统一出口，显式转导出 `factorsRoute`、`factorRoute` 和 `factorWeatherRoute`，分别由上表中的定义、研究和天气路由文件实现。外部调用方只从统一出口导入。三个路由分别继续挂载在 `/api/app/factors`、`/api/app/factor` 和 `/api/app/factor-weather`。路由只处理输入校验、身份与 locale 传入、响应和错误映射；业务入口不接收 Hono Context。参数 schema 随业务入口归属，HTTP 使用同一 schema 校验，不维护第二份规则。
 
 `operation-errors.ts` 表达操作拒绝的类别、信息及原因详情，`route-errors.ts` 转成现有 HTTP 错误。发布模块保留已有 `FactorPublicationError` 及错误语义。
 

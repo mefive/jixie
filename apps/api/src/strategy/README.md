@@ -9,7 +9,7 @@ Strategy 拥有策略定义、对话启动、回测与参数扫描，以及回�
 | 策略列表、详情 | [definition-routes.ts](definition-routes.ts) | [definitions/read.ts](definitions/read.ts) |
 | 创建、编辑、删除策略 | 同上 | [definitions/drafts.ts](definitions/drafts.ts)，配置保存与结果缓存失效在 [definitions/config.ts](definitions/config.ts) |
 | 公开范围 | 同上 | [definitions/visibility.ts](definitions/visibility.ts)；引用自定义因子的策略保持私有 |
-| 自动命名 | [routes.ts](routes.ts) | [definitions/name-request.ts](definitions/name-request.ts) 处理命名请求；[definitions/naming.ts](definitions/naming.ts) 负责名称生成、冲突处理和异步刷新竞争检查 |
+| 自动命名 | [workbench-routes.ts](workbench-routes.ts) | [definitions/name-request.ts](definitions/name-request.ts) 处理命名请求；[definitions/naming.ts](definitions/naming.ts) 负责名称生成、冲突处理和异步刷新竞争检查 |
 | Agent 编辑与解释 | 同上 | [agent-turn.ts](agent-turn.ts)，可用指数和因子上下文在 [agent-context.ts](agent-context.ts) |
 | 提交回测 | [backtest-routes.ts](backtest-routes.ts) | [backtest/submit.ts](backtest/submit.ts) → [backtest-job.ts](backtest-job.ts) |
 | 历史回测报告、任务进度 | 同上 | [backtest/reports.ts](backtest/reports.ts)，读取冻结报告而非当前策略缓存 |
@@ -17,7 +17,7 @@ Strategy 拥有策略定义、对话启动、回测与参数扫描，以及回�
 | 扫描报告、任务进度 | 同上 | [scans/reports.ts](scans/reports.ts) |
 | 回测报告中的风险研究 | 随完整回测报告返回 | [analysis/risk/backtest-risk-analysis.ts](analysis/risk/backtest-risk-analysis.ts)，没有独立风险 API |
 
-路由文件统一导出 `routes`，由文件名表达职责。`server.ts` 将 [routes.ts](routes.ts) 挂到 `/api/app/strategy`，由它直接处理 `/agent`、`/name`，并在模块内部挂载 `/backtest`、`/scans` 子路由；`server.ts` 不直接引用子路由。策略列表和增删改保留原复数 URL，由 `definition-routes.ts` 挂到 `/api/app/strategies`。根级路由负责校验、传入 userId/locale、返回响应和映射业务异常。业务入口自己检查归属、忙碌状态并控制事务，接收普通参数，不接收 Hono Context。`operation-errors.ts` 与 `route-errors.ts` 分别表达业务拒绝和原 HTTP 错误。
+根级 [routes.ts](routes.ts) 是统一出口，显式转导出 `strategyRoute`、`strategyDefinitionRoute`、`strategyBacktestRoute` 和 `strategyScanRoute`。上表列出各组路由的实现文件。`server.ts` 从统一出口导入 `strategyRoute` 挂到 `/api/app/strategy`，实现位于 `workbench-routes.ts`：处理 `/agent`、`/name`，并直接导入和挂载 `/backtest`、`/scans` 子路由。策略列表和增删改由同一出口的 `strategyDefinitionRoute` 挂到 `/api/app/strategies`。实现文件不反向导入统一出口，避免循环依赖。根级路由负责校验、传入 userId/locale、返回响应和映射业务异常。业务入口自己检查归属、忙碌状态并控制事务，接收普通参数，不接收 Hono Context。`operation-errors.ts` 与 `route-errors.ts` 分别表达业务拒绝和原 HTTP 错误。
 
 ## 目录职责
 
