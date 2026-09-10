@@ -656,16 +656,18 @@ export function submitBacktest(
 
 // Poll a backtest job — `since` = how many log lines the client already has (incremental tail).
 export function pollBacktest(jobId: string, since = 0): Promise<BacktestJob> {
-  return request(`/api/app/strategies/backtest-jobs/${jobId}?since=${since}`);
+  return request(`/api/app/strategies/backtest-jobs/${encodeURIComponent(jobId)}?since=${since}`);
 }
 
-// A still-running backtest job for a strategy — to re-attach after a refresh (DB-backed, no localStorage).
-export function findBacktestRunningJob(strategyId: string): Promise<{ jobId: string | null }> {
-  return request(`/api/app/strategies/${encodeURIComponent(strategyId)}/backtests/running`);
+// Find a queued or running backtest and its report to reconnect after a refresh.
+export function findActiveBacktestJob(
+  strategyId: string,
+): Promise<{ jobId: string; reportId: string } | null> {
+  return request(`/api/app/strategies/${encodeURIComponent(strategyId)}/backtest-jobs/active`);
 }
 
 export function listBacktestReports(strategyId: string): Promise<BacktestReportSummary[]> {
-  return request(`/api/app/strategies/${encodeURIComponent(strategyId)}/backtests`);
+  return request(`/api/app/strategies/${encodeURIComponent(strategyId)}/backtest-reports`);
 }
 
 export function getBacktestReport(reportId: string): Promise<BacktestReportDetail> {
@@ -692,22 +694,22 @@ export function submitStrategyScan(
   });
 }
 
-export function listStrategyScans(strategyId: string): Promise<StrategyScanReportSummary[]> {
-  return request(`/api/app/strategies/${encodeURIComponent(strategyId)}/scans`);
+export function listStrategyScanReports(strategyId: string): Promise<StrategyScanReportSummary[]> {
+  return request(`/api/app/strategies/${encodeURIComponent(strategyId)}/scan-reports`);
 }
 
-export function findRunningStrategyScan(
+export function findActiveStrategyScanJob(
   strategyId: string,
-): Promise<{ reportId: string | null; jobId: string | null }> {
-  return request(`/api/app/strategies/${encodeURIComponent(strategyId)}/scans/running`);
+): Promise<{ jobId: string; reportId: string } | null> {
+  return request(`/api/app/strategies/${encodeURIComponent(strategyId)}/scan-jobs/active`);
 }
 
 export function getStrategyScanReport(reportId: string): Promise<StrategyScanReport> {
-  return request(`/api/app/strategies/scan-reports/${reportId}`);
+  return request(`/api/app/strategies/scan-reports/${encodeURIComponent(reportId)}`);
 }
 
-export function pollStrategyScan(reportId: string, since = 0): Promise<BacktestJob> {
-  return request(`/api/app/strategies/scan-reports/${reportId}/job?since=${since}`);
+export function pollStrategyScan(jobId: string, since = 0): Promise<BacktestJob> {
+  return request(`/api/app/strategies/scan-jobs/${encodeURIComponent(jobId)}?since=${since}`);
 }
 
 // —— Daily signals ——

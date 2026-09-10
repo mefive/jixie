@@ -91,7 +91,17 @@ try {
   await page.locator('.jx-parameterScan-dimension .ant-input').first().fill('2, 3');
   await page.getByRole('checkbox', { name: '扫描第二个参数' }).check();
   await page.locator('.jx-parameterScan-dimension .ant-input').nth(1).fill('100, 200');
+  const submissionPromise = page.waitForResponse(
+    (response) =>
+      response.request().method() === 'POST' &&
+      new URL(response.url()).pathname === `/api/app/strategies/${strategyId}/scans`,
+  );
   await page.getByRole('button', { name: '开始扫描' }).click();
+  const submission = await submissionPromise;
+  const scanReference = await submission.json();
+  if (submission.status() !== 200 || !scanReference.jobId || !scanReference.reportId) {
+    throw new Error(`invalid scan submission: ${JSON.stringify(scanReference)}`);
+  }
 
   await page.getByRole('tab', { name: '参数扫描' }).click();
   await Promise.race([
@@ -114,7 +124,7 @@ try {
 
   const persisted = await page.evaluate(async (id) => {
     const strategy = await (await fetch(`/api/app/strategies/${id}`)).json();
-    const reports = await (await fetch(`/api/app/strategies/${id}/scans`)).json();
+    const reports = await (await fetch(`/api/app/strategies/${id}/scan-reports`)).json();
     const detail = await (await fetch(`/api/app/strategies/scan-reports/${reports[0].id}`)).json();
     return { strategy, reports, detail };
   }, strategyId);
@@ -124,6 +134,25 @@ try {
   if (persisted.detail.status !== 'done' || persisted.detail.payload?.cells?.length !== 4) {
     throw new Error(`invalid persisted scan: ${JSON.stringify(persisted.detail)}`);
   }
+
+  // Reproduce completion between active lookup and the first poll without relying on worker timing.
+  const activePath = `/api/app/strategies/${strategyId}/scan-jobs/active`;
+  await page.route(`**${activePath}`, (route) => route.fulfill({ json: scanReference }), {
+    times: 1,
+  });
+  const resumedJobPromise = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === `/api/app/strategies/scan-jobs/${scanReference.jobId}` &&
+      new URL(response.url()).searchParams.get('since') === '0',
+  );
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  const resumedJob = await resumedJobPromise;
+  if (resumedJob.status() !== 200 || (await resumedJob.json()).status !== 'done') {
+    throw new Error('refresh did not reconnect to the scan job by jobId');
+  }
+  await page.getByRole('tab', { name: '参数扫描' }).click();
+  await page.locator('.jx-parameterScan-chart canvas').first().waitFor({ timeout: 30_000 });
+  await page.screenshot({ path: `${SHOTS}strategy-scan-reconnect.png`, fullPage: true });
 
   await page.getByRole('button', { name: '参数扫描' }).first().click();
   await page.getByRole('dialog', { name: '扫描实验' }).waitFor();
@@ -141,7 +170,7 @@ try {
     throw new Error(`expected three sizing schemes, got ${sizingRows}`);
   }
   const sizingReport = await page.evaluate(async (id) => {
-    const reports = await (await fetch(`/api/app/strategies/${id}/scans`)).json();
+    const reports = await (await fetch(`/api/app/strategies/${id}/scan-reports`)).json();
     return await (await fetch(`/api/app/strategies/scan-reports/${reports[0].id}`)).json();
   }, strategyId);
   if (
@@ -167,7 +196,7 @@ try {
     throw new Error(`expected three capital levels, got ${capacityRows}`);
   }
   const capacityReport = await page.evaluate(async (id) => {
-    const reports = await (await fetch(`/api/app/strategies/${id}/scans`)).json();
+    const reports = await (await fetch(`/api/app/strategies/${id}/scan-reports`)).json();
     return await (await fetch(`/api/app/strategies/scan-reports/${reports[0].id}`)).json();
   }, strategyId);
   if (
@@ -210,7 +239,7 @@ try {
   if (strategyId) {
     const diagnostic = await page
       .evaluate(async (id) => {
-        const reports = await (await fetch(`/api/app/strategies/${id}/scans`)).json();
+        const reports = await (await fetch(`/api/app/strategies/${id}/scan-reports`)).json();
         const detail = reports[0]
           ? await (await fetch(`/api/app/strategies/scan-reports/${reports[0].id}`)).json()
           : null;

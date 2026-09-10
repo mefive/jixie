@@ -1,14 +1,14 @@
 # `/api/app` 资源路由设计
 
-2026-09-10 用户确认。本文是当前 HTTP 路径契约，替代此前以单数表示动作、复数表示 CRUD 的约定；历史迁移记录保留在 Git 与 [后端重构记录](backend-architecture-refactor.md)。
+2026-09-10 用户确认；同日 Strategy 路由职责整理方案再次确认。本文是当前 HTTP 路径契约，替代此前以单数表示动作、复数表示 CRUD 的约定；历史迁移记录保留在 Git 与 [后端重构记录](backend-architecture-refactor.md)。
 
 ## 约定与组装
 
 - 同一业务资源统一前缀：策略 `/strategies`，因子 `/factors`。从路径直接识别资源、对象和操作，不靠单复数区分功能。
 - GET 读取、POST 创建资源或触发操作、PATCH 局部修改、DELETE 删除。发布、归档、复制、holdout 和 reveal 保留明确动作，避免伪装成普通字段更新。
 - 对象归属 ID 放在路径。回测/扫描不再通过 `?strategyId=` 选择所属策略，策略/因子 Agent 和因子元数据刷新不再要求 body 的 `id`。HTTP 层以路径 ID 构造业务输入，额外 body/query ID 不能覆盖它。
-- 查询条件、分页与增量日志仍在 query；分析参数、代码、消息等仍在 body。响应结构、业务状态、鉴权和持久化语义保持。
-- 模块根级 `routes.ts` 是唯一对外路由入口，具名导出模块总路由。Strategy/Factor 使用 `resource-routes.ts` 组合，处理器仍分散在按职责命名的文件里。实现文件直接导入子路由，避免反向引用入口。
+- 查询条件、分页与增量日志仍在 query；分析参数、代码、消息等仍在 body。除 Strategy 活动任务返回值与扫描任务寻址的下述调整外，响应结构、业务状态、鉴权和持久化语义保持。
+- 模块根级 `routes.ts` 是唯一对外路由入口，具名导出模块总路由。Strategy 在 `routes.ts` 直接组合 definition、agent、backtest、scan 四组处理器；Factor 保留 `resource-routes.ts` 组合。处理器按业务职责分文件实现。实现文件直接导入子路由，避免反向引用入口。
 - 中间件从 `middleware.ts` 导入：`requireAuth` 与 `maintenanceGate` 不由 `routes.ts` 导出。
 - 集合保留路径先注册，通用 `/:strategyId`、`/:factorId` 后注册。
 
@@ -30,18 +30,23 @@ app.route('/api/app/factors', factorRoute);
 | GET / PATCH / DELETE | `/strategies/:strategyId` | 读取 / 修改 / 删除定义 |
 | PATCH | `/strategies/:strategyId/visibility` | 修改可见性 |
 | POST | `/strategies/:strategyId/agent/turns` | 启动策略 Agent 对话 |
-| POST / GET | `/strategies/:strategyId/backtests` | 提交回测 / 历史回测报告列表 |
-| GET | `/strategies/:strategyId/backtests/running` | 查找运行中的回测任务 |
+| POST | `/strategies/:strategyId/backtests` | 保存配置并提交回测 |
+| GET | `/strategies/:strategyId/backtest-reports` | 成功且有结果的历史回测报告 |
 | GET | `/strategies/backtest-reports/:reportId` | 读取持久化回测报告 |
-| GET | `/strategies/backtest-jobs/:jobId` | 查询任务状态及日志，保留 `since` |
-| POST / GET | `/strategies/:strategyId/scans` | 提交扫描 / 历史扫描报告列表 |
-| GET | `/strategies/:strategyId/scans/running` | 查找运行中的扫描任务 |
+| GET | `/strategies/:strategyId/backtest-jobs/active` | 查找 queued/running 回测任务 |
+| GET | `/strategies/backtest-jobs/:jobId` | 查询回测任务状态及日志，保留 `since` |
+| POST | `/strategies/:strategyId/scans` | 提交扫描，不覆盖当前草稿 |
+| GET | `/strategies/:strategyId/scan-reports` | 各状态扫描报告，最多 50 条 |
 | GET | `/strategies/scan-reports/:reportId` | 读取扫描报告 |
-| GET | `/strategies/scan-reports/:reportId/job` | 查询报告关联的扫描任务，保留 `since` |
-| POST | `/strategies/name-suggestions` | 为代码建议名称，不要求已保存策略 |
+| GET | `/strategies/:strategyId/scan-jobs/active` | 查找 queued/running 扫描任务 |
+| GET | `/strategies/scan-jobs/:jobId` | 查询扫描任务状态及日志，保留 `since` |
 | POST | `/strategies/scan-parameters/inspect` | 检查代码可扫描参数，不要求已保存策略 |
 
-回测与扫描提交保留原有 config/spec body。报告是持久化研究结果，job 是执行状态与日志；两个 ID 不混用。扫描沿用按 reportId 查询关联 job 的业务契约。
+Strategy 是当前可编辑策略，Report 保存一次计算的冻结输入、状态与结果，Job 表达后台执行状态和日志。提交回测与扫描均返回 `{ jobId: string, reportId: string }`，保留原有 config/spec body；活动任务查询均返回该引用或 JSON `null`，`active` 包含 queued 和 running。查询用户没有对应资源时，列表返回空数组、活动查询返回 null，单个报告/任务详情返回 404。
+
+报告列表与详情使用同一资源名；任务只能用 jobId 查询，检查 userId 和任务类型（backtest / strategy-scan）。日志仍按 `since` 返回增量 `logs` 和 `nextSince`。Web 使用提交或活动查询返回的 jobId 轮询，使用 reportId 读取结果。扫描报告详情仍携带 jobId。
+
+移除独立名称建议接口 `/strategies/name-suggestions`。创建策略及配置提交仍使用内部命名能力；命名失败时创建策略保留默认名称回退。参数检查保留独立代码输入，不要求 strategyId。
 
 ## 因子
 
@@ -86,16 +91,18 @@ app.route('/api/app/factors', factorRoute);
 | --- | --- |
 | `POST /strategies/:id`、`POST /strategies/:id/visibility` | 对应路径改用 PATCH |
 | `POST /strategy/agent` | `POST /strategies/:strategyId/agent/turns`，ID 从 body 移到路径 |
-| `POST /strategy/name` | `POST /strategies/name-suggestions` |
+| `POST /strategy/name`、`POST /strategies/name-suggestions` | 删除；创建策略时内部命名 |
 | `POST /strategy/backtest?strategyId=...` | `POST /strategies/:strategyId/backtests` |
-| `GET /strategy/backtest/reports?strategyId=...` | `GET /strategies/:strategyId/backtests` |
-| `GET /strategy/backtest/running?strategyId=...` | `GET /strategies/:strategyId/backtests/running` |
+| `GET /strategy/backtest/reports?strategyId=...`、`GET /strategies/:strategyId/backtests` | `GET /strategies/:strategyId/backtest-reports` |
+| `GET /strategy/backtest/running?strategyId=...`、`GET /strategies/:strategyId/backtests/running` | `GET /strategies/:strategyId/backtest-jobs/active`；返回 `{ jobId, reportId }` 或 null |
 | `GET /strategy/backtest/reports/:reportId` | `GET /strategies/backtest-reports/:reportId` |
 | `GET /strategy/backtest/:jobId` | `GET /strategies/backtest-jobs/:jobId` |
 | `POST /strategy/scans/parameters` | `POST /strategies/scan-parameters/inspect` |
-| `GET / POST /strategy/scans?strategyId=...` | `GET / POST /strategies/:strategyId/scans` |
-| `GET /strategy/scans/running?strategyId=...` | `GET /strategies/:strategyId/scans/running` |
-| `GET /strategy/scans/:reportId[/job]` | `GET /strategies/scan-reports/:reportId[/job]` |
+| `POST /strategy/scans?strategyId=...` | `POST /strategies/:strategyId/scans` |
+| `GET /strategy/scans?strategyId=...`、`GET /strategies/:strategyId/scans` | `GET /strategies/:strategyId/scan-reports` |
+| `GET /strategy/scans/running?strategyId=...`、`GET /strategies/:strategyId/scans/running` | `GET /strategies/:strategyId/scan-jobs/active`；返回 `{ jobId, reportId }` 或 null |
+| `GET /strategy/scans/:reportId` | `GET /strategies/scan-reports/:reportId` |
+| `GET /strategy/scans/:reportId/job`、`GET /strategies/scan-reports/:reportId/job` | `GET /strategies/scan-jobs/:jobId`；jobId 从提交、活动查询或报告详情获取 |
 | `/factors/custom[/... ]` | `/factors[/... ]`，修改定义和可见性改 PATCH |
 | `POST /factors/composites/:id[/visibility]` | 对应路径改用 PATCH |
 | `POST /factor/agent`、`POST /factor/metadata` | `/factors/:factorId/agent/turns`、`/factors/:factorId/metadata/refresh`，ID 从 body 移到路径 |
@@ -113,4 +120,6 @@ Auth、Maintenance、Agent、Market、Research、Signals、Library 的 HTTP 路�
 
 ## 验证
 
-代码 review 前只运行格式、lint、类型与后端边界静态检查。Review 后执行策略/因子路由集成测试、回测路由与多用户权限测试、API/Web 构建，以及回测报告历史和因子天气 E2E。重点覆盖集合路径与动态 ID 匹配、PATCH 约定、路径 ID 不被 body/query 覆盖、报告归属及封存保护、前端请求与轮询迁移。
+初次资源前缀迁移的验证范围：代码 review 前只运行格式、lint、类型与后端边界静态检查。Review 后执行策略/因子路由集成测试、回测路由与多用户权限测试、API/Web 构建，以及回测报告历史和因子天气 E2E。重点覆盖集合路径与动态 ID 匹配、PATCH 约定、路径 ID 不被 body/query 覆盖、报告归属及封存保护、前端请求与轮询迁移。
+
+Strategy 路由职责整理的提交为 `refactor(strategy): clarify resource routes and route ownership`，开发记录见 [Strategy README](../../apps/api/src/strategy/README.md)。本次已通过人工代码审查、静态检查、37 项策略路由/多用户权限测试、API/Web 构建，以及策略操作、回测报告历史、参数扫描三组 E2E，覆盖 jobId/reportId 分离、任务类型隔离、活动任务空值及刷新恢复。Factor 路由不在本次调整范围。

@@ -31,7 +31,6 @@ vi.mock('./execution/prepare-factors.js', () => ({
 }));
 vi.mock('#infra/jobs/records.js', () => ({
   ACTIVE_JOB_STATUSES: ['queued', 'running'],
-  findRunningJob: vi.fn(),
   getJob: vi.fn(),
 }));
 vi.mock('#infra/jobs/logs.js', () => ({ initializeJobLogs: mocks.initializeJobLogs }));
@@ -115,7 +114,7 @@ describe('backtest report route', () => {
   it('lists compact completed report history within the strategy owner scope', async () => {
     mocks.backtestReportFindMany.mockResolvedValue([reportRow()]);
 
-    const response = await app.request('/strategies/strategy-a/backtests');
+    const response = await app.request('/strategies/strategy-a/backtest-reports');
     const body = await response.json();
 
     expect(response.status).toBe(200);

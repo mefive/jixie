@@ -31,8 +31,8 @@ import {
   createStrategy,
   deployBacktestReport,
   deleteStrategy,
-  findBacktestRunningJob,
-  findRunningStrategyScan,
+  findActiveBacktestJob,
+  findActiveStrategyScanJob,
   getFactorComposite,
   getBacktestReport,
   getStrategy,
@@ -43,7 +43,7 @@ import {
   getCustomFactor,
   getFactorCatalog,
   getFactorReport,
-  listStrategyScans,
+  listStrategyScanReports,
   listBacktestReports,
   listStrategies,
   pollBacktest,
@@ -110,6 +110,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
   private jobId: string | null = null; // polling cursor for the current backtest
   private since = 0;
   private scanReportId: string | null = null;
+  private scanJobId: string | null = null;
   private scanSince = 0;
 
   public backtestPoller = new PollingModel();
@@ -196,7 +197,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
       request: async (code: string) => (await inspectStrategyParameters(code)).parameters,
     });
     this.scanHistoryLoader.setup({
-      request: (strategyId: string) => listStrategyScans(strategyId),
+      request: (strategyId: string) => listStrategyScanReports(strategyId),
     });
     this.scanReportLoader.setup({ request: (reportId: string) => getStrategyScanReport(reportId) });
     this.deploymentLoader.setup({
@@ -382,13 +383,13 @@ export class LabStore extends BaseStore<LabSetupParams> {
     }
 
     try {
-      const { reportId } = await submitStrategyScan(this.savedId, this.config, spec);
+      const { reportId, jobId } = await submitStrategyScan(this.savedId, this.config, spec);
       runInAction(() => {
         this.scanReport = null;
         this.scanLogLines = [];
         this.scanError = null;
       });
-      this.startScanPolling(reportId);
+      this.startScanPolling(jobId, reportId);
       void this.scanHistoryLoader.run(this.savedId);
     } catch (error) {
       runInAction(() => {
@@ -801,17 +802,17 @@ export class LabStore extends BaseStore<LabSetupParams> {
     // Re-attach to a still-running backtest (found server-side by strategyId — no localStorage, works
     // cross-client) so a refresh keeps streaming logs instead of losing the run.
     try {
-      const { jobId } = await findBacktestRunningJob(id);
-      if (jobId) {
-        this.resume(jobId);
+      const activeJob = await findActiveBacktestJob(id);
+      if (activeJob) {
+        this.resume(activeJob.jobId);
       }
     } catch {
       /* none running / expired — the saved lastResult stays shown */
     }
     try {
-      const runningScan = await findRunningStrategyScan(id);
-      if (runningScan.reportId) {
-        this.startScanPolling(runningScan.reportId);
+      const activeJob = await findActiveStrategyScanJob(id);
+      if (activeJob) {
+        this.startScanPolling(activeJob.jobId, activeJob.reportId);
       }
     } catch {
       /* none running */
@@ -834,7 +835,8 @@ export class LabStore extends BaseStore<LabSetupParams> {
     this.backtestPoller.start();
   }
 
-  private startScanPolling(reportId: string) {
+  private startScanPolling(jobId: string, reportId: string) {
+    this.scanJobId = jobId;
     this.scanReportId = reportId;
     this.scanSince = 0;
     runInAction(() => {
@@ -846,7 +848,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
 
   private async pollScanOnce(): Promise<false | void> {
     try {
-      const job = await pollStrategyScan(this.scanReportId!, this.scanSince);
+      const job = await pollStrategyScan(this.scanJobId!, this.scanSince);
       runInAction(() => {
         this.scanQueuePosition = job.status === 'queued' ? (job.queuePosition ?? null) : null;
       });

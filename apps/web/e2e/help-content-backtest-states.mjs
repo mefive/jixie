@@ -87,12 +87,12 @@ async function captureReconnectAndDirtyGuard() {
   const reconnectLookup = page.waitForResponse(
     (response) =>
       new URL(response.url()).pathname ===
-      `/api/app/strategies/${encodeURIComponent(strategyId)}/backtests/running`,
+      `/api/app/strategies/${encodeURIComponent(strategyId)}/backtest-jobs/active`,
   );
   await page.reload({ waitUntil: 'domcontentloaded' });
   const lookup = await reconnectLookup;
   const lookupBody = await lookup.json();
-  if (!lookupBody.jobId) {
+  if (!lookupBody?.jobId) {
     throw new Error(`refresh did not find the running job: ${JSON.stringify(lookupBody)}`);
   }
   await page

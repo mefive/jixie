@@ -83,6 +83,10 @@ try {
       `backtest submission failed: ${backtestResponse.status()} ${await backtestResponse.text()}`,
     );
   }
+  const backtestReference = await backtestResponse.json();
+  if (!backtestReference.jobId || !backtestReference.reportId) {
+    fail(`invalid backtest submission: ${JSON.stringify(backtestReference)}`);
+  }
 
   const duplicate = await page.evaluate(async (id) => {
     const saved = await (await fetch(`/api/app/strategies/${id}`)).json();
@@ -105,6 +109,25 @@ try {
   if (!saved.lastResult || saved.config.code !== seed.code || !saved.name) {
     fail(`committed strategy/result mismatch: ${JSON.stringify(saved)}`);
   }
+
+  // Reproduce completion between active lookup and the first poll without relying on worker timing.
+  await page.route(
+    `**/api/app/strategies/${strategyId}/backtest-jobs/active`,
+    (route) => route.fulfill({ json: backtestReference }),
+    { times: 1 },
+  );
+  const resumedJobPromise = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname ===
+        `/api/app/strategies/backtest-jobs/${backtestReference.jobId}` &&
+      new URL(response.url()).searchParams.get('since') === '0',
+  );
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  const resumedJob = await resumedJobPromise;
+  if (resumedJob.status() !== 200 || (await resumedJob.json()).status !== 'done') {
+    fail('refresh did not reconnect to the backtest job by jobId');
+  }
+  await page.locator('.jx-lab-metricValue').first().waitFor({ timeout: 30_000 });
 
   if (writeRequests.includes('/api/app/strategies/name-suggestions')) {
     fail(`Lab called the deprecated naming route: ${JSON.stringify(writeRequests)}`);

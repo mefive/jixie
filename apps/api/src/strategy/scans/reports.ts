@@ -27,7 +27,7 @@ export async function listStrategyScanReports(
   return rows.map(scanReportSummary);
 }
 
-export async function findStrategyScanJob(
+export async function findActiveStrategyScanJob(
   userId: string,
   query: z.infer<typeof scanStrategyIdentitySchema>,
 ) {
@@ -36,31 +36,31 @@ export async function findStrategyScanJob(
       userId: userId,
       strategyId: query.strategyId,
       status: 'running',
-      job: { status: { in: ACTIVE_JOB_STATUSES } },
+      job: { userId, kind: 'strategy-scan', status: { in: ACTIVE_JOB_STATUSES } },
     },
     orderBy: { createdAt: 'desc' },
     select: { id: true, job: { select: { id: true } } },
   });
 
-  return { reportId: row?.id ?? null, jobId: row?.job?.id ?? null };
+  return row?.job ? { jobId: row.job.id, reportId: row.id } : null;
 }
 
 export async function readStrategyScanJob(
   userId: string,
-  reportId: string,
+  jobId: string,
   query: z.infer<typeof scanJobQuerySchema>,
   locale: Locale,
 ) {
-  const report = await prisma.strategyScanReport.findFirst({
-    where: { id: reportId, userId: userId },
-    select: { job: { select: { id: true } } },
+  const ownedJob = await prisma.job.findFirst({
+    where: { id: jobId, userId, kind: 'strategy-scan' },
+    select: { id: true },
   });
 
-  if (!report?.job) {
+  if (!ownedJob) {
     return failStrategyOperation('missing', t(locale, 'strategyScanJobNotFound'));
   }
 
-  const job = await getJob(userId, report.job.id, Number(query.since ?? '0'));
+  const job = await getJob(userId, ownedJob.id, Number(query.since ?? '0'));
 
   if (!job) {
     return failStrategyOperation('missing', t(locale, 'strategyScanJobNotFound'));

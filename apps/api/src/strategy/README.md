@@ -9,15 +9,21 @@ Strategy 拥有策略定义、对话启动、回测与参数扫描，以及回�
 | 策略列表、详情 | [definition-routes.ts](definition-routes.ts) | [definitions/read.ts](definitions/read.ts) |
 | 创建、编辑、删除策略 | 同上 | [definitions/drafts.ts](definitions/drafts.ts)，配置保存与结果缓存失效在 [definitions/config.ts](definitions/config.ts) |
 | 公开范围 | 同上 | [definitions/visibility.ts](definitions/visibility.ts)；引用自定义因子的策略保持私有 |
-| 自动命名 | [workbench-routes.ts](workbench-routes.ts) | [definitions/name-request.ts](definitions/name-request.ts) 处理命名请求；[definitions/naming.ts](definitions/naming.ts) 负责名称生成、冲突处理和异步刷新竞争检查 |
-| Agent 编辑与解释 | 同上 | [agent-turn.ts](agent-turn.ts)，可用指数和因子上下文在 [agent-context.ts](agent-context.ts) |
+| 自动命名 | 创建策略时内部调用，无独立 HTTP 入口 | [definitions/naming.ts](definitions/naming.ts) 负责名称生成、冲突处理和异步刷新竞争检查 |
+| Agent 编辑与解释 | [agent-routes.ts](agent-routes.ts) | [agent-turn.ts](agent-turn.ts)，可用指数和因子上下文在 [agent-context.ts](agent-context.ts) |
 | 提交回测 | [backtest-routes.ts](backtest-routes.ts) | [backtest/submit.ts](backtest/submit.ts) → [backtest-job.ts](backtest-job.ts) |
 | 历史回测报告、任务进度 | 同上 | [backtest/reports.ts](backtest/reports.ts)，读取冻结报告而非当前策略缓存 |
 | 检查参数、提交扫描 | [scan-routes.ts](scan-routes.ts) | [scans/parameters.ts](scans/parameters.ts)、[scans/submit.ts](scans/submit.ts) → [scan-job.ts](scan-job.ts) |
 | 扫描报告、任务进度 | 同上 | [scans/reports.ts](scans/reports.ts) |
 | 回测报告中的风险研究 | 随完整回测报告返回 | [analysis/risk/backtest-risk-analysis.ts](analysis/risk/backtest-risk-analysis.ts)，没有独立风险 API |
 
-根级 [routes.ts](routes.ts) 显式导出 `strategyRoute`，由 [resource-routes.ts](resource-routes.ts) 组合定义、工作台、回测与扫描路由，统一挂载 `/api/app/strategies`。`workbench-routes.ts` 只处理 Agent 与名称建议。回测与扫描分别位于 `/:strategyId/backtests`、`/:strategyId/scans`，报告和任务有各自明确的路径；修改定义与可见性使用 PATCH。实现文件直接引用子路由，不反向导入统一出口。HTTP 负责校验、传入 userId/locale、返回响应和映射业务异常。业务入口检查归属、忙碌状态并控制事务，接收普通参数，不接收 Hono Context。`operation-errors.ts` 与 `route-errors.ts` 分别表达业务拒绝和 HTTP 错误。完整契约见 [路由设计](../../../../docs/design/api-route-naming.md)。
+根级 [routes.ts](routes.ts) 直接组合定义、Agent、回测与扫描路由并具名导出 `strategyRoute`，统一挂载 `/api/app/strategies`。不再经过 `resource-routes.ts`；Agent 路由位于 `agent-routes.ts`，不再使用页面概念 `workbench` 命名。
+
+提交回测/扫描使用 `POST /:strategyId/backtests`、`POST /:strategyId/scans`，均返回 `{ jobId, reportId }`。报告列表位于 `/:strategyId/backtest-reports`、`/:strategyId/scan-reports`，详情使用 `/backtest-reports/:reportId`、`/scan-reports/:reportId`。回测列表仍只返回成功且有结果的报告；扫描列表仍返回各状态报告、最多 50 条。
+
+活动任务查询使用 `/:strategyId/backtest-jobs/active`、`/:strategyId/scan-jobs/active`，`active` 包含 queued/running，统一返回 `{ jobId, reportId } | null`。任务日志使用 `/backtest-jobs/:jobId`、`/scan-jobs/:jobId`，保留增量游标 `since` 并检查用户归属和任务类型。Web 分别保存扫描 jobId 与 reportId，用前者轮询、后者读取结果；刷新页面后通过活动任务查询恢复。
+
+HTTP 负责校验、传入 userId/locale、返回响应和映射业务异常。业务入口检查归属、忙碌状态并控制事务，接收普通参数，不接收 Hono Context。`operation-errors.ts` 与 `route-errors.ts` 分别表达业务拒绝和 HTTP 错误。完整契约见 [路由设计](../../../../docs/design/api-route-naming.md)。
 
 ## 目录职责
 
@@ -39,7 +45,7 @@ Strategy 拥有策略定义、对话启动、回测与参数扫描，以及回�
 
 **参数扫描：** `submitStrategyScan` 检查语言/日期、隔离检查参数、规范化规格并解析样本内外交易日范围 → 冻结配置、参数、范围与数据截止日 → 事务内检查归属/重复任务并创建报告与 Job → `scan-job.ts` 启动 `scans/strategy-scan-worker` 线程 → 每个 cell fork 独立进程运行 → 汇总后由主线程提交。扫描不覆盖当前策略草稿。Python 扫描仍不支持；没有改变子进程退出判断和资源释放方式。
 
-**Agent：** 前端先调用 Strategy 的 `/agent` → `startStrategyAgentTurn` 检查策略归属及运行中的 turn，构造指数/因子及当前代码上下文 → 通用 Agent 执行器执行 Strategy profile → 只读工具查询数据，生成代码经既有编译/受限运行时和标的检查后返回。前端随后使用通用 Agent 事件/取消接口。Agent 不提供配置保存或回测工具；用户核对代码和参数后通过工作台 `/backtest` 发起完整回测。Research 交接复用 Python Strategy profile 生成草稿，同样不自动回测。
+**Agent：** 前端先调用 Strategy 的 `/:strategyId/agent/turns` → `startStrategyAgentTurn` 检查策略归属及运行中的 turn，构造指数/因子及当前代码上下文 → 通用 Agent 执行器执行 Strategy profile → 只读工具查询数据，生成代码经既有编译/受限运行时和标的检查后返回。前端随后使用通用 Agent 事件/取消接口。Agent 不提供配置保存或回测工具；用户核对代码和参数后通过工作台 `POST /:strategyId/backtests` 发起完整回测。Research 交接复用 Python Strategy profile 生成草稿，同样不自动回测。
 
 ## 风险数据和计算边界
 
@@ -66,3 +72,25 @@ Commit 8 已通过人工 review、全量 API 198 文件/1065 项测试与 API �
 正式策略 HTTP API、回测引擎、SDK 示例、自动化测试与数据库中的用户策略不变。本次不涉及 schema 或数据迁移。
 
 验证记录：API typecheck、后端架构边界检查（0 violations）、package.json Prettier 检查及 `git diff --check` 均通过；代码与运维脚本中未发现已删除入口的残留引用。人工代码审查通过后，`src/engine/simulation/rules.test.ts` 的 15 项测试全部通过。本次仅删除无正式调用方的演示文件，未改动生产打包入口或配置，经审查调整验证范围，不运行 bundle 测试。
+
+## 路由职责整理（2026-09-10，完成）
+
+提交：`refactor(strategy): clarify resource routes and route ownership`。
+
+完成范围：五个路由文件、显式报告列表与活动任务路径、扫描按 jobId 轮询、任务类型隔离、删除独立命名接口，并同步 Web client、Lab、现有 E2E 调用和架构约定。无 Prisma schema、数据迁移、引擎或 SDK 变更；不保留旧 URL 别名，API/Web 需同步更新。
+
+新增路由集成覆盖：两类任务的 queued/running/终态活动查询、空值契约、跨用户和跨任务类型拒绝、reportId 不可用于任务查询、since 增量日志、报告列表状态语义、旧路径移除及创建时命名失败回退。
+
+人工代码审查已通过。静态检查全部通过：变更代码的 Prettier、ESLint，根级 `pnpm typecheck`（包括全部 workspace 类型、Research/Factor SDK 与运行时生成物一致性、后端边界检查：637 files，0 violations），以及 `git diff --check`。
+
+行为验证结果：
+
+- 策略路由集成测试 28 项、回测路由测试 3 项、多用户权限测试 6 项，共 37 项全部通过。
+- API `tsc` 与 Web 生产构建均通过；Web 构建保留大 chunk 提示，无构建错误。
+- 策略操作 E2E：创建、回测提交、重复提交拒绝、结果保存与刷新恢复通过。
+- 回测历史 E2E：历史报告选择、结果对比、Research 交接保留指定 reportId 通过。
+- 参数扫描 E2E：4 个参数组合、3 个仓位方案、3 个资金规模，以及扫描刷新恢复全部通过。
+
+E2E 使用编译后的 API 与 Web 预览服务及独立 SQLite 副本。两类刷新恢复通过一次受控的活动任务响应复现“活动查询后计算恰好完成”，随后读取真实任务及报告；真实活动查询的状态与权限由 SQLite 集成测试覆盖。截图 `backtest-report-comparison.png`、`research-backtest-report-handoff.png`、`strategy-scan-reconnect.png`、`strategy-parameter-scan.png` 保存在 `apps/web/acceptance/`，已逐张检查。
+
+临时 API/Web 服务已关闭，3107/5187 监听和数据库连接已释放，隔离数据库副本已删除。原开发数据库未修改。

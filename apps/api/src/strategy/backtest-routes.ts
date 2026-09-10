@@ -5,7 +5,7 @@ import { localeFromRequest } from '#infra/http/locale.js';
 import { backtestStrategyIdentitySchema, backtestJobQuerySchema } from './backtest/inputs.js';
 import { submitStrategyBacktest } from './backtest/submit.js';
 import {
-  findStrategyBacktestJob,
+  findActiveStrategyBacktestJob,
   listStrategyBacktestReports,
   readStrategyBacktestReport,
   readStrategyBacktestJob,
@@ -35,11 +35,11 @@ strategyBacktestRoute.post(
 );
 
 strategyBacktestRoute.get(
-  '/:strategyId/backtests/running',
+  '/:strategyId/backtest-jobs/active',
   validateParam(backtestStrategyIdentitySchema),
   async (c) => {
     try {
-      return c.json(await findStrategyBacktestJob(c.var.userId, c.req.valid('param')));
+      return c.json(await findActiveStrategyBacktestJob(c.var.userId, c.req.valid('param')));
     } catch (error) {
       return strategyOperationApiError(c, error);
     }
@@ -47,7 +47,7 @@ strategyBacktestRoute.get(
 );
 
 strategyBacktestRoute.get(
-  '/:strategyId/backtests',
+  '/:strategyId/backtest-reports',
   validateParam(backtestStrategyIdentitySchema),
   async (c) => {
     try {

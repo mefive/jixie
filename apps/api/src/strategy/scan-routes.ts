@@ -11,7 +11,7 @@ import { inspectStrategyScanParameters } from './scans/parameters.js';
 import { submitStrategyScan } from './scans/submit.js';
 import {
   listStrategyScanReports,
-  findStrategyScanJob,
+  findActiveStrategyScanJob,
   readStrategyScanJob,
   readStrategyScanReport,
 } from './scans/reports.js';
@@ -52,7 +52,7 @@ strategyScanRoute.post(
 );
 
 strategyScanRoute.get(
-  '/:strategyId/scans',
+  '/:strategyId/scan-reports',
   validateParam(scanStrategyIdentitySchema),
   async (c) => {
     try {
@@ -64,35 +64,31 @@ strategyScanRoute.get(
 );
 
 strategyScanRoute.get(
-  '/:strategyId/scans/running',
+  '/:strategyId/scan-jobs/active',
   validateParam(scanStrategyIdentitySchema),
   async (c) => {
     try {
-      return c.json(await findStrategyScanJob(c.var.userId, c.req.valid('param')));
+      return c.json(await findActiveStrategyScanJob(c.var.userId, c.req.valid('param')));
     } catch (error) {
       return strategyOperationApiError(c, error);
     }
   },
 );
 
-strategyScanRoute.get(
-  '/scan-reports/:reportId/job',
-  validateQuery(scanJobQuerySchema),
-  async (c) => {
-    try {
-      return c.json(
-        await readStrategyScanJob(
-          c.var.userId,
-          c.req.param('reportId'),
-          c.req.valid('query'),
-          localeFromRequest(c),
-        ),
-      );
-    } catch (error) {
-      return strategyOperationApiError(c, error);
-    }
-  },
-);
+strategyScanRoute.get('/scan-jobs/:jobId', validateQuery(scanJobQuerySchema), async (c) => {
+  try {
+    return c.json(
+      await readStrategyScanJob(
+        c.var.userId,
+        c.req.param('jobId'),
+        c.req.valid('query'),
+        localeFromRequest(c),
+      ),
+    );
+  } catch (error) {
+    return strategyOperationApiError(c, error);
+  }
+});
 
 strategyScanRoute.get('/scan-reports/:reportId', async (c) => {
   try {

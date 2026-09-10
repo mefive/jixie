@@ -327,7 +327,7 @@ describe('Strategy HTTP business boundaries', () => {
       (await request(`/strategies/scan-reports/${reportId}`, undefined, 'other', 'GET')).status,
     ).toBe(404);
     expect(
-      (await request(`/strategies/scan-reports/${reportId}/job`, undefined, 'other', 'GET')).status,
+      (await request(`/strategies/scan-jobs/${jobId}`, undefined, 'other', 'GET')).status,
     ).toBe(404);
     expect(resources.wake).toHaveBeenCalledTimes(1);
   });
@@ -386,19 +386,21 @@ describe('Strategy HTTP business boundaries', () => {
 
   it('resolves collection operations before strategy identities and uses PATCH for edits', async () => {
     expect(
-      (await request('/strategies/strategy/backtests', undefined, 'owner', 'GET')).status,
+      (await request('/strategies/strategy/backtest-reports', undefined, 'owner', 'GET')).status,
     ).toBe(200);
     expect(
       await (
-        await request('/strategies/strategy/backtests/running', undefined, 'owner', 'GET')
+        await request('/strategies/strategy/backtest-jobs/active', undefined, 'owner', 'GET')
       ).json(),
-    ).toEqual({ jobId: null });
-    expect((await request('/strategies/strategy/scans', undefined, 'owner', 'GET')).status).toBe(
-      200,
-    );
+    ).toBeNull();
     expect(
-      await (await request('/strategies/strategy/scans/running', undefined, 'owner', 'GET')).json(),
-    ).toEqual({ reportId: null, jobId: null });
+      (await request('/strategies/strategy/scan-reports', undefined, 'owner', 'GET')).status,
+    ).toBe(200);
+    expect(
+      await (
+        await request('/strategies/strategy/scan-jobs/active', undefined, 'owner', 'GET')
+      ).json(),
+    ).toBeNull();
     expect((await request('/strategies/scan-parameters/inspect', {})).status).toBe(400);
     expect((await request('/strategies/strategy', { messages: [] })).status).toBe(404);
     expect((await request('/strategy/backtest?strategyId=strategy', config)).status).toBe(404);
@@ -426,15 +428,112 @@ describe('Strategy HTTP business boundaries', () => {
     expect(resources.enqueue).toHaveBeenCalledTimes(1);
   });
 
-  it('preserves naming validation and service-unavailable responses', async () => {
-    expect((await request('/strategies/name-suggestions', {})).status).toBe(400);
+  describe.each(['backtest', 'scan'] as const)('%s report and job resources', (domain) => {
+    async function submit() {
+      const response = await request(
+        `/strategies/strategy/${domain}s`,
+        domain === 'backtest'
+          ? config
+          : { config, spec: { dimensions: [{ key: 'lookback', values: [10, 30] }] } },
+      );
+      expect(response.status).toBe(200);
+      return (await response.json()) as { jobId: string; reportId: string };
+    }
+
+    it.each(['queued', 'running', 'done', 'error', 'stale'] as const)(
+      'returns an active job reference only for active execution states: %s',
+      async (status) => {
+        const reference = await submit();
+        await prisma.job.update({ where: { id: reference.jobId }, data: { status } });
+
+        const activePath = `/strategies/strategy/${domain}-jobs/active`;
+        const response = await request(`${activePath}?strategyId=other`, undefined, 'owner', 'GET');
+        expect(response.status).toBe(200);
+        expect(await response.json()).toEqual(
+          status === 'queued' || status === 'running' ? reference : null,
+        );
+        expect(await (await request(activePath, undefined, 'other', 'GET')).json()).toBeNull();
+        expect(
+          await (
+            await request(`/strategies/missing/${domain}-jobs/active`, undefined, 'owner', 'GET')
+          ).json(),
+        ).toBeNull();
+      },
+    );
+
+    it('polls by job ID with incremental logs and rejects other owners, types and report IDs', async () => {
+      const { jobId, reportId } = await submit();
+      const logs = [
+        { source: 'system', level: 'info', text: 'Started' },
+        { source: 'system', level: 'info', text: 'Finished' },
+      ];
+      await prisma.job.update({
+        where: { id: jobId },
+        data: { status: 'done', logs: JSON.stringify(logs) },
+      });
+
+      const jobPath = `/strategies/${domain}-jobs/${jobId}`;
+      const response = await request(`${jobPath}?since=1`, undefined, 'owner', 'GET');
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({
+        status: 'done',
+        logs: [logs[1]],
+        nextSince: 2,
+      });
+      expect(
+        await (await request(`${jobPath}?since=2`, undefined, 'owner', 'GET')).json(),
+      ).toMatchObject({ logs: [], nextSince: 2 });
+      expect((await request(`${jobPath}?since=-1`, undefined, 'owner', 'GET')).status).toBe(400);
+      expect((await request(jobPath, undefined, 'other', 'GET')).status).toBe(404);
+      for (const wrongId of [reportId, 'missing']) {
+        expect(
+          (await request(`/strategies/${domain}-jobs/${wrongId}`, undefined, 'owner', 'GET'))
+            .status,
+        ).toBe(404);
+      }
+
+      const otherDomain = domain === 'backtest' ? 'scan' : 'backtest';
+      expect(
+        (await request(`/strategies/${otherDomain}-jobs/${jobId}`, undefined, 'owner', 'GET'))
+          .status,
+      ).toBe(404);
+      await prisma.job.update({ where: { id: jobId }, data: { kind: 'factor', status: 'queued' } });
+      expect((await request(jobPath, undefined, 'owner', 'GET')).status).toBe(404);
+      expect(
+        await (
+          await request(`/strategies/strategy/${domain}-jobs/active`, undefined, 'owner', 'GET')
+        ).json(),
+      ).toBeNull();
+    });
+
+    it('keeps report list status semantics and removes the former collection and running paths', async () => {
+      const { reportId } = await submit();
+      const listPath = `/strategies/strategy/${domain}-reports`;
+      const list = await request(listPath, undefined, 'owner', 'GET');
+      expect(list.status).toBe(200);
+      expect(await list.json()).toEqual(
+        domain === 'backtest' ? [] : [expect.objectContaining({ id: reportId, status: 'running' })],
+      );
+      expect(await (await request(listPath, undefined, 'other', 'GET')).json()).toEqual([]);
+      for (const oldPath of [
+        `/strategies/strategy/${domain}s`,
+        `/strategies/strategy/${domain}s/running`,
+        ...(domain === 'scan' ? [`/strategies/scan-reports/${reportId}/job`] : []),
+      ]) {
+        expect((await request(oldPath, undefined, 'owner', 'GET')).status).toBe(404);
+      }
+    });
+  });
+
+  it('removes the standalone naming endpoint while creation still falls back on naming failure', async () => {
+    expect((await request('/strategies/name-suggestions', { code: config.code })).status).toBe(404);
     expect(resources.name).not.toHaveBeenCalled();
     resources.name.mockRejectedValue(new Error('Naming fixture unavailable'));
-    const response = await request('/strategies/name-suggestions', { code: config.code });
-    expect(response.status).toBe(503);
-    expect(await response.json()).toEqual({
-      error: { code: 'SERVICE_UNAVAILABLE', message: 'Naming fixture unavailable' },
-    });
+
+    const response = await request('/strategies', { ...config, name: undefined });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ name: t('en', 'unnamedStrategy') });
+    expect(resources.name).toHaveBeenCalledOnce();
   });
 
   it.each(['typescript', 'python'] as const)(

@@ -6,20 +6,30 @@ import type {
   BacktestSummary,
 } from '@jixie/shared';
 import { Prisma } from '@prisma/client';
-import { getJob, findRunningJob } from '#infra/jobs/records.js';
+import { getJob, ACTIVE_JOB_STATUSES } from '#infra/jobs/records.js';
 import { prisma } from '#infra/database/prisma.js';
 import type { backtestStrategyIdentitySchema, backtestJobQuerySchema } from './inputs.js';
 import { t } from '#i18n/index.js';
 import type { Locale } from '@jixie/shared';
 import { failStrategyOperation } from '../operation-errors.js';
 
-export async function findStrategyBacktestJob(
+export async function findActiveStrategyBacktestJob(
   userId: string,
   query: z.infer<typeof backtestStrategyIdentitySchema>,
 ) {
-  const jobId = await findRunningJob(userId, 'backtest', query.strategyId);
+  const job = await prisma.job.findFirst({
+    where: {
+      userId,
+      kind: 'backtest',
+      key: query.strategyId,
+      status: { in: ACTIVE_JOB_STATUSES },
+      backtestReport: { userId, strategyId: query.strategyId },
+    },
+    orderBy: { createdAt: 'desc' },
+    select: { id: true, backtestReportId: true },
+  });
 
-  return { jobId };
+  return job?.backtestReportId ? { jobId: job.id, reportId: job.backtestReportId } : null;
 }
 
 export async function listStrategyBacktestReports(
@@ -91,7 +101,16 @@ export async function readStrategyBacktestJob(
   query: z.infer<typeof backtestJobQuerySchema>,
   locale: Locale,
 ) {
-  const job = await getJob(userId, jobId, Number(query.since ?? '0'));
+  const ownedJob = await prisma.job.findFirst({
+    where: { id: jobId, userId, kind: 'backtest' },
+    select: { id: true },
+  });
+
+  if (!ownedJob) {
+    return failStrategyOperation('missing', t(locale, 'backtestJobNotFound'));
+  }
+
+  const job = await getJob(userId, ownedJob.id, Number(query.since ?? '0'));
 
   if (!job) {
     return failStrategyOperation('missing', t(locale, 'backtestJobNotFound'));
