@@ -1,5 +1,5 @@
-import { addDays } from '../../date.js';
-import { prisma, type Prisma } from '../../infra/database/prisma.js';
+import { addDays } from '#date';
+import { prisma, type Prisma } from '#infra/database/prisma.js';
 import { COMMODITY_HOLDING_SPECS } from './commodity-futures.js';
 import {
   COMMODITY_HOLDING_POSITION_VERSION,

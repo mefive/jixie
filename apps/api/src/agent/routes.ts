@@ -2,13 +2,13 @@ import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { z } from 'zod';
 import type { AgentStreamEvent } from '@jixie/shared';
-import { apiError, validateJson, validateQuery } from '../infra/http/errors.js';
+import { apiError, validateJson, validateQuery } from '#infra/http/errors.js';
 import * as turnBus from './turns/bus.js';
 import { runReadOnlySql, jsonSafe } from './tools/sql/read-only-sql.js';
 import { CHART_ROW_CAP } from './tools/charts/render-chart.js';
 import { runComputeChartRows } from './tools/charts/render-computed-chart.js';
 import { computeChartSpecSchema } from './tools/charts/spec.js';
-import { m } from '../infra/http/locale.js';
+import { m } from '#infra/http/locale.js';
 import { listConversations, listConversationMessages } from './conversations/read.js';
 import { getTurnDetail } from './turns/read.js';
 

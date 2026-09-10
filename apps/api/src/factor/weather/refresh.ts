@@ -1,6 +1,6 @@
 import { Worker } from 'node:worker_threads';
 import type { FactorReport, FactorWeatherPoint } from '@jixie/shared';
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 import { createDefaultFactorAnalysisSpecV3, canonicalJson, sha256 } from '../reports/spec.js';
 
 const workerUrl = import.meta.url.endsWith('.ts')

@@ -1,4 +1,4 @@
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 
 export async function latestCompletedTradeDate(): Promise<string | null> {
   const { today, hour } = shanghaiClock();

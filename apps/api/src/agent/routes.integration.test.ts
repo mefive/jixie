@@ -5,11 +5,11 @@ import { resolve } from 'node:path';
 import { Hono } from 'hono';
 import type { AgentStreamEvent, AgentTurnTrace } from '@jixie/shared';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AgentLlm } from '../infra/llm/agent-llm.js';
+import type { AgentLlm } from '#infra/llm/agent-llm.js';
 
 const fixture = vi.hoisted(() => ({ directory: '' }));
 const resources = vi.hoisted(() => ({ llm: vi.fn<AgentLlm>(), sql: vi.fn(), compute: vi.fn() }));
-vi.mock('../infra/database/prisma.js', async () => {
+vi.mock('#infra/database/prisma.js', async () => {
   const { mkdtempSync, writeFileSync } = await import('node:fs');
   const { default: exports } = await import('@prisma/client');
   fixture.directory = mkdtempSync('/tmp/jixie-agent-http-');
@@ -17,7 +17,7 @@ vi.mock('../infra/database/prisma.js', async () => {
   writeFileSync(database, '');
   return { prisma: new exports.PrismaClient({ datasourceUrl: `file:${database}` }) };
 });
-vi.mock('../infra/llm/deepseek.js', () => ({ chatTools: resources.llm }));
+vi.mock('#infra/llm/deepseek.js', () => ({ chatTools: resources.llm }));
 vi.mock('./tools/sql/read-only-sql.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./tools/sql/read-only-sql.js')>()),
   runReadOnlySql: resources.sql,
@@ -26,7 +26,7 @@ vi.mock('./tools/charts/render-computed-chart.js', () => ({
   runComputeChartRows: resources.compute,
 }));
 
-import { prisma } from '../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 import { routes } from './routes.js';
 import * as turnBus from './turns/bus.js';
 import { enqueueAgentTurn } from './turns/run.js';

@@ -1,5 +1,5 @@
-import { prisma } from '../../src/infra/database/prisma.js';
-import { canonicalizeStockCodes } from '../../src/maintenance/canonicalize-stock-codes.js';
+import { prisma } from '#infra/database/prisma.js';
+import { canonicalizeStockCodes } from '#maintenance/canonicalize-stock-codes.js';
 
 canonicalizeStockCodes()
   .catch((error: unknown) => {

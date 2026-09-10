@@ -5,13 +5,13 @@ import type {
   ResearchClarificationQuestionV1,
   ResearchClarificationV1,
 } from '@jixie/shared';
-import { resolveResearchConceptBindings } from '../../research/catalog/concept-binding-resolver.js';
+import { resolveResearchConceptBindings } from '#research/catalog/concept-binding-resolver.js';
 import {
   researchConceptBindingSdkCall,
   researchConceptBindingRegistry,
   type ResearchConceptBindingV1,
-} from '../../research/catalog/concept-bindings.js';
-import { RESEARCH_CONCEPT_IDS, researchConceptById } from '../../research/catalog/concepts.js';
+} from '#research/catalog/concept-bindings.js';
+import { RESEARCH_CONCEPT_IDS, researchConceptById } from '#research/catalog/concepts.js';
 import type { ResearchCatalogTurnEvidence } from './search-research-catalog.js';
 import type { AgentTool } from './types.js';
 

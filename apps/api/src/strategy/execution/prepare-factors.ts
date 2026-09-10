@@ -4,27 +4,27 @@ import {
   type FactorDependency,
   type Locale,
 } from '@jixie/shared';
-import { prisma } from '../../infra/database/prisma.js';
-import { toCommonJs } from '../../infra/runtime/typescript/isolate-run.js';
-import { BUILTIN_USER_ID } from '../../factor/definitions/builtin-factors.js';
+import { prisma } from '#infra/database/prisma.js';
+import { toCommonJs } from '#infra/runtime/typescript/isolate-run.js';
+import { BUILTIN_USER_ID } from '#factor/definitions/builtin-factors.js';
 import {
   compilePanelFactor,
   compileTimeSeriesFactor,
-} from '../../factor/runtime/typescript/compile-asset-factor.js';
-import { normalizeAnalysisKind } from '../../factor/publication/factor.js';
-import { parseAssetFactorAnalysisSourceSnapshot } from '../../factor/analysis-job.js';
-import { isResearchOnlyFactorV2Field } from '../../factor/definitions/fields.js';
-import { factorResearchSpecV1Schema, sha256 } from '../../factor/reports/spec.js';
-import { compilePythonCrossSectionalFactor } from '../../factor/runtime/python/cross-sectional.js';
+} from '#factor/runtime/typescript/compile-asset-factor.js';
+import { normalizeAnalysisKind } from '#factor/publication/factor.js';
+import { parseAssetFactorAnalysisSourceSnapshot } from '#factor/analysis-job.js';
+import { isResearchOnlyFactorV2Field } from '#factor/definitions/fields.js';
+import { factorResearchSpecV1Schema, sha256 } from '#factor/reports/spec.js';
+import { compilePythonCrossSectionalFactor } from '#factor/runtime/python/cross-sectional.js';
 import {
   compilePythonPanelFactor,
   compilePythonTimeSeriesFactor,
-} from '../../factor/runtime/python/asset-factor.js';
-import { t } from '../../i18n/messages.js';
+} from '#factor/runtime/python/asset-factor.js';
+import { t } from '#i18n/messages.js';
 import {
   extractCustomFactorHistoryFields,
   type CustomFactorModule,
-} from '../../engine/factors/custom-factor.js';
+} from '#engine/factors/custom-factor.js';
 
 const ENGINE_FACTOR_KEYS = new Set<string>(ENGINE_FACTORS.map((factor) => factor.key));
 

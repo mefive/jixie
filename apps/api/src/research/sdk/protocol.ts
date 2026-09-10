@@ -7,7 +7,7 @@ import {
   MAX_ERROR_CHARACTERS,
   runtimeLogFrameSchema,
   runtimeErrorFrameSchema,
-} from '../../infra/runtime/python/protocol.js';
+} from '#infra/runtime/python/protocol.js';
 
 const MAX_OUTPUT_CHARACTERS = 8 * 1024 * 1024;
 

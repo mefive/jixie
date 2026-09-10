@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { fixturePort, type FixtureSpec } from '../../../engine/testing/fixture-port.js';
-import { runStrategy } from '../../../engine/simulation/run.js';
+import { fixturePort, type FixtureSpec } from '#engine/testing/fixture-port.js';
+import { runStrategy } from '#engine/simulation/run.js';
 import { defineStrategy } from '../typescript/sdk.js';
 import { createPythonStrategyRuntime } from './runtime.js';
 

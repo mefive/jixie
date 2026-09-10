@@ -1,9 +1,9 @@
 import type { Prisma } from '@prisma/client';
 import { type AgentTurnTrace, type ChatMessage, type MessagePart } from '@jixie/shared';
 import { ulid } from 'ulid';
-import { prisma } from '../../infra/database/prisma.js';
-import { persistResearchCellChangePart } from '../../research/proposals/change-records.js';
-import { persistResearchClarificationPart } from '../../research/proposals/clarification-records.js';
+import { prisma } from '#infra/database/prisma.js';
+import { persistResearchCellChangePart } from '#research/proposals/change-records.js';
+import { persistResearchClarificationPart } from '#research/proposals/clarification-records.js';
 import type { TurnEntity } from './run.js';
 import { findOrCreateConversation } from '../conversations/manage.js';
 

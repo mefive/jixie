@@ -3,54 +3,54 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch --env-file=.env src/index.ts",
+    "dev": "tsx watch --conditions=development --env-file=.env src/index.ts",
     "build": "tsc",
     "start": "node dist/src/index.js",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "test:watch": "vitest",
+    "test": "node --conditions=development node_modules/vitest/vitest.mjs run",
+    "test:watch": "node --conditions=development node_modules/vitest/vitest.mjs",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
     "backup": "node scripts/maintenance/backup-db.mjs",
-    "maintenance": "tsx --env-file=.env scripts/maintenance/run-maintenance.ts",
-    "signals:run": "tsx --env-file=.env scripts/maintenance/run-signals.ts",
-    "audit:data": "tsx --env-file=.env scripts/audit/audit-data.ts",
-    "audit:valuation-samples": "tsx --env-file=.env scripts/audit/audit-valuation-samples.ts",
-    "audit:financial-selected": "tsx --env-file=.env scripts/audit/audit-selected-financials.ts",
-    "audit:etf": "tsx --env-file=.env scripts/audit/audit-etf-registry.ts",
-    "probe:asset-allocation": "tsx --env-file=.env scripts/probes/probe-asset-allocation.ts",
-    "probe:fundamentals": "tsx --env-file=.env scripts/probes/probe-fundamentals.ts",
-    "probe:main-business": "tsx --env-file=.env scripts/probes/probe-main-business.ts",
-    "gen:stats-doc": "tsx scripts/generators/gen-stats-doc.ts",
-    "gen:invite": "tsx --env-file=.env scripts/maintenance/gen-invite.ts",
-    "factor:report": "tsx --env-file=.env scripts/research/factor-report.ts",
-    "smoke": "tsx --env-file=.env scripts/probes/smoke.ts",
-    "sync": "tsx --env-file=.env scripts/sync/sync.ts",
-    "sync:stock-history": "tsx --env-file=.env scripts/sync/sync-stock-history.ts",
-    "canonicalize:stock-codes": "tsx --env-file=.env scripts/maintenance/canonicalize-stock-codes.ts",
-    "sync:basic": "tsx --env-file=.env scripts/sync/sync-basic.ts",
-    "sync:fina": "tsx --env-file=.env scripts/sync/sync-fina.ts",
-    "sync:futures": "tsx --env-file=.env scripts/sync/sync-futures.ts",
-    "sync:commodity-futures": "tsx --env-file=.env scripts/sync/sync-commodity-futures.ts",
-    "sync:commodity-continuous": "tsx --env-file=.env scripts/sync/sync-commodity-continuous-returns.ts",
-    "sync:commodity-holdings": "tsx --env-file=.env scripts/sync/sync-commodity-holdings.ts",
-    "sync:commodity-warehouse-receipts": "tsx --env-file=.env scripts/sync/sync-commodity-warehouse-receipts.ts",
-    "sync:etf": "tsx --env-file=.env scripts/sync/sync-etf.ts",
-    "sync:index": "tsx --env-file=.env scripts/sync/sync-index.ts",
-    "sync:index-daily": "tsx --env-file=.env scripts/sync/sync-index-daily.ts",
-    "sync:cross-market-benchmarks": "tsx --env-file=.env scripts/sync/sync-cross-market-benchmarks.ts",
-    "sync:index-basic": "tsx --env-file=.env scripts/sync/sync-index-basic.ts",
-    "sync:market-state": "tsx --env-file=.env scripts/sync/sync-market-state.ts",
-    "sync:market-reference": "tsx --env-file=.env scripts/sync/sync-market-reference.ts",
-    "sync:rates": "tsx --env-file=.env scripts/sync/sync-rates.ts",
-    "sync:credit-curves": "tsx --env-file=.env scripts/sync/sync-credit-curves.ts",
-    "sync:external-market": "tsx --env-file=.env scripts/sync/sync-external-market.ts",
-    "sync:macro": "tsx --env-file=.env scripts/sync/sync-macro.ts",
-    "sync:limit": "tsx --env-file=.env scripts/sync/sync-limit.ts",
-    "sync:moneyflow": "tsx --env-file=.env scripts/sync/sync-moneyflow.ts",
-    "sync:sw-industry": "tsx --env-file=.env scripts/sync/sync-sw-industry.ts",
-    "sync:toplist": "tsx --env-file=.env scripts/sync/sync-toplist.ts",
-    "peek": "tsx --env-file=.env scripts/audit/peek.ts"
+    "maintenance": "tsx --conditions=development --env-file=.env scripts/maintenance/run-maintenance.ts",
+    "signals:run": "tsx --conditions=development --env-file=.env scripts/maintenance/run-signals.ts",
+    "audit:data": "tsx --conditions=development --env-file=.env scripts/audit/audit-data.ts",
+    "audit:valuation-samples": "tsx --conditions=development --env-file=.env scripts/audit/audit-valuation-samples.ts",
+    "audit:financial-selected": "tsx --conditions=development --env-file=.env scripts/audit/audit-selected-financials.ts",
+    "audit:etf": "tsx --conditions=development --env-file=.env scripts/audit/audit-etf-registry.ts",
+    "probe:asset-allocation": "tsx --conditions=development --env-file=.env scripts/probes/probe-asset-allocation.ts",
+    "probe:fundamentals": "tsx --conditions=development --env-file=.env scripts/probes/probe-fundamentals.ts",
+    "probe:main-business": "tsx --conditions=development --env-file=.env scripts/probes/probe-main-business.ts",
+    "gen:stats-doc": "tsx --conditions=development scripts/generators/gen-stats-doc.ts",
+    "gen:invite": "tsx --conditions=development --env-file=.env scripts/maintenance/gen-invite.ts",
+    "factor:report": "tsx --conditions=development --env-file=.env scripts/research/factor-report.ts",
+    "smoke": "tsx --conditions=development --env-file=.env scripts/probes/smoke.ts",
+    "sync": "tsx --conditions=development --env-file=.env scripts/sync/sync.ts",
+    "sync:stock-history": "tsx --conditions=development --env-file=.env scripts/sync/sync-stock-history.ts",
+    "canonicalize:stock-codes": "tsx --conditions=development --env-file=.env scripts/maintenance/canonicalize-stock-codes.ts",
+    "sync:basic": "tsx --conditions=development --env-file=.env scripts/sync/sync-basic.ts",
+    "sync:fina": "tsx --conditions=development --env-file=.env scripts/sync/sync-fina.ts",
+    "sync:futures": "tsx --conditions=development --env-file=.env scripts/sync/sync-futures.ts",
+    "sync:commodity-futures": "tsx --conditions=development --env-file=.env scripts/sync/sync-commodity-futures.ts",
+    "sync:commodity-continuous": "tsx --conditions=development --env-file=.env scripts/sync/sync-commodity-continuous-returns.ts",
+    "sync:commodity-holdings": "tsx --conditions=development --env-file=.env scripts/sync/sync-commodity-holdings.ts",
+    "sync:commodity-warehouse-receipts": "tsx --conditions=development --env-file=.env scripts/sync/sync-commodity-warehouse-receipts.ts",
+    "sync:etf": "tsx --conditions=development --env-file=.env scripts/sync/sync-etf.ts",
+    "sync:index": "tsx --conditions=development --env-file=.env scripts/sync/sync-index.ts",
+    "sync:index-daily": "tsx --conditions=development --env-file=.env scripts/sync/sync-index-daily.ts",
+    "sync:cross-market-benchmarks": "tsx --conditions=development --env-file=.env scripts/sync/sync-cross-market-benchmarks.ts",
+    "sync:index-basic": "tsx --conditions=development --env-file=.env scripts/sync/sync-index-basic.ts",
+    "sync:market-state": "tsx --conditions=development --env-file=.env scripts/sync/sync-market-state.ts",
+    "sync:market-reference": "tsx --conditions=development --env-file=.env scripts/sync/sync-market-reference.ts",
+    "sync:rates": "tsx --conditions=development --env-file=.env scripts/sync/sync-rates.ts",
+    "sync:credit-curves": "tsx --conditions=development --env-file=.env scripts/sync/sync-credit-curves.ts",
+    "sync:external-market": "tsx --conditions=development --env-file=.env scripts/sync/sync-external-market.ts",
+    "sync:macro": "tsx --conditions=development --env-file=.env scripts/sync/sync-macro.ts",
+    "sync:limit": "tsx --conditions=development --env-file=.env scripts/sync/sync-limit.ts",
+    "sync:moneyflow": "tsx --conditions=development --env-file=.env scripts/sync/sync-moneyflow.ts",
+    "sync:sw-industry": "tsx --conditions=development --env-file=.env scripts/sync/sync-sw-industry.ts",
+    "sync:toplist": "tsx --conditions=development --env-file=.env scripts/sync/sync-toplist.ts",
+    "peek": "tsx --conditions=development --env-file=.env scripts/audit/peek.ts"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.0",
@@ -73,5 +73,63 @@
     "tsx": "^4.20.0",
     "typescript": "^5.9.0",
     "vitest": "^3.0.0"
+  },
+  "imports": {
+    "#agent/*": {
+      "development": "./src/agent/*",
+      "default": "./dist/src/agent/*"
+    },
+    "#auth/*": {
+      "development": "./src/auth/*",
+      "default": "./dist/src/auth/*"
+    },
+    "#engine/*": {
+      "development": "./src/engine/*",
+      "default": "./dist/src/engine/*"
+    },
+    "#factor/*": {
+      "development": "./src/factor/*",
+      "default": "./dist/src/factor/*"
+    },
+    "#i18n/*": {
+      "development": "./src/i18n/*",
+      "default": "./dist/src/i18n/*"
+    },
+    "#infra/*": {
+      "development": "./src/infra/*",
+      "default": "./dist/src/infra/*"
+    },
+    "#maintenance/*": {
+      "development": "./src/maintenance/*",
+      "default": "./dist/src/maintenance/*"
+    },
+    "#market/*": {
+      "development": "./src/market/*",
+      "default": "./dist/src/market/*"
+    },
+    "#math/*": {
+      "development": "./src/math/*",
+      "default": "./dist/src/math/*"
+    },
+    "#research/*": {
+      "development": "./src/research/*",
+      "default": "./dist/src/research/*"
+    },
+    "#sharing/*": {
+      "development": "./src/sharing/*",
+      "default": "./dist/src/sharing/*"
+    },
+    "#signals/*": {
+      "development": "./src/signals/*",
+      "default": "./dist/src/signals/*"
+    },
+    "#strategy/*": {
+      "development": "./src/strategy/*",
+      "default": "./dist/src/strategy/*"
+    },
+    "#date": {
+      "development": "./src/date.ts",
+      "default": "./dist/src/date.js"
+    }
   }
 }

@@ -1,5 +1,5 @@
-import { prisma } from '../../infra/database/prisma.js';
-import { log } from '../../infra/logging.js';
+import { prisma } from '#infra/database/prisma.js';
+import { log } from '#infra/logging.js';
 import { MARKET_WEATHER_INDICATOR_INDEX_CODES } from '../registry/index-presets.js';
 
 interface DateSlice {

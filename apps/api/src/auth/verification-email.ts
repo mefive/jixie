@@ -1,5 +1,5 @@
 import type { Locale } from '@jixie/shared';
-import { t } from '../i18n/index.js';
+import { t } from '#i18n/index.js';
 
 // 6-digit verification code email template. HTML uses inline styles (email clients handle <style>
 // blocks poorly); no plain-text version is sent.

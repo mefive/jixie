@@ -4,16 +4,16 @@ import {
   RESEARCH_PYTHON_RUNTIME_CATALOG_QUERY_V1,
   searchResearchSdkAgentCatalog,
 } from '@jixie/shared';
-import { prisma } from '../../infra/database/prisma.js';
-import { researchCapabilityCatalog } from '../../research/catalog/capabilities.js';
-import { resolveResearchConceptBindings } from '../../research/catalog/concept-binding-resolver.js';
+import { prisma } from '#infra/database/prisma.js';
+import { researchCapabilityCatalog } from '#research/catalog/capabilities.js';
+import { resolveResearchConceptBindings } from '#research/catalog/concept-binding-resolver.js';
 import {
   researchConceptBindingSdkCall,
   researchConceptBindings,
   researchFxSdkCall,
   researchMacroSdkCall,
   researchYieldCurveSdkCall,
-} from '../../research/catalog/concept-bindings.js';
+} from '#research/catalog/concept-bindings.js';
 import {
   RESEARCH_CONCEPT_INSTRUMENT_FORMS,
   RESEARCH_CONCEPT_IDS,
@@ -25,12 +25,12 @@ import {
   type ResearchCatalogSourceKind,
   type ResearchConceptDimensionsV1,
   type ResearchConceptId,
-} from '../../research/catalog/concepts.js';
+} from '#research/catalog/concepts.js';
 import type { AgentTool } from './types.js';
-import { researchSourceDecisions } from '../../research/catalog/source-decisions.js';
-import { compactCrossMarketDataContractRegistry } from '../../research/datasets/cross-market-data-contracts.js';
-import { HKD_CNH_DERIVED_CODE } from '../../market/registry/cross-market-benchmarks.js';
-import { etfResearchMembership } from '../../market/registry/etf-research-registry.js';
+import { researchSourceDecisions } from '#research/catalog/source-decisions.js';
+import { compactCrossMarketDataContractRegistry } from '#research/datasets/cross-market-data-contracts.js';
+import { HKD_CNH_DERIVED_CODE } from '#market/registry/cross-market-benchmarks.js';
+import { etfResearchMembership } from '#market/registry/etf-research-registry.js';
 
 const filtersSchema = z.strictObject({
   sourceKinds: z

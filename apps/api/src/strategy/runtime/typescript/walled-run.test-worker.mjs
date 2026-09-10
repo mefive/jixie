@@ -4,7 +4,7 @@ import { register } from 'tsx/esm/api';
 register();
 
 const { runWalledBacktest } = await import('./walled-run.ts');
-const { fixturePort } = await import('../../../engine/testing/fixture-port.ts');
+const { fixturePort } = await import('#engine/testing/fixture-port.js');
 
 try {
   const result = await runWalledBacktest(

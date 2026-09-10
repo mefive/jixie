@@ -18,20 +18,20 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock('./server.js', () => ({ buildApp: mocks.buildApp }));
 vi.mock('@hono/node-server', () => ({ serve: mocks.serve }));
-vi.mock('./infra/jobs/executor.js', () => ({ createJobExecutor: mocks.createExecutor }));
-vi.mock('./infra/jobs/queue.js', () => ({ startJobQueue: mocks.startQueue }));
-vi.mock('./agent/turns/records.js', () => ({
+vi.mock('#infra/jobs/executor.js', () => ({ createJobExecutor: mocks.createExecutor }));
+vi.mock('#infra/jobs/queue.js', () => ({ startJobQueue: mocks.startQueue }));
+vi.mock('#agent/turns/records.js', () => ({
   markRunningAgentTurnsInterrupted: mocks.agentRecovery,
 }));
-vi.mock('./factor/weather/refresh.js', () => ({
+vi.mock('#factor/weather/refresh.js', () => ({
   resetInterruptedFactorWeatherRefreshes: mocks.weatherRecovery,
 }));
-vi.mock('./factor/definitions/builtin-factors.js', () => ({ seedBuiltinFactors: mocks.seed }));
-vi.mock('./strategy/backtest-job.js', () => ({ backtestJob: mocks.backtest }));
-vi.mock('./factor/factor-job.js', () => ({ factorJob: mocks.factor }));
-vi.mock('./strategy/scan-job.js', () => ({ strategyScanJob: mocks.scan }));
-vi.mock('./signals/signal-job.js', () => ({ signalJob: mocks.signal }));
-vi.mock('./research/curator-job.js', () => ({ researchCuratorJob: mocks.curator }));
+vi.mock('#factor/definitions/builtin-factors.js', () => ({ seedBuiltinFactors: mocks.seed }));
+vi.mock('#strategy/backtest-job.js', () => ({ backtestJob: mocks.backtest }));
+vi.mock('#factor/factor-job.js', () => ({ factorJob: mocks.factor }));
+vi.mock('#strategy/scan-job.js', () => ({ strategyScanJob: mocks.scan }));
+vi.mock('#signals/signal-job.js', () => ({ signalJob: mocks.signal }));
+vi.mock('#research/curator-job.js', () => ({ researchCuratorJob: mocks.curator }));
 
 import { startServer, jobRegistry } from './bootstrap.js';
 

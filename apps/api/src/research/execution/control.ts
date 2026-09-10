@@ -1,5 +1,5 @@
 import type { ResearchDocumentInterruptResultV1, ResearchDocumentV1 } from '@jixie/shared';
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 import { getResearchDocumentRun } from './run-state.js';
 import { getResearchDocument } from '../documents/read.js';
 import { researchRuntimeManager } from './python-session.js';

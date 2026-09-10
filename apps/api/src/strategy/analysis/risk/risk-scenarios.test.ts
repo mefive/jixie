@@ -5,7 +5,7 @@ import {
   type RiskDataLineageV1,
 } from '@jixie/shared';
 import { describe, expect, it } from 'vitest';
-import type { MarketRiskDriverHistoryV1 } from '../../../market/state/market-risk-drivers.js';
+import type { MarketRiskDriverHistoryV1 } from '#market/state/market-risk-drivers.js';
 import {
   DETERMINISTIC_RISK_SCENARIO_PRESETS_V1,
   HISTORICAL_RISK_SCENARIO_WINDOWS_V1,

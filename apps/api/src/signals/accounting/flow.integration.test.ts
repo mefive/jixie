@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 import { getStrategyExecutionOverview } from './read.js';
 import { initializeSignalAccounting } from './initialize.js';
 import { settleStrategyAccounts } from './settlement.js';

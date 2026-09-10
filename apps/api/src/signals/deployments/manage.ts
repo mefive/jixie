@@ -2,10 +2,10 @@ import { createHash } from 'node:crypto';
 import { ulid } from 'ulid';
 import type { BacktestConfig, Locale, StrategyDeployment } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
-import { codeConfigSchema } from '../../strategy/runtime/typescript/schema.js';
-import { inspectWalledStrategyMetadata } from '../../strategy/runtime/typescript/walled-run.js';
-import { prepareStrategyFactors } from '../../strategy/execution/prepare-factors.js';
-import { prisma } from '../../infra/database/prisma.js';
+import { codeConfigSchema } from '#strategy/runtime/typescript/schema.js';
+import { inspectWalledStrategyMetadata } from '#strategy/runtime/typescript/walled-run.js';
+import { prepareStrategyFactors } from '#strategy/execution/prepare-factors.js';
+import { prisma } from '#infra/database/prisma.js';
 import { assertFactorDependencies, factorDependenciesFromJson } from '../factor-inputs/lineage.js';
 import { deploymentWire } from './read.js';
 

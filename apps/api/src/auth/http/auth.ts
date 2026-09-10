@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { apiError, validateJson } from '../../infra/http/errors.js';
-import { localeFromRequest } from '../../infra/http/locale.js';
+import { apiError, validateJson } from '#infra/http/errors.js';
+import { localeFromRequest } from '#infra/http/locale.js';
 import { normalizeInviteCode } from '../invite-code.js';
 import { destroySession, getSessionUser } from '../session.js';
 import { requestEmailLogin, verifyEmailLogin } from '../email-login.js';

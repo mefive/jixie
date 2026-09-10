@@ -1,14 +1,14 @@
-import { loadTushareConfig } from '../../src/market/providers/tushare/config.js';
+import { loadTushareConfig } from '#market/providers/tushare/config.js';
 import {
   probeAssetAllocationData,
   type AssetAllocationProbeResult,
-} from '../../src/market/providers/tushare/asset-allocation-probe.js';
-import { TushareClient } from '../../src/market/providers/tushare/client.js';
+} from '#market/providers/tushare/asset-allocation-probe.js';
+import { TushareClient } from '#market/providers/tushare/client.js';
 import {
   persistTushareCapabilityProbes,
   tushareCapabilityProbesAreFresh,
-} from '../../src/market/providers/tushare/capability-probe-store.js';
-import { TUSHARE_CAPABILITIES } from '../../src/market/providers/tushare/capability-catalog.js';
+} from '#market/providers/tushare/capability-probe-store.js';
+import { TUSHARE_CAPABILITIES } from '#market/providers/tushare/capability-catalog.js';
 
 function probeDate(args: string[]): string {
   const index = args.indexOf('--date');

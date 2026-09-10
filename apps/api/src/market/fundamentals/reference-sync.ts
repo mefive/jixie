@@ -1,7 +1,7 @@
 import type { TradeDate } from '@jixie/shared';
 import { ulid } from 'ulid';
-import { prisma } from '../../infra/database/prisma.js';
-import { log } from '../../infra/logging.js';
+import { prisma } from '#infra/database/prisma.js';
+import { log } from '#infra/logging.js';
 import { canonicalStockCode } from '../instruments/stock-identity.js';
 import { dividend, finaIndicator, finaIndicatorVip } from '../providers/tushare/api.js';
 import type { TushareClient } from '../providers/tushare/client.js';

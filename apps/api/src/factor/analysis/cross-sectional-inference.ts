@@ -8,7 +8,7 @@ import {
   leastSquaresCoefficients,
   neweyWestMeanInference,
   populationZScores,
-} from '../../math/inference.js';
+} from '#math/inference.js';
 
 export const FAMA_MACBETH_CONTROLS = ['size', 'value', 'momentum', 'quality'] as const;
 

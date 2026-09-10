@@ -1,7 +1,7 @@
 import { ulid } from 'ulid';
 import type { ModelPositionSnapshot, SignalItem } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 
 /** Create queryable execution rows and the two account baselines after a signal run finishes. */
 export async function initializeSignalAccounting(runId: string): Promise<void> {

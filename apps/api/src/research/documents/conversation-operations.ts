@@ -1,4 +1,4 @@
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 import { closeResearchDocumentRuntime } from '../execution/python-session.js';
 
 export async function listResearchConversations(userId: string) {

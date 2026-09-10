@@ -3,9 +3,9 @@ import {
   RESEARCH_PYTHON_RUNTIME_CAPABILITIES_V1,
   RESEARCH_PYTHON_RUNTIME_CATALOG_QUERY_V1,
 } from '@jixie/shared';
-import { researchPlaybookIndex } from '../../research/catalog/playbooks.js';
-import { compactResearchConceptManifest } from '../../research/catalog/concepts.js';
-import { compactResearchAgentHistory } from '../../research/agent-context.js';
+import { researchPlaybookIndex } from '#research/catalog/playbooks.js';
+import { compactResearchConceptManifest } from '#research/catalog/concepts.js';
+import { compactResearchAgentHistory } from '#research/agent-context.js';
 import { loadResearchPlaybookTool } from '../tools/load-research-playbook.js';
 import { runUniverseTool } from '../tools/run-universe.js';
 import { searchResearchCatalogTool } from '../tools/search-research-catalog.js';

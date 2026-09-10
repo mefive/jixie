@@ -1,4 +1,4 @@
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 
 export async function readResearchArtifact(userId: string, artifactId: string) {
   return await prisma.researchArtifact.findFirst({

@@ -1,8 +1,8 @@
 import { ulid } from 'ulid';
 import type { FactorResearchSpecV1, RunFactorAnalysisResponse } from '@jixie/shared';
-import { prisma } from '../../infra/database/prisma.js';
-import { initializeJobLogs } from '../../infra/jobs/logs.js';
-import { wakeJobQueue } from '../../infra/jobs/queue.js';
+import { prisma } from '#infra/database/prisma.js';
+import { initializeJobLogs } from '#infra/jobs/logs.js';
+import { wakeJobQueue } from '#infra/jobs/queue.js';
 import { factorVariantKey, normalizeFactorAnalysisSpec } from './spec.js';
 import { parseResearchIntent } from './research-policy.js';
 import {
@@ -19,7 +19,7 @@ import {
   reportCompatibilityColumns,
 } from './views.js';
 import { factorCodeDataRequirements } from '../analysis/sources.js';
-import { t } from '../../i18n/index.js';
+import { t } from '#i18n/index.js';
 import type { Locale } from '@jixie/shared';
 import { failFactorOperation } from '../operation-errors.js';
 

@@ -4,7 +4,7 @@ import {
   type MacroRiskAxisKeyV1,
   type RiskDataLineageV1,
 } from '@jixie/shared';
-import { prisma, type Prisma } from '../../infra/database/prisma.js';
+import { prisma, type Prisma } from '#infra/database/prisma.js';
 import {
   loadMacroVintagesThrough,
   selectMacroObservationsAsOf,

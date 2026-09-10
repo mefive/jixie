@@ -3,7 +3,7 @@ import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import { zValidator } from '@hono/zod-validator';
 import type { ZodSchema } from 'zod';
 import { localeFromRequest } from './locale.js';
-import { t } from '../../i18n/index.js';
+import { t } from '#i18n/index.js';
 
 // Unified error shape for auth-related routes: { error: { code, message, details? } }
 // - code:    machine-readable, the frontend dispatches on it (toast / highlight field / redirect)

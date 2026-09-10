@@ -1,10 +1,10 @@
-import { runStrategy, runStrategyWithSignals } from '../../../engine/simulation/run.js';
+import { runStrategy, runStrategyWithSignals } from '#engine/simulation/run.js';
 import { applyStrategyParamOverrides, defineStrategy } from './sdk.js';
-import { makeSandboxConsole, noopSandboxConsole } from '../../../infra/runtime/console.js';
-import type { SandboxConsole } from '../../../infra/runtime/console.js';
-import type { EngineDataPort } from '../../../engine/data/data-port.js';
-import type { CustomFactorModule } from '../../../engine/factors/custom-factor.js';
-import type { Strategy } from '../../../engine/types.js';
+import { makeSandboxConsole, noopSandboxConsole } from '#infra/runtime/console.js';
+import type { SandboxConsole } from '#infra/runtime/console.js';
+import type { EngineDataPort } from '#engine/data/data-port.js';
+import type { CustomFactorModule } from '#engine/factors/custom-factor.js';
+import type { Strategy } from '#engine/types.js';
 import type { Locale, StrategyParamValue } from '@jixie/shared';
 
 /**

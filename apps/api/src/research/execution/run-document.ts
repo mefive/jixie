@@ -1,5 +1,5 @@
 import type { ResearchDocumentRunResultV1 } from '@jixie/shared';
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 import { assertNoOpenCellChangeReview } from '../proposals/review-state.js';
 import { startResearchDocumentRun, finishResearchDocumentRun } from './run-state.js';
 import { analyzeAndPersist } from '../dependencies/analyze.js';

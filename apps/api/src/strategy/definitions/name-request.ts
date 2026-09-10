@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { proposeStrategyName } from './naming.js';
-import { t } from '../../i18n/index.js';
+import { t } from '#i18n/index.js';
 import type { Locale } from '@jixie/shared';
 import { failStrategyOperation } from '../operation-errors.js';
 

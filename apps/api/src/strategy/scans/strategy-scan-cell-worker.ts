@@ -1,7 +1,7 @@
 import type { BacktestConfig, Locale, StrategyParamValue } from '@jixie/shared';
-import { prisma } from '../../infra/database/prisma.js';
-import type { CustomFactorModule } from '../../engine/factors/custom-factor.js';
-import { prismaDataPort } from '../../engine/adapters/prisma-port.js';
+import { prisma } from '#infra/database/prisma.js';
+import type { CustomFactorModule } from '#engine/factors/custom-factor.js';
+import { prismaDataPort } from '#engine/adapters/prisma-port.js';
 import { runWalledBacktest } from '../runtime/typescript/walled-run.js';
 
 interface CellRequest {

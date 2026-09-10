@@ -1,4 +1,4 @@
-import type { Prisma } from '../../infra/database/prisma.js';
+import type { Prisma } from '#infra/database/prisma.js';
 
 export type MacroRevisionPolicy = 'as_available' | 'latest_vintage';
 

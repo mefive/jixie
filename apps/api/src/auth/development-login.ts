@@ -1,5 +1,5 @@
 import { ulid } from 'ulid';
-import { prisma } from '../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 import { createSession } from './session.js';
 import { authFailure } from './errors.js';
 

@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 import { codeConfigSchema } from '../runtime/typescript/schema.js';
 import { extractFactorKeys } from '../execution/prepare-factors.js';
-import { t } from '../../i18n/index.js';
+import { t } from '#i18n/index.js';
 import type { Locale } from '@jixie/shared';
 import { failStrategyOperation } from '../operation-errors.js';
 

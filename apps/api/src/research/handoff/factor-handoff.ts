@@ -7,11 +7,11 @@ import {
   type ResearchFactorDraftAnalysisKindV1,
   type ResearchFactorReportSuggestionV1,
 } from '@jixie/shared';
-import { agentTurn, buildAgentMode, type AgentProfile } from '../../agent/core.js';
-import { buildFactorCodegenPrompt } from '../../factor/runtime/codegen-prompt.js';
-import { validateFactorDefinition } from '../../factor/runtime/validate-definition.js';
-import { chatJson, chatTools, type LlmCall } from '../../infra/llm/deepseek.js';
-import type { AgentLlm } from '../../infra/llm/agent-llm.js';
+import { agentTurn, buildAgentMode, type AgentProfile } from '#agent/core.js';
+import { buildFactorCodegenPrompt } from '#factor/runtime/codegen-prompt.js';
+import { validateFactorDefinition } from '#factor/runtime/validate-definition.js';
+import { chatJson, chatTools, type LlmCall } from '#infra/llm/deepseek.js';
+import type { AgentLlm } from '#infra/llm/agent-llm.js';
 import { researchHandoffContext } from './context.js';
 
 const reportSuggestionSchema = z.strictObject({

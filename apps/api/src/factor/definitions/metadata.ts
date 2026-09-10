@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { messageText, type ChatMessage } from '@jixie/shared';
-import { chatJson, type LlmCall } from '../../infra/llm/deepseek.js';
-import { prisma } from '../../infra/database/prisma.js';
+import { chatJson, type LlmCall } from '#infra/llm/deepseek.js';
+import { prisma } from '#infra/database/prisma.js';
 
 const metadataSchema = z.object({
   nameZh: z.string().trim().min(1).max(40),

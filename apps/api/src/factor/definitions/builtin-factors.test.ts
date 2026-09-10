@@ -6,7 +6,7 @@ import {
   type CompiledFactor,
   type FactorBatchItem,
 } from '../runtime/typescript/compile-factor.js';
-import { daysBetween } from '../../date.js';
+import { daysBetween } from '#date';
 import { sha256 } from '../reports/spec.js';
 
 /**

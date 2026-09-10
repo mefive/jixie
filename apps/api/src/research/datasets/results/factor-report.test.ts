@@ -5,7 +5,7 @@ const mocks = vi.hoisted(() => ({
   factorReportFindFirst: vi.fn(),
 }));
 
-vi.mock('../../../infra/database/prisma.js', () => ({
+vi.mock('#infra/database/prisma.js', () => ({
   prisma: {
     agentConversation: { findFirst: mocks.conversationFindFirst },
     factorReport: { findFirst: mocks.factorReportFindFirst },

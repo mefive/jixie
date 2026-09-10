@@ -1,4 +1,4 @@
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 import type { MarketQuote } from './replay.js';
 
 export async function loadMarketQuotes(

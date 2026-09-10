@@ -1,9 +1,9 @@
 import type { TradeDate, TsCode } from '@jixie/shared';
 import { ulid } from 'ulid';
 
-import { addDays } from '../../date.js';
-import { prisma, type Prisma } from '../../infra/database/prisma.js';
-import { log } from '../../infra/logging.js';
+import { addDays } from '#date';
+import { prisma, type Prisma } from '#infra/database/prisma.js';
+import { log } from '#infra/logging.js';
 import { canonicalStockCode } from '../instruments/stock-identity.js';
 import {
   balanceSheet,

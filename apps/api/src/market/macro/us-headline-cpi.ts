@@ -1,5 +1,5 @@
-import { addDays } from '../../date.js';
-import { prisma } from '../../infra/database/prisma.js';
+import { addDays } from '#date';
+import { prisma } from '#infra/database/prisma.js';
 import { macroVintageKind, type PreparedMacroObservation } from './china-macro.js';
 
 export const US_HEADLINE_CPI_SERIES_KEY = 'us_cpi_u_all_items_nsa';

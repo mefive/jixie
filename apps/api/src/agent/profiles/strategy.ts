@@ -1,11 +1,8 @@
-import {
-  buildCodegenPrompt,
-  KNOWN_INDICES,
-} from '../../strategy/runtime/typescript/codegen-prompt.js';
-import { compileStrategy } from '../../strategy/runtime/typescript/compile.js';
-import { buildPythonCodegenPrompt } from '../../strategy/runtime/python/codegen-prompt.js';
-import { createPythonStrategyRuntime } from '../../strategy/runtime/python/runtime.js';
-import { prisma } from '../../infra/database/prisma.js';
+import { buildCodegenPrompt, KNOWN_INDICES } from '#strategy/runtime/typescript/codegen-prompt.js';
+import { compileStrategy } from '#strategy/runtime/typescript/compile.js';
+import { buildPythonCodegenPrompt } from '#strategy/runtime/python/codegen-prompt.js';
+import { createPythonStrategyRuntime } from '#strategy/runtime/python/runtime.js';
+import { prisma } from '#infra/database/prisma.js';
 import { buildAgentMode, TOOLS_HINT, type AgentProfile } from '../core.js';
 import { defaultTools } from '../tools/index.js';
 

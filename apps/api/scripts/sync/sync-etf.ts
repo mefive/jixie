@@ -1,11 +1,11 @@
-import { loadTushareConfig } from '../../src/market/providers/tushare/config.js';
-import { prisma } from '../../src/infra/database/prisma.js';
-import { syncEtfShareSizeRange } from '../../src/market/sync/etf.js';
-import { MAJOR_ETF_CODES } from '../../src/market/registry/etf-presets.js';
-import { ETF_RESEARCH_CODES } from '../../src/market/registry/etf-research-registry.js';
-import { syncEtfBasic, syncEtfDaily } from '../../src/market/sync/etf-history.js';
-import { syncTradeCal } from '../../src/market/sync/calendar.js';
-import { TushareClient } from '../../src/market/providers/tushare/client.js';
+import { loadTushareConfig } from '#market/providers/tushare/config.js';
+import { prisma } from '#infra/database/prisma.js';
+import { syncEtfShareSizeRange } from '#market/sync/etf.js';
+import { MAJOR_ETF_CODES } from '#market/registry/etf-presets.js';
+import { ETF_RESEARCH_CODES } from '#market/registry/etf-research-registry.js';
+import { syncEtfBasic, syncEtfDaily } from '#market/sync/etf-history.js';
+import { syncTradeCal } from '#market/sync/calendar.js';
+import { TushareClient } from '#market/providers/tushare/client.js';
 
 function parseCodes(selector: string): string[] {
   if (selector === 'registry') {

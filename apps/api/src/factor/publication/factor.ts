@@ -5,7 +5,7 @@ import {
   type PublishedFactor,
 } from '@jixie/shared';
 import { z } from 'zod';
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 import { factorResearchSpecV1Schema } from '../reports/spec.js';
 import {
   compilePanelFactor,

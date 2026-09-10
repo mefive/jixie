@@ -12,7 +12,7 @@ const fixture = vi.hoisted(() => ({
   isEmailConfigured: vi.fn(),
 }));
 
-vi.mock('../../infra/database/prisma.js', async () => {
+vi.mock('#infra/database/prisma.js', async () => {
   const { mkdtempSync, writeFileSync } = await import('node:fs');
   const { tmpdir } = await import('node:os');
   const { join } = await import('node:path');
@@ -23,12 +23,12 @@ vi.mock('../../infra/database/prisma.js', async () => {
   return { prisma: new packageExports.PrismaClient({ datasourceUrl: `file:${databasePath}` }) };
 });
 
-vi.mock('../../infra/email/email.js', () => ({
+vi.mock('#infra/email/email.js', () => ({
   sendEmail: fixture.sendEmail,
   isEmailConfigured: fixture.isEmailConfigured,
 }));
 
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 import { authRoute } from './auth.js';
 import { requireAuth } from './session.js';
 

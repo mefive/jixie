@@ -6,7 +6,7 @@ import {
   MAX_ERROR_CHARACTERS,
   runtimeLogFrameSchema,
   runtimeErrorFrameSchema,
-} from '../../../infra/runtime/python/protocol.js';
+} from '#infra/runtime/python/protocol.js';
 
 const MAX_FACTOR_VALUES = 1_000_000;
 

@@ -1,7 +1,7 @@
-import { loadTushareConfig } from '../../src/market/providers/tushare/config.js';
-import { TushareClient } from '../../src/market/providers/tushare/client.js';
-import { prisma } from '../../src/infra/database/prisma.js';
-import { syncSwIndustry } from '../../src/market/sync/indices.js';
+import { loadTushareConfig } from '#market/providers/tushare/config.js';
+import { TushareClient } from '#market/providers/tushare/client.js';
+import { prisma } from '#infra/database/prisma.js';
+import { syncSwIndustry } from '#market/sync/indices.js';
 
 /**
  * Sync Shenwan (SW2021) level-1 industry membership into the local store — the point-in-time

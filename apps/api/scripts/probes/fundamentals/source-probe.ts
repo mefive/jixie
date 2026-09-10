@@ -1,11 +1,11 @@
-import { TushareError, type TushareRow } from '../../../src/market/providers/tushare/client.js';
+import { TushareError, type TushareRow } from '#market/providers/tushare/client.js';
 import {
   financialStatementAnnouncementIdentity,
   financialStatementPeriodIdentity,
   financialStatementValuesFingerprint,
   normalizeFinancialStatementSourceRow,
   type FinancialStatementKind,
-} from '../../../src/market/fundamentals/source-contract.js';
+} from '#market/fundamentals/source-contract.js';
 
 export type FundamentalSourceProbeStatus =
   | 'ok'

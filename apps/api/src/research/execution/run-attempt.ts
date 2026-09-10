@@ -1,6 +1,6 @@
 import type { ResearchAffectedRunPlan } from '../dependencies/run-plan.js';
 import type { ResearchDocumentRunResultV1 } from '@jixie/shared';
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 import { startResearchDocumentRun, finishResearchDocumentRun } from './run-state.js';
 import { assertResearchCellIdsRunnable } from '../dependencies/runnable.js';
 import { researchRuntimeManager } from './python-session.js';

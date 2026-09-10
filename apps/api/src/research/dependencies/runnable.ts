@@ -1,4 +1,4 @@
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 import { researchCellDependencyIssues } from './cell-values.js';
 
 export class ResearchCellDependencyBlockedError extends Error {

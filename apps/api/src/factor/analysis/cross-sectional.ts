@@ -11,14 +11,14 @@ import type {
   FactorEvaluationScopeV1,
   Neutral,
 } from '@jixie/shared';
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 import { compileFactor, type FactorBatchItem } from '../runtime/typescript/compile-factor.js';
 import { compilePythonCrossSectionalFactor } from '../runtime/python/cross-sectional.js';
-import type { UserLogSink } from '../../infra/runtime/console.js';
-import { sameMonth, sameWeek, minusDays } from '../../date.js';
-import { t } from '../../i18n/messages.js';
-import { StockNameLookup } from '../../market/instruments/stock-identity.js';
-import * as st from '../../math/stats.js';
+import type { UserLogSink } from '#infra/runtime/console.js';
+import { sameMonth, sameWeek, minusDays } from '#date';
+import { t } from '#i18n/messages.js';
+import { StockNameLookup } from '#market/instruments/stock-identity.js';
+import * as st from '#math/stats.js';
 import { combineFactorSeries, type FactorAnalysisRuntimeSource } from '../composition/composite.js';
 import {
   filterEvaluationUniverse,

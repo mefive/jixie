@@ -8,7 +8,7 @@ import prismaPackage from '@prisma/client';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const fixture = vi.hoisted(() => ({ directory: '' }));
-vi.mock('./infra/database/prisma.js', async () => {
+vi.mock('#infra/database/prisma.js', async () => {
   const { mkdtempSync, writeFileSync } = await import('node:fs');
   const { default: packageExports } = await import('@prisma/client');
   fixture.directory = mkdtempSync('/tmp/jixie-job-contract-');
@@ -24,25 +24,25 @@ const execution = vi.hoisted(() => ({
   accounting: vi.fn(),
 }));
 vi.mock('./server.js', () => ({ buildApp: vi.fn() }));
-vi.mock('./infra/jobs/worker-result.js', () => ({ runJobWorker: execution.worker }));
-vi.mock('./strategy/definitions/config.js', () => ({
+vi.mock('#infra/jobs/worker-result.js', () => ({ runJobWorker: execution.worker }));
+vi.mock('#strategy/definitions/config.js', () => ({
   strategyRunKey: () => 'fixture',
 }));
-vi.mock('./strategy/definitions/naming.js', () => ({
+vi.mock('#strategy/definitions/naming.js', () => ({
   refreshStrategyName: execution.rename,
 }));
-vi.mock('./research/curator/runs.js', () => ({ prepareResearchCuratorRun: execution.curator }));
-vi.mock('./signals/notifier.js', () => ({ notifySignalRun: execution.notify }));
-vi.mock('./signals/accounting/initialize.js', () => ({
+vi.mock('#research/curator/runs.js', () => ({ prepareResearchCuratorRun: execution.curator }));
+vi.mock('#signals/notifier.js', () => ({ notifySignalRun: execution.notify }));
+vi.mock('#signals/accounting/initialize.js', () => ({
   initializeSignalAccounting: execution.accounting,
 }));
 
-import { prisma } from './infra/database/prisma.js';
-import type { PreparedResearchCuratorRun } from './research/curator/runs.js';
+import { prisma } from '#infra/database/prisma.js';
+import type { PreparedResearchCuratorRun } from '#research/curator/runs.js';
 import { jobRegistry } from './bootstrap.js';
-import { createJobExecutor } from './infra/jobs/executor.js';
-import { appendLog, initializeJobLogs, getLiveJobLogs } from './infra/jobs/logs.js';
-import { claimQueuedJob, getJob } from './infra/jobs/records.js';
+import { createJobExecutor } from '#infra/jobs/executor.js';
+import { appendLog, initializeJobLogs, getLiveJobLogs } from '#infra/jobs/logs.js';
+import { claimQueuedJob, getJob } from '#infra/jobs/records.js';
 
 const kinds = ['backtest', 'factor', 'strategy-scan', 'signal', 'research-curator'] as const;
 type Kind = (typeof kinds)[number];

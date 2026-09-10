@@ -1,5 +1,5 @@
 import type { FactorMacroRegimeStateKeyV1 } from '@jixie/shared';
-import type { Prisma } from '../../infra/database/prisma.js';
+import type { Prisma } from '#infra/database/prisma.js';
 import {
   loadMacroVintagesThrough,
   selectMacroObservationsAsOf,

@@ -1,5 +1,5 @@
 import type { Context } from 'hono';
-import { apiError } from '../infra/http/errors.js';
+import { apiError } from '#infra/http/errors.js';
 import { FactorOperationError } from './operation-errors.js';
 
 export function factorOperationApiError(context: Context, error: unknown) {

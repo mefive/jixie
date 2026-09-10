@@ -18,7 +18,7 @@ import type {
   TopListRow,
   YieldCurvePointDataRow,
 } from '../data/data-port.js';
-import { CSI_300_TOTAL_RETURN_INDEX_CODE } from '../../market/registry/index-presets.js';
+import { CSI_300_TOTAL_RETURN_INDEX_CODE } from '#market/registry/index-presets.js';
 
 /**
  * In-memory EngineDataPort built from a hand-written world — the direct-lane test double

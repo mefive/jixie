@@ -1,6 +1,6 @@
-import type { UserLogSink } from '../../../infra/runtime/console.js';
+import type { UserLogSink } from '#infra/runtime/console.js';
 import { factorExecutionFrameSchema, factorStartupFrameSchema } from './protocol.js';
-import { PythonSession } from '../../../infra/runtime/python/session.js';
+import { PythonSession } from '#infra/runtime/python/session.js';
 import type {
   CompiledPanelFactor,
   CompiledTimeSeriesFactor,

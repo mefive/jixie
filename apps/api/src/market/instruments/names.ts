@@ -1,4 +1,4 @@
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 
 export async function loadInstrumentNames(codes: string[]) {
   const [stocks, etfs, futures] = await Promise.all([

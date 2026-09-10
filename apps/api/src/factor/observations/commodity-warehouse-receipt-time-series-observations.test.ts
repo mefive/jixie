@@ -1,6 +1,6 @@
 import type { TimeSeriesFactorResearchSpecV1 } from '@jixie/shared';
 import { describe, expect, it } from 'vitest';
-import { addDays } from '../../date.js';
+import { addDays } from '#date';
 import { compileTimeSeriesFactor } from '../runtime/typescript/compile-asset-factor.js';
 import {
   buildCommodityWarehouseReceiptTimeSeriesObservations,

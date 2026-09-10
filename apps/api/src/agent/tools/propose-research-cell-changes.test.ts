@@ -5,10 +5,10 @@ const mocks = vi.hoisted(() => ({
   pendingClarification: vi.fn(),
 }));
 
-vi.mock('../../research/proposals/cell-changes.js', () => ({
+vi.mock('#research/proposals/cell-changes.js', () => ({
   prepareResearchCellChangeProposal: mocks.prepare,
 }));
-vi.mock('../../infra/database/prisma.js', () => ({
+vi.mock('#infra/database/prisma.js', () => ({
   prisma: {
     researchClarification: { findFirst: mocks.pendingClarification },
   },

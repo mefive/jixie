@@ -6,14 +6,14 @@ import type {
   RunFactorAnalysisResponse,
 } from '@jixie/shared';
 import { z } from 'zod';
-import { startFactorAnalysis, readFactorAnalysisResult } from '../../factor/analysis-job.js';
-import { getHoldoutPolicy } from '../../factor/reports/research-policy.js';
+import { startFactorAnalysis, readFactorAnalysisResult } from '#factor/analysis-job.js';
+import { getHoldoutPolicy } from '#factor/reports/research-policy.js';
 import {
   createDefaultFactorAnalysisSpecV6,
   factorResearchIntentV1Schema,
-} from '../../factor/reports/spec.js';
-import { t } from '../../i18n/index.js';
-import { prisma } from '../../infra/database/prisma.js';
+} from '#factor/reports/spec.js';
+import { t } from '#i18n/index.js';
+import { prisma } from '#infra/database/prisma.js';
 import type { AgentTool } from './types.js';
 
 const REPORT_WAIT_TIMEOUT_MS = 15 * 60_000;

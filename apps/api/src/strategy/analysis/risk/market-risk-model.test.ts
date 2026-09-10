@@ -4,8 +4,8 @@ import {
   type RiskDataLineageV1,
 } from '@jixie/shared';
 import { describe, expect, it } from 'vitest';
-import { addDays } from '../../../date.js';
-import type { MarketRiskDriverHistoryV1 } from '../../../market/state/market-risk-drivers.js';
+import { addDays } from '#date';
+import type { MarketRiskDriverHistoryV1 } from '#market/state/market-risk-drivers.js';
 import {
   alignPortfolioReturnsToNextSseSession,
   estimatePortfolioMarketRisk,

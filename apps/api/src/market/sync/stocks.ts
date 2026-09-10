@@ -1,7 +1,7 @@
 import type { TradeDate } from '@jixie/shared';
-import { day, daysBetween } from '../../date.js';
-import { prisma } from '../../infra/database/prisma.js';
-import { log } from '../../infra/logging.js';
+import { day, daysBetween } from '#date';
+import { prisma } from '#infra/database/prisma.js';
+import { log } from '#infra/logging.js';
 import {
   STOCK_CODE_CHANGES,
   canonicalStockCode,

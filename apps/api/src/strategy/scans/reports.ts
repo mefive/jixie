@@ -7,10 +7,10 @@ import type {
 } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
 import type { z } from 'zod';
-import { ACTIVE_JOB_STATUSES, getJob } from '../../infra/jobs/records.js';
-import { prisma } from '../../infra/database/prisma.js';
+import { ACTIVE_JOB_STATUSES, getJob } from '#infra/jobs/records.js';
+import { prisma } from '#infra/database/prisma.js';
 import type { scanStrategyQuerySchema, scanJobQuerySchema } from './inputs.js';
-import { t } from '../../i18n/index.js';
+import { t } from '#i18n/index.js';
 import type { Locale } from '@jixie/shared';
 import { failStrategyOperation } from '../operation-errors.js';
 

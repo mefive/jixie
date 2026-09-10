@@ -3,19 +3,16 @@ import type {
   FactorResearchReportPayloadV1,
   PortfolioRiskAnalysisV1,
 } from '@jixie/shared';
-import { addDays } from '../../../date.js';
-import { prisma, type Prisma } from '../../../infra/database/prisma.js';
-import type { BacktestResult } from '../../../engine/types.js';
+import { addDays } from '#date';
+import { prisma, type Prisma } from '#infra/database/prisma.js';
+import type { BacktestResult } from '#engine/types.js';
 import {
   alignAlphaPeriodReturnsToRiskAvailability,
   alphaPeriodsFromFactorReport,
   analyzeAlphaRiskOverlap,
   type RawAlphaPeriodReturnObservation,
 } from './alpha-risk-overlap.js';
-import {
-  loadMacroRiskAxisHistory,
-  type MacroRiskAxisHistoryV1,
-} from '../../../market/macro/risk-axes.js';
+import { loadMacroRiskAxisHistory, type MacroRiskAxisHistoryV1 } from '#market/macro/risk-axes.js';
 import {
   aggregatePortfolioMonthlyReturns,
   estimatePortfolioMacroRisk,
@@ -23,7 +20,7 @@ import {
 import {
   loadMarketRiskDriverHistory,
   type MarketRiskDriverHistoryV1,
-} from '../../../market/state/market-risk-drivers.js';
+} from '#market/state/market-risk-drivers.js';
 import {
   alignPortfolioReturnsToNextSseSession,
   estimatePortfolioMarketRisk,

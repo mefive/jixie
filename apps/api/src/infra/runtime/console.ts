@@ -1,5 +1,5 @@
 import { DEFAULT_LOCALE, type Locale, type LogLevel } from '@jixie/shared';
-import { t } from '../../i18n/messages.js';
+import { t } from '#i18n/messages.js';
 
 /** Where a sandbox console line goes — the worker wires this to postMessage({source:'user', ...}). */
 export type UserLogSink = (level: LogLevel, text: string) => void;

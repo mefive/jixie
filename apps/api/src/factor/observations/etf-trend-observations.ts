@@ -1,6 +1,6 @@
 import type { TimeSeriesFactorResearchSpecV1 } from '@jixie/shared';
-import { addDays } from '../../date.js';
-import { prisma } from '../../infra/database/prisma.js';
+import { addDays } from '#date';
+import { prisma } from '#infra/database/prisma.js';
 import type { CompiledTimeSeriesFactor } from '../runtime/typescript/compile-asset-factor.js';
 import { factorV2YieldTerm, type FactorV2FieldKey } from '../definitions/fields.js';
 import type { TimeSeriesEvaluationObservation } from '../analysis/time-series-evaluator.js';
@@ -8,7 +8,7 @@ import {
   CHINA_TREASURY_CURVE_CODE,
   CHINA_TREASURY_CURVE_SOURCE,
   CHINA_TREASURY_CURVE_TYPE,
-} from '../../market/rates/china-treasury-curve.js';
+} from '#market/rates/china-treasury-curve.js';
 
 export interface EtfTrendDailyRow {
   assetId: string;

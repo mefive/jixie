@@ -1,5 +1,5 @@
 import type { ActualExecutionUpdate } from '@jixie/shared';
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 import { rebuildDeploymentAccount } from './settlement.js';
 
 export async function updateActualExecution(

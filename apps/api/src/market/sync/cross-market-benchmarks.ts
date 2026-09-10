@@ -1,5 +1,5 @@
-import { addDays } from '../../date.js';
-import { prisma } from '../../infra/database/prisma.js';
+import { addDays } from '#date';
+import { prisma } from '#infra/database/prisma.js';
 import type { TushareRow } from '../providers/tushare/client.js';
 import { assignExternalAvailableDates } from '../rates/external-market-drivers.js';
 import {

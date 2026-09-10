@@ -1,6 +1,6 @@
 import type { TradeDate } from '@jixie/shared';
-import { prisma } from '../../infra/database/prisma.js';
-import { log } from '../../infra/logging.js';
+import { prisma } from '#infra/database/prisma.js';
+import { log } from '#infra/logging.js';
 import { canonicalStockCode } from '../instruments/stock-identity.js';
 import { moneyflow, topList } from '../providers/tushare/api.js';
 import type { TushareClient } from '../providers/tushare/client.js';

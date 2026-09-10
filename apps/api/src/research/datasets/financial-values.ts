@@ -5,13 +5,13 @@ import {
 } from '@jixie/shared';
 import type { PrismaClient } from '@prisma/client';
 
-import { normalizeCumulativeFlows } from '../../market/fundamentals/normalize.js';
+import { normalizeCumulativeFlows } from '#market/fundamentals/normalize.js';
 import {
   resolveFinancialStates,
   type ResolvedFinancialStatement,
-} from '../../market/fundamentals/resolver.js';
-import { canonicalStockCode } from '../../market/instruments/stock-identity.js';
-import { prisma } from '../../infra/database/prisma.js';
+} from '#market/fundamentals/resolver.js';
+import { canonicalStockCode } from '#market/instruments/stock-identity.js';
+import { prisma } from '#infra/database/prisma.js';
 import { normalizeFinancialFields, validateFinancialReportRange } from './financial.js';
 
 export interface ResearchFinancialValuesRequestV1 {

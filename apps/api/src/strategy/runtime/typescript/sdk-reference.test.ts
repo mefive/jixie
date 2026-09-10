@@ -1,7 +1,7 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import { CTX_PROP_NAMES, SDK_ENTRIES, TIMEFRAME_METHODS, type SdkEntryName } from '@jixie/shared';
 import type { StrategyCtx, TimeframeSeries, Universe } from './sdk.js';
-import type { BarRow } from '../../../engine/types.js';
+import type { BarRow } from '#engine/types.js';
 
 /**
  * Drift guard between the SDK registry (@jixie/shared sdk-reference.ts — the single source that

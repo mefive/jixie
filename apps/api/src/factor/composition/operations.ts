@@ -2,14 +2,14 @@ import { ulid } from 'ulid';
 import { z } from 'zod';
 import type { Prisma } from '@prisma/client';
 import { type FactorCompositeDefinition } from '@jixie/shared';
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 import { BUILTIN_KEYS, BUILTIN_USER_ID } from '../definitions/builtin-factors.js';
 import {
   factorCompositeDefinitionSchema,
   factorPanelCompositeDefinitionV2Schema,
 } from '../reports/spec.js';
 import { nextCopyKey } from '../definitions/copy-key.js';
-import { t } from '../../i18n/index.js';
+import { t } from '#i18n/index.js';
 import type { Locale } from '@jixie/shared';
 import { failFactorOperation } from '../operation-errors.js';
 

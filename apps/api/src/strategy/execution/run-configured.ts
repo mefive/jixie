@@ -1,17 +1,14 @@
 import type { BacktestConfig, Locale, StrategyParamValue } from '@jixie/shared';
-import type { UserLogSink } from '../../infra/runtime/console.js';
-import { t } from '../../i18n/messages.js';
+import type { UserLogSink } from '#infra/runtime/console.js';
+import { t } from '#i18n/messages.js';
 import { attachBacktestRiskAnalysis } from '../analysis/risk/backtest-risk-analysis.js';
 import { createPythonStrategyRuntime } from '../runtime/python/runtime.js';
 import { prepareStrategyFactors } from './prepare-factors.js';
-import { prismaDataPort } from '../../engine/adapters/prisma-port.js';
-import { runStrategy } from '../../engine/simulation/run.js';
-import type { BacktestResult } from '../../engine/types.js';
+import { prismaDataPort } from '#engine/adapters/prisma-port.js';
+import { runStrategy } from '#engine/simulation/run.js';
+import type { BacktestResult } from '#engine/types.js';
 import { runWalledBacktest } from '../runtime/typescript/walled-run.js';
-import {
-  PythonFactorHost,
-  withPythonFactorHost,
-} from '../../engine/adapters/python-factor-host.js';
+import { PythonFactorHost, withPythonFactorHost } from '#engine/adapters/python-factor-host.js';
 
 /** Dispatch a DB-authored strategy to its language runtime while keeping one TypeScript engine. */
 export async function runConfiguredBacktest(

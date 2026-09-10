@@ -8,8 +8,8 @@ import {
   type ResearchClarificationV1,
   type ToolTraceItem,
 } from '@jixie/shared';
-import type { AgentLlm, ToolAwareMessage, ToolCall } from '../infra/llm/agent-llm.js';
-import { t } from '../i18n/index.js';
+import type { AgentLlm, ToolAwareMessage, ToolCall } from '#infra/llm/agent-llm.js';
+import { t } from '#i18n/index.js';
 import type { AgentChart, AgentTool, AgentUniverse } from './tools/types.js';
 
 /**

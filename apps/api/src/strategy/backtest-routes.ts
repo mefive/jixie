@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
-import { validateJson, validateQuery } from '../infra/http/errors.js';
+import { validateJson, validateQuery } from '#infra/http/errors.js';
 import { codeConfigSchema } from './runtime/typescript/schema.js';
-import { localeFromRequest } from '../infra/http/locale.js';
+import { localeFromRequest } from '#infra/http/locale.js';
 import { backtestStrategyQuerySchema, backtestJobQuerySchema } from './backtest/inputs.js';
 import { submitStrategyBacktest } from './backtest/submit.js';
 import {

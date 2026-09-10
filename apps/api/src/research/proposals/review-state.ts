@@ -1,4 +1,4 @@
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 
 export class ResearchCellChangeReviewOpenError extends Error {
   public constructor() {

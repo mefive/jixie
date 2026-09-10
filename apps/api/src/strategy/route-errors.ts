@@ -1,5 +1,5 @@
 import type { Context } from 'hono';
-import { apiError } from '../infra/http/errors.js';
+import { apiError } from '#infra/http/errors.js';
 import { StrategyOperationError } from './operation-errors.js';
 
 export function strategyOperationApiError(context: Context, error: unknown) {

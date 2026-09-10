@@ -6,10 +6,10 @@ import type {
   BacktestSummary,
 } from '@jixie/shared';
 import { Prisma } from '@prisma/client';
-import { getJob, findRunningJob } from '../../infra/jobs/records.js';
-import { prisma } from '../../infra/database/prisma.js';
+import { getJob, findRunningJob } from '#infra/jobs/records.js';
+import { prisma } from '#infra/database/prisma.js';
 import type { backtestStrategyQuerySchema, backtestJobQuerySchema } from './inputs.js';
-import { t } from '../../i18n/index.js';
+import { t } from '#i18n/index.js';
 import type { Locale } from '@jixie/shared';
 import { failStrategyOperation } from '../operation-errors.js';
 

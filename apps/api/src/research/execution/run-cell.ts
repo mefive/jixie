@@ -12,7 +12,7 @@ import {
 } from './run-state.js';
 import { getResearchDocument } from '../documents/read.js';
 import { ulid } from 'ulid';
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 import type { Prisma } from '@prisma/client';
 import { materializeResearchOutputArtifacts } from '../evidence/artifacts.js';
 import {

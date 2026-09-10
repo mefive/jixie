@@ -1,12 +1,8 @@
-import { loadTushareConfig } from '../../src/market/providers/tushare/config.js';
-import { prisma } from '../../src/infra/database/prisma.js';
-import { MARKET_WEATHER_INDEX_CODES } from '../../src/market/registry/index-presets.js';
-import {
-  syncIndexBenchmarks,
-  syncIndexDaily,
-  syncSwIndexDaily,
-} from '../../src/market/sync/indices.js';
-import { TushareClient } from '../../src/market/providers/tushare/client.js';
+import { loadTushareConfig } from '#market/providers/tushare/config.js';
+import { prisma } from '#infra/database/prisma.js';
+import { MARKET_WEATHER_INDEX_CODES } from '#market/registry/index-presets.js';
+import { syncIndexBenchmarks, syncIndexDaily, syncSwIndexDaily } from '#market/sync/indices.js';
+import { TushareClient } from '#market/providers/tushare/client.js';
 
 function currentDate(): string {
   return new Date().toISOString().slice(0, 10).replaceAll('-', '');

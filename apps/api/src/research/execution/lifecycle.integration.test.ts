@@ -6,7 +6,7 @@ import type { Prisma } from '@prisma/client';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const fixture = vi.hoisted(() => ({ directory: '' }));
-vi.mock('../../infra/database/prisma.js', async () => {
+vi.mock('#infra/database/prisma.js', async () => {
   const { mkdtempSync, writeFileSync } = await import('node:fs');
   const { default: packageExports } = await import('@prisma/client');
   fixture.directory = mkdtempSync('/tmp/jixie-research-lifecycle-');
@@ -25,7 +25,7 @@ vi.mock('./python-session.js', async (importOriginal) => ({
   researchRuntimeManager: runtime,
 }));
 
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 import {
   addResearchCell,
   deleteResearchCell,

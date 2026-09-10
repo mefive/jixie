@@ -1,4 +1,4 @@
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 
 /** All stock codes that have price data (incl. delisted). GROUP BY must happen in SQLite: Prisma's
  * client-side distinct can materialize the multi-million-row Daily code column in Node. */

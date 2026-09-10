@@ -1,15 +1,15 @@
 import { ulid } from 'ulid';
 import type { Locale, MessagePart, ResearchClarificationSelectionV1 } from '@jixie/shared';
-import { prisma } from '../infra/database/prisma.js';
-import { researchProfile } from '../agent/profiles/research.js';
-import { enqueueAgentTurn, entityKey } from '../agent/turns/run.js';
-import * as turnBus from '../agent/turns/bus.js';
-import { createProposeResearchCellChangesTool } from '../agent/tools/propose-research-cell-changes.js';
-import { createRequestResearchClarificationTool } from '../agent/tools/request-research-clarification.js';
+import { prisma } from '#infra/database/prisma.js';
+import { researchProfile } from '#agent/profiles/research.js';
+import { enqueueAgentTurn, entityKey } from '#agent/turns/run.js';
+import * as turnBus from '#agent/turns/bus.js';
+import { createProposeResearchCellChangesTool } from '#agent/tools/propose-research-cell-changes.js';
+import { createRequestResearchClarificationTool } from '#agent/tools/request-research-clarification.js';
 import {
   createResearchCatalogTurnEvidence,
   createSearchResearchCatalogTool,
-} from '../agent/tools/search-research-catalog.js';
+} from '#agent/tools/search-research-catalog.js';
 import { researchAgentDocumentContext } from './agent-context.js';
 import { resolveResearchClarificationAnswer } from './proposals/clarification-records.js';
 import { researchClarificationAnswerMessage } from './proposals/clarification-message.js';

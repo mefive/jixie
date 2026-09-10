@@ -1,13 +1,13 @@
 import { ulid } from 'ulid';
 import { z } from 'zod';
-import { prisma } from '../infra/database/prisma.js';
-import { factorProfile } from '../agent/profiles/factor.js';
-import { factorQaProfile } from '../agent/profiles/qa.js';
-import { enqueueAgentTurn, entityKey } from '../agent/turns/run.js';
-import * as turnBus from '../agent/turns/bus.js';
-import { chatMessagesSchema } from '../agent/conversations/schema.js';
+import { prisma } from '#infra/database/prisma.js';
+import { factorProfile } from '#agent/profiles/factor.js';
+import { factorQaProfile } from '#agent/profiles/qa.js';
+import { enqueueAgentTurn, entityKey } from '#agent/turns/run.js';
+import * as turnBus from '#agent/turns/bus.js';
+import { chatMessagesSchema } from '#agent/conversations/schema.js';
 import { refreshFactorMetadata } from './definitions/metadata.js';
-import { t } from '../i18n/index.js';
+import { t } from '#i18n/index.js';
 import type { Locale } from '@jixie/shared';
 import { failFactorOperation } from './operation-errors.js';
 

@@ -1,8 +1,8 @@
 import { ulid } from 'ulid';
 import type { BacktestConfig } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
-import { DEFAULT_COST } from '../../engine/types.js';
-import { prisma } from '../../infra/database/prisma.js';
+import { DEFAULT_COST } from '#engine/types.js';
+import { prisma } from '#infra/database/prisma.js';
 import {
   replayAccountDay,
   type AccountKind,

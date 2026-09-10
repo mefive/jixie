@@ -33,6 +33,8 @@
 
 这些例外不是遗留数据库耦合，不需要为消除目录之间所有箭头而复制字段、搬到 common 或重写业务。
 
+API 跨顶层模块使用 `package.json#imports` 的 `#infra/*` 等原生别名。检查器读取 API tsconfig 的 `development` 条件，将别名解析到源码后执行相同的所有权与循环检查；未知别名或不存在的内部目标也报 `unresolved-import`，不能作为外部依赖绕过门禁。
+
 ## 检查的界限
 
 本工具检查模块依赖，不证明函数无副作用，也不推断所有 JavaScript 行为。外部包的内部依赖由包与 bundle 验证负责；不解析任意 `eval`、字符串拼接或 require 别名。没有解析到的相对 import 会报错；非字面量动态 import 单独列出，当前 8 项均为 `.boot.mjs`。

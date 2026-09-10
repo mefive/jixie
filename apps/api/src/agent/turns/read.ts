@@ -1,5 +1,5 @@
 import type { AgentTurnDetail } from '@jixie/shared';
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 
 export async function getTurnDetail(userId: string, turnId: string) {
   const row = await prisma.agentTurn.findFirst({

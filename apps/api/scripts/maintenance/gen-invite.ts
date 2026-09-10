@@ -7,8 +7,8 @@
 //
 // Output: one invite code per line, easy to copy and forward. No Resend, no email sent — just INSERTs into the DB.
 
-import { prisma } from '../../src/infra/database/prisma.js';
-import { generateInviteCode } from '../../src/auth/invite-code.js';
+import { prisma } from '#infra/database/prisma.js';
+import { generateInviteCode } from '#auth/invite-code.js';
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);

@@ -1,5 +1,5 @@
 import type { Context } from 'hono';
-import { t, type MessageKey } from '../../i18n/index.js';
+import { t, type MessageKey } from '#i18n/index.js';
 import { DEFAULT_LOCALE, isLocale, type Locale } from '@jixie/shared';
 
 // Resolve the request locale from the Accept-Language header the web client sends ('zh' | 'en').

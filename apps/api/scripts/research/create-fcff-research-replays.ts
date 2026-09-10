@@ -1,14 +1,14 @@
 import { writeFileSync } from 'node:fs';
-import { prisma } from '../../src/infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 import {
   EQUITY_FCFF_REPLAY_CASES,
   equityFcffParameterSource,
-} from '../../src/research/templates/fcff/replay-cases.js';
-import { createResearchDocument } from '../../src/research/documents/document-operations.js';
-import { updateResearchCell } from '../../src/research/documents/cell-operations.js';
-import { runResearchDocument } from '../../src/research/execution/run-document.js';
-import { closeResearchDocumentRuntime } from '../../src/research/execution/python-session.js';
-import { promoteResearchExecution } from '../../src/research/evidence/execution-records.js';
+} from '#research/templates/fcff/replay-cases.js';
+import { createResearchDocument } from '#research/documents/document-operations.js';
+import { updateResearchCell } from '#research/documents/cell-operations.js';
+import { runResearchDocument } from '#research/execution/run-document.js';
+import { closeResearchDocumentRuntime } from '#research/execution/python-session.js';
+import { promoteResearchExecution } from '#research/evidence/execution-records.js';
 
 // Explicit owner and output arguments keep this separate from disposable E2E fixtures.
 const [email, outputPath] = process.argv.slice(2);

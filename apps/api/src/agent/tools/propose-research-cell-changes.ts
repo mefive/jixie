@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { prisma } from '../../infra/database/prisma.js';
-import { prepareResearchCellChangeProposal } from '../../research/proposals/cell-changes.js';
+import { prisma } from '#infra/database/prisma.js';
+import { prepareResearchCellChangeProposal } from '#research/proposals/cell-changes.js';
 import type { ResearchCatalogTurnEvidence } from './search-research-catalog.js';
 import type { AgentTool } from './types.js';
 

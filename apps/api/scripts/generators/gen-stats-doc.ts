@@ -1,5 +1,5 @@
 import { readFileSync, writeFileSync } from 'node:fs';
-import { buildStatsDoc, undocumentedExports } from '../../src/math/stats-doc-gen.js';
+import { buildStatsDoc, undocumentedExports } from '#math/stats-doc-gen.js';
 
 // Materialize math/stats.ts's JSDoc into the checked-in stats-doc.ts (the analyzeData tool manual).
 // stats-doc.test.ts fails when this file is stale — run me after touching stats.ts.

@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
-import { apiError } from '../infra/http/errors.js';
-import { m } from '../infra/http/locale.js';
-import { copyPublicStrategy } from '../strategy/definitions/copy-public.js';
+import { apiError } from '#infra/http/errors.js';
+import { m } from '#infra/http/locale.js';
+import { copyPublicStrategy } from '#strategy/definitions/copy-public.js';
 import { listSharingCatalog, getPublicStrategy } from './catalog.js';
 
 export const routes = new Hono();

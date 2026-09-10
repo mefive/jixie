@@ -4,17 +4,17 @@ import type {
   ResearchSeriesInputSpecV1,
   ResearchTransformV1,
 } from '@jixie/shared';
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 import {
   CROSS_MARKET_BENCHMARK_BY_ID,
   HKD_CNH_DERIVED_CODE,
   type CrossMarketBenchmarkDefinition,
-} from '../../market/registry/cross-market-benchmarks.js';
+} from '#market/registry/cross-market-benchmarks.js';
 import {
   deriveBenchmarkCnyCloses,
   deriveHkdCnhMidCloses,
-} from '../../market/queries/cross-market-benchmarks.js';
-import { EXTERNAL_FX_CODES } from '../../market/rates/external-market-drivers.js';
+} from '#market/queries/cross-market-benchmarks.js';
+import { EXTERNAL_FX_CODES } from '#market/rates/external-market-drivers.js';
 
 export interface ResearchSeriesPoint {
   date: string;

@@ -1,5 +1,5 @@
 import type { FactorEvaluationScopeV1 } from '@jixie/shared';
-import { minusDays } from '../../date.js';
+import { minusDays } from '#date';
 
 export const MAX_INDEX_MEMBERSHIP_AGE_DAYS = 45;
 export const WITHIN_INDUSTRY_MIN_GROUP_SIZE = 5;

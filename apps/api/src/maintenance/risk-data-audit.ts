@@ -1,21 +1,21 @@
-import { prisma, type Prisma } from '../infra/database/prisma.js';
-import type { MarketRiskDriverHistoryV1 } from '../market/state/market-risk-drivers.js';
-import type { MacroRiskAxisHistoryV1 } from '../market/macro/risk-axes.js';
+import { prisma, type Prisma } from '#infra/database/prisma.js';
+import type { MarketRiskDriverHistoryV1 } from '#market/state/market-risk-drivers.js';
+import type { MacroRiskAxisHistoryV1 } from '#market/macro/risk-axes.js';
 import {
   inspectMarketRiskDrivers,
   summarizeMarketRiskDriverQuality as marketDriverQuality,
   type MarketRiskDriverQualitySummary,
-} from '../market/quality/market-risk-drivers.js';
+} from '#market/quality/market-risk-drivers.js';
 import {
   inspectMacroRiskAxes,
   summarizeMacroRiskAxisQuality as macroAxisQuality,
   type MacroRiskAxisQualitySummary,
-} from '../market/macro/risk-axis-quality.js';
+} from '#market/macro/risk-axis-quality.js';
 import {
   marketRiskDataReadiness,
   macroRiskDataReadiness,
   selectMacroRiskAuditStart,
-} from '../strategy/analysis/risk/data-readiness.js';
+} from '#strategy/analysis/risk/data-readiness.js';
 
 export async function auditMarketRiskDrivers(
   options: { startDate: string; endDate: string },

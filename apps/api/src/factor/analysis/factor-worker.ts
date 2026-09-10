@@ -1,7 +1,7 @@
 import { parentPort, workerData } from 'node:worker_threads';
 import type { FactorResearchSpecV1, Locale, LogLine, LogLevel } from '@jixie/shared';
 import type { FactorAnalysisSource } from '../analysis-job.js';
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 import { factorEvaluatorFor } from './cross-sectional-evaluator.js';
 import { normalizeFactorResearchSpec } from '../reports/spec.js';
 import { loadEtfTimeSeriesObservations } from '../observations/etf-trend-observations.js';
@@ -29,7 +29,7 @@ import { PanelEvaluator } from './panel-evaluator.js';
 import { combinePanelFactorObservations } from '../composition/composite.js';
 import { loadMacroRegimeObservations } from '../observations/macro-regime-observations.js';
 import { MacroRegimeEvaluator } from './macro-regime-evaluator.js';
-import { t } from '../../i18n/index.js';
+import { t } from '#i18n/index.js';
 
 /**
  * Factor-analysis worker thread. analyzeFactor loads whole-market panels + tight cross-sectional loops,

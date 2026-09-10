@@ -9,8 +9,8 @@ import { archiveIdleResearchDocument } from './documents/archive-idle-document.j
 import { startResearchAgentTurn, ResearchAgentTurnError } from './agent-turn.js';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
-import { apiError, validateJson, validateQuery } from '../infra/http/errors.js';
-import { localeFromRequest, m } from '../infra/http/locale.js';
+import { apiError, validateJson, validateQuery } from '#infra/http/errors.js';
+import { localeFromRequest, m } from '#infra/http/locale.js';
 import {
   curatorFindingUpdateSchema,
   getLatestResearchCuratorRun,

@@ -1,10 +1,10 @@
 import { z } from 'zod';
-import { prisma } from '../../infra/database/prisma.js';
-import { getJob } from '../../infra/jobs/records.js';
+import { prisma } from '#infra/database/prisma.js';
+import { getJob } from '#infra/jobs/records.js';
 import { getHoldoutPolicy, parseResearchIntent, researchCounts } from './research-policy.js';
 import { holdoutEligibility } from './holdout-policy.js';
 import { reportSummary, reportResearchSpec, parseResearchPayload } from './views.js';
-import { t } from '../../i18n/index.js';
+import { t } from '#i18n/index.js';
 import type { Locale } from '@jixie/shared';
 import { failFactorOperation } from '../operation-errors.js';
 

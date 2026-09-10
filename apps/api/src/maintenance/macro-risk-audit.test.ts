@@ -1,8 +1,8 @@
 import { MACRO_RISK_AXIS_KEYS_V1, type RiskDataLineageV1 } from '@jixie/shared';
 import { describe, expect, it } from 'vitest';
-import type { MacroRiskAxisHistoryV1 } from '../market/macro/risk-axes.js';
-import { selectMacroRiskAuditStart } from '../strategy/analysis/risk/data-readiness.js';
-import { summarizeMacroRiskAxisQuality as baseMacroQuality } from '../market/macro/risk-axis-quality.js';
+import type { MacroRiskAxisHistoryV1 } from '#market/macro/risk-axes.js';
+import { selectMacroRiskAuditStart } from '#strategy/analysis/risk/data-readiness.js';
+import { summarizeMacroRiskAxisQuality as baseMacroQuality } from '#market/macro/risk-axis-quality.js';
 import { summarizeMacroRiskAxisQuality } from './risk-data-audit.js';
 
 describe('macro-risk axis quality', () => {

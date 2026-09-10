@@ -1,8 +1,8 @@
 import type { MarketWeatherFrequency } from '@jixie/shared';
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { apiError, validateQuery } from '../infra/http/errors.js';
-import { m } from '../infra/http/locale.js';
+import { apiError, validateQuery } from '#infra/http/errors.js';
+import { m } from '#infra/http/locale.js';
 import { loadInstrumentNames } from './instruments/names.js';
 import { loadFutureSeries } from './queries/future-series.js';
 import { loadIndexSeries } from './queries/index-series.js';

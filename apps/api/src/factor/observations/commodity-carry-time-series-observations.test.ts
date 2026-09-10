@@ -1,6 +1,6 @@
 import type { TimeSeriesFactorResearchSpecV1 } from '@jixie/shared';
 import { describe, expect, it } from 'vitest';
-import type { CommodityCarryPointV1 } from '../../market/commodity/commodity-carry.js';
+import type { CommodityCarryPointV1 } from '#market/commodity/commodity-carry.js';
 import { compileTimeSeriesFactor } from '../runtime/typescript/compile-asset-factor.js';
 import {
   buildCommodityCarryTimeSeriesObservations,

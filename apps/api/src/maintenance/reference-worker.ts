@@ -1,13 +1,13 @@
 import { pathToFileURL } from 'node:url';
-import { loadTushareConfig } from '../market/providers/tushare/config.js';
-import { syncFinancialStatementsVip } from '../market/fundamentals/sync.js';
-import { prisma } from '../infra/database/prisma.js';
+import { loadTushareConfig } from '#market/providers/tushare/config.js';
+import { syncFinancialStatementsVip } from '#market/fundamentals/sync.js';
+import { prisma } from '#infra/database/prisma.js';
 import {
   syncDividend,
   syncFinaIndicatorVip,
   type ReferenceSyncSummary,
-} from '../market/fundamentals/reference-sync.js';
-import { TushareClient } from '../market/providers/tushare/client.js';
+} from '#market/fundamentals/reference-sync.js';
+import { TushareClient } from '#market/providers/tushare/client.js';
 import { completeMaintenanceItem } from './state.js';
 
 export type ReferenceWorkerStage = 'financial_statements' | 'financials' | 'dividends';

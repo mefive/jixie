@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 import type { AgentTool } from './types.js';
 
 const TABLE_LABELS = {

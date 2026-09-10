@@ -1,12 +1,12 @@
-import { loadTushareConfig } from '../../src/market/providers/tushare/config.js';
-import { addDays } from '../../src/date.js';
-import { prisma } from '../../src/infra/database/prisma.js';
+import { loadTushareConfig } from '#market/providers/tushare/config.js';
+import { addDays } from '#date';
+import { prisma } from '#infra/database/prisma.js';
 import {
   ChinaBondPublicCurveClient,
   syncChinaBondCreditCurves,
-} from '../../src/market/rates/chinabond-credit-curves.js';
-import { syncTradeCal } from '../../src/market/sync/calendar.js';
-import { TushareClient } from '../../src/market/providers/tushare/client.js';
+} from '#market/rates/chinabond-credit-curves.js';
+import { syncTradeCal } from '#market/sync/calendar.js';
+import { TushareClient } from '#market/providers/tushare/client.js';
 
 async function main(): Promise<void> {
   const [startDate = '20060101', endDate = shanghaiToday()] = process.argv.slice(2);

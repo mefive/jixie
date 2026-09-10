@@ -6,7 +6,7 @@ import { Hono } from 'hono';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const fixture = vi.hoisted(() => ({ directory: '' }));
-vi.mock('../infra/database/prisma.js', async () => {
+vi.mock('#infra/database/prisma.js', async () => {
   const { mkdtempSync, writeFileSync } = await import('node:fs');
   const { default: exports } = await import('@prisma/client');
   fixture.directory = mkdtempSync('/tmp/jixie-sharing-http-');
@@ -14,9 +14,9 @@ vi.mock('../infra/database/prisma.js', async () => {
   writeFileSync(database, '');
   return { prisma: new exports.PrismaClient({ datasourceUrl: `file:${database}` }) };
 });
-import { prisma } from '../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 import { routes } from './routes.js';
-import { copyPublicStrategy } from '../strategy/definitions/copy-public.js';
+import { copyPublicStrategy } from '#strategy/definitions/copy-public.js';
 
 const config = {
   name: 'Public fixture',

@@ -1,4 +1,4 @@
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 
 export async function loadIndexSeries(tsCode: string, start: string, end: string) {
   const rows = await prisma.indexDaily.findMany({

@@ -3,7 +3,7 @@ import {
   RESEARCH_PLAYBOOK_IDS,
   playbookConceptDefinitions,
   researchPlaybookById,
-} from '../../research/catalog/playbooks.js';
+} from '#research/catalog/playbooks.js';
 import type { AgentTool } from './types.js';
 
 const argsSchema = z.strictObject({

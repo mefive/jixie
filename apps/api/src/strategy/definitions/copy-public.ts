@@ -1,7 +1,7 @@
 import { ulid } from 'ulid';
 import type { BacktestConfig } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 import { uniqueStrategyName } from './naming.js';
 
 export async function copyPublicStrategy(userId: string, strategyId: string) {

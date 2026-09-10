@@ -1,5 +1,5 @@
 import type { Locale, ResearchClarificationV1 } from '@jixie/shared';
-import { t } from '../../i18n/index.js';
+import { t } from '#i18n/index.js';
 
 export function researchClarificationAnswerMessage(
   locale: Locale,

@@ -1,6 +1,6 @@
 import type { MiddlewareHandler, Context } from 'hono';
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
-import { apiError } from '../../infra/http/errors.js';
+import { apiError } from '#infra/http/errors.js';
 import { resolveSession } from '../session.js';
 
 const COOKIE_NAME = 'sid';

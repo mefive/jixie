@@ -1,4 +1,4 @@
-import { prisma } from '../../src/infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 
 /**
  * Inspect local store contents and verify the "daily bars + adjustment" read path (ORM).

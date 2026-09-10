@@ -1,8 +1,8 @@
-import { syncCommodityWarehouseReceipts } from '../../src/market/commodity/commodity-warehouse-receipts.js';
-import { COMMODITY_FUTURE_PRODUCT_CODES } from '../../src/market/commodity/commodity-futures.js';
-import { loadTushareConfig } from '../../src/market/providers/tushare/config.js';
-import { prisma } from '../../src/infra/database/prisma.js';
-import { TushareClient } from '../../src/market/providers/tushare/client.js';
+import { syncCommodityWarehouseReceipts } from '#market/commodity/commodity-warehouse-receipts.js';
+import { COMMODITY_FUTURE_PRODUCT_CODES } from '#market/commodity/commodity-futures.js';
+import { loadTushareConfig } from '#market/providers/tushare/config.js';
+import { prisma } from '#infra/database/prisma.js';
+import { TushareClient } from '#market/providers/tushare/client.js';
 
 /**
  * Sync research-only AU/CU/SC/M exchange warehouse-receipt aggregates.

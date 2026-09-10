@@ -1,5 +1,5 @@
 import type { ResearchAssetTypeV1, StockSeries } from '@jixie/shared';
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 
 /** Load the chartable daily series for a verified object identity. */
 export async function instrumentSeries(

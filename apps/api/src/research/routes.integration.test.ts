@@ -17,7 +17,7 @@ const resources = vi.hoisted(() => ({
   id: vi.fn(),
 }));
 vi.mock('ulid', () => ({ ulid: resources.id }));
-vi.mock('../infra/database/prisma.js', async () => {
+vi.mock('#infra/database/prisma.js', async () => {
   const { mkdtempSync, writeFileSync } = await import('node:fs');
   const { default: packageExports } = await import('@prisma/client');
   fixture.directory = mkdtempSync('/tmp/jixie-research-http-');
@@ -25,26 +25,26 @@ vi.mock('../infra/database/prisma.js', async () => {
   writeFileSync(databasePath, '');
   return { prisma: new packageExports.PrismaClient({ datasourceUrl: `file:${databasePath}` }) };
 });
-vi.mock('../agent/turns/run.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../agent/turns/run.js')>()),
+vi.mock('#agent/turns/run.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('#agent/turns/run.js')>()),
   enqueueAgentTurn: resources.enqueue,
 }));
-vi.mock('../agent/turns/bus.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../agent/turns/bus.js')>()),
+vi.mock('#agent/turns/bus.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('#agent/turns/bus.js')>()),
   findRunning: resources.running,
 }));
 vi.mock('./execution/python-session.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./execution/python-session.js')>()),
   closeResearchDocumentRuntime: resources.close,
 }));
-vi.mock('../infra/jobs/queue.js', () => ({ wakeJobQueue: resources.wake }));
-vi.mock('../infra/jobs/logs.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../infra/jobs/logs.js')>()),
+vi.mock('#infra/jobs/queue.js', () => ({ wakeJobQueue: resources.wake }));
+vi.mock('#infra/jobs/logs.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('#infra/jobs/logs.js')>()),
   initializeJobLogs: resources.logs,
 }));
 
-import { prisma } from '../infra/database/prisma.js';
-import { t } from '../i18n/index.js';
+import { prisma } from '#infra/database/prisma.js';
+import { t } from '#i18n/index.js';
 import { submitResearchCuratorRun } from './curator/submit.js';
 import { finishResearchDocumentRun, startResearchDocumentRun } from './execution/run-state.js';
 import { researchRoute } from './routes.js';

@@ -1,7 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import type { ChatMessage, Locale } from '@jixie/shared';
-import { prisma } from '../../infra/database/prisma.js';
-import { t } from '../../i18n/index.js';
+import { prisma } from '#infra/database/prisma.js';
+import { t } from '#i18n/index.js';
 import type { TurnEntity } from '../turns/run.js';
 
 // —— entity messages IO ——

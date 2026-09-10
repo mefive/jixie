@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   reportFindMany: vi.fn(),
 }));
 
-vi.mock('../../infra/database/prisma.js', () => ({
+vi.mock('#infra/database/prisma.js', () => ({
   prisma: {
     factor: { findMany: mocks.factorFindMany },
     factorComposite: { findMany: mocks.compositeFindMany },
@@ -15,7 +15,7 @@ vi.mock('../../infra/database/prisma.js', () => ({
 }));
 
 import { extractFactorKeys, prepareStrategyFactors } from './prepare-factors.js';
-import { canonicalJson, sha256 } from '../../factor/reports/spec.js';
+import { canonicalJson, sha256 } from '#factor/reports/spec.js';
 
 const SOURCE = `export default defineFactor({ compute: (bar) => bar.pb });`;
 

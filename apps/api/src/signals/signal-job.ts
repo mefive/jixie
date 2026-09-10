@@ -2,9 +2,9 @@ import { fork } from 'node:child_process';
 import { z } from 'zod';
 import type { FactorInputSummary, LogLine, ModelPositionSnapshot, SignalItem } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
-import { defineJob } from '../infra/jobs/definition.js';
-import { runJobWorker } from '../infra/jobs/worker-result.js';
-import { t } from '../i18n/messages.js';
+import { defineJob } from '#infra/jobs/definition.js';
+import { runJobWorker } from '#infra/jobs/worker-result.js';
+import { t } from '#i18n/messages.js';
 import { notifySignalRun } from './notifier.js';
 import { initializeSignalAccounting } from './accounting/initialize.js';
 

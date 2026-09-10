@@ -1,5 +1,5 @@
 import type { ResearchCellOutputBlockV1 } from '@jixie/shared';
-import { PythonSession } from '../../infra/runtime/python/session.js';
+import { PythonSession } from '#infra/runtime/python/session.js';
 import type { ResearchPythonAnalysis } from '../sdk/analysis-types.js';
 import {
   researchAnalysisFrameSchema,

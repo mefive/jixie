@@ -1,6 +1,6 @@
 import type { TradeDate } from '@jixie/shared';
-import { prisma } from '../../infra/database/prisma.js';
-import { log } from '../../infra/logging.js';
+import { prisma } from '#infra/database/prisma.js';
+import { log } from '#infra/logging.js';
 import {
   COMMODITY_FUTURE_EXCHANGES,
   COMMODITY_FUTURE_PRODUCT_CODES,

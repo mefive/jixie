@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { validateJson } from '../infra/http/errors.js';
+import { validateJson } from '#infra/http/errors.js';
 import {
   createFactorWeatherPinSchema,
   listFactorWeatherPins,
@@ -8,7 +8,7 @@ import {
   deleteFactorWeatherPin,
 } from './weather/pins.js';
 import { factorOperationApiError } from './route-errors.js';
-import { localeFromRequest } from '../infra/http/locale.js';
+import { localeFromRequest } from '#infra/http/locale.js';
 
 export const factorWeatherRoute = new Hono();
 

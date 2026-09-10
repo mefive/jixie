@@ -1,4 +1,4 @@
-import type { RegisteredJobDefinition } from '../infra/jobs/definition.js';
+import type { RegisteredJobDefinition } from '#infra/jobs/definition.js';
 import { factorAnalysisJob } from './analysis-job.js';
 import { factorCorrelationJob } from './correlation-job.js';
 

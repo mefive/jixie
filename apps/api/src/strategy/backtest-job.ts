@@ -1,11 +1,11 @@
 import { Worker } from 'node:worker_threads';
 import type { BacktestConfig, BacktestSummary, Locale } from '@jixie/shared';
 import { z } from 'zod';
-import { defineJob } from '../infra/jobs/definition.js';
-import { runJobWorker, type JobWorkerMessage } from '../infra/jobs/worker-result.js';
+import { defineJob } from '#infra/jobs/definition.js';
+import { runJobWorker, type JobWorkerMessage } from '#infra/jobs/worker-result.js';
 import { createHash } from 'node:crypto';
 import type { Prisma } from '@prisma/client';
-import { t } from '../i18n/messages.js';
+import { t } from '#i18n/messages.js';
 import { codeConfigSchema } from './runtime/typescript/schema.js';
 import { strategyRunKey } from './definitions/config.js';
 import { refreshStrategyName } from './definitions/naming.js';

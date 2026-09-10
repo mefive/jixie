@@ -1,8 +1,8 @@
 import { z } from 'zod';
 import type { ChatMessage } from '@jixie/shared';
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 import { refreshFactorMetadata } from './metadata.js';
-import { t } from '../../i18n/index.js';
+import { t } from '#i18n/index.js';
 import type { Locale } from '@jixie/shared';
 import { failFactorOperation } from '../operation-errors.js';
 

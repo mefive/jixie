@@ -105,7 +105,7 @@ Linux 正式配置为 [jixie-backup.service](../../../deploy/jixie-backup.servic
 FCFF 复现入口须在 `apps/api` 下执行：
 
 ```sh
-node --env-file=.env --import tsx scripts/research/create-fcff-research-replays.ts <existing-owner-email> <manifest.json>
+node --conditions=development --env-file=.env --import tsx scripts/research/create-fcff-research-replays.ts <existing-owner-email> <manifest.json>
 ```
 
 这两个研究入口暂时保留，用于手动分析与历史报告复现，不加入生产定时任务。生成统计文档后应检查生成文件的 diff。

@@ -1,4 +1,4 @@
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 
 export async function loadFutureSeries(code: string, start: string, end: string) {
   const mappings = await prisma.futureMapping.findMany({

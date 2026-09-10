@@ -2,14 +2,11 @@ import ivm from 'isolated-vm';
 import { transform } from 'esbuild';
 import { buildWallBundle } from './wall-bundle.js';
 import type { Locale, StrategyParamValue, StrategySignalMetadata } from '@jixie/shared';
-import type { EngineDataPort } from '../../../engine/data/data-port.js';
-import type { CustomFactorModule } from '../../../engine/factors/custom-factor.js';
-import type { BacktestResult, CostModel, SignalBacktestOutput } from '../../../engine/types.js';
-import type { UserLogSink } from '../../../infra/runtime/console.js';
-import {
-  PythonFactorHost,
-  withPythonFactorHost,
-} from '../../../engine/adapters/python-factor-host.js';
+import type { EngineDataPort } from '#engine/data/data-port.js';
+import type { CustomFactorModule } from '#engine/factors/custom-factor.js';
+import type { BacktestResult, CostModel, SignalBacktestOutput } from '#engine/types.js';
+import type { UserLogSink } from '#infra/runtime/console.js';
+import { PythonFactorHost, withPythonFactorHost } from '#engine/adapters/python-factor-host.js';
 
 /**
  * The walled lane's HOST side (sandbox Phase B2): bundle the engine (wall-entry.ts) once, evaluate

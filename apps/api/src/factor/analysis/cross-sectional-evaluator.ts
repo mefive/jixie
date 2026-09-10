@@ -4,7 +4,7 @@ import type {
   FactorResearchSpecV1,
   Locale,
 } from '@jixie/shared';
-import type { UserLogSink } from '../../infra/runtime/console.js';
+import type { UserLogSink } from '#infra/runtime/console.js';
 import { analyzeFactor } from './cross-sectional.js';
 import type { FactorAnalysisRuntimeSource } from '../composition/composite.js';
 

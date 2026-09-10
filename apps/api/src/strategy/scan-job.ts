@@ -8,9 +8,9 @@ import type {
 } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
 import { z } from 'zod';
-import { t } from '../i18n/messages.js';
-import { defineJob } from '../infra/jobs/definition.js';
-import { runJobWorker, type JobWorkerMessage } from '../infra/jobs/worker-result.js';
+import { t } from '#i18n/messages.js';
+import { defineJob } from '#infra/jobs/definition.js';
+import { runJobWorker, type JobWorkerMessage } from '#infra/jobs/worker-result.js';
 import { codeConfigSchema } from './runtime/typescript/schema.js';
 
 const workerUrl = import.meta.url.endsWith('.ts')

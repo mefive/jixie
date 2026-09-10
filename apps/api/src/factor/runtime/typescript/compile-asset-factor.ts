@@ -2,8 +2,8 @@ import {
   loadIsolatedModule,
   toCommonJs,
   type IsolatedModule,
-} from '../../../infra/runtime/typescript/isolate-run.js';
-import type { UserLogSink } from '../../../infra/runtime/console.js';
+} from '#infra/runtime/typescript/isolate-run.js';
+import type { UserLogSink } from '#infra/runtime/console.js';
 import {
   FACTOR_V2_FIELDS,
   isFactorV2FieldKey,

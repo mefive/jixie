@@ -1,6 +1,6 @@
 import type { FactorBar, MultiAssetClass } from '@jixie/shared';
-import type { CustomFactor, FactorCtx } from '../../factor/runtime/typescript/sdk.js';
-import { factorV2YieldTerm, type FactorV2FieldKey } from '../../factor/definitions/fields.js';
+import type { CustomFactor, FactorCtx } from '#factor/runtime/typescript/sdk.js';
+import { factorV2YieldTerm, type FactorV2FieldKey } from '#factor/definitions/fields.js';
 import type { EngineData } from '../data/engine-data.js';
 import type { BarRow } from '../types.js';
 

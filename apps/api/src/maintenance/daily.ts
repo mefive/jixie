@@ -2,47 +2,47 @@ import type { TradeDate } from '@jixie/shared';
 import {
   syncCommodityContinuousReturns,
   type CommodityContinuousReturnSyncSummary,
-} from '../market/commodity/commodity-continuous-returns.js';
+} from '#market/commodity/commodity-continuous-returns.js';
 import {
   syncCommodityHoldingPositions,
   type CommodityHoldingSyncSummary,
-} from '../market/commodity/commodity-holding-positions.js';
+} from '#market/commodity/commodity-holding-positions.js';
 import {
   maintainCommodityWarehouseReceipts,
   type CommodityWarehouseReceiptMaintenanceSummary,
-} from '../market/commodity/commodity-warehouse-receipt-maintenance.js';
-import { loadTushareConfig } from '../market/providers/tushare/config.js';
-import { prisma } from '../infra/database/prisma.js';
+} from '#market/commodity/commodity-warehouse-receipt-maintenance.js';
+import { loadTushareConfig } from '#market/providers/tushare/config.js';
+import { prisma } from '#infra/database/prisma.js';
 import {
   syncCrossMarketBenchmarks,
   type CrossMarketBenchmarkSyncSummary,
-} from '../market/sync/cross-market-benchmarks.js';
-import { syncMarketIndicators } from '../market/sync/market-indicators.js';
+} from '#market/sync/cross-market-benchmarks.js';
+import { syncMarketIndicators } from '#market/sync/market-indicators.js';
 import {
   ChinaBondPublicCurveClient,
   syncChinaBondCreditCurves,
-} from '../market/rates/chinabond-credit-curves.js';
+} from '#market/rates/chinabond-credit-curves.js';
 import {
   MinistryOfFinanceCurveClient,
   syncChinaTreasuryYieldCurve,
-} from '../market/rates/china-treasury-curve.js';
+} from '#market/rates/china-treasury-curve.js';
 import {
   syncExternalMarketDrivers,
   type ExternalMarketSyncSummary,
-} from '../market/rates/external-market-drivers.js';
-import { generateDailySignals } from '../signals/scheduler.js';
-import { latestCompletedTradeDate } from '../signals/runs/readiness.js';
-import { syncSignalMarketData } from '../signals/sync.js';
+} from '#market/rates/external-market-drivers.js';
+import { generateDailySignals } from '#signals/scheduler.js';
+import { latestCompletedTradeDate } from '#signals/runs/readiness.js';
+import { syncSignalMarketData } from '#signals/sync.js';
 import {
   MAJOR_INDEX_DAILY_BASIC_CODES,
   DAILY_MAINTAINED_INDEX_CODES,
-} from '../market/registry/index-presets.js';
-import { syncDailyCoreDate } from '../market/sync/stock-daily.js';
-import { syncCommodityFutureContracts, syncCommodityFutureDaily } from '../market/sync/futures.js';
-import { syncIndexDaily, syncIndexDailyBasic, syncSwIndexDaily } from '../market/sync/indices.js';
-import { syncMoneyflow, syncTopList } from '../market/sync/stock-flows.js';
-import { syncTradeCal } from '../market/sync/calendar.js';
-import { TushareClient } from '../market/providers/tushare/client.js';
+} from '#market/registry/index-presets.js';
+import { syncDailyCoreDate } from '#market/sync/stock-daily.js';
+import { syncCommodityFutureContracts, syncCommodityFutureDaily } from '#market/sync/futures.js';
+import { syncIndexDaily, syncIndexDailyBasic, syncSwIndexDaily } from '#market/sync/indices.js';
+import { syncMoneyflow, syncTopList } from '#market/sync/stock-flows.js';
+import { syncTradeCal } from '#market/sync/calendar.js';
+import { TushareClient } from '#market/providers/tushare/client.js';
 import { shouldSkipScheduledClosedDay } from './daily-schedule.js';
 import { validateDerivedMarketRange, validateRawMarketDate } from './quality.js';
 import {

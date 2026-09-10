@@ -1,6 +1,6 @@
 import type { FactorReport as FactorReportRow } from '@prisma/client';
 import type { FactorHoldoutEligibility } from '@jixie/shared';
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 import { enoughHoldoutPeriods, getHoldoutPolicy, parseResearchIntent } from './research-policy.js';
 import { resolveEtfCommonLatest } from '../observations/asset-factor-data-cutoff.js';
 import { reportResearchSpec } from './views.js';

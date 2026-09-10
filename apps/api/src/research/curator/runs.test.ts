@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import type { PrismaClient } from '@prisma/client';
 import prismaPackage from '@prisma/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { tushareCapabilityProbesAreFresh } from '../../market/providers/tushare/capability-probe-store.js';
+import { tushareCapabilityProbesAreFresh } from '#market/providers/tushare/capability-probe-store.js';
 import {
   extractResearchCuratorEvidence,
   getResearchCuratorRun,
@@ -16,7 +16,7 @@ import {
 import * as curator from './runs.js';
 import * as referenceSearch from './reference-search.js';
 import { researchCuratorJob } from '../curator-job.js';
-import type { JobSnapshot } from '../../infra/jobs/definition.js';
+import type { JobSnapshot } from '#infra/jobs/definition.js';
 
 const originalPrepare = curator.prepareResearchCuratorRun;
 const { PrismaClient: RuntimePrismaClient } = prismaPackage;

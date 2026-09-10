@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
   dividendFindMany: vi.fn(),
 }));
 
-vi.mock('../../infra/database/prisma.js', () => ({
+vi.mock('#infra/database/prisma.js', () => ({
   prisma: {
     marketIndicator: { findMany: mocks.marketFindMany },
     indexIndicator: { findMany: mocks.indexFindMany },

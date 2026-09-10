@@ -96,6 +96,44 @@ test('checks runtime, type-only and dynamic imports equally for ownership', (con
   );
 });
 
+test('resolves native package imports to source and enforces module ownership', (context) => {
+  const root = fixture(
+    context,
+    {
+      'apps/api/package.json': JSON.stringify({
+        type: 'module',
+        imports: {
+          '#strategy/*': {
+            development: './src/strategy/*',
+            default: './dist/src/strategy/*',
+          },
+        },
+      }),
+      [src + 'infra/jobs/example.ts']: "export { value } from '#strategy/model.js';",
+      [src + 'strategy/model.ts']: 'export const value = 1;',
+    },
+    { customConditions: ['development'] },
+  );
+  const result = checkBackendBoundaries(root, emptyPolicy);
+  assert.ok(rules(result).includes('infra-direction'));
+  const dependencies = collectBackendDependencies(root);
+  assert.equal(dependencies.edges[0].to, src + 'strategy/model.ts');
+  assert.deepEqual(dependencies.diagnostics, []);
+});
+
+test('rejects unknown and missing native internal imports', (context) => {
+  const root = fixture(context, {
+    'apps/api/package.json': JSON.stringify({
+      imports: { '#infra/*': './src/infra/*' },
+    }),
+    [src + 'factor/read.ts']: "import '#unknown/module.js'; void import('#infra/missing.js');",
+  });
+  assert.deepEqual(rules(collectBackendDependencies(root)), [
+    'unresolved-import',
+    'unresolved-import',
+  ]);
+});
+
 test('rejects direct HTTP storage and business imports of HTTP adapters', (context) => {
   const root = fixture(context, {
     [src + 'strategy/routes.ts']: "import { prisma } from '../infra/database/prisma.js';",

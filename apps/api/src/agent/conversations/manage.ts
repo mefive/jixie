@@ -1,7 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import type { ChatMessage } from '@jixie/shared';
 import { ulid } from 'ulid';
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 import type { TurnEntity } from '../turns/run.js';
 
 export async function findOrCreateConversation(args: {

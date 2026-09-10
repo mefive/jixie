@@ -1,4 +1,4 @@
-import { loadIsolatedModule, toCommonJs } from '../../infra/runtime/typescript/isolate-run.js';
+import { loadIsolatedModule, toCommonJs } from '#infra/runtime/typescript/isolate-run.js';
 
 /**
  * Compile + run one analyzeData code module inside an isolated-vm isolate (hard sandbox: no Node

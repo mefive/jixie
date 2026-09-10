@@ -1,4 +1,4 @@
-import { warn } from '../../../infra/logging.js';
+import { warn } from '#infra/logging.js';
 
 export type TushareValue = string | number | null;
 export type TushareRow = Record<string, TushareValue>;

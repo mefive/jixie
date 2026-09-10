@@ -4,13 +4,13 @@ import type { Prisma } from '@prisma/client';
 import { ulid } from 'ulid';
 import type { z } from 'zod';
 import { inspectWalledStrategyParameters } from '../runtime/typescript/walled-run.js';
-import { ACTIVE_JOB_STATUSES } from '../../infra/jobs/records.js';
-import { initializeJobLogs } from '../../infra/jobs/logs.js';
-import { wakeJobQueue } from '../../infra/jobs/queue.js';
-import { prisma } from '../../infra/database/prisma.js';
+import { ACTIVE_JOB_STATUSES } from '#infra/jobs/records.js';
+import { initializeJobLogs } from '#infra/jobs/logs.js';
+import { wakeJobQueue } from '#infra/jobs/queue.js';
+import { prisma } from '#infra/database/prisma.js';
 import { normalizeScanSpec } from './scan.js';
 import type { scanStrategyQuerySchema, submitStrategyScanSchema } from './inputs.js';
-import { t } from '../../i18n/index.js';
+import { t } from '#i18n/index.js';
 import type { Locale } from '@jixie/shared';
 import { failStrategyOperation } from '../operation-errors.js';
 

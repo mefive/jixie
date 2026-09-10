@@ -1,4 +1,4 @@
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 import type { FactorAnalysisSource } from '../analysis-job.js';
 import { resolvePanelTemplateSource } from '../definitions/templates/panel.js';
 import { factorPanelCompositeDefinitionV2Schema } from '../reports/spec.js';

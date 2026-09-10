@@ -3,7 +3,7 @@ import {
   type MarketRiskFactorKeyV1,
   type PortfolioMarketRiskAnalysisV1,
 } from '@jixie/shared';
-import type { MarketRiskDriverHistoryV1 } from '../../../market/state/market-risk-drivers.js';
+import type { MarketRiskDriverHistoryV1 } from '#market/state/market-risk-drivers.js';
 
 export const MARKET_RISK_LOOKBACK_OBSERVATIONS = 252;
 export const MARKET_RISK_MINIMUM_OBSERVATIONS = 120;

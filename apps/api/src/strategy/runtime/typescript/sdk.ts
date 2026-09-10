@@ -5,8 +5,8 @@ import type {
   ResamplePeriod,
   Strategy,
   StrategyAccounts,
-} from '../../../engine/types.js';
-import { isoWeekKey } from '../../../date.js';
+} from '#engine/types.js';
+import { isoWeekKey } from '#date';
 import {
   adx as calculateAdx,
   adxLookback,
@@ -21,7 +21,7 @@ import {
   type BollingerBandsResult,
   type KdjResult,
   type MacdResult,
-} from '../../../math/indicators.js';
+} from '#math/indicators.js';
 
 /**
  * The strategy SDK — what user code is written against. Full code-first: a strategy is just

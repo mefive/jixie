@@ -4,6 +4,8 @@
 
 ## 线程、进程与 bundle
 
+API 的原生包内别名由 `apps/api/package.json#imports` 定义：`development` 条件指向 `src`，默认指向 `dist/src`。API 开发和 CLI 的 pnpm 脚本显式传入 `--conditions=development`；手动源码执行也须传入该参数。Vitest 为模块解析及测试子进程设置相同条件，真实 Worker/fork 继承启动条件。esbuild wall bundle 根据当前入口为 `.ts` 或 `.js` 选择源码或编译映射。生产 Node 不启用 `development`，且部署保留 API package.json；不能把 dist 脱离该包配置单独搬运。Worker URL 和非模块资源路径仍按本表解析。
+
 | 发起方 | 源码入口 | 编译入口 | 执行与收尾 |
 | --- | --- | --- | --- |
 | `strategy/backtest-job.ts` | `engine/backtest-worker.boot.mjs` → `backtest-worker.ts` | `engine/backtest-worker.js` | 回测线程；回传结果，主线程按 Job 契约完成事务 |

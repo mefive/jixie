@@ -6,9 +6,9 @@ import {
   type RiskDataLineageV1,
 } from '@jixie/shared';
 import { describe, expect, it } from 'vitest';
-import type { BacktestResult } from '../../../engine/types.js';
-import { addDays } from '../../../date.js';
-import type { MarketRiskDriverHistoryV1 } from '../../../market/state/market-risk-drivers.js';
+import type { BacktestResult } from '#engine/types.js';
+import { addDays } from '#date';
+import type { MarketRiskDriverHistoryV1 } from '#market/state/market-risk-drivers.js';
 import { buildBacktestRiskAnalysis } from './backtest-risk-analysis.js';
 
 describe('backtest risk-analysis orchestration', () => {

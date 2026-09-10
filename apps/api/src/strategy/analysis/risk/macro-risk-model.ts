@@ -2,7 +2,7 @@ import { MACRO_RISK_AXIS_KEYS_V1, type PortfolioMacroRiskAnalysisV1 } from '@jix
 import {
   MACRO_RISK_MARKET_SERIES_KEYS,
   type MacroRiskAxisHistoryV1,
-} from '../../../market/macro/risk-axes.js';
+} from '#market/macro/risk-axes.js';
 
 export const MACRO_RISK_LOOKBACK_OBSERVATIONS = 60;
 export const MACRO_RISK_MINIMUM_OBSERVATIONS = 36;

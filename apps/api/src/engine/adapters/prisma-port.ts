@@ -1,9 +1,9 @@
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 import {
   CHINA_TREASURY_CURVE_CODE,
   CHINA_TREASURY_CURVE_SOURCE,
   CHINA_TREASURY_CURVE_TYPE,
-} from '../../market/rates/china-treasury-curve.js';
+} from '#market/rates/china-treasury-curve.js';
 import type { BarsRows, EngineDataPort } from '../data/data-port.js';
 
 // Kept in its own module (not data-port.ts) so the Phase B2 engine bundle can alias THIS file

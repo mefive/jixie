@@ -1,7 +1,7 @@
 import { MARKET_RISK_FACTOR_KEYS_V1 } from '@jixie/shared';
 import { describe, expect, it } from 'vitest';
-import type { MarketRiskDriverHistoryV1 } from '../market/state/market-risk-drivers.js';
-import { summarizeMarketRiskDriverQuality as baseMarketQuality } from '../market/quality/market-risk-drivers.js';
+import type { MarketRiskDriverHistoryV1 } from '#market/state/market-risk-drivers.js';
+import { summarizeMarketRiskDriverQuality as baseMarketQuality } from '#market/quality/market-risk-drivers.js';
 import { summarizeMarketRiskDriverQuality } from './risk-data-audit.js';
 
 describe('market-risk driver quality', () => {

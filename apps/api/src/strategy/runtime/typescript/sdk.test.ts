@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Universe, enrich, periodKey } from './sdk.js';
-import type { BarContext, BarRow } from '../../../engine/types.js';
+import type { BarContext, BarRow } from '#engine/types.js';
 
 // A bag of fake today-rows keyed by code, plus listDays, behind a minimal BarContext for Universe.
 function ctxOf(

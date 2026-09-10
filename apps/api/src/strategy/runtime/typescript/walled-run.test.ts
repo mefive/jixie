@@ -1,9 +1,9 @@
 import { Worker } from 'node:worker_threads';
 import { describe, expect, it } from 'vitest';
-import { runStrategy, runStrategyWithSignals } from '../../../engine/simulation/run.js';
+import { runStrategy, runStrategyWithSignals } from '#engine/simulation/run.js';
 import { runWalledBacktest, runWalledSignalCapture } from './walled-run.js';
 import { compileStrategy } from './compile.js';
-import { fixturePort, type FixtureSpec } from '../../../engine/testing/fixture-port.js';
+import { fixturePort, type FixtureSpec } from '#engine/testing/fixture-port.js';
 
 /**
  * Dual-lane drift guard (定死护栏, python-and-sandbox.md Phase B): the SAME strategy code over the

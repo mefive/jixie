@@ -2,8 +2,8 @@ import type { FactorResearchSpecV1 } from '@jixie/shared';
 import {
   commodityFutureProductCodesForEtfs,
   commodityWarehouseReceiptProductCodesForEtfs,
-} from '../../market/commodity/commodity-futures.js';
-import { prisma, type Prisma } from '../../infra/database/prisma.js';
+} from '#market/commodity/commodity-futures.js';
+import { prisma, type Prisma } from '#infra/database/prisma.js';
 
 export interface AssetFactorDataRequirements {
   commodityCarry?: boolean;

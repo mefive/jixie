@@ -15,14 +15,14 @@ import type {
 } from '@jixie/shared';
 import { z } from 'zod';
 import { ulid } from 'ulid';
-import { prisma } from '../../infra/database/prisma.js';
-import { chatJson, type LlmCall } from '../../infra/llm/deepseek.js';
-import { SQL_TABLE_DOCS } from '../../agent/tools/sql/read-only-sql.js';
-import { TUSHARE_CAPABILITIES } from '../../market/providers/tushare/capability-catalog.js';
+import { prisma } from '#infra/database/prisma.js';
+import { chatJson, type LlmCall } from '#infra/llm/deepseek.js';
+import { SQL_TABLE_DOCS } from '#agent/tools/sql/read-only-sql.js';
+import { TUSHARE_CAPABILITIES } from '#market/providers/tushare/capability-catalog.js';
 import {
   latestTushareCapabilityProbes,
   type StoredTushareCapabilityProbe,
-} from '../../market/providers/tushare/capability-probe-store.js';
+} from '#market/providers/tushare/capability-probe-store.js';
 import { researchCapabilityCatalog } from '../catalog/capabilities.js';
 import { crossMarketDataContractRegistry } from '../datasets/cross-market-data-contracts.js';
 import {

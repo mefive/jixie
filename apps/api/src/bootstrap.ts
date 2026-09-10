@@ -1,18 +1,18 @@
 import { serve } from '@hono/node-server';
 import { buildApp } from './server.js';
-import { startJobQueue } from './infra/jobs/queue.js';
-import { createJobExecutor } from './infra/jobs/executor.js';
-import type { JobRegistry } from './infra/jobs/definition.js';
-import { seedBuiltinFactors } from './factor/definitions/builtin-factors.js';
-import { resetInterruptedFactorWeatherRefreshes } from './factor/weather/refresh.js';
-import { markRunningAgentTurnsInterrupted } from './agent/turns/records.js';
+import { startJobQueue } from '#infra/jobs/queue.js';
+import { createJobExecutor } from '#infra/jobs/executor.js';
+import type { JobRegistry } from '#infra/jobs/definition.js';
+import { seedBuiltinFactors } from '#factor/definitions/builtin-factors.js';
+import { resetInterruptedFactorWeatherRefreshes } from '#factor/weather/refresh.js';
+import { markRunningAgentTurnsInterrupted } from '#agent/turns/records.js';
 
 export const jobRegistry: JobRegistry = {
-  backtest: async () => (await import('./strategy/backtest-job.js')).backtestJob,
-  factor: async () => (await import('./factor/factor-job.js')).factorJob,
-  'strategy-scan': async () => (await import('./strategy/scan-job.js')).strategyScanJob,
-  signal: async () => (await import('./signals/signal-job.js')).signalJob,
-  'research-curator': async () => (await import('./research/curator-job.js')).researchCuratorJob,
+  backtest: async () => (await import('#strategy/backtest-job.js')).backtestJob,
+  factor: async () => (await import('#factor/factor-job.js')).factorJob,
+  'strategy-scan': async () => (await import('#strategy/scan-job.js')).strategyScanJob,
+  signal: async () => (await import('#signals/signal-job.js')).signalJob,
+  'research-curator': async () => (await import('#research/curator-job.js')).researchCuratorJob,
 };
 
 export async function startServer(port: number) {

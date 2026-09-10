@@ -1,5 +1,5 @@
 import type { Prisma } from '@prisma/client';
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 import type { ResearchExecutionSourceCellSnapshot } from '../evidence/execution-records.js';
 import type { ResearchCellKindV1 } from '@jixie/shared';
 import { jsonStringArray } from '../dependencies/cell-values.js';

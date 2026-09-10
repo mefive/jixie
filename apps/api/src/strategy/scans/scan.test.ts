@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { BacktestResult } from '../../engine/types.js';
+import type { BacktestResult } from '#engine/types.js';
 import {
   executeStrategyScan,
   normalizeScanSpec,

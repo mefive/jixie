@@ -1,6 +1,6 @@
 import type { TradeDate } from '@jixie/shared';
-import { addDays, day } from '../../date.js';
-import { prisma, type Prisma } from '../../infra/database/prisma.js';
+import { addDays, day } from '#date';
+import { prisma, type Prisma } from '#infra/database/prisma.js';
 import {
   futureWarehouseReceipts,
   type FutureWarehouseReceiptRow,

@@ -5,7 +5,8 @@
     "rootDir": ".",
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "types": ["node"]
+    "types": ["node"],
+    "customConditions": ["development"]
   },
   "include": ["src/**/*", "scripts/**/*"]
 }

@@ -16,7 +16,7 @@ const mocks = vi.hoisted(() => ({
   userFindMany: vi.fn(),
 }));
 
-vi.mock('../../infra/database/prisma.js', () => ({
+vi.mock('#infra/database/prisma.js', () => ({
   prisma: {
     strategy: {
       findFirst: mocks.strategyFindFirst,
@@ -39,9 +39,9 @@ vi.mock('../../infra/database/prisma.js', () => ({
   },
 }));
 
-import { factorsRoute } from '../../factor/routes.js';
-import { routes as sharingRoutes } from '../../sharing/routes.js';
-import { routes as strategyDefinitionRoutes } from '../../strategy/definition-routes.js';
+import { factorsRoute } from '#factor/routes.js';
+import { routes as sharingRoutes } from '#sharing/routes.js';
+import { routes as strategyDefinitionRoutes } from '#strategy/definition-routes.js';
 
 const app = new Hono();
 app.use('*', async (c, next) => {

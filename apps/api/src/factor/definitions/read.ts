@@ -1,10 +1,10 @@
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 import { BUILTIN_USER_ID } from './builtin-factors.js';
 import { timeSeriesTemplateResource } from './templates/time-series.js';
 import { panelTemplateResource } from './templates/panel.js';
 import { macroRegimeTemplateResource } from './templates/macro-regime.js';
 import { strategyKey, customFactorTargetAssetClasses } from './views.js';
-import { t } from '../../i18n/index.js';
+import { t } from '#i18n/index.js';
 import type { Locale } from '@jixie/shared';
 import { failFactorOperation } from '../operation-errors.js';
 

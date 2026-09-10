@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({ findFirst: vi.fn() }));
 
-vi.mock('../../infra/database/prisma.js', () => ({
+vi.mock('#infra/database/prisma.js', () => ({
   prisma: { factor: { findFirst: mocks.findFirst } },
 }));
 

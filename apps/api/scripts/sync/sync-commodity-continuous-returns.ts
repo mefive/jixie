@@ -1,10 +1,10 @@
-import { syncCommodityContinuousReturns } from '../../src/market/commodity/commodity-continuous-returns.js';
-import { auditCommodityContinuousReturns } from '../../src/market/commodity/commodity-continuous-return-quality.js';
-import { loadTushareConfig } from '../../src/market/providers/tushare/config.js';
-import { addDays } from '../../src/date.js';
-import { prisma } from '../../src/infra/database/prisma.js';
-import { syncTradeCal } from '../../src/market/sync/calendar.js';
-import { TushareClient } from '../../src/market/providers/tushare/client.js';
+import { syncCommodityContinuousReturns } from '#market/commodity/commodity-continuous-returns.js';
+import { auditCommodityContinuousReturns } from '#market/commodity/commodity-continuous-return-quality.js';
+import { loadTushareConfig } from '#market/providers/tushare/config.js';
+import { addDays } from '#date';
+import { prisma } from '#infra/database/prisma.js';
+import { syncTradeCal } from '#market/sync/calendar.js';
+import { TushareClient } from '#market/providers/tushare/client.js';
 
 /**
  * Sync Tushare main mappings and rebuild the audited research-only commodity return ledger.

@@ -1,4 +1,4 @@
-import { prisma } from '../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 import { KNOWN_INDICES } from './runtime/typescript/codegen-prompt.js';
 
 export async function syncedIndexContext(): Promise<string> {

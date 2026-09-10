@@ -1,5 +1,5 @@
 import type { ResearchCellKindV1, ResearchDocumentV1 } from '@jixie/shared';
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 import { assertNoOpenCellChangeReview } from '../proposals/review-state.js';
 import { cellCreate } from './cell-seed.js';
 import { analyzeAndPersist, analyzeResearchCellSources } from '../dependencies/analyze.js';

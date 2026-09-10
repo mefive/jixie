@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
-import { localeFromRequest } from '../infra/http/locale.js';
-import { validateJson, validateQuery } from '../infra/http/errors.js';
+import { localeFromRequest } from '#infra/http/locale.js';
+import { validateJson, validateQuery } from '#infra/http/errors.js';
 import {
   scanStrategyQuerySchema,
   scanJobQuerySchema,

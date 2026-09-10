@@ -14,7 +14,7 @@ const mocks = vi.hoisted(() => ({
   wakeJobQueue: vi.fn(),
 }));
 
-vi.mock('../infra/database/prisma.js', () => ({
+vi.mock('#infra/database/prisma.js', () => ({
   prisma: {
     $transaction: mocks.transaction,
     backtestReport: {
@@ -29,13 +29,13 @@ vi.mock('./definitions/config.js', () => ({
 vi.mock('./execution/prepare-factors.js', () => ({
   extractFactorKeys: mocks.extractFactorKeys,
 }));
-vi.mock('../infra/jobs/records.js', () => ({
+vi.mock('#infra/jobs/records.js', () => ({
   ACTIVE_JOB_STATUSES: ['queued', 'running'],
   findRunningJob: vi.fn(),
   getJob: vi.fn(),
 }));
-vi.mock('../infra/jobs/logs.js', () => ({ initializeJobLogs: mocks.initializeJobLogs }));
-vi.mock('../infra/jobs/queue.js', () => ({
+vi.mock('#infra/jobs/logs.js', () => ({ initializeJobLogs: mocks.initializeJobLogs }));
+vi.mock('#infra/jobs/queue.js', () => ({
   wakeJobQueue: mocks.wakeJobQueue,
 }));
 

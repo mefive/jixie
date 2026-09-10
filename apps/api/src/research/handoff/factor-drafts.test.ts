@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
   generateResearchFactorDraft: vi.fn(),
 }));
 
-vi.mock('../../infra/database/prisma.js', () => ({
+vi.mock('#infra/database/prisma.js', () => ({
   prisma: {
     factor: {
       findFirst: mocks.factorFindFirst,

@@ -1,6 +1,6 @@
 import type { MacroRegimeFactorResearchSpecV1 } from '@jixie/shared';
 import { describe, expect, it, vi } from 'vitest';
-import type { Prisma } from '../../infra/database/prisma.js';
+import type { Prisma } from '#infra/database/prisma.js';
 import { resolveMacroRegimeDataCutoff } from './macro-regime-data-cutoff.js';
 
 const researchSpec: MacroRegimeFactorResearchSpecV1 = {

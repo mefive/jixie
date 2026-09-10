@@ -1,4 +1,4 @@
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 import { MAJOR_INDEX_DAILY_BASIC_CODES } from '../registry/index-presets.js';
 import { buildIndexValuationSeries } from './compute.js';
 

@@ -3,7 +3,7 @@ import type {
   StrategyAccountPoint,
   StrategyExecutionOverview,
 } from '@jixie/shared';
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 import type { AccountKind } from './replay.js';
 
 export async function getStrategyExecutionOverview(

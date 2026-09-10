@@ -1,7 +1,7 @@
 import { parentPort, workerData } from 'node:worker_threads';
 import type { FactorFreq, Locale, LogLine, LogLevel } from '@jixie/shared';
 import { computeFactorCorrelation } from './correlation.js';
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 
 /**
  * Factor-correlation worker thread. Mirrors factor-worker: computeFactorCorrelation loads whole-market

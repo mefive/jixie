@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 
-import { prisma, type Prisma } from '../../infra/database/prisma.js';
+import { prisma, type Prisma } from '#infra/database/prisma.js';
 import { canonicalStockCode } from '../instruments/stock-identity.js';
 import type { FinancialAvailabilityQuality, FinancialStatementKind } from './source-contract.js';
 

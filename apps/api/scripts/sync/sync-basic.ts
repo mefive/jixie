@@ -1,7 +1,7 @@
-import { loadTushareConfig } from '../../src/market/providers/tushare/config.js';
-import { TushareClient } from '../../src/market/providers/tushare/client.js';
-import { prisma } from '../../src/infra/database/prisma.js';
-import { syncDailyBasic } from '../../src/market/sync/stock-daily.js';
+import { loadTushareConfig } from '#market/providers/tushare/config.js';
+import { TushareClient } from '#market/providers/tushare/client.js';
+import { prisma } from '#infra/database/prisma.js';
+import { syncDailyBasic } from '#market/sync/stock-daily.js';
 
 /**
  * Sync daily valuation metrics (daily_basic) into the local store.

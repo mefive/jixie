@@ -1,4 +1,4 @@
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 
 const CODE_RE = /^(\d{6})(\.(SH|SZ|BJ))?$/i;
 const NAME_TOKEN_RE = /^[一-龥A-Za-z]{2,8}$/;

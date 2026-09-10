@@ -1,5 +1,5 @@
 import { MACRO_RISK_AXIS_KEYS_V1, type MacroRiskAxisKeyV1 } from '@jixie/shared';
-import { prisma, type Prisma } from '../../infra/database/prisma.js';
+import { prisma, type Prisma } from '#infra/database/prisma.js';
 import { loadMacroRiskAxisHistory, type MacroRiskAxisHistoryV1 } from './risk-axes.js';
 export interface MacroRiskAxisQualityAxis {
   axis: MacroRiskAxisKeyV1;

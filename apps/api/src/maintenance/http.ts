@@ -1,6 +1,6 @@
 import { Hono, type MiddlewareHandler } from 'hono';
-import { m } from '../infra/http/locale.js';
-import { apiError } from '../infra/http/errors.js';
+import { m } from '#infra/http/locale.js';
+import { apiError } from '#infra/http/errors.js';
 import { getMaintenanceStatus } from './state.js';
 
 export const maintenanceRoute = new Hono();

@@ -1,9 +1,9 @@
-import { prisma } from '../../src/infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 import {
   runDataQualityAudit,
   type AuditFinding,
   type DataQualityAuditOptions,
-} from '../../src/maintenance/data-audit.js';
+} from '#maintenance/data-audit.js';
 
 interface CliOptions extends DataQualityAuditOptions {
   json: boolean;

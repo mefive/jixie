@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
-import { validateJson } from '../infra/http/errors.js';
-import { localeFromRequest } from '../infra/http/locale.js';
+import { validateJson } from '#infra/http/errors.js';
+import { localeFromRequest } from '#infra/http/locale.js';
 import { listStrategies, readStrategy } from './definitions/read.js';
 import { createStrategySchema, updateStrategySchema } from './definitions/inputs.js';
 import { createStrategy, updateStrategy, deleteStrategy } from './definitions/drafts.js';

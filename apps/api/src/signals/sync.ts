@@ -1,18 +1,18 @@
 import type { TradeDate } from '@jixie/shared';
-import { loadTushareConfig } from '../market/providers/tushare/config.js';
-import { inspectWalledStrategyMetadata } from '../strategy/runtime/typescript/walled-run.js';
-import { prisma } from '../infra/database/prisma.js';
+import { loadTushareConfig } from '#market/providers/tushare/config.js';
+import { inspectWalledStrategyMetadata } from '#strategy/runtime/typescript/walled-run.js';
+import { prisma } from '#infra/database/prisma.js';
 import {
   MinistryOfFinanceCurveClient,
   syncChinaTreasuryYieldCurve,
-} from '../market/rates/china-treasury-curve.js';
-import { governmentYieldTermsFromDependencies } from '../market/rates/signal-readiness.js';
-import { syncDaily, syncDailyBasic, syncStkLimit } from '../market/sync/stock-daily.js';
-import { syncMoneyflow, syncTopList } from '../market/sync/stock-flows.js';
-import { syncTradeCal } from '../market/sync/calendar.js';
-import { syncEtfMarketDate } from '../market/sync/etf.js';
-import { ETF_RESEARCH_CODES } from '../market/registry/etf-research-registry.js';
-import { TushareClient } from '../market/providers/tushare/client.js';
+} from '#market/rates/china-treasury-curve.js';
+import { governmentYieldTermsFromDependencies } from '#market/rates/signal-readiness.js';
+import { syncDaily, syncDailyBasic, syncStkLimit } from '#market/sync/stock-daily.js';
+import { syncMoneyflow, syncTopList } from '#market/sync/stock-flows.js';
+import { syncTradeCal } from '#market/sync/calendar.js';
+import { syncEtfMarketDate } from '#market/sync/etf.js';
+import { ETF_RESEARCH_CODES } from '#market/registry/etf-research-registry.js';
+import { TushareClient } from '#market/providers/tushare/client.js';
 import { factorDependenciesFromJson } from './factor-inputs/lineage.js';
 
 /** Synchronize the datasets needed by active stock/ETF deployments for one signal close. */

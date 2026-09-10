@@ -1,22 +1,19 @@
-import { loadTushareConfig } from '../../src/market/providers/tushare/config.js';
+import { loadTushareConfig } from '#market/providers/tushare/config.js';
 import {
   syncFinancialStatementsByStock,
   type FinancialStatementSyncSummary,
-} from '../../src/market/fundamentals/sync.js';
-import { prisma } from '../../src/infra/database/prisma.js';
+} from '#market/fundamentals/sync.js';
+import { prisma } from '#infra/database/prisma.js';
 import {
   addReferenceSyncSummary,
   chunkReferenceCodes,
   emptyReferenceSyncSummary,
   runReferenceWorkerProcess,
-} from '../../src/maintenance/reference-worker-process.js';
-import type { ReferenceWorkerStage } from '../../src/maintenance/reference-worker.js';
-import {
-  financialHistoryStart,
-  quarterlyReportPeriods,
-} from '../../src/maintenance/reference-periods.js';
-import { stockCodesWithDailyData } from '../../src/market/queries/stock-codes.js';
-import { TushareClient } from '../../src/market/providers/tushare/client.js';
+} from '#maintenance/reference-worker-process.js';
+import type { ReferenceWorkerStage } from '#maintenance/reference-worker.js';
+import { financialHistoryStart, quarterlyReportPeriods } from '#maintenance/reference-periods.js';
+import { stockCodesWithDailyData } from '#market/queries/stock-codes.js';
+import { TushareClient } from '#market/providers/tushare/client.js';
 
 /**
  * Sync raw statement versions, fina_indicator, and dividend history into the local store. The two

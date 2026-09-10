@@ -16,7 +16,7 @@ const resources = vi.hoisted(() => ({
   completion: vi.fn(),
 }));
 vi.mock('ulid', () => ({ ulid: resources.id }));
-vi.mock('../infra/database/prisma.js', async () => {
+vi.mock('#infra/database/prisma.js', async () => {
   const { mkdtempSync, writeFileSync } = await import('node:fs');
   const { default: exports } = await import('@prisma/client');
   fixture.directory = mkdtempSync('/tmp/jixie-signals-http-');
@@ -24,23 +24,23 @@ vi.mock('../infra/database/prisma.js', async () => {
   writeFileSync(database, '');
   return { prisma: new exports.PrismaClient({ datasourceUrl: `file:${database}` }) };
 });
-vi.mock('../strategy/runtime/typescript/walled-run.js', () => ({
+vi.mock('#strategy/runtime/typescript/walled-run.js', () => ({
   inspectWalledStrategyMetadata: resources.metadata,
 }));
-vi.mock('../strategy/execution/prepare-factors.js', () => ({
+vi.mock('#strategy/execution/prepare-factors.js', () => ({
   prepareStrategyFactors: resources.factors,
 }));
-vi.mock('../market/rates/signal-readiness.js', () => ({
+vi.mock('#market/rates/signal-readiness.js', () => ({
   governmentYieldCurveReady: resources.yieldReady,
 }));
-vi.mock('../infra/jobs/queue.js', () => ({
+vi.mock('#infra/jobs/queue.js', () => ({
   wakeJobQueue: resources.wake,
   waitForJobCompletion: resources.completion,
 }));
 
-import { prisma } from '../infra/database/prisma.js';
-import { t } from '../i18n/index.js';
-import { deleteStrategy } from '../strategy/definitions/drafts.js';
+import { prisma } from '#infra/database/prisma.js';
+import { t } from '#i18n/index.js';
+import { deleteStrategy } from '#strategy/definitions/drafts.js';
 import { routes } from './routes.js';
 import { deployBacktestReport } from './deployments/manage.js';
 import { enqueueSignalRun } from './runs/enqueue.js';

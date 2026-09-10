@@ -26,11 +26,11 @@ import {
   type ResearchMeasureDefinitionV1,
 } from '@jixie/shared';
 import { Prisma } from '@prisma/client';
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 import {
   etfResearchMembership,
   type EtfResearchMembership,
-} from '../../market/registry/etf-research-registry.js';
+} from '#market/registry/etf-research-registry.js';
 import { researchCapabilityCatalog } from './capabilities.js';
 
 export interface ResearchDataCatalogQuery {

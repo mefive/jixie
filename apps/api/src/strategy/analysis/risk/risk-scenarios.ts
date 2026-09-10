@@ -5,7 +5,7 @@ import {
   type PortfolioRiskScenarioResultV1,
   type PortfolioRiskScenarioShockV1,
 } from '@jixie/shared';
-import type { MarketRiskDriverHistoryV1 } from '../../../market/state/market-risk-drivers.js';
+import type { MarketRiskDriverHistoryV1 } from '#market/state/market-risk-drivers.js';
 
 export const HISTORICAL_RISK_SCENARIO_MINIMUM_FACTOR_COVERAGE = 0.8;
 

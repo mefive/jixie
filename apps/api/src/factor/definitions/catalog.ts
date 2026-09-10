@@ -1,5 +1,5 @@
 import { factorRuntimeVersion } from '@jixie/shared';
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 import { builtinCatalog } from './builtin-factors.js';
 import { factorCompositeDefinitionSchema } from '../reports/spec.js';
 import { timeSeriesTemplateCatalog } from './templates/time-series.js';

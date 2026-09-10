@@ -1,5 +1,5 @@
-import { factorWeatherMethodology } from '../../../factor/weather/refresh.js';
-import { prisma } from '../../../infra/database/prisma.js';
+import { factorWeatherMethodology } from '#factor/weather/refresh.js';
+import { prisma } from '#infra/database/prisma.js';
 
 const MAX_STRATEGY_SCAN_PAYLOAD_BYTES = 4 * 1024 * 1024;
 

@@ -116,6 +116,8 @@
 ## 代码约定
 
 - **ESM 相对导入必须带 `.js` 后缀**(即使源是 `.ts`)
+- **API 跨顶层模块导入使用原生包内别名**：例如 `#infra/jobs/records.js`、`#market/instruments/stock-identity.js`，根级日期辅助用 `#date`；模块内部保留相对路径，跨 workspace 继续使用包名。映射唯一来源为 `apps/api/package.json#imports`，新增可跨模块引用的顶层目录时同步补充。Worker/资源的 `new URL(..., import.meta.url)` 仍使用相对路径，不当作模块导入替换。
+- API 源码执行使用 `--conditions=development`（已有 pnpm API 脚本已配置）；手动执行示例：`node --conditions=development --import tsx scripts/probes/smoke.ts`。生产不传此条件，原生 Node 从 `dist/src` 加载，部署必须保留 API `package.json`。`NODE_ENV=development` 本身不会启用模块解析条件。
 - 跨包用包名 `@jixie/shared`;`@prisma/client` 是 CJS,用 `import pkg from '@prisma/client'; const { PrismaClient } = pkg;`(见 `src/infra/database/prisma.ts`)
 - ID 用 ULID,应用层生成;zod 做入参校验
 - **代码注释一律用英文**(inline `//`、块注释、JSDoc、Prisma `///`、CSS `/* */`)——维护者可能不识中文,注释不留中文括注,用标准英文财经术语。例外(仍/可中文):**i18n 资源里的 zh 值**、**CLAUDE.md / README 文档**、**commit message**。**LLM prompt / 工具 description / few-shot 也一律英文**(见下「多语言」条)。**面向用户的 UI/报错文案走 i18n**(英文 key,zh+en 值),不再硬编码——详见 `docs/design/i18n.md` 与下「多语言」条

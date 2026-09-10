@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
   futuresSettlement: vi.fn(),
 }));
 
-vi.mock('../../infra/database/prisma.js', () => ({
+vi.mock('#infra/database/prisma.js', () => ({
   prisma: {
     etfShareSize: { findMany: mocks.etfShares },
     indexDailyBasic: { findMany: mocks.indexValuation },

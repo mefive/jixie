@@ -4,7 +4,7 @@ import type {
   MarketWeatherFrequency,
   MarketWeatherSeries,
 } from '@jixie/shared';
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 import {
   MARKET_WEATHER_INDEX_BENCHMARKS,
   MARKET_WEATHER_INDEX_GROUPS,

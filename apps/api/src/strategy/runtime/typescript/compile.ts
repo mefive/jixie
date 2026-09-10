@@ -1,12 +1,12 @@
 import { transform } from 'esbuild';
 import { DEFAULT_LOCALE, type Locale, type StrategyParamValue } from '@jixie/shared';
-import type { Strategy } from '../../../engine/types.js';
+import type { Strategy } from '#engine/types.js';
 import {
   makeSandboxConsole,
   noopSandboxConsole,
   type SandboxConsole,
   type UserLogSink,
-} from '../../../infra/runtime/console.js';
+} from '#infra/runtime/console.js';
 import { applyStrategyParamOverrides, defineStrategy } from './sdk.js';
 
 /**

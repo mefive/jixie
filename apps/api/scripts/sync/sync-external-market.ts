@@ -1,9 +1,9 @@
-import { loadTushareConfig } from '../../src/market/providers/tushare/config.js';
-import { addDays } from '../../src/date.js';
-import { prisma } from '../../src/infra/database/prisma.js';
-import { syncExternalMarketDrivers } from '../../src/market/rates/external-market-drivers.js';
-import { syncTradeCal } from '../../src/market/sync/calendar.js';
-import { TushareClient } from '../../src/market/providers/tushare/client.js';
+import { loadTushareConfig } from '#market/providers/tushare/config.js';
+import { addDays } from '#date';
+import { prisma } from '#infra/database/prisma.js';
+import { syncExternalMarketDrivers } from '#market/rates/external-market-drivers.js';
+import { syncTradeCal } from '#market/sync/calendar.js';
+import { TushareClient } from '#market/providers/tushare/client.js';
 
 const SHANGHAI_DATE_FORMATTER = new Intl.DateTimeFormat('en-US', {
   timeZone: 'Asia/Shanghai',

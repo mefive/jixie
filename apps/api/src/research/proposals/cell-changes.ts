@@ -8,7 +8,7 @@ import type {
   ResearchCellKindV1,
 } from '@jixie/shared';
 import { ulid } from 'ulid';
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 import {
   researchCellChangeProposalView,
   resolveResearchCellChangeProposalRecord,

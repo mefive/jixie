@@ -1,7 +1,7 @@
 import type { FactorResearchSpecV1 } from '@jixie/shared';
-import { prisma } from '../../../infra/database/prisma.js';
-import { parseResearchIntent } from '../../../factor/reports/research-policy.js';
-import { normalizeFactorResearchSpec } from '../../../factor/reports/spec.js';
+import { prisma } from '#infra/database/prisma.js';
+import { parseResearchIntent } from '#factor/reports/research-policy.js';
+import { normalizeFactorResearchSpec } from '#factor/reports/spec.js';
 
 const MAX_FACTOR_REPORT_PAYLOAD_BYTES = 4 * 1024 * 1024;
 

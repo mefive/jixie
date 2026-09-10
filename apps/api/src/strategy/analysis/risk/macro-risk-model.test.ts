@@ -4,7 +4,7 @@ import {
   type RiskDataLineageV1,
 } from '@jixie/shared';
 import { describe, expect, it } from 'vitest';
-import type { MacroRiskAxisHistoryV1 } from '../../../market/macro/risk-axes.js';
+import type { MacroRiskAxisHistoryV1 } from '#market/macro/risk-axes.js';
 import {
   aggregatePortfolioMonthlyReturns,
   estimatePortfolioMacroRisk,

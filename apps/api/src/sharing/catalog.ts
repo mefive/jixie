@@ -1,6 +1,6 @@
 import type { BacktestConfig, SharingCatalog } from '@jixie/shared';
-import { prisma } from '../infra/database/prisma.js';
-import { extractFactorKeys } from '../strategy/execution/prepare-factors.js';
+import { prisma } from '#infra/database/prisma.js';
+import { extractFactorKeys } from '#strategy/execution/prepare-factors.js';
 
 export async function listSharingCatalog(
   userId: string,

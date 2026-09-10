@@ -1,5 +1,5 @@
 import type { ResearchDocumentAnalysisV1 } from '@jixie/shared';
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 import { dependencyConflicts } from './run-plan.js';
 import type { ResearchPythonAnalysis } from '../sdk/analysis-types.js';
 import type { Prisma } from '@prisma/client';

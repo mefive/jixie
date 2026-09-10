@@ -1,4 +1,4 @@
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 import type { ResearchPythonAnalysis } from '../sdk/analysis-types.js';
 import { jsonStringArray, researchCellDependencyIssues } from './cell-values.js';
 import {

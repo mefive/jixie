@@ -1,9 +1,9 @@
 import type { Locale, StrategyParamValue } from '@jixie/shared';
-import { prismaDataPort } from '../../../engine/adapters/prisma-port.js';
-import { runStrategy } from '../../../engine/simulation/run.js';
-import type { CustomFactorModule } from '../../../engine/factors/custom-factor.js';
-import type { BacktestResult, CostModel } from '../../../engine/types.js';
-import type { UserLogSink } from '../../../infra/runtime/console.js';
+import { prismaDataPort } from '#engine/adapters/prisma-port.js';
+import { runStrategy } from '#engine/simulation/run.js';
+import type { CustomFactorModule } from '#engine/factors/custom-factor.js';
+import type { BacktestResult, CostModel } from '#engine/types.js';
+import type { UserLogSink } from '#infra/runtime/console.js';
 import { compileStrategy } from './compile.js';
 
 export interface CodeBacktestConfig {

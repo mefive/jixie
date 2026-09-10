@@ -1,5 +1,5 @@
-import { auditEtfResearchRegistry } from '../../src/market/quality/etf-registry-audit.js';
-import { prisma } from '../../src/infra/database/prisma.js';
+import { auditEtfResearchRegistry } from '#market/quality/etf-registry-audit.js';
+import { prisma } from '#infra/database/prisma.js';
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);

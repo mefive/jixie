@@ -8,7 +8,7 @@ import {
   runtimeLogFrameSchema,
   runtimeErrorFrameSchema,
   MAX_IDENTIFIER_CHARACTERS,
-} from '../../../infra/runtime/python/protocol.js';
+} from '#infra/runtime/python/protocol.js';
 
 const strategyParameterStringSchema = z
   .string()

@@ -1,4 +1,4 @@
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 import { BUILTIN_FACTORS } from '../definitions/builtin-factors.js';
 import { factorCompositeDefinitionV1Schema } from '../reports/spec.js';
 import { type FactorAnalysisSource } from '../analysis-job.js';

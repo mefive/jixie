@@ -17,7 +17,7 @@ const resources = vi.hoisted(() => ({
   parameters: vi.fn(),
 }));
 vi.mock('ulid', () => ({ ulid: resources.id }));
-vi.mock('../infra/database/prisma.js', async () => {
+vi.mock('#infra/database/prisma.js', async () => {
   const { mkdtempSync, writeFileSync } = await import('node:fs');
   const { default: exports } = await import('@prisma/client');
   fixture.directory = mkdtempSync('/tmp/jixie-strategy-http-');
@@ -25,21 +25,21 @@ vi.mock('../infra/database/prisma.js', async () => {
   writeFileSync(database, '');
   return { prisma: new exports.PrismaClient({ datasourceUrl: `file:${database}` }) };
 });
-vi.mock('../agent/turns/run.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../agent/turns/run.js')>()),
+vi.mock('#agent/turns/run.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('#agent/turns/run.js')>()),
   enqueueAgentTurn: resources.enqueue,
 }));
-vi.mock('../agent/turns/bus.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../agent/turns/bus.js')>()),
+vi.mock('#agent/turns/bus.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('#agent/turns/bus.js')>()),
   findRunning: resources.running,
 }));
-vi.mock('../infra/jobs/queue.js', () => ({ wakeJobQueue: resources.wake }));
-vi.mock('../infra/jobs/logs.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../infra/jobs/logs.js')>()),
+vi.mock('#infra/jobs/queue.js', () => ({ wakeJobQueue: resources.wake }));
+vi.mock('#infra/jobs/logs.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('#infra/jobs/logs.js')>()),
   initializeJobLogs: resources.logs,
 }));
-vi.mock('../infra/llm/deepseek.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../infra/llm/deepseek.js')>()),
+vi.mock('#infra/llm/deepseek.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('#infra/llm/deepseek.js')>()),
   chatText: resources.name,
 }));
 vi.mock('./runtime/typescript/walled-run.js', async (importOriginal) => ({
@@ -47,14 +47,14 @@ vi.mock('./runtime/typescript/walled-run.js', async (importOriginal) => ({
   inspectWalledStrategyParameters: resources.parameters,
 }));
 
-import { prisma } from '../infra/database/prisma.js';
-import { t } from '../i18n/index.js';
+import { prisma } from '#infra/database/prisma.js';
+import { t } from '#i18n/index.js';
 import { routes as strategyRoutes } from './routes.js';
 import { routes as strategyDefinitionRoutes } from './definition-routes.js';
 import { submitStrategyBacktest } from './backtest/submit.js';
 import { submitStrategyScan } from './scans/submit.js';
 import { publishedFactorContext } from './agent-context.js';
-import type { AgentProfile } from '../agent/core.js';
+import type { AgentProfile } from '#agent/core.js';
 
 const app = new Hono();
 app.use('*', async (context, next) => {

@@ -4,7 +4,7 @@ import {
   type FactorResearchReportPayloadV1,
   type MarketRiskFactorKeyV1,
 } from '@jixie/shared';
-import type { MarketRiskDriverHistoryV1 } from '../../../market/state/market-risk-drivers.js';
+import type { MarketRiskDriverHistoryV1 } from '#market/state/market-risk-drivers.js';
 
 export const ALPHA_RISK_OVERLAP_MINIMUM_OBSERVATIONS = 24;
 export const ALPHA_RISK_OVERLAP_MATERIAL_CORRELATION = 0.2;

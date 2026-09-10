@@ -1,9 +1,9 @@
 import { createHash, randomInt } from 'node:crypto';
 import { ulid } from 'ulid';
 import type { Locale } from '@jixie/shared';
-import { prisma } from '../infra/database/prisma.js';
-import { isEmailConfigured, sendEmail } from '../infra/email/email.js';
-import { t } from '../i18n/index.js';
+import { prisma } from '#infra/database/prisma.js';
+import { isEmailConfigured, sendEmail } from '#infra/email/email.js';
+import { t } from '#i18n/index.js';
 import { isValidInviteCodeFormat } from './invite-code.js';
 import { buildVerificationEmail } from './verification-email.js';
 import { createSession, type CreatedSession, type SessionUser } from './session.js';

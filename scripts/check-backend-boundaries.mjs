@@ -131,14 +131,17 @@ export function collectBackendDependencies(root) {
       const line = source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1;
       const to = internal ? target : specifier;
       edges.push({ from, to, specifier, kind, form, line, internal });
-      if ((specifier.startsWith('.') || path.isAbsolute(specifier)) && !resolved) {
+      if (
+        (specifier.startsWith('.') || specifier.startsWith('#') || path.isAbsolute(specifier)) &&
+        !resolved
+      ) {
         diagnostics.push({
           rule: 'unresolved-import',
           from,
           to,
           kind,
           line,
-          message: 'Relative module cannot be resolved',
+          message: 'Internal module cannot be resolved',
         });
       }
     };

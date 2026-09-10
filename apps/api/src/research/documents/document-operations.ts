@@ -4,7 +4,7 @@ import type {
   ResearchDocumentTemplateV1,
   ResearchDocumentV1,
 } from '@jixie/shared';
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 import { closeResearchDocumentRuntime } from '../execution/python-session.js';
 import { ulid } from 'ulid';
 import { templateDefinition } from '../templates/document-templates.js';

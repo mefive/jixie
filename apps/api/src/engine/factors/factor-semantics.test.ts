@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { runStrategy, runStrategyWithSignals } from '../simulation/run.js';
-import { runWalledBacktest } from '../../strategy/runtime/typescript/walled-run.js';
+import { runWalledBacktest } from '#strategy/runtime/typescript/walled-run.js';
 import { fixturePort, type FixtureSpec } from '../testing/fixture-port.js';
-import { toCommonJs } from '../../infra/runtime/typescript/isolate-run.js';
+import { toCommonJs } from '#infra/runtime/typescript/isolate-run.js';
 import type { Strategy } from '../types.js';
 import { PythonFactorHost, withPythonFactorHost } from '../adapters/python-factor-host.js';
 
@@ -781,7 +781,7 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
 
 describe('extractFactorKeys (host-side source scan)', () => {
   it('finds published factor keys in ctx.factor reads, deduped', async () => {
-    const { extractFactorKeys } = await import('../../strategy/execution/prepare-factors.js');
+    const { extractFactorKeys } = await import('#strategy/execution/prepare-factors.js');
     const source = `
       export default defineStrategy({
         factors: ['earnings_yield', 'mf_net_main'],

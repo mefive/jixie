@@ -1,10 +1,10 @@
 import { z } from 'zod';
 import type { FactorCorrelation } from '@jixie/shared';
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 import { BUILTIN_KEYS } from '../definitions/builtin-factors.js';
-import { createJob, findRunningJob } from '../../infra/jobs/records.js';
-import { wakeJobQueue } from '../../infra/jobs/queue.js';
-import { t } from '../../i18n/index.js';
+import { createJob, findRunningJob } from '#infra/jobs/records.js';
+import { wakeJobQueue } from '#infra/jobs/queue.js';
+import { t } from '#i18n/index.js';
 import type { Locale } from '@jixie/shared';
 import { failFactorOperation } from '../operation-errors.js';
 

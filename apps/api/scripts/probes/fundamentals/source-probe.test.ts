@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { TushareError } from '../../../src/market/providers/tushare/client.js';
+import { TushareError } from '#market/providers/tushare/client.js';
 import { probeFundamentalSources } from './source-probe.js';
 
 const options = { tsCode: '000333.SZ', startDate: '20100101', period: '20221231' };

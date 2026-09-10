@@ -1,5 +1,5 @@
 import type { FactorKind, FactorMeta } from '@jixie/shared';
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 import { sha256 } from '../reports/spec.js';
 import { TIME_SERIES_TEMPLATES } from './templates/time-series.js';
 import { PANEL_TEMPLATES } from './templates/panel.js';

@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 
-import type { FinancialCorrectionEvidence } from '../../../src/market/fundamentals/source-contract.js';
+import type { FinancialCorrectionEvidence } from '#market/fundamentals/source-contract.js';
 
 const CNINFO_BASE_URL = 'https://www.cninfo.com.cn';
 const CNINFO_DOCUMENT_BASE_URL = 'https://static.cninfo.com.cn/';

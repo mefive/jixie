@@ -1,5 +1,5 @@
 import type { ChatMessage } from '@jixie/shared';
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 
 export async function listConversations(
   userId: string,

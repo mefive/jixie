@@ -1,14 +1,14 @@
-import type { UserLogSink } from '../../infra/runtime/console.js';
-import { compilePythonCrossSectionalFactor } from '../../factor/runtime/python/cross-sectional.js';
+import type { UserLogSink } from '#infra/runtime/console.js';
+import { compilePythonCrossSectionalFactor } from '#factor/runtime/python/cross-sectional.js';
 import {
   compilePythonPanelFactor,
   compilePythonTimeSeriesFactor,
-} from '../../factor/runtime/python/asset-factor.js';
-import type { CompiledFactor } from '../../factor/runtime/typescript/compile-factor.js';
+} from '#factor/runtime/python/asset-factor.js';
+import type { CompiledFactor } from '#factor/runtime/typescript/compile-factor.js';
 import type {
   CompiledPanelFactor,
   CompiledTimeSeriesFactor,
-} from '../../factor/runtime/typescript/compile-asset-factor.js';
+} from '#factor/runtime/typescript/compile-asset-factor.js';
 import type { EngineDataPort, PythonFactorComputeRequest } from '../data/data-port.js';
 
 type CompiledPythonFactor = CompiledFactor | CompiledTimeSeriesFactor | CompiledPanelFactor;

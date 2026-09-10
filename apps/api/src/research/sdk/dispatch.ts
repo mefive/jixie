@@ -65,7 +65,7 @@ import {
   type ResearchFinancialValuesRequestV1,
   loadResearchFinancialValues,
 } from '../datasets/financial-values.js';
-import type { PythonSession } from '../../infra/runtime/python/session.js';
+import type { PythonSession } from '#infra/runtime/python/session.js';
 import {
   researchSeriesLoadStart,
   loadResearchSeries,

@@ -1,4 +1,4 @@
-import { addDays } from '../../date.js';
+import { addDays } from '#date';
 import { USD_CNH_CODE, USD_HKD_CODE } from '../rates/external-market-drivers.js';
 import {
   type CrossMarketBenchmarkDefinition,

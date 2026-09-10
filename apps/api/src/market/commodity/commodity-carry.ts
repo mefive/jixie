@@ -1,5 +1,5 @@
-import { addDays, daysBetween } from '../../date.js';
-import { prisma, type Prisma } from '../../infra/database/prisma.js';
+import { addDays, daysBetween } from '#date';
+import { prisma, type Prisma } from '#infra/database/prisma.js';
 import { COMMODITY_FUTURE_PRODUCT_CODES } from './commodity-futures.js';
 
 export const COMMODITY_CARRY_VERSION = 1 as const;

@@ -13,6 +13,7 @@ export async function buildWallBundle() {
     write: false,
     format: 'iife',
     platform: 'neutral',
+    conditions: import.meta.url.endsWith('.ts') ? ['development'] : [],
     target: 'es2022',
     mainFields: ['module', 'main'],
     metafile: true,

@@ -1,17 +1,14 @@
-import { loadTushareConfig } from '../../src/market/providers/tushare/config.js';
-import { prisma } from '../../src/infra/database/prisma.js';
-import { syncMarketIndicators } from '../../src/market/sync/market-indicators.js';
-import { assertProductionLock, runDailyMaintenance } from '../../src/maintenance/daily.js';
-import { validateDerivedMarketRange } from '../../src/maintenance/quality.js';
-import { runRepairMaintenance } from '../../src/maintenance/repair.js';
-import {
-  recentPublishedTradingDates,
-  selfHealMarketDates,
-} from '../../src/maintenance/self-heal.js';
-import { recoverInterruptedMaintenanceRuns } from '../../src/maintenance/state.js';
-import { runWeeklyMaintenance } from '../../src/maintenance/weekly.js';
-import { latestCompletedTradeDate } from '../../src/signals/runs/readiness.js';
-import { TushareClient } from '../../src/market/providers/tushare/client.js';
+import { loadTushareConfig } from '#market/providers/tushare/config.js';
+import { prisma } from '#infra/database/prisma.js';
+import { syncMarketIndicators } from '#market/sync/market-indicators.js';
+import { assertProductionLock, runDailyMaintenance } from '#maintenance/daily.js';
+import { validateDerivedMarketRange } from '#maintenance/quality.js';
+import { runRepairMaintenance } from '#maintenance/repair.js';
+import { recentPublishedTradingDates, selfHealMarketDates } from '#maintenance/self-heal.js';
+import { recoverInterruptedMaintenanceRuns } from '#maintenance/state.js';
+import { runWeeklyMaintenance } from '#maintenance/weekly.js';
+import { latestCompletedTradeDate } from '#signals/runs/readiness.js';
+import { TushareClient } from '#market/providers/tushare/client.js';
 
 type MaintenanceCommand = 'daily' | 'weekly' | 'repair' | 'baseline';
 

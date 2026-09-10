@@ -5,7 +5,7 @@ import type {
   SignalRun,
   StrategyDeployment,
 } from '@jixie/shared';
-import { prisma } from '../../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 import { executionWire } from '../accounting/read.js';
 import { deploymentWire } from '../deployments/read.js';
 import { factorDependenciesFromJson } from '../factor-inputs/lineage.js';

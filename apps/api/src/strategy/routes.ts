@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
 import { routes as backtestRoutes } from './backtest-routes.js';
 import { routes as scanRoutes } from './scan-routes.js';
-import { validateJson } from '../infra/http/errors.js';
-import { localeFromRequest } from '../infra/http/locale.js';
+import { validateJson } from '#infra/http/errors.js';
+import { localeFromRequest } from '#infra/http/locale.js';
 import { strategyAgentInputSchema, startStrategyAgentTurn } from './agent-turn.js';
 import { strategyNameInputSchema, requestStrategyName } from './definitions/name-request.js';
 import { strategyOperationApiError } from './route-errors.js';

@@ -17,7 +17,7 @@ const resources = vi.hoisted(() => ({
   refresh: vi.fn(),
 }));
 vi.mock('ulid', () => ({ ulid: resources.id }));
-vi.mock('../infra/database/prisma.js', async () => {
+vi.mock('#infra/database/prisma.js', async () => {
   const { mkdtempSync, writeFileSync } = await import('node:fs');
   const { default: exports } = await import('@prisma/client');
   fixture.directory = mkdtempSync('/tmp/jixie-factor-http-');
@@ -25,17 +25,17 @@ vi.mock('../infra/database/prisma.js', async () => {
   writeFileSync(database, '');
   return { prisma: new exports.PrismaClient({ datasourceUrl: `file:${database}` }) };
 });
-vi.mock('../agent/turns/run.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../agent/turns/run.js')>()),
+vi.mock('#agent/turns/run.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('#agent/turns/run.js')>()),
   enqueueAgentTurn: resources.enqueue,
 }));
-vi.mock('../agent/turns/bus.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../agent/turns/bus.js')>()),
+vi.mock('#agent/turns/bus.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('#agent/turns/bus.js')>()),
   findRunning: resources.running,
 }));
-vi.mock('../infra/jobs/queue.js', () => ({ wakeJobQueue: resources.wake }));
-vi.mock('../infra/jobs/logs.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../infra/jobs/logs.js')>()),
+vi.mock('#infra/jobs/queue.js', () => ({ wakeJobQueue: resources.wake }));
+vi.mock('#infra/jobs/logs.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('#infra/jobs/logs.js')>()),
   initializeJobLogs: resources.logs,
 }));
 vi.mock('./weather/refresh.js', async (importOriginal) => ({
@@ -43,8 +43,8 @@ vi.mock('./weather/refresh.js', async (importOriginal) => ({
   refreshFactorWeatherPin: resources.refresh,
 }));
 
-import { prisma } from '../infra/database/prisma.js';
-import { t } from '../i18n/index.js';
+import { prisma } from '#infra/database/prisma.js';
+import { t } from '#i18n/index.js';
 import { copyFactorComposite } from './composition/operations.js';
 import { submitFactorHoldout } from './reports/holdout.js';
 import { sha256 } from './reports/spec.js';

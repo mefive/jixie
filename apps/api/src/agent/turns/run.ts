@@ -7,7 +7,7 @@ import {
   type Locale,
   type MessagePart,
 } from '@jixie/shared';
-import { chatTools } from '../../infra/llm/deepseek.js';
+import { chatTools } from '#infra/llm/deepseek.js';
 import {
   agentTurn,
   turnParts,

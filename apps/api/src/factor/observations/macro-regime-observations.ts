@@ -1,11 +1,11 @@
 import type { MacroRegimeFactorResearchSpecV1 } from '@jixie/shared';
-import { addDays } from '../../date.js';
-import { prisma, type Prisma } from '../../infra/database/prisma.js';
+import { addDays } from '#date';
+import { prisma, type Prisma } from '#infra/database/prisma.js';
 import {
   loadMacroRegimeScoreHistory,
   type MacroRegimeHistoryV1,
   type MacroRegimeScoreV1,
-} from '../../market/macro/regime-score.js';
+} from '#market/macro/regime-score.js';
 
 export interface MacroRegimeEtfDailyRow {
   assetId: string;

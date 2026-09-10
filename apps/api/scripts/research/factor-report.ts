@@ -1,10 +1,7 @@
 import type { Neutral } from '@jixie/shared';
-import { prisma } from '../../src/infra/database/prisma.js';
-import { analyzeFactor } from '../../src/factor/analysis/cross-sectional.js';
-import {
-  BUILTIN_FACTORS,
-  seedBuiltinFactors,
-} from '../../src/factor/definitions/builtin-factors.js';
+import { prisma } from '#infra/database/prisma.js';
+import { analyzeFactor } from '#factor/analysis/cross-sectional.js';
+import { BUILTIN_FACTORS, seedBuiltinFactors } from '#factor/definitions/builtin-factors.js';
 
 const pct = (x: number) => (x * 100).toFixed(2) + '%';
 

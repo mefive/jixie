@@ -1,13 +1,13 @@
 import { DEFAULT_LOCALE, type Locale, type StrategyParamValue } from '@jixie/shared';
-import type { BarContext, BarRow, OhlcBar, Strategy } from '../../../engine/types.js';
-import { makeSandboxConsole, type UserLogSink } from '../../../infra/runtime/console.js';
+import type { BarContext, BarRow, OhlcBar, Strategy } from '#engine/types.js';
+import { makeSandboxConsole, type UserLogSink } from '#infra/runtime/console.js';
 import {
   strategyExecutionFrameSchema,
   strategyStartupFrameSchema,
   type StrategyCommand,
   type StrategyRequestFrame,
 } from './protocol.js';
-import { PythonSession } from '../../../infra/runtime/python/session.js';
+import { PythonSession } from '#infra/runtime/python/session.js';
 
 interface PythonMetadata {
   name: string;

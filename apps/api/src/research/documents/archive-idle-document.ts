@@ -1,6 +1,6 @@
-import { prisma } from '../../infra/database/prisma.js';
-import { entityKey } from '../../agent/turns/run.js';
-import * as turnBus from '../../agent/turns/bus.js';
+import { prisma } from '#infra/database/prisma.js';
+import { entityKey } from '#agent/turns/run.js';
+import * as turnBus from '#agent/turns/bus.js';
 import {
   isResearchDocumentRunActive,
   ResearchDocumentRunInProgressError,

@@ -5,7 +5,7 @@ import type {
   StrategyScanSpec,
   StrategyParamValue,
 } from '@jixie/shared';
-import type { BacktestResult } from '../../engine/types.js';
+import type { BacktestResult } from '#engine/types.js';
 
 export const MAX_SCAN_COMBINATIONS = 25;
 export const CAPACITY_DIMENSION_KEY = 'initialCash';

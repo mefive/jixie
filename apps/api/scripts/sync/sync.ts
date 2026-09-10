@@ -1,9 +1,9 @@
-import { loadTushareConfig } from '../../src/market/providers/tushare/config.js';
-import { TushareClient } from '../../src/market/providers/tushare/client.js';
-import { prisma } from '../../src/infra/database/prisma.js';
-import { syncStockBasic } from '../../src/market/sync/stocks.js';
-import { syncTradeCal } from '../../src/market/sync/calendar.js';
-import { syncDaily } from '../../src/market/sync/stock-daily.js';
+import { loadTushareConfig } from '#market/providers/tushare/config.js';
+import { TushareClient } from '#market/providers/tushare/client.js';
+import { prisma } from '#infra/database/prisma.js';
+import { syncStockBasic } from '#market/sync/stocks.js';
+import { syncTradeCal } from '#market/sync/calendar.js';
+import { syncDaily } from '#market/sync/stock-daily.js';
 
 /**
  * Sync market data into the local SQLite store (Prisma).

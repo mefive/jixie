@@ -1,18 +1,18 @@
 import { Hono } from 'hono';
 import { logger } from 'hono/logger';
-import { authRoute } from './auth/http/auth.js';
-import { routes as strategyRoutes } from './strategy/routes.js';
-import { routes as strategyDefinitionRoutes } from './strategy/definition-routes.js';
-import { routes as marketRoute } from './market/routes.js';
-import { factorRoute } from './factor/research-routes.js';
-import { researchRoute } from './research/routes.js';
-import { factorsRoute } from './factor/routes.js';
-import { factorWeatherRoute } from './factor/weather-routes.js';
-import { routes as agentRoute } from './agent/routes.js';
-import { routes as signalRoutes } from './signals/routes.js';
-import { routes as sharingRoutes } from './sharing/routes.js';
-import { requireAuth } from './auth/http/session.js';
-import { maintenanceGate, maintenanceRoute } from './maintenance/http.js';
+import { authRoute } from '#auth/http/auth.js';
+import { routes as strategyRoutes } from '#strategy/routes.js';
+import { routes as strategyDefinitionRoutes } from '#strategy/definition-routes.js';
+import { routes as marketRoute } from '#market/routes.js';
+import { factorRoute } from '#factor/research-routes.js';
+import { researchRoute } from '#research/routes.js';
+import { factorsRoute } from '#factor/routes.js';
+import { factorWeatherRoute } from '#factor/weather-routes.js';
+import { routes as agentRoute } from '#agent/routes.js';
+import { routes as signalRoutes } from '#signals/routes.js';
+import { routes as sharingRoutes } from '#sharing/routes.js';
+import { requireAuth } from '#auth/http/session.js';
+import { maintenanceGate, maintenanceRoute } from '#maintenance/http.js';
 
 export function buildApp() {
   const app = new Hono();

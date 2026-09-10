@@ -3,7 +3,7 @@ import { agentTurn, turnParts, type AgentProfile } from './core.js';
 import { strategyProfile } from './profiles/strategy.js';
 import { factorProfile } from './profiles/factor.js';
 import { factorQaProfile } from './profiles/qa.js';
-import type { AgentLlm } from '../infra/llm/agent-llm.js';
+import type { AgentLlm } from '#infra/llm/agent-llm.js';
 import type { AgentTool } from './tools/types.js';
 
 const STRATEGY = `export default defineStrategy({ name: 'x', watch: ['600519.SH'], onBar(ctx) { ctx.exit('600519.SH'); } });`;

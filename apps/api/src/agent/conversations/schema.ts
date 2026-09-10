@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { chartSpecSchema } from '../tools/charts/spec.js';
-import { universeSpecV1Schema } from '../../research/datasets/spec.js';
+import { universeSpecV1Schema } from '#research/datasets/spec.js';
 
 const universePartSchema = z.strictObject({
   type: z.literal('universe'),

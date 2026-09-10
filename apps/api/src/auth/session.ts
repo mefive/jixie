@@ -1,5 +1,5 @@
 import { ulid } from 'ulid';
-import { prisma } from '../infra/database/prisma.js';
+import { prisma } from '#infra/database/prisma.js';
 
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
