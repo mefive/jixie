@@ -35,3 +35,15 @@
 - 所有验证子进程正常退出；启动端口关闭，Worker/Python/Pyright 和 Prisma 已清理，`lsof` 确认临时数据库无打开句柄。
 
 日志、运行结果与验证脚本位于 `/tmp/jixie-alias-verification`；初次 API 和边界测试日志分别为 `/tmp/jixie-alias-tests.log`、`/tmp/jixie-alias-boundary-tests.log`。本轮未涉及 UI 改动或浏览器 E2E，也不代表生产 Docker 隔离验收。
+
+## 包级测试归档（2026-09-10）
+
+计划提交：`refactor(api): 将包级测试迁入 tests 目录`。
+
+用户已确认范围：`import-aliases.test.ts` 与 `job-lifecycle.integration.test.ts` 迁至 `apps/api/tests`，分别归包级运行配置契约和跨模块任务集成契约；模块内测试继续与源码同目录。迁移只调整 lifecycle 的 bootstrap/server 相对引用，别名测试与 API 根目录的相对位置不变。TypeScript 和边界检查器继续覆盖新目录，生产代码不能导入该目录内的测试或辅助文件。
+
+静态检查完成后等待检查器代码 review；批准后运行迁移的两组测试及边界检查器回归测试，验证测试发现、类型覆盖及内部导入解析。无业务行为、数据库或部署组件变化。
+
+本次静态结果：`pnpm typecheck`（含后端边界及生成契约一致性）、改动文件 ESLint、Prettier 和 `git diff --check` 均通过。新增三项边界回归用例覆盖 tests 目录扫描、语法/导入错误与生产代码误导入测试辅助文件。
+
+人工 review 已批准。迁移后的两个测试文件共 35 项用例通过，边界检查器 19 项回归通过，无失败或跳过。任务生命周期测试使用独立临时 SQLite，结束后断开 Prisma 并移除 fixture；别名测试的 Node/Worker 已退出，未启动常驻服务。日志为 `/tmp/jixie-tests-directory-tests.log`、`/tmp/jixie-tests-directory-boundaries.log`；按计划提交，无新增产品行为改动。

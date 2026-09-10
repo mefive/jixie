@@ -8,5 +8,5 @@
     "types": ["node"],
     "customConditions": ["development"]
   },
-  "include": ["src/**/*", "scripts/**/*"]
+  "include": ["src/**/*", "scripts/**/*", "tests/**/*"]
 }

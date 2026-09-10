@@ -86,6 +86,8 @@
 
 ## 目录约定(对齐 fangtu)
 
+- 测试按职责归属：模块测试与源码同目录，不要求存在同名源码文件；API 包级配置及跨模块应用契约测试放在 `apps/api/tests`。具有明确模块归属的 integration 测试仍留在模块内，不按文件后缀统一搬迁。`tests` 仅供测试使用，生产代码不能导入；该目录仍纳入 TypeScript 与后端边界检查。
+
 - 业务模块的 HTTP 入口默认直接使用根目录 `routes.ts`，测试同目录；已有多组路由按职责使用 `backtest-routes.ts`、`scan-routes.ts` 等名称，不统一预设 `http/` 包装层；需要组合子路由时由模块根级 `routes.ts` 负责。`auth/http` 与 `infra/http` 已有明确的一组职责，保留。路由只负责请求/响应，资源归属、状态与事务由业务入口负责。
 
 - `apps/api/src/auth` — 登录与会话业务；`auth/http` 负责 Cookie、鉴权中间件与登录 HTTP。

@@ -23,7 +23,7 @@ const execution = vi.hoisted(() => ({
   notify: vi.fn(),
   accounting: vi.fn(),
 }));
-vi.mock('./server.js', () => ({ buildApp: vi.fn() }));
+vi.mock('../src/server.js', () => ({ buildApp: vi.fn() }));
 vi.mock('#infra/jobs/worker-result.js', () => ({ runJobWorker: execution.worker }));
 vi.mock('#strategy/definitions/config.js', () => ({
   strategyRunKey: () => 'fixture',
@@ -39,7 +39,7 @@ vi.mock('#signals/accounting/initialize.js', () => ({
 
 import { prisma } from '#infra/database/prisma.js';
 import type { PreparedResearchCuratorRun } from '#research/curator/runs.js';
-import { jobRegistry } from './bootstrap.js';
+import { jobRegistry } from '../src/bootstrap.js';
 import { createJobExecutor } from '#infra/jobs/executor.js';
 import { appendLog, initializeJobLogs, getLiveJobLogs } from '#infra/jobs/logs.js';
 import { claimQueuedJob, getJob } from '#infra/jobs/records.js';

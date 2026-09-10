@@ -4,7 +4,7 @@
 
 ## 检查什么
 
-扫描 `apps/api/src` 和 `apps/api/scripts` 的 TS/JS/MJS 文件。使用已有 TypeScript AST 和 API tsconfig 路径解析，支持 `.js` → `.ts`、路径 alias、静态 import、重导出、字面量动态 import、import type 查询和 require。
+扫描 `apps/api/src`、`apps/api/scripts` 和 `apps/api/tests` 的 TS/JS/MJS 文件。使用已有 TypeScript AST 和 API tsconfig 路径解析，支持 `.js` → `.ts`、路径 alias、静态 import、重导出、字面量动态 import、import type 查询和 require。
 
 - Hono 只出现在路由、HTTP 辅助与启动适配；业务操作不能反向导入 HTTP 文件。HTTP 不直接导入 Prisma，业务操作可以使用 Prisma。
 - `infra/runtime`、`infra/jobs` 不能直接或经基础设施中转反向依赖业务。
@@ -13,7 +13,7 @@
 - Math/date/i18n 只依赖纯辅助、shared 契约和已有 dayjs 能力；Market registry 不依赖数据库、通道或同步。
 - Market 不能直接或间接回调 Strategy、Research、Agent、Signals 或 Maintenance。整体审计由 Maintenance 组合。
 - 应用根目录不新增汇总实现的重导出 barrel。旧顶层 lib/routes/services/store/tushare/data-quality/types/risk/library 等模块不可重新出现；fundamentals/rates/macro/commodity 只保留在 Market 内。
-- 生产代码不能导入 `.test`、`.spec`、`.test-worker` 或 testing 目录。测试本身可跨边界构造 fixture，但仍检查语法与导入是否能解析。
+- 生产代码不能导入 `.test`、`.spec`、`.test-worker`、testing 目录或 `apps/api/tests`。测试本身可跨边界构造 fixture，但仍检查语法与导入是否能解析。`apps/api/tests` 承载包级配置与跨模块应用契约测试；模块内测试继续与源码同目录。
 - 通过强连通分量寻找跨业务模块的运行时循环；字面量动态导入也加入循环图，不因延迟执行就忽略。
 
 类型边指显式 `import type`、全部 type 绑定、type 重导出和 import 类型查询；混合导入保守记为运行时边。类型边仍受所有权约束，但不形成运行时循环。2026-09-09 收尾扫描为 650 个文件、2313 条运行时边、576 条类型边，跨业务运行时循环为 0。

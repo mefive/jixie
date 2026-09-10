@@ -28,6 +28,39 @@ const rules = (result) => result.diagnostics.map((issue) => issue.rule);
 const src = 'apps/api/src/';
 const emptyPolicy = { edges: [], cycles: [] };
 
+test('scans package-level tests and permits their application composition imports', (context) => {
+  const root = fixture(context, {
+    [src + 'bootstrap.ts']: 'export const registry = {};',
+    'apps/api/tests/support.ts': "export { registry } from '../src/bootstrap.js';",
+    'apps/api/tests/lifecycle.integration.test.ts': "import { registry } from './support.js';",
+  });
+  const dependencies = collectBackendDependencies(root);
+  assert.ok(dependencies.files.includes('apps/api/tests/lifecycle.integration.test.ts'));
+  assert.ok(dependencies.files.includes('apps/api/tests/support.ts'));
+  assert.equal(dependencies.edges.length, 2);
+  assert.ok(dependencies.edges.every((edge) => edge.internal));
+  assert.deepEqual(inspectBackendBoundaries(dependencies, emptyPolicy).diagnostics, []);
+});
+
+test('checks syntax and unresolved imports inside package-level tests', (context) => {
+  const root = fixture(context, {
+    'apps/api/tests/invalid.test.ts': "import './missing.js'; export const = ;",
+  });
+  const result = collectBackendDependencies(root);
+  assert.ok(rules(result).includes('syntax'));
+  assert.ok(rules(result).includes('unresolved-import'));
+  assert.ok(result.diagnostics.every((issue) => issue.from === 'apps/api/tests/invalid.test.ts'));
+});
+
+test('rejects production dependencies on package-level test helpers', (context) => {
+  const root = fixture(context, {
+    [src + 'strategy/action.ts']: "import { value } from '../../tests/support.js';",
+    'apps/api/tests/support.ts': 'export const value = 1;',
+  });
+  const result = checkBackendBoundaries(root, emptyPolicy);
+  assert.deepEqual(rules(result), ['production-test-dependency']);
+});
+
 test('keeps HTTP in adapters while permitting direct Prisma in business operations', (context) => {
   const root = fixture(context, {
     [src + 'strategy/routes.ts']:

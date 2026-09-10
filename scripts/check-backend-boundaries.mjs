@@ -29,7 +29,10 @@ function sourcePath(file) {
 }
 
 function isTest(file) {
-  return /(?:\.(?:test|spec)(?:-worker)?\.[cm]?[jt]sx?$|\/(?:__tests__|testing)\/)/.test(file);
+  return (
+    file.startsWith('apps/api/tests/') ||
+    /(?:\.(?:test|spec)(?:-worker)?\.[cm]?[jt]sx?$|\/(?:__tests__|testing)\/)/.test(file)
+  );
 }
 
 function isHttp(file) {
@@ -91,7 +94,7 @@ export function collectBackendDependencies(root) {
   if (!options) {
     throw new Error('Cannot load API TypeScript configuration');
   }
-  const files = ['apps/api/src', 'apps/api/scripts'].flatMap((directory) =>
+  const files = ['apps/api/src', 'apps/api/scripts', 'apps/api/tests'].flatMap((directory) =>
     walk(path.join(root, directory)),
   );
   if (files.length === 0) {
