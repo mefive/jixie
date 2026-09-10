@@ -1,17 +1,17 @@
 import { Hono } from 'hono';
 import { logger } from 'hono/logger';
-import { authRoute } from '#auth/http/auth.js';
-import { routes as strategyRoutes } from '#strategy/routes.js';
-import { routes as strategyDefinitionRoutes } from '#strategy/definition-routes.js';
-import { routes as marketRoute } from '#market/routes.js';
+import { authRoute } from '#auth/routes.js';
+import { strategyRoute } from '#strategy/routes.js';
+import { strategyDefinitionRoute } from '#strategy/definition-routes.js';
+import { marketRoute } from '#market/routes.js';
 import { factorRoute } from '#factor/research-routes.js';
 import { researchRoute } from '#research/routes.js';
 import { factorsRoute } from '#factor/routes.js';
 import { factorWeatherRoute } from '#factor/weather-routes.js';
-import { routes as agentRoute } from '#agent/routes.js';
-import { routes as signalRoutes } from '#signals/routes.js';
-import { routes as sharingRoutes } from '#sharing/routes.js';
-import { requireAuth } from '#auth/http/session.js';
+import { agentRoute } from '#agent/routes.js';
+import { signalsRoute } from '#signals/routes.js';
+import { sharingRoute } from '#sharing/routes.js';
+import { requireAuth } from '#auth/middleware.js';
 import { maintenanceGate, maintenanceRoute } from '#maintenance/http.js';
 
 export function buildApp() {
@@ -36,12 +36,12 @@ export function buildApp() {
   //   base     = shared product capabilities (/agent turns, /market data reads)
   app.route('/api/app/agent', agentRoute);
   app.route('/api/app/market', marketRoute);
-  app.route('/api/app/strategies', strategyDefinitionRoutes);
+  app.route('/api/app/strategies', strategyDefinitionRoute);
   app.route('/api/app/factors', factorsRoute);
   app.route('/api/app/factor-weather', factorWeatherRoute);
-  app.route('/api/app/signals', signalRoutes);
-  app.route('/api/app/library', sharingRoutes);
-  app.route('/api/app/strategy', strategyRoutes);
+  app.route('/api/app/signals', signalsRoute);
+  app.route('/api/app/library', sharingRoute);
+  app.route('/api/app/strategy', strategyRoute);
   app.route('/api/app/factor', factorRoute);
   app.route('/api/app/research', researchRoute);
 

@@ -4,18 +4,18 @@ import { m } from '#infra/http/locale.js';
 import { copyPublicStrategy } from '#strategy/definitions/copy-public.js';
 import { listSharingCatalog, getPublicStrategy } from './catalog.js';
 
-export const routes = new Hono();
+export const sharingRoute = new Hono();
 
-routes.get('/', async (c) => {
+sharingRoute.get('/', async (c) => {
   return c.json(await listSharingCatalog(c.var.userId, c.var.user));
 });
 
-routes.get('/strategies/:id', async (c) => {
+sharingRoute.get('/strategies/:id', async (c) => {
   const strategy = await getPublicStrategy(c.req.param('id'));
   return strategy ? c.json(strategy) : apiError(c, 'NOT_FOUND', m(c, 'strategyNotFound'));
 });
 
-routes.post('/strategies/:id/copy', async (c) => {
+sharingRoute.post('/strategies/:id/copy', async (c) => {
   const copied = await copyPublicStrategy(c.var.userId, c.req.param('id'));
   return copied ? c.json(copied) : apiError(c, 'NOT_FOUND', m(c, 'strategyNotFound'));
 });

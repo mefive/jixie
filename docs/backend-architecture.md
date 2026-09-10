@@ -33,6 +33,7 @@
 
 | 挂载前缀 | 实际入口 |
 | --- | --- |
+| `/api/auth` | `auth/routes.ts`；`auth/middleware.ts` 提供鉴权，`auth/cookies.ts` 处理 Cookie |
 | `/api/app/research` | `research/routes.ts` |
 | `/api/app/factor`、`/api/app/factors`、`/api/app/factor-weather` | `factor/research-routes.ts`、`factor/routes.ts`、`factor/weather-routes.ts` |
 | `/api/app/strategy` | `strategy/routes.ts`；内部挂载 backtest 和 scans 子路由 |
@@ -42,7 +43,7 @@
 | `/api/app/market` | `market/routes.ts` |
 | `/api/app/library` | `sharing/routes.ts`；URL 保留公开库原契约 |
 
-路由负责入参、用户/语言上下文、HTTP 状态和响应。具体查询与修改在所属模块中；不存在导出整个后端实现的总 service 或 barrel。部分早期路由导出变量仍叫 `researchRoute`、`factorRoute`，不影响它们位于模块根目录的约定。
+路由负责入参、用户/语言上下文、HTTP 状态和响应。具体查询与修改在所属模块中；不存在导出整个后端实现的总 service 或 barrel。路由对象使用业务/职责明确的具名导出，如 `authRoute`、`strategyRoute`、`strategyDefinitionRoute` 和 `strategyBacktestRoute`；server、子路由组合与测试直接按同名导入，不再以通用 `routes` 导出后由调用方另起别名。
 
 Agent 服务于 Research、Factor 和 Strategy。用户发起业务对话时，前端先调用所属模块的 Agent 入口；业务完成归属和忙碌检查，配置 profile、工具与上下文，再交给通用 Agent。前端之后用 `/api/app/agent` 订阅 SSE、查询 turn、读取历史或取消。Agent 工具按需调用业务操作，业务状态仍由对应模块管理。通用 Agent 还提供只读 SQL、图表工具接口；它不是所有产品操作必须经过的总调度器。
 

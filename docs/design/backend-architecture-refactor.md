@@ -291,7 +291,7 @@ apps/api/src/
 
 ### 5.1 公共设施与 HTTP 入口
 
-**不为业务模块统一预设 `http/`。** 当前单个路由文件连同参数校验、错误映射和测试直接放模块根目录；只有实际形成多项需要共同组织的 HTTP 职责时才归组。`auth/http/` 已集中 Cookie、鉴权中间件和登录路由，`infra/http/` 提供跨业务的请求校验、错误响应和 locale 辅助，两者保留。Research、Factor、Strategy、Signals、Agent、Sharing、Market 均按下面的根目录路由文件规划。
+**不为业务模块统一预设 `http/`。** 当前单个路由文件连同参数校验、错误映射和测试直接放模块根目录；只有实际形成多项需要共同组织的 HTTP 职责时才归组。Auth 也采用根级 `routes.ts`，Cookie 与鉴权中间件分别位于根级 `cookies.ts` 和 `middleware.ts`；`infra/http/` 保留跨业务的请求校验、错误响应和 locale 辅助。Research、Factor、Strategy、Signals、Agent、Sharing、Market 均按下面的根目录路由文件规划。
 
 目录位置不改变依赖边界：HTTP 文件只适配请求/响应并调用明确业务入口；业务不导入路由或 Hono Context。文件多时先按实际路由职责具名，不为将来可能拆分而建立空目录。
 
@@ -300,8 +300,8 @@ apps/api/src/
 | `index.ts`、`server.ts` 中的启动流程 | `index.ts` + `bootstrap.ts` + `server.ts` | 进程入口、资源装配与 HTTP 构建分开；依照 4.3 保留运行行为 |
 | `lib/prisma.ts` | `infra/database/prisma.ts` | 保留每进程/线程连接初始化、WAL 与 busy timeout |
 | `lib/httpError.ts` | `infra/http/errors.ts` | 保留错误码和校验输出，所有 Hono 适配仍在 HTTP 边界 |
-| `lib/session.ts`、`lib/inviteCode.ts` | `auth/session.ts`、`auth/invite-code.ts` | 将 Hono Context 扩展和 middleware 放 `auth/http/`，会话操作留 auth |
-| `routes/auth.ts` | `auth/http/auth.ts` | 提取登录操作，保留 cookie、安全属性及用户禁用语义 |
+| `lib/session.ts`、`lib/inviteCode.ts` | `auth/session.ts`、`auth/invite-code.ts` | 将 Hono Context 扩展和 middleware 放 `auth/middleware.ts`，Cookie 放 `auth/cookies.ts`，会话操作留 `auth/session.ts` |
+| `routes/auth.ts` | `auth/routes.ts` | 提取登录操作，保留 cookie、安全属性及用户禁用语义 |
 | `lib/email.ts`、`llm/*` | `infra/email/`、`infra/llm/` | 迁移传输能力；具体业务邮件内容继续由业务负责 |
 | `lib/date.ts`、`util/log.ts` | `date.ts`、`infra/logging.ts` | 保留实现，不扩成通用工具框架 |
 | `lib/stats.ts`、`inference.ts`、`indicators.ts`、`stats-doc*.ts` | `math/` | 纯计算与说明生成一起归位；不引入数据库或 HTTP 依赖 |
@@ -609,7 +609,7 @@ Commit 1 的开发者交付为本文和 [重构基线](backend-architecture-refa
 
 本次交付是供后端 HTTP、业务模块、Worker 和 CLI 使用的内部模块边界，不新增产品入口。当前可从以下位置阅读：
 
-- `apps/api/src/auth/README.md`：认证职责与调用入口；`email-login.ts` 负责验证码登录与注册事务，`session.ts` 负责会话生命周期，`http/auth.ts` 和 `http/session.ts` 负责路由、Cookie 与鉴权中间件。
+- `apps/api/src/auth/README.md`：认证职责与调用入口；`email-login.ts` 负责验证码登录与注册事务，`session.ts` 负责会话生命周期，`routes.ts`、`cookies.ts` 和 `middleware.ts` 分别负责路由、Cookie 与鉴权中间件。
 - `apps/api/src/infra/database/prisma.ts`：原 Prisma 初始化文件原样迁移，保留每进程/线程 client 及 WAL、busy timeout 的异步初始化。
 - `apps/api/src/infra/http/{errors,locale}.ts`：HTTP 错误、参数校验和请求语言；`i18n/index.ts` 仅导出纯翻译函数与消息类型。
 - `apps/api/src/infra/{llm,email}`、`infra/logging.ts`、`math/` 和 `date.ts`：供应商适配、邮件传输、日志与公共计算；登录邮件模板归 `auth/verification-email.ts`。
@@ -1090,7 +1090,7 @@ C12 最终收尾仅补验证与记录，没有再次修改产品逻辑：
 | 范围 | 重点断言 | 现有验证入口示例 |
 | --- | --- | --- |
 | 启动装配 | buildApp 不启动运行资源；恢复先于领取任务；API/CLI 不重复启动队列；已有失败/退出清理行为保持 | 启动入口相关测试、隔离数据库 smoke 与现有开发进程清理测试；缺失行为单列记录 |
-| API 权限与资源 | 未登录、跨用户读写、资源不存在、错误结构、路由顺序 | `auth/http/multi-user-permissions.test.ts`、`strategy/backtest-routes.test.ts`、`strategy/routes.integration.test.ts` |
+| API 权限与资源 | 未登录、跨用户读写、资源不存在、错误结构、路由顺序 | `auth/multi-user-permissions.test.ts`、`strategy/backtest-routes.test.ts`、`strategy/routes.integration.test.ts` |
 | Job | FIFO/用户并发、旧 queued payload、运行恢复、损坏 payload、报告与 Job 原子终态 | `lib/job-queue.test.ts`、`lib/jobs.test.ts`、`lib/jobs-backtest-report.test.ts` |
 | Research 文档 | 自动保存、版本冲突、删除依赖、stale/blocked、运行互斥、取消与 reset | `research/documents/*test.ts`、`dependencies/*test.ts`、`execution/*test.ts`；E2E `research-autosave`、`research-cell-deletion`、`research-affected-run`、`research-interrupt` |
 | Research 证据与提案 | 干净执行、历史快照、产物归属、审阅与执行、交接来源 | execution-records、cell-change、handoff 测试；E2E `research-execution`、`research-cell-change-review` |
@@ -1199,3 +1199,23 @@ node --test scripts/plan-deployment.test.mjs
 ### C12 验证后新增业务决策：报告独立部署
 
 用户确认将部署来源从可变策略改为成功回测报告；不同报告即使配置相同也独立部署，同报告最多一个 active 实例。已独立提交 `3c55fd2f`（`按回测报告独立部署策略`），替代仅修正 `deploymentCurrent` 字符串比较的方案。实现、数据迁移与完整验证结果详见 [每日信号设计](daily-signals.md)。业务实现及 Monaco 补充修复均经人工 review，API 全量、迁移、源码/编译 Worker、构建及 7 个浏览器回归用例通过。C12 已完成后续门禁与 Research 回归，按原定独立提交收尾。
+
+### 路由具名导出与 Auth HTTP 入口扁平化（2026-09-10）
+
+后续可读性调整替代此前保留 `auth/http/` 的目录决策；历史迁移基线与 C6 验证记录保留当时的路径。登录路由直接位于 `auth/routes.ts`，Cookie 与鉴权中间件分别位于 `auth/cookies.ts` 和 `auth/middleware.ts`，会话业务继续位于 `auth/session.ts`。两份现有测试迁移到 auth 根目录，server、边界分类与当前架构说明同步更新。
+
+本次只调整文件组织和依赖路径，保留 HTTP 路径、响应、Cookie 属性、验证码/邀请码事务顺序与用户权限语义，不涉及数据库或公开 SDK。边界检查器精确识别新的 Cookie/中间件文件，并补充合法适配、业务反向依赖和适配层直连存储的回归用例。
+
+路由对象统一使用业务/职责名 + `Route`：Strategy 的主入口、定义、回测、扫描分别导出 `strategyRoute`、`strategyDefinitionRoute`、`strategyBacktestRoute`、`strategyScanRoute`；Market、Agent、Signals、Sharing 分别导出 `marketRoute`、`agentRoute`、`signalsRoute`、`sharingRoute`。server、子路由组合与相关测试直接使用同名导入，已有具名导出继续保留。
+
+计划提交：`refactor(api): 统一路由具名导出并扁平化认证 HTTP 入口`。
+
+静态检查：受影响代码的 Prettier、ESLint、API `tsc --noEmit`、后端边界检查及 `git diff --check` 全部通过。边界扫描为 633 个文件、2261 条运行时边、565 条类型边、0 违规。API 源码已无通用 `routes` 导出或对应别名导入；本轮修改仅涉及路由标识符、导入与格式，HTTP 路径和处理顺序保持。
+
+验证状态：人工 review 已通过，下列验证全部完成：
+
+- `pnpm --filter api test src/auth/routes.test.ts src/auth/multi-user-permissions.test.ts src/strategy/routes.integration.test.ts src/strategy/backtest-routes.test.ts src/market/routes.test.ts src/agent/routes.integration.test.ts src/signals/routes.integration.test.ts src/sharing/routes.integration.test.ts`
+- `pnpm test:backend-boundaries`
+- `pnpm --filter api build`
+
+实际结果：8 份路由测试共 70 个用例全部通过；边界检查器 21 个用例全部通过；API 编译成功。Agent 失败恢复用例打印预期的 `Fixture model failure` 日志，用例通过。测试使用 Hono 内存请求及独立 SQLite，未启动监听服务；测试进程已正常退出，数据库断连和临时目录清理钩子执行完成。

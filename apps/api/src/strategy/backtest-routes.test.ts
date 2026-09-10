@@ -39,7 +39,7 @@ vi.mock('#infra/jobs/queue.js', () => ({
   wakeJobQueue: mocks.wakeJobQueue,
 }));
 
-import { routes as strategyBacktestRoutes } from './backtest-routes.js';
+import { strategyBacktestRoute } from './backtest-routes.js';
 
 const app = new Hono();
 app.use('*', async (context, next) => {
@@ -47,7 +47,7 @@ app.use('*', async (context, next) => {
   context.set('user', { id: 'user-a', email: 'owner@example.com', name: 'Owner' });
   await next();
 });
-app.route('/backtest', strategyBacktestRoutes);
+app.route('/backtest', strategyBacktestRoute);
 
 describe('backtest report route', () => {
   beforeEach(() => {

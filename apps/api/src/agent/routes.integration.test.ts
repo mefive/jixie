@@ -27,7 +27,7 @@ vi.mock('./tools/charts/render-computed-chart.js', () => ({
 }));
 
 import { prisma } from '#infra/database/prisma.js';
-import { routes } from './routes.js';
+import { agentRoute } from './routes.js';
 import * as turnBus from './turns/bus.js';
 import { enqueueAgentTurn } from './turns/run.js';
 import {
@@ -42,7 +42,7 @@ app.use('*', async (context, next) => {
   context.set('userId', context.req.header('x-fixture-user') ?? 'owner');
   await next();
 });
-app.route('/agent', routes);
+app.route('/agent', agentRoute);
 function request(
   path: string,
   userId = 'owner',

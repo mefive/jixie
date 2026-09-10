@@ -15,7 +15,7 @@ vi.mock('#infra/database/prisma.js', async () => {
   return { prisma: new exports.PrismaClient({ datasourceUrl: `file:${database}` }) };
 });
 import { prisma } from '#infra/database/prisma.js';
-import { routes } from './routes.js';
+import { sharingRoute } from './routes.js';
 import { copyPublicStrategy } from '#strategy/definitions/copy-public.js';
 
 const config = {
@@ -32,7 +32,7 @@ app.use('*', async (context, next) => {
   context.set('user', await prisma.user.findUniqueOrThrow({ where: { id: userId } }));
   await next();
 });
-app.route('/library', routes);
+app.route('/library', sharingRoute);
 function request(path: string, method = 'GET') {
   return app.request(`/library${path}`, { method, headers: { 'accept-language': 'en' } });
 }

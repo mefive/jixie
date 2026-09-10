@@ -17,9 +17,9 @@ import {
 } from './scans/reports.js';
 import { strategyOperationApiError } from './route-errors.js';
 
-export const routes = new Hono();
+export const strategyScanRoute = new Hono();
 
-routes.post('/parameters', validateJson(strategyScanParametersSchema), async (c) => {
+strategyScanRoute.post('/parameters', validateJson(strategyScanParametersSchema), async (c) => {
   try {
     return c.json(await inspectStrategyScanParameters(c.req.valid('json'), localeFromRequest(c)));
   } catch (error) {
@@ -27,7 +27,7 @@ routes.post('/parameters', validateJson(strategyScanParametersSchema), async (c)
   }
 });
 
-routes.post(
+strategyScanRoute.post(
   '/',
   validateQuery(scanStrategyQuerySchema),
   validateJson(submitStrategyScanSchema),
@@ -47,7 +47,7 @@ routes.post(
   },
 );
 
-routes.get('/', validateQuery(scanStrategyQuerySchema), async (c) => {
+strategyScanRoute.get('/', validateQuery(scanStrategyQuerySchema), async (c) => {
   try {
     return c.json(await listStrategyScanReports(c.var.userId, c.req.valid('query')));
   } catch (error) {
@@ -55,7 +55,7 @@ routes.get('/', validateQuery(scanStrategyQuerySchema), async (c) => {
   }
 });
 
-routes.get('/running', validateQuery(scanStrategyQuerySchema), async (c) => {
+strategyScanRoute.get('/running', validateQuery(scanStrategyQuerySchema), async (c) => {
   try {
     return c.json(await findStrategyScanJob(c.var.userId, c.req.valid('query')));
   } catch (error) {
@@ -63,7 +63,7 @@ routes.get('/running', validateQuery(scanStrategyQuerySchema), async (c) => {
   }
 });
 
-routes.get('/:reportId/job', validateQuery(scanJobQuerySchema), async (c) => {
+strategyScanRoute.get('/:reportId/job', validateQuery(scanJobQuerySchema), async (c) => {
   try {
     return c.json(
       await readStrategyScanJob(
@@ -78,7 +78,7 @@ routes.get('/:reportId/job', validateQuery(scanJobQuerySchema), async (c) => {
   }
 });
 
-routes.get('/:reportId', async (c) => {
+strategyScanRoute.get('/:reportId', async (c) => {
   try {
     return c.json(
       await readStrategyScanReport(c.var.userId, c.req.param('reportId'), localeFromRequest(c)),

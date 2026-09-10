@@ -1,18 +1,18 @@
 import { Hono } from 'hono';
-import { routes as backtestRoutes } from './backtest-routes.js';
-import { routes as scanRoutes } from './scan-routes.js';
+import { strategyBacktestRoute } from './backtest-routes.js';
+import { strategyScanRoute } from './scan-routes.js';
 import { validateJson } from '#infra/http/errors.js';
 import { localeFromRequest } from '#infra/http/locale.js';
 import { strategyAgentInputSchema, startStrategyAgentTurn } from './agent-turn.js';
 import { strategyNameInputSchema, requestStrategyName } from './definitions/name-request.js';
 import { strategyOperationApiError } from './route-errors.js';
 
-export const routes = new Hono();
+export const strategyRoute = new Hono();
 
-routes.route('/backtest', backtestRoutes);
-routes.route('/scans', scanRoutes);
+strategyRoute.route('/backtest', strategyBacktestRoute);
+strategyRoute.route('/scans', strategyScanRoute);
 
-routes.post('/agent', validateJson(strategyAgentInputSchema), async (c) => {
+strategyRoute.post('/agent', validateJson(strategyAgentInputSchema), async (c) => {
   try {
     return c.json(
       await startStrategyAgentTurn(c.var.userId, c.req.valid('json'), localeFromRequest(c)),
@@ -22,7 +22,7 @@ routes.post('/agent', validateJson(strategyAgentInputSchema), async (c) => {
   }
 });
 
-routes.post('/name', validateJson(strategyNameInputSchema), async (c) => {
+strategyRoute.post('/name', validateJson(strategyNameInputSchema), async (c) => {
   try {
     return c.json(await requestStrategyName(c.req.valid('json'), localeFromRequest(c)));
   } catch (error) {

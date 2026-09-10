@@ -40,8 +40,8 @@ vi.mock('#infra/database/prisma.js', () => ({
 }));
 
 import { factorsRoute } from '#factor/routes.js';
-import { routes as sharingRoutes } from '#sharing/routes.js';
-import { routes as strategyDefinitionRoutes } from '#strategy/definition-routes.js';
+import { sharingRoute } from '#sharing/routes.js';
+import { strategyDefinitionRoute } from '#strategy/definition-routes.js';
 
 const app = new Hono();
 app.use('*', async (c, next) => {
@@ -49,9 +49,9 @@ app.use('*', async (c, next) => {
   c.set('user', { id: 'user-b', email: 'reader@example.com', name: 'Reader' });
   await next();
 });
-app.route('/strategies', strategyDefinitionRoutes);
+app.route('/strategies', strategyDefinitionRoute);
 app.route('/factors', factorsRoute);
-app.route('/library', sharingRoutes);
+app.route('/library', sharingRoute);
 
 describe('multi-user asset permissions', () => {
   beforeEach(() => {

@@ -49,8 +49,8 @@ vi.mock('./runtime/typescript/walled-run.js', async (importOriginal) => ({
 
 import { prisma } from '#infra/database/prisma.js';
 import { t } from '#i18n/index.js';
-import { routes as strategyRoutes } from './routes.js';
-import { routes as strategyDefinitionRoutes } from './definition-routes.js';
+import { strategyRoute } from './routes.js';
+import { strategyDefinitionRoute } from './definition-routes.js';
 import { submitStrategyBacktest } from './backtest/submit.js';
 import { submitStrategyScan } from './scans/submit.js';
 import { publishedFactorContext } from './agent-context.js';
@@ -61,8 +61,8 @@ app.use('*', async (context, next) => {
   context.set('userId', context.req.header('x-fixture-user') ?? 'owner');
   await next();
 });
-app.route('/strategies', strategyDefinitionRoutes);
-app.route('/strategy', strategyRoutes);
+app.route('/strategies', strategyDefinitionRoute);
+app.route('/strategy', strategyRoute);
 const config = {
   name: 'Frozen strategy',
   start: '20240102',

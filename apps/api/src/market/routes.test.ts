@@ -11,9 +11,9 @@ const database = vi.hoisted(() => ({
   indexDailyBasic: { groupBy: vi.fn(), findMany: vi.fn() },
 }));
 vi.mock('#infra/database/prisma.js', () => ({ prisma: database }));
-import { routes } from './routes.js';
+import { marketRoute } from './routes.js';
 
-const app = new Hono().route('/api/app/market', routes);
+const app = new Hono().route('/api/app/market', marketRoute);
 const request = (url: string) => app.request(`/api/app/market${url}`);
 
 beforeEach(() => {

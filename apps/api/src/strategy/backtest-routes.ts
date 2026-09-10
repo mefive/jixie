@@ -12,9 +12,9 @@ import {
 } from './backtest/reports.js';
 import { strategyOperationApiError } from './route-errors.js';
 
-export const routes = new Hono();
+export const strategyBacktestRoute = new Hono();
 
-routes.post(
+strategyBacktestRoute.post(
   '/',
   validateQuery(backtestStrategyQuerySchema),
   validateJson(codeConfigSchema),
@@ -34,7 +34,7 @@ routes.post(
   },
 );
 
-routes.get('/running', validateQuery(backtestStrategyQuerySchema), async (c) => {
+strategyBacktestRoute.get('/running', validateQuery(backtestStrategyQuerySchema), async (c) => {
   try {
     return c.json(await findStrategyBacktestJob(c.var.userId, c.req.valid('query')));
   } catch (error) {
@@ -42,7 +42,7 @@ routes.get('/running', validateQuery(backtestStrategyQuerySchema), async (c) => 
   }
 });
 
-routes.get('/reports', validateQuery(backtestStrategyQuerySchema), async (c) => {
+strategyBacktestRoute.get('/reports', validateQuery(backtestStrategyQuerySchema), async (c) => {
   try {
     return c.json(await listStrategyBacktestReports(c.var.userId, c.req.valid('query')));
   } catch (error) {
@@ -50,7 +50,7 @@ routes.get('/reports', validateQuery(backtestStrategyQuerySchema), async (c) => 
   }
 });
 
-routes.get('/reports/:reportId', async (c) => {
+strategyBacktestRoute.get('/reports/:reportId', async (c) => {
   try {
     return c.json(
       await readStrategyBacktestReport(c.var.userId, c.req.param('reportId'), localeFromRequest(c)),
@@ -60,7 +60,7 @@ routes.get('/reports/:reportId', async (c) => {
   }
 });
 
-routes.get('/:jobId', validateQuery(backtestJobQuerySchema), async (c) => {
+strategyBacktestRoute.get('/:jobId', validateQuery(backtestJobQuerySchema), async (c) => {
   try {
     return c.json(
       await readStrategyBacktestJob(

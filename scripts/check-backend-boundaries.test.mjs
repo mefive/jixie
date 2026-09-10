@@ -72,6 +72,34 @@ test('keeps HTTP in adapters while permitting direct Prisma in business operatio
   assert.deepEqual(checkBackendBoundaries(root, emptyPolicy).diagnostics, []);
 });
 
+test('permits root auth HTTP adapters while keeping session storage in business code', (context) => {
+  const root = fixture(context, {
+    [src + 'auth/routes.ts']:
+      "import { Hono } from 'hono'; import './cookies.js'; import './session.js'; export const routes = new Hono();",
+    [src + 'auth/cookies.ts']:
+      "import type { Context } from 'hono'; import { getCookie } from 'hono/cookie';",
+    [src + 'auth/middleware.ts']:
+      "import type { MiddlewareHandler } from 'hono'; import './cookies.js'; import './session.js';",
+    [src + 'auth/session.ts']: "import { prisma } from '../infra/database/prisma.js';",
+    [src + 'infra/database/prisma.ts']: 'export const prisma = {};',
+  });
+  assert.deepEqual(checkBackendBoundaries(root, emptyPolicy).diagnostics, []);
+});
+
+test('rejects auth business dependencies on HTTP adapters and direct adapter storage', (context) => {
+  const root = fixture(context, {
+    [src + 'auth/session.ts']:
+      "import type { Context } from 'hono'; import './cookies.js'; import './middleware.js';",
+    [src + 'auth/cookies.ts']: "import { prisma } from '../infra/database/prisma.js';",
+    [src + 'auth/middleware.ts']: "import { prisma } from '../infra/database/prisma.js';",
+    [src + 'infra/database/prisma.ts']: 'export const prisma = {};',
+  });
+  const result = checkBackendBoundaries(root, emptyPolicy);
+  assert.equal(result.diagnostics.filter((issue) => issue.rule === 'http-ownership').length, 1);
+  assert.equal(result.diagnostics.filter((issue) => issue.rule === 'http-direction').length, 2);
+  assert.equal(result.diagnostics.filter((issue) => issue.rule === 'http-storage').length, 2);
+});
+
 test('classifies type imports, mixed bindings, type queries, re-exports and literal dynamic imports', (context) => {
   const root = fixture(context, {
     [src + 'factor/operation.ts']: [

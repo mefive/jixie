@@ -40,7 +40,8 @@ function isHttp(file) {
   return (
     local != null &&
     (/(?:^|\/)(?:[\w-]+-)?routes\.ts$/.test(local) ||
-      local.startsWith('auth/http/') ||
+      local === 'auth/cookies.ts' ||
+      local === 'auth/middleware.ts' ||
       local.startsWith('infra/http/') ||
       local === 'maintenance/http.ts' ||
       /^(?:factor|strategy)\/route-errors\.ts$/.test(local) ||

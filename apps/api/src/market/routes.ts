@@ -24,10 +24,10 @@ import { loadIndexValuation, loadIndexValuationCatalog } from './valuation/read.
  *   GET /state?scope=                  whole-market/index pulse + Shenwan level-1 direction heat
  * Naming rules: see docs/design/api-route-naming.md.
  */
-export const routes = new Hono();
+export const marketRoute = new Hono();
 
 // tsCode → name (bulk) — e.g. the traded-instruments queue in trade details.
-routes.get('/names', validateQuery(z.object({ codes: z.string().min(1) })), async (c) => {
+marketRoute.get('/names', validateQuery(z.object({ codes: z.string().min(1) })), async (c) => {
   const codes = c.req.valid('query').codes.split(',').filter(Boolean).slice(0, 500);
   return c.json(await loadInstrumentNames(codes));
 });
@@ -57,7 +57,7 @@ const marketWeatherQuery = z.object({
   frequency: z.enum(marketWeatherFrequencies).default('month'),
 });
 
-routes.get('/objects/:assetType/:id/series', validateQuery(seriesQuery), async (c) => {
+marketRoute.get('/objects/:assetType/:id/series', validateQuery(seriesQuery), async (c) => {
   const assetType = z.enum(['stock', 'etf', 'index', 'future']).safeParse(c.req.param('assetType'));
   if (!assetType.success) {
     return apiError(c, 'VALIDATION_FAILED', 'Unsupported object type.');
@@ -74,11 +74,11 @@ routes.get('/objects/:assetType/:id/series', validateQuery(seriesQuery), async (
   return c.json(series);
 });
 
-routes.get('/indices/valuation/catalog', async (c) => {
+marketRoute.get('/indices/valuation/catalog', async (c) => {
   return c.json(await loadIndexValuationCatalog());
 });
 
-routes.get('/indices/:code/valuation', async (c) => {
+marketRoute.get('/indices/:code/valuation', async (c) => {
   const tsCode = c.req.param('code').toUpperCase();
   const series = await loadIndexValuation(tsCode);
   if (!series) {
@@ -87,7 +87,7 @@ routes.get('/indices/:code/valuation', async (c) => {
   return c.json(series);
 });
 
-routes.get('/weather', validateQuery(marketWeatherQuery), async (c) => {
+marketRoute.get('/weather', validateQuery(marketWeatherQuery), async (c) => {
   const { dimension, frequency } = c.req.valid('query');
   const series = await loadMarketWeather(dimension, frequency);
   if (!series) {
@@ -96,7 +96,7 @@ routes.get('/weather', validateQuery(marketWeatherQuery), async (c) => {
   return c.json(series);
 });
 
-routes.get('/industry-weather', validateQuery(industryWeatherQuery), async (c) => {
+marketRoute.get('/industry-weather', validateQuery(industryWeatherQuery), async (c) => {
   const frequency = c.req.valid('query').frequency as MarketWeatherFrequency;
   const series = await loadIndustryWeatherSeries(frequency);
   if (!series) {
@@ -106,7 +106,7 @@ routes.get('/industry-weather', validateQuery(industryWeatherQuery), async (c) =
   return c.json(series);
 });
 
-routes.get('/state', validateQuery(marketStateQuery), async (c) => {
+marketRoute.get('/state', validateQuery(marketStateQuery), async (c) => {
   const scope = c.req.valid('query').scope;
   const snapshot = await loadMarketState(scope);
   if (!snapshot) {
@@ -116,13 +116,13 @@ routes.get('/state', validateQuery(marketStateQuery), async (c) => {
 });
 
 // Index daily close (e.g. 000300.SH CSI 300) over a range — the benchmark return curve in trade details.
-routes.get('/indices/:code/series', validateQuery(seriesQuery), async (c) => {
+marketRoute.get('/indices/:code/series', validateQuery(seriesQuery), async (c) => {
   const { start = '20150101', end = '20261231' } = c.req.valid('query');
   return c.json(await loadIndexSeries(c.req.param('code'), start, end));
 });
 
 // Actual or point-in-time mapped continuous stock-index futures OHLC series.
-routes.get('/futures/:code/series', validateQuery(seriesQuery), async (c) => {
+marketRoute.get('/futures/:code/series', validateQuery(seriesQuery), async (c) => {
   const code = c.req.param('code');
   const { start = '20150101', end = '20261231' } = c.req.valid('query');
   const series = await loadFutureSeries(code, start, end);

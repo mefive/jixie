@@ -40,6 +40,8 @@ app.route('/api/app', screenRoute);                  // 挂在 app 根 → /scre
 4. **市场只读辅助**(股票名、K 线、指数序列):从 screen 文件拆出,挂 `/market/*`,避免「选股路由文件」变成杂物间。
 5. **文件按所属业务与职责命名**（2026-09-08 目录重整更新）：Strategy 使用根级 `strategy/routes.ts` 处理 Agent/命名并组合子路由，`definition-routes.ts` 处理 CRUD，`backtest-routes.ts` 与 `scan-routes.ts` 分别处理回测、扫描；其他业务同样优先根级 `routes.ts` 或具名路由。不建立 `http/` 空包装或旧路径 re-export，HTTP 挂载点保持原契约。
 
+6. **路由对象具名导出**（2026-09-10 统一）：使用「业务/职责名 + `Route`」，如 `authRoute`、`strategyRoute`、`strategyDefinitionRoute`、`strategyBacktestRoute`、`strategyScanRoute`、`marketRoute`、`agentRoute`、`signalsRoute`、`sharingRoute`。定义与调用方同名，不导出通用 `routes` 再由调用方使用 `as` 命名；文件名仍沿用 `routes.ts` 或具名路由文件。
+
 ### 为何回测进 `/strategy`,而不是继续顶层(方案 A)
 
 回测与因子分析都是「某实体上的重计算 Job」:

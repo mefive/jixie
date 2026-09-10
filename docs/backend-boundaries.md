@@ -6,7 +6,7 @@
 
 扫描 `apps/api/src`、`apps/api/scripts` 和 `apps/api/tests` 的 TS/JS/MJS 文件。使用已有 TypeScript AST 和 API tsconfig 路径解析，支持 `.js` → `.ts`、路径 alias、静态 import、重导出、字面量动态 import、import type 查询和 require。
 
-- Hono 只出现在路由、HTTP 辅助与启动适配；业务操作不能反向导入 HTTP 文件。HTTP 不直接导入 Prisma，业务操作可以使用 Prisma。
+- Hono 只出现在路由、HTTP 辅助与启动适配；业务操作不能反向导入 HTTP 文件。HTTP 不直接导入 Prisma，业务操作可以使用 Prisma。Auth 的根级 `routes.ts`、`cookies.ts` 与 `middleware.ts` 属于 HTTP 适配，`session.ts` 属于会话业务；Cookie 与中间件按精确文件路径识别，不放行整个 auth 目录。
 - `infra/runtime`、`infra/jobs` 不能直接或经基础设施中转反向依赖业务。
 - `index → bootstrap → server` 为启动依赖方向；业务/CLI 不导入整应用启动模块。
 - Engine simulation/data/factors/types 核心不能导入宿主适配器、数据库、HTTP 或任务流程。4 条现有纯契约依赖逐条登记。

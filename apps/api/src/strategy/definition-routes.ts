@@ -7,9 +7,9 @@ import { createStrategy, updateStrategy, deleteStrategy } from './definitions/dr
 import { strategyVisibilitySchema, setStrategyVisibility } from './definitions/visibility.js';
 import { strategyOperationApiError } from './route-errors.js';
 
-export const routes = new Hono();
+export const strategyDefinitionRoute = new Hono();
 
-routes.get('/', async (c) => {
+strategyDefinitionRoute.get('/', async (c) => {
   try {
     return c.json(await listStrategies(c.var.userId));
   } catch (error) {
@@ -17,7 +17,7 @@ routes.get('/', async (c) => {
   }
 });
 
-routes.get('/:id', async (c) => {
+strategyDefinitionRoute.get('/:id', async (c) => {
   try {
     return c.json(await readStrategy(c.var.userId, c.req.param('id'), localeFromRequest(c)));
   } catch (error) {
@@ -25,7 +25,7 @@ routes.get('/:id', async (c) => {
   }
 });
 
-routes.post('/', validateJson(createStrategySchema), async (c) => {
+strategyDefinitionRoute.post('/', validateJson(createStrategySchema), async (c) => {
   try {
     return c.json(await createStrategy(c.var.userId, c.req.valid('json'), localeFromRequest(c)));
   } catch (error) {
@@ -33,22 +33,26 @@ routes.post('/', validateJson(createStrategySchema), async (c) => {
   }
 });
 
-routes.post('/:id/visibility', validateJson(strategyVisibilitySchema), async (c) => {
-  try {
-    return c.json(
-      await setStrategyVisibility(
-        c.var.userId,
-        c.req.param('id'),
-        c.req.valid('json'),
-        localeFromRequest(c),
-      ),
-    );
-  } catch (error) {
-    return strategyOperationApiError(c, error);
-  }
-});
+strategyDefinitionRoute.post(
+  '/:id/visibility',
+  validateJson(strategyVisibilitySchema),
+  async (c) => {
+    try {
+      return c.json(
+        await setStrategyVisibility(
+          c.var.userId,
+          c.req.param('id'),
+          c.req.valid('json'),
+          localeFromRequest(c),
+        ),
+      );
+    } catch (error) {
+      return strategyOperationApiError(c, error);
+    }
+  },
+);
 
-routes.post('/:id', validateJson(updateStrategySchema), async (c) => {
+strategyDefinitionRoute.post('/:id', validateJson(updateStrategySchema), async (c) => {
   try {
     return c.json(
       await updateStrategy(
@@ -63,7 +67,7 @@ routes.post('/:id', validateJson(updateStrategySchema), async (c) => {
   }
 });
 
-routes.delete('/:id', async (c) => {
+strategyDefinitionRoute.delete('/:id', async (c) => {
   try {
     return c.json(await deleteStrategy(c.var.userId, c.req.param('id'), localeFromRequest(c)));
   } catch (error) {

@@ -88,9 +88,9 @@
 
 - 测试按职责归属：模块测试与源码同目录，不要求存在同名源码文件；API 包级配置及跨模块应用契约测试放在 `apps/api/tests`。具有明确模块归属的 integration 测试仍留在模块内，不按文件后缀统一搬迁。`tests` 仅供测试使用，生产代码不能导入；该目录仍纳入 TypeScript 与后端边界检查。
 
-- 业务模块的 HTTP 入口默认直接使用根目录 `routes.ts`，测试同目录；已有多组路由按职责使用 `backtest-routes.ts`、`scan-routes.ts` 等名称，不统一预设 `http/` 包装层；需要组合子路由时由模块根级 `routes.ts` 负责。`auth/http` 与 `infra/http` 已有明确的一组职责，保留。路由只负责请求/响应，资源归属、状态与事务由业务入口负责。
+- 业务模块的 HTTP 入口默认直接使用根目录 `routes.ts`，测试同目录；已有多组路由按职责使用 `backtest-routes.ts`、`scan-routes.ts` 等名称，不统一预设 `http/` 包装层；需要组合子路由时由模块根级 `routes.ts` 负责。`infra/http` 保留跨业务 HTTP 辅助。路由对象统一使用「业务/职责名 + `Route`」具名导出（如 `authRoute`、`strategyBacktestRoute`），调用方直接使用同名导入，不导出通用 `routes` 再用 `as` 命名。路由只负责请求/响应，资源归属、状态与事务由业务入口负责。
 
-- `apps/api/src/auth` — 登录与会话业务；`auth/http` 负责 Cookie、鉴权中间件与登录 HTTP。
+- `apps/api/src/auth` — 登录与会话业务；根级 `routes.ts` 负责登录 HTTP，`cookies.ts` 负责 Cookie，`middleware.ts` 负责鉴权中间件与 Hono 用户上下文；`session.ts` 保留会话业务。
 - `apps/api/src/infra` — 数据库、HTTP 辅助、LLM 与邮件传输；`math` 为共用数值计算，`date.ts` 为日期辅助，`i18n` 保留纯翻译。
 - `apps/api/src/infra/runtime` — 公共 Python 通信、TS isolate 与沙盒日志；业务协议归 Strategy/Factor 的 runtime 和 Research 的 sdk，公共运行设施不导入业务模块。
 - `apps/api/src/infra/jobs` — 通用任务记录、日志、队列、任务契约与执行器；业务 `*-job.ts` 集中声明 parse/execute/complete/fail/recover，执行器控制事务及恢复。根级 `bootstrap.ts` 注册任务、创建执行器并按顺序启动 API；`server.ts` 的 `buildApp()` 只构建 HTTP 应用。

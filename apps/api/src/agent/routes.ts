@@ -19,14 +19,14 @@ import { getTurnDetail } from './turns/read.js';
  *   GET  /turns/running?entity=  the live turn for an entity (refresh-reattach discovery)
  *   POST /turns/:turnId/cancel   abort the upstream LLM (idempotent)
  */
-export const routes = new Hono();
+export const agentRoute = new Hono();
 
 const conversationQuery = z.object({
   surface: z.enum(['strategy', 'factor', 'screen', 'research']).optional(),
   entityId: z.string().optional(),
 });
 
-routes.get('/conversations', validateQuery(conversationQuery), async (c) => {
+agentRoute.get('/conversations', validateQuery(conversationQuery), async (c) => {
   return c.json(await listConversations(c.var.userId, c.req.valid('query')));
 });
 
@@ -35,21 +35,25 @@ const messagesQuery = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(40),
 });
 
-routes.get('/conversations/:conversationId/messages', validateQuery(messagesQuery), async (c) => {
-  const result = await listConversationMessages(
-    c.var.userId,
-    c.req.param('conversationId'),
-    c.req.valid('query'),
-  );
-  return result ? c.json(result) : apiError(c, 'NOT_FOUND', m(c, 'turnNotFound'));
-});
+agentRoute.get(
+  '/conversations/:conversationId/messages',
+  validateQuery(messagesQuery),
+  async (c) => {
+    const result = await listConversationMessages(
+      c.var.userId,
+      c.req.param('conversationId'),
+      c.req.valid('query'),
+    );
+    return result ? c.json(result) : apiError(c, 'NOT_FOUND', m(c, 'turnNotFound'));
+  },
+);
 
-routes.get('/turns/:turnId/detail', async (c) => {
+agentRoute.get('/turns/:turnId/detail', async (c) => {
   const result = await getTurnDetail(c.var.userId, c.req.param('turnId'));
   return result ? c.json(result) : apiError(c, 'NOT_FOUND', m(c, 'turnNotFound'));
 });
 
-routes.get('/turns/:turnId/stream', (c) => {
+agentRoute.get('/turns/:turnId/stream', (c) => {
   const turnId = c.req.param('turnId');
   const userId = c.var.userId;
   return streamSSE(c, async (stream) => {
@@ -89,13 +93,13 @@ const runningQuery = z.object({
   entity: z.string().regex(/^(strategy|factor|screen|research):[A-Za-z0-9]+$/),
 });
 
-routes.get('/turns/running', validateQuery(runningQuery), (c) => {
+agentRoute.get('/turns/running', validateQuery(runningQuery), (c) => {
   const { entity } = c.req.valid('query');
   return c.json({ turnId: turnBus.findRunning(entity, c.var.userId) });
 });
 
 // Idempotent: already finished / unknown turn → { ok: true, cancelled: false }.
-routes.post('/turns/:turnId/cancel', (c) => {
+agentRoute.post('/turns/:turnId/cancel', (c) => {
   const cancelled = turnBus.cancel(c.req.param('turnId'), c.var.userId);
   return c.json({ ok: true, cancelled });
 });
@@ -104,7 +108,7 @@ const sqlBody = z.object({ sql: z.string().min(8).max(4000) });
 
 // Read-only SQL over the market-table whitelist (same guard as the agent's sqlQuery/renderChart
 // tools). Consumed by chart cards, which persist the query and re-run it on render.
-routes.post('/sql', validateJson(sqlBody), async (c) => {
+agentRoute.post('/sql', validateJson(sqlBody), async (c) => {
   const { sql } = c.req.valid('json');
   try {
     const rows = await runReadOnlySql(sql, CHART_ROW_CAP);
@@ -118,7 +122,7 @@ routes.post('/sql', validateJson(sqlBody), async (c) => {
 // Re-run a compute-source chart card (computed-chart.md Phase A): the persisted queries + code run
 // through the same whitelist guard and analysis isolate as the renderComputedChart tool, and the
 // validated row table comes back for the frontend to draw. Data never touches the LLM.
-routes.post('/chart/compute', validateJson(computeChartSpecSchema), async (c) => {
+agentRoute.post('/chart/compute', validateJson(computeChartSpecSchema), async (c) => {
   try {
     const rows = await runComputeChartRows(c.req.valid('json'));
     return c.json(JSON.parse(JSON.stringify({ rows }, jsonSafe)));
@@ -128,6 +132,6 @@ routes.post('/chart/compute', validateJson(computeChartSpecSchema), async (c) =>
 });
 
 // Guard against accidental non-GET on the stream path (avoids a confusing 404 from Hono).
-routes.all('/turns/:turnId/stream', (c) =>
+agentRoute.all('/turns/:turnId/stream', (c) =>
   apiError(c, 'VALIDATION_FAILED', m(c, 'onlyGetSubscribe')),
 );

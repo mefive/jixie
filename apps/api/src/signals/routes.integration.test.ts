@@ -41,7 +41,7 @@ vi.mock('#infra/jobs/queue.js', () => ({
 import { prisma } from '#infra/database/prisma.js';
 import { t } from '#i18n/index.js';
 import { deleteStrategy } from '#strategy/definitions/drafts.js';
-import { routes } from './routes.js';
+import { signalsRoute } from './routes.js';
 import { deployBacktestReport } from './deployments/manage.js';
 import { enqueueSignalRun } from './runs/enqueue.js';
 import { initializeSignalAccounting } from './accounting/initialize.js';
@@ -71,7 +71,7 @@ app.use('*', async (context, next) => {
   context.set('userId', context.req.header('x-fixture-user') ?? 'owner');
   await next();
 });
-app.route('/signals', routes);
+app.route('/signals', signalsRoute);
 function request(path: string, body?: unknown, userId = 'owner', method = 'POST') {
   return app.request(`/signals${path}`, {
     method,

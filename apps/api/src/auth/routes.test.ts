@@ -29,8 +29,8 @@ vi.mock('#infra/email/email.js', () => ({
 }));
 
 import { prisma } from '#infra/database/prisma.js';
-import { authRoute } from './auth.js';
-import { requireAuth } from './session.js';
+import { authRoute } from './routes.js';
+import { requireAuth } from './middleware.js';
 
 const app = new Hono();
 app.route('/api/auth', authRoute);
@@ -326,7 +326,7 @@ describe('authentication HTTP contract with an isolated database', () => {
   it('keeps the development login route absent when imported in production', async () => {
     vi.stubEnv('NODE_ENV', 'production');
     vi.resetModules();
-    const { authRoute: productionAuth } = await import('./auth.js');
+    const { authRoute: productionAuth } = await import('./routes.js');
     const productionApp = new Hono().route('/api/auth', productionAuth);
     const response = await productionApp.request('/api/auth/dev/login', {
       method: 'POST',
