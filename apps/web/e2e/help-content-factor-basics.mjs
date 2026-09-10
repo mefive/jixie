@@ -103,7 +103,7 @@ async function runAndCapture() {
   const submission = page.waitForResponse(
     (response) =>
       response.request().method() === 'POST' &&
-      new URL(response.url()).pathname === '/api/app/factor/analysis/run',
+      new URL(response.url()).pathname === '/api/app/factors/analyses',
   );
   await modal.getByRole('button', { name: '冻结研究卡并运行' }).click();
   const response = await submission;

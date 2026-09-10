@@ -74,13 +74,13 @@ async function createAndBacktestStrategy() {
     body: JSON.stringify(config),
   });
   strategyId = strategy.id;
-  const submitted = await json(`/api/app/strategy/backtest?strategyId=${strategyId}`, {
+  const submitted = await json(`/api/app/strategies/${strategyId}/backtests`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(config),
   });
   for (let attempt = 0; attempt < 120; attempt++) {
-    const job = await json(`/api/app/strategy/backtest/${submitted.jobId}`);
+    const job = await json(`/api/app/strategies/backtest-jobs/${submitted.jobId}`);
     if (job.status === 'done') {
       return;
     }

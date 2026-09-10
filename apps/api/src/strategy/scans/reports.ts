@@ -9,14 +9,14 @@ import type { Prisma } from '@prisma/client';
 import type { z } from 'zod';
 import { ACTIVE_JOB_STATUSES, getJob } from '#infra/jobs/records.js';
 import { prisma } from '#infra/database/prisma.js';
-import type { scanStrategyQuerySchema, scanJobQuerySchema } from './inputs.js';
+import type { scanStrategyIdentitySchema, scanJobQuerySchema } from './inputs.js';
 import { t } from '#i18n/index.js';
 import type { Locale } from '@jixie/shared';
 import { failStrategyOperation } from '../operation-errors.js';
 
 export async function listStrategyScanReports(
   userId: string,
-  query: z.infer<typeof scanStrategyQuerySchema>,
+  query: z.infer<typeof scanStrategyIdentitySchema>,
 ) {
   const rows = await prisma.strategyScanReport.findMany({
     where: { userId: userId, strategyId: query.strategyId },
@@ -29,7 +29,7 @@ export async function listStrategyScanReports(
 
 export async function findStrategyScanJob(
   userId: string,
-  query: z.infer<typeof scanStrategyQuerySchema>,
+  query: z.infer<typeof scanStrategyIdentitySchema>,
 ) {
   const row = await prisma.strategyScanReport.findFirst({
     where: {

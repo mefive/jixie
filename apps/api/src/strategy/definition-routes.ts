@@ -17,9 +17,11 @@ strategyDefinitionRoute.get('/', async (c) => {
   }
 });
 
-strategyDefinitionRoute.get('/:id', async (c) => {
+strategyDefinitionRoute.get('/:strategyId', async (c) => {
   try {
-    return c.json(await readStrategy(c.var.userId, c.req.param('id'), localeFromRequest(c)));
+    return c.json(
+      await readStrategy(c.var.userId, c.req.param('strategyId'), localeFromRequest(c)),
+    );
   } catch (error) {
     return strategyOperationApiError(c, error);
   }
@@ -33,15 +35,15 @@ strategyDefinitionRoute.post('/', validateJson(createStrategySchema), async (c) 
   }
 });
 
-strategyDefinitionRoute.post(
-  '/:id/visibility',
+strategyDefinitionRoute.patch(
+  '/:strategyId/visibility',
   validateJson(strategyVisibilitySchema),
   async (c) => {
     try {
       return c.json(
         await setStrategyVisibility(
           c.var.userId,
-          c.req.param('id'),
+          c.req.param('strategyId'),
           c.req.valid('json'),
           localeFromRequest(c),
         ),
@@ -52,12 +54,12 @@ strategyDefinitionRoute.post(
   },
 );
 
-strategyDefinitionRoute.post('/:id', validateJson(updateStrategySchema), async (c) => {
+strategyDefinitionRoute.patch('/:strategyId', validateJson(updateStrategySchema), async (c) => {
   try {
     return c.json(
       await updateStrategy(
         c.var.userId,
-        c.req.param('id'),
+        c.req.param('strategyId'),
         c.req.valid('json'),
         localeFromRequest(c),
       ),
@@ -67,9 +69,11 @@ strategyDefinitionRoute.post('/:id', validateJson(updateStrategySchema), async (
   }
 });
 
-strategyDefinitionRoute.delete('/:id', async (c) => {
+strategyDefinitionRoute.delete('/:strategyId', async (c) => {
   try {
-    return c.json(await deleteStrategy(c.var.userId, c.req.param('id'), localeFromRequest(c)));
+    return c.json(
+      await deleteStrategy(c.var.userId, c.req.param('strategyId'), localeFromRequest(c)),
+    );
   } catch (error) {
     return strategyOperationApiError(c, error);
   }

@@ -70,7 +70,7 @@ await context.route('**/api/app/factors/catalog', (route) =>
     { key: 'draft-id', label: '尚未定稿', kind: 'custom' },
   ]),
 );
-await context.route('**/api/app/factor-weather', (route) =>
+await context.route('**/api/app/factors/weather', (route) =>
   json(route, {
     methodology: {
       frequency: 'month',

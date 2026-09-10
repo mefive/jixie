@@ -26,7 +26,7 @@ const waitForReport = (reportId) =>
   page.evaluate(async (id) => {
     const deadline = Date.now() + 180_000;
     while (Date.now() < deadline) {
-      const report = await fetch(`/api/app/factor/reports/${id}`, { cache: 'no-store' }).then(
+      const report = await fetch(`/api/app/factors/reports/${id}`, { cache: 'no-store' }).then(
         (response) => response.json(),
       );
       if (['done', 'error', 'stale'].includes(report.status)) {
@@ -48,11 +48,11 @@ try {
     throw new Error(`dev login failed: ${login.status}`);
   }
 
-  const factor = await api('/api/app/factors/custom/ep/copy', { method: 'POST' });
+  const factor = await api('/api/app/factors/ep/copy', { method: 'POST' });
   if (!factor.ok) {
     throw new Error(`factor copy failed: ${JSON.stringify(factor)}`);
   }
-  const reportRun = await api('/api/app/factor/analysis/run', {
+  const reportRun = await api('/api/app/factors/analyses', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
@@ -100,7 +100,7 @@ try {
     throw new Error(`factor report failed: ${JSON.stringify(report)}`);
   }
 
-  const published = await api(`/api/app/factors/custom/${factor.body.id}/publish`, {
+  const published = await api(`/api/app/factors/${factor.body.id}/publish`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ approvedReportId: report.id }),
@@ -141,7 +141,7 @@ try {
   }
   strategyId = strategy.body.id;
 
-  const backtest = await api(`/api/app/strategy/backtest?strategyId=${strategyId}`, {
+  const backtest = await api(`/api/app/strategies/${strategyId}/backtests`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(config),
@@ -153,7 +153,7 @@ try {
     async ({ id, jobId }) => {
       const deadline = Date.now() + 180_000;
       while (Date.now() < deadline) {
-        const job = await fetch(`/api/app/strategy/backtest/${jobId}?since=0`, {
+        const job = await fetch(`/api/app/strategies/backtest-jobs/${jobId}?since=0`, {
           cache: 'no-store',
         }).then((response) => response.json());
         if (job.status === 'done') {

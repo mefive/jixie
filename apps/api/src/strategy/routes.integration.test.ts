@@ -49,7 +49,7 @@ vi.mock('./runtime/typescript/walled-run.js', async (importOriginal) => ({
 
 import { prisma } from '#infra/database/prisma.js';
 import { t } from '#i18n/index.js';
-import { strategyRoute, strategyDefinitionRoute } from './routes.js';
+import { strategyRoute } from './routes.js';
 import { submitStrategyBacktest } from './backtest/submit.js';
 import { submitStrategyScan } from './scans/submit.js';
 import { publishedFactorContext } from './agent-context.js';
@@ -60,8 +60,7 @@ app.use('*', async (context, next) => {
   context.set('userId', context.req.header('x-fixture-user') ?? 'owner');
   await next();
 });
-app.route('/strategies', strategyDefinitionRoute);
-app.route('/strategy', strategyRoute);
+app.route('/strategies', strategyRoute);
 const config = {
   name: 'Frozen strategy',
   start: '20240102',
@@ -149,7 +148,9 @@ describe('Strategy HTTP business boundaries', () => {
 
   it('keeps owner-only editing and generated-name collision handling', async () => {
     expect((await request('/strategies/strategy', undefined, 'other', 'GET')).status).toBe(404);
-    expect((await request('/strategies/strategy', { messages: [] }, 'other')).status).toBe(404);
+    expect((await request('/strategies/strategy', { messages: [] }, 'other', 'PATCH')).status).toBe(
+      404,
+    );
     expect((await request('/strategies/strategy', undefined, 'other', 'DELETE')).status).toBe(404);
     resources.name.mockResolvedValue(config.name);
     const response = await request('/strategies', {
@@ -164,19 +165,34 @@ describe('Strategy HTTP business boundaries', () => {
 
   it('preserves result cache for renaming and messages but invalidates runnable inputs', async () => {
     expect(
-      (await request('/strategies/strategy', { config: { ...config, name: 'Renamed' } })).status,
+      (
+        await request(
+          '/strategies/strategy',
+          { config: { ...config, name: 'Renamed' } },
+          'owner',
+          'PATCH',
+        )
+      ).status,
     ).toBe(200);
     expect(
       (await prisma.strategy.findUniqueOrThrow({ where: { id: 'strategy' } })).lastResult,
     ).toEqual({ marker: 'old result' });
     const messages = [textMessage('user', 'Discuss')];
-    expect((await request('/strategies/strategy', { messages })).status).toBe(200);
+    expect((await request('/strategies/strategy', { messages }, 'owner', 'PATCH')).status).toBe(
+      200,
+    );
     const updated = await prisma.strategy.findUniqueOrThrow({ where: { id: 'strategy' } });
     expect(updated.messages).toEqual(messages);
     expect(updated.lastResult).toEqual({ marker: 'old result' });
     expect(
-      (await request('/strategies/strategy', { config: { ...config, initialCash: 200_000 } }))
-        .status,
+      (
+        await request(
+          '/strategies/strategy',
+          { config: { ...config, initialCash: 200_000 } },
+          'owner',
+          'PATCH',
+        )
+      ).status,
     ).toBe(200);
     expect(
       (await prisma.strategy.findUniqueOrThrow({ where: { id: 'strategy' } })).lastResult,
@@ -185,15 +201,22 @@ describe('Strategy HTTP business boundaries', () => {
 
   it('blocks config mutation during backtest while retaining message-only updates', async () => {
     await seedJob('backtest');
-    const response = await request('/strategies/strategy', {
-      config: { ...config, code: 'changed' },
-    });
+    const response = await request(
+      '/strategies/strategy',
+      {
+        config: { ...config, code: 'changed' },
+      },
+      'owner',
+      'PATCH',
+    );
     expect(response.status).toBe(400);
     expect(await response.json()).toMatchObject({
       error: { message: t('en', 'strategyBacktestInProgress') },
     });
-    expect((await request('/strategies/strategy', { messages: [] })).status).toBe(200);
-    expect((await request('/strategy/backtest?strategyId=strategy', config)).status).toBe(400);
+    expect((await request('/strategies/strategy', { messages: [] }, 'owner', 'PATCH')).status).toBe(
+      200,
+    );
+    expect((await request('/strategies/strategy/backtests', config)).status).toBe(400);
     expect((await prisma.strategy.findUniqueOrThrow({ where: { id: 'strategy' } })).config).toEqual(
       config,
     );
@@ -206,7 +229,7 @@ describe('Strategy HTTP business boundaries', () => {
       data: { id: 'collision', userId: 'owner', name: 'Taken', config },
     });
     const candidate = { ...config, name: 'Taken', initialCash: 200_000 };
-    const response = await request('/strategy/backtest?strategyId=strategy', candidate);
+    const response = await request('/strategies/strategy/backtests?strategyId=other', candidate);
     expect(response.status).toBe(200);
     const { reportId, jobId } = await response.json();
     const frozenConfig = { ...candidate, name: config.name };
@@ -231,7 +254,7 @@ describe('Strategy HTTP business boundaries', () => {
       data: { config: { ...config, code: 'later code' }, lastResult: { marker: 'later result' } },
     });
     const detail = await request(
-      `/strategy/backtest/reports/${reportId}`,
+      `/strategies/backtest-reports/${reportId}`,
       undefined,
       'owner',
       'GET',
@@ -241,11 +264,11 @@ describe('Strategy HTTP business boundaries', () => {
       result: { marker: 'frozen result' },
     });
     expect(
-      (await request(`/strategy/backtest/reports/${reportId}`, undefined, 'other', 'GET')).status,
+      (await request(`/strategies/backtest-reports/${reportId}`, undefined, 'other', 'GET')).status,
     ).toBe(404);
-    expect((await request(`/strategy/backtest/${jobId}`, undefined, 'other', 'GET')).status).toBe(
-      404,
-    );
+    expect(
+      (await request(`/strategies/backtest-jobs/${jobId}`, undefined, 'other', 'GET')).status,
+    ).toBe(404);
   });
 
   it('rolls back config, report and job together if the nested job insert fails', async () => {
@@ -273,7 +296,7 @@ describe('Strategy HTTP business boundaries', () => {
       config: { ...config, code: 'scan snapshot' },
       spec: { dimensions: [{ key: 'lookback', values: [10, 30] }], splitDate: '20240103' },
     };
-    const response = await request('/strategy/scans?strategyId=strategy', input);
+    const response = await request('/strategies/strategy/scans?strategyId=other', input);
     expect(response.status).toBe(200);
     const { reportId, jobId } = await response.json();
     const report = await prisma.strategyScanReport.findUniqueOrThrow({
@@ -299,12 +322,12 @@ describe('Strategy HTTP business boundaries', () => {
     expect((await prisma.strategy.findUniqueOrThrow({ where: { id: 'strategy' } })).config).toEqual(
       config,
     );
-    expect((await request('/strategy/scans?strategyId=strategy', input)).status).toBe(400);
-    expect((await request(`/strategy/scans/${reportId}`, undefined, 'other', 'GET')).status).toBe(
-      404,
-    );
+    expect((await request('/strategies/strategy/scans', input)).status).toBe(400);
     expect(
-      (await request(`/strategy/scans/${reportId}/job`, undefined, 'other', 'GET')).status,
+      (await request(`/strategies/scan-reports/${reportId}`, undefined, 'other', 'GET')).status,
+    ).toBe(404);
+    expect(
+      (await request(`/strategies/scan-reports/${reportId}/job`, undefined, 'other', 'GET')).status,
     ).toBe(404);
     expect(resources.wake).toHaveBeenCalledTimes(1);
   });
@@ -313,7 +336,7 @@ describe('Strategy HTTP business boundaries', () => {
     const input = { config, spec: { dimensions: [{ key: 'lookback', values: [10, 30] }] } };
     expect(
       (
-        await request('/strategy/scans?strategyId=strategy', {
+        await request('/strategies/strategy/scans', {
           ...input,
           config: { ...config, language: 'python' },
         })
@@ -335,25 +358,79 @@ describe('Strategy HTTP business boundaries', () => {
       ...config,
       code: "export default defineStrategy({ factors: ['owner_factor'] });",
     };
-    expect((await request('/strategy/backtest?strategyId=strategy', dependent)).status).toBe(200);
+    expect((await request('/strategies/strategy/backtests', dependent)).status).toBe(200);
     expect(await prisma.strategy.findUniqueOrThrow({ where: { id: 'strategy' } })).toMatchObject({
       visibility: 'private',
     });
-    const response = await request('/strategies/strategy/visibility', { visibility: 'public' });
+    const response = await request(
+      '/strategies/strategy/visibility',
+      { visibility: 'public' },
+      'owner',
+      'PATCH',
+    );
     expect(response.status).toBe(400);
     expect(await response.json()).toMatchObject({
       error: { message: t('en', 'publicStrategyMustBeSelfContained') },
     });
     expect(
-      (await request('/strategies/strategy/visibility', { visibility: 'private' }, 'other')).status,
+      (
+        await request(
+          '/strategies/strategy/visibility',
+          { visibility: 'private' },
+          'other',
+          'PATCH',
+        )
+      ).status,
     ).toBe(404);
   });
 
+  it('resolves collection operations before strategy identities and uses PATCH for edits', async () => {
+    expect(
+      (await request('/strategies/strategy/backtests', undefined, 'owner', 'GET')).status,
+    ).toBe(200);
+    expect(
+      await (
+        await request('/strategies/strategy/backtests/running', undefined, 'owner', 'GET')
+      ).json(),
+    ).toEqual({ jobId: null });
+    expect((await request('/strategies/strategy/scans', undefined, 'owner', 'GET')).status).toBe(
+      200,
+    );
+    expect(
+      await (await request('/strategies/strategy/scans/running', undefined, 'owner', 'GET')).json(),
+    ).toEqual({ reportId: null, jobId: null });
+    expect((await request('/strategies/scan-parameters/inspect', {})).status).toBe(400);
+    expect((await request('/strategies/strategy', { messages: [] })).status).toBe(404);
+    expect((await request('/strategy/backtest?strategyId=strategy', config)).status).toBe(404);
+  });
+
+  it('uses the path strategy identity even when query or body names another strategy', async () => {
+    const response = await request('/strategies/strategy/agent/turns?strategyId=other', {
+      id: 'other',
+      code: config.code,
+      message: 'Explain this strategy',
+    });
+    expect(response.status).toBe(200);
+    expect(resources.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({ entity: { kind: 'strategy', id: 'strategy' } }),
+    );
+    expect(
+      (
+        await request('/strategies/missing/agent/turns', {
+          id: 'strategy',
+          code: config.code,
+          message: 'Explain',
+        })
+      ).status,
+    ).toBe(404);
+    expect(resources.enqueue).toHaveBeenCalledTimes(1);
+  });
+
   it('preserves naming validation and service-unavailable responses', async () => {
-    expect((await request('/strategy/name', {})).status).toBe(400);
+    expect((await request('/strategies/name-suggestions', {})).status).toBe(400);
     expect(resources.name).not.toHaveBeenCalled();
     resources.name.mockRejectedValue(new Error('Naming fixture unavailable'));
-    const response = await request('/strategy/name', { code: config.code });
+    const response = await request('/strategies/name-suggestions', { code: config.code });
     expect(response.status).toBe(503);
     expect(await response.json()).toEqual({
       error: { code: 'SERVICE_UNAVAILABLE', message: 'Naming fixture unavailable' },
@@ -364,8 +441,7 @@ describe('Strategy HTTP business boundaries', () => {
     'starts a %s code conversation without submitting a backtest',
     async (language) => {
       const code = language === 'python' ? 'from jixie import Strategy' : config.code;
-      const response = await request('/strategy/agent', {
-        id: 'strategy',
+      const response = await request('/strategies/strategy/agent/turns', {
         code,
         message: 'Prepare this strategy for a backtest',
         language,
@@ -399,10 +475,10 @@ describe('Strategy HTTP business boundaries', () => {
   );
 
   it('checks Agent ownership and active turns and supplies only the owner’s published factors', async () => {
-    const input = { id: 'strategy', code: config.code, message: 'Explain this strategy' };
-    expect((await request('/strategy/agent', input, 'other')).status).toBe(404);
+    const input = { code: config.code, message: 'Explain this strategy' };
+    expect((await request('/strategies/strategy/agent/turns', input, 'other')).status).toBe(404);
     resources.running.mockReturnValue('active-turn');
-    expect((await request('/strategy/agent', input)).status).toBe(400);
+    expect((await request('/strategies/strategy/agent/turns', input)).status).toBe(400);
     expect(resources.enqueue).not.toHaveBeenCalled();
     await prisma.factor.createMany({
       data: [
@@ -438,7 +514,7 @@ describe('Strategy HTTP business boundaries', () => {
     expect(context).not.toContain('draft_factor');
     expect(context).not.toContain('foreign_factor');
     resources.running.mockReturnValue(null);
-    expect((await request('/strategy/agent', input)).status).toBe(200);
+    expect((await request('/strategies/strategy/agent/turns', input)).status).toBe(200);
     expect(resources.enqueue).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: 'owner',

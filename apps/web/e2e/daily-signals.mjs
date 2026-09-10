@@ -78,7 +78,7 @@ try {
 
   const backtest = await page.evaluate(
     async ({ id, config }) => {
-      const submitted = await fetch(`/api/app/strategy/backtest?strategyId=${id}`, {
+      const submitted = await fetch(`/api/app/strategies/${id}/backtests`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(config),
@@ -88,7 +88,7 @@ try {
         return { status: submitted.status, body };
       }
       for (let attempt = 0; attempt < 120; attempt++) {
-        const job = await (await fetch(`/api/app/strategy/backtest/${body.jobId}`)).json();
+        const job = await (await fetch(`/api/app/strategies/backtest-jobs/${body.jobId}`)).json();
         if (job.status !== 'running' && job.status !== 'queued') {
           return { status: 200, body: job };
         }

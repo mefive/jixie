@@ -72,7 +72,7 @@ async function captureReconnectAndDirtyGuard() {
   const submission = page.waitForResponse(
     (response) =>
       response.request().method() === 'POST' &&
-      new URL(response.url()).pathname === '/api/app/strategy/backtest',
+      new RegExp('^/api/app/strategies/[^/]+/backtests$').test(new URL(response.url()).pathname),
   );
   await runButton.click();
   const submitted = await submission;
@@ -86,8 +86,8 @@ async function captureReconnectAndDirtyGuard() {
 
   const reconnectLookup = page.waitForResponse(
     (response) =>
-      new URL(response.url()).pathname === '/api/app/strategy/backtest/running' &&
-      new URL(response.url()).searchParams.get('strategyId') === strategyId,
+      new URL(response.url()).pathname ===
+      `/api/app/strategies/${encodeURIComponent(strategyId)}/backtests/running`,
   );
   await page.reload({ waitUntil: 'domcontentloaded' });
   const lookup = await reconnectLookup;
@@ -139,7 +139,7 @@ async function captureFailure() {
   const submission = page.waitForResponse(
     (response) =>
       response.request().method() === 'POST' &&
-      new URL(response.url()).pathname === '/api/app/strategy/backtest',
+      new RegExp('^/api/app/strategies/[^/]+/backtests$').test(new URL(response.url()).pathname),
   );
   await page.getByRole('button', { name: '运行回测' }).click();
   const submitted = await submission;

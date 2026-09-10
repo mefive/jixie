@@ -59,7 +59,7 @@ try {
   await page.screenshot({ path: `${SHOTS}7p-factor-evaluation-scope-settings.png` });
 
   const run = await page.evaluate(async () => {
-    const response = await fetch('/api/app/factor/analysis/run', {
+    const response = await fetch('/api/app/factors/analyses', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
@@ -112,7 +112,7 @@ try {
   const detail = await page.evaluate(async (reportId) => {
     const deadline = Date.now() + 180_000;
     while (Date.now() < deadline) {
-      const report = await fetch(`/api/app/factor/reports/${reportId}`, {
+      const report = await fetch(`/api/app/factors/reports/${reportId}`, {
         cache: 'no-store',
       }).then((response) => response.json());
       if (['done', 'error', 'stale'].includes(report.status)) {

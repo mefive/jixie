@@ -648,7 +648,7 @@ export function submitBacktest(
   config: BacktestConfig,
   strategyId: string,
 ): Promise<{ jobId: string; reportId: string }> {
-  return request(`/api/app/strategy/backtest?strategyId=${encodeURIComponent(strategyId)}`, {
+  return request(`/api/app/strategies/${encodeURIComponent(strategyId)}/backtests`, {
     method: 'POST',
     body: JSON.stringify(config),
   });
@@ -656,26 +656,26 @@ export function submitBacktest(
 
 // Poll a backtest job — `since` = how many log lines the client already has (incremental tail).
 export function pollBacktest(jobId: string, since = 0): Promise<BacktestJob> {
-  return request(`/api/app/strategy/backtest/${jobId}?since=${since}`);
+  return request(`/api/app/strategies/backtest-jobs/${jobId}?since=${since}`);
 }
 
 // A still-running backtest job for a strategy — to re-attach after a refresh (DB-backed, no localStorage).
 export function findBacktestRunningJob(strategyId: string): Promise<{ jobId: string | null }> {
-  return request(`/api/app/strategy/backtest/running?strategyId=${encodeURIComponent(strategyId)}`);
+  return request(`/api/app/strategies/${encodeURIComponent(strategyId)}/backtests/running`);
 }
 
 export function listBacktestReports(strategyId: string): Promise<BacktestReportSummary[]> {
-  return request(`/api/app/strategy/backtest/reports?strategyId=${encodeURIComponent(strategyId)}`);
+  return request(`/api/app/strategies/${encodeURIComponent(strategyId)}/backtests`);
 }
 
 export function getBacktestReport(reportId: string): Promise<BacktestReportDetail> {
-  return request(`/api/app/strategy/backtest/reports/${encodeURIComponent(reportId)}`);
+  return request(`/api/app/strategies/backtest-reports/${encodeURIComponent(reportId)}`);
 }
 
 export function inspectStrategyParameters(
   code: string,
 ): Promise<{ parameters: Record<string, StrategyParamValue> }> {
-  return request('/api/app/strategy/scans/parameters', {
+  return request('/api/app/strategies/scan-parameters/inspect', {
     method: 'POST',
     body: JSON.stringify({ code }),
   });
@@ -686,28 +686,28 @@ export function submitStrategyScan(
   config: BacktestConfig,
   spec: StrategyScanSpec,
 ): Promise<{ reportId: string; jobId: string }> {
-  return request(`/api/app/strategy/scans?strategyId=${encodeURIComponent(strategyId)}`, {
+  return request(`/api/app/strategies/${encodeURIComponent(strategyId)}/scans`, {
     method: 'POST',
     body: JSON.stringify({ config, spec }),
   });
 }
 
 export function listStrategyScans(strategyId: string): Promise<StrategyScanReportSummary[]> {
-  return request(`/api/app/strategy/scans?strategyId=${encodeURIComponent(strategyId)}`);
+  return request(`/api/app/strategies/${encodeURIComponent(strategyId)}/scans`);
 }
 
 export function findRunningStrategyScan(
   strategyId: string,
 ): Promise<{ reportId: string | null; jobId: string | null }> {
-  return request(`/api/app/strategy/scans/running?strategyId=${encodeURIComponent(strategyId)}`);
+  return request(`/api/app/strategies/${encodeURIComponent(strategyId)}/scans/running`);
 }
 
 export function getStrategyScanReport(reportId: string): Promise<StrategyScanReport> {
-  return request(`/api/app/strategy/scans/${reportId}`);
+  return request(`/api/app/strategies/scan-reports/${reportId}`);
 }
 
 export function pollStrategyScan(reportId: string, since = 0): Promise<BacktestJob> {
-  return request(`/api/app/strategy/scans/${reportId}/job?since=${since}`);
+  return request(`/api/app/strategies/scan-reports/${reportId}/job?since=${since}`);
 }
 
 // —— Daily signals ——
@@ -795,9 +795,9 @@ export function sendAgent(
   code: string,
   language: 'typescript' | 'python' = 'typescript',
 ): Promise<{ turnId: string }> {
-  return request('/api/app/strategy/agent', {
+  return request(`/api/app/strategies/${encodeURIComponent(strategyId)}/agent/turns`, {
     method: 'POST',
-    body: JSON.stringify({ id: strategyId, message, code, language }),
+    body: JSON.stringify({ message, code, language }),
   });
 }
 
@@ -825,7 +825,7 @@ export function updateStrategy(
   id: string,
   patch: { config?: BacktestConfig; messages?: ChatMessage[] },
 ): Promise<SavedMeta> {
-  return request(`/api/app/strategies/${id}`, { method: 'POST', body: JSON.stringify(patch) });
+  return request(`/api/app/strategies/${id}`, { method: 'PATCH', body: JSON.stringify(patch) });
 }
 
 export function deleteStrategy(id: string): Promise<{ ok: true }> {
@@ -841,7 +841,7 @@ export function setStrategyVisibility(
   visibility: AssetVisibility,
 ): Promise<{ id: string; visibility: AssetVisibility }> {
   return request(`/api/app/strategies/${encodeURIComponent(id)}/visibility`, {
-    method: 'POST',
+    method: 'PATCH',
     body: JSON.stringify({ visibility }),
   });
 }
@@ -954,14 +954,14 @@ export function getFactorCatalog(): Promise<FactorMeta[]> {
 }
 
 export function publishFactor(id: string, approvedReportId: string): Promise<PublishedFactor> {
-  return request(`/api/app/factors/custom/${encodeURIComponent(id)}/publish`, {
+  return request(`/api/app/factors/${encodeURIComponent(id)}/publish`, {
     method: 'POST',
     body: JSON.stringify({ approvedReportId }),
   });
 }
 
 export function archiveFactor(id: string): Promise<PublishedFactor> {
-  return request(`/api/app/factors/custom/${encodeURIComponent(id)}/archive`, {
+  return request(`/api/app/factors/${encodeURIComponent(id)}/archive`, {
     method: 'POST',
   });
 }
@@ -1000,7 +1000,7 @@ export function updateFactorComposite(
   definition: FactorCompositeDefinition,
 ): Promise<FactorCompositeResource> {
   return request(`/api/app/factors/composites/${encodeURIComponent(id)}`, {
-    method: 'POST',
+    method: 'PATCH',
     body: JSON.stringify({ definition }),
   });
 }
@@ -1020,9 +1020,10 @@ export function setFactorVisibility(
   kind: 'factor' | 'composite',
   visibility: AssetVisibility,
 ): Promise<{ id: string; visibility: AssetVisibility }> {
-  const path = kind === 'composite' ? 'composites' : 'custom';
-  return request(`/api/app/factors/${path}/${encodeURIComponent(id)}/visibility`, {
-    method: 'POST',
+  const path =
+    kind === 'composite' ? `composites/${encodeURIComponent(id)}` : encodeURIComponent(id);
+  return request(`/api/app/factors/${path}/visibility`, {
+    method: 'PATCH',
     body: JSON.stringify({ visibility }),
   });
 }
@@ -1068,14 +1069,14 @@ export function getCustomFactor(id: string): Promise<{
   owned?: boolean;
   visibility?: AssetVisibility;
 }> {
-  return request(`/api/app/factors/custom/${id}`);
+  return request(`/api/app/factors/${id}`);
 }
 
 // Copy a factor snapshot into a new independent draft.
 export function copyFactor(
   id: string,
 ): Promise<{ id: string; key: string; name: string; status: 'draft' }> {
-  return request(`/api/app/factors/custom/${id}/copy`, { method: 'POST' });
+  return request(`/api/app/factors/${id}/copy`, { method: 'POST' });
 }
 
 // Create a NEW factor row (up front on the first Agent prompt / first run of a hand-written one).
@@ -1100,7 +1101,7 @@ export function createFactor(
   const body = messages
     ? { key, name, code, analysisKind, language, messages }
     : { key, name, code, analysisKind, language };
-  return request('/api/app/factors/custom', { method: 'POST', body: JSON.stringify(body) });
+  return request('/api/app/factors', { method: 'POST', body: JSON.stringify(body) });
 }
 
 // Update a factor by id. `{ messages }` = real-time chat save; `{ code, name }` = an analysis run's
@@ -1109,11 +1110,11 @@ export function updateFactor(
   id: string,
   patch: { code?: string; name?: string; messages?: ChatMessage[] },
 ): Promise<{ id: string; name: string }> {
-  return request(`/api/app/factors/custom/${id}`, { method: 'POST', body: JSON.stringify(patch) });
+  return request(`/api/app/factors/${id}`, { method: 'PATCH', body: JSON.stringify(patch) });
 }
 
 export function deleteCustomFactor(id: string): Promise<{ ok: true }> {
-  return request(`/api/app/factors/custom/${id}`, { method: 'DELETE' });
+  return request(`/api/app/factors/${id}`, { method: 'DELETE' });
 }
 
 // Factor Agent: START one turn (iterates on the defineFactor code; history lives on the factor row).
@@ -1122,9 +1123,9 @@ export function sendFactorAgent(
   message: string,
   code: string,
 ): Promise<{ turnId: string }> {
-  return request('/api/app/factor/agent', {
+  return request(`/api/app/factors/${encodeURIComponent(factorId)}/agent/turns`, {
     method: 'POST',
-    body: JSON.stringify({ id: factorId, message, code }),
+    body: JSON.stringify({ message, code }),
   });
 }
 
@@ -1135,16 +1136,16 @@ export function factorQa(
   message: string,
   factorName?: string,
 ): Promise<{ turnId: string }> {
-  return request('/api/app/factor/qa', {
+  return request('/api/app/factors/questions', {
     method: 'POST',
     body: JSON.stringify({ history, message, factorName }),
   });
 }
 
 export function refreshFactorMetadata(id: string, code: string): Promise<{ ok: true }> {
-  return request('/api/app/factor/metadata', {
+  return request(`/api/app/factors/${encodeURIComponent(id)}/metadata/refresh`, {
     method: 'POST',
-    body: JSON.stringify({ id, code }),
+    body: JSON.stringify({ code }),
   });
 }
 
@@ -1158,11 +1159,11 @@ export function getFactorReports(
   if (cursor) {
     query.set('cursor', cursor);
   }
-  return request(`/api/app/factor/reports?${query}`);
+  return request(`/api/app/factors/reports?${query}`);
 }
 
 export function getFactorReport(reportId: string): Promise<FactorReportDetail> {
-  return request(`/api/app/factor/reports/${encodeURIComponent(reportId)}`);
+  return request(`/api/app/factors/reports/${encodeURIComponent(reportId)}`);
 }
 
 // Every terminal re-run creates a new immutable report. Only an identical running variant is reused.
@@ -1172,29 +1173,29 @@ export function runFactorAnalysis(
   researchIntent: FactorResearchIntentV1,
   parentReportId?: string | null,
 ): Promise<RunFactorAnalysisResponse> {
-  return request('/api/app/factor/analysis/run', {
+  return request('/api/app/factors/analyses', {
     method: 'POST',
     body: JSON.stringify({ factor, spec, parentReportId: parentReportId ?? null, researchIntent }),
   });
 }
 
 export function getFactorResearchWindow(): Promise<FactorHoldoutPolicyV1> {
-  return request('/api/app/factor/research/window');
+  return request('/api/app/factors/research/window');
 }
 
 export function getFactorResearchSummary(factor?: string): Promise<FactorResearchSummary> {
   const query = factor ? `?factor=${encodeURIComponent(factor)}` : '';
-  return request(`/api/app/factor/research/summary${query}`);
+  return request(`/api/app/factors/research/summary${query}`);
 }
 
 export function runFactorHoldout(reportId: string): Promise<RunFactorAnalysisResponse> {
-  return request(`/api/app/factor/reports/${encodeURIComponent(reportId)}/holdout`, {
+  return request(`/api/app/factors/reports/${encodeURIComponent(reportId)}/holdout`, {
     method: 'POST',
   });
 }
 
 export function revealFactorHoldout(reportId: string): Promise<FactorReportDetail> {
-  return request(`/api/app/factor/reports/${encodeURIComponent(reportId)}/reveal`, {
+  return request(`/api/app/factors/reports/${encodeURIComponent(reportId)}/reveal`, {
     method: 'POST',
   });
 }
@@ -1208,7 +1209,7 @@ export interface FactorJob {
   error?: string | null;
 }
 export function pollFactorJob(jobId: string, since = 0): Promise<FactorJob> {
-  return request(`/api/app/factor/analysis/job/${jobId}?since=${since}`);
+  return request(`/api/app/factors/analysis-jobs/${jobId}?since=${since}`);
 }
 
 // —— Correlation matrix (3.4): 2–8 factors × a fixed size column ——
@@ -1220,7 +1221,7 @@ export function getFactorCorrelation(
   end: string,
 ): Promise<FactorCorrelation> {
   const q = new URLSearchParams({ keys: keys.join(','), freq, start, end });
-  return request(`/api/app/factor/correlation?${q}`);
+  return request(`/api/app/factors/correlations?${q}`);
 }
 
 export function runFactorCorrelation(
@@ -1237,7 +1238,7 @@ export function runFactorCorrelation(
     end,
     ...(refresh ? { refresh: '1' } : {}),
   });
-  return request(`/api/app/factor/correlation/run?${q}`, { method: 'POST' });
+  return request(`/api/app/factors/correlations?${q}`, { method: 'POST' });
 }
 
 export function findCorrelationRunningJob(
@@ -1247,31 +1248,31 @@ export function findCorrelationRunningJob(
   end: string,
 ): Promise<{ jobId: string | null }> {
   const q = new URLSearchParams({ keys: keys.join(','), freq, start, end });
-  return request(`/api/app/factor/correlation/running?${q}`);
+  return request(`/api/app/factors/correlations/running?${q}`);
 }
 
 // —— Factor weather: immutable pinned factors with offline monthly observations ——
 
 export function getFactorWeather(): Promise<FactorWeatherResponse> {
-  return request('/api/app/factor-weather');
+  return request('/api/app/factors/weather');
 }
 
 export function pinFactorWeather(
   factorId: string,
   direction?: FactorWeatherDirection,
 ): Promise<{ id: string; status: string }> {
-  return request('/api/app/factor-weather/pins', {
+  return request('/api/app/factors/weather/pins', {
     method: 'POST',
     body: JSON.stringify({ factorId, direction }),
   });
 }
 
 export function refreshFactorWeatherPin(id: string): Promise<{ id: string; status: string }> {
-  return request(`/api/app/factor-weather/pins/${encodeURIComponent(id)}/refresh`, {
+  return request(`/api/app/factors/weather/pins/${encodeURIComponent(id)}/refresh`, {
     method: 'POST',
   });
 }
 
 export function unpinFactorWeather(id: string): Promise<{ ok: true }> {
-  return request(`/api/app/factor-weather/pins/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  return request(`/api/app/factors/weather/pins/${encodeURIComponent(id)}`, { method: 'DELETE' });
 }

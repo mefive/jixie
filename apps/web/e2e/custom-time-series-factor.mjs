@@ -69,7 +69,7 @@ try {
 
   await page.getByText('逐资产信号表现', { exact: true }).waitFor({ timeout: 180_000 });
   await page.getByText('国债 ETF', { exact: true }).waitFor();
-  const resource = await api(`/api/app/factors/custom/${factorId}`);
+  const resource = await api(`/api/app/factors/${factorId}`);
   if (
     !resource.ok ||
     resource.body.analysisKind !== 'time_series' ||
@@ -96,7 +96,7 @@ try {
   const publishModal = page.locator('.ant-modal-confirm:visible');
   await publishModal.getByRole('button', { name: /发\s*布/ }).click();
   await page.getByText('已发布', { exact: true }).waitFor({ timeout: 30_000 });
-  const published = await api(`/api/app/factors/custom/${factorId}`);
+  const published = await api(`/api/app/factors/${factorId}`);
   if (
     !published.ok ||
     published.body.status !== 'published' ||
@@ -155,7 +155,7 @@ try {
     throw new Error(`strategy creation failed: ${JSON.stringify(strategy)}`);
   }
   strategyId = strategy.body.id;
-  const backtest = await api(`/api/app/strategy/backtest?strategyId=${strategyId}`, {
+  const backtest = await api(`/api/app/strategies/${strategyId}/backtests`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(config),
@@ -167,7 +167,7 @@ try {
     async ({ strategyId, jobId }) => {
       const deadline = Date.now() + 180_000;
       while (Date.now() < deadline) {
-        const job = await fetch(`/api/app/strategy/backtest/${jobId}?since=0`, {
+        const job = await fetch(`/api/app/strategies/backtest-jobs/${jobId}?since=0`, {
           cache: 'no-store',
         }).then((response) => response.json());
         if (job.status === 'done') {
@@ -213,7 +213,7 @@ try {
     await api(`/api/app/strategies/${strategyId}`, { method: 'DELETE' }).catch(() => {});
   }
   if (factorId) {
-    await api(`/api/app/factors/custom/${factorId}/archive`, { method: 'POST' }).catch(() => {});
+    await api(`/api/app/factors/${factorId}/archive`, { method: 'POST' }).catch(() => {});
   }
   await browser.close();
 }

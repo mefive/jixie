@@ -34,7 +34,7 @@ const waitForReport = (reportId) =>
   page.evaluate(async (id) => {
     const deadline = Date.now() + 180_000;
     while (Date.now() < deadline) {
-      const report = await fetch(`/api/app/factor/reports/${id}`, {
+      const report = await fetch(`/api/app/factors/reports/${id}`, {
         cache: 'no-store',
       }).then((response) => response.json());
       if (['done', 'error', 'stale'].includes(report.status)) {
@@ -84,9 +84,9 @@ try {
   }
   compositeId = composite.key;
 
-  const researchWindow = await api('/api/app/factor/research/window');
+  const researchWindow = await api('/api/app/factors/research/window');
   const exploreEnd = researchWindow.body.exploreEnd;
-  const run = await api('/api/app/factor/analysis/run', {
+  const run = await api('/api/app/factors/analyses', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
@@ -166,7 +166,7 @@ try {
   await page.getByTestId('panel-report').waitFor({ timeout: 30_000 });
   await page.screenshot({ path: `${SHOTS}factor-panel-composite.png`, fullPage: true });
 
-  const holdout = await api(`/api/app/factor/reports/${run.body.reportId}/holdout`, {
+  const holdout = await api(`/api/app/factors/reports/${run.body.reportId}/holdout`, {
     method: 'POST',
   });
   if (holdout.status !== 200) {
@@ -263,7 +263,7 @@ try {
     throw new Error(`panel composite strategy creation failed: ${JSON.stringify(strategy)}`);
   }
   strategyId = strategy.body.id;
-  const backtest = await api(`/api/app/strategy/backtest?strategyId=${strategyId}`, {
+  const backtest = await api(`/api/app/strategies/${strategyId}/backtests`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(strategyConfig),
@@ -275,7 +275,7 @@ try {
     async ({ id, jobId }) => {
       const deadline = Date.now() + 180_000;
       while (Date.now() < deadline) {
-        const job = await fetch(`/api/app/strategy/backtest/${jobId}?since=0`, {
+        const job = await fetch(`/api/app/strategies/backtest-jobs/${jobId}?since=0`, {
           cache: 'no-store',
         }).then((response) => response.json());
         if (job.status === 'done') {

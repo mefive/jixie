@@ -8,14 +8,14 @@ import type {
 import { Prisma } from '@prisma/client';
 import { getJob, findRunningJob } from '#infra/jobs/records.js';
 import { prisma } from '#infra/database/prisma.js';
-import type { backtestStrategyQuerySchema, backtestJobQuerySchema } from './inputs.js';
+import type { backtestStrategyIdentitySchema, backtestJobQuerySchema } from './inputs.js';
 import { t } from '#i18n/index.js';
 import type { Locale } from '@jixie/shared';
 import { failStrategyOperation } from '../operation-errors.js';
 
 export async function findStrategyBacktestJob(
   userId: string,
-  query: z.infer<typeof backtestStrategyQuerySchema>,
+  query: z.infer<typeof backtestStrategyIdentitySchema>,
 ) {
   const jobId = await findRunningJob(userId, 'backtest', query.strategyId);
 
@@ -24,7 +24,7 @@ export async function findStrategyBacktestJob(
 
 export async function listStrategyBacktestReports(
   userId: string,
-  query: z.infer<typeof backtestStrategyQuerySchema>,
+  query: z.infer<typeof backtestStrategyIdentitySchema>,
 ) {
   const reports = await prisma.backtestReport.findMany({
     where: {

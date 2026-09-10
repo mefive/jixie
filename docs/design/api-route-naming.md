@@ -1,202 +1,116 @@
-# 设计: `/api/app` 路由命名改造
+# `/api/app` 资源路由设计
 
-> 2026-07-09 起草;同日修订一:回测从顶层 `/backtest` 收进 `/strategy/backtest`,与 `/factor/analysis` 对齐(方案 A)。
-> 同日修订二(评审后):**砍掉双挂窗口,每 Phase 原子切换**——client/server 同仓同发布、URL 不落库不进缓存,双挂是给「客户端与服务端不同步发布」场景准备的,本项目不存在该场景;开放问题 1–4 落定(见文末)。
-> 动机:`apps/api/src/server.ts` 挂载点单复数混用、三条产品线不对称,读代码与写 client 时都要「记特例」。
-> 本文是执行真相源;只改路径与文件边界,**不改业务语义**(含 Job / lastResult / FactorReport 落库方式)。
+2026-09-10 用户确认。本文是当前 HTTP 路径契约，替代此前以单数表示动作、复数表示 CRUD 的约定；历史迁移记录保留在 Git 与 [后端重构记录](backend-architecture-refactor.md)。
 
-## 一句话
+## 约定与组装
 
-统一规则:**复数 = 可持久化资源 CRUD;单数工作台前缀 = 该域的动作(agent / name / run / backtest / analysis);
-跨实体基础设施只留真正跨域的**(`/agent` turn 总线、`/market` 行情辅助)。三条线同一套,分阶段迁,每阶段原子切换。
-
-## 现状盘点(2026-07-09)
-
-```
-app.use('/api/app/*', requireAuth);
-app.route('/api/app/backtest', backtestRoute);       // 顶层 · 策略回测 job(历史独立)
-app.route('/api/app/strategy', strategyRoute);       // 单数 · 动作(agent/name)
-app.route('/api/app/strategies', savedStrategyRoute);// 复数 · CRUD
-app.route('/api/app/screens', savedScreenRoute);     // 复数 · CRUD
-app.route('/api/app/factors', factorRoute);          // 复数 · CRUD+动作+分析 全揉
-app.route('/api/app/agent', agentRoute);             // turn 基础设施
-app.route('/api/app', screenRoute);                  // 挂在 app 根 → /screen、/names、/stock…
-```
-
-| 域 | 资源 CRUD | 工作台动作 | 问题 |
-| --- | --- | --- | --- |
-| Strategy | `/strategies` | `/strategy/agent`、`/strategy/name`;回测却在顶层 `/backtest` | 单复数拆法清晰,但回测与因子分析不对称 |
-| Screen | `/screens` | `/screen`、`/screen/agent`、`/screen/conversations` | 动作挂在 `/api/app` 根上;另有 `/names`、`/stock/:code/series`、`/index/...` 混进 screen 文件 |
-| Factor | `/factors/custom` 等 | `/factors/agent`、`/name`、`/analysis`… | 全在复数下,没有「动作 vs 资源」边界 |
-| 共享 | — | `/backtest`(实为策略域)、`/agent` | `/agent` 合理;`/backtest` 应收回 strategy |
-
-前端真相源:`apps/web/src/api/client.ts`。e2e:`apps/web/e2e/*.mjs` 硬编码了旧路径。
-
-## 命名规则(拍板)
-
-1. **资源(名词复数)**:列表 / 读写 / 删除。例:`GET|POST /strategies`、`GET|POST|DELETE /strategies/:id`。
-2. **工作台动作(单数域前缀)**:agent 一轮、起名、跑一次查询/回测/分析。例:`POST /strategy/agent`、`POST /strategy/backtest`、`POST /factor/analysis/run`、`POST /screen/run`。
-3. **跨实体基础设施**:只挂真正跨域的 —— `/agent`(turn SSE)、`/market`(行情只读辅助)。**重计算 Job 跟所属产品线走**,不因「共用 Job 表」就抬到顶层。
-4. **市场只读辅助**(股票名、K 线、指数序列):从 screen 文件拆出,挂 `/market/*`,避免「选股路由文件」变成杂物间。
-5. **统一出口，按职责实现**（2026-09-10 更新）：每个业务模块以根级 `routes.ts` 作为路由统一出口。单组路由可以直接实现；多组路由使用显式具名 re-export，分别在 `definition-routes.ts`、`workbench-routes.ts`、`backtest-routes.ts` 等文件实现。Strategy 在 `workbench-routes.ts` 组合回测、扫描子路由；Factor 分别实现定义、研究、天气路由；Maintenance 的 `routes.ts` 直接实现并导出状态路由。外部调用方只从模块 `routes.ts` 导入路由；鉴权和维护门禁等中间件从各模块 `middleware.ts` 单独导出、导入，不经路由出口转导出；实现文件直接引用子路由实现以避免循环，HTTP 挂载点保持原契约。
-
-6. **路由对象具名导出**（2026-09-10 统一）：使用「业务/职责名 + `Route`」，如 `authRoute`、`strategyRoute`、`strategyDefinitionRoute`、`strategyBacktestRoute`、`strategyScanRoute`、`marketRoute`、`agentRoute`、`signalsRoute`、`sharingRoute`。定义与调用方同名，不导出通用 `routes` 再由调用方使用 `as` 命名；文件名仍沿用 `routes.ts` 或具名路由文件。
-
-### 为何回测进 `/strategy`,而不是继续顶层(方案 A)
-
-回测与因子分析都是「某实体上的重计算 Job」:
-
-| | 回测 | 因子分析 |
-| --- | --- | --- |
-| 入参 | `strategyId` + config | `factor` + freq/区间/中性化 |
-| Job | `kind=backtest` | `kind=factor` |
-| 结果 | `Strategy.lastResult`(1:1 最新快照) | `FactorReport`(1:N 参数缓存) |
-
-落库形态不同(快照 vs 多报告缓存)是产品语义,不构成「回测必须顶层路由」的理由。对称切法:
-
-- **A(本文采用)**:都挂单数工作台 —— `/strategy/backtest` ↔ `/factor/analysis`
-- B(不采用):都抬成计算底座 —— `/backtest` + `/factor-analysis`(会把因子 runs/correlation 从工作台拆散)
-
-### 刻意不做
-
-- 不改 Prisma model / 表名 / JSON 字段语义(`Strategy.lastResult`、`FactorReport`、`Job` 原样)。
-- 不做「一切 nested under resource」的纯 REST 教条(如 `POST /strategies/:id/backtest`)——query/body 已带 id,嵌套收益小、破坏面大。
-- 不把回测结果改成独立 `BacktestReport` 表(无「多窗口货架」需求前不抽象)。
-- 本期不引入 API version 前缀(`/v2`);也**不做双挂过渡**(见迁移策略)。
-
-## 目标路径表
-
-### Strategy
-
-| 方法 | 目标路径 | 今 | 说明 |
-| --- | --- | --- | --- |
-| CRUD | `/strategies`、`/strategies/:id` | 同左 | 不变 |
-| Agent | `/strategy/agent` | 同左 | 不变 |
-| Name | `/strategy/name` | 同左 | 不变 |
-| Backtest job | `/strategy/backtest`、`/strategy/backtest/:jobId`、`/strategy/backtest/running` | `/backtest…` | **收进单数工作台**,与 factor analysis 对称;`?strategyId=` 仍在 query |
-
-### Screen
-
-| 方法 | 目标路径 | 今 | 说明 |
-| --- | --- | --- | --- |
-| CRUD 收藏 | `/screens`、`/screens/:id` | 同左 | 不变 |
-| 跑 ScreenSpec | `POST /screen/run` | `POST /screen` | 显式动词,避免与资源单数混淆 |
-| Agent | `POST /screen/agent` | 同左 | 挂载从 `/api/app` 改为 `/api/app/screen` |
-| Conversations | `/screen/conversations[/:id]` | 同左 | 会话是工作台态,不进 `/screens` |
-| 股票名批量 | `GET /market/names?codes=` | `GET /names` | 拆出 |
-| 个股序列 | `GET /market/stocks/:code/series` | `GET /stock/:code/series` | 拆出 |
-| 指数序列 | `GET /market/indices/:code/series` | `GET /index/:code/series` | 拆出 |
-
-### Factor
-
-| 方法 | 目标路径 | 今 | 说明 |
-| --- | --- | --- | --- |
-| Catalog | `GET /factors/catalog` | 同左 | 只读目录,留在复数下合理 |
-| Custom CRUD | `/factors/custom`、`/factors/custom/:id`、`.../fork` | 同左 | 资源;可选远期收成 `/factors` 但 **本期不动** 以免与 catalog 撞车 |
-| Agent / QA / Name | `/factor/agent`、`/factor/qa`、`/factor/name` | `/factors/agent` 等 | **迁到单数**,与 strategy 对齐 |
-| Analysis job | `/factor/analysis`、`.../run`、`.../job/:id`、`.../running` | `/factors/analysis…` | 迁到单数;与 `/strategy/backtest` 对称 |
-| Correlation job | `/factor/correlation…` | `/factors/correlation…` | 同上 |
-| Runs 缓存清理 | `/factor/runs` | `/factors/runs` | 跟分析走,单数 |
-
-### 共享(真正跨域)
-
-| 路径 | 说明 |
-| --- | --- |
-| `/agent/turns/...`、`/agent/sql` | 统一 turn 总线(strategy/factor/screen 共用) |
-| `/market/...` | 行情只读辅助(从 screen 拆出) |
-
-### 目标 `server.ts` 挂载(示意)
+- 同一业务资源统一前缀：策略 `/strategies`，因子 `/factors`。从路径直接识别资源、对象和操作，不靠单复数区分功能。
+- GET 读取、POST 创建资源或触发操作、PATCH 局部修改、DELETE 删除。发布、归档、复制、holdout 和 reveal 保留明确动作，避免伪装成普通字段更新。
+- 对象归属 ID 放在路径。回测/扫描不再通过 `?strategyId=` 选择所属策略，策略/因子 Agent 和因子元数据刷新不再要求 body 的 `id`。HTTP 层以路径 ID 构造业务输入，额外 body/query ID 不能覆盖它。
+- 查询条件、分页与增量日志仍在 query；分析参数、代码、消息等仍在 body。响应结构、业务状态、鉴权和持久化语义保持。
+- 模块根级 `routes.ts` 是唯一对外路由入口，具名导出模块总路由。Strategy/Factor 使用 `resource-routes.ts` 组合，处理器仍分散在按职责命名的文件里。实现文件直接导入子路由，避免反向引用入口。
+- 中间件从 `middleware.ts` 导入：`requireAuth` 与 `maintenanceGate` 不由 `routes.ts` 导出。
+- 集合保留路径先注册，通用 `/:strategyId`、`/:factorId` 后注册。
 
 ```ts
-app.use('/api/app/*', requireAuth);
+import { strategyRoute } from '#strategy/routes.js';
+import { factorRoute } from '#factor/routes.js';
 
-// 跨实体底座
-app.route('/api/app/agent', agentRoute);
-app.route('/api/app/market', marketRoute);
-
-// 资源 CRUD(复数)
-app.route('/api/app/strategies', strategiesRoute);
-app.route('/api/app/screens', screensRoute);
-app.route('/api/app/factors', factorsRoute); // catalog + custom CRUD
-
-// 工作台动作(单数)
-app.route('/api/app/strategy', strategyRoute); // agent, name, backtest
-app.route('/api/app/screen', screenRoute);     // run, agent, conversations
-app.route('/api/app/factor', factorRoute);     // agent, qa, name, analysis, correlation, runs
+app.route('/api/app/strategies', strategyRoute);
+app.route('/api/app/factors', factorRoute);
 ```
 
-读起来应能一眼分清:复数 = 我的东西;单数 = 我在干活;agent/market = 底座。  
-实现上 `backtestRoute` 可继续独立文件,再 `strategyRoute.route('/backtest', backtestRoute)` 挂进去——文件边界与 URL 前缀解耦。
+以下路径均省略 `/api/app`。
 
-## 迁移策略
+## 策略
 
-### 原则
+| 方法 | 路径 | 职责 |
+| --- | --- | --- |
+| GET / POST | `/strategies` | 策略列表 / 创建 |
+| GET / PATCH / DELETE | `/strategies/:strategyId` | 读取 / 修改 / 删除定义 |
+| PATCH | `/strategies/:strategyId/visibility` | 修改可见性 |
+| POST | `/strategies/:strategyId/agent/turns` | 启动策略 Agent 对话 |
+| POST / GET | `/strategies/:strategyId/backtests` | 提交回测 / 历史回测报告列表 |
+| GET | `/strategies/:strategyId/backtests/running` | 查找运行中的回测任务 |
+| GET | `/strategies/backtest-reports/:reportId` | 读取持久化回测报告 |
+| GET | `/strategies/backtest-jobs/:jobId` | 查询任务状态及日志，保留 `since` |
+| POST / GET | `/strategies/:strategyId/scans` | 提交扫描 / 历史扫描报告列表 |
+| GET | `/strategies/:strategyId/scans/running` | 查找运行中的扫描任务 |
+| GET | `/strategies/scan-reports/:reportId` | 读取扫描报告 |
+| GET | `/strategies/scan-reports/:reportId/job` | 查询报告关联的扫描任务，保留 `since` |
+| POST | `/strategies/name-suggestions` | 为代码建议名称，不要求已保存策略 |
+| POST | `/strategies/scan-parameters/inspect` | 检查代码可扫描参数，不要求已保存策略 |
 
-- **行为不变**:handler 原样搬迁,只改挂载前缀与 client URL。
-- **原子切换,无双挂**:每个 Phase 在同一提交内完成 server 挂载 + `client.ts` + e2e 的切换。依据:client/server 同仓同发布,URL 不落库、不进浏览器缓存,不存在「旧客户端打新服务端」窗口;砍掉双挂同时消灭「双挂忘记删除」风险与专门的删旧 PR。
-- **一次改一条产品线**,避免大爆炸;每条线切完跑该线 e2e 验收。
+回测与扫描提交保留原有 config/spec body。报告是持久化研究结果，job 是执行状态与日志；两个 ID 不混用。扫描沿用按 reportId 查询关联 job 的业务契约。
 
-### Phase 0 · 约定落地(本文) ✅
+## 因子
 
-- 本文入 `docs/design/`;原 `ROADMAP` 4.4b 指针。
-- 实施前在 `server.ts` 顶部注释写清「复数资源 / 单数动作 / 底座」三行规则。
+| 方法 | 路径 | 职责 |
+| --- | --- | --- |
+| GET / POST | `/factors` | 自定义因子列表 / 创建草稿 |
+| GET / PATCH / DELETE | `/factors/:factorId` | 读取 / 修改 / 删除定义 |
+| POST | `/factors/:factorId/publish` | 发布经报告验证的因子 |
+| POST | `/factors/:factorId/archive` | 归档 |
+| POST | `/factors/:factorId/copy` | 复制为新草稿 |
+| PATCH | `/factors/:factorId/visibility` | 修改可见性 |
+| GET | `/factors/catalog` | 可选因子目录，包含预置、模板、自定义与组合来源 |
+| POST | `/factors/composites` | 创建组合 |
+| GET / PATCH / DELETE | `/factors/composites/:compositeId` | 读取 / 修改 / 删除组合 |
+| POST | `/factors/composites/:compositeId/publish` | 发布组合 |
+| POST | `/factors/composites/:compositeId/archive` | 归档组合 |
+| POST | `/factors/composites/:compositeId/copy` | 复制组合 |
+| PATCH | `/factors/composites/:compositeId/visibility` | 修改组合可见性 |
+| POST | `/factors/:factorId/agent/turns` | 启动因子编辑对话 |
+| POST | `/factors/:factorId/metadata/refresh` | 刷新代码元数据 |
+| POST | `/factors/questions` | 因子问答，无需持久化因子 ID |
+| POST | `/factors/analyses` | 提交分析 |
+| GET | `/factors/reports` | 按 `factor` 来源筛选报告，保留分页参数 |
+| GET | `/factors/reports/:reportId` | 读取报告 |
+| POST | `/factors/reports/:reportId/holdout` | 发起留出集验证 |
+| POST | `/factors/reports/:reportId/reveal` | 揭示留出集报告 |
+| GET | `/factors/analysis-jobs/:jobId` | 查询分析任务，保留 `since` |
+| GET / POST | `/factors/correlations` | 查询 / 提交相关性分析 |
+| GET | `/factors/correlations/running` | 查找运行中的相关性任务 |
+| GET | `/factors/research/window` | 研究窗口与留出集规则 |
+| GET | `/factors/research/summary` | 研究概况，保留可选 `factor` 查询 |
+| GET | `/factors/weather` | 因子天气 |
+| POST | `/factors/weather/pins` | 固定因子 |
+| POST | `/factors/weather/pins/:pinId/refresh` | 刷新固定项 |
+| DELETE | `/factors/weather/pins/:pinId` | 取消固定 |
 
-### Phase 1 · Screen 挂载整形(收益最大、破坏面中等)
+分析来源可能是预置、模板、自定义或组合，继续由 body 的 `factor` 指定，不强行挂到自定义因子 ID 下。相关性分析涉及多个因子，继续通过 query 的 `keys`、`freq`、`start`、`end` 以及提交时可选 `refresh` 表达输入。天气固定项使用 pinId，与其引用的 factorId 区分。
 
-1. 新建 `routes/market.ts`,迁出 `names` / `stock/.../series` / `index/.../series`。
-2. `screenRoute` 改为挂在 `/api/app/screen`;`POST /screen` → `POST /screen/run`;删除根挂载 `app.route('/api/app', screenRoute)`。
-3. 同一提交内更新 `client.ts`、screen 相关 store、e2e。
+## 迁移对照
 
-验收:选股页跑通;卡片重跑;conversation CRUD;交易详情页的股票名/指数曲线仍正常。
-
-### Phase 2 · Factor 动作迁到单数
-
-1. 从 `factor.ts` 拆出(或同文件分区)动作路由,挂 `/api/app/factor`。
-2. 复数 `/factors` 只留 `catalog` + `custom` CRUD。
-3. 同一提交内 client + factor complex + e2e 改 URL,旧路径直接删除。
-
-验收:预置/自定义因子分析、相关矩阵、agent 改代码、命名、runs 清理。
-
-### Phase 2b · Backtest 收进 `/strategy`(与 Phase 2 同波或紧随)
-
-1. 将 `backtestRoute` 挂到 `/api/app/strategy/backtest`(文件仍叫 `backtest.ts`,由 `strategy` 路由 `route` 进去——文件独立、URL 挂入,已拍板)。
-2. **注册顺序陷阱**:Hono 按注册顺序匹配,`GET /backtest/running` 必须注册在 `GET /backtest/:jobId` 之前,否则 `"running"` 会被当 jobId 吞掉。搬迁时保持 `backtest.ts` 内部现有顺序,新增路由也遵守「字面量路径先于参数路径」。
-3. 同一提交内 client(`submitBacktest` / poll / running)+ lab store + e2e 改 URL,删除顶层 `/api/app/backtest` 挂载。
-
-验收:Lab 跑回测、刷新重挂 running job、结果仍写入 `Strategy.lastResult`。
-
-### Phase 3 · 文件与命名收尾
-
-- `saved-strategy.ts` → `strategies.ts`,`saved-screen.ts` → `screens.ts`(或 re-export 别名)。
-- `strategy.ts` / `screen.ts` / `factor.ts` 文件头注释与路径表对齐;`backtest.ts` 注明「mounted under /strategy」。
-- grep 全库残留:`/api/app/backtest`、裸 `'/names'`、`'/stock/'`、`/factors/agent|analysis|correlation|runs` 等(连单复数一起查——`/strategy` 与 `/strategies` 差一个字母,肉眼 diff 易滑过)。
-- typecheck + 全量 e2e。
-
-### Phase 4(可选,不阻塞)
-
-- 评估 `/factors/custom` 是否收成 `/factors`(需解决与 `catalog`、未来集合资源的路径设计)。
-- 评估 agent/backtest 是否改为 `POST /strategies/:id/...`(嵌套 REST);**默认不做**,除非出现多处「忘记传 id」的 bug。
-
-## 改动面清单(给实施会话)
-
-| 层 | 文件 |
+| 旧路径/方法 | 新路径/方法 |
 | --- | --- |
-| 挂载 | `apps/api/src/server.ts` |
-| 路由 | `routes/backtest.ts`、`strategy.ts`、`screen.ts`、`saved-screen.ts`、`factor.ts`、新建 `market.ts` |
-| 前端 API | `apps/web/src/api/client.ts` |
-| 调用方 | `complex/lab/*`、`complex/screen/*`、`complex/factor/*`、交易详情里拉 series/names 处 |
-| 测试 | `apps/web/e2e/*.mjs`;api 侧若有 route 级测试一并改 |
-| 文档 | 本文;必要时 `unified-agent.md` 里出现的旧路径改一句 |
+| `POST /strategies/:id`、`POST /strategies/:id/visibility` | 对应路径改用 PATCH |
+| `POST /strategy/agent` | `POST /strategies/:strategyId/agent/turns`，ID 从 body 移到路径 |
+| `POST /strategy/name` | `POST /strategies/name-suggestions` |
+| `POST /strategy/backtest?strategyId=...` | `POST /strategies/:strategyId/backtests` |
+| `GET /strategy/backtest/reports?strategyId=...` | `GET /strategies/:strategyId/backtests` |
+| `GET /strategy/backtest/running?strategyId=...` | `GET /strategies/:strategyId/backtests/running` |
+| `GET /strategy/backtest/reports/:reportId` | `GET /strategies/backtest-reports/:reportId` |
+| `GET /strategy/backtest/:jobId` | `GET /strategies/backtest-jobs/:jobId` |
+| `POST /strategy/scans/parameters` | `POST /strategies/scan-parameters/inspect` |
+| `GET / POST /strategy/scans?strategyId=...` | `GET / POST /strategies/:strategyId/scans` |
+| `GET /strategy/scans/running?strategyId=...` | `GET /strategies/:strategyId/scans/running` |
+| `GET /strategy/scans/:reportId[/job]` | `GET /strategies/scan-reports/:reportId[/job]` |
+| `/factors/custom[/... ]` | `/factors[/... ]`，修改定义和可见性改 PATCH |
+| `POST /factors/composites/:id[/visibility]` | 对应路径改用 PATCH |
+| `POST /factor/agent`、`POST /factor/metadata` | `/factors/:factorId/agent/turns`、`/factors/:factorId/metadata/refresh`，ID 从 body 移到路径 |
+| `POST /factor/qa` | `POST /factors/questions` |
+| `POST /factor/analysis/run` | `POST /factors/analyses` |
+| `GET /factor/analysis/job/:jobId` | `GET /factors/analysis-jobs/:jobId` |
+| `/factor/reports...`、`/factor/research...` | 对应 `/factors/reports...`、`/factors/research...` |
+| `GET /factor/correlation`、`POST /factor/correlation/run` | `GET / POST /factors/correlations` |
+| `GET /factor/correlation/running` | `GET /factors/correlations/running` |
+| `/factor-weather...` | `/factors/weather...` |
 
-## 风险与回滚
+这次同步迁移后端、Web client、测试及 E2E，不提供旧路径别名。已有打开的旧前端需要刷新；外部或本地自建 HTTP 调用方需要按上表更新。发布时 API 与 Web 应一起更新。
 
-- **漏改硬编码 URL**:e2e + 全库 grep `/api/app/` 做验收门禁;单复数差一个字母,grep 时两种拼法都查。
-- **路由注册顺序**:字面量路径(`/running`)必须先于参数路径(`/:jobId`)注册,见 Phase 2b。
-- 回滚:恢复 `server.ts` 旧挂载即可(handler 未改语义);原子切换意味着回滚也是单提交 revert。
+Auth、Maintenance、Agent、Market、Research、Signals、Library 的 HTTP 路径，以及前端页面、共享类型、Prisma schema、SDK 和研究方法不在此次迁移范围。公开帮助没有新增用户操作或能力，无需变更中英 UI 文案。
 
-## 已决问题(2026-07-09 评审落定)
+## 验证
 
-1. 市场辅助挂 **`/market`**(比 `/ref` 直白)。
-2. factor 的 `custom` 子路径本期**不扁平化**,与「单复数对齐」解耦(远期 Phase 4 再议)。
-3. `Deprecation` 响应头**不加**——已无双挂窗口,问题自动消解。
-4. `backtest.ts` **文件独立、URL 挂入** `strategy`(与 factor analysis 分文件同理),避免单文件过大。
+代码 review 前只运行格式、lint、类型与后端边界静态检查。Review 后执行策略/因子路由集成测试、回测路由与多用户权限测试、API/Web 构建，以及回测报告历史和因子天气 E2E。重点覆盖集合路径与动态 ID 匹配、PATCH 约定、路径 ID 不被 body/query 覆盖、报告归属及封存保护、前端请求与轮询迁移。

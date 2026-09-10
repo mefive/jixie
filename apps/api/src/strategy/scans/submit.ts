@@ -9,7 +9,7 @@ import { initializeJobLogs } from '#infra/jobs/logs.js';
 import { wakeJobQueue } from '#infra/jobs/queue.js';
 import { prisma } from '#infra/database/prisma.js';
 import { normalizeScanSpec } from './scan.js';
-import type { scanStrategyQuerySchema, submitStrategyScanSchema } from './inputs.js';
+import type { scanStrategyIdentitySchema, submitStrategyScanSchema } from './inputs.js';
 import { t } from '#i18n/index.js';
 import type { Locale } from '@jixie/shared';
 import { failStrategyOperation } from '../operation-errors.js';
@@ -17,7 +17,7 @@ import { failStrategyOperation } from '../operation-errors.js';
 export async function submitStrategyScan(
   userId: string,
   input: z.infer<typeof submitStrategyScanSchema>,
-  query: z.infer<typeof scanStrategyQuerySchema>,
+  query: z.infer<typeof scanStrategyIdentitySchema>,
   locale: Locale,
 ) {
   const { strategyId } = query;

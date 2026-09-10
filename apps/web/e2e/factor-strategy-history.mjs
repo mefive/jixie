@@ -32,7 +32,7 @@ try {
     body: JSON.stringify({ email: `e2e-factor-history-${Date.now()}@test.com` }),
   });
 
-  const factor = await json('/api/app/factors/custom', {
+  const factor = await json('/api/app/factors', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
@@ -54,7 +54,7 @@ try {
   });
   factorId = factor.id;
 
-  const reportRun = await json('/api/app/factor/analysis/run', {
+  const reportRun = await json('/api/app/factors/analyses', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
@@ -97,7 +97,7 @@ try {
   let report = null;
   for (let attempt = 0; attempt < 180; attempt++) {
     await new Promise((resolve) => setTimeout(resolve, 1000));
-    report = await json(`/api/app/factor/reports/${reportRun.reportId}`);
+    report = await json(`/api/app/factors/reports/${reportRun.reportId}`);
     if (report.status === 'done') {
       break;
     }
@@ -108,7 +108,7 @@ try {
   if (report?.status !== 'done') {
     throw new Error('factor analysis timed out');
   }
-  await json(`/api/app/factors/custom/${factorId}/publish`, {
+  await json(`/api/app/factors/${factorId}/publish`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ approvedReportId: report.id }),
@@ -145,14 +145,14 @@ try {
   });
   strategyId = strategy.id;
 
-  const submitted = await json(`/api/app/strategy/backtest?strategyId=${strategyId}`, {
+  const submitted = await json(`/api/app/strategies/${strategyId}/backtests`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(config),
   });
   for (let attempt = 0; attempt < 120; attempt++) {
     await new Promise((resolve) => setTimeout(resolve, 1000));
-    const job = await json(`/api/app/strategy/backtest/${submitted.jobId}?since=0`);
+    const job = await json(`/api/app/strategies/backtest-jobs/${submitted.jobId}?since=0`);
     if (job.status === 'done') {
       const saved = await json(`/api/app/strategies/${strategyId}`);
       const trades = saved.lastResult?.trades ?? 0;
@@ -191,7 +191,7 @@ try {
   if (factorId) {
     await page
       .evaluate(async (id) => {
-        await fetch(`/api/app/factors/custom/${id}/archive`, { method: 'POST' });
+        await fetch(`/api/app/factors/${id}/archive`, { method: 'POST' });
       }, factorId)
       .catch(() => {});
   }

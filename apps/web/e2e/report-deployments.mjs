@@ -67,8 +67,8 @@ try {
   const strategy = await api('/api/app/strategies', config);
   const reports = [];
   for (let attempt = 0; attempt < 2; attempt++) {
-    const submitted = await api(`/api/app/strategy/backtest?strategyId=${strategy.id}`, config);
-    await waitJob(`/api/app/strategy/backtest/${submitted.jobId}`);
+    const submitted = await api(`/api/app/strategies/${strategy.id}/backtests`, config);
+    await waitJob(`/api/app/strategies/backtest-jobs/${submitted.jobId}`);
     reports.push(submitted.reportId);
   }
   assert.notEqual(reports[0], reports[1]);
@@ -98,9 +98,13 @@ try {
   await page.keyboard.press('ControlOrMeta+End');
   await page.keyboard.insertText('\n// Unrun draft edit');
   await page.getByRole('button', { name: '暂停上线', exact: true }).waitFor();
-  await api(`/api/app/strategies/${strategy.id}`, {
-    config: { ...config, initialCash: 2_000_000 },
-  });
+  await api(
+    `/api/app/strategies/${strategy.id}`,
+    {
+      config: { ...config, initialCash: 2_000_000 },
+    },
+    'PATCH',
+  );
   const frozen = await api(`/api/app/signals/deployments?strategyId=${strategy.id}`);
   assert.equal(frozen.filter((deployment) => deployment.status === 'active').length, 2);
   assert.ok(frozen.every((deployment) => deployment.config.initialCash === 1_000_000));

@@ -1,9 +1,9 @@
 import { Hono } from 'hono';
 import { logger } from 'hono/logger';
 import { authRoute } from '#auth/routes.js';
-import { strategyRoute, strategyDefinitionRoute } from '#strategy/routes.js';
+import { strategyRoute } from '#strategy/routes.js';
 import { marketRoute } from '#market/routes.js';
-import { factorRoute, factorsRoute, factorWeatherRoute } from '#factor/routes.js';
+import { factorRoute } from '#factor/routes.js';
 import { researchRoute } from '#research/routes.js';
 import { agentRoute } from '#agent/routes.js';
 import { signalsRoute } from '#signals/routes.js';
@@ -28,19 +28,14 @@ export function buildApp() {
   app.use('/api/app/*', maintenanceGate);
   app.use('/api/app/*', requireAuth);
 
-  // Mount-point naming rules (docs/design/api-route-naming.md):
-  //   plural   = persistable resource CRUD  (/strategies /factors)
-  //   singular = workbench actions          (/strategy /factor /research — incl. analysis jobs)
-  //   base     = shared product capabilities (/agent turns, /market data reads)
+  // Each business module owns one prefix; resource paths identify its operations.
+  // See docs/design/api-route-naming.md for the public HTTP contract.
   app.route('/api/app/agent', agentRoute);
   app.route('/api/app/market', marketRoute);
-  app.route('/api/app/strategies', strategyDefinitionRoute);
-  app.route('/api/app/factors', factorsRoute);
-  app.route('/api/app/factor-weather', factorWeatherRoute);
+  app.route('/api/app/strategies', strategyRoute);
+  app.route('/api/app/factors', factorRoute);
   app.route('/api/app/signals', signalsRoute);
   app.route('/api/app/library', sharingRoute);
-  app.route('/api/app/strategy', strategyRoute);
-  app.route('/api/app/factor', factorRoute);
   app.route('/api/app/research', researchRoute);
 
   return app;

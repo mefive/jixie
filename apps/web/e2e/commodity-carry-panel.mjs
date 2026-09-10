@@ -36,7 +36,7 @@ const waitForReport = (reportId) =>
   page.evaluate(async (id) => {
     const deadline = Date.now() + 180_000;
     while (Date.now() < deadline) {
-      const report = await fetch(`/api/app/factor/reports/${id}`, { cache: 'no-store' }).then(
+      const report = await fetch(`/api/app/factors/reports/${id}`, { cache: 'no-store' }).then(
         (response) => response.json(),
       );
       if (['done', 'error', 'stale'].includes(report.status)) {
@@ -70,12 +70,12 @@ try {
     throw new Error(`invalid commodity carry catalog entry: ${JSON.stringify(template)}`);
   }
 
-  const researchWindow = await api('/api/app/factor/research/window');
+  const researchWindow = await api('/api/app/factors/research/window');
   const exploreEnd = researchWindow.body.exploreEnd;
   if (researchWindow.status !== 200 || !exploreEnd) {
     throw new Error(`research window unavailable: ${JSON.stringify(researchWindow)}`);
   }
-  const run = await api('/api/app/factor/analysis/run', {
+  const run = await api('/api/app/factors/analyses', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({

@@ -147,12 +147,12 @@ try {
   if (!factorId) {
     throw new Error(`custom Panel factor id missing from ${page.url()}`);
   }
-  await api(page, `/api/app/factors/custom/${factorId}`, {
-    method: 'POST',
+  await api(page, `/api/app/factors/${factorId}`, {
+    method: 'PATCH',
     body: JSON.stringify({ code: FACTOR_CODE }),
   });
   await page.reload({ waitUntil: 'domcontentloaded' });
-  const resource = await api(page, `/api/app/factors/custom/${factorId}`);
+  const resource = await api(page, `/api/app/factors/${factorId}`);
   if (
     resource.analysisKind !== 'panel' ||
     resource.language !== 'python' ||
@@ -162,11 +162,11 @@ try {
     throw new Error(`stock-bond Panel metadata was not restored: ${JSON.stringify(resource)}`);
   }
 
-  const researchWindow = await api(page, '/api/app/factor/research/window');
+  const researchWindow = await api(page, '/api/app/factors/research/window');
   if (!researchWindow.exploreEnd) {
     throw new Error(`Panel research window is unavailable: ${JSON.stringify(researchWindow)}`);
   }
-  const factorRun = await api(page, '/api/app/factor/analysis/run', {
+  const factorRun = await api(page, '/api/app/factors/analyses', {
     method: 'POST',
     body: JSON.stringify({
       factor: factorId,
@@ -233,7 +233,7 @@ try {
   await publishModal.getByText(FACTOR_KEY, { exact: false }).waitFor();
   await publishModal.getByRole('button', { name: /发\s*布/ }).click();
   await publishModal.waitFor({ state: 'hidden', timeout: 30_000 });
-  publishedFactor = await api(page, `/api/app/factors/custom/${factorId}`);
+  publishedFactor = await api(page, `/api/app/factors/${factorId}`);
   if (
     publishedFactor.status !== 'published' ||
     publishedFactor.key !== FACTOR_KEY ||
@@ -344,13 +344,13 @@ try {
     }
   }
   if (factorId) {
-    const currentFactor = await api(page, `/api/app/factors/custom/${factorId}`).catch(() => null);
+    const currentFactor = await api(page, `/api/app/factors/${factorId}`).catch(() => null);
     if (currentFactor?.status === 'published') {
-      await api(page, `/api/app/factors/custom/${factorId}/archive`, {
+      await api(page, `/api/app/factors/${factorId}/archive`, {
         method: 'POST',
       }).catch(() => {});
     } else {
-      await api(page, `/api/app/factors/custom/${factorId}`, { method: 'DELETE' }).catch(() => {});
+      await api(page, `/api/app/factors/${factorId}`, { method: 'DELETE' }).catch(() => {});
     }
   }
   await context.close();
@@ -381,11 +381,11 @@ async function createStrategy(page, name, code, cost = COST) {
 }
 
 async function runBacktest(page, strategyId, backtestConfig) {
-  const started = await api(page, `/api/app/strategy/backtest?strategyId=${strategyId}`, {
+  const started = await api(page, `/api/app/strategies/${strategyId}/backtests`, {
     method: 'POST',
     body: JSON.stringify(backtestConfig),
   });
-  await waitForJob(page, `/api/app/strategy/backtest/${started.jobId}`, 300_000);
+  await waitForJob(page, `/api/app/strategies/backtest-jobs/${started.jobId}`, 300_000);
   const strategy = await api(page, `/api/app/strategies/${strategyId}`);
   if (!strategy.lastResult) {
     throw new Error(`backtest ${started.jobId} produced no result`);
@@ -499,7 +499,7 @@ function assertAllocationAnalysis(result, expectedFactorId, expectedCodeHash) {
 async function waitForReport(page, reportId) {
   const deadline = Date.now() + 300_000;
   while (Date.now() < deadline) {
-    const report = await api(page, `/api/app/factor/reports/${reportId}`);
+    const report = await api(page, `/api/app/factors/reports/${reportId}`);
     if (report.status === 'done') {
       return report;
     }

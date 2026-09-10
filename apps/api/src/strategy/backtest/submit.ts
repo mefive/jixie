@@ -10,7 +10,7 @@ import { wakeJobQueue } from '#infra/jobs/queue.js';
 import { prisma } from '#infra/database/prisma.js';
 import { commitStrategyConfig } from '../definitions/config.js';
 import { extractFactorKeys } from '../execution/prepare-factors.js';
-import type { backtestStrategyQuerySchema } from './inputs.js';
+import type { backtestStrategyIdentitySchema } from './inputs.js';
 import { t } from '#i18n/index.js';
 import type { Locale } from '@jixie/shared';
 import { failStrategyOperation } from '../operation-errors.js';
@@ -18,7 +18,7 @@ import { failStrategyOperation } from '../operation-errors.js';
 export async function submitStrategyBacktest(
   userId: string,
   input: z.infer<typeof codeConfigSchema>,
-  query: z.infer<typeof backtestStrategyQuerySchema>,
+  query: z.infer<typeof backtestStrategyIdentitySchema>,
   locale: Locale,
 ) {
   const config = input as BacktestConfig;

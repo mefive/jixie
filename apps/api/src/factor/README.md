@@ -17,7 +17,7 @@ Factor 负责因子从定义、分析到发布与持续观察的完整业务。R
 | 相关性缓存、提交与进度查询 | 同上 | [analysis/correlation-operations.ts](analysis/correlation-operations.ts) → [correlation-job.ts](correlation-job.ts) |
 | 因子天气固定、刷新与取消固定 | [weather-routes.ts](weather-routes.ts) | [weather/pins.ts](weather/pins.ts) → [weather/refresh.ts](weather/refresh.ts) |
 
-根级 [routes.ts](routes.ts) 是统一出口，显式转导出 `factorsRoute`、`factorRoute` 和 `factorWeatherRoute`，分别由上表中的定义、研究和天气路由文件实现。外部调用方只从统一出口导入。三个路由分别继续挂载在 `/api/app/factors`、`/api/app/factor` 和 `/api/app/factor-weather`。路由只处理输入校验、身份与 locale 传入、响应和错误映射；业务入口不接收 Hono Context。参数 schema 随业务入口归属，HTTP 使用同一 schema 校验，不维护第二份规则。
+根级 [routes.ts](routes.ts) 显式导出 `factorRoute`，由 [resource-routes.ts](resource-routes.ts) 组合定义、研究和天气路由，统一挂载 `/api/app/factors`。自定义定义位于集合根与 `/:factorId`，目录位于 `/catalog`，组合位于 `/composites`，天气位于 `/weather`；修改定义与可见性使用 PATCH。HTTP 只处理输入校验、身份与 locale 传入、响应和错误映射；业务入口不接收 Hono Context。参数 schema 随业务入口归属，HTTP 复用业务字段规则；所属对象 ID 由路径传入。完整契约见 [路由设计](../../../../docs/design/api-route-naming.md)。
 
 `operation-errors.ts` 表达操作拒绝的类别、信息及原因详情，`route-errors.ts` 转成现有 HTTP 错误。发布模块保留已有 `FactorPublicationError` 及错误语义。
 

@@ -113,8 +113,8 @@ async function captureNewFactorFlow() {
   }
   const prompt = page.locator('.jx-factor-chatInput textarea');
   await prompt.waitFor({ timeout: 20_000 });
-  await json(`/api/app/factors/custom/${factorId}`, {
-    method: 'POST',
+  await json(`/api/app/factors/${factorId}`, {
+    method: 'PATCH',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ name: '账面市值比（自定义）', code: FACTOR_CODE }),
   });
@@ -141,7 +141,7 @@ async function runCustomFactorAnalysis() {
   const submission = page.waitForResponse(
     (response) =>
       response.request().method() === 'POST' &&
-      new URL(response.url()).pathname === '/api/app/factor/analysis/run',
+      new URL(response.url()).pathname === '/api/app/factors/analyses',
   );
   await modal.getByRole('button', { name: '冻结研究卡并运行' }).click();
   const response = await submission;
@@ -166,7 +166,7 @@ async function runCustomFactorAnalysis() {
   await page
     .locator('.jx-factor-agentNameText', { hasText: '账面市值比（自定义）' })
     .waitFor({ timeout: 20_000 });
-  const persisted = await json(`/api/app/factors/custom/${factorId}`);
+  const persisted = await json(`/api/app/factors/${factorId}`);
   if (!persisted.code.includes('bar.pb')) {
     throw new Error('custom factor code was not persisted');
   }
@@ -305,9 +305,9 @@ async function cleanupDedicatedAccount() {
     const catalog = await (await fetch('/api/app/factors/catalog')).json();
     for (const factor of catalog.filter((item) => item.kind === 'custom')) {
       if (factor.status === 'draft') {
-        await fetch(`/api/app/factors/custom/${factor.key}`, { method: 'DELETE' });
+        await fetch(`/api/app/factors/${factor.key}`, { method: 'DELETE' });
       } else if (factor.status === 'published') {
-        await fetch(`/api/app/factors/custom/${factor.key}/archive`, { method: 'POST' });
+        await fetch(`/api/app/factors/${factor.key}/archive`, { method: 'POST' });
       }
     }
   });

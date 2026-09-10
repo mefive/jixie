@@ -52,7 +52,7 @@ const waitForReport = (reportId) =>
   page.evaluate(async (id) => {
     const deadline = Date.now() + 180_000;
     while (Date.now() < deadline) {
-      const report = await fetch(`/api/app/factor/reports/${id}`, {
+      const report = await fetch(`/api/app/factors/reports/${id}`, {
         cache: 'no-store',
       }).then((response) => response.json());
       if (['done', 'error', 'stale'].includes(report.status)) {
@@ -74,13 +74,13 @@ try {
     throw new Error(`dev login failed: ${login.status}`);
   }
 
-  const researchWindow = await api('/api/app/factor/research/window');
+  const researchWindow = await api('/api/app/factors/research/window');
   if (researchWindow.status !== 200 || !researchWindow.body.exploreEnd) {
     throw new Error(`research window unavailable: ${JSON.stringify(researchWindow)}`);
   }
   const exploreEnd = researchWindow.body.exploreEnd;
 
-  const run = await api('/api/app/factor/analysis/run', {
+  const run = await api('/api/app/factors/analyses', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
@@ -196,7 +196,7 @@ try {
   const holdoutResponsePromise = page.waitForResponse(
     (response) =>
       response.request().method() === 'POST' &&
-      /\/api\/app\/factor\/reports\/[^/]+\/holdout$/.test(new URL(response.url()).pathname),
+      /\/api\/app\/factors\/reports\/[^/]+\/holdout$/.test(new URL(response.url()).pathname),
   );
   await holdoutConfirm.getByRole('button', { name: '验证保留段', exact: true }).click();
   const holdoutResponse = await holdoutResponsePromise;
@@ -205,7 +205,7 @@ try {
     throw new Error(`holdout failed to start: ${JSON.stringify(holdoutRun)}`);
   }
   const sealed = await waitForReport(holdoutRun.reportId);
-  const sealedJob = await api(`/api/app/factor/analysis/job/${holdoutRun.jobId}`);
+  const sealedJob = await api(`/api/app/factors/analysis-jobs/${holdoutRun.jobId}`);
   if (
     sealed.status !== 'done' ||
     sealed.phase !== 'holdout' ||
@@ -238,7 +238,7 @@ try {
   const revealResponsePromise = page.waitForResponse(
     (response) =>
       response.request().method() === 'POST' &&
-      /\/api\/app\/factor\/reports\/[^/]+\/reveal$/.test(new URL(response.url()).pathname),
+      /\/api\/app\/factors\/reports\/[^/]+\/reveal$/.test(new URL(response.url()).pathname),
   );
   await revealConfirm.getByRole('button', { name: '揭示结果', exact: true }).click();
   const revealResponse = await revealResponsePromise;
@@ -254,7 +254,7 @@ try {
   ) {
     throw new Error(`invalid revealed panel holdout: ${JSON.stringify(revealed)}`);
   }
-  const revealedAgain = await api(`/api/app/factor/reports/${holdoutRun.reportId}/reveal`, {
+  const revealedAgain = await api(`/api/app/factors/reports/${holdoutRun.reportId}/reveal`, {
     method: 'POST',
   });
   if (revealedAgain.status !== 200 || revealedAgain.body.revealedAt !== revealed.revealedAt) {
@@ -323,7 +323,7 @@ try {
     throw new Error(`panel strategy creation failed: ${JSON.stringify(strategy)}`);
   }
   strategyId = strategy.body.id;
-  const backtest = await api(`/api/app/strategy/backtest?strategyId=${strategyId}`, {
+  const backtest = await api(`/api/app/strategies/${strategyId}/backtests`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(config),
@@ -335,7 +335,7 @@ try {
     async ({ strategyId, jobId }) => {
       const deadline = Date.now() + 180_000;
       while (Date.now() < deadline) {
-        const job = await fetch(`/api/app/strategy/backtest/${jobId}?since=0`, {
+        const job = await fetch(`/api/app/strategies/backtest-jobs/${jobId}?since=0`, {
           cache: 'no-store',
         }).then((response) => response.json());
         if (job.status === 'done') {

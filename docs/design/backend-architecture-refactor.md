@@ -124,6 +124,7 @@ apps/api/src/
     agent-context.ts            研究上下文构造
   factor/
     routes.ts                   因子路由统一具名出口
+    resource-routes.ts          因子模块路由组合
     definition-routes.ts        因子目录、定义、发布与组合实现
     research-routes.ts          因子研究、报告与辅助对话入口
     weather-routes.ts           因子天气入口
@@ -141,7 +142,8 @@ apps/api/src/
     weather/                    因子天气计算与查询
   strategy/
     routes.ts                   策略路由统一具名出口
-    workbench-routes.ts         Agent、命名与回测/扫描子路由组合
+    resource-routes.ts          策略模块路由组合
+    workbench-routes.ts         Agent 与名称建议
     definition-routes.ts        策略列表与定义入口
     scan-routes.ts              参数扫描入口
     backtest-routes.ts          回测与报告入口
@@ -1241,3 +1243,27 @@ Review 修正：`maintenanceGate` 属于中间件，从 `maintenance/middleware.
 - `pnpm --filter api build`
 
 实际结果：5 份测试共 33 个用例全部通过；边界检查器 23 个用例全部通过；API 编译成功。测试覆盖统一路由出口、回测/扫描装配、Factor 三组路由、跨用户权限和独立维护中间件。测试采用 Hono 内存请求、替代外部服务和临时 SQLite，未启动监听服务；测试进程已正常退出，数据库断连和目录清理钩子完成，未发现残留的 Strategy/Factor HTTP 测试目录。
+
+
+### 2026-09-10 — 策略与因子资源路由统一（已验证）
+
+计划提交：`refactor(api): 统一策略与因子资源路由`。
+
+用户确认将策略与因子各自统一为一个资源前缀，具体契约以 [api-route-naming.md](api-route-naming.md) 为准，替代上述历史记录中的单数动作 / 复数定义约定。模块 `routes.ts` 分别导出 `strategyRoute`、`factorRoute`，`resource-routes.ts` 组合按职责拆分的实现文件。对象操作从路径读取 ID，更新定义和可见性使用 PATCH；回测、扫描、分析报告与任务使用明确名称；因子天气归入 `/factors/weather`。server、Web client、现有集成测试和 E2E 请求与拦截同步迁移。无数据库、SDK 或页面地址迁移。
+
+新增回归覆盖集合路由匹配、PATCH 更新约定、旧路径退役和路径 ID 优先于额外 body/query ID；保留既有多用户归属、报告权限、封存和任务提交覆盖。
+
+静态检查：API/Web `tsc --noEmit`、变更代码 ESLint/Prettier、`git diff --check` 全部通过；后端边界扫描 639 个文件，2270 条运行时边、566 条类型边，0 违规。行为验证与构建按 review gate 留到用户代码 review 通过后；计划执行相关 API 集成测试、API/Web 构建、隔离数据库的回测报告历史 E2E 与因子天气 UI E2E，验收后关闭临时服务。
+
+
+代码 review 通过后的实际验证：
+
+- 相关 API 测试 4 个文件、34 项全部通过：Strategy HTTP 集成 14 项、回测路由 3 项、Factor HTTP 集成 11 项、多用户权限 6 项。
+- API `tsc` 构建、Web `tsc --noEmit && vite build` 全部通过。Web 保留大 chunk 提示，本次未修改拆包策略。
+- 回测报告历史 E2E 使用独立临时 SQLite、构建后的 API 和临时 Vite，报告切换、对比、历史报告 Research 交接全部通过，浏览器异常与 API 错误响应检查通过。
+- 因子天气 E2E 使用模拟数据，验证两组卡片、48 个月份格、历史月份选择、选择器禁用草稿及手机无横向溢出；后端天气归属和生命周期由 Factor 集成测试覆盖。
+- 40 个变更 E2E 脚本完成语法检查；此次执行上述两项代表性 E2E，未运行全部行情计算与外部模型相关脚本。
+- 验证中仅修正测试代码：天气选择器定位更新为已有 UI 标题；回测夹具改用 ULID，避免旧夹具连字符导致后台 Agent 查询被拒绝，并新增浏览器/API 错误检查。修正后 ESLint/Prettier 与两项 E2E 均通过，产品代码无追加修改。
+- 已检查本次 5 张截图：`backtest-report-comparison.png`、`research-backtest-report-handoff.png`、`factor-weather-desktop.png`、`factor-weather-picker.png`、`factor-weather-mobile.png`，均位于 `apps/web/acceptance/`。
+
+- 临时 API/Web 已停止，3307/5307 无监听，API 明确完成 Prisma disconnect，临时数据库目录无打开句柄；两个 E2E 均关闭浏览器上下文与连接。

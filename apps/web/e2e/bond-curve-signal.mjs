@@ -90,7 +90,7 @@ try {
   strategyId = strategy.body.id;
   console.log(`[bond-curve-signal-e2e] strategy=${strategyId}`);
 
-  const backtest = await api(`/api/app/strategy/backtest?strategyId=${strategyId}`, {
+  const backtest = await api(`/api/app/strategies/${strategyId}/backtests`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(config),
@@ -98,7 +98,7 @@ try {
   if (!backtest.ok) {
     throw new Error(`backtest start failed: ${JSON.stringify(backtest)}`);
   }
-  const backtestJob = await waitForJob('/api/app/strategy/backtest', backtest.body.jobId);
+  const backtestJob = await waitForJob('/api/app/strategies/backtest-jobs', backtest.body.jobId);
   if (backtestJob.status !== 'done') {
     throw new Error(`backtest failed: ${JSON.stringify(backtestJob)}`);
   }

@@ -31,19 +31,27 @@ import {
 } from './analysis/correlation-operations.js';
 import { factorOperationApiError } from './route-errors.js';
 
-export const factorRoute = new Hono();
+export const factorResearchRoute = new Hono();
 
-factorRoute.post('/agent', validateJson(factorAgentInputSchema), async (c) => {
-  try {
-    return c.json(
-      await startFactorAgentTurn(c.var.userId, c.req.valid('json'), localeFromRequest(c)),
-    );
-  } catch (error) {
-    return factorOperationApiError(c, error);
-  }
-});
+factorResearchRoute.post(
+  '/:factorId/agent/turns',
+  validateJson(factorAgentInputSchema.omit({ id: true })),
+  async (c) => {
+    try {
+      return c.json(
+        await startFactorAgentTurn(
+          c.var.userId,
+          { ...c.req.valid('json'), id: c.req.param('factorId') },
+          localeFromRequest(c),
+        ),
+      );
+    } catch (error) {
+      return factorOperationApiError(c, error);
+    }
+  },
+);
 
-factorRoute.post('/qa', validateJson(presetFactorQuestionSchema), (c) => {
+factorResearchRoute.post('/questions', validateJson(presetFactorQuestionSchema), (c) => {
   try {
     return c.json(
       startPresetFactorQuestion(c.var.userId, c.req.valid('json'), localeFromRequest(c)),
@@ -53,17 +61,25 @@ factorRoute.post('/qa', validateJson(presetFactorQuestionSchema), (c) => {
   }
 });
 
-factorRoute.post('/metadata', validateJson(factorMetadataInputSchema), async (c) => {
-  try {
-    return c.json(
-      await refreshOwnedFactorMetadata(c.var.userId, c.req.valid('json'), localeFromRequest(c)),
-    );
-  } catch (error) {
-    return factorOperationApiError(c, error);
-  }
-});
+factorResearchRoute.post(
+  '/:factorId/metadata/refresh',
+  validateJson(factorMetadataInputSchema.omit({ id: true })),
+  async (c) => {
+    try {
+      return c.json(
+        await refreshOwnedFactorMetadata(
+          c.var.userId,
+          { ...c.req.valid('json'), id: c.req.param('factorId') },
+          localeFromRequest(c),
+        ),
+      );
+    } catch (error) {
+      return factorOperationApiError(c, error);
+    }
+  },
+);
 
-factorRoute.get('/reports', validateQuery(factorReportListQuerySchema), async (c) => {
+factorResearchRoute.get('/reports', validateQuery(factorReportListQuerySchema), async (c) => {
   try {
     return c.json(await listFactorReports(c.var.userId, c.req.valid('query')));
   } catch (error) {
@@ -71,7 +87,7 @@ factorRoute.get('/reports', validateQuery(factorReportListQuerySchema), async (c
   }
 });
 
-factorRoute.get('/reports/:reportId', async (c) => {
+factorResearchRoute.get('/reports/:reportId', async (c) => {
   try {
     return c.json(
       await readFactorReport(c.var.userId, c.req.param('reportId'), localeFromRequest(c)),
@@ -81,22 +97,26 @@ factorRoute.get('/reports/:reportId', async (c) => {
   }
 });
 
-factorRoute.get('/analysis/job/:jobId', validateQuery(factorJobLogsQuerySchema), async (c) => {
-  try {
-    return c.json(
-      await readFactorAnalysisJob(
-        c.var.userId,
-        c.req.param('jobId'),
-        c.req.valid('query'),
-        localeFromRequest(c),
-      ),
-    );
-  } catch (error) {
-    return factorOperationApiError(c, error);
-  }
-});
+factorResearchRoute.get(
+  '/analysis-jobs/:jobId',
+  validateQuery(factorJobLogsQuerySchema),
+  async (c) => {
+    try {
+      return c.json(
+        await readFactorAnalysisJob(
+          c.var.userId,
+          c.req.param('jobId'),
+          c.req.valid('query'),
+          localeFromRequest(c),
+        ),
+      );
+    } catch (error) {
+      return factorOperationApiError(c, error);
+    }
+  },
+);
 
-factorRoute.get('/research/window', async (c) => {
+factorResearchRoute.get('/research/window', async (c) => {
   try {
     return c.json(await readFactorResearchWindow(localeFromRequest(c)));
   } catch (error) {
@@ -104,15 +124,19 @@ factorRoute.get('/research/window', async (c) => {
   }
 });
 
-factorRoute.get('/research/summary', validateQuery(factorResearchSummaryQuerySchema), async (c) => {
-  try {
-    return c.json(await readFactorResearchSummary(c.var.userId, c.req.valid('query')));
-  } catch (error) {
-    return factorOperationApiError(c, error);
-  }
-});
+factorResearchRoute.get(
+  '/research/summary',
+  validateQuery(factorResearchSummaryQuerySchema),
+  async (c) => {
+    try {
+      return c.json(await readFactorResearchSummary(c.var.userId, c.req.valid('query')));
+    } catch (error) {
+      return factorOperationApiError(c, error);
+    }
+  },
+);
 
-factorRoute.post('/analysis/run', validateJson(submitFactorAnalysisSchema), async (c) => {
+factorResearchRoute.post('/analyses', validateJson(submitFactorAnalysisSchema), async (c) => {
   try {
     return c.json(
       await submitFactorAnalysis(c.var.userId, c.req.valid('json'), localeFromRequest(c)),
@@ -122,7 +146,7 @@ factorRoute.post('/analysis/run', validateJson(submitFactorAnalysisSchema), asyn
   }
 });
 
-factorRoute.post('/reports/:reportId/holdout', async (c) => {
+factorResearchRoute.post('/reports/:reportId/holdout', async (c) => {
   try {
     return c.json(
       await submitFactorHoldout(c.var.userId, c.req.param('reportId'), localeFromRequest(c)),
@@ -132,7 +156,7 @@ factorRoute.post('/reports/:reportId/holdout', async (c) => {
   }
 });
 
-factorRoute.post('/reports/:reportId/reveal', async (c) => {
+factorResearchRoute.post('/reports/:reportId/reveal', async (c) => {
   try {
     return c.json(
       await revealFactorHoldout(c.var.userId, c.req.param('reportId'), localeFromRequest(c)),
@@ -142,7 +166,7 @@ factorRoute.post('/reports/:reportId/reveal', async (c) => {
   }
 });
 
-factorRoute.get('/correlation', validateQuery(factorCorrelationQuerySchema), async (c) => {
+factorResearchRoute.get('/correlations', validateQuery(factorCorrelationQuerySchema), async (c) => {
   try {
     return c.json(
       await readFactorCorrelation(c.var.userId, c.req.valid('query'), localeFromRequest(c)),
@@ -152,20 +176,28 @@ factorRoute.get('/correlation', validateQuery(factorCorrelationQuerySchema), asy
   }
 });
 
-factorRoute.get('/correlation/running', validateQuery(factorCorrelationQuerySchema), async (c) => {
-  try {
-    return c.json(await findFactorCorrelationJob(c.var.userId, c.req.valid('query')));
-  } catch (error) {
-    return factorOperationApiError(c, error);
-  }
-});
+factorResearchRoute.get(
+  '/correlations/running',
+  validateQuery(factorCorrelationQuerySchema),
+  async (c) => {
+    try {
+      return c.json(await findFactorCorrelationJob(c.var.userId, c.req.valid('query')));
+    } catch (error) {
+      return factorOperationApiError(c, error);
+    }
+  },
+);
 
-factorRoute.post('/correlation/run', validateQuery(factorCorrelationQuerySchema), async (c) => {
-  try {
-    return c.json(
-      await submitFactorCorrelation(c.var.userId, c.req.valid('query'), localeFromRequest(c)),
-    );
-  } catch (error) {
-    return factorOperationApiError(c, error);
-  }
-});
+factorResearchRoute.post(
+  '/correlations',
+  validateQuery(factorCorrelationQuerySchema),
+  async (c) => {
+    try {
+      return c.json(
+        await submitFactorCorrelation(c.var.userId, c.req.valid('query'), localeFromRequest(c)),
+      );
+    } catch (error) {
+      return factorOperationApiError(c, error);
+    }
+  },
+);

@@ -39,9 +39,9 @@ vi.mock('#infra/database/prisma.js', () => ({
   },
 }));
 
-import { factorsRoute } from '#factor/routes.js';
+import { factorRoute } from '#factor/routes.js';
 import { sharingRoute } from '#sharing/routes.js';
-import { strategyDefinitionRoute } from '#strategy/routes.js';
+import { strategyRoute } from '#strategy/routes.js';
 
 const app = new Hono();
 app.use('*', async (c, next) => {
@@ -49,8 +49,8 @@ app.use('*', async (c, next) => {
   c.set('user', { id: 'user-b', email: 'reader@example.com', name: 'Reader' });
   await next();
 });
-app.route('/strategies', strategyDefinitionRoute);
-app.route('/factors', factorsRoute);
+app.route('/strategies', strategyRoute);
+app.route('/factors', factorRoute);
 app.route('/library', sharingRoute);
 
 describe('multi-user asset permissions', () => {
@@ -148,8 +148,8 @@ describe('multi-user asset permissions', () => {
   it("does not let a reader mutate another user's factor", async () => {
     mocks.factorFindFirst.mockResolvedValue(null);
 
-    const response = await app.request('/factors/custom/factor-a', {
-      method: 'POST',
+    const response = await app.request('/factors/factor-a', {
+      method: 'PATCH',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ name: 'Hijacked' }),
     });
@@ -188,7 +188,7 @@ describe('multi-user asset permissions', () => {
       visibility: 'public',
     });
 
-    const response = await app.request('/factors/custom/factor-a');
+    const response = await app.request('/factors/factor-a');
     const body = await response.json();
 
     expect(response.status).toBe(200);
@@ -222,7 +222,7 @@ describe('multi-user asset permissions', () => {
     mocks.compositeFindFirst.mockResolvedValue(null);
     mocks.factorCreate.mockResolvedValue({ id: 'copy-factor-b' });
 
-    const response = await app.request('/factors/custom/factor-a/copy', { method: 'POST' });
+    const response = await app.request('/factors/factor-a/copy', { method: 'POST' });
 
     expect(response.status).toBe(200);
     const data = mocks.factorCreate.mock.calls[0][0].data;

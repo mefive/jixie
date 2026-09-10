@@ -48,16 +48,14 @@ import { t } from '#i18n/index.js';
 import { copyFactorComposite } from './composition/operations.js';
 import { submitFactorHoldout } from './reports/holdout.js';
 import { sha256 } from './reports/spec.js';
-import { factorsRoute, factorRoute, factorWeatherRoute } from './routes.js';
+import { factorRoute } from './routes.js';
 
 const app = new Hono();
 app.use('*', async (context, next) => {
   context.set('userId', context.req.header('x-fixture-user') ?? 'owner');
   await next();
 });
-app.route('/factors', factorsRoute);
-app.route('/factor', factorRoute);
-app.route('/factor-weather', factorWeatherRoute);
+app.route('/factors', factorRoute);
 function request(path: string, body?: unknown, userId = 'owner', method = 'POST') {
   return app.request(path, {
     method,
@@ -213,18 +211,20 @@ describe('Factor HTTP business boundaries', () => {
   it('protects pinned and published definitions and retains history after draft deletion', async () => {
     await seedReport();
     await seedPin();
-    const pinned = await request('/factors/custom/draft', { code: 'changed code' });
+    const pinned = await request('/factors/draft', { code: 'changed code' }, 'owner', 'PATCH');
     expect(pinned.status).toBe(400);
     expect(await pinned.json()).toEqual({
       error: { code: 'VALIDATION_FAILED', message: t('en', 'pinnedFactorReadonlyEdit') },
     });
-    expect((await request('/factors/custom/draft', undefined, 'other', 'DELETE')).status).toBe(404);
+    expect((await request('/factors/draft', undefined, 'other', 'DELETE')).status).toBe(404);
     await prisma.factorWeatherPin.deleteMany();
     await prisma.factor.update({ where: { id: 'draft' }, data: { status: 'published' } });
-    expect((await request('/factors/custom/draft', { name: 'Changed' })).status).toBe(400);
-    expect((await request('/factors/custom/draft', undefined, 'owner', 'DELETE')).status).toBe(400);
+    expect((await request('/factors/draft', { name: 'Changed' }, 'owner', 'PATCH')).status).toBe(
+      400,
+    );
+    expect((await request('/factors/draft', undefined, 'owner', 'DELETE')).status).toBe(400);
     await prisma.factor.update({ where: { id: 'draft' }, data: { status: 'draft' } });
-    expect((await request('/factors/custom/draft', undefined, 'owner', 'DELETE')).status).toBe(200);
+    expect((await request('/factors/draft', undefined, 'owner', 'DELETE')).status).toBe(200);
     expect(await prisma.factorReport.findUnique({ where: { id: 'report' } })).not.toBeNull();
   });
 
@@ -240,14 +240,14 @@ describe('Factor HTTP business boundaries', () => {
         runtimeVersion: 'py-v1',
       },
     });
-    const read = await request('/factors/custom/draft', undefined, 'other', 'GET');
+    const read = await request('/factors/draft', undefined, 'other', 'GET');
     expect(read.status).toBe(200);
     expect(await read.json()).toMatchObject({
       messages: null,
       researchHandoff: null,
       sourceResearchExecution: null,
     });
-    const copied = await request('/factors/custom/draft/copy', undefined, 'other');
+    const copied = await request('/factors/draft/copy', undefined, 'other');
     expect(copied.status).toBe(200);
     const { id } = await copied.json();
     expect(await prisma.factor.findUnique({ where: { id } })).toMatchObject({
@@ -261,7 +261,7 @@ describe('Factor HTTP business boundaries', () => {
       researchHandoff: null,
     });
     await prisma.factor.update({ where: { id: 'draft' }, data: { status: 'archived' } });
-    expect((await request('/factors/custom/draft/copy', undefined, 'other')).status).toBe(404);
+    expect((await request('/factors/draft/copy', undefined, 'other')).status).toBe(404);
   });
 
   it('copies public panel components into independent drafts with their original runtime', async () => {
@@ -323,33 +323,35 @@ describe('Factor HTTP business boundaries', () => {
       },
     });
     const list = await (
-      await request('/factor/reports?factor=draft', undefined, 'owner', 'GET')
+      await request('/factors/reports?factor=draft', undefined, 'owner', 'GET')
     ).json();
     expect(list.items[0]).toMatchObject({ sealed: true });
     expect(list.items[0]).not.toHaveProperty('metrics');
     const detail = await (
-      await request('/factor/reports/report', undefined, 'owner', 'GET')
+      await request('/factors/reports/report', undefined, 'owner', 'GET')
     ).json();
     expect(detail).toMatchObject({ sealed: true, canReveal: true });
     expect(detail).not.toHaveProperty('payload');
     expect(detail).not.toHaveProperty('researchPayload');
     expect(
-      await (await request('/factor/analysis/job/job', undefined, 'owner', 'GET')).json(),
+      await (await request('/factors/analysis-jobs/job', undefined, 'owner', 'GET')).json(),
     ).toMatchObject({ logs: [] });
-    expect((await request('/factor/reports/report', undefined, 'other', 'GET')).status).toBe(404);
-    expect((await request('/factor/analysis/job/job', undefined, 'other', 'GET')).status).toBe(404);
-    expect((await request('/factor/reports/report/reveal', undefined, 'other')).status).toBe(400);
-    const revealed = await (await request('/factor/reports/report/reveal')).json();
+    expect((await request('/factors/reports/report', undefined, 'other', 'GET')).status).toBe(404);
+    expect((await request('/factors/analysis-jobs/job', undefined, 'other', 'GET')).status).toBe(
+      404,
+    );
+    expect((await request('/factors/reports/report/reveal', undefined, 'other')).status).toBe(400);
+    const revealed = await (await request('/factors/reports/report/reveal')).json();
     expect(revealed).toMatchObject({
       sealed: false,
       canReveal: false,
       metrics: { rankIc: 0.125 },
       payload: { icMean: 0.125 },
     });
-    const second = await (await request('/factor/reports/report/reveal')).json();
+    const second = await (await request('/factors/reports/report/reveal')).json();
     expect(second.revealedAt).toBe(revealed.revealedAt);
     expect(
-      await (await request('/factor/analysis/job/job', undefined, 'owner', 'GET')).json(),
+      await (await request('/factors/analysis-jobs/job', undefined, 'owner', 'GET')).json(),
     ).toMatchObject({ logs });
   });
 
@@ -359,8 +361,8 @@ describe('Factor HTTP business boundaries', () => {
       where: { id: 'draft' },
       data: { code: 'different current code' },
     });
-    expect((await request('/factor/reports/report/holdout', undefined, 'other')).status).toBe(404);
-    const response = await request('/factor/reports/report/holdout');
+    expect((await request('/factors/reports/report/holdout', undefined, 'other')).status).toBe(404);
+    const response = await request('/factors/reports/report/holdout');
     expect(response.status).toBe(200);
     const result = await response.json();
     const report = await prisma.factorReport.findUniqueOrThrow({
@@ -379,7 +381,7 @@ describe('Factor HTTP business boundaries', () => {
       job: { id: result.jobId, status: 'queued' },
     });
     expect(report.job?.payload).toMatchObject({ source: { code: frozenCode }, locale: 'en' });
-    expect(await (await request('/factor/reports/report/holdout')).json()).toMatchObject({
+    expect(await (await request('/factors/reports/report/holdout')).json()).toMatchObject({
       reportId: result.reportId,
       jobId: result.jobId,
       reusedRunning: true,
@@ -402,18 +404,62 @@ describe('Factor HTTP business boundaries', () => {
     expect(resources.wake).not.toHaveBeenCalled();
   });
 
+  it('reserves collection paths and requires PATCH for factor and composite edits', async () => {
+    expect((await request('/factors', undefined, 'owner', 'GET')).status).toBe(200);
+    expect((await request('/factors/catalog', undefined, 'owner', 'GET')).status).toBe(200);
+    expect((await request('/factors/reports', undefined, 'owner', 'GET')).status).toBe(400);
+    expect((await request('/factors/correlations', undefined, 'owner', 'GET')).status).toBe(400);
+    expect((await request('/factors/correlations')).status).toBe(400);
+    expect((await request('/factors/analyses', {})).status).toBe(400);
+    expect((await request('/factors/draft', { name: 'Old method' })).status).toBe(404);
+    expect((await request('/factors/composites/missing', { definition: {} })).status).toBe(404);
+    expect(
+      (await request('/factors/draft/visibility', { visibility: 'private' }, 'owner', 'PATCH'))
+        .status,
+    ).toBe(200);
+    expect((await request('/factors/custom/draft', undefined, 'owner', 'GET')).status).toBe(404);
+  });
+
+  it('uses the path factor identity when the request body names a different factor', async () => {
+    const response = await request('/factors/draft/agent/turns', {
+      id: 'foreign',
+      code: frozenCode,
+      message: 'Explain this factor',
+    });
+    expect(response.status).toBe(200);
+    expect(resources.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({ entity: { kind: 'factor', id: 'draft' } }),
+    );
+    expect(
+      (
+        await request('/factors/missing/agent/turns', {
+          id: 'draft',
+          code: frozenCode,
+          message: 'Explain',
+        })
+      ).status,
+    ).toBe(404);
+    expect(
+      (await request('/factors/missing/metadata/refresh', { id: 'draft', code: frozenCode }))
+        .status,
+    ).toBe(404);
+    expect(resources.enqueue).toHaveBeenCalledTimes(1);
+  });
+
   it('checks Agent input, ownership, publication and active turns before enqueue', async () => {
-    const input = { id: 'draft', code: frozenCode, message: 'Explain this factor' };
-    expect((await request('/factor/agent', { ...input, message: '' })).status).toBe(400);
-    expect((await request('/factor/agent', input, 'other')).status).toBe(404);
+    const input = { code: frozenCode, message: 'Explain this factor' };
+    expect((await request('/factors/draft/agent/turns', { ...input, message: '' })).status).toBe(
+      400,
+    );
+    expect((await request('/factors/draft/agent/turns', input, 'other')).status).toBe(404);
     await prisma.factor.update({ where: { id: 'draft' }, data: { status: 'published' } });
-    expect((await request('/factor/agent', input)).status).toBe(400);
+    expect((await request('/factors/draft/agent/turns', input)).status).toBe(400);
     await prisma.factor.update({ where: { id: 'draft' }, data: { status: 'draft' } });
     resources.running.mockReturnValue('active-turn');
-    expect((await request('/factor/agent', input)).status).toBe(400);
+    expect((await request('/factors/draft/agent/turns', input)).status).toBe(400);
     expect(resources.enqueue).not.toHaveBeenCalled();
     resources.running.mockReturnValue(null);
-    expect((await request('/factor/agent', input)).status).toBe(200);
+    expect((await request('/factors/draft/agent/turns', input)).status).toBe(200);
     expect(resources.enqueue).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: 'owner',
@@ -427,14 +473,19 @@ describe('Factor HTTP business boundaries', () => {
 
   it('keeps weather ownership, frozen snapshots, detached refresh and busy errors', async () => {
     expect(
-      (await request('/factor-weather/pins', { factorId: 'draft', direction: 'positive' })).status,
+      (await request('/factors/weather/pins', { factorId: 'draft', direction: 'positive' })).status,
     ).toBe(400);
     await prisma.factor.update({ where: { id: 'draft' }, data: { status: 'published' } });
     expect(
-      (await request('/factor-weather/pins', { factorId: 'draft', direction: 'positive' }, 'other'))
-        .status,
+      (
+        await request(
+          '/factors/weather/pins',
+          { factorId: 'draft', direction: 'positive' },
+          'other',
+        )
+      ).status,
     ).toBe(404);
-    const response = await request('/factor-weather/pins', {
+    const response = await request('/factors/weather/pins', {
       factorId: 'draft',
       direction: 'positive',
     });
@@ -446,19 +497,19 @@ describe('Factor HTTP business boundaries', () => {
       status: 'pending',
     });
     expect(resources.refresh).toHaveBeenCalledWith(pin.id);
-    const busy = await request(`/factor-weather/pins/${pin.id}`, undefined, 'owner', 'DELETE');
+    const busy = await request(`/factors/weather/pins/${pin.id}`, undefined, 'owner', 'DELETE');
     expect(busy.status).toBe(409);
     expect(await busy.json()).toEqual({
       error: { code: 'CONFLICT', message: t('en', 'factorWeatherRunningCannotUnpin') },
     });
     expect(
-      (await request(`/factor-weather/pins/${pin.id}/refresh`, undefined, 'other')).status,
+      (await request(`/factors/weather/pins/${pin.id}/refresh`, undefined, 'other')).status,
     ).toBe(404);
-    await request('/factor-weather', undefined, 'owner', 'GET');
+    await request('/factors/weather', undefined, 'owner', 'GET');
     expect(resources.refresh).toHaveBeenCalledTimes(2);
     await prisma.factorWeatherPin.update({ where: { id: pin.id }, data: { status: 'ready' } });
     expect(
-      (await request(`/factor-weather/pins/${pin.id}`, undefined, 'owner', 'DELETE')).status,
+      (await request(`/factors/weather/pins/${pin.id}`, undefined, 'owner', 'DELETE')).status,
     ).toBe(200);
   });
 });

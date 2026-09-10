@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { codeConfigSchema } from '../runtime/typescript/schema.js';
 
-export const scanStrategyQuerySchema = z.object({ strategyId: z.string().min(1) });
+export const scanStrategyIdentitySchema = z.object({ strategyId: z.string().min(1) });
 
 export const scanJobQuerySchema = z.object({ since: z.string().regex(/^\d+$/).optional() });
 

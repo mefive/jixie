@@ -70,7 +70,7 @@ async function createComposite() {
       ],
     };
     const updated = await fetch(`/api/app/factors/composites/${composite.key}`, {
-      method: 'POST',
+      method: 'PATCH',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ definition }),
     });
@@ -113,7 +113,7 @@ async function runCompositeAnalysis() {
   };
   const started = await page.evaluate(
     async ({ factor, composite }) => {
-      const response = await fetch('/api/app/factor/analysis/run', {
+      const response = await fetch('/api/app/factors/analyses', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -161,7 +161,7 @@ async function runCompositeAnalysis() {
   const detail = await page.evaluate(async (reportId) => {
     const deadline = Date.now() + 180_000;
     while (Date.now() < deadline) {
-      const report = await fetch(`/api/app/factor/reports/${reportId}`).then((response) =>
+      const report = await fetch(`/api/app/factors/reports/${reportId}`).then((response) =>
         response.json(),
       );
       if (report.status !== 'running') {

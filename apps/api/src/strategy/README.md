@@ -17,7 +17,7 @@ Strategy 拥有策略定义、对话启动、回测与参数扫描，以及回�
 | 扫描报告、任务进度 | 同上 | [scans/reports.ts](scans/reports.ts) |
 | 回测报告中的风险研究 | 随完整回测报告返回 | [analysis/risk/backtest-risk-analysis.ts](analysis/risk/backtest-risk-analysis.ts)，没有独立风险 API |
 
-根级 [routes.ts](routes.ts) 是统一出口，显式转导出 `strategyRoute`、`strategyDefinitionRoute`、`strategyBacktestRoute` 和 `strategyScanRoute`。上表列出各组路由的实现文件。`server.ts` 从统一出口导入 `strategyRoute` 挂到 `/api/app/strategy`，实现位于 `workbench-routes.ts`：处理 `/agent`、`/name`，并直接导入和挂载 `/backtest`、`/scans` 子路由。策略列表和增删改由同一出口的 `strategyDefinitionRoute` 挂到 `/api/app/strategies`。实现文件不反向导入统一出口，避免循环依赖。根级路由负责校验、传入 userId/locale、返回响应和映射业务异常。业务入口自己检查归属、忙碌状态并控制事务，接收普通参数，不接收 Hono Context。`operation-errors.ts` 与 `route-errors.ts` 分别表达业务拒绝和原 HTTP 错误。
+根级 [routes.ts](routes.ts) 显式导出 `strategyRoute`，由 [resource-routes.ts](resource-routes.ts) 组合定义、工作台、回测与扫描路由，统一挂载 `/api/app/strategies`。`workbench-routes.ts` 只处理 Agent 与名称建议。回测与扫描分别位于 `/:strategyId/backtests`、`/:strategyId/scans`，报告和任务有各自明确的路径；修改定义与可见性使用 PATCH。实现文件直接引用子路由，不反向导入统一出口。HTTP 负责校验、传入 userId/locale、返回响应和映射业务异常。业务入口检查归属、忙碌状态并控制事务，接收普通参数，不接收 Hono Context。`operation-errors.ts` 与 `route-errors.ts` 分别表达业务拒绝和 HTTP 错误。完整契约见 [路由设计](../../../../docs/design/api-route-naming.md)。
 
 ## 目录职责
 

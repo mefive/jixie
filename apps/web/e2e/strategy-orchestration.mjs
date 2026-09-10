@@ -64,17 +64,17 @@ try {
   await page.locator('.jx-lab-code .monaco-editor').waitFor({ timeout: 30_000 });
   await page.getByRole('button', { name: '运行回测' }).waitFor({ timeout: 15_000 });
 
-  const postRequests = [];
+  const writeRequests = [];
   page.on('request', (request) => {
-    if (request.method() === 'POST') {
-      postRequests.push(new URL(request.url()).pathname);
+    if (request.method() === 'POST' || request.method() === 'PATCH') {
+      writeRequests.push(new URL(request.url()).pathname);
     }
   });
 
   const backtestResponsePromise = page.waitForResponse(
     (response) =>
       response.request().method() === 'POST' &&
-      new URL(response.url()).pathname === '/api/app/strategy/backtest',
+      new RegExp('^/api/app/strategies/[^/]+/backtests$').test(new URL(response.url()).pathname),
   );
   await page.getByRole('button', { name: '运行回测' }).click();
   const backtestResponse = await backtestResponsePromise;
@@ -86,7 +86,7 @@ try {
 
   const duplicate = await page.evaluate(async (id) => {
     const saved = await (await fetch(`/api/app/strategies/${id}`)).json();
-    const response = await fetch(`/api/app/strategy/backtest?strategyId=${id}`, {
+    const response = await fetch(`/api/app/strategies/${id}/backtests`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(saved.config),
@@ -106,11 +106,11 @@ try {
     fail(`committed strategy/result mismatch: ${JSON.stringify(saved)}`);
   }
 
-  if (postRequests.includes('/api/app/strategy/name')) {
-    fail(`Lab called the deprecated naming route: ${JSON.stringify(postRequests)}`);
+  if (writeRequests.includes('/api/app/strategies/name-suggestions')) {
+    fail(`Lab called the deprecated naming route: ${JSON.stringify(writeRequests)}`);
   }
-  if (postRequests.includes(`/api/app/strategies/${strategyId}`)) {
-    fail(`Lab issued a pre-run strategy update: ${JSON.stringify(postRequests)}`);
+  if (writeRequests.includes(`/api/app/strategies/${strategyId}`)) {
+    fail(`Lab issued a pre-run strategy update: ${JSON.stringify(writeRequests)}`);
   }
   if (pageErrors.length > 0) {
     fail(`page errors: ${JSON.stringify(pageErrors)}`);

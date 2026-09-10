@@ -22,7 +22,7 @@ try {
   await devLogin(page, `e2e-learning-value-factor-${Date.now()}@test.com`);
   await page.evaluate(() => localStorage.setItem('jx-locale', 'zh'));
 
-  const window = await api(page, '/api/app/factor/research/window');
+  const window = await api(page, '/api/app/factors/research/window');
   if (!window.exploreEnd || !window.holdoutStart || !window.holdoutEnd) {
     throw new Error(`Factor holdout window is unavailable: ${JSON.stringify(window)}`);
   }
@@ -42,11 +42,11 @@ try {
   const diagnostic = await waitForReport(page, diagnosticRun.reportId);
   assertExplore('size-industry diagnostic', diagnostic, window, 'size_industry');
 
-  const holdoutRun = await api(page, `/api/app/factor/reports/${mainRun.reportId}/holdout`, {
+  const holdoutRun = await api(page, `/api/app/factors/reports/${mainRun.reportId}/holdout`, {
     method: 'POST',
   });
   const sealed = await waitForReport(page, holdoutRun.reportId);
-  const sealedJob = await api(page, `/api/app/factor/analysis/job/${holdoutRun.jobId}`);
+  const sealedJob = await api(page, `/api/app/factors/analysis-jobs/${holdoutRun.jobId}`);
   if (
     sealed.phase !== 'holdout' ||
     sealed.status !== 'done' ||
@@ -58,7 +58,7 @@ try {
     throw new Error(`sealed holdout leaked evidence: ${JSON.stringify({ sealed, sealedJob })}`);
   }
 
-  const holdout = await api(page, `/api/app/factor/reports/${holdoutRun.reportId}/reveal`, {
+  const holdout = await api(page, `/api/app/factors/reports/${holdoutRun.reportId}/reveal`, {
     method: 'POST',
   });
   if (
@@ -73,7 +73,7 @@ try {
   }
   assertEvidence('holdout', holdout.payload);
 
-  const revealedAgain = await api(page, `/api/app/factor/reports/${holdoutRun.reportId}/reveal`, {
+  const revealedAgain = await api(page, `/api/app/factors/reports/${holdoutRun.reportId}/reveal`, {
     method: 'POST',
   });
   if (revealedAgain.revealedAt !== holdout.revealedAt) {
@@ -158,7 +158,7 @@ function analysisSpec(end, neutral) {
 }
 
 async function runFactor(page, spec, parentReportId = null) {
-  return api(page, '/api/app/factor/analysis/run', {
+  return api(page, '/api/app/factors/analyses', {
     method: 'POST',
     body: JSON.stringify({
       factor: 'ep',
@@ -179,7 +179,7 @@ async function runFactor(page, spec, parentReportId = null) {
 async function waitForReport(page, reportId) {
   const deadline = Date.now() + 300_000;
   while (Date.now() < deadline) {
-    const report = await api(page, `/api/app/factor/reports/${reportId}`);
+    const report = await api(page, `/api/app/factors/reports/${reportId}`);
     if (report.status === 'done') {
       return report;
     }

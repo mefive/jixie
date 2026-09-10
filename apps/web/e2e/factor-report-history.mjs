@@ -25,7 +25,7 @@ try {
 
   // Build a baseline report instead of relying on a developer's existing research history.
   await page.evaluate(async () => {
-    const response = await fetch('/api/app/factor/analysis/run', {
+    const response = await fetch('/api/app/factors/analyses', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
@@ -40,7 +40,7 @@ try {
     }
     const deadline = Date.now() + 180_000;
     while (Date.now() < deadline) {
-      const detail = await fetch(`/api/app/factor/reports/${submitted.reportId}`).then(
+      const detail = await fetch(`/api/app/factors/reports/${submitted.reportId}`).then(
         (reportResponse) => reportResponse.json(),
       );
       if (detail.status === 'done') {
@@ -63,7 +63,7 @@ try {
   // A real API run proves identical in-flight inputs reuse one report/job, and the UI can restore the
   // running report after refresh and after switching factors. Keep the range short so the E2E remains cheap.
   const runningFixture = await page.evaluate(async () => {
-    const windowResponse = await fetch('/api/app/factor/research/window');
+    const windowResponse = await fetch('/api/app/factors/research/window');
     const window = await windowResponse.json();
     const body = {
       factor: 'ep',
@@ -97,7 +97,7 @@ try {
       },
     };
     const run = () =>
-      fetch('/api/app/factor/analysis/run', {
+      fetch('/api/app/factors/analyses', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(body),
@@ -133,7 +133,7 @@ try {
   await page.screenshot({ path: `${SHOTS}7m-factor-running-resume.png` });
   await page.waitForFunction(
     async (jobId) => {
-      const job = await fetch(`/api/app/factor/analysis/job/${jobId}`).then((response) =>
+      const job = await fetch(`/api/app/factors/analysis-jobs/${jobId}`).then((response) =>
         response.json(),
       );
       return job.status !== 'running';
@@ -145,7 +145,7 @@ try {
   const selectedDetail = await page.evaluate(async (reportId) => {
     const deadline = Date.now() + 180000;
     while (Date.now() < deadline) {
-      const detail = await fetch(`/api/app/factor/reports/${reportId}`, {
+      const detail = await fetch(`/api/app/factors/reports/${reportId}`, {
         cache: 'no-store',
       }).then((response) => response.json());
       if (detail.status === 'done' && detail.payload?.methodology) {
@@ -274,9 +274,9 @@ try {
     code: fixtureCode,
     messages: [],
   };
-  await guardPage.route('**/api/app/factors/custom/e2e-factor', (route) => {
+  await guardPage.route('**/api/app/factors/e2e-factor', (route) => {
     // Keep autosave pending so both leave guards really see an unsaved draft.
-    if (route.request().method() === 'POST') {
+    if (route.request().method() === 'PATCH') {
       pendingDraftSaves.push(route);
       return;
     }
@@ -285,10 +285,10 @@ try {
   await guardPage.route('**/api/app/agent/turns/running**', (route) =>
     route.fulfill({ json: { turnId: null } }),
   );
-  await guardPage.route('**/api/app/factor/reports/e2e-report', (route) =>
+  await guardPage.route('**/api/app/factors/reports/e2e-report', (route) =>
     route.fulfill({ json: { ...fixtureSummary, factorCodeSnapshot: fixtureCode } }),
   );
-  await guardPage.route('**/api/app/factor/reports?*', (route) =>
+  await guardPage.route('**/api/app/factors/reports?*', (route) =>
     route.fulfill({ json: { items: [fixtureSummary] } }),
   );
   await guardPage.goto(`${BASE}/factors?factor=e2e-factor&report=e2e-report`, {
@@ -303,8 +303,7 @@ try {
   await editor.click();
   await guardPage.keyboard.press('Meta+ArrowDown');
   const draftSaveRequest = guardPage.waitForRequest(
-    (request) =>
-      request.method() === 'POST' && request.url().endsWith('/factors/custom/e2e-factor'),
+    (request) => request.method() === 'PATCH' && request.url().endsWith('/factors/e2e-factor'),
   );
   await guardPage.keyboard.type('// local edit');
   await draftSaveRequest;
@@ -348,7 +347,7 @@ try {
     const waitForJob = async (jobId) => {
       const deadline = Date.now() + 180000;
       while (Date.now() < deadline) {
-        const job = await json(`/api/app/factor/analysis/job/${jobId}`);
+        const job = await json(`/api/app/factors/analysis-jobs/${jobId}`);
         if (job.status !== 'running') {
           if (job.status !== 'done') {
             throw new Error(`job ${jobId} ended as ${job.status}`);
@@ -359,18 +358,18 @@ try {
       }
       throw new Error(`job ${jobId} timed out`);
     };
-    const window = await json('/api/app/factor/research/window');
+    const window = await json('/api/app/factors/research/window');
     const nonce = Date.now();
     const code = `export default defineFactor({
   name: 'E2E holdout ${nonce}',
   compute: (bar) => (bar.close ? bar.close + ${nonce % 97} : null),
 });\n`;
-    const factor = await json('/api/app/factors/custom', {
+    const factor = await json('/api/app/factors', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ key: `e2e_holdout_${nonce}`, name: `E2E holdout ${nonce}`, code }),
     });
-    const explore = await json('/api/app/factor/analysis/run', {
+    const explore = await json('/api/app/factors/analyses', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
@@ -407,7 +406,7 @@ try {
       }),
     });
     await waitForJob(explore.jobId);
-    const exploreDetail = await json(`/api/app/factor/reports/${explore.reportId}`);
+    const exploreDetail = await json(`/api/app/factors/reports/${explore.reportId}`);
     if (
       exploreDetail.spec.version !== 2 ||
       !exploreDetail.payload?.methodology ||
@@ -418,29 +417,29 @@ try {
     if (!exploreDetail.holdout?.eligible) {
       throw new Error(`explore was not holdout eligible: ${JSON.stringify(exploreDetail.holdout)}`);
     }
-    const holdout = await json(`/api/app/factor/reports/${explore.reportId}/holdout`, {
+    const holdout = await json(`/api/app/factors/reports/${explore.reportId}/holdout`, {
       method: 'POST',
     });
     await waitForJob(holdout.jobId);
-    const sealed = await json(`/api/app/factor/reports/${holdout.reportId}`);
-    const sealedJob = await json(`/api/app/factor/analysis/job/${holdout.jobId}`);
+    const sealed = await json(`/api/app/factors/reports/${holdout.reportId}`);
+    const sealedJob = await json(`/api/app/factors/analysis-jobs/${holdout.jobId}`);
     if (!sealed.sealed || sealed.payload || sealed.metrics || sealedJob.logs.length) {
       throw new Error('sealed holdout leaked result data');
     }
-    const revealed = await json(`/api/app/factor/reports/${holdout.reportId}/reveal`, {
+    const revealed = await json(`/api/app/factors/reports/${holdout.reportId}/reveal`, {
       method: 'POST',
     });
     if (!revealed.payload || !revealed.revealedAt || revealed.sealed) {
       throw new Error('revealed holdout did not return its result');
     }
-    const revealedAgain = await json(`/api/app/factor/reports/${holdout.reportId}/reveal`, {
+    const revealedAgain = await json(`/api/app/factors/reports/${holdout.reportId}/reveal`, {
       method: 'POST',
     });
     if (revealedAgain.revealedAt !== revealed.revealedAt) {
       throw new Error('reveal was not idempotent');
     }
-    await json(`/api/app/factors/custom/${factor.id}`, { method: 'DELETE' });
-    const retained = await json(`/api/app/factor/reports/${holdout.reportId}`);
+    await json(`/api/app/factors/${factor.id}`, { method: 'DELETE' });
+    const retained = await json(`/api/app/factors/reports/${holdout.reportId}`);
     if (!retained.payload) {
       throw new Error('deleting a custom factor erased its research audit trail');
     }

@@ -52,7 +52,7 @@ try {
   const backtestResponsePromise = page.waitForResponse(
     (response) =>
       response.request().method() === 'POST' &&
-      new URL(response.url()).pathname === '/api/app/strategy/backtest',
+      new RegExp('^/api/app/strategies/[^/]+/backtests$').test(new URL(response.url()).pathname),
   );
   await page.getByRole('button', { name: '运行回测' }).click();
   const backtestResponse = await backtestResponsePromise;

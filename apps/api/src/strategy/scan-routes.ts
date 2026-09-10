@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
 import { localeFromRequest } from '#infra/http/locale.js';
-import { validateJson, validateQuery } from '#infra/http/errors.js';
+import { validateJson, validateQuery, validateParam } from '#infra/http/errors.js';
 import {
-  scanStrategyQuerySchema,
+  scanStrategyIdentitySchema,
   scanJobQuerySchema,
   strategyScanParametersSchema,
   submitStrategyScanSchema,
@@ -19,17 +19,21 @@ import { strategyOperationApiError } from './route-errors.js';
 
 export const strategyScanRoute = new Hono();
 
-strategyScanRoute.post('/parameters', validateJson(strategyScanParametersSchema), async (c) => {
-  try {
-    return c.json(await inspectStrategyScanParameters(c.req.valid('json'), localeFromRequest(c)));
-  } catch (error) {
-    return strategyOperationApiError(c, error);
-  }
-});
+strategyScanRoute.post(
+  '/scan-parameters/inspect',
+  validateJson(strategyScanParametersSchema),
+  async (c) => {
+    try {
+      return c.json(await inspectStrategyScanParameters(c.req.valid('json'), localeFromRequest(c)));
+    } catch (error) {
+      return strategyOperationApiError(c, error);
+    }
+  },
+);
 
 strategyScanRoute.post(
-  '/',
-  validateQuery(scanStrategyQuerySchema),
+  '/:strategyId/scans',
+  validateParam(scanStrategyIdentitySchema),
   validateJson(submitStrategyScanSchema),
   async (c) => {
     try {
@@ -37,6 +41,49 @@ strategyScanRoute.post(
         await submitStrategyScan(
           c.var.userId,
           c.req.valid('json'),
+          c.req.valid('param'),
+          localeFromRequest(c),
+        ),
+      );
+    } catch (error) {
+      return strategyOperationApiError(c, error);
+    }
+  },
+);
+
+strategyScanRoute.get(
+  '/:strategyId/scans',
+  validateParam(scanStrategyIdentitySchema),
+  async (c) => {
+    try {
+      return c.json(await listStrategyScanReports(c.var.userId, c.req.valid('param')));
+    } catch (error) {
+      return strategyOperationApiError(c, error);
+    }
+  },
+);
+
+strategyScanRoute.get(
+  '/:strategyId/scans/running',
+  validateParam(scanStrategyIdentitySchema),
+  async (c) => {
+    try {
+      return c.json(await findStrategyScanJob(c.var.userId, c.req.valid('param')));
+    } catch (error) {
+      return strategyOperationApiError(c, error);
+    }
+  },
+);
+
+strategyScanRoute.get(
+  '/scan-reports/:reportId/job',
+  validateQuery(scanJobQuerySchema),
+  async (c) => {
+    try {
+      return c.json(
+        await readStrategyScanJob(
+          c.var.userId,
+          c.req.param('reportId'),
           c.req.valid('query'),
           localeFromRequest(c),
         ),
@@ -47,38 +94,7 @@ strategyScanRoute.post(
   },
 );
 
-strategyScanRoute.get('/', validateQuery(scanStrategyQuerySchema), async (c) => {
-  try {
-    return c.json(await listStrategyScanReports(c.var.userId, c.req.valid('query')));
-  } catch (error) {
-    return strategyOperationApiError(c, error);
-  }
-});
-
-strategyScanRoute.get('/running', validateQuery(scanStrategyQuerySchema), async (c) => {
-  try {
-    return c.json(await findStrategyScanJob(c.var.userId, c.req.valid('query')));
-  } catch (error) {
-    return strategyOperationApiError(c, error);
-  }
-});
-
-strategyScanRoute.get('/:reportId/job', validateQuery(scanJobQuerySchema), async (c) => {
-  try {
-    return c.json(
-      await readStrategyScanJob(
-        c.var.userId,
-        c.req.param('reportId'),
-        c.req.valid('query'),
-        localeFromRequest(c),
-      ),
-    );
-  } catch (error) {
-    return strategyOperationApiError(c, error);
-  }
-});
-
-strategyScanRoute.get('/:reportId', async (c) => {
+strategyScanRoute.get('/scan-reports/:reportId', async (c) => {
   try {
     return c.json(
       await readStrategyScanReport(c.var.userId, c.req.param('reportId'), localeFromRequest(c)),

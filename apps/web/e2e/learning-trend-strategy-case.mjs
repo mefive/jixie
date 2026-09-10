@@ -195,11 +195,11 @@ async function createStrategy(page, name, code, cost) {
 }
 
 async function runBacktest(page, strategyId, backtestConfig) {
-  const started = await api(page, `/api/app/strategy/backtest?strategyId=${strategyId}`, {
+  const started = await api(page, `/api/app/strategies/${strategyId}/backtests`, {
     method: 'POST',
     body: JSON.stringify(backtestConfig),
   });
-  await waitForJob(page, `/api/app/strategy/backtest/${started.jobId}`, 240_000);
+  await waitForJob(page, `/api/app/strategies/backtest-jobs/${started.jobId}`, 240_000);
   const strategy = await api(page, `/api/app/strategies/${strategyId}`);
   if (!strategy.lastResult) {
     throw new Error(`backtest ${started.jobId} produced no result`);
@@ -208,13 +208,13 @@ async function runBacktest(page, strategyId, backtestConfig) {
 }
 
 async function runScan(page, strategyId, scanConfig, spec) {
-  const started = await api(page, `/api/app/strategy/scans?strategyId=${strategyId}`, {
+  const started = await api(page, `/api/app/strategies/${strategyId}/scans`, {
     method: 'POST',
     body: JSON.stringify({ config: scanConfig, spec }),
   });
   const deadline = Date.now() + 360_000;
   while (Date.now() < deadline) {
-    const report = await api(page, `/api/app/strategy/scans/${started.reportId}`);
+    const report = await api(page, `/api/app/strategies/scan-reports/${started.reportId}`);
     if (report.status === 'done') {
       return report;
     }

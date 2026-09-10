@@ -90,7 +90,7 @@ async function runHypothesisExplore() {
   const submission = page.waitForResponse(
     (response) =>
       response.request().method() === 'POST' &&
-      new URL(response.url()).pathname === '/api/app/factor/analysis/run',
+      new URL(response.url()).pathname === '/api/app/factors/analyses',
   );
   await modal.getByRole('button', { name: '冻结研究卡并运行' }).click();
   const response = await submission;
@@ -166,7 +166,7 @@ async function runAndCaptureHoldout() {
   const submission = page.waitForResponse(
     (response) =>
       response.request().method() === 'POST' &&
-      /\/api\/app\/factor\/reports\/[^/]+\/holdout$/.test(new URL(response.url()).pathname),
+      /\/api\/app\/factors\/reports\/[^/]+\/holdout$/.test(new URL(response.url()).pathname),
   );
   await holdoutConfirm.getByRole('button', { name: '验证保留段' }).click();
   const response = await submission;
@@ -217,7 +217,7 @@ async function runAndCaptureHoldout() {
   const reveal = page.waitForResponse(
     (revealResponse) =>
       revealResponse.request().method() === 'POST' &&
-      /\/api\/app\/factor\/reports\/[^/]+\/reveal$/.test(new URL(revealResponse.url()).pathname),
+      /\/api\/app\/factors\/reports\/[^/]+\/reveal$/.test(new URL(revealResponse.url()).pathname),
   );
   await revealConfirm.getByRole('button', { name: '揭示结果' }).click();
   const revealResponse = await reveal;

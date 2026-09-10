@@ -29,7 +29,7 @@ const waitForReport = (reportId) =>
   page.evaluate(async (id) => {
     const deadline = Date.now() + 180_000;
     while (Date.now() < deadline) {
-      const report = await fetch(`/api/app/factor/reports/${id}`, { cache: 'no-store' }).then(
+      const report = await fetch(`/api/app/factors/reports/${id}`, { cache: 'no-store' }).then(
         (response) => response.json(),
       );
       if (['done', 'error', 'stale'].includes(report.status)) {
@@ -51,12 +51,12 @@ try {
     throw new Error(`dev login failed: ${login.status}`);
   }
 
-  const copied = await api('/api/app/factors/custom/ep/copy', { method: 'POST' });
+  const copied = await api('/api/app/factors/ep/copy', { method: 'POST' });
   if (!copied.ok || copied.body.key !== 'ep_v2' || copied.body.status !== 'draft') {
     throw new Error(`preset copy failed: ${JSON.stringify(copied)}`);
   }
 
-  const run = await api('/api/app/factor/analysis/run', {
+  const run = await api('/api/app/factors/analyses', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
@@ -119,7 +119,7 @@ try {
     timeout: 30_000,
   });
 
-  const published = await api(`/api/app/factors/custom/${copied.body.id}`);
+  const published = await api(`/api/app/factors/${copied.body.id}`);
   if (
     !published.ok ||
     published.body.status !== 'published' ||
@@ -134,7 +134,7 @@ try {
   await card.getByRole('button', { name: '复制' }).click();
   await page.waitForURL(/\/factors\?factor=[^&]+$/, { timeout: 30_000 });
   const copyId = new URL(page.url()).searchParams.get('factor');
-  const independentCopy = await api(`/api/app/factors/custom/${copyId}`);
+  const independentCopy = await api(`/api/app/factors/${copyId}`);
   if (
     !independentCopy.ok ||
     independentCopy.body.key !== 'ep_v3' ||
@@ -146,7 +146,7 @@ try {
     );
   }
 
-  const archived = await api(`/api/app/factors/custom/${copied.body.id}/archive`, {
+  const archived = await api(`/api/app/factors/${copied.body.id}/archive`, {
     method: 'POST',
   });
   if (!archived.ok || archived.body.status !== 'archived') {
@@ -160,7 +160,7 @@ try {
     timeout: 30_000,
   });
   await page.locator('.jx-factor-code .monaco-editor').waitFor({ timeout: 30_000 });
-  const archivedDetail = await api(`/api/app/factors/custom/${copied.body.id}`);
+  const archivedDetail = await api(`/api/app/factors/${copied.body.id}`);
   if (archivedDetail.body.status !== 'archived' || archivedDetail.body.strategyKey !== undefined) {
     throw new Error(`Factor was not archived cleanly: ${JSON.stringify(archivedDetail)}`);
   }

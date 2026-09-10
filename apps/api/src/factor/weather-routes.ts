@@ -30,20 +30,20 @@ factorWeatherRoute.post('/pins', validateJson(createFactorWeatherPinSchema), asy
   }
 });
 
-factorWeatherRoute.post('/pins/:id/refresh', async (c) => {
+factorWeatherRoute.post('/pins/:pinId/refresh', async (c) => {
   try {
     return c.json(
-      await requestFactorWeatherRefresh(c.var.userId, c.req.param('id'), localeFromRequest(c)),
+      await requestFactorWeatherRefresh(c.var.userId, c.req.param('pinId'), localeFromRequest(c)),
     );
   } catch (error) {
     return factorOperationApiError(c, error);
   }
 });
 
-factorWeatherRoute.delete('/pins/:id', async (c) => {
+factorWeatherRoute.delete('/pins/:pinId', async (c) => {
   try {
     return c.json(
-      await deleteFactorWeatherPin(c.var.userId, c.req.param('id'), localeFromRequest(c)),
+      await deleteFactorWeatherPin(c.var.userId, c.req.param('pinId'), localeFromRequest(c)),
     );
   } catch (error) {
     return factorOperationApiError(c, error);

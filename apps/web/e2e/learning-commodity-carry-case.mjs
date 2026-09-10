@@ -43,7 +43,7 @@ try {
   await devLogin(page, `e2e-learning-commodity-carry-${Date.now()}@test.com`);
   await page.evaluate(() => localStorage.setItem('jx-locale', 'zh'));
 
-  const researchWindow = await api(page, '/api/app/factor/research/window');
+  const researchWindow = await api(page, '/api/app/factors/research/window');
   if (!researchWindow.exploreEnd || !researchWindow.holdoutStart || !researchWindow.holdoutEnd) {
     throw new Error(`Factor holdout window is unavailable: ${JSON.stringify(researchWindow)}`);
   }
@@ -73,7 +73,7 @@ try {
   const timeSeriesExplore = await waitForReport(page, timeSeriesRun.reportId);
   assertTimeSeriesExplore(timeSeriesExplore, researchWindow);
 
-  const researchSummary = await api(page, '/api/app/factor/research/summary');
+  const researchSummary = await api(page, '/api/app/factors/research/summary');
   if (
     researchSummary.global?.exploreTestCount !== 2 ||
     researchSummary.global?.exploreRunCount !== 2 ||
@@ -94,7 +94,7 @@ try {
   assertPanelHoldout(panelHoldout, researchWindow);
   assertTimeSeriesHoldout(timeSeriesHoldout, researchWindow);
 
-  const finalResearchSummary = await api(page, '/api/app/factor/research/summary');
+  const finalResearchSummary = await api(page, '/api/app/factors/research/summary');
   if (
     finalResearchSummary.global?.exploreTestCount !== 2 ||
     finalResearchSummary.global?.holdoutCount !== 2 ||
@@ -238,21 +238,21 @@ function timeSeriesIntent() {
 }
 
 async function runFactor(page, factor, spec, researchIntent) {
-  return api(page, '/api/app/factor/analysis/run', {
+  return api(page, '/api/app/factors/analyses', {
     method: 'POST',
     body: JSON.stringify({ factor, spec, parentReportId: null, researchIntent }),
   });
 }
 
 async function createHoldout(page, reportId) {
-  return api(page, `/api/app/factor/reports/${reportId}/holdout`, { method: 'POST' });
+  return api(page, `/api/app/factors/reports/${reportId}/holdout`, { method: 'POST' });
 }
 
 async function revealHoldout(page, reportId) {
-  const revealed = await api(page, `/api/app/factor/reports/${reportId}/reveal`, {
+  const revealed = await api(page, `/api/app/factors/reports/${reportId}/reveal`, {
     method: 'POST',
   });
-  const repeated = await api(page, `/api/app/factor/reports/${reportId}/reveal`, {
+  const repeated = await api(page, `/api/app/factors/reports/${reportId}/reveal`, {
     method: 'POST',
   });
   if (repeated.revealedAt !== revealed.revealedAt) {
@@ -264,7 +264,7 @@ async function revealHoldout(page, reportId) {
 async function waitForReport(page, reportId) {
   const deadline = Date.now() + 300_000;
   while (Date.now() < deadline) {
-    const report = await api(page, `/api/app/factor/reports/${reportId}`);
+    const report = await api(page, `/api/app/factors/reports/${reportId}`);
     if (report.status === 'done') {
       return report;
     }
@@ -309,7 +309,7 @@ function assertTimeSeriesExplore(report, window) {
 }
 
 async function assertSealed(page, report, jobId, label) {
-  const job = await api(page, `/api/app/factor/analysis/job/${jobId}`);
+  const job = await api(page, `/api/app/factors/analysis-jobs/${jobId}`);
   if (
     report.phase !== 'holdout' ||
     report.status !== 'done' ||

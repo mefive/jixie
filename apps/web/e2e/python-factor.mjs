@@ -34,7 +34,7 @@ const waitForReport = (reportId) =>
   page.evaluate(async (id) => {
     const deadline = Date.now() + 180_000;
     while (Date.now() < deadline) {
-      const response = await fetch(`/api/app/factor/reports/${id}`, { cache: 'no-store' });
+      const response = await fetch(`/api/app/factors/reports/${id}`, { cache: 'no-store' });
       const report = await response.json();
       if (['done', 'error', 'stale'].includes(report.status)) {
         return report;
@@ -70,7 +70,7 @@ try {
 
   await page.locator('.jx-factor-code .monaco-editor').waitFor({ timeout: 30_000 });
   await page.getByText('Python · py-v1', { exact: true }).waitFor();
-  const resource = await api(`/api/app/factors/custom/${factorId}`);
+  const resource = await api(`/api/app/factors/${factorId}`);
   if (
     !resource.ok ||
     resource.body.language !== 'python' ||
@@ -97,7 +97,7 @@ try {
     .getByText('factor = Factor.cross_sectional', { exact: false })
     .waitFor({ timeout: 30_000 });
 
-  const run = await api('/api/app/factor/analysis/run', {
+  const run = await api('/api/app/factors/analyses', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({

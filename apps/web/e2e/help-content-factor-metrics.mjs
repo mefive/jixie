@@ -46,7 +46,7 @@ async function openRawEarningsYieldReport() {
   await page.locator('.jx-factor-paramSummary').waitFor({ timeout: 20_000 });
 
   const rawReportId = await page.evaluate(async () => {
-    const response = await fetch('/api/app/factor/reports?factor=ep&limit=100');
+    const response = await fetch('/api/app/factors/reports?factor=ep&limit=100');
     const reports = await response.json();
     return (
       reports.items.find(
@@ -197,7 +197,7 @@ async function runCurrentDraft() {
   const submission = page.waitForResponse(
     (response) =>
       response.request().method() === 'POST' &&
-      new URL(response.url()).pathname === '/api/app/factor/analysis/run',
+      new URL(response.url()).pathname === '/api/app/factors/analyses',
   );
   await modal.getByRole('button', { name: '冻结研究卡并运行' }).click();
   const response = await submission;

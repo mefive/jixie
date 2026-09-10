@@ -39,7 +39,7 @@ vi.mock('#infra/jobs/queue.js', () => ({
   wakeJobQueue: mocks.wakeJobQueue,
 }));
 
-import { strategyBacktestRoute } from './routes.js';
+import { strategyRoute } from './routes.js';
 
 const app = new Hono();
 app.use('*', async (context, next) => {
@@ -47,7 +47,7 @@ app.use('*', async (context, next) => {
   context.set('user', { id: 'user-a', email: 'owner@example.com', name: 'Owner' });
   await next();
 });
-app.route('/backtest', strategyBacktestRoute);
+app.route('/strategies', strategyRoute);
 
 describe('backtest report route', () => {
   beforeEach(() => {
@@ -76,7 +76,7 @@ describe('backtest report route', () => {
       runtimeVersion: 'ts-v1',
       code: 'export default defineStrategy({ onBar() {} });',
     };
-    const response = await app.request('/backtest?strategyId=strategy-a', {
+    const response = await app.request('/strategies/strategy-a/backtests', {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'accept-language': 'zh-CN' },
       body: JSON.stringify(config),
@@ -115,7 +115,7 @@ describe('backtest report route', () => {
   it('lists compact completed report history within the strategy owner scope', async () => {
     mocks.backtestReportFindMany.mockResolvedValue([reportRow()]);
 
-    const response = await app.request('/backtest/reports?strategyId=strategy-a');
+    const response = await app.request('/strategies/strategy-a/backtests');
     const body = await response.json();
 
     expect(response.status).toBe(200);
@@ -141,7 +141,7 @@ describe('backtest report route', () => {
       resultHash: 'result-hash',
     });
 
-    const response = await app.request('/backtest/reports/report-a');
+    const response = await app.request('/strategies/backtest-reports/report-a');
     const body = await response.json();
 
     expect(response.status).toBe(200);

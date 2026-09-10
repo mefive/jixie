@@ -55,7 +55,7 @@ try {
   sourceId = created.body.id;
 
   const shared = await api(`/api/app/strategies/${sourceId}/visibility`, {
-    method: 'POST',
+    method: 'PATCH',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ visibility: 'public' }),
   });

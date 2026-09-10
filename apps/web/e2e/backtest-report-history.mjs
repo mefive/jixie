@@ -5,6 +5,7 @@ import { chromium } from 'playwright';
 
 const require = createRequire(new URL('../../api/package.json', import.meta.url));
 const { PrismaClient } = require('@prisma/client');
+const { ulid } = require('ulid');
 
 const BASE = process.env.E2E_BASE ?? 'http://localhost:5173';
 const SHOTS = new URL('../acceptance/', import.meta.url).pathname;
@@ -15,13 +16,22 @@ mkdirSync(SHOTS, { recursive: true });
 
 const suffix = Date.now();
 const ownerEmail = `e2e-backtest-report-history-${suffix}@test.com`;
-const strategyId = `e2e-backtest-report-history-strategy-${suffix}`;
-const latestReportId = `e2e-backtest-report-history-latest-${suffix}`;
-const historicalReportId = `e2e-backtest-report-history-old-${suffix}`;
+const strategyId = ulid();
+const latestReportId = ulid();
+const historicalReportId = ulid();
 const strategyName = `价值轮动历史验收 ${suffix}`;
 const database = new PrismaClient({ datasourceUrl: databaseUrl });
 const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+const failures = [];
+context.on('response', (response) => {
+  if (new URL(response.url()).pathname.startsWith('/api/') && response.status() >= 400) {
+    failures.push(`${response.status()} ${response.url()}`);
+  }
+});
+context.on('page', (openedPage) => {
+  openedPage.on('pageerror', (error) => failures.push(error.message));
+});
 const page = await context.newPage();
 page.on('pageerror', (error) => console.log('[pageerror]', error.message));
 
@@ -86,6 +96,10 @@ try {
     path: `${SHOTS}research-backtest-report-handoff.png`,
     fullPage: true,
   });
+
+  if (failures.length > 0) {
+    throw new Error(`Browser or API failures: ${failures.join('; ')}`);
+  }
 
   console.log(
     '[backtest-report-history-e2e] history=pass comparison=pass research-handoff=pass screenshots=2',

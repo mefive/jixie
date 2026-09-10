@@ -52,13 +52,13 @@ try {
   await page.evaluate(() => localStorage.setItem('jx-locale', 'zh'));
 
   const [candidate, preset, explore, holdout, correlation] = await Promise.all([
-    api(page, `/api/app/factors/custom/${CANDIDATE_FACTOR}`),
-    api(page, `/api/app/factors/custom/${PRESET_FACTOR}`),
-    api(page, `/api/app/factor/reports/${EXPLORE_REPORT}`),
-    api(page, `/api/app/factor/reports/${HOLDOUT_REPORT}`),
+    api(page, `/api/app/factors/${CANDIDATE_FACTOR}`),
+    api(page, `/api/app/factors/${PRESET_FACTOR}`),
+    api(page, `/api/app/factors/reports/${EXPLORE_REPORT}`),
+    api(page, `/api/app/factors/reports/${HOLDOUT_REPORT}`),
     api(
       page,
-      `/api/app/factor/correlation?keys=${CANDIDATE_FACTOR},ep,bp&freq=month&start=20200101&end=20250127`,
+      `/api/app/factors/correlations?keys=${CANDIDATE_FACTOR},ep,bp&freq=month&start=20200101&end=20250127`,
     ),
   ]);
 

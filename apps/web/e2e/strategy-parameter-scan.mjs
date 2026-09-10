@@ -114,8 +114,8 @@ try {
 
   const persisted = await page.evaluate(async (id) => {
     const strategy = await (await fetch(`/api/app/strategies/${id}`)).json();
-    const reports = await (await fetch(`/api/app/strategy/scans?strategyId=${id}`)).json();
-    const detail = await (await fetch(`/api/app/strategy/scans/${reports[0].id}`)).json();
+    const reports = await (await fetch(`/api/app/strategies/${id}/scans`)).json();
+    const detail = await (await fetch(`/api/app/strategies/scan-reports/${reports[0].id}`)).json();
     return { strategy, reports, detail };
   }, strategyId);
   if (persisted.strategy.lastResult != null) {
@@ -141,8 +141,8 @@ try {
     throw new Error(`expected three sizing schemes, got ${sizingRows}`);
   }
   const sizingReport = await page.evaluate(async (id) => {
-    const reports = await (await fetch(`/api/app/strategy/scans?strategyId=${id}`)).json();
-    return await (await fetch(`/api/app/strategy/scans/${reports[0].id}`)).json();
+    const reports = await (await fetch(`/api/app/strategies/${id}/scans`)).json();
+    return await (await fetch(`/api/app/strategies/scan-reports/${reports[0].id}`)).json();
   }, strategyId);
   if (
     sizingReport.spec?.view !== 'sizing' ||
@@ -167,8 +167,8 @@ try {
     throw new Error(`expected three capital levels, got ${capacityRows}`);
   }
   const capacityReport = await page.evaluate(async (id) => {
-    const reports = await (await fetch(`/api/app/strategy/scans?strategyId=${id}`)).json();
-    return await (await fetch(`/api/app/strategy/scans/${reports[0].id}`)).json();
+    const reports = await (await fetch(`/api/app/strategies/${id}/scans`)).json();
+    return await (await fetch(`/api/app/strategies/scan-reports/${reports[0].id}`)).json();
   }, strategyId);
   if (
     capacityReport.spec?.view !== 'capacity' ||
@@ -210,9 +210,9 @@ try {
   if (strategyId) {
     const diagnostic = await page
       .evaluate(async (id) => {
-        const reports = await (await fetch(`/api/app/strategy/scans?strategyId=${id}`)).json();
+        const reports = await (await fetch(`/api/app/strategies/${id}/scans`)).json();
         const detail = reports[0]
-          ? await (await fetch(`/api/app/strategy/scans/${reports[0].id}`)).json()
+          ? await (await fetch(`/api/app/strategies/scan-reports/${reports[0].id}`)).json()
           : null;
         return { reports, detail };
       }, strategyId)

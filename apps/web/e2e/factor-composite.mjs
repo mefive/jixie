@@ -51,7 +51,7 @@ try {
       ],
     };
     const updated = await fetch(`/api/app/factors/composites/${composite.key}`, {
-      method: 'POST',
+      method: 'PATCH',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ definition }),
     });
@@ -75,7 +75,7 @@ try {
 
   const run = await page.evaluate(
     async ({ factor, definition }) => {
-      const response = await fetch('/api/app/factor/analysis/run', {
+      const response = await fetch('/api/app/factors/analyses', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -145,7 +145,7 @@ try {
   const detail = await page.evaluate(async (reportId) => {
     const deadline = Date.now() + 180_000;
     while (Date.now() < deadline) {
-      const response = await fetch(`/api/app/factor/reports/${reportId}`, {
+      const response = await fetch(`/api/app/factors/reports/${reportId}`, {
         cache: 'no-store',
       });
       if (response.ok) {

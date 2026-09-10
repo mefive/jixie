@@ -97,7 +97,7 @@ try {
   await page.route('**/api/app/factors/catalog', (route) =>
     route.fulfill({ json: [{ key: 'e2e-chart', label: 'E2E 图表', kind: 'custom' }] }),
   );
-  await page.route('**/api/app/factors/custom/e2e-chart', (route) =>
+  await page.route('**/api/app/factors/e2e-chart', (route) =>
     route.fulfill({
       json: {
         id: 'e2e-chart',
@@ -107,7 +107,7 @@ try {
       },
     }),
   );
-  await page.route('**/api/app/factor/reports?*', (route) =>
+  await page.route('**/api/app/factors/reports?*', (route) =>
     route.fulfill({ json: { items: [] } }),
   );
   await page.goto(`${BASE}/factors?factor=e2e-chart`, { waitUntil: 'domcontentloaded' });

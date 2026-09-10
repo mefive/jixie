@@ -46,12 +46,12 @@ try {
   await devLogin(page, `e2e-learning-cgb-signal-${Date.now()}@test.com`);
   await page.evaluate(() => localStorage.setItem('jx-locale', 'zh'));
 
-  const researchWindow = await api(page, '/api/app/factor/research/window');
+  const researchWindow = await api(page, '/api/app/factors/research/window');
   if (!researchWindow.exploreEnd || !researchWindow.holdoutStart || !researchWindow.holdoutEnd) {
     throw new Error(`Factor research window is unavailable: ${JSON.stringify(researchWindow)}`);
   }
 
-  const factorRun = await api(page, '/api/app/factor/analysis/run', {
+  const factorRun = await api(page, '/api/app/factors/analyses', {
     method: 'POST',
     body: JSON.stringify({
       factor: FACTOR_KEY,
@@ -78,11 +78,11 @@ try {
     throw new Error(`Factor report is not holdout eligible: ${JSON.stringify(explore.holdout)}`);
   }
 
-  const holdoutRun = await api(page, `/api/app/factor/reports/${factorRun.reportId}/holdout`, {
+  const holdoutRun = await api(page, `/api/app/factors/reports/${factorRun.reportId}/holdout`, {
     method: 'POST',
   });
   const sealed = await waitForReport(page, holdoutRun.reportId);
-  const sealedJob = await api(page, `/api/app/factor/analysis/job/${holdoutRun.jobId}`);
+  const sealedJob = await api(page, `/api/app/factors/analysis-jobs/${holdoutRun.jobId}`);
   if (
     sealed.phase !== 'holdout' ||
     sealed.status !== 'done' ||
@@ -94,7 +94,7 @@ try {
   ) {
     throw new Error(`sealed holdout leaked evidence: ${JSON.stringify({ sealed, sealedJob })}`);
   }
-  const holdout = await api(page, `/api/app/factor/reports/${holdoutRun.reportId}/reveal`, {
+  const holdout = await api(page, `/api/app/factors/reports/${holdoutRun.reportId}/reveal`, {
     method: 'POST',
   });
   if (
@@ -139,11 +139,11 @@ try {
   }
   strategyId = strategy.id;
 
-  const backtestRun = await api(page, `/api/app/strategy/backtest?strategyId=${strategyId}`, {
+  const backtestRun = await api(page, `/api/app/strategies/${strategyId}/backtests`, {
     method: 'POST',
     body: JSON.stringify(config),
   });
-  await waitForJob(page, `/api/app/strategy/backtest/${backtestRun.jobId}`, 240_000);
+  await waitForJob(page, `/api/app/strategies/backtest-jobs/${backtestRun.jobId}`, 240_000);
   const savedStrategy = await api(page, `/api/app/strategies/${strategyId}`);
   const backtest = savedStrategy.lastResult;
   const dependency = backtest?.factorDependencies?.[0];
@@ -306,7 +306,7 @@ async function captureFactor(reportId, path, expectedText) {
 async function waitForReport(page, reportId) {
   const deadline = Date.now() + 300_000;
   while (Date.now() < deadline) {
-    const report = await api(page, `/api/app/factor/reports/${reportId}`);
+    const report = await api(page, `/api/app/factors/reports/${reportId}`);
     if (report.status === 'done') {
       return report;
     }

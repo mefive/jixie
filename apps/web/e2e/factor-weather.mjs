@@ -61,7 +61,7 @@ await context.route('**/api/app/factors/catalog', (route) =>
     { key: 'draft-id', label: '尚未定稿', kind: 'custom' },
   ]),
 );
-await context.route('**/api/app/factor-weather', (route) =>
+await context.route('**/api/app/factors/weather', (route) =>
   json(route, {
     methodology: {
       frequency: 'month',
@@ -107,7 +107,7 @@ try {
   await page.screenshot({ path: `${SHOTS}factor-weather-desktop.png`, fullPage: true });
 
   await page.getByRole('button', { name: '钉住因子' }).click();
-  await page.getByRole('dialog', { name: '钉住一个因子版本' }).waitFor();
+  await page.getByRole('dialog', { name: '钉住一个已发布因子' }).waitFor();
   await page.locator('.jx-factorWeather-pickerControl').first().click();
   const options = await page.locator('.ant-select-item-option').count();
   if (options !== 2) {

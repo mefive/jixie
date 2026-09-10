@@ -36,15 +36,14 @@
 | `/api/maintenance` | `maintenance/routes.ts` 导出 `maintenanceRoute` |
 | `/api/auth` | `auth/routes.ts`；`auth/middleware.ts` 提供鉴权，`auth/cookies.ts` 处理 Cookie |
 | `/api/app/research` | `research/routes.ts` |
-| `/api/app/factor`、`/api/app/factors`、`/api/app/factor-weather` | `factor/routes.ts` 统一导出 `factorRoute`、`factorsRoute`、`factorWeatherRoute` |
-| `/api/app/strategy` | `strategy/routes.ts` 导出 `strategyRoute`；`workbench-routes.ts` 实现并组合 backtest 和 scans 子路由 |
-| `/api/app/strategies` | `strategy/routes.ts` 导出 `strategyDefinitionRoute` |
+| `/api/app/factors` | `factor/routes.ts` 导出 `factorRoute`；`resource-routes.ts` 组合定义、研究和天气 |
+| `/api/app/strategies` | `strategy/routes.ts` 导出 `strategyRoute`；`resource-routes.ts` 组合定义、Agent、回测和扫描 |
 | `/api/app/signals` | `signals/routes.ts` |
 | `/api/app/agent` | `agent/routes.ts` |
 | `/api/app/market` | `market/routes.ts` |
 | `/api/app/library` | `sharing/routes.ts`；URL 保留公开库原契约 |
 
-路由负责入参、用户/语言上下文、HTTP 状态和响应。具体查询与修改在所属模块中；不存在导出整个后端实现的总 service 或 barrel。路由对象使用业务/职责明确的具名导出，如 `authRoute`、`strategyRoute`、`strategyDefinitionRoute` 和 `strategyBacktestRoute`；server 和外部路由消费者只从所属模块的根级 `routes.ts` 同名导入。单组路由可以在入口直接实现，多组路由由入口显式具名转导出，处理器与子路由组合仍按职责分文件实现。组合文件直接导入子路由实现，不反向导入统一出口。
+路由负责入参、用户/语言上下文、HTTP 状态和响应。具体查询与修改在所属模块中；不存在导出整个后端实现的总 service 或 barrel。路由对象使用业务/职责明确的具名导出，如 `authRoute`、`strategyRoute` 和 `factorRoute`；server 和外部路由消费者只从所属模块的根级 `routes.ts` 同名导入。单组路由可以在入口直接实现，Strategy/Factor 的多组处理器由 `resource-routes.ts` 组合，入口显式转导出模块总路由；处理器仍按职责分文件实现。完整路径与迁移说明见 [路由设计](design/api-route-naming.md)。组合文件直接导入子路由实现，不反向导入统一出口。
 
 Agent 服务于 Research、Factor 和 Strategy。用户发起业务对话时，前端先调用所属模块的 Agent 入口；业务完成归属和忙碌检查，配置 profile、工具与上下文，再交给通用 Agent。前端之后用 `/api/app/agent` 订阅 SSE、查询 turn、读取历史或取消。Agent 工具按需调用业务操作，业务状态仍由对应模块管理。通用 Agent 还提供只读 SQL、图表工具接口；它不是所有产品操作必须经过的总调度器。
 
