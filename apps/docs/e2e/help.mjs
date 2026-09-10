@@ -627,9 +627,10 @@ try {
     path: `${SHOTS}11e-help-strategy-revision-guide.png`,
   });
 
-  await page.getByRole('link', { name: '让策略 Agent 先做快捷回测', exact: true }).first().click();
-  await page.getByRole('heading', { level: 1, name: '让策略 Agent 先做快捷回测' }).waitFor();
-  await page.getByRole('heading', { level: 2, name: '快捷回测不会做什么' }).waitFor();
+  await page.getByRole('heading', { level: 2, name: 'Agent 与回测的分工' }).waitFor();
+  if ((await page.locator('a[href*="backtesting/agent-quick-backtest"]').count()) !== 0) {
+    throw new Error('help still links to the retired Agent backtest article');
+  }
 
   await page.getByRole('link', { name: '查看交易明细和成本', exact: true }).first().click();
   await page.getByRole('heading', { level: 1, name: '查看交易明细和成本' }).waitFor();

@@ -90,15 +90,14 @@
 
 不要反复修改参数直到历史收益最高，再把这一组当作可靠结论。
 
-## 对话中的快捷回测
+## Agent 与回测的分工
 
-Agent 现在可以在对话中对一个明确候选做快捷回测，并读取紧凑指标。快捷结果不会保存为工作台正式结果，也不会自动部署。即使 Agent 已经在回复中解释了试算收益，仍要核对代码并点击“运行回测”，再检查完整图表和交易明细。
+Agent 依据 Strategy SDK、当前代码和数据上下文编写或解释策略，必要时查询标的和数据覆盖，并对生成代码进行基本校验。代码校验通过不代表策略已经回测，也不代表它会盈利。
 
-详细区别见[让策略 Agent 先做快捷回测](/docs/help/backtesting/agent-quick-backtest)。
+完整回测由你在工作台显式发起。即使在对话中要求“测试一下”，Agent 也只会协助准备代码和说明需要检查的参数、结果；核对代码、日期、资金及成本后，点击“运行回测”，再查看完整图表、成交和日志。
 
 ## 相关内容
 
 - [修改策略和重新运行](/help/backtesting/edit-rerun)
 - [查看回测结果](/help/backtesting/results-overview)
 - [比较多组策略参数](/help/backtesting/parameter-scan)
-- [让策略 Agent 先做快捷回测](/help/backtesting/agent-quick-backtest)

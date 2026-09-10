@@ -54,6 +54,7 @@ import { routes as strategyDefinitionRoutes } from './definition-routes.js';
 import { submitStrategyBacktest } from './backtest/submit.js';
 import { submitStrategyScan } from './scans/submit.js';
 import { publishedFactorContext } from './agent-context.js';
+import type { AgentProfile } from '../agent/core.js';
 
 const app = new Hono();
 app.use('*', async (context, next) => {
@@ -359,6 +360,44 @@ describe('Strategy HTTP business boundaries', () => {
       error: { code: 'SERVICE_UNAVAILABLE', message: 'Naming fixture unavailable' },
     });
   });
+
+  it.each(['typescript', 'python'] as const)(
+    'starts a %s code conversation without submitting a backtest',
+    async (language) => {
+      const code = language === 'python' ? 'from jixie import Strategy' : config.code;
+      const response = await request('/strategy/agent', {
+        id: 'strategy',
+        code,
+        message: 'Prepare this strategy for a backtest',
+        language,
+      });
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ turnId: expect.any(String) });
+      const { profile, currentCode } = resources.enqueue.mock.calls[0][0] as {
+        profile: AgentProfile;
+        currentCode: string;
+      };
+      expect(currentCode).toBe(code);
+      expect(profile.artifact?.language).toBe(language);
+      expect(profile.tools?.map((tool) => tool.name)).toEqual([
+        'searchInstruments',
+        'dataCoverage',
+        'runUniverse',
+        'sqlQuery',
+        'renderChart',
+        'renderComputedChart',
+        'analyzeData',
+      ]);
+      expect(await prisma.strategy.findUniqueOrThrow({ where: { id: 'strategy' } })).toMatchObject({
+        config,
+        lastResult: { marker: 'old result' },
+      });
+      expect(await prisma.job.count()).toBe(0);
+      expect(await prisma.backtestReport.count()).toBe(0);
+      expect(resources.wake).not.toHaveBeenCalled();
+    },
+  );
 
   it('checks Agent ownership and active turns and supplies only the owner’s published factors', async () => {
     const input = { id: 'strategy', code: config.code, message: 'Explain this strategy' };

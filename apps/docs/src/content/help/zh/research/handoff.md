@@ -2,6 +2,8 @@
 
 研究工作台用于自由探索；FactorReport 和回测工作台用于受约束的正式验证。交接入口只出现在成功的不可变完整运行上，不会把当前草稿或一次单 Cell 输出直接当成可发布结果。
 
+统计探索保留在可见的 Markdown 和 Python Cell 中，Research Agent 不在对话背后运行交易回测。研究形成明确、受支持的交易规则后，再生成 Strategy 草稿；描述性分析不必转成策略。
+
 ## 先形成可复现快照
 
 1. 检查 Markdown 中的问题、事前方向、日期、频率、对象或股票池和判断标准。
@@ -51,4 +53,3 @@
 - [研究文档与运行记录](/docs/help/research/records)
 - [使用 Python 编写 Factor](/docs/help/factors/python-factor)
 - [使用 Python 编写策略](/docs/help/backtesting/python-strategy)
-

@@ -6,10 +6,8 @@ import { compileStrategy } from '../../strategy/runtime/typescript/compile.js';
 import { buildPythonCodegenPrompt } from '../../strategy/runtime/python/codegen-prompt.js';
 import { createPythonStrategyRuntime } from '../../strategy/runtime/python/runtime.js';
 import { prisma } from '../../infra/database/prisma.js';
-import { buildAgentMode, RESEARCH_TOOLS_HINT, TOOLS_HINT, type AgentProfile } from '../core.js';
+import { buildAgentMode, TOOLS_HINT, type AgentProfile } from '../core.js';
 import { defaultTools } from '../tools/index.js';
-import { runQuickBacktestTool } from '../tools/quick-backtest/run-quick-backtest.js';
-import type { Locale } from '@jixie/shared';
 
 /** ts_code-shaped literals in the strategy code (6 digits + exchange suffix), deduped. Comments are
  * scanned too — a stale code in a comment forces the model to clean it up, which is fine. */
@@ -55,7 +53,6 @@ async function assertKnownInstruments(code: string): Promise<void> {
 export function strategyProfile(
   availableIndices?: string,
   referencableFactors?: string,
-  research?: { userId: string; strategyId: string; currentCode: string; locale: Locale },
   language: 'typescript' | 'python' = 'typescript',
 ): AgentProfile {
   const codegenPrompt =
@@ -63,8 +60,12 @@ export function strategyProfile(
       ? buildPythonCodegenPrompt(availableIndices)
       : buildCodegenPrompt(availableIndices, referencableFactors);
   return {
-    system: `${codegenPrompt}\n${buildAgentMode('strategy', language)}\n${TOOLS_HINT}${research ? RESEARCH_TOOLS_HINT : ''}`,
-    tools: [...defaultTools(), ...(research ? [runQuickBacktestTool(research)] : [])],
+    system: `${codegenPrompt}\n${buildAgentMode('strategy', language)}\n${TOOLS_HINT}
+
+# Strategy workflow
+Use the Strategy SDK, current code and available context to write or explain a complete strategy. Use read-only tools when needed to check instruments, data coverage or facts. Generated code goes through the existing artifact validator; passing that check does not establish trading performance.
+Backtests run only when the user explicitly starts a run in the Strategy workbench. Do not run a backtest in the conversation or recreate trading simulation with SQL or analysis tools. When asked to test a strategy, prepare the code and explain which settings and results the user should inspect in the workbench. Never claim that generated code has been backtested or invent performance metrics.`,
+    tools: defaultTools(),
     artifact: {
       noun: 'strategy',
       language,

@@ -119,37 +119,41 @@ describe('agentTurn(strategyProfile)', () => {
     expect(history).toHaveLength(2);
   });
 
-  it('offers the read-only tools to the model', async () => {
-    const llm = scriptedLlm([{ text: '好的。' }]);
-    await agentTurn(strategyProfile(), [], '你好', STRATEGY, llm);
-    const offeredTools = llm.mock.calls[0][1];
-    expect(offeredTools.map((tool) => tool.name)).toEqual([
-      'searchInstruments',
-      'dataCoverage',
-      'runUniverse',
-      'sqlQuery',
-      'renderChart',
-      'renderComputedChart',
-      'analyzeData',
+  it.each(['typescript', 'python'] as const)(
+    'offers only read-only tools for %s strategies',
+    async (language) => {
+      const llm = scriptedLlm([{ text: '好的。' }]);
+      await agentTurn(strategyProfile(undefined, undefined, language), [], '你好', STRATEGY, llm);
+      const offeredTools = llm.mock.calls[0][1];
+      expect(offeredTools.map((tool) => tool.name)).toEqual([
+        'searchInstruments',
+        'dataCoverage',
+        'runUniverse',
+        'sqlQuery',
+        'renderChart',
+        'renderComputedChart',
+        'analyzeData',
+      ]);
+    },
+  );
+
+  it('rejects a retired backtest tool call and continues the conversation', async () => {
+    const llm = scriptedLlm([
+      { toolCalls: [{ id: 'retired-call', name: 'runQuickBacktest', args: '{}' }] },
+      { text: '请在策略工作台运行回测。' },
     ]);
-  });
+    const result = await agentTurn(strategyProfile(), [], '先试跑', STRATEGY, llm);
 
-  it('offers quick backtesting only when the strategy route supplies research context', async () => {
-    const llm = scriptedLlm([{ text: '好的。' }]);
-    await agentTurn(
-      strategyProfile(undefined, undefined, {
-        userId: 'user-1',
-        strategyId: 'strategy-1',
-        currentCode: STRATEGY,
-        locale: 'zh',
-      }),
-      [],
-      '先试跑',
-      STRATEGY,
-      llm,
+    expect(llm.mock.calls[0][1].map((tool) => tool.name)).not.toContain('runQuickBacktest');
+    expect(llm.mock.calls[1][0].find((message) => message.role === 'tool')?.content).toContain(
+      'Unknown tool runQuickBacktest',
     );
-
-    expect(llm.mock.calls[0][1].map((tool) => tool.name)).toContain('runQuickBacktest');
+    expect(result.toolTrace).toEqual([
+      expect.objectContaining({ name: 'runQuickBacktest', ok: false }),
+    ]);
+    expect(result.reply).toBe('请在策略工作台运行回测。');
+    expect(result.code).toBe(STRATEGY);
+    expect(result.changed).toBe(false);
   });
 });
 

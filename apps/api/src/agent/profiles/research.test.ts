@@ -60,6 +60,19 @@ describe('researchProfile', () => {
     expect(system).toContain('Correlation is not causation');
   });
 
+  it('keeps statistical exploration in Cells and hands trading rules to Strategy', () => {
+    const { system } = researchProfile();
+
+    expect(system).toContain('Keep exploratory statistical calculations visible');
+    expect(system).toContain('Do not run hidden strategy backtests');
+    expect(system).toContain('seal a successful ResearchExecution');
+    expect(system).toContain('use the existing Strategy draft handoff');
+    expect(system).toContain('explicitly runs the backtest in the Strategy workbench');
+    expect(system).toContain(
+      'Descriptive studies and statistical relationships do not need to become strategies',
+    );
+  });
+
   it('offers an editable-review Cell proposal tool only with a document snapshot', () => {
     const proposalTool: AgentTool = {
       name: 'proposeResearchCellChanges',

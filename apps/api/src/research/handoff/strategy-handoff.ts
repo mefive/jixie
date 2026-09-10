@@ -131,7 +131,7 @@ Use ${locale === 'en' ? 'English' : 'Chinese'} for strategyName, summary, unreso
 }
 
 function researchStrategyDraftProfile(validate?: (code: string) => Promise<void>): AgentProfile {
-  const profile = strategyProfile(undefined, undefined, undefined, 'python');
+  const profile = strategyProfile(undefined, undefined, 'python');
   if (!profile.artifact) {
     throw new Error('The Python Strategy profile is missing its artifact validator.');
   }

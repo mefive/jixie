@@ -2,6 +2,8 @@
 
 The Research workbench supports open exploration. FactorReport and the Backtest workspace provide constrained formal validation. Handoff is available from a successful immutable full run, not directly from the current draft or a single-Cell output.
 
+Keep statistical exploration in visible Markdown and Python Cells. The Research Agent does not run trading backtests behind the conversation. Generate a Strategy draft once the study defines explicit, supported trading rules; descriptive analysis does not need to become a strategy.
+
 ## Create a reproducible snapshot first
 
 1. Verify the question, prespecified direction, dates, frequency, instruments or universe, and decision criterion in Markdown.
@@ -51,4 +53,3 @@ A predictive relationship without portfolio and trading rules belongs in Factor 
 - [Research documents and run history](/docs/help/research/records)
 - [Write a Factor in Python](/docs/help/factors/python-factor)
 - [Write a strategy in Python](/docs/help/backtesting/python-strategy)
-

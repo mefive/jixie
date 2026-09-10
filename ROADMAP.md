@@ -72,11 +72,14 @@ Sharpe 与 Calmar 是结果指标，不是允许反复拟合历史的优化目�
 
 - 统一 Agent、多轮持久化与流式续接；
 - 白名单只读 SQL、沙盒 `analyzeData`、SQL 图表和计算图卡片；
-- Agent 可运行受约束的快速回测和正式探索段因子分析；
+- Strategy Agent 生成和校验代码，由用户在工作台显式回测；Factor Agent 保留受约束的正式探索段因子分析；
 - 查询、代码和图表由确定性 spec 重跑，原始大数据不进入模型上下文。
 
 依据：`docs/design/unified-agent.md`、`docs/design/agent-code-tool.md`、
 `docs/design/computed-chart.md`、`docs/design/agent-research-loop.md`。
+
+2026-09-10 产品边界调整：移除策略对话内的快速回测工具与专用 Worker。Research 保留可见的统计探索，
+明确交易规则通过既有封存研究 → Strategy 草稿流程交接，再由用户显式运行回测；不增加隐藏的回测入口。
 
 ### D. 境内数据、产品与运行底座 ✅
 

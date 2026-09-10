@@ -84,7 +84,7 @@ describe('research Strategy handoff', () => {
         unresolvedItems: ['样本只覆盖一个市场阶段。'],
       }),
     );
-    const codegen: AgentLlm = vi.fn(async () => ({
+    const codegen = vi.fn<AgentLlm>(async () => ({
       text: `已将封存规则写成 Python 策略草稿。\n\n\`\`\`python\n${validPythonCode}\n\`\`\``,
     }));
     const validate = vi.fn(async () => {});
@@ -107,6 +107,8 @@ describe('research Strategy handoff', () => {
     expect(result.messages).toHaveLength(2);
     expect(validate).toHaveBeenCalledWith(validPythonCode);
     expect(classifier.mock.calls[0]?.[0]?.[1]?.content).toContain('每月选择前2只等权持有');
+    expect(codegen.mock.calls[0][1].map((tool) => tool.name)).not.toContain('runQuickBacktest');
+    expect(codegen.mock.calls[0][0][0].content).toContain('Do not run a backtest');
   });
 
   it('routes a signal-only study to Factor before code generation', async () => {

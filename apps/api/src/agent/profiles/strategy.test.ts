@@ -1,5 +1,22 @@
 import { describe, expect, it } from 'vitest';
-import { extractInstrumentCodes } from './strategy.js';
+import { extractInstrumentCodes, strategyProfile } from './strategy.js';
+
+describe('strategyProfile', () => {
+  it.each(['typescript', 'python'] as const)(
+    'separates %s code checks from user-run backtests',
+    (language) => {
+      const profile = strategyProfile(undefined, undefined, language);
+
+      expect(profile.artifact?.language).toBe(language);
+      expect(profile.artifact?.validate).toBeTypeOf('function');
+      expect(profile.system).toContain('passing that check does not establish trading performance');
+      expect(profile.system).toContain('Backtests run only when the user explicitly starts a run');
+      expect(profile.system).toContain('Do not run a backtest in the conversation');
+      expect(profile.system).toContain('Never claim that generated code has been backtested');
+      expect(profile.system).not.toContain('Research execution discipline');
+    },
+  );
+});
 
 describe('extractInstrumentCodes', () => {
   it('finds ts_code literals with any exchange suffix, deduped', () => {

@@ -39,7 +39,7 @@ Strategy 拥有策略定义、对话启动、回测与参数扫描，以及回�
 
 **参数扫描：** `submitStrategyScan` 检查语言/日期、隔离检查参数、规范化规格并解析样本内外交易日范围 → 冻结配置、参数、范围与数据截止日 → 事务内检查归属/重复任务并创建报告与 Job → `scan-job.ts` 启动 `scans/strategy-scan-worker` 线程 → 每个 cell fork 独立进程运行 → 汇总后由主线程提交。扫描不覆盖当前策略草稿。Python 扫描仍不支持；没有改变子进程退出判断和资源释放方式。
 
-**Agent：** 前端先调用 Strategy 的 `/agent` → `startStrategyAgentTurn` 检查策略归属及运行中的 turn，构造业务上下文 → 通用 Agent 执行器执行 Strategy profile → 工具按需调用 Strategy 配置保存或快速回测能力。前端随后使用通用 Agent 事件/取消接口。快速回测复用 `runConfiguredBacktest`，可能计算风险，但工具摘要仍只返回原绩效指标。
+**Agent：** 前端先调用 Strategy 的 `/agent` → `startStrategyAgentTurn` 检查策略归属及运行中的 turn，构造指数/因子及当前代码上下文 → 通用 Agent 执行器执行 Strategy profile → 只读工具查询数据，生成代码经既有编译/受限运行时和标的检查后返回。前端随后使用通用 Agent 事件/取消接口。Agent 不提供配置保存或回测工具；用户核对代码和参数后通过工作台 `/backtest` 发起完整回测。Research 交接复用 Python Strategy profile 生成草稿，同样不自动回测。
 
 ## 风险数据和计算边界
 

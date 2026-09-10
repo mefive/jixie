@@ -90,15 +90,14 @@ That does not mean the change failed. Check:
 
 Do not repeatedly alter parameters until historical return is highest and treat that combination as reliable.
 
-## Quick backtests in the conversation
+## What the Agent checks and when to run
 
-The Agent can now run one quick backtest for an explicit candidate and read compact metrics. That result is not saved as the workbench's official result and never deploys automatically. Even when the reply explains a trial return, inspect the code, select **Run backtest**, and review the complete charts and trades.
+The Agent uses the Strategy SDK, current code, and data context to write or explain a strategy. It can check instruments and data coverage when needed, and generated code goes through basic validation. Passing those checks does not mean the strategy has been backtested or will be profitable.
 
-See [Ask the strategy Agent for a quick backtest](/docs/help/backtesting/agent-quick-backtest) for the full distinction.
+You explicitly start the full backtest in the workbench. If you ask the Agent to test a strategy, it helps prepare the code and explains which settings and results to inspect. Review the code, dates, capital, and costs, select **Run backtest**, then inspect the complete charts, fills, and logs.
 
 ## Related articles
 
 - [Edit a strategy and run it again](/help/backtesting/edit-rerun)
 - [Inspect backtest results](/help/backtesting/results-overview)
 - [Compare several strategy parameters](/help/backtesting/parameter-scan)
-- [Ask the strategy Agent for a quick backtest](/help/backtesting/agent-quick-backtest)

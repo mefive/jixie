@@ -27,8 +27,6 @@ import equityDrawdownEn from '@src/content/help/en/backtesting/equity-drawdown.m
 import equityDrawdownZh from '@src/content/help/zh/backtesting/equity-drawdown.md?raw';
 import allocationAttributionEn from '@src/content/help/en/backtesting/allocation-attribution.md?raw';
 import allocationAttributionZh from '@src/content/help/zh/backtesting/allocation-attribution.md?raw';
-import agentQuickBacktestEn from '@src/content/help/en/backtesting/agent-quick-backtest.md?raw';
-import agentQuickBacktestZh from '@src/content/help/zh/backtesting/agent-quick-backtest.md?raw';
 import createFromDescriptionEn from '@src/content/help/en/backtesting/create-from-description.md?raw';
 import createFromDescriptionZh from '@src/content/help/zh/backtesting/create-from-description.md?raw';
 import editRerunEn from '@src/content/help/en/backtesting/edit-rerun.md?raw';
@@ -861,22 +859,6 @@ export const HELP_ARTICLES: HelpArticle[] = [
     content: {
       zh: reviseWithChatZh,
       en: reviseWithChatEn,
-    },
-  },
-  {
-    slug: 'backtesting/agent-quick-backtest',
-    group: 'backtesting',
-    title: {
-      zh: '让策略 Agent 先做快捷回测',
-      en: 'Ask the strategy Agent for a quick backtest',
-    },
-    summary: {
-      zh: '让 Agent 试算一个明确候选，并区分快捷指标、正式结果、部署和信号。',
-      en: 'Trial one explicit candidate and distinguish quick metrics from formal results.',
-    },
-    content: {
-      zh: agentQuickBacktestZh,
-      en: agentQuickBacktestEn,
     },
   },
   {

@@ -40,17 +40,7 @@ export async function startStrategyAgentTurn(
   enqueueAgentTurn({
     turnId,
     userId,
-    profile: strategyProfile(
-      idx,
-      factors,
-      {
-        userId,
-        strategyId: id,
-        currentCode: code,
-        locale,
-      },
-      language,
-    ),
+    profile: strategyProfile(idx, factors, language),
     entity,
     message,
     currentCode: code,

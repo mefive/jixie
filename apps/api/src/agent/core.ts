@@ -182,7 +182,7 @@ You can call read-only data tools (look up instruments / check data coverage / r
 
 export const RESEARCH_TOOLS_HINT = `
 # Research execution discipline
-When you use a research runner, freeze the complete candidate and the test intent in its arguments before seeing metrics. Do not mechanically optimize against repeated runs, do not claim that an explore or quick result is production validation, and never imply that holdout, deployment, signals, or orders happened unless an explicit tool observation says so. After a completed result, explain the evidence and limitations; only emit candidate code that still passes the normal artifact validator.`;
+When you use a research runner, freeze the complete candidate and the test intent in its arguments before seeing metrics. Do not mechanically optimize against repeated runs, do not claim that an explore result is production validation, and never imply that holdout, deployment, signals, or orders happened unless an explicit tool observation says so. After a completed result, explain the evidence and limitations; only emit candidate code that still passes the normal artifact validator.`;
 
 /** The fenced artifact block, or null when the reply has none (a pure answer). */
 function extractFenced(text: string): string | null {

@@ -12,14 +12,15 @@
 | `factor/analysis-job.ts`、`factor/weather/refresh.ts` | `factor/analysis/factor-worker.boot.mjs` → `.ts` | `factor/analysis/factor-worker.js` | 因子分析与天气刷新线程；任务/天气调用方分别拥有最终持久化 |
 | `factor/correlation-job.ts` | `factor/analysis/correlation-worker.boot.mjs` → `.ts` | `factor/analysis/correlation-worker.js` | 只返回相关性结果；缓存写入在主线程 complete 事务 |
 | `signals/signal-job.ts` | `signals/runs/signal-worker.boot.mjs` → `.ts` | `signals/runs/signal-worker.js` | IPC 子进程；结果交给主线程，子进程断开 Prisma 和 IPC |
-| `agent/tools/quick-backtest/run-quick-backtest.ts` | 同目录 `agent-backtest-worker.boot.mjs` → `.ts` | 同目录 `agent-backtest-worker.js` | 快速回测线程；返回工具摘要，不创建正式报告 |
 | `agent/tools/sql/read-only-sql.ts` | 同目录 `sql-worker.boot.mjs` → `.ts` | 同目录 `sql-worker.js` | Node SQLite 只读线程，按需创建/重建；原生查询可能使 terminate 延后到查询返回 |
 | `maintenance/reference-worker-process.ts` | 同目录 `reference-worker.ts`，继承 tsx execArgv | 同目录 `reference-worker.js`，不继承源码 execArgv | financial_statements / financials / dividends 分批子进程；接收 summary 且正常退出才完成 |
 | `strategy/runtime/typescript/wall-bundle.ts` | 同目录 `wall-entry.ts` | 同目录 `wall-entry.js` | esbuild neutral bundle，实际 Engine 核心，不带宿主 Prisma/Node 导入；进程内缓存 bundle |
 | `infra/runtime/typescript/isolate-run.ts` | 相对 URL 定位 `math/stats.ts` | 对应 `math/stats.js` | 为调用方加载 isolate 模块；不是常驻独立服务 |
 | `strategy/runtime/typescript/walled-run.test-worker.mjs` | 测试辅助入口，使用 `engine/testing/fixture-port` | 不作为生产入口 | 测试专用；生产不能导入 `.test-worker.mjs` 或 testing fixture |
 
-8 个开发 `.boot.mjs` 都先注册 tsx，再通过 `import(new URL(...).href)` 加载源文件。它们在边界检查中显示为非字面量导入，需要核对本表；检查器不声称推断任意表达式的运行时路径。
+7 个开发 `.boot.mjs` 都先注册 tsx，再通过 `import(new URL(...).href)` 加载源文件。它们在边界检查中显示为非字面量导入，需要核对本表；检查器不声称推断任意表达式的运行时路径。
+
+2026-09-10 已移除 Agent 快速回测工具及其 Worker，当前运行入口以上表为准；下方 Commit 12 验证保留当时的历史事实。决策与退役验证见 [Agent 研究闭环](design/agent-research-loop.md)。
 
 ## Python、语言服务与资源目录
 
