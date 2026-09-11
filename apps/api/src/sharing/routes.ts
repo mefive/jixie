@@ -10,12 +10,12 @@ sharingRoute.get('/', async (c) => {
   return c.json(await listSharingCatalog(c.var.userId, c.var.user));
 });
 
-sharingRoute.get('/strategies/:id', async (c) => {
-  const strategy = await getPublicStrategy(c.req.param('id'));
+sharingRoute.get('/strategies/:strategyId', async (c) => {
+  const strategy = await getPublicStrategy(c.req.param('strategyId'));
   return strategy ? c.json(strategy) : apiError(c, 'NOT_FOUND', m(c, 'strategyNotFound'));
 });
 
-sharingRoute.post('/strategies/:id/copy', async (c) => {
-  const copied = await copyPublicStrategy(c.var.userId, c.req.param('id'));
+sharingRoute.post('/strategies/:strategyId/copy', async (c) => {
+  const copied = await copyPublicStrategy(c.var.userId, c.req.param('strategyId'));
   return copied ? c.json(copied) : apiError(c, 'NOT_FOUND', m(c, 'strategyNotFound'));
 });

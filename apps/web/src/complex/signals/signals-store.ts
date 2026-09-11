@@ -11,7 +11,7 @@ import { BaseStore, LoaderModel, PollingModel } from '@src/lib';
 import {
   getStrategyExecutionOverview,
   listSignalRuns,
-  listTodaySignals,
+  listDeploymentLatestRuns,
   pollSignalJob,
   pauseStrategyDeployment,
   submitSignalRun,
@@ -55,7 +55,7 @@ export class SignalsStore extends BaseStore {
 
   public setup() {
     super.setup();
-    this.todayLoader.setup({ request: () => listTodaySignals() });
+    this.todayLoader.setup({ request: () => listDeploymentLatestRuns() });
     this.historyLoader.setup({
       request: (deploymentId: string) => listSignalRuns(deploymentId),
     });

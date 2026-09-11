@@ -5,12 +5,12 @@ Agent 为 Research、Factor 和 Strategy 提供模型/工具循环、后台对�
 ## 从产品操作找入口
 
 - 发起对话：`research/agent-turn.ts`、`factor/agent-turn.ts`、`strategy/agent-turn.ts` → 各自的 profile → [turns/run.ts](turns/run.ts) 的 `enqueueAgentTurn`。预置因子问答可以使用不持久化的临时 turn。
-- 查看对话与历史消息：[routes.ts](routes.ts) → [conversations/read.ts](conversations/read.ts)，按用户归属查询、按 sequence 翻页。
-- 订阅/恢复连接/取消：`routes.ts` → [turns/bus.ts](turns/bus.ts)；首帧为 snapshot，随后是增量与终态。断开订阅只解除订阅，取消接口才中止模型调用。
-- 查看执行详情：`routes.ts` → [turns/read.ts](turns/read.ts)，读取持久化状态和轨迹，检查对话所有者。
-- 重绘回复中的图表：`POST /sql`、`POST /chart/compute` → SQL/图表工具，与 Agent 工具共用校验和执行能力。
+- 查看历史消息：[conversation-routes.ts](conversation-routes.ts) → [conversations/read.ts](conversations/read.ts)，按用户归属查询、按 sequence 翻页。
+- 订阅/恢复连接/取消：`turn-routes.ts` → [turns/bus.ts](turns/bus.ts)；首帧为 snapshot，随后是增量与终态。断开订阅只解除订阅，取消接口才中止模型调用。
+- 查看执行详情：`turn-routes.ts` → [turns/read.ts](turns/read.ts)，读取持久化状态和轨迹，检查对话所有者。
+- 重绘回复中的图表：`POST /sql-queries`、`POST /chart-computations` → SQL/图表工具，与 Agent 工具共用校验和执行能力。
 
-根级 `routes.ts` 具名导出 `agentRoute`，由 server 挂到 `/api/app/agent`。HTTP 路由保留响应与 SSE 传输；查询函数负责资源归属和投影。Agent turn 不进入通用 Job 队列，仍使用进程内注册表和独立的 AgentTurn 记录。
+根级 `routes.ts` 直接组合 conversation / turn / chart 三组路由，具名导出 `agentRoute`，由 server 挂到 `/api/app/agent`。HTTP 路由保留响应与 SSE 传输；查询函数负责资源归属和投影。Agent turn 不进入通用 Job 队列，仍使用进程内注册表和独立的 AgentTurn 记录。
 
 Strategy profile 只提供数据查询/分析工具和代码产物校验；生成代码后由用户在策略工作台显式发起回测。Research profile 保留语义查询与文档提案，统计计算在可见 Cell 中执行；完整交易规则通过封存研究生成 Strategy 草稿，不在对话背后回测。Factor profile 的探索分析工具保持独立边界。
 
@@ -52,3 +52,12 @@ Commit 10 迁移时保留 core、profile、bus、Research 产物持久化、SQL�
 Commit 10 已通过人工 review、201 个文件/1083 项全量 API 测试、Shared/API 构建及 Web 类型检查；源码/编译的真实 SQL、计算图表和快速回测 Worker 验证通过，结果一致且线程/数据库连接已释放。完整记录见 [开发计划](../../../../docs/design/backend-architecture-refactor.md#710-commit-10-实现记录2026-09-09)。
 
 SQL 调用方超时门槛为 10 秒；正在执行原生 SQLite 查询时，Worker terminate 可能延迟到原生调用返回，不能把接口超时理解为 CPU/线程已立即回收。本次保留既有行为，验证中已确认受控慢查询的原线程最终退出，后续查询能重建线程。
+
+
+## HTTP 路由整理（2026-09-11）
+
+七个接口分别归 `conversation-routes.ts`、`turn-routes.ts`、`chart-routes.ts`。详情使用 `GET /turns/:turnId`，活动查询使用 `GET /turns/active?entity=`，先注册保留路径再注册通用 ID。活动查询仍返回 `{ turnId }`，无活动时 turnId 为 null；SSE 路径、快照/重连/取消、错误帧与非 GET 兜底保持原语义。
+
+删除未使用的 `GET /conversations` 和 `listConversations`；保留会话存储、归属检查和消息分页。SQL/图表使用 `/sql-queries` 和 `/chart-computations`，继续直接返回 `{ rows }`，不增加 Job 或查询持久化。白名单、限额、Worker、JSON BigInt 转换和错误映射保留。
+
+静态检查与待执行验证见 [统一路由记录](../../../../docs/design/api-route-naming.md#剩余模块路由整理2026-09-11)。人工代码审查后，相关 116 项测试、API/Web 构建和六组浏览器验收全部通过。临时服务、端口和数据库连接已释放，测试数据库已清理；完整结果见统一路由记录。

@@ -4,17 +4,17 @@ Signals 将成功回测报告冻结为独立部署，按收盘数据生成下一
 
 ## 从产品操作找入口
 
-HTTP 总入口为 [routes.ts](routes.ts)，具名导出 `signalsRoute`，由 `server.ts` 挂到 `/api/app/signals`。部署创建接受 reportId，列表返回全部部署。根级路由只适配参数、状态和响应，业务操作自己检查归属并控制数据库写入。
+HTTP 总入口为 [routes.ts](routes.ts)，具名导出 `signalsRoute`，由 `server.ts` 挂到 `/api/app/signals`。部署创建接受 reportId，部署列表按 strategyId 筛选；latest-runs 返回用户全部部署及各自最新运行，包括暂停部署和暂无运行的部署。根级路由只适配参数、状态和响应，业务操作自己检查归属并控制数据库写入。
 
 | 操作 | HTTP 路径 | 业务入口 |
 | --- | --- | --- |
 | 启用策略部署 | `POST /deployments` | [deployments/manage.ts](deployments/manage.ts) 的 `deployBacktestReport`，检查回测证据、语言、资产和因子发布约束，冻结配置与血缘 |
-| 查看部署列表、暂停 | `GET /deployments?strategyId=`、`POST /deployments/:id/pause` | [deployments/read.ts](deployments/read.ts)、[deployments/manage.ts](deployments/manage.ts) |
-| 今日信号、运行历史与详情 | `GET /today`、`GET /runs`、`GET /runs/:id` | [runs/read.ts](runs/read.ts)，始终按用户归属查询，并带最新 Job、因子输入和成交记录 |
-| 手动生成信号 | `POST /run` | [runs/submit.ts](runs/submit.ts) 的 `submitSignalRun`，确定收盘日并先结算，再调用入队操作 |
-| 查询 Job 进度 | `GET /jobs/:jobId` | 通用 `infra/jobs/records.ts` 的 `getJob`，保持原所有者校验 |
-| 录入、跳过或重置人工成交 | `PATCH /executions/:id` | [accounting/executions.ts](accounting/executions.ts) 的 `updateActualExecution`，更新后重建实际账户曲线 |
-| 比较模型、模拟和实际账户 | `GET /deployments/:id/execution-overview` | [accounting/read.ts](accounting/read.ts) 的 `getStrategyExecutionOverview` |
+| 查看部署列表、暂停 | `GET /deployments?strategyId=`、`POST /deployments/:deploymentId/pause` | [deployments/read.ts](deployments/read.ts)、[deployments/manage.ts](deployments/manage.ts) |
+| 最新运行、运行历史与详情 | `GET /deployments/latest-runs`、`GET /deployments/:deploymentId/runs`、`GET /runs/:runId` | [runs/read.ts](runs/read.ts)，始终按用户归属查询，并带最新 Job、因子输入和成交记录 |
+| 手动生成信号 | `POST /deployments/:deploymentId/runs` | [runs/submit.ts](runs/submit.ts) 的 `submitSignalRun`，确定收盘日并先结算，再调用入队操作 |
+| 查询 Job 进度 | `GET /run-jobs/:jobId` | `runs/read.ts` 的 `getSignalRunJob`，先校验用户归属和 signal 类型，再读取通用 Job 状态与日志 |
+| 录入、跳过或重置人工成交 | `PATCH /executions/:executionId` | [accounting/executions.ts](accounting/executions.ts) 的 `updateActualExecution`，更新后重建实际账户曲线 |
+| 比较模型、模拟和实际账户 | `GET /deployments/:deploymentId/execution-overview` | [accounting/read.ts](accounting/read.ts) 的 `getStrategyExecutionOverview` |
 
 ## 目录职责
 
@@ -60,3 +60,12 @@ HTTP 总入口为 [routes.ts](routes.ts)，具名导出 `signalsRoute`，由 `se
 Commit 9 已通过人工 review 和全部验证：全量 API 199 个测试文件、1073 项用例通过，API 编译通过；源码与编译后的真实 IPC 链路覆盖部署冻结、因子血缘、信号输入、完成后的会计初始化、结算/人工成交、失败重试及重启恢复。两种入口的信号、模型账户和对账结果一致，临时进程与数据库连接已释放。完整记录见 [开发计划](../../../../docs/design/backend-architecture-refactor.md#79-commit-9-实现记录2026-09-09)。
 
 报告部署业务修订、迁移与验证计划见 [每日信号设计](../../../../docs/design/daily-signals.md)。上述 Commit 9 结果是历史记录，不代表本轮业务改动已经验证。
+
+
+## HTTP 路由整理（2026-09-11）
+
+`routes.ts` 直接组合 `deployment-routes.ts`、`run-routes.ts`、`execution-routes.ts`，保留 10 个接口。latest-runs 对应原 today 的实际语义，不增加日期过滤；`listDeploymentLatestRuns` 同步替代前后端旧函数名。Run 列表/提交的 deploymentId 来自路径，额外 body/query ID 不能覆盖它，body 保留可选 tradeDate，GET 保留 limit。
+
+`runs/read.ts` 的 `getSignalRunJob` 按 userId 和 `kind: signal` 查询，非 signal Job 即使属于同一用户也返回 404。日志仍使用 since/nextSince。Run 与 Job 继续分离，失败重试保留 runId、更换 jobId；不修改部署冻结、队列、Worker、账户结算和成交事务。
+
+静态检查与待执行验证见 [统一路由记录](../../../../docs/design/api-route-naming.md#剩余模块路由整理2026-09-11)。人工代码审查后，相关 116 项测试、API/Web 构建和六组浏览器验收全部通过。临时服务、端口和数据库连接已释放，测试数据库已清理；完整结果见统一路由记录。

@@ -138,16 +138,16 @@ try {
     throw new Error(`deployment did not freeze curve input: ${JSON.stringify(deployment)}`);
   }
 
-  const signal = await api('/api/app/signals/run', {
+  const signal = await api(`/api/app/signals/deployments/${deploymentId}/runs`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ deploymentId, tradeDate: '20260730' }),
+    body: JSON.stringify({ tradeDate: '20260730' }),
   });
   if (!signal.ok) {
     throw new Error(`signal start failed: ${JSON.stringify(signal)}`);
   }
   if (signal.body.jobId) {
-    const signalJob = await waitForJob('/api/app/signals/jobs', signal.body.jobId);
+    const signalJob = await waitForJob('/api/app/signals/run-jobs', signal.body.jobId);
     if (signalJob.status !== 'done') {
       throw new Error(`signal failed: ${JSON.stringify(signalJob)}`);
     }
@@ -164,7 +164,7 @@ try {
     return canvas instanceof HTMLCanvasElement && canvas.getBoundingClientRect().width > 500;
   });
 
-  const today = await api('/api/app/signals/today');
+  const today = await api('/api/app/signals/deployments/latest-runs');
   const entry = today.body.find((item) => item.deployment.strategyName === '国债曲线每日信号验收');
   const factorInput = entry?.run?.factorInputs?.[0];
   if (

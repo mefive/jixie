@@ -5,6 +5,7 @@ import { DEFAULT_LOCALE, type Locale } from '@jixie/shared';
 // notes, code-generated reply chrome). LLM prompt text is NOT here — prompts are static English strings
 // in code, never routed through i18n (see docs/design/i18n.md).
 const MESSAGES = {
+  unsupportedInstrumentType: { zh: '不支持的证券类型', en: 'Unsupported instrument type.' },
   invalidInput: { zh: '入参不合法', en: 'Invalid input' },
   maintenanceInProgress: {
     zh: '市场数据正在维护，请稍后再试',

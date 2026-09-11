@@ -111,7 +111,11 @@ try {
 
   await page.goto(`${base}/signals`, { waitUntil: 'domcontentloaded' });
   await page.locator(`[data-deployment-id="${deployments[0].id}"]`).waitFor();
-  await page.route('**/api/app/signals/run', async (route) => {
+  await page.route('**/api/app/signals/deployments/*/runs', async (route) => {
+    if (route.request().method() !== 'POST') {
+      await route.continue();
+      return;
+    }
     await route.continue({
       postData: JSON.stringify({ ...route.request().postDataJSON(), tradeDate: '20260728' }),
     });
@@ -122,11 +126,11 @@ try {
     const response = page.waitForResponse(
       (response) =>
         response.request().method() === 'POST' &&
-        new URL(response.url()).pathname === '/api/app/signals/run',
+        /^\/api\/app\/signals\/deployments\/[^/]+\/runs$/.test(new URL(response.url()).pathname),
     );
     await page.getByRole('button', { name: '立即生成', exact: true }).click();
     const submitted = await (await response).json();
-    await waitJob(`/api/app/signals/jobs/${submitted.jobId}`);
+    await waitJob(`/api/app/signals/run-jobs/${submitted.jobId}`);
     const run = await api(`/api/app/signals/runs/${submitted.runId}`);
     assert.equal(run.deploymentId, deployment.id);
     runs.push(run);
@@ -135,7 +139,7 @@ try {
   }
   assert.notEqual(runs[0].id, runs[1].id);
   assert.deepEqual(runs[0].signals, runs[1].signals);
-  await page.unroute('**/api/app/signals/run');
+  await page.unroute('**/api/app/signals/deployments/*/runs');
 
   await page.locator(`[data-deployment-id="${deployments[0].id}"]`).click();
   const pausedResponse = page.waitForResponse(
@@ -161,8 +165,8 @@ try {
   const restarted = await deploySelectedReport();
   assert.equal(restarted.backtestReportId, reports[0]);
   assert.notEqual(restarted.id, deployments[0].id);
-  assert.deepEqual(await api(`/api/app/signals/runs?deploymentId=${restarted.id}`), []);
-  assert.equal((await api(`/api/app/signals/runs?deploymentId=${deployments[0].id}`)).length, 1);
+  assert.deepEqual(await api(`/api/app/signals/deployments/${restarted.id}/runs`), []);
+  assert.equal((await api(`/api/app/signals/deployments/${deployments[0].id}/runs`)).length, 1);
 
   await page.goto(`${base}/signals`, { waitUntil: 'domcontentloaded' });
   await page.locator(`[data-deployment-id="${deployments[0].id}"]`).click();

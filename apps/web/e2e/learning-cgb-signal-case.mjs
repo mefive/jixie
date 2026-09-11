@@ -198,12 +198,12 @@ try {
     throw new Error(`deployment did not freeze Factor lineage: ${JSON.stringify(deployment)}`);
   }
 
-  const signalRun = await api(page, '/api/app/signals/run', {
+  const signalRun = await api(page, `/api/app/signals/deployments/${deploymentId}/runs`, {
     method: 'POST',
-    body: JSON.stringify({ deploymentId, tradeDate: researchWindow.holdoutEnd }),
+    body: JSON.stringify({ tradeDate: researchWindow.holdoutEnd }),
   });
   if (signalRun.jobId) {
-    await waitForJob(page, `/api/app/signals/jobs/${signalRun.jobId}`, 240_000);
+    await waitForJob(page, `/api/app/signals/run-jobs/${signalRun.jobId}`, 240_000);
   }
 
   await page.goto(`${BASE}/signals`, { waitUntil: 'domcontentloaded' });
@@ -215,7 +215,7 @@ try {
     return canvas instanceof HTMLCanvasElement && canvas.getBoundingClientRect().width > 500;
   });
 
-  const today = await api(page, '/api/app/signals/today');
+  const today = await api(page, '/api/app/signals/deployments/latest-runs');
   const entry = today.find((item) => item.deployment.id === deploymentId);
   const factorInput = entry?.run?.factorInputs?.find((item) => item.key === FACTOR_KEY);
   const decision = factorInput?.decisionObservations?.find((item) => item.assetId === BOND);

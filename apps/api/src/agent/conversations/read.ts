@@ -1,25 +1,6 @@
 import type { ChatMessage } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
 
-export async function listConversations(
-  userId: string,
-  query: { surface?: 'strategy' | 'factor' | 'screen' | 'research'; entityId?: string },
-) {
-  const { surface, entityId } = query;
-  const rows = await prisma.agentConversation.findMany({
-    where: {
-      userId: userId,
-      archivedAt: null,
-      ...(surface ? { surface } : {}),
-      ...(surface === 'strategy' && entityId ? { strategyId: entityId } : {}),
-      ...(surface === 'factor' && entityId ? { factorId: entityId } : {}),
-    },
-    select: { id: true, surface: true, title: true, createdAt: true, updatedAt: true },
-    orderBy: { updatedAt: 'desc' },
-  });
-  return rows;
-}
-
 export async function listConversationMessages(
   userId: string,
   conversationId: string,

@@ -278,7 +278,9 @@ describe('Signals HTTP and persistence boundaries', () => {
     expect(
       await prisma.strategyDeployment.findUniqueOrThrow({ where: { id: first.id } }),
     ).toMatchObject({ status: 'paused', activeReportId: null, backtestReportId: 'report' });
-    expect(await (await request('/today', undefined, 'owner', 'GET')).json()).toHaveLength(3);
+    expect(
+      await (await request('/deployments/latest-runs', undefined, 'owner', 'GET')).json(),
+    ).toHaveLength(3);
     expect(await enqueueSignalRun('owner', first.id, '20240103')).toEqual({ kind: 'paused' });
   });
 
@@ -338,7 +340,9 @@ describe('Signals HTTP and persistence boundaries', () => {
     });
     const fresh = await deploy();
     expect(fresh.id).not.toBe(deployment.id);
-    const listed = await (await request('/today', undefined, 'owner', 'GET')).json();
+    const listed = await (
+      await request('/deployments/latest-runs', undefined, 'owner', 'GET')
+    ).json();
     expect(listed).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -369,10 +373,10 @@ describe('Signals HTTP and persistence boundaries', () => {
     expect(firstRun.jobId).not.toBe(secondRun.jobId);
     expect(await prisma.signalRun.count()).toBe(2);
     expect(
-      await (await request(`/runs?deploymentId=${first.id}`, undefined, 'owner', 'GET')).json(),
+      await (await request(`/deployments/${first.id}/runs`, undefined, 'owner', 'GET')).json(),
     ).toEqual([expect.objectContaining({ id: firstRun.runId, deploymentId: first.id })]);
     expect(
-      await (await request(`/runs?deploymentId=${second.id}`, undefined, 'owner', 'GET')).json(),
+      await (await request(`/deployments/${second.id}/runs`, undefined, 'owner', 'GET')).json(),
     ).toEqual([expect.objectContaining({ id: secondRun.runId, deploymentId: second.id })]);
     for (const run of [firstRun, secondRun]) {
       await prisma.signalRun.update({
@@ -463,7 +467,7 @@ describe('Signals HTTP and persistence boundaries', () => {
       kind: 'data_not_ready',
     });
     await prisma.dailyBasic.deleteMany({ where: { tradeDate: '20240103' } });
-    const response = await request('/run', { deploymentId: deployment.id, tradeDate: '20240103' });
+    const response = await request(`/deployments/${deployment.id}/runs`, { tradeDate: '20240103' });
     expect(response.status).toBe(400);
     expect(await response.json()).toMatchObject({
       error: { message: t('en', 'signalDataNotReady', { date: '20240103' }) },
@@ -561,10 +565,10 @@ describe('Signals HTTP and persistence boundaries', () => {
     const deployment = await deploy();
     vi.setSystemTime(new Date('2024-01-03T07:00:00Z'));
     expect(
-      (await request('/run', { deploymentId: deployment.id, tradeDate: '20240103' })).status,
+      (await request(`/deployments/${deployment.id}/runs`, { tradeDate: '20240103' })).status,
     ).toBe(400);
     vi.setSystemTime(new Date('2024-01-03T09:00:00Z'));
-    const response = await request('/run', { deploymentId: deployment.id });
+    const response = await request(`/deployments/${deployment.id}/runs`, {});
     expect(response.status).toBe(200);
     const run = await response.json();
     expect(Object.keys(run).sort()).toEqual(['jobId', 'runId', 'started']);
@@ -578,19 +582,120 @@ describe('Signals HTTP and persistence boundaries', () => {
     });
     for (const path of [
       `/runs/${run.runId}`,
-      `/runs?deploymentId=${deployment.id}`,
-      `/jobs/${run.jobId}`,
+      `/deployments/${deployment.id}/runs`,
+      `/run-jobs/${run.jobId}`,
       `/deployments/${deployment.id}/execution-overview`,
     ]) {
       expect((await request(path, undefined, 'other', 'GET')).status).toBe(404);
     }
-    expect(await (await request('/today', undefined, 'other', 'GET')).json()).toEqual([]);
-    expect(await (await request('/today', undefined, 'owner', 'GET')).json()).toMatchObject([
-      { deployment: { id: deployment.id }, run: { id: run.runId } },
-    ]);
     expect(
-      (await request('/run', { deploymentId: deployment.id, tradeDate: 'invalid' })).status,
+      await (await request('/deployments/latest-runs', undefined, 'other', 'GET')).json(),
+    ).toEqual([]);
+    expect(
+      await (await request('/deployments/latest-runs', undefined, 'owner', 'GET')).json(),
+    ).toMatchObject([{ deployment: { id: deployment.id }, run: { id: run.runId } }]);
+    expect(
+      (await request(`/deployments/${deployment.id}/runs`, { tradeDate: 'invalid' })).status,
     ).toBe(400);
+  });
+
+  it('takes deployment ownership from the run path and ignores conflicting body and query IDs', async () => {
+    const deployment = await deploy();
+    const response = await request(`/deployments/${deployment.id}/runs`, {
+      deploymentId: 'missing',
+      tradeDate: '20240103',
+    });
+    expect(response.status).toBe(200);
+    const submitted = await response.json();
+    expect(
+      await prisma.signalRun.findUniqueOrThrow({ where: { id: submitted.runId } }),
+    ).toMatchObject({ deploymentId: deployment.id });
+    expect(
+      await (
+        await request(
+          `/deployments/${deployment.id}/runs?deploymentId=missing&limit=1`,
+          undefined,
+          'owner',
+          'GET',
+        )
+      ).json(),
+    ).toMatchObject([{ id: submitted.runId }]);
+    expect(
+      (
+        await request('/deployments/missing/runs', {
+          deploymentId: deployment.id,
+          tradeDate: '20240103',
+        })
+      ).status,
+    ).toBe(404);
+    expect(
+      (await request(`/deployments/${deployment.id}/runs`, { tradeDate: '20240103' }, 'other'))
+        .status,
+    ).toBe(404);
+    expect(
+      (await request(`/deployments/${deployment.id}/runs?limit=101`, undefined, 'owner', 'GET'))
+        .status,
+    ).toBe(400);
+    expect(await prisma.signalRun.count()).toBe(1);
+  });
+
+  it('returns only owned signal jobs and keeps incremental persisted logs', async () => {
+    const logs = [
+      { ts: 1, level: 'info', text: 'first' },
+      { ts: 2, level: 'info', text: 'second' },
+    ];
+    await prisma.job.createMany({
+      data: [
+        {
+          id: 'signal-job',
+          userId: 'owner',
+          kind: 'signal',
+          key: 'fixture',
+          status: 'done',
+          logs: JSON.stringify(logs),
+        },
+        ...['backtest', 'factor', 'strategy-scan', 'research-curator'].map((kind) => ({
+          id: `foreign-kind-${kind}`,
+          userId: 'owner',
+          kind,
+          key: 'fixture',
+          status: 'done',
+        })),
+      ],
+    });
+    expect(
+      await (await request('/run-jobs/signal-job?since=1', undefined, 'owner', 'GET')).json(),
+    ).toMatchObject({ status: 'done', logs: [logs[1]], nextSince: 2 });
+    expect((await request('/run-jobs/signal-job', undefined, 'other', 'GET')).status).toBe(404);
+    for (const kind of ['backtest', 'factor', 'strategy-scan', 'research-curator']) {
+      expect(
+        (await request(`/run-jobs/foreign-kind-${kind}`, undefined, 'owner', 'GET')).status,
+      ).toBe(404);
+    }
+    expect((await request('/run-jobs/missing', undefined, 'owner', 'GET')).status).toBe(404);
+    expect((await request('/run-jobs/signal-job?since=-1', undefined, 'owner', 'GET')).status).toBe(
+      400,
+    );
+  });
+
+  it.each([
+    ['GET', '/today'],
+    ['GET', '/runs?deploymentId=missing'],
+    ['POST', '/run'],
+    ['GET', '/jobs/missing'],
+  ])('removes the old %s %s endpoint', async (method, path) => {
+    expect(
+      (
+        await request(
+          path,
+          method === 'POST' ? { deploymentId: 'missing' } : undefined,
+          'owner',
+          method,
+        )
+      ).status,
+    ).toBe(404);
+    expect(await prisma.signalRun.count()).toBe(0);
+    expect(resources.wake).not.toHaveBeenCalled();
   });
 
   it('keeps account initialization and settlement idempotent through actual-fill edits and reset', async () => {

@@ -202,3 +202,96 @@ Strategy 路由职责整理的提交为 `refactor(strategy): clarify resource ro
 Research 的 Cell/全文/尝试请求等待执行结果；完整 execution 是冻结证据，单 Cell 或局部执行不强行统一为这种资源。股票池查询直接返回结果，语言服务仍按 action 分派。Curator 保留独立 Run 和后台 Job，四个接口不变。所有重命名接口同步 Web 与仓内调用，旧路径不留别名；不改变数据库、SDK、锁/事务边界、执行协议或 Curator 用途。
 
 已通过人工代码审查、格式/ESLint、全仓 typecheck/契约一致性、147 项 Research 测试、24 项边界检查器测试、API/Web 构建和十组 E2E；另通过真实 Pyright 与股票池查询验证。验证范围和实际结果记录在 [Research README](../../apps/api/src/research/README.md)。
+
+
+## 剩余模块路由整理（2026-09-11）
+
+方案已获确认，计划提交 `refactor(api): clarify remaining resource routes and ownership`。Signals / Agent / Market 根级 routes.ts 直接组合职责路由；Sharing 仅明确 strategyId 参数名；Auth / Maintenance 及健康检查保持现状。剩余六模块最终 33 个接口，含一个开发专用登录接口，另有两个根级服务接口。
+
+以下是全部终局路径，已整理的 Strategy / Factor / Research 见前文。
+
+| 模块 | 文件 | 方法 | 完整路径 |
+| --- | --- | --- | --- |
+| signals | `deployment-routes.ts` | GET | `/api/app/signals/deployments/latest-runs` |
+| signals | `deployment-routes.ts` | GET | `/api/app/signals/deployments` |
+| signals | `deployment-routes.ts` | POST | `/api/app/signals/deployments` |
+| signals | `deployment-routes.ts` | POST | `/api/app/signals/deployments/:deploymentId/pause` |
+| signals | `execution-routes.ts` | GET | `/api/app/signals/deployments/:deploymentId/execution-overview` |
+| signals | `execution-routes.ts` | PATCH | `/api/app/signals/executions/:executionId` |
+| signals | `run-routes.ts` | GET | `/api/app/signals/deployments/:deploymentId/runs` |
+| signals | `run-routes.ts` | GET | `/api/app/signals/runs/:runId` |
+| signals | `run-routes.ts` | POST | `/api/app/signals/deployments/:deploymentId/runs` |
+| signals | `run-routes.ts` | GET | `/api/app/signals/run-jobs/:jobId` |
+| agent | `chart-routes.ts` | POST | `/api/app/agent/sql-queries` |
+| agent | `chart-routes.ts` | POST | `/api/app/agent/chart-computations` |
+| agent | `conversation-routes.ts` | GET | `/api/app/agent/conversations/:conversationId/messages` |
+| agent | `turn-routes.ts` | GET | `/api/app/agent/turns/active` |
+| agent | `turn-routes.ts` | GET | `/api/app/agent/turns/:turnId` |
+| agent | `turn-routes.ts` | GET | `/api/app/agent/turns/:turnId/stream` |
+| agent | `turn-routes.ts` | POST | `/api/app/agent/turns/:turnId/cancel` |
+| market | `instrument-routes.ts` | GET | `/api/app/market/instruments/names` |
+| market | `instrument-routes.ts` | GET | `/api/app/market/instruments/:assetType/:instrumentId/series` |
+| market | `instrument-routes.ts` | GET | `/api/app/market/indices/:indexCode/series` |
+| market | `state-routes.ts` | GET | `/api/app/market/weather` |
+| market | `state-routes.ts` | GET | `/api/app/market/state` |
+| market | `valuation-routes.ts` | GET | `/api/app/market/index-valuations` |
+| market | `valuation-routes.ts` | GET | `/api/app/market/index-valuations/:indexCode` |
+| sharing | `routes.ts` | GET | `/api/app/library` |
+| sharing | `routes.ts` | GET | `/api/app/library/strategies/:strategyId` |
+| sharing | `routes.ts` | POST | `/api/app/library/strategies/:strategyId/copy` |
+| auth | `routes.ts` | GET | `/api/auth/me` |
+| auth | `routes.ts` | POST | `/api/auth/logout` |
+| auth | `routes.ts` | POST | `/api/auth/email/request` |
+| auth | `routes.ts` | POST | `/api/auth/email/verify` |
+| auth | `routes.ts` | POST | `/api/auth/dev/login` |
+| maintenance | `routes.ts` | GET | `/api/maintenance/status` |
+| server | `server.ts` | GET | `/` |
+| server | `server.ts` | GET | `/api/health` |
+
+Auth 的 `/dev/login` 仅在非 production 环境注册。Agent 的 stream 另外保留非 GET 请求的错误兜底，不视为独立业务 API。
+
+| 旧接口（省略 `/api/app`） | 新接口或处理 |
+| --- | --- |
+| `GET /signals/today` | `GET /signals/deployments/latest-runs`；返回每个部署及最新运行，不做今日过滤 |
+| `GET /signals/runs?deploymentId=&limit=` | `GET /signals/deployments/:deploymentId/runs?limit=` |
+| `POST /signals/run` | `POST /signals/deployments/:deploymentId/runs`；body 只需可选 tradeDate |
+| `GET /signals/jobs/:jobId` | `GET /signals/run-jobs/:jobId`；增加 signal 类型校验 |
+| `GET /agent/conversations` | 删除闲置列表入口与专用列表函数，保留消息和历史存储 |
+| `GET /agent/turns/:turnId/detail` | `GET /agent/turns/:turnId` |
+| `GET /agent/turns/running?entity=` | `GET /agent/turns/active?entity=` |
+| `POST /agent/sql` | `POST /agent/sql-queries` |
+| `POST /agent/chart/compute` | `POST /agent/chart-computations` |
+| `GET /market/names?codes=` | `GET /market/instruments/names?codes=` |
+| `GET /market/objects/:assetType/:id/series` | `GET /market/instruments/:assetType/:instrumentId/series` |
+| `GET /market/indices/valuation/catalog` | `GET /market/index-valuations` |
+| `GET /market/indices/:code/valuation` | `GET /market/index-valuations/:indexCode` |
+| `GET /market/futures/:code/series` | 删除闲置专用 HTTP、loader 与 client；使用统一 instrument 查询 |
+| `GET /market/industry-weather` | 删除旧 HTTP；内部行业天气计算继续供 `/market/weather?dimension=industry` 使用 |
+
+Signals 路径中的 deploymentId 是运行归属的唯一 HTTP 来源，额外 body/query ID 不得覆盖它。部署列表保留 strategyId 筛选；运行仍返回 `{ runId, jobId, started }`，失败重试复用 Run 并创建新 Job；任务保留 since 增量日志、nextSince 与既有响应结构，其他类型或其他用户的 Job 返回 404。最新运行聚合保留暂停部署和 null 运行。
+
+Agent 活动查询保留 `{ turnId: string | null }`，Turn 不接入通用 Job。SSE 的快照、结束帧、取消及 stream 非 GET 错误行为保留。SQL / 计算图表直接返回行数据，不新增持久化资源或 LLM 调用。
+
+Market 保留精简指数收盘序列接口，其响应、日期默认值和空数据行为不合并进统一 instrument 查询；估值大小写规范化、天气缓存和各类数据口径保持。非法证券类型使用现有 i18n 机制提供中英错误。Sharing 只修改参数标识，公开库 URL 与响应不变。
+
+全部仓内 client / E2E 同步迁移；不提供旧路径别名，API/Web 必须同步部署。没有 Prisma schema、SDK、数据迁移、交易算法、队列/Worker、会计或 Agent 执行协议改动。页面操作保持原样，无需重写公开帮助；HTTP 错误新增中英 key 已同步。
+
+### 审查与验证记录
+
+本轮已通过人工代码审查。审查前静态检查已通过：34 个代码文件的 Prettier / ESLint、全仓 `pnpm typecheck`、Research runtime / Research SDK / Factor SDK 生成契约一致性、后端边界检查（656 个文件、2361 条运行时边、568 条类型边、0 违规、0 跨域循环），以及 `git diff --check`。
+
+静态扫描核对 Signals / Agent / Market 共 24 个业务方法/路径无重复，另有一条 SSE 非 GET 兜底。对重组前后 handler 做 TypeScript token 对比：批准的路径/参数标识归一化后，21 个 handler（含 SSE 兜底）主体一致；其余四处对应运行列表/提交从路径取 ID、Signal Job 查询入口和 instrument ID/i18n 调整。旧路径仅保留在迁移说明与明确的 404 回归用例中；前端页面 `/objects/...` 属于页面导航，按原约定保留。
+
+已准备 Signals 路由的 path/body/query 归属、Job 类型/用户隔离和日志增量测试，Agent 消息/Turn/SSE/SQL/计算图表及旧路径测试，Market 连续/直接期货行情、估值、日期默认值、双语错误和旧路径测试。既有部署冻结、重试、账户结算、共享资源权限测试继续保留。
+
+审查通过后运行 Signals / Agent / Market / Sharing 相关测试与 API/Web 构建，使用隔离数据库执行报告部署/每日信号、图表重绘、市场行情与估值、Agent 活动恢复及 SSE 验证；涉及模型时使用受控 fixture。验证结束清理临时服务、端口、数据库副本和连接，检查并展示 E2E 截图，全部通过后按计划信息提交。
+
+
+人工代码审查后验证结果：
+
+- 16 个相关测试文件、116 项测试全部通过。首轮 115 项通过，默认关闭的账户数据库流随后使用独立空 SQLite 和 `ACCOUNTING_INTEGRATION=1` 显式运行并通过。覆盖 Signals 部署冻结/归属、运行幂等/重试、路径 ID、signal Job 类型及增量日志、账户初始化/结算/人工成交；Agent 消息/Turn/SSE/取消/SQL/图表；Market 序列/估值/i18n；Sharing 权限与复制。
+- API 与 Web 构建通过，Web 仅有既有大 chunk 提示。
+- 六组浏览器验收通过：report-deployments、daily-signals、computed-chart、public-library、market-valuation，以及 instrument 页面专项验证。使用编译 API/Web 和独立数据库副本，真实回测/Signal Worker、SQL/计算图表读取及股票/ETF/指数/连续期货图表成功；市场四维天气和估值选择/历史图表成功。Agent 活动查询空值经浏览器验证，活动恢复与 SSE 快照/终态/归属由路由集成测试覆盖。
+- 市场截图脚本原来假设每个配置指数在最新月份都有数据；副本实际覆盖规模 9/10、板块 7/8、风格 11/16。仅修正测试：保留固定配置分组/数量断言，并逐项检查 API 最新周期返回的全部卡片按顺序展示。格式/ESLint 和该 E2E 重跑通过，未修改产品代码或伪造行情补齐数量。
+- 测试数据库为开发数据库的只读备份副本和账户专项空库，未写开发数据库，未调用真实 LLM、行情同步或邮件。所有浏览器已关闭，API/Web 进程已退出，3107/5187 端口和数据库连接已释放，两个临时数据库均已删除。
+- 本次截图已检查，保存于 `apps/web/acceptance/`；市场帮助截图通过临时运行副本定向输出到 acceptance，未覆盖公开帮助图片。提交前 `git diff --check` 通过。

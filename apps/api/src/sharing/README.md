@@ -22,3 +22,10 @@ Commit 10 已通过人工 review；本模块 3 项及全量 API 201 个文件/10
 共享响应类型位于 `packages/shared/src/sharing.ts`：`SharingCatalog`、`SharingAssetBase`、`SharingStrategy`、`SharingFactor`；前端通过 `fetchSharingCatalog` 读取，JSON 字段保持不变。`catalog.ts` 描述资源目录，`getPublicStrategy` / `copyPublicStrategy` 描述只允许公开源的操作，无需机械替换 public。
 
 Prisma schema 与历史 migration 中没有 Library/Sharing 模型或表名。资源继续存放在 Strategy、Factor、FactorComposite，使用既有 visibility 字段区分 private/public，无需 schema 或数据库迁移。前端页面名、文案和 URL 保留公开库概念；Sharing 是后端业务模块及其代码接口的名称。
+
+
+## HTTP 参数命名整理（2026-09-11）
+
+详情和复制使用 `/strategies/:strategyId`、`/strategies/:strategyId/copy` 描述路径参数，URL 结构及三个接口的行为不变。继续在根级 routes.ts 实现，不拆小文件。验证随 Signals / Agent / Market 的统一路由整理进行，见 [统一路由记录](../../../../docs/design/api-route-naming.md#剩余模块路由整理2026-09-11)。
+
+人工代码审查后，共享资源归属/复制测试及公开库 E2E 通过；统一验证的实际结果与资源清理记录见上方链接。

@@ -51,7 +51,7 @@ try {
 
   // The compute endpoint must validate and re-run the persisted spec server-side.
   const computeRows = await page.evaluate(async (spec) => {
-    const response = await fetch('/api/app/agent/chart/compute', {
+    const response = await fetch('/api/app/agent/chart-computations', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(spec),
@@ -70,7 +70,7 @@ try {
   }
   const badSpec = { ...computeSpec, series: [{ column: 'missing' }] };
   const badStatus = await page.evaluate(async (spec) => {
-    const response = await fetch('/api/app/agent/chart/compute', {
+    const response = await fetch('/api/app/agent/chart-computations', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(spec),

@@ -38,9 +38,9 @@
 | `/api/app/research` | `research/routes.ts` 直接组合 document / execution / evidence / proposal / agent / curator / data / language 路由 |
 | `/api/app/factors` | `factor/routes.ts` 直接组合定义、组合、Agent、分析、相关性和天气，导出 `factorRoute` |
 | `/api/app/strategies` | `strategy/routes.ts` 直接组合定义、Agent、回测和扫描，导出 `strategyRoute` |
-| `/api/app/signals` | `signals/routes.ts` |
-| `/api/app/agent` | `agent/routes.ts` |
-| `/api/app/market` | `market/routes.ts` |
+| `/api/app/signals` | `signals/routes.ts` 直接组合 deployment / run / execution 路由 |
+| `/api/app/agent` | `agent/routes.ts` 直接组合 conversation / turn / chart 路由 |
+| `/api/app/market` | `market/routes.ts` 直接组合 instrument / valuation / state 路由 |
 | `/api/app/library` | `sharing/routes.ts`；URL 保留公开库原契约 |
 
 路由负责入参、用户/语言上下文、HTTP 状态和响应。具体查询与修改在所属模块中；不存在导出整个后端实现的总 service 或 barrel。路由对象使用业务/职责明确的具名导出，如 `authRoute`、`strategyRoute` 和 `factorRoute`；server 和外部路由消费者只从所属模块的根级 `routes.ts` 同名导入。单组路由可以在入口直接实现，Strategy 的 `routes.ts` 直接组合 `definition-routes.ts`、`agent-routes.ts`、`backtest-routes.ts` 和 `scan-routes.ts`；Factor 的 `routes.ts` 直接组合 `definition-routes.ts`、`composite-routes.ts`、`agent-routes.ts`、`analysis-routes.ts`、`correlation-routes.ts` 和 `weather-routes.ts`。处理器按业务职责分文件实现。完整路径与迁移说明见 [路由设计](design/api-route-naming.md)。组合文件直接导入子路由实现，不反向导入统一出口。

@@ -1,7 +1,7 @@
 import { makeObservable, observable, runInAction } from 'mobx';
 import type { ResearchAssetTypeV1, StockSeries } from '@jixie/shared';
 import { BaseStore, LoaderModel } from '@src/lib';
-import { fetchObjectSeries } from '@src/api/client';
+import { fetchInstrumentSeries } from '@src/api/client';
 
 type StockSetupParams = { assetType?: string; id?: string };
 
@@ -22,7 +22,7 @@ export class StockStore extends BaseStore<StockSetupParams> {
       this.assetType = isAssetType(params.assetType) ? params.assetType : 'stock';
       this.id = params.id ?? '';
     });
-    this.seriesLoader.setup({ request: () => fetchObjectSeries(this.assetType, this.id) });
+    this.seriesLoader.setup({ request: () => fetchInstrumentSeries(this.assetType, this.id) });
     this.registCleaner(() => this.seriesLoader.cleanup());
     if (this.id) {
       void this.seriesLoader.run();

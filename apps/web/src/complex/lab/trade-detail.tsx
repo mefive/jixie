@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, Select } from 'antd';
 import type { TradeRecord } from '@jixie/shared';
-import { fetchNames } from '@src/api/client';
+import { fetchInstrumentNames } from '@src/api/client';
 import './trade-detail.css';
 
 type AssetType = NonNullable<TradeRecord['assetType']>;
@@ -36,7 +36,7 @@ export default function TradeDetail({ tradeLog }: { tradeLog: TradeRecord[] }) {
       return;
     }
 
-    fetchNames(codes)
+    fetchInstrumentNames(codes)
       .then(setNames)
       .catch(() => {});
   }, [tradeLog]);

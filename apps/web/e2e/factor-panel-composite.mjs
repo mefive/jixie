@@ -490,10 +490,10 @@ try {
     throw new Error(`panel composite deployment lineage failed: ${JSON.stringify(deployment)}`);
   }
 
-  const signal = await api('/api/app/signals/run', {
+  const signal = await api(`/api/app/signals/deployments/${deploymentId}/runs`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ deploymentId, tradeDate: '20260730' }),
+    body: JSON.stringify({ tradeDate: '20260730' }),
   });
   if (signal.status !== 200) {
     throw new Error(`panel composite signal failed to start: ${JSON.stringify(signal)}`);
@@ -502,7 +502,7 @@ try {
     await page.evaluate(async (jobId) => {
       const deadline = Date.now() + 180_000;
       while (Date.now() < deadline) {
-        const job = await fetch(`/api/app/signals/jobs/${jobId}`, { cache: 'no-store' }).then(
+        const job = await fetch(`/api/app/signals/run-jobs/${jobId}`, { cache: 'no-store' }).then(
           (response) => response.json(),
         );
         if (job.status === 'done') {
@@ -516,7 +516,7 @@ try {
       throw new Error(`panel composite signal ${jobId} timed out`);
     }, signal.body.jobId);
   }
-  const today = await api('/api/app/signals/today');
+  const today = await api('/api/app/signals/deployments/latest-runs');
   const signalEntry = today.body.find((item) => item.deployment.id === deploymentId);
   const factorInput = signalEntry?.run?.factorInputs?.[0];
   if (

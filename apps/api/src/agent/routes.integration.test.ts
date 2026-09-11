@@ -138,7 +138,7 @@ describe('Agent HTTP and durable turn boundaries', () => {
     await rm(fixture.directory, { recursive: true, force: true });
   });
 
-  it('filters conversations by ownership and surface and preserves message pagination and parts', async () => {
+  it('preserves message ownership, pagination, parts and turn detail', async () => {
     const { conversationId } = await createTurn('turn');
     await finishPersistentTurn({
       turnId: 'turn',
@@ -153,13 +153,6 @@ describe('Agent HTTP and durable turn boundaries', () => {
         { id: 'research', userId: 'owner', surface: 'research' },
       ],
     });
-    const conversations = await (
-      await request('/conversations?surface=strategy&entityId=strategy')
-    ).json();
-    expect(conversations.map((row: { id: string }) => row.id)).toEqual([conversationId]);
-    expect(
-      (await (await request('/conversations')).json()).map((row: { id: string }) => row.id).sort(),
-    ).toEqual([conversationId, 'research'].sort());
     const recent = await (
       await request(`/conversations/${conversationId}/messages?limit=1`)
     ).json();
@@ -182,8 +175,8 @@ describe('Agent HTTP and durable turn boundaries', () => {
       await (await request(`/conversations/${conversationId}/messages?before=0`)).json(),
     ).toEqual({ messages: [] });
     expect((await request(`/conversations/${conversationId}/messages`, 'other')).status).toBe(404);
-    expect((await request('/turns/turn/detail', 'other')).status).toBe(404);
-    expect(await (await request('/turns/turn/detail')).json()).toMatchObject({
+    expect((await request('/turns/turn', 'other')).status).toBe(404);
+    expect(await (await request('/turns/turn')).json()).toMatchObject({
       id: 'turn',
       status: 'done',
       trace,
@@ -194,12 +187,12 @@ describe('Agent HTTP and durable turn boundaries', () => {
   it('replays SSE snapshots and terminal events and protects stream and cancellation ownership', async () => {
     const { signal } = turnBus.start('live', 'owner', 'strategy:strategy');
     turnBus.publish('live', { type: 'delta', text: 'partial' });
-    expect(await (await request('/turns/running?entity=strategy:strategy')).json()).toEqual({
+    expect(await (await request('/turns/active?entity=strategy:strategy')).json()).toEqual({
       turnId: 'live',
     });
-    expect(
-      await (await request('/turns/running?entity=strategy:strategy', 'other')).json(),
-    ).toEqual({ turnId: null });
+    expect(await (await request('/turns/active?entity=strategy:strategy', 'other')).json()).toEqual(
+      { turnId: null },
+    );
     expect(await (await request('/turns/live/cancel', 'other', {})).json()).toEqual({
       ok: true,
       cancelled: false,
@@ -345,14 +338,52 @@ describe('Agent HTTP and durable turn boundaries', () => {
     expect(await prisma.researchClarification.count()).toBe(0);
   });
 
+  it.each([
+    ['GET', '/conversations'],
+    ['GET', '/conversations?surface=research'],
+    ['GET', '/turns/turn/detail'],
+    ['GET', '/turns/running?entity=strategy:strategy'],
+    ['POST', '/sql'],
+    ['POST', '/chart/compute'],
+  ])(
+    'removes the old %s %s endpoint without affecting stored conversations',
+    async (method, path) => {
+      await createTurn('turn');
+      expect(
+        (await request(path, 'owner', method === 'POST' ? { sql: 'SELECT 1' } : undefined, method))
+          .status,
+      ).toBe(404);
+      expect(await prisma.agentConversation.count()).toBe(1);
+      expect(await prisma.agentMessage.count()).toBe(1);
+      expect(resources.sql).not.toHaveBeenCalled();
+      expect(resources.compute).not.toHaveBeenCalled();
+    },
+  );
+
+  it('reserves active for entity lookup and returns null after the turn finishes', async () => {
+    expect((await request('/turns/active')).status).toBe(400);
+    turnBus.start('active-turn', 'owner', 'research:document');
+    expect(await (await request('/turns/active?entity=research:document')).json()).toEqual({
+      turnId: 'active-turn',
+    });
+    turnBus.finish('active-turn', { type: 'cancelled' });
+    expect(await (await request('/turns/active?entity=research:document')).json()).toEqual({
+      turnId: null,
+    });
+  });
+
   it('keeps SQL and computed-chart wire conversion and error mapping', async () => {
     resources.sql.mockResolvedValue([{ count: 2n }]);
     expect(
-      await (await request('/sql', 'owner', { sql: 'SELECT count(*) AS count FROM Daily' })).json(),
+      await (
+        await request('/sql-queries', 'owner', { sql: 'SELECT count(*) AS count FROM Daily' })
+      ).json(),
     ).toEqual({ rows: [{ count: 2 }] });
     expect(resources.sql).toHaveBeenCalledWith('SELECT count(*) AS count FROM Daily', 500);
     resources.sql.mockRejectedValue(new Error('Fixture SQL rejection'));
-    expect((await request('/sql', 'owner', { sql: 'SELECT * FROM User' })).status).toBe(400);
+    expect((await request('/sql-queries', 'owner', { sql: 'SELECT * FROM User' })).status).toBe(
+      400,
+    );
     const spec = {
       source: 'compute',
       kind: 'line',
@@ -362,11 +393,11 @@ describe('Agent HTTP and durable turn boundaries', () => {
       series: [{ column: 'close' }],
     };
     resources.compute.mockResolvedValue([{ date: '20240102', close: 10n }]);
-    expect(await (await request('/chart/compute', 'owner', spec)).json()).toEqual({
+    expect(await (await request('/chart-computations', 'owner', spec)).json()).toEqual({
       rows: [{ date: '20240102', close: 10 }],
     });
     expect(resources.compute).toHaveBeenCalledWith(spec);
     resources.compute.mockRejectedValue(new Error('Fixture chart rejection'));
-    expect((await request('/chart/compute', 'owner', spec)).status).toBe(400);
+    expect((await request('/chart-computations', 'owner', spec)).status).toBe(400);
   });
 });

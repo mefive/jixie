@@ -40,7 +40,7 @@ async function login() {
 
 async function captureMarket() {
   await page.goto(`${BASE}/market`, { waitUntil: 'networkidle' });
-  await assertWeatherDimension('申万行业', 6, 31);
+  await assertWeatherDimension('申万行业', 'industry', 6, 31);
   await page.waitForTimeout(400);
 
   await annotatedScreenshot(page, `${OUTPUT}market-weather-overview-01.png`, [
@@ -114,18 +114,46 @@ async function switchWeatherDimension(label, dimension, groups, cards) {
     ),
     page.getByText(label, { exact: true }).click(),
   ]);
-  await assertWeatherDimension(label, groups, cards);
+  await assertWeatherDimension(label, dimension, groups, cards);
 }
 
-async function assertWeatherDimension(label, expectedGroups, expectedCards) {
-  await page.locator('.jx-industryWeather-card').first().waitFor({ timeout: 30_000 });
-  const groups = await page.locator('.jx-industryWeather-group').count();
-  const cards = await page.locator('.jx-industryWeather-card').count();
-  if (groups !== expectedGroups || cards !== expectedCards) {
-    throw new Error(
-      `${label}: expected ${expectedGroups} groups/${expectedCards} cards, got ${groups}/${cards}`,
-    );
+async function assertWeatherDimension(label, dimension, expectedGroups, expectedConfiguredCards) {
+  const response = await page.request.get(
+    `${BASE}/api/app/market/weather?dimension=${dimension}&frequency=month`,
+  );
+  if (!response.ok()) {
+    throw new Error(`${label}: weather API failed with ${response.status()}`);
   }
+  const series = await response.json();
+  const configuredCodes = series.groups.flatMap((group) => group.codes);
+  if (
+    series.dimension !== dimension ||
+    series.groups.length !== expectedGroups ||
+    configuredCodes.length !== expectedConfiguredCards
+  ) {
+    throw new Error(`${label}: unexpected weather configuration`);
+  }
+  const latestItems = new Map(series.periods.at(-1).items.map((item) => [item.code, item]));
+  const expectedNames = configuredCodes.flatMap((code) =>
+    latestItems.has(code) ? [latestItems.get(code).name] : [],
+  );
+  if (expectedNames.length === 0) {
+    throw new Error(`${label}: no cards are available in the latest period`);
+  }
+  // The market snapshot may have partial coverage; every returned card must still render in order.
+  await page.waitForFunction(
+    ({ groups, names }) => {
+      const displayedNames = [
+        ...document.querySelectorAll('.jx-industryWeather-cardTop strong'),
+      ].map((node) => node.textContent);
+      return (
+        document.querySelectorAll('.jx-industryWeather-group').length === groups &&
+        JSON.stringify(displayedNames) === JSON.stringify(names)
+      );
+    },
+    { groups: expectedGroups, names: expectedNames },
+    { timeout: 30_000 },
+  );
 }
 
 async function captureValuation() {
@@ -151,7 +179,7 @@ async function captureValuation() {
   ]);
 
   const indexResponse = page.waitForResponse((item) =>
-    item.url().includes('/api/app/market/indices/000905.SH/valuation'),
+    item.url().includes('/api/app/market/index-valuations/000905.SH'),
   );
   await dropdown.getByText('中证500 · 000905.SH', { exact: true }).click();
   if ((await indexResponse).status() !== 200) {

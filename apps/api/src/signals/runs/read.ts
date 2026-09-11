@@ -5,12 +5,13 @@ import type {
   SignalRun,
   StrategyDeployment,
 } from '@jixie/shared';
+import { getJob } from '#infra/jobs/records.js';
 import { prisma } from '#infra/database/prisma.js';
 import { executionWire } from '../accounting/read.js';
 import { deploymentWire } from '../deployments/read.js';
 import { factorDependenciesFromJson } from '../factor-inputs/lineage.js';
 
-export async function listTodaySignals(
+export async function listDeploymentLatestRuns(
   userId: string,
 ): Promise<Array<{ deployment: StrategyDeployment; run: SignalRun | null }>> {
   const rows = await prisma.strategyDeployment.findMany({
@@ -67,6 +68,14 @@ export async function getSignalRun(userId: string, runId: string): Promise<Signa
     },
   });
   return row ? signalRunWire(row, row.deployment.strategyName) : null;
+}
+
+export async function getSignalRunJob(userId: string, jobId: string, since = 0) {
+  const job = await prisma.job.findFirst({
+    where: { id: jobId, userId, kind: 'signal' },
+    select: { id: true },
+  });
+  return job ? getJob(userId, job.id, since) : null;
 }
 
 function signalRunWire(

@@ -6,12 +6,12 @@ Market 负责行情和领域数据的获取、身份、同步、查询与市场�
 
 | 要做什么 | 入口 | 职责 |
 | --- | --- | --- |
-| 查 HTTP 地址和参数 | [routes.ts](routes.ts) | `/api/app/market` 的 9 个 GET；解析请求、选择查询、映射无数据错误 |
+| 查 HTTP 地址和参数 | [routes.ts](routes.ts) | `/api/app/market` 的 7 个 GET；解析请求、选择查询、映射无数据错误 |
 | 改 Tushare 通道或配置 | [providers/tushare/](providers/tushare/) | `client.ts` 的队列/限流/重试，`api.ts` 的协议，`config.ts` 的环境配置，能力探测与记录 |
 | 找 ETF、指数、基准清单 | [registry/](registry/) | 纯静态数据和校验；导入清单不连接数据库。跨市场基准写库在 `sync/cross-market-benchmarks.ts` |
 | 解析证券代码和名字 | [instruments/](instruments/) | `stock-identity.ts` 的历史代码与名称规则，`instrument-resolver.ts` 的身份校验，`names.ts` 的批量名称查询 |
 | 同步股票、日历、ETF、指数或期货 | [sync/](sync/) | 按下表选择具体同步入口；各函数继续负责自己的校验、事务和断点语义 |
-| 查询价格和跨市场换汇序列 | [queries/](queries/) | `instrument-series.ts` 的统一对象序列；旧指数/期货 HTTP 使用各自查询；`cross-market-benchmarks.ts` 的 CNY 基准换算；`stock-codes.ts` 的已有行情证券清单 |
+| 查询价格和跨市场换汇序列 | [queries/](queries/) | `instrument-series.ts` 的统一对象序列；指数收盘 HTTP 使用独立精简查询；`cross-market-benchmarks.ts` 的 CNY 基准换算；`stock-codes.ts` 的已有行情证券清单 |
 | 读市场状态或天气 | [state/](state/) | `compute.ts` 纯计算；`read.ts` 查询并组装状态；`weather.ts` 查询、估值来源合并及进程内缓存；`market-risk-drivers.ts` 提供风险输入序列 |
 | 读指数估值 | [valuation/](valuation/) | `compute.ts` 计算序列与分位；`read.ts` 读取覆盖目录、官方估值和收盘序列 |
 | 查财报来源、版本或指标 | [fundamentals/](fundamentals/) | `source-contract.ts` 来源协议，`sync.ts` 财报同步，`reference-sync.ts` 财务指标/分红同步，`normalize.ts` 标准化，`resolver.ts` 版本选择，`metrics.ts` 指标，accounting-quality/valuation-sample-audit 质量审计 |
@@ -47,3 +47,14 @@ Market 负责行情和领域数据的获取、身份、同步、查询与市场�
 - Market 不导入 Strategy、Agent 或 Research 执行。策略风险模型的历史要求归 `strategy/analysis/risk`，由 `maintenance/risk-data-audit.ts` 与市场基础审计组合。
 
 财报版本、availableDate、币种转换、期货换月、覆盖阈值和数据单位均沿用原实现。此目录调整没有数据库表、迁移或 SDK 契约变更。
+
+
+## HTTP 路由整理（2026-09-11）
+
+`routes.ts` 直接组合 `instrument-routes.ts`、`valuation-routes.ts`、`state-routes.ts`。名称与统一行情入口使用 `/instruments/names`、`/instruments/:assetType/:instrumentId/series`；前端使用 fetchInstrumentNames / fetchInstrumentSeries。估值目录与详情统一在 `/index-valuations`、`/index-valuations/:indexCode`。
+
+删除闲置 `/futures/:code/series`、其专用 `queries/future-series.ts` 和前端未使用的 fetchFutureSeries。统一 instrument 查询继续支持直接合约和按日映射的连续合约。删除旧 `/industry-weather` HTTP，`state/weather.ts` 的 loadIndustryWeatherSeries 保留，统一 `/weather?dimension=industry` 继续复用它。
+
+`/indices/:indexCode/series` 保留原精简 `{ points: [{ date, close }] }` 响应、默认区间及空数组语义，与通用行情查询不合并。`/weather`、`/state` 的查询、缓存和数据口径不变。非法 instrument 类型改用中英消息目录，不改变 400 状态。
+
+静态检查与待执行验证见 [统一路由记录](../../../../docs/design/api-route-naming.md#剩余模块路由整理2026-09-11)。人工代码审查后，相关 116 项测试、API/Web 构建和六组浏览器验收全部通过。临时服务、端口和数据库连接已释放，测试数据库已清理；完整结果见统一路由记录。

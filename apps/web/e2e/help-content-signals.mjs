@@ -139,7 +139,7 @@ async function captureDeploymentFlow() {
 }
 
 async function captureSignalFlow() {
-  await page.route('**/api/app/signals/run', async (route) => {
+  await page.route('**/api/app/signals/deployments/*/runs', async (route) => {
     if (route.request().method() !== 'POST') {
       await route.continue();
       return;
@@ -184,7 +184,7 @@ async function captureSignalFlow() {
   if (!rowText.includes('600519.SH') || !rowText.includes('买入') || !rowText.includes('300')) {
     throw new Error(`unexpected signal row: ${rowText}`);
   }
-  const persisted = await json('/api/app/signals/today');
+  const persisted = await json('/api/app/signals/deployments/latest-runs');
   const entry = persisted.find((item) => item.deployment.strategyName === STRATEGY_NAME);
   const signal = entry?.run?.signals?.[0];
   if (
@@ -215,19 +215,21 @@ async function captureSignalFlow() {
 }
 
 async function captureExecutionFlow(deploymentId) {
-  await page.unroute('**/api/app/signals/run');
+  await page.unroute('**/api/app/signals/deployments/*/runs');
   const settlement = await page.evaluate(async (id) => {
-    const response = await fetch('/api/app/signals/run', {
+    const response = await fetch(`/api/app/signals/deployments/${id}/runs`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ deploymentId: id, tradeDate: '20260729' }),
+      body: JSON.stringify({ tradeDate: '20260729' }),
     });
     const body = await response.json();
     if (!response.ok || !body.jobId) {
       return { status: response.status, body };
     }
     for (let attempt = 0; attempt < 120; attempt++) {
-      const job = await fetch(`/api/app/signals/jobs/${body.jobId}`).then((item) => item.json());
+      const job = await fetch(`/api/app/signals/run-jobs/${body.jobId}`).then((item) =>
+        item.json(),
+      );
       if (job.status !== 'running') {
         return { status: 200, body: job };
       }
@@ -303,7 +305,7 @@ async function submitSignal() {
   const submission = page.waitForResponse(
     (response) =>
       response.request().method() === 'POST' &&
-      new URL(response.url()).pathname === '/api/app/signals/run',
+      /^\/api\/app\/signals\/deployments\/[^/]+\/runs$/.test(new URL(response.url()).pathname),
   );
   await page.getByRole('button', { name: '立即生成' }).click();
   const response = await submission;

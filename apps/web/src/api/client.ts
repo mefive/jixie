@@ -257,7 +257,7 @@ function notifyMaintenance(error: { code?: string; details?: unknown } | null | 
 
 // The live turn for an entity ('strategy:<id>' | 'factor:<id>' | 'research:<id>') — refresh reattach.
 export function findRunningAgentTurn(entityKey: string): Promise<{ turnId: string | null }> {
-  return request(`/api/app/agent/turns/running?entity=${encodeURIComponent(entityKey)}`);
+  return request(`/api/app/agent/turns/active?entity=${encodeURIComponent(entityKey)}`);
 }
 
 // Abort the upstream LLM (idempotent; already-finished turns are a no-op).
@@ -266,7 +266,7 @@ export function cancelAgentTurn(turnId: string): Promise<{ ok: true; cancelled: 
 }
 
 export function getAgentTurn(turnId: string): Promise<AgentTurnDetail> {
-  return request(`/api/app/agent/turns/${turnId}/detail`);
+  return request(`/api/app/agent/turns/${turnId}`);
 }
 
 export function getAgentConversationMessages(
@@ -579,12 +579,15 @@ export function updateResearchCuratorFinding(
 
 // Read-only SQL over the market-table whitelist — chart cards re-run their persisted query here.
 export function agentSql(sql: string): Promise<SqlRows> {
-  return request('/api/app/agent/sql', { method: 'POST', body: JSON.stringify({ sql }) });
+  return request('/api/app/agent/sql-queries', { method: 'POST', body: JSON.stringify({ sql }) });
 }
 
 // Re-run a compute-source chart card (persisted queries + sandboxed transform → row table).
 export function agentComputeChart(spec: ComputeChartSpec): Promise<SqlRows> {
-  return request('/api/app/agent/chart/compute', { method: 'POST', body: JSON.stringify(spec) });
+  return request('/api/app/agent/chart-computations', {
+    method: 'POST',
+    body: JSON.stringify(spec),
+  });
 }
 
 // Parse an SSE body (hono streamSSE: `data: <json>\n\n` frames). fetch + ReadableStream instead of
@@ -727,13 +730,13 @@ export function listStrategyDeployments(strategyId: string): Promise<StrategyDep
   return request(`/api/app/signals/deployments?strategyId=${encodeURIComponent(strategyId)}`);
 }
 
-export function listTodaySignals(): Promise<SignalTodayEntry[]> {
-  return request('/api/app/signals/today');
+export function listDeploymentLatestRuns(): Promise<SignalTodayEntry[]> {
+  return request('/api/app/signals/deployments/latest-runs');
 }
 
 export function listSignalRuns(deploymentId: string, limit = 30): Promise<SignalRun[]> {
   return request(
-    `/api/app/signals/runs?deploymentId=${encodeURIComponent(deploymentId)}&limit=${limit}`,
+    `/api/app/signals/deployments/${encodeURIComponent(deploymentId)}/runs?limit=${limit}`,
   );
 }
 
@@ -745,14 +748,14 @@ export function submitSignalRun(
   deploymentId: string,
   tradeDate?: string,
 ): Promise<{ runId: string; jobId: string | null; started: boolean }> {
-  return request('/api/app/signals/run', {
+  return request(`/api/app/signals/deployments/${encodeURIComponent(deploymentId)}/runs`, {
     method: 'POST',
-    body: JSON.stringify({ deploymentId, ...(tradeDate ? { tradeDate } : {}) }),
+    body: JSON.stringify(tradeDate ? { tradeDate } : {}),
   });
 }
 
 export function pollSignalJob(jobId: string, since = 0): Promise<BacktestJob> {
-  return request(`/api/app/signals/jobs/${jobId}?since=${since}`);
+  return request(`/api/app/signals/run-jobs/${jobId}?since=${since}`);
 }
 
 export function getStrategyExecutionOverview(
@@ -860,7 +863,7 @@ export function runResearchUniverse(spec: UniverseSpecV1): Promise<ResearchUnive
 }
 
 // A verified object's chartable daily series.
-export function fetchObjectSeries(
+export function fetchInstrumentSeries(
   assetType: ResearchAssetTypeV1,
   id: string,
   start?: string,
@@ -875,16 +878,14 @@ export function fetchObjectSeries(
   }
   const suffix = query.size > 0 ? `?${query.toString()}` : '';
 
-  return request(`/api/app/market/objects/${assetType}/${encodeURIComponent(id)}/series${suffix}`);
-}
-
-export function fetchFutureSeries(code: string, start: string, end: string): Promise<StockSeries> {
-  return request(`/api/app/market/futures/${code}/series?start=${start}&end=${end}`);
+  return request(
+    `/api/app/market/instruments/${assetType}/${encodeURIComponent(id)}/series${suffix}`,
+  );
 }
 
 // tsCode → name (bulk) — e.g. instrument labels in execution detail.
-export function fetchNames(codes: string[]): Promise<Record<string, string>> {
-  return request(`/api/app/market/names?codes=${encodeURIComponent(codes.join(','))}`);
+export function fetchInstrumentNames(codes: string[]): Promise<Record<string, string>> {
+  return request(`/api/app/market/instruments/names?codes=${encodeURIComponent(codes.join(','))}`);
 }
 
 // Index daily close (e.g. 000300.SH) over a range — benchmark curves in backtest results.
@@ -897,14 +898,14 @@ export function fetchIndexSeries(
 }
 
 export function fetchIndexValuationCatalog(signal?: AbortSignal): Promise<IndexValuationCatalog> {
-  return request('/api/app/market/indices/valuation/catalog', { signal });
+  return request('/api/app/market/index-valuations', { signal });
 }
 
 export function fetchIndexValuationSeries(
   code: string,
   signal?: AbortSignal,
 ): Promise<IndexValuationSeries> {
-  return request(`/api/app/market/indices/${encodeURIComponent(code)}/valuation`, { signal });
+  return request(`/api/app/market/index-valuations/${encodeURIComponent(code)}`, { signal });
 }
 
 export function fetchMarketState(

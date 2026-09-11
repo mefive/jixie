@@ -282,7 +282,7 @@ try {
     }
     return route.fulfill({ json: fixtureFactor });
   });
-  await guardPage.route('**/api/app/agent/turns/running**', (route) =>
+  await guardPage.route('**/api/app/agent/turns/active**', (route) =>
     route.fulfill({ json: { turnId: null } }),
   );
   await guardPage.route('**/api/app/factors/analysis-reports/e2e-report', (route) =>

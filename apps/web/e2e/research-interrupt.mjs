@@ -106,7 +106,7 @@ try {
   await page.route('**/api/app/research/curator/runs/latest', (route) =>
     route.fulfill({ json: null }),
   );
-  await page.route('**/api/app/agent/turns/running**', (route) =>
+  await page.route('**/api/app/agent/turns/active**', (route) =>
     route.fulfill({ json: { turnId: null } }),
   );
   await page.route('**/api/app/research/language/python', async (route) => {

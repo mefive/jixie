@@ -123,7 +123,7 @@ try {
 
   await page.getByRole('link', { name: '今日信号' }).click();
   await page.getByRole('heading', { name: '每日信号验收' }).waitFor({ timeout: 15_000 });
-  await page.route('**/api/app/signals/run', async (route) => {
+  await page.route('**/api/app/signals/deployments/*/runs', async (route) => {
     if (route.request().method() !== 'POST') {
       await route.continue();
       return;
@@ -140,7 +140,7 @@ try {
   const signalSubmission = page.waitForResponse(
     (response) =>
       response.request().method() === 'POST' &&
-      new URL(response.url()).pathname === '/api/app/signals/run',
+      /^\/api\/app\/signals\/deployments\/[^/]+\/runs$/.test(new URL(response.url()).pathname),
   );
   await page.getByRole('button', { name: '立即生成' }).click();
   const signalResponse = await signalSubmission;
@@ -157,7 +157,7 @@ try {
   }
 
   const persisted = await page.evaluate(async () => {
-    const entries = await (await fetch('/api/app/signals/today')).json();
+    const entries = await (await fetch('/api/app/signals/deployments/latest-runs')).json();
     const entry = entries.find((item) => item.deployment.strategyName === '每日信号验收');
     return entry ?? null;
   });
@@ -178,12 +178,12 @@ try {
     fail(`development notification should be skipped: ${JSON.stringify(persisted.run)}`);
   }
 
-  await page.unroute('**/api/app/signals/run');
+  await page.unroute('**/api/app/signals/deployments/*/runs');
   const settlement = await page.evaluate(async (deploymentId) => {
-    const submitted = await fetch('/api/app/signals/run', {
+    const submitted = await fetch(`/api/app/signals/deployments/${deploymentId}/runs`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ deploymentId, tradeDate: '20260729' }),
+      body: JSON.stringify({ tradeDate: '20260729' }),
     });
     const body = await submitted.json();
     if (!submitted.ok) {
@@ -193,7 +193,7 @@ try {
       return { status: 200, body };
     }
     for (let attempt = 0; attempt < 120; attempt++) {
-      const job = await (await fetch(`/api/app/signals/jobs/${body.jobId}`)).json();
+      const job = await (await fetch(`/api/app/signals/run-jobs/${body.jobId}`)).json();
       if (job.status !== 'running' && job.status !== 'queued') {
         return { status: 200, body: job };
       }
@@ -214,7 +214,7 @@ try {
     fail(`unexpected conditional signal row: ${conditionText}`);
   }
   const latestEntry = await page.evaluate(async () => {
-    const entries = await (await fetch('/api/app/signals/today')).json();
+    const entries = await (await fetch('/api/app/signals/deployments/latest-runs')).json();
     return entries.find((item) => item.deployment.strategyName === '每日信号验收') ?? null;
   });
   const conditionalSignal = latestEntry?.run?.signals?.find(
