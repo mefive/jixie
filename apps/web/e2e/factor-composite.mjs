@@ -145,7 +145,7 @@ try {
   const detail = await page.evaluate(async (reportId) => {
     const deadline = Date.now() + 180_000;
     while (Date.now() < deadline) {
-      const response = await fetch(`/api/app/factors/reports/${reportId}`, {
+      const response = await fetch(`/api/app/factors/analysis-reports/${reportId}`, {
         cache: 'no-store',
       });
       if (response.ok) {

@@ -1161,11 +1161,11 @@ export function getFactorReports(
   if (cursor) {
     query.set('cursor', cursor);
   }
-  return request(`/api/app/factors/reports?${query}`);
+  return request(`/api/app/factors/analysis-reports?${query}`);
 }
 
 export function getFactorReport(reportId: string): Promise<FactorReportDetail> {
-  return request(`/api/app/factors/reports/${encodeURIComponent(reportId)}`);
+  return request(`/api/app/factors/analysis-reports/${encodeURIComponent(reportId)}`);
 }
 
 // Every terminal re-run creates a new immutable report. Only an identical running variant is reused.
@@ -1191,13 +1191,13 @@ export function getFactorResearchSummary(factor?: string): Promise<FactorResearc
 }
 
 export function runFactorHoldout(reportId: string): Promise<RunFactorAnalysisResponse> {
-  return request(`/api/app/factors/reports/${encodeURIComponent(reportId)}/holdout`, {
+  return request(`/api/app/factors/analysis-reports/${encodeURIComponent(reportId)}/holdout`, {
     method: 'POST',
   });
 }
 
 export function revealFactorHoldout(reportId: string): Promise<FactorReportDetail> {
-  return request(`/api/app/factors/reports/${encodeURIComponent(reportId)}/reveal`, {
+  return request(`/api/app/factors/analysis-reports/${encodeURIComponent(reportId)}/reveal`, {
     method: 'POST',
   });
 }
@@ -1210,8 +1210,8 @@ export interface FactorJob {
   nextSince: number;
   error?: string | null;
 }
-export function pollFactorJob(jobId: string, since = 0): Promise<FactorJob> {
-  return request(`/api/app/factors/analysis-jobs/${jobId}?since=${since}`);
+export function pollFactorAnalysisJob(jobId: string, since = 0): Promise<FactorJob> {
+  return request(`/api/app/factors/analysis-jobs/${encodeURIComponent(jobId)}?since=${since}`);
 }
 
 // —— Correlation matrix (3.4): 2–8 factors × a fixed size column ——
@@ -1233,24 +1233,24 @@ export function runFactorCorrelation(
   end: string,
   refresh = false,
 ): Promise<{ done: true; report: FactorCorrelation } | { jobId: string }> {
-  const q = new URLSearchParams({
-    keys: keys.join(','),
-    freq,
-    start,
-    end,
-    ...(refresh ? { refresh: '1' } : {}),
+  return request('/api/app/factors/correlations', {
+    method: 'POST',
+    body: JSON.stringify({ keys, freq, start, end, refresh }),
   });
-  return request(`/api/app/factors/correlations?${q}`, { method: 'POST' });
 }
 
-export function findCorrelationRunningJob(
+export function findActiveFactorCorrelationJob(
   keys: string[],
   freq: FactorFreq,
   start: string,
   end: string,
-): Promise<{ jobId: string | null }> {
+): Promise<{ jobId: string } | null> {
   const q = new URLSearchParams({ keys: keys.join(','), freq, start, end });
-  return request(`/api/app/factors/correlations/running?${q}`);
+  return request(`/api/app/factors/correlation-jobs/active?${q}`);
+}
+
+export function pollFactorCorrelationJob(jobId: string, since = 0): Promise<FactorJob> {
+  return request(`/api/app/factors/correlation-jobs/${encodeURIComponent(jobId)}?since=${since}`);
 }
 
 // —— Factor weather: immutable pinned factors with offline monthly observations ——

@@ -499,7 +499,7 @@ function assertAllocationAnalysis(result, expectedFactorId, expectedCodeHash) {
 async function waitForReport(page, reportId) {
   const deadline = Date.now() + 300_000;
   while (Date.now() < deadline) {
-    const report = await api(page, `/api/app/factors/reports/${reportId}`);
+    const report = await api(page, `/api/app/factors/analysis-reports/${reportId}`);
     if (report.status === 'done') {
       return report;
     }

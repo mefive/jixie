@@ -34,7 +34,9 @@ const waitForReport = (reportId) =>
   page.evaluate(async (id) => {
     const deadline = Date.now() + 180_000;
     while (Date.now() < deadline) {
-      const response = await fetch(`/api/app/factors/reports/${id}`, { cache: 'no-store' });
+      const response = await fetch(`/api/app/factors/analysis-reports/${id}`, {
+        cache: 'no-store',
+      });
       const report = await response.json();
       if (['done', 'error', 'stale'].includes(report.status)) {
         return report;

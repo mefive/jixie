@@ -517,7 +517,7 @@ Content-Type: application/json
 后续维护时以实际搜索结果为准，至少检查：
 
 - `apps/api/prisma/schema.prisma`
-- `apps/api/src/factor/research-routes.ts`
+- `apps/api/src/factor/analysis-routes.ts`
 - `apps/api/src/factor/routes.ts`
 - `apps/api/src/factor/analysis/factor-worker.ts`
 - `apps/api/src/factor/definitions/builtin-factors.ts`

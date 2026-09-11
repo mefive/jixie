@@ -1,14 +1,12 @@
 import { z } from 'zod';
 import { prisma } from '#infra/database/prisma.js';
-import { getJob } from '#infra/jobs/records.js';
+import { readOwnedFactorJob, type factorJobLogsQuerySchema } from '../analysis/job-queries.js';
 import { getHoldoutPolicy, parseResearchIntent, researchCounts } from './research-policy.js';
 import { holdoutEligibility } from './holdout-policy.js';
 import { reportSummary, reportResearchSpec, parseResearchPayload } from './views.js';
 import { t } from '#i18n/index.js';
 import type { Locale } from '@jixie/shared';
 import { failFactorOperation } from '../operation-errors.js';
-
-export const factorJobLogsQuerySchema = z.object({ since: z.string().regex(/^\d+$/).optional() });
 
 export const factorReportListQuerySchema = z.object({
   factor: z.string().min(1),
@@ -87,7 +85,7 @@ export async function readFactorAnalysisJob(
   input: z.infer<typeof factorJobLogsQuerySchema>,
   locale: Locale,
 ) {
-  const job = await getJob(userId, jobId, Number(input.since ?? '0'));
+  const job = await readOwnedFactorJob(userId, jobId, 'analysis', Number(input.since ?? '0'));
 
   if (!job) {
     return failFactorOperation('missing', t(locale, 'factorJobNotFound'));

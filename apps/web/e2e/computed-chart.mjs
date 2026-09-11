@@ -107,7 +107,7 @@ try {
       },
     }),
   );
-  await page.route('**/api/app/factors/reports?*', (route) =>
+  await page.route('**/api/app/factors/analysis-reports?*', (route) =>
     route.fulfill({ json: { items: [] } }),
   );
   await page.goto(`${BASE}/factors?factor=e2e-chart`, { waitUntil: 'domcontentloaded' });

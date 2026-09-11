@@ -161,7 +161,7 @@ async function runCompositeAnalysis() {
   const detail = await page.evaluate(async (reportId) => {
     const deadline = Date.now() + 180_000;
     while (Date.now() < deadline) {
-      const report = await fetch(`/api/app/factors/reports/${reportId}`).then((response) =>
+      const report = await fetch(`/api/app/factors/analysis-reports/${reportId}`).then((response) =>
         response.json(),
       );
       if (report.status !== 'running') {

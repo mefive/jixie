@@ -245,14 +245,14 @@ async function runFactor(page, factor, spec, researchIntent) {
 }
 
 async function createHoldout(page, reportId) {
-  return api(page, `/api/app/factors/reports/${reportId}/holdout`, { method: 'POST' });
+  return api(page, `/api/app/factors/analysis-reports/${reportId}/holdout`, { method: 'POST' });
 }
 
 async function revealHoldout(page, reportId) {
-  const revealed = await api(page, `/api/app/factors/reports/${reportId}/reveal`, {
+  const revealed = await api(page, `/api/app/factors/analysis-reports/${reportId}/reveal`, {
     method: 'POST',
   });
-  const repeated = await api(page, `/api/app/factors/reports/${reportId}/reveal`, {
+  const repeated = await api(page, `/api/app/factors/analysis-reports/${reportId}/reveal`, {
     method: 'POST',
   });
   if (repeated.revealedAt !== revealed.revealedAt) {
@@ -264,7 +264,7 @@ async function revealHoldout(page, reportId) {
 async function waitForReport(page, reportId) {
   const deadline = Date.now() + 300_000;
   while (Date.now() < deadline) {
-    const report = await api(page, `/api/app/factors/reports/${reportId}`);
+    const report = await api(page, `/api/app/factors/analysis-reports/${reportId}`);
     if (report.status === 'done') {
       return report;
     }

@@ -42,9 +42,13 @@ try {
   const diagnostic = await waitForReport(page, diagnosticRun.reportId);
   assertExplore('size-industry diagnostic', diagnostic, window, 'size_industry');
 
-  const holdoutRun = await api(page, `/api/app/factors/reports/${mainRun.reportId}/holdout`, {
-    method: 'POST',
-  });
+  const holdoutRun = await api(
+    page,
+    `/api/app/factors/analysis-reports/${mainRun.reportId}/holdout`,
+    {
+      method: 'POST',
+    },
+  );
   const sealed = await waitForReport(page, holdoutRun.reportId);
   const sealedJob = await api(page, `/api/app/factors/analysis-jobs/${holdoutRun.jobId}`);
   if (
@@ -58,9 +62,13 @@ try {
     throw new Error(`sealed holdout leaked evidence: ${JSON.stringify({ sealed, sealedJob })}`);
   }
 
-  const holdout = await api(page, `/api/app/factors/reports/${holdoutRun.reportId}/reveal`, {
-    method: 'POST',
-  });
+  const holdout = await api(
+    page,
+    `/api/app/factors/analysis-reports/${holdoutRun.reportId}/reveal`,
+    {
+      method: 'POST',
+    },
+  );
   if (
     holdout.phase !== 'holdout' ||
     holdout.sealed ||
@@ -73,9 +81,13 @@ try {
   }
   assertEvidence('holdout', holdout.payload);
 
-  const revealedAgain = await api(page, `/api/app/factors/reports/${holdoutRun.reportId}/reveal`, {
-    method: 'POST',
-  });
+  const revealedAgain = await api(
+    page,
+    `/api/app/factors/analysis-reports/${holdoutRun.reportId}/reveal`,
+    {
+      method: 'POST',
+    },
+  );
   if (revealedAgain.revealedAt !== holdout.revealedAt) {
     throw new Error('holdout reveal was not idempotent');
   }
@@ -179,7 +191,7 @@ async function runFactor(page, spec, parentReportId = null) {
 async function waitForReport(page, reportId) {
   const deadline = Date.now() + 300_000;
   while (Date.now() < deadline) {
-    const report = await api(page, `/api/app/factors/reports/${reportId}`);
+    const report = await api(page, `/api/app/factors/analysis-reports/${reportId}`);
     if (report.status === 'done') {
       return report;
     }

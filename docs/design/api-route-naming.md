@@ -7,8 +7,8 @@
 - 同一业务资源统一前缀：策略 `/strategies`，因子 `/factors`。从路径直接识别资源、对象和操作，不靠单复数区分功能。
 - GET 读取、POST 创建资源或触发操作、PATCH 局部修改、DELETE 删除。发布、归档、复制、holdout 和 reveal 保留明确动作，避免伪装成普通字段更新。
 - 对象归属 ID 放在路径。回测/扫描不再通过 `?strategyId=` 选择所属策略，策略/因子 Agent 和因子元数据刷新不再要求 body 的 `id`。HTTP 层以路径 ID 构造业务输入，额外 body/query ID 不能覆盖它。
-- 查询条件、分页与增量日志仍在 query；分析参数、代码、消息等仍在 body。除 Strategy 活动任务返回值与扫描任务寻址的下述调整外，响应结构、业务状态、鉴权和持久化语义保持。
-- 模块根级 `routes.ts` 是唯一对外路由入口，具名导出模块总路由。Strategy 在 `routes.ts` 直接组合 definition、agent、backtest、scan 四组处理器；Factor 保留 `resource-routes.ts` 组合。处理器按业务职责分文件实现。实现文件直接导入子路由，避免反向引用入口。
+- 查询条件、分页与增量日志仍在 query；分析参数、代码、消息等仍在 body。除 Strategy 活动任务与扫描寻址、Factor 相关性提交和任务查询的下述调整外，响应结构、业务状态、鉴权和持久化语义保持。
+- 模块根级 `routes.ts` 是唯一对外路由入口，具名导出模块总路由。Strategy 在 `routes.ts` 直接组合 definition、agent、backtest、scan 四组处理器；Factor 在 `routes.ts` 直接组合 definition、composite、agent、analysis、correlation、weather 六组处理器。处理器按业务职责分文件实现。实现文件直接导入子路由，避免反向引用入口。
 - 中间件从 `middleware.ts` 导入：`requireAuth` 与 `maintenanceGate` 不由 `routes.ts` 导出。
 - 集合保留路径先注册，通用 `/:strategyId`、`/:factorId` 后注册。
 
@@ -69,13 +69,14 @@ Strategy 是当前可编辑策略，Report 保存一次计算的冻结输入、�
 | POST | `/factors/:factorId/metadata/refresh` | 刷新代码元数据 |
 | POST | `/factors/questions` | 因子问答，无需持久化因子 ID |
 | POST | `/factors/analyses` | 提交分析 |
-| GET | `/factors/reports` | 按 `factor` 来源筛选报告，保留分页参数 |
-| GET | `/factors/reports/:reportId` | 读取报告 |
-| POST | `/factors/reports/:reportId/holdout` | 发起留出集验证 |
-| POST | `/factors/reports/:reportId/reveal` | 揭示留出集报告 |
+| GET | `/factors/analysis-reports` | 按 `factor` 来源筛选报告，保留分页参数 |
+| GET | `/factors/analysis-reports/:reportId` | 读取报告 |
+| POST | `/factors/analysis-reports/:reportId/holdout` | 发起留出集验证 |
+| POST | `/factors/analysis-reports/:reportId/reveal` | 揭示留出集报告 |
 | GET | `/factors/analysis-jobs/:jobId` | 查询分析任务，保留 `since` |
 | GET / POST | `/factors/correlations` | 查询 / 提交相关性分析 |
-| GET | `/factors/correlations/running` | 查找运行中的相关性任务 |
+| GET | `/factors/correlation-jobs/active` | 查找 queued/running 相关性任务，返回 `{ jobId }` 或 null |
+| GET | `/factors/correlation-jobs/:jobId` | 查询相关性任务状态与增量日志，保留 `since` |
 | GET | `/factors/research/window` | 研究窗口与留出集规则 |
 | GET | `/factors/research/summary` | 研究概况，保留可选 `factor` 查询 |
 | GET | `/factors/weather` | 因子天气 |
@@ -83,7 +84,7 @@ Strategy 是当前可编辑策略，Report 保存一次计算的冻结输入、�
 | POST | `/factors/weather/pins/:pinId/refresh` | 刷新固定项 |
 | DELETE | `/factors/weather/pins/:pinId` | 取消固定 |
 
-分析来源可能是预置、模板、自定义或组合，继续由 body 的 `factor` 指定，不强行挂到自定义因子 ID 下。相关性分析涉及多个因子，继续通过 query 的 `keys`、`freq`、`start`、`end` 以及提交时可选 `refresh` 表达输入。天气固定项使用 pinId，与其引用的 factorId 区分。
+分析来源可能是预置、模板、自定义或组合，继续由 body 的 `factor` 指定，不强行挂到自定义因子 ID 下。相关性分析涉及多个因子：GET 结果和活动任务查询使用 query 的 `keys`（逗号分隔）、`freq`、`start`、`end`；POST 提交使用 JSON body 的 `keys`（字符串数组）、`freq`、`start`、`end`、`refresh`（布尔值，默认 false）。频率和区间默认值仍为 month / 20150101 / 20261231。天气固定项使用 pinId，与其引用的 factorId 区分。
 
 ## 迁移对照
 
@@ -109,9 +110,10 @@ Strategy 是当前可编辑策略，Report 保存一次计算的冻结输入、�
 | `POST /factor/qa` | `POST /factors/questions` |
 | `POST /factor/analysis/run` | `POST /factors/analyses` |
 | `GET /factor/analysis/job/:jobId` | `GET /factors/analysis-jobs/:jobId` |
-| `/factor/reports...`、`/factor/research...` | 对应 `/factors/reports...`、`/factors/research...` |
+| `/factor/reports...`、`/factors/reports...` | 对应 `/factors/analysis-reports...` |
+| `/factor/research...` | 对应 `/factors/research...` |
 | `GET /factor/correlation`、`POST /factor/correlation/run` | `GET / POST /factors/correlations` |
-| `GET /factor/correlation/running` | `GET /factors/correlations/running` |
+| `GET /factor/correlation/running`、`GET /factors/correlations/running` | `GET /factors/correlation-jobs/active` |
 | `/factor-weather...` | `/factors/weather...` |
 
 这次同步迁移后端、Web client、测试及 E2E，不提供旧路径别名。已有打开的旧前端需要刷新；外部或本地自建 HTTP 调用方需要按上表更新。发布时 API 与 Web 应一起更新。
@@ -123,3 +125,14 @@ Auth、Maintenance、Agent、Market、Research、Signals、Library 的 HTTP 路�
 初次资源前缀迁移的验证范围：代码 review 前只运行格式、lint、类型与后端边界静态检查。Review 后执行策略/因子路由集成测试、回测路由与多用户权限测试、API/Web 构建，以及回测报告历史和因子天气 E2E。重点覆盖集合路径与动态 ID 匹配、PATCH 约定、路径 ID 不被 body/query 覆盖、报告归属及封存保护、前端请求与轮询迁移。
 
 Strategy 路由职责整理的提交为 `refactor(strategy): clarify resource routes and route ownership`，开发记录见 [Strategy README](../../apps/api/src/strategy/README.md)。本次已通过人工代码审查、静态检查、37 项策略路由/多用户权限测试、API/Web 构建，以及策略操作、回测报告历史、参数扫描三组 E2E，覆盖 jobId/reportId 分离、任务类型隔离、活动任务空值及刷新恢复。Factor 路由不在本次调整范围。
+
+
+## Factor 路由职责整理（2026-09-10）
+
+用户已确认方案，计划提交 `refactor(factor): clarify resource routes and route ownership`。Factor 路由按定义、组合、Agent、分析、相关性、天气六组组织；元数据刷新归定义，发布异常映射由 `route-errors.ts` 共用。
+
+普通分析（含 holdout）与相关性分别从 `/analysis-jobs/:jobId` 和 `/correlation-jobs/:jobId` 查询。两类持久化任务仍使用 `kind: factor`，查询层按报告关联与 `payload.task` 区分，并兼容缺少 task 的历史分析任务；封存的 holdout 日志不能从相关性路径读取。
+
+相关性结果沿用缓存，不新增报告资源或 reportId。POST 返回 `{ jobId }` 或缓存命中 `{ done: true, report }`。旧 query-only POST 调用必须迁移到 JSON body；原来通过 analysis-jobs 轮询相关性的调用必须迁移到 correlation-jobs。旧 `/reports` 和 `/correlations/running` 不保留别名；API/Web 与仓内调用同步迁移。
+
+人工代码审查、静态检查、81 项测试、API/Web 构建和四组 Factor E2E 均已通过。验证范围与实际结果记录在 [Factor README](../../apps/api/src/factor/README.md)。

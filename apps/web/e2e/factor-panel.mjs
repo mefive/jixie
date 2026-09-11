@@ -52,7 +52,7 @@ const waitForReport = (reportId) =>
   page.evaluate(async (id) => {
     const deadline = Date.now() + 180_000;
     while (Date.now() < deadline) {
-      const report = await fetch(`/api/app/factors/reports/${id}`, {
+      const report = await fetch(`/api/app/factors/analysis-reports/${id}`, {
         cache: 'no-store',
       }).then((response) => response.json());
       if (['done', 'error', 'stale'].includes(report.status)) {
@@ -254,9 +254,12 @@ try {
   ) {
     throw new Error(`invalid revealed panel holdout: ${JSON.stringify(revealed)}`);
   }
-  const revealedAgain = await api(`/api/app/factors/reports/${holdoutRun.reportId}/reveal`, {
-    method: 'POST',
-  });
+  const revealedAgain = await api(
+    `/api/app/factors/analysis-reports/${holdoutRun.reportId}/reveal`,
+    {
+      method: 'POST',
+    },
+  );
   if (revealedAgain.status !== 200 || revealedAgain.body.revealedAt !== revealed.revealedAt) {
     throw new Error(`panel holdout reveal was not idempotent: ${JSON.stringify(revealedAgain)}`);
   }

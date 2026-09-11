@@ -46,7 +46,7 @@ async function openRawEarningsYieldReport() {
   await page.locator('.jx-factor-paramSummary').waitFor({ timeout: 20_000 });
 
   const rawReportId = await page.evaluate(async () => {
-    const response = await fetch('/api/app/factors/reports?factor=ep&limit=100');
+    const response = await fetch('/api/app/factors/analysis-reports?factor=ep&limit=100');
     const reports = await response.json();
     return (
       reports.items.find(

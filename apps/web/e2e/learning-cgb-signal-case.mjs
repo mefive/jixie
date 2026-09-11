@@ -78,9 +78,13 @@ try {
     throw new Error(`Factor report is not holdout eligible: ${JSON.stringify(explore.holdout)}`);
   }
 
-  const holdoutRun = await api(page, `/api/app/factors/reports/${factorRun.reportId}/holdout`, {
-    method: 'POST',
-  });
+  const holdoutRun = await api(
+    page,
+    `/api/app/factors/analysis-reports/${factorRun.reportId}/holdout`,
+    {
+      method: 'POST',
+    },
+  );
   const sealed = await waitForReport(page, holdoutRun.reportId);
   const sealedJob = await api(page, `/api/app/factors/analysis-jobs/${holdoutRun.jobId}`);
   if (
@@ -94,9 +98,13 @@ try {
   ) {
     throw new Error(`sealed holdout leaked evidence: ${JSON.stringify({ sealed, sealedJob })}`);
   }
-  const holdout = await api(page, `/api/app/factors/reports/${holdoutRun.reportId}/reveal`, {
-    method: 'POST',
-  });
+  const holdout = await api(
+    page,
+    `/api/app/factors/analysis-reports/${holdoutRun.reportId}/reveal`,
+    {
+      method: 'POST',
+    },
+  );
   if (
     holdout.phase !== 'holdout' ||
     holdout.sealed ||
@@ -306,7 +314,7 @@ async function captureFactor(reportId, path, expectedText) {
 async function waitForReport(page, reportId) {
   const deadline = Date.now() + 300_000;
   while (Date.now() < deadline) {
-    const report = await api(page, `/api/app/factors/reports/${reportId}`);
+    const report = await api(page, `/api/app/factors/analysis-reports/${reportId}`);
     if (report.status === 'done') {
       return report;
     }

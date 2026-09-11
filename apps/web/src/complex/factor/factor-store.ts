@@ -43,7 +43,8 @@ import {
   getFactorReports,
   getFactorReport,
   runFactorAnalysis,
-  pollFactorJob,
+  pollFactorAnalysisJob,
+  pollFactorCorrelationJob,
   getCustomFactor,
   createFactor,
   updateFactor,
@@ -54,7 +55,7 @@ import {
   refreshFactorMetadata,
   runFactorCorrelation,
   getFactorCorrelation,
-  findCorrelationRunningJob,
+  findActiveFactorCorrelationJob,
   getFactorResearchSummary,
   getFactorResearchWindow,
   runFactorHoldout,
@@ -1550,7 +1551,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       return false;
     }
     try {
-      const job = await pollFactorJob(jobId, this.since);
+      const job = await pollFactorAnalysisJob(jobId, this.since);
       if (this.jobId !== jobId || this.pollingReportId !== reportId) {
         return false;
       }
@@ -1638,7 +1639,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
 
   private async pollCorrelationOnce(): Promise<false | void> {
     try {
-      const job = await pollFactorJob(this.corrJobId!, this.corrSince);
+      const job = await pollFactorCorrelationJob(this.corrJobId!, this.corrSince);
       if (job.logs.length) {
         runInAction(() => (this.corrLogs = [...this.corrLogs, ...job.logs]));
         this.corrSince = job.nextSince;
@@ -1674,14 +1675,14 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       return;
     }
     try {
-      const { jobId } = await findCorrelationRunningJob(
+      const activeJob = await findActiveFactorCorrelationJob(
         this.corrKeys,
         this.freq,
         this.start,
         this.end,
       );
-      if (jobId) {
-        this.startCorrPolling(jobId);
+      if (activeJob) {
+        this.startCorrPolling(activeJob.jobId);
       }
     } catch {
       /* no live job */

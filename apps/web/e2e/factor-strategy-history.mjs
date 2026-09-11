@@ -97,7 +97,7 @@ try {
   let report = null;
   for (let attempt = 0; attempt < 180; attempt++) {
     await new Promise((resolve) => setTimeout(resolve, 1000));
-    report = await json(`/api/app/factors/reports/${reportRun.reportId}`);
+    report = await json(`/api/app/factors/analysis-reports/${reportRun.reportId}`);
     if (report.status === 'done') {
       break;
     }
