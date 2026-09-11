@@ -23,7 +23,7 @@ try {
       body: JSON.stringify({ template: 'blank' }),
     });
     documentIds.push(document.id);
-    await api(page, `/api/app/research/conversations/${document.id}`, {
+    await api(page, `/api/app/research/documents/${document.id}`, {
       method: 'PATCH',
       body: JSON.stringify({ title }),
     });
@@ -79,7 +79,7 @@ try {
   for (const documentId of documentIds) {
     await page
       .evaluate(async (id) => {
-        await fetch(`/api/app/research/conversations/${encodeURIComponent(id)}`, {
+        await fetch(`/api/app/research/documents/${encodeURIComponent(id)}`, {
           method: 'DELETE',
         });
       }, documentId)

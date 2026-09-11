@@ -4,9 +4,9 @@ Research 是带 Markdown / Python Cell 的研究文档。HTTP 路由和 Agent �
 
 | 要找的业务 | 入口 | 责任 |
 | --- | --- | --- |
-| HTTP 路由 | `routes.ts` | 挂在 `/api/app/research`；参数校验、错误映射、JSON / 图片响应，不直接读写 Prisma |
+| HTTP 路由 | `routes.ts` 与八组 `*-routes.ts` | 根入口直接组合并导出 `researchRoute`，挂在 `/api/app/research`；职责路由处理参数校验和 JSON / 图片响应，共用错误映射归 `route-errors.ts`，不直接读写 Prisma |
 | 文档列表、创建、归档、恢复 | `documents/document-operations.ts`、`archive-idle-document.ts` | 模板初始化、归属检查；HTTP 归档先检查运行状态，再归档并关闭会话 |
-| 旧会话列表、重命名、删除 | `documents/conversation-operations.ts` | 保留 Research 旧会话接口、预览与归属规则，删除后关闭会话 |
+| 文档重命名、删除 | `documents/document-operations.ts` | 保留底层会话归属/归档规则和级联删除，删除后关闭会话；HTTP 统一使用 documents |
 | 读取文档 | `documents/read.ts` | 归属检查、Cell / 消息 / 审阅 / 尝试视图；保留旧会话首次读取时补建文档的行为 |
 | 添加、编辑、删除 Cell | `documents/cell-operations.ts` | 修订号冲突、排序、编辑事务、调用依赖失效规则 |
 | 分析变量依赖 | `dependencies/analyze.ts` | 通过 Python AST 分析源代码、持久化 definitions/references、协调阻塞状态 |
@@ -30,7 +30,7 @@ Research 是带 Markdown / Python Cell 的研究文档。HTTP 路由和 Agent �
 | Research Agent 启动 | `agent-turn.ts`、`agent-context.ts` | 检查会话/澄清/尝试状态，构造上下文和工具，再交给共享 Agent 执行器 |
 | 研究整理（Curator） | `curator/submit.ts`、`runs.ts`、`reference-search.ts`，根级 `curator-job.ts` | 提交与查询、证据整理/反馈；具名 Job 定义完成、失败与恢复 |
 
-Research 的 HTTP 入口和测试直接放在模块根目录，当前不单设 `http/`。参数校验和错误映射留在 `routes.ts`；业务操作由各具名入口承担。
+Research 的 HTTP 入口和测试直接放在模块根目录，当前不单设 `http/`。根级 `routes.ts` 只组合八组具名路由；参数校验留在职责路由，共用执行/审阅错误映射放在 `route-errors.ts`，业务操作由各具名入口承担。
 
 ## 主要调用链
 
@@ -47,12 +47,12 @@ proposals/cell-changes（应用 → 人工接受）
       → execution/run-attempt → run-cell
       → proposals/attempt-records（尝试结果读取）
 
-HTTP /agent → agent-turn → agent-context + proposals（澄清/尝试上下文）
+HTTP /agent/turns → agent-turn → agent-context + proposals（澄清/尝试上下文）
   → agent/profiles + agent/tools → agent/turns/run（共享对话执行与事件）
 HTTP /curator/runs → curator/submit → 创建 CuratorRun + Job 的同一事务
   → 日志初始化、唤醒队列 → curator-job → curator/runs
 HTTP 数据检索 / Agent catalog 工具 → catalog → datasets / 市场业务
-HTTP /language → language/pyright-service → document + stubs
+HTTP /language/python → language/pyright-service → document + stubs
 HTTP 草稿交接 → handoff → 已冻结 evidence + Factor / Strategy
 ```
 
@@ -66,7 +66,7 @@ HTTP 草稿交接 → handoff → 已冻结 evidence + Factor / Strategy
 - **提案与正式证据不同**：接受提案不会自动运行。attempt 的 Cell 快照归属该次尝试；只有干净全文运行创建 `ResearchExecution`，成功后才能固化并交接。
 - **SDK 错误边界**：非法参数在数据查询之前抛出，由会话层处理；合法请求的数据查询失败通过带同一 request id 的 error response 返回。业务数据口径与公开 Contract 继续由既有实现定义。
 
-本轮不改变锁作用域、事务边界、业务算法、HTTP 或 SDK。单进程运行状态、归档关闭会话、reset 与执行的既有交互均保留，不增加分布式锁、队列重试或取消协议。
+路由职责整理保留锁作用域、事务边界、业务算法与 SDK。单进程运行状态、归档关闭会话、reset 与执行的既有交互均保留，不增加分布式锁、队列重试或取消协议。
 
 ## 历史迁移与路径
 
@@ -94,3 +94,33 @@ HTTP 草稿交接 → handoff → 已冻结 evidence + Factor / Strategy
 Prisma 迁移历史及 bootstrap 中的 `prisma migrate deploy` 保留；本次不修改 schema、存量数据或运行期兼容读取逻辑。迁移前的旧备份不再支持直接通过当前 bootstrap 升级，若需恢复，须从 Git 历史取回对应迁移工具并按旧升级流程处理。
 
 验证记录：API typecheck、后端架构边界检查（0 violations）、`bash -n scripts/bootstrap.sh`、package.json Prettier 检查及 `git diff --check` 全部通过；代码、配置和运维脚本中无已退役迁移的残留引用。人工代码审查已通过；按批准范围，本次未运行行为测试、bootstrap 或数据库迁移。提交信息为 `chore(api): 移除已退役的一次性数据迁移`。
+
+
+## HTTP 路由职责整理（2026-09-11）
+
+计划提交：`refactor(research): clarify resource routes and route ownership`。已按确认方案实现八组职责路由、36 个接口，完整列表见 [API 路由约定](../../../../docs/design/api-route-naming.md#research-路由职责整理2026-09-11)。
+
+- 文档管理与 Cell 编辑归 `document-routes.ts`；移除旧 conversations HTTP 入口和 `documents/conversation-operations.ts`，重命名/删除业务并入 document-operations。保留列表的 active/archived 查询、历史会话首次读取补建文档、删除级联及关闭会话行为。
+- `POST /documents` 接受互斥的 `{ template }` 或 `{ source: { type: 'backtest-report', reportId } }`。空对象仍创建 blank 模板；混合来源/模板及未知字段拒绝。导入继续要求用户拥有已完成且有结果的回测报告。
+- `execution-routes.ts` 负责 Cell/全文运行、dependency-analysis 和 runtime/interrupt、runtime/reset；请求等待运行结果，不引入新的 Job 协议。只有干净全文执行创建不可变 ResearchExecution，单 Cell、局部运行和提案尝试不等价于完整证据。
+- `evidence-routes.ts` 负责完整执行列表/详情/固化、因子/策略草稿交接和产物读取；保留草稿复用、归属检查以及图片 ETag/304 与安全响应头顺序。
+- `proposal-routes.ts` 统一 review、review/accept、review/revert 和 attempts 命名。接受提案不自动执行；尝试保留 affected/clean_document 两种内部范围。执行冲突、审阅冲突和修订号错误继续返回原状态码与 details。
+- `agent-routes.ts` 的 `/agent/turns` 保留可选 conversationId、新会话创建、Cell 上下文、尝试解释和澄清回答；SSE/取消/消息读取仍归共享 Agent。
+- `curator-routes.ts` 保留全部四个现有接口和行为；`data-routes.ts` 保留 data-catalog，并将股票池直接查询改为 universe-queries；`language-routes.ts` 使用 language/python，保留 action 分派、未保存源码校验和用户/文档会话隔离。
+
+同步 Web client/store、仓内 E2E 请求及架构约定。旧路径不保留兼容别名，API/Web 必须同步部署。无 Prisma schema、数据迁移、SDK、分析算法或 Curator 产品能力调整；用户页面操作未变，帮助内容与双语 UI 文案无需调整。
+
+审查前静态检查已通过：改动文件格式与 ESLint、全仓 `pnpm typecheck`、生成契约一致性、后端边界检查（648 个文件、0 违规），以及 `git diff --check`。静态核对确认 36 组方法/路径无重复；Curator、证据交接、Agent、数据和语言服务 handler 除已批准路径外与原实现一致。
+
+边界检查器仅将 `research/route-errors.ts` 精确登记为 HTTP 适配文件，与 Factor/Strategy 同规则；仍禁止业务反向导入 HTTP、禁止 HTTP 直接访问数据库，并补充相应检查器测试。
+
+审查后执行 `pnpm test:backend-boundaries`，以及 Research 路由集成、documents、execution/lifecycle、dependencies、proposals、evidence、handoff、language、curator 与 universe 相关测试，API/Web 构建；浏览器覆盖文档管理、执行/冻结、下游运行、中断、提案审阅/尝试、Agent Cell 上下文、图片、语言服务、Curator 和回测报告交接。涉及 LLM 的交互采用受控 fixture；实际 Python/数据库流程使用隔离环境，不调用真实 LLM 或执行供应商同步。
+
+人工代码审查后验证全部通过：
+
+- Research 22 个测试文件、147 项测试通过，其中路由集成 43 项；覆盖文档来源/归属、历史补建、归档/删除级联、运行锁、提案审阅、语言请求和旧路径 404。边界检查器 24 项测试通过。
+- API/Web 构建通过；Web 仅有既有的大 chunk 提示。
+- 十组 E2E 通过：document-management、execution、affected-run、interrupt、cell-change-proposal、cell-change-review、agent-cell-context、matplotlib、curator、backtest-report-history。覆盖执行快照不可变与固化、取消、提案尝试对比、开放审阅阻止运行、连续修改/接受/撤销、Agent Cell 上下文、图片权限、中英 Curator 与报告来源创建。
+- 编译 API 的 `language/python` 通过真实 Pyright pandas 补全和错误诊断，`universe-queries` 返回股票池实际结果，data-catalog 查询通过。九组 E2E 使用构建后的 Web；提案审阅使用 Vite 开发模式，以读取既有开发专用 Monaco 测试钩子。
+- 首轮发现并修正两处测试脚本问题：旧 GET 路径用例误传请求体、Curator 关闭按钮定位不唯一。修正文件格式、ESLint 与 API typecheck 通过，相关测试重跑通过；没有测试后产品代码修改。
+- 数据库使用开发数据的只读备份副本，真实 Python 查询仅访问副本；未调用真实 LLM 或供应商同步。API、Web preview、Vite 临时进程已关闭，3107/5187/5188 端口和数据库连接已释放，数据库副本已删除。验收截图已检查，保留于 `apps/web/acceptance/`。

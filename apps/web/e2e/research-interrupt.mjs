@@ -109,7 +109,7 @@ try {
   await page.route('**/api/app/agent/turns/running**', (route) =>
     route.fulfill({ json: { turnId: null } }),
   );
-  await page.route('**/api/app/research/language', async (route) => {
+  await page.route('**/api/app/research/language/python', async (route) => {
     const request = route.request().postDataJSON();
     const emptyResult = {
       completion: { items: [], incomplete: false },
@@ -135,15 +135,18 @@ try {
       },
     });
   });
-  await page.route('**/api/app/research/documents/e2e-interrupt/interrupt', async (route) => {
-    interruptCalls += 1;
-    currentDocument = interruptedDocument;
-    releaseAffectedRun();
-    await new Promise((resolve) => setTimeout(resolve, 80));
-    await route.fulfill({
-      json: { version: 1, document: interruptedDocument, interrupted: true },
-    });
-  });
+  await page.route(
+    '**/api/app/research/documents/e2e-interrupt/runtime/interrupt',
+    async (route) => {
+      interruptCalls += 1;
+      currentDocument = interruptedDocument;
+      releaseAffectedRun();
+      await new Promise((resolve) => setTimeout(resolve, 80));
+      await route.fulfill({
+        json: { version: 1, document: interruptedDocument, interrupted: true },
+      });
+    },
+  );
 
   await page.goto(`${BASE}/research`, { waitUntil: 'domcontentloaded' });
   await page.getByText(initialDocument.title, { exact: true }).click();

@@ -136,3 +136,69 @@ Strategy 路由职责整理的提交为 `refactor(strategy): clarify resource ro
 相关性结果沿用缓存，不新增报告资源或 reportId。POST 返回 `{ jobId }` 或缓存命中 `{ done: true, report }`。旧 query-only POST 调用必须迁移到 JSON body；原来通过 analysis-jobs 轮询相关性的调用必须迁移到 correlation-jobs。旧 `/reports` 和 `/correlations/running` 不保留别名；API/Web 与仓内调用同步迁移。
 
 人工代码审查、静态检查、81 项测试、API/Web 构建和四组 Factor E2E 均已通过。验证范围与实际结果记录在 [Factor README](../../apps/api/src/factor/README.md)。
+
+
+## Research 路由职责整理（2026-09-11）
+
+用户已确认方案，计划提交 `refactor(research): clarify resource routes and route ownership`。根级 `research/routes.ts` 直接组合八组具名路由，最终 36 个接口。下表路径均相对于 `/api/app/research`。
+
+| 文件 | 方法 | 路径 |
+| --- | --- | --- |
+| `document-routes.ts` | GET | `/documents` |
+| `document-routes.ts` | POST | `/documents` |
+| `document-routes.ts` | GET | `/documents/:documentId` |
+| `document-routes.ts` | POST | `/documents/:documentId/archive` |
+| `document-routes.ts` | POST | `/documents/:documentId/restore` |
+| `document-routes.ts` | POST | `/documents/:documentId/cells` |
+| `document-routes.ts` | PATCH | `/cells/:cellId` |
+| `document-routes.ts` | DELETE | `/cells/:cellId` |
+| `document-routes.ts` | PATCH | `/documents/:documentId` |
+| `document-routes.ts` | DELETE | `/documents/:documentId` |
+| `execution-routes.ts` | POST | `/cells/:cellId/run` |
+| `execution-routes.ts` | POST | `/cells/:cellId/run-affected` |
+| `execution-routes.ts` | POST | `/documents/:documentId/dependency-analysis` |
+| `execution-routes.ts` | POST | `/documents/:documentId/run` |
+| `execution-routes.ts` | POST | `/documents/:documentId/runtime/interrupt` |
+| `execution-routes.ts` | POST | `/documents/:documentId/runtime/reset` |
+| `evidence-routes.ts` | GET | `/artifacts/:artifactId` |
+| `evidence-routes.ts` | GET | `/documents/:documentId/executions` |
+| `evidence-routes.ts` | GET | `/executions/:executionId` |
+| `evidence-routes.ts` | POST | `/executions/:executionId/promote` |
+| `evidence-routes.ts` | POST | `/executions/:executionId/factor-draft` |
+| `evidence-routes.ts` | POST | `/executions/:executionId/strategy-draft` |
+| `proposal-routes.ts` | POST | `/cell-change-proposals/:proposalId/apply` |
+| `proposal-routes.ts` | POST | `/cell-change-proposals/:proposalId/review` |
+| `proposal-routes.ts` | POST | `/cell-change-proposals/:proposalId/review/accept` |
+| `proposal-routes.ts` | POST | `/cell-change-proposals/:proposalId/review/revert` |
+| `proposal-routes.ts` | POST | `/cell-change-proposals/:proposalId/reject` |
+| `proposal-routes.ts` | POST | `/cell-change-proposals/:proposalId/attempts` |
+| `agent-routes.ts` | POST | `/agent/turns` |
+| `curator-routes.ts` | POST | `/curator/runs` |
+| `curator-routes.ts` | GET | `/curator/runs/latest` |
+| `curator-routes.ts` | GET | `/curator/runs/:runId` |
+| `curator-routes.ts` | PATCH | `/curator/findings/:findingId` |
+| `data-routes.ts` | GET | `/data-catalog` |
+| `data-routes.ts` | POST | `/universe-queries` |
+| `language-routes.ts` | POST | `/language/python` |
+
+创建入口统一为 `POST /documents`，body 使用互斥的 `{ template }` 或 `{ source: { type: 'backtest-report', reportId } }`；模板枚举与 blank 默认值不变。PATCH document 仍接收 `{ title }`；review/accept、review/revert 保留 `{ expectedContentRevision }`；全文运行保留 `{ clean }`。Agent 使用 `/agent/turns`，保留原 body 和 `{ conversationId, turnId }` 返回。
+
+| 旧接口 | 新接口 |
+| --- | --- |
+| `GET /conversations` | 删除，统一使用 `GET /documents`（文档摘要） |
+| `PATCH / DELETE /conversations/:id` | `PATCH / DELETE /documents/:documentId` |
+| `POST /documents/from-backtest-report/:reportId` | `POST /documents`，来源放入 body |
+| `POST /documents/:documentId/analyze` | `POST /documents/:documentId/dependency-analysis` |
+| `POST /documents/:documentId/interrupt` | `POST /documents/:documentId/runtime/interrupt` |
+| `POST /documents/:documentId/reset` | `POST /documents/:documentId/runtime/reset` |
+| `POST /cell-change-proposals/:proposalId/apply-for-review` | `POST /cell-change-proposals/:proposalId/review` |
+| `POST /cell-change-proposals/:proposalId/accept-review` | `POST /cell-change-proposals/:proposalId/review/accept` |
+| `POST /cell-change-proposals/:proposalId/revert-review` | `POST /cell-change-proposals/:proposalId/review/revert` |
+| `POST /cell-change-proposals/:proposalId/run-affected` | `POST /cell-change-proposals/:proposalId/attempts` |
+| `POST /agent` | `POST /agent/turns` |
+| `POST /universe/run` | `POST /universe-queries` |
+| `POST /language` | `POST /language/python` |
+
+Research 的 Cell/全文/尝试请求等待执行结果；完整 execution 是冻结证据，单 Cell 或局部执行不强行统一为这种资源。股票池查询直接返回结果，语言服务仍按 action 分派。Curator 保留独立 Run 和后台 Job，四个接口不变。所有重命名接口同步 Web 与仓内调用，旧路径不留别名；不改变数据库、SDK、锁/事务边界、执行协议或 Curator 用途。
+
+已通过人工代码审查、格式/ESLint、全仓 typecheck/契约一致性、147 项 Research 测试、24 项边界检查器测试、API/Web 构建和十组 E2E；另通过真实 Pyright 与股票池查询验证。验证范围和实际结果记录在 [Research README](../../apps/api/src/research/README.md)。

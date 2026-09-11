@@ -195,7 +195,7 @@ try {
     await devLogin(page, ownerEmail).catch(() => {});
     await page
       .evaluate(async (id) => {
-        await fetch(`/api/app/research/conversations/${encodeURIComponent(id)}`, {
+        await fetch(`/api/app/research/documents/${encodeURIComponent(id)}`, {
           method: 'DELETE',
         });
       }, documentId)

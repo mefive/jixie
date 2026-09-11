@@ -44,7 +44,7 @@ function isHttp(file) {
       local === 'auth/middleware.ts' ||
       local.startsWith('infra/http/') ||
       local === 'maintenance/middleware.ts' ||
-      /^(?:factor|strategy)\/route-errors\.ts$/.test(local) ||
+      /^(?:factor|strategy|research)\/route-errors\.ts$/.test(local) ||
       startupFiles.has(local))
   );
 }

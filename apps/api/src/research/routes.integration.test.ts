@@ -15,6 +15,9 @@ const resources = vi.hoisted(() => ({
   wake: vi.fn(),
   logs: vi.fn(),
   id: vi.fn(),
+  analyze: vi.fn(),
+  reset: vi.fn(),
+  language: vi.fn(),
 }));
 vi.mock('ulid', () => ({ ulid: resources.id }));
 vi.mock('#infra/database/prisma.js', async () => {
@@ -33,9 +36,14 @@ vi.mock('#agent/turns/bus.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('#agent/turns/bus.js')>()),
   findRunning: resources.running,
 }));
-vi.mock('./execution/python-session.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('./execution/python-session.js')>()),
-  closeResearchDocumentRuntime: resources.close,
+vi.mock('./execution/python-session.js', async (importOriginal) => {
+  const original = await importOriginal<typeof import('./execution/python-session.js')>();
+  vi.spyOn(original.researchRuntimeManager, 'analyze').mockImplementation(resources.analyze);
+  vi.spyOn(original.researchRuntimeManager, 'reset').mockImplementation(resources.reset);
+  return { ...original, closeResearchDocumentRuntime: resources.close };
+});
+vi.mock('./language/pyright-service.js', () => ({
+  researchPythonLanguageService: { request: resources.language },
 }));
 vi.mock('#infra/jobs/queue.js', () => ({ wakeJobQueue: resources.wake }));
 vi.mock('#infra/jobs/logs.js', async (importOriginal) => ({
@@ -193,7 +201,7 @@ describe('Research HTTP business boundaries', () => {
   it('keeps Agent validation and ownership ahead of turn startup', async () => {
     expect(
       (
-        await request('/agent', {
+        await request('/agent/turns', {
           message: 'Hello',
           attemptId: 'attempt',
           contextCellIds: ['input'],
@@ -201,7 +209,7 @@ describe('Research HTTP business boundaries', () => {
       ).status,
     ).toBe(400);
     expect(await prisma.agentConversation.count()).toBe(1);
-    const response = await request('/agent', agentInput, 'other');
+    const response = await request('/agent/turns', agentInput, 'other');
     expect(response.status).toBe(404);
     expect(await response.json()).toEqual({
       error: { code: 'NOT_FOUND', message: t('en', 'conversationNotFound') },
@@ -210,13 +218,13 @@ describe('Research HTTP business boundaries', () => {
       where: { id: 'document' },
       data: { archivedAt: new Date() },
     });
-    expect((await request('/agent', agentInput)).status).toBe(404);
+    expect((await request('/agent/turns', agentInput)).status).toBe(404);
     expect(resources.enqueue).not.toHaveBeenCalled();
   });
 
   it('starts a new conversation and preserves the title limit and locale', async () => {
     const message = 'x'.repeat(80);
-    const response = await request('/agent', { message });
+    const response = await request('/agent/turns', { message });
     expect(response.status).toBe(200);
     const ids = await response.json();
     expect(
@@ -233,7 +241,7 @@ describe('Research HTTP business boundaries', () => {
   });
 
   it('attaches deduplicated owned Cell snapshots and rejects a concurrent Agent turn', async () => {
-    const response = await request('/agent', {
+    const response = await request('/agent/turns', {
       ...agentInput,
       contextCellIds: ['input', 'input', 'missing'],
     });
@@ -246,7 +254,7 @@ describe('Research HTTP business boundaries', () => {
       cells: [{ cellId: 'input', source: 'value = 1' }],
     });
     resources.running.mockReturnValue({ turnId: 'running' });
-    const busy = await request('/agent', agentInput);
+    const busy = await request('/agent/turns', agentInput);
     expect(busy.status).toBe(400);
     expect(await busy.json()).toEqual({
       error: { code: 'VALIDATION_FAILED', message: t('en', 'conversationTurnInProgress') },
@@ -256,7 +264,7 @@ describe('Research HTTP business boundaries', () => {
 
   it('requires a pending clarification to be answered and maps each answer failure', async () => {
     await seedClarification();
-    const pending = await request('/agent', agentInput);
+    const pending = await request('/agent/turns', agentInput);
     expect(await pending.json()).toEqual({
       error: { code: 'VALIDATION_FAILED', message: t('en', 'researchClarificationPending') },
     });
@@ -269,13 +277,13 @@ describe('Research HTTP business boundaries', () => {
     };
     expect(
       (
-        await request('/agent', {
+        await request('/agent/turns', {
           ...answer,
           clarificationAnswer: { ...answer.clarificationAnswer, clarificationId: 'missing' },
         })
       ).status,
     ).toBe(404);
-    const invalid = await request('/agent', {
+    const invalid = await request('/agent/turns', {
       ...answer,
       clarificationAnswer: {
         ...answer.clarificationAnswer,
@@ -286,7 +294,7 @@ describe('Research HTTP business boundaries', () => {
       error: { code: 'VALIDATION_FAILED', message: t('en', 'researchClarificationInvalidAnswer') },
     });
     expect(resources.enqueue).not.toHaveBeenCalled();
-    expect((await request('/agent', answer)).status).toBe(200);
+    expect((await request('/agent/turns', answer)).status).toBe(200);
     expect(resources.enqueue).toHaveBeenCalledWith(
       expect.objectContaining({
         message: t('en', 'researchClarificationAnswerMessage', { selections: 'Keep the gap' }),
@@ -295,7 +303,7 @@ describe('Research HTTP business boundaries', () => {
     expect(
       await prisma.researchClarification.findUnique({ where: { id: 'clarification' } }),
     ).toMatchObject({ status: 'answered' });
-    const repeated = await request('/agent', answer);
+    const repeated = await request('/agent/turns', answer);
     expect(await repeated.json()).toEqual({
       error: {
         code: 'VALIDATION_FAILED',
@@ -332,7 +340,7 @@ describe('Research HTTP business boundaries', () => {
       },
     });
     const body = { ...agentInput, attemptId: 'attempt' };
-    expect((await request('/agent', body)).status).toBe(404);
+    expect((await request('/agent/turns', body)).status).toBe(404);
     expect(resources.enqueue).not.toHaveBeenCalled();
     await prisma.researchCellChangeAttempt.update({
       where: { id: 'attempt' },
@@ -347,7 +355,7 @@ describe('Research HTTP business boundaries', () => {
         })
         .then((attempt) => attempt);
     });
-    const response = await request('/agent', body);
+    const response = await request('/agent/turns', body);
     expect(response.status).toBe(200);
     const { turnId } = await response.json();
     expect(await linkedAtEnqueue).toEqual({ explanationTurnId: turnId });
@@ -372,34 +380,283 @@ describe('Research HTTP business boundaries', () => {
     });
   });
 
-  it('keeps legacy conversation previews, archive filters, and owner-scoped rename/delete', async () => {
+  it('uses document summaries, archive filters, and owner-scoped rename/delete', async () => {
     await seedSourceMessage([{ type: 'universe', title: 'Universe preview' }]);
-    expect(await (await request('/conversations', undefined, 'owner', 'GET')).json()).toMatchObject(
-      [{ id: 'document', preview: 'Universe preview' }],
-    );
-    expect(await (await request('/conversations', undefined, 'other', 'GET')).json()).toEqual([]);
+    expect(await (await request('/documents', undefined, 'owner', 'GET')).json()).toMatchObject([
+      { id: 'document', preview: 'Universe preview' },
+    ]);
+    expect(await (await request('/documents', undefined, 'other', 'GET')).json()).toEqual([]);
     expect(
-      (await request('/conversations/document', { title: 'Changed' }, 'other', 'PATCH')).status,
+      (await request('/documents/document', { title: 'Changed' }, 'other', 'PATCH')).status,
     ).toBe(404);
     expect(
-      (await request('/conversations/document', { title: 'Changed' }, 'owner', 'PATCH')).status,
+      (await request('/documents/document', { title: 'Changed' }, 'owner', 'PATCH')).status,
     ).toBe(200);
     await prisma.agentConversation.update({
       where: { id: 'document' },
       data: { archivedAt: new Date() },
     });
-    expect(await (await request('/conversations', undefined, 'owner', 'GET')).json()).toEqual([]);
+    expect(await (await request('/documents', undefined, 'owner', 'GET')).json()).toEqual([]);
     expect(
-      (await request('/conversations/document', { title: 'No change' }, 'owner', 'PATCH')).status,
+      (await request('/documents/document', { title: 'No change' }, 'owner', 'PATCH')).status,
     ).toBe(404);
-    expect((await request('/conversations/document', undefined, 'other', 'DELETE')).status).toBe(
+    expect((await request('/documents/document', undefined, 'other', 'DELETE')).status).toBe(404);
+    expect(resources.close).not.toHaveBeenCalled();
+    expect((await request('/documents/document', undefined, 'owner', 'DELETE')).status).toBe(200);
+    expect(resources.close).toHaveBeenCalledExactlyOnceWith('document');
+    expect(await prisma.researchDocument.count()).toBe(0);
+    expect(await prisma.researchCell.count()).toBe(0);
+  });
+
+  it.each([
+    {},
+    { template: 'blank' },
+    { template: 'index_relationship' },
+    { template: 'equity_fcff_valuation' },
+  ])('creates an owned document from template input %j', async (input) => {
+    const response = await request('/documents', input);
+    expect(response.status).toBe(200);
+    const document = await response.json();
+    expect(document).toMatchObject({ version: 1, conversationId: document.id });
+    expect(await prisma.researchDocument.findUnique({ where: { id: document.id } })).toMatchObject({
+      userId: 'owner',
+    });
+    expect(document.cells.length).toBeGreaterThan(0);
+  });
+
+  it.each([
+    { template: 'unknown' },
+    { source: { type: 'backtest-report', reportId: '' } },
+    { source: { type: 'backtest-report', reportId: '   ' } },
+    { source: { type: 'factor-report', reportId: 'report' } },
+    { source: { type: 'backtest-report', reportId: 'report', userId: 'other' } },
+    { template: 'blank', source: { type: 'backtest-report', reportId: 'report' } },
+    { reportId: 'report' },
+  ])(
+    'rejects ambiguous or invalid document creation input %j without creating data',
+    async (input) => {
+      expect((await request('/documents', input)).status).toBe(400);
+      expect(await prisma.agentConversation.count()).toBe(1);
+      expect(await prisma.researchDocument.count()).toBe(1);
+    },
+  );
+
+  it('imports only an owned successful backtest report through the document collection', async () => {
+    await prisma.strategy.create({
+      data: { id: 'strategy', userId: 'owner', name: 'Fixture strategy', config: {} },
+    });
+    await prisma.backtestReport.createMany({
+      data: [
+        {
+          id: 'report',
+          userId: 'owner',
+          strategyId: 'strategy',
+          strategyName: 'Fixture strategy',
+          status: 'done',
+          config: {},
+          payload: {},
+        },
+        {
+          id: 'failed-report',
+          userId: 'owner',
+          strategyId: 'strategy',
+          strategyName: 'Fixture strategy',
+          status: 'error',
+          config: {},
+        },
+        {
+          id: 'empty-report',
+          userId: 'owner',
+          strategyId: 'strategy',
+          strategyName: 'Fixture strategy',
+          status: 'done',
+          config: {},
+        },
+      ],
+    });
+    for (const reportId of ['missing', 'failed-report', 'empty-report']) {
+      expect(
+        (await request('/documents', { source: { type: 'backtest-report', reportId } })).status,
+      ).toBe(404);
+    }
+    const input = { source: { type: 'backtest-report', reportId: 'report' } };
+    expect((await request('/documents', input, 'other')).status).toBe(404);
+    expect(await prisma.researchDocument.count()).toBe(1);
+    const response = await request('/documents', input);
+    expect(response.status).toBe(200);
+    const document = await response.json();
+    expect(document.cells).toHaveLength(2);
+    expect(document.cells[1]).toMatchObject({
+      kind: 'python',
+      source: 'backtest_report = results.backtest_report("report")\nbacktest_report',
+    });
+    expect(await prisma.backtestReport.count()).toBe(3);
+  });
+
+  it('materializes a legacy conversation through document reads and preserves archive restoration', async () => {
+    await prisma.agentConversation.create({
+      data: { id: 'legacy', userId: 'owner', surface: 'research', title: 'Legacy research' },
+    });
+    expect((await request('/documents/legacy', undefined, 'other', 'GET')).status).toBe(404);
+    expect(await prisma.researchDocument.count()).toBe(1);
+    expect((await request('/documents/legacy', undefined, 'owner', 'GET')).status).toBe(200);
+    expect(await prisma.researchDocument.findUnique({ where: { id: 'legacy' } })).toMatchObject({
+      conversationId: 'legacy',
+      userId: 'owner',
+    });
+    expect((await request('/documents/legacy/archive')).status).toBe(200);
+    expect(
+      await (await request('/documents?state=archived', undefined, 'owner', 'GET')).json(),
+    ).toMatchObject([{ id: 'legacy' }]);
+    expect((await request('/documents/legacy/restore', undefined, 'other')).status).toBe(404);
+    expect((await request('/documents/legacy/restore')).status).toBe(200);
+    expect((await request('/documents/legacy', undefined, 'owner', 'GET')).status).toBe(200);
+  });
+
+  it('persists dependency analysis and resets only the owned runtime without clearing blocked cells', async () => {
+    resources.analyze.mockResolvedValue([
+      { cellId: 'input', definitions: ['value'], references: [] },
+    ]);
+    expect(
+      (await request('/documents/document/dependency-analysis', undefined, 'other')).status,
+    ).toBe(404);
+    expect(resources.analyze).not.toHaveBeenCalled();
+    const analysis = await request('/documents/document/dependency-analysis');
+    expect(analysis.status).toBe(200);
+    expect(await analysis.json()).toMatchObject({
+      version: 1,
+      cells: [{ cellId: 'input', definitions: ['value'] }],
+    });
+    await prisma.researchCell.update({
+      where: { id: 'input' },
+      data: { status: 'blocked', lastExecutedRevision: 1 },
+    });
+    expect((await request('/documents/document/runtime/reset', undefined, 'other')).status).toBe(
       404,
     );
-    expect(resources.close).not.toHaveBeenCalled();
-    expect((await request('/conversations/document', undefined, 'owner', 'DELETE')).status).toBe(
-      200,
-    );
-    expect(resources.close).toHaveBeenCalledExactlyOnceWith('document');
+    expect(resources.reset).not.toHaveBeenCalled();
+    expect((await request('/documents/document/runtime/reset')).status).toBe(200);
+    expect(resources.reset).toHaveBeenCalledExactlyOnceWith('document');
+    expect(await prisma.researchCell.findUnique({ where: { id: 'input' } })).toMatchObject({
+      status: 'blocked',
+    });
+    expect(
+      (await request('/documents/document/runtime/interrupt', undefined, 'other')).status,
+    ).toBe(404);
+    expect(await (await request('/documents/document/runtime/interrupt')).json()).toMatchObject({
+      version: 1,
+      interrupted: false,
+      document: { id: 'document' },
+    });
+  });
+
+  it.each(['/cells/input/run', '/cells/input/run-affected', '/documents/document/run'])(
+    'preserves the document run conflict at %s',
+    async (path) => {
+      const control = startResearchDocumentRun('document');
+      try {
+        const response = await request(
+          path,
+          path.endsWith('/document/run') ? { clean: true } : undefined,
+        );
+        expect(response.status).toBe(409);
+        expect(await response.json()).toMatchObject({
+          error: { code: 'CONFLICT', message: t('en', 'researchDocumentRunInProgress') },
+        });
+        expect(resources.analyze).not.toHaveBeenCalled();
+        expect(resources.reset).not.toHaveBeenCalled();
+      } finally {
+        finishResearchDocumentRun(control);
+      }
+    },
+  );
+
+  it('validates proposal review revisions and refuses attempts before application', async () => {
+    await seedSourceMessage();
+    await prisma.researchCellChangeProposal.create({
+      data: {
+        id: 'proposal',
+        documentId: 'document',
+        sourceTurnId: 'source-turn',
+        sourceMessageId: 'source-message',
+        sourcePartIndex: 0,
+        title: 'Fixture',
+        summary: '',
+        expectedDocumentUpdatedAt: new Date(),
+        operations: [],
+      },
+    });
+    for (const action of ['review/accept', 'review/revert']) {
+      expect((await request(`/cell-change-proposals/proposal/${action}`, {})).status).toBe(400);
+      expect(
+        (
+          await request(
+            `/cell-change-proposals/proposal/${action}`,
+            { expectedContentRevision: 1 },
+            'other',
+          )
+        ).status,
+      ).toBe(404);
+      const response = await request(`/cell-change-proposals/proposal/${action}`, {
+        expectedContentRevision: 1,
+      });
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({
+        error: { details: { reason: 'review_not_open' } },
+      });
+    }
+    expect(
+      (await request('/cell-change-proposals/proposal/review', undefined, 'other')).status,
+    ).toBe(404);
+    expect(
+      (await request('/cell-change-proposals/proposal/attempts', undefined, 'other')).status,
+    ).toBe(404);
+    const attempt = await request('/cell-change-proposals/proposal/attempts');
+    expect(attempt.status).toBe(400);
+    expect(await attempt.json()).toMatchObject({
+      error: { details: { reason: 'proposal_not_applied' } },
+    });
+    expect(await prisma.researchCellChangeAttempt.count()).toBe(0);
+  });
+
+  it('preserves Python language validation and isolates requests by user and document', async () => {
+    const input = {
+      version: 1,
+      documentId: 'document',
+      cells: [{ id: 'input', source: 'value = 1' }],
+      cellId: 'input',
+      action: 'diagnostics',
+    };
+    expect((await request('/language/python', { ...input, cellId: 'missing' })).status).toBe(400);
+    expect((await request('/language/python', { ...input, action: 'hover' })).status).toBe(400);
+    expect(resources.language).not.toHaveBeenCalled();
+    resources.language.mockResolvedValue({ version: 1, action: 'diagnostics', diagnostics: [] });
+    expect((await request('/language/python', input)).status).toBe(200);
+    expect(resources.language).toHaveBeenLastCalledWith('owner:document', input);
+    expect((await request('/language/python', input, 'other')).status).toBe(200);
+    expect(resources.language).toHaveBeenLastCalledWith('other:document', input);
+  });
+
+  it.each([
+    ['GET', '/conversations'],
+    ['PATCH', '/conversations/document'],
+    ['DELETE', '/conversations/document'],
+    ['POST', '/documents/from-backtest-report/report'],
+    ['POST', '/agent'],
+    ['POST', '/language'],
+    ['POST', '/universe/run'],
+    ['POST', '/documents/document/analyze'],
+    ['POST', '/documents/document/interrupt'],
+    ['POST', '/documents/document/reset'],
+    ['POST', '/cell-change-proposals/proposal/apply-for-review'],
+    ['POST', '/cell-change-proposals/proposal/accept-review'],
+    ['POST', '/cell-change-proposals/proposal/revert-review'],
+    ['POST', '/cell-change-proposals/proposal/run-affected'],
+  ])('does not retain the old %s %s endpoint', async (method, path) => {
+    const body = method === 'GET' ? undefined : { title: 'No change', message: 'No turn' };
+    expect((await request(path, body, 'owner', method)).status).toBe(404);
+    expect(await prisma.agentConversation.count()).toBe(1);
+    expect(resources.enqueue).not.toHaveBeenCalled();
   });
 
   it('rechecks artifact ownership before a conditional cache response', async () => {

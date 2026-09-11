@@ -41,7 +41,7 @@ try {
   if (!pythonCell) {
     throw new Error('Blank Research document did not create a Python Cell.');
   }
-  await api(page, `/api/app/research/conversations/${documentId}`, {
+  await api(page, `/api/app/research/documents/${documentId}`, {
     method: 'PATCH',
     body: JSON.stringify({ title }),
   });
@@ -139,7 +139,7 @@ try {
     await devLogin(page, ownerEmail).catch(() => {});
     await page
       .evaluate(async (id) => {
-        await fetch(`/api/app/research/conversations/${encodeURIComponent(id)}`, {
+        await fetch(`/api/app/research/documents/${encodeURIComponent(id)}`, {
           method: 'DELETE',
         });
       }, documentId)

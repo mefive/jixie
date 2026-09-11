@@ -47,7 +47,7 @@ import {
   createResearchFactorDraft,
   createResearchStrategyDraft,
   deleteResearchCell,
-  deleteResearchConversation,
+  deleteResearchDocument,
   getLatestResearchCuratorRun,
   getResearchExecution,
   getResearchCuratorRun,
@@ -56,7 +56,7 @@ import {
   listResearchDocuments,
   listResearchExecutions,
   promoteResearchExecution,
-  renameResearchConversation,
+  renameResearchDocument,
   rejectResearchCellChangeProposal,
   revertResearchCellChangeReview,
   resetResearchDocument,
@@ -255,7 +255,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
           case 'restore':
             return restoreResearchDocument(mutation.documentId);
           case 'delete':
-            return deleteResearchConversation(mutation.documentId);
+            return deleteResearchDocument(mutation.documentId);
         }
       },
     });
@@ -966,7 +966,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
       this.document = { ...previous, title: trimmed };
     });
     try {
-      await renameResearchConversation(this.conversationId, trimmed);
+      await renameResearchDocument(this.conversationId, trimmed);
       void this.documentsLoader.run();
     } catch {
       runInAction(() => {

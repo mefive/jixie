@@ -114,6 +114,29 @@ export async function createResearchDocument(
   return (await getResearchDocument(userId, id))!;
 }
 
+export async function renameResearchDocument(userId: string, documentId: string, title: string) {
+  const updated = await prisma.agentConversation.updateMany({
+    where: {
+      id: documentId,
+      userId,
+      surface: 'research',
+      archivedAt: null,
+    },
+    data: { title },
+  });
+  return updated.count === 1;
+}
+
+export async function deleteResearchDocument(userId: string, documentId: string) {
+  const deleted = await prisma.agentConversation.deleteMany({
+    where: { id: documentId, userId, surface: 'research' },
+  });
+  if (deleted.count === 1) {
+    closeResearchDocumentRuntime(documentId);
+  }
+  return deleted.count === 1;
+}
+
 function messagePreview(parts: Prisma.JsonValue | undefined): string {
   if (!Array.isArray(parts)) {
     return '';

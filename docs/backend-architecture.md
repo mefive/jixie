@@ -35,7 +35,7 @@
 | --- | --- |
 | `/api/maintenance` | `maintenance/routes.ts` 导出 `maintenanceRoute` |
 | `/api/auth` | `auth/routes.ts`；`auth/middleware.ts` 提供鉴权，`auth/cookies.ts` 处理 Cookie |
-| `/api/app/research` | `research/routes.ts` |
+| `/api/app/research` | `research/routes.ts` 直接组合 document / execution / evidence / proposal / agent / curator / data / language 路由 |
 | `/api/app/factors` | `factor/routes.ts` 直接组合定义、组合、Agent、分析、相关性和天气，导出 `factorRoute` |
 | `/api/app/strategies` | `strategy/routes.ts` 直接组合定义、Agent、回测和扫描，导出 `strategyRoute` |
 | `/api/app/signals` | `signals/routes.ts` |
@@ -83,7 +83,7 @@ Bootstrap 是显式装配函数：把业务 Job 的 loader 注册表传给通用
 
 ### 1. 修改并执行研究 Cell
 
-1. `research/routes.ts` 调用 `documents/cell-operations.ts`；校验归属、源代码修订和编辑状态，保存 Cell。
+1. `research/document-routes.ts` 调用 `documents/cell-operations.ts`；校验归属、源代码修订和编辑状态，保存 Cell。
 2. `dependencies/analyze.ts` / `invalidation.ts` 更新变量关系和下游 stale/blocked；接受 Agent 修改也进入这套业务规则。
 3. 用户请求执行后，`execution/run-cell.ts`、`run-document.ts` 或 `run-affected.ts` 取得文档运行锁，选择执行计划和 Python 会话。
 4. Python 通过 `sdk/validation.ts` / `dispatch.ts` 请求平台数据，`datasets` 做公开字段/PIT 映射，再查询 Market 或用户报告数据。

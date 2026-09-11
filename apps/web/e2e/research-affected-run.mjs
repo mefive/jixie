@@ -143,7 +143,7 @@ try {
   await page.route('**/api/app/agent/turns/running**', (route) =>
     route.fulfill({ json: { turnId: null } }),
   );
-  await page.route('**/api/app/research/language', async (route) => {
+  await page.route('**/api/app/research/language/python', async (route) => {
     const request = route.request().postDataJSON();
     const emptyResult = {
       completion: { items: [], incomplete: false },

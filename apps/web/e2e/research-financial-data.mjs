@@ -81,7 +81,7 @@ try {
     body: JSON.stringify({ template: 'blank' }),
   });
   documentId = document.id;
-  await api(page, `/api/app/research/conversations/${documentId}`, {
+  await api(page, `/api/app/research/documents/${documentId}`, {
     method: 'PATCH',
     body: JSON.stringify({ title }),
   });
@@ -162,7 +162,7 @@ try {
   if (documentId) {
     await page
       .evaluate(async (id) => {
-        await fetch(`/api/app/research/conversations/${encodeURIComponent(id)}`, {
+        await fetch(`/api/app/research/documents/${encodeURIComponent(id)}`, {
           method: 'DELETE',
         });
       }, documentId)

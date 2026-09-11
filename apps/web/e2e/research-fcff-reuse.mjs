@@ -26,7 +26,7 @@ try {
       body: JSON.stringify({ template: 'equity_fcff_valuation' }),
     });
     documentIds.push(document.id);
-    await api(page, `/api/app/research/conversations/${document.id}`, {
+    await api(page, `/api/app/research/documents/${document.id}`, {
       method: 'PATCH',
       body: JSON.stringify({ title: `${replayCase.companyName} FCFF 估值复盘` }),
     });
@@ -205,7 +205,7 @@ try {
   for (const documentId of documentIds) {
     await page
       .evaluate(async (id) => {
-        await fetch(`/api/app/research/conversations/${encodeURIComponent(id)}`, {
+        await fetch(`/api/app/research/documents/${encodeURIComponent(id)}`, {
           method: 'DELETE',
         });
       }, documentId)

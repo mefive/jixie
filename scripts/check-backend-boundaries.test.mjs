@@ -72,6 +72,31 @@ test('keeps HTTP in adapters while permitting direct Prisma in business operatio
   assert.deepEqual(checkBackendBoundaries(root, emptyPolicy).diagnostics, []);
 });
 
+test('keeps Research route error mapping in HTTP adapters', (context) => {
+  const root = fixture(context, {
+    [src + 'research/execution-routes.ts']: "import './route-errors.js';",
+    [src + 'research/route-errors.ts']:
+      "import type { Context } from 'hono'; import '../infra/http/errors.js';",
+    [src + 'research/execution/control.ts']: 'export const control = () => {};',
+    [src + 'infra/http/errors.ts']: 'export const apiError = () => {};',
+    [src + 'infra/database/prisma.ts']: 'export const prisma = {};',
+  });
+  assert.deepEqual(checkBackendBoundaries(root, emptyPolicy).diagnostics, []);
+
+  fs.writeFileSync(
+    path.join(root, src + 'research/execution/control.ts'),
+    "import '../route-errors.js';",
+  );
+  fs.appendFileSync(
+    path.join(root, src + 'research/route-errors.ts'),
+    "import '../infra/database/prisma.js';",
+  );
+  assert.deepEqual(rules(checkBackendBoundaries(root, emptyPolicy)).sort(), [
+    'http-direction',
+    'http-storage',
+  ]);
+});
+
 test('permits root auth HTTP adapters while keeping session storage in business code', (context) => {
   const root = fixture(context, {
     [src + 'auth/routes.ts']:

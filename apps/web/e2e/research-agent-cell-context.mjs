@@ -24,7 +24,7 @@ try {
     body: JSON.stringify({ template: 'blank' }),
   });
   documentId = document.id;
-  await api(page, `/api/app/research/conversations/${documentId}`, {
+  await api(page, `/api/app/research/documents/${documentId}`, {
     method: 'PATCH',
     body: JSON.stringify({ title }),
   });
@@ -52,7 +52,7 @@ try {
     throw new Error('dependent Python Cells were not created');
   }
 
-  await page.route('**/api/app/research/agent', async (route) => {
+  await page.route('**/api/app/research/agent/turns', async (route) => {
     submittedBody = route.request().postDataJSON();
     await route.fulfill({
       status: 200,
@@ -173,7 +173,7 @@ try {
     await devLogin(page, ownerEmail).catch(() => {});
     await page
       .evaluate(async (id) => {
-        await fetch(`/api/app/research/conversations/${encodeURIComponent(id)}`, {
+        await fetch(`/api/app/research/documents/${encodeURIComponent(id)}`, {
           method: 'DELETE',
         });
       }, documentId)

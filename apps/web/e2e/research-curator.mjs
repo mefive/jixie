@@ -122,7 +122,7 @@ try {
 
   let latestRun = null;
   let pollCount = 0;
-  await page.route('**/api/app/research/conversations', (route) =>
+  await page.route('**/api/app/research/documents?*', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }),
   );
   await page.route('**/api/app/research/curator/runs/latest', (route) =>
@@ -225,7 +225,10 @@ try {
   await card.scrollIntoViewIfNeeded();
   await page.screenshot({ path: `${SHOTS}research-curator-zh.png`, fullPage: true });
 
-  await page.getByLabel('Close').click();
+  await page
+    .locator('.jx-researchCurator')
+    .getByRole('button', { name: '关闭', exact: true })
+    .click();
   await page.getByText('EN', { exact: true }).click();
   await page.getByRole('button', { name: 'Curate research records' }).click();
   await page.getByText('Read-only analysis', { exact: false }).waitFor();

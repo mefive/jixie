@@ -37,11 +37,9 @@ try {
   await devLogin(page, fixture.email);
   await openFixture(page);
 
-  await api(
-    page,
-    `/api/app/research/cell-change-proposals/${initialReview.proposalId}/apply-for-review`,
-    { method: 'POST' },
-  );
+  await api(page, `/api/app/research/cell-change-proposals/${initialReview.proposalId}/review`, {
+    method: 'POST',
+  });
   await reloadFixture(page);
 
   const reviewCell = page.locator(`[data-cell-id="${fixture.pythonCellId}"]`);
@@ -82,11 +80,9 @@ try {
     definition: 'agent_followup',
   });
   await reloadFixture(page);
-  await api(
-    page,
-    `/api/app/research/cell-change-proposals/${followup.proposalId}/apply-for-review`,
-    { method: 'POST' },
-  );
+  await api(page, `/api/app/research/cell-change-proposals/${followup.proposalId}/review`, {
+    method: 'POST',
+  });
   await reloadFixture(page);
 
   const nestedReview = await api(page, `/api/app/research/documents/${fixture.documentId}`);
@@ -133,11 +129,9 @@ try {
     definition: 'temporary_agent_line',
   });
   await reloadFixture(page);
-  await api(
-    page,
-    `/api/app/research/cell-change-proposals/${reversible.proposalId}/apply-for-review`,
-    { method: 'POST' },
-  );
+  await api(page, `/api/app/research/cell-change-proposals/${reversible.proposalId}/review`, {
+    method: 'POST',
+  });
   await reloadFixture(page);
   const revertReview = await api(page, `/api/app/research/documents/${fixture.documentId}`);
   const revertReviewCell = revertReview.cells.find((cell) => cell.id === fixture.pythonCellId);

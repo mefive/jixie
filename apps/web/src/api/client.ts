@@ -183,7 +183,6 @@ import type {
   SharingCatalog,
   AssetVisibility,
   ResearchConversationMessages,
-  ResearchConversationMeta,
   ResearchCellKindV1,
   ResearchCellChangeRunResultV1,
   ResearchCellChangeResolutionResultV1,
@@ -278,10 +277,6 @@ export function getAgentConversationMessages(
 
 // —— Natural-language research ——
 
-export function listResearchConversations(): Promise<ResearchConversationMeta[]> {
-  return request('/api/app/research/conversations');
-}
-
 export function listResearchDocuments(
   state: ResearchDocumentListStateV1 = 'active',
 ): Promise<ResearchDocumentSummaryV1[]> {
@@ -300,10 +295,10 @@ export function createResearchDocument(
 export function createResearchDocumentFromBacktestReport(
   reportId: string,
 ): Promise<ResearchDocumentV1> {
-  return request(
-    `/api/app/research/documents/from-backtest-report/${encodeURIComponent(reportId)}`,
-    { method: 'POST' },
-  );
+  return request('/api/app/research/documents', {
+    method: 'POST',
+    body: JSON.stringify({ source: { type: 'backtest-report', reportId } }),
+  });
 }
 
 export function getResearchDocument(documentId: string): Promise<ResearchDocumentV1> {
@@ -362,9 +357,12 @@ export function runAffectedResearchCells(cellId: string): Promise<ResearchDocume
 }
 
 export function analyzeResearchDocument(documentId: string): Promise<ResearchDocumentAnalysisV1> {
-  return request(`/api/app/research/documents/${encodeURIComponent(documentId)}/analyze`, {
-    method: 'POST',
-  });
+  return request(
+    `/api/app/research/documents/${encodeURIComponent(documentId)}/dependency-analysis`,
+    {
+      method: 'POST',
+    },
+  );
 }
 
 export function runResearchDocument(
@@ -414,13 +412,16 @@ export function createResearchStrategyDraft(
 export function interruptResearchDocument(
   documentId: string,
 ): Promise<ResearchDocumentInterruptResultV1> {
-  return request(`/api/app/research/documents/${encodeURIComponent(documentId)}/interrupt`, {
-    method: 'POST',
-  });
+  return request(
+    `/api/app/research/documents/${encodeURIComponent(documentId)}/runtime/interrupt`,
+    {
+      method: 'POST',
+    },
+  );
 }
 
 export function resetResearchDocument(documentId: string): Promise<ResearchDocumentV1> {
-  return request(`/api/app/research/documents/${encodeURIComponent(documentId)}/reset`, {
+  return request(`/api/app/research/documents/${encodeURIComponent(documentId)}/runtime/reset`, {
     method: 'POST',
   });
 }
@@ -438,7 +439,7 @@ export function applyResearchCellChangeProposalForReview(
   proposalId: string,
 ): Promise<ResearchCellChangeResolutionResultV1> {
   return request(
-    `/api/app/research/cell-change-proposals/${encodeURIComponent(proposalId)}/apply-for-review`,
+    `/api/app/research/cell-change-proposals/${encodeURIComponent(proposalId)}/review`,
     { method: 'POST' },
   );
 }
@@ -448,7 +449,7 @@ export function acceptResearchCellChangeReview(
   expectedContentRevision: number,
 ): Promise<ResearchCellChangeReviewResolutionResultV1> {
   return request(
-    `/api/app/research/cell-change-proposals/${encodeURIComponent(proposalId)}/accept-review`,
+    `/api/app/research/cell-change-proposals/${encodeURIComponent(proposalId)}/review/accept`,
     { method: 'POST', body: JSON.stringify({ expectedContentRevision }) },
   );
 }
@@ -458,7 +459,7 @@ export function revertResearchCellChangeReview(
   expectedContentRevision: number,
 ): Promise<ResearchCellChangeReviewResolutionResultV1> {
   return request(
-    `/api/app/research/cell-change-proposals/${encodeURIComponent(proposalId)}/revert-review`,
+    `/api/app/research/cell-change-proposals/${encodeURIComponent(proposalId)}/review/revert`,
     { method: 'POST', body: JSON.stringify({ expectedContentRevision }) },
   );
 }
@@ -476,7 +477,7 @@ export function runResearchCellChangeProposal(
   proposalId: string,
 ): Promise<ResearchCellChangeRunResultV1> {
   return request(
-    `/api/app/research/cell-change-proposals/${encodeURIComponent(proposalId)}/run-affected`,
+    `/api/app/research/cell-change-proposals/${encodeURIComponent(proposalId)}/attempts`,
     { method: 'POST' },
   );
 }
@@ -485,7 +486,7 @@ export function requestResearchLanguage(
   input: ResearchLanguageRequestV1,
   signal?: AbortSignal,
 ): Promise<ResearchLanguageResultV1> {
-  return request('/api/app/research/language', {
+  return request('/api/app/research/language/python', {
     method: 'POST',
     body: JSON.stringify(input),
     signal,
@@ -512,7 +513,7 @@ export function sendResearchAgent(
   attemptId?: string,
   contextCellIds: string[] = [],
 ): Promise<{ conversationId: string; turnId: string }> {
-  return request('/api/app/research/agent', {
+  return request('/api/app/research/agent/turns', {
     method: 'POST',
     body: JSON.stringify({
       message,
@@ -528,7 +529,7 @@ export function answerResearchClarification(
   clarificationId: string,
   selections: ResearchClarificationSelectionV1[],
 ): Promise<{ conversationId: string; turnId: string }> {
-  return request('/api/app/research/agent', {
+  return request('/api/app/research/agent/turns', {
     method: 'POST',
     body: JSON.stringify({
       conversationId,
@@ -537,18 +538,15 @@ export function answerResearchClarification(
   });
 }
 
-export function renameResearchConversation(
-  conversationId: string,
-  title: string,
-): Promise<{ ok: true }> {
-  return request(`/api/app/research/conversations/${encodeURIComponent(conversationId)}`, {
+export function renameResearchDocument(documentId: string, title: string): Promise<{ ok: true }> {
+  return request(`/api/app/research/documents/${encodeURIComponent(documentId)}`, {
     method: 'PATCH',
     body: JSON.stringify({ title }),
   });
 }
 
-export function deleteResearchConversation(conversationId: string): Promise<{ ok: true }> {
-  return request(`/api/app/research/conversations/${encodeURIComponent(conversationId)}`, {
+export function deleteResearchDocument(documentId: string): Promise<{ ok: true }> {
+  return request(`/api/app/research/documents/${encodeURIComponent(documentId)}`, {
     method: 'DELETE',
   });
 }
@@ -855,7 +853,7 @@ export function copyPublicStrategy(id: string): Promise<{ id: string; name: stri
 }
 
 export function runResearchUniverse(spec: UniverseSpecV1): Promise<ResearchUniverseRunResultV1> {
-  return request('/api/app/research/universe/run', {
+  return request('/api/app/research/universe-queries', {
     method: 'POST',
     body: JSON.stringify(spec),
   });
