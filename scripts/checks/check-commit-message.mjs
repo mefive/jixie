@@ -71,7 +71,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
   try {
     const filename = process.argv[2];
     if (!filename || process.argv.length !== 3) {
-      throw new Error('Usage: node scripts/check-commit-message.mjs <message-file>');
+      throw new Error('Usage: node scripts/checks/check-commit-message.mjs <message-file>');
     }
     const errors = checkCommitMessage(readFileSync(filename, 'utf8'));
     if (errors.length > 0) {

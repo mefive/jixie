@@ -4,7 +4,7 @@ import { spawn } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const projectDirectory = join(dirname(fileURLToPath(import.meta.url)), '..');
+const projectDirectory = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const environmentDirectory = join(projectDirectory, '.venv', 'research-py-v1');
 const requirementsPath = join(
   projectDirectory,

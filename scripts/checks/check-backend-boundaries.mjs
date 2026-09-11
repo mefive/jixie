@@ -511,7 +511,7 @@ export function checkBackendBoundaries(root, policy) {
   const dependencies = collectBackendDependencies(root);
   const resolvedPolicy =
     policy ??
-    JSON.parse(fs.readFileSync(path.join(root, 'scripts/backend-boundaries.json'), 'utf8'));
+    JSON.parse(fs.readFileSync(path.join(root, 'scripts/checks/backend-boundaries.json'), 'utf8'));
   const result = inspectBackendBoundaries(dependencies, resolvedPolicy);
   return {
     ...result,
@@ -523,7 +523,7 @@ export function checkBackendBoundaries(root, policy) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
-  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
   const result = checkBackendBoundaries(root);
   if (process.argv.includes('--json')) {
     console.log(JSON.stringify(result, null, 2));

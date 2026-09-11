@@ -14,7 +14,7 @@
 set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
+PROJECT_DIR="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
 DEFAULT_END="$(
   node -e "const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const values=Object.fromEntries(parts.map((part)=>[part.type,part.value]));const prior=new Date(Date.UTC(Number(values.year),Number(values.month)-1,Number(values.day)-1));process.stdout.write(prior.toISOString().slice(0,10).replaceAll('-',''))"
 )"

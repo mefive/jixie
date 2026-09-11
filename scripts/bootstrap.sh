@@ -814,7 +814,7 @@ if [[ -f "$SUCCESSFUL_REVISION_FILE" ]]; then
   IFS= read -r DEPLOYED_REVISION <"$SUCCESSFUL_REVISION_FILE" || true
 fi
 read -r DEPLOY_API DEPLOY_WEB DEPLOY_DOCS DEPLOY_SANDBOXD DEPLOY_FULL INSTALL_DEPENDENCIES < <(
-  node --no-warnings "$JIXIE_DIR/scripts/plan-deployment.mjs" \
+  node --no-warnings "$JIXIE_DIR/scripts/deploy/plan-deployment.mjs" \
     --repository "$JIXIE_DIR" \
     --base "$DEPLOYED_REVISION" \
     --head "$CURRENT_REVISION"
@@ -873,7 +873,7 @@ finish_deployment_gate() {
   local outcome="$1"
   [[ -n "$DEPLOYMENT_RUN_ID" ]] || return 0
 
-  node --no-warnings "$JIXIE_DIR/scripts/deployment-gate.mjs" \
+  node --no-warnings "$JIXIE_DIR/scripts/deploy/deployment-gate.mjs" \
     finish "$DB_FILE" "$DEPLOYMENT_RUN_ID" "$outcome"
   DEPLOYMENT_RUN_ID=""
 }
@@ -956,7 +956,7 @@ if [[ "$DEPLOY_API" == "1" ]] && systemctl is-active --quiet "$JIXIE_SERVICE" 2>
   if [[ "$MAINTENANCE_TABLE_EXISTS" -gt 0 ]]; then
     log "进入部署维护模式并等待后台任务结束"
     DEPLOYMENT_RUN_ID="$(
-      node --no-warnings "$JIXIE_DIR/scripts/deployment-gate.mjs" \
+      node --no-warnings "$JIXIE_DIR/scripts/deploy/deployment-gate.mjs" \
         begin "$DB_FILE" "$CURRENT_REVISION"
     )"
     [[ -n "$DEPLOYMENT_RUN_ID" ]] || die "无法创建部署维护状态"
@@ -1358,7 +1358,7 @@ fi
 flock -u 9
 unset JIXIE_MAINTENANCE_LOCK_HELD
 if [[ -z "$CURRENT_WATERMARK" ]]; then
-  "$JIXIE_DIR/scripts/activate-maintenance.sh"
+  "$JIXIE_DIR/scripts/deploy/activate-maintenance.sh"
 fi
 
 log "冒烟测试"

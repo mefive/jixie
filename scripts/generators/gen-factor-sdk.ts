@@ -1,6 +1,6 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { renderFactorPythonSdkStub } from '../packages/shared/src/factor-python-sdk.js';
+import { renderFactorPythonSdkStub } from '../../packages/shared/src/factor-python-sdk.js';
 
 void main().catch((error: unknown) => {
   console.error(error instanceof Error ? error.message : String(error));

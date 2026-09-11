@@ -2,7 +2,7 @@
 # Run an internal command under the shared production maintenance lock.
 set -Eeuo pipefail
 
-PROJECT_DIR="${JIXIE_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+PROJECT_DIR="${JIXIE_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 API_ENV_FILE="$PROJECT_DIR/apps/api/.env"
 DATA_DIR="${JIXIE_DATA_DIR:-}"
 

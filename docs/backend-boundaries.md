@@ -1,6 +1,6 @@
 # 后端依赖边界门禁
 
-入口是 [check-backend-boundaries.mjs](../scripts/check-backend-boundaries.mjs)，命令为 `pnpm check:backend-boundaries`。根级 `pnpm typecheck` 和 `pnpm build` 先执行该静态门禁，再执行已有 SDK 检查与各 workspace 命令。检查失败退出码为 1，不启动应用、不连接数据库。
+入口是 [check-backend-boundaries.mjs](../scripts/checks/check-backend-boundaries.mjs)，命令为 `pnpm check:backend-boundaries`。根级 `pnpm typecheck` 和 `pnpm build` 先执行该静态门禁，再执行已有 SDK 检查与各 workspace 命令。检查失败退出码为 1，不启动应用、不连接数据库。
 
 ## 检查什么
 
@@ -20,7 +20,7 @@
 
 ## 4 条既有纯依赖
 
-[backend-boundaries.json](../scripts/backend-boundaries.json) 保存完整源路径、目标路径、类型/运行时种类和原因，不使用目录通配放行。
+[backend-boundaries.json](../scripts/checks/backend-boundaries.json) 保存完整源路径、目标路径、类型/运行时种类和原因，不使用目录通配放行。
 
 | 源 → 目标（省略 `apps/api/src/`） | 理由 |
 | --- | --- |

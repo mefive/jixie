@@ -1,6 +1,6 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { renderResearchPythonRuntimeRequirements } from '../packages/shared/src/research-python-runtime.js';
+import { renderResearchPythonRuntimeRequirements } from '../../packages/shared/src/research-python-runtime.js';
 
 void main().catch((error: unknown) => {
   console.error(error instanceof Error ? error.message : String(error));

@@ -7,37 +7,37 @@
     "node": ">=22.13"
   },
   "scripts": {
-    "dev": "node scripts/dev.mjs",
+    "dev": "node scripts/dev/dev.mjs",
     "dev:api": "pnpm --filter api dev",
     "dev:web": "pnpm --filter web dev",
     "dev:docs": "pnpm --filter docs dev",
-    "test:dev-shutdown": "node --test scripts/process-group.test.mjs",
+    "test:dev-shutdown": "node --test scripts/dev/process-group.test.mjs",
     "build": "pnpm check:backend-boundaries && pnpm check:research-runtime && pnpm check:research-sdk && pnpm check:factor-sdk && pnpm -r build",
     "typecheck": "pnpm check:backend-boundaries && pnpm check:research-runtime && pnpm check:research-sdk && pnpm check:factor-sdk && pnpm -r typecheck",
-    "gen:research-runtime": "node --import tsx scripts/gen-research-python-runtime.ts",
-    "check:research-runtime": "node --import tsx scripts/gen-research-python-runtime.ts --check",
-    "setup:research-python": "node scripts/setup-research-python.mjs",
-    "gen:research-sdk": "node --import tsx scripts/gen-research-sdk.ts",
-    "check:research-sdk": "node --import tsx scripts/gen-research-sdk.ts --check",
-    "gen:factor-sdk": "node --import tsx scripts/gen-factor-sdk.ts",
-    "check:factor-sdk": "node --import tsx scripts/gen-factor-sdk.ts --check",
+    "gen:research-runtime": "node --import tsx scripts/generators/gen-research-python-runtime.ts",
+    "check:research-runtime": "node --import tsx scripts/generators/gen-research-python-runtime.ts --check",
+    "setup:research-python": "node scripts/dev/setup-research-python.mjs",
+    "gen:research-sdk": "node --import tsx scripts/generators/gen-research-sdk.ts",
+    "check:research-sdk": "node --import tsx scripts/generators/gen-research-sdk.ts --check",
+    "gen:factor-sdk": "node --import tsx scripts/generators/gen-factor-sdk.ts",
+    "check:factor-sdk": "node --import tsx scripts/generators/gen-factor-sdk.ts --check",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "audit:data": "pnpm --filter api audit:data",
-    "maintenance": "./scripts/with-maintenance-lock.sh pnpm --filter api maintenance",
-    "import:data": "./scripts/with-maintenance-lock.sh ./scripts/import-market-data.sh",
+    "maintenance": "./scripts/maintenance/with-maintenance-lock.sh pnpm --filter api maintenance",
+    "import:data": "./scripts/maintenance/with-maintenance-lock.sh ./scripts/maintenance/import-market-data.sh",
     "smoke": "pnpm --filter api smoke",
     "sync": "pnpm --filter api sync",
     "peek": "pnpm --filter api peek",
     "signals:run": "pnpm --filter api signals:run",
-    "loc": "node scripts/loc.mjs",
+    "loc": "node scripts/tools/loc.mjs",
     "prepare": "simple-git-hooks",
-    "check:backend-boundaries": "node scripts/check-backend-boundaries.mjs",
-    "test:backend-boundaries": "node --test scripts/check-backend-boundaries.test.mjs",
-    "check:commit-message": "node scripts/check-commit-message.mjs",
-    "test:commit-message": "node --test scripts/check-commit-message.test.mjs"
+    "check:backend-boundaries": "node scripts/checks/check-backend-boundaries.mjs",
+    "test:backend-boundaries": "node --test scripts/checks/check-backend-boundaries.test.mjs",
+    "check:commit-message": "node scripts/checks/check-commit-message.mjs",
+    "test:commit-message": "node --test scripts/checks/check-commit-message.test.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.13.0",
@@ -53,8 +53,8 @@
     "typescript-eslint": "^8.10.0"
   },
   "simple-git-hooks": {
-    "pre-commit": "./scripts/run-pnpm.sh lint-staged",
-    "commit-msg": "node scripts/check-commit-message.mjs \"$1\""
+    "pre-commit": "./scripts/tools/run-pnpm.sh lint-staged",
+    "commit-msg": "node scripts/checks/check-commit-message.mjs \"$1\""
   },
   "lint-staged": {
     "*.{ts,tsx,mjs}": [

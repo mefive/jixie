@@ -52,7 +52,7 @@ systems or dependencies, `ci` for CI configuration, `chore` for other maintenanc
 and `revert` for reversions.
 
 `pnpm install` installs the existing Git hooks through `prepare`. The `commit-msg`
-hook runs the dependency-free checker in `scripts/check-commit-message.mjs`.
+hook runs the dependency-free checker in `scripts/checks/check-commit-message.mjs`.
 Run it explicitly with `pnpm check:commit-message <message-file>`; run its tests
 with `pnpm test:commit-message`. The checker enforces structure, length, and
 obvious untranslated Chinese prose. It cannot judge English grammar or whether

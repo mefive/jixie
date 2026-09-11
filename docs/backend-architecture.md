@@ -77,7 +77,7 @@ Bootstrap 是显式装配函数：把业务 Job 的 loader 注册表传给通用
 | Pyright | `research/language/pyright-service.ts` 按需管理语言服务 | 文档和协议生命周期由服务管理；其 package/stub 路径须独立检查 |
 | sandboxd 与 runner | 独立 `apps/sandboxd`，API 通过 Unix socket 请求会话 | daemon 处理 SIGINT/SIGTERM、关闭 server 与会话；本地模式和生产隔离模式不可混作同一种验收 |
 
-开发 `pnpm dev` 由 [scripts/dev.mjs](../scripts/dev.mjs) 校验 Python 包、先启动 sandboxd，等待 socket 后再启动 API/Web。退出时给服务进程组发信号、限时等待、再清理残留；它不等于 API 内部的业务事务 drain。API、sandboxd 和开发编排各有自己的资源边界。
+开发 `pnpm dev` 由 [scripts/dev/dev.mjs](../scripts/dev/dev.mjs) 校验 Python 包、先启动 sandboxd，等待 socket 后再启动 API/Web。退出时给服务进程组发信号、限时等待、再清理残留；它不等于 API 内部的业务事务 drain。API、sandboxd 和开发编排各有自己的资源边界。
 
 ## 三条典型业务链
 

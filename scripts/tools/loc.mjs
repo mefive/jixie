@@ -5,7 +5,7 @@
  * Includes hand-written Prisma sources (schema.prisma, migrations/*.sql).
  * Excludes Prisma-generated client, build output, and dependency trees.
  *
- * Usage: node scripts/loc.mjs
+ * Usage: node scripts/tools/loc.mjs
  *    or: pnpm loc
  */
 
@@ -13,7 +13,7 @@ import { readdir, readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const SCOPES = ['apps', 'packages'];
 
 /** Extensions counted as source (lowercase, no leading dot). */

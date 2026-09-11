@@ -6,20 +6,20 @@
 
 | 目录 | 用途 | 入口数 | 主要调用方 |
 | --- | --- | --- | --- |
-| [sync/](sync/) | 导入和补齐行情、财报、宏观及派生数据 | 24 | `scripts/import-market-data.sh`、bootstrap、手动补数 |
+| [sync/](sync/) | 导入和补齐行情、财报、宏观及派生数据 | 24 | `scripts/maintenance/import-market-data.sh`、bootstrap、手动补数 |
 | [audit/](audit/) | 检查现有数据、查看覆盖与样本 | 5 | 导入后的质量检查、研究核验、开发者 |
 | [probes/](probes/) | 检查外部接口权限、字段和历史可用性 | 4 | bootstrap 的能力探测、数据源研究、连接诊断 |
 | [maintenance/](maintenance/) | 维护、备份、信号、代码修复与邀请码 | 5 | systemd、根级维护命令、管理员 |
-| [research/](research/) | 手动因子分析与固定案例复现 | 2 | 研究者；不自动调度 |
+| [research/](research/) | 手动因子分析 | 1 | 研究者；不自动调度 |
 | [generators/](generators/) | 从源码生成开发文档 | 1 | 统计函数维护者 |
 
-共 41 个入口。`probes/fundamentals/` 另外包含 3 个辅助模块、3 个单元测试及 1 个 JSON fixture，它们不是独立命令。操作系统任务配置统一放在仓库根级 `deploy/`。
+共 40 个入口。`probes/fundamentals/` 另外包含 3 个辅助模块、3 个单元测试及 1 个 JSON fixture，它们不是独立命令。操作系统任务配置统一放在仓库根级 `deploy/`。
 
 ## 运行约定
 
 - `pnpm --filter api` 使用 `apps/api` 为工作目录。除 `backup` 和 `gen:stats-doc` 外，已注册入口均加载 API 的 `.env`；数据库连接和 Tushare 等配置沿用应用配置。
 - 下表 `start` / `end` / `date` 使用 `YYYYMMDD`，宏观月份使用 `YYYYMM`；方括号表示可选参数。各入口保留原有默认值，部分仍默认 2024 年等历史区间，补数时应显式传入日期。
-- 日常维护优先从仓库根目录运行 `pnpm maintenance ...`，它通过 `scripts/with-maintenance-lock.sh` 获得维护锁；批量导入使用根级 `pnpm import:data`。
+- 日常维护优先从仓库根目录运行 `pnpm maintenance ...`，它通过 `scripts/maintenance/with-maintenance-lock.sh` 获得维护锁；批量导入使用根级 `pnpm import:data`。
 - 同步会写市场数据；维护和研究命令可能写任务、信号或用户研究数据。只读审计不等于完全无文件输出，具体见下表。
 
 ## 数据同步
@@ -99,16 +99,13 @@ Linux 正式配置为 [jixie-backup.service](../../../deploy/jixie-backup.servic
 | 命令或入口 | 文件 | 参数 | 用途与副作用 |
 | --- | --- | --- | --- |
 | `factor:report` | [factor-report.ts](research/factor-report.ts) | `[start] [end] [month/week] [neutral]` | 初始化内置因子并批量分析，终端打印 IC、分组收益等；会写内置因子，不是纯只读工具 |
-| 直接运行，未注册 pnpm 命令 | [create-fcff-research-replays.ts](research/create-fcff-research-replays.ts) | `existing-owner-email manifest.json` | 固定三家公司、2026-09-07 标题的历史研究复现；创建并执行、固化用户研究文档，写数据库和清单文件 |
 | `gen:stats-doc` | [gen-stats-doc.ts](generators/gen-stats-doc.ts) | 无 | 从 `src/math/stats.ts` 的注释生成 `src/math/stats-doc.ts`；修改源码文件，不访问数据库 |
 
-FCFF 复现入口须在 `apps/api` 下执行：
+`factor:report` 用于手动分析，不加入生产定时任务。生成统计文档后应检查生成文件的 diff。
 
-```sh
-node --conditions=development --env-file=.env --import tsx scripts/research/create-fcff-research-replays.ts <existing-owner-email> <manifest.json>
-```
+固定三家公司、2026-09-07 标题的 `create-fcff-research-replays.ts` 已移除：它是已完成交付的一次性文档创建入口，没有 pnpm 或生产调用。研究模板、案例参数、用户文档和封存结果不受影响；原脚本可从 Git 历史查阅。
 
-这两个研究入口暂时保留，用于手动分析与历史报告复现，不加入生产定时任务。生成统计文档后应检查生成文件的 diff。
+根级工程与运维编排脚本见 [仓库脚本索引](../../../scripts/README.md)。
 
 ## 本次整理记录（2026-09-09）
 

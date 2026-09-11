@@ -5,7 +5,7 @@ import { dirname, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
-const defaultManifestPath = resolve(scriptDirectory, '../deploy/component-impact.json');
+const defaultManifestPath = resolve(scriptDirectory, '../../deploy/component-impact.json');
 
 export function classifyChangedPaths(changedPaths, manifest) {
   const selectedComponents = new Set();

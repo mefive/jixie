@@ -1,6 +1,6 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { renderResearchSdkPythonStub } from '../packages/shared/src/research-sdk-python-stub.js';
+import { renderResearchSdkPythonStub } from '../../packages/shared/src/research-sdk-python-stub.js';
 
 void main().catch((error: unknown) => {
   console.error(error instanceof Error ? error.message : String(error));

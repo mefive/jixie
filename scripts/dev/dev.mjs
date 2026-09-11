@@ -7,7 +7,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { signalProcessGroup, waitForServiceExit } from './process-group.mjs';
 
-const projectDirectory = join(dirname(fileURLToPath(import.meta.url)), '..');
+const projectDirectory = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const socketPath = join(tmpdir(), `jixie-sandboxd-dev-${process.pid}.sock`);
 const pythonExecutable =
   process.env.JIXIE_PYTHON_EXECUTABLE ??

@@ -7,7 +7,7 @@ import { classifyChangedPaths } from './plan-deployment.mjs';
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const manifest = JSON.parse(
-  await readFile(resolve(scriptDirectory, '../deploy/component-impact.json'), 'utf8'),
+  await readFile(resolve(scriptDirectory, '../../deploy/component-impact.json'), 'utf8'),
 );
 
 test('selects a single application', () => {
@@ -47,9 +47,19 @@ test('shared package selects every application', () => {
 });
 
 test('deployment infrastructure selects every application', () => {
-  const result = classifyChangedPaths(['scripts/bootstrap.sh'], manifest);
-  assert.equal(result.fullDeploy, true);
-  assert.deepEqual([result.api, result.web, result.docs], [true, true, true]);
+  for (const changedPath of [
+    'scripts/bootstrap.sh',
+    'scripts/deploy/deployment-gate.mjs',
+    'scripts/maintenance/import-market-data.sh',
+    'scripts/generators/gen-research-sdk.ts',
+  ]) {
+    const result = classifyChangedPaths([changedPath], manifest);
+    assert.equal(result.fullDeploy, true);
+    assert.deepEqual(
+      [result.api, result.web, result.docs, result.sandboxd],
+      [true, true, true, true],
+    );
+  }
 });
 
 test('documentation changes do not rebuild runtime applications', () => {
