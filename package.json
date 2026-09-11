@@ -35,7 +35,9 @@
     "loc": "node scripts/loc.mjs",
     "prepare": "simple-git-hooks",
     "check:backend-boundaries": "node scripts/check-backend-boundaries.mjs",
-    "test:backend-boundaries": "node --test scripts/check-backend-boundaries.test.mjs"
+    "test:backend-boundaries": "node --test scripts/check-backend-boundaries.test.mjs",
+    "check:commit-message": "node scripts/check-commit-message.mjs",
+    "test:commit-message": "node --test scripts/check-commit-message.test.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.13.0",
@@ -51,7 +53,8 @@
     "typescript-eslint": "^8.10.0"
   },
   "simple-git-hooks": {
-    "pre-commit": "./scripts/run-pnpm.sh lint-staged"
+    "pre-commit": "./scripts/run-pnpm.sh lint-staged",
+    "commit-msg": "node scripts/check-commit-message.mjs \"$1\""
   },
   "lint-staged": {
     "*.{ts,tsx,mjs}": [
